@@ -46,6 +46,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/UIntPtrT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -883,7 +884,7 @@ void registerCommands()
         []
         {
             const char* label = Cmd_Argc() > 1 ? Cmd_Argv(1) : "now";
-            if(!strcmp(label, "end"))
+            if(!ZA_STRCMP(label, "end"))
             {
                 attachTally.verdict("taa_attach");
                 attachTally.reset();

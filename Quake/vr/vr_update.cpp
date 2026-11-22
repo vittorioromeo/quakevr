@@ -29,6 +29,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Concurrency/LockGuard.hpp"
@@ -282,7 +283,7 @@ struct SemVer
         if(xNum && yNum)
         {
             const za::SizeT xl = static_cast<za::SizeT>(xe - x), yl = static_cast<za::SizeT>(ye - y);
-            c = xl != yl ? (xl < yl ? -1 : 1) : strncmp(x, y, xl); // (no leading zeros: longer is larger)
+            c = xl != yl ? (xl < yl ? -1 : 1) : ZA_STRNCMP(x, y, xl); // (no leading zeros: longer is larger)
         }
         else if(xNum != yNum)
         {
@@ -291,7 +292,7 @@ struct SemVer
         else
         {
             const za::SizeT xl = static_cast<za::SizeT>(xe - x), yl = static_cast<za::SizeT>(ye - y);
-            c = strncmp(x, y, xl < yl ? xl : yl);
+            c = ZA_STRNCMP(x, y, xl < yl ? xl : yl);
             if(c == 0 && xl != yl)
             {
                 c = xl < yl ? -1 : 1;
@@ -456,7 +457,7 @@ char httpError[32]; // fetchFeed's "HTTP <code>" (the thread's own; one pass run
         const char* page = JSON_FindString(root, "page");
         r.version = za::String{version};
         // Only a web page (never a file or a program to run), on one line.
-        r.page = page && (!strncmp(page, "https://", 8) || !strncmp(page, "http://", 7)) && !strpbrk(page, "\r\n ")
+        r.page = page && (!ZA_STRNCMP(page, "https://", 8) || !ZA_STRNCMP(page, "http://", 7)) && !strpbrk(page, "\r\n ")
                      ? za::String{page}
                      : za::String{};
         r.source = url;

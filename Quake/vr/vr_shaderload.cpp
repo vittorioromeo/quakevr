@@ -11,10 +11,11 @@
 
 #include "vr_api.h"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 #include <stdio.h>
-#include <string.h>
 
 namespace
 {
@@ -43,7 +44,7 @@ void put(int x, int y, unsigned rgba)
         return;
     }
     unsigned char* p = load.pixels + ((imageHeight - 1 - y) * imageWidth + x) * 4;
-    memcpy(p, &rgba, 4);
+    ZA_MEMCPY(p, &rgba, 4);
 }
 
 void fill(int x0, int y0, int w, int h, unsigned rgba)
@@ -61,7 +62,7 @@ void fill(int x0, int y0, int w, int h, unsigned rgba)
 {
     const unsigned char c[4] = {static_cast<unsigned char>(r), static_cast<unsigned char>(g), static_cast<unsigned char>(b), 255};
     unsigned v;
-    memcpy(&v, c, 4);
+    ZA_MEMCPY(&v, c, 4);
     return v;
 }
 
@@ -76,7 +77,7 @@ void text(const char* s, int y, int scale, bool alt)
         return;
     }
     const int fit = (imageWidth - 24) / (8 * scale); // (clear of the edge)
-    const int n = za::min(static_cast<int>(strlen(s)), fit);
+    const int n = za::min(static_cast<int>(ZA_STRLEN(s)), fit);
     const int x0 = (imageWidth - n * 8 * scale) / 2;
     for(int i = 0; i < n; i++)
     {

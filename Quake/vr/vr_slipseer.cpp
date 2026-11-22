@@ -31,7 +31,14 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memchr.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Concurrency/LockGuard.hpp"
@@ -299,7 +306,7 @@ void writeMeta(const za::String& path, const Meta& m)
 // one site).
 [[nodiscard]] za::String hostKey(const za::String& url)
 {
-    const char* p = strstr(url.cStr(), "://");
+    const char* p = ZA_STRSTR(url.cStr(), "://");
     p = p ? p + 3 : url.cStr();
     char host[256];
     za::SizeT n = 0;
@@ -308,7 +315,7 @@ void writeMeta(const za::String& path, const Meta& m)
         host[n] = static_cast<char>(tolower(static_cast<unsigned char>(p[n])));
     }
     host[n] = '\0';
-    return za::String{strncmp(host, "www.", 4) ? host : host + 4};
+    return za::String{ZA_STRNCMP(host, "www.", 4) ? host : host + 4};
 }
 
 // backoff.txt's lines into `out`. The old file (one line "<until> <seconds>", from before the back-off was per host)
@@ -462,8 +469,8 @@ CacheTrimmed trimCacheDir(const za::String& dir, za::U64 capBytes, za::I64 at)
             entries.pushBack(Entry{stem, 0, 0});
         }
         entries[it->second].bytes += bytes;
-        const za::SizeT n = strlen(name);
-        if(n > 5 && !strcmp(name + n - 5, ".meta"))
+        const za::SizeT n = ZA_STRLEN(name);
+        if(n > 5 && !ZA_STRCMP(name + n - 5, ".meta"))
         {
             metas.pushBack(za::String{path.cStr(), path.size() - 5});
         }
@@ -479,7 +486,7 @@ CacheTrimmed trimCacheDir(const za::String& dir, za::U64 capBytes, za::I64 at)
         }
     }
     za::quickSort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) {
-        return a.fetchedAt != b.fetchedAt ? a.fetchedAt < b.fetchedAt : strcmp(a.stem.cStr(), b.stem.cStr()) < 0;
+        return a.fetchedAt != b.fetchedAt ? a.fetchedAt < b.fetchedAt : ZA_STRCMP(a.stem.cStr(), b.stem.cStr()) < 0;
     });
     za::U64 total = t.before;
     for(const Entry& e : entries)
@@ -552,7 +559,7 @@ size_t headerLine(char* buffer, size_t size, size_t nitems, void* userdata)
     {
         value++;
     }
-    const auto is = [&](const char* key) { return strlen(key) == keyLen && !q_strncasecmp(line.cStr(), key, keyLen); };
+    const auto is = [&](const char* key) { return ZA_STRLEN(key) == keyLen && !q_strncasecmp(line.cStr(), key, keyLen); };
     if(is("etag"))
     {
         r.etag = za::String{value};
@@ -621,7 +628,7 @@ bool waitTurn(double gapMs, int host)
 
 [[nodiscard]] bool pathOf(const za::String& url, za::String& path)
 {
-    const char* p = strstr(url.cStr(), "://");
+    const char* p = ZA_STRSTR(url.cStr(), "://");
     if(!p)
     {
         return false;
@@ -633,14 +640,14 @@ bool waitTurn(double gapMs, int host)
 
 [[nodiscard]] bool sameSite(const za::String& url)
 {
-    return !q_strncasecmp(url.cStr(), siteRoot, strlen(siteRoot)) ||
+    return !q_strncasecmp(url.cStr(), siteRoot, ZA_STRLEN(siteRoot)) ||
            !q_strncasecmp(url.cStr(), "https://slipseer.com", 20);
 }
 
 // Quaddicted's: one screenshot of a picked map (vr_mapindex's shot URL), under the same rules as Slipseer's.
 [[nodiscard]] bool quaddictedSite(const za::String& url)
 {
-    return !q_strncasecmp(url.cStr(), quaddictedRoot, strlen(quaddictedRoot));
+    return !q_strncasecmp(url.cStr(), quaddictedRoot, ZA_STRLEN(quaddictedRoot));
 }
 
 enum class Kind
@@ -737,7 +744,7 @@ void readRobots(bool network, int host)
     }
     for(const za::String& prefix : robotsOf[host].disallowed)
     {
-        if(!strncmp(path.cStr(), prefix.cStr(), prefix.size()))
+        if(!ZA_STRNCMP(path.cStr(), prefix.cStr(), prefix.size()))
         {
             return false;
         }
@@ -951,7 +958,7 @@ void appendDecoded(za::String& out, const char* s, za::SizeT n)
             out += s[i];
             continue;
         }
-        const char* semi = static_cast<const char*>(memchr(s + i, ';', za::min(n - i, za::SizeT{12})));
+        const char* semi = static_cast<const char*>(ZA_MEMCHR(s + i, ';', za::min(n - i, za::SizeT{12})));
         if(!semi)
         {
             out += '&';
@@ -1040,7 +1047,7 @@ void appendDecoded(za::String& out, const char* s, za::SizeT n)
     {
         if(*p == '<')
         {
-            const char* close = static_cast<const char*>(memchr(p, '>', static_cast<size_t>(e - p)));
+            const char* close = static_cast<const char*>(ZA_MEMCHR(p, '>', static_cast<size_t>(e - p)));
             if(!close)
             {
                 break;
@@ -1048,15 +1055,15 @@ void appendDecoded(za::String& out, const char* s, za::SizeT n)
             if(!q_strncasecmp(p, "<script", 7) || !q_strncasecmp(p, "<style", 6))
             {
                 const char* closer = !q_strncasecmp(p, "<script", 7) ? "</script>" : "</style>";
-                const char* end = strstr(close, closer);
-                p = end && end < e ? end + strlen(closer) : e;
+                const char* end = ZA_STRSTR(close, closer);
+                p = end && end < e ? end + ZA_STRLEN(closer) : e;
                 continue;
             }
             raw += ' ';
             p = close + 1;
             continue;
         }
-        const char* next = static_cast<const char*>(memchr(p, '<', static_cast<size_t>(e - p)));
+        const char* next = static_cast<const char*>(ZA_MEMCHR(p, '<', static_cast<size_t>(e - p)));
         const char* stop = next ? next : e;
         appendDecoded(raw, p, static_cast<za::SizeT>(stop - p));
         p = stop;
@@ -1089,7 +1096,7 @@ void appendDecoded(za::String& out, const char* s, za::SizeT n)
     {
         return za::String{};
     }
-    const za::SizeT n = strlen(name);
+    const za::SizeT n = ZA_STRLEN(name);
     for(const char* p = tag; p + n < end; p++)
     {
         if(!q_strncasecmp(p, name, n) && (p[n] == '=' ) && (p == tag || isspace(static_cast<unsigned char>(p[-1]))))
@@ -1153,7 +1160,7 @@ bool innerRange(const char* tag, const char*& s, const char*& e)
 // class) and whose name is `tagName` ("" : any). Null: none.
 [[nodiscard]] const char* findTag(const char* from, const char* limit, const char* tagName, const char* cls)
 {
-    const za::SizeT tn = strlen(tagName);
+    const za::SizeT tn = ZA_STRLEN(tagName);
     for(const char* p = from; p && *p && (!limit || p < limit); p++)
     {
         if(*p != '<' || p[1] == '/' || p[1] == '!')
@@ -1169,8 +1176,8 @@ bool innerRange(const char* tag, const char*& s, const char*& e)
             return p;
         }
         const za::String c = attribute(p, "class");
-        const za::SizeT cn = strlen(cls);
-        for(const char* w = c.cStr(); (w = strstr(w, cls)) != nullptr; w += cn)
+        const za::SizeT cn = ZA_STRLEN(cls);
+        for(const char* w = c.cStr(); (w = ZA_STRSTR(w, cls)) != nullptr; w += cn)
         {
             const bool startOk = w == c.cStr() || w[-1] == ' ';
             const bool endOk = !w[cn] || w[cn] == ' ';
@@ -1191,7 +1198,7 @@ za::String absoluteUrl(const char* base, const za::String& href)
     {
         return za::String{};
     }
-    if(strstr(href.cStr(), "://"))
+    if(ZA_STRSTR(href.cStr(), "://"))
     {
         return href;
     }
@@ -1199,7 +1206,7 @@ za::String absoluteUrl(const char* base, const za::String& href)
     {
         return za::String{"https:"} + href;
     }
-    const char* scheme = strstr(base, "://");
+    const char* scheme = ZA_STRSTR(base, "://");
     const char* hostEnd = scheme ? strchr(scheme + 3, '/') : nullptr;
     const za::String origin = hostEnd ? za::String{base, static_cast<za::SizeT>(hostEnd - base)} : za::String{base};
     if(href.cStr()[0] == '/')
@@ -1239,7 +1246,7 @@ void requirementFields(const za::String& needs, za::String& extract, za::String&
     const auto has = [&](const char* word) {
         for(const char* p = r; *p; p++)
         {
-            if(!q_strncasecmp(p, word, strlen(word)))
+            if(!q_strncasecmp(p, word, ZA_STRLEN(word)))
             {
                 return true;
             }
@@ -1340,12 +1347,12 @@ void categoryNeeds(const za::String& slug, za::String& needs, za::String& mode)
 // A category link's slug ("vanilla" from ".../categories/vanilla.3/"), the first in from..limit.
 [[nodiscard]] za::String categorySlug(const char* from, const char* limit)
 {
-    const char* c = strstr(from, "resources/categories/");
+    const char* c = ZA_STRSTR(from, "resources/categories/");
     if(!c || (limit && c >= limit))
     {
         return za::String{};
     }
-    c += strlen("resources/categories/");
+    c += ZA_STRLEN("resources/categories/");
     const char* end = c;
     while(*end && *end != '.' && *end != '/' && *end != '"')
     {
@@ -1363,7 +1370,7 @@ void parseListing(const char* html, const char* pageUrl, za::Vector<Item>& out, 
     while(p)
     {
         const char* end = findTag(p + 1, nullptr, "div", "structItem--resource");
-        const char* limit = end ? end : p + strlen(p);
+        const char* limit = end ? end : p + ZA_STRLEN(p);
         Item it;
         it.author = attribute(p, "data-author");
         if(const char* t = findTag(p, limit, "div", "structItem-title"))
@@ -1410,10 +1417,10 @@ bool parseDetails(const char* html, const char* pageUrl, Details& out)
 {
     // The JSON-LD block: what the page says of itself.
     bool any = false;
-    for(const char* ld = strstr(html, "application/ld+json"); ld; ld = strstr(ld + 1, "application/ld+json"))
+    for(const char* ld = ZA_STRSTR(html, "application/ld+json"); ld; ld = ZA_STRSTR(ld + 1, "application/ld+json"))
     {
         const char* open = strchr(ld, '>');
-        const char* close = open ? strstr(open, "</script>") : nullptr;
+        const char* close = open ? ZA_STRSTR(open, "</script>") : nullptr;
         if(!close)
         {
             break;
@@ -1476,7 +1483,7 @@ bool parseDetails(const char* html, const char* pageUrl, Details& out)
                 {
                     src = attribute(img, "src");
                 }
-                if(src.size() && strncmp(src.cStr(), "data:", 5))
+                if(src.size() && ZA_STRNCMP(src.cStr(), "data:", 5))
                 {
                     out.screenshot = absoluteUrl(pageUrl, src);
                 }
@@ -1485,9 +1492,9 @@ bool parseDetails(const char* html, const char* pageUrl, Details& out)
     }
     // No picture in the description: the page's own large one (og:image, an attachment: ".../attachments/" alone is
     // none), else the JSON-LD's icon (kept above).
-    if(out.screenshot.empty() || strstr(out.screenshot.cStr(), "resource_icons"))
+    if(out.screenshot.empty() || ZA_STRSTR(out.screenshot.cStr(), "resource_icons"))
     {
-        for(const char* m = strstr(html, "og:image"); m; m = strstr(m + 1, "og:image"))
+        for(const char* m = ZA_STRSTR(html, "og:image"); m; m = ZA_STRSTR(m + 1, "og:image"))
         {
             const char* tag = m;
             while(tag > html && *tag != '<')
@@ -1495,8 +1502,8 @@ bool parseDetails(const char* html, const char* pageUrl, Details& out)
                 tag--;
             }
             const za::String content = attribute(tag, "content");
-            const char* att = strstr(content.cStr(), "attachments/");
-            if(att && att[strlen("attachments/")])
+            const char* att = ZA_STRSTR(content.cStr(), "attachments/");
+            if(att && att[ZA_STRLEN("attachments/")])
             {
                 out.screenshot = absoluteUrl(pageUrl, content);
                 break;
@@ -1523,9 +1530,9 @@ bool parseDetails(const char* html, const char* pageUrl, Details& out)
     const char* crumbs = findTag(html, nullptr, "ul", "p-breadcrumbs");
     za::String slug;
     // (the last category link in the breadcrumbs: the map's own category)
-    for(const char* c = crumbs; c && (c = strstr(c, "resources/categories/")) != nullptr; c++)
+    for(const char* c = crumbs; c && (c = ZA_STRSTR(c, "resources/categories/")) != nullptr; c++)
     {
-        const char* crumbsEnd = strstr(crumbs, "</ul>");
+        const char* crumbsEnd = ZA_STRSTR(crumbs, "</ul>");
         if(crumbsEnd && c > crumbsEnd)
         {
             break;
@@ -2127,7 +2134,7 @@ void poll()
         // The texels kept while the picture is drawn (a video restart reads them again).
         shownTexels.clear();
         shownTexels.resize(static_cast<za::SizeT>(picture.width) * static_cast<za::SizeT>(picture.height));
-        memcpy(shownTexels.data(), picture.rgba, shownTexels.size() * 4);
+        ZA_MEMCPY(shownTexels.data(), picture.rgba, shownTexels.size() * 4);
         VR_HeapFree(picture.rgba);
         if(shownPic.empty())
         {
@@ -2150,7 +2157,7 @@ namespace
     for(const mapindex::Entry& e : idx.entries)
     {
         const mapindex::Text& t = bySha ? e.sha256 : e.page;
-        if(idx.length(t) == key.size() && !memcmp(idx.field(t), key.cStr(), key.size()))
+        if(idx.length(t) == key.size() && !ZA_MEMCMP(idx.field(t), key.cStr(), key.size()))
         {
             return za::String{idx.field(e.title)};
         }
@@ -2386,7 +2393,7 @@ void timeStep()
     timeRun.target = served.loadSeqCst() + 1;
     {
         za::LockGuard lock{handoff};
-        if(!strncmp(pick.cStr(), "shot:", 5))
+        if(!ZA_STRNCMP(pick.cStr(), "shot:", 5))
         {
             wantedShotUrl = za::String{pick.cStr() + 5};
             wantedShotKey = wantedShotUrl;
@@ -2581,7 +2588,7 @@ void testLocalAddresses()
     za::Vector<char> body;
     za::String error;
     const bool got = fetch(za::String{"http://127.0.0.1:9/qvr_local.png"}, Kind::Asset, assetSeconds, nullptr, true, body, error);
-    expect(!got && strstr(error.cStr(), "local address") && requests.loadSeqCst() == requestsBefore,
+    expect(!got && ZA_STRSTR(error.cStr(), "local address") && requests.loadSeqCst() == requestsBefore,
         "local address: a page's screenshot there is not fetched (no request made)", error);
     Cvar_SetQuick(&vr_maps_allow_local, "1");
     expect(!mapinstall::refusedUrl("http://192.168.0.5/shot.png"), "local address: allowed with vr_maps_allow_local 1");
@@ -2632,7 +2639,7 @@ void test_f()
         expect(d->date == "2026-11-11", "Drain: date", d->date);
         expect(d->category == "vanilla" && d->needs.empty(), "Drain: vanilla, needs nothing", d->category);
         expect(d->rating == 400, "Drain: rated 4.00", za::toString(d->rating));
-        expect(strstr(d->thumb.cStr(), "resource_icons/0/672.jpg") != nullptr, "Drain: icon", d->thumb);
+        expect(ZA_STRSTR(d->thumb.cStr(), "resource_icons/0/672.jpg") != nullptr, "Drain: icon", d->thumb);
         expect(d->tagline == "short vanilla style base map", "Drain: tag line", d->tagline);
         expect(v->needs == "Arcane Dimensions", "Violacea: needs Arcane Dimensions", v->needs);
         expect(c->needs == "Copper", "Caliber: needs Copper", c->needs);
@@ -2669,14 +2676,14 @@ void test_f()
     expect(dd.download == "https://www.slipseer.com/index.php?resources/drain.672/download", "Drain: download link", dd.download);
     expect(dd.author == "Snarg" && dd.date == "2026-11-11", "Drain: author and date", dd.author + " " + dd.date);
     expect(strings::startsWith(dd.description.cStr(), "Drain is a fairly short vanilla style base map"), "Drain: description");
-    expect(strstr(dd.description.cStr(), "that's your thing") != nullptr, "Drain: entities decoded");
-    expect(strstr(dd.screenshot.cStr(), "resource_icons/0/672.jpg") != nullptr, "Drain: picture (its icon: none other)",
+    expect(ZA_STRSTR(dd.description.cStr(), "that's your thing") != nullptr, "Drain: entities decoded");
+    expect(ZA_STRSTR(dd.screenshot.cStr(), "resource_icons/0/672.jpg") != nullptr, "Drain: picture (its icon: none other)",
         dd.screenshot);
     expect(dd.rating == 400, "Drain: rating", za::toString(dd.rating));
     expect(load("violacea.html", violacea) &&
                parseDetails(violacea.cStr(), "https://www.slipseer.com/index.php?resources/violacea.655/", vd),
         "violacea.html reads as a map's page");
-    expect(strstr(vd.screenshot.cStr(), "attachments/v4-png.8539") != nullptr, "Violacea: screenshot (og:image)",
+    expect(ZA_STRSTR(vd.screenshot.cStr(), "attachments/v4-png.8539") != nullptr, "Violacea: screenshot (og:image)",
         vd.screenshot);
     expect(vd.needs == "Arcane Dimensions", "Violacea: needs Arcane Dimensions (breadcrumbs)", vd.needs);
 
