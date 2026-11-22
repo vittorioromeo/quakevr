@@ -8499,6 +8499,20 @@ model changes.
   `vr_mock_button main secondary` did not flip it (no "revgrip: ... flips" print, no refusal print); open.
 - **Tests**: `dwell_lance_test.sh` 12/0 (new: the beam fired, 6 cells from the pouch's 100). Note for test writers: the
   mock trigger (`vr_mock_button main trigger 1`) did not fire the Lance; `+attack` does.
+
+## buildaudit: build-speed audit; process starts are the cost (agent/buildaudit, 2026-11-22)
+
+Full write-up: `BUILD_SPEED.md` (measurements, top TUs and headers, what landed, what's proposed).
+- **Finding**: on this PC a process start costs 0.1-2.7 s and starts are mostly serialised (16 `where.exe` starts in
+  a row: 17-19 s), so a build's fixed cost was mostly processes: a no-op build.sh took 23-28 s (~20 small processes in
+  the script, fteqcc recompiling unchanged QC, the version step's 4 cmd.exe + 4 git). A full rebuild: 350 s wall for
+  327 CPU-s of compiling (875 clang-cl starts).
+- **Landed** (`quakevr.props`, `ironwail.vcxproj`): `QvrBuildVersion` in one Exec (one cmd.exe, three gits; same
+  header text); the run-time DLLs by MSBuild's Copy (only changed ones, no cmd.exe); `/p:QvrSkipQcCompile=1`.
+- **Proposed kit patch** `qvr-kit/scratch/buildaudit_kit.patch` (build.sh, qc_hash.py): skip the QC compile when its
+  inputs' hash matches the last clean compile; bash builtins instead of small processes. With it: no-op 23-28 -> 5.5-9 s,
+  a .cpp touch 33-38 -> 6-11 s, a QC edit 36 -> 12 s, vr_hands.hpp 166 -> 98 s (noisy, shared machine).
+- No source includes or std:: touched (the zancle worker's area): the heaviest headers are listed for it in BUILD_SPEED.md.
 ## flatladder: flat-screen ladders on the drawn rungs too (agent/flatladder, 2026-11-22)
 
 His decision 2026-11-22 (kellbase item 3, "share it"). FLATPLAY.md "Ladders".
