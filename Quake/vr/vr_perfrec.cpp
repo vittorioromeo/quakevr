@@ -13,6 +13,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Clamp.hpp"
 
 #include "SDL.h"
 

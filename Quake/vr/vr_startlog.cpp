@@ -27,6 +27,7 @@
 #include "vr_api.h"
 
 #include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>

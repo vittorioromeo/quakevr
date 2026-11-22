@@ -14,6 +14,7 @@
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 
