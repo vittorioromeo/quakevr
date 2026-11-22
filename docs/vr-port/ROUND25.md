@@ -7906,6 +7906,27 @@ shove, climb...) and propose a key or leave it VR-only."
 - Test: `Misc/quakevr/flatkeybind_test.sh <agent>` + the gear case (Controls' row with no clash, 9 dims then lights,
   `vr_gear_lights` 0 then 1): 13 passed, 0 failed. Scenario `flat_gear_lights`.
 
+
+## visorcrash: the headset's centre popup read a freed view leaf while a map loaded (agent/visorcrash, 2026-11-22)
+
+- **Seen:** scenario_check (testspeed's run), an access violation at vr_visor.cpp:230 (`eyeUnderwater`, inlined in
+  `update()`), vrtesthall ~98 s in; stack: CL_ParseServerMessage > Con_Printf > SCR_UpdateScreen > VR_End2D >
+  `visor::renderHeadsetCenter` (vrcenterprint2).
+- **Why:** vrcenterprint2 made the headset's centre popup step the visor's `update()` from VR_End2D, every VR frame
+  (`centerPanelOn` is just `vr_center_panel` and VR). During a map load a console print redraws the screen, so that ran
+  after Host_ClearMemory had freed the old world (the hunk's blocks are heap blocks since nohunk: freed memory can be
+  decommitted) and before R_NewMap cleared `r_viewleaf`: `r_viewleaf->contents` read the old world's leaf. The flat
+  visor's `update()` only ran from R_RenderView (a signed-on view), so it never saw this.
+- **Fix:** Host_ClearMemory clears `r_viewleaf` with the world it pointed into (as R_NewMap does later; also guards
+  vr_lighting.cpp's PVS read); `eyeUnderwater` reads the leaf only with a world signed on (`cls.signon == SIGNONS`).
+  `vr_center_panel_info` now also prints "loading updates N, stale view leafs M" (updates with no world signed on; of
+  those, r_viewleaf set but not a leaf of `cl.worldmodel`: a pointer compare, never a read).
+- **Test** `Misc/quakevr/visorload_test.sh <agent>` (VR mock, -loopbackonly): vrtesthall, reloaded, e1m1, vrtesthall,
+  then the counts: loading updates > 0 (the path ran: 12) and stale leafs 0. 2 passed, 0 failed (3 runs); with the
+  Host_ClearMemory line disabled: stale view leafs 2 (each would have been the crash's read when the block was gone).
+- **update_notice_test:** its "same" feed now serves VERSION whole (1.2.0-beta1, not 1.2.0: a beta's final is newer,
+  semver), and it checks `vr_update_compare`'s prerelease order (1.2.0-beta1 > 1.1.0, < 1.2.0, < 1.2.0-beta2). The
+  game's logic was already right (vr_update.cpp `comparePre`: a 1.1.0 feed gives a beta no notice, 1.2.0 does): all passed.
 ## backlog1122c: the last backlog1122 items (branch agent/backlog1122c, 2026-11-22)
 
 - **1. Avatar-doll corpses: his proportions on the physics rig.** A dead player's ragdoll (progs/vrdoll*.mdl) is no longer
