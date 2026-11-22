@@ -95,6 +95,15 @@ bool serverRunNext(client_t* client, ApplyFn apply);
 // each server tick runs the oldest kept, in order, then more while over vr_net_movebuffer wait: his moves meet the
 // movers a tick apart as his replay of them did, however his packets bunch on the way. Off: what it kept runs at once.
 void serverRunBuffered(client_t* client, ApplyFn apply);
+// (mpflakes) The move `apply` is running: when the server first read it (sv.qcvm.time; a move the buffer kept runs
+// ticks later) and the quiet allowance it came with: the silence before its client's packets resumed after a gap (his
+// frame hitch: the moves made after it name his newest message from before it), spent as the server's time goes on.
+struct Came
+{
+    double at{0.0};
+    double quiet{0.0};
+};
+[[nodiscard]] Came serverCame();
 // vr_mp_status: moves run, lost (never came, repeats included), recovered (run from a repeat), undecodable (the base
 // gone), bytes read.
 // (B19) The move buffer's ticks: those that ran one move, more than one (a backlog over vr_net_movebuffer), none (none
