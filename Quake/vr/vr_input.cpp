@@ -28,6 +28,7 @@
 #include "vr_motion.hpp"
 #include "vr_holstersetup.hpp"
 #include "vr_barrelmask.hpp"
+#include "vr_humlook.hpp"
 #include "vr_bladeedit.hpp"
 #include "vr_poselive.hpp"
 #include "vr_posestudio.hpp"
@@ -2064,6 +2065,12 @@ void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
     if(bladeedit::button(h, posingButton(b.button), now))
     {
         logButton(h, b, now, b.key[h], "Edit Blade Shape");
+        return;
+    }
+    // And the Texture Studio's strokes while it paints (vr_humstudio.cpp).
+    if(humlook::studioButton(h, static_cast<int>(posingButton(b.button)), now))
+    {
+        logButton(h, b, now, b.key[h], "Texture Studio");
         return;
     }
     // And Paint Barrel Mask (vr_barrelmask.cpp).

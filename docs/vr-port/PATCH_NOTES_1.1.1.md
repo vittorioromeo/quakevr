@@ -33,6 +33,9 @@ that ships in 1.1.1.
 - **Quoth (experimental).** Quoth 2.2's own maps (Select Campaign > Quoth) and custom maps made for Quoth play by
   Arcane Dimensions' rules, so they need AD. The installer offers Quoth (free, by Kell, Necros and Preach), downloaded
   from Quaddicted and installed as released: ticked when Arcane Dimensions is chosen, greyed out without it.
+- **Heavy revolver headshots pop heads in Arcane Dimensions and Quoth too.** Where shells fly as projectiles (AD's and
+  Quoth's maps, or Projectile Rules set to AD's), a heavy revolver's headshot kill never popped the head, and its slug
+  did a big monster no extra damage. Its slug now follows the same head pop and big-body rules as everywhere else.
 
 ## Graphics
 
@@ -179,7 +182,12 @@ aren't Map Library packages aren't sent to joining players.
   a lift and its shaft's wall. Each map now gets invisible blockers in exactly those gaps when it loads (nothing in
   the map files changes; shots and sight go through them), so you are stopped where Quake stopped you, and still get
   as close to walls, bars and pillars as your width lets you. Settings > Movement > Player Hitbox > Close Gaps Quake's
-  Box Never Fit (`vr_hull_holes`, on; takes effect at the next map load).
+  Box Never Fit (`vr_hull_holes`, on; takes effect at the next map load). The blockers now also close gaps between
+  slanted bars, turned grates and round holes, between two brush models (two func_walls, a door and a lift), and
+  between bars at two heights you'd fall through, always only where Quake's own box can't reach. The limits are
+  settings beside it (Narrower Than: 32, Wider Than: 8, and more), with Rebuild Gap Blockers Now to apply them without
+  leaving the map; if you still get through a gap you shouldn't, Debug > Mark a Gap I Got Through writes down where and
+  why (`quakevr/hull_holes_marks.txt`) so it can be fixed.
 - **Riding a lift no longer sinks you or the monsters into it.** Going up, your eye trailed a rising lift by up to 12
   units (the stair-step easing took the lift's rise for a step) and a monster riding it was drawn as far as 13 units
   into it; now your eye rides with the lift (only a step's jump is eased: `vr_view_lift_follow`, 400 units a second;
@@ -246,6 +254,11 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Monsters
 
+- **Cuts follow each blade's drawn shape.** Beheading, cutting off limbs, a cut limb sticking to the blade, cutting
+  hoses and the chainsaw's bar all used their own idea of where a blade starts, so the Super Axe's inner curve counted
+  as its handle and never took a head or a limb off. Now every one of them uses the blade's shape as drawn in the
+  blade shape editor (where its cutting part starts, its curve, its own line), the same shape melee blows already
+  use: what the editor shows as the blade cuts, and what it shows as the handle doesn't.
 - **A shove never makes an enemy bleed.** An enemy you had hurt earlier, even a single pellet long before, bled from
   every limb as a later shove sent it sprawling. Now a knocked-down or staggering enemy's limbs bleed only for blood
   drawn as it went down or while it is down (shot as you shove it, cut while it lies there); a corpse's still do.
@@ -261,7 +274,8 @@ aren't Map Library packages aren't sent to joining players.
   Combat > Armed Grunts > Armed Humanoid Replacements: AD and Quoth Variants.
 - **Armed humanoids wear the colour of their weapon.** Rocket and grenade launchers red, lightning and plasma blue,
   flamethrowers orange, poison green, on their clothes and backpacks, so you see what is coming; the rest look as
-  before. Same page: Recolour by Weapon.
+  before. The dye keeps the cloth's shading, and their faces, arms and hands keep their own colour. Same page: Recolour
+  by Weapon. Debug > Tools > Texture Studio tunes the colours and which parts of each skin they dye, live.
 
 ## Performance
 

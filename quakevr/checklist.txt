@@ -23,6 +23,11 @@ AD maps (ad_azad, ad_tears): grates, bars and pillar rows stop you without block
 # Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every line has a tag, every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 Dwell's Crystal Lance is a plain pole with its crystal head (no handle, no buttons) held like a spear: the pole runs through your fist (tip your hand forward to level it), your other hand slides anywhere along it, and the beam leaves the tip along the pole. {test:dwell_lance_pole}
 Flat-screen: the Crystal Lance is held as a spear in both hands, the right hand low at the right and the left hand on the pole ahead of it, the tip on the crosshair; tune it with the Spear rows in Debug > Tunables. {test:dwell_lance_pole}
+Flat-screen or VR: armed grunts, enforcers, knights and death knights recoloured by their weapon look dyed rather than painted over: the cloth keeps its shading, the rocket launcher's red reads red (not pink), and faces, bare arms and hands keep their own colour. {test:humrepl_looks}
+Flat-screen or VR: Debug > Tools > Texture Studio: Line Up, then move a category's Red, Strength, Lightness and Tint; the matching humanoid changes as you move them, Show the Masks paints clothes green and pack blue, and Save then Reload keeps your values. {test:humrepl_studio}
+Flat-screen or VR: in the Texture Studio turn on Paint, close the menu and point at a lined-up grunt: the trigger (flat: attack) paints with the chosen class, the grip erases, B/Y (or Undo on the page) takes a stroke back, and cycling a palette row changes the whole type at once. {test:humrepl_studio}
+Super Axe in both hands: slash enemies' necks edge first, fast and slow, also with the inner curve of the head: it beheads (and cuts limbs) as often as the axe and swords do, never from a hit with the handle. {test:superaxe_behead}
+Swing the Super Axe at a grunt's neck with the inner curve of its head, near your hands, then a sword with its blade just past the guard: both take the head off; a hit with the handle or hilt never does {test:superaxe_behead}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules {test:hub_start}
@@ -105,10 +110,16 @@ Sliding (VR, experimental; VR Settings > Locomotion): while running, pull the tu
 Click the moving stick once at a time with Speed Button: Toggle: each click switches the speed once, never twice {test:speed_toggle_click}
 With Default Speed: Run, double-tap the stick: you walk until you let go {test:speed_toggle_click}
 Sliding is on by default in VR: slide and look left or right: your hips and legs keep pointing the way you slide, the chest turned back to your body {test:vr_slide_legs}
+Flat-screen or VR: walk onto the diagonal grate (slanted bars 30 apart) and stand between its bars: you never drop through. {test:brushholes_diag}
+Flat-screen or VR: walk onto the louvred grate and step into the gaps between its upper bars: you stop on the lower bars and never fall through. {test:brushholes_louvre}
+Flat-screen or VR: walk into the 24-unit gap between the two panels (two func_walls): you stop at its mouth. {test:brushholes_walls}
+Flat-screen or VR: at a gap you still slip or fall through, use Debug > Mark a Gap I Got Through; check the console report names the map, your position and the gaps round you, and quakevr/hull_holes_marks.txt has it. {test:brushholes_diag}
+Flat-screen or VR: set Movement > Player Hitbox > Close Gaps: Slanted Bars off and press Rebuild Gap Blockers Now: you stay where you were, and now drop through the diagonal grate. {test:brushholes_diag}
 
 [6. Weapons and holsters]
 Holster Calibration > Ammo Pouch Forward/Right/Up move the pouch and agree with Holster Setup's drag {test:shotgun_hall}
 Pistol-whip with the heavy revolver: the cylinder stays shut; a deliberate wrist flick still opens it {test:revolver_swing}
+Flat-screen or VR: with Arcane Dimensions' projectile shells (AD or Quoth maps, or Projectile Rules set to AD's), shoot a grunt in the head with the heavy revolver: the head pops every time, as in Quake's own maps; a body shot doesn't pop it, and an ogre still takes about four body slugs. {test:revolver_adheadpop}
 
 [7. Armed humanoids, ragdolls and physics]
 A fight with several armed grunts and ragdolls: poses and limbs correct (posed models now batched) {test:agrunts_fight}
