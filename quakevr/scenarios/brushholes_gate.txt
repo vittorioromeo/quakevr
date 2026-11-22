@@ -1,8 +1,0 @@
-# brushholes_gate: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vrbrushholes' bar gate (a shut
-# func_door, 24-unit gaps between its bars and by the wall; Misc/quakevr/make_vrbrushholes_map.py).
-title Gap blockers: a bar gate
-map vrbrushholes
-start -276 120 24 90
-god
-notarget
-hint Push through the gaps of the barred gate ahead: you can't slip between the bars, but you still get right up to them.

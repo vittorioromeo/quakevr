@@ -3,5 +3,5 @@ title VR: centre messages in the flat screen's popup style
 hint Look away from the wrist gadget (or turn its hologram off). "You need the silver key" shows in front of your head in a black panel with a thin frame and the gadget font, as on the flat screen, and fades when its time is up. Debug > Visor: Long Centre Message sends a long one.
 map e1m1
 god
-cmd vr_messages_hologram 0
+cvar vr_messages_hologram 0
 cmd vr_flat_visor_fx center "You need the silver key"

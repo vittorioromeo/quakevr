@@ -1,4 +1,0 @@
-# superaxe_behead: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title The Super Axe beheads: the trailer scene's axe and bare-headed grunt
-map vrtrailer
-hint Take the Super Axe off the pedestal, walk to the grunt (he stays oblivious), both hands on the handle, and slash his neck edge first: once fast, once slow (vr_trailer_reset between). Both behead, also when the inner curve of the head strikes; developer 1 says why one doesn't
