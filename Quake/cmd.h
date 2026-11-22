@@ -50,6 +50,8 @@ void Cbuf_AddText (const char *text);
 
 void Cbuf_InsertText (const char *text);
 int Cbuf_Pending (void);			// QVR: the length of the text still to run
+const char *Cbuf_PendingText (void);	// QVR: that text (Cbuf_Pending bytes, not NUL-terminated)
+void Cbuf_DropPending (void);		// QVR: dropped (vr_waitquiton holds it aside)
 extern const char *cmd_before_stuffcmds; // QVR: run once just before the command line's +commands (stuffcmds; host.c)
 void Cbuf_TailToFront (int bytes);	// QVR: its last `bytes` moved to run next (vr_mock_key: a key's bind)
 // when a command wants to issue other commands immediately, the text is

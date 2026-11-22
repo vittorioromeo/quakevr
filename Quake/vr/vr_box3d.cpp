@@ -62,6 +62,8 @@
 #include "vr_trace.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -254,7 +256,7 @@ namespace
 [[nodiscard]] bool isWeaponLike(edict_t* ent)
 {
     const char* name = PR_GetString(ent->v.classname);
-    return !strcmp(name, "thrown_weapon") || !strncmp(name, "weapon_", 7) || !strncmp(name, "item_key", 8);
+    return !ZA_STRCMP(name, "thrown_weapon") || !ZA_STRNCMP(name, "weapon_", 7) || !ZA_STRNCMP(name, "item_key", 8);
 }
 
 // A live grenade that can be caught (QC vr_grenade.qc: an ogre's, a multi-grenade ogre's, or the player's with
@@ -809,8 +811,8 @@ void syncPropRopes()
             continue;
         }
         const char* cls = PR_GetString(t->v.classname);
-        const bool tank = !strcmp(cls, "vr_fueltank");
-        if(!tank && strcmp(cls, "vr_flailhead"))
+        const bool tank = !ZA_STRCMP(cls, "vr_fueltank");
+        if(!tank && ZA_STRCMP(cls, "vr_flailhead"))
         {
             continue;
         }
@@ -818,8 +820,8 @@ void syncPropRopes()
         edict_t* g = PROG_TO_EDICT(fieldInt(t, link));
         const int gn = NUM_FOR_EDICT(g);
         if(gn <= svs.maxclients || g->free || fieldInt(g, link) != EDICT_TO_PROG(t) ||
-            strcmp(PR_GetString(g->v.classname), "thrown_weapon") ||
-            (!tank && strcmp(PR_GetString(g->v.model), qvr::admelee::flailModel)))
+            ZA_STRCMP(PR_GetString(g->v.classname), "thrown_weapon") ||
+            (!tank && ZA_STRCMP(PR_GetString(g->v.model), qvr::admelee::flailModel)))
         {
             continue;
         }

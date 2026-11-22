@@ -1,7 +1,6 @@
 // vr_aglegs.cpp -- armed humanoids' legs posed for a crouch (vr_aglegs.hpp; ROUND22.md, "Armed humanoids' legs: the
 // pickup's kneel").
 
-#include <string.h>
 #include "vr_mdldequant.hpp"
 #include "vr_aglegs.hpp"
 #include "vr_client.hpp"
@@ -9,6 +8,8 @@
 #include "vr_cvars.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -213,7 +214,7 @@ State state;
 {
     for(int b = 0; b < rig.numBones; b++)
     {
-        if(strcmp(rig.bones[b].name, name) == 0)
+        if(ZA_STRCMP(rig.bones[b].name, name) == 0)
         {
             return b;
         }
@@ -856,7 +857,7 @@ int saveState(int ent, unsigned char* out)
     {
         return 0;
     }
-    memcpy(out, st, sizeof(Ent));
+    ZA_MEMCPY(out, st, sizeof(Ent));
     return static_cast<int>(sizeof(Ent));
 }
 
@@ -872,7 +873,7 @@ void loadState(int ent, const unsigned char* in, int len)
         *st = Ent{}; // (none then: dropped)
         return;
     }
-    memcpy(st, in, sizeof(Ent));
+    ZA_MEMCPY(st, in, sizeof(Ent));
 }
 
 void resetModels()
@@ -1023,7 +1024,7 @@ namespace
 // vr_aglegs_info [clear]: each armed model's legs (rest), the takes' numbers since the last clear.
 void info_f()
 {
-    if(Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "clear") == 0)
+    if(Cmd_Argc() > 1 && ZA_STRCMP(Cmd_Argv(1), "clear") == 0)
     {
         for(Stats& s : state.stats)
         {
@@ -1061,7 +1062,7 @@ void info_f()
                 return glm::length(r - (a + ab * t));
             };
             const float d = za::min(za::min(seg(L.H, L.K), seg(L.K, L.A)), seg(L.A, L.T));
-            if(Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "feet") == 0 && r.z < L.A.z + 3.f)
+            if(Cmd_Argc() > 1 && ZA_STRCMP(Cmd_Argv(1), "feet") == 0 && r.z < L.A.z + 3.f)
             {
                 Con_Printf("  foot vertex %d (%s): %.1f %.1f %.1f, row %.3f\n", v, row.x >= 13.f ? "left" : "right",
                     static_cast<double>(r.x), static_cast<double>(r.y), static_cast<double>(r.z), static_cast<double>(row.x));
@@ -1104,7 +1105,7 @@ void info_f()
 // each armed humanoid's now.
 void leanInfo_f()
 {
-    if(Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "clear") == 0)
+    if(Cmd_Argc() > 1 && ZA_STRCMP(Cmd_Argv(1), "clear") == 0)
     {
         state.leanStats = LeanStats{};
         Con_Printf("vr_agrunt_lean_info: cleared\n");

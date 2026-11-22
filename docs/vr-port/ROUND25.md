@@ -9442,6 +9442,34 @@ His decision 2026-11-22 (kellbase item 3, "share it"). FLATPLAY.md "Ladders".
   AD ad_e1m1 3/0, VR hands' exact holds unchanged), flatladder_test.sh 2/0, ad_test3 ladder 1/0 and fallback 1/0;
   ThinLTO 0 warnings.
 
+## testspeed: the low-risk test-time savings (agent/testspeed, 2026-11-22)
+
+From testaudit's ranking (kit `scratch/testaudit_report.md`, items 1, 2, 4, 5, 6, 8).
+
+- **Kit, spawn-free harness** (run.sh, slots.sh; swapped in 2026-11-22, the old ones in
+  `F:\QVR-Parked\2026-11-22\kit_scripts_old`): bash builtins only on the lock and slot path (`$EPOCHSECONDS`,
+  `printf -v '%(..)T'`, `(( ))` loops, `[ -d ]` before each mkdir; `nap`: `read -t` on `kit/nap.fifo` instead of
+  `sleep`). The 30-minute crash cleanup is one `stat` for every slot, only after a failed claim, at most every 30 s.
+  What's left: mkdir x2, one rmdir, powershell. Measured under heavy load, alternating: a run.sh call with a stand-in
+  run.ps1 15.5 s -> 4.2 s median (8 each); a real e1m1 run 23 s -> 9 s (4 each). A 0.2 s wait poll was 0.9 s (sleep's
+  start), now 0.2 s. Concurrency and stale-lock cases: 7 of 7 pass (kit `scratch/testspeed_conc.sh`). run.sh also
+  releases its agent lock on an early exit now (the LTO checks' `exit 2` left it for 30 minutes).
+- **Kit, the test baseline sync** (run.ps1): `Misc/quakevr/test_baseline.cfg` copied over the tree's
+  `quakevr/ironwail.cfg.baseline` (and `ironwail.cfg`) when size or time differ. posebake: 369 KB -> 1.6 KB, config
+  exec 4,228 ms -> 1,468 ms; the next run did not copy again.
+- **`-nostartmap`** (vr_main.cpp `startGameCommands`): no hub (VR) or main menu (flat) at the start; the MP harness
+  passes it to every game.
+- **MP suite profiles**: `mp_test.py suite --profile default|long|all`; `LONG` = mp_adspose, mp_fuzz, mp_rejoin_keep,
+  mp_voice_lossy. MP suite, default profile, under heavy load: 1,578 s (26 min; the sum of the full suite's scenario medians was 44.8 min), 60 of 68 scenarios clean; a harness client's first frame 2.5 s (8.3 s median before). Reruns: mp_flow (Load Autosave list) and mp_predict/mp_predictclimb ("A on start" timed out) fail every time without the hub and pass with it (QVR_MP_STARTMAP=1): mp_test.py keeps the hub for those three (STARTMAP_SCENARIOS), why is open. mp_melee (dirparry 2), mp_slide_vr (2), mp_predictslide (2) fail with the hub too: not this change.
+- **arena_10's 1,620 s timeout** (ra_rel11): run_baseline.py's console case retried a run three times when its text
+  had the old run.sh's `syntax error: operand expected` (its `$(date)` failing under load), timeouts included: 3 x
+  520 s. Now never after a timeout, and the new run.sh has no such arithmetic. `vr_arena_test 10` alone: 160/0, ended
+  by its verdict.
+- **`Misc/quakevr/tests_for.py [files]`**: changed files -> targeted tests with their commands (TESTING.md, "Which
+  tests to run"). The numbered in-engine tests count as tests now: each QC test file of test_numbers.txt, matched by
+  the QC functions it calls, with the scripts that run its numbers.
+- Open: verdicts and `-QuitOn` for the other long-wait scripts (75; most waits are fixed frames, cheap in fast mode;
+  the real-time ones first: voreshove 2500, melee_space 900, bodytrack_elbow 1200).
 ## flatnumkeys: flat-screen number keys for hands and holsters (agent/flatnumkeys, 2026-11-22)
 
 His request 2026-11-22. FLATPLAY.md's keys table. Holsters on (`vr_flat_holsters 1`, the default) only.
@@ -9531,3 +9559,147 @@ His standing rule restated: our C++ uses Zancle wherever it has an equivalent an
   parts), `scratch/qr_run.sh` (launch with `-noconfigwrite`, pull the perf CSV), `scratch/qr_ab.py` (GPU median/p90,
   frames over 15.3 ms). `vr_limb_test` is a QC test: the shipped progs.dat has none, so a test progs.dat must be on the
   headset for it (restore the shipped one after by running `qvr-setup quest` again).
+## testbatch2: -QuitOn batched, the six biggest flat suites batched, run.sh -NoDraw (agent/testbatch2, 2026-11-22)
+
+testaudit #3 and #7 (kit `F:\QVR-Parked\2026-11-22\testspeed\kit\testaudit_report.md`); TESTING.md "Batching a suite,
+-QuitOn and -NoDraw".
+
+- **-QuitOn in a batch** (it made every such run a game of its own, and the flat suites and the agrunt cases all use it):
+  `vr_test_quiton "<regex>"` (engine, vr_testbatch.cpp: a small backtracking regex, .NET's subset the tests use,
+  case-insensitive; else plain text) armed at the case's start, the case's closing `waitN` -> `vr_waitquiton N`, which
+  holds the commands after it aside (Cbuf_PendingText/Cbuf_DropPending, cmd.c) and puts them back at the server tick
+  after the match (VR_TestTick, host.c). A first version looped like `wait`: what QC queued meanwhile (localcmd) sat
+  behind the batch, and flatitems' cases (scripts with no closing wait) all timed out. `-Low` and `-NoDraw` batch too.
+  `Misc/quakevr/testbatch/selftest.sh`: 5/5. `TB_COLLECT_STUBS=2` also stubs awk and cat in the collect pass.
+- **The clock:** runs alone play fast mode at `vr_fixed_frames_rate` 72; the batches' default is still 250. The
+  converted suites set `TB_RATE=72` (at 250 flatitems' QC tests timed out too). flatplay plays a game a case
+  (`TB_ISOLATE=1`): its pose case's `tune vr_flat_gun_near 999` read 24 (not the 60 clamp) after an earlier case's
+  `tune_reset` in the same game: open (a tunables reset/restore interaction).
+- **Six flat suites converted** (body into `tb_body`, `tb_run_sh`), each run once alone (`TB_SLOW=1`) and batched, check by
+  check the same (the failing checks fail both ways: flatmove 3 (crouch x2, swim up), flatslide 1, flatpose 1):
+
+  | suite | checks | alone s | batched s |
+  |---|---|---|---|
+  | flatslide | 26 | 395 | 138 |
+  | flatplay | 31 | 257 | 136 (isolated) |
+  | flatpose | 22 | 229 | 140 |
+  | flatitems | 15 | 99 | 80 |
+  | flatmove | 10 | 84 | 65 |
+  | flatladder | 12 | 27 | 21 |
+  | total | 116 | 1,091 | 580 |
+
+  Under load (other agents' runs; batch copies at below-normal priority). A single run costs 4-13 s held since the
+  spawn-free run.sh, so small suites gain little; the two passes over a body cost 10-70 s of shell (flatpose's replay
+  69 s: its awk/grep checks), which is now most of a batched flat suite's time.
+- **Agrunt group** (kit `scratch/refactor/run_baseline.py`, not in the repo; the old one beside it as
+  `old_run_baseline_pre_testbatch2.py`): the ~225 `vr_agrunt_test N` cases as one testbatch task (`agrunt_batch`, the
+  "batch" lane key, TB_RATE 72, a row each as console_case gives it); `--no-agrunt-batch`: one game a case as before.
+  Not yet proven both ways (out of budget): run `run_baseline.py <agent> --groups agrunt --no-agrunt-batch` and
+  `--groups agrunt` and compare results.tsv before relying on it.
+- **-NoDraw** (kit run.ps1, passed through run.sh; per case in a batch): `vr_mock_fast 2`. Must stay drawn: flatplay,
+  flatpose (`r_norefresh 0`, the drawn eye and ray), flatslide's sights and pose cases. Candidates (QC-measured, no
+  drawn reads): flatmove, flatitems, flatladder, flatslide's other cases: not yet proven both ways, so not turned on.
+- Open: `vr_waitquiton` holds for a closing `waitN` too; a lone run's QC localcmd during that wait queued behind it.
+  The verdicts matched (flatitems, flatplay, flatladder rerun with the hold; flatmove, flatslide, flatpose proven with
+  the loop), but the faithful form is the loop for a closing waitN and the hold only with no closing quit
+  (a `vr_waitquiton N wait` mode). reload_test.sh's one -QuitOn case (`reload magnails lying:`) now batches: not rerun.
+## dwellweap2: the Crystal Lance's cord, sliding weapon hand, thrust, B flip (agent/dwellweap2, 2026-11-22)
+
+dwellweap's leftovers (POLEWEAPONS.md "Built in dwellweap2" has the detail). Not built: the Rotary Shotgun model list
+(the muzzle flare at the bottom, the hand's hole and handle, the shell port 10% bigger, black and inset, deeper gaps
+between the barrels, open muzzles, the screen in a wedge on top) and impaling (a spear's; the Lance is an energy tip).
+- **Cord**: `vr_cellcord.cpp` (the laser cannon's coiled cell cord) gains the Lance: from the butt of its pole (its
+  model's lowest point, leaving along the pole) into a cell in the pouch; loose and swinging with no cells; QC
+  `VR_Reload_PlayerFrame` shows cells in the pouch while it is held. `vr_cellcord_lance` 1 (Weapons > Reloading > Cell
+  Cords), `vr_cellcord_lance_x/y/z` 0 (Cord Points). Reuses the cell cord whole (not the AD hose: the cord already plugs
+  into the pouch's cells and unplugs without them).
+- **Weapon hand slides** (`vr_twohand.cpp` `PoleSlide`, `poleShift`; the view moves the drawn weapon back along the pole,
+  so muzzle, blade line and cord follow): off hand closed (analog grip >= `vr_pole_slide_grip` 0.6), weapon hand loose
+  (under it). `vr_pole_slide` 1. Both in Physics next to Other Hand Anywhere. A button-only grip never slides.
+- **Pole axis fix**: the pole grip's axis is the hand-to-tip line; `bladeDirection` (the 2H aim's way) lay ~70 degrees
+  off the Lance's pole (the off hand's tip limit was 9 units, the tip 27 away), so the off hand's place left the pole.
+- **Thrust**: QC `DW_LanceMelee` on a stab: the head (`mh_c_f` >= `vr_dw_lance_head` 0.55) x`vr_dw_lance_thrust` 1.5,
+  the shaft x`vr_dw_lance_poke` 0.4 (tunables by the axe's damage).
+- **B flip**: works; dwellweap's test pressed B for 2 frames, under a player frame.
+- **Tests**: `dwell_lance_test.sh` 29/0 (new: cord 7, flip 2, main slide 5, thrust 3). No useful side screenshot (the
+  mock camera at e1m1's start looked into walls); none saved.
+## zancle2: atomics, clocks, Tracy and the C string calls on Zancle (agent/zancle2, 2026-11-22)
+
+- **struggle_test's failures predate zancle:** before the zancle merge (0ea5f3574) 7 passed / 7 failed, the same drag
+  cases (legpull, legpull1, headdrag, shoulderdrag "walked 6 units", armdrag's swat > 0.4, legpull's no weights;
+  legdrag also counted that run); origin/next 6/6. Not chased here.
+- **Phase 3:** `std::atomic` -> `za::Atomic` (box3d gun pieces and hull disk counts, diskcache, imgprefetch, jobs,
+  warmup, startlog, xr_runtime, bodytrack_xr): every implicit operation (`++`, `+=`, `x = v`, `.load()`,
+  `.exchange()`, `compare_exchange_strong`) is now its explicit SeqCst call, as std's operators were; explicit
+  orders map 1:1 (`fetchAddRelaxed`, `storeRelease`, `za::atomicThreadFence<...>`). vr_voicechat's steady_clock
+  timings -> `za::Clock::nowNanoseconds()`. vr_tracy.cpp (compiled only by Release-Tracy; checked with an MSBuild
+  ClCompile of that configuration into scratch): Atomic (the source table's spin lock an exchange/store),
+  `za::AtomicMutex`/`LockGuard`, ankerl maps, `za::String`/`StringView`/`Vector`, ZA_ string calls; its two
+  `std::deque`s stay (stable addresses). Kept and allowlisted with reasons: `wallMs` (system_clock epoch ms) in
+  vr_mptest/vr_voicechat, compared across processes (`za::Clock`'s epoch is unspecified). The Quest merge's 7 uses
+  converted; the Android native build compiles (build-android, `cmake --build ... --target ironwail`).
+- **Phases 4-5:** unqualified (and `std::`) `strcmp strncmp strlen strstr memcpy memset memcmp memmove memchr` ->
+  `ZA_STRCMP`... (`Zancle/Base/<Name>.hpp`, `__builtin_*`: the same calls) in 80 files, vr_ad .. vr_cleanskins (644
+  calls); comments and strings untouched; `<cstring>`/`<string.h>` dropped where no other string.h name is left
+  (quakedef.h's `<string.h>` stays the source for `strchr` and friends). Left: ~1,980 calls in 217 files.
+- **Counts (the allowlist):** std:: 156 -> 40, standard header includes 31 -> 9.
+- **Tests:** release build 0 warnings each phase; smoke e1m1 with vr_hull_stats, vr_gun_pieces_cache_stats,
+  vr_image_prefetch_info, vr_cache_warmup_info (counters move); startuplog 3/0; vr_voicechat_selftest 24/0;
+  vr_android_test (-fakeandroid) 16/0. Not yet run: Misc/quakevr/check_nopch.sh (after the last phase).
+
+## dwellrotary: the Rotary Shotgun model fixes (agent/dwellrotary, 2026-11-22)
+
+His notes of 2026-11-22 (vrtesthall 15-57-29, 16-01-25), all in `vr_adweapons.cpp` (Dwell's view model laid by a
+recipe; nothing of Dwell's shipped). Items 1, 4, 5 on both Rotary models; 2, 3, 6 on the gauntlet (the default):
+- **Flare:** Dwell's skin has the muzzle flash painted in the housing's texel column, on its lower faces' rows:
+  `Recipe::skinPatch` (`rotaryFlashPatch`) paints like rows of the other side over it.
+- **Barrels and muzzles:** Dwell's cross-shaped barrel shell (flat lobes, solid front) and its open clamps off
+  (`Recipe::dropMore`, up to 11 seeds); `dwBarrels` makes four round barrels (r 1.6, 2.35 out) round a core rod, each
+  front a ring into a black bore, closed clamp blocks bridging the gaps; all turning (spin frames as before), the
+  muzzle unchanged (37.51 0 -0.07). check_mdl_holes: both models ok, 0 open loops (the old clamps: 8 see-through).
+- **Hole and handle:** Dwell's housing and back plate off; `rotaryHousingShell` makes its octagon again (5.46 out at
+  the back, 4.53 at the collar, Dwell's texel bands), open at the back in a 0.6 rim, black inside to a floor at x 4, a
+  flat handle top to bottom where the super nailgun's is (slot 56 has slot 4's hand values). The caps' dark grey
+  (`capS`/`capT`) draws nearly white in the game's light: black (the bores' texels) inside, Dwell's barrel metal on the
+  muzzle rings.
+- **Shell port:** opening 3.96 x 1.21 (10% up), a 0.6-deep pocket with black walls and floor (it was a cap-grey box
+  standing out of the face: the "shiny" look); load point unchanged (5 7.25 0).
+- **Screen:** `rotaryScreenWedge`: the super nailgun's wedge (19-degree rear slope, bezel 1.8h x 1.2h, corner bolts,
+  near-black window; h 2.013) on the housing's top at the back; `vr_screenstyle.cpp` aliases dw_rotary to "nail2";
+  weapons.txt slot 56: wpntxt_pitch 70.5, wpntxt_scale 0.3, wpntxt_av -1.430 0.0599 6.241 with wpntxt_x/z -0.022/0.063
+  (the anchor snaps to a vertex): vr_debug_screen_where centre -1.369 0 6.091 (designed -1.371 0 6.096). His config
+  holds no slot 56 values.
+- Scene `dwell_rotary` now shows the gauntlet (it showed the setting-0 super shotgun grip), the super nailgun left.
+- Not changed: the setting-0 model (dw_shot3) keeps its screen on the housing's back, its own grip.
+- **Tests:** release build 0 warnings; dwell_rotary 3/0 (dwrotary 8/0), dwell_vrmodels 13/0, dwell_weapons 9/0;
+  scenario runall dwell_rotary OK; shots kit `scratch/dwellrotary_*.png` (before, each item, after).
+- **No-PCH (zancle2, after phase 5):** check_nopch.sh found 12 files using a PCH Zancle header (MinMax, Clamp, String,
+  Sort, IntTypes) or Base/Macros.hpp's ZA_MOVE without including it; fixed. `scratch/zancle2_pchinc.py`-style check
+  (each PCH header a file uses, reachable through its own includes) runs with every later phase.
+- **Phases 6-8 (zancle2):** the C string/memory calls -> ZA_ in 120 more files (vr_client .. vr_predict, 1,066 calls);
+  release build 0 warnings and no-PCH build ok each phase; smoke e1m1, vr_android_test 16/0, vr_voicechat_selftest
+  24/0, vr_menu_path_check 0 missing; Android native build compiles. Left: 914 calls in 97 files (vr_profile ..).
+- **Phases 9-11 (zancle2, the last):** the C string/memory calls -> ZA_ in the remaining 98 files (vr_cellcord ..
+  vr_xr_stall, 915 calls); every Quake/vr file we own is converted (what's left of those names: imgui, third-party).
+  Release build 0 warnings and no-PCH build ok each phase; the std_uses allowlist refreshed (std:: 40, std headers 8;
+  `qvr_checks std_uses` 95 uses counting the `*` files). Tests: smoke e1m1, vr_android_test 16/0,
+  vr_voicechat_selftest 24/0, startuplog 3/0, mp_test coop 12/0; Android native build compiles.
+
+## questogg: Ogg Vorbis music on the Quest (agent/questogg, 2026-11-23)
+
+- The PC decodes Ogg with libvorbisfile (`Windows/codecs`, prebuilt; pkg-config on Linux): no source in the
+  repository, so the Android build had no Ogg codec (WAV music only). Now `Quake/vr/external/stb_vorbis` (stb's
+  v1.22, one file, MIT or public domain; README.md says where from, its hash) is built on every CMake build
+  (`qvr_stb_vorbis`, vr.cmake) and in the PC's `quakevr.props`; a build without libvorbisfile (the Quest's) defines
+  `USE_CODEC_VORBIS VORBIS_USE_STB` (CMakeLists.txt). `snd_vorbis.c` is one codec with two decoders (the same
+  `vorbis_codec`, the `ogg` extension, bgmusic.c's whole music path: CD tracks, the map's music, mod folders): stb_vorbis
+  on Android and in the PC's fake-Android mode (`-fakeandroid`, `QVR_STB_VORBIS`), libvorbisfile otherwise. stb_vorbis
+  reads the stream's part of its file itself (`stb_vorbis_open_file_section`: a pak entry or a rerelease file in place).
+- Size: +53 KB of code in libquakevr.so (arm64, -O2), 0.2%. Licence shipped as `licenses/stb_vorbis.txt`; CREDITS.md.
+- `vr_music_decode [track] [ms]` (bgmusic.c; Debug > Tools "Music Decode"): decodes the start of a track as the music
+  plays it: the file, format, decoder, rate, channels, frames, peak, PCM hash, and whether the loop's rewind reads the
+  start again. Needs the sound on (the codecs start with it).
+- Test: `Misc/quakevr/questogg_test.sh` (SDL's dummy audio driver, `-Sound`): the PC and `-fakeandroid` decode the
+  rerelease's track02.ogg identically (132300 frames, 44100 Hz stereo, peak 21126 both), the rewind ok, start's track 4
+  plays through stb_vorbis, no error: 12/0. music_test 7/0; vr_menu_path_check 0 missing; Android native build compiles.
+- Installer (`QuestFiles.MusicFormats`, on agent/questinstall, not on next): add `.ogg` there when both are merged.

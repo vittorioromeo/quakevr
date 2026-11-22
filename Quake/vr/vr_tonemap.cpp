@@ -18,6 +18,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "vr_api_render.h"
 
 #include <stdio.h>
@@ -549,7 +550,7 @@ void probeUpload(const char* what, unsigned buffer, size_t offset, const void* d
         zero += back[i] == 0 ? 1 : 0;
     }
     float first[4] = {};
-    memcpy(first, back.data(), za::min(sizeof first, size));
+    ZA_MEMCPY(first, back.data(), za::min(sizeof first, size));
     Con_Printf("  %s upload: buffer %u at %d, %d bytes: %s; %d bytes differ, %d zero; first %g %g %g %g\n", what, buffer,
         static_cast<int>(offset), static_cast<int>(size), read ? "read back" : "NOT read", static_cast<int>(differ),
         static_cast<int>(zero), first[0], first[1], first[2], first[3]);
@@ -667,7 +668,7 @@ void probeBuffer(const char* what, unsigned buffer, size_t offset, size_t size)
         largest = za::max(largest, u);
     }
     GLuint first[8] = {};
-    memcpy(first, back.data(), za::min(sizeof first, back.size() * sizeof(GLuint)));
+    ZA_MEMCPY(first, back.data(), za::min(sizeof first, back.size() * sizeof(GLuint)));
     Con_Printf("  %s: buffer %u at %d, %d words: %s; %d not zero, largest %u; first %u %u %u %u %u %u %u %u\n", what, buffer,
         static_cast<int>(offset), static_cast<int>(back.size()), read ? "read back" : "NOT read", static_cast<int>(nonzero),
         largest, first[0], first[1], first[2], first[3], first[4], first[5], first[6], first[7]);

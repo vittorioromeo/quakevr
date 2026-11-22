@@ -23,15 +23,20 @@
 #include "Recast.h"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Floor.hpp"
-#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
@@ -356,7 +361,7 @@ bool isMover(const char* cls)
         "func_bob", "func_elvtr", "func_movewall", "func_new_plat", "rotate_object", "door", "plat", "train"};
     for(const char* p : prefixes)
     {
-        if(!strncmp(cls, p, strlen(p)))
+        if(!ZA_STRNCMP(cls, p, ZA_STRLEN(p)))
         {
             return true;
         }
@@ -418,7 +423,7 @@ edict_t* findByTargetname(const char* name)
 {
     edict_t* found = nullptr;
     progs::forEachEdict(1, [&](edict_t* e) {
-        if(!found && e->v.targetname && !strcmp(PR_GetString(e->v.targetname), name))
+        if(!found && e->v.targetname && !ZA_STRCMP(PR_GetString(e->v.targetname), name))
         {
             found = e;
         }
@@ -442,7 +447,7 @@ void gatherRides(const za::Vector<int>& movers, Geometry& g)
         const char* cls = e->v.classname ? PR_GetString(e->v.classname) : "";
         const glm::vec3 mins = geom::vec(e->v.mins), maxs = geom::vec(e->v.maxs);
         // (Quake's spawn functions rename them "plat" and "train".)
-        if((!strcmp(cls, "plat") || !strcmp(cls, "func_plat")) && pos1 >= 0 && pos2 >= 0)
+        if((!ZA_STRCMP(cls, "plat") || !ZA_STRCMP(cls, "func_plat")) && pos1 >= 0 && pos2 >= 0)
         {
             const glm::vec3 top = progs::fieldVec(e, pos1), bottom = progs::fieldVec(e, pos2);
             if(top.z - bottom.z > 1.f)
@@ -450,7 +455,7 @@ void gatherRides(const za::Vector<int>& movers, Geometry& g)
                 g.rides.pushBack(Ride{num, bottom, top, mins, maxs, true});
             }
         }
-        else if((!strcmp(cls, "train") || !strcmp(cls, "func_train")) && e->v.target && wait >= 0)
+        else if((!ZA_STRCMP(cls, "train") || !ZA_STRCMP(cls, "func_train")) && e->v.target && wait >= 0)
         {
             za::Vector<glm::vec3> stops;
             const char* name = PR_GetString(e->v.target);
@@ -485,7 +490,7 @@ void gatherGates(Geometry& g)
     g.gates.clear();
     progs::forEachEdict(1, [&](edict_t* e) {
         const char* cls = e->v.classname ? PR_GetString(e->v.classname) : "";
-        if(strncmp(cls, "trigger_teleport", 16) != 0 || static_cast<int>(e->v.solid) != SOLID_TRIGGER || !e->v.target ||
+        if(ZA_STRNCMP(cls, "trigger_teleport", 16) != 0 || static_cast<int>(e->v.solid) != SOLID_TRIGGER || !e->v.target ||
             (static_cast<int>(e->v.spawnflags) & 1)) // (PLAYER_ONLY)
         {
             return;
@@ -865,8 +870,8 @@ bool tileData(const TileSrc& t, const NavClass& c, const Settings& s, const za::
     p.tileX = t.x;
     p.tileY = t.y;
     p.tileLayer = 0;
-    memcpy(p.bmin, pm.bmin, sizeof(p.bmin));
-    memcpy(p.bmax, pm.bmax, sizeof(p.bmax));
+    ZA_MEMCPY(p.bmin, pm.bmin, sizeof(p.bmin));
+    ZA_MEMCPY(p.bmax, pm.bmax, sizeof(p.bmax));
     p.cs = pm.cs;
     p.ch = pm.ch;
     p.buildBvTree = true;
@@ -1591,7 +1596,7 @@ bool deserialise(const za::Vector<char>& in, unsigned count, NavClass& c)
         {
             return false;
         }
-        memcpy(p, in.data() + at, n);
+        ZA_MEMCPY(p, in.data() + at, n);
         at += n;
         return true;
     };
@@ -1608,7 +1613,7 @@ bool deserialise(const za::Vector<char>& in, unsigned count, NavClass& c)
             return false;
         }
         auto* data = static_cast<unsigned char*>(dtAlloc(static_cast<size_t>(head[2]), DT_ALLOC_PERM));
-        memcpy(data, in.data() + at, static_cast<za::SizeT>(head[2]));
+        ZA_MEMCPY(data, in.data() + at, static_cast<za::SizeT>(head[2]));
         at += static_cast<za::SizeT>(head[2]);
         c.built.pushBack(Tile{head[0], head[1], data, head[2]});
     }
@@ -1841,7 +1846,7 @@ void joinClass(NavClass& c)
             za::Vector<char> old;
             if(diskcache::read(diskcache::Product::NavMesh, build.cStr(), c.key, "nav", navMagic, count, oldSum, old, "navmesh"))
             {
-                const bool same = old.size() == data.size() && oldSum == c.blobSum && !memcmp(old.data(), data.data(), data.size());
+                const bool same = old.size() == data.size() && oldSum == c.blobSum && !ZA_MEMCMP(old.data(), data.data(), data.size());
                 diskcache::noteChecked(diskcache::Product::NavMesh, same, "navmesh");
             }
         }
@@ -2263,7 +2268,7 @@ void restoreTile(NavClass& c, za::SizeT ti)
     auto* data = static_cast<unsigned char*>(dtAlloc(static_cast<za::SizeT>(orig.size()), DT_ALLOC_PERM));
     if(data)
     {
-        memcpy(data, orig.data(), orig.size());
+        ZA_MEMCPY(data, orig.data(), orig.size());
         if(dtStatusFailed(c.mesh->addTile(data, static_cast<int>(orig.size()), DT_TILE_FREE_DATA, 0, nullptr)))
         {
             dtFree(data);
@@ -2281,7 +2286,7 @@ void linksOf(const dtMeshTile& tile, za::Vector<Link>& out)
         const dtOffMeshConnection& con = tile.offMeshCons[k];
         const dtPoly& poly = tile.polys[con.poly];
         Link l{};
-        memcpy(l.pos, con.pos, sizeof(l.pos));
+        ZA_MEMCPY(l.pos, con.pos, sizeof(l.pos));
         l.rad = con.rad;
         l.dir = (con.flags & DT_OFFMESH_CON_BIDIR) ? DT_OFFMESH_CON_BIDIR : 0;
         l.area = poly.getArea();
@@ -2984,7 +2989,7 @@ void wakeNamed()
     bool waiting = false;
     const int oldSelf = pr_global_struct->self;
     progs::forEachEdict(1, [&](edict_t* e) {
-        if(e->v.health > 0.f && e->v.classname && !strcmp(PR_GetString(e->v.classname), reachTest.only.cStr()) &&
+        if(e->v.health > 0.f && e->v.classname && !ZA_STRCMP(PR_GetString(e->v.classname), reachTest.only.cStr()) &&
             e->v.enemy != EDICT_TO_PROG(p))
         {
             if(!(static_cast<int>(e->v.flags) & FL_MONSTER) && sv.qcvm.time < reachTest.since + 2.0)
@@ -3014,7 +3019,7 @@ void reachtest_f()
     reachTest.since = sv.qcvm.time;
     reachTest.until = sv.qcvm.time + atof(Cmd_Argv(3));
     const char* kind = Cmd_Argc() > 4 ? Cmd_Argv(4) : "";
-    reachTest.need = !strcmp(kind, "drop") ? 1 : !strcmp(kind, "ride") ? 2 : !strcmp(kind, "tele") ? 3 : !strcmp(kind, "notele") ? 4 : 0;
+    reachTest.need = !ZA_STRCMP(kind, "drop") ? 1 : !ZA_STRCMP(kind, "ride") ? 2 : !ZA_STRCMP(kind, "tele") ? 3 : !ZA_STRCMP(kind, "notele") ? 4 : 0;
     reachTest.only = Cmd_Argc() > 5 ? Cmd_Argv(5) : "";
     reachTest.armed = true;
     state.drops = state.rides = state.linkFails = state.teles = state.telesBegun = 0;
@@ -3036,7 +3041,7 @@ void reachCheck(const edict_t* ent)
     const edict_t* p = progs::playerEdict();
     const bool timedOut = sv.qcvm.time > reachTest.until;
     const char* only = reachTest.only.cStr();
-    const bool counts = ent && (!only[0] || (ent->v.classname && !strcmp(only, PR_GetString(ent->v.classname))));
+    const bool counts = ent && (!only[0] || (ent->v.classname && !ZA_STRCMP(only, PR_GetString(ent->v.classname))));
     const glm::vec3 at = ent ? geom::vec(ent->v.origin) : glm::vec3{0.f};
     const char* outcome = nullptr;
     bool pass = false;
@@ -3247,7 +3252,7 @@ void countFrame(za::Vector<CrowdFrame>& frames, const char* name)
 {
     for(CrowdFrame& f : frames)
     {
-        if(!strcmp(f.name, name))
+        if(!ZA_STRCMP(f.name, name))
         {
             ++f.count;
             return;
@@ -3260,7 +3265,7 @@ CrowdType& crowdType(const char* name)
 {
     for(CrowdType& t : crowdTest.types)
     {
-        if(!strcmp(t.name, name))
+        if(!ZA_STRCMP(t.name, name))
         {
             return t;
         }
@@ -3295,7 +3300,7 @@ bool busyFrame(const char* f)
         "smash", "stun", "melee", "swing", "slice", "magic", "getup", "fall", "char", "take", "agp_act"};
     for(const char* b : busy)
     {
-        if(strstr(f, b))
+        if(ZA_STRSTR(f, b))
         {
             return true;
         }
@@ -3351,7 +3356,7 @@ Cause stallCause(edict_t* e, const Agent* a, const CrowdWin& w, const edict_t* p
     {
         return causeInfight;
     }
-    if(!p || !e->v.enemy || strstr(frame, "stand") || strstr(frame, "walk") || strstr(frame, "pause") || strstr(frame, "hunt"))
+    if(!p || !e->v.enemy || ZA_STRSTR(frame, "stand") || ZA_STRSTR(frame, "walk") || ZA_STRSTR(frame, "pause") || ZA_STRSTR(frame, "hunt"))
     {
         countFrame(crowdTest.idleFrames, frame);
         return causeIdle;
@@ -3462,7 +3467,7 @@ void dumpPolys()
 
 void crowdtest_f()
 {
-    if(Cmd_Argc() == 2 && !strcmp(Cmd_Argv(1), "dump"))
+    if(Cmd_Argc() == 2 && !ZA_STRCMP(Cmd_Argv(1), "dump"))
     {
         crowdDump = true; // (before a scene that runs the test)
         return;
@@ -3481,7 +3486,7 @@ void crowdtest_f()
         const progs::ServerVm vm;
         progs::forEachEdict(1, [&](edict_t* e) {
             walkers += walker(e) && e->v.health > 0.f ? 1 : 0;
-            starting += strstr(functionName(e->v.think), "monster_start_go") ? 1 : 0;
+            starting += ZA_STRSTR(functionName(e->v.think), "monster_start_go") ? 1 : 0;
         });
     }
     if((!sv.active || walkers == 0 || starting > 0) && crowdWaits < 720)
@@ -4283,7 +4288,7 @@ float steer(edict_t* ent, edict_t* goal)
         {
             (void)c->query->closestPointOnPoly(buf[n - 1], endPt, endPt, nullptr); // (partial: as near as it gets)
         }
-        memcpy(a.endRc, endPt, sizeof(a.endRc));
+        ZA_MEMCPY(a.endRc, endPt, sizeof(a.endRc));
         a.cls = cls;
         a.goal = goalNum;
         a.goalAt = goalPos;
@@ -4545,7 +4550,7 @@ void teletest_f()
         }
         int last = 0;
         progs::forEachEdict(1, [&](edict_t* e) {
-            if(e->v.health > 0.f && e->v.classname && !strcmp(PR_GetString(e->v.classname), s) &&
+            if(e->v.health > 0.f && e->v.classname && !ZA_STRCMP(PR_GetString(e->v.classname), s) &&
                 (static_cast<int>(e->v.flags) & FL_MONSTER))
             {
                 last = NUM_FOR_EDICT(e);
@@ -4561,7 +4566,7 @@ void teletest_f()
         }
         s = comma ? comma + 1 : nullptr;
     }
-    if(!strcmp(Cmd_Argv(3), "all"))
+    if(!ZA_STRCMP(Cmd_Argv(3), "all"))
     {
         for(za::SizeT i = 0; i < state.geo.gates.size(); ++i)
         {
@@ -4913,7 +4918,7 @@ void serverFrame()
         if(reachTest.armed && !reachTest.only.empty())
         {
             progs::forEachEdict(1, [](edict_t* e) {
-                if(reachTest.armed && e->v.health > 0.f && e->v.classname && !strcmp(PR_GetString(e->v.classname), reachTest.only.cStr()))
+                if(reachTest.armed && e->v.health > 0.f && e->v.classname && !ZA_STRCMP(PR_GetString(e->v.classname), reachTest.only.cStr()))
                 {
                     reachCheck(e);
                 }

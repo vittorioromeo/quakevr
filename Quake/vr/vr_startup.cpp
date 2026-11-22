@@ -13,6 +13,8 @@
 #include "vr_files.hpp"
 #include "vr_startlog.hpp"
 
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
@@ -317,7 +319,7 @@ extern "C" void VR_TimeAdd(const char* what, double seconds)
 
 extern "C" void VR_TimeLoadBegin(const char* what)
 {
-    if(load.open && !strcmp(what, "client"))
+    if(load.open && !ZA_STRCMP(what, "client"))
     {
         return; // (a server's load, then its own client's: one load; a server's load always starts anew)
     }

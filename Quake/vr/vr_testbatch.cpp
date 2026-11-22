@@ -19,6 +19,12 @@
 //                                               x<n>: n such lines), at most <frames>
 // A wait that runs out prints "vr_waituntil: timed out ..." / "vr_waitprint: timed out ..." (a test can fail on it) and
 // goes on with the script. The rest of the command line after a wait runs once it ends, in that frame.
+// A case's run.sh -QuitOn in a batch (testbatch.py writes these):
+//   vr_test_quiton "<regex>"   from now on (until vr_test_reset) watches the console's lines for the pattern
+//   vr_waitquiton <ticks>      the case's closing wait: the commands after it held aside (the game's own, QC's
+//                              localcmd, run meanwhile, as after a lone run's script) until a line since
+//                              vr_test_quiton matched, at most <ticks> server ticks (running out is silent: the run's
+//                              own waitN ran out)
 
 #include "vr_testbatch.hpp"
 #include "vr_backend.hpp"
@@ -27,11 +33,13 @@
 #include "vr_cvars_util.hpp"
 #include "vr_engine.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
-#include "Zancle/Math/MinMax.hpp"
 #include "vr_api.h"
 
 #include <stdlib.h>
@@ -102,7 +110,7 @@ void CvarSnapshot::restore() const
         });
         for(cvar_t* var : made)
         {
-            if(settable(var) && var->default_string && strcmp(var->string, var->default_string) != 0)
+            if(settable(var) && var->default_string && ZA_STRCMP(var->string, var->default_string) != 0)
             {
                 Cvar_SetQuick(var, var->default_string);
             }
@@ -110,7 +118,7 @@ void CvarSnapshot::restore() const
     }
     for(const Saved& s : saved_)
     {
-        if(settable(s.var) && strcmp(s.var->string, s.value.cStr()) != 0)
+        if(settable(s.var) && ZA_STRCMP(s.var->string, s.value.cStr()) != 0)
         {
             Cvar_SetQuick(s.var, s.value.cStr());
         }
@@ -160,6 +168,484 @@ void releaseButtons()
     }
 }
 
+// --- A case's -QuitOn (run.sh's: the run ends at the first console line matching a regex) in a batch: vr_test_quiton
+// <regex> arms it at the case's start, vr_waitquiton <frames> (the case's closing wait) ends as soon as a line since then
+// matched. The patterns are run.ps1's (.NET's, case-insensitive); this matches the part the tests use: literals, . ^ $,
+// [..] classes (ranges, ^, \d \s \w), \d \s \w \D \S \W, escaped literals, * + ? (a lazy ? after them is ignored: the
+// same lines match), groups (?:) and | alternation. A pattern it can't read matches as plain text.
+struct ReInst
+{
+    enum Op : unsigned char
+    {
+        Char,
+        Any,
+        Class,
+        Split, // try x, then y
+        Jmp,
+        Bol,
+        Eol,
+        Match
+    };
+    Op op{Match};
+    unsigned char c{0};
+    int x{0}, y{0}; // jump targets; Class: x is the class's index
+};
+
+struct ReClass
+{
+    bool in[256]{};
+};
+
+struct ReNode
+{
+    enum Kind : unsigned char
+    {
+        Lit,
+        Dot,
+        Cls,
+        Bol,
+        Eol,
+        Empty,
+        Cat,
+        Alt,
+        Star,
+        Plus,
+        Quest
+    };
+    Kind kind{Empty};
+    unsigned char c{0};
+    int a{-1}, b{-1}; // children (Cat, Alt: both; repeats: a); Cls: a is the class's index
+};
+
+struct Regex
+{
+    za::Vector<ReInst> prog;
+    za::Vector<ReClass> classes;
+    za::Vector<ReNode> nodes;
+    za::String text; // (the pattern; matched as plain text when it could not be read)
+    bool plain{true};
+};
+
+[[nodiscard]] unsigned char reLower(unsigned char c)
+{
+    return (c >= 'A' && c <= 'Z') ? static_cast<unsigned char>(c - 'A' + 'a') : c;
+}
+
+struct ReParser
+{
+    Regex& re;
+    const char* p;
+    bool bad{false};
+
+    int node(ReNode::Kind k, int a = -1, int b = -1, unsigned char c = 0)
+    {
+        ReNode n;
+        n.kind = k;
+        n.a = a;
+        n.b = b;
+        n.c = c;
+        re.nodes.pushBack(n);
+        return static_cast<int>(re.nodes.size()) - 1;
+    }
+
+    void classEscape(ReClass& cl, char e)
+    {
+        const bool neg = e == 'D' || e == 'S' || e == 'W';
+        const char k = static_cast<char>(reLower(static_cast<unsigned char>(e)));
+        for(int i = 0; i < 256; i++)
+        {
+            const bool d = i >= '0' && i <= '9';
+            const bool s = i == ' ' || i == '\t' || i == '\r' || i == '\n' || i == '\f' || i == '\v';
+            const bool w = d || (i >= 'a' && i <= 'z') || (i >= 'A' && i <= 'Z') || i == '_';
+            const bool hit = k == 'd' ? d : k == 's' ? s : w;
+            cl.in[i] = cl.in[i] || (hit != neg);
+        }
+    }
+
+    int newClass()
+    {
+        re.classes.pushBack(ReClass{});
+        return static_cast<int>(re.classes.size()) - 1;
+    }
+
+    int atom()
+    {
+        const char c = *p;
+        if(c == '(')
+        {
+            p++;
+            if(p[0] == '?' && p[1] == ':')
+            {
+                p += 2;
+            }
+            const int inner = alt();
+            if(*p != ')')
+            {
+                bad = true;
+                return inner;
+            }
+            p++;
+            return inner;
+        }
+        p++;
+        if(c == '.')
+        {
+            return node(ReNode::Dot);
+        }
+        if(c == '^')
+        {
+            return node(ReNode::Bol);
+        }
+        if(c == '$')
+        {
+            return node(ReNode::Eol);
+        }
+        if(c == '\\')
+        {
+            const char e = *p;
+            if(!e)
+            {
+                bad = true;
+                return node(ReNode::Empty);
+            }
+            p++;
+            if(strchr("dDsSwW", e))
+            {
+                const int ci = newClass();
+                classEscape(re.classes[ci], e);
+                return node(ReNode::Cls, ci);
+            }
+            const char lit = e == 't' ? '\t' : e == 'n' ? '\n' : e == 'r' ? '\r' : e;
+            return node(ReNode::Lit, -1, -1, reLower(static_cast<unsigned char>(lit)));
+        }
+        if(c == '[')
+        {
+            const int ci = newClass();
+            bool neg = false;
+            if(*p == '^')
+            {
+                neg = true;
+                p++;
+            }
+            bool first = true;
+            while(*p && (*p != ']' || first))
+            {
+                first = false;
+                unsigned char lo = static_cast<unsigned char>(*p++);
+                if(lo == '\\' && *p)
+                {
+                    const char e = *p++;
+                    if(strchr("dDsSwW", e))
+                    {
+                        classEscape(re.classes[ci], e);
+                        continue;
+                    }
+                    lo = static_cast<unsigned char>(e == 't' ? '\t' : e == 'n' ? '\n' : e);
+                }
+                unsigned char hi = lo;
+                if(p[0] == '-' && p[1] && p[1] != ']')
+                {
+                    p++;
+                    hi = static_cast<unsigned char>(*p++);
+                    if(hi == '\\' && *p)
+                    {
+                        hi = static_cast<unsigned char>(*p++);
+                    }
+                }
+                for(int i = lo; i <= hi; i++)
+                {
+                    re.classes[ci].in[i] = true;
+                }
+            }
+            if(*p != ']')
+            {
+                bad = true;
+                return node(ReNode::Empty);
+            }
+            p++;
+            ReClass& cl = re.classes[ci];
+            for(int i = 'a'; i <= 'z'; i++) // (case-insensitive: a letter in either case is both)
+            {
+                const bool either = cl.in[i] || cl.in[i - 'a' + 'A'];
+                cl.in[i] = cl.in[i - 'a' + 'A'] = either;
+            }
+            if(neg)
+            {
+                for(bool& b : cl.in)
+                {
+                    b = !b;
+                }
+            }
+            return node(ReNode::Cls, ci);
+        }
+        if(c == ')' || c == '*' || c == '+' || c == '?' || c == '|')
+        {
+            bad = true;
+            return node(ReNode::Empty);
+        }
+        return node(ReNode::Lit, -1, -1, reLower(static_cast<unsigned char>(c)));
+    }
+
+    int piece()
+    {
+        int a = atom();
+        while(*p == '*' || *p == '+' || *p == '?')
+        {
+            const char q = *p++;
+            a = node(q == '*' ? ReNode::Star : q == '+' ? ReNode::Plus : ReNode::Quest, a);
+            if(*p == '?' && q != '?')
+            {
+                p++; // (lazy: the same lines match)
+            }
+        }
+        return a;
+    }
+
+    int seq()
+    {
+        int s = -1;
+        while(*p && *p != '|' && *p != ')' && !bad)
+        {
+            const int x = piece();
+            s = s < 0 ? x : node(ReNode::Cat, s, x);
+        }
+        return s < 0 ? node(ReNode::Empty) : s;
+    }
+
+    int alt()
+    {
+        int a = seq();
+        while(*p == '|' && !bad)
+        {
+            p++;
+            a = node(ReNode::Alt, a, seq());
+        }
+        return a;
+    }
+};
+
+int reEmit(Regex& re, ReInst::Op op, int x = 0, int y = 0, unsigned char c = 0)
+{
+    ReInst i;
+    i.op = op;
+    i.x = x;
+    i.y = y;
+    i.c = c;
+    re.prog.pushBack(i);
+    return static_cast<int>(re.prog.size()) - 1;
+}
+
+void reCompile(Regex& re, int n)
+{
+    const ReNode nd = re.nodes[n]; // (a copy: emitting grows other vectors, not this one, but stay simple)
+    const int here = static_cast<int>(re.prog.size());
+    switch(nd.kind)
+    {
+        case ReNode::Lit: reEmit(re, ReInst::Char, 0, 0, nd.c); break;
+        case ReNode::Dot: reEmit(re, ReInst::Any); break;
+        case ReNode::Cls: reEmit(re, ReInst::Class, nd.a); break;
+        case ReNode::Bol: reEmit(re, ReInst::Bol); break;
+        case ReNode::Eol: reEmit(re, ReInst::Eol); break;
+        case ReNode::Empty: break;
+        case ReNode::Cat:
+            reCompile(re, nd.a);
+            reCompile(re, nd.b);
+            break;
+        case ReNode::Alt:
+        {
+            const int split = reEmit(re, ReInst::Split);
+            re.prog[split].x = split + 1;
+            reCompile(re, nd.a);
+            const int jmp = reEmit(re, ReInst::Jmp);
+            re.prog[split].y = static_cast<int>(re.prog.size());
+            reCompile(re, nd.b);
+            re.prog[jmp].x = static_cast<int>(re.prog.size());
+            break;
+        }
+        case ReNode::Star:
+        {
+            const int split = reEmit(re, ReInst::Split);
+            re.prog[split].x = split + 1;
+            reCompile(re, nd.a);
+            reEmit(re, ReInst::Jmp, split);
+            re.prog[split].y = static_cast<int>(re.prog.size());
+            break;
+        }
+        case ReNode::Plus:
+        {
+            reCompile(re, nd.a);
+            const int split = reEmit(re, ReInst::Split, here);
+            re.prog[split].y = split + 1;
+            break;
+        }
+        case ReNode::Quest:
+        {
+            const int split = reEmit(re, ReInst::Split);
+            re.prog[split].x = split + 1;
+            reCompile(re, nd.a);
+            re.prog[split].y = static_cast<int>(re.prog.size());
+            break;
+        }
+    }
+}
+
+void reBuild(Regex& re, const char* pattern)
+{
+    re = Regex{};
+    re.text = za::String{pattern};
+    ReParser parser{re, pattern};
+    const int root = parser.alt();
+    if(parser.bad || *parser.p)
+    {
+        return; // (plain text)
+    }
+    reCompile(re, root);
+    reEmit(re, ReInst::Match);
+    re.nodes.clear();
+    re.plain = false;
+}
+
+// Backtracking (the patterns and lines are short); `budget` stops a pathological pattern.
+[[nodiscard]] bool reRun(const Regex& re, int pc, const unsigned char* s, int sp, int len, int& budget)
+{
+    while(budget-- > 0)
+    {
+        const ReInst& in = re.prog[pc];
+        switch(in.op)
+        {
+            case ReInst::Char:
+                if(sp >= len || reLower(s[sp]) != in.c)
+                {
+                    return false;
+                }
+                sp++;
+                pc++;
+                break;
+            case ReInst::Any:
+                if(sp >= len)
+                {
+                    return false;
+                }
+                sp++;
+                pc++;
+                break;
+            case ReInst::Class:
+                if(sp >= len || !re.classes[in.x].in[s[sp]])
+                {
+                    return false;
+                }
+                sp++;
+                pc++;
+                break;
+            case ReInst::Split:
+                if(reRun(re, in.x, s, sp, len, budget))
+                {
+                    return true;
+                }
+                pc = in.y;
+                break;
+            case ReInst::Jmp: pc = in.x; break;
+            case ReInst::Bol:
+                if(sp != 0)
+                {
+                    return false;
+                }
+                pc++;
+                break;
+            case ReInst::Eol:
+                if(sp != len)
+                {
+                    return false;
+                }
+                pc++;
+                break;
+            case ReInst::Match: return true;
+        }
+    }
+    return false;
+}
+
+[[nodiscard]] bool reSearch(const Regex& re, const char* line)
+{
+    if(re.plain)
+    {
+        return strstr(line, re.text.cStr()) != nullptr;
+    }
+    const auto* s = reinterpret_cast<const unsigned char*>(line);
+    int len = static_cast<int>(strlen(line));
+    while(len > 0 && (s[len - 1] == '\r' || s[len - 1] == '\n'))
+    {
+        len--;
+    }
+    int budget = 200000;
+    for(int start = 0; start <= len; start++)
+    {
+        if(reRun(re, 0, s, start, len, budget))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+struct QuitOn
+{
+    bool armed{false};
+    bool matched{false};
+    Regex re;
+    za::String line; // the console's line so far
+    // vr_waitquiton
+    bool holding{false};
+    int left{0};     // ticks it may still hold
+    za::String held; // the commands after it
+};
+QuitOn quitOn;
+
+void quitOnDisarm()
+{
+    quitOn.armed = quitOn.matched = false;
+    quitOn.line.clear();
+}
+
+// The rest of the command line after the first <skip> words, quotes around it dropped.
+[[nodiscard]] za::String argsAfter(int skip)
+{
+    const char* rest = Cmd_Args();
+    for(int i = 0; i < skip; i++)
+    {
+        while(*rest == ' ')
+        {
+            rest++;
+        }
+        while(*rest && *rest != ' ')
+        {
+            rest++;
+        }
+    }
+    while(*rest == ' ')
+    {
+        rest++;
+    }
+    za::String text{rest};
+    if(text.size() >= 2 && text[0] == '"' && text[text.size() - 1] == '"')
+    {
+        text = za::String{text.substrByPosLen(1, text.size() - 2)};
+    }
+    return text;
+}
+
+void quitOn_f()
+{
+    quitOnDisarm();
+    if(Cmd_Argc() < 2)
+    {
+        return; // (no pattern: off)
+    }
+    const za::String pattern = argsAfter(0);
+    reBuild(quitOn.re, pattern.cStr());
+    quitOn.armed = true;
+}
+
 void reset_f()
 {
     if(!snapshot.taken)
@@ -173,6 +659,7 @@ void reset_f()
     releaseButtons();
     resetMockState();
     srand(1); // (the client's effects' rand(): as a new game's, which never seeds it)
+    quitOnDisarm();
 }
 
 // The wait in progress (one at a time: the commands after it wait with it).
@@ -221,16 +708,16 @@ Wait waiting;
     double want = 0.0, have = 0.0;
     if(numeric(waiting.value.cStr(), want) && numeric(var->string, have))
     {
-        return !strcmp(op, "==") ? have == want : !strcmp(op, "!=") ? have != want : !strcmp(op, "<") ? have < want
-             : !strcmp(op, "<=") ? have <= want : !strcmp(op, ">") ? have > want : have >= want;
+        return !ZA_STRCMP(op, "==") ? have == want : !ZA_STRCMP(op, "!=") ? have != want : !ZA_STRCMP(op, "<") ? have < want
+             : !ZA_STRCMP(op, "<=") ? have <= want : !ZA_STRCMP(op, ">") ? have > want : have >= want;
     }
-    if(!strcmp(op, "=="))
+    if(!ZA_STRCMP(op, "=="))
     {
-        return !strcmp(var->string, waiting.value.cStr());
+        return !ZA_STRCMP(var->string, waiting.value.cStr());
     }
-    if(!strcmp(op, "!="))
+    if(!ZA_STRCMP(op, "!="))
     {
-        return strcmp(var->string, waiting.value.cStr()) != 0;
+        return ZA_STRCMP(var->string, waiting.value.cStr()) != 0;
     }
     return false; // (an order between texts: never)
 }
@@ -288,7 +775,7 @@ void waitUntil_f()
     {
         for(const char* o : ops)
         {
-            opOk = opOk || !strcmp(Cmd_Argv(2), o);
+            opOk = opOk || !ZA_STRCMP(Cmd_Argv(2), o);
         }
     }
     if(!opOk)
@@ -342,6 +829,27 @@ void waitPrint_f()
     step();
 }
 
+// vr_waitquiton holds the rest of the batch's commands aside (not a "wait": the game's own commands, QC's localcmd,
+// must still run meanwhile, as after the end of a script run alone) and puts them back at the server tick
+// (VR_TestTick) after the pattern matched or <ticks> ticks.
+void waitQuitOn_f()
+{
+    if(Cmd_Argc() != 2)
+    {
+        Con_Printf("vr_waitquiton <ticks>: holds the commands after it until a console line since vr_test_quiton matched "
+                   "its pattern, at most <ticks> server ticks (as \"wait\" counts)\n");
+        return;
+    }
+    if(!quitOn.armed || quitOn.matched || quitOn.holding)
+    {
+        return;
+    }
+    quitOn.held = za::String{Cbuf_PendingText(), static_cast<za::SizeT>(Cbuf_Pending())};
+    Cbuf_DropPending();
+    quitOn.holding = true;
+    quitOn.left = Q_atoi(Cmd_Argv(1));
+}
+
 void waitContinue_f()
 {
     if(waiting.kind != WaitKind::None)
@@ -359,6 +867,8 @@ void registerCommands()
     Cmd_AddCommand("vr_waituntil", waitUntil_f);
     Cmd_AddCommand("vr_waitprint", waitPrint_f);
     Cmd_AddCommand("vr_waitcontinue", waitContinue_f); // (the waits' next frame)
+    Cmd_AddCommand("vr_test_quiton", quitOn_f);
+    Cmd_AddCommand("vr_waitquiton", waitQuitOn_f);
 }
 
 } // namespace qvr::testbatch
@@ -367,6 +877,20 @@ extern "C" void VR_TestConsolePrint(const char* text)
 {
     using qvr::testbatch::waiting;
     using qvr::testbatch::WaitKind;
+    using qvr::testbatch::quitOn;
+    if(quitOn.armed && !quitOn.matched)
+    {
+        for(const char* p = text; *p && !quitOn.matched; p++)
+        {
+            if(*p == '\n')
+            {
+                quitOn.matched = qvr::testbatch::reSearch(quitOn.re, quitOn.line.cStr());
+                quitOn.line.clear();
+                continue;
+            }
+            quitOn.line += *p;
+        }
+    }
     if(waiting.kind != WaitKind::Print || waiting.printed)
     {
         return;
@@ -384,7 +908,7 @@ extern "C" void VR_TestConsolePrint(const char* text)
             continue; // (a line counts once)
         }
         waiting.line += *p;
-        if(waiting.line.size() >= waiting.text.size() && strstr(waiting.line.cStr(), waiting.text.cStr()))
+        if(waiting.line.size() >= waiting.text.size() && ZA_STRSTR(waiting.line.cStr(), waiting.text.cStr()))
         {
             waiting.lineCounted = true;
             if(++waiting.seen >= waiting.need)
@@ -394,6 +918,18 @@ extern "C" void VR_TestConsolePrint(const char* text)
             }
         }
     }
+}
+
+extern "C" void VR_TestTick(void)
+{
+    using qvr::testbatch::quitOn;
+    if(!quitOn.holding || (!quitOn.matched && quitOn.left-- > 0))
+    {
+        return;
+    }
+    quitOn.holding = false;
+    Cbuf_InsertText(quitOn.held.cStr()); // (ahead of what the game queued meanwhile: the case goes on to its end)
+    quitOn.held.clear();
 }
 
 extern "C" int VR_LogFlushFrames(void)

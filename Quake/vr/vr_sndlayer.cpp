@@ -7,7 +7,10 @@
 #include "vr_gunsfx.hpp"
 #include "vr_impacts.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -16,7 +19,6 @@
 #include "Zancle/Math/Pow.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 namespace
 {
@@ -67,7 +69,7 @@ bool readPcm(const char* source, za::Vector<float>& samples, int& rate)
     const int size = static_cast<int>(com_filesize);
     int width = 0, channels = 0;
     rate = 0;
-    if(size >= 12 && !memcmp(data, "RIFF", 4) && !memcmp(data + 8, "WAVE", 4))
+    if(size >= 12 && !ZA_MEMCMP(data, "RIFF", 4) && !ZA_MEMCMP(data + 8, "WAVE", 4))
     {
         int at = 12;
         while(at + 8 <= size)
@@ -75,13 +77,13 @@ bool readPcm(const char* source, za::Vector<float>& samples, int& rate)
             const int len = readLe(data + at + 4, 4);
             const byte* body = data + at + 8;
             const int avail = za::min(len, size - at - 8);
-            if(!memcmp(data + at, "fmt ", 4) && avail >= 16 && readLe(body, 2) == 1)
+            if(!ZA_MEMCMP(data + at, "fmt ", 4) && avail >= 16 && readLe(body, 2) == 1)
             {
                 channels = readLe(body + 2, 2);
                 rate = readLe(body + 4, 4);
                 width = readLe(body + 14, 2) / 8;
             }
-            else if(!memcmp(data + at, "data", 4) && channels == 1 && (width == 1 || width == 2) && rate > 0)
+            else if(!ZA_MEMCMP(data + at, "data", 4) && channels == 1 && (width == 1 || width == 2) && rate > 0)
             {
                 const int n = avail / width;
                 samples.reserve(static_cast<za::SizeT>(n));
@@ -190,7 +192,7 @@ extern "C" byte* VR_SndLayered(const char* name, int* size)
     const LayeredSound* sound = nullptr;
     for(const LayeredSound& s : layeredSounds)
     {
-        if(!strcmp(s.name, name))
+        if(!ZA_STRCMP(s.name, name))
         {
             sound = &s;
         }
@@ -282,9 +284,9 @@ extern "C" byte* VR_SndLayered(const char* name, int* size)
             wav[at + i] = static_cast<byte>((value >> (8 * i)) & 0xff);
         }
     };
-    memcpy(wav, "RIFF", 4);
+    ZA_MEMCPY(wav, "RIFF", 4);
     put(4, 36 + dataBytes, 4);
-    memcpy(wav + 8, "WAVEfmt ", 8);
+    ZA_MEMCPY(wav + 8, "WAVEfmt ", 8);
     put(16, 16, 4);
     put(20, 1, 2); // PCM
     put(22, 1, 2); // mono
@@ -292,7 +294,7 @@ extern "C" byte* VR_SndLayered(const char* name, int* size)
     put(28, layeredRate * 2, 4);
     put(32, 2, 2);
     put(34, 16, 2);
-    memcpy(wav + 36, "data", 4);
+    ZA_MEMCPY(wav + 36, "data", 4);
     put(40, dataBytes, 4);
     for(int i = 0; i < samples; i++)
     {

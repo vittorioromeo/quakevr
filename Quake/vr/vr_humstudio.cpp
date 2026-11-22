@@ -25,6 +25,8 @@
 #include "vr_testkit.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -164,12 +166,12 @@ void pushUndo(Skin* s, int key)
     {
         u.skin = static_cast<int>(s - allSkins().data());
         u.ownRows = s->ownRows;
-        memcpy(u.rows, s->ownRows ? s->rows : keyRows(key), sizeof(u.rows));
+        ZA_MEMCPY(u.rows, s->ownRows ? s->rows : keyRows(key), sizeof(u.rows));
         u.paint = s->paint;
     }
     else
     {
-        memcpy(u.rows, keyRows(key), sizeof(u.rows));
+        ZA_MEMCPY(u.rows, keyRows(key), sizeof(u.rows));
     }
     if(static_cast<int>(st.undo.size()) >= undoMax)
     {
@@ -193,13 +195,13 @@ void undo_f()
     if(s)
     {
         s->ownRows = u.ownRows;
-        memcpy(s->ownRows ? s->rows : keyRows(u.key), u.rows, sizeof(u.rows));
+        ZA_MEMCPY(s->ownRows ? s->rows : keyRows(u.key), u.rows, sizeof(u.rows));
         s->paint = static_cast<za::Vector<unsigned char>&&>(u.paint);
         s->dirty = true;
     }
     else
     {
-        memcpy(keyRows(u.key), u.rows, sizeof(u.rows));
+        ZA_MEMCPY(keyRows(u.key), u.rows, sizeof(u.rows));
     }
     markKeyDirty(u.key);
     Con_Printf("humstudio: undone (%d left)\n", static_cast<int>(st.undo.size()));
@@ -214,9 +216,9 @@ void syncSliders()
     {
         return;
     }
-    if(memcmp(sel, st.sel, sizeof(sel)) != 0)
+    if(ZA_MEMCMP(sel, st.sel, sizeof(sel)) != 0)
     {
-        memcpy(st.sel, sel, sizeof(sel));
+        ZA_MEMCPY(st.sel, sel, sizeof(sel));
         const Spec shown = s->set ? *s : Spec{};
         const float v[6] = {shown.rgb[0], shown.rgb[1], shown.rgb[2], shown.strength, shown.light, shown.tint};
         for(int i = 0; i < 6; i++)
@@ -490,7 +492,7 @@ void setCursor(Skin* s, const za::Vector<int>& texels)
         old.dirty = true;
     }
     st.cursorSkin = idx;
-    if(s && !(s->cursor.size() == texels.size() && memcmp(s->cursor.data(), texels.data(), texels.size() * sizeof(int)) == 0))
+    if(s && !(s->cursor.size() == texels.size() && ZA_MEMCMP(s->cursor.data(), texels.data(), texels.size() * sizeof(int)) == 0))
     {
         s->cursor = texels;
         s->dirty = true;
@@ -676,7 +678,7 @@ bool pickCase(const char* what, int num, int tri, const glm::vec3& from, const g
         const int steps = static_cast<int>(st.undo.size()) - undoBefore;
         undo_f();
         const bool same = want->paint.size() == before.size() &&
-                          memcmp(want->paint.data(), before.data(), before.size()) == 0;
+                          ZA_MEMCMP(want->paint.data(), before.data(), before.size()) == 0;
         const bool strokeOk = holds && changed > 0 && steps == 1 && same;
         st.pick.tally.check(strokeOk);
         Con_Printf("humstudio_picktest: %s entity %d stroke: %d texels in the brush, %d changed, %d undo step, undone %s\n",
@@ -836,7 +838,7 @@ void ownRows_f()
     pushUndo(s, s->key);
     if(!s->ownRows)
     {
-        memcpy(s->rows, keyRows(s->key), sizeof(s->rows));
+        ZA_MEMCPY(s->rows, keyRows(s->key), sizeof(s->rows));
     }
     s->ownRows = !s->ownRows;
     s->dirty = true;

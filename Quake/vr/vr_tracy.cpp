@@ -10,15 +10,21 @@
 #include "external/tracy/tracy/Tracy.hpp"
 #pragma clang diagnostic pop
 #include "SDL.h"
-#include <algorithm>
-#include <atomic>
-#include <cstring>
+#include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Concurrency/AtomicMutex.hpp"
+#include "Zancle/Concurrency/LockGuard.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
 #include <deque>
-#include <string>
-#include <vector>
-#include <unordered_map>
-#include <mutex>
-#include <string_view>
 #include "external/box3d/include/box3d/base.h"
 #include "vr_mem.hpp"
 #include "vr_jobs.hpp"
@@ -81,8 +87,8 @@ struct Thread
 thread_local Thread thread;
 ___tracy_source_location_data sources[maxNames]{};
 unsigned names{};
-std::atomic_flag sourceLock = ATOMIC_FLAG_INIT;
-std::atomic<unsigned> dropped{0};
+za::Atomic<bool> sourceLock{false};
+za::Atomic<unsigned> dropped{0};
 unsigned forceClosed{};
 bool abortedByError{};
 SDL_threadID mainThread{};
@@ -100,7 +106,7 @@ cvar_t physicsDetail = {"vr_tracy_physics_detail", "0", CVAR_NONE};
 // Per-entity render steps (r_alias.c: each model's frame, light, instance; a few zones a model an eye): off by default.
 cvar_t renderDetail = {"vr_tracy_render_detail", "0", CVAR_NONE};
 struct Allocation { unsigned long long bytes; int pool, end; };
-std::unordered_map<const void*, Allocation> allocations;
+ankerl::unordered_dense::map<const void*, Allocation> allocations;
 constexpr const char* poolNames[] = {"Zone", "Hunk", "Cache"};
 uint64_t memorySession{};
 bool memoryActive{}, snapshotting{};
@@ -109,8 +115,8 @@ unsigned memoryMismatches{};
 unsigned memoryTransitions{};
 // Native Box3D macros use Tracy's default pool. Keep survivors even while disconnected, so later
 // native frees/reallocations remain meaningful in the next capture. Box3D can allocate on workers.
-std::mutex boxLock;
-std::unordered_map<const void*, unsigned long long> boxLive;
+za::AtomicMutex boxLock;
+ankerl::unordered_dense::map<const void*, unsigned long long> boxLive;
 unsigned long long boxBytes{};
 uint64_t boxSession{};
 void boxSync()
@@ -127,7 +133,7 @@ void boxCheckpoint()
     size_t live;
     unsigned long long captured, actual;
     {
-        std::lock_guard lock{boxLock};
+        const za::LockGuard lock{boxLock};
         boxSync();
         if(!boxSession) return;
         actual = static_cast<unsigned long long>(b3GetByteCount());
@@ -160,7 +166,7 @@ void memorySync()
     if(session == memorySession && session)
         for(unsigned pool = 0; pool < 3; ++pool)
             if(poolAnnounced[pool]) ___tracy_emit_memory_discard(poolNames[pool]);
-    if(session != memorySession) std::memset(poolAnnounced, 0, sizeof(poolAnnounced));
+    if(session != memorySession) ZA_MEMSET(poolAnnounced, 0, sizeof(poolAnnounced));
     allocations.clear();
     memorySession = session;
     memoryActive = active;
@@ -194,24 +200,24 @@ const ___tracy_source_location_data* source(const char* name)
     for(unsigned i = 0; i < thread.names; ++i)
         if(thread.sources[i]->name == name)
             return thread.sources[i];
-    while(sourceLock.test_and_set(std::memory_order_acquire)) {}
+    while(sourceLock.exchangeAcquire(true)) {}
     for(unsigned i = 0; i < names; ++i)
-        if(std::strcmp(sources[i].name, name) == 0)
+        if(ZA_STRCMP(sources[i].name, name) == 0)
         {
             const auto* s = &sources[i];
-            sourceLock.clear(std::memory_order_release);
+            sourceLock.storeRelease(false);
             if(thread.names < maxNames) thread.sources[thread.names++] = s;
             return s;
         }
     if(names == maxNames)
     {
-        sourceLock.clear(std::memory_order_release);
-        dropped.fetch_add(1, std::memory_order_relaxed);
+        sourceLock.storeRelease(false);
+        dropped.fetchAddRelaxed(1);
         return nullptr;
     }
     auto& s = sources[names++];
     s = {name, "QVR scope", "Quake/vr/vr_tracy.cpp", 0, 0};
-    sourceLock.clear(std::memory_order_release);
+    sourceLock.storeRelease(false);
     if(thread.names < maxNames) thread.sources[thread.names++] = &s;
     return &s;
 }
@@ -268,14 +274,14 @@ void gpuConnect(uint64_t session)
 }
 bool coarse(const char* name)
 {
-    return std::strcmp(name, "eye L") == 0 || std::strcmp(name, "eye R") == 0 || std::strcmp(name, "eyes: single pass") == 0 ||
-        std::strcmp(name, "window view") == 0 || std::strcmp(name, "shadow maps") == 0 || std::strcmp(name, "3D") == 0;
+    return ZA_STRCMP(name, "eye L") == 0 || ZA_STRCMP(name, "eye R") == 0 || ZA_STRCMP(name, "eyes: single pass") == 0 ||
+        ZA_STRCMP(name, "window view") == 0 || ZA_STRCMP(name, "shadow maps") == 0 || ZA_STRCMP(name, "3D") == 0;
 }
 void status()
 {
     Con_Printf("Tracy 0.14.1: %s, CPU depth %u, dropped %u, force-closed at frame start %u, GPU %s detail %.0f pending %u context %u\n",
         TracyCIsConnected ? "connected" : "waiting on localhost:8086", thread.depth,
-        dropped.load(std::memory_order_relaxed), forceClosed, gpuReady ? "ready" : "idle", gpuDetail.value,
+        dropped.loadRelaxed(), forceClosed, gpuReady ? "ready" : "idle", gpuDetail.value,
         pending, contextSerial);
     Con_Printf("  detail: gpu %s, gpu_detail %s, qc %s, physics %s, render %s, memory %s (vr_tracy_preset full|off)\n",
         gpuEnabled.string, gpuDetail.string, qcDetail.string, physicsDetail.string, renderDetail.string, memoryDetail.string);
@@ -366,12 +372,12 @@ void abortTest()
 void stackTest()
 {
     const unsigned before = thread.depth;
-    const unsigned oldDrops = dropped.load(std::memory_order_relaxed);
+    const unsigned oldDrops = dropped.loadRelaxed();
     for(unsigned i = 0; i < maxDepth + 64; ++i) VR_TracyBegin("Tracy bounded nesting test", 0);
     for(unsigned i = 0; i < maxDepth + 64; ++i) VR_TracyEnd();
     Con_Printf("Tracy nesting test: %s depth %u/%u overflow %u dropped %u\n",
         thread.depth == before && thread.overflow == 0 ? "PASS" : "FAIL", thread.depth, before,
-        thread.overflow, dropped.load(std::memory_order_relaxed) - oldDrops);
+        thread.overflow, dropped.loadRelaxed() - oldDrops);
 }
 }
 
@@ -408,7 +414,7 @@ extern "C" void VR_TracyText(const char* text)
         const auto ctx = thread.stack[thread.depth - 1].cpu;
         if(ctx.active)
         {
-            const size_t length = std::strlen(text);
+            const size_t length = ZA_STRLEN(text);
             ___tracy_emit_zone_text(ctx, text, length < 65535 ? length : 65534);
         }
     }
@@ -428,14 +434,14 @@ extern "C" void VR_TracyJobText(const char* from, const char* file, unsigned lin
         if(*c == '/' || *c == '\\') base = c + 1;
     char text[256];
     const int length = q_snprintf(text, sizeof(text), "%s @ %s:%u", from ? from : "(no zone)", base, line);
-    ___tracy_emit_zone_text(thread.stack[thread.depth - 1].cpu, text, length < 0 ? 0 : std::min<size_t>(static_cast<size_t>(length), sizeof(text) - 1));
+    ___tracy_emit_zone_text(thread.stack[thread.depth - 1].cpu, text, length < 0 ? 0 : za::min<size_t>(static_cast<size_t>(length), sizeof(text) - 1));
 }
 extern "C" void VR_TracyBegin(const char* name, int gpu)
 {
     if(thread.depth == maxDepth)
     {
         ++thread.overflow;
-        dropped.fetch_add(1, std::memory_order_relaxed);
+        dropped.fetchAddRelaxed(1);
         return;
     }
     Open& o = thread.stack[thread.depth++];
@@ -462,7 +468,7 @@ extern "C" void VR_TracyBegin(const char* name, int gpu)
     {
         // Reserve one timestamp for each open zone's end; a full ring drops whole zones.
         if(pending + openGpu + 2 > queryCount)
-            dropped.fetch_add(1, std::memory_order_relaxed);
+            dropped.fetchAddRelaxed(1);
         else
         {
             const uint16_t id = query();
@@ -507,7 +513,7 @@ extern "C" void VR_TracyFrame()
     memorySync();
     if(TracyCIsConnected)
     {
-        std::lock_guard lock{boxLock};
+        const za::LockGuard lock{boxLock};
         boxSync();
     }
     if(TracyCIsConnected)
@@ -536,7 +542,7 @@ extern "C" void VR_TracyFrame()
                 break;
             }
         const auto session = tracy::GetProfiler().ConnectionId();
-        if(metadataSession != session || std::strcmp(metadataMap, cl.mapname) != 0)
+        if(metadataSession != session || ZA_STRCMP(metadataMap, cl.mapname) != 0)
         {
             metadataSession = session;
             q_strlcpy(metadataMap, cl.mapname, sizeof(metadataMap));
@@ -561,7 +567,7 @@ extern "C" void VR_TracyFrame()
                     VR_TracyText(value);
                 }
             for(const cvar_t* v = Cvar_FindVarAfter("", 0); v; v = Cvar_FindVarAfter(v->name, 0))
-                if(std::strncmp(v->name, "vr_pbr", 6) == 0 || std::strncmp(v->name, "vr_parallax", 11) == 0)
+                if(ZA_STRNCMP(v->name, "vr_pbr", 6) == 0 || ZA_STRNCMP(v->name, "vr_parallax", 11) == 0)
                 {
                     q_snprintf(value, sizeof(value), "%s=%s", v->name, v->string);
                     VR_TracyText(value);
@@ -593,7 +599,7 @@ extern "C" void VR_TracyFrame()
         VR_TracyPlot("VR scratch bytes", static_cast<double>(totals.scratchBytes));
         VR_TracyPlot("VR cache bytes", static_cast<double>(totals.cacheBytes));
         // Scratch/cache registrations can share a system label; emit its total, not alternating values.
-        std::unordered_map<std::string_view, double> systemBytes;
+        ankerl::unordered_dense::map<za::StringView, double> systemBytes;
         for(auto* r = qvr::mem::Registration::first(); r; r = r->next())
             systemBytes[r->system()] += static_cast<double>(r->bytes());
         for(const auto& [system, bytes] : systemBytes) VR_TracyPlot(system.data(), bytes);
@@ -619,7 +625,7 @@ extern "C" void VR_TracyDisplay(double ms, int missed) { displayPeriodMs = ms; m
 extern "C" void VR_TracyBoxAlloc(const void* ptr, unsigned long long bytes)
 {
     if(!ptr) return;
-    std::lock_guard lock{boxLock};
+    const za::LockGuard lock{boxLock};
     boxSync();
     if(boxLive.emplace(ptr, bytes).second)
     {
@@ -631,7 +637,7 @@ extern "C" void VR_TracyBoxAlloc(const void* ptr, unsigned long long bytes)
 extern "C" void VR_TracyBoxFree(const void* ptr)
 {
     if(!ptr) return;
-    std::lock_guard lock{boxLock};
+    const za::LockGuard lock{boxLock};
     boxSync();
     const auto it = boxLive.find(ptr);
     if(it == boxLive.end()) return;
@@ -650,11 +656,11 @@ extern "C" void VR_TracyMessage(const char* text, unsigned length)
 }
 extern "C" void VR_TracyBeginAt(const char* name, const char* file, unsigned line)
 {
-    if(thread.depth == maxDepth) { ++thread.overflow; dropped.fetch_add(1, std::memory_order_relaxed); return; }
+    if(thread.depth == maxDepth) { ++thread.overflow; dropped.fetchAddRelaxed(1); return; }
     Open& o = thread.stack[thread.depth++];
     o = {};
     if(!TracyCIsConnected) return;
-    const auto loc = ___tracy_alloc_srcloc_name(line, file, std::strlen(file), "QVR", 3, name, std::strlen(name), 0);
+    const auto loc = ___tracy_alloc_srcloc_name(line, file, ZA_STRLEN(file), "QVR", 3, name, ZA_STRLEN(name), 0);
 #ifdef TRACY_CALLSTACK
     o.cpu = ___tracy_emit_zone_begin_alloc_callstack(loc, TRACY_CALLSTACK, 1);
 #else
@@ -668,7 +674,7 @@ namespace
 // A zone at a persistent source location (no allocation); callstacks only where the build has them and stack is set.
 void beginStatic(const ___tracy_source_location_data* data, [[maybe_unused]] bool stack)
 {
-    if(thread.depth == maxDepth) { ++thread.overflow; dropped.fetch_add(1, std::memory_order_relaxed); return; }
+    if(thread.depth == maxDepth) { ++thread.overflow; dropped.fetchAddRelaxed(1); return; }
     Open& o = thread.stack[thread.depth++];
     o = {};
     o.name = data->name;
@@ -697,7 +703,7 @@ void beginStatic(const ___tracy_source_location_data* data, [[maybe_unused]] boo
 // makevectors 69, fabs 14, nextent 28, normalize 24, anglemod 29, random 28, rint 30, vectoyaw 55, cos/sin 45,
 // makeforward 80, ceil 68, ChangeYaw 41; together most of the builtin calls. Their unmeasured siblings (same kind
 // of work) are listed too. Not trivial (kept at 2): cvar (163 ns, a string lookup), traces, finds, sounds, movement.
-constexpr std::string_view qcTrivialBuiltins[] = {
+constexpr const char* qcTrivialBuiltins[] = {
     // vector and scalar math
     "makevectors", "makeforward", "normalize", "vlen", "vectoyaw", "vectoangles", "anglemod", "ChangeYaw", "random",
     "fabs", "floor", "ceil", "rint", "bound", "min", "max", "pow", "sqrt", "sin", "cos",
@@ -718,21 +724,25 @@ struct QCTable
     const qcvm_t* vm{};
     const dfunction_t* functions{};
     int count{};
-    std::vector<QCEntry> entries;
+    za::Vector<QCEntry> entries;
 };
 QCTable qcTables[3]; // one per VM (server, client); a spare slot
-std::deque<std::string> qcStrings; // backing store of the locations' names and files (stable addresses)
+std::deque<za::String> qcStrings; // backing store of the locations' names and files (stable addresses: no Zancle deque)
 std::deque<___tracy_source_location_data> qcLocations;
-std::unordered_map<std::string, const ___tracy_source_location_data*> qcInterned;
-std::string qcKey;
+ankerl::unordered_dense::map<za::String, const ___tracy_source_location_data*> qcInterned;
+za::String qcKey;
 
 const char* qcString(const char* text)
 {
-    return qcStrings.emplace_back(text).c_str();
+    return qcStrings.emplace_back(text).cStr();
 }
 const ___tracy_source_location_data* qcLocation(const char* name, const char* kind, const char* file)
 {
-    qcKey.assign(name).append(1, '\x1f').append(kind).append(1, '\x1f').append(file);
+    qcKey = name;
+    qcKey += '\x1f';
+    qcKey += kind;
+    qcKey += '\x1f';
+    qcKey += file;
     if(const auto it = qcInterned.find(qcKey); it != qcInterned.end()) return it->second;
     const auto* loc = &qcLocations.emplace_back(___tracy_source_location_data{qcString(name), kind, qcString(file), 0, 0});
     qcInterned.emplace(qcKey, loc);
@@ -759,7 +769,7 @@ extern "C" void VR_TracyQCProgs()
         if(t.vm == qcvm) table = &t;
     for(QCTable& t : qcTables)
         if(!table && !t.vm) table = &t;
-    if(!table) table = &qcTables[std::size(qcTables) - 1];
+    if(!table) table = &qcTables[za::getArraySize(qcTables) - 1];
     table->vm = qcvm;
     table->functions = qcvm->functions;
     table->count = qcvm->progs ? qcvm->progs->numfunctions : 0;
@@ -777,7 +787,7 @@ extern "C" void VR_TracyQCProgs()
         }
         char buffer[32];
         const char* name = qcBuiltinName(f, buffer);
-        const bool trivial = std::find(std::begin(qcTrivialBuiltins), std::end(qcTrivialBuiltins), name) != std::end(qcTrivialBuiltins);
+        const bool trivial = za::anyOf(qcTrivialBuiltins, qcTrivialBuiltins + za::getArraySize(qcTrivialBuiltins), [name](const char* b) { return ZA_STRCMP(b, name) == 0; });
         table->entries[i] = {qcLocation(name, qcBuiltinKind, file), trivial ? 3.f : 2.f};
     }
 }
@@ -869,7 +879,7 @@ extern "C" void VR_TracyGLShutdown()
 {
     VR_TracyAbort();
     if(queries[0] && del) del(queryCount, queries);
-    std::memset(queries, 0, sizeof(queries));
+    ZA_MEMSET(queries, 0, sizeof(queries));
     gpuReady = false;
     connection = 0;
     head = tail = pending = openGpu = 0;

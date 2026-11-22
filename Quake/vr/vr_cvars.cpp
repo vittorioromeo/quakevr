@@ -20,16 +20,16 @@
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
-#include "Zancle/Container/Array.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 extern "C" cvar_t gl_texture_anisotropy; // gl_texmgr.c
 
@@ -577,7 +577,7 @@ constexpr int oldestMigrated = 126;
 // Two settings' values the same (as numbers when both are; the same text always, "nan" too).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
 {
-    if(!strcmp(a, b))
+    if(!ZA_STRCMP(a, b))
     {
         return true; // (most calls: the config's tracking compares every archived setting at each menu close)
     }
@@ -589,7 +589,7 @@ constexpr int oldestMigrated = 126;
     {
         return fabs(x - y) < 1e-6;
     }
-    return !strcmp(a, b);
+    return !ZA_STRCMP(a, b);
 }
 
 // (The settings by name, looked up by a cvar's own name: no za::String made of it.)
@@ -747,7 +747,7 @@ void forEachArchived(Fn&& fn)
         {
             after = true;
         }
-        else if(after && !strcmp(other->name, var.name))
+        else if(after && !ZA_STRCMP(other->name, var.name))
         {
             return false;
         }
@@ -764,7 +764,7 @@ void forEachArchived(Fn&& fn)
         {
             return true;
         }
-        if(!strcmp(other->name, var.name))
+        if(!ZA_STRCMP(other->name, var.name))
         {
             return false;
         }
@@ -901,7 +901,7 @@ void migrateConfig_f()
 void migrateConfig()
 {
     bodycal::migrate(); // round 21's arm settings, whatever the version (they are moved, not changed in place)
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "new"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "new"))
     {
         Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
         Cvar_SetValueQuick(&vr_setup_pending, 1.f); // a first start: VR Calibration once the headset is on (vr_setup.cpp)
@@ -920,7 +920,7 @@ void migrateConfig()
     }
     for(const DefaultChange& c : defaultChanges)
     {
-        if(c.version > from && !strcmp(c.var->string, c.before))
+        if(c.version > from && !ZA_STRCMP(c.var->string, c.before))
         {
             Con_DPrintf("VR: %s: new default %s (was %s)\n", c.var->name, c.var->default_string, c.before);
             Cvar_SetQuick(c.var, c.var->default_string);
@@ -1621,7 +1621,7 @@ extern "C" const char* VR_CvarAlias(const char* name)
 {
     for(const CvarAlias& a : cvarAliases)
     {
-        if(!strcmp(name, a.old))
+        if(!ZA_STRCMP(name, a.old))
         {
             return a.now;
         }
@@ -1742,7 +1742,7 @@ extern "C" void VR_ConfigMergeOthers(const char* path)
             note(var.name, var.default_string ? var.default_string : "");
         }
     });
-    za::quickSort(changed.begin(), changed.end(), [](const Changed& a, const Changed& b) { return strcmp(a.name, b.name) < 0; });
+    za::quickSort(changed.begin(), changed.end(), [](const Changed& a, const Changed& b) { return ZA_STRCMP(a.name, b.name) < 0; });
     for(const Changed& c : changed) // (in the names' order, as a std::map had them)
     {
         cvar_t* var = Cvar_FindVar(c.name);
@@ -1795,7 +1795,7 @@ extern "C" void VR_ConfigNoteWrite()
             const char* first = nullptr;
             for(const cvar_t* other : configTrack.sharedNames)
             {
-                if(!strcmp(other->name, var.name))
+                if(!ZA_STRCMP(other->name, var.name))
                 {
                     first = first ? first : other->default_string;
                     line = lined(*other, isStandIn(other)) ? other->string : line;
@@ -1834,7 +1834,7 @@ extern "C" void VR_ConfigWritten(const char* path)
         {
             configTrack.here.try_emplace(za::String{var.name}, var.string); // (registered since)
         }
-        else if(strcmp(was->second.cStr(), var.string) != 0)
+        else if(ZA_STRCMP(was->second.cStr(), var.string) != 0)
         {
             was->second = var.string;
         }
@@ -1889,7 +1889,7 @@ extern "C" void VR_ConfigWriteTables(FILE* f)
             }
         }
     }
-    za::quickSort(changed.begin(), changed.end(), [](const cvar_t* a, const cvar_t* b) { return strcmp(a->name, b->name) < 0; });
+    za::quickSort(changed.begin(), changed.end(), [](const cvar_t* a, const cvar_t* b) { return ZA_STRCMP(a->name, b->name) < 0; });
     for(const cvar_t* var : changed)
     {
         fprintf(f, "%s \"%s\"\n", var->name, var->string);
@@ -2094,7 +2094,7 @@ cvars::Kind cvars::kindOf(const cvar_t* var)
             };
             const za::SizeT i = static_cast<za::SizeT>(var - &table[0]);
             if(i < sizeof(monsterKeys) / sizeof(monsterKeys[0]) &&
-                (!strcmp(monsterKeys[i], "smallgibs") || !strcmp(monsterKeys[i], "smallgibs_brains")))
+                (!ZA_STRCMP(monsterKeys[i], "smallgibs") || !ZA_STRCMP(monsterKeys[i], "smallgibs_brains")))
             {
                 return Kind::Own;
             }

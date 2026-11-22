@@ -23,6 +23,7 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -1029,7 +1030,7 @@ void lines_f()
     for(int slot = 0; slot < weapons::numSlots; slot++)
     {
         const char* id = weapons::cvar(slot, Key::ID)->string;
-        if(!id[0] || !strcmp(id, "-1"))
+        if(!id[0] || !ZA_STRCMP(id, "-1"))
         {
             continue;
         }

@@ -216,6 +216,19 @@ foreach(lib qvr_opus qvr_rnnoise)
 endforeach()
 target_link_libraries(ironwail PRIVATE qvr_opus qvr_rnnoise)
 
+# stb_vorbis (external/stb_vorbis/README.md): the Ogg Vorbis music decoder of a build without libvorbisfile (the
+# Quest's: snd_vorbis.c, VORBIS_USE_STB from the top-level CMakeLists.txt); a build with it has stb_vorbis too, for the
+# fake-Android mode (-fakeandroid, QVR_STB_VORBIS). One C file, always optimised, warnings off (vendored code).
+add_library(qvr_stb_vorbis STATIC "${CMAKE_CURRENT_LIST_DIR}/external/stb_vorbis/stb_vorbis.c")
+if (MSVC)
+	target_compile_options(qvr_stb_vorbis PRIVATE /O2 /Ob2 /RTC- /w)
+else()
+	target_compile_options(qvr_stb_vorbis PRIVATE -O2 -w)
+	target_link_libraries(qvr_stb_vorbis PUBLIC m)
+endif()
+target_link_libraries(ironwail PRIVATE qvr_stb_vorbis)
+target_compile_definitions(ironwail PRIVATE QVR_STB_VORBIS)
+
 # Zancle (external/zancle/README.md): the modules the Quake VR code uses, a static library with its own settings: C++23;
 # optimised and without Zancle's asserts (NDEBUG) in Release; in Debug by QVR_ZANCLE_DEBUG: ON, built as the engine's
 # Debug with its asserts on (a failure calls vr_zancle.cpp's handler, installed by za::setAssertHandler, as in the

@@ -216,6 +216,18 @@ int Cbuf_Pending (void)
 	return cmd_text.cursize - cbuf_start;
 }
 
+// QVR: the text still to run (Cbuf_Pending bytes, not NUL-terminated), and dropping it: vr_waitquiton holds a batch's
+// rest aside while the game's own commands (QC's localcmd) run, as after the script of a run alone (vr/vr_testbatch.cpp)
+const char *Cbuf_PendingText (void)
+{
+	return (const char *) cmd_text.data + cbuf_start;
+}
+
+void Cbuf_DropPending (void)
+{
+	cmd_text.cursize = cbuf_start = 0;
+}
+
 void Cbuf_TailToFront (int bytes)
 {
 	char *tail;

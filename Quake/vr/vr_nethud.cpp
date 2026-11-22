@@ -21,6 +21,7 @@
 #include "vr_predict.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 namespace qvr::nethud
 {

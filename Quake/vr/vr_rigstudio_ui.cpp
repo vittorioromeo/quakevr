@@ -18,6 +18,7 @@
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -27,7 +28,6 @@
 #include <glm/glm.hpp>
 
 #include <stdio.h>
-#include <string.h>
 
 extern "C" {
 extern cvar_t r_lerpmodels;
@@ -158,7 +158,7 @@ void menuBar()
         ImGui::TextDisabled("The armed humanoids");
         for(int k = 0; k < kinds; k++)
         {
-            const bool on = !strcmp(st.choice.spawn, toolgun::armed::kindSpawn(k));
+            const bool on = !ZA_STRCMP(st.choice.spawn, toolgun::armed::kindSpawn(k));
             if(ImGui::MenuItem(toolgun::armed::kindName(k), toolgun::armed::kindSpawn(k), on))
             {
                 q_strlcpy(st.choice.spawn, toolgun::armed::kindSpawn(k), sizeof(st.choice.spawn));
@@ -172,7 +172,7 @@ void menuBar()
             {"Ogre", "monster_ogre"}, {"Zombie", "monster_zombie"}};
         for(const auto& o : others)
         {
-            if(ImGui::MenuItem(o[0], o[1], !strcmp(st.choice.spawn, o[1])))
+            if(ImGui::MenuItem(o[0], o[1], !ZA_STRCMP(st.choice.spawn, o[1])))
             {
                 q_strlcpy(st.choice.spawn, o[1], sizeof(st.choice.spawn));
                 respawn();
@@ -182,7 +182,7 @@ void menuBar()
         const int kind = [&] {
             for(int k = 0; k < kinds; k++)
             {
-                if(!strcmp(st.choice.spawn, toolgun::armed::kindSpawn(k)))
+                if(!ZA_STRCMP(st.choice.spawn, toolgun::armed::kindSpawn(k)))
                 {
                     return k;
                 }

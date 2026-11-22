@@ -8,6 +8,7 @@
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_rig2.hpp"
+#include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -66,7 +67,7 @@ struct MeshKey
     glm::mat4 m{1.f};
     [[nodiscard]] bool operator==(const MeshKey& o) const
     {
-        return num == o.num && serial == o.serial && generation == o.generation && !memcmp(&m, &o.m, sizeof(m));
+        return num == o.num && serial == o.serial && generation == o.generation && !ZA_MEMCMP(&m, &o.m, sizeof(m));
     }
 };
 struct MeshMemo

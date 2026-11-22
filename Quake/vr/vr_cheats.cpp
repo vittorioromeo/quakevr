@@ -23,8 +23,9 @@
 #include "vr_move.hpp"
 #include "vr_protocol.hpp"
 #include "vr_api.h"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 
-#include <string.h>
 
 namespace qvr::cheats
 {
@@ -118,7 +119,7 @@ void clientParts(int bits, bool clear)
         flamewobble::clear();
         weaponfx::clear();
         shock::clear();
-        memset(cl_dlights, 0, sizeof(cl_dlights));
+        ZA_MEMSET(cl_dlights, 0, sizeof(cl_dlights));
     }
     if(!(bits & (Decals | Wounds | Effects | Fires)))
     {
@@ -227,7 +228,7 @@ void gotoExit_f()
     for(int i = svs.maxclients + 1; i < qcvm->num_edicts && !exit; i++)
     {
         edict_t* e = EDICT_NUM(i);
-        if(e->free || strcmp(PR_GetString(e->v.classname), "trigger_changelevel"))
+        if(e->free || ZA_STRCMP(PR_GetString(e->v.classname), "trigger_changelevel"))
         {
             continue;
         }
@@ -271,7 +272,7 @@ void hurt_f()
     edict_t* bot = slot >= 0 && slot < svs.maxclients && !svs.clients[slot].active && (isDedicated || deathmatch.value == 0.f)
                        ? EDICT_NUM(slot + 1)
                        : nullptr;
-    edict_t* player = bot && !bot->free && bot->v.health > 0.f && !strcmp(PR_GetString(bot->v.classname), "player")
+    edict_t* player = bot && !bot->free && bot->v.health > 0.f && !ZA_STRCMP(PR_GetString(bot->v.classname), "player")
                           ? bot
                           : slotPlayer("vr_hurt", 2);
     if(!player)

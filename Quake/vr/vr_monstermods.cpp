@@ -21,12 +21,13 @@
 
 #include "Zancle/Algorithm/Iota.hpp"
 #include "Zancle/Algorithm/MaxElement.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 namespace
 {
@@ -367,7 +368,7 @@ void superAxePoses(const char* name, aliashdr_t* hdr, const dtriangle_t* tris, t
     }
     for(int p = 0; p < hdr->numposes; p++)
     {
-        memcpy(poses[p], pose.data(), sizeof(trivertx_t) * static_cast<size_t>(n));
+        ZA_MEMCPY(poses[p], pose.data(), sizeof(trivertx_t) * static_cast<size_t>(n));
     }
     trivertx_t boxLo{}, boxHi{};
     for(int k = 0; k < 3; k++)
@@ -492,8 +493,8 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
     {
         const maliasframedesc_t& fd = hdr->frames[f];
         const bool death = known && known->firstDeath >= 0 ? f >= known->firstDeath && f <= known->lastDeath
-                                                           : strncmp(fd.name, "death", 5) == 0 || strncmp(fd.name, "bdeath", 6) == 0 ||
-                                                                 strncmp(fd.name, "fdeath", 6) == 0;
+                                                           : ZA_STRNCMP(fd.name, "death", 5) == 0 || ZA_STRNCMP(fd.name, "bdeath", 6) == 0 ||
+                                                                 ZA_STRNCMP(fd.name, "fdeath", 6) == 0;
         if(!death)
         {
             continue;

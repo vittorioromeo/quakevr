@@ -2,9 +2,12 @@
 // and a brush's .map text written and read.
 
 #include "vr_brushes_internal.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
-#include "Zancle/String/String.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/String/String.hpp"
 #include "vr_api_render.h"
 
 namespace qvr::brushes
@@ -143,7 +146,7 @@ struct Tokens
         token[n] = '\0';
         return true;
     }
-    bool expect(const char* s) { return next() && !strcmp(token, s); }
+    bool expect(const char* s) { return next() && !ZA_STRCMP(token, s); }
     bool number(double& v)
     {
         if(!next())
@@ -569,9 +572,9 @@ bool fromText(za::StringView text, Brush& out, za::String& error)
     out = Brush{};
     // The header comment, if any: its id, revision and group.
     const char* header = "// qvrbrush "; // (not a brush file's "// qvrbrushes")
-    for(za::SizeT i = 0; i + strlen(header) <= text.size(); i++)
+    for(za::SizeT i = 0; i + ZA_STRLEN(header) <= text.size(); i++)
     {
-        if(!strncmp(text.data() + i, header, strlen(header)))
+        if(!ZA_STRNCMP(text.data() + i, header, ZA_STRLEN(header)))
         {
             char line[128];
             za::SizeT n = 0;
@@ -604,11 +607,11 @@ bool fromText(za::StringView text, Brush& out, za::String& error)
             error = "no }";
             return false;
         }
-        if(!strcmp(t.token, "}"))
+        if(!ZA_STRCMP(t.token, "}"))
         {
             break;
         }
-        if(strcmp(t.token, "("))
+        if(ZA_STRCMP(t.token, "("))
         {
             error = va("a face starts with %s, not (", t.token);
             return false;
@@ -652,7 +655,7 @@ bool fromText(za::StringView text, Brush& out, za::String& error)
         defaultAlignment(f);
         // Valve 220 ([ u ] [ v ] rotation scales) or Quake's (offsets, rotation, scales).
         const za::SizeT mark = t.at;
-        if(t.next() && !strcmp(t.token, "["))
+        if(t.next() && !ZA_STRCMP(t.token, "["))
         {
             glm::dvec4 axes[2];
             for(int a = 0; a < 2; a++)

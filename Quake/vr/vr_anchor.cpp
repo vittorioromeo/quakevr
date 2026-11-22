@@ -6,6 +6,9 @@
 #include "vr_mdldequant.hpp"
 #include "vr_mem.hpp"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
@@ -90,12 +93,12 @@ struct Mesh
 
     const auto readInt = [&](int offset) {
         int v;
-        memcpy(&v, data + offset, sizeof(v));
+        ZA_MEMCPY(&v, data + offset, sizeof(v));
         return LittleLong(v);
     };
     const auto readFloat = [&](int offset) {
         float v;
-        memcpy(&v, data + offset, sizeof(v));
+        ZA_MEMCPY(&v, data + offset, sizeof(v));
         return LittleFloat(v);
     };
 
@@ -223,7 +226,7 @@ void appendNumber(za::String& out, float f)
 {
     char buf[32];
     snprintf(buf, sizeof(buf), "%.4f", static_cast<double>(f));
-    int len = static_cast<int>(strlen(buf));
+    int len = static_cast<int>(ZA_STRLEN(buf));
     while(len > 0 && buf[len - 1] == '0')
     {
         buf[--len] = 0;
@@ -232,7 +235,7 @@ void appendNumber(za::String& out, float f)
     {
         buf[--len] = 0;
     }
-    if(!strcmp(buf, "-0"))
+    if(!ZA_STRCMP(buf, "-0"))
     {
         strcpy(buf, "0");
     }
@@ -425,7 +428,7 @@ mem::Cache<AnchorCache> anchorCache{"anchors", mem::GameDirChange | mem::ModelRe
     const char* t = text ? text : "";
     for(const Binding& b : m.bindings)
     {
-        if(!strcmp(b.text.cStr(), t))
+        if(!ZA_STRCMP(b.text.cStr(), t))
         {
             return b.bound;
         }

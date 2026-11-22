@@ -24,7 +24,10 @@
 #include "vr_props.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "vr_api.h"
@@ -138,7 +141,7 @@ mem::Cache<RigidShapeCache> shapes{"rigid drawn boxes", mem::MapChange | mem::Ga
          vr_leg_holster_model_y_offset.value, vr_leg_holster_model_z_offset.value}};
     ShapeMemo& memo = shapes.entities[num];
     if(!memo.valid || memo.key.model != key.model || memo.key.props != key.props || memo.key.weapons != key.weapons ||
-       memo.key.quakevr != key.quakevr || memcmp(memo.key.values, key.values, sizeof(key.values)) != 0)
+       memo.key.quakevr != key.quakevr || ZA_MEMCMP(memo.key.values, key.values, sizeof(key.values)) != 0)
     {
         const bool changedModel = !memo.valid || memo.key.model != key.model;
         makeLocalBox(ent, memo.lo, memo.hi);
@@ -336,7 +339,7 @@ void place_f()
         const int num = Q_atoi(which);
         ent = num > 0 && num < qcvm->num_edicts ? EDICT_NUM(num) : nullptr;
     }
-    else if(!strncmp(which, "near:", 5))
+    else if(!ZA_STRNCMP(which, "near:", 5))
     {
         // The nearest to the first player of a classname: what a test just let go of, whatever its edict number.
         const glm::vec3 from = geom::vec(progs::playerEdict()->v.origin);
@@ -344,7 +347,7 @@ void place_f()
         for(int i = 1; i < qcvm->num_edicts; i++)
         {
             edict_t* e = EDICT_NUM(i);
-            if(e->free || strcmp(PR_GetString(e->v.classname), which + 5))
+            if(e->free || ZA_STRCMP(PR_GetString(e->v.classname), which + 5))
             {
                 continue;
             }
@@ -361,8 +364,8 @@ void place_f()
         for(int i = qcvm->num_edicts - 1; i > 0 && !ent; i--)
         {
             edict_t* e = EDICT_NUM(i);
-            const bool newest = !strcmp(which, "new") && f.vr_rigid >= 0 && fieldFloat(e, f.vr_rigid) != 0.f;
-            if(!e->free && (newest || !strcmp(PR_GetString(e->v.classname), which)))
+            const bool newest = !ZA_STRCMP(which, "new") && f.vr_rigid >= 0 && fieldFloat(e, f.vr_rigid) != 0.f;
+            if(!e->free && (newest || !ZA_STRCMP(PR_GetString(e->v.classname), which)))
             {
                 ent = e;
             }
@@ -374,7 +377,7 @@ void place_f()
         return;
     }
     const auto arg = [](int i) { return i < Cmd_Argc() ? Q_atof(Cmd_Argv(i)) : 0.f; };
-    if(const bool main = !strcmp(Cmd_Argv(2), "main"); main || !strcmp(Cmd_Argv(2), "off"))
+    if(const bool main = !ZA_STRCMP(Cmd_Argv(2), "main"); main || !ZA_STRCMP(Cmd_Argv(2), "off"))
     {
         // At the first player's hand, and so far along its forward, left and up.
         edict_t* player = progs::playerEdict();

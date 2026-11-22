@@ -17,6 +17,7 @@
 #include "vr_tunables.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -526,7 +527,7 @@ void testFrame()
                 if(c.letGo)
                 {
                     q_snprintf(line, sizeof(line), "%s: it ends (%s) %.2f s after letting go", c.name, s.endWhy, now - t.endAt);
-                    check(!strcmp(s.endWhy, "the key let go") && now - t.endAt < 0.1, line);
+                    check(!ZA_STRCMP(s.endWhy, "the key let go") && now - t.endAt < 0.1, line);
                     t.slideEndAt = now;
                     next(3);
                     break;
@@ -560,7 +561,7 @@ void testFrame()
                     "%s: slide %.2f s (friction's %.2f; %d moves on the ground, %d off), %.0f units (%.0f from the start), ends (%s) at %.0f u/s",
                     c.name, secs, want, s.groundSteps, s.airSteps, dist, 0.5f * (t.peak + endSpeed) * want, s.endWhy, speed);
                 check(za::abs(secs - want) < 0.1f + 0.1f * want && dist > 0.4f * (t.peak + endSpeed) * want &&
-                    !strcmp(s.endWhy, "slowed"), line);
+                    !ZA_STRCMP(s.endWhy, "slowed"), line);
                 q_snprintf(line, sizeof(line), "%s: his box crouched all through it (%d; the flat slide's: eyes %.0f over the feet)",
                     c.name, t.crouchedAll ? 1 : 0, slideEye());
                 check(t.crouchedAll, line);

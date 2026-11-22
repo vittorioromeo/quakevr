@@ -27,7 +27,11 @@
 #include <unistd.h>
 #endif
 
-#include <atomic>
+#include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -267,7 +271,7 @@ struct VdSetting
         vd.source = va("%s: no OpenXRRuntime in it", path);
         return vd;
     }
-    const char* p = key + strlen("\"OpenXRRuntime\"");
+    const char* p = key + ZA_STRLEN("\"OpenXRRuntime\"");
     while(*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n' || *p == ':')
     {
         p++;
@@ -278,7 +282,7 @@ struct VdSetting
         for(VdChoice c : named)
         {
             const char* name = vdChoiceName(c);
-            if(!q_strncasecmp(p + 1, name, strlen(name)) && p[1 + strlen(name)] == '"')
+            if(!q_strncasecmp(p + 1, name, ZA_STRLEN(name)) && p[1 + ZA_STRLEN(name)] == '"')
             {
                 vd.choice = c;
             }
@@ -373,7 +377,7 @@ struct Environment
             {
                 names.pushBack(za::String{fileName(arg)});
             }
-            arg += strlen(arg) + 1;
+            arg += ZA_STRLEN(arg) + 1;
         }
     }
     return names;
@@ -392,9 +396,9 @@ struct Environment
             line[strcspn(line, "\r\n")] = 0;
             if(line[0] == '[')
             {
-                context = !strcmp(line, "[Context]");
+                context = !ZA_STRCMP(line, "[Context]");
             }
-            else if(context && !strncmp(line, "devices=", 8))
+            else if(context && !ZA_STRNCMP(line, "devices=", 8))
             {
                 devices = line + 8;
             }
@@ -453,7 +457,7 @@ struct Environment
             bool vr = false;
             for(const char* word : {"steamvr", "openvr", "vrserver", "vrcompositor", "valve"})
             {
-                vr = vr || strstr(name.cStr(), word) != nullptr;
+                vr = vr || ZA_STRSTR(name.cStr(), word) != nullptr;
             }
             if(vr && ++count <= 8)
             {
@@ -577,8 +581,8 @@ struct Environment
         {
             while(const dirent* e = readdir(d))
             {
-                const size_t n = strlen(e->d_name);
-                if(n > 5 && !strcmp(e->d_name + n - 5, ".json") && strncmp(e->d_name, "active_runtime.", 15))
+                const size_t n = ZA_STRLEN(e->d_name);
+                if(n > 5 && !ZA_STRCMP(e->d_name + n - 5, ".json") && ZA_STRNCMP(e->d_name, "active_runtime.", 15))
                 {
                     env.available.pushBack(za::String{va("%s/%s", dir, e->d_name)});
                 }
@@ -971,12 +975,12 @@ void logText(const char* text, bool always = false, bool console = false)
     za::String value;
     char quoted[128];
     q_snprintf(quoted, sizeof(quoted), "\"%s\"", key);
-    const char* p = strstr(text, quoted);
+    const char* p = ZA_STRSTR(text, quoted);
     if(!p)
     {
         return value;
     }
-    p += strlen(quoted);
+    p += ZA_STRLEN(quoted);
     while(*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n' || *p == ':')
     {
         p++;
@@ -1256,7 +1260,7 @@ constexpr const char* proxyNames[] = {"opengl32.dll", "dxgi.dll", "d3d11.dll", "
 
 [[nodiscard]] bool startsWithNoCase(const char* text, const char* prefix)
 {
-    return prefix[0] && _strnicmp(text, prefix, strlen(prefix)) == 0;
+    return prefix[0] && _strnicmp(text, prefix, ZA_STRLEN(prefix)) == 0;
 }
 
 // Each DLL of another program: "name (what) at path" lines for the log; the summary's "name (what)".
@@ -1264,7 +1268,7 @@ void foreignModules(za::Vector<za::String>& lines, za::String& summary)
 {
     char windows[MAX_PATH] = "";
     GetWindowsDirectoryA(windows, sizeof(windows));
-    if(windows[0] && windows[strlen(windows) - 1] != '\\')
+    if(windows[0] && windows[ZA_STRLEN(windows) - 1] != '\\')
     {
         q_strlcat(windows, "\\", sizeof(windows)); // "C:\Windows\" so "C:\WindowsApps\..." is not a system DLL
     }
@@ -1292,14 +1296,14 @@ void foreignModules(za::Vector<za::String>& lines, za::String& summary)
         const char* what = nullptr;
         for(const KnownModule& k : knownModules)
         {
-            what = !what && !strcmp(lower, k.file) ? k.what : what;
+            what = !what && !ZA_STRCMP(lower, k.file) ? k.what : what;
         }
         const bool inWindows = startsWithNoCase(me.szExePath, windows);
         const bool inGame = startsWithNoCase(me.szExePath, exeDir);
         bool proxy = false;
         for(const char* p : proxyNames)
         {
-            proxy = proxy || (!inWindows && !strcmp(lower, p));
+            proxy = proxy || (!inWindows && !ZA_STRCMP(lower, p));
         }
         if((!what && (inWindows || (inGame && !proxy))) || me.hModule == GetModuleHandleA(nullptr))
         {
@@ -1389,9 +1393,9 @@ void describe()
                                  "--device=shm io.github.vittorioromeo.QuakeVR)");
         const char* logs = steamLogsAccess();
         note("  Flatpak sandbox: SteamVR's logs folder (~/.local/share/Steam/logs) %s\n",
-            !strcmp(logs, "read-only") ? "read-only (SteamVR's client needs to write it: flatpak override --user "
+            !ZA_STRCMP(logs, "read-only") ? "read-only (SteamVR's client needs to write it: flatpak override --user "
                                          "--filesystem=xdg-data/Steam/logs io.github.vittorioromeo.QuakeVR)"
-            : !strcmp(logs, "none")    ? "not found (no native Steam's SteamVR)"
+            : !ZA_STRCMP(logs, "none")    ? "not found (no native Steam's SteamVR)"
                                        : "writable");
     }
     note("  /dev/shm, SteamVR's or OpenVR's: %s\n", vrShmEntries().cStr());
@@ -1500,7 +1504,7 @@ za::String foreignArch(const char* manifest)
 #else
     // Its name: <name>.<arch>.json.
     const char* name = fileName(manifest);
-    const size_t n = strlen(name);
+    const size_t n = ZA_STRLEN(name);
     if(n > 5 && !q_strcasecmp(name + n - 5, ".json"))
     {
         const char* end = name + n - 5;
@@ -1514,7 +1518,7 @@ za::String foreignArch(const char* manifest)
             const za::String suffix{dot, static_cast<za::SizeT>(end - dot)};
             for(const char* arch : loaderArches)
             {
-                if(suffix == za::StringView{arch} && strcmp(arch, ourArch) != 0)
+                if(suffix == za::StringView{arch} && ZA_STRCMP(arch, ourArch) != 0)
                 {
                     return za::String{va("for %s (the game is %s)", arch, ourArch)};
                 }
@@ -1566,8 +1570,8 @@ struct LoaderCapture
 LoaderCapture loaderCapture;
 // The terminal's stdout and stderr (the dups) while they are caught, -1 otherwise: VR_TerminalFd's, read by the start-up
 // watchdog's thread and the crash handler (a lock-free int: signal-safe).
-std::atomic<int> terminalOut{-1};
-std::atomic<int> terminalErr{-1};
+za::Atomic<int> terminalOut{-1};
+za::Atomic<int> terminalErr{-1};
 #endif
 
 } // namespace
@@ -1626,8 +1630,8 @@ void captureLoaderOutput(const char* call)
     fflush(c.file);
     c.savedOut = dup(STDOUT_FILENO);
     c.savedErr = dup(STDERR_FILENO);
-    terminalOut.store(c.savedOut, std::memory_order_release); // (before the redirect: the terminal stays reachable)
-    terminalErr.store(c.savedErr, std::memory_order_release);
+    terminalOut.storeRelease(c.savedOut); // (before the redirect: the terminal stays reachable)
+    terminalErr.storeRelease(c.savedErr);
     dup2(fileno(c.file), STDOUT_FILENO);
     dup2(fileno(c.file), STDERR_FILENO);
 #else
@@ -1653,8 +1657,8 @@ void endLoaderOutput(const char* call, bool failed)
     {
         dup2(c.savedErr, STDERR_FILENO);
     }
-    terminalOut.store(-1, std::memory_order_release); // (fds 1 and 2 the terminal's again: the dups no longer needed)
-    terminalErr.store(-1, std::memory_order_release);
+    terminalOut.storeRelease(-1); // (fds 1 and 2 the terminal's again: the dups no longer needed)
+    terminalErr.storeRelease(-1);
     if(c.savedOut >= 0)
     {
         close(c.savedOut);
@@ -1673,14 +1677,14 @@ void endLoaderOutput(const char* call, bool failed)
         line[strcspn(line, "\r\n")] = 0;
         // (With XR_LOADER_DEBUG the loader writes each error to stderr and stdout both: once. The file's own header
         // line, "== <call>, <time>: ...", not.)
-        if(!line[0] || !strcmp(line, last) || !strncmp(line, "== ", 3))
+        if(!line[0] || !ZA_STRCMP(line, last) || !ZA_STRNCMP(line, "== ", 3))
         {
             continue;
         }
         q_strlcpy(last, line, sizeof(last));
         logText(va("OpenXR loader output (%s): %s\n", call, line), true);
         // A failure's errors to the console too (the loader's "Error [GENERAL | ...]" lines; at most 8).
-        if(failed && (strstr(line, "Error") || strstr(line, "error") || strstr(line, "ERROR")) && shown++ < 8)
+        if(failed && (ZA_STRSTR(line, "Error") || ZA_STRSTR(line, "error") || ZA_STRSTR(line, "ERROR")) && shown++ < 8)
         {
             Con_Warning("OpenXR loader: %s\n", line);
         }
@@ -1719,7 +1723,7 @@ void runtimeUnavailable(const Attempt& attempt)
         note("  The Flatpak sandbox has its own /dev/shm, where SteamVR's client looks for its server: run 'flatpak "
              "override --user --device=shm io.github.vittorioromeo.QuakeVR' and start the game again.\n");
     }
-    const bool logsReadOnly = env.sandbox && !strcmp(steamLogsAccess(), "read-only");
+    const bool logsReadOnly = env.sandbox && !ZA_STRCMP(steamLogsAccess(), "read-only");
     if(logsReadOnly)
     {
         note("  The Flatpak can't write SteamVR's logs folder, which SteamVR's client needs: run 'flatpak override "
@@ -1941,7 +1945,7 @@ za::String layersAndOverlays()
     for(const ApiLayer& layer : implicitLayers())
     {
         const za::String st = layerState(layer);
-        const bool active = !strncmp(st.cStr(), "ON", 2);
+        const bool active = !ZA_STRNCMP(st.cStr(), "ON", 2);
         on += active ? 1 : 0;
         if(names.size() < 400)
         {
@@ -2019,11 +2023,11 @@ extern "C" int VR_TerminalFd(int fd)
 #ifndef _WIN32
     if(fd == 1)
     {
-        return qvr::xrruntime::terminalOut.load(std::memory_order_acquire);
+        return qvr::xrruntime::terminalOut.loadAcquire();
     }
     if(fd == 2)
     {
-        return qvr::xrruntime::terminalErr.load(std::memory_order_acquire);
+        return qvr::xrruntime::terminalErr.loadAcquire();
     }
 #else
     (void)fd;

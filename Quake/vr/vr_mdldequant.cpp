@@ -37,6 +37,9 @@
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -92,7 +95,7 @@ LoadTotals loadTotals;
 void stemOf(const char* name, char out[17])
 {
     size_t n = strnlen(name, 16);
-    memcpy(out, name, n);
+    ZA_MEMCPY(out, name, n);
     while(n > 0 && out[n - 1] >= '0' && out[n - 1] <= '9')
     {
         n--;
@@ -546,7 +549,7 @@ void pushNamedRun(za::Vector<Run>& runs, const trivertx_t* verts, int numverts, 
     stemOf(hdr->frames[a].name, sa);
     stemOf(hdr->frames[a + 1].name, sb);
     const int na = numberOf(hdr->frames[a].name);
-    return sa[0] && !strcmp(sa, sb) && na >= 0 && numberOf(hdr->frames[a + 1].name) == na + 1;
+    return sa[0] && !ZA_STRCMP(sa, sb) && na >= 0 && numberOf(hdr->frames[a + 1].name) == na + 1;
 }
 
 // The progs' loops of `model` that fit its frames (single poses one after another, the names not running on into the
@@ -653,7 +656,7 @@ void pushNamedRun(za::Vector<Run>& runs, const trivertx_t* verts, int numverts, 
         }
         char stem[17];
         stemOf(frame.name, stem);
-        if(cur.count > 0 && frame.firstpose == cur.first + cur.count && !strcmp(stem, curStem))
+        if(cur.count > 0 && frame.firstpose == cur.first + cur.count && !ZA_STRCMP(stem, curStem))
         {
             cur.count++;
             continue;
@@ -663,7 +666,7 @@ void pushNamedRun(za::Vector<Run>& runs, const trivertx_t* verts, int numverts, 
             pushNamedRun(runs, verts, hdr->numverts, cur);
         }
         cur = Run{frame.firstpose, 1, false};
-        memcpy(curStem, stem, sizeof(curStem));
+        ZA_MEMCPY(curStem, stem, sizeof(curStem));
     }
     if(cur.count > 0)
     {
@@ -993,7 +996,7 @@ struct Check
     if(hdr->dequant && hdr->dequantready)
     {
         const auto* stored = reinterpret_cast<const unsigned*>(reinterpret_cast<const byte*>(hdr) + hdr->dequant);
-        c.same = !memcmp(stored, fresh.data(), 2 * total * sizeof(unsigned));
+        c.same = !ZA_MEMCMP(stored, fresh.data(), 2 * total * sizeof(unsigned));
     }
     else
     {
@@ -1322,13 +1325,13 @@ void computeCached(const aliashdr_t* hdr, const char* model, unsigned* out)
                       data.size() == bytes;
     if(read && mode == 1)
     {
-        memcpy(out, data.data(), bytes);
+        ZA_MEMCPY(out, data.data(), bytes);
         return;
     }
     compute(hdr, model, out);
     if(read)
     {
-        qvr::diskcache::noteChecked(Product::Dequant, memcmp(out, data.data(), bytes) == 0, model);
+        qvr::diskcache::noteChecked(Product::Dequant, ZA_MEMCMP(out, data.data(), bytes) == 0, model);
         return;
     }
     qvr::diskcache::write(Product::Dequant, dequantBuild.cStr(), key, "dqt", dequantMagic,

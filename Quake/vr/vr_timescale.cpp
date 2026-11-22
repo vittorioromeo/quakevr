@@ -14,6 +14,7 @@
 #include "vr_protocol.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -192,7 +193,7 @@ void probe_f()
         for(int i = 1; number <= 0 && i < qcvm->num_edicts; i++)
         {
             edict_t* const e = EDICT_NUM(i);
-            if(!e->free && !strcmp(PR_GetString(e->v.classname), Cmd_Argv(1)))
+            if(!e->free && !ZA_STRCMP(PR_GetString(e->v.classname), Cmd_Argv(1)))
             {
                 found = e; // (the newest: the loop goes on past it)
             }

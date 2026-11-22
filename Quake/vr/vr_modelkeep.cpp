@@ -25,6 +25,7 @@
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -172,7 +173,7 @@ const char* boxWhy = "";
             h = (h ^ static_cast<const unsigned char*>(p)[i]) * 1099511628211ull;
         }
     };
-    const auto mixString = [&mix](const char* s) { mix(s, strlen(s) + 1); };
+    const auto mixString = [&mix](const char* s) { mix(s, ZA_STRLEN(s) + 1); };
     for(const searchpath_t* s = com_searchpaths; s; s = s->next)
     {
         mixString(s->pack ? s->pack->filename : s->filename);

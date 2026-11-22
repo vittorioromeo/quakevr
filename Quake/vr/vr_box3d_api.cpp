@@ -9,6 +9,8 @@
 
 #include "vr_box3d_internal.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -19,7 +21,7 @@ namespace qvr::box3d
 {
 GunPiecesCount gunPiecesCount()
 {
-    return {gunPiecesDisk.read.load(), gunPiecesDisk.cut.load(), gunPiecesDisk.written.load()};
+    return {gunPiecesDisk.read.loadSeqCst(), gunPiecesDisk.cut.loadSeqCst(), gunPiecesDisk.written.loadSeqCst()};
 }
 
 void beforeLoad()
@@ -120,7 +122,7 @@ edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::v
     }
     const auto engineString = [](const char* text) {
         char* copy = nullptr;
-        const int str = PR_AllocString(static_cast<int>(strlen(text)) + 1, &copy);
+        const int str = PR_AllocString(static_cast<int>(ZA_STRLEN(text)) + 1, &copy);
         strcpy(copy, text);
         return str;
     };
@@ -1304,7 +1306,7 @@ void profileAwakeKinds(AwakeKinds& out)
             continue;
         }
         const char* model = s.model ? s.model->name : "";
-        if(s.kind == Kind::Prop && (strstr(model, "gib") || strstr(model, "/h_")))
+        if(s.kind == Kind::Prop && (ZA_STRSTR(model, "gib") || ZA_STRSTR(model, "/h_")))
         {
             out.gibsAwake++;
         }

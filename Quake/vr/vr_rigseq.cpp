@@ -13,6 +13,8 @@
 #include "vr_rigpose.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Floor.hpp"
@@ -22,7 +24,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include <string.h>
 
 extern "C" int PR_MakeTempString(const char* val); // pr_cmds.c
 
@@ -156,7 +157,7 @@ bool groupTime(const aliashdr_t* hdr, int pose1, int pose2, float blend, char* g
     {
         return false;
     }
-    if(h1 && h2 && !strcmp(g1.name, g2.name) && i2 == i1 + 1)
+    if(h1 && h2 && !ZA_STRCMP(g1.name, g2.name) && i2 == i1 + 1)
     {
         q_strlcpy(group, g1.name, static_cast<size_t>(size));
         t = static_cast<float>(i1) + blend;
@@ -637,7 +638,7 @@ void adjustTargets(const ragdoll::Rig& rig, const agarms::Spec& spec, const rigp
         int hand = fore;
         for(int b = 0; rig.authored && b < rig.numBones; b++)
         {
-            hand = rig.bones[b].parent == fore && !strncmp(rig.bones[b].name, "hand", 4) ? b : hand;
+            hand = rig.bones[b].parent == fore && !ZA_STRNCMP(rig.bones[b].name, "hand", 4) ? b : hand;
         }
         const rigpose::Rigid H = kick ? rigdata::compose(kick[hand], posed[hand]) : posed[hand];
         const rigpose::Rigid U = kick ? rigdata::compose(kick[upper], posed[upper]) : posed[upper];
@@ -660,8 +661,8 @@ bool armBone(const ragdoll::Rig& rig, int b)
         return false;
     }
     const char* n = rig.bones[b].name;
-    return !strncmp(n, "upperarm", 8) || !strncmp(n, "forearm", 7) ||
-           (rig.authored && (!strncmp(n, "clavicle", 8) || !strncmp(n, "hand", 4)));
+    return !ZA_STRNCMP(n, "upperarm", 8) || !ZA_STRNCMP(n, "forearm", 7) ||
+           (rig.authored && (!ZA_STRNCMP(n, "clavicle", 8) || !ZA_STRNCMP(n, "hand", 4)));
 }
 
 void setStudio(int ent, const rigpose::Rigid* F, int numBones, bool arms)
@@ -740,7 +741,7 @@ void serverFrame()
         }
         const za::String name{PR_GetString(req)};
         req = 0;
-        if(name.empty() || !strcmp(name.cStr(), "-"))
+        if(name.empty() || !ZA_STRCMP(name.cStr(), "-"))
         {
             stopOn(e, "stopped");
         }

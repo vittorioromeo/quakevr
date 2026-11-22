@@ -8,7 +8,12 @@
 #include "vr_mem.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_zancle.hpp"
@@ -95,7 +100,7 @@ void load(Entry& e)
     za::U32 h = 0;
     za::U32 bpp = 0;
     za::U32 count = 0;
-    if(size < headerBytes || memcmp(data, magic, sizeof(magic)) != 0 || readU32(data + 8) != version)
+    if(size < headerBytes || ZA_MEMCMP(data, magic, sizeof(magic)) != 0 || readU32(data + 8) != version)
     {
         why = "not a patch of this version";
     }
@@ -148,7 +153,7 @@ void load(Entry& e)
 {
     for(Entry& e : cache.entries)
     {
-        if(!strcmp(e.base, base))
+        if(!ZA_STRCMP(e.base, base))
         {
             return e;
         }
@@ -167,12 +172,12 @@ void load(Entry& e)
 {
     if(bpp == 1)
     {
-        const char* frame = strstr(name, ".mdl:frame");
+        const char* frame = ZA_STRSTR(name, ".mdl:frame");
         if(!frame)
         {
             return false;
         }
-        const char* p = frame + strlen(".mdl:frame");
+        const char* p = frame + ZA_STRLEN(".mdl:frame");
         const char* digits = p;
         while(*p >= '0' && *p <= '9')
         {
@@ -204,7 +209,7 @@ void load(Entry& e)
         q_strlcpy(prefix, name, za::min(sizeof(prefix), static_cast<za::SizeT>(p - name) + 1));
         return true;
     }
-    if(!strstr(name, ".mdl_") || qvr::strings::endsWith(name, "_glow") || qvr::strings::endsWith(name, "_luma") || qvr::strings::endsWith(name, "_norm") ||
+    if(!ZA_STRSTR(name, ".mdl_") || qvr::strings::endsWith(name, "_glow") || qvr::strings::endsWith(name, "_luma") || qvr::strings::endsWith(name, "_norm") ||
        qvr::strings::endsWith(name, "_bump"))
     {
         return false;
@@ -254,11 +259,11 @@ extern "C" byte* VR_CleanSkin(const char* name, byte* data, int width, int heigh
         return data;
     }
     byte* out = static_cast<byte*>(Hunk_Alloc(static_cast<int>(size))); // freed with the upload's (TexMgr's mark)
-    memcpy(out, data, size);
+    ZA_MEMCPY(out, data, size);
     const za::U32* pair = pairs;
     for(za::SizeT i = 0; i < e.count; i++, pair += 2)
     {
-        memcpy(out + pair[0] * stride, data + pair[1] * stride, stride);
+        ZA_MEMCPY(out + pair[0] * stride, data + pair[1] * stride, stride);
     }
     e.applied++;
     return out;

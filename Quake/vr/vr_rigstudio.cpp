@@ -27,6 +27,11 @@
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -46,7 +51,6 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include <stdio.h>
-#include <string.h>
 #include <time.h>
 
 extern "C" int VR_IsActive(void);
@@ -326,7 +330,7 @@ void tellAim(edict_t* e)
 
 [[nodiscard]] bool armedClass(const char* spawn)
 {
-    return !strncmp(spawn, "monster_vr_", 11);
+    return !ZA_STRNCMP(spawn, "monster_vr_", 11);
 }
 
 // The subject gone with everything it owns (its weapons and their records, a worn tank: QC VR_RigStudio_Remove), and
@@ -470,7 +474,7 @@ void open_f()
         Con_Printf("rigstudio: close the Weapon Studio first (vr_weaponstudio_close)\n");
         return;
     }
-    if(Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "here") != 0)
+    if(Cmd_Argc() > 1 && ZA_STRCMP(Cmd_Argv(1), "here") != 0)
     {
         q_strlcpy(st.choice.spawn, Cmd_Argv(1), sizeof(st.choice.spawn));
     }
@@ -487,7 +491,7 @@ void open_f()
         Con_Printf("rigstudio: ImGui could not start (no window?)\n");
         return;
     }
-    const bool here = Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "here");
+    const bool here = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "here");
     if(inGame())
     {
         removeSubject(); // (opened again while open: the last subject never left standing beside the new one)
@@ -546,7 +550,7 @@ void rotate_f()
     }
     pushUndo("rotate");
     const glm::vec3 rv{Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3))};
-    const bool world = Cmd_Argc() > 4 && !strcmp(Cmd_Argv(4), "world");
+    const bool world = Cmd_Argc() > 4 && !ZA_STRCMP(Cmd_Argv(4), "world");
     for(int b = 0; b < st.numBones; b++)
     {
         const int p = st.rig->bones[b].parent;
@@ -620,11 +624,11 @@ void source_f()
         return;
     }
     const char* what = Cmd_Argv(1);
-    if(!strcmp(what, "rest"))
+    if(!ZA_STRCMP(what, "rest"))
     {
         st.source = Source::Rest;
     }
-    else if(!strcmp(what, "anim") && Cmd_Argc() > 2)
+    else if(!ZA_STRCMP(what, "anim") && Cmd_Argc() > 2)
     {
         for(int i = 0; i < groups.n; i++)
         {
@@ -635,7 +639,7 @@ void source_f()
             }
         }
     }
-    else if(!strcmp(what, "seq") && Cmd_Argc() > 2)
+    else if(!ZA_STRCMP(what, "seq") && Cmd_Argc() > 2)
     {
         for(za::SizeT i = 0; i < st.doc.seqs.size(); i++)
         {
@@ -709,14 +713,14 @@ void seqSet_f()
     pushUndo("sequence");
     const char* f = Cmd_Argv(1);
     const char* v = Cmd_Argv(2);
-    if(!strcmp(f, "fps")) { s->fps = za::clamp(static_cast<float>(Q_atof(v)), 0.1f, 240.f); }
-    else if(!strcmp(f, "length")) { s->length = za::max(Q_atoi(v), 1); }
-    else if(!strcmp(f, "loop")) { s->loop = Q_atoi(v) != 0; }
-    else if(!strcmp(f, "blendin")) { s->blendIn = za::max(static_cast<float>(Q_atof(v)), 0.f); }
-    else if(!strcmp(f, "blendout")) { s->blendOut = za::max(static_cast<float>(Q_atof(v)), 0.f); }
-    else if(!strcmp(f, "arms")) { s->arms = Q_atoi(v) != 0; }
-    else if(!strcmp(f, "hold")) { s->hold = Q_atoi(v) != 0; }
-    else if(!strcmp(f, "base")) { s->base = v; }
+    if(!ZA_STRCMP(f, "fps")) { s->fps = za::clamp(static_cast<float>(Q_atof(v)), 0.1f, 240.f); }
+    else if(!ZA_STRCMP(f, "length")) { s->length = za::max(Q_atoi(v), 1); }
+    else if(!ZA_STRCMP(f, "loop")) { s->loop = Q_atoi(v) != 0; }
+    else if(!ZA_STRCMP(f, "blendin")) { s->blendIn = za::max(static_cast<float>(Q_atof(v)), 0.f); }
+    else if(!ZA_STRCMP(f, "blendout")) { s->blendOut = za::max(static_cast<float>(Q_atof(v)), 0.f); }
+    else if(!ZA_STRCMP(f, "arms")) { s->arms = Q_atoi(v) != 0; }
+    else if(!ZA_STRCMP(f, "hold")) { s->hold = Q_atoi(v) != 0; }
+    else if(!ZA_STRCMP(f, "base")) { s->base = v; }
     touchedSeq(st.seq);
 }
 
@@ -785,7 +789,7 @@ void vertex_f()
         return;
     }
     int v = Q_atoi(Cmd_Argv(1));
-    if(!strcmp(Cmd_Argv(1), "first") && Cmd_Argc() > 2)
+    if(!ZA_STRCMP(Cmd_Argv(1), "first") && Cmd_Argc() > 2)
     {
         // (the first vertex the bone owns)
         const int b = boneByName(Cmd_Argv(2));
@@ -834,7 +838,7 @@ void rest_f()
     pushUndo("rest");
     rigdata::BoneEdit& e = st.doc.bones[b];
     const char* f = Cmd_Argv(2);
-    if(!strcmp(f, "reset"))
+    if(!ZA_STRCMP(f, "reset"))
     {
         e = rigdata::BoneEdit{};
         touchedRig();
@@ -853,12 +857,12 @@ void rest_f()
         e.hinge = rb.hinge;
     }
     const glm::vec3 v{Q_atof(Cmd_Argv(3)), Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : 0.f, Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : 0.f};
-    if(!strcmp(f, "pivot")) { e.pivot = v; }
-    else if(!strcmp(f, "end")) { e.end = v; }
-    else if(!strcmp(f, "cone")) { e.cone = v.x; }
-    else if(!strcmp(f, "twist")) { e.twist = v.x; }
-    else if(!strcmp(f, "lower")) { e.lower = v.x; }
-    else if(!strcmp(f, "upper")) { e.upper = v.x; }
+    if(!ZA_STRCMP(f, "pivot")) { e.pivot = v; }
+    else if(!ZA_STRCMP(f, "end")) { e.end = v; }
+    else if(!ZA_STRCMP(f, "cone")) { e.cone = v.x; }
+    else if(!ZA_STRCMP(f, "twist")) { e.twist = v.x; }
+    else if(!ZA_STRCMP(f, "lower")) { e.lower = v.x; }
+    else if(!ZA_STRCMP(f, "upper")) { e.upper = v.x; }
     touchedRig();
 }
 
@@ -878,7 +882,7 @@ void panel_f()
     const char* names[] = {"outliner", "properties", "timeline", "tools", "posedata", "help", "prefs", "sequence"};
     for(int i = 0; i < 8; i++)
     {
-        if(!strcmp(n, names[i]))
+        if(!ZA_STRCMP(n, names[i]))
         {
             *flags[i] = on;
         }
@@ -893,38 +897,38 @@ void view_f()
     }
     const char* w = Cmd_Argv(1);
     const char* v = Cmd_Argc() > 2 ? Cmd_Argv(2) : "";
-    if(!strcmp(w, "mesh"))
+    if(!ZA_STRCMP(w, "mesh"))
     {
-        st.mesh = !strcmp(v, "shaded") ? MeshMode::Shaded : !strcmp(v, "wire") ? MeshMode::Wire : !strcmp(v, "xray") ? MeshMode::Xray : MeshMode::Game;
+        st.mesh = !ZA_STRCMP(v, "shaded") ? MeshMode::Shaded : !ZA_STRCMP(v, "wire") ? MeshMode::Wire : !ZA_STRCMP(v, "xray") ? MeshMode::Xray : MeshMode::Game;
     }
-    else if(!strcmp(w, "colors"))
+    else if(!ZA_STRCMP(w, "colors"))
     {
-        st.colors = !strcmp(v, "bone") ? Colors::ByBone : !strcmp(v, "heat") ? Colors::Heat : Colors::None;
+        st.colors = !ZA_STRCMP(v, "bone") ? Colors::ByBone : !ZA_STRCMP(v, "heat") ? Colors::Heat : Colors::None;
     }
-    else if(!strcmp(w, "bones"))
+    else if(!ZA_STRCMP(w, "bones"))
     {
-        st.bones = !strcmp(v, "stick") ? BoneLook::Stick : !strcmp(v, "off") ? BoneLook::Off : BoneLook::Octahedral;
+        st.bones = !ZA_STRCMP(v, "stick") ? BoneLook::Stick : !ZA_STRCMP(v, "off") ? BoneLook::Off : BoneLook::Octahedral;
     }
-    else if(!strcmp(w, "tool"))
+    else if(!ZA_STRCMP(w, "tool"))
     {
         const char* tools[toolCount] = {"select", "rotate", "move", "ik", "rest", "weights", "paint", "posekeys"};
         for(int i = 0; i < toolCount; i++)
         {
-            if(!strcmp(v, tools[i]))
+            if(!ZA_STRCMP(v, tools[i]))
             {
                 st.tool = static_cast<Tool>(i);
             }
         }
     }
-    else if(!strcmp(w, "snap"))
+    else if(!ZA_STRCMP(w, "snap"))
     {
         snapView(Q_atoi(v), Cmd_Argc() > 3);
     }
-    else if(!strcmp(w, "frame"))
+    else if(!ZA_STRCMP(w, "frame"))
     {
         frameSelection();
     }
-    else if(!strcmp(w, "camera"))
+    else if(!ZA_STRCMP(w, "camera"))
     {
         // vr_rigstudio_view camera <distance> [yaw from its front] [pitch]: about the subject's middle
         st.cam.dist = za::clamp(static_cast<float>(Q_atof(v)), 8.f, 4000.f);
@@ -938,7 +942,7 @@ void view_f()
             st.cam.pitch = static_cast<float>(Q_atof(Cmd_Argv(4)));
         }
     }
-    else if(!strcmp(w, "orbit"))
+    else if(!ZA_STRCMP(w, "orbit"))
     {
         // vr_rigstudio_view orbit <yaw from its front> [pitch] [distance]: about the focus as it is (after "frame": a
         // close look at the selection from any side)
@@ -946,11 +950,11 @@ void view_f()
         st.cam.pitch = Cmd_Argc() > 3 ? static_cast<float>(Q_atof(Cmd_Argv(3))) : st.cam.pitch;
         st.cam.dist = Cmd_Argc() > 4 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(4))), 8.f, 4000.f) : st.cam.dist;
     }
-    else if(!strcmp(w, "onion"))
+    else if(!ZA_STRCMP(w, "onion"))
     {
         st.onion = Q_atoi(v) != 0;
     }
-    else if(!strcmp(w, "proxies"))
+    else if(!ZA_STRCMP(w, "proxies"))
     {
         st.proxies = Q_atoi(v) != 0;
     }
@@ -965,15 +969,15 @@ void selverts_f()
     }
     const char* w = Cmd_Argv(1);
     ensureWeights();
-    if(!strcmp(w, "bone") && Cmd_Argc() > 2)
+    if(!ZA_STRCMP(w, "bone") && Cmd_Argc() > 2)
     {
         selectByBone(boneByName(Cmd_Argv(2)), false);
     }
-    else if(!strcmp(w, "grow") || !strcmp(w, "shrink"))
+    else if(!ZA_STRCMP(w, "grow") || !ZA_STRCMP(w, "shrink"))
     {
-        growSelection(!strcmp(w, "grow"));
+        growSelection(!ZA_STRCMP(w, "grow"));
     }
-    else if(!strcmp(w, "none"))
+    else if(!ZA_STRCMP(w, "none"))
     {
         za::fill(st.selVerts, static_cast<uint8_t>(0));
     }
@@ -1014,7 +1018,7 @@ void pose_f()
         return;
     }
     const char* w = Cmd_Argv(1);
-    if(!strcmp(w, "save") && Cmd_Argc() > 2)
+    if(!ZA_STRCMP(w, "save") && Cmd_Argc() > 2)
     {
         pushUndo("save pose");
         rigdata::NamedPose np;
@@ -1023,7 +1027,7 @@ void pose_f()
         st.doc.poses.pushBack(np);
         touchedRig();
     }
-    else if(!strcmp(w, "load") && Cmd_Argc() > 2)
+    else if(!ZA_STRCMP(w, "load") && Cmd_Argc() > 2)
     {
         for(const rigdata::NamedPose& np : st.doc.poses)
         {
@@ -1035,7 +1039,7 @@ void pose_f()
             }
         }
     }
-    else if(!strcmp(w, "mirror"))
+    else if(!ZA_STRCMP(w, "mirror"))
     {
         pushUndo("mirror pose");
         mirrorPose();
@@ -1113,18 +1117,18 @@ void aim_f()
 {
     const char* w = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
     const float v = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 1.f;
-    if(!strcmp(w, "on")) { st.aim.on = v != 0.f; }
-    else if(!strcmp(w, "show")) { st.aim.show = v != 0.f; }
-    else if(!strcmp(w, "camera")) { pushAimUndo(); st.aim.atCamera = v != 0.f; }
-    else if(!strcmp(w, "select")) { st.aim.selected = v != 0.f; }
-    else if(!strcmp(w, "reset")) { resetAim(); }
-    else if((!strcmp(w, "at") || !strcmp(w, "rel")) && Cmd_Argc() > 4)
+    if(!ZA_STRCMP(w, "on")) { st.aim.on = v != 0.f; }
+    else if(!ZA_STRCMP(w, "show")) { st.aim.show = v != 0.f; }
+    else if(!ZA_STRCMP(w, "camera")) { pushAimUndo(); st.aim.atCamera = v != 0.f; }
+    else if(!ZA_STRCMP(w, "select")) { st.aim.selected = v != 0.f; }
+    else if(!ZA_STRCMP(w, "reset")) { resetAim(); }
+    else if((!ZA_STRCMP(w, "at") || !ZA_STRCMP(w, "rel")) && Cmd_Argc() > 4)
     {
         const glm::vec3 a{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
         pushAimUndo();
         st.aim.atCamera = false;
         st.aim.placed = true;
-        if(!strcmp(w, "at"))
+        if(!ZA_STRCMP(w, "at"))
         {
             st.aim.at = a;
         }
@@ -1169,10 +1173,10 @@ struct Census
         }
         c.used++;
         const char* cn = PR_GetString(e->v.classname);
-        const bool weapon = !strcmp(cn, "vr_ag_weapon"), tank = !strcmp(cn, "vr_fueltank_worn");
+        const bool weapon = !ZA_STRCMP(cn, "vr_ag_weapon"), tank = !ZA_STRCMP(cn, "vr_fueltank_worn");
         c.monsters += (static_cast<int>(e->v.flags) & FL_MONSTER) != 0;
         c.weapons += weapon;
-        c.records += !strcmp(cn, "weapon_inst");
+        c.records += !ZA_STRCMP(cn, "weapon_inst");
         c.tanks += tank;
         if(sp < 0 || e == subj)
         {
@@ -1399,14 +1403,14 @@ void posekey_f()
     {
         const char* w = Cmd_Argv(i);
         const int v = Q_atoi(Cmd_Argv(i + 1));
-        if(!strcmp(w, "kind")) { st.pdKind = za::clamp(v, 0, agpose::numKinds - 1); }
-        else if(!strcmp(w, "class")) { st.pdClass = agpose::isClass(v) ? v : st.pdClass; }
-        else if(!strcmp(w, "pose")) { st.pdPose = za::clamp(v, 0, agpose::NumPoses - 1); }
-        else if(!strcmp(w, "phase")) { st.pdPhase = za::clamp(v, 0, agpose::maxStrikeKeys - 1); strikePark(); } // (3..9: an in-between)
-        else if(!strcmp(w, "follow")) { st.pdFollow = v != 0; }
-        else if(!strcmp(w, "part")) { st.pdPart = v; }
-        else if(!strcmp(w, "swingspeed")) { st.swing.speed = za::clamp(static_cast<float>(Q_atof(Cmd_Argv(i + 1))), strikeSpeedMin, strikeSpeedMax); }
-        else if(!strcmp(w, "swing"))
+        if(!ZA_STRCMP(w, "kind")) { st.pdKind = za::clamp(v, 0, agpose::numKinds - 1); }
+        else if(!ZA_STRCMP(w, "class")) { st.pdClass = agpose::isClass(v) ? v : st.pdClass; }
+        else if(!ZA_STRCMP(w, "pose")) { st.pdPose = za::clamp(v, 0, agpose::NumPoses - 1); }
+        else if(!ZA_STRCMP(w, "phase")) { st.pdPhase = za::clamp(v, 0, agpose::maxStrikeKeys - 1); strikePark(); } // (3..9: an in-between)
+        else if(!ZA_STRCMP(w, "follow")) { st.pdFollow = v != 0; }
+        else if(!ZA_STRCMP(w, "part")) { st.pdPart = v; }
+        else if(!ZA_STRCMP(w, "swingspeed")) { st.swing.speed = za::clamp(static_cast<float>(Q_atof(Cmd_Argv(i + 1))), strikeSpeedMin, strikeSpeedMax); }
+        else if(!ZA_STRCMP(w, "swing"))
         {
             // (1: the data window's Swing pressed, its strike played from its start; 0: Stop Swing)
             if(v)
@@ -1418,7 +1422,7 @@ void posekey_f()
                 st.swing.on = false;
             }
         }
-        else if(!strcmp(w, "offhand"))
+        else if(!ZA_STRCMP(w, "offhand"))
         {
             // (the key's off-hand hold, agpose::OffMode: as the window's combo, undoable)
             const int c = agpose::code(st.pdKind, st.pdClass, st.pdPose, agpose::isStrike(st.pdPose) ? st.pdPhase : 0);
@@ -1920,7 +1924,7 @@ void pkTestTick()
         const agpose::Key k = agpose::value(ptest.code);
         rigpose::Rigid now;
         (void)posePart(s.part, now);
-        const bool exact = !memcmp(&k, &ptest.key0, sizeof(k));
+        const bool exact = !ZA_MEMCMP(&k, &ptest.key0, sizeof(k));
         const float back = glm::length(now.pos - ptest.part0.pos), turned = quatDeg(now.rot, ptest.part0.rot);
         const bool ok = exact && back < 0.2f && turned < 0.5f;
         Con_Printf("rigstudio posekeys %d: %s: undone: the key %s, the part %.3f units, %.2f deg from before: %s\n",
@@ -2103,7 +2107,7 @@ void offTestTick()
         }
         agpose::set(otest.code, otest.key0);
         const agpose::Key k = agpose::value(otest.code);
-        otCheck("the key put back", !memcmp(&k, &otest.key0, sizeof(k)), "Run's key as it was");
+        otCheck("the key put back", !ZA_MEMCMP(&k, &otest.key0, sizeof(k)), "Run's key as it was");
         qvr::testkit::verdict("rigstudio offhand", otest.passed, otest.failed);
         otest.phase = -1;
         return;
@@ -2345,11 +2349,11 @@ void offModesTestTick()
         return;
     }
     Cvar_Set(vr_agrunt_poses.name, omtest.text0.cStr());
-    bool same = strcmp(vr_agrunt_poses.string, omtest.text0.cStr()) == 0;
+    bool same = ZA_STRCMP(vr_agrunt_poses.string, omtest.text0.cStr()) == 0;
     for(int i = 0; i < omtest.numCodes; i++)
     {
         const agpose::Key k = agpose::value(omtest.codes[i]);
-        same = same && !memcmp(&k, &omtest.keys0[i], sizeof(k));
+        same = same && !ZA_MEMCMP(&k, &omtest.keys0[i], sizeof(k));
     }
     omCheck("the keys put back", same, "the text and every key as before");
     qvr::testkit::verdict("rigstudio offmodes", omtest.passed, omtest.failed);
@@ -2483,7 +2487,7 @@ void stretchTestTick()
     {
         agpose::set(sttest.code, sttest.key0);
         const agpose::Key k = agpose::value(sttest.code);
-        stCheck("the Aim key put back", !memcmp(&k, &sttest.key0, sizeof(k)), "as it was");
+        stCheck("the Aim key put back", !ZA_MEMCMP(&k, &sttest.key0, sizeof(k)), "as it was");
     }
     q_snprintf(text, sizeof(text), "%.3f (was %.3f)", agpose::stretch(st.subjKind, st.subjClass), sttest.was);
     stCheck("the setting put back", za::abs(agpose::stretch(st.subjKind, st.subjClass) - sttest.was) < 0.0051f, text);
@@ -2567,7 +2571,7 @@ void testArmour_f()
 // cuirass, 1 the helmet, 2..9 the limbs'). Printed.
 void armour_f()
 {
-    if(Cmd_Argc() > 2 && !strcmp(Cmd_Argv(1), "piece"))
+    if(Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(1), "piece"))
     {
         const int i = Q_atoi(Cmd_Argv(2));
         if(i >= 0 && i < agarmor::NumPieces)
@@ -3395,7 +3399,7 @@ int mirrorBone(int b)
     }
     char name[16];
     q_strlcpy(name, st.rig->bones[b].name, sizeof(name));
-    const size_t n = strlen(name);
+    const size_t n = ZA_STRLEN(name);
     if(n > 2 && name[n - 2] == '_' && (name[n - 1] == 'l' || name[n - 1] == 'r'))
     {
         name[n - 1] = name[n - 1] == 'l' ? 'r' : 'l';
@@ -3940,7 +3944,7 @@ void serverFrame()
     {
         return;
     }
-    if(st.wantMap && strcmp(sv.name, vr_rigstudio_map.string) != 0)
+    if(st.wantMap && ZA_STRCMP(sv.name, vr_rigstudio_map.string) != 0)
     {
         return; // (the room not loaded yet)
     }
@@ -4021,7 +4025,7 @@ void clientFrame()
     if(inGame() && st.subject > 0 && st.subject < cl_max_edicts && cl_entities)
     {
         const entity_t& e = cl_entities[st.subject];
-        if(e.model && e.model->type == mod_alias && !strstr(e.model->name, "#rig2")) // (not its authored rig's drawing)
+        if(e.model && e.model->type == mod_alias && !ZA_STRSTR(e.model->name, "#rig2")) // (not its authored rig's drawing)
         {
             takeModel(e.model);
         }

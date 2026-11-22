@@ -16,8 +16,9 @@
 #include "vr_geom.hpp"
 
 #include "Zancle/Algorithm/LowerBound.hpp"
-#include "Zancle/Base/Macros.hpp"
 #include "Zancle/Algorithm/StableSort.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -27,7 +28,6 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 
-#include <string.h>
 
 using namespace qvr::protocol;
 
@@ -317,7 +317,7 @@ void markSeen(const char* key)
     const glm::vec3 endpoint = at + toEye / d * za::min(8.f, d);
     vec3_t start{eye.x, eye.y, eye.z}, end{endpoint.x, endpoint.y, endpoint.z};
     trace_t trace;
-    memset(&trace, 0, sizeof trace);
+    ZA_MEMSET(&trace, 0, sizeof trace);
     trace.fraction = 1.f;
     SV_RecursiveHullCheck(cl.worldmodel->hulls, 0, 0.f, 1.f, start, end, &trace);
     return trace.fraction >= 1.f && !trace.allsolid;

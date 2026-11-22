@@ -41,24 +41,30 @@
 AGENT=${1:-selfshot}
 QT_NAME=flatslidelean
 source "$(dirname "$0")/qvrtest.sh"
+# (its runs played as batches: many cases a game, copies in parallel; TESTING.md "Batched test cases")
+source "$(dirname "$0")/testbatch/testbatch.sh"
+# (the batch at run.sh's own clock: vr_fixed_frames_rate 72, a tick a frame, as each run alone; and the collect
+# pass without its awk/grep checks)
+export TB_RATE=${TB_RATE-72} TB_COLLECT_STUBS=${TB_COLLECT_STUBS-2}
 S=$TREE/scratch; mkdir -p "$S"
 F=(-ExtraArgs "-flatscreenmode")
 H="map vrtesthall; wait60; god; notarget; cl_alwaysrun 1; vr_stamina_speed 0; wait10"
 
-out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatslide: [0-9]+ passed" -Timeout 120 -Filter "^flatslide" \
+tb_body() {
+out=$(tb_run_sh "${F[@]}" -QuitOn "^flatslide: [0-9]+ passed" -Timeout 120 -Filter "^flatslide" \
     -Script "vr_flatslide_selftest; $H; +forward; vr_flatslide_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatslide.*\(FAIL\|passed\)"
 expect_verdict "$out" "flatslide_selftest" "slide: the step on flat, downhill and uphill floors"
 expect_verdict "$out" "flatslide" "slide: started from a run, its length, into a crouch, no prone mid-slide, its stamina, the jump keeps the speed, too tired no slide"
 
 for HIT in 0 1; do
-    out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatslide_hit: [0-9]+ passed" -Timeout 120 -Filter "^flatslide_hit" \
+    out=$(tb_run_sh "${F[@]}" -QuitOn "^flatslide_hit: [0-9]+ passed" -Timeout 120 -Filter "^flatslide_hit" \
         -Script "$H; vr_flatslide_hit_test $HIT; wait3000; toggleconsole; quit" 2>&1)
     echo "$out" | grep -a "^flatslide_hit.*FAIL"
     expect_verdict "$out" "flatslide_hit" "slide into $([ $HIT = 0 ] && echo "a crate: pushed on and aside" || echo "a grunt: knocked")"
 done
 
-out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatslide_rough: [0-9]+ passed" -Timeout 120 -Filter "^flatslide_rough" \
+out=$(tb_run_sh "${F[@]}" -QuitOn "^flatslide_rough: [0-9]+ passed" -Timeout 120 -Filter "^flatslide_rough" \
     -Script "$H; vr_flatslide_rough_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatslide_rough.*FAIL"
 expect_verdict "$out" "flatslide_rough" "slide: up stairs and a ramp (no step, no ramp ends it), A alone and D alone curve it"
@@ -67,60 +73,60 @@ expect_verdict "$out" "flatslide_rough" "slide: up stairs and a ramp (no step, n
 # back and diagonally back the hips face the view and the legs stay out in front (vr_flat_slide_back_start/_full), the
 # view wobbling a few degrees: no flips of the hips from side to side, no jitter of the hips, legs or knees; sideways the
 # legs still turn the slide's way.
-out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatslideback: [0-9]+ passed" -Timeout 180 -Filter "^flatslideback" \
+out=$(tb_run_sh "${F[@]}" -QuitOn "^flatslideback: [0-9]+ passed" -Timeout 180 -Filter "^flatslideback" \
     -Script "vr_fixed_frames_rate 120; vr_flat_holsters 0; $H; vr_flat_slide_stamina 0; impulse 9; wait5; impulse 3; wait30; vr_body_slideback_test; wait30000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatslideback: \([a-z-]*: [0-9]\|.*FAIL\)"
 expect_verdict "$out" "flatslideback" "slide back and diagonally back: the legs out in front, no flips, no jitter; sideways the legs the slide's way"
 
-out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatlean: [0-9]+ passed" -Timeout 120 -Filter "^flatlean" \
+out=$(tb_run_sh "${F[@]}" -QuitOn "^flatlean: [0-9]+ passed" -Timeout 120 -Filter "^flatlean" \
     -Script "$H; vr_flatlean_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatlean.*FAIL"
 expect_verdict "$out" "flatlean" "lean: the eye and the roll, the hit box, the slower walk, the wall's clamp, away from and facing a wall"
 
-out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatleanmouse: [0-9]+ passed" -Timeout 120 -Filter "^flatleanmouse" \
+out=$(tb_run_sh "${F[@]}" -QuitOn "^flatleanmouse: [0-9]+ passed" -Timeout 120 -Filter "^flatleanmouse" \
     -Script "$H; vr_flatleanmouse_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatleanmouse.*FAIL"
 expect_verdict "$out" "flatleanmouse" "lean: the mouse moves the view along the rolled screen; upright and vr_flat_lean_mouse 0 Quake's own"
 
-out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatprone: [0-9]+ passed" -Timeout 120 -Filter "^flatprone" \
+out=$(tb_run_sh "${F[@]}" -QuitOn "^flatprone: [0-9]+ passed" -Timeout 120 -Filter "^flatprone" \
     -Script "$H; impulse 154; wait30; vr_flatprone_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatprone.*FAIL"
 expect_verdict "$out" "flatprone" "prone: the smaller lean and body roll, the crouch out of it, the gun flush on the floor, the jump key stands up (no jump, held or not)"
 
-out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatleanpose: [0-9]+ passed" -Timeout 300 -Filter "^flatleanpose: (FAIL|[0-9]+ passed)" \
+out=$(tb_run_sh "${F[@]}" -QuitOn "^flatleanpose: [0-9]+ passed" -Timeout 300 -Filter "^flatleanpose: (FAIL|[0-9]+ passed)" \
     -Script "$H; vr_flatleanpose_test; wait30000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatleanpose.*FAIL"
 expect_verdict "$out" "flatleanpose" "lean pose: guns move rigidly with the eye and fire on the crosshair, alone and dual; none stopped at a wall"
 
 # The slide's pose (vr_flatslidepose_test, Quake/vr/vr_flatleanpose.cpp): vrtesthall's open floor and e1m1's spiral ramp.
 for where in "vrtesthall|-580 -440 24 0" "e1m1|900 2048 -150 0"; do
-    out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatslidepose: [0-9]+ passed" -Timeout 300 -Filter "^flatslidepose: (FAIL|[0-9]+ passed)" \
+    out=$(tb_run_sh "${F[@]}" -QuitOn "^flatslidepose: [0-9]+ passed" -Timeout 300 -Filter "^flatslidepose: (FAIL|[0-9]+ passed)" \
         -Script "vr_flat_holsters 0; map ${where%%|*}; wait60; god; notarget; cl_alwaysrun 1; vr_stamina_speed 0; vr_flat_slide_stamina 0; wait10; vr_flatslidepose_test ${where#*|}; wait90000; toggleconsole; quit" 2>&1)
     echo "$out" | grep -a "^flatslidepose.*FAIL"
     expect_verdict "$out" "flatslidepose" "slide pose (${where%%|*}): the guns ride the eye as crouched, the drawn as the pose, on the crosshair"
 done
 
 for where in "vrtesthall|" "vrslopes|setpos 208 24 80 0 90 0"; do
-    out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatpronedual: [0-9]+ passed" -Timeout 300 -Filter "^flatpronedual" \
+    out=$(tb_run_sh "${F[@]}" -QuitOn "^flatpronedual: [0-9]+ passed" -Timeout 300 -Filter "^flatpronedual" \
         -Script "map ${where%%|*}; wait60; god; notarget; ${where#*|}; wait60; vr_flatpronedual_test 4:4 15:15 29:29; wait30000; toggleconsole; quit" 2>&1)
     echo "$out" | grep -a "^flatpronedual.*FAIL"
     expect_verdict "$out" "flatpronedual" "prone, dual wielding (${where%%|*}): both guns fire looking from 45 up to 15 down"
 done
 
-out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatmantle: [0-9]+ passed" -Timeout 120 -Filter "^flatmantle|^climb: flat" \
+out=$(tb_run_sh "${F[@]}" -QuitOn "^flatmantle: [0-9]+ passed" -Timeout 120 -Filter "^flatmantle|^climb: flat" \
     -Script "map vrmantle; wait60; god; notarget; vr_climb_debug 1; vr_flatmantle_test; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatmantle.*FAIL"
 expect_verdict "$out" "flatmantle" "mantle: after a jump, looking up 35, onto ledges 48..96 high; not 128 or 160, nor looking up only 20"
 check $([ "$(echo "$out" | grep -ac "^flatmantle: PASS lip [0-9]*: hands on the ledge off 1 main 1")" = 4 ] && echo 1 || echo 0) "mantle: both hands empty, both on the ledge at each of the 4 mantles"
 for lo in "154; wait5; impulse 170|off 1 main 0|a gun in the main hand: the off hand alone" "152; wait5; impulse 172|off 0 main 0|dual wielding: no hand"; do
-    out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatmantle: [0-9]+ passed" -Timeout 120 -Filter "^flatmantle" \
+    out=$(tb_run_sh "${F[@]}" -QuitOn "^flatmantle: [0-9]+ passed" -Timeout 120 -Filter "^flatmantle" \
         -Script "map vrmantle; wait60; god; notarget; impulse ${lo%%|*}; wait20; vr_flatmantle_test 1; wait3000; toggleconsole; quit" 2>&1)
     rest=${lo#*|}
     check $(echo "$out" | grep -aq "^flatmantle: PASS lip 64: hands on the ledge ${rest%%|*} " && echo 1 || echo 0) "mantle: ${rest#*|} on the ledge (${rest%%|*})"
 done
 
 P="map e1m1; god; notarget; developer 1; r_norefresh 0; setpos 480 -352 88 0 0 0; impulse 154; wait30; vr_flat_aim 1; wait30"
-out=$(bash $KIT/run.sh $AGENT "${F[@]}" -Timeout 120 -Filter "^flatsightcheck|^flataim: main" \
+out=$(tb_run_sh "${F[@]}" -Timeout 120 -Filter "^flatsightcheck|^flataim: main" \
     -Script "$P; vr_flat_sight_check; +flatleanright; wait30; vr_flat_sight_check; vr_flatplay_debug 2; wait2; vr_flatplay_debug 0; +flatcrouch; wait30; vr_flat_sight_check; -flatcrouch; -flatleanright; +flatleanleft; wait30; vr_flat_sight_check; -flatleanleft; vr_flat_aim 0; wait2; toggleconsole; quit" 2>&1)
 n=$(echo "$out" | grep -ac "^flatsightcheck: .* rear off 0\.00[0-9]* front off 0\.00")
 check $([ "$n" = 4 ] && echo 1 || echo 0) "sights: on the drawn ray upright, leant right, leant right crouched, leant left ($n of 4 within 0.01)"
@@ -129,7 +135,7 @@ check $(grep -q "off its point 0\.0[0-9]* deg" <<<"$aim" && echo 1 || echo 0) "s
 
 KEY() { echo "vr_mock_key $1 down; wait${2:-3}; vr_mock_key $1 up; wait10"; }
 K="$H; impulse 154; wait10; bind e \"echo BOUND_E\"; bind 3 \"echo BOUND_3\"; vr_flatplay_debug 1; vr_flat_reload_debug 1"
-out=$(bash $KIT/run.sh $AGENT "${F[@]}" -Timeout 120 -Filter "^flatmove: lean|^BOUND_|^flatplay: [3r]:|^flatplay: mouse4:|^flatreload: r:|^KEYS_" \
+out=$(tb_run_sh "${F[@]}" -Timeout 120 -Filter "^flatmove: lean|^BOUND_|^flatplay: [3r]:|^flatplay: mouse4:|^flatreload: r:|^KEYS_" \
     -Script "$K; vr_mock_key e down; wait30; vr_flatmove_status; vr_mock_key e up; wait30; vr_mock_key q down; wait30; vr_flatmove_status; vr_mock_key q up; wait30; $(KEY 3); echo KEYS_R; $(KEY r); echo KEYS_M4; $(KEY mouse4); echo OWN_OFF; $(KEY e); $(KEY 3); bind e +moveup; bind 3 \"impulse 3\"; toggleconsole; quit" 2>&1)
 check $(echo "$out" | grep -qa "^flatmove: lean 1\.00" && echo 1 || echo 0) "keys: E held leans right"
 check $(echo "$out" | grep -qa "^flatmove: lean -1\.00" && echo 1 || echo 0) "keys: Q held leans left"
@@ -139,4 +145,7 @@ check $(grep -qa "^flatreload: r: reload" <<<"$rk" && ! grep -qa "force grab" <<
 check $(grep -qa "^flatplay: mouse4: force grab" <<<"$mk" && ! grep -qa "reload" <<<"$mk" && echo 1 || echo 0) "keys: mouse 4 force-grabs (the only grab key)"
 nb=$(echo "$out" | grep -ac "^BOUND_")
 check $([ "$nb" = 0 ] && echo 1 || echo 0) "keys: E's and 3's own binds never ran ($nb lines, 0 wanted)"
-verdict; exit $fail
+verdict
+}
+tb_main "$AGENT" tb_body
+exit $fail

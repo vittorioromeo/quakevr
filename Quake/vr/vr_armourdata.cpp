@@ -6,6 +6,10 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 
@@ -65,7 +69,7 @@ constexpr const char* fileHead =
 {
     for(Entry& e : table)
     {
-        if(!strcmp(e.name.cStr(), name))
+        if(!ZA_STRCMP(e.name.cStr(), name))
         {
             return &e;
         }
@@ -81,11 +85,11 @@ constexpr const char* fileHead =
 // A part's name in the file (and its side): "bracer", "bracer_l", "thigh_sleeve_r". False: no such part.
 bool partOf(const char* name, int& part, int& side)
 {
-    const size_t len = strlen(name);
+    const size_t len = ZA_STRLEN(name);
     for(int p = 0; p < NumParts; p++)
     {
-        const size_t n = strlen(partNames[p]);
-        if(!strncmp(name, partNames[p], n) && (len == n || (limbPart(p) && len == n + 2 && name[n] == '_' && (name[n + 1] == 'l' || name[n + 1] == 'r'))))
+        const size_t n = ZA_STRLEN(partNames[p]);
+        if(!ZA_STRNCMP(name, partNames[p], n) && (len == n || (limbPart(p) && len == n + 2 && name[n] == '_' && (name[n + 1] == 'l' || name[n + 1] == 'r'))))
         {
             part = p;
             side = len == n ? SideBoth : name[n + 1] == 'l' ? SideLeft : SideRight;
@@ -136,7 +140,7 @@ void bump()
         bool kind = false;
         for(const char* k : kindNames)
         {
-            kind = kind || !strcmp(k, e.name.cStr());
+            kind = kind || !ZA_STRCMP(k, e.name.cStr());
         }
         if(!kind && anySet(e))
         {
@@ -193,7 +197,7 @@ void parse(const char* text, za::Vector<Entry>& into)
     int problems = 0;
     while((data = COM_Parse(data)) != nullptr)
     {
-        if(strcmp(com_token, "kind") != 0)
+        if(ZA_STRCMP(com_token, "kind") != 0)
         {
             Con_Printf("\x02%s: \"%s\": expected \"kind <name>\"\n", pathText, com_token);
             problems++;
@@ -210,7 +214,7 @@ void parse(const char* text, za::Vector<Entry>& into)
             bool known = false;
             for(const char* k : kindNames)
             {
-                known = known || !strcmp(k, name.cStr());
+                known = known || !ZA_STRCMP(k, name.cStr());
             }
             if(!known)
             {
@@ -221,7 +225,7 @@ void parse(const char* text, za::Vector<Entry>& into)
         Entry* e = nullptr;
         for(Entry& x : into)
         {
-            e = !strcmp(x.name.cStr(), name.cStr()) ? &x : e;
+            e = !ZA_STRCMP(x.name.cStr(), name.cStr()) ? &x : e;
         }
         if(!e)
         {
@@ -230,13 +234,13 @@ void parse(const char* text, za::Vector<Entry>& into)
             e->name = name;
         }
         data = COM_Parse(data);
-        if(!data || strcmp(com_token, "{") != 0)
+        if(!data || ZA_STRCMP(com_token, "{") != 0)
         {
             Con_Printf("\x02%s: expected \"{\" after kind %s\n", pathText, name.cStr());
             problems++;
             break;
         }
-        while((data = COM_Parse(data)) != nullptr && strcmp(com_token, "}") != 0)
+        while((data = COM_Parse(data)) != nullptr && ZA_STRCMP(com_token, "}") != 0)
         {
             int part = 0, side = 0;
             const bool known = partOf(com_token, part, side);
@@ -246,7 +250,7 @@ void parse(const char* text, za::Vector<Entry>& into)
                 problems++;
             }
             data = COM_Parse(data);
-            if(!data || strcmp(com_token, "{") != 0)
+            if(!data || ZA_STRCMP(com_token, "{") != 0)
             {
                 Con_Printf("\x02%s: expected \"{\" after a part's name\n", pathText);
                 problems++;
@@ -254,7 +258,7 @@ void parse(const char* text, za::Vector<Entry>& into)
             }
             Override scratch;
             Override& o = known ? e->parts[part][side] : scratch;
-            while((data = COM_Parse(data)) != nullptr && strcmp(com_token, "}") != 0)
+            while((data = COM_Parse(data)) != nullptr && ZA_STRCMP(com_token, "}") != 0)
             {
                 za::String key{com_token};
                 data = COM_Parse(data);
@@ -324,23 +328,23 @@ int kindOf(const char* model)
     {
         return -1;
     }
-    if(!strcmp(model, "progs/vrgrunt.mdl") || !strcmp(model, "progs/soldier.mdl"))
+    if(!ZA_STRCMP(model, "progs/vrgrunt.mdl") || !ZA_STRCMP(model, "progs/soldier.mdl"))
     {
         return KindGrunt;
     }
-    if(!strcmp(model, "progs/vrenforcer.mdl") || !strcmp(model, "progs/enforcer.mdl"))
+    if(!ZA_STRCMP(model, "progs/vrenforcer.mdl") || !ZA_STRCMP(model, "progs/enforcer.mdl"))
     {
         return KindEnforcer;
     }
-    if(!strcmp(model, "progs/vrknight.mdl"))
+    if(!ZA_STRCMP(model, "progs/vrknight.mdl"))
     {
         return KindKnight;
     }
-    if(!strcmp(model, "progs/vrhknight.mdl"))
+    if(!ZA_STRCMP(model, "progs/vrhknight.mdl"))
     {
         return KindDeathKnight;
     }
-    return !strncmp(model, "progs/vrbody", 12) ? KindPlayer : -1;
+    return !ZA_STRNCMP(model, "progs/vrbody", 12) ? KindPlayer : -1;
 }
 
 bool resolve(const char* model, int piece, bool sleeve, Override& out)
@@ -395,7 +399,7 @@ uint32_t signature(const char* model)
                 for(const float x : o.v)
                 {
                     uint32_t u = 0;
-                    memcpy(&u, &x, 4);
+                    ZA_MEMCPY(&u, &x, 4);
                     h = (h ^ u) * 16777619u;
                 }
             }

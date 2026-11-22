@@ -1018,7 +1018,7 @@ void frameLogGpu(double total)
     }
     for(int i = 0; i < SysCount; i++)
     {
-        if(!strcmp(defs[i].name, "particles"))
+        if(!ZA_STRCMP(defs[i].name, "particles"))
         {
             qvr::strings::appendf(line, " (particles %.2f)", frameGpu[i]); // (always: the system these lines were made for)
         }

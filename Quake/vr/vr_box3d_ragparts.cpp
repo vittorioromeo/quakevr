@@ -2522,7 +2522,7 @@ constexpr float thighShare = 0.095f, shinShare = 0.045f, footShare = 0.015f;
 
 [[nodiscard]] Kind kindOf(const char* name)
 {
-    const auto is = [name](const char* prefix) { return !strncmp(name, prefix, strlen(prefix)); };
+    const auto is = [name](const char* prefix) { return !ZA_STRNCMP(name, prefix, ZA_STRLEN(prefix)); };
     if(is("head")) { return Kind::Head; }
     if(is("jaw")) { return Kind::Jaw; }
     if(is("upperarm")) { return Kind::UpperArm; }
@@ -2642,7 +2642,7 @@ namespace
 {
     for(const RagdollClass& c : ragdollClasses)
     {
-        if(model && c.head && !strcmp(model, c.head))
+        if(model && c.head && !ZA_STRCMP(model, c.head))
         {
             return &c;
         }
@@ -2652,7 +2652,7 @@ namespace
     {
         for(const RagdollClass& c : ragdollClasses)
         {
-            if(!strcmp(classname, c.classname))
+            if(!ZA_STRCMP(classname, c.classname))
             {
                 return &c;
             }

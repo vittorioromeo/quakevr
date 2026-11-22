@@ -19,6 +19,7 @@
 #include "vr_geom.hpp"
 #include "vr_hands.hpp"
 
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -28,7 +29,6 @@
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
 #include <stdlib.h>
-#include <string.h>
 
 extern "C" cvar_t cl_maxpitch; // cl_main.c (johnfitz's variable pitch clamping)
 extern "C" cvar_t cl_minpitch;
@@ -199,7 +199,7 @@ void test_f()
         {
             char cmd[256];
             q_strlcpy(cmd, s, za::min(length + 1, static_cast<int>(sizeof(cmd))));
-            const int waits = !strncmp(cmd, "wait", 4) && cmd[4] >= '0' && cmd[4] <= '9' ? za::clamp(atoi(cmd + 4), 1, 600) : 0;
+            const int waits = !ZA_STRNCMP(cmd, "wait", 4) && cmd[4] >= '0' && cmd[4] <= '9' ? za::clamp(atoi(cmd + 4), 1, 600) : 0;
             for(int i = 0; i < (waits ? waits : 1); i++)
             {
                 q_strlcat(st.onHit, waits ? "wait\n" : cmd, sizeof(st.onHit));

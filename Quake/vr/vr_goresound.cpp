@@ -14,12 +14,12 @@
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
-#include <string.h>
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "vr_zancle.hpp"
 #include "vr_api.h"
 
@@ -386,7 +386,7 @@ void handFrame()
 {
     for(int k = 0; k < kindCount; k++)
     {
-        if(!strcmp(s, kinds[k].name))
+        if(!ZA_STRCMP(s, kinds[k].name))
         {
             return k;
         }
@@ -398,7 +398,7 @@ void handFrame()
 // too far, off) since the map began or the last reset.
 void stats_f()
 {
-    const bool reset = Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset");
+    const bool reset = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "reset");
     for(int k = 0; k < kindCount; k++)
     {
         const Stats& s = st.stats[k];

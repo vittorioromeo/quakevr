@@ -23,8 +23,12 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Concurrency/AtomicMutex.hpp"
@@ -58,7 +62,6 @@
 #include <immintrin.h> // (AVX, when there: eight at a time)
 #endif
 #include <stdio.h>
-#include <string.h>
 #include "vr_tracy.h"
 
 extern "C" {
@@ -186,11 +189,11 @@ void parseBakedSubmodels()
             {
                 break;
             }
-            if(!strcmp(key, "model") && com_token[0] == '*')
+            if(!ZA_STRCMP(key, "model") && com_token[0] == '*')
             {
                 submodel = atoi(com_token + 1);
             }
-            else if(!strcmp(key, "_shadow") && atof(com_token) != 0.0)
+            else if(!ZA_STRCMP(key, "_shadow") && atof(com_token) != 0.0)
             {
                 shadow = true;
             }
@@ -373,7 +376,7 @@ BodyJoints bodyJoints;
 [[nodiscard]] const int* bodyJointIndices(const qmodel_t* model, const aliashdr_t* hdr)
 {
     BodyJoints& b = bodyJoints;
-    if(b.model != model || b.hdr != hdr || b.numbones != hdr->numbones || strcmp(b.name, model->name))
+    if(b.model != model || b.hdr != hdr || b.numbones != hdr->numbones || ZA_STRCMP(b.name, model->name))
     {
         b.model = model;
         b.hdr = hdr;
@@ -728,7 +731,7 @@ void binTiles()
     {
         float proj[16], view[16], viewProj[16];
         VR_StereoSingleEyeMatrices(1, proj, view);
-        memcpy(viewProj, proj, sizeof(viewProj));
+        ZA_MEMCPY(viewProj, proj, sizeof(viewProj));
         MatrixMultiply(viewProj, view);
         binTiles(viewProj);
     }
@@ -1517,7 +1520,7 @@ void runBake(BakeJob& job)
     }
     if(read == FileRead::Read) // vr_ao_cache 2: baked anyway, and compared
     {
-        job.checked = fromFile.size() == job.vis.size() && memcmp(fromFile.data(), job.vis.data(), job.vis.size()) == 0 ? 1 : -1;
+        job.checked = fromFile.size() == job.vis.size() && ZA_MEMCMP(fromFile.data(), job.vis.data(), job.vis.size()) == 0 ? 1 : -1;
         diskcache::noteChecked(diskcache::Product::AO, job.checked > 0, job.name.cStr());
         if(job.checked > 0)
         {
@@ -1940,11 +1943,11 @@ void bench_f()
     bool kinds[3] = {true, false, false}; // Fast, Sse, Reference
     for(int a = 1; a < Cmd_Argc(); a++)
     {
-        if(!strcmp(Cmd_Argv(a), "sse"))
+        if(!ZA_STRCMP(Cmd_Argv(a), "sse"))
         {
             kinds[1] = true;
         }
-        else if(!strcmp(Cmd_Argv(a), "reference"))
+        else if(!ZA_STRCMP(Cmd_Argv(a), "reference"))
         {
             kinds[2] = true;
         }
@@ -1959,7 +1962,7 @@ void bench_f()
     for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
     {
         qmodel_t* m = cl.model_precache[i];
-        if(m->type != mod_alias || !strstr(m->name, part))
+        if(m->type != mod_alias || !ZA_STRSTR(m->name, part))
         {
             continue;
         }
@@ -1988,7 +1991,7 @@ void bench_f()
             }
             else
             {
-                same = same && fast.size() == job->vis.size() && memcmp(fast.data(), job->vis.data(), fast.size()) == 0;
+                same = same && fast.size() == job->vis.size() && ZA_MEMCMP(fast.data(), job->vis.data(), fast.size()) == 0;
             }
         }
         za::U32 texels = 2166136261u;

@@ -14,16 +14,16 @@
 #include "vr_units.hpp"
 #include "vr_wounds.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
-#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "vr_zancle.hpp"
 
 #include <stdlib.h>
-#include <string.h>
 
 namespace qvr::bloodprints
 {
@@ -520,19 +520,19 @@ void handFrame(int hand, const avatar::HandPose& hp)
 void test_f()
 {
     const char* what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    if(!strcmp(what, "feet"))
+    if(!ZA_STRCMP(what, "feet"))
     {
         st.feetFrom = st.feetLeft =
             za::clamp(Cmd_Argc() > 2 ? atoi(Cmd_Argv(2)) : static_cast<int>(vr_footprint_count.value), 1, 32);
         Con_Printf("bloodprints: feet bloodied for %d prints\n", st.feetLeft);
     }
-    else if(!strcmp(what, "hands"))
+    else if(!ZA_STRCMP(what, "hands"))
     {
         const float a = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : 1.f;
         st.hands[0].blood = st.hands[1].blood = za::clamp(a, 0.f, 1.f);
         Con_Printf("bloodprints: both hands' blood %.2f\n", st.hands[0].blood);
     }
-    else if(!strcmp(what, "pool"))
+    else if(!ZA_STRCMP(what, "pool"))
     {
         const float size = Cmd_Argc() > 2 ? za::clamp(static_cast<float>(atof(Cmd_Argv(2))), 8.f, 256.f) : 48.f;
         const entity_t& pl = cl_entities[cl.viewentity];
@@ -543,7 +543,7 @@ void test_f()
                           decals::place(decals::Mark::Pool, where, normal, size);
         Con_Printf("bloodprints: pool %s at %.1f %.1f %.1f\n", laid ? "laid" : "NOT laid", where.x, where.y, where.z);
     }
-    else if(!strcmp(what, "wall") || !strcmp(what, "prop") || !strcmp(what, "floor"))
+    else if(!ZA_STRCMP(what, "wall") || !ZA_STRCMP(what, "prop") || !ZA_STRCMP(what, "floor"))
     {
         // A full handprint pressed ahead of you (the view's yaw, level, from `height` units over your feet): on the wall
         // there, fingers up, wrapping round an edge as a palm's would (wall); or on the prop it meets (prop).
@@ -557,7 +557,7 @@ void test_f()
         const float len = handLength * m2w * size, width = handWidth * m2w * size;
         glm::vec3 where, normal;
         float f;
-        if(!strcmp(what, "prop"))
+        if(!ZA_STRCMP(what, "prop"))
         {
             // Pressed at the middle of the nearest thing ahead (within 128 units), at its middle's height.
             glm::vec3 dir = fwd, at = from;
@@ -590,7 +590,7 @@ void test_f()
             return;
         }
         // floor <distance>: on the floor that far ahead instead, fingers ahead (over a step's edge: onto its riser).
-        const bool floor = !strcmp(what, "floor");
+        const bool floor = !ZA_STRCMP(what, "floor");
         const glm::vec3 down = from + fwd * height;
         if(floor ? !decals::trace(glm::vec3{down.x, down.y, pl.origin[2]}, down - glm::vec3{0.f, 0.f, 256.f}, where, normal, f)
                  : !decals::trace(from, from + fwd * 128.f, where, normal, f))
@@ -642,7 +642,7 @@ void info_f()
         st.steps, st.steps * perSecond, st.steps > 0 ? st.walkedUnits / st.steps : 0.0, st.walkedUnits, st.walkedSeconds,
         st.walkedUnits * perSecond, st.legTouchdowns, st.legTouchdowns * perSecond, speed,
         stepLength(speed / m2w) * m2w / za::clamp(vr_footprint_rate.value, 0.25f, 4.f));
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "reset"))
     {
         st.steps = st.legTouchdowns = 0;
         st.walkedUnits = st.walkedSeconds = 0.0;

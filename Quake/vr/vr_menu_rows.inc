@@ -3410,6 +3410,9 @@ QVR_TOGGLE_BYNAME(vr_cellcord_hammer, "Mjolnir Cord",
     "The same cord on Mjolnir (Hipnotic's hammer), from the end of its handle: it draws cells too.")
 QVR_TOGGLE_BYNAME(vr_cellcord_superaxe, "Super Axe Cord",
     "The same cord on the Super Axe (MG3), from the end of its handle: it draws cells too.")
+QVR_TOGGLE_BYNAME(vr_cellcord_lance, "Crystal Lance Cord",
+    "The same cord on Dwell's Crystal Lance held as a lance (it has no magazine: each shot takes cells from the "
+    "pouch), from the butt of its pole. No cells left: it hangs loose off the butt, swinging.")
 QVR_SLIDER_BYNAME(vr_reload_reinsert_clearance, "Magazine Reinsertion Clearance", 0.f, 16.f, 0.25f, "%.2f units", ext(0.f, 64.f),
     "After pulling or knocking a magazine out, withdraw this far beyond its insertion reach before it can "
     "go back in. Also applies to the new magazine that knocked it out. Smaller: a shorter out-and-back "
@@ -4182,6 +4185,13 @@ QVR_CYCLE(vr_weapon_anygrip_mode, "Other Hand Anywhere",
     "Rigid: the weapon follows both hands as a box held in both. Each weapon may override it (Weapon "
     "Offsets: Other Hand Anywhere).",
     {0.f, "As a Foregrip"}, {1.f, "Support Only"}, {2.f, "Rigid"})
+QVR_TOGGLE(vr_pole_slide, "Weapon Hand Slides on Poles",
+    "A pole weapon held in both hands (the Crystal Lance): loosen your weapon hand's grip while the other hand "
+    "holds the pole closed, and the weapon hand slides along the pole as you move it (choke up towards the head, "
+    "or back to the butt). Off: only the other hand slides.")
+QVR_SLIDER(vr_pole_slide_grip, "Pole Slide Grip", 0.2f, 0.95f, 0.05f, "%.2f", noExt,
+    "How far your grip may close and still slide on a pole: under this the hand slides, at or over it the hand "
+    "holds. Keep it over the point where your controller lets go of the weapon.")
 QVR_TOGGLE(vr_carry_local, "Drawn In the Hand",
     "What you carry is drawn in your hand as it is this frame: no lag or lead as you walk or turn. Off: where the server has it.")
 QVR_TOGGLE(vr_carry_two_hands, "Two-Handed Carrying",

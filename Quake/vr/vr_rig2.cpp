@@ -11,6 +11,9 @@
 #include "vr_rigdata.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -143,7 +146,7 @@ struct Words
     {
         n = 0;
         const int l = za::min(len, static_cast<int>(sizeof(buf)) - 1);
-        memcpy(buf, s, static_cast<size_t>(l));
+        ZA_MEMCPY(buf, s, static_cast<size_t>(l));
         buf[l] = 0;
         char* hash = strchr(buf, '#');
         if(hash)
@@ -168,7 +171,7 @@ struct Words
             }
         }
     }
-    [[nodiscard]] bool is(int i, const char* s) const { return i < n && !strcmp(w[i], s); }
+    [[nodiscard]] bool is(int i, const char* s) const { return i < n && !ZA_STRCMP(w[i], s); }
     [[nodiscard]] float f(int i) const { return i < n ? strtof(w[i], nullptr) : 0.f; }
     [[nodiscard]] glm::vec3 v3(int i) const { return glm::vec3{f(i), f(i + 1), f(i + 2)}; }
     [[nodiscard]] glm::vec2 v2(int i) const { return glm::vec2{f(i), f(i + 1)}; }
@@ -693,7 +696,7 @@ bool read(const char* text, Rig& out, za::String& error)
     while(*p)
     {
         const char* e = strchr(p, '\n');
-        const int len = e ? static_cast<int>(e - p) : static_cast<int>(strlen(p));
+        const int len = e ? static_cast<int>(e - p) : static_cast<int>(ZA_STRLEN(p));
         words.split(p, len);
         p += len + (e ? 1 : 0);
         line++;
@@ -872,7 +875,7 @@ Rig* rigFor(const qmodel_t* model)
     }
     for(Entry& e : rigs)
     {
-        if(!strcmp(e.model.cStr(), model->name))
+        if(!ZA_STRCMP(e.model.cStr(), model->name))
         {
             return e.rig.get();
         }
@@ -1335,8 +1338,8 @@ void drawInfo()
 
 bool makeSkinnedModel(qmodel_t* mod)
 {
-    const size_t len = strlen(mod->name), suffix = strlen(skinnedSuffix);
-    if(len <= suffix || strcmp(mod->name + len - suffix, skinnedSuffix))
+    const size_t len = ZA_STRLEN(mod->name), suffix = ZA_STRLEN(skinnedSuffix);
+    if(len <= suffix || ZA_STRCMP(mod->name + len - suffix, skinnedSuffix))
     {
         return false;
     }
@@ -1389,8 +1392,8 @@ bool makeSkinnedModel(qmodel_t* mod)
         hdr->frames[f].firstpose = 0;
         hdr->frames[f].numposes = 1;
     }
-    memcpy(hdr->gltextures, sh->gltextures, sizeof(hdr->gltextures));
-    memcpy(hdr->fbtextures, sh->fbtextures, sizeof(hdr->fbtextures));
+    ZA_MEMCPY(hdr->gltextures, sh->gltextures, sizeof(hdr->gltextures));
+    ZA_MEMCPY(hdr->fbtextures, sh->fbtextures, sizeof(hdr->fbtextures));
     for(int i = 0; i < MAX_SKINS; i++) // the source's texels, as offsets from this header (they are other blocks)
         hdr->texels[i] = sh->texels[i] ? reinterpret_cast<const byte*>(sh) + sh->texels[i] - reinterpret_cast<const byte*>(hdr) : 0;
     for(int b = 0; b < numBones; b++)
@@ -1448,7 +1451,7 @@ bool makeSkinnedModel(qmodel_t* mod)
             left -= o.weight[i];
         }
     }
-    memcpy(indexes, reinterpret_cast<const byte*>(sh) + sh->indexes, sizeof(unsigned short) * static_cast<size_t>(numIndexes));
+    ZA_MEMCPY(indexes, reinterpret_cast<const byte*>(sh) + sh->indexes, sizeof(unsigned short) * static_cast<size_t>(numIndexes));
     hdr->boneinfo = reinterpret_cast<byte*>(bones) - reinterpret_cast<byte*>(hdr);
     hdr->bindpose = reinterpret_cast<byte*>(bind) - reinterpret_cast<byte*>(hdr);
     hdr->boneposedata = reinterpret_cast<byte*>(poses) - reinterpret_cast<byte*>(hdr);

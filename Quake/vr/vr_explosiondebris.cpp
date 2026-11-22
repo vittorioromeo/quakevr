@@ -28,7 +28,6 @@
 // multiplayer; the price is a second broadphase and step on the client, and props that don't feel them (one-way).
 
 #include "vr_explosiondebris.hpp"
-#include <string.h>
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lighting.hpp"
@@ -39,6 +38,7 @@
 #include "vr_units.hpp"
 #include "vr_srvrandom.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -200,7 +200,7 @@ void rescan()
         s.modelIndex = 0;
         for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
         {
-            if(!strcmp(sv.model_precache[i], modelName))
+            if(!ZA_STRCMP(sv.model_precache[i], modelName))
             {
                 s.modelIndex = i;
                 break;
@@ -553,7 +553,7 @@ void test_f()
     {
         return;
     }
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "clear"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "clear"))
     {
         serverClear();
         clear();
@@ -570,15 +570,15 @@ void test_f()
         vr_explosion_debris.value);
     // The explosion as the client draws it (no blast, no message), and the server's chunks (a listen server's).
     const char* kind = Cmd_Argc() > 1 ? Cmd_Argv(1) : "normal";
-    if(!strcmp(kind, "colored"))
+    if(!ZA_STRCMP(kind, "colored"))
     {
         R_ParticleExplosion2(pos, 229, 8);
     }
-    else if(!strcmp(kind, "tar"))
+    else if(!ZA_STRCMP(kind, "tar"))
     {
         R_BlobExplosion(pos);
     }
-    else if(!strcmp(kind, "preset"))
+    else if(!ZA_STRCMP(kind, "preset"))
     {
         particles::spawn({pos[0], pos[1], pos[2]}, glm::vec3{0.f}, particles::Preset::Explosion, 1);
     }

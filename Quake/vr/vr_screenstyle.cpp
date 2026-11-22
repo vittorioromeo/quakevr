@@ -3,6 +3,7 @@
 #include "vr_screenstyle.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gunvariants.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 
 
 namespace qvr::screenstyle
@@ -355,9 +356,9 @@ struct Alias
     const char* as;   // the entry it takes
 };
 constexpr Alias aliases[] = {
-    // Dwell support (dwellwpn3): the Rotary Shotgun as a gauntlet (vr_dw_rotary_gauntlet; vr_adweapons.cpp
-    // rotaryGauntletHousingSpec: a window of the same size on its back, laid round the super nailgun's hand).
-    {"dw_rotary.mdl#vr", "dw_shot3.mdl#vr"},
+    // Dwell support (dwellwpn3, dwellrotary): the Rotary Shotgun as a gauntlet (vr_dw_rotary_gauntlet; vr_adweapons.cpp
+    // rotaryScreenWedge: the super nailgun's wedge and window on its top, at weapons.txt slot 56's wpntxt_scale).
+    {"dw_rotary.mdl#vr", "nail2"},
 };
 
 } // namespace
@@ -384,7 +385,7 @@ const Style& forModel(const char* model, bool mirrored)
         }
         for(size_t i = 0; i < tableSize; i++)
         {
-            if(as ? !strcmp(table[i].stem, as) : stemIs(model, table[i].stem))
+            if(as ? !ZA_STRCMP(table[i].stem, as) : stemIs(model, table[i].stem))
             {
                 return mirrored ? mirroredTable.styles[i] : table[i].style;
             }

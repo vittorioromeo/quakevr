@@ -58,7 +58,9 @@
       <AdditionalIncludeDirectories>..\..\Quake\vr;..\..\Quake\vr\external;..\..\Quake\vr\external\box3d\include;..\..\Quake\vr\external\zancle\include;..\..\Quake\vr\external\recastnavigation\Recast\Include;..\..\Quake\vr\external\recastnavigation\Detour\Include;..\..\Quake\vr\external\opus\include;..\..\Quake\vr\external\rnnoise\include;..\OpenXR\include;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <!-- SDL_DISABLE_MM3DNOW_H: SDL_cpuinfo.h includes <mm3dnow.h> where __3dNOW__ is defined (clang-cl for 32-bit x86),
            a header clang deprecates with a #warning. -->
-      <PreprocessorDefinitions>ZA_STATIC;SDL_DISABLE_MM3DNOW_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- QVR_STB_VORBIS: stb_vorbis (Quake/vr/external/stb_vorbis/README.md, below) is built in: snd_vorbis.c decodes
+           Ogg with it in the fake-Android mode (-fakeandroid), as the Quest's build does, libvorbisfile otherwise. -->
+      <PreprocessorDefinitions>ZA_STATIC;SDL_DISABLE_MM3DNOW_H;QVR_STB_VORBIS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Platform)'=='x64'">QVR_HAVE_OPENXR;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <!-- QVR_RELEASE: a release (make_release.ps1's /p:QvrReleaseVersion), or /p:QvrRelease=1 to build one's code
            (a check): the tuning constants (Quake/vr/vr_tunables.inc) constexpr, no live tuning (vr_tunables.cpp). -->
@@ -192,6 +194,16 @@
       <AdditionalOptions>/FIintrin.h %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ClInclude Include="..\..\Quake\vr\external\box3d\src\*.h;..\..\Quake\vr\external\box3d\src\*.inl;..\..\Quake\vr\external\box3d\include\box3d\*.h" />
+    <!-- stb_vorbis (Quake/vr/external/stb_vorbis/README.md): the Quest's Ogg Vorbis decoder, built here for the
+         fake-Android mode (snd_vorbis.c, QVR_STB_VORBIS above); vendored code, warnings off, always optimised. -->
+    <ClCompile Include="..\..\Quake\vr\external\stb_vorbis\stb_vorbis.c">
+      <CompileAs>CompileAsC</CompileAs>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <ObjectFileName>$(IntDir)stb_vorbis\</ObjectFileName>
+    </ClCompile>
     <!-- The C heap (Quake/vr/vr_crtheap.c): its report (vr_crtheap_info.c), a C file each; QVR_MIMALLOC with mimalloc. -->
     <ClCompile Include="..\..\Quake\vr\vr_crtheap.c;..\..\Quake\vr\vr_crtheap_info.c">
       <CompileAs>CompileAsC</CompileAs>

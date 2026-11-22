@@ -19,6 +19,8 @@
 
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -28,7 +30,6 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 
-#include <string.h>
 
 using namespace qvr;
 
@@ -91,7 +92,7 @@ using geom::vec;
 
 [[nodiscard]] const char* nameOf(const Action& a)
 {
-    return a.command + strlen(prefix);
+    return a.command + ZA_STRLEN(prefix);
 }
 
 [[nodiscard]] const char* classOf(int num)
@@ -970,7 +971,7 @@ constexpr int actionCount = static_cast<int>(za::getArraySize(actions));
 [[nodiscard]] bool takes(const Action& a, edict_t* e)
 {
     return !e->free && (static_cast<int>(e->v.flags) & FL_MONSTER) && e->v.health > 0.f && box3d::activeKind(e) &&
-           !box3d::isRagdoll(NUM_FOR_EDICT(e)) && (a.zombie || strcmp(PR_GetString(e->v.classname), "monster_zombie"));
+           !box3d::isRagdoll(NUM_FOR_EDICT(e)) && (a.zombie || ZA_STRCMP(PR_GetString(e->v.classname), "monster_zombie"));
 }
 
 // The nearest monster `a` takes to the first player; its distance.
@@ -1003,7 +1004,7 @@ void list()
     const char* group = "";
     for(const Action& a : actions)
     {
-        if(strcmp(group, a.group))
+        if(ZA_STRCMP(group, a.group))
         {
             group = a.group;
             Con_Printf("  %s:\n", group);

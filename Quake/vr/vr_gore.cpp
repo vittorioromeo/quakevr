@@ -20,6 +20,7 @@
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -862,18 +863,18 @@ void test_f()
     const entity_t& pl = cl_entities[cl.viewentity];
     const glm::vec3 org = geom::vec(pl.origin) + dir * 64.f + glm::vec3{0.f, 0.f, 8.f};
     const int lvl = za::max(1, level());
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "burst"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "burst"))
     {
         burst(org, dir, 2.f, lvl);
     }
-    else if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "corpse"))
+    else if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "corpse"))
     {
         pending.pushBack({org, cl.time, za::clamp(16.f * 4.5f, 56.f, 160.f) * sizeMult(), 0, nullptr});
     }
     else
     {
         // (vr_gore_test <damage> pellets: as a shotgun blast's; its back-splatter close.)
-        const bool pellets = Cmd_Argc() > 2 && !strcmp(Cmd_Argv(2), "pellets");
+        const bool pellets = Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(2), "pellets");
         hit(org, dir, Cmd_Argc() > 1 ? za::max(1, atoi(Cmd_Argv(1))) : 40, pellets ? HitPellets : HitShot, lvl);
     }
 }

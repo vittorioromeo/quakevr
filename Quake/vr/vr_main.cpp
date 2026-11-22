@@ -221,6 +221,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Chrono/Time.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
@@ -239,7 +240,6 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 
 using namespace qvr;
@@ -268,12 +268,12 @@ State* state = nullptr;
 
 [[nodiscard]] za::UniquePtr<qvr::Backend> createBackend(const char* name)
 {
-    if(!strcmp(name, "mock"))
+    if(!ZA_STRCMP(name, "mock"))
     {
         return qvr::makeMockBackend();
     }
 
-    if(!strcmp(name, "openxr"))
+    if(!ZA_STRCMP(name, "openxr"))
     {
         if(auto backend = qvr::makeOpenXrBackend())
         {
@@ -431,9 +431,15 @@ void VR_Restart_f()
 
 // vr_startgame's start, queued (Cbuf_InsertText): with VR enabled, the vrstart hub (tutorial, settings and the mission
 // packs' portals) as the old engine did, or the calibration room at a first start; otherwise (flat) the main menu. A map or
-// demo started from the command line runs instead of any.
+// demo started from the command line runs instead of any. -nostartmap: none of them (a test harness's games, which get
+// their map or connect by command: the MP harness's clients joined 6 s sooner without the hub's load first).
 void startGameCommands()
 {
+    if(COM_CheckParm("-nostartmap"))
+    {
+        return;
+    }
+
     if(vr_enabled.value && !sv.active && !cls.demoplayback && cls.state != ca_connected)
     {
         if(vr_setup_pending.value != 0.f)
@@ -1726,7 +1732,7 @@ constexpr KnownPanel knownPanels[] = {
     key[n] = '\0';
     for(const KnownPanel& p : knownPanels)
     {
-        if(strstr(key, p.name))
+        if(ZA_STRSTR(key, p.name))
         {
             width = p.width;
             height = p.height;
@@ -1790,9 +1796,9 @@ void eyeSizeLines(const Backend& b, za::Vector<za::String>& out)
     out.pushBack(za::String{line});
     // What made them large: Render Scale over 1, Eye Image Size, the runtime's own setting (by its name).
     const char* rt = b.runtimeName();
-    const char* setting = strstr(rt, "SteamVR")                                           ? "SteamVR's Render Resolution"
-                          : (strstr(rt, "VirtualDesktop") || strstr(rt, "VDXR"))          ? "VD's quality (Streaming tab)"
-                          : strstr(rt, "Oculus") || strstr(rt, "Meta")                    ? "Meta's Render Resolution"
+    const char* setting = ZA_STRSTR(rt, "SteamVR")                                           ? "SteamVR's Render Resolution"
+                          : (ZA_STRSTR(rt, "VirtualDesktop") || ZA_STRSTR(rt, "VDXR"))          ? "VD's quality (Streaming tab)"
+                          : ZA_STRSTR(rt, "Oculus") || ZA_STRSTR(rt, "Meta")                    ? "Meta's Render Resolution"
                                                                                           : "the runtime's resolution";
     if(renderScale > 1.001)
     {
@@ -1814,11 +1820,11 @@ void statusLines(za::Vector<za::String>& out)
     char line[160];
     Backend* b = backend();
     const bool vr = vrActive() && b;
-    const bool mock = vr && !strcmp(b->name(), "mock");
+    const bool mock = vr && !ZA_STRCMP(b->name(), "mock");
 
     // The mode, and the runtime (named for the two this port is tested on; any other by its own name).
     const char* rt = vr ? b->runtimeName() : "";
-    const char* runtimeKind = !vr ? "" : mock ? "no runtime" : (strstr(rt, "SteamVR") ? "SteamVR" : (strstr(rt, "VirtualDesktop") || strstr(rt, "VDXR")) ? "VDXR" : "other runtime");
+    const char* runtimeKind = !vr ? "" : mock ? "no runtime" : (ZA_STRSTR(rt, "SteamVR") ? "SteamVR" : (ZA_STRSTR(rt, "VirtualDesktop") || ZA_STRSTR(rt, "VDXR")) ? "VDXR" : "other runtime");
     q_snprintf(line, sizeof(line), "%s%s%s", !vr ? "Flat screen" : mock ? "Mock VR" : "VR", vr ? " - " : "", runtimeKind);
     out.pushBack(za::String{line});
     // GL safe mode (vr_glsafe.cpp): a warning line (white on red), the graphics' optional features off this run; the reason
@@ -2586,7 +2592,7 @@ extern "C" void VR_BeginFrame()
     if(state->earlyStart && !earlyPending)
     {
         state->earlyStart = false;
-        const bool keep = vr_enabled.value != 0.f && !strcmp(state->earlyName, requestedBackend());
+        const bool keep = vr_enabled.value != 0.f && !ZA_STRCMP(state->earlyName, requestedBackend());
         state->restartRequested = !keep;
         Con_SafePrintf("VR: the early start %s\n", keep ? "kept after the configs" : "restarted: the configs changed VR");
     }
@@ -2730,7 +2736,7 @@ extern "C" int VR_IsActive()
 extern "C" int VR_Unpaced()
 {
     const Backend* const be = backend();
-    return be && vr_mock_fast.value != 0.f && !strcmp(be->name(), "mock") && motion::gameClockFixed();
+    return be && vr_mock_fast.value != 0.f && !ZA_STRCMP(be->name(), "mock") && motion::gameClockFixed();
 }
 
 // vr_mock_fast 2: unpaced frames aren't drawn at all (VR_HeadlessView instead): no GL, no wait for the GPU, which

@@ -36,9 +36,11 @@
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 using namespace qvr;
 
@@ -279,7 +281,7 @@ const sfx_t* crackleSfx = nullptr;
     {
         return sfx == crackleSfx;
     }
-    if(strcmp(sfx->name, crackleName) != 0)
+    if(ZA_STRCMP(sfx->name, crackleName) != 0)
     {
         return false;
     }
@@ -317,7 +319,7 @@ void crackles()
         {
             // A flame made live (the toolgun's Fire tab: QC VR_FlameProp_Setup): its crackle goes with it, carried.
             const entity_t* f = ch.entnum > 0 && ch.entnum < cl.num_entities ? &cl_entities[ch.entnum] : nullptr;
-            if(f && f->model && f->msgtime == cl.mtime[0] && !strcmp(f->model->name, "progs/flame2.mdl"))
+            if(f && f->model && f->msgtime == cl.mtime[0] && !ZA_STRCMP(f->model->name, "progs/flame2.mdl"))
             {
                 VectorCopy(f->origin, ch.origin);
             }
@@ -375,7 +377,7 @@ namespace
     const size_t idSize = id ? static_cast<size_t>(com_filesize) : 0;
     const auto rd = [](const byte* b, size_t at) -> int {
         int v;
-        memcpy(&v, b + at, 4);
+        ZA_MEMCPY(&v, b + at, 4);
         return LittleLong(v);
     };
     constexpr size_t headerSize = 84;
@@ -461,7 +463,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
     const size_t size = static_cast<size_t>(com_filesize);
     const auto rd = [&](size_t at) -> int {
         int v;
-        memcpy(&v, src + at, 4);
+        ZA_MEMCPY(&v, src + at, 4);
         return LittleLong(v);
     };
     constexpr size_t headerSize = 84;
@@ -538,7 +540,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
     {
         for(int v = 0; v < numVerts; v++)
         {
-            moving[static_cast<size_t>(v)] = moving[static_cast<size_t>(v)] || memcmp(poses[0] + v * 4, poses[p] + v * 4, 3) != 0;
+            moving[static_cast<size_t>(v)] = moving[static_cast<size_t>(v)] || ZA_MEMCMP(poses[0] + v * 4, poses[p] + v * 4, 3) != 0;
         }
     }
     za::Vector<byte> tris;
@@ -564,11 +566,11 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
     }
     const size_t outSize = size - static_cast<size_t>(numTris - kept) * 16;
     byte* out = static_cast<byte*>(VR_HeapMalloc(outSize + 1));
-    memcpy(out, src, trisAt);
+    ZA_MEMCPY(out, src, trisAt);
     const int keptLe = LittleLong(kept);
-    memcpy(out + 64, &keptLe, 4);
-    memcpy(out + trisAt, tris.data(), tris.size());
-    memcpy(out + trisAt + tris.size(), src + framesAt, size - framesAt);
+    ZA_MEMCPY(out + 64, &keptLe, 4);
+    ZA_MEMCPY(out + trisAt, tris.data(), tris.size());
+    ZA_MEMCPY(out + trisAt + tris.size(), src + framesAt, size - framesAt);
     out[outSize] = 0;
     VR_HeapFree(src);
     Con_DPrintf("wall torch: %s: %d of %d triangles (its flame)\n", fireModelName, kept, numTris);
@@ -902,7 +904,7 @@ void walltorch::restoreAfterLoad()
     // The torches the save has: where they hung.
     za::Vector<glm::vec3> have;
     progs::forEachEdict(1, [&](edict_t* e) {
-        if(strcmp(PR_GetString(e->v.classname), "light_torch_small_walltorch") != 0)
+        if(ZA_STRCMP(PR_GetString(e->v.classname), "light_torch_small_walltorch") != 0)
         {
             return;
         }

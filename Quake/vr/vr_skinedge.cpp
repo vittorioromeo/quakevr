@@ -20,10 +20,12 @@
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "vr_zancle.hpp"
 #include "vr_api_render.h"
 
-#include <string.h>
 
 using namespace qvr;
 
@@ -193,7 +195,7 @@ jobs::Site edgeSite{"skin edges"}; // (its parallelFor: vr_jobs_sites)
 // map's "_norm" / "_bump"). False for any other texture.
 [[nodiscard]] bool modelOf(const char* name, int bpp, char (&model)[MAX_QPATH])
 {
-    const char* at = strstr(name, bpp == 1 ? ".mdl:frame" : ".mdl_");
+    const char* at = ZA_STRSTR(name, bpp == 1 ? ".mdl:frame" : ".mdl_");
     if(!at || (bpp != 1 && (qvr::strings::endsWith(name, "_norm") || qvr::strings::endsWith(name, "_bump"))))
     {
         return false;
@@ -206,7 +208,7 @@ jobs::Site edgeSite{"skin edges"}; // (its parallelFor: vr_jobs_sites)
 {
     for(Entry& e : cache.entries)
     {
-        if(!strcmp(e.model, model))
+        if(!ZA_STRCMP(e.model, model))
         {
             return &e;
         }
@@ -220,7 +222,7 @@ void forget(const char* model)
     for(za::SizeT i = 0; i < cache.entries.size(); i++)
     {
         Entry& e = cache.entries[i];
-        if(strcmp(e.model, model) != 0)
+        if(ZA_STRCMP(e.model, model) != 0)
         {
             continue;
         }
@@ -435,11 +437,11 @@ extern "C" byte* VR_SkinEdgeFill(const char* name, byte* data, int width, int he
     const za::SizeT stride = static_cast<za::SizeT>(bpp);
     const za::SizeT size = static_cast<za::SizeT>(width) * static_cast<za::SizeT>(height) * stride;
     byte* out = static_cast<byte*>(Hunk_Alloc(static_cast<int>(size))); // freed with the upload's (TexMgr's mark)
-    memcpy(out, data, size);
+    ZA_MEMCPY(out, data, size);
     const za::U32* pair = cache.pairs.data() + e->first;
     for(za::SizeT i = 0; i < e->count; i++, pair += 2)
     {
-        memcpy(out + pair[0] * stride, data + pair[1] * stride, stride);
+        ZA_MEMCPY(out + pair[0] * stride, data + pair[1] * stride, stride);
     }
     e->filled++;
     return out;
@@ -461,7 +463,7 @@ void list_f()
     for(const Entry& e : cache.entries)
     {
         total += e.count;
-        if(only && !strstr(e.model, only))
+        if(only && !ZA_STRSTR(e.model, only))
         {
             continue;
         }

@@ -8,6 +8,11 @@
 
 #include "vr_mem.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -96,7 +101,7 @@ za::ThreadId resultsOwner; // the main thread (the first VR_ExtMapsPrepare's): V
 // The pack's folder, the settings prepare reads, the palette (an 8-bit texture's colours): another one, the results go.
 [[nodiscard]] za::U64 contextKey()
 {
-    za::U64 h = bytesHash(vr_extmaps_dir.string, strlen(vr_extmaps_dir.string), 1);
+    za::U64 h = bytesHash(vr_extmaps_dir.string, ZA_STRLEN(vr_extmaps_dir.string), 1);
     const float need = za::clamp(vr_extmaps_match.value, 0.f, 1.f);
     h = bytesHash(&need, sizeof(need), h);
     const int normals = VR_NormalMaps();
@@ -119,7 +124,7 @@ void checkContext()
 [[nodiscard]] za::U64 pixelsKey(const char* name, const byte* data, enum srcformat fmt, int w, int h)
 {
     const int dims[3] = {static_cast<int>(fmt), w, h};
-    za::U64 k = bytesHash(name, strlen(name), 2);
+    za::U64 k = bytesHash(name, ZA_STRLEN(name), 2);
     k = bytesHash(dims, sizeof(dims), k);
     return bytesHash(data, static_cast<size_t>(w) * h * (fmt == SRC_RGBA ? 4 : 1), k);
 }
@@ -178,7 +183,7 @@ void readMat(const char* base, Material& mat)
     char text[4096];
     text[0] = 0;
     const bool own = za::ThisThread::getId() == resultsOwner;
-    const za::U64 key = own ? bytesHash(base, strlen(base), 4) : 0;
+    const za::U64 key = own ? bytesHash(base, ZA_STRLEN(base), 4) : 0;
     const auto known = own ? results.matTexts.find(key) : results.matTexts.end();
     if(known != results.matTexts.end())
     {
@@ -219,23 +224,23 @@ void readMat(const char* base, Material& mat)
         }
         if(depth == 1 && sscanf(line, " %31s %63s", key, value) == 2)
         {
-            if(!strcmp(key, "diffusemap"))
+            if(!ZA_STRCMP(key, "diffusemap"))
             {
                 q_strlcpy(mat.diffusemap, value, sizeof(mat.diffusemap));
             }
-            else if(!strcmp(key, "normalmap"))
+            else if(!ZA_STRCMP(key, "normalmap"))
             {
                 q_strlcpy(mat.normalmap, value, sizeof(mat.normalmap));
             }
-            else if(!strcmp(key, "specularmap"))
+            else if(!ZA_STRCMP(key, "specularmap"))
             {
                 q_strlcpy(mat.specularmap, value, sizeof(mat.specularmap));
             }
-            else if(!strcmp(key, "specularity"))
+            else if(!ZA_STRCMP(key, "specularity"))
             {
                 mat.specularity = Q_atof(value);
             }
-            else if(!strcmp(key, "hardness"))
+            else if(!ZA_STRCMP(key, "hardness"))
             {
                 mat.hardness = Q_atof(value);
             }
@@ -383,7 +388,7 @@ void framesOf(const qmodel_t* mod, const texture_t* t, texture_t* out[animFrames
     {
         texture_t* f = mod->textures[i];
         const int k = frameOf(f);
-        if(k >= 0 && !strcmp(f->name + 2, t->name + 2))
+        if(k >= 0 && !ZA_STRCMP(f->name + 2, t->name + 2))
         {
             out[k] = f;
         }
@@ -512,14 +517,14 @@ Record& record(const qmodel_t* mod, const char* texname)
     // A new map (not one of its item boxes, maps/b_*.bsp): the list starts again.
     const char* model = mod ? mod->name : "";
     const bool item = qvr::modelmeta::has(mod, qvr::modelmeta::Trait::AmmoBox);
-    if(!item && strcmp(model, recordsWorld) != 0)
+    if(!item && ZA_STRCMP(model, recordsWorld) != 0)
     {
         records.clear();
         q_strlcpy(recordsWorld, model, sizeof(recordsWorld));
     }
     for(Record& r : records)
     {
-        if(r.item == item && !strcmp(r.texname, texname))
+        if(r.item == item && !ZA_STRCMP(r.texname, texname))
         {
             return r;
         }
@@ -658,12 +663,12 @@ void frames_f()
             } checks[] = {
                 {b.nm == b0.nm, " normal"},
                 {b.spec == b0.spec && b.flags == b0.flags, " specular"},
-                {!memcmp(b.extmat, b0.extmat, sizeof(b.extmat)), " .mat"},
-                {!memcmp(b.detail, b0.detail, sizeof(b.detail)), " detail"},
+                {!ZA_MEMCMP(b.extmat, b0.extmat, sizeof(b.extmat)), " .mat"},
+                {!ZA_MEMCMP(b.detail, b0.detail, sizeof(b.detail)), " detail"},
             };
             for(const auto& c : checks)
             {
-                if(!c.same && !strstr(differs, c.what))
+                if(!c.same && !ZA_STRSTR(differs, c.what))
                 {
                     q_strlcat(differs, c.what, sizeof(differs));
                 }
@@ -762,7 +767,7 @@ using namespace qvr;
 // Image_LoadImage: whether `path` is one of vr_extmaps_dir's files ("vrext/<file>").
 extern "C" int VR_ExtMapsIsPath(const char* path)
 {
-    return strncmp(path, extmaps::prefix, extmaps::prefixLen) == 0;
+    return ZA_STRNCMP(path, extmaps::prefix, extmaps::prefixLen) == 0;
 }
 
 // ... that file opened (com_filesize its size), or NULL.
@@ -777,7 +782,7 @@ extern "C" FILE* VR_ExtMapsOpen(const char* path)
     q_snprintf(full, sizeof(full), "%s/%s", dir, path + extmaps::prefixLen);
     // The pack's files not there, kept for the session (main thread: SessionResults; most of a load's probes)
     const bool remember = za::ThisThread::getId() == extmaps::resultsOwner;
-    const za::U64 key = remember ? extmaps::bytesHash(full, strlen(full), 3) : 0;
+    const za::U64 key = remember ? extmaps::bytesHash(full, ZA_STRLEN(full), 3) : 0;
     if(remember)
     {
         extmaps::checkContext();
@@ -1028,7 +1033,7 @@ extern "C" int VR_ExtMapsPrepare(const qmodel_t* mod, const char* texname, const
 extern "C" void VR_ExtMapsAttach(texture_t* tx, qmodel_t* mod, int glows)
 {
     extmaps::Pending& p = extmaps::pending;
-    if((!p.ok && !p.normalOnly) || !tx || !tx->gltexture || strcmp(p.texname, tx->name) != 0)
+    if((!p.ok && !p.normalOnly) || !tx || !tx->gltexture || ZA_STRCMP(p.texname, tx->name) != 0)
     {
         p = extmaps::Pending{};
         return;
@@ -1235,7 +1240,7 @@ extern "C" unsigned VR_ExtMapsCall(const texture_t* t, gltexture_t** normalmap, 
 // against their slope down the rows; 1 as it is; 2 turned). Quetoo's runs down the rows (correlation -0.9 over its maps).
 extern "C" void VR_ExtMapsGreen(byte* data, int width, int height, const char* name)
 {
-    if(!strncmp(name, "pbrmix/", 7))
+    if(!ZA_STRNCMP(name, "pbrmix/", 7))
         return; // A companion composition already oriented its authored RGB before adding the missing height.
     const int mode = static_cast<int>(vr_extmaps_green.value);
     bool flip = mode == 2;

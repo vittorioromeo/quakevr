@@ -46,6 +46,8 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/Unique.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -248,8 +250,8 @@ extern "C" int VR_AliasTwoSided(const entity_t* e)
     // straight) its columns run back and lap, their cells seen from behind; culled they were his holes, 2026-11-10)
     constexpr const char* suffix = "#bridge";
     constexpr size_t suffixLen = 7;
-    const size_t len = e && e->model ? strlen(e->model->name) : 0;
-    return len > suffixLen && !strcmp(e->model->name + len - suffixLen, suffix) ? 1 : 0;
+    const size_t len = e && e->model ? ZA_STRLEN(e->model->name) : 0;
+    return len > suffixLen && !ZA_STRCMP(e->model->name + len - suffixLen, suffix) ? 1 : 0;
 }
 
 extern "C" int VR_AliasCullPosedOn(const entity_t* e, int depth)

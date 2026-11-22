@@ -262,7 +262,7 @@ Running it (in a worker's checkout `--base` defaults to its own kit base, `bases
 `id1/autoexec.cfg` the kit's runs leave with their script: emptied automatically; elsewhere pass `--base` and
 `--reset-autoexec`; the ports are the checkout's own block from 27600, a busy block skipped to the next free one):
 
-    python Misc/quakevr/mp/mp_test.py suite
+    python Misc/quakevr/mp/mp_test.py suite                  (the default profile; --profile long|all: TESTING.md)
     python Misc/quakevr/mp/mp_test.py suite --base C:/OHWorkspace/qvr-kit/bases/mp/qbase --reset-autoexec
     python Misc/quakevr/mp/mp_test.py coop --listen --flat B --port 27600 --base ...    (a listen host, flat B)
     python Misc/quakevr/mp/mp_test.py coop --lag 150 --jitter 20 --loss 0.02 --base ...

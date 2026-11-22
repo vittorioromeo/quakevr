@@ -28,6 +28,8 @@
 #include "vr_geom.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -538,8 +540,8 @@ void serverCounts(int& tanks, int& guns, int& paired, int& orphans, int& bare)
     progs::ServerVm serverVm;
     progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
         const char* cls = PR_GetString(e->v.classname);
-        const bool tank = !strcmp(cls, "vr_fueltank");
-        const bool gun = !strcmp(cls, "thrown_weapon") && e->v.model && adguns::variantOf(PR_GetString(e->v.model)) >= 0 &&
+        const bool tank = !ZA_STRCMP(cls, "vr_fueltank");
+        const bool gun = !ZA_STRCMP(cls, "thrown_weapon") && e->v.model && adguns::variantOf(PR_GetString(e->v.model)) >= 0 &&
                          fuelled(adguns::variantOf(PR_GetString(e->v.model)));
         if(!tank && !gun)
         {
@@ -548,7 +550,7 @@ void serverCounts(int& tanks, int& guns, int& paired, int& orphans, int& bare)
         const int ofs = progs::fieldInt(e, link);
         edict_t* other = ofs ? PROG_TO_EDICT(ofs) : nullptr;
         const bool mutual = other && !other->free && progs::fieldInt(other, link) == EDICT_TO_PROG(e) &&
-                            !strcmp(PR_GetString(other->v.classname), tank ? "thrown_weapon" : "vr_fueltank");
+                            !ZA_STRCMP(PR_GetString(other->v.classname), tank ? "thrown_weapon" : "vr_fueltank");
         if(tank)
         {
             tanks++;
@@ -1156,7 +1158,7 @@ void updateSeen(const glm::vec3& eye)
     for(int n = 1; n < cl.num_entities; n++)
     {
         const entity_t& e = cl_entities[n];
-        if(!e.model || e.model->type != mod_alias || strncmp(e.model->name, "progs/vr_fueltank", 17) != 0 ||
+        if(!e.model || e.model->type != mod_alias || ZA_STRNCMP(e.model->name, "progs/vr_fueltank", 17) != 0 ||
             e.msgtime != cl.mtime[0])
         {
             continue;
@@ -1473,7 +1475,7 @@ void relinkWorn()
         n = edictindex::nextClassname(n, "vr_fueltank_worn"))
     {
         edict_t* e = EDICT_NUM(n);
-        if(e->free || !e->v.modelindex || strcmp(PR_GetString(e->v.classname), "vr_fueltank_worn") != 0)
+        if(e->free || !e->v.modelindex || ZA_STRCMP(PR_GetString(e->v.classname), "vr_fueltank_worn") != 0)
         {
             continue;
         }

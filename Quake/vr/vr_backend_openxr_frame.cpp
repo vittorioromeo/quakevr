@@ -6,6 +6,7 @@
 #include "vr_cvars.hpp"
 #include "vr_perfrec.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -29,7 +30,7 @@ void debugPose(TrackingState& tracking, FrameState& frame)
     }
     const Pose head = tracking.head;
     const glm::vec3 forward = head.orientation * glm::vec3{0.f, 0.f, -1.f};
-    const glm::quat yaw = glm::angleAxis(std::atan2(-forward.x, -forward.z), glm::vec3{0.f, 1.f, 0.f});
+    const glm::quat yaw = glm::angleAxis(za::atan2(-forward.x, -forward.z), glm::vec3{0.f, 1.f, 0.f});
     const glm::quat posed =
         yaw * glm::angleAxis(-glm::radians(vr_debug_head_pitch.value), glm::vec3{1.f, 0.f, 0.f});
     const glm::vec3 place{head.position.x, 1.65f, head.position.z};

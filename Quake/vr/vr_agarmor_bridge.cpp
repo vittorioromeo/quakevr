@@ -19,6 +19,9 @@
 #include "vr_rigpose.hpp"
 #include "vr_testkit.hpp"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -31,7 +34,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include <string.h>
 
 namespace qvr::agarmor::detail
 {
@@ -486,7 +488,7 @@ bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperW
     };
     for(int pass = 0; pass < bridgePushPasses && br.numUnder > 0; pass++)
     {
-        memcpy(pushedBefore, push, sizeof(push));
+        ZA_MEMCPY(pushedBefore, push, sizeof(push));
         passNow = pass;
         measure(true, nullptr);
         // (eased: each corner at least a share of its neighbours' pushes, so a pushed corner is a swell, not a spike)
@@ -500,7 +502,7 @@ bool evalBridge(const Shell& s, int j, const float* bones, int have, bool upperW
                 eased[i][c] = za::max(push[i][c], near * bridgePushSpread);
             }
         }
-        memcpy(push, eased, sizeof(push));
+        ZA_MEMCPY(push, eased, sizeof(push));
         lay();
     }
     if(diag)
@@ -632,7 +634,7 @@ int bridgeBones(const Shell& s, int pieces, const float* bones, int have, float*
         glm::vec3 P[bridgeMostRings * ringVerts], N[bridgeMostRings * ringVerts];
         if(!bones || (!upperWorn && !lowerWorn) || !evalBridge(s, j, bones, have, upperWorn, lowerWorn, P, N, nullptr))
         {
-            memset(o, 0, sizeof(float) * 12u * static_cast<size_t>(n)); // (not drawn: collapsed)
+            ZA_MEMSET(o, 0, sizeof(float) * 12u * static_cast<size_t>(n)); // (not drawn: collapsed)
             continue;
         }
         joints++;
@@ -664,7 +666,7 @@ bool makeBridgeModel(qmodel_t* mod, const Shell& s, const aliashdr_t* kh)
         return false;
     }
     aliashdr_t skinHdr;
-    memcpy(&skinHdr, kh, sizeof(aliashdr_t)); // (as makeModel: the hunk growing below may evict the skins' model)
+    ZA_MEMCPY(&skinHdr, kh, sizeof(aliashdr_t)); // (as makeModel: the hunk growing below may evict the skins' model)
     kh = &skinHdr;
     const int start = Hunk_LowMark();
     auto* hdr = static_cast<aliashdr_t*>(Hunk_Alloc(static_cast<int>(sizeof(aliashdr_t))));
@@ -694,8 +696,8 @@ bool makeBridgeModel(qmodel_t* mod, const Shell& s, const aliashdr_t* kh)
     hdr->frames[0].numposes = 1;
     hdr->frames[0].interval = 0.1f;
     q_strlcpy(hdr->frames[0].name, "bridge", sizeof(hdr->frames[0].name));
-    memcpy(hdr->gltextures, kh->gltextures, sizeof(hdr->gltextures));
-    memcpy(hdr->fbtextures, kh->fbtextures, sizeof(hdr->fbtextures));
+    ZA_MEMCPY(hdr->gltextures, kh->gltextures, sizeof(hdr->gltextures));
+    ZA_MEMCPY(hdr->fbtextures, kh->fbtextures, sizeof(hdr->fbtextures));
     for(int i = 0; i < MAX_SKINS; i++) // the source's texels, as offsets from this header (they are other blocks)
         hdr->texels[i] = kh->texels[i] ? reinterpret_cast<const byte*>(kh) + kh->texels[i] - reinterpret_cast<const byte*>(hdr) : 0;
     for(int b = 0; b < numVerts; b++)
@@ -878,7 +880,7 @@ void bridgeTrace(const Shell& s, int ent, const char* model, int pieces, const f
                 static_cast<double>(d.keep), static_cast<double>(d.m0), static_cast<double>(d.m1), static_cast<double>(d.pushMost));
         }
         tb->had[j] = true;
-        memcpy(tb->P[j], P, sizeof(glm::vec3) * static_cast<size_t>(n));
+        ZA_MEMCPY(tb->P[j], P, sizeof(glm::vec3) * static_cast<size_t>(n));
         for(int i = 0; i < d.rings; i++)
         {
             tb->X[j][i] = d.ringX[i];
@@ -1352,7 +1354,7 @@ void sweepCheck(const char* model, const Shell& s, const rig2::Rig& rig, const C
                 }
             }
             had = true;
-            memcpy(was, P, sizeof(glm::vec3) * static_cast<size_t>(br.rings * ringVerts));
+            ZA_MEMCPY(was, P, sizeof(glm::vec3) * static_cast<size_t>(br.rings * ringVerts));
             dWas = d;
         }
         Con_DPrintf("agarmor bridge check:   %s %s sweep's worst step at %.0f deg, ring %d: most pushed %.2f -> %.2f, crease gave up %.2f -> %.2f\n", model,
@@ -1447,7 +1449,7 @@ void continuityCheck(qmodel_t* src, const Shell& s, const rig2::Rig& rig, const 
                         worstTurnPose[j] = p;
                     }
                 }
-                memcpy(was[j], P, sizeof(glm::vec3) * static_cast<size_t>(n));
+                ZA_MEMCPY(was[j], P, sizeof(glm::vec3) * static_cast<size_t>(n));
                 dWas[j] = d;
             }
         }
@@ -1495,7 +1497,7 @@ void bridgeCheck_f()
     char what[320];
     for(const char* model : bridgeCheckModels)
     {
-        if(only && strcmp(only, model))
+        if(only && ZA_STRCMP(only, model))
         {
             continue;
         }
@@ -1636,7 +1638,7 @@ void bridgeCheck_f()
         restCheck(model, *s, *rig, check);
     }
     // armour.txt's settings on the leather: the grunt's left knee's sleeve parts (the table's entries put back after).
-    qmodel_t* grunt = !only || !strcmp(only, checked[0]) ? Mod_ForName(checked[0], false) : nullptr;
+    qmodel_t* grunt = !only || !ZA_STRCMP(only, checked[0]) ? Mod_ForName(checked[0], false) : nullptr;
     const Shell* s = grunt ? shellFor(grunt) : nullptr;
     if(s && s->bridges[KneeL].ok && s->bridges[KneeR].ok)
     {

@@ -1,11 +1,12 @@
 # dwell_rotary: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Dwell's Rotary Shotgun in the
-# right hand (vr_ad_test 206: its VR model made from Dwell's, DWELL.md 9.6), our super shotgun in the left to compare
-# (its housing, grip and screen). Needs Dwell installed.
-title Dwell's Rotary Shotgun: its ammo screen housing, grip and muzzle
+# right hand as a gauntlet (vr_dw_rotary_gauntlet 1, the default; vr_adweapons.cpp rotaryGauntletParts: its hollow
+# housing and handle, the screen's wedge on top, the shell port, the four barrels; ROUND25.md "dwellrotary"), our
+# super nailgun in the left to compare (its hole, handle and wedge). Needs Dwell installed.
+title Dwell's Rotary Shotgun: its hole and handle, the screen's wedge, shell port and barrels
 map vrtesthall
 god
 notarget
-cvar vr_dw_rotary_gauntlet 0
-give "Super Shotgun" off
+cvar vr_dw_rotary_gauntlet 1
+give "Super Nailgun" off
 cmd vr_ad_test 206
-hint Right hand: the Rotary Shotgun. On its housing's flat back, in the middle, the ammo screen sits in a brown bezel with a bolt each side, its digits as big as before and nothing covering them. Hold the grip: your hand on the handle, the trigger under your finger. Fire and reload: the shots leave the barrels' front, the screen counts. Left hand: our super shotgun to compare. Tune it in Weapon Offsets (slot 53): your values become the defaults.
+hint Right hand: the Rotary Shotgun, your hand inside its housing round a handle, as in the super nailgun (left hand). On its top at the back a wedge holds the ammo screen in a riveted brown bezel, tilted up to your eye. On its inner side the shell port: bigger, black and set in. Four separate round barrels with deep gaps between them and open holes at the front; no orange flare on the housing's underside. Tune it in Weapon Offsets (slot 56): your values become the defaults.

@@ -16,7 +16,9 @@ in a new copy. A case that runs longer than its -Timeout (default 120 s) is stop
 <n> s"), and the cases after it run again.
 
 Not batched (run alone by run.sh, by the caller): -Out, -Clean, -RealTime, -Visible, -Full, and a script that takes a
-screenshot (its files would land in the copy's folder).
+screenshot (its files would land in the copy's folder). -QuitOn is batched: the case's closing waitN (or, with no closing
+quit, the rest of its timeout) ends at the first console line matching the pattern since the case began
+(vr_test_quiton/vr_waitquiton, engine); -NoDraw is batched: that case's frames undrawn (vr_mock_fast 2).
 
 Bash suites use testbatch.sh (tb_main / tb_run_sh, two passes over the suite); Python suites use Batch below:
     import testbatch
@@ -45,7 +47,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 NOISE = re.compile(r"^(FindFile: can't find|W_GetLump|Couldn't find a cdrip|\s+[0-9]+\.[0-9] ms  )")
 HEADER = re.compile(r"^(exit=|TIMEOUT after|ENGINE ERROR|ENGINE CRASH|run\.ps1:)")
 UNBATCHED_FLAGS = {"-Out", "-Clean", "-RealTime", "-Visible", "-Full"}
-VALUE_OPTS = {"-Script", "-Filter", "-Timeout", "-Base", "-Games", "-ExtraArgs", "-Out", "-Affinity", "-Instance", "-Name"}
+VALUE_OPTS = {"-Script", "-Filter", "-Timeout", "-Base", "-Games", "-ExtraArgs", "-Out", "-Affinity", "-Instance", "-Name",
+              "-QuitOn"}
+CASE_FLAGS = {"-NoDraw", "-Low"}  # batched, per case (-NoDraw: vr_mock_fast 2 after its reset; -Low: the copies' own)
 LAUNCH_OPTS = {"-Base", "-Games", "-ExtraArgs", "-Sound", "-Debug", "-Tracy"}
 DEFAULT_GAMES = "-game hipnotic -game rogue -game quakevr"
 
@@ -53,16 +57,27 @@ DEFAULT_GAMES = "-game hipnotic -game rogue -game quakevr"
 def parse_args(args):
     """run.sh's arguments (after the agent) -> dict: script, filter, timeout, launch (tuple of game options), flags."""
     c = {"script": "quit", "filter": "", "timeout": 120, "launch": [], "flags": set(), "base": "qbase",
-         "games": DEFAULT_GAMES}
+         "games": DEFAULT_GAMES, "quiton": "", "nodraw": False}
     i = 0
     while i < len(args):
         a = args[i]
-        key = next((k for k in VALUE_OPTS | LAUNCH_OPTS | UNBATCHED_FLAGS if k.lower() == a.lower()), None)
+        key = next((k for k in VALUE_OPTS | LAUNCH_OPTS | UNBATCHED_FLAGS | CASE_FLAGS if k.lower() == a.lower()), None)
+        if key == "-NoDraw":
+            c["nodraw"] = True
+            i += 1
+            continue
+        if key == "-Low":
+            i += 1  # (the batch's copies run below normal priority anyway)
+            continue
         if key in VALUE_OPTS:
             v = args[i + 1] if i + 1 < len(args) else ""
             i += 2
             if key == "-Script":
                 c["script"] = v
+            elif key == "-QuitOn":
+                c["quiton"] = v
+                if '"' in v:
+                    c["flags"].add("-QuitOn")  # (it goes to the game in quotes: alone, as before)
             elif key == "-Filter":
                 c["filter"] = v
             elif key == "-Timeout":
@@ -90,14 +105,28 @@ def batchable(c):
                 re.search(r"(^|;)\s*screenshot", c["script"], re.I))
 
 
-def case_lines(script):
-    """The case's commands as run.ps1 writes them (waitN expanded), without its closing toggleconsole/quit."""
+QUITON_FOREVER = 100000000  # (frames: a -QuitOn run with no closing wait and no quit runs until its -Timeout)
+
+
+def case_lines(script, quiton=""):
+    """The case's commands as run.ps1 writes them (waitN expanded), without its closing toggleconsole/quit. With a
+    -QuitOn pattern the case's closing waitN becomes vr_waitquiton N (it ends at the first matching line, as the run
+    alone would; the pattern is armed at the case's start by vr_test_quiton), and a script with no closing quit waits
+    for it until the case's timeout."""
     cmds = [s.strip() for s in script.split(";")]
     cmds = [s for s in cmds if s]
+    quits = False
     while cmds and cmds[-1].lower() == "quit":
+        quits = True
         cmds.pop()
         if cmds and cmds[-1].lower() == "toggleconsole":
             cmds.pop()
+    if quiton:
+        m = re.match(r"^wait(\d+)$", cmds[-1]) if cmds else None
+        if m:
+            cmds[-1] = f"vr_waitquiton {m.group(1)}"
+        elif not quits:
+            cmds.append(f"vr_waitquiton {QUITON_FOREVER}")
     out = []
     for s in cmds:
         m = re.match(r"^wait(\d+)$", s)
@@ -111,8 +140,9 @@ def case_lines(script):
 
 
 def cost(c):
-    lines = case_lines(c["script"])
-    return 60 + sum(1 for l in lines if l == "wait") + 150 * sum(1 for l in lines if re.match(r"(map|changelevel) ", l))
+    lines = case_lines(c["script"], c["quiton"])
+    waits = sum(min(int(l.split()[1]), 3000) for l in lines if l.startswith("vr_waitquiton "))
+    return 60 + waits + sum(1 for l in lines if l == "wait") + 150 * sum(1 for l in lines if re.match(r"(map|changelevel) ", l))
 
 
 def game_dir(agent, base, k):
@@ -158,8 +188,9 @@ def run_copy(agent, k, launch, base, games, cases, result):
     execs = []
     for n, c in cases:
         own = re.search(r"(^|;)\s*vr_fixed_frames\b", c["script"]) is not None
-        body = ([f"echo @@TB_BEGIN {n}", "vr_test_reset"] + ([] if own else fixed) + case_lines(c["script"]) +
-                ["disconnect", f"echo @@TB_END {n}"])
+        mine = (["vr_mock_fast 2"] if c["nodraw"] else []) + ([f'vr_test_quiton "{c["quiton"]}"'] if c["quiton"] else [])
+        body = ([f"echo @@TB_BEGIN {n}", "vr_test_reset"] + ([] if own else fixed) + mine +
+                case_lines(c["script"], c["quiton"]) + ["disconnect", f"echo @@TB_END {n}"])
         with open(f"{gdir}/id1/tb/c{n}.cfg", "w", encoding="ascii", errors="replace", newline="\n") as f:
             f.write("\n".join(body) + "\n")
         execs.append(f"exec tb/c{n}.cfg")
@@ -301,6 +332,10 @@ def exec_dir(d, agent, copies):
                     progressed = True
                     if ended.get(n):
                         hdr = ["exit=0"]
+                        if c["quiton"]:
+                            rx = re.compile(c["quiton"], re.I)
+                            if any(rx.search(l) for l in per[n]):
+                                hdr = [f"exit=quit-on (the log matched '{c['quiton']}')"]
                     elif n in timed_out:
                         hdr = [f"TIMEOUT after {timed_out[n]} s"] + [h for h in header if h.startswith("ENGINE")]
                     else:

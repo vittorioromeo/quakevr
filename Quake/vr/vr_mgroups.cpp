@@ -172,7 +172,7 @@ DataTable<Param, groupCount, paramCount> values{standIns};
 
 [[nodiscard]] bool changed(const cvar_t& v)
 {
-    return strcmp(v.string, v.default_string) != 0;
+    return ZA_STRCMP(v.string, v.default_string) != 0;
 }
 
 // vr_mgroup_dump: each group's values in groups.txt and how many of them differ from it; vr_mgroup_dump <id> ... (or

@@ -17,6 +17,7 @@
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Container/SmallVector.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -35,7 +36,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 namespace qvr::brushes
 {
@@ -81,7 +81,7 @@ void trace_f()
     {
         const Face& f = a.faces[i];
         const Face& g = b.faces[i];
-        if(glm::length(f.normal - g.normal) > 1e-6 || za::fabs(f.dist - g.dist) > 1e-4 || strcmp(f.texture, g.texture) != 0 ||
+        if(glm::length(f.normal - g.normal) > 1e-6 || za::fabs(f.dist - g.dist) > 1e-4 || ZA_STRCMP(f.texture, g.texture) != 0 ||
             glm::length(f.uAxis - g.uAxis) > 1e-6 || glm::length(f.vAxis - g.vAxis) > 1e-6 || za::fabs(f.uOffset - g.uOffset) > 1e-6 ||
             za::fabs(f.vOffset - g.vOffset) > 1e-6 || za::fabs(f.scaleU - g.scaleU) > 1e-6 || za::fabs(f.scaleV - g.scaleV) > 1e-6)
         {

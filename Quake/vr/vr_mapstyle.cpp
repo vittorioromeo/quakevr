@@ -4,6 +4,9 @@
 #include "vr_engine.hpp"
 #include "vr_progs.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -43,7 +46,7 @@ template <size_t N>
 {
     for(const char* w : words)
     {
-        if(strstr(s, w))
+        if(ZA_STRSTR(s, w))
         {
             return true;
         }
@@ -80,7 +83,7 @@ template <size_t N>
     {
         return false;
     }
-    if(grid.model == m && grid.surfaces == m->nummodelsurfaces && !strcmp(grid.mapName, m->name))
+    if(grid.model == m && grid.surfaces == m->nummodelsurfaces && !ZA_STRCMP(grid.mapName, m->name))
     {
         return true;
     }
@@ -274,18 +277,18 @@ Style ofTexture(const char* texture)
     }
     if(t[0] == '*')
     {
-        if(strstr(t, "lava"))
+        if(ZA_STRSTR(t, "lava"))
         {
             return Style::Lava;
         }
-        if(strstr(t, "slime"))
+        if(ZA_STRSTR(t, "slime"))
         {
             return Style::Slime;
         }
-        return strstr(t, "tele") ? Style::Unknown : Style::Water;
+        return ZA_STRSTR(t, "tele") ? Style::Unknown : Style::Water;
     }
-    if(!strncmp(t, "sky", 3) || !strncmp(t, "clip", 4) || !strncmp(t, "trigger", 7) || !strncmp(t, "skip", 4) ||
-        !strncmp(t, "hint", 4))
+    if(!ZA_STRNCMP(t, "sky", 3) || !ZA_STRNCMP(t, "clip", 4) || !ZA_STRNCMP(t, "trigger", 7) || !ZA_STRNCMP(t, "skip", 4) ||
+        !ZA_STRNCMP(t, "hint", 4))
     {
         return Style::Unknown;
     }
