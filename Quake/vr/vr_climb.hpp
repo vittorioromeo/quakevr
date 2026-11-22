@@ -165,5 +165,8 @@ float drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm:
 // Client: where drawnHand last put the drawn `hand`'s palm middle on its hold (world) -> true; false: not on one.
 // (vr_rope_hands_test's samples.)
 [[nodiscard]] bool drawnPalm(int hand, glm::vec3& palm);
+// Client: the way the back of the drawn `hand` faces in its hold's turn (world; the rope grip's or a ledge's) -> true;
+// false: not on a hold. (vr_rope_climb_check grip: ropes6.)
+[[nodiscard]] bool drawnBack(int hand, glm::vec3& back);
 
 } // namespace qvr::climb

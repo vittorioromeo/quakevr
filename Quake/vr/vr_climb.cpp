@@ -4563,7 +4563,7 @@ constexpr float ropeHandSurface = 0.4f; // of its thickness: at least this far (
 }
 
 // The drawn hand's turn on a hold: gripping a rope (`up` set: ropeTurn) where vr_rope_hand_grip has it (1 flat-screen
-// play, 2 VR too), else as on a ledge (holdTurn).
+// play only, 2 VR too: the default since ropes6), else as on a ledge (holdTurn).
 [[nodiscard]] glm::mat3 turnOn(const glm::vec3& out, const glm::vec3& up, bool mirrored)
 {
     const int grip = static_cast<int>(vr_rope_hand_grip.value);
@@ -5052,6 +5052,18 @@ bool qvr::climb::drawnPalm(int hand, glm::vec3& palm)
         return false;
     }
     palm = pins[hand].hold();
+    return true;
+}
+
+bool qvr::climb::drawnBack(int hand, glm::vec3& back)
+{
+    if(hand < 0 || hand > 1 || pins[hand].weight <= 0.f)
+    {
+        return false;
+    }
+    // (The hand model's left is a right hand's palm side; the off hand's mirrored model has it the other way.)
+    const glm::mat3 m = turnOn(pins[hand].toOut, pins[hand].toUp, hand == 0);
+    back = hand == 0 ? m[1] : -m[1];
     return true;
 }
 
