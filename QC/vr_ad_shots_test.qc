@@ -176,7 +176,16 @@ void(float request, entity p) AD_ShotsTest =
         shooter.flags = FL_MONSTER;
         self = shooter;
         AD_EnemyPellets(1, '1 0 0', '0 0 0', p.origin + '40 0 120');
-        bprint(sprintf("adshots-test: speeds player %.0f enemy %.0f\n", playerSpeed, vlen(ad_newmis.velocity)));
+        float enemySpeed = vlen(ad_newmis.velocity);
+        bprint(sprintf("adshots-test: speeds player %.0f enemy %.0f\n", playerSpeed, enemySpeed));
+        // AD's speeds 30% faster (VR_AD_SHELL_FASTER), times the settings (a pellet's own +-10 jitter scaled too).
+        float pmul = VR_AD_SHELL_FASTER * max(0.1, cvar_hget(cvarh_vr_ad_pellet_speed));
+        float emul = VR_AD_SHELL_FASTER * max(0.1, cvar_hget(cvarh_vr_ad_enemy_pellet_speed));
+        float pok = fabs(playerSpeed - ad_SPEED_PLAYERSG * pmul) <= 10 * pmul + 1;
+        float eok = fabs(enemySpeed - (ad_SPEED_MONSG + skill * ad_SPEED_MONSGMULT) * emul) <= 10 * emul + 1;
+        bprint(sprintf("adshots-test: speed %s player %.0f (AD %g x %.2f) enemy %.0f (AD %g x %.2f)\n",
+            (pok && eok) ? "PASS" : "FAIL", playerSpeed, ad_SPEED_PLAYERSG, pmul, enemySpeed,
+            ad_SPEED_MONSG + skill * ad_SPEED_MONSGMULT, emul));
         remove(shooter);
     }
     else

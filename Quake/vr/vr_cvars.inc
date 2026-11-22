@@ -4275,7 +4275,7 @@ QVR_CVAR(vr_ad_mounted, "0", CVAR_ROM) // AD's data is on the search path for th
 QVR_CVAR(vr_ad_projectiles, "0", CVAR_ARCHIVE | QVR_RULE)    // whose rules for shotguns and monster projectiles: 0 Auto (AD's in AD maps, Quake's elsewhere), 1 Vanilla everywhere (hitscan shotguns, Quake's missile speeds), 2 AD's wherever its data is mounted (projectile pellets, the vanilla monsters' missiles at AD's speeds by skill). AD's own monsters always use AD's
 QVR_CVAR(vr_ad_pellet_spread, "1", CVAR_ARCHIVE | QVR_RULE)  // AD's projectile pellets: their spread, times this (AD's: shotgun 0.04, super shotgun 0.14 x 0.08)
 QVR_CVAR(vr_ad_enemy_pellet_speed, "1", CVAR_ARCHIVE | QVR_RULE) // AD monster shotgun speed multiplier; independent of the player
-QVR_CVAR(vr_ad_pellet_speed, "1", CVAR_ARCHIVE | QVR_RULE)   // their speed, times this (AD's: the player's shotgun 2000, super shotgun 1500; monsters' 800 + 150 a skill level)
+QVR_CVAR(vr_ad_pellet_speed, "1", CVAR_ARCHIVE | QVR_RULE)   // their speed, times this (AD's: the player's shotgun 2000, super shotgun 1500; monsters' 800 + 150 a skill level; all x1.3 since backlog1122d)
 QVR_CVAR(vr_ad_pellet_damage, "1", CVAR_ARCHIVE | QVR_RULE)  // their damage, times this (AD's: 4 a pellet; the Weapon Damage settings apply too)
 QVR_CVAR(vr_ad_ammo_models, "1", CVAR_ARCHIVE | QVR_RULE) // AD support: 0 original ammo boxes, 1 AD models in AD maps, 2 everywhere; applies to newly spawned boxes
 QVR_CVAR(vr_ad_resistance, "2", CVAR_ARCHIVE | QVR_RULE) // AD support: 0 off, 1 AD maps, 2 any map; only entities with resistance keys are affected
