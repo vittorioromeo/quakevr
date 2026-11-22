@@ -102,6 +102,8 @@ struct GunParts
         Well,
         Button,
         Front,
+        PumpBody, // (mpopen) a held shotgun's auto pump stroking: the gun without its fore-end, and the fore-end slid back
+        Pump,
         Count
     };
     ViewEntity part[Count];
@@ -115,7 +117,8 @@ struct GunParts
 // The gun `gun` (placed, its model and frame) as `look` has it, in its parts `g` (the same routines as yours):
 // `held` in a hand (the revolver in its parts, a magazine sliding; else a holster's: broken open, its magazine);
 // `screen`: its button and ammo screen too (its clip). The gun is hidden while drawn in its parts. `player` (1..16, with
-// `side` 0 off, 1 main: another player's held gun, syncfix5): its screen casts your screen's light too.
+// `side` 0 off, 1 main: another player's held gun, syncfix5): its screen casts your screen's light too; (mpopen) his
+// shotgun's auto pump strokes as yours (autopump::otherTravel, posePump).
 void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held, bool screen, int player = 0, int side = 0);
 
 // Null if `e` is not a VR view entity.

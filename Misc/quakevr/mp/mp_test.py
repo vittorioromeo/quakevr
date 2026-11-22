@@ -9228,10 +9228,19 @@ def sync_shoot(s, srv, a, b, ea, eb):
     arm_with(s, srv, b, eb, 4, "give s 20")
     b.cmd("vr_mock_hand main 0.15 1.2 -0.40 70 0 0")
     sync_wait(srv, 0.3)
+    a.cmd("vr_debug_weaponfx 2")  # (mpopen: A's copy of B's shotgun drawn stroking: "autopump player N hand H drawn")
+    since_a = a.mark()
     b.cmd("+attack")
     sync_wait(srv, 0.15)
     b.cmd("-attack")
     sync_wait(srv, 0.4)
+    a.cmd("vr_debug_weaponfx 0; echo mp_shoot_watched")
+    n, _ = a.wait(r"mp_shoot_watched", 10, since_a, "A's stroke lines")
+    backs = [float(m.group(1)) for m in (re.search(r"autopump player %d hand \d drawn t \S+ travel (\S+)" % eb, l)
+                                         for l in a.lines[since_a:n]) if m]
+    s.check("shoot: B's auto pump drawn stroking on his copy at A (its fore-end back, then home)",
+            len(backs) >= 3 and max(backs) > 1.0, "%d frames drawn so, back at most %.2f units" % (
+                len(backs), max(backs) if backs else 0.0))
 
 
 def sync_walk(s, srv, a, b, ea, eb):
@@ -9263,23 +9272,56 @@ def sync_hurt(s, srv, a, b, ea, eb):
     # dropped by the frame's SV_ClearDatagram, server::commandBroadcastBegin/End; the row needs B's own wound too)
     a.cmd("vr_wounds_debug 2")  # (their "wounds:" lines in the logs: what was received and painted where)
     b.cmd("vr_wounds_debug 2")
+    # (mpopen: his gore on his copy too -- his stream, its pour heard by A, his drips; each stream's chance made sure)
+    a.cmd("vr_player_gore_stream_chance 1")
+    b.cmd("vr_player_gore_stream_chance 1")
     for _ in range(2):
         srv.cmd("vr_hurt 8 %d %d" % (eb - 1, ea))
         sync_wait(srv, 0.4)
+    sync_wait(srv, 0.8)  # (the streams land: their pour)
     a.cmd("vr_wounds_debug 0")
     b.cmd("vr_wounds_debug 0")
+    since_a = a.mark()
+    a.cmd("vr_player_gore_info")
+    _, line = a.wait(r"player gore others: ", 10, since_a, "A's player gore counters")
+    m = re.search(r"others: (\d+) wounds bound, (\d+) streams opened \((\d+) pouring\), (\d+) drips, (\d+) bleeding", line)
+    s.check("hurt: B's gore on his copy at A (his wounds bound, a stream opened, drips falling)",
+            m is not None and int(m.group(1)) >= 1 and int(m.group(2)) >= 1 and int(m.group(4)) >= 1, line.strip())
+    a.cmd("vr_player_gore_stream_chance 0.5")
+    b.cmd("vr_player_gore_stream_chance 0.5")
 
 
-def no_gap(prefix, drawn_only=False, need_own=False):
+def no_gap(prefix, drawn_only=False, need_own=False, exact=False):
     """A synced row: nothing of `prefix` ("glow:", "faded:", "light:", ...) that B has of himself and A has not of him;
     and A has some (the probe did show it). `drawn_only`: only of the models A draws of him at all (a model he lacks is
-    another row's gap). `need_own`: B must have some himself (else the probe showed nothing: a fail, not a pass)."""
+    another row's gap). `need_own`: B must have some himself (else the probe showed nothing: a fail, not a pass).
+    `exact`: that key alone (mpopen: "light:r20" also began "light:r200", a muzzle flash's random radius)."""
+    def hit(k):
+        return k == prefix if exact else k.startswith(prefix)
+
     def check(gap, seen_added, seen, own):
-        missing = sorted(k for k in gap if k.startswith(prefix) and
+        missing = sorted(k for k in gap if hit(k) and
                          (not drawn_only or "model:" + k.split(":", 1)[1] in seen))
-        got = sorted(k for k in seen_added if k.startswith(prefix))
-        mine = any(k.startswith(prefix) for k in own)  # (B has none himself: a flat player's gadget, say)
+        got = sorted(k for k in seen_added if hit(k))
+        mine = any(hit(k) for k in own)  # (B has none himself: a flat player's gadget, say)
         return not missing and (bool(got) or not mine) and (mine or not need_own),"B only: %s; A has: %s%s" % (missing or "-", got or "-", "" if mine else " (B has none)")
+    return check
+
+
+def seen_has(prefix):
+    """A row B's own list cannot show (his own view's parts): A has some of `prefix` round him."""
+    def check(gap, seen_added, seen, own):
+        got = sorted(k for k in seen_added if k.startswith(prefix))
+        return bool(got), "A has: %s" % (got or "-")
+    return check
+
+
+def any_both(prefix):
+    """A row whose keys vary run to run on each side (a sound's random variant): B has some of `prefix` and A some."""
+    def check(gap, seen_added, seen, own):
+        mine = sorted(k for k in own if k.startswith(prefix))
+        got = sorted(k for k in seen_added if k.startswith(prefix))
+        return bool(mine) and bool(got), "B: %s; A: %s" % (mine or "-", got or "-")
     return check
 
 
@@ -9295,7 +9337,9 @@ SYNC_PROBES = (  # (name, B's action, its undo, the synced rows' checks); idle f
                                   ("the gadget screen's beam", no_gap("light:r30")))),
     # (syncfix5; before the shot: vr_hurt's blow has no hit record of its own, and a shotgun's left over makes it a pellet's,
     # whose wounds come by the pellets alone)
-    ("hurt", sync_hurt, None, (("blood on his copy", no_gap("wounded:", drawn_only=True, need_own=True)),)),
+    ("hurt", sync_hurt, None, (("blood on his copy", no_gap("wounded:", drawn_only=True, need_own=True)),
+                               # (mpopen: his stream's pour, a client's own sound, heard by A from his copy's stream)
+                               ("his blood's pour heard", any_both("sound:vr/gore/pour")))),
     # (they last the run: the probes after them compare against idle as before)
     ("quad", sync_cheat(190), None, (("Quad's glow on his copy", no_gap("glow:")), ("its hand lights", no_gap("light:r1")))),
     ("ring", sync_cheat(192), None, (("the ring's fade on his copy", no_gap("faded:", drawn_only=True)),)),
@@ -9303,8 +9347,8 @@ SYNC_PROBES = (  # (name, B's action, its undo, the synced rows' checks); idle f
     ("shoot", sync_shoot, None, (("his spent casings", no_gap("model:vr_shell.mdl")),  # (syncfix2: batch 3)
                                  # (syncfix5: the auto pump's clacks, his ammo screen's light, his barrel's heat light)
                                  ("the auto pump's clacks", no_gap("sound:vr/autopump")),
-                                 ("his ammo screen's light", no_gap("light:r20")),
-                                 ("his barrel's heat light", no_gap("light:r30")))),
+                                 ("his ammo screen's light", no_gap("light:r20", exact=True)),
+                                 ("his barrel's heat light", no_gap("light:r30", exact=True)))),
     ("walk", sync_walk, sync_walk_off, ()),  # (last: B walks off his spot)
 )
 

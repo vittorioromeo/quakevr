@@ -1700,7 +1700,8 @@ const view::ViewEntity* drawnWeapon(int ent, int hand)
     }
     const Drawn& d = drawn.of[ent];
     const view::ViewEntity& w = d.weapon[hand];
-    return d.frame >= host_framecount - 1 && w.visible && w.ent.model ? &w : nullptr;
+    // (drawn in its parts -- the revolver open, his auto pump stroking (mpopen) -- the gun is hidden but placed still)
+    return d.frame >= host_framecount - 1 && (w.visible || d.gun[hand].inParts) && w.ent.model ? &w : nullptr;
 }
 
 // Player `e`'s copy as set up this frame (setup) into the drawn entities: his hands, weapons, holsters, pauldrons, plates
