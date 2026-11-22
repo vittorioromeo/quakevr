@@ -300,7 +300,17 @@ and a test checks what ships. Until 2026-11-22 it was a copy of an old full conf
 8,321 vr_wofs_* lines, the author's body calibration and Height 1.5474, cl_alwaysrun 1, HUD scales 3): after its
 migration 566 weapon settings still differed from weapons.txt (the Super Axe's pre-11-12 offsets, ROUND25 "axelag").
 A test that needs a setting off its default sets it in its own script; a line belongs here only when every run
-needs it, with its reason.
+needs it, with its reason. Since testspeed (2026-11-22) run.ps1 also copies `test_baseline.cfg` over the tree's
+`quakevr/ironwail.cfg.baseline` (and `ironwail.cfg`) whenever the two differ in size or time, so long-lived trees run it
+too (the old 14k-line one cost 2.7-4 s of config exec per game start) and an edit to it reaches the next run: edit
+`test_baseline.cfg`, never the `.baseline` copy.
+
+### The MP suite's profiles (2026-11-22)
+
+`python Misc/quakevr/mp/mp_test.py suite` runs its default profile: every scenario but the soaks and diagnostics in
+`LONG` (mp_adspose, mp_fuzz, mp_rejoin_keep, mp_voice_lossy: a quarter of the suite's time). `--profile long` runs just
+those, `--profile all` everything (releases, nightly); `--only a,b` runs the named scenarios whatever the profile. The
+harness's games start with `-nostartmap` (no vrstart hub before their `connect` or `map`: about 6 s a game).
 
 ## The spawn census: "no behaviour change" in one command (2026-11-19)
 

@@ -10210,6 +10210,14 @@ SUITE = [
     ("mp_lookup", ()),
     ("mp_roomnonce", ()),
 ]  # (mp_netsafe runs first, before these; the rest in this order. The tuples: lag ms, jitter ms, loss)
+# --profile long (testspeed, 2026-11-22): the soaks and diagnostics, a quarter of the suite's time, run only there and in
+# --profile all (releases, nightly): adspose (screenshots for a person, measurements), fuzz (the corrupting proxy),
+# rejoin_keep, voice_lossy. The default profile is the rest. --only runs the names it gives whatever the profile.
+LONG = {"mp_adspose", "mp_fuzz", "mp_rejoin_keep", "mp_voice_lossy"}
+
+
+def in_profile(name, profile):
+    return profile == "all" or (name in LONG) == (profile == "long")
 
 
 def main():
@@ -10242,6 +10250,8 @@ def main():
     ap.add_argument("--heap-sites", default="", help="soak --soak-minutes: MIN:MAX, the server's live blocks of that size by call stack from the warm-up on (B22: vr_heap_sites)")
     ap.add_argument("--soak-change", default="", help="soak --soak-minutes: the map again after this minute, or these (\"20,40\") (B21: does the memory come back)")
     ap.add_argument("--only", default="", help="suite: just these scenarios, comma-separated (\"mp_dm,mp_lagcomp\"; mp_netsafe always first)")
+    ap.add_argument("--profile", default="default", choices=["default", "long", "all"],
+                    help="suite: default (without the soaks and diagnostics in LONG), long (just those), all (releases)")
     ap.add_argument("--suite-repeat", type=int, default=1, help="suite: its scenarios this many times over in one run")
     ap.add_argument("--load", type=int, default=0, help="(B25) N busy CPU workers at normal priority for the whole run "
                     "(mp_load.py: other builds and tests on the machine, the suite's real condition; 0: none)")
@@ -10297,7 +10307,7 @@ def main_run(args):
             sys.exit(1)
         for _ in range(max(1, args.suite_repeat)):
             for name, link in SUITE:
-                if not only or name in only:
+                if (name in only) if only else in_profile(name, args.profile):
                     ok = run(args, name, *link) and ok
         # B's link per scenario (MP_PLAN B7: byte counts against mp_bandwidth's): what the next phases cut.
         print_bytes_table()
