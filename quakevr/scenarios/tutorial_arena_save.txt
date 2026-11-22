@@ -1,0 +1,7 @@
+# tutorial_arena_save: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The tutorial's hall up to
+# the arena (hall_15): its checkpoint (SAVE) saves the game as you pass it; a death in the arena loads that save
+# (QC vr_tutorial.qc VR_Checkpoint_Respawn), back in the hall with the arena as it was before.
+title The tutorial's arena: saved before its door
+map vrtutorial
+start 1488 -900 -120 90
+hint Walk up to the arena ("Saved..."), go in and die (or type kill): you come back in this hall, the arena reset.

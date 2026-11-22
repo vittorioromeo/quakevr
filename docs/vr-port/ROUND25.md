@@ -8234,3 +8234,26 @@ and grenades, ropes on climbing), one gate each, before the arena uses it all.
   (the arena as it was before, the player at its door with what he had) instead of coming back mid-wave, unarmed.
 - New entities in `late()` (the playthrough's edict numbers kept); Go to a Lesson 1..15; the bullet-time banner moves
   with the hall.
+
+**Built** (as planned; `vrtutorial_gen.py` R12B, R13, R14, HALL15, `build_lessons_12_14`): hall_12a/12b gave way to the
+three rooms and hall_15. New QC: `func_vr_spawner`'s `vr_spawn_arm` (armed grunts holding that weapon, monster_vr_grunt's
+codes), `trap_vr_shooter` (style 0 a spike at the player, 1 a grenade lobbed to come down at him in 1 s: the ogre's,
+catchable), `info_vr_checkpoint`'s SAVE flag (taken: `save <map>_checkpoint` and its message centerprinted; the latest
+taken, a death `load`s it, once), `func_vr_restock` makes the blades and green armour (the blades counted as the
+thrown_weapons they lie as; precached by model, as one made would leave its weapon at the origin). The throwing target is
+a touch button (a thrown weapon presses it, as lesson 10's rock does; not shootable: a shot would bypass the throw), 64
+square, 144-208 over the floor (out of reach). Tips: t3_blades, t3_stab, t3_reverse (on the dagger once held), t3_axe,
+t3_bash, t3_disarm, t3_bat, t3_catch (on their buttons), t3_rope, t3_armor, t3_bullettime (the arena's door shutting),
+t2_disarm (lesson 7's grunt out). No flat tips exist in the tutorial (VR wording as before).
+
+**Checks**: the generator's layout and fixture checks; the final build `--check 1000000`: 0 holes, qbsp, vis and light
+clean (the old no-deathmatch-start note only). Playtest (`--from blades`, mock, seed 7): the axe taken by its handle and
+thrown (355 u/s) presses the target, the door opens; the armed grunt made and dead, out of room 13; SPIKE fires; both
+hands take the rope and jump off it; the arena's checkpoint taken. `--softlock --from sl_arena`: saved
+(`Saving game to vrtutorial_checkpoint.sav`), killed in the arena, loaded: back in hall_15 (1488 -568). A localcmd runs
+only after the playtest cfg's buffered lines, so sl_arena runs its death on a play's clock (as the teleporter's end).
+- Not automated: the swing across the pit (the mock, holding the rope at the edge, stays on the floor: its stick walks,
+  it doesn't step off) and the armour at the chest (grab_item + the hand to the chest put nothing on); the playtest's
+  rope gate checks the hold and the jump, then puts him across. The author's VR pass covers both.
+- The mock's walk coasts about 80 units after it arrives (Quake's friction): aimed at the pit's edge it went over.
+- Scenes: `tutorial_lessons` (in lesson 12), `tutorial_arena_save` (hall_15).
