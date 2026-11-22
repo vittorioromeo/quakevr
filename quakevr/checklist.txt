@@ -122,6 +122,11 @@ Flat-screen or VR: walk onto the louvred grate and step into the gaps between it
 Flat-screen or VR: walk into the 24-unit gap between the two panels (two func_walls): you stop at its mouth. {test:brushholes_walls}
 Flat-screen or VR: at a gap you still slip or fall through, use Debug > Mark a Gap I Got Through; check the console report names the map, your position and the gaps round you, and quakevr/hull_holes_marks.txt has it. {test:brushholes_diag}
 Flat-screen or VR: set Movement > Player Hitbox > Close Gaps: Slanted Bars off and press Rebuild Gap Blockers Now: you stay where you were, and now drop through the diagonal grate. {test:brushholes_diag}
+Grip a rope or chain with either hand and climb it hand over hand, up and down; the body hangs and swings with it. {test:ropes}
+Let go or press jump mid-swing: you keep the rope's speed (a jump adds a hop up). {test:ropes}
+While hanging on a rope, look down: your legs wrap round the rope under your hands. {test:ropes}
+Hold the stick forward while hanging on a rope: the swing builds up with each swing out, to a cap, enough to reach the next rope. {test:ropes}
+Toolgun on a rope: Remove deletes it, the physgun drags its top, and Clear Props removes the ropes you made but keeps the map's. {test:ropes}
 
 [6. Weapons and holsters]
 Holster Calibration > Ammo Pouch Forward/Right/Up move the pouch and agree with Holster Setup's drag {test:shotgun_hall}
