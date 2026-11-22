@@ -2042,7 +2042,7 @@ constexpr LadderCase ladderCases[] = {
 };
 
 // A mod's ladders (his request 2026-11-21: Quoth's and AD's trigger_ladder brushes climb as the tutorial's rungs, on
-// the ladder volume's own rungs: vr_climb.cpp ladderHold). Quoth's kellbase1 (vr_campaign_native quoth): the ladder up
+// the ladder volume's own rungs, or its drawn ones: vr_climb.cpp ladderHold). Quoth's kellbase1 (vr_campaign_native quoth): the ladder up
 // the pillar's south face, its trigger_ladder brush 25..39 x, -659..-657 y, 641..895 z. AD's ad_test3: its ladder's
 // brush -495..-465 x, -103..-73 y, 225..327 z (facing east).
 constexpr LadderCase quothLadderCases[] = {
@@ -2052,6 +2052,15 @@ constexpr LadderCase quothLadderCases[] = {
     {"Quoth's kellbase1 ladder, down from its top", LadderKind::Down, 17.f, -619.f, 920.f, 90.f, -1e9f, 640.f, 896.f, -658.f, true},
     {"Quoth's kellbase1 ladder, down looking down", LadderKind::LookDown, 32.f, -664.f, 664.f, 90.f, -1e9f, 640.f, 896.f, -658.f,
         true},
+    // (Both on the drawn rungs, a func_illusionary's bars, as a headset's hands: 24 apart on that one, 32 on a pillar's.
+    // The pillar's off the arena: x -64, from the pit's floor at 256 up to 640, its bars' ridge at y -1354, facing north;
+    // a func_train beside its foot.)
+    {"Quoth's kellbase1 pillar ladder, up and over the top", LadderKind::Up, -64.f, -1346.f, 281.f, 270.f, -1e9f, 256.f, 640.f,
+        1336.f, true},
+    {"Quoth's kellbase1 pillar ladder, down from its top", LadderKind::Down, -64.f, -1400.f, 700.f, 270.f, -1e9f, 256.f, 640.f,
+        1336.f, true},
+    {"Quoth's kellbase1 pillar ladder, down looking down", LadderKind::LookDown, -64.f, -1346.f, 281.f, 270.f, -1e9f, 256.f, 640.f,
+        1336.f, true},
     // (Alone only, with vr_flat_ladder 0: Quoth's own climb, AD's jump ladder.)
     {"Quoth's kellbase1 ladder, vr_flat_ladder 0: jump climbs it", LadderKind::Fallback, 32.f, -664.f, 664.f, 90.f, -1e9f, 640.f,
         896.f, -658.f, true},

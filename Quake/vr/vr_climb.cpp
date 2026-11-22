@@ -307,6 +307,7 @@ struct Ledge
     ledges::Edge propEdge;
     ledges::Sample propSample;
     bool volume{false}; // AD support: a ladder volume's own rung (ladderHold), no solid under it
+    bool drawn{false};  // and of those, one on a drawn rung (drawnRung)
     // A climbable rope's (see "Holds on ropes"): `ent` the rope's entity, the hold `ropeS` along it from its top and
     // `ropeD` straight from it.
     bool rope{false};
@@ -858,18 +859,16 @@ constexpr float ladderInWall = 12.f;   // units: how far into the wall behind a 
 // static one: kellbase1's pillar ladders, his note 2026-11-22 16:06, "the position of the hands and the ledges doesn't
 // match the actual rungs"), within drawnRungMargin behind or before it (across its thinner side: not its rails' caps
 // beside it) and inside its height. The top nearest `z` and that rung's footprint (its faces at that top), or nothing:
-// no rung drawn there (the volume's own rungs then).
+// no rung drawn there (the volume's own rungs then): none within drawnRungReach of `z`, or a single top only (no ladder
+// drawn: ad_e1m1's has one face at its top, which took every hand on it, and the flat ladder found one rung).
 constexpr float drawnRungMargin = 12.f; // units: how far before or behind a ladder volume its drawn rungs are looked for
+constexpr float drawnRungReach = 40.f;  // units: the farthest from `z` a drawn rung is still its (the flat ladder's ladderGap)
 
 struct DrawnRung
 {
     float top{0.f};
     glm::vec2 lo{0.f}, hi{0.f}; // its ridge (its top faces' vertices at its top): the bar's line
 };
-
-// While flatscreen play's ladder looks for rungs (findRungs): the volume's own rungs, 16 apart, so two stand in its
-// window over the feet (drawn ones 24 or 32 apart may not); only a headset's hands take the drawn rungs.
-bool flatRungSearch = false;
 
 [[nodiscard]] za::Optional<DrawnRung> drawnRung(const edict_t* vol, float z)
 {
@@ -886,6 +885,7 @@ bool flatRungSearch = false;
         hi[axis] = vol->v.origin[axis] + vol->v.maxs[axis] + grow;
     }
     za::Optional<DrawnRung> best;
+    float topLow = 1e30f, topHigh = -1e30f; // (all its tops: a ladder has two or more)
     const auto overlaps = [&](const float* mn, const float* mx) {
         return mn[0] <= hi.x && mx[0] >= lo.x && mn[1] <= hi.y && mx[1] >= lo.y && mn[2] <= hi.z && mx[2] >= lo.z;
     };
@@ -930,6 +930,8 @@ bool flatRungSearch = false;
                 continue;
             }
             const float top = fmax[2];
+            topLow = za::min(topLow, top);
+            topHigh = za::max(topHigh, top);
             glm::vec2 rlo{1e30f}, rhi{-1e30f}; // (its ridge: its vertices at its top, a bar's line)
             for(int i = 0; i < surf.numedges; ++i)
             {
@@ -951,6 +953,10 @@ bool flatRungSearch = false;
                 best = za::Optional<DrawnRung>{DrawnRung{top, rlo, rhi}};
             }
         }
+    }
+    if(!best || topHigh - topLow < 4.f || za::abs(best->top - z) > drawnRungReach)
+    {
+        return za::nullOpt;
     }
     return best;
 }
@@ -995,12 +1001,13 @@ bool flatRungSearch = false;
             const float lo = e->v.origin[2] + e->v.mins[2], hi = e->v.origin[2] + e->v.maxs[2]; // (not the link's padded box)
             const float down = za::clamp(za::round((hi - hand.z) / ladderRungStep), 0.f, za::floor((hi - lo) / ladderRungStep));
             Ledge l;
-            const za::Optional<DrawnRung> drawn = flatRungSearch ? za::nullOpt : drawnRung(e, hand.z); // (its drawn rungs)
+            const za::Optional<DrawnRung> drawn = drawnRung(e, hand.z); // (its drawn rungs: a headset's and the flat ladder's)
             l.top = drawn ? drawn->top : hi - down * ladderRungStep;
             // (Facing the eye: a headset's head is with the body; the flat ladder's mount looks from over the drop.)
             const glm::vec2 toEye{eye.x - hand.x, eye.y - hand.y};
             l.out = glm::length(toEye) > 1.f ? glm::vec3{glm::normalize(toEye), 0.f} : out;
             l.volume = true;
+            l.drawn = drawn.hasValue();
             const glm::vec3 org = vec(e->v.origin);
             l.hold = glm::vec3{za::clamp(hand.x, org.x + e->v.mins[0], org.x + e->v.maxs[0]),
                 za::clamp(hand.y, org.y + e->v.mins[1], org.y + e->v.maxs[1]), l.top + ledges::holdLift};
@@ -3596,7 +3603,12 @@ struct Rungs
 
 // The ledges facing along `fwd` in the column vr_flat_ladder_reach ahead of the box's front (`behind`: the column behind
 // its back instead, the ladder's top under it), tops from `low` to `high`, seen from `eye` (findHold's head).
-void findRungs(edict_t* ent, const glm::vec3& eye, const glm::vec3& fwd, float low, float high, Rungs& out, bool behind = false)
+// `drawnBelow`: a ladder's drawn rungs (drawnRung, a headset's hands' too: one source for both; his decision 2026-11-22)
+// may stand farther apart than the window over the feet (kellbase1's bars 24 and 32 apart, the window about 31): when
+// the window saw one, drawn rungs that far under `low` count too (the lower hand under Lowest Ledge). Other holds never
+// do, so a ladder with no drawn rungs finds what it did.
+void findRungs(edict_t* ent, const glm::vec3& eye, const glm::vec3& fwd, float low, float high, Rungs& out, bool behind = false,
+    float drawnBelow = 0.f)
 {
     out.count = 0;
     // (From ladderInBox inside the box's front, as a ladder's thin rungs needn't stop the box: the tutorial's don't.)
@@ -3605,40 +3617,54 @@ void findRungs(edict_t* ent, const glm::vec3& eye, const glm::vec3& fwd, float l
     const float ahead = ent->v.maxs[0] + (reach - ladderInBox) * 0.5f;
     const glm::vec3 column = vec(ent->v.origin) + fwd * (behind ? -ahead : ahead);
     const float propLow = propLowest(ent, true);
-    const float lower = za::max(0.f, ent->v.origin[2] + ent->v.mins[2] + vr_climb_min_height.value - low);
+    const float feetLowest = ent->v.origin[2] + ent->v.mins[2] + vr_climb_min_height.value;
     constexpr float step = 6.f; // (finer than any ladder's rungs: each is the nearest hold to one of the points)
-    flatRungSearch = true; // (a ladder volume's own rungs: ladderHold)
-    for(float z = low; z <= high + radius && out.count < maxRungs; z += step)
+    bool drawnSeen = false;
+    // (The window's probes, then, only once it saw a drawn rung, those under it down to drawnBelow: drawn rungs alone.)
+    for(int pass = 0; pass < 2; pass++)
     {
-        bool lenient = false;
-        const za::Optional<Ledge> l = findHold(seekerOf(ent), glm::vec3{column.x, column.y, z}, glm::vec3{0.f}, eye, radius, propLow,
-            lenient, nullptr, lower);
-        if(vr_climb_debug.value >= 4.f)
+        const bool under = pass == 1;
+        if(under && (!drawnSeen || drawnBelow <= 0.f))
         {
-            Con_Printf("climb: flat ladder probe (%.1f %.1f %.1f) r %.1f [%.1f..%.1f]: %s\n", column.x, column.y, z, radius, low, high,
-                l ? va("top %.1f out %.2f %.2f hold %.1f %.1f %.1f", l->top, l->out.x, l->out.y, l->hold.x, l->hold.y, l->hold.z) : "none");
+            break;
         }
-        if(!l || l->top < low || l->top > high || glm::dot(l->out, fwd) > -0.5f)
+        const float from = under ? low - drawnBelow : low, to = under ? low - 0.5f * step : high + radius;
+        const float bottom = under ? low - drawnBelow : low;
+        const float lower = za::max(0.f, feetLowest - bottom);
+        for(float z = from; z <= to && out.count < maxRungs; z += step)
         {
-            continue;
+            bool lenient = false;
+            const za::Optional<Ledge> l = findHold(seekerOf(ent), glm::vec3{column.x, column.y, z}, glm::vec3{0.f}, eye, radius, propLow,
+                lenient, nullptr, lower);
+            if(vr_climb_debug.value >= 4.f)
+            {
+                Con_Printf("climb: flat ladder probe (%.1f %.1f %.1f) r %.1f [%.1f..%.1f]: %s\n", column.x, column.y, z, radius, bottom,
+                    high, l ? va("top %.1f out %.2f %.2f hold %.1f %.1f %.1f%s", l->top, l->out.x, l->out.y, l->hold.x, l->hold.y,
+                                  l->hold.z, l->drawn ? " drawn" : "")
+                            : "none");
+            }
+            drawnSeen = drawnSeen || (l && l->drawn);
+            if(!l || l->top < bottom || l->top > high || glm::dot(l->out, fwd) > -0.5f || (under && !l->drawn))
+            {
+                continue;
+            }
+            bool known = false;
+            for(int i = 0; i < out.count; i++)
+            {
+                known = known || za::abs(out.at[i].top - l->top) < 2.f;
+            }
+            if(known)
+            {
+                continue;
+            }
+            int i = out.count++;
+            for(; i > 0 && out.at[i - 1].top > l->top; i--)
+            {
+                out.at[i] = out.at[i - 1];
+            }
+            out.at[i] = *l;
         }
-        bool known = false;
-        for(int i = 0; i < out.count; i++)
-        {
-            known = known || za::abs(out.at[i].top - l->top) < 2.f;
-        }
-        if(known)
-        {
-            continue;
-        }
-        int i = out.count++;
-        for(; i > 0 && out.at[i - 1].top > l->top; i--)
-        {
-            out.at[i] = out.at[i - 1];
-        }
-        out.at[i] = *l;
     }
-    flatRungSearch = false;
 }
 
 // Which way the keys climb a ladder: forward up (looking down past vr_flat_ladder_look_down: down), back down; 0 none.
@@ -3728,7 +3754,7 @@ void flatLadder(edict_t* ent, Climber& c, const VrMove* move, double time)
     }
     const glm::vec3 shoulder = ladderShoulder(ent, *move);
     Rungs r;
-    findRungs(ent, move->headPos, fwd, origin.z + ent->v.mins[2] + vr_climb_min_height.value, shoulder.z + armReach(), r);
+    findRungs(ent, move->headPos, fwd, origin.z + ent->v.mins[2] + vr_climb_min_height.value, shoulder.z + armReach(), r, false, ladderGap);
     // A ladder whose rungs stop the box (steps cut in its wall, AD's ad_test3) can't be come nearer: its rungs are reached
     // from the shoulders leant in to the box's front. (Thin rungs, the tutorial's, never stop it: taken from where he is.)
     glm::vec3 reachFrom = shoulder;
@@ -3797,7 +3823,7 @@ bool flatLadderMount(edict_t* ent, Climber& c, const VrMove& move, const glm::ve
     const float feet = origin.z + ent->v.mins[2];
     Rungs r;
     // (Seen from over the drop, where the head will be: from where it stands the top's corner hides the rungs.)
-    findRungs(ent, move.headPos - fwd * (2.f * ent->v.maxs[0] + 2.f), fwd, feet - ladderGap - 8.f, feet + 8.f, r, true);
+    findRungs(ent, move.headPos - fwd * (2.f * ent->v.maxs[0] + 2.f), fwd, feet - ladderGap - 8.f, feet + 8.f, r, true, ladderGap);
     if(r.count < 2)
     {
         return false;
@@ -3809,8 +3835,9 @@ bool flatLadderMount(edict_t* ent, Climber& c, const VrMove& move, const glm::ve
     // catwalk) may stand up to ladderVolumeGap beyond the lip, the lip itself the floor's edge.
     const bool volume = below.volume;
     const glm::vec3 line = volume ? below.hold : lip.hold;
-    // (A volume's top rung may be one under the floor's edge, the edge itself the real ledge facing another way.)
-    if(za::abs(lip.top - feet) > (lip.volume ? ladderRungStep + 8.f : 8.f) || gap <= 4.f || gap > ladderGap ||
+    // (A volume's top rung may be one under the floor's edge, the edge itself the real ledge facing another way: a drawn
+    // rung up to ladderGap under it, as its bars stand.)
+    if(za::abs(lip.top - feet) > (lip.drawn ? ladderGap : lip.volume ? ladderRungStep + 8.f : 8.f) || gap <= 4.f || gap > ladderGap ||
         (!volume && za::abs(glm::dot(lip.hold - below.hold, fwd)) > ladderStack) ||
         glm::dot(origin - line, fwd) > ent->v.maxs[0] + 8.f + (volume ? ladderVolumeGap : 0.f))
     {
@@ -3983,7 +4010,7 @@ int flatLadderFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
     else if(dir < 0 && topNow(c.grips[hi]) > shoulder.z + 0.5f * armReach())
     {
         Rungs r;
-        findRungs(ent, move.headPos, -out, now.z + ent->v.mins[2] + vr_climb_min_height.value, topNow(c.grips[lo]) - 4.f, r);
+        findRungs(ent, move.headPos, -out, now.z + ent->v.mins[2] + vr_climb_min_height.value, topNow(c.grips[lo]) - 4.f, r, false, ladderGap);
         if(r.count > 0)
         {
             ladderTake(ent, c, move, hi, r.at[r.count - 1]);

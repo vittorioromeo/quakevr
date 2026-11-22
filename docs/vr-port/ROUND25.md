@@ -8499,3 +8499,22 @@ model changes.
   `vr_mock_button main secondary` did not flip it (no "revgrip: ... flips" print, no refusal print); open.
 - **Tests**: `dwell_lance_test.sh` 12/0 (new: the beam fired, 6 cells from the pouch's 100). Note for test writers: the
   mock trigger (`vr_mock_button main trigger 1`) did not fire the Lance; `+attack` does.
+## flatladder: flat-screen ladders on the drawn rungs too (agent/flatladder, 2026-11-22)
+
+His decision 2026-11-22 (kellbase item 3, "share it"). FLATPLAY.md "Ladders".
+- **One rung source.** `flatRungSearch` is gone: `ladderHold`'s volume fallback asks `drawnRung` for flat play's ladder
+  as for a headset's hands, and a held rung says so (`Ledge::drawn`). The flat window over the feet (Lowest Ledge to
+  the shoulders plus an arm, about 31 units) holds one bar 24 or 32 apart, so `findRungs` takes `drawnBelow`: once the
+  window saw a drawn rung, a second pass probes down to that far under it and keeps drawn rungs alone (other holds
+  never, and the window's own probes are unchanged, so a ladder with no drawn rungs finds exactly what it did). Getting
+  on (`flatLadder`), going down hand over hand and the lowering off the top (`flatLadderMount`) pass ladderGap (40);
+  going up passes 0. The mount's top rung may be up to ladderGap under the floor's edge when drawn (kellbase1's
+  catwalk: its top bar 24 under; the volume's own top rung keeps 24).
+- **`drawnRung` guard (VR too):** AD's ad_e1m1 ladder has a non-solid model with one up-facing face (at its top, 160)
+  over its volume, so every hand on it took that "rung" (flat: one rung, 0 of 3). A drawn ladder now needs two or more
+  tops, and the nearest within `drawnRungReach` (40) of the hand; else the volume's own 16-unit rungs, as before.
+- **Tests:** `vr_flatladder_test` on kellbase1 gains the pillar ladder (x -64, 256 up to 640, bars 32 apart): up and
+  over, down from its top, down looking down; the catwalk's three now climb its bars (rungs 656/680 taken, then 704,
+  728 ... 872). modladder_test.sh's fallback case moved to index 6. Runs: modladder_test.sh 10/0 (kellbase1 flat 6/0,
+  AD ad_e1m1 3/0, VR hands' exact holds unchanged), flatladder_test.sh 2/0, ad_test3 ladder 1/0 and fallback 1/0;
+  ThinLTO 0 warnings.
