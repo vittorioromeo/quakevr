@@ -29,6 +29,14 @@ letgo() { S="$S;-grabright;vr_mock_button main grip 0;-graboff;-grableft;vr_mock
 mainGun() { S="$S;+grabright;vr_mock_button main grip 1;impulse $1;wait30"; }
 offOn() { S="$S;vr_mock_hand_to off held $1;wait5;vr_mock_hand_to off held $1;wait5;+grableft;vr_mock_button off grip 1;wait30"; }
 locked_case() { settle; double; S="$S;wait40"; double; S="$S;wait40;echo === END"; }
+# C first, from the map's start: after the weapon cases (their dropped guns, the body moved by them) the main hand's taps
+# dragged the crate held in both hands into the body, its place kept 32 units off it, and the carry let go (QC
+# vr_carry.qc: "carry: both hands' place kept from it ... stuck"), so the taps after counted -- and the bullet time they
+# started then broke H's side button. The lock itself was right (it locked, and went off with the hold).
+S="$S;echo === C crate in both hands"; home
+S="$S;vr_mock_hand main 0.16 1.25 -0.55 0 0 0;+grabright;vr_mock_button main grip 1;wait5;vr_test_spawn 107;vr_test_spawn_dist 24;vr_test_spawn_hold 1;impulse 241;wait10"
+S="$S;vr_carry2h_grip_test hand off 2 14 0;wait3;vr_carry2h_grip_test hand off 2 10.5 0;wait3;+graboff;vr_mock_button off grip 1;wait30"
+locked_case; letgo
 # A
 S="$S;echo === A two weapons"; home; mainGun 154; S="$S;vr_mock_hand off -0.15 1.2 -0.45 70 0 0;wait5;+grableft;vr_mock_button off grip 1;impulse 176;wait30"
 settle; double; S="$S;wait40;echo === END;vr_bullettime;wait10"; letgo
@@ -40,11 +48,6 @@ S="$S;echo === D sword in both hands"; home; mainGun 163; offOn 0.3; locked_case
 home; mainGun 154; offOn 0.6; settle
 S="$S;echo === E let go then at once a double tap;-grableft;vr_mock_button off grip 0"; double; S="$S;wait70;echo === END"
 S="$S;echo === F a calm double tap after"; settle; double; S="$S;wait40;echo === END;vr_bullettime;wait10"; letgo
-# C
-S="$S;echo === C crate in both hands"; home
-S="$S;vr_mock_hand main 0.16 1.25 -0.55 0 0 0;+grabright;vr_mock_button main grip 1;wait5;vr_test_spawn 107;vr_test_spawn_dist 24;vr_test_spawn_hold 1;impulse 241;wait10"
-S="$S;vr_carry2h_grip_test hand off 2 14 0;wait3;vr_carry2h_grip_test hand off 2 10.5 0;wait3;+graboff;vr_mock_button off grip 1;wait30"
-locked_case; letgo
 # H the side button: pressed during a two-handed hold (nothing), then let go of and pressed again (it counts)
 home; mainGun 154; offOn 0.6; settle
 S="$S;echo === H side button;vr_gadget_button 1;vr_debug_gadget_button 1;vr_mock_hand_glide 0.1;vr_mock_hand_to main button;wait20;vr_mock_hand_to main screen 10 0;wait20"
