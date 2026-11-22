@@ -662,6 +662,71 @@ void avatars_f()
     Con_Printf("mp_avatars: done\n");
 }
 
+// vr_mp_gearcheck [ent] (mpbothands; his report 2026-11-22: bots drawn with an extra pair of fists, a gun and a shovel
+// floating beside the body; Debug > Reports > Network: Other Players' Gear): each other player's copy as drawn last frame
+// (or `ent`'s): how many hand models it draws (its two hands, nothing else: an empty holster -- the fists' -- draws none),
+// its holstered weapons and sheaths, and how far the farthest of them is from its trunk (pelvis to neck, as posed) and
+// its hands from its arms' wrists. "mp_gear:" per player (ok=0: more or fewer than two hands, or a piece off the body),
+// then "mp_gearcheck: N players, M bad".
+void gearcheck_f()
+{
+    const int only = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 0;
+    int players = 0, bad = 0;
+    for(int e = 1; cls.state == ca_connected && e <= MAX_SCOREBOARD; e++)
+    {
+        const Drawn& d = drawn.of[e];
+        if((only && e != only) || e == cl.viewentity || d.frame < host_framecount - 1 || !d.bodyPosed)
+        {
+            continue;
+        }
+        const auto shown = [](const view::ViewEntity& ve) { return ve.visible && ve.ent.model != nullptr; };
+        const avatar::Skeleton& k = d.skeleton;
+        const glm::vec3 neck = 0.5f * (k.shoulder[0] + k.shoulder[1]);
+        int hands = 0, holsters = 0, sheaths = 0;
+        float trunk = 0.f, wrist = 0.f;
+        for(int side = 0; side < 2; side++)
+        {
+            hands += shown(d.hand[side]) && view::handModel(d.hand[side].ent.model) ? 1 : 0;
+            hands += shown(d.weapon[side]) && view::handModel(d.weapon[side].ent.model) ? 1 : 0;
+            if(shown(d.hand[side]))
+            {
+                wrist = za::max(wrist, glm::distance(glm::vec3{d.hand[side].ent.origin[0], d.hand[side].ent.origin[1],
+                                                         d.hand[side].ent.origin[2]},
+                                           k.wrist[side]));
+            }
+        }
+        const auto onTrunk = [&](const view::ViewEntity& ve) {
+            trunk = za::max(trunk, geom::segmentDistance(glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]}, k.pelvis, neck));
+        };
+        for(int i = 0; i < VrDrawnHolsters::count; i++)
+        {
+            if(shown(d.holster[i]))
+            {
+                holsters++;
+                hands += view::handModel(d.holster[i].ent.model) ? 1 : 0;
+                onTrunk(d.holster[i]);
+            }
+            if(shown(d.gear[i]))
+            {
+                sheaths++;
+                onTrunk(d.gear[i]);
+            }
+        }
+        // (on the body: within half a metre of the trunk's line -- a hip holster stands ~0.2 m out, a held hand's
+        // model origin a few units from the wrist its arm reached for)
+        const float trunkMost = 0.5f * k.m2w, wristMost = 0.15f * k.m2w;
+        const bool ok = hands == 2 && trunk <= trunkMost && wrist <= wristMost;
+        const bool bot = ((avatars[e].hands[0].flags | avatars[e].hands[1].flags) & VrDrawnHand::solveBit) != 0;
+        Con_Printf("mp_gear: ent=%d bot=%d hands=%d holsters=%d sheaths=%d trunk=%.1f trunkmost=%.1f wrist=%.1f wristmost=%.1f "
+                   "ok=%d\n",
+            e, bot ? 1 : 0, hands, holsters, sheaths, static_cast<double>(trunk), static_cast<double>(trunkMost),
+            static_cast<double>(wrist), static_cast<double>(wristMost), ok ? 1 : 0);
+        players++;
+        bad += ok ? 0 : 1;
+    }
+    Con_Printf("mp_gearcheck: %d players, %d bad\n", players, bad);
+}
+
 void add(view::ViewEntity& ve)
 {
     if(ve.visible && ve.ent.model && cl_numvisedicts < MAX_VISEDICTS)
@@ -710,7 +775,8 @@ void solveBotGear(const Drawn& d, float yaw, VrDrawnHolsters& hs, view::GearDraw
             out = fwd;
         }
         view::GearDraw gun;
-        view::holsterOnOther(h, pos, out, yaw, gear[h], gun);
+        const int model = (hs.weapons & (1 << h)) ? hs.model[h] : 0;
+        view::holsterOnOther(h, pos, out, yaw, model > 0 && model < MAX_MODELS ? cl.model_precache[model] : nullptr, gear[h], gun);
         hs.origin[h] = gun.origin - glm::vec3{d.placedAt}; // (offsets from his entity's origin, as received)
         hs.angles[h] = gun.angles;
         hs.mirrored = static_cast<za::U8>((hs.mirrored & ~(1 << h)) | (gun.mirrored ? 1 << h : 0));
@@ -2505,6 +2571,7 @@ mem::Reset clientStateReset{"mpavatar", mem::ResetEvent::ClientState, mem::Reset
 void init()
 {
     Cmd_AddCommand("vr_mp_avatars", avatars_f);
+    Cmd_AddCommand("vr_mp_gearcheck", gearcheck_f); // (mpbothands)
     Cmd_AddCommand_ClientCommand("vr_avatarcal", avatarcal_f);
 }
 

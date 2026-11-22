@@ -54,6 +54,7 @@ Fire a shot or show yourself to the grunt beyond e1m1's low doorway by the start
 Flat-screen or VR: on vrbrushholes, walk over the held-up lift to its north-east corner: you can't drop down the square between the two slots beside it. {test:brushholes_lift}
 Flat-screen or VR: in DM1, press the button to lower the grate's two middle bars, then walk through between them: nothing invisible stops you. {test:brushholes_dm1grate}
 Flat-screen or VR: in an Arcane Dimensions or Quoth map, shotgun shells (yours and the grunts') fly visibly faster than before, and still hit where you aim. {test:hub_start}
+In mp_dm_passive or mp_coop_passive, walk around the bot: no floating fists, gun or shovel; only its two hands, holsters on its hips and chest {test:mp_coop_passive}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules {test:hub_start}
