@@ -1320,8 +1320,11 @@ bool serverBody(int slot, int& build, float& scale)
         return false; // (his body off: id's ranger, as his living copy is his player model)
     }
     build = za::clamp(c.v[calBuild], 0, 3);
-    // (the body's size as setupBody draws it: his world scale's units a metre, his eyes' height over the model's)
-    scale = (static_cast<float>(c.v[calScale]) / 1000.f) * (static_cast<float>(c.v[calHeight]) / 1000.f) / units::modelEyeHeight;
+    // (the body's size as setupBody draws it: his world scale's units a metre, his eyes' height over the model's; a
+    // flat-screen player's his flat body height, as his living avatar is drawn: the server knows him flat from his moves)
+    const bool flat = (own && flatplay::active()) || (sv.active && slot < svs.maxclients && hull::isFlat(EDICT_NUM(slot + 1)));
+    const int height = c.v[flat ? calFlatHeight : calHeight];
+    scale = (static_cast<float>(c.v[calScale]) / 1000.f) * (static_cast<float>(height) / 1000.f) / units::modelEyeHeight;
     scale = za::clamp(scale, 0.5f, 2.f);
     return true;
 }
