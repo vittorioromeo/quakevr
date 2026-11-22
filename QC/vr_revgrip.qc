@@ -100,9 +100,12 @@ void(float xHand) VR_RevGrip_HandFrame =
 
 // The flip itself (the eject button's, and the flat holster menu's FLIP GRIP: impulses 84, 85): the grip of the sword or
 // dagger in `xHand` of self turned over, with its sound and pulse. Nothing when the hand holds none that may be flipped.
+// (dwellweap: and Dwell's Crystal Lance held as a lance, a pole weapon with no magazine to eject: its spear turned over,
+// the crystal head down for a stab downwards; weapons.txt slot 55's `rev`.)
+float(float xHand) DW_LanceHeld; // (dwell/dw_items.qc)
 void(float xHand) VR_RevGrip_Flip =
 {
-    if(self.health <= 0 || !self.ishuman || VRGetEntWeapon(self, xHand) != WID_SWORD)
+    if(self.health <= 0 || !self.ishuman || (VRGetEntWeapon(self, xHand) != WID_SWORD && !DW_LanceHeld(xHand)))
     {
         return;
     }

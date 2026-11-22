@@ -147,7 +147,8 @@ vr_ad_test       201-203  dwell/dw_test.qc                 Dwell's weapons (Rota
 vr_ad_test       204      dwell/dw_test.qc                 an armed grunt arming a Dwell weapon's record: its name, the variant kept, Dwell's shot fired (Rotary, Lance)
 vr_ad_test       209      vr_rules_test.qc                 the ruleset's numbers (vr_rules_numbers.qc) through our touches: armour rule and protection, key stacks, monsters' health, the laser, the megahealth rot (Copper's in a Dwell map, Quake's in e1m1)
 vr_ad_test       211      vr_quoth_test.qc                 Quoth's keys: an entity used by its targetname2 (the alias), the map's spawner (kellbase1's, else a made one) named from spawnfunction spawns `count` monsters
-vr_ad_test       212      vr_quoth_test.qc                 a Quoth map's flow driven round by round (triggers touched, monsters awake killed) to its last stage (quoth_play.sh)
+vr_ad_test       223      vr_quoth_test.qc                 kellbase1's hurting togglewall: its particle field drawn, an armed enforcer chasing you from behind it touches it at most twice in 20 s (quothfield_test.sh)
+vr_ad_test       212      vr_quoth_test.qca Quoth map's flow driven round by round (triggers touched, monsters awake killed) to its last stage (quoth_play.sh)
 vr_ad_test       219      vr_humrepl_test.qc               AD's and Quoth's humanoid variants: each its armed row with its gun, health, look, counted once; a death fires its target; off: AD's; looks by weapon; the client's looks (humrepl_test.sh)
 vr_ad_test       220      vr_humrepl_test.qc               the map's variants census, one line: monsters, armed, variants replaced, left AD's (humrepl_census.sh)
 vr_ad_test       221      vr_humrepl_test.qc               a row of armed humanoids of row scratch1, one per recolour category, for the screenshots (humrepl_shots.sh)

@@ -85,7 +85,15 @@ grip, pulled down), down (a lower grip, pushed up); stamina drains as on any hol
   units/s. **A jump** (the jump button) while holding one lets go and adds `vr_rope_jump` (200) up.
 - **The legs:** the feet go round the rope under the hands (the left instep 0.75 of the leg under its hip, the right a
   little lower: the rope pinched between them), easing on as the hands take it and off as they let go
-  (`vr_avatar_climb.cpp` ropeFoot); no footholds are looked for on a rope.
+  (`vr_avatar_climb.cpp` ropeFoot); no footholds are looked for on a rope. (ropes6) A rope too short for it (its lowest
+  point less than 0.6 of a leg under the hip: a short rope taken overhead) leaves the feet hanging; they wrap it fully
+  from 0.85 of a leg, eased between, and never take its end as a foothold above where they look.
+- **Sounds** (ropes6): a hand taking a rope makes a soft thud (the soft material's impacts, `vr_physsound_grab`), a chain
+  the metal grip, a headset's grip and flat play's alike; each pull up (once a grip, when the body has risen 15 cm over
+  its hold: not a mere grab, not the swing) a short exertion grunt (`vr_rope_grunt` 0.4, `vr_rope_grunt_sound` 2: the
+  jump's, deeper; at most every 0.6 s; Climbing page). Flat play's keys climb steadily: no grunt there.
+- **Regrabs barely move it** (ropes6): a body a little short of where the pull took it (`riderBlocked`'s miss) moves the
+  bob back with its last place (it had kicked the swing 30-60 units/s at each regrab).
 - A hand on a rope and the other on a ledge: the ledge holds him (no ride); the rope's hold follows its points.
 - One rider a rope: a second climber on it follows its points (he doesn't swing it).
 - Multiplayer: the holds move, so a remote client's hang runs in the server's frame, as on a prop's or a lift's holds
@@ -196,7 +204,11 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
   vrropes; the test hangs a rope half a metre ahead, the plays' `cmd vr_rope_climb_check` lines check at their own
   times): `rope_climb` hand over hand up (37.8 units, at least 30), down (18.9, at least 15), a nudged swing carries the
   body (41 units), let go at the rope's speed at the hands (125 of 125 units/s): 8 passed; `rope_jump` up, nudged, a
-  jump off (180 up over the rope's 14, 127 level of its 129): 6 passed.
+  jump off (180 up over the rope's 14, 127 level of its 129): 6 passed. ropes6: `rope_climb` also checks both hands drawn
+  gripping it, the knuckles outwards (`grip`), and no pull grunt climbing down or on a mere grab; `rope_calm` four pulls
+  up close to the rope: the swing at the hands 2.5 units/s (bound 25; was 61), its free end 8.3 (bound 30), 4 grunts;
+  `rope_short` a 425-long rope (its end near the legs; `vr_rope_climb_test <play> [length]`) taken overhead and pulled up:
+  the higher ankle 28 units under the pelvis (bound 10; was 13 over it).
 - `mp_test.py ropes` (`Misc/quakevr/mp`; dedicated server, A, and B through the proxy): the server hangs a rope and a
   chain (`vr_rope_spawn`); B has both with the server's points and style (bottom within a unit); pushed
   (`vr_rope_push`), B sees both swing (over 20 units); B's copies within a unit of the server's after. 9 passed.
@@ -223,9 +235,9 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
   `pause`, then single player's menu: their points (the server's and as drawn) still over a second (0.000), swinging on
   after each. 4 passed.
 - `Misc/quakevr/climb/rope_sound_test.sh <agent>` (ropes5b; `vr_rope_sound_test`): a rope and a chain made ahead; still:
-  quiet; a headset's grip (the rope silent, the chain's grab_metal), a flat-screen one (the rope's grab_stone, the chain's
-  grab_metal; a second at once held back); both pushed swinging (the chain's metal_l clinks: 5 in 2 s; the rope quiet).
-  6 passed.
+  quiet; a grip on each (the rope's soft_m thud, the chain's grab_metal; ropes6: a headset's and flat play's alike),
+  again (a second at once on the chain held back); both pushed swinging (the chain's metal_l clinks: 5 in 2 s; the rope
+  quiet). 6 passed.
 - Checklist scene `ropes` (vrropes, the toolgun given).
 
 ## Known limits (P1)
@@ -238,15 +250,17 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
   map's first 1.5 s (QC VR_Scene_IsRuntimeProp), as the props.
 - The hands on a rope (ropes5): drawn on the rope as drawn this frame (`climb::ropePalm`: the drawn curve's point as far
   from its top as the server's hold, out by 2.5 cm or 0.4 of a thick chain's thickness), yours and another player's;
-  in flat-screen play gripping it (`vr_rope_hand_grip` 1: the rope through the fist, the knuckles away from the body;
-  2 in VR too; 0 as on a ledge, whose `vr_climb_hand_pitch` 60 points them up). VR keeps the ledge's turn by default.
+  gripping it (`vr_rope_hand_grip` 2, the default since ropes6: the rope through the fist, the knuckles outwards, the
+  right hand's to the right, the left's to the left, in VR and flat-screen play; 1 flat-screen play only; 0 as on a
+  ledge, whose `vr_climb_hand_pitch` 60 points them up).
   The drawn rope is made again whenever the client's time moves (it was once a host frame, sometimes before the time
   moved: a client faster than the server drew it a tick at a time, the hands' jitter).
 - Pumped hard on the heavy chain, a hand change can still jump a hand for a frame (the test reports its maxima).
 - Sounds (ropes5b, `vr_physsound.cpp` ropeGrab, chainMoves): a hand taking a chain makes the metal hold's grip
   (`vr_physsound_chain` 0.4 loud), and a chain swung, climbed or pushed (its fastest point from `vr_physsound_chain_speed`
   60 u/s) clinks with the light metal knocks, quieter and every 0.6 s near it, louder and every 0.25 s at four times it.
-  A rope keeps its own: the flat-screen grip's slap (`vr_physsound_grab`), silent to a headset's grip. Both are Quake VR's
+  A rope's grip (ropes6): the soft material's thud (`vr_physsound_grab`), a headset's or flat play's (it was the stone
+  slap, silent to a headset). All are Quake VR's
   own recordings (make_physics_sounds.py). A grip's sound plays once in 0.15 s per rope (both hands at once: one).
 - Paused (`pause`, single player's menu or console) the ropes stand (ropes5: `climbrope::serverFrame(worldRan)`,
   Host_ServerFrame's SV_Physics); before, only `pause` stopped them.

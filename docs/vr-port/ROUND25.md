@@ -8392,3 +8392,86 @@ His notes dm3_2026-11-22_16-15-02, 16-17-59, 16-18-21.
 - **Centre message at vr_center_panel_scale 1.4**: `vr_center_panel_info` shows the popup up (304x88 contents), but the
   mock's eyeshot does not hold the panel (the same picture with and without it), so readability is not judged here:
   his check in the headset.
+## kellbase: Quoth kellbase1 notes, enforcer pack colours (agent/kellbase, 2026-11-22)
+
+His notes kellbase1_2026-11-22_16-02-58, 16-04-06, 16-06-02.
+
+- **Dropped packs take the body's recolour.** `DropBackpack` (items.qc) gives the pack its dropper's `.vr_hum_look` plus
+  the pack part (4096): every armed humanoid's death loot goes through it (`VR_AG_SoldierDrop`), so an energy weapon's
+  enforcer drops a blue pack, a launcher's red, as a grunt's worn pack already was (vr_humlook.cpp draws the pack rows
+  of humlook.txt on `progs/backpack.mdl`). Test: `humrepl_test.sh` (vr_ad_test 219) checks a thunderbolt enforcer's
+  dropped pack's look (4114 = enforcer energy + pack): 47 passed.
+- **kellbase1's energy field.** A `func_togglewall` (model *15, the `trigger` texture) with Quoth's spawnflag 2 and
+  `color 47`, `style 50`. AD's togglewall (Quoth runs under AD's rules) draws nothing: not a VR-only fault, it was
+  never drawn. Quoth has no source, so its look is inferred from the keys: while on, `vr_twall_fx` (ad_func.qc) puts
+  `style` sparks (at most 64; default 24) a tenth of a second over the brush's thin middle plane in palette `color`
+  (47: pale blue), only with a player within 1500 units. The flat screenshot at that size does not show the sparks
+  clearly: look in the headset.
+- **Monsters keep off hurting fields.** The enforcer behind it stood pressed 0.2 units into the brush (a monster step
+  is a vertical trace at its goal, so it ends touching it) and its step physics' fall trace touched the wall each frame
+  it could: 8 to 29 hurting touches in 20 s. Now a togglewall with `dmg` (AD's and Hipnotic's) sets
+  `.vr_monster_avoid`; `SV_movestep` refuses a monster's step that ends nearer than 12 units to such a solid entity
+  unless the step keeps it as far or takes it farther (`VR_MonsterAvoidsField`, vr_hull.cpp: an area query, both
+  walking and flying branches), so the chase picks another way and one already near is never stuck. A trigger_hurt is
+  left as it is (maps use them on monsters). Test: `quothfield_test.sh` (vr_ad_test 223, kellbase1): the field's
+  emitter made (colour 47, 50 sparks), its sparks sent with you near, and an armed enforcer chasing you from behind it
+  for 20 s touches it 0 times (29 before): 4 passed.
+- **Ladder holds on the drawn rungs.** kellbase1's ladders are a `trigger_ladder` over a `func_illusionary` (non-solid
+  bars: 24 apart on the catwalk's, 32 on the pillars'), so the volume's own rungs (16 apart down from its top) never
+  matched them. `ladderHold`'s volume fallback now asks `drawnRung` (vr_climb.cpp) first: the up-facing faces of
+  every brush submodel with no solid or trigger entity (an illusionary edict, or a static one) over the volume's
+  footprint (12 units before and behind it, across its thinner side, so not its rails' caps), their exact vertex
+  bounds; the bar nearest the hand is the rung, the hold on its ridge (its top faces' vertices at the top) across and
+  where the hand is along it. A ladder with no drawn rungs keeps the 16-unit rungs, and so does flatscreen play's
+  ladder (`findRungs` sets `flatRungSearch`): its window over the feet is about 31 units, so bars 24 or 32 apart left
+  it one rung and it never mounted (flatladder 0 of 3 with drawn rungs, 3 of 3 now). Flat hands therefore still close
+  on the 16-unit rungs (an open point if he wants it there too: the flat ladder's window would have to grow).
+  modladder_test.sh's VR-hands expectations moved to the bars (hold y -664, tops 704 + 24 k; the pillars' ridge y
+  -1354, tops 508 + 32 k): 10 passed.
+## ropes6: VR rope climbing from his notes (agent/ropes6, 2026-11-22)
+
+His notes vrropes_2026-11-22_15-43-18, 15-43-56, 15-45-10, 15-48-30 ("Climbing ropes in VR feels nice"). ROPES.md
+"Climbing (VR)", "Tests", "Known limits".
+- **Grip (VR):** `vr_rope_hand_grip` default 2 (was 1: flat only): the rope through the fist, the right hand's knuckles to
+  the right, the left's to the left, in VR too (the same ropeTurn as flat). His cfg had no saved value. `climb::drawnBack`
+  (the hold turn's back of the hand) for the climb test's `grip` check: worst 1.00 of 1.
+- **Regrab kick (4), cause:** `climbrope::riderBlocked` moved the bob back by the body's miss without its last place, so
+  the shift became speed: in VR a pull leaves the body ~0.4 units short of where the hands took it (rope at rest), and
+  each regrab kicked the swing 58-61 units/s at the hands. Now bob and bobPrev move together (its speed into the miss
+  still dropped: a wall still stops the swing). Swings, pumps, jumps onto it and pushes untouched (rope_pump 6/0,
+  rope_jump 6/0, rope_flat 6/0 incl. rope to rope, rope_hands 6/0).
+- **Sounds (2):** a pull up grunts (`vr_climb.cpp` ropePullGrunt in hangFramePart: once a grip, when the body has risen
+  15 cm over that grip's hold since taking it; at most every 0.6 s; `climb::grunt`, the mantle's list): `vr_rope_grunt`
+  0.4 (QVR_RULE), `vr_rope_grunt_sound` 2 (the jump's, deeper: told apart from a jump off). Not in flat play (its keys
+  climb steadily, no pulls). A rope's grip now makes the soft material's thud (soft_m, `vr_physsound_grab`) in VR and
+  flat alike (was the stone slap in flat, silent in VR); `climbrope::grabbed` lost its `vr` flag. Haptics unchanged.
+  Climbing page: Rope Pull Grunt, Rope Pull Grunt Sound.
+- **Legs on a short rope (3):** `ropeFoot` took the rope's end as a foothold at every height (clientRopeAt returns the
+  bottom where the rope doesn't reach): a short rope ending near the hip pulled the feet up to it, the higher ankle 13
+  units over the pelvis. Now the feet wrap only where its lowest point reaches 0.6 of a leg under the hip (fully from
+  0.85, eased between) and skip heights under its end; else they hang (28 under the pelvis). Shared by your body and
+  another's copy. `clientRopeAt` gives the lowest point's height (`bottom`).
+- Tests: rope_climb_test.sh 10+6+6+4+3 (new plays rope_calm: swing 2.5 u/s at the hands (bound 25; was 61), free end 8.3
+  (30), 4 grunts; rope_short: `vr_rope_climb_test <play> 425`; rope_climb adds grip and "no grunt climbing down or on a
+  mere grab"; with `vr_rope_hand_grip 1` its grip check fails at 0.15), rope_sound_test 6/0, vr_rope_test 16/0,
+  mp_test.py ropeclimb 12/0. ThinLTO 0 warnings.
+
+## dwellweap: the Crystal Lance's shot, weight, feed and grip flip; pole weapons' design (agent/dwellweap, 2026-11-22)
+
+His notes vrtesthall_2026-11-22_15-38-38 .. 16-01-25. Built (one commit each): items 1, 5 and part of 2 and 3; item 6 as
+a design (`docs/vr-port/POLEWEAPONS.md`). Not built: the cord, the thrust, the main hand's slide, the Rotary Shotgun's
+model changes.
+- **The beam was never drawn** ("held fire only makes smoke at the target"): `VR_BeamGone` (vr_client.cpp) ended a hand's
+  lightning the frame it began unless the hand held `v_light.mdl`; now any lightning-kind model (`gunfx::weaponIdOf`).
+- **Its effects**: violet particles where the beam enters and leaves each body and where it stops (QC `dw_fire_lance`;
+  a developer print "dwlance: the beam through N bodies"); slot 55's recoil a heavy shot's (`fx_kick_cm` 6, `fx_rise_deg`
+  5, `fx_return_s` 0.35; it had the Thunderbolt's stream values); its crystal head glowing violet after each shot (gunfx
+  barrel heat: `fx_gfx_heat` 20, `fx_gfx_cool` 0.25, `fx_gfx_barrel` 0.48, mask none; `barrelHeat`'s colour violet for
+  the Lance). Screenshot `qvr-kit/scratch/dwellweap_lance_fire.png` (eye view, then a side camera).
+- **20% heavier**: `w_mass` 7.2 (was 6.0).
+- **No magazine**: `DW_LanceFedFromPouch` (dw_items.qc): `VRIsWeaponReloadingEnabledForInst` never reloads it, each shot
+  takes 6 cells from the pouch.
+- **Grip flip**: slot 55 `rev 1`; `VR_RevGrip_Flip` allows the Lance (its eject button is free). Not proven: the mock's
+  `vr_mock_button main secondary` did not flip it (no "revgrip: ... flips" print, no refusal print); open.
+- **Tests**: `dwell_lance_test.sh` 12/0 (new: the beam fired, 6 cells from the pouch's 100). Note for test writers: the
+  mock trigger (`vr_mock_button main trigger 1`) did not fire the Lance; `+attack` does.

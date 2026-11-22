@@ -272,4 +272,96 @@ void(entity p) VR_Quoth_Play =
     w.think = VR_QP_Round;
     w.nextthink = time + 0.5;
 };
+
+// ---- vr_ad_test 223 (kellbase1; quothfield_test.sh): his note kellbase1 2026-11-22 16:04 ("an energy field ... I
+// cannot see ... an enemy behind it ... tries to path through it constantly and gets hit"): the map's hurting
+// togglewall draws its particle field (its emitter made, emitting with you near), and an armed enforcer behind it,
+// chasing you on its other side for 20 s of game time, touches it at most twice. Ends "quothfield: N passed, M failed".
+entity vr_qf_wall;
+entity vr_qf_foe;
+entity vr_qf_player;
+float vr_qf_end;
+float vr_qf_hits0;
+float vr_qf_sparks0;
+
+// `at` dropped to the floor below it, as a 24-unit-high standing box's origin.
+vector(vector at) VR_QF_Floor =
+{
+    traceline(at, at - '0 0 256', TRUE, world);
+    return trace_endpos + '0 0 24.03';
+};
+
+void() VR_QF_Think =
+{
+    if (time < vr_qf_end)
+    {
+        if (vr_qf_foe.health > 0 && vr_qf_foe.enemy != vr_qf_player)
+        {
+            local entity os = self;
+            self = vr_qf_foe;
+            self.enemy = vr_qf_player;
+            FoundTarget();
+            self = os;
+        }
+        self.nextthink = time + 0.1;
+        return;
+    }
+    local float hits = vr_twall_monhits - vr_qf_hits0;
+    VR_Test_Check(hits <= 2, sprintf("the enforcer behind it touched it %g times in 20 s (at most 2), health %g, at %v",
+        hits, vr_qf_foe.health, vr_qf_foe.origin));
+    VR_Test_Check(vr_qf_player.health > 0, "the player alive (god)");
+    local entity fx = find(world, classname, "vr_twall_fx");
+    VR_Test_Check(fx && fx.owner == vr_qf_wall && fx.color == 47 && fx.count == 50,
+        sprintf("its particle field made (Quoth's spawnflag 2: colour %g, %g sparks a tenth)", fx.color, fx.count));
+    VR_Test_Check(vr_twall_sparks - vr_qf_sparks0 > 1000, sprintf("its sparks drawn with you near: %g in 20 s",
+        vr_twall_sparks - vr_qf_sparks0));
+    VR_Test_Verdict();
+    remove(self);
+};
+
+void(entity p) VR_Quoth_FieldTest =
+{
+    local entity e, w;
+    local vector c, sz, n;
+    VR_Test_BeginFlags("quothfield", VR_TEST_LOUD);
+    vr_qf_player = p;
+    vr_qf_wall = world;
+    for (e = nextent(world); e; e = nextent(e))
+        if (e.ad_classtype == ad_CT_FUNCTOGWALL && e.dmg > 0 && e.ad_estate == ad_ESTATE_ON)
+            vr_qf_wall = e;
+    if (!vr_qf_wall)
+    {
+        VR_Test_Check(FALSE, "a hurting togglewall on this map (kellbase1)");
+        VR_Test_Verdict();
+        return;
+    }
+    c = (vr_qf_wall.absmin + vr_qf_wall.absmax) * 0.5;
+    sz = vr_qf_wall.absmax - vr_qf_wall.absmin;
+    n = '0 0 1';
+    if (sz_x <= sz_y && sz_x <= sz_z)
+        n = '1 0 0';
+    else if (sz_y <= sz_z)
+        n = '0 1 0';
+    setorigin(p, VR_QF_Floor(c + n * 96));
+    p.angles = p.v_angle = vectoangles(-n);
+    p.fixangle = TRUE;
+    e = spawn();
+    setorigin(e, VR_QF_Floor(c - n * 96));
+    e.angles_y = vectoyaw(n);
+    e.weapon = WID_ENFRIFLE;
+    w = self;
+    self = e;
+    VR_AM_Spawn(VR_AM_ENFORCER);
+    self = w;
+    e.health = 1000;
+    vr_qf_foe = e;
+    vr_qf_hits0 = vr_twall_monhits;
+    vr_qf_sparks0 = vr_twall_sparks;
+    vr_qf_end = time + 20;
+    bprint(sprintf("quothfield: wall at %v size %v, you at %v, the enforcer at %v\n", c, sz, p.origin, e.origin));
+    w = spawn();
+    w.classname = "vr_qf_driver";
+    w.think = VR_QF_Think;
+    w.nextthink = time + 1;
+};
 #endif

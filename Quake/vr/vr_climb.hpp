@@ -64,6 +64,8 @@ bool serverHold(edict_t* ent, int hand, glm::vec3& at, glm::vec3& out);
 
 // Server: how many of `ent`'s hands hold a climbable rope (vr_climb.cpp, "Holds on ropes"), hanging.
 [[nodiscard]] int ropeHands(edict_t* ent);
+// Server: the exertion grunts `ent`'s pulls up ropes have made so far (vr_rope_grunt; ropes6, the tests').
+[[nodiscard]] int ropePullGrunts(edict_t* ent);
 
 // Server: the flatscreen mantles `ent` started since the map loaded (vr_flat_mantle: after a jump, the jump key held,
 // looking up at a ledge in reach; vr_climb.cpp flatMantle), and whether it mantles now (any mantle).
@@ -165,5 +167,8 @@ float drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm:
 // Client: where drawnHand last put the drawn `hand`'s palm middle on its hold (world) -> true; false: not on one.
 // (vr_rope_hands_test's samples.)
 [[nodiscard]] bool drawnPalm(int hand, glm::vec3& palm);
+// Client: the way the back of the drawn `hand` faces in its hold's turn (world; the rope grip's or a ledge's) -> true;
+// false: not on a hold. (vr_rope_climb_check grip: ropes6.)
+[[nodiscard]] bool drawnBack(int hand, glm::vec3& back);
 
 } // namespace qvr::climb

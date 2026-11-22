@@ -85,6 +85,8 @@ constexpr float CLIMB_STEP_OUT = 0.12f;  // metres the stepping foot swings out 
 constexpr float CLIMB_RUNGS = 16.f;      // units: a face's spots at this spacing (a flat ladder's rungs)
 constexpr float CLIMB_ROPE_NEAR = 12.f;  // units: the holds' middle this close to a climbable rope holds that rope (ropes4: 6 lost it swinging)
 constexpr float CLIMB_ROPE_BELLY = 0.12f; // m: the hips on a rope come in to this far this side of it (ropeHips)
+constexpr float CLIMB_ROPE_LEG_SHORTEST = 0.6f; // legs: a rope reaching less far under the hip leaves the feet hanging
+constexpr float CLIMB_ROPE_LEG_FULL = 0.85f;    // (ropes6, ropeFoot) and from this far they wrap it fully, eased between
 
 [[nodiscard]] float smooth01(float x)
 {
@@ -347,11 +349,28 @@ namespace
 
 // On a climbable rope: where a foot goes round it, under the hands -- the left foot's instep on it 0.75 of the leg under
 // its hip, the right a little lower (the rope between them, pinched: the wrap and grip look), the ankles just this side
-// of it, a little out to each side; within the leg's reach. None found (the rope out of reach): `hanging`.
+// of it, a little out to each side; within the leg's reach. None found (the rope out of reach): `hanging`. (ropes6) A
+// rope too short for that (its end near the legs: a short rope taken overhead) leaves the feet hanging, never reaching up
+// for it: wrapped only where it reaches CLIMB_ROPE_LEG_SHORTEST of the leg under the hip, fully from
+// CLIMB_ROPE_LEG_FULL, eased between.
 [[nodiscard]] glm::vec3 ropeFoot(const Body& b, int side, const glm::vec3& hip, const glm::vec3& hanging)
 {
     const float u = b.m2w;
     const float leg = legLength(side) * b.legM2w;
+    glm::vec3 lowest{0.f};
+    float bottom = 0.f;
+    if(!climbrope::clientRopeAt(climbing.holdMid, CLIMB_ROPE_NEAR, hip.z, lowest, &bottom))
+    {
+        return hanging;
+    }
+    const float under = (hip.z - bottom) / za::max(leg, 1e-3f); // (how far under the hip it reaches, in legs)
+    const float wrap = smooth01(
+        za::clamp((under - CLIMB_ROPE_LEG_SHORTEST) / (CLIMB_ROPE_LEG_FULL - CLIMB_ROPE_LEG_SHORTEST), 0.f, 1.f));
+    if(wrap <= 0.f)
+    {
+        return hanging;
+    }
+    const auto wrapped = [&](const glm::vec3& to) { return glm::mix(hanging, to, wrap); };
     // (ropepose) Out of reach there (the rope slanting away under him at a swing's turn, its free end trailing), the
     // rope higher up, the knees more bent: the first height within the leg's reach, rising a tenth of the leg at a time.
     glm::vec3 first{0.f};
@@ -359,14 +378,15 @@ namespace
     for(float down = side == 0 ? 0.75f : 0.85f; down >= 0.3f; down -= 0.1f)
     {
         glm::vec3 at{0.f};
-        if(!climbrope::clientRopeAt(climbing.holdMid, CLIMB_ROPE_NEAR, hip.z - down * leg, at))
+        if(!climbrope::clientRopeAt(climbing.holdMid, CLIMB_ROPE_NEAR, hip.z - down * leg, at) ||
+            at.z > hip.z - down * leg + 1.f) // (ropes6: it ends above that height: its end is no foothold)
         {
             continue;
         }
         const glm::vec3 to = at - climbing.in * (0.4f * toeLength(side) * u) + climbOutward(side) * (0.03f * u);
         if(glm::length(to - hip) <= 0.97f * leg)
         {
-            return to;
+            return wrapped(to);
         }
         if(!found)
         {
@@ -379,7 +399,7 @@ namespace
         return hanging;
     }
     const glm::vec3 d = first - hip;
-    return hip + d * (0.97f * leg / glm::length(d));
+    return wrapped(hip + d * (0.97f * leg / glm::length(d)));
 }
 
 } // namespace
