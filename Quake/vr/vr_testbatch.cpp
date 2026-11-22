@@ -21,8 +21,10 @@
 // goes on with the script. The rest of the command line after a wait runs once it ends, in that frame.
 // A case's run.sh -QuitOn in a batch (testbatch.py writes these):
 //   vr_test_quiton "<regex>"   from now on (until vr_test_reset) watches the console's lines for the pattern
-//   vr_waitquiton <frames>     the case's closing wait: until a line since vr_test_quiton matched, at most <frames>
-//                              (running out is silent: the run's own waitN ran out)
+//   vr_waitquiton <ticks>      the case's closing wait: the commands after it held aside (the game's own, QC's
+//                              localcmd, run meanwhile, as after a lone run's script) until a line since
+//                              vr_test_quiton matched, at most <ticks> server ticks (running out is silent: the run's
+//                              own waitN ran out)
 
 #include "vr_testbatch.hpp"
 #include "vr_backend.hpp"
@@ -590,6 +592,10 @@ struct QuitOn
     bool matched{false};
     Regex re;
     za::String line; // the console's line so far
+    // vr_waitquiton
+    bool holding{false};
+    int left{0};     // ticks it may still hold
+    za::String held; // the commands after it
 };
 QuitOn quitOn;
 
@@ -659,8 +665,7 @@ enum class WaitKind
 {
     None,
     Cvar,
-    Print,
-    QuitOn // vr_waitquiton: until the armed vr_test_quiton matched (running out: silent, as the run's own waitN)
+    Print
 };
 
 struct Wait
@@ -721,10 +726,6 @@ Wait waiting;
     {
         return waiting.printed;
     }
-    if(waiting.kind == WaitKind::QuitOn)
-    {
-        return !quitOn.armed || quitOn.matched;
-    }
     bool ok = true;
     const bool holds = cvarHolds(ok);
     if(!ok)
@@ -750,7 +751,7 @@ void step()
             Con_Printf("vr_waitprint: timed out after %d frames waiting for \"%s\" (%d of %d lines)\n", waiting.frames,
                 waiting.text.cStr(), waiting.seen, waiting.need);
         }
-        else if(waiting.kind == WaitKind::Cvar)
+        else
         {
             const cvar_t* var = Cvar_FindVar(waiting.cvar.cStr());
             Con_Printf("vr_waituntil: timed out after %d frames (%s %s %s; it is %s)\n", waiting.frames, waiting.cvar.cStr(),
@@ -826,18 +827,25 @@ void waitPrint_f()
     step();
 }
 
+// vr_waitquiton holds the rest of the batch's commands aside (not a "wait": the game's own commands, QC's localcmd,
+// must still run meanwhile, as after the end of a script run alone) and puts them back at the server tick
+// (VR_TestTick) after the pattern matched or <ticks> ticks.
 void waitQuitOn_f()
 {
     if(Cmd_Argc() != 2)
     {
-        Con_Printf("vr_waitquiton <frames>: waits (as \"wait\" does, a tick a frame) until a console line since vr_test_quiton "
-                   "matched its pattern, at most <frames>\n");
+        Con_Printf("vr_waitquiton <ticks>: holds the commands after it until a console line since vr_test_quiton matched "
+                   "its pattern, at most <ticks> server ticks (as \"wait\" counts)\n");
         return;
     }
-    waiting = Wait{};
-    waiting.kind = WaitKind::QuitOn;
-    waiting.frames = waiting.left = Q_atoi(Cmd_Argv(1));
-    step();
+    if(!quitOn.armed || quitOn.matched || quitOn.holding)
+    {
+        return;
+    }
+    quitOn.held = za::String{Cbuf_PendingText(), static_cast<za::SizeT>(Cbuf_Pending())};
+    Cbuf_DropPending();
+    quitOn.holding = true;
+    quitOn.left = Q_atoi(Cmd_Argv(1));
 }
 
 void waitContinue_f()
@@ -908,6 +916,18 @@ extern "C" void VR_TestConsolePrint(const char* text)
             }
         }
     }
+}
+
+extern "C" void VR_TestTick(void)
+{
+    using qvr::testbatch::quitOn;
+    if(!quitOn.holding || (!quitOn.matched && quitOn.left-- > 0))
+    {
+        return;
+    }
+    quitOn.holding = false;
+    Cbuf_InsertText(quitOn.held.cStr()); // (ahead of what the game queued meanwhile: the case goes on to its end)
+    quitOn.held.clear();
 }
 
 extern "C" int VR_LogFlushFrames(void)

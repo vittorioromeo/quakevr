@@ -265,6 +265,36 @@ the reload suites, makes the collect pass's grep/sed/cut/tr/head/tail/wc/paste/s
 (`[ "$TB_PASS" = collect ] && continue`), parse with bash's `[[ =~ ]]` / `read`, and check every case with one Python
 at the end rather than one a case (mapflameburn_test.sh, throw_spin_test.sh).
 
+### Batching a suite, -QuitOn and -NoDraw (testbatch2, 2026-11-22)
+
+- **-QuitOn is batched.** A case's `-QuitOn <regex>` no longer makes it a game of its own: testbatch.py arms the pattern
+  at the case's start (`vr_test_quiton "<regex>"`, engine) and turns the case's closing `waitN` into `vr_waitquiton N`,
+  which ends at the first console line since then that matches (a script with no closing quit, the agrunt cases' shape,
+  waits until its `-Timeout`). The case's header reads `exit=quit-on (the log matched '...')` as run.sh's does. The
+  engine matches run.ps1's (.NET, case-insensitive) patterns as far as the tests use them: literals, `. ^ $`, `[..]`
+  classes, `\d \s \w` (and capitals), escapes, `* + ?` (lazy `?` ignored), `(?:...)` groups and `|`; anything else
+  matches as plain text. Lines end as in the log (echo's with a space: `\s*$`). A pattern with a `"` runs alone.
+- **The clock:** a run alone (kit fast mode, since 2026-10-25) plays `vr_fixed_frames 1` at its default rate, 72 (a
+  tick a frame); the batches' default `TB_RATE` is still 250 (the old real-time runs'). A suite converted since sets
+  `export TB_RATE=${TB_RATE-72}` so its batch plays what `TB_SLOW=1` plays (and 3.5 times fewer frames).
+- **vr_waitquiton holds, it doesn't wait:** the commands after it are taken out of the buffer and put back at the tick
+  after the match, so what QC queues meanwhile (localcmd) runs at once, as after a lone run's script (with a plain
+  `wait` loop it queued behind the rest of the batch: flatitems' cases all timed out).
+- **-Low** is ignored in a batch (the copies run below normal priority anyway), so a `-Low` run batches.
+- **Converting a bash suite:** `source "$(dirname "$0")/testbatch/testbatch.sh"` after qvrtest.sh; the part from the
+  first run to `verdict` into `tb_body() { ... }`; `bash $KIT/run.sh $AGENT` -> `tb_run_sh`; then
+  `tb_main "$AGENT" tb_body; exit $fail`. Runs with `-Out`/`-Clean`/a screenshot stay alone by themselves. Prove it:
+  `TB_SLOW=1` (the old way) and batched, check by check the same (a flaky check aside), and time both.
+- **When it pays:** since the spawn-free run.sh a single run costs 4-9 s held, so a suite of a dozen short runs gains
+  little from the batch (two passes over the body: every `$(awk ...)`/`grep` a check runs costs 0.1-1 s, twice). It
+  pays for many cases (the agrunt group), long frames (big waits), or undrawn cases. `TB_COLLECT_STUBS=2` also makes
+  awk and cat no-ops in the collect pass (the flat suites' checks are awk calls between runs).
+- **-NoDraw** (kit run.sh/run.ps1, and per case in a batch): `vr_mock_fast 2`, the unpaced frames not drawn. Safe only
+  when no check reads what the drawing makes: screenshots and eyeshots, `r_norefresh 0` runs, "drawn eye"/"drawn ray"
+  measurements (flatplay, flatpose, flatslide's sights and pose cases), first-drawn lines, the view's own place when the
+  renderer computes it. A suite opts in per run (`-NoDraw` on the QC-measured runs) or as a whole
+  (`export TB_NODRAW=${TB_NODRAW-1}`) once its verdicts are the same both ways.
+
 ### The release suite: lanes and profiles (2026-11-22)
 
 `Misc/release/run_test_suite.py` runs its tests in parallel lanes (`--jobs N`; 0, the default: a lane per 8 CPUs, at
