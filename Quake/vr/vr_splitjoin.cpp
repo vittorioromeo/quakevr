@@ -14,6 +14,7 @@
 // joined pad starts the game; every seat signs on in its own slot driven by its own pad; then a seat leaves and joins
 // again from the screen over the running game. Verdict "split_join_test: N passed, M failed".
 #include "vr_seat.hpp"
+#include "vr_flatholster.hpp"
 
 #include "vr_engine.hpp"
 #include "vr_api.h"
@@ -48,6 +49,7 @@ enum PadKey
     PadDown,
     PadLeft,
     PadRight,
+    PadY, // split11: the controller layout shown (or the rows again)
     PadKeys
 };
 
@@ -59,6 +61,7 @@ struct JoinScreen
     int level = -1; // M_NetLevelName's index (-1: the mode's first)
     int skill = 1;
     bool padHeld[4][PadKeys] = {};
+    bool showButtons = false; // split11: the controller layout in the rows' place (a pad's Y, the keyboard's Tab)
 } screen;
 
 constexpr int rowY0 = 100;  // the rows' first line (menu units)
@@ -242,6 +245,7 @@ void padPress(const int k, const int key)
         case PadDown: move(1); return;
         case PadLeft: change(-1); return;
         case PadRight: change(1); return;
+        case PadY: screen.showButtons = !screen.showButtons; return;
         default: return;
     }
 }
@@ -306,6 +310,7 @@ struct JoinTest
     int releaseKey = -1; // a keyboard key let go after the wait
     int slot = -1;   // the leaving seat's server slot
     bool wasGame = false; // a game ran when the test started
+    float yaw = 0.f;      // split11: the pad seat's yaw as its holster menu opened (the look stick moves the cursor)
 } joinTest;
 
 constexpr int stageFrames = 1440; // a stage's give-up (20 s of game time): a FAIL "timed out"
@@ -324,13 +329,6 @@ void jpress(const int pad, const int button)
     IN_MockPadButton(pad, button, true);
     joinTest.releasePad = pad;
     joinTest.releaseButton = button;
-    joinTest.wait = 4;
-}
-
-void jkey(const int key)
-{
-    IN_MockKeyboardKey(key, true);
-    joinTest.releaseKey = key;
     joinTest.wait = 4;
 }
 
@@ -447,7 +445,7 @@ void jstage()
             jcheck(sv.active == t.wasGame && M_Splitscreen_Open(), "no game started yet, the screen up");
             if(t.dm)
             {
-                jkey(K_RIGHTARROW); // (the Game row: deathmatch)
+                jpress(lastPad, SDL_CONTROLLER_BUTTON_DPAD_RIGHT); // (the Game row: deathmatch, by a pad: split11)
             }
             jnext();
             return;
@@ -533,9 +531,97 @@ void jstage()
             jnext();
             return;
         case 12:
+        {
             jcheck(!M_Splitscreen_Open() && key_dest == key_game, "its Start goes back to the game");
-            jfinish();
+            // split11: a controller seat's flat-play layout (seat::padLayout) where seat 1's copy leaves a button free
+            const seatkeys_t* k = Key_SeatOf(lastPad + 1);
+            const char* up = k->bindings[K_DPAD_UP];
+            const char* x = k->bindings[K_XBUTTON];
+            jcheck(up && !strcmp(up, "+flatholsters") && x && x[0],
+                va("seat %d's pad has the holster menu (d-pad up: %s) and reload (X: %s)", lastPad + 2, up ? up : "-", x ? x : "-"));
+            // the holster menu (the weapon wheel) by the pad: d-pad up held, the look stick pushed right
+            IN_MockPadButton(lastPad, SDL_CONTROLLER_BUTTON_DPAD_UP, true);
+            t.wait = 8;
+            jnext();
             return;
+        }
+        case 13: // (the menu open: then the stick, so none of it turns the view before the menu has it)
+        {
+            {
+                const Scope in(at(lastPad + 1));
+                t.yaw = cl.viewangles[YAW];
+            }
+            IN_MockPadAxes(lastPad, 0.f, 0.f, 1.f, 0.f);
+            t.wait = 16;
+            jnext();
+            return;
+        }
+        case 14:
+        {
+            {
+                const Scope in(at(lastPad + 1));
+                const float moved = flatholster::cursorFromMiddleX();
+                jcheck(flatholster::open() && moved > 20.f && fabsf(cl.viewangles[YAW] - t.yaw) < 0.5f,
+                    va("seat %d: d-pad up, holster menu %d; look stick, cursor %.0f, view %.1f", lastPad + 2,
+                        flatholster::open() ? 1 : 0, static_cast<double>(moved), static_cast<double>(cl.viewangles[YAW] - t.yaw)));
+            }
+            IN_MockPadAxes(lastPad, 0.f, 0.f, 0.f, 0.f);
+            IN_MockPadButton(lastPad, SDL_CONTROLLER_BUTTON_DPAD_UP, false);
+            t.wait = 8;
+            jnext();
+            return;
+        }
+        case 15:
+            // drop out in the game (no screen), then in again by the pad alone: Start, then A
+            t.slot = slotOfSeat(lastPad + 1);
+            leaveSeat(lastPad + 1);
+            jnext();
+            return;
+        case 16:
+        case 19:
+            if(t.slot >= 0 && svs.clients[t.slot].active)
+            {
+                return;
+            }
+            jcheck(!plays(lastPad + 1) && IN_PadSeat(lastPad) < 0,
+                va("seat %d left in the game: its pad drives no seat (not seat 1's: %d)", lastPad + 2, IN_PadSeat(lastPad) + 1));
+            jpress(lastPad, t.stage == 16 ? SDL_CONTROLLER_BUTTON_START : SDL_CONTROLLER_BUTTON_A);
+            jnext();
+            return;
+        case 17:
+        case 20:
+        {
+            if(!signedOn(lastPad + 1))
+            {
+                return;
+            }
+            const bool start = t.stage == 17;
+            jcheck(seatOfPad(lastPad) == lastPad + 1 && slotOfSeat(lastPad + 1) > 0 && !M_Splitscreen_Open() && key_dest == key_game,
+                va("its %s joins the running game directly (seat %d, slot %d, no screen)", start ? "Start" : "A", lastPad + 2,
+                    slotOfSeat(lastPad + 1)));
+            t.wait = 8; // (let go meanwhile: the press that joined is no press in the seat)
+            jnext();
+            return;
+        }
+        case 18:
+        case 21:
+        {
+            const Scope in(at(lastPad + 1));
+            jcheck(Key_SeatDest() == key_game && !Key_Seat()->down[K_ESCAPE] && !Key_Seat()->down[K_ABUTTON],
+                va("the %s that joined opened no seat menu, pressed nothing in the seat", t.stage == 18 ? "Start" : "A"));
+            if(t.stage == 18)
+            {
+                t.slot = slotOfSeat(lastPad + 1);
+                leaveSeat(lastPad + 1);
+            }
+            else
+            {
+                jfinish();
+                return;
+            }
+            jnext();
+            return;
+        }
         default: jfinish(); return;
     }
 }
@@ -664,6 +750,7 @@ extern "C" void M_Splitscreen_Pads()
             now[PadDown] = IN_PadDown(k, SDL_CONTROLLER_BUTTON_DPAD_DOWN) || ly > stickThreshold;
             now[PadLeft] = IN_PadDown(k, SDL_CONTROLLER_BUTTON_DPAD_LEFT) || lx < -stickThreshold;
             now[PadRight] = IN_PadDown(k, SDL_CONTROLLER_BUTTON_DPAD_RIGHT) || lx > stickThreshold;
+            now[PadY] = IN_PadDown(k, SDL_CONTROLLER_BUTTON_Y);
         }
         for(int b = 0; b < PadKeys && M_Splitscreen_OwnsPads(); b++)
         {
@@ -693,6 +780,8 @@ extern "C" void M_Splitscreen_Key(const int key)
         case K_KP_ENTER:
         case K_ABUTTON:
         case K_MOUSE1: activate(); return;
+        case K_TAB:
+        case K_YBUTTON: screen.showButtons = !screen.showButtons; return;
         default: return;
     }
 }
@@ -752,7 +841,7 @@ extern "C" void M_Splitscreen_Draw()
     q_strlcpy(map, values[RowMap], sizeof(map));
     values[RowMap] = map;
     constexpr const char* labels[RowBack + 1] = {"Game", "Map", "Skill", "Layout", "", ""};
-    for(int r = 0; r < rows(); r++)
+    for(int r = 0; r < rows() && !screen.showButtons; r++)
     {
         const int y = rowY(r);
         if(r == RowStart)
@@ -773,6 +862,21 @@ extern "C" void M_Splitscreen_Draw()
             M_DrawCharacter(68, y, 12 + (static_cast<int>(realtime * 4) & 1));
         }
     }
-    M_Print(16, 172, "Controllers: A joins, B leaves, Start plays");
-    M_Print(16, 182, "Keyboard: arrows choose, Enter starts");
+    if(screen.showButtons) // split11: a controller seat's layout in the game (seat::padLayout; its seat menu's Controls)
+    {
+        int count = 0;
+        const PadAction* layout = padLayout(count);
+        M_PrintWhite(16, rowY0 - 8, "A controller in the game:");
+        for(int i = 0; i < count; i++)
+        {
+            const int x = i % 2 == 0 ? 16 : 168, y = rowY0 + 2 + (i / 2) * 8;
+            const char* name = Key_KeynumToFriendlyString(layout[i].key);
+            name += !strncmp(name, "DPAD ", 5) ? 5 : 0; // (the d-pad's Up, Down, Left, Right)
+            printClipped(x, y, name, 6, true);
+            printClipped(x + 56, y, layout[i].label, 12, false);
+        }
+    }
+    M_Print(12, 172, "Pads: A joins, B leaves, Start plays");
+    M_Print(12, 181, "Keys: arrows, Enter. Y or Tab: buttons");
+    M_Print(12, 190, "In a game a free pad's Start joins");
 }

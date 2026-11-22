@@ -144,6 +144,9 @@ typedef struct joypad_s
 	qboolean			mock;			// vr_seat_test's pad: its buttons and sticks from IN_MockPad*, no controller
 	joybuttonstate_t	mockbuttons;
 	joyaxisstate_t		mockaxes;
+	qboolean			unseated;		// split11: it left its seat: drives none, its Start or A joins (IN_PadSetUnseated)
+	qboolean			joinheld;		// ... its Start or A held at the last look (a press joins once)
+	float				cursorfrac[2];	// split11: the look stick's motion of a flat-play cursor not yet a whole count
 } joypad_t;
 
 #define MAX_JOYPADS 4
@@ -152,6 +155,7 @@ static joypad_t joy_pads[MAX_JOYPADS] = // seat-shared: the controllers open, ea
 	{NULL, -1, -1}, {NULL, -1, -1}, {NULL, -1, -1}, {NULL, -1, -1}
 };
 #define joy_primary (&joy_pads[0])
+static void IN_PadKeepAsRead (joypad_t *pad); // QVR: splitscreen (below)
 
 static qboolean	no_mouse = false; // seat-shared: the system's mouse (-nomouse)
 
@@ -171,6 +175,12 @@ static const int buttonremap[] =
 #define GYRO_CALIBRATION_SAMPLES	300
 static float gyro_accum[3] = {0.f, 0.f, 0.f};	// seat-shared: the calibration's (pad 0's: the Options menu's gamepad)
 static unsigned int updates_countdown = 0;		// seat-shared: the calibration's
+
+// split11: pad k left its seat in the local multiplayer game running now (IN_PadSetUnseated): it drives no seat
+static qboolean IN_PadIsUnseated (int k)
+{
+	return joy_pads[k].unseated && sv.active && svs.maxclients > 1 && !cls.demoplayback;
+}
 
 static void IN_ResetFlickState (joypad_t *pad)
 {
@@ -198,12 +208,23 @@ int IN_PadSeat (int k)
 			return s;
 	for (j = 0; j < MAX_JOYPADS; j++)
 	{
+		if (IN_PadIsUnseated (j)) // split11: a pad that left its seat is no spare of seat 0's (its Start or A joins)
+			continue;
 		for (s = 1; s < CL_SeatCount () && !(CL_SeatPlays (s) && CL_SeatPad (s) == j); s++)
 			;
 		if (s == CL_SeatCount ())
 			break;
 	}
 	return k == j ? 0 : -1;
+}
+
+void IN_PadSetUnseated (int k, qboolean unseated)
+{
+	if (k >= 0 && k < MAX_JOYPADS)
+	{
+		joy_pads[k].unseated = unseated;
+		joy_pads[k].joinheld = true; // (the press that left, or joined, is no join: a fresh press is)
+	}
 }
 
 // the pad driving a seat (NULL: none)
@@ -1323,7 +1344,7 @@ static qboolean joy_joinscreen = false; // seat-shared: the join screen had the 
 static void IN_PadsToJoinScreen (const joybuttonstate_t *nobuttons, const joyaxisstate_t *noaxes)
 {
 	joypad_t *pad;
-	int k, i, seat, prev;
+	int k, seat, prev;
 
 	for (k = 0; k < MAX_JOYPADS; k++)
 	{
@@ -1336,10 +1357,7 @@ static void IN_PadsToJoinScreen (const joybuttonstate_t *nobuttons, const joyaxi
 			IN_PadEmit (pad, nobuttons, noaxes);
 			CL_SeatSet (prev);
 		}
-		for (i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++)
-			pad->buttonstate.buttondown[i] = pad->mock ? pad->mockbuttons.buttondown[i] : SDL_GameControllerGetButton (pad->controller, (SDL_GameControllerButton)i);
-		for (i = 0; i < SDL_CONTROLLER_AXIS_MAX; i++)
-			pad->axisstate.axisvalue[i] = pad->mock ? pad->mockaxes.axisvalue[i] : SDL_GameControllerGetAxis (pad->controller, (SDL_GameControllerAxis)i) / 32768.0f;
+		IN_PadKeepAsRead (pad);
 	}
 	joy_joinscreen = true;
 	M_Splitscreen_Pads (); // (it joins and leaves seats)
@@ -1385,6 +1403,51 @@ QVR: splitscreen: every pad's, each with its seat current (IN_PadSeat: the devic
 press that seat's buttons. A pad whose seat changed (seats joined or left, unplugged) lets go there first.
 ================
 */
+/*
+================
+IN_PadKeepAsRead -- QVR (splitscreen)
+
+A pad no seat polls (the join screen has it, or it drives none): its state kept as read, so what it holds when a seat
+polls it again is no press there; nor a key repeat (split11: a held Start's repeat, a press to a seat that never saw
+the press, opened the seat's menu as the join screen shut).
+================
+*/
+static void IN_PadKeepAsRead (joypad_t *pad)
+{
+	int i;
+	for (i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++)
+	{
+		pad->buttonstate.buttondown[i] = pad->mock ? pad->mockbuttons.buttondown[i] : SDL_GameControllerGetButton (pad->controller, (SDL_GameControllerButton)i);
+		if (pad->buttonstate.buttondown[i])
+			pad->buttontimer[i] = Sys_DoubleTime () + 1e9; // (no repeat until it is let go and pressed again)
+	}
+	for (i = 0; i < SDL_CONTROLLER_AXIS_MAX; i++)
+		pad->axisstate.axisvalue[i] = pad->mock ? pad->mockaxes.axisvalue[i] : SDL_GameControllerGetAxis (pad->controller, (SDL_GameControllerAxis)i) / 32768.0f;
+}
+
+/*
+================
+IN_PadDropIn -- QVR (split11)
+
+A pad that drives no seat (one that left its seat, or a spare) in a running local multiplayer game, flatscreen: its
+Start or A joins it as the next free seat at once (drop-in, no menu: VR_SeatDropIn).
+================
+*/
+static void IN_PadDropIn (int k)
+{
+	joypad_t *pad = &joy_pads[k];
+	qboolean held;
+	if (!pad->controller && !pad->mock)
+		return;
+	// (its state kept as read, as the join screen keeps it: the buttons held as it joins are no presses in its seat, so
+	// the Start that joins opens no seat menu and the A no jump)
+	IN_PadKeepAsRead (pad);
+	held = pad->buttonstate.buttondown[SDL_CONTROLLER_BUTTON_START] || pad->buttonstate.buttondown[SDL_CONTROLLER_BUTTON_A];
+	if (held && !pad->joinheld && sv.active && svs.maxclients > 1 && !cls.demoplayback && cls.signon == SIGNONS)
+		VR_SeatDropIn (k);
+	pad->joinheld = held;
+}
+
 void IN_Commands (void)
 {
 	joybuttonstate_t nobuttons;
@@ -1417,7 +1480,10 @@ void IN_Commands (void)
 				Key_SeatCopyBindings (seat, 0);
 		}
 		if (seat < 0)
+		{
+			IN_PadDropIn (k);
 			continue;
+		}
 		prev = CL_SeatSet (seat);
 		IN_PadPoll (pad);
 		CL_SeatSet (prev);
@@ -1480,6 +1546,24 @@ void IN_JoyMove (usercmd_t *cmd)
 
 	if (CL_InCutscene ())
 		return;
+
+	// QVR: split11: flat play's holster menu (the weapon wheel) or toolgun panel open: the look stick moves its cursor, as
+	// the mouse does (a controller seat has no mouse); the view stays
+	{
+		const float speed = 900.f * (float) host_rawframetime; // counts a second at full tilt (a window pixel each)
+		int dx, dy;
+		pad->cursorfrac[0] += lookEased.x * speed;
+		pad->cursorfrac[1] += lookEased.y * speed;
+		dx = (int) pad->cursorfrac[0];
+		dy = (int) pad->cursorfrac[1];
+		if (VR_FlatToolgunMouse (dx, dy))
+		{
+			pad->cursorfrac[0] -= (float) dx;
+			pad->cursorfrac[1] -= (float) dy;
+			return;
+		}
+		pad->cursorfrac[0] = pad->cursorfrac[1] = 0.f;
+	}
 
 	// handle flick stick if enabled
 	if (joy_flick.value && pad->gyro_present && gyro_enable.value)

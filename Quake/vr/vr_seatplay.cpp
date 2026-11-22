@@ -14,6 +14,7 @@
 #include "vr_seat.hpp"
 
 #include "vr_engine.hpp"
+#include "vr_api.h"
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
 
@@ -114,6 +115,7 @@ bool join(const int s, const int pad, const bool needGame = true)
         return false;
     }
     setPlays(s, true, pad);
+    IN_PadSetUnseated(pad, false);
     joins.toldFull[s] = false;
     Con_Printf("seat %d joins (pad %d)\n", s + 1, pad);
     return true;
@@ -129,8 +131,15 @@ void leave(const int s)
         const Scope in(at(s));
         CL_SeatDisconnect();
     }
+    // split11: its pad drives no seat now (not seat 1's as its spare): its Start or A joins again (IN_PadDropIn)
+    const int pad = padOf(s);
+    IN_PadSetUnseated(pad, true);
     setPlays(s, false, -1);
     Con_Printf("seat %d leaves\n", s + 1);
+    if(pad >= 0 && sv.active && svs.maxclients > 1)
+    {
+        Con_Printf("Controller %d: Start or A joins the game again\n", pad + 1);
+    }
 }
 
 // seat_join <pad>: the pad's player joins the local game as the next free seat (seats 2-4; seat 1 is the keyboard and
@@ -485,6 +494,22 @@ void registerPlayCommands()
 }
 
 } // namespace qvr::seat
+
+// split11: a pad driving no seat (it left its seat, or a spare) pressed Start or A in a running local multiplayer game
+// (in_sdl.c's IN_PadDropIn): it joins as the next free seat at once and connects (CL_SeatFrame), no menu.
+extern "C" void VR_SeatDropIn(const int pad)
+{
+    using namespace qvr::seat;
+    if(VR_IsActive() || seatOfPad(pad) > 0)
+    {
+        return; // (splitscreen is flatscreen play's; a pad in a seat already drives it)
+    }
+    const int s = joinPad(pad);
+    if(s > 0)
+    {
+        Con_Printf("Controller %d joins as seat %d\n", pad + 1, s + 1);
+    }
+}
 
 // Once a host frame, before the seat loop (host.c): seats in play connect to the local game in play, seats whose game
 // ended let go of it; then the play test's step.

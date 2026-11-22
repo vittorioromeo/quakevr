@@ -477,6 +477,7 @@ void R_ParticleTruncate (int n);
 clientseat_t *CL_SeatNetIfMade (int seat);	// seat 0..3's client if ever made (NULL: never used)
 void CL_SeatName (int seat, char *out, size_t size);	// the player's name for seat n: cl_name, then "<cl_name> <n+1>"
 void CL_SeatFrame (void);					// once a host frame: seats joining (connecting) or gone (vr_seatplay.cpp)
+void VR_SeatDropIn (int pad);				// split11: a free pad's Start or A in a running local game: it joins as the next free seat
 // Splitscreen phase 9 (vr_seatmenu.cpp): seats 2-4's own menus, drawn in their tiles; seat 1 has the full menu and the
 // console. scr_splitmenu 0 (default): a seat 2-4's Start opens its seat menu; 1: the full menu, as before phase 9.
 int VR_SeatMenusOn (void);					// scr_splitmenu 0 with more than one seat in play: seats 2-4 have their own menus
