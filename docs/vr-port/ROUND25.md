@@ -7655,7 +7655,12 @@ different rules is annoying and causes issues."
   maps byte for byte the base's); `build --check` says whether they are current. Run it after exporting a base model.
   `transfer` carried each old skin onto the base's layout once (nearest old surface, same facing): v_lava and
   v_light_plasma exact (same triangles), v_multi2 and v_lava2 176/175 texels more than 0.5 units off (their meshes
-  differed a little). The variant .blend files and the housing scripts' variant entries are retired (not run again).
+  differed a little). The variant .blend folders are out of the tree (parked on F:/QVR-Parked/2026-11-22/mp_onemodel/);
+  the housing scripts' variant entries are retired (not run again).
+- Before shipping: ThinLTO 0 warnings; reload 116/0, magthrow 3/0, magholster and regrip exit 0, grip_state PASS, cup_aim
+  5/0, gunfx 73/0, load_models 4/0, flatreload 54/0, flathands 76/0, flatsight 12/0, flatholster 54/0, scenario_check
+  187/0. Before/after shots, pixel diff per tile: the plain guns identical; the variant tiles 1-3% of texels changed
+  (VR and flat): the skin carried onto the base's layout, v_lava2/v_multi2 on their gun's mesh.
 - **One slot per gun:** weapons.txt slots 11, 12, 14, 15 are now `id`, `inherit` and his differences only (slot 11's
   `hand_x 1.150001`, kept). A slot drawing a variant of its parent's model inherits every key but its ID and parent
   (`weapons::inherits`: anchors, hand places, barrel mask, reload settings too; before, the variants used the reload
