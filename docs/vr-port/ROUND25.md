@@ -8145,3 +8145,52 @@ becomes possible in that state".
   (the grip 64 units off, cases 8/9, standing or staggering; this file's "vr_embed_test 13" notes above). Flat:
   `vr_flatitems_test 10` (routing, ironsight with an empty hand) 63/0, 7 (a prop beside the gun) 13/0, flathands 76/0,
   flatmelee2h 16/0, flatads 6/1 (its "launchers", the outdated expectation of ROUND24.md).
+
+## Quest C5g: dlmap as bright as the loop, its own texture; vr_menu.cpp at -Os on Android; Quake's way timed (questc5g, 2026-11-22; branch agent/quest)
+
+- **APK build time**: the NDK's clang spent 1096 of vr_menu.cpp's 1199 s at -O3 in one pass, the *PostRA Machine
+  Instruction Scheduler* (`-ftime-report`); -O1 still ran past 600 s, -Os takes 17 s. `Android/android.cmake` compiles
+  that file alone at -Os (menu code). The whole native build after a merge (every file): 4 min 25 s, the APK 5 min 37 s
+  (was over 18 min for vr_menu.cpp alone; c5f's 40-minute job limit killed it). 0 warnings, check_apk 20/20.
+- **dlmap's brightness**: the light was added into the lightmap's bytes, so the world shader's curve on the baked light
+  (vr_light_contrast 2.5 about Quake's full light, the fill light 0.1, vr_light_cap 1.75) bent it too, and the bytes
+  clipped at 255; and on the PC's defaults (normal maps: the parallax program; OIT) the world never took the unlit form,
+  so c5f's pairs showed the lightmap's light *on top of* the loop's (counted twice). Now the lights are summed into
+  their own texture (RGB10_A2, as big as the lightmap and laid out as it: `DlightTex`, unit 15, 4x range), which
+  glprogs.world_unlit adds where the loop adds its own (`dynamic_light`: after the curve, under the same cap rule); the
+  lightmap itself is never written. Same falloff, angle term and colour as the loop (DarkPlaces' or Quake's); what is
+  left: the 16-unit grid and the loop's sheen (vr_specular 0.2 on the Quest), which the texture has no direction for.
+- **The pairs again, under the Quest preset** (PC -glescompat, the same 7 frames, 922x922 left eyes,
+  `qvr-kit/scratch/dlmap_compare_*.png`; c5f's parked in `F:/QVR-Parked/2026-11-22/quest_c5f/dlmap_pairs_c5f`):
+  | scene | c5f means (0 / 1) | now means (0 / 1) | now diff mean / p95 / max |
+  |---|---|---|---|
+  | ad_azad | 80.1 / 108.6 | 83.6 / 80.2 | 3.56 / 14 / 149 |
+  | corridor_rocket | 58.5 / 45.6 | 59.1 / 55.0 | 4.24 / 36 / 203 |
+  | doorway | 63.0 / 111.1 | 56.3 / 56.2 | 0.74 / 4 / 59 |
+  | sweep1 | 58.9 / 66.7 | 60.0 / 57.0 | 3.06 / 18 / 113 |
+  | sweep2 | 56.5 / 69.3 | 57.8 / 57.0 | 0.87 / 5 / 60 |
+  | sweep3 | 69.2 / 74.1 | 69.2 / 63.6 | 5.62 / 41 / 153 |
+  | torch_wall | 24.7 / 25.6 | 23.8 / 24.8 | 1.61 / 8 / 196 |
+  Darker by 0-6 levels where a big light is close (the sheen and the grid's peak); no seams (the image's steps 0.98-1.00 of the loop's; torch_wall 1.07: its flicker).
+- **One choice: `vr_gl_quake_dlights`** ("Quake-Style Dynamic Lights (Quest)", Debug > Profiling and Memory, archived,
+  default 0): the world's light texture (as vr_gl_world_dlmap 1) and your body's flat add (as vr_gl_alias_body 2) at
+  once; each light as the per-pixel loop gives it, added after the baked light's curve (`qvr::dlightmap::quakeLights`).
+- **On the Quest** (posed head, 0.7 fixed, the Quest's switches, 3 rounds interleaved, gpu_span ms):
+  | scene | loop | world in texture | Quake both (vr_gl_quake_dlights) | body flat only | no test lights |
+  |---|---|---|---|---|---|
+  | frozen fight, 3 big lights, 0.55 | 11.33 (period 41.6: 24 Hz) | **7.00** (72 Hz; CPU +1.50) | 8.24 | - | 6.10 |
+  | posed head pitch 35, 0.7, test lights | 7.77 | 8.17 | 10.52 | 9.98 | 8.63 |
+  | body, pitch 70 (off / per pixel / Quake's way / vertex) | 6.08 / 11.10 / 13.71 / 13.74 | | | | |
+  | body, pitch 35 (off / per pixel / Quake's way / vertex) | 5.87 / 7.81 / 10.57 / 10.65 | | | | |
+  Quake's way on the body is **slower** (+2.6 ms at 70, +2.8 at 35; period 50 ms at 70 for both of its forms), so it
+  stays off; the Quest preset gets `vr_gl_world_dlmap 1` (all three levels) and `vr_gl_quake_dlights` stays 0.
+- **Reliefs**: no relief on the Quest preset (vr_normalmaps 0), so the flatness there is the missing sheen and the
+  16-unit grid, not bumps. A cheap fix exists for the PC look: a second texture (RGBA8) with the summed lights'
+  dominant direction per texel (as AD's .lux), the shader bending the texel's light by the bumped normal and giving it
+  the sheen: one more fetch and ~10 ALU a pixel, the direction summed on the CPU (+30% of the build). Not done: no
+  gain where dlmap is meant to run.
+- **Not done (budget)**: the per-part body table, `vr_depth_float 0`, the resolution step, Quest eyeshots of the pairs,
+  the foveation measurement (`vr_xr_direct 1` + `-xrfoveation`, `vr_xr_foveation 3`). What blocks vr_xr_direct as a
+  default (from its help and 6v): no post-process at all (no tone curve: bright colours clip; no bloom, grade, AA
+  resolve), single-pass stereo off (each eye drawn alone: more CPU and draws), only the scene reaches the swapchain.
+  Why Quake's way on the body is slower is open (both its forms the same: the form's program itself, not its light).
