@@ -30,8 +30,9 @@ float(entity g, entity p) VR_AGS_Frame;
 void(entity xFrom, vector xA, vector xB, vector xDir, float xDamage, float xKind) VR_PD_Shot;
 // PlayerPostThink: the projectiles through `pl`'s weapons and hands, the rolls due.
 void(entity pl) VR_PD_Frame;
-// VR_Parry: a blow with a line by `by` that landed (no parry) meeting `pl`'s weapon in hand `h` `gap` units off its line.
-void(entity pl, entity by, float h, float damage, float gap) VR_PD_Blow;
+// VR_Parry: a blow by `by` that landed (no parry): `line` one with a line, meeting `pl`'s weapon in hand `h` `gap` units
+// off its line (-1: none, on the body).
+void(entity pl, entity by, float h, float damage, float gap, float line) VR_PD_Blow;
 
 // vr_agrunt_test 50..59 (vr_armedgrunt_shot_test.qc).
 #ifdef QVR_TESTS

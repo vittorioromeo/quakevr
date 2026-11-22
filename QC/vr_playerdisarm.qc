@@ -25,10 +25,37 @@
 // - Knocked out: the hand's weapon drops as it does when the grip is lost (vr_wpnholster.qc DropWeaponInHandScaled at
 //   vr_weight_drop_velocity: a world weapon with its record: its clip, its ammo), pushed along the shots' way; sparks, a
 //   ricochet, the hand's buzz, a flash, a line.
+//
+// PvE's own rule (disarmfix, BACKLOG 6, 2026-11-22: "very inconsistent: hard to predict"): the above stays for PvP (another
+// player's or a bot's shots and blows, vr_player_disarm_pvp: as it was). A monster's (and the world's) hits on your weapon
+// or the hand holding it give jolts, no dice; vr_player_disarm_jolts (2) jolts on one hand within vr_player_disarm_window
+// (3 s, from the last) knock its weapon out; each one short is the warning (the hand knocked aside, a buzz, a rattle, a
+// line). What gives a jolt, by blow type and strength (the hit tests as above):
+//   - a blow with a line (a sword, an axe, a chainsaw, an armed humanoid's swing) landing on your weapon or its hand, not
+//     parried: 1, or 2 when heavy (vr_player_disarm_heavy damage: at once). Any damage (the old 10-damage floor left a
+//     knight's sword, 9 at most, never disarming).
+//   - a blow landing on your body, not parried: an armed humanoid's fist, butt or shove 1; any other blow 1 when heavy;
+//     a lighter one (a bite, a claw, a blade on your body) none. On the held weapon's hand nearest the attacker.
+//   - shots and projectiles on your weapon or its hand (pellets, nails, lasers, bolts, grenades, a vore's ball): their
+//     damage (times vr_agrunt_shotdisarm_w_* and _weapon_w / _hand_w; a projectile in full within _proj_near of them, a
+//     hitscan shot at half within _near) adds up over vr_agrunt_shotdisarm_window; each
+//     vr_player_disarm_shot of it is a jolt (a full grunt's blast on your gun 2: out; an enforcer's laser 1; a nail none,
+//     two 1; an ogre's grenade: out).
+// vr_player_disarm_chance: the knock-out's chance once the jolts are reached (1: certain; a lost roll leaves it one short).
+// Blows are read in the parry's resolution (combat.qc VR_Parry): with vr_parry 0 only shots disarm.
 
 .entity vr_pd_main; // the main hand's holder of the adding up (spawned at its first hit)
 .entity vr_pd_off;  // ... the off hand's
 .float vr_pd_projwon; // a holder: a projectile's own roll won (VR_PD_Frame knocks it out)
+.float vr_pd_jolts;   // a holder (PvE): jolts on the hand now,
+.float vr_pd_jolt_t;  // ... when the last came (vr_player_disarm_window from it: gone),
+.float vr_pd_jnew;    // ... jolts since its last frame (VR_PD_Frame: the warning or the knock-out),
+.vector vr_pd_jdir;   // ... their way,
+.string vr_pd_jwhy;   // ... the last one's cause,
+.float vr_pd_sum;     // ... shots' damage adding up,
+.float vr_pd_sum_t;   // ... from when (vr_agrunt_shotdisarm_window)
+float vr_pd_jolted;   // jolts given (the tests),
+float vr_pd_warns;    // ... warnings (a jolt short of the knock-out)
 
 float vr_pd_hits;      // hits counted on your weapons and hands (the tests),
 float vr_pd_rolls;     // ... rolls,
@@ -127,6 +154,15 @@ void(entity pl, vector a, vector b, float near) VR_PD_Meet =
     }
 };
 
+// A hit met at `at`: on the weapon (vr_pd_part 1), a few sparks (metal struck).
+void(vector at) VR_PD_Struck =
+{
+    if(vr_pd_part == 1)
+    {
+        particle2(at, '0 0 20', QVR_PARTICLE_PRESET_SPARKS, 2);
+    }
+};
+
 // `amount` more on `pl`'s hand `h` (met at `at`, going `dir`, by `by`).
 void(entity pl, float h, float amount, vector dir, entity by, vector at, string what) VR_PD_Add =
 {
@@ -142,10 +178,7 @@ void(entity pl, float h, float amount, vector dir, entity by, vector at, string 
         VR_PD_Log(sprintf("%s: %.1f, cooling down (%.2f s)", what, amount, st.vr_ags_cool - time));
         return;
     }
-    if(vr_pd_part == 1)
-    {
-        particle2(at, '0 0 20', QVR_PARTICLE_PRESET_SPARKS, 2); // (metal struck)
-    }
+    VR_PD_Struck(at);
     VR_PD_Log(sprintf("%s: %.1f, %.1f of %g", what, amount, st.vr_ags_acc,
         max(0.01, cvar_hget(cvarh_vr_agrunt_shotdisarm_damage))));
 };
@@ -236,6 +269,100 @@ void(entity pl, float h, vector dir, float speed, string why) VR_PD_Disarm =
     }
 };
 
+// Whether what `by` does to a player goes by the PvP rule (the armed humanoids' adding up and rolls: as it was) rather than
+// PvE's jolts.
+float(entity by) VR_PD_PvP =
+{
+    return (by.flags & FL_CLIENT) != 0;
+};
+
+// PvE: `n` jolts on `pl`'s hand `h` (going `dir`; `why`): VR_PD_Frame warns or knocks it out.
+void(entity pl, float h, float n, vector dir, string why) VR_PD_Jolt =
+{
+    if(n <= 0 || h < 0 || VRIsHandWeaponless(pl, h))
+    {
+        return;
+    }
+    entity st = VR_PD_Holder(pl, h);
+    if(st.vr_pd_jolts > 0 && time - st.vr_pd_jolt_t > max(0, cvar_hget(cvarh_vr_player_disarm_window)))
+    {
+        st.vr_pd_jolts = 0; // (the grip recovered)
+    }
+    st.vr_pd_jolts = st.vr_pd_jolts + n;
+    st.vr_pd_jolt_t = time;
+    st.vr_pd_jnew = st.vr_pd_jnew + n;
+    st.vr_pd_jdir = dir;
+    st.vr_pd_jwhy = why;
+    vr_pd_jolted = vr_pd_jolted + n;
+    VR_PD_Log(sprintf("%s: %g jolt%s on hand %g (%g of %g)", why, n, n == 1 ? "" : "s", h, st.vr_pd_jolts,
+        max(1, cvar_hget(cvarh_vr_player_disarm_jolts))));
+};
+
+// PvE: a shot's or projectile's `amount` (weighted damage) on `pl`'s hand `h`: a jolt for each vr_player_disarm_shot it
+// adds up to over vr_agrunt_shotdisarm_window.
+void(entity pl, float h, float amount, vector dir, vector at, string what) VR_PD_ShotAdd =
+{
+    if(amount <= 0)
+    {
+        return;
+    }
+    entity st = VR_PD_Holder(pl, h);
+    vr_pd_hits = vr_pd_hits + 1;
+    if(st.vr_pd_sum <= 0 || time - st.vr_pd_sum_t > cvar_hget(cvarh_vr_agrunt_shotdisarm_window))
+    {
+        st.vr_pd_sum = 0;
+        st.vr_pd_sum_t = time;
+    }
+    float need = max(0.5, cvar_hget(cvarh_vr_player_disarm_shot));
+    float before = floor(st.vr_pd_sum / need);
+    st.vr_pd_sum = st.vr_pd_sum + amount;
+    float n = floor(st.vr_pd_sum / need) - before;
+    VR_PD_Struck(at);
+    VR_PD_Log(sprintf("%s: %.1f, %.1f of %g a jolt", what, amount, st.vr_pd_sum, need));
+    VR_PD_Jolt(pl, h, min(n, max(1, cvar_hget(cvarh_vr_player_disarm_jolts))), dir, what);
+};
+
+// PvE: the warning, a jolt short of the knock-out: the hand knocked aside, a buzz, a rattle at it, a line.
+void(entity pl, float h, vector dir) VR_PD_Warn =
+{
+    entity oldSelf = self;
+    self = pl; // (the hand's knock and buzz read self)
+    handimpact(h, 4, normalize(dir));
+    haptic(h, 0.0, 0.2, 90, 0.8);
+    self = oldSelf;
+    float vol = min(1, max(0, cvar_hget(cvarh_vr_player_disarm_sound)));
+    if(vol > 0)
+    {
+        sound(pl, CHAN_AUTO, "weapons/tink1.wav", vol, ATTN_NORM);
+    }
+    if(pl.flags & FL_CLIENT)
+    {
+        sprint(pl, "Your grip on your weapon loosens!\n");
+    }
+    vr_pd_warns = vr_pd_warns + 1;
+};
+
+// The hand of `pl`'s holding a weapon (not a fist) nearest `from` (-1: none).
+float(entity pl, vector from) VR_PD_NearHand =
+{
+    float best = -1;
+    float bestD = 0;
+    for(float h = 0; h <= 1; h++)
+    {
+        if(!VR_Parry_WeaponLine(pl, h))
+        {
+            continue;
+        }
+        float d = vlen(VRGetEntHandPos(pl, h) - from);
+        if(best < 0 || d < bestD)
+        {
+            best = h;
+            bestD = d;
+        }
+    }
+    return best;
+};
+
 void(entity xFrom, vector xA, vector xB, vector xDir, float xDamage, float xKind) VR_PD_Shot =
 {
     if(!VR_PD_ByOn(xFrom))
@@ -262,9 +389,17 @@ void(entity xFrom, vector xA, vector xB, vector xDir, float xDamage, float xKind
             {
                 float w = vr_pd_part == 1 ? cvar_hget(cvarh_vr_agrunt_shotdisarm_weapon_w) :
                     cvar_hget(cvarh_vr_agrunt_shotdisarm_hand_w);
-                VR_PD_Add(pl, vr_pd_hand, xDamage * VR_AGS_KindWeight(xKind) * w * (vr_pd_gap <= 0 ? 1 : 0.5), xDir, xFrom,
-                    xA + (b - xA) * vr_pd_s, sprintf("%s on your %s (hand %g)", VR_AGS_KindName(xKind),
-                    vr_pd_part == 1 ? "weapon" : "hand", vr_pd_hand));
+                float amt = xDamage * VR_AGS_KindWeight(xKind) * w * (vr_pd_gap <= 0 ? 1 : 0.5);
+                string what = sprintf("%s on your %s (hand %g)", VR_AGS_KindName(xKind), vr_pd_part == 1 ? "weapon" : "hand",
+                    vr_pd_hand);
+                if(VR_PD_PvP(xFrom))
+                {
+                    VR_PD_Add(pl, vr_pd_hand, amt, xDir, xFrom, xA + (b - xA) * vr_pd_s, what);
+                }
+                else
+                {
+                    VR_PD_ShotAdd(pl, vr_pd_hand, amt, xDir, xA + (b - xA) * vr_pd_s, what);
+                }
             }
         }
     }
@@ -338,7 +473,12 @@ void(entity pl) VR_PD_Projectiles =
                     cvar_hget(cvarh_vr_agrunt_shotdisarm_hand_w);
                 string what = sprintf("%s on your %s (hand %g)", VR_AGS_KindName(kind), vr_pd_part == 1 ? "weapon" : "hand",
                     vr_pd_hand);
-                if(rolls)
+                if(!VR_PD_PvP(e.owner))
+                {
+                    // (in full within vr_agrunt_shotdisarm_proj_near: a bolt or a nail has a size of its own)
+                    VR_PD_ShotAdd(pl, vr_pd_hand, dmg * VR_AGS_KindWeight(kind) * w, e.velocity, a + (b - a) * vr_pd_s, what);
+                }
+                else if(rolls)
                 {
                     float f = vr_pd_gap <= 0 ? 1 : (near > 0 ? max(0, 1 - vr_pd_gap / near) : 0);
                     float chance = VR_Disarm_ProjChance(dmg, kind, f * w, cvar_hget(cvarh_vr_player_disarm_chance));
@@ -369,8 +509,17 @@ void(entity pl) VR_PD_Frame =
     entity st;
     if(!VR_PD_Can(pl))
     {
-        if(pl.vr_pd_main) { pl.vr_pd_main.vr_ags_pend = FALSE; pl.vr_pd_main.vr_pd_projwon = FALSE; }
-        if(pl.vr_pd_off) { pl.vr_pd_off.vr_ags_pend = FALSE; pl.vr_pd_off.vr_pd_projwon = FALSE; }
+        for(float c = 0; c <= 1; c++)
+        {
+            st = c == cVR_MainHand ? pl.vr_pd_main : pl.vr_pd_off;
+            if(st)
+            {
+                st.vr_ags_pend = FALSE;
+                st.vr_pd_projwon = FALSE;
+                st.vr_pd_jnew = 0;
+                st.vr_pd_jolts = 0;
+            }
+        }
         return;
     }
     VR_PD_Projectiles(pl);
@@ -380,6 +529,36 @@ void(entity pl) VR_PD_Frame =
         if(st == world)
         {
             continue;
+        }
+        // PvE's jolts (VR_PD_Jolt): enough, knocked out; one short, the warning.
+        if(st.vr_pd_jnew > 0)
+        {
+            st.vr_pd_jnew = 0;
+            float need = max(1, cvar_hget(cvarh_vr_player_disarm_jolts));
+            if(VRIsHandWeaponless(pl, h))
+            {
+                st.vr_pd_jolts = 0;
+            }
+            else if(st.vr_pd_jolts >= need)
+            {
+                float jc = min(1, max(0, cvar_hget(cvarh_vr_player_disarm_chance)));
+                float jr = random();
+                vr_pd_rolls = vr_pd_rolls + 1;
+                if(jc >= 1 || jr < jc)
+                {
+                    st.vr_pd_jolts = 0;
+                    st.vr_pd_sum = 0;
+                    VR_PD_Disarm(pl, h, st.vr_pd_jdir, 150 + 75 * need, st.vr_pd_jwhy);
+                    continue;
+                }
+                VR_PD_Log(sprintf("hand %g: %g jolts, chance %.2f, rolled %.2f: holds on", h, st.vr_pd_jolts, jc, jr));
+                st.vr_pd_jolts = need - 1;
+                VR_PD_Warn(pl, h, st.vr_pd_jdir);
+            }
+            else
+            {
+                VR_PD_Warn(pl, h, st.vr_pd_jdir);
+            }
         }
         if(st.vr_pd_projwon)
         {
@@ -409,14 +588,44 @@ void(entity pl) VR_PD_Frame =
     }
 };
 
-void(entity pl, entity by, float h, float damage, float gap) VR_PD_Blow =
+// A blow of `by`'s that landed on `pl` (not parried, not on crossed arms: combat.qc VR_Parry), `damage` as it lands;
+// `line`: a blow with a line (the directional parry's), and `h` the hand whose weapon it met at `gap` units (-1: none).
+float vr_pd_blows; // landed blows read (the tests)
+void(entity pl, entity by, float h, float damage, float gap, float line) VR_PD_Blow =
 {
-    if(!VR_PD_On(pl, by) || h < 0 || VRIsHandWeaponless(pl, h))
+    if(!VR_PD_On(pl, by) || damage <= 0)
     {
         return;
     }
+    vr_pd_blows = vr_pd_blows + 1;
     float reach = max(0.5, cvar_hget(cvarh_vr_dirparry_contact)) + max(0, cvar_hget(cvarh_vr_agrunt_vol_blow));
-    if(gap > reach || damage < cvar_hget(cvarh_vr_agrunt_disarm_damage))
+    if(!VR_PD_PvP(by))
+    {
+        // PvE: jolts by the blow's type and strength.
+        float heavy = damage >= max(1, cvar_hget(cvarh_vr_player_disarm_heavy));
+        if(h >= 0 && !VRIsHandWeaponless(pl, h) && gap <= reach)
+        {
+            VR_PD_Jolt(pl, h, heavy ? 2 : 1, VRGetEntHandPos(pl, h) - by.origin, sprintf("%s's %sblow of %g on your weapon",
+                by.classname, heavy ? "heavy " : "", damage));
+            return;
+        }
+        float fist = !line && (by.vr_ag || by.vr_eshove_striking); // (an armed humanoid's punch, butt or shove)
+        if(!fist && !heavy)
+        {
+            VR_PD_Log(sprintf("%s's blow of %g on your body: too light to jolt", by.classname, damage));
+            return;
+        }
+        float nh = VR_PD_NearHand(pl, by.origin);
+        if(nh < 0)
+        {
+            return; // (no weapon held: nothing to knock out)
+        }
+        VR_PD_Jolt(pl, nh, 1, VRGetEntHandPos(pl, nh) - by.origin, sprintf("%s's %s of %g on your body", by.classname,
+            fist ? "fist" : "heavy blow", damage));
+        return;
+    }
+    // PvP: as it was (a blow landing on your weapon, at least vr_agrunt_disarm_damage, rolls vr_player_disarm_chance).
+    if(h < 0 || VRIsHandWeaponless(pl, h) || gap > reach || damage < cvar_hget(cvarh_vr_agrunt_disarm_damage))
     {
         return;
     }
