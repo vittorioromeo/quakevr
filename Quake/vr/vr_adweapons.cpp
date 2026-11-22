@@ -116,9 +116,9 @@ struct Recipe
     bool keepOpen{false};
     float keepScale{0.f};
     // Dwell support (dwellrotary): a band of the source's skin painted over from other rows of it (null: none), and up to
-    // three more pieces taken off (as `drop`; -1 none).
+    // eleven more pieces taken off (as `drop`; -1 none: a recipe that gives any lists all eleven).
     const SkinPatch* skinPatch{nullptr};
-    int dropMore[3]{-1, -1, -1};
+    int dropMore[11]{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 };
 
 // Texels s0..s1 of rows t0..t1 of the made skin copied from rows further down the same columns: those before `split`
@@ -182,7 +182,7 @@ const Recipe recipes[] = {
         {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.8f, {-2.88f, -0.11f, -20.71f}, {0.6f, 0.f, 2.6f}, {4, -1, -1}, false, {0.f, 0.f, 0.f},
         0.f, {"progs/v_shot2.mdl", 0, 0, 0, 0}, {151, 241, 281}, {-15.5775f, -4.6938f, -4.2402f}, false, {0.f, 0.f, 0.f},
         {0.f, 0.f, 0.f}, "progs/v_shot2.mdl", true, noRect, rotaryParts, -1, {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f},
-        -1, false, 0.f, &rotaryFlashPatch, {0, 44, -1}},
+        -1, false, 0.f, &rotaryFlashPatch, {0, 28, 106, 114, 172, 206, 228, 236, 241, -1, -1}},
     {"progs/dw_rail.mdl#vr", {"progs/v_rail.mdl", 311, 339, 256, 256, "dwell"}, "frame1", {23.6f, 0.f, 6.7f},
         {-6.7f, 0.f, 23.6f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.88f, {11.94f, -0.17f, -18.17f}, {-4.f, 0.f, 6.2f}, {-1, -1, -1},
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_light.mdl", 0, 0, 0, 0}, {234, 403, 493}, {-5.6211f, -9.3429f, -6.0018f}, false,
@@ -216,7 +216,7 @@ const Recipe recipes[] = {
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_nail2.mdl", 0, 0, 0, 0}, {-1, -1, -1}, {-5.1024f, -7.6303f, -8.4464f},
         false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_nail2.mdl", true, noRect, rotaryGauntletParts, -1,
         {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f}, -1, false, 0.f, &rotaryFlashPatch,
-        {0, 11, 129}},
+        {0, 11, 129, 28, 106, 114, 172, 206, 228, 236, 241}},
 };
 
 // The Plasma Gun's cell (the lightning gun's magazine and well, made by make_mags.py in v_light.mdl's space: the cell
@@ -1510,6 +1510,9 @@ constexpr Housing rifleHousingSpec{{0.f, 2.745f}, -1, 0.905f, 27, 31, 12, 3, 4, 
 // (x 16.66) to their front (37.23), separate down to 1.66 from the axis between them, round a core rod (radius 1.3) that
 // stops 0.8 short of the front; each barrel's front a ring in to its bore (radius 0.95, 2 deep, black). Dwell's barrel
 // strips on them (a lobe's three faces across, its front section on the last 4.63), all turning as Dwell's did.
+void frameBox(Out& o, const glm::vec3& origin, const glm::vec3& u, const glm::vec3& v, const glm::vec3& n, const glm::vec3& lo,
+    const glm::vec3& hi, const Rect& r);
+
 void dwBarrels(Parts& p)
 {
     Out& o = p.o;
@@ -1533,6 +1536,20 @@ void dwBarrels(Parts& p)
         barrel(p, c + d * (2.35f * k), 1.6f * k, 0.95f * k, x0, x1, 4.63f * k, 2.f * k, body, front, breech);
     }
     extrude(o, circle(c, 1.3f * k), x0, x1 - 0.8f * k, &core, 1, false, true, &breech, &breech);
+    // Dwell's clamps (open three-faced pieces in the cross's inner corners, seen through once the barrels are apart:
+    // taken off too) made again closed: a block in each gap between two barrels, 1.4..3.3 out from the axis and 1 wide,
+    // bridging them, at Dwell's two places along them (x 22.06..23.86, 29.26..31.31), on Dwell's clamp texels.
+    const Rect clampTex{1.f, 182.f, 15.f, 204.f, false};
+    for(const glm::vec2 xs : {glm::vec2{22.06f, 23.86f}, glm::vec2{29.26f, 31.31f}})
+    {
+        const float cx0 = lay({xs.x, 0.f, 0.f}).x, cx1 = lay({xs.y, 0.f, 0.f}).x;
+        for(const glm::vec2 d : {glm::vec2{1.f, 1.f}, glm::vec2{-1.f, 1.f}, glm::vec2{-1.f, -1.f}, glm::vec2{1.f, -1.f}})
+        {
+            const glm::vec2 out = d * 0.70711f, side{-out.y, out.x};
+            frameBox(o, glm::vec3{0.f, c.x, c.y}, glm::vec3{1.f, 0.f, 0.f}, glm::vec3{0.f, out.x, out.y},
+                glm::vec3{0.f, side.x, side.y}, {cx0, 1.4f * k, -0.5f * k}, {cx1, 3.3f * k, 0.5f * k}, clampTex);
+        }
+    }
     o.spinning = false;
     p.capS = capS;
     p.capT = capT;
