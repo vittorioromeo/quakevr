@@ -2,13 +2,13 @@
 
 #include "vr_slottable.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
 
 #include <stdlib.h>
-#include <string.h>
 
 namespace qvr
 {
@@ -34,14 +34,14 @@ bool readDataFile(const DataFileSpec& spec, za::Span<za::String> defaults, za::V
     while((data = COM_Parse(data)) != nullptr)
     {
         int slot = -1; // (the defaults block)
-        if(!strcmp(com_token, spec.block))
+        if(!ZA_STRCMP(com_token, spec.block))
         {
             data = COM_Parse(data);
             if(data && !spec.slotNames.empty())
             {
                 for(za::SizeT s = 0; s < spec.slotNames.size(); s++)
                 {
-                    if(!strcmp(com_token, spec.slotNames[s]))
+                    if(!ZA_STRCMP(com_token, spec.slotNames[s]))
                     {
                         slot = static_cast<int>(s);
                     }
@@ -62,18 +62,18 @@ bool readDataFile(const DataFileSpec& spec, za::Span<za::String> defaults, za::V
                 break;
             }
         }
-        else if(strcmp(com_token, "defaults") != 0)
+        else if(ZA_STRCMP(com_token, "defaults") != 0)
         {
             Con_Printf("\x02%s: \"%s\": expected \"defaults\" or \"%s <slot>\"\n", spec.path, com_token, spec.block);
             break;
         }
         data = COM_Parse(data);
-        if(!data || strcmp(com_token, "{") != 0)
+        if(!data || ZA_STRCMP(com_token, "{") != 0)
         {
             Con_Printf("\x02%s: expected \"{\" after a block's name\n", spec.path);
             break;
         }
-        while((data = COM_Parse(data)) != nullptr && strcmp(com_token, "}") != 0)
+        while((data = COM_Parse(data)) != nullptr && ZA_STRCMP(com_token, "}") != 0)
         {
             za::String name{com_token};
             data = COM_Parse(data);

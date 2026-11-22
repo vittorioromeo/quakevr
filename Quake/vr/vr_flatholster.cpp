@@ -20,6 +20,7 @@
 
 #include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -29,7 +30,6 @@
 #include "vr_zancle.hpp"
 
 #include <stdio.h>
-#include <string.h>
 
 extern "C" qboolean keydown[MAX_KEYS];             // keys.c
 extern "C" int Key_StringToKeynum(const char* str); // keys.c
@@ -1112,7 +1112,7 @@ void testStep()
             {
                 result(true, "DROP BOTH: both hands empty");
                 result(!c.flippable[0] && !c.flippable[1], "FLIP GRIP greyed with empty hands");
-                result(!strcmp(notectx::weaponName(WID_SWORD, 3072), "dagger") && !strcmp(notectx::weaponName(WID_SWORD, 0), "sword"),
+                result(!ZA_STRCMP(notectx::weaponName(WID_SWORD, 3072), "dagger") && !ZA_STRCMP(notectx::weaponName(WID_SWORD, 0), "sword"),
                     "the menu names a dagger (a sword of kind 12) 'dagger', a plain sword 'sword'");
                 Cbuf_AddText("impulse 163\n");
                 test.sub = 1;
@@ -1181,7 +1181,7 @@ void testStep()
                 char line[160];
                 q_snprintf(line, sizeof(line), "a holstered dagger's slot reads '%s' (the hands' 'sword' fix, now the holsters')",
                     holsterSlotName(c, 0));
-                result(!strcmp(holsterSlotName(c, 0), "dagger"), line);
+                result(!ZA_STRCMP(holsterSlotName(c, 0), "dagger"), line);
                 const progs::ServerVm vm;
                 if(edict_t* pl = progs::localPlayer())
                 {

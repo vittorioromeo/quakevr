@@ -19,6 +19,10 @@
 #include "vr_api.h"
 
 #include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 
 namespace
 {
@@ -93,7 +97,7 @@ void prune(Product p, const za::String& kindDir, const char* build)
     QVR_TRACY_SCOPE(tracyScope, "disk cache prune");
     za::Vector<za::String> others;
     qvr::files::forEachEntry(kindDir.cStr(), [&](const char* name, bool) {
-        if(strcmp(name, build) != 0)
+        if(ZA_STRCMP(name, build) != 0)
         {
             others.pushBack(kindDir + "/" + name);
         }
@@ -174,7 +178,7 @@ bool readFile(const za::String& path, const char (&magic)[5], unsigned& a, unsig
     char m[4];
     unsigned header[3];
     bool ok = size >= headerSize && fread(m, 1, sizeof(m), in) == sizeof(m) &&
-              fread(header, 1, sizeof(header), in) == sizeof(header) && memcmp(m, magic, 4) == 0 && header[0] == version;
+              fread(header, 1, sizeof(header), in) == sizeof(header) && ZA_MEMCMP(m, magic, 4) == 0 && header[0] == version;
     if(ok)
     {
         a = header[1];
@@ -368,7 +372,7 @@ int readRgbaAt(const za::String& folder, unsigned long long key, unsigned char* 
     {
         return 3;
     }
-    memcpy(rgba, data.data(), data.size());
+    ZA_MEMCPY(rgba, data.data(), data.size());
     seconds = Sys_DoubleTime() - t0;
     return 1;
 }
@@ -401,11 +405,11 @@ void write(Product p, const char* build, unsigned long long key, const char* ext
     za::Vector<unsigned char> bytes;
     const unsigned header[3] = {version, a, b};
     bytes.resize(4 + sizeof(header) + length);
-    memcpy(bytes.data(), magic, 4);
-    memcpy(bytes.data() + 4, header, sizeof(header));
+    ZA_MEMCPY(bytes.data(), magic, 4);
+    ZA_MEMCPY(bytes.data() + 4, header, sizeof(header));
     if(length)
     {
-        memcpy(bytes.data() + 4 + sizeof(header), data, length);
+        ZA_MEMCPY(bytes.data() + 4 + sizeof(header), data, length);
     }
     while(!writes.empty() && writes.front().ready())
     {
@@ -505,7 +509,7 @@ namespace
         qvr::diskcache::noteRejected(p);
         return 0;
     }
-    memcpy(rgba, data.data(), data.size());
+    ZA_MEMCPY(rgba, data.data(), data.size());
     return 1;
 }
 
@@ -621,13 +625,13 @@ void progLoad()
         progCache.loadNote = "no pack for this driver yet (the first start, a new driver or a cleared cache)";
         return;
     }
-    if(bytes.size() < 12 || memcmp(bytes.data(), progMagic, 4) != 0)
+    if(bytes.size() < 12 || ZA_MEMCMP(bytes.data(), progMagic, 4) != 0)
     {
         progCache.loadNote = "the pack is not one (cut short or damaged): every program made again";
         return;
     }
     unsigned header[2];
-    memcpy(header, bytes.data() + 4, sizeof(header));
+    ZA_MEMCPY(header, bytes.data() + 4, sizeof(header));
     if(header[0] != progVersion && header[0] != 1)
     {
         progCache.loadNote = "the pack is an older layout: every program made again";
@@ -643,7 +647,7 @@ void progLoad()
             progCache.loadNote = "the pack is not one (cut short or damaged): every program made again";
             return;
         }
-        memcpy(&packSession, bytes.data() + 12, 4);
+        ZA_MEMCPY(&packSession, bytes.data() + 12, 4);
         at = 16;
     }
     progCache.session = packSession + 1;
@@ -657,13 +661,13 @@ void progLoad()
         {
             break;
         }
-        memcpy(&e.key, bytes.data() + at, 8);
-        memcpy(&e.format, bytes.data() + at + 8, 4);
-        memcpy(&length, bytes.data() + at + 12, 4);
+        ZA_MEMCPY(&e.key, bytes.data() + at, 8);
+        ZA_MEMCPY(&e.format, bytes.data() + at + 8, 4);
+        ZA_MEMCPY(&length, bytes.data() + at + 12, 4);
         e.session = packSession;
         if(stamped)
         {
-            memcpy(&e.session, bytes.data() + at + 16, 4);
+            ZA_MEMCPY(&e.session, bytes.data() + at + 16, 4);
         }
         at += entryHead;
         if(length > bytes.size() - at)
@@ -671,7 +675,7 @@ void progLoad()
             break;
         }
         e.data.resize(length);
-        memcpy(e.data.data(), bytes.data() + at, length);
+        ZA_MEMCPY(e.data.data(), bytes.data() + at, length);
         at += length;
         progCache.entries.pushBack(static_cast<ProgEntry&&>(e));
     }
@@ -728,21 +732,21 @@ void progWrite()
     za::Vector<char> bytes;
     const unsigned header[3] = {progVersion, static_cast<unsigned>(progCache.entries.size()), progCache.session};
     bytes.resize(16);
-    memcpy(bytes.data(), progMagic, 4);
-    memcpy(bytes.data() + 4, header, sizeof(header));
+    ZA_MEMCPY(bytes.data(), progMagic, 4);
+    ZA_MEMCPY(bytes.data() + 4, header, sizeof(header));
     for(const ProgEntry& e : progCache.entries)
     {
         const size_t at = bytes.size();
         const unsigned length = static_cast<unsigned>(e.data.size());
         const unsigned session = e.used ? progCache.session : e.session;
         bytes.resize(at + 20 + length);
-        memcpy(bytes.data() + at, &e.key, 8);
-        memcpy(bytes.data() + at + 8, &e.format, 4);
-        memcpy(bytes.data() + at + 12, &length, 4);
-        memcpy(bytes.data() + at + 16, &session, 4);
+        ZA_MEMCPY(bytes.data() + at, &e.key, 8);
+        ZA_MEMCPY(bytes.data() + at + 8, &e.format, 4);
+        ZA_MEMCPY(bytes.data() + at + 12, &length, 4);
+        ZA_MEMCPY(bytes.data() + at + 16, &session, 4);
         if(length)
         {
-            memcpy(bytes.data() + at + 20, e.data.data(), length);
+            ZA_MEMCPY(bytes.data() + at + 20, e.data.data(), length);
         }
     }
     // The file written on the game's pool (the pack is up to 128 MB: a program made in play, or a queued set's
@@ -791,7 +795,7 @@ extern "C" int VR_ProgCacheOn(void)
 
 extern "C" unsigned long long VR_ProgCacheKey(unsigned long long h, const char* text)
 {
-    const size_t n = text ? strlen(text) : 0;
+    const size_t n = text ? ZA_STRLEN(text) : 0;
     h = qvr::diskcache::wideHash(h ? h : qvr::diskcache::fnvStart, &n, sizeof(n)); // (each part's length first: no run-ons)
     return qvr::diskcache::wideHash(h, text ? text : "", n);
 }
@@ -861,7 +865,7 @@ extern "C" void VR_ProgCacheAdd(unsigned long long key, unsigned format, const v
     e->format = format;
     e->used = true;
     e->data.resize(static_cast<size_t>(length));
-    memcpy(e->data.data(), data, static_cast<size_t>(length));
+    ZA_MEMCPY(e->data.data(), data, static_cast<size_t>(length));
     progCache.dirty = true;
     if(!progCache.batch)
     {

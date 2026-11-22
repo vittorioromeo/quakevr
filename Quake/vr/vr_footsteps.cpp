@@ -38,6 +38,7 @@
 #include "vr_testkit.hpp"
 
 #include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -586,7 +587,7 @@ void info_f()
         for(int i = 0; i < state.numModels; i++)
         {
             const ModelSteps& m = state.models[i];
-            if(!m.ok || !strstr(m.model->name, Cmd_Argv(1)))
+            if(!m.ok || !ZA_STRSTR(m.model->name, Cmd_Argv(1)))
             {
                 continue;
             }

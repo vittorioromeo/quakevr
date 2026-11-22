@@ -15,12 +15,14 @@
 #include "vr_tunables_api.hpp"
 #include "vr_mem.hpp"
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 #include <math.h>
-#include <string.h>
 
 namespace qvr::clientprefs
 {
@@ -274,7 +276,7 @@ void rig_f()
     const int total = Q_atoi(Cmd_Argv(3));
     const int first = Q_atoi(Cmd_Argv(4));
     const char* hex = Cmd_Argv(5);
-    const int len = !strcmp(hex, "-") ? 0 : static_cast<int>(strlen(hex));
+    const int len = !ZA_STRCMP(hex, "-") ? 0 : static_cast<int>(ZA_STRLEN(hex));
     if(total < 0 || total > maxFistSpheres || first < 0 || len % 16 != 0 || first + len / 16 > total)
     {
         return;
@@ -413,7 +415,7 @@ void sendFrame()
         }
         MSG_WriteByte(&cls.message, clc_stringcmd);
         MSG_WriteString(&cls.message, text);
-        memcpy(state.frameSent[hand], v, sizeof(v));
+        ZA_MEMCPY(state.frameSent[hand], v, sizeof(v));
         state.frameWasSent[hand] = true;
         state.nextFrameSend = realtime + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
         return;
@@ -538,7 +540,7 @@ void mpPrefs_f()
         for(int i = 0; i < prefCount; i++)
         {
             const cvar_t* var = state.vars[i];
-            if(var && var->default_string && strcmp(var->string, var->default_string) != 0)
+            if(var && var->default_string && ZA_STRCMP(var->string, var->default_string) != 0)
             {
                 Con_Printf(" %s=%g", prefNames[i], var->value);
             }
@@ -700,7 +702,7 @@ void send()
     }
     MSG_WriteByte(&cls.message, clc_stringcmd);
     MSG_WriteString(&cls.message, text);
-    memcpy(state.lastSent, now, sizeof(now));
+    ZA_MEMCPY(state.lastSent, now, sizeof(now));
     state.sent = true;
     state.nextSend = realtime + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
 }

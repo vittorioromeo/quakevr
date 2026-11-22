@@ -82,6 +82,7 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Asin.hpp"
@@ -551,7 +552,7 @@ struct Sighted
     }
     const glm::vec3 end = org + dir * aimFar;
     CrossMemo& m = crossMemo;
-    if(m.armed && m.valid && !memcmp(&m.org, &org, sizeof(org)) && !memcmp(&m.end, &end, sizeof(end)))
+    if(m.armed && m.valid && !ZA_MEMCMP(&m.org, &org, sizeof(org)) && !ZA_MEMCMP(&m.end, &end, sizeof(end)))
     {
         return m.point;
     }

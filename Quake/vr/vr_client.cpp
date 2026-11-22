@@ -91,13 +91,14 @@
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 using namespace qvr;
 using namespace qvr::protocol;
@@ -720,7 +721,7 @@ void parsePrecacheModel()
         Host_Error("svc_quakevr: bad model precache index %d", index);
     }
 
-    if(cl.model_precache[index] && !strcmp(cl.model_precache[index]->name, name))
+    if(cl.model_precache[index] && !ZA_STRCMP(cl.model_precache[index]->name, name))
     {
         return; // (a datagram's repeat of one known: VR_WriteRecentPrecaches)
     }
@@ -748,7 +749,7 @@ void parsePrecacheSound()
         Host_Error("svc_quakevr: bad sound precache index %d", index);
     }
 
-    if(cl.sound_precache[index] && !strcmp(cl.sound_precache[index]->name, name))
+    if(cl.sound_precache[index] && !ZA_STRCMP(cl.sound_precache[index]->name, name))
     {
         return; // (a datagram's repeat: VR_WriteRecentPrecaches)
     }
@@ -1334,27 +1335,27 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
     const qmodel_t* model = weapons::heldModel(hand);
     const char* n = model ? model->name : "";
     // (the plasma ones first: our Thunderbolt's plasma variant is v_light_plasma.mdl; AD's Plasma Gun v_plasma.mdl#vr)
-    if(strstr(n, "v_light_plasma") || strstr(n, "v_plasma"))
+    if(ZA_STRSTR(n, "v_light_plasma") || ZA_STRSTR(n, "v_plasma"))
     {
         color(0.6f, 0.8f, 1.f);
     }
-    else if(strstr(n, "dw_rail") || strstr(n, "dw_lance")) // (Dwell's Crystal Lance: its crystals' violet)
+    else if(ZA_STRSTR(n, "dw_rail") || ZA_STRSTR(n, "dw_lance")) // (Dwell's Crystal Lance: its crystals' violet)
     {
         color(0.8f, 0.55f, 1.f);
     }
-    else if(strstr(n, "v_light"))
+    else if(ZA_STRSTR(n, "v_light"))
     {
         color(0.55f, 0.7f, 1.f);
     }
-    else if(strstr(n, "v_laserg"))
+    else if(ZA_STRSTR(n, "v_laserg"))
     {
         color(1.f, 0.35f, 0.3f);
     }
-    else if(strstr(n, "v_nail") || strstr(n, "v_lava"))
+    else if(ZA_STRSTR(n, "v_nail") || ZA_STRSTR(n, "v_lava"))
     {
         color(1.f, 0.65f, 0.35f);
     }
-    else if(strstr(n, "v_rock") || strstr(n, "v_prox") || strstr(n, "v_multi"))
+    else if(ZA_STRSTR(n, "v_rock") || ZA_STRSTR(n, "v_prox") || ZA_STRSTR(n, "v_multi"))
     {
         color(1.f, 0.55f, 0.3f);
     }

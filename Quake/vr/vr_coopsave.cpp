@@ -19,6 +19,9 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_progs.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 
@@ -90,7 +93,7 @@ int rejoining[MAX_SCOREBOARD]; // a slot's player back as a leaver: his leavers[
     }
     for(int i = 0; i < MAX_SCOREBOARD; i++)
     {
-        if(leavers[i].used && !strcmp(leavers[i].name, name) && !strcmp(leavers[i].key, key ? key : ""))
+        if(leavers[i].used && !ZA_STRCMP(leavers[i].name, name) && !ZA_STRCMP(leavers[i].key, key ? key : ""))
         {
             return i;
         }
@@ -162,7 +165,7 @@ extern "C" int VR_ReadCoopLines(const char* text, const char* relname)
     {
         s = Slot{};
     }
-    const char* line = text ? strstr(text, "\n// qvr_coop ") : nullptr;
+    const char* line = text ? ZA_STRSTR(text, "\n// qvr_coop ") : nullptr;
     if(!line)
     {
         return 1;
@@ -183,7 +186,7 @@ extern "C" int VR_ReadCoopLines(const char* text, const char* relname)
     load.format = format;
     load.maxclients = maxclients;
     load.coop = isCoop;
-    for(const char* p = strstr(line + 1, "\n// qvr_coopslot "); p; p = strstr(p + 1, "\n// qvr_coopslot "))
+    for(const char* p = ZA_STRSTR(line + 1, "\n// qvr_coopslot "); p; p = ZA_STRSTR(p + 1, "\n// qvr_coopslot "))
     {
         const char* at = p + 1 + 16; // ("// qvr_coopslot ")
         char* end = nullptr;
@@ -266,9 +269,9 @@ extern "C" void VR_CoopApplyLoad(void)
             continue;
         }
         players++;
-        memcpy(svs.clients[i].spawn_parms, s.parms, sizeof(s.parms));
+        ZA_MEMCPY(svs.clients[i].spawn_parms, s.parms, sizeof(s.parms));
         float* ext = qvr::progs::clientExtParms(i);
-        memcpy(ext, s.ext, sizeof(s.ext));
+        ZA_MEMCPY(ext, s.ext, sizeof(s.ext));
     }
     Con_Printf("coop save: %d players of %d slots, each back in his slot\n", players, svs.maxclients);
 }
@@ -339,8 +342,8 @@ void swapSaved(int a, int b)
     load.pending[b] = p;
     for(const int i : {a, b})
     {
-        memcpy(svs.clients[i].spawn_parms, load.slots[i].parms, sizeof(load.slots[i].parms));
-        memcpy(qvr::progs::clientExtParms(i), load.slots[i].ext, sizeof(load.slots[i].ext));
+        ZA_MEMCPY(svs.clients[i].spawn_parms, load.slots[i].parms, sizeof(load.slots[i].parms));
+        ZA_MEMCPY(qvr::progs::clientExtParms(i), load.slots[i].ext, sizeof(load.slots[i].ext));
     }
 }
 
@@ -360,12 +363,12 @@ extern "C" int VR_CoopPickSlot(const char* name, const char* key, int isLocal)
     // his name, takes the host's saved slot and body). With no block of his he takes slot 0's saved player.
     if(isLocal && !svs.clients[0].active)
     {
-        if(sv.loadgame && load.coopLoaded && load.pending[0] && name && strcmp(load.slots[0].name, name) != 0)
+        if(sv.loadgame && load.coopLoaded && load.pending[0] && name && ZA_STRCMP(load.slots[0].name, name) != 0)
         {
             int own = -1;
             for(int i = 1; i < slots && own < 0 && *name; i++)
             {
-                own = !svs.clients[i].active && load.pending[i] && !strcmp(load.slots[i].name, name) ? i : -1;
+                own = !svs.clients[i].active && load.pending[i] && !ZA_STRCMP(load.slots[i].name, name) ? i : -1;
             }
             Con_Printf("coop save: the host %s takes slot 0, saved for %s (%s)\n", name, load.slots[0].name,
                 own >= 0 ? va("his own saved slot %d swapped with it", own) : "he has no saved slot of his own");
@@ -382,7 +385,7 @@ extern "C" int VR_CoopPickSlot(const char* name, const char* key, int isLocal)
     {
         for(int i = 0; i < slots; i++)
         {
-            if(!svs.clients[i].active && load.pending[i] && !strcmp(load.slots[i].name, name))
+            if(!svs.clients[i].active && load.pending[i] && !ZA_STRCMP(load.slots[i].name, name))
             {
                 Con_Printf("coop save: %s back in his saved slot %d\n", name, i);
                 return i;
@@ -419,7 +422,7 @@ extern "C" void VR_CoopNoteLeave(int slot)
         return;
     }
     client_t& c = svs.clients[slot];
-    if(!c.active || !c.spawned || !c.edict || !c.name[0] || !strcmp(c.name, "unconnected"))
+    if(!c.active || !c.spawned || !c.edict || !c.name[0] || !ZA_STRCMP(c.name, "unconnected"))
     {
         return;
     }
@@ -458,9 +461,9 @@ extern "C" void VR_CoopNoteLeave(int slot)
     l.left = realtime;
     q_strlcpy(l.name, c.name, sizeof(l.name));
     q_strlcpy(l.key, key, sizeof(l.key));
-    memcpy(l.startParms, c.spawn_parms, sizeof(l.startParms));
+    ZA_MEMCPY(l.startParms, c.spawn_parms, sizeof(l.startParms));
     float* ext = qvr::progs::clientExtParms(slot);
-    memcpy(l.startExt, ext, sizeof(l.startExt));
+    ZA_MEMCPY(l.startExt, ext, sizeof(l.startExt));
 
     // What he has now, as a level change carries it (QC's SetChangeParms on his player; dead: a new player's).
     const qvr::progs::ServerVm vm;
@@ -490,8 +493,8 @@ extern "C" void VR_CoopNoteLeave(int slot)
         }
     }
     VR_StoreSpawnParms(slot); // (the globals parm17.. into his slot's store, read back here, then his own again)
-    memcpy(l.nowExt, ext, sizeof(l.nowExt));
-    memcpy(ext, l.startExt, sizeof(l.startExt));
+    ZA_MEMCPY(l.nowExt, ext, sizeof(l.nowExt));
+    ZA_MEMCPY(ext, l.startExt, sizeof(l.startExt));
     Con_Printf("coop: %s left; what he had is kept for his return (health %g, items %d)\n", l.name,
         static_cast<double>(l.nowParms[1]), static_cast<int>(l.nowParms[0]));
 }
@@ -510,8 +513,8 @@ extern "C" void VR_CoopRejoinParms(int slot, const char* name, const char* key)
         return;
     }
     // His level-start parms for a respawn (setspawnparms); what he had goes to his spawn (VR_CoopRejoinSpawn).
-    memcpy(svs.clients[slot].spawn_parms, leavers[k].startParms, sizeof(leavers[k].startParms));
-    memcpy(qvr::progs::clientExtParms(slot), leavers[k].startExt, sizeof(leavers[k].startExt));
+    ZA_MEMCPY(svs.clients[slot].spawn_parms, leavers[k].startParms, sizeof(leavers[k].startParms));
+    ZA_MEMCPY(qvr::progs::clientExtParms(slot), leavers[k].startExt, sizeof(leavers[k].startExt));
     rejoining[slot] = k + 1;
 }
 
@@ -532,9 +535,9 @@ extern "C" void VR_CoopRejoinSpawn(int slot)
         (&pr_global_struct->parm1)[j] = l.nowParms[j];
     }
     float* ext = qvr::progs::clientExtParms(slot);
-    memcpy(ext, l.nowExt, sizeof(l.nowExt));
+    ZA_MEMCPY(ext, l.nowExt, sizeof(l.nowExt));
     VR_RestoreSpawnParms(slot); // (parm17.. from his slot's store into the globals)
-    memcpy(ext, l.startExt, sizeof(l.startExt));
+    ZA_MEMCPY(ext, l.startExt, sizeof(l.startExt));
     Con_Printf("coop: %s is back with what he had when he left (health %g, items %d)\n", l.name,
         static_cast<double>(l.nowParms[1]), static_cast<int>(l.nowParms[0]));
     l = Leaver{};
@@ -549,8 +552,8 @@ extern "C" void VR_CoopLevelChangeParms(void)
     {
         if(l.used)
         {
-            memcpy(l.startParms, l.nowParms, sizeof(l.startParms));
-            memcpy(l.startExt, l.nowExt, sizeof(l.startExt));
+            ZA_MEMCPY(l.startParms, l.nowParms, sizeof(l.startParms));
+            ZA_MEMCPY(l.startExt, l.nowExt, sizeof(l.startExt));
         }
     }
 }
@@ -568,7 +571,7 @@ extern "C" void VR_CoopNoteBots(void)
     for(int slot = 0; slot < svs.maxclients && slot < MAX_SCOREBOARD; slot++)
     {
         edict_t* e = EDICT_NUM(slot + 1);
-        if(svs.clients[slot].active || e->free || strcmp(PR_GetString(e->v.classname), "player") != 0 || !e->v.netname)
+        if(svs.clients[slot].active || e->free || ZA_STRCMP(PR_GetString(e->v.classname), "player") != 0 || !e->v.netname)
         {
             continue;
         }
@@ -598,11 +601,11 @@ extern "C" void VR_CoopNoteBots(void)
         }
         float* ext = qvr::progs::clientExtParms(slot);
         float keep[qvr::progs::numExtSpawnParms];
-        memcpy(keep, ext, sizeof(keep));
+        ZA_MEMCPY(keep, ext, sizeof(keep));
         VR_StoreSpawnParms(slot); // (the globals parm17.. into its slot's store, read back here, then the store as it was)
-        memcpy(l.nowExt, ext, sizeof(l.nowExt));
-        memcpy(l.startExt, ext, sizeof(l.startExt));
-        memcpy(ext, keep, sizeof(keep));
+        ZA_MEMCPY(l.nowExt, ext, sizeof(l.nowExt));
+        ZA_MEMCPY(l.startExt, ext, sizeof(l.startExt));
+        ZA_MEMCPY(ext, keep, sizeof(keep));
         Con_Printf("coop: bot %s's things kept for the next level (health %g, items %d)\n", l.name,
             static_cast<double>(l.nowParms[1]), static_cast<int>(l.nowParms[0]));
     }
@@ -622,10 +625,10 @@ extern "C" int VR_CoopBotParms(int slot, const char* name)
     }
     float* ext = qvr::progs::clientExtParms(slot);
     float keep[qvr::progs::numExtSpawnParms];
-    memcpy(keep, ext, sizeof(keep));
-    memcpy(ext, l.nowExt, sizeof(l.nowExt));
+    ZA_MEMCPY(keep, ext, sizeof(keep));
+    ZA_MEMCPY(ext, l.nowExt, sizeof(l.nowExt));
     VR_RestoreSpawnParms(slot); // (parm17.. from its slot's store into the globals)
-    memcpy(ext, keep, sizeof(keep));
+    ZA_MEMCPY(ext, keep, sizeof(keep));
     Con_Printf("coop: bot %s is back with what it had (health %g, items %d)\n", l.name, static_cast<double>(l.nowParms[1]),
         static_cast<int>(l.nowParms[0]));
     l = Leaver{};

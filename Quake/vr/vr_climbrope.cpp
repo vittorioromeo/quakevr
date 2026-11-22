@@ -33,9 +33,11 @@
 #include "vr_verlet.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
-#include "Zancle/Math/Abs.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -165,7 +167,7 @@ const glm::vec3 keyLight = glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}); // (the m
 {
     const progs::FieldOffsets& f = progs::fields();
     Params pr;
-    pr.chain = !strcmp(PR_GetString(e->v.classname), "vr_chain") || progs::fieldFloatOr(e, f.rope_style, 0.f) >= 1.f;
+    pr.chain = !ZA_STRCMP(PR_GetString(e->v.classname), "vr_chain") || progs::fieldFloatOr(e, f.rope_style, 0.f) >= 1.f;
     const float length = progs::fieldFloatOr(e, f.rope_length, 0.f);
     pr.length = length > 0.f ? za::clamp(length, 16.f, 2048.f) : 256.f;
     const float thickness = progs::fieldFloatOr(e, f.rope_thickness, 0.f);
@@ -198,7 +200,7 @@ void make(edict_t* e, int num)
         for(int i = 1; i < sv.qcvm.num_edicts && !targeted; i++)
         {
             edict_t* t = EDICT_NUM(i);
-            if(!t->free && t != e && !strcmp(PR_GetString(t->v.targetname), target))
+            if(!t->free && t != e && !ZA_STRCMP(PR_GetString(t->v.targetname), target))
             {
                 r.bottom = vecOf(t->v.origin);
                 targeted = true;
@@ -757,7 +759,7 @@ void testFrame()
         testCheck(a && a->p.size() == 11 && !a->params.chain && !a->params.pinned, "a map-keyed rope made: 10 pieces, free");
         testCheck(b && b->p.size() == 7 && b->params.chain && b->params.pinned && b->params.thickness == 2.f,
             "a toolgun-placed chain made: 6 pieces, pinned, 2 thick");
-        if(!strcmp(sv.name, "vrropes"))
+        if(!ZA_STRCMP(sv.name, "vrropes"))
         {
             int count = 0, chains = 0, targeted = 0;
             for(const auto& kv : ropes)
@@ -1209,11 +1211,11 @@ void climbCheck_f()
         }
     };
     const glm::vec2 hv{v.x, v.y}, hh{t.handVel.x, t.handVel.y};
-    if(!strcmp(what, "held"))
+    if(!ZA_STRCMP(what, "held"))
     {
         check(hands == static_cast<int>(n), va("%d hands on the rope (%d)", static_cast<int>(n), hands));
     }
-    else if(!strcmp(what, "mark"))
+    else if(!ZA_STRCMP(what, "mark"))
     {
         t.mark = o;
         t.fastest = 0.f;
@@ -1221,20 +1223,20 @@ void climbCheck_f()
         t.grunts = climb::ropePullGrunts(player);
         Con_Printf("%s: mark at %.1f %.1f %.1f\n", climbTestName, o.x, o.y, o.z);
     }
-    else if(!strcmp(what, "swing"))
+    else if(!ZA_STRCMP(what, "swing"))
     {
         check(t.fastest >= n && t.fastest <= vr_rope_swing_cap.value + 25.f,
             va("pumped the swing to %.0f units/s at the hands (at least %.0f, the cap %.0f)", t.fastest, n, vr_rope_swing_cap.value));
     }
-    else if(!strcmp(what, "rose"))
+    else if(!ZA_STRCMP(what, "rose"))
     {
         check(o.z - t.mark.z >= n, va("climbed up %.1f units (at least %.0f)", o.z - t.mark.z, n));
     }
-    else if(!strcmp(what, "lowered"))
+    else if(!ZA_STRCMP(what, "lowered"))
     {
         check(t.mark.z - o.z >= n, va("climbed down %.1f units (at least %.0f)", t.mark.z - o.z, n));
     }
-    else if(!strcmp(what, "nudge"))
+    else if(!ZA_STRCMP(what, "nudge"))
     {
         // A sideways push on his swing (a test aid; the pump is P3's): n units/s at the hands, along +x.
         Rope* r = riddenBy(NUM_FOR_EDICT(player) - 1);
@@ -1245,23 +1247,23 @@ void climbCheck_f()
         }
         check(r != nullptr, "the rope ridden (nudged)");
     }
-    else if(!strcmp(what, "moved"))
+    else if(!ZA_STRCMP(what, "moved"))
     {
         const float d = glm::length(glm::vec2{o.x - t.mark.x, o.y - t.mark.y});
         check(d >= n, va("swung %.1f units with the rope (at least %.0f)", d, n));
     }
-    else if(!strcmp(what, "flung"))
+    else if(!ZA_STRCMP(what, "flung"))
     {
         check(hands == 0 && glm::length(hh) >= n && glm::dot(hv, hh) > 0.f && glm::length(hv) >= 0.6f * glm::length(hh),
             va("let go at %.0f units/s level, the rope's at the hands %.0f (at least %.0f)", glm::length(hv), glm::length(hh), n));
     }
-    else if(!strcmp(what, "jumped"))
+    else if(!ZA_STRCMP(what, "jumped"))
     {
         check(hands == 0 && v.z >= t.handVel.z + 0.6f * vr_rope_jump.value && glm::dot(hv, hh) >= 0.f,
             va("jumped off at %.0f up, %.0f level (the rope's %.0f up, %.0f level)", v.z, glm::length(hv), t.handVel.z,
                 glm::length(hh)));
     }
-    else if(!strcmp(what, "calm"))
+    else if(!ZA_STRCMP(what, "calm"))
     {
         // (ropes6) Climbed up close to it: its swing at the hands at most n units/s since the mark, its free end at most
         // the second number's.
@@ -1270,13 +1272,13 @@ void climbCheck_f()
             va("calm: swing %.1f u/s at the hands (max %.0f), free end %.1f (max %.0f)", t.fastest, n, t.freeFastest,
                 freeMost));
     }
-    else if(!strcmp(what, "grunts"))
+    else if(!ZA_STRCMP(what, "grunts"))
     {
         // (ropes6) His pull grunts since the mark: n to the second number (a pull up grunts, a grab or a climb down not).
         const int most = Q_atoi(Cmd_Argv(3)), got = climb::ropePullGrunts(player) - t.grunts;
         check(got >= static_cast<int>(n) && got <= most, va("pull grunts since the mark: %d (%d to %d)", got, static_cast<int>(n), most));
     }
-    else if(!strcmp(what, "legs"))
+    else if(!ZA_STRCMP(what, "legs"))
     {
         // (ropes6) Hanging from a short rope taken overhead (its end near his legs): the feet hang under the pelvis, at
         // least n units under it, never reaching up for the rope's end. (The body as last posed: single player.)
@@ -1285,7 +1287,7 @@ void climbCheck_f()
         const float high = posed ? za::max(k.ankle[0].z, k.ankle[1].z) - k.pelvis.z : 0.f;
         check(posed && high <= -n, va("the feet hang: the higher ankle %.1f units from the pelvis's height (at most %.0f)", high, -n));
     }
-    else if(!strcmp(what, "grip"))
+    else if(!ZA_STRCMP(what, "grip"))
     {
         // (ropes6) The drawn hands on the rope gripping it, the knuckles outwards: the back of the right hand to his
         // right, the left's to his left (vr_rope_hand_grip 2, VR too). n: hands that must be drawn on it.
@@ -1305,7 +1307,7 @@ void climbCheck_f()
         check(on >= static_cast<int>(n) && worst >= 0.7f,
             va("%d hands drawn gripping it (%d), the knuckles outwards (worst %.2f of 1)", static_cast<int>(n), on, worst));
     }
-    else if(!strcmp(what, "done"))
+    else if(!ZA_STRCMP(what, "done"))
     {
         t.tally.verdict(climbTestName);
         t.stage = 0;
@@ -2065,7 +2067,7 @@ void soundTestFrame()
         }
         break;
     case 4:
-        check(rn == t.ropeCount + 1 && strstr(rLast, "soft_m") && cn == t.chainCount + 1 && strstr(cLast, "grab_metal"),
+        check(rn == t.ropeCount + 1 && ZA_STRSTR(rLast, "soft_m") && cn == t.chainCount + 1 && ZA_STRSTR(cLast, "grab_metal"),
             va("a grip: the rope's soft thud (%d: %s), the chain's metal grip (%d: %s)", rn - t.ropeCount, rLast,
                 cn - t.chainCount, cLast));
         mark();
@@ -2081,9 +2083,9 @@ void soundTestFrame()
         }
         break;
     case 6:
-        check(rn == t.ropeCount + 1 && strstr(rLast, "soft_m"),
+        check(rn == t.ropeCount + 1 && ZA_STRSTR(rLast, "soft_m"),
             va("a grip on the rope again: its soft thud (%d: %s)", rn - t.ropeCount, rLast));
-        check(cn == t.chainCount + 1 && strstr(cLast, "grab_metal"),
+        check(cn == t.chainCount + 1 && ZA_STRSTR(cLast, "grab_metal"),
             va("on the chain: its metal grip, the second at once held back (%d: %s)", cn - t.chainCount, cLast));
         mark();
         // Both pushed sideways (as a shove: the speed added to every point but the top).
@@ -2100,7 +2102,7 @@ void soundTestFrame()
         if(t.frames >= 144)
         {
             const int clinks = cn - t.chainCount;
-            check(clinks >= 2 && clinks <= 9 && strstr(cLast, "metal_l"),
+            check(clinks >= 2 && clinks <= 9 && ZA_STRSTR(cLast, "metal_l"),
                 va("swung, the chain's links clink: %d in 2 s (2 to 9: rate-limited), %s", clinks, cLast));
             check(rn == t.ropeCount, va("swung, the rope stays quiet (%d)", rn - t.ropeCount));
             next(99);
@@ -2259,7 +2261,7 @@ void clientFrame()
 
 bool isRopeClass(const char* classname)
 {
-    return !strcmp(classname, "vr_rope") || !strcmp(classname, "vr_chain");
+    return !ZA_STRCMP(classname, "vr_rope") || !ZA_STRCMP(classname, "vr_chain");
 }
 
 void serverFrame(bool worldRan)
