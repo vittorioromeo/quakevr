@@ -9634,3 +9634,21 @@ Runs on origin/next 2de8233f1 (Release no-LTO, the shipped-defaults baseline). M
   "flathands_test: gren2h done"; quit), so mp_netsafe failed and the suite stopped. Never run MP and flat tests of one
   tree at once. Not re-run (budget): mp_melee, mp_slide_vr, mp_predictslide, and why mp_flow/mp_predict/mp_predictclimb
   need the hub (mp_predict waits for "joined map=start" after `changelevel start`; not looked into further) stay open.
+## questogg: Ogg Vorbis music on the Quest (agent/questogg, 2026-11-23)
+
+- The PC decodes Ogg with libvorbisfile (`Windows/codecs`, prebuilt; pkg-config on Linux): no source in the
+  repository, so the Android build had no Ogg codec (WAV music only). Now `Quake/vr/external/stb_vorbis` (stb's
+  v1.22, one file, MIT or public domain; README.md says where from, its hash) is built on every CMake build
+  (`qvr_stb_vorbis`, vr.cmake) and in the PC's `quakevr.props`; a build without libvorbisfile (the Quest's) defines
+  `USE_CODEC_VORBIS VORBIS_USE_STB` (CMakeLists.txt). `snd_vorbis.c` is one codec with two decoders (the same
+  `vorbis_codec`, the `ogg` extension, bgmusic.c's whole music path: CD tracks, the map's music, mod folders): stb_vorbis
+  on Android and in the PC's fake-Android mode (`-fakeandroid`, `QVR_STB_VORBIS`), libvorbisfile otherwise. stb_vorbis
+  reads the stream's part of its file itself (`stb_vorbis_open_file_section`: a pak entry or a rerelease file in place).
+- Size: +53 KB of code in libquakevr.so (arm64, -O2), 0.2%. Licence shipped as `licenses/stb_vorbis.txt`; CREDITS.md.
+- `vr_music_decode [track] [ms]` (bgmusic.c; Debug > Tools "Music Decode"): decodes the start of a track as the music
+  plays it: the file, format, decoder, rate, channels, frames, peak, PCM hash, and whether the loop's rewind reads the
+  start again. Needs the sound on (the codecs start with it).
+- Test: `Misc/quakevr/questogg_test.sh` (SDL's dummy audio driver, `-Sound`): the PC and `-fakeandroid` decode the
+  rerelease's track02.ogg identically (132300 frames, 44100 Hz stereo, peak 21126 both), the rewind ok, start's track 4
+  plays through stb_vorbis, no error: 12/0. music_test 7/0; vr_menu_path_check 0 missing; Android native build compiles.
+- Installer (`QuestFiles.MusicFormats`, on agent/questinstall, not on next): add `.ogg` there when both are merged.
