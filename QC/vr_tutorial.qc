@@ -13,6 +13,11 @@
 
 float vr_tut_precaching; // VR_Tut_Precache: made only for its precaches (not placed)
 
+void() weapon_axe;
+void() weapon_knight_sword;
+void() weapon_dagger;
+void() item_armor1;
+
 // The middle of a placed item's floor from its origin: ammo and health boxes have their origin at a corner (id's
 // 0 0 0 .. 32 32 56), the others in the middle.
 float(string cls) VR_Tut_CornerOrigin =
@@ -57,6 +62,10 @@ entity(string cls, vector at, float xFlags, string xModel, vector xAngles) VR_Tu
     else if(cls == "weapon_supershotgun") { weapon_supershotgun(); }
     else if(cls == "weapon_nailgun")      { weapon_nailgun(); }
     else if(cls == "weapon_supernailgun") { weapon_supernailgun(); }
+    else if(cls == "weapon_axe")          { weapon_axe(); }
+    else if(cls == "weapon_knight_sword") { weapon_knight_sword(); }
+    else if(cls == "weapon_dagger")       { weapon_dagger(); }
+    else if(cls == "item_armor1")         { item_armor1(); }
     else if(cls == "vr_debris_piece")     { e.model = xModel; item = FALSE; vr_debris_piece(); }
     else if(cls == "vr_crate")            { item = FALSE; vr_crate(); }
     else                                  { ok = FALSE; }
@@ -87,6 +96,13 @@ void(string cls, string xModel) VR_Tut_Precache =
     if(cls == NULLSTR || cls == "none" || cls == "vr_debris_piece" || cls == "vr_crate")
     {
         return; // (the rocks, the bricks and the crates are always precached)
+    }
+    // the blades: their models only (one made would leave its lying weapon, a thrown_weapon, behind at the origin)
+    if(cls == "weapon_axe" || cls == "weapon_knight_sword" || cls == "weapon_dagger")
+    {
+        precache_model(WeaponIdToModel(cls == "weapon_axe" ? WID_AXE : WID_SWORD,
+                                       cls == "weapon_dagger" ? VR_ADMelee_Flags(VR_SWORDKIND_DAGGER) : 0));
+        return;
     }
     vr_tut_precaching = TRUE;
     entity e = VR_Tut_Make(cls, '0 0 0', 0, xModel, '0 0 0');
@@ -485,9 +501,22 @@ float(entity xRestock) VR_Restock_Near =
         cls = "vr_rock";
         cls2 = "vr_brick";
     }
+    // the blades (func_weapon_grabbable's classes: the spawner draws nothing, the weapon lies as a thrown_weapon)
+    float wid = 0;
+    float wkind = VR_ADMelee_Flags(VR_SWORDKIND_DAGGER); // (the sword's kind bits: a dagger's, a knight's sword's none)
+    float wflags = 0;
+    if(cls == "weapon_axe") { wid = WID_AXE; }
+    else if(cls == "weapon_knight_sword") { wid = WID_SWORD; }
+    else if(cls == "weapon_dagger") { wid = WID_SWORD; wflags = wkind; }
+    if(wid)
+    {
+        cls = "thrown_weapon";
+        cls2 = cls;
+    }
     for(entity e = nextent(world); e; e = nextent(e))
     {
         if((e.classname == cls || e.classname == cls2) && e.modelindex && e.model != NULLSTR && e.solid != SOLID_NOT &&
+           (!wid || (e.weapon == wid && (e.weaponflags & wkind) == wflags)) &&
            vlen((e.absmin + e.absmax) * 0.5 - xRestock.origin) <= xRestock.distance)
         {
             n++;

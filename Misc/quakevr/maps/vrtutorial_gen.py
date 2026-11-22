@@ -1606,8 +1606,8 @@ HALL15 = (1424, -880, 1552, -528)                 # x0, y0, x1, y1: room 14's no
 R12B_TARGET = 1920       # x: the throwing target, high on room 12b's south wall
 R13_PIT = (2448, 2640)   # x: the deadly pit across room 13 ...
 R13_BRIDGE = (-672, -576)  # ... its bridge (y)
-R14_PIT = (1792, 2048)   # x: the pit across room 14 (192 deep); the rope and the chain 32 out from its east edge
-R14_ROPE_X = R14_PIT[1] - 32
+R14_PIT = (1792, 2048)   # x: the pit across room 14 (192 deep); the rope and the chain 8 out from its east edge (in reach)
+R14_ROPE_X = R14_PIT[1] - 8
 R14_ROPE_Y = (-1104, -1200)  # the rope's y, the chain's
 R14_ROPE_TOP = LOW + 438     # (just under the beam they hang from; the ceiling at LOW + 448)
 
@@ -1619,7 +1619,7 @@ def build_room12b():
     checkpoint("cp12", 1856, -376, LOW, 270)
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 256, 2, 2, 210)
     # a sword, a dagger and an axe on a table by the west wall, more as they go
-    tx = r["x0"] + 36
+    tx = r["x0"] + 46   # (10 in from the table's front: in reach of a player at it)
     table(out, r["x0"] + 16, -608, r["x0"] + 56, -416, LOW, 36)
     for (cls, y, keys) in (("weapon_knight_sword", -448, {}), ("weapon_dagger", -512, {"targetname": "r12_dagger"}),
                            ("weapon_axe", -576, {})):
@@ -1627,11 +1627,11 @@ def build_room12b():
         restock(cls, tx, y, LOW + 40, distance=48, wait=6)
     # a training dummy to cut and stab (QC vr_dummy: it takes no harm and shows every hit)
     ent("vr_dummy", 1920, -560, LOW + 24, angle=90)
-    # the target: high on the south wall, out of reach (a thrown axe presses it: a button with health)
+    # the target: high on the south wall, out of reach (a button: a thrown axe presses it, as a thrown rock does)
     bx = R12B_TARGET
-    dbox(out, (bx - 40, r["y0"], LOW + 136), (bx + 40, r["y0"] + 2, LOW + 216), TX["hazard"])
-    button("THROW" + N + "HERE", None, bx, r["y0"] + 2, LOW + 176, 270, depth=8, size=48, target="r12b_open",
-           health=1, wait="-1", scale="0.25")
+    dbox(out, (bx - 48, r["y0"], LOW + 128), (bx + 48, r["y0"] + 2, LOW + 224), TX["hazard"])
+    button("THROW" + N + "HERE", None, bx, r["y0"] + 2, LOW + 176, 270, depth=8, size=64, target="r12b_open",
+           wait="-1", scale="0.25")
     banner(N.join(["LESSON 12: BLADES", "", "Swing the edge hard: it cuts.", "Thrust the point: it sticks in.",
                    "Grip the handle again to pull it out.", "", "B (Y on the off hand) turns the blade",
                    "point down: a reverse grip.", "", "Throw an axe into the target to go on."]),

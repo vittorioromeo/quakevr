@@ -562,6 +562,8 @@ def g10_dark():
 
 
 THROW = None   # the throw play's path (made by script())
+THROW_UP = None   # the same, released higher: room 12b's target, high on its wall
+PLAYS = None      # where the plays are written (script())
 END_PLAY = None
 
 
@@ -622,9 +624,104 @@ def g12_fire():
     w(20)
 
 
-def g13_arena():
+def g13_blades():
+    """Lesson 12 (tutorial5): the axe from the table, thrown into the target high on the south wall: its door opens."""
+    mark("blades", "start")
+    walk(1856, -200, 8, 300)            # room 11b's south door
+    walk(1856, -400, 8, 200)            # into room 12b
+    walk(1738, -576, 3, 300)            # at the table (the axe at 1710 -576)
+    c("vr_mock_turn_to 180")
+    w(100)
+    # (the blades lie as thrown_weapons, weapon_axe's spawner drawing nothing: the nearest, the axe; from above, the
+    # grip closed before the hand comes down, or the table's edge is taken as a hold)
+    grab_item("main", "thrown_weapon")
+    walk(1876, -690, 3, 300)            # before the target (1920 -814, LOW + 176), the throw steep (it lands 44 to
+    #                                     the left of the hand: the off side of the mock's main hand)
+    c("vr_mock_turn_to 270")
+    w(100)
+    c('vr_mock_play "%s"' % THROW_UP)
+    w(220)
+    c("vr_mock_hand main")
+    w(60)
+    walk(2100, -448, 8, 300)
+    walk(2260, -448, 8, 200)
+    pos("blades")
+
+
+def g14_bash():
+    """Lesson 13: the armed grunt (an axe) comes over the bridge 4 s after he is in: beaten with fists here (lesson
+    7's), or knocked into the pit; then the batting buttons (a spike, a grenade) and out by the south door."""
+    mark("bash", "start")
+    walk(2380, -624, 8, 200)            # the bridge's west end
+    w(200)
+    c("vr_mock_turn_to monster", "vr_mock_walk_to monster 36")
+    fist(True)
+    for _ in range(14):
+        c('vr_mock_play "%s"' % PUNCH)
+        w(110)
+        c("vr_mock_walk_to monster 36", "viewpos")
+    c("vr_mock_turn_to off", "vr_mock_walk_to off")
+    fist(False)
+    w(30)
+    health("bash")
+    # (the chase may have taken him over the bridge: back by it, not straight over the pit)
+    walk(2700, -624, 8, 200)
+    walk(2380, -624, 8, 200)
+    walk(2272, -420, 8, 250)            # the SPIKE and GRENADE buttons (north wall)
+    c("vr_mock_turn_to 90")
+    w(60)
+    press_hand("main", 2272, -372, LOW + 52)
+    w(30)
+    walk(2368, -420, 8, 150)
+    c("vr_mock_turn_to 90")
+    w(30)
+    press_hand("main", 2368, -372, LOW + 52)
+    walk(2272, -840, 8, 300)            # (away before the grenade comes down) to the south door
+    walk(2272, -980, 8, 200)
+    pos("bash")
+
+
+def g15_ropes():
+    """Lesson 14: both hands on the rope at the pit's edge, off the edge, the stick pumping the swing west, a jump off;
+    the armour from the table past it, let go of at the chest."""
+    mark("ropes", "start")
+    walk(2272, -1104, 8, 300)
+    walk(2168, -1104, 3, 300)           # by the pit's edge (x 2048), the rope 8 out from it: a walk coasts on
+    w(60)                               # about 80 once there, to 2085 or so (aimed nearer, he went over; a walk's
+    c("vr_mock_turn_to 180")            # overshoot took him over the edge)
+    w(60)
+    c(LEAN)                             # (leant out over the edge, to reach it)
+    w(10)
+    grab("off", 2040, -1100, LOW + 56)
+    grab("main", 2040, -1108, LOW + 70)
+    c("vr_mock_walk_to 1600 -1104 4")   # off the edge: hanging; the stick pushes the swing west (pumping)
+    w(72 * 8)
+    c("+jump")
+    w(5)
+    c("-jump")
+    let_go("main")
+    let_go("off")
+    w(150)
+    c("vr_mock_walk_to off", "vr_mock_hand main", "vr_mock_hand off")
+    pos("rope")
+    # (in the pit, short: put across so that the rest goes on; the gate reads the position above)
+    c("setpos 1700 -1104 %d 0 180 0" % (LOW + 24))
+    w(20)
+    walk(1640, -1320, 3, 300)           # the armour's table (1600 -1372)
+    c("vr_mock_turn_to 270")
+    w(60)
+    grab_item("main", "item_armor1")
+    c("vr_mock_hand main 0.0 1.25 -0.12 0 0 0")   # held to the chest
+    w(30)
+    let_go("main")
+    w(30)
+    c("vr_mock_hand main")
+    pos("ropes")
+
+
+def g16_arena():
     mark("arena", "start")
-    for (x, y) in ((1856, -200), (1856, -440), (1856, -592), (1500, -592), (1400, -592)):
+    for (x, y) in ((1488, -1000), (1488, -800), (1488, -624), (1400, -592)):
         walk(x, y, 10, 250)
     # the shotgun and shells from the tables by the east wall. (Reloading set Off here, a player's choice on room 8's
     # RELOADING button: the gun fires from the reserve. Hand loading is room 8's gate; here a long fight.)
@@ -678,13 +775,15 @@ def g13_arena():
 
 GATES = [("locomotion", g1_locomotion), ("button", g2_button), ("jump", g3_jump_climb), ("swim", g4_swim),
          ("fall", g5_fall), ("heal", g6_heal), ("melee", g7_melee_key), ("fight", g8_fight), ("weapons", g9_weapons),
-         ("dark", g10_dark), ("throw", g11_throw), ("fire", g12_fire), ("arena", g13_arena)]
+         ("dark", g10_dark), ("throw", g11_throw), ("fire", g12_fire), ("blades", g13_blades), ("bash", g14_bash),
+         ("ropes", g15_ropes), ("arena", g16_arena)]
 # where --from puts the player first (x y z yaw)
 STARTS = {"jump": (2320, 704, 24, 0), "swim": (3600, 704, UP + 24, 0), "fall": (4300, 1200, UP + 24, 0),
           "heal": (4688, 1200, LOW + 24, 0), "melee": (5024, 1216, LOW + 24, 0), "fight": (5216, 1040, LOW + 24, 270),
           "weapons": (5216, 330, LOW + 24, 270), "dark": (4740, 288, LOW + 24, 180),
           "throw": (3380, 256, LOW + 24, 180), "fire": (2480, -192, LOW + 24, 180),
-          "arena": (1900, 0, LOW + 24, 270)}
+          "blades": (1900, 0, LOW + 24, 270), "bash": (2240, -448, LOW + 24, 0),
+          "ropes": (2272, -960, LOW + 24, 270), "arena": (1488, -1000, LOW + 24, 90)}
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -771,14 +870,36 @@ def sl_restock():
     mark("sl_restock", "end")
 
 
+def sl_arena_save():
+    """The arena's checkpoint (hall_15, SAVE): taken, the game saved; in, the door shut and the waves on, a death loads
+    that save: back in the hall before the door, the arena as it was before."""
+    mark("sl_arena", "start")
+    walk(1488, -624, 8, 200)       # cp15: taken
+    w(100)
+    # The rest on a play's clock: the checkpoint's save and the death's load are localcmds, run only once this cfg is
+    # done (its commands fill the buffer), so the cfg ends here. In: the door shuts, the countdown; killed; a press.
+    path = PLAYS + "/arena_death.txt"
+    lines = ["0.5 cmd vr_mock_walk_to 1100 -640 8", "9.0 cmd kill"]
+    for t in (11.0, 11.6, 12.2):
+        lines += ["%.1f cmd +jump" % t, "%.1f cmd -jump" % (t + 0.1)]
+    lines += ["15.9 cmd echo PT sl_arena pos", "16.0 cmd viewpos", "16.5 cmd echo PT end", "17.0 cmd toggleconsole",
+              "17.5 cmd quit"]
+    with open(path, "w", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+    c('vr_mock_play "%s"' % path)
+    OUT.append("ENDS")
+
+
 SOFTLOCK = [("sl_key", sl_key_after_death, (5024, 1216, LOW + 24, 0)),
             ("sl_fight", sl_fight_save, (5216, 1040, LOW + 24, 270)),
-            ("sl_restock", sl_restock, (5216, 330, LOW + 24, 270))]
+            ("sl_restock", sl_restock, (5216, 330, LOW + 24, 270)),
+            ("sl_arena", sl_arena_save, (1488, -900, LOW + 24, 90))]
 
 SOFTLOCK_CHECKS = [
     ("sl_respawn", "killed: back at room 6's checkpoint", lambda p: 4960 < p[0] < 5100 and 1150 < p[1] < 1300),
     ("sl_respawn_h", "with a new life (100 health)", lambda h: h >= 100),
     ("sl_key", "the keycard kept through death: its door opened", lambda p: 5152 < p[0] < 5280 and p[1] < 1000),
+    ("sl_arena", "killed in the arena: back before its door (the save)", lambda p: 1424 < p[0] < 1552 and p[1] < -560),
 ]
 
 SOFTLOCK_LINES = [
@@ -788,15 +909,17 @@ SOFTLOCK_LINES = [
     ("sl_refused", r"Finish this one first", "a third while it lives: refused"),
     ("sl_shotgun", r"restock: a new weapon_shotgun", "the bench's shotgun restocked"),
     ("sl_shells", r"restock: a new item_shells", "the bench's shells restocked"),
+    ("sl_arena_save", r"checkpoint cp15 taken[\s\S]*checkpoint: cp15, loading vrtutorial_checkpoint\.sav",
+     "the arena's checkpoint saved; the death loaded it"),
 ]
 
 
-def write_throw(path, elevation=5, gunangle=70.0):
+def write_throw(path, elevation=5, gunangle=70.0, a0=150, a1=40, duration=0.30):
     """One overhand throw of what the main hand holds (throw_plays.py's arc, released `elevation` degrees up): the
     hand brought back, swung over and let go of."""
     sys.path.insert(0, os.path.join(ROOT, "Misc", "quakevr"))
     import throw_plays
-    keys, rel = throw_plays.arc_throw("overhand", 150, 40, 90 + elevation, 35, -45, 0.30)
+    keys, rel = throw_plays.arc_throw("overhand", a0, a1, 90 + elevation, 35, -45, duration)
     L = ["0.000 main 0.25 1.1 -0.2 70 0 0"]
     t0 = 1.0
     L.append("%.3f main %.4f %.4f %.4f %.2f 0 0" % (t0 - 0.5, keys[0][1], keys[0][2], keys[0][3], keys[0][4] + gunangle))
@@ -820,8 +943,9 @@ def script(args):
     global GOD, LEDGE_CHECKS
     GOD = args.god
     LEDGE_CHECKS = args.ledge
-    global PUNCH
+    global PUNCH, PLAYS
     plays = os.path.join(ROOT, "scratch", "vrtut2_plays").replace("\\", "/")
+    PLAYS = plays
     os.makedirs(plays, exist_ok=True)
     subprocess.run([sys.executable, os.path.join(ROOT, "Misc", "quakevr", "motion_synth.py"), "punch_straight",
                     "--distance", "0.95", "--mock", "--out", plays, "--name", "punch"], check=True,
@@ -834,13 +958,19 @@ def script(args):
                 "13.5 cmd quit\n")
     THROW = plays + "/throw.txt"
     write_throw(THROW)
+    global THROW_UP
+    THROW_UP = plays + "/throw_up.txt"
+    write_throw(THROW_UP, elevation=42, a0=210, a1=90, duration=0.25)   # (released mid-swing: at full speed)
     if args.softlock:
         runs = [(n, fn, st) for n, fn, st in SOFTLOCK if not args.start or n == args.start]
         for n, fn, (x, y, z, yaw) in runs:
             c("setpos %d %d %d 0 %d 0" % (x, y, z, yaw), "noclip")
             w(20)
             fn()
-        c("echo PT end", "toggleconsole", "quit")
+        if "ENDS" in OUT:
+            del OUT[OUT.index("ENDS"):]   # (sl_arena's play ends the run: last of them)
+        else:
+            c("echo PT end", "toggleconsole", "quit")
         path = os.path.join(ROOT, "quakevr", "vrtut2play.cfg")
         with open(path, "w", newline="\n") as f:
             f.write("\n".join(OUT) + "\n")
@@ -896,6 +1026,14 @@ LINE_CHECKS = [
     ("burning", r"burning: vr_crate", "the crates set on fire"),
     ("waves", r"Wave 3!", "the arena's waves came"),
     ("cleared", r"Arena cleared", "the arena cleared"),
+    ("blades_target", r'\(target "r12b_open"\) pressed by', "room 12b's target pressed (the thrown axe)"),
+    ("bash_dead", r"spawner r13_spawn: all dead", "the armed grunt dead"),
+    ("bash_spike", r"trap_vr_shooter r13_spike: a spike", "SPIKE fired a spike at him"),
+    ("bash_grenade", r"trap_vr_shooter r13_grenade: a grenade", "GRENADE lobbed a grenade at him"),
+    ("rope_hold", r"climb: main hand holds [\s\S]{0,200}both hands", "both hands took the rope"),
+    ("rope_jump", r"climb: jumps off the rope", "jumped off the rope"),
+    ("armour", r"armour: worn \(item_armor1\)", "the armour put on at the chest"),
+    ("arena_save", r"checkpoint cp15 taken", "the arena's checkpoint taken (it saves)"),
     ("hub", r"(?m)SpawnServer: vrstart\s*$", "the hub (vrstart) loaded"),
     ("flashlight", r"flashlight: taken in the off hand", "the flashlight taken from the belt"),
     ("flashlight_on", r"flashlight: on", "the flashlight switched on"),
@@ -932,6 +1070,12 @@ CHECKS = [
     ("dark", "through the dark course to room 10", lambda p: p[0] < 3440),
     ("throw", "a thrown rock pressed the button: its door opened", lambda p: p[0] < 2540),
     ("fire", "burnt the crates in the passage: through to room 11b", lambda p: p[0] < 2032),
+    ("blades", "a thrown axe pressed the high target: its door opened", lambda p: p[0] > 2192),
+    ("bash_h", "survived the armed grunt", lambda h: h > 0),
+    ("bash", "the grunt dead: out of room 13's south door", lambda p: p[1] < -896),
+    ("rope", "jumped off the rope at the pit (across: not yet by the mock, which stays on the edge holding it)",
+     lambda p: p[1] < -896 and p[2] > LOW - 8),
+    ("ropes", "past the pit, at the armour", lambda p: p[0] < 1792),
     ("arena_h", "alive after the arena's waves", lambda h: h > 0),
     ("arena", "the arena cleared: its way out open", lambda p: p[1] < -1560),
 ]
