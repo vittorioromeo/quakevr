@@ -886,4 +886,8 @@ void graspSweep_f();
 // the jointed hand, or before it has been drawn.
 [[nodiscard]] bool previewGripMove(const hands::State& s, int hand, glm::vec3& worldMove);
 
+// Splitscreen (split11): the view entities (hands, weapons, body) seat `seat` added to its view the last time it was
+// drawn, and that frame (vr_seat_render_test: every seat draws its own first-person hands, weapons and body).
+[[nodiscard]] int ownEntitiesAdded(int seat, int& frame);
+
 } // namespace qvr::view

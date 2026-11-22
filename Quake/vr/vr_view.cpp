@@ -539,7 +539,9 @@ namespace
 // again reflected, by the one at its own index in Entities (one run of ViewEntity: find()).
 constexpr int viewEntityCount = static_cast<int>(sizeof(Entities) / sizeof(view::ViewEntity));
 view::ViewEntity clones[viewEntityCount];
-int lastAddedFrame = -1;
+int lastAddedFrame[MAX_SPLITSEATS] = {-1, -1, -1, -1}; // seat-shared: by seat, the frame each seat's view entities went in
+int lastSharedFxFrame = -1; // seat-shared: the frame the shared memories' effects were stepped (once, by the first seat drawn)
+int ownAdded[MAX_SPLITSEATS] = {}; // seat-shared: by seat, its view entities added when last drawn (ownEntitiesAdded)
 const entity_t* worldWeaponsNear[maxWorldWeapons]{}; // setupWorldWeapons' nearest, for their magazines (setupMagazines)
 int pouchCounterFrame = -1; // the ammo pouch's counter queued in this frame (setupAmmoPouch: the view may be set up twice)
 bool ammoPouchPlaced = false; // the ammo pouch placed last frame, drawn or not (setupAmmoPouch; ammoPouchRounds)
@@ -3615,6 +3617,13 @@ void powerupInfo_f()
 
 namespace qvr::view
 {
+int ownEntitiesAdded(const int seat, int& frame)
+{
+    const int s = CLAMP(0, seat, MAX_SPLITSEATS - 1);
+    frame = lastAddedFrame[s];
+    return ownAdded[s];
+}
+
 VrGunLook ownGunLook(int hand)
 {
     const bool main = hand == HAND_MAIN;
@@ -5986,12 +5995,17 @@ extern "C" void VR_SetupViewEntities()
         patchModelFlags();
     }
 
-    // The screen may be redrawn more than once per frame (a modal dialog); add the entities only once.
-    if(lastAddedFrame == host_framecount)
+    // The screen may be redrawn more than once per frame (a modal dialog); add the entities only once. Splitscreen
+    // (split11): once a seat: each seat's pass adds its own hands, weapons and body to its view (seats 2-4 had none drawn);
+    // the shared memories' effects below stay once a frame (sharedOnce).
+    int& addedFrame = lastAddedFrame[CL_SeatIndex()];
+    if(addedFrame == host_framecount)
     {
         return;
     }
-    lastAddedFrame = host_framecount;
+    addedFrame = host_framecount;
+    const bool sharedOnce = lastSharedFxFrame != host_framecount;
+    lastSharedFxFrame = host_framecount;
 
     // The muzzle flashes on the weapons as drawn now (vr_weaponfx.cpp).
     {
@@ -6008,11 +6022,14 @@ extern "C" void VR_SetupViewEntities()
         glm::mat4 mirror;
         const bool cloned = bodyclone::mirror(mirror);
         int clonesDrawn = 0;
+        int& added = ownAdded[CL_SeatIndex()];
+        added = 0;
         forEachEntity([&](view::ViewEntity& ve) {
             if(ve.visible && ve.ent.model && !hiddenForShot(ve) && !drawnAsPump(ve) && !drawnInParts(ve) &&
                cl_numvisedicts < MAX_VISEDICTS)
             {
                 cl_visedicts[cl_numvisedicts++] = &ve.ent;
+                added++;
                 if(cloned && worn(ve) && cl_numvisedicts < MAX_VISEDICTS)
                 {
                     cl_visedicts[cl_numvisedicts++] = &addClone(ve, mirror).ent;
@@ -6030,6 +6047,11 @@ extern "C" void VR_SetupViewEntities()
     if(flatplay::active() && !stereo::isRenderingEye())
     {
         crosshair::queueFlat(s); // flatscreen play: the headset's crosshair (vr_crosshair), the weapons as just placed
+    }
+
+    if(!sharedOnce)
+    {
+        return; // (a later seat this frame: the effects' shared memories already stepped)
     }
 
     {
