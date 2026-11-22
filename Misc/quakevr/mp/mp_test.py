@@ -49,7 +49,8 @@ Tests:
     guard    (review 2026-11-18 finding 1) a remote player's own values held to a body's bounds (vr_moveguard.hpp): A,
              tall, with a rocket launcher up, out and across at arm's length, is never held; B's lying moves
              (vr_mp_test_cheat: hands and muzzle across the room, 500 m/s, a 20000 u/s room-scale walk, a second's
-             rewind) and a 500-unit fist sphere are held and counted (vr_mp_status mp_guard), his walk cut to a head's.
+             rewind) and a 500-unit fist sphere are held and counted (vr_mp_status mp_guard), his walk cut to a head's (and in his
+             replay as on the server: review B6).
     cmdguard (review 2026-11-18 finding 9) client string commands: the test shot and punch refused by a server without
              vr_mp_watch (the harness's), taken with it; each client's commands under a budget: both players' own
              (spawn's vr_rig chunks...) far under it, B's flood of 150 in a frame cut to it and the rest dropped.
@@ -5452,6 +5453,20 @@ def guard(s):
     s.check("B honest again: nothing more of his held", after.get("moves", 0) > settled.get("moves", 0) and all(
         after.get(k) == settled.get(k) for k in ("places", "speeds", "walks", "rewinds")),
         "B 0.5 s after: %s; 2 s after: %s" % (settled, after))
+
+    # (review B6) B's room-scale walk alone past its budget (vr_mp_test_cheat 4): his replay cuts it as the server's moves
+    # do, from the server's budget in his state (QVR_SVC_PREDICT): his moves' results still the server's bit for bit.
+    # (A first steps off the walk's line, forward and sideways: e1m1's coop starts put him just east of B, where B's walk
+    # east ran into him on the server and not in his replay, which traces no players -- 54 of 58 results off.)
+    a.cmd("vr_mock_stick off 1 1")
+    server_time_past(srv, server_time(srv) + 0.75)
+    a.cmd("vr_mock_stick off 0 0")
+    server_time_past(srv, server_time(srv) + 0.5)
+    pr = predict_segment(s, b, "a room-scale walk past its budget", "vr_mp_test_cheat 4", 60)
+    b.cmd("vr_mp_test_cheat 0")
+    predict_exact_check(s, "past his room-scale budget (review B6)", pr)
+    s.check("... and his replay cut it as the server did: no correction past a unit (review B6)",
+            float(pr.get("corr_max", 99)) < 1.0, "corr_n=%s corr_max=%s" % (pr.get("corr_n"), pr.get("corr_max")))
 
 
 def server_moves(srv, ent):

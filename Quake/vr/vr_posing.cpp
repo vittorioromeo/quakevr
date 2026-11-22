@@ -162,7 +162,7 @@ void write(Step& step, int slot, Key key, float value)
         step.changes.pushBack({var, var->string});
     };
     const int from = weapons::inheritsFrom(slot);
-    const int target = from >= 0 && weapons::inheritable(key) ? from : slot;
+    const int target = from >= 0 && weapons::inherits(slot, key) ? from : slot;
     cvar_t* var = weapons::cvar(target, key);
     if(!var)
     {
