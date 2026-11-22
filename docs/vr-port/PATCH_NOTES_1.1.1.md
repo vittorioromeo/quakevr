@@ -182,6 +182,9 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Weapons
 
+- **Faster shotgun shells in Arcane Dimensions and Quoth.** Where shells fly as projectiles, they now fly 30% faster,
+  yours and the monsters' alike (the Player and Enemy Pellet Speed settings still multiply on top). Vanilla's hitscan
+  shotguns are unchanged.
 - **Flat screen: a blade stuck in an enemy keeps its hand.** Dual wielding a blade and a gun, a blade that stays in an
   enemy now keeps the hand that swung it on its handle until it comes out or the hand lets go; meanwhile the gun stays
   one-handed, the right mouse button fires the left hand's weapon and the ironsight stays down, as when dual wielding.
@@ -223,6 +226,10 @@ aren't Map Library packages aren't sent to joining players.
   settings beside it (Narrower Than: 32, Wider Than: 8, and more), with Rebuild Gap Blockers Now to apply them without
   leaving the map; if you still get through a gap you shouldn't, Debug > Mark a Gap I Got Through writes down where and
   why (`quakevr/hull_holes_marks.txt`) so it can be fixed.
+- **No more dropping down the corner beside a lift.** Where a lift leaves narrow slots on two sides of it, the square
+  between the two slots (the lift's corner) stayed open and you could fall down the shaft there; it is closed now.
+- **Opened bar gates let you through again.** The gap blockers beside a door now move with it, so bars that sink into
+  the floor (DM1's grate) take theirs along when they open, instead of leaving them standing in the opened way.
 - **Riding a lift no longer sinks you or the monsters into it.** Going up, your eye trailed a rising lift by up to 12
   units (the stair-step easing took the lift's rise for a step) and a monster riding it was drawn as far as 13 units
   into it; now your eye rides with the lift (only a step's jump is eased: `vr_view_lift_follow`, 400 units a second;
