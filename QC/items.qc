@@ -2306,6 +2306,12 @@ void() DropBackpack =
     item.angles_y = random() * 360;
 
     Backpack_Setup(item, 0.75);
+    // QVR: an armed humanoid's pack is dyed like its body's pack by the weapon it was armed with (vr_humrepl.qc
+    // VR_HUM_Look; the engine's vr_humlook.cpp): an energy weapon's enforcer drops a blue one, as a grunt's worn pack is.
+    if(self.vr_hum_look > 0)
+    {
+        item.vr_hum_look = (self.vr_hum_look & 4095) + 4096;
+    }
 };
 
 // A backpack item (DropBackpack's; a worn backpack torn off or its wearer dead: vr_wornpack.qc), `scaleFactor` its size:

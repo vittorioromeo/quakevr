@@ -8370,6 +8370,42 @@ His notes dm3_2026-11-22_16-15-02, 16-17-59, 16-18-21.
 - Kit note: `build.sh --lto` builds the ReleaseLTO exe; mp_test.py runs the Release one (`build.sh <name>`): rebuild
   that after a merge, or the suite runs a stale exe ("cvar_hmake: unknown" lines for the new cvars).
 
+## kellbase: Quoth kellbase1 notes, enforcer pack colours (agent/kellbase, 2026-11-22)
+
+His notes kellbase1_2026-11-22_16-02-58, 16-04-06, 16-06-02.
+
+- **Dropped packs take the body's recolour.** `DropBackpack` (items.qc) gives the pack its dropper's `.vr_hum_look` plus
+  the pack part (4096): every armed humanoid's death loot goes through it (`VR_AG_SoldierDrop`), so an energy weapon's
+  enforcer drops a blue pack, a launcher's red, as a grunt's worn pack already was (vr_humlook.cpp draws the pack rows
+  of humlook.txt on `progs/backpack.mdl`). Test: `humrepl_test.sh` (vr_ad_test 219) checks a thunderbolt enforcer's
+  dropped pack's look (4114 = enforcer energy + pack): 47 passed.
+- **kellbase1's energy field.** A `func_togglewall` (model *15, the `trigger` texture) with Quoth's spawnflag 2 and
+  `color 47`, `style 50`. AD's togglewall (Quoth runs under AD's rules) draws nothing: not a VR-only fault, it was
+  never drawn. Quoth has no source, so its look is inferred from the keys: while on, `vr_twall_fx` (ad_func.qc) puts
+  `style` sparks (at most 64; default 24) a tenth of a second over the brush's thin middle plane in palette `color`
+  (47: pale blue), only with a player within 1500 units. The flat screenshot at that size does not show the sparks
+  clearly: look in the headset.
+- **Monsters keep off hurting fields.** The enforcer behind it stood pressed 0.2 units into the brush (a monster step
+  is a vertical trace at its goal, so it ends touching it) and its step physics' fall trace touched the wall each frame
+  it could: 8 to 29 hurting touches in 20 s. Now a togglewall with `dmg` (AD's and Hipnotic's) sets
+  `.vr_monster_avoid`; `SV_movestep` refuses a monster's step that ends nearer than 12 units to such a solid entity
+  unless the step keeps it as far or takes it farther (`VR_MonsterAvoidsField`, vr_hull.cpp: an area query, both
+  walking and flying branches), so the chase picks another way and one already near is never stuck. A trigger_hurt is
+  left as it is (maps use them on monsters). Test: `quothfield_test.sh` (vr_ad_test 223, kellbase1): the field's
+  emitter made (colour 47, 50 sparks), its sparks sent with you near, and an armed enforcer chasing you from behind it
+  for 20 s touches it 0 times (29 before): 4 passed.
+- **Ladder holds on the drawn rungs.** kellbase1's ladders are a `trigger_ladder` over a `func_illusionary` (non-solid
+  bars: 24 apart on the catwalk's, 32 on the pillars'), so the volume's own rungs (16 apart down from its top) never
+  matched them. `ladderHold`'s volume fallback now asks `drawnRung` (vr_climb.cpp) first: the up-facing faces of
+  every brush submodel with no solid or trigger entity (an illusionary edict, or a static one) over the volume's
+  footprint (12 units before and behind it, across its thinner side, so not its rails' caps), their exact vertex
+  bounds; the bar nearest the hand is the rung, the hold on its ridge (its top faces' vertices at the top) across and
+  where the hand is along it. A ladder with no drawn rungs keeps the 16-unit rungs, and so does flatscreen play's
+  ladder (`findRungs` sets `flatRungSearch`): its window over the feet is about 31 units, so bars 24 or 32 apart left
+  it one rung and it never mounted (flatladder 0 of 3 with drawn rungs, 3 of 3 now). Flat hands therefore still close
+  on the 16-unit rungs (an open point if he wants it there too: the flat ladder's window would have to grow).
+  modladder_test.sh's VR-hands expectations moved to the bars (hold y -664, tops 704 + 24 k; the pillars' ridge y
+  -1354, tops 508 + 32 k): 10 passed.
 ## ropes6: VR rope climbing from his notes (agent/ropes6, 2026-11-22)
 
 His notes vrropes_2026-11-22_15-43-18, 15-43-56, 15-45-10, 15-48-30 ("Climbing ropes in VR feels nice"). ROPES.md

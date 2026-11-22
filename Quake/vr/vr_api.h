@@ -684,6 +684,7 @@ int VR_HullOverDropoff (struct edict_s *ent, const float *origin, const float *v
 int VR_HullClipBSP (struct edict_s *ent, const float *start, const float *boxmins, const float *boxmaxs, const float *end,
 	trace_t *trace);								// SV_ClipMoveToEntity for SOLID_BSP: nonzero if it traced (else the hull)
 int VR_HullEntBox (struct edict_s *passedict, const float *mins, const float *maxs, float *boxmins, float *boxmaxs); // SV_Move: nonzero if the player's box meets other entities' boxes narrowed (vr_hull_ent_width)
+int VR_MonsterAvoidsField (struct edict_s *ent, const float *from, const float *to); // SV_movestep: a monster's step nearer a hurting field (QC .vr_monster_avoid; vr_hull.cpp): nonzero refuses it
 int VR_HullFootprint (struct edict_s *ent, float *absmins, float *absmaxs); // SV_CheckBottom: a monster's corners narrowed to its width (vr_mhull_ledges): nonzero if narrowed
 int VR_HullTouchBox (struct edict_s *touch, struct edict_s *mover, float *boxmins, float *boxmaxs); // a player's box, narrowed, as a body moving into it meets it: nonzero if narrowed
 float VR_HullTouchTop (struct edict_s *ent); // SV_TouchLinks: the top triggers meet (lying down: the lying box's; else absmax)

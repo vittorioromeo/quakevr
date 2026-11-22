@@ -2587,6 +2587,7 @@ START_OFF wall doesn't block until triggered.
 	[
 		1 : "START OFF" : 0
 	]
+	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
 	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
 	noise1(string) : "Sound 1" :  : "A sound, relative to sound/."
 ]
