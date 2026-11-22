@@ -7006,3 +7006,16 @@ it); an in-game indication of whether the chosen port is forwarded.
 - **Fix** (`Misc/quakevr/weapon_catch_test.sh`, handle()): the shotgun let go of on vrfiringrange's flat floor (setpos
   250 -656.7 41, where section 3 already runs), no step to fall from: the walk stops at 270 -661 (29.4 units from the
   gun), the fist meets the handle (6.43 cm, allowed 10). weapon_catch 3/3 PASS (every check, the same numbers).
+- **Published 1.2.0-beta1** (the author's naming, as 1.1's betas; not rc.1): https://github.com/vittorioromeo/quakevr/releases/tag/v1.2.0-beta1,
+  pre-release, v1.1.0 still Latest, assets latest.json, QuakeVR-Setup.exe, QuakeVR.zip, SHA256SUMS.txt; tag at
+  fa166b711 (`-NoBranchPush`: agent/release12 not pushed). RELEASE_NOTES_1.2.md retitled "1.2.0 beta 1".
+  The full suite on f12ee573a: 42 passed, 1 failed, 3 flaky warned; the failure reload_gunshape timed out (1200 s, Quest
+  APK builds loading the CPU), and again alone on 2026-11-22: published anyway by the author's direction (betas: a light
+  suite), reload_gunshape among `-FlakyTests` (left for testspeed).
+- **Two release blockers fixed on the way:** the ReleaseLTO build's `-Werror,-Wdangling` at vr_config_diag.cpp:441 (a
+  range-for over `standInTables()[0]`, the temporary array gone: now held in a local; the kit's builds don't stop on it),
+  and make_release.ps1's hosted support files' check reusing `$tag` (since the ericw-tools hosting, d911e616b): it
+  tagged and linked `assets-2026-11-17` instead of v<Version> and stopped at "git tag failed"; now `$supportTag`.
+- **Seen, not fixed:** after the first release attempt's build, `build/qvr_checks/qvr_checks.exe` (rebuilt then) exited
+  3 with no output in `test_numbers` (so build.sh said "BUILD FAILED" with an empty log); rebuilt by build.sh (the old
+  exe moved to scratch), it runs clean.
