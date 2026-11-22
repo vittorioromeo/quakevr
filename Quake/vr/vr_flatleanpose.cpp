@@ -28,7 +28,6 @@
 #include <glm/trigonometric.hpp>
 
 #include <cstdlib>
-#include <cstring>
 
 namespace qvr::flatleanpose
 {

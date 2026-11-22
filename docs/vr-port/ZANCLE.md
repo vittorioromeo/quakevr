@@ -5,7 +5,7 @@ His rule (standing; restated 2026-11-22): our C++ (Quake/vr, other Quake/*.cpp/.
 (`Quake/vr/external/zancle/include/Zancle`) wherever it has an equivalent, and includes only the headers it really
 uses: Zancle's headers are fine-grained (faster to compile), its code is faster in Debug and its stack traces are
 shorter. CODE_STYLE.md, "Zancle, not the standard library", has the style; this page is the lookup table, and
-`qvr_checks std_uses` (Tools/qvr_checks/std_uses.cpp, its allowlist `Tools/qvr_checks/std_uses_allow.txt`) keeps
+`qvr_checks std_uses` (Tools/qvr_checks/std_uses.cpp, its allowlist `Misc/quakevr/std_uses_allowlist.txt`) keeps
 `std::` and the heavy standard headers from creeping back.
 
 Behaviour stays identical when converting: watch the float/double overloads (std's mixed-type calls promote, Zancle's
@@ -50,7 +50,7 @@ uses (the no-PCH build checks it: `Misc/quakevr/check_nopch.sh`).
 | `std::decay_t`, `remove_cvref_t`, `underlying_type_t`, `conditional_t`, `declval` | `ZA_DECAY`, `ZA_REMOVE_CVREF`, `ZA_UNDERLYING_TYPE`, `za::Conditional`, `za::declVal` | `Trait/...` |
 | `std::initializer_list<T>` | `za::InitializerList<T>` (an alias: the compiler needs std's name) | `Base/InitializerList.hpp` |
 | `std::move` / `std::forward` | `ZA_MOVE` / `ZA_FORWARD` | `Base/Macros.hpp` |
-| `std::swap` / `std::exchange` | `za::swap` / `za::exchange` | `Base/Swap.hpp`, `Base/Exchange.hpp` |
+| `std::swap` / `std::exchange` | `za::genericSwap` / `za::exchange` | `Base/Swap.hpp`, `Base/Exchange.hpp` |
 | `std::size(array)` | `za::getArraySize(array)` (a container: `.size()`) | `Base/GetArraySize.hpp` |
 | `std::bit_cast` | `ZA_BIT_CAST` | `Base/BitCast.hpp` |
 

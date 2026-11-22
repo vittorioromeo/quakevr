@@ -15,7 +15,10 @@
 #include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Round.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "vr_zancle.hpp"
 
 namespace qvr::zones
@@ -403,7 +406,7 @@ void dragHaptic(int hand)
 // A dragged value, to `step` and within the menu's extended range; set only when it changes.
 void setSnapped(cvar_t* c, float v, float step, float lo, float hi)
 {
-    v = za::clamp(std::round(v / step) * step, lo, hi);
+    v = za::clamp(za::round(v / step) * step, lo, hi);
     if(c->value != v)
     {
         Cvar_SetValueQuick(c, v);
@@ -751,8 +754,8 @@ void queueDebug(const hands::State& s)
                 {
                     const float t0 = 6.2831853f * static_cast<float>(i) / segments;
                     const float t1 = 6.2831853f * static_cast<float>(i + 1) / segments;
-                    line(grip + radius * (a[0] * std::cos(t0) + a[1] * std::sin(t0)),
-                        grip + radius * (a[0] * std::cos(t1) + a[1] * std::sin(t1)), 0.08f, color);
+                    line(grip + radius * (a[0] * za::cos(t0) + a[1] * za::sin(t0)),
+                        grip + radius * (a[0] * za::cos(t1) + a[1] * za::sin(t1)), 0.08f, color);
                 }
             }
         }

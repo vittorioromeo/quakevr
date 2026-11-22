@@ -268,7 +268,7 @@ FlatKeys keyState;
 [[nodiscard]] float crouchUnshape(float y)
 {
     y = za::clamp(y, 0.f, 1.f);
-    return crouchSmooth() ? 0.5f - std::sin(std::asin(1.f - 2.f * y) / 3.f) : y;
+    return crouchSmooth() ? 0.5f - za::sin(za::asin(1.f - 2.f * y) / 3.f) : y;
 }
 
 // vr_flat_crouch_trace's run: one line a frame of the drawn eye's and the main hand's height, then the biggest step either

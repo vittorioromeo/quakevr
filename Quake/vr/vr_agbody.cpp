@@ -1,7 +1,6 @@
 // vr_agbody.cpp -- armed humanoids' body proxies (vr_agbody.hpp; ROUND22.md, "Armed humanoids in motion: the glitch
 // finder and a robust solve").
 
-#include <type_traits>
 #include <string.h>
 #include "vr_agbody.hpp"
 #include "vr_cvars.hpp"
@@ -16,6 +15,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Trait/IsTriviallyCopyable.hpp"
 
 using namespace qvr;
 
@@ -408,7 +408,7 @@ float segmentDepth(const Posed& q, const glm::vec3& p0, const glm::vec3& p1, int
 int saveState(int ent, unsigned char* out)
 {
     static_assert(sizeof(Upper) <= stateBytes, "the Live tape's room for its state");
-    static_assert(std::is_trivially_copyable_v<Upper>, "copied as bytes");
+    static_assert(ZA_IS_TRIVIALLY_COPYABLE(Upper), "copied as bytes");
     const Upper* st = upperOf(ent, false);
     if(!st)
     {

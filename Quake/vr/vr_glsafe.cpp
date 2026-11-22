@@ -30,7 +30,6 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 
 using namespace qvr;
 

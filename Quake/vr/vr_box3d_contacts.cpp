@@ -9,6 +9,7 @@
 #include "vr_tunables.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -643,7 +644,7 @@ void carryRagdolls()
             edict_t* ent = r.num > 0 && r.num < qcvm->num_edicts ? EDICT_NUM(r.num) : nullptr;
             if(ent && !ent->free)
             {
-                ent->v.angles[YAW] = anglemod(ent->v.angles[YAW] + glm::degrees(std::atan2(gate.turn[0][1], gate.turn[0][0])));
+                ent->v.angles[YAW] = anglemod(ent->v.angles[YAW] + glm::degrees(za::atan2(gate.turn[0][1], gate.turn[0][0])));
             }
             const glm::vec3 to = gate.turn * pelvis + shift;
             Con_DPrintf("ragdoll: %d carried through a teleporter: pelvis %.1f %.1f %.1f -> %.1f %.1f %.1f\n", r.num, pelvis.x,
@@ -685,7 +686,7 @@ void carryCorpses()
             edict_t* ent = num < qcvm->num_edicts ? EDICT_NUM(num) : nullptr;
             if(ent && !ent->free && !s.corpseFitted)
             {
-                ent->v.angles[YAW] = anglemod(ent->v.angles[YAW] + glm::degrees(std::atan2(gate.turn[0][1], gate.turn[0][0])));
+                ent->v.angles[YAW] = anglemod(ent->v.angles[YAW] + glm::degrees(za::atan2(gate.turn[0][1], gate.turn[0][0])));
             }
             s.asleep = false; // (written this frame: writeCorpse)
             const glm::vec3 to = gate.turn * mid + shift;

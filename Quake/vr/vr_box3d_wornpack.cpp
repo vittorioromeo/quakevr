@@ -10,10 +10,10 @@
 #include "vr_held.hpp"
 #include "vr_foegrab.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Swap.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
-#include <cstring>
-#include <utility>
 
 namespace box3d::detail
 {
@@ -26,7 +26,7 @@ constexpr float packShrink = 0.9f; // its shape a little inside the drawn pack (
 {
     for(int b = 0; b < r.count; b++)
     {
-        if(!std::strcmp(r.rig->bones[b].name, "chest") && !partCut(r, b))
+        if(!ZA_STRCMP(r.rig->bones[b].name, "chest") && !partCut(r, b))
         {
             return b;
         }
@@ -170,7 +170,7 @@ float wornPackSegment(edict_t* ent, const glm::vec3& a, const glm::vec3& b, floa
         const float s = d[k] > 0.f ? -1.f : 1.f; // (the face entered: against the move)
         if(t0 > t1)
         {
-            std::swap(t0, t1);
+            za::genericSwap(t0, t1);
         }
         if(t0 > lo)
         {

@@ -1,7 +1,6 @@
 // vr_aglegs.cpp -- armed humanoids' legs posed for a crouch (vr_aglegs.hpp; ROUND22.md, "Armed humanoids' legs: the
 // pickup's kneel").
 
-#include <type_traits>
 #include <string.h>
 #include "vr_mdldequant.hpp"
 #include "vr_aglegs.hpp"
@@ -21,6 +20,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Trait/IsTriviallyCopyable.hpp"
 
 #include <glm/gtc/quaternion.hpp>
 
@@ -850,7 +850,7 @@ bool placed(int ent, Placed& out)
 int saveState(int ent, unsigned char* out)
 {
     static_assert(sizeof(Ent) <= stateBytes, "the Live tape's room for its state");
-    static_assert(std::is_trivially_copyable_v<Ent>, "copied as bytes");
+    static_assert(ZA_IS_TRIVIALLY_COPYABLE(Ent), "copied as bytes");
     const Ent* st = entOf(ent, false);
     if(!st)
     {
