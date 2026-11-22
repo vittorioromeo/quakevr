@@ -30,7 +30,6 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
-#include <cstring>
 
 using namespace qvr;
 

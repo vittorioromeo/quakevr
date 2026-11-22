@@ -9,7 +9,6 @@
 #include "vr_api.h"
 #include "vr_testkit.hpp"
 
-#include <cstring>
 
 namespace
 {

@@ -13,7 +13,6 @@ extern "C" {
 #include "cvar.h"
 }
 
-#include <initializer_list>
 
 namespace qvr
 {

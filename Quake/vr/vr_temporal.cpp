@@ -42,15 +42,16 @@
 #include "SDL.h"
 #endif
 
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/UIntPtrT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 
-#include <cstdint>
-#include <cstring>
 
 #ifndef GL_COMPUTE_SHADER
 #define GL_COMPUTE_SHADER 0x91B9
@@ -612,7 +613,7 @@ void ensureBuffers()
         GL_ObjectLabelFunc(GL_BUFFER, state.posBuffer, -1, "taa model positions");
         GL_GenBuffersFunc(1, &state.statsBuffer);
         GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, state.statsBuffer);
-        const std::uint32_t zero[statsViews * 4] = {};
+        const za::U32 zero[statsViews * 4] = {};
         GL_BufferDataFunc(GL_SHADER_STORAGE_BUFFER, sizeof(zero), zero, GL_DYNAMIC_READ);
         GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
     }
@@ -674,7 +675,7 @@ Slot* slotFor(const entity_t* e)
     {
         state.slots.resize(slotTableSize);
     }
-    const std::uintptr_t key = reinterpret_cast<std::uintptr_t>(e);
+    const za::UIntPtrT key = reinterpret_cast<za::UIntPtrT>(e);
     int i = static_cast<int>(((key >> 4) * 2654435761u) & (slotTableSize - 1));
     Slot* reuse = nullptr;
     for(int n = 0; n < slotTableSize; n++, i = (i + 1) & (slotTableSize - 1))
@@ -807,7 +808,7 @@ void begin(unsigned sceneFbo, unsigned compositeFbo, int width, int height, int 
     GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 14, state.posBuffer, (cur ^ 1) * half, half);
     if(vr_temporal_debug.value == 3.f)
     {
-        const std::uint32_t zero[statsViews * 4] = {};
+        const za::U32 zero[statsViews * 4] = {};
         GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, state.statsBuffer);
         GL_BufferSubDataFunc(GL_SHADER_STORAGE_BUFFER, 0, sizeof(zero), zero);
         GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
@@ -857,13 +858,13 @@ void registerCommands()
                 Con_Printf("vr_temporal_error: no data (vr_temporal_debug 3 in the headset first)\n");
                 return;
             }
-            std::uint32_t stats[statsViews * 4] = {};
+            za::U32 stats[statsViews * 4] = {};
             GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, state.statsBuffer);
             getBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(stats), stats);
             GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
             for(int eye = state.flat ? flatView : 0; eye < (state.flat ? statsViews : 2); eye++)
             {
-                const std::uint32_t* s = stats + eye * 4;
+                const za::U32* s = stats + eye * 4;
                 const double n = s[2] > 0 ? static_cast<double>(s[2]) : 1.0;
                 Con_Printf("vr_temporal_error %s: reprojected %.3f, not reprojected %.3f (mean |luma| 0-255), %u pixels, "
                            "%.1f%% of the eye\n",
@@ -983,7 +984,7 @@ extern "C" void VR_TemporalProjection(float proj[16], const float view[16])
 
     state.stamp = static_cast<float>(((state.frameIndex * 2 + state.eye) & 0xFFFFF) + 1);
     temporal::TemporalBlock block{};
-    std::memcpy(block.prevViewProj, e.havePrev ? e.prevViewProj : e.viewProj, sizeof(block.prevViewProj));
+    ZA_MEMCPY(block.prevViewProj, e.havePrev ? e.prevViewProj : e.viewProj, sizeof(block.prevViewProj));
     block.jitter[0] = state.jitter[0] / static_cast<float>(state.width);
     block.jitter[1] = state.jitter[1] / static_cast<float>(state.height);
     block.jitter[2] = state.stamp;
@@ -1033,7 +1034,7 @@ extern "C" void VR_TemporalAliasMotion(const entity_t* e, int totalverts, int st
 // A brush instance's previous matrix (transposed 4x3, as `world`): last frame's, or `world` itself.
 extern "C" void VR_TemporalBrushPrev(const entity_t* e, const float world[12], float prev[12])
 {
-    std::memcpy(prev, world, 12 * sizeof(float));
+    ZA_MEMCPY(prev, world, 12 * sizeof(float));
     if(!state.frameActive || !e || e == &cl_entities[0])
     {
         return;
@@ -1046,12 +1047,12 @@ extern "C" void VR_TemporalBrushPrev(const entity_t* e, const float world[12], f
     if(s->frame != state.frameIndex)
     {
         const bool continues = s->frame == state.frameIndex - 1 && s->model == e->model;
-        std::memcpy(s->prev, continues ? s->mat : world, sizeof(s->prev));
-        std::memcpy(s->mat, world, sizeof(s->mat));
+        ZA_MEMCPY(s->prev, continues ? s->mat : world, sizeof(s->prev));
+        ZA_MEMCPY(s->mat, world, sizeof(s->mat));
         s->frame = state.frameIndex;
         s->model = e->model;
     }
-    std::memcpy(prev, s->prev, 12 * sizeof(float));
+    ZA_MEMCPY(prev, s->prev, 12 * sizeof(float));
 }
 
 // The draws that follow write the motion target (colour attachment 1) when the bound framebuffer is the eye's scene.
@@ -1186,7 +1187,7 @@ extern "C" void VR_TemporalResolve(unsigned fbo, unsigned color, unsigned depth)
     e.cur = next;
     e.valid = true;
     e.frame = state.frameIndex;
-    std::memcpy(e.prevViewProj, e.viewProj, sizeof(e.prevViewProj));
+    ZA_MEMCPY(e.prevViewProj, e.viewProj, sizeof(e.prevViewProj));
     e.havePrev = true;
     VectorCopy(e.origin, e.prevOrigin);
     VectorCopy(e.angles, e.prevAngles);

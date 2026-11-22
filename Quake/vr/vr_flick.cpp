@@ -19,6 +19,7 @@
 #include "vr_twohand.hpp"
 #include "vr_weapon_ids.h"
 
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Fmin.hpp"
@@ -142,7 +143,7 @@ double prevTime = -1.0; // cl.time of the detection before this one
     const float len = glm::length(d);
     glm::vec3 fwd, right, up;
     hands::angleVectors(s.aimRot[hand], fwd, right, up);
-    return len > 1e-3f ? glm::degrees(std::atan2(-glm::dot(d, up) / len, glm::dot(d, fwd) / len)) : 0.f;
+    return len > 1e-3f ? glm::degrees(za::atan2(-glm::dot(d, up) / len, glm::dot(d, fwd) / len)) : 0.f;
 }
 
 void updatePry(const hands::State& s, int hand, float dt)

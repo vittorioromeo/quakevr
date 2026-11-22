@@ -30,14 +30,14 @@
 #include "vr_progs.hpp"
 
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 #include <glm/geometric.hpp>
 #include <glm/vec3.hpp>
 
-#include <cmath>
-#include <cstring>
 
 using namespace qvr;
 
@@ -343,7 +343,7 @@ void analyse(ModelBlows& m, Run& r)
                 const glm::vec3 t1 = vertexAt(hdr, p1, st.tip);
                 const glm::vec3 axis = glm::normalize(vertexAt(hdr, p0, st.b) - vertexAt(hdr, p0, st.a));
                 const glm::vec3 axis1 = glm::normalize(vertexAt(hdr, p1, st.b) - vertexAt(hdr, p1, st.a));
-                turned[s] += std::acos(za::clamp(glm::dot(axis, axis1), -1.f, 1.f)) * 57.29578f;
+                turned[s] += za::acos(za::clamp(glm::dot(axis, axis1), -1.f, 1.f)) * 57.29578f;
                 const glm::vec3 moved = t1 - t0;
                 const glm::vec3 square = moved - axis * glm::dot(moved, axis);
                 const float across = glm::length(square);
@@ -725,7 +725,7 @@ void PF_blowline()
     // Where its drawing is: 0 as the frame starts (the last frame drawn), 1 as it ends (this one).
     const float share = za::clamp(1.f - (e->v.nextthink - static_cast<float>(qcvm->time)) / frameInterval, 0.f, 1.f);
     const float at = share + tau / frameInterval;
-    const int whole = static_cast<int>(std::floor(at));
+    const int whole = static_cast<int>(za::floor(at));
     const int pose1 = walkFrom(*m, run, pose, whole - 1);
     const int pose2 = walkFrom(*m, run, pose, whole);
     const float blend = at - static_cast<float>(whole);

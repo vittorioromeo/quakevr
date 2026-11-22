@@ -31,12 +31,14 @@
 #include "vr_zancle.hpp"
 
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Atan.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
+#include "Zancle/Math/Tan.hpp"
 
 #include <glm/trigonometric.hpp>
 
-#include <cmath>
 
 extern "C" cvar_t scr_fov; // gl_screen.c
 
@@ -54,7 +56,7 @@ constexpr int settledFrames = 3;          // frames the view stands at the step'
 
 [[nodiscard]] float halfTan(float fov)
 {
-    return std::tan(glm::radians(za::clamp(fov, 1.f, 179.f) * 0.5f));
+    return za::tan(glm::radians(za::clamp(fov, 1.f, 179.f) * 0.5f));
 }
 
 // tan(fovY / 2) per tan(basefov / 2): the view's own (r_refdef, as SCR_CalcRefdef made it) in flatscreen play; 0.75
@@ -91,7 +93,7 @@ constexpr int settledFrames = 3;          // frames the view stands at the step'
     const float tl = halfTan(lookFov);
     const float th = halfTan(hipFov);
     const float k = m * verticalPerFov();
-    return (std::atan(k * tl) / std::atan(k * th)) / (tl / th);
+    return (za::atan(k * tl) / za::atan(k * th)) / (tl / th);
 }
 
 // ---- vr_flat_aim_sens_test ----
@@ -163,7 +165,7 @@ void finish()
     const float tl = halfTan(look);
     const float th = halfTan(hip);
     const float k = s.match * verticalPerFov();
-    const float ratio = s.match > 0.f ? std::atan(k * tl) / std::atan(k * th) : tl / th;
+    const float ratio = s.match > 0.f ? za::atan(k * tl) / za::atan(k * th) : tl / th;
     return ratio * s.sens;
 }
 
@@ -223,7 +225,7 @@ void testFrame()
         case 3:
             if(cl.viewangles[YAW] != t.yaw0)
             {
-                const float turned = -std::remainder(cl.viewangles[YAW] - t.yaw0, 360.f);
+                const float turned = -za::remainder(cl.viewangles[YAW] - t.yaw0, 360.f);
                 const float hipDegrees = m_yaw.value * sensitivity.value * static_cast<float>(testCounts);
                 const float got = turned / hipDegrees;
                 const float want = wanted(s);

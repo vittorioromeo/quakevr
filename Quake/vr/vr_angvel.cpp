@@ -17,7 +17,6 @@
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Fabs.hpp"
 
-#include <cstring>
 
 
 namespace qvr::angvel

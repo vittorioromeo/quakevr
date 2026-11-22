@@ -91,12 +91,6 @@
       <SubSystem>Windows</SubSystem>
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
-    <PostBuildEvent>
-      <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\curl\lib\$(PlatformShortName)\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="('$(Configuration)|$(Platform)'=='Release|x64' or '$(Configuration)|$(Platform)'=='Release-Tracy|x64' or '$(Configuration)|$(Platform)'=='Release-TracyFull|x64' or '$(Configuration)|$(Platform)'=='ReleaseLTO|x64')">
     <Midl>
@@ -127,12 +121,6 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
-    <PostBuildEvent>
-      <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\curl\lib\$(PlatformShortName)\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Quake\bgmusic.c" />
@@ -409,7 +397,9 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
          change to one compiles the QC again, or the engine and progs.dat disagree (as Misc/cmake/QuakeC.cmake). -->
     <QvrQcSource Include="$(MSBuildProjectDirectory)\..\..\Quake\vr\*_shared.h;$(MSBuildProjectDirectory)\..\..\Quake\vr\vr_weapon_ids.h" />
   </ItemGroup>
-  <Target Name="QvrCompileQC" BeforeTargets="ClCompile" Inputs="@(QvrQcSource)" Outputs="$(QvrProgsDat)">
+  <!-- /p:QvrSkipQcCompile=1: the caller compiles the QC itself (the kit's build.sh, which skips it when no QC input's
+       contents changed: a touched QC file would otherwise be compiled again here). -->
+  <Target Name="QvrCompileQC" BeforeTargets="ClCompile" Inputs="@(QvrQcSource)" Outputs="$(QvrProgsDat)" Condition="'$(QvrSkipQcCompile)'!='1'">
     <Warning Condition="!Exists('$(QvrQcCompiler)')" Text="QuakeC compiler not found at $(QvrQcCompiler): progs.dat not rebuilt (set QvrQcCompiler)" />
     <Exec Condition="Exists('$(QvrQcCompiler)')" WorkingDirectory="$(QvrQcDir)"
           Command="&quot;$(QvrQcCompiler)&quot; -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208" />

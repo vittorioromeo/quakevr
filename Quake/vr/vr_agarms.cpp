@@ -1,7 +1,6 @@
 // vr_agarms.cpp -- armed humanoids' arms posed and skinned (vr_agarms.hpp; ROUND22.md, "Armed humanoids' arms: posed
 // and skinned").
 
-#include <type_traits>
 #include <string.h>
 #include "vr_mdldequant.hpp"
 #include "vr_agarms.hpp"
@@ -29,6 +28,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Math/Tan.hpp"
+#include "Zancle/Trait/IsTriviallyCopyable.hpp"
 
 #include <string.h>
 #include "vr_jobs.hpp"
@@ -3059,7 +3059,7 @@ void printErr()
 int saveState(int ent, unsigned char* out)
 {
     static_assert(sizeof(Ent) <= stateBytes, "the Live tape's room for its state");
-    static_assert(std::is_trivially_copyable_v<Ent>, "copied as bytes");
+    static_assert(ZA_IS_TRIVIALLY_COPYABLE(Ent), "copied as bytes");
     const Ent* st = entOf(ent, false);
     if(!st)
     {

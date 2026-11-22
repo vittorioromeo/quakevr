@@ -4,6 +4,7 @@
 #include "vr_ragactive_internal.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -705,7 +706,7 @@ int limbJointOf(const ragdoll::Rig& rig, int limb, bool lower)
     for(int b = 0; b < rig.numBones; b++)
     {
         const char* n = rig.bones[b].name;
-        const bool upper = leg ? std::strncmp(n, "thigh_", 6) == 0 : (std::strncmp(n, "upperarm_", 9) == 0 || std::strncmp(n, "arm_", 4) == 0);
+        const bool upper = leg ? ZA_STRNCMP(n, "thigh_", 6) == 0 : (ZA_STRNCMP(n, "upperarm_", 9) == 0 || ZA_STRNCMP(n, "arm_", 4) == 0);
         if(!upper || sideOf(n) != (limb & 1))
         {
             continue;
@@ -717,7 +718,7 @@ int limbJointOf(const ragdoll::Rig& rig, int limb, bool lower)
         for(int c = 0; c < rig.numBones; c++)
         {
             const char* cn = rig.bones[c].name;
-            const bool below = leg ? std::strncmp(cn, "shin_", 5) == 0 : (std::strncmp(cn, "forearm_", 8) == 0 || std::strncmp(cn, "hand_", 5) == 0);
+            const bool below = leg ? ZA_STRNCMP(cn, "shin_", 5) == 0 : (ZA_STRNCMP(cn, "forearm_", 8) == 0 || ZA_STRNCMP(cn, "hand_", 5) == 0);
             if(rig.bones[c].parent == b && below)
             {
                 return c;

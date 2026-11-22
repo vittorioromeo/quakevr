@@ -8499,6 +8499,20 @@ model changes.
   `vr_mock_button main secondary` did not flip it (no "revgrip: ... flips" print, no refusal print); open.
 - **Tests**: `dwell_lance_test.sh` 12/0 (new: the beam fired, 6 cells from the pouch's 100). Note for test writers: the
   mock trigger (`vr_mock_button main trigger 1`) did not fire the Lance; `+attack` does.
+
+## buildaudit: build-speed audit; process starts are the cost (agent/buildaudit, 2026-11-22)
+
+Full write-up: `BUILD_SPEED.md` (measurements, top TUs and headers, what landed, what's proposed).
+- **Finding**: on this PC a process start costs 0.1-2.7 s and starts are mostly serialised (16 `where.exe` starts in
+  a row: 17-19 s), so a build's fixed cost was mostly processes: a no-op build.sh took 23-28 s (~20 small processes in
+  the script, fteqcc recompiling unchanged QC, the version step's 4 cmd.exe + 4 git). A full rebuild: 350 s wall for
+  327 CPU-s of compiling (875 clang-cl starts).
+- **Landed** (`quakevr.props`, `ironwail.vcxproj`): `QvrBuildVersion` in one Exec (one cmd.exe, three gits; same
+  header text); the run-time DLLs by MSBuild's Copy (only changed ones, no cmd.exe); `/p:QvrSkipQcCompile=1`.
+- **Proposed kit patch** `qvr-kit/scratch/buildaudit_kit.patch` (build.sh, qc_hash.py): skip the QC compile when its
+  inputs' hash matches the last clean compile; bash builtins instead of small processes. With it: no-op 23-28 -> 5.5-9 s,
+  a .cpp touch 33-38 -> 6-11 s, a QC edit 36 -> 12 s, vr_hands.hpp 166 -> 98 s (noisy, shared machine).
+- No source includes or std:: touched (the zancle worker's area): the heaviest headers are listed for it in BUILD_SPEED.md.
 ## flatladder: flat-screen ladders on the drawn rungs too (agent/flatladder, 2026-11-22)
 
 His decision 2026-11-22 (kellbase item 3, "share it"). FLATPLAY.md "Ladders".
@@ -8542,3 +8556,39 @@ His request 2026-11-22. FLATPLAY.md's keys table. Holsters on (`vr_flat_holsters
   leaves and retakes the grip on its own (flat's pinToGrip).
 - **Tests**: `vr_flatswap_test 6` (Debug > Tests > "Flat Holster Number Keys") 22/0: 16 key steps and the rocket
   launcher's grip; flatkeybind_test.sh gained 3 numkeys checks.
+## zancle: std:: to Zancle, includes trimmed (agent/zancle, 2026-11-22)
+
+His standing rule restated: our C++ uses Zancle wherever it has an equivalent and includes only what it uses.
+
+- **The mapping:** `docs/vr-port/ZANCLE.md` (std -> Zancle, its header, the traps: exact-type math templates, integer
+  `abs`, `min`/`max` types, `remainder` vs fmod, sort stability, atomic orders; the no-equivalent list: allocator hooks'
+  `std::align_val_t`/`nothrow_t`, `std::filesystem` behind `qvr::files`, `std::source_location` in the jobs, the
+  ordered map in vr_motion_review, `vr_zancle_diag.cpp`'s std comparison, third-party interfaces). Zancle's swap is
+  `za::genericSwap`.
+- **The check:** `qvr_checks std_uses` (Tools/qvr_checks/std_uses.cpp, in `all`, so every build): counts `std::<name>`
+  in the code (comments and strings ignored) and every C++ standard header include except the C ones Zancle has
+  nothing for (cstdio, cstdarg, cstdlib, ctime, cctype, ...), per file in Quake/vr (not external/), against
+  `Misc/quakevr/std_uses_allowlist.txt` (`<file> <name> <max>  # why`; `*` for a whole file). Over a cap fails.
+  `python Misc/quakevr/std_uses_allowlist.py` rewrites the caps from `qvr_checks std_uses --list`, keeping each why.
+- **Phases:** 1 (42 files a..h: AD, box3d, flat play, hit reactions, holster zones), 2 (36 files h..v: humans, impacts,
+  menu, monster groups, net ragdolls and snapshots, active ragdolls, temporal, view, visor). Mechanical: C string calls
+  -> `ZA_STRCMP`..., math -> `za::` templates, traits -> `ZA_IS_...`, int types -> `za::U32`..., `std::array` ->
+  `za::Array`, `std::span` -> `za::Span`, `std::size` -> `za::getArraySize`, sorts -> `za::quickSort`/`stableSort`,
+  `lower_bound` -> `za::lowerBound`; C stdio/stdlib (`sscanf`, `snprintf`, `atof`, `atoi`, `strchr`) lose the `std::`
+  (no Zancle equivalent); `<cmath>`, `<cstring>`, `<cstdint>`, `<algorithm>`, `<type_traits>`, `<utility>`,
+  `<array>`, `<span>`, `<initializer_list>` dropped where nothing std-qualified is left (unqualified C calls come from
+  quakedef.h's C headers). Every converted call compiled against the exact-type templates (no mixed promotions
+  found). One ordering change: vr_admelee.cpp's normal welding sorts equal vertices by index (a total order, so each
+  run's normals sum in one fixed order; std::sort left ties in an unspecified one). Sorts on unique keys (cvar names,
+  snapshot record keys) are unchanged; vr_netsnap's per-class byte table (a diagnostic print) may order ties
+  differently.
+- **Counts:** std:: uses in code 441 -> 208, standard header includes 90 -> 29 (`qvr_checks std_uses --list`).
+- **Left (phase 3):** the atomics (`std::atomic` -> `za::Atomic`: no operators, so every `++`/`+=`/implicit load in the
+  hull/box3d/disk caches' stats, imgprefetch, warmup, startlog, xr_runtime, jobs needs its explicit order:
+  `std::atomic`'s operators are seq_cst), `std::chrono` in vr_mptest/vr_voicechat (-> `za::Clock`), vr_tracy.cpp
+  (mutex, deque, unordered_map, strings: -> `za::AtomicMutex`, ankerl, `za::String`), and the kept list above. Not in
+  scope and noted: ~2,600 unqualified C string calls (`strcmp`, `memcpy`, ...) could become the `ZA_` builtins too.
+- **Tests:** release build 0 warnings each phase; phase 1: smoke e1m1, flat_gate_aim 6/0, hitreact_test exit 0,
+  struggle_test 6/6 (armdrag, shoulderdrag drag: vr_box3d_struggle.cpp's only change was std::str* -> the same
+  builtins, so not this branch's; not chased); phase 2: smoke e1m1, mp_test ragsync 11/0, active_test no fail,
+  NaN or crash line.

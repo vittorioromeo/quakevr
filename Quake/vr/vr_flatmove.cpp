@@ -23,6 +23,7 @@
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -30,6 +31,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 
 #include <glm/geometric.hpp>
 #include <glm/trigonometric.hpp>
@@ -2670,7 +2672,7 @@ cvar_t* const flatKeyList[] = {&vr_flat_key_lean_left, &vr_flat_key_lean_right, 
     &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu, &vr_flat_key_toolgun_adjust};
 const char* const flatKeyLabels[] = {"Lean left", "Lean right", "Lie down", "Swap hands", "Force grab", "Shove", "Punch", "Reload", "Next ammo type", "Drop",
     "Cycle left hand", "Cycle right hand", "Holster left hand", "Holster right hand", "Drop left hand", "Drop right hand", "Quick grenade", "Bullet time", "Flashlight", "Gear lights", "Push-to-talk", "Holster menu", "Fly camera", "Toolgun", "Toolgun panel", "Toolgun adjust"};
-static_assert(std::size(flatKeyList) == std::size(flatKeyLabels), "a label for every flat key");
+static_assert(za::getArraySize(flatKeyList) == za::getArraySize(flatKeyLabels), "a label for every flat key");
 
 [[nodiscard]] int flatKeyNum(const cvar_t& c)
 {
@@ -2680,11 +2682,11 @@ static_assert(std::size(flatKeyList) == std::size(flatKeyLabels), "a label for e
 
 [[nodiscard]] bool flatKeyIndexOk(int i)
 {
-    return i >= 0 && i < static_cast<int>(std::size(flatKeyList));
+    return i >= 0 && i < static_cast<int>(za::getArraySize(flatKeyList));
 }
 } // namespace
 
-std::span<cvar_t* const> qvr::flatplay::keyCvars()
+za::Span<cvar_t* const> qvr::flatplay::keyCvars()
 {
     return flatKeyList;
 }
@@ -2699,7 +2701,7 @@ bool qvr::flatplay::keyActive(const cvar_t& c)
 
 extern "C" int VR_FlatKeyCount(void)
 {
-    return static_cast<int>(std::size(flatKeyList));
+    return static_cast<int>(za::getArraySize(flatKeyList));
 }
 
 extern "C" const char* VR_FlatKeyLabel(int i)
@@ -2735,7 +2737,7 @@ extern "C" int VR_FlatKeyFor(int key, int skip)
     {
         return -1;
     }
-    for(int i = 0; i < static_cast<int>(std::size(flatKeyList)); i++)
+    for(int i = 0; i < static_cast<int>(za::getArraySize(flatKeyList)); i++)
     {
         if(i != skip && flatKeyNum(*flatKeyList[i]) == key)
         {
