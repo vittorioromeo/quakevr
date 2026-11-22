@@ -172,6 +172,14 @@ the crates Quake VR places about maps, Dimension of the Past and Dimension of th
 for the routers hole punching can't get through (the host forwards his port, or a virtual LAN); custom maps that
 aren't Map Library packages aren't sent to joining players.
 
+## Weapons
+
+- **Flat screen: a blade stuck in an enemy keeps its hand.** Dual wielding a blade and a gun, a blade that stays in an
+  enemy now keeps the hand that swung it on its handle until it comes out or the hand lets go; meanwhile the gun stays
+  one-handed, the right mouse button fires the left hand's weapon and the ironsight stays down, as when dual wielding.
+  Before, the hand let go of the blade to hold the gun in both hands, and the ironsight came up. In the headset too, a
+  hand holding a stuck blade no longer takes the other gun's two-handed grip.
+
 ## Movement
 
 - **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down

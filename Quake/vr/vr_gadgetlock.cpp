@@ -1,6 +1,8 @@
 // vr_gadgetlock.cpp -- the wrist gadget locked while both hands hold one thing (vr_gadgetlock.hpp).
 
 #include "vr_gadgetlock.hpp"
+#include "vr_axestick.hpp"
+#include "vr_backend.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -50,8 +52,8 @@ const char* bothHold()
     {
         return "the same prop";
     }
-    const int bladeMain = cl.stats[STAT_QVR_EMBEDMAIN] / 4; // (the blade's entity * 4 + reversed * 2 + its handle flag: vr_axestick.cpp calcStats)
-    if(bladeMain > 0 && bladeMain == cl.stats[STAT_QVR_EMBEDOFF] / 4)
+    const int bladeMain = axestick::heldStat(HAND_MAIN) / 4; // (the blade's entity * 4 + reversed * 2 + its handle flag: vr_axestick.cpp calcStats)
+    if(bladeMain > 0 && bladeMain == axestick::heldStat(HAND_OFF) / 4)
     {
         return "the same embedded blade";
     }

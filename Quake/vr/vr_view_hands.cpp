@@ -3,6 +3,7 @@
 // Split from vr_view.cpp (a pure move); what they share is in vr_view_internal.hpp.
 
 #include "vr_view_internal.hpp"
+#include "vr_axestick.hpp"
 #include "vr_edictindex.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
@@ -2705,7 +2706,7 @@ void embedPinStep(const hands::State& s, int hand)
     const float dt = pin.last >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - pin.last, 0.1)) : 0.f;
     pin.last = vr_gametime;
     pin.weaponPreSet = false;
-    const int stat = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF];
+    const int stat = axestick::heldStat(hand);
     pin.reversed = stat > 0 && embedStatReversed(stat);
     if(stat > 0 && (embedStatEnt(stat) != pin.ent || pin.weight <= 0.f))
     {

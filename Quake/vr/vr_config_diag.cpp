@@ -438,7 +438,8 @@ void trackEdit()
                   : nullptr;
     }
     cvar_t* standIn = nullptr;
-    for(cvar_t& v : standInTables()[0])
+    const auto tables = standInTables(); // (held: a range-for over standInTables()[0] would dangle)
+    for(cvar_t& v : tables[0])
     {
         standIn = standIn ? standIn : isNumber(v.default_string) && !strcmp(v.string, v.default_string) ? &v : nullptr;
     }

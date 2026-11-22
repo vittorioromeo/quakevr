@@ -6951,6 +6951,74 @@ it); an in-game indication of whether the chosen port is forwarded.
   (mode 0 was 0.86 and 0.47 before the fix: FAIL), a shell from the ammo pouch, a magazine from it seated in the nailgun,
   a grenade from the grenade pouch. Checklist scene `pouchbody` (Only Hands, the shotgun and the nailgun, ammo).
 
+## release12: the 1.2.0-rc.1 pre-release stopped at the release tests (release12, 2026-11-21, `agent/release12`)
+
+- **Notes:** `docs/vr-port/RELEASE_NOTES_1.2.md` (user-facing, grouped; Known issues: no splitscreen, Quest standalone
+  not in it, the multiplayer beta's limits; the Dwell Rifle unmentioned). PATCH_NOTES_1.1.1.md not renamed.
+- **Checks passed:** dev and ThinLTO builds 0 warnings, QC 0 warnings, scenario_check PASS (151 run, 0 failed).
+- **Stopped:** `make_release.ps1 -Version 1.2.0-rc.1 -BumpVersion -Publish -NoDraft -NoBranchPush -RunTests -AllowFlaky
+  -SkipOnlineInstall -Notes docs\vr-port\RELEASE_NOTES_1.2.md`: run_test_suite 38 passed, 6 failed, 2 flaky (warned);
+  nothing bumped, built, tagged or published. Rerun alone: weapon_catch, vrtrailer, mapgun_pickup and mapgun_transfer
+  fail again; turned_box and shot_shape pass (flakes).
+- **mapgun_pickup / mapgun_transfer are the tests' own false positive:** their PowerShell `-match
+  'ENGINE|ERROR|Unknown|...'` is case-insensitive, and the start-up trace's summary line ("the engine's shaders") now
+  matches it (`loadedmapguns/pickup_test.ps1:59`, `transfer_test.ps1:8`; `-cmatch` fixes it).
+- **weapon_catch** ("lying shotgun at its handle: taken, the allowed gap the slack and the handle leniency (10 cm; seen
+  2.6-7.7 cm off)"; "leniency 0: the slack's 5 cm alone at the handle, not taken from 10 cm over it") and **vrtrailer**
+  ("the swing beheaded him", "he is dead (health 30)") want a look; both passed 3 of 3 on 2026-11-12.
+- **To publish once fixed:** the same command. `-NoBranchPush` matters: without it the script pushes agent/release12 to
+  its upstream, origin/next; with it the tag alone carries the version commit.
+- **Follow-up (release12b):** mapgun_pickup/transfer fixed (`-cmatch`), 3/3 each. vrtrailer is NOT a regression since
+  1.1 or 11-12: built and run in this worktree, v1.1.0 (5187f3e5e) and f033d4c6d (11-12, the BACKLOG's "3 of 3")
+  fail it the same way ("decap: no: along the blade, a stab (0.76) at the head"; on the real clock the grunt is
+  knocked 150 units away, not beheaded). So something outside the code changed: not the cfg baseline (equal to the
+  compiled defaults and to the `release` worktree's), not `quakevr/cache`, not low-impact mode, not fast mode
+  (`-RealTime` fails too). The 1.1.0 release ran without `-RunTests` (takeslight's out/release/1.1.0 has no tests), so
+  "passed at 1.1" was never measured. Left: the kit's base folder and testbatch since 11-12, or the swing mock against
+  the Super Axe's held pose. weapon_catch's two handle checks print nothing (no fist line: the off hand never nears
+  the let-go shotgun); not bisected (budget). **weapon_catch on a v1.1.0 build in this worktree: 5/5 PASS** (handle
+  taken 6.76 of 10 cm; leniency 0 allowed 5.00, not taken): a real regression between v1.1.0 and origin/next, so the
+  pre-release was not published.
+- **weapon_catch bisected** (first parent v1.1.0..origin/next, the handle checks, 7 steps, 2 skipped for a failed old
+  build): first bad **685a33c66 "Merge branch 'agent/box3dup'"** (Box3D updated to upstream 1767150d, b2b1f57cf; the
+  mesh ghost switch 88dd064ba). Its parent a82c8e3cd passes, it fails. Not the ghost handling: `vr_box3d_mesh_ghosts 0`
+  fails the same way. What happens (`scratch/rel12_wcdbg.sh`, the handle set-up alone): `vr_mock_walk_to nearest
+  thrown_weapon 30` reports "arrived at 484 -329 88", but the player's edict stays at 502.5 -226.3 72 the whole time,
+  and the let-go shotgun lies at 490 -300 50, about 74 units (1.9 m) from the body. So the off hand's targets
+  (`vr_mock_hand_to off nearest thrown_weapon h`) are out of reach, no grab check runs, and nothing is printed. Left:
+  why, since the Box3D update, the body no longer follows the walk to the gun (blocked by the prop, or by the walk's
+  own head-to-body offset). Then a fix that keeps the update.
+
+## release12c: weapon_catch's handle checks, not a Box3D regression; 1.2.0-beta1 (release12c, 2026-11-21, `agent/release12`)
+
+- **Cause: the test's set-up, not the physics.** Traced alone (run.sh, `edict 1` / `edict 207` along the way), the
+  pre-update parent a82c8e3cd and the current branch give the same numbers to the unit: the let-go shotgun lands at
+  481 -339, slides +y and drops off e1m1's start step (rests at 490 -300 48.6, 16 units under the player's floor); the
+  walk "arrives" at 484 -329 88 (29.6 units: within 30), but the player is doing ~222 u/s and runs off the step too,
+  coming to rest at 502.5 -226 72, ~75 units past the gun (the earlier note's "stays at 502.5 -226.3" was this
+  overshoot, read after it). Out of reach both ways, so no grab check, nothing printed: alone, the old build fails the
+  handle checks too. It passed only in the batch: the 5 identical tries ran in different game copies after other
+  cases, and Box3D's run-to-run variation now and then left the gun on the top (old build: the third try, 6.77 cm).
+  After the update none of the 5 did. A second walk to the gun doesn't fix it (it overshoots back up the step and
+  kicks the gun off again).
+- **Real play:** not affected by this. The dropped gun's fall, slide and rest and the player's movement are identical
+  before and after the update; the walk overshoot is Quake's own momentum off a step after the mock lets the stick go.
+- **Fix** (`Misc/quakevr/weapon_catch_test.sh`, handle()): the shotgun let go of on vrfiringrange's flat floor (setpos
+  250 -656.7 41, where section 3 already runs), no step to fall from: the walk stops at 270 -661 (29.4 units from the
+  gun), the fist meets the handle (6.43 cm, allowed 10). weapon_catch 3/3 PASS (every check, the same numbers).
+- **Published 1.2.0-beta1** (the author's naming, as 1.1's betas; not rc.1): https://github.com/vittorioromeo/quakevr/releases/tag/v1.2.0-beta1,
+  pre-release, v1.1.0 still Latest, assets latest.json, QuakeVR-Setup.exe, QuakeVR.zip, SHA256SUMS.txt; tag at
+  fa166b711 (`-NoBranchPush`: agent/release12 not pushed). RELEASE_NOTES_1.2.md retitled "1.2.0 beta 1".
+  The full suite on f12ee573a: 42 passed, 1 failed, 3 flaky warned; the failure reload_gunshape timed out (1200 s, Quest
+  APK builds loading the CPU), and again alone on 2026-11-22: published anyway by the author's direction (betas: a light
+  suite), reload_gunshape among `-FlakyTests` (left for testspeed).
+- **Two release blockers fixed on the way:** the ReleaseLTO build's `-Werror,-Wdangling` at vr_config_diag.cpp:441 (a
+  range-for over `standInTables()[0]`, the temporary array gone: now held in a local; the kit's builds don't stop on it),
+  and make_release.ps1's hosted support files' check reusing `$tag` (since the ericw-tools hosting, d911e616b): it
+  tagged and linked `assets-2026-11-17` instead of v<Version> and stopped at "git tag failed"; now `$supportTag`.
+- **Seen, not fixed:** after the first release attempt's build, `build/qvr_checks/qvr_checks.exe` (rebuilt then) exited
+  3 with no output in `test_numbers` (so build.sh said "BUILD FAILED" with an empty log); rebuilt by build.sh (the old
+  exe moved to scratch), it runs clean.
 ## brushholes: invisible blockers in the gaps Quake's box never fit (branch agent/brushholes, 2026-11-21)
 
 The author's note: grates, gates, pillars and lifts let the narrower boxes (yours at 16, narrow monsters') pass or fall
@@ -7403,3 +7471,40 @@ hitscan's always did.
   hue within 8%, a glow past the frame and a dark face in both (scratch/vcp2_side.ps1: 3 passed, 0 failed;
   scratch/vcp2/side.png).
 
+
+## embeddual: flat dual wielding, an embedded blade keeps its hand (agent/embeddual, 2026-11-22)
+
+His words (2026-11-21, flat): "When dual-wielding a bladed weapon and a gun, if the bladed weapon gets embedded into an
+enemy, the hand that is supposed to wield it stops holding it visually and goes to hold the gun in a 2H pose ... ADS also
+becomes possible in that state".
+
+- **Why:** a held stab or swing that stays in (QC/vr_embedhold.qc) empties the hand's weapon slot (VR_HOLD_EMBED: the blade
+  is a stuck thrown_weapon, the hand on it). Flat play read the hand's contents only from its weapon, carry and held
+  entity, so it saw one gun and an empty hand: `flatsight` pinned that hand to the gun's two-handed grip (its drawing won
+  over the embed pin's), the stance came on, RMB became the ironsight's and the ironsight came up.
+- **One check, shared:** `axestick::handOnBlade(h)` / `heldStat(h)` (vr_axestick.hpp; client: STAT_QVR_EMBEDMAIN /
+  _EMBEDOFF), now used by every reader of those stats (vr_avatar.cpp's arm stretch, vr_handpose.cpp's wall stop,
+  vr_modelcollide.cpp, vr_gadgetlock.cpp, vr_view_hands.cpp's embed pin) and by:
+  - **flat:** `flatplay::holdsThing` (a hand on a stuck blade is busy as with a prop): emptyHand is false for it, so no grip
+    pin, no stance, no two-handed melee stance; routeButtons gives each button its own hand (RMB no ironsight); and
+    `flatsight::adsApplies` now also asks for an empty other hand, so `vr_flat_aim 1` from the console is refused too (also
+    with a prop in the other hand, which matches FLATPLAY.md's rule: "the ironsight only with one gun and an empty other
+    hand"). The blade's hand keeps whatever pose flat gives an empty hand; the drawn hand is the shared embed pin
+    (vr_view_hands.cpp embedPinStep, as in VR), and QC's rules let go past arm reach (`vr_embed_arm_letgo`) as before.
+  - **VR and flat:** vr_twohand.cpp's helping hand (`helperFree`: held::handEmpty and not on a stuck blade) for the hotspot
+    hold, the free grips and the carry grips: a hand holding a stuck blade never takes the other gun's two-handed grip (VR
+    could, for the frames before QC's off-axis pull freed the blade). held::handEmpty itself is unchanged: it mirrors QC's
+    VRIsHandEmpty, which flat E's force grab (the recall) relies on.
+- **Probe:** `vr_flat_route_probe` gained bits 256 (a hand on the other hand's gun: twohand helping, the grip pin or the
+  stance's look), 512 / 1024 (the main / off hand drawn within 16 units of the stuck blade it holds; the distances printed).
+- **Test** `vr_embed_test 52` (embeddual, QC/vr_embeddual_test.qc, `Misc/quakevr/embeddual_test.sh`; -flatscreenmode,
+  vrtesthall; Debug > Tests "Flat Dual Wielding: an Embedded Blade Keeps Its Hand Check"): an axe and a shotgun, the
+  axe's flat swing (`vr_flat_punch`) into a grunt until it stays in (retries a miss, at most 4): case 0 axe main, case 1
+  axe off. Embedded: drawn on the blade (0.0 units), no hand on the gun, VRGet2HAiming 0, the ironsight down though asked
+  for, LMB main / RMB off; case 0 VR_Embed_Free: the axe back in the hand, dual again; case 1 VR_Embed_DropHand: the free
+  hand on the gun and the ironsight up (ads 1.00). 16 passed, 0 failed. With the fix disabled: 5 passed, 5 failed (the
+  hand drawn off the blade, on the gun, the ironsight up, RMB the ironsight's). Scene `flat_embed_dual`.
+- **Checks:** Dev and ThinLTO built, 0 warnings; scenario_check PASS (183 run, 0 failed); embed tests 33 (embedgrip) 15/0, 24 (embedfeel) 22/0, 13 (embededge) 62/4: the known run-to-run four
+  (the grip 64 units off, cases 8/9, standing or staggering; this file's "vr_embed_test 13" notes above). Flat:
+  `vr_flatitems_test 10` (routing, ironsight with an empty hand) 63/0, 7 (a prop beside the gun) 13/0, flathands 76/0,
+  flatmelee2h 16/0, flatads 6/1 (its "launchers", the outdated expectation of ROUND24.md).
