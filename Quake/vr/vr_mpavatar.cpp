@@ -11,6 +11,7 @@
 #include "vr_backend.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -376,9 +377,9 @@ void printAvatar(int e, const Avatar& a, bool hands)
                 const float r0 = (a.moves & avatarHoldOff) ? near(origin + a.holdAt[0]) : -1.f;
                 const float r1 = (a.moves & avatarHoldMain) ? near(origin + a.holdAt[1]) : -1.f;
                 Con_Printf("mp_ropepose: ent=%d wrist0=%.1f wrist1=%.1f ankle0=%.1f ankle1=%.1f toe0=%.1f toe1=%.1f climb=%.2f "
-                           "hold0=%.1f hold1=%.1f holdrope0=%.1f holdrope1=%.1f pelvis=%.1f org=%.1f head=%.1f placed=%.1f\n",
+                           "hold0=%.1f hold1=%.1f holdrope0=%.1f holdrope1=%.1f pelvis=%.1f org=%.1f head=%.1f placed=%.1f neck=%.1f\n",
                     e, w0, w1, near(d.skeleton.ankle[0]), near(d.skeleton.ankle[1]), near(d.skeleton.toe[0]), near(d.skeleton.toe[1]),
-                    climbWeight, h0, h1, r0, r1, near(d.skeleton.pelvis), near(origin), near(d.skeleton.head), near(d.placedAt));
+                    climbWeight, h0, h1, r0, r1, near(d.skeleton.pelvis), near(origin), near(d.skeleton.head), near(d.placedAt), near(d.skeleton.headJoint));
             }
         }
         view::printPauldrons("mp_pauldron", e, d.pauldron);
@@ -478,6 +479,15 @@ void avatars_f()
             float pitch = 0.f, lying = 0.f, sliding = 0.f;
             (void)avatar::ownPitch(pitch, lying, sliding);
             Con_Printf(" pitch=%.1f lying=%.2f sliding=%.2f\n", pitch, lying, sliding);
+            // (ropepose) Climbing a rope: his own body against the rope as this client draws it, as mp_ropepose has
+            // another's copy (mp_test.py ropeclimb: the copy hangs as he does).
+            const auto near = [](const glm::vec3& p) { return climbrope::clientRopeDistance(p); };
+            if((climb::holding(HAND_MAIN) || climb::holding(HAND_OFF)) && za::min(near(k.wrist[0]), near(k.wrist[1])) < 32.f)
+            {
+                Con_Printf("mp_ropepose_own: ent=%d wrist0=%.1f wrist1=%.1f ankle0=%.1f ankle1=%.1f pelvis=%.1f head=%.1f neck=%.1f\n",
+                    cl.viewentity, near(k.wrist[0]), near(k.wrist[1]), near(k.ankle[0]), near(k.ankle[1]), near(k.pelvis),
+                    near(k.head), near(k.headJoint));
+            }
             // Flat-screen play (adspose): the eye the view and the sights are solved from, the held gun's rear sight, the
             // ironsight's travel: against the drawn head's eyes (headeye) others see.
             if(flatplay::active())
@@ -524,7 +534,7 @@ void avatars_f()
             if(d.doll > 0 && d.bodyPosed && d.body.ent.model && (d.frame == host_framecount - 1 || d.frame == host_framecount))
             {
                 printSkeleton("mp_doll", d.owner, d.body.ent.model->name, d.skeleton);
-                Con_Printf(" slot=%d", k);
+                Con_Printf(" slot=%d plates=%d %d", k, d.plateType, d.platePieces); // (vrnotes1122a: the body's own)
                 view::SkinLook look;
                 const int kind = mpavatar::lookOf(&d.body.ent, look);
                 const entity_t& de = cl_entities[d.doll];
@@ -662,6 +672,17 @@ void avatars_f()
     Con_Printf("mp_avatars: done\n");
 }
 
+// The yaw of a body's trunk as posed: its shoulders' line, level (`fallback` if they are on top of each other).
+[[nodiscard]] float trunkYaw(const avatar::Skeleton& k, float fallback)
+{
+    const glm::vec2 across{k.shoulder[1].x - k.shoulder[0].x, k.shoulder[1].y - k.shoulder[0].y}; // (left to right)
+    if(glm::length(across) < 1e-3f)
+    {
+        return fallback;
+    }
+    return glm::degrees(za::atan2(across.x, -across.y)); // (forward: right turned a quarter left, up the z axis)
+}
+
 // vr_mp_gearcheck [ent] (mpbothands; his report 2026-11-22: bots drawn with an extra pair of fists, a gun and a shovel
 // floating beside the body; Debug > Reports > Network: Other Players' Gear): each other player's copy as drawn last frame
 // (or `ent`'s): how many hand models it draws (its two hands, nothing else: an empty holster -- the fists' -- draws none),
@@ -695,9 +716,20 @@ void gearcheck_f()
                                            k.wrist[side]));
             }
         }
+        const auto at = [](const view::ViewEntity& ve) { return glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]}; };
+        bool finite = true;
+        const auto num = [](const glm::vec3& v) { return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z); };
         const auto onTrunk = [&](const view::ViewEntity& ve) {
-            trunk = za::max(trunk, geom::segmentDistance(glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]}, k.pelvis, neck));
+            const glm::vec3 p = at(ve), a{ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
+            finite = finite && num(p) && num(a);
+            trunk = za::max(trunk, geom::segmentDistance(p, k.pelvis, neck));
         };
+        // (vrnotes1122a) Each sheath against the trunk: its plate's up along the trunk's (`tilt`, the worst, degrees) and
+        // its plate facing out of the body (`facing`: its out from the trunk's line, level), as yours lie (holsterOnBody:
+        // the angles' right is the plate's out, the left ones' its opposite, drawn mirrored); each gun hanging in its
+        // sheath (`hang`: the farthest from it) and every piece's place and angles numbers (`finite`).
+        const glm::vec3 trunkUp = glm::normalize(neck - k.pelvis);
+        float tilt = 0.f, facing = 0.f, hang = 0.f;
         for(int i = 0; i < VrDrawnHolsters::count; i++)
         {
             if(shown(d.holster[i]))
@@ -710,17 +742,37 @@ void gearcheck_f()
             {
                 sheaths++;
                 onTrunk(d.gear[i]);
+                glm::vec3 f, r, u;
+                hands::angleVectors({-d.gear[i].ent.angles[0], d.gear[i].ent.angles[1], d.gear[i].ent.angles[2]}, f, r, u);
+                const glm::vec3 p = at(d.gear[i]);
+                glm::vec3 radial = p - geom::closestOnSegment(p, k.pelvis, neck);
+                radial.z = 0.f;
+                const glm::vec3 out = d.gear[i].mirrored ? -r : r;
+                tilt = za::max(tilt, glm::degrees(za::acos(CLAMP(-1.f, glm::dot(u, trunkUp), 1.f))));
+                if(glm::length(radial) > 1e-3f)
+                {
+                    facing = za::max(facing, glm::degrees(za::acos(CLAMP(-1.f, glm::dot(out, glm::normalize(radial)), 1.f))));
+                }
+                if(shown(d.holster[i]))
+                {
+                    hang = za::max(hang, glm::distance(at(d.holster[i]), p));
+                }
             }
         }
         // (on the body: within half a metre of the trunk's line -- a hip holster stands ~0.2 m out, a held hand's
-        // model origin a few units from the wrist its arm reached for)
-        const float trunkMost = 0.5f * k.m2w, wristMost = 0.15f * k.m2w;
-        const bool ok = hands == 2 && trunk <= trunkMost && wrist <= wristMost;
+        // model origin a few units from the wrist its arm reached for; a sheath at most 70 degrees off the trunk's up --
+        // the chest's lean back 20 and the uppers' turn 40 (vr_upper_holster_pitch), a player's copy ~50 -- and facing
+        // within 60 of straight out (the hips turned 40 outwards); a gun within 0.25 m of its sheath)
+        const float trunkMost = 0.5f * k.m2w, wristMost = 0.15f * k.m2w, hangMost = 0.25f * k.m2w;
+        constexpr float tiltMost = 70.f, facingMost = 60.f;
+        const bool turned = finite && tilt <= tiltMost && facing <= facingMost && hang <= hangMost;
+        const bool ok = hands == 2 && trunk <= trunkMost && wrist <= wristMost && turned;
         const bool bot = ((avatars[e].hands[0].flags | avatars[e].hands[1].flags) & VrDrawnHand::solveBit) != 0;
         Con_Printf("mp_gear: ent=%d bot=%d hands=%d holsters=%d sheaths=%d trunk=%.1f trunkmost=%.1f wrist=%.1f wristmost=%.1f "
-                   "ok=%d\n",
+                   "finite=%d tilt=%.1f facing=%.1f hang=%.1f hangmost=%.1f turned=%d ok=%d\n",
             e, bot ? 1 : 0, hands, holsters, sheaths, static_cast<double>(trunk), static_cast<double>(trunkMost),
-            static_cast<double>(wrist), static_cast<double>(wristMost), ok ? 1 : 0);
+            static_cast<double>(wrist), static_cast<double>(wristMost), finite ? 1 : 0, static_cast<double>(tilt),
+            static_cast<double>(facing), static_cast<double>(hang), static_cast<double>(hangMost), turned ? 1 : 0, ok ? 1 : 0);
         players++;
         bad += ok ? 0 : 1;
     }
@@ -750,33 +802,38 @@ void solveBotGear(const Drawn& d, float yaw, VrDrawnHolsters& hs, view::GearDraw
         return;
     }
     const avatar::Skeleton& k = d.skeleton;
+    // (vrnotes1122a; his voice note 2026-11-22: a bot's holsters "not properly rotated on its body") Turned with its
+    // trunk as drawn (trunkYaw: its shoulders' line), the hips' and uppers' on the front of its belly and chest, each
+    // facing the ring's surface there, as yours at their defaults (body::frontRingPlate). The hips stood beside the hip
+    // joints facing straight out, the side the holster's frame takes for its outwards: no frame (NaN), the guns lost.
+    const float bodyYaw = trunkYaw(k, yaw);
     glm::vec3 fwd, right, up;
-    hands::angleVectors(glm::vec3{0.f, yaw, 0.f}, fwd, right, up);
+    hands::angleVectors(glm::vec3{0.f, bodyYaw, 0.f}, fwd, right, up);
     const float m = k.m2w;
-    const glm::vec3 chest = glm::mix(k.pelvis, 0.5f * (k.shoulder[0] + k.shoulder[1]), 0.55f);
+    const glm::vec3 neck = 0.5f * (k.shoulder[0] + k.shoulder[1]);
+    const glm::vec3 chest = glm::mix(k.pelvis, neck, 0.55f);
+    const glm::vec3 hips = (k.legs ? 0.5f * (k.hip[0] + k.hip[1]) : k.pelvis) - up * (0.04f * m);
     for(int h = 0; h < VrDrawnHolsters::count; h++)
     {
         const int side = h == body::LeftShoulder || h == body::LeftHip || h == body::LeftUpper ? 0 : 1;
-        const float s = side ? 1.f : -1.f;
-        glm::vec3 pos, out;
+        glm::vec3 pos, out = -fwd, surfaceUp = up;
         if(h == body::LeftShoulder || h == body::RightShoulder)
         {
             pos = k.shoulder[side] - fwd * (0.08f * m) - up * (0.1f * m);
-            out = -fwd;
-        }
-        else if(h == body::LeftHip || h == body::RightHip)
-        {
-            pos = (k.legs ? k.hip[side] : k.pelvis + right * (s * 0.1f * m)) + right * (s * 0.09f * m) - up * (0.04f * m);
-            out = right * s;
         }
         else
         {
-            pos = chest + fwd * (0.12f * m) + right * (s * 0.1f * m);
-            out = fwd;
+            const bool hip = h == body::LeftHip || h == body::RightHip;
+            glm::vec2 at;
+            const body::HolsterPlate plate = body::frontRingPlate(fwd, right, up, static_cast<body::Holster>(h), m, at);
+            pos = (hip ? hips : chest) + fwd * at.x + right * at.y;
+            out = plate.out;
+            surfaceUp = plate.up;
         }
         view::GearDraw gun;
         const int model = (hs.weapons & (1 << h)) ? hs.model[h] : 0;
-        view::holsterOnOther(h, pos, out, yaw, model > 0 && model < MAX_MODELS ? cl.model_precache[model] : nullptr, gear[h], gun);
+        view::holsterOnOther(h, pos, out, surfaceUp, bodyYaw, model > 0 && model < MAX_MODELS ? cl.model_precache[model] : nullptr,
+            gear[h], gun);
         hs.origin[h] = gun.origin - glm::vec3{d.placedAt}; // (offsets from his entity's origin, as received)
         hs.angles[h] = gun.angles;
         hs.mirrored = static_cast<za::U8>((hs.mirrored & ~(1 << h)) | (gun.mirrored ? 1 << h : 0));
@@ -1332,11 +1389,13 @@ void setupBody(int slot, int e, const Avatar& a, const glm::vec3& origin, const 
     b.poses = poses;
     // His armour's plates (B6c): the server's word on him (QVR_SVC_ARMOR, as on you), drawn as yours are (your
     // vr_player_plates: whether you see plates at all), coming in and going out by their morphs as yours do (B11c part 2:
-    // his own morphs' state; taken as they come when his copy is first drawn).
+    // his own morphs' state; taken as they come when his copy is first drawn). His dead body's: its own, his as he died
+    // (vrnotes1122a: the server's word on the body's entity, d.doll; never his living plates again).
     view::BodyPlates& p = b.plates;
     const bool on = vr_player_plates.value != 0.f;
-    const int type = on ? za::max(agarmor::clientState(e, 0), 0) : 0;
-    const int pieces = type > 0 ? za::max(agarmor::clientState(e, 1), 0) : 0;
+    const int worn = doll ? d.doll : e;
+    const int type = on && worn > 0 ? za::max(agarmor::clientState(worn, 0), 0) : 0;
+    const int pieces = type > 0 ? za::max(agarmor::clientState(worn, 1), 0) : 0;
     view::morphPlates(d.morph, on, type, pieces, vr_gametime, p);
     d.plateType = p.type;
     d.platePieces = p.pieces;
@@ -1353,7 +1412,8 @@ void setupBody(int slot, int e, const Avatar& a, const glm::vec3& origin, const 
                       1000.f;
     }
     look.build = b.build;
-    look.armour = a.armour;
+    // (his dead body's: its plates' colour as he died -- the armour he wore then; his living gear byte is not its own)
+    look.armour = doll ? (worn > 0 ? za::max(agarmor::clientState(worn, 0), 0) : 0) : a.armour;
     view::BodyEntities out;
     out.body = &d.body;
     out.plates = d.plate;
@@ -2327,8 +2387,8 @@ void addDolls()
         {
             d.morph.resync = true;
         }
+        d.doll = num; // (before setup: setupBody reads the body's own plates)
         setup(slot, p, a, origin, &pose);
-        d.doll = num;
         addDrawn(slot, e);
     }
 }
@@ -2361,8 +2421,8 @@ void addEntities()
         }
         glm::vec3 origin, angles;
         render::drawnPlace(cl_entities[e], origin, angles);
-        setup(e, e, blendedOf(e), origin);
         d.doll = 0;
+        setup(e, e, blendedOf(e), origin);
         // (the server's time it shows: blendedOf's -- the interpolation's, the lerp's, or the last message as it came)
         d.posedAt = vr_mp_avatar_lerp.value == 0.f ? a.msgTime
                                                     : za::min(netsnap::interpActive() ? netsnap::interpTime() : cl.time, a.msgTime);

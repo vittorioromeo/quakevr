@@ -846,12 +846,114 @@ constexpr float ladderRungDepth = 32.f;
 // relax that drop only: its hold must still be on an actual walkable solid top within hand-touch distance. A ladder with
 // no real rung within reach of the hand (rungNear: a flat ladder-textured wall, or rungs farther apart than a reach) is
 // held in its volume (or within the touch distance of it, plus `slack` across: findHold's leniency), facing the body,
-// so no ladder is left unclimbable: on its own rungs, ladderRungStep apart down from the volume's top (a Quoth or AD
+// so no ladder is left unclimbable: on its drawn rungs (drawnRung: a non-solid model's bars over it), else on its own
+// rungs, ladderRungStep apart down from the volume's top (a Quoth or AD
 // ladder is a trigger_ladder brush over a ladder drawn on a wall, his request 2026-11-21), so a hand takes the nearest as
 // a brush ladder's rung and the flat ladder (findRungs) finds two one over the other. `lowest`: the lowest a real rung
 // may be (the feet plus Lowest Ledge).
 constexpr float ladderRungStep = 16.f; // units: a ladder volume's own rungs, down from its top
 constexpr float ladderInWall = 12.f;   // units: how far into the wall behind a ladder volume a hand still holds it
+
+// A drawn ladder's rungs: the up-facing faces of a non-solid brush model over a ladder volume (a func_illusionary or a
+// static one: kellbase1's pillar ladders, his note 2026-11-22 16:06, "the position of the hands and the ledges doesn't
+// match the actual rungs"), within drawnRungMargin behind or before it (across its thinner side: not its rails' caps
+// beside it) and inside its height. The top nearest `z` and that rung's footprint (its faces at that top), or nothing:
+// no rung drawn there (the volume's own rungs then).
+constexpr float drawnRungMargin = 12.f; // units: how far before or behind a ladder volume its drawn rungs are looked for
+
+struct DrawnRung
+{
+    float top{0.f};
+    glm::vec2 lo{0.f}, hi{0.f}; // its ridge (its top faces' vertices at its top): the bar's line
+};
+
+// While flatscreen play's ladder looks for rungs (findRungs): the volume's own rungs, 16 apart, so two stand in its
+// window over the feet (drawn ones 24 or 32 apart may not); only a headset's hands take the drawn rungs.
+bool flatRungSearch = false;
+
+[[nodiscard]] za::Optional<DrawnRung> drawnRung(const edict_t* vol, float z)
+{
+    if(!sv.worldmodel)
+    {
+        return za::nullOpt;
+    }
+    const int thin = vol->v.maxs[0] - vol->v.mins[0] <= vol->v.maxs[1] - vol->v.mins[1] ? 0 : 1;
+    glm::vec3 lo, hi;
+    for(int axis = 0; axis < 3; ++axis)
+    {
+        const float grow = axis == thin ? drawnRungMargin : axis == 2 ? 1.f : 0.f;
+        lo[axis] = vol->v.origin[axis] + vol->v.mins[axis] - grow;
+        hi[axis] = vol->v.origin[axis] + vol->v.maxs[axis] + grow;
+    }
+    za::Optional<DrawnRung> best;
+    const auto overlaps = [&](const float* mn, const float* mx) {
+        return mn[0] <= hi.x && mx[0] >= lo.x && mn[1] <= hi.y && mx[1] >= lo.y && mn[2] <= hi.z && mx[2] >= lo.z;
+    };
+    for(int k = 2; k < MAX_MODELS && k <= sv.worldmodel->numsubmodels; ++k) // (sv.models[k]: the submodel *(k - 1))
+    {
+        const qmodel_t* m = sv.models[k];
+        if(!m || m->type != mod_brush || !overlaps(m->mins, m->maxs))
+        {
+            continue;
+        }
+        bool drawnOnly = true; // (no solid or trigger entity of it: a mover's or a volume's faces are not rungs)
+        for(int i = 1; i < qcvm->num_edicts && drawnOnly; ++i)
+        {
+            const edict_t* e = EDICT_NUM(i);
+            drawnOnly = e->free || static_cast<int>(e->v.modelindex) != k || static_cast<int>(e->v.solid) == SOLID_NOT;
+        }
+        if(!drawnOnly)
+        {
+            continue;
+        }
+        for(int s = 0; s < m->nummodelsurfaces; ++s)
+        {
+            const msurface_t& surf = m->surfaces[m->firstmodelsurface + s];
+            const float nz = (surf.flags & SURF_PLANEBACK) ? -surf.plane->normal[2] : surf.plane->normal[2];
+            if(nz < ledges::minTopNormal || !overlaps(surf.mins, surf.maxs))
+            {
+                continue;
+            }
+            float fmin[3] = {1e30f, 1e30f, 1e30f}, fmax[3] = {-1e30f, -1e30f, -1e30f}; // (its vertices': mins, maxs are padded)
+            for(int i = 0; i < surf.numedges; ++i)
+            {
+                const int se = m->surfedges[surf.firstedge + i];
+                const float* p = m->vertexes[se >= 0 ? m->edges[se].v[0] : m->edges[-se].v[1]].position;
+                for(int axis = 0; axis < 3; ++axis)
+                {
+                    fmin[axis] = za::min(fmin[axis], p[axis]);
+                    fmax[axis] = za::max(fmax[axis], p[axis]);
+                }
+            }
+            if(!overlaps(fmin, fmax))
+            {
+                continue;
+            }
+            const float top = fmax[2];
+            glm::vec2 rlo{1e30f}, rhi{-1e30f}; // (its ridge: its vertices at its top, a bar's line)
+            for(int i = 0; i < surf.numedges; ++i)
+            {
+                const int se = m->surfedges[surf.firstedge + i];
+                const float* p = m->vertexes[se >= 0 ? m->edges[se].v[0] : m->edges[-se].v[1]].position;
+                if(p[2] >= top - 0.05f)
+                {
+                    rlo = glm::min(rlo, glm::vec2{p[0], p[1]});
+                    rhi = glm::max(rhi, glm::vec2{p[0], p[1]});
+                }
+            }
+            if(best && za::abs(top - best->top) < 0.5f)
+            {
+                best->lo = glm::min(best->lo, rlo); // (another face of that rung)
+                best->hi = glm::max(best->hi, rhi);
+            }
+            else if(!best || za::abs(top - z) < za::abs(best->top - z))
+            {
+                best = za::Optional<DrawnRung>{DrawnRung{top, rlo, rhi}};
+            }
+        }
+    }
+    return best;
+}
 
 [[nodiscard]] za::Optional<Ledge> ladderHold(edict_t* player, const glm::vec3& hand, const glm::vec3& eye, float lowest, float slack = 0.f)
 {
@@ -893,7 +995,8 @@ constexpr float ladderInWall = 12.f;   // units: how far into the wall behind a 
             const float lo = e->v.origin[2] + e->v.mins[2], hi = e->v.origin[2] + e->v.maxs[2]; // (not the link's padded box)
             const float down = za::clamp(za::round((hi - hand.z) / ladderRungStep), 0.f, za::floor((hi - lo) / ladderRungStep));
             Ledge l;
-            l.top = hi - down * ladderRungStep;
+            const za::Optional<DrawnRung> drawn = flatRungSearch ? za::nullOpt : drawnRung(e, hand.z); // (its drawn rungs)
+            l.top = drawn ? drawn->top : hi - down * ladderRungStep;
             // (Facing the eye: a headset's head is with the body; the flat ladder's mount looks from over the drop.)
             const glm::vec2 toEye{eye.x - hand.x, eye.y - hand.y};
             l.out = glm::length(toEye) > 1.f ? glm::vec3{glm::normalize(toEye), 0.f} : out;
@@ -901,6 +1004,15 @@ constexpr float ladderInWall = 12.f;   // units: how far into the wall behind a 
             const glm::vec3 org = vec(e->v.origin);
             l.hold = glm::vec3{za::clamp(hand.x, org.x + e->v.mins[0], org.x + e->v.maxs[0]),
                 za::clamp(hand.y, org.y + e->v.mins[1], org.y + e->v.maxs[1]), l.top + ledges::holdLift};
+            if(drawn) // (on the drawn rung itself, the hand round the bar it sees: along it where the hand is, on its middle across)
+            {
+                const int thin = drawn->hi.x - drawn->lo.x <= drawn->hi.y - drawn->lo.y ? 0 : 1; // (across the bar)
+                for(int axis = 0; axis < 2; ++axis)
+                {
+                    l.hold[axis] = axis == thin ? (drawn->lo[axis] + drawn->hi[axis]) * 0.5f
+                                                : za::clamp(hand[axis], drawn->lo[axis], drawn->hi[axis]);
+                }
+            }
             return za::Optional<Ledge>{l};
         }
         Ledge l;
@@ -1233,6 +1345,15 @@ struct Climber
     int flatRopes{0};                // rope climbs it started (vr_rope_flat_test)
     int flatRopeLeft{0};             // the rope it last let go of, and when (not taken again for flatRopeRetake)
     double flatRopeLeftAt{-1.0};
+    // (ropes6) A headset's pulls up a rope (ropePullGrunt): each hand's rope grip last seen (its serial), the newest
+    // grip's hand and the body's height over its hold as it took it, whether its pull has grunted, when the next grunt
+    // may come, and the grunts so far (the tests').
+    int pullSeen[2]{-1, -1};
+    int pullHand{-1};
+    float pullFrom{0.f};
+    bool pullGrunted{true};
+    double pullGruntNext{0.0};
+    int pullGrunts{0};
     // Hanging or slipping: holding on with one hand or both.
     bool hanging() const
     {
@@ -2242,7 +2363,7 @@ void takeHold(edict_t* ent, Climber& c, const VrMove* move, int h, const za::Opt
     }
     else if(ledge->ent)
     {
-        climbrope::grabbed(ent, NUM_FOR_EDICT(ledge->ent), ledge->hold, true); // (a chain's metal grip; a rope: silent)
+        climbrope::grabbed(ent, NUM_FOR_EDICT(ledge->ent), ledge->hold); // (a chain's metal grip, a rope's soft thud)
     }
     if(debug())
     {
@@ -3486,6 +3607,7 @@ void findRungs(edict_t* ent, const glm::vec3& eye, const glm::vec3& fwd, float l
     const float propLow = propLowest(ent, true);
     const float lower = za::max(0.f, ent->v.origin[2] + ent->v.mins[2] + vr_climb_min_height.value - low);
     constexpr float step = 6.f; // (finer than any ladder's rungs: each is the nearest hold to one of the points)
+    flatRungSearch = true; // (a ladder volume's own rungs: ladderHold)
     for(float z = low; z <= high + radius && out.count < maxRungs; z += step)
     {
         bool lenient = false;
@@ -3516,6 +3638,7 @@ void findRungs(edict_t* ent, const glm::vec3& eye, const glm::vec3& fwd, float l
         }
         out.at[i] = *l;
     }
+    flatRungSearch = false;
 }
 
 // Which way the keys climb a ladder: forward up (looking down past vr_flat_ladder_look_down: down), back down; 0 none.
@@ -3966,7 +4089,7 @@ void ropeTake(edict_t* ent, Climber& c, const VrMove& move, int h, const climbro
     c.flatShow[h] = handEmpty(ent, &move, h);
     if(c.flatShow[h])
     {
-        climbrope::grabbed(ent, grab.ent, g.hold, false); // (a chain's metal grip, a rope's slap)
+        climbrope::grabbed(ent, grab.ent, g.hold); // (a chain's metal grip, a rope's soft thud)
     }
     if(debug())
     {
@@ -4155,6 +4278,50 @@ int flatRopeFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
 
 namespace
 {
+constexpr float pullGruntRise = 0.15f; // m: the body risen this far over a new rope grip's hold since taking it: a pull
+constexpr double pullGruntGap = 0.6;   // seconds between two pull grunts at least
+
+// (ropes6, NOTES.md vrropes_2026-11-22_15-43-56) A short exertion grunt as a headset's pull lifts him up a rope: once a
+// grip, when the body has risen pullGruntRise over that grip's hold since the hand took it (pulled down on it; a mere
+// grab, or the rope's swing, which carries hold and body alike, lifts nothing), at vr_rope_grunt's volume (one of the
+// mantle's grunts: vr_rope_grunt_sound), at most every pullGruntGap. Flat-screen play's keys climb steadily, with no
+// pulls: none there.
+void ropePullGrunt(edict_t* ent, Climber& c)
+{
+    for(int h = 0; h < 2; h++)
+    {
+        const Grip& g = c.grips[h];
+        const int serial = g.active && g.rope ? g.serial : -1;
+        if(serial >= 0 && serial != c.pullSeen[h])
+        {
+            c.pullHand = h; // (a new grip: its pull to come)
+            c.pullFrom = ent->v.origin[2] - g.hold.z;
+            c.pullGrunted = c.flatRope;
+        }
+        c.pullSeen[h] = serial;
+    }
+    if(c.pullHand < 0 || c.pullGrunted || c.pullSeen[c.pullHand] < 0)
+    {
+        return;
+    }
+    const float rise = ent->v.origin[2] - c.grips[c.pullHand].hold.z - c.pullFrom;
+    if(rise < pullGruntRise * units::metresToUnits())
+    {
+        return;
+    }
+    c.pullGrunted = true;
+    if(qcvm->time >= c.pullGruntNext && climb::grunt(ent, vr_rope_grunt_sound.value, vr_rope_grunt.value))
+    {
+        c.pullGruntNext = qcvm->time + pullGruntGap;
+        c.pullGrunts++;
+        if(debug())
+        {
+            Con_Printf("climb: rope pull grunt (%s hand, up %.1f) %s %.2f\n", handName(c.pullHand), rise,
+                climb::gruntSample(vr_rope_grunt_sound.value), za::clamp(vr_rope_grunt.value, 0.f, 1.f));
+        }
+    }
+}
+
 // A hanging (or slipping) frame: the body moved by the holding hands, the mantle's test (the steps'); out of reach, the
 // fall; the stamina. The hang's once-a-frame part after its steps (single player's one, a remote client's moves': MP
 // B8i), unless they began the mantle: kept within reach, the owed settled, the reach checked, the no-room buzz, the
@@ -4169,6 +4336,7 @@ void hangFramePart(Hang& hang)
     // A rope's rider whose body couldn't go where the swing (and the pull) took it, level (a wall): his swing stopped
     // that way, the rope pushed back (see "Holds on ropes").
     climbrope::riderBlocked(NUM_FOR_EDICT(ent) - 1, glm::vec3{hang.meant.x - hang.done.x, hang.meant.y - hang.done.y, 0.f});
+    ropePullGrunt(ent, c);
     if(!c.hanging())
     {
         // Let go of everything (out of reach): fall.
@@ -4563,7 +4731,7 @@ constexpr float ropeHandSurface = 0.4f; // of its thickness: at least this far (
 }
 
 // The drawn hand's turn on a hold: gripping a rope (`up` set: ropeTurn) where vr_rope_hand_grip has it (1 flat-screen
-// play, 2 VR too), else as on a ledge (holdTurn).
+// play only, 2 VR too: the default since ropes6), else as on a ledge (holdTurn).
 [[nodiscard]] glm::mat3 turnOn(const glm::vec3& out, const glm::vec3& up, bool mirrored)
 {
     const int grip = static_cast<int>(vr_rope_hand_grip.value);
@@ -4652,6 +4820,12 @@ int qvr::climb::ropeHands(edict_t* ent)
         return 0;
     }
     return (c->grips[0].active && c->grips[0].rope ? 1 : 0) + (c->grips[1].active && c->grips[1].rope ? 1 : 0);
+}
+
+int qvr::climb::ropePullGrunts(edict_t* ent)
+{
+    const Climber* c = climberOf(ent);
+    return c ? c->pullGrunts : 0;
 }
 
 bool qvr::climb::takesInMoves(edict_t* ent)
@@ -5052,6 +5226,18 @@ bool qvr::climb::drawnPalm(int hand, glm::vec3& palm)
         return false;
     }
     palm = pins[hand].hold();
+    return true;
+}
+
+bool qvr::climb::drawnBack(int hand, glm::vec3& back)
+{
+    if(hand < 0 || hand > 1 || pins[hand].weight <= 0.f)
+    {
+        return false;
+    }
+    // (The hand model's left is a right hand's palm side; the off hand's mirrored model has it the other way.)
+    const glm::mat3 m = turnOn(pins[hand].toOut, pins[hand].toUp, hand == 0);
+    back = hand == 0 ? m[1] : -m[1];
     return true;
 }
 

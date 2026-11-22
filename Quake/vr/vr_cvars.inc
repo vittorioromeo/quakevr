@@ -1030,7 +1030,7 @@ QVR_CVAR(vr_messages_hologram_time, "5", CVAR_ARCHIVE) // seconds a message stay
 QVR_CVAR(vr_messages_hologram_size, "1", CVAR_ARCHIVE) // its text's size (1: about 8 mm characters)
 QVR_CVAR(vr_messages_hologram_height, "10", CVAR_ARCHIVE) // cm its bottom floats over the gadget as seen
 QVR_CVAR(vr_messages_hologram_effect, "1", CVAR_ARCHIVE) // the hologram look: the beam from the screen, scanlines, flicker, glitches, the projection as it appears (0 plain glowing text, up to 2)
-QVR_CVAR(vr_center_panel_scale, "2", CVAR_ARCHIVE)     // the centre panel's size (vr_center_panel) as a multiple of the HUD's own text size (1: the flat screen's 8 pixel characters at the menu's scale: small at the menu's distance; 0.25 .. 8)
+QVR_CVAR(vr_center_panel_scale, "1.4", CVAR_ARCHIVE)   // (2 before his note vrtutorial_2026-11-22_15-30-43: "25 to 35% smaller") the centre panel's size (vr_center_panel) as a multiple of the HUD's own text size (1: the flat screen's 8 pixel characters at the menu's scale: small at the menu's distance; 0.25 .. 8)
 QVR_CVAR(vr_center_panel, "1", CVAR_ARCHIVE)         // 1: the game's centre prints in front of the head (not on the wrist's hologram) and the maps' view messages as the flat screen's: the flat visor's own centre popup (its glass face, cut corners, glowing bevelled frame, font, wrapping, scanlines, pop in and fade: visor::renderHeadsetCenter); 0: as before (Quake's own centre print on the 2D canvas, the view messages as 3D text)
 QVR_CVAR(vr_view_text_smooth,"0.12", CVAR_ARCHIVE)     // the messages in front of you (the maps' view messages: VR Calibration's boards' texts, its steps, Body Calibration's poses; and the centre prints on the head's panel) follow your head's turn smoothed: seconds to catch up most of the way (0 at once; the author's note vrstart_2026-10-23_01-23-46)
 QVR_CVAR(vr_messages_hologram_only, "1", CVAR_ARCHIVE) // QVR round 21: 1: the game's messages never show in front of you; they wait in the hologram until you look at the gadget, and a new one (not a pickup) chimes from the gadget and buzzes its hand while it is out of view
@@ -1185,7 +1185,7 @@ QVR_CVAR(vr_tutorial_started, "0", CVAR_ARCHIVE)      // 1: the tutorial (vrtuto
 // The trailer scene (maps/vrtrailer; QC vr_trailer.qc): Debug > Tests > Trailer Scene.
 QVR_CVAR(vr_trailer_reset, "0", CVAR_NONE)            // 1: the scene as at its start (the grunt, the Super Axe on its pedestal, the player at the start); QC sets it back to 0
 QVR_CVAR(vr_trailer_log, "0", CVAR_NONE)              // 1: the grunt's state (enemy, frame, think, stealth, oblivious), the axe's and the player's places, four times a second
-QVR_CVAR(vr_tutorial_goto, "0", CVAR_NONE)            // in vrtutorial, a change to N (1..12) puts you at lesson N's checkpoint (QC vr_tutorial.qc VR_Tutorial_Frame)
+QVR_CVAR(vr_tutorial_goto, "0", CVAR_NONE)            // in vrtutorial, a change to N (1..15) puts you at lesson N's checkpoint (QC vr_tutorial.qc VR_Tutorial_Frame)
 QVR_CVAR(vr_installer_applied, "", CVAR_ARCHIVE)      // the stamp of installer_settings.cfg (Setup's settings page) last run: it runs once (vr_installer_settings in quake.rc; vr_cvars.cpp)
 QVR_CVAR(vr_setup_pending, "0", CVAR_ARCHIVE)        // 1: VR Calibration starts the next time the headset is on and no game runs (set at a first start, no saved config: vr_migrate_config new; cleared as it starts; vr_setup.cpp)
 QVR_CVAR(vr_comfort_preset, "0", CVAR_NONE)          // Locomotion's Comfort (vr_menu.cpp presets; not saved: the settings it sets are): 1 Comfortable, 2 Moderate, 3 Full Freedom; 0 Custom (shown when the settings match none)
@@ -2769,16 +2769,24 @@ QVR_CVAR(vr_nailpistol_screen_ride, "1", CVAR_ARCHIVE | QVR_RULE)   // 1: its am
 // muzzle up, the ejector), a shell at a time from the pouch into its chambers, swung home (a flick, a push).
 QVR_CVAR(vr_revolver_heavy_mult, "1.75", CVAR_ARCHIVE | QVR_RULE) // a slug into a big body (a monster of vr_revolver_heavy_health or more full health: an ogre, a fiend...) deals this many times as much (an ogre: 4-5 in the body)
 QVR_CVAR(vr_revolver_cooldown, "0.3", CVAR_ARCHIVE | QVR_RULE) // s at least from a shot to the next (each a new pull: double action)
+// His note vrtesthall_2026-11-22_15-59-37: while Haste (Dwell's; or Dissolution's Hell Magic rune) is active, the
+// semi-automatic guns (the nail pistol, the heavy revolver, the flare gun) fire again while the trigger is held, each
+// shot at its cooldown times Haste's (RuneApplyHell: 0.6, the rune 2/3): the nail pistol about 14 a second, the
+// revolver about 5.5 (QC VR_Haste_FullAuto). 0: one shot a pull as ever.
+QVR_CVAR(vr_haste_full_auto, "1", CVAR_ARCHIVE | QVR_RULE)
 QVR_CVAR(vr_revolver_open_flick, "1", CVAR_ARCHIVE) // immersive reloading: a flick of the wrist towards the cylinder's side (left in the right hand) swings it out
 QVR_CVAR(vr_revolver_open_flick_speed, "400", CVAR_ARCHIVE) // the flick open's force: degrees a second the wrist must roll at, at its fastest
 QVR_CVAR(vr_revolver_open_flick_angle, "120", CVAR_ARCHIVE) // and its wrist flick: degrees it must roll that way in one go
 QVR_CVAR(vr_revolver_close_flick_speed, "350", CVAR_ARCHIVE) // the flick shut (always on: the wrist rolled the other way, the cylinder swung home): its force, degrees a second
 QVR_CVAR(vr_revolver_close_flick_angle, "75", CVAR_ARCHIVE) // and its wrist flick, degrees
-// A melee swing is no flick (his note 2026-11-21: "if I'm doing a melee attack, I often open the cylinder"): the flick
-// open is refused while the gun's hand moves this fast (m/s, against his body; vr_melee_speed's blow is 3.2) and for
-// vr_revolver_open_swing_hold seconds after it last did, or after a blow of his landed (QC VR_Revolver_SwingGuard).
-// A deliberate flick, the wrist rolled with the arm near still, still opens it. 0: no guard.
-QVR_CVAR(vr_revolver_open_swing_speed, "2", CVAR_ARCHIVE)
+// A melee swing is no flick (his note 2026-11-21: "if I'm doing a melee attack, I often open the cylinder"), a flick
+// mostly of the wrist is (his note vrfiringrange_2026-11-22_16-11-57: the hand's raw speed refused every real flick,
+// whose controller moves 3-6 m/s from the wrist's turn alone). The hand's motion over the last moment is split in two
+// (QC VR_Revolver_Flick): the wrist's, its roll at vr_revolver_flick_wrist_lever metres, and the arm's, the hand's
+// travel its turn doesn't explain. The flick open is refused when the arm's share of the two is over this (his replays:
+// flicks 0.05-0.31, swings 0.53-0.75), for vr_revolver_open_swing_hold seconds after, and after a blow of his landed
+// (QC VR_Revolver_SwingGuard). 1: no guard. (vr_revolver_open_swing_speed, the hand's raw speed, retired.)
+QVR_CVAR(vr_revolver_open_flick_arm_share, "0.45", CVAR_ARCHIVE)
 QVR_CVAR(vr_revolver_open_swing_hold, "0.35", CVAR_ARCHIVE) // seconds
 QVR_CVAR(vr_revolver_open_flick_time, "0.25", CVAR_ARCHIVE) // the flick open's time window: its wrist flick must be rolled within this many seconds of the flick's start (0: no limit)
 QVR_CVAR(vr_revolver_open_button, "1", CVAR_ARCHIVE) // B/Y (its eject button) swings the cylinder out; out, B/Y pushes the ejector
@@ -3774,7 +3782,9 @@ QVR_CVAR(vr_rope_swing_drag, "0.15", CVAR_ARCHIVE | QVR_RULE)    // per second, 
 QVR_CVAR(vr_rope_pump, "300", CVAR_ARCHIVE | QVR_RULE)           // units/s/s the stick (or WASD) pushes a climber's swing on a rope its way (pumping it, rope to rope); 0: none
 QVR_CVAR(vr_rope_swing_cap, "350", CVAR_ARCHIVE | QVR_RULE)      // units/s at the hands the pump builds a rope's swing to at most (a push, a jump onto it, can swing it faster)
 QVR_CVAR(vr_rope_jump, "200", CVAR_ARCHIVE | QVR_RULE)          // units/s up a jump off a rope adds to the rope's swing at the hands (jump while holding one); 0: a jump lets go only
-QVR_CVAR(vr_rope_hand_grip, "1", CVAR_ARCHIVE | QVR_OWN)        // a hand on a climbable rope drawn gripping it (the rope through the fist, the knuckles away from the body; vr_climb.cpp ropeTurn): 1 in flat-screen play, 2 in VR too; 0 as on a ledge (vr_climb_hand_pitch/yaw/roll), display only
+QVR_CVAR(vr_rope_grunt, "0.4", CVAR_ARCHIVE | QVR_RULE)         // volume (0..1) of the player's short exertion grunt as a headset's pull lifts him up a climbable rope (once a grip, when the body has risen 15 cm over its hold; at most every 0.6 s; vr_climb.cpp ropePullGrunt; ropes6); 0 off
+QVR_CVAR(vr_rope_grunt_sound, "2", CVAR_ARCHIVE | QVR_OWN)      // the rope pull's grunt (the mantle's list, vr_climb.cpp mantleGrunts): 0 the jump's, 1 a hard landing's, 2 the jump's deeper (the default: told apart from a jump off the rope), 3 a hard landing's deeper, 4 a short pain grunt
+QVR_CVAR(vr_rope_hand_grip, "2", CVAR_ARCHIVE | QVR_OWN)        // a hand on a climbable rope drawn gripping it (the rope through the fist, the knuckles outwards: the right hand's to the right, the left's to the left; vr_climb.cpp ropeTurn): 1 in flat-screen play only, 2 in VR too (ropes6); 0 as on a ledge (vr_climb_hand_pitch/yaw/roll), display only
 QVR_CVAR(vr_rope_spawn_length, "256", CVAR_ARCHIVE | QVR_OWN)    // the toolgun's ropes (Spawn > Props > Ropes > Rope Settings): length (units)
 QVR_CVAR(vr_rope_spawn_thickness, "1.5", CVAR_ARCHIVE | QVR_OWN) // ... thickness (units across)
 QVR_CVAR(vr_rope_spawn_segments, "0", CVAR_ARCHIVE | QVR_OWN)    // ... pieces (0: one every 16 units)

@@ -744,6 +744,8 @@ QVR_TUNABLE_SLIDER(vr_revolver_flick_sustain, "Flick Sustain", 0.05f, 0.9f, 0.05
 QVR_TUNABLE_SLIDER(vr_revolver_close_push_speed, "Push Speed", 0.0f, 3.0f, 0.05f, "%.2f m/s", 0.0f, 10.0f, "How fast that push must be (the hands' relative speed).")
 QVR_TUNABLE_SLIDER(vr_revolver_flick_hand_weight, "Flick Hand Weight", 0.0f, 500.0f, 10.0f, "%.0f deg/s", 0.0f, 2000.0f, "The flicks' force: how much each m/s of the hand's own motion the same way adds to the wrist's roll (0: the roll alone).")
 QVR_TUNABLE_SLIDER(vr_revolver_flick_hand_cap, "Flick Hand Cap", 0.0f, 3.0f, 0.1f, "x%.1f", 0.0f, 10.0f, "And that help at most, times the roll itself: the hand alone, with no roll, never swings it.")
+QVR_TUNABLE_SLIDER(vr_revolver_flick_wrist_lever, "Flick Wrist Lever", 0.02f, 0.3f, 0.01f, "%.2f m", 0.0f, 1.0f, "The swing guard: metres from the wrist's axis to the controller. The wrist's roll counts as that much motion; the hand's speed its turn explains is not the arm's.")
+QVR_TUNABLE_SLIDER(vr_revolver_flick_motion_time, "Flick Motion Window", 0.05f, 1.0f, 0.05f, "%.2f s", 0.0f, 5.0f, "The swing guard weighs the wrist's and the arm's motion over this last moment (older motion fades).")
 QVR_TUNABLE_SLIDER(vr_revolver_eject_travel, "Eject Push Travel", 0.0f, 0.2f, 0.01f, "%.2f m", 0.0f, 1.0f, "Out, the hand's motion the way its shells fall, accumulated, that throws them out.")
 QVR_TUNABLE_SLIDER(vr_revolver_eject_window, "Eject Push Window", 0.05f, 1.0f, 0.05f, "%.2f s", 0.02f, 5.0f, "How long that motion takes to fade: what it accumulates over.")
 QVR_TUNABLE_SLIDER(vr_revolver_eject_cone, "Eject Push Cone", 5.0f, 90.0f, 5.0f, "%.0f deg", 0.0f, 180.0f, "A frame further off that way adds nothing (and resets nothing).")
