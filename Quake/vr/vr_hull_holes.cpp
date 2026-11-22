@@ -6,7 +6,8 @@
 //
 // A gap: two solids facing each other along x or y with less than 32 units between them, on the same line. No 32-wide box
 // can hold a point of that line between them (its 32 units along the line reach one or the other), whatever its height,
-// so Quake's box never was there and a blocker there changes nothing for it. The blocker is the space between the two
+// so Quake's box never was there and a blocker there changes nothing for it. (A model's own gaps of exactly 32 count too
+// since backlog1122: Quake's box only bridges such a hole, as hull 1's check confirms.) The blocker is the space between the two
 // faces, found exactly for any convex brushes: over the area where they face each other, the gap along the line is a
 // convex function of the line's place, so a cell whose four corner lines all have a gap under 32 has it all over, and the
 // box between the corners' faces holds only gap points and points inside the two brushes. Slanted faces are cut into
@@ -27,6 +28,7 @@
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -322,6 +324,7 @@ constexpr za::SizeT bigCells = 4096;   // a solid over more cells than this is l
 struct Found
 {
     za::Vector<HoleBox> own, cross, tilt[2], stand;
+    za::Vector<HoleBox> ownPieces, tiltPieces[2], standPieces; // (tidy: before merging, for splitDropped)
     int pairs = 0;
 
     void add(const Found& o)
@@ -419,7 +422,10 @@ void tryPair(const Brushes& b, const Solid& A, const Solid& B, int a, bool world
     {
         return;
     }
-    const double limit = own ? cfg.maxGap : cfg.crossGap;
+    // The model's own gaps up to the limit itself (Quake's box exactly as wide as a hole only bridges it, standing on its
+    // edges: Quoth start's 32 x 32 drain), as hull 1's check keeps them honest; with a brush model (the line test
+    // alone) under it. (In cells, a gap of limit - gapMargin or more is out: here limit + gapMargin.)
+    const double limit = own ? cfg.maxGap + 2.0 * gapMargin : cfg.crossGap;
     const bool thin = world && own && A.hi.z - A.lo.z <= thinSolid && B.hi.z - B.lo.z <= thinSolid;
     const double reach = thin ? za::max(limit, cfg.wide) : limit;
     const double lower = za::max(A.lo[a], A.hi[a] - reach);
@@ -1135,39 +1141,140 @@ enum class Kind
     Stand,
 };
 
+char checkOne(const HoleBox& x, Kind kind, const hull_t& h0, int head, const hull_t* h1, int head1)
+{
+    const OBox o = kind == Kind::Tilt0 ? tiltBox(x, 0) : kind == Kind::Tilt1 ? tiltBox(x, 1) : axisBox(x);
+    if(insideSolid(h0, head, o))
+    {
+        return 1;
+    }
+    if(kind == Kind::Stand && (!overFall(h0, head, x) || !openAbove(h0, head, x)))
+    {
+        return 3;
+    }
+    if(!h1 || head1 < 0)
+    {
+        return kind == Kind::Own ? 0 : 2; // (no hull 1 to tell: only the line test's kept)
+    }
+    const bool reaches = kind == Kind::Stand
+                             ? quakeBoxFits(*h1, head1, o, cfg.reach, x.lo.z - cfg.reach - h1->clip_mins[2])
+                             : quakeBoxFits(*h1, head1, o, cfg.reach);
+    return reaches ? 2 : 0;
+}
+
 void checkBoxes(const za::Vector<HoleBox>& boxes, Kind kind, const hull_t& h0, int head, const hull_t* h1, int head1,
-    za::Vector<char>& verdict)
+    za::Vector<char>& verdict, bool pool = true)
 {
     verdict.clear();
     verdict.resize(boxes.size(), 0);
+    if(!pool) // (a brush model's, already on the pool)
+    {
+        for(za::SizeT i = 0; i < boxes.size(); ++i)
+        {
+            verdict[i] = checkOne(boxes[i], kind, h0, head, h1, head1);
+        }
+        return;
+    }
     jobs::parallelFor(holesSite, boxes.size(), 256,
         [&](za::SizeT begin, za::SizeT end)
         {
             for(za::SizeT i = begin; i < end; ++i)
             {
-                const HoleBox& x = boxes[i];
-                const OBox o = kind == Kind::Tilt0 ? tiltBox(x, 0) : kind == Kind::Tilt1 ? tiltBox(x, 1) : axisBox(x);
-                char v = 0;
-                if(insideSolid(h0, head, o))
-                {
-                    v = 1;
-                }
-                else if(kind == Kind::Stand && (!overFall(h0, head, x) || !openAbove(h0, head, x)))
-                {
-                    v = 3;
-                }
-                else if(!h1 || head1 < 0)
-                {
-                    v = kind == Kind::Own ? 0 : 2; // (no hull 1 to tell: only the line test's kept)
-                }
-                else if(kind == Kind::Stand ? quakeBoxFits(*h1, head1, o, cfg.reach, x.lo.z - cfg.reach - h1->clip_mins[2])
-                                            : quakeBoxFits(*h1, head1, o, cfg.reach))
-                {
-                    v = 2;
-                }
-                verdict[i] = v;
+                verdict[i] = checkOne(boxes[i], kind, h0, head, h1, head1);
             }
         });
+}
+
+// A merged box Quake's box reaches can hold pieces it doesn't (Quoth start's drain: the hole's blocker merged with a
+// neighbour's it reaches, and the hole stayed half open): such a box is put back as its pieces (dedupe's list, sorted
+// by lo.x), each checked on its own, the kept ones merged again. (Merging kept pieces keeps them kept: Quake's box
+// less the reach meets a union only where it meets a piece.)
+void splitDropped(za::Vector<HoleBox>& boxes, za::Vector<char>& verdict, const za::Vector<HoleBox>& pieces, Kind kind,
+    const hull_t& h0, int head, const hull_t* h1, int head1, bool pool = true)
+{
+    constexpr double eps = 1e-6;
+    za::Vector<HoleBox> sub;
+    za::Vector<za::SizeT> owner;
+    for(za::SizeT i = 0; i < boxes.size(); ++i)
+    {
+        if(verdict[i] != 2)
+        {
+            continue;
+        }
+        const HoleBox& m = boxes[i];
+        za::SizeT lo = 0, hi = pieces.size(); // (the first piece with lo.x >= m.lo.x - eps)
+        while(lo < hi)
+        {
+            const za::SizeT mid = (lo + hi) / 2;
+            if(pieces[mid].lo.x < m.lo.x - eps)
+            {
+                lo = mid + 1;
+            }
+            else
+            {
+                hi = mid;
+            }
+        }
+        const za::SizeT first = sub.size();
+        for(za::SizeT j = lo; j < pieces.size() && pieces[j].lo.x <= m.hi.x + eps; ++j)
+        {
+            const HoleBox& p = pieces[j];
+            bool inside = true;
+            for(int k = 0; k < 3 && inside; ++k)
+            {
+                inside = p.lo[k] >= m.lo[k] - eps && p.hi[k] <= m.hi[k] + eps;
+            }
+            if(inside)
+            {
+                sub.pushBack(p);
+                owner.pushBack(i);
+            }
+        }
+        if(sub.size() - first < 2)
+        {
+            sub.resize(first); // (one piece: the box itself)
+            owner.resize(first);
+        }
+    }
+    if(sub.empty())
+    {
+        return;
+    }
+    za::Vector<char> sv;
+    checkBoxes(sub, kind, h0, head, h1, head1, sv, pool);
+    za::Vector<HoleBox> nb, kept;
+    za::Vector<char> nv;
+    za::SizeT k = 0;
+    for(za::SizeT i = 0; i < boxes.size(); ++i)
+    {
+        if(k >= sub.size() || owner[k] != i)
+        {
+            nb.pushBack(boxes[i]);
+            nv.pushBack(verdict[i]);
+            continue;
+        }
+        kept.clear();
+        for(; k < sub.size() && owner[k] == i; ++k)
+        {
+            if(sv[k] == 0)
+            {
+                kept.pushBack(sub[k]);
+            }
+            else
+            {
+                nb.pushBack(sub[k]);
+                nv.pushBack(sv[k]);
+            }
+        }
+        mergeBoxes(kept);
+        for(const HoleBox& x : kept)
+        {
+            nb.pushBack(x);
+            nv.pushBack(0);
+        }
+    }
+    boxes = ZA_MOVE(nb);
+    verdict = ZA_MOVE(nv);
 }
 
 // The boxes kept (verdict 0) emitted, the ones Quake's box reaches (2) into dropped (lo, hi pairs); their count.
@@ -1203,15 +1310,18 @@ za::U32 emitKept(Brushes& b, const za::Vector<HoleBox>& boxes, const za::Vector<
 void tidy(Found& f)
 {
     dedupe(f.own);
+    f.ownPieces = f.own;
     mergeBoxes(f.own);
     dedupe(f.cross);
     mergeBoxes(f.cross);
     for(int d = 0; d < 2; ++d)
     {
         dedupe(f.tilt[d]);
+        f.tiltPieces[d] = f.tilt[d];
         mergeBoxes(f.tilt[d]);
     }
     dedupe(f.stand);
+    f.standPieces = f.stand;
     mergeBoxes(f.stand);
 }
 
@@ -1332,13 +1442,17 @@ void addHoles(Brushes& b, const qmodel_t* world)
         za::Vector<char> verdict;
         const hull_t* hull1 = haveHull1 ? &h1 : nullptr;
         checkBoxes(found.own, Kind::Own, h0, head, hull1, h1.firstclipnode, verdict);
+        splitDropped(found.own, verdict, found.ownPieces, Kind::Own, h0, head, hull1, h1.firstclipnode);
         za::U32 own = emitKept(b, found.own, verdict, -1, &b.holeDropped);
         for(int d = 0; d < 2; ++d)
         {
-            checkBoxes(found.tilt[d], d ? Kind::Tilt1 : Kind::Tilt0, h0, head, hull1, h1.firstclipnode, verdict);
+            const Kind kind = d ? Kind::Tilt1 : Kind::Tilt0;
+            checkBoxes(found.tilt[d], kind, h0, head, hull1, h1.firstclipnode, verdict);
+            splitDropped(found.tilt[d], verdict, found.tiltPieces[d], kind, h0, head, hull1, h1.firstclipnode);
             own += emitKept(b, found.tilt[d], verdict, d, &b.holeDropped);
         }
         checkBoxes(found.stand, Kind::Stand, h0, head, hull1, h1.firstclipnode, verdict);
+        splitDropped(found.stand, verdict, found.standPieces, Kind::Stand, h0, head, hull1, h1.firstclipnode);
         w.standHoles = emitKept(b, found.stand, verdict, -1, &b.holeDropped);
         own += w.standHoles;
         for(const HoleBox& x : found.cross)
@@ -1398,26 +1512,24 @@ void addHoles(Brushes& b, const qmodel_t* world)
                 tidy(f);
                 const int head = b.subs[mw.sub].head;
                 const int head1 = world->submodels[mw.sub].headnode[1];
-                const bool fits1 = haveHull1 && head1 >= 0;
-                for(const HoleBox& x : f.own)
+                const hull_t* mh1 = haveHull1 && head1 >= 0 ? &h1 : nullptr;
+                za::Vector<char> v;
+                const auto keep = [&](za::Vector<HoleBox>& boxes, const za::Vector<HoleBox>& pieces, Kind kind,
+                                      za::Vector<HoleBox>& kept)
                 {
-                    const OBox o = axisBox(x);
-                    if(!insideSolid(h0, head, o) && !(fits1 && quakeBoxFits(h1, head1, o, cfg.reach)))
+                    checkBoxes(boxes, kind, h0, head, mh1, head1, v, false);
+                    splitDropped(boxes, v, pieces, kind, h0, head, mh1, head1, false);
+                    for(za::SizeT i = 0; i < boxes.size(); ++i)
                     {
-                        mw.kept.pushBack(x);
-                    }
-                }
-                for(int d = 0; d < 2 && fits1; ++d)
-                {
-                    for(const HoleBox& x : f.tilt[d])
-                    {
-                        const OBox o = tiltBox(x, d);
-                        if(!insideSolid(h0, head, o) && !quakeBoxFits(h1, head1, o, cfg.reach))
+                        if(v[i] == 0)
                         {
-                            mw.keptTilt[d].pushBack(x);
+                            kept.pushBack(boxes[i]);
                         }
                     }
-                }
+                };
+                keep(f.own, f.ownPieces, Kind::Own, mw.kept);
+                keep(f.tilt[0], f.tiltPieces[0], Kind::Tilt0, mw.keptTilt[0]);
+                keep(f.tilt[1], f.tiltPieces[1], Kind::Tilt1, mw.keptTilt[1]);
             }
         });
     for(const ModelWork& mw : models)
@@ -1562,7 +1674,8 @@ void near_f()
 }
 
 // vr_hull_holes_test: on maps/vrbrushholes (Misc/quakevr/make_vrbrushholes_map.py: the places below), the player's box
-// and a narrow monster's (a grunt at vr_mhull_army 16) at a grate, a bar gate, a lift's edge, a pillar row, a diagonal grate, a louvred grate and two func_walls; with
+// and a narrow monster's (a grunt at vr_mhull_army 16) at a grate, a bar gate, a lift's edge, a pillar row, a diagonal
+// grate, a louvred grate, two func_walls and a drain (a 32 x 32 hole: Quoth start's); with
 // vr_hull_holes on they are stopped (and still get 8 units from a face), off they pass (the scene is a real hole).
 // Verdict: "brushholes: N passed, M failed" (off: "brushholes_off: ...").
 void holeTest_f()
@@ -1652,6 +1765,13 @@ void holeTest_f()
         tr = move(who, 776.f, -560.f, 24.f, 776.f, -380.f, 24.f);
         report(on ? za::abs(-500.f - 8.f - tr.endpos[1]) < 0.2f : tr.fraction == 1.f, label,
             on ? "gap between two func_walls stopped 8 from them" : "gap between two func_walls passed", tr);
+        // The drain (Quoth start's shape: a plinth, top z 32, its frame z 16..32 round a 32 x 32 hole at x -316..-284,
+        // y -316..-284 over a pit to z 0): down through the hole exactly as wide as Quake's box, then across it.
+        tr = move(who, -300.f, -300.f, 57.f, -300.f, -300.f, -60.f);
+        report(on ? tr.endpos[2] > 55.9f : tr.endpos[2] < 30.f, label, on ? "drain drop stopped on it" : "drain drop fell",
+            tr);
+        tr = move(who, -300.f, -370.f, 57.f, -300.f, -230.f, 57.f);
+        report(tr.fraction == 1.f, label, "walk across the drain", tr);
     }
     // Close up as before (the player): a pillar's side, the hall's north wall, an open walk.
     trace_t tr = move(player, 100.f, 456.f, 24.f, 300.f, 456.f, 24.f);

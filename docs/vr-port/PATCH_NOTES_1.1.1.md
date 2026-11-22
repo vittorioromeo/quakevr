@@ -203,7 +203,8 @@ aren't Map Library packages aren't sent to joining players.
   as close to walls, bars and pillars as your width lets you. Settings > Movement > Player Hitbox > Close Gaps Quake's
   Box Never Fit (`vr_hull_holes`, on; takes effect at the next map load). The blockers now also close gaps between
   slanted bars, turned grates and round holes, between two brush models (two func_walls, a door and a lift), and
-  between bars at two heights you'd fall through, always only where Quake's own box can't reach. The limits are
+  between bars at two heights you'd fall through, and holes exactly as wide as Quake's box (a drain grating in
+  Quoth's start that it only stood over), always only where Quake's own box can't reach. The limits are
   settings beside it (Narrower Than: 32, Wider Than: 8, and more), with Rebuild Gap Blockers Now to apply them without
   leaving the map; if you still get through a gap you shouldn't, Debug > Mark a Gap I Got Through writes down where and
   why (`quakevr/hull_holes_marks.txt`) so it can be fixed.
