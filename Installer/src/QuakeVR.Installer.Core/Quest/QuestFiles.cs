@@ -52,6 +52,12 @@ public static class QuestFiles
         var files = new Dictionary<string, QuestFile>(StringComparer.OrdinalIgnoreCase);
         void Add(string devicePath, string source, string what)
         {
+            // (a path relative to the app's files/ folder, '/' between parts: the headset's storage refuses ':' and '\',
+            // and one refused name stops the whole tar stream)
+            if (devicePath.StartsWith('/') || devicePath.IndexOfAny([':', '\\']) >= 0)
+            {
+                throw new InstallException($"Not a path on the Quest: {devicePath} (from {source}).");
+            }
             if (!files.ContainsKey(devicePath) && File.Exists(source))
             {
                 files[devicePath] = new QuestFile(devicePath, source, new FileInfo(source).Length, what);
@@ -125,19 +131,31 @@ public static class QuestFiles
             {
                 continue;
             }
-            var dir = Path.Combine(copy.Root, copy.Folder);
-            foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories).Order(StringComparer.OrdinalIgnoreCase))
+            foreach (var (devicePath, source, what) in ModCopyFiles(copy))
             {
-                var rel = PathUtil.ToRelative(dir, file);
-                if (!PlayerFile(rel) && !PcOnly(copy.Folder + "/" + rel))
-                {
-                    Add($"{copy.Folder}/{rel}", file, copy.Folder);
-                }
+                Add(devicePath, source, what);
             }
         }
 
         AddRelit(installDir, files);
         return [.. files.Values.OrderBy(f => f.DevicePath, StringComparer.Ordinal)];
+    }
+
+    /// <summary>A mod copy's files for the headset (device path, PC source, its folder's name), the player's own left out.
+    /// <see cref="ModCopy.Folder"/> is the copy's whole PC path (e.g. ...\Quake\dwellv2p2): on the headset it is that
+    /// folder's name, lower case as id1's (the real-headset test sent "C:\Program Files (x86)\...\dwellv2p2/gfx/...").</summary>
+    public static IEnumerable<(string DevicePath, string Source, string What)> ModCopyFiles(ModCopy copy)
+    {
+        var dir = Path.Combine(copy.Root, copy.Folder);
+        var name = Path.GetFileName(dir.TrimEnd('\\', '/')).ToLowerInvariant();
+        foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories).Order(StringComparer.OrdinalIgnoreCase))
+        {
+            var rel = PathUtil.ToRelative(dir, file).Replace('\\', '/');
+            if (!PlayerFile(rel) && !PcOnly(name + "/" + rel))
+            {
+                yield return ($"{name}/{rel}", file, name);
+            }
+        }
     }
 
     /// <summary>

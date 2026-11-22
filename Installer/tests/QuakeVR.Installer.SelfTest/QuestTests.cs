@@ -179,6 +179,15 @@ static class QuestTests
             }
             Eq(Path.Combine(s.Quake, "id1", "PAK1.PAK"), s.Files.Single(f => f.DevicePath == "id1/pak1.pak").Source, "PAK1.PAK as id1/pak1.pak");
             Throws<InstallException>(() => QuestFiles.Plan(dir("quest-noinstall"), s.Quake, []), "no install record");
+            // A mod copy found on the PC (ModCopy.Folder is its whole path, as Dwell/Quoth/AD's Inspect give it): on the headset
+            // under its folder's name (the real headset was sent "C:\...\Quake\dwellv2p2/gfx/conback.lmp" and refused it).
+            var dwell = Path.Combine(s.Quake, "DwellV2P2");
+            Directory.CreateDirectory(Path.Combine(dwell, "gfx"));
+            File.WriteAllText(Path.Combine(dwell, "progs.dat"), "p");
+            File.WriteAllText(Path.Combine(dwell, "gfx", "conback.lmp"), "c");
+            File.WriteAllText(Path.Combine(dwell, "s0.sav"), "my save");
+            var copyFiles = QuestFiles.ModCopyFiles(new ModCopy(s.Quake, dwell, ModCopyState.Ready, "v2.2")).Select(f => f.DevicePath).ToList();
+            Eq("dwellv2p2/gfx/conback.lmp|dwellv2p2/progs.dat", string.Join("|", copyFiles), "a mod copy under its folder's name, its saves left out");
         }),
 
         ("quest: the whole procedure on a fake headset (PC install, then the Quest from it; the PC install unchanged, the player's files kept)", () =>
