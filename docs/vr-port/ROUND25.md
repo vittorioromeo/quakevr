@@ -7549,6 +7549,41 @@ becomes possible in that state".
   `vr_flatitems_test 10` (routing, ironsight with an empty hand) 63/0, 7 (a prop beside the gun) 13/0, flathands 76/0,
   flatmelee2h 16/0, flatads 6/1 (its "launchers", the outdated expectation of ROUND24.md).
 
+## Faster release tests: lanes, a beta profile, quicker batches (branch agent/testspeed, 2026-11-22)
+
+- **run_test_suite.py**: tests in parallel lanes (`--jobs N`; 0: a lane per 8 CPUs, at most 4, 2 while the author's
+  game runs; the kit's `QVR_LANE`: own game folder, lock and batch copies). `qvrtest.lane_keys` keeps apart lane-0
+  scripts, "alone" ones (timing runs; mapgun_pickup's `quakevr/maps/e1m3.ent`), testbatch suites (at most
+  `--batch-jobs` 2) and "tele" (the vrteleporters builders and stealth); the summary in the suite's order.
+  `--profile full|beta` (PROFILES); scenario_check joined the suite.
+- **make_release.ps1**: `-TestProfile full|beta` (default beta for an x.y.z-betaN version, or `-Beta`; a final
+  release refuses beta), `-TestJobs N`. RELEASING.md "Tests before publishing", TESTING.md "The release suite: lanes
+  and profiles".
+- **testbatch.sh**: `tb_run_sh` starts no process (its index: the runs' arguments, in memory; was ~8 processes a run
+  in each pass, each 0.1-1 s under Git bash on a loaded machine). `TB_COLLECT_STUBS=1` (the reload suites): the
+  collect pass's grep/sed/cut/tr/head/tail/wc/paste/sort/python are no-ops (a run whose arguments then come out
+  different is still played, alone: correct, only slower; `TB_STATS` lists them, with the replay's time).
+- **Tests** (no case removed): reload_gunshape's and reload_magcollide's Box3D timing sections (`run.sh --exclusive`,
+  waiting for every game on the machine: gunshape timed out at 1200 s in the 1.2.0-beta1 suite; numbers only, no
+  check) run with `QVR_TEST_TIMINGS=1` only. throw_spin (18 games one after another) and mapflameburn (16) batched,
+  undrawn, checked by builtins / one Python at the end; mapgun_pickup in one game (one fixture: a weapon of each kind on
+  its own e1m3 item spot, each case reloading the map). reload_test's four screenshot games are two (the sights' and
+  the clean blood's in one; the bloody one alone, so no blood reaches the clean hand), its PNGs read in name order (a
+  PNG is written by a thread: by time they can come out of order).
+- **Times** (s; before: one run; after: median of three (min-max); the machine shared with five workers, its load
+  swinging ~5x: a suite's game time is 10-80 s, the rest the shell between runs): mapgun_pickup 295 -> 40 (16-51),
+  throw_spin 651 -> 78 (33-91), mapflameburn 377 -> 96 (47-150), reload_gunshape 1200+ timeout -> 93 (76-313),
+  reload_magcollide 399 -> 96 (22-127), reload_front 415 -> 102 (94-334), reload_contact 368 -> 177 (73-255),
+  reload_eject 502 -> 272 (102-356), reload 1358 -> 621 (539-852).
+- **Open**: reload_test is still the longest (its collect pass ~250 s: its own checks' subshells); splitting it into
+  parts for the lanes would cut the suite's critical path. reload_worldparts failed once in six runs ("1 screens" at
+  the old 320-unit range), reload_test's sights check once before the name-order fix. The kit's run_baseline.py has its
+  own copy of the lane rules (qvrtest.lane_keys could replace it).
+- **Proof**: map flames igniting at half vr_burn_self_time (QC, reverted): the batched mapflameburn failed 6 of 16.
+  The beta profile in 4 lanes: 8.2 min, 9 passed; settings_page failed in lane 1 (a lane's config is put back before
+  each game) and is now lane 0 (PASS); two failures not from this branch: update_notice ("same" serves 1.2.0, newer
+  than this 1.2.0-beta1: the test's versions need the beta's) and scenario_check (ENGINE CRASH, access violation in
+  qvr::visor update, vr_visor.cpp:230, map vrtesthall, 98 s in).
 ## Ropes (phase 1 of 3: the physical rope and chain)
 
 His spec of 2026-11-21; the reference is `ROPES.md` (keys, settings, files, defaults, limits). Phase 1 done: map
