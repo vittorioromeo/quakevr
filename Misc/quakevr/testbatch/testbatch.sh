@@ -54,13 +54,18 @@ tb_main()
     local t1=$SECONDS
     bash "$TB_HERE/run_batch.sh" "$TB_AGENT" "$TB_DIR"
     [ -n "$TB_STATS" ] && { cat "$TB_DIR/stats.json"; echo " collect $((t1 - t0)) s, batch $((SECONDS - t1)) s"; } >&2
+    # (The index in memory for the replay: a run's arguments (joined by \x1f) -> its collected cases. tb_run_sh mostly
+    # runs in a $(...) subshell, which inherits it; what it hands out goes to the used file.)
+    unset TB_IDX; declare -gA TB_IDX
+    local ik count args key
+    read -r count < "$TB_DIR/count"
+    for ((ik = 1; ik <= count; ik++)); do
+        mapfile -d '' -t args < "$TB_DIR/case_$ik.args"
+        printf -v key '%s\x1f' "${args[@]}"
+        TB_IDX[$key]+="$ik "
+    done
     echo 0 > "$TB_DIR/count"
     : > "$TB_DIR/solos"
-    # (The index in memory for the replay: a run's hash -> its collected cases. tb_run_sh mostly runs in a $(...)
-    # subshell, which inherits it; what it hands out goes to the used file.)
-    unset TB_IDX; declare -gA TB_IDX
-    local ih ik
-    while read -r ih ik; do TB_IDX[$ih]+="$ik "; done < "$TB_DIR/index"
     TB_PASS=replay
     local t2=$SECONDS rc
     "$fn" "$@"
@@ -75,19 +80,17 @@ tb_main()
 tb_run_sh()
 {
     # (Bash builtins wherever they do: a process started under Git bash costs 0.1-1 s on a loaded machine, and the two
-    # passes of a 100-case suite started ~8 a case: minutes, 2026-11-22. Now one md5sum a case a pass.)
+    # passes of a 100-case suite started ~8 a case: minutes, 2026-11-22. Now none.)
     local n h k u out
     case "$TB_PASS" in
     collect)
         read -r n < "$TB_DIR/count"; n=$((n + 1)); echo $n > "$TB_DIR/count"
         printf '%s\0' "$@" > "$TB_DIR/case_$n.args"
-        h=$(printf '%s\0' "$@" | md5sum)
-        echo "${h:0:32} $n" >> "$TB_DIR/index"
         return 0 ;;
     replay)
         # The first collected run with the same arguments not handed out yet (by arguments, not by position: a run
         # retried a different number of times than in the first pass leaves the others where they were).
-        h=$(printf '%s\0' "$@" | md5sum); h=${h:0:32}
+        printf -v h '%s\x1f' "$@"
         for k in ${TB_IDX[$h]}; do
             while read -r u; do [ "$u" = "$k" ] && continue 2; done < "$TB_DIR/used"
             echo "$k" >> "$TB_DIR/used"

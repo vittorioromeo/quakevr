@@ -293,7 +293,7 @@ gearshots() { echo "${SSG/vr_reload_debug 1/vr_reload_debug 0;vr_gore_gear $1};$
 # (Drawn games, alone: the sights' two runs and the blood's clean one in one game, each from its own "map", 2026-11-22;
 # the bloody one in its own game, so no blood of it is on the clean one's hand. Were four games.)
 tb_run_sh -Clean -Script "${SSG/vr_reload_debug 1/vr_reload_debug 0};$SEE;screenshot;$FIRE;wait140;screenshot;$FLICK;screenshot;$FLICK;screenshot;${SSG/impulse 155/impulse 154};$SEE;wait30;screenshot;vr_autopump_hold 0.4;wait20;screenshot;vr_autopump_hold -1;wait20;screenshot;$(gearshots 0);toggleconsole;quit" -Filter "^x" -Timeout 360 > /dev/null 2>&1
-mapfile -t PNGS < <(ls -tr $SHOTS/*.png 2>/dev/null)
+mapfile -t PNGS < <(ls $SHOTS/*.png 2>/dev/null | LC_ALL=C sort) # (by name, the order taken: a PNG is written by a thread, its time can come out of order)
 [ ${#PNGS[@]} = 10 ] || { echo "  (the sights' and clean blood's game: ${#PNGS[@]} screenshots, not 10)"; PNGS=(); }
 s1=$($PY "$SSGCHECKS" sights ${PNGS[@]:0:4})
 check $(echo "$s1" | awk '{ok = NF == 5; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 15 || a[2] > a[1] / 2) ok = 0 } print ok}') "the super shotgun's sights keep their colour shut, fired, open, shut again ($s1: recoloured/red pixels)"
@@ -307,7 +307,7 @@ check $(h 1 | grep -q "weapon 5 clip 0 " && h 2 | grep -q "weapon 5 clip 2 " && 
 # read the gun's mask, their taller skin's rows mapped): shot shut, open, shut again, bloody (vr_gore_gear 1) and clean
 # (0: the hand's blood alone, b0 above); the gun's own blood (the difference) open at least 60% of what it is shut.
 tb_run_sh -Clean -Script "$(gearshots 1);toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
-b1=$($PY "$SSGCHECKS" blood $(ls -tr $SHOTS/*.png | tail -3))
+b1=$($PY "$SSGCHECKS" blood $(ls $SHOTS/*.png | LC_ALL=C sort | tail -3))
 check $(echo "$b1 $b0" | awk '{ shut = $2 - $6; open = $3 - $7; again = $4 - $8; print (shut > 300 && open > 0.6 * shut && again > 0.6 * shut) ? 1 : 0 }') "the super shotgun's blood stays on it open and shut again (bloody $b1, clean $b0: shut, open, shut)"
 
 # 8. The author's magazine notes (ROUND21.md, "Immersive reloading: magazines, both grips, the pull"): the gun in the MAIN

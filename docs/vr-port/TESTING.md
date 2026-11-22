@@ -259,8 +259,9 @@ that end on an event (the ragdoll settled, the line printed), and prove the suit
 `TB_STATS=1` also prints the replay's time and each run played alone after the batch (a script built from an earlier
 run's output, a screenshot run): those are a game each, one after another, the usual reason a batched suite is slow.
 The other is the shell between the runs: a batched suite's body runs twice (collect, replay), and every process it
-starts (grep, sed, awk, python) costs 0.1-1 s under Git bash on a loaded machine. `tb_run_sh` uses one process a run
-(md5sum; 2026-11-22: was ~8, minutes for a 100-case suite); in a suite, skip the checks in the collect pass
+starts (grep, sed, awk, python) costs 0.1-1 s under Git bash on a loaded machine. `tb_run_sh` starts none (its index:
+the runs' arguments, in memory; 2026-11-22: was ~8 a run, minutes for a 100-case suite; `TB_COLLECT_STUBS=1`, set by
+the reload suites, makes the collect pass's grep/sed/cut/tr/head/tail/wc/paste/sort/python no-ops); in a suite, skip the checks in the collect pass
 (`[ "$TB_PASS" = collect ] && continue`), parse with bash's `[[ =~ ]]` / `read`, and check every case with one Python
 at the end rather than one a case (mapflameburn_test.sh, throw_spin_test.sh).
 
