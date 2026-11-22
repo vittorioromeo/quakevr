@@ -162,7 +162,7 @@ connection, **without** (a1)'s swap registry: a player's state really moves out 
 
 - **The seat** (`Quake/vr/vr_seat.hpp`, `qvr::seat`): `struct Seat` owns one struct per subsystem (`input` today; the
   view, the HUD, the flat hands, `cl`/`cls`... as their phases land). `seat::at(i)` (0..3), `seat::current()`,
-  `seat::inPlay()` (1 until phase 6), `seat::Scope` (makes a seat current for its lifetime, the previous one after:
+  `seat::inPlay()` (the seats playing: seat 0 always, the others joining with a pad since phase 6), `seat::Scope` (makes a seat current for its lifetime, the previous one after:
   the seat loop, the tests). C code reaches its parts through accessors (`CL_SeatInput()`: the current seat's,
   `CL_SeatInputOf(i)`), the engine's C files staying C.
 - **Shared, explicitly**: the server and progs, models, textures, lightmaps, sound buffers and the mixer, the
@@ -228,7 +228,7 @@ ends with the effort left re-estimated (below).
 | 4a | Flat play's state (`FlatState`, holsters, sights, third person, toolgun keys; the visor and the lean went in phase 3) | done (1) | - |
 | 4b | Hands, held, two-hand, grips, throw, the toolgun; the motion recorder marked the headset's (the drawn body and climbing's pins: phase 7) | done (1) | - |
 | 5 | `cl`, `cls`, the entity tables, prediction, snapshots, the move, the client's VR net state | done (1) | - |
-| 6 | The loopback grown to 4, the seat loop (each seat's client frame in its `Scope`), own slots: two seats join a listen server and play (headless test: two seats move apart) | 2-3 | ~~5, 6~~ answered: autosave only; drop-in/out (a seat joins or leaves a running game) |
+| 6 | The loopback grown to 4, the seat loop (each seat's client frame in its `Scope`), own slots: two seats join a listen server and play (headless test: two seats move apart) | done (1) | ~~5, 6~~ answered: autosave only; drop-in/out (a seat joins or leaves a running game) |
 | 7 | Per-seat render: rectangles, per-view caches; the effects (each seat's client world); the drawn body (`vr_avatar*`) and climbing's client pins (4b's leftovers) | 5-6 | ~~2~~ answered: the tiles follow the chosen layout (phase 11) |
 | 8 | Sound: a listener per seat, nearest-listener spatialisation, duplicate starts dropped | 1-2 | - |
 | 9 | Menus and console per seat (`key_dest`, the stack) | 2 | ~~4~~ answered: options; coop's default: the menu pauses, only seat 1's is the full menu |
@@ -251,7 +251,9 @@ for `cl`/`cls` made the 4,600 uses mechanical; the other players' copies (`vr_mp
 memories, left shared, add half a day to phase 7; the demo stays seat 0's: phase 6 or later says whether a seat may
 record). His answers (section 7, 2026-11-21) add about two days: every layout and the pause and menu rules made
 options (phases 11, 13), aim assist (12), drop-in/out on the join screen (10): **20-29 worker-days left**, the VR host
-with flat seats (14) last and not yet costed.
+with flat seats (14) last and not yet costed. **After phase 6: 18-26 worker-days** (6 took one of its two to three: the
+seats' client state of phases 1-5 made the seat loop a loop; phase 7 gains half a day: the headless seats' gates, section 14,
+become each seat's view, sound and effects).
 
 ## 7. Questions for him (the phase that needs each)
 
@@ -510,3 +512,50 @@ His answer to question 3 (2026-11-21): seat 1 is always the keyboard and mouse; 
   seat's parts, 68 marked shared; 362 `seat-shared` marks now). Merging next brought 4 newcomers, all marked shared
   (other players' copies, phase 7: the pump strokes, barrel heats, slides, wounds).
 - **Before and after**: ROUND25.md "split5".
+
+## 14. Phase 6 (2026-11-22): the loopback grown to 4, the seat loop, server slots
+
+(Seats numbered from 0 as in the code; the console and the Debug menu say seats 1-4.)
+
+- **The loopback, a pair a seat** (net_loop.c): `clientseat_t` holds the seat's client and server sockets and its pending
+  connect (`loopclient`, `loopserver`, `loopconnect`): net_loop.c's three globals gone. `Loop_Connect` makes the current
+  seat's pair; the server takes the pending connects in seat order. Seat 0's server side is `"LOCAL"` as before, seat n's
+  `"LOCAL <n+1>"`: `NET_QSocketIsLocal` (the transport: packet sizes, no map package, every frame sent) is true for any
+  seat's, `NET_QSocketLocalSeat` says which. `progs::hostSlot()` (so `clientprefs::ownSlot()`) is the **current seat's**
+  slot: each seat's client finds its own player and writes its hands into its own slot.
+- **Slots like a network player's**: only seat 0's connection takes slot 0 (`VR_CoopPickSlot`'s host rule); seats 1-3
+  take free slots under their own names (`CL_SeatName`: `<name> 2`...; their server sockets carry the name as a connect
+  request does), so coop's level-start things, deathmatch's spawn and coop's "back by name" (B15's leavers: his old slot,
+  what he had) apply to them unchanged.
+- **The seats in play** (`vr_seat.cpp`): a bit each (seat 0's always) and the pad that joined each of seats 1-3.
+  `IN_PadSeat`: a pad that joined a seat drives it, the lowest pad slot no seat has drives seat 0 (one seat: pad 0, as
+  before). `seat::setInPlay(n)` (vr_seat_test's) keeps phase 2's mapping.
+- **Joining and leaving** (`vr_seatplay.cpp`): `seat_join <pad>` (the next free seat; refused with no local multiplayer
+  game or no free slot), `seat_leave [n]` (it disconnects as a network player does: `CL_SeatDisconnect`, never
+  `CL_Disconnect`, which ends the server), `seat_status`, `seat_mockpad` (a pretend controller); the Debug menu's
+  Network page has Join a Seat, Leave the Last Seat, Seats Status. `CL_SeatFrame` (once a host frame, before the seat
+  loop): a seat in play and out of the game connects once the local game is in play (a server running, seat 0 signed
+  on): after a new map or a load (the server dropped everyone) it joins the next game by itself; with no room it is told
+  and leaves. A server message `svc_disconnect` ends a seat 1-3's connection only (`Host_EndGame` stays seat 0's), and a
+  host error makes seat 0 current first.
+- **The seat loop** (host.c `Host_NextSeat`): each playing seat's prespawn, look and move gathered (`CL_AccumulateCmd`),
+  move sent each tick (`CL_SendCmd`, its own frame's pending move) and messages read (`CL_ReadFromServer`) with that seat
+  current, seat 0 first, then seat 0 current again; the server frame runs once. With one seat: seat 0's alone, as before.
+- **Headless seats 1-3 until phase 7** (`CL_SeatHeadless`): they parse into their own client world but start no sound
+  (`S_StartSoundPitch`, `S_StaticSound`, `S_LocalSound`), no music or pause of it, no particles (`R_AllocParticle`), no
+  sky load, no `R_NewMap`, no static entities linked into the shared world's leaves, no loading plaque, no relink of their
+  entities (the shared effects: trails, torches, flames, ragdolls' models); their signons leave seat 0's demo head alone.
+  Known: a seat joining runs the client's `ClientState` reset hooks, which also clear the shared ones (the decals,
+  effects memories) once; its entity table is a hunk allocation per join until the next map (as a network client's).
+- **Saving**: while more than one seat plays, only the level-start coop autosave (`autosave/coop~...`) saves
+  (`Host_SeatsMaySave`); other saves are refused with a line.
+- **`vr_seat_play_test`** (`Misc/quakevr/seat_play_test.sh`: coop and deathmatch on e1m1, maxplayers 4, flatscreen; verdict
+  `seat_play_test: N passed, M failed`): seat 2 joins the running game by a mock pad (its own slot, name, client
+  player, `hostSlot`; seat 1 still slot 0; a save refused, the coop autosave allowed), walks by the pad's stick (seat 1
+  stays), is seen by seat 1 where the server has him and sees seat 1 (deathmatch: put beside seat 1 first, the server
+  sending only what a player may see), leaves (its slot freed, the pad back to seat 1), joins again: coop, his old slot
+  with health 70 and 50 nails as he left; deathmatch, spawned again. Coop 28 of 28, deathmatch 27 of 27.
+- **`seat_state` allowlist: 3,591 -> 3,588** (net_loop.c's three into the seat's client). Merging next brought 14
+  newcomers, all marked shared (the looks' table and the server's sends, the client's drawn looks: phase 7; navfollow's
+  server bots and its debug paths; the hull holes' pool site and timings; the port check's text; a test's).
+- **Before and after**: ROUND25.md "split6".
