@@ -7769,4 +7769,32 @@ Phase 3's rest (ROPES.md "Climbing (flat-screen)", "Multiplayer", "Tests", "Know
   together; `vr_mp_avatars` prints `mp_ropepose` (another player's wrists, ankles from the rope); `mp_test.py ropeclimb`
   (flat A on a rope, B watching) runs but fails its pose checks (wrists 9-25 units off, ankles 11-24): open, in
   ROPES.md's known limits, kept out of the suite.
+## backlog1122b: the rest of backlog1122 (branch agent/backlog1122b, 2026-11-22)
+
+- **1. ad_test3's ladder, flat (fixed).** Its rungs are steps cut in a func_wall (-495..-465 x, z 249..331), so they
+  stop the box 18 units short of their holds: with the shoulders 2.6 behind the origin the higher rung of the only
+  pair in reach (268/284) was 27.5 away against a reach of 26.3. `flatLadder` (vr_climb.cpp) now measures the rungs from
+  the shoulders leant in to the box's front when the box is blocked ahead (2 units' trace); thin rungs (the tutorial's,
+  Quoth's, ad_e1m1's) never block it, so they are taken as before. vr_climb_debug 3 prints each pair's gap, stack and
+  distance. Its case (vr_flatladder_test in ad_test3): "up and over the top" from -512 -88 (out of the func_wall; the
+  fallback case moved there too, now index 1). Tests: ad_test3 2/2 (up: 7 hand changes, feet 352, 55 past the rungs;
+  vr_flat_ladder 0: AD's jump climb); flatladder_test 9/0 + 1/0; modladder_test 9/0. Scene `ad_test3_ladder`.
+- **2. Recolours on AD's mon_*.mdl skins: none are drawn.** Every armed humanoid, AD's variants too, draws our models
+  (`vr_am_model`); a run of AD's variants (humrepl's vr_ad_test 219) made masks only for vrgrunt, vrenforcer, the worn
+  pack and h_guard. Their masks were checked anyway (an offline render of the rules: rows, flesh 7, fleshnear):
+  mon_enforcer's 9 skins and mon_pyro's 4 keep the bare shoulders (row 7), the helmets and gas masks dye;
+  mon_soldier's 10 would dye its face's cheeks (rows 1 and 10 in the face). No data added for skins never drawn
+  (conservative: the masks file stays his); ARMED_MONSTERS.md says so and how to fix mon_soldier if ever drawn. Noticed:
+  h_guard's (the grunt's head gib, drawn with the look) cheeks have a few dyed texels too; left (not AD's).
+- **3. Avatar-doll corpses, part done.** A flat-screen player's corpse is his flat body height's size
+  (`mpavatar::serverBody`: the calibration's `flatheight` when `hull::isFlat`, single player `flatplay::active`; the
+  server does know him flat, from his moves). `Misc/quakevr/deathdoll_flat_test.sh`: 2/0 (flat 1.021 at 1.4 m, 1.312
+  at 1.8 m; VR 1.128 both). Not done: the non-uniform physics rig (his arm length and shoulders), the Rig Studio
+  range-of-motion pass.
+- **4. Not done** (budget): flatfg2h, twohand_regrip, noises_clue, nav_lift_down, gadget_lock.
+- **5. MP bases and ports.** The free port was already there (mpopen: the checkout's block from 27600, a busy block
+  skipped). Now `--base` defaults to the checkout's own kit base `bases/<checkout>/qbase` (mp_harness `default_base`;
+  required where there is none, the author's checkout) and its autoexec (the last run.sh script) is emptied without
+  `--reset-autoexec`. `mp_test.py version` with no arguments: 7/0 (a first take 3/1, not looked at). vr_pickup_test 15
+  on next: 5 of 5 seeds 13/0 (flakehunt's fix holds). scenario_check 190 run, 0 failed; checklist_tests_check 126/0.
 
