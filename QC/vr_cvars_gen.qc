@@ -1172,6 +1172,7 @@ float cvarh_vr_gunyaw;
 float cvarh_vr_handcal_off_mirror;
 float cvarh_vr_handgrenade;
 float cvarh_vr_handgrenade_arm;
+float cvarh_vr_haste_full_auto;
 float cvarh_vr_head_flies;
 float cvarh_vr_headbutt;
 float cvarh_vr_headbutt_damage;
@@ -3321,6 +3322,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_handcal_off_mirror = VR_CVar_Make("vr_handcal_off_mirror");
     cvarh_vr_handgrenade = VR_CVar_Make("vr_handgrenade");
     cvarh_vr_handgrenade_arm = VR_CVar_Make("vr_handgrenade_arm");
+    cvarh_vr_haste_full_auto = VR_CVar_Make("vr_haste_full_auto");
     cvarh_vr_head_flies = VR_CVar_Make("vr_head_flies");
     cvarh_vr_headbutt = VR_CVar_Make("vr_headbutt");
     cvarh_vr_headbutt_damage = VR_CVar_Make("vr_headbutt_damage");

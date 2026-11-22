@@ -1492,6 +1492,9 @@ QVR_SLIDER(vr_revolver_heavy_mult, "Heavy Revolver Big Bodies", 1.f, 4.f, 0.05f,
     "as much: an ogre takes 4-5 in the body.")
 QVR_SLIDER(vr_revolver_cooldown, "Heavy Revolver Cooldown", 0.05f, 1.f, 0.01f, "%.2f s", ext(0.05f, 3.f),
     "Double action: a shot each pull of the trigger, at least this long apart.")
+QVR_TOGGLE(vr_haste_full_auto, "Haste: Full Auto",
+    "While Haste (or the Hell Magic rune) is active, the semi-automatic guns (the nail pistol, the heavy revolver, the "
+    "flare gun) fire again while the trigger is held, at their cooldown times Haste's 0.6.")
 QVR_SLIDER(vr_dmg_grenade, "Grenade", 10.f, 400.f, 5.f, "%.0f", ext(),
     "A grenade's blast at its middle, less further out (id's 120): the launcher's, a hand grenade's and an "
     "ogre's grenade caught and thrown back.")

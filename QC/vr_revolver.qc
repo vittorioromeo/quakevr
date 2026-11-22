@@ -454,7 +454,7 @@ void(float xHand) VR_Revolver_Fall =
 void(float xHand, float xAttackFinished, float* xOutAttackFinished) VR_Revolver_Attack =
 {
     entity h = VR_Revolver_Hand(self, xHand);
-    if(h.rvh_rearm)
+    if(h.rvh_rearm && !VR_Haste_FullAuto(self)) // (hasted, full auto: VR_Haste_FullAuto)
     {
         return;
     }

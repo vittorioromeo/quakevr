@@ -2707,6 +2707,11 @@ QVR_CVAR(vr_nailpistol_screen_ride, "1", CVAR_ARCHIVE | QVR_RULE)   // 1: its am
 // muzzle up, the ejector), a shell at a time from the pouch into its chambers, swung home (a flick, a push).
 QVR_CVAR(vr_revolver_heavy_mult, "1.75", CVAR_ARCHIVE | QVR_RULE) // a slug into a big body (a monster of vr_revolver_heavy_health or more full health: an ogre, a fiend...) deals this many times as much (an ogre: 4-5 in the body)
 QVR_CVAR(vr_revolver_cooldown, "0.3", CVAR_ARCHIVE | QVR_RULE) // s at least from a shot to the next (each a new pull: double action)
+// His note vrtesthall_2026-11-22_15-59-37: while Haste (Dwell's; or Dissolution's Hell Magic rune) is active, the
+// semi-automatic guns (the nail pistol, the heavy revolver, the flare gun) fire again while the trigger is held, each
+// shot at its cooldown times Haste's (RuneApplyHell: 0.6, the rune 2/3): the nail pistol about 14 a second, the
+// revolver about 5.5 (QC VR_Haste_FullAuto). 0: one shot a pull as ever.
+QVR_CVAR(vr_haste_full_auto, "1", CVAR_ARCHIVE | QVR_RULE)
 QVR_CVAR(vr_revolver_open_flick, "1", CVAR_ARCHIVE) // immersive reloading: a flick of the wrist towards the cylinder's side (left in the right hand) swings it out
 QVR_CVAR(vr_revolver_open_flick_speed, "400", CVAR_ARCHIVE) // the flick open's force: degrees a second the wrist must roll at, at its fastest
 QVR_CVAR(vr_revolver_open_flick_angle, "120", CVAR_ARCHIVE) // and its wrist flick: degrees it must roll that way in one go
