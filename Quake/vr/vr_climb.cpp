@@ -3601,14 +3601,26 @@ void flatLadder(edict_t* ent, Climber& c, const VrMove* move, double time)
     const glm::vec3 shoulder = ladderShoulder(ent, *move);
     Rungs r;
     findRungs(ent, move->headPos, fwd, origin.z + ent->v.mins[2] + vr_climb_min_height.value, shoulder.z + armReach(), r);
+    // A ladder whose rungs stop the box (steps cut in its wall, AD's ad_test3) can't be come nearer: its rungs are reached
+    // from the shoulders leant in to the box's front. (Thin rungs, the tutorial's, never stop it: taken from where he is.)
+    glm::vec3 reachFrom = shoulder;
+    if(traceBox(origin, vec(ent->v.mins), vec(ent->v.maxs), origin + fwd * 2.f, MOVE_NOMONSTERS, ent).fraction < 1.f)
+    {
+        reachFrom += fwd * za::max(0.f, glm::dot(origin + fwd * ent->v.maxs[0] - shoulder, fwd));
+    }
     int top = -1; // the higher of the highest two rungs one over the other in reach
     for(int i = r.count - 1; i > 0 && top < 0; i--)
     {
         const Ledge& a = r.at[i - 1];
         const Ledge& b = r.at[i];
         const float gap = b.top - a.top;
+        if(vr_climb_debug.value >= 3.f)
+        {
+            Con_Printf("climb: flat ladder pair %.1f/%.1f: gap %.1f, %.1f along the look, %.1f from the shoulders (reach %.1f)\n", a.top,
+                b.top, gap, glm::dot(b.hold - a.hold, fwd), glm::distance(b.hold, reachFrom), armReach() + 4.f);
+        }
         if(gap > 4.f && gap <= ladderGap && za::abs(glm::dot(b.hold - a.hold, fwd)) <= ladderStack &&
-            glm::distance(b.hold, shoulder) <= armReach() + 4.f)
+            glm::distance(b.hold, reachFrom) <= armReach() + 4.f)
         {
             top = i;
         }
