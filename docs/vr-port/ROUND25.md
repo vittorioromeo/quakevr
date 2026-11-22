@@ -7572,3 +7572,37 @@ grunt's head intercepted by the backpack; wants packs paintable alone, a lineup 
   death knights' (10); grunts and enforcers have no level ray from behind with a pack first: skipped). humrepl2_test PASS
   (5 masks, 0 on flesh). Dev build 0 warnings.
 - Not seen in a screenshot (the mock view's ray met no one): the yellow cursor and the skin view; check in flat and VR.
+
+## flatkeys: flat keys in Options > Controls, not a separate page (agent/flatkeys, 2026-11-22)
+
+BACKLOG 3 (his call 2026-11-16, GitHub #83): "Integrate them into Options > Controls' key binding list (a "Quake VR (flat
+screen)" group, same rebind/clear UI as the binds, conflicts with binds shown both ways), drop the separate page (or keep
+only a link to Controls), and make the keys play nicely with the bind system (a key bound to both a bind and a flat key:
+pick one rule and show it). Keep `vr_flat_key_*` working for configs."
+
+- **Controls** (menu.c, keys menu): on the Keyboard & Mouse tab, after the binds, a blank line, the title "Quake VR (flat
+  screen)", the rule "In flat play these win over binds", then a row per flat key (`menukeybind_t.flatkey` = 1 + its
+  index; its command is the cvar's name). Enter + a key sets the cvar (`VR_FlatKeySet`, the default's spelling kept where
+  it is the default's key), Backspace/Del clears it (""), Escape cancels: the binds' own UI and code paths, only the
+  store differs. Headers are rows with a description and no command (not selectable, never merged as separators, not
+  matched by the search).
+- **The rule** (unchanged in the engine, now shown): in flat play a flat key's key does the flat action and its bind does
+  not run (`VR_FlatKeyOwned`, keys.c Key_Event); out of flat play (VR, or flat play off) the bind runs. Both rows mark a
+  clashing key with "!" after its name (a flat key's: also bound, or another flat key's; a bind's: a flat key's), and the
+  cursor row's first clash is spelt out under the list (`M_Keys_Clash`): "! k in flat play: Drop, not Next weapon" (the
+  short form without the key name past 40 characters), or "! 3 is also Swap hands" between two flat keys. Nothing is
+  unbound automatically (conservative: the player clears the side he does not want; for #83, clear Force Grab/Shove and
+  mouse 4/5 do their binds). Defaults already clash where the flat key wins anyway, e.g. Swap hands on 3 (Super Shotgun).
+- **One list** (vr_flatmove.cpp): `flatKeyList` + `flatKeyLabels` (static_assert'ed the same length) feed
+  `VR_FlatKeyOwned`, Controls (`VR_FlatKeyCount/Label/CvarName/Get/Set/For`, vr_api.h) and `VR_FlatKeysReset`.
+- **VR menu**: the Flat Keys page is gone (pageFlatKeys, its 18 QVR_KEY rows, the menu table entry). Locomotion > Desktop
+  Screen Play keeps "Flat Keys (Options > Controls)" (`M_Menu_Keys_At("vr_flat_key_lean_left")`: Controls opened, the
+  keyboard tab, the cursor on Lean left) and "Reset Flat Keys". The VR menu's key row (Item::Key, M_VRKeyCapture) stays
+  for Voice Chat's Push-to-Talk row (vr_menu_voicechat.inc: a VR page where the key belongs; also in the Controls group).
+- `menu_keys [row]` (a command, a row's name or a `vr_flat_key_*` cvar) opens Controls on that row; with developer 1 it
+  prints `menu_keys: at "<row>" (<command>) <clash note>`. Bug avoided: the row name is copied before M_Menu_Keys_f, whose
+  bindlist.lst parsing re-tokenizes over Cmd_Argv.
+- Gamepad tab: no flat group (flat play's keys are keyboard and mouse keys; decision, conservative).
+- Test: `Misc/quakevr/flatkeybind_test.sh <agent>` (rewritten for Controls; flat-screen, fast mode, ends on
+  "flatkeybind: done"): 9 passed, 0 failed (link, rebind, Escape, clash both ways, the new key fires (k drops) and the
+  old does nothing, clear, reset).

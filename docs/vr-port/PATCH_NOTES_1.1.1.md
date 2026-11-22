@@ -248,6 +248,13 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Menus
 
+- **Flat-screen keys in Options > Controls.** The keys flat-screen play reads itself (leans, swap hands, force grab,
+  shove, punch, reload, drop, quick grenade, bullet time, flashlight, push-to-talk, holster menu, fly camera, toolgun)
+  are now a "Quake VR (flat screen)" group at the end of Controls' keyboard and mouse list, rebound and cleared like
+  any other binding; the separate Flat Keys page is gone (Locomotion's "Flat Keys" button opens Controls there, and
+  "Reset Flat Keys" stays beside it). A key that is both a flat key and a binding is marked with "!" on both rows, and
+  the row under the cursor says what it does: in flat-screen play the flat key wins (for example mouse 4 is Force
+  Grab, not your binding, until you clear Force Grab). The `vr_flat_key_*` settings work in configs as before.
 - **Centre messages in the headset look like the flat screen's.** The game's centre prints in front of your head (a key needed, a secret found, a map's text) and the maps' own view messages now appear in the flat visor's own message popup, drawn by the same code: its dark glass pill with cut corners, glowing bevelled frame, font, wrapping, scanlines, pop-in and fade, in a size that reads at the menu's distance. (`vr_center_panel 0` brings back the old look; `vr_center_panel_scale` sizes it.)
 - **Search filter (development builds).** The Search page has a "Show: Both / Cvars / Tunables" row over its text
   box: the menus' settings alone, the Tunables pages' constants alone, or both (the default). The results update
