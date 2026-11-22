@@ -10,6 +10,10 @@
 
 #include "vr_backend_openxr_internal.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
@@ -466,13 +470,13 @@ bool OpenXrBackend::createInstance()
     {
         quest.want(p.extensionName, extensions); // (Android: refresh rate, performance levels, foveation)
         // Quest 3 controllers get their own profile with this extension (Touch otherwise).
-        if(!strcmp(p.extensionName, "XR_META_touch_controller_plus"))
+        if(!ZA_STRCMP(p.extensionName, "XR_META_touch_controller_plus"))
         {
             extensions.pushBack("XR_META_touch_controller_plus");
         }
         for(int v = 0; v < VendorCount; v++)
         {
-            if(vr_xr_vendor_profiles.value != 0.f && !strcmp(p.extensionName, vendorExtensions[v]))
+            if(vr_xr_vendor_profiles.value != 0.f && !ZA_STRCMP(p.extensionName, vendorExtensions[v]))
             {
                 extensions.pushBack(vendorExtensions[v]);
                 vendorProfile[v] = true;
@@ -482,21 +486,21 @@ bool OpenXrBackend::createInstance()
 #if !defined(_WIN32) && !defined(__ANDROID__)
         // Linux: the EGL binding, for an EGL context (SDL's Wayland driver, or X11 on EGL): Monado and WiVRn
         // have it, SteamVR doesn't (createSession).
-        if(!strcmp(p.extensionName, XR_MNDX_EGL_ENABLE_EXTENSION_NAME))
+        if(!ZA_STRCMP(p.extensionName, XR_MNDX_EGL_ENABLE_EXTENSION_NAME))
         {
             extensions.pushBack(XR_MNDX_EGL_ENABLE_EXTENSION_NAME);
             eglExtension = true;
         }
 #endif
         // The lenses' hidden area (vr_visibility_mask).
-        if(!strcmp(p.extensionName, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME))
+        if(!ZA_STRCMP(p.extensionName, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME))
         {
             extensions.pushBack(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
             visibilityMaskExtension = true;
         }
         // Eye tracking for the foveation's centre (vr_foveated_gaze; asked for only when it is on: some runtimes ask the
         // player's permission or start the eye tracker for it).
-        if(!strcmp(p.extensionName, XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME))
+        if(!ZA_STRCMP(p.extensionName, XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME))
         {
             eyeGazeOffered = true;
             if(vr_foveated_gaze.value != 0.f)
@@ -512,7 +516,7 @@ bool OpenXrBackend::createInstance()
             extensions.pushBack(body);
         }
         // The loader's and the runtime's own messages (every run: logs/<date>_<time>/openxr_debug.log).
-        if(vr_diagnostics_xr.value != 0.f && !strcmp(p.extensionName, XR_EXT_DEBUG_UTILS_EXTENSION_NAME))
+        if(vr_diagnostics_xr.value != 0.f && !ZA_STRCMP(p.extensionName, XR_EXT_DEBUG_UTILS_EXTENSION_NAME))
         {
             extensions.pushBack(XR_EXT_DEBUG_UTILS_EXTENSION_NAME);
             debugUtils = true;
@@ -535,7 +539,7 @@ bool OpenXrBackend::createInstance()
         for(const XrApiLayerProperties& l : layerList)
         {
             names += va("%s%s", names.empty() ? "" : " ", l.layerName);
-            if(vr_diagnostics_xr_validation.value != 0.f && !strcmp(l.layerName, "XR_APILAYER_LUNARG_core_validation"))
+            if(vr_diagnostics_xr_validation.value != 0.f && !ZA_STRCMP(l.layerName, "XR_APILAYER_LUNARG_core_validation"))
             {
                 layers.pushBack("XR_APILAYER_LUNARG_core_validation");
             }
@@ -607,7 +611,7 @@ bool OpenXrBackend::createInstance()
         za::Vector<const char*> kept;
         for(const char* e : extensions)
         {
-            if(strcmp(e, XR_EXT_DEBUG_UTILS_EXTENSION_NAME) != 0)
+            if(ZA_STRCMP(e, XR_EXT_DEBUG_UTILS_EXTENSION_NAME) != 0)
             {
                 kept.pushBack(e);
             }
@@ -637,7 +641,7 @@ bool OpenXrBackend::createInstance()
     {
         q_snprintf(runtime, sizeof(runtime), "%s %u.%u.%u", props.runtimeName, XR_VERSION_MAJOR(props.runtimeVersion),
             XR_VERSION_MINOR(props.runtimeVersion), XR_VERSION_PATCH(props.runtimeVersion));
-        vdxr = !strncmp(props.runtimeName, "VirtualDesktopXR", 16);
+        vdxr = !ZA_STRNCMP(props.runtimeName, "VirtualDesktopXR", 16);
         Con_Printf("OpenXR runtime: %s\n", runtime);
     }
     xrruntime::loaded(currentAttempt, runtime[0] ? runtime : "a runtime without a name");
@@ -668,7 +672,7 @@ bool OpenXrBackend::createSystem()
     XrResult result = xrGetSystem(instance, &info, &systemId);
     // SteamVR just started (by this instance, or a moment before) says there is no headset until its driver
     // (Virtual Desktop's, the Link's) finds it: asked again for a while (vr_xr_steamvr_wait).
-    const bool steamVR = xrruntime::isSteamVR(currentAttempt) || strstr(runtime, "SteamVR");
+    const bool steamVR = xrruntime::isSteamVR(currentAttempt) || ZA_STRSTR(runtime, "SteamVR");
     if(result == XR_ERROR_FORM_FACTOR_UNAVAILABLE && steamVR && vr_xr_steamvr_wait.value > 0.f)
     {
         xrruntime::note("OpenXR: SteamVR has no headset yet: asking again for up to %g s (vr_xr_steamvr_wait)\n",
@@ -704,7 +708,7 @@ bool OpenXrBackend::createSystem()
         q_strlcpy(this->system, system.systemName, sizeof(this->system));
         maxImageWidth = system.graphicsProperties.maxSwapchainImageWidth;
         maxImageHeight = system.graphicsProperties.maxSwapchainImageHeight;
-        const size_t len = strlen(crashBase);
+        const size_t len = ZA_STRLEN(crashBase);
         q_snprintf(crashBase + len, sizeof(crashBase) - len, "; headset \"%s\"", system.systemName);
         xrruntime::logLine(va("OpenXR: system \"%s\" (vendor 0x%x): at most %u layers, swapchain images up to %ux%u\n",
             system.systemName, system.vendorId, system.graphicsProperties.maxLayerCount,
@@ -799,7 +803,7 @@ void OpenXrBackend::logGlInterop()
     za::String text;
     for(const char* name : names)
     {
-        text += va("%s%s %s", text.empty() ? "" : ", ", name, extensions && strstr(extensions, name) ? "yes" : "NO");
+        text += va("%s%s %s", text.empty() ? "" : ", ", name, extensions && ZA_STRSTR(extensions, name) ? "yes" : "NO");
     }
     GLint images[2] = {}; // (5b's open item: the world and model fragment shaders' image units)
     glGetIntegerv(GL_MAX_FRAGMENT_IMAGE_UNIFORMS, &images[0]);
@@ -810,7 +814,7 @@ void OpenXrBackend::logGlInterop()
     // OpenGL does with GL_FRAMEBUFFER_SRGB off. OpenGL ES encodes every write to an sRGB image unless
     // EXT_sRGB_write_control turns that off: encoded twice, the headset showed the game pale and bright (C4f).
     // -glessrgbencode keeps the driver's encoding (the check).
-    if(extensions && strstr(extensions, "GL_EXT_sRGB_write_control") && !COM_CheckParm("-glessrgbencode"))
+    if(extensions && ZA_STRSTR(extensions, "GL_EXT_sRGB_write_control") && !COM_CheckParm("-glessrgbencode"))
     {
         constexpr GLenum framebufferSrgb = 0x8DB9; // GL_FRAMEBUFFER_SRGB_EXT
         glDisable(framebufferSrgb);
@@ -828,7 +832,7 @@ void OpenXrBackend::logGlInterop()
         text += va("%s%s %s", text.empty() ? "" : ", ", name, xrgl::proc(glctx.api, name) ? "yes" : "NO");
     }
     const char* extensions = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
-    const bool fd = extensions ? strstr(extensions, "GL_EXT_memory_object_fd") != nullptr : true; // (core: not listed)
+    const bool fd = extensions ? ZA_STRSTR(extensions, "GL_EXT_memory_object_fd") != nullptr : true; // (core: not listed)
     xrruntime::logLine(va("OpenXR: GL interop: %s%s\n", text.cStr(), fd ? "" : " (GL_EXT_memory_object_fd not listed)"));
 }
 #endif

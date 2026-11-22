@@ -27,6 +27,8 @@
 
 #include "thirdparty/imgui/imgui.h"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -37,7 +39,6 @@
 
 #include <float.h>
 #include <stdio.h>
-#include <string.h>
 
 extern "C" int VR_IsActive(void);
 
@@ -140,7 +141,7 @@ void noteSpot(const char* name)
 {
     for(int i = 0; i < win.spotCount; i++)
     {
-        if(!strcmp(win.spots[i].name, name))
+        if(!ZA_STRCMP(win.spots[i].name, name))
         {
             return &win.spots[i];
         }
@@ -697,8 +698,8 @@ void testFrame()
     case 4: // Save: the file holds it, the status says saved
     {
         za::String text;
-        const bool written = files::readText(filePath(), text) && strstr(text.cStr(), "bracer") && strstr(text.cStr(), "offset");
-        if(!waitFor(written && strstr(status(), ", saved") != nullptr, "Save did not write the file"))
+        const bool written = files::readText(filePath(), text) && ZA_STRSTR(text.cStr(), "bracer") && ZA_STRSTR(text.cStr(), "offset");
+        if(!waitFor(written && ZA_STRSTR(status(), ", saved") != nullptr, "Save did not write the file"))
         {
             return;
         }
@@ -797,19 +798,19 @@ void startTest()
 void window_f()
 {
     const char* sub = Cmd_Argc() > 1 ? Cmd_Argv(1) : "toggle";
-    if(!strcmp(sub, "open"))
+    if(!ZA_STRCMP(sub, "open"))
     {
         openWindow();
     }
-    else if(!strcmp(sub, "close"))
+    else if(!ZA_STRCMP(sub, "close"))
     {
         closeWindowByPlayer();
     }
-    else if(!strcmp(sub, "test"))
+    else if(!ZA_STRCMP(sub, "test"))
     {
         startTest();
     }
-    else if(!strcmp(sub, "toggle"))
+    else if(!ZA_STRCMP(sub, "toggle"))
     {
         if(win.open)
         {
