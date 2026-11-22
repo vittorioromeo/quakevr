@@ -37,6 +37,9 @@ Step onto vrbrushholes' drain (a frame round a square hole exactly as wide as Qu
 With You Can Be Disarmed on, let a knight's sword land on your shotgun (not across it): your hand is knocked aside, buzzes, rattles and "Your grip on your weapon loosens!" shows; a second blow within 3 seconds knocks the gun out. {test:pd_jolts}
 With You Can Be Disarmed on, let an armed grunt punch your body twice within 3 seconds while holding the shotgun: the first warns, the second knocks the gun out; a dog's bite never does. {test:pd_jolts}
 With You Can Be Disarmed on, take an enforcer's laser on your gun: one laser only warns, a second soon after knocks it out; check the warning reads clearly before the drop. {test:pd_jolts}
+Flat-screen: walk forward into a rope or chain and look up while holding forward; you should climb it with the hands going hand over hand on it, and looking down climbs you back down until you step off at the floor. {test:ropes}
+Flat-screen: on a rope, look straight ahead and hold forward to pump the swing towards the next rope, then press jump near the top of the swing; you should fly off with the swing and catch the next rope. {test:ropes}
+Flat-screen or VR: with a second player watching in multiplayer, climb a rope and swing on it; on his screen your hands should stay on the rope and your feet wrapped round it as it swings. {test:ropes}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules {test:hub_start}
@@ -122,6 +125,11 @@ Flat-screen or VR: walk onto the louvred grate and step into the gaps between it
 Flat-screen or VR: walk into the 24-unit gap between the two panels (two func_walls): you stop at its mouth. {test:brushholes_walls}
 Flat-screen or VR: at a gap you still slip or fall through, use Debug > Mark a Gap I Got Through; check the console report names the map, your position and the gaps round you, and quakevr/hull_holes_marks.txt has it. {test:brushholes_diag}
 Flat-screen or VR: set Movement > Player Hitbox > Close Gaps: Slanted Bars off and press Rebuild Gap Blockers Now: you stay where you were, and now drop through the diagonal grate. {test:brushholes_diag}
+Grip a rope or chain with either hand and climb it hand over hand, up and down; the body hangs and swings with it. {test:ropes}
+Let go or press jump mid-swing: you keep the rope's speed (a jump adds a hop up). {test:ropes}
+While hanging on a rope, look down: your legs wrap round the rope under your hands. {test:ropes}
+Hold the stick forward while hanging on a rope: the swing builds up with each swing out, to a cap, enough to reach the next rope. {test:ropes}
+Toolgun on a rope: Remove deletes it, the physgun drags its top, and Clear Props removes the ropes you made but keeps the map's. {test:ropes}
 
 [6. Weapons and holsters]
 Holster Calibration > Ammo Pouch Forward/Right/Up move the pouch and agree with Holster Setup's drag {test:shotgun_hall}

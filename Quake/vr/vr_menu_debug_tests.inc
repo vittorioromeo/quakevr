@@ -1578,9 +1578,16 @@ za::Vector<Item> pageDebugTests()
         header("Climbable Ropes"),
         command("Print the Climbable Ropes", "vr_rope_info")
             .help("vr_rope_info: each climbable rope and chain (a map's, the toolgun's): its settings, its top and bottom, how fast it moves."),
+        command("Hang a Rope Ahead", "vr_rope_spawn 0")
+            .help("vr_rope_spawn: a rope hung from the ceiling 96 units ahead (the toolgun's Rope Settings), to climb: grip it with either hand, "
+                  "hand over hand up or down; let go or jump off mid-swing to keep its speed."),
+        command("Hang a Chain Ahead", "vr_rope_spawn 1").help("vr_rope_spawn 1: the same, a chain (drawn as links, climbed the same)."),
         command("Test the Climbable Ropes", "vr_rope_test")
             .help("vr_rope_test: a rope and a chain made 128 units ahead, settled, thrown by an explosion, shot, pushed by a crate and a dog; "
                   "the client's copy compared (best in vrropes: its own ropes counted too). Prints PASS/FAIL lines."),
+        command("Test the Flat-Screen Rope Climb", "vr_climb_stamina 0; vr_rope_flat_test")
+            .help("vr_rope_flat_test (flat-screen play, map vrropes; climbing stamina turned off): a rope walked into, climbed up and down, "
+                  "then rope to rope on the swinging row (pumped, let go at the peak, the next caught). Prints PASS/FAIL lines."),
         header("Stamina"),
         info([]() -> const char* { return staminaReadout(); }),
         command("Deplete Stamina", "vr_stamina_set 0").help("vr_stamina_set 0: no stamina left (tired arms: heavy hands; shaking while you hang). Hanging with none, your hands let go."),

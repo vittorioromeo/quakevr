@@ -3705,6 +3705,11 @@ QVR_CVAR(vr_grapple_drop_grace, "0.12", CVAR_ARCHIVE | QVR_RULE)    // seconds t
 QVR_CVAR(vr_rope_iterations, "16", CVAR_ARCHIVE | QVR_RULE)       // climbable ropes (vr_climbrope.cpp, docs/vr-port/ROPES.md): passes a step pulling each piece back to its length (more: a stiffer, less stretchy rope; 1-64)
 QVR_CVAR(vr_rope_hands, "1", CVAR_ARCHIVE | QVR_RULE)            // the players' hands push the climbable ropes (a sphere round each); 0: they pass through
 QVR_CVAR(vr_rope_debug, "0", CVAR_NONE)                         // climbable ropes: print each rope as it is made
+QVR_CVAR(vr_rope_climb, "1", CVAR_ARCHIVE | QVR_RULE)            // the climbable ropes can be held and climbed (a grip at the rope, either hand; ROPES.md "Climbing"); 0: only pushed
+QVR_CVAR(vr_rope_swing_drag, "0.15", CVAR_ARCHIVE | QVR_RULE)    // per second, of a climber's swing on a rope lost to the air (the rope's own damping is its rope_damping)
+QVR_CVAR(vr_rope_pump, "300", CVAR_ARCHIVE | QVR_RULE)           // units/s/s the stick (or WASD) pushes a climber's swing on a rope its way (pumping it, rope to rope); 0: none
+QVR_CVAR(vr_rope_swing_cap, "350", CVAR_ARCHIVE | QVR_RULE)      // units/s at the hands the pump builds a rope's swing to at most (a push, a jump onto it, can swing it faster)
+QVR_CVAR(vr_rope_jump, "200", CVAR_ARCHIVE | QVR_RULE)          // units/s up a jump off a rope adds to the rope's swing at the hands (jump while holding one); 0: a jump lets go only
 QVR_CVAR(vr_rope_spawn_length, "256", CVAR_ARCHIVE | QVR_OWN)    // the toolgun's ropes (Spawn > Props > Ropes > Rope Settings): length (units)
 QVR_CVAR(vr_rope_spawn_thickness, "1.5", CVAR_ARCHIVE | QVR_OWN) // ... thickness (units across)
 QVR_CVAR(vr_rope_spawn_segments, "0", CVAR_ARCHIVE | QVR_OWN)    // ... pieces (0: one every 16 units)
@@ -4543,6 +4548,7 @@ QVR_CVAR(vr_flat_mantle_look_max, "90", CVAR_ARCHIVE)   // flatscreen mantle: de
 QVR_CVAR(vr_flat_mantle_grunt_delay, "0.35", CVAR_ARCHIVE) // flatscreen mantle: seconds after the jump left the ground before the mantle's grunt (vr_climb_mantle_grunt) plays, so the jump's own grunt has ended and it is heard (0..1; 0: as the mantle starts)
 QVR_CVAR(vr_flat_mantle_time, "1", CVAR_ARCHIVE)        // flatscreen mantle: seconds after the jump left the ground that a ledge may still be mantled (the jump key held all along)
 QVR_CVAR(vr_flat_ladder, "1", CVAR_ARCHIVE)             // flatscreen play: 1 ledge ladders (vr_climb.cpp flatLadder; needs vr_climb): walking forward into a stack of graspable ledges (rungs) takes hold of them, as a headset's hands do; forward climbs hand over hand (looking down or back: down), jump pushes off, the top mantles over; 0 off (tuning: vr_flat_ladder_speed, _look_down, _push, _reach)
+QVR_CVAR(vr_flat_rope, "1", CVAR_ARCHIVE)               // flatscreen play: 1 climbable ropes (vr_climb.cpp flatRope; needs vr_climb and vr_rope_climb): walking or jumping into a rope takes hold of it, both hands on it; forward looking up climbs it hand over hand, looking down climbs down (or the move up / down keys), looking level the move keys pump its swing, jump lets go keeping the swing; 0 off (tuning: vr_flat_rope_look, vr_flat_ladder_speed, _reach)
 QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)               // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
 // The visor HUD (vr_visor.cpp; ROUND24.md, "Flat-screen visor HUD"): flatscreen play's HUD as a helmet's visor, the wrist
 // gadget's screens in small 3D panels near the view's corners.

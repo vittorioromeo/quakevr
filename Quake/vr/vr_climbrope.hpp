@@ -42,6 +42,45 @@ void shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocit
 // the spawn panel's (vr_rope_spawn_*), its top found above `at` (the ceiling, or its length up).
 void toolgunPlaced(edict_t* e, const glm::vec3& at);
 
+// Server: the rope the ray `from` + t `dir` (unit) meets first within `range` (its pieces, grown a little): its entity
+// and `distance` along the ray; 0: none (the toolgun's aim: Remove, the physgun).
+[[nodiscard]] int pick(const glm::vec3& from, const glm::vec3& dir, float range, float& distance);
+
+// Climbing (P2, ROPES.md "Climbing"; vr_climb.cpp's rope holds). A hold on a rope: its entity, where along it (`s`
+// units from the top, along the pieces) and how far straight from the top (`d`).
+struct Grab
+{
+    int ent{0};
+    float s{0.f}, d{0.f};
+    glm::vec3 at{0.f};
+    bool chain{false};
+};
+// Server: the rope piece nearest `hand` within `reach` units of its surface (not at its top) -> true and the hold there.
+[[nodiscard]] bool findGrab(const glm::vec3& hand, float reach, Grab& out);
+// Server: the hold `s` units along rope `ent` from its top (kept off its top and its free end) as client `client` would
+// have it now: on his rider's line (his own), or on its points. False: the rope is gone. (Flat play's hand over hand,
+// vr_climb.cpp flatRopeFrame.)
+[[nodiscard]] bool grabAlong(int ent, int client, float s, Grab& out);
+// Server: where a hold of client `client` (0-based) on rope `ent` is now: on its rider's line (his own), or on its points.
+// False: the rope is gone.
+[[nodiscard]] bool holdAt(int ent, int client, float s, float d, glm::vec3& at);
+// Server: that hold's velocity (units/s): letting go and jumping off keep it.
+[[nodiscard]] glm::vec3 holdVelocity(int ent, int client, float s, float d);
+// Server, each frame client `client` holds rope `ent` (climbPreThink): his highest and lowest holding hands' places on
+// it; `grabVel` his velocity as he took hold (a new rider's first swing). A frame he doesn't, he has let go. False:
+// another rides it (this one's holds follow its points).
+bool ride(int client, int ent, float sHigh, float dHigh, float sLow, float dLow, const glm::vec3& grabVel);
+// Server: the rider's body couldn't make `missed` (units) of this frame's carry: his swing stopped that way.
+void riderBlocked(int client, const glm::vec3& missed);
+// Server: the rider's pump (units/s/s, level; P3), until set again.
+void setPump(int client, const glm::vec3& accel);
+// Server: the rope client `client` rides (true), its velocity at his lowest hand (units/s).
+[[nodiscard]] bool riding(int client, int& ent, glm::vec3& handVel);
+// Client: the rope passing within `within` units of `near` -> true, and its point at height `z` (or its bottom end).
+[[nodiscard]] bool clientRopeAt(const glm::vec3& near, float within, float z, glm::vec3& at);
+// Client: how far `p` is from the nearest rope's pieces (units; 1e9: none). (vr_mp_avatars' mp_ropepose.)
+[[nodiscard]] float clientRopeDistance(const glm::vec3& p);
+
 // Client: QVR_SVC_CLIMBROPE.
 void parse();
 

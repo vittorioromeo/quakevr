@@ -7592,6 +7592,30 @@ grunt's head intercepted by the backpack; wants packs paintable alone, a lineup 
   (5 masks, 0 on flesh). Dev build 0 warnings.
 - Not seen in a screenshot (the mock view's ray met no one): the yellow cursor and the skin view; check in flat and VR.
 
+## Ropes (phase 2 of 3: climbing them in VR) (agent/ropes2, 2026-11-22)
+
+Reference `ROPES.md` ("Climbing (VR)"). A grip at a rope takes it with either hand (`vr_climb.cpp` "Holds on ropes":
+ropeHold before the ledges, the hold kept as the rope and its place on it, followed each frame); the ledges' hang does
+the rest (hand over hand up and down, stamina, reach), no mantle. The climber rides the rope (`vr_climbrope.cpp`
+Rider): his weight a bob swinging round its top 24 units under his highest hand, the rope laid straight through his
+hands, the free rest below; the holds' motion carries the body as a mover's do; a body blocked stops the swing; a jump
+onto it swings it. Letting go keeps the rope's speed at the hands; a jump press lets go and adds `vr_rope_jump` (200)
+up. The feet wrap round the rope under the hands (`vr_avatar_climb.cpp` ropeFoot). New rules `vr_rope_climb` 1,
+`vr_rope_swing_drag` 0.15, `vr_rope_jump` 200. P1's gap closed: the toolgun's aim meets ropes (`climbrope::pick`:
+Remove, physgun), Clear Props removes the ones made after the map loaded (QC VR_Scene_IsRuntimeProp). Debug > Tests >
+Climbable Ropes: Hang a Rope / a Chain Ahead.
+- **Tests:** `rope_climb_test.sh` (mock-hand plays, `vr_rope_climb_test`): rope_climb 8 passed (up 37.8, down 18.9,
+  swung 41, let go at 125 of the rope's 125 units/s), rope_jump 6 passed (180 up over the rope's 14, 127 level of 129).
+  `vr_rope_test` 16 passed (adds the aim and Clear Props). The feet (vr_debug_climb_feet 2): both ankles within 3 units
+  of the rope while hanging.
+- **Decisions (conservative, his to change):** one bob, not his weight spread over the pieces; one rider a rope (a
+  second climber follows its points); a pinned rope doesn't swing; a hand on a ledge too: no ride; remote clients'
+  rope hangs run in the server's frame like a prop's holds (no move-by-move prediction); the hands drawn as on a ledge.
+- **P3 begun: pumping the swing** (VR and flat: the move's forwardmove/sidemove on the view's yaw): `vr_rope_pump` 300
+  units/s/s, pushed only while the swing goes that way, to `vr_rope_swing_cap` 350 at the hands (`rope_pump` play).
+- **Left (P3):** the flat auto-climb (as the flat ladders, hands alternating), the rope-to-rope swing test, the
+  climber's pose checked in MP (the feet use the client's rope copy and the synced holds, so another's should wrap too:
+  unverified).
 ## backlog1122: small backlog fixes (branch agent/backlog1122, 2026-11-22)
 
 - **Checklist:** 8 lines ticked in his checklist_ticks.txt with no voice note since (none after 2026-11-21 00:47) retired:
@@ -7731,3 +7755,18 @@ QVR_SVC_PREDICT and run moveguard's budget on a copy in the replay ...); B7 the 
 - Not player-facing (no PATCH_NOTES line): the reel is unchanged; B6 only spares a speed hack's corrections.
 - Checks (on bases/dagger, this tree's progs): mp_guard 13/1 (the B6 segment passes; A's honest rewinds 1-5 held, 3 runs of 5, A's lag compensation, untouched here), mp_predict 29/2 (at rest 1.4 units off, own jump 4 moves; its results 100 percent bit for bit: load-timing flakes like ROUND25's flat-ground one, not chased), mp_bandwidth 10/0, mp_lockstep_dm 23/0, mp_moves --part grapple 20/0, vr_moveguard_selftest 17/0, vr_netsnap_selftest 15/0; Dev and ThinLTO 0 warnings. Melee eval not run (no melee code touched).
 - Against origin/next (d9fb82c86, same base): mp_guard 4/5 pass (one A rewinds 4 held, the same failure), mp_predict 2/3 (one at rest 1.9 units off, plus the lift landing): both flakes are next's own. scenario_check PASS (189 run, 0 failed; grapple_reel SCNOK).
+## ropes3: flat-screen rope climbing, rope to rope, another climber's pose (agent/ropes3, 2026-11-22)
+
+Phase 3's rest (ROPES.md "Climbing (flat-screen)", "Multiplayer", "Tests", "Known limits").
+- Flat-screen play climbs the ropes (`vr_flat_rope` 1, Options > Flat-Screen > Ropes; tunable `vr_flat_rope_look` 25):
+  walk or jump into one, look up/down + forward climbs hand over hand at the flat ladder's speed, looking level the move
+  keys pump the swing, jump lets go keeping it; down at the floor he steps off. `vr_climb.cpp` flatRope, flatRopeFrame,
+  ropeTake, flatRopeDir; `climbrope::grabAlong` (a hold along a rope, on the rider's line).
+- `vr_rope_flat_test` / `Misc/quakevr/climb/rope_flat_test.sh`: walked in, up, down, and rope to rope (pumped to 355
+  units/s, let go at the forward peak, the next rope caught after 0.75 s): 6 passed. rope_climb_test.sh 8+6+6 and
+  flatladder_test.sh 2/2 still pass.
+- MP: the client draws each rope between its last two messages (as entities), so a swinging rider and his rope keep
+  together; `vr_mp_avatars` prints `mp_ropepose` (another player's wrists, ankles from the rope); `mp_test.py ropeclimb`
+  (flat A on a rope, B watching) runs but fails its pose checks (wrists 9-25 units off, ankles 11-24): open, in
+  ROPES.md's known limits, kept out of the suite.
+

@@ -62,6 +62,9 @@ bool serverHold(edict_t* ent, int hand, glm::vec3& at, glm::vec3& out);
 // props"), 0 none: its hand's bodies don't push it (vr_box3d.cpp).
 [[nodiscard]] int heldProp(edict_t* ent, int hand);
 
+// Server: how many of `ent`'s hands hold a climbable rope (vr_climb.cpp, "Holds on ropes"), hanging.
+[[nodiscard]] int ropeHands(edict_t* ent);
+
 // Server: the flatscreen mantles `ent` started since the map loaded (vr_flat_mantle: after a jump, the jump key held,
 // looking up at a ledge in reach; vr_climb.cpp flatMantle), and whether it mantles now (any mantle).
 [[nodiscard]] int flatMantles(edict_t* ent, bool& mantling);
@@ -69,6 +72,9 @@ bool serverHold(edict_t* ent, int hand, glm::vec3& at, glm::vec3& out);
 // Server: the flatscreen ladder climbs `ent` started since the map loaded (vr_flat_ladder: walking into a stack of
 // rungs; vr_climb.cpp flatLadder), and whether it is on one now.
 [[nodiscard]] int flatLadders(edict_t* ent, bool& climbing);
+// Server: the flatscreen rope climbs `ent` started since the map loaded (vr_flat_rope: walking or jumping into a
+// climbable rope; vr_climb.cpp flatRope), and whether it is on one now.
+[[nodiscard]] int flatRopes(edict_t* ent, bool& climbing);
 
 // Server: every player's holds and mantle forgotten (a map loaded, a saved game loaded: their entity numbers and ledge
 // maps are another world's).
