@@ -8092,3 +8092,27 @@ All three were the tests, not the game; no player-facing change.
   VR_Carry_TrySecondHand -> carryreach -> vr_carry2h.cpp `reaches` -> held::grabTouch (vr_held.cpp): a fist sphere's
   inside test is by its nearest triangle's facing; the head's open neck seam may make a deep sphere read as outside.
 - New scene `doorway_grunt` (a grunt beyond that doorway, you south of it).
+
+## ropes5: flat rope/chain polish from his test session (agent/ropes5, 2026-11-22)
+
+ROPES.md "Tests", "Known limits". His words: chains work well, minor adjustments.
+- **Jitter (2), cause:** the client's drawn rope (`shownOf`) was cached a host frame, and the frame's first ask came
+  before the client's time moved (the server's tick), so a client faster than the server (144 Hz here) drew the rope a
+  tick at a time; and the hands were pinned to the server's holds (a tick old, stepped each tick) while the body is
+  interpolated. Now the rope is made again whenever cl.time moves, and a hand on a rope goes on the rope as drawn
+  (`climb::ropePalm`, `climbrope::clientRopeNearest`: the drawn curve's point as far from the top as the hold).
+- **Off the chain (3):** the holds were 2-8 units from the drawn rope (a tick ahead, and the rope below the hands bent
+  off the rider's line by his body); the same snap fixes it; the palm sits 0.4 of the thickness out (a thick chain: a
+  little in). Another player's hands too (vr_mpavatar ropePalmTarget).
+- **Grip (1):** `vr_rope_hand_grip` 1 (flat play): the rope through the fist, the knuckles away from the body (vr_climb.cpp
+  ropeTurn, turnOn); 2 VR too; 0 the ledge's turn (`vr_climb_hand_pitch` 60 pointed the knuckles up). VR unchanged.
+- **Paused (5):** single player's menu/console kept stepping the ropes (only `pause` was checked); Host_ServerFrame now
+  passes whether SV_Physics ran (`VR_ServerFrameEnd(worldran)`), the ropes' step skips (new ropes still made). F8 is
+  `vr_clip` here, not pause. Other VR_ServerFrameEnd steps still run paused (not checked).
+- **Sounds for chains (4): not done** (budget).
+- Tests: rope_hands_test.sh 6/0 (hanging jitter max 0.27-0.54, off 0.47-0.49, were 4.8 off; swinging means 0.06 and 0.2,
+  were 1.9 and 5.5), rope_pause_test.sh 4/0 (menu moved 267 units before, 0.000 now), rope_flat_test.sh 6/0,
+  rope_climb_test.sh pass, mp_test.py ropeclimb 11/0 (wrists 3.5 swinging, were 10-12; ankles 17.9 of 18: near its bound,
+  2 of 3 runs failed it at 18.3 before a revert of a rope-timeline experiment). vr_rope_test 15/1: "Clear Props keeps the
+  map's and the early ones (7 of 9)" fails here (the toolgun-placed chain counted as runtime); not looked into, maybe
+  from next's baseline config change.
