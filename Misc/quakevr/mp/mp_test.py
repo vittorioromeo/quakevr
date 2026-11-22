@@ -1322,7 +1322,13 @@ def ropeclimb(s):
     # copy hanging, then at the swing's end (not in the suite: the default run is unchanged).
     shots = os.environ.get("MP_ROPECLIMB_SHOTS") == "1" and still
     if shots:
-        b.cmd("setpos %.1f %.1f %.1f 0 180 0" % (still[0] + 64.0, still[1], still[2] - 8.0))
+        side = (still[0] + 64.0, still[1], still[2] - 8.0)
+        b.cmd("setpos %.1f %.1f %.1f 0 180 0" % side)
+        for _ in range(60):
+            got = org_of(status(srv), "mp_client", "slot", eb - 1)
+            if got and math.hypot(got[0] - side[0], got[1] - side[1]) <= 4:
+                break
+        reports(s, [b])
         reports(s, [b])
         s.note("screenshot (B beside A hanging): %s" % b.screenshot("ropepose_hang"))
     # The swing: A pumps it, looking level (the flat rope's keys: forward pushes the swing his way).

@@ -8185,3 +8185,25 @@ ROPES.md "Tests", "Known limits".
   the server's holds; ropeHips pulling towards the rope itself instead of the holds' way in. Not fixed: needs the
   copy's trunk nearer the rope (the neck), or the bound at ~22 for the swing check.
 
+
+## ropepose: another player's rope pose hangs as his own does (agent/ropepose, 2026-11-22)
+
+ROPES.md "Multiplayer", "Tests", "Known limits".
+- Measured first: `mp_ropepose_own` (new, `vr_mp_avatars`): A's own body against the rope as his game draws it, beside
+  B's `mp_ropepose` of his copy (both now with `neck=`, the head bone). Hanging still: A's pelvis 13.6-15.2 from the
+  rope, his copy's 19.8-21.3; the eye the same on both (11-13), the neck 2.3 further off on the copy.
+- Causes (posing another flat player only): his copy's neck came from his eye turned with his look and its eye shift
+  (adspose's seen eye; A had climbed looking up), 3.8 units further back than his own view's level-look neck; and his
+  copy took a crouch (0.18 of one: his head under his standing height, nothing under his feet), the trunk further back.
+  Then at a swing's turn the rope slants away under the hands (25 degrees at the server's dump, its free end flaring
+  out more): the rope at 0.75 of a leg under the hip was out of the 0.97 reach and the ankle stopped short.
+- Fix (`vr_avatar.cpp` solveTorso, `vr_avatar_climb.cpp`; shared, yours and his): hanging on a rope
+  (`detail::ropeHang`: ropeWrap eased by the climb's weight, ropeHips' own) the neck is under the eye's level look (as
+  the local view's), no crouch; `ropeFoot` takes the rope higher up (a tenth of the leg at a time, to 0.3 under the
+  hip) when it is out of reach at its first height, the knees bending. Off ropes nothing changes (onRope 0).
+- Tried and reverted: the climber's own box not pushing his rope (`climbrope::disturb`): the rope under his hands then
+  flared further out at the turns (box-pushed it sat on his box's front face, nearer him).
+- `mp_test.py ropeclimb` checks the copy's pelvis within 4 of A's own hanging still and notes the swing's pelvis maxima;
+  `MP_ROPECLIMB_SHOTS=1` screenshots the copy from beside him. 10 runs, 12/12 each: pelvis 12.4-16.9 against A's own
+  12.5-16.7 (0.4 apart at most), swinging ankles 9.8-13.2 (bound 18; were 13.9-21.7, 3 of 9 over), wrists 2-4.
+  rope_climb_test 8+6+6, rope_flat_test 6/0, rope_hands_test 6/0 unchanged. ThinLTO 0 warnings.
