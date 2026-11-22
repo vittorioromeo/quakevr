@@ -13,6 +13,10 @@ Flat-screen: Quoth's kellbase1 ladders (the catwalk's and the pillars'): walk fo
 Graphics Presets > Standalone on PC: picks, the line says Standalone, High afterwards restores your MSAA and image size. {test:hub_start}
 Graphics Presets > Standalone, then shoot a grunt and pop one of its limbs from arm's length: the blood right at your eyes is thinner but the stump's fountain still pours at once; from a few steps away the blood looks as on High. {test:flat_blood_pointblank}
 On the Quest (Standalone preset) a fight, explosions and torch-lit rooms run as smoothly as before this merge, and the loading panel shows on a first start while the shaders compile. {test:hub_start}
+Dwell's Crystal Lance: a coiled cord runs from the butt of its pole into a cell in your ammo pouch; shoot your cells empty and it falls loose and swings off the butt, pick up cells and it plugs back in. {test:dwell_lance_pole}
+Dwell's Crystal Lance in both hands: close your off hand on the pole, loosen your weapon hand's grip (not all the way) and move it along the pole: it slides towards the head or the butt while the Lance stays in your off hand, and stays there when you close it again. Check the grip never drops the Lance while loose (tune Pole Slide Grip in Physics if it does). {test:dwell_lance_pole}
+Dwell's Crystal Lance in both hands: slide your off hand along the pole: it stays on the pole all the way (before, its place drifted off the pole). {test:dwell_lance_pole}
+Dwell's Crystal Lance: thrust it straight forward into a monster, head first: a heavier hit than a swing; a thrust landing on the shaft short of the crystal head is only a weak poke. {test:dwell_lance_pole}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, and the crystal head glowing violet for a moment after each shot. {test:dwell_lance_pole}

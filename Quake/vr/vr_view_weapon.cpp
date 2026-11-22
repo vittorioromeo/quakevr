@@ -1616,6 +1616,16 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         held.pos += reverseShift(slot, mirrored, flip, held.rot);
         drawnAs[hand] = held;
     }
+    // A pole weapon the hand has slid along (vr_twohand.cpp poleShift; the main hand slides too): drawn moved back along
+    // its pole by as much, the hand where it is; its muzzle (anchorPosition below) and handle (drawnAs) with it.
+    if(float along = 0.f; !floating && own && !carried && slot >= 0)
+    {
+        if(glm::vec3 axis{0.f}; twohand::poleShift(hand, along, axis))
+        {
+            held.pos -= hands::redirect(axis, held.rot) * along;
+            drawnAs[hand] = held;
+        }
+    }
 
     // Just out of a body into the hand (vr_view_hands.cpp embedEase): eased from where the blade was, as the hand holding it is, by
     // the same turn about the controller and the same move (his note 2026-11-06: the hand lagged behind the axe).

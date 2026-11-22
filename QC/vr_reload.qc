@@ -1365,6 +1365,7 @@ float(float xWeapon) VR_Reload_Corded =
 };
 
 float() VR_Reload_PouchNearHand;
+float(float xHand) DW_LanceHeld; // (dwell/dw_items.qc)
 
 // Once a player frame (W_Frame, before the hands'): the pouch's last kind from the guns held (the main hand's first),
 // and what the clients draw. A weapon held on its cell cord (VR_Reload_Corded) first: the pouch gives and shows cells
@@ -1376,6 +1377,9 @@ void() VR_Reload_PlayerFrame =
     if(self.ishuman && VR_Reload_Immersive())
     {
         corded = (VR_Reload_Corded(VRGetEntWeapon(self, cVR_MainHand)) || VR_Reload_Corded(VRGetEntWeapon(self, cVR_OffHand)));
+        // Dwell's Crystal Lance as a lance (no magazine: its shots from the pouch's cells, dw_items.qc
+        // DW_LanceFedFromPouch), its cord from the butt of its pole (vr_cellcord_lance; dwellweap2).
+        corded = (corded || (cvar_hget(cvarh_vr_cellcord_lance) && (DW_LanceHeld(cVR_MainHand) || DW_LanceHeld(cVR_OffHand))));
     }
     if(corded)
     {
