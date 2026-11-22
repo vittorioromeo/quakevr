@@ -229,7 +229,7 @@ ends with the effort left re-estimated (below).
 | 4b | Hands, held, two-hand, grips, throw, the toolgun; the motion recorder marked the headset's (the drawn body and climbing's pins: phase 7) | done (1) | - |
 | 5 | `cl`, `cls`, the entity tables, prediction, snapshots, the move, the client's VR net state | done (1) | - |
 | 6 | The loopback grown to 4, the seat loop (each seat's client frame in its `Scope`), own slots: two seats join a listen server and play (headless test: two seats move apart) | done (1) | ~~5, 6~~ answered: autosave only; drop-in/out (a seat joins or leaves a running game) |
-| 7 | Per-seat render: rectangles, per-view caches; the effects (each seat's client world); the drawn body (`vr_avatar*`) and climbing's client pins (4b's leftovers) | 5-6 | ~~2~~ answered: the tiles follow the chosen layout (phase 11) |
+| 7 | Per-seat render: rectangles, per-view caches; the effects (each seat's client world); the drawn body (`vr_avatar*`) and climbing's client pins (4b's leftovers) | part 1 done (1): tiles, layouts, the seat's pass; 3-4 left | ~~2~~ answered: the tiles follow the chosen layout (phase 11) |
 | 8 | Sound: a listener per seat, nearest-listener spatialisation, duplicate starts dropped | 1-2 | - |
 | 9 | Menus and console per seat (`key_dest`, the stack) | 2 | ~~4~~ answered: options; coop's default: the menu pauses, only seat 1's is the full menu |
 | 10 | UX: Multiplayer > Splitscreen and the join screen | 2-3 | ~~3, 4, 6~~ answered (drop-in/out: the join screen also joins a running game) |
@@ -253,7 +253,9 @@ record). His answers (section 7, 2026-11-21) add about two days: every layout an
 options (phases 11, 13), aim assist (12), drop-in/out on the join screen (10): **20-29 worker-days left**, the VR host
 with flat seats (14) last and not yet costed. **After phase 6: 18-26 worker-days** (6 took one of its two to three: the
 seats' client state of phases 1-5 made the seat loop a loop; phase 7 gains half a day: the headless seats' gates, section 14,
-become each seat's view, sound and effects).
+become each seat's view, sound and effects). **After phase 7's first part: 16-24 worker-days** (it took one: each seat
+drawn in its tile by the code that draws the window; left of 7: each seat's particles and lights, the drawn body and
+climbing's pins per seat, other players' copies posed once per frame, the visor per seat; section 15).
 
 ## 7. Questions for him (the phase that needs each)
 
@@ -562,3 +564,51 @@ His answer to question 3 (2026-11-21): seat 1 is always the keyboard and mouse; 
   pass (the headset is seat 1's), the ropes (the server's; the drawn ones: phase 7), other players' gore copies (phase
   7), the hole blockers' settings, tests, scratch and reset hooks.
 - **Before and after**: ROUND25.md "split6".
+
+## 15. Phase 7, part 1 (2026-11-22): each seat drawn in its tile
+
+(Seats numbered from 0 as in the code; the console says seats 1-4.)
+
+- **Tiles and layouts** (gl_screen.c): in flatscreen play (no headset: `VR_IsActive` off) every seat in play is drawn in
+  its tile of the window. `SCR_SeatsDrawn()` (the seats in play; 1 with a headset: a VR host with flat seats is phase
+  14's), `SCR_SeatRect(seat)` (the tile, top-left origin; one seat: the whole window), `SCR_SplitLayout()`.
+  **`scr_splitlayout`** (archived, default 0): 0 from the window's aspect (his answer: an ultrawide, 2:1 or wider, side
+  by side; else 2 seats stacked, 3 one wide on top and two below, 4 a 2x2 grid); 1 side by side, 2 stacked, 3 one wide
+  on top and the others below, 4 a grid (3 seats in it leave the fourth cell dark). A seat's place is its rank among the
+  seats in play (seat 3 is the second tile while seat 2 is out). Phase 11's menu offers it; the console has it now.
+- **The seat's pass** (`SCR_DrawSeats`, from `SCR_UpdateScreen` in place of the one view): for each seat in play, that seat
+  current (`CL_SeatSet`), **its tile made the window** (`SCR_SeatPassBegin`: `glx`, `gly`, `glwidth`, `glheight` and vid's
+  sizes scaled to the tile), so the code that lays the window out lays the tile out unchanged: `SCR_CalcRefdef` (the
+  refdef, `viewsize`, the status bar's room, the FOV from the tile's aspect), the flat render (`VR_FlatRenderView`: the
+  seat's client world's entities, its view model, its hands and flat play's parts), the 2D canvases (the status bar,
+  crosshair, hit marks, centre print and intermission scaled to the tile: `SCR_DrawSeatHud`). The scene targets stay the
+  window's (a view renders into their corner and is warped into its tile); `R_Clear` clears only the view's tile while
+  tiles are drawn. Then the window back, seat 0 current, and the shared 2D over the whole window (console, menus,
+  notices, the demo bar, the net HUD). A seat joining shows its tile dark with "seat n: joining".
+- **One seat: the frame is drawn as before** (no pass: the same calls in the same order; the tile code is skipped).
+- **The seats' client worlds**: a drawn seat relinks its own entities and temporary entities each frame
+  (`CL_SeatDrawn`: seat 0, or any seat while tiles are drawn), so each tile shows what its own client knows (deathmatch's
+  per-player visibility included); its dynamic lights and beams are its own (phase 5's tables).
+- **Kept seat 0's this part** (shared pools or memories, drawn in every tile): the particles (one pool: a second seat
+  spawning the same explosion would draw it twice), the sounds and music (phase 8's listeners), the static entities'
+  links into the world's leaves, the ragdolls' models, the torch and flame lights, the taken torches' flames, the
+  loading plaque, `R_NewMap`. So a trail or explosion only seat 1-3's client sees (deathmatch, out of seat 0's sight)
+  is not drawn yet.
+- **Turned off while tiles are drawn**: the flat visor HUD (`visor::active`: its panels and passes are one view's; each
+  tile has the classic status bar: phase 13's per-seat HUD) and flat TAA (`temporal::flatWanted`: one history, one view).
+  The toolgun panel and the holster menu (drawn over the window at `VR_End2D`) stay seat 0's.
+- **A phase 6 bug fixed**: the loopback had one client socket beyond `maxclientslimit` (seat 0's), so seats 3 and 4
+  found none ("seat 3: no connection to the local game"): `net_numsockets` now has one a seat (net_main.c).
+- **Debug aid**: `scr_seatmarkers` 1 marks each tile with its seat's colour and number (1 red, 2 green, 3 blue, 4
+  yellow); 2 also reads each tile back in its pass (the marker's pixel, a checksum of its middle: the test's).
+- **`vr_seat_render_test <n>`** (`Misc/quakevr/seat_render_test.sh <agent> [shots]`: coop on e1m1, maxplayers 4,
+  flatscreen, n = 2, 3, 4; verdict `seat_render_test: N passed, M failed`): seats join by mock pads, each turned its own
+  way; once every seat's view is drawn four times: the tiles are the layout's, inside the window, apart and covering
+  it; each tile drawn from its own seat's player's eye (the nearest seat player to the drawn eye is its own, 0 units);
+  its marker read back in its colour; its middle unlike the other tiles'; a screenshot; the seats leave and seat 0 is
+  drawn in the whole window again. 2 seats 13/13, 3 seats 17/17, 4 seats 22/22.
+- **Left of phase 7** (3-4 days): each seat's own particles and effects (a pool a seat, or one pool fed once per
+  event); the drawn body (`vr_avatar*`: its posed body, eases, gait) and climbing's client pins per seat (now posed once
+  a seat's frame on shared state); other players' copies (`vr_mpavatar`, gore, ropes drawn) posed once per frame, not
+  per seat's relink; the visor per seat; the shadow and portal caches per view checked with several views.
+- **Before and after**: ROUND25.md "split7".

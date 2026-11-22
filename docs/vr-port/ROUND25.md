@@ -8055,3 +8055,31 @@ shove, climb...) and propose a key or leave it VR-only."
   teleport/turning/recentre, the immersive reload parts.
 - Test: `Misc/quakevr/flatkeybind_test.sh <agent>` + the gear case (Controls' row with no clash, 9 dims then lights,
   `vr_gear_lights` 0 then 1): 13 passed, 0 failed. Scenario `flat_gear_lights`.
+
+## split7: splitscreen phase 7 part 1, each seat drawn in its tile (split7, 2026-11-22, `agent/split`)
+
+What it does: SPLITSCREEN.md section 15 (in flatscreen play every seat in play drawn in its tile, laid out by
+`scr_splitlayout`, default 0 from the window's aspect; each seat's view, view model, hands and classic HUD from its own
+client world; one seat drawn exactly as before).
+
+- **split6's open item settled**: `mp_adspose` on the base exe (origin/next `986e36d74`'s build, the same QC, menuvis's own
+  base `qbase.8`): 10/2 (`slides on the sights seen` 69 seen 6 missed, and an arm check) then 12/0. The miss is on the base
+  exe too: not the branch's (a flake of the test in low-impact mode). On phase 7's exe once: 6/1, a different start failure
+  ("A never put at" the scenario's spot).
+- **Merging next** (2026-11-22): the replay's room-scale budget (`walkLeft`) on the seat's prediction, the gear-lights key
+  (9) on the seat's flat keys, netsnap's cosmetic memo (the server's) marked seat-shared.
+- **Phase 6 bug found by the 3- and 4-seat runs**: one loopback client socket beyond `maxclientslimit`, so seats 3-4 never
+  connected; one a seat now (net_main.c).
+- **Tests** (phase 7's exe, quick builds, the author's game running: low-impact mode): `seat_render_test.sh` 2 seats 13/0,
+  3 seats 17/0, 4 seats 22/0 (screenshots `qvr-kit/scratch/split7_{2,3,4}seats.png`); `vr_seat_test` 70/0;
+  `seat_play_test.sh` 55/0; flatplay 31/0, visor 37/0, flatxhair 31/0, flathands 76/0 (as split6's); scenario_check 192
+  run, 0 failed; MP chunk on `qbase.8`: netsafe 14/0, coop 12/0, campaign_listen 18/0, flow 17/0, dm 27/0, adspose 6/1
+  (above). Dev and ThinLTO 0 warnings, QC 0 warnings.
+- **Not run this round** (budget): the other flat suites and the rest of the MP suite (their code is untouched with one
+  seat: the one-seat frame takes the same calls).
+- **Left of phase 7** (3-4 days, SPLITSCREEN.md section 15): each seat's own particles and effects, the drawn body and
+  climbing's pins per seat, other players' copies posed once per frame, the visor per seat, shadow and portal caches per
+  view checked.
+- In VR (the author): nothing changes (a headset draws seat 1 alone). Flatscreen with seats (`seat_mockpad 0 1;
+  seat_join 0` in a coop game, maxplayers 2+): the window splits; `scr_splitlayout 1..4` switches the layout,
+  `scr_seatmarkers 1` labels the tiles.
