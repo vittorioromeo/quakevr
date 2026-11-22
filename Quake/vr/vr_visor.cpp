@@ -127,7 +127,15 @@ using geom::smoothstep;
 
 [[nodiscard]] bool eyeUnderwater()
 {
-    if(!r_viewleaf)
+    // (Only a leaf of the world as signed on: while a map loads, a console print draws the screen with r_viewleaf still
+    // in the last map's freed leafs -- an access violation in scenario_check, 2026-11-22, now and then.)
+    if(!r_viewleaf || cls.signon != SIGNONS || !cl.worldmodel || !cl.worldmodel->leafs)
+    {
+        return false;
+    }
+    const auto at = reinterpret_cast<uintptr_t>(r_viewleaf);
+    const auto first = reinterpret_cast<uintptr_t>(cl.worldmodel->leafs);
+    if(at < first || at >= first + sizeof(mleaf_t) * static_cast<uintptr_t>(cl.worldmodel->numleafs + 1))
     {
         return false;
     }

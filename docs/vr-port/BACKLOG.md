@@ -77,7 +77,8 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
   Still open: hotblade `holster` (the holstered axe found lying: the test's holster move), `blade_parts`/`superaxe`
   (the hammer's measured length 5.9 -> 7.0 and its glowing verts 295 -> 172 of 795 with no model change: wants his
   look before the numbers move); flateject `ssg` (second casing up 0.29 against > 0.3) and `vr` (one stroke line) run
-  to run; flatfg2h key 3; twohand_regrip picks 4 and 10; stealth noises_clue; nav_lift_down; gadget_lock 13/4;
+  to run; stealth noises_knock/noises_shot (the grunt stops ~375 short of the noise, scouts, goes back: new since the
+  alarm round; noises_clue itself passes again, ROUND25 "smallfix5"); nav_lift_down (no verdict line in 83 s);
   `vr_dm_test 19` (bot navmesh chase: 2 of 4 runs fail, the bot back on its waypoints once it sees him at the door);
   mp_debugviz_listen's bot case (rare: the bot's AI swinging while held, the server's line and the drawn one a frame
   apart; ROUND25.md "mpopen"). (mpopen fixed: the suite's order effect and fixed 27500 base port, mp_loss's margin.)

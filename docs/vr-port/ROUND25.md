@@ -7936,3 +7936,26 @@ shove, climb...) and propose a key or leave it VR-only."
   gadget_lock 13/4 (C: the crate in both hands still double-taps, a tap counted once locked; H: the side button's one
   press and the one after letting go), flatfg2h 10/1 (key 3: the axe's drawn off hand leaves the grip, 5.95 a frame
   against the launcher's 2.90). ThinLTO 0 warnings.
+
+## smallfix5: backlog1122c's item 2, the small test failures (branch agent/smallfix5, 2026-11-22)
+
+All three were the tests, not the game; no player-facing change.
+- **gadget_lock** 13/4 -> 17/0. Case C failed only after the weapon cases: from the map's start it passes. After them
+  the main hand's taps dragged the crate held in both hands into the body, its place kept 32 units off it, and the carry
+  let go (QC `vr_carry.qc` now says why under `developer 1`: "carry: both hands' place kept from it (the body, N units
+  off; stuck)" / "held in both hands, stuck behind X"), so the taps after counted: right, the lock was off with the hold.
+  The bullet time they started then swallowed H's side button (both H checks). C now runs first.
+- **flatfg2h** key 3 10/1 -> 11/0. Frame by frame the off hand's let-go from the axe (frames 3-16 after the press, most
+  1.22 a frame) is the launcher's (1.40); the 5.95 was frames 19-26, the swap's raise of the new weapon, the main hand
+  rising from the axe's lower melee hold (the probe is off the main hand). Key 3's check now reads a report at 17
+  frames (axe 1.46, launcher 1.39); the raise is reported after it, unchecked.
+- **twohand_regrip** picks 4 and 10 -> 7/7 held in both 3, kept 2, moved <= 0.53. The test pick puts the grunt's head
+  (Size 0.7) and the grenade with their origin on the off fist (not fitted to the surface as a pickup), so the main
+  hand at 0.06 / 0.03 was out of reach ("the other hand is not within reach", since ROUND22): now 0.03 / 0.0. Seen
+  meanwhile: the main hand's fist deep inside the head (0.0) is refused too (a fist inside a held prop can't take it;
+  not looked into). The test now ends on `twohand_regrip_test: N passed, M failed`.
+- **Not done** (budget): **noises_clue** passes on this branch (7 navmesh steps, within 58 in 2.7 s), but the same run's
+  `noises_knock` and `noises_shot` fail (the grunt walks ~104 navmesh steps, stops ~375 from the noise, scouts 2-3 spots,
+  goes back; they passed in the alarm round: something since, not bisected). **nav_lift_down**: the scene's reach test
+  printed no verdict in 83 s of game time (its 60 s limit should end it with a FAIL: check the scenario's `cmd` lines run).
+- Checks: gadget_lock 17/0, flatfg2h 11/0, twohand_regrip 7/0; ThinLTO 0 warnings; scenario_check PASS (193 scenes) twice. Its first run crashed once (access violation in vr_visor.cpp eyeUnderwater: during a map load a console print drew the screen with r_viewleaf in the last map's freed leafs); the visor now reads only a leaf of the signed-on world (a range check on cl.worldmodel->leafs).
