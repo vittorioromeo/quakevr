@@ -44,8 +44,15 @@ tb_main()
     bash "$TB_HERE/run_batch.sh" "$TB_AGENT" "$TB_DIR"
     [ -n "$TB_STATS" ] && { cat "$TB_DIR/stats.json"; echo " collect $((t1 - t0)) s, batch $((SECONDS - t1)) s"; } >&2
     echo 0 > "$TB_DIR/count"
+    : > "$TB_DIR/solos"
     TB_PASS=replay
+    local t2=$SECONDS rc
     "$fn" "$@"
+    rc=$?
+    # (TB_STATS: the replay's time and its runs played alone, not from the batch: a script built from an earlier run's
+    # output, a screenshot run, or a case whose arguments changed; each is a game of its own after the batch.)
+    [ -n "$TB_STATS" ] && { echo " replay $((SECONDS - t2)) s, $(wc -l < "$TB_DIR/solos") run(s) alone:"; cut -c1-150 "$TB_DIR/solos"; } >&2
+    return $rc
 }
 
 # tb_run_sh <run.sh arguments after the agent>: in place of "bash $KIT/run.sh $AGENT <arguments>".
@@ -69,6 +76,7 @@ tb_run_sh()
             if [ -s "$TB_DIR/out_$k.txt" ]; then cat "$TB_DIR/out_$k.txt"; return 0; fi
             break
         done
+        echo "$*" >> "$TB_DIR/solos"
         printf '%s\0' "$@" > "$TB_DIR/solo/case_1.args"
         if python "$TB_HERE/testbatch.py" batchable "$TB_DIR/solo" 1; then
             : > "$TB_DIR/solo/out_1.txt"

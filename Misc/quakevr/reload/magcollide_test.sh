@@ -65,7 +65,9 @@ for gun in 156 157 161; do
     check $(echo "$log" | grep -q "holds the magazine of the gun in hand 0" && awk -v m="$most" 'BEGIN { print m < 0.05 ? 1 : 0 }') "impulse $gun's gun: the hand gripping its magazine holds it, drawn on it ($most units off its tracked place)"
 done
 
-# 5. The Box3D step: six guns lying in a heap, the held nailgun swept through them.
+# 5. The Box3D step: six guns lying in a heap, the held nailgun swept through them. Numbers only, no check, and timing
+# runs (run.sh --exclusive: they wait for every other game on the machine): with QVR_TEST_TIMINGS=1 only.
+if [ "$QVR_TEST_TIMINGS" = 1 ]; then
 HEAP=""
 for g in 154 156 157 161 155 160; do HEAP="$HEAP;impulse $g;wait3;vr_test_weaponinst 7;impulse 120;wait3;vr_mock_hand off 0 1.0 -0.40 80 0 0;wait5;vr_reload_test 20;impulse 125;wait10"; done
 SWEEP=$(awk 'BEGIN { for(i = 0; i < 120; i++) printf "vr_mock_hand off %.3f 0.35 -0.45 0 %d 0;wait1;", 0.25 * sin(i / 6), (i * 7) % 360 }')
@@ -75,6 +77,7 @@ for c in 1 0; do
     echo "  magazine collide $c: $ms"
 done
 echo "  (the profile's box3d step and reach: their average and worst per frame)"
+else echo "  (5. the Box3D step's timings: QVR_TEST_TIMINGS=1)"; fi
 verdict
 exit $fail
 }

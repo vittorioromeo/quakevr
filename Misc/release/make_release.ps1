@@ -9,6 +9,8 @@ latest.json, and (with -Publish) tags the commit and creates the GitHub release.
                                                            # release published as Latest, master fast-forwarded to it,
                                                            # the Latest guard, the online check (RELEASING.md, "One command")
   Misc\release\make_release.ps1 -Bump patch -Publish -Final -DryRun     # ... its plan: every command, in order
+  Misc\release\make_release.ps1 -Version 1.2.0-beta2 -Publish -NoDraft -RunTests  # a beta: the tests' beta profile (a
+                                                           # short smoke set, ~10 min; -TestProfile full for all of them)
   Misc\release\make_release.ps1 -Version 1.0.1 -CheckOnline # only the steps after publishing (resuming)
   Misc\release\make_release.ps1 -DryRun                    # the checks and the plan; builds and writes nothing
   Misc\release\make_release.ps1                            # build, check, package into out\release\<VERSION> (no tag, nothing online)
@@ -137,7 +139,7 @@ param(
     [switch]$SkipSmoke,
     [switch]$SkipInstallerTests,
     # Before building: the headless test suite (Misc\release\run_test_suite.py: the Misc\quakevr test scripts that give a
-    # verdict, one at a time) on a kit worktree holding this commit's files; a failure stops the release (nothing built,
+    # verdict, in parallel lanes; -TestProfile) on a kit worktree holding this commit's files; a failure stops the release (nothing built,
     # tagged or published).
     [switch]$RunTests,
     # The kit worktree the tests run on (C:\OHWorkspace\qvr-agents\<name>; the kit's new_agent.sh <name> <commit>).
@@ -149,6 +151,15 @@ param(
     [string[]]$FlakyTests = @(),
     # With -RunTests: only the tests whose name matches this regex.
     [string]$TestOnly = "",
+    # With -RunTests: which tests (run_test_suite.py --profile; docs/vr-port/RELEASING.md, "Tests before publishing"):
+    # "full" every test (final releases: always), "beta" the short smoke set (about 10 min). Default: beta for a
+    # x.y.z-betaN version (or -Beta), full otherwise.
+    [ValidateSet("", "full", "beta")][string]$TestProfile = "",
+    # With -RunTests: -TestProfile beta.
+    [switch]$Beta,
+    # With -RunTests: tests at once, each in its own lane of the test worktree (run_test_suite.py --jobs; 0: by the
+    # CPU count, at most 4; 1: one at a time).
+    [int]$TestJobs = 0,
     # The author's tuned constants (the game's tunables.cfg): a value in it that vr_tunables.inc does not have as the
     # default is lost in a release (constants there), so the release stops before building and lists them. Default: his
     # checkout's, C:\OHWorkspace\quakevr-iw\quakevr\tunables.cfg (not there: a warning, not checked).
@@ -672,9 +683,13 @@ if ($RunTests) {
     if ($TestOnly) { $testArgs += @("--only", $TestOnly) }
     if ($AllowFlaky) { $testArgs += "--allow-flaky" }
     if ($FlakyTests) { $testArgs += @("--flaky", ($FlakyTests -join ",")) }
+    if (-not $TestProfile) { $TestProfile = if ($Beta -or $Version -match '-beta') { "beta" } else { "full" } }
+    if ($TestProfile -eq "beta" -and -not $prerelease) { Problem "-RunTests: the beta test profile is for prereleases (x.y.z-betaN); $Version runs the full suite (no -Beta, no -TestProfile beta)" }
+    $testArgs += @("--profile", $TestProfile)
+    if ($TestJobs -gt 0) { $testArgs += @("--jobs", "$TestJobs") }
     $testList = Run $python (@($testRunner, "--list") + $testArgs)
     if ($testList.Code -ne 0) { Problem "-RunTests: $($testList.Text)" }
-    $testCount = "$(@($testList.Out | Where-Object { "$_" -match ' tests$' }) | Select-Object -Last 1)"
+    $testCount = "$(@($testList.Out | Where-Object { "$_" -match '^\d+ tests' }) | Select-Object -Last 1)"
     $testTree = if ($TestAgent -eq "cleanup") { "C:\OHWorkspace\quakevr-iw-cleanup" } elseif ($TestAgent) { "C:\OHWorkspace\qvr-agents\$TestAgent" } else { "" }
     if (-not $TestAgent) { Problem "-RunTests: which kit worktree? -TestAgent <name> or QVR_TEST_AGENT (the kit's new_agent.sh <name> $short makes one at this commit)" }
     elseif (-not (Test-Path -LiteralPath $testTree)) { Problem "-RunTests: no kit worktree $testTree (the kit's new_agent.sh $TestAgent $short)" }
@@ -758,7 +773,7 @@ if ($DryRun) {
     if ($shipsEricw) { Say "ericw source   $(if ($EricwSource) { 'uploaded with this release (-EricwSource)' } else { "linked from the notes: $(SupportUrl 'ericw_source')" })" }
     Say "tag            $tag on $short$(if ($online) { ", pushed to $remote" } else { ' (only with -Publish or -PushTag)' })"
     if ($Local) { Say "local test     latest.json -> $($UrlBase -join ', ')$(if ($RunInstaller) { '; then the server and QuakeVR-Setup.exe in a sandbox' })" }
-    Say "tests          $(if ($RunTests) { "$testCount on $TestAgent, one at a time, before building (run_test_suite.py $($testArgs -join ' ')); a failure stops everything$(if ($AllowFlaky) { ' (known-flaky ones warn)' })" } else { 'not run (-RunTests runs the headless suite first)' })"
+    Say "tests          $(if ($RunTests) { "$testCount on $TestAgent ($TestProfile profile, parallel lanes), before building (run_test_suite.py $($testArgs -join ' ')); a failure stops everything$(if ($AllowFlaky) { ' (known-flaky ones warn)' })" } else { 'not run (-RunTests runs the headless suite first)' })"
     Say "release        $(if ($Publish) { "gh release create $tag --repo $Repo$(if ($Draft) { ' --draft' })$(if ($prerelease) { ' --prerelease' } elseif (-not $Draft) { ' --latest' })$(if ($Final) { "$(if ($moveReleaseBranch) { ", then $ReleaseBranch fast-forwarded to it" }), then the Latest guard and the online check" })" } else { 'none (-Publish creates it)' })"
     Say "$("{0,-15}" -f $ReleaseBranch)$(if ($moveReleaseBranch) { "fast-forwarded on $(if ($remote) { $remote } else { '<the remote>' }) to $tag after the release (never forced)" } elseif ($Final) { 'not moved (-NoReleaseBranch)' } else { "not moved (only a -Final release moves it)" })"
     Say "notes          $(if ($notesSource) { "$notesSource$(if ($notesText.Contains($draftMarker)) { ' (still the DRAFT)' })" } else { "drafted while building into $notesDraftPath (-DraftNotes drafts it now)" })"
@@ -769,7 +784,7 @@ if ($DryRun) {
     $title = "Quake VR: Unleashed $Version"
     $commitPlan = if ($bumpPending) { "<the version commit>" } else { $short }
     $seq = New-Object System.Collections.Generic.List[string]
-    if ($RunTests) { $seq.Add("tests: python Misc\release\run_test_suite.py $TestAgent --build --log-dir $outDir\tests $($testArgs -join ' ')   (kit build.sh $TestAgent, then $testCount one at a time; a failure stops here)") }
+    if ($RunTests) { $seq.Add("tests: python Misc\release\run_test_suite.py $TestAgent --build --log-dir $outDir\tests $($testArgs -join ' ')   (kit build.sh $TestAgent, then $testCount ($TestProfile profile, parallel lanes); a failure stops here)") }
     if ($bumpPending) { $seq.Add("write VERSION = $Version; git commit -m ""Version $Version"" -- VERSION   (local)") }
     $seq.Add("build: out\release\$Version moved aside if there; qvr_checks (Tools/qvr_checks: statics, qc_precedence, release_qc), fgdgen.py --check; MSBuild ironwail.sln ReleaseLTO|x64 /p:QvrReleaseVersion=$Version; package-quakevr.ps1 (recompiles the QC without the tests: fteqcc -DQVR_NO_TESTS; the checkout gets its development progs.dat back); dotnet publish QuakeVR.Installer; dotnet build QuakeVR.Installer.sln; the installer self-tests")
     $seq.Add("assets: make_release.py (QuakeVR.zip, QuakeVR-Setup.exe, latest.json); checks: the zip = the allowlist, qvr-setup feed --file latest.json --assets, QuakeVR-Setup.exe's install harness + qvr-setup verify$(if ($quakeOk -and -not $SkipSmoke) { ", the smoke launch with $QuakeDir" } elseif ($detectAfterBuild) { ', the smoke launch with the Quake qvr-setup detect finds after the build' } else { ' (no smoke launch)' })")
@@ -819,7 +834,7 @@ Say $outDir
 
 $script:stage = "tests"
 if ($RunTests) {
-    Step "Tests: run_test_suite.py on $TestAgent ($testCount, one at a time; before anything is built)"
+    Step "Tests: run_test_suite.py on $TestAgent ($testCount, in parallel lanes; before anything is built)"
     $testLogs = Join-Path $outDir "tests"
     & $python (@($testRunner, $TestAgent, "--build", "--log-dir", $testLogs) + $testArgs) | ForEach-Object { Say "  $_" }
     $testCode = $LASTEXITCODE
