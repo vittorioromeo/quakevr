@@ -41,6 +41,8 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_weaponvalues.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -668,7 +670,7 @@ qmodel_t* view::viewModel(const char* name)
         {
             return nullptr;
         }
-        if(m && !m->needload && (m->type != mod_alias || Cache_Check(&m->cache)) && !strcmp(m->name, name))
+        if(m && !m->needload && (m->type != mod_alias || Cache_Check(&m->cache)) && !ZA_STRCMP(m->name, name))
         {
             return m;
         }
@@ -4393,7 +4395,7 @@ bool heldRoundRef(int hand, glm::vec3& out, float* radius)
     }
     for(const MagProp& m : magProps)
     {
-        if(!strcmp(e.model->name, m.model))
+        if(!ZA_STRCMP(e.model->name, m.model))
         {
             ViewEntity tmp;
             tmp.ent = e;
@@ -4406,7 +4408,7 @@ bool heldRoundRef(int hand, glm::vec3& out, float* radius)
         }
     }
     if((modelmeta::has(e.model, modelmeta::Trait::LiveRound) || modelmeta::isQuakeGrenade(e.model)) &&
-       !strstr(e.model->name, "prox"))
+       !ZA_STRSTR(e.model->name, "prox"))
     {
         // A launcher's rocket or grenade (QC VR_Reload_RoundRef): its butt, its model's back end along its axis (its +x;
         // the multi-grenade's progs/mervup.mdl stands along its z: its bottom).
@@ -4762,7 +4764,7 @@ void netGear(VrDrawnGear& out)
         int index = 0; // (the view's own models, never the server's: by gearModelNames)
         for(int k = 0; k < gearModelCount && !index; k++)
         {
-            index = !strcmp(ve.ent.model->name, gearModelNames[k]) ? k + 1 : 0;
+            index = !ZA_STRCMP(ve.ent.model->name, gearModelNames[k]) ? k + 1 : 0;
         }
         if(index <= 0)
         {

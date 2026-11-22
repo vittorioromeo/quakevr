@@ -21,8 +21,11 @@
 #include "vr_geom.hpp"
 #include "vr_portals_internal.hpp"
 
-#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -35,7 +38,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <string.h>
 
 extern "C" void SV_AddToFatPVS(vec3_t org, mnode_t* node, qmodel_t* worldmodel); // sv_main.c
 
@@ -273,7 +275,7 @@ void build()
     for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
-        if(e->free || strcmp(PR_GetString(e->v.classname), "trigger_teleport"))
+        if(e->free || ZA_STRCMP(PR_GetString(e->v.classname), "trigger_teleport"))
         {
             continue;
         }
@@ -286,7 +288,7 @@ void build()
         for(int j = 1; j < qcvm->num_edicts && !d; j++)
         {
             edict_t* t = EDICT_NUM(j);
-            if(!t->free && !strcmp(PR_GetString(t->v.targetname), target))
+            if(!t->free && !ZA_STRCMP(PR_GetString(t->v.targetname), target))
             {
                 d = t;
             }
@@ -796,7 +798,7 @@ void prepareLightViews(const glm::vec3& eye)
         }
         view.pvs.resize(bytes);
         const byte* vis = Mod_LeafPVS(leaf, cl.worldmodel);
-        memcpy(view.pvs.data(), vis, bytes);
+        ZA_MEMCPY(view.pvs.data(), vis, bytes);
     };
     add(eye, eye, -1, 0);
     if(!enabled() || vr_portals.value <= 0.f || !sv.active) { return; }
@@ -1131,9 +1133,9 @@ extern "C" void VR_DrawPortalMask(void)
 // towards the eye, distance), its box (w: how much of the view is shown, 0 none).
 extern "C" void VR_PortalFrameData(float plane[8][4], float mins[8][4], float maxs[8][4])
 {
-    memset(plane, 0, 8 * 4 * sizeof(float));
-    memset(mins, 0, 8 * 4 * sizeof(float));
-    memset(maxs, 0, 8 * 4 * sizeof(float));
+    ZA_MEMSET(plane, 0, 8 * 4 * sizeof(float));
+    ZA_MEMSET(mins, 0, 8 * 4 * sizeof(float));
+    ZA_MEMSET(maxs, 0, 8 * 4 * sizeof(float));
     const portals::Level& level = portals::levels[portals::drawDepth];
     if(!portals::enabled() || !level.texture) { return; }
     for(int layer = 0; layer < level.renderedViews; ++layer)
@@ -1190,7 +1192,7 @@ extern "C" void VR_PortalAddPVS(byte* pvs, const float org[3])
     // so a fixed first-eight server budget could omit entities in a rendered gate.
     auto& sourcePvs = portals::scratch.sourcePvs;
     sourcePvs.resize((sv.worldmodel->numleafs + 7) >> 3);
-    memcpy(sourcePvs.data(), pvs, sourcePvs.size());
+    ZA_MEMCPY(sourcePvs.data(), pvs, sourcePvs.size());
     auto& added = portals::scratch.added;
     added.clear();
     const auto add = [&added = added](const glm::vec3& p)
@@ -1247,7 +1249,7 @@ extern "C" void VR_PortalAddPVS(byte* pvs, const float org[3])
             mleaf_t* leaf = Mod_PointInLeaf(q, sv.worldmodel);
             if(!leaf || leaf->contents == CONTENTS_SOLID) { continue; }
             hopPvs.resize((sv.worldmodel->numleafs + 7) >> 3);
-            memcpy(hopPvs.data(), Mod_LeafPVS(leaf, sv.worldmodel), hopPvs.size()); // (SV_AddToFatPVS reuses its row)
+            ZA_MEMCPY(hopPvs.data(), Mod_LeafPVS(leaf, sv.worldmodel), hopPvs.size()); // (SV_AddToFatPVS reuses its row)
             const glm::vec3 n = from.turn * from.normal;
             for(const portals::Side& sd : portals::sides)
             {
@@ -1928,11 +1930,11 @@ extern "C" int VR_PortalAlias(const entity_t* e, const float boundsMatrix[16], c
     glm::mat4 transport{picked.turn};
     transport[3] = glm::vec4{picked.to - picked.turn * picked.from, 1.f};
     const glm::mat4 result = transport * glm::make_mat4(matrix);
-    memcpy(mapped, glm::value_ptr(result), 16 * sizeof(float));
+    ZA_MEMCPY(mapped, glm::value_ptr(result), 16 * sizeof(float));
     const Side dest = reverseSide(picked);
     const glm::vec4 a{picked.normal, -picked.dist}, b{dest.normal, -dest.dist};
-    memcpy(sourceClip, glm::value_ptr(a), 4 * sizeof(float));
-    memcpy(destinationClip, glm::value_ptr(b), 4 * sizeof(float));
+    ZA_MEMCPY(sourceClip, glm::value_ptr(a), 4 * sizeof(float));
+    ZA_MEMCPY(destinationClip, glm::value_ptr(b), 4 * sizeof(float));
     return 1;
 }
 
@@ -2157,15 +2159,15 @@ void selfViewTest_f()
 {
     constexpr const char* name = "vr_portals_selfview_test";
     const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    if(!strcmp(step, "start"))
+    if(!ZA_STRCMP(step, "start"))
     {
         selfViewTally.reset();
         selfView = SelfViewWatch{};
         selfView.on = true;
         return;
     }
-    const bool sidesOnly = !strcmp(step, "sides");
-    if(strcmp(step, "end") && !sidesOnly)
+    const bool sidesOnly = !ZA_STRCMP(step, "sides");
+    if(ZA_STRCMP(step, "end") && !sidesOnly)
     {
         Con_Printf("%s start | end | sides\n", name);
         return;
@@ -2252,7 +2254,7 @@ void reachTest_f()
             float matrix[16], bounds[16], mappedMatrix[16], source[4], dest[4];
             R_EntityMatrix(matrix, hand->origin, hand->angles, hand->scale);
             VR_AliasPreTransform(hand, matrix);
-            memcpy(bounds, matrix, sizeof(bounds));
+            ZA_MEMCPY(bounds, matrix, sizeof(bounds));
             const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(hand->model));
             ApplyTranslation(matrix, hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]);
             ApplyScale(matrix, hdr->scale[0], hdr->scale[1], hdr->scale[2]);

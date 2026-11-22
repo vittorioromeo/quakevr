@@ -14,6 +14,7 @@
 #include "vr_view.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -76,7 +77,7 @@ const glm::vec3 lancePoleDir{0.3419f, 0.f, 0.9397f};
     {
         return vr_cellcord_superaxe.value != 0.f ? Weapon::SuperAxe : Weapon::None;
     }
-    if(strstr(model->name, "dw_lance.mdl"))
+    if(ZA_STRSTR(model->name, "dw_lance.mdl"))
     {
         return vr_cellcord_lance.value != 0.f ? Weapon::Lance : Weapon::None;
     }

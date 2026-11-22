@@ -7,6 +7,7 @@
 #include "vr_files.hpp"
 
 #include "Zancle/Algorithm/StableSort.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -52,7 +53,7 @@ static constexpr KindInfo kinds[] = {
 {
     for(const KindInfo& k : kinds)
     {
-        if(!strcmp(k.kind, kind))
+        if(!ZA_STRCMP(k.kind, kind))
         {
             return &k;
         }
@@ -295,7 +296,7 @@ void writeEdl(const za::Vector<Event>& events)
     int n = 0;
     for(const Event& e : events)
     {
-        if(e.score < vr_highlights_min_score.value && strcmp(e.kind.cStr(), "sync") != 0)
+        if(e.score < vr_highlights_min_score.value && ZA_STRCMP(e.kind.cStr(), "sync") != 0)
         {
             continue;
         }
@@ -567,7 +568,7 @@ void event(const char* kind, float score, const char* subject, const char* detai
     e.subject = subject ? subject : "";
     e.detail = detail ? detail : "";
 
-    const bool kill = !strcmp(kind, "kill") || !strcmp(kind, "gib");
+    const bool kill = !ZA_STRCMP(kind, "kill") || !ZA_STRCMP(kind, "gib");
     if(kill)
     {
         const double game = gameTime();

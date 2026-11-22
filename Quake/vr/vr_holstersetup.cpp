@@ -16,6 +16,7 @@
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -26,7 +27,6 @@
 #include "vr_toolpanel.hpp"
 
 #include <math.h>
-#include <string.h>
 
 namespace qvr::holstersetup
 {
@@ -976,7 +976,7 @@ bool start(int returnPage)
         ses.hover[h] = ses.hoverButton[h] = -1;
         ses.stick[h] = glm::vec2{0.f};
     }
-    memset(ses.eaten, 0, sizeof(ses.eaten));
+    ZA_MEMSET(ses.eaten, 0, sizeof(ses.eaten));
     placePanel(hands::current());
     say(seated::active() ? "started (seated: the seated layout is edited)" : "started");
     qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);

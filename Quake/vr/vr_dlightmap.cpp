@@ -21,6 +21,7 @@
 #include "vr_api_render.h"
 
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -29,7 +30,6 @@
 
 #include <glm/glm.hpp>
 
-#include <string.h>
 
 extern "C" {
 extern unsigned* lightmap_data; // r_brush.c: the map's lightmap texels (what lightmap_texture was made from)
@@ -161,7 +161,7 @@ void upload(int x, int y, int w, int h, const unsigned* texels)
         unsigned* atlas = written.atlas.data();
         for(int r = 0; r < h; r++)
         {
-            memcpy(atlas + static_cast<size_t>(y + r) * lightmap_width + x, texels + static_cast<size_t>(r) * w,
+            ZA_MEMCPY(atlas + static_cast<size_t>(y + r) * lightmap_width + x, texels + static_cast<size_t>(r) * w,
                 static_cast<size_t>(w) * sizeof(unsigned));
         }
         for(int b = y / bandRows; b <= (y + h - 1) / bandRows && b < maxBands; b++)

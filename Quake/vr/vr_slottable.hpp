@@ -8,6 +8,7 @@
 #include "vr_engine.hpp"
 
 #include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -124,7 +125,7 @@ public:
         {
             return false;
         }
-        if(!strcmp(var->string, value))
+        if(!ZA_STRCMP(var->string, value))
         {
             return true;
         }

@@ -22,12 +22,17 @@
 #include "vr_strings.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
-#include "Zancle/String/String.hpp"
-#include "Zancle/String/StringView.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -151,7 +156,7 @@ const Names& listing(const za::String& folder)
     files::forEachEntry(folder.cStr(), [&](const char* name, bool isDirectory) {
         if(!isDirectory)
         {
-            names.insert(lower(za::StringView{name, strlen(name)}));
+            names.insert(lower(za::StringView{name, ZA_STRLEN(name)}));
         }
     });
     return watch.listings.emplace(folder, static_cast<Names&&>(names)).first->second;
@@ -239,7 +244,7 @@ void listModel(int i, const qmodel_t* m)
     za::String path;
     // (a limb gore model is made from its monster's file, never read from one of its own: no folder listed for it, which
     // late in a map was a directory listing in a frame of play for each new limb model)
-    if(strstr(m->name, limbmodel::suffix) || !loosePath(m->name, path))
+    if(ZA_STRSTR(m->name, limbmodel::suffix) || !loosePath(m->name, path))
     {
         return;
     }
@@ -274,7 +279,7 @@ void listModel(int i, const qmodel_t* m)
 void listNew(bool all)
 {
     const double start = Sys_DoubleTime();
-    if(strcmp(watch.gameDir.cStr(), com_gamedir) != 0)
+    if(ZA_STRCMP(watch.gameDir.cStr(), com_gamedir) != 0)
     {
         forget();
     }
@@ -332,13 +337,13 @@ void listNew(bool all)
     {
         return false;
     }
-    if(memcmp(h, "IDPO", 4) != 0)
+    if(ZA_MEMCMP(h, "IDPO", 4) != 0)
     {
         return true;
     }
     const auto at = [&](int ofs) {
         int v;
-        memcpy(&v, h + ofs, sizeof(v));
+        ZA_MEMCPY(&v, h + ofs, sizeof(v));
         return static_cast<za::I64>(LittleLong(v));
     };
     const za::I64 skins = at(48), w = at(52), hgt = at(56), verts = at(60), tris = at(64), frames = at(68);
@@ -362,7 +367,7 @@ void readChanged()
             continue;
         }
         const qmodel_t* m = Mod_KnownModel(static_cast<int>(i));
-        if(!m || strcmp(m->name, watch.listed[i].cStr()) != 0)
+        if(!m || ZA_STRCMP(m->name, watch.listed[i].cStr()) != 0)
         {
             watch.changed[i] = 0;
             continue;
@@ -493,7 +498,7 @@ void frame()
     const double dt = za::clamp(now - watch.lastTime, 0.0, cycleSeconds);
     watch.lastTime = now;
     watch.frames++;
-    if(watch.firstUnlisted < Mod_KnownCount() || strcmp(watch.gameDir.cStr(), com_gamedir) != 0)
+    if(watch.firstUnlisted < Mod_KnownCount() || ZA_STRCMP(watch.gameDir.cStr(), com_gamedir) != 0)
     {
         listNew(false);
     }

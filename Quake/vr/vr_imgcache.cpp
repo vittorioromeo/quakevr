@@ -19,13 +19,13 @@
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 namespace
 {
@@ -220,7 +220,7 @@ extern "C" unsigned char* VR_ImageCacheFind(const char* name, FILE* f, int lengt
     Image& image = cache.images[it->second];
     image.used = ++useCounter;
     unsigned char* out = alloc(static_cast<int>(image.bytes()), what);
-    memcpy(out, image.pixels, image.bytes());
+    ZA_MEMCPY(out, image.pixels, image.bytes());
     *width = image.width;
     *height = image.height;
     ++hits;

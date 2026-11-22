@@ -28,9 +28,11 @@
 
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include <cstdarg>
 #include <cstdio>
-#include <cstring>
 #ifndef _WIN32
 #include <unistd.h> // (write: the watchdog's line to the terminal while the loader's output is caught)
 #endif
@@ -190,7 +192,7 @@ void publish()
     {
         q_snprintf(label, sizeof(label), "the stage after \"%s\"", trace.lastMarkName);
     }
-    const size_t n = strlen(label);
+    const size_t n = ZA_STRLEN(label);
     if(trace.progress[0] || trace.glStep[0])
     {
         q_snprintf(label + n, sizeof(label) - n, " (%s%s%s)", trace.progress, trace.progress[0] && trace.glStep[0] ? "; " : "",
@@ -200,7 +202,7 @@ void publish()
 
     shared.seq.fetchAddRelaxed(1); // odd: being written
     za::atomicThreadFence<za::MemoryOrder::Release>();
-    memcpy(shared.label, label, sizeof(label));
+    ZA_MEMCPY(shared.label, label, sizeof(label));
     shared.since = since;
     shared.active = active;
     za::atomicThreadFence<za::MemoryOrder::Release>();
@@ -300,7 +302,7 @@ void watchdog()
             {
                 continue;
             }
-            memcpy(label, shared.label, sizeof(label));
+            ZA_MEMCPY(label, shared.label, sizeof(label));
             since = shared.since;
             active = shared.active;
             za::atomicThreadFence<za::MemoryOrder::Acquire>();
@@ -335,7 +337,7 @@ void watchdog()
             // (the OpenXR loader's output caught: the terminal's own stdout, or a hang there says nothing; VR_TerminalFd)
             if(const int fd = VR_TerminalFd(1); fd >= 0)
             {
-                (void)!write(fd, line, strlen(line));
+                (void)!write(fd, line, ZA_STRLEN(line));
             }
             else
 #endif
@@ -358,7 +360,7 @@ void watchdog()
 //                               open, and after a stall of 5 s or more at least two "still in" lines
 void trace_f()
 {
-    if(Cmd_Argc() >= 3 && !strcmp(Cmd_Argv(1), "stall"))
+    if(Cmd_Argc() >= 3 && !ZA_STRCMP(Cmd_Argv(1), "stall"))
     {
         const double seconds = Q_atof(Cmd_Argv(2));
         VR_StepBegin("vr_startup_trace stall (a test)");
@@ -368,7 +370,7 @@ void trace_f()
         trace.stalled = seconds;
         return;
     }
-    if(Cmd_Argc() >= 2 && !strcmp(Cmd_Argv(1), "check"))
+    if(Cmd_Argc() >= 2 && !ZA_STRCMP(Cmd_Argv(1), "check"))
     {
         qvr::testkit::Tally t;
         t.check(trace.fileMade, "startuplog", va("startup.log not made (%s)", trace.path.cStr()));
@@ -418,7 +420,7 @@ void mark(const char* stage, double now)
     {
         return;
     }
-    if(trace.depth > 0 && trace.lost == 0 && !strcmp(trace.stack[trace.depth - 1].name, stage))
+    if(trace.depth > 0 && trace.lost == 0 && !ZA_STRCMP(trace.stack[trace.depth - 1].name, stage))
     {
         endStep("");
         return;

@@ -21,12 +21,12 @@
 #include "vr_view.hpp"
 #include "vr_weapon_ids.h"
 
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
-#include <string.h>
 
 namespace qvr::lootbeams
 {
@@ -126,7 +126,7 @@ State state;
 {
     for(int i = 0; i < count; i++)
     {
-        if(strstr(name, parts[i]))
+        if(ZA_STRSTR(name, parts[i]))
         {
             return true;
         }
@@ -306,7 +306,7 @@ void update()
             continue;
         }
         Beam b{};
-        b.toolgun = c == Category::Weapons && strstr(e->model->name, toolgunModel) != nullptr;
+        b.toolgun = c == Category::Weapons && ZA_STRSTR(e->model->name, toolgunModel) != nullptr;
         // A reloadable gun with its magazine empty (or out): its own hue, so it is known to need ammo before it is grabbed.
         b.emptyGun = !b.toolgun && c == Category::Weapons && net && !net->depleted && net->clipSize > 0 &&
                      net->clip <= 0 && cl.stats[protocol::STAT_QVR_RELOADMODE] != 0 &&

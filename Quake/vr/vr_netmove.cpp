@@ -12,15 +12,16 @@
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/Round.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
-#include "Zancle/Container/Vector.hpp"
 
-#include <string.h>
 
 namespace qvr::netmove
 {
@@ -609,7 +610,7 @@ void clientClear()
     c.acked = 0;
     c.first = 0;
     c.rtt = c.rttLast = 0.0;
-    memset(c.seqs, 0, sizeof(c.seqs));
+    ZA_MEMSET(c.seqs, 0, sizeof(c.seqs));
 }
 
 namespace
@@ -1022,10 +1023,10 @@ void serverReset(int slotNum)
         slot->last = 0;
         slot->low = 0;
         slot->read = 0;
-        memset(slot->seqs, 0, sizeof(slot->seqs));
+        ZA_MEMSET(slot->seqs, 0, sizeof(slot->seqs));
         slot->counts = {};
         slot->tick = 0;
-        memset(slot->lateAny, 0, sizeof(slot->lateAny));
+        ZA_MEMSET(slot->lateAny, 0, sizeof(slot->lateAny));
         slot->curAny = false;
         slot->sends = false;
     }
@@ -1100,7 +1101,7 @@ void selftest_f()
     quantize(t.m, t.q);
     dequantize(t.q, t.back);
     quantize(t.back, t.q2);
-    check(memcmp(t.q.v, t.q2.v, sizeof(t.q.v)) == 0, "a move quantized, read back and quantized again: the same");
+    check(ZA_MEMCMP(t.q.v, t.q2.v, sizeof(t.q.v)) == 0, "a move quantized, read back and quantized again: the same");
     const float posErr = glm::distance(t.back.vr.hands[1].pos, t.m.vr.hands[1].pos);
     const float angErr = glm::distance(t.back.vr.hands[1].rot, t.m.vr.hands[1].rot);
     check(posErr <= 0.014f && angErr <= 0.006f && t.back.vr.magBox[1][0] == glm::vec3{0.f},
@@ -1130,7 +1131,7 @@ void selftest_f()
         net_message = buf;
         MSG_BeginReading();
         same = same && readDelta(k == 2 ? zeroQuant : t.base, t.read) && msg_readcount == buf.cursize &&
-               memcmp(t.read.v, t.q.v, sizeof(t.q.v)) == 0;
+               ZA_MEMCMP(t.read.v, t.q.v, sizeof(t.q.v)) == 0;
     }
     net_message = savedMsg;
     msg_readcount = savedCount;

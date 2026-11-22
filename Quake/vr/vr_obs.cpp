@@ -36,7 +36,12 @@
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memmove.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Concurrency/LockGuard.hpp"
@@ -50,7 +55,6 @@ extern "C"
 }
 
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 
 #ifdef _WIN32
@@ -193,14 +197,14 @@ void base64(const za::U8* data, za::SizeT n, char* out, za::SizeT outSize)
 void authentication(const char* password, const char* salt, const char* challenge, char (&out)[48])
 {
     sha256::Hasher h1;
-    h1.update(password, strlen(password));
-    h1.update(salt, strlen(salt));
+    h1.update(password, ZA_STRLEN(password));
+    h1.update(salt, ZA_STRLEN(salt));
     const sha256::Digest d1 = h1.finish();
     char secret[48];
     base64(d1.bytes, sizeof(d1.bytes), secret, sizeof(secret));
     sha256::Hasher h2;
-    h2.update(secret, strlen(secret));
-    h2.update(challenge, strlen(challenge));
+    h2.update(secret, ZA_STRLEN(secret));
+    h2.update(challenge, ZA_STRLEN(challenge));
     const sha256::Digest d2 = h2.finish();
     base64(d2.bytes, sizeof(d2.bytes), out, sizeof(out));
 }
@@ -381,7 +385,7 @@ void disconnect()
 
 [[nodiscard]] bool sendText(const char* json)
 {
-    return sendFrame(0x1, json, strlen(json));
+    return sendFrame(0x1, json, ZA_STRLEN(json));
 }
 
 // Bytes from the socket into conn.in: 1 some, 0 none within `ms`, -1 closed or broken.
@@ -404,7 +408,7 @@ void disconnect()
     }
     const za::SizeT old = conn.in.size();
     conn.in.resize(old + static_cast<za::SizeT>(n));
-    memcpy(conn.in.data() + old, buf, static_cast<size_t>(n));
+    ZA_MEMCPY(conn.in.data() + old, buf, static_cast<size_t>(n));
     return 1;
 }
 
@@ -413,7 +417,7 @@ void consume(za::SizeT n)
     const za::SizeT rest = conn.in.size() - n;
     if(rest > 0)
     {
-        memmove(conn.in.data(), conn.in.data() + n, rest);
+        ZA_MEMMOVE(conn.in.data(), conn.in.data() + n, rest);
     }
     conn.in.resize(rest);
 }
@@ -466,7 +470,7 @@ void consume(za::SizeT n)
         {
             return 0;
         }
-        memcpy(key, b + at, 4);
+        ZA_MEMCPY(key, b + at, 4);
         at += 4;
     }
     if(have < at + len)
@@ -537,7 +541,7 @@ void consume(za::SizeT n)
                 conn.message.resize(conn.partial.size() + 1);
                 if(!conn.partial.empty())
                 {
-                    memcpy(conn.message.data(), conn.partial.data(), conn.partial.size());
+                    ZA_MEMCPY(conn.message.data(), conn.partial.data(), conn.partial.size());
                 }
                 conn.message[conn.partial.size()] = '\0';
                 conn.partial.clear();
@@ -615,7 +619,7 @@ void consume(za::SizeT n)
     for(int i = 0; i < 16; i += 4)
     {
         const za::U32 r = random32();
-        memcpy(nonce + i, &r, 4);
+        ZA_MEMCPY(nonce + i, &r, 4);
     }
     char key[32];
     base64(nonce, sizeof(nonce), key, sizeof(key));
@@ -624,7 +628,7 @@ void consume(za::SizeT n)
         "GET / HTTP/1.1\r\nHost: %s:%d\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: %s\r\n"
         "Sec-WebSocket-Version: 13\r\nSec-WebSocket-Protocol: obswebsocket.json\r\n\r\n",
         cfg.host, cfg.port, key);
-    if(!sendAll(request, strlen(request)))
+    if(!sendAll(request, ZA_STRLEN(request)))
     {
         q_snprintf(detail, detailSize, "the connection broke (handshake)");
         return false;
@@ -638,7 +642,7 @@ void consume(za::SizeT n)
         {
             if(conn.in[i - 3] == '\r' && conn.in[i - 2] == '\n' && conn.in[i - 1] == '\r' && conn.in[i] == '\n')
             {
-                const bool upgraded = n >= 12 && !strncmp(conn.in.data(), "HTTP/1.1 101", 12);
+                const bool upgraded = n >= 12 && !ZA_STRNCMP(conn.in.data(), "HTTP/1.1 101", 12);
                 consume(i + 1);
                 if(!upgraded)
                 {
@@ -825,9 +829,9 @@ void handle()
     {
         const char* id = op == 7 ? JSON_FindString(d, "requestId") : nullptr;
         const char* event = op == 5 ? JSON_FindString(d, "eventType") : nullptr;
-        if((id && !strncmp(id, "qvt", 3)) ||
-            (event && (!strcmp(event, "RecordStateChanged") || !strcmp(event, "ReplayBufferStateChanged") ||
-                          !strcmp(event, "ReplayBufferSaved"))))
+        if((id && !ZA_STRNCMP(id, "qvt", 3)) ||
+            (event && (!ZA_STRCMP(event, "RecordStateChanged") || !ZA_STRCMP(event, "ReplayBufferStateChanged") ||
+                          !ZA_STRCMP(event, "ReplayBufferSaved"))))
         {
             za::LockGuard lock{handoff};
             incoming.emplaceBack(za::String{conn.message.data()});
@@ -837,7 +841,7 @@ void handle()
     {
         const char* type = JSON_FindString(d, "eventType");
         const jsonentry_t* data = JSON_Find(d, "eventData", JSON_OBJECT);
-        if(type && data && !strcmp(type, "RecordStateChanged"))
+        if(type && data && !ZA_STRCMP(type, "RecordStateChanged"))
         {
             const qboolean* active = JSON_FindBoolean(data, "outputActive");
             const char* state = JSON_FindString(data, "outputState");
@@ -847,18 +851,18 @@ void handle()
             }
             if(state)
             {
-                status.starting = !strcmp(state, "OBS_WEBSOCKET_OUTPUT_STARTING");
-                status.stopping = !strcmp(state, "OBS_WEBSOCKET_OUTPUT_STOPPING");
-                if(!strcmp(state, "OBS_WEBSOCKET_OUTPUT_PAUSED"))
+                status.starting = !ZA_STRCMP(state, "OBS_WEBSOCKET_OUTPUT_STARTING");
+                status.stopping = !ZA_STRCMP(state, "OBS_WEBSOCKET_OUTPUT_STOPPING");
+                if(!ZA_STRCMP(state, "OBS_WEBSOCKET_OUTPUT_PAUSED"))
                 {
                     status.paused = true;
                 }
-                else if(!strcmp(state, "OBS_WEBSOCKET_OUTPUT_RESUMED") || !strcmp(state, "OBS_WEBSOCKET_OUTPUT_STARTED") ||
-                        !strcmp(state, "OBS_WEBSOCKET_OUTPUT_STOPPED"))
+                else if(!ZA_STRCMP(state, "OBS_WEBSOCKET_OUTPUT_RESUMED") || !ZA_STRCMP(state, "OBS_WEBSOCKET_OUTPUT_STARTED") ||
+                        !ZA_STRCMP(state, "OBS_WEBSOCKET_OUTPUT_STOPPED"))
                 {
                     status.paused = false;
                 }
-                if(!strcmp(state, "OBS_WEBSOCKET_OUTPUT_STARTED"))
+                if(!ZA_STRCMP(state, "OBS_WEBSOCKET_OUTPUT_STARTED"))
                 {
                     status.durationMs = 0;
                     status.at = SDL_GetTicks();
@@ -874,7 +878,7 @@ void handle()
         const jsonentry_t* rs = JSON_Find(d, "requestStatus", JSON_OBJECT);
         const qboolean* ok = rs ? JSON_FindBoolean(rs, "result") : nullptr;
         const jsonentry_t* data = JSON_Find(d, "responseData", JSON_OBJECT);
-        if(type && !strcmp(type, "GetRecordStatus") && ok && *ok && data)
+        if(type && !ZA_STRCMP(type, "GetRecordStatus") && ok && *ok && data)
         {
             const qboolean* active = JSON_FindBoolean(data, "outputActive");
             const qboolean* paused = JSON_FindBoolean(data, "outputPaused");
@@ -890,7 +894,7 @@ void handle()
             status.known = true;
             changed = true;
         }
-        else if(type && !strcmp(type, "ToggleRecord"))
+        else if(type && !ZA_STRCMP(type, "ToggleRecord"))
         {
             if(!(ok && *ok))
             {
@@ -977,8 +981,8 @@ void run()
             za::LockGuard lock{handoff};
             if(cfgSeq != sharedConfigSeq)
             {
-                reconnect = cfgSeq >= 0 && (strcmp(cfg.host, sharedConfig.host) || cfg.port != sharedConfig.port ||
-                                               strcmp(cfg.password, sharedConfig.password));
+                reconnect = cfgSeq >= 0 && (ZA_STRCMP(cfg.host, sharedConfig.host) || cfg.port != sharedConfig.port ||
+                                               ZA_STRCMP(cfg.password, sharedConfig.password));
                 cfg = sharedConfig;
                 cfgSeq = sharedConfigSeq;
             }
@@ -1064,8 +1068,8 @@ void syncConfig()
     const int port = static_cast<int>(vr_obs_port.value);
     const int check = static_cast<int>(vr_obs_process_check.value);
     Config& c = mainConfig;
-    if(c.enabled == enabled && c.port == port && c.processCheck == check && !strcmp(c.host, host) &&
-        !strcmp(c.password, password) && mainConfigSeq > 0)
+    if(c.enabled == enabled && c.port == port && c.processCheck == check && !ZA_STRCMP(c.host, host) &&
+        !ZA_STRCMP(c.password, password) && mainConfigSeq > 0)
     {
         return;
     }
@@ -1269,7 +1273,7 @@ void mockRequest(const char* type, int id, const char* data)
         }
         mockState.recording = true;
         mockState.at = SDL_GetTicks();
-        mockAnswer(type, id, true, nullptr, !strcmp(type, "ToggleRecord") ? "{\"outputActive\":true}" : nullptr);
+        mockAnswer(type, id, true, nullptr, !ZA_STRCMP(type, "ToggleRecord") ? "{\"outputActive\":true}" : nullptr);
         mockRecordState(true, "OBS_WEBSOCKET_OUTPUT_STARTED", nullptr);
     };
     const auto stopRecord = [&] {
@@ -1280,8 +1284,8 @@ void mockRequest(const char* type, int id, const char* data)
         }
         mockState.recording = false;
         const za::String path = mockFile("");
-        za::String answer{!strcmp(type, "ToggleRecord") ? "{\"outputActive\":false}" : "{\"outputPath\":"};
-        if(strcmp(type, "ToggleRecord"))
+        za::String answer{!ZA_STRCMP(type, "ToggleRecord") ? "{\"outputActive\":false}" : "{\"outputPath\":"};
+        if(ZA_STRCMP(type, "ToggleRecord"))
         {
             answer += jsonString(path.toStringView());
             answer += "}";
@@ -1289,32 +1293,32 @@ void mockRequest(const char* type, int id, const char* data)
         mockAnswer(type, id, true, nullptr, answer.cStr());
         mockRecordState(false, "OBS_WEBSOCKET_OUTPUT_STOPPED", &path);
     };
-    if(!strcmp(type, "StartRecord"))
+    if(!ZA_STRCMP(type, "StartRecord"))
     {
         startRecord();
     }
-    else if(!strcmp(type, "StopRecord"))
+    else if(!ZA_STRCMP(type, "StopRecord"))
     {
         stopRecord();
     }
-    else if(!strcmp(type, "ToggleRecord"))
+    else if(!ZA_STRCMP(type, "ToggleRecord"))
     {
         mockState.recording ? stopRecord() : startRecord();
     }
-    else if(!strcmp(type, "GetRecordDirectory"))
+    else if(!ZA_STRCMP(type, "GetRecordDirectory"))
     {
         const za::String answer = za::String{"{\"recordDirectory\":"} + jsonString(mockDir().toStringView()) + "}";
         mockAnswer(type, id, true, nullptr, answer.cStr());
     }
-    else if(!strcmp(type, "GetVideoSettings"))
+    else if(!ZA_STRCMP(type, "GetVideoSettings"))
     {
         mockAnswer(type, id, true, nullptr,
             "{\"fpsNumerator\":60,\"fpsDenominator\":1,\"baseWidth\":1920,\"baseHeight\":1080,\"outputWidth\":1920,"
             "\"outputHeight\":1080}");
     }
-    else if(!strcmp(type, "StartReplayBuffer") || !strcmp(type, "StopReplayBuffer"))
+    else if(!ZA_STRCMP(type, "StartReplayBuffer") || !ZA_STRCMP(type, "StopReplayBuffer"))
     {
-        const bool on = !strcmp(type, "StartReplayBuffer");
+        const bool on = !ZA_STRCMP(type, "StartReplayBuffer");
         if(mockState.replay == on)
         {
             mockAnswer(type, id, false, on ? "the replay buffer is already active" : "the replay buffer is not active", nullptr);
@@ -1325,11 +1329,11 @@ void mockRequest(const char* type, int id, const char* data)
         mockEvent("ReplayBufferStateChanged", za::String{on ? "{\"outputActive\":true,\"outputState\":\"OBS_WEBSOCKET_OUTPUT_STARTED\"}"
                                                             : "{\"outputActive\":false,\"outputState\":\"OBS_WEBSOCKET_OUTPUT_STOPPED\"}"});
     }
-    else if(!strcmp(type, "GetReplayBufferStatus"))
+    else if(!ZA_STRCMP(type, "GetReplayBufferStatus"))
     {
         mockAnswer(type, id, true, nullptr, mockState.replay ? "{\"outputActive\":true}" : "{\"outputActive\":false}");
     }
-    else if(!strcmp(type, "SaveReplayBuffer"))
+    else if(!ZA_STRCMP(type, "SaveReplayBuffer"))
     {
         if(!mockState.replay)
         {
@@ -1340,11 +1344,11 @@ void mockRequest(const char* type, int id, const char* data)
         const za::String path = mockFile("Replay ");
         mockEvent("ReplayBufferSaved", za::String{"{\"savedReplayPath\":"} + jsonString(path.toStringView()) + "}");
     }
-    else if(!strcmp(type, "GetOutputSettings"))
+    else if(!ZA_STRCMP(type, "GetOutputSettings"))
     {
         mockAnswer(type, id, true, nullptr, "{\"outputSettings\":{\"max_time_sec\":20}}");
     }
-    else if(!strcmp(type, "CreateRecordChapter"))
+    else if(!ZA_STRCMP(type, "CreateRecordChapter"))
     {
         mockAnswer(type, id, mockState.recording, mockState.recording ? nullptr : "the recording is not active", nullptr);
     }
@@ -1514,7 +1518,7 @@ void poll()
     {
         mockStatus(); // (the thread, if any, keeps its own connection: not read meanwhile)
     }
-    else if(mainStatus.version[0] == 'm' && !strcmp(mainStatus.version, "mock"))
+    else if(mainStatus.version[0] == 'm' && !ZA_STRCMP(mainStatus.version, "mock"))
     {
         mainStatus = Status{}; // (the mock turned off: the thread's state read again)
         seenStatusSeq = -1;

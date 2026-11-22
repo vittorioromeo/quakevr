@@ -11,6 +11,10 @@
 #include "vr_scenario.hpp"
 #include "vr_srvrandom.hpp"
 #include "vr_testkit.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -307,7 +311,7 @@ void appendPart(const char* part)
 // picks made the run's (the screen's Start without a map).
 void runCmd()
 {
-    if(Cmd_Argc() >= 2 && !strcmp(Cmd_Argv(1), "start"))
+    if(Cmd_Argc() >= 2 && !ZA_STRCMP(Cmd_Argv(1), "start"))
     {
         start(false);
         Con_Printf("vr_run: started: %s\n", summary(false));
@@ -347,7 +351,7 @@ testkit::Tally checkTally;
 void checkCmd()
 {
     constexpr const char* name = "runmutators";
-    if(Cmd_Argc() == 2 && !strcmp(Cmd_Argv(1), "verdict"))
+    if(Cmd_Argc() == 2 && !ZA_STRCMP(Cmd_Argv(1), "verdict"))
     {
         checkTally.verdict(name);
         checkTally = testkit::Tally{};
@@ -434,7 +438,7 @@ void enemiesChains(int c, int r, const char* what)
     EnemiesCheck& s = enemiesCheck;
     for(int i = 0; i < s.baseCount; i++)
     {
-        if(!strcmp(s.bases[i].map, sv.name))
+        if(!ZA_STRCMP(s.bases[i].map, sv.name))
         {
             s.tally.check(chains == s.bases[i].chains, "runenemies",
                 va("%s: the map's trigger chains as without the mutators (%.0f, %.0f)", what, chains, s.bases[i].chains));
@@ -452,7 +456,7 @@ void enemiesCheckCmd()
 {
     constexpr const char* name = "runenemies";
     testkit::Tally& enemiesTally = enemiesCheck.tally;
-    if(Cmd_Argc() == 2 && !strcmp(Cmd_Argv(1), "verdict"))
+    if(Cmd_Argc() == 2 && !ZA_STRCMP(Cmd_Argv(1), "verdict"))
     {
         enemiesTally.verdict(name);
         enemiesCheck = EnemiesCheck{};
@@ -491,7 +495,7 @@ testkit::Tally armedTally;
 void armedCheckCmd()
 {
     constexpr const char* name = "runarmed";
-    if(Cmd_Argc() == 2 && !strcmp(Cmd_Argv(1), "verdict"))
+    if(Cmd_Argc() == 2 && !ZA_STRCMP(Cmd_Argv(1), "verdict"))
     {
         armedTally.verdict(name);
         armedTally = testkit::Tally{};
@@ -538,7 +542,7 @@ void testCmd()
         picks[i] = m.pick->value;
         if(m.active != &skill)
         {
-            t.check(!strcmp(m.active->name, va("vr_run_%s", m.id)) && !strcmp(m.pick->name, va("vr_runpick_%s", m.id)),
+            t.check(!ZA_STRCMP(m.active->name, va("vr_run_%s", m.id)) && !ZA_STRCMP(m.pick->name, va("vr_runpick_%s", m.id)),
                 name, va("%s: its cvars named after it", m.id));
             t.check(atoi(m.pick->default_string) == m.def, name, va("%s: the pick's default is the registry's", m.id));
         }
@@ -575,18 +579,18 @@ void testCmd()
     {
         // Room for the line with every choice at its longest value and a 5-digit seed (a cut line would lose the last
         // choices and the seed): the registry's ids, at most 2 digits a value.
-        size_t longest = strlen("// qvr_run seed=65535\n");
+        size_t longest = ZA_STRLEN("// qvr_run seed=65535\n");
         for(int i = 0; i < registryCount; i++)
         {
-            longest += strlen(registry[i].id) + 4; // " id=vv"
+            longest += ZA_STRLEN(registry[i].id) + 4; // " id=vv"
         }
-        t.check(longest < sizeof(state.line) && strstr(saved, " seed=") && saved[strlen(saved) - 1] == '\n', name,
+        t.check(longest < sizeof(state.line) && ZA_STRSTR(saved, " seed=") && saved[ZA_STRLEN(saved) - 1] == '\n', name,
             va("the save line fits (%d of %d characters at the longest)", static_cast<int>(longest),
                 static_cast<int>(sizeof(state.line))));
     }
-    t.check(strstr(saved, "style=1") && strstr(saved, "gore=2") && strstr(saved, "startgun=2") && strstr(saved, "startmelee=1") &&
-                strstr(saved, "glasscannon=1") && strstr(saved, "pickups=2") && strstr(saved, "ironman=1") &&
-                strstr(saved, "rangedknights=1") && strstr(saved, "wildweapons=1") && strstr(saved, "armoredfoes=1"),
+    t.check(ZA_STRSTR(saved, "style=1") && ZA_STRSTR(saved, "gore=2") && ZA_STRSTR(saved, "startgun=2") && ZA_STRSTR(saved, "startmelee=1") &&
+                ZA_STRSTR(saved, "glasscannon=1") && ZA_STRSTR(saved, "pickups=2") && ZA_STRSTR(saved, "ironman=1") &&
+                ZA_STRSTR(saved, "rangedknights=1") && ZA_STRSTR(saved, "wildweapons=1") && ZA_STRSTR(saved, "armoredfoes=1"),
         name, "the save line holds the run");
 
     // Armed Humanoids off holds the three armed-only rows Off (Off, or As Style with Classic or Light); on frees them.
@@ -695,15 +699,15 @@ void testCmd()
         Cvar_Set("vr_mg3_bn_start", "0");
         start(false);
         t.check(pickValue(bn) == 0 && skill.value == 3.f && vr_run_bn.value == 0.f && vr_mg3_bn_start.value == 0.f &&
-                    strstr(saveLine(), " bn=0 ") != nullptr,
+                    ZA_STRSTR(saveLine(), " bn=0 ") != nullptr,
             name, "Nightmare started: skill 3, no Bloody Nightmare (vr_run_bn 0, vr_mg3_bn_start 0, bn=0)");
         readSaveLines("x\n// qvr_run skill=3 bn=1 style=3\n");
         onLoadGame();
         char sum[256];
         q_strlcpy(sum, summary(false), sizeof(sum));
-        t.check(vr_run_bn.value == 1.f && !strncmp(sum, "Bloody Nightmare", 16) && !strstr(sum + 16, "Nightmare"), name,
+        t.check(vr_run_bn.value == 1.f && !ZA_STRNCMP(sum, "Bloody Nightmare", 16) && !ZA_STRSTR(sum + 16, "Nightmare"), name,
             va("a save with bn=1 loaded: vr_run_bn 1, summary \"%s\"", sum));
-        t.check(strstr(saveSummary("x\n// qvr_run skill=3 bn=1 style=3\n", 3), "Bloody Nightmare") != nullptr, name,
+        t.check(ZA_STRSTR(saveSummary("x\n// qvr_run skill=3 bn=1 style=3\n", 3), "Bloody Nightmare") != nullptr, name,
             "a save's (an older one's) skill=3 bn=1: Bloody Nightmare in its summary");
         Cvar_Set("vr_maps_skill", "2");
         start(false);
@@ -857,15 +861,15 @@ int arenaValue(int i)
     {
         return pickValue(i);
     }
-    if(!strcmp(m.id, "ironman"))
+    if(!ZA_STRCMP(m.id, "ironman"))
     {
         return 0; // (forced off in the arena; his pick untouched)
     }
-    if(!strcmp(m.id, "style"))
+    if(!ZA_STRCMP(m.id, "style"))
     {
         return 3; // Unleashed
     }
-    if(!strcmp(m.id, "armed") || !strcmp(m.id, "smartai"))
+    if(!ZA_STRCMP(m.id, "armed") || !ZA_STRCMP(m.id, "smartai"))
     {
         return 2; // On
     }
@@ -908,7 +912,7 @@ int restoreStartValues()
     int n = 0;
     const int kept = static_cast<int>(state.startValues.size());
     forEachPresetVar([&](cvar_t* v) {
-        if(i < kept && strcmp(v->string, state.startValues[i].cStr()) != 0)
+        if(i < kept && ZA_STRCMP(v->string, state.startValues[i].cStr()) != 0)
         {
             Con_Printf("Run setup: %s is \"%s\", the run's Start set \"%s\": set again before %s spawns\n", v->name,
                 v->string, state.startValues[i].cStr(), sv.name);
@@ -1121,7 +1125,7 @@ bool parseRunLine(const char* text, int* values, bool* have, int& seed, bool& ha
     }
     seed = 0;
     haveSeed = false;
-    const char* p = text ? strstr(text, "\n// qvr_run ") : nullptr;
+    const char* p = text ? ZA_STRSTR(text, "\n// qvr_run ") : nullptr;
     if(!p)
     {
         return false;
@@ -1137,13 +1141,13 @@ bool parseRunLine(const char* text, int* values, bool* have, int& seed, bool& ha
             break;
         }
         p += used;
-        if(!strcmp(key, "seed"))
+        if(!ZA_STRCMP(key, "seed"))
         {
             seed = value;
             haveSeed = true;
             continue;
         }
-        if(!strcmp(key, "startweapon")) // (a save from before the gun and the melee weapon were two choices)
+        if(!ZA_STRCMP(key, "startweapon")) // (a save from before the gun and the melee weapon were two choices)
         {
             // 0 shotgun, 1 revolver, 2 axe alone, 3 unarmed -> gun, melee
             constexpr int oldGun[] = {0, 2, 3, 3};
@@ -1313,7 +1317,7 @@ extern "C" int VR_RunIronmanRefusesSave()
 extern "C" int VR_Run_MonsterSpawning(edict_t* ent)
 {
     if((qvr::vr_run_enemycount.value == 0.f && qvr::vr_run_enemyrandom.value == 0.f) || deathmatch.value != 0.f ||
-        strncmp(PR_GetString(ent->v.classname), "monster_", 8) != 0)
+        ZA_STRNCMP(PR_GetString(ent->v.classname), "monster_", 8) != 0)
     {
         return 0;
     }

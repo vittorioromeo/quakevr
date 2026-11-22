@@ -1,3 +1,4 @@
+#include "Zancle/Base/Memcpy.hpp"
 #pragma once
 
 // vr_simd.hpp -- four float lanes, one interface over SSE2 (x86-64: Windows, Linux), NEON (AArch64: the Quest, the
@@ -17,7 +18,6 @@
 //   V::F4 a = V::set1(1.f), b = V::loadu(p);
 //   V::storeu(out, V::add(V::mul(a, b), V::zero()));
 
-#include <string.h>
 
 #if !defined(QVR_SIMD_SCALAR) && (defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2))
 #define QVR_SIMD_SSE2 1
@@ -43,13 +43,13 @@ struct Scalar
     static unsigned bits(float f)
     {
         unsigned u;
-        memcpy(&u, &f, sizeof(u));
+        ZA_MEMCPY(&u, &f, sizeof(u));
         return u;
     }
     static float fromBits(unsigned u)
     {
         float f;
-        memcpy(&f, &u, sizeof(f));
+        ZA_MEMCPY(&f, &u, sizeof(f));
         return f;
     }
     static float mask(bool on) { return fromBits(on ? 0xffffffffu : 0u); }
@@ -58,8 +58,8 @@ struct Scalar
     static F4 set1(float x) { return F4{{x, x, x, x}}; }
     static F4 load(const float* p) { return F4{{p[0], p[1], p[2], p[3]}}; } // (aligned to 16 bytes)
     static F4 loadu(const float* p) { return F4{{p[0], p[1], p[2], p[3]}}; }
-    static void store(float* p, F4 a) { memcpy(p, a.v, sizeof(a.v)); }
-    static void storeu(float* p, F4 a) { memcpy(p, a.v, sizeof(a.v)); }
+    static void store(float* p, F4 a) { ZA_MEMCPY(p, a.v, sizeof(a.v)); }
+    static void storeu(float* p, F4 a) { ZA_MEMCPY(p, a.v, sizeof(a.v)); }
     static F4 add(F4 a, F4 b) { return F4{{a.v[0] + b.v[0], a.v[1] + b.v[1], a.v[2] + b.v[2], a.v[3] + b.v[3]}}; }
     static F4 sub(F4 a, F4 b) { return F4{{a.v[0] - b.v[0], a.v[1] - b.v[1], a.v[2] - b.v[2], a.v[3] - b.v[3]}}; }
     static F4 mul(F4 a, F4 b) { return F4{{a.v[0] * b.v[0], a.v[1] * b.v[1], a.v[2] * b.v[2], a.v[3] * b.v[3]}}; }

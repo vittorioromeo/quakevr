@@ -7,9 +7,14 @@
 #include "vr_mapinstall.hpp"
 
 #include "Zancle/Algorithm/StableSort.hpp"
-#include "Zancle/String/StringView.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -63,7 +68,7 @@ constexpr int libraryRank = 1000;
 // "maps/<name>.bsp" (any case): <name>, lower case; false for another file, and for the brush models (b_*.bsp).
 [[nodiscard]] bool mapName(const char* path, za::String& out)
 {
-    const size_t n = strlen(path);
+    const size_t n = ZA_STRLEN(path);
     if(n <= 9 || q_strncasecmp(path, "maps/", 5) || q_strcasecmp(path + n - 4, ".bsp"))
     {
         return false;
@@ -106,7 +111,7 @@ constexpr int libraryRank = 1000;
             {
                 return na < nb ? -1 : 1;
             }
-            if(const int c = strncmp(a, b, na))
+            if(const int c = ZA_STRNCMP(a, b, na))
             {
                 return c;
             }
@@ -129,7 +134,7 @@ constexpr int libraryRank = 1000;
 [[nodiscard]] bool prelitKey(const char* entities)
 {
     const char* end = strchr(entities, '}');
-    const char* key = strstr(entities, "\"_qvr_prelit\"");
+    const char* key = ZA_STRSTR(entities, "\"_qvr_prelit\"");
     if(!key || (end && key > end))
     {
         return false;
@@ -167,8 +172,8 @@ constexpr int libraryRank = 1000;
     int at = 0, length = 0;
     if(ok)
     {
-        memcpy(&at, header + 4, 4);
-        memcpy(&length, header + 8, 4);
+        ZA_MEMCPY(&at, header + 4, 4);
+        ZA_MEMCPY(&length, header + 8, 4);
         at = LittleLong(at);
         length = LittleLong(length);
         ok = at > 0 && length > 0 && length < (16 << 20) && static_cast<za::I64>(at) + length <= s.length;
@@ -181,7 +186,7 @@ constexpr int libraryRank = 1000;
              fread(text.data(), 1, static_cast<size_t>(length), f) == static_cast<size_t>(length);
     }
     fclose(f);
-    if(!ok || !strstr(text.data(), "info_player_"))
+    if(!ok || !ZA_STRSTR(text.data(), "info_player_"))
     {
         return false;
     }
@@ -360,7 +365,7 @@ bool locate(const char* map, Source& out)
     }
     for(const searchpath_t* s = com_searchpaths; s; s = s->next)
     {
-        if(!s->pack || strcmp(s->pack->filename, source))
+        if(!s->pack || ZA_STRCMP(s->pack->filename, source))
         {
             continue;
         }

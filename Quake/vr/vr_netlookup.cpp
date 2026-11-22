@@ -32,12 +32,13 @@
 #include "vr_api.h"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Chrono/Time.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
-#include <string.h>
 
 namespace qvr::netlookup
 {
@@ -166,7 +167,7 @@ Entry& slotFor(const char* name, double now)
     Entry* pick = nullptr;
     for(Entry& e : lookups.entries)
     {
-        if(e.name[0] && !strcmp(e.name, name))
+        if(e.name[0] && !ZA_STRCMP(e.name, name))
         {
             return e;
         }
@@ -211,7 +212,7 @@ using namespace qvr::netlookup;
 
 extern "C" int VR_NetLookup(const char* name, unsigned int* netorder_ipv4, int mayStart)
 {
-    if(!name || !name[0] || strlen(name) >= static_cast<size_t>(nameLength))
+    if(!name || !name[0] || ZA_STRLEN(name) >= static_cast<size_t>(nameLength))
     {
         return -1;
     }

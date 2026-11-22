@@ -18,12 +18,15 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
-#include <string.h>
 
 extern "C" void CL_ParseUpdate(int bits);  // cl_parse.c: an entity's update (its first byte read)
 extern "C" void CL_ParseClientdata(void);  // cl_parse.c: svc_clientdata's body
@@ -331,7 +334,7 @@ struct EntFields
     {
         return -1;
     }
-    memcpy(out + at, e.tail, static_cast<size_t>(e.tailLen));
+    ZA_MEMCPY(out + at, e.tail, static_cast<size_t>(e.tailLen));
     return at + e.tailLen;
 }
 
@@ -391,7 +394,7 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
 [[nodiscard]] bool fieldRefs(const EntFields& b, const Trend* trend, const za::U8* older, int olderLen, unsigned pflags,
     za::U32* ref)
 {
-    memcpy(ref, b.v, sizeof(b.v));
+    ZA_MEMCPY(ref, b.v, sizeof(b.v));
     if(!trend)
     {
         return true;
@@ -455,10 +458,10 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
         {
             bestCost = cost;
             mask = km;
-            memcpy(zig, kz, sizeof(zig));
+            ZA_MEMCPY(zig, kz, sizeof(zig));
         }
     }
-    const bool tailSame = b.tailLen == c.tailLen && memcmp(b.tail, c.tail, static_cast<size_t>(c.tailLen)) == 0;
+    const bool tailSame = b.tailLen == c.tailLen && ZA_MEMCMP(b.tail, c.tail, static_cast<size_t>(c.tailLen)) == 0;
     mask |= tailSame ? 0u : maskTail;
     mask |= b.bits != c.bits ? maskBits : 0u;
     int at = putVarint(out, mask);
@@ -488,7 +491,7 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
             {
                 return -1;
             }
-            memcpy(out + at, tmp, static_cast<size_t>(sb.cursize));
+            ZA_MEMCPY(out + at, tmp, static_cast<size_t>(sb.cursize));
             at += sb.cursize;
         }
         else
@@ -497,7 +500,7 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
             {
                 return -1;
             }
-            memcpy(out + at, c.tail, static_cast<size_t>(c.tailLen));
+            ZA_MEMCPY(out + at, c.tail, static_cast<size_t>(c.tailLen));
             at += c.tailLen;
         }
     }
@@ -564,7 +567,7 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
             {
                 return -1;
             }
-            memcpy(tail, e.tail, static_cast<size_t>(tl));
+            ZA_MEMCPY(tail, e.tail, static_cast<size_t>(tl));
             // (bytesDelta's layout, read from `d`)
             const int groups = (tl + 7) / 8, tops = (groups + 7) / 8;
             if(at + tops > len)
@@ -604,7 +607,7 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
             {
                 return -1;
             }
-            memcpy(tail, d + at, static_cast<size_t>(tl));
+            ZA_MEMCPY(tail, d + at, static_cast<size_t>(tl));
             at += tl;
         }
         e.tail = tail;
@@ -620,7 +623,7 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
 {
     int used = 0;
     const int n = fieldsDecode(base, baseLen, fieldsBuf, size, pflags, fieldsCheck, used, trend, older, olderLen);
-    return n == curLen && used == size && memcmp(fieldsCheck, cur, static_cast<size_t>(n)) == 0;
+    return n == curLen && used == size && ZA_MEMCMP(fieldsCheck, cur, static_cast<size_t>(n)) == 0;
 }
 
 } // namespace
@@ -711,7 +714,7 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
         {
             bi++;
             ci++;
-            if(b->len == c->len && memcmp(base->data(*b), cur.data(*c), static_cast<size_t>(c->len)) == 0)
+            if(b->len == c->len && ZA_MEMCMP(base->data(*b), cur.data(*c), static_cast<size_t>(c->len)) == 0)
             {
                 continue;
             }
@@ -1168,7 +1171,7 @@ int holdRagdolls(const Snapshot* base)
             used += r.len;
             continue;
         }
-        if(b->len == r.len && memcmp(bl.cur.data(r), base->data(*b), static_cast<size_t>(r.len)) == 0)
+        if(b->len == r.len && ZA_MEMCMP(bl.cur.data(r), base->data(*b), static_cast<size_t>(r.len)) == 0)
         {
             continue;
         }
@@ -1228,7 +1231,7 @@ int cosmeticFrame{-1}; // (host_framecount when cosmeticByEnt was cleared)
     {
         const edict_t* ed = EDICT_NUM(num);
         const char* name = ed->free ? "" : PR_GetString(ed->v.classname);
-        known = strcmp(name, "vr_smallgib") == 0 || strcmp(name, "vr_explosion_debris") == 0 ? 2 : 1;
+        known = ZA_STRCMP(name, "vr_smallgib") == 0 || ZA_STRCMP(name, "vr_explosion_debris") == 0 ? 2 : 1;
     }
     return known == 2;
 }
@@ -1763,8 +1766,8 @@ void interpNote(int e, za::U32 prevSeq, za::U32 seq, bool fresh)
     }
     Sample& s = h.s[h.head];
     s.t = cl.mtime[0];
-    memcpy(s.origin, ent.msg_origins[0], sizeof(s.origin));
-    memcpy(s.angles, ent.msg_angles[0], sizeof(s.angles));
+    ZA_MEMCPY(s.origin, ent.msg_origins[0], sizeof(s.origin));
+    ZA_MEMCPY(s.angles, ent.msg_angles[0], sizeof(s.angles));
     h.head = (h.head + 1) % historyLen;
     h.n = za::min(h.n + 1, historyLen);
 }
@@ -1945,7 +1948,7 @@ void noteCommand(int at)
 void bytesReset()
 {
     byteCounts = ByteCounts{};
-    memset(entOps, 0, sizeof(entOps));
+    ZA_MEMSET(entOps, 0, sizeof(entOps));
 }
 
 // "mp_netbytes:" the bytes read since the connection (or `vr_net_bytes reset`): reliable and unreliable, the unreliable
@@ -2085,8 +2088,8 @@ bool interpEntity(int num, float origin[3], float angles[3])
     }
     if(only)
     {
-        memcpy(origin, only->origin, sizeof(only->origin));
-        memcpy(angles, only->angles, sizeof(only->angles));
+        ZA_MEMCPY(origin, only->origin, sizeof(only->origin));
+        ZA_MEMCPY(angles, only->angles, sizeof(only->angles));
         return true;
     }
     const double span = newer->t - older->t;
@@ -2156,7 +2159,7 @@ bool interpSample(int num, int back, double& t, float origin[3])
     }
     const Sample& s = h.s[(h.head - 1 - back + 2 * historyLen) % historyLen];
     t = s.t;
-    memcpy(origin, s.origin, sizeof(s.origin));
+    ZA_MEMCPY(origin, s.origin, sizeof(s.origin));
     return true;
 }
 
@@ -2246,7 +2249,7 @@ void fillSnapshot(Snapshot& s, int n, int len, int seed)
     {
         const Record& x = a.records[i];
         const Record& y = b.records[i];
-        if(x.key != y.key || x.len != y.len || memcmp(a.data(x), b.data(y), static_cast<size_t>(x.len)) != 0)
+        if(x.key != y.key || x.len != y.len || ZA_MEMCMP(a.data(x), b.data(y), static_cast<size_t>(x.len)) != 0)
         {
             return false;
         }
@@ -2365,8 +2368,8 @@ void selftest_f()
             waited += unsent[i];
         }
         rateOk = rateOk && !unsent[0] && !unsent[30] && waited >= static_cast<int>(n) - 6 && bytes <= 40 &&
-                 memcmp(t.sent.data(t.sent.records[30]), t.cur.data(t.cur.records[30]), 4) == 0 &&
-                 memcmp(t.sent.data(t.sent.records[29]), t.base.data(t.base.records[29]), 4) == 0;
+                 ZA_MEMCMP(t.sent.data(t.sent.records[30]), t.cur.data(t.cur.records[30]), 4) == 0 &&
+                 ZA_MEMCMP(t.sent.data(t.sent.records[29]), t.base.data(t.base.records[29]), 4) == 0;
         check(rateOk, va("a rate's budget of 40 bytes: the player state and the highest priority sent, %d of %d waited (%d bytes)",
                            waited, static_cast<int>(n), bytes));
     }
@@ -2412,7 +2415,7 @@ void selftest_f()
         int fillBytes[2]{}, fillOthers = 0;
         for(int k = 0; k < 2; k++)
         {
-            memset(unsent, 0, sizeof(unsent));
+            ZA_MEMSET(unsent, 0, sizeof(unsent));
             buf.cursize = 0;
             encode(&t.base, t.cur, &buf, 4096, t.sent, selftestFlags, nullptr, prio, unsent, -1, cosm, 120, k == 0 ? 1 : 100000);
             fillBytes[k] = cosmeticWritten;
@@ -2453,7 +2456,7 @@ void selftest_f()
         const za::SizeT ri = t.cur.records.size() - 1;
         bool ragOk = n < 64 && t.cur.records[ri].key == ragKey + 300;
         prio[ri] = 100.f;
-        memset(unsent, 0, sizeof(unsent));
+        ZA_MEMSET(unsent, 0, sizeof(unsent));
         buf.cursize = 0;
         encode(&t.base, t.cur, &buf, 4096, t.sent, selftestFlags, nullptr, prio, unsent, othersBytes + 3 * static_cast<int>(n) + 8);
         net_message = buf;
@@ -2572,7 +2575,7 @@ void classesReport()
             ByClass* hit = nullptr;
             for(ByClass& b : by)
             {
-                hit = !hit && strcmp(b.name, name) == 0 ? &b : hit;
+                hit = !hit && ZA_STRCMP(b.name, name) == 0 ? &b : hit;
             }
             if(!hit)
             {

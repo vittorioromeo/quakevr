@@ -25,13 +25,13 @@
 #include "vr_findradius.hpp"
 #include "vr_mem.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 using namespace qvr;
 
@@ -386,7 +386,7 @@ void VR_EdictIndex_ProgsLoaded()
         const ddef_t* def = nullptr;
         for(int i = 0; i < qcvm->progs->numfielddefs; i++)
         {
-            if(qcvm->fielddefs[i].ofs == ofs && !strcmp(PR_GetString(qcvm->fielddefs[i].s_name), w.name))
+            if(qcvm->fielddefs[i].ofs == ofs && !ZA_STRCMP(PR_GetString(qcvm->fielddefs[i].s_name), w.name))
             {
                 def = &qcvm->fielddefs[i];
                 break;
@@ -505,7 +505,7 @@ extern "C" int VR_EdictIndex_Find(int start, int field, const char* s)
         {
             // (a volatile classname: find()'s own test)
             const char* t = PR_GetString(fieldInt(edictAt(v), field));
-            if(t && !strcmp(t, s))
+            if(t && !ZA_STRCMP(t, s))
             {
                 found = v;
                 break;
@@ -663,7 +663,7 @@ int nextClassname(int from, const char* name)
     {
         const edict_t* ed = EDICT_NUM(e);
         const char* t = ed->free ? nullptr : PR_GetString(fieldInt(ed, classField));
-        if(t && !strcmp(t, name))
+        if(t && !ZA_STRCMP(t, name))
         {
             return e;
         }

@@ -25,6 +25,7 @@
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
 #include "vr_timescale.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 
 namespace qvr::hosterror
 {
@@ -111,7 +112,7 @@ void checkAfter()
     check(u.errors == test.errorsBefore + 1, "the error ran VR_OnHostError once");
     check(!sv.active, "the error ended the server");
     check(u.overrides == 1, "it put back the cvars::Override the error jumped out of");
-    check(!strcmp(vr_debug_snd.string, test.overridden), "the overridden cvar has its value from before");
+    check(!ZA_STRCMP(vr_debug_snd.string, test.overridden), "the overridden cvar has its value from before");
     check(test.pairOpened, "slow motion's pair was open at the error (vr_timescale 0.5, vr_timescale_move_realtime 1)");
     check(u.timescalePair == test.pairOpened, "it found the pair open (VR_PhysicsEntityBegin without its End)");
     check(VR_ThinkFrame(probeFrame) == probeFrame, "the pair is closed: no entity in the player's time");

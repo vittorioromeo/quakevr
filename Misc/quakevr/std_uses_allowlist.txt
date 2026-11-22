@@ -17,7 +17,6 @@ vr_motion_review.cpp <map> 1
 vr_motion_review.cpp std::map 6
 vr_mptest.cpp <chrono> 1  # wallMs: epoch wall-clock ms in the mp_ lines, compared across processes (za::Clock's epoch is unspecified)
 vr_mptest.cpp std::chrono 3  # wallMs: system_clock epoch ms (za::Clock's epoch is unspecified)
-vr_startlog.cpp <cstring> 1
 vr_tracy.cpp <deque> 1  # the QC zones' names and locations need stable addresses: Zancle has no deque
 vr_tracy.cpp std::deque 2  # stable addresses (Tracy keeps the pointers): Zancle has no deque
 vr_voicechat.cpp <chrono> 1  # wallMs: epoch wall-clock ms in the mp_voice lines (za::Clock's epoch is unspecified)

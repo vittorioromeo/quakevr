@@ -24,6 +24,7 @@
 #include "vr_units.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -548,7 +549,7 @@ void slideTestFrame()
                     q_snprintf(pl1, sizeof(pl1), "the prone key mid-slide does nothing (tried %d; lying %d, lie share %.2f, ended by %s)",
                         t.proneTried ? 1 : 0, hull::isProne(pl) ? 1 : 0, flatplay::proneRatio(), s.endWhy);
                     testCheck(t.tally, tag, t.proneTried && !hull::isProne(pl) && flatplay::proneRatio() < 0.01f &&
-                        !strcmp(s.endWhy, "slowed"), pl1);
+                        !ZA_STRCMP(s.endWhy, "slowed"), pl1);
                     // Its stamina: all its parts (a slide of more than their steps), the cost in all.
                     const float part = slideStaminaPart();
                     const int parts = slideStaminaParts();
@@ -710,7 +711,7 @@ void slideHitTestFrame()
                 float best = 96.f;
                 progs::forEachEdict(1, [&](edict_t* e) {
                     const float d = glm::length(glm::vec2{e->v.origin[0] - aheadX, e->v.origin[1] - laneY});
-                    if(!strcmp(PR_GetString(e->v.classname), cls) && d < best)
+                    if(!ZA_STRCMP(PR_GetString(e->v.classname), cls) && d < best)
                     {
                         best = d;
                         t.target = NUM_FOR_EDICT(e);

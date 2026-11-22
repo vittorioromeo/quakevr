@@ -1935,6 +1935,7 @@ void _Host_Frame (double time)
 		}
 		host_frametime = realframetime;
 		Cbuf_Waited();
+		VR_TestTick (); // QVR: vr_waitquiton's tick: a batch case's held rest back when its pattern matched (vr/vr_testbatch.cpp)
 		ranserver = true;
 	}
 

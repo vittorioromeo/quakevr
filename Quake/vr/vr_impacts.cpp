@@ -17,6 +17,7 @@
 #include "vr_trace.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -24,7 +25,6 @@
 #include "vr_api.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 
 namespace qvr::impacts
@@ -778,7 +778,7 @@ void hit(HitKind kind, const glm::vec3& org)
 
 void beam(const qmodel_s* model, int ent, const glm::vec3& start, const glm::vec3& end)
 {
-    if(!model || !on(vr_gunfx_ozone) || strcmp(model->name, "progs/bolt2.mdl") != 0) // (the thunderbolt's beam)
+    if(!model || !on(vr_gunfx_ozone) || ZA_STRCMP(model->name, "progs/bolt2.mdl") != 0) // (the thunderbolt's beam)
     {
         return;
     }
@@ -820,7 +820,7 @@ const sndlayer::LayeredSound* layered(const char* name)
 {
     for(const LayeredSound& s : surfaceSounds)
     {
-        if(!strcmp(s.name, name))
+        if(!ZA_STRCMP(s.name, name))
         {
             return &s;
         }

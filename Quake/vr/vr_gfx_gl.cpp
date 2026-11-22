@@ -18,8 +18,11 @@
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -40,7 +43,6 @@
 #include "SDL.h"
 #endif
 
-#include <string.h>
 
 #ifndef GL_TEXTURE_LOD_BIAS
 #define GL_TEXTURE_LOD_BIAS 0x8501
@@ -2248,7 +2250,7 @@ void drawBent(const BentBatch& batch, const BentDraw& d)
 glm::mat4 sceneViewProjection()
 {
     glm::mat4 viewProj;
-    memcpy(&viewProj[0][0], r_matviewproj, sizeof(r_matviewproj));
+    ZA_MEMCPY(&viewProj[0][0], r_matviewproj, sizeof(r_matviewproj));
     return viewProj;
 }
 
@@ -2409,7 +2411,7 @@ void text(float x, float y, float size, const char* str)
         const float all[4] = {3.f, x, y, size};
         sign(all, sizeof(all));
         sign(&char_texture, sizeof(char_texture)); // (the font: useBrightFont's, Menu > Fonts)
-        sign(str, strlen(str) + 1);
+        sign(str, ZA_STRLEN(str) + 1);
         return;
     }
     Draw_StringEx(x, y, size, str);
@@ -2513,7 +2515,7 @@ void ensurePicture(Picture& p, int width, int height, const char* name)
     p.width = width;
     p.height = height;
     p.pixels = static_cast<unsigned char*>(VR_HeapMalloc(static_cast<size_t>(width) * height * 4));
-    memset(p.pixels, 0, static_cast<size_t>(width) * height * 4);
+    ZA_MEMSET(p.pixels, 0, static_cast<size_t>(width) * height * 4);
     p.texture = TexMgr_LoadImage(nullptr, name, width, height, SRC_RGBA, p.pixels, "", reinterpret_cast<src_offset_t>(p.pixels),
         TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_UNCOMPRESSED);
 }
@@ -2524,7 +2526,7 @@ void updatePicture(Picture& p, const void* rgba)
     {
         return;
     }
-    memcpy(p.pixels, rgba, static_cast<size_t>(p.width) * p.height * 4);
+    ZA_MEMCPY(p.pixels, rgba, static_cast<size_t>(p.width) * p.height * 4);
     glBindTexture(GL_TEXTURE_2D, static_cast<gltexture_t*>(p.texture)->texnum);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, p.width, p.height, GL_RGBA, GL_UNSIGNED_BYTE, p.pixels);
     glBindTexture(GL_TEXTURE_2D, 0);

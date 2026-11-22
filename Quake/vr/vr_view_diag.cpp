@@ -8,10 +8,13 @@
 #include "vr_progs.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
-#include "Zancle/String/String.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -95,7 +98,7 @@ qboolean reloadMatch(const char* name, void* ctx)
         static constexpr const char* prefixes[] = {"v_", "vrbody", "vrgadget", "vrflashlight", "vrpauldron", "legholster",
             "vr_shell", "wpnbutton"};
         yes = !q_strncasecmp(name, "progs/", 6) && za::anyOf(prefixes, prefixes + za::getArraySize(prefixes), [&](const char* p) {
-            return !q_strncasecmp(base, p, strlen(p));
+            return !q_strncasecmp(base, p, ZA_STRLEN(p));
         });
     }
     else
@@ -158,7 +161,7 @@ void reloadModels(const za::Vector<za::String>& names)
             continue;
         }
         const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
-        const bool isBody = strstr(n.cStr(), "vrbody") != nullptr;
+        const bool isBody = ZA_STRSTR(n.cStr(), "vrbody") != nullptr;
         body = body || isBody;
         list += (list.empty() ? "" : ", ") + n.substrByPosLen(n.rfind('/') + 1);
         if(hdr->poseverttype == aliashdr_t::PV_QUAKE1)
@@ -489,7 +492,7 @@ void agruntWeaponProbe_f()
     for(int i = 1; i < qcvm->num_edicts; i++)
     {
         const edict_t* ed = EDICT_NUM(i);
-        if(ed->free || strcmp(PR_GetString(ed->v.classname), "vr_ag_weapon") != 0 || !ed->v.modelindex)
+        if(ed->free || ZA_STRCMP(PR_GetString(ed->v.classname), "vr_ag_weapon") != 0 || !ed->v.modelindex)
         {
             continue;
         }
@@ -515,7 +518,7 @@ void agruntWeaponProbe_f()
         {
             listed = cl_visedicts[v] == &ce;
         }
-        const bool sameModel = ce.model && !strcmp(ce.model->name, PR_GetString(ed->v.model));
+        const bool sameModel = ce.model && !ZA_STRCMP(ce.model->name, PR_GetString(ed->v.model));
         const bool drawn = listed && sameModel && ce.alpha != ENTALPHA_ZERO && glm::distance(so, co) < 64.f;
         undrawn += drawn ? 0 : 1;
         Con_Printf("agweapon %d (%s, held by %d): drawn %.1f cm and %.0f degrees off the server's; %s (client model %s, "

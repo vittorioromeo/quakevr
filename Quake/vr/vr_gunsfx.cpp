@@ -15,6 +15,7 @@
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -24,7 +25,6 @@
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 extern "C" int VR_SndShot(int entnum, int entchannel, sfx_t* sfx, const float* origin, float* fvol, float attenuation,
     float* pitch);
@@ -511,7 +511,7 @@ const LayeredSound* layered(const char* name)
 {
     for(const LayeredSound& s : gunLayers)
     {
-        if(!strcmp(s.name, name))
+        if(!ZA_STRCMP(s.name, name))
         {
             return &s;
         }

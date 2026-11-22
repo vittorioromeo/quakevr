@@ -32,9 +32,12 @@
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
-#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Remainder.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
@@ -172,7 +175,7 @@ za::Vector<int> categoryOrder()
     {
         for(size_t i = 0; i < list.size(); i++)
         {
-            if(!strcmp(list[i].choice.name, name))
+            if(!ZA_STRCMP(list[i].choice.name, name))
             {
                 out.pushBack(static_cast<int>(i));
             }
@@ -276,7 +279,7 @@ public:
         q_snprintf(buf, sizeof(buf), "%.*f", decimals, v);
         // "-0.0000" is "0.0000".
         const char* p = buf;
-        if(*p == '-' && strspn(p + 1, "0.") == strlen(p + 1))
+        if(*p == '-' && strspn(p + 1, "0.") == ZA_STRLEN(p + 1))
         {
             p++;
         }
@@ -752,8 +755,8 @@ struct SettingsSnap
     s.text.reserve(131072);
     for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = var->next)
     {
-        const bool vr = !strncmp(var->name, "vr_", 3) && strncmp(var->name, "vr_wofs_", 8) != 0;
-        if(!vr && strcmp(var->name, "sv_maxspeed") != 0)
+        const bool vr = !ZA_STRNCMP(var->name, "vr_", 3) && ZA_STRNCMP(var->name, "vr_wofs_", 8) != 0;
+        if(!vr && ZA_STRCMP(var->name, "sv_maxspeed") != 0)
         {
             continue;
         }
@@ -786,7 +789,7 @@ struct SettingsSnap
         const char* name = s.text.cStr() + v.name;
         for(const char* p : prefixes)
         {
-            if(!strncmp(name, p, strlen(p)))
+            if(!ZA_STRNCMP(name, p, ZA_STRLEN(p)))
             {
                 appendSetting(out, name, s.text.cStr() + v.value, false);
                 break;
@@ -805,7 +808,7 @@ struct SettingsSnap
     for(const SettingsSnap::Var& v : s.vars)
     {
         const char* name = s.text.cStr() + v.name;
-        if(!v.archived || strncmp(name, "vr_", 3) != 0 || !strncmp(name, "vr_motion_", 10))
+        if(!v.archived || ZA_STRNCMP(name, "vr_", 3) != 0 || !ZA_STRNCMP(name, "vr_motion_", 10))
         {
             continue;
         }
@@ -827,7 +830,7 @@ void fillSettings(za::String& header, const SettingsSnap& s)
         const za::SizeT at = za::StringView{header}.find(za::StringView{mark});
         if(at != za::StringView::nPos)
         {
-            header = za::String{header.substrByPosLen(0, at)} + value + za::String{header.substrByPosLen(at + strlen(mark))};
+            header = za::String{header.substrByPosLen(0, at)} + value + za::String{header.substrByPosLen(at + ZA_STRLEN(mark))};
         }
     };
     fill(meleeMark, meleeSettings(s));
@@ -1780,7 +1783,7 @@ void list_f()
             const auto& [label, count] = *entry;
             if(categoryOf(label) == c.choice.name && label != c.choice.name)
             {
-                Con_Printf("  %-22s %3d\n", label.cStr() + strlen(c.choice.name) + 1, count);
+                Con_Printf("  %-22s %3d\n", label.cStr() + ZA_STRLEN(c.choice.name) + 1, count);
             }
         }
     }

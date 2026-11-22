@@ -51,6 +51,8 @@
 #include "vr_weapons.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -61,7 +63,6 @@
 #include "Zancle/Math/Sin.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
-#include <string.h>
 
 using namespace qvr;
 
@@ -205,7 +206,7 @@ using geom::vec;
 {
     for(Measure& m : measureCache.measures)
     {
-        if(!strcmp(m.name, model->name))
+        if(!ZA_STRCMP(m.name, model->name))
         {
             return &m;
         }
@@ -798,7 +799,7 @@ void table_f()
             break;
         }
         const int slot = weapons::slotForModel(model);
-        if(model->type == mod_alias && slot >= 0 && slot != weapons::fistSlot() && !strncmp(model->name, "progs/v_", 8))
+        if(model->type == mod_alias && slot >= 0 && slot != weapons::fistSlot() && !ZA_STRNCMP(model->name, "progs/v_", 8))
         {
             row(measureWeapon(model));
         }
@@ -811,7 +812,7 @@ void table_f()
     {
         for(int i = 1; i < MAX_MODELS && sv.models[i]; i++)
         {
-            if(!strcmp(sv.models[i]->name, name))
+            if(!ZA_STRCMP(sv.models[i]->name, name))
             {
                 row(measureProp(sv.models[i]));
                 break;

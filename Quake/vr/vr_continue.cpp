@@ -40,6 +40,9 @@
 #include "vr_mapinstall.hpp"
 #include "vr_runsetup.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
@@ -159,9 +162,9 @@ bool readSave(const char* path, za::Vector<char>& text, long limit = 0, bool* wh
 // block's closing brace after both).
 bool globalsRead(const char* text)
 {
-    const char* mask = strstr(text, "\"vr_save_packmask\"");
-    const char* campaign = strstr(text, "\"vr_save_campaign\"");
-    return mask && campaign && strstr(mask > campaign ? mask : campaign, "\n}");
+    const char* mask = ZA_STRSTR(text, "\"vr_save_packmask\"");
+    const char* campaign = ZA_STRSTR(text, "\"vr_save_campaign\"");
+    return mask && campaign && ZA_STRSTR(mask > campaign ? mask : campaign, "\n}");
 }
 
 // A save's head: the header, the context lines and the globals (all inspect reads), not the edicts after them (most of
@@ -197,15 +200,15 @@ bool contextLine(const char* text, const char* key, char* out, size_t size)
 {
     char needle[64];
     q_snprintf(needle, sizeof(needle), "\n// %s", key);
-    const size_t n = strlen(needle);
-    for(const char* p = strstr(text, needle); p; p = strstr(p + 1, needle))
+    const size_t n = ZA_STRLEN(needle);
+    for(const char* p = ZA_STRSTR(text, needle); p; p = ZA_STRSTR(p + 1, needle))
     {
         const char* v = p + n;
         if(*v != ' ' && *v != '\r' && *v != '\n' && *v != 0) { continue; } // (another key that starts the same)
         if(*v == ' ') { ++v; }
         const size_t len = strcspn(v, "\r\n");
         q_strlcpy(out, v, za::min(size, len + 1));
-        for(size_t e = strlen(out); e > 0 && out[e - 1] == ' '; --e) { out[e - 1] = 0; }
+        for(size_t e = ZA_STRLEN(out); e > 0 && out[e - 1] == ' '; --e) { out[e - 1] = 0; }
         return true;
     }
     out[0] = 0;
@@ -229,9 +232,9 @@ void readContext(const char* text, const char* path, SaveContext& ctx)
     saveLine(text, 19, ctx.map, sizeof(ctx.map)); // (after the version, the comment, 16 spawn parms and the skill)
     char line[128];
     if(contextLine(text, "qvr_campaign", line, sizeof(line))) { ctx.campaign = Q_atoi(line); }
-    else if(const char* g = strstr(text, "\"vr_save_campaign\""))
+    else if(const char* g = ZA_STRSTR(text, "\"vr_save_campaign\""))
     {
-        g += strlen("\"vr_save_campaign\"");
+        g += ZA_STRLEN("\"vr_save_campaign\"");
         while(*g == ' ' || *g == '\t' || *g == '"') { ++g; }
         if(*g >= '0' && *g <= '9') { ctx.campaign = Q_atoi(g); }
     }
@@ -258,7 +261,7 @@ void readContext(const char* text, const char* path, SaveContext& ctx)
         saveLine(text, 1, line, sizeof(line));
         line[za::min<size_t>(22, sizeof(line) - 1)] = 0;
         for(char* p = line; *p; ++p) { if(*p == '_') { *p = ' '; } }
-        for(size_t n = strlen(line); n > 0 && line[n - 1] == ' '; --n) { line[n - 1] = 0; }
+        for(size_t n = ZA_STRLEN(line); n > 0 && line[n - 1] == ' '; --n) { line[n - 1] = 0; }
         q_strlcpy(ctx.mapTitle, line[0] ? line : ctx.map, sizeof(ctx.mapTitle));
     }
 }
@@ -353,13 +356,13 @@ bool inspect(const Candidate& c, ContinueSave& out, bool verbose, bool coopToo =
     char line[128];
     saveLine(text.data(), 0, line, sizeof(line));
     if(Q_atoi(line) != SAVEGAME_VERSION) { return refused("another save version"); }
-    const char* qvr = strstr(text.data(), "\n// qvr_save ");
+    const char* qvr = ZA_STRSTR(text.data(), "\n// qvr_save ");
     int format = 0;
     // (a coop save, format 2, is not single player's to continue: Load Autosave lists it (coopToo), as Load does)
     if(!qvr || sscanf(qvr + 1, "// qvr_save %d", &format) != 1 ||
         format > (coopToo ? VR_SAVE_FORMAT : VR_SAVE_FORMAT_SINGLE)) { return refused("no qvr_save line, or its format"); }
     out.coopPlayers = 0;
-    for(const char* s = strstr(text.data(), "\n// qvr_coopslot "); s; s = strstr(s + 1, "\n// qvr_coopslot "))
+    for(const char* s = ZA_STRSTR(text.data(), "\n// qvr_coopslot "); s; s = ZA_STRSTR(s + 1, "\n// qvr_coopslot "))
     {
         int slot = 0, in = 0;
         if(sscanf(s + 1, "// qvr_coopslot %d %d", &slot, &in) == 2 && in) { ++out.coopPlayers; }
@@ -374,7 +377,7 @@ bool inspect(const Candidate& c, ContinueSave& out, bool verbose, bool coopToo =
     {
         bool warned = false;
         for(int i = 0; i < warnedCount; ++i)
-        { warned = warned || (!strcmp(warnedMissing[i].path, c.path) && warnedMissing[i].when == c.when); }
+        { warned = warned || (!ZA_STRCMP(warnedMissing[i].path, c.path) && warnedMissing[i].when == c.when); }
         if(verbose || !warned)
         {
             Con_Printf("Continue: %s passed over: it was made in the map package %s, which is not installed\n",
@@ -419,7 +422,7 @@ void refresh(bool verbose)
         }
         if(best < 0) { break; }
         Candidate& c = candidates[best];
-        if(continueSave.found && !strcmp(c.path, continueScanned.path) && c.when == continueScanned.when &&
+        if(continueSave.found && !ZA_STRCMP(c.path, continueScanned.path) && c.when == continueScanned.when &&
             (!continueSave.package || continueScanned.indexGeneration == qvr::mapindex::generation()))
         {
             if(verbose) { Con_Printf("continue: %s (as before)\n", c.relname); }
@@ -529,7 +532,7 @@ bool inspectAutosave(const Candidate& c, ContinueSave& out)
 {
     for(InspectedAutosave& e : inspected)
     {
-        if(e.when == c.when && !strcmp(e.path, c.path))
+        if(e.when == c.when && !ZA_STRCMP(e.path, c.path))
         {
             out = e.save;
             inspectRefusal = e.refusal;
@@ -569,7 +572,7 @@ void refreshAutosaves(bool verbose = false)
     for(int i = 0; i < candidateCount; ++i)
     {
         const Candidate& c = candidates[i];
-        if(!strcmp(c.relname, "autosave/relight")) { continue; } // (vr_relight.cpp's batch save)
+        if(!ZA_STRCMP(c.relname, "autosave/relight")) { continue; } // (vr_relight.cpp's batch save)
         ContinueSave found;
         if(!inspectAutosave(c, found))
         {
@@ -633,7 +636,7 @@ void describeAutosave(const ContinueSave& s, char* line1, size_t size1, char* li
 // cold: every file read again, as at the menu's first opening, and each one passed over named with why.
 void autosaveList()
 {
-    const bool cold = Cmd_Argc() >= 2 && !strcmp(Cmd_Argv(1), "cold");
+    const bool cold = Cmd_Argc() >= 2 && !ZA_STRCMP(Cmd_Argv(1), "cold");
     if(cold)
     {
         for(InspectedAutosave& e : inspected) { e = InspectedAutosave{}; }
@@ -696,7 +699,7 @@ void refreshLaunchSaves()
     for(int i = 0; i < candidateCount; ++i)
     {
         const Candidate& c = candidates[i];
-        if(!strcmp(c.relname, "autosave/relight")) { continue; } // (vr_relight.cpp's batch save)
+        if(!ZA_STRCMP(c.relname, "autosave/relight")) { continue; } // (vr_relight.cpp's batch save)
         ContinueSave found;
         if(!inspectAutosave(c, found) || found.coopPlayers) { continue; } // (Continue: single player's only)
         int at = 0;
@@ -807,7 +810,7 @@ extern "C" int VR_LaunchContinueTestFixture(const char* save, const char* copy, 
     for(const char* line = text.cStr(); *line;)
     {
         const char* end = strchr(line, '\n');
-        const za::SizeT len = end ? static_cast<za::SizeT>(end - line + 1) : static_cast<za::SizeT>(strlen(line));
+        const za::SizeT len = end ? static_cast<za::SizeT>(end - line + 1) : static_cast<za::SizeT>(ZA_STRLEN(line));
         const za::SizeT bare = static_cast<za::SizeT>(strcspn(line, "\r\n"));
         const za::StringView view{line, bare};
         if(view == "// qvr_package")
@@ -991,7 +994,7 @@ extern "C" int VR_SaveMenuLabel(const char* path, char* out, size_t size)
     bool whole = false;
     if(!readSave(path, text, 64L * 1024, &whole)) { return 0; }
     // (a save older than the context lines: its campaign is in its globals, after the edicts' start; read it all)
-    if(!whole && !strstr(text.data(), "\n// qvr_campaign") && !readSave(path, text)) { return 0; }
+    if(!whole && !ZA_STRSTR(text.data(), "\n// qvr_campaign") && !readSave(path, text)) { return 0; }
     SaveContext ctx;
     readContext(text.data(), path, ctx);
     const char* context = contextTitle(ctx);

@@ -8,6 +8,8 @@
 #include "vr_engine.hpp"
 #include "vr_api.h"
 #include "vr_testkit.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 
 
 namespace
@@ -41,7 +43,7 @@ constexpr int specialCount = static_cast<int>(sizeof(specials) / sizeof(specials
 float fromBits(unsigned u)
 {
     float f;
-    memcpy(&f, &u, sizeof(f));
+    ZA_MEMCPY(&f, &u, sizeof(f));
     return f;
 }
 
@@ -174,7 +176,7 @@ bool sameBits(const float* a, const float* b, int n)
 {
     for(int i = 0; i < n; i++)
     {
-        if(memcmp(a + i, b + i, sizeof(float)) != 0 && !(a[i] != a[i] && b[i] != b[i]))
+        if(ZA_MEMCMP(a + i, b + i, sizeof(float)) != 0 && !(a[i] != a[i] && b[i] != b[i]))
         {
             return false;
         }

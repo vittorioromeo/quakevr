@@ -11,11 +11,11 @@
 #include "vr_units.hpp"
 
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 namespace qvr::loading
 {
@@ -51,7 +51,7 @@ constexpr float noticeCharSize = 0.04f; // metres: a character's height (4 cm at
         return false;
     }
     const Backend* const be = backend();
-    if(!be || (vr_loading_notice.value < 2.f && !strcmp(be->name(), "mock")))
+    if(!be || (vr_loading_notice.value < 2.f && !ZA_STRCMP(be->name(), "mock")))
     {
         return false;
     }

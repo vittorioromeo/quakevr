@@ -5,6 +5,7 @@
 #include "vr_testkit.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_api.h"
@@ -598,12 +599,12 @@ void turnedTest_f()
 {
     constexpr const char* name = "vr_portals_turned_test";
     const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    if(!strcmp(step, "start"))
+    if(!ZA_STRCMP(step, "start"))
     {
         turnedTally.reset();
         return;
     }
-    if(!strcmp(step, "end"))
+    if(!ZA_STRCMP(step, "end"))
     {
         turnedTally.verdict(name);
         return;
@@ -616,14 +617,14 @@ void turnedTest_f()
     }
     const glm::vec2 at{player->v.origin[0], player->v.origin[1]};
     const glm::vec2 point{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
-    if(!strcmp(step, "at"))
+    if(!ZA_STRCMP(step, "at"))
     {
         const float off = glm::distance(at, point);
         Con_Printf("%s: %s: the player at %.1f %.1f, %.1f units from %.1f %.1f\n", name, Cmd_Argv(2), static_cast<double>(at.x),
             static_cast<double>(at.y), static_cast<double>(off), static_cast<double>(point.x), static_cast<double>(point.y));
         turnedTally.check(off <= Q_atof(Cmd_Argv(5)), name, va("%s: not there", Cmd_Argv(2)));
     }
-    else if(!strcmp(step, "past") && Cmd_Argc() > 6)
+    else if(!ZA_STRCMP(step, "past") && Cmd_Argc() > 6)
     {
         const float yaw = glm::radians(Q_atof(Cmd_Argv(5)));
         const float along = glm::dot(at - point, glm::vec2{cosf(yaw), sinf(yaw)});

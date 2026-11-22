@@ -14,11 +14,11 @@
 
 #pragma once
 
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 
 #include <stddef.h>
-#include <string.h>
 
 namespace qvr::diskcache
 {
@@ -125,7 +125,7 @@ constexpr unsigned long long fnvStart = 14695981039346656037ull;
         for(int k = 0; k < 4; k++)
         {
             unsigned long long w;
-            memcpy(&w, bytes + i + 8 * k, 8);
+            ZA_MEMCPY(&w, bytes + i + 8 * k, 8);
             lanes[k] += w * p2;
             lanes[k] = (lanes[k] << 31) | (lanes[k] >> 33);
             lanes[k] *= p1;

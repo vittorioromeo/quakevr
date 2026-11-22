@@ -15,7 +15,9 @@
 #endif
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -170,7 +172,7 @@ size_t readFromMemory(void* opaque, mz_uint64 ofs, void* buf, size_t n)
     {
         return 0;
     }
-    memcpy(buf, body.data() + ofs, n);
+    ZA_MEMCPY(buf, body.data() + ofs, n);
     return n;
 }
 
@@ -315,7 +317,7 @@ void setUrls()
         }
         for(int w = 0; w < wantedCount; w++)
         {
-            if(!strcmp(st.m_filename, wanted[w]) && st.m_uncomp_size <= maxFileBytes)
+            if(!ZA_STRCMP(st.m_filename, wanted[w]) && st.m_uncomp_size <= maxFileBytes)
             {
                 index[w] = e;
             }

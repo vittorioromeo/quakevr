@@ -17,11 +17,11 @@
 #include "vr_server.hpp"
 #include "vr_text3d.hpp"
 
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
 
 #include <glm/glm.hpp>
-#include <string.h>
 
 namespace qvr::stealth
 {
@@ -398,7 +398,7 @@ DrawnLog drawnLog;
 [[nodiscard]] DrawnTrack* drawnTrack(const entity_t* e)
 {
     const int num = static_cast<int>(e - cl_entities);
-    if(num <= 0 || num >= cl.num_entities || !e->model || !strstr(e->model->name, vr_debug_drawn_moves.string))
+    if(num <= 0 || num >= cl.num_entities || !e->model || !ZA_STRSTR(e->model->name, vr_debug_drawn_moves.string))
     {
         return nullptr;
     }
