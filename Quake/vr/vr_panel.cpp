@@ -356,6 +356,71 @@ void drawHud(const hands::State& s, const glm::vec4& mask)
     drawFacing(s, {hudAngles.x, hudAngles.y, 0.f}, 200.f * vr_menu_scale.value, mask);
 }
 
+// The centre print in the headset (vr_center_panel): the flat visor's popup (its font, black face, frame line, colours,
+// line wrapping, Quake's fade: gadget::renderCenterPanel) as a panel of the HUD's own place and size (a visor pixel is
+// a menu pixel, vr_menu_scale units), at the height Quake's flat screen puts its text, following the head as the HUD.
+struct CenterPanel
+{
+    za::Array<char, 1024> text{};
+    float alpha{0.f};
+    int claimed{-100};  // the frame it was last given (the game's centre print or a view message)
+    int drawn{-100};    // the frame its image was last made
+    int draws{0};       // the quads drawn
+};
+CenterPanel centerPanel;
+
+[[nodiscard]] bool centerPanelOn()
+{
+    return vr_center_panel.value != 0.f && vrActive();
+}
+
+void drawCenterPanel(const hands::State& s)
+{
+    const CenterPanel& c = centerPanel;
+    if(!centerPanelOn() || c.claimed < host_framecount - 1 || c.alpha <= 0.f)
+    {
+        return;
+    }
+    const gadget::VisorImage image = gadget::visorImage(gadget::VisorCenter);
+    if(!image.shown || image.size.x <= 0.f || image.size.y <= 0.f)
+    {
+        return;
+    }
+    const float menuUnit = vr_menu_scale.value;
+    const float unit = menuUnit * za::clamp(vr_center_panel_scale.value, 0.25f, 8.f); // (grown about its top middle)
+    const float height = 200.f * menuUnit;
+    glm::vec3 corner, xAxis, yAxis;
+    facingQuad(s, {hudAngles.x, hudAngles.y, 0.f}, height, corner, xAxis, yAxis);
+    const glm::vec3 right = glm::normalize(xAxis), up = glm::normalize(yAxis);
+    const glm::vec3 middle = corner + xAxis * 0.5f + yAxis * 0.5f;
+    // Quake's centre print: its first line at 70 of the screen's 200 rows (48 with more than 4 lines), a margin above it.
+    const float top = (image.size.y > 4.f * 10.f + 12.f ? 48.f : 70.f) - 5.f;
+    const glm::vec3 lowLeft = middle - right * (image.size.x * 0.5f * unit) + up * ((100.f - top) * menuUnit - image.size.y * unit);
+    const glm::vec3 w = right * (image.size.x * unit), h = up * (image.size.y * unit);
+    const glm::vec4 tint{1.f, 1.f, 1.f, za::clamp(c.alpha, 0.f, 1.f)};
+    const gfx::Vertex v[4] = {{lowLeft, {0.f, 0.f}, tint}, {lowLeft + w, {1.f, 0.f}, tint}, {lowLeft + w + h, {1.f, 1.f}, tint},
+        {lowLeft + h, {0.f, 1.f}, tint}};
+    const gfx::Vertex tris[6] = {v[0], v[1], v[2], v[0], v[2], v[3]};
+    gfx::draw(tris, gfx::sceneViewProjection(),
+        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false}, image.texture);
+    // The frame line round the face, as the visor's mount's.
+    const glm::vec3 line = gadget::visorColors().line;
+    const glm::vec4 lc{line, tint.a};
+    const float t = unit * 0.5f;
+    const glm::vec3 tw = right * t, th = up * t;
+    const auto bar = [&](glm::vec3 a, glm::vec3 b, glm::vec3 c2, glm::vec3 d) {
+        const gfx::Vertex q[6] = {{a, {0.f, 0.f}, lc}, {b, {0.f, 0.f}, lc}, {c2, {0.f, 0.f}, lc}, {a, {0.f, 0.f}, lc},
+            {c2, {0.f, 0.f}, lc}, {d, {0.f, 0.f}, lc}};
+        gfx::draw(q, gfx::sceneViewProjection(),
+            {.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false});
+    };
+    bar(lowLeft, lowLeft + w, lowLeft + w + th, lowLeft + th);
+    bar(lowLeft + h - th, lowLeft + h + w - th, lowLeft + h + w, lowLeft + h);
+    bar(lowLeft, lowLeft + tw, lowLeft + h + tw, lowLeft + h);
+    bar(lowLeft + w - tw, lowLeft + w, lowLeft + w + h, lowLeft + w + h - tw);
+    centerPanel.draws++;
+}
+
 // The canvas's size in pixels. In the eyes with vr_menu_resolution, that many of its pixels to each of the eye image's
 // across the panel seen head-on (the menu panel's height or the HUD panel's, the larger: one size for both, made once),
 // mipmapped (trilinear, anisotropic): drawn smaller than it is, the text keeps whole edges instead of being stretched
@@ -452,6 +517,7 @@ void drawInEye(const hands::State& s, bool headText)
         if(headText)
         {
             drawHud(s, sbar.rows > 0.f ? sbar.uv : noMask);
+            drawCenterPanel(s);
         }
         toolgun::panel::drawInEye(s); // (the toolgun's panel over the gun, and the laser at it: open in the game)
         arenacards::drawInEye(s);     // (the Survival Arena's perk cards in front of you, and the lasers at them)
@@ -706,6 +772,47 @@ void renderMenuPanels()
 
 } // namespace
 
+namespace qvr::panel
+{
+
+void centerShow(const char* text, float alpha)
+{
+    if(!centerPanelOn() || !text || !text[0])
+    {
+        return;
+    }
+    CenterPanel& c = centerPanel;
+    if(c.claimed < host_framecount - 1 || strncmp(c.text.data(), text, c.text.size() - 1) != 0)
+    {
+        q_strlcpy(c.text.data(), text, c.text.size());
+    }
+    c.alpha = alpha;
+    c.claimed = host_framecount;
+}
+
+void centerStatus()
+{
+    const CenterPanel& c = centerPanel;
+    const gadget::VisorImage image = gadget::visorImage(gadget::VisorCenter);
+    Con_Printf("center panel: %s, claimed %d (frame %d), alpha %.2f, image %.0fx%.0f %s, %d draws, text [%s]\n",
+        centerPanelOn() ? "on" : "off", c.claimed, host_framecount, c.alpha, image.size.x, image.size.y,
+        image.shown ? "shown" : "not shown", c.draws, c.text.data());
+}
+
+} // namespace qvr::panel
+
+// SCR_CheckDrawCenterString: the game's centre print for the headset's panel (not on the wrist, not the intermission's,
+// nor the options menu's preview, which draws on the canvas).
+extern "C" int VR_CenterPrintInView(const char* text, float alpha)
+{
+    if(!text || cl.intermission || !centerPanelOn())
+    {
+        return 0;
+    }
+    qvr::panel::centerShow(text, alpha);
+    return 1;
+}
+
 extern "C" int VR_SbarInCanvas()
 {
     if(!drawingToCanvas)
@@ -733,6 +840,11 @@ extern "C" void VR_End2D(void (*windowHud)())
     gfx::endCanvas();
     renderMenuPanels(); // (the menu panels after the first, MULTI_MENU.md)
     gadget::renderScreen(); // shown in the eyes next frame, as the canvas
+    if(centerPanelOn() && centerPanel.claimed >= host_framecount - 1) // (the centre print's panel, likewise)
+    {
+        gadget::renderCenterPanel(centerPanel.text.data());
+        centerPanel.drawn = host_framecount;
+    }
     toolgun::panel::render(); // (the toolgun's panel, likewise)
     arenacards::render();     // (the perk cards' panel, likewise)
     // The flat HUD over the window's view of the eyes (NOTES.md vrfiringrange_2026-09-30_11-20-33): the mirror's

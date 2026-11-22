@@ -765,6 +765,7 @@ void VR_NotifyLogInfo (void);						// vr_notify_info: prints the wrist gadget's 
 // Screen (gl_screen.c).
 void VR_GameCenterPrint (const char *str);				// SCR_CenterPrint: a centre print, for the wrist gadget's hologram (vr_gadget.cpp)
 int VR_CenterPrintOnWrist (void);						// SCR_CheckDrawCenterString: nonzero while that hologram shows it (not in view)
+int VR_CenterPrintInView (const char *text, float alpha);	// SCR_CheckDrawCenterString: nonzero when the headset shows it on its head-following panel in the visor popup's style (vr_panel.cpp, vr_center_panel), not on the 2D canvas
 int VR_CenterPrintOnVisor (const char *text, float alpha);	// SCR_CheckDrawCenterString: nonzero when flatscreen play's visor shows it in its popup (vr_visor.cpp)
 
 // Sound (cl_parse.c).

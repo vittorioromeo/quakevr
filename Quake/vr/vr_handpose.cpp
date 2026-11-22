@@ -20,6 +20,7 @@
 // Limit) is gone (round 21, "Spring only").
 
 #include "vr_handpose.hpp"
+#include "vr_axestick.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_mem.hpp"
@@ -603,7 +604,7 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
         glm::vec3 pos = s.pos[h];
         // (A hand on a blade in a body: its place says how the blade slides. A body dying is no monster to the stop above for the moment
         // its box is still solid, and a stop that comes and goes, a hand inside that box, read as a tug that pulled it out.)
-        const bool onBlade = cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF] > 0;
+        const bool onBlade = axestick::handOnBlade(h);
         stopAtWall(pos, torso, s.pos[h], onBlade);
 
         // The weapon (and what the hand holds) must not go through walls either: from where it was placed last frame.

@@ -55,4 +55,13 @@ void say(const char* fmt, ...);
 // Server: the player's hands' blades as stats (STAT_QVR_EMBEDOFF, STAT_QVR_EMBEDMAIN).
 void calcStats(edict_t* player, int* statsi);
 
+// Client: the blade stuck in a body that `hand` holds, as calcStats sent it (its edict * 4, + 2 reversed, + 1 by its handle); 0
+// none.
+[[nodiscard]] int heldStat(int hand);
+
+// Client: whether `hand` holds a blade stuck in a body (QC's VR_HOLD_EMBED: drawn on it, its weapon left in the body). The one
+// check of it for the VR and flat paths: that hand is busy, as with a weapon of its own (no two-handed grip on the other hand's
+// gun: vr_twohand.cpp; in flat play no ironsight, no two-handed stance, each mouse button its own hand's: flatplay::holdsThing).
+[[nodiscard]] bool handOnBlade(int hand);
+
 } // namespace qvr::axestick

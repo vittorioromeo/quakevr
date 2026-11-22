@@ -87,7 +87,8 @@ vr_embed_test    49       vr_skewerlist_test.qc            the skewered gibs' li
 vr_embed_test    50-51    vr_skewerlist_test.qc            the skewered gibs' list through a save and a load: 50 puts two on the blade, saves and loads, then 51's check: the list made at the load holds both, each hit by a shot
 vr_embed_test    33       vr_embed_test.qc                 the hand on an embedded blade's handle (his 2026-11-12): drawn as it held the sword; a body lifted 20 units, level and the wrist turning: the handle stays on the real hand, rises no more than it; gripped again off the handle, it comes to the hand
 vr_embed_test    34       vr_embed_prop_test.qc            a blade in a crate held by its handle (a joint): the handle in the hand, the crate dragged, the crate pushed takes the blade; a gib on a blade: the other hand takes it only at its drawn model, drawn on its surface
-vr_embed_test    30       vr_embed_1108b_test.qc           blades in wooden crates and barrels: stab and swing stay in, drag not lift, let go, ride, pull out, broken, off
+vr_embed_test    52       vr_embeddual_test.qc             his 2026-11-21, flat: dual wielding an axe and a shotgun, the axe stuck in a grunt keeps its hand (drawn on it, no 2H, no ironsight); out into the hand: dual again; let go: 2H and the ironsight back
+vr_embed_test    30       vr_embed_1108b_test.qc          blades in wooden crates and barrels: stab and swing stay in, drag not lift, let go, ride, pull out, broken, off
 vr_ad_test       1        vr_ad_bridge_test.qc             (see vr_ad_bridge_test.qc)
 vr_ad_test       2*       vr_ad_bridge_test.qc             (the cinematic report (AD_Test's fall-through))
 vr_ad_test       3        vr_ad_bridge_test.qc             (VRGiveEntWeapon)

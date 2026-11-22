@@ -1503,6 +1503,13 @@ void renderVisor(const VisorInput& in)
     visorRender(in);
 }
 
+void renderCenterPanel(const char* text)
+{
+    QVR_GPU_PROFILE("center panel");
+    const fontstyle::Use font{fontstyle::Surface::Gadget};
+    visorRenderCenter(text);
+}
+
 VisorImage renderHolsterMenu(const HolsterMenuView& view)
 {
     return holsterMenuRender(view); // (vr_gadget_holster.inc)

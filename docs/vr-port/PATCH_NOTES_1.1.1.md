@@ -172,6 +172,14 @@ the crates Quake VR places about maps, Dimension of the Past and Dimension of th
 for the routers hole punching can't get through (the host forwards his port, or a virtual LAN); custom maps that
 aren't Map Library packages aren't sent to joining players.
 
+## Weapons
+
+- **Flat screen: a blade stuck in an enemy keeps its hand.** Dual wielding a blade and a gun, a blade that stays in an
+  enemy now keeps the hand that swung it on its handle until it comes out or the hand lets go; meanwhile the gun stays
+  one-handed, the right mouse button fires the left hand's weapon and the ironsight stays down, as when dual wielding.
+  Before, the hand let go of the blade to hold the gun in both hands, and the ironsight came up. In the headset too, a
+  hand holding a stuck blade no longer takes the other gun's two-handed grip.
+
 ## Movement
 
 - **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down
@@ -234,6 +242,7 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Menus
 
+- **Centre messages in the headset look like the flat screen's.** The game's centre prints in front of your head (a key needed, a secret found, a map's text) and the maps' own view messages now appear in the visor's message panel: its font, black face and frame, colours and wrapping, in a size that reads at the menu's distance. (`vr_center_panel 0` brings back the old look; `vr_center_panel_scale` sizes it.)
 - **Search filter (development builds).** The Search page has a "Show: Both / Cvars / Tunables" row over its text
   box: the menus' settings alone, the Tunables pages' constants alone, or both (the default). The results update
   at once; the choice lasts until the game quits. Release builds have no tunables, so they show no row and search

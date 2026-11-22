@@ -56,7 +56,7 @@ try {
         $script = "external_ents 1; vr_fixed_frames 1; vr_item_objects 0; vr_body_interactions 1; vr_holster_mode $holsters; vr_weapon_grip_mode 1; vr_reload_mode $reload; map e1m3; wait90; god; notarget; noclip; $setup give $letter $before; wait5; setpos -712 -1240 0; wait60; vr_test_weaponinst 0; impulse 120; wait5; edict 1; wait3; echo PICKUP_END; toggleconsole; quit"
         $output = (& 'C:/Program Files/Git/bin/bash.exe' C:/OHWorkspace/qvr-kit/run.sh $Name -Script $script -ExtraArgs '-nomapindex -noaddons' -Filter 'weaponinst:|ammo_(shells|nails|rockets|cells)|You got|PICKUP_END|ERROR|ENGINE|Unknown' -Timeout 90 2>&1 | Out-String)
         $output | Set-Content -Encoding ascii (Join-Path $PSScriptRoot "$kind-$reload-$holsters-$before.log")
-        if ($output -match 'ENGINE|ERROR|Unknown|TIMEOUT|exit=[^0]') { throw $output }
+        if ($output -cmatch 'ENGINE|ERROR|Unknown|TIMEOUT|exit=[^0]') { throw $output }
         if ($output -notmatch "$expectedHand weapon \d+ #\d+ clip\s+(\d+)") { throw "No pickup: $output" }
         $clip = [int]$Matches[1]
         $reserve = 0 # edict omits zero-valued fields

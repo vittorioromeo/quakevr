@@ -9,6 +9,7 @@
 #include "vr_gadget.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
+#include "vr_panel.hpp"
 #include "vr_protocol.hpp"
 #include "vr_setup.hpp"
 
@@ -21,6 +22,8 @@
 #include "vr_api.h"
 
 #include <string.h>
+
+extern "C" cvar_t con_notifyfade, con_notifyfadetime; // (console.c: the centre print's fade at the end of its time)
 
 using namespace qvr::protocol;
 
@@ -362,6 +365,20 @@ void viewMessageFrame()
 {
     if(!viewMessageShowing() || key_dest != key_game || cl.paused || arenacards::shown() || waveeditor::shown()) // (not over the perk cards)
     {
+        return;
+    }
+    if(vr_center_panel.value != 0.f)
+    {
+        // The flat screen's centre print style (vr_center_panel): the same panel as the game's centre prints, Quake's fade at
+        // the end of its time (con_notifyfade). (The blank-line marking's high bits off: that coloured the first paragraph.)
+        za::String plain;
+        for(const char c : viewMessage.text)
+        {
+            plain += static_cast<char>(c & 0x7f);
+        }
+        const float fade = za::max(con_notifyfade.value * con_notifyfadetime.value, 0.f);
+        const float left = static_cast<float>(viewMessage.end - cl.time);
+        panel::centerShow(plain.cStr(), fade > 0.f ? za::min(left / fade, 1.f) : 1.f);
         return;
     }
     setup::drawViewText(viewMessage.text, 0.f); // as the calibration's welcome

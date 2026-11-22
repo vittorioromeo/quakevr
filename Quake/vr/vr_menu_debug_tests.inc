@@ -1497,6 +1497,11 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive: in the open with god and notarget (vrtesthall): a sword stabbed into a grunt and held as it dies, lifted "
                   "20 units, level and with the wrist turning: the handle stays in the real hand, the body comes; the hand on the handle "
                   "is drawn as it held the sword. Prints embedgrip: N passed, M failed."),
+        command("Flat Dual Wielding: an Embedded Blade Keeps Its Hand Check", "vr_embed_test 52")
+            .help("Flat-screen play only, destructive: in the open with god and notarget (vrtesthall): an axe in one hand and a shotgun "
+                  "in the other, the axe swung into a grunt and held: the hand stays drawn on it, the gun one-handed, the ironsight "
+                  "refused; pulled out: dual wielding again; let go: the free hand on the gun, the ironsight back. Prints embeddual: N "
+                  "passed, M failed."),
         command("Reverse Grip (Blade Down) Check", "vr_embed_test 42")
             .help("Destructive: in the open with god and notarget (vrtesthall): a dagger caught blade down is held reversed, caught "
                   "blade up upright; a force grab's catch upright; the eject button flips the grip (turned over frames); holstered and "

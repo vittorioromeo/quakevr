@@ -438,9 +438,7 @@ void trackEdit()
                   : nullptr;
     }
     cvar_t* standIn = nullptr;
-    // (the tables kept: a temporary's element would be gone before the loop where the compiler lacks C++23's
-    // range-for lifetime extension, the NDK's clang 18)
-    const auto tables = standInTables();
+    const auto tables = standInTables(); // (held: a range-for over standInTables()[0] would dangle)
     for(cvar_t& v : tables[0])
     {
         standIn = standIn ? standIn : isNumber(v.default_string) && !strcmp(v.string, v.default_string) ? &v : nullptr;

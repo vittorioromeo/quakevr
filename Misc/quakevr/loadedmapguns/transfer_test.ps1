@@ -5,7 +5,7 @@ $script = 'external_ents 0; vr_fixed_frames 1; vr_item_objects 0; vr_body_intera
 $output = (& 'C:/Program Files/Git/bin/bash.exe' C:/OHWorkspace/qvr-kit/run.sh $Name -Script $script -ExtraArgs '-nomapindex -noaddons' -Filter 'weaponinst|ammo_nails|You got|TRANSFER_END|ERROR|ENGINE|Unknown' -Timeout 90 2>&1 | Out-String)
 $output | Set-Content -Encoding ascii (Join-Path $PSScriptRoot 'transfers.log')
 Write-Output $output
-if ($output -match 'ENGINE|ERROR|Unknown|TIMEOUT|exit=[^0]|weaponinst test:') { throw 'Transfer run failed' }
+if ($output -cmatch 'ENGINE|ERROR|Unknown|TIMEOUT|exit=[^0]|weaponinst test:') { throw 'Transfer run failed' }
 $clips = [regex]::Matches($output, 'weapon 6 #(\d+) clip\s+(\d+)')
 if ($clips.Count -ne 10) { throw "Expected 10 nailgun locations, got $($clips.Count)" }
 $uid = $clips[0].Groups[1].Value
