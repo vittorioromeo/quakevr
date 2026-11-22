@@ -2910,7 +2910,7 @@ QVR_CVAR(vr_arena_xray, "1", CVAR_ARCHIVE | QVR_RULE)                    // 1: a
 QVR_CVAR(vr_arena_xray_left, "2", CVAR_ARCHIVE | QVR_RULE)               // ... once this many of its foes are left (up, and still to come)
 QVR_CVAR(vr_arena_xray_distance, "800", CVAR_ARCHIVE | QVR_RULE)         // ... and only those farther than this from your eyes (units; 0: at any distance)
 QVR_CVAR(vr_arena_xray_shown, "0", CVAR_ROM)                  // (read-only: the foes the last view outlined through walls; arena test 16 reads it)
-QVR_CVAR(vr_humlook, "1", CVAR_ARCHIVE)                        // 1: armed humanoids recoloured by the weapon they spawned with (quakevr/humlook.txt; vr_humlook.cpp, ARMED_MONSTERS.md "Recolours by weapon")
+QVR_CVAR(vr_humlook, "1", CVAR_ARCHIVE | QVR_OWN)              // 1: armed humanoids recoloured by the weapon they spawned with (quakevr/humlook.txt; vr_humlook.cpp, ARMED_MONSTERS.md "Recolours by weapon"); each viewer's own (how his game draws them; mpopen: mp_rules)
 QVR_CVAR(vr_humlook_known, "0", CVAR_ROM)                    // (read-only: the entities whose recolour the client knows; vr_ad_test 219 reads it)
 QVR_CVAR(vr_humlook_file, "humlook.txt", CVAR_NONE)          // debug (vr_humlook.cpp): the recolours' table, in quakevr/ (the tests point it elsewhere)
 QVR_CVAR(vr_humlook_masks_file, "humlook_masks.txt", CVAR_NONE) // debug (vr_humlook.cpp): which texels they dye (palette rows, painted texels), in quakevr/
