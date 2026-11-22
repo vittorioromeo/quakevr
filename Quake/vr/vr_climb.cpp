@@ -4481,6 +4481,8 @@ constexpr float pinInSpeed = 2.f;   // m/s allows (a lenient grab's far hold: no
 constexpr float pinOutTime = 0.12f; // and to go back to the tracked hand after letting go
 constexpr float yawSteps = 256.f;   // the holds' ways out in the stats: a byte of yaw each
 constexpr int mantleStatBit = 1 << 30; // STAT_QVR_CLIMB: mantling now (bits 0-29 the holds')
+constexpr float ropeHoldNear = 12.f;   // units: a hold this near a drawn rope is on it (a frame's swing between them and more: ropeHold)
+constexpr float ropeHandOut = 0.025f;  // m: a hand on a rope, its palm's middle from the rope towards the climber (ropeHandOffset)
 
 // The time the drawn hand takes to ease `dist` units.
 [[nodiscard]] float easeTime(float dist)
@@ -4841,6 +4843,16 @@ bool qvr::climb::mantling()
     return (cl.stats[protocol::STAT_QVR_CLIMB] & mantleStatBit) != 0;
 }
 
+bool qvr::climb::ropeHold(const glm::vec3& hold)
+{
+    return climbrope::clientRopeDistance(hold) <= ropeHoldNear;
+}
+
+glm::vec3 qvr::climb::ropeHandOffset(const glm::vec3& out)
+{
+    return out * (ropeHandOut * units::metresToUnits());
+}
+
 float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm::vec3& pos, glm::vec3& rot,
     glm::vec3& lightShift)
 {
@@ -4859,11 +4871,11 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
         const int first = hand ? STAT_QVR_CLIMBMAINX : STAT_QVR_CLIMBOFFX;
         const float yaw = static_cast<float>((bits >> (14 + 8 * hand)) & 255) / yawSteps * glm::two_pi<float>();
         const glm::vec3 out{za::cos(yaw), za::sin(yaw), 0.f};
-        pin.offset = handOffset(out, hand);
-        const glm::vec3 hold = glm::vec3{static_cast<float>(cl.stats[first]), static_cast<float>(cl.stats[first + 1]),
-                                   static_cast<float>(cl.stats[first + 2])} /
-                                   statScale +
-                               pin.offset;
+        const glm::vec3 at = glm::vec3{static_cast<float>(cl.stats[first]), static_cast<float>(cl.stats[first + 1]),
+                                 static_cast<float>(cl.stats[first + 2])} /
+                             statScale;
+        pin.offset = ropeHold(at) ? ropeHandOffset(out) : handOffset(out, hand); // (ropes4: a rope's, on it)
+        const glm::vec3 hold = at + pin.offset;
         const int serial = (bits >> (2 + 6 * hand)) & 63;
         if(pin.weight <= 0.f)
         {
