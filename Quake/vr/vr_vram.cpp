@@ -10,6 +10,8 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -206,7 +208,7 @@ void clearErrors()
     clearErrors();
     o.label = labelOf(labelTexture, name);
     const za::SizeT n = o.label.size();
-    if(n >= 5 && strcmp(o.label.cStr() + n - 5, " view") == 0)
+    if(n >= 5 && ZA_STRCMP(o.label.cStr() + n - 5, " view") == 0)
     {
         return false; // a view of another texture's storage (envmap's faces): none of its own
     }
@@ -277,7 +279,7 @@ void clearErrors()
     za::String g;
     const char* s = o.label.cStr();
     const char* colon = strchr(s, ':');
-    const za::SizeT n = colon && (strstr(s, ".mdl") || strstr(s, ".bsp") || strstr(s, ".spr")) ? static_cast<za::SizeT>(colon - s)
+    const za::SizeT n = colon && (ZA_STRSTR(s, ".mdl") || ZA_STRSTR(s, ".bsp") || ZA_STRSTR(s, ".spr")) ? static_cast<za::SizeT>(colon - s)
                                                                                                 : o.label.size();
     for(za::SizeT i = 0; i < n; i++)
     {
@@ -327,8 +329,8 @@ constexpr Rule rules[] = {
 // Render targets: sized by the eyes' resolution (the settings'), not by what the map loads.
 [[nodiscard]] bool isTargetCategory(const char* category)
 {
-    return strstr(category, "target") || strstr(category, "swapchain") || strstr(category, "post:") || strstr(category, "shadows")
-        || strstr(category, "gates");
+    return ZA_STRSTR(category, "target") || ZA_STRSTR(category, "swapchain") || ZA_STRSTR(category, "post:") || ZA_STRSTR(category, "shadows")
+        || ZA_STRSTR(category, "gates");
 }
 
 [[nodiscard]] const char* categoryOf(const Object& o)
@@ -349,7 +351,7 @@ constexpr Rule rules[] = {
     {
         for(const char* const* w = r.words; *w; w++)
         {
-            if(strstr(lower, *w))
+            if(ZA_STRSTR(lower, *w))
             {
                 return r.category;
             }

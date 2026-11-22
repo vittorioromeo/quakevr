@@ -13,7 +13,12 @@
 #include "vr_protocol.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -27,7 +32,6 @@
 #include "vr_zancle.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 namespace qvr
 {
@@ -129,7 +133,7 @@ za::Array<bool, numSlots * numKeys> ownDefaults{};
         return false;
     }
     const cvar_t& own = cvarAt(slot, key);
-    return !strcmp(own.string, own.default_string) && !ownDefaults[slot * numKeys + static_cast<int>(key)];
+    return !ZA_STRCMP(own.string, own.default_string) && !ownDefaults[slot * numKeys + static_cast<int>(key)];
 }
 
 // Model -> slot, and the fist's slot (-2: not looked up yet), found again whenever a
@@ -167,7 +171,7 @@ void onChanged(cvar_t* var);
 // its skin (adguns::slotNames): one gun, one slot.
 [[nodiscard]] bool namesModel(const char* id, const char* name)
 {
-    return !strcmp(id, name) || adguns::slotNames(id, name); // AD support (vr_adguns.cpp)
+    return !ZA_STRCMP(id, name) || adguns::slotNames(id, name); // AD support (vr_adguns.cpp)
 }
 
 } // namespace
@@ -371,7 +375,7 @@ void convertAnchors()
 void takeToolgunMuzzle()
 {
     cvar_t& var = cvarAt(26, Key::MuzzleAnchor);
-    if(!strcmp(var.string, "15.0245 -0.6162 5.3987"))
+    if(!ZA_STRCMP(var.string, "15.0245 -0.6162 5.3987"))
     {
         Cvar_SetQuick(&var, var.default_string);
     }
@@ -432,7 +436,7 @@ void takeUninherited()
             const Key key = static_cast<Key>(k);
             cvar_t& var = cvarAt(u.slot, key);
             const char* old = oldDefaults[i * numKeys + k];
-            if(!inheritable(key) || ownBefore(u.slot, key) || !old || strcmp(var.string, old) != 0)
+            if(!inheritable(key) || ownBefore(u.slot, key) || !old || ZA_STRCMP(var.string, old) != 0)
             {
                 continue;
             }
@@ -469,7 +473,7 @@ void takeAdMeleeTips()
     for(int slot = 40; slot <= 44; slot++)
     {
         cvar_t& var = cvarAt(slot, Key::MuzzleAnchor);
-        if(!strcmp(var.string, oldAdMeleeTips[slot - 40]))
+        if(!ZA_STRCMP(var.string, oldAdMeleeTips[slot - 40]))
         {
             Cvar_SetQuick(&var, var.default_string);
         }
@@ -545,7 +549,7 @@ constexpr OldValue widowmakerMuzzleOffsetsBefore51[] = {{34, Key::MuzzleOffsetX,
 void takeWidowmakerMuzzle()
 {
     cvar_t& var = cvarAt(34, Key::MuzzleAnchor);
-    if(!strcmp(var.string, "44 0 6.8"))
+    if(!ZA_STRCMP(var.string, "44 0 6.8"))
     {
         Cvar_SetQuick(&var, var.default_string);
     }
@@ -797,7 +801,7 @@ void takeWidowmakerArt63()
     for(const Key key : {Key::WpnTextAnchor, Key::WpnButtonAnchor})
     {
         cvar_t& var = cvarAt(34, key);
-        if(!strcmp(var.string, "12 0.85 10"))
+        if(!ZA_STRCMP(var.string, "12 0.85 10"))
         {
             Cvar_SetQuick(&var, var.default_string);
         }
@@ -843,7 +847,7 @@ void takeGuardSword66()
     cvar_t& heft = cvarAt(guard, Key::Heft);
     if(static_cast<int>(inherit.value) - 1 != knight)
     {
-        if(!strcmp(heft.string, "0.3"))
+        if(!ZA_STRCMP(heft.string, "0.3"))
         {
             Cvar_SetQuick(&heft, heft.default_string);
         }
@@ -855,12 +859,12 @@ void takeGuardSword66()
         const Key key = static_cast<Key>(k);
         cvar_t& var = cvarAt(guard, key);
         const char* old = key == Key::Heft ? "0.3" : var.default_string; // (the defaults before 66)
-        if(!inheritable(key) || ownDefaults[guard * numKeys + k] || strcmp(var.string, old) != 0)
+        if(!inheritable(key) || ownDefaults[guard * numKeys + k] || ZA_STRCMP(var.string, old) != 0)
         {
             continue; // its own value: it showed that
         }
         const cvar_t& shown = cvarAt(ownerSlot(knight, key), key);
-        if(strcmp(var.string, shown.string) != 0)
+        if(ZA_STRCMP(var.string, shown.string) != 0)
         {
             Cvar_SetQuick(&var, shown.string);
             taken++;
@@ -918,7 +922,7 @@ void takeHis69()
 void takeWidowmakerCupAim70()
 {
     cvar_t& var = cvarAt(34, Key::Hotspot1CupAim);
-    if(!strcmp(var.string, "0"))
+    if(!ZA_STRCMP(var.string, "0"))
     {
         Cvar_SetQuick(&var, var.default_string);
     }
@@ -929,7 +933,7 @@ void takeWidowmakerCupAim70()
 void takeRevolverBarrel71()
 {
     cvar_t& muzzle = cvarAt(38, Key::MuzzleAnchor);
-    if(!strcmp(muzzle.string, "16.964 0 7.058"))
+    if(!ZA_STRCMP(muzzle.string, "16.964 0 7.058"))
     {
         Cvar_SetQuick(&muzzle, muzzle.default_string);
     }
@@ -1128,7 +1132,7 @@ void takeLavaSngHousing78()
         const float fb = strtof(b, &eb);
         if(ea == a || eb == b)
         {
-            return ea == a && eb == b && !strcmp(a, b);
+            return ea == a && eb == b && !ZA_STRCMP(a, b);
         }
         if(fabsf(fa - fb) >= 1e-3f)
         {
@@ -1162,7 +1166,7 @@ void takeGunVariants79()
     for(const Before79& o : before79)
     {
         cvar_t& var = cvarAt(o.slot, o.key);
-        if(strcmp(var.string, var.default_string) && sameSetting(var.string, o.value))
+        if(ZA_STRCMP(var.string, var.default_string) && sameSetting(var.string, o.value))
         {
             Cvar_SetQuick(&var, var.default_string);
             taken++;
@@ -1306,7 +1310,7 @@ int slotsUsed()
     for(int slot = 0; slot < numSlots; slot++)
     {
         const char* id = cvarAt(slot, Key::ID).string;
-        n += id[0] && strcmp(id, "-1") != 0;
+        n += id[0] && ZA_STRCMP(id, "-1") != 0;
     }
     return n;
 }
@@ -1384,7 +1388,7 @@ bool retiredTwoHandLine(const char* name, const char* value)
     }
     // vr_wofs_fx_recoil_2h_NN: the slot's own.
     constexpr const char* prefix = "vr_wofs_fx_recoil_2h_";
-    const size_t len = strlen(name), prefixLen = strlen(prefix);
+    const size_t len = ZA_STRLEN(name), prefixLen = ZA_STRLEN(prefix);
     if(len != prefixLen + 2 || q_strncasecmp(name, prefix, prefixLen) != 0)
     {
         return false;
@@ -1413,7 +1417,7 @@ bool retiredRecoilLine(const char* name, const char* value)
     }
     // vr_wofs_<name>_NN
     constexpr size_t prefix = 8; // "vr_wofs_"
-    const size_t len = strlen(name);
+    const size_t len = ZA_STRLEN(name);
     if(len < prefix + 4 || q_strncasecmp(name, "vr_wofs_fx_recoil", 17) != 0 || name[len - 3] != '_')
     {
         return false;
@@ -1421,7 +1425,7 @@ bool retiredRecoilLine(const char* name, const char* value)
     const int slot = atoi(name + len - 2) - 1;
     for(const OldRecoilName& n : oldRecoilNames)
     {
-        if(strlen(n.name) == len - prefix - 3 && !q_strncasecmp(name + prefix, n.name, len - prefix - 3))
+        if(ZA_STRLEN(n.name) == len - prefix - 3 && !q_strncasecmp(name + prefix, n.name, len - prefix - 3))
         {
             if(value && slot >= 0 && slot < numSlots)
             {
@@ -1613,7 +1617,7 @@ bool inherits(int slot, Key key)
         return false;
     }
     const char* base = gunvariants::base(cvarAt(slot, Key::ID).string);
-    return base && !strcmp(base, cvarAt(from, Key::ID).string);
+    return base && !ZA_STRCMP(base, cvarAt(from, Key::ID).string);
 }
 
 int ownerSlot(int slot, Key key)
@@ -1646,7 +1650,7 @@ bool removedKeyLine(const char* name)
         // 2026-11-05: the flatscreen ironsight is solved from the sight line (vr_flatsight.cpp).
         "flat_ads_fwd", "flat_ads_up", "flat_ads_out"};
     constexpr size_t prefix = 8; // "vr_wofs_"
-    const size_t len = strlen(name);
+    const size_t len = ZA_STRLEN(name);
     if(len < prefix + 4 || q_strncasecmp(name, "vr_wofs_", prefix) != 0 || name[len - 3] != '_' ||
        name[len - 2] < '0' || name[len - 2] > '9' || name[len - 1] < '0' || name[len - 1] > '9')
     {
@@ -1655,7 +1659,7 @@ bool removedKeyLine(const char* name)
     const size_t keyLen = len - prefix - 3;
     for(const char* key : removed)
     {
-        if(strlen(key) == keyLen && !q_strncasecmp(name + prefix, key, keyLen))
+        if(ZA_STRLEN(key) == keyLen && !q_strncasecmp(name + prefix, key, keyLen))
         {
             return true;
         }
@@ -1716,7 +1720,7 @@ void printSlot(int slot, Part part)
     for(int key = 0; key < numKeys; key++)
     {
         const cvar_t& var = cvarAt(slot, static_cast<Key>(key));
-        if(inPart(static_cast<Key>(key), part) && strcmp(var.string, var.default_string))
+        if(inPart(static_cast<Key>(key), part) && ZA_STRCMP(var.string, var.default_string))
         {
             Con_Printf("    %s \"%s\" // was \"%s\"\n", keyNames[key], var.string, var.default_string);
         }
@@ -1739,8 +1743,8 @@ int slotForPart(const qmodel_t* model)
     for(const char* prefix : {"progs/vr_mag_on_", "progs/vr_magwell_on_", "progs/vr_pump_on_", "progs/vr_pumpbody_on_",
              "progs/vr_ssg_frame_on_", "progs/vr_ssg_barrels_on_"})
     {
-        const size_t length = strlen(prefix);
-        if(!strncmp(model->name, prefix, length))
+        const size_t length = ZA_STRLEN(prefix);
+        if(!ZA_STRNCMP(model->name, prefix, length))
         {
             char gun[MAX_QPATH];
             q_snprintf(gun, sizeof(gun), "progs/%s", model->name + length);
@@ -1749,7 +1753,7 @@ int slotForPart(const qmodel_t* model)
         }
     }
     // The heavy revolver's parts (vr_view.cpp setupRevolverParts: each in its own frame, drawn on the gun): its slot.
-    if(slot < 0 && !strncmp(model->name, "progs/v_revolver_", strlen("progs/v_revolver_")))
+    if(slot < 0 && !ZA_STRNCMP(model->name, "progs/v_revolver_", ZA_STRLEN("progs/v_revolver_")))
     {
         slot = slotForName("progs/v_revolver.mdl");
     }
@@ -1814,7 +1818,7 @@ Key keyByName(const char* name)
 {
     for(int key = 0; key < numKeys; key++)
     {
-        if(!strcmp(keyNames[key], name))
+        if(!ZA_STRCMP(keyNames[key], name))
         {
             return static_cast<Key>(key);
         }
@@ -1896,7 +1900,7 @@ int inheritsFrom(int slot)
         return -1;
     }
     const int from = static_cast<int>(cvarAt(slot, Key::InheritFrom).value) - 1;
-    return from >= 0 && from < numSlots && from != slot && cvarAt(from, Key::ID).string[0] && strcmp(cvarAt(from, Key::ID).string, "-1")
+    return from >= 0 && from < numSlots && from != slot && cvarAt(from, Key::ID).string[0] && ZA_STRCMP(cvarAt(from, Key::ID).string, "-1")
                ? from
                : -1;
 }
@@ -2055,14 +2059,14 @@ ModelTransform modelTransform(const qmodel_t* model)
     const float inputs[7] = {vr_world_scale.value, vr_gunmodelscale.value, vr_gunmodely.value, vr_leg_holster_model_scale.value,
         vr_leg_holster_model_x_offset.value, vr_leg_holster_model_y_offset.value, vr_leg_holster_model_z_offset.value};
     if(const auto it = transformCache.find(model); it != transformCache.end() && it->second.generation == generation &&
-                                                   memcmp(it->second.inputs, inputs, sizeof(inputs)) == 0)
+                                                   ZA_MEMCMP(it->second.inputs, inputs, sizeof(inputs)) == 0)
     {
         return it->second.t;
     }
     const ModelTransform t = makeModelTransform(model); // (may find the slots again: the cache emptied)
     TransformMemo& memo = transformCache[model];
     memo.generation = generation;
-    memcpy(memo.inputs, inputs, sizeof(inputs));
+    ZA_MEMCPY(memo.inputs, inputs, sizeof(inputs));
     memo.t = t;
     return t;
 }

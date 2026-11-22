@@ -15,6 +15,10 @@
 #include "Zancle/String/String.hpp"
 
 #include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -106,14 +110,14 @@ char statusText[192];
 
 [[nodiscard]] bool endsWithMdl(const char* name)
 {
-    const size_t n = strlen(name);
+    const size_t n = ZA_STRLEN(name);
     return n > 4 && !q_strcasecmp(name + n - 4, ".mdl");
 }
 
 [[nodiscard]] za::I32 rd32(const unsigned char* p)
 {
     za::I32 v;
-    memcpy(&v, p, 4);
+    ZA_MEMCPY(&v, p, 4);
     return v;
 }
 
@@ -171,7 +175,7 @@ Listing list(const za::Vector<za::String>& bases, const za::Vector<za::String>& 
             }
             za::Vector<za::String> paks;
             files::forEachEntry(game.cStr(), [&](const char* name, bool isDirectory) {
-                const size_t n = strlen(name);
+                const size_t n = ZA_STRLEN(name);
                 if(!isDirectory && n > 4 && !q_strcasecmp(name + n - 4, ".pak"))
                 {
                     paks.pushBack(game + "/" + name);
@@ -186,7 +190,7 @@ Listing list(const za::Vector<za::String>& bases, const za::Vector<za::String>& 
                 }
                 unsigned char header[12];
                 za::Vector<unsigned char> dir;
-                if(fread(header, 1, 12, f) == 12 && !memcmp(header, "PACK", 4) && rd32(header + 8) > 0 &&
+                if(fread(header, 1, 12, f) == 12 && !ZA_MEMCMP(header, "PACK", 4) && rd32(header + 8) > 0 &&
                     rd32(header + 8) % 64 == 0 && rd32(header + 8) < (64 << 20))
                 {
                     dir.resize(static_cast<za::SizeT>(rd32(header + 8)));
@@ -200,9 +204,9 @@ Listing list(const za::Vector<za::String>& bases, const za::Vector<za::String>& 
                 for(za::SizeT e = 0; e + 64 <= dir.size(); e += 64)
                 {
                     char name[57];
-                    memcpy(name, dir.data() + e, 56);
+                    ZA_MEMCPY(name, dir.data() + e, 56);
                     name[56] = 0;
-                    if(!endsWithMdl(name) || strlen(name) >= sizeof(Item::name))
+                    if(!endsWithMdl(name) || ZA_STRLEN(name) >= sizeof(Item::name))
                     {
                         continue;
                     }
@@ -235,7 +239,7 @@ Listing list(const za::Vector<za::String>& bases, const za::Vector<za::String>& 
                 Item it;
                 it.container = c;
                 it.size = static_cast<za::U32>(out.containers[c].size);
-                const char* progs = strstr(path.cStr(), "/progs/");
+                const char* progs = ZA_STRSTR(path.cStr(), "/progs/");
                 q_strlcpy(it.name, progs ? progs + 1 : path.cStr(), sizeof(it.name));
                 out.items.pushBack(it);
                 out.containers[c].items++;
@@ -269,7 +273,7 @@ Result makeItem(const za::String& container, Item item)
     const unsigned char* d = bytes.data();
     const size_t n = bytes.size();
     size_t p = 84;
-    bool ok = n >= 84 && !memcmp(d, "IDPO", 4) && rd32(d + 4) == 6;
+    bool ok = n >= 84 && !ZA_MEMCMP(d, "IDPO", 4) && rd32(d + 4) == 6;
     const int numskins = ok ? rd32(d + 48) : 0, w = ok ? rd32(d + 52) : 0, h = ok ? rd32(d + 56) : 0;
     const int numverts = ok ? rd32(d + 60) : 0, numtris = ok ? rd32(d + 64) : 0, numframes = ok ? rd32(d + 68) : 0;
     ok = ok && numskins >= 0 && numskins < 256 && w > 0 && h > 0 && w <= 4096 && h <= 4096 && numverts > 0 &&
@@ -329,7 +333,7 @@ Result makeItem(const za::String& container, Item item)
             {
                 const size_t at = verts.size();
                 verts.resize(at + poseBytes);
-                memcpy(verts.data() + at, d + p, poseBytes);
+                ZA_MEMCPY(verts.data() + at, d + p, poseBytes);
                 numposes++;
             }
             p += poseBytes;
@@ -338,8 +342,8 @@ Result makeItem(const za::String& container, Item item)
     if(ok)
     {
         float scale[3], origin[3];
-        memcpy(scale, d + 8, sizeof(scale));
-        memcpy(origin, d + 20, sizeof(origin));
+        ZA_MEMCPY(scale, d + 8, sizeof(scale));
+        ZA_MEMCPY(origin, d + 20, sizeof(origin));
         r.code = ao::warmBake(item.name, numverts, numposes, verts.data(), tris.data(), numtris, scale, origin);
     }
 #ifdef _WIN32

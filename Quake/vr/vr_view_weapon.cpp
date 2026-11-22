@@ -10,6 +10,7 @@
 #include "vr_nailslide.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -179,7 +180,7 @@ namespace
         {"owned/mg3/progs/v_hammer.mdl", STAT_CELLS}, {"owned/mg3/progs/v_hammer_glow.mdl", STAT_CELLS}}; // (the Super Axe's burst)
     for(const auto& [name, stat] : ammo)
     {
-        if(model && !strcmp(model->name, name))
+        if(model && !ZA_STRCMP(model->name, name))
         {
             return cl.stats[stat];
         }
