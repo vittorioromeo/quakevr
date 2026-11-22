@@ -1088,6 +1088,7 @@ struct ClimbTest
     glm::vec3 handVel{0.f}; // the rope's velocity at the lowest hand, the last frame he rode it
     float fastest{0.f};     // its fastest level speed since the last mark
     float freeFastest{0.f}; // (ropes6) the ridden rope's free end's fastest level speed since the last mark
+    int grunts{0};          // (ropes6) his pull grunts at the last mark
 };
 ClimbTest climbTest;
 constexpr const char* climbTestName = "vr_rope_climb_test";
@@ -1208,6 +1209,7 @@ void climbCheck_f()
         t.mark = o;
         t.fastest = 0.f;
         t.freeFastest = 0.f;
+        t.grunts = climb::ropePullGrunts(player);
         Con_Printf("%s: mark at %.1f %.1f %.1f\n", climbTestName, o.x, o.y, o.z);
     }
     else if(!strcmp(what, "swing"))
@@ -1258,6 +1260,12 @@ void climbCheck_f()
         check(t.fastest <= n && t.freeFastest <= freeMost,
             va("calm: swing %.1f u/s at the hands (max %.0f), free end %.1f (max %.0f)", t.fastest, n, t.freeFastest,
                 freeMost));
+    }
+    else if(!strcmp(what, "grunts"))
+    {
+        // (ropes6) His pull grunts since the mark: n to the second number (a pull up grunts, a grab or a climb down not).
+        const int most = Q_atoi(Cmd_Argv(3)), got = climb::ropePullGrunts(player) - t.grunts;
+        check(got >= static_cast<int>(n) && got <= most, va("pull grunts since the mark: %d (%d to %d)", got, static_cast<int>(n), most));
     }
     else if(!strcmp(what, "grip"))
     {
@@ -2028,8 +2036,8 @@ void soundTestFrame()
                 va("still for a second, both quiet (rope %d, chain %d sounds; fastest %.1f and %.1f u/s)", rn - t.ropeCount,
                     cn - t.chainCount, r->speed, c->speed));
             mark();
-            qvr::climbrope::grabbed(player, t.rope, mid(r), true);
-            qvr::climbrope::grabbed(player, t.chain, mid(c), true);
+            qvr::climbrope::grabbed(player, t.rope, mid(r));
+            qvr::climbrope::grabbed(player, t.chain, mid(c));
             next(4);
         }
         else if(t.frames >= 72)
@@ -2039,23 +2047,24 @@ void soundTestFrame()
         }
         break;
     case 4:
-        check(rn == t.ropeCount && cn == t.chainCount + 1 && strstr(cLast, "grab_metal"),
-            va("a headset's grip: the rope silent (%d), the chain's metal grip (%d: %s)", rn - t.ropeCount, cn - t.chainCount, cLast));
+        check(rn == t.ropeCount + 1 && strstr(rLast, "soft_m") && cn == t.chainCount + 1 && strstr(cLast, "grab_metal"),
+            va("a grip: the rope's soft thud (%d: %s), the chain's metal grip (%d: %s)", rn - t.ropeCount, rLast,
+                cn - t.chainCount, cLast));
         mark();
         next(5);
         break;
-    case 5: // a flat-screen grip on each (after the chain's grips' gap), and at once another on the chain
+    case 5: // a grip on each again (after the grips' gap), and at once another on the chain
         if(t.frames >= 18)
         {
-            qvr::climbrope::grabbed(player, t.rope, mid(r), false);
-            qvr::climbrope::grabbed(player, t.chain, mid(c), false);
-            qvr::climbrope::grabbed(player, t.chain, mid(c), false);
+            qvr::climbrope::grabbed(player, t.rope, mid(r));
+            qvr::climbrope::grabbed(player, t.chain, mid(c));
+            qvr::climbrope::grabbed(player, t.chain, mid(c));
             next(6);
         }
         break;
     case 6:
-        check(rn == t.ropeCount + 1 && strstr(rLast, "grab_stone"),
-            va("a flat-screen grip on the rope: its slap (%d: %s)", rn - t.ropeCount, rLast));
+        check(rn == t.ropeCount + 1 && strstr(rLast, "soft_m"),
+            va("a grip on the rope again: its soft thud (%d: %s)", rn - t.ropeCount, rLast));
         check(cn == t.chainCount + 1 && strstr(cLast, "grab_metal"),
             va("on the chain: its metal grip, the second at once held back (%d: %s)", cn - t.chainCount, cLast));
         mark();
@@ -2301,14 +2310,10 @@ void serverFrame(bool worldRan)
     }
 }
 
-void grabbed(edict_t* player, int ent, const glm::vec3& at, bool vr)
+void grabbed(edict_t* player, int ent, const glm::vec3& at)
 {
     const auto it = ropes.find(ent);
-    const bool chain = it != ropes.end() && it->second.params.chain;
-    if(chain || !vr)
-    {
-        physsound::ropeGrab(player, at, ent, chain);
-    }
+    physsound::ropeGrab(player, at, ent, it != ropes.end() && it->second.params.chain);
 }
 
 void serverWriteAll(sizebuf_t* msg)
