@@ -8302,3 +8302,29 @@ All three were the tests, not the game; no player-facing change.
   goes back; they passed in the alarm round: something since, not bisected). **nav_lift_down**: the scene's reach test
   printed no verdict in 83 s of game time (its 60 s limit should end it with a FAIL: check the scenario's `cmd` lines run).
 - Checks: gadget_lock 17/0, flatfg2h 11/0, twohand_regrip 7/0; ThinLTO 0 warnings; scenario_check PASS (193 scenes) twice. Its first run crashed once (access violation in vr_visor.cpp eyeUnderwater: during a map load a console print drew the screen with r_viewleaf in the last map's freed leafs); next's visorcrash fix covers it (merged here; this branch's duplicate guard dropped).
+
+## split7c: splitscreen phase 7 part 3, sounds per seat, the effects' spawners, the visor per tile (split7c, 2026-11-22, `agent/split`)
+
+What it does: SPLITSCREEN.md section 17. Phase 7 is done; its leftovers are phase 8 (re-scoped: the listeners came
+into this part).
+
+- **Sounds per seat listener** (snd_dma.c): seats in tiles, each drawn seat's eye a listener (`CL_SeatListeners`); a
+  channel keeps the loudest of its spatializations; a seat's own player's sounds full volume; ambients the loudest
+  seat's leaf's; a sound every seat reads started once (`SEATFX_SOUND`); Steam Audio's voices off with several
+  listeners. Static sounds and underwater muffling stay seat 0's.
+- **Quake VR's effect spawners fed once per event**: `CL_SeatFxBegin`/`CL_SeatFxEnd` around a temporary entity's and a
+  Quake VR message's parse (the bytes read are the event: a later seat's identical one has its particles taken back,
+  both pools); the temporary entities' decals, impacts and haze by type and place; the blood streams and torch sparks
+  run by one seat a frame (`seat::sharedFxFirst`).
+- **The flat visor per seat in its tile** (`VR_VisorSeatPanels` in each seat's pass); flat TAA stays off in tiles.
+- **Merging next**: vr_netmove's `applying` (mpflakes) marked seat-shared for the seat_state check.
+- **Tests** (quick build): `seat_render_test.sh` 2 seats 27/0, 3 seats 34/0, 4 seats 42/0, and the new torches run (2
+  seats on e1m6) 29/0 (sound on at volume 0; screenshots `qvr-kit/scratch/split7c_{2,3,4}seats.png`, `_torches.png`:
+  each tile its own visor); `vr_seat_test` 70/0; `seat_play_test.sh` 55/0; visor 37/0, flatplay 31/0, flatxhair 31/0,
+  flathands 76/0; scenario_check 193 run, 0 failed; MP chunk on qbase.8: netsafe 14/0, coop 12/0, campaign_listen 18/0, flow 17/0, dm 27/0, adspose 12/0. Quick and ThinLTO builds 0 warnings, QC 0 warnings.
+- **Left (phase 8)**: decals and shells made by Quake VR's messages fed once (their particles are), gore's other state;
+  static sounds and underwater muffling per seat; flat TAA per tile; shadow and portal caches with several views.
+- In VR (the author): nothing changes (one seat). Flatscreen with seats (`seat_mockpad 0 1; seat_join 0` in a coop
+  game): each tile has its own visor HUD; a sound is heard from the nearer seat; gore and impacts both seats see are
+  spawned once.
+
