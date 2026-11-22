@@ -376,9 +376,9 @@ void printAvatar(int e, const Avatar& a, bool hands)
                 const float r0 = (a.moves & avatarHoldOff) ? near(origin + a.holdAt[0]) : -1.f;
                 const float r1 = (a.moves & avatarHoldMain) ? near(origin + a.holdAt[1]) : -1.f;
                 Con_Printf("mp_ropepose: ent=%d wrist0=%.1f wrist1=%.1f ankle0=%.1f ankle1=%.1f toe0=%.1f toe1=%.1f climb=%.2f "
-                           "hold0=%.1f hold1=%.1f holdrope0=%.1f holdrope1=%.1f pelvis=%.1f org=%.1f head=%.1f placed=%.1f\n",
+                           "hold0=%.1f hold1=%.1f holdrope0=%.1f holdrope1=%.1f pelvis=%.1f org=%.1f head=%.1f placed=%.1f neck=%.1f\n",
                     e, w0, w1, near(d.skeleton.ankle[0]), near(d.skeleton.ankle[1]), near(d.skeleton.toe[0]), near(d.skeleton.toe[1]),
-                    climbWeight, h0, h1, r0, r1, near(d.skeleton.pelvis), near(origin), near(d.skeleton.head), near(d.placedAt));
+                    climbWeight, h0, h1, r0, r1, near(d.skeleton.pelvis), near(origin), near(d.skeleton.head), near(d.placedAt), near(d.skeleton.headJoint));
             }
         }
         view::printPauldrons("mp_pauldron", e, d.pauldron);
@@ -478,6 +478,15 @@ void avatars_f()
             float pitch = 0.f, lying = 0.f, sliding = 0.f;
             (void)avatar::ownPitch(pitch, lying, sliding);
             Con_Printf(" pitch=%.1f lying=%.2f sliding=%.2f\n", pitch, lying, sliding);
+            // (ropepose) Climbing a rope: his own body against the rope as this client draws it, as mp_ropepose has
+            // another's copy (mp_test.py ropeclimb: the copy hangs as he does).
+            const auto near = [](const glm::vec3& p) { return climbrope::clientRopeDistance(p); };
+            if((climb::holding(HAND_MAIN) || climb::holding(HAND_OFF)) && za::min(near(k.wrist[0]), near(k.wrist[1])) < 32.f)
+            {
+                Con_Printf("mp_ropepose_own: ent=%d wrist0=%.1f wrist1=%.1f ankle0=%.1f ankle1=%.1f pelvis=%.1f head=%.1f neck=%.1f\n",
+                    cl.viewentity, near(k.wrist[0]), near(k.wrist[1]), near(k.ankle[0]), near(k.ankle[1]), near(k.pelvis),
+                    near(k.head), near(k.headJoint));
+            }
             // Flat-screen play (adspose): the eye the view and the sights are solved from, the held gun's rear sight, the
             // ironsight's travel: against the drawn head's eyes (headeye) others see.
             if(flatplay::active())

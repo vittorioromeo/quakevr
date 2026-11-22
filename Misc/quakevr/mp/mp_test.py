@@ -1250,6 +1250,7 @@ ROPE_CLIMB_AT = (200.0, -300.0, 24.0)    # mp_ropeclimb (vrropes): A's spot, fac
 ROPE_WATCH_AT = (200.0, -520.0, 24.0)    # B's, behind him, facing him
 ROPE_HANDS_NEAR, ROPE_FEET_NEAR = 10.0, 12.0  # A's drawn wrists, ankles from the rope as B has it (units), hanging still
 ROPE_SWING_SLACK = 6.0                   # swinging: a frame's step more (B draws the rope's latest points, A lerped)
+ROPE_PELVIS_MATCH = 4.0                  # hanging still: B's copy's pelvis off the rope within this of A's own (ropepose)
 
 
 def ropeclimb(s):
@@ -1299,27 +1300,52 @@ def ropeclimb(s):
         # (a hand that doesn't hold is -1: a flat player's weapon hand keeps its weapon, off the rope)
         return [p[k][0] for k in ("wrist0", "wrist1") if p[k][0] >= 0.0]
 
-    lines, n = reports_until(s, [b], lambda ls: (pose(ls) or {}).get("climb", [0.0])[0] >= 0.9, "B's copy of A climbing the rope")
+    def own(lines):
+        # (ropepose) A's own body on the rope as A draws it: what B's copy should hang like
+        return by_ent(lines[1], "mp_ropepose_own").get(ea)
+
+    lines, n = reports_until(s, [b, a], lambda ls: (pose(ls) or {}).get("climb", [0.0])[0] >= 0.9, "B's copy of A climbing the rope")
     p = pose(lines)
     s.note("B: " + " ".join("%s=%.1f" % (k, v[0]) for k, v in sorted(p.items()) if k != "ent"))
+    o = own(lines)
+    if o:
+        s.note("A's own: " + " ".join("%s=%.1f" % (k, v[0]) for k, v in sorted(o.items()) if k != "ent"))
+    # (ropepose) B's copy hangs as A does: its pelvis as far off the rope as A's own (were 6 units further: 20 against 14)
+    s.check("B's copy of A hangs as A's own body does: the pelvis %.1f from the rope, A's own %.1f (within %g)"
+            % (p["pelvis"][0], o["pelvis"][0] if o else -1.0, ROPE_PELVIS_MATCH),
+            o is not None and abs(p["pelvis"][0] - o["pelvis"][0]) <= ROPE_PELVIS_MATCH)
     hands, feet = max(held_wrists(p) or [99.0]), max(p["ankle0"][0], p["ankle1"][0])
     s.check("B's copy of A on the rope: climbing %.2f, the wrists %.1f from it at most (%.0f), the ankles %.1f (%.0f)"
             % (p["climb"][0], hands, ROPE_HANDS_NEAR, feet, ROPE_FEET_NEAR), hands <= ROPE_HANDS_NEAR and feet <= ROPE_FEET_NEAR,
             "after %d reports" % n)
+    # (ropepose) MP_ROPECLIMB_SHOTS=1: B floats beside A (noclip, 64 units off his side, at his hips) and screenshots his
+    # copy hanging, then at the swing's end (not in the suite: the default run is unchanged).
+    shots = os.environ.get("MP_ROPECLIMB_SHOTS") == "1" and still
+    if shots:
+        b.cmd("setpos %.1f %.1f %.1f 0 180 0" % (still[0] + 64.0, still[1], still[2] - 8.0))
+        reports(s, [b])
+        s.note("screenshot (B beside A hanging): %s" % b.screenshot("ropepose_hang"))
     # The swing: A pumps it, looking level (the flat rope's keys: forward pushes the swing his way).
     a.cmd("centerview; +forward")
-    xs, worst = [], [0.0, 0.0]
+    xs, worst, pelvis = [], [0.0, 0.0], [0.0, 0.0]
     for _ in range(30):
         at = a_at()
         if at:
             xs.append(at[1])
-        q = pose(reports(s, [b]))
+        ls = reports(s, [b, a])
+        q, qo = pose(ls), own(ls)
         if q:
             worst[0] = max([worst[0]] + held_wrists(q))
             worst[1] = max(worst[1], q["ankle0"][0], q["ankle1"][0])
+            pelvis[0] = max(pelvis[0], q["pelvis"][0])
+        if qo:
+            pelvis[1] = max(pelvis[1], qo["pelvis"][0])
         if xs and max(xs) - min(xs) > 48:
             break
+    if shots:
+        s.note("screenshot (B beside A swinging): %s" % b.screenshot("ropepose_swing"))
     a.cmd("-forward")
+    s.note("swinging: B's copy's pelvis %.1f from the rope at most, A's own %.1f" % (pelvis[0], pelvis[1]))
     swing = max(xs) - min(xs) if xs else 0.0
     s.check("A pumps the rope: the server swings him %.0f units (over 24); B's copy stays on it swinging: the wrists %.1f "
             "(%.0f), the ankles %.1f (%.0f)" % (swing, worst[0], ROPE_HANDS_NEAR + ROPE_SWING_SLACK, worst[1],

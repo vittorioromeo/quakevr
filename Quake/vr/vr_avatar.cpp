@@ -472,9 +472,17 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         glm::vec3 rayDir;
         flatplay::crosshairRay(s, s.headAngles, eyeAt, rayDir);
     }
+    // (ropepose) Hanging on a rope (crouchPose: not the reference poses), the neck under the eye as his own view poses it
+    // (the level look's, as localFlat's above), not turned with the look and its eye shift: another flat player's copy hung
+    // ~4 units further off the rope than he does (looking up at it), his trunk and legs with it.
+    const float onRope = crouchPose ? detail::ropeHang() : 0.f;
     if(seen > 0.f || flatOther)
     {
-        standingTop = eyeAt - (hf * vr_body_eye_forward.value + hu * vr_body_eye_up.value) * b.m2w; // (the head turns with the look)
+        const glm::vec3 lookTop = eyeAt - (hf * vr_body_eye_forward.value + hu * vr_body_eye_up.value) * b.m2w; // (the head turns with the look)
+        glm::vec3 lf, lr, lu;
+        hands::angleVectors({0.f, s.headAngles.y, 0.f}, lf, lr, lu);
+        const glm::vec3 levelTop = s.head - (lf * vr_body_eye_forward.value + lu * vr_body_eye_up.value) * b.m2w;
+        standingTop = glm::mix(lookTop, levelTop, onRope);
     }
     const SeenAds ads = crouchPose ? seenAds(s, eyeAt, hf, hu) : SeenAds{};
     if(ads.w > 0.f)
@@ -538,7 +546,9 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
 
     // The crouched pose's share, from the crouch under the standing neck (the neck's own crouched offset then lowers it
     // a little more, which the pose below follows).
-    b.crouchPose = crouchPose ? crouchPoseWeight(depthUnder(standingTop)) * (1.f - lying) : 0.f;
+    // (ropepose: hanging on a rope, no crouch -- no floor under him: another's copy, his head lower than his standing
+    // height, took a fifth of it, the trunk further back off the rope)
+    b.crouchPose = crouchPose ? crouchPoseWeight(depthUnder(standingTop)) * (1.f - lying) * (1.f - onRope) : 0.f;
     const float w = b.crouchPose;
     glm::vec3 top = standingTop - (nf * vr_body_crouch_eye_forward.value + nu * vr_body_crouch_eye_up.value) * (w * b.m2w);
     // Flatscreen play: the crouch takes his shoulders further down off the eye than his head goes (world units, as the mode's own).
