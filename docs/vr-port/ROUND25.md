@@ -8242,6 +8242,9 @@ ROPES.md "Multiplayer", "Tests", "Known limits".
 - Tests: `vr_np_test 7` (nphaste, Debug > Tests > Nail Pistol): 12/0 (nailgun 15 -> 24 shots in 1.5 s, lightning 16 ->
   25, shotgun 3 -> 5; nail pistol 1 -> 12, revolver 1 -> 6, flare gun 1 -> 2). `vr_rv_test 1` 49/0 (step 12 now a 7 m/s
   swing rolling the wrist: refused, arm share 0.78; then a still-hand wrist flick: out, share 0.18; step 13 pushes the
-  shells out with the other hand holding). Its tests need `developer 1` (dprint). Scenario `haste_guns`.
+  shells out with the other hand holding). Its tests need `developer 1` (dprint). Scenario `haste_guns`. nptest 39/0,
+  flaretest 22/0. His replays played in the game (`vr_motion_play <notes>/<take>_replay.csv`, `vr_reload_debug 1`):
+  vrfiringrange_16-11-57 5 flicks open (arm share 0.06-0.43), 7 swings refused (0.50-0.73); e1m1_2026-11-21_01-03-41
+  7 open (0.06-0.26), 7 refused (0.54-0.80). (The replays live in his notes folder, not the repo: no committed test.)
 - Note: `VR_RVT_Flicks` sets `vr_revolver_flick_hand_weight` / `_cap` with `cvar_set`, but they are tunables
   ("Cvar_Set: variable not found"): its force check runs at the defaults (150, 1), which it expects anyway.
