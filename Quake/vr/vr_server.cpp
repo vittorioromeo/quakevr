@@ -2612,14 +2612,23 @@ extern "C" void VR_ServerFrameEnd(int worldRan)
     QVR_TRACY_CALL("sv end: weapon insts", sweepWeaponInsts()); // the weapons' records nothing has any more: freed, their ids gone
     QVR_TRACY_CALL("sv end: tips", tips::serverFrame()); // the map tips whose entity is gone (before its slot is reused)
 
-    QVR_TRACY_CALL("sv end: leg sweep", qvr::legsweep::serverFrame()); // a staff swept through a humanoid's legs knocks it down (its poses not yet kept)
-    QVR_TRACY_CALL("sv end: foe grab", qvr::foegrab::serverFrame()); // held enemies slowed and dragged (before their poses are kept)
-    QVR_TRACY_CALL("sv end: body contact", qvr::bodycontact::serverFrame()); // a player and a monster overlapping (a hold let go of) pushed apart
+    // Paused (!worldRan: single player's menu or console, `pause`, the ragdoll tool's or Rig Studio's hold) the world
+    // stands: the hands still move (a headset's), but sweep, drag and push nothing (ropes5b).
+    const bool ran = worldRan != 0;
+    QVR_TRACY_CALL("sv end: leg sweep", qvr::legsweep::serverFrame(ran)); // a staff swept through a humanoid's legs knocks it down (its poses not yet kept)
+    if(ran)
+    {
+        QVR_TRACY_CALL("sv end: foe grab", qvr::foegrab::serverFrame()); // held enemies slowed and dragged (before their poses are kept)
+    }
+    QVR_TRACY_CALL("sv end: body contact", qvr::bodycontact::serverFrame(ran)); // a player and a monster overlapping (a hold let go of) pushed apart
     QVR_TRACY_CALL("sv end: hit model poses", qvr::hitmodel::serverFrame()); // precise hits: the client's lerp of the monsters' poses and steps, kept
     QVR_TRACY_CALL("sv end: lag compensation", qvr::lagcomp::serverFrame()); // the players' and monsters' places and poses kept (a remote client's shots)
     qvr::disarmviz::serverFrame(); // Show Disarm Volumes: the fists measured against the armed humanoids' weapons (off: nothing)
-    QVR_TRACY_CALL("sv end: axe stick", qvr::axestick::serverFrame()); // thrown axes stuck in things go with them (after the poses above)
-    QVR_TRACY_CALL("sv end: foe grab spots", qvr::foegrab::afterPoses()); // the held spots placed (after the poses above); a hand pulled too far lets go
+    QVR_TRACY_CALL("sv end: axe stick", qvr::axestick::serverFrame(ran)); // thrown axes stuck in things go with them (after the poses above)
+    if(ran)
+    {
+        QVR_TRACY_CALL("sv end: foe grab spots", qvr::foegrab::afterPoses()); // the held spots placed (after the poses above); a hand pulled too far lets go
+    }
     QVR_TRACY_CALL("sv end: explosion debris", qvr::explosiondebris::serverFrame()); // the explosions' chunks: new ones launched, the ended gone, the fades
     QVR_TRACY_CALL("sv end: limb models", qvr::limbmodel::spawnFrame()); // a kind of monster first spawned now: its limbs made ahead of its first cut
     progs::loadNoticeFrame(); // a loaded save's warning (another build's), once the player is in

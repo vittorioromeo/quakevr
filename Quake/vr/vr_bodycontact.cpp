@@ -765,7 +765,7 @@ void qvr::bodycontact::init()
     Cmd_AddCommand("vr_enemy_melee_arc_status", meleeArcStatus_f);
 }
 
-void qvr::bodycontact::serverFrame()
+void qvr::bodycontact::serverFrame(bool worldRan)
 {
     if(!sv.active || qcvm != &sv.qcvm)
     {
@@ -775,7 +775,7 @@ void qvr::bodycontact::serverFrame()
     }
     meleeArcGather();
     aimConeGather();
-    const float dt = static_cast<float>(za::clamp(host_frametime, 0.0, 0.1));
+    const float dt = worldRan ? static_cast<float>(za::clamp(host_frametime, 0.0, 0.1)) : 0.f; // (paused: none pushed)
     if(dt <= 0.f)
     {
         return;
