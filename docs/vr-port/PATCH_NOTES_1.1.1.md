@@ -185,6 +185,14 @@ aren't Map Library packages aren't sent to joining players.
   one-handed, the right mouse button fires the left hand's weapon and the ironsight stays down, as when dual wielding.
   Before, the hand let go of the blade to hold the gun in both hands, and the ironsight came up. In the headset too, a
   hand holding a stuck blade no longer takes the other gun's two-handed grip.
+- **Being disarmed by enemies is predictable now (still off by default).** With Armed Grunts > "You Can Be
+  Disarmed" on, enemies' hits jolt the weapon you hold instead of rolling dice: two jolts on one hand within three
+  seconds knock it out, and the first one warns you (your hand is knocked aside, buzzes and rattles, "Your grip on
+  your weapon loosens!"). A blade, axe or chainsaw landing on your weapon jolts it (a heavy blow knocks it out at
+  once), an armed enemy's punch and any heavy blow on your body jolt it, a grunt's full blast or an enforcer's laser
+  on your gun too. A knight's sword can disarm you now; parried blows, bites and light claws never do. The jolts,
+  how long they last and what counts as heavy are new settings beside it. Other players' hits in multiplayer are
+  unchanged.
 
 ## Movement
 
@@ -192,7 +200,11 @@ aren't Map Library packages aren't sent to joining players.
   thickness, pieces, mass, stiffness and damping as keys, and a pinned bottom) and can be spawned with the toolgun
   (Spawn > Props > Ropes, with a Rope Settings page). They swing and settle, lie on the floor where they are longer
   than the drop, and are pushed by your hands, players, monsters, props, explosions and shots; every player sees the
-  same rope. Climbing them comes next. Try them in the new test map `vrropes`.
+  same rope. In VR you can climb them: grip one with either hand and go hand over hand up or down; your weight swings
+  it, your legs wrap round it, and letting go or jumping off mid-swing keeps its speed. The toolgun's Remove and
+  physgun aim at them, and Clear Props removes the ones you made. On the desktop screen, walk or jump into one to
+  grab it: look up or down and hold forward to climb, look ahead and use the move keys to swing it, and jump off at the
+  top of a swing to catch the next rope. Try them in the new test map `vrropes`.
 - **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down
   flies up or down; strafing stays level and jump and crouch still go straight up and down. Flat and in the headset
   (there, what steers your walking steers the flight: the head, or the moving hand with hand-relative movement).
@@ -203,7 +215,8 @@ aren't Map Library packages aren't sent to joining players.
   as close to walls, bars and pillars as your width lets you. Settings > Movement > Player Hitbox > Close Gaps Quake's
   Box Never Fit (`vr_hull_holes`, on; takes effect at the next map load). The blockers now also close gaps between
   slanted bars, turned grates and round holes, between two brush models (two func_walls, a door and a lift), and
-  between bars at two heights you'd fall through, always only where Quake's own box can't reach. The limits are
+  between bars at two heights you'd fall through, and holes exactly as wide as Quake's box (a drain grating in
+  Quoth's start that it only stood over), always only where Quake's own box can't reach. The limits are
   settings beside it (Narrower Than: 32, Wider Than: 8, and more), with Rebuild Gap Blockers Now to apply them without
   leaving the map; if you still get through a gap you shouldn't, Debug > Mark a Gap I Got Through writes down where and
   why (`quakevr/hull_holes_marks.txt`) so it can be fixed.

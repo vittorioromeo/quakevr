@@ -741,6 +741,15 @@ bool waterClimbTry(Body& b, const Input& in, const Rules& r)
     return waterClimbHand(b, in, r, 1) || waterClimbHand(b, in, r, 0);
 }
 
+float grappleReel(float& len, float full, float age, float dist, float shortest, float dt)
+{
+    const float speed = full * za::min(1.f, 0.2f + 0.8f * age / grappleRamp);
+    float wound = za::min(len, dist) - speed * dt;
+    wound = za::max(wound, dist - grappleStall);
+    len = za::max(za::min(len, za::max(shortest, wound)), 0.f);
+    return za::min(speed, sqrtf(2.f * grappleBrake * za::max(0.f, dist - shortest)));
+}
+
 void grappleStep(Body& b, Grapple& g, bool reeling, float dt)
 {
     vec3_t toA;
@@ -749,14 +758,9 @@ void grappleStep(Body& b, Grapple& g, bool reeling, float dt)
     float speed = 0.f;
     if(reeling)
     {
-        // VR_Grapple_ReelSpeed and VR_Grapple_Wind (QC's d: the whole rope's way, round the corner).
+        // The reel's one rule (QC's d: the whole rope's way, round the corner).
         g.reelAge = g.reelAge < 0.f ? 0.f : g.reelAge;
-        speed = g.speed * za::min(1.f, 0.2f + 0.8f * g.reelAge / grappleRamp);
-        const float dist = d + g.beyond;
-        float len = za::min(g.len, dist) - speed * dt;
-        len = za::max(len, dist - grappleStall);
-        g.len = za::max(za::min(g.len, za::max(g.shortest, len)), 0.f);
-        speed = za::min(speed, sqrtf(2.f * grappleBrake * za::max(0.f, dist - g.shortest)));
+        speed = grappleReel(g.len, g.speed, g.reelAge, d + g.beyond, g.shortest, dt);
         g.reelAge += dt;
     }
     else

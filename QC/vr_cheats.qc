@@ -123,6 +123,10 @@ float VR_SCENE_LOADED = 1.5;
 // monster, a player, a missile in flight, a mover, nor anything without a model: the triggers' helpers).
 float(entity e) VR_Scene_IsRuntimeProp =
 {
+    if((e.classname == "vr_rope" || e.classname == "vr_chain") && e.vr_born > VR_SCENE_LOADED)
+    {
+        return TRUE; // (a climbable rope the toolgun made: no model, drawn by the engine; vr_ropes.qc)
+    }
     if(e.vr_born <= VR_SCENE_LOADED || !e.model)
     {
         return FALSE;

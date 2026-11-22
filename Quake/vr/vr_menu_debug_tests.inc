@@ -712,9 +712,15 @@ za::Vector<Item> pageDebugTests()
             .help("vr_selfshot_test 2: both hands fire a blast, a nail and a bolt's line from nine ordinary poses (dual, "
                   "arms crossed, cupped, pointing down, kicked up, from the hip, turned): none may hit you."),
         command("Player Disarm: Shots on Your Gun", "developer 1; vr_pd_test 1")
-            .help("vr_pd_test 1 (God mode off): the shotgun in your main hand, a grunt's blast across it knocks it out "
-                  "(chance forced certain): it drops to the floor with its clip; a blast across your body, an enforcer's "
-                  "laser across the gun (knocked out), the option off (never). In a headset, hold your gun out ahead."),
+            .help("vr_pd_test 1 (God mode off): the shotgun in your main hand, a grunt's full blast across it (two jolts) "
+                  "knocks it out: it drops to the floor with its clip; a blast across your body (nothing), an enforcer's "
+                  "laser across the gun (the warning), a second (knocked out), the option off (never). In a headset, "
+                  "hold your gun out ahead."),
+        command("Player Disarm: The Rules, Blow by Blow", "developer 1; vr_pd_test 3")
+            .help("vr_pd_test 3 (God mode off): the shotgun in your main hand, enemies' blows handed over as landed: "
+                  "a blade on your weapon warns (your hand knocked aside, a buzz, a rattle), a second knocks it out, a "
+                  "heavy one at once; an armed enemy's fist on your body warns; a bite or a blade on your body does "
+                  "nothing; a heavy claw warns; the option off: nothing."),
         command("Deathmatch Rules: Weapons and Bots", "developer 1; vr_dm_test 1")
             .help("vr_dm_test 1, in a deathmatch with a bot (impulse 100): a weapon pickup the bot touches is gone and back "
                   "after its wait (deathmatch 1) or stays (deathmatch 2), the bot's let-go weapon removed; your shot "
@@ -1572,9 +1578,16 @@ za::Vector<Item> pageDebugTests()
         header("Climbable Ropes"),
         command("Print the Climbable Ropes", "vr_rope_info")
             .help("vr_rope_info: each climbable rope and chain (a map's, the toolgun's): its settings, its top and bottom, how fast it moves."),
+        command("Hang a Rope Ahead", "vr_rope_spawn 0")
+            .help("vr_rope_spawn: a rope hung from the ceiling 96 units ahead (the toolgun's Rope Settings), to climb: grip it with either hand, "
+                  "hand over hand up or down; let go or jump off mid-swing to keep its speed."),
+        command("Hang a Chain Ahead", "vr_rope_spawn 1").help("vr_rope_spawn 1: the same, a chain (drawn as links, climbed the same)."),
         command("Test the Climbable Ropes", "vr_rope_test")
             .help("vr_rope_test: a rope and a chain made 128 units ahead, settled, thrown by an explosion, shot, pushed by a crate and a dog; "
                   "the client's copy compared (best in vrropes: its own ropes counted too). Prints PASS/FAIL lines."),
+        command("Test the Flat-Screen Rope Climb", "vr_climb_stamina 0; vr_rope_flat_test")
+            .help("vr_rope_flat_test (flat-screen play, map vrropes; climbing stamina turned off): a rope walked into, climbed up and down, "
+                  "then rope to rope on the swinging row (pumped, let go at the peak, the next caught). Prints PASS/FAIL lines."),
         header("Stamina"),
         info([]() -> const char* { return staminaReadout(); }),
         command("Deplete Stamina", "vr_stamina_set 0").help("vr_stamina_set 0: no stamina left (tired arms: heavy hands; shaking while you hang). Hanging with none, your hands let go."),

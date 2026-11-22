@@ -1395,19 +1395,31 @@ QVR_SLIDER(vr_agrunt_shotdisarm_proj_near, "Projectile: Near Miss", 0.f, 12.f, 0
 QVR_SLIDER(vr_agrunt_shotdisarm_proj_max, "Projectile: Most Chance", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
     "One projectile's chance at most: a rocket's direct hit (vr_agrunt_shotdisarm_proj_max).")
 QVR_TOGGLE(vr_player_disarm, "You Can Be Disarmed",
-    "PvE: enemies' shots and blows on the weapon you hold, or the hand holding it, can knock it out of your hand by "
-    "the same rules as yours on an armed grunt's: shots add up and roll, a projectile rolls once, a blow landing on "
-    "your weapon (not a parry) knocks it out. It drops where you can pick it up again, its ammo kept. Fists and empty "
-    "hands never. Off by default: still being tuned (vr_player_disarm).")
+    "PvE: enemies' hits jolt the weapon you hold; two jolts on one hand within 3 seconds knock it out (the first "
+    "warns: your hand is knocked aside, buzzes and rattles). A jolt: a blade, axe or chainsaw landing on your weapon "
+    "(a heavy one: two), an armed enemy's fist or any heavy blow on your body, a grunt's blast or a laser on your gun. "
+    "Parried blows never. It drops where you can pick it up again, its ammo kept. Your own fists never. Off by "
+    "default (vr_player_disarm).")
 QVR_TOGGLE(vr_player_disarm_pvp, "You Can Be Disarmed by Players",
-    "PvP, multiplayer: other players' (and bots') shots and blows on your weapon knock it out by the same rules, and "
-    "their grab (below) can take it (vr_player_disarm_pvp).")
+    "PvP, multiplayer: other players' (and bots') shots and blows on your weapon knock it out by the armed grunts' "
+    "rules (they add up and roll), and their grab (below) can take it (vr_player_disarm_pvp).")
 QVR_SLIDER(vr_player_disarm_sound, "Your Disarm Sound", 0.f, 1.f, 0.05f, "%.2f", ext(),
     "Your weapon knocked out of your hand: the volume of its clang (at the weapon, for everyone near) and of the short "
     "alert only you hear (0: silent) (vr_player_disarm_sound).")
 QVR_SLIDER(vr_player_disarm_chance, "Your Disarm Chance", 0.f, 2.f, 0.05f, "%.2fx", ext(0.f, 10.f),
-    "Times the armed grunts' chance when it is your weapon that is hit (1: the same exact rules; at most certain; "
-    "0: never) (vr_player_disarm_chance).")
+    "Enemies: the knock-out's chance once the jolts are reached (1: certain). Players: times the armed grunts' "
+    "chance (at most certain). 0: never (vr_player_disarm_chance).")
+QVR_SLIDER(vr_player_disarm_jolts, "Your Disarm: Jolts", 1.f, 5.f, 1.f, "%.0f", ext(1.f, 20.f),
+    "Enemies: jolts on one hand that knock its weapon out; each one short warns (1: the first jolt does) "
+    "(vr_player_disarm_jolts).")
+QVR_SLIDER(vr_player_disarm_window, "Your Disarm: Jolt Kept", 0.5f, 10.f, 0.5f, "%.1f s", ext(0.f, 60.f),
+    "Enemies: how long a jolt is kept, from the last one; then your grip recovers (vr_player_disarm_window).")
+QVR_SLIDER(vr_player_disarm_heavy, "Your Disarm: Heavy Blow", 5.f, 50.f, 1.f, "%.0f damage", ext(1.f, 500.f),
+    "Enemies: a blow of this much damage is heavy: on your weapon two jolts, on your body one (a lighter body blow "
+    "jolts only if it is an armed enemy's fist) (vr_player_disarm_heavy).")
+QVR_SLIDER(vr_player_disarm_shot, "Your Disarm: Shot Damage", 2.f, 50.f, 1.f, "%.0f damage", ext(0.5f, 500.f),
+    "Enemies: the damage of shots and projectiles on your weapon or its hand, adding up over half a second, for "
+    "each jolt (a full grunt's blast: two; a laser: one) (vr_player_disarm_shot).")
 QVR_TOGGLE(vr_player_disarm_grab, "Players: Grab and Pull Disarms",
     "Multiplayer, with You Can Be Disarmed by Players: an empty hand closed on another player's weapon where it is drawn (no "
     "faster than Grab: Fastest Hand) and pulled away from him hard enough takes it into your hand. No tug "
@@ -6795,6 +6807,10 @@ QVR_TOGGLE(vr_flat_ladder, "Ladders",
     "Playing on the desktop screen (-flatscreenmode): walk forward into a ladder of rungs or stacked ledges to take "
     "hold of it, as a headset's hands do. Forward climbs it hand over hand (looking down, or back: down), jump pushes "
     "off, and at the top you climb over (needs Climbing on; tuning: Debug > Tunables; vr_flat_ladder).")
+QVR_TOGGLE(vr_flat_rope, "Ropes",
+    "Playing on the desktop screen (-flatscreenmode): walk or jump into a climbable rope or chain to take hold of it. "
+    "Forward looking up climbs it hand over hand, looking down climbs down; looking ahead, the move keys swing it "
+    "(rope to rope), and jump lets go, keeping the swing (needs Climbing and Climbable Ropes on; vr_flat_rope).")
 QVR_SLIDER(vr_flat_mantle_time, "Mantle Window", 0.f, 3.f, 0.05f, "%.2f s", noExt,
     "Playing on the desktop screen: how long after the jump leaves the ground a ledge may still be mantled, the jump "
     "key held all along (vr_flat_mantle_time).")

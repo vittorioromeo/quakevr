@@ -167,7 +167,8 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
   whether a shot or blow knocks your gun out; some enemy melee never disarms; enemies punching (fists) never disarm you.
   Needs tuning and fixes (QC/vr_playerdisarm.qc: which blows count, the rolls, feedback before the drop). Once polished,
   on by default in PvE. Multiplayer: two settings, PvE and PvP; PvP on by default (the MP branch does it), PvE off
-  until this is done.
+  until this is done. 2026-11-22 (disarmfix, ROUND25): PvE now by jolts (no dice, a warning before the drop, fists and
+  heavy blows count); left: his try in VR, then his OK to turn `vr_player_disarm` on.
 
 ## 7. Combat and feel
 
@@ -211,10 +212,10 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
    line for line; a flat-screen player, `vr_pmove_own 0` and remote flat clients still walk the sv_phys.c copy. Route
    them through `pmove::playerMove` with an EdictBody and drop the QVR-modified SV_WalkMove/SV_AirMove paths (or at
    least a qvr_checks rule tying each copy to its original), proven by the B11b frame-identical traces.
-4. One grapple reel (mpreview D7): QC's `VR_Grapple_ReelSpeed` / `VR_Grapple_Wind` (monsters, props) and
+4. Done (onecopy, 2026-11-22: `pmove::grappleReel`, QC's builtin `grapplereel`). One grapple reel (mpreview D7): QC's `VR_Grapple_ReelSpeed` / `VR_Grapple_Wind` (monsters, props) and
    vr_pmove.cpp's grappleStep (players) are two copies of one rule: QC's paths call the engine's (a builtin), or both
    read one shared formula.
-5. Multiplayer leftovers of the agent/mp review (MP_PLAN.md, "Review fixes"): B6 the room-scale budget only on the
+5. Done (onecopy, 2026-11-22: ROUND25 "onecopy"). Multiplayer leftovers of the agent/mp review (MP_PLAN.md, "Review fixes"): B6 the room-scale budget only on the
    server (send `walkLeft` in QVR_SVC_PREDICT and run moveguard's budget on a copy in the replay; today a burst past
    2 m costs a correction, a cheater's case); B7 the snapshot encode's per-client work (keep the first pass's encoded
    bytes for the write pass; the cosmetic flag once per entity per frame, not per client).

@@ -7592,6 +7592,62 @@ grunt's head intercepted by the backpack; wants packs paintable alone, a lineup 
   (5 masks, 0 on flesh). Dev build 0 warnings.
 - Not seen in a screenshot (the mock view's ray met no one): the yellow cursor and the skin view; check in flat and VR.
 
+## Ropes (phase 2 of 3: climbing them in VR) (agent/ropes2, 2026-11-22)
+
+Reference `ROPES.md` ("Climbing (VR)"). A grip at a rope takes it with either hand (`vr_climb.cpp` "Holds on ropes":
+ropeHold before the ledges, the hold kept as the rope and its place on it, followed each frame); the ledges' hang does
+the rest (hand over hand up and down, stamina, reach), no mantle. The climber rides the rope (`vr_climbrope.cpp`
+Rider): his weight a bob swinging round its top 24 units under his highest hand, the rope laid straight through his
+hands, the free rest below; the holds' motion carries the body as a mover's do; a body blocked stops the swing; a jump
+onto it swings it. Letting go keeps the rope's speed at the hands; a jump press lets go and adds `vr_rope_jump` (200)
+up. The feet wrap round the rope under the hands (`vr_avatar_climb.cpp` ropeFoot). New rules `vr_rope_climb` 1,
+`vr_rope_swing_drag` 0.15, `vr_rope_jump` 200. P1's gap closed: the toolgun's aim meets ropes (`climbrope::pick`:
+Remove, physgun), Clear Props removes the ones made after the map loaded (QC VR_Scene_IsRuntimeProp). Debug > Tests >
+Climbable Ropes: Hang a Rope / a Chain Ahead.
+- **Tests:** `rope_climb_test.sh` (mock-hand plays, `vr_rope_climb_test`): rope_climb 8 passed (up 37.8, down 18.9,
+  swung 41, let go at 125 of the rope's 125 units/s), rope_jump 6 passed (180 up over the rope's 14, 127 level of 129).
+  `vr_rope_test` 16 passed (adds the aim and Clear Props). The feet (vr_debug_climb_feet 2): both ankles within 3 units
+  of the rope while hanging.
+- **Decisions (conservative, his to change):** one bob, not his weight spread over the pieces; one rider a rope (a
+  second climber follows its points); a pinned rope doesn't swing; a hand on a ledge too: no ride; remote clients'
+  rope hangs run in the server's frame like a prop's holds (no move-by-move prediction); the hands drawn as on a ledge.
+- **P3 begun: pumping the swing** (VR and flat: the move's forwardmove/sidemove on the view's yaw): `vr_rope_pump` 300
+  units/s/s, pushed only while the swing goes that way, to `vr_rope_swing_cap` 350 at the hands (`rope_pump` play).
+- **Left (P3):** the flat auto-climb (as the flat ladders, hands alternating), the rope-to-rope swing test, the
+  climber's pose checked in MP (the feet use the client's rope copy and the synced holds, so another's should wrap too:
+  unverified).
+## backlog1122: small backlog fixes (branch agent/backlog1122, 2026-11-22)
+
+- **Checklist:** 8 lines ticked in his checklist_ticks.txt with no voice note since (none after 2026-11-21 00:47) retired:
+  the reorganized-checklist line, noclip flight, shove without blood, Quoth's e1m1quoth, and the four armed-grunt
+  batching/LOD/strike-check/Box3D lines. Kept though ticked (as checklist2): Sliding and the Dwell start/d1m1 line (their
+  voice notes). Their scenes (noclip_fly, shove_no_blood, agrunts_fight) stay. checklist_tests_check: 8 lines from later
+  ships are untagged (not this branch's).
+- **His hull-hole mark (Quoth's start, -0.2 2273.8 -392):** the "ground decoration" is a frame of 8-wide bars round a
+  32 x 32 hole over a 16-high pit. The map is Quoth's `start` (his console history: Quoth maps just before; id1's,
+  Dwell's and Hey's start don't match; the kit's base lacked Quoth: a junction to the dagger base's copy). At the
+  default limit (32) the line test took only gaps under it, so exactly 32 was never closed, though Quake's box only
+  bridges it (hull 1 solid, the clip brush recovery doesn't fill it there); at his 46 the hole's blocker was merged with
+  a neighbour Quake's box reaches and dropped whole (the top half survived through another pair). Rule now: a model's
+  own gaps count up to the limit itself (hull 1's check decides, as before; brush-model pairs, the line test alone,
+  stay under 32), and a dropped merged box is split back into its pieces, each checked, the kept ones merged again
+  (`splitDropped`; HULLS.md "backlog1122"). buildVersion 5.
+  Test: vrbrushholes gained the drain (Quoth's 22 pieces copied, a step up to it; scene `brushholes_drain`);
+  `vr_hull_holes_test` 27/0 on and 27/0 off (the drain falls with holes off, and with the old rule, max 31.8: 25/2).
+  Census: id1 38 maps reach 0 (10,626 own, 1,302 diagonal, 88 over a fall; most 26 ms, e2m2), Quoth start 0 (and at
+  max 46: 0, no box left out at the mark), ad_tears 0 (600 ms search) and ad_azad 0; prone_vent_test 11/0.
+- **Checklist tags (coordinator's extra):** 6 untagged lines in [2. Quoth] were copies of the tagged ones just below
+  (a ship's duplicate): dropped. kellbase1's corridor line tagged `hub_start` (as the other Quoth lines: a scene naming
+  kellbase1 needs Quoth in the base); the AD grates line got a minimal new scene `ad_azad_grates` (map ad_azad).
+  checklist_tests_check 116 passed, 0 failed; validate 186 files, 0 with errors.
+- **Item 5, the expbugs_* scenes:** already retired by checklist2 (moved out with their lines); in a base without Dwell
+  the remaining Dwell scenes skip: scenario_check (Dwell and Quoth moved out of the kit's base) PASS, 185 run, 0 failed,
+  5 skipped (dwell_bosses, dwell_grunt_pickup, dwell_items, dwell_monsters, dwell_sculptor: "not on the search path").
+- **Item 1 (ad_test3's ladder, flat), looked at, not fixed:** an "up" case for it (feet 228 at -504 -88 facing east)
+  finds the rungs ahead (tops 268, 284, 296, 300; holds 18 units ahead, out -x) but `flatLadderFrame`'s pair test takes
+  none ("2 ledges ahead, no ladder"); the case's start is also inside a func_wall (its rungs?). Left with the case
+  out (vr_flatladder_test's indices unchanged). Not done either: items 2, 3, 4 and the rest of 5 (per-tree MP bases and
+  a free port; vr_pickup_test 15 on next).
 ## flatkeys: flat keys in Options > Controls, not a separate page (agent/flatkeys, 2026-11-22)
 
 BACKLOG 3 (his call 2026-11-16, GitHub #83): "Integrate them into Options > Controls' key binding list (a "Quake VR (flat
@@ -7673,3 +7729,75 @@ different rules is annoying and causes issues."
 - Checked: `make_gun_variants.py build --check` ok; `vr_wofs_dump` (slots 12, 15 take slots 4, 7's anchors); load_models
   4/0; scenes `gun_variants_nail`, `gun_variants_rock` (both hands in the other ammo) SCNRUN OK. Flat and VR shots
   before/after: `scratch/onemodel_{before,after}_{flat,vr}.png` in the worktree (the looks as before).
+## disarmfix: the player disarmed by enemies, by jolts (agent/disarmfix, 2026-11-22)
+
+BACKLOG 6: "Player disarm: make it consistent, then on for PvE ... Very inconsistent: hard to predict whether a shot or
+blow knocks your gun out; some enemy melee never disarms; enemies punching (fists) never disarm you. Needs tuning and
+fixes (QC/vr_playerdisarm.qc: which blows count, the rolls, feedback before the drop)."
+
+- Why it was inconsistent (the old PvE rule, kept for PvP): shots added up to 16 damage in 0.5 s, then rolled 25%+;
+  a blow counted only with a line, landing on your weapon, with at least `vr_agrunt_disarm_damage` 10: a knight's sword
+  (9 at most), an ogre's chainsaw (12 at most) almost never; fists, bites, claws never (no line: the guard's path).
+- PvE now (QC `vr_playerdisarm.qc`, "PvE's own rule"; PvP untouched, as the brief said): no dice. Hits give jolts on a
+  hand; `vr_player_disarm_jolts` 2 within `vr_player_disarm_window` 3 s (from the last) knock its weapon out, each one
+  short warns (`VR_PD_Warn`: `handimpact` 4, a buzz, `weapons/tink1.wav` at `vr_player_disarm_sound`, "Your grip on
+  your weapon loosens!"). The table:
+
+  | Hit (landed: not parried, not on crossed arms) | Jolts |
+  |---|---|
+  | blow with a line (sword, axe, chainsaw, armed humanoid's swing) on your weapon or its hand, any damage | 1; heavy (`vr_player_disarm_heavy` 15+) 2 |
+  | armed humanoid's fist, butt or shove on your body | 1 (the held weapon's hand nearest it) |
+  | any other blow on your body | 1 if heavy, else none (bites, light claws, a blade on the body) |
+  | shots and projectiles on your weapon or hand | each `vr_player_disarm_shot` 12 damage summed over 0.5 s: 1 (full grunt blast 24: 2, out; laser 15: 1; nail 9: none, two: 1; ogre grenade: out) |
+
+  `vr_player_disarm_chance` is the knock-out's chance once the jolts are reached (1: certain; a lost roll leaves it one
+  short). Projectiles count in full within `vr_agrunt_shotdisarm_proj_near` (4 units: a bolt has a size; at half they
+  never reached a jolt). Blows are read where the parry resolves them (combat.qc `VR_Parry` now hands every landed blow to
+  `VR_PD_Blow` with its line flag), so with `vr_parry` 0 only shots disarm. Settings: Armed Grunts > "Disarming: Your
+  Weapon" (Jolts, Jolt Kept, Heavy Blow, Shot Damage).
+- `vr_player_disarm` stays 0 (his OK needed to flip it). Tests: `vr_pd_test 3` (new, Debug > Tests > "Player Disarm: The
+  Rules, Blow by Blow") 10/0, every rule once; `vr_pd_test 1` 13/0 (a full blast: out at once; a laser warns, a second
+  out). `vr_pd_test 2` times out in case 0 (the gun-and-axe grunt backs off to ~200 units and shoots after its first
+  blow) on this branch and on origin/next's QC alike: pre-existing, not chased. Scene `pd_jolts`.
+
+## onecopy: one grapple reel; MP review B6 and B7 (agent/onecopy, 2026-11-22)
+
+BACKLOG 9, items 4 and 5: "QC's `VR_Grapple_ReelSpeed` / `VR_Grapple_Wind` (monsters, props) and vr_pmove.cpp's
+grappleStep (players) are two copies of one rule" and "B6 the room-scale budget only on the server (send `walkLeft` in
+QVR_SVC_PREDICT and run moveguard's budget on a copy in the replay ...); B7 the snapshot encode's per-client work".
+
+- One reel: `pmove::grappleReel(len, full, age, dist, shortest, dt)` (vr_pmove.cpp) is the rule: the rope shortened at
+  the ramped speed, never under the shortest nor 8 units under the load's distance, and the speed braked to stop at the
+  shortest. grappleStep (players, SP and each remote move) calls it; QC's prop, monster and loose-hook reels call the new
+  builtin `grapplereel(h, dist, shortest)` (h.gh_len written back, the braked speed returned). `VR_Grapple_ReelSpeed`,
+  `VR_Grapple_Wind` and `GH_STALL` are gone; `GH_RAMP`/`GH_BRAKE` stay for the unreel only. The grapple debug log's last
+  figure is now the reel's full speed ("reel up to").
+  Proof: an A/B script (box 80 kg, a grunt, a zombie, the player hooked to a far wall; `sv_random_seed 1`, 3 s reels):
+  133 lines of reel logs, physics hashes and end origins identical before and after.
+- B6: the server's room-scale budget after the newest move rides in QVR_SVC_PREDICT (one float after the crawl speeds;
+  `QVR_NET_VERSION` 44); his replay runs `moveguard::budget` (roomscale's rule, now shared) on a copy from it, so a walk
+  past the budget is cut in his prediction as on the server instead of corrected each state. mp_guard's new segment
+  (B alone on `vr_mp_test_cheat 4`, A stepped off the line first): 59/59 results bit for bit, corr_max 0. A debug trace
+  showed both sides' cut speeds and budgets equal move for move; the runs that failed before A stepped aside were B's walk
+  blocked by A on the server (the replay traces no players), not the budget.
+- B7: encode's write pass writes the first pass's verified field encodings (`fieldsKept`) instead of encoding again;
+  `isCosmetic` answers once per entity per server frame (`cosmeticByEnt`, keyed by `host_framecount`) for every client's
+  snapshot instead of two strcmps per record per client. vr_netsnap_selftest 15/0.
+- Not player-facing (no PATCH_NOTES line): the reel is unchanged; B6 only spares a speed hack's corrections.
+- Checks (on bases/dagger, this tree's progs): mp_guard 13/1 (the B6 segment passes; A's honest rewinds 1-5 held, 3 runs of 5, A's lag compensation, untouched here), mp_predict 29/2 (at rest 1.4 units off, own jump 4 moves; its results 100 percent bit for bit: load-timing flakes like ROUND25's flat-ground one, not chased), mp_bandwidth 10/0, mp_lockstep_dm 23/0, mp_moves --part grapple 20/0, vr_moveguard_selftest 17/0, vr_netsnap_selftest 15/0; Dev and ThinLTO 0 warnings. Melee eval not run (no melee code touched).
+- Against origin/next (d9fb82c86, same base): mp_guard 4/5 pass (one A rewinds 4 held, the same failure), mp_predict 2/3 (one at rest 1.9 units off, plus the lift landing): both flakes are next's own. scenario_check PASS (189 run, 0 failed; grapple_reel SCNOK).
+## ropes3: flat-screen rope climbing, rope to rope, another climber's pose (agent/ropes3, 2026-11-22)
+
+Phase 3's rest (ROPES.md "Climbing (flat-screen)", "Multiplayer", "Tests", "Known limits").
+- Flat-screen play climbs the ropes (`vr_flat_rope` 1, Options > Flat-Screen > Ropes; tunable `vr_flat_rope_look` 25):
+  walk or jump into one, look up/down + forward climbs hand over hand at the flat ladder's speed, looking level the move
+  keys pump the swing, jump lets go keeping it; down at the floor he steps off. `vr_climb.cpp` flatRope, flatRopeFrame,
+  ropeTake, flatRopeDir; `climbrope::grabAlong` (a hold along a rope, on the rider's line).
+- `vr_rope_flat_test` / `Misc/quakevr/climb/rope_flat_test.sh`: walked in, up, down, and rope to rope (pumped to 355
+  units/s, let go at the forward peak, the next rope caught after 0.75 s): 6 passed. rope_climb_test.sh 8+6+6 and
+  flatladder_test.sh 2/2 still pass.
+- MP: the client draws each rope between its last two messages (as entities), so a swinging rider and his rope keep
+  together; `vr_mp_avatars` prints `mp_ropepose` (another player's wrists, ankles from the rope); `mp_test.py ropeclimb`
+  (flat A on a rope, B watching) runs but fails its pose checks (wrists 9-25 units off, ankles 11-24): open, in
+  ROPES.md's known limits, kept out of the suite.
+

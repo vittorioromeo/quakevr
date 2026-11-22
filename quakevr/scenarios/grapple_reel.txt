@@ -1,0 +1,7 @@
+# grapple_reel: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title The grappling hook in the test hall, an explosive box and a zombie to reel in
+map vrtesthall
+cmd impulse 151
+spawn "Explosive Box" 200 -20
+spawn "Zombie" 320 20
+hint Hook the box and hold B/Y: it comes in fast and slows as it arrives, stopping short of the gun; the zombie comes the same way. Hook a far wall and reel: you are pulled in, slowing at the end.
