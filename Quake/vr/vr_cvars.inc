@@ -2578,7 +2578,7 @@ QVR_CVAR(vr_bloom_white, "0.76", CVAR_ARCHIVE)          // bloom of white and pa
 QVR_CVAR(vr_bloom_color, "1.25", CVAR_ARCHIVE)          // bloom of coloured lights (red buttons, blue panels), times vr_bloom
 QVR_CVAR(vr_bloom_adapt, "4", CVAR_ARCHIVE)           // bloom weakens the more of the view glows (0: never)
 // Tone mapping, dither, grading (round 17; vr_tonemap.cpp, ROUND17.md (removed 2026-10-06; git history)).
-QVR_CVAR(vr_tonemap, "1", CVAR_ARCHIVE)               // the eyes' scene in floats, its brightest rolled off by a filmic shoulder instead of clipped (lights keep their colour); 0: Quake's clamp
+QVR_CVAR(vr_tonemap, "2", CVAR_ARCHIVE)               // (2: the float scene in 32 bits, R11F_G11F_B10F: -0.33 ms of a PC GPU at 3072 eyes, the same picture; QUEST_OPTIMISATIONS.md "PC results"; 1: RGBA16F) the eyes' scene in floats, its brightest rolled off by a filmic shoulder instead of clipped (lights keep their colour); 0: Quake's clamp
 QVR_CVAR(vr_exposure, "1", CVAR_ARCHIVE)              // brightness before the tone curve (with vr_tonemap; 1: as Quake)
 QVR_CVAR(vr_dither, "1", CVAR_ARCHIVE)                // the eyes' last dither into 8 bits, against banding: 0 off, 1 fixed on the screen (each eye its own), 2 changing each frame, 3 the same in both eyes
 QVR_CVAR(vr_grade, "1", CVAR_ARCHIVE)                 // colour grade (quakevr/gfx/vr/grade_*.png): 0 off, 1 Quake VR (film), 2 cold, 3 warm, 4 by episode

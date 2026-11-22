@@ -3785,8 +3785,9 @@ QVR_SLIDER_BYNAME(vr_bloom_color, "Bloom: Coloured Lights", 0.f, 3.f, 0.05f, "%.
     "Glow of coloured lights (red buttons, blue panels), times Bloom.")
 QVR_SLIDER_BYNAME(vr_bloom_adapt, "Bloom: Adapt", 0.f, 10.f, 0.25f, "%.2f", ext(),
     "How much bloom weakens when much of the view glows (a brightly lit map); 0: never.")
-QVR_TOGGLE_BYNAME(vr_tonemap, "Tone Mapping",
-    "Bright lights, flashes, lava and explosions keep their colour and detail instead of clipping to yellow and white (a filmic shoulder). The rest is unchanged. Off: Quake's.")
+QVR_CYCLE_BYNAME(vr_tonemap, "Tone Mapping",
+    "Bright lights, flashes, lava and explosions keep their colour and detail instead of clipping to yellow and white (a filmic shoulder). The rest is unchanged. Off: Quake's. On (64-bit): the scene in a finer float format, slower (the same picture).",
+    {0.f, "Off"}, {1.f, "On (64-bit)"}, {2.f, "On"})
 QVR_SLIDER_BYNAME(vr_exposure, "Exposure", 0.5f, 2.f, 0.05f, "%.2f", ext(), "Brightness before tone mapping (1: as Quake).")
 QVR_CYCLE_BYNAME(vr_grade, "Colour Grade",
     "A subtle colour mood. Quake VR: a touch of contrast, cool shadows, warm highlights. By Episode: cold, mossy, warm, violet for episodes 1 to 4.",
