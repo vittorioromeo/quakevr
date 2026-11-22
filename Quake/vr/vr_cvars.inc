@@ -734,7 +734,7 @@ QVR_CVAR(vr_xr_log_timing, "0", CVAR_NONE) // (1 before vr_cfg_version 202)
 // app's internal files/perf/, else <game>/profile/perf/) until set back to 0 (a new file each time); not saved.
 // Debug > Profiling > World Models Pre-pass: 1 the world's models (monsters, items) drawn into the depth first, then
 // shaded once a pixel (as before); 0 shaded as drawn: a draw a batch less (the A/B; from agent/quest).
-QVR_CVAR(vr_alias_prepass_world, "1", CVAR_NONE)
+QVR_CVAR(vr_alias_prepass_world, "1", CVAR_ARCHIVE) // saved (C5j): the Quest preset sets 0, kept across starts
 // Debug > Profiling > Batch Posed Models: 1 the world's posed models of one model and skin (armed grunts on the
 // authored rig, their armour, ragdolls) drawn as one batch, their bones in one buffer (PC ThinLTO: ragdolls_32_active
 // -0.11 ms GPU, combat_48 even; ROUND25); 0 a batch each, as before.
@@ -2232,7 +2232,7 @@ QVR_CVAR(vr_gl_world_lit_skip, "1", CVAR_NONE)
 // profile the dynamic lights are added into the lightmap's texels on the CPU once a frame (Quake's own way, the
 // lightmap's 16-unit grid) and the world is drawn without the lights' loop; 0 (default): the loop, per pixel. The
 // models and particles take the lights per pixel either way. No effect on the PC's shaders (no unlit world form).
-QVR_CVAR(vr_gl_world_dlmap, "0", CVAR_NONE)
+QVR_CVAR(vr_gl_world_dlmap, "0", CVAR_ARCHIVE) // saved (C5j): the Quest preset sets 1, kept across starts
 // Debug > Profiling and Memory > Quake-Style Dynamic Lights (Quest): (C5g, QUEST_PLAN.md 6zr) 1: under the ES profile
 // both of Quake's ways at once: the world's dynamic lights summed into a light texture once a frame (as
 // vr_gl_world_dlmap 1) and your body's added to its light on the CPU (as vr_gl_alias_body 2), each light as the
