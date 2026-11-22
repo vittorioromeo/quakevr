@@ -2,6 +2,8 @@
 # flatmove_test.sh <agent> -- flatscreen play's crouch speed and swimming (-flatscreenmode; docs/vr-port/FLATPLAY.md,
 # "Crouched, slower" and "Swimming"), headless, through the client's own keys (+forward, +flatcrouch, +jump; the look
 # set with setpos) and measured by vr_flatmove_test (QC/vr_flatmove_test.qc). Prints PASS/FAIL, exits 1 on a failure.
+#   (Every case runs, cl_alwaysrun 1 as he plays: the shipped default walks, which the tests' baseline has since
+#   6d47923de; the headset's cases and the swimming too, or a walking 200 is compared with a running 320.)
 #   crouch  running (cl_alwaysrun 1, as he plays) on the start map, standing and with Left Ctrl held: the crouched top speed
 #           over the standing one is the headset's (its mock head at 1.69 m and at 0.9 m, the stick full ahead), within
 #           0.01: the same rule and tunables (vr_crouch_speed, vr_crouch_speed_scale). A flat-screen player's eyes stand
@@ -35,7 +37,7 @@ tb_body() {
 P="map start; wait60; god; notarget; cl_alwaysrun 1; vr_stamina_speed 0; wait10"
 run fstand flat "$P; +forward; vr_flatmove_test 1"
 run fcrouch flat "$P; +flatcrouch; wait40; +forward; vr_flatmove_test 1"
-H="map start; wait60; god; notarget; vr_stamina_speed 0; vr_mock_look 0 90"
+H="map start; wait60; god; notarget; cl_alwaysrun 1; vr_stamina_speed 0; vr_mock_look 0 90"
 run hstand vr "$H; vr_mock_hand head 0 1.69 0; wait30; vr_mock_stick off 0 1; vr_flatmove_test 1"
 run hcrouch vr "$H; vr_mock_hand head 0 0.9 0; wait30; vr_mock_stick off 0 1; vr_flatmove_test 1"
 fs=$(val fstand speed); fc=$(val fcrouch speed); hs=$(val hstand speed); hc=$(val hcrouch speed)
@@ -45,7 +47,7 @@ check $(awk -v a="$fs" -v c="$hs" 'BEGIN{exit !(a-c<1 && c-a<1)}' && echo 1 || e
     "crouch: flat-screen standing runs at the headset's standing speed ($fs, $hs): not slowed as if crouched"
 
 # 2. swimming by look and jump (e1m4's deep water, 128 units of open water over and under him: vr_flatmove_test 8 found it)
-W="map e1m4; wait60; god; notarget; vr_stamina_speed 0"
+W="map e1m4; wait60; god; notarget; cl_alwaysrun 1; vr_stamina_speed 0"
 run swup flat "$W; setpos 296 1228 650 -60 0 0; noclip; wait5; +forward; vr_flatmove_test 2"
 run swdown flat "$W; setpos 296 1228 650 60 0 0; noclip; wait5; +forward; vr_flatmove_test 2"
 run swjump flat "$W; setpos 296 1228 650 0 0 0; noclip; wait5; +jump; vr_flatmove_test 2"
