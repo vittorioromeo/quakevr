@@ -174,12 +174,16 @@ void netGear(VrDrawnGear& out);
 // The rounds in an ammo pouch `pouch` (placed this frame or not) holding `kind` (STAT_QVR_POUCHKIND's), `count` left:
 // yours (setupAmmoPouchItems) and another player's in his copy's pouch (syncfix2), one code -> how many placed in `out`.
 int posePouchItems(const ViewEntity& pouch, bool placed, int kind, int count, ViewEntity (&out)[pouchitems::most]);
+// A hand's model (the jointed hand's, the old hand's: also the fists' weapon model, an empty holster's).
+[[nodiscard]] bool handModel(const qmodel_t* model);
 // VrDrawnGear::model's model (1 the sheath, 2 the gadget, 3 its strap, 4 the grenade pouch, 5 the ammo pouch), or nullptr.
 [[nodiscard]] qmodel_t* gearModel(int index);
 // A holster's sheath and gun on another player's body (a bot's: no client drew them; syncfix), posed as yours are
 // (holsterOnBody, holsterOnBack): holster `holster` (body::Holster) at `pos`, the body's surface facing `out` there, the
-// body turned `yaw`. Returns the sheath's model (none for the shoulders, or with vr_leg_holster_model_enabled 0).
-qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, float yaw, struct GearDraw& sheath, struct GearDraw& gun);
+// body turned `yaw`, `weapon` in it (its own Holstered pose, as yours). Returns the sheath's model (none for the
+// shoulders, or with vr_leg_holster_model_enabled 0).
+qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, float yaw, const qmodel_t* weapon,
+    struct GearDraw& sheath, struct GearDraw& gun);
 
 // A player's power-ups as drawn on him (syncfix: yours from cl.items, another player's copy from his avatar's gear byte,
 // one code for both): the glow taking turns (its shader code and strength), its light from the hands, the quad's arcs,

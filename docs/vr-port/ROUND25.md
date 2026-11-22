@@ -8116,6 +8116,23 @@ ROPES.md "Tests", "Known limits". His words: chains work well, minor adjustments
   2 of 3 runs failed it at 18.3 before a revert of a rope-timeline experiment). vr_rope_test 15/1: "Clear Props keeps the
   map's and the early ones (7 of 9)" fails here (the toolgun-placed chain counted as runtime); not looked into, maybe
   from next's baseline config change.
+## mpbothands: floating fists and holsters on MP bots (branch agent/mpbothands, 2026-11-22)
+
+- His report: in the MP scenes every bot carried an extra pair of fists, an open hand, a gun and a shovel beside its
+  body. Cause: a bot's holsters come from its QC fields (vr_server.cpp `botHolstered`), and the QC names the fists'
+  model (`progs/hand.mdl`, WID_FIST) for an empty holster; every client drew it as a holstered weapon
+  (view::drawHands), so the four empty holsters (shoulders, uppers) each showed a hand. A human's client never sends
+  one (view::netHolsters drops hand models), so only bots were hit; not the ropes4 or onemodel changes.
+- Fix (shared by every copy, flat or VR viewer, bots and players): view::drawHands draws nothing for a holster whose
+  model is a hand's (`isHandModel`, as your own holsters). Also a bot's holstered weapon now takes its own Holstered
+  pose (weapons::holsteredPose, poseHolstered in the holster's frame) as yours does: view::holsterOnOther takes the
+  weapon. The Hotspots page's turns stay yours alone (not put on others).
+- `vr_mp_gearcheck [ent]` (Debug > Reports > Network: Other Players' Gear): per other copy its hand models (two
+  expected), holstered weapons, sheaths, the farthest of them from its trunk (pelvis to neck; at most 0.5 m) and its
+  hands from its arms' wrists (at most 0.15 m); `mp_gearcheck: N players, M bad`. In mp_dm_passive before the fix:
+  `hands=6 ... ok=0`; after: `hands=2 holsters=2 sheaths=4 trunk=9.0 (most 15.7) wrist=2.7 (most 4.7) ok=1`.
+- `mp_test.py botgear` (in the suite): dedicated DM, the VR A and the flat B; B held in front of A (vr_dm_test 16),
+  A checks B and B checks A; then a bot held there, A checks it. 10 passed.
 ## backlog1122d: hole mark, DM1 grates, shell speed (branch agent/backlog1122d, 2026-11-22)
 
 - **Hole mark on vrbrushholes (580 36 24):** the lift's corner. The plat leaves 20-unit slots east and north, each
