@@ -30,6 +30,7 @@
 #include "vr_motion.hpp"
 #include "vr_profile.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_seat.hpp"
 #include "vr_seated.hpp"
 #include "vr_view.hpp"
 #include "vr_mpavatar.hpp"
@@ -1619,7 +1620,15 @@ struct Other
     Skeleton skeleton;
     bool bareArms{false};
 };
-Other others[otherKeys]; // (the players' then the doll slots': vr_avatar.hpp)
+// Splitscreen (phase 7): each seat's client poses the bodies it sees (its own entities, each its own memory).
+struct Others
+{
+    Other list[otherKeys]; // (the players' then the doll slots': vr_avatar.hpp)
+};
+[[nodiscard]] auto& othersNow()
+{
+    return seat::part<Others>(seat::current(), seat::Part::AvatarOthers).list;
+}
 
 void swapOther(Other& o)
 {
@@ -1639,7 +1648,7 @@ void swapOther(Other& o)
     {
         return nullptr;
     }
-    for(const Other& o : others)
+    for(const Other& o : othersNow())
     {
         if(o.posed.ent == e && o.frame == host_framecount)
         {
@@ -1754,6 +1763,16 @@ void resetMotion()
     {
         f = ForearmTwist{};
     }
+}
+
+void seatSwitched(seat::Seat& from, seat::Seat& to)
+{
+    if(&from == &to) // (never called inside poseOther: no seat switch there)
+    {
+        return;
+    }
+    swapOther(seat::part<Other>(from, seat::Part::AvatarSelf)); // the leaving seat's body parked (the part's old: unused)
+    swapOther(seat::part<Other>(to, seat::Part::AvatarSelf));   // and the next seat's in
 }
 
 Torso torso(const hands::State& s, bool crouchPose)
@@ -2240,7 +2259,7 @@ glm::vec3 poseOther(int player, const Subject& who, const hands::State& s, qmode
     {
         return s.head;
     }
-    Other& o = others[player];
+    Other& o = othersNow()[player];
     if(o.posedAt < 0.0 || realtime - o.posedAt > 0.5 || realtime < o.posedAt)
     {
         o = Other{}; // (out of sight a while, or another player in the slot: his feet placed afresh)
@@ -2259,30 +2278,30 @@ void forgetOther(int key)
 {
     if(key >= 1 && key < otherKeys)
     {
-        others[key] = Other{};
+        othersNow()[key] = Other{};
     }
 }
 
 bool otherSkeleton(int player, Skeleton& out)
 {
-    if(player < 1 || player >= otherKeys || others[player].frame != host_framecount || !others[player].posed.ent)
+    if(player < 1 || player >= otherKeys || othersNow()[player].frame != host_framecount || !othersNow()[player].posed.ent)
     {
         return false;
     }
-    out = others[player].skeleton;
+    out = othersNow()[player].skeleton;
     return true;
 }
 
 bool otherPitch(int player, float& angle, float& lying, float& sliding)
 {
     // (this frame or the last: a report between two frames' poses)
-    if(player < 1 || player >= otherKeys || others[player].frame < host_framecount - 1 || !others[player].posed.ent)
+    if(player < 1 || player >= otherKeys || othersNow()[player].frame < host_framecount - 1 || !othersNow()[player].posed.ent)
     {
         return false;
     }
-    angle = others[player].motion.bodyPitch.angle;
-    lying = others[player].motion.bodyPitch.lying;
-    sliding = others[player].motion.bodyPitch.sliding;
+    angle = othersNow()[player].motion.bodyPitch.angle;
+    lying = othersNow()[player].motion.bodyPitch.lying;
+    sliding = othersNow()[player].motion.bodyPitch.sliding;
     return true;
 }
 
@@ -2300,22 +2319,22 @@ bool ownPitch(float& angle, float& lying, float& sliding)
 
 bool otherClimb(int player, float& weight)
 {
-    if(player < 1 || player >= otherKeys || others[player].frame < host_framecount - 1 || !others[player].posed.ent)
+    if(player < 1 || player >= otherKeys || othersNow()[player].frame < host_framecount - 1 || !othersNow()[player].posed.ent)
     {
         return false;
     }
-    weight = others[player].motion.climbing.weight;
+    weight = othersNow()[player].motion.climbing.weight;
     return true;
 }
 
 bool otherShoulder(int player, int side, Shoulder& out)
 {
-    if(player < 1 || player >= otherKeys || side < 0 || side > 1 || others[player].frame != host_framecount ||
-        !others[player].posed.ent)
+    if(player < 1 || player >= otherKeys || side < 0 || side > 1 || othersNow()[player].frame != host_framecount ||
+        !othersNow()[player].posed.ent)
     {
         return false;
     }
-    out = others[player].posed.shoulders[side];
+    out = othersNow()[player].posed.shoulders[side];
     return true;
 }
 

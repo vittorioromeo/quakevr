@@ -186,6 +186,7 @@
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
+#include "vr_seat.hpp"
 #include "vr_api.h"
 
 
@@ -4485,7 +4486,15 @@ struct Pin
         return glm::mix(from, to, eased());
     }
 };
-Pin pins[2];
+// Splitscreen (phase 7): each seat's hands drawn on their holds.
+struct Pins
+{
+    Pin hand[2];
+};
+[[nodiscard]] Pin* pins()
+{
+    return seat::part<Pins>(seat::current(), seat::Part::ClimbPins).hand;
+}
 
 constexpr float pinInTime = 0.06f;  // seconds the drawn hand takes to settle on its hold (or glide to a new one),
 constexpr float pinInMax = 0.2f;    // at most, for a hold further than
@@ -4874,7 +4883,7 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
     {
         return 0.f;
     }
-    Pin& pin = pins[hand];
+    Pin& pin = pins()[hand];
     const float dt = pin.last >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - pin.last, 0.1)) : 0.f;
     pin.last = vr_gametime;
     const int bits = cl.stats[STAT_QVR_CLIMB];
@@ -4977,11 +4986,11 @@ int qvr::climb::heldProp(edict_t* ent, int hand)
 
 float qvr::climb::drawnShare(int hand)
 {
-    if(hand < 0 || hand > 1 || pins[hand].weight <= 0.f)
+    if(hand < 0 || hand > 1 || pins()[hand].weight <= 0.f)
     {
         return 0.f;
     }
-    const float w = pins[hand].weight;
+    const float w = pins()[hand].weight;
     return w * w * (3.f - 2.f * w);
 }
 

@@ -87,6 +87,11 @@ enum class Part
     Predict,       // vr_predict.cpp: the client's prediction (its moves replayed, the error's decay)
     PredictTotals, // vr_predict.cpp: the prediction's correction totals
     VoiceListen,   // vr_voicechat.cpp: what the client told the server it hears
+    // Phase 7: what each seat draws of its own.
+    AvatarSelf,    // vr_avatar.cpp: your body while another seat is current (its pose, eases, gait: avatar::seatSwitched)
+    AvatarOthers,  // vr_avatar.cpp: the other players' and dolls' bodies as this seat's client poses them
+    ViewPlates,    // vr_view_body.cpp: your armour plates' morphs
+    ClimbPins,     // vr_climb.cpp: each hand's drawn place eased onto its hold
     Count
 };
 

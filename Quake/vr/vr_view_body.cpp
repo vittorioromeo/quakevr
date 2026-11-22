@@ -11,6 +11,7 @@
 #include "vr_tunables.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
+#include "vr_seat.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -106,7 +107,11 @@ struct PlayerPlates : view::PlateMorphs
     int clone{0}, cloneLast{0}; // the pieces the body's mirror image drew (PlatePass::Clone) this frame, the last (the tests)
     int bridgePieces{0};        // the pieces the joints' leather is over this frame (entities.plate[plateBridge])
 };
-PlayerPlates playerPlates;
+// Splitscreen (phase 7): each seat's own.
+[[nodiscard]] PlayerPlates& ownPlates()
+{
+    return seat::part<PlayerPlates>(seat::current(), seat::Part::ViewPlates);
+}
 float platesBones[plateEntities][128 * 12]{}; // (agarmor's maxSlots)
 
 void beginPlateMorph(view::PlateMorphs& p, int pieces, int type, bool in, double now)
@@ -156,7 +161,7 @@ void fillPlateSlots(int numSlots, const int* slotBone, const int* slotPiece, con
 // Your plates' morphs as the server's word on you changes (what drawBody draws on your body: `out`).
 void platesNow(view::BodyPlates& out)
 {
-    PlayerPlates& p = playerPlates;
+    PlayerPlates& p = ownPlates();
     const bool on = vr_player_plates.value != 0.f;
     int type = on ? za::max(agarmor::clientState(cl.viewentity, 0), 0) : 0;
     int pieces = on && type > 0 ? za::max(agarmor::clientState(cl.viewentity, 1), 0) : 0;
@@ -210,7 +215,7 @@ void setupBody(const hands::State& s)
     out.body = &entities.body;
     out.plates = entities.plate;
     out.numPlates = plateEntities;
-    out.platePieces = playerPlates.entityPieces;
+    out.platePieces = ownPlates().entityPieces;
     out.bridge = &entities.plate[plateBridge];
     out.cap = entities.pauldron;
     out.arm = entities.pauldronArm;
@@ -219,7 +224,7 @@ void setupBody(const hands::State& s)
     drawnBare = model && b.bare && model == viewModel(bodyModelName(b.build, true));
     if(entities.plate[plateBridge].visible)
     {
-        playerPlates.bridgePieces = b.plates.pieces;
+        ownPlates().bridgePieces = b.plates.pieces;
     }
 }
 
@@ -514,11 +519,11 @@ int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass)
         const entity_t& body = entities.body.ent;
         if(!matrices)
         {
-            return agarmor::playerBridgePoses(body.model, playerPlates.bridgePieces, nullptr, 0, nullptr);
+            return agarmor::playerBridgePoses(body.model, ownPlates().bridgePieces, nullptr, 0, nullptr);
         }
         const float* src = nullptr;
         const int have = VR_AliasBonePoses(&body, &src);
-        return agarmor::playerBridgePoses(body.model, playerPlates.bridgePieces, src, have, matrices);
+        return agarmor::playerBridgePoses(body.model, ownPlates().bridgePieces, src, have, matrices);
     }
     int index = -1;
     for(int i = 0; i < plateEntities; i++)
@@ -558,7 +563,7 @@ int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass)
     }
     // The helmet where the head is drawn: never from the eyes, VR or flat-screen (the body's own rule: VR_AliasBonePoses).
     const bool head = src && src == withHead;
-    PlayerPlates& p = playerPlates;
+    PlayerPlates& p = ownPlates();
     const int pieces = p.entityPieces[index] & (head ? agarmor::allPieces : ~(1 << agarmor::Helmet));
     if(pass == PlatePass::View || pass == PlatePass::Clone)
     {
@@ -696,28 +701,31 @@ void printOwnPlates(int ent)
     }
     const view::ViewEntity& plate = *shown;
     int coming = 0;
-    for(const PlateMorph& m : playerPlates.morphs)
+    for(const PlateMorph& m : ownPlates().morphs)
     {
         coming |= m.in ? m.pieces : 0;
     }
-    Con_Printf("mp_plates_own: ent=%d type=%d pieces=%d skin=%d begun=%d coming=%d model=%s\n", ent, playerPlates.type,
-        playerPlates.pieces, plate.visible ? plate.ent.skinnum : -1, playerPlates.begun, coming,
+    Con_Printf("mp_plates_own: ent=%d type=%d pieces=%d skin=%d begun=%d coming=%d model=%s\n", ent, ownPlates().type,
+        ownPlates().pieces, plate.visible ? plate.ent.skinnum : -1, ownPlates().begun, coming,
         plate.visible && plate.ent.model ? plate.ent.model->name : "-");
 }
 
 void platesResync()
 {
-    playerPlates.resync = true;
+    for(int i = 0; i < seat::maxSeats; i++) // (every seat's: the level is theirs too)
+    {
+        seat::part<PlayerPlates>(seat::at(i), seat::Part::ViewPlates).resync = true;
+    }
 }
 
 bool playerArmourShown()
 {
-    return vr_player_plates.value != 0.f && playerPlates.type > 0 && playerPlates.pieces != 0 && entities.body.visible;
+    return vr_player_plates.value != 0.f && ownPlates().type > 0 && ownPlates().pieces != 0 && entities.body.visible;
 }
 
 void platesInfo_f()
 {
-    const PlayerPlates& p = playerPlates;
+    const PlayerPlates& p = ownPlates();
     const entity_t& body = entities.body.ent;
     Con_Printf("plates: on %d, colour %d, pieces %d, morphs begun %d, body %s (visible %d, scale %.3f)\n", vr_player_plates.value != 0.f ? 1 : 0,
         p.type, p.pieces, p.begun, body.model ? body.model->name : "-", entities.body.visible ? 1 : 0, static_cast<double>(avatar::modelScale(&body)));
@@ -767,13 +775,13 @@ void platesModelCheck_f()
     q_snprintf(want, sizeof(want), "%s#armor", bodyName);
     const bool bodyOk = !strcmp(bodyName, bodyModelName(build, drawnBare));
     const bool plateOk = plate.ent.model && plate.ent.model->type == mod_alias && !strcmp(plateName, want);
-    const bool ok = c.check(bodyOk && plateOk && playerPlates.entityPieces[0] != 0);
-    Con_Printf("ppmodel: %s build %d, body %s, plates %s (pieces %d)\n", ok ? "ok" : "FAIL", build, bodyName, plateName, playerPlates.entityPieces[0]);
+    const bool ok = c.check(bodyOk && plateOk && ownPlates().entityPieces[0] != 0);
+    Con_Printf("ppmodel: %s build %d, body %s, plates %s (pieces %d)\n", ok ? "ok" : "FAIL", build, bodyName, plateName, ownPlates().entityPieces[0]);
 }
 
 int platesState(int what)
 {
-    const PlayerPlates& p = playerPlates;
+    const PlayerPlates& p = ownPlates();
     int coming = 0, going = 0;
     const PlateMorph* newest = nullptr;
     for(const PlateMorph& m : p.morphs)

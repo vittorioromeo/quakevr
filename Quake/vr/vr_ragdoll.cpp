@@ -2757,7 +2757,7 @@ struct ProportionedRigs
     za::Vector<ProportionKey> keys;      // rigs[i]'s
     auto members() { return mem::list(rigs, keys); }
 };
-mem::Cache<ProportionedRigs> proportionedRigs{"ragdoll rigs (proportioned)", mem::GameDirChange};
+mem::Cache<ProportionedRigs> proportionedRigs{"ragdoll rigs (proportioned)", mem::GameDirChange}; // seat-shared: rigs (data)
 constexpr za::SizeT mostProportioned = 64; // (more: the base rig; a player's own changes of size make a few)
 
 [[nodiscard]] int boneNamed(const Rig& rig, const char* name)

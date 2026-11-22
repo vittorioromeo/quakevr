@@ -1060,7 +1060,6 @@ Quake/vr/vr_avatar.cpp|debugHead
 Quake/vr/vr_avatar.cpp|easeWrists
 Quake/vr/vr_avatar.cpp|forearms
 Quake/vr/vr_avatar.cpp|infos
-Quake/vr/vr_avatar.cpp|others
 Quake/vr/vr_avatar.cpp|posed
 Quake/vr/vr_avatar.cpp|posedMeshScratch
 Quake/vr/vr_avatar.cpp|posedSkeleton
@@ -1318,7 +1317,6 @@ Quake/vr/vr_checklist.cpp|state
 Quake/vr/vr_checklist.cpp|ticksRead
 Quake/vr/vr_cleanskins.cpp|cache
 Quake/vr/vr_climb.cpp|climbers
-Quake/vr/vr_climb.cpp|pins
 Quake/vr/vr_climb.cpp|scratch
 Quake/vr/vr_climb.cpp|serverWorldReset
 Quake/vr/vr_climb.cpp|traceCount
@@ -3348,7 +3346,6 @@ Quake/vr/vr_view.cpp|worldSsgSource
 Quake/vr/vr_view.cpp|worldWeaponsNear
 Quake/vr/vr_view_body.cpp|platesBones
 Quake/vr/vr_view_body.cpp|platesModelTally
-Quake/vr/vr_view_body.cpp|playerPlates
 Quake/vr/vr_view_diag.cpp|handPartsCache
 Quake/vr/vr_view_diag.cpp|netModelIndex
 Quake/vr/vr_view_internal.hpp|bareLit

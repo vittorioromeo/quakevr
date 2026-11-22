@@ -18,6 +18,11 @@
 #include "vr_units.hpp"
 #include "Zancle/Container/Vector.hpp"
 
+namespace qvr::seat
+{
+struct Seat;
+}
+
 namespace qvr::avatar
 {
 
@@ -145,6 +150,9 @@ private:
 void reset();
 // The body's motion begins afresh (motion playback, each take): the gait, the feet's stance, wading, the arms' easing.
 void resetMotion();
+// Splitscreen (SPLITSCREEN.md, phase 7): your body is the current seat's. seat::makeCurrent calls this as the current
+// seat changes: the body posed for `from` is parked in its seat, `to`'s brought back (one seat: never called).
+void seatSwitched(seat::Seat& from, seat::Seat& to);
 
 // A drawn hand, in world space: its wrist, the top of the (gripping) hand, where the thumb and
 // index finger are, the back of the hand (away from the palm), and the direction from the wrist

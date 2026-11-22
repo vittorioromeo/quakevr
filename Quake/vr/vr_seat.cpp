@@ -2,6 +2,7 @@
 // `seat` command, and vr_seat_test (two seats' state kept apart).
 #include "vr_seat.hpp"
 
+#include "vr_avatar.hpp"
 #include "vr_engine.hpp"
 #include "vr_flatholster.hpp"
 #include "vr_flatmove.hpp"
@@ -38,8 +39,14 @@ struct Seats
 } seats; // seat-shared: the seats' owner
 
 // Makes a seat current: its input, keys, view... and its client (cl_seat: client.h's cl, cls and entity tables).
+// Phase 7: the body posed for the seat leaving parked in its part, the next seat's brought in (vr_avatar.cpp's globals
+// are the current seat's body; one seat: never switched, as before).
 void makeCurrent(Seat& s)
 {
+    if(seats.cur != &s)
+    {
+        avatar::seatSwitched(*seats.cur, s);
+    }
     seats.cur = &s;
     cl_seat = &netOf(s);
 }

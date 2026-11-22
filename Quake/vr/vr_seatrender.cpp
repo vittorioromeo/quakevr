@@ -8,8 +8,10 @@
 // marker's pixel read back after the frame's draw) and a picture of its own (the tiles' middles differ); a screenshot
 // of the layout; then the seats leave and the one seat left is drawn in the whole window again. Verdict
 // "seat_render_test: N passed, M failed".
+// Phase 7 part 2: each seat's own drawn body (vr_avatar: posed at its own player, its own feet's steps).
 #include "vr_seat.hpp"
 
+#include "vr_avatar.hpp"
 #include "vr_engine.hpp"
 #include "vr_testkit.hpp"
 
@@ -198,6 +200,44 @@ void checkViews()
     }
 }
 
+// Each seat's drawn body (vr_body_mode: the flat body) is its own: posed at its own player (the nearest seat player to
+// the posed head), kept apart from the others' (avatar::seatSwitched).
+void checkBodies()
+{
+    const int n = renderTest.seats;
+    vec3_t players[maxSeats];
+    for(int s = 0; s < n; s++)
+    {
+        if(!playerOrigin(s, players[s]))
+        {
+            return; // (checkViews said so)
+        }
+    }
+    for(int s = 0; s < n; s++)
+    {
+        const Scope in(at(s));
+        avatar::Skeleton sk;
+        if(!check(avatar::skeleton(sk), va("seat %d's body posed", s + 1)))
+        {
+            continue;
+        }
+        const vec3_t head = {sk.head.x, sk.head.y, sk.head.z};
+        int nearest = -1;
+        float best = 1e9f;
+        for(int o = 0; o < n; o++)
+        {
+            const float d = flatDistance(head, players[o]);
+            if(d < best)
+            {
+                best = d;
+                nearest = o;
+            }
+        }
+        check(nearest == s && best < 32.f, va("seat %d's body posed at its own player (%.1f units; nearest seat %d)", s + 1,
+            static_cast<double>(best), nearest + 1));
+    }
+}
+
 void testFrame()
 {
     RenderTest& t = renderTest;
@@ -256,6 +296,7 @@ void testFrame()
             }
             checkTiles();
             checkViews();
+            checkBodies();
             Cbuf_AddText("screenshot\n"); // (screenshots/: run.sh -Out composes it)
             go(Step::WaitShot);
             return;
