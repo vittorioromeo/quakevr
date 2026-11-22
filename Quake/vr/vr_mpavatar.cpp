@@ -11,6 +11,7 @@
 #include "vr_backend.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -671,6 +672,17 @@ void avatars_f()
     Con_Printf("mp_avatars: done\n");
 }
 
+// The yaw of a body's trunk as posed: its shoulders' line, level (`fallback` if they are on top of each other).
+[[nodiscard]] float trunkYaw(const avatar::Skeleton& k, float fallback)
+{
+    const glm::vec2 across{k.shoulder[1].x - k.shoulder[0].x, k.shoulder[1].y - k.shoulder[0].y}; // (left to right)
+    if(glm::length(across) < 1e-3f)
+    {
+        return fallback;
+    }
+    return glm::degrees(za::atan2(across.x, -across.y)); // (forward: right turned a quarter left, up the z axis)
+}
+
 // vr_mp_gearcheck [ent] (mpbothands; his report 2026-11-22: bots drawn with an extra pair of fists, a gun and a shovel
 // floating beside the body; Debug > Reports > Network: Other Players' Gear): each other player's copy as drawn last frame
 // (or `ent`'s): how many hand models it draws (its two hands, nothing else: an empty holster -- the fists' -- draws none),
@@ -704,9 +716,20 @@ void gearcheck_f()
                                            k.wrist[side]));
             }
         }
+        const auto at = [](const view::ViewEntity& ve) { return glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]}; };
+        bool finite = true;
+        const auto num = [](const glm::vec3& v) { return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z); };
         const auto onTrunk = [&](const view::ViewEntity& ve) {
-            trunk = za::max(trunk, geom::segmentDistance(glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]}, k.pelvis, neck));
+            const glm::vec3 p = at(ve), a{ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
+            finite = finite && num(p) && num(a);
+            trunk = za::max(trunk, geom::segmentDistance(p, k.pelvis, neck));
         };
+        // (vrnotes1122a) Each sheath against the trunk: its plate's up along the trunk's (`tilt`, the worst, degrees) and
+        // its plate facing out of the body (`facing`: its out from the trunk's line, level), as yours lie (holsterOnBody:
+        // the angles' right is the plate's out, the left ones' its opposite, drawn mirrored); each gun hanging in its
+        // sheath (`hang`: the farthest from it) and every piece's place and angles numbers (`finite`).
+        const glm::vec3 trunkUp = glm::normalize(neck - k.pelvis);
+        float tilt = 0.f, facing = 0.f, hang = 0.f;
         for(int i = 0; i < VrDrawnHolsters::count; i++)
         {
             if(shown(d.holster[i]))
@@ -719,17 +742,37 @@ void gearcheck_f()
             {
                 sheaths++;
                 onTrunk(d.gear[i]);
+                glm::vec3 f, r, u;
+                hands::angleVectors({-d.gear[i].ent.angles[0], d.gear[i].ent.angles[1], d.gear[i].ent.angles[2]}, f, r, u);
+                const glm::vec3 p = at(d.gear[i]);
+                glm::vec3 radial = p - geom::closestOnSegment(p, k.pelvis, neck);
+                radial.z = 0.f;
+                const glm::vec3 out = d.gear[i].mirrored ? -r : r;
+                tilt = za::max(tilt, glm::degrees(za::acos(CLAMP(-1.f, glm::dot(u, trunkUp), 1.f))));
+                if(glm::length(radial) > 1e-3f)
+                {
+                    facing = za::max(facing, glm::degrees(za::acos(CLAMP(-1.f, glm::dot(out, glm::normalize(radial)), 1.f))));
+                }
+                if(shown(d.holster[i]))
+                {
+                    hang = za::max(hang, glm::distance(at(d.holster[i]), p));
+                }
             }
         }
         // (on the body: within half a metre of the trunk's line -- a hip holster stands ~0.2 m out, a held hand's
-        // model origin a few units from the wrist its arm reached for)
-        const float trunkMost = 0.5f * k.m2w, wristMost = 0.15f * k.m2w;
-        const bool ok = hands == 2 && trunk <= trunkMost && wrist <= wristMost;
+        // model origin a few units from the wrist its arm reached for; a sheath at most 70 degrees off the trunk's up --
+        // the chest's lean back 20 and the uppers' turn 40 (vr_upper_holster_pitch), a player's copy ~50 -- and facing
+        // within 60 of straight out (the hips turned 40 outwards); a gun within 0.25 m of its sheath)
+        const float trunkMost = 0.5f * k.m2w, wristMost = 0.15f * k.m2w, hangMost = 0.25f * k.m2w;
+        constexpr float tiltMost = 70.f, facingMost = 60.f;
+        const bool turned = finite && tilt <= tiltMost && facing <= facingMost && hang <= hangMost;
+        const bool ok = hands == 2 && trunk <= trunkMost && wrist <= wristMost && turned;
         const bool bot = ((avatars[e].hands[0].flags | avatars[e].hands[1].flags) & VrDrawnHand::solveBit) != 0;
         Con_Printf("mp_gear: ent=%d bot=%d hands=%d holsters=%d sheaths=%d trunk=%.1f trunkmost=%.1f wrist=%.1f wristmost=%.1f "
-                   "ok=%d\n",
+                   "finite=%d tilt=%.1f facing=%.1f hang=%.1f hangmost=%.1f turned=%d ok=%d\n",
             e, bot ? 1 : 0, hands, holsters, sheaths, static_cast<double>(trunk), static_cast<double>(trunkMost),
-            static_cast<double>(wrist), static_cast<double>(wristMost), ok ? 1 : 0);
+            static_cast<double>(wrist), static_cast<double>(wristMost), finite ? 1 : 0, static_cast<double>(tilt),
+            static_cast<double>(facing), static_cast<double>(hang), static_cast<double>(hangMost), turned ? 1 : 0, ok ? 1 : 0);
         players++;
         bad += ok ? 0 : 1;
     }
@@ -759,33 +802,38 @@ void solveBotGear(const Drawn& d, float yaw, VrDrawnHolsters& hs, view::GearDraw
         return;
     }
     const avatar::Skeleton& k = d.skeleton;
+    // (vrnotes1122a; his voice note 2026-11-22: a bot's holsters "not properly rotated on its body") Turned with its
+    // trunk as drawn (trunkYaw: its shoulders' line), the hips' and uppers' on the front of its belly and chest, each
+    // facing the ring's surface there, as yours at their defaults (body::frontRingPlate). The hips stood beside the hip
+    // joints facing straight out, the side the holster's frame takes for its outwards: no frame (NaN), the guns lost.
+    const float bodyYaw = trunkYaw(k, yaw);
     glm::vec3 fwd, right, up;
-    hands::angleVectors(glm::vec3{0.f, yaw, 0.f}, fwd, right, up);
+    hands::angleVectors(glm::vec3{0.f, bodyYaw, 0.f}, fwd, right, up);
     const float m = k.m2w;
-    const glm::vec3 chest = glm::mix(k.pelvis, 0.5f * (k.shoulder[0] + k.shoulder[1]), 0.55f);
+    const glm::vec3 neck = 0.5f * (k.shoulder[0] + k.shoulder[1]);
+    const glm::vec3 chest = glm::mix(k.pelvis, neck, 0.55f);
+    const glm::vec3 hips = (k.legs ? 0.5f * (k.hip[0] + k.hip[1]) : k.pelvis) - up * (0.04f * m);
     for(int h = 0; h < VrDrawnHolsters::count; h++)
     {
         const int side = h == body::LeftShoulder || h == body::LeftHip || h == body::LeftUpper ? 0 : 1;
-        const float s = side ? 1.f : -1.f;
-        glm::vec3 pos, out;
+        glm::vec3 pos, out = -fwd, surfaceUp = up;
         if(h == body::LeftShoulder || h == body::RightShoulder)
         {
             pos = k.shoulder[side] - fwd * (0.08f * m) - up * (0.1f * m);
-            out = -fwd;
-        }
-        else if(h == body::LeftHip || h == body::RightHip)
-        {
-            pos = (k.legs ? k.hip[side] : k.pelvis + right * (s * 0.1f * m)) + right * (s * 0.09f * m) - up * (0.04f * m);
-            out = right * s;
         }
         else
         {
-            pos = chest + fwd * (0.12f * m) + right * (s * 0.1f * m);
-            out = fwd;
+            const bool hip = h == body::LeftHip || h == body::RightHip;
+            glm::vec2 at;
+            const body::HolsterPlate plate = body::frontRingPlate(fwd, right, up, static_cast<body::Holster>(h), m, at);
+            pos = (hip ? hips : chest) + fwd * at.x + right * at.y;
+            out = plate.out;
+            surfaceUp = plate.up;
         }
         view::GearDraw gun;
         const int model = (hs.weapons & (1 << h)) ? hs.model[h] : 0;
-        view::holsterOnOther(h, pos, out, yaw, model > 0 && model < MAX_MODELS ? cl.model_precache[model] : nullptr, gear[h], gun);
+        view::holsterOnOther(h, pos, out, surfaceUp, bodyYaw, model > 0 && model < MAX_MODELS ? cl.model_precache[model] : nullptr,
+            gear[h], gun);
         hs.origin[h] = gun.origin - glm::vec3{d.placedAt}; // (offsets from his entity's origin, as received)
         hs.angles[h] = gun.angles;
         hs.mirrored = static_cast<za::U8>((hs.mirrored & ~(1 << h)) | (gun.mirrored ? 1 << h : 0));

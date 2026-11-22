@@ -7437,6 +7437,12 @@ def botgear_case(s, viewer, ent, label):
             "hands %d, holsters %d, sheaths %d, farthest %.1f from the trunk (at most %.1f), hands %.1f from the wrists "
             "(at most %.1f)" % (g["hands"][0], g["holsters"][0], g["sheaths"][0], g["trunk"][0], g["trunkmost"][0],
                                 g["wrist"][0], g["wristmost"][0]))
+    # (vrnotes1122a; his voice note 2026-11-22: a bot's holsters "not properly rotated on its body") turned with its trunk
+    s.check("%s: %s draws its holsters turned with its trunk (sheaths along its up and facing out, guns in them, all "
+            "numbers)" % (label, viewer.name), g["turned"][0] == 1,
+            "finite %d, tilt %.1f (at most 70), facing %.1f (at most 60), guns %.1f from their sheaths (at most %.1f)" % (
+                g["finite"][0], g["tilt"][0], g["facing"][0], g["hang"][0], g["hangmost"][0]))
+    return g
 
 
 def botgear(s):
@@ -7463,7 +7469,7 @@ def botgear(s):
     srv.cmd("vr_dm_test_who 1; vr_dm_test 16")
     _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "player B held in front of A")
     s.check("player B held in front of A (vr_dm_test 16)", "FAIL" not in ready, ready.strip())
-    botgear_case(s, a, eb, "the flat player B")
+    gb = botgear_case(s, a, eb, "the flat player B")
     botgear_case(s, b, ea, "the VR player A")
     srv.cmd("vr_dm_test 0")
     # a bot (FrikBot: impulse 100 on the server through A), held in front of A by the test
@@ -7484,7 +7490,15 @@ def botgear(s):
     srv.cmd("vr_dm_test_who 0; vr_dm_test 16")
     _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "the bot held in front of A")
     s.check("the bot held in front of A (vr_dm_test 16)", "FAIL" not in ready, ready.strip())
-    botgear_case(s, a, bots[0] + 1, "the bot")
+    gbot = botgear_case(s, a, bots[0] + 1, "the bot")
+    if gb is not None and gbot is not None:
+        # (B's copy as his own client drew his holsters: what a bot's, placed by A's client, must look like)
+        dt, df = abs(gbot["tilt"][0] - gb["tilt"][0]), abs(gbot["facing"][0] - gb["facing"][0])
+        s.check("the bot's holsters lie as player B's (his client's own) do: tilt and facing within 20 degrees",
+                dt <= 20 and df <= 20, "bot tilt %.1f facing %.1f, B's %.1f and %.1f" % (
+                    gbot["tilt"][0], gbot["facing"][0], gb["tilt"][0], gb["facing"][0]))
+    if os.environ.get("MP_BOTGEAR_SHOTS"):
+        s.note("screenshot (A sees the bot's holsters): %s" % a.screenshot("botgear_bot"))
     srv.cmd("vr_dm_test 0")
 
 
