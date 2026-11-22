@@ -1,9 +1,0 @@
-# brushholes_louvre: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vrbrushholes' louvred grate
-# over a pit (bars at two heights: 20-unit gaps seen from above; Misc/quakevr/make_vrbrushholes_map.py): with
-# vr_hull_holes_vert on you can step down between the upper bars but never fall past the lower ones.
-title Gap blockers: a louvred grate
-map vrbrushholes
-start -668 -330 24 90
-god
-notarget
-hint Walk onto the grate ahead and step into the gaps between its upper bars: you stop on the lower ones, never falling through (vr_hull_holes_vert 0, Rebuild Gap Blockers Now: you do).

@@ -1092,6 +1092,8 @@ void() BotAI =
     self.button0 = 0;
     self.button3 = 0; // QVR: its off hand's trigger (bot_shoot: a gun its off hand took)
 
+    bot_clips_to_ammo(); // QVR: a loaded gun it took fires its rounds (a bot never reloads)
+
     // switch empty weapons
     if(!W_CheckNoAmmo(cVR_MainHand) && random() > 0.3)
     {

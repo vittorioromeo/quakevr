@@ -1,9 +1,0 @@
-# brushholes_dm1grate: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". DM1's grate (x 352..512,
-# y 1352..1368): two of its bars are func_doors (t2) that sink into the floor when the button at x 508, y 1256 is pressed
-# (his hull-hole mark, backlog1122d: the gap blockers stayed standing in the opened way).
-title Gap blockers: DM1's sinking grate
-map dm1
-start 438 1250 -120 90
-god
-notarget
-hint Press the button on the wall to your right to lower the grate's middle bars, then walk through between them.

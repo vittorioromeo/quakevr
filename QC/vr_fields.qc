@@ -339,6 +339,7 @@ float vr_melee_begun_last;
 .float vr_spawn_left;  // func_vr_spawner: monsters still to make for its latest use
 .float vr_spawn_armed; // func_vr_spawner: its latest use's monsters not all dead yet (its target not fired)
 .entity vr_spawn_by;   // func_vr_spawner: who used it last (its target's activator)
+.float vr_spawn_arm;   // func_vr_spawner: its grunts armed with this weapon (monster_vr_grunt's "weapon" codes; 0: as "weapon" says)
 .float vr_spawn_seen;  // a monster a func_vr_spawner made: when it was last up or in the player's sight (VR_Spawner_Unstrand)
 .float tip_on;         // func_vr_tip (TRIGGERED, GRABBED): used (or its thing taken in a hand): shown from now on
 .float tip_grabbed;    // a thing a hand has taken: its GRABBED tips have been let out (VR_Tips_Grabbed: once)

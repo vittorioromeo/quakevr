@@ -987,6 +987,7 @@ void ikStretchReset()
         row(opt::vr_flare_air_fall),
         row(opt::vr_revolver_heavy_mult),
         row(opt::vr_revolver_cooldown),
+        row(opt::vr_haste_full_auto),
         row(opt::vr_dmg_grenade),
         row(opt::vr_dmg_rocket),
         header("Scourge of Armagon"),

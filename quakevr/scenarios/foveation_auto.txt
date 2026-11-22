@@ -1,8 +1,0 @@
-# foveation_auto: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Eye-tracked foveation by
-# default (vr_foveated_gaze 1): the eyes when tracked, the lens centre otherwise; the rates shown (vr_foveated_debug).
-title Foveation follows your eyes, or stays centred
-map vrtesthall
-god
-notarget
-cvar vr_foveated_debug 1
-hint The yellow and red tiles show where the view is drawn in less detail. With eye tracking (Quest Pro through Virtual Desktop) the clear middle follows your eyes; without it, it stays in the middle of the lens. VR Settings > Graphics (Advanced) shows a line saying which is in use, under Eye-Tracked Foveation.

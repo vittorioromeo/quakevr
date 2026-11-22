@@ -175,9 +175,12 @@ namespace
 // they go round the body's side to its back rather than into it (outOfTheTorso). Until round 21 an
 // X behind the front was stopped there (the author's "they stop at some point"); configs keep their
 // look (migrateHolsters). In the standing body, which the Follower carries.
+// Whether the body is drawn or not (vr_body_mode 0, Only Hands, too: his note vrtesthall_2026-11-22_15-35-12, "they should
+// match the same holster positions and orientations as when the full body is enabled"; before, mode 0 kept the old
+// placement, its holsters far from the full body's and facing the old way).
 [[nodiscard]] bool isOnTheBody(Holster holster)
 {
-    return vr_body_mode.value >= 1.f && holster != LeftShoulder && holster != RightShoulder;
+    return holster != LeftShoulder && holster != RightShoulder;
 }
 
 // make_vrbody.py: the spine hangs from the top of the neck (vr_body_eye_forward and
@@ -266,6 +269,9 @@ constexpr float SURFACE_CLEARANCE = 1.5f; // units the holster (a hand's reach t
     return outOfTheTorso(standing, hip, pos + fwd * (at - now));
 }
 
+[[nodiscard]] HolsterPlate ringPlate(const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up, float x, float y,
+    float depth, float width, float slope);
+
 // The body's surface under a holster on it (onTheBody), in the standing body. The torso's ring
 // there is an ellipse round the spine, whose normal the holster's plate faces: the belly's at the
 // hips, the chest's at the upper holsters, which sit above its widest, by the collarbones, where
@@ -281,6 +287,14 @@ constexpr float SURFACE_CLEARANCE = 1.5f; // units the holster (a hand's reach t
     hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
     const float x = glm::dot(pos - standing.head, fwd) - axis; // (behind the spine: the plate faces back)
     const float y = glm::dot(pos - standing.head, right);
+    return ringPlate(fwd, right, up, x, y, depth, width, slope);
+}
+
+// The plate on a ring `depth` deep and `width` to the side round the spine (fwd, right, up: the body's), at x forward of
+// it and y to its right, sloped back `slope` radians (plateOnTheRing; frontRingPlate: a bot's).
+[[nodiscard]] HolsterPlate ringPlate(const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up, float x, float y,
+    float depth, float width, float slope)
+{
     const glm::vec3 flat = za::abs(x) + za::abs(y) > 1e-3f
                                ? glm::normalize(fwd * (x / (depth * depth)) + right * (y / (width * width)))
                                : fwd;
@@ -863,6 +877,19 @@ void updateHotspots(hands::State& s)
     {
         s.hotspot[hand] = hotspot(s, hand, holsters, withPouch ? &pouch : nullptr, withAmmo ? &ammo : nullptr);
     }
+}
+
+HolsterPlate frontRingPlate(const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up, Holster holster, float m2w,
+    glm::vec2& at)
+{
+    // (on the default build's rings, round from the front as yours sit drawn by their clients: the hips' 45 degrees, the
+    // uppers' 35; vrnotes1122a's mp_botgear: every piece of a player's within ~10 units of his trunk's line)
+    const bool hip = holster == LeftHip || holster == RightHip;
+    const bool left = holster == LeftHip || holster == LeftUpper;
+    const float depth = (hip ? 0.115f : 0.13f) * m2w, width = (hip ? 0.17f : 0.19f) * m2w;
+    const float round = glm::radians(hip ? 45.f : 35.f);
+    at = {(depth + SURFACE_CLEARANCE) * za::cos(round), (left ? -1.f : 1.f) * (width + SURFACE_CLEARANCE) * za::sin(round)};
+    return ringPlate(fwd, right, up, at.x, at.y, depth, width, glm::radians(hip ? 0.f : 20.f));
 }
 
 } // namespace qvr::body

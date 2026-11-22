@@ -1481,14 +1481,19 @@ MEZZ_N_GAP = (688, 768)  # the north mezzanine railing's gap over its ladder (x 
 
 def build_room12():
     out = group("room12")
-    air("hall_12a", (1792, -528, LOW), (1920, -304, LOW + 160), style=bands(TX["panel3"]))
-    air("hall_12b", (1424, -656, LOW), (1920, -528, LOW + 160), style=bands(TX["panel3"]))
+    # the hall from lesson 14's room (its north-west doorway) up to the arena's door (tutorial5: lessons 12-14 now
+    # come between room 11b and here; were hall_12a down from room 11b's door and hall_12b west to this door)
+    air("hall_15", (HALL15[0], HALL15[1], LOW), (HALL15[2], HALL15[3], LOW + 160), style=bands(TX["panel3"]))
     r = R12
     room("room12", r["x0"], r["y0"], r["x1"], r["y1"], LOW, 400, COURT).windows = (272, 416)
     d = doorway("room12_in", r["x1"], -656, r["x1"] + 16, -528, LOW, out)
     # the door stays open until he is in, then shuts (START_OPEN, used once)
     sliding_door(d, "r12_shut", keys={"spawnflags": 1}, wait=-1)
-    checkpoint("cp12", 1340, -592, LOW, 180)
+    # The arena's checkpoint, in the hall before its door (was 1340 -592, inside): SAVE (QC info_vr_checkpoint's flag
+    # 1): taken, the game is saved; a death in the arena loads that save, the arena as it was before and the player
+    # here with what he had (his note vrtutorial_2026-11-22_15-34-20: "autosaved before the arena").
+    ent("info_vr_checkpoint", 1488, -624, LOW + 24, angle=180, distance=64, targetname="cp15", spawnflags=1,
+        message="Saved. If you die in the arena," + N + "you come back here.")
     # the mezzanines (structural), their ladders
     for lo, hi in (MEZZ_N, MEZZ_W):
         SOLIDS.append(((lo[0], lo[1], LOW), (hi[0], hi[1], MEZZ_Z)))
@@ -1569,7 +1574,7 @@ def build_room12():
         ent("trigger_relay", 830, -900, LOW + 72, **k)
     ent("trigger_relay", 830, -900, LOW + 80, targetname="r12_won", target="r12_exit",
         message="Arena cleared! The way out is open.")
-    banner(N.join(["LESSON 12: THE ARENA", "", "When you step in, the door shuts", "and enemies come in waves.",
+    banner(N.join(["LESSON 15: THE ARENA", "", "When you step in, the door shuts", "and enemies come in waves.",
                    "Use the weapons on the tables!"]), 1400, -800, LOW + 130, 180, "0.3")
     tip("t2_arena", "Take a gun and ammunition here" + N + "before you step further in.", 1340, -760, LOW + 70,
         200)
@@ -1590,6 +1595,152 @@ def build_room12():
     light(832, -1830, LOW + 64, 250, "0.8 0.6 1")
     banner(N.join(["WELL DONE!", "You know the basics. The teleporter", "takes you to the hub: the campaigns,",
                    "the settings, the firing range."]), 832, gy + 20, LOW + 176, 90, "0.3")
+
+
+# ---- tutorial5: lessons 12-14 (the arena became 15), between room 11b and the arena: blades; bash and batting; ropes
+# and armour. Written last (late(): the playthrough's edict numbers kept). ROUND25.md, "tutorial5".
+R12B = dict(x0=1664, y0=-816, x1=2176, y1=-304)   # blades: through room 11b's south door
+R13 = dict(x0=2192, y0=-880, x1=2832, y1=-368)    # bash and batting: east of it
+R14 = dict(x0=1424, y0=-1408, x1=2448, y1=-896)   # ropes and armour: south of both
+HALL15 = (1424, -880, 1552, -528)                 # x0, y0, x1, y1: room 14's north-west doorway up to the arena's door
+R12B_TARGET = 1920       # x: the throwing target, high on room 12b's south wall
+R13_PIT = (2448, 2640)   # x: the deadly pit across room 13 ...
+R13_BRIDGE = (-672, -576)  # ... its bridge (y)
+R14_PIT = (1792, 2048)   # x: the pit across room 14 (192 deep); the rope and the chain 8 out from its east edge (in reach)
+R14_ROPE_X = R14_PIT[1] - 8
+R14_ROPE_Y = (-1104, -1200)  # the rope's y, the chain's
+R14_ROPE_TOP = LOW + 438     # (just under the beam they hang from; the ceiling at LOW + 448)
+
+
+def build_room12b():
+    out = group("room12b")
+    r = R12B
+    room("room12b", r["x0"], r["y0"], r["x1"], r["y1"], LOW, LOW + 256, bands(TX["panel4"]))
+    checkpoint("cp12", 1856, -376, LOW, 270)
+    lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 256, 2, 2, 210)
+    # a sword, a dagger and an axe on a table by the west wall, more as they go
+    tx = r["x0"] + 46   # (10 in from the table's front: in reach of a player at it)
+    table(out, r["x0"] + 16, -608, r["x0"] + 56, -416, LOW, 36)
+    for (cls, y, keys) in (("weapon_knight_sword", -448, {}), ("weapon_dagger", -512, {"targetname": "r12_dagger"}),
+                           ("weapon_axe", -576, {})):
+        ent(cls, tx, y, LOW + 40, angle=90, **keys)
+        restock(cls, tx, y, LOW + 40, distance=48, wait=6)
+    # a training dummy to cut and stab (QC vr_dummy: it takes no harm and shows every hit)
+    ent("vr_dummy", 1920, -560, LOW + 24, angle=90)
+    # the target: high on the south wall, out of reach (a button: a thrown axe presses it, as a thrown rock does)
+    bx = R12B_TARGET
+    dbox(out, (bx - 48, r["y0"], LOW + 128), (bx + 48, r["y0"] + 2, LOW + 224), TX["hazard"])
+    button("THROW" + N + "HERE", None, bx, r["y0"] + 2, LOW + 176, 270, depth=8, size=64, target="r12b_open",
+           wait="-1", scale="0.25")
+    banner(N.join(["LESSON 12: BLADES", "", "Swing the edge hard: it cuts.", "Thrust the point: it sticks in.",
+                   "Grip the handle again to pull it out.", "", "B (Y on the off hand) turns the blade",
+                   "point down: a reverse grip.", "", "Throw an axe into the target to go on."]),
+           1760, r["y0"] + 4, LOW + 112, 90, "0.3")
+    tip("t3_blades", "Take a blade by its handle and swing" + N + "the edge through the dummy.", tx + 40, -512,
+        LOW + 60, 160)
+    tip("t3_stab", "Thrust the point in: it sticks." + N + "Grip the handle again to pull it out.", 1920, -520,
+        LOW + 60, 110)
+    # on the dagger once it is in a hand (GRABBED 16, ANYANGLE 4)
+    tip("t3_reverse", "B (Y on the off hand) turns the dagger" + N + "point down, for stabbing down.", tx, -512,
+        LOW + 40, 150, target="r12_dagger", flags=4 | 16, delay=0)
+    tip("t3_axe", "Throw the axe at the target: swing and" + N + "let go. Grip it to pull it back out.", bx, -690,
+        LOW + 60, 160)
+    d = doorway("room12b_exit", r["x1"], -512, r["x1"] + 16, -384, LOW, out)
+    sliding_door(d, "r12b_open")
+
+
+def build_room13():
+    out = group("room13")
+    r = R13
+    room("room13", r["x0"], r["y0"], r["x1"], r["y1"], LOW, LOW + 256, bands(TX["panel2"]))
+    checkpoint("cp13", 2256, -448, LOW, 0)
+    lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 256, 3, 2, 210)
+    # the pit across the room, deadly (an enemy shoved in dies; so would he), a bridge over it, no railings
+    px0, px1 = R13_PIT
+    by0, by1 = R13_BRIDGE
+    for (name, y0, y1) in (("r13_pit_s", r["y0"], by0), ("r13_pit_n", by1, r["y1"])):
+        air(name, (px0, y0, LOW - 128), (px1, y1, LOW), style=bands(TX["panel5"]))
+        trigger(name + "_hurt", (px0, y0, LOW - 128), (px1, y1, LOW - 96), "trigger_hurt", dmg=1000)
+        for x in (px0 - 8, px1):
+            hazard_edge(out, (x, y0, LOW), (x + 8, y1, LOW + 1))
+    for y in (by0, by1 - 8):
+        hazard_edge(out, (px0, y, LOW), (px1, y + 8, LOW + 1))
+    # the enemy: an armed grunt with an axe (func_vr_spawner's vr_spawn_arm, a weapon code) from the far side
+    ent("func_vr_spawner", 2768, -624, LOW + 32, weapon=0, vr_spawn_arm=2, angle=180, spawnflags=3,
+        targetname="r13_spawn", target="r13_open", message="Finish this one first.")
+    trigger("r13_start", (r["x0"], r["y0"], LOW), (px0 - 64, r["y1"], LOW + 96), target="r13_spawn", delay=4)
+    button("ANOTHER" + N + "ENEMY", None, r["x0"], -800, LOW + 52, 180, target="r13_spawn", size=20)
+    # batting and catching: a spike and a grenade fired at him from the east wall (QC trap_vr_shooter), a second
+    # after he presses their buttons
+    ent("trap_vr_shooter", r["x1"] - 16, -448, LOW + 56, targetname="r13_spike", style=0)
+    ent("trap_vr_shooter", r["x1"] - 16, -416, LOW + 80, targetname="r13_grenade", style=1)
+    button("SPIKE", None, 2272, r["y1"], LOW + 52, 90, target="r13_spike", size=20, delay=1)
+    button("GRENADE", None, 2368, r["y1"], LOW + 52, 90, target="r13_grenade", size=20, delay=1)
+    item("item_health", 2232, -840, LOW + 2)
+    restock("item_health", 2232, -840, LOW + 2, distance=64, wait=10)
+    banner(N.join(["LESSON 13: BASH AND BAT", "", "BASH: hold a weapon level across (a guard)",
+                   "and push forward hard. An open hand shoves.", "Shove the enemy off the bridge!",
+                   "Or disarm it: grip its axe and pull.", "", "BAT: press for a spike, swing through it.",
+                   "Press for a grenade: catch it, throw it back."]), 2320, r["y1"] - 4, LOW + 150, 270, "0.28")
+    tip("t3_bash", "From a guard (a weapon level across)," + N + "push hard: a bash. Shove it off!", px0 - 48,
+        -624, LOW + 60, 220)
+    tip("t3_disarm", "Disarm it: grip its axe and pull hard." + N + "It holds on: a tug of war.", px0 - 48, -624,
+        LOW + 40, 300, delay=3, trig="r13_spawn")
+    tip("t3_bat", "Swing your weapon or fist through" + N + "the spike to send it back.", 2272, -420, LOW + 60, 160,
+        delay=0, trig="r13_spike")
+    tip("t3_catch", "Catch the grenade with an empty hand" + N + "and throw it back before it bursts.", 2368, -420,
+        LOW + 40, 160, delay=0, trig="r13_grenade")
+    d = doorway("room13_exit", 2208, r["y0"] - 16, 2336, r["y0"], LOW, out)
+    sliding_door(d, "r13_open")
+
+
+def build_room14():
+    out = group("room14")
+    r = R14
+    room("room14", r["x0"], r["y0"], r["x1"], r["y1"], LOW, LOW + 448, bands(TX["panel"]))
+    checkpoint("cp14", 2272, -960, LOW, 270)
+    lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 448, 4, 2, 300)
+    # the pit across the room (192: no climbing out but by the ladder up its near wall; no fall damage)
+    px0, px1 = R14_PIT
+    air("r14_pit", (px0, r["y0"], LOW - 192), (px1, r["y1"], LOW), style=bands(TX["panel5"]))
+    for x in (px0 - 8, px1):
+        hazard_edge(out, (x, r["y0"], LOW), (x + 8, r["y1"], LOW + 1))
+    ly0, ly1 = -1328, -1280   # (rungs every 20 from 16, 7 off the wall, between two stiles: room 3's)
+    for z in range(16, 192, 20):
+        out.append(cylinder((px1 - 7, ly0, LOW - 192 + z), (px1 - 7, ly1, LOW - 192 + z), 1.75, 8, TX["rung"]))
+    for y in (ly0 - 4, ly1):
+        dbox(out, (px1 - 10, y, LOW - 192), (px1, y + 4, LOW + 24), TX["rung"])
+    # the rope and the chain, from a beam under the ceiling (QC vr_rope, vr_chain: ROPES.md); their ends over the pit
+    dbox(out, (R14_ROPE_X - 8, r["y0"], LOW + 440), (R14_ROPE_X + 8, r["y1"], LOW + 448), TX["lamp_frame"])
+    ent("vr_rope", R14_ROPE_X, R14_ROPE_Y[0], R14_ROPE_TOP, rope_length=430, rope_thickness=2)
+    ent("vr_chain", R14_ROPE_X, R14_ROPE_Y[1], R14_ROPE_TOP, rope_length=430)
+    banner(N.join(["LESSON 14: ROPES", "", "Grip the rope with both hands", "and step off: you hang on it.",
+                   "Pull down to climb, push up to slide.", "Push the stick to swing it higher,",
+                   "then jump to let go and fly across.", "", "Fall in? The ladder brings you back up."]),
+           2272, r["y0"] + 4, LOW + 140, 90, "0.3")
+    tip("t3_rope", "Grip the rope, step off the edge, push" + N + "the stick to swing, then jump.", px1 + 32,
+        R14_ROPE_Y[0], LOW + 60, 150)
+    # armour past the pit, before the arena
+    table(out, 1536, -1392, 1664, -1352, LOW, 36)
+    item("item_armor1", 1600, -1372, LOW + 40)
+    restock("item_armor1", 1600, -1372, LOW + 40, distance=64, wait=10)
+    banner(N.join(["ARMOUR", "", "Take it and hold it to your chest,", "then let go: you wear it.",
+                   "(Only if it beats what you wear.)"]), 1600, r["y0"] + 4, LOW + 120, 90, "0.3")
+    tip("t3_armor", "Hold the armour to your chest" + N + "and let go to put it on.", 1600, -1340, LOW + 60, 150)
+    doorway("room14_exit", HALL15[0], r["y1"], HALL15[2], r["y1"] + 16, LOW, out)
+
+
+def build_lessons_12_14():
+    with late():
+        build_room12b()
+        build_room13()
+        build_room14()
+        # disarming (always on), where the first armed grunt comes: lesson 7's, once it is out
+        tip("t2_disarm", "Or disarm it: grip its rifle while it" + N + "lives and pull hard.", 5216, 720, LOW + 50,
+            260, delay=4, trig="r7_spawn")
+        # bullet time at the arena's fight, as its door shuts (one tip; the hall's board says how)
+        tip("t3_bullettime", "Too many at once? Double-tap your" + N + "wrist gadget: bullet time.", 1100, -640,
+            LOW + 60, 400, delay=3, trig="r12_go")
 
 
 # ---- The music and the welcome. Quake's CD tracks (id1's, Nine Inch Nails' soundtrack: 2 to 11; only references:
@@ -1614,18 +1765,17 @@ def build_extras():
         # the welcome in the middle of the view as soon as he is in (before any tip: a tip waits 0.35 s), for 8 s (no
         # tip meanwhile: vr_tips.cpp)
         ent("target_vr_message", 96, 256, 64, message=N.join(WELCOME), wait=8, delay=0.1)
-        # bullet time, before the arena (the author, 2026-10-10): on hall_12b's south wall, ahead of him as he comes
-        # down hall_12a. The gadget's gesture as vr_bullettime_tap_gesture 1 has it (shipped): a double tap on its
-        # screen, by the other hand (or the butt of the gun in it); the meter (vr_bullettime_duration,
-        # vr_bullettime_recharge) runs down and fills again.
+        # bullet time, before the arena (the author, 2026-10-10): on hall_15's north wall, ahead of him as he comes
+        # up it (east of the arena's door). The gadget's gesture as vr_bullettime_tap_gesture 1 has it (shipped): a
+        # double tap on its screen, by the other hand (or the butt of the gun in it); the meter
+        # (vr_bullettime_duration, vr_bullettime_recharge) runs down and fills again.
         banner(N.join(["BULLET TIME", "", "Double-tap your wrist gadget's screen", "with your other hand: time slows down.",
-                       "Double-tap again to stop it.", "It runs down, then recharges."]), 1856, -652, LOW + 96, 90,
-               "0.28")
-        # the halls to the arena (hall_12a, hall_12b): lamps (lit by nothing but the arena's door, they were near black)
+                       "Double-tap again to stop it.", "It runs down, then recharges."]), 1500, HALL15[3] - 4,
+               LOW + 96, 270, "0.28")
+        # the hall to the arena (hall_15): lamps (lit by nothing but the arena's door, it was near black)
         out = group("halls12")
-        ceiling_lamp(out, 1856, -416, LOW + 160, 32, 64, 200)
-        ceiling_lamp(out, 1856, -592, LOW + 160, 64, 32, 200)
-        ceiling_lamp(out, 1616, -592, LOW + 160, 64, 32, 200)
+        ceiling_lamp(out, 1488, -800, LOW + 160, 32, 64, 200)
+        ceiling_lamp(out, 1488, -608, LOW + 160, 32, 64, 200)
         # lesson 1's hall, before its board: how to open the menu (1.0.1: a player's Pico under SteamVR had no menu
         # button reaching the game; vr_menu_button's stick chord does). Last of all, so that a 1.0.0 save's edicts
         # keep their numbers.
@@ -1633,7 +1783,7 @@ def build_extras():
 
 
 ROOMS = [build_room1, build_bend, build_room2, build_room3, build_room4, build_room5, build_room6, build_room7,
-         build_room8, build_room9, build_room10, build_room11, build_room12, build_extras]
+         build_room8, build_room9, build_room10, build_room11, build_room12, build_extras, build_lessons_12_14]
 
 
 WORLD_KEYS = {

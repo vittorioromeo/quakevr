@@ -962,3 +962,6 @@ float(entity targ, entity inflictor, entity attacker, float damage) MG3_LavaManD
 // ending); immune during his fits (upstream boss_immune); his damage rules, read by combat.qc.
 .float mg3_chthon, mg3_chthon_immune;
 float(entity targ, entity inflictor, entity attacker, float damage) MG3_ChthonDamage;
+// A hurting field monsters keep off (a togglewall with dmg: ad_func.qc, hip_part.qc): the engine's SV_movestep refuses a
+// monster's step nearer than 12 units to it (vr_hull.cpp VR_MonsterAvoidsField; his note kellbase1 2026-11-22).
+.float vr_monster_avoid;

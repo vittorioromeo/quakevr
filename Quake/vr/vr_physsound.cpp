@@ -148,6 +148,10 @@ struct Body
     double lastSlide{-1e9};     // a body's (slide's `body`): the server's time it last slid
     double scrapeStopped{-1e9}; // the server's time its last scrape stopped
     int knocks{0};              // impact sounds played since the map began (the tests: info)
+    double ropeNext{0.0};       // a climbable chain's: the server's time its next clink may play (chainMoves)
+    double ropeGrabNext{0.0};   // a climbable rope's: the server's time its next grip's sound may play (ropeGrab)
+    const char* ropeLast{""};   // its last one's recording (the tests: ropeSoundInfo)
+    int ropeSounds{0};
 };
 
 struct Hit
@@ -842,6 +846,101 @@ void grab(edict_t* player, const glm::vec3& at, edict_t* holdEnt)
             texture[0] ? texture : "?", holdEnt ? PR_GetString(holdEnt->v.classname) : "the world",
             kind == GrabKind::Wood ? "wood" : kind == GrabKind::Metal ? "metal" : "stone", volume);
     }
+}
+
+namespace
+{
+
+constexpr double ropeGap = 0.15; // a rope's grips' sounds: one at most in this long (seconds; both hands at once: one)
+
+// A climbable rope's sound: one of `set`'s recordings from the world at `at` (heard there, quiet: ATTN_IDLE), remembered
+// for the tests.
+bool ropeEmit(int rope, const Set& set, Indices& ind, float volume, const glm::vec3& at, float pitch)
+{
+    const char* name = "";
+    if(!emit(0, 0, pick(set, ind, &name), volume, 2.f, at, pitch))
+    {
+        return false;
+    }
+    Body& b = bodyOf(rope);
+    b.ropeLast = name;
+    b.ropeSounds++;
+    return true;
+}
+
+[[nodiscard]] float chainVolume()
+{
+    return master() * za::clamp(vr_physsound_chain.value, 0.f, 1.f);
+}
+
+} // namespace
+
+void ropeGrab(edict_t* player, const glm::vec3& at, int rope, bool chain)
+{
+    const float volume = chain ? chainVolume() : master() * za::max(vr_physsound_grab.value, 0.f);
+    if(volume <= 0.f || !sv.active || rope <= 0)
+    {
+        return;
+    }
+    Body& b = bodyOf(rope);
+    if(qcvm->time < b.ropeGrabNext)
+    {
+        return;
+    }
+    // A chain: the metal hold's grip (its links in the fist); a rope (ropes6): the soft material's thud (the fibres in the
+    // fist: a backpack's, not the stone slap it once made), a headset's grip or flat-screen play's alike.
+    const int k = static_cast<int>(GrabKind::Metal), soft = static_cast<int>(Material::Soft);
+    constexpr int medium = 1;
+    const bool made = chain ? ropeEmit(rope, grabSets[k], state.grabs[k], volume, at, jitter())
+                            : ropeEmit(rope, impactSets[soft][medium], state.impacts[soft][medium], volume, at, jitter());
+    if(made)
+    {
+        b.ropeGrabNext = qcvm->time + ropeGap;
+        b.ropeNext = za::max(b.ropeNext, qcvm->time + ropeGap); // (no clink over the grip)
+    }
+    if(debug())
+    {
+        Con_Printf("physsound: %.2f %d grabs %s %d: %s, volume %.2f\n", qcvm->time, player ? NUM_FOR_EDICT(player) : 0,
+            chain ? "chain" : "rope", rope, bodyOf(rope).ropeLast, volume);
+    }
+}
+
+void chainMoves(int rope, const glm::vec3& at, float speed)
+{
+    const float from = za::max(vr_physsound_chain_speed.value, 1.f);
+    const float volume = chainVolume();
+    if(volume <= 0.f || !sv.active || rope <= 0 || speed < from)
+    {
+        return;
+    }
+    Body& b = bodyOf(rope);
+    if(qcvm->time < b.ropeNext)
+    {
+        return;
+    }
+    // Faster: louder (a third at the threshold, all of it at four times it) and more often.
+    const float fast = za::clamp((speed - from) / (3.f * from), 0.f, 1.f);
+    constexpr int light = 0; // (the light knocks: a link's)
+    const int m = static_cast<int>(Material::Metal);
+    if(ropeEmit(rope, impactSets[m][light], state.impacts[m][light], volume * (0.33f + 0.67f * fast), at, jitter()))
+    {
+        b.ropeNext = qcvm->time + 0.6 - 0.35 * fast;
+        if(debug())
+        {
+            Con_Printf("physsound: %.2f chain %d clinks at %.0f u/s: %s\n", qcvm->time, rope, speed, b.ropeLast);
+        }
+    }
+}
+
+const char* ropeSoundInfo(int num, int& count)
+{
+    if(num <= 0 || num >= static_cast<int>(state.bodies.size()))
+    {
+        count = 0;
+        return "";
+    }
+    count = state.bodies[num].ropeSounds;
+    return state.bodies[num].ropeLast;
 }
 
 } // namespace qvr::physsound

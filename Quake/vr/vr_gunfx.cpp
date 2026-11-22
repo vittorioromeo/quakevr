@@ -1330,6 +1330,13 @@ BarrelHeat barrelHeat(int hand, int slot)
     b.share = za::clamp((b.heat - kHeatGlowFrom) / (1.f - kHeatGlowFrom), 0.f, 1.f);
     b.glow = heatGlow(b.heat);
     b.color = glm::mix(glm::vec3{0.8f, 0.12f, 0.03f}, glm::vec3{1.f, 0.42f, 0.1f}, b.share); // dull red to orange
+    // Dwell's Crystal Lance (dwellweap): no metal barrel, its crystal head charged by the shot: a violet glow fading out
+    // (its slot's Barrel Heat and Glow Length, weapons.txt slot 55).
+    const qmodel_t* m = weapons::heldModel(hand);
+    if(m && (strstr(m->name, "dw_lance") || strstr(m->name, "dw_rail")))
+    {
+        b.color = glm::mix(glm::vec3{0.55f, 0.25f, 1.f}, glm::vec3{0.85f, 0.6f, 1.f}, b.share);
+    }
     return b;
 }
 

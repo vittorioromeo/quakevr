@@ -66,6 +66,20 @@ void frameEnd();
 // palm's slap with a tap of what the hold is made of (the texture under it: wood, metal, stone).
 void grab(edict_t* player, const glm::vec3& at, edict_t* holdEnt);
 
+// A climbing hand of `player` took climbable rope entity `rope` at `at` (vr_climbrope.cpp): a chain's grip is a metal
+// one (grab's metal set, vr_physsound_chain loud); a rope's the slap a hold of no texture makes (grab's, as before).
+// Rate-limited per rope (ropeGap): hand over hand plays every other take at most.
+void ropeGrab(edict_t* player, const glm::vec3& at, int rope, bool chain);
+
+// Chain `rope` this frame (vr_climbrope.cpp serverFrame): its fastest link moving `speed` units/s at `at`. Swung,
+// climbed or pushed fast enough (vr_physsound_chain_speed) its links clink (the light metal knocks), quiet
+// (vr_physsound_chain), the faster the more often (every 0.6 s to 0.25 s).
+void chainMoves(int rope, const glm::vec3& at, float speed);
+
+// The tests (vr_rope_sound_test): rope entity `num`'s sounds since the map began (count) and its last one's recording
+// ("" none).
+[[nodiscard]] const char* ropeSoundInfo(int num, int& count);
+
 // The first surface of brush model `m` the segment from `start` to `end` (the model's own space) crosses where its
 // texture's extents hold the crossing; nullptr: none (the grab's walk, shared: the stealth AI's see-through trace).
 [[nodiscard]] const msurface_t* surfaceOnSegment(const qmodel_t* m, const glm::vec3& start, const glm::vec3& end);

@@ -64,6 +64,8 @@ bool serverHold(edict_t* ent, int hand, glm::vec3& at, glm::vec3& out);
 
 // Server: how many of `ent`'s hands hold a climbable rope (vr_climb.cpp, "Holds on ropes"), hanging.
 [[nodiscard]] int ropeHands(edict_t* ent);
+// Server: the exertion grunts `ent`'s pulls up ropes have made so far (vr_rope_grunt; ropes6, the tests').
+[[nodiscard]] int ropePullGrunts(edict_t* ent);
 
 // Server: the flatscreen mantles `ent` started since the map loaded (vr_flat_mantle: after a jump, the jump key held,
 // looking up at a ledge in reach; vr_climb.cpp flatMantle), and whether it mantles now (any mantle).
@@ -153,9 +155,20 @@ float drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm:
 // rope's near side, not vr_climb_hand_*'s ledge offsets (which put a hand on a rope off it). Yours and another player's
 // (vr_mpavatar.cpp: his held hands pinned there).
 [[nodiscard]] glm::vec3 ropeHandOffset(const glm::vec3& out);
+// Client (ropes5): a hand on a rope's hold `hold` (a server's: a tick old, on its points or its rider's line) with its
+// way out `out` (towards the climber) -> true: its palm's middle on the rope as drawn this frame (the drawn curve's
+// point nearest the hold, out from it by ropeHandOffset's or, a thick chain, its surface a little in) and the rope's way
+// up there (`up`, if given). False: no rope drawn near it. Yours (drawnHand) and another player's (vr_mpavatar.cpp).
+[[nodiscard]] bool ropePalm(const glm::vec3& hold, const glm::vec3& out, glm::vec3& palm, glm::vec3* up);
 
 // Client: how far the drawn `hand` is on its hold, as drawnHand last made it (0..1): a flat mantle's free hand leaves the
 // other hand's gun for it (vr_view_hands.cpp).
 [[nodiscard]] float drawnShare(int hand);
+// Client: where drawnHand last put the drawn `hand`'s palm middle on its hold (world) -> true; false: not on one.
+// (vr_rope_hands_test's samples.)
+[[nodiscard]] bool drawnPalm(int hand, glm::vec3& palm);
+// Client: the way the back of the drawn `hand` faces in its hold's turn (world; the rope grip's or a ledge's) -> true;
+// false: not on a hold. (vr_rope_climb_check grip: ropes6.)
+[[nodiscard]] bool drawnBack(int hand, glm::vec3& back);
 
 } // namespace qvr::climb

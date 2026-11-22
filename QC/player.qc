@@ -363,6 +363,7 @@ void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn,
     }
 
     setHandThinkWithArg(xHand, xNailAtt, xNailFn);
+    VR_Haste_FramePace(xHand); // (hasted: a nail every 0.06 s, rogue_runes.qc)
     self.effects = self.effects | EF_MUZZLEFLASH;
 
     VRSetWeaponFrame(xHand, VRGetWeaponFrame(xHand) + 1);
@@ -383,7 +384,7 @@ void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn,
         dprint(sprintf("nailside hand %g frame %g ox %g\n", xHand, VRGetWeaponFrame(xHand), xOffset));
     }
     xFireFn(xHand, xOffset);
-    VRSetAttackFinished(xHand, time + 0.2);
+    VRSetAttackFinished(xHand, time + RuneApplyHell(0.2, self));
 }
 
 void(float xHand, float xOffset, float xNailAtt, void(float) xNailFn) player_nail_Impl =
@@ -431,6 +432,7 @@ float(float xHand, float xLightAtt, void(float) xLightFn) player_light_Impl =
     }
 
     setHandThinkWithArg(xHand, xLightAtt, xLightFn);
+    VR_Haste_FramePace(xHand);
 
     self.effects = self.effects | EF_MUZZLEFLASH;
 
@@ -464,7 +466,7 @@ void(float xHand) player_light1 =
     else
     {
         W_FireLightning(xHand);
-        VRSetAttackFinished(xHand, time + 0.2);
+        VRSetAttackFinished(xHand, time + RuneApplyHell(0.2, self));
     }
 };
 
@@ -481,7 +483,7 @@ void(float xHand) player_light2 =
     else
     {
         W_FireLightning(xHand);
-        VRSetAttackFinished(xHand, time + 0.2);
+        VRSetAttackFinished(xHand, time + RuneApplyHell(0.2, self));
     }
 };
 
@@ -519,7 +521,8 @@ void(float xHand, float xLaserAtt, void(float) xLaserFn, float xFrame, float xSt
     }
 
     setHandThinkWithArg(xHand, xLaserAtt, xLaserFn);
-    VRSetAttackFinished(xHand, time + 0.1);
+    VR_Haste_FramePace(xHand);
+    VRSetAttackFinished(xHand, time + RuneApplyHell(0.1, self));
     VRSetWeaponFrame(xHand, xFrame);
     if(xStat >= 0)
     {

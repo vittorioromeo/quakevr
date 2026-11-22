@@ -1324,6 +1324,10 @@ za::Vector<Item> pageDebugTests()
                   "each wound a nail's (a dent and blood), blood spawned, nothing set on fire; a lava nail's a burn "
                   "(\"nailtest: N passed, M failed\")."),
         row(opt::vr_nailslide_debug),
+        command("Haste on Every Gun Test", "vr_np_test 7")
+            .help("Each gun fired 1.5 s with its trigger held, without Haste then with it: the nailgun, the lightning gun and "
+                  "the shotgun 1.4 times as often or more; the nail pistol, the heavy revolver and the flare gun one shot a "
+                  "pull, hasted full auto (\"nphaste: N passed, M failed\")."),
         command("Nail Pistol Aim Test", "vr_np_test 5")
             .help("Headless (it moves the mock hands): its nails along the shot line (the red laser), flight and impact within "
                   "0.2 degrees, at several poses and distances, both hands (\"npaim: N passed, M failed\"). In the headset: "
@@ -1588,6 +1592,9 @@ za::Vector<Item> pageDebugTests()
         command("Test the Flat-Screen Rope Climb", "vr_climb_stamina 0; vr_rope_flat_test")
             .help("vr_rope_flat_test (flat-screen play, map vrropes; climbing stamina turned off): a rope walked into, climbed up and down, "
                   "then rope to rope on the swinging row (pumped, let go at the peak, the next caught). Prints PASS/FAIL lines."),
+        command("Test the Rope and Chain Sounds", "vr_rope_sound_test")
+            .help("vr_rope_sound_test: a rope and a chain made ahead; gripped (the chain's metal grip, the rope's slap; a rope is silent "
+                  "to a headset's grip), then pushed swinging (the chain's links clink, rate-limited; the rope stays quiet). Prints PASS/FAIL lines."),
         header("Stamina"),
         info([]() -> const char* { return staminaReadout(); }),
         command("Deplete Stamina", "vr_stamina_set 0").help("vr_stamina_set 0: no stamina left (tired arms: heavy hands; shaking while you hang). Hanging with none, your hands let go."),

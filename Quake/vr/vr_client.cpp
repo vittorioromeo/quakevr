@@ -29,6 +29,8 @@
 #include "vr_drawblend.hpp"
 #include "vr_engine.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_gunfx.hpp"
+#include "vr_weapon_ids.h"
 #include "vr_flatplay.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flatxhair.hpp"
@@ -1524,8 +1526,10 @@ extern "C" int VR_BeamGone(int ent)
     {
         return 0;
     }
+    // (any lightning-kind model: our Thunderbolt's, Dwell's Crystal Lance's: its beam ended the frame it began, only its
+    // impact's smoke shown; NOTES.md vrtesthall_2026-11-22_15-57-29)
     const qmodel_t* const held = weapons::heldModel(id);
-    if(held && modelmeta::is(held, modelmeta::Id::VLight))
+    if(held && (modelmeta::is(held, modelmeta::Id::VLight) || gunfx::weaponIdOf(held) == WID_LIGHTNING))
     {
         return 0;
     }

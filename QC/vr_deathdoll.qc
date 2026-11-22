@@ -120,6 +120,10 @@ float(entity p) VR_DeathDoll_Make =
     }
     b.vr_deathdoll = p;
     b.vr_corpse_since = time;
+    // (his plates as he died, the body's own from now on: sent for it as his are, never his live ones again -- his
+    // notes 2026-11-22, the body gained the armour he picked up after his respawn)
+    b.vr_pp_type = p.vr_pp_type;
+    b.vr_pp_mask = p.vr_pp_mask;
 
     // Its death animation (the one his own death code would play: the axe's with the axe).
     float first = 41;

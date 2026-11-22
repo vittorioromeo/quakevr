@@ -474,7 +474,9 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // (his 4 of 2026-11-08 too: "I can sort of swim in the air", his note vrtesthall_2026-11-08_16-54-47).
 // 224: his Pose Studio poses, grips and IK stretch of 2026-11-12 are the shipped tables (nothing differed: the archived
 // strings were copies); an archived key or grip equal to its default is dropped (his strings then empty).
-constexpr int configVersion = 224;
+// 225: Game Messages as Hologram back on (vr_messages_hologram 1): the checklist scene vr_center_message turned it off with a
+// "cmd" line, never put back, so the wrist's messages showed as the plain log (his note vrtesthall_2026-11-22_15-36-07).
+constexpr int configVersion = 225;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -1045,6 +1047,10 @@ void migrateConfig()
         const int poses = agpose::dropShippedEqual();
         const int grips = aggrip::dropDefaultEqual();
         Con_DPrintf("VR: armed grunts: %d pose keys and %d grips equal to the shipped ones dropped\n", poses, grips);
+    }
+    if(from < 225)
+    {
+        Cvar_SetQuick(&vr_messages_hologram, vr_messages_hologram.default_string);
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
@@ -2105,3 +2111,4 @@ const char* cvars::kindName(Kind kind)
 }
 
 } // namespace qvr
+

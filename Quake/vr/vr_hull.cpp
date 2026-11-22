@@ -5514,6 +5514,67 @@ extern "C" int VR_HullFootprint(edict_t* ent, float* absmins, float* absmaxs)
     return qvr::hull::footprint(ent, absmins, absmaxs);
 }
 
+namespace
+{
+// How near a monster steps to a hurting field (QC .vr_monster_avoid: a togglewall that hurts), in units between boxes.
+static constexpr float fieldKeepOff = 12.f;
+static constexpr int fieldListSpace = 64;
+
+// The largest of the per-axis gaps between box [amin, amax] and edict e's box (0 overlapping on every axis).
+[[nodiscard]] float boxGap(const vec3_t amin, const vec3_t amax, const edict_t* e)
+{
+    float gap = 0.f;
+    for(int i = 0; i < 3; i++)
+    {
+        gap = za::max(gap, za::max(e->v.absmin[i] - amax[i], amin[i] - e->v.absmax[i]));
+    }
+    return gap;
+}
+} // namespace
+
+// SV_movestep: nonzero when a monster's step from `from` to `to` would bring it nearer than fieldKeepOff to a hurting
+// field (his note kellbase1 2026-11-22: "an enemy behind it tries to path through it constantly and gets hit"). A step
+// along it or away from it is taken, so one already near is never stuck; the chase picks another way round (SV_NewChaseDir).
+extern "C" int VR_MonsterAvoidsField(edict_t* ent, const float* from, const float* to)
+{
+    const int ofs = qvr::progs::fields().vr_monster_avoid;
+    if(ofs < 0 || !(static_cast<int>(ent->v.flags) & FL_MONSTER))
+    {
+        return 0;
+    }
+    vec3_t lo, hi;
+    for(int i = 0; i < 3; i++)
+    {
+        lo[i] = to[i] + ent->v.mins[i] - fieldKeepOff;
+        hi[i] = to[i] + ent->v.maxs[i] + fieldKeepOff;
+    }
+    edict_t* list[fieldListSpace];
+    int count = 0;
+    SV_AreaEdicts(lo, hi, list, &count, fieldListSpace);
+    for(int k = 0; k < count; k++)
+    {
+        edict_t* e = list[k];
+        if(e == ent || e->free || static_cast<int>(e->v.solid) == SOLID_NOT || qvr::progs::fieldFloat(e, ofs) <= 0.f)
+        {
+            continue;
+        }
+        vec3_t nmin, nmax, omin, omax;
+        for(int i = 0; i < 3; i++)
+        {
+            nmin[i] = to[i] + ent->v.mins[i];
+            nmax[i] = to[i] + ent->v.maxs[i];
+            omin[i] = from[i] + ent->v.mins[i];
+            omax[i] = from[i] + ent->v.maxs[i];
+        }
+        const float now = boxGap(nmin, nmax, e);
+        if(now < fieldKeepOff && now < boxGap(omin, omax, e) - 0.01f)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 extern "C" int VR_HullTouchBox(edict_t* touch, edict_t* mover, float* boxmins, float* boxmaxs)
 {
     return qvr::hull::touchBox(touch, mover, boxmins, boxmaxs);

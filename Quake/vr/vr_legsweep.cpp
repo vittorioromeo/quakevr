@@ -827,10 +827,18 @@ void qvr::legsweep::init()
     Cmd_AddCommand("vr_legsweep_table", table_f);
 }
 
-void qvr::legsweep::serverFrame()
+void qvr::legsweep::serverFrame(bool worldRan)
 {
     if(!sv.active || svs.maxclients < 1 || cls.state != ca_connected)
     {
+        return;
+    }
+    if(!worldRan)
+    {
+        for(Track& tr : state.hands)
+        {
+            tr.valid = false; // (paused: the hands' moves meanwhile are no sweep)
+        }
         return;
     }
     VR_ProfileBegin("legsweep");

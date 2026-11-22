@@ -1,0 +1,9 @@
+# quoth_kellbase_field: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Quoth's kellbase1 energy
+# field (a hurting func_togglewall with Quoth's spawnflag 2): its sparks (QC ad_func.qc vr_twall_fx) and monsters
+# keeping off it (the engine's SV_movestep, vr_hull.cpp VR_MonsterAvoidsField); vr_ad_test 223, quothfield_test.sh.
+# Needs Quoth 2.2 installed and its campaign selected (Official Campaigns, or vr_campaign_native quoth).
+title Quoth's kellbase1: the energy field drawn, enforcers keep off it
+map kellbase1
+start -90 262 216 -157
+god
+hint Ahead: the doorway's energy field, a sheet of pale blue sparks. The enforcers behind it come for you but stop short of it and go round (none stands pressed against it taking hits). Press its button (to the left) and it goes out.

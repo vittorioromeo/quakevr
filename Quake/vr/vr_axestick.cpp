@@ -1842,9 +1842,10 @@ void calcStats(edict_t* player, int* statsi)
     }
 }
 
-void serverFrame()
+void serverFrame(bool worldRan)
 {
     const FieldOffsets& f = fields();
+    const float dt = worldRan ? static_cast<float>(host_frametime) : 0.f; // (paused: the eases and sags stand)
     if(!sv.active || f.vr_stick_kind < 0 || f.vr_stick_ent < 0 || f.vr_stick_ofs < 0 || f.vr_stick_ang < 0)
     {
         return;
@@ -1881,11 +1882,11 @@ void serverFrame()
         glm::mat3 stuckAxes = axes * held::axesFromAngles(a, true);
         if(vr_embed.value && static_cast<int>(fieldFloat(ent, f.vr_stick_kind)) == Model)
         {
-            easeOnBody(ent, *blade, stuckAt, stuckAxes, static_cast<float>(host_frametime));
+            easeOnBody(ent, *blade, stuckAt, stuckAxes, dt);
         }
         if(blade->how == howPoint && static_cast<int>(fieldFloat(ent, f.vr_stick_kind)) == Level)
         {
-            stepSag(ent, *blade, stuckAt, stuckAxes, static_cast<float>(host_frametime));
+            stepSag(ent, *blade, stuckAt, stuckAxes, dt);
         }
         const int kind = static_cast<int>(fieldFloat(ent, f.vr_stick_kind));
         if(vr_embed.value && vr_embed_handle_free.value && kind == Model && f.vr_stick_freecheck >= 0 &&
@@ -1899,7 +1900,7 @@ void serverFrame()
             // The holder's leeway, eased (a hand let go: it settles back).
             glm::vec3 lean = fieldVec(ent, f.vr_stick_lean);
             const glm::vec3 want = kind == Model || kind == MonsterBox ? leanWanted(ent, *blade) : glm::vec3{0.f};
-            lean += (want - lean) * (1.f - za::exp(-za::min(static_cast<float>(host_frametime), 0.1f) * leanEase));
+            lean += (want - lean) * (1.f - za::exp(-za::min(dt, 0.1f) * leanEase));
             setFieldVec(ent, f.vr_stick_lean, glm::length(lean) < 1e-3f ? glm::vec3{0.f} : lean);
         }
         place(ent, *blade, stuckAt, stuckAxes);

@@ -3886,7 +3886,7 @@ void(float xHand, float xWeaponFlags, float* xOutAttackFinished) W_Fire_Lightnin
     if(AD_PlasmaGun(xHand, xWeaponFlags)) // AD support: the Plasma Gun (vr_ad_bridge.qc)
     {
         AD_FirePlasma(xHand);
-        *xOutAttackFinished = time + AD_PLASMAGUN_REFIRE;
+        *xOutAttackFinished = time + RuneApplyHell(AD_PLASMAGUN_REFIRE, self);
         return;
     }
 
@@ -3897,7 +3897,7 @@ void(float xHand, float xWeaponFlags, float* xOutAttackFinished) W_Fire_Lightnin
     }
     else
     {
-        *xOutAttackFinished = time + 0.1;
+        *xOutAttackFinished = time + RuneApplyHell(0.1, self);
     }
     sound(self, VRGetHandChannel(xHand), "weapons/lstart.wav", 1, ATTN_NORM);
 };
@@ -3917,7 +3917,7 @@ void(float xHand, float* xOutAttackFinished) W_Fire_Mjolnir =
             player_mjolnir1(xHand);
         }
 
-        *xOutAttackFinished = time + 0.8;
+        *xOutAttackFinished = time + RuneApplyHell(0.8, self);
     }
 };
 
@@ -3926,7 +3926,7 @@ void(float xHand, float* xOutAttackFinished) W_Fire_ProximityGun =
     SuperDamageSound();
     player_rocket1(xHand);
     W_FireProximityGrenade(xHand);
-    *xOutAttackFinished = time + 0.6;
+    *xOutAttackFinished = time + RuneApplyHell(0.6, self);
 };
 
 void(float xHand, float* xOutAttackFinished) W_Fire_Grapple =
