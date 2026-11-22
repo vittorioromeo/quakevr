@@ -1245,6 +1245,7 @@ void resetHandMoves()
         row(opt::vr_cellcord_laser),
         row(opt::vr_cellcord_hammer),
         row(opt::vr_cellcord_superaxe),
+        row(opt::vr_cellcord_lance),
         open("Cord Points", pageIndex(pageReloadCellCords))
             .help("Where each cord leaves its weapon (off its lowest point), to tune."),
         header("All Guns"),

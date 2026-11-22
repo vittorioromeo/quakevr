@@ -4047,6 +4047,7 @@ QVR_CVAR(vr_reload_shell_pairs, "1", CVAR_ARCHIVE)     // 1: the pouch gives two
 QVR_CVAR(vr_cellcord_laser, "1", CVAR_ARCHIVE)         // the laser cannon's (Hipnotic)
 QVR_CVAR(vr_cellcord_hammer, "0", CVAR_ARCHIVE)        // Mjolnir's (Hipnotic)
 QVR_CVAR(vr_cellcord_superaxe, "0", CVAR_ARCHIVE)      // the Super Axe's (MG3)
+QVR_CVAR(vr_cellcord_lance, "1", CVAR_ARCHIVE)         // Dwell's Crystal Lance's (vr_dw_lance_pole: no magazine, from the butt of its pole; dwellweap2)
 // Magnetic holsters (QC vr_magholster.qc, vr_magholster.cpp; Immersion > Magnetic Holsters; ROUND22.md, "Magnetic
 // holsters"), as RE4VR's: a hand at a holster with a weapon in it presses the bind button, and the weapon is bound to
 // that holster (pressed again: unbound). Thrown or dropped, it flies back into it on its own once it has been out of the

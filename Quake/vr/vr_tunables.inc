@@ -736,6 +736,9 @@ QVR_TUNABLE(vr_cellcord_hammer_z, "0")
 QVR_TUNABLE(vr_cellcord_superaxe_x, "0") // the same on the Super Axe (off the end of its handle)
 QVR_TUNABLE(vr_cellcord_superaxe_y, "0")
 QVR_TUNABLE(vr_cellcord_superaxe_z, "0")
+QVR_TUNABLE(vr_cellcord_lance_x, "0") // the same on Dwell's Crystal Lance (off the butt of its pole)
+QVR_TUNABLE(vr_cellcord_lance_y, "0")
+QVR_TUNABLE(vr_cellcord_lance_z, "0")
 
 // Weapons > Reloading - Heavy Revolver
 QVR_TUNABLE(vr_revolver_close_flick_time, "0.25") // the same for the flick shut

@@ -559,6 +559,7 @@ float cvarh_vr_carry_throw_mult;
 float cvarh_vr_carry_two_hands;
 float cvarh_vr_carry_two_hands_solid;
 float cvarh_vr_cellcord_hammer;
+float cvarh_vr_cellcord_lance;
 float cvarh_vr_cellcord_laser;
 float cvarh_vr_cellcord_superaxe;
 float cvarh_vr_chainsaw_damage;
@@ -2710,6 +2711,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_carry_two_hands = VR_CVar_Make("vr_carry_two_hands");
     cvarh_vr_carry_two_hands_solid = VR_CVar_Make("vr_carry_two_hands_solid");
     cvarh_vr_cellcord_hammer = VR_CVar_Make("vr_cellcord_hammer");
+    cvarh_vr_cellcord_lance = VR_CVar_Make("vr_cellcord_lance");
     cvarh_vr_cellcord_laser = VR_CVar_Make("vr_cellcord_laser");
     cvarh_vr_cellcord_superaxe = VR_CVar_Make("vr_cellcord_superaxe");
     cvarh_vr_chainsaw_damage = VR_CVar_Make("vr_chainsaw_damage");

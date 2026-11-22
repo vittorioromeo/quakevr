@@ -37,8 +37,13 @@ enum class Weapon
     None,
     LaserCannon,
     Hammer,
-    SuperAxe
+    SuperAxe,
+    Lance
 };
+
+// Dwell's Crystal Lance as a lance (vr_dw_lance_pole; weapons.txt slot 55, vr_adweapons.cpp lanceParts): its pole along
+// this in its model (the axe's handle's way), the cord leaving its butt straight on down the pole.
+const glm::vec3 lancePoleDir{0.3419f, 0.f, 0.9397f};
 
 [[nodiscard]] const char* weaponName(Weapon w)
 {
@@ -47,6 +52,7 @@ enum class Weapon
         case Weapon::LaserCannon: return "lasercannon";
         case Weapon::Hammer: return "mjolnir";
         case Weapon::SuperAxe: return "superaxe";
+        case Weapon::Lance: return "lance";
         default: return "none";
     }
 }
@@ -70,6 +76,10 @@ enum class Weapon
     {
         return vr_cellcord_superaxe.value != 0.f ? Weapon::SuperAxe : Weapon::None;
     }
+    if(strstr(model->name, "dw_lance.mdl"))
+    {
+        return vr_cellcord_lance.value != 0.f ? Weapon::Lance : Weapon::None;
+    }
     return Weapon::None;
 }
 
@@ -81,6 +91,7 @@ enum class Weapon
         case Weapon::Hammer: return {vr_cellcord_hammer_x.value, vr_cellcord_hammer_y.value, vr_cellcord_hammer_z.value};
         case Weapon::SuperAxe:
             return {vr_cellcord_superaxe_x.value, vr_cellcord_superaxe_y.value, vr_cellcord_superaxe_z.value};
+        case Weapon::Lance: return {vr_cellcord_lance_x.value, vr_cellcord_lance_y.value, vr_cellcord_lance_z.value};
         default: return glm::vec3{0.f};
     }
 }
@@ -219,8 +230,8 @@ void hide(HandCord& c)
 // the cord's line has them, loose or plugged in, its rings.
 void info_f()
 {
-    Con_Printf("cell cords: laser %g hammer %g superaxe %g, the pouch shows %d cells\n", vr_cellcord_laser.value,
-        vr_cellcord_hammer.value, vr_cellcord_superaxe.value, view::ammoPouchCells());
+    Con_Printf("cell cords: laser %g hammer %g superaxe %g lance %g, the pouch shows %d cells\n", vr_cellcord_laser.value,
+        vr_cellcord_hammer.value, vr_cellcord_superaxe.value, vr_cellcord_lance.value, view::ammoPouchCells());
     for(int h = 0; h < 2; h++)
     {
         const HandCord& c = cords[h];
@@ -289,10 +300,12 @@ void setupView(const hands::State& s)
         c.weapon = want[h];
         c.model = model;
 
-        // The weapon's end, the cord leaving it downwards (the model's -z).
+        // The weapon's end, the cord leaving it downwards (the model's -z; the Lance's: on down its pole). Drawn as the
+        // weapon is (view::modelPoint): its grip turned over, the cord turns with its butt.
         c.modelEnd = bottomOf(model).at + offsetFor(c.weapon);
         c.gunEnd = view::modelPoint(*ve[h], c.modelEnd);
-        glm::vec3 gunDir = view::modelPoint(*ve[h], c.modelEnd - glm::vec3{0.f, 0.f, 1.f}) - c.gunEnd;
+        const glm::vec3 away = c.weapon == Weapon::Lance ? -lancePoleDir : glm::vec3{0.f, 0.f, -1.f};
+        glm::vec3 gunDir = view::modelPoint(*ve[h], c.modelEnd + away) - c.gunEnd;
         gunDir = glm::length(gunDir) > 1e-6f ? glm::normalize(gunDir) : glm::vec3{0.f, 0.f, -1.f};
 
         // Its cell: the first, or with two cords and two or more cells the off hand's the last.

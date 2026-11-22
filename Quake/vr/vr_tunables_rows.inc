@@ -737,6 +737,9 @@ QVR_TUNABLE_SLIDER(vr_cellcord_hammer_z, "Up", -20.0f, 20.0f, 0.5f, "%.1f", -180
 QVR_TUNABLE_SLIDER(vr_cellcord_superaxe_x, "Forward", -40.0f, 40.0f, 0.5f, "%.1f", -360.0f, 360.0f, "Moves where the cord leaves the Super Axe (0: the end of its handle).")
 QVR_TUNABLE_SLIDER(vr_cellcord_superaxe_y, "Left", -20.0f, 20.0f, 0.5f, "%.1f", -180.0f, 180.0f, "")
 QVR_TUNABLE_SLIDER(vr_cellcord_superaxe_z, "Up", -20.0f, 20.0f, 0.5f, "%.1f", -180.0f, 180.0f, "")
+QVR_TUNABLE_SLIDER(vr_cellcord_lance_x, "Forward", -40.0f, 40.0f, 0.5f, "%.1f", -360.0f, 360.0f, "Moves where the cord leaves the Crystal Lance (Dwell; 0: the butt of its pole).")
+QVR_TUNABLE_SLIDER(vr_cellcord_lance_y, "Left", -20.0f, 20.0f, 0.5f, "%.1f", -180.0f, 180.0f, "")
+QVR_TUNABLE_SLIDER(vr_cellcord_lance_z, "Up", -20.0f, 20.0f, 0.5f, "%.1f", -180.0f, 180.0f, "")
 
 QVR_TUNABLE_GROUP("Weapons > Reloading - Heavy Revolver")
 QVR_TUNABLE_SLIDER(vr_revolver_close_flick_time, "Flick Close Time", 0.05f, 1.0f, 0.05f, "%.2f s", 0.0f, 5.0f, "The wrist flick must be rolled within this long of the flick's start; a slower roll starts over (0: no limit).")

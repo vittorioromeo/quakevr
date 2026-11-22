@@ -42,5 +42,25 @@ echo "$log" | grep -E "dwlance:|ammo_cells|revgrip:" | cut -c1-160 | head -5
 check $(grep -q "dwlance: the beam through" <<<"$log" && echo 1 || echo 0) "shot: the beam fired"
 check $(grep -qE "ammo_cells +94" <<<"$log" && echo 1 || echo 0) "shot: 6 cells taken from the pouch's 100 (no magazine)"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "shot: the run ended on its last line"
+# 4. dwellweap2: its cord (vr_cellcord.cpp Weapon::Lance; vr_cellcord_lance): from the butt of its pole into a cell in
+#    the pouch while there are cells (QC VR_Reload_PlayerFrame: the pouch shows cells), loose and hanging under the
+#    butt with none, plugging back in when cells come again.
+log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;vr_mock_hand main 0.2 1.3 -0.3 -22 0 0;vr_ad_test 207;wait60;echo STEP1;vr_cellcord_info;give c 0;wait150;echo STEP2;vr_cellcord_info;give c 50;wait3;echo STEP3;vr_cellcord_info;wait40;echo STEP4;vr_cellcord_info;vr_cellcord_lance 0;wait5;echo STEP5;vr_cellcord_info;echo dwlance-test: done" \
+    -QuitOn "dwlance-test: done" -Timeout 300 -Filter "^cellcord|^cell cords|^STEP|rror|exit=" 2>&1 | tr -d '\r')
+step() { echo "$log" | sed -n "/^STEP$1/,/^STEP/p"; }
+cval() { echo "$1" | grep "^cellcord main: lance [a-z]* cell=" | sed -E "s/.* $2=([-0-9.]+).*/\\1/"; }
+near() { awk -v a="$1" 'BEGIN { print (a != "" && a + 0 <= 0.05) ? 1 : 0 }'; }
+s=$(step 1); echo "$s" | grep "^cellcord main" | cut -c1-160
+check $(grep -q "^cellcord main: lance plugged cell=0" <<<"$s" && [ "$(near "$(cval "$s" gunend)")" = 1 ] && [ "$(near "$(cval "$s" plug)")" = 1 ] && echo 1 || echo 0) "cord: from the butt into cell 0 (gunend $(cval "$s" gunend), plug $(cval "$s" plug))"
+check $(grep -q "^cell cords: .* the pouch shows [1-9][0-9]* cells" <<<"$s" && echo 1 || echo 0) "cord: the pouch shows cells while the Lance is held"
+s=$(step 2); below=$(cval "$s" below)
+check $(grep -q "^cellcord main: lance loose cell=-1" <<<"$s" && awk -v b="$below" 'BEGIN { exit !(b > 4) }' && echo 1 || echo 0) "cord: no cells, loose, hanging $below units under the butt"
+s=$(step 3)
+check $(grep -q "^cellcord main: lance plugging cell=0" <<<"$s" && echo 1 || echo 0) "cord: cells again, plugging in"
+s=$(step 4)
+check $(grep -q "^cellcord main: lance plugged cell=0" <<<"$s" && [ "$(near "$(cval "$s" plug)")" = 1 ] && echo 1 || echo 0) "cord: then plugged"
+s=$(step 5)
+check $(grep -q "^cellcord main: none" <<<"$s" && echo 1 || echo 0) "cord: Crystal Lance Cord off, none"
+check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "cord: the run ended on its last line"
 verdict
 exit $fail
