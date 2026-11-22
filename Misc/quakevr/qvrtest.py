@@ -145,6 +145,9 @@ ALONE_SCRIPTS = {"loadedmapguns/pickup_test.ps1"}
 # Scripts that write one shared file of the worktree's (the teleporter tests build maps/vrteleporters.bsp) or play it
 # (stealth's gates and props): one at a time ("tele").
 TELE_SCRIPTS = {"teleporters/teleporters_test.sh", "teleporters/teleporter_edges_test.sh", "stealth_tests.sh"}
+# Scripts whose games must see what an earlier game of theirs wrote to its config (a lane's ironwail.cfg is put back
+# from the baseline before every run): lane 0 only.
+LANE0_SCRIPTS = {"settings_page_test.py"}
 HARNESS_FILES = {"qvrtest.py", "qvrtest.sh", "testbatch.sh", "testbatch.py", "run_batch.sh"}
 
 
@@ -182,7 +185,7 @@ def lane_keys(script, root=HERE):
     """A Misc/quakevr script's scheduling keys: "lane0" (lane 0 only), "batch" (a testbatch suite), "alone" (before the
     lanes, nothing beside it), "tele" (one at a time)."""
     keys = set()
-    if _uses(script, root, LANE0_RE):
+    if script in LANE0_SCRIPTS or _uses(script, root, LANE0_RE):
         keys.add("lane0")
     if _uses(script, root, BATCHED_RE):
         keys.add("batch")
