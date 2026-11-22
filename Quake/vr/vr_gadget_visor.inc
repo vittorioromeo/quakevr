@@ -604,11 +604,12 @@ void visorRender(const VisorInput& in)
     }
 }
 
-// The centre print's popup alone (the headset's centre panel: vr_panel.cpp).
-void visorRenderCenter(const char* text)
+// The centre print's popup alone (the headset's centre panel: visor::renderHeadsetCenter), at its power-on sweep `boot`.
+void visorRenderCenter(const char* text, float boot)
 {
     VisorInput in;
     in.center = text ? text : "";
+    in.boot[VisorCenter] = boot;
     visor.centerSize = visorCenterLayout(in.center);
     visorRenderPanel(VisorCenter, in, palette(), Readout{});
 }

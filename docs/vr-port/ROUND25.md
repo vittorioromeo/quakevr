@@ -7643,6 +7643,68 @@ hitscan's always did.
   before (the lightning bolt's limb case kills nothing there, untouched by this); scenario_check PASS (179 run, 0
   failed); Dev and ThinLTO built, 0 warnings.
 
+## mpopen: the open multiplayer items (agent/mpopen, 2026-11-22)
+
+- **1. Net version 43** (vr_api.h's history line): QVR_SVC_BOTPATH 53 (flakehunt) and QVR_SVC_HUMLOOK 54 (humrepl)
+  landed on 42, and 42 itself was two wires (syncfix4 coarsened the worn gear in the move and added
+  QVR_SVC_EJECTOTHER 52 after ragsync had shipped 42). brushholes, bladeone and projheadpop changed no message. mp_version
+  passes: old and new builds refuse each other with the reason.
+- **2. Another player's gore on his copy**: every client runs a struck player's gore as he runs his own, through the
+  same code (vr_playergore.cpp: spots on his copy's capsules, `selfshot::buildCopy`; vr_bloodstream.cpp): his blood
+  streams (so their pour's sound is heard by every client, not only his), the splash and the drips for
+  `otherDripSeconds` after his last wound, by the viewer's vr_player_gore settings; forgotten when he lives again or
+  leaves (vr_wounds.cpp copyLives).
+- **3. Small effects**: the slide's scuff and scrape, the mantle grunt (climb::grunt: SV_StartSound), the ammo screen's
+  r20 light and the barrel heat's r30 were already everyone's (syncaudit checks them). New: his auto pump drawn
+  stroking on his copy (`view::posePump` shared with yours, `autopump::otherTravel`), his casings thrown out of it.
+  mp_syncaudit: the gore, pour and stroke checks, the lights by their exact keys (33 passed).
+- **4. Thrown props and ragdolls at the client** (mp_ragsync): the brief's 10-20 unit crate/sword drift did not come
+  back in 20 runs (positions p95 0.03-0.05 every run); two other faults did. (a) A crate tipped on end (pitch 90) has
+  two equal angle readings that the server's alternate tick to tick; `interpEntity` slerped them as view angles, but an
+  alias model is drawn with its pitch inverted (held::axesFromAngles), so the two were different turns and the crate
+  was drawn spinning between them (143 degrees off, p95 3.4, 1 run in 5): now slerped as drawn (pitch negated around
+  `mpavatar::slerpAngles`). (b) The ragdolls' pose ring (24, a third of a second) was shorter than the interpolation
+  clock's furthest lag after a hitch (delay 0.25 + snap 0.25 s), so the parts were drawn held at the oldest pose, ahead
+  (p95 9.3 units, 1 run in 5): ring 40, with `netsnap::interpReach` and static_asserts tying both histories to it.
+  vr_mp_bodylog's client lines now say how each entity was interpolated (`way= h= rs= why=`, `netsnap::interpWay`).
+  10 runs after: 10/10, crate and sword p95 0.04-0.05 units and 0.01-1.44 degrees.
+- **5. Test noise.** The suite's order effect ("server exited waiting for the server on e1m1" from some scenario on,
+  each passing alone) was a port clash, not state left by a scenario: every run used the fixed base 27500, so two
+  suites at once (another worker's, a kit run) took each other's server port. mp_harness.py now gives each checkout
+  its own block of 32 ports (`default_base_port`: 27600 + crc32(checkout) % 60 * 32, never 27500), moves a scenario to
+  the next free block when its block is held at the start (`free_base_port`, said in a note), notes any game or port
+  still held when a scenario ends, and a game that exits while waited for now shows its last lines (a refused bind is
+  readable). mp_loss's up-link check: the mean packet times 72 against 12288 B/s (B sends a packet a frame, and his
+  frames a second followed the machine's load: 9525-12975 B/s run to run; now 8712). vr_pickup_test 15: 10/10 (13/0)
+  since flakehunt's fix; nothing to change. mp_debugviz_listen's bot case: explained, not fixed (BACKLOG section 1):
+  vr_bot_freeze stills the swing but also its drawn weapon at a listen host. mp_rules: `vr_humlook` (humrepl, on Armed
+  Humanoid Replacements, a rule page) had no kind: QVR_OWN (how each viewer's game draws them).
+- **Checks:** the plain suite in order in 3 slices (each under 40 min; 66 scenarios + mp_netsafe each): 64 passed;
+  mp_rules (vr_humlook) and mp_debugviz_listen (the freeze) failed; after the kind and the revert both pass (16/0,
+  8/0). No scenario left a game or port held. mp_ragsync 10/10, vr_pickup_test 15 10/10, mp_syncaudit 33/0.
+
+## vrcenterprint2: VR centre messages drawn by the flat visor's own popup code (agent/vrcenterprint2, 2026-11-22)
+
+- **His verdict (11-22):** vrcenterprint's panel (the contents image, a plain black box with a thin line) was not the flat
+  visor's centre message (a dark glass pill, cut corners, a glowing bevelled frame). Now the headset draws the flat one.
+- **How (vr_visor.cpp):** the flat visor's per-panel code takes its pass (`drawPanel`, `useSlot`, `drawList`,
+  `packAtlas`, `buildPanels(lp, layer, ss, only)`); its per-panel uniforms (`panelUniforms`) and scanlines
+  (`scanUniforms`) are shared by the window's composite and the headset's. `renderHeadsetCenter` (VR_End2D, the headset's
+  frames): `update()` steps the popup's fade and pop in as the flat one does (`vr_flat_visor_center_pop`, `_center_fade`,
+  Quake's `con_notifyfade`), the contents image (`gadget::renderCenterPanel(text, boot)`: its power-on scan), then the
+  centre popup alone built into a second atlas (`buildPanels(..., VisorCenter)`: back plate, glass face, sheen, glows,
+  bevelled frame) on a layer of its own (no lens, zoom, sway or glass: a virtual pixel 4 texels, the view's height chosen
+  so layerFor's unit gives the flat edges' and glows' width against the text at `vr_flat_visor_scale`), composited by
+  the flat layer program into a texture of the popup's box (`visor::headsetCenter`). vr_panel.cpp draws it premultiplied
+  on the HUD's head-following place, its text where it was (Quake's height). Claims: `visor::claimCenter` (the flat
+  `VR_CenterPrintOnVisor`, `VR_CenterPrintInView`, `panel::centerShow`'s view messages): one state, one fade.
+- **Not in the headset:** the glass's blur of the view behind (defaults: 6 px blur, no tint or desaturation; the face
+  lets the world through at `vr_flat_visor_opacity` instead: there is no view behind a world quad to frost).
+- **Checks:** `vr_center_panel_info` prints the popup's fade, pop, box and contents (visor pixels). Side by side, flat
+  screenshot and VR eyeshot of the same short, long and 3-line messages: the same box sizes (216x38 for the 3 lines), frame
+  hue within 8%, a glow past the frame and a dark face in both (scratch/vcp2_side.ps1: 3 passed, 0 failed;
+  scratch/vcp2/side.png).
+
 
 ## embeddual: flat dual wielding, an embedded blade keeps its hand (agent/embeddual, 2026-11-22)
 
@@ -7680,3 +7742,199 @@ becomes possible in that state".
   (the grip 64 units off, cases 8/9, standing or staggering; this file's "vr_embed_test 13" notes above). Flat:
   `vr_flatitems_test 10` (routing, ironsight with an empty hand) 63/0, 7 (a prop beside the gun) 13/0, flathands 76/0,
   flatmelee2h 16/0, flatads 6/1 (its "launchers", the outdated expectation of ROUND24.md).
+
+## Ropes (phase 1 of 3: the physical rope and chain)
+
+His spec of 2026-11-21; the reference is `ROPES.md` (keys, settings, files, defaults, limits). Phase 1 done: map
+entities `vr_rope` / `vr_chain` (QC `vr_ropes.qc`: settings only; `rope_*` keys), the toolgun's Spawn > Props > Ropes
+(Rope, Chain) with its Rope Settings page (`vr_rope_spawn_*`, hung from the ceiling above the ghost), the server's
+Verlet rope (`Quake/vr/vr_climbrope.cpp`, reusing `vr_verlet` fall / holdLengths / collide, the last now able to trace
+the server's world), pushed by hands, bodies, props, explosions (physicsblast) and shots (physicsshot), sent to every
+client (`QVR_SVC_CLIMBROPE` 55) and drawn with the magnetic holsters' cord code (`coil::Cord::shape`: a cable or the
+chain of links). Shared flat/VR: the rope, its sync and its drawing are one path for both (the listen client draws from
+the loopback message as a remote one does); nothing mode-specific yet (P2 is VR's grab, P3 flat's auto-climb).
+- **Test map** `vrropes` (`Misc/quakevr/make_vrropes_map.py --compile`): four swinging ropes 192 apart and a ledge, a
+  pinned rope, a heavy chain, a rope longer than the drop. Scene `ropes`.
+- **Tests:** `vr_rope_test` (in vrropes) 12 passed, 0 failed: made from keys and as the toolgun makes one, vrropes' 7
+  counted, hangs straight its length, pinned ends held, the client's copy within 0.09 units, an explosion throws it 25
+  units, a shot 6, a crate 117, a dog 15, removed: gone on both. `mp_test.py ropes` (dedicated server, B behind the
+  proxy) 9 passed: B has both with the server's points; pushed, B sees them swing. vr_toolgun_spawn_test makes both
+  entries. scenario_check PASS (185 run, 0 failed). Dev and ThinLTO built, 0 warnings.
+- **Left (P2, P3):** the VR grab and hand-over-hand climb with the legs' IK and momentum on letting go, the flat
+  auto-climb, the pumped swing to a cap, the climber's pose in MP; the toolgun's Remove/Physgun aiming at ropes.
+## studio2: Texture Studio painting hits what you aim at (agent/studio2, 2026-11-22)
+
+His words (flat): hands, forearms and parts next to the backpacks hard to paint, something else painted; the back of a
+grunt's head intercepted by the backpack; wants packs paintable alone, a lineup without packs and armour, a cursor.
+
+- Cause: the pick posed the .mdl's animation frame (not the drawn body: rig2 skinning with the arms' IK solve), ignored
+  the entity's scale and transforms, and took every keyed entity, the worn pack included. Now `modelcollide::drawnTriangles`
+  (as drawn), only `vr_humstudio_target`'s (0: the part picked; 1 bodies, 2 packs, 3 either), UV from the triangle's
+  barycentrics (.mdl order).
+- Brush `vr_humstudio_brush` is now cm on the surface (default 4; 0 one texel): texels within it on any triangle (no x
+  wrap across the skin halves). Cursor `vr_humstudio_cursor` 1: mask value 3 drawn yellow by the shader wherever the skin
+  shows it, plus the skin's flat view top right (`studioDraw2D`, gl_screen.c's 2D pass).
+- Lineup (QC `VR_HUM_LineupKind(p, kind, opts, turn)`): nopack 1, noarmour 1, noweapon 0 (props' alpha 0.001), packstand 1
+  (a backpack with its own .vr_hum_look before the row's right half), `vr_humstudio_turn` (`VR_HUM_LineupTurn`), 64 apart
+  (44 let an enforcer's gun arm reach into its neighbour: rays at its hand met the neighbour). Hold Still is
+  `vr_agrunt_freeze`. No T/A pose frame in the stock models.
+- His saved humlook.txt / humlook_masks.txt promoted to the shipped files (read and written back identical by the test).
+  `vr_humstudio_check` no longer counts hand-painted texels on flesh rows (his paint is meant).
+- Tests: `Misc/quakevr/humstudio2_test.sh` PASS (round trip identical; `vr_humstudio_picktest` 130 passed, 0 failed:
+  hands, forearm, back of the head, back beside the pack, a stroke and its undo, and through a pack on the knights' and
+  death knights' (10); grunts and enforcers have no level ray from behind with a pack first: skipped). humrepl2_test PASS
+  (5 masks, 0 on flesh). Dev build 0 warnings.
+- Not seen in a screenshot (the mock view's ray met no one): the yellow cursor and the skin view; check in flat and VR.
+
+## Ropes (phase 2 of 3: climbing them in VR) (agent/ropes2, 2026-11-22)
+
+Reference `ROPES.md` ("Climbing (VR)"). A grip at a rope takes it with either hand (`vr_climb.cpp` "Holds on ropes":
+ropeHold before the ledges, the hold kept as the rope and its place on it, followed each frame); the ledges' hang does
+the rest (hand over hand up and down, stamina, reach), no mantle. The climber rides the rope (`vr_climbrope.cpp`
+Rider): his weight a bob swinging round its top 24 units under his highest hand, the rope laid straight through his
+hands, the free rest below; the holds' motion carries the body as a mover's do; a body blocked stops the swing; a jump
+onto it swings it. Letting go keeps the rope's speed at the hands; a jump press lets go and adds `vr_rope_jump` (200)
+up. The feet wrap round the rope under the hands (`vr_avatar_climb.cpp` ropeFoot). New rules `vr_rope_climb` 1,
+`vr_rope_swing_drag` 0.15, `vr_rope_jump` 200. P1's gap closed: the toolgun's aim meets ropes (`climbrope::pick`:
+Remove, physgun), Clear Props removes the ones made after the map loaded (QC VR_Scene_IsRuntimeProp). Debug > Tests >
+Climbable Ropes: Hang a Rope / a Chain Ahead.
+- **Tests:** `rope_climb_test.sh` (mock-hand plays, `vr_rope_climb_test`): rope_climb 8 passed (up 37.8, down 18.9,
+  swung 41, let go at 125 of the rope's 125 units/s), rope_jump 6 passed (180 up over the rope's 14, 127 level of 129).
+  `vr_rope_test` 16 passed (adds the aim and Clear Props). The feet (vr_debug_climb_feet 2): both ankles within 3 units
+  of the rope while hanging.
+- **Decisions (conservative, his to change):** one bob, not his weight spread over the pieces; one rider a rope (a
+  second climber follows its points); a pinned rope doesn't swing; a hand on a ledge too: no ride; remote clients'
+  rope hangs run in the server's frame like a prop's holds (no move-by-move prediction); the hands drawn as on a ledge.
+- **P3 begun: pumping the swing** (VR and flat: the move's forwardmove/sidemove on the view's yaw): `vr_rope_pump` 300
+  units/s/s, pushed only while the swing goes that way, to `vr_rope_swing_cap` 350 at the hands (`rope_pump` play).
+- **Left (P3):** the flat auto-climb (as the flat ladders, hands alternating), the rope-to-rope swing test, the
+  climber's pose checked in MP (the feet use the client's rope copy and the synced holds, so another's should wrap too:
+  unverified).
+## backlog1122: small backlog fixes (branch agent/backlog1122, 2026-11-22)
+
+- **Checklist:** 8 lines ticked in his checklist_ticks.txt with no voice note since (none after 2026-11-21 00:47) retired:
+  the reorganized-checklist line, noclip flight, shove without blood, Quoth's e1m1quoth, and the four armed-grunt
+  batching/LOD/strike-check/Box3D lines. Kept though ticked (as checklist2): Sliding and the Dwell start/d1m1 line (their
+  voice notes). Their scenes (noclip_fly, shove_no_blood, agrunts_fight) stay. checklist_tests_check: 8 lines from later
+  ships are untagged (not this branch's).
+- **His hull-hole mark (Quoth's start, -0.2 2273.8 -392):** the "ground decoration" is a frame of 8-wide bars round a
+  32 x 32 hole over a 16-high pit. The map is Quoth's `start` (his console history: Quoth maps just before; id1's,
+  Dwell's and Hey's start don't match; the kit's base lacked Quoth: a junction to the dagger base's copy). At the
+  default limit (32) the line test took only gaps under it, so exactly 32 was never closed, though Quake's box only
+  bridges it (hull 1 solid, the clip brush recovery doesn't fill it there); at his 46 the hole's blocker was merged with
+  a neighbour Quake's box reaches and dropped whole (the top half survived through another pair). Rule now: a model's
+  own gaps count up to the limit itself (hull 1's check decides, as before; brush-model pairs, the line test alone,
+  stay under 32), and a dropped merged box is split back into its pieces, each checked, the kept ones merged again
+  (`splitDropped`; HULLS.md "backlog1122"). buildVersion 5.
+  Test: vrbrushholes gained the drain (Quoth's 22 pieces copied, a step up to it; scene `brushholes_drain`);
+  `vr_hull_holes_test` 27/0 on and 27/0 off (the drain falls with holes off, and with the old rule, max 31.8: 25/2).
+  Census: id1 38 maps reach 0 (10,626 own, 1,302 diagonal, 88 over a fall; most 26 ms, e2m2), Quoth start 0 (and at
+  max 46: 0, no box left out at the mark), ad_tears 0 (600 ms search) and ad_azad 0; prone_vent_test 11/0.
+- **Checklist tags (coordinator's extra):** 6 untagged lines in [2. Quoth] were copies of the tagged ones just below
+  (a ship's duplicate): dropped. kellbase1's corridor line tagged `hub_start` (as the other Quoth lines: a scene naming
+  kellbase1 needs Quoth in the base); the AD grates line got a minimal new scene `ad_azad_grates` (map ad_azad).
+  checklist_tests_check 116 passed, 0 failed; validate 186 files, 0 with errors.
+- **Item 5, the expbugs_* scenes:** already retired by checklist2 (moved out with their lines); in a base without Dwell
+  the remaining Dwell scenes skip: scenario_check (Dwell and Quoth moved out of the kit's base) PASS, 185 run, 0 failed,
+  5 skipped (dwell_bosses, dwell_grunt_pickup, dwell_items, dwell_monsters, dwell_sculptor: "not on the search path").
+- **Item 1 (ad_test3's ladder, flat), looked at, not fixed:** an "up" case for it (feet 228 at -504 -88 facing east)
+  finds the rungs ahead (tops 268, 284, 296, 300; holds 18 units ahead, out -x) but `flatLadderFrame`'s pair test takes
+  none ("2 ledges ahead, no ladder"); the case's start is also inside a func_wall (its rungs?). Left with the case
+  out (vr_flatladder_test's indices unchanged). Not done either: items 2, 3, 4 and the rest of 5 (per-tree MP bases and
+  a free port; vr_pickup_test 15 on next).
+## flatkeys: flat keys in Options > Controls, not a separate page (agent/flatkeys, 2026-11-22)
+
+BACKLOG 3 (his call 2026-11-16, GitHub #83): "Integrate them into Options > Controls' key binding list (a "Quake VR (flat
+screen)" group, same rebind/clear UI as the binds, conflicts with binds shown both ways), drop the separate page (or keep
+only a link to Controls), and make the keys play nicely with the bind system (a key bound to both a bind and a flat key:
+pick one rule and show it). Keep `vr_flat_key_*` working for configs."
+
+- **Controls** (menu.c, keys menu): on the Keyboard & Mouse tab, after the binds, a blank line, the title "Quake VR (flat
+  screen)", the rule "In flat play these win over binds", then a row per flat key (`menukeybind_t.flatkey` = 1 + its
+  index; its command is the cvar's name). Enter + a key sets the cvar (`VR_FlatKeySet`, the default's spelling kept where
+  it is the default's key), Backspace/Del clears it (""), Escape cancels: the binds' own UI and code paths, only the
+  store differs. Headers are rows with a description and no command (not selectable, never merged as separators, not
+  matched by the search).
+- **The rule** (unchanged in the engine, now shown): in flat play a flat key's key does the flat action and its bind does
+  not run (`VR_FlatKeyOwned`, keys.c Key_Event); out of flat play (VR, or flat play off) the bind runs. Both rows mark a
+  clashing key with "!" after its name (a flat key's: also bound, or another flat key's; a bind's: a flat key's), and the
+  cursor row's first clash is spelt out under the list (`M_Keys_Clash`): "! k in flat play: Drop, not Next weapon" (the
+  short form without the key name past 40 characters), or "! 3 is also Swap hands" between two flat keys. Nothing is
+  unbound automatically (conservative: the player clears the side he does not want; for #83, clear Force Grab/Shove and
+  mouse 4/5 do their binds). Defaults already clash where the flat key wins anyway, e.g. Swap hands on 3 (Super Shotgun).
+- **One list** (vr_flatmove.cpp): `flatKeyList` + `flatKeyLabels` (static_assert'ed the same length) feed
+  `VR_FlatKeyOwned`, Controls (`VR_FlatKeyCount/Label/CvarName/Get/Set/For`, vr_api.h) and `VR_FlatKeysReset`.
+- **VR menu**: the Flat Keys page is gone (pageFlatKeys, its 18 QVR_KEY rows, the menu table entry). Locomotion > Desktop
+  Screen Play keeps "Flat Keys (Options > Controls)" (`M_Menu_Keys_At("vr_flat_key_lean_left")`: Controls opened, the
+  keyboard tab, the cursor on Lean left) and "Reset Flat Keys". The VR menu's key row (Item::Key, M_VRKeyCapture) stays
+  for Voice Chat's Push-to-Talk row (vr_menu_voicechat.inc: a VR page where the key belongs; also in the Controls group).
+- `menu_keys [row]` (a command, a row's name or a `vr_flat_key_*` cvar) opens Controls on that row; with developer 1 it
+  prints `menu_keys: at "<row>" (<command>) <clash note>`. Bug avoided: the row name is copied before M_Menu_Keys_f, whose
+  bindlist.lst parsing re-tokenizes over Cmd_Argv.
+- Gamepad tab: no flat group (flat play's keys are keyboard and mouse keys; decision, conservative).
+- Test: `Misc/quakevr/flatkeybind_test.sh <agent>` (rewritten for Controls; flat-screen, fast mode, ends on
+  "flatkeybind: done"): 9 passed, 0 failed (link, rebind, Escape, clash both ways, the new key fires (k drops) and the
+  old does nothing, clear, reset).
+## adhumaudit: which of AD's remaining humanoids could be armed humanoids (agent/adhumaudit, 2026-11-22; audit only)
+
+His words: "it would be nice for those to become armed humanoid too ... Please do an audit first". The audit is
+`ARMED_MONSTERS.md`, "Audit 2" (the table, the notes, a proposed phase 2); nothing is converted.
+
+- Verdicts: convert (small) the death knight (+ Quoth's), AD's death guard, Quoth's death guard and death lord; convert with
+  work the death fury; not now the death sergeant (its flail: no monster-held flail); not worth it the point knight, the
+  zombie knight, the justice knight, the bosses, the centurion, the skull wizard, the robots; the ghost is scenery.
+- Findings: AD's `monster_dguard` (30 hp, the knight's build) and Quoth's `monster_death_guard` (125 hp, a hell knight
+  reskin with a fireball) are different monsters (phase 1 grouped them). Quoth's death guard and death lord have id's hell
+  knight's frames frame for frame and builds within 5% of our death knight's: the best fits for keeping AD's look. The
+  death knight family (dknight, sergeant, prince) share one 870-vertex body close to our death knight (+2% tall).
+- Tools: `vr_ad_test 222` (QC `VR_HUM_Overlay`, vr_humrepl_test.qc; Debug > Tests > "Armed Humanoids: AD Model Beside
+  Its Row": still props, ours / overlaid / AD's / side-on, scratch1 the pair 0-11), `Misc/quakevr/adhumaudit_shots.sh`
+  (the 12 screenshots), `Misc/quakevr/adhum_mdl.py` (builds and frame groups from AD's paks read in place),
+  `Misc/quakevr/adhum_census.py` (placements in AD's and Quoth's paks). Screens: `C:\OHWorkspace\qvr-kit\scratch\adhumaudit_*.png`.
+
+## disarmfix: the player disarmed by enemies, by jolts (agent/disarmfix, 2026-11-22)
+
+BACKLOG 6: "Player disarm: make it consistent, then on for PvE ... Very inconsistent: hard to predict whether a shot or
+blow knocks your gun out; some enemy melee never disarms; enemies punching (fists) never disarm you. Needs tuning and
+fixes (QC/vr_playerdisarm.qc: which blows count, the rolls, feedback before the drop)."
+
+- Why it was inconsistent (the old PvE rule, kept for PvP): shots added up to 16 damage in 0.5 s, then rolled 25%+;
+  a blow counted only with a line, landing on your weapon, with at least `vr_agrunt_disarm_damage` 10: a knight's sword
+  (9 at most), an ogre's chainsaw (12 at most) almost never; fists, bites, claws never (no line: the guard's path).
+- PvE now (QC `vr_playerdisarm.qc`, "PvE's own rule"; PvP untouched, as the brief said): no dice. Hits give jolts on a
+  hand; `vr_player_disarm_jolts` 2 within `vr_player_disarm_window` 3 s (from the last) knock its weapon out, each one
+  short warns (`VR_PD_Warn`: `handimpact` 4, a buzz, `weapons/tink1.wav` at `vr_player_disarm_sound`, "Your grip on
+  your weapon loosens!"). The table:
+
+  | Hit (landed: not parried, not on crossed arms) | Jolts |
+  |---|---|
+  | blow with a line (sword, axe, chainsaw, armed humanoid's swing) on your weapon or its hand, any damage | 1; heavy (`vr_player_disarm_heavy` 15+) 2 |
+  | armed humanoid's fist, butt or shove on your body | 1 (the held weapon's hand nearest it) |
+  | any other blow on your body | 1 if heavy, else none (bites, light claws, a blade on the body) |
+  | shots and projectiles on your weapon or hand | each `vr_player_disarm_shot` 12 damage summed over 0.5 s: 1 (full grunt blast 24: 2, out; laser 15: 1; nail 9: none, two: 1; ogre grenade: out) |
+
+  `vr_player_disarm_chance` is the knock-out's chance once the jolts are reached (1: certain; a lost roll leaves it one
+  short). Projectiles count in full within `vr_agrunt_shotdisarm_proj_near` (4 units: a bolt has a size; at half they
+  never reached a jolt). Blows are read where the parry resolves them (combat.qc `VR_Parry` now hands every landed blow to
+  `VR_PD_Blow` with its line flag), so with `vr_parry` 0 only shots disarm. Settings: Armed Grunts > "Disarming: Your
+  Weapon" (Jolts, Jolt Kept, Heavy Blow, Shot Damage).
+- `vr_player_disarm` stays 0 (his OK needed to flip it). Tests: `vr_pd_test 3` (new, Debug > Tests > "Player Disarm: The
+  Rules, Blow by Blow") 10/0, every rule once; `vr_pd_test 1` 13/0 (a full blast: out at once; a laser warns, a second
+  out). `vr_pd_test 2` times out in case 0 (the gun-and-axe grunt backs off to ~200 units and shoots after its first
+  blow) on this branch and on origin/next's QC alike: pre-existing, not chased. Scene `pd_jolts`.
+
+## ropes3: flat-screen rope climbing, rope to rope, another climber's pose (agent/ropes3, 2026-11-22)
+
+Phase 3's rest (ROPES.md "Climbing (flat-screen)", "Multiplayer", "Tests", "Known limits").
+- Flat-screen play climbs the ropes (`vr_flat_rope` 1, Options > Flat-Screen > Ropes; tunable `vr_flat_rope_look` 25):
+  walk or jump into one, look up/down + forward climbs hand over hand at the flat ladder's speed, looking level the move
+  keys pump the swing, jump lets go keeping it; down at the floor he steps off. `vr_climb.cpp` flatRope, flatRopeFrame,
+  ropeTake, flatRopeDir; `climbrope::grabAlong` (a hold along a rope, on the rider's line).
+- `vr_rope_flat_test` / `Misc/quakevr/climb/rope_flat_test.sh`: walked in, up, down, and rope to rope (pumped to 355
+  units/s, let go at the forward peak, the next rope caught after 0.75 s): 6 passed. rope_climb_test.sh 8+6+6 and
+  flatladder_test.sh 2/2 still pass.
+- MP: the client draws each rope between its last two messages (as entities), so a swinging rider and his rope keep
+  together; `vr_mp_avatars` prints `mp_ropepose` (another player's wrists, ankles from the rope); `mp_test.py ropeclimb`
+  (flat A on a rope, B watching) runs but fails its pose checks (wrists 9-25 units off, ankles 11-24): open, in
+  ROPES.md's known limits, kept out of the suite.
+

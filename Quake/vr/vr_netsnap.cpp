@@ -1678,6 +1678,7 @@ constexpr double snapAfter = 0.25;      // s off its target: set there (a new ma
 constexpr double cushion = 0.5 * tick;  // the draw time this near the newest message: its clock slows, to a stop at it
 constexpr double restGap = 4.0 * tick;  // (B12c) a thing unchanged longer than this rested: it sets off from its place
 static_assert(historyLen * tick >= delayMost + snapAfter + 3.0 * tick, "the entity history must outlast the clock's lag");
+static_assert(interpReach >= delayMost + snapAfter + 3.0 * tick, "interpReach (vr_netsnap.hpp) is the clock's furthest lag");
 
 struct Sample
 {
@@ -1691,6 +1692,10 @@ struct History
     int n{0}, head{0};
     const qmodel_t* model{nullptr};
     za::U32 seq{0}; // the snapshot of its newest
+    // (mpopen) How it was last drawn (InterpWay) and why its history last started again (InterpRestart): vr_mp_bodylog's.
+    mutable int way{0};
+    int restarts{0};
+    int restartWhy{0};
 };
 struct Interp
 {
@@ -1748,6 +1753,11 @@ void interpNote(int e, za::U32 prevSeq, za::U32 seq, bool fresh)
     History& h = ip.of[static_cast<za::SizeT>(e)];
     if(h.seq != prevSeq || prevSeq == 0 || ent.model != h.model)
     {
+        if(h.n > 0)
+        {
+            h.restarts++;
+            h.restartWhy = ent.model != h.model ? 3 : prevSeq == 0 ? 2 : 1;
+        }
         h.n = 0; // (new, or back in sight, or another thing in its slot: its history starts again)
     }
     h.model = ent.model;
@@ -2065,6 +2075,7 @@ bool interpEntity(int num, float origin[3], float angles[3])
     const History& h = ip.of[static_cast<za::SizeT>(num)];
     if(h.n == 0 || h.model != ent.model)
     {
+        h.way = 4;
         return false;
     }
     const Sample* newer = nullptr;
@@ -2080,6 +2091,7 @@ bool interpEntity(int num, float origin[3], float angles[3])
         newer = &s;
     }
     const Sample* only = !older ? newer : !newer ? older : nullptr; // (before the oldest, or past the newest: held)
+    h.way = !older ? 1 : !newer ? 2 : 0;
     if(!only)
     {
         const float cut = teleportCut(newer->t - older->t);
@@ -2088,6 +2100,7 @@ bool interpEntity(int num, float origin[3], float angles[3])
             if(za::abs(newer->origin[j] - older->origin[j]) > cut)
             {
                 only = older; // (a teleport: no lerp across it; the newer when its time comes)
+                h.way = 3;
             }
         }
     }
@@ -2103,9 +2116,13 @@ bool interpEntity(int num, float origin[3], float angles[3])
     {
         origin[j] = older->origin[j] + f * (newer->origin[j] - older->origin[j]);
     }
-    const glm::vec3 a = mpavatar::slerpAngles(glm::vec3{older->angles[0], older->angles[1], older->angles[2]},
-        glm::vec3{newer->angles[0], newer->angles[1], newer->angles[2]}, f);
-    angles[0] = a.x;
+    // Turned as it is drawn: an alias model's pitch inverted (held::axesFromAngles). (mpopen: slerped as view angles, a
+    // prop lying at a pitch of 90 degrees -- whose server angles take either of its two equal readings tick to tick --
+    // was drawn spinning between two different turns: mp_ragsync's crate 143 degrees off, p95 3.4, in 1 run of 5.)
+    const float sign = ent.model && ent.model->type == mod_alias ? -1.f : 1.f;
+    const glm::vec3 a = mpavatar::slerpAngles(glm::vec3{sign * older->angles[0], older->angles[1], older->angles[2]},
+        glm::vec3{sign * newer->angles[0], newer->angles[1], newer->angles[2]}, f);
+    angles[0] = sign * a.x;
     angles[1] = a.y;
     angles[2] = a.z;
     return true;
@@ -2129,6 +2146,21 @@ int interpHolds()
 double interpNewest()
 {
     return seatSnapInterp().interp.newest;
+}
+
+bool interpWay(int num, int& way, int& samples, int& restarts, int& why)
+{
+    const Interp& ip = seatSnapInterp().interp;
+    if(num <= 0 || num >= static_cast<int>(ip.of.size()))
+    {
+        return false;
+    }
+    const History& h = ip.of[static_cast<za::SizeT>(num)];
+    way = h.way;
+    samples = h.n;
+    restarts = h.restarts;
+    why = h.restartWhy;
+    return true;
 }
 
 bool interpSample(int num, int back, double& t, float origin[3])

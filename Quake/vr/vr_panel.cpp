@@ -355,16 +355,14 @@ void drawHud(const hands::State& s, const glm::vec4& mask)
     drawFacing(s, {hudAngles.x, hudAngles.y, 0.f}, 200.f * vr_menu_scale.value, mask);
 }
 
-// The centre print in the headset (vr_center_panel): the flat visor's popup (its font, black face, frame line, colours,
-// line wrapping, Quake's fade: gadget::renderCenterPanel) as a panel of the HUD's own place and size (a visor pixel is
-// a menu pixel, vr_menu_scale units), at the height Quake's flat screen puts its text, following the head as the HUD.
+// The centre print in the headset (vr_center_panel): the flat visor's own centre popup (visor::renderHeadsetCenter: its
+// glass face, bevelled frame and glows, its contents in the gadget font, its scanlines, fade and pop in, drawn by the
+// flat visor's code into a texture) as a panel of the HUD's own place and size (a visor pixel is vr_center_panel_scale
+// menu pixels, vr_menu_scale units), its text at the height Quake's flat screen puts it, following the head as the HUD.
 struct CenterPanel
 {
-    za::Array<char, 1024> text{};
-    float alpha{0.f};
-    int claimed{-100};  // the frame it was last given (the game's centre print or a view message)
-    int drawn{-100};    // the frame its image was last made
-    int draws{0};       // the quads drawn
+    int claimed{-100}; // the frame it was last given (the game's centre print or a view message)
+    int draws{0};      // the quads drawn
 };
 // seat-shared: the headset's centre-print panel (the headset is seat 1's; per-seat panels: phase 7)
 CenterPanel centerPanel;
@@ -376,13 +374,8 @@ CenterPanel centerPanel;
 
 void drawCenterPanel(const hands::State& s)
 {
-    const CenterPanel& c = centerPanel;
-    if(!centerPanelOn() || c.claimed < host_framecount - 1 || c.alpha <= 0.f)
-    {
-        return;
-    }
-    const gadget::VisorImage image = gadget::visorImage(gadget::VisorCenter);
-    if(!image.shown || image.size.x <= 0.f || image.size.y <= 0.f)
+    const visor::HeadsetCenter look = visor::headsetCenter();
+    if(!centerPanelOn() || !look.shown || look.size.x <= 0.f || look.size.y <= 0.f)
     {
         return;
     }
@@ -394,30 +387,18 @@ void drawCenterPanel(const hands::State& s)
     const glm::vec3 right = glm::normalize(xAxis), up = glm::normalize(yAxis);
     const glm::vec3 middle = corner + xAxis * 0.5f + yAxis * 0.5f;
     // Quake's centre print: its first line at 70 of the screen's 200 rows (48 with more than 4 lines), a margin above it.
-    const float top = (image.size.y > 4.f * 10.f + 12.f ? 48.f : 70.f) - 5.f;
-    const glm::vec3 lowLeft = middle - right * (image.size.x * 0.5f * unit) + up * ((100.f - top) * menuUnit - image.size.y * unit);
-    const glm::vec3 w = right * (image.size.x * unit), h = up * (image.size.y * unit);
-    const glm::vec4 tint{1.f, 1.f, 1.f, za::clamp(c.alpha, 0.f, 1.f)};
+    const glm::vec2 text = look.contentsSize;
+    const float top = (text.y > 4.f * 10.f + 12.f ? 48.f : 70.f) - 5.f;
+    const glm::vec3 textTopLeft = middle - right * (text.x * 0.5f * unit) + up * ((100.f - top) * menuUnit);
+    const glm::vec3 topLeft = textTopLeft - right * (look.contentsAt.x * unit) + up * (look.contentsAt.y * unit);
+    const glm::vec3 w = right * (look.size.x * unit), h = up * (look.size.y * unit);
+    const glm::vec3 lowLeft = topLeft - h;
+    const glm::vec4 tint{1.f}; // (its fades are in it: the composite's)
     const gfx::Vertex v[4] = {{lowLeft, {0.f, 0.f}, tint}, {lowLeft + w, {1.f, 0.f}, tint}, {lowLeft + w + h, {1.f, 1.f}, tint},
         {lowLeft + h, {0.f, 1.f}, tint}};
     const gfx::Vertex tris[6] = {v[0], v[1], v[2], v[0], v[2], v[3]};
     gfx::draw(tris, gfx::sceneViewProjection(),
-        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false}, image.texture);
-    // The frame line round the face, as the visor's mount's.
-    const glm::vec3 line = gadget::visorColors().line;
-    const glm::vec4 lc{line, tint.a};
-    const float t = unit * 0.5f;
-    const glm::vec3 tw = right * t, th = up * t;
-    const auto bar = [&](glm::vec3 a, glm::vec3 b, glm::vec3 c2, glm::vec3 d) {
-        const gfx::Vertex q[6] = {{a, {0.f, 0.f}, lc}, {b, {0.f, 0.f}, lc}, {c2, {0.f, 0.f}, lc}, {a, {0.f, 0.f}, lc},
-            {c2, {0.f, 0.f}, lc}, {d, {0.f, 0.f}, lc}};
-        gfx::draw(q, gfx::sceneViewProjection(),
-            {.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false});
-    };
-    bar(lowLeft, lowLeft + w, lowLeft + w + th, lowLeft + th);
-    bar(lowLeft + h - th, lowLeft + h + w - th, lowLeft + h + w, lowLeft + h);
-    bar(lowLeft, lowLeft + tw, lowLeft + h + tw, lowLeft + h);
-    bar(lowLeft + w - tw, lowLeft + w, lowLeft + w + h, lowLeft + w + h - tw);
+        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false}, look.texture);
     centerPanel.draws++;
 }
 
@@ -781,22 +762,17 @@ void centerShow(const char* text, float alpha)
     {
         return;
     }
-    CenterPanel& c = centerPanel;
-    if(c.claimed < host_framecount - 1 || strncmp(c.text.data(), text, c.text.size() - 1) != 0)
-    {
-        q_strlcpy(c.text.data(), text, c.text.size());
-    }
-    c.alpha = alpha;
-    c.claimed = host_framecount;
+    visor::claimCenter(text, alpha);
+    centerPanel.claimed = host_framecount;
 }
 
 void centerStatus()
 {
     const CenterPanel& c = centerPanel;
     const gadget::VisorImage image = gadget::visorImage(gadget::VisorCenter);
-    Con_Printf("center panel: %s, claimed %d (frame %d), alpha %.2f, image %.0fx%.0f %s, %d draws, text [%s]\n",
-        centerPanelOn() ? "on" : "off", c.claimed, host_framecount, c.alpha, image.size.x, image.size.y,
-        image.shown ? "shown" : "not shown", c.draws, c.text.data());
+    Con_Printf("center panel: %s, claimed %d (frame %d), image %.0fx%.0f %s, %d draws\n", centerPanelOn() ? "on" : "off",
+        c.claimed, host_framecount, image.size.x, image.size.y, image.shown ? "shown" : "not shown", c.draws);
+    visor::headsetCenterStatus();
 }
 
 } // namespace qvr::panel
@@ -840,10 +816,9 @@ extern "C" void VR_End2D(void (*windowHud)())
     gfx::endCanvas();
     renderMenuPanels(); // (the menu panels after the first, MULTI_MENU.md)
     gadget::renderScreen(); // shown in the eyes next frame, as the canvas
-    if(centerPanelOn() && centerPanel.claimed >= host_framecount - 1) // (the centre print's panel, likewise)
+    if(centerPanelOn()) // (the centre print's panel, likewise: while it is up or fading)
     {
-        gadget::renderCenterPanel(centerPanel.text.data());
-        centerPanel.drawn = host_framecount;
+        visor::renderHeadsetCenter();
     }
     toolgun::panel::render(); // (the toolgun's panel, likewise)
     arenacards::render();     // (the perk cards' panel, likewise)

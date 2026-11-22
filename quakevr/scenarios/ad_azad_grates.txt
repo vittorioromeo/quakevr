@@ -1,0 +1,7 @@
+# ad_azad_grates: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Arcane Dimensions' ad_azad from
+# its start (a minimal scene: its grates, bars and pillar rows are round the map; ad_tears has more), for the hole
+# blockers (vr_hull_holes; HULLS.md "Holes").
+title Arcane Dimensions' ad_azad: grates, bars and pillar rows
+map ad_azad
+god
+notarget

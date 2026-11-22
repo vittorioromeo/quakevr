@@ -28,6 +28,7 @@
 #include "vr_mem.hpp"
 #include "vr_testkit.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_climbrope.hpp"
 #include "vr_toolgun_brush.hpp"
 
 #include "vr_ad.hpp" // AD support
@@ -860,6 +861,12 @@ void armedChoose()
             distance = t;
             best = i;
         }
+    }
+    // The climbable ropes (no model, no box: their pieces, a little grown) -- the Remove tool, the physgun (its top).
+    if(float t = distance; const int rope = climbrope::pick(from, dir, distance, t))
+    {
+        distance = t;
+        best = rope;
     }
     return best;
 }
@@ -1907,8 +1914,14 @@ edict_t* qvr::toolgun::spawnEntryAt(int i, const glm::vec3& feet, float yaw)
         return nullptr;
     }
     const Spawnable& s = spawnables[i];
-    return box3d::spawnClass(s.classname, feet + glm::vec3{0.f, 0.f, s.lift + 1.f}, glm::vec3{0.f, yaw, 0.f},
+    edict_t* e = box3d::spawnClass(s.classname, feet + glm::vec3{0.f, 0.f, s.lift + 1.f}, glm::vec3{0.f, yaw, 0.f},
         s.setModel ? s.model : nullptr, s.key, s.value, false, s.weaponFlags);
+    if(e && climbrope::isRopeClass(s.classname))
+    {
+        const progs::ServerVm vm;
+        climbrope::toolgunPlaced(e, feet); // (hung from the ceiling above, as the spawn tool hangs one)
+    }
+    return e;
 }
 
 void qvr::toolgun::armArmedSpawn(edict_t* e)

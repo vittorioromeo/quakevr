@@ -50,7 +50,7 @@ struct Stroke
 
 Stroke strokes[2];
 // The other players' shotguns' strokes (syncfix5): from each one's shot (QVR_SVC_FIRED), timed as yours, their clacks
-// heard at his copy's gun (its fore-end drawn still).
+// heard at his copy's gun, its fore-end drawn stroking (otherTravel, mpopen).
 Stroke otherStrokes[MAX_SCOREBOARD + 1][2]; // seat-shared: other players' copies, by player (the effects: phase 7)
 sfx_t* backSound = nullptr;
 sfx_t* homeSound = nullptr;
@@ -230,6 +230,20 @@ float travel(int hand)
         return position(za::min(vr_autopump_hold.value, 0.9999f)) * strokeTravel();
     }
     const Stroke& s = strokes[hand];
+    return s.start >= 0.0 ? position(progress(s)) * s.travel : 0.f;
+}
+
+float otherTravel(int ent, int hand)
+{
+    if(ent < 1 || ent > MAX_SCOREBOARD || (hand != HAND_OFF && hand != HAND_MAIN))
+    {
+        return 0.f;
+    }
+    if(vr_autopump_hold.value >= 0.f)
+    {
+        return position(za::min(vr_autopump_hold.value, 0.9999f)) * strokeTravel();
+    }
+    const Stroke& s = otherStrokes[ent][hand];
     return s.start >= 0.0 ? position(progress(s)) * s.travel : 0.f;
 }
 

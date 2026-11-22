@@ -40,7 +40,7 @@ void placeMenu(const hands::State& s, const glm::vec3& centre, const glm::vec3& 
 void unplaceMenu();
 [[nodiscard]] bool menuPlaced();
 
-// The centre panel (vr_center_panel): a message in the visor popup's style (gadget::renderCenterPanel) in front of the head,
+// The centre panel (vr_center_panel): a message as the flat visor's centre popup (visor::renderHeadsetCenter) in front of the head,
 // at Quake's fade `alpha`, for the game's centre print (VR_CenterPrintInView) and a QC view message (vr_worldtext.cpp);
 // call it each frame it shows. centerStatus: vr_center_panel_info (tests).
 void centerShow(const char* text, float alpha);

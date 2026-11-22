@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
 namespace qvr::visor
@@ -33,6 +34,26 @@ namespace qvr::visor
 // VR_End2D's flat-screen branch: the panels' images (gadget::renderVisor), and the refdef recalculated when the visor comes
 // or goes (the classic status bar's lines).
 void renderPanels();
+
+// The headset's centre panel (vr_center_panel, vr_panel.cpp): the flat visor's own centre popup. claimCenter: a centre
+// print (or a map's view message) up this frame with Quake's fade `alpha` (the flat one's VR_CenterPrintOnVisor too: a
+// new text pops in anew). renderHeadsetCenter (VR_End2D, the headset's frames): the popup's fade and pop in stepped as the
+// flat one's, then its contents, mount and composite (the flat visor's drawPanel and layer program; no lens, sway nor
+// glass) into a texture of its own. headsetCenter: that texture, shown in the eyes next frame, its sizes in visor pixels
+// (the whole box with its glows, the contents' rectangle in it from the box's top left, y down; texture rows bottom
+// first, premultiplied alpha).
+struct HeadsetCenter
+{
+    unsigned texture{0};
+    glm::vec2 size{0.f};
+    glm::vec2 contentsAt{0.f};
+    glm::vec2 contentsSize{0.f};
+    bool shown{false};
+};
+void claimCenter(const char* text, float alpha);
+void renderHeadsetCenter();
+[[nodiscard]] HeadsetCenter headsetCenter();
+void headsetCenterStatus(); // (vr_center_panel_info's)
 
 // A hit on him (VR_OnDamage: the server's damage message, its armor and blood): the visor's glitch and shake. Only a real
 // hit does it, never health going down by itself (a megahealth's overheal ticking away).

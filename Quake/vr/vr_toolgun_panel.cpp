@@ -19,6 +19,7 @@
 
 #include "vr_toolgun.hpp"
 #include "vr_seat.hpp"
+#include "vr_climbrope.hpp"
 
 #include "vr_agpose_shared.h"
 #include "vr_backend.hpp"
@@ -120,6 +121,7 @@ struct PanelState
     bool open{false};
     bool more{false};            // More's page instead of the tool's
     bool armed{false};           // Spawn > Monsters' Armed Humanoid page instead of its grid (armedPage)
+    bool rope{false};            // Spawn > Props' Rope Settings page instead of its grid (ropePage)
     DropList drop;               // a dropdown's list open over the panel
     bool overlayNow{false};      // the list's widgets being laid out (the others sleep while it is open)
     int shownTool{-1};           // the tool the last frame saw (another, from the stick press: More's page closes)
@@ -1148,6 +1150,25 @@ void armedPage(Ui& ui)
     spawnCommands(ui, bar, true);
 }
 
+// Spawn > Props > Ropes' settings (vr_climbrope.cpp; docs/vr-port/ROPES.md): the toolgun's next rope or chain.
+void ropePage(Ui& ui)
+{
+    const float x0 = pad, x1 = panelWidth - pad;
+    sliderRow(ui, Rect{x0, 64.f, x1, 78.f}, "Length", vr_rope_spawn_length, 32.f, 1024.f, 16.f, "%.0f");
+    sliderRow(ui, Rect{x0, 80.f, x1, 94.f}, "Thickness", vr_rope_spawn_thickness, 0.5f, 6.f, 0.25f, "%.2f");
+    sliderRow(ui, Rect{x0, 96.f, x1, 110.f}, "Pieces (0: auto)", vr_rope_spawn_segments, 0.f, 64.f, 1.f, "%.0f");
+    sliderRow(ui, Rect{x0, 112.f, x1, 126.f}, "Mass kg (0: auto)", vr_rope_spawn_mass, 0.f, 100.f, 1.f, "%.0f");
+    sliderRow(ui, Rect{x0, 128.f, x1, 142.f}, "Stiffness", vr_rope_spawn_stiffness, 0.05f, 1.f, 0.05f, "%.2f");
+    sliderRow(ui, Rect{x0, 144.f, x1, 158.f}, "Damping", vr_rope_spawn_damping, 0.f, 5.f, 0.1f, "%.1f");
+    toggleRow(ui, Rect{x0, 160.f, x1, 174.f}, "Pin the Bottom", vr_rope_spawn_pinned);
+    const Rect bar{pad, 177.f, panelWidth - pad, 190.f};
+    if(button(ui, Rect{bar.x0, bar.y0, bar.x0 + 40.f, bar.y1}, "Back", false, 6.f))
+    {
+        ps().rope = false;
+    }
+    spawnCommands(ui, bar);
+}
+
 void spawnPage(Ui& ui)
 {
     const float gap = 4.f;
@@ -1160,11 +1181,17 @@ void spawnPage(Ui& ui)
         {
             ps().section = i;
             ps().armed = false;
+            ps().rope = false;
         }
     }
     if(ps().armed && ps().section == 0)
     {
         armedPage(ui);
+        return;
+    }
+    if(ps().rope && ps().section == 1)
+    {
+        ropePage(ui);
         return;
     }
     // The section's entries, a page of them: id's and Quake VR's own first, then each pack's (the Scourge of Armagon's,
@@ -1179,6 +1206,7 @@ void spawnPage(Ui& ui)
     page = za::clamp(page, 0, pages - 1);
     const float cw = (panelWidth - pad * 2.f - gap * (gridColumns - 1)) / gridColumns;
     const float ch = 52.f;
+    int ropeCells = 0, pageCells = 0;
     for(int k = 0; k < perPage; k++)
     {
         const int n = page * perPage + k;
@@ -1205,6 +1233,14 @@ void spawnPage(Ui& ui)
         {
             toolgun::selectSpawnable(entries[n]);
         }
+        ropeCells += climbrope::isRopeClass(toolgun::spawnableClass(entries[n])) ? 1 : 0;
+        pageCells++;
+    }
+    // The Ropes group's page (its own, a row of tiles): the Rope Settings page's button under them.
+    if(ropeCells > 0 && pageCells <= gridColumns &&
+        button(ui, Rect{pad + 30.f, 125.f, panelWidth - pad - 30.f, 141.f}, "Rope Settings (length, thickness, ...)", false, 6.f))
+    {
+        ps().rope = true;
     }
     // The pages, and the spawn tool's commands.
     const Rect bar{pad, 175.f, panelWidth - pad, 189.f};

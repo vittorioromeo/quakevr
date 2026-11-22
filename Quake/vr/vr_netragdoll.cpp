@@ -29,8 +29,12 @@ namespace
 constexpr float posScale = 8.f;              // the parts' places: eighths of a unit
 constexpr float quatMost = 0.70710678f;      // the smallest three's range (the largest left out)
 constexpr float quatSteps = 16383.f;         // ... in 15 bits each
-constexpr int ringLen = 24;                  // poses kept per ragdoll on the client: a third of a second at 72 Hz, past
-                                             // the interpolation buffer's longest delay (0.25 s: a jittery link's)
+constexpr int ringLen = 40;                  // poses kept per ragdoll on the client: 0.55 s at 72 Hz, past the
+                                             // interpolation clock's furthest lag (netsnap::interpReach). (mpopen: 24, a
+                                             // third of a second, covered the longest delay but not a hitch's catch-up:
+                                             // the clock before the oldest pose drew the parts held there, 3-4 ticks
+                                             // ahead, mp_ragsync's parts p95 9.3 units in 1 run of 5)
+static_assert(ringLen / 72.0 >= netsnap::interpReach, "the ragdolls' pose ring must outlast the clock's lag");
 constexpr int recordMost = 18 + 18 + 24 + 12 * ragdoll::maxBones; // QVR_SVC_RAGPOSE's bytes at most (24: his hands)
 
 // ---- The message ---------------------------------------------------------------------------------------------------
@@ -294,8 +298,11 @@ void logClient()
         {
             *hash = 0; // (its skinned copy drawn: the .mdl's name)
         }
-        Con_Printf("mp_bl: side=cl t=%.4f n=%d m=%s o=%.2f,%.2f,%.2f a=%.2f,%.2f,%.2f rag=%d\n", t, num, name, e->origin[0],
-            e->origin[1], e->origin[2], e->angles[0], e->angles[1], e->angles[2], rag ? 1 : 0);
+        int way = 4, samples = 0, restarts = 0, why = 0; // (mpopen: how it was interpolated, after rag=)
+        static_cast<void>(netsnap::interpWay(num, way, samples, restarts, why));
+        Con_Printf("mp_bl: side=cl t=%.4f n=%d m=%s o=%.2f,%.2f,%.2f a=%.2f,%.2f,%.2f rag=%d way=%d h=%d rs=%d why=%d\n", t, num,
+            name, e->origin[0], e->origin[1], e->origin[2], e->angles[0], e->angles[1], e->angles[2], rag ? 1 : 0, way, samples,
+            restarts, why);
         if(rag)
         {
             for(int b = 0; b < ragdoll::maxBones; b++)

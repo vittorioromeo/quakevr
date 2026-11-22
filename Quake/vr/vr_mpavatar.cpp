@@ -19,6 +19,7 @@
 #include "Zancle/Math/Round.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "vr_climb.hpp"
+#include "vr_climbrope.hpp"
 
 #include "vr_cvars.hpp"
 #include "vr_disarmviz.hpp"
@@ -343,6 +344,25 @@ void printAvatar(int e, const Avatar& a, bool hands)
         (void)avatar::otherClimb(e, climbWeight);
         Con_Printf(" eyeheight=%.3f eyeunits=%.1f yaw=%.1f moves=%d pitch=%.1f lying=%.2f sliding=%.2f slide=%d climb=%.2f seated=%d posedat=%.3f\n",
             d.eyeHeight, d.eyeUnits, a.body.yaw, a.moves, pitch, lying, sliding, a.sliding ? 1 : 0, climbWeight, d.seated ? 1 : 0, d.posedAt);
+        if((a.moves & (avatarHoldOff | avatarHoldMain)) != 0)
+        {
+            // (ropes3) Holding on, a climbable rope by him: his drawn wrists, ankles and toes, how far each is from the rope as
+            // this client has it (hands on it, the feet round it: mp_test.py ropeclimb).
+            const auto near = [](const glm::vec3& p) { return climbrope::clientRopeDistance(p); };
+            if(za::min(near(d.handWrist[0]), near(d.handWrist[1])) < 32.f)
+            {
+                // (a hand that doesn't hold, -1: a flat player's weapon hand keeps its weapon, off the rope)
+                const float w0 = (a.moves & avatarHoldOff) ? near(d.handWrist[0]) : -1.f;
+                const float w1 = (a.moves & avatarHoldMain) ? near(d.handWrist[1]) : -1.f;
+                // (and each held wrist's distance from the server's hold, as sent: his drawn hand against the hold)
+                const float h0 = (a.moves & avatarHoldOff) ? glm::distance(d.handWrist[0], origin + a.holdAt[0]) : -1.f;
+                const float h1 = (a.moves & avatarHoldMain) ? glm::distance(d.handWrist[1], origin + a.holdAt[1]) : -1.f;
+                Con_Printf("mp_ropepose: ent=%d wrist0=%.1f wrist1=%.1f ankle0=%.1f ankle1=%.1f toe0=%.1f toe1=%.1f climb=%.2f "
+                           "hold0=%.1f hold1=%.1f\n",
+                    e, w0, w1, near(d.skeleton.ankle[0]), near(d.skeleton.ankle[1]), near(d.skeleton.toe[0]), near(d.skeleton.toe[1]),
+                    climbWeight, h0, h1);
+            }
+        }
         view::printPauldrons("mp_pauldron", e, d.pauldron);
         if(const view::ViewEntity* plate = d.plateReport >= 0 ? &d.plate[d.plateReport] : nullptr;
             plate && plate->visible && plate->ent.model && !d.plateBones[d.plateReport].empty())
@@ -1705,7 +1725,8 @@ const view::ViewEntity* drawnWeapon(int ent, int hand)
     }
     const Drawn& d = drawn.of[ent];
     const view::ViewEntity& w = d.weapon[hand];
-    return d.frame >= host_framecount - 1 && w.visible && w.ent.model ? &w : nullptr;
+    // (drawn in its parts -- the revolver open, his auto pump stroking (mpopen) -- the gun is hidden but placed still)
+    return d.frame >= host_framecount - 1 && (w.visible || d.gun[hand].inParts) && w.ent.model ? &w : nullptr;
 }
 
 // Player `e`'s copy as set up this frame (setup) into the drawn entities: his hands, weapons, holsters, pauldrons, plates

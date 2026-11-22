@@ -79,7 +79,8 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
   look before the numbers move); flateject `ssg` (second casing up 0.29 against > 0.3) and `vr` (one stroke line) run
   to run; flatfg2h key 3; twohand_regrip picks 4 and 10; stealth noises_clue; nav_lift_down; gadget_lock 13/4;
   `vr_dm_test 19` (bot navmesh chase: 2 of 4 runs fail, the bot back on its waypoints once it sees him at the door);
-  the mp_test.py suite's order effect from mp_campaign_listen on and its fixed 27500 base port; mp_loss's margin.
+  mp_debugviz_listen's bot case (rare: the bot's AI swinging while held, the server's line and the drawn one a frame
+  apart; ROUND25.md "mpopen"). (mpopen fixed: the suite's order effect and fixed 27500 base port, mp_loss's margin.)
 
 ## 2. The 1.1 release (only on his word; his list is RELEASE_TODO.md)
 
@@ -166,7 +167,8 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
   whether a shot or blow knocks your gun out; some enemy melee never disarms; enemies punching (fists) never disarm you.
   Needs tuning and fixes (QC/vr_playerdisarm.qc: which blows count, the rolls, feedback before the drop). Once polished,
   on by default in PvE. Multiplayer: two settings, PvE and PvP; PvP on by default (the MP branch does it), PvE off
-  until this is done.
+  until this is done. 2026-11-22 (disarmfix, ROUND25): PvE now by jolts (no dice, a warning before the drop, fists and
+  heavy blows count); left: his try in VR, then his OK to turn `vr_player_disarm` on.
 
 ## 7. Combat and feel
 

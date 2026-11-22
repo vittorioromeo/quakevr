@@ -3501,6 +3501,24 @@ Pushes the player in the direction specified by angles.
 	]
 ]
 
+@PointClass base(Appearflags, Targetname) color(102 102 115) size(-4 -4 -4, 4 4 4) =
+	vr_chain : "Quake VR: climbable chain
+
+A vr_rope drawn as a chain of iron links (20 kg by default), with the same keys and behaviour. docs/vr-port/ROPES.md."
+[
+	spawnflags(flags) =
+	[
+		1 : "Pinned" : 0 : "Its bottom held where it first hangs."
+	]
+	rope_length(float) : "Length" : 256 : "Units, from its origin down (longer than the drop: the rest lies on the floor)."
+	rope_thickness(float) : "Thickness" : "1.5" : "Units across."
+	rope_segments(integer) : "Pieces" : 0 : "Its pieces (points - 1); 0: one every 16 units (2 to 64)."
+	rope_mass(float) : "Mass" : 0 : "Kg, the whole rope (explosions and shots throw a light one further); 0: 5 a rope, 20 a chain."
+	rope_stiffness(float) : "Stiffness" : 1 : "0.05 to 1: how little it stretches."
+	rope_damping(float) : "Damping" : "0.5" : "Per second: how fast its swing dies down."
+	target(target_destination) : "Bottom pinned at" : "" : "Its bottom held at that entity's origin (an info_notnull)."
+]
+
 @PointClass color(153 115 64) size(-16 -16 0, 16 16 32) =
 	vr_crate : "Quake VR: a wooden crate, placed by hand: a heavy physics prop (pushed, tipped, stacked, stood on, carried by hand) that breaks into light pieces when shot, struck, blown up or hit hard, sometimes holding a small box of ammo or health (Crates' settings), and hides the player from monsters behind it. Small: 32 units a side; LARGE: 40 x 40 x 48. 'angle':
 its yaw; 'skin': 0 pine, 1 brown, 2 weathered. It rests on whatever is below its origin (within 128 units). Placed whatever Crates' options are. 'contents': what it holds instead of the random box (a classname, as func_vr_restock's: item_key1, item_health...; 'none': nothing); 'contents_name': the targetname given to what it holds (a GRABBED func_vr_tip's
@@ -3555,6 +3573,29 @@ on whatever is below its origin (within 128 units), whatever Rocks and Bricks' o
 @PointClass color(255 128 0) size(-8 -8 -8, 8 8 8) =
 	vr_dummy_attack_toggle : "Quake VR: the switch of the training dummies' attacks (vr_dummy_attacks: parry practice). Used by the button whose target it is, it turns them on or off, and it shows which on a label at its origin ('angle': the way the label faces, as a func_worldtext_banner's; 'worldtext_scale', 0.75 if not given). The button stays lit while they're on. Not saved: off at every map load."
 [
+]
+
+@PointClass base(Appearflags, Targetname) color(140 102 51) size(-4 -4 -4, 4 4 4) =
+	vr_rope : "Quake VR: climbable rope
+
+A physical rope hanging from its origin (put it just under a ceiling or a beam): it swings, falls, lies on the floor where it is longer than the drop, and is pushed by hands, players, monsters, props, explosions and shots. Drawn as a rope; Style 1: as a chain (the same behaviour). docs/vr-port/ROPES.md."
+[
+	spawnflags(flags) =
+	[
+		1 : "Pinned" : 0 : "Its bottom held where it first hangs."
+	]
+	rope_length(float) : "Length" : 256 : "Units, from its origin down (longer than the drop: the rest lies on the floor)."
+	rope_thickness(float) : "Thickness" : "1.5" : "Units across."
+	rope_segments(integer) : "Pieces" : 0 : "Its pieces (points - 1); 0: one every 16 units (2 to 64)."
+	rope_mass(float) : "Mass" : 0 : "Kg, the whole rope (explosions and shots throw a light one further); 0: 5 a rope, 20 a chain."
+	rope_stiffness(float) : "Stiffness" : 1 : "0.05 to 1: how little it stretches."
+	rope_damping(float) : "Damping" : "0.5" : "Per second: how fast its swing dies down."
+	target(target_destination) : "Bottom pinned at" : "" : "Its bottom held at that entity's origin (an info_notnull)."
+	rope_style(choices) : "Style" : 0 : "How it is drawn (it behaves the same)." =
+	[
+		0 : "Rope"
+		1 : "Chain"
+	]
 ]
 
 //

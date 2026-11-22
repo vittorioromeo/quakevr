@@ -183,8 +183,8 @@ void restartVr()
     return i;
 }
 
-// A key row (the Flat Keys page): `cvar` holds a key's bind name; enter or a click waits for a key (the Keys menu's "press a
-// key"), Backspace or Delete clears it.
+// A key row (Voice Chat's Push-to-Talk; the other flat keys are in Options > Controls, menu.c): `cvar` holds a key's
+// bind name; enter or a click waits for a key (the Keys menu's "press a key"), Backspace or Delete clears it.
 [[nodiscard]] Item keyRow(const char* label, cvar_t& cvar)
 {
     return Item{Item::Key, label, &cvar};
@@ -3615,7 +3615,7 @@ float stepSlider(const Item& item, int dir, bool repeat)
     return v;
 }
 
-// The Flat Keys page's rows (vr_flatplay.hpp keyCvars: the keys flat play reads itself). A key row waits for a key while
+// A key row (one of the keys flat play reads itself, vr_flatplay.hpp keyCvars). A key row waits for a key while
 // keyCapture is its cvar (the Keys menu's "press a key": M_VRKeyCapture holds the engine's side of it).
 cvar_t* keyCapture{nullptr};
 

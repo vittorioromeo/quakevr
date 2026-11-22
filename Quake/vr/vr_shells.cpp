@@ -463,7 +463,8 @@ void trackPorts(const view::ViewEntity (&weapons)[2])
 // its auto pump's stroke, the flick's spin, the broken-open barrels, the revolver's crane, the port's speed, your face).
 void ejectFrom(const view::ViewEntity& ve, const Pending& p, bool own, bool pumped, double rear, float backSpeed)
 {
-    const Weapon* w = ve.visible ? weaponFor(ve.ent.model) : nullptr;
+    // (another player's: mpavatar::drawnWeapon vetted it, hidden while drawn in its parts -- his auto pump stroking, mpopen)
+    const Weapon* w = ve.visible || !own ? weaponFor(ve.ent.model) : nullptr;
     if(!w || p.kind < 0 || p.kind >= static_cast<int>(za::getArraySize(kindModels)) || w->ports <= 0 ||
         (!own && w->model == modelmeta::Id::VRevolver))
     {

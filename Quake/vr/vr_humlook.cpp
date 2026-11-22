@@ -460,7 +460,8 @@ void ensureLoaded()
     return ok;
 }
 
-// The mask's words: each texel's class (painted, else its palette row's), 2 bits each.
+// The mask's words: each texel's class (painted, else its palette row's), 2 bits each; the Texture Studio's brush cursor
+// 3 (the shader shows it yellow).
 void build(Skin& s, za::Vector<za::U32>& words)
 {
     const int n = s.w * s.h;
@@ -470,6 +471,13 @@ void build(Skin& s, za::Vector<za::U32>& words)
     {
         const unsigned klass = classAt(s, t);
         words[static_cast<za::SizeT>(t >> 4)] |= klass << ((t & 15) * 2);
+    }
+    for(const int t : s.cursor)
+    {
+        if(t >= 0 && t < n)
+        {
+            words[static_cast<za::SizeT>(t >> 4)] |= 3u << ((t & 15) * 2);
+        }
     }
 }
 
@@ -987,7 +995,7 @@ void instanceRows(const entity_t* e, float rows[4][4])
     clothes = clothes && clothes->set ? clothes : nullptr;
     pack = pack && pack->set ? pack : nullptr;
     const bool overlay = studioOverlay();
-    if(!clothes && !pack && !overlay)
+    if(!clothes && !pack && !overlay && !studioCursorOn())
     {
         return;
     }

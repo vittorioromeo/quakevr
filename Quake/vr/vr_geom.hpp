@@ -121,6 +121,52 @@ inline void easeCritical(float& value, float& rate, float target, float time, fl
     return glm::length(p - closestOnSegment(p, a, b, t, eps));
 }
 
+// The distance between segments a0a1 and b0b1 at their closest points (Ericson, Real-Time Collision Detection, 5.1.9),
+// and those points' shares along each (`ta`, `tb`: 0..1). The climbable ropes' shots (vr_climbrope.cpp).
+[[nodiscard]] inline float segmentsDistance(const glm::vec3& a0, const glm::vec3& a1, const glm::vec3& b0, const glm::vec3& b1, float& ta,
+    float& tb)
+{
+    const glm::vec3 d1 = a1 - a0, d2 = b1 - b0, r = a0 - b0;
+    const float a = glm::dot(d1, d1), e = glm::dot(d2, d2), f = glm::dot(d2, r);
+    float s = 0.f, t = 0.f;
+    if(a <= 1e-6f && e <= 1e-6f)
+    {
+        ta = tb = 0.f;
+        return glm::length(r);
+    }
+    if(a <= 1e-6f)
+    {
+        t = za::clamp(f / e, 0.f, 1.f);
+    }
+    else
+    {
+        const float c = glm::dot(d1, r);
+        if(e <= 1e-6f)
+        {
+            s = za::clamp(-c / a, 0.f, 1.f);
+        }
+        else
+        {
+            const float b = glm::dot(d1, d2), denom = a * e - b * b;
+            s = denom > 1e-6f ? za::clamp((b * f - c * e) / denom, 0.f, 1.f) : 0.f;
+            t = (b * s + f) / e;
+            if(t < 0.f)
+            {
+                t = 0.f;
+                s = za::clamp(-c / a, 0.f, 1.f);
+            }
+            else if(t > 1.f)
+            {
+                t = 1.f;
+                s = za::clamp((b - c) / a, 0.f, 1.f);
+            }
+        }
+    }
+    ta = s;
+    tb = t;
+    return glm::length((a0 + d1 * s) - (b0 + d2 * t));
+}
+
 // The point of triangle abc nearest p (Ericson, Real-Time Collision Detection, 5.1.5), and, when `bary` is given, its
 // barycentric weights for a, b and c. The point is computed per region exactly as the copies it replaced did (a corner
 // is returned as that corner, not rebuilt from the weights), so their results are unchanged bit for bit.

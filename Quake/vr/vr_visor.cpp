@@ -621,21 +621,20 @@ GlassPass glassPass;
     return {rgb * a, a};
 }
 
-// The triangles into the slot being drawn (layerPass.mvp), then emptied.
-void drawList(za::Vector<gfx::Vertex>& v, gfx::Blend blend, gfx::Shade shade = gfx::Shade::Color)
+// The triangles into the slot being drawn (lp.mvp), then emptied.
+void drawList(const LayerPass& lp, za::Vector<gfx::Vertex>& v, gfx::Blend blend, gfx::Shade shade = gfx::Shade::Color)
 {
     if(!v.empty())
     {
-        gfx::draw({v.data(), v.size()}, layerPass.mvp, {.shade = shade, .blend = blend, .depthTest = false, .depthWrite = false});
+        gfx::draw({v.data(), v.size()}, lp.mvp, {.shade = shade, .blend = blend, .depthTest = false, .depthWrite = false});
     }
     v.clear();
 }
 
 // Panel `pl`'s slot `s` drawn into next: the viewport its box in the atlas, the whole layer's clip space (the vertices')
 // mapped onto it (the clip volume: nothing drawn past the box).
-void useSlot(const PanelLayer& pl, int s)
+void useSlot(LayerPass& lp, const PanelLayer& pl, int s)
 {
-    LayerPass& lp = layerPass;
     const int k = slotScale(s, lp.ss);
     glViewport(pl.slot[s].x, pl.slot[s].y, static_cast<int>(pl.box.z) * k, static_cast<int>(pl.box.w) * k);
     glm::mat4 m{1.f};
@@ -707,9 +706,8 @@ void useSlot(const PanelLayer& pl, int s)
 
 // The atlas's slots for every built panel at `ss` texels a layer pixel (shelves, the tallest first; a gap round each
 // that a tap past its box never crosses): the height wanted, 0 when it does not fit.
-[[nodiscard]] int packAtlas(int ss)
+[[nodiscard]] int packAtlas(LayerPass& lp, int ss)
 {
-    LayerPass& lp = layerPass;
     const int gap = 2 * ss + 4;
     za::Array<int, VisorPanelCount * SlotCount> order{};
     int n = 0;
@@ -772,11 +770,11 @@ struct PanelSignature
 
 // Panel p into its slots in the atlas (bound), each cleared first: all of them (`all`), or its contents alone (its
 // image drawn again, nothing else changed).
-void drawPanel(int p, bool all)
+void drawPanel(LayerPass& lp, int p, bool all)
 {
-    LayerPass& lp = layerPass;
     PanelLayer& pl = lp.panels[p];
-    Panel& out = state().panels[p];
+    Panel unseen; // (the headset's pass: no flat panel's rectangle)
+    Panel& out = &lp == &layerPass ? state().panels[p] : unseen;
     if(!pl.built)
     {
         return;
@@ -813,7 +811,7 @@ void drawPanel(int p, bool all)
     // The contents, a little behind the glass (their own share of the sway: the composite's). (Each slot its own: in any
     // order.)
     const gadget::VisorImage img = gadget::visorImage(p);
-    useSlot(pl, SlotContents);
+    useSlot(lp, pl, SlotContents);
     drawContents(L, p, pl.mount, img,
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false,
             .params = {time, crt * za::clamp(vr_flat_visor_ink_crt.value, 0.f, 1.f), state().glitch, gadget::textGlow()},
@@ -837,7 +835,7 @@ void drawPanel(int p, bool all)
         const Ring& ring = pl.plate;
         const glm::vec3 plateRgb = plateOwnColour ? glm::mix(plateOwn, alarmFace * 0.55f, za::clamp(alarm, 0.f, 1.f) * 0.85f)
                                                   : faceRgb * 0.55f;
-        useSlot(pl, SlotPlate);
+        useSlot(lp, pl, SlotPlate);
         face(L, ring, premul(plateRgb, plateAlpha), glm::vec2{0.f, 1.f}, 0.f, lp.tris);
         line(L, ring, 0.f, za::max(1.f, edge * 0.75f), premul(lineRgb * 0.35f, 0.8f), 0.f, lp.tris);
         if(plateBevel > 0.f)
@@ -848,24 +846,24 @@ void drawPanel(int p, bool all)
             band(L, ring, in0, in1, premul(lit, 0.3f * plateBevel), glm::vec4{0.f}, 1.f, lp.tris, true);
             band(L, ring, in0, in1, premul(glm::vec3{0.f}, 0.35f * plateBevel), glm::vec4{0.f}, -1.f, lp.tris, true);
         }
-        drawList(lp.tris, gfx::Blend::Premultiplied);
-        useSlot(pl, SlotShapes);
+        drawList(lp, lp.tris, gfx::Blend::Premultiplied);
+        useSlot(lp, pl, SlotShapes);
         glColorMask(GL_TRUE, GL_FALSE, GL_FALSE, GL_FALSE);
         face(L, ring, premul(glm::vec3{1.f}, 1.f), glm::vec2{0.f, 1.f}, 0.f, lp.tris);
-        drawList(lp.tris, gfx::Blend::Premultiplied);
+        drawList(lp, lp.tris, gfx::Blend::Premultiplied);
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     }
 
     // The face, its sheen down the whole of it as seen (its top to its bottom on the screen).
     const Ring& ring = pl.face;
     const glm::vec4 box = shownBox(L, ring);
-    useSlot(pl, SlotFace);
+    useSlot(lp, pl, SlotFace);
     face(L, ring, premul(faceRgb, opacity), glm::vec2{box.y, box.w}, sheen, lp.tris);
-    drawList(lp.tris, gfx::Blend::Premultiplied);
-    useSlot(pl, SlotShapes);
+    drawList(lp, lp.tris, gfx::Blend::Premultiplied);
+    useSlot(lp, pl, SlotShapes);
     glColorMask(GL_FALSE, GL_TRUE, GL_FALSE, GL_FALSE);
     face(L, ring, premul(glm::vec3{1.f}, 1.f), glm::vec2{0.f, 1.f}, 0.f, lp.tris);
-    drawList(lp.tris, gfx::Blend::Premultiplied);
+    drawList(lp, lp.tris, gfx::Blend::Premultiplied);
     // (b: where anything of it can be -- the face and the plate and a band round each as far as the lines and glows
     // reach and the plate and the contents move from the face with the sway: the composite skips the rest of its box)
     {
@@ -878,17 +876,17 @@ void drawPanel(int p, bool all)
             face(L, outline, premul(glm::vec3{1.f}, 1.f), glm::vec2{0.f, 1.f}, 0.f, lp.tris);
             band(L, outline, -2.f, reach, premul(glm::vec3{1.f}, 1.f), premul(glm::vec3{1.f}, 1.f), 0.f, lp.tris);
         }
-        drawList(lp.tris, gfx::Blend::Premultiplied);
+        drawList(lp, lp.tris, gfx::Blend::Premultiplied);
     }
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
     // Over them: the glass's glint over the whole face, the glows (added: premultiplied with no alpha), the frame lit
     // from above and its inner highlight.
-    useSlot(pl, SlotOver);
+    useSlot(lp, pl, SlotOver);
     if(sheen > 0.f)
     {
         glint(L, ring, box, sheen, lp.glows);
-        drawList(lp.glows, gfx::Blend::Additive, gfx::Shade::SoftEdge);
+        drawList(lp, lp.glows, gfx::Blend::Additive, gfx::Shade::SoftEdge);
     }
     const float half = edge * 0.5f;
     if(glowIn > 0.f)
@@ -901,7 +899,7 @@ void drawPanel(int p, bool all)
         band(L, ring, half, half + glowWidth, premul(lineRgb, 0.5f * glowOut) * glm::vec4{1.f, 1.f, 1.f, 0.f},
             glm::vec4{0.f}, 0.f, lp.glows);
     }
-    drawList(lp.glows, gfx::Blend::Premultiplied);
+    drawList(lp, lp.glows, gfx::Blend::Premultiplied);
     if(edge > 0.f)
     {
         line(L, ring, 0.f, edge, premul(lineRgb, 0.9f), 0.45f * bevel, lp.tris);
@@ -910,17 +908,17 @@ void drawPanel(int p, bool all)
             const glm::vec3 lit = glm::mix(lineRgb, glm::vec3{1.f}, 0.6f);
             line(L, ring, -(half + 0.9f * L.px1080), za::max(0.8f, edge * 0.5f), premul(lit, 0.3f * bevel), 0.8f * bevel, lp.tris);
         }
-        drawList(lp.tris, gfx::Blend::Premultiplied);
+        drawList(lp, lp.tris, gfx::Blend::Premultiplied);
     }
 }
 
-// The mounts and their contents (vr_flat_visor_panels: which) into the atlas, at rest, unfaded: each panel's back plate
-// and its bevel, face, contents, glint, glows, frame and its highlight, its shapes for the glass. False: no atlas.
-[[nodiscard]] bool buildPanels(int viewW, int viewH, int wantSs)
+// The mounts and their contents (vr_flat_visor_panels: which; `only` >= 0: that panel alone) on `layer` into lp's atlas,
+// at rest, unfaded: each panel's back plate and its bevel, face, contents, glint, glows, frame and its highlight, its
+// shapes for the glass. False: no atlas.
+[[nodiscard]] bool buildPanels(LayerPass& lp, const Layer& layer, int wantSs, int only)
 {
-    LayerPass& lp = layerPass;
     Layer& L = lp.L;
-    L = layerFor(viewW, viewH);
+    L = layer;
     const int shownMask = static_cast<int>(vr_flat_visor_panels.value);
     const float edge = za::clamp(vr_flat_visor_edge.value, 0.f, 8.f) * L.px1080;
     const float depth = za::clamp(vr_flat_visor_depth.value, 0.f, 3.f);
@@ -948,14 +946,19 @@ void drawPanel(int p, bool all)
     }
     seenLo -= glm::vec2{most + 2.f * reach + 2.f};
     seenHi += glm::vec2{most + 2.f * reach + 2.f};
+    if(only >= 0) // (one panel alone, the headset's: all of it, wherever the view's edges are)
+    {
+        seenLo = glm::vec2{-1e9f};
+        seenHi = glm::vec2{1e9f};
+    }
 
-    // The outlines laid out, each panel's box in the layer and on the view.
+    // The outlines laid out, each panel's box in the layer and on the view (`only`: that one alone).
     for(int p = 0; p < VisorPanelCount; p++)
     {
         PanelLayer& pl = lp.panels[p];
         pl.built = false;
         const gadget::VisorImage img = gadget::visorImage(p);
-        const bool masked = p != gadget::VisorCenter && !(shownMask & (1 << p)); // (the centre print's: vr_flat_visor_centerprint)
+        const bool masked = only >= 0 ? p != only : p != gadget::VisorCenter && !(shownMask & (1 << p)); // (the centre print's: vr_flat_visor_centerprint)
         if(masked || !img.shown || img.size.y <= 0.f)
         {
             continue;
@@ -1007,7 +1010,7 @@ void drawPanel(int p, bool all)
     int ss = wantSs, height = 0;
     for(; ss >= 1 && height <= 0; ss--)
     {
-        height = packAtlas(ss);
+        height = packAtlas(lp, ss);
     }
     lp.ss = ss + 1;
     height = (height + 255) / 256 * 256;
@@ -1023,7 +1026,7 @@ void drawPanel(int p, bool all)
 
     for(int p = 0; p < VisorPanelCount; p++)
     {
-        drawPanel(p, true);
+        drawPanel(lp, p, true);
     }
     return true;
 }
@@ -1191,11 +1194,40 @@ void eachBox(int x, int y, int w, int h, float scale, float pad, F&& draw)
 
 // Each panel shown (Panel::drawn) onto the target (the program and its shared uniforms set): its slots, its sway, its
 // fades (`fades`: panelFade's), scissored to where it can be. `alphaOnly`: bullet time's mask.
+// The scanlines' uniforms (the layer program's, in use) for a view `viewH` pixels tall.
+void scanUniforms(float viewH)
+{
+    const float px = viewH / 1080.f;
+    const float scan = za::clamp(vr_flat_visor_scanlines.value, 0.f, 1.f);
+    const float drift = static_cast<float>(za::fmod(realtime * static_cast<double>(vr_flat_visor_scanline_speed.value) * px, 100000.0));
+    const float bandY = viewH * (1.f - static_cast<float>(za::fmod(realtime * 0.12, 1.0))); // (rolling down)
+    GL_Uniform4fFunc(1, scan, za::max(2.f, za::clamp(vr_flat_visor_scanline_width.value, 1.5f, 16.f) * px), drift, bandY);
+    GL_Uniform1fFunc(11, za::clamp(vr_flat_visor_ink_crt.value, 0.f, 1.f));
+}
+
+// Panel p's own uniforms (the layer program's, in use): its box and slots in lp's atlas, its sway (`shift`, layer pixels:
+// each depth its share), its fades (panelFade's), the centre print's pop in.
+void panelUniforms(const LayerPass& lp, int p, const glm::vec2& shift, const glm::vec2& fade, bool alphaOnly)
+{
+    const PanelLayer& pl = lp.panels[p];
+    const glm::vec2 plate = shift * lp.plateParallax, contents = shift * lp.contentParallax;
+    const auto corner = [&](int s) { return glm::vec2{pl.slot[s]}; };
+    GL_Uniform4fFunc(5, pl.box.x, pl.box.y, pl.box.z, pl.box.w);
+    GL_Uniform4fFunc(6, corner(SlotPlate).x, corner(SlotPlate).y, corner(SlotFace).x, corner(SlotFace).y);
+    GL_Uniform4fFunc(7, corner(SlotContents).x, corner(SlotContents).y, corner(SlotOver).x, corner(SlotOver).y);
+    GL_Uniform4fFunc(8, corner(SlotShapes).x, corner(SlotShapes).y, static_cast<float>(lp.ss), alphaOnly ? 1.f : 0.f);
+    GL_Uniform4fFunc(9, plate.x, plate.y, contents.x, contents.y);
+    GL_Uniform4fFunc(10, shift.x, shift.y, fade.y, fade.x);
+    // The centre print's pop in: from 85% of its size (eased out) about its middle, swayed with its face.
+    const float grow = p == gadget::VisorCenter ? 1.f - 0.15f * (1.f - smoothstep(0.f, 1.f, centerPop())) : 1.f;
+    const glm::vec2 middle = (localToPx(lp.L, p, pl.mount.lo) + localToPx(lp.L, p, pl.mount.hi)) * 0.5f + shift;
+    GL_Uniform4fFunc(12, middle.x, middle.y, 1.f / grow, 0.f);
+}
+
 void composite(int x, int y, int w, int h, const za::Array<glm::vec2, VisorPanelCount>& fades, bool alphaOnly)
 {
     const LayerPass& lp = layerPass;
     const glm::vec2 shift = swayShift(lp.L, state().sway, lp.tx);
-    const glm::vec2 plate = shift * lp.plateParallax, contents = shift * lp.contentParallax;
     glEnable(GL_SCISSOR_TEST);
     for(int p = 0; p < VisorPanelCount; p++)
     {
@@ -1203,18 +1235,7 @@ void composite(int x, int y, int w, int h, const za::Array<glm::vec2, VisorPanel
         {
             continue;
         }
-        const PanelLayer& pl = lp.panels[p];
-        const auto corner = [&](int s) { return glm::vec2{pl.slot[s]}; };
-        GL_Uniform4fFunc(5, pl.box.x, pl.box.y, pl.box.z, pl.box.w);
-        GL_Uniform4fFunc(6, corner(SlotPlate).x, corner(SlotPlate).y, corner(SlotFace).x, corner(SlotFace).y);
-        GL_Uniform4fFunc(7, corner(SlotContents).x, corner(SlotContents).y, corner(SlotOver).x, corner(SlotOver).y);
-        GL_Uniform4fFunc(8, corner(SlotShapes).x, corner(SlotShapes).y, static_cast<float>(lp.ss), alphaOnly ? 1.f : 0.f);
-        GL_Uniform4fFunc(9, plate.x, plate.y, contents.x, contents.y);
-        GL_Uniform4fFunc(10, shift.x, shift.y, fades[p].y, fades[p].x);
-        // The centre print's pop in: from 85% of its size (eased out) about its middle, swayed with its face.
-        const float grow = p == gadget::VisorCenter ? 1.f - 0.15f * (1.f - smoothstep(0.f, 1.f, centerPop())) : 1.f;
-        const glm::vec2 middle = (localToPx(lp.L, p, pl.mount.lo) + localToPx(lp.L, p, pl.mount.hi)) * 0.5f + shift;
-        GL_Uniform4fFunc(12, middle.x, middle.y, 1.f / grow, 0.f);
+        panelUniforms(lp, p, shift, fades[p], alphaOnly);
         if(vr_flat_visor_cache.value == 0.f) // (debug: the whole view)
         {
             glScissor(x, y, w, h);
@@ -1284,7 +1305,7 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
     if(signature != lp.signature || vr_flat_visor_cache.value == 0.f)
     {
         QVR_PROFILE("visor layer");
-        lp.signature = buildPanels(w, h, ss) ? layerSignature(w, h, ss) : 0u; // (the atlas's texture in it)
+        lp.signature = buildPanels(lp, layerFor(w, h), ss, -1) ? layerSignature(w, h, ss) : 0u; // (the atlas's texture in it)
         if(!lp.signature)
         {
             GL_EndGroup();
@@ -1307,7 +1328,7 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
                 {
                     GL_BindFramebufferFunc(GL_FRAMEBUFFER, lp.atlas.fbo);
                 }
-                drawPanel(p, mount);
+                drawPanel(lp, p, mount);
             }
         }
     }
@@ -1336,12 +1357,8 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // (premultiplied)
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, lp.atlas.tex);
     const float px = static_cast<float>(h) / 1080.f;
-    const float scan = za::clamp(vr_flat_visor_scanlines.value, 0.f, 1.f);
-    const float drift = static_cast<float>(za::fmod(realtime * static_cast<double>(vr_flat_visor_scanline_speed.value) * px, 100000.0));
-    const float bandY = static_cast<float>(h) * (1.f - static_cast<float>(za::fmod(realtime * 0.12, 1.0))); // (rolling down)
     GL_Uniform4fFunc(0, static_cast<float>(x), static_cast<float>(y), static_cast<float>(w), static_cast<float>(h));
-    GL_Uniform4fFunc(1, scan, za::max(2.f, za::clamp(vr_flat_visor_scanline_width.value, 1.5f, 16.f) * px), drift, bandY);
-    GL_Uniform1fFunc(11, za::clamp(vr_flat_visor_ink_crt.value, 0.f, 1.f));
+    scanUniforms(static_cast<float>(h));
     if(gp.on)
     {
         GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, behind);
@@ -1373,6 +1390,115 @@ void draw(unsigned framebuffer, int x, int y, int w, int h)
     lp.drawnFrame = host_framecount;
     lp.drawnRect = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(w), static_cast<float>(h)};
     GL_EndGroup();
+}
+
+// The headset's centre panel (vr_center_panel, vr_panel.cpp): the flat popup itself, its mount (back plate, glass face,
+// glint, glows, bevelled frame) and its contents drawn by drawPanel and composited by the layer program with the flat
+// one's uniforms (scanlines, fades, pop in), on a layer of its own: no lens, no zoom, no sway, no glass (a quad in the
+// world: no view behind it to frost), a virtual pixel `headsetTexels` texels, the edges and glows as wide against it as
+// the flat one's (layerFor's unit at vr_flat_visor_scale: the view's height chosen for it). Into a texture of the
+// popup's box alone, each frame it is up (VR_End2D: shown in the eyes the next).
+constexpr float headsetTexels = 4.f;
+struct HeadsetPass
+{
+    LayerPass layer;                 // (its atlas; the program is layerPass's)
+    unsigned long long signature{0}; // what its atlas was drawn from (headsetSignature; 0 never)
+    gfx::RenderTarget out;
+    HeadsetCenter look;
+    int renders{0};
+};
+// seat-shared: the headset's pass (the headset is seat 1's)
+HeadsetPass headsetPass;
+
+[[nodiscard]] Layer headsetLayer()
+{
+    const float scale = za::clamp(vr_flat_visor_scale.value, 0.5f, 2.f);
+    const int h = static_cast<int>(std::ceil(headsetTexels * 62.f / (0.115f * scale)));
+    Layer L = layerFor(8 * h, h); // (wide: its height sets the unit)
+    L.k = 0.f;
+    L.zoom = 1.f;
+    return L;
+}
+
+[[nodiscard]] unsigned long long headsetSignature(int ss)
+{
+    unsigned long long sig = diskcache::fnvStart;
+    const auto add = [&sig](const auto& v) { sig = diskcache::fnv(sig, &v, sizeof(v)); };
+    add(ss), add(headsetPass.layer.atlas.tex);
+    for(const cvar_t* c : layerCvars)
+    {
+        add(c->value);
+    }
+    sig = diskcache::fnv(sig, vr_flat_visor_depth_color.string, std::strlen(vr_flat_visor_depth_color.string));
+    const gadget::VisorImage img = gadget::visorImage(gadget::VisorCenter);
+    const PanelSignature panel = panelSignature(gadget::VisorCenter);
+    add(img.size), add(img.shown), add(panel.mount), add(panel.picture);
+    add(gadget::visorPhosphor()), add(gadget::visorColors()), add(gadget::textGlow());
+    return sig;
+}
+
+void renderHeadset()
+{
+    HeadsetPass& hp = headsetPass;
+    hp.look.shown = false;
+    update(); // (the visor's clock and effects, the popup's fade and pop in: as the flat one's)
+    const State::CenterPrint& c = state().center;
+    const glm::vec2 fade = panelFade(gadget::VisorCenter);
+    if(c.fade <= 0.f || fade.x <= 0.f || !ensureLayerProgram())
+    {
+        return;
+    }
+    gadget::renderCenterPanel(c.text.data(), state().input.boot[gadget::VisorCenter]);
+    const gadget::VisorImage img = gadget::visorImage(gadget::VisorCenter);
+    if(!img.shown || img.size.x <= 0.f || img.size.y <= 0.f)
+    {
+        return;
+    }
+    GLint wasFramebuffer = 0, wasViewport[4]{};
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &wasFramebuffer);
+    glGetIntegerv(GL_VIEWPORT, wasViewport);
+    const auto restore = [&] {
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, static_cast<GLuint>(wasFramebuffer));
+        glViewport(wasViewport[0], wasViewport[1], wasViewport[2], wasViewport[3]);
+    };
+    QVR_GPU_PROFILE("headset centre popup");
+    LayerPass& lp = hp.layer;
+    constexpr int p = gadget::VisorCenter;
+    const int ss = za::clamp(static_cast<int>(vr_flat_visor_ss.value), 1, 4);
+    if(headsetSignature(ss) != hp.signature || vr_flat_visor_cache.value == 0.f)
+    {
+        hp.signature = buildPanels(lp, headsetLayer(), ss, p) ? headsetSignature(ss) : 0u;
+    }
+    const PanelLayer& pl = lp.panels[p];
+    const int w = static_cast<int>(pl.box.z), h = static_cast<int>(pl.box.w);
+    if(!hp.signature || !pl.built || w <= 0 || h <= 0 ||
+        !hp.out.ensure(w, h, gfx::RenderTargetFormat{.internalFormat = GL_RGBA8}, "vr headset centre popup"))
+    {
+        restore();
+        return;
+    }
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, hp.out.fbo);
+    glViewport(0, 0, w, h);
+    glClearColor(0.f, 0.f, 0.f, 0.f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    GL_UseProgram(layerPass.program);
+    GL_SetState(GLS_BLEND_ALPHA | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // (premultiplied)
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, lp.atlas.tex);
+    const Layer& L = lp.L;
+    // The view's pixel (y down) a texel shows: the box's (the target's bottom row its bottom).
+    GL_Uniform4fFunc(0, -pl.box.x, pl.box.y + pl.box.w - L.h, L.w, L.h);
+    scanUniforms(L.h);
+    GL_Uniform4fFunc(2, 0.f, 0.f, 0.f, 0.f);
+    GL_Uniform4fFunc(4, L.w, L.h, L.k, L.zoom);
+    panelUniforms(lp, p, glm::vec2{0.f}, fade, false);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // (what GLS_BLEND_ALPHA expects)
+    restore();
+    const glm::vec2 lo = localToPx(L, p, pl.mount.lo), hi = localToPx(L, p, pl.mount.hi);
+    hp.look = {.texture = hp.out.tex, .size = glm::vec2{pl.box.z, pl.box.w} / L.unit,
+        .contentsAt = (lo - glm::vec2{pl.box.x, pl.box.y}) / L.unit, .contentsSize = (hi - lo) / L.unit, .shown = true};
+    hp.renders++;
 }
 
 void report_f()
@@ -1502,6 +1628,38 @@ void renderPanels()
     }
 }
 
+void claimCenter(const char* text, float alpha)
+{
+    auto& c = state().center;
+    if(c.fade <= 0.f || std::strncmp(c.text.data(), text, c.text.size() - 1) != 0)
+    {
+        q_strlcpy(c.text.data(), text, c.text.size());
+        c.popAt = state().clock;
+        c.pops++;
+    }
+    c.claimed = host_framecount;
+    c.alpha = alpha;
+}
+
+void renderHeadsetCenter()
+{
+    renderHeadset();
+}
+
+HeadsetCenter headsetCenter()
+{
+    return headsetPass.look;
+}
+
+void headsetCenterStatus()
+{
+    const HeadsetCenter& h = headsetPass.look;
+    Con_Printf("center popup: fade %.3f pop %.2f pops %d claimed %d; shown %d texture %.0fx%.0f visor px (contents at %.1f %.1f, "
+               "%.0fx%.0f), %d renders\n",
+        state().center.fade, centerPop(), state().center.pops, state().center.claimed, h.shown ? 1 : 0, h.size.x, h.size.y,
+        h.contentsAt.x, h.contentsAt.y, h.contentsSize.x, h.contentsSize.y, headsetPass.renders);
+}
+
 void init()
 {
     Cmd_AddCommand("vr_flat_visor_report", report_f);
@@ -1526,15 +1684,7 @@ extern "C" int VR_CenterPrintOnVisor(const char* text, float alpha)
     {
         return 0;
     }
-    auto& c = visor::state().center;
-    if(c.fade <= 0.f || std::strncmp(c.text.data(), text, c.text.size() - 1) != 0)
-    {
-        q_strlcpy(c.text.data(), text, c.text.size());
-        c.popAt = visor::state().clock;
-        c.pops++;
-    }
-    c.claimed = host_framecount;
-    c.alpha = alpha;
+    visor::claimCenter(text, alpha);
     return 1;
 }
 

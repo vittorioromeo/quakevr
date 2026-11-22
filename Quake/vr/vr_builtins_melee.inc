@@ -923,6 +923,7 @@ void PF_physicsblast()
 {
     const float* p = G_VECTOR(OFS_PARM0);
     box3d::blast(geom::vec(p), G_FLOAT(OFS_PARM1));
+    climbrope::blast(geom::vec(p), G_FLOAT(OFS_PARM1)); // (the climbable ropes thrown too)
 }
 
 // float(entity e, string key) propvalue: a setting of the prop `e` is (Held Object Offsets, vr_props.inc, by its

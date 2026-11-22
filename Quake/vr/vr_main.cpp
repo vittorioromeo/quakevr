@@ -45,6 +45,7 @@
 #include "vr_pouchitems.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_magholster.hpp"
+#include "vr_climbrope.hpp"
 #include "vr_decals.hpp"
 #include "vr_permdecals.hpp"
 #include "vr_gfxpresets.hpp"
@@ -2299,6 +2300,7 @@ extern "C" void VR_Init()
     cellcord::init();
     pouchitems::init();
     magholster::init();
+    climbrope::init();
     detail::init();
     extmaps::init();
     pbr::init();

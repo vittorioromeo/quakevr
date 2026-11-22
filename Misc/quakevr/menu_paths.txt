@@ -1060,6 +1060,10 @@ vr_agrunt_shotdisarm_proj_max|1|Armed Grunts|Projectile: Most Chance|Advanced VR
 vr_player_disarm|1|Armed Grunts|You Can Be Disarmed|Advanced VR Options > Combat > Armed Grunts > You Can Be Disarmed
 vr_player_disarm_pvp|1|Armed Grunts|You Can Be Disarmed by Players|Advanced VR Options > Combat > Armed Grunts > You Can Be Disarmed by Players
 vr_player_disarm_chance|1|Armed Grunts|Your Disarm Chance|Advanced VR Options > Combat > Armed Grunts > Your Disarm Chance
+vr_player_disarm_jolts|1|Armed Grunts|Your Disarm: Jolts|Advanced VR Options > Combat > Armed Grunts > Your Disarm: Jolts
+vr_player_disarm_window|1|Armed Grunts|Your Disarm: Jolt Kept|Advanced VR Options > Combat > Armed Grunts > Your Disarm: Jolt Kept
+vr_player_disarm_heavy|1|Armed Grunts|Your Disarm: Heavy Blow|Advanced VR Options > Combat > Armed Grunts > Your Disarm: Heavy Blow
+vr_player_disarm_shot|1|Armed Grunts|Your Disarm: Shot Damage|Advanced VR Options > Combat > Armed Grunts > Your Disarm: Shot Damage
 vr_player_disarm_grab|1|Armed Grunts|Players: Grab and Pull Disarms|Advanced VR Options > Combat > Armed Grunts > Players: Grab and Pull Disarms
 vr_player_disarm_pull|1|Armed Grunts|Players: Disarm Pull|Advanced VR Options > Combat > Armed Grunts > Players: Disarm Pull
 vr_player_disarm_reach|1|Armed Grunts|Players: Disarm Grab Reach|Advanced VR Options > Combat > Armed Grunts > Players: Disarm Grab Reach
@@ -1123,6 +1127,8 @@ vr_agrunt_repl_seed|1|Armed Humanoid Replacements|Shuffle|Advanced VR Options > 
 vr_agrunt_repl_id|1|Armed Humanoid Replacements|Quake's Campaigns|Advanced VR Options > Combat > Armed Humanoid Replacements > Quake's Campaigns
 vr_agrunt_repl_mp|1|Armed Humanoid Replacements|Mission Packs|Advanced VR Options > Combat > Armed Humanoid Replacements > Mission Packs
 vr_agrunt_repl_ad|1|Armed Humanoid Replacements|Arcane Dimensions|Advanced VR Options > Combat > Armed Humanoid Replacements > Arcane Dimensions
+vr_agrunt_repl_variants|1|Armed Humanoid Replacements|AD and Quoth Variants|Advanced VR Options > Combat > Armed Humanoid Replacements > AD and Quoth Variants
+vr_humlook|1|Armed Humanoid Replacements|Recolour by Weapon|Advanced VR Options > Combat > Armed Humanoid Replacements > Recolour by Weapon
 |1|Armed Humanoid Replacements|Reset This Page|Advanced VR Options > Combat > Armed Humanoid Replacements > Reset This Page
 @page|1|Armed Grunts - AI Behaviour||Advanced VR Options > Combat > Armed Humanoids' AI Behaviour
 vr_agrunt_ai_skill|1|Armed Grunts - AI Behaviour|Difficulty Impact|Advanced VR Options > Combat > Armed Humanoids' AI Behaviour > Difficulty Impact
@@ -1436,6 +1442,8 @@ vr_slide_body|1|Locomotion|Slide Body Pose|Advanced VR Options > Movement > Loco
 vr_slide_legs|1|Locomotion|Slide Legs Follow Slide|Advanced VR Options > Movement > Locomotion > Slide Legs Follow Slide
 vr_slide_camera|1|Locomotion|Slide View|Advanced VR Options > Movement > Locomotion > Slide View
 vr_slide_camera_time|1|Locomotion|Slide View Time|Advanced VR Options > Movement > Locomotion > Slide View Time
+|1|Locomotion|Flat Keys (Options > Controls)|Advanced VR Options > Movement > Locomotion > Flat Keys (Options > Controls)
+|1|Locomotion|Reset Flat Keys|Advanced VR Options > Movement > Locomotion > Reset Flat Keys
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
 vr_flat_aim_zoom|1|Locomotion|Right Click Aim|Advanced VR Options > Movement > Locomotion > Right Click Aim
 vr_flat_aim_sens|1|Locomotion|Aim Sensitivity|Advanced VR Options > Movement > Locomotion > Aim Sensitivity
@@ -1622,6 +1630,14 @@ vr_grapple_sag|1|Grappling Hook|Slack Rope Hangs|Advanced VR Options > Movement 
 vr_hull_width|2|Player Hitbox|Width Against Walls|Advanced VR Options > Movement > Player Hitbox > Width Against Walls
 vr_hull_edge_probe|2|Player Hitbox|Ledge Test Fix|Advanced VR Options > Movement > Player Hitbox > Ledge Test Fix
 vr_hull_brushmodels|2|Player Hitbox|Doors, Lifts and Walls Too|Advanced VR Options > Movement > Player Hitbox > Doors, Lifts and Walls Too
+vr_hull_holes|2|Player Hitbox|Close Gaps Quake's Box Never Fit|Advanced VR Options > Movement > Player Hitbox > Close Gaps Quake's Box Never Fit
+vr_hull_holes_max|2|Player Hitbox|Close Gaps: Narrower Than|Advanced VR Options > Movement > Player Hitbox > Close Gaps: Narrower Than
+vr_hull_holes_min|2|Player Hitbox|Close Gaps: Wider Than|Advanced VR Options > Movement > Player Hitbox > Close Gaps: Wider Than
+vr_hull_holes_wide|2|Player Hitbox|Close Gaps: Over a Fall Up To|Advanced VR Options > Movement > Player Hitbox > Close Gaps: Over a Fall Up To
+vr_hull_holes_diag|2|Player Hitbox|Close Gaps: Slanted Bars|Advanced VR Options > Movement > Player Hitbox > Close Gaps: Slanted Bars
+vr_hull_holes_models|2|Player Hitbox|Close Gaps: Between Brush Models|Advanced VR Options > Movement > Player Hitbox > Close Gaps: Between Brush Models
+vr_hull_holes_vert|2|Player Hitbox|Close Gaps: Seen From Above|Advanced VR Options > Movement > Player Hitbox > Close Gaps: Seen From Above
+|2|Player Hitbox|Rebuild Gap Blockers Now|Advanced VR Options > Movement > Player Hitbox > Rebuild Gap Blockers Now
 vr_hull_ent_width|2|Player Hitbox|Width Against Them|Advanced VR Options > Movement > Player Hitbox > Width Against Them
 vr_hull_hit_width|2|Player Hitbox|Width Shots Hit|Advanced VR Options > Movement > Player Hitbox > Width Shots Hit
 vr_hull_hit_head|2|Player Hitbox|Height Shots Hit: Your Head's|Advanced VR Options > Movement > Player Hitbox > Height Shots Hit: Your Head's
@@ -4511,6 +4527,12 @@ vr_flat_melee_2h_out|2|Tunables|Stance Out|Advanced VR Options > Debug > Tunable
 vr_flat_melee_2h_pitch|2|Tunables|Stance Pitch|Advanced VR Options > Debug > Tunables > Stance Pitch
 vr_flat_melee_2h_yaw|2|Tunables|Stance Yaw|Advanced VR Options > Debug > Tunables > Stance Yaw
 vr_flat_melee_2h_roll|2|Tunables|Stance Roll|Advanced VR Options > Debug > Tunables > Stance Roll
+vr_flat_pole_fwd|2|Tunables|Spear Ahead|Advanced VR Options > Debug > Tunables > Spear Ahead
+vr_flat_pole_up|2|Tunables|Spear Up|Advanced VR Options > Debug > Tunables > Spear Up
+vr_flat_pole_out|2|Tunables|Spear Out|Advanced VR Options > Debug > Tunables > Spear Out
+vr_flat_pole_roll|2|Tunables|Spear Roll|Advanced VR Options > Debug > Tunables > Spear Roll
+vr_flat_pole_off_along|2|Tunables|Spear Other Hand Along|Advanced VR Options > Debug > Tunables > Spear Other Hand Along
+vr_flat_pole_off_roll|2|Tunables|Spear Other Hand Roll|Advanced VR Options > Debug > Tunables > Spear Other Hand Roll
 vr_flat_melee_2h_parry_fwd|2|Tunables|Two-Handed Guard Ahead|Advanced VR Options > Debug > Tunables > Two-Handed Guard Ahead
 vr_flat_melee_2h_parry_up|2|Tunables|Two-Handed Guard Up|Advanced VR Options > Debug > Tunables > Two-Handed Guard Up
 vr_flat_melee_2h_parry_out|2|Tunables|Two-Handed Guard Out|Advanced VR Options > Debug > Tunables > Two-Handed Guard Out
@@ -4782,6 +4804,9 @@ vr_nav_repath_move|2|Tunables|Navmesh: Repath When Foe Moved|Advanced VR Options
 vr_nav_follow_stop|2|Tunables|Navmesh: Follow Stops Short|Advanced VR Options > Debug > Tunables > Navmesh: Follow Stops Short
 vr_nav_follow_idle|2|Tunables|Navmesh: Follow Resumes After|Advanced VR Options > Debug > Tunables > Navmesh: Follow Resumes After
 vr_nav_follow_repath|2|Tunables|Navmesh: Follow Repath Every|Advanced VR Options > Debug > Tunables > Navmesh: Follow Repath Every
+vr_bot_navmesh_range|2|Tunables|Bots: Navmesh Chase Range|Advanced VR Options > Debug > Tunables > Bots: Navmesh Chase Range
+vr_bot_navmesh_memory|2|Tunables|Bots: Navmesh Chase Memory|Advanced VR Options > Debug > Tunables > Bots: Navmesh Chase Memory
+vr_bot_navmesh_detour|2|Tunables|Bots: Navmesh Detour Factor|Advanced VR Options > Debug > Tunables > Bots: Navmesh Detour Factor
 vr_nav_corner_reached|2|Tunables|Navmesh: Corner Reached|Advanced VR Options > Debug > Tunables > Navmesh: Corner Reached
 vr_nav_water_cost|2|Tunables|Navmesh: Water Cost|Advanced VR Options > Debug > Tunables > Navmesh: Water Cost
 vr_nav_slime_cost|2|Tunables|Navmesh: Slime Cost|Advanced VR Options > Debug > Tunables > Navmesh: Slime Cost
@@ -4951,6 +4976,13 @@ vr_debug_hand_bones|2|Debug - Views|Show Hand Bones|Advanced VR Options > Debug 
 vr_debug_ledges|2|Debug - Views|Show Ledges|Advanced VR Options > Debug > Views > Show Ledges
 vr_nav_debug|2|Debug - Views|Show Navmesh|Advanced VR Options > Debug > Views > Show Navmesh
 vr_nav_debug_range|2|Debug - Views|Show Navmesh: Range|Advanced VR Options > Debug > Views > Show Navmesh: Range
+vr_hull_holes_show|2|Debug - Views|Show Gap Blockers|Advanced VR Options > Debug > Views > Show Gap Blockers
+vr_hull_holes_show_range|2|Debug - Views|Gap Blockers Range|Advanced VR Options > Debug > Views > Gap Blockers Range
+|2|Debug - Views|Mark a Gap I Got Through|Advanced VR Options > Debug > Views > Mark a Gap I Got Through
+|2|Debug - Views|Rebuild Gap Blockers Now|Advanced VR Options > Debug > Views > Rebuild Gap Blockers Now
+vr_hull_holes_cells|2|Debug - Views|Close Gaps: Tests a Slanted Pair|Advanced VR Options > Debug > Views > Close Gaps: Tests a Slanted Pair
+vr_hull_holes_cell|2|Debug - Views|Close Gaps: Smallest Cell|Advanced VR Options > Debug > Views > Close Gaps: Smallest Cell
+vr_hull_holes_reach|2|Debug - Views|Close Gaps: Quake's Box Reach|Advanced VR Options > Debug > Views > Close Gaps: Quake's Box Reach
 vr_nav_debug_class|2|Debug - Views|Show Navmesh: Size Class|Advanced VR Options > Debug > Views > Show Navmesh: Size Class
 |2|Debug - Views|Print Navmesh Info|Advanced VR Options > Debug > Views > Print Navmesh Info
 |2|Debug - Views|Print Navmesh Hash|Advanced VR Options > Debug > Views > Print Navmesh Hash
@@ -5052,6 +5084,7 @@ vr_debug_crates|2|Debug - Logging|Crates Placement|Advanced VR Options > Debug >
 vr_debug_arm|2|Debug - Logging|Arm IK|Advanced VR Options > Debug > Logging > Arm IK
 vr_debug_2h_grip|2|Debug - Logging|Two-Handed Grip|Advanced VR Options > Debug > Logging > Two-Handed Grip
 vr_verbosebots|2|Debug - Logging|Bot Chatter|Advanced VR Options > Debug > Logging > Bot Chatter
+vr_bot_freeze|2|Debug - Logging|Freeze Bots|Advanced VR Options > Debug > Logging > Freeze Bots
 vr_debug_glstate|2|Debug - Logging|Graphics State|Advanced VR Options > Debug > Logging > Graphics State
 vr_debug_grasp_trace|2|Debug - Logging|Grasp Trace|Advanced VR Options > Debug > Logging > Grasp Trace
 vr_debug_weight|2|Debug - Logging|Weight Trace|Advanced VR Options > Debug > Logging > Weight Trace
@@ -5624,6 +5657,7 @@ vr_debug_stick|2|Debug - Tests|Stick: Show Speed|Advanced VR Options > Debug > T
 vr_display_clock|2|Debug - Tests|Game Time From the Display Clock|Advanced VR Options > Debug > Tests > Game Time From the Display Clock
 |2|Debug - Tests|Stick: Curve Table|Advanced VR Options > Debug > Tests > Stick: Curve Table
 |2|Debug - Tests|Stick: Run Steadiness|Advanced VR Options > Debug > Tests > Stick: Run Steadiness
+|2|Debug - Tests|Noclip: Flies Where You Look|Advanced VR Options > Debug > Tests > Noclip: Flies Where You Look
 |2|Debug - Tests|Teleport: Smooth + Teleport|Advanced VR Options > Debug > Tests > Teleport: Smooth + Teleport
 |2|Debug - Tests|Doom: Info|Advanced VR Options > Debug > Tests > Doom: Info
 vr_debug_touch|2|Debug - Tests|Doom: Show Touches|Advanced VR Options > Debug > Tests > Doom: Show Touches
@@ -5632,6 +5666,10 @@ vr_debug_doom|2|Debug - Tests|Doom: Debug|Advanced VR Options > Debug > Tests > 
 |2|Debug - Tests|Arcane Dimensions: Play (Developer)|Advanced VR Options > Debug > Tests > Arcane Dimensions: Play (Developer)
 |2|Debug - Tests|Quoth: Play (Developer)|Advanced VR Options > Debug > Tests > Quoth: Play (Developer)
 |2|Debug - Tests|Quoth: Second Names and Spawners Test|Advanced VR Options > Debug > Tests > Quoth: Second Names and Spawners Test
+|2|Debug - Tests|AD and Quoth Variants: Armed Test|Advanced VR Options > Debug > Tests > AD and Quoth Variants: Armed Test
+|2|Debug - Tests|AD and Quoth Variants: Map Census|Advanced VR Options > Debug > Tests > AD and Quoth Variants: Map Census
+|2|Debug - Tests|Armed Humanoids: Recolour Row|Advanced VR Options > Debug > Tests > Armed Humanoids: Recolour Row
+|2|Debug - Tests|Armed Humanoids: AD Model Beside Its Row|Advanced VR Options > Debug > Tests > Armed Humanoids: AD Model Beside Its Row
 |2|Debug - Tests|Quoth: Drive This Map's Flow|Advanced VR Options > Debug > Tests > Quoth: Drive This Map's Flow
 |2|Debug - Tests|Arcane Dimensions: Widowmaker Pickup Ahead|Advanced VR Options > Debug > Tests > Arcane Dimensions: Widowmaker Pickup Ahead
 |2|Debug - Tests|Arcane Dimensions: Upgraded Weapons Ahead|Advanced VR Options > Debug > Tests > Arcane Dimensions: Upgraded Weapons Ahead
@@ -5735,6 +5773,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Wet Check: Nothing Wet Near|Advanced VR Options > Debug > Tests > Wet Check: Nothing Wet Near
 |2|Debug - Tests|Shoot Yourself: Ordinary Firing|Advanced VR Options > Debug > Tests > Shoot Yourself: Ordinary Firing
 |2|Debug - Tests|Player Disarm: Shots on Your Gun|Advanced VR Options > Debug > Tests > Player Disarm: Shots on Your Gun
+|2|Debug - Tests|Player Disarm: The Rules, Blow by Blow|Advanced VR Options > Debug > Tests > Player Disarm: The Rules, Blow by Blow
 |2|Debug - Tests|Deathmatch Rules: Weapons and Bots|Advanced VR Options > Debug > Tests > Deathmatch Rules: Weapons and Bots
 |2|Debug - Tests|Deathmatch: Parry a Bot's Swing|Advanced VR Options > Debug > Tests > Deathmatch: Parry a Bot's Swing
 |2|Debug - Tests|Deathmatch: A Bot Punches You|Advanced VR Options > Debug > Tests > Deathmatch: A Bot Punches You
@@ -5787,6 +5826,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Flat Keys|Advanced VR Options > Debug > Tests > Flat Keys
 |2|Debug - Tests|Melee Sweep Test|Advanced VR Options > Debug > Tests > Melee Sweep Test
 |2|Debug - Tests|One Swing, Many Hits Test|Advanced VR Options > Debug > Tests > One Swing, Many Hits Test
+|2|Debug - Tests|Blade Starts Test|Advanced VR Options > Debug > Tests > Blade Starts Test
 |2|Debug - Tests|Check the Parry Pose|Advanced VR Options > Debug > Tests > Check the Parry Pose
 |2|Debug - Tests|Dragon Parry Sequence|Advanced VR Options > Debug > Tests > Dragon Parry Sequence
 |2|Debug - Tests|A Melee Blow Now|Advanced VR Options > Debug > Tests > A Melee Blow Now
@@ -6010,6 +6050,7 @@ vr_test_throw_up_body|2|Debug - Tests|Throw Up From Your Body|Advanced VR Option
 |2|Debug - Tests|Blades in Crates and Barrels Check|Advanced VR Options > Debug > Tests > Blades in Crates and Barrels Check
 |2|Debug - Tests|Embedded Blades: Skewering Check|Advanced VR Options > Debug > Tests > Embedded Blades: Skewering Check
 |2|Debug - Tests|Embedded Blades: the Hand on the Handle Check|Advanced VR Options > Debug > Tests > Embedded Blades: the Hand on the Handle Check
+|2|Debug - Tests|Flat Dual Wielding: an Embedded Blade Keeps Its Hand Check|Advanced VR Options > Debug > Tests > Flat Dual Wielding: an Embedded Blade Keeps Its Hand Check
 |2|Debug - Tests|Reverse Grip (Blade Down) Check|Advanced VR Options > Debug > Tests > Reverse Grip (Blade Down) Check
 |2|Debug - Tests|Embedded Blades: the Edges Check|Advanced VR Options > Debug > Tests > Embedded Blades: the Edges Check
 |2|Debug - Tests|Sword in a Wall and a Corpse|Advanced VR Options > Debug > Tests > Sword in a Wall and a Corpse
@@ -6045,6 +6086,8 @@ vr_test_grenade_yours|2|Debug - Tests|Dud Is Yours|Advanced VR Options > Debug >
 vr_debug_pain|2|Debug - Tests|Print Hits|Advanced VR Options > Debug > Tests > Print Hits
 |2|Debug - Tests|Report the Hooks|Advanced VR Options > Debug > Tests > Report the Hooks
 |2|Debug - Tests|Print the Ropes|Advanced VR Options > Debug > Tests > Print the Ropes
+|2|Debug - Tests|Print the Climbable Ropes|Advanced VR Options > Debug > Tests > Print the Climbable Ropes
+|2|Debug - Tests|Test the Climbable Ropes|Advanced VR Options > Debug > Tests > Test the Climbable Ropes
 |2|Debug - Tests|Deplete Stamina|Advanced VR Options > Debug > Tests > Deplete Stamina
 |2|Debug - Tests|Nearly Empty|Advanced VR Options > Debug > Tests > Nearly Empty
 |2|Debug - Tests|Half Stamina|Advanced VR Options > Debug > Tests > Half Stamina
@@ -6296,6 +6339,10 @@ vr_grapple_test_stuck|2|Debug - Automation & Self-Tests|Load Stuck|Advanced VR O
 |2|Debug - Automation & Self-Tests|Shots Hit Test|Advanced VR Options > Debug > Automation & Self-Tests > Shots Hit Test
 |2|Debug - Automation & Self-Tests|Hitbox Leaf|Advanced VR Options > Debug > Automation & Self-Tests > Hitbox Leaf
 |2|Debug - Automation & Self-Tests|Hitbox Probe|Advanced VR Options > Debug > Automation & Self-Tests > Hitbox Probe
+|2|Debug - Automation & Self-Tests|Gap Blockers Near You|Advanced VR Options > Debug > Automation & Self-Tests > Gap Blockers Near You
+|2|Debug - Automation & Self-Tests|Gap Blockers Census|Advanced VR Options > Debug > Automation & Self-Tests > Gap Blockers Census
+|2|Debug - Automation & Self-Tests|Gap Blockers Test|Advanced VR Options > Debug > Automation & Self-Tests > Gap Blockers Test
+|2|Debug - Automation & Self-Tests|Mark a Gap I Got Through|Advanced VR Options > Debug > Automation & Self-Tests > Mark a Gap I Got Through
 |2|Debug - Automation & Self-Tests|Shots Hit Test|Advanced VR Options > Debug > Automation & Self-Tests > Shots Hit Test
 |2|Debug - Automation & Self-Tests|Random Walk (60 s)|Advanced VR Options > Debug > Automation & Self-Tests > Random Walk (60 s)
 |2|Debug - Automation & Self-Tests|Looking Through A Gate, Or Why Not|Advanced VR Options > Debug > Automation & Self-Tests > Looking Through A Gate, Or Why Not
@@ -8567,28 +8614,6 @@ vr_stealth_debug_meters_range|2|Stealth AI Tests|Meters Within|Advanced VR Optio
 vr_stealth_debug|2|Stealth AI Tests|Log|Advanced VR Options > Combat > Stealth AI > Tests > Log
 vr_stealth_light_force|2|Stealth AI Tests|Force the Light on You|Advanced VR Options > Combat > Stealth AI > Tests > Force the Light on You
 |2|Stealth AI Tests|Reset This Page|Advanced VR Options > Combat > Stealth AI > Tests > Reset This Page
-@page|1|Flat Keys||Advanced VR Options > Movement > Locomotion > Flat Keys
-|1|Flat Keys|Lean Left|Advanced VR Options > Movement > Locomotion > Flat Keys > Lean Left
-|1|Flat Keys|Lean Right|Advanced VR Options > Movement > Locomotion > Flat Keys > Lean Right
-|1|Flat Keys|Lie Down|Advanced VR Options > Movement > Locomotion > Flat Keys > Lie Down
-|1|Flat Keys|Swap Hands|Advanced VR Options > Movement > Locomotion > Flat Keys > Swap Hands
-|1|Flat Keys|Force Grab|Advanced VR Options > Movement > Locomotion > Flat Keys > Force Grab
-|1|Flat Keys|Shove|Advanced VR Options > Movement > Locomotion > Flat Keys > Shove
-|1|Flat Keys|Punch|Advanced VR Options > Movement > Locomotion > Flat Keys > Punch
-|1|Flat Keys|Reload|Advanced VR Options > Movement > Locomotion > Flat Keys > Reload
-|1|Flat Keys|Next Ammo Type|Advanced VR Options > Movement > Locomotion > Flat Keys > Next Ammo Type
-|1|Flat Keys|Drop|Advanced VR Options > Movement > Locomotion > Flat Keys > Drop
-|1|Flat Keys|Quick Grenade|Advanced VR Options > Movement > Locomotion > Flat Keys > Quick Grenade
-|1|Flat Keys|Bullet Time|Advanced VR Options > Movement > Locomotion > Flat Keys > Bullet Time
-|1|Flat Keys|Flashlight|Advanced VR Options > Movement > Locomotion > Flat Keys > Flashlight
-|1|Flat Keys|Push-to-Talk|Advanced VR Options > Movement > Locomotion > Flat Keys > Push-to-Talk
-|1|Flat Keys|Holster Menu|Advanced VR Options > Movement > Locomotion > Flat Keys > Holster Menu
-|1|Flat Keys|Fly Camera|Advanced VR Options > Movement > Locomotion > Flat Keys > Fly Camera
-|1|Flat Keys|Toolgun|Advanced VR Options > Movement > Locomotion > Flat Keys > Toolgun
-|1|Flat Keys|Toolgun Panel|Advanced VR Options > Movement > Locomotion > Flat Keys > Toolgun Panel
-|1|Flat Keys|Toolgun Adjust|Advanced VR Options > Movement > Locomotion > Flat Keys > Toolgun Adjust
-|1|Flat Keys|Reset Flat Keys|Advanced VR Options > Movement > Locomotion > Flat Keys > Reset Flat Keys
-|1|Flat Keys|Reset This Page|Advanced VR Options > Movement > Locomotion > Flat Keys > Reset This Page
 @page|1|Visor HUD Look||Advanced VR Options > Movement > Locomotion > Visor HUD Look
 vr_flat_visor|1|Visor HUD Look|Visor HUD|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor HUD
 vr_flat_visor_scale|1|Visor HUD Look|Visor Panel Size|Advanced VR Options > Movement > Locomotion > Visor HUD Look > Visor Panel Size
@@ -9437,6 +9462,37 @@ vr_armourstudio_anim_frame|2|Armour Studio|Frame|Advanced VR Options > Debug > T
 |2|Armour Studio|Print the Tweaks|Advanced VR Options > Debug > Tools > Armour Studio > Print the Tweaks
 |2|Armour Studio|Close (Remove the Subject)|Advanced VR Options > Debug > Tools > Armour Studio > Close (Remove the Subject)
 |2|Armour Studio|Reset This Page|Advanced VR Options > Debug > Tools > Armour Studio > Reset This Page
+@page|2|Texture Studio||Advanced VR Options > Debug > Tools > Texture Studio
+|2|Texture Studio|Line Up the Type Ahead|Advanced VR Options > Debug > Tools > Texture Studio > Line Up the Type Ahead
+vr_humstudio_nopack|2|Texture Studio|Line Up Without Backpacks|Advanced VR Options > Debug > Tools > Texture Studio > Line Up Without Backpacks
+vr_humstudio_packstand|2|Texture Studio|Line Up a Backpack on a Stand|Advanced VR Options > Debug > Tools > Texture Studio > Line Up a Backpack on a Stand
+vr_humstudio_noarmour|2|Texture Studio|Line Up Without Armour|Advanced VR Options > Debug > Tools > Texture Studio > Line Up Without Armour
+vr_humstudio_noweapon|2|Texture Studio|Line Up Without Weapons Drawn|Advanced VR Options > Debug > Tools > Texture Studio > Line Up Without Weapons Drawn
+vr_agrunt_freeze|2|Texture Studio|Hold Still|Advanced VR Options > Debug > Tools > Texture Studio > Hold Still
+vr_humstudio_turn|2|Texture Studio|Turntable|Advanced VR Options > Debug > Tools > Texture Studio > Turntable
+vr_humstudio_kind|2|Texture Studio|Type|Advanced VR Options > Debug > Tools > Texture Studio > Type
+vr_humstudio_cat|2|Texture Studio|Weapon Category|Advanced VR Options > Debug > Tools > Texture Studio > Weapon Category
+vr_humstudio_part|2|Texture Studio|Part|Advanced VR Options > Debug > Tools > Texture Studio > Part
+vr_humstudio_r|2|Texture Studio|Red|Advanced VR Options > Debug > Tools > Texture Studio > Red
+vr_humstudio_g|2|Texture Studio|Green|Advanced VR Options > Debug > Tools > Texture Studio > Green
+vr_humstudio_b|2|Texture Studio|Blue|Advanced VR Options > Debug > Tools > Texture Studio > Blue
+vr_humstudio_strength|2|Texture Studio|Strength|Advanced VR Options > Debug > Tools > Texture Studio > Strength
+vr_humstudio_light|2|Texture Studio|Lightness|Advanced VR Options > Debug > Tools > Texture Studio > Lightness
+vr_humstudio_tint|2|Texture Studio|Tint|Advanced VR Options > Debug > Tools > Texture Studio > Tint
+vr_humstudio_overlay|2|Texture Studio|Show the Masks|Advanced VR Options > Debug > Tools > Texture Studio > Show the Masks
+|2|Texture Studio|This Skin's Own Rows (Toggle)|Advanced VR Options > Debug > Tools > Texture Studio > This Skin's Own Rows (Toggle)
+vr_humstudio_paint|2|Texture Studio|Paint (Menu Closed)|Advanced VR Options > Debug > Tools > Texture Studio > Paint (Menu Closed)
+vr_humstudio_class|2|Texture Studio|Paint As|Advanced VR Options > Debug > Tools > Texture Studio > Paint As
+vr_humstudio_target|2|Texture Studio|Paint On|Advanced VR Options > Debug > Tools > Texture Studio > Paint On
+vr_humstudio_brush|2|Texture Studio|Brush Radius|Advanced VR Options > Debug > Tools > Texture Studio > Brush Radius
+vr_humstudio_cursor|2|Texture Studio|Show the Brush|Advanced VR Options > Debug > Tools > Texture Studio > Show the Brush
+|2|Texture Studio|Undo|Advanced VR Options > Debug > Tools > Texture Studio > Undo
+|2|Texture Studio|Clear This Skin's Painting|Advanced VR Options > Debug > Tools > Texture Studio > Clear This Skin's Painting
+|2|Texture Studio|Save|Advanced VR Options > Debug > Tools > Texture Studio > Save
+|2|Texture Studio|Reload (Unsaved Edits Lost)|Advanced VR Options > Debug > Tools > Texture Studio > Reload (Unsaved Edits Lost)
+|2|Texture Studio|Check the Masks|Advanced VR Options > Debug > Tools > Texture Studio > Check the Masks
+|2|Texture Studio|Check the Pick|Advanced VR Options > Debug > Tools > Texture Studio > Check the Pick
+|2|Texture Studio|Reset This Page|Advanced VR Options > Debug > Tools > Texture Studio > Reset This Page
 @page|2|Ragdoll Behaviour Tests||Advanced VR Options > Debug > Tests > Ragdoll Behaviours
 |2|Ragdoll Behaviour Tests|A Grunt Ahead|Advanced VR Options > Debug > Tests > Ragdoll Behaviours > A Grunt Ahead
 |2|Ragdoll Behaviour Tests|An Enforcer Ahead|Advanced VR Options > Debug > Tests > Ragdoll Behaviours > An Enforcer Ahead

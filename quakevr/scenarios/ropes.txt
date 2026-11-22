@@ -1,0 +1,9 @@
+# ropes: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The climbable ropes' hall (vrropes:
+# docs/vr-port/ROPES.md): four swinging ropes and chains in a row, a pinned rope, a heavy chain, a rope longer than the
+# drop; the toolgun in the main hand for Spawn > Props > Ropes and its Rope Settings page.
+title Climbable ropes and chains: push them, shoot them, blow them up, spawn more with the toolgun
+map vrropes
+god
+notarget
+give "Toolgun" main
+hint Grip a rope with your empty hand (holster the toolgun for both hands): climb hand over hand, push the stick to pump the swing, let go or jump off mid-swing. Walk into the ropes and push them with your hands: they swing and settle. Shoot one, throw a grenade near one. With the toolgun: Spawn > Props, the Ropes group (Rope, Chain), Rope Settings under the tiles; aim at the floor under the ceiling and pull the trigger.

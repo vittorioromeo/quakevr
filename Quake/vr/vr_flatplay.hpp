@@ -301,8 +301,9 @@ void meleeProbe_f();
 void flickTest_f();
 void flickTestFrame();
 
-// The keys flat play reads itself (vr_flat_key_*): each cvar holds a key's bind name ("" none). VR_FlatKeyOwned and the Flat
-// Keys menu page (rebinding, conflicts) read this one list (vr_flatmove.cpp).
+// The keys flat play reads itself (vr_flat_key_*): each cvar holds a key's bind name ("" none). VR_FlatKeyOwned and Options >
+// Controls' "Quake VR (flat screen)" group (menu.c, through VR_FlatKeyGet/Set: rebinding, conflicts) read this one list
+// (vr_flatmove.cpp).
 [[nodiscard]] std::span<cvar_t* const> keyCvars();
 
 // A bot's hands (MP bots phase 1; his words 2026-11-18: "reuse some of the code we use for the player in flatscreen mode

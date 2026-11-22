@@ -16,6 +16,7 @@
 #include "vr_bodytrack.hpp"
 #include "vr_box3d.hpp"
 #include "vr_climb.hpp"
+#include "vr_climbrope.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
 #include "vr_motion.hpp"
@@ -82,6 +83,7 @@ namespace
 constexpr float CLIMB_STEP_TIME = 0.35f; // seconds a step to a new hold takes (vr_body_climb_feet_speed 1)
 constexpr float CLIMB_STEP_OUT = 0.12f;  // metres the stepping foot swings out from the face past its own length (its toes clear the lips)
 constexpr float CLIMB_RUNGS = 16.f;      // units: a face's spots at this spacing (a flat ladder's rungs)
+constexpr float CLIMB_ROPE_NEAR = 6.f;   // units: the holds' middle this close to a climbable rope holds that rope
 
 [[nodiscard]] float smooth01(float x)
 {
@@ -342,6 +344,26 @@ namespace
            climbing.lag;
 }
 
+// On a climbable rope: where a foot goes round it, under the hands -- the left foot's instep on it 0.75 of the leg under
+// its hip, the right a little lower (the rope between them, pinched: the wrap and grip look), the ankles just this side
+// of it, a little out to each side; within the leg's reach. None found (the rope out of reach): `hanging`.
+[[nodiscard]] glm::vec3 ropeFoot(const Body& b, int side, const glm::vec3& hip, const glm::vec3& hanging)
+{
+    const float u = b.m2w;
+    const float leg = legLength(side) * b.legM2w;
+    glm::vec3 at{0.f};
+    if(!climbrope::clientRopeAt(climbing.holdMid, CLIMB_ROPE_NEAR, hip.z - (side == 0 ? 0.75f : 0.85f) * leg, at))
+    {
+        return hanging;
+    }
+    glm::vec3 to = at - climbing.in * (0.4f * toeLength(side) * u) + climbOutward(side) * (0.03f * u);
+    if(const glm::vec3 d = to - hip; glm::length(d) > 0.97f * leg)
+    {
+        to = hip + d * (0.97f * leg / glm::length(d));
+    }
+    return to;
+}
+
 } // namespace
 
 namespace detail
@@ -372,6 +394,10 @@ void updateClimbing(const Body& b, float dt, bool legs)
         c.hipsValid = false;
         return;
     }
+    // Holding a climbable rope (the holds on one): the feet go round it under the hands (ropeFoot), not to footholds.
+    glm::vec3 ropeAt{0.f};
+    const bool onRope = on && climbrope::clientRopeAt(mid, CLIMB_ROPE_NEAR, mid.z, ropeAt);
+    c.ropeWrap = onRope ? za::min(1.f, c.ropeWrap + dt * 3.f) : za::max(0.f, c.ropeWrap - dt * 4.f);
     if(on)
     {
         c.in = in;
@@ -464,6 +490,22 @@ void updateClimbing(const Body& b, float dt, bool legs)
         }
     }
 
+    if(onRope)
+    {
+        // On a rope: no footholds; a foot on one steps off it onto the rope.
+        for(int side = 0; side < 2; side++)
+        {
+            ClimbFoot& f = c.feet[side];
+            want[side] = false;
+            if(f.held)
+            {
+                f.from = f.now;
+                f.held = false;
+                f.step = 0.f;
+            }
+        }
+    }
+
     // One foot at a time: the one whose hold is worse off (hanging first, then the lower), not the one that just went.
     int seek = -1;
     if(c.feet[0].step < 0.f && c.feet[1].step < 0.f)
@@ -542,7 +584,11 @@ void updateClimbing(const Body& b, float dt, bool legs)
         ClimbFoot& f = c.feet[side];
         // A step (to a hold, or off one to hang): out from the face first, across, then in onto the hold, so that the
         // toes clear the lip left and the one above.
-        const glm::vec3 to = f.held ? f.at : hangingFoot(b, side, hip[side]);
+        glm::vec3 to = f.held ? f.at : hangingFoot(b, side, hip[side]);
+        if(!f.held && c.ropeWrap > 0.f)
+        {
+            to = glm::mix(to, ropeFoot(b, side, hip[side], to), smooth01(c.ropeWrap));
+        }
         if(f.step >= 0.f)
         {
             const float s = f.step;
@@ -569,8 +615,8 @@ void logClimbing(const Body& b)
         return;
     }
     char line[256];
-    int n = q_snprintf(line, sizeof(line), "climbfeet %.3f w %.2f rise %.2f us %.1f", cl.time, climbing.weight,
-        climbing.rise, climbing.updateMs * 1000.0);
+    int n = q_snprintf(line, sizeof(line), "climbfeet %.3f w %.2f rise %.2f us %.1f rope %.2f", cl.time, climbing.weight,
+        climbing.rise, climbing.updateMs * 1000.0, climbing.ropeWrap);
     for(int side = 0; side < 2; side++)
     {
         const ClimbFoot& f = climbing.feet[side];

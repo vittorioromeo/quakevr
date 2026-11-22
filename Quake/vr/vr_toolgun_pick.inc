@@ -245,6 +245,11 @@ void spawnHere()
     const Selection& sel = tg().sel;
     if(sel.entry >= 0 && !toolgun::spawnableAvailable(sel.entry)) { return; } // AD support
     edict_t* e = spawnChoice(sel, tg().ghostOrigin, tg().ghostAngles);
+    if(e && climbrope::isRopeClass(sel.classname))
+    {
+        const progs::ServerVm vm;
+        climbrope::toolgunPlaced(e, tg().ghostOrigin); // (hung from the ceiling above the ghost: vr_climbrope.cpp)
+    }
     if(e)
     {
         const glm::vec3 off = fieldVec(e, fields().model_offset);
