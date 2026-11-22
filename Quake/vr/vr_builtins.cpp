@@ -1106,6 +1106,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"watersplash", PF_watersplash},
     {"waterclimb", PF_waterclimb},
     {"grapplehold", PF_grapplehold},
+    {"grapplereel", PF_grapplereel},
     {"botmovethink", PF_botmovethink},
     {"botmovewalk", PF_botmovewalk},
     {"botflatpose", PF_botflatpose},
