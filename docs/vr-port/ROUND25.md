@@ -7532,3 +7532,24 @@ grunt's head intercepted by the backpack; wants packs paintable alone, a lineup 
   death knights' (10); grunts and enforcers have no level ray from behind with a pack first: skipped). humrepl2_test PASS
   (5 masks, 0 on flesh). Dev build 0 warnings.
 - Not seen in a screenshot (the mock view's ray met no one): the yellow cursor and the skin view; check in flat and VR.
+
+## backlog1122: small backlog fixes (branch agent/backlog1122, 2026-11-22)
+
+- **Checklist:** 8 lines ticked in his checklist_ticks.txt with no voice note since (none after 2026-11-21 00:47) retired:
+  the reorganized-checklist line, noclip flight, shove without blood, Quoth's e1m1quoth, and the four armed-grunt
+  batching/LOD/strike-check/Box3D lines. Kept though ticked (as checklist2): Sliding and the Dwell start/d1m1 line (their
+  voice notes). Their scenes (noclip_fly, shove_no_blood, agrunts_fight) stay. checklist_tests_check: 8 lines from later
+  ships are untagged (not this branch's).
+- **His hull-hole mark (Quoth's start, -0.2 2273.8 -392):** the "ground decoration" is a frame of 8-wide bars round a
+  32 x 32 hole over a 16-high pit. The map is Quoth's `start` (his console history: Quoth maps just before; id1's,
+  Dwell's and Hey's start don't match; the kit's base lacked Quoth: a junction to the dagger base's copy). At the
+  default limit (32) the line test took only gaps under it, so exactly 32 was never closed, though Quake's box only
+  bridges it (hull 1 solid, the clip brush recovery doesn't fill it there); at his 46 the hole's blocker was merged with
+  a neighbour Quake's box reaches and dropped whole (the top half survived through another pair). Rule now: a model's
+  own gaps count up to the limit itself (hull 1's check decides, as before; brush-model pairs, the line test alone,
+  stay under 32), and a dropped merged box is split back into its pieces, each checked, the kept ones merged again
+  (`splitDropped`; HULLS.md "backlog1122"). buildVersion 5.
+  Test: vrbrushholes gained the drain (Quoth's 22 pieces copied, a step up to it; scene `brushholes_drain`);
+  `vr_hull_holes_test` 27/0 on and 27/0 off (the drain falls with holes off, and with the old rule, max 31.8: 25/2).
+  Census: id1 38 maps reach 0 (10,626 own, 1,302 diagonal, 88 over a fall; most 26 ms, e2m2), Quoth start 0 (and at
+  max 46: 0, no box left out at the mark), ad_tears 0 (600 ms search) and ad_azad 0; prone_vent_test 11/0.
