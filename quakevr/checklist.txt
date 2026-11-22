@@ -34,6 +34,27 @@ Flat-screen or VR: in the ropes hall, walk into the hanging ropes and chains and
 Flat-screen or VR: shoot a rope and throw a grenade next to one: the shot nudges it, the explosion flings it, and it lies on the floor where it is longer than the drop. {test:ropes}
 Flat-screen or VR: with the toolgun, Spawn > Props > Ropes: change Rope Settings (length, thickness, pieces, pin the bottom), aim at the floor under the ceiling and spawn a Rope and a Chain: each hangs from the ceiling with your settings. {test:ropes}
 Step onto vrbrushholes' drain (a frame round a square hole exactly as wide as Quake's box) and stand over the hole: you never drop into it {test:brushholes_drain}
+With You Can Be Disarmed on, let a knight's sword land on your shotgun (not across it): your hand is knocked aside, buzzes, rattles and "Your grip on your weapon loosens!" shows; a second blow within 3 seconds knocks the gun out. {test:pd_jolts}
+With You Can Be Disarmed on, let an armed grunt punch your body twice within 3 seconds while holding the shotgun: the first warns, the second knocks the gun out; a dog's bite never does. {test:pd_jolts}
+With You Can Be Disarmed on, take an enforcer's laser on your gun: one laser only warns, a second soon after knocks it out; check the warning reads clearly before the drop. {test:pd_jolts}
+Flat-screen: walk forward into a rope or chain and look up while holding forward; you should climb it with the hands going hand over hand on it, and looking down climbs you back down until you step off at the floor. {test:ropes}
+Flat-screen: on a rope, look straight ahead and hold forward to pump the swing towards the next rope, then press jump near the top of the swing; you should fly off with the swing and catch the next rope. {test:ropes}
+Flat-screen or VR: with a second player watching in multiplayer, climb a rope and swing on it; on his screen your hands should stay on the rope and your feet wrapped round it as it swings. {test:ropes}
+Hook an explosive box, a zombie and then a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun, as before. {test:grapple_reel}
+Multiplayer: in a game on another machine, walk round your play space quickly and lean far out; your own view never snaps back. {test:mp_coop_passive}
+Hold the lava nailgun and lava super nailgun (both hands, lava nails loaded): each looks as before, now its nailgun's model in the lava skin; the screen, magazine and grip sit exactly as on the plain nailgun, and pressing the button changes only the skin. {test:gun_variants_nail}
+Hold the multi-rocket launcher and the plasma Thunderbolt: each is its plain gun's model in the other skin, its screen, cell and grip where the plain gun has them; switching ammo changes nothing but the skin. {test:gun_variants_rock}
+Flat-screen: press 9 with a gun in hand: the visor's panels and the gun's ammo screen dim, 9 again lights them; Options > Controls lists it as "Gear lights" under Quake VR (flat screen), with no "!" clash mark. {test:flat_gear_lights}
+Flat-screen or VR: in multiplayer, watch another player climb a rope, hang on it and swing it; his hands should grip the rope and move up it hand over hand, his hips stay close to it with the legs wrapped round it, and none of it should drift off the rope while it swings. {test:ropes}
+On a rope in VR, look at your own hands and legs; the hands should sit on the rope (not beside it as on a ledge) and the hips come in close to it with the feet wrapped round it. {test:ropes}
+Flat-screen: in Arcane Dimensions' ad_test3 walk forward into the stepped ladder from its floor: the hands take two rungs and forward climbs it and over the top (it used to do nothing). {test:ad_test3_ladder}
+Flat-screen: set Flat Body Height low (about 1.4 m) and die: your corpse is your flat body's size, not your headset height's. {test:flat_force_grab}
+Flat-screen: hold the axe in both hands and press 3 to swap weapons: the off hand eases off the handle as smoothly as it does off the rocket launcher's foregrip, then the new weapon comes up. {test:flat_melee2h}
+Fire a shot or show yourself to the grunt beyond e1m1's low doorway by the start: it comes straight through the doorway, never standing frozen in front of it. {test:doorway_grunt}
+Flat-screen or VR: on vrbrushholes, walk over the held-up lift to its north-east corner: you can't drop down the square between the two slots beside it. {test:brushholes_lift}
+Flat-screen or VR: in DM1, press the button to lower the grate's two middle bars, then walk through between them: nothing invisible stops you. {test:brushholes_dm1grate}
+Flat-screen or VR: in an Arcane Dimensions or Quoth map, shotgun shells (yours and the grunts') fly visibly faster than before, and still hit where you aim. {test:hub_start}
+In mp_dm_passive or mp_coop_passive, walk around the bot: no floating fists, gun or shovel; only its two hands, holsters on its hips and chest {test:mp_coop_passive}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules {test:hub_start}
@@ -103,6 +124,7 @@ Kill a player and a bot in coop (and yourself in single player): each corpse is 
 Run the mp_dm_passive scene: a local deathmatch with a bot that stands still facing you; kill it and it comes back to the same spot, still passive {test:mp_dm_passive}
 Shoot the passive bot a few times: blood pours from where it was hit, its wounds and bleeding as on your own body, and you hear the pour land. {test:mp_dm_passive}
 Let the bot shoot at you with its shotgun: after each shot its pump strokes back and forward with the clacks, its ammo screen lit and its barrel glowing as it heats. {test:mp_dm_hostile}
+Set a long arm length (VR Settings, body, arm length 1.3, or your Body Calibration) and get killed in a game with another player: your corpse's arms are as long as your living body's, its hands at its wrists (not stretched or bent short), seen the same by the other player. {test:mp_coop_bodies}
 
 [4. Flat screen]
 Flat-screen: open Options > Controls and scroll to the end of the keyboard and mouse list: the "Quake VR (flat screen)" group lists every flat key (leans, swap, force grab, shove... toolgun adjust); rebind one with Enter and a key, clear one with Backspace, and check it works in game. {test:flat_force_grab}
@@ -119,6 +141,11 @@ Flat-screen or VR: walk onto the louvred grate and step into the gaps between it
 Flat-screen or VR: walk into the 24-unit gap between the two panels (two func_walls): you stop at its mouth. {test:brushholes_walls}
 Flat-screen or VR: at a gap you still slip or fall through, use Debug > Mark a Gap I Got Through; check the console report names the map, your position and the gaps round you, and quakevr/hull_holes_marks.txt has it. {test:brushholes_diag}
 Flat-screen or VR: set Movement > Player Hitbox > Close Gaps: Slanted Bars off and press Rebuild Gap Blockers Now: you stay where you were, and now drop through the diagonal grate. {test:brushholes_diag}
+Grip a rope or chain with either hand and climb it hand over hand, up and down; the body hangs and swings with it. {test:ropes}
+Let go or press jump mid-swing: you keep the rope's speed (a jump adds a hop up). {test:ropes}
+While hanging on a rope, look down: your legs wrap round the rope under your hands. {test:ropes}
+Hold the stick forward while hanging on a rope: the swing builds up with each swing out, to a cap, enough to reach the next rope. {test:ropes}
+Toolgun on a rope: Remove deletes it, the physgun drags its top, and Clear Props removes the ropes you made but keeps the map's. {test:ropes}
 
 [6. Weapons and holsters]
 Holster Calibration > Ammo Pouch Forward/Right/Up move the pouch and agree with Holster Setup's drag {test:shotgun_hall}

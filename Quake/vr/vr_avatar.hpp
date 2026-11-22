@@ -70,6 +70,12 @@ struct SlideOff
 // The model's upper arm and forearm (metres of the model, before the body's scale).
 void armBones(float& upper, float& fore);
 
+// An arm bone's drawn length (world units) from the model's (`modelLen`: world units at the body's scale): measured
+// (`measuredCm` real centimetres; 0: not measured) or the model's times `armLength` (vr_body_arm_length, 0.5..2), the
+// tweak (`tweakCm`) on top, at least 5 cm; `cm` the world units of a centimetre. The drawn arms' rule (armLengths) and
+// a dead player's ragdoll's (vr_mpavatar.cpp dollRig).
+[[nodiscard]] float armBoneLength(float modelLen, float armLength, float measuredCm, float tweakCm, float cm);
+
 // Body Calibration (vr_bodycal.cpp): the chest as the body stands upright under a head (its eyes where `s` has them,
 // turned as it has them), facing `yaw`, `eyeHeight` metres tall (the crouch and the lean left out: a seated player's
 // chest is upright too). Its axes as Frame's: up the spine, the body's right, forward.

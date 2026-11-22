@@ -126,6 +126,94 @@ def script_argv(path):
     return [BASH, path]
 
 
+# ---- parallel lanes: which scripts may run beside which (run_test_suite.py --jobs; the kit's run_baseline.py has its
+# own copy of the same rules)
+
+# A script that reads the agent's own game folder by its fixed path (kit bases/<agent>/qbase/..., not the lane's
+# qbase.lane<k>: QVR_LANE), the worktree's quakevr/ (a lane's game writes its own), or a fixed network port (the
+# multiplayer tests) runs in lane 0 only. Lane-aware: run.sh/run.ps1 (-Instance copies too: qbase.lane<k>.<n>),
+# testbatch, and the scripts that build the path with QVR_LANE.
+LANE0_RE = re.compile(r'qbase/|"qbase",|(\$W|\$TREE|\{tree\})/quakevr/|qvr-agents/[^/\s"]*/quakevr/|2601[0-9]')
+# A suite that plays its cases in copies of the game itself (testbatch: up to 8 copies, kit slots).
+BATCHED_RE = re.compile(r"testbatch")
+# Timing runs (run.sh --exclusive: every other game, the lanes' too, must end first), unless the script runs them only
+# with QVR_TEST_TIMINGS=1 and that is not set.
+EXCLUSIVE_RE = re.compile(r"--exclusive")
+# Scripts that change a file every game of the worktree reads while they run, in every lane: alone, before the lanes
+# (mapgun_pickup: the worktree's quakevr/maps/e1m3.ent).
+ALONE_SCRIPTS = {"loadedmapguns/pickup_test.ps1"}
+# Scripts that write one shared file of the worktree's (the teleporter tests build maps/vrteleporters.bsp) or play it
+# (stealth's gates and props): one at a time ("tele").
+TELE_SCRIPTS = {"teleporters/teleporters_test.sh", "teleporters/teleporter_edges_test.sh", "stealth_tests.sh"}
+# Scripts whose games must see what an earlier game of theirs wrote to its config (a lane's ironwail.cfg is put back
+# from the baseline before every run): lane 0 only.
+LANE0_SCRIPTS = {"settings_page_test.py"}
+HARNESS_FILES = {"qvrtest.py", "qvrtest.sh", "testbatch.sh", "testbatch.py", "run_batch.sh"}
+
+
+def _script_text(script, root):
+    try:
+        with open("%s/%s" % (root, script), encoding="utf-8", errors="replace") as f:
+            return re.sub(r"(?m)^\s*#.*$", "", f.read())  # (comments: a path named there is not used)
+    except OSError:
+        return None
+
+
+def _uses(script, root, pattern, seen=None):
+    """Whether Misc/quakevr/<script> (root: that folder), or a script of root's it calls, matches pattern."""
+    seen = seen if seen is not None else set()
+    if script in seen:
+        return False
+    seen.add(script)
+    text = _script_text(script, root)
+    if text is None:
+        return False
+    if pattern.search(text):
+        return True
+    here = os.path.dirname(script)
+    for called in set(re.findall(r"([\w./-]+\.(?:sh|py|ps1))\b", text)):
+        base = called.split("/")[-1]
+        if base in HARNESS_FILES:
+            continue  # (the harness itself is lane-aware; its own text names the paths and flags looked for)
+        for cand in (os.path.join(here, base).replace("\\", "/").lstrip("/"), called.split("Misc/quakevr/")[-1]):
+            if cand != script and os.path.isfile("%s/%s" % (root, cand)) and _uses(cand, root, pattern, seen):
+                return True
+    return False
+
+
+def lane_keys(script, root=HERE):
+    """A Misc/quakevr script's scheduling keys: "lane0" (lane 0 only), "batch" (a testbatch suite), "alone" (before the
+    lanes, nothing beside it), "tele" (one at a time)."""
+    keys = set()
+    if script in LANE0_SCRIPTS or _uses(script, root, LANE0_RE):
+        keys.add("lane0")
+    if _uses(script, root, BATCHED_RE):
+        keys.add("batch")
+    text = _script_text(script, root) or ""
+    timings = os.environ.get("QVR_TEST_TIMINGS") == "1" or "QVR_TEST_TIMINGS" not in text
+    if script in ALONE_SCRIPTS or (timings and _uses(script, root, EXCLUSIVE_RE)):
+        keys.add("alone")
+    if script in TELE_SCRIPTS:
+        keys.add("tele")
+    return keys
+
+
+def prepare_lanes(agent, lanes, log_dir, timeout=240):
+    """Every lane's game folder made (or repaired) before a test uses it: a script may write into the lane's id1 or
+    read its qconsole.log before its first game there. One quick game per lane, all at once; the lanes still without
+    an id1 folder after it."""
+    import threading
+    def one(k):
+        run([BASH, KIT + "/run.sh", agent, "-Script", "toggleconsole;quit", "-Filter", "^$", "-Timeout", "120"],
+            os.path.join(log_dir, "_lane%d_setup.log" % k), timeout, lane_env(k))
+    threads = [threading.Thread(target=one, args=(k,)) for k in range(1, lanes)]
+    for th in threads:
+        th.start()
+    for th in threads:
+        th.join()
+    return [k for k in range(1, lanes) if not os.path.isdir(game_dir(agent, k) + "/id1")]
+
+
 # ---- the verdict grammar: writing it
 
 class Tally:

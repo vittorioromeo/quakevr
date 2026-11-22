@@ -33,20 +33,36 @@ for yaw in (0, 90, 180):
     L += [f"{rel:.4f} cmd -grabright", f"{rel:.4f} button main grip 0"]
     open(f"{sys.argv[1]}/spin_yaw{yaw}.txt", "w", newline="\n").write("\n".join(L) + "\n")
 PY
-fails=0
+# (The 18 runs: tb_main plays them as batches, in parallel copies of the game, undrawn; testbatch.sh. TB_SLOW=1: each
+# alone by run.sh, as before 2026-11-22.)
+export TB_NODRAW=${TB_NODRAW-1}
+# (Shell builtins between the runs: a process started a case cost seconds on a loaded machine, both passes.)
+declare -A HEADPOSE STARTPOSE
+for yaw in 0 90 180; do
+    { read -r _ _ h; read -r _ _ s; } < "$OUT/spin_yaw$yaw.txt"
+    HEADPOSE[$yaw]=$h; STARTPOSE[$yaw]=$s
+done
+tb_body() {
+fails=0; checked=0
 for cfg in "0 0 -1" "0 1 -1" "1 0 0" "1 0 -1" "1 1 -1" "1 0 2"; do
     read local frompose frame <<< "$cfg"
-    {
-        for yaw in 0 90 180; do
-            play="$OUT/spin_yaw$yaw.txt"
-            head=$(head -1 "$play" | cut -d' ' -f3-); start=$(sed -n 2p "$play" | cut -d' ' -f3-)
-            line=$(bash $KIT/run.sh $AGENT -Script "map vrfiringrange;wait60;god;notarget;developer 1;vr_gunangle 70;vr_gunyaw 0;vr_weapon_grip_mode 0;vr_mock_grip_velocity 1;vr_mock_angvel_local $local;vr_throw_spin_from_pose $frompose;vr_angvel_frame $frame;vr_mock_hand head $head;vr_mock_hand main $start;wait10;impulse 9;wait5;+grabright;vr_mock_button main grip 1;impulse 152;wait40;vr_mock_play $play;wait100;toggleconsole;quit" -Filter "^thrown spin:" 2>&1 | grep "^thrown spin:" | head -1)
-            off=$(echo "$line" | sed -n 's/.* rad\/s, \([0-9.]*\) deg off.*/\1/p')
-            echo "local $local from_pose $frompose angvel_frame $frame yaw $yaw: $line"
-            if [ "$frompose" = 1 ] || [ "$frame" != 0 ]; then
-                python -c "import sys; sys.exit(0 if '$off' and float('$off') < 10 else 1)" || fails=$((fails + 1))
-            fi
-        done
-    }
+    for yaw in 0 90 180; do
+        play="$OUT/spin_yaw$yaw.txt"
+        out=$(tb_run_sh -Script "map vrfiringrange;wait60;god;notarget;developer 1;vr_gunangle 70;vr_gunyaw 0;vr_weapon_grip_mode 0;vr_mock_grip_velocity 1;vr_mock_angvel_local $local;vr_throw_spin_from_pose $frompose;vr_angvel_frame $frame;vr_mock_hand head ${HEADPOSE[$yaw]};vr_mock_hand main ${STARTPOSE[$yaw]};wait10;impulse 9;wait5;+grabright;vr_mock_button main grip 1;impulse 152;wait40;vr_mock_play $play;wait100;toggleconsole;quit" -Filter "^thrown spin:" 2>&1)
+        [ "$TB_PASS" = collect ] && continue
+        line=""; off=""
+        while IFS= read -r l; do [[ $l == "thrown spin:"* ]] && { line=${l%$'\r'}; break; }; done <<< "$out"
+        [[ $line =~ rad/s,\ ([0-9]+)(\.[0-9]*)?\ deg\ off ]] && off=${BASH_REMATCH[1]}
+        echo "local $local from_pose $frompose angvel_frame $frame yaw $yaw: $line"
+        if [ "$frompose" = 1 ] || [ "$frame" != 0 ]; then
+            checked=$((checked + 1))
+            [ -n "$off" ] && [ "$off" -lt 10 ] || fails=$((fails + 1))
+        fi
+    done
 done
 [ $fails = 0 ] && echo PASS || echo "FAIL ($fails)"
+echo "throw_spin: $((checked - fails)) passed, $fails failed"
+[ $fails = 0 ]
+}
+source "$(dirname "$0")/testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

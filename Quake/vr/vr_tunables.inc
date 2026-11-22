@@ -2075,6 +2075,7 @@ QVR_TUNABLE(vr_flat_mantle_hand_spread, "14") // flatscreen mantle: the hands on
 QVR_TUNABLE(vr_flat_ladder_speed, "100") // flatscreen ledge ladder (vr_flat_ladder): how fast he climbs up or down it (units/s, 20..400)
 QVR_TUNABLE(vr_flat_ladder_look_down, "35") // flatscreen ledge ladder: looking down further than this (degrees, 0..90), forward climbs down
 QVR_TUNABLE(vr_flat_ladder_push, "120") // flatscreen ledge ladder: jump pushes off it at this speed away from it (units/s, 0..600; and half that up)
+QVR_TUNABLE(vr_flat_rope_look, "25") // flatscreen ropes (vr_flat_rope): looking up (down) further than this (degrees, 5..80), forward climbs up (down) the rope; within it the move keys pump its swing
 QVR_TUNABLE(vr_flat_ladder_reach, "16") // flatscreen ledge ladder: how far ahead of his box's front its rungs are looked for (units, 4..48)
 QVR_TUNABLE(vr_flat_hand_collide, "1") // flatscreen: empty hands (the guard, at rest) go back off walls and props as a held weapon does, and a punch or a weapon's swing stops at the surface (vr_flatplay.cpp handOffWall, vr_flatsight.cpp pushBack; 0: they go through, as before)
 QVR_TUNABLE(vr_flat_swing_wind_strikes, "0") // 1: the overhead swing's windup (the raise) may land a blow on what it passes (it knocked a near knight out of the strike's way); 0: only from its top on

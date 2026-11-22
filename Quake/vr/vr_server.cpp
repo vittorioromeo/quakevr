@@ -1908,7 +1908,8 @@ void applyVrMove(client_t* client, const VrMove& sent)
 void applyNetMove(client_t* client, const netmove::WireMove& m, bool /*newest*/)
 {
     VR_ApplyClientMove(client, m.time, &m.viewAngles[0], m.forward, m.side, m.up, m.buttons, m.impulse);
-    lagcomp::noteMove(static_cast<int>(client - svs.clients), m.time, m.viewBack); // (what he saw: his shots', B8b)
+    const netmove::Came came = netmove::serverCame();
+    lagcomp::noteMove(static_cast<int>(client - svs.clients), m.time, m.viewBack, came.at, came.quiet); // (his shots', B8b)
     applyVrMove(client, m.vr);
     predict::serverQueue(client, m); // (his walk runs move by move in the frame's physics, B8)
 }
@@ -2543,7 +2544,9 @@ void writeAvatars()
         }
         MSG_WriteLong(&tmp, static_cast<int>(ent->v.weapon));
         MSG_WriteLong(&tmp, static_cast<int>(fieldFloatOr(ent, f.weapon2, 0.f)));
-        mpavatar::writeHolds(&tmp, ent, origin); // (his climbing holds, as the moves byte says: B5c)
+        // (his climbing holds, as the moves byte says: B5c; the server's points, so from his entity's origin as sent, which
+        // every client draws him at -- not his client's: ropes4, a rider's moved by his rope since his move)
+        mpavatar::writeHolds(&tmp, ent, v3(ent->v.origin));
         // (his holstered weapons as he drew them: B6b; a bot's, what it carries, placed by each client: syncfix)
         const VrDrawnHolsters botHolsters = bot ? botHolstered(ent) : noHolsters;
         writeDrawnHolsters(&tmp, m ? m->move.holsters : botHolsters, origin, false);

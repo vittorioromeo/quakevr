@@ -1,0 +1,10 @@
+# pd_jolts: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (QC/vr_playerdisarm.qc, "PvE's own rule"; the full check is vr_pd_test 3)
+title Enemies disarm you by jolts: a knight's sword, an armed grunt's fists, an enforcer's laser; a shotgun in hand
+map vrtesthall
+health 250
+give "Shotgun" main
+cvar vr_player_disarm 1
+spawn "Knight" 160 0
+spawn "Armed Grunt: Fists" 200 120
+spawn "Enforcer" 320 -120
+hint Let blows land on your gun (not across it) and on your body: the first jolt knocks your hand aside, buzzes, rattles and says your grip loosens; a second within 3 s knocks the gun out. Bites, light claws and parried blows never do.

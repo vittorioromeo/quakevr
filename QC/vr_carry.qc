@@ -2187,6 +2187,8 @@ void() VR_Carry_TwoHandFrame =
     to = carrybody(box, self, to);
     if(trace_allsolid || vlen(to - wanted) > 32)
     {
+        dprint(sprintf("carry: both hands' place kept from it (%s, %.0f units off; stuck)\n",
+            trace_allsolid ? "in solid" : "the body", vlen(to - wanted)));
         VR_Carry_EndTwoHands(box);
         VR_Carry_Release(cVR_MainHand, box);
         return;
@@ -2201,6 +2203,7 @@ void() VR_Carry_TwoHandFrame =
     }
     else if(!VR_Carry_Follow(box, to))
     {
+        dprint(sprintf("carry: held in both hands, stuck behind %s\n", trace_ent ? trace_ent.classname : "the level"));
         VR_Carry_EndTwoHands(box);
         VR_Carry_Release(cVR_MainHand, box); // stuck behind something
         return;

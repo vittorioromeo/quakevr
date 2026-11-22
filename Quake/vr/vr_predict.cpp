@@ -468,7 +468,8 @@ struct ClientPredict
     slide::Slide slide;         // a headset's slide at the state (B14: the times against the replay's clock, 0 there)
     int slideBits{0};           // ... its record's bits (a snapshot's same record)
     float staminaLeft{1e9f};    // ... his stamina at the state
-    pmove::Mantle mantle;       // mantling: its way and time at the state (B8h)
+    float walkLeft{-1.f};       // his room-scale budget at the state (vr_moveguard.hpp; -1 full: review B6)
+    pmove::Mantle mantle;      // mantling: its way and time at the state (B8h)
     pmove::Hang hang;           // hanging: the holds, the hands' last places, the owed at the state (B8i)
     climb::TakeRules take;      // the take's rules (not enabled: none) and press memory at the state (B8j part 2)
     climb::TakeMemory takeMem;
@@ -868,6 +869,7 @@ bool replay(vec3_t out, vec3_t before)
     bool landedMoving = false; // (a move landed him on a lift or door still moving)
     int depth = 0;
     float lastDt = 0.f;
+    float walkLeft = cp.walkLeft; // (his room-scale budget, the server's at the state: his moves cut as there, review B6)
     VectorCopy(b.origin, before);
     for(za::U32 s = cp.seq + 1; s <= newest; s++)
     {
@@ -877,7 +879,9 @@ bool replay(vec3_t out, vec3_t before)
         }
         VectorCopy(b.origin, before);
         b.jumpedNow = false;
-        const pmove::Input in = inputOf(m, moveguard::unitsPerMetre(units::worldScale()));
+        const float upm = moveguard::unitsPerMetre(units::worldScale());
+        pmove::Input in = inputOf(m, upm);
+        (void)moveguard::budget(walkLeft, in.roomscale, in.dt, upm);
         const bool inAir = !(b.flags & FL_ONGROUND);
         const bool hangWas = b.hang.on;
         b.climbedNow = false;
@@ -1227,6 +1231,7 @@ void parseState()
     float crawl[2];
     crawl[0] = MSG_ReadFloat();
     crawl[1] = MSG_ReadFloat();
+    const float walkLeft = MSG_ReadFloat(); // (his room-scale budget after the move: review B6)
     // A headset's slide (B14): its state, the server's numbers once his slide input reached it, its times.
     const int slideBits = MSG_ReadByte();
     slide::Slide sl;
@@ -1399,6 +1404,7 @@ void parseState()
     cp.slide = sl;
     cp.slideBits = slideBits;
     cp.staminaLeft = staminaLeft;
+    cp.walkLeft = walkLeft;
     cp.slideN += sl.on ? 1 : 0;
     r.waterClimb = (climbBits & 1) != 0;
     r.climbHands = (climbBits >> 1) & 3;
@@ -2108,6 +2114,7 @@ extern "C" void VR_WritePredict(sizebuf_t* out, client_t* client)
     MSG_WriteFloat(msg, ent->v.movedir[1]);
     MSG_WriteFloat(msg, s.crawl[0]);
     MSG_WriteFloat(msg, s.crawl[1]);
+    MSG_WriteFloat(msg, moveguard::walkLeft(slot)); // (his room-scale budget after the move: his replay's own, review B6)
     // A headset's slide (B14): its state; once his moves sent its input, its numbers (the server's: his replay slides
     // as his moves do here) and, sliding or cooling down, its times against the slide's clock after his moves. An idle
     // record stays the same. Bit 128: a move of his frame held to the server's clock (his results' check skips it).

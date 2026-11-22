@@ -843,6 +843,12 @@ void armedChoose()
             best = i;
         }
     }
+    // The climbable ropes (no model, no box: their pieces, a little grown) -- the Remove tool, the physgun (its top).
+    if(float t = distance; const int rope = climbrope::pick(from, dir, distance, t))
+    {
+        distance = t;
+        best = rope;
+    }
     return best;
 }
 

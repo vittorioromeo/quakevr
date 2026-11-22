@@ -1,9 +1,18 @@
 #!/usr/bin/env python3
 """The headless test suite before a release (docs/vr-port/RELEASING.md, "Tests before publishing"): the Misc/quakevr
-test scripts (.sh, .py, .ps1) that give a verdict, one at a time, through the kit (run.sh with the mock headset) on a kit worktree.
+test scripts (.sh, .py, .ps1) that give a verdict, through the kit (run.sh with the mock headset) on a kit worktree, in
+parallel lanes (--jobs; each lane its own game folder and lock, kit run.sh QVR_LANE).
 
-    python Misc/release/run_test_suite.py <agent> [--build] [--only REGEX] [--skip REGEX] [--log-dir DIR]
-                                                   [--allow-flaky] [--flaky NAME,...] [--list]
+    python Misc/release/run_test_suite.py <agent> [--build] [--profile full|beta] [--jobs N] [--only REGEX]
+                                                   [--skip REGEX] [--log-dir DIR] [--allow-flaky] [--flaky NAME,...]
+                                                   [--list]
+
+--profile: "full" (default: every test, final releases) or "beta" (the short smoke set of PROFILES, the betas).
+--jobs: tests at once, 0 (default) one lane per 8 CPUs, at most 4 (2 while the author's game runs); 1: one at a time,
+as before 2026-11-22. A test that must see the agent's own game folder runs in lane 0; one with timing runs or that
+changes a file every game of the worktree reads (qvrtest.lane_keys: "alone") runs first, by itself; at most
+--batch-jobs testbatch suites (each plays its cases in up to 8 copies of the game itself) at once. The results are the
+same as one at a time: the summary lists the tests in the suite's order, each log is its own.
 
 <agent> is a kit worktree (C:/OHWorkspace/qvr-agents/<agent>, made by the kit's new_agent.sh) holding the commit under
 test; --build builds it first (kit build.sh). A test fails on a non-zero exit, a FAIL / "<name>: FAIL" / "FAILURES n" /
@@ -19,6 +28,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "quakevr"))
@@ -77,11 +87,32 @@ SUITE = [
     ("animsmooth", "animsmooth_test.sh", [], 1200, False),
     ("teleporters_chase", "teleporters/teleporters_test.sh", ["chase"], 2400, False),  # (flaky: test_flaky.txt)
     ("stealth", "stealth_tests.sh", [], 5400, False),
+    ("scenario_check", "scenario_check.sh", [], 1200, False),  # every checklist Test scene started (AD's folders)
 ]
+
+# The profiles (--profile): "full" every test above (final releases); "beta" a short smoke set for the betas
+# (make_release.ps1 -Beta; about 10 min beside the build): the checklist scenes, the engine's self-checks, a level
+# change and its stats, the settings page, the update notice, and a handful of core gameplay tests (a reload, a pickup,
+# a throw, a mapper's gun, a grip, the climb), each under ~2 min alone.
+PROFILES = {
+    "full": None,
+    "beta": ["selfchecks", "scenario_check", "changelevel_signon", "stats_levelchange", "settings_page",
+             "update_notice", "pickup_mag", "reload_eject", "throw_spin", "mapgun_pickup", "grip_state", "slopes"],
+}
 
 FAIL_LINE = qvrtest.FAIL_LINE  # (run_baseline.py's parted cases read it here)
 find_bash = qvrtest.find_bash
 tree_of = qvrtest.tree
+
+
+def auto_jobs():
+    """--jobs 0: a lane per 8 CPUs, at most 4 (the kit's 16 game slots are shared with the other agents, and a testbatch
+    suite takes up to 8 of them itself); 2 while the author's game runs (run.ps1's low-impact mode then)."""
+    n = max(1, min(4, (os.cpu_count() or 8) // 8))
+    r = subprocess.run(["powershell", "-NoProfile", "-Command",
+                        "@(Get-Process ironwail -ErrorAction SilentlyContinue | Where-Object { $_.Path -match "
+                        "'quakevr-iw\\\\Windows' }).Count"], capture_output=True, text=True)
+    return min(n, 2) if r.stdout.strip() not in ("", "0") else n
 
 
 def run(argv, log_path, timeout, env=None):
@@ -102,9 +133,14 @@ def main():
     ap.add_argument("--allow-flaky", action="store_true", help="the known-flaky tests (and --flaky ones) only warn")
     ap.add_argument("--flaky", default="", help="more test names (comma-separated) that only warn with --allow-flaky")
     ap.add_argument("--list", action="store_true", help="print the tests that would run, and nothing else")
+    ap.add_argument("--profile", default="full", choices=sorted(PROFILES), help="full (default) or beta: the smoke set")
+    ap.add_argument("--jobs", type=int, default=0, help="tests at once, each in its own lane (0: by the CPU count)")
+    ap.add_argument("--batch-jobs", type=int, default=2, help="testbatch suites at once (each plays up to 8 games)")
     a = ap.parse_args()
 
-    tests = [t for t in SUITE if (not a.only or re.search(a.only, t[0])) and not (a.skip and re.search(a.skip, t[0]))]
+    chosen = PROFILES[a.profile]
+    tests = [t for t in SUITE if (chosen is None or t[0] in chosen) and (not a.only or re.search(a.only, t[0]))
+             and not (a.skip and re.search(a.skip, t[0]))]
     extra_flaky = {n.strip() for n in a.flaky.split(",") if n.strip()}
     unknown = extra_flaky - {t[0] for t in SUITE}
     if unknown:
@@ -112,10 +148,12 @@ def main():
         return 2
     flaky = {t[0] for t in SUITE if t[4] or t[0] in qvrtest.FLAKY} | extra_flaky
     if a.list:
+        root = os.path.join(qvrtest.TREE, "Misc", "quakevr").replace("\\", "/")
         for name, script, args, timeout, _ in tests:
+            keys = ", ".join(sorted(qvrtest.lane_keys(script, root)))
             print(f"{name:20} Misc/quakevr/{script}{' ' + ' '.join(args) if args else ''}  (timeout {timeout // 60} min"
-                  f"{', known flaky' if name in flaky else ''})")
-        print(f"{len(tests)} tests")
+                  f"{', known flaky' if name in flaky else ''}{', ' + keys if keys else ''})")
+        print(f"{len(tests)} tests (profile {a.profile})")
         return 0
     if not a.agent:
         print("usage: run_test_suite.py <agent> [...] (a kit worktree: C:/OHWorkspace/qvr-agents/<agent>)")
@@ -143,20 +181,33 @@ def main():
             return 1
         print(f"built ({secs:.0f} s)", flush=True)
 
-    results = []
+    jobs = max(1, min(a.jobs or auto_jobs(), len(tests) or 1))
+    root = f"{tree}/Misc/quakevr"
+    keyed = [(t, qvrtest.lane_keys(t[1], root)) for t in tests]
+    if jobs > 1:
+        bad = qvrtest.prepare_lanes(a.agent, jobs, log_dir)
+        if bad:
+            print(f"lanes {bad} have no id1 folder after their set-up run ({log_dir}/_lane<k>_setup.log): "
+                  f"lanes 0-{min(bad) - 1} only", flush=True)
+            jobs = min(bad)
+    print(f"{jobs} lane(s) at once (profile {a.profile})", flush=True)
+
+    results = {}
+    lock = threading.Lock()
     total_start = time.time()
-    for i, (name, script, args, timeout, _) in enumerate(tests, 1):
-        path = f"{tree}/Misc/quakevr/{script}"
+
+    def one(test, lane):
+        name, script, args, timeout, _ = test
+        path = f"{root}/{script}"
         argv = qvrtest.script_argv(path)
         if argv[0] == qvrtest.BASH:
             argv[0] = bash
         argv += [a.agent] + args
-        print(f"[{i:2}/{len(tests)}] {name:20} ", end="", flush=True)
         log_path = os.path.join(log_dir, f"{name}.log")
         if not os.path.isfile(path):
             verdict, why, secs = "FAIL", "no such script", 0.0
         else:
-            code, text, secs = run(argv, log_path, timeout, env)
+            code, text, secs = run(argv, log_path, timeout, dict(qvrtest.lane_env(lane), KIT=KIT))
             fails = FAIL_LINE.findall(text)
             if code is None:
                 verdict, why = "FAIL", f"timeout ({timeout} s)"
@@ -168,20 +219,70 @@ def main():
                 verdict, why = "PASS", ""
         if verdict == "FAIL" and a.allow_flaky and name in flaky:
             verdict = "FLAKY"
-        results.append((name, verdict, why, secs, log_path))
-        print(f"{verdict:5} {secs:5.0f} s{'  ' + why if why else ''}", flush=True)
-        if verdict != "PASS" and os.path.isfile(log_path):
-            with open(log_path, encoding="utf-8", errors="replace") as f:
-                bad = [l.rstrip() for l in f if FAIL_LINE.search(l)]
-            for l in (bad or ["(no FAIL line: see the log)"])[:8]:
-                print(f"        {l[:160]}")
-            print(f"        log: {log_path}", flush=True)
+        with lock:
+            results[name] = (name, verdict, why, secs, log_path)
+            print(f"[{len(results):2}/{len(tests)}] {name:20} {verdict:5} {secs:5.0f} s  (lane {lane})"
+                  f"{'  ' + why if why else ''}", flush=True)
+            if verdict != "PASS" and os.path.isfile(log_path):
+                with open(log_path, encoding="utf-8", errors="replace") as f:
+                    bad = [l.rstrip() for l in f if FAIL_LINE.search(l)]
+                for l in (bad or ["(no FAIL line: see the log)"])[:8]:
+                    print(f"        {l[:160]}")
+                print(f"        log: {log_path}", flush=True)
 
+    # First the "alone" ones, one after another (nothing else runs); then the lanes, each taking the longest test it
+    # may (by its timeout): lane 0 the lane-0 ones first; at most --batch-jobs testbatch suites and one "tele" at once.
+    for t, keys in keyed:
+        if "alone" in keys:
+            one(t, 0)
+    queue = sorted([(t, k) for t, k in keyed if "alone" not in k], key=lambda tk: -tk[0][3])
+    limits = {"batch": max(1, a.batch_jobs), "tele": 1}
+    running = {}
+    cond = threading.Condition()
+
+    def pick(lane):
+        for want_lane0 in ((True, False) if lane == 0 else (False,)):
+            for i, (t, keys) in enumerate(queue):
+                if ("lane0" in keys) == want_lane0 and all(running.get(k, 0) < limits.get(k, jobs) for k in keys):
+                    return queue.pop(i)
+        return None
+
+    def worker(lane):
+        while True:
+            with cond:
+                got = None
+                while queue:
+                    got = pick(lane)
+                    if got:
+                        break
+                    cond.wait(5)
+                if not got:
+                    return
+                for k in got[1]:
+                    running[k] = running.get(k, 0) + 1
+            try:
+                one(got[0], lane)
+            except Exception as e:  # (a harness problem: that test fails, the others go on)
+                with lock:
+                    results[got[0][0]] = (got[0][0], "FAIL", f"harness: {e!r}", 0.0, "")
+            with cond:
+                for k in got[1]:
+                    running[k] -= 1
+                cond.notify_all()
+
+    threads = [threading.Thread(target=worker, args=(k,)) for k in range(jobs)]
+    for th in threads:
+        th.start()
+    for th in threads:
+        th.join()
+
+    results = [results[t[0]] for t in tests if t[0] in results]  # (the suite's order)
     passed = sum(1 for r in results if r[1] == "PASS")
     failed = [r for r in results if r[1] == "FAIL"]
     flaky_failed = [r for r in results if r[1] == "FLAKY"]
     lines = [f"test suite on {tree} ({head}): {passed} passed, {len(failed)} failed, {len(flaky_failed)} flaky "
-             f"(warned), {len(results)} run in {(time.time() - total_start) / 60:.1f} min"]
+             f"(warned), {len(results)} run in {(time.time() - total_start) / 60:.1f} min ({jobs} lanes, profile "
+             f"{a.profile})"]
     lines += [f"  FAIL  {n}: {w} ({l})" for n, _, w, _, l in failed]
     lines += [f"  FLAKY {n}: {w} ({l})" for n, _, w, _, l in flaky_failed]
     with open(os.path.join(log_dir, "summary.txt"), "w", encoding="utf-8") as f:

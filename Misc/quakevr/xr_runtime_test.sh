@@ -194,7 +194,9 @@ cat > "$F/rel/other_openxr.json" <<'JSON'
   }
 }
 JSON
-S="vr_xr_test 1;vr_xr_test_runtimes \"$ALL\";vr_xr_test_active \"$ST\";vr_xr_test_processes VirtualDesktop.Streamer.exe;echo CMDLINE1;vr_xr_runtime_explain;vr_xr_runtime 4;echo CMDLINE4;vr_xr_runtime_explain"
+# (vr_xr_runtime 1 first: the kit's script is the autoexec, before quake.rc's stuffcmds sets the command line's value,
+# and the test baseline config is the shipped defaults (Auto). The old baseline carried the author's own 1.)
+S="vr_xr_test 1;vr_xr_test_runtimes \"$ALL\";vr_xr_test_active \"$ST\";vr_xr_test_processes VirtualDesktop.Streamer.exe;vr_xr_runtime 1;echo CMDLINE1;vr_xr_runtime_explain;vr_xr_runtime 4;echo CMDLINE4;vr_xr_runtime_explain"
 S="$S;vr_xr_runtime 3;vr_xr_runtime_json \"$F/rel/other_openxr.json\";vr_backend openxr;wait20;toggleconsole;quit"
 bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -ExtraArgs "+vr_xr_runtime 1" -Filter "CMDLINE|choice:|command line|OpenXR|^  [0-9]\." > "$OUT/cmdline.log"
 cp -f "$XRLOG" "$OUT/cmdline_openxr.txt"

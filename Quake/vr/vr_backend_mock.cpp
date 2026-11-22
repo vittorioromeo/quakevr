@@ -493,6 +493,8 @@ void mockLook_f()
 // nearest you (a thrown_weapon), `fraction` of the way along its drawn length (0 and 1: its two drawn points farthest
 // apart), `height` cm over its top there (0 as shipped). For grab tests: from the hand's place last frame, so a hand
 // kept out of the floor lands short of a point under it; run it again (or a few frames on) to follow a weapon.
+// "weaponpalm": the same with the palm's middle there instead of the hand's point (the fist lowered onto the weapon
+// meets it however it lies; the hand's point, the fist's front top, can pass beside a thin bar: weapon_catch_test.sh).
 // "vr_mock_hand_to <main|off> agweapon <fraction> [<cm>]": in the nearest armed monster's held weapon, from the end behind
 // its grip (0) to its muzzle's (1), at its slice's middle (the grab-anywhere tests: vr_agrunt_test 39); "agweaponpalm":
 // the palm's middle there instead of the hand's point (a fist closing round it).
@@ -1227,7 +1229,8 @@ void mockHandTo_f()
     const int hand = Cmd_Argc() >= 2 ? mockHand(Cmd_Argv(1)) : -1;
     const bool agPalm = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "agweaponpalm");
     const bool agWeapon = (Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "agweapon")) || agPalm;
-    const bool weapon = (Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "weapon")) || agWeapon;
+    const bool weaponPalm = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "weaponpalm");
+    const bool weapon = (Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "weapon")) || agWeapon || weaponPalm;
     const bool spot = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "spot");
     const bool carried = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "carried");
     const bool inHeld = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "held");
@@ -1342,7 +1345,7 @@ void mockHandTo_f()
     {
         Con_Printf("usage: vr_mock_hand_to <main|off> <x> <y> <z>\n"
                    "       vr_mock_hand_to <main|off> touch <x> <y> [<cm in front>]\n"
-                   "       vr_mock_hand_to <main|off> weapon <fraction> [<height cm>]\n"
+                   "       vr_mock_hand_to <main|off> weapon|weaponpalm <fraction> [<height cm>]\n"
                    "       vr_mock_hand_to <main|off> spot <hotspot index> [<height cm>]\n"
                    "       vr_mock_hand_to <main|off> carried\n"
                    "       vr_mock_hand_to <main|off> held <fraction> [<cm>]\n"
@@ -1410,7 +1413,7 @@ void mockHandTo_f()
         Con_Printf("vr_mock_hand_to: no weapon lying about\n");
         return;
     }
-    if(agPalm)
+    if(agPalm || weaponPalm)
     {
         const hands::State& st = hands::current();
         target -= hands::palmPoint(st, hand) - st.pos[hand]; // (its palm's middle there, not the hand's point)

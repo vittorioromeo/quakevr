@@ -402,6 +402,9 @@ struct ServerSlot
     za::U32 read{0}; // the move buffer's newest move read (B19: kept until a tick runs it; 0: none)
     za::U32 seqs[ring]{};
     Quant moves[ring];
+    Came came[ring]; // (mpflakes) each kept move's first read and its quiet allowance (serverCame)
+    double heardAt{-1.0}; // the server's time of the last packet read (-1: none yet)
+    double quiet{0.0};    // the quiet allowance then
     ServerCounts counts;
     bool sends{false}; // it sent QVR_CLC_MOVES: acknowledged in its datagrams
     // (B20) The buffer's depth by his link's jitter: each move's lateness when it first came (the buffer's tick count
@@ -414,6 +417,7 @@ struct ServerSlot
     bool curAny{false};
 };
 za::Vector<ServerSlot> serverSlots;
+Came applying; // (mpflakes) the move being run's (serverCame)
 
 [[nodiscard]] ServerSlot* slotOf(int slot, bool make)
 {
@@ -711,6 +715,7 @@ bool runOldest(client_t* client, ServerSlot& slot, ApplyFn apply, bool skipGap =
     slot.counts.run++;
     WireMove m;
     dequantize(slot.moves[s % ring], m);
+    applying = slot.came[s % ring];
     apply(client, m, s == slot.read);
     return true;
 }
@@ -781,6 +786,14 @@ bool serverRead(client_t* client, ApplyFn apply, bool stale)
         return false; // (a number past any game's: the sums below would wrap, and runOldest's search with them)
     }
     slot->sends = true;
+    // (mpflakes) The quiet allowance: a gap before this packet (his frame hitch: none came) is allowed his moves' times
+    // after it, spent as the server's time goes on (the burst of moves his frame's catch-up ticks make all name the
+    // newest message from before the hitch; once he reads the server's again, his times are fresh).
+    const double now = sv.qcvm.time;
+    const double gap = slot->heardAt >= 0.0 ? za::max(now - slot->heardAt, 0.0) : 0.0;
+    slot->quiet = za::max(gap, slot->quiet - gap);
+    slot->heardAt = now;
+    const Came came{now, slot->quiet};
     bool decodable = base == 0 || slot->seqs[base % ring] == base;
     Quant prev = base != 0 && decodable ? slot->moves[base % ring] : zeroQuant;
     if(!decodable)
@@ -820,6 +833,10 @@ bool serverRead(client_t* client, ApplyFn apply, bool stale)
         }
         if(s + static_cast<za::U32>(ring) > slot->last)
         {
+            if(slot->seqs[s % ring] != s)
+            {
+                slot->came[s % ring] = came; // (first read: a repeat keeps its first arrival)
+            }
             slot->seqs[s % ring] = s;
             slot->moves[s % ring] = cur;
         }
@@ -859,6 +876,7 @@ bool serverRead(client_t* client, ApplyFn apply, bool stale)
         slot->last = s;
         WireMove m;
         dequantize(cur, m);
+        applying = came;
         apply(client, m, newest);
     }
     slot->counts.bytes += msg_readcount - start + 1;
@@ -955,6 +973,7 @@ bool serverRunNext(client_t* client, ApplyFn apply)
     {
         logMove(static_cast<int>(client - svs.clients), next - slot->low, m);
     }
+    applying = Came{sv.qcvm.time, 0.0}; // (the lockstep's: judged as it runs, as before -- the same every run)
     apply(client, m, true);
     return true;
 }
@@ -1010,6 +1029,17 @@ void serverReset(int slotNum)
         slot->curAny = false;
         slot->sends = false;
     }
+    if(ServerSlot* slot = slotOf(slotNum, true))
+    {
+        // (his silence counted from his connection's or map's start: the moves after his load name its messages)
+        slot->heardAt = sv.active ? sv.qcvm.time : -1.0;
+        slot->quiet = 0.0;
+    }
+}
+
+Came serverCame()
+{
+    return applying;
 }
 
 ServerCounts serverCounts(int slotNum)

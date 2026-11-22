@@ -1,0 +1,11 @@
+# gun_variants_rock: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The rocket launcher's
+# multi-rocket and the Thunderbolt's plasma looks (ROUND25.md, "onemodel"): each its gun's model in another skin.
+title Multi-rocket and plasma looks: one model per gun, another skin
+map vrtesthall
+god
+notarget
+cvar vr_ammo_switch_empty_hand 0
+give "Rocket Launcher" main
+give "Thunderbolt" off
+cmd impulse 9; impulse 43; wait; wait; impulse 42
+hint The right hand holds the rocket launcher with multi-rockets, the left the Thunderbolt with plasma cells: each is its gun's own model in the alternate skin (the same housing and screen; the plasma gun's cell and well the Thunderbolt's). Press either gun's button: back to the ordinary skin, nothing else moves.

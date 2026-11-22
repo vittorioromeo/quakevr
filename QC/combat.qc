@@ -3297,9 +3297,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     {
         damage = damage * (1 - min(1, vr_drp_cut)); // (a partial directional parry: vr_dirparry_partial)
     }
-    if(hand < 0 && !armsCrossed && pdHand >= 0)
+    if(hand < 0 && !armsCrossed)
     {
-        VR_PD_Blow(targ, attacker, pdHand, damage, pdGap); // VR: landed on your weapon, not across: knocked out? (vr_playerdisarm.qc)
+        // VR: landed (on your weapon, not across it; or on your body): knocked out? (vr_playerdisarm.qc)
+        VR_PD_Blow(targ, attacker, pdHand, damage, pdGap, drp);
     }
 
     if(vr_parried)

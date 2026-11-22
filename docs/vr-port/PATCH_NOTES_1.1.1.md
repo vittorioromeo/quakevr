@@ -169,7 +169,9 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   (his build, skin and gloves).
 - **New**: a dead player's ragdoll is his own body, not Quake's ranger's rigged under it: his build's shape at his height,
   its limbs his body's own lengths, falling, grabbed and struck as any ragdoll and seen the same by every player; single
-  player your own corpse too (the death camera and third person), and the bots' in their build.
+  player your own corpse too (the death camera and third person), and the bots' in their build. Its arms are his arms'
+  length and its shoulders where his are (his Body Calibration or arm length setting), and a flat-screen player's corpse
+  is his flat-screen body height.
 
 **Single player only**: time scale and bullet time, saving at will (the host's level-start coop autosave instead),
 the crates Quake VR places about maps, Dimension of the Past and Dimension of the Machine.
@@ -180,11 +182,22 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Weapons
 
+- **Faster shotgun shells in Arcane Dimensions and Quoth.** Where shells fly as projectiles, they now fly 30% faster,
+  yours and the monsters' alike (the Player and Enemy Pellet Speed settings still multiply on top). Vanilla's hitscan
+  shotguns are unchanged.
 - **Flat screen: a blade stuck in an enemy keeps its hand.** Dual wielding a blade and a gun, a blade that stays in an
   enemy now keeps the hand that swung it on its handle until it comes out or the hand lets go; meanwhile the gun stays
   one-handed, the right mouse button fires the left hand's weapon and the ironsight stays down, as when dual wielding.
   Before, the hand let go of the blade to hold the gun in both hands, and the ironsight came up. In the headset too, a
   hand holding a stuck blade no longer takes the other gun's two-handed grip.
+- **Being disarmed by enemies is predictable now (still off by default).** With Armed Grunts > "You Can Be
+  Disarmed" on, enemies' hits jolt the weapon you hold instead of rolling dice: two jolts on one hand within three
+  seconds knock it out, and the first one warns you (your hand is knocked aside, buzzes and rattles, "Your grip on
+  your weapon loosens!"). A blade, axe or chainsaw landing on your weapon jolts it (a heavy blow knocks it out at
+  once), an armed enemy's punch and any heavy blow on your body jolt it, a grunt's full blast or an enforcer's laser
+  on your gun too. A knight's sword can disarm you now; parried blows, bites and light claws never do. The jolts,
+  how long they last and what counts as heavy are new settings beside it. Other players' hits in multiplayer are
+  unchanged.
 
 ## Movement
 
@@ -192,7 +205,12 @@ aren't Map Library packages aren't sent to joining players.
   thickness, pieces, mass, stiffness and damping as keys, and a pinned bottom) and can be spawned with the toolgun
   (Spawn > Props > Ropes, with a Rope Settings page). They swing and settle, lie on the floor where they are longer
   than the drop, and are pushed by your hands, players, monsters, props, explosions and shots; every player sees the
-  same rope. Climbing them comes next. Try them in the new test map `vrropes`.
+  same rope. In VR you can climb them: grip one with either hand and go hand over hand up or down; your weight swings
+  it, your legs wrap round it, and letting go or jumping off mid-swing keeps its speed. The toolgun's Remove and
+  physgun aim at them, and Clear Props removes the ones you made. On the desktop screen, walk or jump into one to
+  grab it: look up or down and hold forward to climb, look ahead and use the move keys to swing it, and jump off at the
+  top of a swing to catch the next rope. In multiplayer, other players on a rope are drawn gripping it, their hips in
+  close and their legs wrapped round it, even while it swings. Try them in the new test map `vrropes`.
 - **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down
   flies up or down; strafing stays level and jump and crouch still go straight up and down. Flat and in the headset
   (there, what steers your walking steers the flight: the head, or the moving hand with hand-relative movement).
@@ -208,6 +226,10 @@ aren't Map Library packages aren't sent to joining players.
   settings beside it (Narrower Than: 32, Wider Than: 8, and more), with Rebuild Gap Blockers Now to apply them without
   leaving the map; if you still get through a gap you shouldn't, Debug > Mark a Gap I Got Through writes down where and
   why (`quakevr/hull_holes_marks.txt`) so it can be fixed.
+- **No more dropping down the corner beside a lift.** Where a lift leaves narrow slots on two sides of it, the square
+  between the two slots (the lift's corner) stayed open and you could fall down the shaft there; it is closed now.
+- **Opened bar gates let you through again.** The gap blockers beside a door now move with it, so bars that sink into
+  the floor (DM1's grate) take theirs along when they open, instead of leaving them standing in the opened way.
 - **Riding a lift no longer sinks you or the monsters into it.** Going up, your eye trailed a rising lift by up to 12
   units (the stair-step easing took the lift's rise for a step) and a monster riding it was drawn as far as 13 units
   into it; now your eye rides with the lift (only a step's jump is eased: `vr_view_lift_follow`, 400 units a second;
@@ -261,6 +283,8 @@ aren't Map Library packages aren't sent to joining players.
   "Reset Flat Keys" stays beside it). A key that is both a flat key and a binding is marked with "!" on both rows, and
   the row under the cursor says what it does: in flat-screen play the flat key wins (for example mouse 4 is Force
   Grab, not your binding, until you clear Force Grab). The `vr_flat_key_*` settings work in configs as before.
+- **Flat screen: 9 dims the gear lights**, as the wrist gadget's side button does in the headset: the visor's panels
+  and the guns' ammo screens dim, and 9 again lights them. Rebind it in Controls ("Gear lights").
 - **Centre messages in the headset look like the flat screen's.** The game's centre prints in front of your head (a key needed, a secret found, a map's text) and the maps' own view messages now appear in the flat visor's own message popup, drawn by the same code: its dark glass pill with cut corners, glowing bevelled frame, font, wrapping, scanlines, pop-in and fade, in a size that reads at the menu's distance. (`vr_center_panel 0` brings back the old look; `vr_center_panel_scale` sizes it.)
 - **Search filter (development builds).** The Search page has a "Show: Both / Cvars / Tunables" row over its text
   box: the menus' settings alone, the Tunables pages' constants alone, or both (the default). The results update
@@ -282,6 +306,9 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Monsters
 
+- **Monsters no longer get stuck at low doorways.** Since the gaps Quake's box never fitted were closed, a grunt
+  could stand frozen in front of some doorways (e1m1's, by the start) while walking to a noise: its step was refused
+  under the lintel. It walks through again.
 - **Cuts follow each blade's drawn shape.** Beheading, cutting off limbs, a cut limb sticking to the blade, cutting
   hoses and the chainsaw's bar all used their own idea of where a blade starts, so the Super Axe's inner curve counted
   as its handle and never took a head or a limb off. Now every one of them uses the blade's shape as drawn in the

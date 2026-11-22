@@ -256,6 +256,52 @@ run; each counts frames as `wait` does (a server tick each) and goes on at once 
 A fixed wait that a check measures across (frames, seconds, distances after it) is the check's own: replace only waits
 that end on an event (the ragdoll settled, the line printed), and prove the suite again.
 
+`TB_STATS=1` also prints the replay's time and each run played alone after the batch (a script built from an earlier
+run's output, a screenshot run): those are a game each, one after another, the usual reason a batched suite is slow.
+The other is the shell between the runs: a batched suite's body runs twice (collect, replay), and every process it
+starts (grep, sed, awk, python) costs 0.1-1 s under Git bash on a loaded machine. `tb_run_sh` starts none (its index:
+the runs' arguments, in memory; 2026-11-22: was ~8 a run, minutes for a 100-case suite; `TB_COLLECT_STUBS=1`, set by
+the reload suites, makes the collect pass's grep/sed/cut/tr/head/tail/wc/paste/sort/python no-ops); in a suite, skip the checks in the collect pass
+(`[ "$TB_PASS" = collect ] && continue`), parse with bash's `[[ =~ ]]` / `read`, and check every case with one Python
+at the end rather than one a case (mapflameburn_test.sh, throw_spin_test.sh).
+
+### The release suite: lanes and profiles (2026-11-22)
+
+`Misc/release/run_test_suite.py` runs its tests in parallel lanes (`--jobs N`; 0, the default: a lane per 8 CPUs, at
+most 4, 2 while the author's game runs; `--jobs 1`: one at a time). Each lane is the kit's `QVR_LANE=k` (its own game
+folder `bases/<agent>/qbase.lane<k>`, its own lock, its batch copies `qbase.lane<k>.<n>`); each test's log is its own
+and the summary lists the tests in the suite's order, so the results read as before. `qvrtest.lane_keys` decides what
+may run beside what:
+
+- `lane0`: a script that reads the agent's own game folder by its fixed path, the worktree's `quakevr/`, or a fixed
+  network port: lane 0 only. Build such paths with `qvrtest.game_dir()` / `qbase${QVR_LANE:+.lane$QVR_LANE}` instead.
+- `alone`: timing runs (`run.sh --exclusive`, unless the script gates them under `QVR_TEST_TIMINGS=1`) or a script
+  that changes a file every game of the worktree reads (`ALONE_SCRIPTS`: mapgun_pickup's `quakevr/maps/e1m3.ent`):
+  first, nothing beside it.
+- `batch`: a testbatch suite (up to 8 copies of the game itself): at most `--batch-jobs` (2) at once.
+- `tele`: the scripts that build or play `maps/vrteleporters.bsp`: one at a time.
+
+Timing sections inside a verdict test (numbers only, no check) run with `QVR_TEST_TIMINGS=1` only: an exclusive run
+waits for every other game on the machine (reload_gunshape timed out at 1200 s on it in the 1.2.0-beta1 suite).
+
+Profiles (`--profile`): `full` (every test; final releases) and `beta` (`PROFILES["beta"]`: scenario_check,
+selfchecks, changelevel_signon, stats_levelchange, settings_page, update_notice, pickup_mag, reload_eject,
+throw_spin, mapgun_pickup, grip_state, slopes; about 10 min). `--list` prints a profile's tests and their lane keys.
+
+### The test baseline config: the shipped defaults (2026-11-22)
+
+Every test run starts from `Misc/quakevr/test_baseline.cfg`: the agent's worktree has it as
+`quakevr/ironwail.cfg.baseline`, which the kit's run.ps1 copies to `quakevr/ironwail.cfg` after every lane-0 run (so
+the next run starts from it; a lane copies it before each run). It holds only `vr_config_defaults`, the version
+markers (`vr_cfg_version`, `vr_wofs_version`, `vr_props_version`, `vr_bindings_version`: read as a saved config of this
+build, not reset or migrated as an old one) and `vr_tutorial_started 1`, each with a comment. No `vr_wofs_*`,
+`vr_prop_*`, calibration or other personal settings: weapons.txt, the props' and the compiled defaults reach every run,
+and a test checks what ships. Until 2026-11-22 it was a copy of an old full config (14,472 lines, vr_cfg_version 141:
+8,321 vr_wofs_* lines, the author's body calibration and Height 1.5474, cl_alwaysrun 1, HUD scales 3): after its
+migration 566 weapon settings still differed from weapons.txt (the Super Axe's pre-11-12 offsets, ROUND25 "axelag").
+A test that needs a setting off its default sets it in its own script; a line belongs here only when every run
+needs it, with its reason.
+
 ## The spawn census: "no behaviour change" in one command (2026-11-19)
 
 `bash Misc/quakevr/spawn_census.sh <label> [coop]` loads all 168 maps of id1, Hipnotic, Rogue, Dopa, MG1, MG3 and AD
