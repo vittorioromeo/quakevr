@@ -4683,21 +4683,36 @@ const char* const gearModelNames[] = {"progs/legholster.mdl", "progs/vrgadget.md
 constexpr int gearModelCount = static_cast<int>(sizeof(gearModelNames) / sizeof(gearModelNames[0]));
 } // namespace
 
+bool handModel(const qmodel_t* model)
+{
+    return isHandModel(model);
+}
+
 qmodel_t* gearModel(int index)
 {
     return index >= 1 && index <= gearModelCount ? viewModel(gearModelNames[index - 1]) : nullptr;
 }
 
-qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, float yaw, GearDraw& sheath, GearDraw& gun)
+qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, float yaw, const qmodel_t* weapon,
+    GearDraw& sheath, GearDraw& gun)
 {
     const bool shoulder = holster == body::LeftShoulder || holster == body::RightShoulder;
     const bool mirrored = holster == body::LeftHip || holster == body::LeftUpper || holster == body::LeftShoulder;
+    const bool upper = holster == body::LeftUpper || holster == body::RightUpper;
     qmodel_t* const slotModel = vr_leg_holster_model_enabled.value && !shoulder ? viewModel("progs/legholster.mdl") : nullptr;
     body::HolsterPlate plate;
     plate.out = out;
     plate.up = glm::vec3{0.f, 0.f, 1.f};
-    const HolsterPose pose = shoulder ? holsterOnBack(pos, yaw, mirrored)
-                                      : holsterOnBody(pos, plate, mirrored, holster == body::LeftUpper || holster == body::RightUpper, slotModel);
+    HolsterPose pose = shoulder ? holsterOnBack(pos, yaw, mirrored) : holsterOnBody(pos, plate, mirrored, upper, slotModel);
+    // (mpbothands) The weapon in it by its own Holstered pose, as yours (poseHolstered, in the holster's frame: off the
+    // body, up, outwards); the Hotspots page's turns are yours alone, not put on his.
+    glm::vec3 fwd, right, up;
+    hands::angleVectors({0.f, yaw, 0.f}, fwd, right, up);
+    const HolsterFrame frame = holsterFrame(out, up, mirrored ? -right : right);
+    const weapons::HolsterKind kind = shoulder ? weapons::HolsterKind::Shoulder
+                                      : upper  ? weapons::HolsterKind::Upper
+                                               : weapons::HolsterKind::Hip;
+    poseHolstered(pose, frame, weapons::holsteredPose(weapons::slotForModel(weapon), kind));
     sheath.model = slotModel;
     sheath.origin = pose.slotPos;
     sheath.angles = pose.slotAngles;
