@@ -33,6 +33,9 @@ that ships in 1.1.1.
 - **Quoth (experimental).** Quoth 2.2's own maps (Select Campaign > Quoth) and custom maps made for Quoth play by
   Arcane Dimensions' rules, so they need AD. The installer offers Quoth (free, by Kell, Necros and Preach), downloaded
   from Quaddicted and installed as released: ticked when Arcane Dimensions is chosen, greyed out without it.
+- **Heavy revolver headshots pop heads in Arcane Dimensions and Quoth too.** Where shells fly as projectiles (AD's and
+  Quoth's maps, or Projectile Rules set to AD's), a heavy revolver's headshot kill never popped the head, and its slug
+  did a big monster no extra damage. Its slug now follows the same head pop and big-body rules as everywhere else.
 
 ## Graphics
 
