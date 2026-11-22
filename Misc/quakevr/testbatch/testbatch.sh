@@ -28,6 +28,9 @@ tb_collect_stubs()
     grep() { return 0; }; sed() { return 0; }; cut() { return 0; }; tr() { return 0; }; head() { return 0; }
     tail() { return 0; }; wc() { return 0; }; paste() { return 0; }; sort() { return 0; }; uniq() { return 0; }
     python() { return 0; }; py() { return 0; }
+    # TB_COLLECT_STUBS=2: awk and cat too (a suite whose checks are awk calls between its runs: the flat suites).
+    # Equally safe: a run whose arguments an awk or cat built comes out different and is played alone in the replay.
+    [ "$TB_COLLECT_STUBS" = 2 ] && { awk() { return 0; }; cat() { return 0; }; }
 }
 
 tb_main()
@@ -50,7 +53,7 @@ tb_main()
     : > "$TB_DIR/index"
     : > "$TB_DIR/used"
     local t0=$SECONDS
-    (TB_PASS=collect; [ "$TB_COLLECT_STUBS" = 1 ] && tb_collect_stubs; "$fn" "$@") > /dev/null 2>&1
+    (TB_PASS=collect; [ -n "$TB_COLLECT_STUBS" ] && [ "$TB_COLLECT_STUBS" != 0 ] && tb_collect_stubs; "$fn" "$@") > /dev/null 2>&1
     local t1=$SECONDS
     bash "$TB_HERE/run_batch.sh" "$TB_AGENT" "$TB_DIR"
     [ -n "$TB_STATS" ] && { cat "$TB_DIR/stats.json"; echo " collect $((t1 - t0)) s, batch $((SECONDS - t1)) s"; } >&2

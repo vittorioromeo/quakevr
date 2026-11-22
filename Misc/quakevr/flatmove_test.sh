@@ -19,12 +19,18 @@
 #           at 45 or more over his feet, the standing box). The view's rise is capped by the box the server gives him.
 AGENT=${1:-fixgame3}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 source "$(dirname "$0")/qvrtest.sh"
+# (its runs played as batches: many cases a game, copies in parallel; TESTING.md "Batched test cases")
+source "$(dirname "$0")/testbatch/testbatch.sh"
+# (the batch at run.sh's own clock: vr_fixed_frames_rate 72, a tick a frame, as each run alone; and the collect
+# pass without its awk/grep checks)
+export TB_RATE=${TB_RATE-72} TB_COLLECT_STUBS=${TB_COLLECT_STUBS-2}
 S=$TREE/scratch; mkdir -p "$S"
 Q='^flatmove: (speed|swim|out|room|timed out)'
 run() { local tag=$1 flat=$2 script=$3; local a=(); [ "$flat" = flat ] && a=(-ExtraArgs "-flatscreenmode")
-        bash $KIT/run.sh $AGENT "${a[@]}" -QuitOn "$Q" -Timeout 120 -Filter "^flatmove" -Script "$script; wait600; toggleconsole; quit" > "$S/fm_$tag.log" 2>&1; }
+        tb_run_sh "${a[@]}" -QuitOn "$Q" -Timeout 120 -Filter "^flatmove" -Script "$script; wait600; toggleconsole; quit" > "$S/fm_$tag.log" 2>&1; }
 val() { grep -a "^flatmove: $2" "$S/fm_$1.log" | head -1 | sed "s/.*$2 \([-0-9.]*\).*/\1/"; }
 
+tb_body() {
 # 1. crouch speed
 P="map start; wait60; god; notarget; cl_alwaysrun 1; vr_stamina_speed 0; wait10"
 run fstand flat "$P; +forward; vr_flatmove_test 1"
@@ -73,4 +79,7 @@ check $(awk -v e="$gap_e" -v c="$gap_c" -v b="$gap_b" 'BEGIN{exit !(e!="" && e<=
 check $(awk -v e="$walkout_e" -v b="$walkout_b" 'BEGIN{exit !(e!="" && e>=45 && b==0)}' && echo 1 || echo 0) \
     "rise: walked out of the tunnel, he stands up again (eyes $walkout_e, crouched $walkout_b)"
 
-verdict; exit $fail
+verdict
+}
+tb_main "$AGENT" tb_body
+exit $fail

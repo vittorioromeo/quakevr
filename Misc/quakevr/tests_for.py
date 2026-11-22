@@ -45,6 +45,13 @@ RULES = {
     "Quake/vr/vr_fields.inc": "build + a smoke run (edict fields: every mode)",
     "Quake/vr/vr_protocol.hpp": "mp_test.py --only mp_version,mp_coop,mp_bandwidth (the wire format) + changelevel_signon",
     "Misc/quakevr/test_baseline.cfg": "a smoke run; every test reads it (the targeted ones of what the setting changes)",
+    # The batch harness (TESTING.md "Batched test cases"): its self-test, then one batched suite both ways.
+    "Quake/vr/vr_testbatch.cpp": "bash Misc/quakevr/testbatch/selftest.sh <agent>; a batched suite both ways "
+                                 "(TB_SLOW=1 and batched: flatladder_test.sh, flatmove_test.sh)",
+    "Misc/quakevr/testbatch/testbatch.py": "bash Misc/quakevr/testbatch/selftest.sh <agent>; a batched suite both ways "
+                                           "(TB_SLOW=1 and batched: flatladder_test.sh, flatitems_test.sh)",
+    "Misc/quakevr/testbatch/testbatch.sh": "bash Misc/quakevr/testbatch/selftest.sh <agent>; a batched suite both ways",
+    "Misc/quakevr/testbatch/run_batch.sh": "bash Misc/quakevr/testbatch/selftest.sh <agent>; a batched suite both ways",
 }
 
 
@@ -101,7 +108,10 @@ for dp, dn, fn in os.walk(MQ):
             p = os.path.join(dp, f)
             r = rel_of(p)
             run = {"sh": "bash ", "py": "python ", "ps1": "powershell -File "}[f.rsplit(".", 1)[1]] + r
-            tests[r] = (read(p) + read(re.sub(r"_test\.(sh|py|ps1)$", "_check.py", p)), run)
+            body = read(p)
+            if re.search(r"testbatch[./]|tb_main|two_pass\(", body):
+                run += "  (batched; TB_SLOW=1: a game a run, as before)"
+            tests[r] = (body + read(re.sub(r"_test\.(sh|py|ps1)$", "_check.py", p)), run)
 mp = read(MQ + "/mp/mp_test.py")
 defs = list(re.finditer(r"^def (\w+)\(", mp, re.M))
 suite = set(re.findall(r'\("(mp_\w+)"', mp[mp.find("\nSUITE = ["):][:8000]))
@@ -151,6 +161,9 @@ for (cvar, qf), ranges in claims.items():
     if qf in qc_text:
         nums = span_text(ranges)
         r = runners(cvar, ranges)
+        if cvar == "vr_agrunt_test":  # (every number: the kit's baseline, its agrunt group played as one batch)
+            r = ["python <kit>/scratch/refactor/run_baseline.py <agent> --groups agrunt --only '^agrunt_(N|M)$' "
+                 "(batched)"] + r[:2]
         how = "%s %s (%s): %s" % (cvar, nums if len(nums) < 40 else nums[:37] + "...", qf, "; ".join(r) if r else
                                   "no script: run.sh <agent> -Script \"map <its map>;%s N\" -QuitOn <its verdict>" % cvar)
         tests["numbered %s (%s)" % (cvar, qf)] = (qc_text[qf], how)

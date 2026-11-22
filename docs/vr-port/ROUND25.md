@@ -9482,6 +9482,50 @@ His standing rule restated: our C++ uses Zancle wherever it has an equivalent an
   builtins, so not this branch's; not chased); phase 2: smoke e1m1, mp_test ragsync 11/0, active_test no fail,
   NaN or crash line.
 
+## testbatch2: -QuitOn batched, the six biggest flat suites batched, run.sh -NoDraw (agent/testbatch2, 2026-11-22)
+
+testaudit #3 and #7 (kit `F:\QVR-Parked\2026-11-22\testspeed\kit\testaudit_report.md`); TESTING.md "Batching a suite,
+-QuitOn and -NoDraw".
+
+- **-QuitOn in a batch** (it made every such run a game of its own, and the flat suites and the agrunt cases all use it):
+  `vr_test_quiton "<regex>"` (engine, vr_testbatch.cpp: a small backtracking regex, .NET's subset the tests use,
+  case-insensitive; else plain text) armed at the case's start, the case's closing `waitN` -> `vr_waitquiton N`, which
+  holds the commands after it aside (Cbuf_PendingText/Cbuf_DropPending, cmd.c) and puts them back at the server tick
+  after the match (VR_TestTick, host.c). A first version looped like `wait`: what QC queued meanwhile (localcmd) sat
+  behind the batch, and flatitems' cases (scripts with no closing wait) all timed out. `-Low` and `-NoDraw` batch too.
+  `Misc/quakevr/testbatch/selftest.sh`: 5/5. `TB_COLLECT_STUBS=2` also stubs awk and cat in the collect pass.
+- **The clock:** runs alone play fast mode at `vr_fixed_frames_rate` 72; the batches' default is still 250. The
+  converted suites set `TB_RATE=72` (at 250 flatitems' QC tests timed out too). flatplay plays a game a case
+  (`TB_ISOLATE=1`): its pose case's `tune vr_flat_gun_near 999` read 24 (not the 60 clamp) after an earlier case's
+  `tune_reset` in the same game: open (a tunables reset/restore interaction).
+- **Six flat suites converted** (body into `tb_body`, `tb_run_sh`), each run once alone (`TB_SLOW=1`) and batched, check by
+  check the same (the failing checks fail both ways: flatmove 3 (crouch x2, swim up), flatslide 1, flatpose 1):
+
+  | suite | checks | alone s | batched s |
+  |---|---|---|---|
+  | flatslide | 26 | 395 | 138 |
+  | flatplay | 31 | 257 | 136 (isolated) |
+  | flatpose | 22 | 229 | 140 |
+  | flatitems | 15 | 99 | 80 |
+  | flatmove | 10 | 84 | 65 |
+  | flatladder | 12 | 27 | 21 |
+  | total | 116 | 1,091 | 580 |
+
+  Under load (other agents' runs; batch copies at below-normal priority). A single run costs 4-13 s held since the
+  spawn-free run.sh, so small suites gain little; the two passes over a body cost 10-70 s of shell (flatpose's replay
+  69 s: its awk/grep checks), which is now most of a batched flat suite's time.
+- **Agrunt group** (kit `scratch/refactor/run_baseline.py`, not in the repo; the old one beside it as
+  `old_run_baseline_pre_testbatch2.py`): the ~225 `vr_agrunt_test N` cases as one testbatch task (`agrunt_batch`, the
+  "batch" lane key, TB_RATE 72, a row each as console_case gives it); `--no-agrunt-batch`: one game a case as before.
+  Not yet proven both ways (out of budget): run `run_baseline.py <agent> --groups agrunt --no-agrunt-batch` and
+  `--groups agrunt` and compare results.tsv before relying on it.
+- **-NoDraw** (kit run.ps1, passed through run.sh; per case in a batch): `vr_mock_fast 2`. Must stay drawn: flatplay,
+  flatpose (`r_norefresh 0`, the drawn eye and ray), flatslide's sights and pose cases. Candidates (QC-measured, no
+  drawn reads): flatmove, flatitems, flatladder, flatslide's other cases: not yet proven both ways, so not turned on.
+- Open: `vr_waitquiton` holds for a closing `waitN` too; a lone run's QC localcmd during that wait queued behind it.
+  The verdicts matched (flatitems, flatplay, flatladder rerun with the hold; flatmove, flatslide, flatpose proven with
+  the loop), but the faithful form is the loop for a closing waitN and the hold only with no closing quit
+  (a `vr_waitquiton N wait` mode). reload_test.sh's one -QuitOn case (`reload magnails lying:`) now batches: not rerun.
 ## dwellweap2: the Crystal Lance's cord, sliding weapon hand, thrust, B flip (agent/dwellweap2, 2026-11-22)
 
 dwellweap's leftovers (POLEWEAPONS.md "Built in dwellweap2" has the detail). Not built: the Rotary Shotgun model list
