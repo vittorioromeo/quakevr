@@ -282,6 +282,7 @@ void() func_togglewall =
    setorigin(self, self.origin);
    self.touch = blocker_touch;
    self.use = blocker_use;
+   self.vr_monster_avoid = self.dmg > 0; // QVR: monsters keep off a hurting one (the engine's SV_movestep; defs.qc)
    if(!self.noise)
       {
       self.noise = ("misc/null.wav");
