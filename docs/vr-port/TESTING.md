@@ -312,6 +312,15 @@ too (the old 14k-line one cost 2.7-4 s of config exec per game start) and an edi
 those, `--profile all` everything (releases, nightly); `--only a,b` runs the named scenarios whatever the profile. The
 harness's games start with `-nostartmap` (no vrstart hub before their `connect` or `map`: about 6 s a game).
 
+### Which tests to run (2026-11-22)
+
+`python Misc/quakevr/tests_for.py [files...]` (no files: what the branch changed against origin/next, uncommitted
+included) prints, for each file, a fixed rule (tables, headers, generated files) or its best few tests with the command
+that runs each: test scripts, `mp_test.py suite --only` scenarios, engine test commands, and the numbered in-engine
+tests (`test_numbers.txt`) by the scripts that run their numbers. It ranks by the commands, cvars and (QC) functions a
+file shares with each test, the rarest counting most (`--why` shows them). It's where to start, not proof of coverage:
+add what you know it misses, and a smoke run.
+
 ## The spawn census: "no behaviour change" in one command (2026-11-19)
 
 `bash Misc/quakevr/spawn_census.sh <label> [coop]` loads all 168 maps of id1, Hipnotic, Rogue, Dopa, MG1, MG3 and AD
