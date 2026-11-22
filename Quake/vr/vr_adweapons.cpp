@@ -1539,11 +1539,138 @@ void rotaryParts(Parts& p)
     dwBarrels(p);
 }
 
-// The Rotary Shotgun as a gauntlet (dwellwpn3): the same window on its back (x -2.6 at k 1, y -5.55..7.36, z -5.5..5.46;
-// the barrels' axis at y 0, z 0), the steps of the super nailgun's corner (Y 0.059, Z 0.055: 2x9 by 19 for the same
-// 1.06 x 1.04), so vr_screenstyle.cpp takes its entry whole (an alias).
-constexpr Housing rotaryGauntletHousingSpec{{0.f, 0.f}, -1, -2.71f, 9, 19, 4, 2, 1, 2, 11.f, 1.5f, 0.75f, 0.04f,
-    {192.f, 150.f}, 8.f, {8.f, 188.f}, -1.f, 0.f, 0.f, 0.f};
+// A box in the frame (origin; u, v, n), from lo to hi along them: every face `r`'s texels, its corners on the rect's.
+void frameBox(Out& o, const glm::vec3& origin, const glm::vec3& u, const glm::vec3& v, const glm::vec3& n, const glm::vec3& lo,
+    const glm::vec3& hi, const Rect& r)
+{
+    const glm::vec3 ax[3] = {u, v, n};
+    const auto at = [&](const glm::vec3& f) { return origin + u * f.x + v * f.y + n * f.z; };
+    for(int k = 0; k < 3; k++)
+    {
+        for(int side = 0; side < 2; side++)
+        {
+            const int a = (k + 1) % 3, b = (k + 2) % 3;
+            glm::vec3 f = lo;
+            f[k] = side ? hi[k] : lo[k];
+            const int g = o.newGroup();
+            int vv[4];
+            for(int c = 0; c < 4; c++)
+            {
+                glm::vec3 q = f;
+                q[a] = (c == 1 || c == 2) ? hi[a] : lo[a];
+                q[b] = c >= 2 ? hi[b] : lo[b];
+                const glm::ivec2 st = texelOf(r, (c == 1 || c == 2) ? 1.f : 0.f, c >= 2 ? 1.f : 0.f);
+                vv[c] = o.vert(at(q), st.x, st.y, g);
+            }
+            const glm::vec3 outward = ax[k] * (side ? 1.f : -1.f);
+            face(o, vv[0], vv[1], vv[2], outward);
+            face(o, vv[0], vv[2], vv[3], outward);
+        }
+    }
+}
+
+// The Rotary Shotgun as a gauntlet: its housing's outer size (Dwell's octagon, as wide as tall about the barrels' axis:
+// y 0, z 0) at x: 5.46 out to x -1.83 (its back plate), narrowing to 4.53 at 7.25 (its front collar's); and its housing
+// texels' s there (Dwell's housing column: 254 at the back plate, 198 at the collar).
+[[nodiscard]] float rotaryHousingSize(float x)
+{
+    return x <= -1.83f ? 5.46f : 5.46f - (za::min(x, 7.25f) + 1.83f) * (0.93f / 9.08f);
+}
+[[nodiscard]] float rotaryHousingS(float x)
+{
+    return 254.f - (za::clamp(x, -2.6f, 7.85f) + 2.6f) * (68.f / 10.45f);
+}
+
+// Its ammo screen (dwellrotary item 6; his notes 2026-11-22: "on its top with a bit of a wedge like we did for the super
+// nailgun"): the super nailgun's wedge (make_screen_housing_nail2.py; vr_screenstyle.cpp "nail2") on the housing's top
+// at its back end, in window heights h (the window 46.04 x 28.56 font pixels as the super nailgun's, at weapons.txt
+// slot 56's wpntxt_scale 0.3: h 2.013, a font pixel 0.0705): its rear face rises at 19 degrees (the super nailgun's:
+// weapons.txt's wpntxt_pitch 70.5 tilts the glass with it, facing up to the eye) from the housing's back top edge (x
+// -2.6, z 5.46), 0.08h below the bezel and 0.1h above it to a peak; its front slope down onto the housing's top at x 3;
+// its sides upright 2.05 out (inside the top's edges, 2.26 out at the back); its bottom 0.3 under the top (in it). In the
+// sloped face the bezel 1.8h x 1.2h standing 0.1h proud (a 0.1h frame of Dwell's brown housing plate round the window),
+// the window's floor near black, a bolt head at each corner; the glass 0.05h behind the bezel's front, its middle at
+// (-1.371 0 6.096: weapons.txt slot 56's wpntxt_av with vr_screenstyle.cpp's "nail2" offset taken out).
+constexpr float rotaryH = 2.013f;
+constexpr float rotarySlope = 19.f;
+
+void rotaryScreenWedge(Parts& p)
+{
+    Out& o = p.o;
+    const float sn = za::sin(glm::radians(rotarySlope)), cn = za::cos(glm::radians(rotarySlope));
+    const glm::vec3 up{cn, 0.f, sn}, out{-sn, 0.f, cn}, across{0.f, 1.f, 0.f};
+    const glm::vec3 back{-2.6f, 0.f, 5.46f};
+    const float h = rotaryH, low = 0.08f * h, bezelV = 1.2f * h, peakV = low + bezelV + 0.1f * h;
+    const glm::vec3 peak = back + up * peakV;
+    constexpr float frontX = 3.f, halfY = 2.05f, under = 0.3f;
+    const auto topZ = [](float x) { return rotaryHousingSize(x); };
+    // The wedge's side profile (x z), round it: its back's foot, the back top edge, the peak, the front's top and foot.
+    const glm::vec2 prof[5] = {{back.x, topZ(back.x) - under}, {back.x, back.z}, {peak.x, peak.z}, {frontX, topZ(frontX)},
+        {frontX, topZ(frontX) - under}};
+    glm::vec2 pc{0.f};
+    float zLo = 1e30f, zHi = -1e30f;
+    for(const glm::vec2& q : prof)
+    {
+        pc += q * 0.2f;
+        zLo = za::min(zLo, q.y);
+        zHi = za::max(zHi, q.y);
+    }
+    // Its faces in Dwell's housing texels: the slopes and bottom on the top's band (t 197..219 across), the sides on
+    // the outer side's (t 138..161 up).
+    for(int i = 0; i < 5; i++)
+    {
+        const glm::vec2 a = prof[i], b = prof[(i + 1) % 5];
+        const int g = o.newGroup();
+        const int v0 = o.vert({a.x, -halfY, a.y}, texel(rotaryHousingS(a.x)), 197, g);
+        const int v1 = o.vert({b.x, -halfY, b.y}, texel(rotaryHousingS(b.x)), 197, g);
+        const int v2 = o.vert({b.x, halfY, b.y}, texel(rotaryHousingS(b.x)), 219, g);
+        const int v3 = o.vert({a.x, halfY, a.y}, texel(rotaryHousingS(a.x)), 219, g);
+        const glm::vec2 m = (a + b) * 0.5f - pc;
+        face(o, v0, v1, v2, glm::vec3{m.x, 0.f, m.y});
+        face(o, v0, v2, v3, glm::vec3{m.x, 0.f, m.y});
+    }
+    for(const float sy : {-1.f, 1.f})
+    {
+        const int g = o.newGroup();
+        const auto t = [&](float z) { return texel(161.f - (z - zLo) / (zHi - zLo) * 23.f); };
+        const int c = o.vert({pc.x, sy * halfY, pc.y}, texel(rotaryHousingS(pc.x)), t(pc.y), g);
+        int ring[5];
+        for(int i = 0; i < 5; i++)
+        {
+            ring[i] = o.vert({prof[i].x, sy * halfY, prof[i].y}, texel(rotaryHousingS(prof[i].x)), t(prof[i].y), g);
+        }
+        for(int i = 0; i < 5; i++)
+        {
+            face(o, c, ring[i], ring[(i + 1) % 5], glm::vec3{0.f, sy, 0.f});
+        }
+    }
+    // The bezel (a frame of four bars), the window's floor and the bolts, in the sloped face's frame: u across, v up the
+    // slope, n out of it; its origin the window's middle on the face.
+    const glm::vec3 origin = back + up * (low + 0.5f * bezelV);
+    const float U = 0.9f * h, V = 0.6f * h, wu = 0.8f * h, wv = 0.5f * h, proud = 0.1f * h;
+    const float bs = static_cast<float>(p.boreS), bt = static_cast<float>(p.boreT);
+    const Rect plate{184.f, 142.f, 200.f, 158.f, false}; // (Dwell's brown housing plate)
+    const Rect black{bs, bt, bs, bt, false};
+    const Rect bolt{6.f, 186.f, 10.f, 190.f, false}; // (Dwell's bolt head)
+    frameBox(o, origin, across, up, out, {wu, -V, -0.1f}, {U, V, proud}, plate);
+    frameBox(o, origin, across, up, out, {-U, -V, -0.1f}, {-wu, V, proud}, plate);
+    frameBox(o, origin, across, up, out, {-wu, wv, -0.1f}, {wu, V, proud}, plate);
+    frameBox(o, origin, across, up, out, {-wu, -V, -0.1f}, {wu, -wv, proud}, plate);
+    frameBox(o, origin, across, up, out, {-wu, -wv, -0.1f}, {wu, wv, 0.02f}, black);
+    const float boltR = 0.07f * h, boltU = 0.5f * (U + wu), boltV = 0.5f * (V + wv);
+    for(const float su : {-1.f, 1.f})
+    {
+        for(const float sv : {-1.f, 1.f})
+        {
+            frameBox(o, origin, across, up, out, {su * boltU - boltR, sv * boltV - boltR, proud - 0.02f},
+                {su * boltU + boltR, sv * boltV + boltR, proud + 0.06f * h}, bolt);
+        }
+    }
+    p.housing = true;
+    p.housingGlass = origin + out * (proud - 0.05f * h);
+    p.housingWindow = {2.f * wu, 2.f * wv};
+    p.housingOnFace = 4;
+}
 
 // Its shell port (his notes 2026-11-21: "I cannot find a way to reload the rotary shotgun"): a block on the housing's
 // inner side (+y: towards the body held in the right hand, mirrored in the left; the side slopes out from y 6.3 at x 8.2
@@ -1551,7 +1678,7 @@ constexpr Housing rotaryGauntletHousingSpec{{0.f, 0.f}, -1, -2.71f, 9, 19, 4, 2,
 // (widowmakerParts). vr_view_internal.hpp loadPorts (DwVrRotary): the opening's middle (5 7.25 0).
 void rotaryGauntletParts(Parts& p)
 {
-    housing(p, rotaryGauntletHousingSpec);
+    rotaryScreenWedge(p);
     dwBarrels(p);
     Out& o = p.o;
     const float cs = static_cast<float>(p.capS), ct = static_cast<float>(p.capT);

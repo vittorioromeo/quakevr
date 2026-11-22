@@ -5177,7 +5177,8 @@ weapon 56
     // model as it loads (vr_adweapons.cpp recipes), laid round the super nailgun's hand inside the super nailgun's
     // corner: so its hold is the super nailgun's (slot 4: hand, offsets, scale, two-handed hold and hotspots, holsters,
     // sights), copied as its own; its muzzle (muzzle_av) the barrels' middle at their front; its ammo screen (wpntxt_av)
-    // the window on its back as made; its weight and kick the Rotary's (slot 52). A first fit: his values become these.
+    // the window in the wedge on its top as made (dwellrotary: the super nailgun's, its pitch); its weight and kick the
+    // Rotary's (slot 52). A first fit: his values become these.
     2h_fxd_hp "0.0"
     2h_fxd_hr "21.600008"
     2h_fxd_hy "0"
@@ -5213,14 +5214,14 @@ weapon 56
     wpnbtn_yaw "0.0"
     wpnbtn_z "0.0"
     wpnbtnmode "0.0"
-    wpntxt_av "-2.8879 0.0105 -0.0183"
-    wpntxt_pitch "0.0"
+    wpntxt_av "-1.430 0.0599 6.241"
+    wpntxt_pitch "70.5"
     wpntxt_roll "0.0"
-    wpntxt_scale "0.25"
-    wpntxt_x "0"
+    wpntxt_scale "0.3"
+    wpntxt_x "-0.022"
     wpntxt_y "0"
     wpntxt_yaw "0.0"
-    wpntxt_z "0"
+    wpntxt_z "0.063"
     wpntxtmode "1"
     x "1.3"
     y "4.8"
