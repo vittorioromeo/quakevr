@@ -8213,3 +8213,36 @@ ROPES.md "Multiplayer", "Tests", "Known limits".
   12.5-16.7 (0.4 apart at most), swinging ankles 9.8-13.2 (bound 18; were 13.9-21.7, 3 of 9 over), wrists 2-4.
   rope_climb_test 8+6+6, rope_flat_test 6/0, rope_hands_test 6/0 unchanged. ThinLTO 0 warnings; the MP suite in four
   chunks (ThinLTO build): every scenario passed.
+
+## vrnotes1122a: MP bots from his DM voice notes (agent/vrnotes1122a, 2026-11-22)
+
+His notes dm3_2026-11-22_16-15-02, 16-17-59, 16-18-21.
+- **Revolver bot never shoots:** bot logic, not the revolver. A bot never reloads (VRIsWeaponReloadingEnabledFor: humans
+  only), so its guns fire from its ammo, never a clip; bot_can_fire counted the held gun's clip. A revolver it took
+  loaded (his, by a disarm: "Hal takes your weapon!" 3 s before 16-15-02) with no shells of its own was picked, then
+  clicked or was dropped for the axe. Fix: `bot_clips_to_ammo` (frikbot/bot_fight.qc, each AI frame from bot_ai.qc): a
+  gun in its hands puts its clip's rounds with its ammo; bot_can_fire counts the ammo only. `vr_dm_test 14` now counts
+  slugs (shells spent), not trigger pulls (attack_finished also moves on a dry cock): its own revolver 3 slugs; a taken
+  loaded revolver in its main hand, no shells: 0 slugs in 10 s before, 3 in 4.2 s after; in its off hand beside its
+  shotgun: 3. New `mp_test.py botrevolver` (in the suite): dedicated DM, A adds a bot, the server runs test 14: 5/0.
+- **Bot holsters' orientation:** solveBotGear put the hips beside the hip joints facing straight out, the very side the
+  holster frame takes as its outwards: holsterFrame normalised a zero vector, so the hip guns' frames were NaN (drawn
+  anywhere). Now (vr_mpavatar.cpp): the trunk's yaw from the drawn shoulders (`trunkYaw`), the hips and uppers on the
+  front of its belly and chest rings (round 45 and 35 degrees) facing the ring's surface there
+  (`body::frontRingPlate`, sharing `ringPlate` with your own plateOnTheRing), the frame as yours (plate out and up;
+  shoulders down the back), and the standing holster turns yours take (`holsterTurnStanding`: tuning constants, not a
+  player's settings). `view::holsterOnOther` takes the plate's up.
+- **vr_mp_gearcheck** adds per copy: `finite` (every piece's place and angles), `tilt` (worst sheath up vs the trunk's,
+  at most 70), `facing` (worst sheath out vs straight out of the trunk, at most 60), `hang` (gun to its sheath, at most
+  0.25 m), `turned`; ok needs them. `mp_test.py botgear` checks them for each copy and that the bot's tilt and facing
+  are within 20 degrees of player B's (whose client drew his own): bot 63.6 / 41.0, B 50.0 / 27.9; 14/0.
+  `MP_BOTGEAR_SHOTS=1` saves A's view of the bot (low-res here: his game was running).
+- **Dropped weapons in DM:** `VR_WPN_DM_LIFETIME` 20 s (vr_wpnholster.qc; was 10, doubled as asked; a backpack lies
+  120 and vr_dmloose.qc's cap holds their number). Every thrown or dropped weapon in deathmatch (players' too).
+  vr_dm_test 1: 22/0.
+- **Not done (budget): the dead body's look synced to the live player** (plates gained after his respawn). Cause:
+  vr_mpavatar.cpp setupBody reads `agarmor::clientState(e)` with e the owner for a doll slot too. Planned fix: QC
+  VR_DeathDoll_Make copies `.vr_pp_type/.vr_pp_mask` to the body; vr_agarmor.cpp stateOf serves those fields for a
+  non-player edict that has them (never .vr_ar_*: combat reads those); setupBody reads the doll entity's state
+  (`d.doll` set before setup in addDolls/addEntities); an mp test (B armoured, killed, respawned with other armour:
+  A's mp_doll plates unchanged). The calibration look (calOf(owner)) is live too, but rarely changes.
