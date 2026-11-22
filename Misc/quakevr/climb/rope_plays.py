@@ -105,9 +105,26 @@ def jump():
     return p
 
 
+def pump():
+    # up, both hands, the forward key held 6 s: the swing pumped (pushed only while it swings forward) to the cap
+    p = Play()
+    up_two(p)
+    p.rope(3.6, "main", 1.75)
+    p.cmd(3.7, "+grabmain")
+    p.check(3.9, "held 2")
+    p.check(3.9, "mark")
+    p.cmd(3.9, "+forward")
+    p.check(9.9, "swing 250")
+    p.cmd(9.9, "-forward")
+    p.check(9.95, "held 2")
+    p.check(10.0, "done")
+    return p
+
+
 if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else "."
     os.makedirs(out, exist_ok=True)
     climb().write(os.path.join(out, "rope_climb.txt"))
     jump().write(os.path.join(out, "rope_jump.txt"))
+    pump().write(os.path.join(out, "rope_pump.txt"))
     print("rope plays written to", out)

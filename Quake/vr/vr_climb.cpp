@@ -217,6 +217,7 @@ constexpr float mantleTime = 0.3f;    // seconds the mantle takes
 constexpr float flingMax = 200.f;     // units / second the release flings at most,
 constexpr float flingMaxUp = 150.f;   // and upwards
 constexpr float ropeLetGoMax = 1000.f; // units / second letting go of a rope keeps at most (its swing, the fling, a jump)
+constexpr float pumpFullMove = 400.f;  // the move (forwardmove, sidemove) that pumps a rope's swing fully
 constexpr float statScale = 8.f;      // hold coordinates in the stats: eighths of a unit
 constexpr float reachFavour = 0.3f;   // a hold the hand moves (or reaches) towards counts as this much nearer
 constexpr float movingHand = 0.3f;    // m/s: a hand this fast reaches the way it moves (slower: from the head)
@@ -1978,10 +1979,20 @@ void reportRopes(edict_t* ent, const Climber& c)
         hi = !hi || g.ropeS < hi->ropeS ? &g : hi;
         lo = !lo || g.ropeS > lo->ropeS ? &g : lo;
     }
-    if(hi && !other && c.hanging())
+    const int client = NUM_FOR_EDICT(ent) - 1;
+    if(hi && !other && c.hanging() &&
+        climbrope::ride(client, hi->entNum, hi->ropeS, hi->ropeD, lo->ropeS, lo->ropeD,
+            glm::length(hi->grabVel) >= glm::length(lo->grabVel) ? hi->grabVel : lo->grabVel))
     {
-        (void)climbrope::ride(NUM_FOR_EDICT(ent) - 1, hi->entNum, hi->ropeS, hi->ropeD, lo->ropeS, lo->ropeD,
-            glm::length(hi->grabVel) >= glm::length(lo->grabVel) ? hi->grabVel : lo->grabVel);
+        // Pumping the swing (P3; the stick or WASD, as the walk's: its way from the view's yaw): vr_rope_pump units/s/s
+        // its way, full at the walk's full speed (pumpFullMove), up to vr_rope_swing_cap (climbrope's layRider).
+        const usercmd_t& cmd = svs.clients[client].cmd;
+        const float yaw = glm::radians(ent->v.v_angle[1]);
+        const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f}, right{za::sin(yaw), -za::cos(yaw), 0.f};
+        glm::vec3 push = fwd * cmd.forwardmove + right * cmd.sidemove;
+        const float len = glm::length(push);
+        push = len > 1.f ? push / len * (za::min(len / pumpFullMove, 1.f) * za::max(vr_rope_pump.value, 0.f)) : glm::vec3{0.f};
+        climbrope::setPump(client, push);
     }
 }
 

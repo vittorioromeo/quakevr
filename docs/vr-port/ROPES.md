@@ -7,7 +7,7 @@ every client. His spec of 2026-11-21 (ROUND25.md, "ropes"); built in phases:
 |---|---|---|
 | P1 | The physical rope and chain: map entities, the toolgun's (with its settings page), disturbance, MP sync, the test map | done |
 | P2 | VR: grab with either hand, hand over hand up and down, the legs' IK round the rope, letting go keeps the momentum | done |
-| P3 | Flat-screen auto-climb (as the flat ladders), pumping the swing (both modes, to a cap: rope to rope), the climber's pose in MP | to do |
+| P3 | Flat-screen auto-climb (as the flat ladders), pumping the swing (both modes, to a cap: rope to rope), the climber's pose in MP | pumping done; the rest to do |
 
 ## What it is
 
@@ -78,6 +78,9 @@ grip, pulled down), down (a lower grip, pushed up); stamina drains as on any hol
   hold, shared with the rope's by their weights); explosions and shots that reach the pieces he hangs on push his swing
   too (shared with his 80 kg). A body that can't follow the swing (a wall) stops it that way. The swing dies down at
   `vr_rope_swing_drag` (0.15) a second. A pinned rope (both ends held) doesn't swing: it is climbed as a fixed line.
+- **Pumping the swing** (P3, VR and flat alike): the stick or WASD while riding a rope pushes the swing its way (the
+  view's yaw), `vr_rope_pump` (300) units/s/s at full move, only while it swings that way (not back: held, each swing
+  out builds on the last, as a swing pumped), up to `vr_rope_swing_cap` (350) units/s at the hands: rope to rope.
 - **Letting go** of everything keeps the rope's speed at the hands, plus the hands' fling (`vr_climb_fling`); up to 1000
   units/s. **A jump** (the jump button) while holding one lets go and adds `vr_rope_jump` (200) up.
 - **The legs:** the feet go round the rope under the hands (the left instep 0.75 of the leg under its hip, the right a
@@ -107,7 +110,9 @@ draws from the same message, through the loopback: one path.
   not spread over its pieces; his weight 80 kg (`vr_box3d_player_mass`); the swing's drag 0.15/s; a jump off adds 200
   up; letting go keeps at most 1000 units/s; one rider a rope; a pinned rope doesn't swing; no mantle from a rope; the
   grab's reach is the ledges' (touch + 4 cm + leniency).
-- Not yet (P3): climbing at the ladders' speed (flat); the swing cap from a cvar.
+- P3 (part): the pump pushes only while the swing goes its way, 300 units/s/s to a cap of 350 units/s at the hands.
+- Not yet (P3): the flat auto-climb (at the ladders' speed), the rope-to-rope swing test, the climber's pose checked in
+  MP.
 
 ## Files
 

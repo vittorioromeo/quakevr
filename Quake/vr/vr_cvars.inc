@@ -3703,7 +3703,9 @@ QVR_CVAR(vr_rope_hands, "1", CVAR_ARCHIVE | QVR_RULE)            // the players'
 QVR_CVAR(vr_rope_debug, "0", CVAR_NONE)                         // climbable ropes: print each rope as it is made
 QVR_CVAR(vr_rope_climb, "1", CVAR_ARCHIVE | QVR_RULE)            // the climbable ropes can be held and climbed (a grip at the rope, either hand; ROPES.md "Climbing"); 0: only pushed
 QVR_CVAR(vr_rope_swing_drag, "0.15", CVAR_ARCHIVE | QVR_RULE)    // per second, of a climber's swing on a rope lost to the air (the rope's own damping is its rope_damping)
-QVR_CVAR(vr_rope_jump, "200", CVAR_ARCHIVE | QVR_RULE)           // units/s up a jump off a rope adds to the rope's swing at the hands (jump while holding one); 0: a jump lets go only
+QVR_CVAR(vr_rope_pump, "300", CVAR_ARCHIVE | QVR_RULE)           // units/s/s the stick (or WASD) pushes a climber's swing on a rope its way (pumping it, rope to rope); 0: none
+QVR_CVAR(vr_rope_swing_cap, "350", CVAR_ARCHIVE | QVR_RULE)      // units/s at the hands the pump builds a rope's swing to at most (a push, a jump onto it, can swing it faster)
+QVR_CVAR(vr_rope_jump, "200", CVAR_ARCHIVE | QVR_RULE)          // units/s up a jump off a rope adds to the rope's swing at the hands (jump while holding one); 0: a jump lets go only
 QVR_CVAR(vr_rope_spawn_length, "256", CVAR_ARCHIVE | QVR_OWN)    // the toolgun's ropes (Spawn > Props > Ropes > Rope Settings): length (units)
 QVR_CVAR(vr_rope_spawn_thickness, "1.5", CVAR_ARCHIVE | QVR_OWN) // ... thickness (units across)
 QVR_CVAR(vr_rope_spawn_segments, "0", CVAR_ARCHIVE | QVR_OWN)    // ... pieces (0: one every 16 units)

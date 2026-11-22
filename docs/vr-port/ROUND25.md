@@ -7611,4 +7611,8 @@ Climbable Ropes: Hang a Rope / a Chain Ahead.
 - **Decisions (conservative, his to change):** one bob, not his weight spread over the pieces; one rider a rope (a
   second climber follows its points); a pinned rope doesn't swing; a hand on a ledge too: no ride; remote clients'
   rope hangs run in the server's frame like a prop's holds (no move-by-move prediction); the hands drawn as on a ledge.
-- **Left (P3):** the flat auto-climb, the pumped swing to a cap, the rope-to-rope test, the climber's pose in MP.
+- **P3 begun: pumping the swing** (VR and flat: the move's forwardmove/sidemove on the view's yaw): `vr_rope_pump` 300
+  units/s/s, pushed only while the swing goes that way, to `vr_rope_swing_cap` 350 at the hands (`rope_pump` play).
+- **Left (P3):** the flat auto-climb (as the flat ladders, hands alternating), the rope-to-rope swing test, the
+  climber's pose checked in MP (the feet use the client's rope copy and the synced holds, so another's should wrap too:
+  unverified).

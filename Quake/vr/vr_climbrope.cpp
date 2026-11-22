@@ -475,8 +475,19 @@ void layRider(Rope& r, float h)
         {
             v *= maxRiderSpeed * h / glm::length(v);
         }
+        // The pump (P3): pushes his swing its way while it swings that way (not back: held, each swing out builds on the
+        // last, as a swing pumped), up to vr_rope_swing_cap at his hands.
+        glm::vec3 pump = rd.pump;
+        if(const float p = glm::length(pump); p > 1e-3f)
+        {
+            const float along = glm::dot(v / h, pump / p) * (rd.dLow / za::max(rd.radius, 1.f));
+            if(along < -1.f || along >= za::max(vr_rope_swing_cap.value, 0.f))
+            {
+                pump = glm::vec3{0.f};
+            }
+        }
         rd.bobPrev = rd.bob;
-        rd.bob += v + (glm::vec3{0.f, 0.f, -sv_gravity.value} + rd.pump) * (h * h);
+        rd.bob += v + (glm::vec3{0.f, 0.f, -sv_gravity.value} + pump) * (h * h);
         const glm::vec3 d = rd.bob - r.top;
         if(const float len = glm::length(d); len > rd.radius)
         {
@@ -1052,6 +1063,7 @@ struct ClimbTest
     char play[256]{};
     glm::vec3 mark{0.f};
     glm::vec3 handVel{0.f}; // the rope's velocity at the lowest hand, the last frame he rode it
+    float fastest{0.f};     // its fastest level speed since the last mark
 };
 ClimbTest climbTest;
 constexpr const char* climbTestName = "vr_rope_climb_test";
@@ -1116,6 +1128,7 @@ void climbTestFrame()
         if(player && climbrope::riding(NUM_FOR_EDICT(player) - 1, ent, v))
         {
             t.handVel = v;
+            t.fastest = za::max(t.fastest, glm::length(glm::vec2{v.x, v.y}));
         }
         return;
     }
@@ -1163,7 +1176,13 @@ void climbCheck_f()
     else if(!strcmp(what, "mark"))
     {
         t.mark = o;
+        t.fastest = 0.f;
         Con_Printf("%s: mark at %.1f %.1f %.1f\n", climbTestName, o.x, o.y, o.z);
+    }
+    else if(!strcmp(what, "swing"))
+    {
+        check(t.fastest >= n && t.fastest <= vr_rope_swing_cap.value + 25.f,
+            va("pumped the swing to %.0f units/s at the hands (at least %.0f, the cap %.0f)", t.fastest, n, vr_rope_swing_cap.value));
     }
     else if(!strcmp(what, "rose"))
     {
