@@ -9607,3 +9607,30 @@ recipe; nothing of Dwell's shipped). Items 1, 4, 5 on both Rotary models; 2, 3, 
   Release build 0 warnings and no-PCH build ok each phase; the std_uses allowlist refreshed (std:: 40, std headers 8;
   `qvr_checks std_uses` 95 uses counting the `*` files). Tests: smoke e1m1, vr_android_test 16/0,
   vr_voicechat_selftest 24/0, startuplog 3/0, mp_test coop 12/0; Android native build compiles.
+
+## flatgreen2: the rest of the suites failing on origin/next (agent/flatgreen2, 2026-11-23)
+
+Runs on origin/next 2de8233f1 (Release no-LTO, the shipped-defaults baseline). Most of it is the baseline's walk:
+`cl_alwaysrun` 0 is the shipped default (cl_input.c, his 2026-10-10 choice), the old full baseline ran.
+
+| suite | before | after | cause | fix |
+|---|---|---|---|---|
+| flatmove | 7/3 | 10/0 | test drift (6d47923de): the headset's crouch cases walked (200) against the flat-screen's run (320); the swim's 50-unit rise was set at a run (47.5 walking) | `cl_alwaysrun 1` in the headset and swimming cases too, as the crouch's flat cases had |
+| flatlagbob | 3/2 | 4/1 | the same: the forward bob is sized "at a run" and was probed walking (amp 0.6); looking 40 down now 0.18 -> 1.92 | `cl_alwaysrun 1` for the forward probes. **Open, level case**: 1.01 -> 1.94 (wants +1.0): the move sway (`vr_flat_sway`) rings about 1 unit along the view on e1m1's run (sway 0: 0.02 -> 2.06; FLATPLAY.md measured 0.20 at fwd 0 when it passed). Not a test change; worth a bisect of the sway at a steady run |
+| flathands | 75/1 | 76/0 | the console wrapped swap1's "2h: released ... 10.5 from the main hand (moved N" before the number (a wider number than swap2h's 9.9); the regex required it (unchecked) | the regex stops at "from the main hand"; the label names its own case |
+| flateject | 16/1 | 17/0 | the ssgold control: the old rule's push off the face alone gives 0.6-0.8 m/s sideways now, plus the random speed and scatter (a new sequence each run): one shell 1.14 | the control is the negation of ssg's own check: none up, under its 1.2 m/s sideways bar |
+| flatpose | 21/1 | c PASS (the re-run: every check through "point" passed; its last case, near, `-Full`, still waiting at the report) | section c: the next knight's spawn came in the frames before the last one's `vr_test_kill` was read: made inside the dying knight (alone: 29 units off; batched: the shot went to a grunt 1045 away, "0.0 units") | 30 frames after each kill before the next spawn |
+| flatslide | 25/1 | 26/0 | sights, crouched and leant: the sighted arm's reach eases on after the crouch (stance arm sight 0.69 -> 0.75): 0.065 off the ray at 30 frames, 0.003 at 45, 0.0001 at 60 | 60 frames after +flatcrouch |
+| flatsweep | 382/11 | 382/1 | 10 rows (hand_head 0.763 -> 0.842, long-gun sighted fore_torso +0.08..0.23) moved with the baseline: under the 0.870 his offsets' rows were accepted at (4499299093), body overlap "not visible from the eye" (52c0442eec) | rows refreshed in flatsweep_known.txt. **Open, real**: `settled wall/long/stand/hip` at pitch 25: the pose never settles (swing 0.947 units a frame for 500 frames, gun_out -0.04: the muzzle at the wall's edge), the same in a second run (`vr_flat_sweep x wall 5` on vrtesthall): the gun jitters at a wall looking 25 down |
+| flatswing | 4/1 | 4/1 | the pathoff control: `vr_flat_swing_path_stop 0` no longer misses from any place (15 places, 600-630, at 0.075 and 0.14: one blow each at 612-630): the control can't see the old bug under the current swing | open: the control needs a new set-up (or retiring: his call); the real checks pass |
+| flatxhair | 28/3 | 28/3 | flush: wall share 0.0 with the barrel 107 px off the crosshair: the gun at that wall now turns by the slide (`vr_flat_wall_slide`, 4c96bc061), whose turn the wall shot (`wallShotShare`: the tilt only) doesn't follow | open: a design question (should a slid gun shoot along its barrel?) or the case's place/yaw (setpos keeps the turn test's yaw) |
+| flatgate | 3/2 | 3/2 | as flatgreen: case 0 timed out at state 2; the turned gate's step | not looked into (budget) |
+| flatsight, flatswap, flatstance | pass | - | flatsight 12/0, flatswap 0 failed, flatstance 7/0 | - |
+
+- **hub_start_test**: checklist lines 10-11 tag `{test:hub_start_test}` (a Python test's name); the Test scene now
+  exists: `quakevr/scenarios/hub_start_test.txt`, the VR hub (vrstart). checklist_tests_check 96/0.
+- **MP**: a first `mp_test.py suite --only ...` run started beside flat runs on the same tree: its mp_netsafe fence
+  game read a flat test's start-up script (the tree's base is shared: the fence loaded vrtesthall and ran
+  "flathands_test: gren2h done"; quit), so mp_netsafe failed and the suite stopped. Never run MP and flat tests of one
+  tree at once. Not re-run (budget): mp_melee, mp_slide_vr, mp_predictslide, and why mp_flow/mp_predict/mp_predictclimb
+  need the hub (mp_predict waits for "joined map=start" after `changelevel start`; not looked into further) stay open.
