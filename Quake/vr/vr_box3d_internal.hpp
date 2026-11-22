@@ -89,7 +89,7 @@
 
 #include <box3d/box3d.h>
 
-#include <atomic>
+#include "Zancle/Concurrency/Atomic.hpp"
 #include <string.h>
 
 using namespace qvr;
@@ -1058,11 +1058,11 @@ struct HalfSpace
 
 struct GunPiecesDisk
 {
-    std::atomic<int> read{0};     // pieces read from a file (atomics: prepareHeldGuns cuts on the pool)
-    std::atomic<int> cut{0};      // cut (no file, or checked)
-    std::atomic<int> written{0};  // files written
-    std::atomic<int> checked{0};  // vr_gun_pieces_cache 2: read and cut, compared
-    std::atomic<int> differed{0}; // of those, not the same
+    za::Atomic<int> read{0};     // pieces read from a file (atomics: prepareHeldGuns cuts on the pool)
+    za::Atomic<int> cut{0};      // cut (no file, or checked)
+    za::Atomic<int> written{0};  // files written
+    za::Atomic<int> checked{0};  // vr_gun_pieces_cache 2: read and cut, compared
+    za::Atomic<int> differed{0}; // of those, not the same
 };
 inline GunPiecesDisk gunPiecesDisk;
 [[nodiscard]] bool cutGun(const za::Vector<glm::vec3>& triangles, const convex::Settings& settings,

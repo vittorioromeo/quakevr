@@ -107,6 +107,11 @@ uses (the no-PCH build checks it: `Misc/quakevr/check_nopch.sh`).
   `qvr::files` wraps it in one place (CODE_STYLE.md, "Files").
 - **`std::source_location`** (`vr_jobs.hpp`/`.cpp`): the jobs' caller in profiles and crash reports; no Zancle one.
 - **`std::map` with stable nodes** (`vr_motion_review.cpp`, ZANCLE-TODO): written in order, pointers kept.
+- **Wall-clock epoch time** (`wallMs` in `vr_mptest.cpp`, `vr_voicechat.cpp`: `std::chrono::system_clock`): the
+  `mp_` lines' `t=` is compared across processes and with the test scripts; `za::Clock`'s epoch is unspecified.
+  Intervals use `za::Clock::nowNanoseconds()`.
+- **`std::deque` for stable addresses** (`vr_tracy.cpp`'s QC zone names and locations: Tracy keeps the pointers):
+  Zancle has no deque; its elements are `za::String`.
 - **`std::initializer_list`** where it is spelled in a signature: `za::InitializerList` is only an alias.
 - **`vr_zancle_diag.cpp`**: `vr_zancle_math_test` compares Zancle against the standard library on purpose.
 - **Third-party code and its interfaces** (Tracy, OpenXR, imgui, lodepng, Box3D, Opus): untouched.

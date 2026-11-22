@@ -834,7 +834,7 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
 #endif
     if(fromDisk)
     {
-        gunPiecesDisk.read++;
+        gunPiecesDisk.read.fetchAddSeqCst(1);
         report.ms = (Sys_DoubleTime() - t0) * 1000.0; // (the read's time)
         if(mode < 2)
         {
@@ -847,22 +847,22 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
     {
         cut.clear();
     }
-    gunPiecesDisk.cut++;
+    gunPiecesDisk.cut.fetchAddSeqCst(1);
     if(fromDisk)
     {
-        gunPiecesDisk.checked++;
+        gunPiecesDisk.checked.fetchAddSeqCst(1);
         diskcache::noteChecked(diskcache::Product::GunPieces, samePieces(pieces, cut), name);
         if(!samePieces(pieces, cut))
         {
-            gunPiecesDisk.differed++;
+            gunPiecesDisk.differed.fetchAddSeqCst(1);
             Con_Warning("vr_gun_pieces_cache 2: %s's convex pieces differ from their file (%d of %d so far)\n", name,
-                gunPiecesDisk.differed.load(), gunPiecesDisk.checked.load());
+                gunPiecesDisk.differed.loadSeqCst(), gunPiecesDisk.checked.loadSeqCst());
         }
     }
     else if(mode)
     {
         writeGunPieces(key, cut, cutReport);
-        gunPiecesDisk.written++;
+        gunPiecesDisk.written.fetchAddSeqCst(1);
     }
     pieces = ZA_MOVE(cut);
     report = cutReport;

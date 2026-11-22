@@ -24,6 +24,7 @@
 
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -1379,7 +1380,7 @@ void selftest_f()
     int minBytes = 9999, maxBytes = 0;
     unsigned char packets[frames][maxFrameBytes];
     int lens[frames];
-    const auto t0 = std::chrono::steady_clock::now();
+    const za::I64 t0 = za::Clock::nowNanoseconds();
     for(int f = 0; f < frames; f++)
     {
         lens[f] = opus_encode_float(enc, t.ref.data() + f * frameSamples, frameSamples, packets[f], maxFrameBytes);
@@ -1387,7 +1388,7 @@ void selftest_f()
         minBytes = za::min(minBytes, lens[f]);
         maxBytes = za::max(maxBytes, lens[f]);
     }
-    const double encMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count() / frames;
+    const double encMs = za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0) / frames;
     bool decodedAll = true;
     for(int f = 0; f < frames; f++)
     {
@@ -1444,7 +1445,7 @@ void selftest_f()
         unsigned rng = 12345u;
         double inP = 0.0, outP = 0.0, vadSum = 0.0;
         const int blocks = 200;
-        const auto d0 = std::chrono::steady_clock::now();
+        const za::I64 d0 = za::Clock::nowNanoseconds();
         for(int b = 0; b < blocks; b++)
         {
             for(int i = 0; i < blockSamples; i++)
@@ -1463,7 +1464,7 @@ void selftest_f()
                 }
             }
         }
-        const double dnMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - d0).count() / blocks;
+        const double dnMs = za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - d0) / blocks;
         const double atten = 10.0 * log10(inP / za::max(outP, 1e-9));
         check(atten > 10.0, va("white noise attenuated by %.1f dB (> 10)", atten));
         check(vadSum / 150.0 < 0.3, va("its voice probability on noise %.2f (< 0.3)", vadSum / 150.0));

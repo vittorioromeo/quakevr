@@ -40,7 +40,7 @@
 #include "vr_api.h"
 #include "vr_api_render.h"
 
-#include <atomic>
+#include "Zancle/Concurrency/Atomic.hpp"
 #include <initializer_list>
 
 extern "C" unsigned char* Image_DecodeMemory(const unsigned char* bytes, int length, int* width, int* height); // image.c
@@ -94,8 +94,8 @@ ankerl::unordered_dense::map<za::String, Item*, NameHash, NameEqual> batchByName
 ankerl::unordered_dense::set<za::String, NameHash, NameEqual> unasked;
 bool batchOpen = false;
 int batchTasks = 0;                    // the tasks wanted (the pool's workers, up to 8)
-std::atomic<long long> aheadBytes{0};  // the batch's pixels decoded and not taken
-std::atomic<int> liveTasks{0};
+za::Atomic<long long> aheadBytes{0};  // the batch's pixels decoded and not taken
+za::Atomic<int> liveTasks{0};
 struct BatchCounts
 {
     int loads = 0, read = 0, taken = 0, asked = 0, unused = 0, cached = 0;
@@ -128,7 +128,7 @@ void decode(Item* it)
         it->bytes = {}; // (matched by its file)
         if(px)
         {
-            aheadBytes += static_cast<long long>(w) * h * 4;
+            aheadBytes.fetchAddSeqCst(static_cast<long long>(w) * h * 4);
         }
     }
     {
@@ -152,7 +152,7 @@ void work()
             {
                 next++;
             }
-            if(next >= items.size() || (items[next]->batch && aheadBytes.load() >= aheadBudget))
+            if(next >= items.size() || (items[next]->batch && aheadBytes.loadSeqCst() >= aheadBudget))
             {
                 return; // (past the budget: the asking thread starts tasks again as it takes them)
             }
@@ -190,7 +190,7 @@ void freeItems()
 // The map load's tasks started, up to batchTasks running, while items wait and the budget allows (main thread).
 void spawnTasks()
 {
-    while(batchOpen && liveTasks.load() < batchTasks && aheadBytes.load() < aheadBudget)
+    while(batchOpen && liveTasks.loadSeqCst() < batchTasks && aheadBytes.loadSeqCst() < aheadBudget)
     {
         {
             za::LockGuard g(lock);
@@ -204,10 +204,10 @@ void spawnTasks()
                 return;
             }
         }
-        ++liveTasks;
+        liveTasks.fetchAddSeqCst(1);
         tasks.pushBack(qvr::jobs::async([] {
             work();
-            --liveTasks;
+            liveTasks.fetchSubSeqCst(1);
         }));
     }
 }
@@ -366,7 +366,7 @@ void batchEnd()
         next = 0;
     }
     batchByName.clear();
-    aheadBytes = 0;
+    aheadBytes.storeSeqCst(0);
     batchOpen = false;
     active = !items.empty() || windowOpen;
     if(batchLast.read + batchLast.cached >= batchBiggest.read + batchBiggest.cached)
@@ -543,7 +543,7 @@ extern "C" unsigned char* VR_ImagePrefetchTake(const char* name, FILE* f, int le
     {
         if(it->pixels)
         {
-            aheadBytes -= static_cast<long long>(it->width) * it->height * 4;
+            aheadBytes.fetchSubSeqCst(static_cast<long long>(it->width) * it->height * 4);
         }
         qvr::files::Identity file;
         same = it->pixels && length == it->length && qvr::files::identity(f, file) && file == it->file &&

@@ -648,7 +648,7 @@ void gunPiecesCacheStats_f()
     const GunPiecesDisk& d = gunPiecesDisk;
     Con_Printf("vr_gun_pieces_cache %g: %d guns' pieces read from the disk, %d cut, %d files written; checked %d, %d "
                "differed\n",
-        vr_gun_pieces_cache.value, d.read.load(), d.cut.load(), d.written.load(), d.checked.load(), d.differed.load());
+        vr_gun_pieces_cache.value, d.read.loadSeqCst(), d.cut.loadSeqCst(), d.written.loadSeqCst(), d.checked.loadSeqCst(), d.differed.loadSeqCst());
 }
 
 // vr_physics_mem: Box3D's memory, one line (Debug > Profiling and Memory; MP_PLAN B21's soaks).

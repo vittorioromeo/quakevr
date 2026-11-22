@@ -26,7 +26,7 @@
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
-#include <atomic>
+#include "Zancle/Concurrency/Atomic.hpp"
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
@@ -95,16 +95,16 @@ Trace trace;
 // What the watchdog reads: a seqlock (even: stable) over the label and its start.
 struct Shared
 {
-    std::atomic<unsigned> seq{0};
+    za::Atomic<unsigned> seq{0};
     char label[2 * nameLength + 64] = "";
     double since = 0.0;
     bool active = false;
     double processStart = 0.0;
-    std::atomic<bool> quiet{false};
-    std::atomic<bool> stop{false};
-    std::atomic<bool> running{false};
-    std::atomic<FILE*> file{nullptr};
-    std::atomic<int> beats{0}; // the "still in" lines said (vr_startup_trace check)
+    za::Atomic<bool> quiet{false};
+    za::Atomic<bool> stop{false};
+    za::Atomic<bool> running{false};
+    za::Atomic<FILE*> file{nullptr};
+    za::Atomic<int> beats{0}; // the "still in" lines said (vr_startup_trace check)
 };
 Shared shared;
 
@@ -133,7 +133,7 @@ void openFile()
         trace.fileMade = true;
         fputs(trace.pending.cStr(), trace.file);
         fflush(trace.file);
-        shared.file.store(trace.file, std::memory_order_release);
+        shared.file.storeRelease(trace.file);
     }
     trace.pending.clear();
 }
@@ -159,7 +159,7 @@ void emit(int indent, const char* fmt, ...)
         trace.pending += line;
     }
     const bool l = loud();
-    shared.quiet.store(!l, std::memory_order_relaxed);
+    shared.quiet.storeRelaxed(!l);
     if(l && con_initialized)
     {
         Con_SafePrintf("%s", line); // (no screen update for it while loading)
@@ -197,13 +197,13 @@ void publish()
     }
     const bool active = trace.phase == Phase::Startup || trace.depth > 0 || trace.loadOpen;
 
-    shared.seq.fetch_add(1, std::memory_order_relaxed); // odd: being written
-    std::atomic_thread_fence(std::memory_order_release);
+    shared.seq.fetchAddRelaxed(1); // odd: being written
+    za::atomicThreadFence<za::MemoryOrder::Release>();
     memcpy(shared.label, label, sizeof(label));
     shared.since = since;
     shared.active = active;
-    std::atomic_thread_fence(std::memory_order_release);
-    shared.seq.fetch_add(1, std::memory_order_relaxed);
+    za::atomicThreadFence<za::MemoryOrder::Release>();
+    shared.seq.fetchAddRelaxed(1);
 }
 
 void clearProgress()
@@ -277,7 +277,7 @@ void summarize(const char* what, double ms, const char* work)
 void stopTrace()
 {
     trace.phase = Phase::Off;
-    shared.stop.store(true, std::memory_order_relaxed);
+    shared.stop.storeRelaxed(true);
     publish();
 }
 
@@ -286,7 +286,7 @@ void watchdog()
 {
     double beatSince = -1.0;
     int beats = 0;
-    while(!shared.stop.load(std::memory_order_relaxed))
+    while(!shared.stop.loadRelaxed())
     {
         za::ThisThread::sleepFor(za::milliseconds(100));
         char label[sizeof(shared.label)];
@@ -294,7 +294,7 @@ void watchdog()
         bool active = false;
         for(;;)
         {
-            const unsigned s1 = shared.seq.load(std::memory_order_acquire);
+            const unsigned s1 = shared.seq.loadAcquire();
             if(s1 & 1u)
             {
                 continue;
@@ -302,8 +302,8 @@ void watchdog()
             memcpy(label, shared.label, sizeof(label));
             since = shared.since;
             active = shared.active;
-            std::atomic_thread_fence(std::memory_order_acquire);
-            if(shared.seq.load(std::memory_order_relaxed) == s1)
+            za::atomicThreadFence<za::MemoryOrder::Acquire>();
+            if(shared.seq.loadRelaxed() == s1)
             {
                 break;
             }
@@ -324,11 +324,11 @@ void watchdog()
             continue;
         }
         beats++;
-        shared.beats.fetch_add(1, std::memory_order_relaxed);
+        shared.beats.fetchAddRelaxed(1);
         char line[sizeof(label) + 96];
         q_snprintf(line, sizeof(line), "[startup +%.3fs] still in %s (%.1f s so far)\n", now - shared.processStart, label,
             now - since);
-        if(!shared.quiet.load(std::memory_order_relaxed))
+        if(!shared.quiet.loadRelaxed())
         {
 #ifndef _WIN32
             // (the OpenXR loader's output caught: the terminal's own stdout, or a hang there says nothing; VR_TerminalFd)
@@ -342,13 +342,13 @@ void watchdog()
                 Sys_Printf("%s", line); // (logcat on Android: VR_AndroidLog is thread-safe; the run's log is locked)
             }
         }
-        if(FILE* f = shared.file.load(std::memory_order_acquire))
+        if(FILE* f = shared.file.loadAcquire())
         {
             fputs(line, f); // (stdio locks the stream: the main thread's lines whole)
             fflush(f);
         }
     }
-    shared.running.store(false, std::memory_order_release);
+    shared.running.storeRelease(false);
 }
 
 // vr_startup_trace: the trace's file and its last summary. Tests (a start's script, while the trace runs):
@@ -373,7 +373,7 @@ void trace_f()
         t.check(trace.fileMade, "startuplog", va("startup.log not made (%s)", trace.path.cStr()));
         t.check(!trace.summary.empty(), "startuplog", "the start-up not summed up (no first frame shown)");
         t.check(trace.depth == 0 && trace.lost == 0, "startuplog", "a step left open");
-        const int beats = shared.beats.load(std::memory_order_relaxed);
+        const int beats = shared.beats.loadRelaxed();
         if(trace.stalled >= 5.0)
         {
             t.check(beats >= 2, "startuplog", va("the heartbeat's \"still in\" lines: %d (2 or more wanted)", beats));
@@ -401,7 +401,7 @@ void start(double processStart)
     shared.processStart = processStart;
     emit(0, "process start (Quake VR %s; the times are since the process started)", VR_BuildInfo());
     publish();
-    shared.running.store(true, std::memory_order_relaxed);
+    shared.running.storeRelaxed(true);
     za::Thread thread{watchdog};
     thread.detach(); // (stops by itself at the trace's end; never joined: a quit mid-start-up needn't wait for it)
 }
@@ -515,9 +515,9 @@ void frameEnd()
 {
     if(trace.phase == Phase::Off)
     {
-        if(trace.file && !shared.running.load(std::memory_order_acquire))
+        if(trace.file && !shared.running.loadAcquire())
         {
-            shared.file.store(nullptr, std::memory_order_relaxed);
+            shared.file.storeRelaxed(nullptr);
             fclose(trace.file); // (the watchdog gone: nothing else writes it)
             trace.file = nullptr;
         }

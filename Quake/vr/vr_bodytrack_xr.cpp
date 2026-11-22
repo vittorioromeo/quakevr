@@ -14,7 +14,7 @@
 #include <string.h>
 
 #ifdef __ANDROID__
-#include <atomic>
+#include "Zancle/Concurrency/Atomic.hpp"
 #include "SDL.h"
 #endif
 
@@ -52,14 +52,14 @@ enum PermissionState : int
     PermissionGranted,
     PermissionDenied
 };
-std::atomic<int> permissionState{PermissionUnasked};
+za::Atomic<int> permissionState{PermissionUnasked};
 
 int SDLCALL askPermission(void*)
 {
     // (the older name first: granted at install where the system still knows it, no dialog; else Horizon OS's)
     const bool granted = SDL_AndroidRequestPermission("com.oculus.permission.BODY_TRACKING") ||
                          SDL_AndroidRequestPermission("com.meta.permission.FOCUSED_BODY_TRACKING");
-    permissionState.store(granted ? PermissionGranted : PermissionDenied);
+    permissionState.storeSeqCst(granted ? PermissionGranted : PermissionDenied);
     return 0;
 }
 
@@ -67,7 +67,7 @@ int SDLCALL askPermission(void*)
 [[nodiscard]] int permission()
 {
     int expected = PermissionUnasked;
-    if(!permissionState.compare_exchange_strong(expected, PermissionAsking))
+    if(!permissionState.compareExchangeStrong<za::MemoryOrder::SeqCst, za::MemoryOrder::SeqCst>(expected, PermissionAsking))
     {
         return expected;
     }
@@ -78,9 +78,9 @@ int SDLCALL askPermission(void*)
     }
     else
     {
-        permissionState.store(PermissionDenied);
+        permissionState.storeSeqCst(PermissionDenied);
     }
-    return permissionState.load();
+    return permissionState.loadSeqCst();
 }
 #endif
 

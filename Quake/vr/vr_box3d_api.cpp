@@ -19,7 +19,7 @@ namespace qvr::box3d
 {
 GunPiecesCount gunPiecesCount()
 {
-    return {gunPiecesDisk.read.load(), gunPiecesDisk.cut.load(), gunPiecesDisk.written.load()};
+    return {gunPiecesDisk.read.loadSeqCst(), gunPiecesDisk.cut.loadSeqCst(), gunPiecesDisk.written.loadSeqCst()};
 }
 
 void beforeLoad()
