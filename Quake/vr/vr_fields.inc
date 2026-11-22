@@ -408,3 +408,12 @@ QVR_FIELD(vr_nav_melee) // set by the QC before each navsteer (vr_ai_props.qc VR
 QVR_FIELD(vr_rsmash_next)
 // The navmesh teleporter metric (vr_nav.cpp placePastGate): a teleport destination's facing (Quake's info_teleport_destination).
 QVR_FIELD(mangle)
+// Climbable ropes and chains (QC vr_ropes.qc; vr_climbrope.cpp): their map keys (0: the default).
+QVR_FIELD(rope_length)
+QVR_FIELD(rope_thickness)
+QVR_FIELD(rope_segments)
+QVR_FIELD(rope_mass)
+QVR_FIELD(rope_stiffness)
+QVR_FIELD(rope_damping)
+QVR_FIELD(rope_style)
+QVR_FIELD(rope_pinned)

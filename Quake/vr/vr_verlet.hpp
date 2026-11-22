@@ -33,9 +33,10 @@ void limitPieces(glm::vec3* p, glm::vec3* prev, const char* pinned, za::SizeT n,
 // its move slid along it; its speed into it gone, `slide` of its speed along it kept; held `rad` units off a floor it
 // lies on), then each piece (one through the world: its free ends pushed out past where it met it). `traces`, when
 // given, counts the traces made. `touching`, when given (n of them), is set to 1 for each point left lying on or
-// stopped by the world, 0 for the rest.
+// stopped by the world, 0 for the rest. `serverWorld`: traced through the local server's world (SV_Move: the level,
+// doors and lifts) rather than the client's: the climbable ropes (vr_climbrope.cpp), the server's own.
 void collide(glm::vec3* p, glm::vec3* prev, const glm::vec3* from, const char* pinned, za::SizeT n, float rad, float slide,
-    int* traces = nullptr, char* touching = nullptr);
+    int* traces = nullptr, char* touching = nullptr, bool serverWorld = false);
 
 // The polyline `pts[0 .. count - 1]` as `n` + 1 points evenly along it (its ends kept), appended to `out`.
 void resample(const glm::vec3* pts, int count, int n, za::Vector<glm::vec3>& out);

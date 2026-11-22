@@ -1569,6 +1569,12 @@ za::Vector<Item> pageDebugTests()
                                                          "rope's length and path (needs Developer Messages)."),
         command("Print the Ropes", "vr_grapple_rope_dump; vr_grapple_rope_draw_dump")
             .help("Prints each rope's corners (the server's) and its drawn chain: points inside the world, pieces through it."),
+        header("Climbable Ropes"),
+        command("Print the Climbable Ropes", "vr_rope_info")
+            .help("vr_rope_info: each climbable rope and chain (a map's, the toolgun's): its settings, its top and bottom, how fast it moves."),
+        command("Test the Climbable Ropes", "vr_rope_test")
+            .help("vr_rope_test: a rope and a chain made 128 units ahead, settled, thrown by an explosion, shot, pushed by a crate and a dog; "
+                  "the client's copy compared (best in vrropes: its own ropes counted too). Prints PASS/FAIL lines."),
         header("Stamina"),
         info([]() -> const char* { return staminaReadout(); }),
         command("Deplete Stamina", "vr_stamina_set 0").help("vr_stamina_set 0: no stamina left (tired arms: heavy hands; shaking while you hang). Hanging with none, your hands let go."),

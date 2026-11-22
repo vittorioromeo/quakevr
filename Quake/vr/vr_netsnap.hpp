@@ -56,6 +56,12 @@ inline constexpr int keyLimit = 5 << 16;   // every key below this
     return span * 4000.0 > 100.0 ? static_cast<float>(span * 4000.0) : 100.f;
 }
 
+// How far back from the newest message the interpolation clock may be drawing (s): its longest delay, the most it lags
+// its target before it snaps there (catching up after a hitch), and three ticks. A history of places or poses kept by a
+// client (the entities' here, the ragdolls' in vr_netragdoll.cpp) reaches back this far, or what it keeps is drawn held
+// at its oldest: ahead of the clock (raginterp; mpopen, the ragdolls' poses).
+inline constexpr double interpReach = 0.25 + 0.25 + 3.0 / 72.0;
+
 // One snapshot: its records (sorted by key), each its bytes in `bytes`.
 struct Record
 {
@@ -179,6 +185,10 @@ void interpFrame();
 [[nodiscard]] double interpNewest(); // the newest message's server time (vr_mp_trace)
 // Entity `num`'s sample `back` messages before its newest (0: the newest): its server time and place (vr_mp_trace).
 [[nodiscard]] bool interpSample(int num, int back, double& t, float origin[3]);
+// (mpopen) Entity `num`'s interpolation as last drawn: `way` 0 between two messages, 1 held at its oldest (the clock before
+// it), 2 held at its newest (past it), 3 a teleport's cut, 4 not interpolated; its messages kept; how often its history
+// started again and why the last time (1 its record missing from the snapshot before, 2 a whole snapshot, 3 its model).
+[[nodiscard]] bool interpWay(int num, int& way, int& samples, int& restarts, int& why);
 
 // vr_netsnap_selftest (the codec: full, delta, gone, unchanged, a budget's cut; ends "netsnap selftest: N passed, M
 // failed").

@@ -58,6 +58,9 @@ void stopBladeWound(int blade);
 // once. False if none started (the streams off, the spot not drawn). ownStreams: yours pouring now.
 [[nodiscard]] bool startOwn(const playergore::Spot& spot, const glm::vec3& normal, const glm::vec3& way, int amount);
 [[nodiscard]] int ownStreams();
+// Another player's (mpopen): a Spot with its `ent` set starts his on his copy (playergore::onWound's), his own cap of
+// vr_player_gore_stream_max; its pour's sound is this client's, so every client hears it. otherStreams: theirs pouring now.
+[[nodiscard]] int otherStreams();
 
 // How long the stream of the wound `blade` is in has been pouring, s; 0: none (the test's).
 [[nodiscard]] float bladeWoundAge(int blade);

@@ -103,10 +103,16 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   holster sheaths, wrist gadget, grenade and ammo pouches are drawn on him, and a bot's holsters with what it carries;
   the rounds in his ammo pouch and his gadget screen's glow too.
 - **Other players' shots**: their muzzle flash, sparks and smoke at their gun, and their spent casings thrown out of it;
-  their shotgun's auto pump clacks after the shot, their ammo screen's faint light and their barrel's heat glow and
-  light as yours.
+  their shotgun's auto pump strokes and clacks after the shot, their ammo screen's faint light and their barrel's heat
+  glow and light as yours.
 - **Other players' wounds and sounds**: a hit player's copy is painted with the wound where the blow struck it (kept on
-  his dead body, gone when he respawns); you hear another player's slide (the scuff and the scrape) from him.
+  his dead body, gone when he respawns), and bleeds as yours does: blood streams pouring from it (you hear them land),
+  a splash of drops and drips for a while after; you hear another player's slide (the scuff and the scrape) from him.
+- **Fixed: ragdolls a moment ahead at a joining player** after a hitch on an uneven connection (the parts jumped ahead
+  and caught up over half a second): each ragdoll's poses now reach back as far as the smoothing does.
+- **Fixed: a prop tipped up on end spinning at the other players** (a crate standing on its side): its turn is now
+  smoothed as it is drawn.
+- **Network version 43**: games of this version and older ones refuse each other with the reason.
 - **Test runs stay off the internet**: with `-loopbackonly` (every test run) the map index, Slipseer, the update check
   and the add-on list are never fetched; asked for, each prints its "NET SAFETY" refusal.
 - **Everything you can do alone works together**: grabbing, throwing, melee and parries, climbing and mantling, the
@@ -182,6 +188,11 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Movement
 
+- **Ropes and chains.** Physical ropes and chains hang in maps (mappers: `vr_rope`, `vr_chain`, with their length,
+  thickness, pieces, mass, stiffness and damping as keys, and a pinned bottom) and can be spawned with the toolgun
+  (Spawn > Props > Ropes, with a Rope Settings page). They swing and settle, lie on the floor where they are longer
+  than the drop, and are pushed by your hands, players, monsters, props, explosions and shots; every player sees the
+  same rope. Climbing them comes next. Try them in the new test map `vrropes`.
 - **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down
   flies up or down; strafing stays level and jump and crouch still go straight up and down. Flat and in the headset
   (there, what steers your walking steers the flight: the head, or the moving hand with hand-relative movement).
