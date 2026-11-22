@@ -8970,3 +8970,17 @@ ROPES.md "Tests", "Known limits".
   the server's holds; ropeHips pulling towards the rope itself instead of the holds' way in. Not fixed: needs the
   copy's trunk nearer the rope (the neck), or the bound at ~22 for the swing check.
 
+## Quest C5k: the shader compile's loading panel in the headset on a first start (questc5k, 2026-11-22; branch agent/quest)
+
+QUEST_PLAN 6zv has the details.
+- The backend started only after the first frame's configs (`vr_enabled` is 0 until quakevr.cfg), after the start map
+  too. Now a start-up set that compiles a program from its sources (`GL_ShadersCompiling`) starts it in the loading
+  frame (`qvr::startForLoading`): the backend the command line names (`-vrmock`, `+vr_backend`), else openxr on Android
+  only (a PC run naming none never starts the real runtime early). After the configs: kept with `vr_enabled 1` and the
+  same backend, else the usual restart. All from the cache: as before. PCVR compiles in GL_Init (no panel, no gap).
+- Quest (build 14276, 0 warnings, check_apk 20/0, installed): cold start 73 compiled in 20.4 s, "loading panel: 69
+  frames (20 in the headset...)" (FOCUSED 4.3 s after launch; unworn sleep gaps), kept after the configs. Warm start:
+  453 ms from the cache, no early start, start-up 9.5 s as before. His program pack put back.
+- PC ES runs: shaders_async_test 4/0 (its floor 100 -> 50 programs: the ES set is 73); the configs' `vr_enabled 0`
+  restarts (stops) it.
+

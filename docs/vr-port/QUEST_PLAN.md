@@ -2126,6 +2126,35 @@ front at the waist, the layers still carrying the runtime's poses: an unworn hea
   reaches only the window ("0 in the headset, 71 in the window"). The OpenXR session starts after the configs (~8 s
   into the map load), so for that first start the headset shows Meta's dots, not "Compiling shaders".
 
+## 6zv. C5k: the shader compile's loading panel in the headset on a first start (2026-11-22; adb, unworn)
+
+- **Why it missed the headset**: `vr_enabled` is 0 until quakevr.cfg sets it in the first frame's configs, so the
+  backend (VR_Init's restart request) started only in the frame after the configs and the start map's load.
+- **Now** (`qvr::startForLoading`, vr_main.cpp; called by `vr/vr_shaderload.cpp`): once the queued set hands the
+  driver a program not in the program cache (`GL_ShadersCompiling`, gl_shaders.c), the backend starts there, before
+  the configs; the loading frames then begin and end OpenXR frames and the panel (the quad layer, as 6zi) reaches the
+  headset. VR_Init's restart request waits until the set is done. The frame after the configs settles it: `vr_enabled
+  1` with the same backend keeps it ("VR: the early start kept after the configs"), anything else restarts as before.
+  A failed early start is not tried twice. `vr_restart` always restarts.
+- **Which backend early**: `-vrmock`, the command line's `+vr_backend <name>`, else `vr_backend`'s own (not saved:
+  openxr) on Android only. `+vr_enabled 0` on the command line: none. A PC run that names no backend never starts the
+  real runtime early (its configs or a test's autoexec may ask for the mock). The PC's own start compiles its shaders in
+  one call inside GL_Init (no panel; the async set is only the ES profile's), so PCVR has no such gap to fill.
+- **All from the cache** (every later start): no early start; the start-up as before.
+- **Quest** (APK build 14276, 4c3206e; native 0 warnings, check_apk 20/0, `adb install -r`): cold start (the program
+  cache's pack moved aside): "VR: openxr started before the configs" at +2.3 s (390 ms), session READY 3.4 s and
+  FOCUSED 4.3 s after the launch, the set (73 compiled) in 20.4 s over 70 frames, "loading panel: 69 frames (20 in the
+  headset, 0 in the window)... the VR session started early for it" (the frames before FOCUSED, and 2 s of the unworn
+  headset's sleep, not shown; one at a time on Adreno: ~0.3 s a frame), then "the early start kept after the configs".
+  Warm start with his pack put back: 73 from the cache in 453 ms over 14 frames, no early start, the VR backend after
+  the configs as before, start-up 9.5 s (C5j: 428 ms). `adb exec-out screencap` shows only the app's black surface,
+  not the compositor's layers: the logged headset frames are the evidence.
+- Test pitfall: force-stopped runs never write the pack's later programs, so warm starts from a test-made pack took
+  1.3-1.8 s in video init; his pack (2437 programs) is back in `cache/programs`.
+- PC: `-glescompat -fakeandroid -shadersasynctest -vrmock`: "mock started before the configs", 4/0 (the test's
+  program floor 100 -> 50: the ES set is 73), "kept after the configs"; with `+vr_backend mock` and the script's
+  `vr_enabled 0`: "restarted: the configs changed VR", stopped.
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
