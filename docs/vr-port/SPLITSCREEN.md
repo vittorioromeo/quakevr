@@ -230,10 +230,10 @@ ends with the effort left re-estimated (below).
 | 5 | `cl`, `cls`, the entity tables, prediction, snapshots, the move, the client's VR net state | done (1) | - |
 | 6 | The loopback grown to 4, the seat loop (each seat's client frame in its `Scope`), own slots: two seats join a listen server and play (headless test: two seats move apart) | done (1) | ~~5, 6~~ answered: autosave only; drop-in/out (a seat joins or leaves a running game) |
 | 7 | Per-seat render: rectangles, per-view caches; the effects (each seat's client world); the drawn body (`vr_avatar*`) and climbing's client pins (4b's leftovers); sounds per seat listener (phase 8's, brought in) | done (3: tiles and layouts; bodies, pins, effects; sounds, the effects' spawners, the visor) | ~~2~~ answered: the tiles follow the chosen layout (phase 11) |
-| 8 | The shared effects' other memories fed once (decals and shells from Quake VR's messages, gore's state), the static sounds and underwater muffling per seat, flat TAA per tile (a history a seat), the shadow and portal caches checked with several views | 1-2 | - |
-| 9 | Menus and console per seat (`key_dest`, the stack) | 2 | ~~4~~ answered: options; coop's default: the menu pauses, only seat 1's is the full menu |
-| 10 | UX: Multiplayer > Splitscreen and the join screen | 2-3 | ~~3, 4, 6~~ answered (drop-in/out: the join screen also joins a running game) |
-| 11 | UX: layouts (2 side by side or stacked, 3, 4): all switchable, the default from the monitor's aspect | 1-2 | ~~2~~ answered: customizable; ultrawide side by side; 3: one wide on top, two below |
+| 8 | The shared effects' other memories fed once (decals and shells from Quake VR's messages, gore's state), the static sounds and underwater muffling per seat, the shadow and portal caches checked with several views (flat TAA per tile moved to phase 11) | done (1; section 18) | - |
+| 9 | **Next.** Menus and console per seat (`key_dest`, the stack): seat 1 opens the full menu, the others their seat menu; the menu pauses coop (options) | 2 | ~~4~~ answered: options; coop's default: the menu pauses, only seat 1's is the full menu |
+| 10 | UX: Multiplayer > Splitscreen and the join screen (**the phase he tries before `agent/split` merges into next**) | 2-3 | ~~3, 4, 6~~ answered (drop-in/out: the join screen also joins a running game) |
+| 11 | UX: layouts (2 side by side or stacked, 3, 4): all switchable, the default from the monitor's aspect; flat TAA per tile (a history a seat, sized as its tile: phase 8's leftover) | 2-3 | ~~2~~ answered: customizable; ultrawide side by side; 3: one wide on top, two below |
 | 12 | UX: KB/M plus up to 4 controllers: the flat controller layout, per-seat profiles (the cvars a player owns) | 3-4 | ~~7~~ answered: a default controller layout; aim assist, off by default |
 | 13 | UX: per-seat HUD scale and seat menus, pause | 1-2 | ~~4~~ answered (pause and menu options) |
 | 14 | Online (network guests with a splitscreen host; a splitscreen group joining a remote host), docs, checklist | 1-2 | ~~8~~ answered: a VR host with flat seats, yes (the last part) |
@@ -257,7 +257,9 @@ become each seat's view, sound and effects). **After phase 7's first part: 16-24
 drawn in its tile by the code that draws the window; left of 7: each seat's particles and lights, the drawn body and
 climbing's pins per seat, other players' copies posed once per frame, the visor per seat; section 15). **After phase
 7: 13-20 worker-days** (parts 2 and 3 took one each of the 3-4 left; part 3 took phase 8's listeners, so phase 8 is now
-what the shared memories left: section 17).
+what the shared memories left: section 17). **After phase 8: 12-19 worker-days** (8 took one; flat TAA per tile, half a
+day to a day, moved to phase 11 with the tiles' sizes; next: phase 9, the menus per seat; then phase 10's join screen,
+which he tries before the merge into next).
 
 ## 7. Questions for him (the phase that needs each)
 
@@ -694,3 +696,41 @@ His answer to question 3 (2026-11-21): seat 1 is always the keyboard and mouse; 
   shells, shared memories, not yet), gore's other state; the static sounds and the underwater muffling per seat; flat TAA
   per tile; the shadow and portal caches checked with several views.
 - **Before and after**: ROUND25.md "split7c".
+
+## 18. Phase 8 (2026-11-22): the shared memories fed once, muffling per seat, shadows per seat's pass
+
+(Seats numbered from 0 as in the code.) One seat: every path below is skipped or the same as before.
+
+- **A repeat known as its parse begins** (vr_seat.cpp `CL_SeatFxBegin`): the drawn seats' server events this frame are
+  remembered with their lengths; a later seat's parse looks ahead in its message for the same bytes (a repeat: the same
+  event its client reads too). `CL_SeatFxRepeat()` says so (0: a first). Part 3's taking back of particles stays.
+- **Quake VR messages whose memories are all shared skip a repeat whole** (vr_client.cpp `repeatSkipped`: particle2,
+  wounds and their clears, blade wounds, weapons gone, hit reactions, gore sounds): the wounds painted, their blood
+  streams and drips, the gore's landings and decals they make, the hit kicks and the gore sounds are fed once.
+- **Others keep their seat's own part**: a tracer (the seat's own crosshair probe kept, the tracer drawn once), a shock
+  (your own hit kept; arcs and burns once), a monster's muzzle flash once.
+- **Casings per seat** (vr_shells.cpp): each seat's own ejections queue with its seat and leave its own weapons in its
+  pass (its ports' speeds its own: `tracks` a seat); another player's casings are thrown by one drawn seat's client and
+  never for a local seat's player (`seat::seatOfPlayer`: his own seat throws them); the casings are run once a frame
+  (`SharedFx::Shells`) and drawn into every seat's scene (part 2 drew them in seat 0's tile only).
+- **Static sounds**: the level's, started once (seat 0's client; the others start none), are spatialized from every
+  listener as the other channels are (part 3's loudest-kept): checked (e1m6: 21 statics, none twice).
+- **Underwater muffling per seat** (snd_dma.c, snd_mix.c): each listener's water (its leaf's contents; seat 0's
+  `cl.forceunderwater`); a channel is muffled as the seat hearing it best hears it (`channel_t`'s `seatwater`; an
+  ambient as the seat whose leaf gives its level). With several listeners and one under water, the mix paints those
+  channels first, apart, filters them (snd_waterfx's strength) and adds them to the others: the seat in the water hears
+  its sounds muffled, the one on land its own clear. One listener: the whole mix filtered as before.
+- **Shadows with several views**: the blob shadows (vr_shadows.cpp) and the shadow maps (vr_lighting.cpp
+  `VR_RenderShadowMaps`) were built once a frame from the first view: now for each drawn seat's pass (its eye's lights,
+  its client's dlights and casters). The cost: the shadow maps rendered once a seat. The alias set-up cache keys by
+  entity (each seat's client has its own) and the portals are chosen per camera already (`portals::update` per view):
+  nothing to change; their targets are made anew when tiles of two sizes alternate (3 seats, gates on the map): a cost,
+  not a fault (phase 11 may keep one a size).
+- **Flat TAA per tile: not done, moved to phase 11.** Its history (`EyeState`), the entities' previous transforms
+  (`slots`, by entity: each seat's own) and the motion target are one view's; a set a seat sized as its tile is half a
+  day to a day, best with phase 11's tile sizes. It stays off in tiles.
+- **`vr_seat_render_test`** grew: a Quake VR message all seats read is a repeat in seats 2-n and read whole by each,
+  another is no repeat; each seat's player found as its seat's; one listener under water (seat 1's), its own sound
+  muffled alone and another seat's clear; the static sounds none twice. 2 seats 33/33, 3 seats 40/40, 4 seats 48/48,
+  torches 35/35.
+- **Before and after**: ROUND25.md "split8".

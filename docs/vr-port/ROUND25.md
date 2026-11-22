@@ -8359,3 +8359,25 @@ into this part).
   game): each tile has its own visor HUD; a sound is heard from the nearer seat; gore and impacts both seats see are
   spawned once.
 
+## split8: splitscreen phase 8, the shared memories fed once, muffling per seat, shadows per seat's pass (split8, 2026-11-22, `agent/split`)
+
+What it does: SPLITSCREEN.md section 18 (the phase table and the effort left updated: next phase 9, the menus per
+seat; phase 10's join screen is the one he tries before the merge into next).
+
+- **A repeat known as its parse begins** (`CL_SeatFxBegin` looks ahead for an event another drawn seat fed this frame;
+  `CL_SeatFxRepeat`): the Quake VR messages whose memories are all shared (wounds, blade wounds, weapons gone, hit
+  reactions, gore sounds, particle2) skip a repeat's bytes, so their decals, streams, drips and gore are fed once;
+  tracers, shocks and monsters' flashes keep the seat's own part.
+- **Casings per seat**: each seat's own leave its weapons in its pass, another player's thrown once and never for a
+  local seat's player, run once and drawn in every tile.
+- **Muffling per seat**: each listener's water; a channel muffled as the seat hearing it best hears it (snd_mix.c paints
+  those apart and filters them). Static sounds checked: once, spatialized from every listener.
+- **Shadows**: the blob shadows and the shadow maps built for each drawn seat's pass (a cost: the maps once a seat).
+  Portals and the alias set-up cache already per view.
+- **Flat TAA per tile: moved to phase 11** (one view's history, slots and motion target; a set a seat is half a day+).
+- **Tests** (quick build): `seat_render_test.sh` 2 seats 33/0, 3 seats 40/0, 4 seats 48/0, torches 35/0 (screenshots
+  `qvr-kit/scratch/split8_{2,3,4}seats.png`, `_torches.png`); `vr_seat_test` 70/0; `seat_play_test.sh` 55/0; visor
+  37/0, flatplay 31/0; scenario_check 193 run, 0 failed. Quick build 0 warnings, QC 0 warnings. Not run: ThinLTO, the MP
+  suite chunks (no network or server code changed).
+- In VR (the author): nothing changes (one seat). Flatscreen with seats: a seat under water hears its sounds muffled,
+  the other clear; each seat sees its own casings and blob shadows; gore both seats see is painted once.
