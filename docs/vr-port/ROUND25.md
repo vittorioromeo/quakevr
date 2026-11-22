@@ -8433,3 +8433,23 @@ His notes vrropes_2026-11-22_15-43-18, 15-43-56, 15-45-10, 15-48-30 ("Climbing r
   (30), 4 grunts; rope_short: `vr_rope_climb_test <play> 425`; rope_climb adds grip and "no grunt climbing down or on a
   mere grab"; with `vr_rope_hand_grip 1` its grip check fails at 0.15), rope_sound_test 6/0, vr_rope_test 16/0,
   mp_test.py ropeclimb 12/0. ThinLTO 0 warnings.
+
+## dwellweap: the Crystal Lance's shot, weight, feed and grip flip; pole weapons' design (agent/dwellweap, 2026-11-22)
+
+His notes vrtesthall_2026-11-22_15-38-38 .. 16-01-25. Built (one commit each): items 1, 5 and part of 2 and 3; item 6 as
+a design (`docs/vr-port/POLEWEAPONS.md`). Not built: the cord, the thrust, the main hand's slide, the Rotary Shotgun's
+model changes.
+- **The beam was never drawn** ("held fire only makes smoke at the target"): `VR_BeamGone` (vr_client.cpp) ended a hand's
+  lightning the frame it began unless the hand held `v_light.mdl`; now any lightning-kind model (`gunfx::weaponIdOf`).
+- **Its effects**: violet particles where the beam enters and leaves each body and where it stops (QC `dw_fire_lance`;
+  a developer print "dwlance: the beam through N bodies"); slot 55's recoil a heavy shot's (`fx_kick_cm` 6, `fx_rise_deg`
+  5, `fx_return_s` 0.35; it had the Thunderbolt's stream values); its crystal head glowing violet after each shot (gunfx
+  barrel heat: `fx_gfx_heat` 20, `fx_gfx_cool` 0.25, `fx_gfx_barrel` 0.48, mask none; `barrelHeat`'s colour violet for
+  the Lance). Screenshot `qvr-kit/scratch/dwellweap_lance_fire.png` (eye view, then a side camera).
+- **20% heavier**: `w_mass` 7.2 (was 6.0).
+- **No magazine**: `DW_LanceFedFromPouch` (dw_items.qc): `VRIsWeaponReloadingEnabledForInst` never reloads it, each shot
+  takes 6 cells from the pouch.
+- **Grip flip**: slot 55 `rev 1`; `VR_RevGrip_Flip` allows the Lance (its eject button is free). Not proven: the mock's
+  `vr_mock_button main secondary` did not flip it (no "revgrip: ... flips" print, no refusal print); open.
+- **Tests**: `dwell_lance_test.sh` 12/0 (new: the beam fired, 6 cells from the pouch's 100). Note for test writers: the
+  mock trigger (`vr_mock_button main trigger 1`) did not fire the Lance; `+attack` does.

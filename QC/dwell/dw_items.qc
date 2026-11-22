@@ -258,6 +258,15 @@ void(float xHand) DW_LanceMelee =
     BroadcastGunshotEffect(org);
 };
 
+// The weapon record `xInst` is the Crystal Lance held as a lance: no magazine (dwellweap; his note
+// vrtesthall_2026-11-22_15-38-38: "it shouldn't have a magazine like the laser cannon"): every shot's 6 cells taken from
+// the pouch's (VRIsWeaponReloadingEnabledForInst never reloads it; its eject button free for the grip's flip, vr_revgrip.qc;
+// the cord from its butt to the pouch planned in docs/vr-port/POLEWEAPONS.md).
+float(entity xInst) DW_LanceFedFromPouch =
+{
+    return xInst.wi_dwvar == DW_VAR_LANCE && DW_LancePole();
+};
+
 // The weapon in `xHand` is the Crystal Lance held as a lance.
 float(float xHand) DW_LanceHeld =
 {
@@ -341,9 +350,14 @@ void(float xHand) dw_fire_lance =
         vector end = trace_endpos;
         T_Damage(hit, self, self, 150);
         if(hit.health <= 0) { hit.velocity = hit.velocity + dir * 400 + '0 0 175'; }
+        // (dwellweap: the bolt crackling through it, violet crystal sparks where it enters and leaves)
+        particle(end, dir * 30, 148 + rint(random() * 6), 40);
+        particle(end + dir * 24, dir * 60, 148 + rint(random() * 6), 24);
         ignore = hit;
         src = end + dir * 4;
     }
+    particle(trace_endpos - dir * 2, dir * -40, 148 + rint(random() * 6), 32); // (and where it stops)
+    dprint(sprintf("dwlance: the beam through %g bodies, %.0f long\n", n, vlen(trace_endpos - start)));
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
     WriteEntity(MSG_BROADCAST, dw_beam_prop ? dw_beam_prop : self); // (an armed grunt's: from its gun, as its lightning)
