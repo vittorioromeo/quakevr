@@ -50,12 +50,14 @@ void Cbuf_AddText (const char *text);
 
 void Cbuf_InsertText (const char *text);
 int Cbuf_Pending (void);			// QVR: the length of the text still to run
+extern const char *cmd_before_stuffcmds; // QVR: run once just before the command line's +commands (stuffcmds; host.c)
 void Cbuf_TailToFront (int bytes);	// QVR: its last `bytes` moved to run next (vr_mock_key: a key's bind)
 // when a command wants to issue other commands immediately, the text is
 // inserted at the beginning of the buffer, before any remaining unexecuted
 // commands.
 
 void Cbuf_Execute (void);
+extern int cbuf_executing; // QVR: nonzero inside Cbuf_Execute (a config's commands running)
 // Pulls off \n terminated lines of text from the command buffer and sends
 // them through Cmd_ExecuteString.  Stops when the buffer is empty.
 // Normally called once per frame, but may be explicitly invoked.

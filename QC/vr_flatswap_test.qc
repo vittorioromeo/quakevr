@@ -612,6 +612,239 @@ void(entity p) VR_FSW_Clip =
     }
 };
 
+// ---- 6: the holsters' number keys (his words 2026-11-22; QC vr_flatholster.qc VR_FlatHolster_Cycle / _Put, the engine's
+// vr_flatplay.cpp handKeys), each pressed as a key (vr_mock_key): 1 and 2 cycle the left and the right hand through three
+// holstered weapons and the empty hand (the other hand's weapon skipped), 5 with an empty hand, 4 back into the holster
+// it came from and into the left side's first free one, 4 with every holster full, 1 with every holster full (a trade),
+// 6 and 7 drop, 1 with a brick carried; then the rocket launcher in the right hand: the left on its grip, off it with
+// 1's shotgun, back on it when 1 empties it again.
+float VR_FNK_STEPS = 16;
+float vr_fnk_base;  // impulses 86 .. 89 taken and hand drops before the press
+float vr_fnk_wl;    // the step's left hand's weapon, expected; and the right's
+float vr_fnk_wr;
+float vr_fnk_e0;    // the holsters 0 .. 5, expected
+float vr_fnk_e1;
+float vr_fnk_e2;
+float vr_fnk_e3;
+float vr_fnk_e4;
+float vr_fnk_e5;
+string vr_fnk_what; // (a constant)
+
+float(entity p, float i) VR_FNK_Hol =
+{
+    entity os = self;
+    self = p;
+    float w = getHolsterWeapon(VR_FlatHolster_Hotspot(i));
+    self = os;
+    return w;
+};
+
+void(entity p, float i, float wid) VR_FNK_SetOne =
+{
+    entity os = self;
+    self = p;
+    entity inst = world;
+    if(wid != WID_FIST)
+    {
+        VR_WeaponUtil_EntAddWeapon(p, wid);
+        inst = WeaponInst_New(WeaponIdToBaseClipSize(wid));
+    }
+    VR_FlatHolster_Set(VR_FlatHolster_Hotspot(i), wid, 0, inst);
+    self = os;
+};
+
+void(entity p, float a, float b, float c, float d, float e, float f) VR_FNK_SetHolsters =
+{
+    VR_FNK_SetOne(p, 0, a);
+    VR_FNK_SetOne(p, 1, b);
+    VR_FNK_SetOne(p, 2, c);
+    VR_FNK_SetOne(p, 3, d);
+    VR_FNK_SetOne(p, 4, e);
+    VR_FNK_SetOne(p, 5, f);
+};
+
+// What the step should leave: the left hand, the right, the six holsters.
+void(float l, float r, float a, float b, float c, float d, float e, float f, string what) VR_FNK_Expect =
+{
+    vr_fnk_wl = l;
+    vr_fnk_wr = r;
+    vr_fnk_e0 = a;
+    vr_fnk_e1 = b;
+    vr_fnk_e2 = c;
+    vr_fnk_e3 = d;
+    vr_fnk_e4 = e;
+    vr_fnk_e5 = f;
+    vr_fnk_what = what;
+};
+
+void(string key) VR_FNK_Press =
+{
+    vr_fnk_base = vr_flatholster_keys + vr_flatholster_drops;
+    localcmd(sprintf("vr_mock_key %s down\nwait\nwait\nvr_mock_key %s up\n", key, key));
+};
+
+float(entity p) VR_FNK_Matches =
+{
+    return VRGetEntWeapon(p, cVR_OffHand) == vr_fnk_wl && VRGetEntWeapon(p, cVR_MainHand) == vr_fnk_wr &&
+           VR_FNK_Hol(p, 0) == vr_fnk_e0 && VR_FNK_Hol(p, 1) == vr_fnk_e1 && VR_FNK_Hol(p, 2) == vr_fnk_e2 &&
+           VR_FNK_Hol(p, 3) == vr_fnk_e3 && VR_FNK_Hol(p, 4) == vr_fnk_e4 && VR_FNK_Hol(p, 5) == vr_fnk_e5;
+};
+
+// Step `k`'s set-up, its key and what it should leave.
+void(entity p, float k) VR_FNK_Step =
+{
+    float S = WID_SHOTGUN;
+    float N = WID_NAILGUN;
+    float X = WID_SUPER_SHOTGUN;
+    float F = WID_FIST;
+    float T = WID_LIGHTNING;
+    if(k == 0)
+    {
+        VR_FSW_Give(p, cVR_MainHand, F);
+        VR_FSW_Give(p, cVR_OffHand, F);
+        VR_FNK_SetHolsters(p, S, N, F, X, F, F);
+        VR_FNK_Expect(S, F, F, N, F, X, F, F, "1: the left hand draws the first holster's shotgun");
+        VR_FNK_Press("1");
+    }
+    if(k == 1) { VR_FNK_Expect(N, F, S, F, F, X, F, F, "1: the nailgun, the shotgun back in its own holster"); VR_FNK_Press("1"); }
+    if(k == 2) { VR_FNK_Expect(X, F, S, N, F, F, F, F, "1: the super shotgun (holster 3, the empty 2 passed)"); VR_FNK_Press("1"); }
+    if(k == 3) { VR_FNK_Expect(F, F, S, N, F, X, F, F, "1 after the last: the left hand empty, every weapon in its holster"); VR_FNK_Press("1"); }
+    if(k == 4) { VR_FNK_Expect(F, S, F, N, F, X, F, F, "2: the right hand draws the shotgun"); VR_FNK_Press("2"); }
+    if(k == 5) { VR_FNK_Expect(N, S, F, F, F, X, F, F, "1: the nailgun (the right hand's shotgun skipped)"); VR_FNK_Press("1"); }
+    if(k == 6) { VR_FNK_Expect(N, X, S, F, F, F, F, F, "2: the super shotgun, the shotgun back"); VR_FNK_Press("2"); }
+    if(k == 7) { VR_FNK_Expect(N, F, S, F, F, X, F, F, "2 after the last: the right hand empty"); VR_FNK_Press("2"); }
+    if(k == 8) { VR_FNK_Expect(N, F, S, F, F, X, F, F, "5 with the right hand empty: nothing moves"); VR_FNK_Press("5"); }
+    if(k == 9) { VR_FNK_Expect(F, F, S, N, F, X, F, F, "4: the nailgun into the holster it came from"); VR_FNK_Press("4"); }
+    if(k == 10)
+    {
+        VR_FSW_Give(p, cVR_OffHand, T);
+        VR_FNK_Expect(F, F, S, N, T, X, F, F, "4: a thunderbolt from elsewhere into the left hip (the left side's first free)");
+        VR_FNK_Press("4");
+    }
+    if(k == 11)
+    {
+        VR_FNK_SetHolsters(p, S, N, T, X, WID_GRENADE_LAUNCHER, WID_ROCKET_LAUNCHER);
+        VR_FSW_Give(p, cVR_OffHand, WID_AXE);
+        VR_FNK_Expect(WID_AXE, F, S, N, T, X, WID_GRENADE_LAUNCHER, WID_ROCKET_LAUNCHER, "4 with every holster full: nothing moves");
+        VR_FNK_Press("4");
+    }
+    if(k == 12)
+    {
+        VR_FNK_Expect(S, F, WID_AXE, N, T, X, WID_GRENADE_LAUNCHER, WID_ROCKET_LAUNCHER, "1 with every holster full: the axe and the shotgun trade");
+        VR_FNK_Press("1");
+    }
+    if(k == 13)
+    {
+        VR_FNK_Expect(F, F, WID_AXE, N, T, X, WID_GRENADE_LAUNCHER, WID_ROCKET_LAUNCHER, "6: the left hand's shotgun dropped");
+        VR_FNK_Press("6");
+    }
+    if(k == 14)
+    {
+        VR_FSW_Give(p, cVR_MainHand, S);
+        VR_FNK_Expect(F, F, WID_AXE, N, T, X, WID_GRENADE_LAUNCHER, WID_ROCKET_LAUNCHER, "7: the right hand's shotgun dropped");
+        VR_FNK_Press("7");
+    }
+    if(k == 15)
+    {
+        VR_FNK_SetHolsters(p, S, F, F, F, F, F);
+        vr_fsw_bo = VR_FSW_Brick(p, cVR_OffHand);
+        VR_FNK_Expect(F, F, S, F, F, F, F, F, "1 with a brick in the left hand: nothing moves, the brick kept");
+        VR_FNK_Press("1");
+    }
+};
+
+void(entity p) VR_FSW_NumKeys =
+{
+    if(vr_fsw_s == 0)
+    {
+        if(vr_fsw_case >= VR_FNK_STEPS)
+        {
+            VR_FSW_To(10, 0);
+            return;
+        }
+        VR_FNK_Step(p, vr_fsw_case);
+        VR_FSW_To(1, 0);
+        return;
+    }
+    if(vr_fsw_s == 1)
+    {
+        if(vr_flatholster_keys + vr_flatholster_drops == vr_fnk_base)
+        {
+            return; // (the key's impulse not yet taken: the state's give-up catches one never taken)
+        }
+        string hols = sprintf("%g %g %g %g %g %g", VR_FNK_Hol(p, 0), VR_FNK_Hol(p, 1), VR_FNK_Hol(p, 2), VR_FNK_Hol(p, 3),
+            VR_FNK_Hol(p, 4), VR_FNK_Hol(p, 5));
+        VR_Test_Check(VR_FNK_Matches(p), sprintf("step %g, %s (left %g, right %g; holsters %s)", vr_fsw_case, vr_fnk_what,
+            VRGetEntWeapon(p, cVR_OffHand), VRGetEntWeapon(p, cVR_MainHand), hols));
+        if(vr_fsw_case == 15)
+        {
+            VR_Test_Check(VR_Carry_Held(p, cVR_OffHand) == vr_fsw_bo, "step 15: the brick still in the left hand");
+            VR_FSW_DropAll(p);
+        }
+        vr_fsw_case = vr_fsw_case + 1;
+        VR_FSW_To(0, 2);
+        return;
+    }
+    // The two-handed weapon: the rocket launcher alone in the right hand, the left on its grip (flat play's pinToGrip).
+    if(vr_fsw_s == 10)
+    {
+        VR_FSW_Give(p, cVR_OffHand, WID_FIST);
+        VR_FSW_Give(p, cVR_MainHand, WID_ROCKET_LAUNCHER);
+        VR_FNK_SetHolsters(p, WID_SHOTGUN, WID_FIST, WID_FIST, WID_FIST, WID_FIST, WID_FIST);
+        VR_FSW_To(11, 0);
+        return;
+    }
+    if(vr_fsw_s == 11)
+    {
+        if(!VRGet2HAiming(p))
+        {
+            return; // (until the left hand takes the grip: the give-up if never)
+        }
+        VR_Test_Check(TRUE, "2H: the rocket launcher in the right hand, the empty left on its grip");
+        VR_FNK_Expect(WID_SHOTGUN, WID_ROCKET_LAUNCHER, WID_FIST, WID_FIST, WID_FIST, WID_FIST, WID_FIST, WID_FIST,
+            "2H, 1: the left hand draws the shotgun, the rocket launcher kept in the right");
+        VR_FNK_Press("1");
+        VR_FSW_To(12, 0);
+        return;
+    }
+    if(vr_fsw_s == 12 || vr_fsw_s == 14)
+    {
+        if(vr_flatholster_keys + vr_flatholster_drops == vr_fnk_base)
+        {
+            return;
+        }
+        VR_Test_Check(VR_FNK_Matches(p), sprintf("%s (left %g, right %g, holster 0 %g)", vr_fnk_what,
+            VRGetEntWeapon(p, cVR_OffHand), VRGetEntWeapon(p, cVR_MainHand), VR_FNK_Hol(p, 0)));
+        VR_FSW_To(vr_fsw_s + 1, 0);
+        return;
+    }
+    if(vr_fsw_s == 13)
+    {
+        if(VRGet2HAiming(p))
+        {
+            return; // (until the left hand, holding the shotgun, is off the grip)
+        }
+        VR_Test_Check(TRUE, "2H: the left hand off the grip with its shotgun");
+        VR_FNK_Expect(WID_FIST, WID_ROCKET_LAUNCHER, WID_SHOTGUN, WID_FIST, WID_FIST, WID_FIST, WID_FIST, WID_FIST,
+            "2H, 1 again: the shotgun back in its holster, the left hand empty");
+        VR_FNK_Press("1");
+        VR_FSW_To(14, 0);
+        return;
+    }
+    if(vr_fsw_s == 15)
+    {
+        if(!VRGet2HAiming(p))
+        {
+            return; // (until the empty left hand takes the grip again)
+        }
+        VR_Test_Check(TRUE, "2H: the empty left hand back on the rocket launcher's grip");
+        VR_FSW_Give(p, cVR_MainHand, WID_FIST);
+        VR_FNK_SetHolsters(p, WID_FIST, WID_FIST, WID_FIST, WID_FIST, WID_FIST, WID_FIST);
+        VR_FSW_End();
+        return;
+    }
+};
+
 void() VR_FlatSwapTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_flatswap_test);
@@ -652,6 +885,7 @@ void() VR_FlatSwapTest_Frame =
     if(ask == 3) { VR_FSW_Melee(p, 0); }
     if(ask == 4) { VR_FSW_Melee(p, 6); } // (AD's only)
     if(ask == 5) { VR_FSW_Clip(p); }
+    if(ask == 6) { VR_FSW_NumKeys(p); } // (the holsters' number keys)
     if(ask >= 11 && ask <= 17) { VR_FSW_Strip(p, ask); }
 };
 #endif

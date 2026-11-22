@@ -11,7 +11,6 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
-#include <cstring>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>

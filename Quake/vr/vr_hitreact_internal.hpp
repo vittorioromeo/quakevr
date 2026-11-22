@@ -48,7 +48,6 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <string.h>
-#include <type_traits>
 
 using namespace qvr;
 

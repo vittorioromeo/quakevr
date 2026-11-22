@@ -156,8 +156,12 @@ bool active = false;
 namespace
 {
 
-// Frames longer than this (a map loading, a hitch) are counted apart, not in the averages.
-constexpr double hitchMs = 250.0;
+// Frames longer than this (a map loading, a hitch) are counted apart, not in the averages (250 ms; vr_profile_slow_ms
+// raises it for a device whose every frame is slower, the Quest's first boots).
+double hitchMs()
+{
+    return vr_profile_slow_ms.value > 0.f ? static_cast<double>(vr_profile_slow_ms.value) : 250.0;
+}
 // GPU frames in flight before a slot is read waiting.
 constexpr int gpuSlots = 6;
 
@@ -173,6 +177,7 @@ struct Node
     // This frame.
     za::I64 frameNs{0};
     int frameCalls{0};
+    int frameDraws{0}; // the draw calls made inside it (vr_profcounts.drawcalls), its children's included
     bool cpuTouched{false};
     double gpuFrameMs{0.0};
     bool gpuTouched{false};
@@ -181,6 +186,7 @@ struct Node
     double cpuSum{0.0}; // ms
     double cpuMax{0.0};
     za::I64 calls{0};
+    za::I64 draws{0};
     double gpuSum{0.0};
     double gpuMax{0.0};
     bool gpu{false};
@@ -195,6 +201,7 @@ struct Open
     int node;
     za::I64 start;
     int gpuRec; // -1: CPU only
+    int draws0; // vr_profcounts.drawcalls at its start
 };
 za::Vector<Open> stack;
 
@@ -458,7 +465,7 @@ void endPhaseFrame(za::I64 now, za::I64 start, za::I64 end)
     phaseGpuOpen = 0;
     phaseStack.clear(); // a dialog's frame inside one (a Host_Error's were ended before its longjmp: onHostError)
     const double period = start > 0 ? static_cast<double>(now - start) / 1e6 : 0.0;
-    const bool keep = start > 0 && period <= hitchMs;
+    const bool keep = start > 0 && period <= hitchMs();
     PhaseGpuSlot& s = phaseSlots[phaseSlot];
     if(keep)
     {
@@ -583,6 +590,7 @@ void resetInterval(za::I64 now)
     {
         n.cpuSum = n.cpuMax = n.gpuSum = n.gpuMax = 0.0;
         n.calls = 0;
+        n.draws = 0;
     }
     intervalStart = now;
     intervalFrames = intervalGpuFrames = intervalHitches = intervalStalls = 0;
@@ -635,9 +643,11 @@ void foldCpu(bool keep)
             n.cpuSum += ms;
             n.cpuMax = za::max(n.cpuMax, ms);
             n.calls += n.frameCalls;
+            n.draws += n.frameDraws;
         }
         n.frameNs = 0;
         n.frameCalls = 0;
+        n.frameDraws = 0;
         n.cpuTouched = false;
     }
     cpuTouched.clear();
@@ -950,7 +960,8 @@ void writeFile(double seconds)
 
 void printTree()
 {
-    Con_Printf("%-30s %6s %6s %6s %6s\n", "scope (ms/frame)", "cpu", "max", "gpu", "max");
+    Con_Printf("%-30s %6s %6s %6s %6s %6s\n", "scope (ms/frame)", "cpu", "max", "gpu", "max", "draws");
+    const double frames = za::max(intervalFrames, 1);
     za::Vector<int> todo{0};
     while(!todo.empty())
     {
@@ -970,7 +981,8 @@ void printTree()
         q_snprintf(name, sizeof(name), "%*s%s", 2 * n.depth, "", n.name);
         if(n.gpu)
         {
-            Con_Printf("%-30s %6.2f %6.2f %6.2f %6.2f\n", name, s.cpuAvg, s.cpuMax, s.gpuAvg, s.gpuMax);
+            Con_Printf("%-30s %6.2f %6.2f %6.2f %6.2f %6.0f\n", name, s.cpuAvg, s.cpuMax, s.gpuAvg, s.gpuMax,
+                static_cast<double>(n.draws) / frames);
         }
         else
         {
@@ -1004,7 +1016,7 @@ void report(za::I64 now, bool full)
         printTree();
         if(intervalHitches || intervalStalls)
         {
-            Con_Printf("%d hitches (frames over %.0f ms, left out), %d GPU read stalls\n", intervalHitches, hitchMs,
+            Con_Printf("%d hitches (frames over %.0f ms, left out), %d GPU read stalls\n", intervalHitches, hitchMs(),
                 intervalStalls);
         }
     }
@@ -1094,7 +1106,7 @@ void begin(const char* name, bool gpu)
         return;
     }
     const int parent = stack.empty() ? 0 : stack.back().node;
-    Open o{child(parent, name), za::Clock::nowNanoseconds(), -1};
+    Open o{child(parent, name), za::Clock::nowNanoseconds(), -1, vr_profcounts.drawcalls};
     if(gpu && gpuOk)
     {
         GpuSlot& s = slots[slotIndex];
@@ -1130,6 +1142,7 @@ void endScope()
     const za::I64 ns = za::Clock::nowNanoseconds() - o.start;
     n.frameNs += ns;
     ++n.frameCalls;
+    n.frameDraws += vr_profcounts.drawcalls - o.draws0;
     // Its own time to its system; its parent's (whose time holds it) less.
     const Node& p = nodes[n.parent];
     if(n.system != p.system || n.view != p.view)
@@ -1228,6 +1241,8 @@ struct AliasBatch
     int depth;
     int ent;
     int skin;
+    int form; // the program (the Quest's lite forms)
+    int needs;
     int tris;
 };
 struct GlPasses
@@ -1238,12 +1253,14 @@ struct GlPasses
 
 void printPasses()
 {
-    Con_Printf("vr_gl_passes: %d alias batches (model, instances, draws, pass, first entity, skin, triangles each)\n",
+    Con_Printf("vr_gl_passes: %d alias batches (model, instances, draws, pass, first entity, skin, program, needs, "
+               "triangles each)\n",
         static_cast<int>(glPasses.batches.size()));
+    static constexpr const char* forms[] = {"depth", "full", "opaque", "plain", "gore", "skin", "body", "?"};
     for(const AliasBatch& a : glPasses.batches)
     {
-        Con_Printf("  alias %-28s %3d inst %2d draws %s ent %d skin %d tris %d\n", a.model, a.instances, a.draws,
-            a.depth ? "depth" : "shade", a.ent, a.skin, a.tris);
+        Con_Printf("  alias %-28s %3d inst %2d draws %s ent %d skin %d %s needs %d tris %d\n", a.model, a.instances,
+            a.draws, a.depth ? "depth" : "shade", a.ent, a.skin, forms[a.form & 7], a.needs, a.tris);
     }
     Con_Printf("vr_gl_passes: %d draw framebuffer binds in the frame (fbo, draws into it, the scope at the bind)\n",
         static_cast<int>(glPasses.binds.size()));
@@ -1264,9 +1281,10 @@ extern "C" void VR_GLPassBind(unsigned fbo)
     glPasses.binds.pushBack({fbo, vr_profcounts.drawcalls, stack.empty() ? nullptr : nodes[stack.back().node].name});
 }
 
-extern "C" void VR_GLAliasBatch(const char* model, int instances, int draws0, int depth, int ent, int skin, int tris)
+extern "C" void VR_GLAliasBatch(
+    const char* model, int instances, int draws0, int depth, int ent, int skin, int form, int needs, int tris)
 {
-    glPasses.batches.pushBack({model, instances, vr_profcounts.drawcalls - draws0, depth, ent, skin, tris});
+    glPasses.batches.pushBack({model, instances, vr_profcounts.drawcalls - draws0, depth, ent, skin, form, needs, tris});
 }
 
 extern "C" void VR_ProfileFrame()
@@ -1318,7 +1336,7 @@ extern "C" void VR_ProfileFrame()
         root.cpuTouched = true;
         cpuTouched.pushBack(0);
         const double period = static_cast<double>(now - frameStart) / 1e6;
-        const bool hitch = period > hitchMs;
+        const bool hitch = period > hitchMs();
         const double hitchAt = systems::hitchMs();
         const za::String hitchScopes =
             (hitchAt > 0.0 && static_cast<double>(hostNs) / 1e6 > hitchAt) || systems::frameLogOn() ? frameTopScopes() : "";
@@ -1357,7 +1375,7 @@ extern "C" void VR_ProfileFrame()
         gpuDepth = 0;
 
         systems::frameEnd(now, now - frameStart, hostNs,
-            systems::Counts{counts.traces, counts.hullchecks, counts.drawcalls, counts.aliasdrawn}, hitchMs,
+            systems::Counts{counts.traces, counts.hullchecks, counts.drawcalls, counts.aliasdrawn}, hitchMs(),
             mapName.cStr(), hitchScopes);
     }
 

@@ -6,11 +6,13 @@
 
 #include "vr_ragtool.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Container/Array.hpp"
 
-#include <cstring>
 
 namespace qvr::ragtool::physics
 {
@@ -297,7 +299,7 @@ void drawBalance(const RagdollBodies& r, edict_t* ent, float floor)
     {
         for(int b = 0; b < rig.numBones; b++)
         {
-            if(!std::strcmp(rig.bones[b].name, names[n]))
+            if(!ZA_STRCMP(rig.bones[b].name, names[n]))
             {
                 return b;
             }
@@ -307,7 +309,7 @@ void drawBalance(const RagdollBodies& r, edict_t* ent, float floor)
     {
         for(int b = 0; b < rig.numBones; b++)
         {
-            if(!std::strncmp(rig.bones[b].name, names[n], std::strlen(names[n])))
+            if(!ZA_STRNCMP(rig.bones[b].name, names[n], ZA_STRLEN(names[n])))
             {
                 return b;
             }

@@ -33,7 +33,6 @@
 #include <glm/glm.hpp>
 
 #include <cstdio>
-#include <cstring>
 
 namespace qvr::humlook
 {

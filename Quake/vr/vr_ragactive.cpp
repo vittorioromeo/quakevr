@@ -10,6 +10,11 @@
 #include "vr_lines.hpp"
 #include "vr_ragpose.hpp"
 
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -18,10 +23,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
-#include "Zancle/Container/Array.hpp"
-#include "Zancle/Container/Vector.hpp"
 
-#include <cstring>
 
 #include "vr_ledges.hpp"
 
@@ -51,7 +53,7 @@ constexpr float rollRate = 4.f;       // rad/s: its turn
 
 [[nodiscard]] bool named(const char* name, const char* part)
 {
-    return std::strstr(name, part) != nullptr;
+    return ZA_STRSTR(name, part) != nullptr;
 }
 
 } // namespace
@@ -62,7 +64,7 @@ namespace detail
 // Its side by its name's end: 0 left (_l), 1 right (_r), -1 neither.
 [[nodiscard]] int sideOf(const char* name)
 {
-    const size_t n = std::strlen(name);
+    const size_t n = ZA_STRLEN(name);
     if(n >= 2 && name[n - 2] == '_')
     {
         return name[n - 1] == 'l' ? 0 : name[n - 1] == 'r' ? 1 : -1;
@@ -2990,8 +2992,8 @@ void begin(State& s, const Parts& p, const qmodel_t* model, const glm::vec3& ori
         {
             continue;
         }
-        const bool arm = std::strncmp(n, "upperarm_", 9) == 0 || std::strncmp(n, "arm_", 4) == 0;
-        const bool leg = std::strncmp(n, "thigh_", 6) == 0;
+        const bool arm = ZA_STRNCMP(n, "upperarm_", 9) == 0 || ZA_STRNCMP(n, "arm_", 4) == 0;
+        const bool leg = ZA_STRNCMP(n, "thigh_", 6) == 0;
         if(!arm && !leg)
         {
             continue;
@@ -3000,8 +3002,8 @@ void begin(State& s, const Parts& p, const qmodel_t* model, const glm::vec3& ori
         for(int c = 0; c < p.count; c++)
         {
             const char* cn = rig.bones[c].name;
-            const bool lower = arm ? (std::strncmp(cn, "forearm_", 8) == 0 || std::strncmp(cn, "hand_", 5) == 0)
-                                   : std::strncmp(cn, "shin_", 5) == 0;
+            const bool lower = arm ? (ZA_STRNCMP(cn, "forearm_", 8) == 0 || ZA_STRNCMP(cn, "hand_", 5) == 0)
+                                   : ZA_STRNCMP(cn, "shin_", 5) == 0;
             if(rig.bones[c].parent == b && lower)
             {
                 s.chain[static_cast<za::SizeT>(limb)][0] = static_cast<int8_t>(b);

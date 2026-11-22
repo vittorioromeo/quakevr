@@ -82,7 +82,11 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Asin.hpp"
+#include "Zancle/Math/Atan.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -387,7 +391,7 @@ constexpr float floorMarginMax = 6.f;    // vr_flat_prone_floor_margin's range (
     {
         return {1.f, 0.f, 0.f};
     }
-    const float t = std::tan(glm::radians(za::clamp(r_refdef.fov_y, 1.f, 170.f) * 0.5f));
+    const float t = za::tan(glm::radians(za::clamp(r_refdef.fov_y, 1.f, 170.f) * 0.5f));
     return glm::normalize(glm::vec3{1.f, shift.x * 0.02f * t, shift.y * 0.02f * t});
 }
 
@@ -856,14 +860,14 @@ void slideFor(const hands::State& s, int h, const glm::vec3& head, const glm::ve
     const glm::vec2 fl = glm::normalize(f), wl = glm::normalize(w);
     st.slideNormal[h] = glm::vec3{wl, 0.f};
     // (Into the wall, degrees: 0 along it; pointing out of it, met with the hand's side: 0, all along.)
-    const float into = glm::degrees(std::asin(za::clamp(-glm::dot(fl, wl), 0.f, 1.f)));
+    const float into = glm::degrees(za::asin(za::clamp(-glm::dot(fl, wl), 0.f, 1.f)));
     st.slideInto[h] = into;
     st.slideDepth[h] = depth;
     const float from = za::clamp(vr_flat_wall_slide_from.value, 0.f, 90.f);
     const float to = za::max(from + 1.f, za::clamp(vr_flat_wall_slide_to.value, 0.f, 90.f));
     st.slideWanted[h] = on * (1.f - geom::smooth01(za::clamp((into - from) / (to - from), 0.f, 1.f)));
     // Nothing drawn of the wall yet: the share is this one at once (the pose has nothing to step from).
-    if(st.back[h] < 0.05f && std::abs(st.flatYaw[h]) < 0.05f && st.tiltOn[h] <= 0.f && st.wallOn[h] <= 0.f)
+    if(st.back[h] < 0.05f && za::abs(st.flatYaw[h]) < 0.05f && st.tiltOn[h] <= 0.f && st.wallOn[h] <= 0.f)
     {
         st.slide[h] = st.slideWanted[h];
     }
@@ -1500,8 +1504,8 @@ void freeOffWall(hands::State& s)
 {
     const float ref = za::clamp(vr_flat_aim_fov_ref.value, 60.f, 130.f);
     const float at = za::max(minFov, ref - za::clamp(vr_flat_aim_fov.value, 0.f, 75.f));
-    const float zoom = std::tan(glm::radians(ref * 0.5f)) / std::tan(glm::radians(at * 0.5f));
-    return za::max(minFov, 2.f * glm::degrees(std::atan(std::tan(glm::radians(za::clamp(base, 1.f, 170.f) * 0.5f)) / zoom)));
+    const float zoom = za::tan(glm::radians(ref * 0.5f)) / za::tan(glm::radians(at * 0.5f));
+    return za::max(minFov, 2.f * glm::degrees(za::atan(za::tan(glm::radians(za::clamp(base, 1.f, 170.f) * 0.5f)) / zoom)));
 }
 
 [[nodiscard]] float fovNarrowNow()
@@ -1522,7 +1526,7 @@ void freeOffWall(hands::State& s)
     const float ref = za::clamp(vr_flat_aim_fov_ref.value, 60.f, 130.f);
     const float refDrawn = za::max(minFov, ref - za::clamp(vr_flat_aim_fov.value, 0.f, 75.f));
     const float drawn = vr_flat_model_fov.value > 0.f ? za::clamp(vr_flat_model_fov.value, 10.f, 170.f) : adsFovFor(st.baseFov);
-    return std::tan(glm::radians(refDrawn * 0.5f)) / std::tan(glm::radians(drawn * 0.5f));
+    return za::tan(glm::radians(refDrawn * 0.5f)) / za::tan(glm::radians(drawn * 0.5f));
 }
 
 void setAds(bool on, const char* by)
@@ -2643,8 +2647,8 @@ void print(const hands::State& s)
         const glm::vec3 f = glm::transpose(viewAxes) * glm::normalize(glm::vec3{wf.modelToWorld[0]});
         // (Short: the console wraps a longer line.) t, view yaw, at x y z, yaw, pitch, slide, flat, wall, back, let go, held, up.
         Con_Printf("flatwalldrawn: %.4f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.1f %.2f %.2f %.2f %d %.1f\n",
-            vr_gametime, cl.viewangles[YAW], o.x, o.y, o.z, glm::degrees(std::atan2(f.y, f.x)),
-            glm::degrees(std::asin(za::clamp(f.z, -1.f, 1.f))), st.slide[st.holding], st.flatYaw[st.holding],
+            vr_gametime, cl.viewangles[YAW], o.x, o.y, o.z, glm::degrees(za::atan2(f.y, f.x)),
+            glm::degrees(za::asin(za::clamp(f.z, -1.f, 1.f))), st.slide[st.holding], st.flatYaw[st.holding],
             geom::smooth01(st.wallOn[st.holding]), st.back[st.holding], wallLetGo(st.holding),
             st.helping >= 0 && twohand::helping(st.helping) ? 1 : 0, st.upAngle[st.holding]);
         const int hh = st.holding;
@@ -2680,7 +2684,7 @@ static void check_f()
         const glm::vec3 c = geom::vec(r_refdef.vieworg);
         const glm::mat3 ax = axesOf(geom::vec(r_refdef.viewangles));
         const auto inView = [&](const glm::vec3& p) { return glm::transpose(ax) * (p - c); };
-        const auto upDeg = [](const glm::vec3& v) { return glm::degrees(std::atan2(v.z, glm::max(v.x, 0.01f))); };
+        const auto upDeg = [](const glm::vec3& v) { return glm::degrees(za::atan2(v.z, glm::max(v.x, 0.01f))); };
         const glm::vec3 hand = inView(s.pos[h]);
         const glm::vec3 muz = s.muzzleValid[h] ? inView(s.muzzle[h]) : hand;
         const glm::vec3 rear = line.valid ? inView(glm::vec3{wf.modelToWorld * glm::vec4{line.rear, 1.f}}) : hand;

@@ -28,10 +28,8 @@
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <ctime>
 
 #ifdef _WIN32

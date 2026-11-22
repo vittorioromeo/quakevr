@@ -8,7 +8,6 @@
 #include "Zancle/Math/MinMax.hpp"
 
 #include <cctype>
-#include <cstring>
 
 namespace qvr::mapstyle
 {

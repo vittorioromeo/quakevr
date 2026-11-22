@@ -222,13 +222,14 @@ qc-busy-hand QC/vr_embed_test.qc 1  # the embedded blades' test reads that a let
 # "Multiview-ready: the check"; CODE_STYLE.md, "Rendering stays multiview-ready"). Today's, each with why; a new one
 # goes to gl_shaders.c, or gets a line here saying why it needs no twin (compute, not an eye's view, per eye for good).
 gl-program-no-twin Quake/vr/vr_glutil.hpp 1  # gfx::linkProgram's declaration
-gl-program-no-twin Quake/vr/vr_glutil.cpp 1  # gfx::linkProgram: the one link of Quake VR's own programs
+gl-program-no-twin Quake/vr/vr_glutil.cpp 2  # gfx::linkProgram: the one link of Quake VR's own programs; the ES readback's depth copy (offscreen, no eyes)
 gl-program-no-twin Quake/vr/vr_gfx.hpp 1  # gfx::glProgram's declaration
 gl-program-no-twin Quake/vr/vr_gfx_gl.cpp 15  # glProgram's definition and its link; VR particles (7 variants, 4 composites), triangles, tube, bent mesh: scene effects not ported yet (STEREO.md stage 4); precompilePrograms makes it at start-up too
 gl-program-no-twin Quake/vr/vr_bttrails.cpp 2  # bullet time's distortion trails: a screen-space pass over each eye's image (stage 5); precompilePrograms makes it at start-up too
 gl-program-no-twin Quake/vr/vr_haze.cpp 2  # heat haze: reads each eye's scene copy (stage 5); precompilePrograms makes it at start-up too
 gl-program-no-twin Quake/vr/vr_water.cpp 1  # the scene's distances for the liquids: per eye's scene copy (stage 2's liquids, not ported)
 gl-program-no-twin Quake/vr/vr_bloom.cpp 4  # bloom: post on each eye's image (stage 5)
+gl-program-no-twin Quake/vr/vr_tonemap.cpp 2  # vr_gl_probe 2 to 5's one-colour draw: a debug probe of one eye's scene, never multiview
 gl-program-no-twin Quake/vr/vr_flatlook.cpp 1  # flatscreen play's look: the window's view only, never an eye (no multiview twin needed)
 gl-program-no-twin Quake/vr/vr_visor.cpp 2  # flatscreen play's visor HUD: its layer brought down onto the window's view and its frosted glass's blur, the window's view only, never an eye (no multiview twin needed)
 gl-program-no-twin Quake/vr/vr_temporal.cpp 1  # TAA: compute resolve and mask, apply over each eye's image (its program() wrapper's calls are not counted)

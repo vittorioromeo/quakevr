@@ -963,9 +963,6 @@ void freeMesh()
     mesh.built = false;
 }
 
-using GetBufferSubDataFn = void(APIENTRY*)(GLenum, GLintptr, GLsizeiptr, void*);
-GetBufferSubDataFn getBufferSubData = nullptr; // (buildMesh: looked up on its first use)
-
 // A rim's piece (buildMesh): a level face's edge no other face of its group continues past.
 struct Segment
 {
@@ -1012,19 +1009,14 @@ struct MeshBuild
 // Ironwail's vertices of the brush models (once a map: a wait for the GPU is fine); false if they can't be read.
 bool readSource(MeshBuild& b)
 {
-    if(!getBufferSubData)
-    {
-        getBufferSubData = reinterpret_cast<GetBufferSubDataFn>(SDL_GL_GetProcAddress("glGetBufferSubData"));
-    }
-    if(!getBufferSubData || !gl_bmodel_vbo || gl_bmodel_vbo_size < sizeof(glvert_t))
+    if(!gl_bmodel_vbo || gl_bmodel_vbo_size < sizeof(glvert_t))
     {
         return false;
     }
     za::Vector<glvert_t>& src = b.src;
     src.resize(gl_bmodel_vbo_size / sizeof(glvert_t));
     GL_BindBuffer(GL_ARRAY_BUFFER, gl_bmodel_vbo);
-    getBufferSubData(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(src.size() * sizeof(glvert_t)), src.data());
-    return true;
+    return gfx::readBuffer(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(src.size() * sizeof(glvert_t)), src.data());
 }
 
 // The world's liquid faces; the level ones (not teleports') in groups: a kind, a side, a height.

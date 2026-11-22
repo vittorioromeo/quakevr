@@ -42,9 +42,16 @@
 #include "vr_tunables.hpp"
 #include "vr_weaponvalues.hpp"
 #include "Zancle/Container/Vector.hpp"
-#include "Zancle/String/String.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
 #include <glm/gtc/type_ptr.hpp>
@@ -407,8 +414,8 @@ double rvPrinted = -1.0;                                // (setupRevolverParts' 
 [[nodiscard]] glm::vec3 rvTurnX(const glm::vec3& p, float deg)
 {
     const float a = glm::radians(deg);
-    const float c = std::cos(a);
-    const float s = std::sin(a);
+    const float c = za::cos(a);
+    const float s = za::sin(a);
     return {p.x, p.y * c - p.z * s, p.y * s + p.z * c};
 }
 
@@ -417,7 +424,7 @@ double rvPrinted = -1.0;                                // (setupRevolverParts' 
 [[nodiscard]] glm::vec3 rvChamberOff(int i, float turn, float back)
 {
     const float a = glm::radians(90.f + 60.f * static_cast<float>(i));
-    return rvTurnX({back, rvChamberPitch * std::cos(a), rvChamberPitch * std::sin(a)}, turn);
+    return rvTurnX({back, rvChamberPitch * za::cos(a), rvChamberPitch * za::sin(a)}, turn);
 }
 
 [[nodiscard]] bool ssgBreaks()
@@ -430,8 +437,8 @@ double rvPrinted = -1.0;                                // (setupRevolverParts' 
 [[nodiscard]] glm::vec3 ssgTurn(const glm::vec3& p, float deg, bool point = true)
 {
     const float a = glm::radians(deg);
-    const float c = std::cos(a);
-    const float s = std::sin(a);
+    const float c = za::cos(a);
+    const float s = za::sin(a);
     const glm::vec3 d = point ? p - ssgHinge : p;
     const glm::vec3 r{d.x * c + d.z * s, d.y, -d.x * s + d.z * c};
     return point ? ssgHinge + r : r;
@@ -467,9 +474,9 @@ float revolverStep(RevolverDrawn& st, const qmodel_t* gun, int bits, float turn)
     }
     st.swing = st.swing < target ? za::min(target, st.swing + rvSwingOutSpeed * dt)
                                  : za::max(target, st.swing - rvSwingHomeSpeed * dt);
-    const float d = std::fmod(std::fmod(turn - st.cyl, 360.f) + 540.f, 360.f) - 180.f;
-    const float step = za::max(rvTurnSpeed * dt, std::abs(d) * za::min(1.f, 25.f * dt));
-    st.cyl = std::fmod(st.cyl + CLAMP(-step, d, step), 360.f);
+    const float d = za::fmod(za::fmod(turn - st.cyl, 360.f) + 540.f, 360.f) - 180.f;
+    const float step = za::max(rvTurnSpeed * dt, za::abs(d) * za::min(1.f, 25.f * dt));
+    st.cyl = za::fmod(st.cyl + CLAMP(-step, d, step), 360.f);
     return st.swing;
 }
 
@@ -509,7 +516,7 @@ float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags, bool breaks)
     const glm::vec3 o = view::modelPoint(gun, glm::vec3{0.f});
     const glm::mat3 m{view::modelPoint(gun, {1.f, 0.f, 0.f}) - o, view::modelPoint(gun, {0.f, 1.f, 0.f}) - o,
         view::modelPoint(gun, {0.f, 0.f, 1.f}) - o};
-    if(std::abs(glm::determinant(m)) < 1e-9f)
+    if(za::abs(glm::determinant(m)) < 1e-9f)
     {
         return w;
     }
@@ -524,7 +531,7 @@ float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags, bool breaks)
     const glm::vec3 o = view::modelPoint(gun, glm::vec3{0.f});
     const glm::mat3 m{view::modelPoint(gun, {1.f, 0.f, 0.f}) - o, view::modelPoint(gun, {0.f, 1.f, 0.f}) - o,
         view::modelPoint(gun, {0.f, 0.f, 1.f}) - o};
-    if(std::abs(glm::determinant(m)) < 1e-9f)
+    if(za::abs(glm::determinant(m)) < 1e-9f)
     {
         return glm::mat3{1.f};
     }
@@ -3706,7 +3713,7 @@ bool gunFromWorld(int hand, const glm::vec3& w, glm::vec3& out)
         return false;
     }
     const glm::mat3 m{x - o, y - o, z - o};
-    if(std::abs(glm::determinant(m)) < 1e-9f)
+    if(za::abs(glm::determinant(m)) < 1e-9f)
     {
         return false;
     }
@@ -3909,7 +3916,7 @@ glm::vec3 revolverOutward(float swing)
 {
     // (From the bore's axis to the cylinder's as drawn: the cylinder's middle's turn off home, along the bore none.)
     const glm::vec3 d = rvTurnX(rvCylInCrane, -swing) - rvCylInCrane;
-    const float len = std::sqrt(d.y * d.y + d.z * d.z);
+    const float len = za::sqrt(d.y * d.y + d.z * d.z);
     return len > 1e-4f ? glm::vec3{0.f, d.y / len, d.z / len} : glm::vec3{0.f, 1.f, 0.f};
 }
 
@@ -4280,9 +4287,9 @@ namespace
 // HSL (hue in degrees, saturation and lightness 0..1) to RGB.
 [[nodiscard]] glm::vec3 hslToRgb(float hue, float sat, float light)
 {
-    const float h = (hue - 360.f * std::floor(hue / 360.f)) / 60.f;
-    const float c = (1.f - std::fabs(2.f * light - 1.f)) * sat;
-    const float x = c * (1.f - std::fabs(std::fmod(h, 2.f) - 1.f));
+    const float h = (hue - 360.f * za::floor(hue / 360.f)) / 60.f;
+    const float c = (1.f - za::fabs(2.f * light - 1.f)) * sat;
+    const float x = c * (1.f - za::fabs(za::fmod(h, 2.f) - 1.f));
     const float m = light - 0.5f * c;
     const glm::vec3 rgb = h < 1.f ? glm::vec3{c, x, 0.f} : h < 2.f ? glm::vec3{x, c, 0.f} : h < 3.f ? glm::vec3{0.f, c, x} :
         h < 4.f ? glm::vec3{0.f, x, c} : h < 5.f ? glm::vec3{x, 0.f, c} : glm::vec3{c, 0.f, x};
@@ -5561,7 +5568,7 @@ extern "C" void VR_SetupViewEntities()
             return;
         }
     }
-    if(!s.valid || cl.intermission)
+    if(!s.valid || cl.intermission || hands::demoViewOnly()) // (an id demo's view: not the player's models, C4u)
     {
         forEachEntity([](view::ViewEntity& ve) { ve.visible = false; });
         for(RigHand& rh : rigHands)

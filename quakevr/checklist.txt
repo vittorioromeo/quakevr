@@ -10,6 +10,9 @@
 VR hub: choose Dimension of the Past, step into the teleporter, press Start on the Run Setup: you land on its start map and stay there (if the hub comes back, record a voice note at once: the log now says what opened and confirmed the main menu's VR Hub). {test:hub_start_test}
 VR hub: the four new lecterns west of the campaigns (between the two left braziers): Arcane Dimensions, Dwell and Quoth then the teleporter start that mod; Arena Mode opens the arena's Run Setup; a mod not installed says so on its lectern. {test:hub_start_test}
 Flat-screen: Quoth's kellbase1 ladders (the catwalk's and the pillars'): walk forward into one and your hands close on the drawn bars themselves, as in a headset; climb up and over, back off the top onto it, and climb down to the floor. {test:ad_mod_ladder}
+Graphics Presets > Standalone on PC: picks, the line says Standalone, High afterwards restores your MSAA and image size. {test:hub_start}
+Graphics Presets > Standalone, then shoot a grunt and pop one of its limbs from arm's length: the blood right at your eyes is thinner but the stump's fountain still pours at once; from a few steps away the blood looks as on High. {test:flat_blood_pointblank}
+On the Quest (Standalone preset) a fight, explosions and torch-lit rooms run as smoothly as before this merge, and the loading panel shows on a first start while the shaders compile. {test:hub_start}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, and the crystal head glowing violet for a moment after each shot. {test:dwell_lance_pole}
@@ -93,6 +96,11 @@ Flat-screen: dual wield the axe and the shotgun and swing the axe into a grunt u
 Flat-screen: press 9 with a gun in hand: the visor's panels and the gun's ammo screen dim, 9 again lights them; Options > Controls lists it as "Gear lights" under Quake VR (flat screen), with no "!" clash mark. {test:flat_gear_lights}
 Flat-screen: set Flat Body Height low (about 1.4 m) and die: your corpse is your flat body's size, not your headset height's. {test:flat_force_grab}
 Flat-screen: hold the axe in both hands and press 3 to swap weapons: the off hand eases off the handle as smoothly as it does off the rocket launcher's foregrip, then the new weapon comes up. {test:flat_melee2h}
+Flat-screen: with three weapons holstered, press 1 repeatedly: the left hand draws each holstered weapon in holster order, the previous one goes back into its own holster, and after the last the hand is empty; 2 does the same for the right hand and skips what the left holds. {test:flat_holster_numkeys}
+Flat-screen: 4 and 5 put the left / right hand's weapon into a free holster (the one it came from, else the nearest on that side); with every holster full nothing moves and a short "No free holster" message shows. {test:flat_holster_numkeys}
+Flat-screen: 6 and 7 drop what the left / right hand holds; 3 still swaps the hands. {test:flat_holster_numkeys}
+Flat-screen: Options > Controls lists the six new keys (Cycle/Holster/Drop left and right hand) under "Quake VR (flat screen)", rebindable, marked "!" where they clash, and Reset Flat Keys restores 1, 2, 4, 5, 6, 7. {test:flat_holster_numkeys}
+Flat-screen: holding the rocket launcher in the right hand, 1 takes the left hand off its grip with a holstered weapon, and pressing 1 until the hand is empty puts the left hand back on the grip. {test:flat_holster_numkeys}
 
 [6. Ropes and chains]
 In the ropes hall, grab a rope or chain with both hands: each hand grips it with the rope through the fist, the right hand's knuckles to the right and the left's to the left, not pointing up. {test:ropes}

@@ -43,6 +43,7 @@ constexpr Check checks[] = {
     {"release_qc", checkReleaseQc, "the release flavour's QC (-DQVR_NO_TESTS) compiles clean"},
     {"qc_precedence", checkQcPrecedence, "no QC expression that reads differently under C priorities"},
     {"progs_format", checkProgsFormat, "progs.dat is the 32-bit format [progs.dat]"},
+    {"std_uses", checkStdUses, "Zancle, not std:: (docs/vr-port/ZANCLE.md): no std:: use or std header past the allowlist [--list]"},
 };
 
 // How `all` reports a failure: how many of the check's last lines, the line after them, and whether it fails the build.
@@ -64,6 +65,7 @@ constexpr AllEntry allEntries[] = {
     {"release_qc", 12, "RELEASE QC CHECK FAILED (see docs/vr-port/CODE_STYLE.md, QuakeC)", true},
     {"qc_precedence", 12, "QC PRECEDENCE CHECK FAILED (see docs/vr-port/CODE_STYLE.md, 'QuakeC')", true},
     {"progs_format", 12, "PROGS FORMAT CHECK FAILED (see Tools/fteqcc/README.md)", true},
+    {"std_uses", 12, "STD USES CHECK FAILED (see docs/vr-port/ZANCLE.md)", true},
 };
 
 const Check* findCheck(std::string_view name)

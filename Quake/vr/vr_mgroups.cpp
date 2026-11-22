@@ -6,15 +6,17 @@
 #include "vr_progs.hpp"
 #include "vr_slottable.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Round.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
 #include "vr_api.h"
 
-#include <cmath>
 #include <cstdlib>
 #include <cstdio>
-#include <cstring>
 
 namespace qvr::mgroups
 {
@@ -233,7 +235,7 @@ constexpr float healthScripted = 20000.f;
 {
     for(const char* c : healthExempt)
     {
-        if(classname && std::strcmp(c, classname) == 0)
+        if(classname && ZA_STRCMP(c, classname) == 0)
         {
             return true;
         }
@@ -275,8 +277,8 @@ void makeMemberText()
             {
                 continue;
             }
-            const int n = std::snprintf(out + used, sizeof(memberText[g]) - used, "%s%s", used ? ", " : "",
-                m.classname + (std::strncmp(m.classname, "monster_", 8) == 0 ? 8 : 0));
+            const int n = snprintf(out + used, sizeof(memberText[g]) - used, "%s%s", used ? ", " : "",
+                m.classname + (ZA_STRNCMP(m.classname, "monster_", 8) == 0 ? 8 : 0));
             if(n < 0 || used + static_cast<size_t>(n) >= sizeof(memberText[g]))
             {
                 break;
@@ -285,12 +287,12 @@ void makeMemberText()
         }
         if(g == otherGroup)
         {
-            std::snprintf(out + used, sizeof(memberText[g]) - used, "%sany monster in no other group", used ? "; " : "");
+            snprintf(out + used, sizeof(memberText[g]) - used, "%sany monster in no other group", used ? "; " : "");
         }
         else if(!used)
         {
             // (Giants: its drole and stone golem are Mini Bosses since 2026-10-23; kept for its settings' names.)
-            std::snprintf(out, sizeof(memberText[g]), "no monster now");
+            snprintf(out, sizeof(memberText[g]), "no monster now");
         }
     }
     memberTextMade = true;
@@ -343,7 +345,7 @@ void list_f()
         bool known = false;
         for(const Member& m : memberTable)
         {
-            known = known || std::strcmp(m.classname, c) == 0;
+            known = known || ZA_STRCMP(m.classname, c) == 0;
         }
         Con_Printf("mgroup live %d %s -> %s%s\n", NUM_FOR_EDICT(e), c, groupInfo[g].id, known ? "" : " (not in the table)");
         ++count;
@@ -468,7 +470,7 @@ void parseOldStruggle(const char* src, OldStruggleList& out)
         {
             continue;
         }
-        char* field = std::strchr(word, ':');
+        char* field = strchr(word, ':');
         if(field)
         {
             *field++ = 0;
@@ -480,12 +482,12 @@ void parseOldStruggle(const char* src, OldStruggleList& out)
         float* values[4] = {&e.strength, &e.speed, &e.health, &e.arms};
         for(int k = 0; k < 4 && field && *field; k++)
         {
-            char* next = std::strchr(field, ':');
+            char* next = strchr(field, ':');
             if(next)
             {
                 *next++ = 0;
             }
-            *values[k] = static_cast<float>(std::atof(field));
+            *values[k] = static_cast<float>(atof(field));
             field = next;
         }
     }
@@ -495,7 +497,7 @@ void parseOldStruggle(const char* src, OldStruggleList& out)
 {
     for(int i = 0; i < l.count; i++)
     {
-        if(std::strcmp(l.entry[i].classname, classname) == 0)
+        if(ZA_STRCMP(l.entry[i].classname, classname) == 0)
         {
             return &l.entry[i];
         }
@@ -511,7 +513,7 @@ int groupOfClass(const char* classname)
     {
         for(const Member& m : memberTable)
         {
-            if(std::strcmp(m.classname, classname) == 0)
+            if(ZA_STRCMP(m.classname, classname) == 0)
             {
                 return m.group;
             }
@@ -631,8 +633,8 @@ const char* healthExampleLine(int i)
     }
     const HealthExample& e = healthExamples[i];
     const float m = healthMultiplier(e.classname, e.health);
-    const float now = za::max(1.f, std::round(e.health * m));
-    std::snprintf(healthExampleText[i], sizeof(healthExampleText[i]), "%s: %.0f -> %.0f (%+.0f%%)", e.label, e.health,
+    const float now = za::max(1.f, za::round(e.health * m));
+    snprintf(healthExampleText[i], sizeof(healthExampleText[i]), "%s: %.0f -> %.0f (%+.0f%%)", e.label, e.health,
         now, (now / e.health - 1.f) * 100.f);
     return healthExampleText[i];
 }
@@ -652,7 +654,7 @@ const StruggleProfile* struggleProfile(const char* classname)
 {
     for(const StruggleProfile& p : struggleProfiles)
     {
-        if(classname && std::strcmp(p.classname, classname) == 0)
+        if(classname && ZA_STRCMP(p.classname, classname) == 0)
         {
             return &p;
         }
@@ -669,7 +671,7 @@ const StruggleProfile* struggleProfileOrBase(const char* classname, int g)
     }
     for(const char* c : struggleLeftOut)
     {
-        if(classname && std::strcmp(c, classname) == 0)
+        if(classname && ZA_STRCMP(c, classname) == 0)
         {
             return nullptr;
         }
@@ -720,8 +722,8 @@ const char* struggleProfilesText(int g)
                 {
                     continue;
                 }
-                const int n = std::snprintf(out + used, sizeof(struggleText[k]) - used, "%s%s %g/%g/%g/%g", used ? ", " : "",
-                    p.classname + (std::strncmp(p.classname, "monster_", 8) == 0 ? 8 : 0), static_cast<double>(p.strength),
+                const int n = snprintf(out + used, sizeof(struggleText[k]) - used, "%s%s %g/%g/%g/%g", used ? ", " : "",
+                    p.classname + (ZA_STRNCMP(p.classname, "monster_", 8) == 0 ? 8 : 0), static_cast<double>(p.strength),
                     static_cast<double>(p.speed), static_cast<double>(p.health), static_cast<double>(p.arms));
                 if(n < 0 || used + static_cast<size_t>(n) >= sizeof(struggleText[k]))
                 {
@@ -733,7 +735,7 @@ const char* struggleProfilesText(int g)
             {
                 if(b.group == k && used)
                 {
-                    std::snprintf(out + used, sizeof(struggleText[k]) - used, "; the rest as %s", b.classname + 8);
+                    snprintf(out + used, sizeof(struggleText[k]) - used, "; the rest as %s", b.classname + 8);
                 }
             }
         }
@@ -750,8 +752,8 @@ void migrateStruggleClasses(const char* classes)
     for(const StruggleProfile& p : struggleProfiles)
     {
         const StruggleProfile* o = findOld(old, p.classname);
-        same = same && o && std::fabs(o->strength - p.strength) < 1e-3f && std::fabs(o->speed - p.speed) < 1e-3f &&
-               std::fabs(o->health - p.health) < 1e-3f && std::fabs(o->arms - p.arms) < 1e-3f;
+        same = same && o && za::fabs(o->strength - p.strength) < 1e-3f && za::fabs(o->speed - p.speed) < 1e-3f &&
+               za::fabs(o->health - p.health) < 1e-3f && za::fabs(o->arms - p.arms) < 1e-3f;
     }
     for(const char* former : formerStruggleDefaults)
     {
@@ -761,8 +763,8 @@ void migrateStruggleClasses(const char* classes)
         for(int i = 0; i < f.count && match; i++)
         {
             const StruggleProfile* o = findOld(old, f.entry[i].classname);
-            match = o && std::fabs(o->strength - f.entry[i].strength) < 1e-3f && std::fabs(o->speed - f.entry[i].speed) < 1e-3f &&
-                    std::fabs(o->health - f.entry[i].health) < 1e-3f && std::fabs(o->arms - f.entry[i].arms) < 1e-3f;
+            match = o && za::fabs(o->strength - f.entry[i].strength) < 1e-3f && za::fabs(o->speed - f.entry[i].speed) < 1e-3f &&
+                    za::fabs(o->health - f.entry[i].health) < 1e-3f && za::fabs(o->arms - f.entry[i].arms) < 1e-3f;
         }
         same = same || match;
     }
@@ -824,7 +826,7 @@ void migrateStruggleClasses(const char* classes)
         for(int k = 0; k < 3; k++)
         {
             const float mean = sums[k] / static_cast<float>(present);
-            Cvar_SetValueQuick(&setting(g, params[k]), std::round(mean * 100.f) / 100.f);
+            Cvar_SetValueQuick(&setting(g, params[k]), za::round(mean * 100.f) / 100.f);
             if(highs[k] - lows[k] > 1e-3f)
             {
                 Con_Printf("  %s: its classes' %s changed unevenly (x%.2f .. x%.2f): x%.2f for all\n", label(g), names[k],
@@ -871,10 +873,10 @@ extern "C" void VR_MonsterHealth_Frame(void)
         const float before = e->v.health;
         if(m != 1.f)
         {
-            e->v.health = za::max(1.f, std::round(e->v.health * m));
+            e->v.health = za::max(1.f, za::round(e->v.health * m));
             if(e->v.max_health > 0.f)
             {
-                e->v.max_health = za::max(1.f, std::round(e->v.max_health * m));
+                e->v.max_health = za::max(1.f, za::round(e->v.max_health * m));
             }
         }
         if(vr_monster_health_debug.value != 0.f)

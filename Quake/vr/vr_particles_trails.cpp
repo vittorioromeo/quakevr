@@ -198,7 +198,11 @@ void rocketTrail(const glm::vec3& from, const glm::vec3& to, int type, float siz
             const float n = perLength(length, (type & 127) == 2 ? 6.f : 12.f);
             for(int i = 0; i < static_cast<int>(n); i++)
             {
-                bloodTrail(from + d * vrand::range(rng, 0.f, 1.f), dir, 1);
+                const glm::vec3 at = from + d * vrand::range(rng, 0.f, 1.f);
+                if(nearBloodMade(at)) // (close up: vr_blood_near thins a gib's trail too, pcopt E)
+                {
+                    bloodTrail(at, dir, 1, BloodFrom::GibTrail);
+                }
             }
             break;
         }

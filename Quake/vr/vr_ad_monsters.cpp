@@ -2,7 +2,9 @@
 
 #include "vr_ad_monsters.hpp"
 
-#include <cstring>
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+
 
 namespace qvr::ad
 {
@@ -98,7 +100,7 @@ const char* headVrClass(const char* model)
     }
     for(const ClassAlias& h : headClasses)
     {
-        if(!std::strcmp(model, h.ad))
+        if(!ZA_STRCMP(model, h.ad))
         {
             return vrClass(h.vr);
         }
@@ -108,13 +110,13 @@ const char* headVrClass(const char* model)
 
 const char* vrClass(const char* classname)
 {
-    if(!classname || std::strncmp(classname, "monster_", 8) != 0)
+    if(!classname || ZA_STRNCMP(classname, "monster_", 8) != 0)
     {
         return classname;
     }
     for(const ClassAlias& a : classAliases)
     {
-        if(!std::strcmp(classname, a.ad))
+        if(!ZA_STRCMP(classname, a.ad))
         {
             return a.vr;
         }

@@ -7,6 +7,7 @@
 #include "vr_cvars.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
 
 namespace hitreact_detail
 {
@@ -135,7 +136,7 @@ bool relinkSkinnedBegin(const ArmPose& s, const entity_t* e, const aliashdr_t* h
                 posed[i] = composeRigid(leanTurn, posed[i]);
             }
             leanPelvis = leanHips >= 0 ? rollOf(posed[leanHips]) - before : 0.f;
-            leanPelvisYaw = leanHips >= 0 ? std::remainder(yawOf(posed[leanHips]) - beforeYaw, 360.f) : 0.f;
+            leanPelvisYaw = leanHips >= 0 ? za::remainder(yawOf(posed[leanHips]) - beforeYaw, 360.f) : 0.f;
         }
     }
     // The procedural upper body (vr_agrunt_upper: the chest held on the hips, not the frames'; a pickup's crouch keeps
@@ -157,7 +158,7 @@ bool relinkSkinnedBegin(const ArmPose& s, const entity_t* e, const aliashdr_t* h
         }
     }
     aglegs::leanMeasured(e, leanPelvis, spec.chest >= 0 ? rollOf(posed[spec.chest]) : 0.f, leanPelvisYaw,
-        spec.chest >= 0 ? std::remainder(yawOf(posed[spec.chest]) - yawOf(rigpose::key(*rig, 0, spec.chest)), 360.f) : 0.f);
+        spec.chest >= 0 ? za::remainder(yawOf(posed[spec.chest]) - yawOf(rigpose::key(*rig, 0, spec.chest)), 360.f) : 0.f);
     // Its anchor as it rides the chest drawn: the frames' place (s.anchorAt) carried by the strafe lean and turn, then by the
     // hold on the hips (without the lean a strafing body's chest went a few units one way and its gun stayed, by how far
     // its chest stands from the turn's upright: the knights' and the death knights' most, vr_agrunt_test 205).

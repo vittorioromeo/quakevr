@@ -21,7 +21,6 @@
 #include "vr_api.h"
 #include "vr_api_render.h"
 
-#include <initializer_list>
 #include <limits.h>
 #include <math.h>
 #include <stdlib.h>

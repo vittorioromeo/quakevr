@@ -43,6 +43,17 @@
 #include <unknwn.h> // IUnknown, which openxr_platform.h needs and lean Windows headers omit
 
 #define XR_USE_PLATFORM_WIN32
+#elif defined(__ANDROID__)
+// Android (the Quest): the loader's Android init and instance (XR_KHR_loader_init_android,
+// XR_KHR_android_create_instance: the JavaVM and the activity) and the ES binding (XrGraphicsBindingOpenGLESAndroidKHR,
+// XR_KHR_opengl_es_enable: SDL's EGL display, config and context, found as on Linux: vr_xr_linuxgl.hpp).
+#include "vr_xr_linuxgl.hpp"
+#include <EGL/egl.h>
+#include <jni.h>
+#include <pthread.h>
+#include <unistd.h>
+#define XR_USE_PLATFORM_ANDROID
+#define XR_USE_GRAPHICS_API_OPENGL_ES
 #else
 // Linux: the GLX binding (XrGraphicsBindingOpenGLXlibKHR) or the EGL one (XrGraphicsBindingEGLMNDX). Their X11, GLX
 // and EGL types declared as Xlib.h, glx.h and egl.h have them (without those headers' macros here:
@@ -74,6 +85,55 @@ typedef void* EGLContext;
 
 namespace qvr::oxr
 {
+
+// A swapchain's GL image: XR_KHR_opengl_enable's, or XR_KHR_opengl_es_enable's on Android (the same fields).
+#ifdef __ANDROID__
+using SwapchainImageGl = XrSwapchainImageOpenGLESKHR;
+inline constexpr XrStructureType swapchainImageGlType = XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_ES_KHR;
+#else
+using SwapchainImageGl = XrSwapchainImageOpenGLKHR;
+inline constexpr XrStructureType swapchainImageGlType = XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR;
+#endif
+
+// The Quest's runtime extensions (vr_backend_openxr_quest.cpp), each enabled when offered, on Android alone (the PC's
+// runtimes never get them: its behaviour unchanged): XR_FB_display_refresh_rate (vr_xr_refresh_rate),
+// XR_EXT_performance_settings (vr_xr_cpu_level, vr_xr_gpu_level), XR_FB_foveation with XR_FB_foveation_configuration
+// and XR_FB_swapchain_update_state (vr_xr_foveation: the eye swapchains' fixed foveation). All in Khronos' headers
+// (Meta's SDK has only its preview extensions besides). Every setting's 0 leaves the runtime's own.
+struct QuestExtensions
+{
+    bool refreshRate{false};
+    bool perfSettings{false};
+    bool foveation{false};      // (the three extensions together)
+    uint8_t foveationParts{0}; // the three's bits, as offered (want)
+    PFN_xrEnumerateDisplayRefreshRatesFB enumerateRefreshRates{nullptr};
+    PFN_xrRequestDisplayRefreshRateFB requestRefreshRate{nullptr};
+    PFN_xrPerfSettingsSetPerformanceLevelEXT setPerformanceLevel{nullptr};
+    PFN_xrCreateFoveationProfileFB createFoveationProfile{nullptr};
+    PFN_xrDestroyFoveationProfileFB destroyFoveationProfile{nullptr};
+    PFN_xrUpdateSwapchainFB updateSwapchain{nullptr};
+    // The values applied (apply: again when a cvar or an eye swapchain changes; -1: not yet).
+    float refreshApplied{-1.f};
+    float cpuApplied{-1.f};
+    float gpuApplied{-1.f};
+    float foveationApplied{-1.f};
+    XrSwapchain foveated[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
+    // C4p: vr_xr_foveation changed while the eye swapchains are in use: the runtime crashed in xrEndFrame after the
+    // update (QUEST_PLAN.md 6v), so the backend makes new swapchains first and the level goes on them before their use.
+    bool wantNewEyes{false};
+    bool foveationRefusedNoted{false}; // the console told vr_xr_foveation is not applied without -xrfoveation
+
+    // Requests `offered` when it is one of these (Android): appended to `enabled`. Off Android, nothing.
+    void want(const char* offered, za::Vector<const char*>& enabled);
+    // The functions, after xrCreateInstance (an extension without them is dropped).
+    void bind(XrInstance instance);
+    // The cvars' values, when they or the eye swapchains changed (a running session; every frame, cheap).
+    void apply(XrSession session, const XrSwapchain (&eyes)[2]);
+    // Chained into an eye swapchain's create info (XR_FB_foveation: its images foveation-capable); null: not.
+    [[nodiscard]] const void* swapchainNext(XrSwapchainCreateInfoFoveationFB& storage) const;
+    // The refresh rates offered and the levels, for the log (start).
+    void log(XrSession session) const;
+};
 
 // An XrResult's name ("XR_ERROR_RUNTIME_UNAVAILABLE"), from the specification's list (openxr_reflection.h: no instance
 // needed, as a failed xrCreateInstance has none for xrResultToString); else the runtime's xrResultToString (an
@@ -227,6 +287,12 @@ public:
                                 : EyeTracking::NotOffered;
     }
 
+    bool setEyeImageRect(int eye, int width, int height) override
+    {
+        eyeRects[eye] = {width, height};
+        return true;
+    }
+
     [[nodiscard]] unsigned acquireEyeImage(int eye) override;
 
     void releaseEyeImage(int eye) override;
@@ -252,7 +318,7 @@ private:
         XrSwapchain handle{XR_NULL_HANDLE};
         int32_t width{0};
         int32_t height{0};
-        za::Vector<XrSwapchainImageOpenGLKHR> images;
+        za::Vector<SwapchainImageGl> images;
     };
 
     XrInstance instance{XR_NULL_HANDLE};
@@ -278,6 +344,7 @@ private:
     XrPath handPaths[2]{XR_NULL_PATH, XR_NULL_PATH}; // [0] left, [1] right
     XrSpace handSpaces[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
     Swapchain swapchains[2];
+    XrExtent2Di eyeRects[2]{}; // setEyeImageRect: the part of each eye's image shown this frame (0 x 0: all of it)
     Swapchain panel;
     int32_t panelFailedWidth{0}; // the size its swapchain failed at in this session, or is being made at (ensurePanelSwapchain)
     int32_t panelFailedHeight{0};
@@ -347,6 +414,7 @@ private:
     xrgl::Binding glctx;                          // the game's GLX or EGL context, as bound to the session
     bool eglExtension{false};                     // XR_MNDX_egl_enable enabled (the EGL binding possible)
 #endif
+    QuestExtensions quest;                        // the Quest's runtime extensions (Android)
     xrruntime::Attempt currentAttempt;            // the runtime being started (start())
     float debugButtonsWas{0.f};                   // vr_debug_buttons last frame
     PFN_xrGetVisibilityMaskKHR getVisibilityMask{nullptr};
@@ -414,6 +482,17 @@ private:
     // with the swap interval 0 (at host_maxfps, or unbounded with host_maxfps 0).
     void paceUnwaited();
     double unwaitedLast{0.0}; // when the last such frame went on (Sys_DoubleTime)
+
+    // A load must not wait on the frames a throttling runtime gives (C5c: an unworn or still headset gave 3 frames in
+    // 36 s and e1m1's signon waited at 3/4: each signon step takes a host frame). While the client is not yet signed on
+    // and the last xrWaitFrame blocked for throttleWaitMs or more, the host runs unwaited frames (paceUnwaited) between
+    // waits, xrWaitFrame called again only throttleRetry seconds after the last one ended.
+    [[nodiscard]] bool loadThrottled() const;
+    static constexpr double throttleWaitMs = 250.0;
+    static constexpr double throttleRetry = 0.5;
+    double lastWaitEnd{0.0}; // when the last xrWaitFrame returned (Sys_DoubleTime)
+    double lastWaitMs{0.0};  // how long it blocked
+    int throttledFrames{0};  // unwaited host frames run so for a load (the log's count)
 
     // The local time, for the log (hh:mm:ss.mmm).
     [[nodiscard]] static const char* wallClock();

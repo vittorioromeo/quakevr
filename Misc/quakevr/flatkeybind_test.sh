@@ -11,6 +11,8 @@
 #   clear    Backspace on the Swap hands row empties vr_flat_key_swap
 #   reset    VR menu > Locomotion > Reset Flat Keys puts every flat key back (vr_flat_key_drop h again)
 #   gear     Controls' Gear lights row (vr_flat_key_gearlights, 9, no clash); 9 pressed twice dims and lights the gear
+#   numkeys  Controls' Cycle left hand row (vr_flat_key_cycle_left, 1: his 2026-11-22 holster keys) names its clash with
+#            the Axe's bind; 1 pressed cycles the left hand; with vr_flat_holsters 0 it is not the flat key's (Quake's bind)
 # Prints "flatkeybind: N passed, M failed".
 AGENT=${1:?agent}
 source "$(dirname "$0")/qvrtest.sh"
@@ -26,7 +28,8 @@ FIRE="togglemenu; togglemenu; wait5; vr_mock_key k down; wait4; vr_mock_key k up
 CLR="menu_keys vr_flat_key_swap; wait2; vr_mock_key backspace; wait2; vr_flat_key_swap"
 RST="menu_vr $N Reset Flat Keys; wait3; vr_mock_key enter; wait2; vr_flat_key_drop"
 GEAR="menu_keys vr_flat_key_gearlights; wait2; togglemenu; togglemenu; wait5; vr_gear_lights 1; vr_mock_key 9 down; wait4; vr_mock_key 9 up; wait4; echo flatkeybind: gear1; vr_gear_lights; vr_mock_key 9 down; wait4; vr_mock_key 9 up; wait4; echo flatkeybind: gear2; vr_gear_lights"
-bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "$PRE; $LINK; $RB; $ESC; $CL; $FIRE; $CLR; $RST; $GEAR; echo flatkeybind: done; toggleconsole; quit" -QuitOn "^flatkeybind: done" -Timeout 150 -Filter "$FILTER" > "$S/run.log" 2>&1
+NUM="menu_keys vr_flat_key_cycle_left; wait2; togglemenu; togglemenu; wait5; vr_mock_key 1 down; wait4; vr_mock_key 1 up; wait4; echo flatkeybind: num1; vr_flat_holsters 0; vr_mock_key 1 down; wait4; vr_mock_key 1 up; wait4; echo flatkeybind: num0; vr_flat_holsters 1"
+bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "$PRE; $LINK; $RB; $ESC; $CL; $FIRE; $CLR; $RST; $GEAR; $NUM; echo flatkeybind: done; toggleconsole; quit" -QuitOn "^flatkeybind: done" -Timeout 150 -Filter "$FILTER" > "$S/run.log" 2>&1
 L=$S/run.log
 check $(grep -aq 'menu_keys: at "Lean left" (vr_flat_key_lean_left)' "$L" && echo 1 || echo 0) "link: the VR menu's Flat Keys button opens Controls on Lean left"
 check $(grep -aq '"vr_flat_key_drop" is "k"' "$L" && echo 1 || echo 0) "rebind: Enter then k on Controls' Drop row sets vr_flat_key_drop to k"
@@ -41,4 +44,7 @@ check $(grep -aq 'menu_keys: at "Gear lights" (vr_flat_key_gearlights)\s*$' "$L"
 check $(awk '/flatkeybind: gear1/{exit} /flatplay: 9: gear lights/{f=1} END{exit !f}' "$L" && echo 1 || echo 0) "gear: 9 in flat play is the gear lights' key"
 check $(awk '/flatkeybind: gear1/{a=1; next} /flatkeybind: gear2/{exit} a && /"vr_gear_lights" is "0"/{f=1} END{exit !f}' "$L" && echo 1 || echo 0) "gear: the first press dims the gear (vr_gear_lights 0)"
 check $(awk '/flatkeybind: gear2/{a=1; next} a && /"vr_gear_lights" is "1"/{f=1} END{exit !f}' "$L" && echo 1 || echo 0) "gear: the second press lights it again (vr_gear_lights 1)"
+check $(grep -aq 'menu_keys: at "Cycle left hand" (vr_flat_key_cycle_left) !.*Cycle left hand, not Axe' "$L" && echo 1 || echo 0) "numkeys: Controls' Cycle left hand row on 1, its clash with the Axe's bind named"
+check $(awk '/flatkeybind: num1/{exit} /flatplay: 1: cycle the left hand/{f=1} END{exit !f}' "$L" && echo 1 || echo 0) "numkeys: 1 in flat play cycles the left hand"
+check $(awk '/flatkeybind: num1/{a=1; next} /flatkeybind: num0/{exit} a && /flatplay: 1: cycle/{f=1} END{exit f}' "$L" && echo 1 || echo 0) "numkeys: with vr_flat_holsters 0, 1 is not the flat key's"
 verdict; exit $fail

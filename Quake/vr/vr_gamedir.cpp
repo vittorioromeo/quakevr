@@ -42,8 +42,6 @@
 #include "vr_api.h"
 
 #include <cstdio>
-#include <cstdint>
-#include <cstring>
 #include <sys/stat.h>
 extern "C" {
 #include "steam.h"

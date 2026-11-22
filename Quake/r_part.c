@@ -722,7 +722,7 @@ static void R_DrawParticles_Real (qboolean alpha, qboolean showtris)
 	oit = (alpha && R_GetEffectiveAlphaMode () == ALPHAMODE_OIT);
 	if (oit) // QVR: the OIT targets cleared at their first draw
 		R_PrepareOITDraw (2);
-	GL_UseProgram (glprogs.particles[oit][dither]);
+	GL_UseProgram (GL_ParticlesProgram (oit, dither)); // QVR: made when first asked for under ES
 
 	// compensate for apparent size of different particle textures
 	// this bakes in the additional scaling of vup and vright by 1.5f for billboarding,

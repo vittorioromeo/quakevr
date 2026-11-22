@@ -175,7 +175,7 @@ constexpr float farAway = 1536.f;  // units: nothing drips this far from the eye
 [[nodiscard]] glm::vec3 tunableColor(const Tunable& t, const glm::vec3& def)
 {
     glm::vec3 c = def;
-    if(std::sscanf(t.string, "%f %f %f", &c.x, &c.y, &c.z) != 3)
+    if(sscanf(t.string, "%f %f %f", &c.x, &c.y, &c.z) != 3)
     {
         return def;
     }

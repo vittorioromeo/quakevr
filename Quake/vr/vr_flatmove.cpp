@@ -23,6 +23,7 @@
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -30,6 +31,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 
 #include <glm/geometric.hpp>
 #include <glm/trigonometric.hpp>
@@ -2665,11 +2667,12 @@ namespace
 // M_Keys_Populate): the cvars a key's bind name is kept in, and the rows' names. Key_Event leaves these keys' binds off
 // while flat play runs (VR_FlatKeyOwned: the flat key wins); Controls rebinds them (VR_FlatKeySet).
 cvar_t* const flatKeyList[] = {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_prone, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_shove, &vr_flat_key_punch,
-    &vr_flat_key_reload, &vr_flat_key_ammo, &vr_flat_key_drop, &vr_flat_key_grenade, &vr_flat_key_bullettime, &vr_flat_key_flashlight, &vr_flat_key_gearlights, &vr_flat_key_voicechat, &vr_flat_key_holster_menu, &vr_flat_key_flycam,
+    &vr_flat_key_reload, &vr_flat_key_ammo, &vr_flat_key_drop, &vr_flat_key_cycle_left, &vr_flat_key_cycle_right,
+    &vr_flat_key_holster_left, &vr_flat_key_holster_right, &vr_flat_key_drop_left, &vr_flat_key_drop_right, &vr_flat_key_grenade, &vr_flat_key_bullettime, &vr_flat_key_flashlight, &vr_flat_key_gearlights, &vr_flat_key_voicechat, &vr_flat_key_holster_menu, &vr_flat_key_flycam,
     &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu, &vr_flat_key_toolgun_adjust};
 const char* const flatKeyLabels[] = {"Lean left", "Lean right", "Lie down", "Swap hands", "Force grab", "Shove", "Punch", "Reload", "Next ammo type", "Drop",
-    "Quick grenade", "Bullet time", "Flashlight", "Gear lights", "Push-to-talk", "Holster menu", "Fly camera", "Toolgun", "Toolgun panel", "Toolgun adjust"};
-static_assert(std::size(flatKeyList) == std::size(flatKeyLabels), "a label for every flat key");
+    "Cycle left hand", "Cycle right hand", "Holster left hand", "Holster right hand", "Drop left hand", "Drop right hand", "Quick grenade", "Bullet time", "Flashlight", "Gear lights", "Push-to-talk", "Holster menu", "Fly camera", "Toolgun", "Toolgun panel", "Toolgun adjust"};
+static_assert(za::getArraySize(flatKeyList) == za::getArraySize(flatKeyLabels), "a label for every flat key");
 
 [[nodiscard]] int flatKeyNum(const cvar_t& c)
 {
@@ -2679,18 +2682,26 @@ static_assert(std::size(flatKeyList) == std::size(flatKeyLabels), "a label for e
 
 [[nodiscard]] bool flatKeyIndexOk(int i)
 {
-    return i >= 0 && i < static_cast<int>(std::size(flatKeyList));
+    return i >= 0 && i < static_cast<int>(za::getArraySize(flatKeyList));
 }
 } // namespace
 
-std::span<cvar_t* const> qvr::flatplay::keyCvars()
+za::Span<cvar_t* const> qvr::flatplay::keyCvars()
 {
     return flatKeyList;
 }
 
+bool qvr::flatplay::keyActive(const cvar_t& c)
+{
+    // The holsters' number keys (his words 2026-11-22) only with the holsters on: off, 1 .. 7 pick weapons as before.
+    const bool holsterKey = &c == &vr_flat_key_cycle_left || &c == &vr_flat_key_cycle_right || &c == &vr_flat_key_holster_left ||
+                            &c == &vr_flat_key_holster_right || &c == &vr_flat_key_drop_left || &c == &vr_flat_key_drop_right;
+    return !holsterKey || vr_flat_holsters.value != 0.f;
+}
+
 extern "C" int VR_FlatKeyCount(void)
 {
-    return static_cast<int>(std::size(flatKeyList));
+    return static_cast<int>(za::getArraySize(flatKeyList));
 }
 
 extern "C" const char* VR_FlatKeyLabel(int i)
@@ -2726,7 +2737,7 @@ extern "C" int VR_FlatKeyFor(int key, int skip)
     {
         return -1;
     }
-    for(int i = 0; i < static_cast<int>(std::size(flatKeyList)); i++)
+    for(int i = 0; i < static_cast<int>(za::getArraySize(flatKeyList)); i++)
     {
         if(i != skip && flatKeyNum(*flatKeyList[i]) == key)
         {
@@ -2752,7 +2763,7 @@ extern "C" int VR_FlatKeyOwned(int key)
     }
     for(const cvar_t* c : flatplay::keyCvars())
     {
-        if(c->string[0] && Key_StringToKeynum(c->string) == key)
+        if(c->string[0] && flatplay::keyActive(*c) && Key_StringToKeynum(c->string) == key)
         {
             return 1;
         }

@@ -9,6 +9,7 @@
 #include "vr_agarmor.hpp"
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
+#include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -718,7 +719,7 @@ void gearcheck_f()
         }
         const auto at = [](const view::ViewEntity& ve) { return glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]}; };
         bool finite = true;
-        const auto num = [](const glm::vec3& v) { return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z); };
+        const auto num = [](const glm::vec3& v) { return ZA_ISFINITE(v.x) && ZA_ISFINITE(v.y) && ZA_ISFINITE(v.z); };
         const auto onTrunk = [&](const view::ViewEntity& ve) {
             const glm::vec3 p = at(ve), a{ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
             finite = finite && num(p) && num(a);
@@ -1458,7 +1459,7 @@ void setupBody(int slot, int e, const Avatar& a, const glm::vec3& origin, const 
     for(int i = 0; i < numCalFields; i++)
     {
         const float value = calFields[i].var ? calFields[i].var->value : calFields[i].get();
-        c.v[i] = calClamp(i, static_cast<int>(std::lround(value * calFields[i].scale)));
+        c.v[i] = calClamp(i, static_cast<int>(za::lround(value * calFields[i].scale)));
     }
     return c;
 }

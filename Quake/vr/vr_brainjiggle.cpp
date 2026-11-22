@@ -5,12 +5,13 @@
 #include "vr_mem.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/UIntPtrT.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Container/Vector.hpp"
-#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -46,7 +47,7 @@ struct Spring
 
 struct Springs
 {
-    ankerl::unordered_dense::map<std::uintptr_t, Spring> springs;
+    ankerl::unordered_dense::map<za::UIntPtrT, Spring> springs;
     auto members() { return mem::list(springs); }
 };
 mem::Cache<Springs> cache{"brain jiggle", mem::MapChange | mem::GameDirChange | mem::ModelReload};
@@ -87,7 +88,7 @@ Spring& update(const entity_t* e, float strength)
     {
         if(now >= lastPrune)
         {
-            za::Vector<std::uintptr_t> stale;
+            za::Vector<za::UIntPtrT> stale;
             for(const auto& [key, s] : cache.springs)
             {
                 if(now - s.time > forgetAfter)
@@ -95,14 +96,14 @@ Spring& update(const entity_t* e, float strength)
                     stale.pushBack(key);
                 }
             }
-            for(const std::uintptr_t key : stale)
+            for(const za::UIntPtrT key : stale)
             {
                 cache.springs.erase(key);
             }
         }
         lastPrune = now;
     }
-    Spring& s = cache.springs[reinterpret_cast<std::uintptr_t>(e)];
+    Spring& s = cache.springs[reinterpret_cast<za::UIntPtrT>(e)];
     if(s.time == now)
     {
         return s;
