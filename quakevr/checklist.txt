@@ -45,6 +45,8 @@ Multiplayer: in a game on another machine, walk round your play space quickly an
 Hold the lava nailgun and lava super nailgun (both hands, lava nails loaded): each looks as before, now its nailgun's model in the lava skin; the screen, magazine and grip sit exactly as on the plain nailgun, and pressing the button changes only the skin. {test:gun_variants_nail}
 Hold the multi-rocket launcher and the plasma Thunderbolt: each is its plain gun's model in the other skin, its screen, cell and grip where the plain gun has them; switching ammo changes nothing but the skin. {test:gun_variants_rock}
 Flat-screen: press 9 with a gun in hand: the visor's panels and the gun's ammo screen dim, 9 again lights them; Options > Controls lists it as "Gear lights" under Quake VR (flat screen), with no "!" clash mark. {test:flat_gear_lights}
+Flat-screen or VR: in multiplayer, watch another player climb a rope, hang on it and swing it; his hands should grip the rope and move up it hand over hand, his hips stay close to it with the legs wrapped round it, and none of it should drift off the rope while it swings. {test:ropes}
+On a rope in VR, look at your own hands and legs; the hands should sit on the rope (not beside it as on a ledge) and the hips come in close to it with the feet wrapped round it. {test:ropes}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules {test:hub_start}
