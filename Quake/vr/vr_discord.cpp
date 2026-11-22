@@ -37,6 +37,7 @@
 #include "vr_testkit.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Chrono/Time.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"

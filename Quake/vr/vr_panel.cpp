@@ -43,6 +43,7 @@
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Remainder.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "vr_zancle.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_visor.hpp"

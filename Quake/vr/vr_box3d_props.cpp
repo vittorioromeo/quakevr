@@ -6,6 +6,7 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -247,7 +248,7 @@ struct ShapeInputs
     float scales[8]{};
     bool operator==(const ShapeInputs& o) const
     {
-        return weapons == o.weapons && props == o.props && quakevr == o.quakevr && !memcmp(scales, o.scales, sizeof(scales));
+        return weapons == o.weapons && props == o.props && quakevr == o.quakevr && !ZA_MEMCMP(scales, o.scales, sizeof(scales));
     }
 };
 ShapeInputs shapeInputs;

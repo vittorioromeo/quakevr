@@ -8,6 +8,10 @@
 #include "vr_tunables.hpp"
 
 #include "Zancle/Algorithm/StableSort.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -17,11 +21,9 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
-#include "Zancle/Container/Vector.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 namespace qvr::brushlight
 {
@@ -135,9 +137,9 @@ const MapLights& lights()
                 break;
             }
             const char* v = com_token;
-            if(!strcmp(key, "classname")) { q_strlcpy(classname, v, sizeof(classname)); }
-            else if(!strcmp(key, "origin")) { l.origin = parseVec(v); hasOrigin = true; }
-            else if(!strcmp(key, "light") || !strcmp(key, "_light"))
+            if(!ZA_STRCMP(key, "classname")) { q_strlcpy(classname, v, sizeof(classname)); }
+            else if(!ZA_STRCMP(key, "origin")) { l.origin = parseVec(v); hasOrigin = true; }
+            else if(!ZA_STRCMP(key, "light") || !ZA_STRCMP(key, "_light"))
             {
                 // (a "_light" of four numbers: Half-Life's colour and brightness; its last)
                 double n[4]{0.0, 0.0, 0.0, 0.0};
@@ -145,23 +147,23 @@ const MapLights& lights()
                 l.value = got == 4 ? n[3] : n[0];
                 minlight = l.value; // (worldspawn's "light": its minimum)
             }
-            else if(!strcmp(key, "wait")) { l.atten = atof(v); }
-            else if(!strcmp(key, "delay")) { l.delay = atoi(v); }
-            else if(!strcmp(key, "_color") || !strcmp(key, "color")) { l.colour = parseColour(v); minColour = l.colour; }
-            else if(!strcmp(key, "style")) { l.style = atoi(v); }
-            else if(!strcmp(key, "angle")) { angle = atof(v); haveAngle = true; }
-            else if(!strcmp(key, "_softangle")) { softAngle = atof(v); }
-            else if(!strcmp(key, "mangle") || !strcmp(key, "_mangle")) { mangle = parseVec(v); haveMangle = true; }
-            else if(!strcmp(key, "target")) { q_strlcpy(l.target, v, sizeof(l.target)); }
-            else if(!strcmp(key, "targetname")) { q_strlcpy(targetname, v, sizeof(targetname)); }
-            else if(!strcmp(key, "_surface")) { surface = v[0] != '\0'; }
-            else if(!strcmp(key, "_sun")) { sunEntity = atoi(v) != 0; }
-            else if(!strcmp(key, "_anglescale") || !strcmp(key, "_anglesense")) { anglescale = atof(v); }
-            else if(!strcmp(key, "_sunlight") || !strcmp(key, "_sun_light")) { sunlight = atof(v); }
-            else if(!strcmp(key, "_sun_mangle") || !strcmp(key, "_sunlight_mangle")) { sunMangle = parseVec(v); }
-            else if(!strcmp(key, "_sunlight_color") || !strcmp(key, "_sun_color")) { sunColour = parseColour(v); }
-            else if(!strcmp(key, "_minlight")) { minlight = atof(v); }
-            else if(!strcmp(key, "_minlight_color")) { minColour = parseColour(v); }
+            else if(!ZA_STRCMP(key, "wait")) { l.atten = atof(v); }
+            else if(!ZA_STRCMP(key, "delay")) { l.delay = atoi(v); }
+            else if(!ZA_STRCMP(key, "_color") || !ZA_STRCMP(key, "color")) { l.colour = parseColour(v); minColour = l.colour; }
+            else if(!ZA_STRCMP(key, "style")) { l.style = atoi(v); }
+            else if(!ZA_STRCMP(key, "angle")) { angle = atof(v); haveAngle = true; }
+            else if(!ZA_STRCMP(key, "_softangle")) { softAngle = atof(v); }
+            else if(!ZA_STRCMP(key, "mangle") || !ZA_STRCMP(key, "_mangle")) { mangle = parseVec(v); haveMangle = true; }
+            else if(!ZA_STRCMP(key, "target")) { q_strlcpy(l.target, v, sizeof(l.target)); }
+            else if(!ZA_STRCMP(key, "targetname")) { q_strlcpy(targetname, v, sizeof(targetname)); }
+            else if(!ZA_STRCMP(key, "_surface")) { surface = v[0] != '\0'; }
+            else if(!ZA_STRCMP(key, "_sun")) { sunEntity = atoi(v) != 0; }
+            else if(!ZA_STRCMP(key, "_anglescale") || !ZA_STRCMP(key, "_anglesense")) { anglescale = atof(v); }
+            else if(!ZA_STRCMP(key, "_sunlight") || !ZA_STRCMP(key, "_sun_light")) { sunlight = atof(v); }
+            else if(!ZA_STRCMP(key, "_sun_mangle") || !ZA_STRCMP(key, "_sunlight_mangle")) { sunMangle = parseVec(v); }
+            else if(!ZA_STRCMP(key, "_sunlight_color") || !ZA_STRCMP(key, "_sun_color")) { sunColour = parseColour(v); }
+            else if(!ZA_STRCMP(key, "_minlight")) { minlight = atof(v); }
+            else if(!ZA_STRCMP(key, "_minlight_color")) { minColour = parseColour(v); }
         }
         if(!data)
         {
@@ -192,7 +194,7 @@ const MapLights& lights()
             n.origin = l.origin;
             targets.pushBack(n);
         }
-        if(strncmp(classname, "light", 5) != 0 || surface || sunEntity || !hasOrigin || l.value <= 0.0 || l.delay == 4)
+        if(ZA_STRNCMP(classname, "light", 5) != 0 || surface || sunEntity || !hasOrigin || l.value <= 0.0 || l.delay == 4)
         {
             continue;
         }
@@ -220,7 +222,7 @@ const MapLights& lights()
         }
         for(const Named& n : targets)
         {
-            if(!strcmp(n.name, l.target) && glm::length(n.origin - l.origin) > 1e-3)
+            if(!ZA_STRCMP(n.name, l.target) && glm::length(n.origin - l.origin) > 1e-3)
             {
                 l.spot = true;
                 l.spotDir = glm::normalize(n.origin - l.origin);
@@ -512,7 +514,7 @@ Bakes bakes;
     }
     const qmodel_t* w = currentWorld();
     trace_t tr;
-    memset(&tr, 0, sizeof(tr));
+    ZA_MEMSET(&tr, 0, sizeof(tr));
     tr.fraction = 1.f;
     tr.allsolid = true;
     vec3_t p1{static_cast<float>(p.x), static_cast<float>(p.y), static_cast<float>(p.z)};

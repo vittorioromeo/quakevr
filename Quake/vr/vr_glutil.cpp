@@ -1,6 +1,9 @@
 // vr_glutil.cpp -- the GL object helpers every effect's shaders and targets share (vr_glutil.hpp).
 
 #include "vr_glutil.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -14,7 +17,6 @@
 #include "SDL.h"
 #endif
 
-#include <cstring>
 
 namespace qvr::gfx
 {
@@ -168,7 +170,7 @@ bool readMappedCopy(GLenum target, GLintptr offset, GLsizeiptr size, void* out)
     bool read = false;
     if(p)
     {
-        memcpy(out, p, static_cast<size_t>(size));
+        ZA_MEMCPY(out, p, static_cast<size_t>(size));
         read = GL_UnmapBufferFunc(GL_COPY_WRITE_BUFFER) == GL_TRUE;
     }
     GL_BindBufferFunc(GL_COPY_WRITE_BUFFER, static_cast<GLuint>(previous));
@@ -208,7 +210,7 @@ bool readBuffer(GLenum target, GLintptr offset, GLsizeiptr size, void* out)
         {
             return false;
         }
-        memcpy(out, p, static_cast<size_t>(size));
+        ZA_MEMCPY(out, p, static_cast<size_t>(size));
         return GL_UnmapBufferFunc(target) == GL_TRUE;
     }
     lookUpDesktopOnly();
@@ -387,7 +389,7 @@ EsReadback esReadback;
                 unsigned char* row = out + static_cast<size_t>(y + r) * stride;
                 for(int x = 0; x < w; x++)
                 {
-                    memcpy(row + static_cast<size_t>(x) * 4, &strip[(static_cast<size_t>(r) * w + x) * 4], 4);
+                    ZA_MEMCPY(row + static_cast<size_t>(x) * 4, &strip[(static_cast<size_t>(r) * w + x) * 4], 4);
                 }
             }
         }
@@ -478,18 +480,18 @@ EsReadback esReadback;
                         float v = 0.f;
                         if(floats)
                         {
-                            memcpy(&v, src + c * 4, 4);
+                            ZA_MEMCPY(&v, src + c * 4, 4);
                         }
                         else
                         {
                             v = static_cast<float>(src[c]) / 255.f;
                         }
-                        memcpy(row + at * 4, &v, 4);
+                        ZA_MEMCPY(row + at * 4, &v, 4);
                     }
                     else if(floats)
                     {
                         float v = 0.f;
-                        memcpy(&v, src + c * 4, 4);
+                        ZA_MEMCPY(&v, src + c * 4, 4);
                         row[at] = static_cast<unsigned char>(za::clamp(v, 0.f, 1.f) * 255.f + 0.5f);
                     }
                     else
@@ -532,7 +534,7 @@ bool readTexImage(GLenum target, GLint level, GLenum format, GLenum type, void* 
 #endif
         return true;
     }
-    memset(out, 0, bytes);
+    ZA_MEMSET(out, 0, bytes);
     if(!channels || !typeBytes || w <= 0 || h <= 0)
     {
         return false;
@@ -570,11 +572,11 @@ int readTexImageSame(GLenum target, GLint level, GLenum format, GLenum type, con
     za::Vector<unsigned char> desktop, es;
     desktop.resize(bytes);
     es.resize(bytes);
-    memset(desktop.data(), 0, bytes);
-    memset(es.data(), 0, bytes);
+    ZA_MEMSET(desktop.data(), 0, bytes);
+    ZA_MEMSET(es.data(), 0, bytes);
     (void)readTexImage(target, level, format, type, desktop.data(), false);
     const bool read = readTexImage(target, level, format, type, es.data(), true);
-    const bool same = read && memcmp(desktop.data(), es.data(), bytes) == 0;
+    const bool same = read && ZA_MEMCMP(desktop.data(), es.data(), bytes) == 0;
     if(!same)
     {
         Con_Warning("readback %s (%dx%dx%d level %d): %s\n", what, w, h, d, level, read ? "differs" : "not read");

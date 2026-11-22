@@ -20,6 +20,7 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -29,7 +30,6 @@
 #include "vr_toolpanel.hpp"
 
 #include <math.h>
-#include <string.h>
 
 namespace qvr::bladeedit
 {
@@ -1341,7 +1341,7 @@ bool start(int hand, int returnPage)
     {
         ses.hoverButton[h] = -1;
     }
-    memset(ses.eaten, 0, sizeof(ses.eaten));
+    ZA_MEMSET(ses.eaten, 0, sizeof(ses.eaten));
     ses.bladesWas = vr_debug_melee_blades.value;
     Cvar_SetValueQuick(&vr_debug_melee_blades, 1.f);
     placePanel(hands::current());

@@ -23,6 +23,8 @@
 #include "vr_rules.hpp"
 #include "vr_sha256.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -90,7 +92,7 @@ template <size_t N>
 {
     for(const char* e : list)
     {
-        if(!strcmp(e, s)) { return true; }
+        if(!ZA_STRCMP(e, s)) { return true; }
     }
     return false;
 }
@@ -129,14 +131,14 @@ int versionStatus(const char* folder)
         fseek(f, 0, SEEK_END);
         const long size = ftell(f);
         rewind(f);
-        if(size == VR_AD_PAK2_SIZE && fread(&header, 1, sizeof(header), f) == sizeof(header) && !memcmp(header.id, "PACK", 4))
+        if(size == VR_AD_PAK2_SIZE && fread(&header, 1, sizeof(header), f) == sizeof(header) && !ZA_MEMCMP(header.id, "PACK", 4))
         {
             const int offset = LittleLong(header.offset), length = LittleLong(header.length);
             if(offset >= 12 && length > 0 && length < (1 << 20) && offset <= size - length)
             {
                 za::Vector<unsigned char> bytes;
                 bytes.resize(static_cast<za::SizeT>(length) + sizeof(header));
-                memcpy(bytes.data(), &header, sizeof(header));
+                ZA_MEMCPY(bytes.data(), &header, sizeof(header));
                 if(!fseek(f, offset, SEEK_SET) && fread(bytes.data() + sizeof(header), 1, length, f) == size_t(length) &&
                     qvr::sha256::matches(qvr::sha256::of(bytes.data(), bytes.size()), VR_AD_PAK2_DIRSHA))
                 {

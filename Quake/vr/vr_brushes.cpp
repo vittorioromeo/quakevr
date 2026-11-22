@@ -21,7 +21,12 @@
 #include "vr_modelcollide.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Container/SmallVector.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -166,8 +171,8 @@ void recordUndo(UndoStep::Kind kind, int id, const Brush* before)
 
 [[nodiscard]] int idFromName(const char* name)
 {
-    const size_t n = strlen(modelPrefix);
-    if(strncmp(name, modelPrefix, n) != 0)
+    const size_t n = ZA_STRLEN(modelPrefix);
+    if(ZA_STRNCMP(name, modelPrefix, n) != 0)
     {
         return 0;
     }
@@ -302,7 +307,7 @@ bool placeEntity(Entry& e)
     int index = -1;
     for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
     {
-        if(!strcmp(sv.model_precache[i], name))
+        if(!ZA_STRCMP(sv.model_precache[i], name))
         {
             index = i;
             break;
@@ -1418,7 +1423,7 @@ unsigned long long bakeHash(const Brush& b)
             const long long q = static_cast<long long>(za::round(x * 1e4));
             add(&q, sizeof(q));
         }
-        add(f.texture, strlen(f.texture));
+        add(f.texture, ZA_STRLEN(f.texture));
     }
     return h;
 }
@@ -1527,7 +1532,7 @@ int fromAllText(za::StringView text, bool replace, za::String& warning)
     char map[64] = "";
     unsigned hash = 0;
     const za::String copy{text.data(), text.size()};
-    const char* header = strstr(copy.cStr(), "// qvrbrushes ");
+    const char* header = ZA_STRSTR(copy.cStr(), "// qvrbrushes ");
     if(header && sscanf(header, "// qvrbrushes %*d map %63s bsp %x", map, &hash) == 2 && (q_strcasecmp(map, sv.name) || hash != mapHash()))
     {
         warning = va("made for %s (bsp %08x), this is %s (bsp %08x)", map, hash, sv.name, mapHash());
@@ -1581,7 +1586,7 @@ void readSaveLines(const char* saveText)
     SaveState& s = saveState;
     s.pending.clear();
     s.have = false;
-    for(const char* p = saveText ? strstr(saveText, "\n// qvrb ") : nullptr; p; p = strstr(p + 1, "\n// qvrb "))
+    for(const char* p = saveText ? ZA_STRSTR(saveText, "\n// qvrb ") : nullptr; p; p = ZA_STRSTR(p + 1, "\n// qvrb "))
     {
         const char* line = p + 9;
         const za::SizeT n = strcspn(line, "\r\n");
@@ -1619,7 +1624,7 @@ void restoreAfterLoad()
         for(int i = 1; i < qcvm->num_edicts && !num; i++)
         {
             edict_t* ed = EDICT_NUM(i);
-            if(!ed->free && !strcmp(PR_GetString(ed->v.classname), className) && !strcmp(PR_GetString(ed->v.model), name) && !ofEntity(i))
+            if(!ed->free && !ZA_STRCMP(PR_GetString(ed->v.classname), className) && !ZA_STRCMP(PR_GetString(ed->v.model), name) && !ofEntity(i))
             {
                 num = i;
             }
@@ -1768,7 +1773,7 @@ bool clipBox(const qmodel_t* model, const glm::vec3& start, const glm::vec3& min
     {
         return false;
     }
-    memset(&trace, 0, sizeof(trace));
+    ZA_MEMSET(&trace, 0, sizeof(trace));
     trace.fraction = 1.f;
     trace.inopen = true;
     VectorCopy(end, trace.endpos);
@@ -2029,7 +2034,7 @@ void frame()
         const progs::ServerVm vm;
         int strays = 0;
         progs::forEachEdict(svs.maxclients + 1, [&](edict_t* ed) {
-            if(!strcmp(PR_GetString(ed->v.classname), className) && !ofEntity(NUM_FOR_EDICT(ed)))
+            if(!ZA_STRCMP(PR_GetString(ed->v.classname), className) && !ofEntity(NUM_FOR_EDICT(ed)))
             {
                 ED_Free(ed);
                 strays++;

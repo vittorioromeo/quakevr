@@ -12,6 +12,9 @@
 #include "vr_rigpose.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -26,7 +29,6 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <stdlib.h>
-#include <string.h>
 
 using namespace qvr;
 using namespace qvr::animsmooth::detail;
@@ -46,7 +48,7 @@ namespace
         {
             const entity_t& e = cl_entities[i];
             if(i == cl.viewentity || !e.model || e.model->type != mod_alias ||
-                static_cast<const aliashdr_t*>(Mod_Extradata(e.model))->numframes < 10 || !strstr(e.model->name, which))
+                static_cast<const aliashdr_t*>(Mod_Extradata(e.model))->numframes < 10 || !ZA_STRSTR(e.model->name, which))
             {
                 continue;
             }
@@ -89,7 +91,7 @@ void trace_f()
 // vr_anim_smooth_pin off | <frame1> <frame2> <blend> [<frame0> <frame3> [<entity> | <model>]]
 void pin_f()
 {
-    if(Cmd_Argc() >= 2 && !strcmp(Cmd_Argv(1), "off"))
+    if(Cmd_Argc() >= 2 && !ZA_STRCMP(Cmd_Argv(1), "off"))
     {
         pin = Pin{};
         Con_Printf("animsmooth: pin off\n");
@@ -136,7 +138,7 @@ void info_f()
     stats = Stats{};
     for(const auto& [model, mp] : smoothCache.models)
     {
-        if(!mp || (Cmd_Argc() >= 2 && !strstr(model->name, Cmd_Argv(1))))
+        if(!mp || (Cmd_Argc() >= 2 && !ZA_STRSTR(model->name, Cmd_Argv(1))))
         {
             continue;
         }
@@ -247,7 +249,7 @@ void check_f()
     const float spans[3] = {pinSpan, pinSpan, pinSpan};
     const rigpose::Spline s0 = rigpose::spline(0.f, spans, tension), s1 = rigpose::spline(1.f, spans, tension);
     Con_Printf("animsmooth: check: weights at the keys %s\n",
-        !memcmp(s0.w, zero, sizeof(zero)) && !memcmp(s1.w, one, sizeof(one)) ? "exact" : "NOT EXACT");
+        !ZA_MEMCMP(s0.w, zero, sizeof(zero)) && !ZA_MEMCMP(s1.w, one, sizeof(one)) ? "exact" : "NOT EXACT");
     for(qmodel_t* model : models)
     {
         const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
@@ -383,7 +385,7 @@ void rigHash_f()
             models.pushBack(model);
         }
     }
-    za::quickSort(models.begin(), models.end(), [](const qmodel_t* a, const qmodel_t* b) { return strcmp(a->name, b->name) < 0; });
+    za::quickSort(models.begin(), models.end(), [](const qmodel_t* a, const qmodel_t* b) { return ZA_STRCMP(a->name, b->name) < 0; });
     unsigned long long all = diskcache::fnvStart;
     for(const qmodel_t* model : models)
     {

@@ -4,8 +4,8 @@
 #include "vr_crtheap.h"
 #include "vr_tracy.h"
 #ifdef QVR_TRACY
-#include <atomic>
-namespace { std::atomic<unsigned> tracyQueued{0}; }
+#include "Zancle/Concurrency/Atomic.hpp"
+namespace { za::Atomic<unsigned> tracyQueued{0}; }
 #endif
 
 #include "Zancle/Base/IntTypes.hpp"
@@ -105,12 +105,12 @@ void Pool::post(detail::JobPtr<detail::Job> job)
 {
     QVR_TRACY_SCOPE(scope, "Job enqueue");
 #ifdef QVR_TRACY
-    VR_TracyPlot("Job queue entries", tracyQueued.fetch_add(1, std::memory_order_relaxed) + 1);
+    VR_TracyPlot("Job queue entries", tracyQueued.fetchAddRelaxed(1) + 1);
 #endif
     impl->threads->post([job = ZA_MOVE(job)] {
         VR_TracyThreadName("Quake VR worker");
 #ifdef QVR_TRACY
-        VR_TracyPlot("Job queue entries", tracyQueued.fetch_sub(1, std::memory_order_relaxed) - 1);
+        VR_TracyPlot("Job queue entries", tracyQueued.fetchSubRelaxed(1) - 1);
 #endif
         job->claimAndRun();
         VR_CrtHeapThreadTidy(); // (the worker's own heap, at most once a vr_heap_thread_tidy: vr_crtheap.h)

@@ -5,6 +5,7 @@
 // function here finds nothing enabled and does nothing.
 
 #include "vr_backend_openxr_internal.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 
 #ifdef QVR_HAVE_OPENXR
 
@@ -45,27 +46,27 @@ void QuestExtensions::want(const char* offered, za::Vector<const char*>& enabled
     {
         return;
     }
-    if(!strcmp(offered, XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME))
+    if(!ZA_STRCMP(offered, XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME))
     {
         enabled.pushBack(XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME);
         refreshRate = true;
     }
-    else if(!strcmp(offered, XR_EXT_PERFORMANCE_SETTINGS_EXTENSION_NAME))
+    else if(!ZA_STRCMP(offered, XR_EXT_PERFORMANCE_SETTINGS_EXTENSION_NAME))
     {
         enabled.pushBack(XR_EXT_PERFORMANCE_SETTINGS_EXTENSION_NAME);
         perfSettings = true;
     }
-    else if(!strcmp(offered, XR_FB_FOVEATION_EXTENSION_NAME))
+    else if(!ZA_STRCMP(offered, XR_FB_FOVEATION_EXTENSION_NAME))
     {
         enabled.pushBack(XR_FB_FOVEATION_EXTENSION_NAME);
         foveationParts |= foveationBit;
     }
-    else if(!strcmp(offered, XR_FB_FOVEATION_CONFIGURATION_EXTENSION_NAME))
+    else if(!ZA_STRCMP(offered, XR_FB_FOVEATION_CONFIGURATION_EXTENSION_NAME))
     {
         enabled.pushBack(XR_FB_FOVEATION_CONFIGURATION_EXTENSION_NAME);
         foveationParts |= foveationConfigurationBit;
     }
-    else if(!strcmp(offered, XR_FB_SWAPCHAIN_UPDATE_STATE_EXTENSION_NAME))
+    else if(!ZA_STRCMP(offered, XR_FB_SWAPCHAIN_UPDATE_STATE_EXTENSION_NAME))
     {
         enabled.pushBack(XR_FB_SWAPCHAIN_UPDATE_STATE_EXTENSION_NAME);
         foveationParts |= swapchainUpdateStateBit;

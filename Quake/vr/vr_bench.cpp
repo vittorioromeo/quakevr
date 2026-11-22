@@ -18,6 +18,7 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -704,7 +705,7 @@ void stateHash_f()
     if(Cmd_Argc() > 3 && !q_strcasecmp(Cmd_Argv(1), "values"))
     {
         const char* prefix = Cmd_Argv(2);
-        const size_t n = strlen(prefix);
+        const size_t n = ZA_STRLEN(prefix);
         for(int a = 3; a < Cmd_Argc(); a++)
         {
             const int e = atoi(Cmd_Argv(a));
@@ -717,7 +718,7 @@ void stateHash_f()
             {
                 const ddef_t& def = qcvm->fielddefs[f];
                 const char* name = PR_GetString(def.s_name);
-                if(!strncmp(name, prefix, n))
+                if(!ZA_STRNCMP(name, prefix, n))
                 {
                     Con_Printf("statevalue %d %s %.9g\n", e, name, static_cast<double>(v[def.ofs]));
                 }

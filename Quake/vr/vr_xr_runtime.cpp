@@ -27,7 +27,7 @@
 #include <unistd.h>
 #endif
 
-#include <atomic>
+#include "Zancle/Concurrency/Atomic.hpp"
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -1566,8 +1566,8 @@ struct LoaderCapture
 LoaderCapture loaderCapture;
 // The terminal's stdout and stderr (the dups) while they are caught, -1 otherwise: VR_TerminalFd's, read by the start-up
 // watchdog's thread and the crash handler (a lock-free int: signal-safe).
-std::atomic<int> terminalOut{-1};
-std::atomic<int> terminalErr{-1};
+za::Atomic<int> terminalOut{-1};
+za::Atomic<int> terminalErr{-1};
 #endif
 
 } // namespace
@@ -1626,8 +1626,8 @@ void captureLoaderOutput(const char* call)
     fflush(c.file);
     c.savedOut = dup(STDOUT_FILENO);
     c.savedErr = dup(STDERR_FILENO);
-    terminalOut.store(c.savedOut, std::memory_order_release); // (before the redirect: the terminal stays reachable)
-    terminalErr.store(c.savedErr, std::memory_order_release);
+    terminalOut.storeRelease(c.savedOut); // (before the redirect: the terminal stays reachable)
+    terminalErr.storeRelease(c.savedErr);
     dup2(fileno(c.file), STDOUT_FILENO);
     dup2(fileno(c.file), STDERR_FILENO);
 #else
@@ -1653,8 +1653,8 @@ void endLoaderOutput(const char* call, bool failed)
     {
         dup2(c.savedErr, STDERR_FILENO);
     }
-    terminalOut.store(-1, std::memory_order_release); // (fds 1 and 2 the terminal's again: the dups no longer needed)
-    terminalErr.store(-1, std::memory_order_release);
+    terminalOut.storeRelease(-1); // (fds 1 and 2 the terminal's again: the dups no longer needed)
+    terminalErr.storeRelease(-1);
     if(c.savedOut >= 0)
     {
         close(c.savedOut);
@@ -2019,11 +2019,11 @@ extern "C" int VR_TerminalFd(int fd)
 #ifndef _WIN32
     if(fd == 1)
     {
-        return qvr::xrruntime::terminalOut.load(std::memory_order_acquire);
+        return qvr::xrruntime::terminalOut.loadAcquire();
     }
     if(fd == 2)
     {
-        return qvr::xrruntime::terminalErr.load(std::memory_order_acquire);
+        return qvr::xrruntime::terminalErr.loadAcquire();
     }
 #else
     (void)fd;

@@ -11,13 +11,16 @@
 #include "vr_tunables.hpp"
 #include "vr_hands.hpp"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
-#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 
@@ -338,8 +341,8 @@ struct Mesh
                 return false;
             }
             char name[17] = {};
-            memcpy(name, b + nameAt, 16);
-            if(!frame || !strcmp(name, frame))
+            ZA_MEMCPY(name, b + nameAt, 16);
+            if(!frame || !ZA_STRCMP(name, frame))
             {
                 poseAt = vertsAt;
             }
@@ -385,7 +388,7 @@ struct Mesh
             return false;
         }
         bytes.resize(static_cast<za::SizeT>(com_filesize > 0 ? com_filesize : 0));
-        memcpy(bytes.data(), f, bytes.size());
+        ZA_MEMCPY(bytes.data(), f, bytes.size());
         VR_HeapFree(f);
         if(!parse(bytes, src, frame, m))
         {
@@ -1585,11 +1588,11 @@ void rifleParts(Parts& p)
     za::Vector<byte> skin(static_cast<za::SizeT>(skinW) * static_cast<za::SizeT>(skinH), capColour);
     for(int y = 0; y < src.skinH; y++)
     {
-        memcpy(skin.data() + static_cast<size_t>(y) * skinW, src.skin.data() + static_cast<size_t>(y) * src.skinW, static_cast<size_t>(src.skinW));
+        ZA_MEMCPY(skin.data() + static_cast<size_t>(y) * skinW, src.skin.data() + static_cast<size_t>(y) * src.skinW, static_cast<size_t>(src.skinW));
     }
     for(int y = 0; y < gh; y++)
     {
-        memcpy(skin.data() + static_cast<size_t>(src.skinH + y) * skinW, graft.skin.data() + static_cast<size_t>(ry0 + y) * graft.skinW + rx0,
+        ZA_MEMCPY(skin.data() + static_cast<size_t>(src.skinH + y) * skinW, graft.skin.data() + static_cast<size_t>(ry0 + y) * graft.skinW + rx0,
             static_cast<size_t>(gw));
     }
 
@@ -1701,7 +1704,7 @@ void rifleParts(Parts& p)
     out.noteName = parts.noteName;
     out.noteLo = parts.noteLo;
     out.noteHi = parts.noteHi;
-    memcpy(out.noteTop, parts.noteTop, sizeof(out.noteTop));
+    ZA_MEMCPY(out.noteTop, parts.noteTop, sizeof(out.noteTop));
     out.made = static_cast<int>(o.tris.size() / 3) - static_cast<int>(adTris / 3) - out.grafted;
     out.sealed = r.keepOpen ? 0 : seal(o, r, skinW - 2, skinH - 2);
     // Straight up from each grafted piece's vertices within 0.3 of its top: the first triangle met that is not a grafted
@@ -1956,7 +1959,7 @@ void rifleParts(Parts& p)
 void setf(byte* f, size_t at, float v)
 {
     const float le = LittleFloat(v);
-    memcpy(f + at, &le, 4);
+    ZA_MEMCPY(f + at, &le, 4);
 }
 
 // A side part (sideParts): the file of its source turned a quarter about x round lightSeat (its -z becomes +y: x' = x,
@@ -2107,9 +2110,9 @@ constexpr float dwRotaryRefire = 0.2f;
         spinModel.model = m;
         spinModel.hdr = hdr;
         const bool framesOk = hdr && hdr->numframes == frameCount + spinPoses;
-        const bool three = framesOk && !strcmp(hdr->frames[frameCount].name, "spin0");
-        const bool two = framesOk && !strcmp(hdr->frames[frameCount].name, "twin0");
-        const bool four = framesOk && !strcmp(hdr->frames[frameCount].name, "quad0");
+        const bool three = framesOk && !ZA_STRCMP(hdr->frames[frameCount].name, "spin0");
+        const bool two = framesOk && !ZA_STRCMP(hdr->frames[frameCount].name, "twin0");
+        const bool four = framesOk && !ZA_STRCMP(hdr->frames[frameCount].name, "quad0");
         spinModel.spins = three || two || four;
         spinModel.barrels = four ? 4 : two ? 2 : 3;
         spinModel.dwell = !q_strcasecmp(m->name, rotaryName) || !q_strcasecmp(m->name, rotaryGauntletName);
@@ -2407,7 +2410,7 @@ void registerCommands()
 
 bool isMade(const char* name)
 {
-    return name && strstr(name, suffix) && recipeOf(name);
+    return name && ZA_STRSTR(name, suffix) && recipeOf(name);
 }
 
 byte* derivedFile(const char* name, unsigned int* path_id)
@@ -2419,7 +2422,7 @@ byte* derivedFile(const char* name, unsigned int* path_id)
             return sideFile(part, path_id);
         }
     }
-    const Recipe* r = strstr(name, suffix) ? recipeOf(name) : nullptr;
+    const Recipe* r = ZA_STRSTR(name, suffix) ? recipeOf(name) : nullptr;
     if(!r)
     {
         return nullptr;
@@ -2442,7 +2445,7 @@ byte* derivedFile(const char* name, unsigned int* path_id)
     {
         // (AD's data missing: by design, quietly; AD's model there but not made: a bug of ours, said aloud: the Plasma
         // Gun was drawn as the Thunderbolt when the lightning gun's art changed, 2026-11-08)
-        if(strcmp(why, missingSourceWhy) != 0)
+        if(ZA_STRCMP(why, missingSourceWhy) != 0)
         {
             Con_Warning("AD weapon model: %s not made (%s): %s stands in\n", name, why, r->standIn);
         }
@@ -2450,7 +2453,7 @@ byte* derivedFile(const char* name, unsigned int* path_id)
         return COM_LoadMallocFile(r->standIn, path_id);
     }
     byte* out = static_cast<byte*>(VR_HeapMalloc(b.file.size() + 1));
-    memcpy(out, b.file.data(), b.file.size());
+    ZA_MEMCPY(out, b.file.data(), b.file.size());
     out[b.file.size()] = 0;
     com_filesize = static_cast<int>(b.file.size());
     Con_DPrintf("AD weapon model: %s made: %d triangles, %d vertices, %d holes closed\n", name, b.tris, b.verts, b.sealed);
@@ -2468,7 +2471,7 @@ void info_f()
         if(!build(r, b, why, nullptr))
         {
             Con_Printf("%s: %s\n", r.name, why);
-            ++(strcmp(why, missingSourceWhy) ? notMade : noData);
+            ++(ZA_STRCMP(why, missingSourceWhy) ? notMade : noData);
             continue;
         }
         ++made;

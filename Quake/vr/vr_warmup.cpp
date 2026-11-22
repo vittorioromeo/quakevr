@@ -14,7 +14,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 
-#include <atomic>
+#include "Zancle/Concurrency/Atomic.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -94,7 +94,7 @@ struct State
     bool doneDirty{false};
 };
 State state;
-std::atomic<bool> stopping{false};
+za::Atomic<bool> stopping{false};
 char statusText[192];
 
 [[nodiscard]] za::String doneLineOf(const za::String& path, za::U64 size, za::I64 time)
@@ -165,7 +165,7 @@ Listing list(const za::Vector<za::String>& bases, const za::Vector<za::String>& 
         });
         for(const za::String& game : games)
         {
-            if(stopping.load())
+            if(stopping.loadSeqCst())
             {
                 return out;
             }
@@ -345,7 +345,7 @@ Result makeItem(const za::String& container, Item item)
 #ifdef _WIN32
     SetThreadPriority(GetCurrentThread(), was);
 #endif
-    if(stopping.load())
+    if(stopping.loadSeqCst())
     {
         r.code = -2;
     }
@@ -491,7 +491,7 @@ void frame()
         state.lastDoneWrite = now;
         writeDone();
     }
-    if(state.pauseWhy[0] || stopping.load())
+    if(state.pauseWhy[0] || stopping.loadSeqCst())
     {
         return;
     }
@@ -512,7 +512,7 @@ void frame()
 
 void stop()
 {
-    stopping.store(true);
+    stopping.storeSeqCst(true);
     if(state.listing)
     {
         (void)state.listed.get();

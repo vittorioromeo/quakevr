@@ -5,6 +5,7 @@
 
 #include "vr_box3d_internal.hpp"
 #include "vr_progs.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 namespace box3d::detail
@@ -163,7 +164,7 @@ void pressTest_f()
     const float cm = world->m2u / 100.f;
     press.speed = (Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 50.f) * cm;
     press.past = (Cmd_Argc() > 3 ? Q_atof(Cmd_Argv(3)) : 40.f) * cm;
-    press.which = Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "off") ? 0 : 1;
+    press.which = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "off") ? 0 : 1;
     if(world->hands.size() > 1)
     {
         const World::HandBody& hb = world->hands[1][static_cast<size_t>(press.which)];

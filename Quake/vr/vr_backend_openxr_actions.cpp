@@ -3,6 +3,9 @@
 
 #include "vr_backend_openxr_internal.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 
 #ifdef QVR_HAVE_OPENXR
@@ -18,7 +21,7 @@ int OpenXrBackend::handSide(int hand)
 const char* OpenXrBackend::shortProfile(const char* name)
 {
     const char* prefix = "/interaction_profiles/";
-    return strncmp(name, prefix, strlen(prefix)) ? name : name + strlen(prefix);
+    return ZA_STRNCMP(name, prefix, ZA_STRLEN(prefix)) ? name : name + ZA_STRLEN(prefix);
 }
 
 void OpenXrBackend::updateControllers()
@@ -36,7 +39,7 @@ void OpenXrBackend::updateControllers()
             uint32_t len = 0;
             xrPathToString(instance, state.interactionProfile, sizeof(name), &len, name);
         }
-        if(strcmp(name, profileName[side]) != 0)
+        if(ZA_STRCMP(name, profileName[side]) != 0)
         {
             q_strlcpy(profileName[side], name, sizeof(profileName[side]));
             changed = true;
@@ -56,21 +59,21 @@ void OpenXrBackend::updateControllers()
             continue;
         }
 
-        if(!strcmp(name, "/interaction_profiles/oculus/touch_controller") ||
-            !strcmp(name, "/interaction_profiles/meta/touch_plus_controller"))
+        if(!ZA_STRCMP(name, "/interaction_profiles/oculus/touch_controller") ||
+            !ZA_STRCMP(name, "/interaction_profiles/meta/touch_plus_controller"))
         {
             controller[side] = Controller::Touch;
         }
-        else if(!strcmp(name, "/interaction_profiles/bytedance/pico_neo3_controller") ||
-                !strcmp(name, "/interaction_profiles/bytedance/pico4_controller") ||
-                !strcmp(name, "/interaction_profiles/htc/vive_cosmos_controller") ||
-                !strcmp(name, "/interaction_profiles/htc/vive_focus3_controller"))
+        else if(!ZA_STRCMP(name, "/interaction_profiles/bytedance/pico_neo3_controller") ||
+                !ZA_STRCMP(name, "/interaction_profiles/bytedance/pico4_controller") ||
+                !ZA_STRCMP(name, "/interaction_profiles/htc/vive_cosmos_controller") ||
+                !ZA_STRCMP(name, "/interaction_profiles/htc/vive_focus3_controller"))
         {
             // Shaped as Touch controllers (a handle, a stick and two face buttons): Touch's legacy grip is the nearest
             // the released offsets have (ROUND22.md, "Menu on any controller").
             controller[side] = Controller::Touch;
         }
-        else if(!strcmp(name, "/interaction_profiles/valve/index_controller"))
+        else if(!ZA_STRCMP(name, "/interaction_profiles/valve/index_controller"))
         {
             // Virtual Desktop's "Emulate Index controllers" reports Index controllers for what
             // are Quest controllers: VDXR's grip is Meta's Touch one whatever the profile.
@@ -82,7 +85,7 @@ void OpenXrBackend::updateControllers()
         bool full = false;
         for(const char* known : fullProfiles)
         {
-            full = full || !strcmp(name, known);
+            full = full || !ZA_STRCMP(name, known);
         }
         if(!full && !limitedWarned)
         {

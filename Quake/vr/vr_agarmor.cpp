@@ -28,6 +28,13 @@
 
 #include "vr_lines.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -37,7 +44,6 @@
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
-#include "Zancle/Base/Swap.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api_render.h"
 
@@ -257,7 +263,7 @@ int numPlayerRigs = 0;
 
 [[nodiscard]] bool isPlayerBody(const char* name)
 {
-    return name && !strncmp(name, "progs/vrbody", 12) && !strchr(name, '#');
+    return name && !ZA_STRNCMP(name, "progs/vrbody", 12) && !strchr(name, '#');
 }
 
 // The bones of `src` by the names frameOf looks for (the calves its "shin"s), in the model's own order: the skinning
@@ -266,7 +272,7 @@ int numPlayerRigs = 0;
 {
     for(int i = 0; i < numPlayerRigs; i++)
     {
-        if(!strcmp(playerRigs[i].model.cStr(), src->name))
+        if(!ZA_STRCMP(playerRigs[i].model.cStr(), src->name))
         {
             return &playerRigs[i];
         }
@@ -283,7 +289,7 @@ int numPlayerRigs = 0;
     for(int b = 0; b < sh->numbones; b++)
     {
         const char* name = infos[b].name;
-        q_strlcpy(r.bones[b].name, !strcmp(name, "calf_l") ? "shin_l" : !strcmp(name, "calf_r") ? "shin_r" : name, sizeof(r.bones[b].name));
+        q_strlcpy(r.bones[b].name, !ZA_STRCMP(name, "calf_l") ? "shin_l" : !ZA_STRCMP(name, "calf_r") ? "shin_r" : name, sizeof(r.bones[b].name));
         r.bones[b].parent = infos[b].parent;
         const float* m = infos[b].inverse.mat; // [R^T | -R^T p]
         const glm::vec3 t{m[3], m[7], m[11]};
@@ -435,7 +441,7 @@ struct PieceFrame
 {
     for(const Wearer& w : wearers)
     {
-        if(piece == Cuirass && model && !strcmp(model, w.model))
+        if(piece == Cuirass && model && !ZA_STRCMP(model, w.model))
         {
             return w.backCut;
         }
@@ -447,7 +453,7 @@ struct PieceFrame
 {
     for(const Wearer& w : wearers)
     {
-        if(model && !strcmp(model, w.model))
+        if(model && !ZA_STRCMP(model, w.model))
         {
             return w;
         }
@@ -3058,18 +3064,18 @@ bool bridgeKeyed = false; // (bridgeKey set: the first shells made)
 // kind again: the plates drawn as a gib, a fish, a door).
 [[nodiscard]] bool armorLive(const Kind& k)
 {
-    return k.armor && !k.armor->needload && k.armor->type == mod_alias && !strcmp(k.armor->name, k.armorName);
+    return k.armor && !k.armor->needload && k.armor->type == mod_alias && !ZA_STRCMP(k.armor->name, k.armorName);
 }
 [[nodiscard]] bool bridgeLive(const Kind& k)
 {
-    return k.bridge && !k.bridge->needload && k.bridge->type == mod_alias && !strcmp(k.bridge->name, k.bridgeName);
+    return k.bridge && !k.bridge->needload && k.bridge->type == mod_alias && !ZA_STRCMP(k.bridge->name, k.bridgeName);
 }
 
 [[nodiscard]] bool isWearer(const char* base)
 {
     for(const Wearer& w : wearers)
     {
-        if(!strcmp(base, w.model))
+        if(!ZA_STRCMP(base, w.model))
         {
             return true;
         }
@@ -3102,7 +3108,7 @@ const Shell* wornAt(int k, int& entnum)
     }
     for(Shell& s : shells)
     {
-        if(!strcmp(s.model.cStr(), src->name))
+        if(!ZA_STRCMP(s.model.cStr(), src->name))
         {
             // (armour.txt changed since: made again only if its tweaks for this model did)
             if(s.tweaksGen != armourdata::generation() && s.generation == rig->generation)
@@ -3133,7 +3139,7 @@ namespace
 {
     for(int i = 0; i < count(shells); i++)
     {
-        if(at(shells, i).ok && !strcmp(at(shells, i).model.cStr(), model))
+        if(at(shells, i).ok && !ZA_STRCMP(at(shells, i).model.cStr(), model))
         {
             return i;
         }
@@ -3146,7 +3152,7 @@ namespace
 {
     for(const Kind& k : kinds)
     {
-        if(k.skinned == skinned && !strcmp(k.name, skinned->name) && (!k.armor || armorLive(k)))
+        if(k.skinned == skinned && !ZA_STRCMP(k.name, skinned->name) && (!k.armor || armorLive(k)))
         {
             return k.armor;
         }
@@ -3154,8 +3160,8 @@ namespace
     Kind k;
     k.skinned = skinned;
     q_strlcpy(k.name, skinned->name, sizeof(k.name));
-    const size_t len = strlen(skinned->name), suffix = strlen(rigSuffix);
-    const bool rigged = len > suffix && !strcmp(skinned->name + len - suffix, rigSuffix);
+    const size_t len = ZA_STRLEN(skinned->name), suffix = ZA_STRLEN(rigSuffix);
+    const bool rigged = len > suffix && !ZA_STRCMP(skinned->name + len - suffix, rigSuffix);
     if(rigged || isPlayerBody(skinned->name)) // (the player's body is drawn under its own name)
     {
         char base[MAX_QPATH];
@@ -3186,14 +3192,14 @@ namespace
 {
     for(Kind& k : kinds)
     {
-        if(k.skinned != skinned || strcmp(k.name, skinned->name) || !armorLive(k))
+        if(k.skinned != skinned || ZA_STRCMP(k.name, skinned->name) || !armorLive(k))
         {
             continue;
         }
         if(!k.bridgeAsked)
         {
             k.bridgeAsked = true;
-            const size_t len = strlen(k.armorName), suffix = strlen(armorSuffix);
+            const size_t len = ZA_STRLEN(k.armorName), suffix = ZA_STRLEN(armorSuffix);
             char name[MAX_QPATH];
             q_strlcpy(name, k.armorName, za::min(sizeof(name), len - suffix + 1));
             q_strlcat(name, bridgeSuffix, sizeof(name));
@@ -3381,7 +3387,7 @@ void info_f()
                 s->pieceOpen[p], static_cast<double>(out[0] / static_cast<float>(za::max(n[0], 1)) - out[1] / static_cast<float>(za::max(n[1], 1))), s->body.nativeFlip ? 1 : 0);
         }
         Con_Printf("agarmor:   helmet fit: %s\n", s->helmFit);
-        if(Cmd_Argc() > 1 && strstr(w, Cmd_Argv(1)))
+        if(Cmd_Argc() > 1 && ZA_STRSTR(w, Cmd_Argv(1)))
         {
             fitInfo(src, *s);
         }
@@ -3423,8 +3429,8 @@ void headcam_f()
         {
             const entity_t& e = cl_entities[i];
             const float d = glm::distance(geom::vec(e.origin), me);
-            found = e.model && !strcmp(e.model->name, wanted[k]) && d < best ? i : found;
-            best = e.model && !strcmp(e.model->name, wanted[k]) && d < best ? d : best;
+            found = e.model && !ZA_STRCMP(e.model->name, wanted[k]) && d < best ? i : found;
+            best = e.model && !ZA_STRCMP(e.model->name, wanted[k]) && d < best ? d : best;
         }
         const Shell* s = found > 0 ? shellFor(cl_entities[found].model) : nullptr;
         glm::vec3 mid{0.f};
@@ -3565,7 +3571,7 @@ void setWorn(int num, int type, int pieces)
 bool makeModel(qmodel_t* mod)
 {
     // "<model>#bridge": the joints' leather (vr_agarmor_bridge.cpp)
-    if(const size_t len = strlen(mod->name), suffix = strlen(bridgeSuffix); len > suffix && !strcmp(mod->name + len - suffix, bridgeSuffix))
+    if(const size_t len = ZA_STRLEN(mod->name), suffix = ZA_STRLEN(bridgeSuffix); len > suffix && !ZA_STRCMP(mod->name + len - suffix, bridgeSuffix))
     {
         char base[MAX_QPATH];
         q_strlcpy(base, mod->name, za::min(sizeof(base), len - suffix + 1));
@@ -3575,8 +3581,8 @@ bool makeModel(qmodel_t* mod)
         const Shell* s = kh ? shellFor(src) : nullptr;
         return s && s->bridgeVerts > 0 && makeBridgeModel(mod, *s, kh);
     }
-    const size_t len = strlen(mod->name), suffix = strlen(armorSuffix);
-    if(len <= suffix || strcmp(mod->name + len - suffix, armorSuffix))
+    const size_t len = ZA_STRLEN(mod->name), suffix = ZA_STRLEN(armorSuffix);
+    if(len <= suffix || ZA_STRCMP(mod->name + len - suffix, armorSuffix))
     {
         return false;
     }
@@ -3596,7 +3602,7 @@ bool makeModel(qmodel_t* mod)
     // (the skins' model as it is now: the hunk growing below may evict it from the cache and clear its memory, as a big model's
     // did: no skins, its plates not drawn)
     aliashdr_t skinHdr;
-    memcpy(&skinHdr, kh, sizeof(aliashdr_t));
+    ZA_MEMCPY(&skinHdr, kh, sizeof(aliashdr_t));
     kh = &skinHdr;
 
     const int start = Hunk_LowMark();
@@ -3628,8 +3634,8 @@ bool makeModel(qmodel_t* mod)
     hdr->frames[0].numposes = 1;
     hdr->frames[0].interval = 0.1f;
     q_strlcpy(hdr->frames[0].name, "armor", sizeof(hdr->frames[0].name));
-    memcpy(hdr->gltextures, kh->gltextures, sizeof(hdr->gltextures));
-    memcpy(hdr->fbtextures, kh->fbtextures, sizeof(hdr->fbtextures));
+    ZA_MEMCPY(hdr->gltextures, kh->gltextures, sizeof(hdr->gltextures));
+    ZA_MEMCPY(hdr->fbtextures, kh->fbtextures, sizeof(hdr->fbtextures));
     for(int i = 0; i < MAX_SKINS; i++) // the source's texels, as offsets from this header (they are other blocks)
         hdr->texels[i] = kh->texels[i] ? reinterpret_cast<const byte*>(kh) + kh->texels[i] - reinterpret_cast<const byte*>(hdr) : 0;
     const rig2::Rig* rig = rigOf(src);
@@ -3725,11 +3731,11 @@ void relink()
     numBridges = 0;
     // (the joints' leather's settings changed: every shell made again, as vr_agarmor_rebuild)
     const float key[5] = {vr_agarmor_folds.value, vr_agarmor_fold_depth.value, vr_agarmor_details.value, vr_agarmor_emblem.value, vr_agarmor_hero.value};
-    if(!bridgeKeyed || memcmp(key, bridgeKey, sizeof(key)))
+    if(!bridgeKeyed || ZA_MEMCMP(key, bridgeKey, sizeof(key)))
     {
         const bool first = !bridgeKeyed;
         bridgeKeyed = true;
-        memcpy(bridgeKey, key, sizeof(key));
+        ZA_MEMCPY(bridgeKey, key, sizeof(key));
         if(!first)
         {
             shells.clear();
@@ -3757,7 +3763,7 @@ void relink()
             continue;
         }
         char base[MAX_QPATH];
-        const size_t len = strlen(e->model->name), suffix = strlen(rigSuffix);
+        const size_t len = ZA_STRLEN(e->model->name), suffix = ZA_STRLEN(rigSuffix);
         q_strlcpy(base, e->model->name, za::min(sizeof(base), len - suffix + 1));
         const int shell = shellNamed(base);
         if(shell < 0)
@@ -4097,7 +4103,7 @@ void putWord(za::Vector<byte>& f, int v)
 void putFloat(za::Vector<byte>& f, float v)
 {
     int i = 0;
-    memcpy(&i, &v, 4);
+    ZA_MEMCPY(&i, &v, 4);
     putWord(f, i);
 }
 } // namespace
@@ -4903,7 +4909,7 @@ const char* halfModel(edict_t* ent, int piece, int half)
     q_snprintf(want, sizeof(want), "%s#plate%dh%ds%d", base, piece, half, axis);
     for(int i = 0; i < numHalfNames; i++)
     {
-        if(!strcmp(halfNames[i], want))
+        if(!ZA_STRCMP(halfNames[i], want))
         {
             return halfNames[i];
         }
@@ -5107,7 +5113,7 @@ const PackFit packFits[] = {
 {
     for(const PackFit& f : packFits)
     {
-        if(base && !strcmp(base, f.model))
+        if(base && !ZA_STRCMP(base, f.model))
         {
             return f;
         }
@@ -5125,7 +5131,7 @@ constexpr glm::vec3 bakedPackLo{-23.1f, -11.f, 5.f}, bakedPackHi{-10.5f, 10.f, 3
 bool packBaked(edict_t* ent)
 {
     const char* base = baseOf(ent);
-    return base && !strcmp(base, bakedPackModel);
+    return base && !ZA_STRCMP(base, bakedPackModel);
 }
 
 void packModelBoxSized(float size, glm::vec3& mid, glm::vec3& half)
@@ -5198,7 +5204,7 @@ bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec
         cached->shell = s;
     }
     if(cached->generation == s->generation && cached->tweaksGen == s->tweaksGen && cached->hash == s->hash &&
-       cached->verts == s->verts.size() && !memcmp(cached->fit, fitNow, sizeof(fitNow)))
+       cached->verts == s->verts.size() && !ZA_MEMCMP(cached->fit, fitNow, sizeof(fitNow)))
     {
         restOrigin = cached->restOrigin;
         restAxes = cached->restAxes;
@@ -5210,7 +5216,7 @@ bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec
     cached->tweaksGen = s->tweaksGen;
     cached->hash = s->hash;
     cached->verts = s->verts.size();
-    memcpy(cached->fit, fitNow, sizeof(fitNow));
+    ZA_MEMCPY(cached->fit, fitNow, sizeof(fitNow));
     cached->ok = packRestMake(*s, fit, cached->restOrigin, cached->restAxes, cached->mid, cached->half);
     restOrigin = cached->restOrigin;
     restAxes = cached->restAxes;
@@ -5422,7 +5428,7 @@ bool playerSlots(const qmodel_t* body, int& numSlots, const int*& slotBone, cons
 
 unsigned char* derivedFile(const char* name, unsigned int* path_id)
 {
-    const char* hash = strstr(name, "#plate");
+    const char* hash = ZA_STRSTR(name, "#plate");
     if(!hash)
     {
         return nullptr;
@@ -5449,7 +5455,7 @@ unsigned char* derivedFile(const char* name, unsigned int* path_id)
     }
     const size_t skinSize = static_cast<size_t>(com_filesize);
     int hdr[3] = {0, 0, 0}; // numskins, width, height
-    memcpy(hdr, skin + 48, sizeof(hdr));
+    ZA_MEMCPY(hdr, skin + 48, sizeof(hdr));
     const size_t skinBytes = static_cast<size_t>(hdr[0]) * (4u + static_cast<size_t>(hdr[1]) * static_cast<size_t>(hdr[2]));
     if(skinSize < 84u + skinBytes || hdr[0] <= 0)
     {
@@ -5567,7 +5573,7 @@ unsigned char* derivedFile(const char* name, unsigned int* path_id)
         f.pushBack(0);
     }
     byte* out = static_cast<byte*>(VR_HeapMalloc(f.size()));
-    memcpy(out, f.data(), f.size());
+    ZA_MEMCPY(out, f.data(), f.size());
     com_filesize = static_cast<int>(f.size());
     if(path_id)
     {
@@ -5600,7 +5606,7 @@ struct SplitStats
 [[nodiscard]] int readInt(const unsigned char* f, size_t at)
 {
     int v = 0;
-    memcpy(&v, f + at, sizeof(v));
+    ZA_MEMCPY(&v, f + at, sizeof(v));
     return v;
 }
 
@@ -5612,8 +5618,8 @@ struct SplitStats
         return false;
     }
     glm::vec3 scale, lo;
-    memcpy(&scale, f + 8, sizeof(scale));
-    memcpy(&lo, f + 20, sizeof(lo));
+    ZA_MEMCPY(&scale, f + 8, sizeof(scale));
+    ZA_MEMCPY(&lo, f + 20, sizeof(lo));
     const int numSkins = readInt(f, 48), w = readInt(f, 52), h = readInt(f, 56), numVerts = readInt(f, 60), numTris = readInt(f, 64);
     const size_t trisAt = 84u + static_cast<size_t>(numSkins) * (4u + static_cast<size_t>(w) * static_cast<size_t>(h)) + static_cast<size_t>(numVerts) * 12u;
     const size_t vertsAt = trisAt + static_cast<size_t>(numTris) * 16u + 28u;

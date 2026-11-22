@@ -34,6 +34,8 @@
 #include "vr_view.hpp"
 #include "vr_mpavatar.hpp"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -58,7 +60,6 @@
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include <string.h>
 #include "vr_geom.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
@@ -1951,7 +1952,7 @@ bool usable(qmodel_t* model)
     }
 
     info.usable = true;
-    info.bare = strstr(model->name, "_bare.") != nullptr; // (progs/vrbody*_bare.mdl)
+    info.bare = ZA_STRSTR(model->name, "_bare.") != nullptr; // (progs/vrbody*_bare.mdl)
     return true;
 }
 
@@ -2203,7 +2204,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
         }
         else
         {
-            memcpy(shadow, &posed.skin[i * 12], 12 * sizeof(float));
+            ZA_MEMCPY(shadow, &posed.skin[i * 12], 12 * sizeof(float));
         }
     }
     posed.eyes = s.head + (posingOther() ? glm::vec3{0.f} : flatplay::eyeNudge(s.headAngles)); // (the flatscreen eye, nudged: its inside is hidden from there too)
@@ -2439,7 +2440,7 @@ bool posedMesh(za::Vector<glm::vec3>& verts, za::Vector<unsigned>& tris, za::Vec
     {
         const char* const name = jointNames[j];
         partOfBone[info->boneOf[j]] = j == Neck || j == Head ? 1
-            : strstr(name, "arm") || strstr(name, "hand") || strstr(name, "wrist") || strstr(name, "twist") ? 2 : 0;
+            : ZA_STRSTR(name, "arm") || ZA_STRSTR(name, "hand") || ZA_STRSTR(name, "wrist") || ZA_STRSTR(name, "twist") ? 2 : 0;
     }
     for(const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model)); hdr;
         hdr = Mod_NextSurface(const_cast<aliashdr_t*>(hdr)))

@@ -7,7 +7,6 @@
 #include "vr_tunables.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_evict.hpp"
-#include <string.h>
 #include "vr_jobs.hpp"
 #include "vr_lighting.hpp"
 #include "vr_lines.hpp"
@@ -18,6 +17,8 @@
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/UIntPtrT.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Chrono/Time.hpp"
@@ -1057,9 +1058,9 @@ void gridBuild()
                      cached.size() == cachedCells * sizeof(unsigned) + cachedEntries * sizeof(GridEntry);
     if(hit)
     {
-        memcpy(grid.cells.data(), cached.data(), cachedCells * sizeof(unsigned));
+        ZA_MEMCPY(grid.cells.data(), cached.data(), cachedCells * sizeof(unsigned));
         grid.entries.resize(cachedEntries, GridEntry{});
-        memcpy(grid.entries.data(), cached.data() + cachedCells * sizeof(unsigned), cachedEntries * sizeof(GridEntry));
+        ZA_MEMCPY(grid.entries.data(), cached.data() + cachedCells * sizeof(unsigned), cachedEntries * sizeof(GridEntry));
         grid.builtKey = cacheKey;
         gridFinish(start);
         return;
@@ -1160,8 +1161,8 @@ void gridBuild()
     {
         za::Vector<char> bytes;
         bytes.resize(cellBytes + entryBytes);
-        memcpy(bytes.data(), grid.cells.data(), cellBytes);
-        memcpy(bytes.data() + cellBytes, grid.entries.data(), entryBytes);
+        ZA_MEMCPY(bytes.data(), grid.cells.data(), cellBytes);
+        ZA_MEMCPY(bytes.data() + cellBytes, grid.entries.data(), entryBytes);
         diskcache::write(diskcache::Product::LightGrid, cacheBuild.cStr(), cacheKey, "mlg", "QMLG", static_cast<unsigned>(grid.cells.size()),
                          static_cast<unsigned>(grid.entries.size()), bytes.data(), bytes.size());
     }
@@ -1404,7 +1405,7 @@ float gridCacheCell = 0.f; // (another spacing: the entries' cells are other cel
             const bool stepped = c.valid && !teleported && (sameCell ? seen != c.seen : !(clear && (grid.cells[c.cell] & GRID_CLEAR)));
             const float settings = lighting::ambientFloor() * 4096.f + vr_model_ambient_contrast.value * 16.f + lighting::lightContrast() +
                                    lighting::capKey() * 65536.f;
-            if(!c.valid || settings != c.settings || memcmp(&read, &c.read, sizeof(GridRead)) != 0)
+            if(!c.valid || settings != c.settings || ZA_MEMCMP(&read, &c.read, sizeof(GridRead)) != 0)
             {
                 Cube faces{};
                 for(int f = 0; f < 6; f++)

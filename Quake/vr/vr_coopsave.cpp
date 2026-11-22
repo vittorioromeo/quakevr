@@ -19,6 +19,8 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_progs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>

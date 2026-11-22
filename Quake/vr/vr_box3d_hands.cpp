@@ -11,6 +11,7 @@
 #include "vr_heldpose.hpp"
 #include "vr_tunables.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -674,7 +675,7 @@ namespace
         const qmodel_t* model = nullptr;
         for(int m = 1; m < MAX_MODELS && sv.model_precache[m]; m++)
         {
-            if(!strcmp(sv.model_precache[m], name))
+            if(!ZA_STRCMP(sv.model_precache[m], name))
             {
                 model = sv.models[m];
                 break;

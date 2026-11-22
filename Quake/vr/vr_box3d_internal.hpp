@@ -89,8 +89,8 @@
 
 #include <box3d/box3d.h>
 
-#include <atomic>
-#include <string.h>
+#include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -1058,11 +1058,11 @@ struct HalfSpace
 
 struct GunPiecesDisk
 {
-    std::atomic<int> read{0};     // pieces read from a file (atomics: prepareHeldGuns cuts on the pool)
-    std::atomic<int> cut{0};      // cut (no file, or checked)
-    std::atomic<int> written{0};  // files written
-    std::atomic<int> checked{0};  // vr_gun_pieces_cache 2: read and cut, compared
-    std::atomic<int> differed{0}; // of those, not the same
+    za::Atomic<int> read{0};     // pieces read from a file (atomics: prepareHeldGuns cuts on the pool)
+    za::Atomic<int> cut{0};      // cut (no file, or checked)
+    za::Atomic<int> written{0};  // files written
+    za::Atomic<int> checked{0};  // vr_gun_pieces_cache 2: read and cut, compared
+    za::Atomic<int> differed{0}; // of those, not the same
 };
 inline GunPiecesDisk gunPiecesDisk;
 [[nodiscard]] bool cutGun(const za::Vector<glm::vec3>& triangles, const convex::Settings& settings,
@@ -1350,11 +1350,11 @@ bool cutLimb(RagdollBodies& r, edict_t* ent, int bone, const glm::vec3& blade, b
 struct QcCallGuard
 {
     globalvars_t saved;
-    QcCallGuard() { memcpy(&saved, pr_global_struct, sizeof saved); }
+    QcCallGuard() { ZA_MEMCPY(&saved, pr_global_struct, sizeof saved); }
     ~QcCallGuard()
     {
         globalvars_t& g = *pr_global_struct;
-        memcpy(g.pad, saved.pad, sizeof g.pad);
+        ZA_MEMCPY(g.pad, saved.pad, sizeof g.pad);
         g.self = saved.self;
         g.other = saved.other;
         g.msg_entity = saved.msg_entity;

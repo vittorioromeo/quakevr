@@ -23,6 +23,10 @@
 #include "vr_geom.hpp"
 
 #include "Zancle/Base/InitializerList.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -31,7 +35,6 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sqrt.hpp"
-#include "Zancle/Container/Vector.hpp"
 #include "vr_api.h"
 
 namespace qvr::bodytrack
@@ -380,7 +383,7 @@ void status_f()
 
 void stats_f()
 {
-    if(Cmd_Argc() >= 2 && !strcmp(Cmd_Argv(1), "reset"))
+    if(Cmd_Argc() >= 2 && !ZA_STRCMP(Cmd_Argv(1), "reset"))
     {
         stats = Stats{};
         st.placeSeconds = 0.0;
@@ -423,7 +426,7 @@ void stats_f()
         char gates[160] = "";
         for(int g = 0; g < GateCount; g++)
         {
-            q_snprintf(gates + strlen(gates), sizeof(gates) - strlen(gates), " %s %.0f%%", gateNames[g],
+            q_snprintf(gates + ZA_STRLEN(gates), sizeof(gates) - ZA_STRLEN(gates), " %s %.0f%%", gateNames[g],
                 100.0 * s.gate[side][g] / n);
         }
         Con_Printf("btstats %s: gate %s%s; confidence mean %.2f min %.2f (vr_bodytrack_confidence %.2f)\n", label,
@@ -1174,7 +1177,7 @@ void loadReplay(const char* name)
         fields.clear();
         char* line = at;
         char* end = strchr(line, '\n');
-        at = end ? end + 1 : line + strlen(line);
+        at = end ? end + 1 : line + ZA_STRLEN(line);
         if(end)
         {
             *end = '\0';
@@ -1197,7 +1200,7 @@ void loadReplay(const char* name)
     const auto col = [&](const char* name) {
         for(size_t i = 0; i < header.size(); i++)
         {
-            if(!strcmp(header[i], name))
+            if(!ZA_STRCMP(header[i], name))
             {
                 return static_cast<int>(i);
             }
@@ -1278,7 +1281,7 @@ void loadReplay(const char* name)
 // The mock's frame from the replay's next row: the head, the controllers, the tracked joints.
 void replayFrame(TrackingState& t)
 {
-    if(strcmp(replay.loaded, vr_bodytrack_replay.string) != 0)
+    if(ZA_STRCMP(replay.loaded, vr_bodytrack_replay.string) != 0)
     {
         loadReplay(vr_bodytrack_replay.string);
     }
@@ -1386,7 +1389,7 @@ void testFrame()
         case 2: // the button: taken by the source
             if(restarts.done > T.doneBefore)
             {
-                testCheck(restarts.done == T.doneBefore + 1 && !strcmp(restarts.last, "Restart Body Tracking"),
+                testCheck(restarts.done == T.doneBefore + 1 && !ZA_STRCMP(restarts.last, "Restart Body Tracking"),
                     "Restart Body Tracking restarts the tracker");
                 testNext(3);
             }
@@ -1402,7 +1405,7 @@ void testFrame()
         case 4:
             if(!watch.on && restarts.automatic == 1 && vr_bodytrack_synth_broken.value == 0.f && tracking)
             {
-                testCheck(restarts.done == T.doneBefore + 1 && !watch.gaveUp && !strncmp(restarts.last, "automatic: ", 11),
+                testCheck(restarts.done == T.doneBefore + 1 && !watch.gaveUp && !ZA_STRNCMP(restarts.last, "automatic: ", 11),
                     va("a broken start restarted once by itself, then fine (%s)", restarts.last));
                 testStart(5.f, 2.f); // never fixed
                 testNext(5);
@@ -1430,7 +1433,7 @@ void testFrame()
 
 void restartTest_f()
 {
-    if(!vr_backend.string[0] || strcmp(vr_backend.string, "mock"))
+    if(!vr_backend.string[0] || ZA_STRCMP(vr_backend.string, "mock"))
     {
         Con_Printf("vr_bodytrack_restart_test: the mock headset only (vr_backend mock)\n");
         return;

@@ -9,6 +9,7 @@
 #include "vr_geom.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -1023,7 +1024,7 @@ extern "C" int VR_PropClip(edict_t* mover, edict_t* touch, const float* start, c
         return 0;
     }
     const PropShape p = propShape(touch, world->slots[g], boxmins, boxmaxs);
-    memset(trace, 0, sizeof(*trace));
+    ZA_MEMSET(trace, 0, sizeof(*trace));
     trace->fraction = 1.f;
     VectorCopy(end, trace->endpos);
     if(traceProp(p, glm::dvec3{start[0], start[1], start[2]}, glm::dvec3{end[0], end[1], end[2]}, *trace))
@@ -1135,7 +1136,7 @@ extern "C" int VR_PropShotClip(edict_t* mover, edict_t* touch, const float* star
         return 0;
     }
     const ShotShape p = shotShape(touch, world->slots[static_cast<size_t>(g)], mins, maxs);
-    memset(trace, 0, sizeof(*trace));
+    ZA_MEMSET(trace, 0, sizeof(*trace));
     trace->fraction = 1.f;
     VectorCopy(end, trace->endpos);
     if(traceProp(p, glm::dvec3{start[0], start[1], start[2]}, glm::dvec3{end[0], end[1], end[2]}, *trace))
@@ -1173,7 +1174,7 @@ extern "C" int VR_ItemShotClip(edict_t* mover, edict_t* touch, const float* star
         return -1;
     }
     const ShotShape p = shotShape(touch, world->slots[static_cast<size_t>(NUM_FOR_EDICT(touch))], mins, maxs);
-    memset(trace, 0, sizeof(*trace));
+    ZA_MEMSET(trace, 0, sizeof(*trace));
     trace->fraction = 1.f;
     VectorCopy(end, trace->endpos);
     if(!traceProp(p, glm::dvec3{start[0], start[1], start[2]}, glm::dvec3{end[0], end[1], end[2]}, *trace))

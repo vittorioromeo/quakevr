@@ -42,7 +42,6 @@
 #include "vr_zancle.hpp"
 #include "vr_srvrandom.hpp"
 
-#include <atomic>
 #include <string.h>
 namespace qvr::hull
 {
@@ -3901,7 +3900,7 @@ bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
     }
     if(!ok)
     {
-        ++diskCounts.rejected;
+        diskCounts.rejected.fetchAddSeqCst(1);
         diskcache::noteRejected(diskcache::Product::Hulls);
         diskcache::noteMiss(diskcache::Product::Hulls, "(the world's tree, rejected)");
         return false;
@@ -3940,7 +3939,7 @@ void diskWrite(const Tree& t, const DiskJob& d, int rebounded)
         {t.planes.data(), t.planes.size() * sizeof(mplane_t)}};
     if(diskcache::writeAtomic(d.path, parts, 3))
     {
-        ++diskCounts.written;
+        diskCounts.written.fetchAddSeqCst(1);
         diskcache::noteWrite(diskcache::Product::Hulls, parts[0].size + parts[1].size + parts[2].size);
     }
 }
@@ -4074,8 +4073,8 @@ void diskOrCompile(Tree& t, const Brushes& b, GateWork w)
     if(diskRead(t, d, rebounded))
     {
         const auto ns = za::Clock::nowNanoseconds() - t0;
-        ++diskCounts.read;
-        diskCounts.readUs += static_cast<long long>(ns / 1000);
+        diskCounts.read.fetchAddSeqCst(1);
+        diskCounts.readUs.fetchAddSeqCst(static_cast<long long>(ns / 1000));
         t.ms += za::nanosecondsToMilliseconds(ns);
         t.fromDisk = true;
         if(d.mode == 2) // compiled anyway into a fresh tree, compared
@@ -4090,13 +4089,13 @@ void diskOrCompile(Tree& t, const Brushes& b, GateWork w)
                               fresh.planes.size() == t.planes.size() &&
                               ZA_MEMCMP(fresh.nodes.data(), t.nodes.data(), t.nodes.size() * sizeof(mclipnode_t)) == 0 &&
                               ZA_MEMCMP(fresh.planes.data(), t.planes.data(), t.planes.size() * sizeof(mplane_t)) == 0;
-            ++(same ? diskCounts.same : diskCounts.differed);
+            (same ? diskCounts.same : diskCounts.differed).fetchAddSeqCst(1);
             diskcache::noteChecked(diskcache::Product::Hulls, same, "(the world's tree)");
         }
         t.cutBack = rebounded;
         return;
     }
-    ++diskCounts.missed;
+    diskCounts.missed.fetchAddSeqCst(1);
     gatedCompile(ZA_MOVE(w));
 }
 

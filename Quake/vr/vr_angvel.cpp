@@ -14,6 +14,8 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Fabs.hpp"
 
@@ -47,7 +49,7 @@ bool seeded = false;
 
 [[nodiscard]] bool reportsLocal(const char* runtime)
 {
-    return runtime && strstr(runtime, "VirtualDesktopXR") != nullptr;
+    return runtime && ZA_STRSTR(runtime, "VirtualDesktopXR") != nullptr;
 }
 
 void seed(const char* runtime)
@@ -140,7 +142,7 @@ Frame current()
 
 void fix(TrackingState& t, const char* runtime)
 {
-    if(!seeded || strcmp(seededFor, runtime ? runtime : "") != 0)
+    if(!seeded || ZA_STRCMP(seededFor, runtime ? runtime : "") != 0)
     {
         seed(runtime);
     }

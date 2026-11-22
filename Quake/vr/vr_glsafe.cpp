@@ -29,6 +29,8 @@
 #include "vr_strings.hpp"
 #include "vr_testkit.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 #include <cctype>
 #include <cstdarg>
