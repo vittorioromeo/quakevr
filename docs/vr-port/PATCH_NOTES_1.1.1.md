@@ -299,6 +299,9 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Monsters
 
+- **Monsters no longer get stuck at low doorways.** Since the gaps Quake's box never fitted were closed, a grunt
+  could stand frozen in front of some doorways (e1m1's, by the start) while walking to a noise: its step was refused
+  under the lintel. It walks through again.
 - **Cuts follow each blade's drawn shape.** Beheading, cutting off limbs, a cut limb sticking to the blade, cutting
   hoses and the chainsaw's bar all used their own idea of where a blade starts, so the Super Axe's inner curve counted
   as its handle and never took a head or a limb off. Now every one of them uses the blade's shape as drawn in the
