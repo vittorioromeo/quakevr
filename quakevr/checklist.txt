@@ -46,6 +46,9 @@ The tutorial's lesson 13 (Bash and Bat): the armed grunt with an axe comes over 
 The tutorial's lesson 14 (Ropes): grip the rope at the pit's edge with both hands, step off, push the stick to pump the swing and jump to the far side (the ladder brings you back up if you fall); then take the armour and let go of it at your chest to wear it. Check the pacing and wording of lessons 12-14. {test:tutorial_lessons}
 The tutorial saves before the arena: walking up the hall shows "Saved. If you die in the arena, you come back here."; die in the arena and you come back in that hall with the arena as it was before, your weapons kept. {test:tutorial_arena_save}
 Debug > Tests > Tutorial > Go to a Lesson lists 15 lessons (12 Blades, 13 Bash and Bat, 14 Ropes, 15 The Arena), each putting you at its start; lesson 7 shows a disarm tip once its grunt is out, and the arena a bullet-time tip as its door shuts. {test:tutorial_arena_save}
+Look away from the wrist gadget and get a centre message: the visor-style panel in front of you is about a third smaller than before and still easy to read {test:vr_center_message}
+Look at the wrist gadget while picking up items and getting messages: they rise from its screen as the glowing, flickering hologram again, not as plain text with a dark box {test:pouchbody}
+Body Type set to Only Hands: the hip and chest holsters sit where they are with the full body, turned the same way, and draw and holster easily {test:pouchbody}
 
 [1. Dwell]
 Dwell's weapons keep their kind in holsters, after a save and a level change; Haste/Berserk/Wetsuit seconds on the wrist {test:dwell_items}
