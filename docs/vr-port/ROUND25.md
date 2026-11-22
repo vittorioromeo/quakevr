@@ -6989,7 +6989,7 @@ it); an in-game indication of whether the chosen port is forwarded.
   why, since the Box3D update, the body no longer follows the walk to the gun (blocked by the prop, or by the walk's
   own head-to-body offset). Then a fix that keeps the update.
 
-## release12c: weapon_catch's handle checks, not a Box3D regression; 1.2.0-rc.1 (release12c, 2026-11-21, `agent/release12`)
+## release12c: weapon_catch's handle checks, not a Box3D regression; 1.2.0-beta1 (release12c, 2026-11-21, `agent/release12`)
 
 - **Cause: the test's set-up, not the physics.** Traced alone (run.sh, `edict 1` / `edict 207` along the way), the
   pre-update parent a82c8e3cd and the current branch give the same numbers to the unit: the let-go shotgun lands at
