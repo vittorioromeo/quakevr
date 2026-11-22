@@ -7729,6 +7729,32 @@ fixes (QC/vr_playerdisarm.qc: which blows count, the rolls, feedback before the 
   out). `vr_pd_test 2` times out in case 0 (the gun-and-axe grunt backs off to ~200 units and shoots after its first
   blow) on this branch and on origin/next's QC alike: pre-existing, not chased. Scene `pd_jolts`.
 
+## onecopy: one grapple reel; MP review B6 and B7 (agent/onecopy, 2026-11-22)
+
+BACKLOG 9, items 4 and 5: "QC's `VR_Grapple_ReelSpeed` / `VR_Grapple_Wind` (monsters, props) and vr_pmove.cpp's
+grappleStep (players) are two copies of one rule" and "B6 the room-scale budget only on the server (send `walkLeft` in
+QVR_SVC_PREDICT and run moveguard's budget on a copy in the replay ...); B7 the snapshot encode's per-client work".
+
+- One reel: `pmove::grappleReel(len, full, age, dist, shortest, dt)` (vr_pmove.cpp) is the rule: the rope shortened at
+  the ramped speed, never under the shortest nor 8 units under the load's distance, and the speed braked to stop at the
+  shortest. grappleStep (players, SP and each remote move) calls it; QC's prop, monster and loose-hook reels call the new
+  builtin `grapplereel(h, dist, shortest)` (h.gh_len written back, the braked speed returned). `VR_Grapple_ReelSpeed`,
+  `VR_Grapple_Wind` and `GH_STALL` are gone; `GH_RAMP`/`GH_BRAKE` stay for the unreel only. The grapple debug log's last
+  figure is now the reel's full speed ("reel up to").
+  Proof: an A/B script (box 80 kg, a grunt, a zombie, the player hooked to a far wall; `sv_random_seed 1`, 3 s reels):
+  133 lines of reel logs, physics hashes and end origins identical before and after.
+- B6: the server's room-scale budget after the newest move rides in QVR_SVC_PREDICT (one float after the crawl speeds;
+  `QVR_NET_VERSION` 44); his replay runs `moveguard::budget` (roomscale's rule, now shared) on a copy from it, so a walk
+  past the budget is cut in his prediction as on the server instead of corrected each state. mp_guard's new segment
+  (B alone on `vr_mp_test_cheat 4`, A stepped off the line first): 59/59 results bit for bit, corr_max 0. A debug trace
+  showed both sides' cut speeds and budgets equal move for move; the runs that failed before A stepped aside were B's walk
+  blocked by A on the server (the replay traces no players), not the budget.
+- B7: encode's write pass writes the first pass's verified field encodings (`fieldsKept`) instead of encoding again;
+  `isCosmetic` answers once per entity per server frame (`cosmeticByEnt`, keyed by `host_framecount`) for every client's
+  snapshot instead of two strcmps per record per client. vr_netsnap_selftest 15/0.
+- Not player-facing (no PATCH_NOTES line): the reel is unchanged; B6 only spares a speed hack's corrections.
+- Checks (on bases/dagger, this tree's progs): mp_guard 13/1 (the B6 segment passes; A's honest rewinds 1-5 held, 3 runs of 5, A's lag compensation, untouched here), mp_predict 29/2 (at rest 1.4 units off, own jump 4 moves; its results 100 percent bit for bit: load-timing flakes like ROUND25's flat-ground one, not chased), mp_bandwidth 10/0, mp_lockstep_dm 23/0, mp_moves --part grapple 20/0, vr_moveguard_selftest 17/0, vr_netsnap_selftest 15/0; Dev and ThinLTO 0 warnings. Melee eval not run (no melee code touched).
+- Against origin/next (d9fb82c86, same base): mp_guard 4/5 pass (one A rewinds 4 held, the same failure), mp_predict 2/3 (one at rest 1.9 units off, plus the lift landing): both flakes are next's own. scenario_check PASS (189 run, 0 failed; grapple_reel SCNOK).
 ## ropes3: flat-screen rope climbing, rope to rope, another climber's pose (agent/ropes3, 2026-11-22)
 
 Phase 3's rest (ROPES.md "Climbing (flat-screen)", "Multiplayer", "Tests", "Known limits").
