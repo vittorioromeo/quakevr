@@ -43,6 +43,10 @@ void shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocit
 // Whether `classname` is a rope's (vr_rope, vr_chain).
 [[nodiscard]] bool isRopeClass(const char* classname);
 
+// Server: a climbing hand of `player` took rope entity `ent` at `at`: its sound, a chain's or a rope's (physsound::ropeGrab).
+// `vr`: a headset's grip (a rope's is silent there, as before; a chain's grips).
+void grabbed(edict_t* player, int ent, const glm::vec3& at, bool vr);
+
 // Server: the toolgun just made rope entity `e` where its ghost stood (`at`, on the floor or a wall): its settings from
 // the spawn panel's (vr_rope_spawn_*), its top found above `at` (the ceiling, or its length up).
 void toolgunPlaced(edict_t* e, const glm::vec3& at);

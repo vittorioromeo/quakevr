@@ -23,6 +23,7 @@
 #include "vr_geom.hpp"
 #include "vr_gfx.hpp"
 #include "vr_mem.hpp"
+#include "vr_physsound.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
@@ -1912,9 +1913,166 @@ void pauseTest_f()
     pauseTest.stage = 1;
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// vr_rope_sound_test (ropes5, ROPES.md "Tests"; single player, best in vrropes): a free rope and a free chain made ahead,
+// settled; still, both quiet; a headset's grip on each (the rope silent, the chain's metal grip), a flat-screen one (the
+// rope's slap, the chain's metal grip; a second at once on the chain held back); both pushed swinging, the chain's links
+// clink (rate-limited), the rope stays quiet. Counted server frames; the sounds as physsound sent them (ropeSoundInfo).
+struct SoundTest
+{
+    int stage{0}; // 0 off
+    int frames{0};
+    testkit::Tally tally;
+    int rope{0}, chain{0};
+    int ropeCount{0}, chainCount{0}; // their sounds at the mark
+};
+SoundTest soundTest;
+constexpr const char* soundTestName = "vr_rope_sound_test";
+
+void soundTestFrame()
+{
+    SoundTest& t = soundTest;
+    t.frames++;
+    edict_t* player = firstPlayer();
+    const auto next = [](int stage) {
+        soundTest.stage = stage;
+        soundTest.frames = 0;
+    };
+    const auto check = [](bool ok, const char* what) {
+        soundTest.tally.check(ok, soundTestName, what);
+        if(ok)
+        {
+            Con_Printf("%s: PASS %s\n", soundTestName, what);
+        }
+    };
+    Rope* r = ropeOf(t.rope);
+    Rope* c = ropeOf(t.chain);
+    int rn = 0, cn = 0;
+    const char* rLast = physsound::ropeSoundInfo(t.rope, rn);
+    const char* cLast = physsound::ropeSoundInfo(t.chain, cn);
+    const auto mark = [rn, cn]() {
+        soundTest.ropeCount = rn;
+        soundTest.chainCount = cn;
+    };
+    const auto mid = [](const Rope* x) { return x->p[x->p.size() / 2]; };
+    switch(t.stage)
+    {
+    case 1:
+    {
+        const float yaw = glm::radians(player->v.angles[1]);
+        const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
+        const glm::vec3 side{-fwd.y, fwd.x, 0.f};
+        const glm::vec3 feet = vecOf(player->v.origin) + glm::vec3{0.f, 0.f, player->v.mins[2]};
+        edict_t* er = box3d::spawnClass("vr_rope", feet + fwd * 128.f + side * 48.f, glm::vec3{0.f});
+        edict_t* ec = box3d::spawnClass("vr_chain", feet + fwd * 128.f - side * 48.f, glm::vec3{0.f});
+        if(!er || !ec)
+        {
+            check(false, "the test's rope and chain spawned");
+            next(99);
+            break;
+        }
+        placeWith(er, feet + fwd * 128.f + side * 48.f, 150.f, 0.f, 8, 0.f, 0.f, 0.f, false);
+        placeWith(ec, feet + fwd * 128.f - side * 48.f, 150.f, 0.f, 8, 0.f, 0.f, 0.f, false);
+        t.rope = NUM_FOR_EDICT(er);
+        t.chain = NUM_FOR_EDICT(ec);
+        next(2);
+        break;
+    }
+    case 2: // settling
+        if(t.frames >= 144)
+        {
+            mark();
+            next(3);
+        }
+        break;
+    case 3: // still for a second: quiet; then a headset's grips
+        if(t.frames >= 72 && r && c)
+        {
+            check(rn == t.ropeCount && cn == t.chainCount,
+                va("still for a second, both quiet (rope %d, chain %d sounds; fastest %.1f and %.1f u/s)", rn - t.ropeCount,
+                    cn - t.chainCount, r->speed, c->speed));
+            mark();
+            qvr::climbrope::grabbed(player, t.rope, mid(r), true);
+            qvr::climbrope::grabbed(player, t.chain, mid(c), true);
+            next(4);
+        }
+        else if(t.frames >= 72)
+        {
+            check(false, "the rope and the chain made");
+            next(99);
+        }
+        break;
+    case 4:
+        check(rn == t.ropeCount && cn == t.chainCount + 1 && strstr(cLast, "grab_metal"),
+            va("a headset's grip: the rope silent (%d), the chain's metal grip (%d: %s)", rn - t.ropeCount, cn - t.chainCount, cLast));
+        mark();
+        next(5);
+        break;
+    case 5: // a flat-screen grip on each (after the chain's grips' gap), and at once another on the chain
+        if(t.frames >= 18)
+        {
+            qvr::climbrope::grabbed(player, t.rope, mid(r), false);
+            qvr::climbrope::grabbed(player, t.chain, mid(c), false);
+            qvr::climbrope::grabbed(player, t.chain, mid(c), false);
+            next(6);
+        }
+        break;
+    case 6:
+        check(rn == t.ropeCount + 1 && strstr(rLast, "grab_stone"),
+            va("a flat-screen grip on the rope: its slap (%d: %s)", rn - t.ropeCount, rLast));
+        check(cn == t.chainCount + 1 && strstr(cLast, "grab_metal"),
+            va("on the chain: its metal grip, the second at once held back (%d: %s)", cn - t.chainCount, cLast));
+        mark();
+        // Both pushed sideways (as a shove: the speed added to every point but the top).
+        for(Rope* x : {r, c})
+        {
+            for(za::SizeT i = 1; i < x->p.size(); i++)
+            {
+                x->kick[i] += glm::vec3{180.f, 180.f, 0.f} * (static_cast<float>(i) / static_cast<float>(x->p.size() - 1));
+            }
+        }
+        next(7);
+        break;
+    case 7: // swinging for two seconds
+        if(t.frames >= 144)
+        {
+            const int clinks = cn - t.chainCount;
+            check(clinks >= 2 && clinks <= 9 && strstr(cLast, "metal_l"),
+                va("swung, the chain's links clink: %d in 2 s (2 to 9: rate-limited), %s", clinks, cLast));
+            check(rn == t.ropeCount, va("swung, the rope stays quiet (%d)", rn - t.ropeCount));
+            next(99);
+        }
+        break;
+    default:
+        for(const int e : {t.rope, t.chain})
+        {
+            if(e > 0 && !EDICT_NUM(e)->free)
+            {
+                ED_Free(EDICT_NUM(e));
+            }
+        }
+        t.tally.verdict(soundTestName);
+        t.stage = 0;
+        break;
+    }
+}
+
+void soundTest_f()
+{
+    if(!sv.active || svs.maxclients > 1 || !progs::bindings().isVrProgs || progs::fields().rope_length < 0 || !firstPlayer())
+    {
+        Con_Printf("%s: FAIL usage: vr_rope_sound_test in single player with Quake VR's progs\n", soundTestName);
+        testkit::verdict(soundTestName, 0, 1);
+        return;
+    }
+    soundTest = SoundTest{};
+    soundTest.stage = 1;
+}
+
 void serverReset()
 {
     ropes.clear();
+    soundTest = SoundTest{};
     climbTest = ClimbTest{};
     flatTest = FlatTest{};
     handsTest = HandsTest{};
@@ -2024,6 +2182,7 @@ void init()
     Cmd_AddCommand("vr_rope_flat_test", flatTest_f);
     Cmd_AddCommand("vr_rope_hands_test", handsTest_f);
     Cmd_AddCommand("vr_rope_pause_test", pauseTest_f);
+    Cmd_AddCommand("vr_rope_sound_test", soundTest_f);
 }
 
 void clientFrame()
@@ -2064,6 +2223,10 @@ void serverFrame(bool worldRan)
     {
         handsTestFrame();
     }
+    if(soundTest.stage && worldRan)
+    {
+        soundTestFrame();
+    }
     // New ropes (a map's, the toolgun's): rope entities with no rope yet.
     for(int num = svs.maxclients + 1; num < sv.qcvm.num_edicts; num++)
     {
@@ -2094,7 +2257,21 @@ void serverFrame(bool worldRan)
             r.rider = Rider{}; // (let go: the rope swings on as he left it)
         }
         step(r, dt);
+        if(r.params.chain)
+        {
+            physsound::chainMoves(kv.first, r.p[r.p.size() / 2], r.speed); // its links' clink (ropes5)
+        }
         send(kv.first, r);
+    }
+}
+
+void grabbed(edict_t* player, int ent, const glm::vec3& at, bool vr)
+{
+    const auto it = ropes.find(ent);
+    const bool chain = it != ropes.end() && it->second.params.chain;
+    if(chain || !vr)
+    {
+        physsound::ropeGrab(player, at, ent, chain);
     }
 }
 

@@ -213,6 +213,10 @@ offsets (which put it beside the rope). On a rope the trunk turns about the neck
 - `Misc/quakevr/climb/rope_pause_test.sh <agent>` (ropes5; `vr_rope_pause_test`): the map's ropes pushed swinging;
   `pause`, then single player's menu: their points (the server's and as drawn) still over a second (0.000), swinging on
   after each. 4 passed.
+- `Misc/quakevr/climb/rope_sound_test.sh <agent>` (ropes5b; `vr_rope_sound_test`): a rope and a chain made ahead; still:
+  quiet; a headset's grip (the rope silent, the chain's grab_metal), a flat-screen one (the rope's grab_stone, the chain's
+  grab_metal; a second at once held back); both pushed swinging (the chain's metal_l clinks: 5 in 2 s; the rope quiet).
+  6 passed.
 - Checklist scene `ropes` (vrropes, the toolgun given).
 
 ## Known limits (P1)
@@ -229,7 +233,11 @@ offsets (which put it beside the rope). On a rope the trunk turns about the neck
   The drawn rope is made again whenever the client's time moves (it was once a host frame, sometimes before the time
   moved: a client faster than the server drew it a tick at a time, the hands' jitter).
 - Pumped hard on the heavy chain, a hand change can still jump a hand for a frame (the test reports its maxima).
-- The climbable chains have no sounds of their own yet (ropes5's item 4, not done).
+- Sounds (ropes5b, `vr_physsound.cpp` ropeGrab, chainMoves): a hand taking a chain makes the metal hold's grip
+  (`vr_physsound_chain` 0.4 loud), and a chain swung, climbed or pushed (its fastest point from `vr_physsound_chain_speed`
+  60 u/s) clinks with the light metal knocks, quieter and every 0.6 s near it, louder and every 0.25 s at four times it.
+  A rope keeps its own: the flat-screen grip's slap (`vr_physsound_grab`), silent to a headset's grip. Both are Quake VR's
+  own recordings (make_physics_sounds.py). A grip's sound plays once in 0.15 s per rope (both hands at once: one).
 - Paused (`pause`, single player's menu or console) the ropes stand (ropes5: `climbrope::serverFrame(worldRan)`,
   Host_ServerFrame's SV_Physics); before, only `pause` stopped them.
 - Remote clients draw the latest points, no interpolation between messages (at 72 Hz sends it looked smooth over the

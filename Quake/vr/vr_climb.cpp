@@ -2240,6 +2240,10 @@ void takeHold(edict_t* ent, Climber& c, const VrMove* move, int h, const za::Opt
     {
         physsound::grab(ent, ledge->hold, ledge->ent); // a slap and a tap of the hold's material
     }
+    else if(ledge->ent)
+    {
+        climbrope::grabbed(ent, NUM_FOR_EDICT(ledge->ent), ledge->hold, true); // (a chain's metal grip; a rope: silent)
+    }
     if(debug())
     {
         // (", light" on a hold not on a prop: a light prop's flag left on the hand, which would stop a model the
@@ -3962,7 +3966,7 @@ void ropeTake(edict_t* ent, Climber& c, const VrMove& move, int h, const climbro
     c.flatShow[h] = handEmpty(ent, &move, h);
     if(c.flatShow[h])
     {
-        physsound::grab(ent, g.hold, l.ent);
+        climbrope::grabbed(ent, grab.ent, g.hold, false); // (a chain's metal grip, a rope's slap)
     }
     if(debug())
     {
