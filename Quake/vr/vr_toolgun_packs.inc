@@ -209,4 +209,9 @@ QVR_PACK("Items", "Dwell", "Haste", "dw_item_artifact_haste", "progs/e2/item_has
 QVR_PACK("Items", "Dwell", "Berserk", "dw_item_artifact_berserk", "progs/item_berserk.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Items", "Dwell", "Wetsuit", "dw_item_artifact_wetsuit", "progs/item_diving.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)
 
+// Climbable ropes and chains (vr_climbrope.cpp, docs/vr-port/ROPES.md): hung from the ceiling above where the ghost stands
+// (or their length up), with the Rope Settings page's length, thickness, pieces, mass, stiffness, damping, pinned bottom.
+QVR_PACK("Props", "Ropes", "Rope", "vr_rope", "progs/beam.mdl", 0.f, nullptr, 0.f, 0, 0, nullptr, 0)
+QVR_PACK("Props", "Ropes", "Chain", "vr_chain", "progs/beam.mdl", 0.f, nullptr, 0.f, 0, 0, nullptr, 0)
+
 #undef QVR_PACK

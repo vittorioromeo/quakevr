@@ -11,6 +11,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_geom.hpp"
 #include "vr_gore.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_particles.hpp"
 #include "vr_progs.hpp"
 #include "vr_random.hpp"
@@ -42,11 +43,34 @@ struct Pose
 };
 Pose pose;
 
+// Another player's copy's capsules (selfshot::buildCopy), built once a frame for the last one asked.
+struct CopyPose
+{
+    int frame{-1};
+    int ent{0};
+    float yaw{0.f};
+    bool drawn{false};
+    selfshot::Capsules caps;
+};
+CopyPose copyPose;
+
 // Your last four wounds' spots (the drips').
 constexpr int maxWounds = 4;
 Spot wounds[maxWounds];
 int woundCount = 0, woundNext = 0;
 float pending = 0.f; // drops owed
+
+// Another player's (mpopen): his last four wounds' spots on his copy, dripping until `until` (cl.time) at the rate of
+// half his health lost; his health is not known here.
+constexpr float otherDripSeconds = 12.f;
+struct Other
+{
+    Spot wounds[maxWounds];
+    int count{0}, next{0};
+    double until{0.0};
+    float pending{0.f};
+};
+Other others[MAX_SCOREBOARD + 1];
 
 struct Counters
 {
@@ -57,6 +81,9 @@ struct Counters
     int eyeSkips{0};    // splashes and drips not made, too close to the eyes
     int onSkin{0};      // wounds bound to the drawn body's skin (bindSkin)
     float skinGap{0.f}; // the last one's: units from its capsule spot to the skin (how far the capsule's floated)
+    int otherWounds{0};  // other players' wounds bound to their copies (mpopen)
+    int otherStreams{0}; // ... their streams opened
+    int otherDrips{0};   // ... their drops fallen
 };
 Counters counters;
 
@@ -80,6 +107,27 @@ float testChance = 0.f; // the test's stream chance (0: the tunable's)
         pose.caps = selfshot::build(own);
     }
     return pose.caps;
+}
+
+[[nodiscard]] bool isOther(int ent)
+{
+    return ent > 0 && ent <= MAX_SCOREBOARD && ent != cl.viewentity;
+}
+
+// Another player's copy's capsules as drawn this frame (none: his copy not drawn).
+[[nodiscard]] const CopyPose& copyCapsules(int ent)
+{
+    if(copyPose.frame != host_framecount || copyPose.ent != ent)
+    {
+        copyPose.frame = host_framecount;
+        copyPose.ent = ent;
+        entity_t* copy[3]{};
+        bool doll = false;
+        copyPose.drawn = mpavatar::woundTargets(ent, copy, doll) && (copy[0] || copy[1] || copy[2]);
+        copyPose.caps = copyPose.drawn ? selfshot::buildCopy(copy) : selfshot::Capsules{};
+        copyPose.yaw = copy[0] ? copy[0]->angles[YAW] : cl_entities[ent].angles[YAW];
+    }
+    return copyPose;
 }
 
 // The drawn body's mesh as posed (avatar::posedMesh), walked once a wound to bind its spot to the skin (kept: no allocations
@@ -131,9 +179,9 @@ void bindSkin(const glm::vec3& at, int part, float r, Spot& out)
     }
 }
 
-[[nodiscard]] const selfshot::Capsule* capsuleOf(int part)
+[[nodiscard]] const selfshot::Capsule* capsuleOf(int part, int ent = 0)
 {
-    for(const selfshot::Capsule& c : capsules())
+    for(const selfshot::Capsule& c : isOther(ent) ? copyCapsules(ent).caps : capsules())
     {
         if(c.part == part)
         {
@@ -143,11 +191,11 @@ void bindSkin(const glm::vec3& at, int part, float r, Spot& out)
     return nullptr;
 }
 
-// A capsule's frame: along its axis, and two across it (one level with your view's yaw).
-void frameOf(const selfshot::Capsule& c, glm::vec3& axis, glm::vec3& side, glm::vec3& across)
+// A capsule's frame: along its axis, and two across it (one level with the body's yaw: yours your view's).
+void frameOf(const selfshot::Capsule& c, float yawDeg, glm::vec3& axis, glm::vec3& side, glm::vec3& across)
 {
     axis = geom::safeNormalize(c.b - c.a, glm::vec3{0.f, 0.f, 1.f}, 1e-4f);
-    const float yaw = glm::radians(r_refdef.viewangles[YAW]);
+    const float yaw = glm::radians(yawDeg);
     const glm::vec3 look{za::cos(yaw), za::sin(yaw), 0.f};
     side = glm::cross(axis, look);
     if(glm::length(side) < 0.2f)
@@ -239,6 +287,46 @@ void drip(float dt)
     }
 }
 
+// Other players' wounds' drips (mpopen), as yours at half the health lost, until otherDripSeconds after the last.
+void dripOthers(float dt)
+{
+    const float least = za::clamp(vr_drips_blood_min.value, 0.f, 1.f);
+    const float rate = za::clamp(vr_drips_blood_rate.value, 0.f, 20.f) * za::clamp(vr_player_gore_drip_rate.value, 0.f, 10.f) *
+                       (least + (1.f - least) * 0.5f);
+    const bool drips = on(Effect::Drips);
+    for(int p = 1; p <= MAX_SCOREBOARD; p++)
+    {
+        Other& o = others[p];
+        if(o.count == 0)
+        {
+            continue;
+        }
+        if(!drips || cl.time > o.until || dt <= 0.f || !isOther(p))
+        {
+            o.pending = 0.f;
+            o.count = cl.time > o.until || !isOther(p) ? 0 : o.count;
+            continue;
+        }
+        o.pending = za::min(o.pending + rate * dt * vrand::range(rng, 0.5f, 1.5f), 3.f);
+        while(o.pending >= 1.f)
+        {
+            o.pending -= 1.f;
+            const int i = za::min(o.count - 1, static_cast<int>(vrand::range(rng, 0.f, static_cast<float>(o.count))));
+            glm::vec3 at, n;
+            if(!where(o.wounds[i], at, n))
+            {
+                continue;
+            }
+            at += glm::vec3{vrand::range(rng, -0.6f, 0.6f), vrand::range(rng, -0.6f, 0.6f), -1.f};
+            const float size = vrand::range(rng, 0.5f, 0.75f) * za::clamp(vr_drips_blood_size.value, 0.1f, 5.f);
+            if(gore::dropFrom(0, at, size, glm::vec4{gore::bloodColorAt(at), 1.f}, za::clamp(vr_drips_blood_marks.value, 0.f, 1.f)))
+            {
+                counters.otherDrips++;
+            }
+        }
+    }
+}
+
 // ---- The test (vr_player_gore_test) -------------------------------------------------------------------------
 
 struct Test
@@ -305,7 +393,7 @@ void testStep()
                 for(const selfshot::Capsule& c : capsules())
                 {
                     glm::vec3 axis, side, across;
-                    frameOf(c, axis, side, across);
+                    frameOf(c, r_refdef.viewangles[YAW], axis, side, across);
                     const float yaw = glm::radians(r_refdef.viewangles[YAW]);
                     const glm::vec3 look{za::cos(yaw), za::sin(yaw), 0.f};
                     const glm::vec3 face = geom::safeNormalize(-look - axis * glm::dot(-look, axis), across, 1e-3f);
@@ -368,7 +456,7 @@ void testStep()
                 if(const selfshot::Capsule* c = capsuleOf(part))
                 {
                     glm::vec3 axis, side, across;
-                    frameOf(*c, axis, side, across);
+                    frameOf(*c, r_refdef.viewangles[YAW], axis, side, across);
                     onWound(0.5f * (c->a + c->b) - across * c->r, -across, across, part, 2, 9);
                     break;
                 }
@@ -455,6 +543,9 @@ void info_f()
         Con_Printf("  spot %d: part %d, along %.2f, offset %.2f %.2f%s\n", i, wounds[i].part, static_cast<double>(wounds[i].along),
             static_cast<double>(wounds[i].offset.x), static_cast<double>(wounds[i].offset.y), drawn ? "" : " (not drawn)");
     }
+    // (mpopen) other players' gore on their copies; one line, the multiplayer checks read it
+    Con_Printf("player gore others: %d wounds bound, %d streams opened (%d pouring), %d drips, %d bleeding\n",
+        counters.otherWounds, counters.otherStreams, bloodstream::otherStreams(), counters.otherDrips, othersBleeding());
 }
 
 } // namespace
@@ -474,15 +565,32 @@ bool on(Effect effect)
     return false;
 }
 
-bool bind(const glm::vec3& at, int part, Spot& out)
+bool copyDrawn(int ent)
 {
-    const selfshot::Capsule* c = capsuleOf(part);
+    return isOther(ent) && copyCapsules(ent).drawn;
+}
+
+int entOf(const Spot& spot)
+{
+    return isOther(spot.ent) ? spot.ent : cl.viewentity;
+}
+
+float bodyYaw(const Spot& spot)
+{
+    return isOther(spot.ent) ? copyCapsules(spot.ent).yaw : r_refdef.viewangles[YAW];
+}
+
+bool bind(const glm::vec3& at, int part, Spot& out, int ent)
+{
+    const int other = isOther(ent) ? ent : 0;
+    const selfshot::Capsule* c = capsuleOf(part, other);
     if(!c || c->r <= 0.f)
     {
         return false;
     }
+    out.ent = other;
     glm::vec3 axis, side, across;
-    frameOf(*c, axis, side, across);
+    frameOf(*c, bodyYaw(out), axis, side, across);
     const float len = glm::length(c->b - c->a);
     const float along = len > 1e-3f ? za::clamp(glm::dot(at - c->a, axis) / len, 0.f, 1.f) : 0.f;
     const glm::vec3 d = at - (c->a + (c->b - c->a) * along);
@@ -492,24 +600,33 @@ bool bind(const glm::vec3& at, int part, Spot& out)
     out.part = part;
     out.along = along;
     out.offset = glm::vec3{o.x, o.y, 0.f};
-    bindSkin(at, part, c->r, out);
+    out.onSkin = false;
+    if(!other)
+    {
+        bindSkin(at, part, c->r, out); // (his copy's posed skin is not walked: his spot stays on his capsule)
+    }
     return true;
 }
 
 bool where(const Spot& spot, glm::vec3& at, glm::vec3& normal)
 {
-    const selfshot::Capsule* c = capsuleOf(spot.part);
+    const int other = isOther(spot.ent) ? spot.ent : 0;
+    if(spot.ent && !other)
+    {
+        return false; // (his place now yours: a listen host's view taken over, or out of the scoreboard)
+    }
+    const selfshot::Capsule* c = capsuleOf(spot.part, other);
     if(!c)
     {
         return false;
     }
     glm::vec3 axis, side, across;
-    frameOf(*c, axis, side, across);
+    frameOf(*c, bodyYaw(spot), axis, side, across);
     const glm::vec3 d = side * spot.offset.x + across * spot.offset.y;
     at = c->a + (c->b - c->a) * spot.along + d * c->r;
     normal = geom::safeNormalize(d, across, 1e-4f);
     glm::vec3 skin;
-    if(spot.onSkin && avatar::posedPoint(spot.vert, spot.bary, skin))
+    if(!other && spot.onSkin && avatar::posedPoint(spot.vert, spot.bary, skin))
     {
         at = skin; // (on the drawn skin, moving with it; its way out the capsule's)
     }
@@ -534,26 +651,42 @@ bool nearEyesBy(const glm::vec3& p, float clearM)
     return (flat < clear && p.z > eyes.z - clear) || (flat < 0.6f * mToU() && p.z > eyes.z);
 }
 
-void onWound(const glm::vec3& at, const glm::vec3& n, const glm::vec3& way, int part, int kind, int amount)
+void onWound(const glm::vec3& at, const glm::vec3& n, const glm::vec3& way, int part, int kind, int amount, int ent)
 {
     const bool streams = on(Effect::Streams), drips = on(Effect::Drips), splashes = on(Effect::Splash);
     if(!streams && !drips && !splashes)
     {
         return;
     }
-    Spot spot;
-    if(!bind(at, part, spot))
+    const int other = isOther(ent) ? ent : 0;
+    if(ent && !other)
     {
         return;
     }
-    counters.wounds++;
+    Spot spot;
+    if(!bind(at, part, spot, other))
+    {
+        return;
+    }
+    (other ? counters.otherWounds : counters.wounds)++;
     // Blood: a shot, a nail, a blow, a blast (not a burn, a zap, a liquid: QVR_WOUND_*).
     const bool bleeds = kind >= 1 && kind <= 4;
     if(drips && bleeds)
     {
-        wounds[woundNext] = spot;
-        woundNext = (woundNext + 1) % maxWounds;
-        woundCount = za::min(woundCount + 1, maxWounds);
+        if(other)
+        {
+            Other& o = others[other];
+            o.wounds[o.next] = spot;
+            o.next = (o.next + 1) % maxWounds;
+            o.count = za::min(o.count + 1, maxWounds);
+            o.until = cl.time + otherDripSeconds;
+        }
+        else
+        {
+            wounds[woundNext] = spot;
+            woundNext = (woundNext + 1) % maxWounds;
+            woundCount = za::min(woundCount + 1, maxWounds);
+        }
     }
     if(splashes && bleeds)
     {
@@ -562,8 +695,26 @@ void onWound(const glm::vec3& at, const glm::vec3& n, const glm::vec3& way, int 
     const float chance = testChance > 0.f ? testChance : za::clamp(vr_player_gore_stream_chance.value, 0.f, 1.f);
     if(streams && kind >= 1 && kind <= 3 && vrand::range(rng, 0.f, 1.f) < chance && bloodstream::startOwn(spot, n, way, amount))
     {
-        counters.streams++;
+        (other ? counters.otherStreams : counters.streams)++;
     }
+}
+
+void forgetOther(int ent)
+{
+    if(ent > 0 && ent <= MAX_SCOREBOARD)
+    {
+        others[ent] = Other{};
+    }
+}
+
+int othersBleeding()
+{
+    int n = 0;
+    for(int p = 1; p <= MAX_SCOREBOARD; p++)
+    {
+        n += others[p].count > 0 && cl.time <= others[p].until ? 1 : 0;
+    }
+    return n;
 }
 
 void frame()
@@ -588,6 +739,7 @@ void frame()
         dtd = 0.0;
     }
     drip(static_cast<float>(dtd));
+    dripOthers(static_cast<float>(dtd));
 }
 
 void clear()
@@ -596,6 +748,11 @@ void clear()
     pending = 0.f;
     lastTime = -1.0;
     pose.frame = -1;
+    copyPose.frame = -1;
+    for(Other& o : others)
+    {
+        o = Other{};
+    }
 }
 
 void registerCommands()

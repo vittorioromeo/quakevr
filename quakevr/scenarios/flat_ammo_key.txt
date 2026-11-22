@@ -4,4 +4,4 @@ map vrtesthall
 god
 give "Rocket Launcher" main
 cmd impulse 9
-hint Flat-screen: press B (Next Ammo Type, Flat Keys) with the rocket launcher: its multi-rockets, B again its rockets. Try the grenade launcher and the thunderbolt too (impulse 9 gave them all).
+hint Flat-screen: press B (Next ammo type, Options > Controls) with the rocket launcher: its multi-rockets, B again its rockets. Try the grenade launcher and the thunderbolt too (impulse 9 gave them all).

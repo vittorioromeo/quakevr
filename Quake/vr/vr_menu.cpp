@@ -49,7 +49,7 @@
 extern "C" cvar_t scr_fov; // gl_screen.c (Aim Sensitivity's help)
 extern "C" int Key_StringToKeynum(const char* str);   // keys.c: a key's number from its bind name
 extern "C" const char* Key_KeynumToString(int keynum); // keys.c: and its name
-extern "C" char* keybindings[MAX_KEYS];                // keys.c: what each key is bound to (the Flat Keys rows' conflicts)
+extern "C" char* keybindings[MAX_KEYS];                // keys.c: what each key is bound to (a key row's conflicts)
 extern "C" void M_VRKeyCapture(qboolean on);           // menu.c: a key row waits for a key
 
 namespace menu_detail
@@ -184,8 +184,8 @@ void restartVr()
     return i;
 }
 
-// A key row (the Flat Keys page): `cvar` holds a key's bind name; enter or a click waits for a key (the Keys menu's "press a
-// key"), Backspace or Delete clears it.
+// A key row (Voice Chat's Push-to-Talk; the other flat keys are in Options > Controls, menu.c): `cvar` holds a key's
+// bind name; enter or a click waits for a key (the Keys menu's "press a key"), Backspace or Delete clears it.
 [[nodiscard]] Item keyRow(const char* label, cvar_t& cvar)
 {
     return Item{Item::Key, label, &cvar};
@@ -3616,7 +3616,7 @@ float stepSlider(const Item& item, int dir, bool repeat)
     return v;
 }
 
-// The Flat Keys page's rows (vr_flatplay.hpp keyCvars: the keys flat play reads itself). A key row waits for a key while
+// A key row (one of the keys flat play reads itself, vr_flatplay.hpp keyCvars). A key row waits for a key while
 // keyCapture is its cvar (the Keys menu's "press a key": M_VRKeyCapture holds the engine's side of it).
 cvar_t* keyCapture{nullptr};
 

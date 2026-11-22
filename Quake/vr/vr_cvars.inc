@@ -2912,7 +2912,7 @@ QVR_CVAR(vr_arena_xray, "1", CVAR_ARCHIVE | QVR_RULE)                    // 1: a
 QVR_CVAR(vr_arena_xray_left, "2", CVAR_ARCHIVE | QVR_RULE)               // ... once this many of its foes are left (up, and still to come)
 QVR_CVAR(vr_arena_xray_distance, "800", CVAR_ARCHIVE | QVR_RULE)         // ... and only those farther than this from your eyes (units; 0: at any distance)
 QVR_CVAR(vr_arena_xray_shown, "0", CVAR_ROM)                  // (read-only: the foes the last view outlined through walls; arena test 16 reads it)
-QVR_CVAR(vr_humlook, "1", CVAR_ARCHIVE)                        // 1: armed humanoids recoloured by the weapon they spawned with (quakevr/humlook.txt; vr_humlook.cpp, ARMED_MONSTERS.md "Recolours by weapon")
+QVR_CVAR(vr_humlook, "1", CVAR_ARCHIVE | QVR_OWN)              // 1: armed humanoids recoloured by the weapon they spawned with (quakevr/humlook.txt; vr_humlook.cpp, ARMED_MONSTERS.md "Recolours by weapon"); each viewer's own (how his game draws them; mpopen: mp_rules)
 QVR_CVAR(vr_humlook_known, "0", CVAR_ROM)                    // (read-only: the entities whose recolour the client knows; vr_ad_test 219 reads it)
 QVR_CVAR(vr_humlook_file, "humlook.txt", CVAR_NONE)          // debug (vr_humlook.cpp): the recolours' table, in quakevr/ (the tests point it elsewhere)
 QVR_CVAR(vr_humlook_masks_file, "humlook_masks.txt", CVAR_NONE) // debug (vr_humlook.cpp): which texels they dye (palette rows, painted texels), in quakevr/
@@ -3698,6 +3698,16 @@ QVR_CVAR(vr_grapple_stagger, "1", CVAR_ARCHIVE | QVR_RULE)          // small mon
 QVR_CVAR(vr_grapple_stamina, "0", CVAR_ARCHIVE | QVR_RULE)          // stamina a second reeling a monster in costs (the parry/shove/strike pool); short of it, it comes slower. 0: free
 QVR_CVAR(vr_grapple_haptics, "1", CVAR_ARCHIVE | QVR_OWN)          // strength of the rope's haptics (the hook biting, the reel, the rope snapping taut); 0 none
 QVR_CVAR(vr_grapple_drop_grace, "0.12", CVAR_ARCHIVE | QVR_RULE)    // seconds the trigger let go waits before the hook comes off: dropping or passing the gun by then keeps it in
+QVR_CVAR(vr_rope_iterations, "16", CVAR_ARCHIVE | QVR_RULE)       // climbable ropes (vr_climbrope.cpp, docs/vr-port/ROPES.md): passes a step pulling each piece back to its length (more: a stiffer, less stretchy rope; 1-64)
+QVR_CVAR(vr_rope_hands, "1", CVAR_ARCHIVE | QVR_RULE)            // the players' hands push the climbable ropes (a sphere round each); 0: they pass through
+QVR_CVAR(vr_rope_debug, "0", CVAR_NONE)                         // climbable ropes: print each rope as it is made
+QVR_CVAR(vr_rope_spawn_length, "256", CVAR_ARCHIVE | QVR_OWN)    // the toolgun's ropes (Spawn > Props > Ropes > Rope Settings): length (units)
+QVR_CVAR(vr_rope_spawn_thickness, "1.5", CVAR_ARCHIVE | QVR_OWN) // ... thickness (units across)
+QVR_CVAR(vr_rope_spawn_segments, "0", CVAR_ARCHIVE | QVR_OWN)    // ... pieces (0: one every 16 units)
+QVR_CVAR(vr_rope_spawn_mass, "0", CVAR_ARCHIVE | QVR_OWN)        // ... mass (kg, the whole rope; 0: 5 a rope, 20 a chain)
+QVR_CVAR(vr_rope_spawn_stiffness, "1", CVAR_ARCHIVE | QVR_OWN)   // ... stiffness (0.05-1: each pass's share of a stretched piece's pull back)
+QVR_CVAR(vr_rope_spawn_damping, "0.5", CVAR_ARCHIVE | QVR_OWN)   // ... damping (per second, of its swing lost to the air)
+QVR_CVAR(vr_rope_spawn_pinned, "0", CVAR_ARCHIVE | QVR_OWN)      // ... its bottom pinned where it first hangs (1) or free (0)
 QVR_CVAR(vr_grapple_rope_sim, "1", CVAR_ARCHIVE | QVR_RULE)         // the rope is a physical thing (vr_ropesim.cpp): it hangs, lies and wraps round the world and the props, never through them, and pulls along where it lies; 0: a straight line (drawn sagging)
 QVR_CVAR(vr_grapple_trigger_release, "0", CVAR_ARCHIVE | QVR_RULE)  // the trigger let go: 0 nothing (the hook stays in: the detach button on the gun takes it off); 1 it comes straight back (as the reel-in button); 2 it comes loose on its rope (reel it in with B/Y)
 QVR_CVAR(vr_grapple_shootable, "1", CVAR_ARCHIVE | QVR_RULE)        // shooting a hook that is in the world or a door (any weapon) takes it off
@@ -4463,7 +4473,7 @@ QVR_CVAR(vr_flat_toolgun_panel_size, "0.75", CVAR_ARCHIVE) // flatscreen play: t
 QVR_CVAR(vr_flat_toolgun_panel_x, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle across the window (0 left .. 1 right; kept on the window)
 QVR_CVAR(vr_flat_toolgun_panel_y, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle down the window (0 top .. 1 bottom; kept on the window)
 QVR_CVAR(vr_flat_holsters, "1", CVAR_ARCHIVE | QVR_PREF)           // flatscreen play carries what a headset does: six holsters and two hands, the weapon keys doing nothing (3 swaps the hands), the wheel's button holding the holster menu (vr_flatholster.cpp, QC vr_flatholster.qc); 0: the number keys and the wheel cycle through every weapon collected, as before 2026-11-10
-QVR_CVAR(vr_flat_key_flashlight, "f", CVAR_ARCHIVE)     // the key that switches the flashlight (vr_flashlight_toggle; vr_flatplay.cpp pollKeysFlat), by its bind name; "" none (menu: Locomotion > Desktop Screen Play > Flat Keys)
+QVR_CVAR(vr_flat_key_flashlight, "f", CVAR_ARCHIVE)     // the key that switches the flashlight (vr_flashlight_toggle; vr_flatplay.cpp pollKeysFlat), by its bind name; "" none (menu: Options > Controls, Quake VR (flat screen))
 QVR_CVAR(vr_flat_key_punch, "v", CVAR_ARCHIVE)          // the key that punches with the right hand (vr_flatplay.cpp pollKeys: a fist thrown out; the fire buttons punch too), by its bind name; "" none
 QVR_CVAR(vr_flat_key_voicechat, "CAPSLOCK", CVAR_ARCHIVE) // multiplayer voice chat's push-to-talk key, held (vr_voicechat.cpp; flat play owns it, VR reads it too); by its bind name; "" none
 QVR_CVAR(vr_flat_key_holster_menu, "mouse3", CVAR_ARCHIVE) // flatscreen play: the holster menu's key (a bind name; "" none; how it opens and picks: vr_flat_holster_menu_mode)
