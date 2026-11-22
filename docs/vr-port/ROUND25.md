@@ -8092,3 +8092,21 @@ All three were the tests, not the game; no player-facing change.
   VR_Carry_TrySecondHand -> carryreach -> vr_carry2h.cpp `reaches` -> held::grabTouch (vr_held.cpp): a fist sphere's
   inside test is by its nearest triangle's facing; the head's open neck seam may make a deep sphere read as outside.
 - New scene `doorway_grunt` (a grunt beyond that doorway, you south of it).
+
+## mpbothands: floating fists and holsters on MP bots (branch agent/mpbothands, 2026-11-22)
+
+- His report: in the MP scenes every bot carried an extra pair of fists, an open hand, a gun and a shovel beside its
+  body. Cause: a bot's holsters come from its QC fields (vr_server.cpp `botHolstered`), and the QC names the fists'
+  model (`progs/hand.mdl`, WID_FIST) for an empty holster; every client drew it as a holstered weapon
+  (view::drawHands), so the four empty holsters (shoulders, uppers) each showed a hand. A human's client never sends
+  one (view::netHolsters drops hand models), so only bots were hit; not the ropes4 or onemodel changes.
+- Fix (shared by every copy, flat or VR viewer, bots and players): view::drawHands draws nothing for a holster whose
+  model is a hand's (`isHandModel`, as your own holsters). Also a bot's holstered weapon now takes its own Holstered
+  pose (weapons::holsteredPose, poseHolstered in the holster's frame) as yours does: view::holsterOnOther takes the
+  weapon. The Hotspots page's turns stay yours alone (not put on others).
+- `vr_mp_gearcheck [ent]` (Debug > Reports > Network: Other Players' Gear): per other copy its hand models (two
+  expected), holstered weapons, sheaths, the farthest of them from its trunk (pelvis to neck; at most 0.5 m) and its
+  hands from its arms' wrists (at most 0.15 m); `mp_gearcheck: N players, M bad`. In mp_dm_passive before the fix:
+  `hands=6 ... ok=0`; after: `hands=2 holsters=2 sheaths=4 trunk=9.0 (most 15.7) wrist=2.7 (most 4.7) ok=1`.
+- `mp_test.py botgear` (in the suite): dedicated DM, the VR A and the flat B; B held in front of A (vr_dm_test 16),
+  A checks B and B checks A; then a bot held there, A checks it. 10 passed.
