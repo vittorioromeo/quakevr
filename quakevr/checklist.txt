@@ -64,6 +64,10 @@ Heavy revolver: swing the cylinder out, take a shell in the off hand, then flick
 Heavy revolver: a quick wrist roll towards the cylinder's side opens it again, even a fast one; a melee swing (the arm doing the work) never opens it. If it is too strict or too loose, tune Weapons > Reloading > Heavy Revolver > Flick Open Arm Share (0.45; lower is stricter). {test:revolver_swing}
 Pick up Haste and hold the trigger on the nailgun and the lightning gun: they fire clearly faster than without it, as the shotgun does. {test:haste_guns}
 Pick up Haste and hold the trigger on the nail pistol, the heavy revolver and the flare gun: they keep firing full auto (fast) while it lasts, one shot a pull again once it wears off. {test:haste_guns}
+In a deathmatch with bots, let a bot take your heavy revolver (or play the revolver loadout): it now fires it at you, a slug at a time, instead of only aiming. {test:mp_dm_disarm}
+Look at a bot's holsters up close from the front and the side: the sheaths sit on its belly and chest and turn with its body, and its holstered guns hang in them as yours do (no gun at a wrong angle or missing at the hips). {test:mp_dm_passive}
+In a deathmatch, weapons a bot or player drops now lie 20 seconds before vanishing (10 before): enough time to walk over and grab one. {test:mp_dm_hostile}
+Flat-screen or VR: in a deathmatch with a bot, wear armour, die (not gibbed), respawn and pick up different armour: your old body keeps the armour plates it died in (no plates appearing or changing colour on it). {test:mp_dm_hostile}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules {test:hub_start}
