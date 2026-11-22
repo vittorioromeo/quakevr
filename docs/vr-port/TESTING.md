@@ -288,6 +288,20 @@ Profiles (`--profile`): `full` (every test; final releases) and `beta` (`PROFILE
 selfchecks, changelevel_signon, stats_levelchange, settings_page, update_notice, pickup_mag, reload_eject,
 throw_spin, mapgun_pickup, grip_state, slopes; about 10 min). `--list` prints a profile's tests and their lane keys.
 
+### The test baseline config: the shipped defaults (2026-11-22)
+
+Every test run starts from `Misc/quakevr/test_baseline.cfg`: the agent's worktree has it as
+`quakevr/ironwail.cfg.baseline`, which the kit's run.ps1 copies to `quakevr/ironwail.cfg` after every lane-0 run (so
+the next run starts from it; a lane copies it before each run). It holds only `vr_config_defaults`, the version
+markers (`vr_cfg_version`, `vr_wofs_version`, `vr_props_version`, `vr_bindings_version`: read as a saved config of this
+build, not reset or migrated as an old one) and `vr_tutorial_started 1`, each with a comment. No `vr_wofs_*`,
+`vr_prop_*`, calibration or other personal settings: weapons.txt, the props' and the compiled defaults reach every run,
+and a test checks what ships. Until 2026-11-22 it was a copy of an old full config (14,472 lines, vr_cfg_version 141:
+8,321 vr_wofs_* lines, the author's body calibration and Height 1.5474, cl_alwaysrun 1, HUD scales 3): after its
+migration 566 weapon settings still differed from weapons.txt (the Super Axe's pre-11-12 offsets, ROUND25 "axelag").
+A test that needs a setting off its default sets it in its own script; a line belongs here only when every run
+needs it, with its reason.
+
 ## The spawn census: "no behaviour change" in one command (2026-11-19)
 
 `bash Misc/quakevr/spawn_census.sh <label> [coop]` loads all 168 maps of id1, Hipnotic, Rogue, Dopa, MG1, MG3 and AD
