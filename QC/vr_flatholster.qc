@@ -16,6 +16,9 @@
 //   82, 83           UNLOAD: the left hand's, the right hand's gun's live rounds back into the reserve (VR_FlatHolster_Unload)
 //   84, 85           FLIP GRIP: the left hand's, the right hand's sword or dagger turned over (VR_RevGrip_Flip: the eject button's flip)
 //   48               the hands swapped (VR_FlatSwapHands: the same as 3)
+//   86, 87           the number keys 1, 2: the left, the right hand cycled through the holsters (VR_FlatHolster_Cycle)
+//   88, 89           the number keys 4, 5: the left, the right hand's weapon into a free holster (VR_FlatHolster_Put)
+//                    (6, 7 send 78, 79)
 //   24 + k           a drag from holster a to holster b: they trade what they hold (k the pair a < b: VR_FlatHolster_Pair)
 // A drag from a hand to a holster (or back) sends that holster's L or R impulse, from hand to hand 48's swap.
 // (80 is vr_flatholster_test's, below.)
@@ -224,17 +227,222 @@ void(float xHand) VR_FlatHolster_Unload =
     dprint(sprintf("flat holsters: UNLOAD hand %g: %g of %g rounds of weapon %g back into the reserve\n", xHand, n, clip, wid));
 };
 
-// ImpulseCommands, first: the menu's impulses (24 .. 38, 60 .. 79, 81 .. 85) whenever he plays on the screen, and while the holsters are
+// The holsters' number keys (his words 2026-11-22; the engine's vr_flatplay.cpp handKeys): 1 and 2 cycle the left and the
+// right hand through the holstered weapons (impulse 86, 87: VR_FlatHolster_Cycle), 4 and 5 put the hand's weapon in a
+// free holster (88, 89: VR_FlatHolster_Put), 6 and 7 drop (78, 79, above). Each weapon moves with its record by the
+// headset's own steps (VRDrawHolsterWeapon, VRPutWeaponInHolster, VRHolsterHandWeapon), so a multiplayer client's key
+// is the same impulse and everyone sees the holsters' stats and models change.
+.float vr_flatcyc_slot0;   // 1 + the holster the left (off) hand's weapon was drawn from by its key; 0 none
+.float vr_flatcyc_slot1;   // the right (main) hand's
+.entity vr_flatcyc_inst0;  // that weapon's record: the memory holds while the hand still holds that very weapon
+.entity vr_flatcyc_inst1;
+float vr_flatholster_cycles; // (the tests: the keys' moves)
+float vr_flatholster_puts;
+float vr_flatholster_keys;   // (the tests: impulses 86 .. 89 taken, whatever they did)
+
+// The holster (0 .. 5) the weapon in `xHand` was drawn from by the cycle, -1 none (another weapon in it since).
+float(float xHand) VR_FlatHolster_From =
+{
+    float s = xHand == cVR_MainHand ? self.vr_flatcyc_slot1 : self.vr_flatcyc_slot0;
+    entity inst = xHand == cVR_MainHand ? self.vr_flatcyc_inst1 : self.vr_flatcyc_inst0;
+    if(s <= 0 || inst == world || VRIsHandWeaponless(self, xHand) || VRGetEntWeaponInst(self, xHand) != inst)
+    {
+        return -1;
+    }
+    return s - 1;
+};
+
+void(float xHand, float i) VR_FlatHolster_Remember =
+{
+    entity inst = world;
+    if(i >= 0)
+    {
+        inst = VRGetEntWeaponInst(self, xHand);
+    }
+    if(xHand == cVR_MainHand)
+    {
+        self.vr_flatcyc_slot1 = i + 1;
+        self.vr_flatcyc_inst1 = inst;
+    }
+    else
+    {
+        self.vr_flatcyc_slot0 = i + 1;
+        self.vr_flatcyc_inst0 = inst;
+    }
+};
+
+// A free holster (0 .. 5) for `xHand`'s weapon, -1 none: `prefer` (the one it came from; -1 none) if empty, else the
+// hand's own side's hip, chest and shoulder, then the other side's. `vacant` (-1 none) counts as empty: the holster the
+// cycle draws from in the same move.
+float(float xHand, float prefer, float vacant) VR_FlatHolster_FreeFor =
+{
+    if(prefer >= 0 && (prefer == vacant || getHolsterWeapon(VR_FlatHolster_Hotspot(prefer)) == WID_FIST))
+    {
+        return prefer;
+    }
+    for(float k = 0; k < 6; k++)
+    {
+        float row = k - floor(k / 3) * 3; // 0 the hip, 1 the chest, 2 the shoulder
+        float side = 1;                    // 0 the left (even holsters), 1 the right
+        if((k < 3) == (xHand == cVR_OffHand))
+        {
+            side = 0;
+        }
+        float i = side;
+        if(row == 0)
+        {
+            i = 2 + side;
+        }
+        else if(row == 1)
+        {
+            i = 4 + side;
+        }
+        if(i == vacant || getHolsterWeapon(VR_FlatHolster_Hotspot(i)) == WID_FIST)
+        {
+            return i;
+        }
+    }
+    return -1;
+};
+
+// Whether `xHand` may take part (not carrying a box or a prop: VR_FlatHolster_Swap's rule).
+float(float xHand) VR_FlatHolster_KeyHandOk =
+{
+    if(VR_Carry_Held(self, xHand) != world)
+    {
+        sprint(self, "That hand carries something: drop it first.\n");
+        return FALSE;
+    }
+    return TRUE;
+};
+
+// 1 / 2: the next holstered weapon after the one the hand holds (the holsters' order, 0 .. 5, the menu's) into `xHand`;
+// what it held back into a holster (the one it came from, else a free one: VR_FlatHolster_FreeFor, the drawn one's too:
+// a trade); after the last, the hand empty. A holstered weapon is never in the other hand, so the other hand's is skipped
+// by itself. A weapon too big for a holster, or no holster free, and nothing moves (a short word why).
+void(float xHand) VR_FlatHolster_Cycle =
+{
+    if(!VR_FlatHolster_KeyHandOk(xHand))
+    {
+        return;
+    }
+    float empty = VRIsHandWeaponless(self, xHand);
+    float from = VR_FlatHolster_From(xHand);
+    float next = -1;
+    for(float i = from + 1; i < 6 && next < 0; i++)
+    {
+        if(getHolsterWeapon(VR_FlatHolster_Hotspot(i)) != WID_FIST)
+        {
+            next = i;
+        }
+    }
+    if(empty && next < 0)
+    {
+        sprint(self, "No weapon in the holsters.\n");
+        dprint(sprintf("flat holsters: cycle hand %g: nothing holstered\n", xHand));
+        return;
+    }
+    float wid = VRGetEntWeapon(self, xHand);
+    float wfl = VRGetEntWeaponFlags(self, xHand);
+    float to = -1;
+    if(!empty)
+    {
+        if(!WeaponIdToHolsterable(wid, wfl))
+        {
+            VRHolsterRefused(self, xHand, VR_FlatHolster_Hotspot(max(0, next)), wid, wfl);
+            return;
+        }
+        to = VR_FlatHolster_FreeFor(xHand, from, next);
+        if(to < 0)
+        {
+            sprint(self, sprintf("No free holster for the %s.\n", WeaponNameOf(wid, wfl)));
+            dprint(sprintf("flat holsters: cycle hand %g: no free holster for weapon %g\n", xHand, wid));
+            return;
+        }
+    }
+    entity inst = VRGetEntWeaponInst(self, xHand);
+    VRHandStopFiring(self, xHand);
+    if(!empty)
+    {
+        VRSetHandEmpty(self, xHand); // (its record kept: `inst`, into the holster below)
+    }
+    if(next >= 0)
+    {
+        VRDrawHolsterWeapon(self, xHand, VR_FlatHolster_Hotspot(next));
+    }
+    if(!empty)
+    {
+        VRPutWeaponInHolster(self, xHand, VR_FlatHolster_Hotspot(to), wid, wfl, inst);
+    }
+    W_SetCurrentAmmoFor(xHand);
+    VR_FlatHolster_Remember(xHand, next);
+    vr_flatholster_cycles++;
+    dprint(sprintf("flat holsters: cycle hand %g: holster %g drawn, weapon %g into holster %g: hand now %g\n", xHand, next,
+        wid, to, VRGetEntWeapon(self, xHand)));
+};
+
+// 4 / 5: `xHand`'s weapon into a free holster (VR_FlatHolster_FreeFor: the one it came from first), the hand empty, as a
+// headset's hand lets it go at a holster (VRHolsterHandWeapon). An empty hand, none free or one too big: nothing moves.
+void(float xHand) VR_FlatHolster_Put =
+{
+    if(!VR_FlatHolster_KeyHandOk(xHand))
+    {
+        return;
+    }
+    if(VRIsHandWeaponless(self, xHand))
+    {
+        dprint(sprintf("flat holsters: holster hand %g: empty\n", xHand));
+        return;
+    }
+    float wid = VRGetEntWeapon(self, xHand);
+    float wfl = VRGetEntWeaponFlags(self, xHand);
+    if(!WeaponIdToHolsterable(wid, wfl))
+    {
+        VRHolsterRefused(self, xHand, VR_FlatHolster_Hotspot(0), wid, wfl);
+        return;
+    }
+    float to = VR_FlatHolster_FreeFor(xHand, VR_FlatHolster_From(xHand), -1);
+    if(to < 0)
+    {
+        sprint(self, sprintf("No free holster for the %s.\n", WeaponNameOf(wid, wfl)));
+        dprint(sprintf("flat holsters: holster hand %g: no free holster for weapon %g\n", xHand, wid));
+        return;
+    }
+    VRHandStopFiring(self, xHand);
+    VRHolsterHandWeapon(self, xHand, VR_FlatHolster_Hotspot(to));
+    VR_FlatHolster_Remember(xHand, -1);
+    vr_flatholster_puts++;
+    dprint(sprintf("flat holsters: holster hand %g: weapon %g into holster %g\n", xHand, wid, to));
+};
+
+// ImpulseCommands, first: the menu's impulses (24 .. 38, 60 .. 79, 81 .. 85) and the number keys' (86 .. 89, the holsters on) whenever he plays on the screen, and while the holsters are
 // on, the weapon keys swallowed (1 .. 8, the cycle's 10, 12, 15, 16, Quake's 225, 226): no weapon comes from what was
 // collected. TRUE when the impulse was taken (cleared).
 float() VR_FlatHolster_Impulses =
 {
     float imp = self.impulse;
-    if(((imp >= 60 && imp <= 79) || (imp >= 81 && imp <= 85) || (imp >= 24 && imp <= 38)) && VR_FlatPlay(self))
+    if(((imp >= 60 && imp <= 79) || (imp >= 81 && imp <= 89) || (imp >= 24 && imp <= 38)) && VR_FlatPlay(self))
     {
         self.impulse = 0;
         if(self.health <= 0)
         {
+            return TRUE;
+        }
+        if(imp >= 86)
+        {
+            vr_flatholster_keys++;
+            if(!VR_FlatHolsters(self))
+            {
+                dprint(sprintf("flat holsters: impulse %g: the holsters are off\n", imp));
+            }
+            else if(imp <= 87)
+            {
+                VR_FlatHolster_Cycle(imp == 86 ? cVR_OffHand : cVR_MainHand);
+            }
+            else
+            {
+                VR_FlatHolster_Put(imp == 88 ? cVR_OffHand : cVR_MainHand);
+            }
             return TRUE;
         }
         if(imp <= 38)

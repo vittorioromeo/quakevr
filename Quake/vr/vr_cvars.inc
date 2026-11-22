@@ -4529,6 +4529,14 @@ QVR_CVAR(vr_flat_grab_preview, "1", CVAR_ARCHIVE)      // flatscreen play: 1 wha
 QVR_CVAR(vr_flat_key_reload, "r", CVAR_ARCHIVE)         // the key that reloads (impulse 55: every hand whose gun's clip has room and whose ammo has rounds; vr_flatreload.cpp, QC vr_flatreload.qc), by its bind name; "" none
 QVR_CVAR(vr_flat_key_ammo, "b", CVAR_ARCHIVE)           // flat-screen: the key that switches the main hand's weapon to its other ammo (impulse 43, as the headset's weapon button: QC ToggleSecondaryAmmo: the rocket and grenade launchers' multi-rockets and -grenades, the thunderbolt's plasma, the hell knight's sword...; nothing for one without); not with the toolgun in hand (B is its adjust key there), by its bind name; "" none
 QVR_CVAR(vr_flat_key_drop, "h", CVAR_ARCHIVE)           // the key that lets go of what a hand holds (impulse 47, QC VR_Forcegrab_FlatDrop: the off hand first, his words 2026-11-10), by its bind name; "" none (G until 2026-11-10, his words: "Rebind drop to 'H' and free the 'G' key up")
+// The holsters' number keys (his words 2026-11-22; vr_flat_holsters on only: off, 1 .. 7 pick weapons as before; vr_flatplay.cpp
+// pollKeysFlat, QC vr_flatholster.qc VR_FlatHolster_Cycle / _Put). "Left" and "right" as the holster menu's: the off hand, the main hand.
+QVR_CVAR(vr_flat_key_cycle_left, "1", CVAR_ARCHIVE)     // the key that cycles the left hand through the holstered weapons, holster order, then the empty hand (impulse 86); by its bind name; "" none
+QVR_CVAR(vr_flat_key_cycle_right, "2", CVAR_ARCHIVE)    // the same for the right hand (impulse 87); by its bind name; "" none
+QVR_CVAR(vr_flat_key_holster_left, "4", CVAR_ARCHIVE)   // the key that puts the left hand's weapon in a free holster (the one it came from, else the nearest on its side; impulse 88); by its bind name; "" none
+QVR_CVAR(vr_flat_key_holster_right, "5", CVAR_ARCHIVE)  // the same for the right hand (impulse 89); by its bind name; "" none
+QVR_CVAR(vr_flat_key_drop_left, "6", CVAR_ARCHIVE)      // the key that drops what the left hand holds (impulse 78: the holster menu's left DROP); by its bind name; "" none
+QVR_CVAR(vr_flat_key_drop_right, "7", CVAR_ARCHIVE)     // the same for the right hand (impulse 79); by its bind name; "" none
 QVR_CVAR(vr_flat_key_grenade, "g", CVAR_ARCHIVE)        // the quick grenade key (impulse 57, QC vr_flatgrenade.qc; vr_flatgrenade.cpp): a free hand fetches the back pouch's grenade, the fire button arms it, held winds up, let go throws; by its bind name; "" none
 QVR_CVAR(vr_flat_grenade, "1", CVAR_ARCHIVE)            // flat-screen play: 1 the quick grenade key (vr_flat_key_grenade) takes a grenade from the pouch; 0 it does nothing
 QVR_CVAR(vr_flat_grenade_arm_mode, "1", CVAR_ARCHIVE | QVR_PREF)   // the quick grenade's fire button: 1 a press arms it (its fuse runs), the next press held winds up the throw and its release throws; 0 one press: it arms, held winds up, let go throws
