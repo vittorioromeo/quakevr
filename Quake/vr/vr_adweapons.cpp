@@ -67,6 +67,7 @@ constexpr Rect noRect{0.f, 0.f, 0.f, 0.f, false};
 constexpr const char* missingSourceWhy = "AD's model (the release measured) not found"; // (AD's data missing: no fault)
 
 struct Parts;
+struct SkinPatch;
 void widowmakerParts(Parts& p);
 void plasmaParts(Parts& p);
 void rotaryParts(Parts& p);
@@ -114,7 +115,23 @@ struct Recipe
     // (the base weapon's grip, hand and offsets keep their places). 0: placed as laid.
     bool keepOpen{false};
     float keepScale{0.f};
+    // Dwell support (dwellrotary): a band of the source's skin painted over from other rows of it (null: none), and up to
+    // three more pieces taken off (as `drop`; -1 none).
+    const SkinPatch* skinPatch{nullptr};
+    int dropMore[3]{-1, -1, -1};
 };
+
+// Texels s0..s1 of rows t0..t1 of the made skin copied from rows further down the same columns: those before `split`
+// from shiftLo rows down, the others from shiftHi (each face's band onto a like one, its seams kept where they were).
+struct SkinPatch
+{
+    int s0, s1, t0, t1, split, shiftLo, shiftHi;
+};
+// Dwell's Rotary Shotgun (dwellrotary; his notes 2026-11-22: "at the bottom, I can see the muzzle flare texture"): its
+// skin's muzzle flash (s 204..238, t 66..98: the dropped flash's texels) is painted inside the housing's column, on the
+// rows its lower faces take (the lower inner diagonal t 43..80, the bottom 80..102). Painted over with the like rows
+// of the other side (the lower outer diagonal t 102..138, the outer side 138..161).
+constexpr SkinPatch rotaryFlashPatch{200, 242, 60, 102, 80, 59, 58};
 
 // The measurements (taken on AD 1.80 patch 1's models; ROUND22.md "AD's weapons as VR models"):
 // - The Shadow Axe (v_shadaxe3.mdl, frame0: AD's axe in its right hand): the arm and hand (the piece holding vertex 257)
@@ -164,7 +181,8 @@ const Recipe recipes[] = {
     {"progs/dw_shot3.mdl#vr", {"progs/v_shot3.mdl", 260, 286, 256, 256, "dwell"}, "frame1", {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f},
         {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.8f, {-2.88f, -0.11f, -20.71f}, {0.6f, 0.f, 2.6f}, {4, -1, -1}, false, {0.f, 0.f, 0.f},
         0.f, {"progs/v_shot2.mdl", 0, 0, 0, 0}, {151, 241, 281}, {-15.5775f, -4.6938f, -4.2402f}, false, {0.f, 0.f, 0.f},
-        {0.f, 0.f, 0.f}, "progs/v_shot2.mdl", true, noRect, rotaryParts, -1, {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f}},
+        {0.f, 0.f, 0.f}, "progs/v_shot2.mdl", true, noRect, rotaryParts, -1, {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f},
+        -1, false, 0.f, &rotaryFlashPatch},
     {"progs/dw_rail.mdl#vr", {"progs/v_rail.mdl", 311, 339, 256, 256, "dwell"}, "frame1", {23.6f, 0.f, 6.7f},
         {-6.7f, 0.f, 23.6f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.88f, {11.94f, -0.17f, -18.17f}, {-4.f, 0.f, 6.2f}, {-1, -1, -1},
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_light.mdl", 0, 0, 0, 0}, {234, 403, 493}, {-5.6211f, -9.3429f, -6.0018f}, false,
@@ -197,7 +215,7 @@ const Recipe recipes[] = {
         {0.f, 0.f, 1.f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.f, {-2.88f, -0.11f, -20.71f}, {-2.6f, 0.f, -5.5f}, {4, -1, -1},
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_nail2.mdl", 0, 0, 0, 0}, {-1, -1, -1}, {-5.1024f, -7.6303f, -8.4464f},
         false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_nail2.mdl", true, noRect, rotaryGauntletParts, -1,
-        {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f}},
+        {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f}, -1, false, 0.f, &rotaryFlashPatch},
 };
 
 // The Plasma Gun's cell (the lightning gun's magazine and well, made by make_mags.py in v_light.mdl's space: the cell
@@ -1589,6 +1607,18 @@ void rifleParts(Parts& p)
     for(int y = 0; y < src.skinH; y++)
     {
         ZA_MEMCPY(skin.data() + static_cast<size_t>(y) * skinW, src.skin.data() + static_cast<size_t>(y) * src.skinW, static_cast<size_t>(src.skinW));
+    }
+    if(const SkinPatch* sp = r.skinPatch)
+    {
+        for(int y = sp->t0; y <= sp->t1; y++)
+        {
+            const int from = y + (y < sp->split ? sp->shiftLo : sp->shiftHi);
+            for(int x = sp->s0; x <= sp->s1 && from < src.skinH && x < src.skinW; x++)
+            {
+                skin[static_cast<za::SizeT>(y) * static_cast<za::SizeT>(skinW) + static_cast<za::SizeT>(x)] =
+                    src.skin[static_cast<za::SizeT>(from) * static_cast<za::SizeT>(src.skinW) + static_cast<za::SizeT>(x)];
+            }
+        }
     }
     for(int y = 0; y < gh; y++)
     {
