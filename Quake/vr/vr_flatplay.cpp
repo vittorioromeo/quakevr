@@ -74,6 +74,7 @@
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/Exchange.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -229,6 +230,7 @@ struct FlatKeys
     bool keyDrop{false};    // H (vr_flat_key_drop), last frame
     bool keySwap{false};    // Q (vr_flat_key_swap), last frame
     bool keyTime{false};    // Z (vr_flat_key_bullettime), last frame
+    bool keyHands[6]{};     // 1, 2, 4, 5, 6, 7 (handKeys: the holsters' number keys), last frame
     bool cmdHeld{false};    // +flatcrouch held: the console's way of the same hold
     bool keyProne{false};   // X (vr_flat_key_prone), last frame
     bool jumpSwallow{false}; // the jump press that stood him up (vr_flat_prone_jump_stands): no jump until the key is let go
@@ -1779,6 +1781,40 @@ extern "C" int VR_FlatToolgunEscape(void)
 namespace
 {
 
+// The holsters' number keys (his words 2026-11-22), each the impulse the game code reads (QC vr_flatholster.qc), so the
+// console's `impulse N` and a multiplayer client's do the same: cycle the left / right hand through the holsters (86,
+// 87), holster its weapon (88, 89), drop what it holds (78, 79: the holster menu's own DROPs). With the holsters on only.
+struct HandKey
+{
+    cvar_t* key;
+    int impulse;
+    const char* what;
+};
+const HandKey handKeys[] = {{&vr_flat_key_cycle_left, 86, "cycle the left hand"}, {&vr_flat_key_cycle_right, 87, "cycle the right hand"},
+    {&vr_flat_key_holster_left, 88, "holster the left hand's weapon"}, {&vr_flat_key_holster_right, 89, "holster the right hand's weapon"},
+    {&vr_flat_key_drop_left, 78, "drop the left hand's"}, {&vr_flat_key_drop_right, 79, "drop the right hand's"}};
+static_assert(za::getArraySize(handKeys) == 6, "a last-frame state for every hand key (FlatKeys::keyHands)");
+
+void pollHandKeys(bool inGame)
+{
+    for(size_t i = 0; i < za::getArraySize(handKeys); i++)
+    {
+        const HandKey& k = handKeys[i];
+        const bool down = inGame && keyActive(*k.key) && flatKeyHeld(*k.key);
+        if(down && !keyState.keyHands[i])
+        {
+            char cmd[32];
+            q_snprintf(cmd, sizeof(cmd), "impulse %d\n", k.impulse);
+            Cbuf_InsertText(cmd); // (InsertText: asked for now, as the F's and H's)
+            if(vr_flatplay_debug.value)
+            {
+                Con_Printf("flatplay: %s: %s\n", k.key->string, k.what);
+            }
+        }
+        keyState.keyHands[i] = down;
+    }
+}
+
 void pollKeysFlat()
 {
     const bool inGame = key_dest == key_game;
@@ -1842,6 +1878,7 @@ void pollKeysFlat()
     {
         swapHands(vr_flat_key_swap.string);
     }
+    pollHandKeys(inGame);
     if(slow && !keyState.keyTime)
     {
         keyState.times++;
