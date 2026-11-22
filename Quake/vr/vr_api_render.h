@@ -185,6 +185,7 @@ int VR_AliasPlainUse (int needs); // r_alias.c: a batch needing `needs` drawn by
 int VR_AliasGoreUse (int needs); // r_alias.c: ... else by glprogs.alias_gore (vr_gl_alias_gore: needing only what it keeps)
 int VR_AliasSkinUse (int needs); // r_alias.c: ... else by glprogs.alias_skin (vr_gl_alias_skin: the same, skin tone kept too)
 int VR_AliasBodyLight (const entity_t *e); // r_alias.c: your body's batch in those forms drawn by glprogs.alias_body (vr_gl_alias_body)
+int VR_AliasBodyFlat (const entity_t *e); // r_alias.c: ... and its dynamic lights added flat on the CPU (vr_gl_alias_body 2: QVR_APLAIN_VFLAT)
 void VR_AliasDent (const struct entity_s *e, const void *aliashdr, float dent[4], float scale[4]); // instance: its flesh dents (vr_dents.cpp)
 void VR_BarrelMaskBind (void); // the hot barrels' triangle masks bound for the alias shaders (SSBO 16; vr_barrelmask.cpp)
 void VR_HumlookBind (void); // the armed humanoids' recolour masks bound for the alias shaders (SSBO 17; vr_humlook.cpp)
@@ -251,6 +252,7 @@ void VR_RenderShadowMaps (void);						// R_SetupView, before R_PushDlights (once
 struct gpulight_s;
 void VR_DlightShadow (int index, struct gpulight_s *out);	// R_PushDlights, per light sent: its shadow (and a spot light's cone)
 float VR_SpotCone (const struct gpulight_s *l, const float point[3]); // how much of a light its cone lets reach a point (1: a point light)
+float VR_DlightFlatLit (const struct gpulight_s *l, const float point[3], int overbright); // r_alias.c (C5f): a light's share at a point as the models' per-pixel loop gives it, facing it (its falloff, cone)
 void VR_PushPortalLights (void);
 void VR_AliasShadowClip (void); // the alias depth program has just been bound
 void VR_PushMapLights (void);							// R_PushDlights, after the dynamic lights

@@ -404,6 +404,15 @@ extern "C" int VR_AliasBodyLight(const entity_t* e)
     return occlusion || shadows ? 0 : 1;
 }
 
+// C5f (QUEST_PLAN.md 6zq): r_alias.c R_AliasLightFinishBody: your body drawn by its form without per-pixel dynamic lights
+// (vr_gl_alias_body 2: QVR_APLAIN_VFLAT, the ambient cube alone at its vertices), its dynamic lights added flat to its
+// light on the CPU as Quake did (the shader's loop over them was ~1.85 ms of its ~5 with the torso in view, 6zo; lit
+// per vertex instead it was slower, 6zp). A batch another form draws gets the light without them back.
+extern "C" int VR_AliasBodyFlat(const entity_t* e)
+{
+    return vr_gl_alias_body.value >= 2.f && VR_AliasBodyLight(e) && VR_AliasOpaqueForm(e) ? 1 : 0;
+}
+
 extern "C" int VR_AliasPlayerFirst(const entity_t* e)
 {
     // Your own models stand nearest the eye: drawn (opaque) before the world, the world's depth pre-pass and shading skip

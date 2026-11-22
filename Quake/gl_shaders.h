@@ -1904,6 +1904,9 @@ QVR_ALIAS_FS_FUNCTIONS // QVR: per-pixel lights, normal maps, ambient, wounds, m
 QVR_ALIAS_FS_RECOLOR_FUNCTIONS // QVR: HSL for the armed humanoids' recolours (vr/vr_humlook.cpp)
 QVR_BEHIND_SHOWN_GATE_ALIAS // QVR: see-through models behind a teleporter shown in this view (QVR_ALIAS_FS_GLOW)
 QVR_ALIAS_FS_LITE // QVR: the ES lite form's switches compiled out of main (GL_AliasLiteDefines; QUEST_PLAN.md 6q)
+"#ifdef QVR_PROBE_AMEDIUMP\n" // QVR: vr_gles_define's probe (C5f): main's own floats at medium precision (the functions above keep highp)
+"precision mediump float;\n"
+"#endif\n"
 "void main()\n"
 "{\n"
 "	QVR_TEMPORAL_WRITE(0.0); // QVR: first (before any early return)\n"
@@ -1993,14 +1996,18 @@ QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
 "#endif\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	vec3 fullbright = textureLod(FullbrightTex, uv, 0.).rgb;\n" // QVR: fullbright: dimmed or boosted (QVR_ALIAS_FS_GLOW)
+"#elif defined(QVR_PROBE_ANOFB)\n" // QVR: vr_gles_define's probe (C5f): no fullbright fetch
+"	vec3 fullbright = vec3(0.0);\n"
 "#else\n"
 "	vec3 fullbright = Retro > 0 ? RetroSample(FullbrightTex, uv, duvdx, duvdy, false).rgb : textureGrad(FullbrightTex, uv, duvdx, duvdy).rgb; // QVR: uv moved by parallax mapping; retro textures\n"
 "#endif\n"
 QVR_ALIAS_FS_GLOW // QVR: fullbrights, wounds' glow, force grab's glow, morphs
 "	result.rgb = clamp(result.rgb, 0.0, SceneTone.x); // QVR: above 1 in the eyes' float scene (vr_tonemap)\n"
+"#ifndef QVR_PROBE_ANOFOG\n" // QVR: vr_gles_define's probe (C5f): no fog
 "	float fog = exp2(abs(Fog.w) * -dot(in_pos, in_pos));\n"\
 "	fog = clamp(fog, 0.0, 1.0);\n"
 "	result.rgb = mix(Fog.rgb, result.rgb, fog);\n"
+"#endif\n"
 "	out_fragcolor = result;\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_DITHER) " || MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	// Note: sign bit is used as overbright flag\n"

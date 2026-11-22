@@ -2413,6 +2413,33 @@ extern "C" float VR_SpotCone(const gpulight_t* l, const float point[3])
     return 1.f - t * t * (3.f - 2.f * t);
 }
 
+// C5f (QUEST_PLAN.md 6zq): r_alias.c, your body under vr_gl_alias_body 2: a light's share at a point as the models'
+// per-pixel loop gives it (vr_glsl_alias.h ModelDynamicLights, the plain loop: DarkPlaces' falloff or Quake's, its spot
+// cone), a surface facing it (no angle term), so the flat add is as bright as the per-pixel light it stands in for.
+// overbright: gl_overbright_models (the loop's unit for Quake's falloff, as the shader's Fog.w sign).
+extern "C" float VR_DlightFlatLit(const gpulight_t* l, const float point[3], int overbright)
+{
+    const glm::vec3 d{point[0] - l->pos[0], point[1] - l->pos[1], point[2] - l->pos[2]};
+    const float dist = glm::length(d);
+    const float radius = l->radius;
+    if(dist >= radius)
+    {
+        return 0.f;
+    }
+    float lit;
+    if(vr_dlight_falloff.value != 0.f)
+    {
+        const float x = dist / za::max(radius, 1.f);
+        lit = za::clamp((1.f - x) * 2.f / (1.f + x * x), 0.f, 1.f);
+    }
+    else
+    {
+        const float unit = vr_model_light_parity.value != 0.f ? 1.f / 128.f : overbright ? 2.f / 200.f : 1.f / 200.f;
+        lit = (radius - dist) * unit;
+    }
+    return lit * VR_SpotCone(l, point);
+}
+
 void lighting::dlightRig(const dlight_t* dl)
 {
     const za::PtrDiffT index = dl - cl_dlights;

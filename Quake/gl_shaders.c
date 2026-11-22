@@ -1627,11 +1627,12 @@ GLuint GL_AliasFormProgram (int form, int mode, int poseverttype)
 		if (!*program)
 			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias skin|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (VR_ALIAS_SKIN_NEEDS));
 		return *program;
-	case ALIASFORM_BODY: // (C5e: the skin form lit at its vertices, whatever vr_gl_alias_vlight says: VR_AliasBodyLight)
+	case ALIASFORM_BODY: // (C5e: the skin form lit at its vertices, whatever vr_gl_alias_vlight says: VR_AliasBodyLight;
+		// C5f, vr_gl_alias_body 2, bit 29: its ambient cube alone at the vertices, the dynamic lights added flat on the CPU)
 		program = &glprogs.alias_body[mode][poseverttype];
 		if (!*program)
-			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias body|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (VR_ALIAS_SKIN_NEEDS),
-				(gl_world_lite & (1 << 28)) ? "" : "; QVR_APLAIN_VLIGHT 1");
+			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias body|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (VR_ALIAS_SKIN_NEEDS),
+				(gl_world_lite & (1 << 28)) ? "" : "; QVR_APLAIN_VLIGHT 1", (gl_world_lite & (1 << 29)) ? "; QVR_APLAIN_VFLAT 1" : "");
 		return *program;
 	}
 	return 0;

@@ -97,6 +97,14 @@ struct ibuf_s {
 // QVR: a batch of posed models (R_AliasPosedJoin: the world's, vr_alias_batch_posed): each instance's entity, and the
 // batch's bones, each instance's after the last's (its poses offset to them: R_FlushAliasInstances)
 static const entity_t *aliasinstents[MAX_ALIAS_INSTANCES];
+// QVR (C5f, QUEST_PLAN.md 6zq): your body under vr_gl_alias_body 2 (R_AliasLightFinishBody): its dynamic lights added flat
+// to its light, Quake's way, for its form without them; the light as the per-pixel forms take it, for a batch drawn by
+// another form (R_FlushAliasInstances)
+static qboolean aliasinstflat[MAX_ALIAS_INSTANCES];
+static vec3_t aliasinstperpixel[MAX_ALIAS_INSTANCES];
+static qboolean aliaslightflat; // R_AliasLightFinish: add the dynamic lights whatever vr_dlight_models says
+static qboolean aliasbodyflat; // the entity being added: its light has them added flat ...
+static vec3_t aliasbodyperpixel; // ... and this is its light without them
 static bonepose_t *aliasbatchbones;
 static int aliasbatchbonescap;
 
@@ -623,6 +631,12 @@ static void R_AliasLightFinish (entity_t *e)
 	qboolean	parity = VR_ModelLightParity (); // QVR: on a par with the world: the shader shades 0.6 .. 1.4 by the normal
 
 	//add dlights
+	vec3_t		flatdyn = {0.f, 0.f, 0.f}; // QVR (C5f)
+
+	for (i=0; i<r_framedata.numlights && aliaslightflat; i++) // QVR (C5f): your body's form under vr_gl_alias_body 2: each light as its per-pixel form gives a point at its origin facing it (VR_DlightFlatLit), after the light's curve and scale
+		if (r_lightbuffer.lights[i].shadow[3] == 0.f)
+			VectorMA (flatdyn, VR_DlightFlatLit (&r_lightbuffer.lights[i], e->origin, gl_overbright_models.value != 0.f), r_lightbuffer.lights[i].color, flatdyn);
+
 	for (i=0; i<r_framedata.numlights && !VR_ModelDlightsPerPixel (); i++) // QVR: or the shader does, per pixel
 	{
 		gpulight_t *l = &r_lightbuffer.lights[i];
@@ -682,6 +696,37 @@ static void R_AliasLightFinish (entity_t *e)
 	else
 	VectorScale (lightcolor, 1.0f / 200.0f, lightcolor);
 	VR_AliasLightModifier (e, lightcolor); // QVR
+	VectorMA (lightcolor, gl_overbright_models.value ? 0.5f : 1.f, flatdyn, lightcolor); // QVR (C5f): (the vertex shader doubles overbright models' light)
+}
+
+/*
+=================
+R_AliasLightFinishBody -- QVR (C5f, QUEST_PLAN.md 6zq)
+
+R_AliasLightFinish, but for your body drawn by its form without per-pixel dynamic lights (vr_gl_alias_body 2,
+VR_AliasBodyFlat; the ES profile): its dynamic lights added flat, as Quake lit its models (one colour for the model,
+worked out once a frame), and the light without them kept (aliasbodyperpixel) for a batch another form draws. The
+per-pixel finish runs last, so what it hands on (the bare hands take your body's light) is the per-pixel forms' light.
+=================
+*/
+static void R_AliasLightFinishBody (entity_t *e)
+{
+	vec3_t base, flat;
+	aliasbodyflat = VR_ModelDlightsPerPixel () && GL_AliasFormAvailable (ALIASFORM_BODY) && VR_AliasBodyFlat (e);
+	if (!aliasbodyflat)
+	{
+		R_AliasLightFinish (e);
+		return;
+	}
+	VectorCopy (lightcolor, base);
+	aliaslightflat = true;
+	R_AliasLightFinish (e);
+	aliaslightflat = false;
+	VectorCopy (lightcolor, flat);
+	VectorCopy (base, lightcolor);
+	R_AliasLightFinish (e);
+	VectorCopy (lightcolor, aliasbodyperpixel);
+	VectorCopy (flat, lightcolor);
 }
 
 void R_SetupAliasLighting (entity_t	*e)
@@ -795,6 +840,10 @@ void R_FlushAliasInstances (qboolean showtris)
 		if (shadeprog != glprogs.alias_opaque[mode][poseverttype] && VR_AliasBodyLight (ibuf.ent))
 			shadeprog = GL_AliasFormProgram (ALIASFORM_BODY, mode, poseverttype); // QVR: your body in those forms lit at its vertices (vr_gl_alias_body)
 	}
+	if (!shadeprog || shadeprog != glprogs.alias_body[mode][poseverttype]) // QVR (C5f): your body's light with its dynamic lights added flat, drawn by a form adding them per pixel: the light without them
+		for (i = 0; i < ibuf.count; i++)
+			if (aliasinstflat[i])
+				VectorCopy (aliasinstperpixel[i], ibuf.inst[i].lightcolor);
 	if (depthonly)
 		GL_UseProgram (layered ? glprogs.alias_depth_layered[poseverttype] : glprogs.alias_depth[poseverttype]);
 	else
@@ -1837,12 +1886,13 @@ cull:
 	//
 	rs_aliaspolys += paliashdr->numtris;
 	vr_profcounts.aliastris += paliashdr->numtris; // QVR: profile (the Tracy plot: rs_aliaspolys is cleared only under r_speeds)
+	aliasbodyflat = false; // QVR: (R_AliasLightFinishBody)
 	if (mode == ALIAS_DEPTH || mode == ALIAS_XRAY) // QVR: a shadow map's caster: its depth only (none of the light it gets); an outline: its glow only
 		lightcolor[0] = lightcolor[1] = lightcolor[2] = 0.f;
 	else if (eyeuse && eye->lit) // QVR: the light at its origin as the first eye found it, the rest this eye's
 	{
 		VectorCopy (eye->light, lightcolor);
-		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias light finish", R_AliasLightFinish (e)); // QVR: (vr_tracy_render_detail)
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias light finish", R_AliasLightFinishBody (e)); // QVR: (vr_tracy_render_detail)
 	}
 	else
 	{
@@ -1851,7 +1901,7 @@ cull:
 			VectorCopy (lightcolor, eye->light);
 		else if (eyecheck && eye->lit)
 			R_AliasEyeCompare (lightcolor, eye->light, sizeof (vec3_t), AEYE_BAD_LIGHT);
-		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias light finish", R_AliasLightFinish (e));
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias light finish", R_AliasLightFinishBody (e));
 	}
 
 	//
@@ -1877,6 +1927,9 @@ cull:
 
 	aliasinstfaces[ibuf.count] = facemask; // QVR: layered shadow casters: its faces (a posed one's: those its box reaches)
 	aliasinstents[ibuf.count] = e; // QVR: (a posed batch's bones: R_AliasPosedJoin)
+	aliasinstflat[ibuf.count] = aliasbodyflat; // QVR (C5f)
+	if (aliasbodyflat)
+		VectorCopy (aliasbodyperpixel, aliasinstperpixel[ibuf.count]);
 	instance = &ibuf.inst[ibuf.count++];
 
 	if (cached && cachehit && cached->instok) // QVR: the pass's first set-up of it (vr_shadow_setup_share), its swing rows added to this batch
@@ -2021,6 +2074,8 @@ instanced:
 	{
 		aliasinstance_t* copy;
 		aliasinstents[ibuf.count] = e; // QVR
+		aliasinstflat[ibuf.count] = aliasinstflat[ibuf.count - 1]; // QVR (C5f)
+		VectorCopy (aliasinstperpixel[ibuf.count - 1], aliasinstperpixel[ibuf.count]);
 		copy = &ibuf.inst[ibuf.count++];
 		*copy = *instance; // exact current pose, bone buffer, skin and wounds
 		copy->motion[0] = copy->motion[1] = -1; // QVR: (the gate's other side: no slots of its own)

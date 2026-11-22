@@ -563,6 +563,10 @@ extern "C" int VR_GLESWorldLite(void)
         // C4k: the models' plain form, its features from bit 9 (gl_shaders.c GL_AliasPlainDefines; vr_render.cpp
         // VR_AliasPlainNeeds)
         lite |= (static_cast<int>(vr_gl_alias_plain_mask.value) & 1023) << 9;
+        if(vr_gl_alias_body.value >= 2.f)
+        {
+            lite |= 1 << 29; // C5f: your body's form with its dynamic lights added flat on the CPU (QVR_APLAIN_VFLAT)
+        }
     }
     if(vr_gl_world_lite.value < 2.f)
     {
