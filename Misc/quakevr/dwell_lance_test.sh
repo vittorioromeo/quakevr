@@ -18,7 +18,7 @@ echo "$log" | grep -E "FAIL|vr_adweapon_models:|progs/dw_lance" | cut -c1-200 | 
 expect_verdict "$log" dwlance "the Lance as a lance, and as the pistol with the setting off"
 check $(grep -q "vr_adweapon_models: 8 made, 0 not made" <<<"$log" && echo 1 || echo 0) "the eight models made (the lance from Dwell's world model)"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "models: the run ended on its verdict"
-OFF="+grableft;vr_mock_button off grip 1;wait30"
+OFF="vr_mock_fingers main 0 1;+grableft;vr_mock_button off grip 1;wait30" # (the main hand's grip closed: it holds, the off hand slides)
 SLIDE="vr_mock_hand_to off held 0.95;wait30;echo dwlance-mark: far;vr_mock_hand_to off held 0.35;wait30;echo dwlance-mark: near;vr_status"
 log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;vr_mock_hand main 0.2 1.1 -0.3 -22 0 0;vr_ad_test 207;wait10;vr_debug_2h_grip 2;vr_mock_hand_to off held 0.75;wait5;vr_mock_hand_to off held 0.75;wait5;$OFF;echo dwlance-mark: took;$SLIDE;echo dwlance-test: done" \
     -QuitOn "dwlance-test: done" -Timeout 300 -Filter "2h grip|dwlance-mark|off .*angles|the shot|rror|exit=" 2>&1 | tr -d '\r')
@@ -62,5 +62,20 @@ check $(grep -q "^cellcord main: lance plugged cell=0" <<<"$s" && [ "$(near "$(c
 s=$(step 5)
 check $(grep -q "^cellcord main: none" <<<"$s" && echo 1 || echo 0) "cord: Crystal Lance Cord off, none"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "cord: the run ended on its last line"
+# 5. dwellweap2: the main hand slides too (vr_twohand.cpp poleShift, vr_pole_slide): the off hand closed on the pole,
+#    the main hand's grip loose (analog 0.3 < vr_pole_slide_grip 0.6): the off hand moved towards the tip carries the
+#    Lance with it, the main hand sliding back towards the butt (the tip drawn further ahead of it); its grip closed
+#    again, the off hand slides and the main hand's place stays.
+log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;vr_mock_hand main 0.2 1.1 -0.3 -22 0 0;vr_ad_test 207;wait10;vr_debug_2h_grip 2;vr_mock_hand_to off held 0.75;wait5;vr_mock_hand_to off held 0.75;wait5;$OFF;echo dwlance-mark: took;vr_mock_fingers main 0 0.3;vr_mock_hand_to off held 0.95;wait30;echo dwlance-mark: slid;vr_mock_fingers main 0 1;vr_mock_hand_to off held 0.5;wait30;echo dwlance-mark: held;vr_status;echo dwlance-test: done" \
+    -QuitOn "dwlance-test: done" -Timeout 300 -Filter "2h grip|dwlance-mark|the shot|rror|exit=" 2>&1 | tr -d '\r')
+mainAt() { awk -v m="$1" '/dwlance-mark/ { if (index($0, m)) { print last; exit } } /the holding hand .* along it from the handle/ { for (i = 1; i <= NF; i++) if ($i == "hand" && $(i+2) == "along" && $(i+6) == "handle") last = $(i+1) }' <<<"$log"; }
+tipAt() { awk -v m="$1" '/dwlance-mark/ { if (index($0, m)) { print last; exit } } /the tip drawn/ { for (i = 1; i <= NF; i++) if ($i == "drawn") last = $(i+1) }' <<<"$log"; }
+m0=$(mainAt took); m1=$(mainAt slid); m2=$(mainAt held); t0=$(tipAt took); t1=$(tipAt slid)
+echo "  the main hand along the pole from its handle: took $m0, slid $m1, held $m2; the tip ahead of it: $t0, then $t1"
+check $(awk -v a="$m0" -v b="$m1" 'BEGIN { print (a != "" && b != "" && a + 0 > -0.5 && a + 0 < 0.5 && b + 0 < -3) ? 1 : 0 }') "main slide: loose, the main hand slid back along the pole (the off hand carrying the Lance)"
+check $(awk -v a="$t0" -v b="$t1" -v m="$m1" 'BEGIN { print (a != "" && b != "" && b - a > -m - 2 && b - a < -m + 2) ? 1 : 0 }') "main slide: the Lance drawn moved with it (the tip further ahead by the slide)"
+check $(awk -v a="$m1" -v b="$m2" 'BEGIN { print (a != "" && b != "" && b - a < 0.5 && a - b < 0.5) ? 1 : 0 }') "main slide: closed again, the main hand's place kept (the off hand slides)"
+check $(grep -q "let go of the weapon held anywhere" <<<"$log" && echo 0 || echo 1) "main slide: never let go"
+check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "main slide: the run ended on its last line"
 verdict
 exit $fail
