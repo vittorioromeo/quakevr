@@ -7591,3 +7591,24 @@ grunt's head intercepted by the backpack; wants packs paintable alone, a lineup 
   death knights' (10); grunts and enforcers have no level ray from behind with a pack first: skipped). humrepl2_test PASS
   (5 masks, 0 on flesh). Dev build 0 warnings.
 - Not seen in a screenshot (the mock view's ray met no one): the yellow cursor and the skin view; check in flat and VR.
+
+## Ropes (phase 2 of 3: climbing them in VR) (agent/ropes2, 2026-11-22)
+
+Reference `ROPES.md` ("Climbing (VR)"). A grip at a rope takes it with either hand (`vr_climb.cpp` "Holds on ropes":
+ropeHold before the ledges, the hold kept as the rope and its place on it, followed each frame); the ledges' hang does
+the rest (hand over hand up and down, stamina, reach), no mantle. The climber rides the rope (`vr_climbrope.cpp`
+Rider): his weight a bob swinging round its top 24 units under his highest hand, the rope laid straight through his
+hands, the free rest below; the holds' motion carries the body as a mover's do; a body blocked stops the swing; a jump
+onto it swings it. Letting go keeps the rope's speed at the hands; a jump press lets go and adds `vr_rope_jump` (200)
+up. The feet wrap round the rope under the hands (`vr_avatar_climb.cpp` ropeFoot). New rules `vr_rope_climb` 1,
+`vr_rope_swing_drag` 0.15, `vr_rope_jump` 200. P1's gap closed: the toolgun's aim meets ropes (`climbrope::pick`:
+Remove, physgun), Clear Props removes the ones made after the map loaded (QC VR_Scene_IsRuntimeProp). Debug > Tests >
+Climbable Ropes: Hang a Rope / a Chain Ahead.
+- **Tests:** `rope_climb_test.sh` (mock-hand plays, `vr_rope_climb_test`): rope_climb 8 passed (up 37.8, down 18.9,
+  swung 41, let go at 125 of the rope's 125 units/s), rope_jump 6 passed (180 up over the rope's 14, 127 level of 129).
+  `vr_rope_test` 16 passed (adds the aim and Clear Props). The feet (vr_debug_climb_feet 2): both ankles within 3 units
+  of the rope while hanging.
+- **Decisions (conservative, his to change):** one bob, not his weight spread over the pieces; one rider a rope (a
+  second climber follows its points); a pinned rope doesn't swing; a hand on a ledge too: no ride; remote clients'
+  rope hangs run in the server's frame like a prop's holds (no move-by-move prediction); the hands drawn as on a ledge.
+- **Left (P3):** the flat auto-climb, the pumped swing to a cap, the rope-to-rope test, the climber's pose in MP.

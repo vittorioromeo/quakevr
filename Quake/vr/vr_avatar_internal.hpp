@@ -221,6 +221,7 @@ struct Climbing
     int lastStep{-1};             // the foot that took the last hold
     int traces{0};                // this frame's (the logs)
     double updateMs{0.0};         // this frame's updateClimbing (vr_debug_climb_feet 2)
+    float ropeWrap{0.f};          // 0 .. 1, eased: the feet round a climbable rope the hands hold (vr_climbrope.cpp)
 };
 
 extern Climbing climbing;
