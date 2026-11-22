@@ -7729,4 +7729,4 @@ QVR_SVC_PREDICT and run moveguard's budget on a copy in the replay ...); B7 the 
   `isCosmetic` answers once per entity per server frame (`cosmeticByEnt`, keyed by `host_framecount`) for every client's
   snapshot instead of two strcmps per record per client. vr_netsnap_selftest 15/0.
 - Not player-facing (no PATCH_NOTES line): the reel is unchanged; B6 only spares a speed hack's corrections.
-
+- Checks (on bases/dagger, this tree's progs): mp_guard 13/1 (the B6 segment passes; A's honest rewinds 1-5 held, 3 runs of 5, A's lag compensation, untouched here), mp_predict 29/2 (at rest 1.4 units off, own jump 4 moves; its results 100 percent bit for bit: load-timing flakes like ROUND25's flat-ground one, not chased), mp_bandwidth 10/0, mp_lockstep_dm 23/0, mp_moves --part grapple 20/0, vr_moveguard_selftest 17/0, vr_netsnap_selftest 15/0; Dev and ThinLTO 0 warnings. Melee eval not run (no melee code touched).
