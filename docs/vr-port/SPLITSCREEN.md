@@ -229,8 +229,8 @@ ends with the effort left re-estimated (below).
 | 4b | Hands, held, two-hand, grips, throw, the toolgun; the motion recorder marked the headset's (the drawn body and climbing's pins: phase 7) | done (1) | - |
 | 5 | `cl`, `cls`, the entity tables, prediction, snapshots, the move, the client's VR net state | done (1) | - |
 | 6 | The loopback grown to 4, the seat loop (each seat's client frame in its `Scope`), own slots: two seats join a listen server and play (headless test: two seats move apart) | done (1) | ~~5, 6~~ answered: autosave only; drop-in/out (a seat joins or leaves a running game) |
-| 7 | Per-seat render: rectangles, per-view caches; the effects (each seat's client world); the drawn body (`vr_avatar*`) and climbing's client pins (4b's leftovers) | part 1 done (1): tiles, layouts, the seat's pass; 3-4 left | ~~2~~ answered: the tiles follow the chosen layout (phase 11) |
-| 8 | Sound: a listener per seat, nearest-listener spatialisation, duplicate starts dropped | 1-2 | - |
+| 7 | Per-seat render: rectangles, per-view caches; the effects (each seat's client world); the drawn body (`vr_avatar*`) and climbing's client pins (4b's leftovers); sounds per seat listener (phase 8's, brought in) | done (3: tiles and layouts; bodies, pins, effects; sounds, the effects' spawners, the visor) | ~~2~~ answered: the tiles follow the chosen layout (phase 11) |
+| 8 | The shared effects' other memories fed once (decals and shells from Quake VR's messages, gore's state), the static sounds and underwater muffling per seat, flat TAA per tile (a history a seat), the shadow and portal caches checked with several views | 1-2 | - |
 | 9 | Menus and console per seat (`key_dest`, the stack) | 2 | ~~4~~ answered: options; coop's default: the menu pauses, only seat 1's is the full menu |
 | 10 | UX: Multiplayer > Splitscreen and the join screen | 2-3 | ~~3, 4, 6~~ answered (drop-in/out: the join screen also joins a running game) |
 | 11 | UX: layouts (2 side by side or stacked, 3, 4): all switchable, the default from the monitor's aspect | 1-2 | ~~2~~ answered: customizable; ultrawide side by side; 3: one wide on top, two below |
@@ -255,7 +255,9 @@ with flat seats (14) last and not yet costed. **After phase 6: 18-26 worker-days
 seats' client state of phases 1-5 made the seat loop a loop; phase 7 gains half a day: the headless seats' gates, section 14,
 become each seat's view, sound and effects). **After phase 7's first part: 16-24 worker-days** (it took one: each seat
 drawn in its tile by the code that draws the window; left of 7: each seat's particles and lights, the drawn body and
-climbing's pins per seat, other players' copies posed once per frame, the visor per seat; section 15).
+climbing's pins per seat, other players' copies posed once per frame, the visor per seat; section 15). **After phase
+7: 13-20 worker-days** (parts 2 and 3 took one each of the 3-4 left; part 3 took phase 8's listeners, so phase 8 is now
+what the shared memories left: section 17).
 
 ## 7. Questions for him (the phase that needs each)
 
@@ -653,3 +655,42 @@ His answer to question 3 (2026-11-21): seat 1 is always the keyboard and mouse; 
   shadow and portal caches per view checked with several views; the torch lights per seat checked on a map with torches
   near the start (e1m1's has none).
 - **Before and after**: ROUND25.md "split7b".
+
+## 17. Phase 7, part 3 (2026-11-22): sounds per seat, the effects' spawners, the visor per tile
+
+(Seats numbered from 0 as in the code.) Phase 7 is done with this part; what it leaves is phase 8's (the table).
+
+- **Sounds from each drawn seat's listener** (snd_dma.c; phase 8's first half): with seats in tiles, `S_Update` takes
+  the drawn seats' listeners (`CL_SeatListeners`: each seat's last drawn eye and its right, `seatview_t`'s `drawnorg` and
+  `drawnright`, and its player's entity). A channel is spatialized from each listener with Quake's panning and keeps
+  the loudest (`SND_Spatialize`: the nearest seat hears it best, panned as that seat faces); a seat's own player's
+  sounds play at full volume, as the one player's do. The ambient sounds take the loudest seat's leaf's levels. A sound
+  every seat's client reads (the server sends it to all in hearing) starts once: `S_StartSound` is gated by
+  `CL_SeatEffectFirst(SEATFX_SOUND, ...)` (the sound, the entity and channel, the place); a sound only a later seat
+  reads starts too; a seat not drawn starts none (as before); `S_LocalSound` plays for any drawn seat. Steam Audio's
+  spatial voices are off while there are several listeners (one head; `wanted()`), so Quake's panning does it. The
+  static sounds and the underwater muffling stay seat 0's (phase 8). One seat: no listeners taken (0), the same path.
+- **Quake VR's effect spawners fed once per server event** (`CL_SeatFxBegin` / `CL_SeatFxEnd`, vr_seat.cpp): around a
+  temporary entity's parse (cl_parse.c) and a Quake VR message's (`VR_ParseServerMessage`: gore and wounds, the gun
+  effects, tracers, ejected shells' smoke, impacts, sparks, ...), the bytes read are the event, the same in every seat's
+  client that reads it: a later seat's identical one this frame has the particles it spawned taken back (both pools:
+  `particles::truncate`, `R_ParticleTruncate`). This covers the ~20 files calling `particles::` from those handlers
+  without touching each. The temporary entities' decals, material impacts and heat haze are fed once by their type and
+  place (cl_tent.c's `CL_SeatDecalTE`, `CL_SeatImpactTE`, `CL_SeatHazeTE`). The per-frame emitters on shared memories
+  run once a frame (`seat::sharedFxFirst`: the blood streams, the torches' sparks and smoke per torch; smoulder, the
+  fire sources and the flames' wobble already ran once a host frame). One seat: nothing taken back.
+- **The flat visor per seat in its tile**: `visor::active` no longer off in tiles; each seat's pass renders its visor's
+  panels (`VR_VisorSeatPanels`, from its last HUD's input) before its view composites them into its tile (the panels'
+  images are one set, each seat's in turn); `VR_End2D` renders them only with one seat. Flat TAA stays off in tiles
+  (one history: a history a seat is phase 8's, not cheap).
+- **Torch lights per seat checked** on e1m6 (torches by every start): each seat's own client's torch lights, chosen by
+  its own eye (`emissive::torchLightsLit`).
+- **`vr_seat_render_test`** grew: the sound listeners (one a drawn seat), a sound all seats read started once, one only
+  the last seat reads at its eye at full volume from its listener; a Quake VR event all seats read spawning its
+  particles once; each seat's visor on (the screenshot once every visor has powered on); `vr_seat_render_test 2
+  torches` (seat_render_test.sh runs it on e1m6). seat_render_test.sh runs with sound on at volume 0. 2 seats 27/27, 3
+  seats 34/34, 4 seats 42/42, torches 29/29.
+- **Left (phase 8)**: decals and shells made by Quake VR's messages (their particles are fed once; the marks and the
+  shells, shared memories, not yet), gore's other state; the static sounds and the underwater muffling per seat; flat TAA
+  per tile; the shadow and portal caches checked with several views.
+- **Before and after**: ROUND25.md "split7c".

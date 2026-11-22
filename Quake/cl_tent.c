@@ -118,6 +118,26 @@ void CL_ParseBeam (qmodel_t *m)
 	//johnfitz
 }
 
+// QVR: splitscreen: a temporary entity's shared marks fed once (seats in tiles: the first seat this frame to read it; its
+// particles: CL_SeatFxEnd's): the decal, the impact's (by the surface's material) and the heat haze. One seat: always.
+static void CL_SeatDecalTE (int type, vec3_t pos)
+{
+	if (CL_SeatEffectFirst (SEATFX_VR, 0x7100 + type, pos))
+		VR_DecalTempEntity (type, pos);
+}
+
+static void CL_SeatImpactTE (int type, vec3_t pos)
+{
+	if (CL_SeatEffectFirst (SEATFX_VR, 0x7200 + type, pos))
+		VR_ImpactTempEntity (type, pos);
+}
+
+static void CL_SeatHazeTE (vec3_t pos, float strength)
+{
+	if (CL_SeatEffectFirst (SEATFX_VR, 0x7300 + (int) (strength * 100.f), pos))
+		VR_HazeExplosion (pos, strength);
+}
+
 /*
 =================
 CL_ParseTEnt
@@ -138,7 +158,7 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		VR_DecalTempEntity (QVR_DECAL_TE_MONSTERSPIKE, pos); // QVR: a mark
+		CL_SeatDecalTE (QVR_DECAL_TE_MONSTERSPIKE, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 20, 30);
 		VR_ProjectileImpactLight (0, pos); // QVR: a green flash
 		S_StartSound (-1, 0, cl_sfx_wizhit, pos, 1, 1);
@@ -148,7 +168,7 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		VR_DecalTempEntity (QVR_DECAL_TE_MONSTERSPIKE, pos); // QVR: a mark
+		CL_SeatDecalTE (QVR_DECAL_TE_MONSTERSPIKE, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 226, 20);
 		VR_ProjectileImpactLight (1, pos); // QVR: a fiery flash
 		S_StartSound (-1, 0, cl_sfx_knighthit, pos, 1, 1);
@@ -158,9 +178,9 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		VR_DecalTempEntity (QVR_DECAL_TE_SPIKE, pos); // QVR: a mark
+		CL_SeatDecalTE (QVR_DECAL_TE_SPIKE, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 0, 10);
-		VR_ImpactTempEntity (QVR_DECAL_TE_SPIKE, pos); // QVR: by the surface's material
+		CL_SeatImpactTE (QVR_DECAL_TE_SPIKE, pos); // QVR: by the surface's material
 		if ( rand() % 5 )
 			S_StartSound (-1, 0, cl_sfx_tink1, pos, 1, 1);
 		else
@@ -178,9 +198,9 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		VR_DecalTempEntity (QVR_DECAL_TE_SUPERSPIKE, pos); // QVR: a mark
+		CL_SeatDecalTE (QVR_DECAL_TE_SUPERSPIKE, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 0, 20);
-		VR_ImpactTempEntity (QVR_DECAL_TE_SUPERSPIKE, pos); // QVR: by the surface's material
+		CL_SeatImpactTE (QVR_DECAL_TE_SUPERSPIKE, pos); // QVR: by the surface's material
 
 		if ( rand() % 5 )
 			S_StartSound (-1, 0, cl_sfx_tink1, pos, 1, 1);
@@ -200,16 +220,16 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		VR_DecalTempEntity (QVR_DECAL_TE_GUNSHOT, pos); // QVR: a mark
+		CL_SeatDecalTE (QVR_DECAL_TE_GUNSHOT, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 0, 20);
-		VR_ImpactTempEntity (QVR_DECAL_TE_GUNSHOT, pos); // QVR: by the surface's material
+		CL_SeatImpactTE (QVR_DECAL_TE_GUNSHOT, pos); // QVR: by the surface's material
 		break;
 
 	case TE_EXPLOSION:			// rocket explosion
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		VR_DecalTempEntity (QVR_DECAL_TE_EXPLOSION, pos); // QVR: a mark
+		CL_SeatDecalTE (QVR_DECAL_TE_EXPLOSION, pos); // QVR: a mark
 		R_ParticleExplosion (pos);
 		dl = CL_AllocDlight (0);
 		VectorCopy (pos, dl->origin);
@@ -217,7 +237,7 @@ void CL_ParseTEnt (void)
 		dl->die = cl.time + 0.5;
 		dl->decay = 300;
 		VR_TuneDlight (QVR_DLIGHT_EXPLOSION, 0, dl); // QVR
-		VR_HazeExplosion (pos, 1.f); // QVR: heat haze (vr/vr_haze.cpp)
+		CL_SeatHazeTE (pos, 1.f); // QVR: heat haze (vr/vr_haze.cpp)
 		S_StartSound (-1, 0, cl_sfx_r_exp3, pos, 1, 1);
 		break;
 
@@ -226,7 +246,7 @@ void CL_ParseTEnt (void)
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		R_BlobExplosion (pos);
-		VR_HazeExplosion (pos, 0.8f); // QVR: heat haze (vr/vr_haze.cpp)
+		CL_SeatHazeTE (pos, 0.8f); // QVR: heat haze (vr/vr_haze.cpp)
 
 		S_StartSound (-1, 0, cl_sfx_r_exp3, pos, 1, 1);
 		break;
@@ -267,7 +287,7 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		VR_DecalTempEntity (QVR_DECAL_TE_EXPLOSION, pos); // QVR: a mark
+		CL_SeatDecalTE (QVR_DECAL_TE_EXPLOSION, pos); // QVR: a mark
 		colorStart = MSG_ReadByte ();
 		colorLength = MSG_ReadByte ();
 		R_ParticleExplosion2 (pos, colorStart, colorLength);
@@ -277,7 +297,7 @@ void CL_ParseTEnt (void)
 		dl->die = cl.time + 0.5;
 		dl->decay = 300;
 		VR_TuneDlight (QVR_DLIGHT_EXPLOSION, 0, dl); // QVR
-		VR_HazeExplosion (pos, 1.f); // QVR: heat haze (vr/vr_haze.cpp)
+		CL_SeatHazeTE (pos, 1.f); // QVR: heat haze (vr/vr_haze.cpp)
 		S_StartSound (-1, 0, cl_sfx_r_exp3, pos, 1, 1);
 		break;
 
