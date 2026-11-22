@@ -8138,3 +8138,33 @@ ROPES.md "Tests", "Known limits". His words: chains work well, minor adjustments
   and AD's own monsters'), multiplies by `VR_AD_SHELL_FASTER` 1.3; the Player/Enemy Pellet Speed settings stay 1 and
   multiply on top; vanilla's hitscan untouched. `vr_ad_test 58` now prints `adshots-test: speed PASS|FAIL` (ad_shots
   test's FAIL scan catches it): player 2601 (AD 2000 x 1.3), enemy 1241 (950 x 1.3); at the settings x2: 5210, 2450.
+
+## ropes5b: chain sounds, vr_rope_test's Clear Props, the frame end paused (agent/ropes5, 2026-11-22)
+
+ROPES.md "Tests", "Known limits".
+- **vr_rope_test 15/1 (Clear Props):** plain origin/next failed it too. The test's chain counted as "early" only if made
+  before QC's VR_SCENE_LOADED (1.5 s), but `map vrropes; wait60; vr_rope_test` begins at 2.05 s (the map's ropes are
+  born at 0), so Clear Props rightly took it. The check now wants the ropes born by 1.5 s kept and the chain kept or gone
+  by its own birth time: 16/0.
+- **Chain sounds:** `physsound::ropeGrab` (a chain: grab_metal, `vr_physsound_chain` 0.4; a rope: the slap it always had,
+  grab_stone at `vr_physsound_grab`, still silent to a headset's grip), one grip sound per rope in 0.15 s;
+  `physsound::chainMoves` from `climbrope::serverFrame` after each step: the light metal knocks (metal_l*) from
+  `vr_physsound_chain_speed` 60 u/s, a third loud and every 0.6 s there, full and every 0.25 s at four times it. Quake
+  VR's own recordings (make_physics_sounds.py). Call sites: vr_climb.cpp's VR grip and flat rope take go through
+  `climbrope::grabbed` (shared: the mode only decides the rope's silence in VR). Climbing page: Chain Sounds.
+  `vr_rope_sound_test` (rope_sound_test.sh, Debug > Tests): 6/0 (5 clinks in 2 s swinging; still: none).
+- **Paused frame end:** besides the ropes, `legsweep` (the hands' tracks forgotten: no sweep, none from the pause's
+  move on resume), `foegrab` serverFrame and afterPoses (skipped: a headset's hand no longer drags a held enemy or
+  lets go in the menu), `bodycontact` (no push; its debug shows still gathered) and `axestick` (placed, but its eases,
+  sag and lean get dt 0) stand when SV_Physics didn't run. Left running (harmless or by design): weapon-inst sweep,
+  tips (wall-clock UI), hitmodel/lagcomp pose records (same time stamps), disarmviz, explosion debris (QC time),
+  limb models, rigseq, armour/recolour/xray sends, rig studio, motion recorder, fatigue debug. Not tested paused
+  beyond rope_pause_test 4/0 (unpaused play is unchanged: every change is gated on worldRan).
+- **mp ropeclimb ankles:** flaky, 9 runs: swinging maxima 13.9-21.7 against 18 (3 of 9 over). Cause: B's copy of A
+  hangs with the pelvis 19-25 units from the rope even at rest (the head 10-15 off it; `ropeHips` turns the trunk at
+  most 45 degrees about the neck), so the feet reach the rope with the leg nearly straight, and at the swing's turns the
+  rope below the hands (its free end trails) slips past the leg's 0.97 reach; which report lands on that phase decides
+  the maximum. Tried and reverted (no change in the spread): feet looking for the rope round his drawn palms instead of
+  the server's holds; ropeHips pulling towards the rope itself instead of the holds' way in. Not fixed: needs the
+  copy's trunk nearer the rope (the neck), or the bound at ~22 for the swing check.
+

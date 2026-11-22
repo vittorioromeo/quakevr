@@ -222,7 +222,8 @@ offsets (which put it beside the rope). On a rope the trunk turns about the neck
 ## Known limits (P1)
 
 - Another player swinging on a rope (`mp_test.py ropeclimb`): his hands are drawn on the rope as this client draws it
-  (ropes5: wrists 3.5 swinging, were 10-12); his ankles still read up to 18 units off it at a full swing (bound 18).
+  (ropes5: wrists 3.5 swinging, were 10-12); his ankles read 14-22 units off it at a full swing (bound 18: 3 of 9
+  runs over, ropes5b): his pelvis hangs ~20 off the rope, the legs reach it nearly straight (ROUND25 "ropes5b").
 - The toolgun's Remove and Physgun aim at a rope by its pieces (P2; `climbrope::pick`); the physgun moves its top. The
   aimed rope isn't outlined (no model to glow). Clear Props (`vr_scene_clean props`) takes the ropes made after the
   map's first 1.5 s (QC VR_Scene_IsRuntimeProp), as the props.
