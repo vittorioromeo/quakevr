@@ -1492,6 +1492,9 @@ QVR_SLIDER(vr_revolver_heavy_mult, "Heavy Revolver Big Bodies", 1.f, 4.f, 0.05f,
     "as much: an ogre takes 4-5 in the body.")
 QVR_SLIDER(vr_revolver_cooldown, "Heavy Revolver Cooldown", 0.05f, 1.f, 0.01f, "%.2f s", ext(0.05f, 3.f),
     "Double action: a shot each pull of the trigger, at least this long apart.")
+QVR_TOGGLE(vr_haste_full_auto, "Haste: Full Auto",
+    "While Haste (or the Hell Magic rune) is active, the semi-automatic guns (the nail pistol, the heavy revolver, the "
+    "flare gun) fire again while the trigger is held, at their cooldown times Haste's 0.6.")
 QVR_SLIDER(vr_dmg_grenade, "Grenade", 10.f, 400.f, 5.f, "%.0f", ext(),
     "A grenade's blast at its middle, less further out (id's 120): the launcher's, a hand grenade's and an "
     "ogre's grenade caught and thrown back.")
@@ -2651,7 +2654,9 @@ QVR_TOGGLE_BYNAME(vr_climb_slide, "Hands Slide Along Ledges", nullptr)
 QVR_SLIDER_BYNAME(vr_physsound_grab, "Grab Sound", 0.f, 1.f, 0.1f, "%.1f", noExt,
     "A small slap as your hand takes a hold, of what the hold is made of: wood, muted metal or stone (0 off; also Carrying: Physics Sounds).")
 QVR_SLIDER_BYNAME(vr_physsound_chain, "Chain Sounds", 0.f, 1.f, 0.1f, "%.1f", noExt,
-    "A climbable chain's own sounds: a metal grip as your hand takes it, and its links clinking when it swings or you climb it (0 off; ropes keep the Grab Sound's slap).")
+    "A climbable chain's own sounds: a metal grip as your hand takes it, and its links clinking when it swings or you climb it (0 off; a rope's grip makes a soft thud at the Grab Sound's volume).")
+QVR_SLIDER_BYNAME(vr_rope_grunt, "Rope Pull Grunt", 0.f, 1.f, 0.1f, "%.1f", noExt,
+    "A short grunt as you pull yourself up a climbable rope with your hands (once a grip, when the pull lifts you; not when you only grab it). 0 off.")
 QVR_SLIDER_BYNAME(vr_climb_mantle_height, "Mantle Height", 0.f, 40.f, 1.f, "%.0f units", noExt,
     "Holding a ledge, how far your head must rise above its top before you pull up onto it. Higher: you "
     "can lean up and down over a ledge without mantling (the old point was about 15 at a chest-high ledge; "
@@ -3245,6 +3250,9 @@ QVR_SLIDER_BYNAME(vr_revolver_open_flick_speed, "Flick Open Speed", 50.f, 2000.f
 QVR_SLIDER_BYNAME(vr_revolver_open_flick_angle, "Flick Open Wrist Flick", 5.f, 120.f, 5.f, "%.0f deg", ext(0.f, 360.f), "And how far it must roll that way in one go.")
 QVR_SLIDER_BYNAME(vr_revolver_open_flick_time, "Flick Open Time", 0.05f, 1.f, 0.05f, "%.2f s", ext(0.f, 5.f),
     "The wrist flick must be rolled within this long of the flick's start; a slower roll starts over (0: no limit).")
+QVR_SLIDER_BYNAME(vr_revolver_open_flick_arm_share, "Flick Open Arm Share", 0.05f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
+    "A flick mostly of the wrist opens it, a swing mostly of the arm (a melee blow) never does: the arm's share of the "
+    "hand's motion above which the flick is a swing (lower: stricter; 1: no guard).")
 QVR_TOGGLE_BYNAME(vr_revolver_open_button, "Eject Button Opens",
     "B/Y swings it out; out, B/Y pushes the ejector (its shells drop).")
 QVR_SLIDER_BYNAME(vr_revolver_eject_speed, "Eject Push Speed", 0.2f, 4.f, 0.05f, "%.2f m/s", ext(0.05f, 10.f),
@@ -7080,7 +7088,7 @@ QVR_CYCLE_BYNAME(vr_tutorial_goto, "Go to a Lesson",
     "on the way stay as they are.",
     {0.f, "-"}, {1.f, "1 Moving"}, {2.f, "2 Buttons"}, {3.f, "3 Jumping"}, {4.f, "4 Swimming"}, {5.f, "5 Healing"},
     {6.f, "6 Melee"}, {7.f, "7 A Fight"}, {8.f, "8 Weapons"}, {9.f, "9 Darkness"}, {10.f, "10 Throwing"},
-    {11.f, "11 Fire"}, {12.f, "12 The Arena"})
+    {11.f, "11 Fire"}, {12.f, "12 Blades"}, {13.f, "13 Bash and Bat"}, {14.f, "14 Ropes"}, {15.f, "15 The Arena"})
 QVR_TOGGLE_BYNAME(vr_trailer_log, "Trailer Scene Log",
     "vr_trailer_log 1: the grunt's state (enemy, frame, think, stealth state, oblivious), the axe's place "
     "and yours, four times a second (the console). Off for takes: the lines would show.")

@@ -530,7 +530,8 @@ This is the destination marker for a teleporter. It should have a 'targetname' f
 ]
 
 @PointClass color(76 255 76) size(-16 -16 -24, 16 16 32) =
-	info_vr_checkpoint : "Quake VR: where a player who dies comes back (single player), instead of the level restarting: taken when he comes within 'distance' (default 96) of it, or when it is used. He comes back at the latest one taken, facing its 'angle', with a new life (the level's starting items and health; the keys he holds kept), the level as he left it. No checkpoint taken: the level restarts, as Quake's."
+	info_vr_checkpoint : "Quake VR: where a player who dies comes back (single player), instead of the level restarting: taken when he comes within 'distance' (default 96) of it, or when it is used. He comes back at the latest one taken, facing its 'angle', with a new life (the level's starting items and health; the keys he holds kept), the level as he left it. No checkpoint taken: the level restarts, as Quake's.
+SAVE: taken, the game is saved ('<map>_checkpoint', written over each time) and 'message' centerprinted; while it is the latest one taken, a death loads that save (the level as it was then: a fight after it starts again) instead."
 [
 	distance(float) : "Distance" :  : "A distance (units) or an angle (degrees): see the help for this entity."
 ]
@@ -2586,6 +2587,7 @@ START_OFF wall doesn't block until triggered.
 	[
 		1 : "START OFF" : 0
 	]
+	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
 	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
 	noise1(string) : "Sound 1" :  : "A sound, relative to sound/."
 ]
@@ -2653,7 +2655,7 @@ Trains are moving platforms that players can ride. The targets origin specifies 
 ]
 
 @PointClass color(255 102 51) size(-16 -16 -24, 16 16 40) =
-	func_vr_spawner : "Quake VR: makes monsters here when used, with a teleporter's flash: 'weapon' which kind (as func_enemy_dispenser's: 0 grunt, 1 ogre, 2 zombie, 7 dog, 8 enforcer...), 'count' how many a use makes (default 1), 'wait' the seconds between them (default 0.5; one waits while something stands on the spot), 'angle' the way they face. 'target' is fired (the user the activator) once every monster of its latest use is dead: chain waves with trigger_counter and trigger_relay.
+	func_vr_spawner : "Quake VR: makes monsters here when used, with a teleporter's flash: 'weapon' which kind (as func_enemy_dispenser's: 0 grunt, 1 ogre, 2 zombie, 7 dog, 8 enforcer...; with 'weapon' 0, 'vr_spawn_arm' makes armed grunts holding that weapon, monster_vr_grunt's codes: 2 an axe, 13 a sword...), 'count' how many a use makes (default 1), 'wait' the seconds between them (default 0.5; one waits while something stands on the spot), 'angle' the way they face. 'target' is fired (the user the activator) once every monster of its latest use is dead: chain waves with trigger_counter and trigger_relay.
 ONE_AT_A_TIME: a use while one of its monsters lives makes none ('message' centerprinted to the player who used it).
 ANGRY: they go for the player who used it at once. One stranded more than 64 units below the spot it came in at, out of the player's sight for 10 seconds (a pit it can't climb out of), comes back to that spot."
 [
@@ -5743,6 +5745,11 @@ targets enemies in vicinity and fires at them
 	duration(float) : "Duration" :  : "Seconds it lasts."
 	distance(float) : "Distance" :  : "A distance (units) or an angle (degrees): see the help for this entity."
 	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
+]
+
+@PointClass color(0 128 204) size(-8 -8 -8, 8 8 8) =
+	trap_vr_shooter : "Quake VR: when used, fires at the player who used it (single player: the player): 'style' 0 a spike straight at him, 1 a grenade lobbed to come down at him a second later (the ogre's: catch it and throw it back). For batting and catching practice (vrtutorial's lesson 13)."
+[
 ]
 
 @PointClass color(0 128 204) size(16 16 16) model({ "path": "progs/player.mdl" }) =

@@ -301,7 +301,8 @@ QVR_FIELD(vr_xdebris) // an explosion's chunk (vr_explosiondebris.cpp): when it 
 QVR_FIELD(vr_ar_type) // an armed humanoid's armour (vr_agarmor.qc): 0 none, 1 green, 2 yellow, 3 red (vr_agarmor.cpp sends it to the clients)
 QVR_FIELD(vr_ar_mask) // its armour pieces still on (bits: vr_agarmor.hpp's Piece)
 QVR_FIELD(vr_xray) // one of a Survival Arena wave's last foes (QC vr_arena.qc VR_ARENA_XrayMark): sent past the PVS, outlined through walls (vr_arenaxray.cpp)
-QVR_FIELD(vr_hum_look) // an armed humanoid's recolour (QC vr_humrepl.qc VR_HUM_Look): its row * 16 + its weapon category, + 4096 on its worn pack; 0 none (vr_humlook.cpp sends it)
+QVR_FIELD(vr_monster_avoid) // a hurting field monsters keep off (QC ad_func.qc's togglewall, hip_part.qc's): SV_movestep refuses a step nearer (vr_hull.cpp VR_MonsterAvoidsField)
+QVR_FIELD(vr_hum_look)// an armed humanoid's recolour (QC vr_humrepl.qc VR_HUM_Look): its row * 16 + its weapon category, + 4096 on its worn pack; 0 none (vr_humlook.cpp sends it)
 QVR_FIELD(vr_wp_state) // a worn backpack's (QC vr_wornpack.qc): 1 on a living one, 2 on a dead one, 3 off; worn (1, 2) it keeps its angles (U_QVR_NOROTATE: no EF_ROTATE spin)
 QVR_FIELD(vr_wp_size) // a worn backpack's (QC vr_wornpack.qc): its size as drawn (its kind's vr_worn_backpack_<kind>_scale)
 QVR_FIELD(vr_wp_wearer) // a worn backpack's or lift zone's wearer (QC vr_wornpack.qc): the Rig Studio's census

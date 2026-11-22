@@ -158,3 +158,21 @@ nav_crowd, nav_tower, nav_props (kept: NAVMESH.md / ROUND24.md and the navmesh c
   good" + "no hitch" (2 -> 1). Every line cut to what to do and what to see (all keys change: none was ticked).
 - New scenes: run_pickups (e1m1, Randomized Pickups Balanced), run_setup_newgame (Run Setup as New Game opens it),
   ad_tears_window (ad_tears; AD running). 48 of 68 lines have a Test.
+
+# Checklist sort (2026-11-22)
+
+142 lines down to 130 (including 3 new Dwell Lance lines that arrived during the sort). The 46-line [New] section
+is sorted and dropped. New sections: Arcane Dimensions, Ropes and chains, Tutorial and VR interface. The empty ones
+(VR movement and comfort, Graphics and performance, Menus and settings) are left out. Two stray header lines from a
+failed ship's duplicate were folded into the header (the newer wording kept).
+
+## Retired (12)
+
+- 11 ticked, no voice note against them: armed humanoids' weapon colours (superseded by the enforcer pack line),
+  the Crystal Lance as a spear in VR and flat (dwellweap's new Lance lines replace them), rope push / shoot /
+  toolgun spawn, toolgun on a rope, Dwell holster kinds, the Rotary Shotgun's ammo screen, kellbase1's pillar ladders
+  (the drawn-rung line replaces it), Holster Calibration's ammo pouch rows.
+- 1 failed and superseded: "Pistol-whip with the heavy revolver: the cylinder stays shut..." is answered by
+  vrnotes1122b's flick-open arm share (the "quick wrist roll... a melee swing never opens it" line).
+
+Known: checklist_tests_check fails on quoth_kellbase_field (from kellbase): the check doesn't know Quoth maps.

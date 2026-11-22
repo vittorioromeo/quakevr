@@ -145,6 +145,8 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 			{
 				if ( ((int)ent->v.flags & FL_SWIM) && SV_PointContents(trace.endpos) == CONTENTS_EMPTY )
 					return false;	// swim monster left water
+				if (VR_MonsterAvoidsField (ent, oldorg, trace.endpos))
+					return false;	// QVR: never nearer a hurting field (vr/vr_hull.cpp)
 
 				VectorCopy (trace.endpos, ent->v.origin);
 				if (relink)
@@ -193,6 +195,9 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 
 		return false;		// walked off an edge
 	}
+
+	if (VR_MonsterAvoidsField (ent, oldorg, trace.endpos))
+		return false;	// QVR: never nearer a hurting field (a togglewall that hurts: vr/vr_hull.cpp)
 
 // check point traces down for dangling corners
 	VectorCopy (trace.endpos, ent->v.origin);

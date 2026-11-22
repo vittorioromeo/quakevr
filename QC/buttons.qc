@@ -81,7 +81,8 @@ string vr_button_how; // what pressed the button now firing, for vr_debug_wallbu
 
 // A hub's campaign lectern (vrstart's; buttonEffect 3 running "vr_activestartpaknameidx <n>; ...") whose campaign's
 // data is missing: 1 Scourge of Armagon, 2 Dissolution of Eternity (the mission packs), 3 Dimension of the Past,
-// 4 Dimension of the Machine, 5 Dawn of the Machine (vr_gamedir.cpp's campaigns: their vr_<folder>_status, 1 installed).
+// 4 Dimension of the Machine, 5 Dawn of the Machine, 6 Arcane Dimensions, 7 Dwell, 8 Quoth (the mods' lecterns,
+// vrnotes1122c2) (vr_gamedir.cpp's campaigns: their vr_<folder>_status, 1 installed).
 float() button_campaign_unavailable =
 {
     if(self.buttonEffect != 3) return FALSE;
@@ -91,7 +92,20 @@ float() button_campaign_unavailable =
     if(prefix == "vr_activestartpaknameidx 3; ") return cvar_hget(cvarh_vr_dopa_status) != 1;
     if(prefix == "vr_activestartpaknameidx 4; ") return cvar_hget(cvarh_vr_mg1_status) != 1;
     if(prefix == "vr_activestartpaknameidx 5; ") return cvar_hget(cvarh_vr_mg3_status) != 1;
+    if(prefix == "vr_activestartpaknameidx 6; ") return cvar_hget(cvarh_vr_ad_status) != 1;
+    if(prefix == "vr_activestartpaknameidx 7; ") return cvar_hget(cvarh_vr_dwell_status) != 1;
+    if(prefix == "vr_activestartpaknameidx 8; ") return cvar_hget(cvarh_vr_quoth_status) != 1;
     return FALSE;
+};
+
+// What a lectern whose campaign is missing says (button_campaign_unavailable): a mod's (6-8) that it isn't installed.
+string() button_campaign_unavailable_text =
+{
+    string prefix = substring(self.targetname, 0, 28);
+    if(prefix == "vr_activestartpaknameidx 6; ") return "Arcane Dimensions is not installed.\nOfficial Campaigns says what it needs.";
+    if(prefix == "vr_activestartpaknameidx 7; ") return "Dwell is not installed.\nOfficial Campaigns says what it needs.";
+    if(prefix == "vr_activestartpaknameidx 8; ") return "Quoth is not installed.\nOfficial Campaigns says what it needs.";
+    return "Campaign unavailable. Restore its owned data; Quake is available.";
 };
 
 void() button_fire =
@@ -110,7 +124,7 @@ void() button_fire =
     {
         if(self.enemy.classname == "player")
         {
-            centerprint(self.enemy, "Campaign unavailable. Restore its owned data; Quake is available.");
+            centerprint(self.enemy, button_campaign_unavailable_text());
         }
         return;
     }

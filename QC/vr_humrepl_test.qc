@@ -152,6 +152,28 @@ void(entity p) VR_HUM_Test =
     VR_Test_Check(g1.vr_hum_look == VR_AM_GRUNT * 16 + VR_HUM_CAT_EXPLOSIVE, sprintf("a grunt with a rocket launcher: look %g", g1.vr_hum_look));
     VR_Test_Check(g2.vr_hum_look == VR_AM_ENFORCER * 16 + VR_HUM_CAT_NAILS, sprintf("an enforcer with a nailgun: look %g", g2.vr_hum_look));
     VR_Test_Check(g1.vr_wp_pack != world, "the rocket grunt wears a pack (its look the engine's from its wearer)");
+    // His note kellbase1 2026-11-22: an energy weapon's enforcer drops a blue pack (DropBackpack: its body's look + pack).
+    entity g3 = spawn();
+    setorigin(g3, at - hf * 60 - hr * 60);
+    g3.weapon = WID_LIGHTNING;
+    self = g3;
+    monster_vr_enforcer();
+    self.ammo_cells = 10;
+    DropBackpack();
+    self = os;
+    entity pk = world;
+    entity it = nextent(world);
+    while(it)
+    {
+        if(it.model == "progs/backpack.mdl" && it.vr_monster_drop == time && vlen(it.origin - g3.origin) < 40)
+        {
+            pk = it;
+        }
+        it = nextent(it);
+    }
+    float wantPack = VR_AM_ENFORCER * 16 + VR_HUM_CAT_ENERGY + 4096;
+    VR_Test_Check(g3.vr_hum_look == VR_AM_ENFORCER * 16 + VR_HUM_CAT_ENERGY && pk != world && pk.vr_hum_look == wantPack,
+        sprintf("a thunderbolt enforcer's dropped pack: look %g (want %g; its body %g)", pk.vr_hum_look, wantPack, g3.vr_hum_look));
     localcmd(keep); // (the settings as they were)
     // The client's word.
     entity w = spawn();

@@ -8156,6 +8156,11 @@ ROPES.md "Tests", "Known limits". His words: chains work well, minor adjustments
   multiply on top; vanilla's hitscan untouched. `vr_ad_test 58` now prints `adshots-test: speed PASS|FAIL` (ad_shots
   test's FAIL scan catches it): player 2601 (AD 2000 x 1.3), enemy 1241 (950 x 1.3); at the settings x2: 5210, 2450.
 
+## humlook3: his new Texture Studio painting is the shipped default (agent/humlook3, 2026-11-22)
+- His humlook.txt (grunt explosive/energy/flame/poison pack rows, dknight explosive clothes+pack) and humlook_masks.txt
+  (paint lines: backpack, enforcer, grunt, knight, death knight; the death knight's skin newly painted) copied to quakevr/.
+- humstudio2_test PASS (130 passed, round trip identical); humrepl2_test PASS after its stroke used class 1 (class 3 had
+  nothing left to change on the death knight's now fully painted skin).
 ## ropes5b: chain sounds, vr_rope_test's Clear Props, the frame end paused (agent/ropes5, 2026-11-22)
 
 ROPES.md "Tests", "Known limits".
@@ -8185,3 +8190,312 @@ ROPES.md "Tests", "Known limits".
   the server's holds; ropeHips pulling towards the rope itself instead of the holds' way in. Not fixed: needs the
   copy's trunk nearer the rope (the neck), or the bound at ~22 for the swing check.
 
+
+## ropepose: another player's rope pose hangs as his own does (agent/ropepose, 2026-11-22)
+
+ROPES.md "Multiplayer", "Tests", "Known limits".
+- Measured first: `mp_ropepose_own` (new, `vr_mp_avatars`): A's own body against the rope as his game draws it, beside
+  B's `mp_ropepose` of his copy (both now with `neck=`, the head bone). Hanging still: A's pelvis 13.6-15.2 from the
+  rope, his copy's 19.8-21.3; the eye the same on both (11-13), the neck 2.3 further off on the copy.
+- Causes (posing another flat player only): his copy's neck came from his eye turned with his look and its eye shift
+  (adspose's seen eye; A had climbed looking up), 3.8 units further back than his own view's level-look neck; and his
+  copy took a crouch (0.18 of one: his head under his standing height, nothing under his feet), the trunk further back.
+  Then at a swing's turn the rope slants away under the hands (25 degrees at the server's dump, its free end flaring
+  out more): the rope at 0.75 of a leg under the hip was out of the 0.97 reach and the ankle stopped short.
+- Fix (`vr_avatar.cpp` solveTorso, `vr_avatar_climb.cpp`; shared, yours and his): hanging on a rope
+  (`detail::ropeHang`: ropeWrap eased by the climb's weight, ropeHips' own) the neck is under the eye's level look (as
+  the local view's), no crouch; `ropeFoot` takes the rope higher up (a tenth of the leg at a time, to 0.3 under the
+  hip) when it is out of reach at its first height, the knees bending. Off ropes nothing changes (onRope 0).
+- Tried and reverted: the climber's own box not pushing his rope (`climbrope::disturb`): the rope under his hands then
+  flared further out at the turns (box-pushed it sat on his box's front face, nearer him).
+- `mp_test.py ropeclimb` checks the copy's pelvis within 4 of A's own hanging still and notes the swing's pelvis maxima;
+  `MP_ROPECLIMB_SHOTS=1` screenshots the copy from beside him. 10 runs, 12/12 each: pelvis 12.4-16.9 against A's own
+  12.5-16.7 (0.4 apart at most), swinging ankles 9.8-13.2 (bound 18; were 13.9-21.7, 3 of 9 over), wrists 2-4.
+  rope_climb_test 8+6+6, rope_flat_test 6/0, rope_hands_test 6/0 unchanged. ThinLTO 0 warnings; the MP suite in four
+  chunks (ThinLTO build): every scenario passed.
+
+## tutorial5: five new things the tutorial teaches, the arena's save (agent/tutorial5, 2026-11-22)
+
+**Plan** (design first, as the brief asks). Lessons 1-11 stay as they are; three new rooms on the lower floor between
+room 11b (lava nails) and the arena, in the free strip south of rooms 10 and 11; the arena becomes lesson 15. The pace:
+after fire the player knows every basic, so the new lessons build on them (blades on melee and throwing, bash on parry
+and grenades, ropes on climbing), one gate each, before the arena uses it all.
+
+| | Room | Teaches | Gate |
+|---|---|---|---|
+| 12 BLADES | room12b (south of 11b, through its door) | a sword, a dagger and an axe on a table; cut and stab a training dummy (a stab sticks: pull it out); B/Y reverse grip | an axe thrown into the target behind the barrier opens the door |
+| 13 BASH | room13 (east of 12) | a bridge over a deadly pit; an armed grunt (an axe) comes over it: shove it off from a guard, or disarm it (grip its axe, pull); a spike and a grenade fired at you from buttons: bat the spike back, catch the grenade and throw it back | the grunt dead (shoved off or beaten) opens the door |
+| 14 ROPES | room14 (south of 12 and 13) | a pit crossed by a rope (swing, pump with the stick, jump off; a chain beside it), a ladder back out of the pit; armour past it: let go of it over your torso | the pit |
+| 15 ARENA | room12 | as before; a bullet-time tip as its door shuts (one tip, at a fight) | as before |
+
+- Disarming (always on): a tip at lesson 7's armed grunt (its rifle) and at lesson 13's grunt.
+- The arena's save (his note vrtutorial_2026-11-22_15-34-20): the arena's checkpoint moves into the hall just before its
+  door, with a new SAVE flag: taken, the game is saved (`save vrtutorial_checkpoint`); a death after it loads that save
+  (the arena as it was before, the player at its door with what he had) instead of coming back mid-wave, unarmed.
+- New entities in `late()` (the playthrough's edict numbers kept); Go to a Lesson 1..15; the bullet-time banner moves
+  with the hall.
+
+**Built** (as planned; `vrtutorial_gen.py` R12B, R13, R14, HALL15, `build_lessons_12_14`): hall_12a/12b gave way to the
+three rooms and hall_15. New QC: `func_vr_spawner`'s `vr_spawn_arm` (armed grunts holding that weapon, monster_vr_grunt's
+codes), `trap_vr_shooter` (style 0 a spike at the player, 1 a grenade lobbed to come down at him in 1 s: the ogre's,
+catchable), `info_vr_checkpoint`'s SAVE flag (taken: `save <map>_checkpoint` and its message centerprinted; the latest
+taken, a death `load`s it, once), `func_vr_restock` makes the blades and green armour (the blades counted as the
+thrown_weapons they lie as; precached by model, as one made would leave its weapon at the origin). The throwing target is
+a touch button (a thrown weapon presses it, as lesson 10's rock does; not shootable: a shot would bypass the throw), 64
+square, 144-208 over the floor (out of reach). Tips: t3_blades, t3_stab, t3_reverse (on the dagger once held), t3_axe,
+t3_bash, t3_disarm, t3_bat, t3_catch (on their buttons), t3_rope, t3_armor, t3_bullettime (the arena's door shutting),
+t2_disarm (lesson 7's grunt out). No flat tips exist in the tutorial (VR wording as before).
+
+**Checks**: the generator's layout and fixture checks; the final build `--check 1000000`: 0 holes, qbsp, vis and light
+clean (the old no-deathmatch-start note only). Playtest (`--from blades`, mock, seed 7): the axe taken by its handle and
+thrown (355 u/s) presses the target, the door opens; the armed grunt made and dead, out of room 13; SPIKE fires; both
+hands take the rope and jump off it; the arena's checkpoint taken. `--softlock --from sl_arena`: saved
+(`Saving game to vrtutorial_checkpoint.sav`), killed in the arena, loaded: back in hall_15 (1488 -568). A localcmd runs
+only after the playtest cfg's buffered lines, so sl_arena runs its death on a play's clock (as the teleporter's end).
+- Not automated: the swing across the pit (the mock, holding the rope at the edge, stays on the floor: its stick walks,
+  it doesn't step off) and the armour at the chest (grab_item + the hand to the chest put nothing on); the playtest's
+  rope gate checks the hold and the jump, then puts him across. The author's VR pass covers both.
+- The mock's walk coasts about 80 units after it arrives (Quake's friction): aimed at the pit's edge it went over.
+- Scenes: `tutorial_lessons` (in lesson 12), `tutorial_arena_save` (hall_15).
+## vrnotes1122a: MP bots from his DM voice notes (agent/vrnotes1122a, 2026-11-22)
+
+His notes dm3_2026-11-22_16-15-02, 16-17-59, 16-18-21.
+- **Revolver bot never shoots:** bot logic, not the revolver. A bot never reloads (VRIsWeaponReloadingEnabledFor: humans
+  only), so its guns fire from its ammo, never a clip; bot_can_fire counted the held gun's clip. A revolver it took
+  loaded (his, by a disarm: "Hal takes your weapon!" 3 s before 16-15-02) with no shells of its own was picked, then
+  clicked or was dropped for the axe. Fix: `bot_clips_to_ammo` (frikbot/bot_fight.qc, each AI frame from bot_ai.qc): a
+  gun in its hands puts its clip's rounds with its ammo; bot_can_fire counts the ammo only. `vr_dm_test 14` now counts
+  slugs (shells spent), not trigger pulls (attack_finished also moves on a dry cock): its own revolver 3 slugs; a taken
+  loaded revolver in its main hand, no shells: 0 slugs in 10 s before, 3 in 4.2 s after; in its off hand beside its
+  shotgun: 3. New `mp_test.py botrevolver` (in the suite): dedicated DM, A adds a bot, the server runs test 14: 5/0.
+- **Bot holsters' orientation:** solveBotGear put the hips beside the hip joints facing straight out, the very side the
+  holster frame takes as its outwards: holsterFrame normalised a zero vector, so the hip guns' frames were NaN (drawn
+  anywhere). Now (vr_mpavatar.cpp): the trunk's yaw from the drawn shoulders (`trunkYaw`), the hips and uppers on the
+  front of its belly and chest rings (round 45 and 35 degrees) facing the ring's surface there
+  (`body::frontRingPlate`, sharing `ringPlate` with your own plateOnTheRing), the frame as yours (plate out and up;
+  shoulders down the back), and the standing holster turns yours take (`holsterTurnStanding`: tuning constants, not a
+  player's settings). `view::holsterOnOther` takes the plate's up.
+- **vr_mp_gearcheck** adds per copy: `finite` (every piece's place and angles), `tilt` (worst sheath up vs the trunk's,
+  at most 70), `facing` (worst sheath out vs straight out of the trunk, at most 60), `hang` (gun to its sheath, at most
+  0.25 m), `turned`; ok needs them. `mp_test.py botgear` checks them for each copy and that the bot's tilt and facing
+  are within 20 degrees of player B's (whose client drew his own): bot 63.6 / 41.0, B 50.0 / 27.9; 14/0.
+  `MP_BOTGEAR_SHOTS=1` saves A's view of the bot (low-res here: his game was running).
+- **Dropped weapons in DM:** `VR_WPN_DM_LIFETIME` 20 s (vr_wpnholster.qc; was 10, doubled as asked; a backpack lies
+  120 and vr_dmloose.qc's cap holds their number). Every thrown or dropped weapon in deathmatch (players' too).
+  vr_dm_test 1: 22/0.
+- **Not done (budget): the dead body's look synced to the live player** (plates gained after his respawn). Cause:
+  vr_mpavatar.cpp setupBody reads `agarmor::clientState(e)` with e the owner for a doll slot too. Planned fix: QC
+  VR_DeathDoll_Make copies `.vr_pp_type/.vr_pp_mask` to the body; vr_agarmor.cpp stateOf serves those fields for a
+  non-player edict that has them (never .vr_ar_*: combat reads those); setupBody reads the doll entity's state
+  (`d.doll` set before setup in addDolls/addEntities); an mp test (B armoured, killed, respawned with other armour:
+  A's mp_doll plates unchanged). The calibration look (calOf(owner)) is live too, but rarely changes.
+## vrnotes1122b: revolver flicks, Haste on every gun (agent/vrnotes1122b, 2026-11-22)
+
+- **The flick down with a shell held** (dm3_2026-11-22_16-14-25): the eject push (`VR_Revolver_ReloadFrame`) waited
+  `vr_revolver_spin_hold` after `rvh_held_at`, which `VR_Revolver_OtherHand` refreshes every frame the other hand holds
+  anything: with a shell ready in the off hand no push ever counted. It now waits on `rvh_loaded_at` (a shell just went
+  in) only; the spin keeps `rvh_held_at`.
+- **Wrist flick against arm swing** (vrfiringrange_2026-11-22_16-11-57): the old guard refused a flick open with the
+  hand at 2 m/s or faster (`vr_revolver_open_swing_speed`, retired). His replay shows why it refused everything: his
+  flicks roll 150-360 degrees at 2000-3500 deg/s and the controller, 5-15 cm off the wrist's axis, moves 3.5-5.6 m/s
+  from that turn alone. `VR_Revolver_Flick` now keeps two fading sums over `vr_revolver_flick_motion_time` (0.2 s): the
+  wrist's (its roll in radians x `vr_revolver_flick_wrist_lever`, 0.1 m) and the arm's (the hand's speed less its turn
+  rate x the lever, i.e. travel the turn doesn't explain). A flick open is refused when the arm's share is over
+  `vr_revolver_open_flick_arm_share` (0.45; menu: Weapons > Reloading > Heavy Revolver > Flick Open Arm Share; 1 no
+  guard), then for `vr_revolver_open_swing_hold` (0.35 s), and after a landed blow as before. The flick home is never
+  refused. Offline on his two revolver replays (the trigger simulated at the flick's thresholds): his flicks 0.03-0.31,
+  his swings (hand 8-10 m/s, 1-1.7 m travel) 0.53-0.75. `vr_reload_debug 1` prints the share on each open and refusal.
+- **Haste on every gun** (vrtesthall_2026-11-22_15-59-17): Haste (Dwell's; Dissolution's Hell Magic rune alike) works
+  through `RuneApplyHell` on a weapon's next attack time; the frame-driven guns (nailguns, lava nailguns, lightning gun,
+  laser cannon) fire once per 0.1 s animation frame and never asked it. `VR_Haste_FramePace` (rogue_runes.qc) paces
+  those frames by it (0.06 s hasted), their attack times too; the Mjolnir swing, the proximity gun, AD's plasma gun and
+  the lightning gun's first bolt now pass through it as well. Dry clicks stay unhasted.
+- **Full auto under Haste** (15-59-37): `vr_haste_full_auto` (1; Combat > Weapon Damage > Guns) lets the nail pistol,
+  the heavy revolver and the flare gun skip their re-arm (`VR_Haste_FullAuto`) while hasted: they fire again while the
+  trigger is held, each at its cooldown x Haste's 0.6 (the nail pistol 0.072 s, the revolver 0.18 s). Empty or spent,
+  still one click a pull.
+- Tests: `vr_np_test 7` (nphaste, Debug > Tests > Nail Pistol): 12/0 (nailgun 15 -> 24 shots in 1.5 s, lightning 16 ->
+  25, shotgun 3 -> 5; nail pistol 1 -> 12, revolver 1 -> 6, flare gun 1 -> 2). `vr_rv_test 1` 49/0 (step 12 now a 7 m/s
+  swing rolling the wrist: refused, arm share 0.78; then a still-hand wrist flick: out, share 0.18; step 13 pushes the
+  shells out with the other hand holding). Its tests need `developer 1` (dprint). Scenario `haste_guns`. nptest 39/0,
+  flaretest 22/0. His replays played in the game (`vr_motion_play <notes>/<take>_replay.csv`, `vr_reload_debug 1`):
+  vrfiringrange_16-11-57 5 flicks open (arm share 0.06-0.43), 7 swings refused (0.50-0.73); e1m1_2026-11-21_01-03-41
+  7 open (0.06-0.26), 7 refused (0.54-0.80). (The replays live in his notes folder, not the repo: no committed test.)
+- Note: `VR_RVT_Flicks` sets `vr_revolver_flick_hand_weight` / `_cap` with `cvar_set`, but they are tunables
+  ("Cvar_Set: variable not found"): its force check runs at the defaults (150, 1), which it expects anyway.
+
+
+## vrnotes1122c: smaller centre panel, the wrist hologram back, Only Hands' holsters, ticked lines retired (agent/vrnotes1122c, 2026-11-22)
+
+- **Centre panel 30% smaller** (his note vrtutorial_2026-11-22_15-30-43, "25 to 35% smaller"): `vr_center_panel_scale`
+  2 -> 1.4 (his cfg had no line for it, so the new default reaches him).
+- **The wrist hologram's look** (vrtesthall_2026-11-22_15-36-07): nothing in the rendering changed. The checklist scene
+  `vr_center_message` turned `vr_messages_hologram` off with a `cmd` line, which a scene never puts back; his cfg kept
+  `vr_messages_hologram "0"`, so the game's messages showed as the wrist's plain log (the gadget font on a dark box, his
+  screenshot). Fixed: the scene sets it with a `cvar` line (put back after); configVersion 225 turns it back on once. The
+  same `cmd <archived cvar>` mistake in ad_housings and widowmaker_art (`vr_ad_upgrades 2`, its default, harmless) made
+  `cvar` lines too. Possible check for qvr_checks (not added): a scene's `cmd` line setting an archived cvar.
+- **Only Hands' holsters** (vrtesthall_2026-11-22_15-35-12): `isOnTheBody` (vr_body.cpp) no longer asks for a drawn
+  body: in `vr_body_mode` 0 the hip and chest holsters are placed on the body's front and turned with its surface as in
+  modes 1-3 (before: the old placement, hips at ring 1.78 and chest 1.00, facing the old way; now 2.05 / 1.41 as mode 3).
+  The thighs' carry stays mode 3's. `Misc/quakevr/reload/pouchbody_test.sh` check 5: mode 0's holster rings equal mode
+  3's (13 passed, 0 failed).
+- **Checklist**: 53 ticked lines retired; 11 ticked lines kept because this round's voice notes had them under the cursor
+  (the lance, ropes, Dwell weapons, Quoth/AD ladders, armed humanoids' colours, the pouch calibration); 19 scenes no
+  longer used by any line, test or doc moved out (brushholes_* but grate/show, doorway_grunt, dwell_bosses,
+  dwell_grunt_pickup, dwell_sculptor, foveation_auto, gun_variants_nail/_rock, humrepl_studio, revolver_adheadpop,
+  speed_toggle_click, superaxe_behead). checklist_tests_check 84 passed, 0 failed.
+- **Not done (budget):** the hub portal's Start (e5start_2026-11-22_15-29-11) and the hub's Dwell/Quoth/AD/Arena
+  buttons (vrstart_2026-11-22_15-54-58). What the hub note's log shows: his first Start did go to e5start (Dimension of
+  the Past loaded, autosaved); 3.3 s later "VR Hub: going there", which only the main menu's VR Hub row confirmed
+  (`M_Main_StartHub`, menu.c) prints. So the way back was the main menu's VR Hub confirm, not the teleporter: something
+  left the main menu open (or opened it) after the campaign switch. Headless, `vr_campaign_select dopa` from vrstart
+  leaves no menu open; the teleporter run (setpos into its trigger, `vr_menu_press Run Setup > Start`) consumed
+  `vr_run_hubgo` without a level change in the mock (not followed up).
+## vrnotes1122a2: a dead player's body keeps its look (agent/vrnotes1122a, 2026-11-22)
+
+- **The body's plates froze at death** (vrnotes1122a's item 4): QC VR_DeathDoll_Make and CopyToBodyQue copy the
+  player's `.vr_pp_type/.vr_pp_mask` to the body; vr_agarmor.cpp `stateOf` serves a non-player edict's own `.vr_pp_*`
+  when its type is over 0 (else `.vr_ar_*` as before: an armed monster's, which combat reads), so QVR_SVC_ARMOR goes
+  out for the body's entity; vr_mpavatar.cpp setupBody reads `clientState(d.doll)` for a doll (d.doll now set before
+  setup), never the owner's. The doll's pauldrons take its plates' colour (they had none: the doll's Avatar has no gear
+  byte). The calibration (build, arms, pauldron style) still comes from the owner (`calOf(owner)`): rarely changed.
+- `mp_doll:` lines print `plates=<type> <pieces>`. New `mp_test.py deathlook` (in the suite): a VR listen host A and a
+  flat client B; B at 10 health in yellow armour, killed whole; his body yellow at A and B; B respawns, takes red: A's
+  copy of him red, his old body yellow with the same pieces in every report at both. Then the same with
+  `vr_death_view 0` (the body queue, made at his respawn): 19/0.
+- Full MP suite in six chunks (the no-LTO Release exe; ThinLTO builds with 0 warnings): all pass but mp_melee ("A's
+  sword on B: damage None", 29/1) and mp_adspose (74 of 75 sight looks, 11/1), neither near this work: rerun alone,
+  30/0 and 12/0. After merging origin/next (vrnotes1122b's revolver): mp_botrevolver 5/0, mp_deathlook 19/0.
+- Kit note: `build.sh --lto` builds the ReleaseLTO exe; mp_test.py runs the Release one (`build.sh <name>`): rebuild
+  that after a merge, or the suite runs a stale exe ("cvar_hmake: unknown" lines for the new cvars).
+
+## vrnotes1122c2: the hub's Start (not reproduced: instrumented, tested), the mods' lecterns (agent/vrnotes1122c2, 2026-11-22)
+
+- **Hub Start back to the hub** (e5start_2026-11-22_15-29-11): not reproduced. The mock's earlier "Start consumed
+  vr_run_hubgo, no level change" was a test artefact: the teleporter's `localcmd vr_runsetup hub` and its
+  `changelevel` go to the end of the command buffer, behind the rest of a start-up script (its waits), so neither ran.
+  Driven through `-cmdinbox` instead (buffer empty, as in play): setpos into the teleporter, the Run Setup opens, Start
+  by A, or by the trigger with the laser on it (held 0.15 s or 3 s, past the load), with the main menu's state left
+  stale before the hub (m_main under the game): every time e5start loads and stays; the trigger and A afterwards go to
+  the game (no menu open). His log says only that the main menu's VR Hub row was confirmed 3.3 s after e5start
+  appeared. Now `M_Main_StartHub` prints (skipnotify, so the voice note's log has it) when and from where the main menu
+  opened, the key pressed before, the key that chose VR Hub, the laser's spot and the confirming key (keys.c
+  `key_lastpress`). New `Misc/quakevr/hub_start_test.py <agent>` (the inbox-driven flow, Start by A, then trigger and
+  A on e5start, 5 s: still e5start, no hub, the buttons the game's): see the report for its run.
+- **The mods' lecterns** (vrstart_2026-11-22_15-54-58): four thinner lecterns (30 wide) facing east on the terrace's west
+  side, between its two left braziers: ARCANE DIMENSIONS, DWELL, QUOTH (vr_activestartpaknameidx 6, 7, 8, then the
+  teleporter: VR_CanChangeCampaignMap runs `vr_campaign_native` for an experimental campaign, as Select Campaign does
+  after its notice) and ARENA MODE (`vr_runsetup arena`: the arena's Run Setup at once). A "MODS AND ARENA" board over
+  them. A mod not installed: its lectern says "<mod> is not installed. Official Campaigns says what it needs."
+  (buttons.qc, vr_ad/dwell/quoth_status). vrstart rebuilt (`--compile`, final preset).
+- **Centre message at vr_center_panel_scale 1.4**: `vr_center_panel_info` shows the popup up (304x88 contents), but the
+  mock's eyeshot does not hold the panel (the same picture with and without it), so readability is not judged here:
+  his check in the headset.
+## kellbase: Quoth kellbase1 notes, enforcer pack colours (agent/kellbase, 2026-11-22)
+
+His notes kellbase1_2026-11-22_16-02-58, 16-04-06, 16-06-02.
+
+- **Dropped packs take the body's recolour.** `DropBackpack` (items.qc) gives the pack its dropper's `.vr_hum_look` plus
+  the pack part (4096): every armed humanoid's death loot goes through it (`VR_AG_SoldierDrop`), so an energy weapon's
+  enforcer drops a blue pack, a launcher's red, as a grunt's worn pack already was (vr_humlook.cpp draws the pack rows
+  of humlook.txt on `progs/backpack.mdl`). Test: `humrepl_test.sh` (vr_ad_test 219) checks a thunderbolt enforcer's
+  dropped pack's look (4114 = enforcer energy + pack): 47 passed.
+- **kellbase1's energy field.** A `func_togglewall` (model *15, the `trigger` texture) with Quoth's spawnflag 2 and
+  `color 47`, `style 50`. AD's togglewall (Quoth runs under AD's rules) draws nothing: not a VR-only fault, it was
+  never drawn. Quoth has no source, so its look is inferred from the keys: while on, `vr_twall_fx` (ad_func.qc) puts
+  `style` sparks (at most 64; default 24) a tenth of a second over the brush's thin middle plane in palette `color`
+  (47: pale blue), only with a player within 1500 units. The flat screenshot at that size does not show the sparks
+  clearly: look in the headset.
+- **Monsters keep off hurting fields.** The enforcer behind it stood pressed 0.2 units into the brush (a monster step
+  is a vertical trace at its goal, so it ends touching it) and its step physics' fall trace touched the wall each frame
+  it could: 8 to 29 hurting touches in 20 s. Now a togglewall with `dmg` (AD's and Hipnotic's) sets
+  `.vr_monster_avoid`; `SV_movestep` refuses a monster's step that ends nearer than 12 units to such a solid entity
+  unless the step keeps it as far or takes it farther (`VR_MonsterAvoidsField`, vr_hull.cpp: an area query, both
+  walking and flying branches), so the chase picks another way and one already near is never stuck. A trigger_hurt is
+  left as it is (maps use them on monsters). Test: `quothfield_test.sh` (vr_ad_test 223, kellbase1): the field's
+  emitter made (colour 47, 50 sparks), its sparks sent with you near, and an armed enforcer chasing you from behind it
+  for 20 s touches it 0 times (29 before): 4 passed.
+- **Ladder holds on the drawn rungs.** kellbase1's ladders are a `trigger_ladder` over a `func_illusionary` (non-solid
+  bars: 24 apart on the catwalk's, 32 on the pillars'), so the volume's own rungs (16 apart down from its top) never
+  matched them. `ladderHold`'s volume fallback now asks `drawnRung` (vr_climb.cpp) first: the up-facing faces of
+  every brush submodel with no solid or trigger entity (an illusionary edict, or a static one) over the volume's
+  footprint (12 units before and behind it, across its thinner side, so not its rails' caps), their exact vertex
+  bounds; the bar nearest the hand is the rung, the hold on its ridge (its top faces' vertices at the top) across and
+  where the hand is along it. A ladder with no drawn rungs keeps the 16-unit rungs, and so does flatscreen play's
+  ladder (`findRungs` sets `flatRungSearch`): its window over the feet is about 31 units, so bars 24 or 32 apart left
+  it one rung and it never mounted (flatladder 0 of 3 with drawn rungs, 3 of 3 now). Flat hands therefore still close
+  on the 16-unit rungs (an open point if he wants it there too: the flat ladder's window would have to grow).
+  modladder_test.sh's VR-hands expectations moved to the bars (hold y -664, tops 704 + 24 k; the pillars' ridge y
+  -1354, tops 508 + 32 k): 10 passed.
+## ropes6: VR rope climbing from his notes (agent/ropes6, 2026-11-22)
+
+His notes vrropes_2026-11-22_15-43-18, 15-43-56, 15-45-10, 15-48-30 ("Climbing ropes in VR feels nice"). ROPES.md
+"Climbing (VR)", "Tests", "Known limits".
+- **Grip (VR):** `vr_rope_hand_grip` default 2 (was 1: flat only): the rope through the fist, the right hand's knuckles to
+  the right, the left's to the left, in VR too (the same ropeTurn as flat). His cfg had no saved value. `climb::drawnBack`
+  (the hold turn's back of the hand) for the climb test's `grip` check: worst 1.00 of 1.
+- **Regrab kick (4), cause:** `climbrope::riderBlocked` moved the bob back by the body's miss without its last place, so
+  the shift became speed: in VR a pull leaves the body ~0.4 units short of where the hands took it (rope at rest), and
+  each regrab kicked the swing 58-61 units/s at the hands. Now bob and bobPrev move together (its speed into the miss
+  still dropped: a wall still stops the swing). Swings, pumps, jumps onto it and pushes untouched (rope_pump 6/0,
+  rope_jump 6/0, rope_flat 6/0 incl. rope to rope, rope_hands 6/0).
+- **Sounds (2):** a pull up grunts (`vr_climb.cpp` ropePullGrunt in hangFramePart: once a grip, when the body has risen
+  15 cm over that grip's hold since taking it; at most every 0.6 s; `climb::grunt`, the mantle's list): `vr_rope_grunt`
+  0.4 (QVR_RULE), `vr_rope_grunt_sound` 2 (the jump's, deeper: told apart from a jump off). Not in flat play (its keys
+  climb steadily, no pulls). A rope's grip now makes the soft material's thud (soft_m, `vr_physsound_grab`) in VR and
+  flat alike (was the stone slap in flat, silent in VR); `climbrope::grabbed` lost its `vr` flag. Haptics unchanged.
+  Climbing page: Rope Pull Grunt, Rope Pull Grunt Sound.
+- **Legs on a short rope (3):** `ropeFoot` took the rope's end as a foothold at every height (clientRopeAt returns the
+  bottom where the rope doesn't reach): a short rope ending near the hip pulled the feet up to it, the higher ankle 13
+  units over the pelvis. Now the feet wrap only where its lowest point reaches 0.6 of a leg under the hip (fully from
+  0.85, eased between) and skip heights under its end; else they hang (28 under the pelvis). Shared by your body and
+  another's copy. `clientRopeAt` gives the lowest point's height (`bottom`).
+- Tests: rope_climb_test.sh 10+6+6+4+3 (new plays rope_calm: swing 2.5 u/s at the hands (bound 25; was 61), free end 8.3
+  (30), 4 grunts; rope_short: `vr_rope_climb_test <play> 425`; rope_climb adds grip and "no grunt climbing down or on a
+  mere grab"; with `vr_rope_hand_grip 1` its grip check fails at 0.15), rope_sound_test 6/0, vr_rope_test 16/0,
+  mp_test.py ropeclimb 12/0. ThinLTO 0 warnings.
+
+## flatgreen: the flat suites that failed on origin/next (agent/flatgreen, 2026-11-22)
+
+- Runs on origin/next 100c70337 in this tree (Release no-LTO, three lanes): first with the old full baseline (a control),
+  then with `Misc/quakevr/test_baseline.cfg`. "Old" = the old baseline, "new" = the shipped-defaults baseline.
+
+| suite | before (old / new) | after | cause | fix |
+|---|---|---|---|---|
+| flat_fling | FAIL / FAIL (0 u/s) | PASS | bladeone (2da083685): a live blow's decap reads `mh_c_f`; `VR_Decap_TestBlow` never set it, so every test slash struck "0.00 along the blade" (also decap_test.sh's live/axe/...: no FAIL lines there, eyeballed) | test helper sets `mh_c_f = xF`, `mh_bfrom = 0` |
+| flatads | 6/1 / 6/1 | 7/0 | zoom-only aim (0ab8a76f7; his fsight_mode 1): `vr_flat_sight_check` returned before `flatgunview` for the launchers | the check prints the drawn place for zoom guns too, then returns |
+| flatfx | 8/2 / 8/2 | 10/0 | the centurion guns (wid 22, 25) are zoom-only by his tuning (5475ff16a) | zoom guns: "zooms in fully" (t 1.00, fov 10+ under hip); guns with sights as before |
+| flatwall | 16/1 / - | 17/0 | the same: 4 of the 24 sighted two-handed holds left | `vr_flat_aim_zoom 0` (as flatsight): every gun's ironsight hold read |
+| flatfix | 15/4 / (pending) | (pending) | "taken over N s" wraps onto the status line's 2nd console line: vr_flat_aim_time read empty | the line and its wrapped lines joined. Its two hotspot checks (grip hotspot ahead of the held hand; 2 of 3 holds) open |
+| flatlagbob | 4/1 / 3/2 | open | his defaults (ROUND24: `vr_flat_bob` 0 -> 1) plus a smaller forward bob: with `vr_flat_bob 0`, level, the hands' forward range 0.67 at bob_fwd 0 and 1.13 at 2 (the check wants +1.0; `bobFwd` 0.6 x 2 x feel.amp should give ~2.4) | not fixed: feel.amp or the step rate changed after 97446fada; worth a bisect (one 65 s run a step) |
+| flathands | 76/0 / 75/1 | open | new baseline only: swap2h "the off hand off the grip to the empty hand's guard (none)" | not looked into |
+| flatsweep | 382/5 / 382/11 | open | new: hand_head ads 0.842 vs listed 0.763 (4 rows), settled wall/long/stand/hip | not looked into (known-list drift or the shipped offsets) |
+| flateject | 16/1 / 15/2 | open | ssgold sideways speeds; new: "vr: the same stroke out of the chambers first" | not looked into |
+| flatgate | 3/2 (old) | open | case 0: the player never crosses a seamless gate in one run (crossings 0), crosses but keeps pitch 0 ("was 0.00": setpos's pitch not yet applied at state 1) in another: timing-dependent | not fixed |
+| flatmove | 10/0 / 7/3 | open | baseline-caused: passes on the old one (cl_alwaysrun, HUD scale suspects) | not fixed |
+| flatsight | 11/1 (old, once) | - | flake: 4 guns at `t 0.00` (the aim not taken) with the eye nudged | not fixed |
+| flatswap | no verdict (Knight's Sword, 3 runs) | - | the known flake | not fixed |
+
+- Also: `checklist_tests_check.py` knows Quoth's own maps (quoth_maps.sh's OWN) as it knows AD's: 94/0.
+- MP suites (mp_melee, mp_slide_vr, mp_predictslide, the flakes): not run (out of budget).
+- Seen once: "Warning: [SV] check DP_QC_SINCOSSQRTPOW before calling (: VR_Decap_Judge)" with developer 1.
+## dwellweap: the Crystal Lance's shot, weight, feed and grip flip; pole weapons' design (agent/dwellweap, 2026-11-22)
+
+His notes vrtesthall_2026-11-22_15-38-38 .. 16-01-25. Built (one commit each): items 1, 5 and part of 2 and 3; item 6 as
+a design (`docs/vr-port/POLEWEAPONS.md`). Not built: the cord, the thrust, the main hand's slide, the Rotary Shotgun's
+model changes.
+- **The beam was never drawn** ("held fire only makes smoke at the target"): `VR_BeamGone` (vr_client.cpp) ended a hand's
+  lightning the frame it began unless the hand held `v_light.mdl`; now any lightning-kind model (`gunfx::weaponIdOf`).
+- **Its effects**: violet particles where the beam enters and leaves each body and where it stops (QC `dw_fire_lance`;
+  a developer print "dwlance: the beam through N bodies"); slot 55's recoil a heavy shot's (`fx_kick_cm` 6, `fx_rise_deg`
+  5, `fx_return_s` 0.35; it had the Thunderbolt's stream values); its crystal head glowing violet after each shot (gunfx
+  barrel heat: `fx_gfx_heat` 20, `fx_gfx_cool` 0.25, `fx_gfx_barrel` 0.48, mask none; `barrelHeat`'s colour violet for
+  the Lance). Screenshot `qvr-kit/scratch/dwellweap_lance_fire.png` (eye view, then a side camera).
+- **20% heavier**: `w_mass` 7.2 (was 6.0).
+- **No magazine**: `DW_LanceFedFromPouch` (dw_items.qc): `VRIsWeaponReloadingEnabledForInst` never reloads it, each shot
+  takes 6 cells from the pouch.
+- **Grip flip**: slot 55 `rev 1`; `VR_RevGrip_Flip` allows the Lance (its eject button is free). Not proven: the mock's
+  `vr_mock_button main secondary` did not flip it (no "revgrip: ... flips" print, no refusal print); open.
+- **Tests**: `dwell_lance_test.sh` 12/0 (new: the beam fired, 6 cells from the pouch's 100). Note for test writers: the
+  mock trigger (`vr_mock_button main trigger 1`) did not fire the Lance; `+attack` does.

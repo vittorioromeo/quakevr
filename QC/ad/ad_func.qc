@@ -359,12 +359,16 @@ STARTOFF  : Starts off and waits for trigger
 A func_wall that can be toggled on and off
 
 ======================================================================*/
+float vr_twall_monhits; // QVR: monsters' touches of a hurting togglewall (vr_quoth_test.qc, vr_ad_test 223)
+
 void() ad_func_togglewall_touch =
 {
 	// Block USE functionality if state wrong
 	if (self.ad_estate & ad_ESTATE_BLOCK) return;
 	if (self.ad_attack_finished > time) return;
 	if (other.takedamage == ad_DAMAGE_NO) return;
+	if ((other.flags & ad_FL_MONSTER) && self.dmg > 0)
+		vr_twall_monhits = vr_twall_monhits + 1;
 
 	self.ad_attack_finished = (time + self.wait);
 	sound(other, ad_CHAN_ITEM, self.noise2, self.volume, ad_ATTN_NORM);
@@ -407,6 +411,62 @@ void() ad_func_togglewall_off =
 };
 
 //----------------------------------------------------------------------
+// QVR: Quoth's visible field. Its maps' togglewalls with spawnflag 2 carry "color" and "style" (kellbase1's energy
+// field: 2, 47, 50; inferred from the maps, Quoth has no source): AD draws a togglewall as nothing (its brush is the
+// trigger texture), so the field was never seen (his note kellbase1 2026-11-22 16:04, "I cannot see the energy field").
+// While it is on, a sheet of sparks across its thin middle plane: "style" sparks a tenth of a second (default 24, at most
+// 64), of palette row "color" (default 47), only with a player within 1500 units (no sparks sent from afar).
+float ad_FUNC_TWALLFX = 2;
+float vr_twall_sparks; // sparks made (vr_quoth_test.qc)
+
+void() vr_twall_fx_think =
+{
+	local entity w, e;
+	local vector lo, hi, pos;
+	local float n, axis;
+	w = self.owner;
+	if (!w || w.ad_classtype != ad_CT_FUNCTOGWALL) { remove(self); return; }
+	self.nextthink = time + 0.1;
+	if (w.ad_estate != ad_ESTATE_ON) return;
+	n = 0;
+	for (e = find(world, classname, "player"); e && !n; e = find(e, classname, "player"))
+		n = vlen(e.origin - self.origin) < 1500;
+	if (!n) return; // (no player near: no sparks sent)
+	pos = '0 0 0';
+	lo = self.pos1;
+	hi = self.pos2;
+	axis = self.cnt;
+	for (n = 0; n < self.count; n = n + 1)
+	{
+		pos_x = axis == 0 ? (lo_x + hi_x) * 0.5 : lo_x + random() * (hi_x - lo_x);
+		pos_y = axis == 1 ? (lo_y + hi_y) * 0.5 : lo_y + random() * (hi_y - lo_y);
+		pos_z = axis == 2 ? (lo_z + hi_z) * 0.5 : lo_z + random() * (hi_z - lo_z);
+		particle(pos, '0 0 0', self.color, 1);
+	}
+	vr_twall_sparks = vr_twall_sparks + self.count;
+};
+
+void(entity w) vr_twall_fx =
+{
+	local entity e;
+	local vector sz;
+	e = spawn();
+	e.classname = "vr_twall_fx";
+	e.owner = w;
+	e.pos1 = w.absmin + '1 1 1'; // (its brush: absmin and absmax are a unit out)
+	e.pos2 = w.absmax - '1 1 1';
+	sz = e.pos2 - e.pos1;
+	e.cnt = 2; // (its thin axis)
+	if (sz_x <= sz_y && sz_x <= sz_z) e.cnt = 0;
+	else if (sz_y <= sz_z) e.cnt = 1;
+	e.color = w.color > 0 ? w.color : 47;
+	e.count = w.style > 0 ? min(w.style, 64) : 24;
+	setorigin(e, (e.pos1 + e.pos2) * 0.5); // (checkclient's eye)
+	e.think = vr_twall_fx_think;
+	e.nextthink = time + 0.1 + random() * 0.1;
+};
+
+//----------------------------------------------------------------------
 void() ad_func_togglewall =
 {
 	if (ad_check_bmodel_keys()) return;	// Check for bmodel errors
@@ -446,7 +506,9 @@ void() ad_func_togglewall =
 
 	// Touchy feely time!
 	self.touch = ad_func_togglewall_touch;
-	
+	self.vr_monster_avoid = self.dmg > 0; // QVR: monsters keep off a hurting one (the engine's SV_movestep; defs.qc)
+	if (self.spawnflags & ad_FUNC_TWALLFX) vr_twall_fx(self); // QVR: Quoth's visible field (above)
+
 	// Setup Entity State functionality
 	if (self.targetname != "") self.use = ad_entity_state_use;
 	self.ad_estate_on = ad_func_togglewall_on;

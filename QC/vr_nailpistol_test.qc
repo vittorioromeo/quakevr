@@ -303,8 +303,112 @@ void() VR_NPA_Frame =
     }
 };
 
+// ----------------------------------------------------------------------------
+// vr_np_test 7 (his notes vrtesthall_2026-11-22_15-59-17 and 15-59-37: Haste sped the shotgun, not the nailgun; the
+// semi-automatics should go full auto under it): each gun in the main hand, loaded, the trigger held 108 frames (1.5 s)
+// without Haste, then with it (Dwell's, dw_haste_finished); its shots counted by the rounds it used (vr_rv_shots for the
+// revolver: a pull turns its cylinder). The frame-driven and auto guns (the nailgun, the lightning gun, the shotgun) fire
+// at least 1.4 times as often hasted (0.6 of their time: 1.67); the semi-automatics (the nail pistol, the heavy revolver,
+// the flare gun) one shot a pull plain, hasted again and again (vr_haste_full_auto). Ends with "nphaste: N passed, M
+// failed"; a case is a fixed count of frames (the trigger's hold, then 30 for the last shot to land).
+float vr_nph_on, vr_nph_case, vr_nph_frames, vr_nph_n0, vr_nph_plain, vr_nph_grip;
+const float VR_NPH_GUNS = 6;
+const float VR_NPH_HOLD = 108;
+
+float(float g) VR_NPH_Wid =
+{
+    if(g == 0) return WID_NAILGUN;
+    if(g == 1) return WID_LIGHTNING;
+    if(g == 2) return WID_SHOTGUN;
+    if(g == 3) return WID_NAILPISTOL;
+    if(g == 4) return WID_REVOLVER;
+    return WID_FLAREGUN;
+};
+
+// The shots so far by the gun of case `g` (each a round: the main hand's rounds and clip, used up).
+float(entity p, float g) VR_NPH_Count =
+{
+    if(g == 4) return vr_rv_shots;
+    if(g == 3) return vr_np_shots;
+    return -(p.ammo_nails + p.ammo_cells + p.ammo_shells + VRGetEntWeaponClip(p, cVR_MainHand));
+};
+
+void() VR_NPH_End =
+{
+    VR_NPT_Trigger(0);
+    vr_npt_player.dw_haste_finished = 0;
+    cvar_set("vr_weapon_grip_mode", ftos(vr_nph_grip));
+    VR_NPT_Freeze(FALSE);
+    VR_Test_Verdict();
+    vr_nph_on = FALSE;
+};
+
+void() VR_NPH_Frame =
+{
+    entity p = vr_npt_player;
+    float g = floor(vr_nph_case / 2);
+    float hasted = vr_nph_case & 1;
+    vr_nph_frames++;
+    if(vr_nph_frames == 1)
+    {
+        // (Loaded afresh, the haste set, the trigger let go a frame: a new pull.)
+        float w = VR_NPH_Wid(g);
+        VR_WeaponUtil_EntAddWeapon(p, w);
+        VRGiveEntWeapon(p, cVR_MainHand, w, 0, WeaponIdToBaseClipSize(w));
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        p.ammo_nails = 150;
+        p.ammo_cells = 100;
+        p.ammo_shells = 50;
+        p.dw_haste_finished = hasted ? time + 30 : 0;
+        return;
+    }
+    if(vr_nph_frames == 3)
+    {
+        vr_nph_n0 = VR_NPH_Count(p, g);
+        VR_NPT_Trigger(1);
+        return;
+    }
+    if(vr_nph_frames == 3 + VR_NPH_HOLD)
+    {
+        VR_NPT_Trigger(0);
+        return;
+    }
+    if(vr_nph_frames < 3 + VR_NPH_HOLD + 30)
+    {
+        return;
+    }
+    float n = VR_NPH_Count(p, g) - vr_nph_n0;
+    string what = sprintf("%s %s: %g shots in 1.5 s", WeaponIdToModel(VR_NPH_Wid(g), 0), hasted ? "hasted" : "plain", n);
+    if(!hasted)
+    {
+        vr_nph_plain = n;
+        if(g >= 3) VR_Test_Check(n == 1, strcat(what, " (semi-automatic: want 1)"));
+        else       VR_Test_Check(n >= 2, strcat(what, " (want 2 or more)"));
+    }
+    else if(g >= 3)
+    {
+        float want = g == 5 ? 2 : 4; // (the flare gun holds two)
+        VR_Test_Check(n >= want, sprintf("%s (full auto: want %g or more)", what, want));
+    }
+    else
+    {
+        VR_Test_Check(n >= vr_nph_plain * 1.4, sprintf("%s, plain %g (want 1.4 times or more: %.2f)", what, vr_nph_plain, n / max(1, vr_nph_plain)));
+    }
+    vr_nph_case++;
+    vr_nph_frames = 0;
+    if(vr_nph_case >= VR_NPH_GUNS * 2) VR_NPH_End();
+};
+
 void() VR_NailPistol_TestFrame =
 {
+    if(vr_nph_on)
+    {
+        entity osh = self;
+        self = vr_npt_player;
+        VR_NPH_Frame();
+        self = osh;
+        return;
+    }
     if(vr_npa_on && cvar_hget(cvarh_vr_np_test) != 5)
     {
         entity osa = self;
@@ -314,6 +418,21 @@ void() VR_NailPistol_TestFrame =
         return;
     }
     float req = cvar_hget(cvarh_vr_np_test);
+    if(req == 7)
+    {
+        cvar_set("vr_np_test", "0");
+        vr_npt_player = VR_Player();
+        if(!vr_npt_player) { dprint("nphaste: no player\n"); return; }
+        VR_Test_Begin("nphaste");
+        vr_nph_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
+        cvar_set("vr_weapon_grip_mode", "1");
+        vr_npt_player.flags = vr_npt_player.flags | FL_NOTARGET;
+        VR_NPT_Freeze(TRUE);
+        vr_nph_case = 0;
+        vr_nph_frames = 0;
+        vr_nph_on = TRUE;
+        return;
+    }
     if(req == 5)
     {
         cvar_set("vr_np_test", "0");
