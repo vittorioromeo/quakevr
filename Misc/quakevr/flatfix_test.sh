@@ -80,7 +80,8 @@ keep1() { awk -v s="$1" 'BEGIN{ if (match(s, /\) \(/)) print substr(s, 1, RSTART
 run ease_ship "$P; vr_flatplay_debug 2; impulse 154; wait20; vr_flat_aim 1; wait60; vr_flat_aim 0; wait60; vr_flatplay_status" \
     '^flatsight: |^  ironsight: |^    held weapon |^    an empty hand |^  his eye on the screen:'
 e1=$(ease "$S/ease_ship.log" 1)
-istat=$(grep -a '^  ironsight: ' "$S/ease_ship.log" | head -1)
+# (The status line with the lines the console wrapped it onto: "taken over N s" sits on its second line.)
+istat=$(grep -a -A3 '^  ironsight: ' "$S/ease_ship.log" | head -4 | tr '\n' ' ')
 poseSay=$(grep -a '^    held weapon ' "$S/ease_ship.log" | head -1)
 fovSay=$(awk -v s="$istat" 'BEGIN{ if (match(s, /vr_flat_aim_fov [0-9.]+/)) print substr(s, RSTART + 16, RLENGTH - 16) }')
 timeSay=$(awk -v s="$istat" 'BEGIN{ if (match(s, /taken over [0-9.]+/)) print substr(s, RSTART + 11, RLENGTH - 11) }')

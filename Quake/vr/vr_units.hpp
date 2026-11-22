@@ -58,7 +58,7 @@ inline constexpr float modelEyeHeight = 1.646f;
 // vr_world_scale's default (a player who never changed it).
 [[nodiscard]] inline float defaultWorldScale()
 {
-    const float s = vr_world_scale.default_string ? static_cast<float>(std::atof(vr_world_scale.default_string)) : 0.f;
+    const float s = vr_world_scale.default_string ? static_cast<float>(atof(vr_world_scale.default_string)) : 0.f;
     return s > 0.f ? s : 1.f;
 }
 

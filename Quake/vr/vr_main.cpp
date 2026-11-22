@@ -217,8 +217,6 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Abort.hpp"
 #include "Zancle/Base/Assert.hpp"
-#include "Zancle/Math/Acos.hpp"
-#include "Zancle/Math/Asin.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
@@ -227,13 +225,17 @@
 #include "Zancle/Chrono/Time.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Asin.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Tan.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
-#include "Zancle/Math/Clamp.hpp"
-#include "Zancle/Math/MinMax.hpp"
 
 #include <stdarg.h>
 #include <stdlib.h>
@@ -2829,7 +2831,7 @@ static void mirrorDebugVsync()
     }
     else
     {
-        flip = (std::floor(now / period) + 1.0) * period;
+        flip = (za::floor(now / period) + 1.0) * period;
     }
 }
 
@@ -2919,7 +2921,7 @@ extern "C" int VR_SkipSwap()
         const double periodMs = profile::displayPeriodMs();
         if(periodMs > 0.0)
         {
-            frames = za::max(1, static_cast<int>(std::ceil(1000.0 / s.capHz / periodMs - 0.01)));
+            frames = za::max(1, static_cast<int>(za::ceil(1000.0 / s.capHz / periodMs - 0.01)));
         }
         else
         {

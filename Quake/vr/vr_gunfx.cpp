@@ -22,11 +22,12 @@
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
-#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 
 #include <stdlib.h>
@@ -1086,7 +1087,7 @@ void openBarrels(Muzzle& m, float deg, int hand)
         return;
     }
     const glm::mat3 basis{f.x, f.y, f.z};
-    if(std::abs(glm::determinant(basis)) < 1e-9f)
+    if(za::abs(glm::determinant(basis)) < 1e-9f)
     {
         return;
     }
@@ -1330,6 +1331,13 @@ BarrelHeat barrelHeat(int hand, int slot)
     b.share = za::clamp((b.heat - kHeatGlowFrom) / (1.f - kHeatGlowFrom), 0.f, 1.f);
     b.glow = heatGlow(b.heat);
     b.color = glm::mix(glm::vec3{0.8f, 0.12f, 0.03f}, glm::vec3{1.f, 0.42f, 0.1f}, b.share); // dull red to orange
+    // Dwell's Crystal Lance (dwellweap): no metal barrel, its crystal head charged by the shot: a violet glow fading out
+    // (its slot's Barrel Heat and Glow Length, weapons.txt slot 55).
+    const qmodel_t* m = weapons::heldModel(hand);
+    if(m && (strstr(m->name, "dw_lance") || strstr(m->name, "dw_rail")))
+    {
+        b.color = glm::mix(glm::vec3{0.55f, 0.25f, 1.f}, glm::vec3{0.85f, 0.6f, 1.f}, b.share);
+    }
     return b;
 }
 

@@ -5005,18 +5005,25 @@ weapon 55
     hol_upper_pitch "15"
     hol_upper_yaw "30"
     hol_upper_roll "20"
-    w_mass "6.0"
+    w_mass "7.2" // dwellweap: 20% heavier in the hands (his note vrtesthall_2026-11-22_15-38-38; was 6.0)
     w_com "15"
     w_len "60"
-    fx_kick_cm "1.8"
-    fx_rise_deg "1.875"
-    fx_return_s "0.07"
+    // dwellweap, the shot's feel: a kick back and up as a heavy single shot's (it had the Thunderbolt's light stream's,
+    // 1.8 cm), its crystal head glowing violet after each shot (vr_gunfx.cpp barrelHeat: Barrel Heat 20 so one shot
+    // charges it, cooling in a quarter of Cool-Down Time; the glow's ramp over the head, 0.48 of the grip-to-tip length;
+    // no mask: the Thunderbolt's painted one was for its triangles).
+    fx_kick_cm "6"
+    fx_rise_deg "5"
+    fx_return_s "0.35"
     w_heft "0"
     fx_punch "0.62411"
     fx_gfx_wisp_charge "0.05"
     fx_gfx_wisp_alpha "0.2"
     fx_gfx_wisp_barrels "1"
-    fx_gfx_mask "924:AADAHAAww8hnfAAmn__HAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAA____________AAAAAAAAAAAAAAAAAAAAAAAAAw_PAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    fx_gfx_heat "20"
+    fx_gfx_cool "0.25"
+    fx_gfx_barrel "0.48"
+    fx_gfx_mask "0"
     reload_port_x "0"
     reload_port_y "0"
     reload_port_z "0"
@@ -5045,6 +5052,7 @@ weapon 55
     reload_hold_curl_pinky "0.85"
     wpntxt_font "1"
     anygrip_mode "3"
+    rev "1" // dwellweap: a spear's grip turns over as a sword's (the eject button: no magazine; vr_revgrip.qc)
     bl_near "0.32"
     shot_pitch "92.5"
 }

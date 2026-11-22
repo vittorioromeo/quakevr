@@ -610,11 +610,13 @@ float(entity ent) VRIsWeaponReloadingEnabled =
 }
 
 // The same of the weapon `wid` alone (its own reloading mode: the Per-Weapon Reload Overrides).
-// (Its record `inst`: AD support: the Widowmaker's and the Plasma Gun's own modes; world: not known.)
+// (Its record `inst`: AD support: the Widowmaker's and the Plasma Gun's own modes; world: not known. Dwell's Crystal Lance
+// held as a lance: never, its cells fed from the pouch: DW_LanceFedFromPouch.)
+float(entity xInst) DW_LanceFedFromPouch; // (dwell/dw_items.qc)
 float(entity ent, float wid, entity inst) VRIsWeaponReloadingEnabledForInst =
 {
     return VRIsWeaponReloadingEnabled(ent) &&
-           WeaponIdToSupportsReload(wid) &&
+           WeaponIdToSupportsReload(wid) && !(inst != world && DW_LanceFedFromPouch(inst)) &&
            (VR_FlatPlay(ent) || VR_Reload_ModeOfInst(wid, inst) != QVR_RELOADMODE_NONE); // (flat: every gun, at the hips)
 }
 

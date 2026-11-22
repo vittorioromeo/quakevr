@@ -205,6 +205,7 @@ extern keydest_t	key_dest;
 extern	char	*keybindings[MAX_KEYS];
 
 extern qboolean joy_altmodifier_pressed;
+extern int	key_lastpress; // QVR: the last key pressed (menu.c: what opened the main menu)
 
 #define		CMDLINES 64
 

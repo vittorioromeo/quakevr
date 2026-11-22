@@ -9198,6 +9198,28 @@ His notes dm3_2026-11-22_16-15-02, 16-17-59, 16-18-21.
 - Kit note: `build.sh --lto` builds the ReleaseLTO exe; mp_test.py runs the Release one (`build.sh <name>`): rebuild
   that after a merge, or the suite runs a stale exe ("cvar_hmake: unknown" lines for the new cvars).
 
+## vrnotes1122c2: the hub's Start (not reproduced: instrumented, tested), the mods' lecterns (agent/vrnotes1122c2, 2026-11-22)
+
+- **Hub Start back to the hub** (e5start_2026-11-22_15-29-11): not reproduced. The mock's earlier "Start consumed
+  vr_run_hubgo, no level change" was a test artefact: the teleporter's `localcmd vr_runsetup hub` and its
+  `changelevel` go to the end of the command buffer, behind the rest of a start-up script (its waits), so neither ran.
+  Driven through `-cmdinbox` instead (buffer empty, as in play): setpos into the teleporter, the Run Setup opens, Start
+  by A, or by the trigger with the laser on it (held 0.15 s or 3 s, past the load), with the main menu's state left
+  stale before the hub (m_main under the game): every time e5start loads and stays; the trigger and A afterwards go to
+  the game (no menu open). His log says only that the main menu's VR Hub row was confirmed 3.3 s after e5start
+  appeared. Now `M_Main_StartHub` prints (skipnotify, so the voice note's log has it) when and from where the main menu
+  opened, the key pressed before, the key that chose VR Hub, the laser's spot and the confirming key (keys.c
+  `key_lastpress`). New `Misc/quakevr/hub_start_test.py <agent>` (the inbox-driven flow, Start by A, then trigger and
+  A on e5start, 5 s: still e5start, no hub, the buttons the game's): see the report for its run.
+- **The mods' lecterns** (vrstart_2026-11-22_15-54-58): four thinner lecterns (30 wide) facing east on the terrace's west
+  side, between its two left braziers: ARCANE DIMENSIONS, DWELL, QUOTH (vr_activestartpaknameidx 6, 7, 8, then the
+  teleporter: VR_CanChangeCampaignMap runs `vr_campaign_native` for an experimental campaign, as Select Campaign does
+  after its notice) and ARENA MODE (`vr_runsetup arena`: the arena's Run Setup at once). A "MODS AND ARENA" board over
+  them. A mod not installed: its lectern says "<mod> is not installed. Official Campaigns says what it needs."
+  (buttons.qc, vr_ad/dwell/quoth_status). vrstart rebuilt (`--compile`, final preset).
+- **Centre message at vr_center_panel_scale 1.4**: `vr_center_panel_info` shows the popup up (304x88 contents), but the
+  mock's eyeshot does not hold the panel (the same picture with and without it), so readability is not judged here:
+  his check in the headset.
 ## kellbase: Quoth kellbase1 notes, enforcer pack colours (agent/kellbase, 2026-11-22)
 
 His notes kellbase1_2026-11-22_16-02-58, 16-04-06, 16-06-02.
@@ -9295,3 +9317,116 @@ vr_blood_near 96 -> 0, vid_fsaa 0 -> 4, vr_render_scale 0.9 -> 1.
 Checks: Release builds 0 warnings (qvr_checks), ThinLTO 0 warnings; flatblood 5 under Standalone 3/0, the preset round
 trip above, e1m1 under the new defaults (no GL errors). No flat suites: no shared render core path changed at the
 defaults (`vr_gl_pc_forms` 0; the tone format is the eyes' scene target's).
+## flatgreen: the flat suites that failed on origin/next (agent/flatgreen, 2026-11-22)
+
+- Runs on origin/next 100c70337 in this tree (Release no-LTO, three lanes): first with the old full baseline (a control),
+  then with `Misc/quakevr/test_baseline.cfg`. "Old" = the old baseline, "new" = the shipped-defaults baseline.
+
+| suite | before (old / new) | after | cause | fix |
+|---|---|---|---|---|
+| flat_fling | FAIL / FAIL (0 u/s) | PASS | bladeone (2da083685): a live blow's decap reads `mh_c_f`; `VR_Decap_TestBlow` never set it, so every test slash struck "0.00 along the blade" (also decap_test.sh's live/axe/...: no FAIL lines there, eyeballed) | test helper sets `mh_c_f = xF`, `mh_bfrom = 0` |
+| flatads | 6/1 / 6/1 | 7/0 | zoom-only aim (0ab8a76f7; his fsight_mode 1): `vr_flat_sight_check` returned before `flatgunview` for the launchers | the check prints the drawn place for zoom guns too, then returns |
+| flatfx | 8/2 / 8/2 | 10/0 | the centurion guns (wid 22, 25) are zoom-only by his tuning (5475ff16a) | zoom guns: "zooms in fully" (t 1.00, fov 10+ under hip); guns with sights as before |
+| flatwall | 16/1 / - | 17/0 | the same: 4 of the 24 sighted two-handed holds left | `vr_flat_aim_zoom 0` (as flatsight): every gun's ironsight hold read |
+| flatfix | 15/4 / (pending) | (pending) | "taken over N s" wraps onto the status line's 2nd console line: vr_flat_aim_time read empty | the line and its wrapped lines joined. Its two hotspot checks (grip hotspot ahead of the held hand; 2 of 3 holds) open |
+| flatlagbob | 4/1 / 3/2 | open | his defaults (ROUND24: `vr_flat_bob` 0 -> 1) plus a smaller forward bob: with `vr_flat_bob 0`, level, the hands' forward range 0.67 at bob_fwd 0 and 1.13 at 2 (the check wants +1.0; `bobFwd` 0.6 x 2 x feel.amp should give ~2.4) | not fixed: feel.amp or the step rate changed after 97446fada; worth a bisect (one 65 s run a step) |
+| flathands | 76/0 / 75/1 | open | new baseline only: swap2h "the off hand off the grip to the empty hand's guard (none)" | not looked into |
+| flatsweep | 382/5 / 382/11 | open | new: hand_head ads 0.842 vs listed 0.763 (4 rows), settled wall/long/stand/hip | not looked into (known-list drift or the shipped offsets) |
+| flateject | 16/1 / 15/2 | open | ssgold sideways speeds; new: "vr: the same stroke out of the chambers first" | not looked into |
+| flatgate | 3/2 (old) | open | case 0: the player never crosses a seamless gate in one run (crossings 0), crosses but keeps pitch 0 ("was 0.00": setpos's pitch not yet applied at state 1) in another: timing-dependent | not fixed |
+| flatmove | 10/0 / 7/3 | open | baseline-caused: passes on the old one (cl_alwaysrun, HUD scale suspects) | not fixed |
+| flatsight | 11/1 (old, once) | - | flake: 4 guns at `t 0.00` (the aim not taken) with the eye nudged | not fixed |
+| flatswap | no verdict (Knight's Sword, 3 runs) | - | the known flake | not fixed |
+
+- Also: `checklist_tests_check.py` knows Quoth's own maps (quoth_maps.sh's OWN) as it knows AD's: 94/0.
+- MP suites (mp_melee, mp_slide_vr, mp_predictslide, the flakes): not run (out of budget).
+- Seen once: "Warning: [SV] check DP_QC_SINCOSSQRTPOW before calling (: VR_Decap_Judge)" with developer 1.
+## dwellweap: the Crystal Lance's shot, weight, feed and grip flip; pole weapons' design (agent/dwellweap, 2026-11-22)
+
+His notes vrtesthall_2026-11-22_15-38-38 .. 16-01-25. Built (one commit each): items 1, 5 and part of 2 and 3; item 6 as
+a design (`docs/vr-port/POLEWEAPONS.md`). Not built: the cord, the thrust, the main hand's slide, the Rotary Shotgun's
+model changes.
+- **The beam was never drawn** ("held fire only makes smoke at the target"): `VR_BeamGone` (vr_client.cpp) ended a hand's
+  lightning the frame it began unless the hand held `v_light.mdl`; now any lightning-kind model (`gunfx::weaponIdOf`).
+- **Its effects**: violet particles where the beam enters and leaves each body and where it stops (QC `dw_fire_lance`;
+  a developer print "dwlance: the beam through N bodies"); slot 55's recoil a heavy shot's (`fx_kick_cm` 6, `fx_rise_deg`
+  5, `fx_return_s` 0.35; it had the Thunderbolt's stream values); its crystal head glowing violet after each shot (gunfx
+  barrel heat: `fx_gfx_heat` 20, `fx_gfx_cool` 0.25, `fx_gfx_barrel` 0.48, mask none; `barrelHeat`'s colour violet for
+  the Lance). Screenshot `qvr-kit/scratch/dwellweap_lance_fire.png` (eye view, then a side camera).
+- **20% heavier**: `w_mass` 7.2 (was 6.0).
+- **No magazine**: `DW_LanceFedFromPouch` (dw_items.qc): `VRIsWeaponReloadingEnabledForInst` never reloads it, each shot
+  takes 6 cells from the pouch.
+- **Grip flip**: slot 55 `rev 1`; `VR_RevGrip_Flip` allows the Lance (its eject button is free). Not proven: the mock's
+  `vr_mock_button main secondary` did not flip it (no "revgrip: ... flips" print, no refusal print); open.
+- **Tests**: `dwell_lance_test.sh` 12/0 (new: the beam fired, 6 cells from the pouch's 100). Note for test writers: the
+  mock trigger (`vr_mock_button main trigger 1`) did not fire the Lance; `+attack` does.
+
+## buildaudit: build-speed audit; process starts are the cost (agent/buildaudit, 2026-11-22)
+
+Full write-up: `BUILD_SPEED.md` (measurements, top TUs and headers, what landed, what's proposed).
+- **Finding**: on this PC a process start costs 0.1-2.7 s and starts are mostly serialised (16 `where.exe` starts in
+  a row: 17-19 s), so a build's fixed cost was mostly processes: a no-op build.sh took 23-28 s (~20 small processes in
+  the script, fteqcc recompiling unchanged QC, the version step's 4 cmd.exe + 4 git). A full rebuild: 350 s wall for
+  327 CPU-s of compiling (875 clang-cl starts).
+- **Landed** (`quakevr.props`, `ironwail.vcxproj`): `QvrBuildVersion` in one Exec (one cmd.exe, three gits; same
+  header text); the run-time DLLs by MSBuild's Copy (only changed ones, no cmd.exe); `/p:QvrSkipQcCompile=1`.
+- **Proposed kit patch** `qvr-kit/scratch/buildaudit_kit.patch` (build.sh, qc_hash.py): skip the QC compile when its
+  inputs' hash matches the last clean compile; bash builtins instead of small processes. With it: no-op 23-28 -> 5.5-9 s,
+  a .cpp touch 33-38 -> 6-11 s, a QC edit 36 -> 12 s, vr_hands.hpp 166 -> 98 s (noisy, shared machine).
+- No source includes or std:: touched (the zancle worker's area): the heaviest headers are listed for it in BUILD_SPEED.md.
+## flatladder: flat-screen ladders on the drawn rungs too (agent/flatladder, 2026-11-22)
+
+His decision 2026-11-22 (kellbase item 3, "share it"). FLATPLAY.md "Ladders".
+- **One rung source.** `flatRungSearch` is gone: `ladderHold`'s volume fallback asks `drawnRung` for flat play's ladder
+  as for a headset's hands, and a held rung says so (`Ledge::drawn`). The flat window over the feet (Lowest Ledge to
+  the shoulders plus an arm, about 31 units) holds one bar 24 or 32 apart, so `findRungs` takes `drawnBelow`: once the
+  window saw a drawn rung, a second pass probes down to that far under it and keeps drawn rungs alone (other holds
+  never, and the window's own probes are unchanged, so a ladder with no drawn rungs finds exactly what it did). Getting
+  on (`flatLadder`), going down hand over hand and the lowering off the top (`flatLadderMount`) pass ladderGap (40);
+  going up passes 0. The mount's top rung may be up to ladderGap under the floor's edge when drawn (kellbase1's
+  catwalk: its top bar 24 under; the volume's own top rung keeps 24).
+- **`drawnRung` guard (VR too):** AD's ad_e1m1 ladder has a non-solid model with one up-facing face (at its top, 160)
+  over its volume, so every hand on it took that "rung" (flat: one rung, 0 of 3). A drawn ladder now needs two or more
+  tops, and the nearest within `drawnRungReach` (40) of the hand; else the volume's own 16-unit rungs, as before.
+- **Tests:** `vr_flatladder_test` on kellbase1 gains the pillar ladder (x -64, 256 up to 640, bars 32 apart): up and
+  over, down from its top, down looking down; the catwalk's three now climb its bars (rungs 656/680 taken, then 704,
+  728 ... 872). modladder_test.sh's fallback case moved to index 6. Runs: modladder_test.sh 10/0 (kellbase1 flat 6/0,
+  AD ad_e1m1 3/0, VR hands' exact holds unchanged), flatladder_test.sh 2/0, ad_test3 ladder 1/0 and fallback 1/0;
+  ThinLTO 0 warnings.
+
+## zancle: std:: to Zancle, includes trimmed (agent/zancle, 2026-11-22)
+
+His standing rule restated: our C++ uses Zancle wherever it has an equivalent and includes only what it uses.
+
+- **The mapping:** `docs/vr-port/ZANCLE.md` (std -> Zancle, its header, the traps: exact-type math templates, integer
+  `abs`, `min`/`max` types, `remainder` vs fmod, sort stability, atomic orders; the no-equivalent list: allocator hooks'
+  `std::align_val_t`/`nothrow_t`, `std::filesystem` behind `qvr::files`, `std::source_location` in the jobs, the
+  ordered map in vr_motion_review, `vr_zancle_diag.cpp`'s std comparison, third-party interfaces). Zancle's swap is
+  `za::genericSwap`.
+- **The check:** `qvr_checks std_uses` (Tools/qvr_checks/std_uses.cpp, in `all`, so every build): counts `std::<name>`
+  in the code (comments and strings ignored) and every C++ standard header include except the C ones Zancle has
+  nothing for (cstdio, cstdarg, cstdlib, ctime, cctype, ...), per file in Quake/vr (not external/), against
+  `Misc/quakevr/std_uses_allowlist.txt` (`<file> <name> <max>  # why`; `*` for a whole file). Over a cap fails.
+  `python Misc/quakevr/std_uses_allowlist.py` rewrites the caps from `qvr_checks std_uses --list`, keeping each why.
+- **Phases:** 1 (42 files a..h: AD, box3d, flat play, hit reactions, holster zones), 2 (36 files h..v: humans, impacts,
+  menu, monster groups, net ragdolls and snapshots, active ragdolls, temporal, view, visor). Mechanical: C string calls
+  -> `ZA_STRCMP`..., math -> `za::` templates, traits -> `ZA_IS_...`, int types -> `za::U32`..., `std::array` ->
+  `za::Array`, `std::span` -> `za::Span`, `std::size` -> `za::getArraySize`, sorts -> `za::quickSort`/`stableSort`,
+  `lower_bound` -> `za::lowerBound`; C stdio/stdlib (`sscanf`, `snprintf`, `atof`, `atoi`, `strchr`) lose the `std::`
+  (no Zancle equivalent); `<cmath>`, `<cstring>`, `<cstdint>`, `<algorithm>`, `<type_traits>`, `<utility>`,
+  `<array>`, `<span>`, `<initializer_list>` dropped where nothing std-qualified is left (unqualified C calls come from
+  quakedef.h's C headers). Every converted call compiled against the exact-type templates (no mixed promotions
+  found). One ordering change: vr_admelee.cpp's normal welding sorts equal vertices by index (a total order, so each
+  run's normals sum in one fixed order; std::sort left ties in an unspecified one). Sorts on unique keys (cvar names,
+  snapshot record keys) are unchanged; vr_netsnap's per-class byte table (a diagnostic print) may order ties
+  differently.
+- **Counts:** std:: uses in code 441 -> 208, standard header includes 90 -> 29 (`qvr_checks std_uses --list`).
+- **Left (phase 3):** the atomics (`std::atomic` -> `za::Atomic`: no operators, so every `++`/`+=`/implicit load in the
+  hull/box3d/disk caches' stats, imgprefetch, warmup, startlog, xr_runtime, jobs needs its explicit order:
+  `std::atomic`'s operators are seq_cst), `std::chrono` in vr_mptest/vr_voicechat (-> `za::Clock`), vr_tracy.cpp
+  (mutex, deque, unordered_map, strings: -> `za::AtomicMutex`, ankerl, `za::String`), and the kept list above. Not in
+  scope and noted: ~2,600 unqualified C string calls (`strcmp`, `memcpy`, ...) could become the `ZA_` builtins too.
+- **Tests:** release build 0 warnings each phase; phase 1: smoke e1m1, flat_gate_aim 6/0, hitreact_test exit 0,
+  struggle_test 6/6 (armdrag, shoulderdrag drag: vr_box3d_struggle.cpp's only change was std::str* -> the same
+  builtins, so not this branch's; not chased); phase 2: smoke e1m1, mp_test ragsync 11/0, active_test no fail,
+  NaN or crash line.

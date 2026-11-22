@@ -454,7 +454,11 @@ feet go no higher than the top hold, and at the top the headset's mantle takes h
 rungs over a drop he lets go. Jump (a new press) pushes off at `vr_flat_ladder_push` (120 u/s out, half that up). Backing
 off a ladder's top (on it, facing away from the drop, back held at its lip) lowers him onto it: the mantle's way backwards
 (over the lip, then down, 0.3 s, no grunt) to hang where the rung under the top is in reach. Tunables: Debug > Tunables
-(Ladder Climb Speed, Look Down, Push Off, Reach). Test: `Misc/quakevr/flatladder_test.sh` (`vr_flatladder_test`, Debug >
+(Ladder Climb Speed, Look Down, Push Off, Reach). A mod's ladder (a `trigger_ladder` volume) gives its drawn rungs (a
+non-solid model's bars over it, `drawnRung`, the same rungs a headset's hands take), else its own 16 apart; drawn bars may
+stand farther apart than the window over the feet (kellbase1's 24 and 32), so once the window sees one, drawn rungs up to
+40 under it count too (`findRungs`' `drawnBelow`: getting on, going down, lowered off the top), the lower hand then under
+Lowest Ledge. Test: `Misc/quakevr/flatladder_test.sh` (`vr_flatladder_test`, Debug >
 Tests > Flat Ladder; scene `flat_ladder`).
 
 **Left Ctrl's firing bind, taken and given back.** In the plain game Left Ctrl is the fire key: `bind CTRL +attack` is in

@@ -19,7 +19,8 @@
 
 #include <glm/glm.hpp>
 
-#include <cstdint>
+#include "Zancle/Base/IntTypes.hpp"
+
 
 namespace qvr::flamewobble
 {
@@ -31,7 +32,7 @@ void frame();
 // frame), its foot and height (world units, up the world's z), the hand carrying it (its own motion is not a push; -1
 // none). Registered for the next frame's pushes; returns its lean now (sideways units a unit up, world x y; zero when
 // still or with vr_flame_wobble 0).
-[[nodiscard]] glm::vec2 source(std::uint32_t key, const glm::vec3& foot, float height, int carrier);
+[[nodiscard]] glm::vec2 source(za::U32 key, const glm::vec3& foot, float height, int carrier);
 
 // VR_AliasPreTransform: a map flame model swinging, sheared over its base (world space). Nothing for the others.
 void leanModel(const entity_t* e, float matrix[16]);

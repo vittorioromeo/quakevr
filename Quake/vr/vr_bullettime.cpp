@@ -1064,7 +1064,7 @@ Look look()
     l.desaturate = za::clamp(vr_bullettime_fx_desat.value, 0.f, 1.f);
     l.vignette = za::clamp(vr_bullettime_fx_vignette.value, 0.f, 1.f);
     float r = 1.f, g = 1.f, b = 1.f;
-    if(std::sscanf(vr_bullettime_fx_tint.string, "%f %f %f", &r, &g, &b) == 3)
+    if(sscanf(vr_bullettime_fx_tint.string, "%f %f %f", &r, &g, &b) == 3)
     {
         l.tint = glm::clamp(glm::vec3{r, g, b}, glm::vec3{0.f}, glm::vec3{2.f});
     }

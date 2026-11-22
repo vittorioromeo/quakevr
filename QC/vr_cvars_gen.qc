@@ -1589,6 +1589,7 @@ float cvarh_vr_prop_impact_weight_ref;
 float cvarh_vr_push;
 float cvarh_vr_quad_melee_damage;
 float cvarh_vr_quad_melee_range;
+float cvarh_vr_quoth_status;
 float cvarh_vr_rag1108_test;
 float cvarh_vr_ragdoll;
 float cvarh_vr_ragdoll_active;
@@ -3739,6 +3740,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_push = VR_CVar_Make("vr_push");
     cvarh_vr_quad_melee_damage = VR_CVar_Make("vr_quad_melee_damage");
     cvarh_vr_quad_melee_range = VR_CVar_Make("vr_quad_melee_range");
+    cvarh_vr_quoth_status = VR_CVar_Make("vr_quoth_status");
     cvarh_vr_rag1108_test = VR_CVar_Make("vr_rag1108_test");
     cvarh_vr_ragdoll = VR_CVar_Make("vr_ragdoll");
     cvarh_vr_ragdoll_active = VR_CVar_Make("vr_ragdoll_active");

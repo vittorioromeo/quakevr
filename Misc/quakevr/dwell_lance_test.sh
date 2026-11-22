@@ -35,5 +35,12 @@ shot=$(grep -m1 "main  the shot" <<<"$log" | awk '{ print $4 }')
 echo "  the beam off the pole (the line from the hand to the tip): $shot deg"
 check $(awk -v d="$shot" 'BEGIN { print (d != "" && d + 0 < 6) ? 1 : 0 }') "the beam goes along the pole (Shot Pitch: the spear held through the fist)"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "pole: the run ended on its last line"
+# 3. dwellweap: its shot (no magazine: 6 cells from the pouch's 100, the beam's print) (its grip flip by the eject button, vr_revgrip.qc, not checked yet: the mock B press did not flip it).
+log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;developer 1;vr_mock_hand main 0.2 1.3 -0.3 -22 0 0;vr_ad_test 207;wait60;+attack;wait10;-attack;edict 1;vr_mock_button main secondary 1;wait2;vr_mock_button main secondary 0;wait30;vr_mock_button main secondary 1;wait2;vr_mock_button main secondary 0;wait30;echo dwlance-test: done" \
+    -QuitOn "dwlance-test: done" -Timeout 300 -Filter "dwlance:|ammo_cells|revgrip:|rror|exit=" 2>&1 | tr -d '\r')
+echo "$log" | grep -E "dwlance:|ammo_cells|revgrip:" | cut -c1-160 | head -5
+check $(grep -q "dwlance: the beam through" <<<"$log" && echo 1 || echo 0) "shot: the beam fired"
+check $(grep -qE "ammo_cells +94" <<<"$log" && echo 1 || echo 0) "shot: 6 cells taken from the pouch's 100 (no magazine)"
+check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "shot: the run ended on its last line"
 verdict
 exit $fail

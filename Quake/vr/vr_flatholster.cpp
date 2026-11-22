@@ -20,6 +20,7 @@
 
 #include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -386,7 +387,7 @@ void click()
 {
     if(a > b)
     {
-        std::swap(a, b);
+        za::genericSwap(a, b);
     }
     int k = 0;
     for(int i = 0; i < holsterCount - 1; i++)
