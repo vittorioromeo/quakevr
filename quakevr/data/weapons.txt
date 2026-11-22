@@ -5052,6 +5052,7 @@ weapon 55
     reload_hold_curl_pinky "0.85"
     wpntxt_font "1"
     anygrip_mode "3"
+    rev "1" // dwellweap: a spear's grip turns over as a sword's (the eject button: no magazine; vr_revgrip.qc)
     bl_near "0.32"
     shot_pitch "92.5"
 }

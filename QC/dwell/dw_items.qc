@@ -258,6 +258,15 @@ void(float xHand) DW_LanceMelee =
     BroadcastGunshotEffect(org);
 };
 
+// The weapon record `xInst` is the Crystal Lance held as a lance: no magazine (dwellweap; his note
+// vrtesthall_2026-11-22_15-38-38: "it shouldn't have a magazine like the laser cannon"): every shot's 6 cells taken from
+// the pouch's (VRIsWeaponReloadingEnabledForInst never reloads it; its eject button free for the grip's flip, vr_revgrip.qc;
+// the cord from its butt to the pouch planned in docs/vr-port/POLEWEAPONS.md).
+float(entity xInst) DW_LanceFedFromPouch =
+{
+    return xInst.wi_dwvar == DW_VAR_LANCE && DW_LancePole();
+};
+
 // The weapon in `xHand` is the Crystal Lance held as a lance.
 float(float xHand) DW_LanceHeld =
 {
