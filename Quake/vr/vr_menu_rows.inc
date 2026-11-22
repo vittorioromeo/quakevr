@@ -5542,6 +5542,32 @@ QVR_TOGGLE(vr_hull_holes, "Close Gaps Quake's Box Never Fit",
     "its shaft) get invisible blockers, so your narrower box (and narrow monsters') can't slip or fall through "
     "where Quake's never could; you still get as close as your width lets you everywhere else. Takes effect at "
     "the next map load (vr_hull_holes).")
+QVR_SLIDER(vr_hull_holes_max, "Close Gaps: Narrower Than", 16.f, 48.f, 1.f, "%.0f units", noExt,
+    "Gaps narrower than this along a line get blockers (32: Quake's box). Past 32 they are kept only where Quake's "
+    "own box can't reach them; between the map and a door, lift or func_wall never past 32. Next map load, or "
+    "Rebuild Gap Blockers Now (vr_hull_holes_max).")
+QVR_SLIDER(vr_hull_holes_min, "Close Gaps: Wider Than", 0.f, 24.f, 1.f, "%.0f units", noExt,
+    "Gaps narrower than this are left open (8: the narrowest box gets into none of them) (vr_hull_holes_min).")
+QVR_SLIDER(vr_hull_holes_wide, "Close Gaps: Over a Fall Up To", 0.f, 96.f, 4.f, "%.0f units", noExt,
+    "Thin bars' and grates' gaps over a fall from Narrower Than up to this, closed only where Quake's box standing "
+    "can't reach into them (a crossbar below, a narrowing). 0: off (vr_hull_holes_wide).")
+QVR_TOGGLE(vr_hull_holes_diag, "Close Gaps: Slanted Bars",
+    "Gaps between slanted bars, turned grates and round holes too, across the diagonals (Quake's box needs 45 "
+    "units there), kept only where Quake's own box can't reach them (vr_hull_holes_diag).")
+QVR_TOGGLE(vr_hull_holes_models, "Close Gaps: Between Brush Models",
+    "Gaps between two brush models too (two func_walls, a door and a lift), not only between them and the map "
+    "(vr_hull_holes_models).")
+QVR_TOGGLE(vr_hull_holes_vert, "Close Gaps: Seen From Above",
+    "Gaps between bars at two heights (a louvred grate) that you'd fall through, closed over a fall where Quake's "
+    "box standing can't reach into them (vr_hull_holes_vert).")
+QVR_SLIDER(vr_hull_holes_cells, "Close Gaps: Tests a Slanted Pair", 16.f, 512.f, 16.f, "%.0f", noExt,
+    "The most cells a pair of slanted faces is cut into to find its gap; past it the rest stays open (64) "
+    "(vr_hull_holes_cells).")
+QVR_SLIDER(vr_hull_holes_cell, "Close Gaps: Smallest Cell", 0.5f, 8.f, 0.5f, "%.1f units", noExt,
+    "The smallest cell a slanted pair's facing area is cut into (2) (vr_hull_holes_cell).")
+QVR_SLIDER(vr_hull_holes_reach, "Close Gaps: Quake's Box Reach", 0.f, 8.f, 0.5f, "%.1f units", noExt,
+    "A blocker Quake's own box can reach into by more than this is left out (2: hull 1 is rounded by a unit or "
+    "so) (vr_hull_holes_reach).")
 QVR_TOGGLE(vr_hull_hit_head, "Height Shots Hit: Your Head's",
     "Shots and missiles meet you only up to the top of your head: crouched behind a crate, those flying "
     "over it miss you (Quake's box stands as tall), and monsters' bullets aim no higher than your body. "

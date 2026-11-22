@@ -150,6 +150,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit =
 .vector vr_ad_shotfrom, vr_ad_impactdir;
 .vector vr_ad_launchfrom;
 .float vr_ad_pelletscale; // a player's AD pellet: its damage, times AD's (AD_FirePellets)
+.float vr_ad_heavymult, vr_ad_heavyhealth; // a heavy revolver's slug's big-body rule (vr_pellet_heavy_*; VR_PelletHeavy)
 
 // AD ammo and backpacks refresh the classic viewmodel. Our weapon ids are not AD's item bits
 // (WID_SHOTGUN 4 is AD's nailgun); refresh the two VR hands through our own model/ammo table.
@@ -923,7 +924,12 @@ void(float xHand, float shotcount, vector dir, vector spread, vector muzzle) AD_
         }
         ad_newmis.vr_ad_pelletscale = scale;
         ad_newmis.vr_ad_shotserial = serial;
-        ad_newmis.vr_ad_shotweapon = shotgun ? (ssg ? QVR_DECAP_SSG : QVR_DECAP_SHOTGUN) : 0;
+        // The shot's head-pop identity as hitscan's (the firing function's vr_decap_weapon: a shotgun's, the super
+        // shotgun's, a heavy revolver's slug; unset, the shotgun's by the gun in hand), and a slug's big-body rule
+        // (VR_PelletHeavy).
+        ad_newmis.vr_ad_shotweapon = vr_decap_weapon ? vr_decap_weapon : (shotgun ? (ssg ? QVR_DECAP_SSG : QVR_DECAP_SHOTGUN) : 0);
+        ad_newmis.vr_ad_heavymult = vr_pellet_heavy_mult;
+        ad_newmis.vr_ad_heavyhealth = vr_pellet_heavy_health;
         ad_newmis.vr_ad_shotpellets = pellets;
         ad_newmis.vr_ad_shotfrom = muzzle;
         ad_newmis.vr_ad_shothand = xHand;
@@ -1645,6 +1651,7 @@ void(entity victim, entity pellet, float damage) VR_AD_PelletHit =
     vector at = trace_ent == victim ? trace_endpos : pellet.origin;
     float part = PositionalDamage(victim, at, dir);
     damage = damage * PositionalDamageFactor(part);
+    damage = VR_PelletHeavy(victim, damage, pellet.vr_ad_heavymult, pellet.vr_ad_heavyhealth);
     VR_Hit_Begin(QVR_HITKIND_SHOT, pellet.vr_ad_shothand, at, dir);
     float serial = vr_sgib_blastserial;
     float weapon = vr_decap_weapon;

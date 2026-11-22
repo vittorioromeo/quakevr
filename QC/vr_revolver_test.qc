@@ -361,6 +361,151 @@ void() VR_RVT_Flicks =
     remove(h);
 };
 
+// ----------------------------------------------------------------------------
+// vr_rv_test 6 (his note 2026-11-21: in AD and Quoth, whose shells fly as projectiles, a heavy revolver's headshot never
+// popped the head; hitscan's always did): the same shot by both paths, fired as W_FireRevolver fires it (its slug's
+// state, FireBullets from the main hand's muzzle), at a plain grunt 160 units ahead: hitscan (vr_ad_projectiles 1) at its
+// head pops it, at its body does not; AD's projectile slug (vr_ad_projectiles 2; Quoth's maps play under AD's rules) the
+// same; AD's shotgun blast at a head still pops it (vr_decap_pop_roll 0); a slug into an ogre's body (200 units) deals as
+// much by AD's path as by hitscan (its big-body rule, vr_revolver_heavy_mult; vr_revolver_dmg_random 0 meanwhile). Each
+// case waits for its shot to land (the victim hurt), then 30 frames for the ragdoll's pop; 150 frames without a hit: FAIL
+// timed out. Ends with "rvpop: N passed, M failed".
+float vr_rvp_on;
+float vr_rvp_case;     // 0..6: 0-1 hitscan head/body, 2-3 AD's, 4 AD's shotgun, 5-6 an ogre's body hitscan/AD's
+float vr_rvp_frames;   // into the case
+float vr_rvp_hitat;    // the frame the victim was hurt (0: not yet)
+float vr_rvp_pops0, vr_rvp_health0, vr_rvp_ogre;
+float vr_rvp_proj0, vr_rvp_roll0, vr_rvp_spread0, vr_rvp_random0, vr_rvp_posdmg0;
+entity vr_rvp_g;
+float VR_RVP_CASES = 7;
+
+void(float xCase) VR_RVP_Start =
+{
+    vr_rvp_case = xCase;
+    vr_rvp_frames = 0;
+    vr_rvp_hitat = 0;
+    cvar_set("vr_ad_projectiles", (xCase < 2 || xCase == 5) ? "1" : "2");
+    cvar_set("vr_decap_pop_roll", xCase == 4 ? "0" : ftos(vr_rvp_roll0));
+    cvar_set("vr_positional_damage", xCase >= 5 ? "0" : ftos(vr_rvp_posdmg0)); // (the ogre's: whichever part each path's hit point is on)
+    // (Each case's victim removed after it: one place for the grunts, another for the ogres, clear of the heads popped.)
+    vr_rvp_g = VR_RVT_Monster(160, xCase >= 5 ? 30 : 0, xCase >= 5);
+    vr_rvp_g.enemy = vr_rvt_player;
+    vr_rvp_g.th_pain = SUB_NullPain;
+    vr_rvp_pops0 = vr_decap_pops;
+    vr_rvp_health0 = vr_rvp_g.health;
+};
+
+void() VR_RVP_Fire =
+{
+    entity g = vr_rvp_g;
+    entity os = self;
+    self = vr_rvt_player;
+    float head = vr_rvp_case == 0 || vr_rvp_case == 2 || vr_rvp_case == 4;
+    vector to = g.origin + '0 0 1' * (vr_rvp_case >= 5 ? 0 : 6);
+    if(head && VR_Decap_HeadZone(g))
+    {
+        makevectors('0 1 0' * g.angles_y);
+        to = g.origin + v_forward * xHeadForward + VR_HeadSide(v_forward) + '0 0 1' * xHeadUp;
+    }
+    vector dir = normalize(to - VRGetMuzzlePos(cVR_MainHand));
+    float ad = AD_Pellets(self);
+    if(vr_rvp_case == 4)
+    {
+        VRGiveEntWeapon(self, cVR_MainHand, WID_SHOTGUN, 0, 6);
+        vr_pellet_damage = cvar_hget(cvarh_vr_dmg_shotgun); // (W_FireShotgun's)
+        vr_decap_weapon = QVR_DECAP_SHOTGUN;
+        FireBullets(cVR_MainHand, 6, dir, '0 0 0');
+        vr_decap_weapon = 0;
+        vr_pellet_damage = 0;
+    }
+    else
+    {
+        VRGiveEntWeapon(self, cVR_MainHand, WID_REVOLVER, 0, RV_CHAMBERS);
+        VR_Revolver_SlugBegin(); // (W_FireRevolver's)
+        FireBullets(cVR_MainHand, 1, dir, '0 0 0');
+        VR_Revolver_SlugEnd();
+    }
+    dprint(sprintf("rvpop: case %g fired at %s's %s, AD's pellets %g\n", vr_rvp_case, g.classname, head ? "head" : "body", ad));
+    self = os;
+};
+
+void() VR_RVP_Frame =
+{
+    entity g = vr_rvp_g;
+    vr_rvp_frames++;
+    if(g.health > 0)
+    {
+        g.nextthink = 0; // (it stands as it is: no attack, no grenade into the next one)
+    }
+    if(vr_rvp_frames == 2)
+    {
+        vr_rvp_health0 = g.health; // (its health as it has started: walkmonster_start_go's)
+        VR_RVP_Fire();
+    }
+    if(vr_rvp_frames > 2 && !vr_rvp_hitat && (g.health < vr_rvp_health0 || g.vr_decap_died || g.deadflag != DEAD_NO))
+    {
+        vr_rvp_hitat = vr_rvp_frames;
+    }
+    float timedout = vr_rvp_frames >= 150;
+    if(!(vr_rvp_hitat && vr_rvp_frames >= vr_rvp_hitat + 30) && !timedout)
+    {
+        return;
+    }
+    float c = vr_rvp_case;
+    string path = (c < 2 || c == 5) ? "hitscan" : "AD's projectile";
+    float popped = vr_decap_pops > vr_rvp_pops0 || g.vr_headless;
+    if(timedout)
+    {
+        VR_Test_Check(FALSE, sprintf("case %g (%s): timed out, the shot never hurt it", c, path));
+    }
+    else if(c == 0 || c == 2)
+    {
+        VR_Test_Check(popped, sprintf("%s slug at a grunt's head: popped %g (pops %g, headless %g, health %g)", path, popped,
+            vr_decap_pops - vr_rvp_pops0, g.vr_headless, g.health));
+    }
+    else if(c == 1 || c == 3)
+    {
+        VR_Test_Check(!popped, sprintf("%s slug at a grunt's body: popped %g (want 0; health %g)", path, popped, g.health));
+    }
+    else if(c == 4)
+    {
+        VR_Test_Check(popped, sprintf("%s shotgun blast at a grunt's head: popped %g", path, popped));
+    }
+    else
+    {
+        // (AD's pellet: vr_dmg_revolver x vr_ad_pellet_damage, at 1 hitscan's slug.)
+        float dealt = vr_rvp_health0 - g.health;
+        float scale = max(0.001, c == 6 ? cvar_hget(cvarh_vr_ad_pellet_damage) : 1);
+        if(c == 5)
+        {
+            vr_rvp_ogre = dealt;
+            VR_Test_Check(dealt > 0, sprintf("%s slug into an ogre's body: %.1f dealt", path, dealt));
+        }
+        else
+        {
+            // (Within 8 percent: without the big-body rule it was 1.75 times off.)
+            float near = fabs(dealt / scale - vr_rvp_ogre) <= 0.08 * vr_rvp_ogre;
+            VR_Test_Check(near, sprintf("%s slug into an ogre's body: %.1f dealt (%.1f at vr_ad_pellet_damage 1; hitscan's %.1f; vr_revolver_heavy_mult %g)",
+                path, dealt, dealt / scale, vr_rvp_ogre, cvar_hget(cvarh_vr_revolver_heavy_mult)));
+        }
+    }
+    remove(g);
+    vr_rvp_g = world;
+    if(c + 1 < VR_RVP_CASES)
+    {
+        VR_RVP_Start(c + 1);
+        return;
+    }
+    cvar_set("vr_ad_projectiles", ftos(vr_rvp_proj0));
+    cvar_set("vr_decap_pop_roll", ftos(vr_rvp_roll0));
+    cvar_set("vr_ad_pellet_spread", ftos(vr_rvp_spread0));
+    cvar_set("vr_revolver_dmg_random", ftos(vr_rvp_random0));
+    cvar_set("vr_positional_damage", ftos(vr_rvp_posdmg0));
+    if(!vr_rvt_notarget) vr_rvt_player.flags = vr_rvt_player.flags - (vr_rvt_player.flags & FL_NOTARGET);
+    vr_rvp_on = FALSE;
+    VR_Test_Verdict();
+};
+
 void() VR_Revolver_TestFrame =
 {
     float req = cvar_hget(cvarh_vr_rv_test);
@@ -407,6 +552,22 @@ void() VR_Revolver_TestFrame =
             return;
         }
         self = os0;
+        if(req == 6)
+        {
+            VR_Test_Begin("rvpop");
+            vr_rvp_proj0 = cvar_hget(cvarh_vr_ad_projectiles);
+            vr_rvp_roll0 = cvar_hget(cvarh_vr_decap_pop_roll);
+            vr_rvp_spread0 = cvar_hget(cvarh_vr_ad_pellet_spread);
+            cvar_set("vr_ad_pellet_spread", "0");
+            vr_rvp_random0 = cvar_hget(cvarh_vr_revolver_dmg_random);
+            vr_rvp_posdmg0 = cvar_hget(cvarh_vr_positional_damage);
+            cvar_set("vr_revolver_dmg_random", "0");
+            vr_rvt_notarget = (vr_rvt_player.flags & FL_NOTARGET) != 0;
+            vr_rvt_player.flags = vr_rvt_player.flags | FL_NOTARGET;
+            vr_rvp_on = TRUE;
+            VR_RVP_Start(0);
+            return;
+        }
         VR_Test_Begin("rvtest");
         vr_rvt_mode = cvar_hget(cvarh_vr_reload_mode_revolver);
         vr_rvt_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
@@ -426,6 +587,11 @@ void() VR_Revolver_TestFrame =
         VR_NPT_Freeze(TRUE);
         vr_rvt_step = 1;
         vr_rvt_frames = 0;
+    }
+    if(vr_rvp_on)
+    {
+        VR_RVP_Frame();
+        return;
     }
     if(!vr_rvt_step) return;
     entity p = vr_rvt_player;

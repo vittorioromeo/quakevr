@@ -7240,6 +7240,26 @@ hue band can't separate brown uniforms from brown flesh, and a full hue turn wit
 
 - A scene whose `map` is not in the running campaign (an `ad_` map after a scene that left Quake's running) now makes the add-on campaign that has it (AD, Quoth, Dwell: rows 3+) the active one itself (`mapFoundOrCampaignSelected`, vr_scenario.cpp), so no scene depends on order. Fixed `humrepl_variants` "no map ad_crucial". scenario_check twice PASS (177 run, 0 failed); `humrepl_variants` and `ad_tears_window` alone OK.
 
+## holes2: the gaps the hole blockers still missed; tunable limits; report a miss (branch agent/holes2, 2026-11-22)
+
+- **His note (flat):** is the threshold customizable; a few gaps he still falls through. HULLS.md "Holes" (holes2) has
+  the detail. Four more searches at map load, each blocker kept only where hull 1 shows Quake's box can't reach into it:
+  diagonals between upright slanted prisms (slanted bars, turned grates, round holes; under 32 x 1.414 across), gaps
+  between two brush models (two func_walls, a door and a lift's travel), thin bars at two heights seen from above (a
+  louvred grate) and the world's thin gaps 32..48 along a line; the last two only over a fall with the way down open,
+  where Quake's box standing can't reach them. The census's reach test and the drop test now test the same shape.
+- **Settings** (next map load, or Rebuild Gap Blockers Now: `vr_hull_holes_rebuild`, a save and load):
+  `vr_hull_holes_max` 32, `_min` 8, `_wide` 48, `_diag` 1, `_models` 1, `_vert` 1 (Movement > Player Hitbox);
+  `_cells` 64, `_cell` 2, `_reach` 2 (Debug, beside Show Gap Blockers). `buildVersion` 4: every map's trees compile once
+  again.
+- **Report a miss:** Debug > Mark a Gap I Got Through (`vr_hull_holes_mark [radius] [note]`): map, position, settings,
+  the solids and the gaps on the lines through you, the blockers near; also added to `quakevr/hull_holes_marks.txt`.
+- **Test:** vrbrushholes gained a diagonal grate, a louvred grate and two func_walls; `vr_hull_holes_test` 23/0 on and
+  23/0 off; with diag, vert and models off exactly their six checks fail. Scenes `brushholes_diag`, `_louvre`, `_walls`
+  (`brushholes_grate` now starts north of the new louvred pit). Census: id1 38 maps and AD 14 maps, Quake's box reaches
+  0; ad_tears' search 1.02 s against 0.68 s without the new searches (low-impact run).
+- **Open:** Quoth not in the kit's base (not censused); `vr_hull_holes_rebuild` not run headless (it saves a game); bars
+  at two heights over an open pit get no blocker where Quake's box hanging below them could reach it.
 ## axelag: the Super Axe's beheading (agent/axelag, 2026-11-21)
 
 - **His tweaks were already the defaults** (proposed_defaults 11-12 and 11-16: pitch 12, x -1.21, y 2, the tip +5.95 up,
@@ -7320,3 +7340,28 @@ hue band can't separate brown uniforms from brown flesh, and a full hue turn wit
 - **embed 1 on origin/next's QC** (same engine): 59/2 and 48/13 (the side-on bounce, then a corpse/knocked-down cascade):
   the same failures as the branch's 47/14, 57/4, 56/5. Flaky on next too, not bladeone's.
 - Debug > Tests > "Blade Starts Test" (`vr_melee_sweep_test 7`). ThinLTO built, 0 warnings.
+## projheadpop: heavy revolver head pops with AD's projectile slugs (agent/projheadpop, 2026-11-22)
+
+His note (2026-11-21): where shells fly as projectiles (AD, Quoth) a heavy revolver's headshot never popped the head;
+hitscan's always did.
+
+- **Why:** AD_FirePellets (vr_ad_bridge.qc) gave each pellet its head-pop identity (`vr_ad_shotweapon`) from the gun in
+  hand, and only for the shotgun, the super shotgun and the burst rifle's id shotgun: the revolver's slug flew with 0, so
+  VR_AD_PelletHit's VR_Decap_Pellet / VR_Decap_BlastArm never armed it. Its big-body rule (`vr_pellet_heavy_mult`,
+  applied in FireBulletsImpl) was lost too: the globals are cleared before the pellet lands (an ogre took ~30 a slug
+  instead of hitscan's ~50).
+- **Fix (one rule for both paths):** the pellet now takes the firing function's own `vr_decap_weapon` (what hitscan's
+  VR_Decap_HeadBlastArm uses: shotgun, super shotgun, Widowmaker, Dwell's guns, the revolver), falling back to the old
+  gun-in-hand rule when it's unset (direct AD_FirePellets callers: the AD shot tests). The big-body rule is one helper,
+  `VR_PelletHeavy` (vr_defs.qc), used by FireBulletsImpl and, from the pellet's `vr_ad_heavymult` / `vr_ad_heavyhealth`,
+  by VR_AD_PelletHit. Quoth's maps run under AD's rules, so the same path. Pops stay the player's only (BlastArm's
+  FL_CLIENT test), as in hitscan: an armed grunt's revolver pops no heads either way.
+- **New test** `vr_rv_test 6` (rvpop, vr_revolver_test.qc; e1m1, `-QuitOn "rvpop: [0-9]+ passed"`): a slug fired as
+  W_FireRevolver fires it at a plain grunt's head and body, hitscan (vr_ad_projectiles 1) and AD's (2); AD's shotgun
+  blast at a head (vr_decap_pop_roll 0); a slug into an ogre's body both ways (vr_positional_damage 0,
+  vr_revolver_dmg_random 0): 7 passed (ogre 52 hitscan, 50 AD's). Without the fix: 5 passed, 2 failed (AD's head shot,
+  the ogre 30). Scene `revolver_adheadpop`.
+- **Checks:** ad_pop_odds_test.sh PASS (3 volleys topped up to their final chance); limbs_test.sh live on the grunt as
+  before (the lightning bolt's limb case kills nothing there, untouched by this); scenario_check PASS (179 run, 0
+  failed); Dev and ThinLTO built, 0 warnings.
+
