@@ -175,11 +175,14 @@ def busy_ports(port, count=PORT_BLOCK):
     return busy
 
 
-def default_base(repo, kit="C:/OHWorkspace/qvr-kit"):
+def default_base(repo):
     """(backlog1122b) Each checkout's own game folder: the kit's bases/<checkout name>/qbase (new_agent.sh's, the one
     run.sh's runs use), so two workers' suites no longer share bases/mp/qbase (its autoexec.cfg, saves, crash folder).
     None if the checkout has none (the author's: --base is then required)."""
-    path = os.path.join(kit, "bases", os.path.basename(os.path.normpath(repo)), "qbase")
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import qvrtest  # (Misc/quakevr: the kit's folder, qvrtest.KIT)
+    path = os.path.join(qvrtest.KIT, "bases", os.path.basename(os.path.normpath(repo)), "qbase")
     return path if os.path.isdir(os.path.join(path, "id1")) else None
 
 
