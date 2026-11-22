@@ -8324,4 +8324,5 @@ His notes vrropes_2026-11-22_15-43-18, 15-43-56, 15-45-10, 15-48-30 ("Climbing r
   another's copy. `clientRopeAt` gives the lowest point's height (`bottom`).
 - Tests: rope_climb_test.sh 10+6+6+4+3 (new plays rope_calm: swing 2.5 u/s at the hands (bound 25; was 61), free end 8.3
   (30), 4 grunts; rope_short: `vr_rope_climb_test <play> 425`; rope_climb adds grip and "no grunt climbing down or on a
-  mere grab"), rope_sound_test 6/0, vr_rope_test 16/0, mp_test.py ropeclimb 12/0.
+  mere grab"; with `vr_rope_hand_grip 1` its grip check fails at 0.15), rope_sound_test 6/0, vr_rope_test 16/0,
+  mp_test.py ropeclimb 12/0. ThinLTO 0 warnings.
