@@ -1,9 +1,0 @@
-# brushholes_diag: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vrbrushholes' diagonal grate
-# over a pit (bars turned 45 degrees, 30 apart across them; Misc/quakevr/make_vrbrushholes_map.py): with
-# vr_hull_holes_diag on you walk over it.
-title Gap blockers: a diagonal grate
-map vrbrushholes
-start -668 -600 24 90
-god
-notarget
-hint Walk onto the slanted bars ahead and stand between them: you never drop through (vr_hull_holes_diag 0, Rebuild Gap Blockers Now: you do).

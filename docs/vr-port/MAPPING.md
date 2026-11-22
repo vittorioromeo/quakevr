@@ -414,7 +414,7 @@ start, 180 ms again, 313 ms after vrstart (vrstart's 989).
 ## vrtutorial: the tutorial (a generated map)
 
 `quakevr/maps/vrtutorial.map` is written by `Misc/quakevr/maps/vrtutorial_gen.py` (**edit the script, not the .map**;
-its geometry helpers are `mapgeom.py`'s). A military base by day: 12 lessons and an arena, then a teleporter to the hub.
+its geometry helpers are `mapgeom.py`'s). A military base by day: 14 lessons and an arena, then a teleporter to the hub.
 It is the tutorial (the main menu's and the hub's VR TUTORIAL, and a new install's first start: below). It was `vrtutorial2` until
 2026-10-09, when it replaced the old tutorial (removed) under its name. Its worldspawn's `_vr_tips_reset_on_start` 1 shows
 every tip again in each play of it: every start of the map (`map vrtutorial`, the hub's and the menu's VR TUTORIAL, a new
@@ -458,7 +458,10 @@ puts it).
 | 9 | room9v, room9 | the flashlight (taking it, switching it, flipping it, clipping it to a gun, the head torch) | a dark serpentine with blocks to jump and one (48) to climb |
 | 10 | room10 (a courtyard) | throwing; rockets, the grenade pouch | a button behind bars, pressed by a thrown rock |
 | 11 | room11a, 11b | fire (wall torches, burning crates; you burn too); lava nails | a passage stacked with crates to burn |
-| 12 | room12 (a courtyard) | an arena: the door shuts, a countdown, three waves (grunts, dogs, enforcers) | the waves (`func_vr_spawner`s, `trigger_counter`s); then the teleporter to `vrstart` |
+| 12 | room12b | blades: a sword, a dagger, an axe on a table (restocked); cutting and stabbing a training dummy (`vr_dummy`), the reverse grip | an axe thrown into a button high on the wall (a thrown thing presses it) |
+| 13 | room13 | bash and shove, disarming, batting and catching: an armed grunt with an axe (`func_vr_spawner`'s `vr_spawn_arm`) comes over a bridge across a deadly pit (`trigger_hurt`); SPIKE and GRENADE buttons (`trap_vr_shooter`) fire at the player | the grunt dead (shoved off or beaten) |
+| 14 | room14 | ropes: a rope and a chain (`vr_rope`, `vr_chain`) over a 192-deep pit (a ladder back up its near wall); armour (`item_armor1`, restocked) past it | the pit |
+| 15 | room12 (a courtyard) | an arena (its checkpoint, in hall_15 before its door, has the SAVE flag: a death in the arena loads the save made there): the door shuts, a countdown, three waves (grunts, dogs, enforcers) | the waves (`func_vr_spawner`s, `trigger_counter`s); then the teleporter to `vrstart` |
 
 Everything a gate uses has a supply that comes back (`func_vr_restock`: health, shells, nails, rockets, rocks and bricks,
 the shotgun, the nailgun); a player who dies comes back at the lesson's checkpoint (`info_vr_checkpoint`), his keycard
