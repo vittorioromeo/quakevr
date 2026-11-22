@@ -303,6 +303,9 @@ void flickTestFrame();
 // Controls' "Quake VR (flat screen)" group (menu.c, through VR_FlatKeyGet/Set: rebinding, conflicts) read this one list
 // (vr_flatmove.cpp).
 [[nodiscard]] std::span<cvar_t* const> keyCvars();
+// Whether key cvar `c` is read now: the holsters' number keys (vr_flat_key_cycle_*, _holster_*, _drop_left/_right) only
+// with vr_flat_holsters on (off, the number keys pick weapons as before).
+[[nodiscard]] bool keyActive(const cvar_t& c);
 
 // A bot's hands (MP bots phase 1; his words 2026-11-18: "reuse some of the code we use for the player in flatscreen mode
 // for the weapon placement, melee attacks"), posed on the server by this file's own code with the bot's AI's decisions in

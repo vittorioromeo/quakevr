@@ -8518,3 +8518,27 @@ His decision 2026-11-22 (kellbase item 3, "share it"). FLATPLAY.md "Ladders".
   728 ... 872). modladder_test.sh's fallback case moved to index 6. Runs: modladder_test.sh 10/0 (kellbase1 flat 6/0,
   AD ad_e1m1 3/0, VR hands' exact holds unchanged), flatladder_test.sh 2/0, ad_test3 ladder 1/0 and fallback 1/0;
   ThinLTO 0 warnings.
+
+## flatnumkeys: flat-screen number keys for hands and holsters (agent/flatnumkeys, 2026-11-22)
+
+His request 2026-11-22. FLATPLAY.md's keys table. Holsters on (`vr_flat_holsters 1`, the default) only.
+- **Keys** (flat keys: Options > Controls' "Quake VR (flat screen)" group after Drop, rebindable, Reset Flat Keys, the
+  "!" clash): `vr_flat_key_cycle_left` 1, `_cycle_right` 2, `_holster_left` 4, `_holster_right` 5, `_drop_left` 6,
+  `_drop_right` 7; 3 stays the swap. "Left"/"right" are the holster menu's (the off hand, the main hand). Before: with
+  the holsters on 1, 2, 4-7 did nothing (owned, impulses swallowed); off, they were Quake's binds (1/2 the flat hand
+  cycle, 4-7 weapon picks). No flat key default moved. `flatplay::keyActive` keeps the six off (not owned, not read) with
+  `vr_flat_holsters 0`, so the old number keys work there unchanged.
+- **One path with the menu and VR.** `pollHandKeys` (vr_flatplay.cpp) sends impulses: 86/87 cycle, 88/89 holster
+  (QC `VR_FlatHolster_Cycle`, `VR_FlatHolster_Put`, vr_flatholster.qc), 78/79 the menu's own DROPs. The moves are the
+  headset's steps (`VRDrawHolsterWeapon`, `VRPutWeaponInHolster`, `VRHolsterHandWeapon`, `VRHolsterRefused`), so MP
+  clients send the same impulse and the holster stats/models carry it to everyone.
+- **Cycle order**: holster slots 0..5 (the menu's: L/R shoulder, L/R hip, L/R chest) after the one the hand's weapon was
+  drawn from (`.vr_flatcyc_slot0/1`, valid while the hand still holds that weapon's record `.vr_flatcyc_inst0/1`); the
+  old weapon goes back to its own holster, else the first free (`VR_FlatHolster_FreeFor`: the hand's side's hip, chest,
+  shoulder, then the other side's; the vacated one counts, so with all full it is a trade); after the last, the empty
+  hand. A holstered weapon is never in the other hand, so "skip the other hand's" is automatic. Too big (AD's
+  hammer/mace/flail...): refused with the headset's line; no free holster: "No free holster for the X."; a carried
+  prop: "That hand carries something: drop it first." 2H: no forced emptying (VR forces none); the empty other hand
+  leaves and retakes the grip on its own (flat's pinToGrip).
+- **Tests**: `vr_flatswap_test 6` (Debug > Tests > "Flat Holster Number Keys") 22/0: 16 key steps and the rocket
+  launcher's grip; flatkeybind_test.sh gained 3 numkeys checks.
