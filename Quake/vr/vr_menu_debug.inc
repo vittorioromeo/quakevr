@@ -1104,6 +1104,10 @@ za::Vector<Item> pageDebugReports()
             .help("vr_music_which [track]: the file a CD track plays from (the map's own track by default) and the folder it "
                   "comes from: the active campaign's, Quake's, a mod's or a map package's (never another campaign's mounted "
                   "for its models and sounds, Dwell's or Quoth's)."),
+        command("Music Decode", "vr_music_decode")
+            .help("vr_music_decode [track] [ms]: decodes the first 3 s of the map's CD track (or that track) as the music "
+                  "plays it and prints the file, the format, the decoder (stb_vorbis on the Quest), the rate, the frames "
+                  "and the peak. Needs the sound on."),
         command("Mission Pack Status", "vr_pack_status")
             .help("Prints whether Hipnotic and Rogue are available, missing or incomplete/corrupt. Both are optional for the Quake campaign."),
         command("Headset", "vr_status").help("vr_status: the backend, the eyes' sizes, the hidden area, the head's and hands' poses."),
