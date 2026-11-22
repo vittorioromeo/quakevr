@@ -167,7 +167,8 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
   whether a shot or blow knocks your gun out; some enemy melee never disarms; enemies punching (fists) never disarm you.
   Needs tuning and fixes (QC/vr_playerdisarm.qc: which blows count, the rolls, feedback before the drop). Once polished,
   on by default in PvE. Multiplayer: two settings, PvE and PvP; PvP on by default (the MP branch does it), PvE off
-  until this is done.
+  until this is done. 2026-11-22 (disarmfix, ROUND25): PvE now by jolts (no dice, a warning before the drop, fists and
+  heavy blows count); left: his try in VR, then his OK to turn `vr_player_disarm` on.
 
 ## 7. Combat and feel
 
