@@ -5995,11 +5995,19 @@ def predict_lift(s, srv, a, b, ea, eb):
     # prediction's snap to the spot on: his replay meets the lift where it will be, B8e, and it carries him up). (Put
     # over it before it moves, his fall would start it: its start is the server's, a correction no replay can foresee.)
     put_at(srv, a, ea, LIFT_A, 90)
+    # (mpflakes) The buffer's ticks counted from before he is put over it: read after his prediction's snap there, the
+    # count began late and could miss a bunched tick near his landing -- the strict bound then applied to a landing
+    # whose lift was a step off (ROUND25's "lift landing 1.354")
+    tp = buffer_ticks(srv, eb)
     since = b.mark()
     put_at(srv, b, eb, LIFT_DROP, 90)
     b.wait(r"mp_predict_corr: c=\d{3,}", 20, since, "B's prediction put over the lift")
     b.cmd("vr_mp_predict_report reset")
     t0 = buffer_ticks(srv, eb)
+    early = (t0[0] - tp[0]) + (t0[1] - tp[1]) if tp and t0 else -1
+    s.note("the buffer's ticks off one a tick between his put-over and the report's reset: %d" % early)
+    s.metric("b_predict_lift_buffer_off_early", early)
+    t0 = tp or t0
     pr = predict_segment(s, b, "falling onto the lift and riding it", "", 36,
                          ("", "", "", "vr_mock_stick off 0.3 0", "vr_mock_stick off 0 0"), reset=False)
     t1 = buffer_ticks(srv, eb)
