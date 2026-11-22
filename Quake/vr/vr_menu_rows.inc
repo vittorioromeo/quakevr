@@ -7080,7 +7080,7 @@ QVR_CYCLE_BYNAME(vr_tutorial_goto, "Go to a Lesson",
     "on the way stay as they are.",
     {0.f, "-"}, {1.f, "1 Moving"}, {2.f, "2 Buttons"}, {3.f, "3 Jumping"}, {4.f, "4 Swimming"}, {5.f, "5 Healing"},
     {6.f, "6 Melee"}, {7.f, "7 A Fight"}, {8.f, "8 Weapons"}, {9.f, "9 Darkness"}, {10.f, "10 Throwing"},
-    {11.f, "11 Fire"}, {12.f, "12 The Arena"})
+    {11.f, "11 Fire"}, {12.f, "12 Blades"}, {13.f, "13 Bash and Bat"}, {14.f, "14 Ropes"}, {15.f, "15 The Arena"})
 QVR_TOGGLE_BYNAME(vr_trailer_log, "Trailer Scene Log",
     "vr_trailer_log 1: the grunt's state (enemy, frame, think, stealth state, oblivious), the axe's place "
     "and yours, four times a second (the console). Off for takes: the lines would show.")

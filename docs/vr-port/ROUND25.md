@@ -8213,3 +8213,24 @@ ROPES.md "Multiplayer", "Tests", "Known limits".
   12.5-16.7 (0.4 apart at most), swinging ankles 9.8-13.2 (bound 18; were 13.9-21.7, 3 of 9 over), wrists 2-4.
   rope_climb_test 8+6+6, rope_flat_test 6/0, rope_hands_test 6/0 unchanged. ThinLTO 0 warnings; the MP suite in four
   chunks (ThinLTO build): every scenario passed.
+
+## tutorial5: five new things the tutorial teaches, the arena's save (agent/tutorial5, 2026-11-22)
+
+**Plan** (design first, as the brief asks). Lessons 1-11 stay as they are; three new rooms on the lower floor between
+room 11b (lava nails) and the arena, in the free strip south of rooms 10 and 11; the arena becomes lesson 15. The pace:
+after fire the player knows every basic, so the new lessons build on them (blades on melee and throwing, bash on parry
+and grenades, ropes on climbing), one gate each, before the arena uses it all.
+
+| | Room | Teaches | Gate |
+|---|---|---|---|
+| 12 BLADES | room12b (south of 11b, through its door) | a sword, a dagger and an axe on a table; cut and stab a training dummy (a stab sticks: pull it out); B/Y reverse grip | an axe thrown into the target behind the barrier opens the door |
+| 13 BASH | room13 (east of 12) | a bridge over a deadly pit; an armed grunt (an axe) comes over it: shove it off from a guard, or disarm it (grip its axe, pull); a spike and a grenade fired at you from buttons: bat the spike back, catch the grenade and throw it back | the grunt dead (shoved off or beaten) opens the door |
+| 14 ROPES | room14 (south of 12 and 13) | a pit crossed by a rope (swing, pump with the stick, jump off; a chain beside it), a ladder back out of the pit; armour past it: let go of it over your torso | the pit |
+| 15 ARENA | room12 | as before; a bullet-time tip as its door shuts (one tip, at a fight) | as before |
+
+- Disarming (always on): a tip at lesson 7's armed grunt (its rifle) and at lesson 13's grunt.
+- The arena's save (his note vrtutorial_2026-11-22_15-34-20): the arena's checkpoint moves into the hall just before its
+  door, with a new SAVE flag: taken, the game is saved (`save vrtutorial_checkpoint`); a death after it loads that save
+  (the arena as it was before, the player at its door with what he had) instead of coming back mid-wave, unarmed.
+- New entities in `late()` (the playthrough's edict numbers kept); Go to a Lesson 1..15; the bullet-time banner moves
+  with the hall.
