@@ -49,6 +49,7 @@
 #include "vr_gadget.hpp"
 #include "vr_geom.hpp"
 #include "vr_grasp.hpp"
+#include "vr_seat.hpp"
 
 namespace qvr::mpavatar
 {
@@ -56,12 +57,9 @@ namespace qvr::mpavatar
 namespace
 {
 
-// seat-shared: other players' copies, by player (the effects: phase 7)
-Avatar avatars[MAX_SCOREBOARD + 1]; // by player entity (0 unused)
+// (Each seat's own, as its client read them: Copies below.)
 // The one before each (its msgTime: the last message it held at): drawn between the two in step with his entity's lerp
 // (vr_mp_avatar_lerp, blendedOf; MP_PLAN.md, B7).
-// seat-shared: other players' copies, by player (the effects: phase 7)
-Avatar previousAvatars[MAX_SCOREBOARD + 1];
 // The last ones each, by their messages' times: drawn at the interpolation buffer's time (vr_netsnap.cpp; B7b).
 constexpr int avatarHistoryLen = 8;
 struct AvatarHistory
@@ -69,8 +67,6 @@ struct AvatarHistory
     Avatar of[avatarHistoryLen];
     int n{0}, head{0};
 };
-// seat-shared: other players' copies, by player (the effects: phase 7)
-AvatarHistory avatarHistories[MAX_SCOREBOARD + 1];
 
 void printCalibrations(); // (vr_mp_avatars: the calibrations, below)
 
@@ -147,8 +143,19 @@ struct DrawnAll
     int addedFrame{-1};
 };
 constexpr int firstDollSlot = avatar::otherKeys - avatar::dollSlots;
-// seat-shared: other players' copies, by player (the effects: phase 7)
-DrawnAll drawn;
+// Splitscreen (split11): each seat's client reads the other players' avatars (its own player's skipped) and draws
+// them in its own pass, so each seat has its own copies, their histories and what it drew of them; one seat: seat 0's.
+struct Copies
+{
+    Avatar avatars[MAX_SCOREBOARD + 1]; // by player entity (0 unused)
+    Avatar previousAvatars[MAX_SCOREBOARD + 1];
+    AvatarHistory avatarHistories[MAX_SCOREBOARD + 1];
+    DrawnAll drawn;
+};
+[[nodiscard]] Copies& copies()
+{
+    return seat::part<Copies>(seat::current(), seat::Part::MpAvatars);
+}
 
 // How long an avatar is drawn after its last message (an unchanged one comes every vr_net_avatar_keyframe frames).
 constexpr double staleAfter = 1.0;
@@ -305,7 +312,7 @@ void printAvatar(int e, const Avatar& a, bool hands)
     printCurls("curl1", a.hands[1]);
     Con_Printf(" flags=%d %d wmdl=%d %d wpn=%d %d age=%.0f\n", a.hands[0].flags, a.hands[1].flags, a.hands[0].weaponModel,
         a.hands[1].weaponModel, a.weapon, a.weapon2, (realtime - a.received) * 1000.0);
-    const Drawn& d = drawn.of[e];
+    const Drawn& d = copies().drawn.of[e];
     if(((a.hands[0].flags | a.hands[1].flags) & VrDrawnHand::solveBit) && d.frame >= host_framecount - 1)
     {
         // A bot's hands as placed here (view::solveHands): each jointed hand drawn, how far from its controller (as
@@ -463,9 +470,9 @@ void avatars_f()
     {
         for(int e = 1; e <= MAX_SCOREBOARD; e++)
         {
-            if(avatars[e].valid)
+            if(copies().avatars[e].valid)
             {
-                printAvatar(e, avatars[e], hands);
+                printAvatar(e, copies().avatars[e], hands);
             }
         }
         // This client's own hands as drawn (what the others should draw: the move's view::netHands).
@@ -534,7 +541,7 @@ void avatars_f()
         // The dead players' bodies drawn as theirs (addDolls): whose, the model, the joints, the doll's entity, the look.
         for(int k = 1; k < avatar::otherKeys; k++) // (the players' slots, then the doll slots: slot=)
         {
-            const Drawn& d = drawn.of[k];
+            const Drawn& d = copies().drawn.of[k];
             if(d.doll > 0 && d.bodyPosed && d.body.ent.model && (d.frame == host_framecount - 1 || d.frame == host_framecount))
             {
                 printSkeleton("mp_doll", d.owner, d.body.ent.model->name, d.skeleton);
@@ -699,7 +706,7 @@ void gearcheck_f()
     int players = 0, bad = 0;
     for(int e = 1; cls.state == ca_connected && e <= MAX_SCOREBOARD; e++)
     {
-        const Drawn& d = drawn.of[e];
+        const Drawn& d = copies().drawn.of[e];
         if((only && e != only) || e == cl.viewentity || d.frame < host_framecount - 1 || !d.bodyPosed)
         {
             continue;
@@ -771,7 +778,7 @@ void gearcheck_f()
         constexpr float tiltMost = 70.f, facingMost = 60.f;
         const bool turned = finite && tilt <= tiltMost && facing <= facingMost && hang <= hangMost;
         const bool ok = hands == 2 && trunk <= trunkMost && wrist <= wristMost && turned;
-        const bool bot = ((avatars[e].hands[0].flags | avatars[e].hands[1].flags) & VrDrawnHand::solveBit) != 0;
+        const bool bot = ((copies().avatars[e].hands[0].flags | copies().avatars[e].hands[1].flags) & VrDrawnHand::solveBit) != 0;
         Con_Printf("mp_gear: ent=%d bot=%d hands=%d holsters=%d sheaths=%d trunk=%.1f trunkmost=%.1f wrist=%.1f wristmost=%.1f "
                    "finite=%d tilt=%.1f facing=%.1f hang=%.1f hangmost=%.1f turned=%d ok=%d\n",
             e, bot ? 1 : 0, hands, holsters, sheaths, static_cast<double>(trunk), static_cast<double>(trunkMost),
@@ -847,7 +854,7 @@ void solveBotGear(const Drawn& d, float yaw, VrDrawnHolsters& hs, view::GearDraw
 // setup's hands, weapons, gear and torch (his body after, once his held hands are pinned: ropePinHands).
 void setupHands(int slot, int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll)
 {
-    Drawn& d = drawn.of[slot];
+    Drawn& d = copies().drawn.of[slot];
     d.frame = host_framecount;
     d.owner = e;
     d.placedAt = origin;
@@ -1061,7 +1068,7 @@ void ropePinHands(Drawn& d, const Avatar& a, const glm::vec3& origin, const glm:
 // server's holds (ropeShift, ropePinHands).
 void setup(int slot, int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll = nullptr)
 {
-    Drawn& d = drawn.of[slot];
+    Drawn& d = copies().drawn.of[slot];
     const float dt = d.pinTime >= 0.0 ? static_cast<float>(za::clamp(cl.time - d.pinTime, 0.0, 0.1)) : 0.f;
     d.pinTime = cl.time;
     const glm::vec3 shift = ropeShift(d, a, origin, dt, doll != nullptr);
@@ -1131,7 +1138,7 @@ void forEachDrawn(Drawn& d, F&& f)
 // `slot`: his copy's (the lights' and arcs' key: a doll slot's past the players' lights, none).
 void drawPowerups(int slot, int powerups)
 {
-    Drawn& d = drawn.of[slot];
+    Drawn& d = copies().drawn.of[slot];
     const int e = slot;
     d.powerups = view::powerupLookOf(powerups);
     const view::PowerupLook& look = d.powerups;
@@ -1158,13 +1165,13 @@ void drawPowerups(int slot, int powerups)
 
 [[nodiscard]] const Drawn* drawnOf(const entity_t* e, int& side, bool& hand)
 {
-    const auto* first = reinterpret_cast<const unsigned char*>(&drawn.of[0]);
+    const auto* first = reinterpret_cast<const unsigned char*>(&copies().drawn.of[0]);
     const auto* p = reinterpret_cast<const unsigned char*>(e);
-    if(p < first || p >= first + sizeof(drawn.of))
+    if(p < first || p >= first + sizeof(copies().drawn.of))
     {
         return nullptr;
     }
-    const Drawn& d = drawn.of[(p - first) / sizeof(Drawn)];
+    const Drawn& d = copies().drawn.of[(p - first) / sizeof(Drawn)];
     for(side = 0; side < 2; side++)
     {
         if(e == &d.hand[side].ent || e == &d.weapon[side].ent)
@@ -1179,13 +1186,13 @@ void drawPowerups(int slot, int powerups)
 // The avatar whose plates (or their joints' leather) `e` is (B6c), or nullptr; `index` its plates entity (-1 the leather).
 [[nodiscard]] Drawn* platesOf(const entity_t* e, int& index)
 {
-    const auto* first = reinterpret_cast<const unsigned char*>(&drawn.of[0]);
+    const auto* first = reinterpret_cast<const unsigned char*>(&copies().drawn.of[0]);
     const auto* p = reinterpret_cast<const unsigned char*>(e);
-    if(p < first || p >= first + sizeof(drawn.of))
+    if(p < first || p >= first + sizeof(copies().drawn.of))
     {
         return nullptr;
     }
-    Drawn& d = drawn.of[(p - first) / sizeof(Drawn)];
+    Drawn& d = copies().drawn.of[(p - first) / sizeof(Drawn)];
     for(index = -1; index < Drawn::plateCount; index++)
     {
         if(e == (index < 0 ? &d.plateBridge.ent : &d.plate[index].ent))
@@ -1288,7 +1295,7 @@ constexpr int calHeight = 0, calArm = 2, calScale = 3, calBody = 12, calBuild = 
 // defaults until it comes). His body mode 0 (none): his player model, as before. Both his jointed hands must be drawn.
 void setupBody(int slot, int e, const Avatar& a, const glm::vec3& origin, const avatar::DollPose* doll)
 {
-    Drawn& d = drawn.of[slot];
+    Drawn& d = copies().drawn.of[slot];
     d.bodyPosed = false;
     const Calibration* c = calOf(e);
     view::BodyDraw b;
@@ -1870,14 +1877,14 @@ void parse()
     {
         // The one it replaces held until the message before this one (an unchanged avatar is not sent: its keyframe):
         // drawn from it to this one as his entity is lerped from that message to this.
-        Avatar& was = avatars[ent];
-        previousAvatars[ent] = was;
-        previousAvatars[ent].msgTime = za::max(was.msgTime, cl.mtime[1]);
-        previousAvatars[ent].valid = was.valid && was.msgTime < a.msgTime;
+        Avatar& was = copies().avatars[ent];
+        copies().previousAvatars[ent] = was;
+        copies().previousAvatars[ent].msgTime = za::max(was.msgTime, cl.mtime[1]);
+        copies().previousAvatars[ent].valid = was.valid && was.msgTime < a.msgTime;
         was = a;
         // The interpolation buffer's history (B7b: a snapshot has every avatar in sight); not in the message before
         // (out of sight): it starts again.
-        AvatarHistory& h = avatarHistories[ent];
+        AvatarHistory& h = copies().avatarHistories[ent];
         if(h.n > 0 && h.of[(h.head + avatarHistoryLen - 1) % avatarHistoryLen].msgTime != cl.mtime[1])
         {
             h.n = 0;
@@ -1939,14 +1946,14 @@ void blendHand(VrDrawnHand& h, const VrDrawnHand& p, float t)
 // (just come into sight): the last as it came. Places from his entity's origin lerped, turns slerped, curls lerped.
 [[nodiscard]] Avatar blendedOf(int e)
 {
-    const Avatar& a = avatars[e];
+    const Avatar& a = copies().avatars[e];
     if(vr_mp_avatar_lerp.value == 0.f)
     {
         return a;
     }
     if(netsnap::interpActive())
     {
-        const AvatarHistory& h = avatarHistories[e];
+        const AvatarHistory& h = copies().avatarHistories[e];
         const double rt = netsnap::interpTime();
         const Avatar* newer = nullptr;
         const Avatar* older = nullptr;
@@ -1967,7 +1974,7 @@ void blendHand(VrDrawnHand& h, const VrDrawnHand& p, float t)
         const double gap = newer->msgTime - older->msgTime;
         return blend(*older, *newer, gap > 0.0 ? static_cast<float>(za::clamp((rt - older->msgTime) / gap, 0.0, 1.0)) : 1.f);
     }
-    const Avatar& p = previousAvatars[e];
+    const Avatar& p = copies().previousAvatars[e];
     const double span = cl.mtime[0] - cl.mtime[1];
     if(!p.valid || a.msgTime != cl.mtime[0] || p.msgTime != cl.mtime[1] || span <= 0.0)
     {
@@ -2026,11 +2033,11 @@ Avatar blend(const Avatar& p, const Avatar& a, float t)
 
 bool drawnPlaces(int ent, glm::vec3& body, glm::vec3 handsAt[2], int& frame)
 {
-    if(ent <= 0 || ent > MAX_SCOREBOARD || drawn.of[ent].frame < 0)
+    if(ent <= 0 || ent > MAX_SCOREBOARD || copies().drawn.of[ent].frame < 0)
     {
         return false;
     }
-    const Drawn& d = drawn.of[ent];
+    const Drawn& d = copies().drawn.of[ent];
     body = d.placedAt;
     for(int side = 0; side < 2; side++)
     {
@@ -2043,7 +2050,7 @@ bool drawnPlaces(int ent, glm::vec3& body, glm::vec3 handsAt[2], int& frame)
 
 bool drawnNow(int ent)
 {
-    return ent > 0 && ent <= MAX_SCOREBOARD && drawn.of[ent].frame >= 0 && drawn.of[ent].frame >= host_framecount - 1;
+    return ent > 0 && ent <= MAX_SCOREBOARD && copies().drawn.of[ent].frame >= 0 && copies().drawn.of[ent].frame >= host_framecount - 1;
 }
 
 bool woundTargets(int ent, entity_t* out[3], bool& doll)
@@ -2054,7 +2061,7 @@ bool woundTargets(int ent, entity_t* out[3], bool& doll)
     {
         return false;
     }
-    Drawn& d = drawn.of[ent];
+    Drawn& d = copies().drawn.of[ent];
     const bool now = drawnNow(ent);
     const auto pick = [&](view::ViewEntity& ve) { return !now || (ve.visible && ve.ent.model) ? &ve.ent : nullptr; };
     out[0] = pick(d.body);
@@ -2073,11 +2080,11 @@ int weaponOwner(const entity_t* e, int& side)
 
 bool drawnWeapon(int ent, int side, glm::vec3& butt, glm::vec3& muzzle, glm::vec3& hand)
 {
-    if(!drawnNow(ent) || side < 0 || side > 1 || !drawnWeaponLine(drawn.of[ent].weapon[side], butt, muzzle))
+    if(!drawnNow(ent) || side < 0 || side > 1 || !drawnWeaponLine(copies().drawn.of[ent].weapon[side], butt, muzzle))
     {
         return false;
     }
-    const Drawn& d = drawn.of[ent];
+    const Drawn& d = copies().drawn.of[ent];
     const view::ViewEntity& ve = d.hand[side].visible ? d.hand[side] : d.weapon[side];
     hand = glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
     return true;
@@ -2085,7 +2092,7 @@ bool drawnWeapon(int ent, int side, glm::vec3& butt, glm::vec3& muzzle, glm::vec
 
 const Avatar* of(int ent)
 {
-    return ent > 0 && ent <= MAX_SCOREBOARD && avatars[ent].valid ? &avatars[ent] : nullptr;
+    return ent > 0 && ent <= MAX_SCOREBOARD && copies().avatars[ent].valid ? &copies().avatars[ent] : nullptr;
 }
 
 const view::ViewEntity* drawnWeapon(int ent, int hand)
@@ -2094,7 +2101,7 @@ const view::ViewEntity* drawnWeapon(int ent, int hand)
     {
         return nullptr;
     }
-    const Drawn& d = drawn.of[ent];
+    const Drawn& d = copies().drawn.of[ent];
     const view::ViewEntity& w = d.weapon[hand];
     // (drawn in its parts -- the revolver open, his auto pump stroking (mpopen) -- the gun is hidden but placed still)
     return d.frame >= host_framecount - 1 && (w.visible || d.gun[hand].inParts) && w.ent.model ? &w : nullptr;
@@ -2104,7 +2111,7 @@ const view::ViewEntity* drawnWeapon(int ent, int hand)
 // and body, the body in `replace`'s place in the list (his player model, or his dead body's: it would stand round it).
 void addDrawn(int e, const entity_t* replace)
 {
-    Drawn& d = drawn.of[e];
+    Drawn& d = copies().drawn.of[e];
     for(int side = 0; side < 2; side++)
     {
         add(d.weapon[side]);
@@ -2281,7 +2288,7 @@ void assignDollSlots(DollBody* bodies, int count)
     for(int i = 0; i < count; i++)
     {
         DollBody& b = bodies[i];
-        if(drawn.of[b.owner].frame != host_framecount && !ownTaken[b.owner])
+        if(copies().drawn.of[b.owner].frame != host_framecount && !ownTaken[b.owner])
         {
             ownTaken[b.owner] = true;
             b.slot = b.owner;
@@ -2289,7 +2296,7 @@ void assignDollSlots(DollBody* bodies, int count)
         }
         for(int k = 0; k < avatar::dollSlots && !b.slot; k++)
         {
-            if(!slotTaken[k] && drawn.dollEnt[k] == b.num)
+            if(!slotTaken[k] && copies().drawn.dollEnt[k] == b.num)
             {
                 slotTaken[k] = true;
                 b.slot = firstDollSlot + k;
@@ -2305,9 +2312,9 @@ void assignDollSlots(DollBody* bodies, int count)
             {
                 slotTaken[k] = true;
                 b.slot = firstDollSlot + k;
-                drawn.dollEnt[k] = b.num;
+                copies().drawn.dollEnt[k] = b.num;
                 avatar::forgetOther(b.slot); // (another body's feet and eases: afresh)
-                drawn.of[b.slot].morph.resync = true;
+                copies().drawn.of[b.slot].morph.resync = true;
             }
         }
     }
@@ -2375,7 +2382,7 @@ void addDolls()
         }
         pose.hideHead = ragdoll::headHidden(num);
         // His copy's avatar: the hands (from the doll's pelvis, as an avatar's from his entity), the chest's yaw.
-        const Avatar& known = avatars[p];
+        const Avatar& known = copies().avatars[p];
         a.valid = true;
         a.flat = known.valid ? known.flat : p == cl.viewentity && flatplay::active();
         a.body.valid = true;
@@ -2387,7 +2394,7 @@ void addDolls()
         {
             h.handOrigin -= origin;
         }
-        Drawn& d = drawn.of[slot];
+        Drawn& d = copies().drawn.of[slot];
         if(d.frame < 0 || host_framecount - d.frame > freshAfterFrames)
         {
             d.morph.resync = true;
@@ -2400,11 +2407,11 @@ void addDolls()
 
 void addEntities()
 {
-    if(drawn.addedFrame == host_framecount)
+    if(copies().drawn.addedFrame == host_framecount)
     {
         return; // (the screen drawn again in a frame: added once)
     }
-    drawn.addedFrame = host_framecount;
+    copies().drawn.addedFrame = host_framecount;
     if(cls.state != ca_connected || cl.intermission || vr_mp_avatar_draw.value == 0.f)
     {
         return;
@@ -2412,14 +2419,14 @@ void addEntities()
     cal.own = ownCalibration(); // (your dead body's: addDolls)
     for(int e = 1; cl.maxclients > 1 && e <= MAX_SCOREBOARD && e < cl.num_entities; e++)
     {
-        const Avatar& a = avatars[e];
+        const Avatar& a = copies().avatars[e];
         // (his entity in the last message: in sight, alive or not; a stale avatar is not drawn)
         if(!a.valid || e == cl.viewentity || realtime - a.received > staleAfter || !cl_entities[e].model ||
             cl_entities[e].msgtime != cl.mtime[0])
         {
             continue;
         }
-        Drawn& d = drawn.of[e];
+        Drawn& d = copies().drawn.of[e];
         if(d.frame < 0 || host_framecount - d.frame > freshAfterFrames)
         {
             d.morph.resync = true; // (his copy first drawn, or again: his plates as they are, no morph)
@@ -2439,7 +2446,7 @@ void addEntities()
     int count = 0;
     for(int e = 1; e < avatar::otherKeys; e++) // (the doll slots too)
     {
-        Drawn& d = drawn.of[e];
+        Drawn& d = copies().drawn.of[e];
         if(d.frame == host_framecount)
         {
             for(view::ViewEntity* ve : {&d.hand[0], &d.hand[1], &d.body})
@@ -2456,13 +2463,13 @@ void addEntities()
 
 float powerupGlow(const entity_t* e)
 {
-    const auto* first = reinterpret_cast<const unsigned char*>(&drawn.of[0]);
+    const auto* first = reinterpret_cast<const unsigned char*>(&copies().drawn.of[0]);
     const auto* p = reinterpret_cast<const unsigned char*>(e);
-    if(p < first || p >= first + sizeof(drawn.of))
+    if(p < first || p >= first + sizeof(copies().drawn.of))
     {
         return 0.f;
     }
-    const Drawn& d = drawn.of[(p - first) / sizeof(Drawn)];
+    const Drawn& d = copies().drawn.of[(p - first) / sizeof(Drawn)];
     if(d.frame < 0 || d.powerups.level <= 0.f)
     {
         return 0.f;
@@ -2476,13 +2483,13 @@ float powerupGlow(const entity_t* e)
 
 int lookOf(const entity_t* e, view::SkinLook& look)
 {
-    const auto* first = reinterpret_cast<const unsigned char*>(&drawn.of[0]);
+    const auto* first = reinterpret_cast<const unsigned char*>(&copies().drawn.of[0]);
     const auto* p = reinterpret_cast<const unsigned char*>(e);
-    if(p < first || p >= first + sizeof(drawn.of))
+    if(p < first || p >= first + sizeof(copies().drawn.of))
     {
         return 0;
     }
-    const Drawn& d = drawn.of[(p - first) / sizeof(Drawn)];
+    const Drawn& d = copies().drawn.of[(p - first) / sizeof(Drawn)];
     const int owner = d.owner; // (a doll slot's: the dead body's owner)
     const int kind = e == &d.hand[0].ent || e == &d.hand[1].ent ? 1 : e == &d.body.ent ? 2 : 0;
     const Calibration* c = calOf(owner);
@@ -2552,13 +2559,13 @@ int bonePoses(const entity_t* e, const float** matrices)
 
 const view::ViewEntity* find(const entity_t* e)
 {
-    const auto* first = reinterpret_cast<const unsigned char*>(&drawn.of[0]);
+    const auto* first = reinterpret_cast<const unsigned char*>(&copies().drawn.of[0]);
     const auto* p = reinterpret_cast<const unsigned char*>(e);
-    if(p < first || p >= first + sizeof(drawn.of))
+    if(p < first || p >= first + sizeof(copies().drawn.of))
     {
         return nullptr;
     }
-    const Drawn& d = drawn.of[(p - first) / sizeof(Drawn)];
+    const Drawn& d = copies().drawn.of[(p - first) / sizeof(Drawn)];
     const auto in = [e](const view::ViewEntity* ves, int n) -> const view::ViewEntity* {
         for(int i = 0; i < n; i++)
         {
@@ -2600,19 +2607,19 @@ int gearByte(const edict_t* ent)
 
 void clear()
 {
-    for(Avatar& a : avatars)
+    for(Avatar& a : copies().avatars)
     {
         a = Avatar{};
     }
-    for(Drawn& d : drawn.of)
+    for(Drawn& d : copies().drawn.of)
     {
         d.morph = view::PlateMorphs{}; // (his plates as they come on the new server)
     }
-    for(Avatar& a : previousAvatars)
+    for(Avatar& a : copies().previousAvatars)
     {
         a = Avatar{};
     }
-    for(AvatarHistory& h : avatarHistories)
+    for(AvatarHistory& h : copies().avatarHistories)
     {
         h.n = 0;
     }

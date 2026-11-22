@@ -94,6 +94,7 @@ enum class Part
     AvatarOthers,  // vr_avatar.cpp: the other players' and dolls' bodies as this seat's client poses them
     ViewPlates,    // vr_view_body.cpp: your armour plates' morphs
     ClimbPins,     // vr_climb.cpp: each hand's drawn place eased onto its hold
+    MpAvatars,     // vr_mpavatar.cpp: the other players' avatars as this seat's client read them, and what it drew of them
     // Phase 9: menus per seat.
     SeatMenu,      // vr_seatmenu.cpp: a seat 2-4's own menu (open, cursor, its look sensitivity and invert)
     Count
