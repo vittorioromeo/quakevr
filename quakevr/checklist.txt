@@ -109,6 +109,11 @@ Sliding (VR, experimental; VR Settings > Locomotion): while running, pull the tu
 Click the moving stick once at a time with Speed Button: Toggle: each click switches the speed once, never twice {test:speed_toggle_click}
 With Default Speed: Run, double-tap the stick: you walk until you let go {test:speed_toggle_click}
 Sliding is on by default in VR: slide and look left or right: your hips and legs keep pointing the way you slide, the chest turned back to your body {test:vr_slide_legs}
+Flat-screen or VR: walk onto the diagonal grate (slanted bars 30 apart) and stand between its bars: you never drop through. {test:brushholes_diag}
+Flat-screen or VR: walk onto the louvred grate and step into the gaps between its upper bars: you stop on the lower bars and never fall through. {test:brushholes_louvre}
+Flat-screen or VR: walk into the 24-unit gap between the two panels (two func_walls): you stop at its mouth. {test:brushholes_walls}
+Flat-screen or VR: at a gap you still slip or fall through, use Debug > Mark a Gap I Got Through; check the console report names the map, your position and the gaps round you, and quakevr/hull_holes_marks.txt has it. {test:brushholes_diag}
+Flat-screen or VR: set Movement > Player Hitbox > Close Gaps: Slanted Bars off and press Rebuild Gap Blockers Now: you stay where you were, and now drop through the diagonal grate. {test:brushholes_diag}
 
 [6. Weapons and holsters]
 Holster Calibration > Ammo Pouch Forward/Right/Up move the pouch and agree with Holster Setup's drag {test:shotgun_hall}

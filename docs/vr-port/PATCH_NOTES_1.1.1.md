@@ -182,7 +182,12 @@ aren't Map Library packages aren't sent to joining players.
   a lift and its shaft's wall. Each map now gets invisible blockers in exactly those gaps when it loads (nothing in
   the map files changes; shots and sight go through them), so you are stopped where Quake stopped you, and still get
   as close to walls, bars and pillars as your width lets you. Settings > Movement > Player Hitbox > Close Gaps Quake's
-  Box Never Fit (`vr_hull_holes`, on; takes effect at the next map load).
+  Box Never Fit (`vr_hull_holes`, on; takes effect at the next map load). The blockers now also close gaps between
+  slanted bars, turned grates and round holes, between two brush models (two func_walls, a door and a lift), and
+  between bars at two heights you'd fall through, always only where Quake's own box can't reach. The limits are
+  settings beside it (Narrower Than: 32, Wider Than: 8, and more), with Rebuild Gap Blockers Now to apply them without
+  leaving the map; if you still get through a gap you shouldn't, Debug > Mark a Gap I Got Through writes down where and
+  why (`quakevr/hull_holes_marks.txt`) so it can be fixed.
 - **Riding a lift no longer sinks you or the monsters into it.** Going up, your eye trailed a rising lift by up to 12
   units (the stair-step easing took the lift's rise for a step) and a monster riding it was drawn as far as 13 units
   into it; now your eye rides with the lift (only a step's jump is eased: `vr_view_lift_follow`, 400 units a second;
