@@ -24,6 +24,9 @@
 
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -46,7 +49,6 @@
 #include <chrono>
 #include <math.h>
 #include <stdlib.h>
-#include <string.h>
 
 extern "C" void* VR_HeapMalloc(size_t size);
 
@@ -394,7 +396,7 @@ void queueFrame(const unsigned char* data, int len, za::U8 flags)
     f.len = static_cast<za::U8>(za::clamp(len, 0, maxFrameBytes));
     if(len > 0)
     {
-        memcpy(f.data, data, static_cast<size_t>(f.len));
+        ZA_MEMCPY(f.data, data, static_cast<size_t>(f.len));
     }
     cap.outCount++;
     if(len > 0)
@@ -494,7 +496,7 @@ void frameDone()
         queueFrame(nullptr, 0, flagSpurtEnd); // (the end marker: no data)
         cap.sending = false;
     }
-    memcpy(cap.preroll, cap.frame, sizeof(cap.frame));
+    ZA_MEMCPY(cap.preroll, cap.frame, sizeof(cap.frame));
     cap.havePreRoll = true;
     cap.frameFill = 0;
     cap.frameVad = 0.f;
@@ -530,7 +532,7 @@ void block(const float* in)
         const double db = 20.0 * log10(za::max(rms, 1e-6));
         vad = static_cast<float>(za::clamp((db - meterLevelFloor) / meterLevelSpan, 0.0, 1.0));
     }
-    memcpy(cap.frame + cap.frameFill, use, sizeof(float) * blockSamples);
+    ZA_MEMCPY(cap.frame + cap.frameFill, use, sizeof(float) * blockSamples);
     cap.frameFill += blockSamples;
     cap.frameVad = za::max(cap.frameVad, vad);
     if(cap.frameFill == frameSamples)
@@ -611,7 +613,7 @@ void captureFrame()
     za::SizeT at = catchUpFrom(cap.pending.size());
     for(; at + blockSamples <= cap.pending.size(); at += blockSamples)
     {
-        memcpy(scratch.block, cap.pending.data() + at, sizeof(float) * blockSamples);
+        ZA_MEMCPY(scratch.block, cap.pending.data() + at, sizeof(float) * blockSamples);
         block(scratch.block);
     }
     cap.pending.erase(cap.pending.data(), cap.pending.data() + at);
@@ -698,7 +700,7 @@ void startOutput(Speaker& sp, int slot)
         return; // (no sound: the clock alone)
     }
     sc->loopstart = 0;
-    memset(sc->data, 0, static_cast<size_t>(sc->length) * 2);
+    ZA_MEMSET(sc->data, 0, static_cast<size_t>(sc->length) * 2);
     vec3_t org;
     const glm::vec3 head = headOf(ent);
     VectorSet(org, head.x, head.y, head.z);
@@ -853,13 +855,13 @@ void zeroRing(short* ring, int length, long long from, long long to)
     }
     if(to - from >= length)
     {
-        memset(ring, 0, sizeof(short) * static_cast<size_t>(length));
+        ZA_MEMSET(ring, 0, sizeof(short) * static_cast<size_t>(length));
         return;
     }
     const long long at = from % length, n = to - from;
     const long long first = za::min(n, length - at);
-    memset(ring + at, 0, sizeof(short) * static_cast<size_t>(first));
-    memset(ring, 0, sizeof(short) * static_cast<size_t>(n - first));
+    ZA_MEMSET(ring + at, 0, sizeof(short) * static_cast<size_t>(first));
+    ZA_MEMSET(ring, 0, sizeof(short) * static_cast<size_t>(n - first));
 }
 
 // A speaker's output kept `lead` ahead of its reader.
@@ -1499,7 +1501,7 @@ void selftest_f()
                 fr.seq = static_cast<za::U16>(g + 100);
                 fr.flags = static_cast<za::U8>(g == 0 ? flagSpurtStart : 0);
                 fr.len = static_cast<za::U8>(lens[g]);
-                memcpy(fr.data, packets[g], static_cast<size_t>(lens[g]));
+                ZA_MEMCPY(fr.data, packets[g], static_cast<size_t>(lens[g]));
                 receive(slot, fr);
             }
             pump(sp, slot);
@@ -1543,7 +1545,7 @@ void selftest_f()
                 fr.seq = static_cast<za::U16>(0xffd0 + g);
                 fr.flags = static_cast<za::U8>(g == 0 ? flagSpurtStart : 0);
                 fr.len = static_cast<za::U8>(lens[g]);
-                memcpy(fr.data, packets[g], static_cast<size_t>(lens[g]));
+                ZA_MEMCPY(fr.data, packets[g], static_cast<size_t>(lens[g]));
                 receive(slot, fr);
             }
             pump(sp, slot);
@@ -2001,7 +2003,7 @@ bool readFrame(Frame& f)
 extern "C" unsigned char* VR_VoicechatSound(const char* name, int* size)
 {
     using namespace qvr::voicechat;
-    if(strncmp(name, "qvr_voicechat/", 14) != 0 || !shm)
+    if(ZA_STRNCMP(name, "qvr_voicechat/", 14) != 0 || !shm)
     {
         return nullptr;
     }
@@ -2010,7 +2012,7 @@ extern "C" unsigned char* VR_VoicechatSound(const char* name, int* size)
     const int data = samples * 2;
     const int total = 44 + data;
     unsigned char* w = static_cast<unsigned char*>(VR_HeapMalloc(static_cast<size_t>(total)));
-    memset(w, 0, static_cast<size_t>(total));
+    ZA_MEMSET(w, 0, static_cast<size_t>(total));
     const auto u32 = [&](int at, unsigned v) {
         w[at] = static_cast<unsigned char>(v);
         w[at + 1] = static_cast<unsigned char>(v >> 8);
@@ -2021,9 +2023,9 @@ extern "C" unsigned char* VR_VoicechatSound(const char* name, int* size)
         w[at] = static_cast<unsigned char>(v);
         w[at + 1] = static_cast<unsigned char>(v >> 8);
     };
-    memcpy(w, "RIFF", 4);
+    ZA_MEMCPY(w, "RIFF", 4);
     u32(4, static_cast<unsigned>(total - 8));
-    memcpy(w + 8, "WAVEfmt ", 8);
+    ZA_MEMCPY(w + 8, "WAVEfmt ", 8);
     u32(16, 16);
     u16(20, 1);
     u16(22, 1);
@@ -2031,7 +2033,7 @@ extern "C" unsigned char* VR_VoicechatSound(const char* name, int* size)
     u32(28, static_cast<unsigned>(rate * 2));
     u16(32, 2);
     u16(34, 16);
-    memcpy(w + 36, "data", 4);
+    ZA_MEMCPY(w + 36, "data", 4);
     u32(40, static_cast<unsigned>(data));
     *size = total;
     return w;

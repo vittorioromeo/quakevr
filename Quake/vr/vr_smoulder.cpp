@@ -17,13 +17,14 @@
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
 
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
-#include "Zancle/Container/Vector.hpp"
 
 #include <stdlib.h>
-#include <string.h>
 
 namespace qvr::smoulder
 {
@@ -243,7 +244,7 @@ void test_f()
         bool monster = false;
         for(const char* m : monsterModels)
         {
-            monster = monster || !strncmp(ent.model->name, m, strlen(m));
+            monster = monster || !ZA_STRNCMP(ent.model->name, m, ZA_STRLEN(m));
         }
         if(Body* b = monster ? find(num, true) : nullptr)
         {

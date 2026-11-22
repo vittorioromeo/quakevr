@@ -11,11 +11,14 @@
 #include "vr_presets.hpp"
 #include "vr_protocol.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 
 #include <stdlib.h>
-#include <string.h>
 
 namespace qvr::serverrules
 {
@@ -68,8 +71,8 @@ State state;
 {
     for(const char* p : rulePages)
     {
-        const size_t n = strlen(p);
-        if(!strncmp(path, p, n) && (path[n] == '\0' || path[n] == ' '))
+        const size_t n = ZA_STRLEN(p);
+        if(!ZA_STRNCMP(path, p, n) && (path[n] == '\0' || path[n] == ' '))
         {
             return true;
         }
@@ -81,7 +84,7 @@ State state;
 {
     for(const char* part : ownParts)
     {
-        if(strstr(name, part))
+        if(ZA_STRSTR(name, part))
         {
             return true;
         }
@@ -209,7 +212,7 @@ void writeRules(sizebuf_t* msg, const int* which, int count, bool all)
         while(k + n < count && n < chunkMost)
         {
             const cvar_t* var = state.list[which[k + n]];
-            const int size = static_cast<int>(strlen(var->name) + strlen(var->string)) + 2;
+            const int size = static_cast<int>(ZA_STRLEN(var->name) + ZA_STRLEN(var->string)) + 2;
             if(n > 0 && bytes + size > chunkBytes)
             {
                 break;
@@ -281,7 +284,7 @@ void list_f()
     for(size_t i = 0; i < state.list.size(); i++)
     {
         const cvar_t* var = state.list[i];
-        const bool mine = state.shadowed && strcmp(state.own[i].cStr(), var->string);
+        const bool mine = state.shadowed && ZA_STRCMP(state.own[i].cStr(), var->string);
         if(var->value != defaultOf(var) || mine)
         {
             Con_Printf("  %-32s %s%s%s%s\n", var->name, var->string, mine ? "  (yours " : "", mine ? state.own[i].cStr() : "",
@@ -391,7 +394,7 @@ void clientParse()
         {
             for(cvar_t* var : state.list)
             {
-                if(var->default_string && strcmp(var->string, var->default_string))
+                if(var->default_string && ZA_STRCMP(var->string, var->default_string))
                 {
                     Cvar_SetQuick(var, var->default_string);
                 }
@@ -405,7 +408,7 @@ void clientParse()
         const char* value = MSG_ReadString();
         if(cvar_t* var = apply ? ruleNamed(name) : nullptr) // (a rule this build does not know: skipped)
         {
-            if(strcmp(var->string, value))
+            if(ZA_STRCMP(var->string, value))
             {
                 Cvar_SetQuick(var, value);
             }
@@ -422,7 +425,7 @@ void clientLeft()
     state.shadowed = false;
     for(size_t i = 0; i < state.list.size(); i++)
     {
-        if(strcmp(state.list[i]->string, state.own[i].cStr()))
+        if(ZA_STRCMP(state.list[i]->string, state.own[i].cStr()))
         {
             Cvar_SetQuick(state.list[i], state.own[i].cStr());
         }

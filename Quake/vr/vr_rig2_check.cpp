@@ -20,6 +20,7 @@
 #include "vr_rigpose.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -33,7 +34,6 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include <stdlib.h>
-#include <string.h>
 
 namespace qvr::rig2
 {
@@ -794,7 +794,7 @@ void check_f()
     // Each joint alone
     for(int b = 0; b < rig.numBones; b++)
     {
-        if((rig.bones[b].joint != Joint::Ball && rig.bones[b].joint != Joint::Hinge) || (only && strcmp(only, rig.bones[b].name)))
+        if((rig.bones[b].joint != Joint::Ball && rig.bones[b].joint != Joint::Hinge) || (only && ZA_STRCMP(only, rig.bones[b].name)))
         {
             continue;
         }
@@ -825,7 +825,7 @@ void check_f()
         const int b = rig.bones[c].parent;
         if(b < 0 || (rig.bones[c].joint != Joint::Ball && rig.bones[c].joint != Joint::Hinge) ||
             (rig.bones[b].joint != Joint::Ball && rig.bones[b].joint != Joint::Hinge) ||
-            (only && strcmp(only, rig.bones[b].name) && strcmp(only, rig.bones[c].name)))
+            (only && ZA_STRCMP(only, rig.bones[b].name) && ZA_STRCMP(only, rig.bones[c].name)))
         {
             continue;
         }
@@ -859,13 +859,13 @@ void check_f()
             Con_Printf("rig2 check: FAIL pair %s\n", name);
         }
     }
-    if(only && !strcmp(only, "envelope"))
+    if(only && !ZA_STRCMP(only, "envelope"))
     {
         envelope(rig, rest);
     }
     // His five situations (vrragtriggers 01-28-53 .. 01-30-04's screenshots; stage 1's eyeshots): each a pose. Measured,
     // not passed or failed.
-    if(only && !strcmp(only, "situations"))
+    if(only && !ZA_STRCMP(only, "situations"))
     {
         struct Situation
         {
@@ -899,7 +899,7 @@ void check_f()
     }
     // Poses from the game (vr_rig2_record: ragdolls' bodies from real deaths and knockdowns, armed ones' drawn arms):
     // measured as they are (a ragdoll's joints a little past their limits too).
-    if(only && !strcmp(only, "recorded"))
+    if(only && !ZA_STRCMP(only, "recorded"))
     {
         for(int set = 0; set < 2; set++)
         {
@@ -941,7 +941,7 @@ void check_f()
         }
     }
     // Ragdoll-like random poses within the limits
-    if(!only || !strcmp(only, "random"))
+    if(!only || !ZA_STRCMP(only, "random"))
     {
         uint32_t seed = 0x2f6b9e1du;
         Tally tn;

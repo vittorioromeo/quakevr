@@ -8,6 +8,8 @@
 #include "vr_config.hpp"
 
 #include "Zancle/Algorithm/StableSort.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
@@ -50,7 +52,7 @@ constexpr const char* debugParts[] = {"debug", "test", "show", "dump", "profile"
 {
     for(int i = 0; i < count; i++)
     {
-        if(strstr(name, parts[i]))
+        if(ZA_STRSTR(name, parts[i]))
         {
             return true;
         }
@@ -69,7 +71,7 @@ constexpr const char* debugParts[] = {"debug", "test", "show", "dump", "profile"
     {
         return static_cast<float>(x) == static_cast<float>(y);
     }
-    return strcmp(a, b) == 0;
+    return ZA_STRCMP(a, b) == 0;
 }
 
 // A slot's number from a name's last "_NN" (0: none).

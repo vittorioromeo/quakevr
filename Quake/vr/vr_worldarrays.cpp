@@ -23,6 +23,8 @@
 #include "vr_api.h"
 #include "vr_api_render.h"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -32,7 +34,6 @@
 #else
 #include "SDL.h"
 #endif
-#include <string.h>
 
 extern "C" int texmgr_filter_serial; // gl_texmgr.c: TexMgr_SetFilterModes' calls
 extern "C" GLuint gl_bmodel_vertcmd_buffer; // r_brush.c: each vertex's command (0: not made, bindless)
@@ -458,8 +459,8 @@ extern "C" int VR_WorldArraysBegin(void)
     }
     if(st.statFrame != r_framecount)
     {
-        memcpy(st.lastMerged, st.merged, sizeof(st.merged));
-        memset(st.merged, 0, sizeof(st.merged));
+        ZA_MEMCPY(st.lastMerged, st.merged, sizeof(st.merged));
+        ZA_MEMSET(st.merged, 0, sizeof(st.merged));
         st.statFrame = r_framecount;
     }
     bool built = false;

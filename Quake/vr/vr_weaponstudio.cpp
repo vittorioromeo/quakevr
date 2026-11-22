@@ -23,6 +23,9 @@
 
 #include "thirdparty/imgui/imgui.h"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -35,7 +38,6 @@
 
 #include <math.h>
 #include <stdio.h>
-#include <string.h>
 
 extern "C" int VR_IsActive(void);
 
@@ -112,7 +114,7 @@ const Exact exactNames[] = {
 
 [[nodiscard]] bool hasWord(const char* name, const char* word)
 {
-    return strstr(name, word) != nullptr;
+    return ZA_STRSTR(name, word) != nullptr;
 }
 
 const char* const groupNames[] = {
@@ -146,18 +148,18 @@ const char* const onOffNames[] = {"off", "on", nullptr};
 {
     if(weapons::anchorKey(key))
         return Kind::Anchor;
-    if(endsWith(name, "_pitch") || endsWith(name, "_yaw") || endsWith(name, "_roll") || !strcmp(name, "pitch") ||
-       !strcmp(name, "yaw") || !strcmp(name, "roll") || endsWith(name, "_deg"))
+    if(endsWith(name, "_pitch") || endsWith(name, "_yaw") || endsWith(name, "_roll") || !ZA_STRCMP(name, "pitch") ||
+       !ZA_STRCMP(name, "yaw") || !ZA_STRCMP(name, "roll") || endsWith(name, "_deg"))
         return Kind::Angle;
     if(hasWord(name, "mode") || hasWord(name, "owncol") || endsWith(name, "_type") || endsWith(name, "_style") ||
        endsWith(name, "_manual") || hasWord(name, "hide") || hasWord(name, "aim2h") || endsWith(name, "_still") ||
-       !strcmp(name, "embed") || !strcmp(name, "fx_flash") || !strcmp(name, "fx_tracers"))
+       !ZA_STRCMP(name, "embed") || !ZA_STRCMP(name, "fx_flash") || !ZA_STRCMP(name, "fx_tracers"))
         return Kind::Choice;
     if(hasWord(name, "curl") || endsWith(name, "_open") || endsWith(name, "_across") || endsWith(name, "overlap") ||
-       endsWith(name, "_sticky") || endsWith(name, "_chance") || !strcmp(name, "w_com") || !strcmp(name, "w_spinalign") ||
-       !strcmp(name, "wpntxt_tx") || !strcmp(name, "wpntxt_ty"))
+       endsWith(name, "_sticky") || endsWith(name, "_chance") || !ZA_STRCMP(name, "w_com") || !ZA_STRCMP(name, "w_spinalign") ||
+       !ZA_STRCMP(name, "wpntxt_tx") || !ZA_STRCMP(name, "wpntxt_ty"))
         return Kind::Share;
-    if(!strcmp(name, "scale") || endsWith(name, "_size") || !strcmp(name, "wpntxt_font"))
+    if(!ZA_STRCMP(name, "scale") || endsWith(name, "_size") || !ZA_STRCMP(name, "wpntxt_font"))
         return Kind::Scale;
     if(endsWith(name, "_time"))
         return Kind::Seconds;
@@ -165,7 +167,7 @@ const char* const onOffNames[] = {"off", "on", nullptr};
         return Kind::Speed;
     if(weapons::weightKey(key))
     {
-        if(!strcmp(name, "w_mass"))
+        if(!ZA_STRCMP(name, "w_mass"))
             return Kind::Scale;
         if(endsWith(name, "_dmg") || endsWith(name, "_len"))
             return Kind::Length;
@@ -189,13 +191,13 @@ void rangeOf(const Kind kind, const char* name, float& lo, float& hi, float& ste
         }
         break;
     case Kind::Share:
-        lo = !strcmp(name, "w_com") || !strcmp(name, "w_spinalign") || startsWith(name, "wpntxt_t") ? -1.f : 0.f;
+        lo = !ZA_STRCMP(name, "w_com") || !ZA_STRCMP(name, "w_spinalign") || startsWith(name, "wpntxt_t") ? -1.f : 0.f;
         hi = 1.f;
         step = 0.01f;
         break;
     case Kind::Scale:
         lo = 0.02f;
-        hi = !strcmp(name, "wpntxt_font") ? 4.f : 10.f;
+        hi = !ZA_STRCMP(name, "wpntxt_font") ? 4.f : 10.f;
         step = 0.01f;
         break;
     case Kind::Spring:
@@ -256,7 +258,7 @@ void rangeOf(const Kind kind, const char* name, float& lo, float& hi, float& ste
 // The page's label: the data name spaced out, shorted of what the page already says.
 void makeLabel(Entry& e, const int skip)
 {
-    const char* n = e.name + static_cast<int>(za::min(static_cast<size_t>(skip), strlen(e.name)));
+    const char* n = e.name + static_cast<int>(za::min(static_cast<size_t>(skip), ZA_STRLEN(e.name)));
     int i = 0;
     for(; i < static_cast<int>(sizeof(e.label)) - 1 && n[i]; i++)
         e.label[i] = n[i] == '_' ? ' ' : n[i];
@@ -300,7 +302,7 @@ void buildTable()
         {
             for(const Exact& x : exactNames)
             {
-                if(!strcmp(name, x.name))
+                if(!ZA_STRCMP(name, x.name))
                 {
                     e.group = x.group;
                     break;
@@ -366,8 +368,8 @@ bool matches(const Entry& e, const char* filter)
 {
     if(!filter || !filter[0])
         return true;
-    const size_t fl = strlen(filter);
-    for(size_t at = 0; at + fl <= strlen(e.name); at++)
+    const size_t fl = ZA_STRLEN(filter);
+    for(size_t at = 0; at + fl <= ZA_STRLEN(e.name); at++)
     {
         size_t i = 0;
         for(; i < fl; i++)
@@ -962,7 +964,7 @@ void noteSpotAt(const char* name, const float x, const float y)
 const Spot* spotNamed(const char* name)
 {
     for(const Spot& s : st.spots)
-        if(!strcmp(s.name, name))
+        if(!ZA_STRCMP(s.name, name))
             return &s;
     return nullptr;
 }
@@ -1188,7 +1190,7 @@ void testFrame()
         st.testCopyFrom = -1;
         const char* id = weapons::cvar(slot, weapons::Key::ID)->string;
         for(int i = 0; i < weapons::slotsUsed(); i++)
-            if(i != slot && validSlot(i) && strcmp(weapons::cvar(i, weapons::Key::ID)->string, id) != 0 &&
+            if(i != slot && validSlot(i) && ZA_STRCMP(weapons::cvar(i, weapons::Key::ID)->string, id) != 0 &&
                (st.testCopyFrom < 0 || (weapons::inheritsFrom(st.testCopyFrom) < 0 && weapons::inheritsFrom(i) >= 0)))
                 st.testCopyFrom = i;
         q_strlcpy(st.testCopyId, id, sizeof(st.testCopyId));
@@ -1212,7 +1214,7 @@ void testFrame()
         const int slot = st.slot;
         const int from = st.testCopyFrom;
         check(from >= 0, "another model's slot to copy from");
-        check(!strcmp(weapons::cvar(slot, weapons::Key::ID)->string, st.testCopyId), "a copy keeps the target's model ID");
+        check(!ZA_STRCMP(weapons::cvar(slot, weapons::Key::ID)->string, st.testCopyId), "a copy keeps the target's model ID");
         check(za::fabs(weapons::cvar(slot, weapons::Key::HandOffsetX)->value - st.testCopyHand) < 0.001f,
               "a copy keeps the target's hand offset");
         check(from >= 0 && za::fabs(weapons::value(slot, weapons::Key::MuzzleOffsetX) -
@@ -1676,14 +1678,14 @@ void cameraCmd()
         return;
     }
     const int args = Cmd_Argc() - 2;
-    if(args <= 0 || !strcmp(Cmd_Argv(2), "print"))
+    if(args <= 0 || !ZA_STRCMP(Cmd_Argv(2), "print"))
     {
         camPrint("is");
         return;
     }
     if(args == 1)
     {
-        if(!strcmp(Cmd_Argv(2), "reset"))
+        if(!ZA_STRCMP(Cmd_Argv(2), "reset"))
         {
             camBack(true);
             return;
@@ -1696,7 +1698,7 @@ void cameraCmd()
         camBegin();
     // `drag <right> <down>` is a middle-drag with nobody's hand on the mouse: it calls the very orbit a middle-drag
     // calls, with the same pixels, and prints the turn it came to (a test reads its two prints).
-    if(args == 3 && !strcmp(Cmd_Argv(2), "drag"))
+    if(args == 3 && !ZA_STRCMP(Cmd_Argv(2), "drag"))
     {
         camOrbit(glm::vec2{static_cast<float>(Q_atof(Cmd_Argv(3))), static_cast<float>(Q_atof(Cmd_Argv(4)))});
         camPrint("turned");
@@ -1921,27 +1923,27 @@ void command_f()
 {
     const int argc = Cmd_Argc();
     const char* sub = argc > 1 ? Cmd_Argv(1) : "";
-    if(!sub[0] || !strcmp(sub, "open"))
+    if(!sub[0] || !ZA_STRCMP(sub, "open"))
     {
         open_f();
         return;
     }
-    if(!strcmp(sub, "close"))
+    if(!ZA_STRCMP(sub, "close"))
     {
         closeStudio();
         return;
     }
-    if(!strcmp(sub, "test"))
+    if(!ZA_STRCMP(sub, "test"))
     {
         startTest();
         return;
     }
-    if(!strcmp(sub, "align"))
+    if(!ZA_STRCMP(sub, "align"))
     {
         alignArgs(2);
         return;
     }
-    if(!strcmp(sub, "slot"))
+    if(!ZA_STRCMP(sub, "slot"))
     {
         if(argc > 2)
             chooseSlot(Q_atoi(Cmd_Argv(2)));
@@ -1949,7 +1951,7 @@ void command_f()
             listSlots();
         return;
     }
-    if(!strcmp(sub, "preview"))
+    if(!ZA_STRCMP(sub, "preview"))
     {
         if(argc > 2)
             st.previewKind = Q_atoi(Cmd_Argv(2));
@@ -1963,7 +1965,7 @@ void command_f()
             removePreview();
         return;
     }
-    if(!strcmp(sub, "hold"))
+    if(!ZA_STRCMP(sub, "hold"))
     {
         st.hold = argc > 2 ? Q_atoi(Cmd_Argv(2)) != 0 : !st.hold;
         Con_Printf("weaponstudio: while the window is open the game's physics is %s\n",
@@ -1972,22 +1974,22 @@ void command_f()
                            : "running (nothing is held: the preview humanoid moves)");
         return;
     }
-    if(!strcmp(sub, "camera"))
+    if(!ZA_STRCMP(sub, "camera"))
     {
         cameraCmd();
         return;
     }
-    if(!strcmp(sub, "reset"))
+    if(!ZA_STRCMP(sub, "reset"))
     {
         resetToDefaults(argc > 2 ? Q_atoi(Cmd_Argv(2)) : st.slot);
         return;
     }
-    if(!strcmp(sub, "print"))
+    if(!ZA_STRCMP(sub, "print"))
     {
         printChanges(argc > 2 ? Q_atoi(Cmd_Argv(2)) : st.slot);
         return;
     }
-    if(!strcmp(sub, "copy"))
+    if(!ZA_STRCMP(sub, "copy"))
     {
         copyInto(argc > 2 ? Q_atoi(Cmd_Argv(2)) : st.slot, argc > 3 ? Q_atoi(Cmd_Argv(3)) : st.slot);
         return;

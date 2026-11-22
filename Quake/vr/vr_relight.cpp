@@ -56,6 +56,11 @@
 #include "vr_relight_internal.hpp"
 
 #include "Zancle/Algorithm/StableSort.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -70,7 +75,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 extern "C" {
 void VR_HeapFree(void* pointer);                                       // vr_alloccount.cpp
@@ -340,7 +344,7 @@ struct Fnv
             line = line.substrByPosLen(0, line.size() - 1);
         }
         const za::SizeT n = id.size();
-        same = same || (line.size() > 7 + n && !strncmp(line.data(), "source ", 7) && line[line.size() - n - 1] == ' ' &&
+        same = same || (line.size() > 7 + n && !ZA_STRNCMP(line.data(), "source ", 7) && line[line.size() - n - 1] == ' ' &&
                            line.substrByPosLen(line.size() - n, n) == za::StringView{id});
     });
     return same;
@@ -367,7 +371,7 @@ struct Fnv
     constexpr za::SizeT length = sizeof(option) - 1;
     for(za::SizeT i = 0; i + length <= bytes.size(); i++)
     {
-        if(bytes[i] == 'b' && !memcmp(bytes.data() + i, option, length))
+        if(bytes[i] == 'b' && !ZA_MEMCMP(bytes.data() + i, option, length))
         {
             return n;
         }
@@ -447,7 +451,7 @@ struct Fnv
         return false;
     }
     data.resize(static_cast<za::SizeT>(com_filesize));
-    memcpy(data.data(), bytes, data.size());
+    ZA_MEMCPY(data.data(), bytes, data.size());
     VR_HeapFree(bytes);
     return true;
 }
@@ -463,7 +467,7 @@ struct Fnv
         if(byte* bytes = COM_LoadMallocFile(relit, nullptr))
         {
             data.resize(static_cast<za::SizeT>(com_filesize));
-            memcpy(data.data(), bytes, data.size());
+            ZA_MEMCPY(data.data(), bytes, data.size());
             VR_HeapFree(bytes);
             return true;
         }
@@ -508,7 +512,7 @@ struct Fnv
         return nullptr;
     }
     keep.resize(768);
-    memcpy(keep.data(), pal, 768);
+    ZA_MEMCPY(keep.data(), pal, 768);
     VR_HeapFree(pal);
     return keep.data();
 }
@@ -516,7 +520,7 @@ struct Fnv
 // The map now in play ("e1m1"), or false.
 [[nodiscard]] bool currentMap(char* out, size_t size)
 {
-    if(!cl.worldmodel || strncmp(cl.worldmodel->name, "maps/", 5))
+    if(!cl.worldmodel || ZA_STRNCMP(cl.worldmodel->name, "maps/", 5))
     {
         return false;
     }
@@ -638,7 +642,7 @@ void removeWork(const za::String& stem)
     }
     bool same = false;
     files::forLines(za::StringView{note}, [&](za::StringView line) {
-        same = same || (line.size() > 5 && !strncmp(line.data(), "hash ", 5) &&
+        same = same || (line.size() > 5 && !ZA_STRNCMP(line.data(), "hash ", 5) &&
                            line.substrByPosLen(5, line.size() - 5) == za::StringView{hash});
     });
     return same && noteHasSource(za::StringView{note}, source);
@@ -830,7 +834,7 @@ enum class Started
     {
         for(const StageSpan& s : bounced)
         {
-            if(!strncmp(stage, s.stage, strlen(s.stage)))
+            if(!ZA_STRNCMP(stage, s.stage, ZA_STRLEN(s.stage)))
             {
                 return s.from + (s.to - s.from) * p;
             }
@@ -838,7 +842,7 @@ enum class Started
     }
     for(const StageSpan& s : plain)
     {
-        if(!strncmp(stage, s.stage, strlen(s.stage)))
+        if(!ZA_STRNCMP(stage, s.stage, ZA_STRLEN(s.stage)))
         {
             return s.from + (s.to - s.from) * p;
         }
@@ -871,7 +875,7 @@ void readProgress(Slot& slot)
     {
         za::Vector<char> keep;
         keep.resize(4096);
-        memcpy(keep.data(), slot.logTail.data() + slot.logTail.size() - 4096, 4096);
+        ZA_MEMCPY(keep.data(), slot.logTail.data() + slot.logTail.size() - 4096, 4096);
         slot.logTail = ZA_MOVE(keep);
     }
     // The last stage and percentage in what is kept.
@@ -883,9 +887,9 @@ void readProgress(Slot& slot)
         if(end != za::StringView::nPos && end - stage - 5 < sizeof(slot.stage))
         {
             const za::StringView s = text.substrByPosLen(stage + 5, end - stage - 5);
-            if(strncmp(slot.stage, s.data(), s.size()) || slot.stage[s.size()])
+            if(ZA_STRNCMP(slot.stage, s.data(), s.size()) || slot.stage[s.size()])
             {
-                memcpy(slot.stage, s.data(), s.size());
+                ZA_MEMCPY(slot.stage, s.data(), s.size());
                 slot.stage[s.size()] = 0;
                 slot.percent = -1;
                 if(slot.item >= 0) // (developer 1: when each stage began, to weigh them: stageFraction)
@@ -943,7 +947,7 @@ void reloadNow(const char* map, double seconds)
         // command buffer (a script's waits).
         sv.lastsave[0] = 0;
         Cmd_ExecuteString("save \"autosave/relight\" 0", src_command);
-        if(!strcmp(sv.lastsave, "autosave/relight.sav"))
+        if(!ZA_STRCMP(sv.lastsave, "autosave/relight.sav"))
         {
             saving = true;
             say(va("%s relit in %.1f s: reloading where you are", map, seconds));
@@ -1103,7 +1107,7 @@ void endBatch()
     {
         batch.reloadPending = false;
         char now[MAX_QPATH];
-        if(currentMap(now, sizeof(now)) && !strcmp(now, batch.reloadMap))
+        if(currentMap(now, sizeof(now)) && !ZA_STRCMP(now, batch.reloadMap))
         {
             say(line.cStr());
             reloadNow(batch.reloadMap, seconds);
@@ -1123,7 +1127,7 @@ void itemEnded(Item& item, State state)
         case State::Skipped: batch.skipped++; break;
         case State::Failed:
             batch.failed++;
-            if(strlen(batch.failedMaps) + item.source.map.size() + 3 < sizeof(batch.failedMaps))
+            if(ZA_STRLEN(batch.failedMaps) + item.source.map.size() + 3 < sizeof(batch.failedMaps))
             {
                 q_strlcat(batch.failedMaps, batch.failedMaps[0] ? ", " : "", sizeof(batch.failedMaps));
                 q_strlcat(batch.failedMaps, item.source.map.cStr(), sizeof(batch.failedMaps));
@@ -1174,9 +1178,9 @@ void slotEnded(int slotIndex)
             Con_Printf("Relight: %s took %.0f s, over %.0f s: a slow map to relight\n", map, seconds, slowSeconds);
         }
         char now[MAX_QPATH];
-        const bool inPlay = batch.reloadMap[0] && !strcmp(batch.reloadMap, map) &&
+        const bool inPlay = batch.reloadMap[0] && !ZA_STRCMP(batch.reloadMap, map) &&
                             !q_strcasecmp(batch.reloadGame, item.source.game.cStr()) && currentMap(now, sizeof(now)) &&
-                            !strcmp(now, map);
+                            !ZA_STRCMP(now, map);
         const int done = batch.relit + batch.skipped + batch.failed;
         if(!batch.single)
         {

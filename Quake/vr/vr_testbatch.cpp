@@ -27,11 +27,13 @@
 #include "vr_cvars_util.hpp"
 #include "vr_engine.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
-#include "Zancle/Math/MinMax.hpp"
 #include "vr_api.h"
 
 #include <stdlib.h>
@@ -102,7 +104,7 @@ void CvarSnapshot::restore() const
         });
         for(cvar_t* var : made)
         {
-            if(settable(var) && var->default_string && strcmp(var->string, var->default_string) != 0)
+            if(settable(var) && var->default_string && ZA_STRCMP(var->string, var->default_string) != 0)
             {
                 Cvar_SetQuick(var, var->default_string);
             }
@@ -110,7 +112,7 @@ void CvarSnapshot::restore() const
     }
     for(const Saved& s : saved_)
     {
-        if(settable(s.var) && strcmp(s.var->string, s.value.cStr()) != 0)
+        if(settable(s.var) && ZA_STRCMP(s.var->string, s.value.cStr()) != 0)
         {
             Cvar_SetQuick(s.var, s.value.cStr());
         }
@@ -221,16 +223,16 @@ Wait waiting;
     double want = 0.0, have = 0.0;
     if(numeric(waiting.value.cStr(), want) && numeric(var->string, have))
     {
-        return !strcmp(op, "==") ? have == want : !strcmp(op, "!=") ? have != want : !strcmp(op, "<") ? have < want
-             : !strcmp(op, "<=") ? have <= want : !strcmp(op, ">") ? have > want : have >= want;
+        return !ZA_STRCMP(op, "==") ? have == want : !ZA_STRCMP(op, "!=") ? have != want : !ZA_STRCMP(op, "<") ? have < want
+             : !ZA_STRCMP(op, "<=") ? have <= want : !ZA_STRCMP(op, ">") ? have > want : have >= want;
     }
-    if(!strcmp(op, "=="))
+    if(!ZA_STRCMP(op, "=="))
     {
-        return !strcmp(var->string, waiting.value.cStr());
+        return !ZA_STRCMP(var->string, waiting.value.cStr());
     }
-    if(!strcmp(op, "!="))
+    if(!ZA_STRCMP(op, "!="))
     {
-        return strcmp(var->string, waiting.value.cStr()) != 0;
+        return ZA_STRCMP(var->string, waiting.value.cStr()) != 0;
     }
     return false; // (an order between texts: never)
 }
@@ -288,7 +290,7 @@ void waitUntil_f()
     {
         for(const char* o : ops)
         {
-            opOk = opOk || !strcmp(Cmd_Argv(2), o);
+            opOk = opOk || !ZA_STRCMP(Cmd_Argv(2), o);
         }
     }
     if(!opOk)
@@ -384,7 +386,7 @@ extern "C" void VR_TestConsolePrint(const char* text)
             continue; // (a line counts once)
         }
         waiting.line += *p;
-        if(waiting.line.size() >= waiting.text.size() && strstr(waiting.line.cStr(), waiting.text.cStr()))
+        if(waiting.line.size() >= waiting.text.size() && ZA_STRSTR(waiting.line.cStr(), waiting.text.cStr()))
         {
             waiting.lineCounted = true;
             if(++waiting.seen >= waiting.need)

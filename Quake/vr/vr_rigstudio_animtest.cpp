@@ -15,6 +15,7 @@
 #include "vr_files.hpp"
 #include "vr_rig2.hpp"
 
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -24,7 +25,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include <string.h>
 
 using namespace qvr;
 using namespace qvr::rigstudio::detail;
@@ -185,8 +185,8 @@ void runTest()
     za::String text;
     const bool read = files::readText(path, text);
     check(va("saved to %s (qvrrig2anim)", path),
-        read && strstr(text.cStr(), "qvrrig2anim 1") && strstr(text.cStr(), "track upperarm_r") &&
-            strstr(text.cStr(), "override load"));
+        read && ZA_STRSTR(text.cStr(), "qvrrig2anim 1") && ZA_STRSTR(text.cStr(), "track upperarm_r") &&
+            ZA_STRSTR(text.cStr(), "override load"));
     revert();
     run("vr_rigstudio_source anim load");
     float worst = 0.f;

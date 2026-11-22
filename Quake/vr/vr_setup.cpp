@@ -20,7 +20,9 @@
 #include "vr_units.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Exp.hpp"
@@ -29,7 +31,6 @@
 #include "Zancle/Math/Remainder.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
-#include "Zancle/Container/Vector.hpp"
 #include "vr_api.h"
 
 #include <string.h>
@@ -87,7 +88,7 @@ constexpr Option options[] = {
 // The option's cvar as the settings are now (Classic Quake's is a state of three presets, not a saved setting).
 void syncOption(const Option& o)
 {
-    if(!strcmp(o.key, "classic"))
+    if(!ZA_STRCMP(o.key, "classic"))
     {
         gameplaypresets::syncClassic();
     }
@@ -224,7 +225,7 @@ void drawOptionScreens()
     const auto restBox = [&](edict_t* e, glm::vec3& lo, glm::vec3& hi) {
         glm::vec3 moved{0.f};
         const eval_t* const p = pos1Field >= 0 ? GetEdictFieldValue(e, pos1Field) : nullptr;
-        if(p && !strcmp(PR_GetString(e->v.classname), "func_button"))
+        if(p && !ZA_STRCMP(PR_GetString(e->v.classname), "func_button"))
         {
             moved = geom::vec(e->v.origin) -
                     geom::vec(p->vector);
@@ -1004,7 +1005,7 @@ void frame()
     // A first start (vr_setup_pending, vr_cvars.cpp) begun without the headset: VR Calibration once it tracks, with no
     // game running or in the vrstart hub (where VR starts), as the main menu's VR Calibration row; only once. (Started
     // with VR on, vr_startgame goes to the calibration room at once: vr_main.cpp.)
-    if(vr_setup_pending.value != 0.f && vrActive() && tracking().head.valid && (!sv.active || !strcmp(sv.name, VR_HubMap())) &&
+    if(vr_setup_pending.value != 0.f && vrActive() && tracking().head.valid && (!sv.active || !ZA_STRCMP(sv.name, VR_HubMap())) &&
         !running() && !flow.pending)
     {
         Cvar_SetValueQuick(&vr_setup_pending, 0.f);

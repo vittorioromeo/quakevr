@@ -658,7 +658,7 @@ struct Hit
             const char* texture = w->textures[s->texinfo->texnum]->name;
             hit.texture = textureKeyName(texture);
             hit.modelCategory = Category::World;
-            hit.textureCategory = texture[0] == '*' && strncmp(texture, "*teleport", 9) != 0 ? Category::Liquids : Category::World;
+            hit.textureCategory = texture[0] == '*' && ZA_STRNCMP(texture, "*teleport", 9) != 0 ? Category::Liquids : Category::World;
         }
     }
     for(int i = 0; i < cl_numvisedicts; i++)
@@ -1531,7 +1531,7 @@ extern "C" void VR_RetroCall(entity_t* e, const texture_t* t, float out[4])
     {
         return;
     }
-    const bool liquid = t->name[0] == '*' && strncmp(t->name, "*teleport", 9) != 0;
+    const bool liquid = t->name[0] == '*' && ZA_STRNCMP(t->name, "*teleport", 9) != 0;
     const Override* to = overrideFor(t, true, t->name);
     if(liquid || to)
     {

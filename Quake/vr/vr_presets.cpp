@@ -5,11 +5,11 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/String/StringView.hpp"
 
 #include <stdlib.h>
-#include <string.h>
 
 namespace qvr::presetcore
 {
@@ -24,7 +24,7 @@ bool same(const char* a, const char* b)
     {
         return static_cast<float>(x) == static_cast<float>(y);
     }
-    return strcmp(a, b) == 0;
+    return ZA_STRCMP(a, b) == 0;
 }
 
 const char* Kind::levelName(int level) const
@@ -42,7 +42,7 @@ const Row* Kind::findRow(const char* name) const
 {
     for(int i = 0; i < t.rowCount; i++)
     {
-        if(!strcmp(name, t.rows[i].var->name))
+        if(!ZA_STRCMP(name, t.rows[i].var->name))
         {
             return &t.rows[i];
         }

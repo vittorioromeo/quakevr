@@ -13,6 +13,8 @@
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
@@ -129,7 +131,7 @@ void addLooseFiles(const za::String& dir, const za::String& relative, int depth,
 
 [[nodiscard]] bool isModel(const char* file, bool anyDepth)
 {
-    const size_t n = strlen(file);
+    const size_t n = ZA_STRLEN(file);
     return n > 10 && !q_strncasecmp(file, "progs/", 6) && (anyDepth || !strchr(file + 6, '/')) &&
            !q_strcasecmp(file + n - 4, ".mdl");
 }
@@ -181,7 +183,7 @@ za::Vector<za::String> modelNames(const char* folder)
             }
         }
     }
-    za::quickSort(names.begin(), names.end(), [](const za::String& a, const za::String& b) { return strcmp(a.cStr(), b.cStr()) < 0; });
+    za::quickSort(names.begin(), names.end(), [](const za::String& a, const za::String& b) { return ZA_STRCMP(a.cStr(), b.cStr()) < 0; });
     return names;
 }
 
@@ -516,7 +518,7 @@ void precacheModels_f()
     const auto has = [](const char* name) {
         for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
         {
-            if(!strcmp(sv.model_precache[i], name))
+            if(!ZA_STRCMP(sv.model_precache[i], name))
             {
                 return true;
             }

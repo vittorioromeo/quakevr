@@ -30,6 +30,7 @@
 
 #include "thirdparty/imgui/imgui.h"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Asin.hpp"
@@ -46,7 +47,6 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include <stdio.h>
-#include <string.h>
 
 using namespace qvr;
 using namespace qvr::rigstudio::detail;
@@ -690,7 +690,7 @@ namespace
 void align_f()
 {
     bool move = st.alignMove;
-    if(Cmd_Argc() > 2 && !strcmp(Cmd_Argv(1), "move"))
+    if(Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(1), "move"))
     {
         move = Q_atoi(Cmd_Argv(2)) != 0;
     }
@@ -906,7 +906,7 @@ void alignTestTick()
     {
         // The new subject standing, its weapons drawn and still
         if(host_framecount - atl.spawnFrame < 30 || !fresh() || st.noteFrame <= atl.spawnFrame + 2 ||
-            strcmp(st.made.spawn, c.spawn) != 0 || st.made.weapon != c.weapon)
+            ZA_STRCMP(st.made.spawn, c.spawn) != 0 || st.made.weapon != c.weapon)
         {
             return;
         }

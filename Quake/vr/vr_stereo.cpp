@@ -55,14 +55,15 @@
 #include "vr_window.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
-#include "Zancle/Base/Swap.hpp"
 #include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Tan.hpp"
-#include "Zancle/Container/Array.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
 
@@ -1858,9 +1859,9 @@ extern "C" int VR_SceneAttachmentFoveation(const char* name)
         return 0;
     }
     const int parts = stereo::creatingFoveatedParts;
-    const bool colour = !strcmp(name, "composite colors") || !strcmp(name, "scene colors");
-    const bool depth = !strcmp(name, "composite depth/stencil") || !strcmp(name, "scene depth/stencil");
-    const bool oit = !strcmp(name, "oit accum") || !strcmp(name, "oit revealage");
+    const bool colour = !ZA_STRCMP(name, "composite colors") || !ZA_STRCMP(name, "scene colors");
+    const bool depth = !ZA_STRCMP(name, "composite depth/stencil") || !ZA_STRCMP(name, "scene depth/stencil");
+    const bool oit = !ZA_STRCMP(name, "oit accum") || !ZA_STRCMP(name, "oit revealage");
     return colour || (depth && (parts & 2)) || (oit && (parts & 4)) ? stereo::foveationEnable : 0;
 }
 
