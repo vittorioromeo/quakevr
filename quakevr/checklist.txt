@@ -49,6 +49,10 @@ Debug > Tests > Tutorial > Go to a Lesson lists 15 lessons (12 Blades, 13 Bash a
 Look away from the wrist gadget and get a centre message: the visor-style panel in front of you is about a third smaller than before and still easy to read {test:vr_center_message}
 Look at the wrist gadget while picking up items and getting messages: they rise from its screen as the glowing, flickering hologram again, not as plain text with a dark box {test:pouchbody}
 Body Type set to Only Hands: the hip and chest holsters sit where they are with the full body, turned the same way, and draw and holster easily {test:pouchbody}
+In the ropes hall, grab a rope or chain with both hands: each hand grips it with the rope through the fist, the right hand's knuckles to the right and the left's to the left, not pointing up. {test:ropes}
+In the ropes hall, climb a rope hand over hand: each pull up makes a short grunt (not a mere grab, not climbing down), and grabbing a rope makes a soft thud while a chain makes a metal grip. {test:ropes}
+In the ropes hall, climb a rope hand over hand with your body close to it: each regrab barely moves it, while swinging, pumping, jumping onto it and pushing it still move it as before. {test:ropes}
+In the ropes hall, grab a rope overhead whose end hangs near your legs: your legs hang under you instead of rising to reach its end; on a rope long enough they still wrap round it. {test:ropes}
 
 [1. Dwell]
 Dwell's weapons keep their kind in holsters, after a save and a level change; Haste/Berserk/Wetsuit seconds on the wrist {test:dwell_items}
