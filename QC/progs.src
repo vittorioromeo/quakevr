@@ -159,6 +159,7 @@ vr_limbs_test.qc
 vr_enemyguns.qc
 vr_crowbar.qc
 vr_toolgun.qc
+vr_ropes.qc
 vr_nailpistol.qc
 vr_revolver.qc
 vr_mg3_weapons.qc

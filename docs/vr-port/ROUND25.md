@@ -7549,6 +7549,25 @@ becomes possible in that state".
   `vr_flatitems_test 10` (routing, ironsight with an empty hand) 63/0, 7 (a prop beside the gun) 13/0, flathands 76/0,
   flatmelee2h 16/0, flatads 6/1 (its "launchers", the outdated expectation of ROUND24.md).
 
+## Ropes (phase 1 of 3: the physical rope and chain)
+
+His spec of 2026-11-21; the reference is `ROPES.md` (keys, settings, files, defaults, limits). Phase 1 done: map
+entities `vr_rope` / `vr_chain` (QC `vr_ropes.qc`: settings only; `rope_*` keys), the toolgun's Spawn > Props > Ropes
+(Rope, Chain) with its Rope Settings page (`vr_rope_spawn_*`, hung from the ceiling above the ghost), the server's
+Verlet rope (`Quake/vr/vr_climbrope.cpp`, reusing `vr_verlet` fall / holdLengths / collide, the last now able to trace
+the server's world), pushed by hands, bodies, props, explosions (physicsblast) and shots (physicsshot), sent to every
+client (`QVR_SVC_CLIMBROPE` 55) and drawn with the magnetic holsters' cord code (`coil::Cord::shape`: a cable or the
+chain of links). Shared flat/VR: the rope, its sync and its drawing are one path for both (the listen client draws from
+the loopback message as a remote one does); nothing mode-specific yet (P2 is VR's grab, P3 flat's auto-climb).
+- **Test map** `vrropes` (`Misc/quakevr/make_vrropes_map.py --compile`): four swinging ropes 192 apart and a ledge, a
+  pinned rope, a heavy chain, a rope longer than the drop. Scene `ropes`.
+- **Tests:** `vr_rope_test` (in vrropes) 12 passed, 0 failed: made from keys and as the toolgun makes one, vrropes' 7
+  counted, hangs straight its length, pinned ends held, the client's copy within 0.09 units, an explosion throws it 25
+  units, a shot 6, a crate 117, a dog 15, removed: gone on both. `mp_test.py ropes` (dedicated server, B behind the
+  proxy) 9 passed: B has both with the server's points; pushed, B sees them swing. vr_toolgun_spawn_test makes both
+  entries. scenario_check PASS (185 run, 0 failed). Dev and ThinLTO built, 0 warnings.
+- **Left (P2, P3):** the VR grab and hand-over-hand climb with the legs' IK and momentum on letting go, the flat
+  auto-climb, the pumped swing to a cap, the climber's pose in MP; the toolgun's Remove/Physgun aiming at ropes.
 ## studio2: Texture Studio painting hits what you aim at (agent/studio2, 2026-11-22)
 
 His words (flat): hands, forearms and parts next to the backpacks hard to paint, something else painted; the back of a
@@ -7606,3 +7625,19 @@ pick one rule and show it). Keep `vr_flat_key_*` working for configs."
 - Test: `Misc/quakevr/flatkeybind_test.sh <agent>` (rewritten for Controls; flat-screen, fast mode, ends on
   "flatkeybind: done"): 9 passed, 0 failed (link, rebind, Escape, clash both ways, the new key fires (k drops) and the
   old does nothing, clear, reset).
+## adhumaudit: which of AD's remaining humanoids could be armed humanoids (agent/adhumaudit, 2026-11-22; audit only)
+
+His words: "it would be nice for those to become armed humanoid too ... Please do an audit first". The audit is
+`ARMED_MONSTERS.md`, "Audit 2" (the table, the notes, a proposed phase 2); nothing is converted.
+
+- Verdicts: convert (small) the death knight (+ Quoth's), AD's death guard, Quoth's death guard and death lord; convert with
+  work the death fury; not now the death sergeant (its flail: no monster-held flail); not worth it the point knight, the
+  zombie knight, the justice knight, the bosses, the centurion, the skull wizard, the robots; the ghost is scenery.
+- Findings: AD's `monster_dguard` (30 hp, the knight's build) and Quoth's `monster_death_guard` (125 hp, a hell knight
+  reskin with a fireball) are different monsters (phase 1 grouped them). Quoth's death guard and death lord have id's hell
+  knight's frames frame for frame and builds within 5% of our death knight's: the best fits for keeping AD's look. The
+  death knight family (dknight, sergeant, prince) share one 870-vertex body close to our death knight (+2% tall).
+- Tools: `vr_ad_test 222` (QC `VR_HUM_Overlay`, vr_humrepl_test.qc; Debug > Tests > "Armed Humanoids: AD Model Beside
+  Its Row": still props, ours / overlaid / AD's / side-on, scratch1 the pair 0-11), `Misc/quakevr/adhumaudit_shots.sh`
+  (the 12 screenshots), `Misc/quakevr/adhum_mdl.py` (builds and frame groups from AD's paks read in place),
+  `Misc/quakevr/adhum_census.py` (placements in AD's and Quoth's paks). Screens: `C:\OHWorkspace\qvr-kit\scratch\adhumaudit_*.png`.

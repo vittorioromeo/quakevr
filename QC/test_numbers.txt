@@ -151,6 +151,7 @@ vr_ad_test       212      vr_quoth_test.qc                 a Quoth map's flow dr
 vr_ad_test       219      vr_humrepl_test.qc               AD's and Quoth's humanoid variants: each its armed row with its gun, health, look, counted once; a death fires its target; off: AD's; looks by weapon; the client's looks (humrepl_test.sh)
 vr_ad_test       220      vr_humrepl_test.qc               the map's variants census, one line: monsters, armed, variants replaced, left AD's (humrepl_census.sh)
 vr_ad_test       221      vr_humrepl_test.qc               a row of armed humanoids of row scratch1, one per recolour category, for the screenshots (humrepl_shots.sh)
+vr_ad_test       222      vr_humrepl_test.qc               an AD humanoid model beside and over its nearest armed row's model, pair scratch1, for the audit's screenshots (adhumaudit_shots.sh)
 vr_ad_test       215      dwell/dw_test.qc                 Dwell's Kamikaze made 250-500 units away: it chases the player and bursts near him, its explosion drawn (dwell_monster_fixes_test.sh)
 vr_ad_test       216      dwell/dw_test.qc                 d2end: the player put inside the Sculptor's fighting box is put just outside it, free (dwell_monster_fixes_test.sh)
 vr_ad_test       214      dwell/dw_test.qc                Dwell's start: the spawn point's targets fired (Copper's), both runes placed, each episode's corridor walkable to its teleporter and the teleporter taking the player (dwell_maps.sh)

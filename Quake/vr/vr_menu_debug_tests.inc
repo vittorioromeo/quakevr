@@ -399,6 +399,11 @@ za::Vector<Item> pageDebugTests()
             .help("Five armed humanoids of the row in scratch1 (0 grunts, 1 enforcers, 2 knights, 3 death knights) ahead of "
                   "you, one per recolour: a shotgun (as it is), a rocket launcher, the thunderbolt, a flamethrower, a "
                   "poison sprayer (AD's guns with AD's data). vr_humlook_info prints the nearest one's look."),
+        command("Armed Humanoids: AD Model Beside Its Row", "vr_ad_test 222") // vr_humrepl_test.qc
+            .help("With AD's data: one of AD's remaining humanoid models (scratch1 the pair, 0-11: death knight, death "
+                  "guard, Quoth's death guard, sergeant, fury, death lord, point knight, zombie knight, justice, centurion, "
+                  "judicator, skull wizard) beside the armed row's model nearest its build, as still props: ours, both "
+                  "overlaid, AD's, and the overlay side-on (ARMED_MONSTERS.md, \"Audit 2\")."),
         command("Quoth: Drive This Map's Flow", "vr_ad_test 212")
             .help("Plays the map's flow for you, a round a second: every trigger you could walk into touched, every monster "
                   "awake killed by you (god mode), so waves, spawners and counters run. On ne_marb, metmon, lpqsp1, "
@@ -1564,6 +1569,12 @@ za::Vector<Item> pageDebugTests()
                                                          "rope's length and path (needs Developer Messages)."),
         command("Print the Ropes", "vr_grapple_rope_dump; vr_grapple_rope_draw_dump")
             .help("Prints each rope's corners (the server's) and its drawn chain: points inside the world, pieces through it."),
+        header("Climbable Ropes"),
+        command("Print the Climbable Ropes", "vr_rope_info")
+            .help("vr_rope_info: each climbable rope and chain (a map's, the toolgun's): its settings, its top and bottom, how fast it moves."),
+        command("Test the Climbable Ropes", "vr_rope_test")
+            .help("vr_rope_test: a rope and a chain made 128 units ahead, settled, thrown by an explosion, shot, pushed by a crate and a dog; "
+                  "the client's copy compared (best in vrropes: its own ropes counted too). Prints PASS/FAIL lines."),
         header("Stamina"),
         info([]() -> const char* { return staminaReadout(); }),
         command("Deplete Stamina", "vr_stamina_set 0").help("vr_stamina_set 0: no stamina left (tired arms: heavy hands; shaking while you hang). Hanging with none, your hands let go."),
