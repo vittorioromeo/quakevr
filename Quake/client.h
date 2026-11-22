@@ -410,6 +410,12 @@ typedef struct seatview_s
 	vrect_t		rect;				// the window area this seat's view and HUD are drawn in: the whole window until
 									// the layouts (SPLITSCREEN.md phases 7, 11: SCR_SeatRect)
 	vrect_t		viewrect;			// the 3D view's part of it (scr_vrect: viewsize, the status bar's room)
+	// phase 7: the seat's last drawn view (gl_screen.c SCR_DrawSeats; vr_seat_render_test reads them)
+	int			drawnframes;		// its tile drawn this many times
+	vrect_t		drawnrect;			// the tile it was drawn in
+	vec3_t		drawnorg;			// the view's origin then (r_refdef.vieworg)
+	byte		probe[4];			// scr_seatmarkers 2: its marker's pixel read back after the frame (rgb)
+	unsigned	probesum;			// ... and a checksum of the tile's middle (each tile a picture of its own)
 } seatview_t;
 
 // QVR: splitscreen phase 3: a seat's HUD state (gl_screen.c's centre print, sbar.c's scores shown).
@@ -438,7 +444,10 @@ int CL_SeatsInPlay (void);					// the seats playing (seat::inPlay; seat 0 always
 // particles or links into the shared world (CL_SeatHeadless).
 int CL_SeatPlays (int seat);				// seat 0..3 in play
 int CL_SeatPad (int seat);					// the pad that joined seat 1..3 (-1: none)
-qboolean CL_SeatHeadless (void);			// the current seat runs headless (seats 1-3 until phase 7)
+qboolean CL_SeatHeadless (void);			// the current seat is one of seats 1-3: no sound, music, particles or links into
+											// the shared world (seat 0's world has them; phases 7-8 for the rest)
+qboolean CL_SeatDrawn (void);				// the current seat's view is drawn (seat 0, or any seat in a tile: phase 7):
+											// its entities relinked each frame
 clientseat_t *CL_SeatNetIfMade (int seat);	// seat 0..3's client if ever made (NULL: never used)
 void CL_SeatName (int seat, char *out, size_t size);	// the player's name for seat n: cl_name, then "<cl_name> <n+1>"
 void CL_SeatFrame (void);					// once a host frame: seats joining (connecting) or gone (vr_seatplay.cpp)

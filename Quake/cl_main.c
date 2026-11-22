@@ -977,7 +977,7 @@ int CL_ReadFromServer (void)
 	if (cl_shownet.value)
 		Con_Printf ("\n");
 	CL_CheckServerSilence (); // QVR: (B16)
-	if (CL_SeatHeadless ()) // QVR: splitscreen: a headless seat keeps its client world as read; phase 7 relinks and draws it
+	if (!CL_SeatDrawn ()) // QVR: splitscreen: a seat not drawn keeps its client world as read (a seat in a tile relinks its own)
 		return 0;
 
 	VR_ProfileBegin ("relink"); // QVR: profile
@@ -986,10 +986,13 @@ int CL_ReadFromServer (void)
 	VR_ProfileBegin ("temp entities"); // QVR: profile
 	CL_UpdateTEnts ();
 	VR_ProfileEnd (); // QVR
-	VR_WallTorchFlames (); // QVR: taken wall torches' flames (vr_walltorch.cpp)
-	VR_TestEffects (); // QVR: vr_particle_test quake's sprite (vr_client.cpp)
-	VR_TorchLights (); // QVR: torches and flames flicker light onto the room
-	VR_FlameLights (); // QVR: the flamethrowers' streams light the room (vr/vr_emissive.cpp)
+	if (!CL_SeatHeadless ()) // QVR: splitscreen: (their memories are shared: seat 0's world's, drawn in every tile)
+	{
+		VR_WallTorchFlames (); // QVR: taken wall torches' flames (vr_walltorch.cpp)
+		VR_TestEffects (); // QVR: vr_particle_test quake's sprite (vr_client.cpp)
+		VR_TorchLights (); // QVR: torches and flames flicker light onto the room
+		VR_FlameLights (); // QVR: the flamethrowers' streams light the room (vr/vr_emissive.cpp)
+	}
 
 //johnfitz -- devstats
 

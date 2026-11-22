@@ -1595,8 +1595,10 @@ int damagePending()
 
 bool active()
 {
+    // (splitscreen: the visor's panels and passes are one view's, phase 13's per seat: each tile the classic HUD)
     return flatplay::active() && vr_flat_visor.value != 0.f && cls.state == ca_connected && cls.signon == SIGNONS &&
-           cl.worldmodel && !cl.intermission && scr_viewsize.value < 120.f && !cl.qcvm.extfuncs.CSQC_DrawHud;
+           cl.worldmodel && !cl.intermission && scr_viewsize.value < 120.f && !cl.qcvm.extfuncs.CSQC_DrawHud &&
+           SCR_SeatsDrawn() <= 1;
 }
 
 bool logShown()

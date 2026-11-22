@@ -738,6 +738,11 @@ extern "C" qboolean CL_SeatHeadless()
     return qvr::seat::current().index != 0;
 }
 
+extern "C" qboolean CL_SeatDrawn()
+{
+    return qvr::seat::current().index == 0 || SCR_SeatsDrawn() > 1;
+}
+
 extern "C" clientseat_t* CL_SeatNetIfMade(const int seat)
 {
     return qvr::seat::netIfMade(seat);

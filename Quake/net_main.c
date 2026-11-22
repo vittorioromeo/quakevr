@@ -951,7 +951,7 @@ void NET_Init (void)
 
 	net_numsockets = svs.maxclientslimit;
 	if (cls.state != ca_dedicated)
-		net_numsockets++;
+		net_numsockets += MAX_SPLITSEATS; // QVR: splitscreen: each local seat's client side of its loopback pair (was 1: seat 0's; seats 3-4 found none)
 	if (COM_CheckParm("-listen") || cls.state == ca_dedicated)
 		listening = true;
 

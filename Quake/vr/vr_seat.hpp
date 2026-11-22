@@ -161,4 +161,8 @@ void registerCommands(); // vr_seat_test
 // per-frame step (CL_SeatFrame), vr_seat_play_test.
 void registerPlayCommands();
 
+// Phase 7 (vr_seatrender.cpp): vr_seat_render_test (each seat drawn in its tile), its per-frame step (CL_SeatFrame's).
+void registerRenderCommands();
+void renderTestFrame();
+
 } // namespace qvr::seat

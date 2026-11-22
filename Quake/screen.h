@@ -34,7 +34,11 @@ void SCR_UpdateZoom (void);
 void SCR_CenterPrint (const char *str);
 void SCR_CenterPrintFor (const char *str, float seconds); // QVR: shown `seconds` at least (a view message without a headset)
 void SCR_ClearCenterString (void); // QVR: the current seat's centre print gone (vr_seat_test)
-void SCR_SeatRect (int seat, vrect_t *out); // QVR: splitscreen: seat's window area (the whole window: layouts undecided)
+// QVR: splitscreen phase 7 (docs/vr-port/SPLITSCREEN.md section 15): each seat in play drawn in its tile of the window.
+void SCR_SeatRect (int seat, vrect_t *out); // seat's tile of the window (top-left origin; one seat: the whole window)
+void SCR_SeatWindow (vrect_t *out);	// the window the tiles are laid out in (0, 0, its width and height)
+int SCR_SeatsDrawn (void);			// the seats laid out in tiles (1: the window is seat 0's, as always)
+int SCR_SplitLayout (void);			// the layout drawn: 1 side by side, 2 stacked, 3 one wide on top, 4 grid (scr_splitlayout)
 qboolean SCR_CenterPrintShowing (void); // QVR: a centre print is up (the tips wait: vr_tips.cpp)
 
 void SCR_BeginLoadingPlaque (void);

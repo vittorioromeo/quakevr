@@ -106,6 +106,11 @@ cvar_t		cl_screenshotname = {"cl_screenshotname", "screenshots/%map%_%date%_%tim
 cvar_t		scr_demobar_timeout = {"scr_demobar_timeout", "1", CVAR_ARCHIVE};
 
 cvar_t		scr_viewsize = {"viewsize","100", CVAR_ARCHIVE};
+// QVR: splitscreen phase 7 (docs/vr-port/SPLITSCREEN.md section 15): the seats' tiles. 0: from the window's aspect (an
+// ultrawide, 2:1 or wider: side by side; else 2 seats stacked, 3 one wide on top and two below, 4 a grid); 1 side by
+// side, 2 stacked, 3 one wide on top and the others below, 4 a 2x2 grid.
+cvar_t		scr_splitlayout = {"scr_splitlayout", "0", CVAR_ARCHIVE};
+cvar_t		scr_seatmarkers = {"scr_seatmarkers", "0", CVAR_NONE}; // QVR: each tile marked with its seat's colour (1); 2 also read back after the frame (vr_seat_render_test)
 cvar_t		scr_fov = {"fov","90",CVAR_ARCHIVE};	// 10 - 170
 cvar_t		scr_fov_adapt = {"fov_adapt","1",CVAR_ARCHIVE};
 cvar_t		scr_zoomfov = {"zoom_fov","30",CVAR_ARCHIVE};	// 10 - 170
@@ -525,19 +530,172 @@ Internal use only
 */
 /*
 ==================
-SCR_SeatRect -- QVR
+SCR_SeatRect and the tiles -- QVR
 
-The window area seat `seat`'s view and HUD are drawn in. The layouts are not decided yet (SPLITSCREEN.md, question 2;
-phases 7, 11): every seat's is the whole window, as one seat's always is.
+Splitscreen phase 7 (docs/vr-port/SPLITSCREEN.md section 15): in flatscreen play (no headset) each seat in play is drawn
+in its tile of the window, laid out by scr_splitlayout (its default from the window's aspect: his answer, 2026-11-21).
+While seats are drawn in tiles, each seat's pass makes its tile the window (SCR_SeatPassBegin: glx, gly, glwidth,
+glheight, vid's sizes): the view, the refdef, the status bar and the crosshair are laid out in it by the code that lays
+them out in the window. One seat: the whole window, the frame drawn as it always was.
 ==================
 */
-void SCR_SeatRect (int seat, vrect_t *out)
+static vrect_t scr_window; // seat-shared: the window this frame (GL_BeginRendering's; the tiles' parent while a seat's pass shrinks glwidth)
+
+void SCR_SeatWindow (vrect_t *out)
 {
-	(void) seat;
 	out->x = 0;
 	out->y = 0;
-	out->width = glwidth;
-	out->height = glheight;
+	out->width = scr_window.width > 0 ? scr_window.width : glwidth;
+	out->height = scr_window.height > 0 ? scr_window.height : glheight;
+}
+
+int SCR_SeatsDrawn (void)
+{
+	if (VR_IsActive ()) // (a headset's view is seat 0's: a VR host with flat seats is phase 14's)
+		return 1;
+	return q_max (1, CL_SeatsInPlay ());
+}
+
+int SCR_SplitLayout (void)
+{
+	vrect_t win;
+	int n = SCR_SeatsDrawn (), layout = (int) scr_splitlayout.value;
+	if (layout >= 1 && layout <= 4)
+		return layout;
+	SCR_SeatWindow (&win);
+	if (win.width >= 2 * win.height) // an ultrawide: side by side, always
+		return 1;
+	return n <= 2 ? 2 : n == 3 ? 3 : 4;
+}
+
+// Tile i of n in a w x h window, layout 1-4 (SCR_SplitLayout's).
+static void SCR_LayoutTile (int layout, int n, int i, int w, int h, vrect_t *out)
+{
+	int cols = 1, rows = 1, col = 0, row = 0;
+	if (layout == 3 && n >= 3) // one wide on top, the others side by side below
+	{
+		if (i == 0)
+		{
+			out->x = 0;
+			out->y = 0;
+			out->width = w;
+			out->height = h / 2;
+			return;
+		}
+		out->x = (i - 1) * w / (n - 1);
+		out->width = i * w / (n - 1) - out->x;
+		out->y = h / 2;
+		out->height = h - h / 2;
+		return;
+	}
+	if (layout == 1)
+	{
+		cols = n;
+		col = i;
+	}
+	else if (layout == 4 && n > 2)
+	{
+		cols = 2;
+		rows = 2;
+		col = i % 2;
+		row = i / 2;
+	}
+	else if (layout == 4)
+	{
+		cols = n;
+		col = i;
+	}
+	else // 2, and 3 with two seats: stacked
+	{
+		rows = n;
+		row = i;
+	}
+	out->x = col * w / cols;
+	out->width = (col + 1) * w / cols - out->x;
+	out->y = row * h / rows;
+	out->height = (row + 1) * h / rows - out->y;
+}
+
+void SCR_SeatRect (int seat, vrect_t *out)
+{
+	vrect_t win;
+	int n = SCR_SeatsDrawn (), i = 0, s;
+	SCR_SeatWindow (&win);
+	*out = win;
+	if (n <= 1 || seat < 0 || seat >= MAX_SPLITSEATS || !CL_SeatPlays (seat))
+		return;
+	for (s = 0; s < seat; s++) // (its place among the seats in play: seat 3 is the second tile when seat 2 is out)
+		i += CL_SeatPlays (s) ? 1 : 0;
+	SCR_LayoutTile (SCR_SplitLayout (), n, i, win.width, win.height, out);
+}
+
+// A seat's pass: its tile made the window, and back.
+typedef struct
+{
+	int		glx, gly, glwidth, glheight;
+	int		width, height, guiwidth, guiheight;
+} scrwindow_t;
+
+static void SCR_SeatPassBegin (const vrect_t *tile, scrwindow_t *saved)
+{
+	saved->glx = glx;
+	saved->gly = gly;
+	saved->glwidth = glwidth;
+	saved->glheight = glheight;
+	saved->width = vid.width;
+	saved->height = vid.height;
+	saved->guiwidth = vid.guiwidth;
+	saved->guiheight = vid.guiheight;
+	glx = saved->glx + tile->x;
+	gly = saved->gly + saved->glheight - tile->y - tile->height;
+	glwidth = tile->width;
+	glheight = tile->height;
+	vid.width = q_max (1, saved->width * tile->width / q_max (1, saved->glwidth));
+	vid.height = q_max (1, saved->height * tile->height / q_max (1, saved->glheight));
+	vid.guiwidth = q_max (1, saved->guiwidth * tile->width / q_max (1, saved->glwidth));
+	vid.guiheight = q_max (1, saved->guiheight * tile->height / q_max (1, saved->glheight));
+	vid.recalc_refdef = 1;
+}
+
+static void SCR_SeatPassEnd (const scrwindow_t *saved)
+{
+	glx = saved->glx;
+	gly = saved->gly;
+	glwidth = saved->glwidth;
+	glheight = saved->glheight;
+	vid.width = saved->width;
+	vid.height = saved->height;
+	vid.guiwidth = saved->guiwidth;
+	vid.guiheight = saved->guiheight;
+	vid.recalc_refdef = 1;
+}
+
+// The markers' colours: seat 1 red, 2 green, 3 blue, 4 yellow (vr_seat_render_test checks them).
+static const float scr_seatcolors[MAX_SPLITSEATS][3] = {{1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}, {0.f, 0.f, 1.f}, {1.f, 1.f, 0.f}};
+static const int scr_markerat = 20; // the marker's middle, in the tile's canvas units from its top left (its read-back)
+
+static void SCR_DrawSeatMarker (int seat)
+{
+	GL_SetCanvas (CANVAS_DEFAULT);
+	Draw_FillEx (scr_markerat - 12, scr_markerat - 12, 24, 24, scr_seatcolors[seat], 1.f);
+	Draw_String (scr_markerat + 18, scr_markerat - 4, va ("seat %d", seat + 1));
+}
+
+// scr_seatmarkers 2 (vr_seat_render_test), in the seat's pass (its tile the window) once its view, HUD and marker are
+// drawn, before the shared 2D: its marker's pixel and a checksum of its middle read back (a test's stall, never else).
+static void SCR_SeatProbe (seatview_t *sv)
+{
+	byte block[32 * 32 * 3];
+	unsigned hash = 2166136261u;
+	int i;
+	glPixelStorei (GL_PACK_ALIGNMENT, 1);
+	glReadPixels (glx + scr_markerat * glwidth / q_max (1, vid.guiwidth),
+		gly + glheight - 1 - scr_markerat * glheight / q_max (1, vid.guiheight), 1, 1, GL_RGB, GL_UNSIGNED_BYTE, sv->probe);
+	glReadPixels (glx + glwidth / 2 - 16, gly + glheight / 2 - 16, 32, 32, GL_RGB, GL_UNSIGNED_BYTE, block);
+	glPixelStorei (GL_PACK_ALIGNMENT, 4);
+	for (i = 0; i < (int) sizeof (block); i++)
+		hash = (hash ^ block[i]) * 16777619u;
+	sv->probesum = hash;
 }
 
 static void SCR_CalcRefdef (void)
@@ -545,9 +703,10 @@ static void SCR_CalcRefdef (void)
 	float		size, scale; //johnfitz -- scale
 	float		zoom;
 	seatview_t	*sv = V_SeatView (); // QVR: splitscreen: the seat's view, drawn in its window area
-	vrect_t		*rect = &sv->rect;
+	vrect_t		area = {0, 0, glwidth, glheight}; // QVR: the window, or the seat's tile while its pass makes it the window
+	vrect_t		*rect = &area;
 
-	SCR_SeatRect (CL_SeatIndex (), rect); // QVR
+	SCR_SeatRect (CL_SeatIndex (), &sv->rect); // QVR: (its tile in the window)
 
 // force the status bar to redraw
 	Sbar_Changed ();
@@ -745,6 +904,8 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_zoomfov);
 	Cvar_RegisterVariable (&scr_zoomspeed);
 	Cvar_RegisterVariable (&scr_viewsize);
+	Cvar_RegisterVariable (&scr_splitlayout); // QVR
+	Cvar_RegisterVariable (&scr_seatmarkers); // QVR
 	Cvar_RegisterVariable (&scr_conspeed);
 	Cvar_RegisterVariable (&scr_showturtle);
 	Cvar_RegisterVariable (&scr_showpause);
@@ -2316,6 +2477,81 @@ static void SCR_DrawWindowHud (void)
 
 /*
 ==================
+SCR_DrawSeats -- QVR
+
+Splitscreen phase 7: each seat in play drawn in its tile, as that seat (its client world, view, hands, HUD): its view
+(the flat render, the refdef laid out in the tile), then its HUD (the crosshair, the hit marks, its centre print, its
+status bar, its intermission's). The shared 2D (console, menus, notices) is drawn after, over the whole window. A seat
+joining (not signed on yet) shows its tile dark with a line.
+==================
+*/
+static void SCR_DrawSeatHud (seathud_t *hud)
+{
+	if (cl.intermission == 1 && key_dest == key_game)
+		Sbar_IntermissionOverlay ();
+	else if (cl.intermission == 2 && key_dest == key_game)
+	{
+		Sbar_FinaleOverlay ();
+		SCR_CheckDrawCenterString (hud);
+	}
+	else
+	{
+		VR_FlatHitDraw ();
+		SCR_DrawCrosshair ();
+		SCR_CheckDrawCenterString (hud);
+		SCR_DrawSbar ();
+	}
+}
+
+static void SCR_DrawSeats (void)
+{
+	int was = CL_SeatIndex (), s;
+	for (s = 0; s < MAX_SPLITSEATS; s++)
+	{
+		vrect_t tile;
+		scrwindow_t saved;
+		seatview_t *sv;
+		if (!CL_SeatPlays (s))
+			continue;
+		SCR_SeatRect (s, &tile);
+		CL_SeatSet (s);
+		sv = V_SeatView ();
+		SCR_SeatPassBegin (&tile, &saved);
+		SCR_CalcRefdef ();
+		r_refdef.scale = CLAMP (1, (int)r_scale.value, vid.maxscale);
+		if (cls.state == ca_connected && cls.signon == SIGNONS && cl.worldmodel)
+		{
+			if (s != was)
+				V_UpdateBlend (); // (the caller's seat's is done)
+			VR_WindowViewBegin ();
+			VR_FlatRenderView ();
+			VR_WindowViewEnd ();
+			VectorCopy (r_refdef.vieworg, sv->drawnorg);
+			GL_Set2D ();
+			SCR_DrawSeatHud (SCR_SeatHud ());
+		}
+		else
+		{
+			const char *line = va ("seat %d: joining", s + 1);
+			GL_Set2D ();
+			GL_SetCanvas (CANVAS_MENU);
+			Draw_String (160 - 4 * (int) strlen (line), 96, line);
+		}
+		if (scr_seatmarkers.value)
+			SCR_DrawSeatMarker (s);
+		Draw_Flush ();
+		if (scr_seatmarkers.value >= 2)
+			SCR_SeatProbe (sv);
+		sv->drawnrect = tile;
+		sv->drawnframes++;
+		SCR_SeatPassEnd (&saved);
+	}
+	CL_SeatSet (was);
+}
+
+
+/*
+==================
 SCR_UpdateScreen
 
 This is called every frame, and can also be called explicitly to flush
@@ -2328,6 +2564,7 @@ needs almost the entire 256k of stack space!
 void SCR_UpdateScreen (void)
 {
 	seathud_t *hud = SCR_SeatHud (); // QVR: splitscreen: the seat's HUD, passed to its draws
+	qboolean split; // QVR: splitscreen: the seats in tiles (SCR_DrawSeats), each its view and HUD
 	vid.numpages = (gl_triplebuffer.value) ? 3 : 2;
 
 	if (scr_disabled_for_loading)
@@ -2358,6 +2595,9 @@ void SCR_UpdateScreen (void)
 
 
 	GL_BeginRendering (&glx, &gly, &glwidth, &glheight);
+	scr_window.width = glwidth; // QVR: splitscreen: the tiles' window (a seat's pass shrinks glwidth to its tile)
+	scr_window.height = glheight;
+	split = SCR_SeatsDrawn () > 1; // QVR
 
 	//
 	// determine size of refresh window
@@ -2374,11 +2614,20 @@ void SCR_UpdateScreen (void)
 	V_UpdateBlend (); //johnfitz -- V_UpdatePalette cleaned up and renamed
 
 	VR_ProfileBeginGPU ("3D"); // QVR: profile
-	if (!VR_RenderView ()) // QVR: renders both eyes and mirrors one
+	if (split) // QVR: splitscreen: each seat's view and HUD in its tile (flatscreen play)
+		SCR_DrawSeats ();
+	else if (!VR_RenderView ()) // QVR: renders both eyes and mirrors one
 	{
 		VR_WindowViewBegin (); // QVR: as the eyes' first (the shadow pass's set-ups shared)
 		VR_FlatRenderView (); // QVR: V_RenderView, with flat-screen play's TAA (vr/vr_temporal.cpp)
 		VR_WindowViewEnd (); // QVR
+	}
+	if (!split) // QVR: splitscreen: the one seat's drawn view, the whole window (SCR_DrawSeats records each tile's)
+	{
+		seatview_t *sv = V_SeatView ();
+		SCR_SeatWindow (&sv->drawnrect);
+		VectorCopy (r_refdef.vieworg, sv->drawnorg);
+		sv->drawnframes++;
 	}
 	VR_ProfileEnd (); // QVR
 
@@ -2389,7 +2638,8 @@ void SCR_UpdateScreen (void)
 	GL_Set2D ();
 
 	//FIXME: only call this when needed
-	SCR_TileClear ();
+	if (!split) // QVR: (the tiles are the seats')
+		SCR_TileClear ();
 
 	if (scr_drawdialog) //new game confirm
 	{
@@ -2410,12 +2660,12 @@ void SCR_UpdateScreen (void)
 		SCR_DrawSbar (); // QVR
 		M_Draw ();
 	}
-	else if (cl.intermission == 1 && key_dest == key_game) //end of level
+	else if (!split && cl.intermission == 1 && key_dest == key_game) //end of level (QVR: a seat's in its tile with splitscreen)
 	{
 		Sbar_IntermissionOverlay ();
 		SCR_DrawDemoControls ();
 	}
-	else if (cl.intermission == 2 && key_dest == key_game) //end of episode
+	else if (!split && cl.intermission == 2 && key_dest == key_game) //end of episode
 	{
 		Sbar_FinaleOverlay ();
 		SCR_CheckDrawCenterString (hud);
@@ -2423,13 +2673,19 @@ void SCR_UpdateScreen (void)
 	}
 	else
 	{
-		VR_FlatHitDraw (); // QVR: flatscreen play's marks of where hits came from (vr_flathit.cpp)
-		SCR_DrawCrosshair (); //johnfitz
+		if (!split) // QVR: (splitscreen: each seat's in its tile, SCR_DrawSeatHud)
+		{
+			VR_FlatHitDraw (); // QVR: flatscreen play's marks of where hits came from (vr_flathit.cpp)
+			SCR_DrawCrosshair (); //johnfitz
+		}
 		SCR_DrawNet ();
 		SCR_DrawTurtle ();
 		SCR_DrawPause ();
-		SCR_CheckDrawCenterString (hud);
-		SCR_DrawSbar (); // QVR
+		if (!split) // QVR
+		{
+			SCR_CheckDrawCenterString (hud);
+			SCR_DrawSbar (); // QVR
+		}
 		SCR_DrawDevStats (); //johnfitz
 		SCR_DrawClock (); //johnfitz
 		SCR_DrawDemoControls ();

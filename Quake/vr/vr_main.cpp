@@ -2368,6 +2368,7 @@ extern "C" void VR_Init()
     seated::registerCommands();    // vr_seated_status, vr_crouch_toggle, vr_seated_height_now
     seat::registerCommands();      // vr_seat_test (splitscreen seats: two seats' state kept apart)
     seat::registerPlayCommands();  // seat_join, seat_leave, vr_seat_play_test (seats joining the local game)
+    seat::registerRenderCommands(); // vr_seat_render_test (each seat drawn in its tile)
     Cmd_AddCommand("vr_body_crouch_report", body::crouchReport_f);
     Cmd_AddCommand("vr_holster_zones_report", zones::report_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);

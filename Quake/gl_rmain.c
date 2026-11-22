@@ -1025,6 +1025,16 @@ void R_Clear (void)
 
 	GL_SetState (glstate & ~GLS_NO_ZWRITE); // make sure depth writes are enabled
 	glStencilMask (~0u);
+	if (SCR_SeatsDrawn () > 1) // QVR: splitscreen: the view's own tile cleared, the other seats' drawn tiles kept
+	{
+		int viewport[4];
+		R_SceneViewport (viewport);
+		glEnable (GL_SCISSOR_TEST);
+		glScissor (viewport[0], viewport[1], viewport[2], viewport[3]);
+		glClear (clearbits);
+		glDisable (GL_SCISSOR_TEST);
+		return;
+	}
 	glClear (clearbits);
 }
 

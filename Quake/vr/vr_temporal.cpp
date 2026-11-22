@@ -722,7 +722,7 @@ float eyeFsaa(float fsaa)
 
 bool flatWanted()
 {
-    return vr_flat_taa.value != 0.f && flatplay::active();
+    return vr_flat_taa.value != 0.f && flatplay::active() && SCR_SeatsDrawn() <= 1; // (splitscreen: one history, one view)
 }
 
 int windowSamples(int samples)
