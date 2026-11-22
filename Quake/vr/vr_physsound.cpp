@@ -876,8 +876,9 @@ bool ropeEmit(int rope, const Set& set, Indices& ind, float volume, const glm::v
 
 } // namespace
 
-void ropeGrab(edict_t* player, const glm::vec3& at, int rope, bool chain)
+void ropeGrab(edict_t* player, const glm::vec3& at, int rope, RopeMaterial material)
 {
+    const bool chain = material == RopeMaterial::Chain;
     const float volume = chain ? chainVolume() : master() * za::max(vr_physsound_grab.value, 0.f);
     if(volume <= 0.f || !sv.active || rope <= 0)
     {
@@ -890,10 +891,13 @@ void ropeGrab(edict_t* player, const glm::vec3& at, int rope, bool chain)
     }
     // A chain: the metal hold's grip (its links in the fist); a rope (ropes6): the soft material's thud (the fibres in the
     // fist: a backpack's, not the stone slap it once made), a headset's grip or flat-screen play's alike.
-    const int k = static_cast<int>(GrabKind::Metal), soft = static_cast<int>(Material::Soft);
+    // (ropes7) A climbing pole: its material's grip, a metal one's or a wooden one's.
+    const int k = static_cast<int>(material == RopeMaterial::WoodPole ? GrabKind::Wood : GrabKind::Metal);
+    const int soft = static_cast<int>(Material::Soft);
     constexpr int medium = 1;
-    const bool made = chain ? ropeEmit(rope, grabSets[k], state.grabs[k], volume, at, jitter())
-                            : ropeEmit(rope, impactSets[soft][medium], state.impacts[soft][medium], volume, at, jitter());
+    const bool made = material != RopeMaterial::Rope
+                          ? ropeEmit(rope, grabSets[k], state.grabs[k], volume, at, jitter())
+                          : ropeEmit(rope, impactSets[soft][medium], state.impacts[soft][medium], volume, at, jitter());
     if(made)
     {
         b.ropeGrabNext = qcvm->time + ropeGap;
@@ -902,7 +906,7 @@ void ropeGrab(edict_t* player, const glm::vec3& at, int rope, bool chain)
     if(debug())
     {
         Con_Printf("physsound: %.2f %d grabs %s %d: %s, volume %.2f\n", qcvm->time, player ? NUM_FOR_EDICT(player) : 0,
-            chain ? "chain" : "rope", rope, bodyOf(rope).ropeLast, volume);
+            chain ? "chain" : material == RopeMaterial::Rope ? "rope" : "pole", rope, bodyOf(rope).ropeLast, volume);
     }
 }
 

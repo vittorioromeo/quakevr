@@ -174,9 +174,33 @@ def short():
     return p
 
 
+def pole(material):
+    # (ropes7; rope_climb_test.sh stands a pole for it, `vr_rope_climb_test <play> 0 wood|metal`) up hand over hand as on
+    # a rope, the feet round it, the grips its material's sound; then down; it never moved
+    p = Play()
+    up_two(p)
+    p.check(3.5, "held 1")
+    p.check(3.5, "wrapped 14")
+    p.check(3.5, f"sound {material}")
+    p.check(3.5, "fixed")
+    p.rope(3.7, "main", 1.0)
+    p.cmd(3.8, "+grabmain")
+    p.check(3.85, "mark")
+    p.cmd(3.9, "-graboff")
+    p.rope(3.9, "main", 1.0)
+    p.rope(3.9, "off", 1.25)
+    p.rope(4.6, "main", 1.6)
+    p.check(4.7, "lowered 15")
+    p.check(4.7, "fixed")
+    p.check(4.8, "done")
+    return p
+
+
 if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else "."
     os.makedirs(out, exist_ok=True)
+    pole("wood").write(os.path.join(out, "pole_wood.txt"))
+    pole("metal").write(os.path.join(out, "pole_metal.txt"))
     climb().write(os.path.join(out, "rope_climb.txt"))
     jump().write(os.path.join(out, "rope_jump.txt"))
     pump().write(os.path.join(out, "rope_pump.txt"))

@@ -11,7 +11,7 @@
 #               the floor: the feet hang at least 10 units under the pelvis, not reaching up for its end
 # Each ends on its verdict line ("vr_rope_climb_test: N passed, M failed").
 AGENT=${1:?agent}; shift
-PLAYS=${*:-rope_climb rope_jump rope_pump rope_calm rope_short}
+PLAYS=${*:-rope_climb rope_jump rope_pump rope_calm rope_short pole_wood pole_metal}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 HERE=$(cd "$(dirname "$0")" && pwd -W 2>/dev/null || pwd)
 D=C:/OHWorkspace/qvr-agents/$AGENT/scratch/climb
@@ -20,6 +20,8 @@ for play in $PLAYS; do
     echo "== $play"
     length=""
     [ "$play" = rope_short ] && length=425
+    [ "$play" = pole_wood ] && length="0 wood"
+    [ "$play" = pole_metal ] && length="0 metal"
     bash "$KIT/run.sh" "$AGENT" -Script "map vrropes; vr_rope_climb_test \"$D/$play.txt\" $length" -Filter "vr_rope_climb_test" \
         -QuitOn "vr_rope_climb_test: [0-9]+ passed" -Timeout 120 | grep "vr_rope_climb_test: \(FAIL\|[0-9]* passed\)"
 done

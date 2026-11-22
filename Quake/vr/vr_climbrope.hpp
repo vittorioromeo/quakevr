@@ -11,6 +11,7 @@
 #pragma once
 
 #include "vr_engine.hpp"
+#include "vr_physsound.hpp"
 
 
 namespace qvr::climbrope
@@ -40,16 +41,22 @@ void blast(const glm::vec3& at, float damage);
 // through pushed where it crosses them.
 void shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity, float mass);
 
-// Whether `classname` is a rope's (vr_rope, vr_chain).
+// Whether `classname` is a rope's (vr_rope, vr_chain) or a climbing pole's (vr_pole, ropes7: a static rope).
 [[nodiscard]] bool isRopeClass(const char* classname);
+
+// Server: what rope entity `ent` is made of (its grip's sound and haptics): a rope, a chain, a metal or wooden pole.
+[[nodiscard]] physsound::RopeMaterial material(int ent);
 
 // Server: a climbing hand of `player` took rope entity `ent` at `at`: its sound, a chain's or a rope's (physsound::ropeGrab),
 // a headset's grip or flat-screen play's alike (ropes6: a rope's was silent to a headset's).
 void grabbed(edict_t* player, int ent, const glm::vec3& at);
 
 // Server: the toolgun just made rope entity `e` where its ghost stood (`at`, on the floor or a wall): its settings from
-// the spawn panel's (vr_rope_spawn_*), its top found above `at` (the ceiling, or its length up).
-void toolgunPlaced(edict_t* e, const glm::vec3& at);
+// the spawn panel's (vr_rope_spawn_*), its top found above `at` (the ceiling, or its length up). (ropes7) A pole stands
+// from `at` up to the ceiling or its length; with vr_rope_spawn_span a rope is strung from 80 units over `at` to that far
+// the `yaw` way (degrees), vr_rope_spawn_rise up, vr_rope_spawn_slack longer than the line.
+// (`yaw`: the ghost's, degrees; it faces the player, so the rope is strung away from him.)
+void toolgunPlaced(edict_t* e, const glm::vec3& at, float yaw);
 
 // Server: the rope the ray `from` + t `dir` (unit) meets first within `range` (its pieces, grown a little): its entity
 // and `distance` along the ray; 0: none (the toolgun's aim: Remove, the physgun).
@@ -92,6 +99,9 @@ void setPump(int client, const glm::vec3& accel);
 // the points as shown) as far straight from its top as `near` is, its way up there (unit, towards its top) and its thickness (ropes5: a hand drawn
 // on it, climb::ropePalm).
 [[nodiscard]] bool clientRopeNearest(const glm::vec3& near, float within, glm::vec3& at, glm::vec3& up, float& thickness);
+// Client (ropes7): whether the rope passing nearest `near` (within `within` units) is traversed hanging under it (a
+// monkey traverse: the legs hang, the trunk isn't turned to it).
+[[nodiscard]] bool clientRopeMonkey(const glm::vec3& near, float within);
 // Client: how far `p` is from the nearest rope's pieces (units; 1e9: none). (vr_mp_avatars' mp_ropepose.)
 [[nodiscard]] float clientRopeDistance(const glm::vec3& p);
 

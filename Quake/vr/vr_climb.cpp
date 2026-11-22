@@ -2364,7 +2364,20 @@ void takeHold(edict_t* ent, Climber& c, const VrMove* move, int h, const za::Opt
     }
     c.lastOrigin = vec(ent->v.origin);
     g.grabVel = vec(ent->v.velocity); // (a rope's: the swing he brings to it)
-    server::sendHaptic(ent, h, 0.f, 0.06f, 80.f, 0.6f);
+    // (ropes7) A climbing pole's grip: a metal one's short hard ring, a wooden one's duller knock; any other hold's as before.
+    const physsound::RopeMaterial pole = ledge->rope && ledge->ent ? climbrope::material(NUM_FOR_EDICT(ledge->ent)) : physsound::RopeMaterial::Rope;
+    if(pole == physsound::RopeMaterial::MetalPole)
+    {
+        server::sendHaptic(ent, h, 0.f, 0.04f, 160.f, 0.7f);
+    }
+    else if(pole == physsound::RopeMaterial::WoodPole)
+    {
+        server::sendHaptic(ent, h, 0.f, 0.07f, 60.f, 0.65f);
+    }
+    else
+    {
+        server::sendHaptic(ent, h, 0.f, 0.06f, 80.f, 0.6f);
+    }
     if(!ledge->rope)
     {
         physsound::grab(ent, ledge->hold, ledge->ent); // a slap and a tap of the hold's material

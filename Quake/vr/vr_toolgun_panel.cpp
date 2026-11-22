@@ -124,6 +124,7 @@ struct PanelState
     bool more{false};            // More's page instead of the tool's
     bool armed{false};           // Spawn > Monsters' Armed Humanoid page instead of its grid (armedPage)
     bool rope{false};            // Spawn > Props' Rope Settings page instead of its grid (ropePage)
+    bool ropeMore{false};        // (ropes7) its second page: strung ropes and poles
     DropList drop;               // a dropdown's list open over the panel
     bool overlayNow{false};      // the list's widgets being laid out (the others sleep while it is open)
     int shownTool{-1};           // the tool the last frame saw (another, from the stick press: More's page closes)
@@ -1150,17 +1151,34 @@ void armedPage(Ui& ui)
 void ropePage(Ui& ui)
 {
     const float x0 = pad, x1 = panelWidth - pad;
-    sliderRow(ui, Rect{x0, 64.f, x1, 78.f}, "Length", vr_rope_spawn_length, 32.f, 1024.f, 16.f, "%.0f");
-    sliderRow(ui, Rect{x0, 80.f, x1, 94.f}, "Thickness", vr_rope_spawn_thickness, 0.5f, 6.f, 0.25f, "%.2f");
-    sliderRow(ui, Rect{x0, 96.f, x1, 110.f}, "Pieces (0: auto)", vr_rope_spawn_segments, 0.f, 64.f, 1.f, "%.0f");
-    sliderRow(ui, Rect{x0, 112.f, x1, 126.f}, "Mass kg (0: auto)", vr_rope_spawn_mass, 0.f, 100.f, 1.f, "%.0f");
-    sliderRow(ui, Rect{x0, 128.f, x1, 142.f}, "Stiffness", vr_rope_spawn_stiffness, 0.05f, 1.f, 0.05f, "%.2f");
-    sliderRow(ui, Rect{x0, 144.f, x1, 158.f}, "Damping", vr_rope_spawn_damping, 0.f, 5.f, 0.1f, "%.1f");
-    toggleRow(ui, Rect{x0, 160.f, x1, 174.f}, "Pin the Bottom", vr_rope_spawn_pinned);
+    if(!ps.ropeMore)
+    {
+        sliderRow(ui, Rect{x0, 64.f, x1, 78.f}, "Length", vr_rope_spawn_length, 32.f, 1024.f, 16.f, "%.0f");
+        sliderRow(ui, Rect{x0, 80.f, x1, 94.f}, "Thickness", vr_rope_spawn_thickness, 0.5f, 6.f, 0.25f, "%.2f");
+        sliderRow(ui, Rect{x0, 96.f, x1, 110.f}, "Pieces (0: auto)", vr_rope_spawn_segments, 0.f, 64.f, 1.f, "%.0f");
+        sliderRow(ui, Rect{x0, 112.f, x1, 126.f}, "Mass kg (0: auto)", vr_rope_spawn_mass, 0.f, 100.f, 1.f, "%.0f");
+        sliderRow(ui, Rect{x0, 128.f, x1, 142.f}, "Stiffness", vr_rope_spawn_stiffness, 0.05f, 1.f, 0.05f, "%.2f");
+        sliderRow(ui, Rect{x0, 144.f, x1, 158.f}, "Damping", vr_rope_spawn_damping, 0.f, 5.f, 0.1f, "%.1f");
+        toggleRow(ui, Rect{x0, 160.f, x1, 174.f}, "Pin the Bottom", vr_rope_spawn_pinned);
+    }
+    else
+    {
+        // (ropes7) Strung ropes (a span: from overhead to that far ahead, its end pinned) and the poles.
+        sliderRow(ui, Rect{x0, 64.f, x1, 78.f}, "Span (0: hangs)", vr_rope_spawn_span, 0.f, 1024.f, 16.f, "%.0f");
+        sliderRow(ui, Rect{x0, 80.f, x1, 94.f}, "End Rise", vr_rope_spawn_rise, -512.f, 512.f, 16.f, "%.0f");
+        sliderRow(ui, Rect{x0, 96.f, x1, 110.f}, "Slack", vr_rope_spawn_slack, 0.f, 1.f, 0.05f, "%.2f");
+        sliderRow(ui, Rect{x0, 120.f, x1, 134.f}, "Pole Thickness", vr_rope_spawn_pole_thickness, 1.f, 12.f, 0.5f, "%.1f");
+        toggleRow(ui, Rect{x0, 136.f, x1, 150.f}, "Metal Pole (else wood)", vr_rope_spawn_metal);
+    }
     const Rect bar{pad, 177.f, panelWidth - pad, 190.f};
     if(button(ui, Rect{bar.x0, bar.y0, bar.x0 + 40.f, bar.y1}, "Back", false, 6.f))
     {
         ps.rope = false;
+        ps.ropeMore = false;
+    }
+    if(button(ui, Rect{bar.x0 + 42.f, bar.y0, bar.x0 + 74.f, bar.y1}, ps.ropeMore ? "< Rope" : "More", false, 6.f))
+    {
+        ps.ropeMore = !ps.ropeMore;
     }
     spawnCommands(ui, bar);
 }
@@ -1234,7 +1252,7 @@ void spawnPage(Ui& ui)
     }
     // The Ropes group's page (its own, a row of tiles): the Rope Settings page's button under them.
     if(ropeCells > 0 && pageCells <= gridColumns &&
-        button(ui, Rect{pad + 30.f, 125.f, panelWidth - pad - 30.f, 141.f}, "Rope Settings (length, thickness, ...)", false, 6.f))
+        button(ui, Rect{pad + 30.f, 125.f, panelWidth - pad - 30.f, 141.f}, "Rope and Pole Settings (length, span, ...)", false, 6.f))
     {
         ps.rope = true;
     }

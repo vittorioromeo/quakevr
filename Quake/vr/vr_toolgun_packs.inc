@@ -213,5 +213,6 @@ QVR_PACK("Items", "Dwell", "Wetsuit", "dw_item_artifact_wetsuit", "progs/item_di
 // (or their length up), with the Rope Settings page's length, thickness, pieces, mass, stiffness, damping, pinned bottom.
 QVR_PACK("Props", "Ropes", "Rope", "vr_rope", "progs/beam.mdl", 0.f, nullptr, 0.f, 0, 0, nullptr, 0)
 QVR_PACK("Props", "Ropes", "Chain", "vr_chain", "progs/beam.mdl", 0.f, nullptr, 0.f, 0, 0, nullptr, 0)
+QVR_PACK("Props", "Ropes", "Pole", "vr_pole", "progs/beam.mdl", 0.f, nullptr, 0.f, 0, 0, nullptr, 0)
 
 #undef QVR_PACK

@@ -24,7 +24,10 @@ falls and lies on the floor where it is longer than the drop, and is pushed by h
 and shots. "rope_length": its length in units (256); "rope_thickness": units across (1.5); "rope_segments": its pieces
 (one every 16 units); "rope_mass": kg, the whole rope (5); "rope_stiffness": 0.05-1, how little it stretches (1);
 "rope_damping": per second, how fast its swing dies down (0.5); "rope_style": 1 drawn as a chain; "target": its bottom
-pinned at that entity's origin (an info_notnull); PINNED: its bottom pinned where it first hangs.
+pinned at that entity's origin (an info_notnull); PINNED: its bottom pinned where it first hangs. (ropes7) "rope_end": its
+bottom pinned at that point instead of a target; with either, "rope_slack": its length over the straight line between its
+ends (0.1: 10% longer; unset with no rope_length: taut). Strung level or slanted past vr_rope_monkey_angle from upright,
+it is traversed hanging under it, hand over hand (a monkey traverse).
 */
 void() vr_rope =
 {
@@ -38,4 +41,15 @@ with the same keys and the same behaviour.
 void() vr_chain =
 {
     VR_Rope_Setup(1);
+};
+
+/*QUAKED vr_pole (0.5 0.35 0.2) (-4 -4 -4) (4 4 4)
+Quake VR (ropes7): a climbing pole, standing from its origin (its top) down to the floor, or its "rope_length" down, or
+to its "target" (an info_notnull) or "rope_end" point (a slanted or level pole: past vr_rope_monkey_angle from upright
+it is traversed hanging under it). It never moves (but with a mover), climbed as a rope is: hand over hand, the legs
+round it. "rope_thickness": units across (3); "rope_style": 1 metal (else wood: its look, sounds and haptics).
+*/
+void() vr_pole =
+{
+    VR_Rope_Setup(0);
 };
