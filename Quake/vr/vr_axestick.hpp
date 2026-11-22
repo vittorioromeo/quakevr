@@ -30,7 +30,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
 // Once a server frame, after everything moved (VR_ServerFrameEnd, after the monsters' drawn poses are kept): each stuck
 // axe placed where what it is in has taken it (its frame times the axe's pose in it), rocked by a tug
 // (.vr_stick_wiggle), its blade's edge and facing written for QC (.vr_stick_at, .vr_stick_dir).
-void serverFrame();
+void serverFrame(bool worldRan); // (paused, !worldRan: placed, the eases and sags stand)
 
 // Embedded Blades: Why (vr_debug_embed): each blade drawn, and the panel of reasons.
 void debugDraw(const glm::vec3& eye, const glm::vec3& headAngles);

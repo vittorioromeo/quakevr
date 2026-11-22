@@ -600,7 +600,7 @@ void VR_FlatPortalAngle (const float *before, float *angles);	// svc_setangle: a
 void VR_OnSetAngle (float yaw);							// svc_setangle: the server turned the view
 void VR_WriteClientSpawnState (struct sizebuf_s *msg);	// Host_Spawn_f, before the client data
 void VR_ServerFrameBegin (void);						// Host_ServerFrame, before the clients run (the host's own view state into his slot)
-void VR_ServerFrameEnd (void);							// Host_ServerFrame, before sending
+void VR_ServerFrameEnd (int worldran);					// Host_ServerFrame, before sending; worldran: SV_Physics ran this frame (not paused: a menu, the console, pause)
 void VR_WriteRecentPrecaches (struct sizebuf_s *msg);	// SV_SendClientDatagram: late precaches before their use
 // The unreliable broadcast's room (vr_server.cpp): a full sv.datagram drops whole messages, never part of one.
 void VR_BroadcastClear (void);							// SV_ClearDatagram: clears sv.datagram
