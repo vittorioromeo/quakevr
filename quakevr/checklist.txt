@@ -49,6 +49,7 @@ Flat-screen or VR: in multiplayer, watch another player climb a rope, hang on it
 On a rope in VR, look at your own hands and legs; the hands should sit on the rope (not beside it as on a ledge) and the hips come in close to it with the feet wrapped round it. {test:ropes}
 Flat-screen: in Arcane Dimensions' ad_test3 walk forward into the stepped ladder from its floor: the hands take two rungs and forward climbs it and over the top (it used to do nothing). {test:ad_test3_ladder}
 Flat-screen: set Flat Body Height low (about 1.4 m) and die: your corpse is your flat body's size, not your headset height's. {test:flat_force_grab}
+Flat-screen: hold the axe in both hands and press 3 to swap weapons: the off hand eases off the handle as smoothly as it does off the rocket launcher's foregrip, then the new weapon comes up. {test:flat_melee2h}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules {test:hub_start}
