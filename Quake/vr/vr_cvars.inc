@@ -2233,6 +2233,11 @@ QVR_CVAR(vr_gl_world_lit_skip, "1", CVAR_NONE)
 // lightmap's 16-unit grid) and the world is drawn without the lights' loop; 0 (default): the loop, per pixel. The
 // models and particles take the lights per pixel either way. No effect on the PC's shaders (no unlit world form).
 QVR_CVAR(vr_gl_world_dlmap, "0", CVAR_NONE)
+// Debug > Profiling and Memory > Quake-Style Dynamic Lights (Quest): (C5g, QUEST_PLAN.md 6zr) 1: under the ES profile
+// both of Quake's ways at once: the world's dynamic lights summed into a light texture once a frame (as
+// vr_gl_world_dlmap 1) and your body's added to its light on the CPU (as vr_gl_alias_body 2), each light as the
+// per-pixel loop gives it; 0 (default): as those two say (qvr::dlightmap::quakeLights). No effect on the PC's shaders.
+QVR_CVAR(vr_gl_quake_dlights, "0", CVAR_ARCHIVE)
 // Debug > Profiling and Memory > Batch Lightmap Uploads (Quest): (C5c) with vr_gl_world_dlmap, 1 the frame's lit and
 // restored texel blocks gathered into a copy of the lightmap and uploaded once per band of 16 rows; 0 one upload per
 // surface, as C5b (the A/B). The same picture.

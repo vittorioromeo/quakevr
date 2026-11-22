@@ -19,6 +19,7 @@
 #include "vr_client.hpp"
 #include "vr_collectfx.hpp"
 #include "vr_cvars.hpp"
+#include "vr_dlightmap.hpp"
 #include "vr_tunables.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_held.hpp"
@@ -395,7 +396,7 @@ extern "C" int VR_AliasSkinUse(int needs)
 // A probe (vr_gl_alias_body 0): measured slower on the Quest 3 (6zp: pitch 35 +3.2 ms, pitch 70 +3.5 at 0.7).
 extern "C" int VR_AliasBodyLight(const entity_t* e)
 {
-    if(vr_gl_alias_body.value == 0.f || vr_gl_alias_plain.value == 0.f || !e || VR_ViewEntityGroup(e) != VR_DRAW_BODY)
+    if(dlightmap::aliasBodyMode() == 0.f || vr_gl_alias_plain.value == 0.f || !e || VR_ViewEntityGroup(e) != VR_DRAW_BODY)
     {
         return 0;
     }
@@ -410,7 +411,7 @@ extern "C" int VR_AliasBodyLight(const entity_t* e)
 // per vertex instead it was slower, 6zp). A batch another form draws gets the light without them back.
 extern "C" int VR_AliasBodyFlat(const entity_t* e)
 {
-    return vr_gl_alias_body.value >= 2.f && VR_AliasBodyLight(e) && VR_AliasOpaqueForm(e) ? 1 : 0;
+    return dlightmap::aliasBodyMode() >= 2.f && VR_AliasBodyLight(e) && VR_AliasOpaqueForm(e) ? 1 : 0;
 }
 
 extern "C" int VR_AliasPlayerFirst(const entity_t* e)

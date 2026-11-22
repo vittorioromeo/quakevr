@@ -6296,6 +6296,10 @@ QVR_TOGGLE(vr_gl_world_lit_skip, "Skip Empty Lit Commands (Quest)",
     "vr_gl_world_lit_skip: with the world split by surface (Unlit World Shader By Surface, the Quest), only the "
     "textures with a surface a reaching light touches get their lit draw (On), or every texture (Off, as before). "
     "The same picture, fewer draws.")
+QVR_TOGGLE(vr_gl_quake_dlights, "Quake-Style Dynamic Lights (Quest)",
+    "vr_gl_quake_dlights: under the ES profile (the Quest), the dynamic lights as Quake added them, once a frame: on "
+    "the world summed into a texture at the lightmap's 16-unit grid, on your body added to its light as one colour "
+    "(On), or per pixel (Off). As bright either way; flatter (no sheen, no bumps), and much cheaper on the Quest.")
 QVR_TOGGLE(vr_gl_world_dlmap, "Dynamic Lights in the Lightmap (Quest)",
     "vr_gl_world_dlmap: under the ES profile (the Quest), the dynamic lights added into the lightmap once a frame "
     "(Quake's own way, its 16-unit grid) and the world drawn without the lights' loop (On), or lit per pixel "

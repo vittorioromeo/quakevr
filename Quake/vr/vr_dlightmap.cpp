@@ -94,7 +94,7 @@ double lastMs = 0.0;      // the last build's CPU time (vr_gl_world_dlmap_info)
 
 [[nodiscard]] bool wanted()
 {
-    return vr_gl_world_dlmap.value != 0.f && glprogs.world_unlit[0][0] && cl.worldmodel && cl.worldmodel->nodes &&
+    return worldWanted() && glprogs.world_unlit[0][0] && cl.worldmodel && cl.worldmodel->nodes &&
            lightmap_texture && lightmap_data && !r_fullbright_cheatsafe;
 }
 
