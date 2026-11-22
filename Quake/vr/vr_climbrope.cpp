@@ -652,9 +652,12 @@ struct RopeTest
     za::Vector<glm::vec3> before;
     glm::vec3 feet{0.f};
     glm::vec3 fwd{1.f, 0.f, 0.f};
+    int kept{0};         // the ropes Clear Props should keep (made as the map loaded)
+    float chainBorn{0.f}; // B's .vr_born
 };
 RopeTest test;
 constexpr const char* testName = "vr_rope_test";
+constexpr float sceneLoaded = 1.5f; // QC VR_SCENE_LOADED (vr_cheats.qc): what's made later is Clear Props'
 
 void testCheck(bool ok, const char* what)
 {
@@ -925,8 +928,19 @@ void testFrame()
         if(t.frames >= 2)
         {
             testCheck(t.thing && ropeOf(t.thing), "a rope made for Clear Props");
+            // What Clear Props should keep: the ropes made as the map loaded (QC VR_SCENE_LOADED, vr_cheats.qc: the map's
+            // own, born before its first 1.5 s). The test's chain is one of them only when the test began that early
+            // (`map vrropes; wait60; vr_rope_test` begins it at 2 s: then it goes too).
             t.before.clear();
             t.before.resize(ropes.size()); // (the count before)
+            t.kept = 0;
+            const int bornOfs = progs::fields().vr_born;
+            const auto bornOf = [bornOfs](int ent) { return bornOfs >= 0 ? progs::fieldFloat(EDICT_NUM(ent), bornOfs) : 0.f; };
+            for(const auto& kv : ropes)
+            {
+                t.kept += bornOf(kv.first) <= sceneLoaded ? 1 : 0;
+            }
+            t.chainBorn = b ? bornOf(t.chainB) : 0.f;
             Cbuf_AddText("vr_scene_clean props\n");
             next(13);
         }
@@ -936,10 +950,13 @@ void testFrame()
         {
             testCheck(t.thing && !ropeOf(t.thing) && clientRopes.find(t.thing) == clientRopes.end(),
                 "Clear Props removes a rope made since the map loaded");
-            char what[96];
-            q_snprintf(what, sizeof(what), "Clear Props keeps the map's and the early ones (%d of %d)",
-                static_cast<int>(ropes.size()), static_cast<int>(t.before.size()));
-            testCheck(ropes.size() + 1 == t.before.size(), what);
+            char what[128];
+            const bool chainEarly = t.chainBorn <= sceneLoaded;
+            q_snprintf(what, sizeof(what),
+                "Clear Props keeps the map's and the early ones (%d of %d, want %d; the chain born at %.2f s %s)",
+                static_cast<int>(ropes.size()), static_cast<int>(t.before.size()), t.kept, t.chainBorn,
+                chainEarly ? "kept" : "gone");
+            testCheck(static_cast<int>(ropes.size()) == t.kept && (ropeOf(t.chainB) != nullptr) == chainEarly, what);
             t.thing = 0;
             next(99);
         }
