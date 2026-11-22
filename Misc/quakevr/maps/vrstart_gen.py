@@ -878,6 +878,12 @@ def build_stairs(mw):
 LECTERNS_X = (-164, -106, -48, 48, 106, 164)
 LECTERN_HALF = 20                        # the lectern's half width (its cap's: 3 more)
 LECTERN_Y = -60                          # their south faces (the buttons on them)
+# the mods' lecterns (vrnotes1122c2: Dwell, Quoth, Arcane Dimensions, Arena Mode): a row facing east on the terrace's
+# west side, between its two left braziers (160 and 225 degrees), a little thinner than the campaigns' (30 wide under
+# a 36-wide cap), 48 apart north to south
+MOD_LECTERN_X = -150                     # their east faces, from the gate's x
+MOD_LECTERNS_Y = (-95, -143, -191, -239)
+MOD_LECTERN_HALF = 15
 
 
 def build_terrace(mw):
@@ -938,6 +944,10 @@ def build_terrace(mw):
         out.append(chamfer_box(gx + lx - hw, LECTERN_Y, z, gx + lx + hw, LECTERN_Y + 22, z + 62, 2, T("block", scale=0.5)))
         out.append(chamfer_box(gx + lx - hw - 3, LECTERN_Y - 3, z + 62, gx + lx + hw + 3, LECTERN_Y + 25, z + 68, 2,
                                T("trim", scale=0.5)))
+    mx, mh = gx + MOD_LECTERN_X, MOD_LECTERN_HALF
+    for ly in MOD_LECTERNS_Y:
+        out.append(chamfer_box(mx - 22, ly - mh, z, mx, ly + mh, z + 62, 2, T("block", scale=0.5)))
+        out.append(chamfer_box(mx - 25, ly - mh - 3, z + 62, mx + 3, ly + mh + 3, z + 68, 2, T("trim", scale=0.5)))
 
 
 def build_bridge(mw):
@@ -1547,6 +1557,13 @@ CAMPAIGNS = [("QUAKE", "vr_activestartpaknameidx 0; echo Quake selected: step in
              ("DIMENSION" + N + "OF THE PAST", "vr_activestartpaknameidx 3; echo Dimension of the Past selected: step into the teleporter"),
              ("DIMENSION" + N + "OF THE MACHINE", "vr_activestartpaknameidx 4; echo Dimension of the Machine selected: step into the teleporter"),
              ("DAWN OF" + N + "THE MACHINE", "vr_activestartpaknameidx 5; echo Dawn of the Machine selected: step into the teleporter")]
+# the mods' lecterns (west row, north to south): Arcane Dimensions (6), Dwell (7) and Quoth (8) chosen as the campaigns
+# are (the teleporter runs their launch: vr_gamedir.cpp, VR_CanChangeCampaignMap; QC's buttons.qc says when one is not
+# installed), Arena Mode's Run Setup at once (its Start: the arena, vr_menu_runsetup.inc)
+MODS = [("ARCANE" + N + "DIMENSIONS", "vr_activestartpaknameidx 6; echo Arcane Dimensions selected: step into the teleporter"),
+        ("DWELL", "vr_activestartpaknameidx 7; echo Dwell selected: step into the teleporter"),
+        ("QUOTH", "vr_activestartpaknameidx 8; echo Quoth selected: step into the teleporter"),
+        ("ARENA" + N + "MODE", "vr_runsetup arena")]
 
 # the pavilion's setting buttons (vr_setup_option <key>: Quake/vr/vr_setup.cpp's table; each press steps the setting,
 # shows it on a screen over the button and saves the config): the north board's rows, the south board's
@@ -1582,6 +1599,10 @@ def build_entities(mw):
     for (label, cmd), lx in zip(CAMPAIGNS, LECTERNS_X):
         cx = gx + lx
         button(mw, label, cmd, cx, LECTERN_Y, zb + 42, 90)
+    for (label, cmd), ly in zip(MODS, MOD_LECTERNS_Y):
+        button(mw, label, cmd, gx + MOD_LECTERN_X, ly, zb + 42, 180)
+    banner(mw, N.join(["MODS AND ARENA", "Press a stone: a mod, then the teleporter."]),
+           gx + MOD_LECTERN_X - 30, (MOD_LECTERNS_Y[0] + MOD_LECTERNS_Y[-1]) // 2, zb + 120, 0, "0.3")
     banner(mw, N.join(["CHOOSE A CAMPAIGN", "Press its stone, then step into the teleporter."]),
            gx, gy - 24, zb + 16 + 205, 270, "0.45")
     banner(mw, N.join(["Every campaign, and what", "its data needs:", "{menu:Official Campaigns}"]),

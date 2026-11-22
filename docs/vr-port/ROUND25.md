@@ -8370,6 +8370,28 @@ His notes dm3_2026-11-22_16-15-02, 16-17-59, 16-18-21.
 - Kit note: `build.sh --lto` builds the ReleaseLTO exe; mp_test.py runs the Release one (`build.sh <name>`): rebuild
   that after a merge, or the suite runs a stale exe ("cvar_hmake: unknown" lines for the new cvars).
 
+## vrnotes1122c2: the hub's Start (not reproduced: instrumented, tested), the mods' lecterns (agent/vrnotes1122c2, 2026-11-22)
+
+- **Hub Start back to the hub** (e5start_2026-11-22_15-29-11): not reproduced. The mock's earlier "Start consumed
+  vr_run_hubgo, no level change" was a test artefact: the teleporter's `localcmd vr_runsetup hub` and its
+  `changelevel` go to the end of the command buffer, behind the rest of a start-up script (its waits), so neither ran.
+  Driven through `-cmdinbox` instead (buffer empty, as in play): setpos into the teleporter, the Run Setup opens, Start
+  by A, or by the trigger with the laser on it (held 0.15 s or 3 s, past the load), with the main menu's state left
+  stale before the hub (m_main under the game): every time e5start loads and stays; the trigger and A afterwards go to
+  the game (no menu open). His log says only that the main menu's VR Hub row was confirmed 3.3 s after e5start
+  appeared. Now `M_Main_StartHub` prints (skipnotify, so the voice note's log has it) when and from where the main menu
+  opened, the key pressed before, the key that chose VR Hub, the laser's spot and the confirming key (keys.c
+  `key_lastpress`). New `Misc/quakevr/hub_start_test.py <agent>` (the inbox-driven flow, Start by A, then trigger and
+  A on e5start, 5 s: still e5start, no hub, the buttons the game's): see the report for its run.
+- **The mods' lecterns** (vrstart_2026-11-22_15-54-58): four thinner lecterns (30 wide) facing east on the terrace's west
+  side, between its two left braziers: ARCANE DIMENSIONS, DWELL, QUOTH (vr_activestartpaknameidx 6, 7, 8, then the
+  teleporter: VR_CanChangeCampaignMap runs `vr_campaign_native` for an experimental campaign, as Select Campaign does
+  after its notice) and ARENA MODE (`vr_runsetup arena`: the arena's Run Setup at once). A "MODS AND ARENA" board over
+  them. A mod not installed: its lectern says "<mod> is not installed. Official Campaigns says what it needs."
+  (buttons.qc, vr_ad/dwell/quoth_status). vrstart rebuilt (`--compile`, final preset).
+- **Centre message at vr_center_panel_scale 1.4**: `vr_center_panel_info` shows the popup up (304x88 contents), but the
+  mock's eyeshot does not hold the panel (the same picture with and without it), so readability is not judged here:
+  his check in the headset.
 ## kellbase: Quoth kellbase1 notes, enforcer pack colours (agent/kellbase, 2026-11-22)
 
 His notes kellbase1_2026-11-22_16-02-58, 16-04-06, 16-06-02.
@@ -8458,3 +8480,22 @@ His notes vrropes_2026-11-22_15-43-18, 15-43-56, 15-45-10, 15-48-30 ("Climbing r
 - Also: `checklist_tests_check.py` knows Quoth's own maps (quoth_maps.sh's OWN) as it knows AD's: 94/0.
 - MP suites (mp_melee, mp_slide_vr, mp_predictslide, the flakes): not run (out of budget).
 - Seen once: "Warning: [SV] check DP_QC_SINCOSSQRTPOW before calling (: VR_Decap_Judge)" with developer 1.
+## dwellweap: the Crystal Lance's shot, weight, feed and grip flip; pole weapons' design (agent/dwellweap, 2026-11-22)
+
+His notes vrtesthall_2026-11-22_15-38-38 .. 16-01-25. Built (one commit each): items 1, 5 and part of 2 and 3; item 6 as
+a design (`docs/vr-port/POLEWEAPONS.md`). Not built: the cord, the thrust, the main hand's slide, the Rotary Shotgun's
+model changes.
+- **The beam was never drawn** ("held fire only makes smoke at the target"): `VR_BeamGone` (vr_client.cpp) ended a hand's
+  lightning the frame it began unless the hand held `v_light.mdl`; now any lightning-kind model (`gunfx::weaponIdOf`).
+- **Its effects**: violet particles where the beam enters and leaves each body and where it stops (QC `dw_fire_lance`;
+  a developer print "dwlance: the beam through N bodies"); slot 55's recoil a heavy shot's (`fx_kick_cm` 6, `fx_rise_deg`
+  5, `fx_return_s` 0.35; it had the Thunderbolt's stream values); its crystal head glowing violet after each shot (gunfx
+  barrel heat: `fx_gfx_heat` 20, `fx_gfx_cool` 0.25, `fx_gfx_barrel` 0.48, mask none; `barrelHeat`'s colour violet for
+  the Lance). Screenshot `qvr-kit/scratch/dwellweap_lance_fire.png` (eye view, then a side camera).
+- **20% heavier**: `w_mass` 7.2 (was 6.0).
+- **No magazine**: `DW_LanceFedFromPouch` (dw_items.qc): `VRIsWeaponReloadingEnabledForInst` never reloads it, each shot
+  takes 6 cells from the pouch.
+- **Grip flip**: slot 55 `rev 1`; `VR_RevGrip_Flip` allows the Lance (its eject button is free). Not proven: the mock's
+  `vr_mock_button main secondary` did not flip it (no "revgrip: ... flips" print, no refusal print); open.
+- **Tests**: `dwell_lance_test.sh` 12/0 (new: the beam fired, 6 cells from the pouch's 100). Note for test writers: the
+  mock trigger (`vr_mock_button main trigger 1`) did not fire the Lance; `+attack` does.
