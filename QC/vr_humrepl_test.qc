@@ -166,9 +166,23 @@ void(entity p) VR_HUM_Test =
 
 // vr_ad_test 221 (humrepl_shots.sh): a row of armed humanoids of row scratch1 before you, one per category: a shotgun (as
 // it is), a rocket launcher, the thunderbolt, AD's flamethrower and poison sprayer (AD's data mounted), the last row's
-// gone first. Prints "humlineup: row K: N made". The Texture Studio's Line Up (vr_humstudio.cpp) calls VR_HUM_LineupKind.
+// gone first. Prints "humlineup: row K: N made". The Texture Studio's Line Up (vr_humstudio.cpp) calls VR_HUM_LineupKind
+// with its options (`opts`, bits): 1 no backpacks, 2 no armour, 4 no weapons drawn, 8 a backpack on a stand of its own at
+// the row's end (its look the row's explosive one's pack), 16 the row turned `turn` degrees from facing you.
 .float vr_humt_row; // one of 221's row
-void(entity p, float kind) VR_HUM_LineupKind =
+.float vr_humt_yaw; // ... its yaw facing you (VR_HUM_LineupTurn turns it from there)
+void(entity p, float kind, float opts, float turn) VR_HUM_LineupTurn =
+{
+    entity e = findflags(world, vr_humt_row, 1);
+    while(e)
+    {
+        e.angles_y = anglemod(e.vr_humt_yaw + turn);
+        e.ideal_yaw = e.angles_y;
+        e = findflags(e, vr_humt_row, 1);
+    }
+};
+
+void(entity p, float kind, float opts, float turn) VR_HUM_LineupKind =
 {
     entity e = findflags(world, vr_humt_row, 1);
     while(e)
@@ -198,22 +212,59 @@ void(entity p, float kind) VR_HUM_LineupKind =
     for(i = 0; i < 5; i++)
     {
         entity g = spawn();
-        setorigin(g, p.origin + fw * 150 + rt * (i - 2) * 44);
+        setorigin(g, p.origin + fw * 170 + rt * (i - 2) * 64); // (64 apart: one's held-out gun arm clear of the next)
         g.angles_y = vectoyaw(p.origin - g.origin);
         g.weapon = w[i];
         self = g;
         VR_AM_Spawn(kind);
         self = os;
         g.vr_humt_row = 1;
+        g.vr_humt_yaw = g.angles_y;
+        if((opts & 1) && g.vr_wp_pack)
+        {
+            remove(g.vr_wp_pack);
+            g.vr_wp_pack = world;
+            g.vr_wp_worn = 0;
+        }
+        if(opts & 2)
+        {
+            VR_AgArmor_Give(g, 0, 0);
+        }
+        if(opts & 4)
+        {
+            if(g.vr_ag_prop) { g.vr_ag_prop.alpha = 0.001; } // (drawn not at all: ENTALPHA_ZERO; held as before)
+            if(g.vr_ag_prop2) { g.vr_ag_prop2.alpha = 0.001; }
+        }
         made = made + (g.vr_ag ? 1 : 0);
         bprint(sprintf("humlineup: %g at %v (you %v), armed %g, look %g\n", i, g.origin, p.origin, g.vr_ag, g.vr_hum_look));
+    }
+    if(opts & 8)
+    {
+        precache_model("progs/backpack.mdl");
+        entity pk = spawn();
+        pk.classname = "vr_humt_pack";
+        setmodel(pk, "progs/backpack.mdl");
+        pk.vr_ag_kind = kind;
+        VR_WP_Size(pk);
+        pk.solid = SOLID_NOT;
+        pk.movetype = MOVETYPE_NONE;
+        setorigin(pk, p.origin + fw * 110 + rt * 96 - '0 0 8'); // (before the row's right half: in a flat view's field too)
+        pk.angles_y = vectoyaw(p.origin - pk.origin) + 180; // (its back to you: the side a wearer shows)
+        pk.vr_humt_yaw = pk.angles_y;
+        pk.vr_hum_look = kind * 16 + VR_HUM_CAT_EXPLOSIVE + 4096; // (its own look: a worn pack's, its wearer's + 4096)
+        pk.vr_humt_row = 1;
+        bprint(sprintf("humlineup: a pack on its stand at %v\n", pk.origin));
+    }
+    if(opts & 16)
+    {
+        VR_HUM_LineupTurn(p, kind, opts, turn);
     }
     bprint(sprintf("humlineup: row %g: %g made\n", kind, made));
 };
 
 void(entity p) VR_HUM_Lineup =
 {
-    VR_HUM_LineupKind(p, rint(cvar_hget(cvarh_scratch1)));
+    VR_HUM_LineupKind(p, rint(cvar_hget(cvarh_scratch1)), 0, 0);
 };
 
 void() VR_HUM_CensusNow =
@@ -261,5 +312,85 @@ void() VR_HUM_Census =
     w.ltime = time + 10;
     w.think = VR_HUM_CensusThink;
     w.nextthink = time;
+};
+
+// vr_ad_test 222 (Misc/quakevr/adhumaudit_shots.sh; ARMED_MONSTERS.md "Audit 2"): one of AD's remaining humanoid models
+// (scratch1 the pair, 0..VR_HUMO_COUNT-1) beside the armed row's model nearest its build, both in their first stand
+// frame, as still props (no monster, no AI): ours, the two overlaid (AD's translucent), AD's, and the overlay turned
+// side-on. AD's data mounted (its models read in place). Prints "humoverlay: pair K: <ours> <AD's>".
+float VR_HUMO_COUNT = 12;
+.float vr_humo_prop; // one of 222's props (gone with the next pair)
+
+string(float k) VR_HUMO_Ours =
+{
+    if(k == 1 || k == 7) { return "progs/vrknight.mdl"; }
+    if(k == 9) { return "progs/vrenforcer.mdl"; }
+    if(k == 11) { return "progs/vrgrunt.mdl"; }
+    return "progs/vrhknight.mdl";
+};
+
+string(float k) VR_HUMO_Theirs =
+{
+    if(k == 0) { return "progs/mon_dknight.mdl"; }
+    if(k == 1) { return "progs/mon_dguard.mdl"; }
+    if(k == 2) { return "progs/mon_dguardq.mdl"; }
+    if(k == 3) { return "progs/mon_dsergeant.mdl"; }
+    if(k == 4) { return "progs/mon_dfury.mdl"; }
+    if(k == 5) { return "progs/mon_dlord.mdl"; }
+    if(k == 6) { return "progs/mon_hknight.mdl"; }
+    if(k == 7) { return "progs/mon_zombiek.mdl"; }
+    if(k == 8) { return "progs/mon_justice.mdl"; }
+    if(k == 9) { return "progs/mon_centurion.mdl"; }
+    if(k == 10) { return "progs/mon_judge.mdl"; }
+    return "progs/mon_skullwiz.mdl";
+};
+
+entity(string m, vector at, float yaw, float a) VR_HUMO_Prop =
+{
+    entity e = spawn();
+    e.classname = "vr_humo_prop";
+    e.vr_humo_prop = 1;
+    precache_model(m);
+    setmodel(e, m);
+    setorigin(e, at);
+    e.solid = SOLID_NOT;
+    e.movetype = MOVETYPE_NONE;
+    e.frame = 0;
+    e.angles_y = yaw;
+    e.alpha = a;
+    return e;
+};
+
+void(entity p) VR_HUM_Overlay =
+{
+    entity e = findflags(world, vr_humo_prop, 1);
+    while(e)
+    {
+        entity next = findflags(e, vr_humo_prop, 1);
+        remove(e);
+        e = next;
+    }
+    float k = rint(cvar_hget(cvarh_scratch1));
+    if(k < 0 || k >= VR_HUMO_COUNT)
+    {
+        bprint(sprintf("humoverlay: no pair %g (0..%g)\n", k, VR_HUMO_COUNT - 1));
+        return;
+    }
+    string ours = VR_HUMO_Ours(k);
+    string theirs = VR_HUMO_Theirs(k);
+    makevectors([0, p.angles_y, 0]);
+    vector fw = v_forward;
+    vector rt = v_right;
+    float far = k == 10 ? 210 : 140; // (the judicator twice our height)
+    float gap = k == 10 ? 80 : 50;
+    vector mid = p.origin + fw * far;
+    float face = vectoyaw(p.origin - mid);
+    VR_HUMO_Prop(ours, mid - rt * gap * 1.5, face, 0);
+    VR_HUMO_Prop(ours, mid - rt * gap * 0.5, face, 0);
+    VR_HUMO_Prop(theirs, mid - rt * gap * 0.5, face, 0.45);
+    VR_HUMO_Prop(theirs, mid + rt * gap * 0.5, face, 0);
+    VR_HUMO_Prop(ours, mid + rt * gap * 1.5, face + 90, 0);
+    VR_HUMO_Prop(theirs, mid + rt * gap * 1.5, face + 90, 0.45);
+    bprint(sprintf("humoverlay: pair %g: %s %s\n", k, ours, theirs));
 };
 #endif

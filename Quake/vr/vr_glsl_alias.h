@@ -1467,8 +1467,10 @@ QVR_ALIAS_FS_PLAIN
 "				result.rgb = HumDye(result.rgb, instances[in_instance].Recolor[0], rl.xy);\n" \
 "			else if (rk == 2u)\n" \
 "				result.rgb = HumDye(result.rgb, instances[in_instance].Recolor[1], rl.zw);\n" \
-"			if (rm.w > 0.0)\n" \
+"			if (rm.w > 0.0 && rk != 3u)\n" \
 "				result.rgb = mix(result.rgb, rk == 1u ? vec3(0.1, 0.9, 0.2) : rk == 2u ? vec3(0.2, 0.4, 1.0) : vec3(0.4, 0.0, 0.0), rk == 0u ? 0.3 : 0.55);\n" \
+"			if (rk == 3u)\n" \
+"				result.rgb = mix(result.rgb, vec3(1.0, 0.85, 0.1), 0.75);\n" \
 "		}\n" \
 "	}\n"
 

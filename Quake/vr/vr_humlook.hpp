@@ -58,6 +58,7 @@ struct Skin
     bool read{false}; // its file read (texels empty: none to be had)
     int first{-1};    // its words' first in the buffer (-1: not there)
     bool dirty{true}; // to be written again
+    za::Vector<int> cursor; // the Texture Studio's brush: the texels it would change now (shown, never saved)
 };
 
 // VR_ServerFrameEnd: each entity's look sent to the clients where it changed.
@@ -94,6 +95,8 @@ void reload();
 void studioInit();                                 // its commands
 void studioFrame();                                // the client frame: its sliders against the table, its strokes
 [[nodiscard]] bool studioOverlay();                // the masks shown on the recoloured (vr_humstudio_overlay)
+[[nodiscard]] bool studioCursorOn();               // a brush cursor shown on a skin now (its instances drawn with their mask)
+void studioDraw2D();                               // the 2D pass: the edited skin's flat view while painting
 [[nodiscard]] const char* studioStatus();          // its page's status line
 [[nodiscard]] const char* studioRowText(int row);  // a palette row's line on its page (its class on the skin edited)
 void studioRowPick(int row);                       // ... cycled: none, clothes, pack

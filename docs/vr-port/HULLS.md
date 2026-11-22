@@ -702,7 +702,16 @@ input don't have them.
   shut func_door), a lift held up with 20-unit slots, and a row of pillars; since holes2 also a diagonal grate (bars
   turned 45 degrees, 30 apart across them: 42 along x and y), a louvred grate (bars at z -8..0 with 48-unit gaps, one
   at z -16..-8 under each: 20 from above) and two func_walls 24 apart. Its checklist scenes are `brushholes_grate`,
-  `_gate`, `_lift`, `_pillars`, `_diag`, `_louvre` and `_walls`. `vr_hull_holes_test` has 23 checks (on and off).
+  `_gate`, `_lift`, `_pillars`, `_diag`, `_louvre` and `_walls`. `vr_hull_holes_test` has 27 checks (on and off);
+  since backlog1122 it also has Quoth start's drain copied (the `drain` checks: a frame round a 32 x 32 hole).
+- **backlog1122 (2026-11-22): a hole exactly Quake's box's width.** Your mark in Quoth's `start` (-0.2, 2273.8, -392):
+  you fell through a ground decoration, a frame of 8-wide bars round a 32 x 32 hole over a 16-high pit. Two misses:
+  the line test took gaps *under* the limit (32), so a gap of exactly 32 was never a blocker, though Quake's box only
+  bridges it (hull 1 is solid there, the clip brush recovery didn't fill it); and at a wider limit (your 46) the
+  hole's blocker was merged with a neighbour's that Quake's box reaches, and the merged box was dropped whole. Now a
+  model's own gaps count up to the limit itself (hull 1's check as before; with brush models still under 32, the line
+  test alone there), and a dropped merged box is put back as its pieces, each checked on its own and the kept ones
+  merged again (`splitDropped`). `buildVersion` 5.
 
 Census (`vr_hull_cache 0`, a low-impact run, so the times are rough):
 

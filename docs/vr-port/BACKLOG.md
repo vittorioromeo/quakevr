@@ -79,7 +79,8 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
   look before the numbers move); flateject `ssg` (second casing up 0.29 against > 0.3) and `vr` (one stroke line) run
   to run; flatfg2h key 3; twohand_regrip picks 4 and 10; stealth noises_clue; nav_lift_down; gadget_lock 13/4;
   `vr_dm_test 19` (bot navmesh chase: 2 of 4 runs fail, the bot back on its waypoints once it sees him at the door);
-  the mp_test.py suite's order effect from mp_campaign_listen on and its fixed 27500 base port; mp_loss's margin.
+  mp_debugviz_listen's bot case (rare: the bot's AI swinging while held, the server's line and the drawn one a frame
+  apart; ROUND25.md "mpopen"). (mpopen fixed: the suite's order effect and fixed 27500 base port, mp_loss's margin.)
 
 ## 2. The 1.1 release (only on his word; his list is RELEASE_TODO.md)
 

@@ -453,15 +453,16 @@ int rebinds = 0, unbound = 0; // since the map began
 {
     if(s.own)
     {
-        // Yours: its spot on your capsule as drawn (vr_playergore.cpp); its way out turns with your view.
+        // Yours (or another player's on his copy: mpopen): its spot on the capsule as drawn (vr_playergore.cpp); its way
+        // out turns with your view (his copy's body).
         glm::vec3 n;
-        if(s.ent != cl.viewentity || !playergore::where(s.spot, s.wound, n))
+        if(s.ent != playergore::entOf(s.spot) || !playergore::where(s.spot, s.wound, n))
         {
             return false;
         }
         s.surfN = n;
         s.push = 0.f;
-        s.outWorld = yawTurn(s.outLocal, r_refdef.viewangles[YAW]);
+        s.outWorld = yawTurn(s.outLocal, playergore::bodyYaw(s.spot));
         return true;
     }
     const entity_t* e = entityOf(s.ent, s.model);
@@ -1000,7 +1001,7 @@ void update(Stream& s, float dt)
         s.blade = -1; // (its next word, if the blade is still in, starts it afresh)
     }
     // (Yours raised close to the eyes or over them: it doesn't pour there, what fell falls on; vr_player_gore_eye_clear.)
-    if(s.emitting && !(s.own && playergore::nearEyes(s.wound)))
+    if(s.emitting && !(s.own && s.spot.ent == 0 && playergore::nearEyes(s.wound)))
     {
         // The body's motion at the wound: clamped, low-passed over vr_gore_streams_smooth (the animation moves it in
         // jumps, a new velocity each frame of it), and only vr_gore_streams_inherit of it taken.
@@ -1217,11 +1218,13 @@ void onWound(int ent, const glm::vec3& at, const glm::vec3& dir, int kind, int a
 {
     // Bullet holes: a shot or a pellet (1), a nail or a small missile (2); and your melee (3: a blade's or a blunt blow
     // in your hand, a blade you threw), each kind at its own chance.
-    if((kind != 1 && kind != 2 && !(kind == 3 && melee != MeleeNone)) || !enabled() || ent == cl.viewentity)
+    // (Another player drawn as his copy: his streams are his gore's, playergore::onWound, not his hidden entity's.)
+    if((kind != 1 && kind != 2 && !(kind == 3 && melee != MeleeNone)) || !enabled() || ent == cl.viewentity ||
+        playergore::copyDrawn(ent))
     {
         return;
     }
-    const float chance = kind != 3             ? vr_gore_streams_chance.value
+    const float chance = kind != 3            ? vr_gore_streams_chance.value
                          : melee == MeleeBlade ? vr_gore_streams_melee_blade.value
                          : melee == MeleeBlunt ? vr_gore_streams_melee_blunt.value
                                                : vr_gore_streams_thrown_blade.value;
@@ -1267,20 +1270,22 @@ bool startOwn(const playergore::Spot& spot, const glm::vec3& normal, const glm::
     {
         return false;
     }
-    // A slot: free (within the cap in all), else past vr_player_gore_stream_max your weakest, else the weakest of all.
+    // A slot: free (within the cap in all), else past vr_player_gore_stream_max the body's weakest, else the weakest of
+    // all. (Another player's on his copy, mpopen: his own cap, the same.)
+    const int body = playergore::entOf(spot);
     const int most = za::max(1, static_cast<int>(vr_player_gore_stream_max.value));
     int mine = 0;
     Stream* weakestMine = nullptr;
     auto left = [](const Stream& s) { return s.emitting ? s.start + s.duration - cl.time : -1.0; };
     for(Stream& s : streams)
     {
-        if(s.used && s.own)
+        if(s.used && s.own && s.spot.ent == spot.ent)
         {
             mine++;
             weakestMine = !weakestMine || left(s) < left(*weakestMine) ? &s : weakestMine;
         }
     }
-    Stream* slot = mine >= most ? weakestMine : slotFor(cl.viewentity, false);
+    Stream* slot = mine >= most ? weakestMine : slotFor(body, false);
     if(!slot)
     {
         return false;
@@ -1289,7 +1294,7 @@ bool startOwn(const playergore::Spot& spot, const glm::vec3& normal, const glm::
     s = Stream{};
     s.used = true;
     s.emitting = true;
-    s.ent = cl.viewentity;
+    s.ent = body;
     s.own = true;
     s.spot = spot;
     for(int i = 0; i < 3; i++)
@@ -1303,7 +1308,7 @@ bool startOwn(const playergore::Spot& spot, const glm::vec3& normal, const glm::
                           glm::vec3{vrand::range(rng, -0.2f, 0.2f), vrand::range(rng, -0.2f, 0.2f), vrand::range(rng, 0.05f, 0.3f)};
     s.outWorld = inCone(glm::length(out) > 0.01f ? glm::normalize(out) : glm::vec3{0.f, 0.f, 1.f},
         za::clamp(vr_gore_streams_spread.value, 0.f, 90.f));
-    s.outLocal = yawTurn(s.outWorld, -r_refdef.viewangles[YAW]);
+    s.outLocal = yawTurn(s.outWorld, -playergore::bodyYaw(spot));
     s.pose = Pose::None;
     const float speedVar = za::clamp(vr_gore_streams_speed_var.value, 0.f, 0.9f);
     s.speedMul = vrand::range(rng, 1.f - speedVar, 1.f + speedVar);
@@ -1332,7 +1337,17 @@ int ownStreams()
     int n = 0;
     for(const Stream& s : streams)
     {
-        n += s.used && s.own && s.emitting ? 1 : 0;
+        n += s.used && s.own && s.spot.ent == 0 && s.emitting ? 1 : 0;
+    }
+    return n;
+}
+
+int otherStreams()
+{
+    int n = 0;
+    for(const Stream& s : streams)
+    {
+        n += s.used && s.own && s.spot.ent != 0 && s.emitting ? 1 : 0;
     }
     return n;
 }

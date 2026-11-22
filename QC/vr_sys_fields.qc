@@ -405,3 +405,13 @@
 .float vr_aim_kind;    // ended in (its shot fires then, unheld)
 .float vr_aim_ended;
 .float vr_aim_go;
+
+// Climbable ropes and chains (vr_ropes.qc; the engine's vr_climbrope.cpp reads them): their map keys, 0 the default.
+.float rope_length;    // units (256)
+.float rope_thickness; // units across (1.5)
+.float rope_segments;  // pieces (one every 16 units)
+.float rope_mass;      // kg, the whole rope (5; a chain 20)
+.float rope_stiffness; // 0.05-1 (1)
+.float rope_damping;   // per second (0.5)
+.float rope_style;     // 1: drawn as a chain (vr_rope)
+.float rope_pinned;    // its bottom held where it first hangs (PINNED; a target: at it)

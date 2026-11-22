@@ -1029,7 +1029,7 @@ QVR_CVAR(vr_messages_hologram_size, "1", CVAR_ARCHIVE) // its text's size (1: ab
 QVR_CVAR(vr_messages_hologram_height, "10", CVAR_ARCHIVE) // cm its bottom floats over the gadget as seen
 QVR_CVAR(vr_messages_hologram_effect, "1", CVAR_ARCHIVE) // the hologram look: the beam from the screen, scanlines, flicker, glitches, the projection as it appears (0 plain glowing text, up to 2)
 QVR_CVAR(vr_center_panel_scale, "2", CVAR_ARCHIVE)     // the centre panel's size (vr_center_panel) as a multiple of the HUD's own text size (1: the flat screen's 8 pixel characters at the menu's scale: small at the menu's distance; 0.25 .. 8)
-QVR_CVAR(vr_center_panel, "1", CVAR_ARCHIVE)         // 1: the game's centre prints in front of the head (not on the wrist's hologram) and the maps' view messages as the flat screen's: the visor popup's panel (its font, black face, frame line, colours, wrapping and fade); 0: as before (Quake's own centre print on the 2D canvas, the view messages as 3D text)
+QVR_CVAR(vr_center_panel, "1", CVAR_ARCHIVE)         // 1: the game's centre prints in front of the head (not on the wrist's hologram) and the maps' view messages as the flat screen's: the flat visor's own centre popup (its glass face, cut corners, glowing bevelled frame, font, wrapping, scanlines, pop in and fade: visor::renderHeadsetCenter); 0: as before (Quake's own centre print on the 2D canvas, the view messages as 3D text)
 QVR_CVAR(vr_view_text_smooth,"0.12", CVAR_ARCHIVE)     // the messages in front of you (the maps' view messages: VR Calibration's boards' texts, its steps, Body Calibration's poses; and the centre prints on the head's panel) follow your head's turn smoothed: seconds to catch up most of the way (0 at once; the author's note vrstart_2026-10-23_01-23-46)
 QVR_CVAR(vr_messages_hologram_only, "1", CVAR_ARCHIVE) // QVR round 21: 1: the game's messages never show in front of you; they wait in the hologram until you look at the gadget, and a new one (not a pickup) chimes from the gadget and buzzes its hand while it is out of view
 QVR_CVAR(vr_loading_notice, "1", CVAR_ARCHIVE)        // (off in 1.0.0, config 122: its campaign-switch crash, fixed in 1.0.1: ROUND22.md, "The Loading... crash, root cause") "Loading..." in front of you before a level change (changelevel, a map transition, map, load, restart: vr_loading.cpp): the load waits until two headset frames showed it, as the runtime keeps showing the last frame while the game loads; 0 off, 1 in the headset, 2 the mock headset too (tests)
@@ -2972,7 +2972,7 @@ QVR_CVAR(vr_arena_xray, "1", CVAR_ARCHIVE | QVR_RULE)                    // 1: a
 QVR_CVAR(vr_arena_xray_left, "2", CVAR_ARCHIVE | QVR_RULE)               // ... once this many of its foes are left (up, and still to come)
 QVR_CVAR(vr_arena_xray_distance, "800", CVAR_ARCHIVE | QVR_RULE)         // ... and only those farther than this from your eyes (units; 0: at any distance)
 QVR_CVAR(vr_arena_xray_shown, "0", CVAR_ROM)                  // (read-only: the foes the last view outlined through walls; arena test 16 reads it)
-QVR_CVAR(vr_humlook, "1", CVAR_ARCHIVE)                        // 1: armed humanoids recoloured by the weapon they spawned with (quakevr/humlook.txt; vr_humlook.cpp, ARMED_MONSTERS.md "Recolours by weapon")
+QVR_CVAR(vr_humlook, "1", CVAR_ARCHIVE | QVR_OWN)              // 1: armed humanoids recoloured by the weapon they spawned with (quakevr/humlook.txt; vr_humlook.cpp, ARMED_MONSTERS.md "Recolours by weapon"); each viewer's own (how his game draws them; mpopen: mp_rules)
 QVR_CVAR(vr_humlook_known, "0", CVAR_ROM)                    // (read-only: the entities whose recolour the client knows; vr_ad_test 219 reads it)
 QVR_CVAR(vr_humlook_file, "humlook.txt", CVAR_NONE)          // debug (vr_humlook.cpp): the recolours' table, in quakevr/ (the tests point it elsewhere)
 QVR_CVAR(vr_humlook_masks_file, "humlook_masks.txt", CVAR_NONE) // debug (vr_humlook.cpp): which texels they dye (palette rows, painted texels), in quakevr/
@@ -2988,8 +2988,15 @@ QVR_CVAR(vr_humstudio_light, "1", CVAR_NONE)      // debug: ... the texels' ligh
 QVR_CVAR(vr_humstudio_tint, "0", CVAR_NONE)       // debug: ... 0 the dye, 1 the texel's own colour times the colour
 QVR_CVAR(vr_humstudio_overlay, "0", CVAR_NONE)    // debug: 1: the masks shown on the recoloured (clothes green, pack blue, the rest dark red)
 QVR_CVAR(vr_humstudio_paint, "0", CVAR_NONE)      // debug: 1: painting: a trigger (flat: attack) paints where you point on an armed humanoid, a grip erases, B/Y undoes
-QVR_CVAR(vr_humstudio_brush, "2", CVAR_NONE)      // debug: the brush's radius (skin texels)
+QVR_CVAR(vr_humstudio_brush, "4", CVAR_NONE)      // debug: the brush's radius on the model's surface (cm; 0: the texel under the ray alone): the texels within it, on whatever triangles carry them
 QVR_CVAR(vr_humstudio_class, "1", CVAR_NONE)      // debug: what it paints: 1 clothes, 2 pack, 3 never (left as it is), 0 erase (back to its palette row's)
+QVR_CVAR(vr_humstudio_target, "0", CVAR_NONE)     // debug: what the ray paints on: 0 the part picked (clothes: the bodies, the packs passed through; pack: the packs), 1 bodies, 2 packs, 3 either (the nearest)
+QVR_CVAR(vr_humstudio_cursor, "1", CVAR_NONE)     // debug: 1 while painting, the texels the brush would change shown yellow (on every model with that skin) and the skin's flat view in the top right
+QVR_CVAR(vr_humstudio_nopack, "1", CVAR_NONE)     // debug: 1 the lineup wears no backpacks (vr_humstudio_packstand shows one alone)
+QVR_CVAR(vr_humstudio_noarmour, "1", CVAR_NONE)   // debug: 1 the lineup wears no armour plates
+QVR_CVAR(vr_humstudio_noweapon, "0", CVAR_NONE)   // debug: 1 the lineup's weapons not drawn (held as before)
+QVR_CVAR(vr_humstudio_packstand, "1", CVAR_NONE)  // debug: 1 a backpack on a stand of its own at the lineup's end, to paint
+QVR_CVAR(vr_humstudio_turn, "0", CVAR_NONE)       // debug: the lineup turned this many degrees from facing you (a turntable; with Hold Still, vr_agrunt_freeze, they stay so)
 // Survival Arena's difficulty (QC/vr_arena.qc, VR_ARENA_Skill): every 1 above is today's arena at Normal skill, and
 // this moves the rest of them by the skill level -- the shape of the armed humanoids' vr_agrunt_ai_skill, its own knob.
 QVR_CVAR(vr_arena_skill_impact, "1", CVAR_ARCHIVE | QVR_RULE)           // Difficulty Impact: how much the skill level moves the arena (Easy softer, Hard and Nightmare harder); 0 skill changes nothing about it, Normal always as set
@@ -3751,6 +3758,16 @@ QVR_CVAR(vr_grapple_stagger, "1", CVAR_ARCHIVE | QVR_RULE)          // small mon
 QVR_CVAR(vr_grapple_stamina, "0", CVAR_ARCHIVE | QVR_RULE)          // stamina a second reeling a monster in costs (the parry/shove/strike pool); short of it, it comes slower. 0: free
 QVR_CVAR(vr_grapple_haptics, "1", CVAR_ARCHIVE | QVR_OWN)          // strength of the rope's haptics (the hook biting, the reel, the rope snapping taut); 0 none
 QVR_CVAR(vr_grapple_drop_grace, "0.12", CVAR_ARCHIVE | QVR_RULE)    // seconds the trigger let go waits before the hook comes off: dropping or passing the gun by then keeps it in
+QVR_CVAR(vr_rope_iterations, "16", CVAR_ARCHIVE | QVR_RULE)       // climbable ropes (vr_climbrope.cpp, docs/vr-port/ROPES.md): passes a step pulling each piece back to its length (more: a stiffer, less stretchy rope; 1-64)
+QVR_CVAR(vr_rope_hands, "1", CVAR_ARCHIVE | QVR_RULE)            // the players' hands push the climbable ropes (a sphere round each); 0: they pass through
+QVR_CVAR(vr_rope_debug, "0", CVAR_NONE)                         // climbable ropes: print each rope as it is made
+QVR_CVAR(vr_rope_spawn_length, "256", CVAR_ARCHIVE | QVR_OWN)    // the toolgun's ropes (Spawn > Props > Ropes > Rope Settings): length (units)
+QVR_CVAR(vr_rope_spawn_thickness, "1.5", CVAR_ARCHIVE | QVR_OWN) // ... thickness (units across)
+QVR_CVAR(vr_rope_spawn_segments, "0", CVAR_ARCHIVE | QVR_OWN)    // ... pieces (0: one every 16 units)
+QVR_CVAR(vr_rope_spawn_mass, "0", CVAR_ARCHIVE | QVR_OWN)        // ... mass (kg, the whole rope; 0: 5 a rope, 20 a chain)
+QVR_CVAR(vr_rope_spawn_stiffness, "1", CVAR_ARCHIVE | QVR_OWN)   // ... stiffness (0.05-1: each pass's share of a stretched piece's pull back)
+QVR_CVAR(vr_rope_spawn_damping, "0.5", CVAR_ARCHIVE | QVR_OWN)   // ... damping (per second, of its swing lost to the air)
+QVR_CVAR(vr_rope_spawn_pinned, "0", CVAR_ARCHIVE | QVR_OWN)      // ... its bottom pinned where it first hangs (1) or free (0)
 QVR_CVAR(vr_grapple_rope_sim, "1", CVAR_ARCHIVE | QVR_RULE)         // the rope is a physical thing (vr_ropesim.cpp): it hangs, lies and wraps round the world and the props, never through them, and pulls along where it lies; 0: a straight line (drawn sagging)
 QVR_CVAR(vr_grapple_trigger_release, "0", CVAR_ARCHIVE | QVR_RULE)  // the trigger let go: 0 nothing (the hook stays in: the detach button on the gun takes it off); 1 it comes straight back (as the reel-in button); 2 it comes loose on its rope (reel it in with B/Y)
 QVR_CVAR(vr_grapple_shootable, "1", CVAR_ARCHIVE | QVR_RULE)        // shooting a hook that is in the world or a door (any weapon) takes it off
@@ -4516,7 +4533,7 @@ QVR_CVAR(vr_flat_toolgun_panel_size, "0.75", CVAR_ARCHIVE) // flatscreen play: t
 QVR_CVAR(vr_flat_toolgun_panel_x, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle across the window (0 left .. 1 right; kept on the window)
 QVR_CVAR(vr_flat_toolgun_panel_y, "0.5", CVAR_ARCHIVE)  // flatscreen play: the toolgun panel's middle down the window (0 top .. 1 bottom; kept on the window)
 QVR_CVAR(vr_flat_holsters, "1", CVAR_ARCHIVE | QVR_PREF)           // flatscreen play carries what a headset does: six holsters and two hands, the weapon keys doing nothing (3 swaps the hands), the wheel's button holding the holster menu (vr_flatholster.cpp, QC vr_flatholster.qc); 0: the number keys and the wheel cycle through every weapon collected, as before 2026-11-10
-QVR_CVAR(vr_flat_key_flashlight, "f", CVAR_ARCHIVE)     // the key that switches the flashlight (vr_flashlight_toggle; vr_flatplay.cpp pollKeysFlat), by its bind name; "" none (menu: Locomotion > Desktop Screen Play > Flat Keys)
+QVR_CVAR(vr_flat_key_flashlight, "f", CVAR_ARCHIVE)     // the key that switches the flashlight (vr_flashlight_toggle; vr_flatplay.cpp pollKeysFlat), by its bind name; "" none (menu: Options > Controls, Quake VR (flat screen))
 QVR_CVAR(vr_flat_key_punch, "v", CVAR_ARCHIVE)          // the key that punches with the right hand (vr_flatplay.cpp pollKeys: a fist thrown out; the fire buttons punch too), by its bind name; "" none
 QVR_CVAR(vr_flat_key_voicechat, "CAPSLOCK", CVAR_ARCHIVE) // multiplayer voice chat's push-to-talk key, held (vr_voicechat.cpp; flat play owns it, VR reads it too); by its bind name; "" none
 QVR_CVAR(vr_flat_key_holster_menu, "mouse3", CVAR_ARCHIVE) // flatscreen play: the holster menu's key (a bind name; "" none; how it opens and picks: vr_flat_holster_menu_mode)
