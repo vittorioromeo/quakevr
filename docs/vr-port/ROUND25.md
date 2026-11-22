@@ -7905,3 +7905,34 @@ shove, climb...) and propose a key or leave it VR-only."
   teleport/turning/recentre, the immersive reload parts.
 - Test: `Misc/quakevr/flatkeybind_test.sh <agent>` + the gear case (Controls' row with no clash, 9 dims then lights,
   `vr_gear_lights` 0 then 1): 13 passed, 0 failed. Scenario `flat_gear_lights`.
+
+## backlog1122c: the last backlog1122 items (branch agent/backlog1122c, 2026-11-22)
+
+- **1. Avatar-doll corpses: his proportions on the physics rig.** A dead player's ragdoll (progs/vrdoll*.mdl) is no longer
+  his build's rig scaled uniformly: `ragdoll::proportioned` (vr_ragdoll.cpp) makes a copy of the authored rig in a body's
+  proportions (each upper arm and forearm stretched along itself, its girth kept; each clavicle and all on it moved by the
+  shoulders' offset; its poses' places moved with the pivots), one per rounded set, kept like the rigs (64 at most, then
+  the model's own). The proportions are his avatar's (`mpavatar::serverDollRig` / `clientDollRig`, `dollProportions`):
+  his upper arm and forearm by the drawn arms' own rule, now one function (`avatar::armBoneLength`: measured cm, else the
+  model's times vr_body_arm_length, his tweaks on top; armLengths calls it), his shoulders' offset as solveArm moves the
+  clavicle (back, up, out; uncalibrated the default body's 4 cm forward). The server takes his calibration as serverBody
+  does (owner: the body's colormap); a remote client takes the one it has for him (the body's colours) when a ragsync
+  record comes, so both have the same rig; `dollPose` reads the published rig. The vrdoll .mdl drawn on its own (no
+  avatar to draw on it) keeps the model's arms (a gap at the elbow when his differ). `developer 1` prints `dollrig:`
+  (owner, model, scale, the arm ratios, the shoulders); vr_mp_avatars' `mp_doll_rig` line gained `arm` (shoulder to elbow
+  to wrist, as drawn) and `restarm` (the model's at his size).
+- Test: `mp_test.py deathbody` 40/0 (new: A's arm length 1.2, unmeasured: his doll's arm 19.59 over the model's 16.31 =
+  1.201 at the host, 1.207 at B; B's 1.000 / 0.999). It had been failing its "tall B" check since backlog1122b (B plays
+  flat, so his corpse is his flat body height's): B now sets vr_flat_body_height too. Single player e1m1 with the kit
+  base's measured arms: upper x0.954, forearm x1.019, the arm 16.04 against 16.28.
+- **Range of Motion pass** (`vr_rig2_check` and its envelope on the four builds; limits unchanged, the grunt's): each
+  build 22/13 (brawny 16/19), the grunt's own rig 22/13; the doll's joints outside the grunt's failing set are the neck
+  (envelope: back clean to 0 of -25, twist 20-25 of 35), the elbows (85-90 of 125), the knees (13 of 130), the hips back
+  (0 of -30). Tried the neck at -10 / +-25 in make_vrdoll.py: still FAIL, and neck+head failed too (its holes are the
+  md5's open neck seam, 90 open edges, not the limits): reverted. The elbows', knees' and hips' creases are the linear
+  skin's at any bend a ragdoll needs (and the drawn avatar is the md5 posed by solveDoll, not this mesh). Left for his
+  eye: Rig Studio > Range of Motion on a vrdoll if a corpse's neck or shoulders ever look wrong.
+- **2. Not done** (budget): flatfg2h, twohand_regrip, noises_clue, nav_lift_down, gadget_lock. Reproduced on this branch:
+  gadget_lock 13/4 (C: the crate in both hands still double-taps, a tap counted once locked; H: the side button's one
+  press and the one after letting go), flatfg2h 10/1 (key 3: the axe's drawn off hand leaves the grip, 5.95 a frame
+  against the launcher's 2.90). ThinLTO 0 warnings.
