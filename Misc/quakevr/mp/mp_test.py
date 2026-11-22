@@ -176,7 +176,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 from mp_harness import GAMES, LINKS, Instance, Session, StepFailed, fields, format_kinds, kind_rates  # noqa: E402
-from mp_harness import busy_ports, default_base_port, free_base_port  # noqa: E402
+from mp_harness import busy_ports, default_base, default_base_port, free_base_port  # noqa: E402
 from mp_nat import Nat  # noqa: E402
 from mp_load import Load  # noqa: E402
 import subprocess  # noqa: E402
@@ -9885,7 +9885,9 @@ SUITE = [
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"])
-    ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
+    tree_base = default_base(REPO)
+    ap.add_argument("--base", required=tree_base is None, default=tree_base,
+                    help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
     ap.add_argument("--port", type=int, default=default_base_port(REPO),
@@ -9936,7 +9938,9 @@ def main_run(args):
     FUZZ_SEED = args.seed
     AMMO_PART = args.part if args.part in ("give", "use") else ""
     autoexec = os.path.join(args.base, "id1", "autoexec.cfg")
-    if args.reset_autoexec:
+    # (The checkout's own base, the default: its autoexec is the last run.sh run's script, rewritten by each: emptied.)
+    tree_base = default_base(REPO)
+    if args.reset_autoexec or (tree_base and os.path.normcase(os.path.abspath(args.base)) == os.path.normcase(os.path.abspath(tree_base))):
         with open(autoexec, "w", encoding="ascii") as f:
             f.write("// emptied by mp_test.py --reset-autoexec (the harness drives its games through -cmdinbox)\n")
     elif os.path.exists(autoexec):

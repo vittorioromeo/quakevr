@@ -258,9 +258,11 @@ The engine's aids (`Quake/vr/vr_mptest.cpp`):
   `--load N` (`mp_load.py`) keeps N busy CPU workers at normal priority for the run, as other builds and tests do
   (`--load 16`: the reference; `--load-duty` each one's share of the time); `suite --only a,b`, `--suite-repeat N`.
 
-Running it (the kit's base for this worktree; `--reset-autoexec` empties its `id1/autoexec.cfg`, which the kit's
-runs leave with their script):
+Running it (in a worker's checkout `--base` defaults to its own kit base, `bases/<checkout>/qbase`, whose
+`id1/autoexec.cfg` the kit's runs leave with their script: emptied automatically; elsewhere pass `--base` and
+`--reset-autoexec`; the ports are the checkout's own block from 27600, a busy block skipped to the next free one):
 
+    python Misc/quakevr/mp/mp_test.py suite
     python Misc/quakevr/mp/mp_test.py suite --base C:/OHWorkspace/qvr-kit/bases/mp/qbase --reset-autoexec
     python Misc/quakevr/mp/mp_test.py coop --listen --flat B --port 27600 --base ...    (a listen host, flat B)
     python Misc/quakevr/mp/mp_test.py coop --lag 150 --jitter 20 --loss 0.02 --base ...
