@@ -2106,6 +2106,26 @@ front at the waist, the layers still carrying the runtime's poses: an unworn hea
   config starts them at their PC defaults (0 / 1); dlmap is covered by `vr_gl_quake_dlights 1`, the pre-pass is not
   (C4w: -0.49 ms lost). ROUND25 "Quest C5i".
 
+## 6zu. C5j: the two rows saved; his 14:31 crash (2026-11-22; adb, unworn)
+
+- `vr_gl_world_dlmap` and `vr_alias_prepass_world` are now CVAR_ARCHIVE (the only Quest preset rows that were not).
+  The config is sparse, so PC configs are unchanged (same defaults, a line only when changed). On the headset, his
+  config got the two values once (`+vr_gl_world_dlmap 1 +vr_alias_prepass_world 0 +writeconfig`). On the next two
+  plain starts they read 1 / 0 and "quest preset: Quest 3 (72 Hz)" (no rows differ).
+- **His crash** (c5i APK, 14:31:25, SIGSEGV 0x30 in libGLESv2_adreno under vrapi's xrEndFrame): the process started at
+  14:28:06 but the native start came only at 14:30:13, when the activity first became visible. The load then blocked
+  while the activity was paused: the "server: 2 frames" step took 46.6 s (0.44 s normally), the map load 70 s and
+  xrCreateSession ran while paused. The session went READY at 14:31:23.6, when the activity was shown again. The crash
+  came in the second eye frame, 0.15 s after FOCUSED. Shaders all came from the cache (73 of 73), so no progress bar
+  was due. The same 0x30 signature appeared before for GPU stalls and foveated images (6zf, 6zk) and on 11-20. Not the
+  preset rows: the same config ran plain starts cleanly. Putting the headset to sleep 3 s into the load and waking it
+  60 s later (`scratch/c5j_sleep.sh`) gave the same 64 s blocked load and the same session timing, but no crash.
+  Not fixed (not reproduced). The logs were read with `vr_android_export logs/<run>` and `crash` (the run folder's
+  name is the native start time).
+- **Found**: a fresh install's first start compiles the whole set (73 programs, 24.4 s), and its loading panel
+  reaches only the window ("0 in the headset, 71 in the window"). The OpenXR session starts after the configs (~8 s
+  into the map load), so for that first start the headset shows Meta's dots, not "Compiling shaders".
+
 ## 7. Installs (done 2026-11-14 at his approval, by the coordinator)
 
 Installed under `F:\QuakeVRDev` (`env.sh` / `env.ps1` there set `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,

@@ -8897,3 +8897,19 @@ All three were the tests, not the game; no player-facing change.
 - Found, not fixed: `vr_gl_world_dlmap` and `vr_alias_prepass_world` are CVAR_NONE, so the preset's values for them
   last one session; a saved config starts them at 0 / 1 (dlmap is covered by vr_gl_quake_dlights 1; the pre-pass, C4w
   -0.49 ms, is not).
+
+## Quest C5j: the Quest preset's last two rows saved; his crash looked into (questc5j, 2026-11-22; branch agent/quest)
+
+- `vr_gl_world_dlmap` (default 0) and `vr_alias_prepass_world` (default 1) are now CVAR_ARCHIVE: they were the only
+  Quest preset rows that were not saved. The config is sparse, so on PC nothing changes (a line is written only when a
+  value differs from its default; checked with writeconfig: no line at the defaults, both lines once changed).
+- On the headset (APK build 14259, 6b3cac7; native 0 warnings, check_apk 20/0, `adb install -r` Success): his config
+  got the two values once (`+vr_gl_world_dlmap 1 +vr_alias_prepass_world 0 +writeconfig`; nothing else touched). Two
+  plain starts after that: both reach the start map and draw eye frames, with no crash. The second start reads
+  vr_gl_world_dlmap 1, vr_alias_prepass_world 0 and vr_dynres_min 0.65, with "quest preset: Quest 3 (72 Hz)".
+- His 14:31 crash on the c5i APK (SIGSEGV 0x30 in the Adreno driver under xrEndFrame): the activity was not shown for
+  the first 2 minutes (native start at 14:30:13), and the load blocked while it was paused (map load 70 s, the session
+  made while paused). The crash came on the second eye frame after the session was focused. Not the preset rows.
+  Putting the headset to sleep during the load did not reproduce it. QUEST_PLAN 6zu has the details.
+- Found: a fresh install's first start compiles 73 programs (24 s) with the loading panel in the window only (the
+  session starts after the configs), so the headset shows Meta's dots then.
