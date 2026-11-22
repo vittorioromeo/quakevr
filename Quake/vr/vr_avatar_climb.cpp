@@ -352,17 +352,34 @@ namespace
 {
     const float u = b.m2w;
     const float leg = legLength(side) * b.legM2w;
-    glm::vec3 at{0.f};
-    if(!climbrope::clientRopeAt(climbing.holdMid, CLIMB_ROPE_NEAR, hip.z - (side == 0 ? 0.75f : 0.85f) * leg, at))
+    // (ropepose) Out of reach there (the rope slanting away under him at a swing's turn, its free end trailing), the
+    // rope higher up, the knees more bent: the first height within the leg's reach, rising a tenth of the leg at a time.
+    glm::vec3 first{0.f};
+    bool found = false;
+    for(float down = side == 0 ? 0.75f : 0.85f; down >= 0.3f; down -= 0.1f)
+    {
+        glm::vec3 at{0.f};
+        if(!climbrope::clientRopeAt(climbing.holdMid, CLIMB_ROPE_NEAR, hip.z - down * leg, at))
+        {
+            continue;
+        }
+        const glm::vec3 to = at - climbing.in * (0.4f * toeLength(side) * u) + climbOutward(side) * (0.03f * u);
+        if(glm::length(to - hip) <= 0.97f * leg)
+        {
+            return to;
+        }
+        if(!found)
+        {
+            first = to;
+            found = true;
+        }
+    }
+    if(!found)
     {
         return hanging;
     }
-    glm::vec3 to = at - climbing.in * (0.4f * toeLength(side) * u) + climbOutward(side) * (0.03f * u);
-    if(const glm::vec3 d = to - hip; glm::length(d) > 0.97f * leg)
-    {
-        to = hip + d * (0.97f * leg / glm::length(d));
-    }
-    return to;
+    const glm::vec3 d = first - hip;
+    return hip + d * (0.97f * leg / glm::length(d));
 }
 
 } // namespace
@@ -370,10 +387,15 @@ namespace
 namespace detail
 {
 
+float ropeHang()
+{
+    return smooth01(climbing.ropeWrap) * climbing.weight;
+}
+
 bool ropeHips(const glm::vec3& pelvis, glm::vec3& in)
 {
     const Climbing& c = climbing;
-    const float w = smooth01(c.ropeWrap) * c.weight;
+    const float w = ropeHang();
     glm::vec3 at{0.f};
     if(w <= 0.f || !climbrope::clientRopeAt(c.holdMid, CLIMB_ROPE_NEAR, pelvis.z, at))
     {

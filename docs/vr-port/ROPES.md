@@ -129,7 +129,12 @@ server's holds (`vr_mpavatar.cpp` ropeShift, at most 48 units, eased over 0.15 s
 palm's middle on its hold (ropePinHands; a new hold, hand over hand, eased to as yours is). A hand on a rope, yours
 or his, has its palm's middle 2.5 cm this side of the rope (`climb::ropeHandOffset`), not `vr_climb_hand_*`'s ledge
 offsets (which put it beside the rope). On a rope the trunk turns about the neck so the hips come in to 12 cm from it
-(`vr_avatar_climb.cpp` ropeHips, at most 45 degrees), the legs then round it within reach, yours and his.
+(`vr_avatar_climb.cpp` ropeHips, at most 45 degrees), the legs then round it within reach, yours and his. ropepose:
+hanging on a rope (`detail::ropeHang`) the trunk hangs off the neck under the eye's level look, as your own view poses it
+(another flat player's copy turned it with his look and its eye shift: ~4 units further off the rope), with no crouch
+(his copy took a fifth of one: the trunk further back); a foot the rope is out of reach for at its height (a swing's
+turn, the rope slanting away under the hands) takes it higher up, rising a tenth of the leg at a time (ropeFoot).
+His copy's pelvis now hangs within half a unit of where his own game has his (`mp_ropepose_own`).
 
 ## Defaults where the spec is silent (his call; each a setting or key)
 
@@ -205,6 +210,10 @@ offsets (which put it beside the rope). On a rope the trunk turns about the neck
   wrists (10) and ankles (12) against the rope as B has it (`vr_mp_avatars`' `mp_ropepose`, with each held wrist from
   the server's hold, each hold, the pelvis, head and origin from the rope), then swinging (6 more each), then A jumps
   off. ropes4: hanging 1.6-3.3 and 1.8-7.8, swinging 10.5-12.5 and 6.4-14.1 (3 runs; were 17-35 and 27-46).
+  ropepose: hanging still, B's copy's pelvis off the rope within 4 of A's own (A's `mp_ropepose_own`: his own body as
+  his game draws it; the neck too); the swing's pelvis maxima noted. 10 runs 12/12: pelvis 12.4-16.9 against A's
+  12.5-16.7 (0.4 at most apart; was 6), swinging ankles 9.8-13.2 (bound 18; were 13.9-21.7). `MP_ROPECLIMB_SHOTS=1`:
+  B floats beside A and screenshots him hanging and swinging (not in the suite).
 - `Misc/quakevr/climb/rope_hands_test.sh <agent>` (ropes5; `vr_rope_hands_test`, flat-screen, vrropes, the client at
   144 Hz against the server's 72): the row's rope, its chain and the heavy chain, each taken in the air, hanging 2 s then
   pumped 3 s; each drawn frame each hand's palm and arm (palm less shoulder) second difference and the palm's middle off
@@ -221,9 +230,9 @@ offsets (which put it beside the rope). On a rope the trunk turns about the neck
 
 ## Known limits (P1)
 
-- Another player swinging on a rope (`mp_test.py ropeclimb`): his hands are drawn on the rope as this client draws it
-  (ropes5: wrists 3.5 swinging, were 10-12); his ankles read 14-22 units off it at a full swing (bound 18: 3 of 9
-  runs over, ropes5b): his pelvis hangs ~20 off the rope, the legs reach it nearly straight (ROUND25 "ropes5b").
+- The body on a rope hangs under the eye (the neck where the view has it), so at a swing's turn, the rope slanting
+  under the hands, the pelvis is 15-22 units off it (yours and another's alike, ropepose); the feet then take the rope
+  higher up, the knees bent, rather than straight down.
 - The toolgun's Remove and Physgun aim at a rope by its pieces (P2; `climbrope::pick`); the physgun moves its top. The
   aimed rope isn't outlined (no model to glow). Clear Props (`vr_scene_clean props`) takes the ropes made after the
   map's first 1.5 s (QC VR_Scene_IsRuntimeProp), as the props.

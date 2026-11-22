@@ -58,6 +58,8 @@ In mp_dm_passive or mp_coop_passive, walk around the bot: no floating fists, gun
 Flat-screen: climb a rope and then a thick chain in the ropes hall and hang still: the fists close round the rope with the knuckles pointing away from you, the hands sit on the rope or chain as drawn (a little into a thick chain, never beside it) and the arms hold still with no jitter, also while swinging. {test:ropes}
 Flat-screen or VR: push a rope or chain swinging, then open the menu (or the console): every rope and chain freezes mid-swing until you close it, then swings on from there. {test:ropes}
 Flat-screen or VR: take a chain with your hand and swing it or climb it: a quiet metal grip as each hand takes it and a soft clink of the links while it moves fast, never a constant rattle; a rope keeps its own (a slap in flat-screen play, silent in VR); Climbing's Chain Sounds slider sets the chain's volume. {test:ropes}
+Flat-screen or VR: in multiplayer, watch another player hang on a rope and swing it hard: his body hangs close under his hands as it does in his own game, and his feet stay wrapped round the rope even at the ends of the swing (the knees bending to take it higher up), never dangling beside it. {test:ropes}
+Flat-screen: climb a rope, swing it hard and look down at your own legs at the ends of the swing: the feet stay on the rope, taking it higher up with the knees bent when it slants away under you. {test:ropes}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules {test:hub_start}

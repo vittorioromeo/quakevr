@@ -233,6 +233,8 @@ void updateClimbing(const Body& b, float dt, bool legs);
 // (ropes4) On a climbable rope (Climbing::ropeWrap, last frame's): the way (horizontal, world, eased by ropeWrap and the
 // climb's weight) the hips at `pelvis` come in towards the rope, to a belly's depth this side of it. False: none.
 [[nodiscard]] bool ropeHips(const glm::vec3& pelvis, glm::vec3& in);
+// (ropepose) How far the body hangs on a climbable rope (0..1: ropeWrap eased, by the climb's weight; last frame's).
+[[nodiscard]] float ropeHang();
 void logClimbing(const Body& b);
 
 // ---- The body's pitch (vr_avatar_pitch.cpp) ----
