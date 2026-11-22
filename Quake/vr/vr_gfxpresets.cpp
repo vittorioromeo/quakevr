@@ -156,9 +156,14 @@ constexpr presetcore::Row questRows[] = {
     {&vr_rig_lights_world,            {"1",      "1",      "1"}},     // the rig's small lights on the walls: his look call (0 saves the world's lights' loop near walls; C4v, QUEST_PLAN.md 6zb)
     // The world's dynamic lights Quake's way, summed once a frame into a texture at the lightmap's grid, as bright as
     // the loop (his look call: OK, flatter): e1m1's frozen fight with 3 big lights 11.33 -> 7.00 ms of the Quest 3's GPU,
-    // 72 Hz held (the loop dropped to 24), +1.5 ms CPU (C5g, QUEST_PLAN.md 6zr). Your body stays per pixel (vr_gl_alias_body
-    // 2 measured slower: +2.6 ms at pitch 70; vr_gl_quake_dlights, both at once, +1.2 ms in the fight).
+    // 72 Hz held (the loop dropped to 24), +1.5 ms CPU (C5g, QUEST_PLAN.md 6zr). Your body's Quake's way too
+    // (vr_gl_quake_dlights: both at once): drawn by its usual form with the loop skipped, posed head 0.7 pitch 70 11.65 ->
+    // 10.63 ms, pitch 35 8.71 -> 7.98, the fight the same (6.90 / 7.02) (C5h, 6zs).
     {&vr_gl_world_dlmap,              {"1",      "1",      "1"}},
+    {&vr_gl_quake_dlights,            {"1",      "1",      "1"}},
+    // The eyes' depth 24-bit fixed point, not 32-bit float: posed head 0.7, 4 rounds interleaved in one session, pitch 0
+    // 5.30 -> 4.93 ms, pitch 35 8.93 -> 7.74 (C5h, 6zs); the near plane 1 unit, not 0.02 (held items are never cut).
+    {&vr_depth_float,                 {"0",      "0",      "0"}},
     // Models: the world's models shaded as drawn, no depth pre-pass (the tiler's own early depth test does it): e1m1's
     // frozen fight -0.49 ms of the Quest 3's GPU, 20 draws fewer, the same picture (C4w, QUEST_PLAN.md 6zc)
     {&vr_alias_prepass_world,         {"0",      "0",      "0"}},

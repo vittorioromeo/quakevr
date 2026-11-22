@@ -8380,3 +8380,44 @@ His words: "it would be nice for those to become armed humanoid too ... Please d
   Its Row": still props, ours / overlaid / AD's / side-on, scratch1 the pair 0-11), `Misc/quakevr/adhumaudit_shots.sh`
   (the 12 screenshots), `Misc/quakevr/adhum_mdl.py` (builds and frame groups from AD's paks read in place),
   `Misc/quakevr/adhum_census.py` (placements in AD's and Quoth's paks). Screens: `C:\OHWorkspace\qvr-kit\scratch\adhumaudit_*.png`.
+
+## Quest C5h: why the body's Quake way was slower (its own program), fixed and on; D24 depth; the per-part table (questc5h, 2026-11-22; branch agent/quest)
+
+- **Why vr_gl_alias_body 2 was slower** (posed head, 0.7, interleaved, gpu_span ms; levels 3 unless said). Not a CPU
+  stall: the period's 50 ms is all in xrWaitFrame (41.9 ms), the runtime pacing the app down once the GPU crosses ~12 ms
+  (the busy CPU only rises in that state; single-pass stereo is off on the Quest, so no multiview fallback). Two GPU costs:
+  | probe (pitch 70) | per pixel (skin form) | body form (C5f) |
+  |---|---|---|
+  | models' fragments a constant (ALIASCONST) | 4.79 | 6.97 (old: ambient at the vertices) / 5.38 (ambient per pixel) |
+  | 0.5 scale, same light data (vr_dlight_models 0) | 5.37 | 8.70 |
+  | 0.5 scale, same code (QVR_APLAIN_NODLIGHTS) | 4.78 | 8.50 |
+  The vertex ambient cost ~2 ms on the vertex side (gone with it per pixel), and the body's own program
+  (glprogs.alias_body) ran the *same* code ~3.3 ms slower than the skin form running it, whatever the light data:
+  something of the driver's for that program object (not found; the fix does without it).
+- **The fix**: vr_gl_alias_body 2 draws your body by the form it takes anyway, with the light loop skipped for its batch
+  (`BatchDlightsFlat`, the instance buffer's padding after EyePos; r_alias.c sets it when every instance of the batch is
+  flat-lit), its lights added flat on the CPU as before. C5f's VFLAT form and its lite bit 29 are gone; the body form is
+  vr_gl_alias_body 1's alone. Same picture as C5f's (PC -glescompat, the flashlight on: mean 5.03 at pitch 70, 2.09 at 35
+  vs per pixel; C5f's 5.02 / 2.09).
+  | 0.7, 3 rounds | off | per pixel | Quake's way | vertex (1) |
+  |---|---|---|---|---|
+  | pitch 70 | 6.19 | 11.65 | **10.63** | 13.71 (period 50) |
+  | pitch 35 | 5.74 | 8.71 | **7.98** | 10.96 |
+  | frozen fight, 3 big lights, 0.55 (world in the texture / + body) | | | 6.90 / 7.02 | |
+  The body's cost above off: 5.46 -> 4.44 ms at 70, 2.97 -> 2.24 at 35. **The Quest preset sets vr_gl_quake_dlights 1**
+  (the world's light texture and the body's flat add, one choice).
+- **The per-part table** (pitch 70, 0.7, 2 rounds; vr_gles_define probes act on every model): off 5.99, full 11.31,
+  const 5.43, tex 6.12, look 5.69, light-end 9.93, rim-end 9.98, no dlights 8.07, no ambient 9.83, no skin 10.60, no
+  wounds/dents 10.55, no fog 10.51, mediump 10.83, no specular AA 10.43, no fullbright 10.26. The light loop (-3.2 with
+  every model's off) is the one big part; the rest are 0.3-1.0 each.
+- **vr_depth_float 0** (D24S8; the eyes' targets are made again when it changes, so interleaved in one session, 4 rounds,
+  no launch noise): pitch 0 5.30 -> 4.93, pitch 35 8.93 -> 7.74. Same picture on the PC (pairs within the flicker).
+  **The Quest preset sets vr_depth_float 0** (near plane 1 unit; held items never cut).
+- **Resolution** (levels 0): the frozen fight at 0.55 / 0.65 / 0.75: 7.02 / 7.99 / 11.30 ms (period held to 0.65);
+  the posed head at pitch 35 at the base 0.9 / 1.0: 11.23 (period 35) / 12.83 (period 55), float depth. No room for a
+  higher base; the floor could go to 0.65 in fights, but `questMusts` caps vr_dynres_min at 0.55 (C4o's live fights):
+  left at 0.55, his call (a live fight at 0.65 first).
+- **Quest eyeshots of the dlmap pairs**: setpos doesn't move the posed VR player on the Quest, so the e1m1 scenes came
+  out at the spawn without their lights; only e1m2's torch wall is valid: means 28 / 26 (dlmap 1 two levels darker, as
+  the PC's pair). Needs a scene-based placement (vr_scenario) next time.
+- Checks: PC Dev 0 warnings, APK 0 warnings, check_apk 20/20, scenario_check (below).

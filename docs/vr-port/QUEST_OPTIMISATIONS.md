@@ -145,3 +145,10 @@ the PC default where the docs state it. **ES only?** says whether the code path 
 | Dynamic lights in a light texture | the world's lights summed on the CPU once a frame at the lightmap's grid, added by the unlit world form as bright as the loop | frozen fight, 3 big lights: 11.33 -> 7.00 ms GPU, 72 Hz held, +1.5 ms CPU | `vr_gl_world_dlmap 1` (Quest preset) | yes (the unlit form) | no (the PC's world has the loop's look) |
 | Body lights Quake's way | the body's dynamic lights added flat on the CPU | **slower**: +2.6 ms (pitch 70), +2.8 (35) | `vr_gl_alias_body 2`, `vr_gl_quake_dlights` | yes | - |
 | vr_menu.cpp at -Os (build) | the NDK's post-RA scheduler skipped on the menus' file | APK 18+ min -> 5.6 min | android.cmake | Android | - |
+
+## This round (C5h, 2026-11-22)
+
+| Optimisation | What it does | Quest gain measured | Cvar / switch | ES only? | Would it help PC VR / flat? |
+|---|---|---|---|---|---|
+| Body lights Quake's way, its usual form | the body's dynamic lights added flat on the CPU, its batch's light loop skipped in the form it takes anyway (C5f's own form ran the same code ~3.3 ms slower) | posed head 0.7: pitch 70 11.65 -> 10.63, pitch 35 8.71 -> 7.98; fight +0.1 | `vr_gl_quake_dlights 1` (Quest preset) / `vr_gl_alias_body 2` | yes (the CPU add's switch) | Maybe: one loop fewer per pixel on your body; small on a desktop GPU |
+| 24-bit eye depth | D24S8 instead of D32F_S8 for the eyes | pitch 0 -0.37 ms, pitch 35 -1.19 (in-session, 4 rounds) | `vr_depth_float 0` (Quest preset; PC 1) | no | No: the PC keeps the float depth's small near plane |
