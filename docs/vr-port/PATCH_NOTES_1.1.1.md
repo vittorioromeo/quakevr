@@ -63,6 +63,12 @@ that ships in 1.1.1.
   start) now turns on only when the last start crashed, or died within seconds of building its shaders. Closing the
   game while it compiles its shaders on the first start, or after a slow compile, no longer puts the next start in
   safe mode; the start-up log (`quakevr/crash/gl_startup.log`) and the console say why either way.
+- **Standalone graphics preset.** VR Settings > Graphics Presets has a new **Standalone** preset: the settings made
+  for the standalone Quest (a steady 72 frames a second first: a smaller image with dynamic resolution, no MSAA,
+  shadows or bloom, the dynamic lights Quake's way, fewer particles, marks and gibs). The Quest picks it on its first
+  start; on a PC it is the lightest preset with Quake VR's look. Picking another preset or My Settings afterwards
+  puts back the image size, MSAA and the rest it changed. Blood near your eyes can be thinned out with Thinner Blood
+  Nearer (`vr_blood_near`, off by default).
 
 ## Multiplayer beta
 

@@ -234,6 +234,11 @@ bool ensureAtlas();
 
 // vr_particles_blood.cpp, vr_particles_trails.cpp
 void soak(Particle& p, float lifeMult = 1.f); // (vr_particles_blood.cpp)
+// vr_blood_near (the Standalone preset's close-up gore cap): the share of blood made at org that is kept, 1 past
+// vr_blood_near from the eye (or with it 0), down to vr_blood_near_mult at the eye (vr_particles_blood.cpp).
+[[nodiscard]] float nearBloodKeep(const glm::vec3& org);
+// ... a drop at org made or not by that share (always made when it is 1: no random number taken).
+[[nodiscard]] bool nearBloodMade(const glm::vec3& org);
 void blood(const glm::vec3& org, const glm::vec3& dir, int count);
 void bloodTrail(const glm::vec3& org, const glm::vec3& dir, int count);
 void lightning(const glm::vec3& org, int count);

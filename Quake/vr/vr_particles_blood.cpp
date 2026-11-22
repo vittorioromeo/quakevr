@@ -41,6 +41,24 @@ void tallyBlood(za::SizeT before)
     Cvar_SetValueQuick(&vr_blood_tally_drawn, vr_blood_tally_drawn.value + static_cast<float>(drawn));
 }
 
+float nearBloodKeep(const glm::vec3& org)
+{
+    const float nearDist = vr_blood_near.value;
+    if(nearDist <= 0.f)
+    {
+        return 1.f;
+    }
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    const float t = za::min(glm::length(org - eye) / nearDist, 1.f);
+    return za::clamp(vr_blood_near_mult.value, 0.f, 1.f) * (1.f - t) + t;
+}
+
+bool nearBloodMade(const glm::vec3& org)
+{
+    const float keep = nearBloodKeep(org);
+    return keep >= 1.f || vrand::range(rng, 0.f, 1.f) < keep;
+}
+
 // Tallies what the emitter it is made in makes (tallyBlood), as it returns.
 struct BloodTally
 {
@@ -267,7 +285,7 @@ void bloodMist(const glm::vec3& org, const glm::vec3& dir, int count)
 void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const glm::vec3& color, float alpha)
 {
     const BloodTally tally; // (vr_blood_tally)
-    if(!vr_particles.value || !ensureAtlas())
+    if(!vr_particles.value || !ensureAtlas() || !nearBloodMade(org))
     {
         return;
     }
@@ -290,7 +308,7 @@ void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const
 void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const glm::vec3& color, float alpha)
 {
     const BloodTally tally; // (vr_blood_tally)
-    if(!vr_particles.value || !ensureAtlas())
+    if(!vr_particles.value || !ensureAtlas() || !nearBloodMade(org))
     {
         return;
     }
@@ -314,7 +332,7 @@ void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const
 void bloodDroplet(const glm::vec3& org, const glm::vec3& vel, float size, float life, const glm::vec3& color, float floorZ, bool wet)
 {
     const BloodTally tally; // (vr_blood_tally)
-    if(!vr_particles.value || pool.size() >= maxParticles || !ensureAtlas())
+    if(!vr_particles.value || pool.size() >= maxParticles || !ensureAtlas() || !nearBloodMade(org))
     {
         return;
     }

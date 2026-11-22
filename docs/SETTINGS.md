@@ -309,6 +309,7 @@ settings afterwards to taste. Its first line says what the settings match now: a
 | Medium | 4 | 2 | 512, 1536 | everything (parallax without its depth, as in High: things meet the surface, not its relief) | 2.0 ms |
 | High (as shipped) | 8 | 4 | 1024, 3072 | the shipped defaults (the parallax depth write off since config 192) | 2.0 ms |
 | Ultra | 12 | 6 | 1024, 4096 | the parallax depth write (things meet the relief), more torch lights, particles at full resolution, the finer bloom, more parallax steps | 3.6 ms |
+| Standalone | none | none | 256, 768 | for a standalone headset (picked on the Quest's first start): Low, then a steady 72 fps first: 0.9 of the eye size with dynamic resolution (floor 0.65), no MSAA, TAA, bloom, order-independent transparency, heat haze, reflections or rim light, dynamic lights Quake's way, 24-bit depth, and fewer particles, marks, small gibs, limbs and ragdolls | – |
 
 GPU: the eyes' GPU time a frame in a 90 Hz benchmark of an Arcane Dimensions fight (`play_ad_tfuma_fight`,
 2048-pixel eyes, a fast card). In a firing range fight with gore Low and Medium take 55% and 66% of High's; the CPU
@@ -317,6 +318,9 @@ time hardly changes (it is the game's, not the drawing's).
 **My Settings:** the first time you pick a preset, your own values of every setting a preset changes are kept (in
 `graphics_my_settings.cfg` in the game folder, next to `ironwail.cfg`). Switching between presets never changes them.
 *My Settings* sets them all back exactly; *Save as My Settings* (press it twice) keeps the current values instead.
+Standalone also sets settings the other presets leave alone (the image size, MSAA, the light paths): their values from
+before are kept in `standalone_my_settings.cfg` and set back when you pick another preset or *My Settings* from it.
+`vr_standalone_preset 1` and `2` pick its Quest 3 90 Hz and Quest 2 levels.
 
 Everything else on the Graphics pages has its own switch or slider. Anti-aliasing is not part of a preset (VR Settings
 > Display and Graphics): 2x instead of 4x saves about 15% of the GPU time. For the cost of each effect, see the

@@ -8984,3 +8984,37 @@ QUEST_PLAN 6zv has the details.
 - PC ES runs: shaders_async_test 4/0 (its floor 100 -> 50 programs: the ES set is 73); the configs' `vr_enabled 0`
   restarts (stops) it.
 
+
+## questmerge: the Quest work in next, the Standalone graphics preset (2026-11-22)
+
+**The merge.** `agent/quest` (bc26eff34, 185 commits; it had already merged `next` d542bc3b9) merged into
+`agent/questmerge` with `--no-ff`: no conflicts. PC-visible changes, all meant for both (QUEST_OPTIMISATIONS.md's "ES
+only?" no rows): the bare body's forearms 24-sided up to the wrist (`vrbody_*_bare.md5mesh` 10,874 -> 4,154 triangles,
+the same look, PC body 0.099 -> 0.072 ms a pass), posed models batched on every platform (`vr_alias_batch_posed 1`), the
+alias sort key fix, permanent decals baked under a scissor, loads past a throttling runtime, new cvars at their PC
+values (the ES ones: `vr_gl_*`, `vr_world_texarrays`, `vr_eye_subimage`, `vr_program_cache`... default off or ES-only).
+- Checks on the merge (Dev, 0 warnings, qvr_checks incl. canonical): release suite (full profile less
+  teleporters_chase and stealth) 44/45, the one (reload_worldparts, 2 lanes) 6/0 alone; flat suites 40 of 52 clean,
+  the 12 others fail the same cases on `origin/next` (FAIL lines compared, numbers stripped), flatswap one case more in
+  a 726 s run (a re-run on the final build: below); MP suite 69 scenarios: 67 clean, mp_spoof 27/0 alone, mp_loss's
+  hand roughness 0.53 / 0.55 of 0.5 (the base: 0.30, then 0.81: a real-time flake on both).
+
+**The Standalone preset** (`vr_gfxpresets.cpp`): the Quest preset renamed (`standaloneRows`, `standaloneKind`, its My
+Settings `standalone_my_settings.cfg`, `quest_my_settings.cfg` moved to it on first use), listed on the Graphics
+Presets page on every platform (after Ultra; `vr_graphics_preset 6`), applied as before (Low, then its rows at a level:
+the menu's is Quest 3 72 Hz). `vr_standalone_preset [0|1|2|mine]` (`vr_quest_preset` kept as its old name), no longer
+ES-only; the Quest's first start runs `vr_standalone_preset 0`, `vr_quest_check` works on the renamed table. The state
+line says "Standalone" (its graphics rows outside its own table at Low's). Leaving it (another preset, My Settings,
+`gfxpresets::apply`) sets its own rows back from its My Settings when they still match a Standalone level: High after
+Standalone is the shipped image size and MSAA again (mock: vid_fsaa 4 -> 0 -> 4, vr_render_scale 1 -> 0.9 -> 1).
+
+**Close-up blood** (`vr_blood_near` 0 units, `vr_blood_near_mult` 1; Graphics > Effects "Thinner Blood Nearer",
+"Blood at the Eyes"): blood made nearer the eyes than vr_blood_near keeps a share falling to the multiplier at the eye
+(Preset::Blood/BloodTrail counts, each stream droplet, drip and speck by chance; no random number taken when off: PC
+unchanged). **Not in the preset yet**: the PC mock's frozen gib fight (vrfiringrange, 16 grunts 48-80 units ahead,
+`vr_limb_test 10`, frozen 8 frames later; `scratch/qm_gore.py`) made 33,585 blood particles and showed no change with
+`vr_blood_near 128; vr_blood_near_mult 0.3` (32,980 both ways): the emitter that makes them is not yet known (or
+`r_refdef.vieworg` is not the eye at that point), and the particles' shaded fragments in that scene are the map's fire
+(17,295 of 17,901 a frame; blood circles 204), so the scene does not show his close-up cost either. Shaded fragments a
+frame: PC defaults 17,901, Standalone 7,983 (vr_particle_max_screen 0.08 and half resolution). Next: find the emitter
+(tally by emitter), a scene with blood at arm's length (a melee kill in the mock), then the values.
