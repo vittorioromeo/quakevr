@@ -8293,5 +8293,8 @@ His notes dm3_2026-11-22_16-15-02, 16-17-59, 16-18-21.
   flat client B; B at 10 health in yellow armour, killed whole; his body yellow at A and B; B respawns, takes red: A's
   copy of him red, his old body yellow with the same pieces in every report at both. Then the same with
   `vr_death_view 0` (the body queue, made at his respawn): 19/0.
-- Full MP suite (ThinLTO, 0 warnings) in six chunks: all pass but mp_melee ("A's sword on B: damage None", 29/1) and
-  mp_adspose (74 of 75 sight looks, 11/1), neither near this work; see the rerun line below.
+- Full MP suite in six chunks (the no-LTO Release exe; ThinLTO builds with 0 warnings): all pass but mp_melee ("A's
+  sword on B: damage None", 29/1) and mp_adspose (74 of 75 sight looks, 11/1), neither near this work: rerun alone,
+  30/0 and 12/0. After merging origin/next (vrnotes1122b's revolver): mp_botrevolver 5/0, mp_deathlook 19/0.
+- Kit note: `build.sh --lto` builds the ReleaseLTO exe; mp_test.py runs the Release one (`build.sh <name>`): rebuild
+  that after a merge, or the suite runs a stale exe ("cvar_hmake: unknown" lines for the new cvars).
