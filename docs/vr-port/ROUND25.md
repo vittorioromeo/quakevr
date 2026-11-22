@@ -8280,3 +8280,18 @@ His notes dm3_2026-11-22_16-15-02, 16-17-59, 16-18-21.
   7 open (0.06-0.26), 7 refused (0.54-0.80). (The replays live in his notes folder, not the repo: no committed test.)
 - Note: `VR_RVT_Flicks` sets `vr_revolver_flick_hand_weight` / `_cap` with `cvar_set`, but they are tunables
   ("Cvar_Set: variable not found"): its force check runs at the defaults (150, 1), which it expects anyway.
+
+## vrnotes1122a2: a dead player's body keeps its look (agent/vrnotes1122a, 2026-11-22)
+
+- **The body's plates froze at death** (vrnotes1122a's item 4): QC VR_DeathDoll_Make and CopyToBodyQue copy the
+  player's `.vr_pp_type/.vr_pp_mask` to the body; vr_agarmor.cpp `stateOf` serves a non-player edict's own `.vr_pp_*`
+  when its type is over 0 (else `.vr_ar_*` as before: an armed monster's, which combat reads), so QVR_SVC_ARMOR goes
+  out for the body's entity; vr_mpavatar.cpp setupBody reads `clientState(d.doll)` for a doll (d.doll now set before
+  setup), never the owner's. The doll's pauldrons take its plates' colour (they had none: the doll's Avatar has no gear
+  byte). The calibration (build, arms, pauldron style) still comes from the owner (`calOf(owner)`): rarely changed.
+- `mp_doll:` lines print `plates=<type> <pieces>`. New `mp_test.py deathlook` (in the suite): a VR listen host A and a
+  flat client B; B at 10 health in yellow armour, killed whole; his body yellow at A and B; B respawns, takes red: A's
+  copy of him red, his old body yellow with the same pieces in every report at both. Then the same with
+  `vr_death_view 0` (the body queue, made at his respawn): 19/0.
+- Full MP suite (ThinLTO, 0 warnings) in six chunks: all pass but mp_melee ("A's sword on B: damage None", 29/1) and
+  mp_adspose (74 of 75 sight looks, 11/1), neither near this work; see the rerun line below.
