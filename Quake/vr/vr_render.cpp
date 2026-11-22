@@ -301,7 +301,7 @@ extern "C" int VR_AliasOpaqueForm(const entity_t* e)
 {
     // (no opaque form outside the ES profile: 0 there, so the batches don't split on a morph for no program's sake,
     // R_Alias_CanAddToBatch, and Auto means what its text says)
-    if(vr_gl_alias_opaque.value == 0.f || !e || !VR_GLESForm(VR_GLES_FORM_GLSL))
+    if(vr_gl_alias_opaque.value == 0.f || !e || !VR_GLLiteForms(VR_GL_PCFORM_MODELS))
     {
         return 0;
     }

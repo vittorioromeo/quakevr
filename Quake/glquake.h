@@ -687,6 +687,7 @@ enum { ALIASFORM_OPAQUE, ALIASFORM_PLAIN, ALIASFORM_GORE, ALIASFORM_SKIN, ALIASF
 qboolean GL_ShadersLazyStart (int oit, int dither, int mode); // made at the start (all on the PC; the defaults under ES)
 GLuint GL_WorldProgram (int oit, int dither, int mode);
 GLuint GL_AliasProgram (int oit, int mode, int alphatest, int poseverttype);
+qboolean GL_WorldUnlitForms (void); // QVR: the unlit world's programs and the cull's split made (ES; the PC: vr_gl_pc_forms 4)
 qboolean GL_AliasFormAvailable (int form); // the form exists here (the ES profile's; plain, gore, skin: with the lite models' bits)
 GLuint GL_AliasFormProgram (int form, int mode, int poseverttype); // 0: not available
 GLuint GL_WaterProgram (int oit, int dither);

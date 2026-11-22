@@ -317,7 +317,7 @@ static void R_DispatchMarkSurfaces (const byte* vis, const gpumark_frame_t *fram
 
 	GL_BeginGroup ("cs: clear indirect draws"); // QVR: (vr_gl_markers)
 	GL_UseProgram (glprogs.clear_indirect);
-	if (VR_GLESForm (VR_GLES_FORM_GLSL)) // QVR: the ES profile's clear (QVR_LITSPLIT): the whole buffer bound, the world's lit commands cleared too (C4v)
+	if (GL_WorldUnlitForms ()) // QVR: the ES profile's clear (QVR_LITSPLIT; the PC's with vr_gl_pc_forms 4): the whole buffer bound, the world's lit commands cleared too (C4v)
 	{
 		int litcount = r_world_litsplit >= 0 ? gl_bmodel_litcmd_count : 0;
 		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 1, gl_bmodel_indirect_buffer, 0, gl_bmodel_indirect_buffer_size);

@@ -831,14 +831,15 @@ void R_FlushAliasInstances (qboolean showtris)
 	shadeprog = GL_AliasProgram (oit, mode, alphatest, poseverttype); // QVR: made when first asked for under ES (GL_ShadersLazyStart)
 	if (!translucent && !alphatest && !aliasdepth && !aliasxray && !showtris && GL_AliasFormAvailable (ALIASFORM_OPAQUE) && VR_AliasOpaqueForm (ibuf.ent))
 	{
-		shadeprog = GL_AliasFormProgram (ALIASFORM_OPAQUE, mode, poseverttype); // QVR: no discard: hidden pixels rejected before shading on a tiler (vr_gl_alias_opaque)
+		if (VR_GLESForm (VR_GLES_FORM_GLSL)) // (the PC's plain forms, vr_gl_pc_forms 1, only where one fits: no bare opaque form)
+			shadeprog = GL_AliasFormProgram (ALIASFORM_OPAQUE, mode, poseverttype); // QVR: no discard: hidden pixels rejected before shading on a tiler (vr_gl_alias_opaque)
 		if (GL_AliasFormAvailable (ALIASFORM_PLAIN) && VR_AliasPlainUse (aliasneeds))
 			shadeprog = GL_AliasFormProgram (ALIASFORM_PLAIN, mode, poseverttype); // QVR: ... nor the features none of its instances has (vr_gl_alias_plain)
 		else if (GL_AliasFormAvailable (ALIASFORM_GORE) && VR_AliasGoreUse (aliasneeds))
 			shadeprog = GL_AliasFormProgram (ALIASFORM_GORE, mode, poseverttype); // QVR: ... or all but the wounds and dents (vr_gl_alias_gore)
 		else if (GL_AliasFormAvailable (ALIASFORM_SKIN) && VR_AliasSkinUse (aliasneeds))
 			shadeprog = GL_AliasFormProgram (ALIASFORM_SKIN, mode, poseverttype); // QVR: ... or all but those and the skin tone (vr_gl_alias_skin)
-		if (shadeprog != glprogs.alias_opaque[mode][poseverttype] && VR_AliasBodyLight (ibuf.ent) && !VR_AliasBodyFlat (ibuf.ent))
+		if (shadeprog != glprogs.alias_opaque[mode][poseverttype] && shadeprog != glprogs.alias[0][mode][0][poseverttype] && VR_AliasBodyLight (ibuf.ent) && !VR_AliasBodyFlat (ibuf.ent))
 			shadeprog = GL_AliasFormProgram (ALIASFORM_BODY, mode, poseverttype); // QVR: your body in those forms lit at its vertices (vr_gl_alias_body 1)
 	}
 	// QVR (C5h, QUEST_PLAN.md 6zs): your body under vr_gl_alias_body 2: its dynamic lights added flat on the CPU, drawn by

@@ -348,6 +348,15 @@ enum
 	VR_GLES_FORM_VIEWS = 1 << 2		// no texture views (single-pass stereo's eye targets, the envmap's mipmaps)
 };
 int VR_GLESForm (int form);	// nonzero: -glescompat takes the ES form of `form` (VR_GLES_FORM_*) this run
+enum // pcopt: the ES profile's program forms the PC takes too (vr_gl_pc_forms' bits; VR_GLLiteForms)
+{
+	VR_GL_PCFORM_MODELS = 1 << 0,		// the models' plain, gore and skin forms (vr_gl_alias_plain/gore/skin)
+	VR_GL_PCFORM_PLAINLIGHTS = 1 << 1,	// the plain lights' loop while no light is shadowed (vr_gl_lights_plain)
+	VR_GL_PCFORM_UNLIT = 1 << 2,		// the unlit world and its split by surface (vr_gl_world_unlit)
+	VR_GL_PCFORM_LITEWORLD = 1 << 3		// the lite world: the settings' dead features compiled out (vr_gl_world_lite)
+};
+#define VR_GL_PCFORM_UNLIT_BIT (1 << 30) // VR_GLESWorldLite's bit on the PC: the unlit world's programs made (gl_shaders.c)
+int VR_GLLiteForms (int part);	// vr_glsafe.cpp: nonzero: the program forms of `part` (VR_GL_PCFORM_*) in use (ES: all)
 #define VR_ALIAS_GORE_NEEDS (4 | 8) // C4x: the features the models' gore form keeps (wounds and the wet coat, dents: vr_api_render.h VR_AliasPlainNeeds' bits)
 #define VR_ALIAS_SKIN_NEEDS (1 | 4 | 8) // C4y: ... and its skin form (skin tone, gloves, nails too: your body, bare hands)
 int VR_GLESDefineChanged (void);	// vr_glsafe.cpp: vr_gles_define changed since the ES shaders were made (C4m; GL_WorldLiteCheck)

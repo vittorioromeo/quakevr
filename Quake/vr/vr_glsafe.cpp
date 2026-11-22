@@ -539,9 +539,10 @@ extern "C" int VR_GLESDefineChanged(void)
     return VR_GLESForm(VR_GLES_FORM_GLSL) && strcmp(vr_gles_define.string, glsafe.esDefineUsed.cStr()) != 0;
 }
 
-extern "C" int VR_GLESWorldLite(void)
+// The lite form's bits the settings give, ES or not (VR_GLESWorldLite: the PC's share of them, vr_gl_pc_forms).
+static int worldLiteBits(void)
 {
-    if(!VR_GLESForm(VR_GLES_FORM_GLSL) || vr_gl_world_lite.value <= 0.f || COM_CheckParm("-glesfull"))
+    if(vr_gl_world_lite.value <= 0.f || COM_CheckParm("-glesfull"))
     {
         return 0;
     }
@@ -642,6 +643,41 @@ extern "C" int VR_GLESWorldLite(void)
         lite |= 1 << 28;
     }
     return lite;
+}
+
+// pcopt (QUEST_OPTIMISATIONS.md "PC results"): the ES profile's program forms the PC's own GLSL takes too, by
+// vr_gl_pc_forms' bits (VR_GL_PCFORM_*): the models' plain, gore and skin forms; the plain lights' loop; the unlit world
+// and its split by surface; the lite world's dead features compiled out. Under the ES profile: every one (as before).
+extern "C" int VR_GLLiteForms(int part)
+{
+    if(VR_GLESForm(VR_GLES_FORM_GLSL))
+    {
+        return 1;
+    }
+    return (static_cast<int>(vr_gl_pc_forms.value) & part) != 0 ? 1 : 0;
+}
+
+extern "C" int VR_GLESWorldLite(void)
+{
+    if(VR_GLESForm(VR_GLES_FORM_GLSL))
+    {
+        return worldLiteBits();
+    }
+    int keep = 0; // the PC: only the parts vr_gl_pc_forms takes (the lights' lite form and the vertex-lit probe never)
+    if(VR_GLLiteForms(VR_GL_PCFORM_MODELS))
+    {
+        keep |= 256 | (1023 << 9); // the models' lite and plain forms (gl_shaders.c GL_AliasLiteDefines, GL_AliasPlainDefines)
+    }
+    if(VR_GLLiteForms(VR_GL_PCFORM_PLAINLIGHTS))
+    {
+        keep |= (1 << 26) | (1 << 27);
+    }
+    if(VR_GLLiteForms(VR_GL_PCFORM_LITEWORLD))
+    {
+        keep |= 1 | 2 | 4 | 8 | 16 | 32 | 128;
+    }
+    const int unlit = VR_GLLiteForms(VR_GL_PCFORM_UNLIT) ? VR_GL_PCFORM_UNLIT_BIT : 0; // (the programs made: gl_shaders.c)
+    return keep || unlit ? (worldLiteBits() & keep) | unlit : 0;
 }
 
 namespace

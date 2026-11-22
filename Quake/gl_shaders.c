@@ -1462,6 +1462,13 @@ void GL_WorldLiteCheck (void)
 		GL_CreateShaders ();
 }
 
+// QVR: the unlit world's programs and the cull's split by surface are made (the ES profile's; the PC's with
+// vr_gl_pc_forms 4: the set's lite form has VR_GL_PCFORM_UNLIT_BIT). r_world.c's clear goes by it too.
+qboolean GL_WorldUnlitForms (void)
+{
+	return VR_GLESForm (VR_GLES_FORM_GLSL) || (gl_world_lite & VR_GL_PCFORM_UNLIT_BIT) != 0;
+}
+
 static void GL_CreateShadersAll (void)
 {
 	int palettize, dither, mode, alphatest, warp, oit, form;
@@ -1486,7 +1493,7 @@ static void GL_CreateShadersAll (void)
 					GL_WorldProgram (oit, dither, mode);
 	for (dither = 0; dither < 3; dither++) // QVR: the world without the lights' loop, for views no light reaches its surfaces in (C4t, QUEST_PLAN.md 6z: Adreno pays ~4 ms for the loop compiled in)
 		for (mode = 0; mode < 2; mode++)
-			glprogs.world_unlit[dither][mode] = VR_GLESForm (VR_GLES_FORM_GLSL)
+			glprogs.world_unlit[dither][mode] = GL_WorldUnlitForms ()
 				? GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|OIT 0; DITHER %d; MODE %d; QVR_NOLIGHTS 1%s%s", dither, mode,
 					mode == WORLDSHADER_SOLID ? "; NO_DECAL_RETRO 1" : "", GL_WorldLiteDefines ())
 				: 0;
@@ -1523,7 +1530,7 @@ static void GL_CreateShadersAll (void)
 	for (form = 0; form < ALIASFORM_COUNT; form++) // QVR: the opaque models' forms (GL_AliasFormProgram; the ES profile's)
 		for (mode = 0; mode < 3; mode++)
 			for (poseverttype = 0; poseverttype < 3; poseverttype++)
-				if (GL_AliasFormAvailable (form) && GL_ShadersLazyStart (0, 0, mode))
+				if (GL_AliasFormAvailable (form) && GL_ShadersLazyStart (0, 0, mode) && (VR_GLESForm (VR_GLES_FORM_GLSL) || (form != ALIASFORM_OPAQUE && form != ALIASFORM_BODY))) // (the PC's: plain, gore, skin; the others when asked for)
 					GL_AliasFormProgram (form, mode, poseverttype);
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR; MODE 0 (standard) in these: an undefined name in #if is an error in GLSL (strict drivers)
 		glprogs.alias_depth[poseverttype] = GL_CreateProgram (alias_vertex_shader, NULL, "alias depth|MODE 0; POSEVERTTYPE %d", poseverttype);
@@ -1536,11 +1543,11 @@ static void GL_CreateShadersAll (void)
 
 	glprogs.debug3d = GL_CreateProgram (debug3d_vertex_shader, debug3d_fragment_shader, "debug3d");
 
-	glprogs.clear_indirect = VR_GLESForm (VR_GLES_FORM_GLSL) // QVR: the ES profile's clears the world's lit commands too (C4v)
+	glprogs.clear_indirect = GL_WorldUnlitForms () // QVR: the ES profile's clears the world's lit commands too (C4v; the PC's with vr_gl_pc_forms 4)
 		? GL_CreateComputeProgram (clear_indirect_compute_shader, "clear indirect draw params|QVR_LITSPLIT 1")
 		: GL_CreateComputeProgram (clear_indirect_compute_shader, "clear indirect draw params");
 	glprogs.gather_indirect = GL_CreateComputeProgram (gather_indirect_compute_shader, "indirect draw gather");
-	glprogs.cull_mark = VR_GLESForm (VR_GLES_FORM_GLSL) // QVR: the ES profile's: the world's lit surfaces to their own commands (C4v)
+	glprogs.cull_mark = GL_WorldUnlitForms () // QVR: the ES profile's: the world's lit surfaces to their own commands (C4v; the PC's with vr_gl_pc_forms 4)
 		? GL_CreateComputeProgram (cull_mark_compute_shader, "cull/mark|QVR_LITSPLIT 1")
 		: GL_CreateComputeProgram (cull_mark_compute_shader, "cull/mark");
 	glprogs.cluster_lights = GL_CreateComputeProgram (cluster_lights_compute_shader, "light cluster");
@@ -1612,8 +1619,8 @@ GLuint GL_AliasProgram (int oit, int mode, int alphatest, int poseverttype)
 // vr_gl_alias_skin, 6ze).
 qboolean GL_AliasFormAvailable (int form)
 {
-	if (!VR_GLESForm (VR_GLES_FORM_GLSL))
-		return false;
+	if (!VR_GLESForm (VR_GLES_FORM_GLSL)) // pcopt: the PC's own GLSL with vr_gl_pc_forms 1: plain, gore and skin (opaque: their base, r_alias.c)
+		return VR_GLLiteForms (VR_GL_PCFORM_MODELS) && ((gl_world_lite >> 9) & 1023) != 0;
 	return form == ALIASFORM_OPAQUE || (gl_world_lite >> 9) != 0;
 }
 
