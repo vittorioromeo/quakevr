@@ -28,6 +28,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_axestick.hpp"
+#include "vr_blade.hpp"
 #include "vr_avatar.hpp"
 
 #include "vr_box3d.hpp"
@@ -290,13 +291,14 @@ constexpr za::SizeT maxSamples = 256;
         return b;
     }
     const auto own = [&](const glm::vec3& drawn) { return (drawn - zero) / scale; };
-    constexpr float guessedFrom = 0.25f; // (bl_from -1: the kind's own, QC VR_Melee_Layout's; about the guard's)
+    // The drawn Blade Start: its own bl_from, else its kind's (a point's weapon is a sword's kind: blade::swordKindFrom,
+    // QC VR_BLADE_FROM_SWORD; before bladeone a guessed 0.25).
     const float from = weapons::value(slot, weapons::Key::BladeFrom);
     b.how = howPoint;
     b.tip = own(muzzle);
     b.hand = own(glm::vec3{0.f});
     b.handle = own(butt);
-    b.from = glm::mix(b.hand, b.tip, from >= 0.f ? za::min(from, 0.9f) : guessedFrom);
+    b.from = glm::mix(b.hand, b.tip, from > 0.f ? za::min(from, 0.9f) : blade::swordKindFrom);
     return b;
 }
 

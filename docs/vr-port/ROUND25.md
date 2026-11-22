@@ -6951,6 +6951,74 @@ it); an in-game indication of whether the chosen port is forwarded.
   (mode 0 was 0.86 and 0.47 before the fix: FAIL), a shell from the ammo pouch, a magazine from it seated in the nailgun,
   a grenade from the grenade pouch. Checklist scene `pouchbody` (Only Hands, the shotgun and the nailgun, ammo).
 
+## release12: the 1.2.0-rc.1 pre-release stopped at the release tests (release12, 2026-11-21, `agent/release12`)
+
+- **Notes:** `docs/vr-port/RELEASE_NOTES_1.2.md` (user-facing, grouped; Known issues: no splitscreen, Quest standalone
+  not in it, the multiplayer beta's limits; the Dwell Rifle unmentioned). PATCH_NOTES_1.1.1.md not renamed.
+- **Checks passed:** dev and ThinLTO builds 0 warnings, QC 0 warnings, scenario_check PASS (151 run, 0 failed).
+- **Stopped:** `make_release.ps1 -Version 1.2.0-rc.1 -BumpVersion -Publish -NoDraft -NoBranchPush -RunTests -AllowFlaky
+  -SkipOnlineInstall -Notes docs\vr-port\RELEASE_NOTES_1.2.md`: run_test_suite 38 passed, 6 failed, 2 flaky (warned);
+  nothing bumped, built, tagged or published. Rerun alone: weapon_catch, vrtrailer, mapgun_pickup and mapgun_transfer
+  fail again; turned_box and shot_shape pass (flakes).
+- **mapgun_pickup / mapgun_transfer are the tests' own false positive:** their PowerShell `-match
+  'ENGINE|ERROR|Unknown|...'` is case-insensitive, and the start-up trace's summary line ("the engine's shaders") now
+  matches it (`loadedmapguns/pickup_test.ps1:59`, `transfer_test.ps1:8`; `-cmatch` fixes it).
+- **weapon_catch** ("lying shotgun at its handle: taken, the allowed gap the slack and the handle leniency (10 cm; seen
+  2.6-7.7 cm off)"; "leniency 0: the slack's 5 cm alone at the handle, not taken from 10 cm over it") and **vrtrailer**
+  ("the swing beheaded him", "he is dead (health 30)") want a look; both passed 3 of 3 on 2026-11-12.
+- **To publish once fixed:** the same command. `-NoBranchPush` matters: without it the script pushes agent/release12 to
+  its upstream, origin/next; with it the tag alone carries the version commit.
+- **Follow-up (release12b):** mapgun_pickup/transfer fixed (`-cmatch`), 3/3 each. vrtrailer is NOT a regression since
+  1.1 or 11-12: built and run in this worktree, v1.1.0 (5187f3e5e) and f033d4c6d (11-12, the BACKLOG's "3 of 3")
+  fail it the same way ("decap: no: along the blade, a stab (0.76) at the head"; on the real clock the grunt is
+  knocked 150 units away, not beheaded). So something outside the code changed: not the cfg baseline (equal to the
+  compiled defaults and to the `release` worktree's), not `quakevr/cache`, not low-impact mode, not fast mode
+  (`-RealTime` fails too). The 1.1.0 release ran without `-RunTests` (takeslight's out/release/1.1.0 has no tests), so
+  "passed at 1.1" was never measured. Left: the kit's base folder and testbatch since 11-12, or the swing mock against
+  the Super Axe's held pose. weapon_catch's two handle checks print nothing (no fist line: the off hand never nears
+  the let-go shotgun); not bisected (budget). **weapon_catch on a v1.1.0 build in this worktree: 5/5 PASS** (handle
+  taken 6.76 of 10 cm; leniency 0 allowed 5.00, not taken): a real regression between v1.1.0 and origin/next, so the
+  pre-release was not published.
+- **weapon_catch bisected** (first parent v1.1.0..origin/next, the handle checks, 7 steps, 2 skipped for a failed old
+  build): first bad **685a33c66 "Merge branch 'agent/box3dup'"** (Box3D updated to upstream 1767150d, b2b1f57cf; the
+  mesh ghost switch 88dd064ba). Its parent a82c8e3cd passes, it fails. Not the ghost handling: `vr_box3d_mesh_ghosts 0`
+  fails the same way. What happens (`scratch/rel12_wcdbg.sh`, the handle set-up alone): `vr_mock_walk_to nearest
+  thrown_weapon 30` reports "arrived at 484 -329 88", but the player's edict stays at 502.5 -226.3 72 the whole time,
+  and the let-go shotgun lies at 490 -300 50, about 74 units (1.9 m) from the body. So the off hand's targets
+  (`vr_mock_hand_to off nearest thrown_weapon h`) are out of reach, no grab check runs, and nothing is printed. Left:
+  why, since the Box3D update, the body no longer follows the walk to the gun (blocked by the prop, or by the walk's
+  own head-to-body offset). Then a fix that keeps the update.
+
+## release12c: weapon_catch's handle checks, not a Box3D regression; 1.2.0-beta1 (release12c, 2026-11-21, `agent/release12`)
+
+- **Cause: the test's set-up, not the physics.** Traced alone (run.sh, `edict 1` / `edict 207` along the way), the
+  pre-update parent a82c8e3cd and the current branch give the same numbers to the unit: the let-go shotgun lands at
+  481 -339, slides +y and drops off e1m1's start step (rests at 490 -300 48.6, 16 units under the player's floor); the
+  walk "arrives" at 484 -329 88 (29.6 units: within 30), but the player is doing ~222 u/s and runs off the step too,
+  coming to rest at 502.5 -226 72, ~75 units past the gun (the earlier note's "stays at 502.5 -226.3" was this
+  overshoot, read after it). Out of reach both ways, so no grab check, nothing printed: alone, the old build fails the
+  handle checks too. It passed only in the batch: the 5 identical tries ran in different game copies after other
+  cases, and Box3D's run-to-run variation now and then left the gun on the top (old build: the third try, 6.77 cm).
+  After the update none of the 5 did. A second walk to the gun doesn't fix it (it overshoots back up the step and
+  kicks the gun off again).
+- **Real play:** not affected by this. The dropped gun's fall, slide and rest and the player's movement are identical
+  before and after the update; the walk overshoot is Quake's own momentum off a step after the mock lets the stick go.
+- **Fix** (`Misc/quakevr/weapon_catch_test.sh`, handle()): the shotgun let go of on vrfiringrange's flat floor (setpos
+  250 -656.7 41, where section 3 already runs), no step to fall from: the walk stops at 270 -661 (29.4 units from the
+  gun), the fist meets the handle (6.43 cm, allowed 10). weapon_catch 3/3 PASS (every check, the same numbers).
+- **Published 1.2.0-beta1** (the author's naming, as 1.1's betas; not rc.1): https://github.com/vittorioromeo/quakevr/releases/tag/v1.2.0-beta1,
+  pre-release, v1.1.0 still Latest, assets latest.json, QuakeVR-Setup.exe, QuakeVR.zip, SHA256SUMS.txt; tag at
+  fa166b711 (`-NoBranchPush`: agent/release12 not pushed). RELEASE_NOTES_1.2.md retitled "1.2.0 beta 1".
+  The full suite on f12ee573a: 42 passed, 1 failed, 3 flaky warned; the failure reload_gunshape timed out (1200 s, Quest
+  APK builds loading the CPU), and again alone on 2026-11-22: published anyway by the author's direction (betas: a light
+  suite), reload_gunshape among `-FlakyTests` (left for testspeed).
+- **Two release blockers fixed on the way:** the ReleaseLTO build's `-Werror,-Wdangling` at vr_config_diag.cpp:441 (a
+  range-for over `standInTables()[0]`, the temporary array gone: now held in a local; the kit's builds don't stop on it),
+  and make_release.ps1's hosted support files' check reusing `$tag` (since the ericw-tools hosting, d911e616b): it
+  tagged and linked `assets-2026-11-17` instead of v<Version> and stopped at "git tag failed"; now `$supportTag`.
+- **Seen, not fixed:** after the first release attempt's build, `build/qvr_checks/qvr_checks.exe` (rebuilt then) exited
+  3 with no output in `test_numbers` (so build.sh said "BUILD FAILED" with an empty log); rebuilt by build.sh (the old
+  exe moved to scratch), it runs clean.
 ## brushholes: invisible blockers in the gaps Quake's box never fit (branch agent/brushholes, 2026-11-21)
 
 The author's note: grates, gates, pillars and lifts let the narrower boxes (yours at 16, narrow monsters') pass or fall
@@ -7293,6 +7361,69 @@ hue band can't separate brown uniforms from brown flesh, and a full hue turn wit
   0 warnings. superaxe_decap_test.sh: slow 5 of 5, fast 4 of 5 (one run killed him without a beheading, its reason lost:
   the test now keeps each swing's game log, `scratch/superaxe_decap_<kind>_game.log`, and names the refusal).
 
+## vrcenterprint: VR centre messages in the flat screen's style (agent/vrcenterprint, 2026-11-22)
+
+- **What.** The game's centre prints shown in front of the head (the hologram on the wrist still takes them while it is in view;
+  `vr_messages_hologram_only` waits in it) and the maps' view messages (QC `viewmessage`, the arena's lines in view) are drawn
+  as the flat screen's: the visor popup's panel (`visorCenterLayout`/`visorCenter` in `vr_gadget_visor.inc`: the gadget font,
+  black face, frame line, phosphor colour, lines wrapped to `vr_flat_visor_center_width`, Quake's own breaks, blank lines
+  before and after dropped) with Quake's fade (`con_notifyfade`) and timing (`scr_centertime`; a view message's own seconds).
+  The old looks (Quake's text on the 2D canvas; a view message as 3D text) are `vr_center_panel 0`.
+- **How.** `visorRender`'s per-panel body is `visorRenderPanel` (the visor loops it; `gadget::renderCenterPanel` draws only the
+  centre popup into its image). `vr_panel.cpp`: `VR_CenterPrintInView` (called by `SCR_CheckDrawCenterString` after the wrist and
+  the visor) and `panel::centerShow` (the view messages, `vr_worldtext.cpp`) claim the panel for the frame; `VR_End2D` renders
+  the image, `drawCenterPanel` shows it next frame on the HUD's head-following place (`hudAngles`, `vr_view_text_smooth`,
+  `vr_menu_distance`), at Quake's height (line 70 of 200, 48 over 4 lines), as a textured quad with a frame line. One visor
+  pixel is one menu pixel: `vr_center_panel_scale` (2) makes it larger than the HUD's own text, small at the menu's distance.
+- **Test aids.** `vr_center_panel_info` (the claim, image size, draws); `vr_message_test center <text>` (`\n` for a new line).
+  Screenshots: `scratch/vcp_*.png` in the worktree (eyeshots, `vr_eyeshot 3`).
+## bladeone: the drawn blade shape is the one source for every blade system (agent/bladeone, 2026-11-22)
+
+- **His words (11-21):** "Cuts should definitely follow the drawn blade shape. Why do we have multiple systems?" Audit and
+  the functions: docs/vr-port/BLADES.md.
+- **One start:** `VR_Blade_From(thing, own)` (vr_melee_params.qc): his `bl_from` exactly, else the kind's `VR_BLADE_FROM_*`
+  (sword 0.27, axe 0.75, club 0.3, chainsaw 0.55, crowbar 0.2, gun 0.5: the layout's first striking point, where Edit
+  Blade Shape draws the "kind's" Blade Start; VR_Melee_Layout uses the same constants). Also `VR_Blade_Along`,
+  `VR_Blade_OnEdge`, `VR_Blade_EdgePoint` (on the curve), `VR_Melee_PartAt(thing, f, own)`.
+- **Removed:** `VR_Decap_BladeFrom` with its sword 0.4 / axe 0.6 and the sword's 0.4 floor; `VR_MELEE_BLADE_FROM` 0.4
+  (rib score, pommel wait); `VR_SAW_BAR_START`; PartAt's sword 0.2 / axe 0.6 / saw 0.45. The skewer's cut-on uses the
+  drawn curve; the chainsaw's running cut the drawn line (Line Start, Blade Tip). A live blow's decap reads the struck
+  point's own share (mh_c_f) instead of the contact's projection (the Super Axe at 0.05 struck at 0.04: the swept radius).
+  `mh_bfrom` keeps the own start also for a weapon carried off its handle (its parts there).
+- **His values restored:** the Super Axe's `bl_from` 0.15 -> 0.05 (axelag's; no other agent changed a `bl_*` key in
+  weapons.txt's history). The dagger's 0.05 now counts as drawn (before: floored to 0.4).
+- **Shapes that include a guard or handle (for him, not changed):** the dagger's Blade From 0.05 lies under its guard
+  (guard 0 .. 0.2 of its line, axelag's `vr_blade_dump fit 52`); the Super Axe's 0.05 sits at the hand (its crescent's
+  first vertices at 0.18, fit 25): both now cut from there.
+- **Kept (motion, not shape):** the slash angle and speed, pommel strikes, the stab's "outer half" (`f >= 0.5`,
+  VR_Melee_DecideOn), embedding by the tip (`vr_embed_stab_tip`). Engine, open: vr_axestick.cpp guesses 0.25 and
+  vr_view_weapon.cpp 0.15 for slots with no `bl_from` (the engine has no weapon kind).
+- **New check** `vr_melee_sweep_test 7` (`bladeone: 46 passed, 0 failed`): 11 bladed weapons (sword, dagger, axe, Super
+  Axe, chainsaw, six AD swords): own start kept, the melee's first striking point there, on-edge sharp and cut, off-edge
+  blunt and refused by decap, skewer onto the edge. (AD's justice knight's and judicator's swords given by flags: not
+  drawn as swords, left out.)
+- **Suites:** decap_test.sh, limbs_test.sh, melee_arc_test.sh exit 0, no FAIL lines; vr_embed_test 40 24/0; 21 43/1 (the
+  known slow-swing lag case); 1 47/14 (thrown swords against the wall and bodies: engine axestick, untouched; not
+  compared against next). superaxe_decap: fast PASS, **slow FAIL**: with his 0.05 the slow chop's struck point gives
+  29.6 damage on a 30-health grunt and smallgib's chance 1.12 gibs him before any beheading (vrtrailer 8/9 the same).
+  Not a shape refusal; open.
+
+## bladeone2: the Super Axe's slow chop, the engine's point blades, the checks (agent/bladeone, 2026-11-22)
+
+- **The slow chop was not small gibs.** With his Blade From 0.05 the Super Axe's two striking points (0.05 and the tip)
+  swept the straight chord, not the crescent: the slow chop met the grunt with its tip, 5.9 units under the head zone
+  ("decap: no: the blade's contact off monster_army's head zone", a new dprint). `VR_Melee_LayoutFrom` now lays a blade
+  with its own start and few striking points evenly from the start to the tip (9 points: the Super Axe's 6 on the
+  crescent, on its curve). The coordinator's decap-over-smallgib rule was not needed (no beheading-qualified blow was
+  gibbed) and is not added. superaxe_decap 5 runs: fast 5/5, slow 5/5; vrtrailer 9/9.
+- **Engine:** vr_axestick.cpp's point blades (`embed` 1, a sword's kind) with no `bl_from` take `blade::swordKindFrom`
+  (vr_blade.hpp, = QC `VR_BLADE_FROM_SWORD` 0.27) instead of a guessed 0.25. vr_view_weapon.cpp's reversed-grip 0.15
+  stays (the guard, a grip rule his offsets are tuned on).
+- **Fit** (BLADES.md, "His shapes against their models"): the Super Axe's 0.05 lies on the handle (the crescent from 0.2);
+  the dagger's 0.05 inside its guard (0 .. 0.2). For him; not changed.
+- **embed 1 on origin/next's QC** (same engine): 59/2 and 48/13 (the side-on bounce, then a corpse/knocked-down cascade):
+  the same failures as the branch's 47/14, 57/4, 56/5. Flaky on next too, not bladeone's.
+- Debug > Tests > "Blade Starts Test" (`vr_melee_sweep_test 7`). ThinLTO built, 0 warnings.
 ## projheadpop: heavy revolver head pops with AD's projectile slugs (agent/projheadpop, 2026-11-22)
 
 His note (2026-11-21): where shells fly as projectiles (AD, Quoth) a heavy revolver's headshot never popped the head;
