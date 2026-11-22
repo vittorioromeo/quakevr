@@ -1,7 +1,7 @@
 using System.IO.Compression;
 using System.Text;
+using QuakeVR.Installer.Core;
 using QuakeVR.Installer.Core.Packaging;
-using QuakeVR.Installer.Core.Prerequisites;
 using QuakeVR.Installer.Core.Quest;
 
 namespace QuakeVR.Installer.SelfTest;
@@ -165,7 +165,7 @@ static class QuestTests
             var before = Snapshot(s.Install) + Snapshot(s.Quake);
             var log = new List<string>();
             var result = new QuestInstaller(adb).Install(new QuestPlan { ApkPath = s.Apk, Files = s.Files },
-                new SyncProgress(p => { if (p.Log is not null) log.Add(p.Log); }), CancellationToken.None);
+                new SyncProgress<InstallProgress>(p => { lock (log) { if (p.Log is not null) log.Add(p.Log); } }), CancellationToken.None);
             Eq(1, adb.Installs, "the APK installed once");
             True(adb.Commands.Contains($"-s {FakeAdb.Serial} install -r {s.Apk}"), "install -r: keeps the app's files");
             Eq(s.Files.Count, result.Pushed, "every file copied");
@@ -279,16 +279,4 @@ static class QuestTests
 
     static string Snapshot(string dir) => string.Join("|", Directory.EnumerateFileSystemEntries(dir, "*", SearchOption.AllDirectories).Order()
         .Select(p => File.Exists(p) ? $"{p}:{new FileInfo(p).Length}:{File.GetLastWriteTimeUtc(p).Ticks}" : p));
-
-    /// <summary>Progress&lt;T&gt; posts to the thread pool; the tests read the log at once.</summary>
-    sealed class SyncProgress(Action<InstallProgress> report) : IProgress<InstallProgress>
-    {
-        public void Report(InstallProgress value)
-        {
-            lock (this)
-            {
-                report(value);
-            }
-        }
-    }
 }

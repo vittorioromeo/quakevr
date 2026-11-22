@@ -126,6 +126,28 @@ The install folder holds everything QVR:U writes:
 Your Quake folder is only read. The game is started as
 `ironwail.exe -basedir "<Quake>" -basedir "<install folder>" -game quakevr`, in the install folder.
 
+### Installing to a Meta Quest
+
+Tick **Meta Quest (standalone)** on the installer's first page (with **This PC**, or alone). After the PC steps the
+Install page shows a Quest card:
+
+1. **Developer mode:** in the Meta Horizon app on your phone, Devices > your Quest > Headset settings > Developer mode
+   (the first time Meta asks you to register as a developer, for free). Restart the headset.
+2. Connect the Quest to the PC with a USB cable that carries data.
+3. Put the headset on and accept **Allow USB debugging** (tick *Always allow from this computer*).
+4. Press **Check again**. The card says what is wrong if the headset is not found, not allowed yet, or if several
+   devices are connected (unplug the others).
+
+The installer uses adb from the Android SDK or your PATH, or downloads Google's official platform-tools
+(`dl.google.com`) into `%LOCALAPPDATA%\QuakeVR-Installer\downloads\platform-tools`. It installs the app
+(`QuakeVR.apk`, a release asset; a `QuakeVR.apk` beside `QuakeVR-Setup.exe` is used instead) and copies to the
+headset's `Android/data/com.vittorioromeo.quakevr/files`: QVR:U's game folder, your `id1` paks and music, the
+expansions you own, the HD textures and the mods. Files already there and unchanged are skipped, so running it again
+after an update copies only what changed; nothing on the headset is deleted and your saves and configs there are never
+touched. With the Quest alone, the PC steps fill a staging folder, `%LOCALAPPDATA%\QuakeVR-Installer\quest-files`
+(no shortcuts, no Apps & Features entry), that the headset is copied from; it is kept for the next update.
+Start the game in the headset from **Library > Unknown Sources**.
+
 ## Starting the game
 
 1. Start your OpenXR runtime (SteamVR, or Virtual Desktop connected to the PC) and put the headset on.

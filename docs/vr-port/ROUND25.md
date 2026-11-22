@@ -8190,3 +8190,22 @@ ROPES.md "Tests", "Known limits".
   the server's holds; ropeHips pulling towards the rope itself instead of the holds' way in. Not fixed: needs the
   copy's trunk nearer the rope (the neck), or the bound at ~22 for the swing check.
 
+
+## questinstall: the installer installs to a Quest (2026-11-22)
+
+- The Welcome page's **Install on**: This PC / Meta Quest (standalone) / both. Quest is another target of the same
+  install: the PC steps run as before (Quest only: into `%LOCALAPPDATA%\QuakeVR-Installer\quest-files`, no
+  shortcuts, Apps & Features, VC++ or preparation), then the Install page's Quest card finds or fetches adb (Google's
+  platform-tools, dl.google.com only), checks the headset (none / unauthorized / offline / several: the message, the
+  steps, Check again, Skip), installs the APK (`install -r`, skipped when the same MD5) and copies the files as one tar
+  stream into `exec-in tar -x`, skipping files of the same size and MD5. Nothing sent removes anything.
+- Code: `Installer/src/QuakeVR.Installer.Core/Quest/` (Adb.cs, QuestDevice.cs, QuestFiles.cs, QuestInstaller.cs,
+  QuestTarget.cs); window: `ViewModels/MainViewModel.Quest.cs`, WelcomePage/InstallPage cards; CLI `qvr-setup quest`,
+  `qvr-setup quest-devices`; `make_release.py --apk` (latest.json's `quest` component). Installer/README.md "Quest",
+  docs/INSTALL.md "Installing to a Meta Quest".
+- APK: a release asset, not bundled (22 MB more in Setup for every PC player otherwise; same feed, same version).
+- Tests: 9 `quest:` self-tests with a fake adb (FakeAdb.cs). Not yet run on the real headset (scheduled by the
+  coordinator): `qvr-setup install --package <zip> --sandbox <dir> --quake <Quake> --accept-statement`, then
+  `qvr-setup quest --sandbox <dir> --apk <apk>`.
+- Not covered: the Done page after a Quest-only run still shows the PC's Play buttons (they start the staging copy on
+  the PC, which works); the reliefs and VisPatch data are copied when recorded in the install, untested on the headset.

@@ -71,6 +71,8 @@ about 60 MB, with WPF's native DLLs inside; see INSTALLER.md, "Hosting and Smart
 | `--sandbox <dir>` | A test install kept in `<dir>`: the game in `<dir>\QuakeVR`, shortcuts in `<dir>\_shortcuts`, downloads in `<dir>\_downloads`, no Apps & Features entry, the VC++ runtime only checked (`Misc\release\test_local_release.ps1`). A yellow bar says SANDBOX |
 | `QVR_SETUP_FEED` (environment) | Like `--feed` (several separated by `;`); `--feed` wins. Any feed other than the release hosts' shows a yellow TEST FEED bar on every page and `[TEST]` in the title |
 | `--registry-file <json>` | The Apps & Features entry goes into this made-up registry root instead of HKCU (tests; installs with `--shortcuts-dir` and the screenshot harness write none) |
+| `--apk <file>` | The Quest app for the Quest target (otherwise `QuakeVR.apk` beside the exe, otherwise latest.json's `quest` component) |
+| `--adb <adb.exe>` | adb for the Quest target (otherwise found or fetched: see "Quest") |
 | `--vcredist-dry-run` | Only log what the VC++ runtime's install would do (download, signature check, `/install /quiet /norestart`); download and run nothing |
 | `--extras` | With `--screenshots`: also a strip of flame frames, a sheet of Quake's textures, and `report.txt` (skin, sounds, per-frame costs, the live window's frame rate and CPU) |
 
@@ -90,6 +92,8 @@ qvr-setup settings --target <dir> [--set <cvar>=<value>]...   # the settings pag
 qvr-setup statement                                # the author's statement on AI usage (install exits 3 without --accept-statement)
 qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--assume-missing] [--file <exe>]]   # the VC++ runtime (without --dry-run: installs it, one UAC prompt)
 qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]
+qvr-setup quest --target <install dir> --apk QuakeVR.apk [--quake <dir>] [--serial <s>] [--adb <adb.exe> | --no-fetch] [--dry-run]   # the Quest target (see "Quest")
+qvr-setup quest-devices                            # what adb sees (exit 0: one Quest ready)
 qvr-setup download --url <u> [--url <mirror>] --out <file> --size <n> --sha256 <hex>
 qvr-setup assets --game <Quake>\id1 [--map maps/start.bsp] [--prefix sound/misc]   # what the skin can read (nothing written)
 ```
@@ -123,6 +127,54 @@ kept by updates, restored by a repair, the player's own file never overwritten, 
 or cancelled download that leaves the install as it was.
 xUnit/MSTest were not used because their NuGet packages are not available offline here; moving the tests to xUnit later
 is mechanical.
+
+## Quest (install to a Meta Quest)
+
+The Welcome page's **Install on** card: *This PC (PC VR and flatscreen)* (as before) and *Meta Quest (standalone)*;
+both at once works, and at least one is needed. Quest is another target of the same install (`Core/Quest/`):
+
+- **The PC steps first, unchanged.** With the Quest alone, they run into a staging folder,
+  `%LOCALAPPDATA%\QuakeVR-Installer\quest-files` (`<sandbox>\quest-files`; `QuestTarget.StagingDir`), without shortcuts,
+  the Apps & Features entry, Setup's copy, the VC++ runtime or the preparation run; it is kept, so the next run updates it
+  like any install and copies only what changed. Package, HD textures, VisPatch, AD, Dwell, Quoth and the reliefs are the
+  same code paths as the PC's.
+- **The files** (`QuestFiles.Plan`): the install record's files less the PC's programs (root files, `setup/`,
+  `quakevr/tools/`, `quakevr/xr_layers/`, `.exe/.dll/.pdb/.bat`), plus what the PC game reads in place from the
+  player's Quake: `id1/pak*.pak` and the music (lower case: Android's names are case-sensitive), the official
+  expansions `ExpansionDetector` finds ready (their paks and the engine's resource list), and AD/Dwell/Quoth copies
+  found by their `FindExisting` when Setup did not install its own. Device folder:
+  `/sdcard/Android/data/com.vittorioromeo.quakevr/files` (the game's base dir; Android/README.md).
+- **adb** (`AdbLocator`): `--adb`, `<downloads>\platform-tools\adb.exe`, PATH, `ANDROID_HOME`/`ANDROID_SDK_ROOT`,
+  `%LOCALAPPDATA%\Android\Sdk`; else Google's `platform-tools-latest-windows.zip` from `dl.google.com` (official URL only;
+  no pinned hash, Google publishes the latest under one name: HTTPS is the trust, adb.exe's Authenticode signature is
+  logged), unpacked (adb.exe and its two DLLs) into the downloads folder. Offline: no fetch, a message.
+- **The headset** (`QuestDeviceStatus`, `adb devices -l`): none, unauthorized ("Allow USB debugging" not accepted),
+  offline, several (unplug the others; the CLI's `--serial` picks one), ready. Not ready: the Install page's Quest card
+  shows the message and the steps (`QuestTarget.SetupSteps`: developer mode, a data cable, the prompt) with **Check
+  again** and **Skip the Quest**.
+- **The install** (`QuestInstaller`): `install -r` (keeps the app's files folder; skipped when `pm path`'s APK has the
+  same MD5; another signature, `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, is explained, never uninstalled: that would delete the
+  saves), then sizes (`find -exec stat`) and MD5s (`md5sum`, only files of the same size) against the headset's, the
+  free space (`df`) against what is copied, one tar stream of the missing or changed files into `exec-in tar -x` (one
+  stream, as Android/README.md does it), `chmod` of those files and their folders (what adb's shell writes is the
+  shell's), and every copied file's size checked afterwards (a disk that fills up mid-copy is reported as such).
+  **Nothing it sends removes anything**; only shipped paths are written, so saves and configs on the headset stay.
+  Then: "start it from Library > Unknown Sources".
+- **The APK** is a release asset, not bundled: `make_release.py --apk build-android/apk/QuakeVR.apk` adds it and
+  latest.json's `quest` component; the window downloads it only when the Quest is ticked (every PC-only player would
+  otherwise download 22 MB more in Setup), and it stays the same version as the package from the same feed. A
+  `QuakeVR.apk` beside the exe or `--apk` is used first (local releases, tests).
+
+Self-tests `quest: ...` (`tests/.../QuestTests.cs`, `FakeAdb.cs`: a fake adb that records every command and keeps the
+headset's files folder in a scratch folder; it reads the tar stream and answers getprop, pm path, md5sum, mkdir,
+find/stat, chmod, df): the device states, adb's discovery and fetch from a local server, the file plan, the whole
+procedure after a PC install (the PC install and Quake unchanged, the player's save and config on the headset kept),
+installing again (nothing copied, the APK not reinstalled; a changed file and APK copied), no device / unauthorized /
+several (only `adb devices` sent), a full headset (refused before copying) and one filling mid-copy, a failed APK
+install, and the Quest-only staging folder. Every test also checks that no command removes anything.
+
+The real headset: `qvr-setup install --package <QuakeVR.zip> --sandbox <dir> --quake <Quake> --accept-statement`, then
+`qvr-setup quest --sandbox <dir> --apk <QuakeVR.apk>` (or the window with `--package`, `--apk`, Quest ticked).
 
 ## Arcane Dimensions (experimental, opt-in)
 

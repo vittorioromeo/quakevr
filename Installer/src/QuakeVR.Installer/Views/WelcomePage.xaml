@@ -52,6 +52,30 @@
                 everything up in a few clicks.
             </TextBlock>
 
+            <!-- Where to install: this PC (PCVR and flatscreen), the Quest (standalone), or both at once. -->
+            <TextBlock Text="INSTALL ON" Style="{StaticResource SectionTitle}" Margin="2,18,0,8" />
+            <Border Style="{StaticResource CardBorder}" Padding="16,12,16,12">
+                <StackPanel>
+                    <UniformGrid Columns="2">
+                        <CheckBox IsChecked="{Binding TargetPc}" Margin="0,0,16,0">
+                            <StackPanel>
+                                <TextBlock Text="This PC (PC VR and flatscreen)" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                                <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" TextWrapping="Wrap" Text="Link, Air Link, Virtual Desktop, SteamVR, or a monitor." />
+                            </StackPanel>
+                        </CheckBox>
+                        <CheckBox IsChecked="{Binding TargetQuest}">
+                            <StackPanel>
+                                <TextBlock Text="Meta Quest (standalone)" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                                <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" TextWrapping="Wrap"
+                                           Text="Copied to the headset over USB after the PC steps (developer mode: the installer shows how)." />
+                            </StackPanel>
+                        </CheckBox>
+                    </UniformGrid>
+                    <TextBlock Style="{StaticResource Small}" Foreground="{StaticResource Warn}" Margin="0,8,0,0" Text="Pick at least one."
+                               Visibility="{Binding NoTarget, Converter={StaticResource BoolToVis}}" />
+                </StackPanel>
+            </Border>
+
             <!-- An existing install: the Update screen. The footer's one primary button updates (or repairs); Install
                  again from scratch and Remove are the secondary choices. -->
             <Border Style="{StaticResource CardBorder}" Margin="0,24,0,0" BorderBrush="{StaticResource Accent}"
