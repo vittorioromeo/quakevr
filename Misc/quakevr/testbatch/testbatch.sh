@@ -16,8 +16,19 @@
 #   TB_FIXED=0  real-time frames in the batches (default: vr_fixed_frames 1, unpaced: the same game time a frame)
 #   TB_JOBS=N   copies of the game at most (default 8; the kit's free slots decide)
 # The batch's cases, outputs and stats.json: <tree>/scratch/testbatch/<suite>/.
+#   TB_COLLECT_STUBS=1  (a suite sets it) the collect pass's log-reading tools are no-ops: its outputs are empty and
+#               thrown away, and each grep/sed/python a case cost seconds on a loaded machine. Safe: a run whose
+#               arguments came out different without them (built from a file or an earlier run's output with one of
+#               these) is still played, alone, in the replay (TB_STATS lists those); awk, seq, printf still work.
 TB_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TB_KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+
+tb_collect_stubs()
+{
+    grep() { return 0; }; sed() { return 0; }; cut() { return 0; }; tr() { return 0; }; head() { return 0; }
+    tail() { return 0; }; wc() { return 0; }; paste() { return 0; }; sort() { return 0; }; uniq() { return 0; }
+    python() { return 0; }; py() { return 0; }
+}
 
 tb_main()
 {
@@ -39,7 +50,7 @@ tb_main()
     : > "$TB_DIR/index"
     : > "$TB_DIR/used"
     local t0=$SECONDS
-    (TB_PASS=collect; "$fn" "$@") > /dev/null 2>&1
+    (TB_PASS=collect; [ "$TB_COLLECT_STUBS" = 1 ] && tb_collect_stubs; "$fn" "$@") > /dev/null 2>&1
     local t1=$SECONDS
     bash "$TB_HERE/run_batch.sh" "$TB_AGENT" "$TB_DIR"
     [ -n "$TB_STATS" ] && { cat "$TB_DIR/stats.json"; echo " collect $((t1 - t0)) s, batch $((SECONDS - t1)) s"; } >&2

@@ -37,6 +37,7 @@
 #      pouched, spent enemy guns' smoke and crackle, the pouch's shells.
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_COLLECT_STUBS=${TB_COLLECT_STUBS-1} # (the collect pass without its log-reading tools: testbatch.sh)
 export TB_NODRAW=${TB_NODRAW-1} # (batched: no check reads the drawing; the screenshot runs go alone, drawn)
 fail=0
 source "$(dirname "$0")/../qvrtest.sh"

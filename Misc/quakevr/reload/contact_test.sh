@@ -10,6 +10,7 @@
 # Test steps: vr_reload_test 10 tossed, 11 sideways at the opening, 12 on the floor, 13 dropped from above, 14 the loose rounds' report,
 # 15 the super shotgun broken open (impulse 125 runs the step). Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_COLLECT_STUBS=${TB_COLLECT_STUBS-1} # (the collect pass without its log-reading tools: testbatch.sh)
 export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {

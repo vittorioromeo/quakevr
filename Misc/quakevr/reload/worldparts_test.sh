@@ -7,6 +7,7 @@
 # at the old 320 units and 6 guns none from either place; with the range at 1000, none past it.
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_COLLECT_STUBS=${TB_COLLECT_STUBS-1} # (the collect pass without its log-reading tools: testbatch.sh)
 export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
