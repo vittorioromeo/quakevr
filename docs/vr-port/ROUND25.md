@@ -7641,3 +7641,30 @@ His words: "it would be nice for those to become armed humanoid too ... Please d
   Its Row": still props, ours / overlaid / AD's / side-on, scratch1 the pair 0-11), `Misc/quakevr/adhumaudit_shots.sh`
   (the 12 screenshots), `Misc/quakevr/adhum_mdl.py` (builds and frame groups from AD's paks read in place),
   `Misc/quakevr/adhum_census.py` (placements in AD's and Quoth's paks). Screens: `C:\OHWorkspace\qvr-kit\scratch\adhumaudit_*.png`.
+
+## onemodel: one model per gun, not one per ammo type (agent/onemodel, 2026-11-22)
+
+BACKLOG.md 8, his words (2026-11-16): "rather than having different models for the ammo types, we should be able to
+adjust one single model: add attachments, change parts or textures; maintaining two separate sets of models with
+different rules is annoying and causes issues."
+- **One model:** a gun's other-ammo look (`v_lava`, `v_lava2`, `v_multi2`, `v_light_plasma`) is its base model with
+  another skin, declared in `Quake/vr/vr_gunvariants.inc` (`QVR_GUN_VARIANT(variant, base, skin)`). The skins are
+  indexed PNGs (Quake palette) on the base's skin layout beside the base's .blend
+  (`src_models/blend/<base>/<base>_skin_<variant>.png`; an ammo's magazine `vr_mag_on_<base>_skin_<variant>.png`).
+  `Misc/quakevr/make_gun_variants.py build` writes the variants' files from the base's (model, mag/well parts, normal
+  maps byte for byte the base's); `build --check` says whether they are current. Run it after exporting a base model.
+  `transfer` carried each old skin onto the base's layout once (nearest old surface, same facing): v_lava and
+  v_light_plasma exact (same triangles), v_multi2 and v_lava2 176/175 texels more than 0.5 units off (their meshes
+  differed a little). The variant .blend files and the housing scripts' variant entries are retired (not run again).
+- **One slot per gun:** weapons.txt slots 11, 12, 14, 15 are now `id`, `inherit` and his differences only (slot 11's
+  `hand_x 1.150001`, kept). A slot drawing a variant of its parent's model inherits every key but its ID and parent
+  (`weapons::inherits`: anchors, hand places, barrel mask, reload settings too; before, the variants used the reload
+  defaults and their own old anchors). `vr_wofs_version` 79 (`takeGunVariants79`, frozen `vr_weapons_before79.inc`): a
+  full config's values still the shipped copies go back to the defaults (the test baseline: 187 taken).
+- **One set of rules:** `vr_screenstyle.cpp` resolves a variant to its gun's entry (the `lava2`/`multi2` entries and the
+  `lava`/`light_plasma` aliases gone); `vr_gunfx.cpp` firing barrels likewise (the lava rows gone); `vr_view.cpp`'s
+  v_lava2 magazine anchor and `vr_sightalign_table.inc`'s v_lava2/v_multi2 lines the base's numbers (left: the mag
+  mount rows still name each variant's magazine with the base's numbers copied).
+- Checked: `make_gun_variants.py build --check` ok; `vr_wofs_dump` (slots 12, 15 take slots 4, 7's anchors); load_models
+  4/0; scenes `gun_variants_nail`, `gun_variants_rock` (both hands in the other ammo) SCNRUN OK. Flat and VR shots
+  before/after: `scratch/onemodel_{before,after}_{flat,vr}.png` in the worktree (the looks as before).
