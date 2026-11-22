@@ -8063,3 +8063,32 @@ All three were the tests, not the game; no player-facing change.
   about the slide not being sent, not about loading. Fix: that case alone lets the shotgun go low, level and upside down
   (port up) on vrfiringrange's flat floor: 3/3 in with the shipped and the old offsets; gunshape 24/0.
 - Files: Misc/quakevr/weapon_catch_test.sh, Misc/quakevr/reload/gunshape_test.sh, Quake/vr/vr_backend_mock.cpp.
+
+## noisefix: grunts frozen at a doorway (noises_knock/shot), nav_lift_down's missing verdict (branch agent/noisefix, 2026-11-22)
+
+- **noises_knock / noises_shot** (the grunt stood ~375 from the noise, gave up, went back). Bisected over next's first
+  parents: first bad `be19a6fec` (brushholes, the gap blockers; `vr_hull_holes 0` passes). The grunt stood frozen at
+  -155 2380 in front of e1m1's low doorway by the start (lintel at z -96, 64 over the floor). Its walkmove's step
+  (Quake/sv_move.c SV_movestep) traces from 18 up down to 18 below; raised, the box is in the lintel. Quake's hull
+  trace (SV_QuakeHullCheck) that starts in solid stops as "all solid" at the first plane with solid past it, and the
+  blockers' split planes cut that lintel in two, so the trace from +16/+18 came back all solid (the same trace with
+  holes off: start solid, out at 0.47/0.50) and SV_movestep returned at once. **Fix**: an all-solid raised trace is
+  tried from the wished height too, as a start in solid already was (where the whole way down is solid that fails too,
+  so for a trace that is right nothing changes). The blockers and their intent are untouched.
+- **noises_clue**: it passed only through that bug (the hunter's way blocked made the navmesh steer 7 steps); before
+  brushholes and now it walks to the shot with 0 navmesh steps: from C the shot's spot is straight ahead on the mesh,
+  and nav::steer then leaves it to Quake's chase by design (`whyEnd`, next corner the path's end, every frame of the
+  walk; checked with a temporary print). Its check no longer needs navmesh steps (they are still printed); the rest
+  (trail at the shot, within 64, goal never him) is as before.
+- Numbers (`stealth_tests.sh noises`): before knock FAIL 374 / shot FAIL 375 / clue PASS; after knock PASS 64 in 51.6 s,
+  shot PASS 13 in 55.4 s (both the same to the unit as before brushholes), clue PASS 58 in 2.9 s. trailnav 3/0,
+  corner 2/0 with the fix.
+- **nav_lift_down printed no verdict**: a scene's `cmd` lines were added at the end of the console buffer, so behind a
+  test script's `vr_scenario nav_lift_down;wait9000;quit` they never ran (no reach test armed). Now they go ahead of
+  what the buffer holds, in order (vr_scenario.cpp). Its verdict now prints at 60 s: **FAIL**, open: the knight calls
+  the lift, boards ("on the lift"), then boards again, waits, gives the ride up (3 rides "done" at the top with
+  blockers, 2 given up without them: not the blockers). Not fixed (budget).
+- Not reached (budget): the fist deep inside a held head (twohand_regrip's seen-meanwhile). Where to look: QC
+  VR_Carry_TrySecondHand -> carryreach -> vr_carry2h.cpp `reaches` -> held::grabTouch (vr_held.cpp): a fist sphere's
+  inside test is by its nearest triangle's facing; the head's open neck seam may make a deep sphere read as outside.
+- New scene `doorway_grunt` (a grunt beyond that doorway, you south of it).
