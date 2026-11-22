@@ -296,6 +296,8 @@ QVR_CVAR(vr_debug_box3d, "0", CVAR_NONE)             // 1: bodies made, woken an
 // Physics sounds (vr_physsound.cpp; ROUND21.md, "Physics sounds"): props knocking and scraping, a climbing hand's grab.
 QVR_CVAR(vr_physsound, "2", CVAR_ARCHIVE | QVR_OWN)             // all of them: their volume (0 off; up to 2: over 1 the client multiplies them, vr_audio.cpp)
 QVR_CVAR(vr_physsound_grab, "0.7", CVAR_ARCHIVE | QVR_OWN)      // a climbing hand taking a hold (by the hold's texture: wood, metal, stone): volume (0 off)
+QVR_CVAR(vr_physsound_chain, "0.4", CVAR_ARCHIVE | QVR_OWN)     // a climbable chain (vr_chain, a rope with style 1): a hand's metal grip on it and its links' clink when swung or climbed: volume (0 off; ropes keep vr_physsound_grab's slap)
+QVR_CVAR(vr_physsound_chain_speed, "60", CVAR_ARCHIVE | QVR_OWN) // ... its links clink when its fastest moves at least this fast (units/s): quieter and rarer near it, louder and every 0.25 s at four times it
 QVR_CVAR(vr_debug_glstate, "0", CVAR_NONE)            // 1 each texture bind the engine's cache skipped while GL had another texture there ("texcache: stale bind", gl_texmgr.c: a texture deleted around GL_DeleteNativeTexture), a clip rectangle left on at a frame's end ("glstate:"), and particles, tubes or bent meshes drawn from an earlier frame's upload (GL_Upload's space reused: garbage; "glstate: ... earlier frame's upload")
 QVR_CVAR(vr_mp_watch, "0", CVAR_NONE)                // 1: this client prints when it sees each player's entity, when one starts moving from rest and every 32 units of its travel, wall-clock stamped (the multiplayer harness; vr_mptest.cpp); a server: the harness's test commands from its clients taken (vr_lagcomp_shot, vr_lagcomp_punch: vr_lagcomp.cpp), else refused
 QVR_CVAR(vr_net_avatar_keyframe, "8", CVAR_NONE)    // hosting: a player's avatar (QVR_SVC_AVATAR: head, hands and weapons as drawn) unchanged since it was last sent goes again only every this many frames (what a lost one or a player just come into sight waits at most); 1: every frame
@@ -3710,6 +3712,7 @@ QVR_CVAR(vr_rope_swing_drag, "0.15", CVAR_ARCHIVE | QVR_RULE)    // per second, 
 QVR_CVAR(vr_rope_pump, "300", CVAR_ARCHIVE | QVR_RULE)           // units/s/s the stick (or WASD) pushes a climber's swing on a rope its way (pumping it, rope to rope); 0: none
 QVR_CVAR(vr_rope_swing_cap, "350", CVAR_ARCHIVE | QVR_RULE)      // units/s at the hands the pump builds a rope's swing to at most (a push, a jump onto it, can swing it faster)
 QVR_CVAR(vr_rope_jump, "200", CVAR_ARCHIVE | QVR_RULE)          // units/s up a jump off a rope adds to the rope's swing at the hands (jump while holding one); 0: a jump lets go only
+QVR_CVAR(vr_rope_hand_grip, "1", CVAR_ARCHIVE | QVR_OWN)        // a hand on a climbable rope drawn gripping it (the rope through the fist, the knuckles away from the body; vr_climb.cpp ropeTurn): 1 in flat-screen play, 2 in VR too; 0 as on a ledge (vr_climb_hand_pitch/yaw/roll), display only
 QVR_CVAR(vr_rope_spawn_length, "256", CVAR_ARCHIVE | QVR_OWN)    // the toolgun's ropes (Spawn > Props > Ropes > Rope Settings): length (units)
 QVR_CVAR(vr_rope_spawn_thickness, "1.5", CVAR_ARCHIVE | QVR_OWN) // ... thickness (units across)
 QVR_CVAR(vr_rope_spawn_segments, "0", CVAR_ARCHIVE | QVR_OWN)    // ... pieces (0: one every 16 units)

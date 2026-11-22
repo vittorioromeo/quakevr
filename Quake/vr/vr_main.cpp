@@ -2992,6 +2992,7 @@ extern "C" void VR_HostFrameEnd()
     qvr::mapinstall::poll(); // a map download or unpacking that finished, taken here (vr_mapinstall.cpp)
     qvr::mpdownload::poll(); // a server's map package: mounted or installed, then joined again (vr_mpdownload.cpp)
     qvr::relight::poll(); // the in-game relighting's light process: its progress, its result (vr_relight.cpp)
+    qvr::climbrope::clientFrame(); // the climbable ropes' client-side tests, once the frame is drawn (vr_climbrope.cpp)
     qvr::prepare::frame(); // the installer's preparation run's steps (-prepare: vr_prepare.cpp)
     // The derived-data cache: a miss from now on is "in play" (vr_diskcache.cpp); the warm-up started, paused, resumed.
     qvr::diskcache::setInPlay(cls.state == ca_connected && cls.signon == SIGNONS && !scr_disabled_for_loading);

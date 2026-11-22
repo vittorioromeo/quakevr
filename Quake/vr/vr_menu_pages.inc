@@ -450,6 +450,7 @@
         row(opt::vr_climb_over_top),
         row(opt::vr_climb_slide).extend().help("When your body can't follow your hands along a ledge (past your arm's reach, against a wall), the hand slides along it and stays on your controller. Off: it stays where it took hold, and drifts away from your controller."),
         row(opt::vr_physsound_grab),
+        row(opt::vr_physsound_chain),
         row(opt::vr_climb_mantle_height),
         row(opt::vr_climb_mantle_trigger),
         row(opt::vr_climb_mantle_slope),

@@ -2650,6 +2650,8 @@ QVR_SLIDER_BYNAME(vr_climb_over_top, "Reach Over the Top", 0.f, 40.f, 1.f, "%.0f
 QVR_TOGGLE_BYNAME(vr_climb_slide, "Hands Slide Along Ledges", nullptr)
 QVR_SLIDER_BYNAME(vr_physsound_grab, "Grab Sound", 0.f, 1.f, 0.1f, "%.1f", noExt,
     "A small slap as your hand takes a hold, of what the hold is made of: wood, muted metal or stone (0 off; also Carrying: Physics Sounds).")
+QVR_SLIDER_BYNAME(vr_physsound_chain, "Chain Sounds", 0.f, 1.f, 0.1f, "%.1f", noExt,
+    "A climbable chain's own sounds: a metal grip as your hand takes it, and its links clinking when it swings or you climb it (0 off; ropes keep the Grab Sound's slap).")
 QVR_SLIDER_BYNAME(vr_climb_mantle_height, "Mantle Height", 0.f, 40.f, 1.f, "%.0f units", noExt,
     "Holding a ledge, how far your head must rise above its top before you pull up onto it. Higher: you "
     "can lean up and down over a ledge without mantling (the old point was about 15 at a chest-high ledge; "
