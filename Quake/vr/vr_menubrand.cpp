@@ -36,6 +36,7 @@
 #include "vr_update.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Cbrt.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -460,11 +461,11 @@ struct VersionBox
     versionShown(version, sizeof(version));
     b.dev = VR_VersionIsDev() != 0;
     q_snprintf(title, titleSize, "%s%s", versionTitle, version);
-    b.titleWidth = b.size * static_cast<float>(strlen(title) + (b.dev ? strlen(versionDevMark) : 0));
-    b.authorWidth = b.size * static_cast<float>(strlen(versionAuthor));
+    b.titleWidth = b.size * static_cast<float>(ZA_STRLEN(title) + (b.dev ? ZA_STRLEN(versionDevMark) : 0));
+    b.authorWidth = b.size * static_cast<float>(ZA_STRLEN(versionAuthor));
     // (The link as wide as its longest text, so that a press does not change the box.)
     const float iconWidth = b.iconHeight * 1.25f + b.size * 0.5f;
-    const float linkWidth = iconWidth + b.size * static_cast<float>(strlen("Opened on your desktop"));
+    const float linkWidth = iconWidth + b.size * static_cast<float>(ZA_STRLEN("Opened on your desktop"));
     b.x1 = right - versionCorner;
     b.textRight = b.x1 - versionPad;
     b.x0 = b.textRight - za::fmax(za::fmax(b.titleWidth, b.authorWidth), linkWidth) - versionPad;
@@ -491,10 +492,10 @@ struct NoticeBox
 };
 [[nodiscard]] NoticeBox noticeBox(const VersionBox& b, const char* version, int lines)
 {
-    const size_t name = strlen(noticeName) + strlen(version);
-    const size_t prefix = strlen(noticePrefix);
+    const size_t name = ZA_STRLEN(noticeName) + ZA_STRLEN(version);
+    const size_t prefix = ZA_STRLEN(noticePrefix);
     const size_t chars = lines == 1 ? prefix + name : (prefix - 1 > name ? prefix - 1 : name);
-    const float width = b.size * za::fmax(static_cast<float>(chars), static_cast<float>(strlen("Opened on your desktop")));
+    const float width = b.size * za::fmax(static_cast<float>(chars), static_cast<float>(ZA_STRLEN("Opened on your desktop")));
     NoticeBox n;
     n.lines = lines;
     n.x1 = b.x1;
@@ -684,22 +685,22 @@ void drawUpdateNotice(const VersionBox& b)
     if(realtime - n.pressed < linkFeedback)
     {
         const char* text = qvr::vrActive() ? "Opened on your desktop" : "Opened in your browser";
-        drawSmall(nb.textRight - size * static_cast<float>(strlen(text)), nb.yc, size, text, true);
+        drawSmall(nb.textRight - size * static_cast<float>(ZA_STRLEN(text)), nb.yc, size, text, true);
         return;
     }
     char name[64];
     q_snprintf(name, sizeof(name), "%s%s", noticeName, n.version);
-    const float nameX = nb.textRight - size * static_cast<float>(strlen(name));
+    const float nameX = nb.textRight - size * static_cast<float>(ZA_STRLEN(name));
     if(nb.lines == 1)
     {
-        drawSmall(nameX - size * static_cast<float>(strlen(noticePrefix)), nb.yc, size, noticePrefix, true);
+        drawSmall(nameX - size * static_cast<float>(ZA_STRLEN(noticePrefix)), nb.yc, size, noticePrefix, true);
         drawSmall(nameX, nb.yc, size, name, n.hot);
         return;
     }
     char prefix[24];
     q_strlcpy(prefix, noticePrefix, sizeof(prefix));
-    prefix[strlen(prefix) - 1] = '\0'; // (its trailing space)
-    drawSmall(nb.textRight - size * static_cast<float>(strlen(prefix)), nb.rowY[0], size, prefix, true);
+    prefix[ZA_STRLEN(prefix) - 1] = '\0'; // (its trailing space)
+    drawSmall(nb.textRight - size * static_cast<float>(ZA_STRLEN(prefix)), nb.rowY[0], size, prefix, true);
     drawSmall(nameX, nb.rowY[1], size, name, n.hot);
 }
 
@@ -717,7 +718,7 @@ void drawBuildInfo()
     const float bottomEdge = bottom - versionCorner / k;
     const float x = left + versionCorner;
     const float ym = bottomEdge - size * 0.5f / k;
-    const float width = size * static_cast<float>(strlen(VR_BuildInfo()));
+    const float width = size * static_cast<float>(ZA_STRLEN(VR_BuildInfo()));
     // Not where the menu draws (its rows or help box reach down to it): left out, the console has the text.
     if(x + width + versionGap > qvr::menu::contentLeftBelow(ym - size * 0.5f / k - versionGapAbove / k))
     {
@@ -807,7 +808,7 @@ extern "C" void VR_MenuDrawVersion()
         p.rounded(b.x0 + 3.f, b.x1 - 3.f, b.linkY, b.linkHalf - 1.f, 1.5f, colors::buttonHover);
     }
     const char* text = linkShown();
-    const float textX = b.textRight - size * static_cast<float>(strlen(text));
+    const float textX = b.textRight - size * static_cast<float>(ZA_STRLEN(text));
     drawSmall(textX, b.linkY, size, text, v.hot || pressed);
     if(qpic_t* pic = imagePic(kofiLogo))
     {

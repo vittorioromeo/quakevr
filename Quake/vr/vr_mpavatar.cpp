@@ -10,6 +10,8 @@
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -563,7 +565,7 @@ void avatars_f()
                         for(int j = 0; j < 3; j++)
                         {
                             int b = 0;
-                            while(b < rig->numBones && strcmp(rig->bones[b].name, names[j]) != 0)
+                            while(b < rig->numBones && ZA_STRCMP(rig->bones[b].name, names[j]) != 0)
                             {
                                 b++;
                             }
@@ -1630,8 +1632,8 @@ namespace
     int upper = -1, fore = -1;
     for(int b = 0; b < rig.numBones; b++)
     {
-        upper = strcmp(rig.bones[b].name, "upperarm_l") == 0 ? b : upper;
-        fore = strcmp(rig.bones[b].name, "forearm_l") == 0 ? b : fore;
+        upper = ZA_STRCMP(rig.bones[b].name, "upperarm_l") == 0 ? b : upper;
+        fore = ZA_STRCMP(rig.bones[b].name, "forearm_l") == 0 ? b : fore;
     }
     if(upper < 0 || fore < 0 || scale <= 0.f)
     {
@@ -1662,7 +1664,7 @@ namespace
 
 [[nodiscard]] bool isDollRig(const ragdoll::Rig* rig)
 {
-    return rig && rig->model && strncmp(rig->model->name, "progs/vrdoll", 12) == 0;
+    return rig && rig->model && ZA_STRNCMP(rig->model->name, "progs/vrdoll", 12) == 0;
 }
 
 } // namespace
@@ -2202,7 +2204,7 @@ void addDrawn(int e, const entity_t* replace)
     for(int i = 0; i < boneCount; i++)
     {
         int b = 0;
-        while(b < rig->numBones && strcmp(rig->bones[b].name, names[i]) != 0)
+        while(b < rig->numBones && ZA_STRCMP(rig->bones[b].name, names[i]) != 0)
         {
             b++;
         }
@@ -2329,7 +2331,7 @@ void addDolls()
         const int num = static_cast<int>(e - cl_entities);
         const qmodel_t* source = ragdoll::sourceModel(e); // (a ragdoll drawn with its skinned copy: its .mdl)
         qmodel_t* model = const_cast<qmodel_t*>(source ? source : e->model);
-        if(strcmp(model->name, "progs/player.mdl") != 0 && strncmp(model->name, "progs/vrdoll", 12) != 0)
+        if(ZA_STRCMP(model->name, "progs/player.mdl") != 0 && ZA_STRNCMP(model->name, "progs/vrdoll", 12) != 0)
         {
             continue; // (id's ranger, or his avatar's own ragdoll: avatardoll's progs/vrdoll*.mdl)
         }

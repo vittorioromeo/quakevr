@@ -35,6 +35,9 @@
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/MaxElement.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -121,7 +124,7 @@ Shape shape_;
             return 0;
         }
         int v;
-        memcpy(&v, data + ofs, 4);
+        ZA_MEMCPY(&v, data + ofs, 4);
         return LittleLong(v);
     };
     const auto readFloat = [&](int ofs) {
@@ -131,7 +134,7 @@ Shape shape_;
             return 0.f;
         }
         float v;
-        memcpy(&v, data + ofs, 4);
+        ZA_MEMCPY(&v, data + ofs, 4);
         return LittleFloat(v);
     };
     const auto fail = [&]() {
@@ -2379,7 +2382,7 @@ void armorGearCheck_f()
 {
     testkit::Tally& c = armorGearTally;
     ArmorGearSample& a = armorGearSample;
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "end"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "end"))
     {
         if(a.have[0] && a.have[1])
         {
@@ -2647,7 +2650,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     if(glm::mat4 mirror; bodyclone::mirror(mirror))
     {
         const cvar_t* chosen = menu::selectedSetting();
-        if(vr_show_flashlight_zones.value || (chosen && !strncmp(chosen->name, "vr_flashlight_head", 18)))
+        if(vr_show_flashlight_zones.value || (chosen && !ZA_STRNCMP(chosen->name, "vr_flashlight_head", 18)))
         {
             drawZones(s, mirror, eyes, false);
         }

@@ -22,6 +22,10 @@ extern "C" void VR_InstallZancleAssertHandler (void);
 #if __has_include("qvr_buildver.h")
 #include "qvr_buildver.h"
 #include "vr_api.h"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #endif
 #endif
 #ifndef QVR_VERSION
@@ -279,7 +283,7 @@ DWORD64 moduleOf (DWORD64 addr, char *name, int nameSize)
 // A source file's path shortened to the repository's part ("Quake\vr\vr_crash.cpp"), else its name.
 const char *shortSourcePath (const char *path)
 {
-	const char *q = strstr (path, "\\Quake\\");
+	const char *q = ZA_STRSTR(path, "\\Quake\\");
 	const char *slash;
 	if (q)
 		return q + 1;
@@ -302,10 +306,10 @@ void describeFrame (DWORD64 pc, DWORD64 at, bool inlined, DWORD inlineContext)
 	HANDLE proc = GetCurrentProcess ();
 	BOOL named = FALSE, lined = FALSE;
 	const DWORD64 base = moduleOf (pc, mod, sizeof (mod));
-	memset (buf, 0, sizeof (buf));
+	ZA_MEMSET(buf, 0, sizeof (buf));
 	sym->SizeOfStruct = sizeof (SYMBOL_INFO);
 	sym->MaxNameLen = 255;
-	memset (&line, 0, sizeof (line));
+	ZA_MEMSET(&line, 0, sizeof (line));
 	line.SizeOfStruct = sizeof (line);
 	frameText[0] = 0;
 	if (dbgHelp.symState == 1)
@@ -442,7 +446,7 @@ int framesAbove (const CONTEXT *start, HANDLE thread, DWORD64 startPc, PREAD_PRO
 	int i;
 	if (!startPc || !dbgHelp.stackWalk64 || !dbgHelp.functionTableAccess || !dbgHelp.getModuleBase)
 		return 0;
-	memset (&sf, 0, sizeof (sf));
+	ZA_MEMSET(&sf, 0, sizeof (sf));
 #ifdef _M_X64
 	sf.AddrPC.Offset = ctx.Rip; sf.AddrFrame.Offset = ctx.Rbp; sf.AddrStack.Offset = ctx.Rsp;
 #else
@@ -463,7 +467,7 @@ void appendStack (const CONTEXT *start, HANDLE thread, DWORD64 startPc, PREAD_PR
 	CONTEXT ctx = *start;
 	STACKFRAME64 sf;
 	int i, shown = 0;
-	memset (&sf, 0, sizeof (sf));
+	ZA_MEMSET(&sf, 0, sizeof (sf));
 #ifdef _M_X64
 	sf.AddrPC.Offset = ctx.Rip; sf.AddrFrame.Offset = ctx.Rbp; sf.AddrStack.Offset = ctx.Rsp;
 #else
@@ -659,7 +663,7 @@ BOOL CALLBACK readMainStack (HANDLE process, DWORD64 base, PVOID buffer, DWORD s
 	BOOL ok;
 	if (base >= mainStackLo && base + size <= mainStackHi)
 	{
-		memcpy (buffer, mainStack + (base - mainStackLo), size);
+		ZA_MEMCPY(buffer, mainStack + (base - mainStackLo), size);
 		*read = size;
 		return TRUE;
 	}
@@ -900,7 +904,7 @@ void snapshotMainThread (EXCEPTION_POINTERS *ep)
 		__try
 		{
 			MEMORY_BASIC_INFORMATION mbi;
-			memset (&mainContext, 0, sizeof (mainContext));
+			ZA_MEMSET(&mainContext, 0, sizeof (mainContext));
 			mainContext.ContextFlags = CONTEXT_FULL;
 			if (GetThreadContext (th, &mainContext))
 			{
@@ -914,7 +918,7 @@ void snapshotMainThread (EXCEPTION_POINTERS *ep)
 					DWORD64 hi = (DWORD64)(uintptr_t)mbi.BaseAddress + mbi.RegionSize;
 					if (hi - lo > mainStackMax)
 						hi = lo + mainStackMax;
-					memcpy (mainStack, (const void *)(uintptr_t)lo, (size_t)(hi - lo));
+					ZA_MEMCPY(mainStack, (const void *)(uintptr_t)lo, (size_t)(hi - lo));
 					mainStackLo = lo;
 					mainStackHi = hi;
 					mainCaptured = true;
@@ -979,7 +983,7 @@ __declspec(noinline) bool reportHere (const char *what, DWORD64 startPc, bool di
 	CONTEXT ctx;
 	EXCEPTION_RECORD er;
 	EXCEPTION_POINTERS ep;
-	memset (&er, 0, sizeof (er));
+	ZA_MEMSET(&er, 0, sizeof (er));
 	RtlCaptureContext (&ctx);
 	er.ExceptionCode = QVR_NO_EXCEPTION;
 #ifdef _M_X64
@@ -1231,10 +1235,10 @@ extern "C" unsigned VR_DescribeCallers (char *out, int outSize, int skip, int de
 		IMAGEHLP_LINE64 line;
 		char frame[256];
 		hash = (hash ^ (unsigned)(addr & 0xffffffffu)) * 16777619u;
-		memset (buf, 0, sizeof (buf));
+		ZA_MEMSET(buf, 0, sizeof (buf));
 		sym->SizeOfStruct = sizeof (SYMBOL_INFO);
 		sym->MaxNameLen = 127;
-		memset (&line, 0, sizeof (line));
+		ZA_MEMSET(&line, 0, sizeof (line));
 		line.SizeOfStruct = sizeof (line);
 		if (dbgHelp.symState == 1 && dbgHelp.symFromAddr (proc, addr, &disp, sym))
 		{
@@ -1446,7 +1450,7 @@ void writeReport (const char *what, void *const *frames, int count, int skip)
 	if (reportPath[0])
 	{
 		writeAll (err, "Crash report: ", 14);
-		writeAll (err, reportPath, strlen (reportPath));
+		writeAll (err, reportPath, ZA_STRLEN(reportPath));
 		writeAll (err, "\n", 1);
 	}
 #ifdef __ANDROID__

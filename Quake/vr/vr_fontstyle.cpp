@@ -24,12 +24,13 @@
 #include "vr_testkit.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "vr_api.h"
 
 #include <math.h>
-#include <string.h>
 
 extern "C" byte char_texture_data[256 * 10 * 10]; // gl_draw.c: conchars, 16 x 16 cells of 10 x 10 (8 x 8 and a border)
 
@@ -809,8 +810,8 @@ void loadBoxSources()
             continue;
         }
         int w, h;
-        memcpy(&w, file, 4);
-        memcpy(&h, file + 4, 4);
+        ZA_MEMCPY(&w, file, 4);
+        ZA_MEMCPY(&h, file + 4, 4);
         w = LittleLong(w);
         h = LittleLong(h);
         if(w > 0 && h > 0 && w <= 256 && h <= 256 && 8 + w * h <= com_filesize)
@@ -1277,7 +1278,7 @@ extern "C" qpic_t* VR_FontStyle_Pic(const char* name, qpic_t* pic)
     }
     for(int i = 0; i < boxCount; i++)
     {
-        if(state.box[static_cast<za::SizeT>(i)].made && !strcmp(name, boxPieces[i].name))
+        if(state.box[static_cast<za::SizeT>(i)].made && !ZA_STRCMP(name, boxPieces[i].name))
         {
             return reinterpret_cast<qpic_t*>(state.box[static_cast<za::SizeT>(i)].pic.data());
         }

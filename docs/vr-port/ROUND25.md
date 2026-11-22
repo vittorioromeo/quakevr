@@ -9525,3 +9525,9 @@ between the barrels, open muzzles, the screen in a wedge on top) and impaling (a
 - **Tests:** release build 0 warnings each phase; smoke e1m1 with vr_hull_stats, vr_gun_pieces_cache_stats,
   vr_image_prefetch_info, vr_cache_warmup_info (counters move); startuplog 3/0; vr_voicechat_selftest 24/0;
   vr_android_test (-fakeandroid) 16/0. Not yet run: Misc/quakevr/check_nopch.sh (after the last phase).
+- **No-PCH (zancle2, after phase 5):** check_nopch.sh found 12 files using a PCH Zancle header (MinMax, Clamp, String,
+  Sort, IntTypes) or Base/Macros.hpp's ZA_MOVE without including it; fixed. `scratch/zancle2_pchinc.py`-style check
+  (each PCH header a file uses, reachable through its own includes) runs with every later phase.
+- **Phases 6-8 (zancle2):** the C string/memory calls -> ZA_ in 120 more files (vr_client .. vr_predict, 1,066 calls);
+  release build 0 warnings and no-PCH build ok each phase; smoke e1m1, vr_android_test 16/0, vr_voicechat_selftest
+  24/0, vr_menu_path_check 0 missing; Android native build compiles. Left: 914 calls in 97 files (vr_profile ..).

@@ -25,6 +25,8 @@
 #include "vr_main.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_api.h"
@@ -37,7 +39,6 @@
 #include "SDL.h"
 #endif
 
-#include <string.h>
 
 extern "C" kbutton_t in_forward; // cl_input.c
 extern "C" double host_netinterval; // host.c
@@ -114,7 +115,7 @@ Test test;
 void pushKey(bool down)
 {
     SDL_Event e;
-    memset(&e, 0, sizeof(e));
+    ZA_MEMSET(&e, 0, sizeof(e));
     e.type = down ? SDL_KEYDOWN : SDL_KEYUP;
     e.key.state = down ? SDL_PRESSED : SDL_RELEASED;
     e.key.keysym.scancode = SDL_SCANCODE_W;
@@ -127,7 +128,7 @@ void pushKey(bool down)
 void pushMouse()
 {
     SDL_Event e;
-    memset(&e, 0, sizeof(e));
+    ZA_MEMSET(&e, 0, sizeof(e));
     e.type = SDL_MOUSEMOTION;
     e.motion.xrel = test.turn ? 1000 : 100;
     e.motion.timestamp = SDL_GetTicks();
@@ -234,7 +235,7 @@ void finish(bool timedOut)
     if(test.then[0])
     {
         // ("/" between commands: a script's ";"; kept for a chained test, which passes the rest on.)
-        if(strncmp(test.then, "vr_inputlag_test ", 17) != 0)
+        if(ZA_STRNCMP(test.then, "vr_inputlag_test ", 17) != 0)
         {
             for(char* c = test.then; *c; c++)
             {

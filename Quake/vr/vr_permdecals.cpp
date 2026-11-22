@@ -11,9 +11,10 @@
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
-#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -28,7 +29,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 namespace qvr::permdecals
 {
@@ -1266,7 +1266,7 @@ void readSaveLines(const char* text)
     SaveState& s = saves;
     s.pending.clear();
     s.pendingAfterLoad = -1;
-    const char* header = text ? strstr(text, "\n// qvrdecals 1 map ") : nullptr;
+    const char* header = text ? ZA_STRSTR(text, "\n// qvrdecals 1 map ") : nullptr;
     int count = 0;
     if(!header || sscanf(header + 1, "// qvrdecals 1 map %63s n %d", s.pendingMap, &count) != 2 || count <= 0)
     {
@@ -1274,7 +1274,7 @@ void readSaveLines(const char* text)
     }
     unsigned v = 0;
     int bits = 0;
-    for(const char* p = strstr(text, "\n// qvrd "); p; p = strstr(p + 1, "\n// qvrd "))
+    for(const char* p = ZA_STRSTR(text, "\n// qvrd "); p; p = ZA_STRSTR(p + 1, "\n// qvrd "))
     {
         for(const char* c = p + 9; *c && *c != '\r' && *c != '\n' && *c != '='; c++)
         {

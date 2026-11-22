@@ -11,6 +11,7 @@
 #include "vr_units.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/UIntPtrT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -22,7 +23,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <string.h>
 
 namespace qvr::flamewobble
 {
@@ -433,7 +433,7 @@ void leanModel(const entity_t* e, float matrix[16])
     shear[2][0] = lean.x;
     shear[2][1] = lean.y;
     const glm::mat4 m = glm::translate(glm::mat4{1.f}, foot) * shear * glm::translate(glm::mat4{1.f}, -foot) * glm::make_mat4(matrix);
-    memcpy(matrix, glm::value_ptr(m), sizeof(float) * 16);
+    ZA_MEMCPY(matrix, glm::value_ptr(m), sizeof(float) * 16);
 }
 
 void clear()

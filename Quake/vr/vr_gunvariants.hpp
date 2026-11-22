@@ -17,6 +17,7 @@ struct Variant
 inline constexpr Variant table[] = {
 #define QVR_GUN_VARIANT(variant, base, skin) {variant, base},
 #include "vr_gunvariants.inc"
+#include "Zancle/Base/Strcmp.hpp"
 #undef QVR_GUN_VARIANT
 };
 
@@ -25,7 +26,7 @@ inline constexpr Variant table[] = {
 {
     for(const Variant& v : table)
     {
-        if(!strcmp(v.variant, name))
+        if(!ZA_STRCMP(v.variant, name))
         {
             return v.base;
         }

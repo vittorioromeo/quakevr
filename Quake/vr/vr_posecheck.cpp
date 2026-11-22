@@ -8,6 +8,7 @@
 #include "vr_geom.hpp"
 #include "vr_cvars.hpp"
 
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_api_render.h"
@@ -97,7 +98,7 @@ extern "C" void VR_DebugAliasPose(const entity_t* e, const void* aliashdr, int p
     {
         return;
     }
-    if(vr_debug_pose_check_model.string[0] && !strstr(e->model->name, vr_debug_pose_check_model.string))
+    if(vr_debug_pose_check_model.string[0] && !ZA_STRSTR(e->model->name, vr_debug_pose_check_model.string))
     {
         return;
     }

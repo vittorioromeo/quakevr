@@ -22,12 +22,13 @@
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Iota.hpp"
 #include "Zancle/Algorithm/NthElement.hpp"
+#include "Zancle/Base/BitCast.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Chrono/Clock.hpp"
-#include "Zancle/Base/BitCast.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -119,7 +120,7 @@ void stats_f()
         }
     }
     Con_Printf("  %zu models' hierarchies kept: %.2f MB\n", count, static_cast<double>(bytes) / (1024. * 1024.));
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "reset"))
     {
         stats = Stats{};
     }
@@ -144,7 +145,7 @@ CheckTotals checkTotals;
 
 void check_f()
 {
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "reset"))
     {
         checkTotals = CheckTotals{};
         return;
@@ -205,7 +206,7 @@ void check_f()
         }
     }
     PR_PopQCVM(oldvm);
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "print"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "print"))
     {
         Con_Printf("vr_hitmodel_check: %lld calls, %lld vertices: the hit model %.2f units from the drawn one on average, "
                    "%.2f at worst (%s); without the lerp %.2f, %.2f at worst\n", calls, count,
@@ -225,7 +226,7 @@ void bench_f()
     }
     const int rays = Cmd_Argc() > 1 ? za::max(1, Q_atoi(Cmd_Argv(1))) : 2000;
     const float tol = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : tolerance(Class::Guns);
-    const bool newest = Cmd_Argc() > 3 && !strcmp(Cmd_Argv(3), "newest"); // only the monster spawned last
+    const bool newest = Cmd_Argc() > 3 && !ZA_STRCMP(Cmd_Argv(3), "newest"); // only the monster spawned last
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
     za::FastNonCryptoRng rng{1234u}; // the same rays every run

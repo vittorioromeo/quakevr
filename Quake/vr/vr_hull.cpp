@@ -21,8 +21,11 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Concurrency/LockGuard.hpp"
@@ -42,7 +45,6 @@
 #include "vr_zancle.hpp"
 #include "vr_srvrandom.hpp"
 
-#include <string.h>
 namespace qvr::hull
 {
 using namespace detail;
@@ -3161,7 +3163,7 @@ namespace detail
 trace_t treeTrace(const Tree& t, int head, const glm::vec3& start, const glm::vec3& end)
 {
     trace_t tr;
-    memset(&tr, 0, sizeof(tr));
+    ZA_MEMSET(&tr, 0, sizeof(tr));
     tr.fraction = 1.f;
     tr.allsolid = true;
     VectorCopy(end, tr.endpos);
@@ -3494,7 +3496,7 @@ int monsterClassOf(const edict_t* ent)
         const char* s = name ? PR_GetString(name) : "";
         for(int k = 0; k < monsterClassCount; ++k)
         {
-            if(!strcmp(s, monsterClasses[k].classname))
+            if(!ZA_STRCMP(s, monsterClasses[k].classname))
             {
                 c.classes[i] = static_cast<signed char>(k);
                 break;
@@ -3810,7 +3812,7 @@ za::U64 diskSum(const void* data, za::SizeT size, za::U64 h)
     for(; i + 8 <= size; i += 8)
     {
         za::U64 w;
-        memcpy(&w, c + i, 8);
+        ZA_MEMCPY(&w, c + i, 8);
         h = (h ^ w) * 0x9E3779B97F4A7C15ull;
         h ^= h >> 29;
     }
@@ -3869,7 +3871,7 @@ bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
     Sys_fseek(in, 0, SEEK_SET);
     DiskHeader h{};
     bool ok = size >= static_cast<qfileofs_t>(sizeof(h)) && fread(&h, 1, sizeof(h), in) == sizeof(h) &&
-              memcmp(h.magic, diskMagic, 4) == 0 && h.version == diskVersion && h.world == d.world &&
+              ZA_MEMCMP(h.magic, diskMagic, 4) == 0 && h.version == diskVersion && h.world == d.world &&
               h.ext[0] == t.ext.x && h.ext[1] == t.ext.y && h.ext[2] == t.ext.z && h.nodes > 0 && h.root >= 0 &&
               static_cast<za::U32>(h.root) < h.nodes &&
               size == static_cast<qfileofs_t>(sizeof(h) + za::SizeT{h.nodes} * sizeof(mclipnode_t) +
@@ -3922,7 +3924,7 @@ bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
 void diskWrite(const Tree& t, const DiskJob& d, int rebounded)
 {
     DiskHeader h{};
-    memcpy(h.magic, diskMagic, 4);
+    ZA_MEMCPY(h.magic, diskMagic, 4);
     h.version = diskVersion;
     h.world = d.world;
     h.ext[0] = t.ext.x;
@@ -5001,7 +5003,7 @@ bool clipPortal(const edict_t* ent, const float* start, const float* mins, const
         box[i].dist = (i & 1) ? -br.mins[axis] : br.maxs[axis];
         box[i].grows = 1.f;
     }
-    memset(&trace, 0, sizeof(trace));
+    ZA_MEMSET(&trace, 0, sizeof(trace));
     trace.fraction = 1.f;
     VectorCopy(end, trace.endpos);
     for(int k = 0; k < count - 1; k++)

@@ -10,11 +10,12 @@
 #include "vr_serverrules.hpp"
 #include "vr_testkit.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 
-#include <string.h>
 
 namespace qvr::gameplaypresets
 {
@@ -283,7 +284,7 @@ void testCmd()
 
     // Custom: one row changed by hand.
     Cvar_SetQuick(&vr_bash, "0");
-    t.check(presetKind.matchingLevel() < 0 && !strcmp(presetKind.stateName(), "Custom"), name, "a change by hand shows Custom");
+    t.check(presetKind.matchingLevel() < 0 && !ZA_STRCMP(presetKind.stateName(), "Custom"), name, "a change by hand shows Custom");
 
     // My Settings back exactly.
     t.check(presetKind.restoreMine() && presetKind.matchesMine(), name, "My Settings set back");
@@ -314,8 +315,8 @@ void testCmd()
     t.check(presetKind.matchingLevel() == levelClassic, name, "Classic Quake: Gameplay Classic");
     syncClassic();
     t.check(classicActive() && vr_classic_quake.value == 1.f, name, "Classic Quake shown on");
-    t.check(strstr(classic.line, "Graphics Off (Quake)") && strstr(classic.line, "Gore Minimal") &&
-                strstr(classic.line, "Gameplay Classic"),
+    t.check(ZA_STRSTR(classic.line, "Graphics Off (Quake)") && ZA_STRSTR(classic.line, "Gore Minimal") &&
+                ZA_STRSTR(classic.line, "Gameplay Classic"),
         name, "its line names the three");
     Cvar_SetQuick(&vr_crates, "1");
     syncClassic();
@@ -331,12 +332,12 @@ void testCmd()
     Cvar_SetQuick(&vr_bloom, "0.37");
     Cvar_SetValue("vr_classic_quake", 1.f);
     Cvar_SetValue("vr_classic_quake", 0.f);
-    t.check(strcmp(vr_bloom.string, "0.37") == 0 && presetKind.matchingLevel() == levelUnleashed, name,
+    t.check(ZA_STRCMP(vr_bloom.string, "0.37") == 0 && presetKind.matchingLevel() == levelUnleashed, name,
         "Back: a setting changed after My Settings was kept is as the press found it");
     Cvar_SetValue("vr_classic_quake", 1.f);
     Cvar_SetQuick(&vr_bloom, "0.21");
     Cvar_SetValue("vr_classic_quake", 0.f);
-    t.check(strcmp(vr_bloom.string, "0.21") == 0 && presetKind.matchingLevel() == levelUnleashed, name,
+    t.check(ZA_STRCMP(vr_bloom.string, "0.21") == 0 && presetKind.matchingLevel() == levelUnleashed, name,
         "Back: a setting changed by hand while Classic was on keeps its value");
 
     // As they were, and the players' own My Settings again.
@@ -384,13 +385,13 @@ int roundTripDiffer(const za::Vector<RoundTrip::Value>& was, const za::Vector<Ro
     {
         for(za::SizeT j = 0; j < now.size(); j++)
         {
-            if(used[j] || strcmp(now[j].name.cStr(), a.name.cStr()) != 0)
+            if(used[j] || ZA_STRCMP(now[j].name.cStr(), a.name.cStr()) != 0)
             {
                 continue;
             }
             used[j] = true;
             seen++;
-            if(strcmp(now[j].value.cStr(), a.value.cStr()) != 0)
+            if(ZA_STRCMP(now[j].value.cStr(), a.value.cStr()) != 0)
             {
                 differ++;
                 Con_Printf("classicroundtrip: %s %s was \"%s\", now \"%s\"\n", what, a.name.cStr(), a.value.cStr(),
@@ -550,7 +551,7 @@ void classicBack()
         // His report 2026-11-15: the round trip sets back exactly what the first press found.
         for(const ClassicRow& row : classic.before)
         {
-            if(strcmp(row.var->string, row.set.cStr()) == 0)
+            if(ZA_STRCMP(row.var->string, row.set.cStr()) == 0)
             {
                 Cvar_SetQuick(row.var, row.was.cStr());
             }

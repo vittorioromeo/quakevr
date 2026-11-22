@@ -31,6 +31,7 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -39,11 +40,11 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
-#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Fmin.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
@@ -1257,10 +1258,10 @@ constexpr const char* meleeModels[]{"progs/v_axe.mdl", "progs/v_hammer.mdl", "pr
     {
         return false;
     }
-    const za::SizeT len = strlen(model->name);
+    const za::SizeT len = ZA_STRLEN(model->name);
     for(const char* m : meleeModels)
     {
-        const za::SizeT n = strlen(m);
+        const za::SizeT n = ZA_STRLEN(m);
         if(len >= n && !q_strcasecmp(model->name + (len - n), m))
         {
             return true;
