@@ -201,6 +201,10 @@ These stay off in multiplayer (the world can't slow down or stop for one player)
   needs (up to about 140 ms) and runs them one a tick, so his movement stays even for everyone and lifts meet him where
   his game showed; on a steady link it is about 28 ms at most. The others see a jittery player that much later. (Debug
   > Network: Move Buffer and Move Buffer Most, `vr_net_movebuffer` and `vr_net_movebuffer_max`, on the host.)
+- **A player's game stalls** (a busy PC, a hitch): the host judges how old the view his next moves name is from when
+  they came, less the silence before them, so his shots after the stall are rewound to what he saw (up to the host's
+  `vr_net_lagcomp_most`) and the move guard doesn't count them as a lie (`vr_mp_guard_debug 1` on the host names each
+  value it holds, the rewinds included).
 - **Can't connect over the internet**: by a room code, the message says why ("No direct link to the host": one of
   your routers doesn't allow hole punching; the host forwards UDP 26000). By address: almost always the host's port
   forwarding (UDP 26000, to the right PC) or a firewall. Try from the same LAN first.

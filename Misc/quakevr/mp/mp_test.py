@@ -5876,6 +5876,26 @@ def predict_until(s, inst, key, at_least, what, tries=200):
     raise StepFailed("%s: %s never reached %s (%s)" % (what, key, at_least, pr))
 
 
+def rest_gap(s, srv, b, eb, what, states=36, tries=5):
+    """(mpflakes) B at rest on both sides -> (gap, B's drawn place, the server's): the server's copy of him read until it
+    stood still over `states` of his client's states counted from now (each read; at most `tries`), then his own place.
+    (The waits were counted from a planned state number: when the polls had overshot it, the reads came at once, the
+    server's copy still sliding to his stop a round trip behind his prediction: 1.4-1.9 units off.)"""
+    own = org_of(status(b), "mp_player", "self", 1)
+    sv = org_of(status(srv), "mp_client", "slot", eb - 1)
+    s.note("B at rest (%s): at once %.2f units from the server's copy (%s, %s)" % (
+        what, dist(own, sv) if own and sv else 99.0, own, sv))
+    for _ in range(tries):
+        predict_until(s, b, "states", int(predict_report(b).get("states", 0)) + states, "B at rest (%s)" % what)
+        sv2 = org_of(status(srv), "mp_client", "slot", eb - 1)
+        still = bool(sv and sv2) and dist(sv, sv2) < 0.05
+        sv = sv2
+        if still:
+            break
+    own = org_of(status(b), "mp_player", "self", 1)
+    return (dist(own, sv) if own and sv else 99.0), own, sv
+
+
 def own_move_frames(s, b, label, go, stop):
     """B's own drawn entity moving off after his press, in his moves sent (vr_mp_predict_probe) -> (moves, ms)."""
     since = b.mark()
@@ -6003,11 +6023,19 @@ def predict_lift(s, srv, a, b, ea, eb):
     # prediction's snap to the spot on: his replay meets the lift where it will be, B8e, and it carries him up). (Put
     # over it before it moves, his fall would start it: its start is the server's, a correction no replay can foresee.)
     put_at(srv, a, ea, LIFT_A, 90)
+    # (mpflakes) The buffer's ticks counted from before he is put over it: read after his prediction's snap there, the
+    # count began late and could miss a bunched tick near his landing -- the strict bound then applied to a landing
+    # whose lift was a step off (ROUND25's "lift landing 1.354")
+    tp = buffer_ticks(srv, eb)
     since = b.mark()
     put_at(srv, b, eb, LIFT_DROP, 90)
     b.wait(r"mp_predict_corr: c=\d{3,}", 20, since, "B's prediction put over the lift")
     b.cmd("vr_mp_predict_report reset")
     t0 = buffer_ticks(srv, eb)
+    early = (t0[0] - tp[0]) + (t0[1] - tp[1]) if tp and t0 else -1
+    s.note("the buffer's ticks off one a tick between his put-over and the report's reset: %d" % early)
+    s.metric("b_predict_lift_buffer_off_early", early)
+    t0 = tp or t0
     pr = predict_segment(s, b, "falling onto the lift and riding it", "", 36,
                          ("", "", "", "vr_mock_stick off 0.3 0", "vr_mock_stick off 0 0"), reset=False)
     t1 = buffer_ticks(srv, eb)
@@ -6032,8 +6060,7 @@ def predict_lift(s, srv, a, b, ea, eb):
             "off one a tick: %d)" % (most, off),
             off >= 0 and float(pr.get("contact_max", 99)) < most and float(pr.get("lift_max", 99)) < most,
             "contact %s over %s, the lift's place %s" % (pr.get("contact_max"), pr.get("contact_n"), pr.get("lift_max")))
-    own = org_of(status(b), "mp_player", "self", 1)
-    gap = dist(own, sv) if own and sv else 99.0
+    gap, own, sv = rest_gap(s, srv, b, eb, "on the lift")
     s.check("on the lift at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
             "B draws himself at %s, the server has him at %s" % (own, sv))
     b.cmd("notarget; god")
@@ -6500,9 +6527,7 @@ def predict(s):
             int(pr.get("flat_n", 0)) >= 50 and float(pr.get("flat_max", 99)) < PREDICT_CORR_MOST,
             "max %s over %s states on flat ground (all states: max %s, mean %s)" % (
                 pr.get("flat_max"), pr.get("flat_n"), pr.get("corr_max"), pr.get("corr_mean")))
-    own = org_of(status(b), "mp_player", "self", 1)
-    sv = org_of(status(srv), "mp_client", "slot", eb - 1)
-    gap = dist(own, sv) if own and sv else 99.0
+    gap, own, sv = rest_gap(s, srv, b, eb, "after his walk")
     predict_exact_check(s, "(walking on flat ground)", pr, least=50)
     s.check("at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
             "B draws himself at %s, the server has him at %s" % (own, sv))

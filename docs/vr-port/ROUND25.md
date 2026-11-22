@@ -8031,6 +8031,39 @@ Phase 3's rest (ROPES.md "Climbing (flat-screen)", "Multiplayer", "Tests", "Know
   ROPES.md's known limits, kept out of the suite.
 ## backlog1122b: the rest of backlog1122 (branch agent/backlog1122b, 2026-11-22)
 
+## mpflakes: mp_guard's honest rewinds, mp_predict's rest and lift (agent/mpflakes, 2026-11-22)
+
+- **mp_guard "A's honest moves: rewinds N held"** (a load flake: 0 of 6 idle, 3-4 of 4 with `--load 30`): the server held
+  an honest client's view time when his move's `time` (his newest message) was older than 2 x rtt + 0.5 s at the moment
+  the move *ran*. The new `mp_guard_held: ... rewind` lines (vr_mp_guard_debug) showed two causes, both from frame
+  hitches under load: (a) a client hitch of 0.5-0.9 s, after which his frame's catch-up ticks send a burst of moves all
+  naming his newest message from before it; (b) the server's move buffer then ran them one a tick, adding its own wait
+  (e.g. time 36.644 run at 37.172-37.256, one tick apart). Now the age is judged at the move's first read
+  (`netmove::serverCame`: each kept move's arrival) less a quiet allowance: the silence before its packet (from the
+  slot's reset at its connection or map), spent as the server's time goes on (`quiet = max(gap, quiet - gap)` a packet).
+  A liar gains only as much as he stays silent, and lag compensation stays capped by `vr_net_lagcomp_most`; the cheat's
+  view a second back and newest message two back are still held (B's counts unchanged). The lockstep's moves are judged
+  as they run, as before (the same every run).
+- **mp_predict "at rest B stands where the server has him" 1.4-1.9 off**: the test's wait was counted from a planned
+  state number; when the legs' polls had overshot it (load), the read came at once, B's own copy stopped and the
+  server's still sliding to his stop a round trip behind. `rest_gap` (mp_test.py) now reads the server's copy until it
+  stands still over 36 of B's states counted from then (at most 5 reads), then B's; it notes the old immediate gap too:
+  at `--load 26` it was 9.90 and 0.20 units in 2 of 5 runs (both pass settled), 0.00-0.10 at `--load 12`. Used on the
+  walk's and the lift's rest checks.
+- **The lift landing** (ROUND25 "lift landing 1.354"): the bound is a unit when the server's buffer ran every tick one
+  move during the segment, else a lift step; the ticks were counted from after B's prediction snapped over the lift, so
+  a bunched tick between his put-over and that read (1 run of 10 had one) was missed and the strict bound applied. Now
+  counted from before the put-over (`b_predict_lift_buffer_off_early` metric). Not reproduced in 20 runs (contact 0.000
+  every run).
+- Not player-facing beyond MULTIPLAYER.md's line on a stalled player (no PATCH_NOTES line). Seen only under extreme
+  load (`--load 26-30` on 32 CPUs, games at normal priority): mp_predict's state-count checks (swam 144-149 of 150,
+  flat ground 11-20 of 50, own move 5-16 moves) and mp_guard's B6 segment (11-19 of 20 compared), and joins timing
+  out; not chased (the counts are of states that come slower under such load).
+- Checks: mp_guard 10/10 and mp_predict 10/10 at `--load 12` (bases/mp; no honest rewind held, every settled rest gap
+  0.00). The plain suite in 3 slices in order (10, 17, 15 min; each with mp_netsafe): 67 of 68 passed; mp_ground's
+  "B's grip takes the shotgun by that hotspot" failed once and passed 2/2 alone. scenario_check PASS (191 run, 0
+  failed). Dev and ThinLTO builds 0 warnings.
+
 - **1. ad_test3's ladder, flat (fixed).** Its rungs are steps cut in a func_wall (-495..-465 x, z 249..331), so they
   stop the box 18 units short of their holds: with the shoulders 2.6 behind the origin the higher rung of the only
   pair in reach (268/284) was 27.5 away against a reach of 26.3. `flatLadder` (vr_climb.cpp) now measures the rungs from
@@ -8247,3 +8280,25 @@ per seat, flat TAA per tile) left for a part 3 (budget).
 - In VR (the author): nothing changes (one seat). Flatscreen with seats (`seat_mockpad 0 1; seat_join 0` in a coop
   game): each tile shows its own body, its own toolgun panel and holster menu; an explosion both seats see is drawn
   once.
+## smallfix5: backlog1122c's item 2, the small test failures (branch agent/smallfix5, 2026-11-22)
+
+All three were the tests, not the game; no player-facing change.
+- **gadget_lock** 13/4 -> 17/0. Case C failed only after the weapon cases: from the map's start it passes. After them
+  the main hand's taps dragged the crate held in both hands into the body, its place kept 32 units off it, and the carry
+  let go (QC `vr_carry.qc` now says why under `developer 1`: "carry: both hands' place kept from it (the body, N units
+  off; stuck)" / "held in both hands, stuck behind X"), so the taps after counted: right, the lock was off with the hold.
+  The bullet time they started then swallowed H's side button (both H checks). C now runs first.
+- **flatfg2h** key 3 10/1 -> 11/0. Frame by frame the off hand's let-go from the axe (frames 3-16 after the press, most
+  1.22 a frame) is the launcher's (1.40); the 5.95 was frames 19-26, the swap's raise of the new weapon, the main hand
+  rising from the axe's lower melee hold (the probe is off the main hand). Key 3's check now reads a report at 17
+  frames (axe 1.46, launcher 1.39); the raise is reported after it, unchecked.
+- **twohand_regrip** picks 4 and 10 -> 7/7 held in both 3, kept 2, moved <= 0.53. The test pick puts the grunt's head
+  (Size 0.7) and the grenade with their origin on the off fist (not fitted to the surface as a pickup), so the main
+  hand at 0.06 / 0.03 was out of reach ("the other hand is not within reach", since ROUND22): now 0.03 / 0.0. Seen
+  meanwhile: the main hand's fist deep inside the head (0.0) is refused too (a fist inside a held prop can't take it;
+  not looked into). The test now ends on `twohand_regrip_test: N passed, M failed`.
+- **Not done** (budget): **noises_clue** passes on this branch (7 navmesh steps, within 58 in 2.7 s), but the same run's
+  `noises_knock` and `noises_shot` fail (the grunt walks ~104 navmesh steps, stops ~375 from the noise, scouts 2-3 spots,
+  goes back; they passed in the alarm round: something since, not bisected). **nav_lift_down**: the scene's reach test
+  printed no verdict in 83 s of game time (its 60 s limit should end it with a FAIL: check the scenario's `cmd` lines run).
+- Checks: gadget_lock 17/0, flatfg2h 11/0, twohand_regrip 7/0; ThinLTO 0 warnings; scenario_check PASS (193 scenes) twice. Its first run crashed once (access violation in vr_visor.cpp eyeUnderwater: during a map load a console print drew the screen with r_viewleaf in the last map's freed leafs); next's visorcrash fix covers it (merged here; this branch's duplicate guard dropped).

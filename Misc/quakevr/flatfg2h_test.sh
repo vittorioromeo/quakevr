@@ -49,7 +49,12 @@ for w in launcher axe; do
     esac
     SC="$BASE; give r 10"
     for k in h g 3; do
-        SC="$SC; impulse 150; impulse 170; wait5; $GIVE; echo flatfg2h key $w $k; vr_flatplay_status; $REP; $(key $k); wait36; $REP"
+        # (3, the swap: the report at 17 frames is the off hand's let-go, grip to guard, frames 3-16; the swap's raise of the
+        # new weapon follows, frames 19-26, the main hand's own move from the weapon's pose -- the axe's lower melee hold
+        # rises further than the launcher's, 5.95 a frame drawn against 2.90, the hand off the grip already -- reported
+        # after it, not checked.)
+        WIN="wait36"; [ $k = 3 ] && WIN="wait17; $REP; wait19"
+        SC="$SC; impulse 150; impulse 170; wait5; $GIVE; echo flatfg2h key $w $k; vr_flatplay_status; $REP; $(key $k); $WIN; $REP"
         [ $k = g ] && SC="$SC; $THROW"
     done
     run $w "$SC; echo flatfg2h keys done; toggleconsole; quit" "^flatfg2h keys done"
