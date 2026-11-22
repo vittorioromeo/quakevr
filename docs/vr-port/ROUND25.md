@@ -8463,3 +8463,42 @@ pauses coop; both customizable.
 - Dev and ThinLTO 0 warnings, QC 0 warnings.
 - In VR (the author): nothing changes (one seat). Flatscreen with seats (`seat_mockpad`/`seat_join`, or real pads): a
   second player's Start opens his own small menu in his tile and pauses coop; your Escape still opens the full menu.
+## mpbothands: floating fists and holsters on MP bots (branch agent/mpbothands, 2026-11-22)
+
+- His report: in the MP scenes every bot carried an extra pair of fists, an open hand, a gun and a shovel beside its
+  body. Cause: a bot's holsters come from its QC fields (vr_server.cpp `botHolstered`), and the QC names the fists'
+  model (`progs/hand.mdl`, WID_FIST) for an empty holster; every client drew it as a holstered weapon
+  (view::drawHands), so the four empty holsters (shoulders, uppers) each showed a hand. A human's client never sends
+  one (view::netHolsters drops hand models), so only bots were hit; not the ropes4 or onemodel changes.
+- Fix (shared by every copy, flat or VR viewer, bots and players): view::drawHands draws nothing for a holster whose
+  model is a hand's (`isHandModel`, as your own holsters). Also a bot's holstered weapon now takes its own Holstered
+  pose (weapons::holsteredPose, poseHolstered in the holster's frame) as yours does: view::holsterOnOther takes the
+  weapon. The Hotspots page's turns stay yours alone (not put on others).
+- `vr_mp_gearcheck [ent]` (Debug > Reports > Network: Other Players' Gear): per other copy its hand models (two
+  expected), holstered weapons, sheaths, the farthest of them from its trunk (pelvis to neck; at most 0.5 m) and its
+  hands from its arms' wrists (at most 0.15 m); `mp_gearcheck: N players, M bad`. In mp_dm_passive before the fix:
+  `hands=6 ... ok=0`; after: `hands=2 holsters=2 sheaths=4 trunk=9.0 (most 15.7) wrist=2.7 (most 4.7) ok=1`.
+- `mp_test.py botgear` (in the suite): dedicated DM, the VR A and the flat B; B held in front of A (vr_dm_test 16),
+  A checks B and B checks A; then a bot held there, A checks it. 10 passed.
+## backlog1122d: hole mark, DM1 grates, shell speed (branch agent/backlog1122d, 2026-11-22)
+
+- **Hole mark on vrbrushholes (580 36 24):** the lift's corner. The plat leaves 20-unit slots east and north, each
+  blocked by a world/plat pair, but the 20 x 20 square between them (x 568..588, y 24..44) faces no pair (the plat's
+  corner is diagonal to the shaft's) and a 16 box fell down there. Fix: `crossCorners` (vr_hull_holes.cpp) pairs each
+  blocker with a brush model with the solids near it, both ways along x and y (a blocker is space no point of Quake's
+  box was ever in, so it counts as a solid; the line test alone, as those pairs). HULLS.md "backlog1122d".
+- **DM1 grate (431.5 1344 -120):** two of the grate's bars are func_doors (t2, angle -2) sinking into the floor; their
+  blockers (bar to world bar 20 and 16, bar to bar 20) were found against each door's whole travel as a box and lived
+  in the world's tree, so after the bars sank they stayed standing over the whole way (392..480 shut). Fix: a door's
+  pairs use its closed box and the blockers go into the door's own tree (`Solid::attach`, emitted after its own
+  holes, counted as its `crossHoles`: the census leaves them out of the model's own reach check), moving with it;
+  lifts keep the whole-travel box (the lift test and the corner above need it). buildVersion 6.
+- **Tests:** `vr_hull_holes_test` gained the lift corner (player and monster): 29/0 on and 29/0 off; on dm1 it runs
+  the grate checks instead (`brushholes_dm1`: shut, a 16 box stops 8 from the bars; opened as QC opens them, it walks
+  through): 3/0 on, 3/0 off (off: slips between the bars shut). Census dm1, e1m1, e2m2: Quake's box reaches 0. Not
+  re-run before the fix in the test's form; the marks show the blockers that made both fail. New scene
+  `brushholes_dm1grate` (validate: SCNOK; 7 other files with errors, not this branch's).
+- **Shell speed (AD's and Quoth's rules):** `VR_AD_PelletSpeed`, the one hook every shell launch passes once (ours
+  and AD's own monsters'), multiplies by `VR_AD_SHELL_FASTER` 1.3; the Player/Enemy Pellet Speed settings stay 1 and
+  multiply on top; vanilla's hitscan untouched. `vr_ad_test 58` now prints `adshots-test: speed PASS|FAIL` (ad_shots
+  test's FAIL scan catches it): player 2601 (AD 2000 x 1.3), enemy 1241 (950 x 1.3); at the settings x2: 5210, 2450.

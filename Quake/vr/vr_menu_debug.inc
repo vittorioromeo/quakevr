@@ -1205,6 +1205,10 @@ za::Vector<Item> pageDebugReports()
             .help("vr_mp_near <ent> [radius] [seconds]: the models this client draws, the lights and the sounds of the last "
                   "seconds round a player (0: you). Run it here and on another player's game with your entity number to "
                   "see what of you he gets (the sync audit's harness, mp_test.py syncaudit)."),
+        command("Network: Other Players' Gear", "vr_mp_gearcheck")
+            .help("vr_mp_gearcheck [ent]: each other player's or bot's copy as drawn: its hand models (two: no extra fists "
+                  "in empty holsters), holstered weapons and sheaths, and how far they are from its trunk and wrists "
+                  "(mp_test.py botgear)."),
         command("Network: Log Physics Bodies (5 s)", "vr_mp_bodylog 5 700")
             .help("vr_mp_bodylog <seconds> [radius]: logs each tick the physics things within the radius (props, gibs, "
                   "dropped weapons, every ragdoll part): a listen host the server's truth, a remote client what it draws "

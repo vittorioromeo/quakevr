@@ -7377,6 +7377,82 @@ def botgrab(s):
         botgrab_case(s, srv, a, 0, bots[0] + 1, "the bot")
 
 
+def gear_until(s, inst, ent, what, tries=40):
+    """vr_mp_gearcheck <ent> on `inst` until it lists that copy (posed; a definite end: at most `tries` reports) -> its
+    "mp_gear:" fields, or None (a failed check)."""
+    for _ in range(tries):
+        since = inst.mark()
+        inst.cmd("vr_mp_gearcheck %d" % ent)
+        n, _ = inst.wait(r"mp_gearcheck: \d+ players", 10, since, what)
+        got = [avatar_fields(l) for l in inst.lines[since:n + 1] if l.startswith("mp_gear: ent=%d " % ent)]
+        if got:
+            return got[-1]
+    s.check(what, False, "not listed in %d reports" % tries)
+    return None
+
+
+def botgear_case(s, viewer, ent, label):
+    """One copy as `viewer` draws it: its two hands and no other hand model (an empty holster draws no fists), its
+    holstered weapons and sheaths on its trunk, its hands at its arms' wrists (vr_mp_gearcheck's limits)."""
+    g = gear_until(s, viewer, ent, "%s: %s draws it" % (label, viewer.name))
+    if g is None:
+        return
+    s.check("%s: %s draws two hands and no extra hand models, its holsters and sheaths on its body" % (label, viewer.name),
+            g["ok"][0] == 1 and g["hands"][0] == 2,
+            "hands %d, holsters %d, sheaths %d, farthest %.1f from the trunk (at most %.1f), hands %.1f from the wrists "
+            "(at most %.1f)" % (g["hands"][0], g["holsters"][0], g["sheaths"][0], g["trunk"][0], g["trunkmost"][0],
+                                g["wrist"][0], g["wristmost"][0]))
+
+
+def botgear(s):
+    """(mpbothands; his report 2026-11-22: in the multiplayer scenes every bot had an extra pair of fists, a gun and a shovel
+    floating beside its body) The copies of other players as drawn: on a dedicated deathmatch server the flat-screen B is
+    held in front of the VR A (vr_dm_test 16), then a bot (its holsters empty but a shotgun: the QC names the fists' model
+    for an empty one). A draws each, and B draws A, with exactly their two hands (vr_mp_gearcheck: no hand model in a
+    holster), the holsters and sheaths on the trunk and the hands at the wrists."""
+    srv = s.server(dedicated=True)
+    srv.start()
+    srv.cmd("coop 0; deathmatch 1; noexit 1; fraglimit 0; timelimit %d; skill 1; map %s; vr_mp_status" % (
+        DM_TIMELIMIT, DM_MAP))
+    srv.wait(r"mp_server: map=%s" % DM_MAP, 120, what="the server on %s" % DM_MAP)
+    a = s.client("A").start()
+    b = s.client("B", flat=True).start()
+    a.cmd(s.connect_cmd(a))
+    _, ja = a.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="A joined %s" % DM_MAP)
+    b.cmd(s.connect_cmd(b))
+    _, jb = b.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="B joined %s" % DM_MAP)
+    ea, eb = int(fields(ja)["self"]), int(fields(jb)["self"])
+    a.cmd("name A")
+    b.cmd("name B")
+    since_a = a.mark()
+    srv.cmd("vr_dm_test_who 1; vr_dm_test 16")
+    _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "player B held in front of A")
+    s.check("player B held in front of A (vr_dm_test 16)", "FAIL" not in ready, ready.strip())
+    botgear_case(s, a, eb, "the flat player B")
+    botgear_case(s, b, ea, "the VR player A")
+    srv.cmd("vr_dm_test 0")
+    # a bot (FrikBot: impulse 100 on the server through A), held in front of A by the test
+    since_a = a.mark()
+    a.cmd("impulse 100")
+    a.wait(r"mp_frags: .*named=1", 10, since_a, "the bot named at A")
+    bots = []
+    for _ in range(10):
+        bots = sorted(slot for slot in frag_table(a) if slot not in (ea - 1, eb - 1))
+        if bots:
+            break
+        since_c = a.mark()
+        wait_quietly(a, r"mp_frags: ", 5, since_c, "the bot listed at A")
+    s.check("A lists the bot", len(bots) == 1, "%s" % frag_table(a))
+    if not bots:
+        return
+    since_a = a.mark()
+    srv.cmd("vr_dm_test_who 0; vr_dm_test 16")
+    _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "the bot held in front of A")
+    s.check("the bot held in front of A (vr_dm_test 16)", "FAIL" not in ready, ready.strip())
+    botgear_case(s, a, bots[0] + 1, "the bot")
+    srv.cmd("vr_dm_test 0")
+
+
 def debugviz_case(s, srv, a, who, ent, label, host):
     """(bots4) vr_dm_test 16 holds the victim (`who` 0 the bot, 1 B) in front of A; A's mp_debugviz line for entity `ent`:
     his disarm volumes (the host's from its QC, a client's rebuilt from the weapon it draws) along his drawn weapon, and
@@ -9826,6 +9902,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             lockstep_throw(s)
         elif test == "mp_dm":
             deathmatch(s)
+        elif test == "mp_botgear":
+            botgear(s)
         elif test == "mp_botgrab":
             botgrab(s)
         elif test == "mp_debugviz":
@@ -9915,6 +9993,7 @@ SUITE = [
     ("mp_dm", ()),
     ("mp_coopbots", ()),
     ("mp_botgrab", ()),
+    ("mp_botgear", ()),
     ("mp_debugviz", ()),
     ("mp_debugviz_listen", ()),
     ("mp_wristscore", ()),
@@ -9938,7 +10017,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"])
     tree_base = default_base(REPO)
     ap.add_argument("--base", required=tree_base is None, default=tree_base,
                     help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")
@@ -10005,7 +10084,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

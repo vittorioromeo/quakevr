@@ -1017,14 +1017,17 @@ void view::drawHands(const HandsDraw& in, const HandsEntities& out)
                      (h.flags & VrDrawnHand::weaponMirrorBit) != 0),
             out.weapon[side]);
     }
-    // His holstered weapons where he drew them (his holsters' places, their seated layout, his Holstered poses: B6b).
+    // His holstered weapons where he drew them (his holsters' places, their seated layout, his Holstered poses: B6b). An
+    // empty holster (the fists' model, progs/hand.mdl: a bot's QC holsters name it) draws nothing, as yours (mpbothands:
+    // every bot carried four floating fists).
     const VrDrawnHolsters& hs = *in.holsters;
     for(int i = 0; i < VrDrawnHolsters::count; i++)
     {
         const bool kept = hs.valid && (hs.weapons & (1 << i));
-        drawGear(gear(kept ? hs.model[i] : 0, in.origin + hs.origin[i], hs.angles[i], hs.frame[i], hs.skin[i],
-                     (hs.mirrored & (1 << i)) != 0),
-            out.holster[i]);
+        GearDraw g = gear(kept ? hs.model[i] : 0, in.origin + hs.origin[i], hs.angles[i], hs.frame[i], hs.skin[i],
+            (hs.mirrored & (1 << i)) != 0);
+        g.model = isHandModel(g.model) ? nullptr : g.model;
+        drawGear(g, out.holster[i]);
     }
 }
 
