@@ -7698,6 +7698,37 @@ His words: "it would be nice for those to become armed humanoid too ... Please d
   (the 12 screenshots), `Misc/quakevr/adhum_mdl.py` (builds and frame groups from AD's paks read in place),
   `Misc/quakevr/adhum_census.py` (placements in AD's and Quoth's paks). Screens: `C:\OHWorkspace\qvr-kit\scratch\adhumaudit_*.png`.
 
+## onemodel: one model per gun, not one per ammo type (agent/onemodel, 2026-11-22)
+
+BACKLOG.md 8, his words (2026-11-16): "rather than having different models for the ammo types, we should be able to
+adjust one single model: add attachments, change parts or textures; maintaining two separate sets of models with
+different rules is annoying and causes issues."
+- **One model:** a gun's other-ammo look (`v_lava`, `v_lava2`, `v_multi2`, `v_light_plasma`) is its base model with
+  another skin, declared in `Quake/vr/vr_gunvariants.inc` (`QVR_GUN_VARIANT(variant, base, skin)`). The skins are
+  indexed PNGs (Quake palette) on the base's skin layout beside the base's .blend
+  (`src_models/blend/<base>/<base>_skin_<variant>.png`; an ammo's magazine `vr_mag_on_<base>_skin_<variant>.png`).
+  `Misc/quakevr/make_gun_variants.py build` writes the variants' files from the base's (model, mag/well parts, normal
+  maps byte for byte the base's); `build --check` says whether they are current. Run it after exporting a base model.
+  `transfer` carried each old skin onto the base's layout once (nearest old surface, same facing): v_lava and
+  v_light_plasma exact (same triangles), v_multi2 and v_lava2 176/175 texels more than 0.5 units off (their meshes
+  differed a little). The variant .blend folders are out of the tree (parked on F:/QVR-Parked/2026-11-22/mp_onemodel/);
+  the housing scripts' variant entries are retired (not run again).
+- Before shipping: ThinLTO 0 warnings; reload 116/0, magthrow 3/0, magholster and regrip exit 0, grip_state PASS, cup_aim
+  5/0, gunfx 73/0, load_models 4/0, flatreload 54/0, flathands 76/0, flatsight 12/0, flatholster 54/0, scenario_check
+  187/0. Before/after shots, pixel diff per tile: the plain guns identical; the variant tiles 1-3% of texels changed
+  (VR and flat): the skin carried onto the base's layout, v_lava2/v_multi2 on their gun's mesh.
+- **One slot per gun:** weapons.txt slots 11, 12, 14, 15 are now `id`, `inherit` and his differences only (slot 11's
+  `hand_x 1.150001`, kept). A slot drawing a variant of its parent's model inherits every key but its ID and parent
+  (`weapons::inherits`: anchors, hand places, barrel mask, reload settings too; before, the variants used the reload
+  defaults and their own old anchors). `vr_wofs_version` 79 (`takeGunVariants79`, frozen `vr_weapons_before79.inc`): a
+  full config's values still the shipped copies go back to the defaults (the test baseline: 187 taken).
+- **One set of rules:** `vr_screenstyle.cpp` resolves a variant to its gun's entry (the `lava2`/`multi2` entries and the
+  `lava`/`light_plasma` aliases gone); `vr_gunfx.cpp` firing barrels likewise (the lava rows gone); `vr_view.cpp`'s
+  v_lava2 magazine anchor and `vr_sightalign_table.inc`'s v_lava2/v_multi2 lines the base's numbers (left: the mag
+  mount rows still name each variant's magazine with the base's numbers copied).
+- Checked: `make_gun_variants.py build --check` ok; `vr_wofs_dump` (slots 12, 15 take slots 4, 7's anchors); load_models
+  4/0; scenes `gun_variants_nail`, `gun_variants_rock` (both hands in the other ammo) SCNRUN OK. Flat and VR shots
+  before/after: `scratch/onemodel_{before,after}_{flat,vr}.png` in the worktree (the looks as before).
 ## disarmfix: the player disarmed by enemies, by jolts (agent/disarmfix, 2026-11-22)
 
 BACKLOG 6: "Player disarm: make it consistent, then on for PvE ... Very inconsistent: hard to predict whether a shot or
@@ -7798,3 +7829,44 @@ Phase 3's rest (ROPES.md "Climbing (flat-screen)", "Multiplayer", "Tests", "Know
   `--reset-autoexec`. `mp_test.py version` with no arguments: 7/0 (a first take 3/1, not looked at). vr_pickup_test 15
   on next: 5 of 5 seeds 13/0 (flakehunt's fix holds). scenario_check 190 run, 0 failed; checklist_tests_check 126/0.
 
+## ropes4: another player's rope-climbing pose in MP (agent/ropes4, 2026-11-22)
+
+ROPES.md "Multiplayer", "Tests", "Known limits".
+- Cause: another player's head and hands come from his client's origin, which on a rope (the server moves him with it)
+  isn't where the server has him, and his holds were sent from that origin too: his drawn hands read 15-60 units off
+  the server's holds, his body and feet off the rope with them; his trunk also hung behind the hands as off a ledge.
+- Server: the holds go from his entity's origin as sent (`vr_server.cpp`, writeHolds' origin): every client draws him
+  there. Client: holding a rope, his copy is moved by his held palms' mean way to the server's holds (`vr_mpavatar.cpp`
+  ropeShift, 48 units at most, eased 0.15 s), each held hand then pinned on its hold (ropePinHands; a new hold eased to).
+- Shared with your own body: a hand on a rope has its palm's middle 2.5 cm this side of it (`climb::ropeHandOffset`,
+  `climb::ropeHold`), not the ledge offsets `vr_climb_hand_*` (which put it beside the rope); the trunk turns about the
+  neck so the hips come in to 12 cm from the rope (`vr_avatar_climb.cpp` ropeHips, folded into solveTorso's turn, at
+  most 45 degrees), yours and his. The rope-nearness tolerances went from 6 to 12 units (at a full swing the latest hold
+  is a frame off the rope as drawn).
+- `mp_test.py ropeclimb` waits for A hanging still before its first check and is in the MP suite: 3 runs 11/11
+  (hanging wrists 1.6-3.3, ankles 1.8-7.8; swinging 10.5-12.5, 6.4-14.1). rope_climb_test.sh 8+6+6, rope_flat_test.sh,
+  mp_test.py ropes 9/9 still pass.
+
+## flathotkeys: hotkeys for the remaining VR interactions, audited; 9 dims the gear lights (agent/flathotkeys, 2026-11-22)
+
+BACKLOG 3: "**Hotkeys for the remaining VR interactions** (2026-11-05): audit what is left (parry, ammo switch, throw,
+shove, climb...) and propose a key or leave it VR-only."
+
+- **The audit**: FLATPLAY.md, "Hotkeys: what the headset does that a key does (and doesn't)": each VR interaction, its
+  flat way, and done / VR only / his call. Already covered: parry (RMB, one melee weapon), ammo switch (B; and 7/8,
+  `default.cfg`'s impulse 42/43, both hands), shove, punch, force grab, drop, swap, holsters, reload, bullet time,
+  flashlight, leans, crouch, prone, voice chat, toolgun; climbing is automatic (mantle, ladders, ropes).
+- **Implemented (uncontroversial, no clash)**: `vr_flat_key_gearlights` (default `9`: bound to nothing by default.cfg, no
+  flat key on it; `""` none), the wrist gadget's side button: `vr_gear_lights_toggle` queued as F queues the flashlight
+  (vr_flatplay.cpp pollKeysFlat; the console's own switch, so VR and flat share it). In the flat-key list
+  (vr_flatmove.cpp `flatKeyList`/`flatKeyLabels`: "Gear lights" after Flashlight), so Controls lists it, rebinds, clears,
+  resets and owns it in flat play with no new code. Seen: the visor's panels dim (two screenshots, 9 off/on).
+- **For his call** (not built): a flat **throw** (a swing that opens the hand at speed, the headset's throw doing the rest;
+  on H held, changing H, or J); a flat **grab** (an empty hand reaching out and closing on what it meets: holding enemies
+  (`vr_foegrab`), an armed grunt's gun's tug-of-war, a ledge to hang from; flat hands are always closed, so no grip ever
+  starts today; K/L `+grableft`/`+grabright` could be its keys); the **grapple's rope** in flat (reel/unreel: today
+  Rogue's pull, as for a bot); a **parry when dual wielding** melee (RMB is the left hand's blow there).
+- VR only (no key proposed): ledge hanging and shimmy, two-handed carry, swimming strokes, the gadget's pages and Doom,
+  teleport/turning/recentre, the immersive reload parts.
+- Test: `Misc/quakevr/flatkeybind_test.sh <agent>` + the gear case (Controls' row with no clash, 9 dims then lights,
+  `vr_gear_lights` 0 then 1): 13 passed, 0 failed. Scenario `flat_gear_lights`.

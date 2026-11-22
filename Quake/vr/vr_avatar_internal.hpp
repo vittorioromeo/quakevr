@@ -230,6 +230,9 @@ extern Climbing climbing;
 [[nodiscard]] float ankleHeight(int side);
 [[nodiscard]] glm::vec3 climbOutward(int side);
 void updateClimbing(const Body& b, float dt, bool legs);
+// (ropes4) On a climbable rope (Climbing::ropeWrap, last frame's): the way (horizontal, world, eased by ropeWrap and the
+// climb's weight) the hips at `pelvis` come in towards the rope, to a belly's depth this side of it. False: none.
+[[nodiscard]] bool ropeHips(const glm::vec3& pelvis, glm::vec3& in);
 void logClimbing(const Body& b);
 
 // ---- The body's pitch (vr_avatar_pitch.cpp) ----

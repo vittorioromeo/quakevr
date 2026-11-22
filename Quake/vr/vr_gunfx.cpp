@@ -2,6 +2,7 @@
 
 #include "vr_ambient.hpp"
 #include "vr_gunfx.hpp"
+#include "vr_gunvariants.hpp"
 #include "vr_adguns.hpp"
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
@@ -730,16 +731,9 @@ constexpr FiringBarrels firingBarrels[] = {
     {"progs/v_nail.mdl",
         {{"20.2100 -1.4772 5.5708", "20.2100 -5.8467 2.1119"}, {"20.2100 6.0067 2.1119", "20.2100 1.5442 5.5708"}},
         {0, 1, 0, 1, 0, 1, 0, 1}},
-    {"progs/v_lava.mdl",
-        {{"20.2100 -1.4772 5.5708", "20.2100 -5.8467 2.1119"}, {"20.2100 6.0067 2.1119", "20.2100 1.5442 5.5708"}},
-        {0, 1, 0, 1, 0, 1, 0, 1}},
     {"progs/v_nail2.mdl",
         {{"40.0791 -4.6469 -3.5170", "40.0791 -4.6469 1.6650"}, {"40.0791 2.4535 3.6241", "40.0791 -2.6182 3.6241"},
             {"40.0791 4.5418 -3.5170", "40.0791 4.5418 1.6650"}, {"40.0791 1.0215 -3.2011", "40.0791 -1.2459 -7.8143"}},
-        {0, 1, 2, 3, 0, 1, 2, 3}},
-    {"progs/v_lava2.mdl",
-        {{"39.8517 -4.6650 -3.5270", "39.8517 -4.6650 1.6754"}, {"39.8517 2.4634 3.6422", "39.8517 -2.6283 3.6422"},
-            {"39.8517 4.5599 -3.5270", "39.8517 4.5599 1.6754"}, {"39.8517 1.0257 -3.2098", "39.8517 -1.2506 -7.8412"}},
         {0, 1, 2, 3, 0, 1, 2, 3}},
 };
 
@@ -752,7 +746,7 @@ int firingBarrel(const Muzzle& m, glm::vec3& at)
     {
         return -1;
     }
-    const char* name = ve->ent.model->name;
+    const char* name = gunvariants::resolve(ve->ent.model->name); // (a lava nailgun: its nailgun's barrels)
     const char* hash = strchr(name, '#');
     const size_t len = hash ? static_cast<size_t>(hash - name) : strlen(name);
     for(const FiringBarrels& g : firingBarrels)

@@ -3,6 +3,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_weapons.hpp"
 #include "vr_adguns.hpp"
+#include "vr_gunvariants.hpp"
 #include "vr_anchor.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -247,7 +248,9 @@ namespace
 // (takeMultiRocketHousing77).
 // 78: the lava super nailgun's ammo screen housing (slot 12): the glass in the wedge, slot 4's place
 // (takeLavaSngHousing78).
-constexpr int settingsVersion = 78;
+// 79: one model per gun (vr_gunvariants.inc): the gun variants' slots (11, 12, 14, 15) only his differences, the rest
+// their gun's; a config's values still those they shipped with to the new defaults (takeGunVariants79).
+constexpr int settingsVersion = 79;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -1114,6 +1117,60 @@ void takeLavaSngHousing78()
     }
 }
 
+// Whether two settings' texts are the same value: the same numbers (a vector's each within 1e-3), or the same text.
+[[nodiscard]] bool sameSetting(const char* a, const char* b)
+{
+    for(;;)
+    {
+        char* ea = nullptr;
+        char* eb = nullptr;
+        const float fa = strtof(a, &ea);
+        const float fb = strtof(b, &eb);
+        if(ea == a || eb == b)
+        {
+            return ea == a && eb == b && !strcmp(a, b);
+        }
+        if(fabsf(fa - fb) >= 1e-3f)
+        {
+            return false;
+        }
+        a = ea;
+        b = eb;
+        if(!*a || !*b)
+        {
+            return !*a && !*b;
+        }
+    }
+}
+
+// 79: one model per gun (vr_gunvariants.inc): the variants' slots (11, 12, 14, 15) keep only his differences, every
+// other value their gun's. A config (an old full one) still holding a value they shipped with gets today's default.
+struct Before79
+{
+    int slot;
+    Key key;
+    const char* value;
+};
+constexpr Before79 before79[] = {
+#define QVR_WEAPON_BEFORE79(slot, key, value) {slot, Key::key, value},
+#include "vr_weapons_before79.inc"
+#undef QVR_WEAPON_BEFORE79
+};
+void takeGunVariants79()
+{
+    int taken = 0;
+    for(const Before79& o : before79)
+    {
+        cvar_t& var = cvarAt(o.slot, o.key);
+        if(strcmp(var.string, var.default_string) && sameSetting(var.string, o.value))
+        {
+            Cvar_SetQuick(&var, var.default_string);
+            taken++;
+        }
+    }
+    Con_DPrintf("Weapon settings: the gun variants' slots took their gun's values for %d shipped values\n", taken);
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -1159,6 +1216,7 @@ constexpr Step steps[] = {
     {76, takeGlHousing76},
     {77, takeMultiRocketHousing77},
     {78, takeLavaSngHousing78},
+    {79, takeGunVariants79},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
@@ -1266,7 +1324,7 @@ bool anchorKey(Key key)
 
 const char* anchor(int slot, Key key)
 {
-    const cvar_t* var = anchorKey(key) ? cvar(slot, key) : nullptr;
+    const cvar_t* var = anchorKey(key) ? cvar(slot >= 0 && slot < numSlots ? ownerSlot(slot, key) : slot, key) : nullptr;
     return var ? var->string : "";
 }
 
@@ -1540,9 +1598,27 @@ void setHotspot(int slot, int index, const Hotspot& h)
     Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 25)), h.still ? 1.f : 0.f);
 }
 
+bool inherits(int slot, Key key)
+{
+    if(inheritable(key))
+    {
+        return true;
+    }
+    // One model per gun (vr_gunvariants.inc): a slot drawing a variant of its parent's model (the same triangles in
+    // another skin) can take every key but its ID and its parent: its anchors, hand places, barrel mask and reload
+    // settings are the base's too unless it has its own (a difference kept as the variant's).
+    const int from = inheritsFrom(slot);
+    if(from < 0 || key == Key::ID || key == Key::InheritFrom)
+    {
+        return false;
+    }
+    const char* base = gunvariants::base(cvarAt(slot, Key::ID).string);
+    return base && !strcmp(base, cvarAt(from, Key::ID).string);
+}
+
 int ownerSlot(int slot, Key key)
 {
-    for(int depth = 0; depth < 4 && slot >= 0 && inheritable(key); depth++)
+    for(int depth = 0; depth < 4 && slot >= 0 && inherits(slot, key); depth++)
     {
         const int from = inheritsFrom(slot);
         if(!takesParents(slot, key, from))
@@ -1850,9 +1926,18 @@ void stopInheriting(int slot)
     }
     for(int key = 0; key < numKeys; key++)
     {
-        if(inheritable(static_cast<Key>(key)) && takesParents(slot, static_cast<Key>(key), inheritsFrom(slot)))
+        const Key k = static_cast<Key>(key);
+        if(!takesParents(slot, k, inheritsFrom(slot)))
         {
-            Cvar_SetValueQuick(&cvarAt(slot, static_cast<Key>(key)), values[key]);
+            continue;
+        }
+        if(inheritable(k))
+        {
+            Cvar_SetValueQuick(&cvarAt(slot, k), values[key]);
+        }
+        else if(inherits(slot, k)) // (a gun variant's anchors and the like: their text, a vector or a mask)
+        {
+            Cvar_SetQuick(&cvarAt(slot, k), cvarAt(ownerSlot(slot, k), k).string);
         }
     }
     Cvar_SetValueQuick(&cvarAt(slot, Key::InheritFrom), 0.f);
