@@ -12,8 +12,9 @@
 // convex function of the line's place, so a cell whose four corner lines all have a gap under 32 has it all over, and the
 // box between the corners' faces holds only gap points and points inside the two brushes. Slanted faces are cut into
 // smaller cells. Pairs are looked at within each model (the world, a gate's bars, a func_wall grate: blockers that move
-// with it) and between the world and the brush models that stay or only travel a line (a func_wall, a door's or a lift's
-// whole travel as a box: blockers in the world's tree), and between two of those. Since holes2 (2026-11-22) also along
+// with it) and between the world and the brush models that stay or only travel a line (a func_wall, a lift's whole
+// travel as a box: blockers in the world's tree; a door shut: blockers in its own tree, moving with it), and between two
+// of those (and the corners between those blockers: crossCorners). Since holes2 (2026-11-22) also along
 // the diagonals (slanted bars), seen from above (bars at two heights) and in the wide band (thin gaps up to
 // vr_hull_holes_wide), each kept only where hull 1 shows Quake's box can't reach into it (the last two: standing, over a
 // fall). The limits are settings (vr_hull_holes_*: Settings); vr_hull_holes_mark reports a miss.
@@ -94,6 +95,7 @@ struct Solid
     glm::dvec3 lo{0.0}, hi{0.0};
     int group = 0;        // 0: the model's own brushes; 1: a still brush model's (func_wall); 2: a mover's travel
     int model = 0;        // its submodel (two of one brush model aren't a pair in the world's search)
+    bool attach = false;  // a door's closed box (group 2): its blockers go in its own tree and move with it
     bool slanted = false; // an upright prism with a face turned in x and y (a slanted bar, a round hole's wedge, a
                           // turned wall; not a rock's or an arch's piece): the diagonal search, between two of them
 };
@@ -325,12 +327,16 @@ struct Found
 {
     za::Vector<HoleBox> own, cross, tilt[2], stand;
     za::Vector<HoleBox> ownPieces, tiltPieces[2], standPieces; // (tidy: before merging, for splitDropped)
+    za::Vector<HoleBox> attached; // with a door's closed box: in the door's own tree (attachedModel[i]: its submodel)
+    za::Vector<int> attachedModel;
     int pairs = 0;
 
     void add(const Found& o)
     {
         own.emplaceBackRange(o.own.data(), o.own.size());
         cross.emplaceBackRange(o.cross.data(), o.cross.size());
+        attached.emplaceBackRange(o.attached.data(), o.attached.size());
+        attachedModel.emplaceBackRange(o.attachedModel.data(), o.attachedModel.size());
         for(int d = 0; d < 2; ++d)
         {
             tilt[d].emplaceBackRange(o.tilt[d].data(), o.tilt[d].size());
@@ -463,8 +469,19 @@ void tryPair(const Brushes& b, const Solid& A, const Solid& B, int a, bool world
     ++out.pairs;
     if(B.lo[a] < A.hi[a] + limit - gapMargin)
     {
-        PairWork w{b, A, B, Mode::Axis, a, u, v, 0, limit, 0.0, 0, own ? out.own : out.cross};
-        cells(w, u0, u1, v0, v1);
+        if(A.attach || B.attach)
+        {
+            // With a door's closed box: in the door's tree (the near one's, of two doors), so that they go where it
+            // goes (DM1's sinking bars: blockers left between them in the world kept the opened way shut).
+            PairWork w{b, A, B, Mode::Axis, a, u, v, 0, limit, 0.0, 0, out.attached};
+            cells(w, u0, u1, v0, v1);
+            out.attachedModel.resize(out.attached.size(), A.attach ? A.model : B.model);
+        }
+        else
+        {
+            PairWork w{b, A, B, Mode::Axis, a, u, v, 0, limit, 0.0, 0, own ? out.own : out.cross};
+            cells(w, u0, u1, v0, v1);
+        }
     }
     if(thin && cfg.wide > limit)
     {
@@ -1325,6 +1342,68 @@ void tidy(Found& f)
     mergeBoxes(f.stand);
 }
 
+// The corners between the cross blockers (a brush model's with the world): vrbrushholes' lift (his mark, backlog1122d)
+// has 20-unit slots east and north of the plat, each blocked, and the 20 x 20 square between them stayed open (no pair
+// faces across it: the plat's corner is diagonal to the shaft's). A blocker is space no point of Quake's box was ever
+// in, so it counts as a solid for a second look: a gap under the limit between it and a solid along a line is one
+// Quake's box was never in either (its 32 along the line reach the blocker or the solid). One pass: each cross blocker
+// paired with the solids near it, both ways along x and y; the new boxes join the cross ones.
+void crossCorners(const Brushes& b, const za::Vector<Solid>& solids, Found& found)
+{
+    if(found.cross.empty() || solids.empty())
+    {
+        return;
+    }
+    SolidGrid g;
+    makeGrid(solids, g);
+    Found more;
+    for(const HoleBox& x : found.cross)
+    {
+        Solid blocker;
+        blocker.lo = x.lo;
+        blocker.hi = x.hi;
+        blocker.group = 3;  // (not the model's own: the line test alone, as the cross pairs)
+        blocker.model = -2; // (two blockers aren't a pair)
+        const auto pair = [&](const Solid& s)
+        {
+            for(int a = 0; a < 2; ++a)
+            {
+                tryPair(b, blocker, s, a, false, more);
+                tryPair(b, s, blocker, a, false, more);
+            }
+        };
+        const double r = cfg.maxGap;
+        const int cx0 = g.cellX(x.lo.x - r), cx1 = g.cellX(x.hi.x + r);
+        const int cy0 = g.cellY(x.lo.y - r), cy1 = g.cellY(x.hi.y + r);
+        for(int cy = cy0; cy <= cy1; ++cy)
+        {
+            for(int cx = cx0; cx <= cx1; ++cx)
+            {
+                const auto c = static_cast<za::SizeT>(cy) * static_cast<za::SizeT>(g.nx) + static_cast<za::SizeT>(cx);
+                for(za::U32 k = g.start[c]; k < g.start[c + 1]; ++k)
+                {
+                    const Solid& s = solids[g.list[k]];
+                    if(za::max(cx0, g.cellX(s.lo.x)) == cx && za::max(cy0, g.cellY(s.lo.y)) == cy)
+                    {
+                        pair(s); // (each solid once: in the first cell of both)
+                    }
+                }
+            }
+        }
+        for(const za::U32 k : g.big)
+        {
+            pair(solids[k]);
+        }
+    }
+    if(more.cross.empty())
+    {
+        return;
+    }
+    found.cross.emplaceBackRange(more.cross.data(), more.cross.size());
+    dedupe(found.cross);
+    mergeBoxes(found.cross);
+}
+
 } // namespace
 
 // (the last build's phases, ms: set up, search, dedupe and merge, checks and emit: vr_hull_holes_census)
@@ -1389,38 +1468,17 @@ void addHoles(Brushes& b, const qmodel_t* world)
             {
                 continue;
             }
-            glm::dvec3 move{0.0};
-            if(e.classname[5] == 'p')
-            {
-                move.z = -(e.height > 0.0 ? e.height : (hi.z - lo.z) - 8.0); // QC plat: pos2 under pos1
-            }
-            else
-            {
-                glm::dvec3 dir{0.0};
-                if(e.angle == -1.0)
-                {
-                    dir.z = 1.0;
-                }
-                else if(e.angle == -2.0)
-                {
-                    dir.z = -1.0;
-                }
-                else
-                {
-                    const double r = e.angle * (3.14159265358979323846 / 180.0);
-                    dir.x = za::abs(cos(r)) < 1e-6 ? 0.0 : cos(r);
-                    dir.y = za::abs(sin(r)) < 1e-6 ? 0.0 : sin(r);
-                }
-                const glm::dvec3 size = hi - lo;
-                const double travel =
-                    za::abs(dir.x) * size.x + za::abs(dir.y) * size.y + za::abs(dir.z) * size.z - e.lip; // QC door
-                move = dir * za::max(travel, 0.0);
-            }
+            // A lift: its whole travel as one box (the shaft's slots beside it stay shut wherever it is). A door: its
+            // closed box, the blockers beside it in its own tree, moving with it (an opened door takes them along:
+            // DM1's sinking grate bars, backlog1122d; its travel's box left them standing in the opened way).
+            const bool plat = e.classname[5] == 'p';
+            const glm::dvec3 move{0.0, 0.0, plat ? -(e.height > 0.0 ? e.height : (hi.z - lo.z) - 8.0) : 0.0};
             Solid s;
             s.lo = glm::min(lo, lo + move);
             s.hi = glm::max(hi, hi + move);
             s.group = 2;
             s.model = e.sub;
+            s.attach = !plat;
             solids.pushBack(s);
         }
     }
@@ -1430,6 +1488,7 @@ void addHoles(Brushes& b, const qmodel_t* world)
     b.holePairs += found.pairs;
     const auto tB = za::Clock::nowNanoseconds();
     tidy(found);
+    crossCorners(b, solids, found);
     const auto tC = za::Clock::nowNanoseconds();
     const hull_t& h1 = world->hulls[1];
     const bool haveHull1 = h1.clipnodes && h1.firstclipnode <= h1.lastclipnode;
@@ -1480,10 +1539,21 @@ void addHoles(Brushes& b, const qmodel_t* world)
         int pairs = 0;
     };
     za::Vector<ModelWork> models;
+    const auto attachedTo = [&](int sub)
+    {
+        for(const int m : found.attachedModel)
+        {
+            if(m == sub)
+            {
+                return true;
+            }
+        }
+        return false;
+    };
     for(const BrushEnt& e : ents)
     {
         if(e.sub >= subCount || !strings::startsWith(e.classname, "func_") || !strcmp(e.classname, "func_illusionary") ||
-            b.subs[static_cast<za::SizeT>(e.sub)].numBrushes < 2)
+            (b.subs[static_cast<za::SizeT>(e.sub)].numBrushes < 2 && !attachedTo(e.sub)))
         {
             continue;
         }
@@ -1548,7 +1618,28 @@ void addHoles(Brushes& b, const qmodel_t* world)
                 emitTilt(b, x, d);
             }
         }
+        // The blockers between its closed box and the world (a door's: in the world's coordinates as it stands shut,
+        // which are its own: its origin is 0).
+        za::Vector<HoleBox> attached;
+        for(za::SizeT i = 0; i < found.attached.size(); ++i)
+        {
+            if(found.attachedModel[i] == static_cast<int>(mw.sub))
+            {
+                attached.pushBack(found.attached[i]);
+            }
+        }
+        dedupe(attached);
+        mergeBoxes(attached);
+        const auto ownEnd = static_cast<za::U32>(b.brushes.size());
+        for(const HoleBox& x : attached)
+        {
+            if(!insideSolid(h0, b.subs[0].head, axisBox(x)))
+            {
+                emitBox(b, x);
+            }
+        }
         m.numHoles = static_cast<za::U32>(b.brushes.size()) - m.firstHole;
+        m.crossHoles = static_cast<za::U32>(b.brushes.size()) - ownEnd;
     }
     b.holeMs = za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0);
 }
@@ -1611,7 +1702,7 @@ void census_f()
     {
         const SubModel& sm = b.subs[s];
         const int head1 = world->submodels[s].headnode[1];
-        for(za::U32 i = 0; i < sm.numHoles && head1 >= 0; ++i)
+        for(za::U32 i = 0; i < sm.numHoles - sm.crossHoles && head1 >= 0; ++i) // (a door's with the world: not its own)
         {
             const Brush& br = b.brushes[sm.firstHole + i];
             tilted += br.count == 10u ? 1 : 0;
@@ -1665,7 +1756,7 @@ void near_f()
             if(shown++ < 40)
             {
                 Con_Printf("hole (model %d%s): %.1f %.1f %.1f .. %.1f %.1f %.1f\n", static_cast<int>(s),
-                    s == 0 && i >= sm.numHoles - sm.crossHoles ? ", with a brush model" : "", lo.x, lo.y, lo.z, hi.x, hi.y,
+                    i >= sm.numHoles - sm.crossHoles ? ", with a brush model" : "", lo.x, lo.y, lo.z, hi.x, hi.y,
                     hi.z);
             }
         }
@@ -1675,15 +1766,76 @@ void near_f()
 
 // vr_hull_holes_test: on maps/vrbrushholes (Misc/quakevr/make_vrbrushholes_map.py: the places below), the player's box
 // and a narrow monster's (a grunt at vr_mhull_army 16) at a grate, a bar gate, a lift's edge, a pillar row, a diagonal
-// grate, a louvred grate, two func_walls and a drain (a 32 x 32 hole: Quoth start's); with
+// grate, a louvred grate, two func_walls, a drain (a 32 x 32 hole: Quoth start's) and the lift's corner; with
 // vr_hull_holes on they are stopped (and still get 8 units from a face), off they pass (the scene is a real hole).
 // Verdict: "brushholes: N passed, M failed" (off: "brushholes_off: ...").
+// On maps/dm1.bsp (his mark, backlog1122d): the grate at x 352..512, y 1352..1368: world bars at x 376..392 and
+// 480..496, and between them two sinking bars (func_doors "t2", angle -2, x 412..428 and 448..464). Shut, a narrow
+// box stops 8 from them (holes on; off it slips between the two); opened (moved down as QC opens them: their height
+// less the lip of 8), the player walks through between them, holes on or off. Verdict "brushholes_dm1: ..."
+// ("brushholes_dm1_off: ...").
+void holeTestDm1(edict_t* player, bool on)
+{
+    const char* name = on ? "brushholes_dm1" : "brushholes_dm1_off";
+    testkit::Tally t;
+    edict_t* bars[2] = {};
+    int found = 0;
+    const progs::ServerVm vm; // (the server's edicts and strings)
+    for(int i = 1; i < sv.qcvm.num_edicts && found < 2; ++i)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(!e->free && !strcmp(PR_GetString(e->v.classname), "door") && !strcmp(PR_GetString(e->v.targetname), "t2"))
+        {
+            bars[found++] = e;
+        }
+    }
+    vec3_t was;
+    VectorCopy(player->v.origin, was);
+    char what[256];
+    const auto walk = [&](float z, bool pass, const char* scene)
+    {
+        vec3_t a = {438.f, 1300.f, z}, e = {438.f, 1420.f, z};
+        VectorCopy(a, player->v.origin);
+        const trace_t tr = SV_Move(a, player->v.mins, player->v.maxs, e, MOVE_NOMONSTERS, player);
+        const bool ok = pass ? tr.fraction == 1.f : za::abs(1352.f - 8.f - tr.endpos[1]) < 0.2f;
+        snprintf(what, sizeof(what), "%s: ended at %.2f %.2f %.2f (fraction %.3f)", scene, tr.endpos[0], tr.endpos[1],
+            tr.endpos[2], tr.fraction);
+        if(t.check(ok, name, what))
+        {
+            Con_Printf("%s: PASS %s\n", name, what);
+        }
+    };
+    if(t.check(found == 2, name, "the two sinking bars (func_door t2)"))
+    {
+        walk(-120.f, !on, on ? "shut: stopped 8 from the bars" : "shut: slipped between the bars");
+        for(edict_t* e : bars)
+        {
+            e->v.origin[2] = -(e->v.size[2] - 8.f); // (QC door: pos2 = pos1 + movedir * (size - lip))
+            SV_LinkEdict(e, false);
+        }
+        walk(-110.f, true, "opened: walked through"); // (feet -134: over the opened bars' 8-high lips)
+        for(edict_t* e : bars)
+        {
+            e->v.origin[2] = 0.f;
+            SV_LinkEdict(e, false);
+        }
+    }
+    VectorCopy(was, player->v.origin);
+    SV_LinkEdict(player, false);
+    t.verdict(name);
+}
+
 void holeTest_f()
 {
     const bool on = vr_hull_holes.value != 0.f;
     const char* name = on ? "brushholes" : "brushholes_off";
     testkit::Tally t;
     edict_t* player = progs::localPlayer();
+    if(player && sv.worldmodel && !strcmp(sv.worldmodel->name, "maps/dm1.bsp"))
+    {
+        holeTestDm1(player, on);
+        return;
+    }
     if(!player || !sv.worldmodel || strcmp(sv.worldmodel->name, "maps/vrbrushholes.bsp"))
     {
         t.check(false, name, "needs maps/vrbrushholes.bsp");
@@ -1744,6 +1896,10 @@ void holeTest_f()
         // The lift (plat x 448..568, y -96..24, up at z 128; the shaft's walls x 588, y 44): down the 20-unit slot east.
         tr = move(who, 578.f, -30.f, 153.f, 578.f, -30.f, 30.f);
         report(on ? tr.endpos[2] > 151.9f : tr.endpos[2] < 100.f, label, on ? "lift slot drop stopped" : "lift slot drop fell", tr);
+        // The square between the two slots (x 568..588, y 24..44: the plat's corner diagonal to the shaft's; his mark).
+        tr = move(who, 578.f, 34.f, 153.f, 578.f, 34.f, 30.f);
+        report(on ? tr.endpos[2] > 151.9f : tr.endpos[2] < 100.f, label,
+            on ? "lift corner drop stopped" : "lift corner drop fell", tr);
         // The pillars (16 wide, 24 apart, y 448..464): through a gap.
         tr = move(who, 188.f, 380.f, 24.f, 188.f, 530.f, 24.f);
         report(on ? za::abs(448.f - 8.f - tr.endpos[1]) < 0.2f : tr.fraction == 1.f, label,
