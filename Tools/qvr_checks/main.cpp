@@ -78,6 +78,21 @@ const Check* findCheck(std::string_view name)
     return nullptr;
 }
 
+// A check run, an exception from it (std::stoll's out_of_range, a std::regex error, ...) reported as its failure
+// instead of ending the tool with no output (exit 3: build.sh's "BUILD FAILED" with an empty log).
+int runCheck(const Check& c, const Ctx& ctx, const Args& args, Out& out)
+{
+    try
+    {
+        return c.fn(ctx, args, out);
+    }
+    catch(const std::exception& e)
+    {
+        out.line("{}: the check crashed: {}", c.name, e.what());
+        return 2;
+    }
+}
+
 void print(std::string_view s)
 {
     std::fwrite(s.data(), 1, s.size(), stdout);
@@ -150,7 +165,7 @@ int runAll(const Ctx& ctx, const Args& args)
             {
                 a.emplace_back("--check");
             }
-            results[i].rc = c->fn(ctx, a, results[i].out);
+            results[i].rc = runCheck(*c, ctx, a, results[i].out);
             results[i].ran = true;
             results[i].seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
         });
@@ -264,7 +279,7 @@ int main(int argc, char** argv)
         return usage();
     }
     Out out;
-    const int rc = c->fn(ctx, args, out);
+    const int rc = runCheck(*c, ctx, args, out);
     print(out.text);
     std::fflush(stdout);
     return rc;

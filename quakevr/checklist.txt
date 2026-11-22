@@ -162,6 +162,7 @@ Run Setup again (Update): the reliefs step says they were all kept and makes not
 Play Dwell's d1m1 and look at the brick walls and door frames up close: they have AD-like depth now (made by Setup on your PC); compare with Generated Companion Maps (VR Settings, Graphics) off, from the next map, if in doubt. {test:hub_start}
 Play Quoth's kellbase1: the pillar panels and the ceiling have AD-like depth now (Setup's reliefs), with no shimmering or wrong-way lighting on them. {test:hub_start}
 Run Setup on your existing Quake VR folder: it offers Make reliefs only; the second run makes none {test:hub_start}
+Install 1.2.0-beta1 with Setup from the GitHub pre-release and start a game: the menu shows version 1.2.0-beta1 and the update notice still treats 1.1.0 as the latest stable {test:hub_start}
 
 [12. Recording and dev tools]
 Takes: with OBS running, press TAKE on the wrist gadget, act, press STOP: a small blinking red light in the headset only, then the rating prompt; KEEP renames OBS's file to <date>_<scene>_t01_keep, REJECT moves it to rejected/. Left grip + X then Y marks in and out (vr_take_list shows them, X / Y do nothing in game); SET UP, knock props about, RETAKE: the scene comes back and a new take starts. {test:takes}

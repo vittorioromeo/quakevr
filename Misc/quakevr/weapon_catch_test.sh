@@ -47,14 +47,17 @@ check $(echo "$log" | grep -q "error" && echo 0 || echo 1) "no error"
 #    vr_weapon_grab_slack (set to 5 here) plus vr_weapon_grab_handle_leniency (5) of it (the hand pushed it before: never taken);
 #    with the leniency 0, the allowed gap at the handle is the slack's alone.
 handle() { # <setup> <heights in units over the handle>: "taken <gap> <allowed>", "allowed <first allowed>"
-    local S="vr_weapon_grab_slack 5;vr_agrunt_repl 0;sv_random_seed $SEED;map e1m1;wait60;developer 1;vr_weapon_grip_mode 1;impulse 9;wait2;impulse 154;wait3;vr_test_weaponinst 7;impulse 120;wait3;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;vr_mock_hand off -0.15 1.0 -0.40 80 0 0;wait10;vr_reload_test 20;impulse 125;wait120;vr_mock_hand off -0.15 1.0 -0.40 0 0 0;wait10;vr_mock_walk_to nearest thrown_weapon 30;wait200;vr_mock_walk_to off;wait10;$1;vr_debug_carry 2"
+    local S="vr_weapon_grab_slack 5;vr_agrunt_repl 0;sv_random_seed $SEED;map vrfiringrange;wait60;setpos 250 -656.7 41 0 0 0;wait10;developer 1;vr_weapon_grip_mode 1;impulse 9;wait2;impulse 154;wait3;vr_test_weaponinst 7;impulse 120;wait3;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;vr_mock_hand off -0.15 1.0 -0.40 80 0 0;wait10;vr_reload_test 20;impulse 125;wait120;vr_mock_hand off -0.15 1.0 -0.40 0 0 0;wait10;vr_mock_walk_to nearest thrown_weapon 30;wait200;vr_mock_walk_to off;wait10;$1;vr_debug_carry 2"
     for h in $2; do S="$S;vr_mock_hand_to off nearest thrown_weapon $h;wait6;+graboff;vr_mock_button off grip 1;wait3;-graboff;vr_mock_button off grip 0;wait15"; done
     tb_run_sh -Script "$S;toggleconsole;quit" -Filter "Shotgun taken into|grab: off hand, thrown|rror" 2>&1 |
         awk '/the fist/{match($0, /, -?[0-9.]+ cm/); g=substr($0, RSTART+2, RLENGTH-5); match($0, /allowed [0-9.]+/); a=substr($0, RSTART+8, RLENGTH-8); if(!f){print "allowed " a; f=1}}
              /taken into/{print "taken " g " " a; exit} /rror/{print "error"}'
 }
 # (Where the let-go gun lands varies from run to run, sv_random_seed or not: Box3D; walked up to within 30 units of it,
-# not into it. A run whose hand never got near it, the gun out of reach, is run again, up to 4 times; so is one where the
+# not into it. On vrfiringrange's flat floor since release12c (2026-11-21): at e1m1's start
+# the gun slid off the step (alone, by run.sh, the same to the unit before and after the Box3D update 1767150d), the
+# walk's momentum carried the player off it too, ~75 units past the gun, out of reach; only a batch's run-to-run
+# variation sometimes left it on the top, and after the update none of the 5 tries did. A run whose hand never got near it, the gun out of reach, is run again, up to 4 times; so is one where the
 # gun lay so that the closing fist met its body before the hand came within vr_weapon_grab_anywhere_min of the handle:
 # taken by the fist in it (-13 to -23 cm, allowed 5 or 0), a take anywhere, not the handle's. Each about 1 run of 8,
 # since the check was made, 2026-10-08, d94a28c2a included; 5 tries.)
