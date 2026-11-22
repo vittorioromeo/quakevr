@@ -630,11 +630,13 @@ namespace
 struct Entry
 {
     za::I32 key{0}, op{0}, size{0}, ci{-1}; // ci: its record in `cur` (-1: gone)
+    za::I32 kept{-1}; // opFields: its encoding's first byte in fieldsKept (the first pass's, written as it is: review B7)
     float prio{0.f};
     bool chosen{true};
     bool cosmetic{false}; // (B12c: a cosmetic fragment's: its own budget)
 };
 za::Vector<Entry> entries;   // (encode's scratch)
+za::Vector<za::U8> fieldsKept; // (... the first pass's encodings by fields, verified: the write pass's bytes, review B7)
 za::Vector<za::I32> byPrio;  // (... the entries in priority order)
 constexpr int headMost = 3;  // an entry's head: a key's step under 2^19
 za::Vector<int> poseEntries; // the client: the pose entries read of each entity (vr_net_bytes poses; the rate's priorities)
@@ -684,6 +686,7 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
     // not fit (no priorities: the rest wait), or the ones that must (gone entries, priority infinite) and then the
     // highest priorities that fit.
     entries.clear();
+    fieldsKept.clear();
     int need = body->cursize;
     int cosmeticNeed = 0;
     bool ragChanged = false; // (ragsync2: a ragdoll's changed record, under ragSoft)
@@ -727,6 +730,11 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
             e = fieldsSize < deltaSize && fieldsSize < wholeSize ? Entry{c->key, opFields, fieldsSize, ci1}
                 : deltaSize < wholeSize                          ? Entry{c->key, opDelta, deltaSize, ci1}
                                                                  : Entry{c->key, opWhole, wholeSize, ci1};
+            if(e.op == opFields)
+            {
+                e.kept = static_cast<za::I32>(fieldsKept.size());
+                fieldsKept.insert(fieldsKept.end(), fieldsBuf, fieldsBuf + fieldsSize);
+            }
         }
         e.prio = e.ci < 0 ? INFINITY : prio ? prio[e.ci] : 0.f;
         e.cosmetic = cosmetic && e.ci >= 0 && cosmetic[e.ci] != 0;
@@ -841,10 +849,7 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
         }
         else if(e.op == opFields)
         {
-            const Record* o = trend ? findKey(*trend->older, c->key) : nullptr;
-            const int n = fieldsEncode(base->data(*b), b->len, cur.data(*c), c->len, pflags, fieldsBuf, trend,
-                o ? trend->older->data(*o) : nullptr, o ? o->len : 0);
-            SZ_Write(body, fieldsBuf, n); // (the size the first pass measured and checked)
+            SZ_Write(body, fieldsKept.data() + e.kept, e.size); // (the first pass's bytes, measured and checked)
         }
         else if(e.op == opWhole)
         {
@@ -1199,19 +1204,31 @@ int holdRagdolls(const Snapshot* base)
 
 // (B12c) A cosmetic fragment's entity: a small gib or an explosion's chunk (nothing touches them: vr_smallgibs.qc,
 // vr_explosiondebris.cpp), whose updates have a budget of their own (vr_net_cosmetic_bytes).
+// Each entity's answer, once a server frame for every client's snapshot (review B7): by entity number, 0 not asked yet
+// this frame, 1 no, 2 yes.
+za::Vector<za::U8> cosmeticByEnt;
+int cosmeticFrame{-1}; // (host_framecount when cosmeticByEnt was cleared)
+
 [[nodiscard]] bool isCosmetic(int num)
 {
     if(num <= 0 || num >= qcvm->num_edicts)
     {
         return false;
     }
-    const edict_t* ed = EDICT_NUM(num);
-    if(ed->free)
+    if(cosmeticFrame != host_framecount || static_cast<int>(cosmeticByEnt.size()) != qcvm->max_edicts)
     {
-        return false;
+        cosmeticFrame = host_framecount;
+        cosmeticByEnt.clear();
+        cosmeticByEnt.resize(static_cast<za::SizeT>(qcvm->max_edicts), 0);
     }
-    const char* name = PR_GetString(ed->v.classname);
-    return strcmp(name, "vr_smallgib") == 0 || strcmp(name, "vr_explosion_debris") == 0;
+    za::U8& known = cosmeticByEnt[static_cast<za::SizeT>(num)];
+    if(known == 0)
+    {
+        const edict_t* ed = EDICT_NUM(num);
+        const char* name = ed->free ? "" : PR_GetString(ed->v.classname);
+        known = strcmp(name, "vr_smallgib") == 0 || strcmp(name, "vr_explosion_debris") == 0 ? 2 : 1;
+    }
+    return known == 2;
 }
 
 // (B13c, vr_net_test_hold n, a test aid) The other players' entities and avatars wait n snapshots in each n + 1: their

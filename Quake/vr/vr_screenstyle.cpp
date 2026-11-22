@@ -2,6 +2,7 @@
 
 #include "vr_screenstyle.hpp"
 #include "vr_cvars.hpp"
+#include "vr_gunvariants.hpp"
 
 #include <cstring>
 
@@ -128,29 +129,12 @@ constexpr Entry table[] = {
             .box = 0.f,
             .housing = true,
             .opening = {23.02f, 14.28f}}},
-    // The super nailgun's lava-nail model (v_lava2.blend: the same wedge by the same script on its own grid, its texels
-    // found on v_lava2's own skin): "nail2"'s numbers, the glass at slot 12's place (slot 4's wpntxt values).
-    {"lava2",
-        {.radius = -7.2f,
-            .bevel = 1.6f,
-            .vignette = 0.45f,
-            .sheen = 0.6f,
-            .soft = 0.55f,
-            .glass = 0.1f,
-            .tint = {0.9f, 1.f, 0.9f},
-            .crt = 0.4f,
-            .size = 1.f,
-            .offset = {0.0253f, -0.0028f, 0.0135f},
-            .box = 0.f,
-            .housing = true,
-            .opening = {23.02f, 14.28f}}},
     // The lightning gun: a flat bronze plate over the receiver's whole upright rear face under the rear sight (its
     // trapezoid), the window a trapezoid too (`taper`: its top 0.73 of its bottom), chamfered, sunk into the plate, two
     // rivets each side between them (v_light.blend, Misc/quakevr/make_screen_housing_light.py reads `opening`, `taper`,
     // `radius`, `size` and `offset` from here and snaps them to the model's grid). The glass upright, 0.06 window heights
     // behind the plate's front: the offset moves it from weapons.txt's place (model -2.964 -0.218 9.762) to the
     // window's (2.551 model units a world unit). Smaller digits (size): two lines fit the window's narrower top.
-    // Its plasma model v_light_plasma.mdl (stem "light_plasma": an alias of this entry, aliases below) takes the same housing.
     {"light",
         {.radius = -4.71f,
             .bevel = 1.6f,
@@ -187,22 +171,6 @@ constexpr Entry table[] = {
             .box = 0.f,
             .housing = true,
             .opening = {15.54f, 15.35f}}},
-    // The rocket launcher's multi-rocket model (v_multi2.blend): the same housing, by the same script, on its own grid
-    // and its shoulder (one X step further forward); the glass at slot 14's place and the same pitch.
-    {"multi2",
-        {.radius = 4.59f,
-            .bevel = 1.6f,
-            .vignette = 0.4f,
-            .sheen = 0.6f,
-            .soft = 0.55f,
-            .glass = 0.13f,
-            .tint = {0.9f, 1.f, 0.9f},
-            .crt = 0.4f,
-            .size = 1.f,
-            .offset = {0.0012f, 0.1609f, -0.0655f},
-            .box = 0.f,
-            .housing = true,
-            .opening = {15.60f, 15.29f}}},
     // The grenade launcher: a square riveted bronze bezel on the rear face of the top block (the pyramid's upper face
     // under the top ridge), the window chamfered, a rivet in each of the bezel's corners (v_rock.blend,
     // Misc/quakevr/make_screen_housing_gl.py reads `opening`, `radius` and `offset` from here). The plate leans on the
@@ -388,12 +356,6 @@ struct Alias
     const char* as;   // the entry it takes
 };
 constexpr Alias aliases[] = {
-    // The nailgun's lava-nail model (v_lava.blend: v_nail's mesh, the same housing by the same script, its texels found on
-    // v_lava's own skin): weapons.txt slot 11's place slot 3's.
-    {"lava", "nail"},
-    // The Thunderbolt's plasma model (v_light_plasma.blend: v_light's mesh, the same plate by the same script, its skin
-    // holding v_light's texels where the plate takes them): slot 15's place slot 7's.
-    {"light_plasma", "light"},
     // Dwell support (dwellwpn3): the Rotary Shotgun as a gauntlet (vr_dw_rotary_gauntlet; vr_adweapons.cpp
     // rotaryGauntletHousingSpec: a window of the same size on its back, laid round the super nailgun's hand).
     {"dw_rotary.mdl#vr", "dw_shot3.mdl#vr"},
@@ -410,6 +372,8 @@ const Style& forModel(const char* model, bool mirrored)
 {
     if(model)
     {
+        // A gun's other-ammo look is its gun's model in another skin (vr_gunvariants.inc): its gun's entry.
+        model = gunvariants::resolve(model);
         const char* as = nullptr; // (an alias's entry, looked up by its stem)
         for(const Alias& a : aliases)
         {

@@ -181,25 +181,41 @@ void roomscale(int slot, float v[3], double dt, float upm)
         return;
     }
     Slot& s = slots[slot];
+    if(budget(s.walkLeft, v, dt, upm))
+    {
+        s.counts.walks++;
+    }
+}
+
+bool budget(float& walkLeft, float v[3], double dt, float upm)
+{
+    if(!(dt > 0.0))
+    {
+        return false;
+    }
     const float burst = walkBurst * upm;
-    s.walkLeft = s.walkLeft < 0.f ? burst : za::min(burst, s.walkLeft + walkMost * upm * static_cast<float>(dt));
+    walkLeft = walkLeft < 0.f ? burst : za::min(burst, walkLeft + walkMost * upm * static_cast<float>(dt));
     if(!ZA_ISFINITE(v[0]) || !ZA_ISFINITE(v[1]))
     {
         v[0] = v[1] = 0.f;
-        s.counts.walks++;
-        return;
+        return true;
     }
     const float wanted = za::sqrt(v[0] * v[0] + v[1] * v[1]) * static_cast<float>(dt); // (units this move)
-    if(wanted <= s.walkLeft)
+    if(wanted <= walkLeft)
     {
-        s.walkLeft -= wanted;
-        return;
+        walkLeft -= wanted;
+        return false;
     }
-    const float k = s.walkLeft / wanted;
+    const float k = walkLeft / wanted;
     v[0] *= k;
     v[1] *= k;
-    s.walkLeft = 0.f;
-    s.counts.walks++;
+    walkLeft = 0.f;
+    return true;
+}
+
+float walkLeft(int slot)
+{
+    return slot >= 0 && slot < MAX_SCOREBOARD ? slots[slot].walkLeft : -1.f;
 }
 
 void count(int slot, const Held& h)

@@ -132,6 +132,12 @@ struct Grapple
 // QC's GH_RAMP (seconds the reel takes to its speed, from a fifth), GH_STALL (units the rope may be shorter than he is
 // far), GH_BRAKE (units/s/s he slows at, arriving).
 inline constexpr float grappleRamp = 0.15f, grappleStall = 8.f, grappleBrake = 2500.f;
+// The reel's one rule (BACKLOG 9 item 4: the player's grappleStep and QC's builtin grapplereel for props and monsters
+// call it): `len` (the rope) shortened over `dt` at the reel's speed, `full` ramped from a fifth over grappleRamp by
+// `age` (seconds reeling), taking any slack in at once, never shorter than `shortest` nor grappleStall shorter than the
+// load is far (`dist`, the rope's whole way) -> that speed braked to stop at `shortest` (grappleBrake): how fast the
+// load should come.
+float grappleReel(float& len, float full, float age, float dist, float shortest, float dt);
 // One step of `dt` (QC VR_Grapple_ServiceAnchor's Wind and HoldPlayer): reeling, the rope shortened at the reel's
 // ramped speed (never shorter than g.shortest, nor grappleStall shorter than he is far), braking as he arrives; then he
 // is held: never farther from the corner than the rope less its path beyond (put back on it, swept: a wall stops that,

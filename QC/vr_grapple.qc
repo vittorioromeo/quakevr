@@ -51,7 +51,7 @@
 //   | nothing (the hook loose) | it, to the gun, where it goes back in | vr_grapple_prop_speed |
 //
 // A load that can't follow (a box behind a pillar, a monster against a wall) stalls the reel: the rope is never more
-// than GH_STALL shorter than it is far. The rope holds what it pulls too: a prop or a monster that goes farther than the
+// than 8 units shorter than it is far (vr_pmove.cpp grappleStall). The rope holds what it pulls too: a prop or a monster that goes farther than the
 // rope (pushed, walking away, you walking away) is pulled back to its length; a huge monster drags you.
 //
 // The unreel (docs/vr-port/ROUND21.md, "Grapple: unreel; rope drawn in one piece"): the hand's lower face button (A on
@@ -106,9 +106,9 @@ float GW_HAND    = 1; // in a player's hand
 float GW_HOLSTER = 2; // in a player's holster
 float GW_PROP    = 3; // lying about (a thrown weapon)
 
-float GH_STALL      = 8;    // units the rope may be shorter than the load is far: the reel can't outrun its load
-float GH_RAMP       = 0.15; // seconds the reel takes to reach its speed (it starts at a fifth)
-float GH_BRAKE      = 2500; // units/s/s a reeled prop or monster slows at, arriving (it stops at the rope's shortest)
+// (the reel's own: vr_pmove.cpp grappleRamp, grappleStall, grappleBrake, builtin grapplereel; these two the unreel's)
+float GH_RAMP       = 0.15; // seconds the unreel takes to reach its speed (it starts at a fifth), as the reel
+float GH_BRAKE      = 2500; // units/s/s the unreel slows at when let go, as a reeled load arriving
 float GH_HOLD_SPEED = 400;  // units/s at most the rope pulls a load back to its length when it is farther (not reeling)
 float GH_HOLD_SLACK = 8;    // units past the rope's length before it pulls a load back
 float GH_PROP_GAP   = 12;   // units past half its size from the muzzle a reeled prop stops at
@@ -1468,22 +1468,8 @@ void (float xHand) W_FireGrapple =
 // The rope
 // ----------------------------------------------------------------------------
 
-// The reel's speed now for `h` (it starts at a fifth and reaches it in GH_RAMP).
-float(entity h) VR_Grapple_ReelSpeed =
-{
-    float ramp = min(1, 0.2 + 0.8 * (time - h.gh_reel) / GH_RAMP);
-    return h.gh_speed * ramp * h.gh_stamina_mult;
-};
-
-// The rope shortened by the reel this frame, from `xDist` (how far the load is): taking any slack in at once, never
-// shorter than `xShortest` nor GH_STALL shorter than the load is far (the reel can't outrun its load; a stuck one stalls
-// it).
-void(entity h, float xDist, float xSpeed, float xShortest) VR_Grapple_Wind =
-{
-    float len = min(h.gh_len, xDist) - xSpeed * frametime;
-    len = max(len, xDist - GH_STALL);
-    h.gh_len = max(min(h.gh_len, max(xShortest, len)), 0);
-};
+// The reel (the rope shortened, the load's speed): the engine's builtin grapplereel, the rule the player's reel runs
+// too (vr_pmove.cpp grappleReel: one copy, BACKLOG 9 item 4).
 
 // The rope snapping taut at `xSpeed` units/s (the load or the player going away from the other end): a twang, a jolt
 // in the hand (self: the player).
@@ -1502,7 +1488,7 @@ void(entity h, float xHand, float xSpeed) VR_Grapple_Taut =
     }
 };
 
-// The player held by the rope (HoldPlayer) and its reel (Wind, VR_Grapple_ReelSpeed) for a hook in the world: the
+// The player held by the rope (HoldPlayer) and its reel (grappleReel) for a hook in the world: the
 // engine's grappleStep (vr_pmove.cpp: QC's builtin grapplehold, VR_Grapple_ServiceAnchor), the code a remote
 // client's moves run, each on its own B/Y (MP_PLAN B8j part 4).
 
@@ -1715,8 +1701,8 @@ void(entity h, float xHand, float xDist, float xSpeed, string xWho) VR_Grapple_L
     }
     h.gh_log_at = time + 0.25;
     h.gh_log_d = xDist;
-    dprint(sprintf("grapple: hand %g reels %s: %.0f away, rope %.0f, closing %.0f u/s (velocity %.0f, reel %.0f)\n", xHand,
-        xWho, xDist, h.gh_len, rate, xSpeed, VR_Grapple_ReelSpeed(h)));
+    dprint(sprintf("grapple: hand %g reels %s: %.0f away, rope %.0f, closing %.0f u/s (velocity %.0f, reel up to %.0f)\n", xHand,
+        xWho, xDist, h.gh_len, rate, xSpeed, h.gh_speed * h.gh_stamina_mult));
 };
 
 // ----------------------------------------------------------------------------
@@ -2043,9 +2029,7 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServicePlain =
     float want = 0;
     if(xReeling)
     {
-        float speed = VR_Grapple_ReelSpeed(h);
-        VR_Grapple_Wind(h, d, speed, shortest);
-        want = min(speed, sqrt(2 * GH_BRAKE * max(0, d - shortest)));
+        want = grapplereel(h, d, shortest);
         VR_Grapple_ReelFeel(h, xHand, 0.2, TRUE);
         VR_Grapple_Log(h, xHand, d, t.velocity * n, t.classname);
     }
@@ -2147,12 +2131,9 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServiceProp =
     }
     float closing = (t.velocity - self.velocity) * n; // how fast it comes, the player's own motion aside
     float want = 0;
-    float speed = 0;
     if(xReeling)
     {
-        speed = VR_Grapple_ReelSpeed(h);
-        VR_Grapple_Wind(h, d, speed, shortest);
-        want = min(speed, sqrt(2 * GH_BRAKE * max(0, d - shortest)));
+        want = grapplereel(h, d, shortest);
     }
     float over = d - h.gh_len - GH_HOLD_SLACK;
     if(over > 0)
@@ -2242,13 +2223,10 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServiceMonster =
     float shortest = max(0, cvar_hget(cvarh_vr_grapple_min_length)) + apart;
     float closing = (m.velocity - self.velocity) * n;
     float want = 0;
-    float reel = 0;
     if(xReeling)
     {
         VR_Grapple_Stamina(h);
-        reel = VR_Grapple_ReelSpeed(h);
-        VR_Grapple_Wind(h, d, reel, shortest);
-        want = min(reel, sqrt(2 * GH_BRAKE * max(0, d - shortest)));
+        want = grapplereel(h, d, shortest);
         if(h.gh_class == GH_SMALL && cvar_hget(cvarh_vr_grapple_stagger) && time >= h.gh_stagger_at && want > 40)
         {
             VR_Grapple_Stagger(m);
@@ -2316,7 +2294,7 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServiceAnchor =
         dprint(sprintf("grapple: anchor: corner %v, %.1f away and %.1f beyond (path %.1f), rope %.1f, you at %v\n", at,
             vlen(at - self.origin), gr_ba, gr_path, h.gh_len, self.origin));
     }
-    // The reel (VR_Grapple_ReelSpeed, VR_Grapple_Wind) and the hold (VR_Grapple_HoldPlayer), or paying out, you go away
+    // The reel (grappleReel) and the hold (VR_Grapple_HoldPlayer), or paying out, you go away
     // no faster than the rope comes off the drum: the engine's grappleStep (vr_pmove.cpp), the code a remote client's
     // moves run (MP_PLAN B8j part 4). Walked move by move, his moves hold and reel him (each on its own B/Y: the hands
     // that drive this reel, its own and the other if it has no hook out), his prediction with them; else once now.
