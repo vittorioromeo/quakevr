@@ -515,7 +515,8 @@ void(float xHand) W_FireFlareGun =
 void(float xHand, float xAttackFinished, float* xOutAttackFinished) VR_FlareGun_Attack =
 {
     float rearm = VR_IMPL_SELECT(xHand, self.vr_fg_rearm2, self.vr_fg_rearm);
-    if(rearm)
+    // (Hasted, full auto while it has a flare: VR_Haste_FullAuto; spent, still a click a pull.)
+    if(rearm && !(VR_Haste_FullAuto(self) && VRGetWeaponClip(xHand) >= 1))
     {
         return;
     }

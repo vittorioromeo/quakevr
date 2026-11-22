@@ -1029,6 +1029,7 @@ void resetHandMoves()
         row(opt::vr_revolver_open_flick_speed),
         row(opt::vr_revolver_open_flick_angle),
         row(opt::vr_revolver_open_flick_time),
+        row(opt::vr_revolver_open_flick_arm_share),
         row(opt::vr_revolver_open_button),
         header("Dropping the Shells"),
         row(opt::vr_revolver_eject_speed),

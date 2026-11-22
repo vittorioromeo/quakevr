@@ -186,6 +186,40 @@ float(float tvalue, entity who) RuneApplyHell =
     return tvalue;
 };
 
+// Whether `who` fires hasted: Dwell's Haste or Dissolution's Hell Magic rune (RuneApplyHell's time cut).
+float(entity who) VR_HasteActive =
+{
+    return who.dw_haste_finished > time || (who.rune & ITEM_RUNE3);
+};
+
+// Whether `who`'s semi-automatic guns (the nail pistol, the heavy revolver, the flare gun) fire full auto now: hasted,
+// with vr_haste_full_auto (his note vrtesthall_2026-11-22_15-59-37). Their refire is then their cooldown through
+// RuneApplyHell, as every gun's.
+float(entity who) VR_Haste_FullAuto =
+{
+    return cvar_hget(cvarh_vr_haste_full_auto) && VR_HasteActive(who);
+};
+
+// The hand `xHand`'s next animation frame paced by haste (RuneApplyHell), for the guns whose frames fire (the nailguns,
+// the lightning gun, the laser cannon: player.qc; his note vrtesthall_2026-11-22_15-59-17, Haste sped the shotgun, not
+// the nailgun): 0.1 s a frame, hasted 0.06.
+void(float xHand) VR_Haste_FramePace =
+{
+    if(!VR_HasteActive(self))
+    {
+        return;
+    }
+    float k = RuneApplyHell(0.1, self);
+    if(xHand == cVR_OffHand)
+    {
+        self.nextthink2 = time + k;
+    }
+    else
+    {
+        self.nextthink = time + k;
+    }
+};
+
 void(entity who) RuneApplyElder =
 {
     if(who.rune & ITEM_RUNE4) {
