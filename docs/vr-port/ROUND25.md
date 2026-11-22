@@ -8044,3 +8044,22 @@ All three were the tests, not the game; no player-facing change.
   goes back; they passed in the alarm round: something since, not bisected). **nav_lift_down**: the scene's reach test
   printed no verdict in 83 s of game time (its 60 s limit should end it with a FAIL: check the scenario's `cmd` lines run).
 - Checks: gadget_lock 17/0, flatfg2h 11/0, twohand_regrip 7/0; ThinLTO 0 warnings; scenario_check PASS (193 scenes) twice. Its first run crashed once (access violation in vr_visor.cpp eyeUnderwater: during a map load a console print drew the screen with r_viewleaf in the last map's freed leafs); next's visorcrash fix covers it (merged here; this branch's duplicate guard dropped).
+
+## gunoffsets: weapon_catch and gunshape with the shipped weapon offsets: the tests' set-ups, not the game (branch agent/gunoffsets, 2026-11-22)
+
+- **weapon_catch "in the air"** (the test was stale): the crowbar is in the air (it floats where impulse 217 puts it, 480 -304
+  104; "0 u/s on the ground" is the debug line's resting flag, not the floor). The case put the hand's *point* (the fist's
+  front top) on the bar's middle and lowered it; whether the fist then met the thin bar hung on how the bar lay. The
+  shipped crowbar (vr_wofs_pitch_24 10, x 0.04; frozen 0, 0.282) is drawn turned about its origin, and the fist passed
+  beside it (2.2 cm off at -3 cm; frozen offsets: -0.19). New mock mode `vr_mock_hand_to <hand> weaponpalm <fraction> [<cm>]`
+  (vr_backend_mock.cpp, as agweaponpalm): the palm's middle there. The case lowers the palm from 30 cm and also checks
+  that a gap > 0 came first: PASS (taken -0.01, first 10.63; SEED=3: -0.54, first 18.03); weapon_catch 5/5.
+- **gunshape "lying shotgun dropped onto"** (the test was stale; no game change, no offset to change): the shotgun let go of
+  pointing down at e1m1's start lands by chance: batched, it lay on the step **port down** (opening z -0.95: a shell
+  dropped from above can't go in, correctly); alone it slid off onto its side (in, 33 frames). Batched, 3 runs each:
+  shipped 0/3 in; every old slot-02 value 2/3; only the old `vr_wofs_y_02 1.5; vr_wofs_yaw_02 -0.5; vr_wofs_z_02 0.9`
+  (shipped 2.11, -0.75, 0.92: the drawn gun's place on its origin) 3/3; the old `vr_wofs_wpntxt_pitch_02` alone: no
+  change. The reload logic reads none of them; the 2026-10-08 note (ROUND21, "Loose rounds slide into the gun too") was
+  about the slide not being sent, not about loading. Fix: that case alone lets the shotgun go low, level and upside down
+  (port up) on vrfiringrange's flat floor: 3/3 in with the shipped and the old offsets; gunshape 24/0.
+- Files: Misc/quakevr/weapon_catch_test.sh, Misc/quakevr/reload/gunshape_test.sh, Quake/vr/vr_backend_mock.cpp.
