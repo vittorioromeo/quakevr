@@ -431,9 +431,15 @@ void VR_Restart_f()
 
 // vr_startgame's start, queued (Cbuf_InsertText): with VR enabled, the vrstart hub (tutorial, settings and the mission
 // packs' portals) as the old engine did, or the calibration room at a first start; otherwise (flat) the main menu. A map or
-// demo started from the command line runs instead of any.
+// demo started from the command line runs instead of any. -nostartmap: none of them (a test harness's games, which get
+// their map or connect by command: the MP harness's clients joined 6 s sooner without the hub's load first).
 void startGameCommands()
 {
+    if(COM_CheckParm("-nostartmap"))
+    {
+        return;
+    }
+
     if(vr_enabled.value && !sv.active && !cls.demoplayback && cls.state != ca_connected)
     {
         if(vr_setup_pending.value != 0.f)
