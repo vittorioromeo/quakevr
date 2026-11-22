@@ -8324,6 +8324,34 @@ His notes dm3_2026-11-22_16-15-02, 16-17-59, 16-18-21.
 - Note: `VR_RVT_Flicks` sets `vr_revolver_flick_hand_weight` / `_cap` with `cvar_set`, but they are tunables
   ("Cvar_Set: variable not found"): its force check runs at the defaults (150, 1), which it expects anyway.
 
+
+## vrnotes1122c: smaller centre panel, the wrist hologram back, Only Hands' holsters, ticked lines retired (agent/vrnotes1122c, 2026-11-22)
+
+- **Centre panel 30% smaller** (his note vrtutorial_2026-11-22_15-30-43, "25 to 35% smaller"): `vr_center_panel_scale`
+  2 -> 1.4 (his cfg had no line for it, so the new default reaches him).
+- **The wrist hologram's look** (vrtesthall_2026-11-22_15-36-07): nothing in the rendering changed. The checklist scene
+  `vr_center_message` turned `vr_messages_hologram` off with a `cmd` line, which a scene never puts back; his cfg kept
+  `vr_messages_hologram "0"`, so the game's messages showed as the wrist's plain log (the gadget font on a dark box, his
+  screenshot). Fixed: the scene sets it with a `cvar` line (put back after); configVersion 225 turns it back on once. The
+  same `cmd <archived cvar>` mistake in ad_housings and widowmaker_art (`vr_ad_upgrades 2`, its default, harmless) made
+  `cvar` lines too. Possible check for qvr_checks (not added): a scene's `cmd` line setting an archived cvar.
+- **Only Hands' holsters** (vrtesthall_2026-11-22_15-35-12): `isOnTheBody` (vr_body.cpp) no longer asks for a drawn
+  body: in `vr_body_mode` 0 the hip and chest holsters are placed on the body's front and turned with its surface as in
+  modes 1-3 (before: the old placement, hips at ring 1.78 and chest 1.00, facing the old way; now 2.05 / 1.41 as mode 3).
+  The thighs' carry stays mode 3's. `Misc/quakevr/reload/pouchbody_test.sh` check 5: mode 0's holster rings equal mode
+  3's (13 passed, 0 failed).
+- **Checklist**: 53 ticked lines retired; 11 ticked lines kept because this round's voice notes had them under the cursor
+  (the lance, ropes, Dwell weapons, Quoth/AD ladders, armed humanoids' colours, the pouch calibration); 19 scenes no
+  longer used by any line, test or doc moved out (brushholes_* but grate/show, doorway_grunt, dwell_bosses,
+  dwell_grunt_pickup, dwell_sculptor, foveation_auto, gun_variants_nail/_rock, humrepl_studio, revolver_adheadpop,
+  speed_toggle_click, superaxe_behead). checklist_tests_check 84 passed, 0 failed.
+- **Not done (budget):** the hub portal's Start (e5start_2026-11-22_15-29-11) and the hub's Dwell/Quoth/AD/Arena
+  buttons (vrstart_2026-11-22_15-54-58). What the hub note's log shows: his first Start did go to e5start (Dimension of
+  the Past loaded, autosaved); 3.3 s later "VR Hub: going there", which only the main menu's VR Hub row confirmed
+  (`M_Main_StartHub`, menu.c) prints. So the way back was the main menu's VR Hub confirm, not the teleporter: something
+  left the main menu open (or opened it) after the campaign switch. Headless, `vr_campaign_select dopa` from vrstart
+  leaves no menu open; the teleporter run (setpos into its trigger, `vr_menu_press Run Setup > Start`) consumed
+  `vr_run_hubgo` without a level change in the mock (not followed up).
 ## vrnotes1122a2: a dead player's body keeps its look (agent/vrnotes1122a, 2026-11-22)
 
 - **The body's plates froze at death** (vrnotes1122a's item 4): QC VR_DeathDoll_Make and CopyToBodyQue copy the
@@ -8378,3 +8406,30 @@ His notes kellbase1_2026-11-22_16-02-58, 16-04-06, 16-06-02.
   on the 16-unit rungs (an open point if he wants it there too: the flat ladder's window would have to grow).
   modladder_test.sh's VR-hands expectations moved to the bars (hold y -664, tops 704 + 24 k; the pillars' ridge y
   -1354, tops 508 + 32 k): 10 passed.
+## ropes6: VR rope climbing from his notes (agent/ropes6, 2026-11-22)
+
+His notes vrropes_2026-11-22_15-43-18, 15-43-56, 15-45-10, 15-48-30 ("Climbing ropes in VR feels nice"). ROPES.md
+"Climbing (VR)", "Tests", "Known limits".
+- **Grip (VR):** `vr_rope_hand_grip` default 2 (was 1: flat only): the rope through the fist, the right hand's knuckles to
+  the right, the left's to the left, in VR too (the same ropeTurn as flat). His cfg had no saved value. `climb::drawnBack`
+  (the hold turn's back of the hand) for the climb test's `grip` check: worst 1.00 of 1.
+- **Regrab kick (4), cause:** `climbrope::riderBlocked` moved the bob back by the body's miss without its last place, so
+  the shift became speed: in VR a pull leaves the body ~0.4 units short of where the hands took it (rope at rest), and
+  each regrab kicked the swing 58-61 units/s at the hands. Now bob and bobPrev move together (its speed into the miss
+  still dropped: a wall still stops the swing). Swings, pumps, jumps onto it and pushes untouched (rope_pump 6/0,
+  rope_jump 6/0, rope_flat 6/0 incl. rope to rope, rope_hands 6/0).
+- **Sounds (2):** a pull up grunts (`vr_climb.cpp` ropePullGrunt in hangFramePart: once a grip, when the body has risen
+  15 cm over that grip's hold since taking it; at most every 0.6 s; `climb::grunt`, the mantle's list): `vr_rope_grunt`
+  0.4 (QVR_RULE), `vr_rope_grunt_sound` 2 (the jump's, deeper: told apart from a jump off). Not in flat play (its keys
+  climb steadily, no pulls). A rope's grip now makes the soft material's thud (soft_m, `vr_physsound_grab`) in VR and
+  flat alike (was the stone slap in flat, silent in VR); `climbrope::grabbed` lost its `vr` flag. Haptics unchanged.
+  Climbing page: Rope Pull Grunt, Rope Pull Grunt Sound.
+- **Legs on a short rope (3):** `ropeFoot` took the rope's end as a foothold at every height (clientRopeAt returns the
+  bottom where the rope doesn't reach): a short rope ending near the hip pulled the feet up to it, the higher ankle 13
+  units over the pelvis. Now the feet wrap only where its lowest point reaches 0.6 of a leg under the hip (fully from
+  0.85, eased between) and skip heights under its end; else they hang (28 under the pelvis). Shared by your body and
+  another's copy. `clientRopeAt` gives the lowest point's height (`bottom`).
+- Tests: rope_climb_test.sh 10+6+6+4+3 (new plays rope_calm: swing 2.5 u/s at the hands (bound 25; was 61), free end 8.3
+  (30), 4 grunts; rope_short: `vr_rope_climb_test <play> 425`; rope_climb adds grip and "no grunt climbing down or on a
+  mere grab"; with `vr_rope_hand_grip 1` its grip check fails at 0.15), rope_sound_test 6/0, vr_rope_test 16/0,
+  mp_test.py ropeclimb 12/0. ThinLTO 0 warnings.

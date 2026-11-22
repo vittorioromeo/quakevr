@@ -175,9 +175,12 @@ namespace
 // they go round the body's side to its back rather than into it (outOfTheTorso). Until round 21 an
 // X behind the front was stopped there (the author's "they stop at some point"); configs keep their
 // look (migrateHolsters). In the standing body, which the Follower carries.
+// Whether the body is drawn or not (vr_body_mode 0, Only Hands, too: his note vrtesthall_2026-11-22_15-35-12, "they should
+// match the same holster positions and orientations as when the full body is enabled"; before, mode 0 kept the old
+// placement, its holsters far from the full body's and facing the old way).
 [[nodiscard]] bool isOnTheBody(Holster holster)
 {
-    return vr_body_mode.value >= 1.f && holster != LeftShoulder && holster != RightShoulder;
+    return holster != LeftShoulder && holster != RightShoulder;
 }
 
 // make_vrbody.py: the spine hangs from the top of the neck (vr_body_eye_forward and

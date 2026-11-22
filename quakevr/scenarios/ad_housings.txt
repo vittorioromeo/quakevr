@@ -5,5 +5,6 @@ title AD ammo screen housings: the Widowmaker and the Plasma Gun
 map vrtesthall
 god
 notarget
-cmd vr_ad_upgrades 2; impulse 9; vr_ad_test 98; impulse 9
+cvar vr_ad_upgrades 2
+cmd impulse 9; vr_ad_test 98; impulse 9
 hint The Widowmaker is in your hand: on the receiver's top-rear corner the ammo screen sits in a bevelled bezel with four small rivets; its digits are the same size as before and nothing covers them. Then type vr_ad_test 99 (the AD Plasma Gun): on its rear face the screen sits in a flat bronze bezel with a round rivet each side, the dark vent below it. Reload both: the numbers stay inside the glass.

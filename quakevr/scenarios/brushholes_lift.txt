@@ -1,8 +1,0 @@
-# brushholes_lift: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vrbrushholes' raised block with
-# a lift held up (targetname: it stays) and 20-unit slots between it and the shaft (Misc/quakevr/make_vrbrushholes_map.py).
-title Gap blockers: a lift's edge
-map vrbrushholes
-start 340 -30 152 0
-god
-notarget
-hint Walk over the lift ahead to its far edges: you can't drop into the slot between the lift and the shaft's wall.
