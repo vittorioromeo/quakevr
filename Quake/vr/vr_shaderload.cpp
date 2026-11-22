@@ -32,6 +32,7 @@ struct LoadState
     int frames = 0, panelFrames = 0, windowFrames = 0;  // this set's loading frames; those shown in the headset, in the window
     int lastDone = -1, steps = 0;                       // the progress seen: how many times it moved
     bool shotWritten = false;                           // -shaderloadshot's image written
+    bool earlyStarted = false;                          // the VR session started for it (qvr::startForLoading)
 };
 LoadState load;
 
@@ -222,6 +223,7 @@ extern "C" int VR_ShadersLoadingFrame(void)
         load.started = now;
         load.frames = load.panelFrames = load.windowFrames = load.steps = 0;
         load.lastDone = -1;
+        load.earlyStarted = false;
         VR_StepBegin("shaders queued: the loading panel's frames"); // (the start-up trace: ended at VR_ShadersLoaded)
     }
     int done = 0, total = 0;
@@ -233,6 +235,13 @@ extern "C" int VR_ShadersLoadingFrame(void)
         load.lastDone = done;
     }
     load.frames++;
+    // A program compiled from its sources (a first start, a changed set: seconds, not the cache's fraction of one): the
+    // VR session started now, before the configs, so the panel reaches the headset (QUEST_PLAN.md 6zv). All from the
+    // cache: the start-up as before (the session after the configs).
+    if(GL_ShadersCompiling() > 0 && qvr::startForLoading())
+    {
+        load.earlyStarted = true;
+    }
     drawImage(done, total, last, now - load.started);
     const int shot = COM_CheckParm("-shaderloadshot");
     if(shot && shot + 1 < com_argc && !load.shotWritten && done * 2 >= total)
@@ -253,8 +262,8 @@ extern "C" void VR_ShadersLoaded(int programs, int frames, double ms, double max
     {
         VR_StepEnd();
     }
-    Con_SafePrintf("loading panel: %d frames (%d in the headset, %d in the window), progress moved %d times\n", load.frames,
-        load.panelFrames, load.windowFrames, load.steps);
+    Con_SafePrintf("loading panel: %d frames (%d in the headset, %d in the window), progress moved %d times%s\n", load.frames,
+        load.panelFrames, load.windowFrames, load.steps, load.earlyStarted ? "; the VR session started early for it" : "");
     if(COM_CheckParm("-shadersasynctest"))
     {
         constexpr const char* name = "shaders_async_test";
@@ -262,7 +271,7 @@ extern "C" void VR_ShadersLoaded(int programs, int frames, double ms, double max
         Con_SafePrintf("%s: %d programs, %d pumps, %d loading frames, %.0f ms, progress moved %d times, longest frame's work "
                        "%.1f ms (between frames %.1f ms)\n",
             name, programs, frames, load.frames, ms, load.steps, maxwork, maxgap);
-        t.check(programs > 100, name, "the set queued (over 100 programs)");
+        t.check(programs > 50, name, "the set queued (over 50 programs: the ES set is 73 since its lite world)");
         t.check(frames > 2 && load.frames > 2, name, "frames flowed while it compiled");
         t.check(load.steps > 2, name, "the progress moved");
         t.check(maxwork < 50.0, name, "a frame's work over 50 ms");

@@ -675,6 +675,7 @@ void GL_CreateShadersAsync (qboolean vrprograms); // QVR
 qboolean GL_ShadersPending (void); // QVR: a queued set not done yet: nothing draws, the frames show the loading panel
 qboolean GL_ShadersPump (double budget); // QVR: once a frame while pending (vr/vr_shaderload.cpp): false once done
 void GL_ShadersProgress (int *done, int *total, const char **last); // QVR
+int GL_ShadersCompiling (void); // QVR: the pending set's programs so far compiled from their sources (not from the program cache)
 void VID_LoadingSize (int *w, int *h); // QVR: the loading panel's frames in the window (gl_vidsdl.c)
 void VID_LoadingSwap (void); // QVR
 void GL_WorldLiteCheck (void); // QVR: the shaders made again when the ES lite world no longer fits the settings

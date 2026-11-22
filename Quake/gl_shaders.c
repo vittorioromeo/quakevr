@@ -1217,6 +1217,23 @@ void GL_ShadersProgress (int *done, int *total, const char **last)
 		}
 }
 
+/*
+=============
+GL_ShadersCompiling -- QVR
+
+How many of the pending set's programs handed to the driver so far were not in the program cache (compiled from their
+sources): a first start's (or a changed set's) long wait, which starts the VR session early for the loading panel
+(vr/vr_shaderload.cpp). 0 while every program so far came from the cache.
+=============
+*/
+int GL_ShadersCompiling (void)
+{
+	int i, n = 0;
+	for (i = 0; i < gl_num_queue; i++)
+		n += gl_queue[i].state >= 1 && !gl_queue[i].cached;
+	return n;
+}
+
 static void GL_ShadersFinish (void)
 {
 	const double ms = (Sys_DoubleTime () - gl_queue_t0) * 1000.0;

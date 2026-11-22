@@ -255,6 +255,11 @@ struct State
     qvr::TrackingState tracking;
     qvr::FrameState frame;
     bool restartRequested{false};
+    // Started before the configs for the shader compile's loading panel (startForLoading): the configs' vr_enabled 1
+    // with the same backend keeps it instead of restarting it (settleEarlyStart).
+    bool earlyStart{false};
+    bool earlyTried{false}; // (once a run)
+    char earlyName[32]{};   // the backend it asked for
 };
 
 State* state = nullptr;
@@ -294,7 +299,40 @@ void stopBackend()
     stereo::releaseTargets(); // the eye-sized GL objects (made again when the eyes are next drawn)
 }
 
-void startBackend()
+// The backend startBackend makes.
+[[nodiscard]] const char* requestedBackend()
+{
+    return COM_CheckParm("-vrmock") ? "mock" : vr_backend.string;
+}
+
+// The backend the configs will ask for, guessed before they run (startForLoading): -vrmock, the command line's
+// `+vr_backend <name>`, else vr_backend's own (not saved: its default, openxr) on Android only. Null: none expected
+// (`+vr_enabled 0` on the command line), or a PC run that names none (its configs or a test's may name the mock: the
+// real runtime is never started early there).
+[[nodiscard]] const char* earlyBackend()
+{
+    const int enabled = COM_CheckParm("+vr_enabled");
+    if(enabled && enabled + 1 < com_argc && !Q_atof(com_argv[enabled + 1]))
+    {
+        return nullptr;
+    }
+    if(COM_CheckParm("-vrmock"))
+    {
+        return "mock";
+    }
+    const int named = COM_CheckParm("+vr_backend");
+    if(named && named + 1 < com_argc)
+    {
+        return com_argv[named + 1];
+    }
+#ifdef __ANDROID__
+    return vr_backend.string;
+#else
+    return nullptr;
+#endif
+}
+
+void startBackend(const char* name)
 {
     // -flatscreenmode implies no VR backend (vr_flatplay.cpp, docs/vr-port/FLATPLAY.md): the mode plays the VR gameplay
     // on the desktop screen and runs only while no headset session is up, so the flag is what asks for no backend --
@@ -308,7 +346,7 @@ void startBackend()
 
     // -vrmock: the mock headset whatever vr_backend says (the review's re-evaluation runs a second copy of the game
     // beside the one in the headset: it must never open the runtime's session).
-    za::UniquePtr<qvr::Backend> backend = createBackend(COM_CheckParm("-vrmock") ? "mock" : vr_backend.string);
+    za::UniquePtr<qvr::Backend> backend = createBackend(name);
     if(!backend)
     {
         return;
@@ -385,6 +423,7 @@ void VR_Restart_f()
     if(state)
     {
         state->restartRequested = true;
+        state->earlyStart = false; // (asked for: a real restart, an early start or not)
     }
 }
 
@@ -1592,6 +1631,26 @@ bool backendRestartPending()
     return state && state->restartRequested;
 }
 
+bool startForLoading()
+{
+    if(!state || state->backend || state->earlyTried || host_framecount != 0 || cls.state == ca_dedicated)
+    {
+        return false;
+    }
+    state->earlyTried = true;
+    const char* name = earlyBackend();
+    if(!name)
+    {
+        return false;
+    }
+    state->earlyStart = true;
+    q_strlcpy(state->earlyName, name, sizeof(state->earlyName));
+    Con_SafePrintf("VR: %s started before the configs for the shader compile's loading panel (kept if they ask for it)\n",
+        name);
+    startBackend(name);
+    return state->backend != nullptr;
+}
+
 const FrameState& frameState()
 {
     return state && state->backend ? state->frame : noFrame;
@@ -2517,14 +2576,26 @@ extern "C" void VR_BeginFrame()
         return;
     }
 
-    if(state->restartRequested)
+    // The loading panel's early start settled once the configs ran (the frame after the set's): kept (no restart) when
+    // they enable VR with the backend it started (or tried: a failed start not tried twice); else the usual restart.
+    // Until then a restart asked for (VR_Init's own, with vr_enabled still 0: it would stop it) waits.
+    const bool earlyPending = state->earlyStart && GL_ShadersPending();
+    if(state->earlyStart && !earlyPending)
+    {
+        state->earlyStart = false;
+        const bool keep = vr_enabled.value != 0.f && !strcmp(state->earlyName, requestedBackend());
+        state->restartRequested = !keep;
+        Con_SafePrintf("VR: the early start %s\n", keep ? "kept after the configs" : "restarted: the configs changed VR");
+    }
+
+    if(state->restartRequested && !earlyPending)
     {
         state->restartRequested = false;
         stopBackend();
 
         if(vr_enabled.value)
         {
-            startBackend();
+            startBackend(requestedBackend());
         }
     }
 
