@@ -9531,3 +9531,8 @@ between the barrels, open muzzles, the screen in a wedge on top) and impaling (a
 - **Phases 6-8 (zancle2):** the C string/memory calls -> ZA_ in 120 more files (vr_client .. vr_predict, 1,066 calls);
   release build 0 warnings and no-PCH build ok each phase; smoke e1m1, vr_android_test 16/0, vr_voicechat_selftest
   24/0, vr_menu_path_check 0 missing; Android native build compiles. Left: 914 calls in 97 files (vr_profile ..).
+- **Phases 9-11 (zancle2, the last):** the C string/memory calls -> ZA_ in the remaining 98 files (vr_cellcord ..
+  vr_xr_stall, 915 calls); every Quake/vr file we own is converted (what's left of those names: imgui, third-party).
+  Release build 0 warnings and no-PCH build ok each phase; the std_uses allowlist refreshed (std:: 40, std headers 8;
+  `qvr_checks std_uses` 95 uses counting the `*` files). Tests: smoke e1m1, vr_android_test 16/0,
+  vr_voicechat_selftest 24/0, startuplog 3/0, mp_test coop 12/0; Android native build compiles.
