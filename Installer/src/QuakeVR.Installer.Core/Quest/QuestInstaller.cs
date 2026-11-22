@@ -122,6 +122,10 @@ public sealed class QuestInstaller(IAdb adb)
                 throw new InstallException($"Not enough space on the Quest: {PathUtil.FormatSize(bytes)} to copy, " +
                                            $"{PathUtil.FormatSize(fb)} free (and {PathUtil.FormatSize(SpaceMargin)} kept free). Free some space in the headset, then try again.");
             }
+            foreach (var f in toPush)
+            {
+                TarEntryFor(f.DevicePath); // (every path one the headset's tar takes, before anything is sent)
+            }
             Push(serial, toPush, bytes, (f, s) => Report(0.2 + 0.75 * f, s), ct);
 
             // Readable by the game (what adb's shell writes is the shell's: Android/README.md).
@@ -249,7 +253,7 @@ public sealed class QuestInstaller(IAdb adb)
         {
             try
             {
-                using var tar = new TarWriter(server, TarEntryFormat.Gnu, leaveOpen: true);
+                using var tar = new TarWriter(server, TarEntryFormat.Ustar, leaveOpen: true);
                 foreach (var f in files)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -263,13 +267,12 @@ public sealed class QuestInstaller(IAdb adb)
                         lastReported = done;
                         report(total == 0 ? 1 : (double)done / total, $"Copying to the Quest: {f.What} ({PathUtil.FormatSize(done)} of {PathUtil.FormatSize(total)})");
                     });
-                    tar.WriteEntry(new GnuTarEntry(TarEntryType.RegularFile, f.DevicePath)
-                    {
-                        DataStream = data,
-                        Mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.GroupWrite |
-                               UnixFileMode.OtherRead | UnixFileMode.OtherWrite,
-                        ModificationTime = File.GetLastWriteTimeUtc(f.Source),
-                    });
+                    var entry = TarEntryFor(f.DevicePath);
+                    entry.DataStream = data;
+                    entry.Mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.GroupWrite |
+                                 UnixFileMode.OtherRead | UnixFileMode.OtherWrite;
+                    entry.ModificationTime = File.GetLastWriteTimeUtc(f.Source);
+                    tar.WriteEntry(entry);
                 }
             }
             catch (IOException)
@@ -295,6 +298,23 @@ public sealed class QuestInstaller(IAdb adb)
         {
             throw new InstallException($"Copying to the Quest failed: {r.All}");
         }
+    }
+
+    /// <summary>A tar entry the headset's tar (toybox) reads: ustar. Never GNU: .NET 9 writes a GNU entry's access and
+    /// change times where ustar keeps its prefix, and toybox refuses the whole stream ("tar: Not tar") while adb exec-in
+    /// still exits 0 (the real-headset test: 566 files sent, none arrived). Nor pax (.NET 9's: "tar: bad header" on the
+    /// Quest 3). A path ustar cannot hold (over 100 bytes with no '/' splitting it into a 155-byte prefix and a 100-byte
+    /// name; the longest the install sends is ~60) is refused here, before anything is sent.</summary>
+    public static TarEntry TarEntryFor(string devicePath)
+    {
+        var bytes = Encoding.UTF8.GetByteCount(devicePath);
+        var fits = bytes <= 100;
+        for (var i = devicePath.IndexOf('/'); !fits && i > 0; i = devicePath.IndexOf('/', i + 1))
+        {
+            fits = Encoding.UTF8.GetByteCount(devicePath[..i]) <= 155 && Encoding.UTF8.GetByteCount(devicePath[(i + 1)..]) <= 100;
+        }
+        return fits ? new UstarTarEntry(TarEntryType.RegularFile, devicePath)
+                    : throw new InstallException($"A path too long to copy to the Quest: {devicePath}");
     }
 
     static string Md5(string path)

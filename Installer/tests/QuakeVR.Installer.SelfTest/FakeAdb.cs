@@ -74,6 +74,12 @@ sealed class FakeAdb(string deviceFiles) : IAdb
         var buffer = new byte[65536];
         while (reader.GetNextEntry() is { } entry)
         {
+            // (the Quest's toybox tar refuses .NET 9's GNU entries, their access/change times where ustar keeps its prefix:
+            // "tar: Not tar", the whole stream, and adb exec-in still exits 0)
+            if (entry.Format is not TarEntryFormat.Ustar) // (nor .NET 9 pax: "tar: bad header")
+            {
+                return Ok("");
+            }
             var path = Local(entry.Name);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             using var output = File.Create(path);

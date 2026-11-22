@@ -188,6 +188,10 @@ static class QuestTests
             File.WriteAllText(Path.Combine(dwell, "s0.sav"), "my save");
             var copyFiles = QuestFiles.ModCopyFiles(new ModCopy(s.Quake, dwell, ModCopyState.Ready, "v2.2")).Select(f => f.DevicePath).ToList();
             Eq("dwellv2p2/gfx/conback.lmp|dwellv2p2/progs.dat", string.Join("|", copyFiles), "a mod copy under its folder's name, its saves left out");
+            // The tar entries the headset's toybox tar reads: ustar (prefix split for long paths), never GNU or pax.
+            Eq(System.Formats.Tar.TarEntryFormat.Ustar, QuestInstaller.TarEntryFor("quakevr/progs.dat").Format, "a short path: ustar");
+            Eq(System.Formats.Tar.TarEntryFormat.Ustar, QuestInstaller.TarEntryFor(new string('d', 120) + "/" + new string('f', 90)).Format, "a long path ustar splits");
+            Throws<InstallException>(() => QuestInstaller.TarEntryFor("quakevr/" + new string('f', 120)), "a name over 100 bytes: refused (the Quest takes neither GNU nor pax)");
         }),
 
         ("quest: the whole procedure on a fake headset (PC install, then the Quest from it; the PC install unchanged, the player's files kept)", () =>
