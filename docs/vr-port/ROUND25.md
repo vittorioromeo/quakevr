@@ -8502,3 +8502,34 @@ pauses coop; both customizable.
   and AD's own monsters'), multiplies by `VR_AD_SHELL_FASTER` 1.3; the Player/Enemy Pellet Speed settings stay 1 and
   multiply on top; vanilla's hitscan untouched. `vr_ad_test 58` now prints `adshots-test: speed PASS|FAIL` (ad_shots
   test's FAIL scan catches it): player 2601 (AD 2000 x 1.3), enemy 1241 (950 x 1.3); at the settings x2: 5210, 2450.
+## split10: splitscreen phase 10, the join screen (branch agent/split, 2026-11-22)
+
+- **Multiplayer > Splitscreen** (flatscreen; with a headset Multiplayer keeps its three rows): the join screen
+  (vr/vr_splitjoin.cpp, `m_splitscreen` appended to `m_state_e`; `menu_splitscreen`; Debug > Network "Splitscreen: Join
+  Screen"). Seat 1 the keyboard and mouse; a controller's A or Start joins the next free seat (2-4), B leaves; a joined
+  controller's Start starts the game, or over a running local multiplayer game goes back to it (drop-in/out). Rows:
+  Game (coop/deathmatch), Map (the Host Game page's levels), Skill, Layout (`scr_splitlayout`, with a picture of the
+  tiles), Start Game (`maxplayers 4`; a running game ends after a question, which the pads answer too), Back to the Game.
+- **The pads are the screen's while it is up** (in_sdl.c `IN_PadsToJoinScreen`, `IN_PadName`/`IN_PadDown`/`IN_PadAxis`):
+  no pad keys reach a menu or seat; their state is kept as read, so the Start that starts the game opens no seat menu.
+  Seats join with no game (`seat::joinPad`) and connect when the game starts (phase 6's CL_SeatFrame); while the screen is
+  up over a single-player game they are not sent away. `SCR_SplitLayoutFor`, `SCR_LayoutTileOf` (gl_screen.c) for the
+  picture.
+- **Tests**: `Misc/quakevr/split_join_test.sh` (new; `vr_split_join_test <2-4> <coop|dm>`): 2 coop 19/0, 3 dm 20/0,
+  4 coop 21/0, 4 dm 21/0 (pictures `qvr-kit/scratch/split10_<n><mode>.png`: the screen, then the tiles).
+  vr_seat_test 70/0, seat_play_test.sh 55/0, seat_render_test.sh 156/0, seat_menu_test.sh 62/0; scenario_check 195 run,
+  0 failed; all 52 flat suites (below). How to try it: SPLITSCREEN.md section 20.
+- **The test baseline**: the tree now runs from `Misc/quakevr/test_baseline.cfg` (copied to `quakevr/ironwail.cfg` and
+  `.baseline`). Of split9's 11 failing flat suites, 10 still fail on the branch and the same, to the unit, on plain
+  origin/next (93ad80d48, built and run in this tree): flat_fling, flatads 6/1, flateject 16/1, flatfix 15/4, flatfx 8/2,
+  flatgate 3/2, flatlagbob 3/2, flatsweep 382/11 (17 known), flatwall 16/1, flatswap (its Knight's Sword flake);
+  flatvisuals 7/1 once, clean in the full run. New with the baseline, also failing on next: flathands 75/1, flatmove 7/3,
+  flatpose 21/1, flatslidelean 25/1, flatswing 4/1, flatxhair 28/3. flatsight (a timeout in the long run) and flatstance
+  (6/1) clean on a rerun here and on next.
+- **MP plain suite** (bases/menuvis/qbase.8, six `--only` chunks): 64 of 69 scenarios clean plus netsafe 14/0;
+  mp_melee 27/3 (the crowbar's parries land; the jittered swing), mp_slide_vr 6/2 and mp_predictslide 12/2 (no slide in
+  B's states) fail the same on origin/next (3ed2c446f): next's or the baseline's, not this phase's; mp_predict 30/1 and
+  mp_voice_lossy 27/1 clean on a rerun (31/0, 28/0).
+- Dev and ThinLTO 0 warnings, QC 0 warnings. agent/split has origin/next 93ad80d48; next has moved since (not merged
+  again after the runs).
+- In VR (the author): nothing changes. Flatscreen with controllers: Multiplayer > Splitscreen.

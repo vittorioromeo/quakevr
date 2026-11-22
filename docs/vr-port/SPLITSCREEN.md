@@ -831,4 +831,7 @@ full menu, the other seats their own small menu.
   other pads' A join seats 3-4; the keyboard's right arrow on Game picks deathmatch (and a dm map); a picture; a joined
   pad's Start starts the game: every seat signs on in its own slot driven by its own pad, the mode, maxplayers 4 and the
   map as chosen, no seat menu opened by that Start; a picture of the tiles; then over the running game the screen again:
-  the last pad's B leaves (its slot freed), its A joins the running game again, its Start goes back to the game.
+  the last pad's B leaves (its slot freed), its A joins the running game again, its Start goes back to the game. The run
+  starts in the harness's map, so Start Game asks first and a pad's A answers. 2 coop 19/0, 3 dm 20/0, 4 coop 21/0, 4 dm
+  21/0.
+- **Before and after**: ROUND25.md "split10" (the flat and MP failures are origin/next's, run on it here).
