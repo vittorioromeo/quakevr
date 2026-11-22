@@ -9,6 +9,7 @@
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 
 namespace box3d::detail
 {
@@ -106,7 +107,7 @@ void portalFinish()
 // other moved astride its gate while asleep (b3Body_SetTransform: no wake) gets its copy at the next step.
 void portalSleepTest_f()
 {
-    if(!sv.active || !world || svs.maxclients < 1 || strcmp(sv.name, "vrteleporters") != 0)
+    if(!sv.active || !world || svs.maxclients < 1 || ZA_STRCMP(sv.name, "vrteleporters") != 0)
     {
         Con_Printf("%s: FAIL needs map vrteleporters\n", portalTestName);
         testkit::verdict(portalTestName, 0, 1);
@@ -270,7 +271,7 @@ void gunFinish()
 void gunShapesTest_f()
 {
     gunTest = GunShapesTest{};
-    if(!sv.active || !world || svs.maxclients < 1 || strcmp(sv.name, "vrteleporters") != 0 || vr_box3d_gun_pieces.value < 32.f)
+    if(!sv.active || !world || svs.maxclients < 1 || ZA_STRCMP(sv.name, "vrteleporters") != 0 || vr_box3d_gun_pieces.value < 32.f)
     {
         gunCheck(false, "needs map vrteleporters with vr_box3d_gun_pieces 32 or more");
         gunFinish();

@@ -9,6 +9,7 @@
 #include "vr_handpose.hpp"
 #include "vr_hands.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 namespace box3d::detail
@@ -95,7 +96,7 @@ void strikeTest_f()
     strike = StrikeTest{};
     strike.on = true;
     strike.prop = best;
-    strike.down = !(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "ahead"));
+    strike.down = !(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "ahead"));
     strike.speed = (Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 6.f) * world->m2u;
     strike.most = Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : 12;
     strike.first = EDICT_NUM(best)->v.health;

@@ -14,6 +14,7 @@
 #include "vr_srvrandom.hpp"
 #include "vr_units.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -38,7 +39,7 @@ namespace box3d::detail
         return out;
     }
     progs::forEachEdict(1, [&](edict_t* e) {
-        if((!strcmp(which, "props") ? isRigid(e) && modelOf(e) : !strcmp(PR_GetString(e->v.classname), which)))
+        if((!ZA_STRCMP(which, "props") ? isRigid(e) && modelOf(e) : !ZA_STRCMP(PR_GetString(e->v.classname), which)))
         {
             out.pushBack(e);
         }
@@ -489,7 +490,7 @@ void fling_f()
     const progs::ServerVm vm;
     edict_t* player = progs::playerEdict();
     za::Vector<edict_t*> list;
-    if(!strcmp(Cmd_Argv(1), "nearest"))
+    if(!ZA_STRCMP(Cmd_Argv(1), "nearest"))
     {
         if(const int found = qvr::box3d::nearestProp())
         {

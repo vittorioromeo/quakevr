@@ -10,8 +10,8 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_xr_runtime.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 
-#include <string.h>
 
 #ifdef __ANDROID__
 #include "Zancle/Concurrency/Atomic.hpp"
@@ -102,22 +102,22 @@ void reset()
 const char* wanted(const char* offered)
 {
     BackendStatus& st = backendStatus();
-    if(!strcmp(offered, XR_FB_BODY_TRACKING_EXTENSION_NAME))
+    if(!ZA_STRCMP(offered, XR_FB_BODY_TRACKING_EXTENSION_NAME))
     {
         st.fbExtension = true;
         return XR_FB_BODY_TRACKING_EXTENSION_NAME;
     }
-    if(!strcmp(offered, XR_META_BODY_TRACKING_FULL_BODY_EXTENSION_NAME))
+    if(!ZA_STRCMP(offered, XR_META_BODY_TRACKING_FULL_BODY_EXTENSION_NAME))
     {
         st.fullBodyExtension = true;
         return XR_META_BODY_TRACKING_FULL_BODY_EXTENSION_NAME;
     }
-    if(!strcmp(offered, XR_META_BODY_TRACKING_FIDELITY_EXTENSION_NAME))
+    if(!ZA_STRCMP(offered, XR_META_BODY_TRACKING_FIDELITY_EXTENSION_NAME))
     {
         st.fidelityExtension = true;
         return XR_META_BODY_TRACKING_FIDELITY_EXTENSION_NAME;
     }
-    if(!strcmp(offered, XR_META_BODY_TRACKING_CALIBRATION_EXTENSION_NAME))
+    if(!ZA_STRCMP(offered, XR_META_BODY_TRACKING_CALIBRATION_EXTENSION_NAME))
     {
         st.calibrationExtension = true;
         return XR_META_BODY_TRACKING_CALIBRATION_EXTENSION_NAME;

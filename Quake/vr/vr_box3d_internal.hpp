@@ -90,7 +90,7 @@
 #include <box3d/box3d.h>
 
 #include "Zancle/Concurrency/Atomic.hpp"
-#include <string.h>
+#include "Zancle/Base/Memcpy.hpp"
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -1350,11 +1350,11 @@ bool cutLimb(RagdollBodies& r, edict_t* ent, int bone, const glm::vec3& blade, b
 struct QcCallGuard
 {
     globalvars_t saved;
-    QcCallGuard() { memcpy(&saved, pr_global_struct, sizeof saved); }
+    QcCallGuard() { ZA_MEMCPY(&saved, pr_global_struct, sizeof saved); }
     ~QcCallGuard()
     {
         globalvars_t& g = *pr_global_struct;
-        memcpy(g.pad, saved.pad, sizeof g.pad);
+        ZA_MEMCPY(g.pad, saved.pad, sizeof g.pad);
         g.self = saved.self;
         g.other = saved.other;
         g.msg_entity = saved.msg_entity;

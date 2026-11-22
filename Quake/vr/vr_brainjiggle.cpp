@@ -5,6 +5,8 @@
 #include "vr_mem.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Base/UIntPtrT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -16,7 +18,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <string.h>
 
 namespace qvr::brainjiggle
 {
@@ -58,7 +59,7 @@ float peak = 0.f;        // the most squash drawn
 
 [[nodiscard]] bool isBrain(const entity_t* e)
 {
-    return e && e->model && e->model->type == mod_alias && strncmp(e->model->name, "progs/gib_brain", 15) == 0;
+    return e && e->model && e->model->type == mod_alias && ZA_STRNCMP(e->model->name, "progs/gib_brain", 15) == 0;
 }
 
 void step(Spring& s, float dt)
@@ -180,7 +181,7 @@ void squashModel(const entity_t* e, float matrix[16])
     const glm::vec3 o{e->origin[0], e->origin[1], e->origin[2]};
     const glm::mat4 m = glm::translate(glm::mat4{1.f}, o) * glm::mat4{squash} * glm::translate(glm::mat4{1.f}, -o) *
                         glm::make_mat4(matrix);
-    memcpy(matrix, glm::value_ptr(m), sizeof(float) * 16);
+    ZA_MEMCPY(matrix, glm::value_ptr(m), sizeof(float) * 16);
 }
 
 void registerCommands()

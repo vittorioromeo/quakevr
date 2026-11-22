@@ -7,6 +7,7 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -97,8 +98,8 @@ constexpr float selfApart = 0.002f; // m: two of a ragdoll's parts nearer than t
         // meets its torso and head (not its arms and legs), so its arm can't fold it into its chest;
         // a corpse's meets nothing of its own.
         const char* other = r.rig->bones[looseA ? pb : pa].name;
-        const bool body = !strncmp(other, "chest", 5) || !strncmp(other, "pelvis", 6) || !strncmp(other, "spine", 5) ||
-                          !strncmp(other, "neck", 4) || !strncmp(other, "head", 4);
+        const bool body = !ZA_STRNCMP(other, "chest", 5) || !ZA_STRNCMP(other, "pelvis", 6) || !ZA_STRNCMP(other, "spine", 5) ||
+                          !ZA_STRNCMP(other, "neck", 4) || !ZA_STRNCMP(other, "head", 4);
         return r.knocked && !(looseA && looseB) && body &&
                shapeGap(a, b, 0.7f) > selfApart;
     }
@@ -233,7 +234,7 @@ constexpr float selfApart = 0.002f; // m: two of a ragdoll's parts nearer than t
     for(int b = 0; b < r.count; b++)
     {
         const ragdoll::Bone& bone = r.rig->bones[b];
-        if(partCut(r, b) || (strncmp(bone.name, "upperarm", 8) != 0 && strncmp(bone.name, "forearm", 7) != 0)) { continue; }
+        if(partCut(r, b) || (ZA_STRNCMP(bone.name, "upperarm", 8) != 0 && ZA_STRNCMP(bone.name, "forearm", 7) != 0)) { continue; }
         for(float t : {0.6f, 0.9f})
         {
             const b3Vec3 point = b3v(glm::mix(bone.pivot, bone.end, t) * k);
