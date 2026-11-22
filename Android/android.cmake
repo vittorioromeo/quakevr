@@ -3,8 +3,8 @@
 #
 # The engine is a shared library (libquakevr.so) that SDL2's Java activity loads and calls (SDL_main); SDL2 is built
 # from its source (QVR_SDL2_DIR: SDL2's source folder, 2.30.x) into libSDL2.so. OpenGL ES 3.2 through EGL (SDL's
-# context), the log through logcat (liblog), WAV and Ogg Vorbis music (stb_vorbis: CMakeLists.txt, vr.cmake), no curl; OpenXR through Khronos' Android loader (C4a,
-# QVR_OPENXR_ANDROID_DIR).
+# context), the log through logcat (liblog), WAV and Ogg Vorbis music (stb_vorbis: CMakeLists.txt, vr.cmake), no
+# curl; OpenXR through Khronos' Android loader (C4a, QVR_OPENXR_ANDROID_DIR).
 
 if (NOT ANDROID)
 	message(FATAL_ERROR "Android/android.cmake is for the NDK's toolchain (ANDROID)")

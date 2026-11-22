@@ -9,7 +9,8 @@ the headset, for the first boot's files, logcat and crash checks).
 
 - `android.cmake`: the Android settings of the top-level `CMakeLists.txt` (`ANDROID`): the engine as
   `libquakevr.so`, SDL2 built from its source as `libSDL2.so`, GLES 3.2 + EGL, logcat, `-ffp-contract=off` on every
-  target (the PC build contracts nothing either), no mimalloc, WAV and Ogg Vorbis music (stb_vorbis), no other codecs or curl; OpenXR when
+  target (the PC build contracts nothing either), no mimalloc, WAV and Ogg Vorbis music (stb_vorbis), no other
+  codecs or curl; OpenXR when
   `QVR_OPENXR_ANDROID_DIR` names Khronos' loader AAR, unpacked (`jni/arm64-v8a/libopenxr_loader.so`, copied beside
   `libquakevr.so`; the engine's own headers, `Windows/OpenXR/include`).
 - `app/`: the Gradle module: `QuakeVRActivity` (SDL2's `SDLActivity`, loading `libSDL2.so` and `libquakevr.so`; an
