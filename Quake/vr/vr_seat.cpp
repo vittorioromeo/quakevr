@@ -12,6 +12,7 @@
 #include "vr_hands.hpp"
 #include "vr_handsource.hpp"
 #include "vr_netsnap.hpp"
+#include "vr_particles.hpp"
 #include "vr_predict.hpp"
 #include "vr_testkit.hpp"
 #include "vr_throw.hpp"
@@ -796,6 +797,33 @@ extern "C" qboolean CL_SeatEffectFirst(const int kind, const int key, const floa
     effectsFed.next = (effectsFed.next + 1) % effectsRemembered;
     slot = EffectFed{kind, key, seat, host_framecount, {at[0], at[1], at[2]}};
     return true;
+}
+
+extern "C" void CL_SeatFxBegin(seatfxmark_t* mark, const int readcount)
+{
+    mark->on = SCR_SeatsDrawn() > 1 && CL_SeatDrawn() ? 1 : 0;
+    mark->readcount = readcount;
+    mark->vrparticles = mark->on ? qvr::particles::liveCount() : 0;
+    mark->particles = mark->on ? R_ParticleCount() : 0;
+}
+
+extern "C" void CL_SeatFxEnd(const seatfxmark_t* mark)
+{
+    if(!mark->on || mark->readcount < 0 || msg_readcount <= mark->readcount || msg_readcount > net_message.cursize)
+    {
+        return;
+    }
+    // The event: the bytes read (FNV-1a), the same in every seat's client that reads it.
+    unsigned int h = 2166136261u;
+    for(int i = mark->readcount; i < msg_readcount; i++)
+    {
+        h = (h ^ net_message.data[i]) * 16777619u;
+    }
+    if(!CL_SeatEffectFirst(SEATFX_VR, static_cast<int>(h), nullptr))
+    {
+        qvr::particles::truncate(mark->vrparticles);
+        R_ParticleTruncate(mark->particles);
+    }
 }
 
 extern "C" int CL_SeatListeners(vec3_t org[MAX_SPLITSEATS], vec3_t right[MAX_SPLITSEATS], int ent[MAX_SPLITSEATS])

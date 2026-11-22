@@ -1320,8 +1320,13 @@ void CL_ParseServerMessage (void)
 			break;
 
 		case svc_temp_entity:
+		{
+			seatfxmark_t fxmark; // QVR: splitscreen: a later seat's same event: its effects taken back (CL_SeatFxEnd)
+			CL_SeatFxBegin (&fxmark, msg_readcount);
 			CL_ParseTEnt ();
+			CL_SeatFxEnd (&fxmark);
 			break;
+		}
 
 		case svc_setpause:
 			cl.paused = MSG_ReadByte ();

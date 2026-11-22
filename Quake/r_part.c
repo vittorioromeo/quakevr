@@ -70,6 +70,18 @@ static void R_SetParticleTexture_f (cvar_t *var)
 	}
 }
 
+// QVR: splitscreen: the particles in use, and those spawned since there were n taken back (CL_SeatFxEnd)
+int R_ParticleCount (void)
+{
+	return r_numactiveparticles;
+}
+
+void R_ParticleTruncate (int n)
+{
+	if (n >= 0 && n < r_numactiveparticles)
+		r_numactiveparticles = n;
+}
+
 /*
 ===============
 R_AllocParticle

@@ -1005,6 +1005,15 @@ int liveCount()
     return static_cast<int>(pool.size());
 }
 
+// The particles spawned since the pool had n taken back (splitscreen: a later seat's same event, CL_SeatFxEnd).
+void truncate(const int n)
+{
+    if(n >= 0 && static_cast<za::SizeT>(n) < pool.size())
+    {
+        pool.resize(static_cast<za::SizeT>(n));
+    }
+}
+
 int capacity()
 {
     return static_cast<int>(maxParticles);

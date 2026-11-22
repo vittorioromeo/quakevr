@@ -1157,6 +1157,8 @@ extern "C" int VR_ParseServerMessage(int cmd)
         return 0;
     }
 
+    seatfxmark_t fxmark; // splitscreen: a later seat's same event: its particles taken back (CL_SeatFxEnd)
+    CL_SeatFxBegin(&fxmark, msg_readcount);
     const int subcmd = MSG_ReadByte();
     switch(subcmd)
     {
@@ -1223,6 +1225,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_COLLECT: collectfx::parse(); break;
         default: Host_Error("svc_quakevr: unknown command %d", subcmd);
     }
+    CL_SeatFxEnd(&fxmark);
 
     return 1;
 }

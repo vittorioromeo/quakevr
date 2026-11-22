@@ -6,6 +6,7 @@
 #include "vr_drawnpose.hpp"
 #include "vr_anchor.hpp"
 #include "vr_cvars.hpp"
+#include "vr_seat.hpp"
 #include "vr_tunables.hpp"
 #include "vr_decals.hpp"
 #include "vr_dents.hpp"
@@ -1408,6 +1409,10 @@ float bladeWoundAge(int blade)
 
 void frame()
 {
+    if(!seat::sharedFxFirst(seat::SharedFx::BloodStreams)) // (splitscreen: the shared streams run by one seat a frame)
+    {
+        return;
+    }
     QVR_PROFILE("bloodstreams");
     const double dtd = lastTime < 0.0 ? 0.0 : cl.time - lastTime;
     lastTime = cl.time;

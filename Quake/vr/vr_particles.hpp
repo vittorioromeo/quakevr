@@ -226,6 +226,7 @@ void wasteReport_f();
 void shoreFoamInfo_f();
 // Live particles (vr_memstats).
 [[nodiscard]] int liveCount();
+void truncate(int n); // the particles spawned since the pool had n taken back (splitscreen: CL_SeatFxEnd)
 [[nodiscard]] int capacity(); // the pool's size (vr_limits)
 
 } // namespace qvr::particles

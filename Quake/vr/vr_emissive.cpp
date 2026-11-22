@@ -3,6 +3,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_emissive.hpp"
 #include "vr_gearlights.hpp"
+#include "vr_seat.hpp"
 #include "vr_geom.hpp"
 #include "vr_main.hpp"
 #include "vr_color.hpp"
@@ -298,6 +299,10 @@ constexpr float flareFxDistance = 1800.f;              // no sparks farther
 
 void flareFxFrame(int ent, int kind, float alpha, const glm::vec3& cap, const glm::vec3& out)
 {
+    if(!qvr::seat::sharedFxFirst(qvr::seat::SharedFx::TorchSparks, ent)) // (splitscreen: each drawn seat lights it; one feeds it)
+    {
+        return;
+    }
     const float k = vr_flare_sparks.value * alpha;
     const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     if(k <= 0.f || glm::distance(cap, eye) > flareFxDistance)

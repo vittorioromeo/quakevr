@@ -14,6 +14,7 @@
 
 #include "vr_avatar.hpp"
 #include "vr_engine.hpp"
+#include "vr_geom.hpp"
 #include "vr_particles.hpp"
 
 #include "Zancle/Math/Abs.hpp"
@@ -284,6 +285,37 @@ void checkEffects()
         fed += CL_SeatEffectFirst(SEATFX_TRAIL, trailKey, nullptr) ? 1 : 0;
     }
     check(fed == 1, va("an entity's trail fed by one seat of %d (%d)", n, fed));
+
+    // Part 3: a server event (a message's bytes) every seat reads, its Quake VR particles spawned in each seat's parse
+    // (CL_SeatFxBegin/End): one seat's kept; a later seat's own event (other bytes) kept too.
+    byte event[8] = {'s', 'e', 'a', 't', 'f', 'x', 0, 1};
+    const sizebuf_t savedMsg = net_message;
+    const int savedRead = msg_readcount;
+    net_message.data = event;
+    net_message.cursize = sizeof(event);
+    const auto parse = [&](const int s) {
+        const Scope in(at(s));
+        msg_readcount = 0;
+        seatfxmark_t mark;
+        CL_SeatFxBegin(&mark, 0);
+        (void)particles::spawn(geom::vec(org), glm::vec3{0.f, 0.f, 1.f}, particles::Preset::Steam, 24);
+        msg_readcount = sizeof(event);
+        CL_SeatFxEnd(&mark);
+    };
+    const int before3 = particles::liveCount();
+    for(int s = 0; s < n; s++)
+    {
+        parse(s);
+    }
+    const int all = particles::liveCount() - before3;
+    event[7] = 2; // (another event)
+    const int before4 = particles::liveCount();
+    parse(n - 1);
+    const int own = particles::liveCount() - before4;
+    net_message = savedMsg;
+    msg_readcount = savedRead;
+    check(all > 0 && own > 0 && za::abs(all - own) <= own / 2,
+        va("a Quake VR event all %d seats read: its particles once (%d; one seat's: %d)", n, all, own));
 }
 
 // The channels playing sfx (S_StartSound's; read right after a start: its S_MixJoin left no mix posted).

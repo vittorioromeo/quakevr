@@ -459,6 +459,15 @@ qboolean CL_SeatEffectFirst (int kind, int key, const float *org);
 // Phase 7 part 3: the drawn seats' listeners for the sounds (snd_dma.c; seatview_t's drawnorg and drawnright, the seat's
 // player's entity): their count, 0 unless seats are drawn in tiles (the one listener, as before).
 int CL_SeatListeners (vec3_t org[MAX_SPLITSEATS], vec3_t right[MAX_SPLITSEATS], int ent[MAX_SPLITSEATS]);
+// Phase 7 part 3: a server event's effects fed once (Quake VR's spawners: gore, impacts, the gun effects, ...). Around a
+// temporary entity's or a Quake VR message's parse (cl_parse.c, vr_client.cpp): the bytes read are the event (the same in
+// every seat's client that reads it); a later seat's identical one this frame has the particles it spawned (both pools)
+// taken back. Seats in tiles only (else nothing: one seat as before).
+typedef struct { int readcount, vrparticles, particles, on; } seatfxmark_t;
+void CL_SeatFxBegin (seatfxmark_t *mark, int readcount);
+void CL_SeatFxEnd (const seatfxmark_t *mark);
+int R_ParticleCount (void);
+void R_ParticleTruncate (int n);
 clientseat_t *CL_SeatNetIfMade (int seat);	// seat 0..3's client if ever made (NULL: never used)
 void CL_SeatName (int seat, char *out, size_t size);	// the player's name for seat n: cl_name, then "<cl_name> <n+1>"
 void CL_SeatFrame (void);					// once a host frame: seats joining (connecting) or gone (vr_seatplay.cpp)

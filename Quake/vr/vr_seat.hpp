@@ -148,6 +148,17 @@ void setInPlay(int n); // the first n seats in play, seat i driven by pad i-1 (v
                                  // first pad no seat has (in_sdl.c's IN_PadSeat)
 void setPlays(int i, bool on, int pad); // seat i (1-3) in or out of play, joined by that pad (vr_seatplay.cpp)
 [[nodiscard]] clientseat_t* netIfMade(int i); // seat i's client if it was ever made (nullptr: never used)
+// A shared effect's emitter run once a frame (phase 7 part 3; CL_SeatEffectFirst's SEATFX_VR): the first drawn seat to run
+// it this frame does, the others skip it (key: the emitter's, e.g. an entity's number). One seat: always.
+enum class SharedFx
+{
+    BloodStreams,
+    TorchSparks,
+};
+[[nodiscard]] inline bool sharedFxFirst(const SharedFx fx, const int key = 0)
+{
+    return CL_SeatEffectFirst(SEATFX_VR, -(static_cast<int>(fx) + 1) * 65536 - key, nullptr) != 0;
+}
 
 // Makes a seat current for its lifetime, the previous one again after it (the seat loop, the tests).
 class Scope
