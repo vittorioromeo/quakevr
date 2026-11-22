@@ -216,7 +216,7 @@ const Recipe recipes[] = {
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_nail2.mdl", 0, 0, 0, 0}, {-1, -1, -1}, {-5.1024f, -7.6303f, -8.4464f},
         false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_nail2.mdl", true, noRect, rotaryGauntletParts, -1,
         {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f}, -1, false, 0.f, &rotaryFlashPatch,
-        {0, 44, -1}},
+        {0, 11, 129}},
 };
 
 // The Plasma Gun's cell (the lightning gun's magazine and well, made by make_mags.py in v_light.mdl's space: the cell
@@ -1522,6 +1522,11 @@ void dwBarrels(Parts& p)
     const Rect breech{12.f, 37.f, 54.f, 37.f, false};
     const Rect core{54.f, 162.f, 65.f, 37.f, false};
     const glm::vec2 c{axis.y, axis.z};
+    // (Their fronts' rings on Dwell's barrel metal, not the caps' dark grey: that draws pale, nearly white, in the game's
+    // light.)
+    const int capS = p.capS, capT = p.capT;
+    p.capS = 40;
+    p.capT = 20;
     o.spinning = true;
     for(const glm::vec2 d : {glm::vec2{0.f, 1.f}, glm::vec2{-1.f, 0.f}, glm::vec2{0.f, -1.f}, glm::vec2{1.f, 0.f}})
     {
@@ -1529,6 +1534,8 @@ void dwBarrels(Parts& p)
     }
     extrude(o, circle(c, 1.3f * k), x0, x1 - 0.8f * k, &core, 1, false, true, &breech, &breech);
     o.spinning = false;
+    p.capS = capS;
+    p.capT = capT;
     p.muzzle = glm::vec3{x1, axis.y, axis.z}; // (the barrels' front's middle, on the turning axis)
     p.muzzleSet = true;
 }
@@ -1672,12 +1679,86 @@ void rotaryScreenWedge(Parts& p)
     p.housingOnFace = 4;
 }
 
+// Its housing, hollow with a handle inside (dwellrotary item 2; his notes 2026-11-22: "the place where the hand goes, it
+// should be actually a hole with a handle inside, just like we do for the super nailgun"). Dwell's housing (a solid
+// octagon with a plate on its back) taken off (Recipe::dropMore) and made again as the super nailgun's is (v_nail2.mdl:
+// a shell open at the back, a flat handle across its middle from top to bottom): its outside Dwell's octagon
+// (rotaryHousingSize: 5.46 out at the back, 4.53 at its front collar x 7.25..8.45, closed at 8.45 where Dwell's neck
+// goes on), each face on its band of Dwell's housing column (rotaryHousingS along it); open at the back (x -2.6) in a
+// rim 0.6 wide, the hole black inside, its floor at x 4 (past the fingers round the handle); the handle
+// where the super nailgun's is (the same hand values hold it: weapons.txt slot 56 is slot 4's), x -0.3..2.5, 0.9 wide,
+// into the walls above and below, on Dwell's brown housing plate.
+constexpr float rotaryWall = 0.6f, rotaryHoleFloor = 4.f;
+
+[[nodiscard]] za::Vector<glm::vec2> rotaryOctagon(float s)
+{
+    constexpr float q = 0.4142f; // (tan 22.5 degrees: a regular octagon's corners)
+    return {{s, q * s}, {q * s, s}, {-q * s, s}, {-s, q * s}, {-s, -q * s}, {-q * s, -s}, {q * s, -s}, {s, -q * s}};
+}
+
+void rotaryHousingShell(Parts& p)
+{
+    Out& o = p.o;
+    // Each face's band of Dwell's housing column (t at its first corner, at its last), round from the inner side's
+    // upper diagonal (y+ z+): Dwell's octagon unrolled.
+    constexpr float band[8][2] = {{254.f, 219.f}, {219.f, 197.f}, {197.f, 161.f}, {161.f, 138.f}, {138.f, 102.f},
+        {102.f, 80.f}, {80.f, 43.f}, {34.f, 11.f}};
+    const int cs = p.boreS, ct = p.boreT; // (the hole black: the caps' dark grey draws pale in the game's light)
+    // The faces from ring (xa, size sa) to ring (xb, sb): outside in the bands, or (inside) dark facing the axis.
+    const auto ringToRing = [&](float xa, float sa, float xb, float sb, bool inside) {
+        const za::Vector<glm::vec2> a = rotaryOctagon(sa), b = rotaryOctagon(sb);
+        for(int i = 0; i < 8; i++)
+        {
+            const int j = (i + 1) % 8;
+            const int g = o.newGroup();
+            const auto v = [&](float x, const glm::vec2& q, float t) {
+                return inside ? o.vert({x, q.x, q.y}, cs, ct, g) : o.vert({x, q.x, q.y}, texel(rotaryHousingS(x)), texel(t), g);
+            };
+            const int a0 = v(xa, a[i], band[i][0]), a1 = v(xa, a[j], band[i][1]);
+            const int b0 = v(xb, b[i], band[i][0]), b1 = v(xb, b[j], band[i][1]);
+            const glm::vec2 m = (a[i] + a[j]) * (inside ? -0.5f : 0.5f);
+            face(o, a0, b0, b1, glm::vec3{0.f, m.x, m.y});
+            face(o, a0, b1, a1, glm::vec3{0.f, m.x, m.y});
+        }
+    };
+    constexpr float xBack = -2.6f, xPlate = -1.83f, xCollar = 7.25f, xFront = 8.45f;
+    ringToRing(xBack, rotaryHousingSize(xBack), xPlate, rotaryHousingSize(xPlate), false);
+    ringToRing(xPlate, rotaryHousingSize(xPlate), xCollar, rotaryHousingSize(xCollar), false);
+    ringToRing(xCollar, rotaryHousingSize(xCollar), xFront, rotaryHousingSize(xFront), false);
+    const Rect plate{184.f, 142.f, 200.f, 158.f, false}; // (Dwell's brown housing plate)
+    cap(o, rotaryOctagon(rotaryHousingSize(xFront)), xFront, 1.f, plate);
+    // The hole: its walls, its floor, the rim round it.
+    const float sBack = rotaryHousingSize(xBack) - rotaryWall, sFloor = rotaryHousingSize(rotaryHoleFloor) - rotaryWall;
+    ringToRing(xBack, sBack, rotaryHoleFloor, sFloor, true);
+    const float bs = static_cast<float>(p.boreS), bt = static_cast<float>(p.boreT);
+    cap(o, rotaryOctagon(sFloor), rotaryHoleFloor, -1.f, Rect{bs, bt, bs, bt, false});
+    const za::Vector<glm::vec2> rimOut = rotaryOctagon(rotaryHousingSize(xBack)), rimIn = rotaryOctagon(sBack);
+    for(int i = 0; i < 8; i++)
+    {
+        const int j = (i + 1) % 8;
+        const int g = o.newGroup();
+        const int s0 = texel(254.f), s1 = texel(250.f);
+        const int a0 = o.vert({xBack, rimOut[i].x, rimOut[i].y}, s0, texel(band[i][0]), g);
+        const int a1 = o.vert({xBack, rimOut[j].x, rimOut[j].y}, s0, texel(band[i][1]), g);
+        const int b0 = o.vert({xBack, rimIn[i].x, rimIn[i].y}, s1, texel(band[i][0]), g);
+        const int b1 = o.vert({xBack, rimIn[j].x, rimIn[j].y}, s1, texel(band[i][1]), g);
+        face(o, a0, a1, b1, glm::vec3{-1.f, 0.f, 0.f});
+        face(o, a0, b1, b0, glm::vec3{-1.f, 0.f, 0.f});
+    }
+    // The handle, top to bottom across the hole, into its walls.
+    const float hz = rotaryHousingSize(-0.3f) - rotaryWall * 0.5f;
+    const Rect plateAlong{184.f, 142.f, 200.f, 158.f, true};
+    const Rect handleFaces[4] = {plate, plateAlong, plate, plateAlong};
+    box(o, {-0.3f, -0.45f, -hz}, {2.5f, 0.45f, hz}, handleFaces, plate, plate);
+}
+
 // Its shell port (his notes 2026-11-21: "I cannot find a way to reload the rotary shotgun"): a block on the housing's
 // inner side (+y: towards the body held in the right hand, mirrored in the left; the side slopes out from y 6.3 at x 8.2
 // to 7.4 at x -1.8), its outer face flat at y 7.2, a dark opening in a raised rim there, the Widowmaker's way
 // (widowmakerParts). vr_view_internal.hpp loadPorts (DwVrRotary): the opening's middle (5 7.25 0).
 void rotaryGauntletParts(Parts& p)
 {
+    rotaryHousingShell(p);
     rotaryScreenWedge(p);
     dwBarrels(p);
     Out& o = p.o;
@@ -1686,7 +1767,7 @@ void rotaryGauntletParts(Parts& p)
     const Rect plate{184.f, 142.f, 200.f, 158.f, false}; // (Dwell's brown housing plate, as the bezel's)
     const Rect plateAlong{184.f, 142.f, 200.f, 158.f, true};
     const Rect blockFaces[4] = {plate, plateAlong, plate, plate};
-    box(o, {2.5f, 5.9f, -1.f}, {7.5f, 7.1f, 1.f}, blockFaces, plate, plate);
+    box(o, {2.5f, 4.7f, -1.f}, {7.5f, 7.1f, 1.f}, blockFaces, plate, plate);
     const Rect rimFaces[4] = {plateAlong, plateAlong, plateAlong, plateAlong};
     const Rect rimTop[4] = {dark, plateAlong, plateAlong, plateAlong};   // (its underside faces the opening)
     const Rect rimBottom[4] = {plateAlong, plateAlong, dark, plateAlong}; // (its top faces it)
