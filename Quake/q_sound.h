@@ -85,6 +85,7 @@ typedef struct
 	float	frac;			/* QVR: slow motion: the fraction of a sample past pos (snd_mix.c, SND_PaintChannelRate) */
 	int	resampled;		/* QVR: ... and end counts output samples at that rate */
 	float	pitch;			/* QVR: its playback rate (protocol.h SND_PITCH; 0 or 1 as recorded): S_CHANPITCH */
+	int	seatwater;		/* QVR: splitscreen: the seat hearing it best is under water (several listeners): muffled alone */
 } channel_t;
 
 /* QVR: a channel's playback rate (1 as recorded) */
@@ -115,6 +116,8 @@ void S_StopAllSounds(qboolean clear);
 void S_ClearBuffer (void);
 void S_Update (vec3_t origin, vec3_t forward, vec3_t right, vec3_t up);
 int S_SeatListeners (void);	/* QVR: splitscreen: the drawn seats' listeners this frame (0 or 1: one, as before) */
+int S_SeatWater (int listener);	/* QVR: splitscreen phase 8: that listener under water (its channels muffled alone) */
+int S_SeatsUnderwater (void);	/* QVR: ... any of them (snd_mix.c paints their channels apart) */
 void S_ExtraUpdate (void);
 void S_MixKick (qboolean extra);	/* QVR: the mix on the thread pool (snd_mixasync), before the screen update (host.c) and in R_RenderScene; without the pool, extra: S_ExtraUpdate */
 void S_MixJoinAt (const char *file, int line);	/* QVR: the pool's mix done (every sound entry point, the cache's frees and moves); a no-op off the main thread */

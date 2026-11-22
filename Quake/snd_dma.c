@@ -69,6 +69,10 @@ static vec3_t	snd_seatorg[MAX_SPLITSEATS];
 static vec3_t	snd_seatright[MAX_SPLITSEATS];
 // seat-shared: (the same)
 static int		snd_seatent[MAX_SPLITSEATS];
+// QVR: splitscreen phase 8: each listener under water (its leaf's contents; seat 0's cl.forceunderwater too): the channels
+// it hears best are muffled alone (channel_t's seatwater: snd_mix.c paints them apart and filters them).
+// seat-shared: (the same)
+static int		snd_seatwater[MAX_SPLITSEATS];
 
 int S_SeatListeners (void)
 {
@@ -648,11 +652,13 @@ void SND_Spatialize (channel_t *ch)
 			if (ch->entnum > 0 && ch->entnum == snd_seatent[i])
 			{
 				ch->leftvol = ch->rightvol = ch->master_vol; // (a seat's own player's sound)
+				ch->seatwater = snd_seatwater[i];
 				return;
 			}
 		}
 		VectorCopy (listener_origin, org);
 		VectorCopy (listener_right, right);
+		ch->seatwater = 0;
 		for (i = 0; i < snd_seatlisteners; i++)
 		{
 			VectorCopy (snd_seatorg[i], listener_origin);
@@ -662,6 +668,7 @@ void SND_Spatialize (channel_t *ch)
 			{
 				left = ch->leftvol;
 				rgt = ch->rightvol;
+				ch->seatwater = snd_seatwater[i]; // (muffled as the seat hearing it best hears it)
 			}
 		}
 		VectorCopy (org, listener_origin);
@@ -988,16 +995,48 @@ S_UpdateAmbientSounds
 ===================
 */
 // QVR: splitscreen: an ambient channel's level at the listener's leaf; seats in tiles: the loudest seat's leaf's
-static int S_SeatsAmbient (mleaf_t *l, int ambient_channel)
+static int S_SeatsAmbient (mleaf_t *l, int ambient_channel, int *water)
 {
-	int i, level = l->ambient_sound_level[ambient_channel];
+	int i, level = snd_seatlisteners > 0 ? -1 : l->ambient_sound_level[ambient_channel];
+	*water = 0;
 	for (i = 0; i < snd_seatlisteners; i++)
 	{
 		mleaf_t *sl = Mod_PointInLeaf (snd_seatorg[i], cl.worldmodel);
 		if (sl && sl->ambient_sound_level[ambient_channel] > level)
+		{
 			level = sl->ambient_sound_level[ambient_channel];
+			*water = snd_seatwater[i]; // (phase 8: muffled as that seat hears it)
+		}
 	}
 	return level;
+}
+
+// QVR: splitscreen phase 8: each listener under water or not (seats in tiles; 0: none)
+static void S_SeatsWater (void)
+{
+	int i;
+	for (i = 0; i < snd_seatlisteners; i++)
+	{
+		mleaf_t *sl = cl.worldmodel ? Mod_PointInLeaf (snd_seatorg[i], cl.worldmodel) : NULL;
+		snd_seatwater[i] = (sl && S_UnderwaterIntensityForContents (sl->contents) > 0.f) ||
+			(cl.forceunderwater && snd_seatent[i] == cl.viewentity);
+	}
+}
+
+int S_SeatWater (int listener)
+{
+	return listener >= 0 && listener < snd_seatlisteners ? snd_seatwater[listener] : 0;
+}
+
+int S_SeatsUnderwater (void)
+{
+	int i;
+	for (i = 0; snd_seatlisteners > 1 && i < snd_seatlisteners; i++)
+	{
+		if (snd_seatwater[i])
+			return 1;
+	}
+	return 0;
 }
 
 static void S_UpdateAmbientSounds (void)
@@ -1018,7 +1057,10 @@ static void S_UpdateAmbientSounds (void)
 
 // calc ambient sound levels
 	l = Mod_PointInLeaf (listener_origin, cl.worldmodel);
-	if (cl.forceunderwater)
+	S_SeatsWater ();
+	if (snd_seatlisteners > 1)
+		underwater = 0.f; // QVR: splitscreen phase 8: the mix unfiltered, each channel muffled as its seat hears it (snd_mix.c)
+	else if (cl.forceunderwater)
 		underwater = 1.f;
 	else if (l)
 		underwater = S_UnderwaterIntensityForContents (l->contents);
@@ -1038,7 +1080,7 @@ static void S_UpdateAmbientSounds (void)
 		chan = &snd_channels[ambient_channel];
 		chan->sfx = ambient_sfx[ambient_channel];
 
-		vol = (int) (ambient_level.value * S_SeatsAmbient (l, ambient_channel)); // QVR: (splitscreen: the loudest seat's)
+		vol = (int) (ambient_level.value * S_SeatsAmbient (l, ambient_channel, &chan->seatwater)); // QVR: (splitscreen: the loudest seat's)
 		if (vol < 8.f)
 			vol = 0.f;
 		else if (vol > 255.f)

@@ -472,6 +472,53 @@ void checkSounds()
             static_cast<double>(seat1 > 0.f ? seat1 : 0.f), static_cast<double>(VectorLength(d))));
 }
 
+// Phase 8: the underwater muffling per seat. Seat 1 alone under water (its cl.forceunderwater, set as the seats turned):
+// one listener under water; the mix as a whole unfiltered, a sound seat 1's player makes muffled alone (its channel's
+// seatwater: snd_mix.c paints it apart and filters it), one at the last seat's eye clear. Seat 1 out of the water after.
+void checkWater()
+{
+    const int n = renderTest.seats;
+    int wet = 0;
+    for(int i = 0; i < S_SeatListeners(); i++)
+    {
+        wet += S_SeatWater(i);
+    }
+    check(wet == 1 && S_SeatsUnderwater(), va("one listener of %d under water, seat 1's (%d)", n, wet));
+    sfx_t* ownSfx = S_PrecacheSound("misc/h2ohit1.wav");
+    sfx_t* otherSfx = S_PrecacheSound("misc/outwater.wav");
+    int count = 0;
+    {
+        const Scope in(at(0));
+        S_StartSound(cl.viewentity, 0, ownSfx, cl_entities[cl.viewentity].origin, 1.f, 1.f);
+    }
+    const channel_t* own = channelOf(ownSfx, &count);
+    vec3_t eye;
+    VectorCopy(V_SeatViewOf(n - 1)->drawnorg, eye);
+    {
+        const Scope in(at(n - 1));
+        S_StartSound(0, 1, otherSfx, eye, 1.f, 1.f);
+    }
+    const channel_t* other = channelOf(otherSfx, &count);
+    check(own && other && own != other && own->seatwater && !other->seatwater,
+        va("seat 1's own sound muffled alone (%d), seat %d's clear (%d)", own ? own->seatwater : -1, n,
+            other ? other->seatwater : -1));
+    // The static sounds (the level's, sent to every seat's client as it signs on): started once (seat 1's client; the
+    // others' start none), spatialized from every listener as the other channels are: none twice.
+    int statics = 0, twice = 0;
+    for(int i = NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS; i < total_channels; i++)
+    {
+        const channel_t& a = snd_channels[i];
+        statics += a.sfx ? 1 : 0;
+        for(int j = NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS; a.sfx && j < i; j++)
+        {
+            twice += snd_channels[j].sfx == a.sfx && VectorCompare(snd_channels[j].origin, a.origin) ? 1 : 0;
+        }
+    }
+    check(twice == 0, va("the level's static sounds started once (%d, none twice: %d)", statics, twice));
+    const Scope in(at(0));
+    cl.forceunderwater = false;
+}
+
 void testFrame()
 {
     RenderTest& t = renderTest;
@@ -516,6 +563,7 @@ void testFrame()
                 const Scope in(at(s));
                 cl.viewangles[YAW] = 90.f * static_cast<float>(s) + 30.f;
                 cl.viewangles[PITCH] = 0.f;
+                cl.forceunderwater = s == 0; // (phase 8: seat 1 alone under water: its sounds muffled alone; checkWater)
             }
             go(Step::WaitDrawn);
             return;
@@ -534,6 +582,7 @@ void testFrame()
             checkEffects();
             checkEvents();
             checkSounds();
+            checkWater();
             if(t.torches)
             {
                 checkTorches();

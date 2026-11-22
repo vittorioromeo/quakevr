@@ -522,6 +522,29 @@ void S_ClearFilteredLevels (void)
 	snd_hifreqlevel = 0.f;
 }
 
+// QVR: splitscreen phase 8: the channels heard best by a seat under water (channel_t's seatwater; several listeners)
+// painted apart, muffled at full strength (snd_waterfx) and added to the others: the seat in the water hears its sounds
+// muffled, the seat on land its own clear (one listener: the whole mix filtered by S_UnderwaterFilter, as before).
+// seat-shared: the mix's (its pool thread, after S_Update)
+static struct {
+	portable_samplepair_t	buffer[PAINTBUFFER_SIZE];
+	float	accum[2];
+} seatwet;
+
+static void S_SeatWaterBus (int count)
+{
+	int i;
+	const float alpha = exp (-CLAMP (0.f, snd_waterfx.value, 2.f) * log (12.f));
+	for (i = 0; i < count; i++)
+	{
+		seatwet.accum[0] += alpha * (paintbuffer[i].left  - seatwet.accum[0]);
+		seatwet.accum[1] += alpha * (paintbuffer[i].right - seatwet.accum[1]);
+		seatwet.buffer[i].left  = (int) seatwet.accum[0];
+		seatwet.buffer[i].right = (int) seatwet.accum[1];
+	}
+	memset (paintbuffer, 0, count * sizeof (portable_samplepair_t));
+}
+
 /*
 ===============================================================================
 
@@ -546,6 +569,7 @@ void S_PaintChannels (int endtime)
 	int	fullband = VR_SndFullBand (); // QVR: vr_snd_fullband (2: Quake's channels band-limited, no 11 kHz lowpass)
 
 	double	bench = VR_SndBenchNow (), benchStage; // QVR: vr_snd_bench's stages (0 when it isn't recording)
+	int	pass, wet = S_SeatsUnderwater (); // QVR: splitscreen phase 8: the muffled channels painted first, apart
 
 	snd_vol = sfxvolume.value * 256;
 
@@ -558,72 +582,93 @@ void S_PaintChannels (int endtime)
 
 	// clear the paint buffer
 		memset(paintbuffer, 0, (end - paintedtime) * sizeof(portable_samplepair_t));
-		VR_SndPaint (paintbuffer, paintedtime, end); // QVR: spatial audio's voices (vr/vr_audio.cpp)
+		if (!wet)
+			VR_SndPaint (paintbuffer, paintedtime, end); // QVR: spatial audio's voices (vr/vr_audio.cpp)
+		if (!wet)
+			seatwet.accum[0] = seatwet.accum[1] = 0.f;
 
 	// paint in the channels.
 		benchStage = VR_SndBenchNow ();
-		ch = snd_channels;
-		for (i = 0; i < total_channels; i++, ch++)
+		for (pass = wet ? 0 : 1; pass < 2; pass++)
 		{
-			if (!ch->sfx)
-				continue;
-			if (!ch->leftvol && !ch->rightvol)
-				continue;
-			if (VR_SndOwns (ch)) // QVR: a spatial audio voice renders it
-				continue;
-			sc = S_LoadSound (ch->sfx);
-			if (!sc)
-				continue;
-
-			if (rate * S_CHANPITCH (ch) != 1.f) // QVR: slow motion (vr_timescale_sound), a pitch: read at that rate, interpolated
+			if (pass == 1 && wet)
 			{
-				SND_PaintChannelRate (ch, sc, paintedtime, end, rate * S_CHANPITCH (ch), fullband == 2 ? S_FullBandData (sc) : NULL);
-				continue;
+				S_SeatWaterBus (end - paintedtime); // (the muffled channels kept apart, filtered)
+				VR_SndPaint (paintbuffer, paintedtime, end);
 			}
-			if (ch->resampled) // QVR: back from slow motion: the end in the sound's own samples again
+			ch = snd_channels;
+			for (i = 0; i < total_channels; i++, ch++)
 			{
-				ch->resampled = 0;
-				ch->frac = 0.f;
-				ch->end = paintedtime + sc->length - ch->pos;
-			}
+				if (!ch->sfx)
+					continue;
+				if (!ch->leftvol && !ch->rightvol)
+					continue;
+				if (wet && (ch->seatwater != 0) != (pass == 0)) // QVR: (each channel in its pass)
+					continue;
+				if (VR_SndOwns (ch)) // QVR: a spatial audio voice renders it
+					continue;
+				sc = S_LoadSound (ch->sfx);
+				if (!sc)
+					continue;
 
-			ltime = paintedtime;
-
-			while (ltime < end)
-			{	// paint up to end
-				if (ch->end < end)
-					count = ch->end - ltime;
-				else
-					count = end - ltime;
-
-				if (count > 0)
+				if (rate * S_CHANPITCH (ch) != 1.f) // QVR: slow motion (vr_timescale_sound), a pitch: read at that rate, interpolated
 				{
-					// the last param to SND_PaintChannelFrom is the index
-					// to start painting to in the paintbuffer, usually 0.
-					if (fullband == 2 && sc->fullband) // QVR: the band-limited copy
-						SND_PaintChannelFull(ch, sc, count, ltime - paintedtime);
-					else if (sc->width == 1)
-						SND_PaintChannelFrom8(ch, sc, count, ltime - paintedtime);
-					else
-						SND_PaintChannelFrom16(ch, sc, count, ltime - paintedtime);
-
-					ltime += count;
+					SND_PaintChannelRate (ch, sc, paintedtime, end, rate * S_CHANPITCH (ch), fullband == 2 ? S_FullBandData (sc) : NULL);
+					continue;
+				}
+				if (ch->resampled) // QVR: back from slow motion: the end in the sound's own samples again
+				{
+					ch->resampled = 0;
+					ch->frac = 0.f;
+					ch->end = paintedtime + sc->length - ch->pos;
 				}
 
-			// if at end of loop, restart
-				if (ltime >= ch->end)
-				{
-					if (sc->loopstart >= 0)
+				ltime = paintedtime;
+
+				while (ltime < end)
+				{	// paint up to end
+					if (ch->end < end)
+						count = ch->end - ltime;
+					else
+						count = end - ltime;
+
+					if (count > 0)
 					{
-						ch->pos = sc->loopstart;
-						ch->end = ltime + sc->length - ch->pos;
+						// the last param to SND_PaintChannelFrom is the index
+						// to start painting to in the paintbuffer, usually 0.
+						if (fullband == 2 && sc->fullband) // QVR: the band-limited copy
+							SND_PaintChannelFull(ch, sc, count, ltime - paintedtime);
+						else if (sc->width == 1)
+							SND_PaintChannelFrom8(ch, sc, count, ltime - paintedtime);
+						else
+							SND_PaintChannelFrom16(ch, sc, count, ltime - paintedtime);
+
+						ltime += count;
 					}
-					else
-					{	// channel just stopped
-						ch->sfx = NULL;
-						break;
+
+				// if at end of loop, restart
+					if (ltime >= ch->end)
+					{
+						if (sc->loopstart >= 0)
+						{
+							ch->pos = sc->loopstart;
+							ch->end = ltime + sc->length - ch->pos;
+						}
+						else
+						{	// channel just stopped
+							ch->sfx = NULL;
+							break;
+						}
 					}
 				}
+			}
+		}
+		if (wet) // (the muffled channels added back)
+		{
+			for (i = 0; i < end - paintedtime; i++)
+			{
+				paintbuffer[i].left  += seatwet.buffer[i].left;
+				paintbuffer[i].right += seatwet.buffer[i].right;
 			}
 		}
 
