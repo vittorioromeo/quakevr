@@ -286,6 +286,63 @@ void checkEffects()
     check(fed == 1, va("an entity's trail fed by one seat of %d (%d)", n, fed));
 }
 
+// The channels playing sfx (S_StartSound's; read right after a start: its S_MixJoin left no mix posted).
+[[nodiscard]] const channel_t* channelOf(const sfx_t* sfx, int* count)
+{
+    const channel_t* last = nullptr;
+    *count = 0;
+    for(int i = NUM_AMBIENTS; i < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS; i++)
+    {
+        if(snd_channels[i].sfx == sfx)
+        {
+            last = &snd_channels[i];
+            ++*count;
+        }
+    }
+    return last;
+}
+
+// Phase 7 part 3: the sounds from each drawn seat's listener. One listener a seat; a sound every seat's client reads in a
+// frame started once; a sound only the last seat reads (at its own eye) started, and heard at full volume there (the
+// loudest listener's, its own seat's, not seat 1's alone).
+void checkSounds()
+{
+    const int n = renderTest.seats;
+    check(S_SeatListeners() == n, va("%d sound listeners, one a drawn seat (%d)", n, S_SeatListeners()));
+    sfx_t* all = S_PrecacheSound("misc/talk.wav");
+    sfx_t* last = S_PrecacheSound("misc/menu1.wav");
+    vec3_t org;
+    if(!check(shm && all && last && playerOrigin(0, org), "the sound system up (the test runs with -Sound, volume 0)"))
+    {
+        return;
+    }
+    org[2] += 32.f;
+    int before = 0, after = 0;
+    (void)channelOf(all, &before);
+    for(int s = 0; s < n; s++)
+    {
+        const Scope in(at(s));
+        S_StartSound(0, 0, all, org, 1.f, 1.f);
+    }
+    (void)channelOf(all, &after);
+    check(after - before == 1, va("a sound all %d seats read: started once (%d)", n, after - before));
+    vec3_t eye;
+    VectorCopy(V_SeatViewOf(n - 1)->drawnorg, eye);
+    {
+        const Scope in(at(n - 1));
+        S_StartSound(0, 0, last, eye, 1.f, 1.f);
+    }
+    const channel_t* ch = channelOf(last, &after);
+    vec3_t d;
+    VectorSubtract(eye, V_SeatViewOf(0)->drawnorg, d);
+    const float seat1 = 2.f * 255.f * (1.f - VectorLength(d) / 1000.f); // (seat 1's alone: SND_Spatialize's at most)
+    check(ch && ch->leftvol + ch->rightvol == 2 * ch->master_vol,
+        va("a sound only seat %d reads, at its eye: started, full volume from its listener (%d+%d of %d; seat 1's alone "
+           "at most %.0f, %.0f units off)",
+            n, ch ? ch->leftvol : -1, ch ? ch->rightvol : -1, ch ? 2 * ch->master_vol : -1,
+            static_cast<double>(seat1 > 0.f ? seat1 : 0.f), static_cast<double>(VectorLength(d))));
+}
+
 void testFrame()
 {
     RenderTest& t = renderTest;
@@ -346,6 +403,7 @@ void testFrame()
             checkViews();
             checkBodies();
             checkEffects();
+            checkSounds();
             Cbuf_AddText("screenshot\n"); // (screenshots/: run.sh -Out composes it)
             go(Step::WaitShot);
             return;

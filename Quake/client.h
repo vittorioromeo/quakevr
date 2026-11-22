@@ -414,6 +414,7 @@ typedef struct seatview_s
 	int			drawnframes;		// its tile drawn this many times
 	vrect_t		drawnrect;			// the tile it was drawn in
 	vec3_t		drawnorg;			// the view's origin then (r_refdef.vieworg)
+	vec3_t		drawnright;			// ... and its right (vright): the seat's sound listener (snd_dma.c)
 	byte		probe[4];			// scr_seatmarkers 2: its marker's pixel read back after the frame (rgb)
 	unsigned	probesum;			// ... and a checksum of the tile's middle (each tile a picture of its own)
 } seatview_t;
@@ -453,8 +454,11 @@ qboolean CL_SeatDrawn (void);				// the current seat's view is drawn (seat 0, or
 // this frame to feed it does, the others skip it (kind, key and the place rounded to a unit; key: an entity's number for
 // its trail, or 0). A seat not drawn feeds nothing; one seat drawn: always true, as before.
 enum { SEATFX_EXPLOSION, SEATFX_EXPLOSION2, SEATFX_BLOB, SEATFX_EFFECT, SEATFX_LAVA, SEATFX_TELEPORT, SEATFX_TRAIL,
-	SEATFX_BRIGHTFIELD, SEATFX_DEBRIS, SEATFX_SOUND };
+	SEATFX_BRIGHTFIELD, SEATFX_DEBRIS, SEATFX_SOUND, SEATFX_VR };
 qboolean CL_SeatEffectFirst (int kind, int key, const float *org);
+// Phase 7 part 3: the drawn seats' listeners for the sounds (snd_dma.c; seatview_t's drawnorg and drawnright, the seat's
+// player's entity): their count, 0 unless seats are drawn in tiles (the one listener, as before).
+int CL_SeatListeners (vec3_t org[MAX_SPLITSEATS], vec3_t right[MAX_SPLITSEATS], int ent[MAX_SPLITSEATS]);
 clientseat_t *CL_SeatNetIfMade (int seat);	// seat 0..3's client if ever made (NULL: never used)
 void CL_SeatName (int seat, char *out, size_t size);	// the player's name for seat n: cl_name, then "<cl_name> <n+1>"
 void CL_SeatFrame (void);					// once a host frame: seats joining (connecting) or gone (vr_seatplay.cpp)

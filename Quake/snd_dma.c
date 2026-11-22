@@ -58,6 +58,23 @@ vec3_t		listener_forward;
 vec3_t		listener_right;
 vec3_t		listener_up;
 
+// QVR: splitscreen: the drawn seats' listeners (seats in tiles: CL_SeatListeners, set by S_Update; 0 or 1: the one
+// listener above, as before). A channel is spatialized from each and keeps the loudest (SND_Spatialize); a seat's own
+// player's sounds are full volume, as the one player's are.
+// seat-shared: the mix's, every seat's listener (S_Update)
+static int		snd_seatlisteners;
+// seat-shared: (the same)
+static vec3_t	snd_seatorg[MAX_SPLITSEATS];
+// seat-shared: (the same)
+static vec3_t	snd_seatright[MAX_SPLITSEATS];
+// seat-shared: (the same)
+static int		snd_seatent[MAX_SPLITSEATS];
+
+int S_SeatListeners (void)
+{
+	return snd_seatlisteners;
+}
+
 #define	sound_nominal_clip_dist	1000.0
 
 int		soundtime;	// sample PAIRS
@@ -617,7 +634,46 @@ SND_Spatialize
 spatializes a channel
 =================
 */
+static void SND_SpatializeOne (channel_t *ch);
+
 void SND_Spatialize (channel_t *ch)
+{
+	// QVR: splitscreen: seats in tiles: from each seat's listener, the loudest kept (the nearest seat hears it best)
+	if (snd_seatlisteners > 1)
+	{
+		vec3_t	org, right;
+		int		i, left = 0, rgt = 0;
+		for (i = 0; i < snd_seatlisteners; i++)
+		{
+			if (ch->entnum > 0 && ch->entnum == snd_seatent[i])
+			{
+				ch->leftvol = ch->rightvol = ch->master_vol; // (a seat's own player's sound)
+				return;
+			}
+		}
+		VectorCopy (listener_origin, org);
+		VectorCopy (listener_right, right);
+		for (i = 0; i < snd_seatlisteners; i++)
+		{
+			VectorCopy (snd_seatorg[i], listener_origin);
+			VectorCopy (snd_seatright[i], listener_right);
+			SND_SpatializeOne (ch);
+			if (ch->leftvol + ch->rightvol > left + rgt)
+			{
+				left = ch->leftvol;
+				rgt = ch->rightvol;
+			}
+		}
+		VectorCopy (org, listener_origin);
+		VectorCopy (right, listener_right);
+		ch->leftvol = left;
+		ch->rightvol = rgt;
+		return;
+	}
+	SND_SpatializeOne (ch);
+}
+
+static void SND_SpatializeOne (channel_t *ch)
 {
 	vec_t	dot;
 	vec_t	dist;
@@ -685,7 +741,9 @@ void S_StartSoundPitch (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, f
 	int			ch_idx;
 	int			skip;
 
-	if (CL_SeatHeadless ()) // QVR: splitscreen: a headless seat starts no sound (phase 8: a listener each)
+	// QVR: splitscreen: a seat not drawn starts no sound; seats in tiles: a sound every seat's client reads (the server's
+	// to all in hearing) started once, by the first seat to read it this frame (heard from every seat's listener)
+	if (!CL_SeatEffectFirst (SEATFX_SOUND, (sfx ? (int) (sfx - known_sfx) : -1) * 8192 + entnum * 8 + (entchannel & 7), origin))
 		return;
 
 	if (!sound_started)
@@ -929,6 +987,19 @@ static float S_UnderwaterIntensityForContents (int contents)
 S_UpdateAmbientSounds
 ===================
 */
+// QVR: splitscreen: an ambient channel's level at the listener's leaf; seats in tiles: the loudest seat's leaf's
+static int S_SeatsAmbient (mleaf_t *l, int ambient_channel)
+{
+	int i, level = l->ambient_sound_level[ambient_channel];
+	for (i = 0; i < snd_seatlisteners; i++)
+	{
+		mleaf_t *sl = Mod_PointInLeaf (snd_seatorg[i], cl.worldmodel);
+		if (sl && sl->ambient_sound_level[ambient_channel] > level)
+			level = sl->ambient_sound_level[ambient_channel];
+	}
+	return level;
+}
+
 static void S_UpdateAmbientSounds (void)
 {
 	mleaf_t			*l;
@@ -967,7 +1038,7 @@ static void S_UpdateAmbientSounds (void)
 		chan = &snd_channels[ambient_channel];
 		chan->sfx = ambient_sfx[ambient_channel];
 
-		vol = (int) (ambient_level.value * l->ambient_sound_level[ambient_channel]);
+		vol = (int) (ambient_level.value * S_SeatsAmbient (l, ambient_channel)); // QVR: (splitscreen: the loudest seat's)
 		if (vol < 8.f)
 			vol = 0.f;
 		else if (vol > 255.f)
@@ -1107,6 +1178,7 @@ void S_Update (vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
 	VectorCopy(forward, listener_forward);
 	VectorCopy(right, listener_right);
 	VectorCopy(up, listener_up);
+	snd_seatlisteners = CL_SeatListeners (snd_seatorg, snd_seatright, snd_seatent); // QVR: splitscreen (0: one listener)
 	VR_SndListener (listener_origin, listener_forward, listener_right, listener_up); // QVR: the head (vr/vr_audio.cpp)
 
 // update general area ambient sound sources
@@ -1517,7 +1589,7 @@ void S_LocalSound (const char *name)
 	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	sfx_t	*sfx;
 
-	if (CL_SeatHeadless ()) // QVR: splitscreen: a headless seat starts no sound (phase 8: a listener each)
+	if (!CL_SeatDrawn ()) // QVR: splitscreen: a seat not drawn starts no sound (a drawn seat's own: S_StartSound)
 		return;
 
 	if (nosound.value)

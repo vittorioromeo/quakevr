@@ -1206,7 +1206,8 @@ namespace detail
 {
 bool wanted()
 {
-    if(!live || !shm || shm->channels != 2 || cls.state == ca_dedicated || vr_snd_spatial.value <= 0.f)
+    if(!live || !shm || shm->channels != 2 || cls.state == ca_dedicated || vr_snd_spatial.value <= 0.f ||
+        S_SeatListeners() > 1) // (splitscreen: seats in tiles, several listeners: Quake's panning from each)
     {
         return false;
     }

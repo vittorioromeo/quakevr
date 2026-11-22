@@ -426,6 +426,7 @@ struct ServerSlot
 };
 // seat-shared: the server's, each player slot's
 za::Vector<ServerSlot> serverSlots;
+// seat-shared: the server's, the move being run's
 Came applying; // (mpflakes) the move being run's (serverCame)
 
 [[nodiscard]] ServerSlot* slotOf(int slot, bool make)

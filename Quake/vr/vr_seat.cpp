@@ -798,6 +798,29 @@ extern "C" qboolean CL_SeatEffectFirst(const int kind, const int key, const floa
     return true;
 }
 
+extern "C" int CL_SeatListeners(vec3_t org[MAX_SPLITSEATS], vec3_t right[MAX_SPLITSEATS], int ent[MAX_SPLITSEATS])
+{
+    if(SCR_SeatsDrawn() <= 1)
+    {
+        return 0;
+    }
+    int n = 0;
+    for(int s = 0; s < qvr::seat::maxSeats && n < MAX_SPLITSEATS; s++)
+    {
+        const clientseat_t* c = qvr::seat::plays(s) ? qvr::seat::netIfMade(s) : nullptr;
+        const seatview_t* v = V_SeatViewOf(s);
+        if(!c || c->cstatic.signon != SIGNONS || v->drawnframes <= 0)
+        {
+            continue;
+        }
+        VectorCopy(v->drawnorg, org[n]);
+        VectorCopy(v->drawnright, right[n]);
+        ent[n] = c->cstate.viewentity;
+        n++;
+    }
+    return n;
+}
+
 extern "C" clientseat_t* CL_SeatNetIfMade(const int seat)
 {
     return qvr::seat::netIfMade(seat);

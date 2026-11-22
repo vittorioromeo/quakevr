@@ -114,6 +114,7 @@ void S_StopSound (int entnum, int entchannel);
 void S_StopAllSounds(qboolean clear);
 void S_ClearBuffer (void);
 void S_Update (vec3_t origin, vec3_t forward, vec3_t right, vec3_t up);
+int S_SeatListeners (void);	/* QVR: splitscreen: the drawn seats' listeners this frame (0 or 1: one, as before) */
 void S_ExtraUpdate (void);
 void S_MixKick (qboolean extra);	/* QVR: the mix on the thread pool (snd_mixasync), before the screen update (host.c) and in R_RenderScene; without the pool, extra: S_ExtraUpdate */
 void S_MixJoinAt (const char *file, int line);	/* QVR: the pool's mix done (every sound entry point, the cache's frees and moves); a no-op off the main thread */

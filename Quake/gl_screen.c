@@ -2528,6 +2528,7 @@ static void SCR_DrawSeats (void)
 			VR_FlatRenderView ();
 			VR_WindowViewEnd ();
 			VectorCopy (r_refdef.vieworg, sv->drawnorg);
+			VectorCopy (vright, sv->drawnright); // (its sound listener's)
 			GL_Set2D ();
 			SCR_DrawSeatHud (SCR_SeatHud ());
 		}
