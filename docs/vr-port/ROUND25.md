@@ -7553,3 +7553,15 @@ grunt's head intercepted by the backpack; wants packs paintable alone, a lineup 
   `vr_hull_holes_test` 27/0 on and 27/0 off (the drain falls with holes off, and with the old rule, max 31.8: 25/2).
   Census: id1 38 maps reach 0 (10,626 own, 1,302 diagonal, 88 over a fall; most 26 ms, e2m2), Quoth start 0 (and at
   max 46: 0, no box left out at the mark), ad_tears 0 (600 ms search) and ad_azad 0; prone_vent_test 11/0.
+- **Checklist tags (coordinator's extra):** 6 untagged lines in [2. Quoth] were copies of the tagged ones just below
+  (a ship's duplicate): dropped. kellbase1's corridor line tagged `hub_start` (as the other Quoth lines: a scene naming
+  kellbase1 needs Quoth in the base); the AD grates line got a minimal new scene `ad_azad_grates` (map ad_azad).
+  checklist_tests_check 116 passed, 0 failed; validate 186 files, 0 with errors.
+- **Item 5, the expbugs_* scenes:** already retired by checklist2 (moved out with their lines); in a base without Dwell
+  the remaining Dwell scenes skip: scenario_check (Dwell and Quoth moved out of the kit's base) PASS, 185 run, 0 failed,
+  5 skipped (dwell_bosses, dwell_grunt_pickup, dwell_items, dwell_monsters, dwell_sculptor: "not on the search path").
+- **Item 1 (ad_test3's ladder, flat), looked at, not fixed:** an "up" case for it (feet 228 at -504 -88 facing east)
+  finds the rungs ahead (tops 268, 284, 296, 300; holds 18 units ahead, out -x) but `flatLadderFrame`'s pair test takes
+  none ("2 ledges ahead, no ladder"); the case's start is also inside a func_wall (its rungs?). Left with the case
+  out (vr_flatladder_test's indices unchanged). Not done either: items 2, 3, 4 and the rest of 5 (per-tree MP bases and
+  a free port; vr_pickup_test 15 on next).

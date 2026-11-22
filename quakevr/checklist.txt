@@ -15,7 +15,7 @@ Push into the gaps of vrbrushholes' bar gate: you can't slip between the bars, b
 Walk to the far edges of vrbrushholes' raised lift: you can't drop into the slot beside it {test:brushholes_lift}
 Squeeze between vrbrushholes' pillars: you can't pass, but get as close as to any wall {test:brushholes_pillars}
 Turn on Debug > Show Gap Blockers on vrbrushholes: coloured boxes fill the gaps of the gate, grate, lift slots and pillars, with their counts in front of you {test:brushholes_show}
-AD maps (ad_azad, ad_tears): grates, bars and pillar rows stop you without blocking any path you could walk before
+AD maps (ad_azad, ad_tears): grates, bars and pillar rows stop you without blocking any path you could walk before {test:ad_azad_grates}
 # A line ending in {test:<id>} has a Test button: it loads quakevr/scenarios/<id>.txt's scene (docs/vr-port/TESTING.md, "Checklist scenarios"); every line ends in one (at least a minimal scene: the map, where you stand, what is given). Multiplayer lines' scenes start a local game with bots (passive: stand still, never attack, take hits; or active), nothing opened on the network. Flat-screen lines' scenes work under -flatscreenmode too (the game's mode is picked at start-up, not by the scene).
 # Lines are only for something new or changed you can see or feel: one line per flow, never "works as before". History of the sorts: git log of this file and docs/vr-port/CHECKLIST_REORG.md (latest: 2026-11-14 release audit, 94 lines down to 68, 71 with three from a later ship: the [New] section sorted, near-duplicates merged, every line cut to what to do and what to see, 3 new scenes; 2026-11-15: 17 ticked lines retired, the [New] section sorted). Misc/quakevr/checklist_tests_check.py checks every line has a tag, every tag's scene file and the format (no "(agent/", "Test:", scratch or qvr-agents paths, .sh names; sections in order).
 Dwell's Crystal Lance is a plain pole with its crystal head (no handle, no buttons) held like a spear: the pole runs through your fist (tip your hand forward to level it), your other hand slides anywhere along it, and the beam leaves the tip along the pole. {test:dwell_lance_pole}
@@ -45,14 +45,8 @@ Dwell's Crystal Lance in hand: the ammo screen in a dark metal bezel with violet
 Dwell d2end: fight the Sculptor; when it flies or teleports onto you, you are put just outside it, never stuck inside moving with it {test:dwell_sculptor}
 
 [2. Quoth]
-Quoth (experimental): Debug > Quoth: Play (Developer); walk start's hub, play kellbase1 to its exit (the exit lock spawns the plasma gun)
-Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open
-Quoth (experimental): Setup with AD ticked installs Quoth; without AD the box is greyed with the reason
-Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun
-Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens
-Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere
 Quoth/AD ladders: climb kellbase1's pillar ladders up, over the top and back down onto them, with VR hands and in flat {test:ad_mod_ladder}
-kellbase1: come up from below into the top-doors corridor before clearing the arena: after 10 s the doors behind you reopen, so you are never stuck
+kellbase1: come up from below into the top-doors corridor before clearing the arena: after 10 s the doors behind you reopen, so you are never stuck {test:hub_start}
 Quoth (experimental): Debug > Quoth: Play (Developer); walk start's hub, play kellbase1 to its exit (the exit lock spawns the plasma gun) {test:hub_start}
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open {test:hub_start}
 Quoth (experimental): Setup with AD ticked installs Quoth; without AD the box is greyed with the reason {test:hub_start}
