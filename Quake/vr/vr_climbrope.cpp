@@ -1,0 +1,1098 @@
+// vr_climbrope.cpp -- see vr_climbrope.hpp; docs/vr-port/ROPES.md.
+//
+// The server's ropes, by entity number: each a chain of points from its top (pinned at the entity's origin) to its
+// bottom (free, or pinned at its target's origin or where it first hung), `pieces` pieces of length / pieces units each.
+// A frame cut into steps of at most 1/120 s: each step's fall and pull back to the pieces' lengths (verlet::fall,
+// holdLengths: the grappling hook rope's and the magnetic holsters' steps), then the frame's pushes (the bodies and the
+// hands, as boxes and spheres the points are put out of, taking their speed), then the world (verlet::collide, through
+// the server's world: the level, doors and lifts). Explosions and shots add speed to the points they reach (kicks, at
+// the next step). Sent to every client where a point moved more than sentMoved since the last send (or every
+// refreshTime at rest), unreliably; a rope gone, reliably.
+//
+// The client keeps each rope's last points and draws them as a coil::Cord (a plain cable for a rope, the magnetic
+// holsters' chain of links for a chain), through a Catmull-Rom curve over the points.
+
+#include "vr_climbrope.hpp"
+
+#include "vr_box3d.hpp"
+#include "vr_coil.hpp"
+#include "vr_cvars.hpp"
+#include "vr_geom.hpp"
+#include "vr_gfx.hpp"
+#include "vr_mem.hpp"
+#include "vr_profile.hpp"
+#include "vr_progs.hpp"
+#include "vr_protocol.hpp"
+#include "vr_testkit.hpp"
+#include "vr_trace.hpp"
+#include "vr_units.hpp"
+#include "vr_verlet.hpp"
+
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "vr_api.h"
+
+using namespace qvr;
+
+namespace
+{
+
+constexpr int maxPieces = 64;
+constexpr float sentMoved = 0.25f;     // units a point moves before the rope is sent again
+constexpr double refreshTime = 0.5;    // seconds between two sends of a rope at rest (a lost datagram)
+constexpr float longestStep = 1.f / 120.f;
+constexpr int maxSteps = 8;            // a frame's steps at most (a long frame: longer steps)
+constexpr float handRadius = 3.f;      // units: a hand's sphere pushing the rope
+constexpr float shotReach = 2.f;       // units beyond the rope's thickness a shot pushes it from
+constexpr float maxKick = 400.f;       // units/s a shot gives a point at most
+constexpr float maxHandSpeed = 1000.f; // units/s a hand's speed counts at most (a teleport: none)
+constexpr int flagChain = 1;           // QVR_SVC_CLIMBROPE's flags: drawn as a chain
+constexpr int flagGone = 2;            // the rope is gone (no points follow)
+
+// A rope's settings: its map keys (QC vr_rope, vr_chain: rope_*), or the toolgun's spawn panel's (vr_rope_spawn_*).
+struct Params
+{
+    float length{256.f};   // units
+    float thickness{1.5f}; // units across
+    int pieces{16};
+    float mass{5.f};       // kg, the whole rope
+    float stiffness{1.f};  // 0..1: each pass's share of a stretched piece's correction
+    float damping{0.5f};   // per second, of its speed lost to the air
+    bool chain{false};
+    bool pinned{false};    // the bottom held where it first hung (or at the target)
+};
+
+struct Rope
+{
+    Params params;
+    glm::vec3 top{0.f};
+    glm::vec3 bottom{0.f};
+    za::Vector<glm::vec3> p, prev, from, sent, kick;
+    za::Vector<float> rest;
+    za::Vector<char> pinned;
+    double sentAt{-1.0};
+    float lastStep{0.f}; // the last step's length (seconds; 0: none yet)
+    float speed{0.f};    // the fastest point's speed over the last frame (units/s)
+};
+
+ankerl::unordered_dense::map<int, Rope> ropes;
+
+// The players' hands as last seen (their speed: the move since), [client][0 off, 1 main].
+struct HandSeen
+{
+    glm::vec3 at{0.f};
+    bool valid{false};
+};
+HandSeen handsSeen[MAX_SCOREBOARD][2];
+
+// This frame's pushing hands (a sphere each, with its speed).
+struct Pusher
+{
+    glm::vec3 at{0.f};
+    glm::vec3 vel{0.f};
+};
+
+struct RopeScratch
+{
+    za::Vector<Pusher> hands;
+    za::Vector<glm::vec3> smooth; // the client's curve through a rope's points
+    za::Vector<gfx::TubeRing> rings;
+    auto members() { return qvr::mem::list(hands, smooth, rings); }
+};
+mem::Scratch<RopeScratch> scratch{"climbrope"};
+
+// The client's ropes.
+struct ClientRope
+{
+    za::Vector<glm::vec3> p;
+    float thickness{1.5f};
+    bool chain{false};
+    coil::Cord cord;
+    gfx::TubeBatch batch;
+    int sides{0};
+};
+ankerl::unordered_dense::map<int, ClientRope> clientRopes;
+int builtFrame = -1;
+const glm::vec3 keyLight = glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}); // (the magnetic holsters' chains')
+
+[[nodiscard]] glm::vec3 vecOf(const float* v)
+{
+    return glm::vec3{v[0], v[1], v[2]};
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The server's ropes.
+
+[[nodiscard]] Params readParams(edict_t* e)
+{
+    const progs::FieldOffsets& f = progs::fields();
+    Params pr;
+    pr.chain = !strcmp(PR_GetString(e->v.classname), "vr_chain") || progs::fieldFloatOr(e, f.rope_style, 0.f) >= 1.f;
+    const float length = progs::fieldFloatOr(e, f.rope_length, 0.f);
+    pr.length = length > 0.f ? za::clamp(length, 16.f, 2048.f) : 256.f;
+    const float thickness = progs::fieldFloatOr(e, f.rope_thickness, 0.f);
+    pr.thickness = thickness > 0.f ? za::clamp(thickness, 0.25f, 8.f) : 1.5f;
+    const float pieces = progs::fieldFloatOr(e, f.rope_segments, 0.f);
+    pr.pieces = za::clamp(static_cast<int>(za::lround(pieces > 0.f ? pieces : pr.length / 16.f)), 2, maxPieces);
+    const float mass = progs::fieldFloatOr(e, f.rope_mass, 0.f);
+    pr.mass = mass > 0.f ? za::clamp(mass, 0.1f, 1000.f) : (pr.chain ? 20.f : 5.f);
+    const float stiffness = progs::fieldFloatOr(e, f.rope_stiffness, 0.f);
+    pr.stiffness = stiffness > 0.f ? za::clamp(stiffness, 0.05f, 1.f) : 1.f;
+    const float damping = progs::fieldFloatOr(e, f.rope_damping, 0.f);
+    pr.damping = damping > 0.f ? za::clamp(damping, 0.f, 20.f) : 0.5f;
+    pr.pinned = progs::fieldFloatOr(e, f.rope_pinned, 0.f) != 0.f;
+    return pr;
+}
+
+// The rope of entity `e` (number `num`) made: hanging straight down from its origin (lying on the floor below where it
+// is longer than the drop), or straight to its target.
+void make(edict_t* e, int num)
+{
+    Rope& r = ropes[num];
+    r = Rope{};
+    r.params = readParams(e);
+    const Params& pr = r.params;
+    r.top = vecOf(e->v.origin);
+    const za::SizeT n = static_cast<za::SizeT>(pr.pieces + 1);
+    bool targeted = false;
+    if(const char* target = PR_GetString(e->v.target); target[0])
+    {
+        for(int i = 1; i < sv.qcvm.num_edicts && !targeted; i++)
+        {
+            edict_t* t = EDICT_NUM(i);
+            if(!t->free && t != e && !strcmp(PR_GetString(t->v.targetname), target))
+            {
+                r.bottom = vecOf(t->v.origin);
+                targeted = true;
+            }
+        }
+    }
+    r.params.pinned = pr.pinned || targeted;
+    const glm::vec3 end = targeted ? r.bottom : r.top - glm::vec3{0.f, 0.f, pr.length};
+    // (A free rope longer than the drop: the points below the floor lie on it.)
+    float floorZ = -1e9f;
+    if(!targeted)
+    {
+        const trace_t tr = worldtrace::serverLine(r.top, end, nullptr);
+        if(tr.fraction < 1.f)
+        {
+            floorZ = tr.endpos[2] + pr.thickness * 0.5f;
+        }
+    }
+    r.p.resize(n);
+    r.rest.resize(n - 1);
+    r.pinned.resize(n);
+    r.kick.resize(n);
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        const float t = static_cast<float>(i) / static_cast<float>(n - 1);
+        glm::vec3 q = r.top + (end - r.top) * t;
+        q.z = za::max(q.z, za::min(floorZ, r.top.z));
+        r.p[i] = q;
+        r.pinned[i] = 0;
+        r.kick[i] = glm::vec3{0.f};
+    }
+    for(za::SizeT j = 0; j + 1 < n; j++)
+    {
+        r.rest[j] = pr.length / static_cast<float>(pr.pieces);
+    }
+    r.pinned[0] = 1;
+    if(r.params.pinned)
+    {
+        r.pinned[n - 1] = 1;
+        r.bottom = r.p[n - 1];
+    }
+    r.prev = r.p;
+    r.from = r.p;
+    if(vr_rope_debug.value > 0.f)
+    {
+        Con_Printf("rope: %d made (%s, %.0f long, %d pieces, %.1f thick, %.1f kg%s)\n", num, pr.chain ? "chain" : "rope",
+            pr.length, pr.pieces, pr.thickness, pr.mass, r.params.pinned ? ", pinned" : "");
+    }
+}
+
+// Point `i` of `r` put out of the box (`mins`, `maxs` grown by the rope's thickness), along its shortest way out, taking
+// the box's speed `vel` along that way (`h`: the last step's length).
+void pushOutOfBox(Rope& r, za::SizeT i, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& vel, float h)
+{
+    const float pad = r.params.thickness * 0.5f;
+    glm::vec3& q = r.p[i];
+    const glm::vec3 lo = mins - glm::vec3{pad}, hi = maxs + glm::vec3{pad};
+    if(q.x <= lo.x || q.x >= hi.x || q.y <= lo.y || q.y >= hi.y || q.z <= lo.z || q.z >= hi.z)
+    {
+        return;
+    }
+    int axis = 0;
+    float best = 1e9f, to = 0.f;
+    for(int k = 0; k < 3; k++)
+    {
+        if(q[k] - lo[k] < best)
+        {
+            best = q[k] - lo[k];
+            axis = k;
+            to = lo[k];
+        }
+        if(hi[k] - q[k] < best)
+        {
+            best = hi[k] - q[k];
+            axis = k;
+            to = hi[k];
+        }
+    }
+    glm::vec3 v = (q - r.prev[i]) / h;
+    q[axis] = to;
+    const float out = to > (lo[axis] + hi[axis]) * 0.5f ? 1.f : -1.f;
+    if(v[axis] * out < vel[axis] * out)
+    {
+        v[axis] = vel[axis];
+    }
+    r.prev[i] = q - v * h;
+}
+
+// Point `i` of `r` put out of a hand's sphere, taking its speed along the way out.
+void pushOutOfSphere(Rope& r, za::SizeT i, const Pusher& hand, float h)
+{
+    const float rad = handRadius + r.params.thickness * 0.5f;
+    glm::vec3& q = r.p[i];
+    const glm::vec3 d = q - hand.at;
+    const float len = glm::length(d);
+    if(len >= rad)
+    {
+        return;
+    }
+    const glm::vec3 nrm = len > 1e-3f ? d / len : glm::vec3{0.f, 0.f, 1.f};
+    glm::vec3 v = (q - r.prev[i]) / h;
+    q = hand.at + nrm * rad;
+    const float vn = glm::dot(hand.vel, nrm);
+    if(glm::dot(v, nrm) < vn)
+    {
+        v += nrm * (vn - glm::dot(v, nrm));
+    }
+    r.prev[i] = q - v * h;
+}
+
+// The players' hands this frame (their spheres and speeds), into scratch.hands.
+void gatherHands(float dt)
+{
+    scratch.hands.clear();
+    for(int c = 0; c < svs.maxclients && c < MAX_SCOREBOARD; c++)
+    {
+        const client_t& client = svs.clients[c];
+        for(int h = 0; h < 2; h++)
+        {
+            HandSeen& seen = handsSeen[c][h];
+            const int ofs = progs::bindings().hands[h].pos;
+            if(!client.active || !client.edict || ofs < 0 || client.edict->v.health <= 0.f || vr_rope_hands.value <= 0.f)
+            {
+                seen.valid = false;
+                continue;
+            }
+            const glm::vec3 at = progs::fieldVec(client.edict, ofs);
+            glm::vec3 vel = seen.valid && dt > 0.f ? (at - seen.at) / dt : glm::vec3{0.f};
+            if(glm::length(vel) > maxHandSpeed)
+            {
+                vel = glm::vec3{0.f};
+            }
+            seen = HandSeen{at, true};
+            scratch.hands.pushBack(Pusher{at, vel});
+        }
+    }
+}
+
+// What meets `r` this frame: the bodies (players, monsters, props: their boxes) and the hands.
+void disturb(Rope& r, float h)
+{
+    const za::SizeT n = r.p.size();
+    glm::vec3 lo{1e9f}, hi{-1e9f};
+    for(const glm::vec3& q : r.p)
+    {
+        lo = glm::min(lo, q);
+        hi = glm::max(hi, q);
+    }
+    const float pad = r.params.thickness * 0.5f + 1.f;
+    lo -= glm::vec3{pad};
+    hi += glm::vec3{pad};
+    for(int num = 1; num < sv.qcvm.num_edicts; num++)
+    {
+        edict_t* e = EDICT_NUM(num);
+        if(e->free || e->v.absmax[0] < lo.x || e->v.absmin[0] > hi.x || e->v.absmax[1] < lo.y || e->v.absmin[1] > hi.y ||
+            e->v.absmax[2] < lo.z || e->v.absmin[2] > hi.z)
+        {
+            continue;
+        }
+        const int solid = static_cast<int>(e->v.solid);
+        if(solid != SOLID_BBOX && solid != SOLID_SLIDEBOX && !box3d::isBox3DProp(num))
+        {
+            continue;
+        }
+        const glm::vec3 mins = vecOf(e->v.absmin), maxs = vecOf(e->v.absmax), vel = vecOf(e->v.velocity);
+        for(za::SizeT i = 0; i < n; i++)
+        {
+            if(!r.pinned[i])
+            {
+                pushOutOfBox(r, i, mins, maxs, vel, h);
+            }
+        }
+    }
+    for(const Pusher& hand : scratch.hands)
+    {
+        if(hand.at.x < lo.x - handRadius || hand.at.x > hi.x + handRadius || hand.at.y < lo.y - handRadius ||
+            hand.at.y > hi.y + handRadius || hand.at.z < lo.z - handRadius || hand.at.z > hi.z + handRadius)
+        {
+            continue;
+        }
+        for(za::SizeT i = 0; i < n; i++)
+        {
+            if(!r.pinned[i])
+            {
+                pushOutOfSphere(r, i, hand, h);
+            }
+        }
+    }
+}
+
+// A frame of `dt` seconds for `r`.
+void step(Rope& r, float dt)
+{
+    const za::SizeT n = r.p.size();
+    const Params& pr = r.params;
+    r.from = r.p;
+    // The kicks (explosions, shots) since the last frame: speed added to their points.
+    const float lastH = r.lastStep > 0.f ? r.lastStep : dt;
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        if(!r.pinned[i])
+        {
+            r.prev[i] -= r.kick[i] * lastH;
+        }
+        r.kick[i] = glm::vec3{0.f};
+    }
+    const int steps = za::clamp(static_cast<int>(za::ceil(dt / longestStep)), 1, maxSteps);
+    const float h = dt / static_cast<float>(steps);
+    const int iterations = za::clamp(static_cast<int>(vr_rope_iterations.value), 1, 64);
+    for(int s = 0; s < steps; s++)
+    {
+        verlet::fall(r.p.data(), r.prev.data(), r.pinned.data(), n, h, r.lastStep, pr.damping, sv_gravity.value);
+        r.lastStep = h;
+        r.p[0] = r.top;
+        if(pr.pinned)
+        {
+            r.p[n - 1] = r.bottom;
+        }
+        verlet::holdLengths(r.p.data(), r.pinned.data(), n, r.rest.data(), iterations, pr.stiffness);
+    }
+    disturb(r, h);
+    verlet::collide(r.p.data(), r.prev.data(), r.from.data(), r.pinned.data(), n, pr.thickness * 0.5f, 0.6f, nullptr,
+        nullptr, true);
+    float fastest = 0.f;
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        fastest = za::max(fastest, glm::length(r.p[i] - r.from[i]));
+    }
+    r.speed = dt > 0.f ? fastest / dt : 0.f;
+}
+
+// Writes rope `num` to `msg` (as it is, or gone).
+void write(sizebuf_t* msg, int num, const Rope* r)
+{
+    const int n = r ? static_cast<int>(r->p.size()) : 0;
+    MSG_WriteByte(msg, protocol::svc_quakevr);
+    MSG_WriteByte(msg, protocol::QVR_SVC_CLIMBROPE);
+    MSG_WriteShort(msg, num);
+    MSG_WriteByte(msg, r ? (r->params.chain ? flagChain : 0) : flagGone);
+    MSG_WriteByte(msg, r ? za::clamp(static_cast<int>(za::lround(r->params.thickness * 16.f)), 1, 255) : 0);
+    MSG_WriteByte(msg, n);
+    glm::vec3 at{0.f};
+    for(int i = 0; i < n; i++)
+    {
+        const glm::vec3& q = r->p[static_cast<za::SizeT>(i)];
+        for(int k = 0; k < 3; k++)
+        {
+            if(i == 0)
+            {
+                MSG_WriteCoord(msg, q[k], sv.protocolflags);
+                at[k] = q[k];
+            }
+            else
+            {
+                // From the one before as the client has it (no error adds up): eighths of a unit.
+                const int d = za::clamp(static_cast<int>(za::lround((q[k] - at[k]) * 8.f)), -32767, 32767);
+                MSG_WriteShort(msg, d);
+                at[k] += static_cast<float>(d) / 8.f;
+            }
+        }
+    }
+}
+
+[[nodiscard]] int writeSize(const Rope& r)
+{
+    return 8 + 12 + 6 * static_cast<int>(r.p.size());
+}
+
+void send(int num, Rope& r)
+{
+    bool changed = r.sent.size() != r.p.size();
+    for(za::SizeT i = 0; i < r.p.size() && !changed; i++)
+    {
+        changed = glm::length(r.p[i] - r.sent[i]) > sentMoved;
+    }
+    const bool due = sv.qcvm.time - r.sentAt >= refreshTime || sv.qcvm.time < r.sentAt;
+    if((!changed && !due) || sv.datagram.cursize + writeSize(r) > MAX_DATAGRAM - 64)
+    {
+        return;
+    }
+    write(&sv.datagram, num, &r);
+    VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
+    r.sent = r.p;
+    r.sentAt = sv.qcvm.time;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// vr_rope_test: the ropes' physics and sync, in a game (docs/vr-port/ROPES.md, "Tests"). A state machine run by the
+// server's frame: frames counted, never the clock.
+
+struct RopeTest
+{
+    int stage{0}; // 0: not running
+    int frames{0};
+    testkit::Tally tally;
+    int ropeA{0}; // a free rope 150 long, 10 pieces, hanging to a hand's breadth above the floor
+    int chainB{0}; // a pinned chain made as the toolgun makes one
+    int thing{0};  // the prop or monster pushing A
+    za::Vector<glm::vec3> before;
+    glm::vec3 feet{0.f};
+    glm::vec3 fwd{1.f, 0.f, 0.f};
+};
+RopeTest test;
+constexpr const char* testName = "vr_rope_test";
+
+void testCheck(bool ok, const char* what)
+{
+    test.tally.check(ok, testName, what);
+    if(ok)
+    {
+        Con_Printf("%s: PASS %s\n", testName, what);
+    }
+}
+
+[[nodiscard]] Rope* ropeOf(int num)
+{
+    const auto it = ropes.find(num);
+    return it == ropes.end() ? nullptr : &it->second;
+}
+
+[[nodiscard]] float displacement(const Rope& r, const za::Vector<glm::vec3>& was)
+{
+    float most = 0.f;
+    for(za::SizeT i = 0; i < r.p.size() && i < was.size(); i++)
+    {
+        most = za::max(most, glm::length(r.p[i] - was[i]));
+    }
+    return most;
+}
+
+void placeWith(edict_t* e, const glm::vec3& at, float length, float thickness, int segments, float mass, float stiffness,
+    float damping, bool pinned)
+{
+    const progs::FieldOffsets& f = progs::fields();
+    const auto set = [e](int ofs, float v) {
+        if(ofs >= 0)
+        {
+            progs::fieldFloat(e, ofs) = v;
+        }
+    };
+    set(f.rope_length, length);
+    set(f.rope_thickness, thickness);
+    set(f.rope_segments, static_cast<float>(segments));
+    set(f.rope_mass, mass);
+    set(f.rope_stiffness, stiffness);
+    set(f.rope_damping, damping);
+    set(f.rope_pinned, pinned ? 1.f : 0.f);
+    // Its top: the ceiling above the ghost, or its length (and a little) up.
+    const float len = length > 0.f ? length : 256.f;
+    const glm::vec3 start = at + glm::vec3{0.f, 0.f, 1.f};
+    const trace_t tr = worldtrace::serverLine(start, start + glm::vec3{0.f, 0.f, len + 8.f}, e);
+    const glm::vec3 top = vecOf(tr.endpos) - glm::vec3{0.f, 0.f, tr.fraction < 1.f ? 1.f : 0.f};
+    for(int k = 0; k < 3; k++)
+    {
+        e->v.origin[k] = top[k];
+    }
+    SV_LinkEdict(e, false);
+    ropes.erase(NUM_FOR_EDICT(e)); // (made afresh from these at the next frame)
+}
+
+void testFrame()
+{
+    RopeTest& t = test;
+    t.frames++;
+    Rope* a = ropeOf(t.ropeA);
+    Rope* b = ropeOf(t.chainB);
+    const auto next = [](int stage) {
+        RopeTest& t = test;
+        t.stage = stage;
+        t.frames = 0;
+    };
+    const auto mid = [](const Rope& r) { return r.p[r.p.size() / 2]; };
+    switch(t.stage)
+    {
+    case 1:
+    {
+        edict_t* player = progs::playerEdict();
+        const float yaw = glm::radians(player->v.angles[1]);
+        t.fwd = glm::vec3{za::cos(yaw), za::sin(yaw), 0.f};
+        t.feet = vecOf(player->v.origin) + glm::vec3{0.f, 0.f, player->v.mins[2]};
+        edict_t* ea = box3d::spawnClass("vr_rope", t.feet + t.fwd * 128.f + glm::vec3{0.f, 0.f, 160.f}, glm::vec3{0.f});
+        const glm::vec3 side{-t.fwd.y, t.fwd.x, 0.f};
+        edict_t* eb = box3d::spawnClass("vr_chain", t.feet + t.fwd * 128.f + side * 64.f, glm::vec3{0.f});
+        if(!ea || !eb)
+        {
+            testCheck(false, "the test's rope and chain spawned");
+            next(99);
+            break;
+        }
+        const progs::FieldOffsets& f = progs::fields();
+        progs::fieldFloat(ea, f.rope_length) = 150.f;
+        progs::fieldFloat(ea, f.rope_segments) = 10.f;
+        placeWith(eb, t.feet + t.fwd * 128.f + side * 64.f, 96.f, 2.f, 6, 0.f, 0.f, 0.f, true); // (the toolgun's way)
+        t.ropeA = NUM_FOR_EDICT(ea);
+        t.chainB = NUM_FOR_EDICT(eb);
+        next(2);
+        break;
+    }
+    case 2:
+    {
+        testCheck(a && a->p.size() == 11 && !a->params.chain && !a->params.pinned, "a map-keyed rope made: 10 pieces, free");
+        testCheck(b && b->p.size() == 7 && b->params.chain && b->params.pinned && b->params.thickness == 2.f,
+            "a toolgun-placed chain made: 6 pieces, pinned, 2 thick");
+        if(!strcmp(sv.name, "vrropes"))
+        {
+            int count = 0, chains = 0, targeted = 0;
+            for(const auto& kv : ropes)
+            {
+                if(kv.first == t.ropeA || kv.first == t.chainB)
+                {
+                    continue;
+                }
+                count++;
+                chains += kv.second.params.chain ? 1 : 0;
+                targeted += kv.second.params.pinned ? 1 : 0;
+            }
+            char what[96];
+            q_snprintf(what, sizeof(what), "vrropes' own ropes made (%d, %d chains, %d pinned)", count, chains, targeted);
+            testCheck(count >= 6 && chains >= 2 && targeted >= 1, what);
+        }
+        next(3);
+        break;
+    }
+    case 3: // settling (counted frames)
+        if(t.frames < 360 || !a || !b)
+        {
+            if(!a || !b)
+            {
+                testCheck(false, "the test's ropes still there");
+                next(99);
+            }
+            break;
+        }
+        {
+            const glm::vec3 drop = a->p.front() - a->p.back();
+            const float horiz = glm::length(glm::vec2{drop.x, drop.y});
+            char what[128];
+            q_snprintf(what, sizeof(what), "the free rope hangs straight (drop %.1f of 150, %.1f aside, %.1f u/s)", drop.z, horiz,
+                a->speed);
+            testCheck(drop.z > 142.f && drop.z < 151.f && horiz < 4.f && a->speed < 5.f, what);
+            testCheck(glm::length(b->p.back() - b->bottom) < 0.5f && glm::length(b->p.front() - b->top) < 0.5f,
+                "the pinned chain's ends held");
+            // The client's copy (QVR_SVC_CLIMBROPE through the loopback): the server's points.
+            const auto it = clientRopes.find(t.ropeA);
+            float worst = 1e9f;
+            if(it != clientRopes.end() && it->second.p.size() == a->p.size())
+            {
+                worst = 0.f;
+                for(za::SizeT i = 0; i < a->p.size(); i++)
+                {
+                    worst = za::max(worst, glm::length(it->second.p[i] - a->p[i]));
+                }
+            }
+            q_snprintf(what, sizeof(what), "the client has the rope's points (worst %.2f units off)", worst);
+            testCheck(worst < 0.5f, what);
+            const auto cb = clientRopes.find(t.chainB);
+            testCheck(cb != clientRopes.end() && cb->second.chain && za::fabs(cb->second.thickness - 2.f) < 0.1f,
+                "the client draws the chain as a chain, 2 thick");
+            t.before = a->p;
+            climbrope::blast(mid(*a) + t.fwd * 24.f, 100.f);
+            next(4);
+        }
+        break;
+    case 4:
+        if(t.frames >= 8)
+        {
+            const float moved = a ? displacement(*a, t.before) : 0.f;
+            char what[96];
+            q_snprintf(what, sizeof(what), "an explosion throws it (%.1f units)", moved);
+            testCheck(moved > 8.f, what);
+            next(5);
+        }
+        break;
+    case 5:
+        if(t.frames >= 360 && a)
+        {
+            t.before = a->p;
+            const glm::vec3 m = mid(*a);
+            climbrope::shot(m - t.fwd * 64.f, m + t.fwd * 64.f, t.fwd * 400.f, 0.2f);
+            next(6);
+        }
+        break;
+    case 6:
+        if(t.frames >= 8)
+        {
+            const float moved = a ? displacement(*a, t.before) : 0.f;
+            char what[96];
+            q_snprintf(what, sizeof(what), "a shot through it pushes it (%.1f units)", moved);
+            testCheck(moved > 2.f, what);
+            next(7);
+        }
+        break;
+    case 7:
+        if(t.frames >= 360 && a)
+        {
+            t.before = a->p;
+            const glm::vec3 low = a->p.back();
+            edict_t* crate = box3d::spawnClass("vr_crate", glm::vec3{low.x, low.y, t.feet.z + 1.f} + t.fwd * 6.f, glm::vec3{0.f});
+            t.thing = crate ? NUM_FOR_EDICT(crate) : 0;
+            next(8);
+        }
+        break;
+    case 8:
+        if(t.frames >= 30)
+        {
+            const float moved = a ? displacement(*a, t.before) : 0.f;
+            char what[96];
+            q_snprintf(what, sizeof(what), "a prop set down on its end pushes it aside (%.1f units)", moved);
+            testCheck(t.thing && moved > 3.f, what);
+            if(t.thing && !EDICT_NUM(t.thing)->free)
+            {
+                ED_Free(EDICT_NUM(t.thing));
+            }
+            t.thing = 0;
+            next(9);
+        }
+        break;
+    case 9:
+        if(t.frames >= 360 && a)
+        {
+            t.before = a->p;
+            const glm::vec3 low = a->p.back();
+            edict_t* dog = box3d::spawnClass("monster_dog", glm::vec3{low.x, low.y, t.feet.z + 25.f} + t.fwd * 10.f,
+                glm::vec3{0.f});
+            t.thing = dog ? NUM_FOR_EDICT(dog) : 0;
+            next(10);
+        }
+        break;
+    case 10:
+        if(t.frames >= 30)
+        {
+            const float moved = a ? displacement(*a, t.before) : 0.f;
+            char what[96];
+            q_snprintf(what, sizeof(what), "a monster standing in it pushes it aside (%.1f units)", moved);
+            testCheck(t.thing && moved > 3.f, what);
+            if(t.thing && !EDICT_NUM(t.thing)->free)
+            {
+                ED_Free(EDICT_NUM(t.thing));
+            }
+            t.thing = 0;
+            if(t.ropeA && !EDICT_NUM(t.ropeA)->free)
+            {
+                ED_Free(EDICT_NUM(t.ropeA)); // (gone: the clients told)
+            }
+            next(11);
+        }
+        break;
+    case 11:
+        if(t.frames >= 6)
+        {
+            testCheck(!ropeOf(t.ropeA) && clientRopes.find(t.ropeA) == clientRopes.end(),
+                "a rope removed is gone from the server and the client");
+            next(99);
+        }
+        break;
+    default:
+        t.tally.verdict(testName);
+        t.stage = 0;
+        break;
+    }
+}
+
+void test_f()
+{
+    if(!sv.active || svs.maxclients < 1 || !progs::bindings().isVrProgs || progs::fields().rope_length < 0)
+    {
+        Con_Printf("%s: FAIL a game with Quake VR's progs\n", testName);
+        testkit::verdict(testName, 0, 1);
+        return;
+    }
+    test = RopeTest{};
+    test.stage = 1;
+}
+
+// vr_rope_info: the server's ropes (rope_sv lines) and the client's copies (rope_cl), then "rope_info: done" (the MP
+// test's report: Misc/quakevr/mp/mp_test.py ropes).
+void info_f()
+{
+    Con_Printf("climbable ropes: %d on the server, %d on the client\n", sv.active ? static_cast<int>(ropes.size()) : 0,
+        static_cast<int>(clientRopes.size()));
+    for(const auto& kv : ropes)
+    {
+        const Rope& r = kv.second;
+        if(!sv.active)
+        {
+            break;
+        }
+        Con_Printf("rope_sv: ent=%d n=%d chain=%d last=%.1f,%.1f,%.1f speed=%.1f (%.0f long, %.1f thick, %.1f kg, stiffness %.2f, "
+                   "damping %.2f%s; top %.0f %.0f %.0f)\n",
+            kv.first, static_cast<int>(r.p.size()), r.params.chain ? 1 : 0, r.p.back().x, r.p.back().y, r.p.back().z, r.speed,
+            r.params.length, r.params.thickness, r.params.mass, r.params.stiffness, r.params.damping,
+            r.params.pinned ? ", pinned" : "", r.top.x, r.top.y, r.top.z);
+    }
+    for(const auto& kv : clientRopes)
+    {
+        const ClientRope& c = kv.second;
+        if(!c.p.empty())
+        {
+            Con_Printf("rope_cl: ent=%d n=%d chain=%d last=%.1f,%.1f,%.1f thick=%.2f\n", kv.first, static_cast<int>(c.p.size()),
+                c.chain ? 1 : 0, c.p.back().x, c.p.back().y, c.p.back().z, c.thickness);
+        }
+    }
+    Con_Printf("rope_info: done\n");
+}
+
+// vr_rope_spawn [chain] [length]: a rope (1: a chain) hung 96 units ahead of the first player, as the toolgun hangs one
+// (from the ceiling above, or its length up), with the spawn panel's other settings (a test aid; the MP test's).
+void spawn_f()
+{
+    if(!sv.active)
+    {
+        Con_Printf("vr_rope_spawn: no game running\n");
+        return;
+    }
+    const progs::ServerVm vm;
+    edict_t* player = nullptr;
+    for(int c = 0; c < svs.maxclients && !player; c++)
+    {
+        player = svs.clients[c].active ? svs.clients[c].edict : nullptr;
+    }
+    if(!player)
+    {
+        Con_Printf("vr_rope_spawn: no player\n");
+        return;
+    }
+    const float yaw = glm::radians(player->v.angles[1]);
+    const glm::vec3 at = vecOf(player->v.origin) + glm::vec3{za::cos(yaw) * 96.f, za::sin(yaw) * 96.f, player->v.mins[2]};
+    const bool chain = Cmd_Argc() > 1 && Q_atoi(Cmd_Argv(1)) != 0;
+    edict_t* e = box3d::spawnClass(chain ? "vr_chain" : "vr_rope", at, glm::vec3{0.f});
+    if(!e)
+    {
+        Con_Printf("vr_rope_spawn: not made\n");
+        return;
+    }
+    const float length = Cmd_Argc() > 2 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(2))), 16.f, 2048.f)
+                                        : za::clamp(vr_rope_spawn_length.value, 16.f, 2048.f);
+    placeWith(e, at, length, za::clamp(vr_rope_spawn_thickness.value, 0.25f, 8.f),
+        za::clamp(static_cast<int>(vr_rope_spawn_segments.value), 0, maxPieces), za::max(vr_rope_spawn_mass.value, 0.f),
+        za::clamp(vr_rope_spawn_stiffness.value, 0.f, 1.f), za::max(vr_rope_spawn_damping.value, 0.f),
+        vr_rope_spawn_pinned.value != 0.f);
+    Con_Printf("vr_rope_spawn: %d %s, %.0f long, top %.0f %.0f %.0f\n", NUM_FOR_EDICT(e), chain ? "chain" : "rope", length,
+        e->v.origin[0], e->v.origin[1], e->v.origin[2]);
+}
+
+// vr_rope_push <x> <y> <z>: every rope's free points given that speed (units/s) at the next step (a test aid).
+void push_f()
+{
+    const glm::vec3 v{static_cast<float>(Q_atof(Cmd_Argv(1))), static_cast<float>(Q_atof(Cmd_Argv(2))),
+        static_cast<float>(Q_atof(Cmd_Argv(3)))};
+    for(auto& kv : ropes)
+    {
+        for(glm::vec3& k : kv.second.kick)
+        {
+            k += v;
+        }
+    }
+    Con_Printf("vr_rope_push: %d ropes pushed\n", static_cast<int>(ropes.size()));
+}
+
+void serverReset()
+{
+    ropes.clear();
+    for(auto& client : handsSeen)
+    {
+        for(HandSeen& h : client)
+        {
+            h.valid = false;
+        }
+    }
+    test = RopeTest{};
+}
+
+void clientReset()
+{
+    clientRopes.clear();
+}
+
+mem::Reset serverWorldReset{"climbrope", mem::ResetEvent::ServerWorld, mem::ResetPhase::State, &serverReset};
+mem::Reset clientStateReset{"climbrope", mem::ResetEvent::ClientState, mem::ResetPhase::State, &clientReset};
+
+// The client's curve through the points: each piece cut in four along a Catmull-Rom spline.
+void smoothInto(const za::Vector<glm::vec3>& p, za::Vector<glm::vec3>& out)
+{
+    out.clear();
+    const za::SizeT n = p.size();
+    constexpr int cuts = 4;
+    for(za::SizeT j = 0; j + 1 < n; j++)
+    {
+        const glm::vec3& p0 = p[j > 0 ? j - 1 : j];
+        const glm::vec3& p1 = p[j];
+        const glm::vec3& p2 = p[j + 1];
+        const glm::vec3& p3 = p[j + 2 < n ? j + 2 : j + 1];
+        for(int c = 0; c < cuts; c++)
+        {
+            const float t = static_cast<float>(c) / cuts, t2 = t * t, t3 = t2 * t;
+            out.pushBack(0.5f * ((2.f * p1) + (-p0 + p2) * t + (2.f * p0 - 5.f * p1 + 4.f * p2 - p3) * t2 +
+                                    (-p0 + 3.f * p1 - 3.f * p2 + p3) * t3));
+        }
+    }
+    if(n)
+    {
+        out.pushBack(p[n - 1]);
+    }
+}
+
+[[nodiscard]] coil::Style styleOf(const ClientRope& c)
+{
+    coil::Style s;
+    const float m = c.thickness / units::metresToUnits(); // across, metres
+    if(c.chain)
+    {
+        s.chain = true;
+        s.rigid = true;
+        s.wireRadius = m * 0.16f;
+        s.linkLength = m * 1.3f;
+        s.linkWidth = m * 0.55f;
+        s.albedo = glm::vec3{0.3f, 0.3f, 0.32f};
+    }
+    else
+    {
+        s.wireRadius = m * 0.5f;
+        s.albedo = glm::vec3{0.42f, 0.32f, 0.2f};
+    }
+    return s;
+}
+
+} // namespace
+
+namespace qvr::climbrope
+{
+
+void init()
+{
+    Cmd_AddCommand("vr_rope_info", info_f);
+    Cmd_AddCommand("vr_rope_test", test_f);
+    Cmd_AddCommand("vr_rope_spawn", spawn_f);
+    Cmd_AddCommand("vr_rope_push", push_f);
+}
+
+bool isRopeClass(const char* classname)
+{
+    return !strcmp(classname, "vr_rope") || !strcmp(classname, "vr_chain");
+}
+
+void serverFrame()
+{
+    if(!sv.active || sv.paused || !progs::bindings().isVrProgs || progs::fields().rope_length < 0)
+    {
+        return;
+    }
+    QVR_PROFILE("climbable ropes");
+    const progs::ServerVm vm;
+    if(test.stage)
+    {
+        testFrame();
+    }
+    // New ropes (a map's, the toolgun's): rope entities with no rope yet.
+    for(int num = svs.maxclients + 1; num < sv.qcvm.num_edicts; num++)
+    {
+        edict_t* e = EDICT_NUM(num);
+        if(!e->free && e->v.modelindex == 0.f && static_cast<int>(e->v.solid) == SOLID_NOT && isRopeClass(PR_GetString(e->v.classname)) &&
+            ropes.find(num) == ropes.end())
+        {
+            make(e, num);
+        }
+    }
+    if(ropes.empty())
+    {
+        return;
+    }
+    const float dt = za::clamp(static_cast<float>(host_frametime), 0.f, 0.1f);
+    if(dt <= 0.f)
+    {
+        return;
+    }
+    gatherHands(dt);
+    for(auto& kv : ropes)
+    {
+        Rope& r = kv.second;
+        // (Its top follows the entity: a rope moved by the toolgun's physgun or a map's mover.)
+        r.top = vecOf(EDICT_NUM(kv.first)->v.origin);
+        step(r, dt);
+        send(kv.first, r);
+    }
+}
+
+void serverWriteAll(sizebuf_t* msg)
+{
+    for(auto& kv : ropes)
+    {
+        if(msg->cursize + writeSize(kv.second) < msg->maxsize - 64)
+        {
+            write(msg, kv.first, &kv.second);
+        }
+    }
+}
+
+void forget(int num)
+{
+    if(ropes.erase(num) && sv.active && sv.reliable_datagram.cursize + 16 < sv.reliable_datagram.maxsize)
+    {
+        write(&sv.reliable_datagram, num, nullptr);
+    }
+}
+
+void blast(const glm::vec3& at, float damage)
+{
+    if(damage <= 0.f)
+    {
+        return;
+    }
+    const float reach = damage + 40.f; // (T_RadiusDamage's)
+    for(auto& kv : ropes)
+    {
+        Rope& r = kv.second;
+        const float scale = za::clamp(5.f / r.params.mass, 0.25f, 2.f);
+        for(za::SizeT i = 0; i < r.p.size(); i++)
+        {
+            const glm::vec3 d = r.p[i] - at;
+            const float len = glm::length(d);
+            if(len < reach && !r.pinned[i])
+            {
+                const glm::vec3 dir = len > 1.f ? d / len : glm::vec3{0.f, 0.f, 1.f};
+                r.kick[i] += dir * (damage * 4.f * (1.f - len / reach) * scale);
+            }
+        }
+    }
+}
+
+void shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity, float mass)
+{
+    if(mass <= 0.f)
+    {
+        return;
+    }
+    for(auto& kv : ropes)
+    {
+        Rope& r = kv.second;
+        const float pointMass = r.params.mass / static_cast<float>(r.p.size());
+        glm::vec3 dv = velocity * (mass / za::max(pointMass, 0.01f));
+        if(glm::length(dv) > maxKick)
+        {
+            dv = glm::normalize(dv) * maxKick;
+        }
+        for(za::SizeT j = 0; j + 1 < r.p.size(); j++)
+        {
+            float ta = 0.f, tb = 0.f;
+            if(geom::segmentsDistance(start, end, r.p[j], r.p[j + 1], ta, tb) < r.params.thickness * 0.5f + shotReach)
+            {
+                r.kick[j] += dv * (1.f - tb);
+                r.kick[j + 1] += dv * tb;
+                break; // (the first piece it meets)
+            }
+        }
+    }
+}
+
+void toolgunPlaced(edict_t* e, const glm::vec3& at)
+{
+    placeWith(e, at, za::clamp(vr_rope_spawn_length.value, 16.f, 2048.f), za::clamp(vr_rope_spawn_thickness.value, 0.25f, 8.f),
+        za::clamp(static_cast<int>(vr_rope_spawn_segments.value), 0, maxPieces), za::max(vr_rope_spawn_mass.value, 0.f),
+        za::clamp(vr_rope_spawn_stiffness.value, 0.f, 1.f), za::max(vr_rope_spawn_damping.value, 0.f),
+        vr_rope_spawn_pinned.value != 0.f);
+}
+
+void parse()
+{
+    const int num = MSG_ReadShort();
+    const int flags = MSG_ReadByte();
+    const int thick = MSG_ReadByte();
+    const int n = MSG_ReadByte();
+    if(n < 0 || thick < 0 || flags < 0) // (a message cut short)
+    {
+        return;
+    }
+    if(flags & flagGone)
+    {
+        clientRopes.erase(num);
+        return;
+    }
+    ClientRope& c = clientRopes[num];
+    c.chain = (flags & flagChain) != 0;
+    c.thickness = static_cast<float>(thick) / 16.f;
+    c.p.resize(static_cast<za::SizeT>(n));
+    glm::vec3 at{0.f};
+    for(int i = 0; i < n; i++)
+    {
+        for(int k = 0; k < 3; k++)
+        {
+            at[k] = i == 0 ? MSG_ReadCoord(cl.protocolflags) : at[k] + static_cast<float>(MSG_ReadShort()) / 8.f;
+        }
+        c.p[static_cast<za::SizeT>(i)] = at;
+    }
+}
+
+void drawOpaque()
+{
+    if(clientRopes.empty())
+    {
+        return;
+    }
+    const bool build = builtFrame != host_framecount;
+    builtFrame = host_framecount;
+    for(auto& kv : clientRopes)
+    {
+        ClientRope& c = kv.second;
+        if(c.p.size() < 2)
+        {
+            continue;
+        }
+        if(build)
+        {
+            QVR_PROFILE("climbable ropes build");
+            smoothInto(c.p, scratch.smooth);
+            c.cord.shape(scratch.smooth.data(), scratch.smooth.size(), styleOf(c));
+            const bool built = c.cord.build(vecOf(r_refdef.vieworg), scratch.rings, c.sides);
+            c.batch = built ? gfx::uploadTube(scratch.rings) : gfx::TubeBatch{};
+        }
+        if(c.batch.count)
+        {
+            QVR_GPU_PROFILE("climbable ropes draw");
+            gfx::drawTube(c.batch, c.sides, c.cord.albedo(), keyLight, c.cord.rust(), c.cord.flat());
+        }
+    }
+}
+
+} // namespace qvr::climbrope

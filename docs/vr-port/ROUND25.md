@@ -7508,3 +7508,23 @@ becomes possible in that state".
   (the grip 64 units off, cases 8/9, standing or staggering; this file's "vr_embed_test 13" notes above). Flat:
   `vr_flatitems_test 10` (routing, ironsight with an empty hand) 63/0, 7 (a prop beside the gun) 13/0, flathands 76/0,
   flatmelee2h 16/0, flatads 6/1 (its "launchers", the outdated expectation of ROUND24.md).
+
+## Ropes (phase 1 of 3: the physical rope and chain)
+
+His spec of 2026-11-21; the reference is `ROPES.md` (keys, settings, files, defaults, limits). Phase 1 done: map
+entities `vr_rope` / `vr_chain` (QC `vr_ropes.qc`: settings only; `rope_*` keys), the toolgun's Spawn > Props > Ropes
+(Rope, Chain) with its Rope Settings page (`vr_rope_spawn_*`, hung from the ceiling above the ghost), the server's
+Verlet rope (`Quake/vr/vr_climbrope.cpp`, reusing `vr_verlet` fall / holdLengths / collide, the last now able to trace
+the server's world), pushed by hands, bodies, props, explosions (physicsblast) and shots (physicsshot), sent to every
+client (`QVR_SVC_CLIMBROPE` 55) and drawn with the magnetic holsters' cord code (`coil::Cord::shape`: a cable or the
+chain of links). Shared flat/VR: the rope, its sync and its drawing are one path for both (the listen client draws from
+the loopback message as a remote one does); nothing mode-specific yet (P2 is VR's grab, P3 flat's auto-climb).
+- **Test map** `vrropes` (`Misc/quakevr/make_vrropes_map.py --compile`): four swinging ropes 192 apart and a ledge, a
+  pinned rope, a heavy chain, a rope longer than the drop. Scene `ropes`.
+- **Tests:** `vr_rope_test` (in vrropes) 12 passed, 0 failed: made from keys and as the toolgun makes one, vrropes' 7
+  counted, hangs straight its length, pinned ends held, the client's copy within 0.09 units, an explosion throws it 25
+  units, a shot 6, a crate 117, a dog 15, removed: gone on both. `mp_test.py ropes` (dedicated server, B behind the
+  proxy) 9 passed: B has both with the server's points; pushed, B sees them swing. vr_toolgun_spawn_test makes both
+  entries. scenario_check PASS (185 run, 0 failed). Dev and ThinLTO built, 0 warnings.
+- **Left (P2, P3):** the VR grab and hand-over-hand climb with the legs' IK and momentum on letting go, the flat
+  auto-climb, the pumped swing to a cap, the climber's pose in MP; the toolgun's Remove/Physgun aiming at ropes.

@@ -34,6 +34,8 @@ Tests:
              step of the server's, closed; B draws A's jointed hands (and his weapon's model) where A drew them; the
              bytes it costs and the avatars the server sent and skipped as unchanged.
     avatarcal  each client's avatar calibration (height, arm length, gloves, body...) reaches the other and the server.
+    ropes    climbable ropes (QVR_SVC_CLIMBROPE): a rope and a chain the server hangs reach B with the server's points;
+             pushed, B sees them swing; at rest again, B's copies within a unit of the server's.
     body     B draws A's body (avatar::poseOther: the code that poses A's own): A's build's model, its wrists at A's drawn
              hands, its joints (head, pelvis, shoulders, wrists) within 1.5 units of A's own body and its scale A's; a
              screenshot pair (B facing A); A's Height raised: B's copy grows by as much (its scale and shoulders), as A's own.
@@ -1168,6 +1170,76 @@ def reports_until(s, insts, done, what, tries=20):
             return lines, n
     s.check(what, False, "not after %d reports" % tries)
     raise StepFailed(what)
+
+
+def rope_reports(insts):
+    """vr_rope_info on each of `insts` at once -> per instance its lines from that report."""
+    marks = [i.mark() for i in insts]
+    for i in insts:
+        i.cmd("vr_rope_info")
+    out = []
+    for i, since in zip(insts, marks):
+        n, _ = i.wait(r"rope_info: done", 10, since, "%s's ropes" % i.name)
+        out.append(i.lines[since:n + 1])
+    return out
+
+
+def ropes_of(lines, prefix):
+    """rope_sv / rope_cl lines -> {entity: (points, chain, last point)}."""
+    out = {}
+    for l in lines:
+        if l.startswith(prefix + ":"):
+            f = dict(kv.split("=", 1) for kv in l.split(":", 1)[1].split() if "=" in kv)
+            out[int(f["ent"])] = (int(f["n"]), int(f["chain"]), tuple(float(x) for x in f["last"].split(",")))
+    return out
+
+
+def ropes(s):
+    """Climbable ropes (vr_climbrope.cpp, QVR_SVC_CLIMBROPE; docs/vr-port/ROPES.md): the dedicated server hangs a rope
+    and a chain ahead of A; B (through the proxy) has both, each with the server's points, style and ends (its bottom
+    within a unit of the server's at rest); the server pushes them: B sees them swing (his copy's bottom moves over 20
+    units); after the push B's copies are where the server's are (a unit; over the loopback, swinging)."""
+    srv, a, b, ea, eb = join(s)
+    srv.cmd("vr_rope_spawn 0 128; vr_rope_spawn 1 96")
+    srv.wait(r"vr_rope_spawn: \d+ chain", 20, what="the server hung a rope and a chain")
+
+    def matching(tol):
+        def done(lines):
+            sv, cl = ropes_of(lines[0], "rope_sv"), ropes_of(lines[1], "rope_cl")
+            return len(sv) >= 2 and all(e in cl and cl[e][0] == v[0] and cl[e][1] == v[1] and
+                                        math.dist(cl[e][2], v[2]) < tol for e, v in sv.items())
+        return done
+
+    def until(done, what, seconds=60):
+        # (a definite end: the condition; the clock only a safety net)
+        end = time.time() + seconds
+        n = 0
+        while time.time() < end:
+            n += 1
+            lines = rope_reports([srv, b])
+            if done(lines):
+                return lines, n
+        s.check(what, False, "not after %d reports (%d s)" % (n, seconds))
+        raise StepFailed(what)
+
+    lines, n = until(matching(1.0), "B has the rope and the chain where the server has them")
+    sv = ropes_of(lines[0], "rope_sv")
+    for l in lines[1]:
+        if l.startswith("rope_cl"):
+            s.note("B: " + l.strip())
+    s.check("B has the server's rope and chain (points, style, bottom within a unit)", True,
+            "after %d reports: %s" % (n, sorted((e, v[0], v[1]) for e, v in sv.items())))
+    rest = {e: ropes_of(lines[1], "rope_cl")[e][2] for e in sv}
+    srv.cmd("vr_rope_push 300 0 0")
+
+    def swinging(lines):
+        cl = ropes_of(lines[1], "rope_cl")
+        return all(e in cl and math.dist(cl[e][2], rest[e]) > 20.0 for e in rest)
+
+    _, n = until(swinging, "B sees them swing after the server's push", 20)
+    s.check("the server pushes them: B sees both swing (bottom over 20 units from rest)", True, "after %d reports" % n)
+    _, n = until(matching(1.0), "after the push: B's copies where the server's are", 90)
+    s.check("after the push: B's copies within a unit of the server's", True, "after %d reports" % n)
 
 
 def avatarcal(s):
@@ -9421,6 +9493,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             version(s)
         elif test == "mp_avatarcal":
             avatarcal(s)
+        elif test == "mp_ropes":
+            ropes(s)
         elif test == "mp_avatar":
             avatar(s)
         elif test == "mp_body":
@@ -9593,6 +9667,7 @@ SUITE = [
     ("mp_dedicated", ()),
     ("mp_avatar", ()),
     ("mp_avatarcal", ()),
+    ("mp_ropes", ()),
     ("mp_body", ()),
     ("mp_prefs", ()),
     ("mp_grab", ()),
@@ -9655,7 +9730,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes"])
     ap.add_argument("--base", required=True, help="the game folder (id1, quakevr...)")
     ap.add_argument("--exe", default=EXE)
     ap.add_argument("--out", default=os.path.join(REPO, "scratch", "mp"))
@@ -9717,7 +9792,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

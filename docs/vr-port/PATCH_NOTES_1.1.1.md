@@ -182,6 +182,11 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Movement
 
+- **Ropes and chains.** Physical ropes and chains hang in maps (mappers: `vr_rope`, `vr_chain`, with their length,
+  thickness, pieces, mass, stiffness and damping as keys, and a pinned bottom) and can be spawned with the toolgun
+  (Spawn > Props > Ropes, with a Rope Settings page). They swing and settle, lie on the floor where they are longer
+  than the drop, and are pushed by your hands, players, monsters, props, explosions and shots; every player sees the
+  same rope. Climbing them comes next. Try them in the new test map `vrropes`.
 - **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down
   flies up or down; strafing stays level and jump and crouch still go straight up and down. Flat and in the headset
   (there, what steers your walking steers the flight: the head, or the moving hand with hand-relative movement).

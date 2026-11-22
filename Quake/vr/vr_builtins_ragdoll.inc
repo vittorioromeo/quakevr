@@ -27,6 +27,7 @@ void PF_physicsshot()
     const float* v = G_VECTOR(OFS_PARM2);
     const int num = box3d::shot(geom::vec(a), geom::vec(b), geom::vec(v),
         G_FLOAT(OFS_PARM3));
+    climbrope::shot(geom::vec(a), geom::vec(b), geom::vec(v), G_FLOAT(OFS_PARM3)); // (the climbable ropes it crosses pushed)
     G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(num));
 }
 
