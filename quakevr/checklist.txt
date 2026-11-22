@@ -34,6 +34,9 @@ Flat-screen or VR: in the ropes hall, walk into the hanging ropes and chains and
 Flat-screen or VR: shoot a rope and throw a grenade next to one: the shot nudges it, the explosion flings it, and it lies on the floor where it is longer than the drop. {test:ropes}
 Flat-screen or VR: with the toolgun, Spawn > Props > Ropes: change Rope Settings (length, thickness, pieces, pin the bottom), aim at the floor under the ceiling and spawn a Rope and a Chain: each hangs from the ceiling with your settings. {test:ropes}
 Step onto vrbrushholes' drain (a frame round a square hole exactly as wide as Quake's box) and stand over the hole: you never drop into it {test:brushholes_drain}
+With You Can Be Disarmed on, let a knight's sword land on your shotgun (not across it): your hand is knocked aside, buzzes, rattles and "Your grip on your weapon loosens!" shows; a second blow within 3 seconds knocks the gun out. {test:pd_jolts}
+With You Can Be Disarmed on, let an armed grunt punch your body twice within 3 seconds while holding the shotgun: the first warns, the second knocks the gun out; a dog's bite never does. {test:pd_jolts}
+With You Can Be Disarmed on, take an enforcer's laser on your gun: one laser only warns, a second soon after knocks it out; check the warning reads clearly before the drop. {test:pd_jolts}
 
 [1. Dwell]
 Dwell: Select Campaign > Dwell, play start and d1m1 (triggered monsters wait, checkpoints autosave); Map Library: Ancient and Underdark Overbright udob1 load and play by Copper rules {test:hub_start}

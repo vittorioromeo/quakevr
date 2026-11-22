@@ -7673,3 +7673,35 @@ His words: "it would be nice for those to become armed humanoid too ... Please d
   Its Row": still props, ours / overlaid / AD's / side-on, scratch1 the pair 0-11), `Misc/quakevr/adhumaudit_shots.sh`
   (the 12 screenshots), `Misc/quakevr/adhum_mdl.py` (builds and frame groups from AD's paks read in place),
   `Misc/quakevr/adhum_census.py` (placements in AD's and Quoth's paks). Screens: `C:\OHWorkspace\qvr-kit\scratch\adhumaudit_*.png`.
+
+## disarmfix: the player disarmed by enemies, by jolts (agent/disarmfix, 2026-11-22)
+
+BACKLOG 6: "Player disarm: make it consistent, then on for PvE ... Very inconsistent: hard to predict whether a shot or
+blow knocks your gun out; some enemy melee never disarms; enemies punching (fists) never disarm you. Needs tuning and
+fixes (QC/vr_playerdisarm.qc: which blows count, the rolls, feedback before the drop)."
+
+- Why it was inconsistent (the old PvE rule, kept for PvP): shots added up to 16 damage in 0.5 s, then rolled 25%+;
+  a blow counted only with a line, landing on your weapon, with at least `vr_agrunt_disarm_damage` 10: a knight's sword
+  (9 at most), an ogre's chainsaw (12 at most) almost never; fists, bites, claws never (no line: the guard's path).
+- PvE now (QC `vr_playerdisarm.qc`, "PvE's own rule"; PvP untouched, as the brief said): no dice. Hits give jolts on a
+  hand; `vr_player_disarm_jolts` 2 within `vr_player_disarm_window` 3 s (from the last) knock its weapon out, each one
+  short warns (`VR_PD_Warn`: `handimpact` 4, a buzz, `weapons/tink1.wav` at `vr_player_disarm_sound`, "Your grip on
+  your weapon loosens!"). The table:
+
+  | Hit (landed: not parried, not on crossed arms) | Jolts |
+  |---|---|
+  | blow with a line (sword, axe, chainsaw, armed humanoid's swing) on your weapon or its hand, any damage | 1; heavy (`vr_player_disarm_heavy` 15+) 2 |
+  | armed humanoid's fist, butt or shove on your body | 1 (the held weapon's hand nearest it) |
+  | any other blow on your body | 1 if heavy, else none (bites, light claws, a blade on the body) |
+  | shots and projectiles on your weapon or hand | each `vr_player_disarm_shot` 12 damage summed over 0.5 s: 1 (full grunt blast 24: 2, out; laser 15: 1; nail 9: none, two: 1; ogre grenade: out) |
+
+  `vr_player_disarm_chance` is the knock-out's chance once the jolts are reached (1: certain; a lost roll leaves it one
+  short). Projectiles count in full within `vr_agrunt_shotdisarm_proj_near` (4 units: a bolt has a size; at half they
+  never reached a jolt). Blows are read where the parry resolves them (combat.qc `VR_Parry` now hands every landed blow to
+  `VR_PD_Blow` with its line flag), so with `vr_parry` 0 only shots disarm. Settings: Armed Grunts > "Disarming: Your
+  Weapon" (Jolts, Jolt Kept, Heavy Blow, Shot Damage).
+- `vr_player_disarm` stays 0 (his OK needed to flip it). Tests: `vr_pd_test 3` (new, Debug > Tests > "Player Disarm: The
+  Rules, Blow by Blow") 10/0, every rule once; `vr_pd_test 1` 13/0 (a full blast: out at once; a laser warns, a second
+  out). `vr_pd_test 2` times out in case 0 (the gun-and-axe grunt backs off to ~200 units and shoots after its first
+  blow) on this branch and on origin/next's QC alike: pre-existing, not chased. Scene `pd_jolts`.
+

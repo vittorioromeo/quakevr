@@ -2837,10 +2837,14 @@ QVR_CVAR(vr_agrunt_shotdisarm_proj_chance, "0.2", CVAR_ARCHIVE | QVR_RULE) // ..
 QVR_CVAR(vr_agrunt_shotdisarm_proj_ref, "9", CVAR_ARCHIVE | QVR_RULE)     // ... the damage that chance is for (a nail's): more damage, more chance
 QVR_CVAR(vr_agrunt_shotdisarm_proj_near, "4", CVAR_ARCHIVE | QVR_RULE)    // ... units past the weapon or hand a miss still rolls, its chance down to 0 there
 QVR_CVAR(vr_agrunt_shotdisarm_proj_max, "0.8", CVAR_ARCHIVE | QVR_RULE)   // ... the most one projectile's chance (a rocket's direct hit)
-QVR_CVAR(vr_player_disarm, "0", CVAR_ARCHIVE | QVR_RULE)                 // 1 (PvE): enemies' shots and blows on your held weapon or its hand knock it out by the armed grunts' rules (vr_playerdisarm.qc); 0 until it is polished (his call, 2026-11-16)
+QVR_CVAR(vr_player_disarm, "0", CVAR_ARCHIVE | QVR_RULE)                 // 1 (PvE): enemies' shots and blows on your held weapon or its hand jolt it; enough jolts knock it out (vr_playerdisarm.qc, "PvE's own rule"); 0 until he turns it on (his call, 2026-11-16)
 QVR_CVAR(vr_player_disarm_pvp, "1", CVAR_ARCHIVE | QVR_RULE)             // 1 (PvP, multiplayer): other players' (bots' too) shots, blows and grabs disarm you by the same rules (vr_playerdisarm.qc, vr_playerdisarm_grab.qc)
 QVR_CVAR(vr_player_disarm_sound, "1", CVAR_ARCHIVE | QVR_OWN)           // your weapon knocked out: its sounds' volume (the clang at the weapon for everyone near, vr/disarm_clang.wav; the alert to you alone, vr/disarm_sting.wav; 0 silent; QC VR_PD_Disarm)
-QVR_CVAR(vr_player_disarm_chance, "1", CVAR_ARCHIVE | QVR_RULE)          // times the armed grunts' chance for your weapon (1 the same; at most certain; 0 never)
+QVR_CVAR(vr_player_disarm_chance, "1", CVAR_ARCHIVE | QVR_RULE)          // PvE: the knock-out's chance once the jolts are reached (1 certain; 0 never); PvP: times the armed grunts' chance (at most certain)
+QVR_CVAR(vr_player_disarm_jolts, "2", CVAR_ARCHIVE | QVR_RULE)           // PvE: jolts on one hand that knock its weapon out (1: the first does; each one short warns: the hand knocked aside, a buzz, a rattle)
+QVR_CVAR(vr_player_disarm_window, "3", CVAR_ARCHIVE | QVR_RULE)          // PvE: s a jolt is kept (from the last one; then the grip recovers)
+QVR_CVAR(vr_player_disarm_heavy, "15", CVAR_ARCHIVE | QVR_RULE)          // PvE: a blow of this much damage is heavy: on your weapon 2 jolts (out at once), on your body 1 (lighter body blows: only an armed humanoid's fist)
+QVR_CVAR(vr_player_disarm_shot, "12", CVAR_ARCHIVE | QVR_RULE)           // PvE: shots' and projectiles' damage on your weapon or its hand (adding up over vr_agrunt_shotdisarm_window) for each jolt
 QVR_CVAR(vr_player_disarm_grab, "1", CVAR_ARCHIVE | QVR_RULE)            // 1 (and vr_player_disarm_pvp):an empty hand closed on another player's held weapon (as drawn, not too fast: vr_agrunt_grab_speed) and pulled away from him hard enough takes it into that hand (QC vr_playerdisarm_grab.qc)
 QVR_CVAR(vr_player_disarm_pull, "1.5", CVAR_ARCHIVE | QVR_RULE)     // m/s: ... the pull's least speed away from him (your hand against his)
 QVR_CVAR(vr_player_disarm_reach, "8", CVAR_ARCHIVE | QVR_RULE)      // cm: ... the hand at most this far from his weapon's drawn line or a hotspot of it as it closes

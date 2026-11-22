@@ -185,6 +185,14 @@ aren't Map Library packages aren't sent to joining players.
   one-handed, the right mouse button fires the left hand's weapon and the ironsight stays down, as when dual wielding.
   Before, the hand let go of the blade to hold the gun in both hands, and the ironsight came up. In the headset too, a
   hand holding a stuck blade no longer takes the other gun's two-handed grip.
+- **Being disarmed by enemies is predictable now (still off by default).** With Armed Grunts > "You Can Be
+  Disarmed" on, enemies' hits jolt the weapon you hold instead of rolling dice: two jolts on one hand within three
+  seconds knock it out, and the first one warns you (your hand is knocked aside, buzzes and rattles, "Your grip on
+  your weapon loosens!"). A blade, axe or chainsaw landing on your weapon jolts it (a heavy blow knocks it out at
+  once), an armed enemy's punch and any heavy blow on your body jolt it, a grunt's full blast or an enforcer's laser
+  on your gun too. A knight's sword can disarm you now; parried blows, bites and light claws never do. The jolts,
+  how long they last and what counts as heavy are new settings beside it. Other players' hits in multiplayer are
+  unchanged.
 
 ## Movement
 

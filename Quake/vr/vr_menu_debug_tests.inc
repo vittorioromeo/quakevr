@@ -712,9 +712,15 @@ za::Vector<Item> pageDebugTests()
             .help("vr_selfshot_test 2: both hands fire a blast, a nail and a bolt's line from nine ordinary poses (dual, "
                   "arms crossed, cupped, pointing down, kicked up, from the hip, turned): none may hit you."),
         command("Player Disarm: Shots on Your Gun", "developer 1; vr_pd_test 1")
-            .help("vr_pd_test 1 (God mode off): the shotgun in your main hand, a grunt's blast across it knocks it out "
-                  "(chance forced certain): it drops to the floor with its clip; a blast across your body, an enforcer's "
-                  "laser across the gun (knocked out), the option off (never). In a headset, hold your gun out ahead."),
+            .help("vr_pd_test 1 (God mode off): the shotgun in your main hand, a grunt's full blast across it (two jolts) "
+                  "knocks it out: it drops to the floor with its clip; a blast across your body (nothing), an enforcer's "
+                  "laser across the gun (the warning), a second (knocked out), the option off (never). In a headset, "
+                  "hold your gun out ahead."),
+        command("Player Disarm: The Rules, Blow by Blow", "developer 1; vr_pd_test 3")
+            .help("vr_pd_test 3 (God mode off): the shotgun in your main hand, enemies' blows handed over as landed: "
+                  "a blade on your weapon warns (your hand knocked aside, a buzz, a rattle), a second knocks it out, a "
+                  "heavy one at once; an armed enemy's fist on your body warns; a bite or a blade on your body does "
+                  "nothing; a heavy claw warns; the option off: nothing."),
         command("Deathmatch Rules: Weapons and Bots", "developer 1; vr_dm_test 1")
             .help("vr_dm_test 1, in a deathmatch with a bot (impulse 100): a weapon pickup the bot touches is gone and back "
                   "after its wait (deathmatch 1) or stays (deathmatch 2), the bot's let-go weapon removed; your shot "
