@@ -27,6 +27,7 @@
 #include "snd_codeci.h"
 #include "bgmusic.h"
 #include "vr/vr_api.h"
+#include "snd_vorbis.h"
 
 #define MUSIC_DIRNAME	"music"
 
@@ -142,6 +143,8 @@ static void BGM_Jump_f (void)
 	}
 }
 
+static void BGM_Decode_f (void); // QVR: vr_music_decode (below)
+
 qboolean BGM_Init (void)
 {
 	music_handler_t *handlers = NULL;
@@ -154,6 +157,7 @@ qboolean BGM_Init (void)
 	Cmd_AddCommand("music_loop", BGM_Loop_f);
 	Cmd_AddCommand("music_stop", BGM_Stop_f);
 	Cmd_AddCommand("music_jump", BGM_Jump_f);
+	Cmd_AddCommand("vr_music_decode", BGM_Decode_f); // QVR
 
 	if (COM_CheckParm("-noextmusic") != 0)
 		no_extmusic = true;
@@ -375,6 +379,96 @@ void BGM_PlayCDtrack (byte track, qboolean looping)
 	bgmoffset = file.offset;
 	Con_Printf ("[skipnotify]VR music: track %d -> %s%s%s (from %s)\n", (int)track, file.path,
 		file.pak ? " : " : "", file.pak ? file.name : "", file.source);
+}
+
+/* QVR: vr_music_decode [track] [ms]: decodes the start of a CD track (the
+ * map's own by default, 3000 ms) through the search, codec and stream
+ * BGM_PlayCDtrack plays it with, and prints "VR music decode: track N ->
+ * <file> (<ext>, <decoder>) R Hz, C ch: F frames, peak P, hash H, rewind ok"
+ * (the loop's rewind reads the first block again) or why not.
+ * For tests (questogg_test.sh: the Quest's Ogg decoder under -fakeandroid,
+ * against the PC's) and Debug > Tools' "Music Decode". The codecs start with
+ * the sound: none with -nosound. */
+static void BGM_Decode_f (void)
+{
+	const char *exts[countof(wanted_handlers)];
+	unsigned int types[countof(wanted_handlers)];
+	const int track = Cmd_Argc () > 1 ? atoi (Cmd_Argv (1)) : cl.cdtrack;
+	const int ms = Cmd_Argc () > 2 ? q_max (1, atoi (Cmd_Argv (2))) : 3000;
+	vr_musicfile_t file;
+	snd_stream_t *stream;
+	const char *decoder;
+	byte raw[16384];
+	unsigned int hash = 2166136261u, firsthash = 0;	/* FNV-1a of the PCM bytes (all, the first block's) */
+	const char *rewound;
+	int numexts, i, j, res = 0, frames = 0, want, framebytes, chunk, peak = 0, firstbytes = 0;
+
+	numexts = BGM_StreamerExts (exts, types);
+	if (numexts == 0)
+	{
+		Con_Printf ("VR music decode: track %d -> no music codecs (the sound off, -noextmusic or bgm_extmusic 0)\n", track);
+		return;
+	}
+	if (!VR_FindMusicTrack (track, exts, numexts, &file))
+	{
+		Con_Printf ("VR music decode: track %d -> none\n", track);
+		return;
+	}
+	for (i = 0; i < numexts && q_strcasecmp (exts[i], file.ext); i++)
+		;
+	if (i == numexts)
+		return;
+	stream = S_CodecOpenStreamAt (file.path, file.offset, file.length, file.pak, file.name, types[i], false);
+	if (!stream)
+	{
+		Con_Printf ("VR music decode: track %d -> %s: not opened\n", track, file.path);
+		return;
+	}
+
+	decoder = file.ext;
+#if defined(USE_CODEC_VORBIS)
+	if (types[i] == CODECTYPE_VORBIS)
+		decoder = S_VORBIS_DecoderName ();
+#endif
+	framebytes = stream->info.width * stream->info.channels;
+	want = (int) ((long long) stream->info.rate * ms / 1000);
+	while (framebytes > 0 && frames < want)
+	{
+		chunk = q_min ((int) sizeof (raw) / framebytes, want - frames) * framebytes;
+		res = S_CodecReadStream (stream, chunk, raw);
+		if (res <= 0)
+			break;
+		for (j = 0; j < res; j++)
+			hash = (hash ^ raw[j]) * 16777619u;
+		if (!firstbytes)
+		{
+			firstbytes = res;
+			firsthash = hash;
+		}
+		if (stream->info.width == 2)
+		{
+			for (j = 0; j + 1 < res; j += 2)
+			{
+				short s;
+				memcpy (&s, raw + j, sizeof (s));
+				peak = q_max (peak, abs (s));
+			}
+		}
+		frames += res / framebytes;
+	}
+	/* the loop's rewind (every CD track loops): the first block again, the same bytes */
+	rewound = "rewind failed";
+	if (firstbytes > 0 && S_CodecRewindStream (stream) == 0 && S_CodecReadStream (stream, firstbytes, raw) == firstbytes)
+	{
+		unsigned int again = 2166136261u;
+		for (j = 0; j < firstbytes; j++)
+			again = (again ^ raw[j]) * 16777619u;
+		rewound = again == firsthash ? "rewind ok" : "rewind differs";
+	}
+	Con_Printf ("VR music decode: track %d -> %s%s%s (%s, %s) %d Hz, %d ch: %d frames, peak %d, hash %08x, %s%s\n", track,
+		file.path, file.pak ? " : " : "", file.pak ? file.name : "", file.ext, decoder, stream->info.rate,
+		stream->info.channels, frames, peak, hash, rewound, res < 0 ? ", read error" : "");
+	S_CodecCloseStream (stream);
 }
 
 void BGM_Stop (void)

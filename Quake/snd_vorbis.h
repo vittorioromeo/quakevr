@@ -6,6 +6,7 @@
 #if defined(USE_CODEC_VORBIS)
 
 extern snd_codec_t vorbis_codec;
+const char *S_VORBIS_DecoderName (void);	/* QVR: "stb_vorbis" (the Quest's, -fakeandroid's), "libvorbisfile" or "tremor" */
 
 #endif	/* USE_CODEC_VORBIS */
 
