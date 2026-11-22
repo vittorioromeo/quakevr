@@ -12,7 +12,7 @@ vr_allocsites.cpp std::align_val_t 6
 vr_box3d_internal.hpp <atomic> 1
 vr_box3d_internal.hpp std::atomic 5
 vr_diskcache.cpp <atomic> 1
-vr_diskcache.cpp std::atomic 3
+vr_diskcache.cpp std::atomic 4  # one from the Quest merge; zancle2 converts the atomics
 vr_diskcache.cpp std::memory_order_relaxed 3
 vr_hull.cpp <atomic> 1
 vr_hull_diag.cpp <atomic> 1
@@ -77,3 +77,9 @@ vr_xr_runtime.cpp <atomic> 1
 vr_xr_runtime.cpp std::atomic 2
 vr_xr_runtime.cpp std::memory_order_acquire 2
 vr_xr_runtime.cpp std::memory_order_release 4
+vr_android.cpp <cstdint> 1  # Quest code merged after zancle phases 1-2; zancle2 converts it
+vr_android.cpp <cstring> 1  # Quest code merged after zancle phases 1-2; zancle2 converts it
+vr_backend_openxr_frame.cpp std::atan2 1  # Quest code merged after zancle phases 1-2; zancle2 converts it
+vr_bodytrack_xr.cpp <atomic> 1  # Quest code merged after zancle phases 1-2; zancle2 converts it
+vr_bodytrack_xr.cpp std::atomic 1  # Quest code merged after zancle phases 1-2; zancle2 converts it
+vr_glutil.cpp <cstring> 1  # Quest code merged after zancle phases 1-2; zancle2 converts it

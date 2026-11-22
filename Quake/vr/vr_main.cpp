@@ -68,6 +68,7 @@
 #include "vr_client.hpp"
 #include "vr_body.hpp"
 #include "vr_bodytrack.hpp"
+#include "vr_dlightmap.hpp"
 #include "vr_hands.hpp"
 #include "vr_handpose.hpp"
 #include "vr_held.hpp"
@@ -147,6 +148,7 @@
 #include "vr_voicenotes.hpp"
 #include "vr_voicechat.hpp"
 #include "vr_detail.hpp"
+#include "vr_worldarrays.hpp"
 #include "vr_extmaps.hpp"
 #include "vr_pbr.hpp"
 #include "vr_flashlight.hpp"
@@ -255,6 +257,11 @@ struct State
     qvr::TrackingState tracking;
     qvr::FrameState frame;
     bool restartRequested{false};
+    // Started before the configs for the shader compile's loading panel (startForLoading): the configs' vr_enabled 1
+    // with the same backend keeps it instead of restarting it (settleEarlyStart).
+    bool earlyStart{false};
+    bool earlyTried{false}; // (once a run)
+    char earlyName[32]{};   // the backend it asked for
 };
 
 State* state = nullptr;
@@ -294,7 +301,40 @@ void stopBackend()
     stereo::releaseTargets(); // the eye-sized GL objects (made again when the eyes are next drawn)
 }
 
-void startBackend()
+// The backend startBackend makes.
+[[nodiscard]] const char* requestedBackend()
+{
+    return COM_CheckParm("-vrmock") ? "mock" : vr_backend.string;
+}
+
+// The backend the configs will ask for, guessed before they run (startForLoading): -vrmock, the command line's
+// `+vr_backend <name>`, else vr_backend's own (not saved: its default, openxr) on Android only. Null: none expected
+// (`+vr_enabled 0` on the command line), or a PC run that names none (its configs or a test's may name the mock: the
+// real runtime is never started early there).
+[[nodiscard]] const char* earlyBackend()
+{
+    const int enabled = COM_CheckParm("+vr_enabled");
+    if(enabled && enabled + 1 < com_argc && !Q_atof(com_argv[enabled + 1]))
+    {
+        return nullptr;
+    }
+    if(COM_CheckParm("-vrmock"))
+    {
+        return "mock";
+    }
+    const int named = COM_CheckParm("+vr_backend");
+    if(named && named + 1 < com_argc)
+    {
+        return com_argv[named + 1];
+    }
+#ifdef __ANDROID__
+    return vr_backend.string;
+#else
+    return nullptr;
+#endif
+}
+
+void startBackend(const char* name)
 {
     // -flatscreenmode implies no VR backend (vr_flatplay.cpp, docs/vr-port/FLATPLAY.md): the mode plays the VR gameplay
     // on the desktop screen and runs only while no headset session is up, so the flag is what asks for no backend --
@@ -308,7 +348,7 @@ void startBackend()
 
     // -vrmock: the mock headset whatever vr_backend says (the review's re-evaluation runs a second copy of the game
     // beside the one in the headset: it must never open the runtime's session).
-    za::UniquePtr<qvr::Backend> backend = createBackend(COM_CheckParm("-vrmock") ? "mock" : vr_backend.string);
+    za::UniquePtr<qvr::Backend> backend = createBackend(name);
     if(!backend)
     {
         return;
@@ -385,6 +425,7 @@ void VR_Restart_f()
     if(state)
     {
         state->restartRequested = true;
+        state->earlyStart = false; // (asked for: a real restart, an early start or not)
     }
 }
 
@@ -1592,6 +1633,26 @@ bool backendRestartPending()
     return state && state->restartRequested;
 }
 
+bool startForLoading()
+{
+    if(!state || state->backend || state->earlyTried || host_framecount != 0 || cls.state == ca_dedicated)
+    {
+        return false;
+    }
+    state->earlyTried = true;
+    const char* name = earlyBackend();
+    if(!name)
+    {
+        return false;
+    }
+    state->earlyStart = true;
+    q_strlcpy(state->earlyName, name, sizeof(state->earlyName));
+    Con_SafePrintf("VR: %s started before the configs for the shader compile's loading panel (kept if they ask for it)\n",
+        name);
+    startBackend(name);
+    return state->backend != nullptr;
+}
+
 const FrameState& frameState()
 {
     return state && state->backend ? state->frame : noFrame;
@@ -2168,8 +2229,9 @@ extern "C" void VR_Init()
     state = new State{};
 
     VR_TimeInit(); // vr_startup_times, vr_walltime
-    VR_GLSafeInit(); // vr_glsafe_retry, vr_glsafe_status
+    VR_GLSafeInit(); // vr_glsafe_retry, vr_glsafe_status, vr_gles_report
     VR_SimdTestInit(); // vr_simd_test
+    VR_AndroidInit(); // vr_android_test
     VR_DiagnosticsInit(); // vr_diagnostics_status
     VR_LogsInit(); // bugreport, vr_logs_status
     jobs::start(); // the game's thread pool (vr_jobs.hpp), first: the systems below post to it
@@ -2303,6 +2365,7 @@ extern "C" void VR_Init()
     magholster::init();
     climbrope::init();
     detail::init();
+    worldarrays::init();
     extmaps::init();
     pbr::init();
     imgcache::init();
@@ -2349,6 +2412,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_water_blood_spray", particles::bloodSprayTest_f);
     Cmd_AddCommand("vr_particle_light_report", particles::lightReport_f);
     Cmd_AddCommand("vr_particle_waste_report", particles::wasteReport_f);
+    Cmd_AddCommand("vr_blood_emitters", particles::bloodEmitters_f);
     Cmd_AddCommand("vr_particle_jobs_test", particles::jobsTest_f);
     Cmd_AddCommand("vr_hotblade_report", hotblade::report_f);
     Cmd_AddCommand("vr_test_remove", progs::testRemove_f);
@@ -2366,6 +2430,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_ragdoll_info", ragdoll::info_f);
     Cmd_AddCommand("vr_torso_report", torso::report_f);
     bodytrack::registerCommands(); // vr_bodytrack_status, vr_bodytrack_stats
+    dlightmap::registerCommands(); // vr_gl_world_dlmap_info
     seated::registerCommands();    // vr_seated_status, vr_crouch_toggle, vr_seated_height_now
     Cmd_AddCommand("vr_body_crouch_report", body::crouchReport_f);
     Cmd_AddCommand("vr_holster_zones_report", zones::report_f);
@@ -2514,14 +2579,26 @@ extern "C" void VR_BeginFrame()
         return;
     }
 
-    if(state->restartRequested)
+    // The loading panel's early start settled once the configs ran (the frame after the set's): kept (no restart) when
+    // they enable VR with the backend it started (or tried: a failed start not tried twice); else the usual restart.
+    // Until then a restart asked for (VR_Init's own, with vr_enabled still 0: it would stop it) waits.
+    const bool earlyPending = state->earlyStart && GL_ShadersPending();
+    if(state->earlyStart && !earlyPending)
+    {
+        state->earlyStart = false;
+        const bool keep = vr_enabled.value != 0.f && !strcmp(state->earlyName, requestedBackend());
+        state->restartRequested = !keep;
+        Con_SafePrintf("VR: the early start %s\n", keep ? "kept after the configs" : "restarted: the configs changed VR");
+    }
+
+    if(state->restartRequested && !earlyPending)
     {
         state->restartRequested = false;
         stopBackend();
 
         if(vr_enabled.value)
         {
-            startBackend();
+            startBackend(requestedBackend());
         }
     }
 
@@ -2796,8 +2873,24 @@ extern "C" int VR_DebugWindowUnfocused()
     return vr_debug_window_unfocused.value != 0.f ? 1 : 0;
 }
 
+// Android with VR running (the Quest's immersive app): the window is never shown, so no flat image is drawn into it
+// nor presented (its post-process pass and eglSwapBuffers: a swap the system doesn't show can wait on its buffer
+// queue, C4c); vr_android_window 1 keeps them (the flat-panel APK).
+extern "C" int VR_NoWindow()
+{
+#ifdef __ANDROID__
+    return vrActive() && vr_android_window.value == 0.f ? 1 : 0;
+#else
+    return 0;
+#endif
+}
+
 extern "C" int VR_SkipSwap()
 {
+    if(VR_NoWindow())
+    {
+        return 1;
+    }
     // vr_mock_fast: a present waits for the display's refresh (vsync off or not: the compositor's pace in a window),
     // most of an unpaced frame. Present ten times a second: the window still shows the run.
     // In VR with the window unfocused, the mirror's presents are thinned (vr_mirror_unfocused_hz): the driver's cap on

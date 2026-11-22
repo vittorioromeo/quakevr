@@ -13,6 +13,11 @@
 
 #include <string.h>
 
+#ifdef __ANDROID__
+#include <atomic>
+#include "SDL.h"
+#endif
+
 namespace qvr::bodytrack::xr
 {
 
@@ -34,6 +39,50 @@ struct Tracker
 Tracker tracker;
 // frame(): whether the tracker was made (or tried) for this session; destroy() and reset() clear it.
 bool attempted = false;
+
+#ifdef __ANDROID__
+// Standalone Quest: the runtime makes no body tracker without the player's grant (AndroidManifest.xml: Horizon OS's
+// com.meta.permission.FOCUSED_BODY_TRACKING, a run-time "dangerous" permission; the older systems'
+// com.oculus.permission.BODY_TRACKING). Asked once a game, on its own thread (SDL's call waits for the answer, as the
+// microphone's in vr_voicechat.cpp), before the tracker is made; through Virtual Desktop the PC's runtime needs none.
+enum PermissionState : int
+{
+    PermissionUnasked,
+    PermissionAsking,
+    PermissionGranted,
+    PermissionDenied
+};
+std::atomic<int> permissionState{PermissionUnasked};
+
+int SDLCALL askPermission(void*)
+{
+    // (the older name first: granted at install where the system still knows it, no dialog; else Horizon OS's)
+    const bool granted = SDL_AndroidRequestPermission("com.oculus.permission.BODY_TRACKING") ||
+                         SDL_AndroidRequestPermission("com.meta.permission.FOCUSED_BODY_TRACKING");
+    permissionState.store(granted ? PermissionGranted : PermissionDenied);
+    return 0;
+}
+
+// The grant's state, asked for here the first time (PermissionAsking until the player answers).
+[[nodiscard]] int permission()
+{
+    int expected = PermissionUnasked;
+    if(!permissionState.compare_exchange_strong(expected, PermissionAsking))
+    {
+        return expected;
+    }
+    xrruntime::logLine("OpenXR: body tracking: asking for the permission\n");
+    if(SDL_Thread* t = SDL_CreateThread(askPermission, "bodytrack_permission", nullptr))
+    {
+        SDL_DetachThread(t);
+    }
+    else
+    {
+        permissionState.store(PermissionDenied);
+    }
+    return permissionState.load();
+}
+#endif
 
 void fail(const char* what, XrResult result)
 {
@@ -165,6 +214,24 @@ void frame(XrInstance instance, XrSystemId system, XrSession session, bool focus
     // it ran, the tracking it gave through Virtual Desktop could start wrong (ROUND23.md, "Body tracking at start-up").
     if(!attempted && focused)
     {
+#ifdef __ANDROID__
+        // (the grant asked for first: made at the first focus after the answer; the dialog takes the focus meanwhile)
+        if(backendStatus().fbExtension)
+        {
+            const int granted = permission();
+            if(granted == PermissionAsking)
+            {
+                return;
+            }
+            if(granted == PermissionDenied)
+            {
+                attempted = true;
+                fail("the permission (com.meta.permission.FOCUSED_BODY_TRACKING)", XR_ERROR_PERMISSION_INSUFFICIENT);
+                return;
+            }
+            xrruntime::logLine("OpenXR: body tracking: the permission granted\n");
+        }
+#endif
         attempted = true;
         create(instance, system, session);
     }
