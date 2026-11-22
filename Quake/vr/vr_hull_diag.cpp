@@ -21,8 +21,10 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Concurrency/LockGuard.hpp"
@@ -42,7 +44,6 @@
 #include "vr_zancle.hpp"
 #include "vr_srvrandom.hpp"
 
-#include <string.h>
 
 namespace qvr::hull
 {
@@ -391,7 +392,7 @@ void bench_f()
         for(int i = 0; i < n; ++i)
         {
             trace_t& tr = stock[i];
-            memset(&tr, 0, sizeof(tr));
+            ZA_MEMSET(&tr, 0, sizeof(tr));
             tr.fraction = 1.f;
             tr.allsolid = true;
             vec3_t a{starts[i].x, starts[i].y, starts[i].z}, e{ends[i].x, ends[i].y, ends[i].z};
@@ -835,7 +836,7 @@ void monsterWalkStep(MonsterWalk& w)
             const int g = e->v.goalentity;
             if(m.patrols && g != m.lastGoal && g)
             {
-                c.corners += !strcmp(PR_GetString(PROG_TO_EDICT(g)->v.classname), "path_corner");
+                c.corners += !ZA_STRCMP(PR_GetString(PROG_TO_EDICT(g)->v.classname), "path_corner");
             }
             m.lastGoal = g;
             continue;
@@ -930,7 +931,7 @@ void monsterWalk_f()
         m.last = m.windowStart = geom::vec(e->v.origin);
         m.windowUntil = sv.qcvm.time + 2.0;
         m.lastGoal = e->v.goalentity;
-        m.patrols = e->v.goalentity && !strcmp(PR_GetString(PROG_TO_EDICT(e->v.goalentity)->v.classname), "path_corner");
+        m.patrols = e->v.goalentity && !ZA_STRCMP(PR_GetString(PROG_TO_EDICT(e->v.goalentity)->v.classname), "path_corner");
         ++w.counts[cls].monsters;
         w.counts[cls].patrollers += m.patrols;
         if(w.mode == 0)
@@ -1187,7 +1188,7 @@ void approachRun()
     for(int i = 1; i < qcvm->num_edicts && !target; ++i)
     {
         edict_t* e = EDICT_NUM(i);
-        if(!e->free && !strcmp(PR_GetString(e->v.classname), name) && nth-- == 0)
+        if(!e->free && !ZA_STRCMP(PR_GetString(e->v.classname), name) && nth-- == 0)
         {
             target = e;
         }
@@ -1288,7 +1289,7 @@ void walkTest_f()
     {
         progs::ServerVm vm;
         progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
-            if(!strcmp(PR_GetString(e->v.classname), "trigger_changelevel"))
+            if(!ZA_STRCMP(PR_GetString(e->v.classname), "trigger_changelevel"))
             {
                 e->v.solid = SOLID_NOT;
                 SV_LinkEdict(e, false);

@@ -40,7 +40,12 @@
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -1273,7 +1278,7 @@ struct ShellHand
         for(za::SizeT v = 0; v < n; v++)
         {
             uint64_t bits[3];
-            memcpy(bits, &place[v], sizeof(bits));
+            ZA_MEMCPY(bits, &place[v], sizeof(bits));
             za::SizeT h = static_cast<za::SizeT>((bits[0] * 0x9E3779B97F4A7C15ull ^ bits[1] * 0xC2B2AE3D27D4EB4Full ^ bits[2] * 0x165667B19E3779F9ull) >> 17) % table.size();
             for(;; h = (h + 1) % table.size())
             {
@@ -1635,12 +1640,12 @@ char* gloveShells(const char* text, bool body)
             return nullptr;
         }
     }
-    const char* count = strstr(text, "numMeshes");
+    const char* count = ZA_STRSTR(text, "numMeshes");
     if(!count)
     {
         return nullptr;
     }
-    count += strlen("numMeshes");
+    count += ZA_STRLEN("numMeshes");
     while(*count == ' ' || *count == '\t')
     {
         count++;
@@ -1706,7 +1711,7 @@ int gloveShellSurfaces(const char* modelName)
 {
     for(int i = 0; i < shellModels.count; i++)
     {
-        if(!strcmp(shellModels.entries[i].name, modelName))
+        if(!ZA_STRCMP(shellModels.entries[i].name, modelName))
         {
             return shellModels.entries[i].count;
         }
@@ -1844,7 +1849,7 @@ bool usable(qmodel_t* model)
     const auto* bones = reinterpret_cast<const boneinfo_t*>(reinterpret_cast<const byte*>(hdr) + hdr->boneinfo);
     for(int j = 0; j < data::numJoints; j++)
     {
-        if(strcmp(bones[j].name, data::joints[j].name) != 0)
+        if(ZA_STRCMP(bones[j].name, data::joints[j].name) != 0)
         {
             Con_DPrintf("%s: joint %d is \"%s\", not \"%s\"\n", model->name, j, bones[j].name, data::joints[j].name);
             return false;
@@ -2037,8 +2042,8 @@ extern "C" char* VR_ModelReplacementExtend(const char* name, const char* md5mesh
     using namespace qvr::handrig;
     const qvr::modelmeta::ModelMetadata info = qvr::modelmeta::describePath(name);
     const bool hand = info.has(qvr::modelmeta::Trait::RigHandInsensitive) || info.has(qvr::modelmeta::Trait::RigHandFInsensitive);
-    const size_t len = strlen(name);
-    const bool body = !strncmp(name, "progs/vrbody", 12) && len > 9 && !strcmp(name + len - 9, "_bare.mdl");
+    const size_t len = ZA_STRLEN(name);
+    const bool body = !ZA_STRNCMP(name, "progs/vrbody", 12) && len > 9 && !ZA_STRCMP(name + len - 9, "_bare.mdl");
     if(!hand && !body)
     {
         return nullptr;
@@ -2047,7 +2052,7 @@ extern "C" char* VR_ModelReplacementExtend(const char* name, const char* md5mesh
     ShellModels::Entry* slot = nullptr;
     for(int i = 0; i < shellModels.count && !slot; i++)
     {
-        slot = !strcmp(shellModels.entries[i].name, name) ? &shellModels.entries[i] : nullptr;
+        slot = !ZA_STRCMP(shellModels.entries[i].name, name) ? &shellModels.entries[i] : nullptr;
     }
     if(!slot && text && shellModels.count < ShellModels::capacity)
     {

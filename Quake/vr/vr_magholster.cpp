@@ -19,6 +19,7 @@
 #include "vr_view.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Ceil.hpp"
@@ -302,7 +303,7 @@ void hang(coil::Cord& cord, const glm::vec3& at, float length, const glm::vec3& 
     {
         return false;
     }
-    const size_t n = strlen(chosen->name);
+    const size_t n = ZA_STRLEN(chosen->name);
     return n > 2 && chosen->name[n - 2] == '_' &&
            (chosen->name[n - 1] == 'x' || chosen->name[n - 1] == 'y' || chosen->name[n - 1] == 'z');
 }

@@ -41,6 +41,7 @@
 #include "vr_api_render.h"
 
 #include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include <initializer_list>
 
 extern "C" unsigned char* Image_DecodeMemory(const unsigned char* bytes, int length, int* width, int* height); // image.c
@@ -231,7 +232,7 @@ bool startupWaiting(const char* name)
 // texture's own image, hashed on its task too (Item).
 bool batchFind(const char* base, bool pbrHash = false)
 {
-    if(!strncmp(base, "pbrmix/", 7))
+    if(!ZA_STRNCMP(base, "pbrmix/", 7))
     {
         return true; // (made, not read: Image_LoadImage stops there)
     }

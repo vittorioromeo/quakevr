@@ -25,6 +25,8 @@
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/SmallVector.hpp"
@@ -45,7 +47,6 @@
 #include "vr_api.h"
 #include "vr_api_render.h"
 
-#include <string.h>
 
 using namespace qvr;
 
@@ -719,7 +720,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
     {
         QVR_PROFILE("shadow alias draw");
         mplane_t savedFrustum[4];
-        memcpy(savedFrustum, frustum, sizeof(savedFrustum));
+        ZA_MEMCPY(savedFrustum, frustum, sizeof(savedFrustum));
         profile::begin("shadow caster faces", false); // which faces each caster reaches
         cs.layered.clear();
         cs.holey.clear();
@@ -743,7 +744,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
                 {
                     continue;
                 }
-                memcpy(frustum, planes[face], sizeof(planes[face]));
+                ZA_MEMCPY(frustum, planes[face], sizeof(planes[face]));
                 if((!view || sphereInView(frustum, e->origin, reach)) && !R_CullBox(mins, maxs))
                 {
                     bits |= 1u << face;
@@ -767,7 +768,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
                 cs.layered.pushBack({e, static_cast<unsigned char>(bits)});
             }
         }
-        memcpy(frustum, savedFrustum, sizeof(savedFrustum));
+        ZA_MEMCPY(frustum, savedFrustum, sizeof(savedFrustum));
         // By model and skin: the alias renderer draws a run of the same model and skin as one batch (the depth is the
         // nearest whatever the order).
         za::quickSort(cs.layered.begin(), cs.layered.end(), [](const LayeredCaster& a, const LayeredCaster& b)
@@ -805,13 +806,13 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
             za::quickSort(cs.faceCasters.begin(), cs.faceCasters.end(), castersInBatchOrder); // (as a face at a time's)
             const ShadowView& view = views[face];
             glViewport(static_cast<int>(view.at.x), static_cast<int>(view.at.y), static_cast<int>(size), static_cast<int>(size));
-            memcpy(frustum, planes[face], sizeof(planes[face]));
+            ZA_MEMCPY(frustum, planes[face], sizeof(planes[face]));
             float savedViewProj[16];
-            memcpy(savedViewProj, r_matviewproj, sizeof(savedViewProj));
-            memcpy(r_matviewproj, &vps[face][0][0], sizeof(r_matviewproj));
+            ZA_MEMCPY(savedViewProj, r_matviewproj, sizeof(savedViewProj));
+            ZA_MEMCPY(r_matviewproj, &vps[face][0][0], sizeof(r_matviewproj));
             R_DrawAliasModelsDepth(cs.faceCasters.data(), static_cast<int>(cs.faceCasters.size()));
-            memcpy(r_matviewproj, savedViewProj, sizeof(savedViewProj));
-            memcpy(frustum, savedFrustum, sizeof(savedFrustum));
+            ZA_MEMCPY(r_matviewproj, savedViewProj, sizeof(savedViewProj));
+            ZA_MEMCPY(frustum, savedFrustum, sizeof(savedFrustum));
         }
     }
 }
@@ -847,7 +848,7 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
             R_EntityMatrix(m, b.e->origin, angles, b.e->scale);
             VR_BrushTransform(b.e, m);
             glm::mat4& model = brushModels.emplaceBack();
-            memcpy(&model[0][0], m, sizeof(m));
+            ZA_MEMCPY(&model[0][0], m, sizeof(m));
         }
     }
     // Skeletal (IK-posed) casters: the alias renderer draws them unculled (their limbs reach past the
@@ -903,7 +904,7 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
             QVR_PROFILE("shadow alias draw");
             // The alias renderer reads the camera's view-projection and frustum: this face's.
             mplane_t savedFrustum[4];
-            memcpy(savedFrustum, frustum, sizeof(savedFrustum));
+            ZA_MEMCPY(savedFrustum, frustum, sizeof(savedFrustum));
             viewFrustum(light, view, size, frustum);
             // Only the casters in this face: the alias renderer's own cull (R_CullModelForEntity, after
             // it has set the model up) would leave out the rest.
@@ -923,13 +924,13 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
                 // pile's 135 casters: 1806 draws and 1.16 ms of GPU for 12 faces, ES's path; QUEST_PLAN.md 6b).
                 za::quickSort(faceCasters.begin(), faceCasters.end(), castersInBatchOrder);
                 float savedViewProj[16];
-                memcpy(savedViewProj, r_matviewproj, sizeof(savedViewProj));
-                memcpy(r_matviewproj, &vp[0][0], sizeof(r_matviewproj));
+                ZA_MEMCPY(savedViewProj, r_matviewproj, sizeof(savedViewProj));
+                ZA_MEMCPY(r_matviewproj, &vp[0][0], sizeof(r_matviewproj));
                 R_DrawAliasModelsDepth(faceCasters.data(), static_cast<int>(faceCasters.size())); // no lighting set up
                 modelsDrawn += static_cast<int>(faceCasters.size());
-                memcpy(r_matviewproj, savedViewProj, sizeof(savedViewProj));
+                ZA_MEMCPY(r_matviewproj, savedViewProj, sizeof(savedViewProj));
             }
-            memcpy(frustum, savedFrustum, sizeof(savedFrustum));
+            ZA_MEMCPY(frustum, savedFrustum, sizeof(savedFrustum));
         }
     }
     if(clip) { glDisable(GL_CLIP_DISTANCE0); }
@@ -1639,7 +1640,7 @@ void renderPortalLight(PortalLight& l, const BrushCandidates& candidates)
     const glm::vec3 origin{source.origin[0], source.origin[1], source.origin[2]};
     const int own = source.key > 0 && source.key < cl.num_entities ? source.key : 0;
     mplane_t saved[4];
-    memcpy(saved, frustum, sizeof(saved));
+    ZA_MEMCPY(saved, frustum, sizeof(saved));
     // Source occlusion is evaluated at the entry point, before the source's backing wall.
     // These tiles cannot be culled by the destination camera.
     for(mplane_t& p : frustum) { p.dist = -1e9f; }
@@ -1651,7 +1652,7 @@ void renderPortalLight(PortalLight& l, const BrushCandidates& candidates)
     collectAliases(origin, source.radius, own, source.key != cl.viewentity, true);
     renderLight(atlas, origin, source.radius, views, cubeViews(l.sourceTile, l.size, views), l.size,
         worldCount, true, true);
-    memcpy(frustum, saved, sizeof(saved));
+    ZA_MEMCPY(frustum, saved, sizeof(saved));
     const glm::vec3 normal = l.gate.turn * -l.gate.normal;
     const glm::vec4 clip{normal, -glm::dot(normal, l.gate.to)};
     indices.clear();
@@ -1767,8 +1768,8 @@ DepthDiff compareDepth(const za::Vector<float>& a, const za::Vector<float>& b)
     for(size_t i = 0; i < a.size() && i < b.size(); i++)
     {
         uint32_t ua = 0u, ub = 0u;
-        memcpy(&ua, &a[i], sizeof(ua));
-        memcpy(&ub, &b[i], sizeof(ub));
+        ZA_MEMCPY(&ua, &a[i], sizeof(ua));
+        ZA_MEMCPY(&ub, &b[i], sizeof(ub));
         hash[0] = (hash[0] ^ ua) * 16777619u;
         hash[1] = (hash[1] ^ ub) * 16777619u;
         if(ua != ub)
@@ -2110,7 +2111,7 @@ extern "C" void VR_RenderShadowMaps(void)
             collectWorld(cl.worldmodel->nodes, l.pos, l.value / l.scale);
             // All six faces: the cache must not depend on where the viewer looks.
             mplane_t saved[4];
-            memcpy(saved, frustum, sizeof(saved));
+            ZA_MEMCPY(saved, frustum, sizeof(saved));
             for(mplane_t& p : frustum)
             {
                 p.dist = -1e9f;
@@ -2118,7 +2119,7 @@ extern "C" void VR_RenderShadowMaps(void)
             ShadowView views[6];
             renderLight(staticAtlas, l.pos, l.value / l.scale, views, cubeViews(s.staticOrigin, mapSlotSize, views), mapSlotSize,
                 indices.size(), false, false);
-            memcpy(frustum, saved, sizeof(saved));
+            ZA_MEMCPY(frustum, saved, sizeof(saved));
             s.cached = true;
         }
         profile::end();
@@ -2302,10 +2303,10 @@ void darkplacesLight(int index, gpulight_t* out)
 // R_PushDlights, for each dynamic light it sends: its shadow's faces, if it has one.
 extern "C" void VR_DlightShadow(int index, gpulight_t* out)
 {
-    memset(out->shadow, 0, sizeof(out->shadow));
-    memset(out->shadow2, 0, sizeof(out->shadow2));
-    memset(out->spot, 0, sizeof(out->spot));
-    memset(out->gateplane, 0, sizeof(*out) - offsetof(gpulight_t, gateplane));
+    ZA_MEMSET(out->shadow, 0, sizeof(out->shadow));
+    ZA_MEMSET(out->shadow2, 0, sizeof(out->shadow2));
+    ZA_MEMSET(out->spot, 0, sizeof(out->spot));
+    ZA_MEMSET(out->gateplane, 0, sizeof(*out) - offsetof(gpulight_t, gateplane));
     const Spot* spot = spotOf(index);
     if(spot)
     {
@@ -2354,7 +2355,7 @@ extern "C" void VR_PushPortalLights(void)
         const PortalLight& l = portalLights[i];
         const dlight_t& source = cl_dlights[l.index];
         gpulight_t* out = &r_lightbuffer.lights[r_framedata.numlights++];
-        memset(out, 0, sizeof(*out));
+        ZA_MEMSET(out, 0, sizeof(*out));
         VR_DlightShadow(l.index, out);
         out->radius = source.radius;
         out->minlight = source.minlight;
@@ -2363,7 +2364,7 @@ extern "C" void VR_PushPortalLights(void)
         const glm::vec3 spot = l.gate.turn * geom::vec(out->spot);
         for(int c = 0; c < 3; c++) { out->spot[c] = spot[c]; }
         out->shadow[0] = l.exitTile.x; out->shadow[1] = l.exitTile.y; out->shadow[2] = l.size;
-        memset(out->shadow2, 0, sizeof(out->shadow2)); // cube maps even for a spotlight
+        ZA_MEMSET(out->shadow2, 0, sizeof(out->shadow2)); // cube maps even for a spotlight
         const glm::vec3 normal = l.gate.turn * -l.gate.normal;
         for(int c = 0; c < 3; c++)
         {
@@ -2660,8 +2661,8 @@ extern "C" void VR_PushMapLights(void)
         out->shadow2[1] = s.staticOrigin.y;
         out->shadow2[2] = l.value;
         out->shadow2[3] = l.scale;
-        memset(out->spot, 0, sizeof(out->spot));
-        memset(out->gateplane, 0, sizeof(*out) - offsetof(gpulight_t, gateplane));
+        ZA_MEMSET(out->spot, 0, sizeof(out->spot));
+        ZA_MEMSET(out->gateplane, 0, sizeof(*out) - offsetof(gpulight_t, gateplane));
     }
 }
 
@@ -2876,7 +2877,7 @@ extern "C" int VR_WorldLitSpheres(float spheres[][4], int* bmodels)
     *bmodels = worldLitBModels ? 1 : 0;
     if(worldLitCount > 0)
     {
-        memcpy(spheres, worldLitSpheres, sizeof(worldLitSpheres[0]) * static_cast<size_t>(worldLitCount));
+        ZA_MEMCPY(spheres, worldLitSpheres, sizeof(worldLitSpheres[0]) * static_cast<size_t>(worldLitCount));
     }
     if(worldLitCount >= 0)
     {

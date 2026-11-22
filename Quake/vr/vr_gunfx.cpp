@@ -22,6 +22,9 @@
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -514,11 +517,11 @@ void exhaustOf(const Muzzle& m, glm::vec3& where, glm::vec3& dir, bool& onGun)
     else
     {
         const char* hash = strchr(model->name, '#');
-        const size_t len = hash ? static_cast<size_t>(hash - model->name) : strlen(model->name);
+        const size_t len = hash ? static_cast<size_t>(hash - model->name) : ZA_STRLEN(model->name);
         const ModelExhaust* e = nullptr;
         for(const ModelExhaust& x : exhausts)
         {
-            if(strlen(x.name) == len && strncmp(x.name, model->name, len) == 0)
+            if(ZA_STRLEN(x.name) == len && ZA_STRNCMP(x.name, model->name, len) == 0)
             {
                 e = &x;
             }
@@ -589,10 +592,10 @@ constexpr ModelVents rocketVents[] = {
         return nullptr;
     }
     const char* hash = strchr(model->name, '#');
-    const size_t len = hash ? static_cast<size_t>(hash - model->name) : strlen(model->name);
+    const size_t len = hash ? static_cast<size_t>(hash - model->name) : ZA_STRLEN(model->name);
     for(const ModelVents& v : rocketVents)
     {
-        if(strlen(v.name) == len && strncmp(v.name, model->name, len) == 0)
+        if(ZA_STRLEN(v.name) == len && ZA_STRNCMP(v.name, model->name, len) == 0)
         {
             return &v;
         }
@@ -749,10 +752,10 @@ int firingBarrel(const Muzzle& m, glm::vec3& at)
     }
     const char* name = gunvariants::resolve(ve->ent.model->name); // (a lava nailgun: its nailgun's barrels)
     const char* hash = strchr(name, '#');
-    const size_t len = hash ? static_cast<size_t>(hash - name) : strlen(name);
+    const size_t len = hash ? static_cast<size_t>(hash - name) : ZA_STRLEN(name);
     for(const FiringBarrels& g : firingBarrels)
     {
-        if(strlen(g.name) == len && strncmp(g.name, name, len) == 0)
+        if(ZA_STRLEN(g.name) == len && ZA_STRNCMP(g.name, name, len) == 0)
         {
             const int b = g.barrelOfFrame[ve->ent.frame - 1];
             at = 0.5f * (view::anchorPosition(*ve, g.ring[b][0], glm::vec3{0.f}) +
@@ -1033,10 +1036,10 @@ constexpr ModelBarrels barrelEnds[] = {
         if(model && gunFrame(m, f))
         {
             const char* hash = strchr(model->name, '#');
-            const size_t len = hash ? static_cast<size_t>(hash - model->name) : strlen(model->name);
+            const size_t len = hash ? static_cast<size_t>(hash - model->name) : ZA_STRLEN(model->name);
             for(const ModelBarrels& x : barrelEnds)
             {
-                if(strlen(x.name) == len && strncmp(x.name, model->name, len) == 0)
+                if(ZA_STRLEN(x.name) == len && ZA_STRNCMP(x.name, model->name, len) == 0)
                 {
                     e = &x;
                 }
@@ -1270,10 +1273,10 @@ int weaponIdOf(const qmodel_t* model)
         return v == adguns::EliminatorLegacy ? WID_ADCENTURION : WID_ADROCKET + v;
     }
     const char* hash = strchr(model->name, '#');
-    const size_t len = hash ? static_cast<size_t>(hash - model->name) : strlen(model->name);
+    const size_t len = hash ? static_cast<size_t>(hash - model->name) : ZA_STRLEN(model->name);
     for(const ModelId& id : modelIds)
     {
-        if(strlen(id.name) == len && strncmp(id.name, model->name, len) == 0)
+        if(ZA_STRLEN(id.name) == len && ZA_STRNCMP(id.name, model->name, len) == 0)
         {
             return id.wid;
         }
@@ -1334,7 +1337,7 @@ BarrelHeat barrelHeat(int hand, int slot)
     // Dwell's Crystal Lance (dwellweap): no metal barrel, its crystal head charged by the shot: a violet glow fading out
     // (its slot's Barrel Heat and Glow Length, weapons.txt slot 55).
     const qmodel_t* m = weapons::heldModel(hand);
-    if(m && (strstr(m->name, "dw_lance") || strstr(m->name, "dw_rail")))
+    if(m && (ZA_STRSTR(m->name, "dw_lance") || ZA_STRSTR(m->name, "dw_rail")))
     {
         b.color = glm::mix(glm::vec3{0.55f, 0.25f, 1.f}, glm::vec3{0.85f, 0.6f, 1.f}, b.share);
     }

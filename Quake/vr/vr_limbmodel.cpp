@@ -14,11 +14,16 @@
 #include "vr_tracy.h"
 
 #include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
-#include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
 
 #include <stdlib.h>
 #include <string.h>
@@ -131,7 +136,7 @@ constexpr LeftOff leftOff[] = {
 {
     for(const LeftOff& l : leftOff)
     {
-        if(rig.model && rig.numVerts == l.numVerts && v >= l.first && v <= l.last && !strcmp(rig.model->name, l.model))
+        if(rig.model && rig.numVerts == l.numVerts && v >= l.first && v <= l.last && !ZA_STRCMP(rig.model->name, l.model))
         {
             return true;
         }
@@ -180,12 +185,12 @@ void putf(za::Vector<byte>& out, float v)
 // A limb model's name taken apart: its base model and bone; false if it isn't one.
 [[nodiscard]] bool parse(const char* name, char* base, size_t baseSize, int& bone, uint32_t& bones)
 {
-    const char* at = strstr(name, suffix);
+    const char* at = ZA_STRSTR(name, suffix);
     if(!at || at == name)
     {
         return false;
     }
-    const char* digits = at + strlen(suffix);
+    const char* digits = at + ZA_STRLEN(suffix);
     if(*digits < '0' || *digits > '9')
     {
         return false;
@@ -198,7 +203,7 @@ void putf(za::Vector<byte>& out, float v)
     {
         return false;
     }
-    memcpy(base, name, len);
+    ZA_MEMCPY(base, name, len);
     base[len] = 0;
     return true;
 }
@@ -650,7 +655,7 @@ const char* keptName(const char* base, int bone, uint32_t bones)
     }
     for(const za::UniquePtr<KeptName>& k : keptNames)
     {
-        if(!strcmp(k->text, text))
+        if(!ZA_STRCMP(k->text, text))
         {
             return k->text;
         }
@@ -684,7 +689,7 @@ bool available(const char* base, int bone, uint32_t only)
     bool leftOffModel = false;
     for(const LeftOff& l : leftOff)
     {
-        leftOffModel = leftOffModel || (rig->model && rig->numVerts == l.numVerts && !strcmp(rig->model->name, l.model));
+        leftOffModel = leftOffModel || (rig->model && rig->numVerts == l.numVerts && !ZA_STRCMP(rig->model->name, l.model));
     }
     if(!leftOffModel)
     {
@@ -715,17 +720,17 @@ bool available(const char* base, int bone, uint32_t only)
 
 byte* derivedFile(const char* name, unsigned int* path_id)
 {
-    if(!strstr(name, suffix))
+    if(!ZA_STRSTR(name, suffix))
     {
         return nullptr;
     }
     for(za::SizeT i = 0; i < late.ready.size(); i++) // built ahead (spawnFrame)
     {
-        if(!strcmp(late.ready[i].name, name))
+        if(!ZA_STRCMP(late.ready[i].name, name))
         {
             LateLimb& l = late.ready[i];
             byte* out = static_cast<byte*>(VR_HeapMalloc(l.file.size() + 1));
-            memcpy(out, l.file.data(), l.file.size());
+            ZA_MEMCPY(out, l.file.data(), l.file.size());
             out[l.file.size()] = 0;
             com_filesize = static_cast<int>(l.file.size());
             if(path_id)
@@ -745,7 +750,7 @@ byte* derivedFile(const char* name, unsigned int* path_id)
         return nullptr;
     }
     byte* out = static_cast<byte*>(VR_HeapMalloc(b.file.size() + 1));
-    memcpy(out, b.file.data(), b.file.size());
+    ZA_MEMCPY(out, b.file.data(), b.file.size());
     out[b.file.size()] = 0;
     com_filesize = static_cast<int>(b.file.size());
     Con_DPrintf("limb model: %s made: %d triangles, %d in its cap, %d vertices\n", name, b.tris, b.cap, b.verts);
@@ -789,14 +794,14 @@ namespace
 [[nodiscard]] int mdlModel(edict_t* ent)
 {
     const int mdl = progs::fields().mdl;
-    if(mdl < 0 || strncmp(PR_GetString(ent->v.classname), "monster_", 8) != 0)
+    if(mdl < 0 || ZA_STRNCMP(PR_GetString(ent->v.classname), "monster_", 8) != 0)
     {
         return 0;
     }
     const char* name = PR_GetString(progs::fieldInt(ent, mdl));
     for(int i = 1; name[0] && i < MAX_MODELS && sv.model_precache[i]; i++)
     {
-        if(!strcmp(sv.model_precache[i], name))
+        if(!ZA_STRCMP(sv.model_precache[i], name))
         {
             return sv.models[i] && sv.models[i]->type == mod_alias ? i : 0;
         }
@@ -922,7 +927,7 @@ namespace
 {
     for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
     {
-        if(!strcmp(sv.model_precache[i], name))
+        if(!ZA_STRCMP(sv.model_precache[i], name))
         {
             return true;
         }
@@ -962,7 +967,7 @@ void startKind(edict_t* ent, int index)
     }
     za::Vector<byte> bytes;
     bytes.resize(static_cast<za::SizeT>(com_filesize));
-    memcpy(bytes.data(), src, bytes.size());
+    ZA_MEMCPY(bytes.data(), src, bytes.size());
     VR_HeapFree(src);
     struct Part
     {
