@@ -643,6 +643,16 @@ int VR_SlideStepUp (struct edict_s *ent); // SV_WalkMove: nonzero while a slide 
 int VR_SlideMove (struct edict_s *ent, int onground, const float *wishdir, float wishspeed, float *velocity); // SV_AirMove: a slide (vr_flat_slide flatscreen, vr_slide a headset; vr_slide.cpp): nonzero when it moved him on the ground this frame (no friction, no walk)
 int VR_LeanHitBoxes (struct edict_s *touch, float (*boxes)[6]); // SV_MoveRun: a flat-screen player's leant upper body (vr_flat_lean_hit; vr_flatmove.cpp), world boxes (mins, maxs) out of his own box; their count (0: none)
 int VR_FlatKeyOwned (int key); // Key_Event: a key flatscreen play reads itself (vr_flatmove.cpp): its bind does not run while the mode runs
+// The flat keys (vr_flat_key_*; vr_flatmove.cpp), Options > Controls' "Quake VR (flat screen)" group (menu.c): index i in the
+// menu's order. Get: the key (-1 none); Set: key -1 clears; For: the flat key on `key` other than `skip` (-1 none).
+int VR_FlatKeyCount (void);
+const char *VR_FlatKeyLabel (int i);
+const char *VR_FlatKeyCvarName (int i);
+int VR_FlatKeyGet (int i);
+void VR_FlatKeySet (int i, int key);
+int VR_FlatKeyFor (int key, int skip);
+void VR_FlatKeysReset (void); // every flat key back to its default
+void M_Menu_Keys_At (const char *row); // menu.c: Options > Controls with the cursor on a row (a command, a name, a vr_flat_key_* cvar): the VR menu's Flat Keys button
 int VR_FlatToolgunMouse (int dx, int dy); // IN_MouseMotion: 1 the mouse is flatscreen play's toolgun's (its panel's cursor, its adjust key held; vr_flatplay.cpp): the view does not turn
 int VR_FlatToolgunEscape (void); // Key_Event's Esc in the game: 1 it closed flatscreen play's toolgun panel (no menu)
 void VR_FlatMoveScale (float *forwardmove, float *sidemove); // CL_BaseMove: leaning, the move keys slower (vr_flat_lean_speed; vr_flatmove.cpp)

@@ -475,7 +475,6 @@ inline constexpr Page pages[] = {
     {"Animation Recorder", pageAnimRecorder, pageDebug, LevelDeveloper}, // (vr_menu_debug.inc; vr_animrec.cpp, ANIMATIONS.md)
     {"Visor HUD Look", pageVisorSettings, pageLocomotionSettings}, // (vr_menu_pages.inc; vr_visor.cpp)
     {"Third-Person Camera", pageFlatThirdPerson, pageLocomotionSettings}, // (vr_menu_pages.inc; vr_flattp.cpp)
-    {"Flat Keys", pageFlatKeys, pageLocomotionSettings}, // (vr_menu_pages.inc; vr_flatplay.hpp keyCvars)
     {"Run Setup", pageRunSetup, pageMaps, LevelStandard}, // (a run's difficulty, presets, mutators: vr_menu_runsetup.inc)
     {"Menu Look", pageMenuLook, pageHudHub}, // (vr_menu_pages.inc: the menus' sizes, gaps, highlights and folds)
     {"Voice Chat", pageVoiceChat, pageVrsHudHapticsSound, LevelStandard}, // (vr_menu_voicechat.inc: multiplayer voice chat, MP B10v)

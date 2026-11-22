@@ -232,6 +232,64 @@ fires its target; off: AD's; looks by weapon; the client's looks), `vr_ad_test 1
 the maps' census `Misc/quakevr/humrepl_census.sh` (`vr_ad_test 220` on the 23 AD and 10 Quoth maps placing them, the
 setting off and on: the same monster counts, none left).
 
+## Audit 2: the variants left as AD made them (ROUND25.md, "adhumaudit"; audit only, nothing converted)
+
+His words (2026-11-22): "it would be nice for those to become armed humanoid too, so that they can wield different
+weapons and wear dynamic armors. Please do an audit first ... If there are AD variants that fit any of the current
+poses/rigs quite well (requiring small tweaks, possibly), then they'd be good candidates."
+
+Two ways to convert one. **Row swap**: it becomes an existing row on our model (phase 1's path, `VR_HUM_Replace`: a
+table line, its health, its weapon; its AD look lost; about a quarter of a day for a batch). **Look kept**: AD's model as
+a model of an existing kind, sharing the kind's pose keys, grips, armour fit and IK, with its own per-model data (hand
+and weapon vertices, anchor, frames): new, since rows are one model a kind; the engine already hides each AD weapon's
+vertices (`knownSwords` in `vr_monstermods.cpp`, today in death frames only; `armedRigs` is already keyed by model), and
+an authored rig would be made on AD's mesh read in place (`make_rig2.py` reading AD's pak: a small addition; never a
+modified AD file). About 2 days for the mechanism and the first model, half a day to a day each after.
+
+Builds measured on the first stand frame without the weapon (`Misc/quakevr/adhum_mdl.py`: height; shoulder band 72-86%
+up, width), placements from the maps' entity lumps in AD's and Quoth's paks (`Misc/quakevr/adhum_census.py`; Quoth's sample maps
+from the phase 1 census). Our rows: grunt 50.6 tall, 23.6 wide; enforcer 58.9, 32.9; knight (`vrknight.mdl`) 49.2, 24.4;
+death knight (`vrhknight.mdl`) 62.8, 33.6. Screens (`Misc/quakevr/adhumaudit_shots.sh`, `vr_ad_test 222`; Debug > Tests,
+"Armed Humanoids: AD Model Beside Its Row"): `C:\OHWorkspace\qvr-kit\scratch\adhumaudit_<NN>_<name>.png` (ours, both
+overlaid with AD's translucent, AD's, the overlay side-on) and `adhumaudit_all.png` (the 12 together).
+
+| Variant (placed: AD; Quoth) | Model: verts, frames; build vs our row | Attacks, behaviour, hp | Fits | Tweaks | Lost / carried | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| `monster_dknight` (475 on 19 maps; Quoth `monster_death_knight` 95) | mon_dknight 911 (body 870 + sword 41), 244; 63.9 tall, 30.8 wide: the death knight's build (+2%, -8%) | 3 swings in turn (slice, smash, two-handed), 2 charge swings, a 6-shot fanned volley (`ad_hknight_shot`: the hell knight's own); 250 hp (id's hell knight's) | death knight (row 3) | row swap: none (his sword `VR_ADMELEE_DKNIGHT`, the row's spell is the same volley). Look kept: frames remapped (stand 0-11, run 106-111 is 6 frames, the row's run is 8: the layer needs a 6-step run; slice 112 the shove; a take from its deaths 211-), rig on his mesh | its look (row swap), its charge swings (the layer's own melee) / the volley, health, sword kept | **convert (small)**; a third of AD's knights, but hp and volley are a hell knight's: AD's balance barely moves |
+| `monster_dguard` (254 on 10) | mon_dguard 585, 256; 51.4, 25.0: the knight's build (+4%, +2%) | 4 swings in turn (slice, charge swing, smash, two-handed); melee only; **30 hp** (short box, knight class) | knight (row 2) | row swap: the Death Guard's Sword (`VR_ADMELEE_DGUARD`), 30 hp. Look kept: frames remapped (run 109-114: 6 frames) | look / sword, health kept | **convert (small)** |
+| `monster_death_guard`, `monster_deathguard` (Quoth's; 5 in Quoth's paks; 57 + 13 with the samples) | mon_dguardq 176, 166: **id's hell knight's frames, frame for frame**; 60.9, 31.9 (-3%, -5%) | overhead swing, charge B, a slow heavy fireball (magicb, sword pointed); 125 hp. Not AD's death guard: a hell knight reskin | death knight (row 3) | row swap: the hell knight's sword, 125 hp, its fireball as a variant spell (a short QC frame run on our magicb frames calling AD's launcher; `vr_am_spell` is one a row today: a per-variant pick). Look kept: no frame remap at all | look (row swap) / all carried | **convert (small)** |
+| `monster_death_lord` (missed by phase 1; Quoth: 1) | mon_dlord 245, 166: id's hell knight's frames; 63.4, 32.4 | overhead swing, a homing spike ball, two-speed run; 400 hp | death knight (row 3) | as Quoth's death guard (its spike ball the variant spell) | look / all carried but the two-speed run | **convert (small)**, with Quoth's death guard |
+| `monster_dfury` (69 on 15) | mon_dfury 1376, 255; **69.1** tall (+10%), 32.6 | two swords: dual slice, a leaping lunge, 24-frame charge, left/right swings, smash; magic A a 5-spike volley, magic B 3 rockets in an arc; 400 hp | death knight (row 3), dual wielding | row swap: two Death Fury's Swords (one-handed, pairs: dual wielding is there), its volley as the spell; its rocket arc a second spell (new: a choice of two) | its height (scale: the poses are fitted to a row's shoulders), the lunge (unless the leap `VR_Leap` is offered to armed humanoids), the rocket arc unless done | **convert with work** (about a day: the second spell, the lunge, a dual-sword stance check) |
+| `monster_dsergeant` (30 on 10) | mon_dsergeant 1265 (the death knight's 870-vertex body + a 395-vertex flail), 255; 63.9, 31.1 | flail swings (chained head), 2 flail charges, a homing missile; 400 hp | death knight (row 3) | the flail: armed humanoids hold every AD melee weapon but it (`VR_AG_CODE_ADMELEE`: its head on its chain is only a hand's, `vr_box3d_flail.cpp`) | its flail (the point of it) unless a monster-held flail is built (1-2 days); a mace instead loses what it is | **not now** (30 placed; the flail first) |
+| `monster_hell_pointknight` (4 on 1) | mon_hknight 250, 166 (id's frames) | stands and streams lightning at its target from spawn: a scripted turret | death knight | none useful | everything that makes it | **not worth it** |
+| `monster_zombiek` (435 on 19) | mon_zombiek 161, 253; 50.5, **18.2** wide (-25%): a thin knight; its blade a loose piece of its rig, no weapon range | 2 stationary swings, a leap; 60 hp fixed, always in pain, falls and gets up, dies only gibbed (AD's zombie class) | knight (row 2) | its get-ups and gib-only death against the layer's disarms, tugs, falls and drops | the zombie (what it is) | **not worth it** (an undead that never dies; its rig keeps no weapon piece) |
+| `monster_dknightghost` (13 on 1) | the death knight's, translucent | scenery: no damage, no count, walks a path | none | | | **not applicable** (not a monster) |
+| `monster_justice` / `monster_baron` (17 on 1) | mon_justice 1008, 245; **75.6** tall (+20%), 42.0 wide (+25%) | sword, a jump attack, range magic; 600 hp: a mini-boss | death knight (row 3) | scale 1.2 (the poses, the grips, the armour), its jump, its magic | its size and jump | **not worth it now** (one map; the size is its role) |
+| `monster_judicator` (1), `monster_dprince` (0) | mon_judge 1016: 102 tall (1.6x); the prince the death knight's mesh | bosses, scripted waves | | | | **not worth it** (bosses) |
+| `monster_centurion` (46 on 5) | mon_centurion 284, 79; 57.1 standing on its board, 31.4: an enforcer's build | flies on a hover board, plasma; 120 hp | enforcer (row 1) | no armed row flies (the board is a flyer's movement, its own frames) | its flight | **not worth it** |
+| `monster_skullwiz` (225 on 14; missed by phase 1) | mon_skullwiz 632, 158; 58.8, a robe to the floor (no legs to pose) | casts skulls, teleports when close; 120 hp | none (the grunt's height) | | | **not worth it** (a robed caster, no weapon) |
+| `monster_jim`/`_bob` (52; 15), `_seeker`/`_juggernaut` (21), `_freddie`/`_edie` (11; 7) | robots | | | | | **not worth it** (no humanoid rig) |
+
+Notes:
+- Phase 1's grouping of `monster_dguard` with Quoth's `monster_death_guard` was wrong: AD's death guard is a 30 hp knight-sized
+  swordsman; Quoth's is a 125 hp hell knight reskin with a fireball (and plays as `ad_monster_death_guard`, mon_dguardq).
+- The best fits for keeping AD's look are the Quoth hell knight reskins (death guard, death lord, AD's point knight's mesh):
+  id's hell knight's frames frame for frame, builds within 5%: the death knight kind's poses, grips and frame numbers as
+  they are; only their meshes' vertices (hand, weapon, anchor) and a rig. Next the death knight family (dknight, sergeant,
+  prince: one 870-vertex body, close to our death knight) and the death guard (the knight's build): a frame remap each.
+- Everything armed is gained by each converted one: weapons from the pool or a map's `weapon`, disarms, tugs, parries, the
+  weapon shot out or taken, the worn pack, dynamic armour (`VR_AgArmor_Give`: the row's armour fit), its ragdoll holding the
+  weapon, the recolours by weapon.
+- AD's balance: the death knight's hp and volley are a hell knight's (unchanged by a row swap); the death guard's 30 hp kept;
+  what changes is their melee (the layer's swings, parries and disarms instead of AD's attack cycles and charges).
+
+Proposed phase 2 (in order): (1) row swaps, small: `monster_dknight` / `monster_death_knight` (armed death knight, his
+sword), `monster_dguard` (armed knight, the Death Guard's Sword, 30 hp), Quoth's death guard and death lord (armed death
+knight, the hell knight's sword, a per-variant spell: their fireball, their spike ball), under phase 1's settings
+(`vr_agrunt_repl_variants`, with `vr_agknight` / `vr_agdknight`), tests 219 and 220 extended; (2) the death fury, with
+work (a second spell, the lunge); (3) if he wants AD's looks kept: "look kept" for the Quoth reskins first (no frame
+remap), then mon_dknight and mon_dguard. The sergeant waits for a monster-held flail.
+
 ## Recolours by weapon (ROUND25.md, "humrepl")
 
 His words: "cheap ways of improving/changing the appearance of the armed humanoids to make it obvious to the player

@@ -16,7 +16,9 @@
 #   - south-west: a pit (x -768..-568, y -560..-360) under a diagonal grate (bars 8 thick turned 45 degrees, 30 apart
 #     across them), and one (y -300..-100) under a louvred grate (bars at z -8..0 with 48-unit gaps, under each gap one
 #     at z -16..-8: 20-unit gaps seen from above);
-#   - south-east: two func_walls 24 apart (x 700..764 and 788..852, y -500..-436, 128 high).
+#   - south-east: two func_walls 24 apart (x 700..764 and 788..852, y -500..-436, 128 high);
+#   - south: a drain (Quoth start's ground decoration copied: a frame round a 32 x 32 hole at x -316..-284,
+#     y -316..-284, z 16..32, over a 16-high pit: exactly Quake's box's width).
 import argparse
 import os
 import shutil
@@ -150,6 +152,23 @@ board("PILLARS: 24-UNIT GAPS\nnothing slips between them", 368, 440, 220, 270)
 for (x0, x1) in ((700, 764), (788, 852)):
     E.append(entity({"classname": "func_wall"}, [box(x0, -500, 0, x1, -436, 128, PANEL)]))
 board("TWO FUNC_WALLS: 24-UNIT GAP\nnothing slips between them", 776, -510, 170, 270)
+
+# ---- the drain (backlog1122): Quoth start's ground decoration at (0, 2272, -416) copied here (moved to (-300, -300,
+# 0): its pieces' bounds from vr_hull_holes_mark): a frame of 8-wide bars at z 16..32 round a 32 x 32 hole (x -316..-284,
+# y -316..-284) over a 16-high pit and a drain channel. Quake's box, exactly as wide as the hole, stands on the frame
+# (hull 1 is solid there and its clip brush recovery doesn't fill it: the samples meet the frame); a 16 box fell through.
+DRAIN = [(-56, 2224, -392, 56, 2256, -384), (24, 2256, -416, 56, 2328, -384), (24, 2252, -392, 56, 2256, -384),
+         (24, 2240, -416, 56, 2256, -392), (16, 2288, -400, 24, 2328, -384), (-16, 2288, -400, 16, 2296, -384),
+         (-24, 2288, -400, -16, 2328, -384), (16, 2248, -400, 24, 2288, -384), (-24, 2256, -400, -16, 2288, -384),
+         (-16, 2252, -392, 16, 2256, -384), (-24, 2248, -400, -16, 2256, -384), (16, 2240, -392, 56, 2256, -384),
+         (32, 2240, -416, 56, 2252, -392), (16, 2224, -412, 32, 2252, -392), (24, 2240, -416, 32, 2244, -408),
+         (-16, 2240, -392, 16, 2256, -384), (-24, 2224, -412, -16, 2256, -384), (-64, 2256, -448, -24, 2336, -376),
+         (-64, 2240, -392, -24, 2256, -384), (-32, 2224, -412, -24, 2252, -392), (-64, 2240, -448, -24, 2256, -392),
+         (-96, 2272, -448, -40, 2336, -392)]
+for (x0, y0, z0, x1, y1, z1) in DRAIN:
+    B.append(box(x0 - 300, y0 - 2572, max(z0 + 416, 0), x1 - 300, y1 - 2572, z1 + 416, TRIM))
+B.append(box(-360, -368, 0, -240, -348, 16, WALL, FLOOR))  # (a step up onto it from the south)
+board("DRAIN: A 32-UNIT HOLE\nQuake's box stands over it; so do you", -300, -370, 80, 270)
 
 # ---- player, lights
 E.append(entity({"classname": "info_player_start", "origin": "0 -600 24", "angle": "90"}))

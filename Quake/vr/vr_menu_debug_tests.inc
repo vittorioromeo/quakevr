@@ -399,6 +399,11 @@ za::Vector<Item> pageDebugTests()
             .help("Five armed humanoids of the row in scratch1 (0 grunts, 1 enforcers, 2 knights, 3 death knights) ahead of "
                   "you, one per recolour: a shotgun (as it is), a rocket launcher, the thunderbolt, a flamethrower, a "
                   "poison sprayer (AD's guns with AD's data). vr_humlook_info prints the nearest one's look."),
+        command("Armed Humanoids: AD Model Beside Its Row", "vr_ad_test 222") // vr_humrepl_test.qc
+            .help("With AD's data: one of AD's remaining humanoid models (scratch1 the pair, 0-11: death knight, death "
+                  "guard, Quoth's death guard, sergeant, fury, death lord, point knight, zombie knight, justice, centurion, "
+                  "judicator, skull wizard) beside the armed row's model nearest its build, as still props: ours, both "
+                  "overlaid, AD's, and the overlay side-on (ARMED_MONSTERS.md, \"Audit 2\")."),
         command("Quoth: Drive This Map's Flow", "vr_ad_test 212")
             .help("Plays the map's flow for you, a round a second: every trigger you could walk into touched, every monster "
                   "awake killed by you (god mode), so waves, spawners and counters run. On ne_marb, metmon, lpqsp1, "
@@ -707,9 +712,15 @@ za::Vector<Item> pageDebugTests()
             .help("vr_selfshot_test 2: both hands fire a blast, a nail and a bolt's line from nine ordinary poses (dual, "
                   "arms crossed, cupped, pointing down, kicked up, from the hip, turned): none may hit you."),
         command("Player Disarm: Shots on Your Gun", "developer 1; vr_pd_test 1")
-            .help("vr_pd_test 1 (God mode off): the shotgun in your main hand, a grunt's blast across it knocks it out "
-                  "(chance forced certain): it drops to the floor with its clip; a blast across your body, an enforcer's "
-                  "laser across the gun (knocked out), the option off (never). In a headset, hold your gun out ahead."),
+            .help("vr_pd_test 1 (God mode off): the shotgun in your main hand, a grunt's full blast across it (two jolts) "
+                  "knocks it out: it drops to the floor with its clip; a blast across your body (nothing), an enforcer's "
+                  "laser across the gun (the warning), a second (knocked out), the option off (never). In a headset, "
+                  "hold your gun out ahead."),
+        command("Player Disarm: The Rules, Blow by Blow", "developer 1; vr_pd_test 3")
+            .help("vr_pd_test 3 (God mode off): the shotgun in your main hand, enemies' blows handed over as landed: "
+                  "a blade on your weapon warns (your hand knocked aside, a buzz, a rattle), a second knocks it out, a "
+                  "heavy one at once; an armed enemy's fist on your body warns; a bite or a blade on your body does "
+                  "nothing; a heavy claw warns; the option off: nothing."),
         command("Deathmatch Rules: Weapons and Bots", "developer 1; vr_dm_test 1")
             .help("vr_dm_test 1, in a deathmatch with a bot (impulse 100): a weapon pickup the bot touches is gone and back "
                   "after its wait (deathmatch 1) or stays (deathmatch 2), the bot's let-go weapon removed; your shot "

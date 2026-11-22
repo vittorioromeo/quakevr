@@ -185,6 +185,14 @@ aren't Map Library packages aren't sent to joining players.
   one-handed, the right mouse button fires the left hand's weapon and the ironsight stays down, as when dual wielding.
   Before, the hand let go of the blade to hold the gun in both hands, and the ironsight came up. In the headset too, a
   hand holding a stuck blade no longer takes the other gun's two-handed grip.
+- **Being disarmed by enemies is predictable now (still off by default).** With Armed Grunts > "You Can Be
+  Disarmed" on, enemies' hits jolt the weapon you hold instead of rolling dice: two jolts on one hand within three
+  seconds knock it out, and the first one warns you (your hand is knocked aside, buzzes and rattles, "Your grip on
+  your weapon loosens!"). A blade, axe or chainsaw landing on your weapon jolts it (a heavy blow knocks it out at
+  once), an armed enemy's punch and any heavy blow on your body jolt it, a grunt's full blast or an enforcer's laser
+  on your gun too. A knight's sword can disarm you now; parried blows, bites and light claws never do. The jolts,
+  how long they last and what counts as heavy are new settings beside it. Other players' hits in multiplayer are
+  unchanged.
 
 ## Movement
 
@@ -205,7 +213,8 @@ aren't Map Library packages aren't sent to joining players.
   as close to walls, bars and pillars as your width lets you. Settings > Movement > Player Hitbox > Close Gaps Quake's
   Box Never Fit (`vr_hull_holes`, on; takes effect at the next map load). The blockers now also close gaps between
   slanted bars, turned grates and round holes, between two brush models (two func_walls, a door and a lift), and
-  between bars at two heights you'd fall through, always only where Quake's own box can't reach. The limits are
+  between bars at two heights you'd fall through, and holes exactly as wide as Quake's box (a drain grating in
+  Quoth's start that it only stood over), always only where Quake's own box can't reach. The limits are
   settings beside it (Narrower Than: 32, Wider Than: 8, and more), with Rebuild Gap Blockers Now to apply them without
   leaving the map; if you still get through a gap you shouldn't, Debug > Mark a Gap I Got Through writes down where and
   why (`quakevr/hull_holes_marks.txt`) so it can be fixed.
@@ -255,6 +264,13 @@ aren't Map Library packages aren't sent to joining players.
 
 ## Menus
 
+- **Flat-screen keys in Options > Controls.** The keys flat-screen play reads itself (leans, swap hands, force grab,
+  shove, punch, reload, drop, quick grenade, bullet time, flashlight, push-to-talk, holster menu, fly camera, toolgun)
+  are now a "Quake VR (flat screen)" group at the end of Controls' keyboard and mouse list, rebound and cleared like
+  any other binding; the separate Flat Keys page is gone (Locomotion's "Flat Keys" button opens Controls there, and
+  "Reset Flat Keys" stays beside it). A key that is both a flat key and a binding is marked with "!" on both rows, and
+  the row under the cursor says what it does: in flat-screen play the flat key wins (for example mouse 4 is Force
+  Grab, not your binding, until you clear Force Grab). The `vr_flat_key_*` settings work in configs as before.
 - **Centre messages in the headset look like the flat screen's.** The game's centre prints in front of your head (a key needed, a secret found, a map's text) and the maps' own view messages now appear in the flat visor's own message popup, drawn by the same code: its dark glass pill with cut corners, glowing bevelled frame, font, wrapping, scanlines, pop-in and fade, in a size that reads at the menu's distance. (`vr_center_panel 0` brings back the old look; `vr_center_panel_scale` sizes it.)
 - **Search filter (development builds).** The Search page has a "Show: Both / Cvars / Tunables" row over its text
   box: the menus' settings alone, the Tunables pages' constants alone, or both (the default). The results update

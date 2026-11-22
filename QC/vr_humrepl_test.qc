@@ -313,4 +313,84 @@ void() VR_HUM_Census =
     w.think = VR_HUM_CensusThink;
     w.nextthink = time;
 };
+
+// vr_ad_test 222 (Misc/quakevr/adhumaudit_shots.sh; ARMED_MONSTERS.md "Audit 2"): one of AD's remaining humanoid models
+// (scratch1 the pair, 0..VR_HUMO_COUNT-1) beside the armed row's model nearest its build, both in their first stand
+// frame, as still props (no monster, no AI): ours, the two overlaid (AD's translucent), AD's, and the overlay turned
+// side-on. AD's data mounted (its models read in place). Prints "humoverlay: pair K: <ours> <AD's>".
+float VR_HUMO_COUNT = 12;
+.float vr_humo_prop; // one of 222's props (gone with the next pair)
+
+string(float k) VR_HUMO_Ours =
+{
+    if(k == 1 || k == 7) { return "progs/vrknight.mdl"; }
+    if(k == 9) { return "progs/vrenforcer.mdl"; }
+    if(k == 11) { return "progs/vrgrunt.mdl"; }
+    return "progs/vrhknight.mdl";
+};
+
+string(float k) VR_HUMO_Theirs =
+{
+    if(k == 0) { return "progs/mon_dknight.mdl"; }
+    if(k == 1) { return "progs/mon_dguard.mdl"; }
+    if(k == 2) { return "progs/mon_dguardq.mdl"; }
+    if(k == 3) { return "progs/mon_dsergeant.mdl"; }
+    if(k == 4) { return "progs/mon_dfury.mdl"; }
+    if(k == 5) { return "progs/mon_dlord.mdl"; }
+    if(k == 6) { return "progs/mon_hknight.mdl"; }
+    if(k == 7) { return "progs/mon_zombiek.mdl"; }
+    if(k == 8) { return "progs/mon_justice.mdl"; }
+    if(k == 9) { return "progs/mon_centurion.mdl"; }
+    if(k == 10) { return "progs/mon_judge.mdl"; }
+    return "progs/mon_skullwiz.mdl";
+};
+
+entity(string m, vector at, float yaw, float a) VR_HUMO_Prop =
+{
+    entity e = spawn();
+    e.classname = "vr_humo_prop";
+    e.vr_humo_prop = 1;
+    precache_model(m);
+    setmodel(e, m);
+    setorigin(e, at);
+    e.solid = SOLID_NOT;
+    e.movetype = MOVETYPE_NONE;
+    e.frame = 0;
+    e.angles_y = yaw;
+    e.alpha = a;
+    return e;
+};
+
+void(entity p) VR_HUM_Overlay =
+{
+    entity e = findflags(world, vr_humo_prop, 1);
+    while(e)
+    {
+        entity next = findflags(e, vr_humo_prop, 1);
+        remove(e);
+        e = next;
+    }
+    float k = rint(cvar_hget(cvarh_scratch1));
+    if(k < 0 || k >= VR_HUMO_COUNT)
+    {
+        bprint(sprintf("humoverlay: no pair %g (0..%g)\n", k, VR_HUMO_COUNT - 1));
+        return;
+    }
+    string ours = VR_HUMO_Ours(k);
+    string theirs = VR_HUMO_Theirs(k);
+    makevectors([0, p.angles_y, 0]);
+    vector fw = v_forward;
+    vector rt = v_right;
+    float far = k == 10 ? 210 : 140; // (the judicator twice our height)
+    float gap = k == 10 ? 80 : 50;
+    vector mid = p.origin + fw * far;
+    float face = vectoyaw(p.origin - mid);
+    VR_HUMO_Prop(ours, mid - rt * gap * 1.5, face, 0);
+    VR_HUMO_Prop(ours, mid - rt * gap * 0.5, face, 0);
+    VR_HUMO_Prop(theirs, mid - rt * gap * 0.5, face, 0.45);
+    VR_HUMO_Prop(theirs, mid + rt * gap * 0.5, face, 0);
+    VR_HUMO_Prop(ours, mid + rt * gap * 1.5, face + 90, 0);
+    VR_HUMO_Prop(theirs, mid + rt * gap * 1.5, face + 90, 0.45);
+    bprint(sprintf("humoverlay: pair %g: %s %s\n", k, ours, theirs));
+};
 #endif
