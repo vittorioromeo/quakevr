@@ -799,30 +799,84 @@ extern "C" qboolean CL_SeatEffectFirst(const int kind, const int key, const floa
     return true;
 }
 
+namespace
+{
+// The server events (their bytes) the drawn seats fed this frame, with their lengths (phase 8: CL_SeatFxBegin looks
+// ahead for one of them).
+struct EventFed
+{
+    int frame = -1, seat = 0, length = 0;
+    unsigned int hash = 0;
+};
+constexpr int eventsRemembered = 256;
+struct EventsFed
+{
+    EventFed ring[eventsRemembered];
+    int next = 0;
+    int repeat = 0; // the parse under way: a repeat's length (CL_SeatFxRepeat)
+} eventsFed; // seat-shared: the events' feed, across the seats
+
+// The bytes [from, to) of the message (FNV-1a): the event, the same in every seat's client that reads it.
+[[nodiscard]] unsigned int eventHash(const int from, const int to)
+{
+    unsigned int h = 2166136261u;
+    for(int i = from; i < to; i++)
+    {
+        h = (h ^ net_message.data[i]) * 16777619u;
+    }
+    return h;
+}
+} // namespace
+
 extern "C" void CL_SeatFxBegin(seatfxmark_t* mark, const int readcount)
 {
     mark->on = SCR_SeatsDrawn() > 1 && CL_SeatDrawn() ? 1 : 0;
     mark->readcount = readcount;
     mark->vrparticles = mark->on ? qvr::particles::liveCount() : 0;
     mark->particles = mark->on ? R_ParticleCount() : 0;
+    mark->prevrepeat = eventsFed.repeat;
+    mark->repeat = 0;
+    if(mark->on && readcount >= 0)
+    {
+        // A repeat: the message goes on with the bytes of an event another drawn seat fed this frame (the parse reads as
+        // many: the same bytes, the same fields).
+        const int seat = qvr::seat::current().index;
+        for(const EventFed& e : eventsFed.ring)
+        {
+            if(e.frame == host_framecount && e.seat != seat && e.length > 0 && readcount + e.length <= net_message.cursize &&
+                eventHash(readcount, readcount + e.length) == e.hash)
+            {
+                mark->repeat = e.length;
+                break;
+            }
+        }
+    }
+    eventsFed.repeat = mark->repeat;
+}
+
+extern "C" int CL_SeatFxRepeat()
+{
+    return eventsFed.repeat;
 }
 
 extern "C" void CL_SeatFxEnd(const seatfxmark_t* mark)
 {
+    eventsFed.repeat = mark->prevrepeat;
     if(!mark->on || mark->readcount < 0 || msg_readcount <= mark->readcount || msg_readcount > net_message.cursize)
     {
         return;
     }
-    // The event: the bytes read (FNV-1a), the same in every seat's client that reads it.
-    unsigned int h = 2166136261u;
-    for(int i = mark->readcount; i < msg_readcount; i++)
-    {
-        h = (h ^ net_message.data[i]) * 16777619u;
-    }
+    const unsigned int h = eventHash(mark->readcount, msg_readcount);
     if(!CL_SeatEffectFirst(SEATFX_VR, static_cast<int>(h), nullptr))
     {
         qvr::particles::truncate(mark->vrparticles);
         R_ParticleTruncate(mark->particles);
+    }
+    else if(!mark->repeat)
+    {
+        EventFed& slot = eventsFed.ring[eventsFed.next];
+        eventsFed.next = (eventsFed.next + 1) % eventsRemembered;
+        slot = EventFed{host_framecount, qvr::seat::current().index, msg_readcount - mark->readcount, h};
     }
 }
 
@@ -847,6 +901,23 @@ extern "C" int CL_SeatListeners(vec3_t org[MAX_SPLITSEATS], vec3_t right[MAX_SPL
         n++;
     }
     return n;
+}
+
+int qvr::seat::seatOfPlayer(const int ent)
+{
+    if(ent <= 0 || SCR_SeatsDrawn() <= 1)
+    {
+        return -1;
+    }
+    for(int s = 0; s < maxSeats; s++)
+    {
+        const clientseat_t* c = plays(s) ? netIfMade(s) : nullptr;
+        if(c && c->cstatic.signon == SIGNONS && c->cstate.viewentity == ent)
+        {
+            return s;
+        }
+    }
+    return -1;
 }
 
 extern "C" clientseat_t* CL_SeatNetIfMade(const int seat)

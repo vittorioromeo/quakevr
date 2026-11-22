@@ -1143,6 +1143,28 @@ extern "C" int VR_ModelSpins(int num)
     return vrProtocol() && num >= 0 && num < static_cast<int>(seatClientEnts().entityData.size()) && seatClientEnts().entityData[num].spin;
 }
 
+namespace
+{
+// The Quake VR messages whose handlers write only shared memories (gore, wounds and their streams and drips, hit
+// reactions, gore sounds): a repeat (splitscreen: another drawn seat's client read the same event this frame,
+// CL_SeatFxRepeat) is skipped whole. The others parse a repeat, keeping their seat's own part (tracers, shocks, the gun
+// effects, casings: their handlers ask CL_SeatFxRepeat).
+[[nodiscard]] bool repeatSkipped(const int subcmd)
+{
+    switch(subcmd)
+    {
+        case QVR_SVC_PARTICLE2:
+        case QVR_SVC_WOUND:
+        case QVR_SVC_WOUNDCLEAR:
+        case QVR_SVC_BLADEWOUND:
+        case QVR_SVC_WEAPONGONE:
+        case QVR_SVC_HITREACT:
+        case QVR_SVC_GORESOUND: return true;
+        default: return false;
+    }
+}
+} // namespace
+
 extern "C" int VR_ParseServerMessage(int cmd)
 {
     if(cmd != svc_quakevr)
@@ -1159,6 +1181,12 @@ extern "C" int VR_ParseServerMessage(int cmd)
 
     seatfxmark_t fxmark; // splitscreen: a later seat's same event: its particles taken back (CL_SeatFxEnd)
     CL_SeatFxBegin(&fxmark, msg_readcount);
+    if(fxmark.repeat > 0 && repeatSkipped(net_message.data[msg_readcount]))
+    {
+        msg_readcount += fxmark.repeat; // (splitscreen: another drawn seat fed it this frame; its memories are all shared)
+        CL_SeatFxEnd(&fxmark);
+        return 1;
+    }
     const int subcmd = MSG_ReadByte();
     switch(subcmd)
     {

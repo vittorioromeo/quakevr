@@ -18,6 +18,8 @@
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_particles.hpp"
+#include "vr_protocol.hpp"
+#include "vr_api.h"
 #include "vr_visor.hpp"
 
 #include "Zancle/Math/Abs.hpp"
@@ -323,6 +325,81 @@ void checkEffects()
         va("a Quake VR event all %d seats read: its particles once (%d; one seat's: %d)", n, all, own));
 }
 
+// Phase 8: a Quake VR message every seat reads (a gore sound: its memories are all shared): the first seat's parse reads
+// it, a later seat's is a repeat (CL_SeatFxBegin's look-ahead: its length) whose bytes VR_ParseServerMessage skips;
+// another event (other bytes) is no repeat. Each seat's player found as its seat's (seatOfPlayer: the casings).
+void checkEvents()
+{
+    const int n = renderTest.seats;
+    byte buf[64];
+    sizebuf_t msg{};
+    msg.data = buf;
+    msg.maxsize = sizeof(buf);
+    const auto write = [&](const int strength) {
+        SZ_Clear(&msg);
+        MSG_WriteByte(&msg, protocol::QVR_SVC_GORESOUND);
+        MSG_WriteByte(&msg, 255); // (no kind: the parse reads it, plays nothing)
+        MSG_WriteShort(&msg, 0);
+        for(int i = 0; i < 3; i++)
+        {
+            MSG_WriteCoord(&msg, 0.f, cl.protocolflags);
+        }
+        MSG_WriteByte(&msg, strength);
+    };
+    const sizebuf_t savedMsg = net_message;
+    const int savedRead = msg_readcount;
+    const qboolean savedBad = msg_badread;
+    const auto use = [&] {
+        net_message.data = buf;
+        net_message.cursize = msg.cursize;
+        net_message.maxsize = msg.maxsize;
+        msg_readcount = 0;
+        msg_badread = false;
+    };
+    // A later seat's look-ahead (its parse's mark): the repeat's length, 0 if none.
+    const auto probe = [&] {
+        use();
+        seatfxmark_t mark;
+        CL_SeatFxBegin(&mark, 0);
+        const int repeat = mark.repeat;
+        msg_readcount = msg.cursize;
+        CL_SeatFxEnd(&mark);
+        return repeat;
+    };
+    write(1);
+    int repeats = 0, readWhole = 0;
+    for(int s = 0; s < n; s++)
+    {
+        const Scope in(at(s));
+        if(s > 0)
+        {
+            repeats += probe() == msg.cursize ? 1 : 0;
+        }
+        use();
+        const int handled = VR_ParseServerMessage(protocol::svc_quakevr);
+        readWhole += handled && msg_readcount == msg.cursize && !msg_badread ? 1 : 0;
+    }
+    write(2); // (another event)
+    int fresh = 0;
+    {
+        const Scope in(at(n - 1));
+        fresh = probe();
+    }
+    net_message = savedMsg;
+    msg_readcount = savedRead;
+    msg_badread = savedBad;
+    check(repeats == n - 1 && readWhole == n,
+        va("a Quake VR message all %d seats read: a repeat in seats 2-%d (%d), read whole by each (%d)", n, n, repeats, readWhole));
+    check(fresh == 0, va("another Quake VR message seat %d reads: no repeat (%d)", n, fresh));
+    int own = 0;
+    for(int s = 0; s < n; s++)
+    {
+        const Scope in(at(s));
+        own += seatOfPlayer(cl.viewentity) == s ? 1 : 0;
+    }
+    check(own == n, va("each seat's player its seat's (%d of %d)", own, n));
+}
+
 // Part 3 (vr_seat_render_test <n> torches, on a map with torches by the starts: e1m6): each drawn seat's torch lights
 // are its own client's, chosen by its own eye (VR_TorchLights in its relink): some lit, all near its eye.
 void checkTorches()
@@ -455,6 +532,7 @@ void testFrame()
             checkViews();
             checkBodies();
             checkEffects();
+            checkEvents();
             checkSounds();
             if(t.torches)
             {

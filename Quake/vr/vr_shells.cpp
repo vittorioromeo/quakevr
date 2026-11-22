@@ -32,6 +32,7 @@
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
 #include "vr_water.hpp"
+#include "vr_seat.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -202,6 +203,7 @@ struct Pending
     double created; // when the QC said so (the shot: the shotgun's auto pump stroke it waits for)
     double opened{-1.0}; // FlagAfterOpen: when the gun was drawn fully open (the QC's delay counts from it)
     int ent{0};          // another player's (his entity: out of his copy's weapon, syncfix2); 0 yours
+    int seat{0};         // the seat whose client read it (splitscreen: out of its weapons, in its pass)
 };
 
 // Each hand's ejection port as last seen, for its speed.
@@ -215,9 +217,15 @@ struct Track
 
 Shell shells[maxShells];
 za::Vector<Pending> pending;
-Track tracks[2];
+// Each seat's hands' ports (splitscreen: its own casings leave its own weapons) and the frame it last ran its casings in.
+Track tracks[seat::maxSeats][2];
 double lastRun = -1.0;
-int lastFrame = -1;
+int lastFrame[seat::maxSeats] = {-1, -1, -1, -1};
+
+[[nodiscard]] Track (&seatTracks())[2]
+{
+    return tracks[seat::current().index];
+}
 
 za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // a new sequence every run
 
@@ -294,7 +302,7 @@ void trackPorts(const view::ViewEntity (&weapons)[2])
     for(int hand = 0; hand < 2; hand++)
     {
         const view::ViewEntity& ve = weapons[hand];
-        Track& t = tracks[hand];
+        Track& t = seatTracks()[hand];
         const Weapon* w = ve.visible ? weaponFor(ve.ent.model) : nullptr;
         if(!w)
         {
@@ -474,7 +482,7 @@ void ejectFrom(const view::ViewEntity& ve, const Pending& p, bool own, bool pump
     const bool flick = own && (p.flags & FlagFlick) != 0;
     const glm::vec3 shift = animationShift(ve, *w);
     const float upm = unitsPerMetre();
-    const glm::vec3 portVel = own ? tracks[p.hand].vel : glm::vec3{0.f};
+    const glm::vec3 portVel = own ? seatTracks()[p.hand].vel : glm::vec3{0.f};
     if(vr_debug_weaponfx.value)
     {
         Con_Printf("shells eject hand %d kind %d skin %d x%d t %.3f%s\n", p.hand, p.kind, kindSkins[p.kind], p.count, cl.time,
@@ -545,8 +553,8 @@ void ejectFrom(const view::ViewEntity& ve, const Pending& p, bool own, bool pump
             if(vr_debug_weaponfx.value && (p.flags & FlagPushed))
             {
                 Con_Printf("shells pushed hand %d: port %.2f m/s, out at %.2f m/s, %.2f along the port's velocity\n", p.hand,
-                    glm::length(tracks[p.hand].vel) / upm, glm::length(s.vel) / upm,
-                    glm::dot(s.vel, glm::normalize(tracks[p.hand].vel + glm::vec3{1e-4f})) / upm);
+                    glm::length(seatTracks()[p.hand].vel) / upm, glm::length(s.vel) / upm,
+                    glm::dot(s.vel, glm::normalize(seatTracks()[p.hand].vel + glm::vec3{1e-4f})) / upm);
             }
             if(pumped)
             {
@@ -581,7 +589,7 @@ void ejectFrom(const view::ViewEntity& ve, const Pending& p, bool own, bool pump
                 glm::dot(was, right) / upm, was.z / upm);
             Con_Printf("shells from the eyes hand %d: %.2f m forward %.2f right %.2f down, the gun at %.2f m/s\n", p.hand,
                 glm::dot(pos - hs.head, look) / upm, glm::dot(pos - hs.head, right) / upm, (hs.head.z - pos.z) / upm,
-                glm::length(tracks[p.hand].vel) / upm);
+                glm::length(seatTracks()[p.hand].vel) / upm);
             if(w->model == modelmeta::Id::VRevolver)
             {
                 // (Against its cylinder as drawn: back along its axis, out (away from the frame, the side the cylinder
@@ -589,7 +597,7 @@ void ejectFrom(const view::ViewEntity& ve, const Pending& p, bool own, bool pump
                 const float swing = view::revolverSwing(p.hand);
                 const glm::vec3 out = worldDir(ve, at, view::revolverOutward(swing));
                 const glm::vec3 chamber = view::modelPoint(ve, view::revolverChamber(p.hand, i % 6, 0.f));
-                const glm::vec3 rel = s.vel - geom::vec(cl.velocity) - tracks[p.hand].vel * 0.9f;
+                const glm::vec3 rel = s.vel - geom::vec(cl.velocity) - seatTracks()[p.hand].vel * 0.9f;
                 const float len = glm::length(rel);
                 const float off = len > 1e-4f ? glm::degrees(std::acos(za::clamp(glm::dot(rel / len, -fwd), -1.f, 1.f))) : 0.f;
                 const glm::vec3 d = pos - chamber;
@@ -926,7 +934,9 @@ void ejectTest_f()
     {
         flick::spin(hand); // as a flick: the casings leave with the spin
     }
-    pending.pushBack({hand, 0, count, flags, cl.time, cl.time});
+    Pending p{hand, 0, count, flags, cl.time, cl.time};
+    p.seat = seat::current().index;
+    pending.pushBack(p);
 }
 
 } // namespace
@@ -943,7 +953,9 @@ void parseEject()
     {
         return;
     }
-    pending.pushBack({hand, kind, za::min(count, 8), flags, cl.time + delay, cl.time});
+    Pending p{hand, kind, za::min(count, 8), flags, cl.time + delay, cl.time};
+    p.seat = seat::current().index; // (splitscreen: out of this seat's weapons)
+    pending.pushBack(p);
 }
 
 void parseEjectOther()
@@ -959,18 +971,28 @@ void parseEjectOther()
     {
         return;
     }
+    // Splitscreen: one drawn seat's client throws another player's casings (a repeat: another seat's did this frame), and
+    // none for a seat's own player (that seat's client throws them from its own weapons: its QVR_SVC_EJECT).
+    if(CL_SeatFxRepeat() != 0 || seat::seatOfPlayer(ent) >= 0)
+    {
+        return;
+    }
     Pending p{hand, kind, za::min(count, 8), flags, cl.time + delay, cl.time};
     p.ent = ent;
+    p.seat = seat::current().index;
     pending.pushBack(p);
 }
 
 void frame(const view::ViewEntity (&weapons)[2])
 {
-    if(lastFrame == host_framecount)
+    // Splitscreen: each drawn seat's pass ejects its own casings (its own weapons) and draws them all into its client's
+    // scene; the first drawn seat this frame runs them (one seat: as before).
+    const int seatNow = seat::current().index;
+    if(lastFrame[seatNow] == host_framecount)
     {
         return;
     }
-    lastFrame = host_framecount;
+    lastFrame[seatNow] = host_framecount;
     QVR_PROFILE("shells");
 
     trackPorts(weapons);
@@ -978,6 +1000,11 @@ void frame(const view::ViewEntity (&weapons)[2])
     for(za::SizeT i = 0; i < pending.size();)
     {
         Pending& pe = pending[i];
+        if(pe.seat != seatNow)
+        {
+            i++;
+            continue;
+        }
         // Another player's (syncfix2): out of his copy's weapon in that hand as drawn now, after the QC's delay.
         if(pe.ent)
         {
@@ -1039,8 +1066,12 @@ void frame(const view::ViewEntity (&weapons)[2])
         }
     }
 
-    const float dt = lastRun >= 0.0 ? static_cast<float>(CLAMP(0.0, cl.time - lastRun, 0.05)) : 0.f;
-    lastRun = cl.time;
+    const bool runs = seat::sharedFxFirst(seat::SharedFx::Shells);
+    const float dt = !runs ? 0.f : lastRun >= 0.0 ? static_cast<float>(CLAMP(0.0, cl.time - lastRun, 0.05)) : 0.f;
+    if(runs)
+    {
+        lastRun = cl.time;
+    }
     const float life = za::max(vr_shells_life.value, 1.f);
 
     qmodel_t* models[za::getArraySize(kindModels)];
@@ -1055,7 +1086,7 @@ void frame(const view::ViewEntity (&weapons)[2])
         {
             continue;
         }
-        if(!vr_shells.value || cl.time - s.born > life || cl.time < s.born)
+        if(runs && (!vr_shells.value || cl.time - s.born > life || cl.time < s.born))
         {
             s.active = false;
             continue;
@@ -1114,9 +1145,12 @@ void clear()
         s.active = false;
     }
     pending.clear();
-    for(Track& t : tracks)
+    for(Track(&seatTrack)[2] : tracks)
     {
-        t = Track{};
+        for(Track& t : seatTrack)
+        {
+            t = Track{};
+        }
     }
     lastRun = -1.0;
 }

@@ -1191,6 +1191,10 @@ void parse()
         struckBy(radius); // (the damage)
         return;
     }
+    if(CL_SeatFxRepeat() != 0 && kind != KindGunShock)
+    {
+        return; // (splitscreen: another drawn seat's client fed this arc or burn this frame: the arcs are shared)
+    }
     if(kind == KindSmoulder || kind == KindDoused)
     {
         smoulder::burning(static_cast<int>(radius), duration, kind == KindDoused);

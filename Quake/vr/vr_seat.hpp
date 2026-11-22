@@ -154,7 +154,10 @@ enum class SharedFx
 {
     BloodStreams,
     TorchSparks,
+    Shells, // phase 8: the casings run (vr_shells.cpp; each seat ejects its own)
 };
+// Phase 8: the seat whose player is entity `ent` while seats are drawn in tiles (-1: none, or one seat).
+[[nodiscard]] int seatOfPlayer(int ent);
 [[nodiscard]] inline bool sharedFxFirst(const SharedFx fx, const int key = 0)
 {
     return CL_SeatEffectFirst(SEATFX_VR, -(static_cast<int>(fx) + 1) * 65536 - key, nullptr) != 0;

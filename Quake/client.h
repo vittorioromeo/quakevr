@@ -463,9 +463,13 @@ int CL_SeatListeners (vec3_t org[MAX_SPLITSEATS], vec3_t right[MAX_SPLITSEATS], 
 // temporary entity's or a Quake VR message's parse (cl_parse.c, vr_client.cpp): the bytes read are the event (the same in
 // every seat's client that reads it); a later seat's identical one this frame has the particles it spawned (both pools)
 // taken back. Seats in tiles only (else nothing: one seat as before).
-typedef struct { int readcount, vrparticles, particles, on; } seatfxmark_t;
+// Phase 8: known as the parse begins (repeat: the length of an identical event another drawn seat fed this frame, found
+// by looking ahead in the message; 0: a first), so the parsers whose memories are all shared (gore, wounds, hit reactions,
+// gore sounds) skip a repeat's bytes, and others (tracers, shocks, casings) keep only their seat's own part of it.
+typedef struct { int readcount, vrparticles, particles, on, repeat, prevrepeat; } seatfxmark_t;
 void CL_SeatFxBegin (seatfxmark_t *mark, int readcount);
 void CL_SeatFxEnd (const seatfxmark_t *mark);
+int CL_SeatFxRepeat (void);					// inside a parse (CL_SeatFxBegin/End): the repeat's length, 0 if none
 int R_ParticleCount (void);
 void R_ParticleTruncate (int n);
 clientseat_t *CL_SeatNetIfMade (int seat);	// seat 0..3's client if ever made (NULL: never used)

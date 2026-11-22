@@ -699,7 +699,10 @@ void parseFired()
         }
         return;
     }
-    monsterFired(ent, hand == 4); // (4: its own rocket tube, QC QVR_FIRED_ROCKET)
+    if(CL_SeatFxRepeat() == 0) // (splitscreen: a monster's flash fed once, by the first drawn seat's client to read it)
+    {
+        monsterFired(ent, hand == 4); // (4: its own rocket tube, QC QVR_FIRED_ROCKET)
+    }
 }
 
 void parseTracer()
@@ -720,6 +723,10 @@ void parseTracer()
     if(own)
     {
         flatxhair::noteTracer(hand, to); // (vr_flat_xhair_probe: where his pellets land against the crosshair)
+    }
+    if(CL_SeatFxRepeat() != 0)
+    {
+        return; // (splitscreen: another drawn seat's client drew this tracer this frame: the tracers are shared)
     }
     const int slot = own ? weapons::heldSlot(hand) : -1;
     bool tracer = tracersOn(slot) && !(hand > 1 && !vr_tracers_enemies.value);
