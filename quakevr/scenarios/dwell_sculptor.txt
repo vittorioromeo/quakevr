@@ -1,7 +1,0 @@
-# dwell_sculptor: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (needs Dwell)
-title Dwell's Sculptor in the test hall, the Rotary Shotgun in hand
-map vrtesthall
-start 0 -288 25 90
-god
-give "Rotary Shotgun" main
-spawn "The Sculptor (boss)" 420 0
