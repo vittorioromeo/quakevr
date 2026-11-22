@@ -2,7 +2,8 @@
 // any map: a door that waits for full health (trigger_vr_health_gate), monsters made on demand that report when they
 // are dead (func_vr_spawner), target boards that break (func_vr_target), supplies that come back (func_vr_restock),
 // checkpoints a dead player comes back to instead of the level restarting (info_vr_checkpoint), the music changed
-// (target_vr_music) and a message held in the middle of the view (target_vr_message). vr_crate's
+// (target_vr_music), a message held in the middle of the view (target_vr_message) and a spike or a grenade fired at the
+// player for batting and catching practice (trap_vr_shooter). vr_crate's
 // "contents" (vr_crates.qc) and func_vr_tip's TRIGGERED flag (vr_tips.qc) are the other two.
 
 // (Their fields: vr_fields.qc, "The tutorial's scripting".)
@@ -11,6 +12,11 @@
 // Things made by name
 
 float vr_tut_precaching; // VR_Tut_Precache: made only for its precaches (not placed)
+
+void() weapon_axe;
+void() weapon_knight_sword;
+void() weapon_dagger;
+void() item_armor1;
 
 // The middle of a placed item's floor from its origin: ammo and health boxes have their origin at a corner (id's
 // 0 0 0 .. 32 32 56), the others in the middle.
@@ -56,6 +62,10 @@ entity(string cls, vector at, float xFlags, string xModel, vector xAngles) VR_Tu
     else if(cls == "weapon_supershotgun") { weapon_supershotgun(); }
     else if(cls == "weapon_nailgun")      { weapon_nailgun(); }
     else if(cls == "weapon_supernailgun") { weapon_supernailgun(); }
+    else if(cls == "weapon_axe")          { weapon_axe(); }
+    else if(cls == "weapon_knight_sword") { weapon_knight_sword(); }
+    else if(cls == "weapon_dagger")       { weapon_dagger(); }
+    else if(cls == "item_armor1")         { item_armor1(); }
     else if(cls == "vr_debris_piece")     { e.model = xModel; item = FALSE; vr_debris_piece(); }
     else if(cls == "vr_crate")            { item = FALSE; vr_crate(); }
     else                                  { ok = FALSE; }
@@ -86,6 +96,13 @@ void(string cls, string xModel) VR_Tut_Precache =
     if(cls == NULLSTR || cls == "none" || cls == "vr_debris_piece" || cls == "vr_crate")
     {
         return; // (the rocks, the bricks and the crates are always precached)
+    }
+    // the blades: their models only (one made would leave its lying weapon, a thrown_weapon, behind at the origin)
+    if(cls == "weapon_axe" || cls == "weapon_knight_sword" || cls == "weapon_dagger")
+    {
+        precache_model(WeaponIdToModel(cls == "weapon_axe" ? WID_AXE : WID_SWORD,
+                                       cls == "weapon_dagger" ? VR_ADMelee_Flags(VR_SWORDKIND_DAGGER) : 0));
+        return;
     }
     vr_tut_precaching = TRUE;
     entity e = VR_Tut_Make(cls, '0 0 0', 0, xModel, '0 0 0');
@@ -244,7 +261,17 @@ void() VR_Spawner_Make =
     self.spawnflags = 0;
     self.angles = sp.angles;
     setorigin(self, org);
-    VR_EnemyDispenser_Spawn(sp.weapon);
+    if(sp.weapon == 0 && sp.vr_spawn_arm != 0)
+    {
+        // an armed grunt holding that weapon (vrtutorial's lesson 13: an axe, to shove off a bridge or disarm)
+        self.classname = "monster_vr_grunt";
+        self.weapon = sp.vr_spawn_arm;
+        monster_vr_grunt();
+    }
+    else
+    {
+        VR_EnemyDispenser_Spawn(sp.weapon);
+    }
     setorigin(self, org);
     self.vr_spawner = sp;
     self = sp;
@@ -307,7 +334,8 @@ void() func_vr_spawner_use =
 
 /*QUAKED func_vr_spawner (1 0.4 0.2) (-16 -16 -24) (16 16 40) ONE_AT_A_TIME ANGRY
 Quake VR: makes monsters here when used, with a teleporter's flash: "weapon" which kind (as func_enemy_dispenser's: 0
-grunt, 1 ogre, 2 zombie, 7 dog, 8 enforcer...), "count" how many a use makes (default 1), "wait" the seconds between
+grunt, 1 ogre, 2 zombie, 7 dog, 8 enforcer...; with "weapon" 0, "vr_spawn_arm" makes armed grunts holding that weapon,
+monster_vr_grunt's codes: 2 an axe, 13 a sword...), "count" how many a use makes (default 1), "wait" the seconds between
 them (default 0.5; one waits while something stands on the spot), "angle" the way they face. "target" is fired (the
 user the activator) once every monster of its latest use is dead: chain waves with trigger_counter and trigger_relay.
 ONE_AT_A_TIME: a use while one of its monsters lives makes none ("message" centerprinted to the player who used it).
@@ -398,6 +426,68 @@ void() func_vr_target =
 };
 
 // ----------------------------------------------------------------------------
+// trap_vr_shooter
+
+void() OgreGrenadeTouch;
+void() OgreGrenadeExplode;
+void() monster_vr_grunt;
+
+void() trap_vr_shooter_use =
+{
+    entity p = activator.classname == "player" ? activator : VR_Player();
+    if(p == world)
+    {
+        return;
+    }
+    vector at = p.origin + '0 0 16'; // (his chest)
+    dprint(sprintf("trap_vr_shooter %s: a %s at %v\n", self.targetname, self.style == 1 ? "grenade" : "spike", at));
+    if(self.style == 1)
+    {
+        // a grenade lobbed to come down at him in a second: the ogre's, a physics object a hand can catch
+        sound(self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
+        entity g = spawn();
+        g.owner = self;
+        g.movetype = MOVETYPE_BOUNCE;
+        g.solid = SOLID_BBOX;
+        g.classname = "ogre_grenade";
+        float flight = 1;
+        g.velocity = (at - self.origin) * (1 / flight) + '0 0 1' * (0.5 * cvar_hget(cvarh_sv_gravity) * flight);
+        g.avelocity = '300 300 300';
+        g.angles = vectoangles(g.velocity);
+        g.touch = OgreGrenadeTouch;
+        g.nextthink = time + VR_Grenade_Fuse();
+        g.think = OgreGrenadeExplode;
+        setmodel(g, "progs/grenade.mdl");
+        setsize(g, '0 0 0', '0 0 0');
+        setorigin(g, self.origin);
+        VR_Grenade_Make(g, OgreGrenadeExplode, g.nextthink - time, FALSE);
+    }
+    else
+    {
+        // a spike straight at him (500 units/s, as a spikeshooter's)
+        vector dir = normalize(at - self.origin);
+        sound(self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
+        entity s = launch_spike(self.origin, dir);
+        s.velocity = dir * 500;
+    }
+};
+
+/*QUAKED trap_vr_shooter (0 .5 .8) (-8 -8 -8) (8 8 8)
+Quake VR: when used, fires at the player who used it (single player: the player): "style" 0 a spike straight at him,
+1 a grenade lobbed to come down at him a second later (the ogre's: catch it and throw it back). For batting and
+catching practice (vrtutorial's lesson 13).
+*/
+void() trap_vr_shooter =
+{
+    precache_model("progs/grenade.mdl");
+    precache_sound("weapons/grenade.wav");
+    precache_sound("weapons/spike2.wav");
+    self.movetype = MOVETYPE_NONE;
+    self.solid = SOLID_NOT;
+    self.use = trap_vr_shooter_use;
+};
+
+// ----------------------------------------------------------------------------
 // func_vr_restock
 
 // How many of its contents lie within its distance (a rock or a brick: vr_rock, vr_brick once placed).
@@ -411,9 +501,22 @@ float(entity xRestock) VR_Restock_Near =
         cls = "vr_rock";
         cls2 = "vr_brick";
     }
+    // the blades (func_weapon_grabbable's classes: the spawner draws nothing, the weapon lies as a thrown_weapon)
+    float wid = 0;
+    float wkind = VR_ADMelee_Flags(VR_SWORDKIND_DAGGER); // (the sword's kind bits: a dagger's, a knight's sword's none)
+    float wflags = 0;
+    if(cls == "weapon_axe") { wid = WID_AXE; }
+    else if(cls == "weapon_knight_sword") { wid = WID_SWORD; }
+    else if(cls == "weapon_dagger") { wid = WID_SWORD; wflags = wkind; }
+    if(wid)
+    {
+        cls = "thrown_weapon";
+        cls2 = cls;
+    }
     for(entity e = nextent(world); e; e = nextent(e))
     {
         if((e.classname == cls || e.classname == cls2) && e.modelindex && e.model != NULLSTR && e.solid != SOLID_NOT &&
+           (!wid || (e.weapon == wid && (e.weaponflags & wkind) == wflags)) &&
            vlen((e.absmin + e.absmax) * 0.5 - xRestock.origin) <= xRestock.distance)
         {
             n++;
@@ -498,6 +601,15 @@ void() func_vr_restock =
 // ----------------------------------------------------------------------------
 // info_vr_checkpoint
 
+const float VR_CP_SAVE = 1; // info_vr_checkpoint's SAVE: taken, the game is saved; a death after it loads that save
+nosave float vr_cp_loading; // a SAVE checkpoint's load asked for (a map's load starts it at 0 again)
+
+// The save a SAVE checkpoint makes ("vrtutorial_checkpoint": one per map, written over each time).
+string() VR_Checkpoint_SaveName =
+{
+    return strcat(mapname, "_checkpoint");
+};
+
 void() VR_Checkpoint_Take =
 {
     if(self.vr_cp_taken)
@@ -507,6 +619,16 @@ void() VR_Checkpoint_Take =
     self.vr_cp_taken = time + 0.001;
     self.nextthink = 0;
     dprint(sprintf("checkpoint %s taken at %g\n", self.targetname, time));
+    if((self.spawnflags & VR_CP_SAVE) && !coop && !deathmatch)
+    {
+        // (the save made on the next frame's commands: the checkpoint taken is in it)
+        localcmd(sprintf("save %s\n", VR_Checkpoint_SaveName()));
+        entity p = VR_Player();
+        if(self.message != NULLSTR && p != world)
+        {
+            centerprint(p, self.message);
+        }
+    }
 };
 
 void() info_vr_checkpoint_think =
@@ -532,6 +654,8 @@ Quake VR: where a player who dies comes back (single player), instead of the lev
 within "distance" (default 96) of it, or when it is used. He comes back at the latest one taken, facing its "angle",
 with a new life (the level's starting items and health; the keys he holds kept), the level as he left it. No
 checkpoint taken: the level restarts, as Quake's.
+SAVE: taken, the game is saved ("<map>_checkpoint", written over each time) and "message" centerprinted; while it is the
+latest one taken, a death loads that save (the level as it was then: a fight after it starts again) instead.
 */
 void() info_vr_checkpoint =
 {
@@ -563,9 +687,21 @@ entity() VR_Checkpoint_Latest =
 // respawn() in single player: back at the latest checkpoint with a new life (TRUE), or nothing done (FALSE: none taken).
 float() VR_Checkpoint_Respawn =
 {
-    if(coop || deathmatch || VR_Checkpoint_Latest() == world)
+    entity cp = VR_Checkpoint_Latest();
+    if(coop || deathmatch || cp == world)
     {
         return FALSE;
+    }
+    string save = strcat(VR_Checkpoint_SaveName(), ".sav");
+    if((cp.spawnflags & VR_CP_SAVE) && fileexists(save))
+    {
+        if(!vr_cp_loading) // (asked once: the load comes on the next frame's commands)
+        {
+            vr_cp_loading = TRUE;
+            dprint(sprintf("checkpoint: %s, loading %s\n", cp.targetname, save));
+            localcmd(sprintf("load %s\n", VR_Checkpoint_SaveName()));
+        }
+        return TRUE;
     }
     float keys = self.items & (IT_KEY1 | IT_KEY2);
     SetNewParms();
@@ -670,7 +806,7 @@ void() target_vr_message =
 
 // ----------------------------------------------------------------------------
 // Debug > Tests > Tutorial > Go to a Lesson (vr_tutorial_goto): in vrtutorial, the player put at lesson N's
-// checkpoint ("cp<N>", taken), when the cvar changes to N (1..12). Checked every frame (StartFrame).
+// checkpoint ("cp<N>", taken), when the cvar changes to N (1..15). Checked every frame (StartFrame).
 
 nosave float vr_tut_goto_seen; // the value acted on (a map's start takes the cvar as it is: no jump)
 nosave float vr_tut_goto_ready;

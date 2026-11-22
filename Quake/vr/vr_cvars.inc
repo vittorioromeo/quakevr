@@ -1149,7 +1149,7 @@ QVR_CVAR(vr_tutorial_started, "0", CVAR_ARCHIVE)      // 1: the tutorial (vrtuto
 // The trailer scene (maps/vrtrailer; QC vr_trailer.qc): Debug > Tests > Trailer Scene.
 QVR_CVAR(vr_trailer_reset, "0", CVAR_NONE)            // 1: the scene as at its start (the grunt, the Super Axe on its pedestal, the player at the start); QC sets it back to 0
 QVR_CVAR(vr_trailer_log, "0", CVAR_NONE)              // 1: the grunt's state (enemy, frame, think, stealth, oblivious), the axe's and the player's places, four times a second
-QVR_CVAR(vr_tutorial_goto, "0", CVAR_NONE)            // in vrtutorial, a change to N (1..12) puts you at lesson N's checkpoint (QC vr_tutorial.qc VR_Tutorial_Frame)
+QVR_CVAR(vr_tutorial_goto, "0", CVAR_NONE)            // in vrtutorial, a change to N (1..15) puts you at lesson N's checkpoint (QC vr_tutorial.qc VR_Tutorial_Frame)
 QVR_CVAR(vr_installer_applied, "", CVAR_ARCHIVE)      // the stamp of installer_settings.cfg (Setup's settings page) last run: it runs once (vr_installer_settings in quake.rc; vr_cvars.cpp)
 QVR_CVAR(vr_setup_pending, "0", CVAR_ARCHIVE)        // 1: VR Calibration starts the next time the headset is on and no game runs (set at a first start, no saved config: vr_migrate_config new; cleared as it starts; vr_setup.cpp)
 QVR_CVAR(vr_comfort_preset, "0", CVAR_NONE)          // Locomotion's Comfort (vr_menu.cpp presets; not saved: the settings it sets are): 1 Comfortable, 2 Moderate, 3 Full Freedom; 0 Custom (shown when the settings match none)
