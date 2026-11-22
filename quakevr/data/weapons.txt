@@ -5005,7 +5005,7 @@ weapon 55
     hol_upper_pitch "15"
     hol_upper_yaw "30"
     hol_upper_roll "20"
-    w_mass "6.0"
+    w_mass "7.2" // dwellweap: 20% heavier in the hands (his note vrtesthall_2026-11-22_15-38-38; was 6.0)
     w_com "15"
     w_len "60"
     // dwellweap, the shot's feel: a kick back and up as a heavy single shot's (it had the Thunderbolt's light stream's,
