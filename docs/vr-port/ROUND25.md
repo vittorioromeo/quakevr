@@ -9261,3 +9261,37 @@ His notes vrropes_2026-11-22_15-43-18, 15-43-56, 15-45-10, 15-48-30 ("Climbing r
   (30), 4 grunts; rope_short: `vr_rope_climb_test <play> 425`; rope_climb adds grip and "no grunt climbing down or on a
   mere grab"; with `vr_rope_hand_grip 1` its grip check fails at 0.15), rope_sound_test 6/0, vr_rope_test 16/0,
   mp_test.py ropeclimb 12/0. ThinLTO 0 warnings.
+
+## pcopt: the Quest optimisations tried on PC; close-up blood in Standalone (branch agent/questmerge, 2026-11-22)
+
+**The A/B** (QUEST_OPTIMISATIONS.md "PC results" has the table): the ES-only program forms got a PC switch,
+**`vr_gl_pc_forms`** (tunable, 0; Debug > Tunables "Quest Shader Forms on PC"; bits 1 models' plain/gore/skin forms,
+2 plain lights' loop, 4 unlit world and its split by surface (the split from the next map), 8 lite world). Under the ES
+profile nothing changes (`VR_GLLiteForms` gives every part; `VR_GLESWorldLite` masks the PC's bits; the unlit world's
+programs on the PC are bit 30 of the set's lite form, `GL_WorldUnlitForms`; on the PC no bare no-discard model form, the
+plain forms only where one fits). Measured on the PC's GPU with the mock headset (2048 and 3072 eyes) and flat: the
+scenes cost 1.2-3.4 ms a frame and every form sits inside the rounds' spread, so all stay off. **`vr_tonemap` 2** (the
+32-bit float scene) is the one clear win: -0.33 ms in both GPU-bound 3072 scenes, the same picture (max 4 levels in still
+scenes): now the PC default; the Tone Mapping rows (Graphics and Quick Settings) are Off / On (64-bit) / On. A saved
+config keeps its old 1. Framebuffer invalidation: harmless, nothing gained; eye sub-image: -0.10 ms in the fight on the
+mock at render scale 0.8, real runtimes not tried, left off. Low's trims (particle share, light-casting things): no
+gain, not added. Dynamic resolution per preset: not measurable with the mock (fixed frames), defaults unchanged. Open:
+`vr_gl_pc_forms 15` at Low changes 0.9-9.7% of pixels though no single bit does (the combination: models' lite form with
+the lite world's bits, or the split under Low's settings): looked at only if a weaker GPU ever wants it.
+
+**Close-up blood** (E): `vr_blood_emitters [reset]` (Debug > Profiling "Blood by Emitter"; `vr_flatblood_test` prints it
+after its verdict) tallies each emitter's blood particles and those made within 48 units of the eye. The gib fight's
+blood was the gibs' trails (`vr_particles_trails.cpp`, `bloodTrail` called directly, not through the preset path the cap
+covered) and impact blood 48-80 units off: none within 48 units, so its count could not move. Now the gib trails and
+the public `bloodMist` go through `vr_blood_near` too (the eye is `r_refdef.vieworg`, the last eye drawn: right for a
+cap on distance). `vr_flatblood_test 5` (a limb popped 30/12/4 units off the eye, the headset mock): blood within 48
+units 413 off, 265 at 64 / 0.5, 64 at 128 / 0.3; **the Standalone preset now has `vr_blood_near 96`,
+`vr_blood_near_mult 0.3`**: 202, the fountain still pours from the first frames (3/0). Leaving Standalone sets rows its
+My Settings file lacks (added since it was kept) back to their defaults (`Kind::restoreMine(true)`): Standalone then High:
+vr_blood_near 96 -> 0, vid_fsaa 0 -> 4, vr_render_scale 0.9 -> 1.
+
+**menu_flat_panel** on `origin/next` (the same 2 failures as on this branch, 26 passed / 2 failed: pre-existing, not the merge's).
+
+Checks: Release builds 0 warnings (qvr_checks), ThinLTO 0 warnings; flatblood 5 under Standalone 3/0, the preset round
+trip above, e1m1 under the new defaults (no GL errors). No flat suites: no shared render core path changed at the
+defaults (`vr_gl_pc_forms` 0; the tone format is the eyes' scene target's).

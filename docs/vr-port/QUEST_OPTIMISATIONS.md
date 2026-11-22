@@ -152,3 +152,35 @@ the PC default where the docs state it. **ES only?** says whether the code path 
 |---|---|---|---|---|---|
 | Body lights Quake's way, its usual form | the body's dynamic lights added flat on the CPU, its batch's light loop skipped in the form it takes anyway (C5f's own form ran the same code ~3.3 ms slower) | posed head 0.7: pitch 70 11.65 -> 10.63, pitch 35 8.71 -> 7.98; fight +0.1 | `vr_gl_quake_dlights 1` (Quest preset) / `vr_gl_alias_body 2` | yes (the CPU add's switch) | Maybe: one loop fewer per pixel on your body; small on a desktop GPU |
 | 24-bit eye depth | D24S8 instead of D32F_S8 for the eyes | pitch 0 -0.37 ms, pitch 35 -1.19 (in-session, 4 rounds) | `vr_depth_float 0` (Quest preset; PC 1) | no | No: the PC keeps the float depth's small near plane |
+
+## PC results (pcopt, 2026-11-22)
+
+Method: the PC's real GPU (desktop GPU, the author's game closed: no low-impact runs), the dev Release exe (the GPU
+times do not depend on the CPU build), one launch per scene and mode, every config of a set measured 3 times
+interleaved (5 at 3072), each `vr_profile` over 120 frames after a 30-frame settle and a warm-up of every config's
+shaders; still scenes (`sv_freezenonclients 1`, `vr_particle_freeze 1`, seeds 7): **fight** 16 grunts on vrfiringrange,
+**lights** e1m1's start with `vr_test_dlights 3`, **e1m1** its start, **torch** e1m2's start. VR: the mock headset's
+eyes at 2048 (and 3072, the second pass); flat: `-flatscreenmode` at its window. Pictures: the mirror's screenshot per
+config against the base's (pixels differing by more than 8 in a channel; VR still scenes repeat to 0.00%, the flat
+view does not: its diffs are noise). `scratch/pcopt_ab.py`, `pcopt_sum.py`, `pcopt_png.py`. The A/B switch for the
+ES-only program forms is new: **`vr_gl_pc_forms`** (bits: 1 models' plain/gore/skin, 2 plain lights, 4 unlit world
+and split, 8 lite world; default 0; Debug > Tunables "Quest Shader Forms on PC"). GPU frame ms (both eyes), mean of the
+rounds (rounds spread +-0.3 to 1.0 ms at 2048: this GPU runs these scenes in 1.2-3.4 ms, so small figures are noise):
+
+| Item | Setting tried | VR 2048: fight / lights / e1m1 / torch | VR 3072: lights / fight | Flat: fight / lights | Same picture? | Verdict |
+|---|---|---|---|---|---|---|
+| A1 models' forms | `vr_gl_pc_forms 1` | +0.06 / -0.67 / +0.30 / +0.33 (alias scope 0.11 -> 0.10-0.11) | +0.05 / +0.00 | -0.10 / +0.09 | yes (0.00%; fight 0.28%, its ragdoll noise) | off: no gain (the models cost 0.1 ms here) |
+| A2 plain lights (shadows off, Low) | `vr_gl_pc_forms 2` | lights -0.11, torch +0.08, fight +0.02 (world scope the same) | - | lights 0.00 | yes | off: no gain; the run-time form (shadows on, none casting) not built |
+| A3 unlit world + split | `vr_gl_pc_forms 4` | -0.02 / -0.43 / +0.23 / +0.01 (world scope the same; CPU busy within noise) | +0.07 / +0.01 | -0.13 / +0.09 | yes | off: no gain; the cull's CPU cost unmeasurable here |
+| A4 32-bit float scene | `vr_tonemap 2` | -0.18 / -1.00 / -0.02 / +0.16 | -0.33 / -0.33 (2.59 -> 2.25, rounds within 0.01) | -0.10 / +0.21 | yes (max 4-8 levels, no banding seen at that threshold) | **on for PC**: `vr_tonemap` default 2 (the Low-Ultra presets' D); Tone Mapping rows now Off / On (64-bit) / On |
+| A5 lite world (Low) | `vr_gl_pc_forms 8` | lights -0.09, torch +0.08, fight +0.03 (world -0.03 to -0.04) | - | lights 0.00 | yes | off: no gain; would remake the shaders per setting |
+| A1-5 all forms (Low) | `vr_gl_pc_forms 15` | lights -0.24, torch +0.03, fight -0.14 (world -0.07, alias -0.04) | - | lights -0.02 | **no**: 0.9-9.7% of pixels differ at Low (not with any one bit alone): to look into before any use | off |
+| A6 framebuffer invalidation | `vr_gl_invalidate 1` | +0.03 / -0.28 / +0.37 / +0.54 | -0.05 / +0.08 | -0.04 / +0.09 | yes | off: harmless, no gain on a desktop GPU; no integrated GPU here to try |
+| A7 eye sub-image | `vr_eye_subimage 2` (render scale 0.8, bilinear) | - | +0.04 against 0 / -0.10 against 0 (1.98 -> 1.88) | - | yes (the same as sub-image 0) | off: a small gain on the mock (fight -0.10, lights noise); whether a real runtime honours `imageRect` not tried (no headset runs) |
+| B Low trims | particle screen 0.08, torch/lava nail/debris lights 2 | fight +0.10, torch +0.01 | - | - | fight 0.29% (particles) | not added: no gain on this GPU |
+| C dynres floor per preset | not run (needs a real headset's frame timing: the mock's fixed frames never miss) | - | - | - | - | defaults unchanged |
+| D already shared | decal bake scissor, posed batching, alias sort key fix, visibility mask, forearm mesh, loads past a throttling runtime, perf recorder | on for PC since the merge (questmerge) | | | | confirmed in the code: shared paths, no ES gate |
+
+Headline: on this desktop GPU none of the Quest's GPU optimisations wins clearly at the same look: the scenes cost
+1.2-3.4 ms a frame and the differences sit inside the rounds' spread. The one exception is the 32-bit float scene (`vr_tonemap 2`): -0.33 ms (-13%) in both GPU-bound 3072 scenes, the same picture, so it is now the PC default (a saved config keeps its 1). Nothing else is turned on for PC;
+`vr_gl_pc_forms` stays as the A/B switch for a weaker GPU.
