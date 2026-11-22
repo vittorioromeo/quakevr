@@ -8206,4 +8206,5 @@ ROPES.md "Multiplayer", "Tests", "Known limits".
 - `mp_test.py ropeclimb` checks the copy's pelvis within 4 of A's own hanging still and notes the swing's pelvis maxima;
   `MP_ROPECLIMB_SHOTS=1` screenshots the copy from beside him. 10 runs, 12/12 each: pelvis 12.4-16.9 against A's own
   12.5-16.7 (0.4 apart at most), swinging ankles 9.8-13.2 (bound 18; were 13.9-21.7, 3 of 9 over), wrists 2-4.
-  rope_climb_test 8+6+6, rope_flat_test 6/0, rope_hands_test 6/0 unchanged. ThinLTO 0 warnings.
+  rope_climb_test 8+6+6, rope_flat_test 6/0, rope_hands_test 6/0 unchanged. ThinLTO 0 warnings; the MP suite in four
+  chunks (ThinLTO build): every scenario passed.
