@@ -1977,15 +1977,17 @@ def dolls_of(lines):
 DOLL_PARTS = 19  # avatardoll: the avatar's own ragdoll's parts (quakevr/rigs/vrdoll*.rig2.txt, Misc/quakevr/make_vrdoll.py)
 DOLL_LEG = 22.06  # ... its left leg's rest length, hip to knee to ankle (model units)
 DOLL_SHORT, DOLL_TALL = 1.55, 1.95  # the two players' eye heights (m) in mp_deathbody
+DOLL_ARM_A = 1.2  # backlog1122c: A's vr_body_arm_length (B keeps 1): his ragdoll's arms that much longer than the model's
 
 
 def doll_rigs_of(lines):
-    """"mp_doll_rig:" lines -> {player ent: (doll, parts, dollscale, leg)}."""
+    """"mp_doll_rig:" lines -> {player ent: (doll, parts, dollscale, leg, arm, restarm)}."""
     out = {}
     for l in lines:
-        m = re.match(r"mp_doll_rig: ent=(\d+) doll=(\d+) parts=(\d+) dollscale=(\S+) leg=(\S+)", l.strip())
+        m = re.match(r"mp_doll_rig: ent=(\d+) doll=(\d+) parts=(\d+) dollscale=(\S+) leg=(\S+)(?: arm=(\S+) restarm=(\S+))?", l.strip())
         if m:
-            out[int(m.group(1))] = (int(m.group(2)), int(m.group(3)), float(m.group(4)), float(m.group(5)))
+            out[int(m.group(1))] = (int(m.group(2)), int(m.group(3)), float(m.group(4)), float(m.group(5)),
+                                    float(m.group(6) or 0), float(m.group(7) or 0))
     return out
 
 
@@ -2026,9 +2028,19 @@ def deathbody_case(s, srv, a, b, ea, eb, victim, ev, own_models, tone, label):
             s.check("%s: its parts follow the avatar rig at its size at %s (the leg %.2f = %.2f x %.3f)" % (
                     label, who, r[3], DOLL_LEG, r[2]), r[2] > 0.0 and abs(r[3] / r[2] - DOLL_LEG) < 0.5,
                     "leg %.2f, scale %.3f: %.2f model units" % (r[3], r[2], r[3] / max(r[2], 1e-6)))
+    # (backlog1122c: the ragdoll in his body's proportions, his arms as his avatar's: A's vr_body_arm_length, B's 1)
+    want_arm = DOLL_ARM_A if ev == ea else 1.0
+    for who in ("A", "B"):
+        r = rigs.get(who)
+        if r:
+            s.check("%s: its arm %s's arm length at %s (%.2f over the model's %.2f = %.3f, want %.2f)" % (
+                    label, label, who, r[4], r[5], r[4] / max(r[5], 1e-6), want_arm),
+                    r[5] > 0.0 and abs(r[4] / r[5] - want_arm) < 0.03)
     if "A" in rigs and "B" in rigs:
         s.check("%s: B's ragdoll the host's size (ragsync: scale %.3f, %.3f)" % (label, rigs["A"][2], rigs["B"][2]),
                 abs(rigs["A"][2] - rigs["B"][2]) < 0.01)
+        s.check("%s: B's ragdoll the host's proportions (arm %.2f, %.2f)" % (label, rigs["A"][4], rigs["B"][4]),
+                abs(rigs["A"][4] - rigs["B"][4]) < 0.15)
     for who in ("A", "B"):
         if who in rigs:
             seen[who]["rig"] = rigs[who]
@@ -2058,9 +2070,15 @@ def deathbody(s):
     B himself draw B's. Each doll's copy: the dead player's build's model, his skin tone and gloves, his jointed hands,
     lying where the doll is."""
     srv, a, b, ea, eb = join(s, listen=True, flat="B")
-    # (avatardoll: a short A and a tall B, their bodies' ragdolls sized so)
-    a.cmd("vr_body_build 2; vr_skin_tone -0.5; vr_gloves 2; vr_height_calibration %.2f" % DOLL_SHORT)
-    b.cmd("vr_body_build 0; vr_skin_tone 0.6; vr_gloves 2; vr_height_calibration %.2f" % DOLL_TALL)
+    # (avatardoll: a short A and a tall B, their bodies' ragdolls sized so; backlog1122c: their arms unmeasured, untweaked:
+    # the model's times vr_body_arm_length, A's longer)
+    arms = "vr_bodycal_upper_arm 0; vr_bodycal_forearm 0; vr_body_tweak_upper_arm 0; vr_body_tweak_forearm 0"
+    a.cmd("vr_body_build 2; vr_skin_tone -0.5; vr_gloves 2; vr_height_calibration %.2f; vr_body_arm_length %g; %s" % (
+        DOLL_SHORT, DOLL_ARM_A, arms))
+    b.cmd("vr_body_arm_length 1; %s" % arms)
+    # (B plays flat: his body is his flat body height's, backlog1122b)
+    b.cmd("vr_body_build 0; vr_skin_tone 0.6; vr_gloves 2; vr_height_calibration %.2f; vr_flat_body_height %.2f" % (
+        DOLL_TALL, DOLL_TALL))
 
     def dressed(lines):
         la, lb = lines
@@ -5858,6 +5876,26 @@ def predict_until(s, inst, key, at_least, what, tries=200):
     raise StepFailed("%s: %s never reached %s (%s)" % (what, key, at_least, pr))
 
 
+def rest_gap(s, srv, b, eb, what, states=36, tries=5):
+    """(mpflakes) B at rest on both sides -> (gap, B's drawn place, the server's): the server's copy of him read until it
+    stood still over `states` of his client's states counted from now (each read; at most `tries`), then his own place.
+    (The waits were counted from a planned state number: when the polls had overshot it, the reads came at once, the
+    server's copy still sliding to his stop a round trip behind his prediction: 1.4-1.9 units off.)"""
+    own = org_of(status(b), "mp_player", "self", 1)
+    sv = org_of(status(srv), "mp_client", "slot", eb - 1)
+    s.note("B at rest (%s): at once %.2f units from the server's copy (%s, %s)" % (
+        what, dist(own, sv) if own and sv else 99.0, own, sv))
+    for _ in range(tries):
+        predict_until(s, b, "states", int(predict_report(b).get("states", 0)) + states, "B at rest (%s)" % what)
+        sv2 = org_of(status(srv), "mp_client", "slot", eb - 1)
+        still = bool(sv and sv2) and dist(sv, sv2) < 0.05
+        sv = sv2
+        if still:
+            break
+    own = org_of(status(b), "mp_player", "self", 1)
+    return (dist(own, sv) if own and sv else 99.0), own, sv
+
+
 def own_move_frames(s, b, label, go, stop):
     """B's own drawn entity moving off after his press, in his moves sent (vr_mp_predict_probe) -> (moves, ms)."""
     since = b.mark()
@@ -5985,11 +6023,19 @@ def predict_lift(s, srv, a, b, ea, eb):
     # prediction's snap to the spot on: his replay meets the lift where it will be, B8e, and it carries him up). (Put
     # over it before it moves, his fall would start it: its start is the server's, a correction no replay can foresee.)
     put_at(srv, a, ea, LIFT_A, 90)
+    # (mpflakes) The buffer's ticks counted from before he is put over it: read after his prediction's snap there, the
+    # count began late and could miss a bunched tick near his landing -- the strict bound then applied to a landing
+    # whose lift was a step off (ROUND25's "lift landing 1.354")
+    tp = buffer_ticks(srv, eb)
     since = b.mark()
     put_at(srv, b, eb, LIFT_DROP, 90)
     b.wait(r"mp_predict_corr: c=\d{3,}", 20, since, "B's prediction put over the lift")
     b.cmd("vr_mp_predict_report reset")
     t0 = buffer_ticks(srv, eb)
+    early = (t0[0] - tp[0]) + (t0[1] - tp[1]) if tp and t0 else -1
+    s.note("the buffer's ticks off one a tick between his put-over and the report's reset: %d" % early)
+    s.metric("b_predict_lift_buffer_off_early", early)
+    t0 = tp or t0
     pr = predict_segment(s, b, "falling onto the lift and riding it", "", 36,
                          ("", "", "", "vr_mock_stick off 0.3 0", "vr_mock_stick off 0 0"), reset=False)
     t1 = buffer_ticks(srv, eb)
@@ -6014,8 +6060,7 @@ def predict_lift(s, srv, a, b, ea, eb):
             "off one a tick: %d)" % (most, off),
             off >= 0 and float(pr.get("contact_max", 99)) < most and float(pr.get("lift_max", 99)) < most,
             "contact %s over %s, the lift's place %s" % (pr.get("contact_max"), pr.get("contact_n"), pr.get("lift_max")))
-    own = org_of(status(b), "mp_player", "self", 1)
-    gap = dist(own, sv) if own and sv else 99.0
+    gap, own, sv = rest_gap(s, srv, b, eb, "on the lift")
     s.check("on the lift at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
             "B draws himself at %s, the server has him at %s" % (own, sv))
     b.cmd("notarget; god")
@@ -6482,9 +6527,7 @@ def predict(s):
             int(pr.get("flat_n", 0)) >= 50 and float(pr.get("flat_max", 99)) < PREDICT_CORR_MOST,
             "max %s over %s states on flat ground (all states: max %s, mean %s)" % (
                 pr.get("flat_max"), pr.get("flat_n"), pr.get("corr_max"), pr.get("corr_mean")))
-    own = org_of(status(b), "mp_player", "self", 1)
-    sv = org_of(status(srv), "mp_client", "slot", eb - 1)
-    gap = dist(own, sv) if own and sv else 99.0
+    gap, own, sv = rest_gap(s, srv, b, eb, "after his walk")
     predict_exact_check(s, "(walking on flat ground)", pr, least=50)
     s.check("at rest B stands where the server has him (within 1 unit)", gap <= 1.0,
             "B draws himself at %s, the server has him at %s" % (own, sv))

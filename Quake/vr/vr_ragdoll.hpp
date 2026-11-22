@@ -105,6 +105,20 @@ struct Rig
 // made again from the files when next asked for.
 void retireAuthored();
 
+// A body's own proportions on an authored rig (a dead player's: his arms and shoulders as his avatar is drawn;
+// vr_mpavatar.cpp dollRig, backlog1122c): each arm's upper arm and forearm `upper` and `fore` times as long (along
+// the bone, its girth kept), each clavicle and everything on it moved by `shoulder` (rest units: forward, up, and out
+// along the clavicle).
+struct Proportions
+{
+    float upper{1.f}, fore{1.f};
+    glm::vec3 shoulder{0.f};
+};
+// `rig` in proportions `p`: a copy made once for each (rounded) set and kept like the rigs (ragdolls point to it); `rig`
+// itself for the model's own proportions, a rig that is not authored, or one without the arms' bones by their names
+// (clavicle_l, upperarm_l, forearm_l, hand_l and the _r ones).
+[[nodiscard]] const Rig* proportioned(const Rig* rig, const Proportions& p);
+
 // Whether `model` has a seed table (the grunt's; vr_ragdoll 1): cheap, by its name.
 [[nodiscard]] bool eligible(const qmodel_t* model);
 

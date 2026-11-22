@@ -7,6 +7,7 @@
 
 #include "vr_box3d_internal.hpp"
 #include "vr_agarms.hpp"
+#include "vr_mpavatar.hpp"
 #include "vr_rig2.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
@@ -1284,6 +1285,8 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
     {
         return false;
     }
+    // A dead player's avatar doll: in his own body's proportions (his arms, his shoulders; its owner by its colours).
+    rig = qvr::mpavatar::serverDollRig(rig, static_cast<int>(ent->v.colormap), za::clamp(1.f + fieldVec(ent, fields().model_scale).x, 0.25f, 4.f));
     // All deaths use the same replacement policy as knockdowns. A full pool must not
     // strand a newly killed monster in its animated death pose.
     if(ragdollCount() >= static_cast<int>(za::max(1.f, vr_ragdoll_max.value)))
