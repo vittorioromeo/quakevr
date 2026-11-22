@@ -57,8 +57,10 @@ extern cvar_t r_lerpmodels;							// r_alias.c
 extern cvar_t r_lerpmove;							// gl_rmain.c
 extern cvar_t gl_farclip;							// gl_rmain.c
 extern cvar_t vid_fsaa;								// gl_vidsdl.c
+extern cvar_t r_oit;								// gl_rmain.c
 extern GLuint gl_bmodel_vbo;						// r_brush.c
 extern size_t gl_bmodel_vbo_size;					// r_brush.c: its size in bytes (glvert_t each)
+extern int gl_bmodel_litcmd_first;					// r_brush.c: the world's lit commands (C4v; -1 none)
 extern gltexture_t* lightmap_texture;				// r_brush.c: the map's lightmaps
 extern vec3_t lightcolor;							// gl_rlight.c: R_LightPoint's light (vr_coil.cpp)
 extern gltexture_t* lux_texture;					// r_brush.c: the map's light directions (deluxemaps), or NULL

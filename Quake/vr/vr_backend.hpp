@@ -249,6 +249,14 @@ public:
         return nullptr;
     }
 
+    // The part of the eye's image (from its lower left corner, GL's) the layer shows this frame, scaled to the view by
+    // the compositor (vr_eye_subimage: eyes drawn smaller than the image, no resample of ours); 0 x 0: the whole image.
+    // False if the backend can't show a part (the eye then fills its image).
+    virtual bool setEyeImageRect(int /* eye */, int /* width */, int /* height */)
+    {
+        return false;
+    }
+
     // GL texture to render an eye into, between acquire and release.
     [[nodiscard]] virtual unsigned acquireEyeImage(int eye) = 0;
     virtual void releaseEyeImage(int eye) = 0;

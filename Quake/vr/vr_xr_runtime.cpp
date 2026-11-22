@@ -825,7 +825,8 @@ void checkOutside()
 
 // A line for the log (opened and closed for each: a crash right after loses nothing).
 // always: also between starts (the stops), once a start began; else only during a start (not every frame's failure).
-void logText(const char* text, bool always = false)
+// console: the text went to the console too (note, warn), whose lines Sys_Printf already puts in logcat on Android.
+void logText(const char* text, bool always = false, bool console = false)
 {
     if(!state.logging && !(always && state.logStarted))
     {
@@ -838,6 +839,14 @@ void logText(const char* text, bool always = false)
         fclose(f);
     }
     runlogs::append("qvr_openxr.txt", text); // (the run's copy, kept with its logs: vr_runlogs.cpp)
+#ifdef __ANDROID__
+    if(!console)
+    {
+        VR_AndroidLog(text); // (logcat as well: adb reads no file the app makes in its folder, FUSE makes them 0660)
+    }
+#else
+    (void)console;
+#endif
 }
 
 // +vr_xr_runtime on the command line (the shortcut's or the debugger's arguments): its value, or null.
@@ -897,7 +906,12 @@ void logText(const char* text, bool always = false)
         plan.fallback = vr_xr_runtime_fallback.value != 0.f;
         if(plan.attempts.empty())
         {
+#ifdef __ANDROID__ // (no manifests to read: the loader asks the system's runtime broker; C4b)
+            plan.attempts.pushBack(Attempt{za::String{}, za::String{"the system's runtime"},
+                za::String{"Android: the loader's runtime broker (a Quest: Meta's)"}});
+#else
             systemDefault("no runtime installed");
+#endif
         }
         q_snprintf(line, sizeof(line), "Auto: %s - %s%s", plan.attempts[0].label.cStr(), plan.attempts[0].reason.cStr(),
             fromCommandLine() ? " (from the command line)" : "");
@@ -1766,7 +1780,7 @@ void note(const char* format, ...)
     q_vsnprintf(text, sizeof(text), format, args);
     va_end(args);
     Con_Printf("%s", text);
-    logText(text);
+    logText(text, false, true);
 }
 
 void warn(const char* format, ...)
@@ -1777,7 +1791,7 @@ void warn(const char* format, ...)
     q_vsnprintf(text, sizeof(text), format, args);
     va_end(args);
     Con_Warning("%s", text);
-    logText(va("WARNING: %s", text));
+    logText(va("WARNING: %s", text), false, true);
 }
 
 void loaded(const Attempt& attempt, const char* runtimeName)

@@ -171,7 +171,7 @@ void Kind::keepMine()
     }
 }
 
-bool Kind::restoreMine()
+bool Kind::restoreMine(bool missingToDefault)
 {
     loadMine();
     if(!minePresent)
@@ -183,6 +183,18 @@ bool Kind::restoreMine()
         if(const Row* row = findRow(e.name.cStr()))
         {
             Cvar_SetQuick(row->var, e.value.cStr());
+        }
+    }
+    for(int i = 0; missingToDefault && i < t.rowCount; i++)
+    {
+        bool kept = false;
+        for(const MineEntry& e : mine)
+        {
+            kept = kept || !q_strcasecmp(e.name.cStr(), t.rows[i].var->name);
+        }
+        if(!kept)
+        {
+            Cvar_SetQuick(t.rows[i].var, t.rows[i].var->default_string);
         }
     }
     return true;

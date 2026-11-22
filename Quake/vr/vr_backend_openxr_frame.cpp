@@ -15,6 +15,51 @@
 namespace qvr::oxr
 {
 
+namespace
+{
+
+// vr_debug_head_pose (C5d): the rendered head level at vr_debug_head_pitch and 1.65 m over the floor, its yaw and its
+// place on the floor kept, the eyes moved with it; vr_debug_hands_front: the hands in front of it at the waist. A
+// headset lying on a table draws a worn view's work this way (the layers keep the runtime's poses: views[]).
+void debugPose(TrackingState& tracking, FrameState& frame)
+{
+    if(vr_debug_head_pose.value == 0.f || !tracking.head.valid)
+    {
+        return;
+    }
+    const Pose head = tracking.head;
+    const glm::vec3 forward = head.orientation * glm::vec3{0.f, 0.f, -1.f};
+    const glm::quat yaw = glm::angleAxis(std::atan2(-forward.x, -forward.z), glm::vec3{0.f, 1.f, 0.f});
+    const glm::quat posed =
+        yaw * glm::angleAxis(-glm::radians(vr_debug_head_pitch.value), glm::vec3{1.f, 0.f, 0.f});
+    const glm::vec3 place{head.position.x, 1.65f, head.position.z};
+    const glm::quat turn = posed * glm::inverse(head.orientation);
+    for(auto& eye : frame.eyes)
+    {
+        eye.pose.position = place + turn * (eye.pose.position - head.position);
+        eye.pose.orientation = turn * eye.pose.orientation;
+    }
+    tracking.head.position = place;
+    tracking.head.orientation = posed;
+    tracking.head.velocityValid = false;
+    if(vr_debug_hands_front.value == 0.f)
+    {
+        return;
+    }
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        const float side = h == HAND_MAIN ? 1.f : -1.f;
+        Pose& hand = tracking.hands[h];
+        hand.position = place + yaw * glm::vec3{0.2f * side, -0.55f, -0.35f};
+        hand.orientation = yaw * glm::angleAxis(glm::radians(-20.f), glm::vec3{1.f, 0.f, 0.f});
+        hand.valid = true;
+        hand.velocityValid = false;
+        hand.gripVelocityValid = false;
+    }
+}
+
+} // namespace
+
 bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
 {
     frame.shouldRender = false;
@@ -57,6 +102,38 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
             fetchHiddenArea(eye);
         }
     }
+    const XrSwapchain eyeHandles[2] = {swapchains[0].handle, swapchains[1].handle};
+    quest.apply(session, eyeHandles); // (Android: the refresh rate, CPU/GPU levels, foveation when changed)
+    if(quest.wantNewEyes)
+    {
+        // vr_xr_foveation changed mid-game (C4p): the runtime crashed in xrEndFrame after updating swapchains in use,
+        // so new eye swapchains (no image of theirs acquired yet; every frame attaches its image anew) take the level.
+        quest.wantNewEyes = false;
+        xrruntime::note("OpenXR: new eye swapchains for vr_xr_foveation %g\n", static_cast<double>(vr_xr_foveation.value));
+        if(!createEyeSwapchains())
+        {
+            // (no eye swapchains now: a frame would submit none; VR stops, sessionEnded, rather than limp on)
+            xrruntime::warn("OpenXR: the new eye swapchains could not be made: VR stops\n");
+            return false;
+        }
+        const XrSwapchain freshHandles[2] = {swapchains[0].handle, swapchains[1].handle};
+        quest.apply(session, freshHandles);
+    }
+
+    if(loadThrottled())
+    {
+        if(throttledFrames++ == 0)
+        {
+            xrruntime::note("OpenXR: xrWaitFrame blocked %.0f ms during a load: the load goes on between waits\n", lastWaitMs);
+        }
+        paceUnwaited();
+        return true;
+    }
+    if(throttledFrames > 0 && cls.signon >= SIGNONS)
+    {
+        xrruntime::note("OpenXR: the load ended; %d host frames ran between throttled waits\n", throttledFrames);
+        throttledFrames = 0;
+    }
 
     XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
     frameState = XrFrameState{XR_TYPE_FRAME_STATE};
@@ -65,6 +142,8 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     t0 = Sys_DoubleTime();
     const XrResult waited = xrWaitFrame(session, &waitInfo, &frameState);
     frameWaitMs = timeCall(CallWait, t0);
+    lastWaitMs = frameWaitMs;
+    lastWaitEnd = Sys_DoubleTime();
     profile::end();
     if(!checkFrameCall(waited, "xrWaitFrame"))
     {
@@ -155,6 +234,7 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     // The tracked body, as the hands (vr_bodytrack_xr.cpp: its tracker made at the first focus, restarted when asked).
     bodytrack::xr::frame(instance, systemId, session, sessionState == XR_SESSION_STATE_FOCUSED);
     bodytrack::xr::locate(worldSpace, time);
+    debugPose(tracking, frame); // (vr_debug_head_pose: unworn GPU tests)
 
     frame.shouldRender = viewsOk && frameState.shouldRender;
     // The runtime's menu has the focus (SteamVR's dashboard...): its last frame again, nothing rendered.
@@ -253,7 +333,11 @@ void OpenXrBackend::endFrame(bool rendered)
             projViews[eye].pose = views[eye].pose;
             projViews[eye].fov = views[eye].fov;
             projViews[eye].subImage.swapchain = swapchains[eye].handle;
-            projViews[eye].subImage.imageRect.extent = {swapchains[eye].width, swapchains[eye].height};
+            // (vr_eye_subimage: the eye drawn into the image's lower left part, the compositor scales it; the [?] of
+            // GL's origin for imageRect on the Quest's runtime: C4 checks it)
+            const XrExtent2Di rect = eyeRects[eye];
+            projViews[eye].subImage.imageRect.extent = rect.width > 0 && rect.height > 0
+                ? rect : XrExtent2Di{swapchains[eye].width, swapchains[eye].height};
             lastViews[eye] = projViews[eye];
         }
         haveLastViews = true;
@@ -368,6 +452,15 @@ bool OpenXrBackend::lostBy(XrResult result, const char* call)
             code, instanceLost ? "runtime" : "session", stateTrailText));
     }
     return true;
+}
+
+bool OpenXrBackend::loadThrottled() const
+{
+    if(cls.state != ca_connected || cls.signon >= SIGNONS || lastWaitMs < throttleWaitMs)
+    {
+        return false;
+    }
+    return Sys_DoubleTime() - lastWaitEnd < throttleRetry;
 }
 
 void OpenXrBackend::paceUnwaited()
@@ -501,6 +594,8 @@ void OpenXrBackend::fetchHiddenArea(int eye)
 bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height, XrSwapchainUsageFlags usage, const char* what)
 {
     XrSwapchainCreateInfo info{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    XrSwapchainCreateInfoFoveationFB foveationInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO_FOVEATION_FB};
+    info.next = &sc != &panel ? quest.swapchainNext(foveationInfo) : nullptr; // (the eyes: foveation-capable, Quest)
     info.usageFlags = usage;
     info.format = colorFormat;
     info.sampleCount = 1;
@@ -574,7 +669,7 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
         return failed();
     }
     sc.images.clear();
-    sc.images.resize(imageCount, XrSwapchainImageOpenGLKHR{XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR});
+    sc.images.resize(imageCount, SwapchainImageGl{swapchainImageGlType});
     step("%s: xrEnumerateSwapchainImages (%u OpenGL images)", what, imageCount);
     if(!contextReady(what))
     {
@@ -588,7 +683,7 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
     {
         return failed();
     }
-    for(const XrSwapchainImageOpenGLKHR& image : sc.images)
+    for(const SwapchainImageGl& image : sc.images)
     {
         if(image.image == 0)
         {
@@ -597,7 +692,7 @@ bool OpenXrBackend::createSwapchain(Swapchain& sc, int32_t width, int32_t height
         }
     }
     // Named for vr_vram_report (the runtime's textures, in our context; a name that is not ours: a GL error, cleared).
-    for(const XrSwapchainImageOpenGLKHR& image : sc.images)
+    for(const SwapchainImageGl& image : sc.images)
     {
         GL_ObjectLabelFunc(GL_TEXTURE, image.image, -1, va("xr swapchain %s", what));
     }

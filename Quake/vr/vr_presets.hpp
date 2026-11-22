@@ -57,7 +57,8 @@ public:
     void apply(int level);
 
     // My Settings set back; false: none kept.
-    bool restoreMine();
+    // missingToDefault: a row the file lacks (added since it was kept) goes back to its default (leaving Standalone)
+    bool restoreMine(bool missingToDefault = false);
 
     // Save as My Settings: the current values of every row kept (written over what was kept).
     void saveMine();
@@ -90,6 +91,7 @@ public:
     void menuApply(int level);
     void menuRestoreMine();
     void menuSaveMine(); // pressed twice within 3 seconds (it replaces what was kept)
+    void setNote(const char* text); // the menu's note line (also for a button of its own: the Standalone preset's)
 
     [[nodiscard]] za::String minePath() const;
 
@@ -106,7 +108,6 @@ private:
     void loadMine();
     void writeMine();
     void captureMine();
-    void setNote(const char* text);
     [[nodiscard]] const Row* findRow(const char* name) const;
 
     const Table& t;

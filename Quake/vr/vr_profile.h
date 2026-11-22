@@ -36,7 +36,7 @@ void VR_ProfileBeginGPU (const char *name);	// a CPU and GPU scope (the main thr
 void VR_ProfileEnd (void);					// ends the innermost scope
 extern int vr_glpass_trace;					// vr_gl_passes: this frame's draw framebuffer binds and alias batches are being noted
 void VR_GLPassBind (unsigned fbo);			// gl_vidsdl.c's bind shadow, while vr_glpass_trace: a draw framebuffer bound
-void VR_GLAliasBatch (const char *model, int instances, int draws0, int depth, int ent, int skin, int tris); // R_FlushAliasInstances, while vr_glpass_trace
+void VR_GLAliasBatch (const char *model, int instances, int draws0, int depth, int ent, int skin, int form, int needs, int tris); // R_FlushAliasInstances, while vr_glpass_trace (form: 0 depth only, 1 full, 2 opaque, 3 plain; needs: VR_AliasPlainNeeds; tris: an instance's)
 
 // GL debug groups (vr_gl_markers, latched at each frame's start into vr_gl_markers_on): every GPU scope is also one,
 // named as its profile scope; these open one alone (the main thread; balanced as scopes, each pops what its begin

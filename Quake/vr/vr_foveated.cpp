@@ -10,6 +10,7 @@
 #include "vr_main.hpp"
 #include "vr_testkit.hpp"
 #include "vr_api_render.h"
+#include "vr_api.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -322,7 +323,7 @@ bool supported()
         const auto* name = reinterpret_cast<const char*>(GL_GetStringiFunc(GL_EXTENSIONS, static_cast<GLuint>(i)));
         found = name && !ZA_STRCMP(name, "GL_NV_shading_rate_image");
     }
-    if(found)
+    if(found && !VR_GLESForm(VR_GLES_FORM_FOVEATION)) // (-glescompat: no shading-rate image on OpenGL ES)
     {
         bindShadingRateImage =
             reinterpret_cast<BindShadingRateImageFn>(SDL_GL_GetProcAddress("glBindShadingRateImageNV"));

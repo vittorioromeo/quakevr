@@ -211,8 +211,13 @@ void refresh();
 // next frame's, and the hands would difference to standing still).
 void relatch();
 
-// Updated at most once per host frame; valid only while connected to a VR-protocol server.
+// Updated at most once per host frame; valid only while connected to a VR-protocol server (or demoViewOnly()).
 [[nodiscard]] State& current();
+
+// A demo of another protocol (id's demo1-3) played on the Quest (or under -glescompat): the head placed for the eyes,
+// the player's own models (hands, body, guns, holsters, the wrist gadget) and their lights not drawn: they are not the
+// demo's (C4u, QUEST_PLAN.md 6za: in demo1 they cost the Quest 3 ~18 ms of GPU a frame).
+[[nodiscard]] bool demoViewOnly();
 
 // World-space distance the head walked in the play space since the last call (room-scale
 // movement, sent with each move).

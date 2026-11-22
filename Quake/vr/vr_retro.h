@@ -40,6 +40,75 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define QVR_RETRO_LUT_UNIT_GFX 2    // ... in vr_gfx's (decals, Quake VR's particles: vr_gfx_gl.cpp)
 #define QVR_RETRO_LUT_UNIT_SPRITE 3 // ... in the sprites' and Quake's particles' (r_sprite.c, r_part.c)
 
+// QVR: the functions reading a texture, twice where the world's textures are in arrays (QVR_WORLD_ARRAYS: the bound
+// path's array twins, vr/vr_worldarrays.cpp): for sampler2D, then for sampler2DArray (the layer: WLayer, the call's,
+// the same in all four of its arrays). `funcs` names the sampler type QVR_S and wraps each coordinate in QVR_UV().
+#define QVR_SAMPLER_TWINS(funcs) \
+"#define QVR_S sampler2D\n#define QVR_UV(x) (x)\n" funcs "#undef QVR_S\n#undef QVR_UV\n" \
+"#ifdef QVR_WORLD_ARRAYS\n#ifndef QVR_WLAYER_DECL\n#define QVR_WLAYER_DECL\nfloat WLayer = 0.0;\n#endif\n" \
+"#define QVR_S sampler2DArray\n#define QVR_UV(x) vec3(x, WLayer)\n" funcs "#undef QVR_S\n#undef QVR_UV\n#endif\n"
+
+// the retro textures' reads (QVR_RETRO_GLSL, twice: QVR_SAMPLER_TWINS)
+#define QVR_RETRO_SAMPLER_FUNCS \
+"vec4 RetroTap(QVR_S tex, vec2 cell, float lod, bool quant)\n" \
+"{\n" \
+"	vec4 c = textureLod(tex, QVR_UV((cell + 0.5) / RetroGrid), lod);\n" \
+"	if (quant)\n" \
+"		c.rgb = RetroQuant(c.rgb, cell);\n" \
+"	return c;\n" \
+"}\n" \
+"// The blocks: each its colour (the mip level of its size at its centre), the edges blended over P0.y pixels\n" \
+"// (anti-aliased nearest: one read inside a block, two or four on its edges)\n" \
+"vec4 RetroBlocks(QVR_S tex, vec2 uv, vec2 duvdx, vec2 duvdy, bool quant)\n" \
+"{\n" \
+"	vec2 p = uv * RetroGrid - 0.5; // in blocks, from the first's centre\n" \
+"	vec2 i = floor(p), f = p - i;\n" \
+"	vec2 w = (abs(duvdx) + abs(duvdy)) * RetroGrid * RetroP0.y;\n" \
+"	f = clamp((f - 0.5) / max(w, vec2(1e-4)) + 0.5, 0.0, 1.0);\n" \
+"	vec2 size = vec2(textureSize(tex, 0).xy);\n" \
+"	vec2 tb = size / RetroGrid, ex = duvdx * size, ey = duvdy * size;\n" \
+"	float lod = max(RetroP2.x > 0.0 ? log2(max(max(tb.x, tb.y), 1.0)) : 0.0, 0.5 * log2(max(max(dot(ex, ex), dot(ey, ey)), 1.0)));\n" \
+"	bvec2 edge = bvec2(f.x > 0.0 && f.x < 1.0, f.y > 0.0 && f.y < 1.0);\n" \
+"	vec2 c = i + vec2(edge.x ? 0.0 : f.x, edge.y ? 0.0 : f.y);\n" \
+"	vec4 r = RetroTap(tex, c, lod, quant);\n" \
+"	if (edge.x)\n" \
+"		r = mix(r, RetroTap(tex, c + vec2(1.0, 0.0), lod, quant), f.x);\n" \
+"	if (edge.y)\n" \
+"	{\n" \
+"		vec4 r2 = RetroTap(tex, c + vec2(0.0, 1.0), lod, quant);\n" \
+"		if (edge.x)\n" \
+"			r2 = mix(r2, RetroTap(tex, c + vec2(1.0, 1.0), lod, quant), f.x);\n" \
+"		r = mix(r, r2, f.y);\n" \
+"	}\n" \
+"	return r;\n" \
+"}\n" \
+"vec4 RetroSmooth(QVR_S tex, vec2 uv, vec2 duvdx, vec2 duvdy, bool quant)\n" \
+"{\n" \
+"	vec2 size = vec2(textureSize(tex, 0).xy), ex = duvdx * size, ey = duvdy * size;\n" \
+"	vec4 c = RetroLodReads ? textureLod(tex, QVR_UV(uv), 0.5 * log2(max(max(dot(ex, ex), dot(ey, ey)), 1e-8))) : textureGrad(tex, QVR_UV(uv), duvdx, duvdy);\n" \
+"	if (quant)\n" \
+"		c.rgb = RetroQuant(c.rgb, floor(uv * RetroGrid));\n" \
+"	return c;\n" \
+"}\n" \
+"// A colour texture through the pixel's set (Retro > 0): blocks, faded to plain mipmapping far off\n" \
+"vec4 RetroSample(QVR_S tex, vec2 uv, vec2 duvdx, vec2 duvdy, bool quant)\n" \
+"{\n" \
+"	if (RetroP0.w <= 0.0 || RetroFar >= 1.0)\n" \
+"		return RetroSmooth(tex, uv, duvdx, duvdy, quant);\n" \
+"	vec4 c = RetroBlocks(tex, uv, duvdx, duvdy, quant);\n" \
+"	return RetroFar > 0.0 ? mix(c, RetroSmooth(tex, uv, duvdx, duvdy, quant), RetroFar) : c;\n" \
+"}\n" \
+"// A bump or specular map: smooth, or blended towards the blocks by P1.w (textureGrad as before with no set). k is\n" \
+"// 0..1 (P1.w and RetroFar are): only the smooth read at 0, only the blocks at 1 (no read whose weight is 0)\n" \
+"vec4 RetroAux(QVR_S tex, vec2 uv, vec2 duvdx, vec2 duvdy)\n" \
+"{\n" \
+"	float k = Retro > 0 && RetroP0.w > 0.0 ? RetroP1.w * (1.0 - RetroFar) : 0.0;\n" \
+"	if (k <= 0.0)\n" \
+"		return textureGrad(tex, QVR_UV(uv), duvdx, duvdy);\n" \
+"	vec4 b = RetroBlocks(tex, uv, duvdx, duvdy, false);\n" \
+"	return k >= 1.0 ? b : mix(textureGrad(tex, QVR_UV(uv), duvdx, duvdy), b, k);\n" \
+"}\n"
+
 // The settings of a set (3 vec4s), as RetroSets holds them:
 //   P0: x block size (> 0), y edge softness (pixels; 0 hard), z the blocks a pixel spans where it is plain mipmapping
 //       again (it starts fading at half that), w 1 snapping (0: the texture as it was, only the palette and dither)
@@ -122,64 +191,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "		c.rgb = RetroQuant(c.rgb / k, cell) * k;\n" \
 "	return c;\n" \
 "}\n" \
-"vec4 RetroTap(sampler2D tex, vec2 cell, float lod, bool quant)\n" \
-"{\n" \
-"	vec4 c = textureLod(tex, (cell + 0.5) / RetroGrid, lod);\n" \
-"	if (quant)\n" \
-"		c.rgb = RetroQuant(c.rgb, cell);\n" \
-"	return c;\n" \
-"}\n" \
-"// The blocks: each its colour (the mip level of its size at its centre), the edges blended over P0.y pixels\n" \
-"// (anti-aliased nearest: one read inside a block, two or four on its edges)\n" \
-"vec4 RetroBlocks(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, bool quant)\n" \
-"{\n" \
-"	vec2 p = uv * RetroGrid - 0.5; // in blocks, from the first's centre\n" \
-"	vec2 i = floor(p), f = p - i;\n" \
-"	vec2 w = (abs(duvdx) + abs(duvdy)) * RetroGrid * RetroP0.y;\n" \
-"	f = clamp((f - 0.5) / max(w, vec2(1e-4)) + 0.5, 0.0, 1.0);\n" \
-"	vec2 size = vec2(textureSize(tex, 0));\n" \
-"	vec2 tb = size / RetroGrid, ex = duvdx * size, ey = duvdy * size;\n" \
-"	float lod = max(RetroP2.x > 0.0 ? log2(max(max(tb.x, tb.y), 1.0)) : 0.0, 0.5 * log2(max(max(dot(ex, ex), dot(ey, ey)), 1.0)));\n" \
-"	bvec2 edge = bvec2(f.x > 0.0 && f.x < 1.0, f.y > 0.0 && f.y < 1.0);\n" \
-"	vec2 c = i + vec2(edge.x ? 0.0 : f.x, edge.y ? 0.0 : f.y);\n" \
-"	vec4 r = RetroTap(tex, c, lod, quant);\n" \
-"	if (edge.x)\n" \
-"		r = mix(r, RetroTap(tex, c + vec2(1.0, 0.0), lod, quant), f.x);\n" \
-"	if (edge.y)\n" \
-"	{\n" \
-"		vec4 r2 = RetroTap(tex, c + vec2(0.0, 1.0), lod, quant);\n" \
-"		if (edge.x)\n" \
-"			r2 = mix(r2, RetroTap(tex, c + vec2(1.0, 1.0), lod, quant), f.x);\n" \
-"		r = mix(r, r2, f.y);\n" \
-"	}\n" \
-"	return r;\n" \
-"}\n" \
-"vec4 RetroSmooth(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, bool quant)\n" \
-"{\n" \
-"	vec2 size = vec2(textureSize(tex, 0)), ex = duvdx * size, ey = duvdy * size;\n" \
-"	vec4 c = RetroLodReads ? textureLod(tex, uv, 0.5 * log2(max(max(dot(ex, ex), dot(ey, ey)), 1e-8))) : textureGrad(tex, uv, duvdx, duvdy);\n" \
-"	if (quant)\n" \
-"		c.rgb = RetroQuant(c.rgb, floor(uv * RetroGrid));\n" \
-"	return c;\n" \
-"}\n" \
-"// A colour texture through the pixel's set (Retro > 0): blocks, faded to plain mipmapping far off\n" \
-"vec4 RetroSample(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, bool quant)\n" \
-"{\n" \
-"	if (RetroP0.w <= 0.0 || RetroFar >= 1.0)\n" \
-"		return RetroSmooth(tex, uv, duvdx, duvdy, quant);\n" \
-"	vec4 c = RetroBlocks(tex, uv, duvdx, duvdy, quant);\n" \
-"	return RetroFar > 0.0 ? mix(c, RetroSmooth(tex, uv, duvdx, duvdy, quant), RetroFar) : c;\n" \
-"}\n" \
-"// A bump or specular map: smooth, or blended towards the blocks by P1.w (textureGrad as before with no set). k is\n" \
-"// 0..1 (P1.w and RetroFar are): only the smooth read at 0, only the blocks at 1 (no read whose weight is 0)\n" \
-"vec4 RetroAux(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy)\n" \
-"{\n" \
-"	float k = Retro > 0 && RetroP0.w > 0.0 ? RetroP1.w * (1.0 - RetroFar) : 0.0;\n" \
-"	if (k <= 0.0)\n" \
-"		return textureGrad(tex, uv, duvdx, duvdy);\n" \
-"	vec4 b = RetroBlocks(tex, uv, duvdx, duvdy, false);\n" \
-"	return k >= 1.0 ? b : mix(textureGrad(tex, uv, duvdx, duvdy), b, k);\n" \
-"}\n"
+QVR_SAMPLER_TWINS(QVR_RETRO_SAMPLER_FUNCS)
 
 // The engine's calls (VR_RetroUpload, VR_RetroBind, VR_RetroCall, VR_RetroInstance) are declared in vr_api_render.h.
 

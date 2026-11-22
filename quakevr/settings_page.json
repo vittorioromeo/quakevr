@@ -230,6 +230,11 @@
      "value": "4",
      "label": "Ultra",
      "help": "Past the defaults, for fast graphics cards: 12 shadowed dynamic lights and 6 map lights out to 4096 units, more torch lights, particles at full resolution, the finer bloom, deeper parallax steps."
+    },
+    {
+     "value": "6",
+     "label": "Standalone",
+     "help": "The best settings for a standalone headset (the Quest 3, picked on its first start): Low, then a steady 72 frames a second first. A smaller image with dynamic resolution, no MSAA, shadows, bloom or order-independent transparency, the dynamic lights Quake's way, and capped particles, marks, gibs, ragdolls and blood near your eyes. The least GPU time with Quake VR's look."
     }
    ]
   }

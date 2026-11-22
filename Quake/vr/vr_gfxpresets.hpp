@@ -8,7 +8,12 @@
 // exactly. Save as My Settings writes the current values over it. Only graphics settings are in the table: never
 // comfort, gameplay, the body, calibration or sound.
 //
-// Console: vr_graphics_preset 0..4 applies a preset (5: My Settings) and goes back to -1 (it is a button, not a state);
+// Standalone (the Quest's preset, listed on every platform): the Low preset, then a second table of its own
+// (standaloneRows: resolution, passes, light paths, particle and gore caps) at one of three levels (Quest 3 72 Hz, Quest
+// 3 90 Hz, Quest 2 72 Hz); its own rows' values from before are kept in <gamedir>/standalone_my_settings.cfg (was
+// quest_my_settings.cfg, moved on first use) and set back when another preset or My Settings is picked from it.
+//
+// Console: vr_graphics_preset 0..4 applies a preset (5: My Settings, 6: Standalone) and goes back to -1 (it is a button, not a state);
 // vr_graphics_preset_save is Save as My Settings; vr_graphics_preset_status prints the state and, when Custom, the rows
 // that differ from the nearest preset.
 //
@@ -31,6 +36,7 @@ namespace qvr::gfxpresets
 inline constexpr int levelCount = 5; // Off, Low, Medium, High, Ultra
 inline constexpr int levelHigh = 3;  // the shipped defaults
 inline constexpr int levelMine = 5;  // vr_graphics_preset's My Settings
+inline constexpr int levelStandalone = 6; // vr_graphics_preset's Standalone
 
 void init();
 
@@ -66,5 +72,10 @@ void saveMine();
 void menuApply(int level);
 void menuRestoreMine();
 void menuSaveMine(); // pressed twice within 3 seconds (it replaces what was kept)
+
+// The Standalone preset: the Low preset, then its own rows at one of its levels (0 Quest 3 72 Hz, the menu's).
+void applyStandalone(int level);
+void menuApplyStandalone();
+[[nodiscard]] int standaloneLevel(); // the Standalone level the settings match now, or -1
 
 } // namespace qvr::gfxpresets

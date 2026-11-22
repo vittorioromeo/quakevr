@@ -533,9 +533,17 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 		if (VID_Borderless ())
 			flags |= SDL_WINDOW_BORDERLESS;
 
+#ifdef __ANDROID__
+		// QVR: Android (the Quest): an OpenGL ES 3.2 context through EGL; the renderer's ES profile is on there
+		// (VR_GLESCompat, vr_glsafe.cpp; QUEST_PLAN.md)
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+#else
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, MIN_GL_VERSION_MAJOR);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, MIN_GL_VERSION_MINOR);
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#endif
 #ifndef NDEBUG
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 #else
@@ -1112,6 +1120,10 @@ static void APIENTRY GL_DebugCallback (GLenum source, GLenum type, GLuint id, GL
 GL_InitFunctions
 ===============
 */
+#ifdef __ANDROID__
+static const char *const gl_es_suffixes[] = {"EXT", "OES", "KHR"}; // QVR: GL_InitFunctions' ES names of core functions
+#endif
+
 qboolean GL_InitFunctions (const glfunc_t *funcs, qboolean required)
 {
 	qboolean ret = true;
@@ -1120,6 +1132,20 @@ qboolean GL_InitFunctions (const glfunc_t *funcs, qboolean required)
 	{
 		if ((*funcs->ptr = SDL_GL_GetProcAddress (funcs->name)) == NULL)
 		{
+#ifdef __ANDROID__
+			// QVR: OpenGL ES: the extension's name of a desktop core function (glMultiDrawElementsIndirectEXT, ...), else
+			// none: the ES profile never calls those (VR_GLESInstallForms puts its ES forms in after this), so only listed
+			char esname[128];
+			size_t s;
+			for (s = 0; s < countof (gl_es_suffixes) && !*funcs->ptr; s++)
+			{
+				q_snprintf (esname, sizeof (esname), "%s%s", funcs->name, gl_es_suffixes[s]);
+				*funcs->ptr = SDL_GL_GetProcAddress (esname);
+			}
+			Con_SafePrintf ("OpenGL ES: %s %s\n", funcs->name, *funcs->ptr ? va ("as %s", esname) : "not in the driver (the ES profile's form or unused)");
+			funcs++;
+			continue;
+#endif
 			if (required)
 			{
 				Sys_Error ("OpenGL function %s not found\n", funcs->name);
@@ -1209,7 +1235,8 @@ static void GL_CheckExtensions (void)
 	gl_buffer_storage_able =
 		!COM_CheckParm ("-nobufferstorage") &&
 		!VR_GLSafeOff (VR_GLSAFE_BUFFER_STORAGE) && // QVR: safe mode, vendor workarounds (vr/vr_glsafe.cpp)
-		GL_FindExtension ("GL_ARB_buffer_storage") &&
+		(GL_FindExtension ("GL_ARB_buffer_storage") ||
+		 (VR_Android () && GL_FindExtension ("GL_EXT_buffer_storage"))) && // QVR: ES's (glBufferStorageEXT, by GL_InitFunctions' ES names): without it every GL_Upload was a glBufferSubData into a buffer in use, which Adreno copies whole (the Quest's 1-2 FPS, QUEST_PLAN.md 6l)
 		GL_InitFunctions (gl_arb_buffer_storage_functions, false)
 	;
 
@@ -1231,7 +1258,7 @@ static void GL_CheckExtensions (void)
 	gl_clipcontrol_able =
 		!COM_CheckParm ("-noclipcontrol") &&
 		!VR_GLSafeOff (VR_GLSAFE_CLIP_CONTROL) && // QVR: safe mode, vendor workarounds (vr/vr_glsafe.cpp)
-		GL_FindExtension ("GL_ARB_clip_control") &&
+		(GL_FindExtension ("GL_ARB_clip_control") || (VR_GLESCompat () && GL_FindExtension ("GL_EXT_clip_control"))) && // QVR: ES: glClipControlEXT (GL_InitFunctions' ES names), the same enums
 		GL_InitFunctions (gl_arb_clip_control_functions, false)
 	;
 
@@ -1388,19 +1415,20 @@ static void GL_SetupState (void)
 	if (gl_clipcontrol_able)
 	{
 		GL_ClipControlFunc (GL_LOWER_LEFT, GL_ZERO_TO_ONE);
-		glClearDepth (0.f);
+		GL_ClearDepthfFunc (0.f); // QVR: the float form (ES has no other)
 		glDepthFunc (GL_GEQUAL);
 	}
 	else
 	{
-		glClearDepth (1.f);
+		GL_ClearDepthfFunc (1.f);
 		glDepthFunc (GL_LEQUAL);
 	}
 	glFrontFace (GL_CW); //johnfitz -- glquake used CCW with backwards culling -- let's do it right
-	glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+	VR_GLPolygonMode (GL_FILL); // QVR: none on ES
 	GL_DepthRange (ZRANGE_FULL); //johnfitz -- moved here becuase gl_ztrick is gone.
 	glEnable (GL_BLEND);
-	glEnable (GL_TEXTURE_CUBE_MAP_SEAMLESS);
+	if (!VR_GLESCompat ()) // QVR: always on in ES 3.x (no such switch there)
+		glEnable (GL_TEXTURE_CUBE_MAP_SEAMLESS);
 	glEnable (GL_SAMPLE_SHADING);
 
 	GL_ResetState ();
@@ -1438,6 +1466,16 @@ static void GL_Init (void)
 		VR_LogsSystemLine (va ("GL safe mode: %s\n", VR_GLSafeDescribe ())); // QVR: (vr/vr_glsafe.cpp, decided at VID_Init)
 	}
 
+#ifdef __ANDROID__ // QVR: an OpenGL ES context ("OpenGL ES 3.2 V@..."): ES 3.2 under the ES profile (VR_GLESCompat)
+	if (gl_version == NULL || sscanf(gl_version, "OpenGL ES %d.%d", &gl_version_major, &gl_version_minor) < 2)
+	{
+		gl_version_major = 0;
+		gl_version_minor = 0;
+	}
+	gl_version_number = MAKE_GL_VERSION(gl_version_major, gl_version_minor);
+	if (gl_version_number < MAKE_GL_VERSION(3, 2))
+		Sys_Error("OpenGL ES 3.2 required, found %d.%d\n", gl_version_major, gl_version_minor);
+#else
 	if (gl_version == NULL || sscanf(gl_version, "%d.%d", &gl_version_major, &gl_version_minor) < 2)
 	{
 		gl_version_major = 0;
@@ -1446,10 +1484,12 @@ static void GL_Init (void)
 	gl_version_number = MAKE_GL_VERSION(gl_version_major, gl_version_minor);
 	if (gl_version_number < MIN_GL_VERSION)
 		Sys_Error("OpenGL " MIN_GL_VERSION_STR " required, found %d.%d\n", gl_version_major, gl_version_minor);
+#endif
 
 	VR_GLStep ("GL functions and extensions (GL_CheckExtensions)"); // QVR
 	GL_CheckExtensions ();
 	GL_InstallFramebufferShadow (); // QVR
+	VR_GLESInstallForms (); // QVR: -glescompat: the ES forms of calls ES lacks (vr/vr_glsafe.cpp)
 
 	VR_GLStep ("vertex array, buffer alignments"); // QVR
 	GL_GenVertexArraysFunc (1, &globalvao);
@@ -1490,7 +1530,9 @@ static void GL_Init (void)
 	// as many as it likes, every status read at GL_CreateShaders' end (not after each)
 	{
 		qboolean khr = GL_FindExtension ("GL_KHR_parallel_shader_compile");
-		if (khr || GL_FindExtension ("GL_ARB_parallel_shader_compile"))
+		if (COM_CheckParm ("-noparallelshaders")) // QVR: tests: the drivers without it (one program at a time)
+			Con_SafePrintf ("-noparallelshaders: the driver's parallel shader compile not used\n");
+		else if (khr || GL_FindExtension ("GL_ARB_parallel_shader_compile"))
 		{
 			void (APIENTRY *maxthreads) (GLuint count) = (void (APIENTRY *) (GLuint)) SDL_GL_GetProcAddress (khr ? "glMaxShaderCompilerThreadsKHR" : "glMaxShaderCompilerThreadsARB");
 			if (maxthreads)
@@ -1500,8 +1542,13 @@ static void GL_Init (void)
 			}
 		}
 	}
-	VR_TIMED ("shaders compiled and linked (GL_CreateShaders)", GL_CreateShaders ()); // QVR: start-up timing (vr_startup_times)
-	VR_TIMED ("VR programs compiled and linked (VR_PrecompilePrograms)", VR_PrecompilePrograms ()); // QVR: none at a first draw in play
+	if (GL_ShadersAsyncOn ()) // QVR: queued: made over the loading panel's frames (GL_ShadersPump; QUEST_PLAN.md 6zi)
+		VR_TIMED ("shaders and VR programs queued (GL_CreateShadersAsync)", GL_CreateShadersAsync (true));
+	else
+	{
+		VR_TIMED ("shaders compiled and linked (GL_CreateShaders)", GL_CreateShaders ()); // QVR: start-up timing (vr_startup_times)
+		VR_TIMED ("VR programs compiled and linked (VR_PrecompilePrograms)", VR_PrecompilePrograms ()); // QVR: none at a first draw in play
+	}
 	VR_GLStep ("framebuffers (GL_CreateFrameBuffers)"); // QVR: breadcrumbs (vr/vr_glsafe.cpp)
 	GL_CreateFrameBuffers ();
 	VR_GLStep ("light tiles (GLLight_CreateResources)");
@@ -1564,7 +1611,8 @@ GL_EndRendering
 */
 void GL_EndRendering (void)
 {
-	GL_PostProcess ();
+	if (!VR_NoWindow ()) // QVR: Android with VR running: no window image (vr/vr_main.cpp)
+		GL_PostProcess ();
 	GL_ReleaseFrameResources ();
 	if (!scr_skipupdate)
 		VR_ImGuiRender (); // QVR: the flat-screen tools' windows (the Rig Studio), last (vr/vr_imgui.cpp)
@@ -1581,6 +1629,24 @@ void GL_EndRendering (void)
 	}
 }
 
+
+/*
+=================
+VID_LoadingSize, VID_LoadingSwap -- QVR
+
+The loading panel's frames (vr/vr_shaderload.cpp: the shaders queued): the window's drawable size, its image shown.
+=================
+*/
+void VID_LoadingSize (int *w, int *h)
+{
+	SDL_GL_GetDrawableSize (draw_context, w, h);
+}
+
+void VID_LoadingSwap (void)
+{
+	if (!VR_NoWindow () && !VR_SkipSwap ())
+		SDL_GL_SwapWindow (draw_context);
+}
 
 void	VID_Shutdown (void)
 {
@@ -1785,6 +1851,7 @@ void	VID_Init (void)
 		"vr_glsafe", // QVR: GL safe mode, decided before the window opens (vr/vr_glsafe.cpp)
 		"vr_diagnostics", // QVR: diagnostics mode, from before the window (vr/vr_diagnostics.cpp)
 		"vr_gl_workarounds",
+		"vr_program_cache", // QVR: the GL programs' binaries, used by GL_CreateShaders (vr/vr_diskcache.cpp)
 	};
 #define num_readvars	Q_COUNTOF(read_vars)
 
@@ -1831,6 +1898,7 @@ void	VID_Init (void)
 	Cmd_AddCommand ("vid_describecurrentmode", VID_DescribeCurrentMode_f);
 	Cmd_AddCommand ("vid_describemodes", VID_DescribeModes_f);
 	Cmd_AddCommand ("vr_shader_reload", GL_ReloadShaders_f); // QVR: tests (gl_shaders.c)
+	Cmd_AddCommand ("vr_shader_reload_queued", GL_ReloadShadersQueued_f); // QVR: the loading panel (gl_shaders.c; Debug > Startup)
 
 	putenv (vid_center);	/* SDL_putenv is problematic in versions <= 1.2.9 */
 
