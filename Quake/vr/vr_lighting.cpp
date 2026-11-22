@@ -32,6 +32,7 @@
 #include "Zancle/Math/Cbrt.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Exp2.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/Log2.hpp"
@@ -2439,7 +2440,7 @@ void lighting::lightCurve(float* lightcolor)
         if(m > knee)
         {
             const float room = za::max(cap - knee, 1e-4f);
-            const float out = knee + room * (1.f - std::exp(-(m - knee) / room));
+            const float out = knee + room * (1.f - za::exp(-(m - knee) / room));
             const float k = out / m;
             for(int i = 0; i < 3; i++)
             {
