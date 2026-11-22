@@ -1231,10 +1231,278 @@ void climbCheck_f()
     }
 }
 
+// vr_rope_flat_test (P3, ROPES.md "Tests"; flat-screen play, -flatscreenmode, in vrropes; vr_climb.cpp flatRope): a rope
+// the test hangs to near the floor walked into with forward held (taken, both hands), climbed looking up (the feet up 80
+// units, the hands hand over hand: their holds' serials change, both drawn on it), climbed down looking down (off it
+// standing on the floor); then rope to rope (Tarzan) on the map's swinging row: set by its first rope in the air (taken),
+// the forward key pumps its swing towards the second (192 on), let go with jump at the swing's forward peak, the second
+// caught in the air. Counted server frames and the swing's own state; the frame limits a safety net (FAIL timed out).
+struct FlatTest
+{
+    int stage{0}; // 0 off
+    int frames{0};
+    testkit::Tally tally;
+    int rope{0};             // the test's rope (near the floor), and the row's first two
+    int first{0}, second{0};
+    int ropesBefore{0};      // climb::flatRopes before a take
+    float feet0{0.f};
+    int lastSerial{-1};
+    int serials{0};
+    int handBits{0};
+    float fastest{0.f};      // the swing's fastest level speed at the hands
+    float lastVx{0.f};
+    float pitch{0.f}, yaw{0.f};
+};
+FlatTest flatTest;
+constexpr const char* flatTestName = "vr_rope_flat_test";
+constexpr glm::vec3 flatTestRope{200.f, -400.f, 0.f}; // (vrropes: open floor south-east of the row)
+constexpr glm::vec3 flatTestRow[2] = {{-288.f, 0.f, 0.f}, {-96.f, 0.f, 0.f}};
+
+void flatTestNext(FlatTest& t, int stage)
+{
+    t.stage = stage;
+    t.frames = 0;
+}
+
+void flatTestPlace(edict_t* player, const glm::vec3& at, float yaw)
+{
+    for(int k = 0; k < 3; k++)
+    {
+        player->v.origin[k] = player->v.oldorigin[k] = at[k];
+        player->v.velocity[k] = 0.f;
+    }
+    SV_LinkEdict(player, false);
+    flatTest.yaw = yaw;
+}
+
+void flatTestEnd(FlatTest& t, bool timedOut, const char* what)
+{
+    if(timedOut)
+    {
+        t.tally.check(false, flatTestName, va("timed out: %s", what));
+    }
+    Cbuf_AddText("-forward\n-back\n-jump\n");
+    t.tally.verdict(flatTestName);
+    t.stage = 0;
+}
+
+void flatTestFrame()
+{
+    FlatTest& t = flatTest;
+    t.frames++;
+    edict_t* player = firstPlayer();
+    if(!player)
+    {
+        return;
+    }
+    const int client = NUM_FOR_EDICT(player) - 1;
+    cl.viewangles[PITCH] = t.pitch;
+    cl.viewangles[YAW] = t.yaw;
+    bool climbing = false;
+    const int taken = climb::flatRopes(player, climbing);
+    const float feet = player->v.origin[2] + player->v.mins[2];
+    const bool ground = (static_cast<int>(player->v.flags) & FL_ONGROUND) != 0;
+    if(climbing)
+    {
+        const int bits = cl.stats[protocol::STAT_QVR_CLIMB];
+        const int serial = (bits >> 2) & 4095;
+        t.serials += t.lastSerial >= 0 && serial != t.lastSerial ? 1 : 0;
+        t.lastSerial = serial;
+        t.handBits |= bits & 3;
+    }
+    switch(t.stage)
+    {
+    case 1: // the rope hung, the player set before it
+    {
+        const glm::vec3 at = flatTestRope + glm::vec3{0.f, 0.f, 1.f};
+        edict_t* e = box3d::spawnClass("vr_rope", at, glm::vec3{0.f});
+        if(!e)
+        {
+            t.tally.check(false, flatTestName, "the rope made");
+            flatTestEnd(t, false, "");
+            return;
+        }
+        placeWith(e, at, 480.f, 1.5f, 0, 0.f, 1.f, 0.5f, false);
+        t.rope = NUM_FOR_EDICT(e);
+        t.pitch = 0.f;
+        flatTestPlace(player, flatTestRope + glm::vec3{-80.f, 0.f, -player->v.mins[2] + 1.f}, 0.f);
+        flatTestNext(t, 2);
+        return;
+    }
+    case 2: // settled (the rope at rest, him on the floor): forward
+        if(t.frames >= 108)
+        {
+            t.ropesBefore = taken;
+            Cbuf_AddText("+forward\n");
+            flatTestNext(t, 3);
+        }
+        return;
+    case 3: // walked into it
+        if(taken > t.ropesBefore && climbing)
+        {
+            t.tally.check(true, flatTestName, "walked into the rope: taken");
+            Con_Printf("%s: PASS walked into the rope: taken (feet at %.1f)\n", flatTestName, feet);
+            t.feet0 = feet;
+            t.serials = 0;
+            t.lastSerial = -1;
+            t.handBits = 0;
+            t.pitch = -50.f; // (looking up, forward held: up)
+            flatTestNext(t, 4);
+        }
+        else if(t.frames > 72 * 4)
+        {
+            flatTestEnd(t, true, "walking into the rope (flat-screen play, -flatscreenmode?)");
+        }
+        return;
+    case 4: // climbing up
+        if(!climbing || feet >= t.feet0 + 80.f || t.frames > 72 * 6)
+        {
+            const bool ok = climbing && feet >= t.feet0 + 80.f && t.serials >= 4 && t.handBits == 3;
+            t.tally.check(ok, flatTestName, va("climbed up looking up: the feet from %.1f to %.1f, %d hand changes, hands drawn off %d main %d",
+                                              t.feet0, feet, t.serials, t.handBits & 1, (t.handBits >> 1) & 1));
+            if(ok)
+            {
+                Con_Printf("%s: PASS climbed up looking up: the feet from %.1f to %.1f, %d hand changes, both hands drawn\n", flatTestName,
+                    t.feet0, feet, t.serials);
+            }
+            t.pitch = 50.f; // (looking down, forward held: down)
+            t.serials = 0;
+            t.lastSerial = -1;
+            flatTestNext(t, 5);
+        }
+        return;
+    case 5: // climbing down to the floor
+        if(!climbing && ground)
+        {
+            const bool ok = za::abs(feet) < 2.f && t.serials >= 2;
+            t.tally.check(ok, flatTestName, va("climbed down looking down: off it standing, the feet at %.1f, %d hand changes", feet, t.serials));
+            if(ok)
+            {
+                Con_Printf("%s: PASS climbed down looking down: off it standing, the feet at %.1f, %d hand changes\n", flatTestName, feet,
+                    t.serials);
+            }
+            Cbuf_AddText("-forward\n");
+            t.pitch = 0.f;
+            climbrope::Grab g;
+            t.first = climbrope::findGrab(flatTestRow[0] + glm::vec3{0.f, 0.f, 300.f}, 8.f, g) ? g.ent : 0;
+            t.second = climbrope::findGrab(flatTestRow[1] + glm::vec3{0.f, 0.f, 300.f}, 8.f, g) ? g.ent : 0;
+            flatTestNext(t, 6);
+        }
+        else if(t.frames > 72 * 10)
+        {
+            flatTestEnd(t, true, "climbing down");
+        }
+        return;
+    case 6: // rope to rope: set in the air by the row's first rope, facing the second
+        if(t.frames < 36)
+        {
+            return;
+        }
+        if(!t.first || !t.second)
+        {
+            t.tally.check(false, flatTestName, "the map's swinging row (vrropes)");
+            flatTestEnd(t, false, "");
+            return;
+        }
+        t.ropesBefore = taken;
+        flatTestPlace(player, flatTestRow[0] + glm::vec3{-12.f, 0.f, 170.f}, 0.f);
+        flatTestNext(t, 7);
+        return;
+    case 7: // taken in the air
+    {
+        int ent = 0;
+        glm::vec3 v{0.f};
+        if(climbing && climbrope::riding(client, ent, v) && ent == t.first)
+        {
+            t.tally.check(true, flatTestName, "set in the air by a rope: taken");
+            Con_Printf("%s: PASS set in the air by a rope: taken (rope %d, the hands at %.1f)\n", flatTestName, ent, player->v.origin[2]);
+            t.fastest = 0.f;
+            t.lastVx = 0.f;
+            Cbuf_AddText("+forward\n"); // (looking level: the pump)
+            flatTestNext(t, 8);
+        }
+        else if(t.frames > 72 * 2)
+        {
+            flatTestEnd(t, true, "taking the first rope in the air");
+        }
+        return;
+    }
+    case 8: // pumping towards the second, until near the cap; then let go at the forward peak
+    {
+        int ent = 0;
+        glm::vec3 v{0.f};
+        if(!climbing || !climbrope::riding(client, ent, v))
+        {
+            t.tally.check(false, flatTestName, va("pumping: fell off the rope (feet at %.1f)", feet));
+            flatTestEnd(t, false, "");
+            return;
+        }
+        t.fastest = za::max(t.fastest, glm::length(glm::vec2{v.x, v.y}));
+        const bool peak = t.lastVx > 0.f && v.x <= 0.f && player->v.origin[0] > flatTestRow[0].x + 60.f;
+        t.lastVx = v.x;
+        if(peak && t.fastest >= 0.85f * za::max(vr_rope_swing_cap.value, 0.f))
+        {
+            t.tally.check(true, flatTestName, "pumped the swing");
+            Con_Printf("%s: PASS pumped the swing to %.0f units/s at the hands (cap %.0f) in %.1f s; let go at its peak, %.0f on\n",
+                flatTestName, t.fastest, vr_rope_swing_cap.value, t.frames / 72.f, player->v.origin[0] - flatTestRow[0].x);
+            Cbuf_AddText("-forward\n+jump\n");
+            flatTestNext(t, 9);
+        }
+        else if(t.frames > 72 * 40)
+        {
+            flatTestEnd(t, true, va("pumping (fastest %.0f units/s)", t.fastest));
+        }
+        return;
+    }
+    case 9: // in the air: the second caught
+    {
+        if(t.frames == 6)
+        {
+            Cbuf_AddText("-jump\n");
+        }
+        int ent = 0;
+        glm::vec3 v{0.f};
+        if(climbing && climbrope::riding(client, ent, v))
+        {
+            const bool ok = ent == t.second;
+            t.tally.check(ok, flatTestName, va("rope to rope: caught rope %d (the next %d) after %.2f s, feet at %.1f", ent, t.second,
+                                              t.frames / 72.f, feet));
+            if(ok)
+            {
+                Con_Printf("%s: PASS rope to rope: caught the next rope after %.2f s, feet at %.1f\n", flatTestName, t.frames / 72.f, feet);
+            }
+            flatTestEnd(t, false, "");
+        }
+        else if(ground || t.frames > 72 * 3)
+        {
+            t.tally.check(false, flatTestName, va("rope to rope: not caught (%s, at %.1f %.1f %.1f)", ground ? "landed" : "3 s",
+                                               player->v.origin[0], player->v.origin[1], player->v.origin[2]));
+            flatTestEnd(t, false, "");
+        }
+        return;
+    }
+    default:
+        return;
+    }
+}
+
+void flatTest_f()
+{
+    if(!sv.active || !progs::bindings().isVrProgs || progs::fields().rope_length < 0)
+    {
+        Con_Printf("%s: FAIL usage: vr_rope_flat_test in flat-screen play (-flatscreenmode), map vrropes\n", flatTestName);
+        testkit::verdict(flatTestName, 0, 1);
+        return;
+    }
+    flatTest = FlatTest{};
+    flatTest.stage = 1;
+}
+
 void serverReset()
 {
     ropes.clear();
     climbTest = ClimbTest{};
+    flatTest = FlatTest{};
     for(auto& client : handsSeen)
     {
         for(HandSeen& h : client)
@@ -1312,6 +1580,7 @@ void init()
     Cmd_AddCommand("vr_rope_push", push_f);
     Cmd_AddCommand("vr_rope_climb_test", climbTest_f);
     Cmd_AddCommand("vr_rope_climb_check", climbCheck_f);
+    Cmd_AddCommand("vr_rope_flat_test", flatTest_f);
 }
 
 bool isRopeClass(const char* classname)
@@ -1334,6 +1603,10 @@ void serverFrame()
     if(climbTest.stage)
     {
         climbTestFrame();
+    }
+    if(flatTest.stage)
+    {
+        flatTestFrame();
     }
     // New ropes (a map's, the toolgun's): rope entities with no rope yet.
     for(int num = svs.maxclients + 1; num < sv.qcvm.num_edicts; num++)
@@ -1486,6 +1759,37 @@ bool findGrab(const glm::vec3& hand, float reach, Grab& out)
     return best < 1e9f;
 }
 
+bool grabAlong(int ent, int client, float s, Grab& out)
+{
+    const Rope* r = ropeOf(ent);
+    if(!r || r->p.size() < 2)
+    {
+        return false;
+    }
+    float length = 0.f;
+    for(const float piece : r->rest)
+    {
+        length += piece;
+    }
+    s = za::clamp(s, topClear, za::max(topClear, length - topClear));
+    const Rider& rd = r->rider;
+    float d = 0.f;
+    glm::vec3 at{0.f};
+    if(rd.client == client && rd.started)
+    {
+        // (On his line: straight from the top as the line's other holds are, layRider's scale.)
+        d = s * (rd.sLow > 1e-3f ? rd.dLow / rd.sLow : 1.f);
+        at = r->top + riderDir(*r, rd.bob) * d;
+    }
+    else
+    {
+        at = pointAtArc(*r, s);
+        d = glm::distance(at, r->top);
+    }
+    out = Grab{ent, s, d, at, r->params.chain};
+    return true;
+}
+
 bool holdAt(int ent, int client, float s, float d, glm::vec3& at)
 {
     const Rope* r = ropeOf(ent);
@@ -1635,6 +1939,21 @@ void parse()
         }
         c.p[static_cast<za::SizeT>(i)] = at;
     }
+}
+
+float clientRopeDistance(const glm::vec3& p)
+{
+    float best = 1e9f;
+    for(const auto& kv : clientRopes)
+    {
+        const ClientRope& c = kv.second;
+        for(za::SizeT j = 0; j + 1 < c.p.size(); j++)
+        {
+            float ta = 0.f, tb = 0.f;
+            best = za::min(best, geom::segmentsDistance(p, p, c.p[j], c.p[j + 1], ta, tb));
+        }
+    }
+    return best;
 }
 
 bool clientRopeAt(const glm::vec3& near, float within, float z, glm::vec3& at)

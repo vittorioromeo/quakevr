@@ -380,6 +380,7 @@
         row(opt::vr_flat_mantle_time),
         row(opt::vr_flat_mantle_grunt_delay),
         row(opt::vr_flat_ladder),
+        row(opt::vr_flat_rope),
         row(opt::vr_flat_slide),
         row(opt::vr_flat_tp),
         open("Third-Person Camera", pageIndex(pageFlatThirdPerson))
