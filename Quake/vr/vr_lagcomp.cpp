@@ -367,7 +367,7 @@ void serverFrame()
     }
 }
 
-void noteMove(int slot, float time, float viewBack)
+void noteMove(int slot, float time, float viewBack, double cameAt, double quiet)
 {
     if(slot < 0 || slot >= MAX_SCOREBOARD)
     {
@@ -385,12 +385,15 @@ void noteMove(int slot, float time, float viewBack)
         back = moveguard::rewindMost;
         held = true;
     }
+    double rtt = 0.0;
     if(sv.active && slot < svs.maxclients && svs.clients[slot].netconnection)
     {
         unsigned int linkCounts[5];
-        double rtt = 0.0;
         NET_QvrLinkCounts(svs.clients[slot].netconnection, linkCounts, &rtt);
-        const double oldest = sv.qcvm.time - (2.0 * rtt + rewindSlack);
+        // (mpflakes) Judged when the move came, less the silence before it (netmove::serverCame): an honest client's
+        // frame hitch under load (0.5-0.9 s: his catch-up ticks' moves all name his newest message from before it), the
+        // server's move buffer then keeping them a tick each, held 4-12 of an honest player's moves in 3 runs of 5.
+        const double oldest = za::min(cameAt, sv.qcvm.time) - (2.0 * rtt + rewindSlack + za::max(quiet, 0.0));
         if(rtt > 0.0 && t < oldest)
         {
             t = oldest;
@@ -400,6 +403,13 @@ void noteMove(int slot, float time, float viewBack)
     if(held)
     {
         moveguard::countRewind(slot);
+        if(vr_mp_guard_debug.value > 0.f) // (each held rewind named, as the move guard's values are)
+        {
+            Con_Printf("mp_guard_held: slot=%d rewind back %.3f of %.3f, time %.3f come at the server's %.3f (run at "
+                       "%.3f), rtt %.3f, quiet %.3f\n",
+                slot, static_cast<double>(viewBack), moveguard::rewindMost, static_cast<double>(time), cameAt,
+                sv.qcvm.time, rtt, quiet);
+        }
     }
     seen[slot] = Seen{true, t, back};
 }

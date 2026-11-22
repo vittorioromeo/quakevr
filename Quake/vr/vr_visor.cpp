@@ -65,6 +65,11 @@ struct State
 {
     bool wasActive{false};
     int lastFrame{-1};
+    // The view's leaf checks (vr_center_panel_info): updates with no world signed on (the headset's centre popup runs
+    // update() from VR_End2D, also while a map loads: a console print redraws the screen), and of those, the ones that
+    // found r_viewleaf set but not a leaf of cl.worldmodel (the old world's, freed: Host_ClearMemory clears it now).
+    int signonUpdates{0};
+    int staleLeafs{0};
     float clock{0.f}; // seconds, the visor's own (host_frametime each frame)
     // The sway.
     bool haveAngles{false};
@@ -125,17 +130,20 @@ using geom::smoothstep;
     return vr_gadget_test_state.value == 1.f ? 18.f : static_cast<float>(cl.stats[STAT_HEALTH]); // (the gadget's readings)
 }
 
+// The view's leaf only with a world signed on: update() also runs from VR_End2D while a map loads (the headset's centre
+// popup; a console print redraws the screen), when r_viewleaf may still be the freed old world's (the crash of 11-22).
 [[nodiscard]] bool eyeUnderwater()
 {
-    // (Only a leaf of the world as signed on: while a map loads, a console print draws the screen with r_viewleaf still
-    // in the last map's freed leafs -- an access violation in scenario_check, 2026-11-22, now and then.)
-    if(!r_viewleaf || cls.signon != SIGNONS || !cl.worldmodel || !cl.worldmodel->leafs)
+    const bool inWorld = cls.signon == SIGNONS && cl.worldmodel != nullptr;
+    if(!inWorld)
     {
+        state.signonUpdates++;
+        const bool ownLeaf = cl.worldmodel != nullptr && r_viewleaf >= cl.worldmodel->leafs &&
+                             r_viewleaf <= cl.worldmodel->leafs + cl.worldmodel->numleafs; // (a pointer compare, no read)
+        state.staleLeafs += r_viewleaf != nullptr && !ownLeaf ? 1 : 0;
         return false;
     }
-    const auto at = reinterpret_cast<uintptr_t>(r_viewleaf);
-    const auto first = reinterpret_cast<uintptr_t>(cl.worldmodel->leafs);
-    if(at < first || at >= first + sizeof(mleaf_t) * static_cast<uintptr_t>(cl.worldmodel->numleafs + 1))
+    if(!r_viewleaf)
     {
         return false;
     }
@@ -1649,9 +1657,10 @@ void headsetCenterStatus()
 {
     const HeadsetCenter& h = headsetPass.look;
     Con_Printf("center popup: fade %.3f pop %.2f pops %d claimed %d; shown %d texture %.0fx%.0f visor px (contents at %.1f %.1f, "
-               "%.0fx%.0f), %d renders\n",
+               "%.0fx%.0f), %d renders; loading updates %d, stale view leafs %d\n",
         state.center.fade, centerPop(), state.center.pops, state.center.claimed, h.shown ? 1 : 0, h.size.x, h.size.y,
-        h.contentsAt.x, h.contentsAt.y, h.contentsSize.x, h.contentsSize.y, headsetPass.renders);
+        h.contentsAt.x, h.contentsAt.y, h.contentsSize.x, h.contentsSize.y, headsetPass.renders, state.signonUpdates,
+        state.staleLeafs);
 }
 
 void init()

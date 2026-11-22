@@ -7837,6 +7837,39 @@ Phase 3's rest (ROPES.md "Climbing (flat-screen)", "Multiplayer", "Tests", "Know
   ROPES.md's known limits, kept out of the suite.
 ## backlog1122b: the rest of backlog1122 (branch agent/backlog1122b, 2026-11-22)
 
+## mpflakes: mp_guard's honest rewinds, mp_predict's rest and lift (agent/mpflakes, 2026-11-22)
+
+- **mp_guard "A's honest moves: rewinds N held"** (a load flake: 0 of 6 idle, 3-4 of 4 with `--load 30`): the server held
+  an honest client's view time when his move's `time` (his newest message) was older than 2 x rtt + 0.5 s at the moment
+  the move *ran*. The new `mp_guard_held: ... rewind` lines (vr_mp_guard_debug) showed two causes, both from frame
+  hitches under load: (a) a client hitch of 0.5-0.9 s, after which his frame's catch-up ticks send a burst of moves all
+  naming his newest message from before it; (b) the server's move buffer then ran them one a tick, adding its own wait
+  (e.g. time 36.644 run at 37.172-37.256, one tick apart). Now the age is judged at the move's first read
+  (`netmove::serverCame`: each kept move's arrival) less a quiet allowance: the silence before its packet (from the
+  slot's reset at its connection or map), spent as the server's time goes on (`quiet = max(gap, quiet - gap)` a packet).
+  A liar gains only as much as he stays silent, and lag compensation stays capped by `vr_net_lagcomp_most`; the cheat's
+  view a second back and newest message two back are still held (B's counts unchanged). The lockstep's moves are judged
+  as they run, as before (the same every run).
+- **mp_predict "at rest B stands where the server has him" 1.4-1.9 off**: the test's wait was counted from a planned
+  state number; when the legs' polls had overshot it (load), the read came at once, B's own copy stopped and the
+  server's still sliding to his stop a round trip behind. `rest_gap` (mp_test.py) now reads the server's copy until it
+  stands still over 36 of B's states counted from then (at most 5 reads), then B's; it notes the old immediate gap too:
+  at `--load 26` it was 9.90 and 0.20 units in 2 of 5 runs (both pass settled), 0.00-0.10 at `--load 12`. Used on the
+  walk's and the lift's rest checks.
+- **The lift landing** (ROUND25 "lift landing 1.354"): the bound is a unit when the server's buffer ran every tick one
+  move during the segment, else a lift step; the ticks were counted from after B's prediction snapped over the lift, so
+  a bunched tick between his put-over and that read (1 run of 10 had one) was missed and the strict bound applied. Now
+  counted from before the put-over (`b_predict_lift_buffer_off_early` metric). Not reproduced in 20 runs (contact 0.000
+  every run).
+- Not player-facing beyond MULTIPLAYER.md's line on a stalled player (no PATCH_NOTES line). Seen only under extreme
+  load (`--load 26-30` on 32 CPUs, games at normal priority): mp_predict's state-count checks (swam 144-149 of 150,
+  flat ground 11-20 of 50, own move 5-16 moves) and mp_guard's B6 segment (11-19 of 20 compared), and joins timing
+  out; not chased (the counts are of states that come slower under such load).
+- Checks: mp_guard 10/10 and mp_predict 10/10 at `--load 12` (bases/mp; no honest rewind held, every settled rest gap
+  0.00). The plain suite in 3 slices in order (10, 17, 15 min; each with mp_netsafe): 67 of 68 passed; mp_ground's
+  "B's grip takes the shotgun by that hotspot" failed once and passed 2/2 alone. scenario_check PASS (191 run, 0
+  failed). Dev and ThinLTO builds 0 warnings.
+
 - **1. ad_test3's ladder, flat (fixed).** Its rungs are steps cut in a func_wall (-495..-465 x, z 249..331), so they
   stop the box 18 units short of their holds: with the shoulders 2.6 behind the origin the higher rung of the only
   pair in reach (268/284) was 27.5 away against a reach of 26.3. `flatLadder` (vr_climb.cpp) now measures the rungs from
@@ -7906,6 +7939,27 @@ shove, climb...) and propose a key or leave it VR-only."
 - Test: `Misc/quakevr/flatkeybind_test.sh <agent>` + the gear case (Controls' row with no clash, 9 dims then lights,
   `vr_gear_lights` 0 then 1): 13 passed, 0 failed. Scenario `flat_gear_lights`.
 
+
+## visorcrash: the headset's centre popup read a freed view leaf while a map loaded (agent/visorcrash, 2026-11-22)
+
+- **Seen:** scenario_check (testspeed's run), an access violation at vr_visor.cpp:230 (`eyeUnderwater`, inlined in
+  `update()`), vrtesthall ~98 s in; stack: CL_ParseServerMessage > Con_Printf > SCR_UpdateScreen > VR_End2D >
+  `visor::renderHeadsetCenter` (vrcenterprint2).
+- **Why:** vrcenterprint2 made the headset's centre popup step the visor's `update()` from VR_End2D, every VR frame
+  (`centerPanelOn` is just `vr_center_panel` and VR). During a map load a console print redraws the screen, so that ran
+  after Host_ClearMemory had freed the old world (the hunk's blocks are heap blocks since nohunk: freed memory can be
+  decommitted) and before R_NewMap cleared `r_viewleaf`: `r_viewleaf->contents` read the old world's leaf. The flat
+  visor's `update()` only ran from R_RenderView (a signed-on view), so it never saw this.
+- **Fix:** Host_ClearMemory clears `r_viewleaf` with the world it pointed into (as R_NewMap does later; also guards
+  vr_lighting.cpp's PVS read); `eyeUnderwater` reads the leaf only with a world signed on (`cls.signon == SIGNONS`).
+  `vr_center_panel_info` now also prints "loading updates N, stale view leafs M" (updates with no world signed on; of
+  those, r_viewleaf set but not a leaf of `cl.worldmodel`: a pointer compare, never a read).
+- **Test** `Misc/quakevr/visorload_test.sh <agent>` (VR mock, -loopbackonly): vrtesthall, reloaded, e1m1, vrtesthall,
+  then the counts: loading updates > 0 (the path ran: 12) and stale leafs 0. 2 passed, 0 failed (3 runs); with the
+  Host_ClearMemory line disabled: stale view leafs 2 (each would have been the crash's read when the block was gone).
+- **update_notice_test:** its "same" feed now serves VERSION whole (1.2.0-beta1, not 1.2.0: a beta's final is newer,
+  semver), and it checks `vr_update_compare`'s prerelease order (1.2.0-beta1 > 1.1.0, < 1.2.0, < 1.2.0-beta2). The
+  game's logic was already right (vr_update.cpp `comparePre`: a 1.1.0 feed gives a beta no notice, 1.2.0 does): all passed.
 ## backlog1122c: the last backlog1122 items (branch agent/backlog1122c, 2026-11-22)
 
 - **1. Avatar-doll corpses: his proportions on the physics rig.** A dead player's ragdoll (progs/vrdoll*.mdl) is no longer
@@ -7958,4 +8012,4 @@ All three were the tests, not the game; no player-facing change.
   `noises_knock` and `noises_shot` fail (the grunt walks ~104 navmesh steps, stops ~375 from the noise, scouts 2-3 spots,
   goes back; they passed in the alarm round: something since, not bisected). **nav_lift_down**: the scene's reach test
   printed no verdict in 83 s of game time (its 60 s limit should end it with a FAIL: check the scenario's `cmd` lines run).
-- Checks: gadget_lock 17/0, flatfg2h 11/0, twohand_regrip 7/0; ThinLTO 0 warnings; scenario_check PASS (193 scenes) twice. Its first run crashed once (access violation in vr_visor.cpp eyeUnderwater: during a map load a console print drew the screen with r_viewleaf in the last map's freed leafs); the visor now reads only a leaf of the signed-on world (a range check on cl.worldmodel->leafs).
+- Checks: gadget_lock 17/0, flatfg2h 11/0, twohand_regrip 7/0; ThinLTO 0 warnings; scenario_check PASS (193 scenes) twice. Its first run crashed once (access violation in vr_visor.cpp eyeUnderwater: during a map load a console print drew the screen with r_viewleaf in the last map's freed leafs); next's visorcrash fix covers it (merged here; this branch's duplicate guard dropped).
