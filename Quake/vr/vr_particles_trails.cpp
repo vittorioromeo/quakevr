@@ -7,6 +7,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_api.h"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -1073,7 +1074,7 @@ void electricTrail(const glm::vec3& from, const glm::vec3& to)
 
 [[nodiscard]] bool adElectricBolt(const qmodel_t* m)
 {
-    return m && !strcmp(m->name, "progs/proj_plasma.mdl"); // AD support
+    return m && !ZA_STRCMP(m->name, "progs/proj_plasma.mdl"); // AD support
 }
 } // namespace detail
 

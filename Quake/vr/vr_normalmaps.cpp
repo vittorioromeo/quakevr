@@ -12,6 +12,10 @@
 
 #include "vr_cvars.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
@@ -20,7 +24,6 @@
 
 #include <limits.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define NORMALMAP_MAXSIZE	256 // made ones: the bumps a dynamic light shows need no more (and a 512 texture's would take 1.4 MB)
 #define NORMALMAP_TEXELS	2 // made ones: at most 2 texels a unit (a replacement's finer grain is noise as bumps)
@@ -114,8 +117,8 @@ static void TexMgr_DilateIslands (const MaskView &hm, float *lum, int width, int
 			in[y * width + x] = hm.mask[(y * hm.height / height) * hm.width + x * hm.width / width] != 0;
 	for (pass = 0; pass < DILATE_TEXELS * q_max (1, width / hm.width); pass++)
 	{
-		memcpy (src, lum, width * height * sizeof (float));
-		memcpy (next, in, width * height);
+		ZA_MEMCPY(src, lum, width * height * sizeof (float));
+		ZA_MEMCPY(next, in, width * height);
 		TexMgr_ForRows (height, width * height, [&] (int y)
 		{
 			for (int x = 0; x < width; x++)
@@ -141,7 +144,7 @@ static void TexMgr_DilateIslands (const MaskView &hm, float *lum, int width, int
 				}
 			}
 		});
-		memcpy (in, next, width * height);
+		ZA_MEMCPY(in, next, width * height);
 	}
 	if (!scratch)
 		Hunk_FreeToLowMark (mark);
@@ -220,7 +223,7 @@ static void TexMgr_ShadingToHeights (const MaskView &hm, const float *lum, float
 
 	mark = scratch ? 0 : Hunk_LowMark ();
 	tmp = scratch ? scratch : (float *) Hunk_Alloc (count * sizeof (float));
-	memcpy (h, lum, count * sizeof (float));
+	ZA_MEMCPY(h, lum, count * sizeof (float));
 	passes = texelsperunit > 1.5f ? 2 : 1;
 	for (pass = 0; pass < passes; pass++)
 	{
@@ -242,7 +245,7 @@ static void TexMgr_ShadingToHeights (const MaskView &hm, const float *lum, float
 		});
 	}
 
-	memset (histogram, 0, sizeof (histogram));
+	ZA_MEMSET(histogram, 0, sizeof (histogram));
 	for (i = 0; i < count; i++)
 		histogram[CLAMP (0, (int)(h[i] * 255.f + 0.5f), 255)]++;
 	for (i = 0, seen = 0; i < 255 && seen + histogram[i] <= (int)(count * HEIGHT_LOW); i++)
@@ -381,7 +384,7 @@ static void TexMgr_BlurIslands (float *out, const float *in, const float *wgt, i
 		float *copy = scratch ? scratch + count * 4 : (float *) Hunk_Alloc (count * 4 * sizeof (float));
 		for (pass = 0; pass < 2; pass++)
 		{
-			memcpy (copy, acc, count * 4 * sizeof (float));
+			ZA_MEMCPY(copy, acc, count * 4 * sizeof (float));
 			TexMgr_ForRows (h, count, [&] (int y)
 			{
 				for (int x = 0; x < w; x++)
@@ -542,7 +545,7 @@ static void TexMgr_SkinToNormals (const MaskView &hm, byte *data, int width, int
 						bins[si] = wgt[si] >= 1.f ? (short) CLAMP (0, (int)(sqrtf (sd[0] * sd[0] + sd[1] * sd[1]) * 1024.f), 255) : -1;
 					}
 				});
-				memset (fhist, 0, sizeof (fhist));
+				ZA_MEMSET(fhist, 0, sizeof (fhist));
 				for (fi = 0, fseen = 0; fi < count; fi++)
 					if (bins[fi] >= 0)
 					{
@@ -806,7 +809,7 @@ static za::String TexMgr_MakeNormalCacheBuild (void)
 	char stamp[32];
 	char build[24];
 	q_snprintf (stamp, sizeof (stamp), "skin normals v%d", NORMALCACHE_VERSION);
-	q_snprintf (build, sizeof (build), "%016llx", qvr::diskcache::fnv (qvr::diskcache::fnvStart, stamp, strlen (stamp)));
+	q_snprintf (build, sizeof (build), "%016llx", qvr::diskcache::fnv (qvr::diskcache::fnvStart, stamp, ZA_STRLEN(stamp)));
 	return build;
 }
 static const za::String normalcache_build = TexMgr_MakeNormalCacheBuild (); // (made before main, read-only)
@@ -868,7 +871,7 @@ extern "C" void VR_AlphaCoverageMip (const byte *in, byte *out, int count, float
 {
 	int		hist[256], i, t, above = 0, target = (int)(coverage * count + 0.5f), err = INT_MAX, hi = ALPHATEST_CUTOFF, lo = ALPHATEST_CUTOFF, hiabove = -1;
 
-	memset (hist, 0, sizeof (hist));
+	ZA_MEMSET(hist, 0, sizeof (hist));
 	for (i = 0; i < count; i++)
 		hist[in[i * 4 + 3]]++;
 	for (t = 255; t >= 1; t--) // above: the texels whose alpha is t or more
@@ -986,7 +989,7 @@ static void TexMgr_SkinNormalsRun (SkinNormalJob &j)
 		hit = j.read == 1;
 	}
 	if (hit && j.cache == 1)
-		memcpy (j.data.data (), cached.data (), n);
+		ZA_MEMCPY(j.data.data (), cached.data (), n);
 	else
 	{
 		byte *made = NULL;
@@ -1005,7 +1008,7 @@ static void TexMgr_SkinNormalsRun (SkinNormalJob &j)
 			TexMgr_ShadingToNormals (mv, j.data.data (), j.width, j.height, NORMALMAP_DEPTH * j.texelsperunit, j.heights, j.texelsperunit, scratch.data ());
 		}
 		if (hit) // vr_normalmap_cache 2: made anyway, and compared
-			j.same = memcmp (j.data.data (), cached.data (), n) == 0;
+			j.same = ZA_MEMCMP(j.data.data (), cached.data (), n) == 0;
 		VR_HeapFree (made);
 	}
 	j.ms = (Sys_DoubleTime () - t0) * 1000.0;
@@ -1038,7 +1041,7 @@ extern "C" int VR_SkinNormalsPost (gltexture_t *glt, const byte *data, int kind,
 	j.width = glt->width;
 	j.height = glt->height;
 	j.data.resize ((size_t) j.width * j.height * 4);
-	memcpy (j.data.data (), data, j.data.size ());
+	ZA_MEMCPY(j.data.data (), data, j.data.size ());
 	j.skin = (kind & NORMALMAP_SKIN) != 0;
 	j.heights = (kind & NORMALMAP_HEIGHTS) != 0;
 	j.texelsperunit = glt->width / (float) q_max (1, worldwidth);
@@ -1051,12 +1054,12 @@ extern "C" int VR_SkinNormalsPost (gltexture_t *glt, const byte *data, int kind,
 		j.make = heightmask_make;
 		j.corners.resize ((size_t) q_max (ms.numtris, 0) * 6);
 		if (!j.corners.empty ())
-			memcpy (j.corners.data (), ms.corners, j.corners.size () * sizeof (float));
+			ZA_MEMCPY(j.corners.data (), ms.corners, j.corners.size () * sizeof (float));
 	}
 	else if (ms.mask)
 	{
 		j.mask.resize ((size_t) ms.width * ms.height);
-		memcpy (j.mask.data (), ms.mask, j.mask.size ());
+		ZA_MEMCPY(j.mask.data (), ms.mask, j.mask.size ());
 	}
 	j.cache = j.skin ? VR_NormalCacheMode () : 0; // (a world texture's takes a few hundredths of a skin's: not kept)
 	if (j.cache)
@@ -1178,7 +1181,7 @@ extern "C" int VR_MakeNormalMap (gltexture_t *glt, byte *data, int kind, int wor
 			byte *cached = cache ? (byte *) Hunk_Alloc (n) : NULL;
 			hit = cache && VR_NormalCacheLoad (TexMgr_NormalCacheBuild (), key, cached, glt->width, glt->height);
 			if (hit && cache == 1)
-				memcpy (data, cached, n);
+				ZA_MEMCPY(data, cached, n);
 			else
 			{
 				SkinNormalStats st;
@@ -1186,7 +1189,7 @@ extern "C" int VR_MakeNormalMap (gltexture_t *glt, byte *data, int kind, int wor
 				TexMgr_SkinToNormals (TexMgr_CurrentMask (), data, glt->width, glt->height, SKIN_DEPTH * texelsperunit, heights, texelsperunit, st);
 				TexMgr_PrintSkinStats (st);
 				if (hit) // vr_normalmap_cache 2: made anyway, and compared
-					VR_NormalCacheChecked (memcmp (data, cached, n) == 0, glt->name);
+					VR_NormalCacheChecked (ZA_MEMCMP(data, cached, n) == 0, glt->name);
 				else if (cache)
 					VR_NormalCacheStore (TexMgr_NormalCacheBuild (), key, data, glt->width, glt->height);
 			}
@@ -1298,6 +1301,6 @@ extern "C" byte *VR_NormalMapSource (byte *data, enum srcformat fmt, int width, 
 	if (!VR_NormalMaps () || fmt != SRC_RGBA)
 		return data;
 	pristine = (byte *) Hunk_Alloc (width * height * 4);
-	memcpy (pristine, data, width * height * 4);
+	ZA_MEMCPY(pristine, data, width * height * 4);
 	return pristine;
 }

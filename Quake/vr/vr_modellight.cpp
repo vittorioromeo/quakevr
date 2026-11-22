@@ -8,6 +8,8 @@
 #include "vr_trace.hpp"
 
 #include "Zancle/Algorithm/MaxElement.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Exp.hpp"
@@ -15,7 +17,6 @@
 #include "vr_api_render.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 using namespace qvr;
 
@@ -70,27 +71,27 @@ void loadLights()
             {
                 break;
             }
-            if(!strcmp(key, "classname"))
+            if(!ZA_STRCMP(key, "classname"))
             {
-                isLight = !strncmp(com_token, "light", 5);
+                isLight = !ZA_STRNCMP(com_token, "light", 5);
             }
-            else if(!strcmp(key, "origin"))
+            else if(!ZA_STRCMP(key, "origin"))
             {
                 sscanf(com_token, "%f %f %f", &origin.x, &origin.y, &origin.z);
             }
-            else if(!strcmp(key, "light") || !strcmp(key, "_light"))
+            else if(!ZA_STRCMP(key, "light") || !ZA_STRCMP(key, "_light"))
             {
                 value = static_cast<float>(atof(com_token));
             }
-            else if(!strcmp(key, "wait"))
+            else if(!ZA_STRCMP(key, "wait"))
             {
                 scale = static_cast<float>(atof(com_token));
             }
-            else if(!strcmp(key, "spawnflags"))
+            else if(!ZA_STRCMP(key, "spawnflags"))
             {
                 startsOff = (atoi(com_token) & 1) != 0;
             }
-            else if(!strcmp(key, "targetname"))
+            else if(!ZA_STRCMP(key, "targetname"))
             {
                 hasTarget = com_token[0] != '\0';
             }

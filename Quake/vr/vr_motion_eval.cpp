@@ -32,6 +32,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/ReverseIterator.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Chrono/Time.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -51,7 +52,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 namespace qvr::motion
 {
@@ -755,14 +755,14 @@ void eval_f()
         return;
     }
     const Backend* be = backend();
-    if((!be || strcmp(be->name(), "mock") != 0) && backendRestartPending())
+    if((!be || ZA_STRCMP(be->name(), "mock") != 0) && backendRestartPending())
     {
         // Straight from a start-up script ("vr_backend mock;vr_motion_eval ..."): the backend starts with the next
         // frame (VR_BeginFrame). The command again then, first in the buffer (before quake.rc's vr_startgame).
         Cbuf_InsertText(va("wait\n%s %s\n", Cmd_Argv(0), Cmd_Args() ? Cmd_Args() : ""));
         return;
     }
-    if(!be || strcmp(be->name(), "mock") != 0)
+    if(!be || ZA_STRCMP(be->name(), "mock") != 0)
     {
         Con_Printf("vr_motion_eval: plays in the mock headset only (vr_backend mock)\n");
         return;
@@ -931,7 +931,7 @@ void headerCheck_f()
         }
         anchors++;
         some = var;
-        if(!decodeAnchor(*var, value) || strcmp(value.cStr(), var->string) != 0)
+        if(!decodeAnchor(*var, value) || ZA_STRCMP(value.cStr(), var->string) != 0)
         {
             if(wrong++ == 0)
             {

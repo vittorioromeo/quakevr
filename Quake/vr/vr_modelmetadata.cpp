@@ -6,14 +6,19 @@
 #include "vr_cvars.hpp"
 #include "vr_mem.hpp"
 #include "vr_zancle.hpp"
-#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
-#include "Zancle/String/String.hpp"
-#include "Zancle/Container/Vector.hpp"
-#include "Zancle/Container/Array.hpp"
-#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
 
 namespace qvr::modelmeta
 {
@@ -242,7 +247,7 @@ void makeRightBones(const qmodel_t* model, float out[2])
     za::U32 bits[2]{0u, 0u};
     for(int i = 0; i < za::min(hdr->numbones, 48); i++)
     {
-        const za::SizeT n = strlen(bones[i].name);
+        const za::SizeT n = ZA_STRLEN(bones[i].name);
         if(n > 2 && bones[i].name[n - 2] == '_' && bones[i].name[n - 1] == 'r')
         {
             bits[i / 24] |= 1u << (i % 24);
@@ -329,7 +334,7 @@ Id identifyPath(const char* name)
         while(nameIds[slot] != Id::Unknown)
         {
             const Id id = nameIds[slot];
-            if(!strcmp(name, paths[static_cast<int>(id)])) { return id; }
+            if(!ZA_STRCMP(name, paths[static_cast<int>(id)])) { return id; }
             slot = (slot + 1) & (nameSlots - 1);
         }
     }
@@ -349,15 +354,15 @@ ModelMetadata describePath(const char* name)
     result.id = identifyPath(name);
     name = packPathOf(name);
     const char* file = fileOf(name);
-    const size_t n = strlen(name);
+    const size_t n = ZA_STRLEN(name);
     for(int i = 0; i < static_cast<int>(Trait::Count); i++)
     {
         const Rule& rule = rules[i];
-        const size_t len = strlen(rule.text);
+        const size_t len = ZA_STRLEN(rule.text);
         const bool match = rule.match == Match::ExactInsensitive ? !q_strcasecmp(name, rule.text) :
             rule.match == Match::PrefixInsensitive ? !q_strncasecmp(name, rule.text, len) :
-            rule.match == Match::Contains ? strstr(name, rule.text) != nullptr :
-            rule.match == Match::Suffix ? n >= len && !strcmp(name + n - len, rule.text) :
+            rule.match == Match::Contains ? ZA_STRSTR(name, rule.text) != nullptr :
+            rule.match == Match::Suffix ? n >= len && !ZA_STRCMP(name + n - len, rule.text) :
             qvr::strings::startsWith(rule.match == Match::FilePrefix ? file : name, rule.text);
         if(match) { result.traits |= za::U64{1} << i; }
     }
@@ -443,7 +448,7 @@ bool bodyParts(const qmodel_t* model, float out[4])
     if(vr_prop_query_verify.value)
     {
         float expected[4];
-        if(makeBodyParts(model, expected) != memo.splitBody || memcmp(expected, memo.parts, sizeof(expected)))
+        if(makeBodyParts(model, expected) != memo.splitBody || ZA_MEMCMP(expected, memo.parts, sizeof(expected)))
         {
             Sys_Error("model metadata body parts changed %s", model->name);
         }
@@ -466,7 +471,7 @@ void rightBones(const qmodel_t* model, float out[2])
     if(vr_prop_query_verify.value)
     {
         float expected[2]; makeRightBones(model, expected);
-        if(memcmp(expected, memo.right, sizeof(expected))) { Sys_Error("model metadata right bones changed %s", model->name); }
+        if(ZA_MEMCMP(expected, memo.right, sizeof(expected))) { Sys_Error("model metadata right bones changed %s", model->name); }
     }
     ZA_MEMCPY(out, memo.right, sizeof(memo.right));
 }
@@ -493,8 +498,8 @@ int boneIndex(const qmodel_t* model, const char* name, bool last)
 
 BoneRole boneRole(const char* name)
 {
-    if(name && !strcmp(name, "head")) { return BoneRole::Head; }
-    if(name && !strcmp(name, "chest")) { return BoneRole::Chest; }
+    if(name && !ZA_STRCMP(name, "head")) { return BoneRole::Head; }
+    if(name && !ZA_STRCMP(name, "chest")) { return BoneRole::Chest; }
     return BoneRole::Other;
 }
 
@@ -521,18 +526,18 @@ void test_f()
         const auto& info = get(&fixture);
         for(int i = 1; i < static_cast<int>(Id::Count); i++)
         {
-            require(info.is(static_cast<Id>(i)) == !strcmp(fixture.name, paths[i]), "exact identity");
+            require(info.is(static_cast<Id>(i)) == !ZA_STRCMP(fixture.name, paths[i]), "exact identity");
         }
         // Independent legacy operations, evaluated directly against the original model name.
         for(int i = 0; i < static_cast<int>(Trait::Count); i++)
         {
             const Rule& rule = rules[i];
-            const size_t n = strlen(fixture.name), len = strlen(rule.text);
+            const size_t n = ZA_STRLEN(fixture.name), len = ZA_STRLEN(rule.text);
             const bool expected = rule.match == Match::ExactInsensitive ? q_strcasecmp(fixture.name, rule.text) == 0 :
-                rule.match == Match::Contains ? strstr(fixture.name, rule.text) != nullptr :
-                rule.match == Match::Suffix ? n >= len && strcmp(fixture.name + n - len, rule.text) == 0 :
+                rule.match == Match::Contains ? ZA_STRSTR(fixture.name, rule.text) != nullptr :
+                rule.match == Match::Suffix ? n >= len && ZA_STRCMP(fixture.name + n - len, rule.text) == 0 :
                 rule.match == Match::PrefixInsensitive ? q_strncasecmp(fixture.name, rule.text, len) == 0 :
-                strncmp(rule.match == Match::FilePrefix ? fileOf(fixture.name) : fixture.name, rule.text, len) == 0;
+                ZA_STRNCMP(rule.match == Match::FilePrefix ? fileOf(fixture.name) : fixture.name, rule.text, len) == 0;
             require(info.has(static_cast<Trait>(i)) == expected, va("legacy path predicate (%s, rule %d '%s')", fixture.name, i, rule.text));
         }
         for(const auto type : {mod_alias, mod_brush, mod_sprite})
@@ -559,7 +564,7 @@ void test_f()
         q_snprintf(text, sizeof(text), "%s_custom.mdl", rule.text); checkPath(text);
         q_snprintf(text, sizeof(text), "custom/%s", rule.text); checkPath(text);
         q_strlcpy(text, rule.text, sizeof(text));
-        const size_t n = strlen(text); if(n) { text[n - 1] = 0; } checkPath(text);
+        const size_t n = ZA_STRLEN(text); if(n) { text[n - 1] = 0; } checkPath(text);
     }
     for(const char* name : {"*1", "models/vrbody_custom.mdl", "progs/handmade.mdl", "progs/vr_rock_custom.mdl",
         "custom/armor_backpack_key_gib_vrbody.mdl", "MAPS/B_shell0.bsp", "progs/finger_", "progs/notknown.mdl"})
@@ -588,7 +593,7 @@ void test_f()
     constexpr int boneCount = 50;
     const int bytes = sizeof(aliashdr_t) + boneCount * sizeof(boneinfo_t);
     auto* hdr = static_cast<aliashdr_t*>(Cache_Alloc(&fixture.cache, bytes, fixture.name));
-    memset(hdr, 0, bytes);
+    ZA_MEMSET(hdr, 0, bytes);
     hdr->poseverttype = aliashdr_t::PV_IQM; hdr->numbones = boneCount; hdr->boneinfo = sizeof(aliashdr_t);
     auto* bones = reinterpret_cast<boneinfo_t*>(reinterpret_cast<byte*>(hdr) + hdr->boneinfo);
     for(int i = 0; i < boneCount; i++)
@@ -597,17 +602,17 @@ void test_f()
     }
     float parts[4], expected[4];
     require(bodyParts(&fixture, parts) && makeBodyParts(&fixture, expected) &&
-        !memcmp(parts, expected, sizeof(parts)), "48-bone masks");
+        !ZA_MEMCMP(parts, expected, sizeof(parts)), "48-bone masks");
     require(boneIndex(&fixture, "hand_l") == 0 && boneIndex(&fixture, "hand_l", true) == 48 &&
         boneIndex(&fixture, "absent") == -1, "bone map duplicate policy");
     float right[2], rightExpected[2];
     rightBones(&fixture, right); makeRightBones(&fixture, rightExpected);
-    require(!memcmp(right, rightExpected, sizeof(right)), "right-side masks");
+    require(!ZA_MEMCMP(right, rightExpected, sizeof(right)), "right-side masks");
     strcpy(bones[0].name, "thigh_r"); changed(&fixture);
     rightBones(&fixture, right); makeRightBones(&fixture, rightExpected);
-    require(!memcmp(right, rightExpected, sizeof(right)), "reload invalidates right mask");
+    require(!ZA_MEMCMP(right, rightExpected, sizeof(right)), "reload invalidates right mask");
     require(boneIndex(&fixture, "hand_l") == 4 && bodyParts(&fixture, parts) &&
-        makeBodyParts(&fixture, expected) && !memcmp(parts, expected, sizeof(parts)), "reload invalidates bones/masks");
+        makeBodyParts(&fixture, expected) && !ZA_MEMCMP(parts, expected, sizeof(parts)), "reload invalidates bones/masks");
     Cache_Free(&fixture.cache, true);
     cache.models.erase(&fixture);
     // Loaded client models, including custom models: compare the shared category/mask to the legacy reference.
@@ -615,10 +620,10 @@ void test_f()
         if(!model) { return; }
         ++models;
         rightBones(model, right); makeRightBones(model, rightExpected);
-        require(!memcmp(right, rightExpected, sizeof(right)), "loaded right masks");
+        require(!ZA_MEMCMP(right, rightExpected, sizeof(right)), "loaded right masks");
         require(category(model) == classifyModel(model), "loaded category");
         require(bodyParts(model, parts) == makeBodyParts(model, expected) &&
-            !memcmp(parts, expected, sizeof(parts)), "loaded body masks");
+            !ZA_MEMCMP(parts, expected, sizeof(parts)), "loaded body masks");
     };
     for(int i = 0; i < MAX_MODELS; i++) { checkModel(cl.model_precache[i]); }
     Con_Printf("modelmetadata: PASS checks=%d loaded=%d\n", checks, models);

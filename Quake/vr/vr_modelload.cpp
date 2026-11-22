@@ -8,10 +8,13 @@
 #include "vr_engine.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 
 #include <float.h>
 #include <stdlib.h>
-#include <string.h>
 
 /*
 =================
@@ -40,7 +43,7 @@ extern "C" void VR_LoadLux (qmodel_t *loadmodel, lump_t *l)
 	if (!data)
 		return;
 	// as the .lit: only from the map's own game folder or one searched before it, and for this lightmap
-	if (path_id < loadmodel->path_id || com_filesize != 8 + l->filelen * 3 || memcmp (data, "QLIT", 4) ||
+	if (path_id < loadmodel->path_id || com_filesize != 8 + l->filelen * 3 || ZA_MEMCMP(data, "QLIT", 4) ||
 		LittleLong (((int *)data)[1]) != 1)
 	{
 		Hunk_FreeToLowMark (mark);
@@ -151,7 +154,7 @@ extern "C" void VR_ItemTextureClamp (qmodel_t *loadmodel)
 		return;
 	for (i = 0; i < loadmodel->numtextures; i++)
 		if (loadmodel->textures[i])
-			memset (loadmodel->textures[i]->uvclamp, 0, sizeof (loadmodel->textures[i]->uvclamp));
+			ZA_MEMSET(loadmodel->textures[i]->uvclamp, 0, sizeof (loadmodel->textures[i]->uvclamp));
 	for (i = 0, s = loadmodel->surfaces; i < loadmodel->numsurfaces; i++, s++)
 	{
 		float lo[2] = {FLT_MAX, FLT_MAX}, hi[2] = {-FLT_MAX, -FLT_MAX};
@@ -210,10 +213,10 @@ extern "C" void VR_ItemTextureClamp (qmodel_t *loadmodel)
 		if (t->uvclamp[2] <= t->uvclamp[0] && t->uvclamp[3] <= t->uvclamp[1])
 			continue;
 		for (t2 = t->anim_next; t2 && t2 != t; t2 = t2->anim_next)
-			memcpy (t2->uvclamp, t->uvclamp, sizeof (t->uvclamp));
+			ZA_MEMCPY(t2->uvclamp, t->uvclamp, sizeof (t->uvclamp));
 		for (t2 = t->alternate_anims; t2 && t2 != t; t2 = t2->anim_next)
 			if (t2->uvclamp[2] <= t2->uvclamp[0] && t2->uvclamp[3] <= t2->uvclamp[1])
-				memcpy (t2->uvclamp, t->uvclamp, sizeof (t->uvclamp));
+				ZA_MEMCPY(t2->uvclamp, t->uvclamp, sizeof (t->uvclamp));
 	}
 }
 
@@ -390,7 +393,7 @@ extern "C" void VR_LoadSkinNormalMaps (qmodel_t *loadmodel, void *hdr, const stv
 	{
 		char shared[MAX_QPATH];
 		q_snprintf (shared, sizeof (shared), "%s_0", loadmodel->name); // skin 0's (every skin has the same coordinates)
-		VR_LoadNormalMap (skinnormalmaps[i].glt, skinnormalmaps[i].name, strcmp (shared, skinnormalmaps[i].name) ? shared : NULL,
+		VR_LoadNormalMap (skinnormalmaps[i].glt, skinnormalmaps[i].name, ZA_STRCMP(shared, skinnormalmaps[i].name) ? shared : NULL,
 			skinnormalmaps[i].data, skinnormalmaps[i].format, w, NORMALMAP_HEIGHTS | NORMALMAP_SKIN | relief);
 		if (skinnormalmaps[i].owned)
 			VR_HeapFree (skinnormalmaps[i].data);
@@ -461,7 +464,7 @@ static gltexture_t *Mod_LoadExternalSkin (qmodel_t *loadmodel, const char *name,
 	size = (size_t) fwidth * fheight * (fmt == SRC_INDEXED ? 1 : 4);
 	copy = (byte *) VR_HeapMalloc (size);
 	if (copy)
-		memcpy (copy, data, size);
+		ZA_MEMCPY(copy, data, size);
 	glt = TexMgr_LoadImage (loadmodel, name, fwidth, fheight, fmt, data, name, 0,
 		(texflags & TEXPREF_ALPHA) | TEXPREF_MIPMAP | (fmt == SRC_INDEXED ? 0 : TEXPREF_NOBRIGHT));
 	Hunk_FreeToLowMark (mark);
@@ -579,7 +582,7 @@ static void Mod_MD5SkinNormalMap (aliashdr_t *surf, gltexture_t *glt, const char
 		md5islands_h = h;
 	}
 	VR_SetHeightMask (md5islands, w, h);
-	VR_LoadNormalMap (glt, name, strcmp (name, first) ? first : NULL, data, fmt, w, NORMALMAP_HEIGHTS | NORMALMAP_SKIN);
+	VR_LoadNormalMap (glt, name, ZA_STRCMP(name, first) ? first : NULL, data, fmt, w, NORMALMAP_HEIGHTS | NORMALMAP_SKIN);
 	VR_SetHeightMask (NULL, 0, 0);
 	Hunk_FreeToLowMark (mark);
 }

@@ -31,6 +31,7 @@
 #include "vr_testkit.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Exp.hpp"
@@ -191,14 +192,14 @@ void report_f()
 {
     state.armed = true;
     const char* label = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    if(!strcmp(label, "done"))
+    if(!ZA_STRCMP(label, "done"))
     {
         state.tally.verdict("playersteps_test");
         return;
     }
     const Report r = state.report;
     state.report = Report{};
-    if(!strcmp(label, "reset"))
+    if(!ZA_STRCMP(label, "reset"))
     {
         return;
     }
@@ -221,10 +222,10 @@ void report_f()
     {
         const char* expect = Cmd_Argv(2);
         const bool heard = walked >= 4 && r.sounds + r.merged == steps && r.oldPlayed == 0 && r.errCount > 0 && r.errMost < 0.03;
-        const bool ok = !strcmp(expect, "legs")     ? heard
-                        : !strcmp(expect, "louder") ? heard && volume > 2.0 * state.lastVolume
-                        : !strcmp(expect, "quiet")  ? r.standing >= 1 && r.sounds == 0 && r.oldPlayed == 0
-                        : !strcmp(expect, "spaced") ? r.sounds >= 1 && r.sounds * vr_footstep_player_adjust_gap.value <= r.time + vr_footstep_player_adjust_gap.value && r.oldPlayed == 0
+        const bool ok = !ZA_STRCMP(expect, "legs")     ? heard
+                        : !ZA_STRCMP(expect, "louder") ? heard && volume > 2.0 * state.lastVolume
+                        : !ZA_STRCMP(expect, "quiet")  ? r.standing >= 1 && r.sounds == 0 && r.oldPlayed == 0
+                        : !ZA_STRCMP(expect, "spaced") ? r.sounds >= 1 && r.sounds * vr_footstep_player_adjust_gap.value <= r.time + vr_footstep_player_adjust_gap.value && r.oldPlayed == 0
                                                     : r.sounds == 0 && r.oldPlayed > 0;
         state.tally.check(ok, "playersteps_test", label);
         state.lastVolume = volume;

@@ -39,6 +39,9 @@
 #include "Zancle/Algorithm/Unique.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/Limits.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -50,13 +53,11 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
-#include "Zancle/Base/Limits.hpp"
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
 #include "vr_api.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -126,7 +127,7 @@ void debugBoxTouch(edict_t* target, edict_t* player, int which)
 // A weapon lying about or flying (QC's thrown_weapon: dropped, thrown, a monster's, one placed in a map).
 [[nodiscard]] bool thrownWeapon(edict_t* target)
 {
-    return !strcmp(PR_GetString(target->v.classname), "thrown_weapon");
+    return !ZA_STRCMP(PR_GetString(target->v.classname), "thrown_weapon");
 }
 
 // Such a weapon is also taken where the fist meets its drawn shape: its box is a small cube round
@@ -142,7 +143,7 @@ void debugBoxTouch(edict_t* target, edict_t* player, int which)
 // monster's arm or chest, or swung past it, took it; the author's note vrtesthall_2026-10-24_01-10-14).
 [[nodiscard]] bool armedWeapon(edict_t* target)
 {
-    return !strcmp(PR_GetString(target->v.classname), "vr_ag_weapon");
+    return !ZA_STRCMP(PR_GetString(target->v.classname), "vr_ag_weapon");
 }
 
 // The armed monster holding `weapon` when it is a living ragdoll (staggering, down, in the physical tug: every
@@ -926,17 +927,17 @@ void verifyPropTouch(edict_t* ent, edict_t* target)
     const za::SizeT bytes = static_cast<za::SizeT>(count) * qcvm->edict_size;
     za::Vector<byte> edicts(bytes);
     za::Vector<float> globals(static_cast<za::SizeT>(qcvm->progs->numglobals));
-    memcpy(edicts.data(), qcvm->edicts, bytes);
-    memcpy(globals.data(), qcvm->globals, globals.size() * sizeof(float));
+    ZA_MEMCPY(edicts.data(), qcvm->edicts, bytes);
+    ZA_MEMCPY(globals.data(), qcvm->globals, globals.size() * sizeof(float));
     const int datagram = sv.datagram.cursize, reliable = sv.reliable_datagram.cursize;
     za::Vector<byte> messages(static_cast<za::SizeT>(datagram + reliable));
-    if(datagram) memcpy(messages.data(), sv.datagram.data, datagram);
-    if(reliable) memcpy(messages.data() + datagram, sv.reliable_datagram.data, reliable);
+    if(datagram) ZA_MEMCPY(messages.data(), sv.datagram.data, datagram);
+    if(reliable) ZA_MEMCPY(messages.data() + datagram, sv.reliable_datagram.data, reliable);
     callField(target, ent, target->v.touch);
-    if(qcvm->num_edicts != count || memcmp(edicts.data(), qcvm->edicts, bytes) ||
+    if(qcvm->num_edicts != count || ZA_MEMCMP(edicts.data(), qcvm->edicts, bytes) ||
        sv.datagram.cursize != datagram || sv.reliable_datagram.cursize != reliable ||
-       (datagram && memcmp(messages.data(), sv.datagram.data, datagram)) ||
-       (reliable && memcmp(messages.data() + datagram, sv.reliable_datagram.data, reliable)))
+       (datagram && ZA_MEMCMP(messages.data(), sv.datagram.data, datagram)) ||
+       (reliable && ZA_MEMCMP(messages.data() + datagram, sv.reliable_datagram.data, reliable)))
         Sys_Error("prop touch verify: supposedly inactive touch changed entity/network state");
     const za::SizeT time = reinterpret_cast<float*>(&pr_global_struct->time) - qcvm->globals;
     // FTE's shared unnamed temporaries are scratch, like the argument registers.
@@ -949,7 +950,7 @@ void verifyPropTouch(edict_t* ent, edict_t* target)
         const char* name = PR_GetString(def.s_name);
         if(!name[0] || i < OFS_PARM7 + 3 || i == time || type == ev_void) continue;
         const za::SizeT size = type == ev_vector ? 3 : 1;
-        if(i + size <= globals.size() && memcmp(&globals[i], &qcvm->globals[i], size * sizeof(float)))
+        if(i + size <= globals.size() && ZA_MEMCMP(&globals[i], &qcvm->globals[i], size * sizeof(float)))
             Sys_Error("prop touch verify: supposedly inactive touch changed QC global %s", name);
     }
     touchVerified++;
