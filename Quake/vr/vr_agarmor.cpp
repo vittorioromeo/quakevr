@@ -3904,7 +3904,10 @@ za::Vector<uint32_t> sent; // per entity: what the clients were last told (packS
     {
         return 0u;
     }
-    if(player) // (the player's plates are a look alone: fields of their own, never what combat.qc reads for a wearer)
+    // (the player's plates are a look alone: fields of their own, never what combat.qc reads for a wearer; a dead player's
+    // body keeps his as he died -- QC VR_DeathDoll_Make, CopyToBodyQue -- its own, never his live ones)
+    const bool ownPlates = f.vr_pp_type >= 0 && f.vr_pp_mask >= 0 && progs::fieldFloat(e, f.vr_pp_type) > 0.f;
+    if(player || ownPlates)
     {
         return f.vr_pp_type < 0 || f.vr_pp_mask < 0 ? 0u :
             packState(za::clamp(static_cast<int>(progs::fieldFloat(e, f.vr_pp_type)), 0, 3), static_cast<int>(progs::fieldFloat(e, f.vr_pp_mask)) & allPieces, 0);

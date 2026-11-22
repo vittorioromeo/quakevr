@@ -105,6 +105,9 @@ Tests:
     botrevolver  (vrnotes1122a) a dedicated deathmatch server: A adds a bot; the server's vr_dm_test 14: the bot draws
              and fires a revolver of its own at A (slugs, not trigger pulls), and one it took loaded (his, by a
              disarm) in either hand, without shells of its own.
+    deathlook  (vrnotes1122a) a VR listen host and a flat client B in yellow armour: B killed whole, his body in yellow
+             plates at both; B respawned in red armour: his old body still yellow, the same pieces (its own state, sent
+             for its entity); the ragdoll body (vr_death_view 1), then Quake's body queue (vr_death_view 0).
     coopbots (MP bots phase 1) a dedicated coop server on e1m1: A adds a bot (impulse 100); the server's QC test brings a
              grunt in front of it: it kills it, never taking a player for its enemy; A through e1m1's exit: on e1m2 the
              bot is back with what it had (its super nailgun).
@@ -2192,6 +2195,105 @@ def deathbody_respawned(s, srv, a, b, ev, own_models, before, label):
                 "%s in slot %d, after %d reports" % (d["model"], int(d.get("slot", [0])[0]), n) if d else
                 "no mp_doll line for his old body (doll %s) after %d reports" % (
                     int(before[who]["doll"][0]) if before.get(who) and "doll" in before[who] else "?", n))
+
+
+def respawn_flat(srv, c, ent):
+    """A flat client `c` (entity `ent`) dead: his fire button until he respawns (PlayerDeathThink) -> alive."""
+    since = c.mark()
+    for _ in range(30):
+        if alive(srv, ent):
+            break
+        c.cmd("+attack")
+        got = wait_or_none(c, r"mp_event: .* respawned", 0.5, since)
+        c.cmd("-attack")
+        if got or wait_or_none(c, r"mp_event: .* respawned", 0.5, since):
+            break
+    return alive(srv, ent)
+
+
+def deathlook(s):
+    """vrnotes1122a (his note dm3_2026-11-22: a dead player's body gained the armour he picked up after his respawn): a
+    dead body keeps its look as he died, never his live state again. A VR listen host and a flat client B (yellow
+    armour, his plates on). B killed whole: his body (QC vr_deathdoll.qc) wears yellow plates at A and at B himself (the
+    server's word on the body's own entity: .vr_pp_* copied at death); B respawns and takes red armour: his living copy
+    red at A, his old body still yellow, the same pieces, at both. Then the same with vr_death_view 0 (Quake's body
+    queue, CopyToBodyQue: the body made at his respawn)."""
+    srv, a, b, ea, eb = join(s, listen=True, flat="B")
+    srv.cmd("vr_player_plates 1")
+    b.cmd("vr_player_plates 1")
+    seen_dolls = set()  # (the bodies of the cases before: a case looks at its own body only)
+    for case, view in (("doll", 1), ("bodyque", 0)):
+        srv.cmd("vr_death_view %d" % view)
+        if not alive(srv, eb):
+            s.check("%s: B alive first" % case, respawn_flat(srv, b, eb))
+        # (no armour, B at 10 health, then yellow armour: the next blow kills him whole, plates left on him)
+        b.cmd("give a 0")
+        reports_until(s, [a, b], lambda lines: (plates_of(lines[0], "mp_plates").get(eb) or {}).get("pieces", [0]) == [0.0],
+                      "%s: B wears no armour first" % case, 40)
+        since = srv.mark()
+        srv.cmd("vr_hurt 90 %d" % (eb - 1))
+        hurt = wait_quietly(srv, r"vr_hurt: .* health", 10, since, "B hurt")
+        s.check("%s: B at 10 health" % case, hurt is not None and " at 10 health" in hurt[1],
+                hurt[1].strip() if hurt else "no vr_hurt line")
+        b.cmd("give a 150")
+
+        def yellow(lines):
+            copy = plates_of(lines[0], "mp_plates").get(eb)
+            return copy is not None and copy["type"] == [2.0] and copy["pieces"][0] > 0
+
+        reports_until(s, [a, b], yellow, "%s: B wears yellow plates (A's copy of him)" % case, 40)
+        since = srv.mark()
+        srv.cmd("vr_hurt 40 %d" % (eb - 1))
+        dead = wait_quietly(srv, r"vr_hurt: .* dead", 10, since, "B dead")
+        s.check("%s: B killed whole (10 health, 40 damage through yellow armour)" % case, dead is not None,
+                dead[1].strip() if dead else "no vr_hurt line")
+        if view == 0:
+            s.check("%s: B respawned (his fire button: his body copied to the queue)" % case, respawn_flat(srv, b, eb))
+        # His body's plates at each viewer: yellow, some pieces (the body's own entity: its "doll" number), the same in
+        # two reports running (a piece the killing blow shed has morphed out).
+        bodies, prev, n = {}, {}, 0
+        for n in range(1, 41):
+            la, lb = reports(s, [a, b])
+            for who, lines in (("A", la), ("B", lb)):
+                for d in dolls_all(lines):
+                    if who in bodies or int(d["ent"][0]) != eb or d.get("plates", [0])[0] != 2.0 or \
+                            int(d.get("doll", [0])[0]) in seen_dolls:
+                        continue
+                    p = prev.get(who)
+                    if p and p["doll"] == d["doll"] and p["plates"] == d["plates"]:
+                        bodies[who] = d
+                    prev[who] = d
+            if len(bodies) == 2:
+                break
+        for who in ("A", "B"):
+            d = bodies.get(who)
+            s.check("%s: %s draws B's dead body in yellow plates (some pieces)" % (case, who),
+                    d is not None and d["plates"][1] > 0, "plates %s, doll %s, after %d reports" % (
+                        d["plates"], d["doll"], n) if d else "no yellow mp_doll line for B after %d reports" % n)
+        seen_dolls.update(int(d["doll"][0]) for d in bodies.values())
+        if len(bodies) < 2:
+            continue
+        if view == 1:
+            s.check("%s: B respawned (his fire button)" % case, respawn_flat(srv, b, eb))
+        b.cmd("give a 200")
+        # B's living copy red at A; every report meanwhile, and a few after, his old body as it was at both.
+        changed = []
+        red = False
+        for n in range(1, 31):
+            la, lb = reports(s, [a, b])
+            copy = plates_of(la, "mp_plates").get(eb)
+            red = red or (copy is not None and copy["type"] == [3.0])
+            for who, lines in (("A", la), ("B", lb)):
+                for d in dolls_all(lines):
+                    if int(d.get("doll", [0])[0]) == int(bodies[who]["doll"][0]) and \
+                            d.get("plates") != bodies[who]["plates"]:
+                        changed.append("%s: %s at report %d" % (who, d.get("plates"), n))
+            if red and n >= 10:
+                break
+        s.check("%s: B respawned with red armour (A's copy of him red)" % case, red,
+                "after %d reports" % n)
+        s.check("%s: his old body keeps its plates at A and B (yellow, pieces %d / %d), never his live red ones" % (
+                case, bodies["A"]["plates"][1], bodies["B"]["plates"][1]), not changed, "; ".join(changed[:4]))
 
 
 RAG_BL = re.compile(r"mp_bl: side=(\w+) t=(\S+) n=(\d+) m=(\S+) o=(\S+) a=(\S+) rag=(\d)")
@@ -9995,6 +10097,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             botgear(s)
         elif test == "mp_botrevolver":
             botrevolver(s)
+        elif test == "mp_deathlook":
+            deathlook(s)
         elif test == "mp_botgrab":
             botgrab(s)
         elif test == "mp_debugviz":
@@ -10072,6 +10176,7 @@ SUITE = [
     ("mp_slide_vr", ()),
     ("mp_adspose", ()),
     ("mp_deathbody", ()),
+    ("mp_deathlook", ()),
     ("mp_loss", ()),
     ("mp_predict", ()),
     ("mp_predictclimb", ()),
@@ -10109,7 +10214,7 @@ SUITE = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"])
     tree_base = default_base(REPO)
     ap.add_argument("--base", required=tree_base is None, default=tree_base,
                     help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")
@@ -10176,7 +10281,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"):
+                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

@@ -534,7 +534,7 @@ void avatars_f()
             if(d.doll > 0 && d.bodyPosed && d.body.ent.model && (d.frame == host_framecount - 1 || d.frame == host_framecount))
             {
                 printSkeleton("mp_doll", d.owner, d.body.ent.model->name, d.skeleton);
-                Con_Printf(" slot=%d", k);
+                Con_Printf(" slot=%d plates=%d %d", k, d.plateType, d.platePieces); // (vrnotes1122a: the body's own)
                 view::SkinLook look;
                 const int kind = mpavatar::lookOf(&d.body.ent, look);
                 const entity_t& de = cl_entities[d.doll];
@@ -1389,11 +1389,13 @@ void setupBody(int slot, int e, const Avatar& a, const glm::vec3& origin, const 
     b.poses = poses;
     // His armour's plates (B6c): the server's word on him (QVR_SVC_ARMOR, as on you), drawn as yours are (your
     // vr_player_plates: whether you see plates at all), coming in and going out by their morphs as yours do (B11c part 2:
-    // his own morphs' state; taken as they come when his copy is first drawn).
+    // his own morphs' state; taken as they come when his copy is first drawn). His dead body's: its own, his as he died
+    // (vrnotes1122a: the server's word on the body's entity, d.doll; never his living plates again).
     view::BodyPlates& p = b.plates;
     const bool on = vr_player_plates.value != 0.f;
-    const int type = on ? za::max(agarmor::clientState(e, 0), 0) : 0;
-    const int pieces = type > 0 ? za::max(agarmor::clientState(e, 1), 0) : 0;
+    const int worn = doll ? d.doll : e;
+    const int type = on && worn > 0 ? za::max(agarmor::clientState(worn, 0), 0) : 0;
+    const int pieces = type > 0 ? za::max(agarmor::clientState(worn, 1), 0) : 0;
     view::morphPlates(d.morph, on, type, pieces, vr_gametime, p);
     d.plateType = p.type;
     d.platePieces = p.pieces;
@@ -1410,7 +1412,8 @@ void setupBody(int slot, int e, const Avatar& a, const glm::vec3& origin, const 
                       1000.f;
     }
     look.build = b.build;
-    look.armour = a.armour;
+    // (his dead body's: its plates' colour as he died -- the armour he wore then; his living gear byte is not its own)
+    look.armour = doll ? (worn > 0 ? za::max(agarmor::clientState(worn, 0), 0) : 0) : a.armour;
     view::BodyEntities out;
     out.body = &d.body;
     out.plates = d.plate;
@@ -2384,8 +2387,8 @@ void addDolls()
         {
             d.morph.resync = true;
         }
+        d.doll = num; // (before setup: setupBody reads the body's own plates)
         setup(slot, p, a, origin, &pose);
-        d.doll = num;
         addDrawn(slot, e);
     }
 }
@@ -2418,8 +2421,8 @@ void addEntities()
         }
         glm::vec3 origin, angles;
         render::drawnPlace(cl_entities[e], origin, angles);
-        setup(e, e, blendedOf(e), origin);
         d.doll = 0;
+        setup(e, e, blendedOf(e), origin);
         // (the server's time it shows: blendedOf's -- the interpolation's, the lerp's, or the last message as it came)
         d.posedAt = vr_mp_avatar_lerp.value == 0.f ? a.msgTime
                                                     : za::min(netsnap::interpActive() ? netsnap::interpTime() : cl.time, a.msgTime);

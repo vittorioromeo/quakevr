@@ -689,6 +689,8 @@ void(entity ent) CopyToBodyQue =
     bodyque_head.movetype = ent.movetype;
     bodyque_head.velocity = ent.velocity;
     bodyque_head.flags = 0;
+    bodyque_head.vr_pp_type = ent.vr_pp_type; // VR: his plates as he lay dead, the body's own (vr_deathdoll.qc's too)
+    bodyque_head.vr_pp_mask = ent.vr_pp_mask;
     setorigin(bodyque_head, ent.origin);
     setsize(bodyque_head, ent.mins, ent.maxs);
     bodyque_head = bodyque_head.owner;
