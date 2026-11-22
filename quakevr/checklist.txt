@@ -114,6 +114,9 @@ Shoot the passive bot a few times: blood pours from where it was hit, its wounds
 Let the bot shoot at you with its shotgun: after each shot its pump strokes back and forward with the clacks, its ammo screen lit and its barrel glowing as it heats. {test:mp_dm_hostile}
 
 [4. Flat screen]
+Flat-screen: open Options > Controls and scroll to the end of the keyboard and mouse list: the "Quake VR (flat screen)" group lists every flat key (leans, swap, force grab, shove... toolgun adjust); rebind one with Enter and a key, clear one with Backspace, and check it works in game. {test:flat_force_grab}
+Flat-screen: in Options > Controls bind mouse 4 to something (say Attack): both its row and Force Grab's show "!", and the note under the list says mouse 4 is Force Grab in flat play; clear Force Grab and mouse 4 now does your binding in game. {test:flat_force_grab}
+Flat-screen or VR: VR menu > Locomotion > Desktop Screen Play: "Flat Keys (Options > Controls)" opens Controls on the flat keys' group, and "Reset Flat Keys" puts them all back. {test:hub_start}
 
 [5. VR movement and comfort]
 Sliding (VR, experimental; VR Settings > Locomotion): while running, pull the turning stick firmly straight down: you slide as on the desktop screen (faster at first, slowing to a stop; let go to stop, jump to keep the speed), with the slide's scrape and your drawn legs out in front. Check snap and smooth turns never slide, and that the pull feels neither too stiff nor too loose (Slide Stick Pull and Angle). {test:vr_slide}

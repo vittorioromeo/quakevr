@@ -5893,6 +5893,7 @@ typedef struct
 	const char			*command;
 	const char			*description;
 	keydevicemask_t		devicemask;
+	int					flatkey;	// QVR: 1 + a flat key's index (vr_flat_key_*: VR_FlatKeyGet/Set; command is its cvar's name); 0 a bind; -1 a group title, -2 its note (command "")
 } menukeybind_t;
 
 #define QUICKSAVE "echo Quicksaving...; wait; save quick"
@@ -5952,8 +5953,16 @@ static const menukeybind_t default_keybinds[] =
 	{"messagemode",		"Text chat",			KDM_KEYBOARD_AND_MOUSE},
 };
 
+// QVR: the flat keys' group's head (M_Keys_Populate): a blank line, its title, its rule.
+static const menukeybind_t flat_keys_group[] =
+{
+	{"",	"",										KDM_ANY,	0},
+	{"",	"Quake VR (flat screen)",				KDM_ANY,	-1},
+	{"",	"In flat play these win over binds",	KDM_ANY,	-2},
+};
+
 #define KEYLIST_TOP		56						// title plaque, tabs, scroll ellipsis bar
-#define KEYLIST_BOTTOM	24						// scroll ellipsis bar, search box, key hint
+#define KEYLIST_BOTTOM	32						// scroll ellipsis bar, search box, key hint, QVR: a flat key's clash
 
 static struct
 {
@@ -5966,7 +5975,7 @@ static struct
 } keysmenu;
 
 static qboolean	bind_grab;
-static qboolean	vr_key_capture;	// QVR: a VR page's key row waits for a key (Flat Keys; VR_Menu_Key takes it as Quake's Keys menu does)
+static qboolean	vr_key_capture;	// QVR: a VR page's key row waits for a key (Voice Chat's Push-to-Talk; VR_Menu_Key takes it as Quake's Keys menu does)
 
 static void M_Keys_AddCustomEntry (const char *cmd, const char *desc)
 {
@@ -6024,6 +6033,7 @@ static void M_Keys_AddCustomEntry (const char *cmd, const char *desc)
 	new_item.command = VR_HeapStrdup (cmd); // QVR: counted (freed by VR_HeapFree)
 	new_item.description = VR_HeapStrdup (desc);
 	new_item.devicemask = KDM_ANY;
+	new_item.flatkey = 0;
 	VEC_PUSH (keysmenu.custom_items, new_item);
 }
 
@@ -6049,7 +6059,7 @@ static qboolean M_Keys_IsSelectable (int index)
 static qboolean M_Keys_Match (int index)
 {
 	const char *name = keysmenu.filtered_items[index].description;
-	if (!*name)
+	if (!*name || !keysmenu.filtered_items[index].command[0]) // (QVR: a group's title or note: not a row)
 		return false;
 	return q_strcasestr (name, keysmenu.list.search.text) != NULL;
 }
@@ -6073,8 +6083,9 @@ static void M_Keys_AddItem (const menukeybind_t *item)
 		}
 	}
 
-	// if we have two separators in a row, overwrite the old one
-	if (VEC_SIZE (keysmenu.filtered_items) > 0 && !item->command[0] && !VEC_LAST (keysmenu.filtered_items).command[0])
+	// if we have two separators in a row, overwrite the old one (QVR: a group's title or note, a description without a command, is no separator)
+	if (VEC_SIZE (keysmenu.filtered_items) > 0 && !item->command[0] && !item->description[0] &&
+		!VEC_LAST (keysmenu.filtered_items).command[0] && !VEC_LAST (keysmenu.filtered_items).description[0])
 		VEC_LAST (keysmenu.filtered_items) = *item;
 	else // otherwise add a new item
 		VEC_PUSH (keysmenu.filtered_items, *item);
@@ -6110,6 +6121,25 @@ static void M_Keys_Populate (void)
 		}
 
 		M_Keys_AddItem (item);
+	}
+
+	// QVR: the flat keys (vr_flat_key_*: the keys flat-screen play reads itself), a group of their own on the keyboard's tab.
+	// One rule for a key that is both a flat key and a bind: in flat play the flat key wins (VR_FlatKeyOwned), the bind runs
+	// everywhere else; both rows show the clash ("!", and the cursor row's note under the list).
+	if (keysmenu.devicemask & KDM_KEYBOARD_AND_MOUSE)
+	{
+		int k;
+		for (i = 0; i < Q_COUNTOF (flat_keys_group); i++)
+			M_Keys_AddItem (&flat_keys_group[i]);
+		for (k = 0; k < VR_FlatKeyCount (); k++)
+		{
+			menukeybind_t flat;
+			flat.command = VR_FlatKeyCvarName (k);
+			flat.description = VR_FlatKeyLabel (k);
+			flat.devicemask = KDM_KEYBOARD_AND_MOUSE;
+			flat.flatkey = 1 + k;
+			M_Keys_AddItem (&flat);
+		}
 	}
 
 	keysmenu.list.cursor = 0;
@@ -6176,6 +6206,50 @@ void M_Menu_Keys_f (void)
 	M_Keys_UpdateLayout ();
 }
 
+// QVR: the Controls menu with its cursor on a row: its command or name (a flat key's: its cvar, vr_flat_key_*), on the
+// keyboard's tab for a flat key. The VR menu's Flat Keys button; "menu_keys <row>".
+static void M_Keys_GetKeys (const menukeybind_t *item, int *threekeys);
+static qboolean M_Keys_Clash (const menukeybind_t *item, int key, char *out, size_t size);
+void M_Menu_Keys_At (const char *rowarg)
+{
+	int i;
+	char row[64];
+
+	// (a copy: M_Menu_Keys_f tokenizes bindlist.lst, over the Cmd_Argv string rowarg may be)
+	q_strlcpy (row, rowarg ? rowarg : "", sizeof (row));
+	M_Menu_Keys_f ();
+	if (!row[0])
+		return;
+	if (!q_strncasecmp (row, "vr_flat_key_", 12) && keysmenu.devicemask != KDM_KEYBOARD_AND_MOUSE)
+	{
+		keysmenu.devicemask = KDM_KEYBOARD_AND_MOUSE;
+		M_Keys_Populate ();
+	}
+	for (i = 0; i < keysmenu.list.numitems; i++)
+	{
+		const menukeybind_t *item = &keysmenu.filtered_items[i];
+		if (item->command[0] && (!q_strcasecmp (item->command, row) || !q_strcasecmp (item->description, row)))
+		{
+			int keys[3], j;
+			char clash[96] = "";
+			keysmenu.list.cursor = i;
+			M_List_AutoScroll (&keysmenu.list);
+			M_Keys_GetKeys (item, keys);
+			for (j = 0; j < 3 && keys[j] != -1; j++)
+				if (M_Keys_Clash (item, keys[j], clash, sizeof (clash)))
+					break;
+			Con_DPrintf ("menu_keys: at \"%s\" (%s) %s\n", item->description, item->command, clash); // (the tests: flatkeybind_test.sh)
+			return;
+		}
+	}
+	Con_Printf ("menu_keys: no row \"%s\"\n", row);
+}
+
+static void M_Menu_Keys_Cmd_f (void)
+{
+	M_Menu_Keys_At (Cmd_Argc () > 1 ? Cmd_Argv (1) : NULL);
+}
+
 
 void M_FindKeysForCommand (const char *command, int *threekeys)
 {
@@ -6195,6 +6269,76 @@ void M_UnbindCommand (const char *command)
 		if (!strcmp (b, command) )
 			Key_SetBinding (j, NULL);
 	}
+}
+
+// QVR: a row's flat key's index (vr_flat_key_*), -1 a bind's row
+static int M_Keys_FlatIndex (const menukeybind_t *item)
+{
+	return item->flatkey > 0 ? item->flatkey - 1 : -1;
+}
+
+// QVR: a row's keys (a flat key's row: its one key)
+static void M_Keys_GetKeys (const menukeybind_t *item, int *threekeys)
+{
+	int flat = M_Keys_FlatIndex (item);
+	if (flat < 0)
+	{
+		M_FindKeysForCommand (item->command, threekeys);
+		return;
+	}
+	threekeys[0] = VR_FlatKeyGet (flat);
+	threekeys[1] = threekeys[2] = -1;
+}
+
+// QVR: a bound command's name as the list shows it (else the command itself)
+static const char *M_Keys_CommandName (const char *command)
+{
+	size_t i;
+	for (i = 0; i < VEC_SIZE (keysmenu.filtered_items); i++)
+		if (keysmenu.filtered_items[i].flatkey == 0 && keysmenu.filtered_items[i].command[0] && !strcmp (keysmenu.filtered_items[i].command, command))
+			return keysmenu.filtered_items[i].description;
+	return command;
+}
+
+// QVR: whether a row's key clashes: a flat key's is another flat key's or has a bind, a bind's is a flat key; out (if not
+// NULL): what it does instead, the one rule (in flat play the flat key wins, VR_FlatKeyOwned; the bind runs elsewhere)
+static qboolean M_Keys_Clash (const menukeybind_t *item, int key, char *out, size_t size)
+{
+	int flat = M_Keys_FlatIndex (item);
+	int other;
+	const char *flatname, *bindname;
+
+	if (key <= 0 || key >= MAX_KEYS)
+		return false;
+	if (flat >= 0)
+	{
+		other = VR_FlatKeyFor (key, flat);
+		if (other >= 0)
+		{
+			if (out)
+				q_snprintf (out, size, "! %s is also %s", Key_KeynumToFriendlyString (key), VR_FlatKeyLabel (other));
+			return true;
+		}
+		if (!keybindings[key] || !keybindings[key][0])
+			return false;
+		flatname = VR_FlatKeyLabel (flat);
+		bindname = M_Keys_CommandName (keybindings[key]);
+	}
+	else
+	{
+		other = VR_FlatKeyFor (key, -1);
+		if (other < 0)
+			return false;
+		flatname = VR_FlatKeyLabel (other);
+		bindname = item->description;
+	}
+	if (out)
+	{
+		q_snprintf (out, size, "! %s in flat play: %s, not %s", Key_KeynumToFriendlyString (key), flatname, bindname);
+		if (strlen (out) > 40)
+			q_snprintf (out, size, "! Flat play: %s, not %s", flatname, bindname);
+	}
+	return true;
 }
 
 extern qpic_t	*pic_up, *pic_down;
@@ -6251,7 +6395,7 @@ void M_Keys_Draw (void)
 			COM_TintSubstring (keysmenu.filtered_items[i].description, keysmenu.list.search.text, buf, sizeof (buf));
 			M_PrintDotFill (0, y, buf, 17, !active);
 
-			M_FindKeysForCommand (keysmenu.filtered_items[i].command, keys);
+			M_Keys_GetKeys (&keysmenu.filtered_items[i], keys);
 			// If we already have 3 keys bound to this action
 			// they will all be unbound when a new one is assigned.
 			// We show this outcome to the user before it actually
@@ -6272,6 +6416,11 @@ void M_Keys_Draw (void)
 				name = Key_KeynumToFriendlyString (keys[j]);
 				print_fn (x, y, name);
 				x += strlen (name) * 8;
+				if (M_Keys_Clash (&keysmenu.filtered_items[i], keys[j], NULL, 0)) // QVR: a flat key and a bind on one key
+				{
+					M_PrintWhite (x, y, "!");
+					x += 8;
+				}
 			}
 
 			if (j == 0)
@@ -6283,6 +6432,8 @@ void M_Keys_Draw (void)
 				GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
 			}
 		}
+		else if (keysmenu.filtered_items[i].description[0]) // QVR: a group's title (white) or note
+			M_PrintAlignedEx (160, y, ALIGN_CENTER, 8, keysmenu.filtered_items[i].flatkey != -1, keysmenu.filtered_items[i].description);
 
 		if (i == keysmenu.list.cursor)
 		{
@@ -6308,6 +6459,25 @@ void M_Keys_Draw (void)
 			va ("%s = change, %s = clear", Key_KeynumToFriendlyString (K_ABUTTON), Key_KeynumToFriendlyString (K_YBUTTON)):
 			va ("%s = change, %s = clear", Key_KeynumToFriendlyString (K_ENTER), Key_KeynumToFriendlyString (K_BACKSPACE));
 	M_PrintAligned (160, y + 16, ALIGN_CENTER, hint);
+
+	// QVR: the cursor row's first key that is both a flat key and a bind: what it does in flat play (M_Keys_Clash)
+	if (!bind_grab && keysmenu.list.cursor >= 0 && keysmenu.list.cursor < keysmenu.list.numitems)
+	{
+		const menukeybind_t *item = &keysmenu.filtered_items[keysmenu.list.cursor];
+		char clash[96];
+		if (item->command[0])
+		{
+			M_Keys_GetKeys (item, keys);
+			for (j = 0; j < 3 && keys[j] != -1; j++)
+			{
+				if (M_Keys_Clash (item, keys[j], clash, sizeof (clash)))
+				{
+					M_PrintAlignedEx (160, y + 24, ALIGN_CENTER, 8, false, clash);
+					break;
+				}
+			}
+		}
+	}
 }
 
 
@@ -6329,6 +6499,13 @@ void M_Keys_Key (int k)
 				return;
 
 			command = keysmenu.filtered_items[keysmenu.list.cursor].command;
+			if (M_Keys_FlatIndex (&keysmenu.filtered_items[keysmenu.list.cursor]) >= 0) // QVR: a flat key's row: its cvar takes the key
+			{
+				VR_FlatKeySet (M_Keys_FlatIndex (&keysmenu.filtered_items[keysmenu.list.cursor]), k);
+				bind_grab = false;
+				IN_DeactivateForMenu ();
+				return;
+			}
 			if (!Cmd_IsGamepadAltModifier (command))
 			{
 				if (Key_IsKeyGamepadAltModifier (k))
@@ -6387,7 +6564,10 @@ void M_Keys_Key (int k)
 	case K_DEL:
 	case K_YBUTTON:
 		M_ThrottledSound ("misc/menu2.wav");
-		M_UnbindCommand (keysmenu.filtered_items[keysmenu.list.cursor].command);
+		if (M_Keys_FlatIndex (&keysmenu.filtered_items[keysmenu.list.cursor]) >= 0) // QVR: a flat key's row: its cvar emptied
+			VR_FlatKeySet (M_Keys_FlatIndex (&keysmenu.filtered_items[keysmenu.list.cursor]), -1);
+		else
+			M_UnbindCommand (keysmenu.filtered_items[keysmenu.list.cursor].command);
 		break;
 	}
 }
@@ -8331,7 +8511,7 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_multiplayer", M_Menu_MultiPlayer_f);
 	Cmd_AddCommand ("menu_setup", M_Menu_Setup_f);
 	Cmd_AddCommand ("menu_options", M_Menu_Options_f);
-	Cmd_AddCommand ("menu_keys", M_Menu_Keys_f);
+	Cmd_AddCommand ("menu_keys", M_Menu_Keys_Cmd_f); // QVR: menu_keys [row]: the cursor on that row (M_Menu_Keys_At)
 	Cmd_AddCommand ("menu_video", M_Menu_Video_f);
 	Cmd_AddCommand ("menu_gamepad", M_Menu_Gamepad_f);
 	Cmd_AddCommand ("help", M_Menu_Help_f);
