@@ -165,8 +165,9 @@
                 </DockPanel>
             </Border>
 
-            <StackPanel Margin="0,24,0,0">
-                <DockPanel Margin="0,0,0,16">
+            <!-- The features, two by two (the page fits the window at its default size: fit.txt). -->
+            <UniformGrid Columns="2" Margin="0,22,0,0">
+                <DockPanel Margin="0,0,20,16">
                     <Border Style="{StaticResource FeatureIcon}">
                         <TextBlock Text="&#xE721;" Style="{StaticResource FeatureGlyph}" />
                     </Border>
@@ -186,7 +187,7 @@
                                    Text="Quake VR goes in its own folder and reads your game files, music included, where they are." />
                     </StackPanel>
                 </DockPanel>
-                <DockPanel Margin="0,0,0,16">
+                <DockPanel Margin="0,0,20,0">
                     <Border Style="{StaticResource FeatureIcon}">
                         <TextBlock Text="&#xE793;" Style="{StaticResource FeatureGlyph}" />
                     </Border>
@@ -206,7 +207,7 @@
                                    Text="Any OpenXR runtime: Virtual Desktop, SteamVR, Meta Quest Link." />
                     </StackPanel>
                 </DockPanel>
-            </StackPanel>
+            </UniformGrid>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

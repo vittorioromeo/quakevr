@@ -32,6 +32,7 @@ public sealed partial class MainViewModel
     string? _questAdb;
     ICommand? _questCheck;
     ICommand? _questContinue;
+    QuestResult? _questResult;
 
     string InstallerData => Path.Combine(_probe.GetFolder(KnownFolder.LocalAppData) ?? Path.GetTempPath(), "QuakeVR-Installer");
     string DownloadsDir => _options.Downloads ?? Path.Combine(InstallerData, "downloads");
@@ -81,10 +82,32 @@ public sealed partial class MainViewModel
     public string QuestStatus { get => _questStatus; private set => Set(ref _questStatus, value); }
     public IReadOnlyList<string> QuestSteps { get; } = [.. QuestTarget.SetupSteps.Select((s, i) => $"{i + 1}. {s}")];
 
+    /// <summary>The Done page's Quest card (Quest ticked): installed (the app, the files, where to start it) or not (why,
+    /// what to do). A Quest-only run's Done page has no PC Play buttons, Steam card nor PC notes.</summary>
+    public bool QuestDoneOk => QuestTarget.Outcome(_questResult, QuestStatus).Ok;
+    public string QuestDoneTitle => QuestTarget.Outcome(_questResult, QuestStatus).Title;
+    public string QuestDoneText => QuestTarget.Outcome(_questResult, QuestStatus).Text;
+
+    /// <summary>The screenshot harness: the Done page after a Quest run (a result) or one skipped (null, its message).</summary>
+    public void ShowQuestDone(bool pc, QuestResult? result, string status)
+    {
+        TargetQuest = true;
+        TargetPc = pc;
+        _questResult = result;
+        QuestStatus = status;
+        QuestFinished = result is not null;
+        BuildDoneNotes();
+        RaiseQuestDone();
+    }
+
+    void RaiseQuestDone() => Raise(nameof(QuestDoneOk), nameof(QuestDoneTitle), nameof(QuestDoneText), nameof(DoneTitle), nameof(DoneSubtitle));
+
     public ICommand QuestCheckCommand => _questCheck ??= new RelayCommand(() => _ = QuestRunAsync(), () => !Installing);
     public ICommand QuestContinueCommand => _questContinue ??= new RelayCommand(() =>
     {
         QuestActive = false;
+        BuildDoneNotes();
+        RaiseQuestDone();
         if (TargetPc)
         {
             GoToSettingsOrDone();
@@ -106,6 +129,7 @@ public sealed partial class MainViewModel
         QuestActive = true;
         QuestShowSteps = false;
         QuestFinished = false;
+        _questResult = null;
         QuestStatus = "Looking for the Quest…";
         InstallError = null;
         Installing = true;
@@ -136,8 +160,8 @@ public sealed partial class MainViewModel
                 var files = QuestFiles.Plan(installDir, quake, ExpansionDetector.StoreRoots(new QuakeDetector(probe)));
                 return new QuestInstaller(new ProcessAdb(_questAdb)).Install(new QuestPlan { ApkPath = _questApk, Files = files }, progress, ct);
             }, ct);
-            QuestStatus = $"Quake VR is on your {result.Device}: {result.Pushed} files copied, {result.Skipped} already there. " +
-                          "Start it in the headset from Library > Unknown Sources (the app list's filter, top right).";
+            _questResult = result;
+            QuestStatus = QuestTarget.Outcome(result, null).Text;
             QuestFinished = true;
             UiSounds.Play(Sfx.InstallDone);
         }

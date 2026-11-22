@@ -51,6 +51,7 @@ static class QuestTests
         Fixtures.MakePack(quake, "hipnotic");
         var music = Directory.CreateDirectory(Path.Combine(quake, "id1", "music")).FullName;
         File.WriteAllText(Path.Combine(music, "Track02.ogg"), "ogg");
+        File.WriteAllText(Path.Combine(music, "Track03.WAV"), "wav");
         var target = Path.Combine(dir(name + "-pc"), "QuakeVR");
         new InstallEngine().Install(new InstallPlan
         {
@@ -60,6 +61,20 @@ static class QuestTests
             HdTexturesZip = Fixtures.TextureZip(Path.Combine(dir(name + "-tex"), "uhd.zip")),
             OwnedPacks = ["hipnotic"],
         }, null, CancellationToken.None);
+        // Maps the PC game relit (quakevr\relit_custom\<game>\maps): e1m1 complete (in "ID1", as a PC folder may be named),
+        // e1m3 without its note (half made), Dissolution's (not on this PC's Quest), a moved-aside stale copy.
+        void Relit(string game, string map, params string[] exts)
+        {
+            var maps = Directory.CreateDirectory(Path.Combine(target, "quakevr", "relit_custom", game, "maps")).FullName;
+            foreach (var ext in exts)
+            {
+                File.WriteAllText(Path.Combine(maps, map + ext), $"{game} {map}{ext}");
+            }
+        }
+        Relit("ID1", "e1m1", ".bsp", ".lit", ".relight");
+        Relit("ID1", "e1m3", ".bsp", ".lit");
+        Relit("rogue", "r1m1", ".bsp", ".lit", ".relight");
+        Relit("_stale", "e1m2", ".bsp", ".relight");
         var apk = Path.Combine(dir(name + "-apk"), "QuakeVR.apk");
         File.WriteAllText(apk, "fake apk 1");
         return new Setup(quake, target, apk, QuestFiles.Plan(target, quake, []));
@@ -135,15 +150,27 @@ static class QuestTests
                 .InnerException is InstallException, "a zip without adb.exe refused");
         }),
 
-        ("quest: the files for the headset (game files from the install, id1 lower case, music, Armagon, HD textures; no PC programs)", () =>
+        ("quest: the files for the headset (game files from the install, id1 lower case, music it plays, relit maps, Armagon, HD textures; no PC programs)", () =>
         {
             var s = MakeSetup(dir, "quest-plan");
             var paths = s.Files.Select(f => f.DevicePath).ToHashSet(StringComparer.Ordinal);
+            // (music: bgmusic.c asks for music/trackNN.<ext> through the search path, lower case, and the Quest build decodes WAV only;
+            // relit maps: VR_ModelFile's relit_custom/<game>/maps/<map>.bsp in a game folder, <game> as the headset names it)
             foreach (var p in new[] { "quakevr/progs.dat", "quakevr/default.cfg", "quakevr/maps/vrhub.bsp", "id1/pak0.pak", "id1/pak1.pak",
-                         "id1/music/track02.ogg", "hipnotic/pak0.pak", "id1/textures/wall1.png", "hipnotic/textures/h_wall.png" })
+                         "id1/music/track03.wav", "hipnotic/pak0.pak", "id1/textures/wall1.png", "hipnotic/textures/h_wall.png",
+                         "quakevr/relit_custom/id1/maps/e1m1.bsp", "quakevr/relit_custom/id1/maps/e1m1.lit", "quakevr/relit_custom/id1/maps/e1m1.relight" })
             {
                 True(paths.Contains(p), $"{p} goes to the Quest");
             }
+            foreach (var p in new[] { "id1/music/track02.ogg", "quakevr/relit_custom/ID1/maps/e1m1.bsp", "quakevr/relit_custom/id1/maps/e1m3.bsp",
+                         "quakevr/relit_custom/rogue/maps/r1m1.bsp", "quakevr/relit_custom/_stale/maps/e1m2.bsp" })
+            {
+                True(!paths.Contains(p), $"{p}: not for the Quest");
+            }
+            Eq(4, paths.Count(p => p.StartsWith("quakevr/relit_custom/", StringComparison.Ordinal) || p.StartsWith("id1/music/", StringComparison.Ordinal)),
+                "only e1m1's relit copy and the WAV track");
+            Eq(Path.Combine(s.Install, "quakevr", "relit_custom", "ID1", "maps", "e1m1.lit"),
+                s.Files.Single(f => f.DevicePath == "quakevr/relit_custom/id1/maps/e1m1.lit").Source, "ID1's relit copy as id1's");
             foreach (var p in paths)
             {
                 True(!p.EndsWith(".exe") && !p.EndsWith(".dll") && !p.EndsWith(".pdb") && !p.StartsWith("quakevr/tools/") && p.Contains('/'),
@@ -182,6 +209,17 @@ static class QuestTests
             Eq("my config", File.ReadAllText(Path.Combine(adb.DeviceFiles, "quakevr", "config.cfg")), "the player's config kept");
             Eq(before, Snapshot(s.Install) + Snapshot(s.Quake), "the PC install and Quake unchanged");
             True(log.Any(l => l.Contains("Unknown Sources")), "says where to start it");
+            // The Done page's Quest card (and the Install page's): installed, the files copied, where to start it.
+            var (ok, title, text) = QuestTarget.Outcome(result, null);
+            True(ok && title == $"Installed on your {result.Device}", $"the Done page's title: {title}");
+            True(text.StartsWith("The app was installed") && text.Contains($"{s.Files.Count} files copied (") && text.Contains("0 already there") &&
+                 text.EndsWith(QuestTarget.StartNote), $"the Done page's text: {text}");
+            // The relit maps on the headset where the Quest build looks (VR_ModelFile: relit_custom/<game>/maps/<map>.bsp in a
+            // game folder, here quakevr; the game folder as the headset names it).
+            foreach (var p in new[] { "quakevr/relit_custom/id1/maps/e1m1.bsp", "quakevr/relit_custom/id1/maps/e1m1.lit", "quakevr/relit_custom/id1/maps/e1m1.relight" })
+            {
+                True(File.Exists(Path.Combine(adb.DeviceFiles, p.Replace('/', '\\'))), $"{p} on the headset");
+            }
             NothingRemoved(adb);
         }),
 
@@ -195,6 +233,9 @@ static class QuestTests
             Eq(0, again.Pushed, "nothing copied again");
             Eq(s.Files.Count, again.Skipped, "everything skipped");
             True(!again.ApkInstalled, "the same APK: not installed again");
+            var againText = QuestTarget.Outcome(again, null).Text;
+            True(againText.StartsWith("The app was already up to date; 0 files copied, ") && againText.Contains($"{s.Files.Count} already there"),
+                $"the Done page after nothing changed: {againText}");
             Eq(1, adb.Installs, "one install in all");
             Eq(s.Files.Count, adb.TarFiles, "no tar stream the second time");
 
@@ -225,7 +266,11 @@ static class QuestTests
                 Eq(state, e.Status.State, "the state");
                 Eq(1, adb.Commands.Count, $"{state}: only adb devices");
                 Eq(0, Directory.EnumerateFileSystemEntries(adb.DeviceFiles).Count(), $"{state}: nothing on the headset");
+                // The Done page's Quest card: not installed, why, and what to do.
+                var (ok, title, text) = QuestTarget.Outcome(null, e.Message);
+                True(!ok && title.StartsWith("Not installed") && text.StartsWith(e.Message.TrimEnd()) && text.Contains("Run Setup again"), $"{state}: the Done page says why: {text}");
             }
+            True(QuestTarget.Outcome(null, "").Text.StartsWith("The Quest was skipped."), "skipped without a try: says so");
             // Several, one chosen (--serial): installs on that one.
             var chosen = new FakeAdb(dir("quest-nodev-chosen")) { Devices = $"List of devices attached\n{FakeAdb.Serial} device model:Quest_3\nR58N12345 device model:SM_G991B\n" };
             Eq(s.Files.Count, new QuestInstaller(chosen).Install(new QuestPlan { ApkPath = s.Apk, Files = s.Files, Serial = FakeAdb.Serial }, null, CancellationToken.None).Pushed, "--serial");

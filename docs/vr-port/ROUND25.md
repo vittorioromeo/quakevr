@@ -8209,3 +8209,32 @@ ROPES.md "Tests", "Known limits".
   `qvr-setup quest --sandbox <dir> --apk <apk>`.
 - Not covered: the Done page after a Quest-only run still shows the PC's Play buttons (they start the staging copy on
   the PC, which works); the reliefs and VisPatch data are copied when recorded in the install, untested on the headset.
+
+## questinstall2: the Quest's Done page, the Welcome page fits, music and relit maps where the Quest reads them (2026-11-22)
+
+- Done page, Quest ticked: a META QUEST card (`QuestTarget.Outcome`, shared with the Install page's card): "Installed
+  on your <device>", the app installed or up to date, N files copied (size), M already there, "Library > Unknown
+  Sources"; or "Not installed on the Quest", the last problem (or skipped) and "run Setup again". Quest alone: no Play
+  buttons, Steam card, relight or Virtual Desktop notes; the title says "is on your Quest" / "is not on your Quest yet".
+  Both targets: the Play buttons and the card. The screenshot harness renders the three (`5-done-quest-only`,
+  `-quest-skipped`, `-pc-and-quest`) and fails unless the Play buttons and the card show exactly so.
+- Welcome page: the four features two by two; it fits at the default size again (was +56 px; 1366x768 now +110,
+  was +186).
+- Checked against agent/quest (bc26eff34): the files go under `files/` (main_sdl.c's basedir, `-game quakevr`), lower
+  case where the engine asks so. **Music**: the path was right (`id1/music/trackNN`, bgmusic.c through the search path)
+  but Android/android.cmake builds no codec but WAV, so the Ogg soundtracks could never play: only
+  `QuestFiles.MusicFormats` (WAV) are copied now (add Ogg there when the Quest build gets its codec); the source is
+  now the detection's (the rerelease's music first, as the PC plays it). **Relight**: VisPatch data is the relight's
+  input (`quakevr/tools/`, PC only, rightly not copied); the relit maps themselves (`quakevr/relit_custom/<game>/maps/`,
+  the preparation run's and Graphics > Relighting's) were not copied at all: now they are (copies with their
+  `.relight` note, games the headset gets, `<game>` as the headset spells it); the Quest has no light tool, and
+  `VR_ModelFile`/`customCurrent` load them there while the note's source hash matches the same paks. A Quest-only run
+  has none (it skips the preparation). `FirstStartRelight.RelitGames` is the one listing (RelitCopies uses it).
+- Tests: `quest:` self-tests extended (the plan: track03.wav in, track02.ogg out, e1m1's relit copy from `ID1` as `id1`,
+  half-made/rogue/_stale copies out; the whole procedure: the relit files on the fake headset, the Done text; again:
+  "already up to date; 0 files copied"; no device/unauthorized/several: the Done text says why). 9/9, plus the 3
+  relight tests; screenshot harness exit 0.
+- The real-headset test, ready, not run: `bash C:/OHWorkspace/qvr-kit/scratch/questinstall_realtest.sh` (make_release
+  -Local package, quest-devices, the headset's saves and small files pulled first, sandbox install, quest, quest again
+  expecting 0 copied, every earlier file still there; logs and exit codes in `scratch/qi_realtest/<time>/logs`;
+  `PREPARE=1` also relights in the sandbox so relit maps go too).

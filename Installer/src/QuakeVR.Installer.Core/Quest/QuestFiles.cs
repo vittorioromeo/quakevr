@@ -25,6 +25,13 @@ public static class QuestFiles
     /// <summary>The player's own files in a mod folder found on this PC (other engines' saves and configs): left behind.</summary>
     static readonly string[] PlayerExtensions = [".sav", ".dem", ".log"];
 
+    /// <summary>The music formats the Quest build plays: only WAV (Android/android.cmake builds no codecs yet, CMakeLists.txt's
+    /// USE_CODEC_WAVE alone), so the stores' Ogg soundtracks stay on the PC (100 MB the game could not play). Add a format
+    /// here when the Quest build gets its codec.</summary>
+    public static readonly string[] MusicFormats = [".wav"];
+    /// <summary>A relit copy's files (vr_relight.cpp: the map, its .lit and .lux, and the .relight note naming its source).</summary>
+    static readonly string[] RelitExtensions = [".bsp", ".lit", ".lux", ".relight"];
+
     static bool PlayerFile(string rel) => PlayerExtensions.Contains(Path.GetExtension(rel), StringComparer.OrdinalIgnoreCase) ||
                                           Path.GetFileName(rel).Equals("config.cfg", StringComparison.OrdinalIgnoreCase);
 
@@ -72,11 +79,13 @@ public static class QuestFiles
                 Add("id1/" + Path.GetFileName(pak).ToLowerInvariant(), pak, "id1");
             }
         }
-        if (QuakeData.FindMusic(quakeDir) is { } music)
+        // (where the detection finds it: the rerelease's first, as the PC game plays it; the headset reads music/trackNN.<ext>
+        // through its search path, so id1/music; only the formats the Quest build decodes)
+        if (QuakeDetector.Describe(QuakeStore.Manual, "", quakeDir).MusicDir is { } music)
         {
             foreach (var track in Directory.EnumerateFiles(music).Order(StringComparer.OrdinalIgnoreCase))
             {
-                if (Path.GetExtension(track).ToLowerInvariant() is ".ogg" or ".mp3" or ".flac" or ".wav" or ".opus")
+                if (MusicFormats.Contains(Path.GetExtension(track), StringComparer.OrdinalIgnoreCase))
                 {
                     Add("id1/music/" + Path.GetFileName(track).ToLowerInvariant(), track, "music");
                 }
@@ -126,6 +135,41 @@ public static class QuestFiles
                 }
             }
         }
+
+        AddRelit(installDir, files);
         return [.. files.Values.OrderBy(f => f.DevicePath, StringComparer.Ordinal)];
+    }
+
+    /// <summary>
+    /// The maps the PC game relit (the preparation run, Graphics > Relighting): the Quest cannot relight (no light tool on
+    /// Android), and it loads the same copies (VR_ModelFile: <c>relit_custom/&lt;game&gt;/maps/&lt;map&gt;.bsp</c> through
+    /// the search path, so <c>quakevr/relit_custom/</c> on the headset too; used while its .relight names the map's bytes,
+    /// which are the same paks). Only the copies with their note, and only for the games the headset gets, under the game
+    /// folder's name as the headset has it (Android's names are case-sensitive: "ID1" relit on the PC is "id1" there).
+    /// </summary>
+    static void AddRelit(string installDir, Dictionary<string, QuestFile> files)
+    {
+        var games = files.Keys.Select(p => p[..p.IndexOf('/')]).Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g, StringComparer.OrdinalIgnoreCase);
+        foreach (var (game, mapsDir) in FirstStartRelight.RelitGames(installDir))
+        {
+            if (!games.TryGetValue(game, out var deviceGame))
+            {
+                continue;
+            }
+            foreach (var note in Directory.EnumerateFiles(mapsDir, "*.relight", SearchOption.AllDirectories).Order(StringComparer.OrdinalIgnoreCase))
+            {
+                foreach (var ext in RelitExtensions)
+                {
+                    var source = Path.ChangeExtension(note, ext);
+                    var rel = PathUtil.ToRelative(mapsDir, source).Replace('\\', '/');
+                    var devicePath = $"{FirstStartRelight.RelitFolder}/{deviceGame}/maps/{rel}";
+                    if (!files.ContainsKey(devicePath) && File.Exists(source))
+                    {
+                        files[devicePath] = new QuestFile(devicePath, source, new FileInfo(source).Length, "relit");
+                    }
+                }
+            }
+        }
     }
 }

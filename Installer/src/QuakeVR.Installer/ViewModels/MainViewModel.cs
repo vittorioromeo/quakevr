@@ -2046,9 +2046,12 @@ public sealed partial class MainViewModel : ObservableObject
         : "";
 
     /// <summary>The Done page's title and subtitle: a reliefs-only run says what it did.</summary>
-    public string DoneTitle => _reliefsOnlyRun ? "Reliefs for Dwell and Quoth are ready" : $"{ProductName} is ready";
+    public string DoneTitle => _reliefsOnlyRun ? "Reliefs for Dwell and Quoth are ready"
+        : !TargetPc ? (_questResult is not null ? $"{ProductName} is on your Quest" : $"{ProductName} is not on your Quest yet")
+        : $"{ProductName} is ready";
     public string DoneSubtitle => _reliefsOnlyRun
         ? "Only the reliefs folder was written. The game uses them at its next start."
+        : !TargetPc ? (_questResult is not null ? "Put on your headset and start it from Library > Unknown Sources." : "Connect the headset and run Setup again.")
         : "Start your VR software, put on your headset, and press Play.";
 
     /// <summary>"Make reliefs only": the reliefs step on <see cref="ReliefsOnlyTarget"/>, nothing else (no statement, no
@@ -2185,7 +2188,7 @@ public sealed partial class MainViewModel : ObservableObject
                 ? $"The game's first maps are ready to load at once, and every map is relit with the HD textures ({prepared.Relit} relit now{(prepared.RelightSkipped > 0 ? $", {prepared.RelightSkipped} kept from before" : "")}): the first start relights nothing. Later: Graphics > Relighting."
                 : "The game's first maps are ready to load at once (the hub's first load was about 10 seconds without it)."));
         }
-        if (Record?.RelightPending == true)
+        if (TargetPc && Record?.RelightPending == true)
         {
             // The installer relights nothing itself: the game does, once, and skips what it relit before (an update).
             var before = FirstStartRelight.RelitCopies(InstallDir);
@@ -2244,7 +2247,7 @@ public sealed partial class MainViewModel : ObservableObject
                 },
             });
         }
-        if (_report?.Vr.SuggestVdxr == true)
+        if (TargetPc && _report?.Vr.SuggestVdxr == true)
         {
             DoneNotes.Add(new CheckItem(CheckStatus.Info, "Virtual Desktop",
                 "The game picks Virtual Desktop's runtime (VDXR), the developer's setup, by itself while the Streamer is running (or SteamVR, when that's the OpenXR runtime chosen in the Streamer; VR Settings > OpenXR Runtime: Auto)."));

@@ -23,6 +23,25 @@ public static class QuestTarget
         return apk is not null && File.Exists(apk) ? apk : null;
     }
 
+    /// <summary>Where to start the game in the headset (sideloaded apps are listed there, not with the store's).</summary>
+    public const string StartNote = "Start it in the headset from Library > Unknown Sources (the app list's filter, top right).";
+
+    /// <summary>What happened on the headset, for the Install page's Quest card, the Done page and the console: installed
+    /// (<paramref name="result"/>: the app, the files copied and already there, where to start it), or not (the last
+    /// problem, or skipped, and what to do).</summary>
+    public static (bool Ok, string Title, string Text) Outcome(QuestResult? result, string? problem)
+    {
+        if (result is null)
+        {
+            return (false, "Not installed on the Quest",
+                $"{(string.IsNullOrWhiteSpace(problem) ? "The Quest was skipped." : problem.TrimEnd())} Run Setup again with Meta Quest ticked: " +
+                "what was copied is kept, and skipped next time.");
+        }
+        return (true, $"Installed on your {result.Device}",
+            $"{(result.ApkInstalled ? "The app was installed" : "The app was already up to date")}; {result.Pushed} files copied" +
+            $"{(result.Pushed > 0 ? $" ({PathUtil.FormatSize(result.PushedBytes)})" : "")}, {result.Skipped} already there. {StartNote}");
+    }
+
     /// <summary>The steps before the first install, for the window and the console.</summary>
     public static readonly IReadOnlyList<string> SetupSteps =
     [

@@ -140,10 +140,19 @@ both at once works, and at least one is needed. Quest is another target of the s
   same code paths as the PC's.
 - **The files** (`QuestFiles.Plan`): the install record's files less the PC's programs (root files, `setup/`,
   `quakevr/tools/`, `quakevr/xr_layers/`, `.exe/.dll/.pdb/.bat`), plus what the PC game reads in place from the
-  player's Quake: `id1/pak*.pak` and the music (lower case: Android's names are case-sensitive), the official
-  expansions `ExpansionDetector` finds ready (their paks and the engine's resource list), and AD/Dwell/Quoth copies
-  found by their `FindExisting` when Setup did not install its own. Device folder:
-  `/sdcard/Android/data/com.vittorioromeo.quakevr/files` (the game's base dir; Android/README.md).
+  player's Quake: `id1/pak*.pak` and the music (lower case: Android's names are case-sensitive; from where the
+  detection finds it, the rerelease's first, into `id1/music/`, where bgmusic.c's `music/trackNN.<ext>` finds it; only
+  `QuestFiles.MusicFormats`, WAV today: the Quest build has no Ogg/MP3/FLAC codec yet, so the stores' Ogg soundtracks
+  stay on the PC), the official expansions `ExpansionDetector` finds ready (their paks and the engine's resource list),
+  AD/Dwell/Quoth copies found by their `FindExisting` when Setup did not install its own, and the maps the PC game
+  relit (`quakevr/relit_custom/<game>/maps/*.bsp/.lit/.lux/.relight`, the copies with their note, only for the games
+  the headset gets, `<game>` as the headset names it: the Quest cannot relight, and VR_ModelFile loads these while the
+  note names the same map). Device folder: `/sdcard/Android/data/com.vittorioromeo.quakevr/files` (the game's base
+  dir; Android/README.md).
+- **The Done page** (Quest ticked): a META QUEST card, `QuestTarget.Outcome`: installed on the device (the app
+  installed or up to date, the files copied and already there, "Library > Unknown Sources"), or not (the last problem
+  or skipped, and "run Setup again"). Quest alone: no PC Play buttons, Steam card or PC notes (relight, Virtual
+  Desktop); the title says whether it is on the Quest.
 - **adb** (`AdbLocator`): `--adb`, `<downloads>\platform-tools\adb.exe`, PATH, `ANDROID_HOME`/`ANDROID_SDK_ROOT`,
   `%LOCALAPPDATA%\Android\Sdk`; else Google's `platform-tools-latest-windows.zip` from `dl.google.com` (official URL only;
   no pinned hash, Google publishes the latest under one name: HTTPS is the trust, adb.exe's Authenticode signature is

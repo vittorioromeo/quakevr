@@ -141,8 +141,9 @@ Install page shows a Quest card:
 The installer uses adb from the Android SDK or your PATH, or downloads Google's official platform-tools
 (`dl.google.com`) into `%LOCALAPPDATA%\QuakeVR-Installer\downloads\platform-tools`. It installs the app
 (`QuakeVR.apk`, a release asset; a `QuakeVR.apk` beside `QuakeVR-Setup.exe` is used instead) and copies to the
-headset's `Android/data/com.vittorioromeo.quakevr/files`: QVR:U's game folder, your `id1` paks and music, the
-expansions you own, the HD textures and the mods. Files already there and unchanged are skipped, so running it again
+headset's `Android/data/com.vittorioromeo.quakevr/files`: QVR:U's game folder, your `id1` paks, the
+expansions you own, the HD textures, the mods and the maps the PC game relit (the headset cannot relight). Music is
+copied only in WAV for now: the Quest app does not play Ogg soundtracks yet. Files already there and unchanged are skipped, so running it again
 after an update copies only what changed; nothing on the headset is deleted and your saves and configs there are never
 touched. With the Quest alone, the PC steps fill a staging folder, `%LOCALAPPDATA%\QuakeVR-Installer\quest-files`
 (no shortcuts, no Apps & Features entry), that the headset is copied from; it is kept for the next update.
