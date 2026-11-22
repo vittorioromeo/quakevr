@@ -8257,3 +8257,87 @@ only after the playtest cfg's buffered lines, so sl_arena runs its death on a pl
   rope gate checks the hold and the jump, then puts him across. The author's VR pass covers both.
 - The mock's walk coasts about 80 units after it arrives (Quake's friction): aimed at the pit's edge it went over.
 - Scenes: `tutorial_lessons` (in lesson 12), `tutorial_arena_save` (hall_15).
+## vrnotes1122a: MP bots from his DM voice notes (agent/vrnotes1122a, 2026-11-22)
+
+His notes dm3_2026-11-22_16-15-02, 16-17-59, 16-18-21.
+- **Revolver bot never shoots:** bot logic, not the revolver. A bot never reloads (VRIsWeaponReloadingEnabledFor: humans
+  only), so its guns fire from its ammo, never a clip; bot_can_fire counted the held gun's clip. A revolver it took
+  loaded (his, by a disarm: "Hal takes your weapon!" 3 s before 16-15-02) with no shells of its own was picked, then
+  clicked or was dropped for the axe. Fix: `bot_clips_to_ammo` (frikbot/bot_fight.qc, each AI frame from bot_ai.qc): a
+  gun in its hands puts its clip's rounds with its ammo; bot_can_fire counts the ammo only. `vr_dm_test 14` now counts
+  slugs (shells spent), not trigger pulls (attack_finished also moves on a dry cock): its own revolver 3 slugs; a taken
+  loaded revolver in its main hand, no shells: 0 slugs in 10 s before, 3 in 4.2 s after; in its off hand beside its
+  shotgun: 3. New `mp_test.py botrevolver` (in the suite): dedicated DM, A adds a bot, the server runs test 14: 5/0.
+- **Bot holsters' orientation:** solveBotGear put the hips beside the hip joints facing straight out, the very side the
+  holster frame takes as its outwards: holsterFrame normalised a zero vector, so the hip guns' frames were NaN (drawn
+  anywhere). Now (vr_mpavatar.cpp): the trunk's yaw from the drawn shoulders (`trunkYaw`), the hips and uppers on the
+  front of its belly and chest rings (round 45 and 35 degrees) facing the ring's surface there
+  (`body::frontRingPlate`, sharing `ringPlate` with your own plateOnTheRing), the frame as yours (plate out and up;
+  shoulders down the back), and the standing holster turns yours take (`holsterTurnStanding`: tuning constants, not a
+  player's settings). `view::holsterOnOther` takes the plate's up.
+- **vr_mp_gearcheck** adds per copy: `finite` (every piece's place and angles), `tilt` (worst sheath up vs the trunk's,
+  at most 70), `facing` (worst sheath out vs straight out of the trunk, at most 60), `hang` (gun to its sheath, at most
+  0.25 m), `turned`; ok needs them. `mp_test.py botgear` checks them for each copy and that the bot's tilt and facing
+  are within 20 degrees of player B's (whose client drew his own): bot 63.6 / 41.0, B 50.0 / 27.9; 14/0.
+  `MP_BOTGEAR_SHOTS=1` saves A's view of the bot (low-res here: his game was running).
+- **Dropped weapons in DM:** `VR_WPN_DM_LIFETIME` 20 s (vr_wpnholster.qc; was 10, doubled as asked; a backpack lies
+  120 and vr_dmloose.qc's cap holds their number). Every thrown or dropped weapon in deathmatch (players' too).
+  vr_dm_test 1: 22/0.
+- **Not done (budget): the dead body's look synced to the live player** (plates gained after his respawn). Cause:
+  vr_mpavatar.cpp setupBody reads `agarmor::clientState(e)` with e the owner for a doll slot too. Planned fix: QC
+  VR_DeathDoll_Make copies `.vr_pp_type/.vr_pp_mask` to the body; vr_agarmor.cpp stateOf serves those fields for a
+  non-player edict that has them (never .vr_ar_*: combat reads those); setupBody reads the doll entity's state
+  (`d.doll` set before setup in addDolls/addEntities); an mp test (B armoured, killed, respawned with other armour:
+  A's mp_doll plates unchanged). The calibration look (calOf(owner)) is live too, but rarely changes.
+## vrnotes1122b: revolver flicks, Haste on every gun (agent/vrnotes1122b, 2026-11-22)
+
+- **The flick down with a shell held** (dm3_2026-11-22_16-14-25): the eject push (`VR_Revolver_ReloadFrame`) waited
+  `vr_revolver_spin_hold` after `rvh_held_at`, which `VR_Revolver_OtherHand` refreshes every frame the other hand holds
+  anything: with a shell ready in the off hand no push ever counted. It now waits on `rvh_loaded_at` (a shell just went
+  in) only; the spin keeps `rvh_held_at`.
+- **Wrist flick against arm swing** (vrfiringrange_2026-11-22_16-11-57): the old guard refused a flick open with the
+  hand at 2 m/s or faster (`vr_revolver_open_swing_speed`, retired). His replay shows why it refused everything: his
+  flicks roll 150-360 degrees at 2000-3500 deg/s and the controller, 5-15 cm off the wrist's axis, moves 3.5-5.6 m/s
+  from that turn alone. `VR_Revolver_Flick` now keeps two fading sums over `vr_revolver_flick_motion_time` (0.2 s): the
+  wrist's (its roll in radians x `vr_revolver_flick_wrist_lever`, 0.1 m) and the arm's (the hand's speed less its turn
+  rate x the lever, i.e. travel the turn doesn't explain). A flick open is refused when the arm's share is over
+  `vr_revolver_open_flick_arm_share` (0.45; menu: Weapons > Reloading > Heavy Revolver > Flick Open Arm Share; 1 no
+  guard), then for `vr_revolver_open_swing_hold` (0.35 s), and after a landed blow as before. The flick home is never
+  refused. Offline on his two revolver replays (the trigger simulated at the flick's thresholds): his flicks 0.03-0.31,
+  his swings (hand 8-10 m/s, 1-1.7 m travel) 0.53-0.75. `vr_reload_debug 1` prints the share on each open and refusal.
+- **Haste on every gun** (vrtesthall_2026-11-22_15-59-17): Haste (Dwell's; Dissolution's Hell Magic rune alike) works
+  through `RuneApplyHell` on a weapon's next attack time; the frame-driven guns (nailguns, lava nailguns, lightning gun,
+  laser cannon) fire once per 0.1 s animation frame and never asked it. `VR_Haste_FramePace` (rogue_runes.qc) paces
+  those frames by it (0.06 s hasted), their attack times too; the Mjolnir swing, the proximity gun, AD's plasma gun and
+  the lightning gun's first bolt now pass through it as well. Dry clicks stay unhasted.
+- **Full auto under Haste** (15-59-37): `vr_haste_full_auto` (1; Combat > Weapon Damage > Guns) lets the nail pistol,
+  the heavy revolver and the flare gun skip their re-arm (`VR_Haste_FullAuto`) while hasted: they fire again while the
+  trigger is held, each at its cooldown x Haste's 0.6 (the nail pistol 0.072 s, the revolver 0.18 s). Empty or spent,
+  still one click a pull.
+- Tests: `vr_np_test 7` (nphaste, Debug > Tests > Nail Pistol): 12/0 (nailgun 15 -> 24 shots in 1.5 s, lightning 16 ->
+  25, shotgun 3 -> 5; nail pistol 1 -> 12, revolver 1 -> 6, flare gun 1 -> 2). `vr_rv_test 1` 49/0 (step 12 now a 7 m/s
+  swing rolling the wrist: refused, arm share 0.78; then a still-hand wrist flick: out, share 0.18; step 13 pushes the
+  shells out with the other hand holding). Its tests need `developer 1` (dprint). Scenario `haste_guns`. nptest 39/0,
+  flaretest 22/0. His replays played in the game (`vr_motion_play <notes>/<take>_replay.csv`, `vr_reload_debug 1`):
+  vrfiringrange_16-11-57 5 flicks open (arm share 0.06-0.43), 7 swings refused (0.50-0.73); e1m1_2026-11-21_01-03-41
+  7 open (0.06-0.26), 7 refused (0.54-0.80). (The replays live in his notes folder, not the repo: no committed test.)
+- Note: `VR_RVT_Flicks` sets `vr_revolver_flick_hand_weight` / `_cap` with `cvar_set`, but they are tunables
+  ("Cvar_Set: variable not found"): its force check runs at the defaults (150, 1), which it expects anyway.
+
+## vrnotes1122a2: a dead player's body keeps its look (agent/vrnotes1122a, 2026-11-22)
+
+- **The body's plates froze at death** (vrnotes1122a's item 4): QC VR_DeathDoll_Make and CopyToBodyQue copy the
+  player's `.vr_pp_type/.vr_pp_mask` to the body; vr_agarmor.cpp `stateOf` serves a non-player edict's own `.vr_pp_*`
+  when its type is over 0 (else `.vr_ar_*` as before: an armed monster's, which combat reads), so QVR_SVC_ARMOR goes
+  out for the body's entity; vr_mpavatar.cpp setupBody reads `clientState(d.doll)` for a doll (d.doll now set before
+  setup), never the owner's. The doll's pauldrons take its plates' colour (they had none: the doll's Avatar has no gear
+  byte). The calibration (build, arms, pauldron style) still comes from the owner (`calOf(owner)`): rarely changed.
+- `mp_doll:` lines print `plates=<type> <pieces>`. New `mp_test.py deathlook` (in the suite): a VR listen host A and a
+  flat client B; B at 10 health in yellow armour, killed whole; his body yellow at A and B; B respawns, takes red: A's
+  copy of him red, his old body yellow with the same pieces in every report at both. Then the same with
+  `vr_death_view 0` (the body queue, made at his respawn): 19/0.
+- Full MP suite in six chunks (the no-LTO Release exe; ThinLTO builds with 0 warnings): all pass but mp_melee ("A's
+  sword on B: damage None", 29/1) and mp_adspose (74 of 75 sight looks, 11/1), neither near this work: rerun alone,
+  30/0 and 12/0. After merging origin/next (vrnotes1122b's revolver): mp_botrevolver 5/0, mp_deathlook 19/0.
+- Kit note: `build.sh --lto` builds the ReleaseLTO exe; mp_test.py runs the Release one (`build.sh <name>`): rebuild
+  that after a merge, or the suite runs a stale exe ("cvar_hmake: unknown" lines for the new cvars).

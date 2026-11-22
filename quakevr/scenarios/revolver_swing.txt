@@ -1,5 +1,5 @@
 # revolver_swing: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The heavy revolver's flick
-# open refused in a melee swing (vr_revolver_open_swing_speed, _hold; QC VR_Revolver_SwingGuard).
+# open refused in a melee swing, a wrist flick taken (vr_revolver_open_flick_arm_share, vr_revolver_open_swing_hold; QC VR_Revolver_SwingGuard).
 title Heavy revolver: melee swings keep the cylinder shut
 map vrtesthall
 god

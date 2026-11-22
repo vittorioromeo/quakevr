@@ -1,0 +1,15 @@
+# haste_guns: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (needs Dwell for its Haste). Haste on
+# every gun (QC rogue_runes.qc VR_Haste_FramePace, VR_Haste_FullAuto; vr_haste_full_auto): the nailgun's and the
+# lightning gun's frames sped, the semi-automatics full auto.
+title Haste ahead: the nailgun and the nail pistol in your hands, the heavy revolver, the flare gun and the lightning gun on the floor
+map vrtesthall
+start 0 -288 25 90
+god
+notarget
+give "Nailgun" main
+give "Nail Pistol" off
+spawn "Haste" 96 0
+spawn "Heavy Revolver" 64 -48
+spawn "Flare Gun" 64 0
+spawn "Lightning Gun" 64 48
+hint Hold each trigger before and after taking the Haste: the nailgun and the lightning gun fire clearly faster hasted, the nail pistol, the heavy revolver and the flare gun keep firing while the trigger is held (one shot a pull without it).

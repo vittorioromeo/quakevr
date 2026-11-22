@@ -1492,6 +1492,9 @@ QVR_SLIDER(vr_revolver_heavy_mult, "Heavy Revolver Big Bodies", 1.f, 4.f, 0.05f,
     "as much: an ogre takes 4-5 in the body.")
 QVR_SLIDER(vr_revolver_cooldown, "Heavy Revolver Cooldown", 0.05f, 1.f, 0.01f, "%.2f s", ext(0.05f, 3.f),
     "Double action: a shot each pull of the trigger, at least this long apart.")
+QVR_TOGGLE(vr_haste_full_auto, "Haste: Full Auto",
+    "While Haste (or the Hell Magic rune) is active, the semi-automatic guns (the nail pistol, the heavy revolver, the "
+    "flare gun) fire again while the trigger is held, at their cooldown times Haste's 0.6.")
 QVR_SLIDER(vr_dmg_grenade, "Grenade", 10.f, 400.f, 5.f, "%.0f", ext(),
     "A grenade's blast at its middle, less further out (id's 120): the launcher's, a hand grenade's and an "
     "ogre's grenade caught and thrown back.")
@@ -3245,6 +3248,9 @@ QVR_SLIDER_BYNAME(vr_revolver_open_flick_speed, "Flick Open Speed", 50.f, 2000.f
 QVR_SLIDER_BYNAME(vr_revolver_open_flick_angle, "Flick Open Wrist Flick", 5.f, 120.f, 5.f, "%.0f deg", ext(0.f, 360.f), "And how far it must roll that way in one go.")
 QVR_SLIDER_BYNAME(vr_revolver_open_flick_time, "Flick Open Time", 0.05f, 1.f, 0.05f, "%.2f s", ext(0.f, 5.f),
     "The wrist flick must be rolled within this long of the flick's start; a slower roll starts over (0: no limit).")
+QVR_SLIDER_BYNAME(vr_revolver_open_flick_arm_share, "Flick Open Arm Share", 0.05f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
+    "A flick mostly of the wrist opens it, a swing mostly of the arm (a melee blow) never does: the arm's share of the "
+    "hand's motion above which the flick is a swing (lower: stricter; 1: no guard).")
 QVR_TOGGLE_BYNAME(vr_revolver_open_button, "Eject Button Opens",
     "B/Y swings it out; out, B/Y pushes the ejector (its shells drop).")
 QVR_SLIDER_BYNAME(vr_revolver_eject_speed, "Eject Push Speed", 0.2f, 4.f, 0.05f, "%.2f m/s", ext(0.05f, 10.f),

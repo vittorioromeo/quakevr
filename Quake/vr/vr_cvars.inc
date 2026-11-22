@@ -2707,16 +2707,24 @@ QVR_CVAR(vr_nailpistol_screen_ride, "1", CVAR_ARCHIVE | QVR_RULE)   // 1: its am
 // muzzle up, the ejector), a shell at a time from the pouch into its chambers, swung home (a flick, a push).
 QVR_CVAR(vr_revolver_heavy_mult, "1.75", CVAR_ARCHIVE | QVR_RULE) // a slug into a big body (a monster of vr_revolver_heavy_health or more full health: an ogre, a fiend...) deals this many times as much (an ogre: 4-5 in the body)
 QVR_CVAR(vr_revolver_cooldown, "0.3", CVAR_ARCHIVE | QVR_RULE) // s at least from a shot to the next (each a new pull: double action)
+// His note vrtesthall_2026-11-22_15-59-37: while Haste (Dwell's; or Dissolution's Hell Magic rune) is active, the
+// semi-automatic guns (the nail pistol, the heavy revolver, the flare gun) fire again while the trigger is held, each
+// shot at its cooldown times Haste's (RuneApplyHell: 0.6, the rune 2/3): the nail pistol about 14 a second, the
+// revolver about 5.5 (QC VR_Haste_FullAuto). 0: one shot a pull as ever.
+QVR_CVAR(vr_haste_full_auto, "1", CVAR_ARCHIVE | QVR_RULE)
 QVR_CVAR(vr_revolver_open_flick, "1", CVAR_ARCHIVE) // immersive reloading: a flick of the wrist towards the cylinder's side (left in the right hand) swings it out
 QVR_CVAR(vr_revolver_open_flick_speed, "400", CVAR_ARCHIVE) // the flick open's force: degrees a second the wrist must roll at, at its fastest
 QVR_CVAR(vr_revolver_open_flick_angle, "120", CVAR_ARCHIVE) // and its wrist flick: degrees it must roll that way in one go
 QVR_CVAR(vr_revolver_close_flick_speed, "350", CVAR_ARCHIVE) // the flick shut (always on: the wrist rolled the other way, the cylinder swung home): its force, degrees a second
 QVR_CVAR(vr_revolver_close_flick_angle, "75", CVAR_ARCHIVE) // and its wrist flick, degrees
-// A melee swing is no flick (his note 2026-11-21: "if I'm doing a melee attack, I often open the cylinder"): the flick
-// open is refused while the gun's hand moves this fast (m/s, against his body; vr_melee_speed's blow is 3.2) and for
-// vr_revolver_open_swing_hold seconds after it last did, or after a blow of his landed (QC VR_Revolver_SwingGuard).
-// A deliberate flick, the wrist rolled with the arm near still, still opens it. 0: no guard.
-QVR_CVAR(vr_revolver_open_swing_speed, "2", CVAR_ARCHIVE)
+// A melee swing is no flick (his note 2026-11-21: "if I'm doing a melee attack, I often open the cylinder"), a flick
+// mostly of the wrist is (his note vrfiringrange_2026-11-22_16-11-57: the hand's raw speed refused every real flick,
+// whose controller moves 3-6 m/s from the wrist's turn alone). The hand's motion over the last moment is split in two
+// (QC VR_Revolver_Flick): the wrist's, its roll at vr_revolver_flick_wrist_lever metres, and the arm's, the hand's
+// travel its turn doesn't explain. The flick open is refused when the arm's share of the two is over this (his replays:
+// flicks 0.05-0.31, swings 0.53-0.75), for vr_revolver_open_swing_hold seconds after, and after a blow of his landed
+// (QC VR_Revolver_SwingGuard). 1: no guard. (vr_revolver_open_swing_speed, the hand's raw speed, retired.)
+QVR_CVAR(vr_revolver_open_flick_arm_share, "0.45", CVAR_ARCHIVE)
 QVR_CVAR(vr_revolver_open_swing_hold, "0.35", CVAR_ARCHIVE) // seconds
 QVR_CVAR(vr_revolver_open_flick_time, "0.25", CVAR_ARCHIVE) // the flick open's time window: its wrist flick must be rolled within this many seconds of the flick's start (0: no limit)
 QVR_CVAR(vr_revolver_open_button, "1", CVAR_ARCHIVE) // B/Y (its eject button) swings the cylinder out; out, B/Y pushes the ejector

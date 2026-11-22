@@ -233,6 +233,7 @@ void() VR_BT_Weapons =
         b.fixangle = TRUE;
         vr_bt_af = b.attack_finished;
         vr_bt_t0 = time;
+        vr_bt_first = -1;
         vr_bt_s = 2;
         vr_bt_n = 0;
         return;
@@ -241,13 +242,20 @@ void() VR_BT_Weapons =
     {
         h.health = 999;
         VR_BT_Hold(vr_bt_base, '0 0 0');
-        float fired = (VR_BT_Shot() && b.weapon == WID_REVOLVER);
-        if(!fired && vr_bt_n < VR_BT_GIVEUP)
+        // (Slugs, not trigger pulls: its shells spent, each a hammer's fall on a live chamber. His voice note
+        // 2026-11-22: a revolver bot aimed and never shot. Three slugs: the trigger let go between them.)
+        float slugs = 25 - VR_AmmoUtil_GetAmmoCountByAmmoId(b, AID_SHELLS);
+        if(slugs >= 1 && vr_bt_first < 0)
+        {
+            vr_bt_first = time - vr_bt_t0;
+        }
+        float fired = (slugs >= 3 && b.weapon == WID_REVOLVER);
+        if(!fired && vr_bt_n < VR_BT_GIVEUP * 2)
         {
             return;
         }
-        VR_Test_Check(fired, sprintf("its AI fires the revolver at the human (%.2f s; in hand %s)", time - vr_bt_t0,
-            WeaponIdToWeaponName(b.weapon)));
+        VR_Test_Check(fired, sprintf("its AI fires the revolver at the human: %g slugs in %.2f s (the first at %.2f s; "
+            "in hand %s)", slugs, time - vr_bt_t0, vr_bt_first, WeaponIdToWeaponName(b.weapon)));
         // no shells and its clip empty: its melee weapon; a nail pistol and nails: that
         VR_AmmoUtil_SetAmmoCountByAmmoId(b, AID_SHELLS, 0);
         VRSetEntWeaponClip(b, cVR_MainHand, 0);
@@ -260,7 +268,69 @@ void() VR_BT_Weapons =
         VR_Test_Check(VR_AG_Class(melee) == VR_AG_CLASS_MELEE, sprintf("no shells, its revolver empty: its melee weapon (%s)",
             WeaponIdToWeaponName(melee)));
         VR_Test_Check(np == WID_NAILPISTOL, sprintf("a nail pistol and nails: the nail pistol (%s)", WeaponIdToWeaponName(np)));
-        VR_BT_End();
+        VR_WeaponUtil_EntDelWeapon(b, WID_NAILPISTOL);
+        VR_AmmoUtil_SetAmmoCountByAmmoId(b, AID_NAILS, 0);
+        vr_bt_case = 0;
+        vr_bt_s = 3;
+        vr_bt_n = 0;
+        return;
+    }
+    if(vr_bt_s == 3) // a revolver taken (his, by a disarm: its clip loaded): case 0 in its main hand, no shells of its
+    {                // own; case 1 in its off hand beside its shotgun, shells of its own
+        VR_WeaponUtil_EntAddWeapon(b, WID_REVOLVER);
+        if(vr_bt_case == 0)
+        {
+            VR_AmmoUtil_SetAmmoCountByAmmoId(b, AID_SHELLS, 0);
+            VRGiveEntWeapon(b, cVR_OffHand, WID_FIST, 0, 0);
+            VRGiveEntWeapon(b, cVR_MainHand, WID_REVOLVER, 0, WeaponIdToBaseClipSize(WID_REVOLVER));
+        }
+        else
+        {
+            VR_WeaponUtil_EntAddWeapon(b, WID_SHOTGUN);
+            VR_AmmoUtil_SetAmmoCountByAmmoId(b, AID_SHELLS, 25);
+            VRGiveEntWeapon(b, cVR_MainHand, WID_SHOTGUN, 0, 0);
+            VRGiveEntWeapon(b, cVR_OffHand, WID_REVOLVER, 0, WeaponIdToBaseClipSize(WID_REVOLVER));
+        }
+        b.weapon = VRGetEntWeapon(b, cVR_MainHand);
+        self = b;
+        W_SetCurrentAmmo();
+        self = os;
+        b.enemy = b.vr_botreact_of = world;
+        b.v_angle = b.angles = vectoangles(vr_bt_base - vr_bt_spot);
+        b.fixangle = TRUE;
+        vr_rv_bot_slugs = 0;
+        vr_bt_t0 = time;
+        vr_bt_first = -1;
+        vr_bt_s = 4;
+        vr_bt_n = 0;
+        return;
+    }
+    if(vr_bt_s == 4) // it fires the taken revolver at him: three slugs
+    {
+        h.health = 999;
+        VR_BT_Hold(vr_bt_base, '0 0 0');
+        float rh = vr_bt_case == 0 ? cVR_MainHand : cVR_OffHand;
+        if(vr_rv_bot_slugs >= 1 && vr_bt_first < 0)
+        {
+            vr_bt_first = time - vr_bt_t0;
+        }
+        float ok = (vr_rv_bot_slugs >= 3 && VRGetEntWeapon(b, rh) == WID_REVOLVER);
+        if(!ok && vr_bt_n < VR_BT_GIVEUP * 2)
+        {
+            return;
+        }
+        VR_Test_Check(ok, sprintf("a revolver it took (its clip loaded), %s: %g slugs in %.2f s (the first at %.2f s; "
+            "in that hand %s, shells %g)", vr_bt_case == 0 ? "in its main hand, no shells of its own" :
+            "in its off hand beside its shotgun", vr_rv_bot_slugs, time - vr_bt_t0, vr_bt_first,
+            WeaponIdToWeaponName(VRGetEntWeapon(b, rh)), VR_AmmoUtil_GetAmmoCountByAmmoId(b, AID_SHELLS)));
+        VRGiveEntWeapon(b, cVR_OffHand, WID_FIST, 0, 0);
+        vr_bt_case++;
+        vr_bt_s = vr_bt_case < 2 ? 3 : 5;
+        vr_bt_n = 0;
+        if(vr_bt_s == 5)
+        {
+            VR_BT_End();
+        }
     }
 };
 
