@@ -182,7 +182,7 @@ const Recipe recipes[] = {
         {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.8f, {-2.88f, -0.11f, -20.71f}, {0.6f, 0.f, 2.6f}, {4, -1, -1}, false, {0.f, 0.f, 0.f},
         0.f, {"progs/v_shot2.mdl", 0, 0, 0, 0}, {151, 241, 281}, {-15.5775f, -4.6938f, -4.2402f}, false, {0.f, 0.f, 0.f},
         {0.f, 0.f, 0.f}, "progs/v_shot2.mdl", true, noRect, rotaryParts, -1, {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f},
-        -1, false, 0.f, &rotaryFlashPatch},
+        -1, false, 0.f, &rotaryFlashPatch, {0, 44, -1}},
     {"progs/dw_rail.mdl#vr", {"progs/v_rail.mdl", 311, 339, 256, 256, "dwell"}, "frame1", {23.6f, 0.f, 6.7f},
         {-6.7f, 0.f, 23.6f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.88f, {11.94f, -0.17f, -18.17f}, {-4.f, 0.f, 6.2f}, {-1, -1, -1},
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_light.mdl", 0, 0, 0, 0}, {234, 403, 493}, {-5.6211f, -9.3429f, -6.0018f}, false,
@@ -215,7 +215,8 @@ const Recipe recipes[] = {
         {0.f, 0.f, 1.f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.f, {-2.88f, -0.11f, -20.71f}, {-2.6f, 0.f, -5.5f}, {4, -1, -1},
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_nail2.mdl", 0, 0, 0, 0}, {-1, -1, -1}, {-5.1024f, -7.6303f, -8.4464f},
         false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_nail2.mdl", true, noRect, rotaryGauntletParts, -1,
-        {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f}, -1, false, 0.f, &rotaryFlashPatch},
+        {0.f, 0.f, 0.f}, 4, 16.5f, {0.f, -0.11f, -15.28f}, -1, false, 0.f, &rotaryFlashPatch,
+        {0, 44, -1}},
 };
 
 // The Plasma Gun's cell (the lightning gun's magazine and well, made by make_mags.py in v_light.mdl's space: the cell
@@ -487,7 +488,8 @@ struct Mesh
 }
 
 // Per triangle of `m`: whether it is in a welded piece holding one of `seeds` (-1: none).
-[[nodiscard]] za::Vector<bool> piecesOf(const Mesh& m, const int (&seeds)[3])
+template <int N>
+[[nodiscard]] za::Vector<bool> piecesOf(const Mesh& m, const int (&seeds)[N])
 {
     const za::Vector<int> w = weldExact(m.pos);
     za::Vector<int> parent;
@@ -914,6 +916,10 @@ struct Parts
     glm::vec3 noteLo{0.f}, noteHi{0.f};
     float noteTop[noteBins]{};
     glm::vec3 corner{0.f}; // the recipe's: the model is packed from it (its grid: a made part laid on it, the housing)
+    // The recipe's laying of the source (a source point q is drawn at layTo + (q - layFrom) * layK: its axes kept, as the
+    // Rotary Shotgun's recipes have them; dwBarrels).
+    float layK{1.f};
+    glm::vec3 layFrom{0.f}, layTo{0.f};
     // An ammo screen housing made (vr_adweapon_models prints it: the table entry's numbers, vr_screenstyle.cpp).
     bool housing{false};
     glm::vec3 housingGlass{0.f};
@@ -1495,9 +1501,42 @@ constexpr Housing lanceHousingSpec{{0.f, 6.14f}, -1, -3.93f, 10, 25, 5, 2, 2, 1,
 constexpr Housing rifleHousingSpec{{0.f, 2.745f}, -1, 0.905f, 27, 31, 12, 3, 4, 2, 33.f, 4.f, 2.f, 0.04f, {232.f, 60.f},
     8.f, {325.f, 216.f}, -1.f, 0.f, 0.f, 0.f, 1.f, 2.f, 0.5f};
 
+// The Rotary Shotgun's four barrels (dwellrotary; his notes 2026-11-22: "make the geometry in between the barrels a little
+// bit deeper, so that it looks like there's actually separate barrels", and "the muzzle is completely solid. It should
+// also have holes at the front that match the shapes of the barrels"). Dwell's are one cross-shaped shell (four flat
+// sided lobes 3.2 wide, their inner corners 2.26 from the axis) with a solid front: taken off (Recipe::dropMore), made
+// again in the source's frame (laid as the recipe lays it): four round barrels (radius 1.6, their axes 2.35 above,
+// below and either side of the turning axis: the lobes' tips where they were, 3.95 out) from Dwell's lobes' start
+// (x 16.66) to their front (37.23), separate down to 1.66 from the axis between them, round a core rod (radius 1.3) that
+// stops 0.8 short of the front; each barrel's front a ring in to its bore (radius 0.95, 2 deep, black). Dwell's barrel
+// strips on them (a lobe's three faces across, its front section on the last 4.63), all turning as Dwell's did.
+void dwBarrels(Parts& p)
+{
+    Out& o = p.o;
+    const auto lay = [&](const glm::vec3& q) { return p.layTo + (q - p.layFrom) * p.layK; };
+    const float k = p.layK;
+    const glm::vec3 axis = lay({0.f, -0.11f, -15.28f});
+    const float x0 = lay({16.66f, 0.f, 0.f}).x, x1 = lay({37.23f, 0.f, 0.f}).x;
+    const Rect body{12.f, 162.f, 54.f, 37.f, false};
+    const Rect front{12.f, 34.f, 54.f, 1.f, false};
+    const Rect breech{12.f, 37.f, 54.f, 37.f, false};
+    const Rect core{54.f, 162.f, 65.f, 37.f, false};
+    const glm::vec2 c{axis.y, axis.z};
+    o.spinning = true;
+    for(const glm::vec2 d : {glm::vec2{0.f, 1.f}, glm::vec2{-1.f, 0.f}, glm::vec2{0.f, -1.f}, glm::vec2{1.f, 0.f}})
+    {
+        barrel(p, c + d * (2.35f * k), 1.6f * k, 0.95f * k, x0, x1, 4.63f * k, 2.f * k, body, front, breech);
+    }
+    extrude(o, circle(c, 1.3f * k), x0, x1 - 0.8f * k, &core, 1, false, true, &breech, &breech);
+    o.spinning = false;
+    p.muzzle = glm::vec3{x1, axis.y, axis.z}; // (the barrels' front's middle, on the turning axis)
+    p.muzzleSet = true;
+}
+
 void rotaryParts(Parts& p)
 {
     housing(p, rotaryHousingSpec);
+    dwBarrels(p);
 }
 
 // The Rotary Shotgun as a gauntlet (dwellwpn3): the same window on its back (x -2.6 at k 1, y -5.55..7.36, z -5.5..5.46;
@@ -1513,6 +1552,7 @@ constexpr Housing rotaryGauntletHousingSpec{{0.f, 0.f}, -1, -2.71f, 9, 19, 4, 2,
 void rotaryGauntletParts(Parts& p)
 {
     housing(p, rotaryGauntletHousingSpec);
+    dwBarrels(p);
     Out& o = p.o;
     const float cs = static_cast<float>(p.capS), ct = static_cast<float>(p.capT);
     const Rect dark{cs, ct, cs, ct, false};
@@ -1579,7 +1619,12 @@ void rifleParts(Parts& p)
     }
 
     // The grafted pieces' texels: their rectangle of the Quake VR model's skin, copied under AD's.
-    const za::Vector<bool> dropped = piecesOf(src, r.drop);
+    za::Vector<bool> dropped = piecesOf(src, r.drop);
+    const za::Vector<bool> droppedMore = piecesOf(src, r.dropMore);
+    for(za::SizeT t = 0; t < dropped.size(); t++)
+    {
+        dropped[t] = dropped[t] || droppedMore[t];
+    }
     const za::Vector<bool> grafted = r.graft.path ? piecesOf(graft, r.graftSeeds) : za::Vector<bool>{};
     int rx0 = 1 << 30, ry0 = 1 << 30, rx1 = -1, ry1 = -1;
     for(za::SizeT t = 0; t < grafted.size(); t++)
@@ -1723,6 +1768,9 @@ void rifleParts(Parts& p)
     }
     Parts parts{o, graft, -rx0, src.skinH - ry0, skinW - 2, skinH - 2, 1, skinH - 2};
     parts.corner = r.corner;
+    parts.layK = r.k;
+    parts.layFrom = r.srcPivot;
+    parts.layTo = r.dstPivot;
     if(r.parts)
     {
         r.parts(parts);
