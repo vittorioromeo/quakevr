@@ -233,6 +233,9 @@ void setHotspot(int slot, int index, const Hotspot& h);
 // own, inheriting no more.
 [[nodiscard]] int inheritsFrom(int slot);
 [[nodiscard]] bool inheritable(Key key);
+// Whether `slot` can take `key` from the slot it inherits: an inheritable key, or any but its ID and parent when it
+// draws a gun variant of its parent's model (vr_gunvariants.inc: one model per gun).
+[[nodiscard]] bool inherits(int slot, Key key);
 void stopInheriting(int slot);
 
 // vr_wofs_dump [slot ...] (slots as vr_weapons.inc numbers them, from 0): every key's value the game uses for each slot

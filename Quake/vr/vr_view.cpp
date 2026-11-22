@@ -207,7 +207,7 @@ constexpr MagMount magMounts[] = {
         {7.36f, 0.f, -4.72f}, QVR_WELL_OFFSETS(nail), 0},
     {modelmeta::Id::VNail2, "progs/vr_mag_on_v_nail2.mdl", "4.7417 4.8402 0.2747", "progs/vr_magwell_on_v_nail2.mdl", {7.2f, 5.17f, 1.76f},
         {7.2f, 9.56f, 3.45f}, QVR_WELL_OFFSETS(snail), 1},
-    {modelmeta::Id::VLava2, "progs/vr_mag_on_v_lava2.mdl", "4.7401 4.8594 0.2797", "progs/vr_magwell_on_v_lava2.mdl", {7.2f, 5.17f, 1.76f},
+    {modelmeta::Id::VLava2, "progs/vr_mag_on_v_lava2.mdl", "4.7417 4.8402 0.2747", "progs/vr_magwell_on_v_lava2.mdl", {7.2f, 5.17f, 1.76f},
         {7.2f, 9.56f, 3.45f}, QVR_WELL_OFFSETS(snail), 1},
     {modelmeta::Id::VLight, "progs/vr_mag_on_v_light.mdl", "7.0097 0.5622 3.9392", "progs/vr_magwell_on_v_light.mdl", {11.6f, 0.f, 3.f},
         {11.6f, 0.f, -0.6f}, QVR_WELL_OFFSETS(light), 2},
