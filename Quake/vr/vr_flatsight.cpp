@@ -2668,11 +2668,11 @@ static void check_f()
         return;
     }
     const sightalign::SightLine line = sightalign::sightLine(wf.model);
-    if(h == st.holding && zoomOnly(h))
+    const bool zoom = h == st.holding && zoomOnly(h);
+    if(zoom)
     {
         Con_Printf("flatsightcheck: %s zoom t %.2f fov %.2f hip %.2f shift %.3f xhair %.2f\n",
             wf.model->name, st.adsT, r_refdef.fov_x, st.baseFov, glm::length(st.shift), crosshairFade());
-        return;
     }
     {
         // Where the weapon is drawn in the camera's frame (forward, right, up; and its pitch on the screen, degrees, up
@@ -2690,6 +2690,10 @@ static void check_f()
             wf.model->name, st.adsT, hand.x, hand.y, hand.z, upDeg(hand), muz.x, muz.y, muz.z, upDeg(muz), rear.x, rear.y, rear.z,
             upDeg(rear), front.x, front.y, front.z, upDeg(front));
         Con_Printf("flatcrosshair: %.3f\n", crosshairFade());
+    }
+    if(zoom)
+    {
+        return; // (a zoom-only gun: its drawn place above, no sights to line up; flatads' launchers since 0ab8a76f7)
     }
     if(!line.valid)
     {

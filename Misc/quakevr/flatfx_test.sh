@@ -39,7 +39,13 @@ block() { awk -v m="flatfx_test: wid $1" 'index($0,m)==1{on=1;next} /^flatfx_tes
 check $(grep -aq "^flatfx_test: centurion done" "$L" && echo 1 || echo 0) "centurion: the run reached its end"
 for w in 22 25; do
   check $(block $w | grep -aq "stance: on.*free hand going on it, share 1.00" && echo 1 || echo 0) "wid $w: two-handed (the stance on, the free hand on its hotspot)"
-  check $(block "$w ads" | grep -aqE "flatsightcheck: .* t 1.00 rear off 0.00[0-9]* front off 0.00[0-9]* " && echo 1 || echo 0) "wid $w: the ironsight lines its sights up"
+  # (Both centurion guns are zoom-only aim since his tuning, weapons.txt fsight_mode 1 (0ab8a76f7, 5475ff16a): sighted,
+  # the view zooms in fully and the gun stays in its pose; a gun with sights lines them up.)
+  if block "$w ads" | grep -aq "flatsightcheck: .* zoom t"; then
+    check $(block "$w ads" | grep -a "flatsightcheck: .* zoom t" | awk '{ exit !($5 == "1.00" && $7 + 0 < $9 - 10) }' && echo 1 || echo 0) "wid $w: the zoom-only aim zooms in fully ($(block "$w ads" | grep -a "flatsightcheck: .* zoom t" | cut -d' ' -f4-9))"
+  else
+    check $(block "$w ads" | grep -aqE "flatsightcheck: .* t 1.00 rear off 0.00[0-9]* front off 0.00[0-9]* " && echo 1 || echo 0) "wid $w: the ironsight lines its sights up"
+  fi
 done
 check $(grep -aq "sight line: learnt for progs/v_gruntgun.mdl#adv5" "$L" && echo 0 || echo 1) "centurion: its sight line the table's (clear of its drum), not learnt over it"
 verdict
