@@ -61,6 +61,11 @@ struct Held
 // Server: client `slot`'s room-scale walk `v` (units a second, x and y) over `dt` seconds within his budget (walkMost a
 // second, walkBurst at most saved up): what is past it taken off and counted.
 void roomscale(int slot, float v[3], double dt, float upm);
+// The budget's rule (roomscale's, and his replay's on a copy of the server's, MP_PLAN review B6): `walkLeft` (units
+// saved up; -1 full) refilled for `dt`, then `v` cut to what is left and that taken off -> whether it was cut.
+bool budget(float& walkLeft, float v[3], double dt, float upm);
+// Server: client `slot`'s budget left after his newest move queued (-1: full; QVR_SVC_PREDICT carries it).
+[[nodiscard]] float walkLeft(int slot);
 
 // Server: each client's counts (vr_mp_status).
 struct Counts
