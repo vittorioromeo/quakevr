@@ -14,6 +14,7 @@
 #include "vr_modellight.hpp"
 #include "vr_shadows.hpp"
 #include "vr_profile.hpp"
+#include "vr_seat.hpp"
 #include "vr_trace.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -29,6 +30,8 @@ namespace
 
 za::Vector<gfx::Vertex> vertices; // uv -1..1 across the disc
 int builtFrame = -1;
+// seat-shared: the seat the discs were last built for (splitscreen phase 8: each drawn seat's pass builds its own)
+int builtSeat = 0;
 
 // A disc on the floor below `from`, fading with the height above it beyond `lift` (gone at
 // `range` units), moved by `shift`.
@@ -143,9 +146,10 @@ void shadows::draw()
         return;
     }
 
-    if(builtFrame != host_framecount)
+    if(builtFrame != host_framecount || builtSeat != seat::current().index)
     {
         builtFrame = host_framecount;
+        builtSeat = seat::current().index;
         build();
     }
     if(vertices.empty())

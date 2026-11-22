@@ -1,6 +1,7 @@
 // vr_lighting.cpp -- see vr_lighting.hpp.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_seat.hpp"
 #include "vr_geom.hpp"
 #include "vr_lighting.hpp"
 #include "vr_tracy.h"
@@ -1662,6 +1663,9 @@ void renderPortalLight(PortalLight& l, const BrushCandidates& candidates)
 
 bool frameEnabled = false;
 int renderedFrame = -1;
+// Splitscreen phase 8: each drawn seat's pass renders its own shadow maps (its eye's lights, its client's dlights, casters).
+// seat-shared: the seat the shadow maps were last rendered for
+int renderedSeat = 0;
 bool renderedPortal = false; // shadow selection currently belongs to a portal or the ordinary camera
 double lastTime = 0.0;
 double lastPrint = 0.0;        // vr_shadow_stats's last print (VR_RenderShadowMaps)
@@ -1886,9 +1890,11 @@ extern "C" void VR_RenderShadowMaps(void)
     // Portal and ordinary cameras choose different lights. Rebuild when switching, preserving the existing budgets.
     // The second eye without a portal still shares the first eye's data.
     const bool portal=portals::viewing();
-    if(renderedFrame == host_framecount && !portal && !renderedPortal) { return; }
+    const int seatNow = seat::current().index;
+    if(renderedFrame == host_framecount && renderedSeat == seatNow && !portal && !renderedPortal) { return; }
     renderedPortal=portal;
     renderedFrame = host_framecount;
+    renderedSeat = seatNow;
     QVR_GPU_PROFILE("shadow maps");
     const double cpuStart = Sys_DoubleTime();
     const float dt = static_cast<float>(za::clamp(vr_gametime - lastTime, 0.0, 0.1));
