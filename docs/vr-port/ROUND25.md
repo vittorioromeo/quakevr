@@ -9501,3 +9501,33 @@ His standing rule restated: our C++ uses Zancle wherever it has an equivalent an
   struggle_test 6/6 (armdrag, shoulderdrag drag: vr_box3d_struggle.cpp's only change was std::str* -> the same
   builtins, so not this branch's; not chased); phase 2: smoke e1m1, mp_test ragsync 11/0, active_test no fail,
   NaN or crash line.
+
+## questreal: the Quest installer on the real headset (agent/questinstall, 2026-11-22; Quest 3 over USB)
+
+- origin/next merged (Standalone preset); Release build; `quest:` self-tests 9/9 throughout.
+- **Real-headset test: not finished.** Steps 1-4 pass (package, quest-devices, backup, sandbox install); step 5 (the
+  copy) found two installer bugs, both fixed; the re-run with both fixes ended "566 did not arrive" while the headset
+  dropped off USB (adb `offline`, then gone for 25+ min, 23:37-00:20): not yet known to pass. Next: plug it in and
+  `SKIP_BUILD=1 bash C:/OHWorkspace/qvr-kit/scratch/questinstall_realtest.sh` (steps 5-7).
+- **Bug 1, mod copies' paths** (`QuestFiles.ModCopyFiles`): a Dwell/Quoth/AD copy found on the PC was sent as
+  `C:\Program Files (x86)\...\Quake\dwellv2p2/gfx/...` (`ModCopy.Folder` is the copy's whole PC path); now its folder's
+  name, lower case. `Plan` refuses any device path with `:`, `\` or a leading `/` (one refused name stopped the stream).
+- **Bug 2, nothing arrived at all**: .NET 9's `TarWriter` GNU entries carry access/change times where ustar keeps its
+  prefix; the Quest's toybox tar answers "tar: Not tar" and takes nothing, and `adb exec-in` exits 0 with no output
+  (2.97 GB "sent" in 13 s, free space unchanged). .NET 9's pax: "tar: bad header". Now ustar entries
+  (`QuestInstaller.TarEntryFor`: long paths split into ustar's prefix; one ustar cannot hold is refused before
+  sending; the longest the install sends is ~62 bytes). Checked by hand on the headset: a ustar stream from .NET 9
+  extracted (into `files/qr_mkdirtest/`). FakeAdb now takes ustar entries only, as the headset does.
+- `make_release.ps1 -Local`: an existing tag on another commit (v1.2.0-beta1) is a warning there (-Local never tags).
+- The kit's `questinstall_realtest.sh` fixed: steps ran shell functions under `timeout` (exit 127), the zip is under
+  `assets/`, `MSYS_NO_PATHCONV` (Git Bash rewrote `/sdcard/...`), the backup is one tar stream (6,653 small files at
+  ~1 s a pull timed out). **The game's own files (saves, ironwail.cfg, My Settings) are `rw-rw---- u0_a207`: neither
+  adb's shell nor run-as can read them**, so they cannot be copied off; the installer (shell too) cannot write them
+  either. Their size/time/owner go to `stats-before.txt` and step 7 fails if any changed. The readable files (4,312)
+  are in the run's `backup/`. His files were untouched by every run (nothing arrived; listings after match).
+- Two adb versions (the SDK's 37.0.1, the installer's downloaded 37.0.3) restart each other's server: use one.
+- Gib-fight GPU measurement (vr_blood_near 96 / 0.3 vs 0): **not run** (headset gone). Ready: `scratch/qr_mkgore.py`
+  (six grunts 56-90 units ahead gibbed by `vr_limb_test 10` with `vr_gore_test_crowd 120`, frozen 8 frames later, ABBA
+  parts), `scratch/qr_run.sh` (launch with `-noconfigwrite`, pull the perf CSV), `scratch/qr_ab.py` (GPU median/p90,
+  frames over 15.3 ms). `vr_limb_test` is a QC test: the shipped progs.dat has none, so a test progs.dat must be on the
+  headset for it (restore the shipped one after by running `qvr-setup quest` again).
