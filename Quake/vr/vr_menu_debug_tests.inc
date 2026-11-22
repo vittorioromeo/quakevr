@@ -399,6 +399,11 @@ za::Vector<Item> pageDebugTests()
             .help("Five armed humanoids of the row in scratch1 (0 grunts, 1 enforcers, 2 knights, 3 death knights) ahead of "
                   "you, one per recolour: a shotgun (as it is), a rocket launcher, the thunderbolt, a flamethrower, a "
                   "poison sprayer (AD's guns with AD's data). vr_humlook_info prints the nearest one's look."),
+        command("Armed Humanoids: AD Model Beside Its Row", "vr_ad_test 222") // vr_humrepl_test.qc
+            .help("With AD's data: one of AD's remaining humanoid models (scratch1 the pair, 0-11: death knight, death "
+                  "guard, Quoth's death guard, sergeant, fury, death lord, point knight, zombie knight, justice, centurion, "
+                  "judicator, skull wizard) beside the armed row's model nearest its build, as still props: ours, both "
+                  "overlaid, AD's, and the overlay side-on (ARMED_MONSTERS.md, \"Audit 2\")."),
         command("Quoth: Drive This Map's Flow", "vr_ad_test 212")
             .help("Plays the map's flow for you, a round a second: every trigger you could walk into touched, every monster "
                   "awake killed by you (god mode), so waves, spawners and counters run. On ne_marb, metmon, lpqsp1, "
