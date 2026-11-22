@@ -8214,6 +8214,81 @@ ROPES.md "Multiplayer", "Tests", "Known limits".
   rope_climb_test 8+6+6, rope_flat_test 6/0, rope_hands_test 6/0 unchanged. ThinLTO 0 warnings; the MP suite in four
   chunks (ThinLTO build): every scenario passed.
 
+## tutorial5: five new things the tutorial teaches, the arena's save (agent/tutorial5, 2026-11-22)
+
+**Plan** (design first, as the brief asks). Lessons 1-11 stay as they are; three new rooms on the lower floor between
+room 11b (lava nails) and the arena, in the free strip south of rooms 10 and 11; the arena becomes lesson 15. The pace:
+after fire the player knows every basic, so the new lessons build on them (blades on melee and throwing, bash on parry
+and grenades, ropes on climbing), one gate each, before the arena uses it all.
+
+| | Room | Teaches | Gate |
+|---|---|---|---|
+| 12 BLADES | room12b (south of 11b, through its door) | a sword, a dagger and an axe on a table; cut and stab a training dummy (a stab sticks: pull it out); B/Y reverse grip | an axe thrown into the target behind the barrier opens the door |
+| 13 BASH | room13 (east of 12) | a bridge over a deadly pit; an armed grunt (an axe) comes over it: shove it off from a guard, or disarm it (grip its axe, pull); a spike and a grenade fired at you from buttons: bat the spike back, catch the grenade and throw it back | the grunt dead (shoved off or beaten) opens the door |
+| 14 ROPES | room14 (south of 12 and 13) | a pit crossed by a rope (swing, pump with the stick, jump off; a chain beside it), a ladder back out of the pit; armour past it: let go of it over your torso | the pit |
+| 15 ARENA | room12 | as before; a bullet-time tip as its door shuts (one tip, at a fight) | as before |
+
+- Disarming (always on): a tip at lesson 7's armed grunt (its rifle) and at lesson 13's grunt.
+- The arena's save (his note vrtutorial_2026-11-22_15-34-20): the arena's checkpoint moves into the hall just before its
+  door, with a new SAVE flag: taken, the game is saved (`save vrtutorial_checkpoint`); a death after it loads that save
+  (the arena as it was before, the player at its door with what he had) instead of coming back mid-wave, unarmed.
+- New entities in `late()` (the playthrough's edict numbers kept); Go to a Lesson 1..15; the bullet-time banner moves
+  with the hall.
+
+**Built** (as planned; `vrtutorial_gen.py` R12B, R13, R14, HALL15, `build_lessons_12_14`): hall_12a/12b gave way to the
+three rooms and hall_15. New QC: `func_vr_spawner`'s `vr_spawn_arm` (armed grunts holding that weapon, monster_vr_grunt's
+codes), `trap_vr_shooter` (style 0 a spike at the player, 1 a grenade lobbed to come down at him in 1 s: the ogre's,
+catchable), `info_vr_checkpoint`'s SAVE flag (taken: `save <map>_checkpoint` and its message centerprinted; the latest
+taken, a death `load`s it, once), `func_vr_restock` makes the blades and green armour (the blades counted as the
+thrown_weapons they lie as; precached by model, as one made would leave its weapon at the origin). The throwing target is
+a touch button (a thrown weapon presses it, as lesson 10's rock does; not shootable: a shot would bypass the throw), 64
+square, 144-208 over the floor (out of reach). Tips: t3_blades, t3_stab, t3_reverse (on the dagger once held), t3_axe,
+t3_bash, t3_disarm, t3_bat, t3_catch (on their buttons), t3_rope, t3_armor, t3_bullettime (the arena's door shutting),
+t2_disarm (lesson 7's grunt out). No flat tips exist in the tutorial (VR wording as before).
+
+**Checks**: the generator's layout and fixture checks; the final build `--check 1000000`: 0 holes, qbsp, vis and light
+clean (the old no-deathmatch-start note only). Playtest (`--from blades`, mock, seed 7): the axe taken by its handle and
+thrown (355 u/s) presses the target, the door opens; the armed grunt made and dead, out of room 13; SPIKE fires; both
+hands take the rope and jump off it; the arena's checkpoint taken. `--softlock --from sl_arena`: saved
+(`Saving game to vrtutorial_checkpoint.sav`), killed in the arena, loaded: back in hall_15 (1488 -568). A localcmd runs
+only after the playtest cfg's buffered lines, so sl_arena runs its death on a play's clock (as the teleporter's end).
+- Not automated: the swing across the pit (the mock, holding the rope at the edge, stays on the floor: its stick walks,
+  it doesn't step off) and the armour at the chest (grab_item + the hand to the chest put nothing on); the playtest's
+  rope gate checks the hold and the jump, then puts him across. The author's VR pass covers both.
+- The mock's walk coasts about 80 units after it arrives (Quake's friction): aimed at the pit's edge it went over.
+- Scenes: `tutorial_lessons` (in lesson 12), `tutorial_arena_save` (hall_15).
+## vrnotes1122a: MP bots from his DM voice notes (agent/vrnotes1122a, 2026-11-22)
+
+His notes dm3_2026-11-22_16-15-02, 16-17-59, 16-18-21.
+- **Revolver bot never shoots:** bot logic, not the revolver. A bot never reloads (VRIsWeaponReloadingEnabledFor: humans
+  only), so its guns fire from its ammo, never a clip; bot_can_fire counted the held gun's clip. A revolver it took
+  loaded (his, by a disarm: "Hal takes your weapon!" 3 s before 16-15-02) with no shells of its own was picked, then
+  clicked or was dropped for the axe. Fix: `bot_clips_to_ammo` (frikbot/bot_fight.qc, each AI frame from bot_ai.qc): a
+  gun in its hands puts its clip's rounds with its ammo; bot_can_fire counts the ammo only. `vr_dm_test 14` now counts
+  slugs (shells spent), not trigger pulls (attack_finished also moves on a dry cock): its own revolver 3 slugs; a taken
+  loaded revolver in its main hand, no shells: 0 slugs in 10 s before, 3 in 4.2 s after; in its off hand beside its
+  shotgun: 3. New `mp_test.py botrevolver` (in the suite): dedicated DM, A adds a bot, the server runs test 14: 5/0.
+- **Bot holsters' orientation:** solveBotGear put the hips beside the hip joints facing straight out, the very side the
+  holster frame takes as its outwards: holsterFrame normalised a zero vector, so the hip guns' frames were NaN (drawn
+  anywhere). Now (vr_mpavatar.cpp): the trunk's yaw from the drawn shoulders (`trunkYaw`), the hips and uppers on the
+  front of its belly and chest rings (round 45 and 35 degrees) facing the ring's surface there
+  (`body::frontRingPlate`, sharing `ringPlate` with your own plateOnTheRing), the frame as yours (plate out and up;
+  shoulders down the back), and the standing holster turns yours take (`holsterTurnStanding`: tuning constants, not a
+  player's settings). `view::holsterOnOther` takes the plate's up.
+- **vr_mp_gearcheck** adds per copy: `finite` (every piece's place and angles), `tilt` (worst sheath up vs the trunk's,
+  at most 70), `facing` (worst sheath out vs straight out of the trunk, at most 60), `hang` (gun to its sheath, at most
+  0.25 m), `turned`; ok needs them. `mp_test.py botgear` checks them for each copy and that the bot's tilt and facing
+  are within 20 degrees of player B's (whose client drew his own): bot 63.6 / 41.0, B 50.0 / 27.9; 14/0.
+  `MP_BOTGEAR_SHOTS=1` saves A's view of the bot (low-res here: his game was running).
+- **Dropped weapons in DM:** `VR_WPN_DM_LIFETIME` 20 s (vr_wpnholster.qc; was 10, doubled as asked; a backpack lies
+  120 and vr_dmloose.qc's cap holds their number). Every thrown or dropped weapon in deathmatch (players' too).
+  vr_dm_test 1: 22/0.
+- **Not done (budget): the dead body's look synced to the live player** (plates gained after his respawn). Cause:
+  vr_mpavatar.cpp setupBody reads `agarmor::clientState(e)` with e the owner for a doll slot too. Planned fix: QC
+  VR_DeathDoll_Make copies `.vr_pp_type/.vr_pp_mask` to the body; vr_agarmor.cpp stateOf serves those fields for a
+  non-player edict that has them (never .vr_ar_*: combat reads those); setupBody reads the doll entity's state
+  (`d.doll` set before setup in addDolls/addEntities); an mp test (B armoured, killed, respawned with other armour:
+  A's mp_doll plates unchanged). The calibration look (calOf(owner)) is live too, but rarely changes.
 ## vrnotes1122b: revolver flicks, Haste on every gun (agent/vrnotes1122b, 2026-11-22)
 
 - **The flick down with a shell held** (dm3_2026-11-22_16-14-25): the eject push (`VR_Revolver_ReloadFrame`) waited
@@ -8277,3 +8352,20 @@ ROPES.md "Multiplayer", "Tests", "Known limits".
   left the main menu open (or opened it) after the campaign switch. Headless, `vr_campaign_select dopa` from vrstart
   leaves no menu open; the teleporter run (setpos into its trigger, `vr_menu_press Run Setup > Start`) consumed
   `vr_run_hubgo` without a level change in the mock (not followed up).
+## vrnotes1122a2: a dead player's body keeps its look (agent/vrnotes1122a, 2026-11-22)
+
+- **The body's plates froze at death** (vrnotes1122a's item 4): QC VR_DeathDoll_Make and CopyToBodyQue copy the
+  player's `.vr_pp_type/.vr_pp_mask` to the body; vr_agarmor.cpp `stateOf` serves a non-player edict's own `.vr_pp_*`
+  when its type is over 0 (else `.vr_ar_*` as before: an armed monster's, which combat reads), so QVR_SVC_ARMOR goes
+  out for the body's entity; vr_mpavatar.cpp setupBody reads `clientState(d.doll)` for a doll (d.doll now set before
+  setup), never the owner's. The doll's pauldrons take its plates' colour (they had none: the doll's Avatar has no gear
+  byte). The calibration (build, arms, pauldron style) still comes from the owner (`calOf(owner)`): rarely changed.
+- `mp_doll:` lines print `plates=<type> <pieces>`. New `mp_test.py deathlook` (in the suite): a VR listen host A and a
+  flat client B; B at 10 health in yellow armour, killed whole; his body yellow at A and B; B respawns, takes red: A's
+  copy of him red, his old body yellow with the same pieces in every report at both. Then the same with
+  `vr_death_view 0` (the body queue, made at his respawn): 19/0.
+- Full MP suite in six chunks (the no-LTO Release exe; ThinLTO builds with 0 warnings): all pass but mp_melee ("A's
+  sword on B: damage None", 29/1) and mp_adspose (74 of 75 sight looks, 11/1), neither near this work: rerun alone,
+  30/0 and 12/0. After merging origin/next (vrnotes1122b's revolver): mp_botrevolver 5/0, mp_deathlook 19/0.
+- Kit note: `build.sh --lto` builds the ReleaseLTO exe; mp_test.py runs the Release one (`build.sh <name>`): rebuild
+  that after a merge, or the suite runs a stale exe ("cvar_hmake: unknown" lines for the new cvars).

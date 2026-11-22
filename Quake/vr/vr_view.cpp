@@ -1652,6 +1652,20 @@ struct HolsterPose
     }
 }
 
+// holsterTurn standing, as a body stands up (another's: a bot's, which no client of its own turned; the turns are tuning
+// constants, vr_tunables.inc, not a player's settings).
+[[nodiscard]] glm::vec3 holsterTurnStanding(int h)
+{
+    switch(h)
+    {
+        case LeftHip:
+        case RightHip: return {vr_hip_holster_pitch.value, vr_hip_holster_yaw.value, vr_hip_holster_roll.value};
+        case LeftUpper:
+        case RightUpper: return {vr_upper_holster_pitch.value, vr_upper_holster_yaw.value, vr_upper_holster_roll.value};
+        default: return {vr_shoulder_holster_pitch.value, vr_shoulder_holster_yaw.value, vr_shoulder_holster_roll.value};
+    }
+}
+
 [[nodiscard]] HolsterFrame holsterFrame(const glm::vec3& out, const glm::vec3& up, const glm::vec3& outwards)
 {
     const glm::vec3 o = glm::normalize(out);
@@ -4693,8 +4707,8 @@ qmodel_t* gearModel(int index)
     return index >= 1 && index <= gearModelCount ? viewModel(gearModelNames[index - 1]) : nullptr;
 }
 
-qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, float yaw, const qmodel_t* weapon,
-    GearDraw& sheath, GearDraw& gun)
+qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, const glm::vec3& surfaceUp, float yaw,
+    const qmodel_t* weapon, GearDraw& sheath, GearDraw& gun)
 {
     const bool shoulder = holster == body::LeftShoulder || holster == body::RightShoulder;
     const bool mirrored = holster == body::LeftHip || holster == body::LeftUpper || holster == body::LeftShoulder;
@@ -4702,13 +4716,15 @@ qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out
     qmodel_t* const slotModel = vr_leg_holster_model_enabled.value && !shoulder ? viewModel("progs/legholster.mdl") : nullptr;
     body::HolsterPlate plate;
     plate.out = out;
-    plate.up = glm::vec3{0.f, 0.f, 1.f};
+    plate.up = surfaceUp;
     HolsterPose pose = shoulder ? holsterOnBack(pos, yaw, mirrored) : holsterOnBody(pos, plate, mirrored, upper, slotModel);
     // (mpbothands) The weapon in it by its own Holstered pose, as yours (poseHolstered, in the holster's frame: off the
-    // body, up, outwards); the Hotspots page's turns are yours alone, not put on his.
+    // body, up, outwards); turned as yours stand (holsterTurnStanding). (vrnotes1122a) The frame as yours
+    // (drawHolsters): the plate's out and up, outwards the body's side; the shoulders' out down the back.
     glm::vec3 fwd, right, up;
     hands::angleVectors({0.f, yaw, 0.f}, fwd, right, up);
-    const HolsterFrame frame = holsterFrame(out, up, mirrored ? -right : right);
+    HolsterFrame frame = holsterFrame(shoulder ? -fwd : out, shoulder ? up : surfaceUp, mirrored ? -right : right);
+    turnHolster(pose, pos, frame, holsterTurnStanding(holster)); // (the turns yours take standing, as a player drew his)
     const weapons::HolsterKind kind = shoulder ? weapons::HolsterKind::Shoulder
                                       : upper  ? weapons::HolsterKind::Upper
                                                : weapons::HolsterKind::Hip;

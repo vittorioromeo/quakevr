@@ -132,6 +132,12 @@ void(entity xNew) VR_EnemyWeapons_MakeRoom;
 
 float(entity e) VR_Embed_Held; // (vr_embedhold.qc)
 
+// How long a thrown or dropped weapon lies in deathmatch before it is removed, seconds (vrnotes1122a, his voice note
+// 2026-11-22: a bot's dropped weapons went "a bit too soon, the player should have a little bit more time to grab them":
+// 10 before, doubled; still far under a backpack's 120, and deathmatch's cap on loose weapons holds their number,
+// vr_dmloose.qc).
+float VR_WPN_DM_LIFETIME = 20;
+
 void() wpnthrow_think =
 {
     if(deathmatch && time > GetThrownWeaponTimeout(self))
@@ -648,7 +654,7 @@ void MakeThrown(entity newmis,
     newmis.think = wpnthrow_think;
     newmis.nextthink = time + 0.02;
 
-    SetThrownWeaponTimeout(newmis, time + 10); // removal time (timeout) in deathmatch
+    SetThrownWeaponTimeout(newmis, time + VR_WPN_DM_LIFETIME); // removal time (timeout) in deathmatch
 
     newmis.weapon = xWeapon;
     newmis.weaponflags = xWeaponFlags;
