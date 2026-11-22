@@ -68,7 +68,9 @@ float RV_SWING = -95;        // the crane's swing out, degrees about the bore (+
 .float rvh_fot;     // the seconds since each flick began (the time window)
 .float rvh_fct;
 .float rvh_toggled; // when it last swung out or home
-.float rvh_swing;   // when its hand last moved at a swing's speed (VR_Revolver_SwingGuard)
+.float rvh_swing;   // when a flick open was last refused as a swing (VR_Revolver_SwingGuard)
+.float rvh_arm;     // the hand's motion over the last moment (vr_revolver_flick_motion_time, fading): the arm's (m),
+.float rvh_wrist;   // and the wrist's roll's (m; VR_Revolver_Flick)
 .float rvh_rod;     // until when its ejector rod is drawn pushed
 .float rvh_spun;    // its last swipe
 .float rvh_held_at; // the last time the other hand held anything (a shell) or a shell went in: no spin a moment after
@@ -739,20 +741,28 @@ float(entity h, float xRate, float xDt) VR_Revolver_FlickRate =
     return 0;
 };
 
-// A melee swing is no flick open (his note 2026-11-21: swinging the revolver to hit, he often opened its cylinder): TRUE
-// while the hand moves `xSpeed` m/s at vr_revolver_open_swing_speed or faster, for vr_revolver_open_swing_hold seconds
-// after it last did (the swing's slowing, its recoil) and after his last blow landed `xBlowAgo` seconds ago. Each frame
-// (VR_Revolver_ReloadFrame), the flick's own state stepped as ever. A deliberate flick (the wrist rolled, the arm near
-// still) still opens it; the flick home is never refused.
-float(entity h, float xSpeed, float xBlowAgo) VR_Revolver_SwingGuard =
+// The arm's share of the hand `h`'s motion over the last moment (VR_Revolver_Flick's rvh_arm and rvh_wrist): 0 all the
+// wrist's roll, 1 all the arm's travel (0 when still).
+float(entity h) VR_Revolver_ArmShare =
 {
-    float fast = cvar_hget(cvarh_vr_revolver_open_swing_speed);
-    if(fast <= 0)
+    float all = h.rvh_arm + h.rvh_wrist;
+    return all > 0 ? h.rvh_arm / all : 0;
+};
+
+// A melee swing is no flick open (his note 2026-11-21: swinging the revolver to hit, he often opened its cylinder), a
+// flick mostly of the wrist is (his note vrfiringrange_2026-11-22_16-11-57): for a flick open about to swing it out,
+// TRUE when the arm's share of the hand's motion `xShare` (VR_Revolver_ArmShare) is over
+// vr_revolver_open_flick_arm_share, for vr_revolver_open_swing_hold seconds after such a refusal (the swing's slowing,
+// its recoil) and after his last blow landed `xBlowAgo` seconds ago. The flick home is never refused.
+float(entity h, float xShare, float xBlowAgo) VR_Revolver_SwingGuard =
+{
+    float most = cvar_hget(cvarh_vr_revolver_open_flick_arm_share);
+    if(most >= 1)
     {
         return FALSE;
     }
     float hold = max(0, cvar_hget(cvarh_vr_revolver_open_swing_hold));
-    if(xSpeed >= fast)
+    if(xShare > most)
     {
         h.rvh_swing = time;
         return TRUE;
@@ -764,6 +774,7 @@ float(entity h, float xSpeed, float xBlowAgo) VR_Revolver_SwingGuard =
 // right hand, its right in the left: the gun mirrored) and the flick it makes (VR_Revolver_FlickRate).
 float vr_rv_rollrate;
 float vr_rv_swingrefused; // flicks open refused as a swing's (the tests)
+float vr_rv_armshare; // the arm's share of the hand's motion now (VR_Revolver_ArmShare; the tests)
 float vr_rv_rollmax; // (the fastest roll seen, signed: the tests reset it)
 float vr_rv_turnrate; // how fast the hand turns now, about any axis (degrees a second; VR_Revolver_Push)
 float(entity h, float xHand) VR_Revolver_Flick =
@@ -774,6 +785,7 @@ float(entity h, float xHand) VR_Revolver_Flick =
     {
         h.rvh_upok = FALSE;
         vr_rv_rollrate = vr_rv_turnrate = 0;
+        h.rvh_arm = h.rvh_wrist = 0;
         return VR_Revolver_FlickRate(h, 0, frametime);
     }
     // (From the hand's turn since the last frame: how far its up swung about its aim towards its left, or its right in the
@@ -801,7 +813,16 @@ float(entity h, float xHand) VR_Revolver_Flick =
     {
         dprint(sprintf("revolver: hand %g's wrist rolls %.0f deg/s towards the cylinder's side\n", xHand, vr_rv_rollrate));
     }
-    return VR_Revolver_FlickRate(h, VR_Revolver_FlickForce(vr_rv_rollrate, VRGetEntHandVel(self, xHand) * side), frametime);
+    // The hand's motion split (the swing guard, VR_Revolver_SwingGuard): the wrist's roll at vr_revolver_flick_wrist_lever
+    // metres, and the arm's travel, the hand's speed less what its turn at that lever explains (a wrist flick moves the
+    // controller 3-6 m/s by itself), both over the last vr_revolver_flick_motion_time seconds, older motion fading.
+    vector hv = VRGetEntHandVel(self, xHand);
+    float lever = max(0, cvar_hget(cvarh_vr_revolver_flick_wrist_lever));
+    float span = cvar_hget(cvarh_vr_revolver_flick_motion_time);
+    float keep = span > 0 ? max(0, 1 - frametime / span) : 0;
+    h.rvh_arm = h.rvh_arm * keep + max(0, vlen(hv) - vr_rv_turnrate / 57.29578 * lever) * frametime;
+    h.rvh_wrist = h.rvh_wrist * keep + fabs(roll) / 57.29578 * lever * frametime;
+    return VR_Revolver_FlickRate(h, VR_Revolver_FlickForce(vr_rv_rollrate, hv * side), frametime);
 };
 
 // One frame (`xDt` s) of the hand's motion along the way its chambers open: `xSpeed` m/s that way, `xOff` degrees off it, the
@@ -986,15 +1007,21 @@ void(float xHand, entity h, entity r) VR_Revolver_ReloadFrame =
         flick = 0; // (both hands on it: the wrist's roll is the aim's)
     }
     float blowAgo = self.vr_blow_time > 0 ? time - self.vr_blow_time : -1;
-    if(VR_Revolver_SwingGuard(h, vlen(VRGetEntHandVel(self, xHand)), blowAgo) && flick > 0 && !r.wi_rv_open)
+    vr_rv_armshare = VR_Revolver_ArmShare(h);
+    if(flick > 0 && !r.wi_rv_open && VR_Revolver_SwingGuard(h, vr_rv_armshare, blowAgo))
     {
         if(cvar_hget(cvarh_vr_reload_debug))
         {
-            dprint(sprintf("revolver: %s refused: a melee swing (the hand at %.1f m/s)\n", vr_rv_lasthow,
-                vlen(VRGetEntHandVel(self, xHand))));
+            dprint(sprintf("revolver: %s refused: a melee swing (the arm's share %.2f: %.2f m to the wrist's %.2f m; over %g, or %g s after a swing or a blow)\n",
+                vr_rv_lasthow, vr_rv_armshare, h.rvh_arm, h.rvh_wrist, cvar_hget(cvarh_vr_revolver_open_flick_arm_share),
+                cvar_hget(cvarh_vr_revolver_open_swing_hold)));
         }
         vr_rv_swingrefused = vr_rv_swingrefused + 1;
         flick = 0;
+    }
+    else if(flick > 0 && !r.wi_rv_open)
+    {
+        vr_rv_lasthow = sprintf("%s, the arm's share %.2f", vr_rv_lasthow, vr_rv_armshare);
     }
     if(time < h.rvh_toggled + 0.3 || h.rvh_fire_at > 0)
     {

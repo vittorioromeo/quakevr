@@ -24,8 +24,9 @@
 //     deliberate one does. Then a spin (900 degrees a second): it slows, stops on a chamber; the chamber under the hammer moved with its turn.
 //  10 a flick of the wrist the other way (the mock's roll with vr_mock_turn_velocity 1): it swings home.
 //  11 pulls until two shots: each pull a shot or a click as its chambers say, from the one after the hammer's on.
-//  12 the same flick as a swing ends (the hand moved 4 units in a frame, then rolled; and back: his note 2026-11-21) leaves it shut
-//     (vr_revolver_open_swing_speed); past the guard's hold, a flick towards its cylinder's side: it swings out. 13 its shells leave only by a linear push of the hand: the muzzle
+//  12 a melee swing rolling the wrist (the hand 7 m/s for 12 frames; and back: his note 2026-11-21) leaves it shut (the arm's
+//     share over vr_revolver_open_flick_arm_share); past the guard's hold, a wrist flick towards its cylinder's side (the
+//     hand still: his note 2026-11-22): it swings out. 13 its shells leave only by a linear push of the hand: the muzzle
 //     tilted up, a flick of the wrist (720 deg/s about a wrist right under the hand), a push across it, a slower one
 //     along it and one right after loading drop nothing; a push along it (1.6 m/s) throws its two spent and two live shells
 //     out (two live rounds lying about), the live ones at the hand's velocity x vr_revolver_eject_impulse. Then the same
@@ -315,26 +316,34 @@ void() VR_RVT_Flicks =
             VR_Revolver_FlickForce(250, 1), VR_Revolver_FlickForce(400, -1)));
     cvar_set("vr_revolver_flick_hand_weight", ftos(hw0));
     cvar_set("vr_revolver_flick_hand_cap", ftos(hc0));
-    // The swing guard (his note 2026-11-21: a melee swing opened it): 2 m/s, held 0.35 s after, and after a blow.
-    float gs0 = cvar_hget(cvarh_vr_revolver_open_swing_speed);
+    // The swing guard (his notes 2026-11-21, a melee swing opened it; 2026-11-22, a wrist flick no longer did): the arm's
+    // share of the hand's motion over 0.45 refused, held 0.35 s after, and after a blow; 1 no guard.
+    float gs0 = cvar_hget(cvarh_vr_revolver_open_flick_arm_share);
     float gh0 = cvar_hget(cvarh_vr_revolver_open_swing_hold);
-    cvar_set("vr_revolver_open_swing_speed", "2");
+    cvar_set("vr_revolver_open_flick_arm_share", "0.45");
     cvar_set("vr_revolver_open_swing_hold", "0.35");
     h.rvh_swing = 0;
-    float g1 = VR_Revolver_SwingGuard(h, 0.8, -1);
-    float g2 = VR_Revolver_SwingGuard(h, 3.5, -1);
-    float g3 = VR_Revolver_SwingGuard(h, 0.5, -1);
+    float g1 = VR_Revolver_SwingGuard(h, 0.3, -1);
+    float g2 = VR_Revolver_SwingGuard(h, 0.6, -1);
+    float g3 = VR_Revolver_SwingGuard(h, 0.1, -1);
     h.rvh_swing = time - 0.4;
-    float g4 = VR_Revolver_SwingGuard(h, 0.5, -1);
-    float g5 = VR_Revolver_SwingGuard(h, 0.5, 0.1);
-    float g6 = VR_Revolver_SwingGuard(h, 0.5, 0.5);
-    cvar_set("vr_revolver_open_swing_speed", "0");
-    float g7 = VR_Revolver_SwingGuard(h, 5, 0);
-    cvar_set("vr_revolver_open_swing_speed", ftos(gs0));
+    float g4 = VR_Revolver_SwingGuard(h, 0.1, -1);
+    float g5 = VR_Revolver_SwingGuard(h, 0.1, 0.1);
+    float g6 = VR_Revolver_SwingGuard(h, 0.1, 0.5);
+    cvar_set("vr_revolver_open_flick_arm_share", "1");
+    float g7 = VR_Revolver_SwingGuard(h, 1, 0);
+    cvar_set("vr_revolver_open_flick_arm_share", ftos(gs0));
     cvar_set("vr_revolver_open_swing_hold", ftos(gh0));
+    // The share itself: 0.3 m of the arm's to 0.1 of the wrist's 0.75; still 0.
+    h.rvh_arm = 0.3;
+    h.rvh_wrist = 0.1;
+    float s1 = VR_Revolver_ArmShare(h);
+    h.rvh_arm = h.rvh_wrist = 0;
+    float s2 = VR_Revolver_ArmShare(h);
     VR_Test_Check(!g1 && g2 && g3 && !g4 && g5 && !g6 && !g7,
-        sprintf("the swing guard: a flick at 0.8 m/s goes (%g), at 3.5 m/s refused (%g), right after (%g), 0.4 s after goes (%g); "
+        sprintf("the swing guard: a flick with the arm's share 0.3 goes (%g), 0.6 refused (%g), right after (%g), 0.4 s after goes (%g); "
             "0.1 s after a blow refused (%g), 0.5 s after goes (%g); off goes (%g)", g1, g2, g3, g4, g5, g6, g7));
+    VR_Test_Check(fabs(s1 - 0.75) < 0.001 && s2 == 0, sprintf("the arm's share: 0.3 m to the wrist's 0.1 m %g (want 0.75), still %g", s1, s2));
     // The eject push, accumulated (its defaults: 5 cm, reaching 1 m/s): a curved push with a wiggling wrist goes; a wiggle in
     // place, a sweep far off the way, a fast turn and a slow push don't.
     float pe0 = cvar_hget(cvarh_vr_revolver_eject_speed);
@@ -888,24 +897,33 @@ void() VR_Revolver_TestFrame =
     }
     else if(s == 12)
     {
-        if(vr_rvt_frames == 2) { vr_rvt_n = vr_rv_swingrefused; }
-        // (The swing's move, then the roll as it ends: the mock's move cuts short a turn still easing in.)
-        if(vr_rvt_frames == 8) { localcmd("vr_mock_hand_to main by 0 0 4\n"); }
-        if(vr_rvt_frames == 9) { localcmd("vr_mock_hand_turn main 0 0 150\n"); }
-        if(vr_rvt_frames == 30) { localcmd("vr_mock_hand_to main by 0 0 -4\n"); }
-        if(vr_rvt_frames == 31) { localcmd("vr_mock_hand_turn main 0 0 -150\n"); }
-        if(vr_rvt_frames == 75)
+        if(vr_rvt_frames == 2) { vr_rvt_n = vr_rv_swingrefused; vr_rvt_k = 0; }
+        // A melee swing (his replays' swings: the hand 8-10 m/s, the wrist rolling with it): 12 frames of the hand at 7 m/s
+        // up, the controller rolling 25 degrees a frame (the aim about 8: 600 deg/s, a flick's roll), the arm's share of
+        // the motion about 0.8; then back down, rolled back.
+        if(vr_rvt_frames >= 8 && vr_rvt_frames < 20)
         {
-            VR_Test_Check(!rec.wi_rv_open && vr_rv_swingrefused > vr_rvt_n,
-                sprintf("a flick (+150) as a swing ends (the hand 4 units in a frame): still shut (%g), refused as a swing %g time(s)",
-                    rec.wi_rv_open, vr_rv_swingrefused - vr_rvt_n));
+            VR_RVT_HandMove('0 0 7');
+            localcmd("vr_mock_hand_turn main 0 0 25\n");
+            vr_rvt_k = max(vr_rvt_k, vr_rv_armshare);
+        }
+        if(vr_rvt_frames >= 30 && vr_rvt_frames < 42)
+        {
+            VR_RVT_HandMove('0 0 -7');
+            localcmd("vr_mock_hand_turn main 0 0 -25\n");
+        }
+        if(vr_rvt_frames == 100)
+        {
+            VR_Test_Check(!rec.wi_rv_open && vr_rv_swingrefused > vr_rvt_n && vr_rvt_k > 0.45,
+                sprintf("a melee swing rolling the wrist (the hand 7 m/s, 300 degrees of the controller's roll): still shut (%g), refused as a swing %g time(s); the arm's share at most %.2f",
+                    rec.wi_rv_open, vr_rv_swingrefused - vr_rvt_n, vr_rvt_k));
             vr_rv_rollmax = 0;
             localcmd("vr_mock_hand_turn main 0 0 150\n");
         }
-        if((rec.wi_rv_open && vr_rvt_frames > 75) || vr_rvt_frames == 115)
+        if((rec.wi_rv_open && vr_rvt_frames > 100) || vr_rvt_frames == 140)
         {
             VR_Test_Check(rec.wi_rv_open && substring(vr_rv_lasthow, 0, 7) == "a flick",
-                sprintf("a flick towards its cylinder's side (the mock's roll +150 in a frame): out (%g) by %s; the wrist's roll %.0f deg/s",
+                sprintf("a wrist flick towards its cylinder's side (the mock's roll +150 in a frame, the hand still): out (%g) by %s; the wrist's roll %.0f deg/s",
                     rec.wi_rv_open, vr_rv_lasthow, vr_rv_rollmax));
             vr_rvt_shots0 = vr_rv_ej_spent;
             vr_rvt_dry0 = vr_rv_ej_live;
@@ -979,7 +997,7 @@ void() VR_Revolver_TestFrame =
         }
         else if(f13 == 192)
         {
-            VR_Test_Check(dropped13 == 0 && vr_rv_pushmax > 1.4, sprintf("a push along it with a shell in the other hand: %.2f m/s, %g shells out (want 0)", vr_rv_pushmax, dropped13));
+            VR_Test_Check(dropped13 == 0 && vr_rv_pushmax > 1.4, sprintf("a push along it just after a shell went in: %.2f m/s, %g shells out (want 0)", vr_rv_pushmax, dropped13));
         }
         else if(f13 >= 225)
         {
