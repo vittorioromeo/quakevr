@@ -11498,3 +11498,34 @@ settings: everyone's holsters sat where yours do.
 
 ## holsterbake
 vr_mp_holster_check (vr_mpavatar.cpp) puts every archived vr_ cvar at its shipped default for a moment (restored after), computes the holsters and compares them with defaultHolsterCal: PASS, or FAIL N of M differ with the field names, the re-bake instruction and the table. It runs in Misc/quakevr/selfchecks_test.sh (release suite selfchecks; "PASS bot default holsters"). Proven: vr_hip_offset_y default 11.5 -> 12.5 failed it (8 of 46: at2y at3y po2y po2z pc2 po3y po3z pc3); reverted, passes.
+
+## beta3check: is next ready for 1.2.0-beta3? Quest and PC checks, nothing published (agent/beta3check, 2026-11-23)
+
+Test only on origin/next f707a8440 (no code). Quest 3 block 22:29-22:40 (debug-key APK `install -r`, next's progs.dat,
+every launch `-noconfigwrite -unattended`, Standalone as a new player gets it: `resetcfg; vr_standalone_preset 0`); then
+beta2's re-signed APK and the shipped progs.dat (8a409520...) back. Scripts (not committed): `scratch/beta3/b3_*`.
+- **Quest, all launches: no crash** (no fatal signal, Sys_Error or Host_Error on a player path). Cold start after the
+  update: menu 31 s after launch (56 of 73 GL programs compiled: the program cache is per build; later starts 1.5-8 s).
+  e1m1, the first fight, the frozen gib fight, Quest Foveation High/Off/Low x2 in play and Off/Low/High with the menu
+  open (qfovcrash's case: no crash, the eyeshots alike), save + load (zz_beta3check.sav), pause/resume, a throw
+  (`vr_foegrab_throw_test`): all fine, eyeshots look right. The weapon wheel's test (`vr_weaponwheel_test`) times out on
+  the headset: it drives the mock's buttons, so the wheel needs a human. Dwell, Quoth and AD are not on the headset.
+- **Gib fight (2 launches, 2 parts each, 588 frames a part)**: Standalone (dynres, sits at 0.55) GPU median 12.2 ms,
+  runtime-missed 0.8-1.0%, frames >15.3 ms 24-25%; fixed 0.65 High 12.6-13.2 ms, 1.8-3.2% missed. beta2 (same scene,
+  its preset: 0.65, foveation off) 15.0 ms, 11.3% missed, 57% >15.3 ms. qfov4's High 0.65 13.1-13.3 and qcombined's
+  dynres 14.8 ms / 13.5% missed: next is at or below both. CPU busy 10.0-10.4 ms vs beta2 7.3 (c_eye_L 3.1 -> 5.4,
+  c_alias 1.6 -> 2.9, c_vr_particles 0.1 -> 1.4, draws 171 -> 215; was waiting in xrWaitFrame before): still under the
+  frame, but the render thread's CPU grew ~3 ms. The live first fight: GPU 7.2 ms, 2.7% missed.
+- **Logcat vs beta2**: new are the straight-in eye images' set-up line `GL error 0x502` (vr_stereo.cpp's diagnostic
+  glGetError after the QCOM foveation queries; images complete, drawn right), developer-mode QC warnings `check
+  "DP_QC_..." before calling` (VR_AG_Angles, VR_Melee_TurnVel, SetNewParms...: extension builtins called without
+  checkextension; developer 1 only), and `sound/vr/lance_charge.wav` missing (the headset's data is beta2's; Setup
+  copies it). The runtime stops and restarts the XR session every ~15 s with the headset unworn (as qcpu2 saw).
+- **PC**: run_test_suite.py beta profile on a Release build: 11 passed, **1 failed: scenario_check** (twice, the same):
+  `SCNERR|quest_gibfight|7|unknown command "vr_physics_spawn ..."`. `vr_scenario validate` runs before any map, and
+  Box3D registers its diag commands (vr_physics_spawn) only at its first reset/toss (vr_box3d_api.cpp
+  `registerCommands`), so the scenario added by qworld can't validate. 180 scenarios run, 0 failed. Installer SelfTest
+  60/60. APK: 0 native warnings, check_apk 20/0.
+- **Release blockers**: scenario_check (make_release -RunTests stops on it); the notes "New in beta 3" (draft:
+  qvr-kit/scratch/beta3_notes_draft.md, incl. the one-time Quest uninstall for the release key and net version 46);
+  the weapon wheel not checked on the headset (human); the release-signed APK not built (his key).
