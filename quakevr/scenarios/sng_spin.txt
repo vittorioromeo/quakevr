@@ -1,0 +1,8 @@
+# sng_spin: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The super nailgun's barrels spin up
+# and coast down (the Widowmaker's spin, vr_adweapons.cpp spinFrame): the gun in the right hand, nails to spare.
+title Super nailgun barrels: spin up, coast down
+map vrtesthall
+god
+notarget
+cmd impulse 9; impulse 157
+hint The super nailgun is in your right hand. Fire a burst and let go: the barrels slow down and stop where they are, never snapping back. Fire again from rest: they speed up over a moment.

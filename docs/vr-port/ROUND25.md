@@ -10665,3 +10665,31 @@ issue rather than regrabbing"). ROPES.md "Climbing (flat-screen)", "Poles", "Tes
   upright 11/0, slant 11/0; rope_flat_test rope 8/0, pole 7/0, polejump 7/0, slantjump 6/0, wall 1/0, wallvr 1/0,
   strungpole 5/0; rope_climb_test pole_jump 6/0, rope_jump 6/0, pole_wood 10/0, monkey_jump 7/0; vr_pole_solid_test
   14/0; mp_test.py pole 15/0. Not run: an MP free-fall scenario (prediction shares solidInside/solidLedge).
+## weaponfx: thrown blades' kills thrown half as far; the super nailgun's barrels coast; the Lance charged at its middle crystal (agent/weaponfx, 2026-11-23)
+
+His feedback 2026-11-23, items 7-9.
+- **Thrown blade kills (7):** the kill push (QC combat.qc, `vr_kill_push`) times `VR_KillPush_Mult(inflictor)`: a thrown
+  weapon with an embed (weapons.txt: an axe, sword, dagger; VR and flat throws make the same `thrown_weapon`) gives
+  `vr_throw_kill_push` (tunable, 0.5; Debug > Tunables, "Thrown Blade Kill Push"); anything else 1. vr_debug_shots prints
+  "kill push: ... xN". Test `vr_embed_test 41` (vr_throwgib_test.qc) case 5: 20 damage on a fresh grunt's last point:
+  the player's blow 197.4 u/s, a thrown sword and axe 98.7 (0.50), a thrown shotgun 197.4; 23/0.
+- **Super nailgun spin (8):** vr_adweapons.cpp `spinFrame` drives v_nail2.mdl (and the lava variant, via
+  gunvariants::resolve) by the Widowmaker's and Rotary's `advance`: its firing frames 1..8 are an eighth of a turn each
+  (kick taken out in memory, vr_kickcancel), so the pose pair and blend come from the spin's phase (`SpinModel::ownFrames`,
+  45 degrees a step, 0.1 s a step at the top: Quake's own rate), coasting after the release to the nearest frame (frame 0
+  only at rest on a whole turn; frame 8 while turning so vr_gunfx's firing barrel is known). Spin-up/-down are the
+  Widowmaker's tunables. No motor whine (Quake's gun keeps its own sounds). vr_ad_widowmaker_spin_info prints its "own
+  frames". Test `Misc/quakevr/sng_spin_test.sh` (VR and flat) 10/0: turning while held, no jump or backward step over 100
+  frames after the release (215.6 deg at the release, at rest on 90.0), at rest on a frame. dwell_vrmodels 13/0 (the
+  Rotary's spin unchanged). Scenario `sng_spin`.
+- **Lance charge origin (9):** the spear model's (dw_lance, slot 55) muzzle_av "31.02 5.3 84.96" is the midpoint of its two
+  outer prongs' tips, a point in the air; an anchor binds to the surface nearest it, a prong's tip (vertex 273, 6.5 model
+  units off the pole's line): the charge was drawn there. vr_lancecharge.cpp now draws it at `tipVertex`: the vertex
+  furthest along the line from hand_av to muzzle_av (the anchors' own points) within 1 model unit of it, found once per
+  model: the spear's middle crystal (vertex 0, 28.16 5.27 77.41, on the pole's line; 3.96 world units from the old
+  place), the gun's (dw_rail) vertex 37 (14.45 0.13 5.64, its muzzle's own: 0.01 off). The beam's start (the muzzle) is
+  unchanged. vr_debug_gunfx prints "lancecharge: origin at the middle crystal's tip (...)". dwell_lance_test.sh 36/0 (new
+  check in section 3). Screenshot kit `scratch/weaponfx_lance_charge.png` (the head at the frame's edge),
+  `weaponfx_sng_coast.png` (coasting, then at rest).
+- Open: the spear's muzzle (the beam's start, the aim) is still the prongs' midpoint bound to a prong; moving muzzle_av to
+  the middle crystal's tip would start the bolt there too (his call: Weapon Offsets).
