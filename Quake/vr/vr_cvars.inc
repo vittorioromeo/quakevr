@@ -3200,6 +3200,7 @@ QVR_CVAR(vr_agarms_pole_key, "10", CVAR_NONE)          // vr_agarms: an elbow's 
 #undef QVR_AGGUN
 #undef QVR_AGHOLD
 QVR_CVAR(vr_posestudio_live_warm,"0.4", CVAR_NONE)   // ... seconds of the tape solved again before a paused frame with an edit laid on (the eases see it as play would)
+QVR_CVAR(vr_agrunt_armpose_slots, "0", CVAR_NONE)    // debug/test: the armed humanoids' arm pose slots used (0 all 128; vr_agrunt_armpose_check's test caps them: a drawn one takes an undrawn one's slot)
 QVR_CVAR(vr_agrunt_freeze, "0", CVAR_NONE)           // 1: armed monsters hold still in their idle pose, their weapons ready (the Grip Editor; QC vr_armedgrunt.qc), AI held; 0 off
 QVR_CVAR(vr_enemygun_spent_smoke, "5", CVAR_ARCHIVE | QVR_RULE)     // seconds a grunt's burst rifle or an enforcer's laser rifle smokes once its last round is fired (held or dropped; 0: never; QC vr_enemyguns.qc)
 QVR_CVAR(vr_enemygun_spent_crackle, "1", CVAR_ARCHIVE | QVR_RULE) // seconds it crackles all over with lightning's lasting arcs then, as a struck corpse (0: never)

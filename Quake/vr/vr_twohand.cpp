@@ -317,6 +317,41 @@ void reportLetGo(int holding, const char* why, float value, float limit, float s
     return len > 0.f ? v / len : v;
 }
 
+// A pole grip's drawn other hand `on` (its pose as it took hold, slid along the pole: freeHand) turned about the pole by
+// the tracked hand's own turn about it since (`now`: the tracked hand in the same frame, the holding hand's), times
+// vr_pole_grip_turn (lance3; his note vrtesthall_2026-11-23_23-24-17: it slid along the shaft but kept its turn round it,
+// locking the wrist): the twist part of the turn from the pose it took to the tracked one, about the pole's axis (g.axis,
+// through the holding hand), its place turned round the pole's line with it. Any FREE_POLE grip (VR; flat play's spear
+// pose is flatsight's).
+void poleTurn(const FreeGrip& g, const RelPose& now, RelPose& on)
+{
+    const float share = za::clamp(vr_pole_grip_turn.value, 0.f, 1.f);
+    const glm::vec3 a = safeNormalize(g.axis);
+    if(share <= 0.f || glm::length(a) < 0.5f)
+    {
+        return;
+    }
+    const auto basis = [](const RelPose& p) {
+        const glm::vec3 f = safeNormalize(p.fwd);
+        const glm::vec3 l = safeNormalize(glm::cross(p.up, f));
+        return glm::mat3{f, l, glm::cross(f, l)};
+    };
+    const glm::quat d = glm::quat_cast(basis(now) * glm::transpose(basis(g.hand)));
+    const float along = glm::dot(glm::vec3{d.x, d.y, d.z}, a);
+    glm::quat twist{d.w, a * along}; // (swing-twist: the turn's part about the axis)
+    const float n = glm::length(twist);
+    if(n < 1e-5f)
+    {
+        return;
+    }
+    twist = twist.w < 0.f ? -twist / n : twist / n;
+    twist = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, twist, share);
+    const glm::vec3 c = a * glm::dot(on.pos, a); // (its nearest point on the pole's line)
+    on.pos = c + twist * (on.pos - c);
+    on.fwd = twist * on.fwd;
+    on.up = twist * on.up;
+}
+
 // The world direction of a sword's blade held at `rot` in `hand`, as the view draws the weapon
 // (vr_view.cpp setupWeapon: the hand's turn composed with the weapon's angles, the pitch negated for alias
 // models, mirrored in the off hand).
@@ -1868,6 +1903,7 @@ bool freeHand(int hand, const glm::vec3& trackedPos, const glm::vec3& trackedRot
     if(g.mode == FREE_POLE)
     {
         on.pos += g.point - g.handPoint; // (slid along the pole with the hand)
+        poleTurn(g, relativeTo(holderPos, holderRot, trackedPos, trackedRot), on);
     }
     fromRelative(holderPos, holderRot, on, pos, rot);
     return true;

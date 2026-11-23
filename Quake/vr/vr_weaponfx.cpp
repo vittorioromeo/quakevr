@@ -791,6 +791,13 @@ void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::ve
     pos = glm::vec3{0.f};
     angles = glm::vec3{0.f};
     HandFx& h = handFx[hand];
+    float lanceKick = 0.f, lanceSideways = 0.f;
+    lancecharge::shake(hand, lanceKick, lanceSideways); // (the Crystal Lance charging, and as it fires: lance3)
+    if(lanceKick > 0.f && weapons::heldSlot(hand) >= 0 && h.slot != weapons::heldSlot(hand))
+    {
+        forget(hand); // (charging before its first shot: its kicks' weapon now)
+        h.slot = weapons::heldSlot(hand);
+    }
     if(h.slot < 0)
     {
         return;
@@ -818,6 +825,8 @@ void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::ve
     }
     float shake = 0.f, shakeSideways = 0.f;
     streamShake(h, shake, shakeSideways); // (a stream weapon firing: vr_weapons.inc StreamShake)
+    shake += lanceKick;
+    shakeSideways += lanceSideways;
     back += shake;
     rise += shake;
     sideways += shakeSideways;

@@ -520,13 +520,14 @@ LIGHT_BUFFER \
 "	if (inst.Ambient[2].w != 0.0) // QVR: a skeletal model morphing (your armour's plates): its rest pose, so the noise rides it\n" \
 "		out_morphpos.xyz = bind_pos;\n" \
 "#endif\n" \
-"	if (inst.Barrel.x > 0.5) // QVR: a hot gun barrel's glow ramp (vr/vr_hotblade.cpp barrelInstance) along its rest pose: the firing frames move the metal, the glow stays on it\n" \
+"	if (inst.Barrel.x > 0.5) // QVR: a hot gun barrel's glow ramp (vr/vr_hotblade.cpp barrelInstance) along its rest pose: the firing frames move the metal, the glow stays on it; along the pose's x, or (HotBlade xyz not zero: a barrel's fragment reads it not) along its grip-to-muzzle line\n" \
 "	{\n" \
 "#if POSEVERTTYPE == 0\n" \
-"		out_morphpos.w = GetPoseVertex(0u).pos.x * inst.Barrel.y + inst.Barrel.z;\n" \
+"		vec3 bpos = vec3(GetPoseVertex(0u).pos);\n" \
 "#else\n" \
-"		out_morphpos.w = lerpedPos.x * inst.Barrel.y + inst.Barrel.z;\n" \
+"		vec3 bpos = lerpedPos;\n" \
 "#endif\n" \
+"		out_morphpos.w = (inst.HotBlade.xyz != vec3(0.0) ? dot(bpos, inst.HotBlade.xyz) : bpos.x * inst.Barrel.y) + inst.Barrel.z;\n" \
 "	}\n" \
 "	float dirkeep = inst.Ambient[1].w; // QVR: the share of the directional shading the ambient cube leaves (1 without it)\n" \
 "	out_bumplight = vec4(lightdir, (abs(inst.Glow.y) - 1.0) * dirkeep); // QVR: Glow.y: +-(1 + the bumps' strength), + on a par with the world\n" \

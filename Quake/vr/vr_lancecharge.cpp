@@ -3,6 +3,7 @@
 #include "vr_lancecharge.hpp"
 
 #include "vr_anchor.hpp"
+#include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_emissive.hpp"
 #include "vr_engine.hpp"
@@ -52,6 +53,8 @@ struct Charge
     double last{-1.0};  // the frame last drawn
     channel_t* ch{nullptr};
     bool logFired{false}; // vr_debug_gunfx: where it fired from to print (its bolt's start: boltStart)
+    double fired{-1.0};   // cl.time it last fired (yours: shake's)
+    double buzzNext{-1.0}; // yours: the charge's next buzz
 };
 
 // A Lance model's middle crystal's tip (his note 2026-11-23: the charge's light and sparks came from a little off it):
@@ -74,6 +77,8 @@ struct State
     Tip tips[2]; // (the gun's and the spear's)
     za::Vector<glm::vec3> rest, now; // (tipVertex's)
     bool boltLog[MAX_SCOREBOARD + 1][2]{}; // a new bolt's start to print (vr_debug_gunfx: beamLife, then boltStart)
+    float shakeMost{0.f}; // yours: the most shake given (kicks) since the last vr_debug_gunfx event print (lance3)
+    int buzzes{0};        // yours: the charge's and the shot's buzzes started (printed with it)
 };
 
 State st;
@@ -266,7 +271,10 @@ void debugPrint(const char* what, int p, int hand, const Charge& c)
 {
     if(vr_debug_gunfx.value)
     {
-        Con_Printf("lancecharge: %s ent %d hand %d level %.2f (%.2f s)\n", what, p, hand, c.level, c.seconds);
+        Con_Printf("lancecharge: %s ent %d hand %d level %.2f (%.2f s); shake most %.3f, buzzes %d\n", what, p, hand, c.level,
+            c.seconds, st.shakeMost, st.buzzes);
+        st.shakeMost = 0.f;
+        st.buzzes = 0;
     }
 }
 
@@ -297,6 +305,49 @@ void parse()
     c.fade = state == 2 ? firedFade : za::max(vr_dw_lance_charge_fade.value, 0.02f);
     c.logFired = state == 2 && vr_debug_gunfx.value;
     debugPrint(state == 2 ? "fired" : "let go short", p, hand, c);
+    if(state == 2)
+    {
+        c.fired = cl.time;
+        // Your hand's buzz as it fires (lance3): strong, dying away with its shake.
+        if(p == cl.viewentity && vr_dw_lance_haptic_fire.value > 0.f)
+        {
+            haptics::pulse(hand, za::max(vr_dw_lance_shake_time.value, 0.05f), za::min(vr_dw_lance_haptic_fire.value, 1.f), 70.f);
+            st.buzzes++;
+        }
+    }
+}
+
+void shake(int hand, float& kick, float& sideways)
+{
+    if(hand < 0 || hand > 1 || cl.viewentity < 1 || cl.viewentity > MAX_SCOREBOARD)
+    {
+        return;
+    }
+    const Charge& c = st.of[cl.viewentity][hand];
+    const float t = static_cast<float>(cl.time);
+    constexpr float tau = 6.2831853f;
+    // (Three waves of the clock, as a stream's tremble: the same each run.)
+    const float up = 0.55f * za::sin(tau * 13.1f * t) + 0.3f * za::sin(tau * 21.7f * t + 1.1f) + 0.15f * za::sin(tau * 31.3f * t + 2.3f);
+    const float side = 0.6f * za::sin(tau * 9.3f * t + 0.7f) + 0.4f * za::sin(tau * 17.1f * t + 2.9f);
+    float amount = 0.f;
+    if(c.charging && c.level > 0.f)
+    {
+        amount += za::max(vr_dw_lance_shake_charge.value, 0.f) * c.level * c.level;
+    }
+    const float since = static_cast<float>(cl.time - c.fired);
+    const float time = za::max(vr_dw_lance_shake_time.value, 0.01f);
+    if(c.fired >= 0.0 && since >= 0.f && since < time)
+    {
+        const float x = 1.f - since / time;
+        amount += za::max(vr_dw_lance_shake_fire.value, 0.f) * x * x;
+    }
+    if(amount <= 0.f)
+    {
+        return;
+    }
+    kick += amount * (0.6f + 0.4f * up); // (always back and up some, trembling)
+    sideways += amount * 0.5f * side;
+    st.shakeMost = za::max(st.shakeMost, amount);
 }
 
 void frame(const view::ViewEntity (&own)[2])
@@ -358,6 +409,13 @@ void frame(const view::ViewEntity (&own)[2])
                 continue;
             }
             const float k = c.level * c.level * (3.f - 2.f * c.level); // (eased in and out)
+            // Your hand's buzz as it charges (lance3): a light one growing with the charge, renewed every 50 ms.
+            if(p == cl.viewentity && c.charging && vr_dw_lance_haptic_charge.value > 0.f && cl.time >= c.buzzNext)
+            {
+                c.buzzNext = cl.time + 0.05;
+                haptics::pulse(hand, 0.06f, za::min(vr_dw_lance_haptic_charge.value, 1.f) * (0.25f + 0.75f * k), 140.f);
+                st.buzzes++;
+            }
             look(c, p, hand, m.at, k, c.charging && c.level >= 1.f, dt);
             hum(c, p, hand, m.at, k);
         }

@@ -4083,6 +4083,18 @@ vr_dw_lance_head|2|Tunables|Crystal Lance Head Start|Advanced VR Options > Debug
 vr_dw_lance_charge|2|Tunables|Crystal Lance Charge Time|Advanced VR Options > Debug > Tunables > Crystal Lance Charge Time
 vr_dw_lance_charge_fade|2|Tunables|Crystal Lance Charge Fade|Advanced VR Options > Debug > Tunables > Crystal Lance Charge Fade
 vr_dw_lance_bolt|2|Tunables|Crystal Lance Bolt Linger|Advanced VR Options > Debug > Tunables > Crystal Lance Bolt Linger
+vr_dw_lance_push|2|Tunables|Crystal Lance Beam Push|Advanced VR Options > Debug > Tunables > Crystal Lance Beam Push
+vr_dw_lance_hit_sparks|2|Tunables|Crystal Lance Impact Sparks|Advanced VR Options > Debug > Tunables > Crystal Lance Impact Sparks
+vr_dw_lance_hit_smoke|2|Tunables|Crystal Lance Impact Smoke|Advanced VR Options > Debug > Tunables > Crystal Lance Impact Smoke
+vr_dw_lance_embed_length|2|Tunables|Crystal Lance Stab Point|Advanced VR Options > Debug > Tunables > Crystal Lance Stab Point
+vr_dw_lance_embed_tip|2|Tunables|Crystal Lance Stab Tip Share|Advanced VR Options > Debug > Tunables > Crystal Lance Stab Tip Share
+vr_dw_lance_embed_speed|2|Tunables|Crystal Lance Stab Speed|Advanced VR Options > Debug > Tunables > Crystal Lance Stab Speed
+vr_dw_lance_shake_charge|2|Tunables|Crystal Lance Charge Shake|Advanced VR Options > Debug > Tunables > Crystal Lance Charge Shake
+vr_dw_lance_shake_fire|2|Tunables|Crystal Lance Fire Shake|Advanced VR Options > Debug > Tunables > Crystal Lance Fire Shake
+vr_dw_lance_shake_time|2|Tunables|Crystal Lance Fire Shake Time|Advanced VR Options > Debug > Tunables > Crystal Lance Fire Shake Time
+vr_dw_lance_haptic_charge|2|Tunables|Crystal Lance Charge Buzz|Advanced VR Options > Debug > Tunables > Crystal Lance Charge Buzz
+vr_dw_lance_haptic_fire|2|Tunables|Crystal Lance Fire Buzz|Advanced VR Options > Debug > Tunables > Crystal Lance Fire Buzz
+vr_pole_grip_turn|2|Tunables|Pole Grip Turns|Advanced VR Options > Debug > Tunables > Pole Grip Turns
 vr_dmg_gun_bash|2|Tunables|Gun as a Club|Advanced VR Options > Debug > Tunables > Gun as a Club
 vr_dmg_chainsaw_swing|2|Tunables|Ogre's Chainsaw Swung|Advanced VR Options > Debug > Tunables > Ogre's Chainsaw Swung
 vr_dmg_mjolnir|2|Tunables|Mjolnir|Advanced VR Options > Debug > Tunables > Mjolnir

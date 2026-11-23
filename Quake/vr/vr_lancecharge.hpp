@@ -30,6 +30,11 @@ void frame(const view::ViewEntity (&own)[2]);
 // it replaces (vr_debug_gunfx's print).
 [[nodiscard]] bool boltStart(int ent, int hand, const glm::vec3& muzzle, glm::vec3& out);
 
+// Your Lance in `hand` shaking (lance3; his note vrtesthall_2026-11-23_23-25-08): a little as it charges (by the charge,
+// vr_dw_lance_shake_charge), more as it fires (vr_dw_lance_shake_fire, dying away over vr_dw_lance_shake_time), in its
+// shot's kicks as vr_weaponfx.cpp recoilOffset sums them (`kick` back and up, `sideways`); added to, never set.
+void shake(int hand, float& kick, float& sideways);
+
 // The hum's sound loaded (vr_main.cpp's map preparation).
 void prepare();
 
