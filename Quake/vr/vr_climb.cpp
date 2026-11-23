@@ -1405,6 +1405,11 @@ struct Climber
     int flatRopes{0};                // rope climbs it started (vr_rope_flat_test)
     int flatRopeLeft{0};             // the rope it last let go of, and when (not taken again for flatRopeRetake)
     double flatRopeLeftAt{-1.0};
+    bool flatRopeLeftClear{true};    // (ropes13) out of its reach (or on the ground) once since letting go of it
+    bool flatSliding{false};         // (ropes13) sliding down a rope (crouch held): its scrape playing
+    double flatSlideGrain{0.0};      // (ropes13) the server's time its next scrape grain starts
+    int flatSlides{0};               // (ropes13) slides begun (the tests)
+    bool flatCrouchWas{false};       // (ropes13) crouch held last frame on a monkey traverse (a press drops him)
     // (ropes6) A headset's pulls up a rope (ropePullGrunt): each hand's rope grip last seen (its serial), the newest
     // grip's hand and the body's height over its hold as it took it, whether its pull has grunted, when the next grunt
     // may come, and the grunts so far (the tests').
@@ -2811,6 +2816,30 @@ void fallFlung(edict_t* ent, Climber& c, const VrMove* move, const bool* held, d
     }
 }
 
+// (ropes13) A flat rope's slide down (crouch held, flatRopeFrame): its scrape, grain after grain, while it lasts.
+void flatSlideSound(edict_t* ent, Climber& c, int rope, double time)
+{
+    if(!c.flatSliding)
+    {
+        c.flatSliding = true;
+        c.flatSlides++;
+        c.flatSlideGrain = time;
+    }
+    if(time >= c.flatSlideGrain && physsound::ropeSlideGrain(ent, rope, climbrope::material(rope)))
+    {
+        c.flatSlideGrain = time + physsound::ropeSlideGrainGap;
+    }
+}
+
+void flatSlideStop(edict_t* ent, Climber& c)
+{
+    if(c.flatSliding)
+    {
+        c.flatSliding = false;
+        physsound::ropeSlideStop(ent);
+    }
+}
+
 // The one place the phase changes, with its entry and exit work (the regrab delay, the fall, haptics, sounds). `move`
 // and `held` (the hands holding at the frame's start) only for Why::Released: the fling.
 void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move, const bool* held)
@@ -2838,6 +2867,8 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
         {
             c.flatRopeLeft = c.grips[1].rope ? c.grips[1].entNum : c.grips[0].entNum;
             c.flatRopeLeftAt = time;
+            c.flatRopeLeftClear = false;
+            flatSlideStop(ent, c);
         }
         letGoAll(c);
         c.flatLadder = false;
@@ -2898,6 +2929,7 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
         c.grips[0].active = c.grips[1].active = false;
         c.flatLadder = false;
         c.flatRope = false;
+        flatSlideStop(ent, c);
         c.flatHolds[0].on = c.flatHolds[1].on = false; // (a flat mantle puts its own after: flatMantle)
         c.owed = glm::vec3{0.f};
         if(c.gruntAt < 0.0 && !c.flatMount) // (lowering onto a ladder: no effort)
@@ -4265,9 +4297,37 @@ constexpr float flatRopeTurn = 120.f;  // units/s the body goes round the rope (
 // Whether the rope let go of (flatRopeLeft) is still not taken again: for vr_flat_rope_retake seconds (off one, the next
 // one is taken). (ropes11, his note 2026-11-23: he wants to grab the same pole again after jumping off; ropes10 kept it
 // until he stood on the ground, for a slow slide down a pole that was its boxes holding him, vr_pole_fall_test)
+// (ropes13, his note 2026-11-23: "a short cooldown ... otherwise jumping off is hard") The time alone wasn't one: a jump
+// off a rope goes straight up (no push: only a pole's, vr_pole_jump_push), the air control's 30 units/s barely move him,
+// so 0.3 s on, at the jump's top, he was still within its reach and took it again. Now it is also not taken again before
+// he has been out of its reach (flatRopeLeftClear: flatRopeClear) or stood on the ground once since: off a pole (pushed
+// away) he takes it again as before, steered back to it.
 [[nodiscard]] bool flatRopeRetake(const Climber& c, int rope, double time)
 {
-    return rope == c.flatRopeLeft && time - c.flatRopeLeftAt < za::clamp(vr_flat_rope_retake.value, 0.f, 2.f);
+    return rope == c.flatRopeLeft && (!c.flatRopeLeftClear || time - c.flatRopeLeftAt < za::clamp(vr_flat_rope_retake.value, 0.f, 2.f));
+}
+
+// (ropes13) Free, each frame: whether he is now clear of the rope let go of (flatRopeRetake): on the ground, or no part of
+// it within `reach` (and the arm's reach over the shoulders) of his body's line at the shoulders.
+void flatRopeClear(edict_t* ent, Climber& c, const glm::vec3& origin, const glm::vec3& shoulder, float reach)
+{
+    if(c.flatRopeLeftClear || c.flatRopeLeft <= 0)
+    {
+        return;
+    }
+    climbrope::Grab g;
+    const bool ground = (static_cast<int>(ent->v.flags) & FL_ONGROUND) != 0;
+    const bool near = climbrope::findGrab(glm::vec3{origin.x, origin.y, shoulder.z}, reach, g, c.flatRopeLeft) ||
+                      climbrope::findGrab(glm::vec3{origin.x, origin.y, shoulder.z + 0.5f * armReach()}, reach, g, c.flatRopeLeft);
+    if(ground || !near)
+    {
+        c.flatRopeLeftClear = true;
+        if(debug())
+        {
+            Con_Printf("climb: flat rope: clear of rope %d (%s) %.2f s after letting go\n", c.flatRopeLeft, ground ? "on the ground" : "out of reach",
+                qcvm->time - c.flatRopeLeftAt);
+        }
+    }
 }
 
 constexpr float flatRopeBlend = 5.f; // (ropes9) degrees either side of vr_flat_rope_climb_pitch: the pump eases into the climb
@@ -4362,13 +4422,20 @@ void ropeTake(edict_t* ent, Climber& c, const VrMove& move, int h, const climbro
 // takes it: the main hand half an arm over the shoulders, the off hand flatRopeStep under it.
 void flatRope(edict_t* ent, Climber& c, const VrMove* move, double time)
 {
-    if(!move || vr_flat_rope.value == 0.f || vr_rope_climb.value == 0.f || !hull::isFlat(ent) || ent->v.waterlevel >= 2.f ||
-        time < c.noGrabUntil)
+    if(!move || vr_flat_rope.value == 0.f || vr_rope_climb.value == 0.f || !hull::isFlat(ent) || ent->v.waterlevel >= 2.f)
     {
         return;
     }
     const int client = NUM_FOR_EDICT(ent) - 1;
     if(client < 0 || client >= svs.maxclients)
+    {
+        return;
+    }
+    const glm::vec3 origin = vec(ent->v.origin);
+    const glm::vec3 shoulder = ladderShoulder(ent, *move);
+    const float reach = ent->v.maxs[0] + za::clamp(vr_flat_ladder_reach.value, 4.f, 48.f);
+    flatRopeClear(ent, c, origin, shoulder, reach); // (ropes13)
+    if(time < c.noGrabUntil)
     {
         return;
     }
@@ -4378,11 +4445,8 @@ void flatRope(edict_t* ent, Climber& c, const VrMove* move, double time)
     {
         return;
     }
-    const glm::vec3 origin = vec(ent->v.origin);
-    const glm::vec3 shoulder = ladderShoulder(ent, *move);
     const float yaw = glm::radians(move->headAngles.y);
     const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
-    const float reach = ent->v.maxs[0] + za::clamp(vr_flat_ladder_reach.value, 4.f, 48.f);
     if(!ground && flatMonkeyTake(ent, c, *move, time, origin, shoulder, fwd, reach))
     {
         return; // (ropes7: a monkey traverse's rope overhead, met in the air)
@@ -4464,6 +4528,7 @@ bool flatMonkeyTake(edict_t* ent, Climber& c, const VrMove& move, double time, c
     const bool bAhead = across ? glm::dot(b.at - a.at, right) >= 0.f : glm::dot(b.at - a.at, fwd) >= 0.f;
     ropeTake(ent, c, move, 1, bAhead ? b : a);
     ropeTake(ent, c, move, 0, bAhead ? a : b);
+    c.flatCrouchWas = hull::flatCrouchHeld(ent); // (ropes13: crouch drops him once pressed while on it)
     c.flatRope = true;
     c.flatRopes++;
     c.owed = glm::vec3{0.f};
@@ -4483,9 +4548,12 @@ int flatMonkeyFrame(edict_t* ent, Climber& c, const VrMove& move, double time, i
     const int client = NUM_FOR_EDICT(ent) - 1;
     const usercmd_t& cmd = svs.clients[client].cmd;
     const bool held2[2] = {c.grips[0].active, c.grips[1].active};
-    if(cmd.upmove < -1.f)
+    // (ropes13, his note 2026-11-23) A press of crouch drops him too (held from before he took it: not until pressed again).
+    const bool crouch = hull::flatCrouchHeld(ent), crouchPress = crouch && !c.flatCrouchWas;
+    c.flatCrouchWas = crouch;
+    if(cmd.upmove < -1.f || crouchPress)
     {
-        // The move-down key: let go, a drop.
+        // The move-down key (or crouch): let go, a drop.
         c.grips[0].active = c.grips[1].active = false;
         transition(ent, c, Phase::Free, Why::Released, nullptr, held2);
         if(debug())
@@ -4589,6 +4657,32 @@ int flatMonkeyFrame(edict_t* ent, Climber& c, const VrMove& move, double time, i
     return 1;
 }
 
+// (ropes13) Sliding down (crouch held, flatRopeFrame): each holding hand's hold moved down along the rope by as much as
+// the body went down (`slid` units, level; along a slanted one more), kept off its free end (grabAlong): past it the
+// body goes on under the hands to the let-go at its end.
+void flatSlideHolds(Climber& c, int client, float slid)
+{
+    for(Grip& g : c.grips)
+    {
+        climbrope::Grab a, b;
+        if(!g.active || !g.rope || !climbrope::grabAlong(g.entNum, client, g.ropeS, a) || !climbrope::grabAlong(g.entNum, client, g.ropeS + 8.f, b))
+        {
+            continue;
+        }
+        const float drop = a.at.z - b.at.z; // (down per 8 along: 8 upright)
+        const float along = drop > 0.5f ? za::min(slid * 8.f / drop, 4.f * slid) : 0.f;
+        climbrope::Grab to;
+        if(along > 0.f && climbrope::grabAlong(g.entNum, client, g.ropeS + along, to))
+        {
+            g.ropeS = to.s;
+            g.ropeD = to.d;
+            g.hold = to.at;
+            g.ledge.hold = to.at;
+            g.ledge.top = to.at.z;
+        }
+    }
+}
+
 // A flat rope's frame (hangFrame's): the body under the hands, the rope ahead of it (going round it as he turns), carried
 // by the holds' motion (the swing), moved up or down by the keys (the shoulders no higher than the top hand, no lower
 // than an arm under the lowest); hand over hand along it; the ground ends it going down, as the rope's end does (let go,
@@ -4624,12 +4718,17 @@ int flatRopeFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
     {
         return flatMonkeyFrame(ent, c, move, time, hi, lo, held);
     }
-    const float climbKeys = c.phase == Phase::Slipping ? -1.f : flatRopeKeys(ent, &move, c.grips[hi].entNum).climb;
+    // (ropes13, his note 2026-11-23) Crouch held: a quick slide down it (vr_flat_rope_slide_speed), the hands sliding down
+    // with him (no hand over hand), its scrape playing; at the ground or its end as climbing down.
+    const bool slide = c.phase != Phase::Slipping && hull::flatCrouchHeld(ent);
+    const float climbKeys = c.phase == Phase::Slipping || slide ? -1.f : flatRopeKeys(ent, &move, c.grips[hi].entNum).climb;
     const int dir = climbKeys > 0.01f ? 1 : climbKeys < -0.01f ? -1 : 0;
     const float dt = static_cast<float>(host_frametime);
     const glm::vec3 origin = vec(ent->v.origin);
     const float shoulderUp = ladderShoulder(ent, move).z - origin.z;
-    const float speed = c.phase == Phase::Slipping ? pmove::hangSlipSink : za::clamp(vr_flat_ladder_speed.value, 20.f, 400.f);
+    const float speed = c.phase == Phase::Slipping ? pmove::hangSlipSink
+                        : slide                    ? za::clamp(vr_flat_rope_slide_speed.value, 20.f, 800.f)
+                                                   : za::clamp(vr_flat_ladder_speed.value, 20.f, 400.f);
     const float yaw = glm::radians(move.headAngles.y);
     const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
     const glm::vec3 low = holdNow(c.grips[lo]), high = holdNow(c.grips[hi]);
@@ -4651,6 +4750,19 @@ int flatRopeFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
     ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
     c.lastOrigin = now;
     SV_CheckWater(ent);
+    const float slid = slide ? origin.z + carry.z - now.z : 0.f;
+    if(slid > 0.01f)
+    {
+        flatSlideHolds(c, client, slid);
+    }
+    if(slid > 0.25f * speed * dt)
+    {
+        flatSlideSound(ent, c, c.grips[hi].entNum, time);
+    }
+    else
+    {
+        flatSlideStop(ent, c);
+    }
     for(int h = 0; h < 2; h++)
     {
         Grip& g = c.grips[h];
@@ -4684,7 +4796,7 @@ int flatRopeFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
     {
         ropeTake(ent, c, move, lo, next);
     }
-    else if(held == 2 && dir < 0 && holdNow(c.grips[hi]).z > shoulder.z + 0.5f * armReach() &&
+    else if(held == 2 && dir < 0 && !slide && holdNow(c.grips[hi]).z > shoulder.z + 0.5f * armReach() &&
             climbrope::grabAlong(ropeEnt, client, c.grips[lo].ropeS + flatRopeStep, next) && next.s > c.grips[lo].ropeS + 1.f)
     {
         ropeTake(ent, c, move, hi, next);
@@ -5770,6 +5882,13 @@ int qvr::climb::flatRopes(edict_t* ent, bool& climbing)
     const Climber* c = climberOf(ent);
     climbing = c && c->flatRope && c->hanging();
     return c ? c->flatRopes : 0;
+}
+
+int qvr::climb::flatRopeSlides(edict_t* ent, bool& sliding)
+{
+    const Climber* c = climberOf(ent);
+    sliding = c && c->flatSliding;
+    return c ? c->flatSlides : 0;
 }
 
 int qvr::climb::flatLadders(edict_t* ent, bool& climbing)

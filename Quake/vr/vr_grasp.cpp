@@ -745,7 +745,8 @@ constexpr int aroundTurns = 15;
 
 // How the thumb holds: wrapped round (a grip, a handle), along the top (swung up and away: a hotspot's Thumb on Top), or
 // outside what the palm holds (In the Palm: a rock, a brick; any turn, never tucked between the palm and it; Wide: the
-// wide turns too); (ropes12) round a bar the other way from the fingers (Around: the usual turns and the opposed ones).
+// wide turns too); (ropes12) round a bar the other way from the fingers (Around: the usual turns and the opposed ones);
+// (ropes13) along a bar's side (Along: the usual and the wide turns, the one lying most along the bar on it).
 enum class ThumbStyle
 {
     Wrap,
@@ -753,11 +754,13 @@ enum class ThumbStyle
     Outside,
     OutsideWide,
     Around,
+    Along,
 };
 
 [[nodiscard]] ThumbStyle thumbStyleOf(const Settings& s)
 {
     return s.thumbAround    ? ThumbStyle::Around
+           : s.thumbAlong   ? ThumbStyle::Along
            : s.thumbTop     ? ThumbStyle::Top
            : s.thumbOutside ? (s.thumbWide ? ThumbStyle::OutsideWide : ThumbStyle::Outside)
                             : ThumbStyle::Wrap;
@@ -777,9 +780,9 @@ enum class ThumbStyle
     }
     if(i >= wideTurns)
     {
-        return style == ThumbStyle::OutsideWide;
+        return style == ThumbStyle::OutsideWide || style == ThumbStyle::Along;
     }
-    return outside(style) || style == ThumbStyle::Around || (style == ThumbStyle::Top ? thumbTurns[i].swing < 0.f : thumbTurns[i].swing >= 0.f);
+    return outside(style) || style == ThumbStyle::Around || style == ThumbStyle::Along || (style == ThumbStyle::Top ? thumbTurns[i].swing < 0.f : thumbTurns[i].swing >= 0.f);
 }
 
 // The thumb: closed at each turn of its metacarpal (of the style asked for), the one holding best (a turn costs a
@@ -805,6 +808,7 @@ enum class ThumbStyle
 // holds it cleanly from outside (met, not in it nor tucked, lying along it no deeper than cleanLie) and a wide one does,
 // and then only a clean one: the thumb wraps round the outside, not into it (a grenade's side, a brick's).
 constexpr float cleanLie = 0.1f; // hand units a thumb lying along it may be in it and still count as clean (~1 mm)
+constexpr float alongMet = 0.25f; // (ropes13) Along: a thumb resting on the bar valued this much over one off it
 // (ropes12) Around: `wraps` (aroundWraps) values the lifted turns instead: the furthest round the bar wins.
 void chooseThumb(const FingerStop (&tried)[thumbTurnCount], const bool (&tucked)[thumbTurnCount], const Solution* previous,
     ThumbStyle style, FingerStop& out, glm::quat& turn, int& choice, const float* wraps = nullptr)
@@ -824,8 +828,10 @@ void chooseThumb(const FingerStop (&tried)[thumbTurnCount], const bool (&tucked)
         }
     }
     const bool wide = !anyUsual || (wideClean && !usualClean);
+    const bool along = style == ThumbStyle::Along && wraps; // (ropes13: every turn of its, valued by alongValues)
     const auto considered = [&](int i) {
-        return thumbTried(i, previous, style) && (i < wideTurns || i >= aroundTurns ? !wide : wide && (!anyUsual || clean(i)));
+        return thumbTried(i, previous, style) &&
+               (along || (i < wideTurns || i >= aroundTurns ? !wide : wide && (!anyUsual || clean(i))));
     };
     bool outsideMet = false;
     for(int i = 0; i < thumbTurnCount && outside(style); i++)
@@ -848,8 +854,9 @@ void chooseThumb(const FingerStop (&tried)[thumbTurnCount], const bool (&tucked)
         }
         const ThumbTurn& t = thumbTurns[i];
         const FingerStop& st = tried[i];
-        const float cost = (wraps && i >= aroundTurns ? 0.0005f : 0.003f) * (t.opposition + za::fabs(t.swing) + t.lift);
-        const float value = (wraps && i >= aroundTurns ? wraps[i] / 180.f : score(st)) - cost;
+        const bool valued = wraps && (along || i >= aroundTurns);
+        const float cost = (valued ? 0.0005f : 0.003f) * (t.opposition + za::fabs(t.swing) + t.lift);
+        const float value = (along ? wraps[i] + (st.met ? alongMet : 0.f) : valued ? wraps[i] / 180.f : score(st)) - cost;
         if(!st.startsInside && !(outsideMet && (tucked[i] || !st.met)) && !(aroundMet && (st.fromClosed || i < aroundTurns)) && value > best)
         {
             best = value;
@@ -869,6 +876,22 @@ void chooseThumb(const FingerStop (&tried)[thumbTurnCount], const bool (&tucked)
     out.leastInside = true;
     choice = again ? previous->thumbChoice : style == ThumbStyle::Top ? 4 : 1;
     turn = thumbQuat(thumbTurns[choice]);
+}
+
+// (ropes13) Along: how much each turn's thumb, closed to its stop, lies along the bar (the held shape's z axis): its
+// base-to-tip way's share along the axis (0 across it .. 1 along it); one resting on the bar (met) gets alongMet more.
+void alongValues(const handrig::Pose& pose, const Target& target, const FingerStop (&thumbs)[thumbTurnCount], float (&out)[thumbTurnCount])
+{
+    for(int i = 0; i < aroundTurns; i++)
+    {
+        handrig::Pose turned = pose;
+        turned.metacarpal = thumbQuat(thumbTurns[i]);
+        glm::vec3 t[4];
+        fingerPoints(turned, handrig::Thumb, thumbs[i].stop, t);
+        const glm::vec3 a{target.rigToReal * glm::vec4{t[0], 1.f}}, b{target.rigToReal * glm::vec4{t[3], 1.f}};
+        const float len = glm::length(b - a);
+        out[i] = len > 1e-4f ? za::fabs(b.z - a.z) / len : 0.f;
+    }
 }
 
 // (ropes12) Around: how far round the bar (the held shape's z axis: vr_view_hands.cpp ropeHeld) each lifted turn's
@@ -1131,7 +1154,7 @@ int rememberedUsed = 0;
 {
     return a.palmLimit == b.palmLimit && a.palmTurnLimit == b.palmTurnLimit && a.overlap == b.overlap &&
            a.thenar == b.thenar && a.thumbTop == b.thumbTop && a.thumbOutside == b.thumbOutside && a.thumbSink == b.thumbSink && a.thumbWide == b.thumbWide &&
-           a.thumbAround == b.thumbAround && a.fixedPalm == b.fixedPalm &&
+           a.thumbAround == b.thumbAround && a.thumbAlong == b.thumbAlong && a.fixedPalm == b.fixedPalm &&
            a.palmMove == b.palmMove &&
            a.palmTurnMove == b.palmTurnMove && a.searchPlace == b.searchPlace;
 }
@@ -1557,6 +1580,10 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
     if(style == ThumbStyle::Around)
     {
         aroundWraps(pose, target, thumbs, out.finger[handrig::Middle], wraps);
+    }
+    else if(style == ThumbStyle::Along)
+    {
+        alongValues(pose, target, thumbs, wraps); // (ropes13)
     }
     chooseThumb(thumbs, tucked, previous, style, out.finger[handrig::Thumb], out.thumbTurn, out.thumbChoice, wraps);
     if(style == ThumbStyle::Around && again && (out.finger[handrig::Thumb].startsInside || out.finger[handrig::Thumb].fromClosed))

@@ -156,6 +156,11 @@ from open, the one reaching furthest round the bar from the palm's middle, the o
 over the fingers) only if none does. On a rope its controller curl is full (VR too: `updateFingerFrames`). Measured
 (`vr_rope_climb_check thumb`): the rope's thumb 89 degrees round (the middle finger 145 the other way), the pole's 72;
 before, the thumb lay over the fingers (-50 to -80). Another player's hands take his drawn curls and thumb turn.
+(ropes13, his flat note 2026-11-23: round a pole it looked unnatural, too thick) Only a rope, chain or pole at most
+`vr_rope_thumb_wrap` thick (2.5 units: a rope 1.5, a chain 2) is wrapped; round a thicker one (a pole, 3) the thumb
+rests along its side (`Held::thumbAlong`, ThumbStyle Along: the usual and wide turns, the one whose thumb, closed to
+its stop, points most along the bar, one resting on it preferred: `alongValues`). Measured: the pole's thumb 0.91 along
+it (the check: at least 0.6, the tip on its surface).
 
 ## Strung ropes and the monkey traverse (ropes7)
 
@@ -208,6 +213,14 @@ flatRope, flatRopeFrame), the flat ladder's way (`flatLadder`) on a rope:
   most 120 units/s), carried by the holds' motion; the shoulders no higher than the top hand, no lower than an arm under
   the lowest. A body that can't follow the swing (a wall) stops it (`climbrope::riderBlocked`). Hands holding a weapon
   keep it, as on the flat ladder (the other hand is drawn on the rope).
+- **(ropes13, his notes 2026-11-23) Off it and down it:** the rope let go of (a jump, a drop) isn't taken again for
+  `vr_flat_rope_retake` (0.3 s), nor before he has been out of its reach or on the ground once since (`flatRopeClear`):
+  a jump off a rope goes straight up (only a pole pushes him off), so the time alone let him take it again at the
+  jump's top. Off a pole (pushed out of reach) he takes it again once steered back to it (ropes11). Holding crouch on an
+  upright or slanted one slides him down it at `vr_flat_rope_slide_speed` (350 units/s), the hands sliding with him (no
+  hand over hand), its material's scrape playing (physsound `ropeSlideGrain`: the props' scrape grains, soft for a rope,
+  wood or metal for a pole or chain, on the player's channel 5, cut off as the slide ends); at the floor he stands, at
+  its end over a drop he lets go. On a level one (a monkey traverse) a press of crouch drops him, as the move-down key.
 
 ## Multiplayer
 

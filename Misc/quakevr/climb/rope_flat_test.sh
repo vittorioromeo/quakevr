@@ -23,6 +23,12 @@
 # rope_flat_test.sh <agent> slantjump (ropes10): the same off the upper side of a pole slanted 27 degrees.
 # rope_flat_test.sh <agent> strungside (ropes10): the level pole faced across, the strafe keys along it: the hands keep
 #   their sides (the right palm never left of the left one), shuffling.
+# rope_flat_test.sh <agent> ropejump (ropes13): up a still rope, jump: straight up, not taken again in the air (he never
+#   leaves its reach: the retake time alone took it again at the jump's top); landed, walked into again: taken.
+# rope_flat_test.sh <agent> slide|poleslide (ropes13): up the rope / pole 300 units, crouch held: down to the floor at
+#   vr_flat_rope_slide_speed (80% at least), no hand over hand, its scrape played and stopped.
+# rope_flat_test.sh <agent> strungcrouch (ropes13): strungpole dropped from with crouch instead of the move-down key.
+# (ropes13) The thumbs: round a rope or chain (vr_rope_thumb_wrap), along a pole's side.
 AGENT=${1:-posebake}
 MODE=${2:-}
 QT_NAME=rope_flat${MODE:+_$MODE}
