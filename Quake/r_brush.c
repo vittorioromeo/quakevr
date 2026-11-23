@@ -626,6 +626,7 @@ int gl_bmodel_numcmds = 0;
 // without the gather (vr_gl_one_pass) take a multi-instance call's command from it
 bmodel_draw_indirect_t *gl_bmodel_cmds = NULL;
 int gl_bmodel_cmds_count = 0;
+int gl_bmodel_buildserial = 0; // QVR: counts the commands' builds and deletes (r_world.c's kept merge plans: another map's)
 // QVR: the world's lit commands (C4v, under the ES profile only; vr_gl_world_unlit 2): a second command for each of the
 // world's solid and fence textures, after every other command, whose indices (a copy of the world's ranges after
 // every other index) the GPU's cull fills with the surfaces a dynamic light touches; the first command (-1: none)
@@ -653,6 +654,7 @@ void GL_DeleteBModelBuffers (void)
 	VR_HeapFree (gl_bmodel_cmds); // QVR (qfov3)
 	gl_bmodel_cmds = NULL;
 	gl_bmodel_cmds_count = 0;
+	gl_bmodel_buildserial++;
 	gl_bmodel_litcmd_first = -1; // QVR
 	gl_bmodel_litcmd_count = 0;
 	gl_bmodel_vbo = 0;
@@ -1070,6 +1072,7 @@ void GL_BuildBModelMarkBuffers (void)
 	VR_HeapFree (surfs);
 	VR_HeapFree (mark);
 	VR_HeapFree (idx);
+	gl_bmodel_buildserial++; // QVR (qfov3)
 	if (!gl_bindless_able) // QVR: kept for the draws without the gather (qfov3)
 	{
 		VR_HeapFree (gl_bmodel_cmds);

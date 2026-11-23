@@ -306,7 +306,7 @@ extern "C" int VR_WorldPrepass(void)
 // qfov3: the brush models drawn without the gather's compute (r_world.c R_BModelCallsOnePass), under OpenGL ES only.
 extern "C" int VR_GLOnePass(void)
 {
-    return vr_gl_one_pass.value != 0.f && VR_GLESForm(VR_GLES_FORM_GLSL) ? 1 : 0;
+    return VR_GLESForm(VR_GLES_FORM_GLSL) ? za::clamp(static_cast<int>(vr_gl_one_pass.value), 0, 2) : 0;
 }
 
 // Debug > Profiling > Hide Models (vr_debug_hide_models, questperf): an alias model whose name holds any of the

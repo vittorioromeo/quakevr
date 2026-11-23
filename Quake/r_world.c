@@ -46,7 +46,7 @@ extern GLuint gl_bmodel_marksurf_buffer_size;
 extern GLuint gl_bmodel_vertcmd_buffer; // QVR: the bound path's world textures in arrays (r_brush.c)
 extern int *gl_bmodel_cmdcap, gl_bmodel_numcmds; // QVR
 extern bmodel_draw_indirect_t *gl_bmodel_cmds; // QVR: r_brush.c (qfov3)
-extern int gl_bmodel_cmds_count;
+extern int gl_bmodel_cmds_count, gl_bmodel_buildserial;
 
 typedef struct gpumark_frame_s {
 	vec4_t		frustum[4];
@@ -704,16 +704,34 @@ drawn before on the bound path (the report). The merge is dispatched beside the 
 its barrier: no compute pass of its own between the draws (on a tiler each one may end the render pass).
 =============
 */
-typedef struct { int numgroups, numitems; GLuint idxbuf, grpbuf; size_t idxofs, grpofs; } bmodel_merge_t;
+typedef struct { int numgroups, numitems; GLuint capacity, idxbuf, grpbuf; size_t idxofs, grpofs; } bmodel_merge_t;
 static bmodel_merge_t bmodel_merge; // R_MergeBModelCallsArrays' groups, for R_DrawBModelCallsArrays
 
-static qboolean R_MergeBModelCallsArrays (qboolean depthonly, qboolean nomerge) // QVR: nomerge: grouped, none merged (qfov3: no compute)
+// The merge of `items` (numgroups groups, capacity indices) into idxbuf at idxofs and the groups' draws into grpbuf at grpofs.
+static void R_DispatchBModelMerge (const bmodel_merge_item_t *items, int numitems, int numgroups, GLuint capacity,
+	GLuint idxbuf, size_t idxofs, GLuint grpbuf, size_t grpofs)
+{
+	GLuint	buf;
+	GLbyte	*ofs;
+
+	GL_UseProgram (GL_WorldArraysMergeProgram ());
+	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 5, gl_bmodel_indirect_buffer, 0, gl_bmodel_indirect_buffer_size);
+	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 6, grpbuf, grpofs, sizeof (bmodel_draw_indirect_t) * numgroups);
+	GL_Upload (GL_SHADER_STORAGE_BUFFER, items, sizeof (items[0]) * numitems, &buf, &ofs);
+	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 7, buf, (GLintptr)ofs, sizeof (items[0]) * numitems);
+	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 8, gl_bmodel_ibo, 0, gl_bmodel_ibo_size);
+	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 9, idxbuf, idxofs, sizeof (GLuint) * q_max (capacity, 1u));
+	GL_Uniform1iFunc (0, (GLint) (idxofs / sizeof (GLuint)));
+	GL_DispatchComputeFunc (numitems, 1, 1);
+}
+
+// QVR: nomerge: grouped, none merged; dispatch: the merge dispatched now (else only planned: qfov3, R_UsePreMergedBModelCalls)
+static qboolean R_MergeBModelCallsArrays (qboolean depthonly, qboolean nomerge, qboolean dispatch)
 {
 	int			i, g, k, numgroups = 0, numitems = 0;
 	GLuint		capacity = 0;
-	GLuint		idxbuf = 0, grpbuf = 0, buf;
+	GLuint		idxbuf = 0, grpbuf = 0;
 	size_t		idxofs = 0, grpofs = 0;
-	GLbyte		*ofs;
 	int			*groupfirst = bmodel_group_first, *groupcount = bmodel_group_count;
 	GLuint		*groupbase = bmodel_group_base;
 	qboolean	*merged = bmodel_call_merged;
@@ -795,27 +813,144 @@ static qboolean R_MergeBModelCallsArrays (qboolean depthonly, qboolean nomerge) 
 		if (groupcount[g] > 0)
 			bmodel_merge_items[groupfirst[g] + groupcount[g] - 1].group |= 0x80000000u;
 
-	if (numitems > 0)
+	if (numitems > 0 && dispatch)
 	{
 		GL_ReserveDeviceMemory (GL_ELEMENT_ARRAY_BUFFER, sizeof (GLuint) * q_max (capacity, 1u), &idxbuf, &idxofs);
 		GL_ReserveDeviceMemory (GL_DRAW_INDIRECT_BUFFER, sizeof (bmodel_draw_indirect_t) * numgroups, &grpbuf, &grpofs);
-		GL_UseProgram (GL_WorldArraysMergeProgram ());
-		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 5, gl_bmodel_indirect_buffer, 0, gl_bmodel_indirect_buffer_size);
-		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 6, grpbuf, grpofs, sizeof (bmodel_draw_indirect_t) * numgroups);
-		GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_merge_items, sizeof (bmodel_merge_items[0]) * numitems, &buf, &ofs);
-		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 7, buf, (GLintptr)ofs, sizeof (bmodel_merge_items[0]) * numitems);
-		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 8, gl_bmodel_ibo, 0, gl_bmodel_ibo_size);
-		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 9, idxbuf, idxofs, sizeof (GLuint) * q_max (capacity, 1u));
-		GL_Uniform1iFunc (0, (GLint) (idxofs / sizeof (GLuint)));
-		GL_DispatchComputeFunc (numitems, 1, 1); // (the barrier: the gather's, R_FlushBModelCalls)
+		R_DispatchBModelMerge (bmodel_merge_items, numitems, numgroups, capacity, idxbuf, idxofs, grpbuf, grpofs); // (the barrier: the gather's, R_FlushBModelCalls)
 	}
 	bmodel_merge.numgroups = numgroups;
 	bmodel_merge.numitems = numitems;
+	bmodel_merge.capacity = capacity;
 	bmodel_merge.idxbuf = idxbuf;
 	bmodel_merge.idxofs = idxofs;
 	bmodel_merge.grpbuf = grpbuf;
 	bmodel_merge.grpofs = grpofs;
 	return numitems > 0;
+}
+
+/*
+=============
+R_PreMergeBModelCalls -- QVR
+
+qfov3: the arrays' merges without a compute between an eye's draws (vr_gl_one_pass). Each flush's plan (its merge items)
+is kept per scene of the frame (the eyes, in their order) and flush; at the next frame's same scene, before its clear
+(R_RenderScene), every kept plan is dispatched into buffers of its own with this frame's cull. A flush whose plan is the
+one dispatched for it draws its groups from them; any other (a new plan: a texture's set, a split changed) draws its calls
+alone this frame, its plan dispatched from the next. The world's plans are the same frame after frame.
+=============
+*/
+#define QVR_PREMERGE_SCENES		4
+#define QVR_PREMERGE_FLUSHES	24
+typedef struct
+{
+	bmodel_merge_item_t	*items;		// the plan (heap), itemcap of room
+	int					itemcap, numitems, numgroups;
+	GLuint				capacity;
+	int					serial;		// gl_bmodel_buildserial at the plan (another map: never dispatched)
+	GLuint				idxbuf, grpbuf;	// its own buffers, idxsize and grpsize bytes
+	size_t				idxsize, grpsize;
+	qboolean			ready;		// dispatched for this frame's scene
+} bmodel_premerge_t;
+static bmodel_premerge_t	bmodel_premerge[QVR_PREMERGE_SCENES][QVR_PREMERGE_FLUSHES];
+static int					bmodel_premerge_scene = -1;	// this scene's (-1: none, past the last)
+static int					bmodel_premerge_flush;		// this scene's next flush
+static int					bmodel_premerge_frame = -1;	// host_framecount of the scenes counted
+static int					bmodel_premerge_count;		// the scenes in this frame so far
+
+static void R_PremergeBuffer (GLuint *buf, size_t *size, size_t need, GLenum target, const char *name)
+{
+	if (*buf && *size >= need)
+		return;
+	if (*buf)
+		GL_DeleteBuffer (*buf);
+	*size = need + need / 2;
+	*buf = GL_CreateBuffer (target, GL_DYNAMIC_DRAW, name, *size, NULL);
+}
+
+void R_PreMergeBModelCalls (void)
+{
+	int k, dispatched = 0;
+
+	if (bmodel_premerge_frame != host_framecount)
+	{
+		bmodel_premerge_frame = host_framecount;
+		bmodel_premerge_count = 0;
+	}
+	bmodel_premerge_scene = bmodel_premerge_count < QVR_PREMERGE_SCENES ? bmodel_premerge_count : -1;
+	bmodel_premerge_count++;
+	bmodel_premerge_flush = 0;
+	if (bmodel_premerge_scene < 0)
+		return;
+	for (k = 0; k < QVR_PREMERGE_FLUSHES; k++)
+	{
+		bmodel_premerge_t *p = &bmodel_premerge[bmodel_premerge_scene][k];
+		p->ready = false;
+		if (p->numitems <= 0 || p->serial != gl_bmodel_buildserial || gl_bindless_able || !VR_GLOnePass () ||
+			!gl_bmodel_indirect_buffer || !GL_WorldArraysMergeProgram ())
+			continue;
+		if (!dispatched)
+			GL_BeginGroup ("cs: arrays merges (before the clear)");
+		R_PremergeBuffer (&p->idxbuf, &p->idxsize, sizeof (GLuint) * q_max (p->capacity, 1u), GL_ELEMENT_ARRAY_BUFFER, "arrays merge indices");
+		R_PremergeBuffer (&p->grpbuf, &p->grpsize, sizeof (bmodel_draw_indirect_t) * p->numgroups, GL_DRAW_INDIRECT_BUFFER, "arrays merge draws");
+		R_DispatchBModelMerge (p->items, p->numitems, p->numgroups, p->capacity, p->idxbuf, 0, p->grpbuf, 0);
+		p->ready = true;
+		dispatched++;
+	}
+	if (dispatched)
+	{
+		GL_MemoryBarrierFunc (GL_COMMAND_BARRIER_BIT | GL_ELEMENT_ARRAY_BARRIER_BIT);
+		GL_EndGroup ();
+	}
+}
+
+// The flush's plan (R_MergeBModelCallsArrays, not dispatched) drawn from its scene's dispatch when it is the same plan,
+// else alone; kept for the next frame's dispatch either way.
+static void R_UsePreMergedBModelCalls (void)
+{
+	int i, g;
+	bmodel_premerge_t *p = NULL;
+	qboolean same = false;
+
+	if (bmodel_premerge_scene >= 0 && bmodel_premerge_flush < QVR_PREMERGE_FLUSHES)
+		p = &bmodel_premerge[bmodel_premerge_scene][bmodel_premerge_flush++];
+	if (p)
+	{
+		same = p->ready && p->serial == gl_bmodel_buildserial && p->numitems == bmodel_merge.numitems &&
+			p->numgroups == bmodel_merge.numgroups && p->capacity == bmodel_merge.capacity &&
+			!memcmp (p->items, bmodel_merge_items, sizeof (bmodel_merge_items[0]) * bmodel_merge.numitems);
+		p->ready = false; // (used once)
+		if (!same)
+		{
+			if (p->itemcap < bmodel_merge.numitems)
+			{
+				VR_HeapFree (p->items);
+				p->itemcap = bmodel_merge.numitems + 64;
+				p->items = (bmodel_merge_item_t *) VR_HeapCalloc (p->itemcap, sizeof (p->items[0]));
+				if (!p->items)
+					p->itemcap = 0;
+			}
+			p->numitems = p->items ? bmodel_merge.numitems : 0;
+			if (p->numitems)
+				memcpy (p->items, bmodel_merge_items, sizeof (bmodel_merge_items[0]) * p->numitems);
+			p->numgroups = bmodel_merge.numgroups;
+			p->capacity = bmodel_merge.capacity;
+			p->serial = gl_bmodel_buildserial;
+		}
+	}
+	if (same)
+	{
+		bmodel_merge.idxbuf = p->idxbuf;
+		bmodel_merge.idxofs = 0;
+		bmodel_merge.grpbuf = p->grpbuf;
+		bmodel_merge.grpofs = 0;
+		return;
+	}
+	for (i = 0; i < num_bmodel_calls; i++) // not this frame: every call alone
+		bmodel_call_merged[i] = false;
+	for (g = 0; g < bmodel_merge.numgroups; g++)
+		bmodel_group_count[g] = 0;
+	bmodel_merge.numitems = 0;
 }
 
 static void R_DrawBModelCallsArrays (GLuint twin, GLuint twin2, qboolean depthonly, GLuint cmdbuf, size_t cmdofs, int bound) // QVR: twin2: the second program's (C4v; 0 none)
@@ -954,8 +1089,11 @@ static void R_FlushBModelCalls (void)
 	{
 		cmdbuf = 0;
 		dstcmdofs = 0;
-		if (twin)
-			R_MergeBModelCallsArrays (depthonly, true); // (grouped, none merged: its merge is a compute too)
+		if (twin) // (planned; merged by the dispatch before the clear when the plan is the last frame's, else alone)
+		{
+			R_MergeBModelCallsArrays (depthonly, VR_GLOnePass () >= 2, false);
+			R_UsePreMergedBModelCalls ();
+		}
 	}
 	else
 	{
@@ -963,7 +1101,7 @@ static void R_FlushBModelCalls (void)
 
 	GL_BeginGroup ("cs: gather indirect draws"); // QVR: (vr_gl_markers)
 	if (twin) // QVR: (its own bindings; the gather's are made after)
-		merging = R_MergeBModelCallsArrays (depthonly, false);
+		merging = R_MergeBModelCallsArrays (depthonly, false, true);
 	GL_UseProgram (glprogs.gather_indirect);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 5, gl_bmodel_indirect_buffer, 0, gl_bmodel_indirect_buffer_size);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 6, cmdbuf, dstcmdofs, sizeof (bmodel_draw_indirect_t) * num_bmodel_calls);

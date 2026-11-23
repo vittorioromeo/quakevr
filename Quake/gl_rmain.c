@@ -2303,6 +2303,7 @@ R_RenderScene
 void R_RenderScene (void)
 {
 	VR_ProfileBeginGPU ("scene setup"); // QVR: profile
+	R_PreMergeBModelCalls (); // QVR: the arrays' merges before the clear: no compute between the scene's draws (qfov3)
 	R_SetupScene (); //johnfitz -- this does everything that should be done once per call to RenderScene
 
 	// QVR: single-pass stereo: an eye's view after the multiview pass goes on in its layer (cleared there, its hidden
