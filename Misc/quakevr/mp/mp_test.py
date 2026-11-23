@@ -1750,7 +1750,9 @@ def slide(s, flat=True):
     put_at(srv, b, eb, OPEN_SPOT, 90)
     b.quiet(r"mp_(move|pos): ", 0.5, 20, "B at rest")
     since = b.mark()
-    b.cmd("cl_alwaysrun 1; +forward" if flat else "vr_slide 1; vr_mock_stick off 0 1")
+    # (flatgreen3: VR B runs too: cl_alwaysrun 0 is the shipped default, and a walk's 200 is under vr_flat_slide_min's
+    # 220: no slide at all)
+    b.cmd("cl_alwaysrun 1; +forward" if flat else "cl_alwaysrun 1; vr_slide 1; vr_mock_stick off 0 1")
     b.wait(r"mp_move: .*self=1", 20, since, "B running north")
     # Up to his run's speed before the slide (a slide starts from a run): 40 units north of his spot in A's copy (at
     # most 40 reports: a definite end; on a busy machine the press once found him still walking, no slide).
@@ -5320,8 +5322,10 @@ SWING_PLAY = ("0.000 main 0.95 1.25 -0.15 0 -100 0", "0.400 main 0.95 1.25 -0.15
               "3.400 main 0.95 1.25 -0.15 0 -100 0", "3.600 main 0.95 1.25 -0.15 0 -100 0")
 SWING_READY = "vr_mock_hand main 0.95 1.25 -0.15 0 -100 0"
 # The other's crowbar held upright in front, across a level swing's way (square to its blade and its way: the
-# directional parry's), its grip under the blade's height.
-UPRIGHT = "vr_mock_hand main -0.50 1.05 -0.45 90 0 0"
+# directional parry's), its grip under the blade's height. (flatgreen3: the hand's pitch 59.5, was 90 under the old
+# baseline's vr_gunangle 39.5; the shipped 70 turned the crowbar 30.5 further: 52 deg off square, no parry. Now 25-27
+# deg off, score 1.00; 120.5 the other way: 79 off.)
+UPRIGHT = "vr_mock_hand main -0.50 1.05 -0.45 59.5 0 0"
 # (MP bots phase 1) The crowbar held level across in front, pointing to his right, over his chest: square to an overhead
 # blow's blade and its way down (a bot's swing: a flat-screen player's overhead swing), across its way.
 LEVEL_GUARD = "vr_mock_hand main -0.45 1.45 -0.50 0 -90 0"
@@ -6371,7 +6375,7 @@ def predict_slide(s):
     jump; at rest he stands where the server has him."""
     srv, a, b, ea, eb = join(s, lag=PREDICT_LAG, loss=SLIDE_LOSS)
     srv.cmd("vr_mp_watch %d" % PART_WATCH)
-    b.cmd("vr_slide 1; vr_mp_watch %d" % PART_WATCH)
+    b.cmd("cl_alwaysrun 1; vr_slide 1; vr_mp_watch %d" % PART_WATCH)  # (running: a walk is under the slide's least speed)
     takes = (("held to its end", ("", "vr_mock_stick main 0 -1", "", "vr_mock_stick main 0 0; vr_mock_stick off 0 0", "")),
              ("ended by a jump", ("", "vr_mock_stick main 0 -1", "+jump", "-jump; vr_mock_stick main 0 0; "
                                   "vr_mock_stick off 0 0", "")))
@@ -9945,15 +9949,9 @@ def syncaudit(s, flat):
 
 
 def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
-    # (testspeed) the games start without the hub (mp_harness: -nostartmap), except these scenarios, which failed
-    # without it every time (mp_flow: the Load Autosave list; mp_predict(climb): "A on start" timed out) and passed with
-    # it: why is open (BACKLOG). QVR_MP_STARTMAP=1 in the environment: the hub for every scenario.
-    if test in STARTMAP_SCENARIOS and os.environ.get("QVR_MP_STARTMAP") != "1":
-        os.environ["QVR_MP_STARTMAP"] = "1"
-        try:
-            return run(args, test, lag, jitter, loss)
-        finally:
-            os.environ.pop("QVR_MP_STARTMAP", None)
+    # (testspeed) the games start without the hub (mp_harness: -nostartmap; its clients select Quake's campaign as the
+    # hub did: flatgreen3, mp_flow, mp_predict and mp_predictclimb need no hub since). QVR_MP_STARTMAP=1 in the
+    # environment: the hub for every scenario.
     # (mpopen) the scenario's block of ports free first: a game left over (or another run's) holding its server port made
     # the next scenarios' servers exit at start; the next free block then, said
     port, busy = free_base_port(args.port)
@@ -10223,7 +10221,6 @@ SUITE = [
 # --profile all (releases, nightly): adspose (screenshots for a person, measurements), fuzz (the corrupting proxy),
 # rejoin_keep, voice_lossy. The default profile is the rest. --only runs the names it gives whatever the profile.
 LONG = {"mp_adspose", "mp_fuzz", "mp_rejoin_keep", "mp_voice_lossy"}
-STARTMAP_SCENARIOS = {"mp_flow", "mp_predict", "mp_predictclimb"}  # (run(): still with the start-up hub)
 
 
 def in_profile(name, profile):

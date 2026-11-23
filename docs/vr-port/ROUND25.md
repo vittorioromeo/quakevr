@@ -9707,3 +9707,27 @@ TESTING.md "Batching a suite, -QuitOn and -NoDraw". Times under other agents' lo
   | melee_space | 97 (two games) | 38 | batched, undrawn |
   | voreshove / bodytrack_elbow | 20 / 28 | same | verdict lines |
   | agrunt (run_baseline) | 11.1 min alone | (3.7 min batched, not used) | default back to alone |
+
+## flatgreen3: the MP suites and the last open flat tests (agent/flatgreen3, 2026-11-23)
+
+Runs on origin/next 27fce84a7 (Release no-LTO, the shipped-defaults baseline). MP and flat never run at once.
+
+| suite | before | after | cause | fix |
+|---|---|---|---|---|
+| mp_melee | 28/2 | 30/0 | test drift (the baseline: `vr_gunangle` 70 shipped, the old baseline's 39.5): the defender's "upright" crowbar (`UPRIGHT`, hand pitch 90) came out 50-52 deg off square to the sword's blade and way, score 0.47-0.50: no directional parry | `UPRIGHT` hand pitch 59.5 (90 - 30.5): 25-27 deg off square, score 1.00 both ways (120.5, the other sign: 79 off) |
+| mp_slide_vr | 6/2 | 8/0 | test drift (6d47923de's baseline: `cl_alwaysrun` 0 shipped): VR B's full stick walks at 200, under `vr_flat_slide_min` 220: no slide at all (A heard footsteps only) | VR B `cl_alwaysrun 1`, as flat B had |
+| mp_predictslide | 12/2 | 14/0 | the same: 0 states sliding | B `cl_alwaysrun 1` |
+| mp_flow, mp_predict, mp_predictclimb without the hub | 16/1, 6/1 (`--part waterjump`), - | 17/0, 31/0, 29/0 | the harness's games start with `-game hipnotic -game rogue -game quakevr`: the active campaign is rogue (2) until a map is loaded; the hub (vrstart) selected Quake's (0). The server selects Quake's at `map e1m1`, a client never (it takes no campaign from the server it joins). So on `changelevel start` the client read rogue's start.bsp: `Host_Error: Model *43 not found` in CL_ParseServerInfo ("A on start" timed out); and A's Load Autosave list ("this game: campaign 2") passed over the server's coop~e1m2 save as another game's | mp_harness: a client started without the hub gets `+vr_campaign_select id1` (what the hub did, without its map load); `STARTMAP_SCENARIOS` gone, all scenarios without the hub; `QVR_MP_STARTMAP=0` also accepted |
+| flatgate | 3/2 | 5/0 (seamless 20/0) | `setpos` turns noclip on (Host_SetPos_f, upstream): the walk flew along the view's pitch through the floor (y +181, z -84 a second, case 0's 25 down) and never met the gate; a turned or level view crossed or not by timing | the QC's setpos and the turning case's are followed by `noclip` (off again); the walk starts once he is walking, on the ground, the setpos's pitch read back (a condition, the give-up as before) |
+| flatswing | 4/1 | 4/0 (2 runs less) | the pathoff control could no longer see the old bug | retired (his decision 2026-11-23); the wall and knight checks unchanged |
+| flatxhair | 28/3 (23/8, 27/4 seen: wall/dual pellet spread and `pixels open` vary run to run) | 28/3 | flush: no wall state at all at its place: wall share 0.00, gun way 0.0 deg, the barrel's hit 102-107 px off the crosshair | open, not the slide: the same with `vr_flat_wall_slide 0`, facing the wall (yaw 90, its own setpos kept the turn test's yaw), `vr_flat_wall_tilt_fixed 1`, noclip off, 10 units further off, looking 20 down, and alone right after the start (no dual, no turn test). The gun at the wall 2 units off his box neither pushes back nor tilts: the case needs a new place (flatwall's vrtesthall wall) or the wall pose a look (the flatwall suite passes). Test unchanged |
+
+- **Design question (flatxhair, his call)**: `wallShotShare` is the drawn turn's angle (`tiltAngle`: the slide's level
+  turn and the tilt), so a slid gun's shot should already follow its barrel; the flush case could not show it (no
+  turn there at all).
+- **Player-visible, not fixed (engine)**: a client keeps its own active campaign whatever the server runs. A player
+  who chose Dissolution (rogue) in the hub and joins a Quake coop server on `start` would read rogue's start.bsp and
+  drop with "Model *N not found"; his Load Autosave list hides the server's coop autosaves. The client should take the
+  server's campaign at its serverinfo (`VR_CheckSpawnCampaignMap`'s client side); BACKLOG candidate.
+- Smoke: `mp_test.py suite --only` the six touched scenarios and mp_coop: mp_suite passed (netsafe 14/0, coop 12/0,
+  flow 17/0, melee 30/0, slide_vr 8/0, predict 31/0, predictclimb 29/0, predictslide 14/0). flatswing 4/0.
