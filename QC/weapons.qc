@@ -99,6 +99,8 @@ void(float xHand, float xAid) updateAmmoCounter =
 }
 
 float(entity p, float xHand) VR_FlatReload_Busy; // (vr_flatreload.qc)
+float(entity p, float xHand) VR_FlatThrow_WindsUpWeapon; // (vr_flatgrenade.qc)
+float vr_flatthrow_refused; // (vr_flatgrenade.qc: frames of the fire button refused while the weapon was wound up)
 void() VR_FlatReload_Key;
 void() VR_FlatGrenade_Key; // (vr_flatgrenade.qc)
 void() VR_FlatThrow_Press; // (vr_flatgrenade.qc: the throw key)
@@ -4587,6 +4589,13 @@ void(float xHand) ToggleSecondaryAmmo =
     {
         return; // AD support: AD's Plasma Gun fires cells only (AD's W_FirePlasma), no button (vr_weapons.inc slot 35)
     }
+    if(DW_LanceInHand(xHand))
+    {
+        // Dwell's Crystal Lance (the lightning gun's record with its variant): no other ammo, flat or headset (his note
+        // 2026-11-23: B made it the lightning gun). (One left on the other ammo by an older game still switches back.)
+        dprint("ammo switch: refused, the Crystal Lance has no other ammo\n"); // (flat_ammo_key_test.sh)
+        return;
+    }
 
     // vr_ammo_switch_empty_hand: pressable only with the other hand empty (nothing held at all): not akimbo.
     if(cvar_hget(cvarh_vr_ammo_switch_empty_hand) && !VRIsHandEmpty(self, VRGetOtherHand(xHand)))
@@ -5164,8 +5173,14 @@ void(float xHand) W_WeaponFrameImpl =
     }
 
     // check for attack
-    // (Flat-screen play: not while the gun is on its reload trip to the hip, vr_flatreload.qc.)
+    // (Flat-screen play: not while the gun is on its reload trip to the hip, vr_flatreload.qc, nor while the throw key winds
+    // it up to throw it, vr_flatgrenade.qc.)
     float pressed = VRGetFireButtonPressed(xHand) && !VR_Forcegrab_IsHandBusy(self, xHand) && !VR_FlatReload_Busy(self, xHand);
+    if(pressed && VR_FlatThrow_WindsUpWeapon(self, xHand))
+    {
+        pressed = FALSE;
+        vr_flatthrow_refused++; // (printed with the throw: the tests)
+    }
     // Dwell's Crystal Lance: charged while the trigger is held, fired as it is let go fully charged (dw_items.qc).
     if(DW_LanceCharged(xHand))
     {

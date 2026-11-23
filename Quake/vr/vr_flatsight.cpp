@@ -753,7 +753,7 @@ bool adsApplies()
     // (Nor with the other hand busy, from the console too: a prop in it, or a blade it holds stuck in a body, flatplay::holdsThing;
     // his words 2026-11-21: "ADS also becomes possible in that state". The sight comes back once it is free.)
     return flatplay::active() && st.ads && st.holding >= 0 && sightalign::alignable(st.holding) && !tilted &&
-           !flatreload::busy(st.holding) && emptyHand(st.helping);
+           !flatreload::busy(st.holding) && !flatgrenade::throwsWith(st.holding) && emptyHand(st.helping);
 }
 
 // The weapon's way back from a wall, a unit vector in the view's frame: towards the hand's shoulder in hipfire, along the
@@ -1829,6 +1829,11 @@ void recoilProbe_f()
 
 } // namespace
 
+bool handEmpty(int h)
+{
+    return h >= 0 && h < 2 && emptyHand(h);
+}
+
 glm::vec3 crosshairHit(const hands::State& s, const glm::vec3& aim)
 {
     return crosshairPoint(s, aim);
@@ -2012,7 +2017,10 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
         hands::angleVectors(s.rot[st.holding], fwd, right, up);
         const glm::vec3 d = placedGrip - s.placedFrom[st.holding];
         st.gripReach = glm::length(d);
-        st.gripFwd = glm::dot(d, fwd);
+        // (A pole weapon's spear grip is ahead along its pole, the way its shot goes: its hand's own forward lies some 90
+        // degrees off the Lance's pole, Shot Pitch 92.5, and the free hand was never carried onto it; flatmelee2.)
+        const int heldSlot = flatplay::heldIn(st.holding);
+        st.gripFwd = glm::dot(d, twohand::poleWeapon(heldSlot) ? hands::forward(weapons::shotAngles(s.rot[st.holding], heldSlot, st.holding == HAND_OFF)) : fwd);
         st.gripRight = glm::dot(d, right);
         st.gripUp = glm::dot(d, up);
     }
@@ -2375,6 +2383,11 @@ float drawnShare(int h)
 float lookShare(int h)
 {
     return flatplay::active() && h == st.lookHand ? geom::smooth01(st.lookT) : 0.f;
+}
+
+float pinShare(int h)
+{
+    return flatplay::active() && st.pinned && h == st.helping ? za::clamp(st.pinShare, 0.f, 1.f) : 0.f;
 }
 
 float lookSlide(int h)

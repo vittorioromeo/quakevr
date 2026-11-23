@@ -768,6 +768,7 @@ struct Held
     bool cup{false};     // the other hand's weapon, by a cup hotspot: the other hand is in the way too
     bool thumbTop{false}; // the hotspot's style: the thumb along the top
     bool thumbAround{false}; // (ropes12) a rope or pole: the thumb round it the other way from the fingers
+    bool thumbAlong{false};  // (ropes13) a pole too thick to wrap: the thumb resting along its side
     bool inPalm{false};   // a prop held In the Palm (its Grip): the thumb round the outside of it
     float overlap{-1.f};  // cm the fingers and palm may sink into it (round 21, third pass: the weapon's or the hotspot's
                           // overlap slider); negative: vr_hand_fit_overlap's (things)

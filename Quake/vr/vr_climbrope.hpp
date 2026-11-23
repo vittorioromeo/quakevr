@@ -102,7 +102,8 @@ struct Grab
     bool chain{false};
 };
 // Server: the rope piece nearest `hand` within `reach` units of its surface (not at its top) -> true and the hold there.
-[[nodiscard]] bool findGrab(const glm::vec3& hand, float reach, Grab& out);
+// (ropes13) `only` > 0: that rope entity's only.
+[[nodiscard]] bool findGrab(const glm::vec3& hand, float reach, Grab& out, int only = 0);
 // Server: the hold `s` units along rope `ent` from its top (kept off its top and its free end) as client `client` would
 // have it now: on his rider's line (his own), or on its points. False: the rope is gone. (Flat play's hand over hand,
 // vr_climb.cpp flatRopeFrame.)

@@ -111,6 +111,10 @@ void noteDrawn(const hands::State& s);
 // (flatplay::routeFire). A melee weapon is never stopped (the caller's: it knows what punches).
 [[nodiscard]] bool wallBlocksFire(int h);
 
+// Whether hand `h` has nothing in it: no weapon but the fist, no gun, prop or foe it carries (the ironsight's helping
+// hand's test; the flat throw's guiding hand, vr_flatgrenade.cpp).
+[[nodiscard]] bool handEmpty(int h);
+
 // Lying down (vr_flat_prone_floor): hand `h`'s gun met the floor this frame and its tilt is the floor's (laid flush on
 // it); `left` (if given): how deep in it the tilt left it (units, the tilt's own measure; the room past it does the rest).
 [[nodiscard]] bool floorFlush(int h, float* left = nullptr);
@@ -138,6 +142,10 @@ void keepRecoil(glm::vec3& pos, glm::vec3& angles);
 // The stance (vr_flat_stance). How far the free hand `h` is drawn on the held long gun's two-handed hotspot, 0..1: the view
 // draws it there with the pose a helping hand has there (no grip: twohand::drawnTransition). 0 in a headset.
 [[nodiscard]] float lookShare(int h);
+
+// How far the free hand `h` is pinned on the held weapon's two-handed grip (pinToGrip: its pose put there), 0..1. 0 in a
+// headset.
+[[nodiscard]] float pinShare(int h);
 
 // How far down the fore-end, towards the holding hand, the free hand `h` holds instead of on the hotspot itself (units along the
 // held hand's forward): where its arm can't take the hotspot (sighted with a long gun, looking up), it slides along the gun and

@@ -53,6 +53,11 @@ check $([ -n "$pz" ] && awk -v z="$pz" 'BEGIN{exit !(z <= -0.7)}' && echo 1 || e
 # Its fingers away from him, over the blade (his second note 2026-11-23: they pointed back at him).
 fo=$(block "sword guard" | grep -a "blade grip: the off hand" | grep -ao 'fingers out -\?[0-9.]*' | grep -ao -- '-\?[0-9.]*$' | head -1)
 check $([ -n "$fo" ] && awk -v f="$fo" 'BEGIN{exit !(f >= 0.5)}' && echo 1 || echo 0) "sword: the drawn free hand's fingers point away from him (fingers out ${fo:-?}, 1 straight away)"
+# (flatmelee2, his note 2026-11-23: a long blade's hotspot brought in to vr_flat_parry_blade_reach 14, about shoulder width:
+# the knight's is 19.5 from the hand, the phantom swordsman's 38.6, which took the free hand off its wrist.)
+ap=$(block "sword guard" | grep -a "blade grip: point" | head -1)
+pt=$(grep -ao 'point [0-9.]*' <<<"$ap" | grep -ao '[0-9.]*$'); dh=$(grep -ao 'drawn hands [0-9.]*' <<<"$ap" | grep -ao '[0-9.]*$')
+check $([ -n "$pt" ] && [ -n "$dh" ] && awk -v p="$pt" -v d="$dh" 'BEGIN{exit !(p <= 14.05 && d <= 16)}' && echo 1 || echo 0) "sword: the blade's point within the reach of the hand (${ap# *})"
 p=$(posed "sword guard"); d=$(drawn "sword guard")
 check $([ -n "$p" ] && awk -v p="$p" 'BEGIN{exit !(p >= 0 && p <= 1)}' && echo 1 || echo 0) "sword: the posed free hand on the hotspot (${p:-?} u)"
 check $([ -n "$d" ] && awk -v d="$d" 'BEGIN{exit !(d >= 0 && d <= 6)}' && echo 1 || echo 0) "sword: the drawn free hand on the blade at the hotspot (${d:-?} u, the half-sword grip's slide along the blade)"
