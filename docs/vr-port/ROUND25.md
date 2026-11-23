@@ -11554,6 +11554,93 @@ beta2's re-signed APK and the shipped progs.dat (8a409520...) back. Scripts (not
   `Android/data/com.vittorioromeo.quakevr/files/quakevr`'s `*.sav` + `ironwail.cfg`, uninstall, Setup, copy back).
   Quest 3S untested (a hub-crash report being looked at); Standalone experimental.
 
+## hubcrash: beta2's Quest crash entering the hub; a closed start no longer turns safe mode on (agent/hubcrash, 2026-11-24)
+
+- **The reports** (the 3S player's, his Quest 3's logcat 22:47:43 and 22:48:08; libquakevr ca0f587a, beta2): SIGSEGV
+  0x30 in libGLESv2_adreno under xrEndFrame from VR_RenderView, i.e. in the hub's first eye frames. The 3S's safe mode
+  is a **consequence**, not the cause: its trigger was a real `== crashed` (the previous start crashed the same way,
+  before its first map counted as drawn), and the start in safe mode crashed again. His two crashes came 26 and 20 s
+  after launch, the end of a cold shader compile.
+- **Safe mode on the Quest** changes only clip control (reversed Z: shadows, reflections, portals off), MSAA (0 there
+  anyway), debug output and the shadow atlas cap; persistent buffers stay. It doesn't touch the eyes' path or the
+  swapchains (foveation follows the images since qfovcrash).
+- **Headset** (Quest 3, 00:03-00:26; every launch `-noconfigwrite -unattended`, `resetcfg; vr_standalone_preset 0;
+  map vrtutorial`, 2000 frames there, verdict `HC DONE`). beta2: `-glsafe` (warm), `-noglsafe` with a cold compile
+  (`-glesdefine` new: 19 s, the session started early, 24 panel frames), a warm start with a system-menu key: **no crash**
+  (not reproduced unworn). next: `-glsafe` with a cold compile (form 2 straight in, foveation 3): no crash. So the hub
+  crash is **not reproduced**; next (qfovcrash and the later eye-path fixes) is not known to have it, but a worn headset
+  (real focus changes, the guardian at start) was not tested.
+- **The false trigger, found on next**: a start force-stopped ~10 s into its first compile turned the next start's safe
+  mode on: "the last start ended 19 s in, before its first map, without a crash report, after `done: signon prewarm:
+  translucent decal programs`" (judgeLastStart's quick-death rule, meant for a PC driver killing the process). **Fix**
+  (vr_glsafe.cpp): on Android only a crash report counts (`judgeLastStart(..., reportOnly)`): a process gone without
+  one was closed by the player or the system (a signal, a driver abort included, reaches the crash handler). The PC
+  keeps the rule. vr_glsafe_judge_test 14/0 (3 Android cases added). Headset, the fixed APK: killed in its compile,
+  the next start "GL safe mode off (... without a crash report: stopped by the system or the player, not counted)".
+- **The first start's wait** is already visible in the headset: the loading panel ("Compiling shaders: n / N", 24-76
+  frames in the headset in these runs; the session starts early for it).
+- **Not changed**: the auto safe mode stays kept (release builds) after a start in it ends well, so a player already in
+  it (the 3S) stays there until Debug > Startup > Retry Full Renderer (`vr_glsafe_retry`). APK 0 warnings, check_apk
+  20/0. beta2's re-signed APK and the shipped progs.dat (8a409520) put back. Scripts (not committed): `scratch/hc/`.
+## tutfix1123: the tutorial always single player; lesson 13's spike battable, its black stripes; lit alcove; hall 15's walls (agent/tutfix1123, 2026-11-24)
+
+His voice notes vrtutorial_2026-11-23_23-07-33 .. 23-13-43.
+
+- **Single player, however started**: Host_Map_f calls `VR_TutorialSinglePlayer` (vr_gamedir.cpp) once the old server
+  is shut down: for `vrtutorial` it sets one client slot (`listen 0` as `maxplayers 1` does), deathmatch, coop,
+  teamplay 0, FrikBot's coop bots not brought back (`scratch1` 0), the hub's campaign Quake
+  (`vr_activestartpaknameidx` 0; the game folders were Quake's already: VR_CanLoadCampaignMap), and an mp scene's
+  saved slots dropped (`scenario::dropSlots`: else `vr_scenario` put its 4 slots back once no game ran). It prints
+  `VR: the tutorial: a single-player game (was N players, ...)` when it changed something. Every way in (the start
+  flow, Play Tutorial, Debug's The Tutorial, the hub's button, the console) goes through `map`. The cause seen: after
+  `mp_dm_passive`, `skill 0; map vrtutorial` kept `maxplayers` 4 (the scene's settings were put back, its slots were
+  not). The 10-15 s alive in the pit did not reproduce headless (dead 13 frames after the drop, with 4 slots or 1).
+- **Spike batting**: trap_vr_shooter's spike is `vr_foeshot` (an enemy's shot no monster owns, Dwell's way), so
+  VR_Deflect_IsProjectile takes it: the swing/bash batting code shared with every enemy projectile, flat and VR. The
+  SPIKE button stays.
+- **Map** (vrtutorial_gen.py, compiled `final`): a structural face takes its texture from the air in front of its
+  centre; a face whose centre is behind another box but part of which is open (room 13's floor slab's side across
+  both pits and the bridge; its north wall over room 10's alcove; 71 faces in all, e.g. room 14's north wall, the
+  teleporter hall) was black. `piece_tex` now takes the air in front of most of the face (0 such faces left). Hall
+  15 (room 14 to the arena) had panel3 (tech08_2) on the wall that runs on from room 14's west wall (tech14_1): now
+  room 14's style, its walls aligned to room 14's (`Air(align=...)`). Lesson 7's alcove: a ceiling lamp (light 260)
+  over the spawner.
+- **Tests**: `Misc/quakevr/tutorial_start_test.sh` (8 checks: `mp_dm_passive`, then `skill 0; map vrtutorial`: one
+  slot, no dm/coop/teamplay, campaign 0, then `vr_pickup_test 25`: the spike passes VR_Deflect_IsProjectile, the
+  grenade is a VR grenade, the pit kills within 72 frames). Debug > Tests > Tutorial > Lesson 13: Shooters And Pit.
+  Scenes tut_lesson7, tut_lesson13, tut_lesson14.
+- `vr_pickup_test 13` (the keycard tip) fails 2 of 8 here with the old map too: not this change.
+## ropes14: VR rope and pole feedback: the grip kept, the support grip, eased legs, the let-go's pass (agent/ropes14, 2026-11-24)
+
+His VR notes 2026-11-23 (vrropes 22-51-05 .. 22-56-44, vrtutorial 23-12-23). ROPES.md "Poles" (ropes14 paragraphs).
+- **Pole grunt (1):** a pull up a pole grunts at `vr_pole_grunt` (0, tunable: none); ropes keep `vr_rope_grunt`.
+- **The grip kept (2):** why it jumped: under a level rope `monkeyRopeUp` picked the thumb's way along it from
+  `cl.viewangles` every frame (in VR the aim's way, not the head's), so it flipped as he turned to look back at the hand.
+  VR now (`vr_rope_grip_keep` 1, `monkeyGrip`): taken at each new hold from the controller's turn (the grip whose palm
+  faces the controller palm's way; the view's when it can't tell, |d| < 0.3), kept until the hand lets go. Flat keeps the
+  view's. monkey_keep play: by the view, `gripkept` worst -1.00 (flipped); kept 1.00; a regrab turned the other way
+  takes the other grip (`gripflipped` 1.00) and both grips pull him up (`rose 5`).
+- **Support grip (3):** eyes `vr_rope_support_rise` (0.3 m) over the level rope: the hand turns round its axis by
+  `vr_rope_support_turn` (180) over `vr_rope_support_time` (0.15 s), the way the body hung (`monkeySupport`); back 5 cm
+  lower. monkey_support play: `support 2` (palms over the axis, knuckles down; with rise 5: -1.20 under, fails), then
+  `monkeygrip 2` back under it.
+- **Legs (4):** the feet's place round the rope eased from the hip (`vr_rope_leg_smooth` 0.25 s; Climbing::ropeFootRel,
+  per subject). `legjerk` (the posed ankle's most move from the pelvis in a frame): swinging rope 3.97 -> 1.57 units;
+  climbing a pole 1.20 -> 1.75 (both small; bound 2.5).
+- **Thumb (5):** thick poles back to the normal grip (`vr_rope_thumb_thick` 0; 1 along, 2 around) and tweaks by thickness
+  (`vr_rope_thumb_from` 2 / `_to` 3; `_curl`, `_opposition`, `_swing`, `_lift`, `_shift_x/y/z`): `grasp::thumbTurn`
+  after the solve, the shift before it. Pole check: the normal thumb not in it (`thumbHolds`' new branch); lift 60 moves
+  it 7+ degrees round the pole (`thumbmoved 6`). All 17 new tunables on Debug > Tunables (menu_paths.txt rows added).
+- **Let-go pass (6):** `vr_rope_letgo_pass` (0.4 s): `climb::ropeLetGoPass` (the rope any hand held as he fell free,
+  VR or flat): passSolids lets him through its boxes, `disturb` skips his body; a remote client's clientSolidTrace
+  passes poles by him that long after its hands were last on one. pole_through play: off a pole, back at it at 320 u/s:
+  55.9 past its axis; with 0: stopped 9.5 short (fails).
+- **Tests:** rope_climb_test all 14 plays pass but rope_pump (238 vs 250: known since ropes12); rope_flat_test rope 9/0,
+  pole 8/0, polejump 8/0, ropejump 7/0, strungpole 5/0, slide 6/0; pole_fall_test upright 21/0, slant 21/0;
+  rope_hands_test 6/0; mp_test pole 15/0, pole_vr 8/0. Shots (low-impact mode): scratch/ropes14_support.png,
+  ropes14_pole.png, ropes14_keep.png (the hands barely in view).
+- Not done: another player's copy's support grip places the palm under the rope (the turn is his); not checked in a
+  headset.
 ## lance3: the Crystal Lance's VR feedback: combat and feel (agent/lance3, 2026-11-23)
 
 His VR notes vrtesthall_2026-11-23_22-59-42 .. 23-26-51 (nine items). New tunables (Debug > Tunables, after Crystal
@@ -11674,3 +11761,36 @@ His VR notes 2026-11-23 (vrtesthall 23:19:33, 23:02:20, 22:58:27, 23:17:34, 23:1
   Message Size".
 - Not done: screenshots of the SNG in the mock (the mock hand without its grip dropped the gun; low-impact mode's images
   too small for the bore dots): his look in VR is the check.
+## animfix2: copies' left sheaths mirrored, the wall glue measured (branch agent/animfix2, 2026-11-24)
+
+- **scenario_check.sh in full** (after animfix1123's SCNLEAK exclusions): 181 scenes, 0 failed, 0 leaks, 0 errors.
+- **A copy's left holsters (his note dm3 23:05:16).** Placement and turns were the exact mirror image all along (the new
+  check: 0.000 m, 0.0 degrees, left against right, the copy's and yours), but the copy's sheaths were drawn wrong: the
+  alias renderer asks `mpavatar::find` whether a copy's piece is mirrored (VR_AliasMirrored: the y flip and the winding),
+  and `find` covered his hands, weapons, holstered guns, parts and plates but not his worn gear (`Drawn::gear`). His
+  left sheaths (hip and chest) were drawn with their mirrored angles unmirrored: the right sheath turned round, its
+  belt loop out on the wrong side. `find` now covers `gear`. Your own were right (view::find covers every view entity).
+- **Check:** `vr_mp_gearcheck` adds `mirror`/`mplace`/`maxis`/`mflags` (each pair's left piece against its right one,
+  reflected across the carrying part's middle plane: the pelvis's for the hips, the chest's for the rest; the guns only
+  when the pair holds the same gun; `mflags`: the left drawn mirrored and the right not, as the renderer finds them) and
+  `ownmirror`... for yours (printed only: your hips ride your thighs, posed unevenly in a stride); `mirrored` (the
+  copy's: at most 0.02 m, 3 degrees, flags right) is part of `ok`. New `vr_dm_test 24`
+  (16's hold, each pair one gun twice: shoulders revolvers, hips nailguns, uppers shotguns). Before the fix, mp_dm_passive
+  with `vr_dm_test 24`: mirror=5 mplace 0.000 maxis 0.0 **mflags=0**, ok=0; after: mflags=1, ok=1 (own 4 pairs, 0.000/0.0).
+  Eyeshots (`vr_mock_camera 0 0.95 -1.05 25 0`): the bot's left sheath's loop stood out beside its gun, now tucked as the
+  right's.
+- **Wall glue (his note vrtutorial 23:14:32): measured, not changed.** `vr_ragsmash_test 2` (Debug > Tests: Shoved into
+  a Wall: Glue A/B; vrfiringrange, `sv_random_seed 1`): a grunt and a dog shoved (two hands, aware, every shove a
+  knockdown) into the nearest wall from 8 units off it, 3 times each under: all on / the active ragdoll off
+  (vr_ragdoll_active, _stagger, _getup, _env 0) / the wiggle off; and a control, all on, shoved away from the wall onto
+  the open floor. Means (ragdoll s, propped against the wall s, its middle's height over the floor while a ragdoll):
+  grunt all on 5.50, 4.07, 19.1; active off 3.09, 2.16, 23.1; wiggle off 5.62, 4.03, 19.3; open floor 5.56, 0, 9.3.
+  Dog all on 2.86, 2.59, 26.4; active off 2.43, 2.38, 27.2; wiggle off 2.76, 2.53, 24.4; open floor 2.33, 0, 10.8.
+  So: knocked down against a wall, both kinds lie propped up on it (their middle at about standing height, against
+  9-11 lying) for nearly their whole knockdown, then get up (every trial up within 10 s; the longest single propped run
+  2.6 s on average, under 4 s). The active ragdoll and its wall lean (env Lean is for deaths only) and the wiggle make no
+  difference: it is the plain knockdown ragdoll leaning on the wall (ragdoll friction `vr_ragdoll_friction` 0.8 with the
+  wall's 0.6 holds it rather than letting it slide down). Not a clear bug: his call (a slide down the wall while knocked
+  down: lower friction against walls, or a push off it; a next test variant with `tune vr_ragdoll_friction 0.2`).
+  `wallglue: 24 passed, 0 failed` (checks: each trial up again within 10 s, never propped over 7 s at a time).
+  Scene `wall_shove` (vrtesthall's south wall: a grunt and a dog with their backs to it, every shove a knockdown).

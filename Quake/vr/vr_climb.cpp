@@ -1406,6 +1406,8 @@ struct Climber
     int flatRopeLeft{0};             // the rope it last let go of, and when (not taken again for flatRopeRetake)
     double flatRopeLeftAt{-1.0};
     bool flatRopeLeftClear{true};    // (ropes13) out of its reach (or on the ground) once since letting go of it
+    int ropeLeft{0};                 // (ropes14) the rope or pole any hand last let go of (VR or flat: a drop, a jump), and
+    double ropeLeftAt{-1.0};         // when: it doesn't meet him for vr_rope_letgo_pass (ropeLetGoPass)
     bool flatSliding{false};         // (ropes13) sliding down a rope (crouch held): its scrape playing
     double flatSlideGrain{0.0};      // (ropes13) the server's time its next scrape grain starts
     int flatSlides{0};               // (ropes13) slides begun (the tests)
@@ -2863,6 +2865,15 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
             staminaSound(ent, "player/gasp1.wav", staminaWarn());
         }
         const bool flatRopeWas = c.flatRope;
+        for(int h = 0; h < 2; h++)
+        {
+            // (a release's grips are let go already: those held as the frame began)
+            if((c.grips[h].active || (held && held[h])) && c.grips[h].rope)
+            {
+                c.ropeLeft = c.grips[h].entNum; // (ropes14: off it, he passes it a moment: ropeLetGoPass)
+                c.ropeLeftAt = time;
+            }
+        }
         if(flatRopeWas)
         {
             c.flatRopeLeft = c.grips[1].rope ? c.grips[1].entNum : c.grips[0].entNum;
@@ -4859,14 +4870,20 @@ void ropePullGrunt(edict_t* ent, Climber& c)
         return;
     }
     c.pullGrunted = true;
-    if(qcvm->time >= c.pullGruntNext && climb::grunt(ent, vr_rope_grunt_sound.value, vr_rope_grunt.value))
+    // (ropes14, NOTES.md vrropes_2026-11-23_22-51-05: "too much" on poles) A pole's pulls at vr_pole_grunt's volume (0: none).
+    const float volume = climbrope::pole(c.grips[c.pullHand].entNum) ? vr_pole_grunt.value : vr_rope_grunt.value;
+    if(volume <= 0.f)
+    {
+        return;
+    }
+    if(qcvm->time >= c.pullGruntNext && climb::grunt(ent, vr_rope_grunt_sound.value, volume))
     {
         c.pullGruntNext = qcvm->time + pullGruntGap;
         c.pullGrunts++;
         if(debug())
         {
             Con_Printf("climb: rope pull grunt (%s hand, up %.1f) %s %.2f\n", handName(c.pullHand), rise,
-                climb::gruntSample(vr_rope_grunt_sound.value), za::clamp(vr_rope_grunt.value, 0.f, 1.f));
+                climb::gruntSample(vr_rope_grunt_sound.value), za::clamp(volume, 0.f, 1.f));
         }
     }
 }
@@ -5209,6 +5226,13 @@ struct Pin
     glm::vec3 axis{0.f};   // (ropes8a) on a rope: its axis's point, less the palm's hold (to), as drawn
     float thickness{0.f};  // and its thickness (0: a ledge's hold)
     double last{-1.0};
+    // (ropes14) Under a level rope or pole (monkeyGrip, monkeySupport): the grip VR took, the way its thumb's side points
+    // along the rope's own way (+1, -1; 0 none: taken at the next hold); the support grip's share (0 under it .. 1 the
+    // wrists turned over it), whether it is wanted, and its turn's way round the axis (by the side the body was on).
+    float keepSign{0.f};
+    float support{0.f};
+    bool supportOn{false};
+    float supportSign{1.f};
     [[nodiscard]] float eased() const
     {
         return along * along * (3.f - 2.f * along);
@@ -5319,6 +5343,78 @@ constexpr float ropeHandSurface = 0.4f; // of its thickness: at least this far (
     return rope ? ropeTurn(out, up) : holdTurn(out, mirrored);
 }
 
+constexpr float keepTell = 0.3f;     // (ropes14) monkeyGrip: the controller's palm at least this square to the rope to tell the grips
+constexpr float supportBack = 0.05f; // (ropes14) m: monkeySupport's turn back under the rope this much lower than over it
+
+// (ropes14, NOTES.md vrropes_2026-11-23_22-52-01, 22-52-59: under a level pole the hand jumped round it as his head crossed
+// it, monkeyRopeUp following the view's way) Under a monkey traverse's rope (the palm out from it downwards, `palmOut`;
+// its own way `up`): which way ropeTurn's thumb side points along it for `hand`. VR (vr_rope_grip_keep): the grip the hand
+// took (`fresh`: a new hold), overhand or underhand as the controller (`drawn`: its drawn turn) was turned as it gripped
+// (of the two, the one whose palm faces the controller's palm's way; the view's if it can't tell), kept until it lets go.
+// Flatscreen play (and vr_rope_grip_keep 0): the view's way each frame (monkeyRopeUp; its keys move him).
+[[nodiscard]] glm::vec3 monkeyGrip(int hand, const glm::mat3& drawn, bool fresh, const glm::vec3& palmOut, const glm::vec3& up)
+{
+    Pin& pin = pins[hand];
+    const glm::vec3 byView = monkeyRopeUp(hand, palmOut, up);
+    if(flatplay::active() || vr_rope_grip_keep.value == 0.f)
+    {
+        pin.keepSign = 0.f;
+        return byView;
+    }
+    if(fresh || pin.keepSign == 0.f)
+    {
+        const float d = glm::dot(drawn[1], turnOn(palmOut, up, hand == 0)[1]);
+        pin.keepSign = za::abs(d) >= keepTell ? (d >= 0.f ? 1.f : -1.f) : (glm::dot(byView, up) >= 0.f ? 1.f : -1.f);
+        if(debug())
+        {
+            Con_Printf("climb: %s hand's grip under the rope kept: %s (the controller's palm %.2f; the view's %s)\n", handName(hand),
+                pin.keepSign > 0.f ? "along" : "against", d, glm::dot(byView, up) >= 0.f ? "along" : "against");
+        }
+    }
+    return up * pin.keepSign;
+}
+
+// (ropes14, NOTES.md vrropes_2026-11-23_22-54-18: "when ... I lift myself above it ... the fingers ... should go on the
+// bottom ... smooth but fast") Under a monkey traverse's rope (its axis' point `axis`, way `up`): with the eyes
+// vr_rope_support_rise over it (back under it supportBack lower), the hand turns round its axis by vr_rope_support_turn
+// (the palm over it, the fingers under it: a support grip), over vr_rope_support_time, by the side the body was on as it
+// hung (the wrist goes round over the near side); `hold` (the palm's middle) and `palmOut` turned so.
+void monkeySupport(const hands::State& s, int hand, float dt, const glm::vec3& axis, const glm::vec3& up, glm::vec3& hold,
+    glm::vec3& palmOut)
+{
+    Pin& pin = pins[hand];
+    const float rise = (s.head.z - axis.z) / units::metresToUnits();
+    const bool was = pin.supportOn;
+    pin.supportOn = rise > vr_rope_support_rise.value - (pin.supportOn ? supportBack : 0.f);
+    const glm::vec3 k = glm::normalize(up);
+    if(pin.support <= 0.f)
+    {
+        // Hanging: the side the body is on (towards the head, square to the rope, level).
+        glm::vec3 side = s.head - axis;
+        side -= k * glm::dot(side, k);
+        side.z = 0.f;
+        if(glm::length(side) > 1e-3f)
+        {
+            pin.supportSign = glm::dot(glm::cross(k, glm::vec3{0.f, 0.f, -1.f}), side) >= 0.f ? 1.f : -1.f;
+        }
+    }
+    const float time = za::max(vr_rope_support_time.value, 0.f);
+    const float step = time > 0.f ? dt / time : 1.f;
+    pin.support = za::clamp(pin.support + (pin.supportOn ? step : -step), 0.f, 1.f);
+    if(debug() && was != pin.supportOn)
+    {
+        Con_Printf("climb: %s hand's support grip %s (the eyes %.2f m over the rope)\n", handName(hand), pin.supportOn ? "on" : "off", rise);
+    }
+    if(pin.support <= 0.f)
+    {
+        return;
+    }
+    const float e = pin.support * pin.support * (3.f - 2.f * pin.support);
+    const glm::quat q = glm::angleAxis(glm::radians(za::clamp(vr_rope_support_turn.value, 0.f, 180.f)) * e * pin.supportSign, k);
+    hold = axis + q * (hold - axis);
+    palmOut = q * palmOut;
+}
+
 } // namespace
 
 bool qvr::climb::mantlePath(edict_t* ent, pmove::Mantle& m)
@@ -5406,6 +5502,13 @@ int qvr::climb::ropePullGrunts(edict_t* ent)
 {
     const Climber* c = climberOf(ent);
     return c ? c->pullGrunts : 0;
+}
+
+bool qvr::climb::ropeLetGoPass(edict_t* ent, int rope)
+{
+    const Climber* c = ent ? climberOf(ent) : nullptr;
+    return c && rope > 0 && c->ropeLeft == rope && c->ropeLeftAt >= 0.0 &&
+           qcvm->time - c->ropeLeftAt < za::clamp(vr_rope_letgo_pass.value, 0.f, 3.f);
 }
 
 bool qvr::climb::takesInMoves(edict_t* ent)
@@ -5713,11 +5816,21 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
         glm::vec3 axis{0.f};
         float thick = 0.f;
         glm::vec3 palmOut = out;
+        const int holdSerial = (bits >> (2 + 6 * hand)) & 63;
         if(ropePalm(at, out, hold, &ropeUp, &axis, &thick, &palmOut))
         {
             if(palmOut.z < -0.5f)
             {
-                ropeUp = monkeyRopeUp(hand, palmOut, ropeUp); // (ropes8b: under a monkey traverse's rope)
+                // (ropes8b: under a monkey traverse's rope) (ropes14: VR keeps the grip it took; the support grip over it)
+                const bool fresh = pin.weight <= 0.f || holdSerial != pin.serial;
+                ropeUp = monkeyGrip(hand, anglesAxes(rot) * handTurn, fresh, palmOut, ropeUp);
+                monkeySupport(s, hand, dt, axis, ropeUp, hold, palmOut);
+            }
+            else
+            {
+                pin.keepSign = 0.f;
+                pin.support = 0.f;
+                pin.supportOn = false;
             }
             pin.offset = hold - at;
             pin.axis = axis - hold;
@@ -5729,7 +5842,7 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
             pin.offset = handOffset(out, hand);
             hold = at + pin.offset;
         }
-        const int serial = (bits >> (2 + 6 * hand)) & 63;
+        const int serial = holdSerial;
         if(pin.weight <= 0.f)
         {
             pin.from = pin.to = hold;

@@ -13,24 +13,32 @@ On the Quest 3 (Standalone), fight in e1m1's first room and look at the floor's 
 On the Quest 3 (Standalone), start bullet time in a fight: the world still turns grey and tinted with darkened edges, and the comfort vignette still shows when you move with the stick. {test:quest_gibfight}
 Quest standalone: mid-game, switch Settings > Quest Foveation between High, Off, Low and back a few times (menu open): no crash, the picture right after each switch. {test:quest_gibfight}
 Flat-screen or VR: grip a rope or chain and look at your hands: the thumbs wrap round it the other way from the fingers; grip a pole: the thumbs rest along its side instead, not wrapped round it (Rope Thumb Wrap Thickness under Debug > Tunables sets where it switches). {test:ropes_flat}
-Flat-screen: climb a rope or pole and jump off it: you fall clear and are not caught by it again in the air; once landed, walking into it takes it again, and off a pole steered back to it in the air you take it again. {test:ropes_flat}
 Flat-screen: climb up a pole or rope and hold crouch: you slide down it quickly to the floor with a scrape, the hands sliding along it (Rope Slide Speed under Debug > Tunables). {test:ropes_flat}
-Flat-screen: jump up to a level rope or pole and press crouch while hanging under it: you drop off it. {test:ropes_flat}
 Flat-screen or VR: open the weapon wheel and pick a weapon, DROP or UNLOAD: no menu click sound plays on the pick (the holster's own sounds still do). {test:flat_weapon_wheel}
-Flat-screen: hold J with a gun, then hold the fire button and the ironsight key: the gun neither shoots nor sights while it is wound up; let go of J and it is thrown. {test:flat_throw_guide}
 Flat-screen: throw the axe, a rock and the quick grenade with J: each leaves from the hand that holds it (not the middle of the view) and still lands where the crosshair points. {test:flat_throw_guide}
-Flat-screen: hold J: the wound-up hand and what it holds stay in view at the screen's upper corner, a little further back as it charges (Debug > Tunables > Flatscreen > Throw: Wind-Up Forward/Out/Up/Pitch/Yaw/Roll). {test:flat_throw_guide}
-Flat-screen: hold J with the other hand empty (an axe, a prop, a gun, the quick grenade): the free hand goes forward, palm away and fingers open, guiding the throw; with a gun or a prop in the other hand it stays as it is (Throw: Guide rows to tune it). {test:flat_throw_guide}
 Flat-screen: hold RMB with the phantom swordsman's sword (or any long sword): the free hand takes the blade about shoulder width from the sword hand and stays on its wrist (Blade Grip Most Apart). {test:flat_parry}
 Flat-screen or VR: press B (flat) or the weapon button (VR) with the Crystal Lance: nothing changes, it stays the Lance and never turns into the lightning gun. {test:flat_lance}
 Flat-screen: hold the Crystal Lance: the other hand grips the pole ahead of the right hand; tune Debug > Tunables > Spear rows (Hand Along, Pitch, Yaw, Other Hand Along/Up/Out) and check each moves the spear or hand. {test:flat_lance}
 Flat-screen: press V with the Crystal Lance: a spear thrust (pulled back, thrust along the pole, recovered) that stabs what is ahead with the crystal head; the other hand stays put as the pole slides through it. {test:flat_lance}
 Flat-screen: with the Crystal Lance, the Debug > Tunables rows Spear Other Hand Pitch / Yaw / Roll turn the hand on the pole and Spear Hand Pitch / Yaw / Roll turn the holding fist alone, each about its palm, the spear staying put. {test:flat_lance}
 Look into the super shotgun's muzzle up close: two open bores with a bright rim and dark inside, like the nail pistol's barrel, not a solid block; check the rims aren't too bright and the bores read deep enough. {test:ssg_muzzle}
-Flat-screen or VR: Enforcers armed with their own laser rifle now wear the blue energy dye, as any cell weapon's carrier does (grunts and knights with their own guns stay as they were). {test:agrunt_holds_enforcers}
 Flat-screen or VR: On ad_crucial the lift west of the lower hall stays raised until you take the super shotgun lying in that hall (the map's own design); taking it brings the lift down and it then works as any lift. {test:ad_crucial_lift}
-Debug > Print My Position (viewpos) replaces Mark a Gap I Got Through: it prints where you stand, for reporting a spot. {test:hub_start}
 Flat-screen or VR: A bot's and another player's holstered guns sit on their bodies like yours: hip guns on the thighs, the chest ones on the chest (not out on the shoulders), turned as yours, and they keep up when the player moves or turns (Debug > Network > Holsters On Their Bodies off shows the old placement). {test:mp_dm_passive}
+Climb a pole with your hands: no grunt on the pulls any more (ropes keep theirs; Pole Pull Grunt under Debug > Tunables brings it back). {test:ropes}
+Grab the level pole overhand, then move your body and head across under it and look back at your hand: the hand stays on the side and in the grip it took; let go and take it again underhand (palm towards you): that grip stays, and both grips pull you up and lower you. {test:ropes}
+Hang under the level pole or strung rope and push yourself up over it: the wrists turn quickly but smoothly so the palms are on top and the fingers under it; drop back under it and they turn back (Rope Support Grip Height/Time/Turn under Debug > Tunables). {test:ropes}
+Climb a swinging rope and an upright pole and watch your legs: the feet round it follow the rope's moves smoothly, without sudden jumps (Rope Legs Smoothing under Debug > Tunables). {test:ropes}
+Grip a pole and look at your thumbs: the normal grip again, not the thumb pointing along the pole; tweak it under Debug > Tunables (Thick Rope Thumb, Rope Thumb Curl / Opposition / Swing / Lift / Shift, applied by thickness from Rope Thumb Tweak From to To) until it looks right. {test:ropes}
+Flat-screen or VR: jump off or let go of a rope or pole and move straight through where it is: for a moment it doesn't stop you or get pushed aside, so you go where you look (Rope Let-Go Pass Time under Debug > Tunables). {test:ropes}
+Flat-screen or VR: run a multiplayer test scene, then start the tutorial (menu or hub button): it is a single-player game of Quake's campaign (no bots, one player), and falling into lesson 13's pit kills you at once. {test:mp_dm_passive}
+The tutorial's first fight: the alcove the enemy comes out of is lit by a ceiling lamp; the enemy is easy to see in it. {test:tut_lesson7}
+Flat-screen or VR: tutorial lesson 13: press SPIKE and swing a weapon through the spike: it flies back (as the grenade can be caught and thrown back). {test:tut_lesson13}
+Flat-screen or VR: tutorial lesson 13: the pits' walls and the room's north wall have no black stripes or black patches. {test:tut_lesson13}
+Flat-screen or VR: tutorial lesson 14: the room's west wall runs on into the hall to the arena with the same panels, lined up (no brighter, different texture past the doorway). {test:tut_lesson14}
+On the Quest, close the game from the headset's menu while the first start is still compiling shaders, then start it again: no "GL safe mode" warning line, and the hub plays normally. {test:hub_start}
+On the Quest, enter the hub three times (also once with GL safe mode on: Debug > Startup), and open and close the system menu in the hub: no crash. {test:hub_start}
+Flat-screen or VR: A bot's and another player's left hip and chest sheaths are the mirror images of the right ones, as yours are (not the right sheath turned round), and so are the guns in them. {test:mp_dm_passive}
+Flat-screen or VR: Shove the grunt and the dog into the wall behind them: knocked down against it, each slumps on it and gets up as on the open floor; say whether it looks stuck upright on the wall (it stays propped 2-4 s, with the active ragdoll on or off alike). {test:wall_shove}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the 1.2.0-beta2 pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names 1.2.0-beta2; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
@@ -63,16 +71,11 @@ On a Steam Frame (or streaming to one), the controllers get their own buttons: A
 
 [3. Tutorial and VR interface]
 Look away from the wrist gadget and get a centre message: the visor-style panel is about a third smaller than before and still easy to read. {test:vr_center_message}
-Pick up items and get messages while looking at the wrist gadget: they rise from its screen as the glowing, flickering hologram, not plain text in a dark box. {test:pouchbody}
 
 [4. Weapons and holsters]
-Hold B or Y with a gun in that hand until the weapon wheel opens and pick a holster: the nailgun goes in with its magazine still in and has the same rounds when drawn again; a quick tap of B still drops the magazine. {test:weapon_wheel}
-Weapon wheel settings (Immersion > Weapon Wheel: button, hold time, time speed, size, distance) each change it as their help says; the grappling hook's hand keeps B/Y as its reel. {test:weapon_wheel}
 Hook an explosive box, a zombie and a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun. {test:grapple_reel}
 Heavy revolver: swing the cylinder out, take a shell in the off hand, then flick the gun down (muzzle up, push back along the bore): the shells drop even with the shell held. {test:revolver_swing}
-Heavy revolver: a quick wrist roll towards the cylinder's side opens it; a melee swing never does. Too strict or loose: tune Weapons > Reloading > Heavy Revolver > Flick Open Arm Share (0.45; lower is stricter). {test:revolver_swing}
 Flat-screen or VR: fire the super nailgun and let go: its barrels slow and stop where they are instead of snapping back, and spin up from rest when you fire. {test:sng_spin}
-Flat-screen or VR: kill a grunt with a thrown axe, sword or dagger: its body flies about half as far as before (Debug > Tunables, "Thrown Blade Kill Push"); other killing blows are unchanged. {test:embed_throw}
 
 [5. Ropes and chains]
 Flat-screen or VR: in a two-player game in the ropes hall both climb the same upright pole (from opposite sides, and one after the other; also on vrropes): both get on, neither is pushed off or stuck, and each sees the other's hands on the pole and legs round it. {test:ropes}
@@ -86,10 +89,7 @@ Show Melee Arcs: each blow's own rule is drawn (a spawn's leap ring, the dragon'
 
 [7. Dwell]
 Dwell's Crystal Lance feels about 20% heavier to swing and has no magazine: each shot takes 6 cells from your pouch. {test:dwell_lance_pole}
-Dwell's Crystal Lance: a coiled cord runs from the butt of its pole into a cell in your ammo pouch; shoot your cells empty and it falls loose and swings off the butt, pick up cells and it plugs back in. {test:dwell_lance_pole}
-Dwell's Crystal Lance in both hands: slide your off hand along the pole: it stays on the pole all the way. Then close the off hand, loosen your weapon hand's grip (not all the way) and move it along: it slides to the head or butt, stays where you close it, and the Lance never drops (if it does, tune Pole Slide Grip in Physics). {test:dwell_lance_pole}
 Dwell's Crystal Lance: thrust it head first into a monster: a heavier hit than a swing; a thrust landing on the shaft short of the head is only a weak poke. {test:dwell_lance_pole}
-Dwell's Crystal Lance: press B (the eject button) to turn your grip over, crystal head down, as with a sword. {test:dwell_lance_pole}
 With Dwell's Crystal Lance out of cells, hold the trigger while swinging it: no empty click sounds. {test:dwell_lance_pole}
 Stab a grunt with the very top of Dwell's Crystal Lance's head: it stays in, only a little way deep, as a sword's stab does; a stab with the shaft or lower head does not stick (tune with Debug > Tunables > Crystal Lance Stab Point, Stab Tip Share, Stab Speed). {test:dwell_lance_pole}
 Throw Dwell's Crystal Lance: it flies point first and settles in the air like a sword, and can stick where its tip lands. {test:dwell_lance_pole}

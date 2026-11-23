@@ -1263,6 +1263,11 @@ void reset()
     forgetSolves();
 }
 
+glm::quat thumbTurn(float opposition, float swing, float lift)
+{
+    return thumbQuat(ThumbTurn{opposition, swing, lift});
+}
+
 void forgetSolves()
 {
     za::fill(remembered, Remembered{});
