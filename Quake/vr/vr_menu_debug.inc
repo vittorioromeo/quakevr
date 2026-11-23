@@ -1382,6 +1382,9 @@ za::Vector<Item> pageDebugReports()
             .help("vr_mp_body: the other players' bodies drawn under their heads and hands, posed by the same code as your "
                   "own from what their games send, at their height, arm length and build, with their bracers and pauldrons; "
                   "off: their player models."),
+        toggle("Network: Holsters On Their Bodies", vr_mp_holsters_on_body)
+            .help("vr_mp_holsters_on_body: the other players' holstered guns and sheaths placed on their bodies as drawn "
+                  "here, where yours sit on yours (as a bot's); off: as their games drew them on their own bodies."),
         slider("Network: Avatar Keyframe", vr_net_avatar_keyframe, 1.f, 72.f, 1.f, "%.0f frames")
             .help("vr_net_avatar_keyframe: hosting, a player's hands unchanged since they were last sent go again only every "
                   "this many frames (1: every frame). What a lost packet or a player just come into sight waits at most."),

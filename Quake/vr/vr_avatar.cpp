@@ -2112,6 +2112,8 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
         k.headJoint = b.bones[Head].pos;
         k.headEye = headEyeOf(b);
         k.pelvis = b.bones[Pelvis].pos;
+        k.pelvisFrame = {b.bones[Pelvis].pos, b.bones[Pelvis].rot};
+        k.chestFrame = {b.bones[Chest].pos, b.bones[Chest].rot};
         k.legs = legs;
         for(int side = 0; side < 2; side++)
         {
