@@ -21,6 +21,7 @@
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 
@@ -50,7 +51,7 @@ const ProductInfo products[] = {
     {"lightgrid", "big maps' model light grids", 256ull << 20, nullptr},
     {"navmesh", "monsters' navmeshes", 256ull << 20, &qvr::vr_nav_cache},
 };
-static_assert(sizeof(products) / sizeof(products[0]) == static_cast<size_t>(Product::Count));
+static_assert(sizeof(products) / sizeof(products[0]) == static_cast<za::SizeT>(Product::Count));
 
 const ProductInfo& infoOf(Product p)
 {
@@ -183,7 +184,7 @@ bool readFile(const za::String& path, const char (&magic)[5], unsigned& a, unsig
     {
         a = header[1];
         b = header[2];
-        data.resize(static_cast<size_t>(size - headerSize));
+        data.resize(static_cast<za::SizeT>(size - headerSize));
         ok = fread(data.data(), 1, data.size(), in) == data.size();
     }
     fclose(in);
@@ -284,7 +285,7 @@ int modeOf(Product p)
     return v <= 0.f ? 0 : v >= 2.f ? 2 : 1;
 }
 
-void noteHit(Product p, size_t bytes, double seconds)
+void noteHit(Product p, za::SizeT bytes, double seconds)
 {
     Counts& c = counts[static_cast<int>(p)];
     c.hits.fetchAddSeqCst(1);
@@ -306,7 +307,7 @@ void noteMiss(Product p, const char* what)
     }
 }
 
-void noteWrite(Product p, size_t bytes)
+void noteWrite(Product p, za::SizeT bytes)
 {
     Counts& c = counts[static_cast<int>(p)];
     c.written.fetchAddSeqCst(1);
@@ -368,7 +369,7 @@ int readRgbaAt(const za::String& folder, unsigned long long key, unsigned char* 
         return there ? 3 : 2;
     }
     if(w != static_cast<unsigned>(width) || h != static_cast<unsigned>(height) ||
-        data.size() != static_cast<size_t>(width) * height * 4)
+        data.size() != static_cast<za::SizeT>(width) * height * 4)
     {
         return 3;
     }
@@ -377,7 +378,7 @@ int readRgbaAt(const za::String& folder, unsigned long long key, unsigned char* 
     return 1;
 }
 
-void noteRgbaRead(Product p, int status, size_t bytes, double seconds, const char* what)
+void noteRgbaRead(Product p, int status, za::SizeT bytes, double seconds, const char* what)
 {
     if(status == 1)
     {
@@ -397,7 +398,7 @@ bool has(Product p, const char* build, unsigned long long key, const char* ext)
 }
 
 void write(Product p, const char* build, unsigned long long key, const char* ext, const char (&magic)[5], unsigned a,
-    unsigned b, const void* data, size_t length)
+    unsigned b, const void* data, za::SizeT length)
 {
     QVR_TRACY_SCOPE(tracyScope, "disk cache write prepare");
     // (The folder made ready, its first time a session pruned too, in the job: off the main thread.)
@@ -435,7 +436,7 @@ void write(Product p, const char* build, unsigned long long key, const char* ext
     }));
 }
 
-za::String buildOf(const unsigned* parts, size_t count)
+za::String buildOf(const unsigned* parts, za::SizeT count)
 {
     char text[24];
     snprintf(text, sizeof(text), "%016llx", fnv(fnvStart, parts, count * sizeof(unsigned)));
@@ -504,7 +505,7 @@ namespace
         return 0;
     }
     if(w != static_cast<unsigned>(width) || h != static_cast<unsigned>(height) ||
-        data.size() != static_cast<size_t>(width) * height * 4)
+        data.size() != static_cast<za::SizeT>(width) * height * 4)
     {
         qvr::diskcache::noteRejected(p);
         return 0;
@@ -516,7 +517,7 @@ namespace
 void rgbaCacheStore(Product p, const char* build, unsigned long long key, const unsigned char* rgba, int width, int height)
 {
     qvr::diskcache::write(p, build, key, "nrm", normalMagic, static_cast<unsigned>(width), static_cast<unsigned>(height),
-        rgba, static_cast<size_t>(width) * height * 4);
+        rgba, static_cast<za::SizeT>(width) * height * 4);
 }
 
 } // namespace
@@ -584,7 +585,7 @@ namespace
 constexpr char progMagic[4] = {'Q', 'V', 'P', 'B'};
 constexpr unsigned progVersion = 2;
 constexpr unsigned progKeepSessions = 24;                 // a set unused this many sessions goes
-constexpr size_t progMaxBytes = size_t{128} * 1024 * 1024; // the pack's binaries at most (the oldest go first)
+constexpr za::SizeT progMaxBytes = za::SizeT{128} * 1024 * 1024; // the pack's binaries at most (the oldest go first)
 
 struct ProgEntry
 {
@@ -639,7 +640,7 @@ void progLoad()
     }
     const bool stamped = header[0] >= 2; // version 2: the session's number, and each program's last session
     unsigned packSession = 0;
-    size_t at = 12;
+    za::SizeT at = 12;
     if(stamped)
     {
         if(bytes.size() < 16)
@@ -652,7 +653,7 @@ void progLoad()
     }
     progCache.session = packSession + 1;
     progCache.loadNote = stamped ? "read" : "read (version 1: its programs kept as the last session's)";
-    const size_t entryHead = stamped ? 20 : 16;
+    const za::SizeT entryHead = stamped ? 20 : 16;
     for(unsigned i = 0; i < header[1]; i++)
     {
         ProgEntry e{};
@@ -699,15 +700,15 @@ int progPrune()
             dropped++;
         }
     }
-    size_t total = 0;
+    za::SizeT total = 0;
     for(const ProgEntry& e : kept)
     {
         total += e.data.size();
     }
     while(total > progMaxBytes)
     {
-        size_t oldest = kept.size();
-        for(size_t i = 0; i < kept.size(); i++)
+        za::SizeT oldest = kept.size();
+        for(za::SizeT i = 0; i < kept.size(); i++)
         {
             if(!kept[i].used && (oldest == kept.size() || kept[i].session < kept[oldest].session))
             {
@@ -736,7 +737,7 @@ void progWrite()
     ZA_MEMCPY(bytes.data() + 4, header, sizeof(header));
     for(const ProgEntry& e : progCache.entries)
     {
-        const size_t at = bytes.size();
+        const za::SizeT at = bytes.size();
         const unsigned length = static_cast<unsigned>(e.data.size());
         const unsigned session = e.used ? progCache.session : e.session;
         bytes.resize(at + 20 + length);
@@ -795,7 +796,7 @@ extern "C" int VR_ProgCacheOn(void)
 
 extern "C" unsigned long long VR_ProgCacheKey(unsigned long long h, const char* text)
 {
-    const size_t n = text ? ZA_STRLEN(text) : 0;
+    const za::SizeT n = text ? ZA_STRLEN(text) : 0;
     h = qvr::diskcache::wideHash(h ? h : qvr::diskcache::fnvStart, &n, sizeof(n)); // (each part's length first: no run-ons)
     return qvr::diskcache::wideHash(h, text ? text : "", n);
 }
@@ -839,7 +840,7 @@ extern "C" const void* VR_ProgCacheFind(unsigned long long key, unsigned* format
 
 extern "C" void VR_ProgCacheReject(unsigned long long key)
 {
-    for(size_t i = 0; i < progCache.entries.size(); i++)
+    for(za::SizeT i = 0; i < progCache.entries.size(); i++)
     {
         if(progCache.entries[i].key == key)
         {
@@ -864,8 +865,8 @@ extern "C" void VR_ProgCacheAdd(unsigned long long key, unsigned format, const v
     }
     e->format = format;
     e->used = true;
-    e->data.resize(static_cast<size_t>(length));
-    ZA_MEMCPY(e->data.data(), data, static_cast<size_t>(length));
+    e->data.resize(static_cast<za::SizeT>(length));
+    ZA_MEMCPY(e->data.data(), data, static_cast<za::SizeT>(length));
     progCache.dirty = true;
     if(!progCache.batch)
     {

@@ -29,6 +29,7 @@
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include <cstdarg>
@@ -192,7 +193,7 @@ void publish()
     {
         q_snprintf(label, sizeof(label), "the stage after \"%s\"", trace.lastMarkName);
     }
-    const size_t n = ZA_STRLEN(label);
+    const za::SizeT n = ZA_STRLEN(label);
     if(trace.progress[0] || trace.glStep[0])
     {
         q_snprintf(label + n, sizeof(label) - n, " (%s%s%s)", trace.progress, trace.progress[0] && trace.glStep[0] ? "; " : "",
@@ -258,13 +259,13 @@ void endStep(const char* why)
 void summarize(const char* what, double ms, const char* work)
 {
     za::Vector<const DoneStep*> slow;
-    for(size_t i = static_cast<size_t>(trace.phaseFirstDone); i < trace.done.size(); i++)
+    for(za::SizeT i = static_cast<za::SizeT>(trace.phaseFirstDone); i < trace.done.size(); i++)
     {
         slow.pushBack(&trace.done[i]);
     }
     za::insertionSort(slow.begin(), slow.end(), [](const DoneStep* a, const DoneStep* b) { return a->ms > b->ms; }); // (a few hundred at most)
     za::String line = va("summary: %s %.0f ms; slowest:", what, ms);
-    for(size_t i = 0; i < slow.size() && i < 6; i++)
+    for(za::SizeT i = 0; i < slow.size() && i < 6; i++)
     {
         line += va("%s %s %.0f ms", i ? "," : "", slow[i]->name.cStr(), slow[i]->ms);
     }

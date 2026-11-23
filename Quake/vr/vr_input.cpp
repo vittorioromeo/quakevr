@@ -55,6 +55,7 @@
 #include "vr_mem.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -2029,7 +2030,7 @@ void guardBindings()
     Cbuf_InsertText("exec vr_bindings.cfg\n");
 }
 
-void describeBindings(char* out, size_t size)
+void describeBindings(char* out, za::SizeT size)
 {
     const auto bound = [](int key) { return keybindings[key] ? keybindings[key] : ""; };
     q_snprintf(out, size,

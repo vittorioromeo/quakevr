@@ -19,6 +19,7 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/UIntPtrT.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Chrono/Time.hpp"
@@ -664,14 +665,14 @@ jobs::Site gridClearSite{"model light grid cells"};
 // bright as GLOW_BRIGHTEST (a map's green lava lights green).
 [[nodiscard]] glm::vec3 glowColourOf(const texture_t* tx, int kind)
 {
-    const size_t pixels = tx ? static_cast<size_t>(tx->width) * static_cast<size_t>(tx->height) : 0u;
+    const za::SizeT pixels = tx ? static_cast<za::SizeT>(tx->width) * static_cast<za::SizeT>(tx->height) : 0u;
     if(pixels == 0u || cl.worldmodel->bspversion == BSPVERSION_QUAKE64)
     {
         return GLOW_COLOURS[kind];
     }
     const byte* in = reinterpret_cast<const byte*>(tx + 1);
     glm::vec3 sum{0.f};
-    for(size_t i = 0; i < pixels; i++)
+    for(za::SizeT i = 0; i < pixels; i++)
     {
         const unsigned rgba = d_8to24table[in[i]];
         const glm::vec3 texel{static_cast<float>(rgba & 255u), static_cast<float>((rgba >> 8) & 255u), static_cast<float>((rgba >> 16) & 255u)};
@@ -924,7 +925,7 @@ void gridProbe(const glm::vec3& p, int x, int y, int z, za::Vector<GridEntry>& o
 [[nodiscard]] unsigned long long gridCacheKey()
 {
     const qmodel_t* world = cl.worldmodel;
-    size_t lightBytes = 0;
+    za::SizeT lightBytes = 0;
     unsigned long long h = diskcache::fnvStart;
     for(int i = 0; i < world->numsurfaces; i++)
     {
@@ -937,12 +938,12 @@ void gridProbe(const glm::vec3& p, int x, int y, int z, za::Vector<GridEntry>& o
             {
                 layers++;
             }
-            const size_t size = static_cast<size_t>((surf.extents[0] >> 4) + 1) * static_cast<size_t>((surf.extents[1] >> 4) + 1) * 3u * layers;
-            lightBytes = za::max(lightBytes, static_cast<size_t>(surf.samples - world->lightdata) + size);
+            const za::SizeT size = static_cast<za::SizeT>((surf.extents[0] >> 4) + 1) * static_cast<za::SizeT>((surf.extents[1] >> 4) + 1) * 3u * layers;
+            lightBytes = za::max(lightBytes, static_cast<za::SizeT>(surf.samples - world->lightdata) + size);
         }
     }
     h = diskcache::wideHash(h, world->lightdata, lightBytes);
-    h = diskcache::wideHash(h, world->planes, static_cast<size_t>(world->numplanes) * sizeof(mplane_t));
+    h = diskcache::wideHash(h, world->planes, static_cast<za::SizeT>(world->numplanes) * sizeof(mplane_t));
     h = diskcache::fnv(h, &grid.nearWeight, sizeof(grid.nearWeight));
     h = diskcache::fnv(h, &grid.cell, sizeof(grid.cell));
     h = diskcache::fnv(h, &grid.glowKey, sizeof(grid.glowKey));
@@ -977,7 +978,7 @@ void gridFinish(double start)
     }
     grid.buildMs = (Sys_DoubleTime() - start) * 1000.0;
     Con_DPrintf("model light grid: %d x %d x %d of %.0f, %zu probes, %zu entries, %.1f MB, %.0f ms\n", grid.size[0], grid.size[1],
-                grid.size[2], grid.cell, static_cast<size_t>(grid.probes), static_cast<size_t>(grid.entries.size()),
+                grid.size[2], grid.cell, static_cast<za::SizeT>(grid.probes), static_cast<za::SizeT>(grid.entries.size()),
                 static_cast<double>(grid.cells.size() * sizeof(unsigned) + grid.entries.size() * sizeof(GridEntry)) / 1048576.0,
                 grid.buildMs);
 }
@@ -1155,8 +1156,8 @@ void gridBuild()
         }
     }
 
-    const size_t cellBytes = grid.cells.size() * sizeof(unsigned);
-    const size_t entryBytes = grid.entries.size() * sizeof(GridEntry);
+    const za::SizeT cellBytes = grid.cells.size() * sizeof(unsigned);
+    const za::SizeT entryBytes = grid.entries.size() * sizeof(GridEntry);
     if(Sys_DoubleTime() - start >= GRID_CACHE_SECONDS)
     {
         za::Vector<char> bytes;
@@ -1589,12 +1590,12 @@ void gridInfo_f()
         return;
     }
     Con_Printf("model light grid: %d x %d x %d cells of %.0f, %zu probes (%zu with more than one light style), %zu clear cells, %.1f MB, built in %.0f ms\n",
-               grid.size[0], grid.size[1], grid.size[2], grid.cell, static_cast<size_t>(grid.probes), static_cast<size_t>(grid.styledProbes),
-               static_cast<size_t>(grid.clearCells),
+               grid.size[0], grid.size[1], grid.size[2], grid.cell, static_cast<za::SizeT>(grid.probes), static_cast<za::SizeT>(grid.styledProbes),
+               static_cast<za::SizeT>(grid.clearCells),
                static_cast<double>(grid.cells.size() * sizeof(unsigned) + grid.entries.size() * sizeof(GridEntry)) / 1048576.0, grid.buildMs);
     Con_Printf("model light grid: lit liquids in reach of %zu probes (lava), %zu (slime), %zu (teleporter); %zu entries\n",
-               static_cast<size_t>(grid.glowProbes[0]), static_cast<size_t>(grid.glowProbes[1]), static_cast<size_t>(grid.glowProbes[2]),
-               static_cast<size_t>(grid.entries.size()));
+               static_cast<za::SizeT>(grid.glowProbes[0]), static_cast<za::SizeT>(grid.glowProbes[1]), static_cast<za::SizeT>(grid.glowProbes[2]),
+               static_cast<za::SizeT>(grid.entries.size()));
     {
         unsigned long long h = diskcache::wideHash(diskcache::fnvStart, grid.cells.data(), grid.cells.size() * sizeof(unsigned));
         h = diskcache::wideHash(h, grid.entries.data(), grid.entries.size() * sizeof(GridEntry));
@@ -1866,7 +1867,7 @@ void show_f()
                samplesTaken ? sampleSeconds * 1e6 / static_cast<double>(samplesTaken) : 0.0, NUM_RAYS,
                static_cast<int>(cache.size()));
     static constexpr const char* names[6] = {"+X", "-X", "+Y", "-Y", "+Z", "-Z"};
-    for(size_t i = 0; i < nearest.size() && i < 6; i++)
+    for(za::SizeT i = 0; i < nearest.size() && i < 6; i++)
     {
         const Cached& c = *nearest[i].c;
         Con_Printf("AMB %s at %.0f %.0f %.0f (%.0f away):", nearest[i].e->model ? nearest[i].e->model->name : "?", c.samplePos.x,
@@ -2161,8 +2162,8 @@ void gridTest_f()
         unsigned long long h = diskcache::fnv(diskcache::fnvStart, grid.cells.data(), grid.cells.size() * sizeof(unsigned));
         return diskcache::fnv(h, grid.entries.data(), grid.entries.size() * sizeof(GridEntry));
     };
-    Con_Printf("light grid test: %s, %zu probes, %zu entries, %zu lava, %zu slime, %zu teleporter\n", cl.worldmodel->name, static_cast<size_t>(grid.probes),
-               static_cast<size_t>(grid.entries.size()), static_cast<size_t>(grid.glowProbes[0]), static_cast<size_t>(grid.glowProbes[1]), static_cast<size_t>(grid.glowProbes[2]));
+    Con_Printf("light grid test: %s, %zu probes, %zu entries, %zu lava, %zu slime, %zu teleporter\n", cl.worldmodel->name, static_cast<za::SizeT>(grid.probes),
+               static_cast<za::SizeT>(grid.entries.size()), static_cast<za::SizeT>(grid.glowProbes[0]), static_cast<za::SizeT>(grid.glowProbes[1]), static_cast<za::SizeT>(grid.glowProbes[2]));
 
     // Spots over the map: the middles of cells with a reading.
     za::Vector<glm::vec3> spots;

@@ -38,6 +38,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "vr_api.h"
 
@@ -371,16 +372,16 @@ namespace
     {
         return nullptr;
     }
-    const size_t ownSize = static_cast<size_t>(com_filesize);
+    const za::SizeT ownSize = static_cast<za::SizeT>(com_filesize);
     unsigned int idPath = 0;
     byte* id = COM_LoadMallocFile(wallModelName, &idPath);
-    const size_t idSize = id ? static_cast<size_t>(com_filesize) : 0;
-    const auto rd = [](const byte* b, size_t at) -> int {
+    const za::SizeT idSize = id ? static_cast<za::SizeT>(com_filesize) : 0;
+    const auto rd = [](const byte* b, za::SizeT at) -> int {
         int v;
         ZA_MEMCPY(&v, b + at, 4);
         return LittleLong(v);
     };
-    constexpr size_t headerSize = 84;
+    constexpr za::SizeT headerSize = 84;
     const auto keep = [&](const char* why) -> byte* {
         Con_DPrintf("wall torch: %s as shipped (%s)\n", stickModelName, why);
         VR_HeapFree(id);
@@ -391,17 +392,17 @@ namespace
         return keep("no wall torch to take its skin from");
     }
     const int w = rd(own, 52), h = rd(own, 56), skins = rd(own, 48);
-    const size_t bytes = static_cast<size_t>(w) * static_cast<size_t>(h);
+    const za::SizeT bytes = static_cast<za::SizeT>(w) * static_cast<za::SizeT>(h);
     if(rd(id, 52) != w || rd(id, 56) != h || rd(id, 60) != wallVerts || rd(id, 64) != wallTris || rd(id, 48) < 1 ||
         rd(id, 84) != 0 || idSize < headerSize + 4 + bytes ||
-        ownSize < headerSize + static_cast<size_t>(skins) * (4 + bytes))
+        ownSize < headerSize + static_cast<za::SizeT>(skins) * (4 + bytes))
     {
         return keep("another wall torch model, its skin laid out otherwise");
     }
     const byte* idSkin = id + headerSize + 4;
     for(int k = 0; k < skins; k++)
     {
-        const size_t at = headerSize + static_cast<size_t>(k) * (4 + bytes);
+        const za::SizeT at = headerSize + static_cast<za::SizeT>(k) * (4 + bytes);
         if(rd(own, at) != 0)
         {
             return keep("a skin group");
@@ -460,13 +461,13 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
     {
         return nullptr;
     }
-    const size_t size = static_cast<size_t>(com_filesize);
-    const auto rd = [&](size_t at) -> int {
+    const za::SizeT size = static_cast<za::SizeT>(com_filesize);
+    const auto rd = [&](za::SizeT at) -> int {
         int v;
         ZA_MEMCPY(&v, src + at, 4);
         return LittleLong(v);
     };
-    constexpr size_t headerSize = 84;
+    constexpr za::SizeT headerSize = 84;
     const auto fail = [&](const char* why) -> byte* {
         Con_DPrintf("wall torch: %s: %s\n", wallModelName, why);
         VR_HeapFree(src);
@@ -481,8 +482,8 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
     {
         return fail("bad header");
     }
-    size_t at = headerSize;
-    const size_t skinBytes = static_cast<size_t>(skinW) * static_cast<size_t>(skinH);
+    za::SizeT at = headerSize;
+    const za::SizeT skinBytes = static_cast<za::SizeT>(skinW) * static_cast<za::SizeT>(skinH);
     for(int s = 0; s < numSkins; s++)
     {
         if(at + 4 > size)
@@ -496,19 +497,19 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
         else
         {
             const int n = at + 8 <= size ? rd(at + 4) : 0;
-            at += 8 + static_cast<size_t>(za::max(n, 0)) * (4 + skinBytes);
+            at += 8 + static_cast<za::SizeT>(za::max(n, 0)) * (4 + skinBytes);
         }
     }
-    const size_t trisAt = at + static_cast<size_t>(numVerts) * 12;
-    const size_t framesAt = trisAt + static_cast<size_t>(numTris) * 16;
+    const za::SizeT trisAt = at + static_cast<za::SizeT>(numVerts) * 12;
+    const za::SizeT framesAt = trisAt + static_cast<za::SizeT>(numTris) * 16;
     if(framesAt + 4 > size)
     {
         return fail("short");
     }
     // Which vertices move: the first frame's poses against each other (a group), or the first two frames.
-    const size_t vertsBytes = static_cast<size_t>(numVerts) * 4;
+    const za::SizeT vertsBytes = static_cast<za::SizeT>(numVerts) * 4;
     za::Vector<const byte*> poses;
-    size_t f = framesAt;
+    za::SizeT f = framesAt;
     for(int k = 0; k < numFrames && poses.size() < 2; k++)
     {
         if(f + 4 > size)
@@ -523,36 +524,36 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
         else
         {
             const int n = f + 8 <= size ? rd(f + 4) : 0;
-            const size_t first = f + 4 + 12 + static_cast<size_t>(n) * 4;
+            const za::SizeT first = f + 4 + 12 + static_cast<za::SizeT>(n) * 4;
             for(int j = 0; j < n; j++)
             {
-                poses.pushBack(src + first + static_cast<size_t>(j) * (24 + vertsBytes) + 24);
+                poses.pushBack(src + first + static_cast<za::SizeT>(j) * (24 + vertsBytes) + 24);
             }
-            f = first + static_cast<size_t>(n) * (24 + vertsBytes);
+            f = first + static_cast<za::SizeT>(n) * (24 + vertsBytes);
         }
     }
     if(poses.size() < 2 || poses.back() + vertsBytes > src + size)
     {
         return fail("no animation to tell its flame by");
     }
-    za::Vector<bool> moving(static_cast<size_t>(numVerts), false);
-    for(size_t p = 1; p < poses.size(); p++)
+    za::Vector<bool> moving(static_cast<za::SizeT>(numVerts), false);
+    for(za::SizeT p = 1; p < poses.size(); p++)
     {
         for(int v = 0; v < numVerts; v++)
         {
-            moving[static_cast<size_t>(v)] = moving[static_cast<size_t>(v)] || ZA_MEMCMP(poses[0] + v * 4, poses[p] + v * 4, 3) != 0;
+            moving[static_cast<za::SizeT>(v)] = moving[static_cast<za::SizeT>(v)] || ZA_MEMCMP(poses[0] + v * 4, poses[p] + v * 4, 3) != 0;
         }
     }
     za::Vector<byte> tris;
     int kept = 0;
     for(int t = 0; t < numTris; t++)
     {
-        const size_t o = trisAt + static_cast<size_t>(t) * 16;
+        const za::SizeT o = trisAt + static_cast<za::SizeT>(t) * 16;
         bool all = true;
         for(int c = 0; c < 3; c++)
         {
-            const int v = rd(o + 4 + static_cast<size_t>(c) * 4);
-            all = all && v >= 0 && v < numVerts && moving[static_cast<size_t>(v)];
+            const int v = rd(o + 4 + static_cast<za::SizeT>(c) * 4);
+            all = all && v >= 0 && v < numVerts && moving[static_cast<za::SizeT>(v)];
         }
         if(all)
         {
@@ -564,7 +565,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
     {
         return fail("no triangle of its flame");
     }
-    const size_t outSize = size - static_cast<size_t>(numTris - kept) * 16;
+    const za::SizeT outSize = size - static_cast<za::SizeT>(numTris - kept) * 16;
     byte* out = static_cast<byte*>(VR_HeapMalloc(outSize + 1));
     ZA_MEMCPY(out, src, trisAt);
     const int keptLe = LittleLong(kept);

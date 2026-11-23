@@ -22,6 +22,7 @@
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -143,7 +144,7 @@ void makeTexture()
     dlWidth = lightmap_width;
     dlHeight = lightmap_height;
     za::Vector<unsigned>& dark = scratch.texels;
-    dark.assign(static_cast<size_t>(dlWidth) * static_cast<size_t>(dlHeight), 0u);
+    dark.assign(static_cast<za::SizeT>(dlWidth) * static_cast<za::SizeT>(dlHeight), 0u);
     glGenTextures(1, &dlTexture);
     bindLightmap();
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB10_A2, dlWidth, dlHeight, 0, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, dark.data());
@@ -161,8 +162,8 @@ void upload(int x, int y, int w, int h, const unsigned* texels)
         unsigned* atlas = written.atlas.data();
         for(int r = 0; r < h; r++)
         {
-            ZA_MEMCPY(atlas + static_cast<size_t>(y + r) * lightmap_width + x, texels + static_cast<size_t>(r) * w,
-                static_cast<size_t>(w) * sizeof(unsigned));
+            ZA_MEMCPY(atlas + static_cast<za::SizeT>(y + r) * lightmap_width + x, texels + static_cast<za::SizeT>(r) * w,
+                static_cast<za::SizeT>(w) * sizeof(unsigned));
         }
         for(int b = y / bandRows; b <= (y + h - 1) / bandRows && b < maxBands; b++)
         {
@@ -190,7 +191,7 @@ void upload(int x, int y, int w, int h, const unsigned* texels)
 void beginUploads()
 {
     uploadsLast = uploadedTexels = 0;
-    const size_t size = static_cast<size_t>(lightmap_width) * static_cast<size_t>(lightmap_height);
+    const za::SizeT size = static_cast<za::SizeT>(lightmap_width) * static_cast<za::SizeT>(lightmap_height);
     batching = vr_gl_world_dlmap_batch.value != 0.f && lightmap_height <= bandRows * maxBands;
     if(!batching)
     {
@@ -231,7 +232,7 @@ void endUploads()
             bound = true;
         }
         glTexSubImage2D(GL_TEXTURE_2D, 0, b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV,
-            written.atlas.data() + static_cast<size_t>(b.y0) * lightmap_width + b.x0);
+            written.atlas.data() + static_cast<za::SizeT>(b.y0) * lightmap_width + b.x0);
         uploadsLast++;
         uploadedTexels += (b.x1 - b.x0) * (b.y1 - b.y0);
     }
@@ -245,7 +246,7 @@ void endUploads()
 void restore(const Block& b)
 {
     za::Vector<unsigned>& t = scratch.texels;
-    t.assign(static_cast<size_t>(b.w) * static_cast<size_t>(b.h), 0u);
+    t.assign(static_cast<za::SizeT>(b.w) * static_cast<za::SizeT>(b.h), 0u);
     upload(b.x, b.y, b.w, b.h, t.data());
 }
 
@@ -334,7 +335,7 @@ void lightSurface(const msurface_t* s, const Light* lights, const glm::ivec2* fi
     }
 
     za::Vector<glm::vec3>& sums = scratch.sums;
-    sums.assign(static_cast<size_t>(smax) * static_cast<size_t>(tmax), glm::vec3(0.f));
+    sums.assign(static_cast<za::SizeT>(smax) * static_cast<za::SizeT>(tmax), glm::vec3(0.f));
     bool any = false;
     for(const glm::ivec2* pr = first; pr != last; pr++)
     {
@@ -343,7 +344,7 @@ void lightSurface(const msurface_t* s, const Light* lights, const glm::ivec2* fi
         for(int t = 0; t < tmax; t++)
         {
             glm::vec3 p = p0 + dt * static_cast<float>(t);
-            glm::vec3* out = sums.data() + static_cast<size_t>(t) * smax;
+            glm::vec3* out = sums.data() + static_cast<za::SizeT>(t) * smax;
             for(int si = 0; si < smax; si++, p += ds)
             {
                 const glm::vec3 v = l.pos - p;
@@ -400,15 +401,15 @@ void lightSurface(const msurface_t* s, const Light* lights, const glm::ivec2* fi
         return;
     }
     za::Vector<unsigned>& texels = scratch.texels;
-    texels.resize(static_cast<size_t>(w) * static_cast<size_t>(tmax));
-    for(size_t i = 0; i < texels.size(); i++)
+    texels.resize(static_cast<za::SizeT>(w) * static_cast<za::SizeT>(tmax));
+    for(za::SizeT i = 0; i < texels.size(); i++)
     {
         texels[i] = packLight(sums[i]);
     }
     upload(x0, y0, w, tmax, texels.data());
     const int index = static_cast<int>(s - cl.worldmodel->surfaces);
     scratch.keep.pushBack({index, x0, y0, w, tmax});
-    written.surfStamp[static_cast<size_t>(index)] = frameStamp;
+    written.surfStamp[static_cast<za::SizeT>(index)] = frameStamp;
 }
 
 // The pairs sorted by surface, each surface lit once with its lights.
@@ -417,15 +418,15 @@ void lightPairs(const Light* lights, bool darkplaces, float angle)
     za::Vector<glm::ivec2>& pairs = scratch.pairs;
     za::Vector<int>& stamps = written.surfStamp;
     za::quickSort(pairs.begin(), pairs.end(), [](const glm::ivec2& p, const glm::ivec2& q) { return p.x != q.x ? p.x < q.x : p.y < q.y; });
-    for(size_t i = 0; i < pairs.size();)
+    for(za::SizeT i = 0; i < pairs.size();)
     {
-        size_t j = i + 1;
+        za::SizeT j = i + 1;
         while(j < pairs.size() && pairs[j].x == pairs[i].x)
         {
             j++;
         }
         const int surf = pairs[i].x;
-        if(surf >= 0 && static_cast<size_t>(surf) < stamps.size() && stamps[static_cast<size_t>(surf)] != frameStamp)
+        if(surf >= 0 && static_cast<za::SizeT>(surf) < stamps.size() && stamps[static_cast<za::SizeT>(surf)] != frameStamp)
         {
             lightSurface(cl.worldmodel->surfaces + surf, lights, pairs.data() + i, pairs.data() + j, darkplaces, angle);
         }
@@ -445,9 +446,9 @@ void build()
     }
     beginUploads();
     za::Vector<int>& stamps = written.surfStamp;
-    if(stamps.size() != static_cast<size_t>(cl.worldmodel->numsurfaces))
+    if(stamps.size() != static_cast<za::SizeT>(cl.worldmodel->numsurfaces))
     {
-        stamps.assign(static_cast<size_t>(cl.worldmodel->numsurfaces), 0);
+        stamps.assign(static_cast<za::SizeT>(cl.worldmodel->numsurfaces), 0);
     }
     const bool darkplaces = vr_dlight_falloff.value != 0.f;
     const float angle = za::clamp(vr_dlight_angle.value, 0.f, 1.f);
@@ -491,7 +492,7 @@ void build()
     scratch.keep.clear();
     za::Vector<glm::ivec2>& pairs = scratch.pairs;
     pairs.clear();
-    for(size_t i = 0; i < lights.size(); i++)
+    for(za::SizeT i = 0; i < lights.size(); i++)
     {
         collectWorld(cl.worldmodel->nodes, lights[i].pos, lights[i].radius, static_cast<int>(i), pairs);
     }
@@ -543,7 +544,7 @@ void build()
     // Last frame's blocks no light holds now: the map's texels back
     for(const Block& b : written.blocks)
     {
-        if(b.surf >= 0 && static_cast<size_t>(b.surf) < stamps.size() && stamps[static_cast<size_t>(b.surf)] != frameStamp)
+        if(b.surf >= 0 && static_cast<za::SizeT>(b.surf) < stamps.size() && stamps[static_cast<za::SizeT>(b.surf)] != frameStamp)
         {
             restore(b);
         }

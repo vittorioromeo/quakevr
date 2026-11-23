@@ -28,6 +28,7 @@
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -3399,7 +3400,7 @@ int mirrorBone(int b)
     }
     char name[16];
     q_strlcpy(name, st.rig->bones[b].name, sizeof(name));
-    const size_t n = ZA_STRLEN(name);
+    const za::SizeT n = ZA_STRLEN(name);
     if(n > 2 && name[n - 2] == '_' && (name[n - 1] == 'l' || name[n - 1] == 'r'))
     {
         name[n - 1] = name[n - 1] == 'l' ? 'r' : 'l';

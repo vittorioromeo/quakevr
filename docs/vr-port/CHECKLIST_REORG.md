@@ -233,3 +233,11 @@ there was written).
   there dropped), the weapon wheel lines (and its coop line) into Weapons and holsters and Multiplayer, the ropes
   two-player lines folded into Ropes and chains, the parry palm line into Flat screen. The [New] section is empty.
 - Wordy lines cut to what to do and what to see; every line keeps its {test:<id>}. checklist_tests_check: 86 passed, 0 failed.
+
+## Checklist tidy, fourth pass (2026-11-23, cltidy4)
+
+quakevr/checklist.txt: 223 lines down to 157. His ticks file and notes read from his checkout (nothing written there).
+- **Retired (42):** every ticked line (all in [New]: hub lecterns, ropes/poles, weapon-wheel and flat-throw lines, Standalone blood, tutorial lesson 10 and 12 lines, flat swim hands); none had a voice note.
+- **[New] sorted (47 lines left):** into Installer, Flat screen, Weapons and holsters, Ropes and chains, Dwell, Multiplayer; the Quest lines (Standalone, foveation, music) joined Installer, start-up and platforms. [New] is empty.
+- **Merged:** the Quest install and Quest rendering duplicates, the Lance charge, slide and thrust lines, the three parry-palm lines, the wheel DROP/UNLOAD/icon lines, the foveation lines, the ropes two-player lines.
+- **Sections reordered:** Installer, Flat screen, Tutorial and VR interface, Weapons and holsters, Ropes and chains, Armed humanoids, Dwell, Quoth, AD, Survival Arena, Multiplayer and bots, Recording and dev tools. No scene retired (unused ones left). checklist_tests_check: 99 passed, 0 failed.

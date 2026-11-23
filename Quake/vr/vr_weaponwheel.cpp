@@ -30,6 +30,7 @@
 #include "vr_toolgun.hpp"
 #include "vr_weapon_ids.h"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Constants.hpp"
@@ -101,7 +102,7 @@ WheelState ws;
 
 constexpr int holsterOrder[] = {1, 5, 3, keyDrop, keyUnload, 2, 4, 0};
 
-void copyText(char* to, size_t size, const char* from)
+void copyText(char* to, za::SizeT size, const char* from)
 {
     q_strlcpy(to, from ? from : "", size);
 }

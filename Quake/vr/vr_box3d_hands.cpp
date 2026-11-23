@@ -11,6 +11,7 @@
 #include "vr_heldpose.hpp"
 #include "vr_tunables.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -196,7 +197,7 @@ void noteBornInside(int num, const Slot& s, bool corpsesOnly = false)
     box.lowerBound = b3v(glmv(box.lowerBound) - glm::vec3{margin});
     box.upperBound = b3v(glmv(box.upperBound) + glm::vec3{margin});
     int reaches = 0;
-    for(size_t i = 1; i < world->hands.size() && i <= static_cast<size_t>(svs.maxclients); i++)
+    for(za::SizeT i = 1; i < world->hands.size() && i <= static_cast<za::SizeT>(svs.maxclients); i++)
     {
         for(World::HandBody& hb : world->hands[i])
         {
@@ -232,8 +233,8 @@ void pruneInside()
         {
             return true;
         }
-        const Slot& p = world->slots[static_cast<size_t>(i.prop)];
-        const Slot& o = world->slots[static_cast<size_t>(i.other)];
+        const Slot& p = world->slots[static_cast<za::SizeT>(i.prop)];
+        const Slot& o = world->slots[static_cast<za::SizeT>(i.other)];
         if(p.kind != Kind::Prop || p.born != i.born || B3_IS_NULL(p.body) ||
             (o.kind != Kind::Actor && o.kind != Kind::Player && o.kind != Kind::Corpse) || B3_IS_NULL(o.body))
         {
@@ -320,7 +321,7 @@ void noteThrows()
         {
             for(int h = 0; h < 2; h++)
             {
-                if(world->hands[static_cast<size_t>(i)][static_cast<size_t>(h)].held == num)
+                if(world->hands[static_cast<za::SizeT>(i)][static_cast<za::SizeT>(h)].held == num)
                 {
                     thrower = i;
                     speed = za::max(speed, throwSpeed(EDICT_NUM(i), h, reach));
@@ -403,7 +404,7 @@ void syncHands(float dt)
 {
     QVR_PROFILE("box3d hands");
     const FieldOffsets& f = fields();
-    world->hands.resize(static_cast<size_t>(svs.maxclients) + 1);
+    world->hands.resize(static_cast<za::SizeT>(svs.maxclients) + 1);
     const float radius = 0.045f; // m: a fist's
     for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
@@ -412,7 +413,7 @@ void syncHands(float dt)
                           f.handpos >= 0 && fieldFloatOr(player, f.ishuman, 0.f) != 0.f;
         for(int h = 0; h < 2; h++)
         {
-            World::HandBody& hb = world->hands[static_cast<size_t>(i)][static_cast<size_t>(h)];
+            World::HandBody& hb = world->hands[static_cast<za::SizeT>(i)][static_cast<za::SizeT>(h)];
             const int heldOfs = progs::handFields(h).held;
             const bool holding = heldOfs >= 0 && fieldInt(player, heldOfs) > 0;
             // The fist's middle: a radius behind the hand's point (the front of the fist), along its angles.
@@ -606,7 +607,7 @@ int reachTouchCount()
     {
         if(B3_ID_EQUALS(copy.copy, body)) { body = copy.original; break; }
     }
-    for(World::HandBody& hb : world->hands[static_cast<size_t>(player)])
+    for(World::HandBody& hb : world->hands[static_cast<za::SizeT>(player)])
     {
         if(B3_IS_NON_NULL(hb.reach) && B3_ID_EQUALS(hb.reach, body))
         {
@@ -849,14 +850,14 @@ void makeReach(
         if(mag)
         {
             b3CreateHullShape(hb.reach, &shape, mag);
-            all.emplaceBackRange(b3GetHullPoints(mag), static_cast<size_t>(mag->vertexCount));
+            all.emplaceBackRange(b3GetHullPoints(mag), static_cast<za::SizeT>(mag->vertexCount));
         }
         if(!pieces->empty())
         {
             for(const b3HullData* piece : *pieces)
             {
                 b3CreateHullShape(hb.reach, &shape, piece);
-                all.emplaceBackRange(b3GetHullPoints(piece), static_cast<size_t>(piece->vertexCount));
+                all.emplaceBackRange(b3GetHullPoints(piece), static_cast<za::SizeT>(piece->vertexCount));
             }
             if(vr_debug_box3d.value)
             {
@@ -877,7 +878,7 @@ void makeReach(
                 b3CreateHullShape(hb.reach, &shape, hull); // (the world keeps its own copy)
                 if(mag)
                 {
-                    all.emplaceBackRange(b3GetHullPoints(hull), static_cast<size_t>(hull->vertexCount));
+                    all.emplaceBackRange(b3GetHullPoints(hull), static_cast<za::SizeT>(hull->vertexCount));
                 }
                 if(vr_debug_box3d.value)
                 {
@@ -892,7 +893,7 @@ void makeReach(
         {
             if(b3HullData* outline = b3CreateHull(all.data(), static_cast<int>(all.size()), 64))
             {
-                hb.outline.emplaceBackRange(b3GetHullPoints(outline), static_cast<size_t>(outline->vertexCount));
+                hb.outline.emplaceBackRange(b3GetHullPoints(outline), static_cast<za::SizeT>(outline->vertexCount));
                 b3DestroyHull(outline);
             }
         }
@@ -1086,7 +1087,7 @@ void sweepReach(const World::HandBody& hb, int player, const ReachPose& from, co
     float most = 0.f;
     for(int i = 0; i < count; i++)
     {
-        const glm::vec3 v = glmv(local[static_cast<size_t>(i)]);
+        const glm::vec3 v = glmv(local[static_cast<za::SizeT>(i)]);
         most = za::max(most, glm::distance(p0 + from.rot * v, p1 + to.rot * v));
     }
     const int pieces = za::min(static_cast<int>(za::ceil(most / piece)), 24);
@@ -1106,9 +1107,9 @@ void sweepReach(const World::HandBody& hb, int player, const ReachPose& from, co
         const glm::vec3 origin = glmv(world->toM(b.pos)), shift = glmv(world->toM(a.pos)) - origin;
         for(int i = 0; i < count; i++)
         {
-            const glm::vec3 v = glmv(local[static_cast<size_t>(i)]);
-            points[static_cast<size_t>(i)] = b3v(b.rot * v);
-            points[static_cast<size_t>(count + i)] = b3v(shift + a.rot * v);
+            const glm::vec3 v = glmv(local[static_cast<za::SizeT>(i)]);
+            points[static_cast<za::SizeT>(i)] = b3v(b.rot * v);
+            points[static_cast<za::SizeT>(count + i)] = b3v(shift + a.rot * v);
         }
         const b3ShapeProxy proxy{points.data(), 2 * count, radius};
         b3QueryFilter filter = b3DefaultQueryFilter();
@@ -1227,7 +1228,7 @@ void syncReach(float dt)
     QVR_PROFILE("box3d reach");
     using Key = World::ReachKey;
     const FieldOffsets& f = fields();
-    world->hands.resize(static_cast<size_t>(svs.maxclients) + 1);
+    world->hands.resize(static_cast<za::SizeT>(svs.maxclients) + 1);
     for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
         edict_t* player = EDICT_NUM(i);
@@ -1235,7 +1236,7 @@ void syncReach(float dt)
                           fieldFloatOr(player, f.ishuman, 0.f) != 0.f;
         for(int h = 0; h < 2; h++)
         {
-            World::HandBody& hb = world->hands[static_cast<size_t>(i)][static_cast<size_t>(h)];
+            World::HandBody& hb = world->hands[static_cast<za::SizeT>(i)][static_cast<za::SizeT>(h)];
             const glm::vec3 tracked = live ? fieldVec(player, progs::handFields(h).pos) : glm::vec3{0.f};
             if(!live)
             {

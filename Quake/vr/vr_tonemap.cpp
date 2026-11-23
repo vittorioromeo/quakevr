@@ -593,7 +593,7 @@ void glProbe(int eye, int stage, unsigned sceneFbo, unsigned compositeFbo, unsig
     }
 }
 
-void probeUpload(const char* what, unsigned buffer, size_t offset, const void* data, size_t size)
+void probeUpload(const char* what, unsigned buffer, za::SizeT offset, const void* data, za::SizeT size)
 {
     if(vr_gl_probe.value <= 0.f || !buffer)
     {
@@ -603,8 +603,8 @@ void probeUpload(const char* what, unsigned buffer, size_t offset, const void* d
     GL_BindBufferFunc(GL_COPY_READ_BUFFER, buffer);
     const bool read = gfx::readBuffer(GL_COPY_READ_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), back.data());
     GL_BindBufferFunc(GL_COPY_READ_BUFFER, 0);
-    size_t differ = 0, zero = 0;
-    for(size_t i = 0; i < size; i++)
+    za::SizeT differ = 0, zero = 0;
+    for(za::SizeT i = 0; i < size; i++)
     {
         differ += back[i] != static_cast<const byte*>(data)[i] ? 1 : 0;
         zero += back[i] == 0 ? 1 : 0;
@@ -709,7 +709,7 @@ void probeState(const char* where)
     }
 }
 
-void probeBuffer(const char* what, unsigned buffer, size_t offset, size_t size)
+void probeBuffer(const char* what, unsigned buffer, za::SizeT offset, za::SizeT size)
 {
     if(vr_gl_probe.value <= 0.f || !buffer || !size)
     {
@@ -720,7 +720,7 @@ void probeBuffer(const char* what, unsigned buffer, size_t offset, size_t size)
     GL_BindBufferFunc(GL_COPY_READ_BUFFER, buffer);
     const bool read = gfx::readBuffer(GL_COPY_READ_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), back.data());
     GL_BindBufferFunc(GL_COPY_READ_BUFFER, 0);
-    size_t nonzero = 0;
+    za::SizeT nonzero = 0;
     GLuint largest = 0;
     for(const GLuint u : back)
     {
@@ -743,12 +743,12 @@ int nextEyeshot()
 
 using namespace qvr;
 
-extern "C" void VR_GLProbeUpload(const char* what, unsigned buffer, size_t offset, const void* data, size_t size)
+extern "C" void VR_GLProbeUpload(const char* what, unsigned buffer, za::SizeT offset, const void* data, za::SizeT size)
 {
     tonemap::probeUpload(what, buffer, offset, data, size);
 }
 
-extern "C" void VR_GLProbeBuffer(const char* what, unsigned buffer, size_t offset, size_t size)
+extern "C" void VR_GLProbeBuffer(const char* what, unsigned buffer, za::SizeT offset, za::SizeT size)
 {
     tonemap::probeBuffer(what, buffer, offset, size);
 }

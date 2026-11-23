@@ -4,6 +4,7 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 
@@ -47,7 +48,7 @@ void appendf(za::String& out, const char* fmt, ...)
     va_copy(again, args);
     const int n = q_vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
-    if(n >= 0 && static_cast<size_t>(n) < sizeof(buf))
+    if(n >= 0 && static_cast<za::SizeT>(n) < sizeof(buf))
     {
         out += buf;
     }

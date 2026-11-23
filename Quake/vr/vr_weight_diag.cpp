@@ -23,6 +23,7 @@
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -810,13 +811,13 @@ void heavyWiggle_f()
             l.struggle = l.heft * (1.f - twoHanded) * za::clamp(vr_heavy_struggle.value, 0.f, 1.f);
             const float droopDeg = droop(slot, twoHanded);
             char line[512];
-            size_t used = 0;
+            za::SizeT used = 0;
             line[0] = 0;
             for(const Motion& mo : motions)
             {
                 const int index = static_cast<int>(&mo - motions);
                 const Result r = run(l, droopDeg, mo, index == traceMotion && hands == traceHands);
-                used += static_cast<size_t>(q_snprintf(line + used, sizeof(line) - used, " | %s %.2f %.1f %.0f %d %.1f %d", mo.name,
+                used += static_cast<za::SizeT>(q_snprintf(line + used, sizeof(line) - used, " | %s %.2f %.1f %.0f %d %.1f %d", mo.name,
                     r.gain, r.spd, r.off, r.ring, r.late, r.putBack));
                 used = za::min(used, sizeof(line) - 1);
             }

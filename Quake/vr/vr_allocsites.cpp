@@ -10,7 +10,9 @@
 #include "vr_crtheap.h"
 #include "vr_cvars.hpp"
 #include "vr_jobs.hpp"
-#include <new>
+
+#include "Zancle/Base/FwdStdNew.hpp" // za::AlignValT (std::align_val_t; not <new>)
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -108,9 +110,9 @@ void test_f()
     VR_HeapAlignedFree(a);
     void* n = ::operator new(12);
     ::operator delete(n);
-    void* an = ::operator new(16, std::align_val_t{64});
+    void* an = ::operator new(16, za::AlignValT{64});
     ok = ok && reinterpret_cast<uintptr_t>(an) % 64 == 0;
-    ::operator delete(an, std::align_val_t{64});
+    ::operator delete(an, za::AlignValT{64});
     const auto after = alloccount::statsThisThread();
     constexpr za::U64 expected[] = {2, 2, 2, 1, 1, 3};
     for(int i = 0; i < 6; ++i) ok = ok && after.calls[i] - before.calls[i] == expected[i];
@@ -178,7 +180,7 @@ void heapTest()
     expect(n, "new");
     double* na = new double[33];
     expect(na, "new[]");
-    void* an = ::operator new(48, std::align_val_t{256});
+    void* an = ::operator new(48, za::AlignValT{256});
     expect(an, "aligned new");
     ok = ok && reinterpret_cast<uintptr_t>(an) % 256 == 0;
 #ifdef _WIN32
@@ -206,7 +208,7 @@ void heapTest()
     VR_HeapFree(hm);
     delete n;
     delete[] na;
-    ::operator delete(an, std::align_val_t{256});
+    ::operator delete(an, za::AlignValT{256});
     free(nullptr);
     Con_Printf("vr_heap test: %s (%d kinds of block %s mimalloc's; contents, zeroing, alignment, realloc(p, 0), the C "
                "runtime's own blocks freed by it)\n", ok ? "PASS" : "FAIL", checks, mi ? "all" : "none");
@@ -280,7 +282,7 @@ void heapStressThread(HeapStressShared& shared, za::U32 seed)
     const auto release = [&](Slot& s) {
         if(s.p[0] != s.tag || s.p[s.size - 1] != s.tag) errors++;
         if(s.kind == 2) delete[] s.p;
-        else if(s.kind == 3) ::operator delete(s.p, std::align_val_t{64});
+        else if(s.kind == 3) ::operator delete(s.p, za::AlignValT{64});
         else free(s.p);
         s.p = nullptr;
     };
@@ -322,7 +324,7 @@ void heapStressThread(HeapStressShared& shared, za::U32 seed)
             s.p = s.kind == 0   ? static_cast<unsigned char*>(malloc(size))
                   : s.kind == 1 ? static_cast<unsigned char*>(calloc(1, size))
                   : s.kind == 2 ? new unsigned char[size]
-                                : static_cast<unsigned char*>(::operator new(size, std::align_val_t{64}));
+                                : static_cast<unsigned char*>(::operator new(size, za::AlignValT{64}));
             if(s.kind == 1 && (s.p[0] != 0 || s.p[size - 1] != 0)) errors++;
             ZA_MEMSET(s.p, s.tag, size);
         }

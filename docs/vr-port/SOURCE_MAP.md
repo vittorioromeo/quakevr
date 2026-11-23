@@ -70,7 +70,6 @@ declared there, defined where they were) and a `registerDiagCommands()` called f
 | vr_hitmodel_diag.cpp | vr_hitmodel_stats/_check/_bench, vr_hitzones_check |
 | vr_brushes_diag.cpp | vr_brush_selftest, vr_brush_trace |
 | vr_animsmooth_diag.cpp | vr_anim_smooth_pin/_info/_check/_trace |
-| vr_zancle_diag.cpp | vr_zancle_math_test (no internal header: it shares nothing) |
 | vr_mem_diag.cpp | vr_resets (the registered resets: list, trace, record, check, test; not a move: new with them, 2026-11-19; vr_mem.hpp's own functions, no internal header) |
 | vr_ragdoll_diag.cpp | vr_drawn_motion_test (its recorder, recordMotion, and report) and vr_ragdoll_info; still registered in vr_box3d_diag.cpp |
 

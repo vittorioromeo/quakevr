@@ -105,12 +105,17 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     }
     const XrSwapchain eyeHandles[2] = {swapchains[0].handle, swapchains[1].handle};
     quest.apply(session, eyeHandles); // (Android: the refresh rate, CPU/GPU levels, foveation when changed)
+    if(VR_Android() && vr_xr_eye_scale.value != eyeScaleMade) // qfov3: the Quest's eye images resized mid-game (A/Bs)
+    {
+        quest.wantNewEyes = true;
+    }
     if(quest.wantNewEyes)
     {
         // vr_xr_foveation changed mid-game (C4p): the runtime crashed in xrEndFrame after updating swapchains in use,
         // so new eye swapchains (no image of theirs acquired yet; every frame attaches its image anew) take the level.
         quest.wantNewEyes = false;
-        xrruntime::note("OpenXR: new eye swapchains for vr_xr_foveation %g\n", static_cast<double>(vr_xr_foveation.value));
+        xrruntime::note("OpenXR: new eye swapchains for vr_xr_foveation %g, vr_xr_eye_scale %g\n",
+            static_cast<double>(vr_xr_foveation.value), static_cast<double>(vr_xr_eye_scale.value));
         if(!createEyeSwapchains())
         {
             // (no eye swapchains now: a frame would submit none; VR stops, sessionEnded, rather than limp on)
@@ -211,6 +216,11 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     }
 
     readInput(tracking.input);
+    if(!userPresent())
+    {
+        // The headset off (vr_xr_user_presence): the controllers left lying about press nothing (from PR #75).
+        tracking.input = InputState{};
+    }
     frame.gaze = gazeSpace != XR_NULL_HANDLE ? locateGaze(time) : Pose{}; // (vr_foveated_gaze)
 
     tracking.head = locate(viewSpace, time);
@@ -238,9 +248,12 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
     debugPose(tracking, frame); // (vr_debug_head_pose: unworn GPU tests)
 
     frame.shouldRender = viewsOk && frameState.shouldRender;
-    // The runtime's menu has the focus (SteamVR's dashboard...): its last frame again, nothing rendered.
-    holding = frameState.shouldRender && haveLastViews && sessionState == XR_SESSION_STATE_VISIBLE &&
+    // The runtime's menu has the focus (SteamVR's dashboard...), or the headset is off (vr_xr_user_presence): its last
+    // frame again, nothing rendered.
+    holding = frameState.shouldRender && haveLastViews &&
+              (sessionState == XR_SESSION_STATE_VISIBLE || (sessionRunning && !userPresent())) &&
               vr_xr_unfocused.value != 0.f;
+    absentHeld += holding && userAbsent ? 1 : 0;
     frame.hold = holding;
     if(!frameState.shouldRender)
     {
@@ -280,6 +293,24 @@ const HiddenArea* OpenXrBackend::hiddenArea(int eye) const
 bool OpenXrBackend::runtimeMenuOpen() const
 {
     return sessionRunning && sessionState == XR_SESSION_STATE_VISIBLE;
+}
+
+bool OpenXrBackend::userPresent() const
+{
+    return !userAbsent || presenceIgnored() != nullptr;
+}
+
+const char* OpenXrBackend::presenceIgnored() const
+{
+    // (An unmanned run on a headset lying on a desk, which the runtime may well report unworn, must never pause: the
+    // player's setting stays as it is, these runs are told apart by what only they do. Only asked while the headset
+    // is off: the command line's scan costs nothing then.)
+    return vr_xr_user_presence.value == 0.f       ? "vr_xr_user_presence 0"
+           : vr_debug_head_pose.value != 0.f      ? "vr_debug_head_pose 1"
+           : COM_CheckParm("-vr-unattended") != 0 ? "-vr-unattended, an unmanned run"
+           : cls.timedemo                         ? "a timedemo"
+           : vr_fixed_frames.value != 0.f         ? "a scripted run, vr_fixed_frames 1"
+                                                  : nullptr;
 }
 
 const char* OpenXrBackend::systemName() const
@@ -897,6 +928,7 @@ bool OpenXrBackend::createEyeSwapchains()
 {
     ++eyeSwapchainsMade; // (the images' GL names may be reused by the new ones: vr_stereo.cpp's per-image framebuffers)
     const float scale = CLAMP(0.5f, vr_xr_eye_scale.value, 1.f);
+    eyeScaleMade = vr_xr_eye_scale.value;
     const auto scaled =[scale](uint32_t recommended, uint32_t largest)
     {
         const int32_t size = static_cast<int32_t>(static_cast<float>(recommended) * scale + 0.5f);

@@ -515,7 +515,7 @@ void drawIconRow(const Item& item, int y, bool selected)
         char part[2][32]{};
         if(nm.split > 0)
         {
-            q_strlcpy(part[0], name, q_min(static_cast<size_t>(nm.split + 1), sizeof(part[0])));
+            q_strlcpy(part[0], name, q_min(static_cast<za::SizeT>(nm.split + 1), sizeof(part[0])));
             q_strlcpy(part[1], name + nm.split + 1, sizeof(part[1]));
         }
         else
@@ -550,7 +550,7 @@ void iconRowMouse(const za::Vector<Item>& list, float cx, float cy)
 {
     const int raw = rowAtRaw(cy);
     const int icon = raw >= 0 ? iconAtRow(list, raw, cx, cy) : -1;
-    iconHover = IconPickHover{ui().page, icon >= 0 ? raw : -1, icon, icon >= 0 ? &list[static_cast<size_t>(raw)] : nullptr};
+    iconHover = IconPickHover{ui().page, icon >= 0 ? raw : -1, icon, icon >= 0 ? &list[static_cast<za::SizeT>(raw)] : nullptr};
 }
 
 // A click on the selected icon row: the picture under the mouse picked (true: it was on one).
@@ -567,7 +567,7 @@ void iconRowMouse(const za::Vector<Item>& list, float cx, float cy)
         qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
         return true;
     }
-    Cvar_SetValueQuick(item.cvar, item.choices[static_cast<size_t>(c)].value); // (`item` may be rebuilt after this)
+    Cvar_SetValueQuick(item.cvar, item.choices[static_cast<za::SizeT>(c)].value); // (`item` may be rebuilt after this)
     qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
     return true;
 }

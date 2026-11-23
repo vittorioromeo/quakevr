@@ -133,8 +133,62 @@ static void APIENTRY GL_ShadowBindFramebuffer (GLenum target, GLuint framebuffer
 	gl_driverbindframebuffer (target, framebuffer);
 }
 
+// QVR: vr_gl_passes' render pass breakers (qfov3): the calls a tiler may end its render pass at (compute between draws,
+// blits, buffer and texture updates, invalidations), noted in the frame's order with the binds while it traces.
+static void (APIENTRYP gl_driverdispatchcompute) (GLuint x, GLuint y, GLuint z);
+static void (APIENTRYP gl_driverblitframebuffer) (GLint sx0, GLint sy0, GLint sx1, GLint sy1, GLint dx0, GLint dy0, GLint dx1, GLint dy1, GLbitfield mask, GLenum filter);
+static void (APIENTRYP gl_driverbuffersubdata) (GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid *data);
+static void (APIENTRYP gl_drivertexsubimage3d) (GLenum target, GLint level, GLint x, GLint y, GLint z, GLsizei w, GLsizei h, GLsizei d, GLenum format, GLenum type, const GLvoid *pixels);
+static void (APIENTRYP gl_drivergeneratemipmap) (GLenum target);
+
+static void APIENTRY GL_ShadowDispatchCompute (GLuint x, GLuint y, GLuint z)
+{
+	if (vr_glpass_trace)
+		VR_GLPassBreak ("compute");
+	gl_driverdispatchcompute (x, y, z);
+}
+
+static void APIENTRY GL_ShadowBlitFramebuffer (GLint sx0, GLint sy0, GLint sx1, GLint sy1, GLint dx0, GLint dy0, GLint dx1, GLint dy1, GLbitfield mask, GLenum filter)
+{
+	if (vr_glpass_trace)
+		VR_GLPassBreak ("blit");
+	gl_driverblitframebuffer (sx0, sy0, sx1, sy1, dx0, dy0, dx1, dy1, mask, filter);
+}
+
+static void APIENTRY GL_ShadowBufferSubData (GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid *data)
+{
+	if (vr_glpass_trace)
+		VR_GLPassBreak ("buffer update");
+	gl_driverbuffersubdata (target, offset, size, data);
+}
+
+static void APIENTRY GL_ShadowTexSubImage3D (GLenum target, GLint level, GLint x, GLint y, GLint z, GLsizei w, GLsizei h, GLsizei d, GLenum format, GLenum type, const GLvoid *pixels)
+{
+	if (vr_glpass_trace)
+		VR_GLPassBreak ("texture update (3D)");
+	gl_drivertexsubimage3d (target, level, x, y, z, w, h, d, format, type, pixels);
+}
+
+static void APIENTRY GL_ShadowGenerateMipmap (GLenum target)
+{
+	if (vr_glpass_trace)
+		VR_GLPassBreak ("mipmaps");
+	gl_drivergeneratemipmap (target);
+}
+
+#define GL_INSTALL_SHADOW(name, driver) \
+	if (GL_##name##Func && GL_##name##Func != GL_Shadow##name) /* (loaded anew by a vid_restart's GL_CheckExtensions) */ \
+		driver = GL_##name##Func; \
+	if (driver) \
+		GL_##name##Func = GL_Shadow##name;
+
 static void GL_InstallFramebufferShadow (void)
 {
+	GL_INSTALL_SHADOW (DispatchCompute, gl_driverdispatchcompute) // QVR: vr_gl_passes' breakers (qfov3)
+	GL_INSTALL_SHADOW (BlitFramebuffer, gl_driverblitframebuffer)
+	GL_INSTALL_SHADOW (BufferSubData, gl_driverbuffersubdata)
+	GL_INSTALL_SHADOW (TexSubImage3D, gl_drivertexsubimage3d)
+	GL_INSTALL_SHADOW (GenerateMipmap, gl_drivergeneratemipmap)
 	if (GL_BindFramebufferFunc != GL_ShadowBindFramebuffer) // (loaded anew by a vid_restart's GL_CheckExtensions)
 		gl_driverbindframebuffer = GL_BindFramebufferFunc;
 	GL_BindFramebufferFunc = GL_ShadowBindFramebuffer;
@@ -594,7 +648,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 			Sys_Error ("Couldn't set fullscreen state mode");
 	}
 
-	if (getenv ("QVR_TEST_HIDDEN") || COM_PrepareRun ()) // QVR: automated test runs can stay hidden (never shown on the desktop); the installer's preparation run too (vr_prepare.cpp)
+	if (getenv ("QVR_TEST_HIDDEN") || COM_PrepareRun () || COM_CheckParm ("-vr-hide-mirror")) // QVR: automated test runs can stay hidden (never shown on the desktop); the installer's preparation run too (vr_prepare.cpp); a standalone headset's (-vr-hide-mirror: the Steam Frame, its GL context without a desktop window; vr_main.cpp, windowUnfocused)
 	{
 	}
 	else if (getenv ("QVR_TEST_BACKGROUND")) // QVR: automated test runs open without taking the focus

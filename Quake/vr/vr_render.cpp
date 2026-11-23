@@ -46,6 +46,7 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/Unique.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -250,8 +251,8 @@ extern "C" int VR_AliasTwoSided(const entity_t* e)
     // ("<model>#bridge", vr_agarmor's joints' leather: where the plates' rows cross (the enforcer's and the knight's elbows
     // straight) its columns run back and lap, their cells seen from behind; culled they were his holes, 2026-11-10)
     constexpr const char* suffix = "#bridge";
-    constexpr size_t suffixLen = 7;
-    const size_t len = e && e->model ? ZA_STRLEN(e->model->name) : 0;
+    constexpr za::SizeT suffixLen = 7;
+    const za::SizeT len = e && e->model ? ZA_STRLEN(e->model->name) : 0;
     return len > suffixLen && !ZA_STRCMP(e->model->name + len - suffixLen, suffix) ? 1 : 0;
 }
 
@@ -301,6 +302,12 @@ extern "C" int VR_AliasDepthPrepass(const entity_t* e)
 extern "C" int VR_WorldPrepass(void)
 {
     return vr_world_prepass.value != 0.f ? 1 : 0;
+}
+
+// qfov3: the brush models drawn without the gather's compute (r_world.c R_BModelCallsOnePass), under OpenGL ES only.
+extern "C" int VR_GLOnePass(void)
+{
+    return VR_GLESForm(VR_GLES_FORM_GLSL) ? za::clamp(static_cast<int>(vr_gl_one_pass.value), 0, 2) : 0;
 }
 
 // Debug > Profiling > Hide Models (vr_debug_hide_models, questperf): an alias model whose name holds any of the
@@ -868,7 +875,7 @@ extern "C" void VR_AliasFlameRefs(const void* aliashdr, unsigned short* refs)
         }
     }
 
-    za::Vector<bool> flash(static_cast<size_t>(n), false);
+    za::Vector<bool> flash(static_cast<za::SizeT>(n), false);
     za::Vector<int> points; // a vertex of each flash
     for(auto& [k, cl] : clusters)
     {
@@ -888,7 +895,7 @@ extern "C" void VR_AliasFlameRefs(const void* aliashdr, unsigned short* refs)
         {
             for(int v : cl)
             {
-                flash[static_cast<size_t>(v)] = true;
+                flash[static_cast<za::SizeT>(v)] = true;
             }
             points.pushBack(cl[0]);
         }
@@ -902,7 +909,7 @@ extern "C" void VR_AliasFlameRefs(const void* aliashdr, unsigned short* refs)
         float bestDist = 1e30f;
         for(int v = 0; v < n; v++)
         {
-            const float d = flash[static_cast<size_t>(v)] ? 1e30f : glm::distance(at(zero, v), p);
+            const float d = flash[static_cast<za::SizeT>(v)] ? 1e30f : glm::distance(at(zero, v), p);
             if(d < bestDist)
             {
                 bestDist = d;
@@ -915,7 +922,7 @@ extern "C" void VR_AliasFlameRefs(const void* aliashdr, unsigned short* refs)
         }
         for(int v = 0; v < n; v++)
         {
-            if(flash[static_cast<size_t>(v)] && key(v) == key(f))
+            if(flash[static_cast<za::SizeT>(v)] && key(v) == key(f))
             {
                 refs[v] = static_cast<unsigned short>(best + 1);
             }

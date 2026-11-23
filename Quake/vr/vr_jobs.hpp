@@ -37,9 +37,9 @@
 // Profiling builds name each job's "Job execute" zone by where it was posted (the posting zone, the file and line);
 // other builds take no argument and store nothing.
 #ifdef QVR_TRACY
-#include <source_location>
-#define QVR_JOBS_WHERE , const std::source_location& where = std::source_location::current()
-#define QVR_JOBS_NOTE(job) (job)->note(where.file_name(), where.line())
+#include "Zancle/Base/SourceLocation.hpp"
+#define QVR_JOBS_WHERE , const za::SourceLocation where = za::SourceLocation::current()
+#define QVR_JOBS_NOTE(job) (job)->note(where.fileName(), where.line())
 #else
 #define QVR_JOBS_WHERE
 #define QVR_JOBS_NOTE(job) ((void)0)

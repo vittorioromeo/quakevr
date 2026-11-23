@@ -16,6 +16,7 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 
 namespace qvr::adguns
@@ -33,7 +34,7 @@ struct Built
 };
 
 // The gun of `base` (one of AD's soldiers' models, the release measured) in skin `skin`, from its file's bytes.
-bool build(const char* base, int skin, const byte* src, size_t size, Built& out, const char*& why);
+bool build(const char* base, int skin, const byte* src, za::SizeT size, Built& out, const char*& why);
 
 // Mod_LoadModel (VR_DerivedModelFile): the .mdl file of a gun model named so (allocated with VR_HeapMalloc), or null.
 [[nodiscard]] byte* derivedFile(const char* name, unsigned int* path_id);

@@ -613,6 +613,12 @@ QVR_CVAR(vr_android_window, "0", CVAR_NONE)
 QVR_CVAR(vr_xr_unfocused_pause, "1", CVAR_ARCHIVE)
 // The game's volume while vr_xr_unfocused_pause holds it (0 silent .. 1 unchanged), faded over a tenth of a second.
 QVR_CVAR(vr_xr_unfocused_volume, "0", CVAR_ARCHIVE)
+// The headset taken off, where the runtime has a sensor for it (XR_EXT_user_presence: the Steam Frame, SteamVR, the
+// Quest's runtime; from PR #75, by Kasper Olesen): 1 it counts as the runtime's menu does (vr_xr_unfocused's held frame,
+// vr_xr_unfocused_pause's pause) and the controllers' buttons are ignored until it is back on; 0 ignored, the game plays
+// on. Automated runs ignore it too, whatever this says (nobody wears the headset): vr_debug_head_pose 1 (GPU tests on an
+// unworn headset), the launch flag -vr-unattended (the Quest's unmanned perf runs), a timedemo, vr_fixed_frames 1.
+QVR_CVAR(vr_xr_user_presence, "1", CVAR_ARCHIVE)
 // The runtime asking the game to exit (OpenXR's session EXITING: the player quit it from SteamVR's dashboard, Virtual
 // Desktop's or Meta's menu): 1 the game quits as the console's quit does (the config saved); 0 it plays on flat (1.0.0's
 // way; vr_restart starts VR again). The headset or runtime lost (LOSS_PENDING) always plays on flat.
@@ -667,7 +673,7 @@ QVR_CVAR(vr_xr_foveation_dynamic, "0", CVAR_ARCHIVE)
 // (XR_SWAPCHAIN_CREATE_FOVEATION_SCALED_BIN_BIT_FB), 0 none (Meta's GLES sample's: the runtime's choice).
 QVR_CVAR(vr_xr_foveation_flags, "1", CVAR_NONE)
 // C4q (6x; a probe): bits narrowing the foveated images' crash in xrEndFrame: 1 late acquire and the image's invalidate
-// allowed with them (off with vr_xr_foveation and -xrfoveation since C4p), 2 the eye image released before it is detached
+// allowed with them (off with vr_xr_foveation since C4p), 2 the eye image released before it is detached
 // from the engine's framebuffer (the order before C4q).
 QVR_CVAR(vr_xr_foveation_probe, "0", CVAR_NONE)
 // C5's first path (QUEST_PLAN.md 6w; the ES profile only): 1 draws each eye's scene straight into its swapchain image
@@ -677,11 +683,11 @@ QVR_CVAR(vr_xr_foveation_probe, "0", CVAR_NONE)
 // Quest 3 qfov's form 2 (one framebuffer, its colour swapped each eye, the depth at the drawn size) with foveated images
 // crashed the runtime in xrEndFrame at once; qfov2's (a framebuffer per image, the image attached for good, the depth at
 // the image's size: Meta's samples') is what foveation takes (form 1's unfoveated depth texture keeps it from foveating).
+// The runtime centres its foveation on the part of the image submitted (the eye's rect: qfov4's traces at 0.65 and 0.9),
+// and the driver foveates by whole bins (864 x 448 of a 1680 x 1760 image: full, half across, or a quarter): the levels
+// differ by a bin or two. The game never sets the images' focal points (qfov2's vr_xr_foveation_refocus did: 2-3 ms
+// slower at every level, and its points stayed on the images after it was turned off).
 QVR_CVAR(vr_xr_direct, "0", CVAR_NONE)
-// qfov2: the eye image's foveation focal point set by the game before each eye (vr_stereo.cpp refocusImage) on the eye's
-// projection centre in the part of the image drawn (vr_eye_subimage, dynamic resolution); 0 the runtime's own (the
-// image's centre, its levels' gains).
-QVR_CVAR(vr_xr_foveation_refocus, "0", CVAR_NONE)
 // The headset panel's pixels per eye, "WxH", for the menu's status box (the runtime's resolution and the eyes' as a
 // share of it, and its warning); "" looked up by the headset's name (Quest 2, 3, 3S, Pro, Index, Vive, Reverb G2,
 // Pico 4...: SteamVR names none, Virtual Desktop and Meta do).
@@ -758,6 +764,12 @@ QVR_CVAR(vr_alias_batch_posed, "1", CVAR_NONE)
 // The opaque world and brush models' depth pre-pass (r_world.c): 1 drawn first, so their shading runs once a pixel;
 // 0 shaded as drawn (an A/B switch: the Quest 3 gib fight measured no gain, questperf).
 QVR_CVAR(vr_world_prepass, "1", CVAR_NONE)
+// qfov3: under OpenGL ES (the Quest), 1 the brush models drawn from the cull's own commands, without the gather's and
+// the arrays' merge's compute between the draws, so that an eye is one render pass on the tiler (no reloads; the
+// runtime's foveation reaches the whole scene; the arrays' merges dispatched before the eye's clear from the last
+// frame's plans); 2 the same, the arrays' calls never merged (an A/B switch: twice the draws); 0 gathered and merged
+// between the draws as before. No effect on the PC.
+QVR_CVAR(vr_gl_one_pass, "1", CVAR_NONE)
 QVR_CVAR(vr_debug_hide_models, "", CVAR_NONE)   // alias models whose name holds any of these comma-separated parts are not drawn in the eyes (vr_render.cpp VR_AliasDebugHidden; questperf)
 QVR_CVAR(vr_gl_passes, "0", CVAR_NONE)            // 1: the next frame's draw framebuffer binds and alias batches listed in the console (vr_profile.cpp; back to 0 after)
 QVR_CVAR(vr_perf_record, "0", CVAR_NONE)
@@ -892,7 +904,7 @@ QVR_CVAR(vr_debug_stick, "0", CVAR_NONE) // Debug: twice a second, the moving st
 // clicks together; 2: those, or Y (the off hand's upper button) held 0.8 s; 3: those, or B (the main hand's) held 0.8 s;
 // 4: those, or Y pressed (Y then never reaches the game: no previous weapon, voice notes or hook reel on it).
 QVR_CVAR(vr_menu_button, "1", CVAR_ARCHIVE)
-// 1: the vendors' controller profiles (Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2, Samsung Odyssey) asked of the
+// 1: the vendors' controller profiles (Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2, Samsung Odyssey, Steam Frame) asked of the
 // runtime when it offers their extensions, each with its menu button; 0: only the core profiles (Touch, Index, Vive
 // wands, WMR, simple). Read when the VR session starts.
 QVR_CVAR(vr_xr_vendor_profiles, "1", CVAR_ARCHIVE)

@@ -39,6 +39,7 @@
 
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -80,7 +81,7 @@ struct LoadTotals
 {
     int models{0};
     double seconds{0.0};
-    size_t bytes{0};
+    za::SizeT bytes{0};
     int withoutProgs{0}; // (no server progs loaded: no progs loops)
 };
 
@@ -94,7 +95,7 @@ LoadTotals loadTotals;
 // A frame's name less its trailing digits.
 void stemOf(const char* name, char out[17])
 {
-    size_t n = strnlen(name, 16);
+    za::SizeT n = strnlen(name, 16);
     ZA_MEMCPY(out, name, n);
     while(n > 0 && out[n - 1] >= '0' && out[n - 1] <= '9')
     {
@@ -106,8 +107,8 @@ void stemOf(const char* name, char out[17])
 // The mean distance (steps) between two poses' vertices.
 [[nodiscard]] float poseDistance(const trivertx_t* verts, int numverts, int a, int b)
 {
-    const trivertx_t* pa = verts + static_cast<size_t>(a) * numverts;
-    const trivertx_t* pb = verts + static_cast<size_t>(b) * numverts;
+    const trivertx_t* pa = verts + static_cast<za::SizeT>(a) * numverts;
+    const trivertx_t* pb = verts + static_cast<za::SizeT>(b) * numverts;
     double sum = 0.0;
     for(int v = 0; v < numverts; v++)
     {
@@ -125,9 +126,9 @@ void stemOf(const char* name, char out[17])
     {
         return 0.f;
     }
-    for(size_t i = 1; i < values.size(); i++) // (a run's few steps)
+    for(za::SizeT i = 1; i < values.size(); i++) // (a run's few steps)
     {
-        for(size_t j = i; j > 0 && values[j - 1] > values[j]; j--)
+        for(za::SizeT j = i; j > 0 && values[j - 1] > values[j]; j--)
         {
             const float t = values[j];
             values[j] = values[j - 1];
@@ -224,7 +225,7 @@ struct Cycle
         {
             return false;
         }
-        for(size_t i = 0; i < chain.size(); i++)
+        for(za::SizeT i = 0; i < chain.size(); i++)
         {
             if(chain[i] != func)
             {
@@ -239,8 +240,8 @@ struct Cycle
             for(int k = 0; k < n; k++)
             {
                 int fr = 0, nx = 0;
-                (void)stateOf(vm, chain[i + static_cast<size_t>(k)], fr, nx);
-                key = za::min(key, chain[i + static_cast<size_t>(k)]);
+                (void)stateOf(vm, chain[i + static_cast<za::SizeT>(k)], fr, nx);
+                key = za::min(key, chain[i + static_cast<za::SizeT>(k)]);
                 if(fr < lowFrame)
                 {
                     lowFrame = fr;
@@ -250,7 +251,7 @@ struct Cycle
             for(int k = 0; k < n; k++)
             {
                 int fr = 0, nx = 0;
-                (void)stateOf(vm, chain[i + static_cast<size_t>((at + k) % n)], fr, nx);
+                (void)stateOf(vm, chain[i + static_cast<za::SizeT>((at + k) % n)], fr, nx);
                 if(fr != lowFrame + k)
                 {
                     return false;
@@ -286,17 +287,17 @@ void buildQcLoops()
 
     // the globals that hold a model's name (the string immediates: "progs/knight.mdl"; not a variable, named, a
     // function's local or the calls' parameters and return, whatever it last held), and the frame functions
-    za::Vector<char> local(static_cast<size_t>(pr->numglobals), 0);
+    za::Vector<char> local(static_cast<za::SizeT>(pr->numglobals), 0);
     for(int g = 0; g < za::min(RESERVED_OFS, pr->numglobals); g++)
     {
-        local[static_cast<size_t>(g)] = 1;
+        local[static_cast<za::SizeT>(g)] = 1;
     }
     for(int f = 1; f < pr->numfunctions; f++)
     {
         const dfunction_t& fn = vm.functions[f];
         for(int g = za::max(fn.parm_start, 0); g < za::min(fn.parm_start + fn.locals, pr->numglobals); g++)
         {
-            local[static_cast<size_t>(g)] = 1;
+            local[static_cast<za::SizeT>(g)] = 1;
         }
     }
     for(int d = 0; d < pr->numglobaldefs; d++)
@@ -306,23 +307,23 @@ void buildQcLoops()
             local[vm.globaldefs[d].ofs] = 1;
         }
     }
-    za::Vector<int> modelOf(static_cast<size_t>(pr->numglobals), -1);
+    za::Vector<int> modelOf(static_cast<za::SizeT>(pr->numglobals), -1);
     za::Vector<const char*> names;
     for(int g = 0; g < pr->numglobals; g++)
     {
         const int v = gi[g];
-        if(local[static_cast<size_t>(g)] || v <= 0 || v >= vm.stringssize || vm.strings[v - 1] != 0)
+        if(local[static_cast<za::SizeT>(g)] || v <= 0 || v >= vm.stringssize || vm.strings[v - 1] != 0)
         {
             continue; // (a local, or not the start of a string)
         }
         const char* s = vm.strings + v;
-        const size_t len = strnlen(s, za::min(static_cast<size_t>(vm.stringssize - v), static_cast<size_t>(MAX_QPATH)));
+        const za::SizeT len = strnlen(s, za::min(static_cast<za::SizeT>(vm.stringssize - v), static_cast<za::SizeT>(MAX_QPATH)));
         if(len < 5 || len >= MAX_QPATH || q_strcasecmp(s + len - 4, ".mdl"))
         {
             continue;
         }
         int id = -1;
-        for(size_t k = 0; k < names.size() && id < 0; k++)
+        for(za::SizeT k = 0; k < names.size() && id < 0; k++)
         {
             id = q_strcasecmp(names[k], s) ? -1 : static_cast<int>(k);
         }
@@ -331,9 +332,9 @@ void buildQcLoops()
             id = static_cast<int>(names.size());
             names.pushBack(s);
         }
-        modelOf[static_cast<size_t>(g)] = id;
+        modelOf[static_cast<za::SizeT>(g)] = id;
     }
-    za::Vector<int> stateFuncOf(static_cast<size_t>(pr->numglobals), -1);
+    za::Vector<int> stateFuncOf(static_cast<za::SizeT>(pr->numglobals), -1);
     for(int d = 0; d < pr->numglobaldefs; d++)
     {
         const ddef_t& def = vm.globaldefs[d];
@@ -345,13 +346,13 @@ void buildQcLoops()
     }
 
     // each function's models and frame functions named (its statements run on from its first to the next function's)
-    za::Vector<int> owner(static_cast<size_t>(pr->numstatements), -1);
+    za::Vector<int> owner(static_cast<za::SizeT>(pr->numstatements), -1);
     for(int f = 1; f < pr->numfunctions; f++)
     {
         const int first = vm.functions[f].first_statement;
         if(first > 0 && first < pr->numstatements)
         {
-            owner[static_cast<size_t>(first)] = f;
+            owner[static_cast<za::SizeT>(first)] = f;
         }
     }
     struct Support
@@ -414,10 +415,10 @@ void buildQcLoops()
     int cur = -1;
     for(int s = 1; s < pr->numstatements; s++)
     {
-        if(owner[static_cast<size_t>(s)] >= 0 && owner[static_cast<size_t>(s)] != cur)
+        if(owner[static_cast<za::SizeT>(s)] >= 0 && owner[static_cast<za::SizeT>(s)] != cur)
         {
             flush();
-            cur = owner[static_cast<size_t>(s)];
+            cur = owner[static_cast<za::SizeT>(s)];
         }
         const dstatement_t& st = vm.statements[s];
         for(const unsigned int operand : {st.a, st.b, st.c})
@@ -427,13 +428,13 @@ void buildQcLoops()
                 continue;
             }
             const int g = static_cast<int>(operand);
-            if(modelOf[static_cast<size_t>(g)] >= 0)
+            if(modelOf[static_cast<za::SizeT>(g)] >= 0)
             {
-                addUnique(models, modelOf[static_cast<size_t>(g)]);
+                addUnique(models, modelOf[static_cast<za::SizeT>(g)]);
             }
-            if(stateFuncOf[static_cast<size_t>(g)] >= 0)
+            if(stateFuncOf[static_cast<za::SizeT>(g)] >= 0)
             {
-                addUnique(refs, stateFuncOf[static_cast<size_t>(g)]);
+                addUnique(refs, stateFuncOf[static_cast<za::SizeT>(g)]);
             }
         }
     }
@@ -442,11 +443,11 @@ void buildQcLoops()
     // each loop to the models naming it more than half as often as the most (a model's overlapping loops: chosen by its
     // frames, qcLoopsOf: a function naming two models, AD's Hunter Ogre's spawn precaching progs/ogre.mdl for its upgrade,
     // gives the original's model its own loops too)
-    for(size_t i = 0; i < support.size(); i++)
+    for(za::SizeT i = 0; i < support.size(); i++)
     {
         const Support& s = support[i];
         bool keep = true;
-        for(size_t j = 0; j < support.size() && keep; j++)
+        for(za::SizeT j = 0; j < support.size() && keep; j++)
         {
             const Support& o = support[j];
             if(i != j && o.cycle.key == s.cycle.key && o.count >= 2 * s.count)
@@ -457,7 +458,7 @@ void buildQcLoops()
         if(keep)
         {
             QcLoop loop;
-            q_strlcpy(loop.model, names[static_cast<size_t>(s.model)], sizeof(loop.model));
+            q_strlcpy(loop.model, names[static_cast<za::SizeT>(s.model)], sizeof(loop.model));
             loop.firstFrame = s.cycle.firstFrame;
             loop.count = s.cycle.count;
             loop.named = s.count;
@@ -487,10 +488,10 @@ void pushNamedRun(za::Vector<Run>& runs, const trivertx_t* verts, int numverts, 
         {
             if(k != i && k >= 0 && k + 1 < run.count)
             {
-                round.pushBack(steps[static_cast<size_t>(k)]);
+                round.pushBack(steps[static_cast<za::SizeT>(k)]);
             }
         }
-        return steps[static_cast<size_t>(i)] > cutFactor * za::max(medianOf(round), 1.f);
+        return steps[static_cast<za::SizeT>(i)] > cutFactor * za::max(medianOf(round), 1.f);
     };
     int start = 0;
     for(int i = 0; i < run.count; i++)
@@ -506,7 +507,7 @@ void pushNamedRun(za::Vector<Run>& runs, const trivertx_t* verts, int numverts, 
             za::Vector<float> own;
             for(int k = start; k < i; k++)
             {
-                own.pushBack(steps[static_cast<size_t>(k)]);
+                own.pushBack(steps[static_cast<za::SizeT>(k)]);
             }
             const float closing = poseDistance(verts, numverts, part.first + part.count - 1, part.first);
             part.loop = closing <= loopFactor * za::max(medianOf(own), halfStep);
@@ -580,10 +581,10 @@ void pushNamedRun(za::Vector<Run>& runs, const trivertx_t* verts, int numverts, 
         }
     }
     za::Vector<char> taken(fit.size(), 0);
-    for(size_t round = 0; round < fit.size(); round++)
+    for(za::SizeT round = 0; round < fit.size(); round++)
     {
-        size_t best = fit.size();
-        for(size_t i = 0; i < fit.size(); i++)
+        za::SizeT best = fit.size();
+        for(za::SizeT i = 0; i < fit.size(); i++)
         {
             if(!taken[i] && (best == fit.size() || fit[i].named > fit[best].named))
             {
@@ -785,9 +786,9 @@ void compute(const aliashdr_t* hdr, const char* model, unsigned* out, long* swee
 // (sweeps, solves: positions' [0] and normals' [1] counted)
 {
     const trivertx_t* verts = posesOf(hdr);
-    const size_t total = static_cast<size_t>(hdr->numposes) * hdr->numverts;
+    const za::SizeT total = static_cast<za::SizeT>(hdr->numposes) * hdr->numverts;
     unsigned* normals = out + total;
-    for(size_t i = 0; i < total; i++)
+    for(za::SizeT i = 0; i < total; i++)
     {
         out[i] = 0u;
         const float* n = r_avertexnormals[verts[i].lightnormalindex % NUMVERTEXNORMALS];
@@ -806,9 +807,9 @@ void compute(const aliashdr_t* hdr, const char* model, unsigned* out, long* swee
         Solve s;
         for(za::Vector<float>* b : {&s.v, &s.x, &s.y, &s.g, &s.d, &s.next})
         {
-            b->resize(static_cast<size_t>(longest));
+            b->resize(static_cast<za::SizeT>(longest));
         }
-        s.n.resize(static_cast<size_t>(longest) * 3);
+        s.n.resize(static_cast<za::SizeT>(longest) * 3);
         for(int vert = static_cast<int>(begin); vert < static_cast<int>(end); vert++)
         {
             solveVertex(hdr, verts, runs, vert, s, out, normals, sweeps, solves);
@@ -832,8 +833,8 @@ void solveVertex(const aliashdr_t* hdr, const trivertx_t* verts, const za::Vecto
                 bool moves = false;
                 for(int i = 0; i < r.count; i++)
                 {
-                    s.v[static_cast<size_t>(i)] = verts[static_cast<size_t>(r.first + i) * hdr->numverts + vert].v[axis];
-                    moves = moves || s.v[static_cast<size_t>(i)] != s.v[0];
+                    s.v[static_cast<za::SizeT>(i)] = verts[static_cast<za::SizeT>(r.first + i) * hdr->numverts + vert].v[axis];
+                    moves = moves || s.v[static_cast<za::SizeT>(i)] != s.v[0];
                 }
                 if(!moves)
                 {
@@ -847,8 +848,8 @@ void solveVertex(const aliashdr_t* hdr, const trivertx_t* verts, const za::Vecto
                 }
                 for(int i = 0; i < r.count; i++)
                 {
-                    const float offset = s.x[static_cast<size_t>(i)] - s.v[static_cast<size_t>(i)];
-                    out[static_cast<size_t>(r.first + i) * hdr->numverts + vert] |=
+                    const float offset = s.x[static_cast<za::SizeT>(i)] - s.v[static_cast<za::SizeT>(i)];
+                    out[static_cast<za::SizeT>(r.first + i) * hdr->numverts + vert] |=
                         static_cast<unsigned>(static_cast<unsigned char>(encode(offset))) << (8 * axis);
                 }
             }
@@ -856,8 +857,8 @@ void solveVertex(const aliashdr_t* hdr, const trivertx_t* verts, const za::Vecto
             bool turns = false;
             for(int i = 1; i < r.count && !turns; i++)
             {
-                turns = verts[static_cast<size_t>(r.first + i) * hdr->numverts + vert].lightnormalindex !=
-                        verts[static_cast<size_t>(r.first) * hdr->numverts + vert].lightnormalindex;
+                turns = verts[static_cast<za::SizeT>(r.first + i) * hdr->numverts + vert].lightnormalindex !=
+                        verts[static_cast<za::SizeT>(r.first) * hdr->numverts + vert].lightnormalindex;
             }
             if(!turns)
             {
@@ -867,8 +868,8 @@ void solveVertex(const aliashdr_t* hdr, const trivertx_t* verts, const za::Vecto
             {
                 for(int i = 0; i < r.count; i++)
                 {
-                    const int index = verts[static_cast<size_t>(r.first + i) * hdr->numverts + vert].lightnormalindex;
-                    s.v[static_cast<size_t>(i)] = r_avertexnormals[index % NUMVERTEXNORMALS][axis];
+                    const int index = verts[static_cast<za::SizeT>(r.first + i) * hdr->numverts + vert].lightnormalindex;
+                    s.v[static_cast<za::SizeT>(i)] = r_avertexnormals[index % NUMVERTEXNORMALS][axis];
                 }
                 const int taken = solve(s, r.count, r.loop, normalBox, normalTolerance);
                 if(sweeps)
@@ -878,14 +879,14 @@ void solveVertex(const aliashdr_t* hdr, const trivertx_t* verts, const za::Vecto
                 }
                 for(int i = 0; i < r.count; i++)
                 {
-                    s.n[static_cast<size_t>(i) * 3 + static_cast<size_t>(axis)] = s.x[static_cast<size_t>(i)];
+                    s.n[static_cast<za::SizeT>(i) * 3 + static_cast<za::SizeT>(axis)] = s.x[static_cast<za::SizeT>(i)];
                 }
             }
             for(int i = 0; i < r.count; i++)
             {
-                const glm::vec3 n = glm::normalize(glm::vec3{s.n[static_cast<size_t>(i) * 3], s.n[static_cast<size_t>(i) * 3 + 1],
-                    s.n[static_cast<size_t>(i) * 3 + 2]});
-                normals[static_cast<size_t>(r.first + i) * hdr->numverts + vert] = packNormal(n.x, n.y, n.z);
+                const glm::vec3 n = glm::normalize(glm::vec3{s.n[static_cast<za::SizeT>(i) * 3], s.n[static_cast<za::SizeT>(i) * 3 + 1],
+                    s.n[static_cast<za::SizeT>(i) * 3 + 2]});
+                normals[static_cast<za::SizeT>(r.first + i) * hdr->numverts + vert] = packNormal(n.x, n.y, n.z);
             }
         }
     }
@@ -926,7 +927,7 @@ void addSeams(const aliashdr_t* hdr, const Run& r, const unsigned* const sets[3]
             int lo = 255, hi = 0;
             for(int i = 0; i < r.count; i++)
             {
-                const int value = verts[static_cast<size_t>(r.first + i) * hdr->numverts + vert].v[axis];
+                const int value = verts[static_cast<za::SizeT>(r.first + i) * hdr->numverts + vert].v[axis];
                 lo = za::min(lo, value);
                 hi = za::max(hi, value);
             }
@@ -940,7 +941,7 @@ void addSeams(const aliashdr_t* hdr, const Run& r, const unsigned* const sets[3]
                 for(int set = 0; set < 3; set++)
                 {
                     const auto value = [&](int k) {
-                        const size_t at = static_cast<size_t>(r.first + (k + r.count) % r.count) * hdr->numverts + vert;
+                        const za::SizeT at = static_cast<za::SizeT>(r.first + (k + r.count) % r.count) * hdr->numverts + vert;
                         return verts[at].v[axis] + (sets[set] ? decode(sets[set][at], axis) : 0.f);
                     };
                     const double d2 = value(i - 1) - 2.f * value(i) + value(i + 1);
@@ -986,7 +987,7 @@ struct Check
 [[nodiscard]] Check checkModel(const aliashdr_t* hdr, const char* model)
 {
     Check c;
-    const size_t total = static_cast<size_t>(hdr->numposes) * hdr->numverts;
+    const za::SizeT total = static_cast<za::SizeT>(hdr->numposes) * hdr->numverts;
     za::Vector<unsigned> fresh(2 * total);
     const double t0 = Sys_DoubleTime();
     compute(hdr, model, fresh.data(), c.sweeps, c.solves);
@@ -1003,7 +1004,7 @@ struct Check
         c.same = false;
     }
     const trivertx_t* verts = posesOf(hdr);
-    for(size_t i = 0; i < total; i++)
+    for(za::SizeT i = 0; i < total; i++)
     {
         for(int axis = 0; axis < 3; axis++)
         {
@@ -1037,20 +1038,20 @@ struct Check
                 int lo = 255, hi = 0;
                 for(int i = 0; i < r.count; i++)
                 {
-                    const int value = verts[static_cast<size_t>(r.first + i) * hdr->numverts + vert].v[axis];
+                    const int value = verts[static_cast<za::SizeT>(r.first + i) * hdr->numverts + vert].v[axis];
                     lo = za::min(lo, value);
                     hi = za::max(hi, value);
                 }
                 still = hi - lo <= 3;
             }
             const auto storedAt = [&](int i) {
-                const size_t k = static_cast<size_t>(r.first + (i % r.count)) * hdr->numverts + vert;
+                const za::SizeT k = static_cast<za::SizeT>(r.first + (i % r.count)) * hdr->numverts + vert;
                 return unpackNormal(packNormal(r_avertexnormals[verts[k].lightnormalindex % NUMVERTEXNORMALS][0],
                     r_avertexnormals[verts[k].lightnormalindex % NUMVERTEXNORMALS][1],
                     r_avertexnormals[verts[k].lightnormalindex % NUMVERTEXNORMALS][2]));
             };
             const auto nowAt = [&](int i) {
-                return unpackNormal(normals[static_cast<size_t>(r.first + (i % r.count)) * hdr->numverts + vert]);
+                return unpackNormal(normals[static_cast<za::SizeT>(r.first + (i % r.count)) * hdr->numverts + vert]);
             };
             for(int i = 0; i < r.count; i++)
             {
@@ -1077,7 +1078,7 @@ struct Check
     double sumBefore = 0.0, sumAfter = 0.0;
     long points = 0;
     const auto at = [&](int pose, int vert, bool after) {
-        const size_t k = static_cast<size_t>(pose) * hdr->numverts + vert;
+        const za::SizeT k = static_cast<za::SizeT>(pose) * hdr->numverts + vert;
         glm::vec3 p;
         for(int axis = 0; axis < 3; axis++)
         {
@@ -1103,7 +1104,7 @@ struct Check
                 int lo = 255, hi = 0;
                 for(int i = 0; i < r.count; i++)
                 {
-                    const int value = verts[static_cast<size_t>(r.first + i) * hdr->numverts + vert].v[axis];
+                    const int value = verts[static_cast<za::SizeT>(r.first + i) * hdr->numverts + vert].v[axis];
                     lo = za::min(lo, value);
                     hi = za::max(hi, value);
                 }
@@ -1214,7 +1215,7 @@ void checkOne(const char* name, bool listRuns)
     }
     if(listRuns) // (one model named: its runs, by their first frame's name; each progs loop's seam)
     {
-        const size_t total = static_cast<size_t>(hdr->numposes) * hdr->numverts;
+        const za::SizeT total = static_cast<za::SizeT>(hdr->numposes) * hdr->numverts;
         za::Vector<unsigned> fresh(2 * total), legacy(2 * total);
         compute(hdr, model->name, fresh.data());
         compute(hdr, nullptr, legacy.data());
@@ -1290,7 +1291,7 @@ constexpr char dequantMagic[5] = "QVRD";
     buildQcLoops();
     const int counts[3] = {hdr->numposes, hdr->numverts, hdr->numframes};
     unsigned long long h = fnv(qvr::diskcache::fnvStart, counts, sizeof(counts));
-    h = fnv(h, posesOf(hdr), static_cast<size_t>(hdr->numposes) * hdr->numverts * sizeof(trivertx_t));
+    h = fnv(h, posesOf(hdr), static_cast<za::SizeT>(hdr->numposes) * hdr->numverts * sizeof(trivertx_t));
     for(int f = 0; f < hdr->numframes; f++)
     {
         const maliasframedesc_t& d = hdr->frames[f];
@@ -1311,7 +1312,7 @@ void computeCached(const aliashdr_t* hdr, const char* model, unsigned* out)
 {
     using qvr::diskcache::Product;
     const int mode = qvr::diskcache::modeOf(Product::Dequant);
-    const size_t bytes = static_cast<size_t>(hdr->numposes) * hdr->numverts * 2 * sizeof(unsigned);
+    const za::SizeT bytes = static_cast<za::SizeT>(hdr->numposes) * hdr->numverts * 2 * sizeof(unsigned);
     if(!mode)
     {
         compute(hdr, model, out);
@@ -1348,7 +1349,7 @@ extern "C" void VR_MdlDequantCompute(const char* model, const void* aliashdr, un
     loadTotals.withoutProgs += sv.qcvm.progs ? 0 : 1;
     loadTotals.models++;
     loadTotals.seconds += Sys_DoubleTime() - t0;
-    loadTotals.bytes += static_cast<size_t>(hdr->numposes) * hdr->numverts * 2 * sizeof(unsigned);
+    loadTotals.bytes += static_cast<za::SizeT>(hdr->numposes) * hdr->numverts * 2 * sizeof(unsigned);
 }
 
 namespace qvr::mdldequant
@@ -1384,7 +1385,7 @@ void prepare(const qmodel_s* model)
 glm::vec3 poseVertex(const void* aliashdr, int pose, int vertex)
 {
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
-    const size_t k = static_cast<size_t>(pose) * hdr->numverts + vertex;
+    const za::SizeT k = static_cast<za::SizeT>(pose) * hdr->numverts + vertex;
     const trivertx_t& t = posesOf(hdr)[k];
     glm::vec3 p{t.v[0], t.v[1], t.v[2]};
     if(hdr->dequant && hdr->dequantready)
@@ -1417,7 +1418,7 @@ void restVertex(const void* aliashdr, int meshVertex, float xyz[3], signed char 
     const trivertx_t& t = posesOf(hdr)[v];
     const bool on = hdr->dequant && hdr->dequantready;
     const auto* frac = on ? reinterpret_cast<const unsigned*>(reinterpret_cast<const byte*>(hdr) + hdr->dequant) : nullptr;
-    const unsigned smooth = frac ? frac[static_cast<size_t>(hdr->numposes) * static_cast<size_t>(hdr->numverts) + static_cast<size_t>(v)] : 0u;
+    const unsigned smooth = frac ? frac[static_cast<za::SizeT>(hdr->numposes) * static_cast<za::SizeT>(hdr->numverts) + static_cast<za::SizeT>(v)] : 0u;
     for(int i = 0; i < 3; i++)
     {
         xyz[i] = (static_cast<float>(t.v[i]) + (frac ? decode(frac[v], i) : 0.f)) * hdr->scale[i] + hdr->scale_origin[i];

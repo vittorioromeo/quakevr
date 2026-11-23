@@ -190,18 +190,10 @@ void QuestExtensions::apply(XrSession session, const XrSwapchain (&eyes)[2])
         }
     }
 
-    // The fixed foveation, on both eye swapchains (again for new ones: a resized eye image).
-    // Guarded (C4p, QUEST_PLAN.md 6w): with foveated eye images the Quest's runtime crashed in xrEndFrame within a few
-    // hundred frames (set at launch or mid-game, drawn through the post-process or straight into them), so a level is
-    // only applied when the game was launched with -xrfoveation (to try it).
-    const bool allowed = COM_CheckParm("-xrfoveation") != 0;
-    const float level = allowed ? vr_xr_foveation.value : 0.f;
-    if(foveation && !allowed && vr_xr_foveation.value > 0.f && !foveationRefusedNoted)
-    {
-        foveationRefusedNoted = true;
-        xrruntime::note("OpenXR: vr_xr_foveation %g not applied: it crashed the Quest's runtime (launch with -xrfoveation to "
-                        "try it)\n", static_cast<double>(vr_xr_foveation.value));
-    }
+    // The fixed foveation, on both eye swapchains (again for new ones: a resized eye image). No longer behind
+    // -xrfoveation (qfov3): C4p's crashes in xrEndFrame were the foveated images changed in use and form 2's framebuffers
+    // (qfov2 rebuilt them as Meta's samples); a change mid-game takes new swapchains.
+    const float level = vr_xr_foveation.value;
     // vr_xr_foveation_dynamic (qfov): the runtime lowers the level below vr_xr_foveation's while the GPU has room
     // (XR_FOVEATION_DYNAMIC_LEVEL_ENABLED_FB); kept with the level as one value (+10).
     const bool dynamic = vr_xr_foveation_dynamic.value != 0.f && level > 0.f;

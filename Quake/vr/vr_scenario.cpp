@@ -21,6 +21,7 @@
 #include "vr_zancle.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -213,7 +214,7 @@ bool mapFoundOrCampaignSelected(const char* map)
 void words(za::StringView l, za::Vector<za::String>& out)
 {
     out.clear();
-    size_t i = 0;
+    za::SizeT i = 0;
     while(i < l.size())
     {
         while(i < l.size() && isSpace(l[i]))
@@ -248,7 +249,7 @@ void words(za::StringView l, za::Vector<za::String>& out)
 // The rest of the line after its first word, trimmed (and its quotes taken off, if the whole of it is quoted).
 [[nodiscard]] za::String rest(za::StringView l)
 {
-    size_t i = 0;
+    za::SizeT i = 0;
     while(i < l.size() && isSpace(l[i]))
     {
         i++;
@@ -261,7 +262,7 @@ void words(za::StringView l, za::Vector<za::String>& out)
     {
         i++;
     }
-    size_t e = l.size();
+    za::SizeT e = l.size();
     while(e > i && isSpace(l[e - 1]))
     {
         e--;
@@ -332,7 +333,7 @@ void error(int line, const char* text)
         return false;
     }
     za::String first = w[0];
-    const size_t semi = first.find(';');
+    const za::SizeT semi = first.find(';');
     if(semi != za::StringView::nPos)
     {
         first = za::String{first.substrByPosLen(0, semi)};
@@ -1040,15 +1041,15 @@ void allIds(za::Vector<za::String>& out)
 {
     out.clear();
     files::forEachEntry(dirPath().cStr(), [&](const char* name, bool isDir) {
-        const size_t n = ZA_STRLEN(name);
+        const za::SizeT n = ZA_STRLEN(name);
         if(!isDir && n > 4 && !q_strcasecmp(name + n - 4, ".txt"))
         {
             out.pushBack(za::String{za::StringView{name, n - 4}});
         }
     });
-    for(size_t i = 1; i < out.size(); i++) // (a few dozen: an insertion sort)
+    for(za::SizeT i = 1; i < out.size(); i++) // (a few dozen: an insertion sort)
     {
-        for(size_t j = i; j > 0 && ZA_STRCMP(out[j - 1].cStr(), out[j].cStr()) > 0; j--)
+        for(za::SizeT j = i; j > 0 && ZA_STRCMP(out[j - 1].cStr(), out[j].cStr()) > 0; j--)
         {
             za::genericSwap(out[j - 1], out[j]);
         }
@@ -1551,7 +1552,7 @@ extern "C" void VR_ScenarioConfigWrite(int begin)
     else
     {
         const auto& saved = state.saved.saved();
-        for(size_t i = 0; i < saved.size() && i < state.live.size(); i++)
+        for(za::SizeT i = 0; i < saved.size() && i < state.live.size(); i++)
         {
             if(state.live[i])
             {

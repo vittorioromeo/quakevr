@@ -119,6 +119,23 @@ public:
     ////////////////////////////////////////////////////////////
     [[nodiscard]] static za::I64 nowNanoseconds() noexcept;
 
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the current wall-clock time, in nanoseconds since the Unix epoch
+    ///
+    /// The system's calendar time, counted from 1970-01-01 00:00:00 UTC
+    /// (leap seconds not counted), like `std::chrono::system_clock`:
+    /// readings can be compared across processes and machines (e.g. log
+    /// timestamps), but the clock is not monotonic: the user or a time
+    /// synchronization can move it either way. Measure intervals with
+    /// `now` or `nowNanoseconds` instead, whose epoch is unspecified.
+    ///
+    /// The resolution depends on the platform: 100ns on Windows
+    /// (`GetSystemTimePreciseAsFileTime`), down to nanoseconds elsewhere
+    /// (`clock_gettime(CLOCK_REALTIME)`).
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] static za::I64 nowUnixNanoseconds() noexcept;
+
 private:
     ////////////////////////////////////////////////////////////
     // Member data

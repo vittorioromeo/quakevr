@@ -477,7 +477,7 @@ namespace
         return false;
     }
     cvar_t* const var = items(page)[r].cvar;
-    const float want = items(page)[r].choices[static_cast<size_t>(c)].value;
+    const float want = items(page)[r].choices[static_cast<za::SizeT>(c)].value;
     VR_Menu_Mousemove(x, y);
     const bool hit = iconHover.page == page && iconHover.row == r && iconHover.icon == c && ui().cursors[page] == r;
     m_mousex = x;
@@ -544,11 +544,11 @@ void runSetupIconTest(testkit::Tally& t)
         {
             ui().cursors[page] = runSetupRowIndex(label);
             VR_Menu_Key(K_RIGHTARROW, 0);
-            stepped += var->value == items(page)[runSetupRowIndex(label)].choices[static_cast<size_t>(c % n)].value ? 1 : 0;
+            stepped += var->value == items(page)[runSetupRowIndex(label)].choices[static_cast<za::SizeT>(c % n)].value ? 1 : 0;
         }
         ui().cursors[page] = runSetupRowIndex(label);
         VR_Menu_Key(K_LEFTARROW, 0);
-        stepped += var->value == items(page)[runSetupRowIndex(label)].choices[static_cast<size_t>(n - 1)].value ? 1 : 0;
+        stepped += var->value == items(page)[runSetupRowIndex(label)].choices[static_cast<za::SizeT>(n - 1)].value ? 1 : 0;
         check(stepped == n + 1, va("%s: right and left step through its choices (%d of %d)", label, stepped, n + 1));
     }
     // Difficulty's four cards spaced as the weapon pickers' (runsetup3: the same card width and vr_menu_icon_gap), at the

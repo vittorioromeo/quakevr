@@ -57,7 +57,7 @@ mem::Scratch<GadgetScratch> scratch{"gadget"};
         return true;
     }
     // "godmode ON", "noclip OFF": a word, then ON or OFF.
-    const size_t space = s.find(' ');
+    const za::SizeT space = s.find(' ');
     if(space != za::StringView::nPos && s.find(' ', space + 1) == za::StringView::nPos)
     {
         const za::StringView word = s.substrByPosLen(space + 1);
@@ -230,8 +230,8 @@ void makeMessage(za::StringView text, HoloMessage& m)
     lines.clear();
     while(!text.empty())
     {
-        const size_t end = za::min(text.find('\n'), text.size());
-        const size_t before = lines.size();
+        const za::SizeT end = za::min(text.find('\n'), text.size());
+        const za::SizeT before = lines.size();
         wrap(text.substrByPosLen(0, end), lines, holoColumns);
         if(lines.size() == before)
         {
@@ -243,7 +243,7 @@ void makeMessage(za::StringView text, HoloMessage& m)
     {
         lines.popBack();
     }
-    size_t first = 0;
+    za::SizeT first = 0;
     while(first < lines.size() && lines[first].empty())
     {
         first++;
@@ -251,7 +251,7 @@ void makeMessage(za::StringView text, HoloMessage& m)
     m.text.clear();
     m.columns = 0;
     m.rows = 0;
-    for(size_t i = first; i < lines.size(); i++)
+    for(za::SizeT i = first; i < lines.size(); i++)
     {
         if(i > first)
         {
@@ -460,7 +460,7 @@ void collectMessages()
     int rows = 0, count = 0;
     for(const bool waiting : {true, false})
     {
-        for(size_t i = queue.size(); i-- > 0;)
+        for(za::SizeT i = queue.size(); i-- > 0;)
         {
             const HoloMessage& m = queue[i];
             const int r = za::min(m.rows, holoRows);
@@ -475,7 +475,7 @@ void collectMessages()
     }
     // (Copied into the elements holoMessages already has: their strings' buffers are reused.)
     za::SizeT shown = 0;
-    for(size_t i = 0; i < queue.size(); i++)
+    for(za::SizeT i = 0; i < queue.size(); i++)
     {
         if(!keep[i])
         {
@@ -490,7 +490,7 @@ void collectMessages()
         if(m.rows > holoRows)
         {
             int lines = 1;
-            for(size_t c = 0; c < m.text.size(); c++)
+            for(za::SizeT c = 0; c < m.text.size(); c++)
             {
                 if(m.text[c] == '\n' && ++lines > holoRows)
                 {
@@ -571,7 +571,7 @@ void renderHologram()
         za::StringView text = m.text;
         for(int row = 0; row < m.rows; row++)
         {
-            const size_t end = za::min(text.find('\n'), text.size());
+            const za::SizeT end = za::min(text.find('\n'), text.size());
             za::String& line = scratch.hologramLine; // (a c_str for draw2D::text)
             line = text.substrByPosLen(0, end);
             const float x = static_cast<float>(holoWidth - static_cast<int>(line.size()) * 8) * 0.5f;
@@ -656,7 +656,7 @@ void layoutHologram()
     double newest = -100.0;
     for(const HoloMessage& m : za::reversed(holoMessages))
     {
-        size_t b = 0;
+        za::SizeT b = 0;
         while(b < holoDrawn.size() && (used[b] || holoDrawn[b].text != m.text))
         {
             b++;
@@ -738,18 +738,18 @@ void layoutHologram()
     {
         const glm::vec3 m{((i == 1 || i == 2) ? 0.5f : -0.5f) * size.x * 0.85f, (i >= 2 ? 0.5f : -0.5f) * size.y * 0.85f,
             corner.z + 0.02f};
-        s[static_cast<size_t>(i)] = current.origin + current.axes * (m * scale);
-        const glm::vec3 d = s[static_cast<size_t>(i)] - c;
-        angle[static_cast<size_t>(i)] = za::atan2(glm::dot(d, up), glm::dot(d, right));
+        s[static_cast<za::SizeT>(i)] = current.origin + current.axes * (m * scale);
+        const glm::vec3 d = s[static_cast<za::SizeT>(i)] - c;
+        angle[static_cast<za::SizeT>(i)] = za::atan2(glm::dot(d, up), glm::dot(d, right));
     }
     // Round the screen from the corner nearest the view's lower left (-135 degrees), as the blocks' outline.
     za::Array<int, 4> order{0, 1, 2, 3};
-    za::quickSort(order.begin(), order.end(), [&](int a, int b) { return angle[static_cast<size_t>(a)] < angle[static_cast<size_t>(b)]; });
+    za::quickSort(order.begin(), order.end(), [&](int a, int b) { return angle[static_cast<za::SizeT>(a)] < angle[static_cast<za::SizeT>(b)]; });
     int first = 0;
     float nearest = 10.f;
     for(int i = 0; i < 4; i++)
     {
-        float d = za::abs(angle[static_cast<size_t>(order[static_cast<size_t>(i)])] + 2.3561945f);
+        float d = za::abs(angle[static_cast<za::SizeT>(order[static_cast<za::SizeT>(i)])] + 2.3561945f);
         d = za::min(d, 6.2831853f - d);
         if(d < nearest)
         {
@@ -763,8 +763,8 @@ void layoutHologram()
     for(int i = 0; i < 4; i++)
     {
         const int j = (i + 1) % 4;
-        const glm::vec3& sa = s[static_cast<size_t>(order[static_cast<size_t>((first + i) % 4)])];
-        const glm::vec3& sb = s[static_cast<size_t>(order[static_cast<size_t>((first + j) % 4)])];
+        const glm::vec3& sa = s[static_cast<za::SizeT>(order[static_cast<za::SizeT>((first + i) % 4)])];
+        const glm::vec3& sb = s[static_cast<za::SizeT>(order[static_cast<za::SizeT>((first + j) % 4)])];
         const gfx::Vertex a{sa, {-1.f, 0.f}, color}, b{sb, {1.f, 0.f}, color}, pb{p[j], {1.f, 1.f}, color},
             pa{p[i], {-1.f, 1.f}, color};
         for(const gfx::Vertex* q : {&a, &b, &pb, &a, &pb, &pa})

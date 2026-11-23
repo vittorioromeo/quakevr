@@ -17,6 +17,7 @@
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
 #include <stdio.h>
@@ -110,7 +111,7 @@ char statusText[192];
 
 [[nodiscard]] bool endsWithMdl(const char* name)
 {
-    const size_t n = ZA_STRLEN(name);
+    const za::SizeT n = ZA_STRLEN(name);
     return n > 4 && !q_strcasecmp(name + n - 4, ".mdl");
 }
 
@@ -175,7 +176,7 @@ Listing list(const za::Vector<za::String>& bases, const za::Vector<za::String>& 
             }
             za::Vector<za::String> paks;
             files::forEachEntry(game.cStr(), [&](const char* name, bool isDirectory) {
-                const size_t n = ZA_STRLEN(name);
+                const za::SizeT n = ZA_STRLEN(name);
                 if(!isDirectory && n > 4 && !q_strcasecmp(name + n - 4, ".pak"))
                 {
                     paks.pushBack(game + "/" + name);
@@ -271,14 +272,14 @@ Result makeItem(const za::String& container, Item item)
         fclose(f);
     }
     const unsigned char* d = bytes.data();
-    const size_t n = bytes.size();
-    size_t p = 84;
+    const za::SizeT n = bytes.size();
+    za::SizeT p = 84;
     bool ok = n >= 84 && !ZA_MEMCMP(d, "IDPO", 4) && rd32(d + 4) == 6;
     const int numskins = ok ? rd32(d + 48) : 0, w = ok ? rd32(d + 52) : 0, h = ok ? rd32(d + 56) : 0;
     const int numverts = ok ? rd32(d + 60) : 0, numtris = ok ? rd32(d + 64) : 0, numframes = ok ? rd32(d + 68) : 0;
     ok = ok && numskins >= 0 && numskins < 256 && w > 0 && h > 0 && w <= 4096 && h <= 4096 && numverts > 0 &&
          numverts < 65536 && numtris > 0 && numtris < 1 << 20 && numframes > 0 && numframes < 1 << 16;
-    const size_t skinBytes = ok ? static_cast<size_t>(w) * h : 0;
+    const za::SizeT skinBytes = ok ? static_cast<za::SizeT>(w) * h : 0;
     for(int s = 0; ok && s < numskins; s++)
     {
         ok = p + 4 <= n;
@@ -291,26 +292,26 @@ Result makeItem(const za::String& container, Item item)
             ok = p + 8 <= n;
             const int count = ok ? rd32(d + p + 4) : 0;
             ok = ok && count > 0 && count < 1024;
-            p += 8 + static_cast<size_t>(count) * (4 + skinBytes);
+            p += 8 + static_cast<za::SizeT>(count) * (4 + skinBytes);
         }
         ok = ok && p <= n;
     }
-    p += static_cast<size_t>(numverts) * 12; // st verts
-    const size_t trisAt = p;
-    p += static_cast<size_t>(numtris) * 16;
+    p += static_cast<za::SizeT>(numverts) * 12; // st verts
+    const za::SizeT trisAt = p;
+    p += static_cast<za::SizeT>(numtris) * 16;
     ok = ok && p <= n;
     za::Vector<int> tris;
     for(int t = 0; ok && t < numtris; t++)
     {
         for(int k = 0; k < 3; k++)
         {
-            const int v = rd32(d + trisAt + static_cast<size_t>(t) * 16 + 4 + 4 * k);
+            const int v = rd32(d + trisAt + static_cast<za::SizeT>(t) * 16 + 4 + 4 * k);
             ok = ok && v >= 0 && v < numverts;
             tris.pushBack(v);
         }
     }
     za::Vector<unsigned char> verts; // the poses in order, numverts trivertx_t (4 bytes) each
-    const size_t poseBytes = static_cast<size_t>(numverts) * 4;
+    const za::SizeT poseBytes = static_cast<za::SizeT>(numverts) * 4;
     int numposes = 0;
     for(int fr = 0; ok && fr < numframes; fr++)
     {
@@ -323,7 +324,7 @@ Result makeItem(const za::String& container, Item item)
             ok = p + 4 <= n;
             count = ok ? rd32(d + p) : 0;
             ok = ok && count > 0 && count < 1024;
-            p += 4 + 8 + static_cast<size_t>(count) * 4; // the count, the group's bounds, its intervals
+            p += 4 + 8 + static_cast<za::SizeT>(count) * 4; // the count, the group's bounds, its intervals
         }
         for(int k = 0; ok && k < count; k++)
         {
@@ -331,7 +332,7 @@ Result makeItem(const za::String& container, Item item)
             ok = p + poseBytes <= n;
             if(ok)
             {
-                const size_t at = verts.size();
+                const za::SizeT at = verts.size();
                 verts.resize(at + poseBytes);
                 ZA_MEMCPY(verts.data() + at, d + p, poseBytes);
                 numposes++;

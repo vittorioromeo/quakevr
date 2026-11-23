@@ -22,6 +22,7 @@
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -516,7 +517,7 @@ void exhaustOf(const Muzzle& m, glm::vec3& where, glm::vec3& dir, bool& onGun)
     else
     {
         const char* hash = strchr(model->name, '#');
-        const size_t len = hash ? static_cast<size_t>(hash - model->name) : ZA_STRLEN(model->name);
+        const za::SizeT len = hash ? static_cast<za::SizeT>(hash - model->name) : ZA_STRLEN(model->name);
         const ModelExhaust* e = nullptr;
         for(const ModelExhaust& x : exhausts)
         {
@@ -591,7 +592,7 @@ constexpr ModelVents rocketVents[] = {
         return nullptr;
     }
     const char* hash = strchr(model->name, '#');
-    const size_t len = hash ? static_cast<size_t>(hash - model->name) : ZA_STRLEN(model->name);
+    const za::SizeT len = hash ? static_cast<za::SizeT>(hash - model->name) : ZA_STRLEN(model->name);
     for(const ModelVents& v : rocketVents)
     {
         if(ZA_STRLEN(v.name) == len && ZA_STRNCMP(v.name, model->name, len) == 0)
@@ -751,7 +752,7 @@ int firingBarrel(const Muzzle& m, glm::vec3& at)
     }
     const char* name = gunvariants::resolve(ve->ent.model->name); // (a lava nailgun: its nailgun's barrels)
     const char* hash = strchr(name, '#');
-    const size_t len = hash ? static_cast<size_t>(hash - name) : ZA_STRLEN(name);
+    const za::SizeT len = hash ? static_cast<za::SizeT>(hash - name) : ZA_STRLEN(name);
     for(const FiringBarrels& g : firingBarrels)
     {
         if(ZA_STRLEN(g.name) == len && ZA_STRNCMP(g.name, name, len) == 0)
@@ -1035,7 +1036,7 @@ constexpr ModelBarrels barrelEnds[] = {
         if(model && gunFrame(m, f))
         {
             const char* hash = strchr(model->name, '#');
-            const size_t len = hash ? static_cast<size_t>(hash - model->name) : ZA_STRLEN(model->name);
+            const za::SizeT len = hash ? static_cast<za::SizeT>(hash - model->name) : ZA_STRLEN(model->name);
             for(const ModelBarrels& x : barrelEnds)
             {
                 if(ZA_STRLEN(x.name) == len && ZA_STRNCMP(x.name, model->name, len) == 0)
@@ -1272,7 +1273,7 @@ int weaponIdOf(const qmodel_t* model)
         return v == adguns::EliminatorLegacy ? WID_ADCENTURION : WID_ADROCKET + v;
     }
     const char* hash = strchr(model->name, '#');
-    const size_t len = hash ? static_cast<size_t>(hash - model->name) : ZA_STRLEN(model->name);
+    const za::SizeT len = hash ? static_cast<za::SizeT>(hash - model->name) : ZA_STRLEN(model->name);
     for(const ModelId& id : modelIds)
     {
         if(ZA_STRLEN(id.name) == len && ZA_STRNCMP(id.name, model->name, len) == 0)

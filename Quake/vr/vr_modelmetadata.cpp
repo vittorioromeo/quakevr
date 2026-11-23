@@ -10,6 +10,7 @@
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -354,11 +355,11 @@ ModelMetadata describePath(const char* name)
     result.id = identifyPath(name);
     name = packPathOf(name);
     const char* file = fileOf(name);
-    const size_t n = ZA_STRLEN(name);
+    const za::SizeT n = ZA_STRLEN(name);
     for(int i = 0; i < static_cast<int>(Trait::Count); i++)
     {
         const Rule& rule = rules[i];
-        const size_t len = ZA_STRLEN(rule.text);
+        const za::SizeT len = ZA_STRLEN(rule.text);
         const bool match = rule.match == Match::ExactInsensitive ? !q_strcasecmp(name, rule.text) :
             rule.match == Match::PrefixInsensitive ? !q_strncasecmp(name, rule.text, len) :
             rule.match == Match::Contains ? ZA_STRSTR(name, rule.text) != nullptr :
@@ -407,14 +408,14 @@ retro::Category category(const qmodel_t* model)
     return result;
 }
 
-bool sourceName(const char* name, char* out, size_t size)
+bool sourceName(const char* name, char* out, za::SizeT size)
 {
     const char* tag = name ? strchr(name, '#') : nullptr;
     if(!tag || tag == name || size == 0)
     {
         return false;
     }
-    q_strlcpy(out, name, za::min(size, static_cast<size_t>(tag - name) + 1));
+    q_strlcpy(out, name, za::min(size, static_cast<za::SizeT>(tag - name) + 1));
     return true;
 }
 
@@ -532,7 +533,7 @@ void test_f()
         for(int i = 0; i < static_cast<int>(Trait::Count); i++)
         {
             const Rule& rule = rules[i];
-            const size_t n = ZA_STRLEN(fixture.name), len = ZA_STRLEN(rule.text);
+            const za::SizeT n = ZA_STRLEN(fixture.name), len = ZA_STRLEN(rule.text);
             const bool expected = rule.match == Match::ExactInsensitive ? q_strcasecmp(fixture.name, rule.text) == 0 :
                 rule.match == Match::Contains ? ZA_STRSTR(fixture.name, rule.text) != nullptr :
                 rule.match == Match::Suffix ? n >= len && ZA_STRCMP(fixture.name + n - len, rule.text) == 0 :
@@ -564,7 +565,7 @@ void test_f()
         q_snprintf(text, sizeof(text), "%s_custom.mdl", rule.text); checkPath(text);
         q_snprintf(text, sizeof(text), "custom/%s", rule.text); checkPath(text);
         q_strlcpy(text, rule.text, sizeof(text));
-        const size_t n = ZA_STRLEN(text); if(n) { text[n - 1] = 0; } checkPath(text);
+        const za::SizeT n = ZA_STRLEN(text); if(n) { text[n - 1] = 0; } checkPath(text);
     }
     for(const char* name : {"*1", "models/vrbody_custom.mdl", "progs/handmade.mdl", "progs/vr_rock_custom.mdl",
         "custom/armor_backpack_key_gib_vrbody.mdl", "MAPS/B_shell0.bsp", "progs/finger_", "progs/notknown.mdl"})

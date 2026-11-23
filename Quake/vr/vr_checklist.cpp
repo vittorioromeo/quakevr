@@ -12,6 +12,7 @@
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -56,7 +57,7 @@ struct State
 mem::Cache<State> state{"checklist", mem::Never};
 
 constexpr const char* failPrefix = "[fail] "; // a failed item's line in the ticks file
-constexpr size_t failPrefixLength = 7;
+constexpr za::SizeT failPrefixLength = 7;
 
 bool ticksRead = false;
 bool fileFound = false;
@@ -83,9 +84,9 @@ char lineText[64];
 }
 
 constexpr const char* collapsedPrefix = "collapsed "; // a folds file's lines: one of these, then the section's name
-constexpr size_t collapsedPrefixLength = 10;
+constexpr za::SizeT collapsedPrefixLength = 10;
 constexpr const char* expandedPrefix = "expanded ";
-constexpr size_t expandedPrefixLength = 9;
+constexpr za::SizeT expandedPrefixLength = 9;
 
 // The file's lines, trimmed (false: no file).
 [[nodiscard]] bool readLines(const za::String& path, za::Vector<za::String>& out)
@@ -97,7 +98,7 @@ constexpr size_t expandedPrefixLength = 9;
     }
     za::String text;
     char buf[4096];
-    for(size_t n; (n = fread(buf, 1, sizeof(buf), f)) > 0;)
+    for(za::SizeT n; (n = fread(buf, 1, sizeof(buf), f)) > 0;)
     {
         text.append(buf, n);
     }
@@ -107,9 +108,9 @@ constexpr size_t expandedPrefixLength = 9;
     {
         text.erase(0, 3); // a UTF-8 BOM
     }
-    for(size_t start = 0; start <= text.size();)
+    for(za::SizeT start = 0; start <= text.size();)
     {
-        size_t end = text.find('\n', start);
+        za::SizeT end = text.find('\n', start);
         end = end == za::StringView::nPos ? text.size() : end;
         out.pushBack(qvr::strings::trim(text.substrByPosLen(start, end - start)));
         start = end + 1;
@@ -121,7 +122,7 @@ constexpr size_t expandedPrefixLength = 9;
 [[nodiscard]] za::String drawable(const za::String& s)
 {
     za::String out;
-    for(size_t i = 0; i < s.size(); i++)
+    for(za::SizeT i = 0; i < s.size(); i++)
     {
         const auto c = static_cast<unsigned char>(s[i]);
         if(c == '\t')
@@ -189,7 +190,7 @@ void countOpen()
     state.sectionTotals.clear();
     state.sectionOpens.resize(state.sections.size(), 0);
     state.sectionTotals.resize(state.sections.size(), 0);
-    for(size_t i = 0; i < state.texts.size(); i++)
+    for(za::SizeT i = 0; i < state.texts.size(); i++)
     {
         const za::String& t = state.texts[i];
         const int isOpen = state.tickedTexts.count(t) ? 0 : 1;
@@ -360,7 +361,7 @@ void writeTicks()
     {
         return l;
     }
-    const size_t open = l.rfind('{');
+    const za::SizeT open = l.rfind('{');
     if(open == za::StringView::nPos || l.size() - open < 7 || ZA_STRNCMP(l.cStr() + open, "{test:", 6) != 0)
     {
         return l;
@@ -406,7 +407,7 @@ void readList()
     state.firstLine.pushBack(static_cast<int>(state.lines.size())); // (the end of the last item's)
     countOpen();
     state.sectionDefaults.clear();
-    for(size_t s = 0; s < state.sections.size(); s++)
+    for(za::SizeT s = 0; s < state.sections.size(); s++)
     {
         state.sectionDefaults.pushBack(state.sectionTotals[s] > 0 && state.sectionOpens[s] == 0 ? 1 : 0);
     }

@@ -10960,3 +10960,186 @@ details: QUEST_OPTIMISATIONS.md "Standalone status, 2026-11-23".
   session 6-7 times a launch (the headset not worn), and each part still recorded its 720-900 frames. Launch 2 ran
   again after Quick Actions was in front at first. Beta2's APK and progs.dat (8a409520...) were put back.
   Scripts: `scratch/qcpu2_qblock.sh`, `qcpu2_qmk.py`, `qcpu2_qsum.py` (not committed).
+
+## qfov3: one render pass an eye; Quest foveation on in Standalone (branch agent/qfov3, 2026-11-23)
+
+- **The passes' breakers** (`vr_gl_passes` now lists them: compute dispatches, blits, buffer and 3D texture updates,
+  mipmaps, each with its GL group, between the binds; gl_vidsdl.c shadows the calls as it does the binds): on the PC
+  mock of the Quest's path (`-glescompat`, form 2) the only ones inside an eye were the brush models' gathers (six a
+  frame's eye) and the arrays' merges beside them, as qfov2 guessed. No blits, uploads or framebuffer switches.
+- **`vr_gl_one_pass`** (new, 1; OpenGL ES only, the PC's paths untouched; Debug > Profiling has both): ES's bound
+  path draws each call from the cull's own command (on ES the gather only copied it: one instance, baseInstance 0); a
+  call of more instances takes a command made on the CPU from the brush model's own (r_brush.c keeps the commands as
+  made: `gl_bmodel_cmds`, runtime brushes too); one of more instances on a command the cull fills (the world twice
+  through a gate) falls back to the gather. The arrays' merges (C4v: one draw a set) can't run between draws either:
+  each flush's merge plan is kept per scene of the frame and flush (`R_PreMergeBModelCalls`, called by R_RenderScene
+  before the clear), and the next frame's same scene dispatches every kept plan into buffers of its own with that
+  frame's cull; a flush whose plan matches draws its groups from them, any other draws its calls alone that frame
+  (another map: `gl_bmodel_buildserial`). 2: never merged (an A/B: the draws 192 -> 429, +1.2..3 ms on the Quest).
+- Headset trace (ovrgpuprofiler -t, level 3): each eye is now one render pass, no LoadColor/LoadDepthStencil, no depth
+  store, foveated bins in it; only the drawn part's bins are rendered (5 of 8), so no scissored clear or resized image
+  was needed for that (step 2). Eye images at the drawn size (`vr_xr_eye_scale` 0.65, which now makes new swapchains
+  mid-game on the Quest) were slower (E 15.5 ms vs L 13.8).
+- **Numbers** (frozen gib fight at 0.65, retro off; 3 launches, each part twice interleaved; GPU medians): today's path
+  (post-process + gather) 17.33/15.86/16.31; post-process one pass 15.98/15.98/16.29; straight in, no foveation,
+  gather/one pass 17.1/16.8; **Low 13.61/13.78/14.06**, Medium 14.33/14.24/14.05, High 15.39/15.47/15.53, High
+  refocused 15.5-17.3, High + dynamic 13.74/14.06/13.48. Late frames (>13.9 ms) 95-98% -> 67-76% at Low. CPU busy
+  unchanged (~9.7-10.3 ms). High slower than Low in every launch (not explained; the scaled bins' cost, a guess).
+- Eyeshots (exported): the periphery at Low and Medium shows the floor's texels with no visible blocks.
+- **Defaults**: Standalone sets `vr_xr_foveation` 1 (Low: the fastest and the mildest). The `-xrfoveation` guard is gone
+  (vr_backend_openxr_quest.cpp, vr_stereo.cpp); Quest Foveation (VR Settings > Scaling) turns it off. Checked on the
+  headset without the flag: `vr_standalone_preset 0` gives level 1, form 2 straight in, e1m1 -> e1m2 -> start and
+  mid-game level changes (1 -> 2 -> 1, new swapchains) ran with no crash.
+- PC: `-glescompat` eyeshots one pass vs gather: mean |d| 0.035/255 (blood's randomness); smoke runs (ES and PC, map
+  changes) clean. Scripts (not committed): `scratch/qfov3_*` (mk, ab3, trace, pc, diff, fresh.cfg), `qp_run.sh` now
+  also accepts the Quick Actions menu in front.
+## zancle3: the last std:: in our code, vr_zancle_math_test retired (agent/zancle3, 2026-11-23)
+
+His list of 2026-11-23 (ZANCLE.md has the mapping rows). Zancle changes on its branch `qvr/zancle3` (worktree
+`C:\OHWorkspace\SFML-qvr`, off `2f8a1ca5`, not pushed), vendored (external/zancle/README.md names the commits):
+- **`<new>`**: `Zancle/Base/FwdStdNew.hpp` (db1a6af6) forward-declares `std::nothrow_t`, `std::nothrow` and the nothrow
+  allocation functions (`std::align_val_t` from FwdStdAlignedNewDelete.hpp) in plain `namespace std`, as MSVC's
+  vcruntime_new.h, libstdc++'s `<new>` and libc++'s (its "purposefully not using versioning namespace", NDK 27 checked)
+  all do: so replacement `operator new`/`delete` written with them still replace the library's, and `<new>` may come
+  before or after. `za::AlignValT`/`za::NothrowT` aliases. Zancle tests: the header alone (nothrow and aligned
+  allocations, `std::nothrow` the library's object), and with `<new>` in both orders. vr_alloccount/vr_allocsites use it.
+- **Wall clock**: `za::Clock::nowUnixNanoseconds()` (99163ba2; GetSystemTimePreciseAsFileTime / clock_gettime
+  REALTIME, tested against system_clock): `wallMs` in vr_mptest/vr_voicechat (the mp_ lines' `t=` still epoch ms).
+- **vr_zancle_math_test** retired: what Zancle's tests lacked (bit-for-bit against std on edge values, min/max folds
+  against std's, clamp, fmod/remainder and the angle wrap, stableSort/nthElement against std) is Zancle's
+  `test/Base/MathAgainstStd.test.cpp` (e1737e7a). The file, its registration, Debug menu row (menu_paths.txt
+  regenerated) and allowlist row went.
+- Zancle's tests were built and run without CMake (its CPM fetches dependencies): kit-less script
+  `scratch/zancle3_ztest.sh <test files>` (clang-cl, the Tst runner and the core sources): 7 cases, 10,059 assertions,
+  0 failed (FwdStdNew x3, MathAgainstStd, Clock, SourceLocation, ChunkedVector).
+- **Our code**: `.inc` std math -> za (the std_uses check scans `.inc` now: Tools/qvr_checks/std_uses.cpp, one line);
+  `za::InitializerList` (vr_imgprefetch); `za::SourceLocation` (vr_jobs, Tracy builds); `za::ChunkedVector` for
+  vr_tracy's QC zone names/locations (stable addresses); vr_motion_review's three `std::map`s -> ankerl maps with
+  `qza::sortedByKey` where written (eval_status.csv, reviewed.csv: the names' order, as before) and for the stamp
+  lookup (of two verdicts with one stamp the later name's, as before); not vectors of pairs (hundreds to thousands of
+  takes, a lookup per take each scan); the takes' pointers into them are set again by the scan every change is
+  followed by (`changed()`).
+- **size_t**: every `size_t`/`std::size_t` in our C++ (Quake/vr .cpp/.hpp/.inc, not external/ or doom/) -> `za::SizeT`
+  (2,094 uses in 215 files, code only: comments and strings untouched; `Zancle/Base/SizeT.hpp` added to 172 files);
+  `<stdlib.h>`/`<stddef.h>` dropped in 6 files using nothing else of theirs. C files and the C headers they share keep
+  `size_t` (the same type). vr_playerhit.cpp: `Zancle/Base/Memset.hpp` (a no-PCH failure already on origin/next).
+- **Counts** (`qvr_checks std_uses --list`): std:: 95 -> 0 (40 outside vr_zancle_diag.cpp), standard headers 10 -> 0;
+  the allowlist has no rows left.
+- **Tests**: Release build 0 warnings each phase; check_nopch.sh ok; Android native build compiles; Release-Tracy
+  compile of vr_jobs, vr_tracy, vr_imgprefetch, vr_alloccount (MSBuild ClCompile into scratch); smoke e1m1:
+  vr_alloc_test PASS, vr_heap test PASS, vr_voicechat_selftest 24/0; mp_test mp_prefs 12/0 (`t=` epoch ms checked).
+## qvrcheckszancle: Tools/qvr_checks on Zancle (agent/qvrcheckszancle, 2026-11-23)
+
+- The build's source checker uses Zancle as the engine does: `za::String`/`za::StringView`/`za::Vector`, ankerl dense
+  maps and sets (`Tools/qvr_checks/maps.hpp`; ordered walks through `qza::sortedByKey`, vr_zancle.hpp, or
+  `sortedItems`), `za::Pair`/`za::Optional`/`za::Array`, `za::quickSort`/`za::stableSort`, `za::min`/`za::max`,
+  `za::Thread`, `za::Clock`, `ZA_MEMCPY`/`ZA_MOVE`/`ZA_FORWARD`, `za::toString`. Files are read and written with the C
+  stdio (`_wfopen`), the child processes' command lines are `za::Vector<wchar_t>`. The project is C++23
+  (`/clang:-std=c++23`, as zancle.vcxproj), `ZA_STATIC`, and compiles Zancle's Abort, Assert, Clock, Thread and String
+  sources (winmm for the clock).
+- Kept from std (ZANCLE.md's kept list): `<regex>` (over `const char*` ranges), `std::filesystem` and its
+  `std::error_code`, `<format>` (common.hpp's `fmt`/`appendFmt`/`Out::line` format into a `za::String`;
+  `std::formatter`s for Zancle's strings) and `std::exception` (main.cpp's catch).
+- `qvr_checks std_uses` scans `Tools/qvr_checks/*.cpp|hpp` too; its rows in `Misc/quakevr/std_uses_allowlist.txt` are
+  named `Tools/qvr_checks/<file>` (37 rows, each with its why).
+- Same output: every check (`all`, `statics` with files, `test_numbers [--list]`, `builtins`, `toolgun_weapons`,
+  `cvars_qc --check`, `canonical` and `--list` of all 24 families and an unknown one, `release_qc`, `qc_precedence`,
+  `progs_format`, `fgd --check`, `help`) printed byte-identical output and exit codes before and after on the same
+  tree; only `std_uses` differs (the new rows). `canonical --tighten` lowers the same 4 lines as before. The one change
+  on a pathological input: a number too long for 64 bits saturates instead of std::stoll's throw (the "check crashed"
+  line).
+- Full rebuild (`-t:Rebuild -m`, the machine busy, so noisy): before 13.2-21.9 s (3 runs: 17.7, 21.9, 13.2), after
+  17.9-25.5 s (21.1, 17.9, 23.0, 25.5): about the same to a few seconds more (five Zancle sources and the dense map's
+  header beside the std headers that stay: regex, format, filesystem). An edit rebuilds only its file.
+## qfov4: High foveation was never slower; the game's refocus removed; the Quest 3's Standalone takes High (branch agent/qfov4, 2026-11-23)
+
+His ask: why higher Quest Foveation levels were slower than Low (qfov3), and whether the cause also costs Low. Two headset
+blocks (16:11-16:45; the frozen gib fight, his config, retro off; beta2's APK and the shipped progs.dat back after each).
+- **It was the measurement.** qfov3's interleaved parts ran H after R (`vr_xr_foveation_refocus 1`), and the game's focal
+  points stay on an image once set (the same level takes no new swapchains, nothing reads the runtime's points back): that
+  H was R. qfov3's own clean H parts were its fastest (12.97, 13.18 ms). Clean (every part on new swapchains), GPU median
+  of 3 launches: none 18.15/16.64/17.54, Low 14.87/15.19/14.21, Medium 14.37/14.70/14.94, **High 14.10/12.90/13.33**,
+  High + dynamic 14.47/13.89/13.58; refocused Low/Medium/High 17.1-18.2 / 16.3-17.3 / 16.0-17.2 (as none).
+- **What the levels are** (`ovrgpuprofiler -t`, each bin's Fov scale): the driver foveates by whole bins, 864 x 448 of the
+  1680 x 1760 image (8; the size comes from the colour + D24S8 bytes, not the level), each at 1/1, 2/1 or 2/2, reduced
+  neighbours merged into one bin (min density 0.25 at every level). At 0.65 the eye covers 2 x 2.55 bins: Low and Medium
+  are the same bins (only the top strip, and the right eye's right strip, at 2/2); High also reduces the left eye's right
+  strip (2/1 and 2/2): ~0.8 ms. The bottom two rows (78% of the height: floor, your body, the gore; 4-5 fragments a
+  pixel) stay full at every level: one 864 x 448 bin there is 2.2-3.5 ms an eye, 42% of the frame.
+- **The focal point**: the runtime already centres on the rect submitted: the full bins follow the drawn part (rows 0-896
+  at 0.65, 448-1344 at 0.78 and 0.9). The
+  game's refocus (guessed gains, milder than the runtime's) left all six of the left eye's bins at 1/1: hence 2-3 ms
+  slower. **`vr_xr_foveation_refocus` is removed** (cvar, `refocusImage`, its two Debug > Profiling rows).
+- **Render scale and level** (block 2, 3 launches): High at 0.65 13.26/13.21/13.13, **at 0.78 13.00/13.14/12.76** (the
+  bottom bin row turns 2/2 there: 44% more pixels for nothing), at 0.9 14.58/15.16/14.68; **Low at 0.9
+  25.04/24.74/23.91** (next to nothing reduced: the pattern scales with the rect), Low at 0.65 14.09/14.12/13.78. Late
+  frames (>13.9 ms) at 0.65: Low 63-72%, High 57-60%.
+- **Ruled out, with the trace's counters**: bin size or count rising with the level (fewer bins at higher levels: 8
+  rendered with none, 5 + 4 at any level); overdraw rising with the level (the same fragments in a full bin at none,
+  Low, Medium, High); texture bandwidth (a 2/2 bin reads ~3x the texture bytes a fragment, the mip as at full size,
+  but less in all; texture stall 1-6%, non-base mips 0-27%); the framebuffer fetch (one Render stage a bin, no load);
+  the dynamic level (the trace shows High's bins while the GPU is busy).
+- **Found on the way, not fixed** (each costs Low too): (1) LRZ kills nothing in any path (LRZ Pixels Killed 0 through
+  the post-process, 952 pixels in a whole straight-in trace): cause unknown (reversed Z with clip control, the equal
+  test after the depth pre-pass, stencil?); try `-noclipcontrol` under a trace first. (2) Straight in shades twice the
+  fragments of the post-process path (3.9 vs 1.9 a pixel): the in-tile pass (+1 a pixel; his config needs it only for
+  `vr_dither`; without it High is 12.75/12.88/12.98: 0.15-0.5 ms) and the particles at full size (~0.1-0.3 ms here).
+  (3) A bin costs ~0.25-0.3 ms however few fragments. (4) The eye sits in the image's lower left corner, so only its
+  top and right edges are ever reduced at 0.65, and the bottom third at 0.78-0.9: drawing it centred on the bin grid
+  (an offset rect) would make the reduction symmetric; it needs the viewport's origin carried through the eye's passes.
+- **Default**: Standalone's `vr_xr_foveation` 3 (High) in the Quest 3's two columns, 1 kept in the Quest 2's (its bins
+  never measured). Eyeshots (pulled; crops at 2x): High at 0.65 (the left eye's lower right, 2/2) and at 0.9 (the right
+  eye's right column, 2/2) show the floor's and walls' texels with no blocks over them; model edges a little more
+  stepped. With dynamic resolution on, High lets the scale sit higher for the same GPU time.
+- PC: Release build, 0 warnings; e1m1 smoke (the removed cvar unknown, as meant); `vr_standalone_preset 0/1/2` gives
+  3/3/1. APK built (0 warnings, check_apk 20/0) and run on the headset through both blocks with no crash (level,
+  dynamic and scale changes mid-game). Scripts (not committed): `scratch/qfov4_*` (mk, trace, bins.py, ab3, block1/2,
+  crop.py), questperf's `qp_*`.
+
+## frameport: the Steam Frame pieces of PR #75, by Kasper Olesen (agent/frameport, 2026-11-23)
+
+Three pieces of kblood's Steam Frame port (PR #75), brought into `next` with his credit (docs/vr-port/CREDITS.md,
+"Contributors"; the rest of the PR is superseded or left out: the investigation in the kit's `pr75_report.md`).
+
+- **The Steam Frame's controller profile** (`XR_VALVE_frame_controller_interaction`,
+  `/interaction_profiles/valve/frame_controller_valve`): his commit (linuxtest 6a9325783e), his authorship kept, moved
+  to `vr_backend_openxr_actions.cpp`. One of the vendor profiles (`vr_xr_vendor_profiles`, `VendorFrame`): A/B on the
+  right, the left d-pad's down/up as X/Y, the menu on the left view or the right menu button, 30 bindings. Added to
+  `fullProfiles` (no limited-controls warning). One OpenXR backend serves the PC, Linux and the Quest/Android builds.
+- **`-vr-hide-mirror`**: linuxtest c77e62d815 cherry-picked (its Co-authored-by kept). The desktop window is never
+  shown; it counts as focused (every present made, no "not focused" warning) and, on `next`, as not visible
+  (`windowNotVisible`: the spectator camera skipped). Presents still happen (a glFlush in place of the swap lost the
+  Adreno device in his tests).
+- **`XR_EXT_user_presence`** (`vr_xr_user_presence` 1, Advanced > Headset > Headset Taken Off): re-done on our code from
+  his 7d0ba78904. Enabled when offered; used when the system has the sensor (logged in qvr_openxr.txt). The headset off
+  counts as the runtime's menu: the frame held (`vr_xr_unfocused`), a single player game paused
+  (`vr_xr_unfocused_pause`, "VR: the headset was taken off" / "is back on"), the controllers' input zeroed; the
+  height calibration waits ("Put on your headset to calibrate."). Differences from the PR: worn until the runtime says
+  otherwise (his waited for the first event: a runtime that never sends one would have stayed paused); poses kept
+  (the input zeroed and the frame held are enough); `vr_debug_head_pose` 1 (unworn GPU tests) ignores it.
+- **Tests**: fakexr `FAKEXR_UNWORN a-b` (the presence event and the sensor property). xr_runtime_test.sh section 9
+  (the Frame profile enabled, suggested, 30 bindings, played as it, no warning) and the new section 11 (paused for 100
+  host frames with the game time still, 100 frames held, resumed; `vr_xr_user_presence 0` plays on): 0 failed; section
+  5 (the runtime's menu pause) unchanged, 0 failed. `-vr-hide-mirror` with `-Visible`: `vr_debug_window` says hidden,
+  not visible.
+- **Not verified**: a real Steam Frame (no device) and a real runtime's presence events (SteamVR, Meta).
+## cltidy4: ticked lines retired, [New] sorted, sections reordered (agent/cltidy4, 2026-11-23)
+
+Checklist 223 -> 157 lines; no scene retired; details in CHECKLIST_REORG.md, "fourth pass". checklist_tests_check 99 passed, 0 failed.
+
+## userpresence: unmanned runs ignore the headset taken off (agent/userpresence, 2026-11-23)
+
+- **The Quest offers it**: its runtime lists `XR_EXT_user_presence` (the qfov logcats, 2026-11-23); since frameport the
+  game enables it, and a headset lying on a desk (the proximity sensor uncovered) may be reported unworn, which paused a
+  single player game and held the frame: an unmanned perf run would have stalled to its timeout. Not seen on the device
+  (no headset use): Meta's runtime may never send it while `prox_close` is in force.
+- **Ignored for automated runs** (`OpenXrBackend::presenceIgnored`, vr_backend_openxr_frame.cpp; `userPresent`, so the
+  input zeroing, the held frame, the pause and the height calibration's wait all follow it): `vr_xr_user_presence` 0,
+  `vr_debug_head_pose` 1, the new launch flag `-vr-unattended`, a timedemo, `vr_fixed_frames` 1 (every run.sh run). Logged
+  with the reason in qvr_openxr.txt and the console ("VR: the headset was taken off, ignored (...)": logcat on the Quest).
+  Players keep `vr_xr_user_presence` 1 as it was; no archived setting is touched.
+- **Quest scripts**: none are kept in the repo (the qp_* ones live in agents' scratch); QUEST_PLAN.md now says every
+  unmanned launch passes `-noconfigwrite -vr-unattended`.
+- **Tests**: xr_runtime_test.sh section 11: the paused run is a player's session now (`vr_fixed_frames 0`); new runs, an
+  unworn fake headset under a scripted run (fixed frames) and under `-vr-unattended` (`vr_fixed_frames 0`), play on and
+  log their reason: 8 passed, 0 failed.

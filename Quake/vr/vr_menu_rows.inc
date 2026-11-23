@@ -5000,6 +5000,11 @@ QVR_CYCLE(vr_xr_unfocused_pause, "Runtime Menu Pauses",
     {1.f, "Pause the Game"}, {0.f, "Keep Running"})
 QVR_SLIDER(vr_xr_unfocused_volume, "Runtime Menu Volume", 0.f, 1.f, 0.1f, "%.1f", noExt,
     "The game's sounds while the runtime's menu pauses it: 0 silent, 1 unchanged. The music pauses.")
+QVR_CYCLE(vr_xr_user_presence, "Headset Taken Off",
+    "Where the headset can tell it is worn (the Steam Frame, SteamVR): taking it off acts as the runtime's menu does "
+    "(the view frozen, a single player game paused as Runtime Menu Pauses says) and the controllers press nothing until "
+    "it is back on; or the game plays on. From Kasper Olesen's Steam Frame port.",
+    {1.f, "Pause as the Runtime Menu"}, {0.f, "Keep Playing"})
 QVR_CYCLE(vr_xr_exit_quits, "Exit From Runtime Menu",
     "Exiting the game from the runtime's own menu (SteamVR's dashboard, Virtual Desktop's or Meta's): the game "
     "quits, your settings saved; or it keeps running flat on the desktop (Restart VR brings the headset back).",
@@ -5007,7 +5012,7 @@ QVR_CYCLE(vr_xr_exit_quits, "Exit From Runtime Menu",
 QVR_TOGGLE(vr_xr_late_acquire, "Late Image Acquire",
     "Each eye's headset image is taken from the runtime only once its scene is drawn, so the runtime's wait for it (SteamVR copying the last one out) overlaps the drawing. Off: before the scene, the old way, to compare.")
 QVR_TOGGLE(vr_xr_vendor_profiles, "Vendor Controller Profiles",
-    "Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2 and Samsung Odyssey controllers get their own buttons, "
+    "Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2, Samsung Odyssey and Steam Frame controllers get their own buttons, "
     "menu button included, when the runtime offers them. Off: they go as the runtime emulates them (the "
     "1.0.0 way, if your hands' angle changed). From the next VR start.")
 QVR_TOGGLE(vr_alias_prepass_world, "World Models Pre-pass",

@@ -42,6 +42,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_weaponvalues.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -4041,7 +4042,7 @@ int drawGroup(const entity_t* e)
     }
     struct Range
     {
-        size_t first, count;
+        za::SizeT first, count;
         int group;
     };
 #define QVR_DRAW_RANGE(member, group) \
@@ -4066,7 +4067,7 @@ int drawGroup(const entity_t* e)
     // Every member in a range (the heavy revolver's parts were not: drawn as OTHER, flatscreen play's model FOV missed them).
     static_assert(
         [] {
-            size_t total = 0;
+            za::SizeT total = 0;
             for(const Range& r : ranges)
             {
                 total += r.count;
@@ -4074,7 +4075,7 @@ int drawGroup(const entity_t* e)
             return total;
         }() == sizeof(Entities) / sizeof(ViewEntity),
         "drawGroup: a member of Entities has no draw group");
-    const size_t index = static_cast<size_t>(p - first) / sizeof(ViewEntity);
+    const za::SizeT index = static_cast<za::SizeT>(p - first) / sizeof(ViewEntity);
     for(const Range& r : ranges)
     {
         if(index >= r.first && index < r.first + r.count)

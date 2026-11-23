@@ -384,25 +384,35 @@ if want 9; then
 # extension enabled and its profile's bindings suggested (with its menu button); vr_xr_vendor_profiles 0: none asked;
 # a runtime turning a path down (FAKEXR_REJECT_PATH): the profile's basic bindings, without the menu button.
 VEXT="XR_BD_controller_interaction,XR_HTC_vive_cosmos_controller_interaction,XR_HTC_vive_focus3_controller_interaction"
-VEXT="$VEXT,XR_EXT_hp_mixed_reality_controller,XR_EXT_samsung_odyssey_controller"
+VEXT="$VEXT,XR_EXT_hp_mixed_reality_controller,XR_EXT_samsung_odyssey_controller,XR_VALVE_frame_controller_interaction"
 LOG="$OUT/vendor_fake.log"; : > "$LOG"
-export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_HEADSET=fakexr_steam FAKEXR_EXTENSIONS="$VEXT"
+# (The hands played as the Steam Frame's controllers: the Frame's profile is a full one, no limited-controls warning.)
+export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_HEADSET=fakexr_steam FAKEXR_EXTENSIONS="$VEXT" FAKEXR_PROFILE=frame_controller_valve
 S="vr_xr_test 1;vr_xr_runtime 2;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe"
 bash "$KIT/run.sh" "$NAME" -Script "$S;vr_backend openxr;wait30;toggleconsole;quit" -Full -Filter "OpenXR: started" > "$OUT/vendor.log"
+unset FAKEXR_PROFILE
 cp -f "$XRLOG" "$OUT/vendor_openxr.txt"
 check "$OUT/vendor_openxr.txt" "vendor profiles: each extension enabled" "XR_BD_controller_interaction controller profile enabled" \
     "XR_HTC_vive_cosmos_controller_interaction controller profile enabled" "XR_HTC_vive_focus3_controller_interaction controller profile enabled" \
-    "XR_EXT_hp_mixed_reality_controller controller profile enabled" "XR_EXT_samsung_odyssey_controller controller profile enabled"
+    "XR_EXT_hp_mixed_reality_controller controller profile enabled" "XR_EXT_samsung_odyssey_controller controller profile enabled" \
+    "XR_VALVE_frame_controller_interaction controller profile enabled"
 check "$OUT/vendor_openxr.txt" "vendor profiles: each one's bindings suggested" "bindings suggested for /interaction_profiles/bytedance/pico_neo3_controller" \
     "bindings suggested for /interaction_profiles/bytedance/pico4_controller" "bindings suggested for /interaction_profiles/htc/vive_cosmos_controller" \
     "bindings suggested for /interaction_profiles/htc/vive_focus3_controller" "bindings suggested for /interaction_profiles/hp/mixed_reality_controller" \
-    "bindings suggested for /interaction_profiles/samsung/odyssey_controller" "OpenXR: started"
+    "bindings suggested for /interaction_profiles/samsung/odyssey_controller" "bindings suggested for /interaction_profiles/valve/frame_controller_valve" \
+    "OpenXR: started"
 check "$LOG" "vendor profiles: the runtime got them" "pico_neo3_controller: 29 bindings" "pico4_controller: 29 bindings" \
     "vive_cosmos_controller: 23 bindings" "vive_focus3_controller: 27 bindings" "hp/mixed_reality_controller: 22 bindings" \
-    "samsung/odyssey_controller: 22 bindings"
+    "samsung/odyssey_controller: 22 bindings" "valve/frame_controller_valve: 30 bindings"
+# The Steam Frame's (from PR #75, by Kasper Olesen): its buttons as the game's, the menu on the left view button.
+check "$LOG" "Steam Frame: played as its own profile, its buttons bound" \
+    "played as /interaction_profiles/valve/frame_controller_valve, bound: .*left/input/dpad_down/click.*right/input/a/click.*left/input/view/click"
+check "$OUT/vendor_openxr.txt" "Steam Frame: the hands' profile said" "hand's controller profile: /interaction_profiles/valve/frame_controller_valve"
+if grep -q "WARNING: OpenXR: the runtime plays" "$OUT/vendor_openxr.txt"; then echo "FAIL: Steam Frame: the limited-controls warning"; fails=$((fails + 1))
+else echo "PASS: Steam Frame: a full profile, no limited-controls warning"; fi
 : > "$LOG"
 bash "$KIT/run.sh" "$NAME" -Script "$S;vr_xr_vendor_profiles 0;vr_backend openxr;wait30;toggleconsole;quit" -Full -Filter "OpenXR: started" > "$OUT/vendor0.log"
-if grep -q "bytedance\|vive_cosmos\|vive_focus3\|hp/mixed\|samsung" "$LOG"; then echo "FAIL: vr_xr_vendor_profiles 0 still asked for a vendor profile"; fails=$((fails + 1))
+if grep -q "bytedance\|vive_cosmos\|vive_focus3\|hp/mixed\|samsung\|frame_controller" "$LOG"; then echo "FAIL: vr_xr_vendor_profiles 0 still asked for a vendor profile"; fails=$((fails + 1))
 else echo "PASS: vr_xr_vendor_profiles 0: no vendor profile asked"; fi
 : > "$LOG"
 export FAKEXR_EXTENSIONS=XR_BD_controller_interaction FAKEXR_REJECT_PATH=left/input/menu/click
@@ -483,6 +493,52 @@ check "$OUT/end_loss.log" "loss: flat, said why" "VR: openxr session lost: playi
 check "$OUT/end_loss_openxr.txt" "loss: the states" "session loss pending" "VR: the session's last states: .*FOCUSED > LOSS_PENDING$"
 check "$OUT/end_instanceloss.log" "instance loss: flat, said why" "VR: openxr session lost: playing flat" "VR: stopping openxr backend" "STILLRUNNING"
 check "$OUT/end_instanceloss_openxr.txt" "instance loss: the states" "instance loss pending" "VR: the session's last states: .*FOCUSED > INSTANCE_LOSS_PENDING$"
+fi
+if want 11; then
+# 11. The headset taken off (XR_EXT_user_presence, vr_xr_user_presence; from PR #75, by Kasper Olesen): the runtime
+# offers the extension, its system the sensor; the headset off for xrWaitFrame 200-300 (FAKEXR_UNWORN): a single player
+# game paused as by the runtime's menu, the frames held, resumed once it is back on (the run ends there: -QuitOn);
+# vr_xr_user_presence 0: the game plays on (ends at its own quit, wait1000 after the map: the headset back on by then).
+# The paused run is a player's session: vr_fixed_frames 0 (a scripted run's vr_fixed_frames 1 ignores the sensor).
+# Unmanned runs (a headset on a desk) play on with vr_xr_user_presence 1: a scripted test (run.sh's vr_fixed_frames 1)
+# and -vr-unattended (the Quest's perf scripts) with vr_fixed_frames 0; each logs why it ignored the sensor.
+LOG="$OUT/presence_fake.log"; : > "$LOG"
+export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_HEADSET=fakexr_steam FAKEXR_EXTENSIONS=XR_EXT_user_presence FAKEXR_UNWORN=200-300
+unset FAKEXR_FAIL_INSTANCE FAKEXR_D3D11 FAKEXR_EYE FAKEXR_UNFOCUS FAKEXR_REJECT_PATH FAKEXR_PROFILE
+P="vr_xr_test 1;vr_xr_runtime 0;vr_xr_runtime_fallback 0;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe;vr_xr_unfocused_pause 1;vr_xr_unfocused 1"
+bash "$KIT/run.sh" "$NAME" -Script "$P;vr_fixed_frames 0;vr_xr_user_presence 1;vr_backend openxr;map start;wait3000;echo presence: timed out;toggleconsole;quit" \
+    -Full -QuitOn "VR: the game resumed|presence: timed out" -Filter "VR: the|session lost|presence" > "$OUT/presence_on.log"
+cp -f "$XRLOG" "$OUT/presence_on_openxr.txt"
+bash "$KIT/run.sh" "$NAME" -Script "$P;vr_xr_user_presence 1;vr_backend openxr;map start;wait1000;toggleconsole;quit" \
+    -Full -Filter "VR: the|session lost|presence" > "$OUT/presence_scripted.log"
+cp -f "$XRLOG" "$OUT/presence_scripted_openxr.txt"
+bash "$KIT/run.sh" "$NAME" -Script "$P;vr_fixed_frames 0;vr_xr_user_presence 1;vr_backend openxr;map start;wait1000;toggleconsole;quit" \
+    -ExtraArgs "-vr-unattended" -Full -Filter "VR: the|session lost|presence" > "$OUT/presence_unattended.log"
+cp -f "$XRLOG" "$OUT/presence_unattended_openxr.txt"
+for run in scripted:"a scripted run, vr_fixed_frames 1" unattended:"-vr-unattended, an unmanned run"; do
+    tag=${run%%:*} why=${run#*:}
+    check "$OUT/presence_${tag}.log" "user presence: $why: ignored, the game plays on" \
+        "VR: the headset was taken off, ignored \($why\)"
+    if grep -q "VR: the game paused\|VR: the headset was taken off$" "$OUT/presence_${tag}.log"; then
+        echo "FAIL: user presence: $why: paused"; fails=$((fails + 1))
+    fi
+done
+check "$OUT/presence_unattended_openxr.txt" "user presence: -vr-unattended logged at the start" \
+    "OpenXR: user presence \(XR_EXT_user_presence\): on: .*; ignored for this run \(-vr-unattended\)"
+bash "$KIT/run.sh" "$NAME" -Script "$P;vr_xr_user_presence 0;vr_backend openxr;map start;wait1000;toggleconsole;quit" \
+    -Full -Filter "VR: the|session lost|presence" > "$OUT/presence_off.log"
+cp -f "$XRLOG" "$OUT/presence_off_openxr.txt"
+unset FAKEXR_HEADSET FAKEXR_EXTENSIONS FAKEXR_UNWORN
+check "$OUT/presence_on_openxr.txt" "user presence: the extension and the sensor" "OpenXR: user presence \(XR_EXT_user_presence\): on"
+check "$OUT/presence_on.log" "user presence: the headset off pauses the game, back on resumes it" "VR: the headset was taken off$" \
+    "VR: the game paused at [0-9.]+ s" "VR: the headset is back on" "VR: the game resumed after [0-9.]+ s, [0-9]+ frames: game time ([0-9.]+) -> \1;"
+check "$OUT/presence_on_openxr.txt" "user presence: the frames held while off" "user presence: the headset taken off$" \
+    "user presence: the headset back on \((9[0-9]|10[0-9]) frames held while off\)"
+if grep -q "^presence: timed out" "$OUT/presence_on.log"; then echo "FAIL: user presence: timed out"; fails=$((fails + 1)); fi
+check "$OUT/presence_off_openxr.txt" "vr_xr_user_presence 0: the event logged, ignored" \
+    "user presence: the headset taken off \(ignored: vr_xr_user_presence 0" "user presence: the headset back on \(0 frames held"
+if grep -q "VR: the game paused\|VR: the headset was taken off$" "$OUT/presence_off.log"; then echo "FAIL: vr_xr_user_presence 0: paused"; fails=$((fails + 1))
+else echo "PASS: vr_xr_user_presence 0: the game plays on"; fi
 fi
 echo "xr_runtime_test: $fails failed"
 exit $((fails > 0))

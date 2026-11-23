@@ -988,9 +988,6 @@ za::Vector<Item> pageDebugAutomation()
         command("Physics Threads Determinism", "vr_physics_mtbench 300 300 chains")
             .help("vr_physics_mtbench 300 300 chains: a physics world of its own (boxes and ragdoll-like jointed "
                   "chains) stepped from the same start with 1, 2, 3, 4 ... threads: the same hash with every count."),
-        command("Zancle Math Self-Test", "vr_zancle_math_test")
-            .help("vr_zancle_math_test: Zancle's math (and the angle wrap) against the standard library's on edge values "
-                  "(signed zeros, halves, wrap angles, infinities, NaN), to the last bit; one line."),
         command("SHA-256 Self-Test", "vr_sha256_test")
             .help("vr_sha256_test: the SHA-256 that checks each Map Library download against its index, on the standard "
                   "test vectors (FIPS 180-2's, a million a's, the padding's edges); one line."),

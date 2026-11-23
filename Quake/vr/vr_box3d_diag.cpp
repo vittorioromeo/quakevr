@@ -14,6 +14,7 @@
 #include "vr_srvrandom.hpp"
 #include "vr_units.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -88,9 +89,9 @@ void hash_f()
     int count = 0;
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "ragdolls"))
     {
-        const auto mix = [&h](const void* data, size_t size) {
+        const auto mix = [&h](const void* data, za::SizeT size) {
             const auto* bytes = static_cast<const unsigned char*>(data);
-            for(size_t i = 0; i < size; i++)
+            for(za::SizeT i = 0; i < size; i++)
             {
                 h = (h ^ bytes[i]) * 1099511628211ull;
             }
@@ -130,7 +131,7 @@ void hash_f()
         }
         const glm::vec3 v[4] = {vec(e->v.origin), vec(e->v.angles), vec(e->v.velocity), fieldVec(e, fields().vr_spin)};
         const auto* bytes = reinterpret_cast<const unsigned char*>(v);
-        for(size_t i = 0; i < sizeof(v); i++)
+        for(za::SizeT i = 0; i < sizeof(v); i++)
         {
             h = (h ^ bytes[i]) * 1099511628211ull;
         }
@@ -335,7 +336,7 @@ void shapes_f()
     edict_t* player = progs::playerEdict();
     for(int h = 0; h < 2; h++)
     {
-        const World::HandBody& hb = world->hands[1][static_cast<size_t>(h)];
+        const World::HandBody& hb = world->hands[1][static_cast<za::SizeT>(h)];
         if(B3_IS_NULL(hb.reach) || hb.key.what != World::ReachKey::Weapon)
         {
             continue;
@@ -640,8 +641,8 @@ void portalInfo_f()
     }
 }
 
-void* heapAllocate(size_t size, int32_t alignment) { return VR_HeapAlignedAlloc(size, static_cast<size_t>(alignment)); }
-void heapFree(void* p, size_t) { VR_HeapAlignedFree(p); }
+void* heapAllocate(za::SizeT size, int32_t alignment) { return VR_HeapAlignedAlloc(size, static_cast<za::SizeT>(alignment)); }
+void heapFree(void* p, za::SizeT) { VR_HeapAlignedFree(p); }
 
 // vr_gun_pieces_cache_stats: the guns' pieces this session, read from the disk or cut (Debug > Profiling and Memory).
 void gunPiecesCacheStats_f()

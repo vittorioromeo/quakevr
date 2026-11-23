@@ -400,7 +400,7 @@ struct Body
     bool tooBig{false};
 };
 
-size_t writeChunk(void* buffer, size_t size, size_t nmemb, void* stream)
+za::SizeT writeChunk(void* buffer, za::SizeT size, za::SizeT nmemb, void* stream)
 {
     Body& body = *static_cast<Body*>(stream);
     const za::SizeT n = size * nmemb;

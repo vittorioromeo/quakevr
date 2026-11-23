@@ -271,6 +271,7 @@ int VR_AliasBatchPosed (void); // r_alias.c: the world's posed models batched, t
 int VR_AliasDepthPrepass (const struct entity_s *e); // r_alias.c: e drawn into the eye's depth before it is shaded (your body and its mirror image, the world's models)
 int VR_WorldLitSkip (void); // r_world.c: the split by surface draws only the lit commands a reaching light can fill (vr_gl_world_lit_skip, C4w)
 int VR_WorldPrepass (void); // r_world.c: the opaque world and brush models' depth drawn before their shading (vr_world_prepass)
+int VR_GLOnePass (void); // r_world.c: OpenGL ES's brush models drawn without the gather's compute (vr_gl_one_pass, qfov3)
 int VR_AliasDebugHidden (const struct entity_s *e); // r_alias.c: e is left out of the eyes' views (vr_debug_hide_models, Debug > Profiling)
 int VR_AliasOpaqueForm (const struct entity_s *e); // r_alias.c: e's opaque draw may use glprogs.alias_opaque (vr_gl_alias_opaque on, e not morphing)
 int VR_AliasPlayerFirst (const struct entity_s *e); // gl_rmain.c: e (opaque) is your own (hands, body, held, holstered, worn), drawn before the world (vr_alias_player_first)

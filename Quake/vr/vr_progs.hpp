@@ -21,6 +21,7 @@ struct FieldOffsets
 {
 #define QVR_FIELD(name) int name{-1};
 #include "vr_fields.inc"
+#include "Zancle/Base/SizeT.hpp"
 #undef QVR_FIELD
 };
 
@@ -433,7 +434,7 @@ void grappleTaut(edict_t* p, edict_t* h, int hand, float speed);
 // is none. For the engine's reads of QC constants it must not copy (design review 10: vr_agpose.cpp's qcConstants[]).
 bool globalVec(const char* name, glm::vec3& out);
 
-inline void qcText(char* dst, size_t size, func_t fn, float a = 0.f)
+inline void qcText(char* dst, za::SizeT size, func_t fn, float a = 0.f)
 {
     const char* s = callQc(fn, a) ? PR_GetString(G_INT(OFS_RETURN)) : "";
     q_strlcpy(dst, s ? s : "", size);

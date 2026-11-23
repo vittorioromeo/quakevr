@@ -621,6 +621,12 @@ GLuint gl_bmodel_marksurf_buffer_size = 0;
 GLuint gl_bmodel_vertcmd_buffer = 0;
 int *gl_bmodel_cmdcap = NULL;
 int gl_bmodel_numcmds = 0;
+// QVR: the bound path's copy of the indirect commands as made (qfov3: the brush models' never change; the world's and
+// the lit ones are the cull's, and only their firstIndex holds here), gl_bmodel_cmds_count of them: r_world.c's draws
+// without the gather (vr_gl_one_pass) take a multi-instance call's command from it
+bmodel_draw_indirect_t *gl_bmodel_cmds = NULL;
+int gl_bmodel_cmds_count = 0;
+int gl_bmodel_buildserial = 0; // QVR: counts the commands' builds and deletes (r_world.c's kept merge plans: another map's)
 // QVR: the world's lit commands (C4v, under the ES profile only; vr_gl_world_unlit 2): a second command for each of the
 // world's solid and fence textures, after every other command, whose indices (a copy of the world's ranges after
 // every other index) the GPU's cull fills with the surfaces a dynamic light touches; the first command (-1: none)
@@ -645,6 +651,10 @@ void GL_DeleteBModelBuffers (void)
 	VR_HeapFree (gl_bmodel_cmdcap);
 	gl_bmodel_cmdcap = NULL;
 	gl_bmodel_numcmds = 0;
+	VR_HeapFree (gl_bmodel_cmds); // QVR (qfov3)
+	gl_bmodel_cmds = NULL;
+	gl_bmodel_cmds_count = 0;
+	gl_bmodel_buildserial++;
 	gl_bmodel_litcmd_first = -1; // QVR
 	gl_bmodel_litcmd_count = 0;
 	gl_bmodel_vbo = 0;
@@ -1062,7 +1072,15 @@ void GL_BuildBModelMarkBuffers (void)
 	VR_HeapFree (surfs);
 	VR_HeapFree (mark);
 	VR_HeapFree (idx);
-	VR_HeapFree (cmds);
+	gl_bmodel_buildserial++; // QVR (qfov3)
+	if (!gl_bindless_able) // QVR: kept for the draws without the gather (qfov3)
+	{
+		VR_HeapFree (gl_bmodel_cmds);
+		gl_bmodel_cmds = cmds;
+		gl_bmodel_cmds_count = numtex;
+	}
+	else
+		VR_HeapFree (cmds);
 }
 
 /*
@@ -1107,6 +1125,8 @@ void R_RuntimeBrushUpload (int slot, const void *verts, int numverts, const unsi
 	memset (all, 0, sizeof (all));
 	if (numcmds > 0)
 		memcpy (all, cmds, numcmds * sizeof (all[0]));
+	if (gl_bmodel_cmds && brush_reserve.firstcmd + (slot + 1) * QVR_BRUSH_SLOT_CMDS <= gl_bmodel_cmds_count) // QVR: the copy too (qfov3)
+		memcpy (gl_bmodel_cmds + brush_reserve.firstcmd + slot * QVR_BRUSH_SLOT_CMDS, all, sizeof (all));
 	GL_BindBuffer (GL_SHADER_STORAGE_BUFFER, gl_bmodel_indirect_buffer);
 	GL_BufferSubDataFunc (GL_SHADER_STORAGE_BUFFER, (GLintptr) ((brush_reserve.firstcmd + slot * QVR_BRUSH_SLOT_CMDS) * sizeof (all[0])),
 		sizeof (all), all);

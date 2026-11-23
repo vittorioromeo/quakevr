@@ -31,6 +31,7 @@
 #include "thirdparty/imgui/imgui.h"
 
 #include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -217,9 +218,9 @@ int phasePoints(float* out, int most)
 [[nodiscard]] uint32_t dataHash()
 {
     uint32_t h = 2166136261u;
-    const auto mix = [&](const void* p, size_t n) {
+    const auto mix = [&](const void* p, za::SizeT n) {
         const auto* b = static_cast<const unsigned char*>(p);
-        for(size_t i = 0; i < n; i++)
+        for(za::SizeT i = 0; i < n; i++)
         {
             h = (h ^ b[i]) * 16777619u;
         }
@@ -1209,7 +1210,7 @@ void strikeKeysUi()
         at = keys[i].phase == st.pdPhase ? i : at;
     }
     st.pdPhase = n > 0 ? keys[at].phase : 0;
-    const auto label = [&](char* out, size_t size, int i) {
+    const auto label = [&](char* out, za::SizeT size, int i) {
         const char* name = agpose::phaseName(st.pdPose, keys[i].phase);
         if(timesKnown)
         {

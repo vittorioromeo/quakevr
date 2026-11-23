@@ -41,8 +41,9 @@
 #include "vr_api_render.h"
 
 #include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strncmp.hpp"
-#include <initializer_list>
+#include "Zancle/Base/InitializerList.hpp"
 
 extern "C" unsigned char* Image_DecodeMemory(const unsigned char* bytes, int length, int* width, int* height); // image.c
 
@@ -74,7 +75,7 @@ struct Item
 za::AtomicMutex lock;
 za::Vector<za::UniquePtr<Item>> items;
 za::Vector<qvr::jobs::Future<void>> tasks; // each decodes items until none is left
-size_t next = 0; // the items before it are all claimed
+za::SizeT next = 0; // the items before it are all claimed
 bool active = false;
 
 // The map load's textures (VR_TexturePrefetchBegin to VR_TexturePrefetchEnd, main thread but the counts).
@@ -195,7 +196,7 @@ void spawnTasks()
     {
         {
             za::LockGuard g(lock);
-            size_t n = next;
+            za::SizeT n = next;
             while(n < items.size() && items[n]->claimed)
             {
                 n++;
@@ -271,7 +272,7 @@ bool batchFind(const char* base, bool pbrHash = false)
         }
         else if(length > 0 && qvr::files::identity(f, it->file) && (it->offset = ftell(f)) >= 0)
         {
-            it->bytes.resize(static_cast<size_t>(length));
+            it->bytes.resize(static_cast<za::SizeT>(length));
             if(fread(it->bytes.data(), 1, it->bytes.size(), f) == it->bytes.size())
             {
                 it->name = path;
@@ -310,7 +311,7 @@ bool batchFind(const char* base, bool pbrHash = false)
 }
 
 // The first of `bases` found (its index), or -1.
-int batchFindFirst(std::initializer_list<const char*> bases, bool pbrHash = false)
+int batchFindFirst(za::InitializerList<const char*> bases, bool pbrHash = false)
 {
     int i = 0;
     for(const char* b : bases)
@@ -554,7 +555,7 @@ extern "C" unsigned char* VR_ImagePrefetchTake(const char* name, FILE* f, int le
     else
     {
         const long pos = ftell(f);
-        za::Vector<unsigned char> bytes(static_cast<size_t>(za::max(length, 0)));
+        za::Vector<unsigned char> bytes(static_cast<za::SizeT>(za::max(length, 0)));
         same = length == static_cast<int>(it->bytes.size()) && it->pixels &&
                fread(bytes.data(), 1, bytes.size(), f) == bytes.size() && bytes == it->bytes;
         fseek(f, pos, SEEK_SET);

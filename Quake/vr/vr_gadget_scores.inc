@@ -96,7 +96,7 @@ void scoresPage(const Readout& r, const Palette& pal)
             fill(margin - 3.f, y - 1.f, width - 2.f * margin + 6.f, size + 2.f, pal.dim * 0.55f);
         }
         // Its colours: the shirt over the trousers (as the game's scoreboard).
-        const float half = std::floor(size * 0.5f);
+        const float half = za::floor(size * 0.5f);
         fill(swatchX, y, 14.f, half, playerColour(s.colors & 0xf0));
         fill(swatchX, y + half, 14.f, size - half, playerColour((s.colors & 15) << 4));
 

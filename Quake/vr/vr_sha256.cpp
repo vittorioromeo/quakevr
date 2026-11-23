@@ -5,6 +5,7 @@
 
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
 
@@ -302,7 +303,7 @@ bool fileMatches(const char* path, long size, const char* hex)
     rewind(f);
     Hasher h;
     unsigned char chunk[65536];
-    for(size_t n; ok && (n = fread(chunk, 1, sizeof(chunk), f)) > 0;)
+    for(za::SizeT n; ok && (n = fread(chunk, 1, sizeof(chunk), f)) > 0;)
     {
         h.update(chunk, n);
     }

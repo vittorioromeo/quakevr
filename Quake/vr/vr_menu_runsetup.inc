@@ -245,7 +245,7 @@ za::Vector<Item> pageRunSetup()
         {
             for(int g = 0; g < runSetupGroupCount; g++)
             {
-                const size_t before = items.size();
+                const za::SizeT before = items.size();
                 items.pushBack(header(runSetupGroups[g].title));
                 for(const char* id : runSetupGroups[g].ids)
                 {

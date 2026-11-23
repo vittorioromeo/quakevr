@@ -15,6 +15,7 @@
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
@@ -445,8 +446,8 @@ static void TexMgr_SkinToNormals (const MaskView &hm, byte *data, int width, int
 	if (width < 3 || height < 3)
 		return;
 	// (the hunk's before 2026-11-07: the same values, every buffer written before it is read but gx, gy: zeroed)
-	float *buffers = (float *) VR_HeapMalloc ((size_t) count * (3 + 3 + 1 + 1 + 1 + 1 + 1) * sizeof (float) + (size_t) count * sizeof (short));
-	float *zeroed = (float *) VR_HeapCalloc ((size_t) count * 2, sizeof (float));
+	float *buffers = (float *) VR_HeapMalloc ((za::SizeT) count * (3 + 3 + 1 + 1 + 1 + 1 + 1) * sizeof (float) + (za::SizeT) count * sizeof (short));
+	float *zeroed = (float *) VR_HeapCalloc ((za::SizeT) count * 2, sizeof (float));
 	if (!buffers || !zeroed) // (no Sys_Error off the main thread: the skin's normal map left its colours)
 	{
 		VR_HeapFree (buffers);
@@ -454,13 +455,13 @@ static void TexMgr_SkinToNormals (const MaskView &hm, byte *data, int width, int
 		return;
 	}
 	col = buffers;
-	jt = col + (size_t) count * 3;
-	wgt = jt + (size_t) count * 3;
+	jt = col + (za::SizeT) count * 3;
+	wgt = jt + (za::SizeT) count * 3;
 	fine = wgt + count;
 	forms = fine + count;
 	lum = forms + count;
 	h = heights ? lum + count : NULL;
-	bins = (short *) (lum + (size_t) count * 2); // the edges' slopes' histogram bins (-1: off the islands)
+	bins = (short *) (lum + (za::SizeT) count * 2); // the edges' slopes' histogram bins (-1: off the islands)
 	gx = zeroed;
 	gy = zeroed + count;
 
@@ -497,12 +498,12 @@ static void TexMgr_SkinToNormals (const MaskView &hm, byte *data, int width, int
 	const qboolean together = count <= 512 * 512;
 	const int sets = together ? 1 + SKIN_FORMS : 1, blurfloats = count * 8 + width * 4;
 	// the heights (from lum alone) a step of their own too, in buffers of their own (3 + 1 w h floats)
-	float *heightscratch = heights ? (float *) VR_HeapMalloc ((size_t) count * 4 * sizeof (float)) : NULL;
-	float *extra = (float *) VR_HeapMalloc ((size_t) sets * (count * 3 + blurfloats + (together ? count * 2 : 0)) * sizeof (float));
+	float *heightscratch = heights ? (float *) VR_HeapMalloc ((za::SizeT) count * 4 * sizeof (float)) : NULL;
+	float *extra = (float *) VR_HeapMalloc ((za::SizeT) sets * (count * 3 + blurfloats + (together ? count * 2 : 0)) * sizeof (float));
 	float *setblurred[1 + SKIN_FORMS], *setscratch[1 + SKIN_FORMS], *setx[1 + SKIN_FORMS], *sety[1 + SKIN_FORMS];
 	for (s = 0; s < 1 + SKIN_FORMS; s++)
 	{
-		float *base = extra + (size_t) (together ? s : 0) * (count * 3 + blurfloats + (together ? count * 2 : 0));
+		float *base = extra + (za::SizeT) (together ? s : 0) * (count * 3 + blurfloats + (together ? count * 2 : 0));
 		setblurred[s] = base;
 		setscratch[s] = base + count * 3;
 		setx[s] = together ? base + count * 3 + blurfloats : gx; // (in turn: added straight to gx, gy)
@@ -713,13 +714,13 @@ static void TexMgr_AuthoredHeights (gltexture_t *glt, byte *data, int *kind)
 	{
 		const int width = (int) glt->width, height = (int) glt->height;
 		const float scale = glt->width / (float) heightmask_width; // the mask's texels in these
-		int *columns = (int *) VR_HeapMalloc (sizeof (int) * (size_t) width);
+		int *columns = (int *) VR_HeapMalloc (sizeof (int) * (za::SizeT) width);
 		for (x = 0; x < width; x++)
 			columns[x] = x * heightmask_width / width;
 		TexMgr_ForRows (height, width * height, [&] (int row)
 		{
 			const byte *mask = heightmask + (row * heightmask_height / height) * heightmask_width;
-			byte *a = data + (size_t) row * width * 4 + 3;
+			byte *a = data + (za::SizeT) row * width * 4 + 3;
 			for (int col = 0; col < width; col++, a += 4)
 			{
 				if (*a == 255)
@@ -837,11 +838,11 @@ static unsigned long long TexMgr_SkinNormalsKeyOf (const MaskSource &ms, const b
 		ms.corners ? ms.numtris : -1};
 	h = qvr::diskcache::fnv (h, params, sizeof (params));
 	h = qvr::diskcache::fnv (h, &texelsperunit, sizeof (texelsperunit));
-	h = qvr::diskcache::wideHash (h, data, (size_t) width * height * 4);
+	h = qvr::diskcache::wideHash (h, data, (za::SizeT) width * height * 4);
 	if (ms.corners) // the islands are made from these (VR_SetHeightMaskLazy)
-		h = qvr::diskcache::wideHash (h, ms.corners, (size_t) ms.numtris * 6 * sizeof (float));
+		h = qvr::diskcache::wideHash (h, ms.corners, (za::SizeT) ms.numtris * 6 * sizeof (float));
 	else if (ms.mask)
-		h = qvr::diskcache::wideHash (h, ms.mask, (size_t) ms.width * ms.height);
+		h = qvr::diskcache::wideHash (h, ms.mask, (za::SizeT) ms.width * ms.height);
 	return h;
 }
 
@@ -978,7 +979,7 @@ static void TexMgr_SkinNormalsRun (SkinNormalJob &j)
 {
 	const double t0 = Sys_DoubleTime ();
 	const MaskSource ms = {j.hascorners ? j.corners.data () : NULL, j.numtris, j.mask.empty () ? NULL : j.mask.data (), j.maskwidth, j.maskheight};
-	const size_t n = (size_t) j.width * j.height * 4;
+	const za::SizeT n = (za::SizeT) j.width * j.height * 4;
 	za::Vector<byte> cached;
 	int hit = 0;
 	if (j.cache)
@@ -1004,7 +1005,7 @@ static void TexMgr_SkinNormalsRun (SkinNormalJob &j)
 		else
 		{
 			za::Vector<float> scratch;
-			scratch.resize ((size_t) SHADING_SCRATCH * j.width * j.height);
+			scratch.resize ((za::SizeT) SHADING_SCRATCH * j.width * j.height);
 			TexMgr_ShadingToNormals (mv, j.data.data (), j.width, j.height, NORMALMAP_DEPTH * j.texelsperunit, j.heights, j.texelsperunit, scratch.data ());
 		}
 		if (hit) // vr_normalmap_cache 2: made anyway, and compared
@@ -1040,7 +1041,7 @@ extern "C" int VR_SkinNormalsPost (gltexture_t *glt, const byte *data, int kind,
 	const MaskSource ms = TexMgr_CurrentMaskSource ();
 	j.width = glt->width;
 	j.height = glt->height;
-	j.data.resize ((size_t) j.width * j.height * 4);
+	j.data.resize ((za::SizeT) j.width * j.height * 4);
 	ZA_MEMCPY(j.data.data (), data, j.data.size ());
 	j.skin = (kind & NORMALMAP_SKIN) != 0;
 	j.heights = (kind & NORMALMAP_HEIGHTS) != 0;
@@ -1052,13 +1053,13 @@ extern "C" int VR_SkinNormalsPost (gltexture_t *glt, const byte *data, int kind,
 		j.hascorners = true;
 		j.numtris = ms.numtris;
 		j.make = heightmask_make;
-		j.corners.resize ((size_t) q_max (ms.numtris, 0) * 6);
+		j.corners.resize ((za::SizeT) q_max (ms.numtris, 0) * 6);
 		if (!j.corners.empty ())
 			ZA_MEMCPY(j.corners.data (), ms.corners, j.corners.size () * sizeof (float));
 	}
 	else if (ms.mask)
 	{
-		j.mask.resize ((size_t) ms.width * ms.height);
+		j.mask.resize ((za::SizeT) ms.width * ms.height);
 		ZA_MEMCPY(j.mask.data (), ms.mask, j.mask.size ());
 	}
 	j.cache = j.skin ? VR_NormalCacheMode () : 0; // (a world texture's takes a few hundredths of a skin's: not kept)

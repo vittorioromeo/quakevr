@@ -661,14 +661,14 @@ void stateHash_f()
     }
     progs::ServerVm serverVm;
     uint64_t h = 1469598103934665603ull;
-    const auto mix = [&h](const void* data, size_t size) {
+    const auto mix = [&h](const void* data, za::SizeT size) {
         const auto* bytes = static_cast<const unsigned char*>(data);
-        for(size_t i = 0; i < size; i++)
+        for(za::SizeT i = 0; i < size; i++)
         {
             h = (h ^ bytes[i]) * 1099511628211ull;
         }
     };
-    const size_t fieldBytes = static_cast<size_t>(qcvm->progs->entityfields) * 4u;
+    const za::SizeT fieldBytes = static_cast<za::SizeT>(qcvm->progs->entityfields) * 4u;
     int used = 0;
     for(int i = 0; i < qcvm->num_edicts; i++)
     {
@@ -705,7 +705,7 @@ void stateHash_f()
     if(Cmd_Argc() > 3 && !q_strcasecmp(Cmd_Argv(1), "values"))
     {
         const char* prefix = Cmd_Argv(2);
-        const size_t n = ZA_STRLEN(prefix);
+        const za::SizeT n = ZA_STRLEN(prefix);
         for(int a = 3; a < Cmd_Argc(); a++)
         {
             const int e = atoi(Cmd_Argv(a));

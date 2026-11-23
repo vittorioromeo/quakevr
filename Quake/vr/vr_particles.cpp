@@ -2238,7 +2238,7 @@ extern "C" int VR_GrenadeTrail(int ent)
     constexpr int unarmedSkin = 1;
     const bool smokes = !(e.model && e.skinnum == unarmedSkin && qvr::modelmeta::isQuakeGrenade(e.model));
     // developer 1: each grenade's trail as it starts or stops.
-    const auto n = static_cast<size_t>(ent);
+    const auto n = static_cast<za::SizeT>(ent);
     if(developer.value && (!grenadeTrails.seen[n] || grenadeTrails.smoking[n] != smokes))
     {
         grenadeTrails.seen.set(static_cast<za::SizeT>(n));

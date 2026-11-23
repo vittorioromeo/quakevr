@@ -26,6 +26,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -46,11 +47,10 @@
 #include <windows.h>
 #include <objbase.h> // (CoInitializeEx: the microphone opened on a worker)
 #endif
-#include <chrono>
 #include <math.h>
 #include <stdlib.h>
 
-extern "C" void* VR_HeapMalloc(size_t size);
+extern "C" void* VR_HeapMalloc(za::SizeT size);
 
 namespace qvr::voicechat
 {
@@ -75,10 +75,9 @@ constexpr int hangFrames = 20;                 // voice activation: frames sent 
 constexpr int voiceEntChannel = 1000;          // the voices' sound channel on the speaker's entity (none of the game's)
 constexpr double meterLevelFloor = -50.0, meterLevelSpan = 30.0; // dBFS: denoise off, the level as a voice probability
 
-[[nodiscard]] long long wallMs()
+[[nodiscard]] long long wallMs() // epoch milliseconds: compared across processes (za::Clock::now's epoch is unspecified)
 {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
-        .count();
+    return za::Clock::nowUnixNanoseconds() / 1'000'000; // (system_clock's, truncated as duration_cast did)
 }
 
 // ---- Sending -------------------------------------------------------------------------------------------------------
@@ -396,7 +395,7 @@ void queueFrame(const unsigned char* data, int len, za::U8 flags)
     f.len = static_cast<za::U8>(za::clamp(len, 0, maxFrameBytes));
     if(len > 0)
     {
-        ZA_MEMCPY(f.data, data, static_cast<size_t>(f.len));
+        ZA_MEMCPY(f.data, data, static_cast<za::SizeT>(f.len));
     }
     cap.outCount++;
     if(len > 0)
@@ -700,7 +699,7 @@ void startOutput(Speaker& sp, int slot)
         return; // (no sound: the clock alone)
     }
     sc->loopstart = 0;
-    ZA_MEMSET(sc->data, 0, static_cast<size_t>(sc->length) * 2);
+    ZA_MEMSET(sc->data, 0, static_cast<za::SizeT>(sc->length) * 2);
     vec3_t org;
     const glm::vec3 head = headOf(ent);
     VectorSet(org, head.x, head.y, head.z);
@@ -855,13 +854,13 @@ void zeroRing(short* ring, int length, long long from, long long to)
     }
     if(to - from >= length)
     {
-        ZA_MEMSET(ring, 0, sizeof(short) * static_cast<size_t>(length));
+        ZA_MEMSET(ring, 0, sizeof(short) * static_cast<za::SizeT>(length));
         return;
     }
     const long long at = from % length, n = to - from;
     const long long first = za::min(n, length - at);
-    ZA_MEMSET(ring + at, 0, sizeof(short) * static_cast<size_t>(first));
-    ZA_MEMSET(ring, 0, sizeof(short) * static_cast<size_t>(n - first));
+    ZA_MEMSET(ring + at, 0, sizeof(short) * static_cast<za::SizeT>(first));
+    ZA_MEMSET(ring, 0, sizeof(short) * static_cast<za::SizeT>(n - first));
 }
 
 // A speaker's output kept `lead` ahead of its reader.
@@ -1501,7 +1500,7 @@ void selftest_f()
                 fr.seq = static_cast<za::U16>(g + 100);
                 fr.flags = static_cast<za::U8>(g == 0 ? flagSpurtStart : 0);
                 fr.len = static_cast<za::U8>(lens[g]);
-                ZA_MEMCPY(fr.data, packets[g], static_cast<size_t>(lens[g]));
+                ZA_MEMCPY(fr.data, packets[g], static_cast<za::SizeT>(lens[g]));
                 receive(slot, fr);
             }
             pump(sp, slot);
@@ -1545,7 +1544,7 @@ void selftest_f()
                 fr.seq = static_cast<za::U16>(0xffd0 + g);
                 fr.flags = static_cast<za::U8>(g == 0 ? flagSpurtStart : 0);
                 fr.len = static_cast<za::U8>(lens[g]);
-                ZA_MEMCPY(fr.data, packets[g], static_cast<size_t>(lens[g]));
+                ZA_MEMCPY(fr.data, packets[g], static_cast<za::SizeT>(lens[g]));
                 receive(slot, fr);
             }
             pump(sp, slot);
@@ -2011,8 +2010,8 @@ extern "C" unsigned char* VR_VoicechatSound(const char* name, int* size)
     const int samples = static_cast<int>(ringSeconds * rate);
     const int data = samples * 2;
     const int total = 44 + data;
-    unsigned char* w = static_cast<unsigned char*>(VR_HeapMalloc(static_cast<size_t>(total)));
-    ZA_MEMSET(w, 0, static_cast<size_t>(total));
+    unsigned char* w = static_cast<unsigned char*>(VR_HeapMalloc(static_cast<za::SizeT>(total)));
+    ZA_MEMSET(w, 0, static_cast<za::SizeT>(total));
     const auto u32 = [&](int at, unsigned v) {
         w[at] = static_cast<unsigned char>(v);
         w[at + 1] = static_cast<unsigned char>(v >> 8);

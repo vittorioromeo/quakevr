@@ -27,6 +27,7 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -366,8 +367,8 @@ bool sameBody(const qmodel_t* a, const qmodel_t* b)
 {
     const char* ha = strchr(a->name, '#');
     const char* hb = strchr(b->name, '#');
-    const size_t la = ha ? static_cast<size_t>(ha - a->name) : ZA_STRLEN(a->name);
-    const size_t lb = hb ? static_cast<size_t>(hb - b->name) : ZA_STRLEN(b->name);
+    const za::SizeT la = ha ? static_cast<za::SizeT>(ha - a->name) : ZA_STRLEN(a->name);
+    const za::SizeT lb = hb ? static_cast<za::SizeT>(hb - b->name) : ZA_STRLEN(b->name);
     return la == lb && !ZA_STRNCMP(a->name, b->name, la);
 }
 
@@ -436,9 +437,9 @@ constexpr float gunArcSize = 0.35f; // (a gun is a few hands long: a body's arcs
     {
         mid += p;
     }
-    mid /= static_cast<float>(za::max<size_t>(tris.size(), 1));
+    mid /= static_cast<float>(za::max<za::SizeT>(tris.size(), 1));
     float facing = 0.f;
-    for(size_t i = 0; i + 2 < tris.size(); i += 3)
+    for(za::SizeT i = 0; i + 2 < tris.size(); i += 3)
     {
         const glm::vec3 centre = (tris[i] + tris[i + 1] + tris[i + 2]) / 3.f;
         facing += glm::dot(glm::cross(tris[i + 1] - tris[i], tris[i + 2] - tris[i]), centre - mid);
@@ -448,7 +449,7 @@ constexpr float gunArcSize = 0.35f; // (a gun is a few hands long: a body's arcs
 
 // The point at `u` `v` on triangle `tri` of `tris` and the way out of the body there (`outward`: outwardSign); false on
 // a degenerate one.
-[[nodiscard]] bool surfaceAt(const za::Vector<glm::vec3>& tris, size_t tri, float u, float v, float outward, glm::vec3& at,
+[[nodiscard]] bool surfaceAt(const za::Vector<glm::vec3>& tris, za::SizeT tri, float u, float v, float outward, glm::vec3& at,
     glm::vec3& out)
 {
     const glm::vec3 a = tris[tri * 3], b = tris[tri * 3 + 1], c = tris[tri * 3 + 2];
@@ -464,9 +465,9 @@ constexpr float gunArcSize = 0.35f; // (a gun is a few hands long: a body's arcs
 }
 
 // A random place on a random triangle of `tris` (`count` of them): its triangle and where on it.
-void randomPlace(Random& rnd, size_t count, int& tri, float& u, float& v)
+void randomPlace(Random& rnd, za::SizeT count, int& tri, float& u, float& v)
 {
-    tri = static_cast<int>(za::min(static_cast<size_t>(rnd() * static_cast<float>(count)), count - 1));
+    tri = static_cast<int>(za::min(static_cast<za::SizeT>(rnd() * static_cast<float>(count)), count - 1));
     u = rnd();
     v = rnd();
     if(u + v > 1.f)
@@ -482,7 +483,7 @@ void randomPlace(Random& rnd, size_t count, int& tri, float& u, float& v)
     int tri;
     float u, v;
     randomPlace(rnd, tris.size() / 3, tri, u, v);
-    return surfaceAt(tris, static_cast<size_t>(tri), u, v, outward, at, out);
+    return surfaceAt(tris, static_cast<za::SizeT>(tri), u, v, outward, at, out);
 }
 
 // The lasting shock's arcs off the body's surface (units).
@@ -520,7 +521,7 @@ int drawBodyDeath(int index, Effect& e, const za::Vector<glm::vec3>& tris, Rando
         return 0;
     }
     const double now = cl.time;
-    const size_t count = tris.size() / 3;
+    const za::SizeT count = tris.size() / 3;
     const float outward = outwardSign(tris);
     const float k = static_cast<float>(za::clamp((e.until - now) / za::max(0.1, e.until - e.fresh), 0.0, 1.0));
     const float fade = effectFade(e.start, e.until) * (0.45f + 0.55f * k);
@@ -547,7 +548,7 @@ int drawBodyDeath(int index, Effect& e, const za::Vector<glm::vec3>& tris, Rando
             w.next = -1;
         }
         glm::vec3 a, na;
-        if(!surfaceAt(tris, static_cast<size_t>(w.tri), w.u, w.v, outward, a, na))
+        if(!surfaceAt(tris, static_cast<za::SizeT>(w.tri), w.u, w.v, outward, a, na))
         {
             w.tri = -1;
             continue;
@@ -562,7 +563,7 @@ int drawBodyDeath(int index, Effect& e, const za::Vector<glm::vec3>& tris, Rando
                 float u, v;
                 randomPlace(rnd, count, tri, u, v);
                 glm::vec3 b, nb;
-                if(!surfaceAt(tris, static_cast<size_t>(tri), u, v, outward, b, nb))
+                if(!surfaceAt(tris, static_cast<za::SizeT>(tri), u, v, outward, b, nb))
                 {
                     continue;
                 }
@@ -583,7 +584,7 @@ int drawBodyDeath(int index, Effect& e, const za::Vector<glm::vec3>& tris, Rando
             }
         }
         glm::vec3 b, nb;
-        if(!surfaceAt(tris, static_cast<size_t>(w.next), w.nu, w.nv, outward, b, nb))
+        if(!surfaceAt(tris, static_cast<za::SizeT>(w.next), w.nu, w.nv, outward, b, nb))
         {
             w.next = -1;
             continue;
@@ -1220,7 +1221,7 @@ void parse()
     for(const glm::vec3& d : rays)
     {
         int crossings = 0;
-        for(size_t i = 0; i + 2 < tris.size(); i += 3)
+        for(za::SizeT i = 0; i + 2 < tris.size(); i += 3)
         {
             const glm::vec3 e1 = tris[i + 1] - tris[i], e2 = tris[i + 2] - tris[i];
             const glm::vec3 h = glm::cross(d, e2);
@@ -1242,16 +1243,16 @@ void parse()
 // vr_shock_info's measure: where entity `num`'s arcs drawn this frame (`count` points from `first` of arcPts) lie
 // against its surface `tris`: how many inside it, their mean distance off it (outside +, inside -), the share at least
 // 1 unit out.
-void measureArcs(int num, const za::Vector<glm::vec3>& tris, size_t first, size_t count)
+void measureArcs(int num, const za::Vector<glm::vec3>& tris, za::SizeT first, za::SizeT count)
 {
     const za::Vector<glm::vec3>& pts = scratch.arcPts;
     int inside = 0, clear = 0;
     double sum = 0.0;
-    for(size_t i = first; i < first + count && i < pts.size(); i++)
+    for(za::SizeT i = first; i < first + count && i < pts.size(); i++)
     {
         const glm::vec3& p = pts[i];
         float best = 1e30f;
-        for(size_t t = 0; t + 2 < tris.size(); t += 3)
+        for(za::SizeT t = 0; t + 2 < tris.size(); t += 3)
         {
             best = za::min(best, glm::distance(p, geom::closestOnTriangle(p, tris[t], tris[t + 1], tris[t + 2])));
         }
@@ -1260,7 +1261,7 @@ void measureArcs(int num, const za::Vector<glm::vec3>& tris, size_t first, size_
         clear += !in && best >= 1.f ? 1 : 0;
         sum += in ? -best : best;
     }
-    const float n = static_cast<float>(za::max<size_t>(count, 1));
+    const float n = static_cast<float>(za::max<za::SizeT>(count, 1));
     Con_Printf("bodyshock-arcs: entity=%d points=%d inside=%.2f mean_out=%.2f clear1=%.2f\n", num, static_cast<int>(count),
         static_cast<float>(inside) / n, static_cast<float>(sum) / n, static_cast<float>(clear) / n);
 }
@@ -1340,7 +1341,7 @@ void frame(const hands::State& s)
             const float outward = outwardSign(tris);
             for(int bolt = 0; bolt < 12; bolt++)
             {
-                const size_t index = static_cast<size_t>(rnd() * (tris.size() / 3)) * 3;
+                const za::SizeT index = static_cast<za::SizeT>(rnd() * (tris.size() / 3)) * 3;
                 const glm::vec3 a = tris[index], b = tris[index + 1], c = tris[index + 2];
                 const glm::vec3 cross = glm::cross(b - a, c - a);
                 if(glm::length(cross) < 1e-5f) { continue; }

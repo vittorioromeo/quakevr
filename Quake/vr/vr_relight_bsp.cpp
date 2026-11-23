@@ -5,6 +5,7 @@
 #include "vr_relight_internal.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
@@ -14,7 +15,7 @@ extern "C" {
 void VR_HeapFree(void* pointer);                                       // vr_alloccount.cpp
 void VR_FileCacheEnable(int on);                                       // vr_fscache.cpp
 void VR_FileCacheForget();                                             // vr_fscache.cpp
-int VR_MapGameFolder(const char* name, char* out, size_t size);        // vr_gamedir.cpp
+int VR_MapGameFolder(const char* name, char* out, za::SizeT size);        // vr_gamedir.cpp
 }
 
 namespace qvr::relight

@@ -8,6 +8,7 @@
 
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -21,7 +22,7 @@
 #include <string.h>
 
 extern "C" {
-int VR_MapGameFolder(const char* name, char* out, size_t size); // vr_gamedir.cpp
+int VR_MapGameFolder(const char* name, char* out, za::SizeT size); // vr_gamedir.cpp
 }
 
 namespace qvr::relight::maps
@@ -68,13 +69,13 @@ constexpr int libraryRank = 1000;
 // "maps/<name>.bsp" (any case): <name>, lower case; false for another file, and for the brush models (b_*.bsp).
 [[nodiscard]] bool mapName(const char* path, za::String& out)
 {
-    const size_t n = ZA_STRLEN(path);
+    const za::SizeT n = ZA_STRLEN(path);
     if(n <= 9 || q_strncasecmp(path, "maps/", 5) || q_strcasecmp(path + n - 4, ".bsp"))
     {
         return false;
     }
     out.clear();
-    for(size_t i = 5; i < n - 4; i++)
+    for(za::SizeT i = 5; i < n - 4; i++)
     {
         out.pushBack(static_cast<char>(tolower(static_cast<unsigned char>(path[i]))));
     }
@@ -98,7 +99,7 @@ constexpr int libraryRank = 1000;
             {
                 b++;
             }
-            size_t na = 0, nb = 0;
+            za::SizeT na = 0, nb = 0;
             while(isdigit(static_cast<unsigned char>(a[na])))
             {
                 na++;
@@ -183,7 +184,7 @@ constexpr int libraryRank = 1000;
     {
         text.resize(static_cast<za::SizeT>(length) + 1, '\0');
         ok = fseek(f, static_cast<long>(s.offset + at), SEEK_SET) == 0 &&
-             fread(text.data(), 1, static_cast<size_t>(length), f) == static_cast<size_t>(length);
+             fread(text.data(), 1, static_cast<za::SizeT>(length), f) == static_cast<za::SizeT>(length);
     }
     fclose(f);
     if(!ok || !ZA_STRSTR(text.data(), "info_player_"))

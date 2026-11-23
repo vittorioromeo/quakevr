@@ -1572,7 +1572,8 @@ void haptics::meet()
 // Multiplayer runs on (the server isn't one player's to pause): only the frame held (vr_xr_unfocused).
 struct RuntimeMenuState
 {
-    bool open{false};      // the runtime's menu has the focus (or vr_debug_runtime_menu)
+    bool open{false};      // the runtime's menu has the focus (or vr_debug_runtime_menu), or the headset is off
+    bool absent{false};    // that by the headset off (vr_xr_user_presence), not the menu
     bool paused{false};    // the game paused for it
     bool music{false};     // the music paused by it, resumed with the game
     double since{0.0};     // realtime it paused
@@ -1597,14 +1598,21 @@ void runtimeMenuFrame()
 {
     RuntimeMenuState& m = runtimeMenu;
     const Backend* b = backend();
-    const bool open = (b && b->runtimeMenuOpen()) || vr_debug_runtime_menu.value != 0.f;
+    const bool menu = (b && b->runtimeMenuOpen()) || vr_debug_runtime_menu.value != 0.f;
+    // The headset taken off (XR_EXT_user_presence, vr_xr_user_presence; from PR #75, by Kasper Olesen): as the menu.
+    const bool absent = !menu && b && !b->userPresent();
+    const bool open = menu || absent;
     const bool single = sv.active && svs.maxclients == 1 && !cls.demoplayback;
     const bool pause = open && single && vr_xr_unfocused_pause.value != 0.f;
-    if(open != m.open)
+    if(open != m.open || (open && absent != m.absent))
     {
-        Con_Printf("VR: the runtime's menu %s%s\n", open ? "has the focus" : "gave the focus back",
+        const bool byHeadset = open ? absent : m.absent;
+        Con_Printf("VR: %s%s\n",
+            byHeadset ? (open ? "the headset was taken off" : "the headset is back on")
+                      : (open ? "the runtime's menu has the focus" : "the runtime's menu gave the focus back"),
             !open || pause ? "" : !single ? " (not a single player game: it runs on)" : " (vr_xr_unfocused_pause 0: the game runs on)");
     }
+    m.absent = open && absent;
     if(pause && !m.paused)
     {
         m.since = realtime;
@@ -2416,7 +2424,6 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_gun_wall_depth", handpose::gunWallDepth_f);
     playerhit::init(); // vr_hitzones_aim (vr_playerhit.cpp)
     hitmodel::registerDiagCommands(); // vr_hitmodel_bench, _stats, _check, vr_hitzones_check (vr_hitmodel_diag.cpp)
-    qza::registerDiagCommands(); // vr_zancle_math_test (vr_zancle_diag.cpp)
     mem::registerDiagCommands(); // vr_resets: the registered resets listed, traced, checked (vr_mem_diag.cpp)
     Cmd_AddCommand("vr_body_collide_bench", selfcollide::bench_f);
     wounds::registerDiagCommands(); // vr_wounds_test, _info, _dump, vr_gore_hands_*, vr_gore_wash_test... (vr_wounds_diag.cpp)
@@ -2761,11 +2768,12 @@ extern "C" int VR_SkipScreen()
 
 namespace
 {
-// QVR_TEST_BACKGROUND and QVR_TEST_HIDDEN, read once (windowUnfocused, windowNotVisible: every frame).
+// QVR_TEST_BACKGROUND, QVR_TEST_HIDDEN and -vr-hide-mirror, read once (windowUnfocused, windowNotVisible: every frame).
 struct WindowFocusCache
 {
     bool testBackground = getenv("QVR_TEST_BACKGROUND") != nullptr;
     bool testHidden = getenv("QVR_TEST_HIDDEN") != nullptr;
+    int hiddenMirror = -1; // -vr-hide-mirror (1 given, 0 not, -1 not read yet: the command line comes after this)
 };
 WindowFocusCache windowFocusCache;
 } // namespace
@@ -2788,8 +2796,13 @@ bool qvr::windowUnfocused()
     {
         return true;
     }
-    // (A test run's window is hidden, never focused: as if it were, unless the debug cvar says otherwise.)
-    return !windowFocusCache.testBackground && !VID_HasInputFocus();
+    // (A test run's window is hidden, never focused: as if it were, unless the debug cvar says otherwise. So is a
+    // standalone headset's, -vr-hide-mirror: no desktop to focus, every present made, no menu warning.)
+    if(windowFocusCache.hiddenMirror < 0)
+    {
+        windowFocusCache.hiddenMirror = COM_CheckParm("-vr-hide-mirror") != 0 ? 1 : 0;
+    }
+    return !windowFocusCache.testBackground && windowFocusCache.hiddenMirror == 0 && !VID_HasInputFocus();
 }
 
 bool qvr::windowNotVisible()
@@ -2804,7 +2817,8 @@ bool qvr::windowNotVisible()
         return false;
     }
     const Uint32 flags = SDL_GetWindowFlags(w);
-    // (SDL keeps SHOWN on a minimized window.)
+    // (SDL keeps SHOWN on a minimized window. -vr-hide-mirror's window, never shown, counts as not visible: nobody sees
+    // the mirror, so its spectator camera is skipped, vr_spectator_skip_hidden.)
     return (flags & SDL_WINDOW_MINIMIZED) != 0 || ((flags & SDL_WINDOW_SHOWN) == 0 && !windowFocusCache.testHidden);
 }
 

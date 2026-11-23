@@ -10,6 +10,7 @@
 #include "vr_nailslide.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -340,9 +341,9 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
         char seen[96];
         q_snprintf(seen, sizeof(seen), "%d %d %d %.2f %.2f %.2f", warning, loaded, clipSize, warning ? tint.x : -1.f,
             warning ? tint.y : -1.f, warning ? tint.z : -1.f);
-        if(ammoWarnPrinted[static_cast<size_t>(hand)] != seen)
+        if(ammoWarnPrinted[static_cast<za::SizeT>(hand)] != seen)
         {
-            ammoWarnPrinted[static_cast<size_t>(hand)] = seen;
+            ammoWarnPrinted[static_cast<za::SizeT>(hand)] = seen;
             char text[64], rgb[48];
             q_strlcpy(text, buf, sizeof(text));
             for(char& c : text)
