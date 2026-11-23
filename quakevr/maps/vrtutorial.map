@@ -29160,7 +29160,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "2928 -348 16"
-"worldtext" "LESSON 10: THROWING\n\nThe button is out of reach behind the bars.\nThrow a rock or a brick at it:\ngrip, swing, let go.{flat}LESSON 10: THROWING\n\nThe button is out of reach behind the bars.\nHit it with a thrown rock or brick.\n(Throwing is not in flat play yet.)"
+"worldtext" "LESSON 10: THROWING\n\nThe button is out of reach behind the bars.\nThrow a rock or a brick at it:\ngrip, swing, let go.{flat}LESSON 10: THROWING\n\nThe button is out of reach behind the bars.\nThrow a rock or a brick at it:\n{key:vr_flat_key_grab} to take one, hold {key:vr_flat_key_throw}, let go."
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "90"
@@ -29170,7 +29170,7 @@
 "classname" "func_vr_tip"
 "origin" "2800 -260 -74"
 "tipname" "t2_throw"
-"message" "Grip a rock, swing your arm and let go\nas it comes forward. Hit the button.{flat}Hit the button with a thrown rock:\na headset's move (not in flat play yet)."
+"message" "Grip a rock, swing your arm and let go\nas it comes forward. Hit the button.{flat}Take a rock ({key:vr_flat_key_grab} at it). Hold {key:vr_flat_key_throw}\nand let go to throw: hit the button."
 "distance" "230"
 }
 // entity 262
@@ -30524,7 +30524,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "1760 -812 -32"
-"worldtext" "LESSON 12: BLADES\n\nSwing the edge hard: it cuts.\nThrust the point: it sticks in.\nGrip the handle again to pull it out.\n\nB (Y on the off hand) turns the blade\npoint down: a reverse grip.\n\nThrow an axe into the target to go on.{flat}LESSON 12: BLADES\n\nTake a blade: {key:vr_flat_key_grab} at it.\n{key:+attack} swings: the edge cuts,\nthe point sticks in.\n\n{key:vr_flat_key_ammo}: the dagger point down.\n\nThrow an axe into the target to go on."
+"worldtext" "LESSON 12: BLADES\n\nSwing the edge hard: it cuts.\nThrust the point: it sticks in.\nGrip the handle again to pull it out.\n\nB (Y on the off hand) turns the blade\npoint down: a reverse grip.\n\nThrow an axe into the target to go on.{flat}LESSON 12: BLADES\n\nTake a blade: {key:vr_flat_key_grab} at it.\n{key:+attack} swings: the edge cuts,\nthe point sticks in.\n\n{key:vr_flat_key_ammo}: the dagger point down.\n\nTHROW: hold {key:vr_flat_key_throw}, let go.\nThrow an axe into the target to go on."
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "90"
@@ -30561,7 +30561,7 @@
 "classname" "func_vr_tip"
 "origin" "1920 -690 -84"
 "tipname" "t3_axe"
-"message" "Throw the axe at the target: swing and\nlet go. Grip it to pull it back out.{flat}Throw the axe at the target:\na headset's move (not in flat play yet)."
+"message" "Throw the axe at the target: swing and\nlet go. Grip it to pull it back out.{flat}Throw the axe at the target: hold {key:vr_flat_key_throw}\nand let go. {key:vr_flat_key_grab} pulls it back out."
 "distance" "184"
 }
 // entity 418

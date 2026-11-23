@@ -883,8 +883,8 @@ def build_stairs(mw):
 
 # the lecterns, from the gate's centre (hubladder, his note 2026-11-23: the mods' row hid Quake's): one row of ten
 # facing south, five either side of the way to the gate (88 wide between the inner two's sides), 44 apart, all 30 wide
-# under a 36-wide cap: the official campaigns in the middle (id's three left, the rerelease's three right), the mods
-# at the ends (Arcane Dimensions, Quoth left; Dwell, Arena Mode right). The terrace is an ellipse (TERRACE rx) so the
+# under a 36-wide cap, in Select Campaign's order west to east (Quake, the two mission packs, the rerelease's three;
+# Arcane Dimensions, Dwell, Quoth, Arena Mode: CAMPAIGNS; flatpolish 2026-11-23). The terrace is an ellipse (TERRACE rx) so the
 # row ends within its curb; no lectern stands in front of another, and every button faces the stairs' way up.
 LECTERNS_X = (-220, -176, -132, -88, -44, 44, 88, 132, 176, 220)
 LECTERN_HALF = 15                        # the lectern's half width (its cap's: 3 more)
@@ -1555,17 +1555,18 @@ N = "\\n"
 # vr_activestartpaknameidx; QC's buttons.qc marks a campaign whose data is missing); 3, 4 and 5 (Dimension of the Past,
 # Dimension of the Machine, Dawn of the Machine) have game folders of their own, so the teleporter's changelevel runs
 # vr_campaign_select dopa, mg1 or mg3 (vr_gamedir.cpp)
-CAMPAIGNS = [("ARCANE" + N + "DIMENSIONS", "vr_activestartpaknameidx 6; echo Arcane Dimensions selected: step into the teleporter"),
-             ("QUOTH", "vr_activestartpaknameidx 8; echo Quoth selected: step into the teleporter"),
-             ("QUAKE","vr_activestartpaknameidx 0; echo Quake selected: step into the teleporter"),
+CAMPAIGNS = [("QUAKE","vr_activestartpaknameidx 0; echo Quake selected: step into the teleporter"),
              ("SCOURGE OF" + N + "ARMAGON", "vr_activestartpaknameidx 1; echo Scourge of Armagon selected: step into the teleporter"),
              ("DISSOLUTION" + N + "OF ETERNITY", "vr_activestartpaknameidx 2; echo Dissolution of Eternity selected: step into the teleporter"),
              ("DIMENSION" + N + "OF THE PAST", "vr_activestartpaknameidx 3; echo Dimension of the Past selected: step into the teleporter"),
              ("DIMENSION" + N + "OF THE MACHINE", "vr_activestartpaknameidx 4; echo Dimension of the Machine selected: step into the teleporter"),
              ("DAWN OF" + N + "THE MACHINE", "vr_activestartpaknameidx 5; echo Dawn of the Machine selected: step into the teleporter"),
+             ("ARCANE" + N + "DIMENSIONS", "vr_activestartpaknameidx 6; echo Arcane Dimensions selected: step into the teleporter"),
              ("DWELL", "vr_activestartpaknameidx 7; echo Dwell selected: step into the teleporter"),
+             ("QUOTH", "vr_activestartpaknameidx 8; echo Quoth selected: step into the teleporter"),
              ("ARENA" + N + "MODE", "vr_runsetup arena")]
-# (LECTERNS_X's order, west to east.) The mods, Arcane Dimensions (6), Quoth (8) and Dwell (7), are chosen as the
+# (LECTERNS_X's order, west to east: Select Campaign's order, Quake first: vr_menu.cpp pageCampaigns lists
+# vr_gamedir.cpp's campaigns[] by index, then Arena Mode; flatpolish, his note 2026-11-23.) The mods, Arcane Dimensions (6), Quoth (8) and Dwell (7), are chosen as the
 # campaigns are (the teleporter runs their launch: vr_gamedir.cpp, VR_CanChangeCampaignMap; QC's buttons.qc says when
 # one is not installed), Arena Mode's Run Setup at once (its Start: the arena, vr_menu_runsetup.inc).
 
@@ -1603,16 +1604,11 @@ def build_entities(mw):
     for (label, cmd), lx in zip(CAMPAIGNS, LECTERNS_X):
         cx = gx + lx
         button(mw, label, cmd, cx, LECTERN_Y, zb + 42, 90)
-    # the mods' boards over the row's ends (their pairs' middles), over the labels
-    banner(mw, "MODS", gx + (LECTERNS_X[0] + LECTERNS_X[1]) // 2, LECTERN_Y + 11, zb + 92, 270, "0.3")
-    banner(mw, "MOD AND ARENA", gx + (LECTERNS_X[-2] + LECTERNS_X[-1]) // 2, LECTERN_Y + 11, zb + 92, 270, "0.3")
+    # (no boards over the row: the mods' "MODS" / "MOD AND ARENA" and the campaign data board went, his note 2026-11-23)
     banner(mw, N.join(["CHOOSE A CAMPAIGN", "Press its stone, then step into the teleporter."]),
            gx, gy - 24, zb + 16 + 205, 270, "0.45")
-    # (in front of the gate's dais, left of the way in: over the lecterns from the stairs)
-    banner(mw, N.join(["Every campaign, and what", "its data needs:", "{menu:Official Campaigns}"]),
-           gx - 80, gy - 68, zb + 92, 270, "0.25")
     tip(mw, "vs2_campaign", "Press a campaign's stone with your hand," + N + "then walk into the teleporter.",
-        gx - 110, LECTERN_Y - 10, zb + 50, 220, target=CAMPAIGNS[2][1] + "\\n")
+        gx - 110, LECTERN_Y - 10, zb + 50, 220, target=CAMPAIGNS[0][1] + "\\n")
     # ---- the pavilion's settings
     x0, x1, y0, y1, z = pv["x0"], pv["x1"], pv["y0"], pv["y1"], pv["z"]
     cxs = [-228, -168, -108, -48, 12]

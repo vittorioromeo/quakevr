@@ -67,5 +67,14 @@ check(bool(find(ls, r"flat throw: J: the main hand winds up its grenade")), "gre
 check(bool(find(ls, r"flat grenade: thrown by the main hand after 0\.[5-9]\d s wound up")), "gren: J's release throws it (as the fire button's)")
 check(bool(find(ls, r"flatgren: main hand at overhead")), "gren: the drawn hand reaches the shared wind-up")
 
+ls = lines("wall")
+done(ls, "wall")
+landed = find(ls, r"flat throw: landed: thrown_weapon (\d+) units level from where it left, (-?\d+) down, (.*)")
+check(len(find(ls, r"bladespinto: thrown_weapon meets something")) >= 2, "wall: both throws' spins timed (bladespinto)")
+check(len(landed) >= 1 and landed[0].group(3) == "stuck" and int(landed[0].group(1)) > 250,
+      "wall: the axe from 280 units sticks in the plain wall (%s)" % (landed[0].group(0) if landed else "no landing"))
+check(len(landed) >= 2 and landed[1].group(3) == "stuck",
+      "wall: the sword from 150 units sticks, point first (%s)" % (landed[1].group(0) if len(landed) > 1 else "no landing"))
+
 print("flatthrow: %d passed, %d failed" % (passed, failed))
 sys.exit(1 if failed else 0)

@@ -807,6 +807,9 @@ void(float xHand, float xWhat, vector xA, vector xB, float xV) meleeshow = #0;
 void(string xText) embedsay = #0;
 void(entity xBlade, entity xBody, vector xAt, vector xDir, float xStrength) bladewound = #0;
 float(entity xBlade) bladewoundage = #0;
+// A blade just thrown with `xSpin` (rad/s): the spin about the same axis, within xLeast..xMost times it, that brings its edge
+// or point round to lead where its arc meets something (axestick::timeSpin); not a blade, or nothing met: xSpin.
+vector(entity xBlade, vector xSpin, float xLeast, float xMost) bladespinto = #0;
 // weaponheft's `kick` 1: its heavy recoil in one hand instead (deg/s up a shot: vr_heavy_recoil_kick x heft x its own).
 float(string model, optional float kick) weaponheft = #0;
 // The impact table (Quake/vr/vr_impacts.cpp; its keys VR_MAT_*, VR_HIT_*: vr_impact_shared.h). impact: the effect of a
