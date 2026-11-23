@@ -10082,6 +10082,44 @@ the damage came in pulses (a shot each 1.4 s). Now:
   Screenshot `qvr-kit/scratch/lancecharge_glow_bolt.png` (charging, then the bolt).
 - Not tested live: another player's charge in a real two-client game (the same message and draw path as yours, the
   copy's weapon from mpavatar).
+
+## capcolour: made weapon models' dark caps drew near-white (agent/capcolour, 2026-11-23)
+
+- **Finding (ROUND25 "dwellrotary"):** the caps that close a made model's holes (`vr_adweapons.cpp` `seal`, the cap
+  rows: Quake's palette index 2, (31,31,31)) and its made parts' dark texels drew nearly white in a bright room. Only
+  `vr_adweapons.cpp` makes such caps: AD's Shadow Axe, Widowmaker and Plasma Gun, Dwell's Rotary (both models), Lance
+  and Rifle (the lance-as-pole keeps its faces open: no caps).
+- **Cause:** not the texel (not fullbright, not the skin bake) but the weapon reflections (`vr_envmap.cpp`, alias
+  shader `ModelRimReflect`): `MetalMask` counts a flat dark grey as fully metal, and the fresnel's floor (f0 0.25 or
+  more, whatever the texel's darkness) mirrors the room over it. Big smooth made faces in a few flat texels show it as
+  one bright mirror. The made models fell to the expansions' default (metal 0.7, lod 3); the Rotary's barrels on
+  Dwell's own metal texels drew just as white, and `vr_weapon_reflections 0` drew them all dark.
+- **Fix:** `weaponMetal` gives every made model (`adweapons::isMade`: "<model>#vr") the Widowmaker's numbers (0.2, lod
+  3.5: his note 2026-10-29 for the same look): `madeMetal`, `madeLod`. Vanilla weapons, the shader and the skins are
+  unchanged; the Rotary's black hole and port (dwellrotary) kept.
+- **Tests:** release build 0 warnings; dwell_vrmodels 13/0, dwell_rotary 3/0; check_mdl_holes on the seven capped made
+  models ok (0 open loops); shots kit `scratch/capcolour_before.png`, `capcolour_before_ad.png` (axe) and
+  `capcolour_after.png` (side and front: axe, Rotary, Lance, Rifle, Rotary setting 0). The Plasma Gun was not caught
+  held by the mock camera (same rule).
+## mpcampaign: a joining client plays the server's campaign (agent/mpcampaign, 2026-11-23)
+
+flatgreen3's open item (a client kept its own campaign: rogue's start.bsp on a Quake server, "Model *43 not found"; its
+Load Autosave list hid the server's coop saves).
+- **Wire:** `QVR_SVC_CAMPAIGN` 57 (the server's active campaign folder), before `QVR_SVC_PACKAGE` and each
+  svc_serverinfo (connect and every changelevel), read whatever protocol the last server had. `QVR_NET_VERSION` 45.
+- **Client** (vr_mpdownload.cpp parseCampaign, the map package's machinery shared: leave, switch, join again, one rejoin
+  per campaign): Quake and its mission packs switch in place (only which start.bsp is read: VR_CheckSpawnCampaignMap's
+  bookkeeping, the hub's choice untouched); a campaign with folders of its own (dopa, mg1, mg3, AD, Dwell, Quoth) leaves,
+  is selected the selector's way (no map, no prompt; the server's gates are its own) and joins again. A campaign whose
+  data is missing, incomplete or another version, or whose language data is incomplete: refused, console and centre
+  print naming it (Host_EndGame, no Host_Error). Disconnected with no rejoin pending: the client's own campaign back (in
+  place or rebuilt; a game started here meanwhile keeps its own). vr_gamedir.cpp: VR_JoinCampaign, VR_LeaveJoinedCampaign.
+- **Coop saves (2):** listed by the server's campaign while joined (the Load Autosave filter reads the active campaign).
+- **Test aid:** `-campaignmissing <folder>` (that campaign taken for one this game lacks, for joins only).
+- **Tests:** `mp_test.py campfollow` (in the suite) 15/0: a rogue client on Quake's start, Quake's on hipnotic's start,
+  Quoth (rejoin), its own campaign back after each leave, a client lacking Quoth refused. mp_harness's
+  `+vr_campaign_select id1` workaround dropped (the games start as a player's would).
+- Release notes not touched: the beta 2 text says network version 44 (now 45).
 ## tutflat: the tutorial's messages in flat-screen play, with the player's own keys (agent/tutflat, 2026-11-23)
 
 His request 2026-11-23 (14): tutorial messages detect flat-screen mode and use flat wording, and show the player's
@@ -10141,3 +10179,14 @@ Item 11 of his flat notes (ropes8b's open list). ROPES.md "What pushes it" (Chai
   contacts with a kinematic box this thin are kept). Reverted.
 - **Not done (budget):** 2 (MP: another player on a strung rope / a pole, pole prediction on MP clients, two climbers
   through one pole), 4 (flat fingertips 0.44 into a pole), 5 (rope_pump 238 vs 250).
+
+## flatbob: flatlagbob's level case; no ride on the body (agent/flatbob, 2026-11-23)
+
+- **No unintended motion.** The level `fwd0` probe was never at `vr_flat_bob_fwd 0`: the script set 0 only before the
+  looking-down pair, and the level pair ran first at the shipped default, 1 since 803c3406fc (2026-11-06, his flatscreen
+  tunables promoted; it was 0 when the case was written in 97446fada). So "fwd 0" measured the forward bob itself (0.6
+  each way at a run: range 1.01-1.07), and fwd 2 minus that is 0.93, not +1.0. flatgreen2's sway and flatjitter's
+  "stride-rate ride with fwd 0" were that bob. A per-frame probe of the shoulder in the camera's frame (temporary, not
+  kept) at a run on e1m1 with the cvar really 0: the shoulder's range along the view 0.00, the hand's 0.19; at 1: 1.06.
+- **Fix (test only):** `tune vr_flat_bob_fwd 0` before the level fwd0 probe. flatlagbob 5 passed, 0 failed (level: hand
+  0.19 -> 1.94, shoulder 0.00 -> 1.91; 40 down unchanged, 0.18 -> 1.92). No engine change, so no flatsight/flatmove run.
