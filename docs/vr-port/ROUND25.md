@@ -10091,3 +10091,14 @@ actual binds ("Press 'G' to equip a grenade", following a rebind); VR messages u
   headset (mock): 3/0 (the headset's wording, untouched). Binds and cvars put back after. The first screenshot of lesson
   1's board read "MOVE: 'W' ',' 'S' '.'" (default.cfg binds , and . too, lower key numbers): hence the ranking; now
   'W' 'A' 'S' 'D' (the test's t2_move). Scene `flat_tutorial_keys` (lesson 10).
+
+## flatbob: flatlagbob's level case; no ride on the body (agent/flatbob, 2026-11-23)
+
+- **No unintended motion.** The level `fwd0` probe was never at `vr_flat_bob_fwd 0`: the script set 0 only before the
+  looking-down pair, and the level pair ran first at the shipped default, 1 since 803c3406fc (2026-11-06, his flatscreen
+  tunables promoted; it was 0 when the case was written in 97446fada). So "fwd 0" measured the forward bob itself (0.6
+  each way at a run: range 1.01-1.07), and fwd 2 minus that is 0.93, not +1.0. flatgreen2's sway and flatjitter's
+  "stride-rate ride with fwd 0" were that bob. A per-frame probe of the shoulder in the camera's frame (temporary, not
+  kept) at a run on e1m1 with the cvar really 0: the shoulder's range along the view 0.00, the hand's 0.19; at 1: 1.06.
+- **Fix (test only):** `tune vr_flat_bob_fwd 0` before the level fwd0 probe. flatlagbob 5 passed, 0 failed (level: hand
+  0.19 -> 1.94, shoulder 0.00 -> 1.91; 40 down unchanged, 0.18 -> 1.92). No engine change, so no flatsight/flatmove run.
