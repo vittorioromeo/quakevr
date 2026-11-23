@@ -10190,3 +10190,24 @@ Item 11 of his flat notes (ropes8b's open list). ROPES.md "What pushes it" (Chai
   kept) at a run on e1m1 with the cvar really 0: the shoulder's range along the view 0.00, the hand's 0.19; at 1: 1.06.
 - **Fix (test only):** `tune vr_flat_bob_fwd 0` before the level fwd0 probe. flatlagbob 5 passed, 0 failed (level: hand
   0.19 -> 1.94, shoulder 0.00 -> 1.91; 40 down unchanged, 0.18 -> 1.92). No engine change, so no flatsight/flatmove run.
+
+## ropes8d: two climbers on one pole, poles predicted, MP pole and strung-rope scenarios (agent/ropes8d, 2026-11-23)
+
+ropes8c's open item 2 (MP). ROPES.md "Poles", "Multiplayer".
+- **Two climbers pass one pole:** passSolids also keeps every player it lets through (`solidPass`, a bit a client; the
+  owner as before); world.c SV_ClipToLinks skips a pole box for any of them (`VR_PoleSolidPasses`, vr_climbrope.cpp).
+  `vr_rope_info` prints `rope_solid: ent boxes owner pass` per pole.
+- **MP clients predict against the pole boxes:** the boxes (no model) are never sent, so the client makes them from
+  the pole as sent (QVR_SVC_CLIMBROPE: ends, thickness), `solidCount` / `solidBounds` shared with placeSolids;
+  `climbrope::clientSolidTrace` from vr_predict.cpp ClientBody::trace (his box: vr_hull_width, crouched height; the
+  box hull's trace, SV_InitBoxHull made once on a remote client). Passed as the server does: a drawn hand on a rope
+  within 24 units, or already in a box.
+- **Tests (mp_test.py):** `pole` (flat A and B climb the metal pole from both sides; the server passes both; each sees
+  the other's copy: wrists 2.0, ankles 2.2; B's walk at the pole predicted with 0 corrections) 12/0; `pole_vr` (VR B
+  watches flat A on it) 8/0; `monkey` (flat A jumps to the level strung rope, goes 49 units along it; VR B's copy:
+  climbing 0.98-1.00, wrists 1.8-2.0) 9/0; `monkey_flat` the same with a flat B (not run). `pole` and `monkey` in the suite.
+- **Found, open:** a flat player walking into the upright metal pole (vr_flat_rope 0, so not taking it) is not stopped
+  by its box on the dedicated server: B went from y -410 through the pole (y -450) to -474, where A stopped him; his
+  prediction agreed (0 corrections). ropes8a's "players stop at it" was only checked by vr_pole_solid_test's traces.
+  Next: trace B's server move against the box (SV_ClipToLinks' entbox / bodymove path for a SOLID_BBOX of no model).
+- **Not done (budget):** 2 (flat fingertips 0.44 into a pole), 3 (rope_pump 238 vs 250), 4 (props vs poles).

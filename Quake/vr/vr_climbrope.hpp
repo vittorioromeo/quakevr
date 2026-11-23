@@ -117,6 +117,11 @@ void setPump(int client, const glm::vec3& accel);
 // Client (ropes7): whether the rope passing nearest `near` (within `within` units) is traversed hanging under it (a
 // monkey traverse: the legs hang, the trunk isn't turned to it).
 [[nodiscard]] bool clientRopeMonkey(const glm::vec3& near, float within);
+// Client (ropes8d): his predicted move (vr_predict.cpp), his box (`mins`, `maxs`) from `start` to `end`, against the
+// poles' boxes as the server places them (placeSolids, from each pole as sent) -> true if one was nearer than `best` (or
+// he starts in one), `best` then that trace (ent null). Passed as passSolids does: a pole within reach while one of his
+// drawn hands holds a rope, or one he is already in. A remote client only (a server here: false).
+[[nodiscard]] bool clientSolidTrace(const float* start, const float* mins, const float* maxs, const float* end, trace_t& best);
 // Client: how far `p` is from the nearest rope's pieces (units; 1e9: none). (vr_mp_avatars' mp_ropepose.)
 [[nodiscard]] float clientRopeDistance(const glm::vec3& p);
 
