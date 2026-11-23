@@ -6619,7 +6619,8 @@ QVR_SLIDER(vr_flat_holster_menu_timescale, "Holster Menu Time Speed", 0.05f, 1.f
     "How fast time runs while the holster menu is held open: 0.3 (the default) slows it as bullet time does; 1 not at all "
     "(vr_flat_holster_menu_timescale).")
 QVR_SLIDER(vr_flat_holster_menu_blur, "Holster Menu Blur", 0.f, 20.f, 1.f, "%.0f px", noExt,
-    "How much the view blurs behind the holster menu (pixels at 1080p; 0 none) (vr_flat_holster_menu_blur).")
+    "How much the view blurs behind the holster menu and the weapon wheel (pixels at 1080p; 0 none) "
+    "(vr_flat_holster_menu_blur).")
 QVR_SLIDER(vr_flat_holster_menu_xhair_fade, "Holster Menu Crosshair Fade", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "How far the crosshair fades out while the holster menu is open: 1 gone, 0 kept (vr_flat_holster_menu_xhair_fade).")
 QVR_SLIDER(vr_flat_holster_menu_size, "Holster Menu Size", 0.3f, 1.f, 0.02f, "%.2f", noExt,
