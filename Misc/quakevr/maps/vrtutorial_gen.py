@@ -188,16 +188,19 @@ def bands(panel, upper=None, floor=None, ceiling=None, sky=False, rail=None):
 
 class Air:
     """A box of air (lo, hi): a room, a hall, a doorway through a wall, a pool, a shaft. `shell`: walls round it
-    (T thick; `open` names the sides left without: '+x', '-y'...); `floor`: its bands' base height."""
+    (T thick; `open` names the sides left without: '+x', '-y'...); `floor`: its bands' base height; `align`: ((x0, y0),
+    (x1, y1)), another room's floor whose walls' texture alignment its walls take (a wall that runs on into that
+    room's)."""
 
     PRIORITY = {"door": 0, "pool": 1, "shaft": 2, "room": 3}
 
-    def __init__(self, name, lo, hi, kind="room", style=None, shell=True, open=(), floor=None):
+    def __init__(self, name, lo, hi, kind="room", style=None, shell=True, open=(), floor=None, align=None):
         self.name, self.lo, self.hi, self.kind = name, tuple(lo), tuple(hi), kind
         self.style = style or Style()
         self.shell = shell and kind != "door"
         self.open = set(open)
         self.floor = lo[2] if floor is None else floor
+        self.align = align
 
     def contains(self, p):
         return all(self.lo[i] < p[i] < self.hi[i] for i in range(3))
@@ -227,7 +230,8 @@ class Air:
                 return spec(TX["sky"], X, MY, (0.0, 0.0, 0.0))
             return flat_spec(st.ceiling, lo[0], hi[1])
         u = right_of(n)
-        left = min(lo[0] * u[0] + lo[1] * u[1], hi[0] * u[0] + hi[1] * u[1])
+        alo, ahi = self.align or (lo, hi)
+        left = min(alo[0] * u[0] + alo[1] * u[1], ahi[0] * u[0] + ahi[1] * u[1])
         if self.kind == "pool":
             return wall_spec(TX["pool"], n, left, self.hi[2])
         z = c[2] - self.floor
@@ -296,6 +300,31 @@ def world_tex(n, c):
     if a is None:
         return mapgeom.Tex(TX["black"]).spec(n, c)
     return a.face_spec(n, c)
+
+
+def piece_tex(lo, hi):
+    """world_tex for the faces of the structural box lo..hi. A face whose centre is behind another box but part of
+    which is in front of air (a floor slab's side across a pit and its bridge, a wall along two rooms) takes the style
+    of the air in front of most of it, not black (the author, 2026-11-23: black stripes round lesson 13's pits)."""
+    def tex(n, c):
+        if air_at(add(c, mul(n, 0.5))) is not None:
+            return world_tex(n, c)
+        axis = max(range(3), key=lambda i: abs(n[i]))
+        i, j = [k for k in range(3) if k != axis]
+        seen = {}
+        for a in range(8):
+            for b in range(8):
+                p = list(c)
+                p[axis] = c[axis] + n[axis] * 0.5
+                p[i] = lo[i] + (hi[i] - lo[i]) * (a + 0.5) / 8
+                p[j] = lo[j] + (hi[j] - lo[j]) * (b + 0.5) / 8
+                air_here = air_at(p)
+                if air_here is not None:
+                    seen.setdefault(air_here.name, [air_here, 0])[1] += 1
+        if not seen:
+            return world_tex(n, c)
+        return max(seen.values(), key=lambda s: s[1])[0].face_spec(n, c)   # (the face lies in one band: carve)
+    return tex
 
 
 def carve():
@@ -1373,6 +1402,8 @@ def build_room7():
     air("r7_alcove", (r["x1"], 608, LOW), (r["x1"] + 64, 736, LOW + 128), style=bands(TX["panel5"]))
     door_frame(out, door_air("r7_alcove_mouth", (r["x1"], 608, LOW), (r["x1"] + 1, 736, LOW + 128)))
     wall_lamp(out, "+x", r["x1"] + 64, 672, LOW + 100, 120, "1 0.5 0.4")
+    # a lamp over where the enemy comes from (the author, 2026-11-23: the alcove was too dark to see it in)
+    ceiling_lamp(out, r["x1"] + 32, 672, LOW + 128, w=32, d=64, value=260)
     ent("func_vr_spawner", r["x1"] + 32, 672, LOW + 32, weapon=0, angle=180, spawnflags=3, targetname="r7_spawn",
         target="r7_dead", message="Finish this one first.")
     trigger("r7_start", (5152, 800, LOW), (5280, 928, LOW + 96), target="r7_spawn", delay=2)
@@ -1629,7 +1660,10 @@ def build_room12():
     out = group("room12")
     # the hall from lesson 14's room (its north-west doorway) up to the arena's door (tutorial5: lessons 12-14 now
     # come between room 11b and here; were hall_12a down from room 11b's door and hall_12b west to this door)
-    air("hall_15", (HALL15[0], HALL15[1], LOW), (HALL15[2], HALL15[3], LOW + 160), style=bands(TX["panel3"]))
+    # room 14's walls and their texture alignment: its west wall runs on into the hall's (the author, 2026-11-23: two
+    # wall textures that did not match there)
+    air("hall_15", (HALL15[0], HALL15[1], LOW), (HALL15[2], HALL15[3], LOW + 160), style=bands(TX["panel"]),
+        align=((R14["x0"], R14["y0"]), (R14["x1"], R14["y1"])))
     r = R12
     room("room12", r["x0"], r["y0"], r["x1"], r["y1"], LOW, 400, COURT).windows = (272, 416)
     d = doorway("room12_in", r["x1"], -656, r["x1"] + 16, -528, LOW, out)
@@ -2025,7 +2059,7 @@ def write_map():
     check_flat_wording()
     mw = MapWriter()
     for lo, hi in carve():
-        mw.world.append(mapgeom.box(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2], world_tex))
+        mw.world.append(mapgeom.box(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2], piece_tex(lo, hi)))
     mw.world.extend(CURVED)
     for lo, hi in WATER:
         mw.world.append(mapgeom.box(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2], mapgeom.Tex(TX["water"])))

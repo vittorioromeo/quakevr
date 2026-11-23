@@ -909,6 +909,24 @@ glm::mat3 view::heldReverseTurn(int slot, int hand)
     return hand >= 0 && hand <= 1 ? reverseTurn(slot, hand == HAND_OFF, drawnFlip(hand)) : glm::mat3{1.f};
 }
 
+glm::vec3 view::heldShotAngles(const glm::vec3& rot, int hand)
+{
+    const int slot = weapons::heldSlot(hand);
+    const glm::vec3 shot = weapons::shotAngles(rot, slot, hand == HAND_OFF);
+    if(!twohand::poleWeapon(slot))
+    {
+        return shot;
+    }
+    const glm::mat3 g = heldReverseTurn(slot, hand);
+    if(g == glm::mat3{1.f})
+    {
+        return shot;
+    }
+    const glm::mat3 b = hands::basisOf(rot);
+    const glm::mat3 t = b * g * glm::transpose(b) * hands::basisOf(shot);
+    return hands::anglesFromVectors(glm::normalize(t[0]), glm::normalize(t[2]));
+}
+
 glm::mat3 view::twoHandTurn(int slot, int hand)
 {
     const glm::mat3 g = heldReverseTurn(slot, hand);

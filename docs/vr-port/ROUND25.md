@@ -11582,3 +11582,149 @@ beta2's re-signed APK and the shipped progs.dat (8a409520...) back. Scripts (not
 - **Not changed**: the auto safe mode stays kept (release builds) after a start in it ends well, so a player already in
   it (the 3S) stays there until Debug > Startup > Retry Full Renderer (`vr_glsafe_retry`). APK 0 warnings, check_apk
   20/0. beta2's re-signed APK and the shipped progs.dat (8a409520) put back. Scripts (not committed): `scratch/hc/`.
+## tutfix1123: the tutorial always single player; lesson 13's spike battable, its black stripes; lit alcove; hall 15's walls (agent/tutfix1123, 2026-11-24)
+
+His voice notes vrtutorial_2026-11-23_23-07-33 .. 23-13-43.
+
+- **Single player, however started**: Host_Map_f calls `VR_TutorialSinglePlayer` (vr_gamedir.cpp) once the old server
+  is shut down: for `vrtutorial` it sets one client slot (`listen 0` as `maxplayers 1` does), deathmatch, coop,
+  teamplay 0, FrikBot's coop bots not brought back (`scratch1` 0), the hub's campaign Quake
+  (`vr_activestartpaknameidx` 0; the game folders were Quake's already: VR_CanLoadCampaignMap), and an mp scene's
+  saved slots dropped (`scenario::dropSlots`: else `vr_scenario` put its 4 slots back once no game ran). It prints
+  `VR: the tutorial: a single-player game (was N players, ...)` when it changed something. Every way in (the start
+  flow, Play Tutorial, Debug's The Tutorial, the hub's button, the console) goes through `map`. The cause seen: after
+  `mp_dm_passive`, `skill 0; map vrtutorial` kept `maxplayers` 4 (the scene's settings were put back, its slots were
+  not). The 10-15 s alive in the pit did not reproduce headless (dead 13 frames after the drop, with 4 slots or 1).
+- **Spike batting**: trap_vr_shooter's spike is `vr_foeshot` (an enemy's shot no monster owns, Dwell's way), so
+  VR_Deflect_IsProjectile takes it: the swing/bash batting code shared with every enemy projectile, flat and VR. The
+  SPIKE button stays.
+- **Map** (vrtutorial_gen.py, compiled `final`): a structural face takes its texture from the air in front of its
+  centre; a face whose centre is behind another box but part of which is open (room 13's floor slab's side across
+  both pits and the bridge; its north wall over room 10's alcove; 71 faces in all, e.g. room 14's north wall, the
+  teleporter hall) was black. `piece_tex` now takes the air in front of most of the face (0 such faces left). Hall
+  15 (room 14 to the arena) had panel3 (tech08_2) on the wall that runs on from room 14's west wall (tech14_1): now
+  room 14's style, its walls aligned to room 14's (`Air(align=...)`). Lesson 7's alcove: a ceiling lamp (light 260)
+  over the spawner.
+- **Tests**: `Misc/quakevr/tutorial_start_test.sh` (8 checks: `mp_dm_passive`, then `skill 0; map vrtutorial`: one
+  slot, no dm/coop/teamplay, campaign 0, then `vr_pickup_test 25`: the spike passes VR_Deflect_IsProjectile, the
+  grenade is a VR grenade, the pit kills within 72 frames). Debug > Tests > Tutorial > Lesson 13: Shooters And Pit.
+  Scenes tut_lesson7, tut_lesson13, tut_lesson14.
+- `vr_pickup_test 13` (the keycard tip) fails 2 of 8 here with the old map too: not this change.
+## ropes14: VR rope and pole feedback: the grip kept, the support grip, eased legs, the let-go's pass (agent/ropes14, 2026-11-24)
+
+His VR notes 2026-11-23 (vrropes 22-51-05 .. 22-56-44, vrtutorial 23-12-23). ROPES.md "Poles" (ropes14 paragraphs).
+- **Pole grunt (1):** a pull up a pole grunts at `vr_pole_grunt` (0, tunable: none); ropes keep `vr_rope_grunt`.
+- **The grip kept (2):** why it jumped: under a level rope `monkeyRopeUp` picked the thumb's way along it from
+  `cl.viewangles` every frame (in VR the aim's way, not the head's), so it flipped as he turned to look back at the hand.
+  VR now (`vr_rope_grip_keep` 1, `monkeyGrip`): taken at each new hold from the controller's turn (the grip whose palm
+  faces the controller palm's way; the view's when it can't tell, |d| < 0.3), kept until the hand lets go. Flat keeps the
+  view's. monkey_keep play: by the view, `gripkept` worst -1.00 (flipped); kept 1.00; a regrab turned the other way
+  takes the other grip (`gripflipped` 1.00) and both grips pull him up (`rose 5`).
+- **Support grip (3):** eyes `vr_rope_support_rise` (0.3 m) over the level rope: the hand turns round its axis by
+  `vr_rope_support_turn` (180) over `vr_rope_support_time` (0.15 s), the way the body hung (`monkeySupport`); back 5 cm
+  lower. monkey_support play: `support 2` (palms over the axis, knuckles down; with rise 5: -1.20 under, fails), then
+  `monkeygrip 2` back under it.
+- **Legs (4):** the feet's place round the rope eased from the hip (`vr_rope_leg_smooth` 0.25 s; Climbing::ropeFootRel,
+  per subject). `legjerk` (the posed ankle's most move from the pelvis in a frame): swinging rope 3.97 -> 1.57 units;
+  climbing a pole 1.20 -> 1.75 (both small; bound 2.5).
+- **Thumb (5):** thick poles back to the normal grip (`vr_rope_thumb_thick` 0; 1 along, 2 around) and tweaks by thickness
+  (`vr_rope_thumb_from` 2 / `_to` 3; `_curl`, `_opposition`, `_swing`, `_lift`, `_shift_x/y/z`): `grasp::thumbTurn`
+  after the solve, the shift before it. Pole check: the normal thumb not in it (`thumbHolds`' new branch); lift 60 moves
+  it 7+ degrees round the pole (`thumbmoved 6`). All 17 new tunables on Debug > Tunables (menu_paths.txt rows added).
+- **Let-go pass (6):** `vr_rope_letgo_pass` (0.4 s): `climb::ropeLetGoPass` (the rope any hand held as he fell free,
+  VR or flat): passSolids lets him through its boxes, `disturb` skips his body; a remote client's clientSolidTrace
+  passes poles by him that long after its hands were last on one. pole_through play: off a pole, back at it at 320 u/s:
+  55.9 past its axis; with 0: stopped 9.5 short (fails).
+- **Tests:** rope_climb_test all 14 plays pass but rope_pump (238 vs 250: known since ropes12); rope_flat_test rope 9/0,
+  pole 8/0, polejump 8/0, ropejump 7/0, strungpole 5/0, slide 6/0; pole_fall_test upright 21/0, slant 21/0;
+  rope_hands_test 6/0; mp_test pole 15/0, pole_vr 8/0. Shots (low-impact mode): scratch/ropes14_support.png,
+  ropes14_pole.png, ropes14_keep.png (the hands barely in view).
+- Not done: another player's copy's support grip places the palm under the rope (the turn is his); not checked in a
+  headset.
+## lance3: the Crystal Lance's VR feedback: combat and feel (agent/lance3, 2026-11-23)
+
+His VR notes vrtesthall_2026-11-23_22-59-42 .. 23-26-51 (nine items). New tunables (Debug > Tunables, after Crystal
+Lance Bolt Linger): `vr_dw_lance_push` 1, `_hit_sparks` 24, `_hit_smoke` 6, `_embed_length` 5, `_embed_tip` 15,
+`_embed_speed` 0, `_shake_charge` 0.05, `_shake_fire` 0.3, `_shake_time` 0.35, `_haptic_charge` 0.15, `_haptic_fire`
+0.9, `vr_pole_grip_turn` 1.
+- **No empty click** (1): W_AttackImpl returns silently for the Lance without cells (as Mjolnir's); DW_LanceChargeFrame
+  and DW_FireVariant's empty paths are silent too.
+- **Tip stab** (2) and **thrown point first** (3): weapons.txt slot 55 `embed "1"` (a point; its tip the muzzle anchor),
+  so the engine's embedding and point-first settling (vr_box3d_step.cpp pointAlign) treat it as a sword. Shallow:
+  vr_axestick.cpp `pointLength` counts only `vr_dw_lance_embed_length` units of it as its blade (the swords' depth
+  shares, 30-80%, of 5 units), held or thrown. QC VR_Embed_Blow: the Lance's own least speed (`_embed_speed`, 0: the
+  swords') and only a stab struck within `_embed_tip` % of its blow line from the tip; its keys read from
+  dw_lance.mdl#vr (WeaponIdToModel gave the lightning gun's).
+- **Flipped grip** (4): `view::heldShotAngles` (vr_view.cpp): a pole weapon's aim turned by heldReverseTurn as drawn
+  (vr_twohand's blade line's way); the move's shotRot, your beam's drawn end and vr_status use it. The move's muzzle is
+  the middle crystal's tip as drawn (lancecharge::boltStart; flat and VR).
+- **Off hand turns about the pole** (5): vr_twohand.cpp `poleTurn` in freeHand (FREE_POLE, VR only): the swing-twist of
+  the tracked hand's turn since it took hold, about the pole's axis, times `vr_pole_grip_turn`; its place turned round the
+  pole's line with it. Flat's spear pose (flatsight's pin, vr_flat_pole_*) untouched.
+- **Shake** (6): vr_lancecharge.cpp `shake` (yours): a tremble growing with the charge and a shake dying away after it
+  fires, added in vr_weaponfx.cpp recoilOffset as a stream's (the slot taken before the first shot); buzzes
+  (`haptics::pulse`) every 50 ms while charging and one as it fires (QC's own pulses kept). vr_debug_gunfx's charge prints
+  gain "shake most N, buzzes N".
+- **Barrel heat all round** (7): the ramp was along the model's x; the spear's pole lies along (0.34 0 0.94), so one side
+  of the head lit. vr_hotblade.cpp barrelInstance: a grip-to-muzzle line off x (cos < 0.7) ramps along that line, its
+  coefficients in HotBlade xyz (a barrel's fragment never reads HotBlade); vr_glsl_alias.h's vertex step uses them. Other
+  guns unchanged (x).
+- **Beam as an attack** (8) and **impact** (9): dw_fire_lance traces as LightningDamage (MOVE_HITGIBS | MOVE_HITMODEL,
+  lag compensated, stealth graze), pushes what it meets (VR_ShotPush, a bolt's kind x5 x`_push`), damages through
+  VR_LightningHit (heads and limbs pop as a bolt's: vr_decap_weapon set; shock, blood); where it stops: sparks, smoke and
+  the bolt's lasting burn (VR_Lightning_Burn).
+- **Tests**: dwell_lance_test.sh (new section 9: flipped, the shot along the crystal; the beam's push; charge and fire
+  shake and buzzes; no empty click with the trigger held): 47/1, then the flipped threshold set to 10 deg (6.3 measured,
+  174.5 before; upright 3.4). Sections 1-8 pass unchanged (the bolt 0.40 from the charge as it fired). Section 6's thrust
+  (the head, 1.00 of the line, 5 m/s) printed no embed verdict with vr_debug_embed 1: whether the Lance's stab now stays
+  in is not shown by a test (open).
+- **Follow-up**: dwell_lance_test.sh 49/0 (section 6 now checks the tip stab stays in: 1.5 units, vr_debug_axestick's
+  "embedhold: Thunderbolt held by hand 1, N units in"; vr_debug_embed's verdicts go to the screen, not the console).
+  `vr_dw_lance_push` default 4 (120 N s; 1 moved a crate 0.3 units). New vr_ad_test 225 (dwpush: a crate and a ragdoll,
+  their places before and after a test-aimed beam, `dw_lance_aim_test`) is NOT in the suite: unreliable so far (the
+  crate's spot varied between runs, the ragdoll's root bone read 552 units moved, likely through the floor); open.
+- Not verified here: the twist and the glow by eye in a headset; an actual ragdoll or prop pushed by the beam (the push
+  path runs: "shot push: kind 4"); a thrown Lance's flight by eye.
+## animfix1123: armed humanoids unposed on big maps, scenes' leaked toggles (2026-11-24)
+
+- **Stuck arms, floating guns (his notes 2026-11-23 23:36:33, 23:34:15, 23:03:39, all ad_crucial).** The client kept
+  the armed humanoids' arm poses (QVR_SVC_ARMPOSE) in 64 slots (`vr_hitreact_internal.hpp` maxArmPoses), freed only
+  after 0.3 s without a message. The server sends one for every armed humanoid at least every 8 frames
+  (vr_agrunt_pose_lod_frames), so none ever went stale: ad_crucial has 97, the first 64 in the server's order kept the
+  slots and the rest (his enforcer was entity 1884) found none. Those were drawn with their arms as the frames have
+  them and their weapons where the server places them (ahead of the body): "IK stuck in one pose", "the Defender's gun
+  floating in front". A load (or a scene's fresh map) re-dealt the slots, so it showed after loads. Measured before the
+  fix: 64 of 64 slots live, 1274 messages in 300 frames found none. Now: 128 slots, and a message for a humanoid drawn
+  this packet (its entity sent before the broadcast datagram) takes the slot of one not drawn, the longest posed ago
+  (`armPoseOf`). After: 97 of 128 live, 0 found none. When posed, a weapon is placed from the solved hand
+  (`out.weapon = H * grip * offset`), so it cannot float; ad_crucial at his note's spot over 1200 frames of combat, before
+  and after a save/load: reach short right 1.4 / left 11-16 units (the off hand's own targets in strikes), every drawn
+  one posed. humrepl_variants (the eight AD soldiers, the Defender among them): reach short 0 / 0 over 800 frames.
+- **Check:** `vr_agrunt_armpose_check [label|done]` (Debug > Armed Humanoids: Arm Pose Slots): drawn and posed armed
+  humanoids, slots live, the drawn ones' messages that found no slot since the last check, slots taken from undrawn
+  ones; `<label>` passes with none found and some posed; `done` prints `armposecheck: N passed, M failed`.
+  `vr_agrunt_armpose_slots N` (test only, 0 all) caps the slots. The test (save -> load), AD mounted:
+  `run.sh <agent> -Games "-game hipnotic -game rogue -game ad -game quakevr" -QuitOn "armposecheck: \d+ passed"
+  -Script "map ad_crucial;vr_agrunt_armpose_slots 16;wait200;vr_agrunt_armpose_check fresh;save t;load t;wait200;
+  vr_agrunt_armpose_check loaded;vr_agrunt_armpose_slots 0;vr_agrunt_armpose_check done;toggleconsole;quit"` -> 2 passed
+  (one slot taken from an undrawn one after the load). Scene `agrunt_saveload`: ad_crucial where his note was made.
+- **Scenes' leaked toggles (his note 23:03:39: "a remnant of the previous test").** The Pose, Rig and Armour Studios
+  saved vr_agrunt_freeze when opened and put that value back when they closed, which a stale studio does on its next
+  frame after a map change: a scene with `cvar vr_agrunt_freeze 1` (agrunt_holds_enforcers, the pose_* scenes) and a
+  studio opened in it ended, the scene put freeze back to 0, then the studio put its 1 back and the next scene's
+  humanoids stood frozen (reproduced: rigstudio_strike then agrunt_saveload, SCNLEAK vr_agrunt_freeze 0 -> 1). Each now
+  puts its value back only while freeze is still on. And every scene now snapshots every setting at its start; at its
+  end each non-archived `vr_` setting that differs is printed (`SCNLEAK|<id>|<cvar>|<before>|<now> (put back)`) and
+  put back; runall counts a scene that leaked as failed (scenario_check.sh fails on it). Not counted (state or menu
+  mirrors, not toggles): vr_run_seed, vr_blood_tally*, vr_handedness, vr_gore_preset, vr_menu_*, vr_agrunt_grip_*
+  (setting one back would write his grips), vr_armourstudio_*, vr_humstudio_*. Archived settings (his own, changed
+  in the menus during a test) are kept. scenario_check: 181 scenes, the only leaks were those mirrors (now excluded).
+- **Bots' left holsters (his note dm3 23:05:16): not fixed.** `vr_mp_gearcheck 4 1` on mp_dm_passive: every piece of
+  the bot's matches the viewer's own in the same holster within 7 mm and 1.2 degrees, left and right alike (the guns
+  on 2 and 3, the sheaths on 2-5), and the mirrored flag is the same code on both paths (holsterOnOther, drawHolsters).
+  So the copy wears exactly what your own body wears; if its left side reads wrong, your own left holsters' turn is
+  the same (mirroring yaw and roll by the frame's side: holsterRotation) and the question is what the left should be.
+  The check compares the models' forward and up only, not their mirroring. Next: an eyeshot of a bot's left and right
+  hips side by side, and his own left hip from above.
+- **Wall glue (his note vrtutorial 23:14:32): not started** (out of budget): an A/B test with the active ragdoll's lean
+  off is left.

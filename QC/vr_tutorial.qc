@@ -469,6 +469,7 @@ void() trap_vr_shooter_use =
         sound(self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
         entity s = launch_spike(self.origin, dir);
         s.velocity = dir * 500;
+        s.vr_foeshot = TRUE; // (an enemy's shot though no monster fired it: a swing bats it back, VR_Deflect_IsProjectile)
     }
 };
 

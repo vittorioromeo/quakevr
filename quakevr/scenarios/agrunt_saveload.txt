@@ -1,0 +1,10 @@
+# agrunt_saveload: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". His notes of 2026-11-23
+# (23:03:39, 23:34:15, 23:36:33): in ad_crucial, after a load or a scene's fresh map, armed humanoids' arms stuck in one
+# pose, their weapons moving (or floating ahead of them) without them. ad_crucial has ~100 armed humanoids; the client
+# had 64 arm pose slots and the first 64 in the server's order kept them (ROUND25.md, "animfix1123"). Where his note
+# was made. Needs Arcane Dimensions mounted (Play > Official Campaigns > Arcane Dimensions, or -game ad).
+title ad_crucial after a save and load: every armed humanoid's arms on its weapons
+map ad_crucial
+start 338 484 -312 161
+god
+hint Armed grunts and enforcers come for you (one with a nail pistol and an axe). Save, load that save, and watch them: their arms follow their weapons as before the load, never stuck in one pose with the weapons moving or floating ahead of them. Debug > Armed Humanoids: Arm Pose Slots should say 0 found none.

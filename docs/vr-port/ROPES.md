@@ -161,6 +161,22 @@ before, the thumb lay over the fingers (-50 to -80). Another player's hands take
 rests along its side (`Held::thumbAlong`, ThumbStyle Along: the usual and wide turns, the one whose thumb, closed to
 its stop, points most along the bar, one resting on it preferred: `alongValues`). Measured: the pole's thumb 0.91 along
 it (the check: at least 0.6, the tip on its surface).
+(ropes14, his VR note 2026-11-23: along a pole it "stays vertical") Round a thicker one the thumb is the **normal grip**
+again by default (`vr_rope_thumb_thick` 0: the grasp's own wrap; 1 Along, 2 Around), and tunables tweak it by thickness
+(`ropeThumbShare`: none under `vr_rope_thumb_from` 2, fully from `vr_rope_thumb_to` 3): `vr_rope_thumb_curl` (frames
+added), `_opposition` / `_swing` / `_lift` (degrees at its base, the grasp's own axes: `grasp::thumbTurn`), `_shift_x/y/z`
+(its base moved, rig units, before the solve). VR, flat and other players' copies (their drawn pose).
+(ropes14) **The grip under a level one, VR** (`vr_rope_grip_keep` 1): overhand or underhand as the controller was turned
+as the hand gripped (`monkeyGrip`: of the two, the one whose palm faces the controller's palm's way; the view's if it can't
+tell), kept until that hand lets go; it followed the view's (aim's) way each frame, so the hand jumped round the pole as
+he looked back at it. Flat play keeps the view's way. **Over it** (`monkeySupport`): the eyes `vr_rope_support_rise`
+(0.3 m) over it, the hands turn round its axis by `vr_rope_support_turn` (180) over `vr_rope_support_time` (0.15 s),
+by the side the body hung on: the palms on top, the knuckles down; back under it 5 cm lower. VR and flat (your drawn
+hands); another player's copy takes the turn (his snapshot) but its palm's place is ropePalm's, under it.
+(ropes14) **The legs** round a rope ease to their place from the hip (`vr_rope_leg_smooth` 0.25 s). **The pole's pull
+grunt** is off (`vr_pole_grunt` 0; ropes keep `vr_rope_grunt`). **Let go** (a drop or a jump, VR and flat), the rope or
+pole doesn't meet him for `vr_rope_letgo_pass` (0.4 s: `climb::ropeLetGoPass`; its boxes pass him, his body doesn't push
+a rope; a remote client's prediction passes the poles by him as long after its hands were last on one).
 
 ## Strung ropes and the monkey traverse (ropes7)
 

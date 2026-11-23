@@ -1017,6 +1017,96 @@ void(entity p) DW_ChargeTest =
     t.nextthink = time;
 };
 
+// vr_ad_test 225 (lance3): the Crystal Lance's beam moves what it meets. A small crate 120 ahead and a grunt killed 200
+// ahead (a ragdoll, settled 90 frames): the crate kept from breaking (takedamage off: the beam's push alone,
+// VR_ShotPush), the body from gibbing (the script tunes Corpse Gib Overkill and Hit Min out of reach); the beam
+// (dw_fire_lance, aimed by the test from 64 behind and 24 above each: a ragdoll's root bone, a crate's middle) moves
+// each: those points 30 frames on against before. "dwpush: N passed, M failed".
+float dw_pt_step, dw_pt_frames;
+vector dw_pt_was;
+entity dw_pt_crate, dw_pt_body;
+
+// Where `t` is: a ragdoll's root bone (its body, not its box), a crate's middle.
+vector(entity t) DW_PushTest_At =
+{
+    return isragdoll(t) ? ragdollpoint(t, 0, '0 0 0', 1) : (t.absmin + t.absmax) * 0.5;
+};
+
+void(entity p, entity t) DW_PushTest_Fire =
+{
+    makevectors('0 1 0' * p.angles_y);
+    vector at = DW_PushTest_At(t);
+    dw_lance_aim_test = 1;
+    dw_lance_aim_src = at - v_forward * 64 + '0 0 24';
+    dw_lance_aim_dir = at - dw_lance_aim_src;
+    entity os = self;
+    self = p;
+    dw_fire_lance(cVR_MainHand);
+    self = os;
+    dw_lance_aim_test = 0;
+    dw_pt_was = DW_PushTest_At(t);
+};
+
+void() DW_PushTest_Think =
+{
+    entity p = self.owner;
+    self.nextthink = time;
+    dw_pt_frames++;
+    if(dw_pt_frames > 600)
+    {
+        VR_Test_Check(FALSE, sprintf("timed out (step %g)", dw_pt_step));
+        VR_Test_Verdict();
+        remove(self);
+        return;
+    }
+    if(dw_pt_step == 0)
+    {
+        if(dw_pt_frames < 3) { return; }
+        T_Damage(dw_pt_body, p, p, dw_pt_body.health + 10); // (a kill short of a gib: a ragdoll)
+        dw_pt_step = 1;
+    }
+    else if(dw_pt_step == 1)
+    {
+        if(dw_pt_frames < 95) { return; }
+        dw_pt_crate.takedamage = DAMAGE_NO;
+        DW_PushTest_Fire(p, dw_pt_crate);
+        dw_pt_frames = 100;
+        dw_pt_step = 2;
+    }
+    else if(dw_pt_step == 2)
+    {
+        if(dw_pt_frames < 130) { return; }
+        float d = vlen(DW_PushTest_At(dw_pt_crate) - dw_pt_was);
+        VR_Test_Check(d > 2, sprintf("the crate moved by the beam: %.1f units", d));
+        VR_Test_Check(isragdoll(dw_pt_body), sprintf("the grunt killed is a ragdoll (%g)", isragdoll(dw_pt_body)));
+        DW_PushTest_Fire(p, dw_pt_body);
+        dw_pt_step = 3;
+    }
+    else if(dw_pt_step == 3)
+    {
+        if(dw_pt_frames < 160) { return; }
+        float r = vlen(DW_PushTest_At(dw_pt_body) - dw_pt_was);
+        VR_Test_Check(r > 2, sprintf("the ragdoll moved by the beam: %.1f units", r));
+        VR_Test_Verdict();
+        remove(self);
+    }
+};
+
+void(entity p) DW_PushTest =
+{
+    VR_Test_BeginFlags("dwpush", VR_TEST_LOUD);
+    DW_ModelsTest(p, 207);
+    dw_pt_step = dw_pt_frames = 0;
+    makevectors('0 1 0' * p.angles_y);
+    dw_pt_crate = VR_Crate_TestSpawn(p.origin + v_forward * 120 + '0 0 -8', 1, 0, FALSE);
+    dw_pt_body = VR_Test_Spawn(world, 0, p.origin + v_forward * 200 + '0 0 8', p.angles_y + 180);
+    entity t = spawn();
+    t.classname = "dw_pushtest";
+    t.owner = p;
+    t.think = DW_PushTest_Think;
+    t.nextthink = time;
+};
+
 // vr_ad_test 218 (dwellwpn3): the Rotary Shotgun as a gauntlet (vr_dw_rotary_gauntlet), its reload found. In the off
 // hand, its tube empty, the main hand free: drawn with its gauntlet model (slot 56, the super nailgun's hold); its shell
 // port found (the engine's load point for it: vr_view_internal.hpp loadPorts, DwVrRotary; waited for a frame at a time,

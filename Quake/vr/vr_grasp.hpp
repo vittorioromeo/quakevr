@@ -130,6 +130,10 @@ void solve(const handrig::Pose& pose, const Shape& shape, const glm::mat4& shape
 // Forgets the afresh solves remembered (solve: the same inputs, the result they gave): vr_grasp_bench times a real one.
 void forgetSolves();
 
+// (ropes14) A thumb's turn at its base (Pose::metacarpal, relative to the palm) by the solve's own axes: across the palm
+// (opposition), swung in its plane (swing: positive towards the little finger) and lifted off it (lift), degrees.
+[[nodiscard]] glm::quat thumbTurn(float opposition, float swing, float lift);
+
 // A shape of triangles as they are given (their own coordinates: no model), for solve's `extra`.
 void makeShape(const za::Vector<Triangle>& tris, Shape& out);
 

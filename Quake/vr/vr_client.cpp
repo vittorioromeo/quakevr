@@ -361,6 +361,13 @@ void handMove(VrMove& move, const hands::State& hs, int h)
     // Muzzles come from the weapon models (vr_view.cpp), as of the last rendered frame, moved with the hand since;
     // a carried gun's from where it is drawn (handMuzzle). The loading port as the muzzle.
     move.muzzlePos[h] = handMuzzle(hs, h);
+    // The Crystal Lance shoots from its middle crystal's tip as drawn (lance3; the bolt is drawn from there: lancebolt),
+    // whichever way it is held.
+    glm::vec3 tip;
+    if(hs.muzzleValid[h] && lancecharge::boltStart(cl.viewentity, h, hs.muzzle[h], tip))
+    {
+        move.muzzlePos[h] += tip - hs.muzzle[h];
+    }
     move.loadPort[h] = hs.loadPortValid[h] ? hs.loadPort[h] + (hs.pos[h] - hs.placedFrom[h]) : hs.pos[h];
     move.loadPortAxis[h] = hs.loadPortValid[h] ? hs.loadPortAxis[h] : glm::vec3{0.f};
     move.loadPortFace[h] = hs.loadPortValid[h] ? hs.loadPortFace[h] : glm::vec3{0.f};
@@ -376,7 +383,7 @@ void handMove(VrMove& move, const hands::State& hs, int h)
     }
 
     // Where its shots go: the aim turned by the weapon's Shot Pitch and Yaw (the drawn weapon doesn't move).
-    move.shotRot[h] = weapons::shotAngles(hs.rot[h], weapons::heldSlot(h), h == HAND_OFF);
+    move.shotRot[h] = view::heldShotAngles(hs.rot[h], h); // (a flipped pole weapon: the way it is drawn, lance3)
     // Flatscreen play: a gun a wall turned shoots the way its muzzle points (vr_flat_wall_shot; its muzzle is the drawn one:
     // flatsight's keepMuzzle).
     move.shotRot[h] = flatsight::wallShotAngles(h, move.shotRot[h]);
@@ -1517,7 +1524,7 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
         if(id < 2)
         {
             const float len = glm::distance(geom::vec(start), geom::vec(end));
-            const glm::vec3 e = muzzle + hands::forward(weapons::shotAngles(s.rot[hand], weapons::heldSlot(hand), hand == HAND_OFF)) * len;
+            const glm::vec3 e = muzzle + hands::forward(view::heldShotAngles(s.rot[hand], hand)) * len;
             end[0] = e.x;
             end[1] = e.y;
             end[2] = e.z;

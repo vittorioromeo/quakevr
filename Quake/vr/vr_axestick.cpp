@@ -47,6 +47,7 @@
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -300,6 +301,15 @@ constexpr za::SizeT maxSamples = 256;
     b.handle = own(butt);
     b.from = glm::mix(b.hand, b.tip, from > 0.f ? za::min(from, 0.9f) : blade::swordKindFrom);
     return b;
+}
+
+// A pointed blade's length for its stab's depth shares (its tip to its Blade Start, `drawn`): Dwell's Crystal Lance
+// (lance3; his note vrtesthall_2026-11-23_23-00-45: a very shallow stab by the pointed bits at the top of its head)
+// counts only vr_dw_lance_embed_length units of it, so it goes in a sword's share of those (held or thrown).
+[[nodiscard]] float pointLength(edict_t* ent, float drawn)
+{
+    const qmodel_t* m = modelOf(ent);
+    return m && ZA_STRSTR(m->name, "dw_lance") ? za::min(drawn, za::max(0.5f, vr_dw_lance_embed_length.value)) : drawn;
 }
 
 // The blade of the model `ent` is drawn with, as its weapons.txt keys say.
@@ -1156,7 +1166,7 @@ void freeHandle(edict_t* ent, const Blade& blade, edict_t* host, const glm::vec3
     }
 
     // How deep, by its speed: a share of the blade, less in the level and props; along its line from where it struck.
-    const float bladeLength = glm::distance(tip, held::drawnModelPoint(ent, blade.from));
+    const float bladeLength = pointLength(ent, glm::distance(tip, held::drawnModelPoint(ent, blade.from)));
     const float least = za::max(0.f, vr_embed_sword_depth_min.value), full = za::max(least, vr_embed_sword_depth_max.value);
     const float share = za::clamp((speed - minSpeed) / za::max(1.f, vr_embed_sword_depth_speed.value * m2u - minSpeed), 0.f, 1.f);
     const float depth = glm::mix(least, full, share) * 0.01f * bladeLength * (inBody ? 1.f : za::max(0.f, vr_embed_sword_wall.value));
@@ -1887,7 +1897,7 @@ int stickHeld(edict_t* ent, edict_t* host, const glm::vec3& at, const glm::vec3&
     {
         const glm::vec3 tip = held::drawnModelPoint(ent, blade->tip);
         const glm::vec3 along = axes * glm::normalize(tip - held::drawnModelPoint(ent, blade->hand));
-        bladeLength = glm::distance(tip, held::drawnModelPoint(ent, blade->from));
+        bladeLength = pointLength(ent, glm::distance(tip, held::drawnModelPoint(ent, blade->from)));
         // How deep it goes on to, by the blow's speed; as it is struck it is in as far as it is, the hand's own motion
         // and QC's ease take it on (a hand must not be flung there).
         const float least = vr_embed_stab_speed.value * m2u;

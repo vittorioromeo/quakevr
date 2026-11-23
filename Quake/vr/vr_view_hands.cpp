@@ -1600,6 +1600,24 @@ void placePalm(const RigFrame& rf)
 }
 
 // A finger's curls: wrapping what the hand holds, set by hand, the controller's, brushing; out of walls; eased.
+// (ropes14, his VR note 2026-11-23: "give me some ways to tweak it ... based on the thickness of the pole") How much of
+// the gripping thumb's tweaks (vr_rope_thumb_curl, _opposition, _swing, _lift, _shift_*) a hand on a climbable rope or
+// pole of `held`'s thickness takes: 0 under vr_rope_thumb_from, 1 from vr_rope_thumb_to, eased between; 0 off a rope.
+[[nodiscard]] float ropeThumbShare(const Held& held)
+{
+    if(held.ropeThick <= 0.f)
+    {
+        return 0.f;
+    }
+    const float from = vr_rope_thumb_from.value, to = vr_rope_thumb_to.value;
+    if(to <= from)
+    {
+        return held.ropeThick >= from ? 1.f : 0.f;
+    }
+    const float x = za::clamp((held.ropeThick - from) / (to - from), 0.f, 1.f);
+    return x * x * (3.f - 2.f * x);
+}
+
 void poseFinger(const RigFrame& rf, int f)
 {
     const int hand = rf.hand;
@@ -1635,9 +1653,11 @@ void poseFinger(const RigFrame& rf, int f)
                 target[j] = za::fmax(target[j], za::fmin(stop->stop[j], curl) + pull * triggerPull[j]);
             }
         }
+        // (ropes14) a rope's thumb: its curl tweak by the thickness (ropeThumbShare)
+        const float ropeCurl = f == handrig::Thumb ? vr_rope_thumb_curl.value * ropeThumbShare(held) : 0.f;
         for(float& t : target)
         {
-            t = CLAMP(0.f, t + 4.f * bias, 4.f); // the weapon's finger tweak, on top of the wrap
+            t = CLAMP(0.f, t + 4.f * bias + ropeCurl, 4.f); // the weapon's finger tweak, on top of the wrap
         }
     }
     else
@@ -1763,6 +1783,10 @@ void setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     const glm::vec3 ts = t.active ? t.scale : glm::vec3{1.f};
     rigShifts(model, hand, rh.pose);
     rh.pose.metacarpal = glm::quat{1.f, 0.f, 0.f, 0.f};
+    // (ropes14) A rope's thumb: its base moved by the tweak (before the solve: the thumb closes from there).
+    const float ropeThumb = ropeThumbShare(held);
+    rh.pose.shift[handrig::Thumb] +=
+        glm::vec3{vr_rope_thumb_shift_x.value, vr_rope_thumb_shift_y.value, vr_rope_thumb_shift_z.value} * ropeThumb;
 
     view::ViewEntity& ve = entities.hand[hand];
     const glm::mat4 rigToWorld = rigPlacement(hand, pos, handRot, mirrored, &ve);
@@ -1819,6 +1843,13 @@ void setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
                                                    : glm::quat{1.f, 0.f, 0.f, 0.f};
     rh.thumb = glm::normalize(glm::slerp(rh.thumb, thumbTarget, follow));
     rh.pose.metacarpal = rh.thumb;
+    if(ropeThumb > 0.f)
+    {
+        // (ropes14) A rope's thumb: its base turned by the tweaks, in the palm's frame (the grasp's turns' axes).
+        rh.pose.metacarpal = glm::normalize(grasp::thumbTurn(vr_rope_thumb_opposition.value * ropeThumb,
+                                                vr_rope_thumb_swing.value * ropeThumb, vr_rope_thumb_lift.value * ropeThumb) *
+                                            rh.thumb);
+    }
 
     // The weapon's firing animation moves the hand (and so the arm) with it.
     if(motion != glm::mat4{1.f})
@@ -3378,9 +3409,15 @@ void ropeHeld(int hand, Held& held)
     // fingertips, over the index; on a thick pole short of them.
     // (ropes13, his flat note 2026-11-23: round a pole "unnatural ... too thick") Only round one this thin or thinner
     // (vr_rope_thumb_wrap: a rope 1.5, a chain 2); round a thicker one (a pole, 3) the thumb rests along its side.
+    // (ropes14, his VR note 2026-11-23: along a thick pole it "stays vertical ... go back to a normal grip pose") Round a
+    // thicker one as vr_rope_thumb_thick says: the grasp's own wrap (the default), along it (ropes13), or round it (ropes12);
+    // vr_rope_thumb_curl ... tweak it by the thickness (ropeThumbShare).
     const float wrapThick = za::clamp(vr_rope_thumb_wrap.value, 0.f, 64.f);
-    held.thumbAround = wrapThick > 0.f && thick <= wrapThick;
-    held.thumbAlong = !held.thumbAround;
+    const bool thin = wrapThick > 0.f && thick <= wrapThick;
+    const int thickStyle = za::clamp(static_cast<int>(vr_rope_thumb_thick.value), 0, 2);
+    held.thumbAround = thin || thickStyle == 2;
+    held.thumbAlong = !thin && thickStyle == 1;
+    held.ropeThick = thick;
     held.overlap = 0.f;   // (ropes8e: the fingers stop on its surface, not vr_hand_fit_overlap into it)
     held.toWorld = glm::mat4{glm::vec4{x, 0.f}, glm::vec4{glm::cross(up, x), 0.f}, glm::vec4{up, 0.f}, glm::vec4{at, 1.f}};
 }
