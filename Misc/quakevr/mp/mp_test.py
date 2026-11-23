@@ -27,7 +27,7 @@ Tests:
              lost (the server reads his overtaken datagrams), the move buffer deepened with his jitter, the lift's
              predicted place under a unit. soak --soak-minutes N: the soak kept going N minutes, sampled each minute
              (memory, edicts, pace, B's link and moves); QVR_MP_LOW_IMPACT=1: idle priority.
-    version a client of another Quake VR network version (-mpnetversion 1) is rejected with the reason; one of the
+    version a client of another Quake VR network version (vr_net_test_version 1) is rejected with the reason; one of the
              same version joins.
     campfollow (mpcampaign) a joining client plays the server's campaign (QVR_SVC_CAMPAIGN): rogue's client on a Quake
              start, Quake's on a Scourge of Armagon start (in place), Quoth's (left, switched, joined again), its own
@@ -144,8 +144,8 @@ Tests:
              and the message after it arrives once the acks come back; the server's vr_net_rate_max over B's
              vr_net_rate (his 0: the server's; under it: his own; the server's 0: no ceiling).
     lookup   (review 2026-11-18, finding 6) host names looked up on a worker: the room service's name looked up for 3 s
-             (-netlookupdelay) while the dedicated server answers its console within 0.5 s, then registered with;
-             every lookup failing (-netlookupfail): one "not found" line, the tries 2 s, 4 s, 8 s apart (net_lookups),
+             (vr_net_test_lookup_delay) while the dedicated server answers its console within 0.5 s, then registered with;
+             every lookup failing (vr_net_test_lookup_fail): one "not found" line, the tries 2 s, 4 s, 8 s apart (net_lookups),
              none while a remote client is in, one again once he left; a favourite by name (localhost) in the
              server browser is asked once looked up.
     navfollow  (2026-11-20, not in the suite) vr_nav_follow: B (a remote client, flat) follows A along the server's
@@ -680,13 +680,13 @@ def armed(s):
 
 
 def version(s):
-    """A client of another Quake VR network version (-mpnetversion) is rejected with the reason, and a right one
+    """A client of another Quake VR network version (vr_net_test_version) is rejected with the reason, and a right one
     still joins after it."""
     srv = s.server(dedicated=True)
     srv.start()
     srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
     srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
-    c = s.client("C", extra=["-mpnetversion", "1"]).start()
+    c = s.client("C", extra=["+vr_net_test_version", "1"]).start()
     c.cmd(s.connect_cmd(c))
     _, why = c.wait(r"network version \d+, your game 1", 60, what="C's reject")
     s.check("a client of another network version is told why", True, why.strip())
@@ -707,7 +707,7 @@ def campfollow(s):
     2. A on Quake's (his own start map) joins the server on Scourge of Armagon's start: hipnotic's start.bsp;
     3. the server on Quoth's start (a campaign with folders of its own): A leaves, switches and joins again; after
        leaving, Quake's again (his own);
-    4. C, whose game lacks Quoth (-campaignmissing quoth), is refused, told what is missing; no Host_Error."""
+    4. C, whose game lacks Quoth (vr_mp_test_campaign_missing quoth), is refused, told what is missing; no Host_Error."""
     srv = s.server(dedicated=True)
     srv.start()
 
@@ -785,7 +785,7 @@ def campfollow(s):
             (a.find(r"Host_Error", since0) or (0, ""))[1].strip())
 
     # 4. a game lacking the server's campaign is refused, told why
-    c = s.client("C", extra=["-campaignmissing", "quoth"]).start()
+    c = s.client("C", extra=["+vr_mp_test_campaign_missing", "quoth"]).start()
     since = c.mark()
     c.cmd(s.connect_cmd(c))
     _, why = c.wait(r"mp_campaign: the server plays Quoth .*can't join: .*missing", 60, since, "C's refusal")
@@ -9774,7 +9774,7 @@ def lookups_of(inst):
     return {fields(l)["name"]: fields(l) for l in inst.lines[since:] if l.startswith("net_lookup: ")}
 
 
-LOOKUP_DELAY = 3.0  # s each lookup waits on its worker (-netlookupdelay: a slow resolver)
+LOOKUP_DELAY = 3.0  # s each lookup waits on its worker (vr_net_test_lookup_delay: a slow resolver)
 LOOKUP_FRAME = 0.5  # s the server answers its console within meanwhile
 
 
@@ -9783,13 +9783,13 @@ def lookup(s):
     thread: with no working DNS each gethostbyname held a host's frame for the resolver's timeout, seconds.
     1. The room service named "localhost" (a name: the lookup's path), each lookup slowed to LOOKUP_DELAY s: while it
        runs, the dedicated server answers its console within LOOKUP_FRAME s; then it registers with the service.
-    2. Every lookup failing (-netlookupfail): "not found" said once, the tries 2 s then 4 s apart (doubling); a remote
+    2. Every lookup failing (vr_net_test_lookup_fail): "not found" said once, the tries 2 s then 4 s apart (doubling); a remote
        client in: no try however overdue; he leaves: the next try at once.
     3. A server browser favourite by name (localhost:port) is asked once looked up (a search or two)."""
     rport = s.take_port()
     fake = FakeRoomService(rport).start()
     try:
-        srv = s.server(dedicated=True, extra=["-netlookupdelay", str(LOOKUP_DELAY)])
+        srv = s.server(dedicated=True, extra=["+vr_net_test_lookup_delay", str(LOOKUP_DELAY)])
         srv.start()
         srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
         srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
@@ -9818,7 +9818,7 @@ def lookup(s):
         s.check("the first server quits cleanly", code == 0, "exit %s" % code)
 
         # 2. failing lookups: the back-off, and none while a remote client is in
-        srv = s.server(dedicated=True, extra=["-netlookupfail"], name="server2")  # (a log of its own)
+        srv = s.server(dedicated=True, extra=["+vr_net_test_lookup_fail", "1"], name="server2")  # (a log of its own)
         srv.start()
         srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
         srv.wait(r"mp_server: map=e1m1", 120, what="the failing server on e1m1")

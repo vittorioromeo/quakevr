@@ -388,7 +388,7 @@ private:
     bool userAbsent{false};
     int absentHeld{0}; // the frames held while it was off (logged when it is back on)
     // Why the headset's sensor is ignored now (nullptr: it isn't): vr_xr_user_presence 0, vr_debug_head_pose 1, or an
-    // automated run (-vr-unattended, a timedemo, a scripted test's vr_fixed_frames 1) that nobody wears it for.
+    // automated run (-unattended, a timedemo, a scripted test's vr_fixed_frames 1) that nobody wears it for.
     [[nodiscard]] const char* presenceIgnored() const;
     // Eye tracking (vr_foveated_gaze): XR_EXT_eye_gaze_interaction offered, enabled (asked for, and the system has it),
     // its pose action and space (FrameState::gaze).

@@ -306,14 +306,56 @@ void stopBackend()
     stereo::releaseTargets(); // the eye-sized GL objects (made again when the eyes are next drawn)
 }
 
+// The renamed launch flags' old names, kept as deprecated aliases until 1.3 (docs/vr-port/LAUNCH_FLAGS.md): each said
+// once at start-up (VR_Init, noteDeprecatedFlags).
+struct DeprecatedFlag
+{
+    const char* old;
+    const char* now;
+};
+constexpr DeprecatedFlag deprecatedFlags[] = {
+    {"-vrmock", "+vr_backend mock"},
+    {"-vr-hide-mirror", "-hidemirror"},
+    {"-vr-unattended", "-unattended"},
+};
+
+void noteDeprecatedFlags()
+{
+    for(const DeprecatedFlag& f : deprecatedFlags)
+    {
+        if(COM_CheckParm(f.old))
+        {
+            Con_Printf("note: %s is deprecated (removed in 1.3): use %s\n", f.old, f.now);
+        }
+    }
+}
+
+// A launch flag given by its name or by its deprecated old one (deprecatedFlags).
+[[nodiscard]] bool flagOrOldName(const char* flag, const char* old)
+{
+    return COM_CheckParm(flag) != 0 || COM_CheckParm(old) != 0;
+}
+
+// The backend the command line names, read before the `+` commands apply (VR_BeforeVideoInit, earlyBackend):
+// `+vr_backend <name>`; -vrmock, its deprecated alias (until 1.3: "mock", whatever vr_backend says). Null: none named.
+[[nodiscard]] const char* commandLineBackend()
+{
+    if(COM_CheckParm("-vrmock"))
+    {
+        return "mock";
+    }
+    const int named = COM_CheckParm("+vr_backend");
+    return named && named + 1 < com_argc ? com_argv[named + 1] : nullptr;
+}
+
 // The backend startBackend makes.
 [[nodiscard]] const char* requestedBackend()
 {
     return COM_CheckParm("-vrmock") ? "mock" : vr_backend.string;
 }
 
-// The backend the configs will ask for, guessed before they run (startForLoading): -vrmock, the command line's
-// `+vr_backend <name>`, else vr_backend's own (not saved: its default, openxr) on Android only. Null: none expected
+// The backend the configs will ask for, guessed before they run (startForLoading): the command line's (`+vr_backend
+// <name>`, commandLineBackend), else vr_backend's own (not saved: its default, openxr) on Android only. Null: none expected
 // (`+vr_enabled 0` on the command line), or a PC run that names none (its configs or a test's may name the mock: the
 // real runtime is never started early there).
 [[nodiscard]] const char* earlyBackend()
@@ -323,14 +365,9 @@ void stopBackend()
     {
         return nullptr;
     }
-    if(COM_CheckParm("-vrmock"))
+    if(const char* named = commandLineBackend())
     {
-        return "mock";
-    }
-    const int named = COM_CheckParm("+vr_backend");
-    if(named && named + 1 < com_argc)
-    {
-        return com_argv[named + 1];
+        return named;
     }
 #ifdef __ANDROID__
     return vr_backend.string;
@@ -351,8 +388,8 @@ void startBackend(const char* name)
         return;
     }
 
-    // -vrmock: the mock headset whatever vr_backend says (the review's re-evaluation runs a second copy of the game
-    // beside the one in the headset: it must never open the runtime's session).
+    // (`+vr_backend mock`: the mock headset; the review's re-evaluation runs a second copy of the game beside the one in
+    // the headset with it: it must never open the runtime's session.)
     za::UniquePtr<qvr::Backend> backend = createBackend(name);
     if(!backend)
     {
@@ -2512,14 +2549,17 @@ extern "C" void VR_Init()
     relight::registerCommands(); // vr_relight, vr_relight_cancel, vr_relight_revert... (vr_relight.cpp)
     loading::registerCommands(); // vr_loading_wait (vr_loading.cpp)
     cheats::registerCommands(); // vr_scene_clean, vr_scene_count (vr_cheats.cpp)
+    noteDeprecatedFlags(); // -vrmock, -vr-hide-mirror, -vr-unattended: their new names said
 
     state->restartRequested = true;
 }
 
 extern "C" void VR_BeforeVideoInit()
 {
-    // Only when the OpenXR backend will start (not -flatscreenmode, -vrmock or another vr_backend).
-    if(!flatplay::flagGiven() && !COM_CheckParm("-vrmock") && !q_strcasecmp(vr_backend.string, "openxr"))
+    // Only when the OpenXR backend will start (not -flatscreenmode, `+vr_backend mock` or another vr_backend; the `+`
+    // commands apply after this: the command line's read here).
+    const char* named = commandLineBackend();
+    if(!flatplay::flagGiven() && !q_strcasecmp(named ? named : vr_backend.string, "openxr"))
     {
         xrruntime::beforeVideoInit();
     }
@@ -2768,15 +2808,25 @@ extern "C" int VR_SkipScreen()
 
 namespace
 {
-// QVR_TEST_BACKGROUND, QVR_TEST_HIDDEN and -vr-hide-mirror, read once (windowUnfocused, windowNotVisible: every frame).
+// QVR_TEST_BACKGROUND, QVR_TEST_HIDDEN and -hidemirror, read once (windowUnfocused, windowNotVisible: every frame).
 struct WindowFocusCache
 {
     bool testBackground = getenv("QVR_TEST_BACKGROUND") != nullptr;
     bool testHidden = getenv("QVR_TEST_HIDDEN") != nullptr;
-    int hiddenMirror = -1; // -vr-hide-mirror (1 given, 0 not, -1 not read yet: the command line comes after this)
+    int hiddenMirror = -1; // VR_HideMirror (1 given, 0 not, -1 not read yet: the command line comes after this)
 };
 WindowFocusCache windowFocusCache;
 } // namespace
+
+extern "C" int VR_HideMirror()
+{
+    return flagOrOldName("-hidemirror", "-vr-hide-mirror") ? 1 : 0;
+}
+
+extern "C" int VR_Unattended()
+{
+    return flagOrOldName("-unattended", "-vr-unattended") ? 1 : 0;
+}
 
 extern "C" void VR_FrameDrawn()
 {
@@ -2797,10 +2847,10 @@ bool qvr::windowUnfocused()
         return true;
     }
     // (A test run's window is hidden, never focused: as if it were, unless the debug cvar says otherwise. So is a
-    // standalone headset's, -vr-hide-mirror: no desktop to focus, every present made, no menu warning.)
+    // standalone headset's, -hidemirror: no desktop to focus, every present made, no menu warning.)
     if(windowFocusCache.hiddenMirror < 0)
     {
-        windowFocusCache.hiddenMirror = COM_CheckParm("-vr-hide-mirror") != 0 ? 1 : 0;
+        windowFocusCache.hiddenMirror = VR_HideMirror();
     }
     return !windowFocusCache.testBackground && windowFocusCache.hiddenMirror == 0 && !VID_HasInputFocus();
 }
@@ -2817,7 +2867,7 @@ bool qvr::windowNotVisible()
         return false;
     }
     const Uint32 flags = SDL_GetWindowFlags(w);
-    // (SDL keeps SHOWN on a minimized window. -vr-hide-mirror's window, never shown, counts as not visible: nobody sees
+    // (SDL keeps SHOWN on a minimized window. -hidemirror's window, never shown, counts as not visible: nobody sees
     // the mirror, so its spectator camera is skipped, vr_spectator_skip_hidden.)
     return (flags & SDL_WINDOW_MINIMIZED) != 0 || ((flags & SDL_WINDOW_SHOWN) == 0 && !windowFocusCache.testHidden);
 }

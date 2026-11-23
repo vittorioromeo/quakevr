@@ -540,7 +540,7 @@ them, plays each one in front of the dummy as a ghost, and keeps, discards or re
 
 **Re-evaluate runs a second copy of the game.** The evaluation replaces the tracking of the head and the hands
 with the take's and loads the map afresh for each take: it can't run in the game you play in the headset. So the
-review starts this game again in the background: `-vrmock` (the mock headset, whatever `vr_backend` says: it never
+review starts this game again in the background: `+vr_backend mock` (the mock headset: it never
 opens the runtime's session), `-noconfigwrite` (it doesn't write `ironwail.cfg`), `-noautoexec` (your `autoexec.cfg`
 could start anything), `-evalcopy` (the copy never starts a copy of its own), no sound, a small window that doesn't take
 the focus, below normal priority, no autosaves. Its script is the first thing on its command line (the engine keeps

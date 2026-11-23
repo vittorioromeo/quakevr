@@ -1272,7 +1272,7 @@ void startBatch(za::Vector<maps::Source> sources, bool single, bool force, int a
 {
     if(!VR_ChildProcesses())
     {
-        say("relighting runs ericw-tools' light as a process of its own: none on this platform (Android, -nochildprocesses)");
+        say("relighting runs ericw-tools' light as a process of its own: none on this platform (Android)");
         return;
     }
     if(busy())

@@ -444,10 +444,10 @@ extern "C" int VR_AndroidFirstRun(void)
 }
 
 // Child processes of our own (the relighting's light runs, the motion review's evaluation copy): none on Android
-// (the app may not start its own executable) nor with -nochildprocesses.
+// (the app may not start its own executable; -fakeandroid gives the same on the PC).
 extern "C" int VR_ChildProcesses(void)
 {
-    return !android.on && !COM_CheckParm("-nochildprocesses");
+    return !android.on;
 }
 
 extern "C" void VR_AndroidInit(void)
