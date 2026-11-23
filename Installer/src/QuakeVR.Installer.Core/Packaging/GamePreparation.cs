@@ -75,7 +75,7 @@ public static class GamePreparation
     public static ProcessStartInfo StartInfo(string installDir, string quakeDir, bool relight)
     {
         var extra = $"-prepare {LaunchCommand.Quote(ProgressPath(installDir))}{(relight ? " -preparerelight" : "")} " +
-                    "-vrmock -noconfigwrite -noautoexec -nosound -nomapindex -noaddons -window -width 640 -height 360";
+                    "-noconfigwrite -noautoexec -nosound -nomapindex -noaddons -window -width 640 -height 360 +vr_backend mock";
         var info = new ProcessStartInfo(Path.Combine(installDir, LaunchCommand.Exe), LaunchCommand.Arguments(quakeDir, installDir, LaunchVariant.Vr, extra))
         {
             WorkingDirectory = installDir,

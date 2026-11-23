@@ -307,7 +307,7 @@ const char* OpenXrBackend::presenceIgnored() const
     // is off: the command line's scan costs nothing then.)
     return vr_xr_user_presence.value == 0.f       ? "vr_xr_user_presence 0"
            : vr_debug_head_pose.value != 0.f      ? "vr_debug_head_pose 1"
-           : COM_CheckParm("-vr-unattended") != 0 ? "-vr-unattended, an unmanned run"
+           : VR_Unattended() != 0           ? "-unattended, an unmanned run"
            : cls.timedemo                         ? "a timedemo"
            : vr_fixed_frames.value != 0.f         ? "a scripted run, vr_fixed_frames 1"
                                                   : nullptr;

@@ -7,15 +7,12 @@
 #include "vr_backend.hpp"
 #include "vr_engine.hpp"
 #include "vr_main.hpp"
-#include "vr_testkit.hpp"
 
 #include "vr_api.h"
 
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/MinMax.hpp"
-
-#include <stdio.h>
 
 namespace
 {
@@ -32,7 +29,6 @@ struct LoadState
     double started = 0.0;                               // its time (Sys_DoubleTime)
     int frames = 0, panelFrames = 0, windowFrames = 0;  // this set's loading frames; those shown in the headset, in the window
     int lastDone = -1, steps = 0;                       // the progress seen: how many times it moved
-    bool shotWritten = false;                           // -shaderloadshot's image written
     bool earlyStarted = false;                          // the VR session started for it (qvr::startForLoading)
 };
 LoadState load;
@@ -119,29 +115,6 @@ void drawImage(int done, int total, const char* last, double seconds)
     text(last && *last ? last : "", 124, 2, false);
     text(VR_ProgCacheOn() ? va("%.0f s - the next starts take them from the program cache", seconds) : va("%.0f s", seconds),
         156, 2, true);
-}
-
-// The image as a TGA (-shaderloadshot <file>: the panel's look checked without a headset).
-void writeShot(const char* path)
-{
-    FILE* f = fopen(path, "wb");
-    if(!f)
-    {
-        Con_SafePrintf("-shaderloadshot: %s not written\n", path);
-        return;
-    }
-    const unsigned char header[18] = {0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, static_cast<unsigned char>(imageWidth & 255),
-        static_cast<unsigned char>(imageWidth >> 8), static_cast<unsigned char>(imageHeight & 255),
-        static_cast<unsigned char>(imageHeight >> 8), 32, 8};
-    fwrite(header, 1, sizeof(header), f);
-    for(int i = 0; i < imageWidth * imageHeight; i++)
-    {
-        const unsigned char* p = load.pixels + i * 4;
-        const unsigned char bgra[4] = {p[2], p[1], p[0], p[3]};
-        fwrite(bgra, 1, 4, f);
-    }
-    fclose(f);
-    Con_SafePrintf("-shaderloadshot: the loading panel's image in %s\n", path);
 }
 
 void upload(GLuint texture)
@@ -244,19 +217,12 @@ extern "C" int VR_ShadersLoadingFrame(void)
         load.earlyStarted = true;
     }
     drawImage(done, total, last, now - load.started);
-    const int shot = COM_CheckParm("-shaderloadshot");
-    if(shot && shot + 1 < com_argc && !load.shotWritten && done * 2 >= total)
-    {
-        load.shotWritten = true;
-        writeShot(com_argv[shot + 1]);
-    }
     toHeadset();
     toWindow();
     return 1;
 }
 
-// The set done (GL_ShadersPump): the trace's step ended; -shadersasynctest's verdict (frames flowed while it compiled,
-// the progress moved, no frame's work over 50 ms).
+// The set done (GL_ShadersPump): the trace's step ended; the pump's numbers (developer 1).
 extern "C" void VR_ShadersLoaded(int programs, int frames, double ms, double maxwork, double maxgap)
 {
     if(load.firstShown)
@@ -265,18 +231,7 @@ extern "C" void VR_ShadersLoaded(int programs, int frames, double ms, double max
     }
     Con_SafePrintf("loading panel: %d frames (%d in the headset, %d in the window), progress moved %d times%s\n", load.frames,
         load.panelFrames, load.windowFrames, load.steps, load.earlyStarted ? "; the VR session started early for it" : "");
-    if(COM_CheckParm("-shadersasynctest"))
-    {
-        constexpr const char* name = "shaders_async_test";
-        qvr::testkit::Tally t;
-        Con_SafePrintf("%s: %d programs, %d pumps, %d loading frames, %.0f ms, progress moved %d times, longest frame's work "
-                       "%.1f ms (between frames %.1f ms)\n",
-            name, programs, frames, load.frames, ms, load.steps, maxwork, maxgap);
-        t.check(programs > 50, name, "the set queued (over 50 programs: the ES set is 73 since its lite world)");
-        t.check(frames > 2 && load.frames > 2, name, "frames flowed while it compiled");
-        t.check(load.steps > 2, name, "the progress moved");
-        t.check(maxwork < 50.0, name, "a frame's work over 50 ms");
-        t.verdict(name);
-    }
+    Con_DPrintf("loading panel: %d programs, %d pumps, %.0f ms, longest frame's work %.1f ms (between frames %.1f ms)\n",
+        programs, frames, ms, maxwork, maxgap);
     load.firstShown = false;
 }

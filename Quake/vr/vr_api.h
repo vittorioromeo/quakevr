@@ -341,7 +341,7 @@ enum
 	VR_GLSAFE_MSAA = 1 << 6,		// multisampled scene targets
 	VR_GLSAFE_SHADOW_ATLAS = 1 << 7		// the shadow atlas at most 4096
 };
-// -glescompat's own ES forms (VR_GLESForm); -gleskeep (QVR_GLES_KEEP) keeps the PC form of some, to measure each
+// -glescompat's own ES forms (VR_GLESForm); -glesdebug keep:<name> (QVR_GLES_DEBUG) keeps the PC form of some, to measure each
 enum
 {
 	VR_GLES_FORM_GLSL = 1 << 0,		// every program as ES 3.2 GLSL, the image formats ES 3.1 has (VR_GLShaderSource, VR_GLESImageFormat)
@@ -349,6 +349,17 @@ enum
 	VR_GLES_FORM_VIEWS = 1 << 2		// no texture views (single-pass stereo's eye targets, the envmap's mipmaps)
 };
 int VR_GLESForm (int form);	// nonzero: -glescompat takes the ES form of `form` (VR_GLES_FORM_*) this run
+// -glesdebug a,b,... (QVR_GLES_DEBUG=a,b,...): the ES profile's bring-up switches (vr_glsafe.cpp esDebugNames; docs/vr-port/LAUNCH_FLAGS.md)
+enum
+{
+	VR_GLES_DEBUG_NOCLIPCONTROL = 1 << 0,	// noclipcontrol: Android's EXT_clip_control not used (shadows, reflections, portals off)
+	VR_GLES_DEBUG_SHADERSET = 1 << 1,	// shaderset: the ES shader-set step in a test run too (the lite world's first set, the program check)
+	VR_GLES_DEBUG_SRGBENCODE = 1 << 2,	// srgbencode: the driver's sRGB write encoding kept (EXT_sRGB_write_control not used)
+	VR_GLES_DEBUG_STRUCTCOPY = 1 << 3,	// structcopy: the shaders' struct copies left whole, as the PC's (a driver workaround's A/B)
+	VR_GLES_DEBUG_CENTROID = 1 << 4,	// centroid: the shaders' centroid qualifiers kept, as the PC's (a driver workaround's A/B)
+	VR_GLES_DEBUG_VERBOSE = 1 << 5		// verbose: each ES compile error with its source line (the compile waited for)
+};
+int VR_GLESDebug (unsigned bit);	// nonzero: -glesdebug names that switch (VR_GLES_DEBUG_*); its keep:<name> entries: VR_GLESForm, the safe-mode features
 enum // pcopt: the ES profile's program forms the PC takes too (vr_gl_pc_forms' bits; VR_GLLiteForms)
 {
 	VR_GL_PCFORM_MODELS = 1 << 0,		// the models' plain, gore and skin forms (vr_gl_alias_plain/gore/skin)
@@ -399,7 +410,9 @@ const char *VR_AndroidStart (int argc, char **argv);	// main, first: on Android 
 int VR_Android (void);	// nonzero: an Android build, or the PC's fake-Android mode (-fakeandroid, QVR_FAKE_ANDROID)
 void VR_AndroidLog (const char *text);	// Sys_Printf on Android: the console's text into logcat, a line a message (vr_android.cpp)
 int VR_AndroidFirstRun (void);	// Host_Init's end: nonzero on Android's first run (no config in the game folder yet): vr_standalone_preset 0 follows quake.rc
-int VR_ChildProcesses (void);	// nonzero: processes of our own may start (relighting's light, the motion review's evaluation copy); 0 on Android and with -nochildprocesses
+int VR_HideMirror (void);	// nonzero: -hidemirror (old name -vr-hide-mirror): no desktop window, always "focused" (a standalone headset's, the Steam Frame's; vr_main.cpp)
+int VR_Unattended (void);	// nonzero: -unattended (old name -vr-unattended): nobody wears the headset (its presence sensor ignored; the Quest's unmanned runs)
+int VR_ChildProcesses (void);	// nonzero: processes of our own may start (relighting's light, the motion review's evaluation copy); 0 on Android (and -fakeandroid)
 void VR_AndroidInit (void);	// VR_Init: vr_android_test
 int VR_GLESCompat (void);	// nonzero: -glescompat, the renderer kept to what OpenGL ES 3.2 has (vr_glsafe.cpp; QUEST_PLAN.md)
 void VR_GLShaderSource (unsigned int shader, int count, const char *const *strings);	// glShaderSource for every program: -glescompat: as "#version 320 es" with precisions
