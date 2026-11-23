@@ -10818,6 +10818,22 @@ Follows "flatwheel"'s noticed item (the nailgun put into a holster by the wheel 
   reload/eject_test 28/0, `mp_test.py suite --only mp_weaponwheel` 9/0 (B now holds the nailgun: his hold kept its 24).
 - Noticed, not chased (as before): the multi-grenade's B/Y held longer than `vr_weaponwheel_hold` opens the wheel.
 
+## qcpu: where a big fight's CPU goes; findradiusmoving's sort cut (agent/qcpu, 2026-11-23)
+
+Profiling of qcombined's CPU-bound scenes (48 monsters on vrfiringrange, the live e1m1 fight) on PC VR mock, PC flat
+and the Quest 3; table and top 10s in QUEST_OPTIMISATIONS.md "CPU in fights".
+- **Where it goes:** QuakeC is the biggest single cost (PC 1.2-1.7 ms; on the Quest most of SV_Physics' 8.6-10.5),
+  two thirds of it the armed humanoids' weapon props every frame (VR_AG_PropThink: the pose 0.59 ms, the shot and throw
+  scans 0.30, the parry 0.16 on PC). Then alias set-up (PC 1.07, Quest 4.0), the view entities, the armed arms' relink
+  (its solves already on jobs), Box3D. No other single function over 0.13 ms on PC.
+- **Cut:** `VR_FindRadiusMoving` (vr_findradius.cpp) tests "moving, not a player, monster or pusher" inside the search,
+  before the grid's sort, instead of on the sorted chain: the props' scans found ~52 entities a call, nearly all
+  dropped. Same chain, same order. findradius per call: PC 2.20 -> 1.15 us; Quest 5.3 -> 3.4 us (48 monsters), 3.0 ->
+  2.2 (e1m1); a frame: Quest -0.23 ms (48 monsters), -0.12 (e1m1). CPU busy moved within the launches' spread.
+- Quest A/B: a temporary `vr_findradius_grid 3` (the old order) in the APK only, reverted on the branch; 2 launches
+  interleaved (the third skipped: another app in front), beta2's APK and progs.dat (8a409520...) put back.
+- Not done, too big to keep exact here: a native port of the props' pose QuakeC (VR_AGP_Pose and helpers), the
+  Quest's alias set-up. Scripts: `scratch/qcpu_*` (not committed).
 ## qfov2: Quest foveation, form 2 rebuilt as Meta's samples (branch agent/qfov2, 2026-11-23; headset block pending)
 
 - **Why form 1 gave no gain**: its depth is the composite's unfoveated depth texture. The Adreno driver does not foveate a
