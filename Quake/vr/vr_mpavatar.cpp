@@ -1720,6 +1720,78 @@ void holsterDefaults_f()
     }
 }
 
+// vr_mp_holster_check (holsterbake; selfchecks_test.sh, the release suite's selfchecks): every archived vr_ setting
+// put back to its shipped default for the moment (yours are restored after), the holsters it gives against
+// defaultHolsterCal: "vr_mp_holster_check: PASS" or "FAIL N of M differ: <fields>" -- then the table to paste in.
+struct HolsterCheckSaved
+{
+    za::Vector<cvar_t*> vars;
+    za::Vector<char> text; // the saved values, each ended by a 0, in vars' order
+};
+HolsterCheckSaved holsterCheckSaved;
+
+void holsterCheck_f()
+{
+    Calibration c;
+    HolsterCheckSaved& sv = holsterCheckSaved;
+    sv.vars.clear();
+    sv.text.clear();
+    for(cvar_t* v = Cvar_FindVarAfter("", CVAR_ARCHIVE); v; v = Cvar_FindVarAfter(v->name, CVAR_ARCHIVE))
+    {
+        if(!Q_strncmp(v->name, "vr_", 3) && v->default_string && Q_strcmp(v->string, v->default_string))
+        {
+            sv.vars.pushBack(v);
+            for(const char* p = v->string; *p; p++)
+            {
+                sv.text.pushBack(*p);
+            }
+            sv.text.pushBack(0);
+        }
+    }
+    for(cvar_t* v : sv.vars)
+    {
+        Cvar_SetQuick(v, v->default_string);
+    }
+    fillOwnHolsters(c);
+    const char* at = sv.text.data();
+    for(cvar_t* v : sv.vars)
+    {
+        Cvar_SetQuick(v, at);
+        at += Q_strlen(at) + 1;
+    }
+    if(!c.v[calHolsterKnown])
+    {
+        Con_Printf("vr_mp_holster_check: FAIL no hands yet (run it in a map)\n");
+        return;
+    }
+    int differ = 0;
+    char names[512] = "";
+    for(int i = 0; i < holsterCalCount; i++)
+    {
+        if(c.v[calHolsterAt + i] != defaultHolsterCal[i])
+        {
+            differ++;
+            q_strlcat(names, " ", sizeof(names));
+            q_strlcat(names, calFields[calHolsterAt + i].name, sizeof(names));
+        }
+    }
+    if(!differ)
+    {
+        Con_Printf("vr_mp_holster_check: PASS (the bots' default holsters are the shipped settings')\n");
+        return;
+    }
+    Con_Printf("vr_mp_holster_check: FAIL %d of %d fields of defaultHolsterCal (vr_mpavatar.cpp) differ from the shipped "
+               "holster/body defaults:%s -- re-bake: run `vr_mp_holster_defaults 1` at the shipped settings (a clean "
+               "-noautoexec run, or paste the table below)\n",
+        differ, holsterCalCount, names);
+    Con_Printf("vr_mp_holster_check_table:");
+    for(int i = 0; i < holsterCalCount; i++)
+    {
+        Con_Printf(" %d,", c.v[calHolsterAt + i]);
+    }
+    Con_Printf("\n");
+}
+
 void printCal(const char* what, int ent, const Calibration& c)
 {
     Con_Printf("%s: ent=%d", what, ent);
@@ -2896,6 +2968,7 @@ void init()
     Cmd_AddCommand("vr_mp_avatars", avatars_f);
     Cmd_AddCommand("vr_mp_gearcheck", gearcheck_f); // (mpbothands)
     Cmd_AddCommand("vr_mp_holster_defaults", holsterDefaults_f); // (holstersync)
+    Cmd_AddCommand("vr_mp_holster_check", holsterCheck_f); // (holsterbake)
     Cmd_AddCommand_ClientCommand("vr_avatarcal", avatarcal_f);
 }
 
