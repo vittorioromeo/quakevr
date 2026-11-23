@@ -42,7 +42,7 @@
 
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Base/Strncmp.hpp"
-#include <initializer_list>
+#include "Zancle/Base/InitializerList.hpp"
 
 extern "C" unsigned char* Image_DecodeMemory(const unsigned char* bytes, int length, int* width, int* height); // image.c
 
@@ -310,7 +310,7 @@ bool batchFind(const char* base, bool pbrHash = false)
 }
 
 // The first of `bases` found (its index), or -1.
-int batchFindFirst(std::initializer_list<const char*> bases, bool pbrHash = false)
+int batchFindFirst(za::InitializerList<const char*> bases, bool pbrHash = false)
 {
     int i = 0;
     for(const char* b : bases)
