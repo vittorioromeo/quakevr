@@ -132,6 +132,7 @@ constexpr float poleMinApart = 4.f;   // a pole grip nearer the holding hand tha
 // forward as this share of the handle-to-tip line (the Crystal Lance's head starts at about 0.52 of it, less a fist).
 constexpr float poleFist = 1.5f;
 constexpr float poleHeadShare = 0.45f;
+constexpr float bladeFlatFist = 4.f;  // flatscreen's guard: the free hand on the blade at least this far up from the holding hand (units)
 constexpr float bladeKeepMin = 0.25f; // the hands kept this share of the blade's length apart,
 constexpr float bladeKeepMax = 1.35f; // at most this
 
@@ -449,8 +450,11 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     if(bladeAt > 0.f && length > 8.f && !(flat && vr_flat_melee_grip.value != 0.f && !flatBlade))
     {
         const glm::vec3 toTip = s.muzzle[holding] - holdingPos;
-        bladeDist =
-            geom::segmentDistance(s.pos[helping], holdingPos + toTip * bladeFrom, holdingPos + toTip * bladeTo, nullptr, 0.f) - bladeBias;
+        // (Flatscreen's guard: the blade from as near the hand as the pose brings a long blade's hotspot in,
+        // flatplay::bladeReach.)
+        const float flatReach = flat ? flatplay::bladeReach() : 0.f;
+        const float takeFrom = flatReach > 0.f ? za::min(bladeFrom, flatReach / length - 0.05f) : bladeFrom;
+        bladeDist = geom::segmentDistance(s.pos[helping], holdingPos + toTip * takeFrom, holdingPos + toTip * bladeTo, nullptr, 0.f) - bladeBias;
     }
 
     bool held = false;
@@ -466,7 +470,9 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
             const float apart = glm::distance(holdingPos, s.pos[helping]);
             const float stick = stickinessOf(bladeSticky);
             const float most = gripLength[holding] * bladeKeepMax * stick;
-            held = apart > gripLength[holding] * bladeKeepMin / stick && apart < most;
+            // (Flatscreen's guard: its pose keeps them a fist apart at least, bladeGripOn.)
+            const float least = flat ? za::min(gripLength[holding] * bladeKeepMin, bladeFlatFist) : gripLength[holding] * bladeKeepMin;
+            held = apart > least / stick && apart < most;
             if(!held)
             {
                 reportLetGo(holding, "the blade's hands apart", apart, most, stick);
@@ -1590,8 +1596,11 @@ void bladeGripOn(int slot, int holding, const glm::vec3& tip, const glm::vec3& h
         }
     }
     const float hilt = glm::dot(holderPos - tip, d); // negative
-    const float along =
-        za::clamp(glm::dot(pos - hands::redirect(o, rot) - tip, d), hilt * 0.75f, hilt * (1.f - za::max(0.26f, end)));
+    // (Flatscreen play's guard: as near the holding hand as its pose puts it, a fist off it; the pose holds a long blade's
+    // hotspot within vr_flat_parry_blade_reach, flatplay::bladePin. A quarter of the way up, the phantom swordsman's sword
+    // still took the free hand off its wrist.)
+    const float nearest = flatplay::bladeShare(holding) > 0.f ? za::min(hilt * 0.75f, hilt + bladeFlatFist) : hilt * 0.75f;
+    const float along = za::clamp(glm::dot(pos - hands::redirect(o, rot) - tip, d), nearest, hilt * (1.f - za::max(0.26f, end)));
     pos = tip + d * along + hands::redirect(o, rot);
 }
 

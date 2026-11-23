@@ -113,7 +113,12 @@ struct FireRoute
 [[nodiscard]] bool bladeAsked(int holding);
 // Its share (0 .. 1, eased over vr_flat_parry_blade_in_time / _out_time): how far the free hand has gone to the blade.
 [[nodiscard]] float bladeShare(int holding);
-// The free hand carried that share of the way to the blade's hotspot of the weapon in the guard (vr_flatsight.cpp apply,
+// The most the free hand on the blade is ever from the holding hand (units, vr_flat_parry_blade_reach: about shoulder
+// width, the crowbar's hotspot; a long sword's hotspot is brought in to it); 0 no limit.
+[[nodiscard]] float bladeReach();
+// How far hand `h`'s spear thrust (vr_flat_thrust) has moved it along its pole now (units; negative drawn back), 0 outside
+// one. The other hand on the pole stays where it was, the pole sliding through it (vr_view_weapon.cpp chooseGrip).
+[[nodiscard]] float thrustAlong(int h);// The free hand carried that share of the way to the blade's hotspot of the weapon in the guard (vr_flatsight.cpp apply,
 // over its grip's pin and before vr_twohand takes the hold).
 void bladePin(hands::State& s);
 
