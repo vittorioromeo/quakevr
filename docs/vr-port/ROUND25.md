@@ -10790,3 +10790,23 @@ Follows "flatwheel"'s noticed item (the nailgun put into a holster by the wheel 
   (QC vr_holsterammo_test.qc, holsterammo_test.sh [flat]): 28/0 headset, 28/0 flat. flatholster_test 54/0,
   reload/eject_test 28/0, `mp_test.py suite --only mp_weaponwheel` 9/0 (B now holds the nailgun: his hold kept its 24).
 - Noticed, not chased (as before): the multi-grenade's B/Y held longer than `vr_weaponwheel_hold` opens the wheel.
+
+## dwrifle: Dwell's Rifle removed (agent/dwrifle, 2026-11-23)
+
+- **Ask** (his note): the Rifle out of the toolgun and never in an armed humanoid's random pool; all of it gone if unused.
+- **Found unused**: none of Dwell v2.2's 43 BSPs (loose and in its paks) has "rifle" in its entity lump (no
+  `weapon_rifle`, no `v_rifle`/`g_rifle` model); Dwell's progs reach it only by `Cheat_Rifle` (`g_rifle.mdl` is not even
+  shipped). Our pools never gave it: `VR_AG_PickWeapon`'s codes make no Dwell variant (only a pickup, the toolgun's
+  prop, or a thrown record set `wi_dwvar`); the arena, armed replacements and AD/Quoth variants have no Dwell entry.
+- **Removed**: `dw_weapon_rifle`, `toolgun_dw_rifle` and its toolgun row (the rows after it move up one; no number is
+  kept anywhere), `DW_VAR_RIFLE` (3 retired: an older save's record holding 3 is a plain shotgun: `DW_FireVariant` fires
+  only the Rotary's and Lance's, `VR_AG_NameOf` and `DW_WeaponModel` check `DW_VariantFor`), the FGD class, the made
+  model `progs/dw_rifle.mdl#vr` (recipe, `rifleParts`, `rifleHousingSpec`; screenstyle, gunfx, notectx entries) and
+  weapons.txt slot 54 (left empty: 55/56 keep their numbers and cvars). `weapon_rifle` stays a Copper/Dwell detection
+  signal (`vr_rules.cpp`, `dwell_maps.py`). DWELL.md: "The Rifle removed".
+- **Tests**: new `vr_ad_test 208` "dwrifle" (dwell_weapons_test.sh): 4000 pool picks, 48 humanoids armed from the pool:
+  no Dwell variant, no Rifle; a shotgun no Dwell variant; an old Rifle record plain; `vr_toolgun_select Rifle` finds no
+  row (Crystal Lance still found). 201-203 now hold a shotgun with the retired variant 3 in holster 0 (plain after a
+  save and load, and a level change; its shot not Dwell's); 205's holster drawn as ours; 206-207 screenshots (208 the
+  Rifle's, now the new test); 213 takes a map Rotary Shotgun instead. The Lance check takes each target's 150 or 188
+  alone (the first can see the player a frame sooner now). dwell_weapons_test 13/0, dwell_vrmodels (7 models made).

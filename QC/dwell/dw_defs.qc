@@ -30,11 +30,12 @@ float dw_variant_shots; // Dwell's shots fired, anyone's (vr_ad_test 204)
 .float vr_dw_tinted; // Haste's or Berserk's screen tint set (AD's tint, VR_AD_Tint): cleared when they end
 
 // Dwell's weapons (DWELL.md P3): a variant of one of our weapons, on its weapon instance (.wi_dwvar, vr_weaponinst.qc:
-// the Rotary Shotgun a super shotgun, the Crystal Lance a lightning gun, the Rifle a shotgun), set by its pickup.
+// the Rotary Shotgun a super shotgun, the Crystal Lance a lightning gun), set by its pickup. 3 was Dwell's Rifle
+// (removed 2026-11-23, his note: no Dwell map places weapon_rifle, a cheat impulse only); a record still holding 3 (an
+// older save) is a plain shotgun: every reader asks DW_VariantFor(its weapon) first.
 .float vr_dw_var;  // a pickup's: the variant it gives
 const float DW_VAR_ROTARY = 1;
 const float DW_VAR_LANCE = 2;
-const float DW_VAR_RIFLE = 3;
 nosave float vr_grab_dwvar; // VR_WeaponGrabbable_Make: the variant the placed weapon's record gets (the toolgun's props)
 
 float(entity targ, entity attacker, float damage, float isVRMelee) DW_DamageScale; // T_DamageImpl: berserk
