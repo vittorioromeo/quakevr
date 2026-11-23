@@ -119,3 +119,8 @@ A release APK is not debuggable: this route does not work on it, so back up befo
 and p90, period median, GPU median and p90, frames the runtime reported late. The same lines come from the development APK.
 
 ## Measurements
+
+Quest 3, 2026-11-23, the same commit and test progs.dat, the frozen e1m1 gib fight (questgore's scene) at render scale
+0.65, dynres off, fixed seeds; one launch each (ROUND25 "apkrelease"): CPU busy medians 11.4-11.6 ms development,
+10.6-11.2 ms release (about -0.6 ms, -5%, in every part); GPU 16.1-16.4 vs 17.1-18.3 ms, the later launch on a warmer
+headset (questperf saw the same drift with no change at all). The release build saves CPU; this scene stays GPU-bound.
