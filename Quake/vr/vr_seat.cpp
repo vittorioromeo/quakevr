@@ -48,6 +48,14 @@ void makeCurrent(Seat& s)
     if(seats.cur != &s)
     {
         avatar::seatSwitched(*seats.cur, s);
+        // split12: r_refdef is the current seat's (Seat::refdef): the one leaving keeps its own, the one coming in has its
+        // own back (a seat never drawn yet takes the one there is)
+        seats.cur->refdef = r_refdef;
+        seats.cur->refdefSet = true;
+        if(s.refdefSet)
+        {
+            r_refdef = s.refdef;
+        }
     }
     seats.cur = &s;
     cl_seat = &netOf(s);

@@ -213,6 +213,14 @@ void checkViews()
             s + 1, static_cast<double>(best), nearest + 1));
         check(markerIs(s, v->probe), va("seat %d's tile shows its marker (%d %d %d)", s + 1, v->probe[0], v->probe[1],
             v->probe[2]));
+        {
+            // split12: r_refdef is the current seat's (Seat::refdef): its input (the sighted mouse's fov scale) and its
+            // client frame read its own view, not the last drawn seat's
+            const Scope in(at(s));
+            const float d = flatDistance(r_refdef.vieworg, v->drawnorg) + za::abs(r_refdef.vieworg[2] - v->drawnorg[2]);
+            check(d < 0.01f, va("seat %d's r_refdef is its own view's in its frame (%.2f units off; its fov %.1f)", s + 1,
+                static_cast<double>(d), static_cast<double>(r_refdef.basefov)));
+        }
         for(int o = 0; o < s; o++)
         {
             check(v->probesum != V_SeatViewOf(o)->probesum, va("seat %d's picture is not seat %d's", s + 1, o + 1));

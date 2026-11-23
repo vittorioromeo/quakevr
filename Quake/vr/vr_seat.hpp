@@ -125,6 +125,10 @@ struct Seat
     seatkeys_t keys{};   // the keys held, the bindings, the mouse's motion (keys.c, in_sdl.c; C: Key_Seat)
     seatview_t view = freshView(); // the view's state and window area (view.c, gl_screen.c; C: V_SeatView)
     seathud_t hud{};     // the centre print, the scores shown (gl_screen.c, sbar.c; C: SCR_SeatHud)
+    // split12: r_refdef as this seat left it (its view's pass): makeCurrent swaps it in, so r_refdef is the current seat's
+    // (a seat's input read the last drawn seat's: seat 1's sighted mouse turned at seat 2's unsighted fov, twice as fast)
+    refdef_t refdef{};
+    bool refdefSet = false;
     clientseat_t* net = nullptr; // cls, cl, the entity tables (client.h; C: cl_seat, the current seat's): netOf() makes it
     za::UniquePtr<PartBase> parts[static_cast<int>(Part::Count)]; // the VR files' own (part<T>)
 };
