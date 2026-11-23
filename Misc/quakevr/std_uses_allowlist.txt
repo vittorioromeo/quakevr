@@ -3,7 +3,6 @@
 # use in that file). A file over a cap fails the build: use Zancle instead, or (no equivalent) raise the cap and say why.
 # Misc/quakevr/std_uses_allowlist.py rewrites the counts from `qvr_checks std_uses --list` (keeping each `# why`).
 
-vr_zancle_diag.cpp * 0  # vr_zancle_math_test compares Zancle against the standard library on purpose
 vr_alloccount.cpp <new> 1
 vr_alloccount.cpp std::align_val_t 10
 vr_alloccount.cpp std::nothrow_t 8
