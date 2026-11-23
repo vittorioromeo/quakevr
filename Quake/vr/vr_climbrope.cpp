@@ -15,6 +15,7 @@
 #include "vr_climbrope.hpp"
 
 #include "vr_avatar.hpp"
+#include "vr_body.hpp"
 #include "vr_box3d.hpp"
 #include "vr_climb.hpp"
 #include "vr_coil.hpp"
@@ -42,6 +43,7 @@
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -1534,6 +1536,33 @@ int monkeyHands(float& up, float& under, float& gap)
     return on;
 }
 
+// (ropes8b, his flat note 2026-11-23: climbing a rope the holsters floated off the hips) How far each hip holster (as
+// placed this frame: body::holsterPositions, where it is drawn and found) stays on the hips: how far it is from
+// its hip joint as posed (`off`, cm of the body, the worse of the two) and how far the gun's way up on it (its plate's
+// up) is turned off the trunk's (the pelvis to the head bone: `tilt`, degrees, the worse). False: no body with legs.
+[[nodiscard]] bool holstersOnHips(float& off, float& tilt)
+{
+    avatar::Skeleton k;
+    if(!avatar::skeleton(k) || !k.legs || k.m2w <= 0.f)
+    {
+        return false;
+    }
+    body::HolsterPlates plates;
+    const body::HolsterPositions h = body::holsterPositions(hands::current(), &plates);
+    const glm::vec3 trunk = glm::normalize(k.headJoint - k.pelvis + glm::vec3{0.f, 0.f, 1e-4f});
+    off = tilt = 0.f;
+    for(int side = 0; side < 2; side++)
+    {
+        const int which = side == 0 ? body::LeftHip : body::RightHip;
+        off = za::max(off, glm::distance(h[which], k.hip[side]) / k.m2w * 100.f);
+        if(glm::length(plates[which].up) > 0.5f)
+        {
+            tilt = za::max(tilt, glm::degrees(za::acos(za::clamp(glm::dot(glm::normalize(plates[which].up), trunk), -1.f, 1.f))));
+        }
+    }
+    return true;
+}
+
 za::Vector<glm::vec4> sinkVerts; // (ropes8a: handsSink's drawn hand vertices, their parts)
 za::Vector<view::HandPart> sinkParts;
 
@@ -1949,6 +1978,7 @@ struct FlatTest
     float lastVx{0.f};
     float pitch{0.f}, yaw{0.f};
     bool pole{false};        // (ropes7) `vr_rope_flat_test pole`: a wooden pole instead of the rope, no rope to rope
+    float holstersStanding[2]{0.f, 0.f}; // (ropes8b) holstersOnHips standing before the rope: cm, degrees
     bool shots{false};       // (ropes8b) `vr_rope_flat_test <mode> shots`: screenshots of the body from outside while hanging
     za::Vector<glm::vec3> made; // (ropes7) the pole's points as made (it never moves)
 };
@@ -2038,6 +2068,10 @@ void flatTestFrame()
                 t.made = r->p;
             }
             t.ropesBefore = taken;
+            if(!holstersOnHips(t.holstersStanding[0], t.holstersStanding[1]))
+            {
+                t.holstersStanding[0] = t.holstersStanding[1] = 0.f;
+            }
             Cbuf_AddText("+forward\n");
             flatTestNext(t, 3);
         }
@@ -2070,21 +2104,32 @@ void flatTestFrame()
                 Con_Printf("%s: PASS climbed up looking level: the feet from %.1f to %.1f, %d hand changes, both hands drawn\n", flatTestName,
                     t.feet0, feet, t.serials);
             }
-            if(t.pole)
-            {
-                Cbuf_AddText("-forward\n"); // (ropes8a: hanging still, the hands looked at)
-                flatTestNext(t, 40);
-                return;
-            }
-            t.pitch = -50.f; // (ropes8a: looking up, back held: down, whatever the pitch)
-            Cbuf_AddText("-forward\n+back\n");
-            t.serials = 0;
-            t.lastSerial = -1;
-            flatTestNext(t, 5);
+            Cbuf_AddText("-forward\n"); // (ropes8a: hanging still, the hands looked at; ropes8b: a rope's too, the holsters)
+            flatTestNext(t, 40);
         }
         return;
     case 40: // (ropes8a, his note 2026-11-23) hanging still on the pole (half a second): both hands round it, not through it
+        if(t.frames == 12 && t.shots)
+        {
+            Cbuf_AddText("vr_flat_orbit 150 80 -5\nwait\nwait\nscreenshot\nvr_flat_orbit 80 70 -5\nwait\nwait\nscreenshot\nvr_flat_orbit\n");
+        }
         if(t.frames == 36)
+        {
+            // (ropes8b) The hip holsters stay on the hips as the thighs wrap the rope: as far from the hip joints as
+            // standing (within 3 cm), the guns' way up within 25 degrees of standing's off the trunk.
+            float off = 0.f, tilt = 0.f;
+            const bool posed = holstersOnHips(off, tilt);
+            const bool on = posed && off <= t.holstersStanding[0] + 3.f && tilt <= t.holstersStanding[1] + 25.f;
+            const char* what = va("the hip holsters on the hips hanging on it: %.1f cm from the hip joints (standing %.1f), the "
+                                  "guns %.0f degrees off the trunk (standing %.0f)",
+                posed ? off : -1.f, t.holstersStanding[0], tilt, t.holstersStanding[1]);
+            t.tally.check(on, flatTestName, what);
+            if(on)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, what);
+            }
+        }
+        if(t.frames == 36 && t.pole)
         {
             int held = 0;
             const char* part = "-";
