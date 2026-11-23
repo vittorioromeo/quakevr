@@ -217,3 +217,19 @@ lines answer them), so no ticked line has a note against it.
 
 The enforcer backpack colours (from Quoth), unaware monsters and the lift riders (from Multiplayer and bots) into
 Armed humanoids, ragdolls and physics. Every line keeps a {test:}; checklist_tests_check 83 passed, 0 failed.
+
+## Checklist tidy, third pass (2026-11-23, cltidy3)
+
+`quakevr/checklist.txt`: 160 lines down to 114 (his `checklist_ticks.txt` and `notes/NOTES.md` read from his checkout; nothing
+there was written).
+- **Retired (51):** every ticked line; none had a voice note against it (no note's "checklist:" line names one). They were
+  the ropes/poles flat-and-VR lines, the weapon-wheel and flat-throw lines, the hub lectern lines, the Quoth ladder
+  lines, Standalone blood, the Dwell Rotary Shotgun looks and the tutorial lessons 12-14 lines.
+- **Scenes retired with them:** dwell_rotary, embed_throw, flat_weapon_wheel, tutorial_arena_save, tutorial_lessons (no
+  other line or test loads them; moved out of the tree). The five scenes already missing (flat_blood_pointblank,
+  flat_swim, flat_wall_settle, hub_start_test, quoth_kellbase_ladder) no longer have a line, so the checker is green.
+- **[New] sorted (25 lines):** the Lance lines into Dwell (4 merged into 1 and 1), Quest install, music and Standalone
+  rendering lines into Installer, start-up and platforms (the Doom WADs line joined them; duplicates of lines already
+  there dropped), the weapon wheel lines (and its coop line) into Weapons and holsters and Multiplayer, the ropes
+  two-player lines folded into Ropes and chains, the parry palm line into Flat screen. The [New] section is empty.
+- Wordy lines cut to what to do and what to see; every line keeps its {test:<id>}. checklist_tests_check: 86 passed, 0 failed.

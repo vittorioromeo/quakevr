@@ -10665,3 +10665,8 @@ issue rather than regrabbing"). ROPES.md "Climbing (flat-screen)", "Poles", "Tes
   upright 11/0, slant 11/0; rope_flat_test rope 8/0, pole 7/0, polejump 7/0, slantjump 6/0, wall 1/0, wallvr 1/0,
   strungpole 5/0; rope_climb_test pole_jump 6/0, rope_jump 6/0, pole_wood 10/0, monkey_jump 7/0; vr_pole_solid_test
   14/0; mp_test.py pole 15/0. Not run: an MP free-fall scenario (prediction shares solidInside/solidLedge).
+
+## cltidy3: 51 ticked lines retired, the [New] section sorted (agent/cltidy3, 2026-11-23)
+
+Checklist 160 -> 114 lines; five scenes only the retired lines used moved out; details in CHECKLIST_REORG.md, "Checklist
+tidy, third pass". checklist_tests_check 86 passed, 0 failed. Nothing else touched.
