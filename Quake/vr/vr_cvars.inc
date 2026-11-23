@@ -660,6 +660,9 @@ QVR_CVAR(vr_quest_guard, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_cpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_foveation, "0", CVAR_ARCHIVE)
+// qfov: the eye images drawn straight into (their scene with it) whenever vr_xr_foveation is on (vr_stereo.cpp); 1 lets
+// the runtime lower the level while the GPU has room (XR_FOVEATION_DYNAMIC_LEVEL_ENABLED_FB), vr_xr_foveation the most.
+QVR_CVAR(vr_xr_foveation_dynamic, "0", CVAR_ARCHIVE)
 // C4q (QUEST_PLAN.md 6x; a probe): the eye swapchains' foveation create flags, read when they are made: 1 scaled bins
 // (XR_SWAPCHAIN_CREATE_FOVEATION_SCALED_BIN_BIT_FB), 0 none (Meta's GLES sample's: the runtime's choice).
 QVR_CVAR(vr_xr_foveation_flags, "1", CVAR_NONE)
@@ -667,8 +670,11 @@ QVR_CVAR(vr_xr_foveation_flags, "1", CVAR_NONE)
 // allowed with them (off with vr_xr_foveation and -xrfoveation since C4p), 2 the eye image released before it is detached
 // from the engine's framebuffer (the order before C4q).
 QVR_CVAR(vr_xr_foveation_probe, "0", CVAR_NONE)
-// C5's first path (QUEST_PLAN.md 6w; a probe, the ES profile only): 1 draws each eye's scene straight into its swapchain
-// image (no post-process: no tone curve), so vr_xr_foveation reaches the scene; one pass an eye (not single-pass stereo).
+// C5's first path (QUEST_PLAN.md 6w; the ES profile only): 1 draws each eye's scene straight into its swapchain image
+// with the composite's depth texture, 2 with a depth renderbuffer of its own (what vr_xr_foveation uses when this is 0);
+// no post-process: the scene's shaders roll colours off with the tone curve, the in-tile pass grades and dithers (qfov,
+// vr_tonemap.cpp); one pass an eye (not single-pass stereo). -1: never (the post-process path even with foveation). On the
+// Quest 3 form 2 with foveated images crashed the runtime in xrEndFrame at once (qfov), so foveation takes form 1.
 QVR_CVAR(vr_xr_direct, "0", CVAR_NONE)
 // The headset panel's pixels per eye, "WxH", for the menu's status box (the runtime's resolution and the eyes' as a
 // share of it, and its warning); "" looked up by the headset's name (Quest 2, 3, 3S, Pro, Index, Vive, Reverb G2,
@@ -4596,7 +4602,7 @@ QVR_CVAR(vr_flat_key_voicechat, "CAPSLOCK", CVAR_ARCHIVE) // multiplayer voice c
 QVR_CVAR(vr_flat_key_holster_menu, "mouse3", CVAR_ARCHIVE) // flatscreen play: the holster menu's key (a bind name; "" none; how it opens and picks: vr_flat_holster_menu_mode)
 QVR_CVAR(vr_flat_holster_menu_mode, "0", CVAR_ARCHIVE) // flatscreen play: 0 hold the key, hover a button and let go: that button (let go over nothing: just closed; a left click while held clicks too, and then letting go only closes); 1 a press opens it, left clicks as many as wanted, the next press (or Esc) closes it (his words 2026-11-10)
 QVR_CVAR(vr_flat_holster_menu_timescale, "0.3", CVAR_ARCHIVE) // flatscreen play: time's speed while the holster menu is open (bullet time's slow motion; 1 not slowed)
-QVR_CVAR(vr_flat_holster_menu_blur, "6", CVAR_ARCHIVE)  // flatscreen play: the view's blur behind the holster menu (pixels at 1080p, 0 none)
+QVR_CVAR(vr_flat_holster_menu_blur, "6", CVAR_ARCHIVE)  // flatscreen play: the view's blur behind the holster menu and the weapon wheel (pixels at 1080p, 0 none)
 QVR_CVAR(vr_flat_holster_menu_xhair_fade, "1", CVAR_ARCHIVE) // flatscreen play: how far the crosshair fades out while the holster menu is open (1 gone, 0 kept)
 QVR_CVAR(vr_flat_holster_menu_size, "0.62", CVAR_ARCHIVE) // flatscreen play: the holster menu's height, a share of the window's
 QVR_CVAR(vr_flat_holster_menu_fade_time, "0.12", CVAR_ARCHIVE) // flatscreen play: seconds the holster menu takes to fade in or out (real time)

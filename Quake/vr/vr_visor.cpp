@@ -14,6 +14,7 @@
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_stereo.hpp"
+#include "vr_weaponwheel.hpp"
 
 #include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Base/Strlen.hpp"
@@ -1262,11 +1263,12 @@ void composite(int x, int y, int w, int h, const za::Array<glm::vec2, VisorPanel
     glDisable(GL_SCISSOR_TEST);
 }
 
-// Flatscreen play's holster menu (vr_flatholster.cpp blurRadius): the whole view blurred as the glass blurs what is behind
-// the mounts (glassBlur's passes, at the menu's radius), put back over it.
+// Flatscreen play's holster menu and weapon wheel (vr_flatholster.cpp / vr_weaponwheel.cpp blurRadius; the two never show
+// together): the whole view blurred as the glass blurs what is behind the mounts (glassBlur's passes, at their radius),
+// put back over it.
 void menuBlur(unsigned framebuffer, int x, int y, int w, int h)
 {
-    const float radius = flatholster::blurRadius();
+    const float radius = za::max(flatholster::blurRadius(), weaponwheel::blurRadius());
     if(radius <= 0.f || w < 16 || h < 16)
     {
         return;

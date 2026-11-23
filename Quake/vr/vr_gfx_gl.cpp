@@ -13,6 +13,7 @@
 #include "vr_retro.h"
 #include "vr_retro.hpp"
 #include "vr_foveated.hpp"
+#include "vr_stereo.hpp"
 #include "vr_particles.hpp"
 #include "vr_units.hpp"
 
@@ -2813,8 +2814,11 @@ extern "C" unsigned VR_SceneTarget(unsigned* color, unsigned* depth, int* sample
         *color = *depth = 0;
         return 0;
     }
-    *color = framebufs.composite.color_tex;
-    *depth = framebufs.composite.depth_stencil_tex;
+    // An eye drawn straight into its swapchain image (stereo::directEye): no colour texture of ours to read (the image
+    // is the framebuffer's), and with a depth renderbuffer of its own (2) no depth texture either.
+    const int direct = qvr::stereo::directEye();
+    *color = direct ? 0u : framebufs.composite.color_tex;
+    *depth = direct >= 2 ? 0u : framebufs.composite.depth_stencil_tex;
     return framebufs.composite.fbo;
 }
 

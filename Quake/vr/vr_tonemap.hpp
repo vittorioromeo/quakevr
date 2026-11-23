@@ -28,6 +28,17 @@ inline constexpr float sceneMax = 8.f;
 // binds the grade chosen to texture unit `unit`.
 [[nodiscard]] glm::vec4 bind(unsigned unit);
 
+// An eye can be drawn straight into its swapchain image (vr_xr_direct, the Quest's fixed foveation) with its look
+// kept: the scene's shaders roll their colours off with the tone curve themselves (exposure 1; VR_SceneTone), no
+// headset gamma or contrast, and the grade, dither, bullet time's look and comfort vignette, when wanted, by the
+// in-tile pass (drawInTile: GL_EXT_shader_framebuffer_fetch). The bloom and the underwater wobble: the caller's.
+[[nodiscard]] bool postInScene();
+
+// After such an eye's scene, its framebuffer `fbo` (its image) still bound on the tiler: the post-process's steps after
+// the tone curve (QVR_POSTPROCESS_GRADE_DITHER), each pixel read where it is (in the tile, before it is written out),
+// over its lower left width x height. Nothing when none is wanted.
+void drawInTile(unsigned fbo, int width, int height);
+
 // vr_eyeshot: after an eye's post-process, saves its image (`imageFbo`, width x height) and with vr_eyeshot 2 its
 // float scene (`sceneFbo`) to <gamedir>/eyeshots; clears vr_eyeshot after the right eye.
 void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int height);

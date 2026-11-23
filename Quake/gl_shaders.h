@@ -403,6 +403,7 @@ QVR_FRAMEDATA_FIELDS /* QVR: the frame data's Quake VR fields (lights, liquids, 
 "	return mix(Fog.rgb, clr, fog);\n"\
 "}\n"\
 "\n"\
+QVR_SCENE_TONE_GLSL /* QVR: the scene's colours clamped, or rolled off straight into the eye's image (vr/vr_glsl.h) */ \
 
 ////////////////////////////////////////////////////////////////
 
@@ -1241,7 +1242,7 @@ QVR_WORLD_FS_LIGHT_SHADOW // QVR: a light's shadow and spot cone
 "	result.rgb += specular_light * specular_map * decal_mod; // QVR: (under the decals)\n"
 "	result.rgb += fullbright;\n"
 QVR_WORLD_FS_GLOW_LIQUID // QVR: force grab's glow; the liquid's look
-"	result = clamp(result, vec4(0.0), vec4(vec3(SceneTone.x), 1.0)); // QVR: above 1 in the eyes' float scene (vr_tonemap)\n"
+"	result = vec4(QvrSceneTone(result.rgb), clamp(result.a, 0.0, 1.0)); // QVR: above 1 in the eyes' float scene (vr_tonemap); rolled off straight into an eye's image\n"
 "	result.rgb = ApplyFog(result.rgb, in_pos - EyePos);\n"
 "\n"
 "	result.a = in_alpha; // FIXME: This will make almost transparent things cut holes though heavy fog\n"
@@ -1376,7 +1377,7 @@ QVR_TEMPORAL_FS_OUTPUT
 "	vec3 n = LiquidNormal(waves, facing); // QVR\n"
 "	float alpha = in_alpha;\n"
 "	vec3 liquid_tex = result.rgb; // QVR\n"
-"	result.rgb = clamp(LiquidShade(result.rgb, result.rgb, vec3(1.0), pos, n, facing, waves.z, liquid, alpha), 0.0, SceneTone.x); // QVR: lava's glow above 1 in the eyes' float scene (vr_tonemap)\n"
+"	result.rgb = QvrSceneTone(LiquidShade(result.rgb, result.rgb, vec3(1.0), pos, n, facing, waves.z, liquid, alpha)); // QVR: lava's glow above 1 in the eyes' float scene (vr_tonemap)\n"
 "	result.rgb = min(LiquidFoam(result.rgb, liquid_tex, vec3(1.0), pos, facing, waves.z, in_rim, liquid, false, alpha), vec3(max(SceneTone.x, 1.0))); // QVR\n"
 "	result.rgb = ApplyFog(result.rgb, in_pos);\n"
 "	result.a *= alpha; // QVR\n"
@@ -2015,7 +2016,7 @@ QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
 "	QVR_MP vec3 fullbright = Retro > 0 ? RetroSample(FullbrightTex, uv, duvdx, duvdy, false).rgb : textureGrad(FullbrightTex, uv, duvdx, duvdy).rgb; // QVR: uv moved by parallax mapping; retro textures\n"
 "#endif\n"
 QVR_ALIAS_FS_GLOW // QVR: fullbrights, wounds' glow, force grab's glow, morphs
-"	result.rgb = clamp(result.rgb, 0.0, SceneTone.x); // QVR: above 1 in the eyes' float scene (vr_tonemap)\n"
+"	result.rgb = QvrSceneTone(result.rgb); // QVR: above 1 in the eyes' float scene (vr_tonemap); rolled off straight into an eye's image\n"
 "#ifndef QVR_PROBE_ANOFOG\n" // QVR: vr_gles_define's probe (C5f): no fog
 "	float fog = exp2(abs(Fog.w) * -dot(in_pos, in_pos));\n"\
 "	fog = clamp(fog, 0.0, 1.0);\n"

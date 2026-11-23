@@ -166,6 +166,66 @@ glm::vec4 bind(unsigned unit)
     return p;
 }
 
+namespace
+{
+// The in-tile pass (drawInTile): the post-process's last steps over an eye drawn straight into its image.
+GLuint inTileProgram = 0;
+bool inTileFailed = false;
+int inTileAble = -1; // GL_EXT_shader_framebuffer_fetch (-1: not looked up yet)
+
+// The post-process's steps after the tone curve that the eye needs now: bullet time's look, the comfort vignette, the
+// grade, the dither (QVR_POSTPROCESS_GRADE_DITHER).
+[[nodiscard]] bool inTileWanted()
+{
+    const int choice = static_cast<int>(vr_grade.value);
+    const bool grade = choice >= 1 && choice <= 4 && vr_grade_strength.value > 0.f;
+    return grade || vr_dither.value > 0.f || bullettime::look().strength > 0.f || input::comfortVignette() > 0.f;
+}
+
+[[nodiscard]] bool inTileSupported()
+{
+    if(inTileAble < 0)
+    {
+        inTileAble = SDL_GL_ExtensionSupported("GL_EXT_shader_framebuffer_fetch") ? 1 : 0;
+    }
+    return inTileAble > 0 && !inTileFailed;
+}
+} // namespace
+
+bool postInScene()
+{
+    // The scene's shaders roll the world's, the liquids' and the models' colours off at exposure 1 (the particles and
+    // sprites aren't scaled); the headset's gamma and contrast are the post-process's alone; the rest the in-tile pass's.
+    return vr_exposure.value == 1.f && vr_gamma.value == 1.f && vr_contrast.value == 1.f &&
+           (!inTileWanted() || inTileSupported());
+}
+
+void drawInTile(unsigned fbo, int width, int height)
+{
+    if(!inTileWanted() || !inTileSupported())
+    {
+        return;
+    }
+    if(!inTileProgram)
+    {
+        inTileProgram = gfx::glProgram(gfx::fullscreenTriangleVs, VR_InTileFragmentGLSL(), "vr in-tile grade");
+        inTileFailed = !inTileProgram;
+        gfx::ownDeferred(inTileProgram, &inTileFailed);
+        if(inTileFailed)
+        {
+            Con_Warning("VR: the in-tile grade's program failed: the eyes go through the post-process\n");
+            return;
+        }
+    }
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, fbo);
+    glViewport(0, 0, width, height);
+    GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
+    GL_UseProgram(inTileProgram);
+    VR_PostProcessView(); // (PostView: the drawn size, for the vignettes)
+    VR_PostProcessTone(); // (Tone's grade strength and its table on unit 3, Dither, SlowLook)
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
 void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int height)
 {
     if(vr_eyeshot.value <= 0.f)
@@ -711,6 +771,12 @@ extern "C" float VR_SceneTone(void)
 {
     if(stereo::isRenderingEye())
     {
+        // Drawn straight into the eye's 8-bit image (stereo::directEye): no post-process, so the world, the liquids and
+        // the models roll their colours off with the curve themselves (negative: the exposure; QvrSceneTone, vr_glsl.h).
+        if(stereo::directEye() && tonemap::active())
+        {
+            return -za::clamp(vr_exposure.value, 0.1f, 4.f);
+        }
         return tonemap::active() ? tonemap::sceneMax : 1.f;
     }
     return flatlook::floatScene() ? tonemap::sceneMax : 1.f; // flat-screen tone mapping (vr_flat_tonemap)
@@ -718,6 +784,7 @@ extern "C" float VR_SceneTone(void)
 
 extern "C" float VR_SceneDither(float dither)
 {
+    // (the eyes' post-process dithers into the 8-bit image; drawn straight into it, the in-tile pass: tonemap::drawInTile)
     return stereo::isRenderingEye() && vr_dither.value > 0.f ? 0.f : dither;
 }
 

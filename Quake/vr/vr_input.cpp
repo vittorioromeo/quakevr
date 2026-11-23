@@ -2047,18 +2047,37 @@ const InputState released; // (update: without VR, everything is released)
 // mode that takes it: the flashlight's, a voice note's, the toolgun's...): vr_weaponwheel_hold seconds on, the wheel
 // opens round that hand and the game's key is let go (its press reached the game at once: a tap must not wait; B and Y
 // do nothing by default, vr_weapon_cycle_mode 0). Its letting go is then the wheel's (the pick), never the game's.
+// The button's bit sent with the move (secondaryHeld, primaryHeld: the QC's QVR_VRBITS0_*HAND_SECONDARY) is held back
+// while the hold may still open the wheel: on its press edge the server ejects a magazine (vr_reload_eject_button),
+// breaks open the super shotgun, swings out the revolver's cylinder, so a hold that opened the wheel emptied the gun
+// first (ROUND25 "holsterammo": the nailgun's 24 rounds fell out on the floor). Let go before the wheel opens (a tap),
+// the bit goes for wheelTapPulse seconds then (a press edge the server sees, whatever its frame rate).
 struct WheelHold
 {
     bool down[HAND_COUNT]{};     // held, as the game got it
     double since[HAND_COUNT]{};  // pressed at (realtime)
     bool taken[HAND_COUNT]{};    // the wheel opened on this hold
+    bool withheld[HAND_COUNT]{}; // its bit held back from the move (the wheel could open on it)
+    double pulseUntil[HAND_COUNT]{}; // a tap's bit sent until (realtime)
 };
 WheelHold wheelHold;
+constexpr double wheelTapPulse = 0.1;
 
 [[nodiscard]] const ButtonKeys& wheelButtonKeys()
 {
     const int kind = weaponwheel::buttonKind();
     return buttonKeys[kind == 1 ? 4 : kind == 2 ? 2 : 3]; // (stickClick, primary, secondary)
+}
+
+// The bit sent with the move for `button` of hand `h`, held (`down`) as the game got it: the wheel's button's held back
+// while its hold may open the wheel, and a tap's sent for wheelTapPulse (WheelHold).
+[[nodiscard]] bool wheelMoveBit(int h, bool HandInput::*button, bool down)
+{
+    if(button != wheelButtonKeys().button)
+    {
+        return down;
+    }
+    return realtime < wheelHold.pulseUntil[h] || (down && !wheelHold.withheld[h]);
 }
 
 // Once a frame, before the buttons: a hold long enough opens the wheel.
@@ -2087,7 +2106,7 @@ void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
     // The weapon wheel's button let go after it opened the wheel: the wheel's pick (wheelHoldFrame let the key go).
     if(!now && b.button == wheelButtonKeys().button && wheelHold.taken[h])
     {
-        wheelHold.down[h] = wheelHold.taken[h] = false;
+        wheelHold.down[h] = wheelHold.taken[h] = wheelHold.withheld[h] = false;
         logButton(h, b, now, b.key[h], "the weapon wheel (let go: its pick)");
         weaponwheel::release(h);
         return;
@@ -2250,9 +2269,14 @@ void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
     keyEvent(key, now);
     if(b.button == wheelButtonKeys().button)
     {
+        if(!now && wheelHold.down[h] && wheelHold.withheld[h])
+        {
+            wheelHold.pulseUntil[h] = realtime + wheelTapPulse; // (a tap: its bit now, as a press the server sees)
+        }
         wheelHold.down[h] = now;
         wheelHold.since[h] = now ? realtime : wheelHold.since[h];
         wheelHold.taken[h] = false;
+        wheelHold.withheld[h] = now && key_dest == key_game && weaponwheel::holdsButtonBack(h);
     }
     if(b.button == &HandInput::secondary)
     {
@@ -2577,7 +2601,8 @@ float comfortVignette()
 
 bool secondaryHeld(int hand)
 {
-    return hand >= 0 && hand < HAND_COUNT && secondaryDown[hand] && key_dest == key_game;
+    return hand >= 0 && hand < HAND_COUNT && wheelMoveBit(hand, &HandInput::secondary, secondaryDown[hand]) &&
+           key_dest == key_game;
 }
 
 bool secondaryPressed(int hand)
@@ -2587,7 +2612,8 @@ bool secondaryPressed(int hand)
 
 bool primaryHeld(int hand)
 {
-    return hand >= 0 && hand < HAND_COUNT && primaryDown[hand] && key_dest == key_game;
+    return hand >= 0 && hand < HAND_COUNT && wheelMoveBit(hand, &HandInput::primary, primaryDown[hand]) &&
+           key_dest == key_game;
 }
 
 } // namespace qvr::input
