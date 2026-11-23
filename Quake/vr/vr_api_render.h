@@ -54,7 +54,7 @@ void VR_GLProbeUpload (const char *what, unsigned buffer, size_t offset, const v
 void VR_GLProbeBuffer (const char *what, unsigned buffer, size_t offset, size_t size); // vr_gl_probe: a GPU-written buffer read back
 void VR_GLProbeState (const char *where);				// vr_gl_probe: the GL state at a draw, its program validated
 void VR_GLProbeSceneEnd (unsigned vbo, unsigned ibo, int stride, int indices); // R_RenderScene, its last draws: vr_gl_probe 3's red where nothing drew, 4/5's world in green
-int VR_GLOpaqueNoBlend (void);						// GL_SetState: an opaque state disables GL_BLEND (vr_gl_opaque_noblend: on under OpenGL ES)
+int VR_GLOpaqueNoBlend (void);						// GL_SetState: an opaque state disables GL_BLEND (vr_gl_opaque_noblend 1; -1: under OpenGL ES)
 int VR_GLSampleShading (void);						// GL_SampleShading: GL_SAMPLE_SHADING may be on (vr_gl_sample_shading)
 void VR_LrzProbe (int point);						// R_RenderScene: vr_debug_lrz_probe's quads at this point of an eye's scene (Debug > Profiling)
 void VR_DrawHiddenArea (void);						// R_RenderScene, after R_Clear: the lenses' hidden area at the near plane (vr_visibility_mask)

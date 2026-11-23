@@ -770,10 +770,12 @@ QVR_CVAR(vr_world_prepass, "1", CVAR_NONE)
 // frame's plans); 2 the same, the arrays' calls never merged (an A/B switch: twice the draws); 0 gathered and merged
 // between the draws as before. No effect on the PC.
 QVR_CVAR(vr_gl_one_pass, "1", CVAR_NONE)
-// qlrz: opaque draws with GL_BLEND off (GL_SetState, gl_vidsdl.c): -1 under OpenGL ES (the Quest: with blending left on
-// as Ironwail has it, opaque being glBlendFunc(GL_ONE, GL_ZERO), Adreno's driver lets no depth-writing draw write its
-// low-resolution depth, LRZ, so no hidden pixel is rejected early), 1 always, 0 never (Ironwail's). The same pixels.
-QVR_CVAR(vr_gl_opaque_noblend, "-1", CVAR_NONE)
+// qlrz: opaque draws with GL_BLEND off (GL_SetState, gl_vidsdl.c): 0 never (Ironwail's: blending left on, opaque being
+// glBlendFunc(GL_ONE, GL_ZERO); on the Quest a depth-writing draw with blending on ends Adreno's low-resolution depth,
+// LRZ, for the rest of the pass, so no hidden pixel is rejected early), 1 always, -1 under OpenGL ES. The same pixels.
+// Default 0 for now: with 1 the Quest's LRZ lives until the first id model (progs/) other than a grunt is drawn, which
+// ends it again (cause open), and the gib fight measures the same (ROUND25, qlrz).
+QVR_CVAR(vr_gl_opaque_noblend, "0", CVAR_NONE)
 // qlrz, a probe: 0 GL_SAMPLE_SHADING never enabled (Ironwail enables it throughout; its rate is vid_fsaamode's).
 QVR_CVAR(vr_gl_sample_shading, "1", CVAR_NONE)
 // Debug > Profiling > LRZ Probe (qlrz): is the tiler's early depth rejection (Adreno's LRZ) alive at a point of the
