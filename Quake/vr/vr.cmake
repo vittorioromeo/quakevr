@@ -29,6 +29,13 @@ target_compile_definitions(ironwail PRIVATE ZA_STATIC)
 file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/../../VERSION" QVR_VERSION LIMIT_COUNT 1)
 string(STRIP "${QVR_VERSION}" QVR_VERSION)
 target_compile_definitions(ironwail PRIVATE "QVR_VERSION=\"${QVR_VERSION}\"")
+# A release build's code (the PC's make_release.ps1 /p:QvrReleaseVersion; the Quest's release APK, Android/build_native.sh
+# with QVR_ANDROID_RELEASE=1): QVR_RELEASE (the tuning constants folded in, no live tuning, no checked sound reads), and
+# the version without "-dev" (qvr_buildinfo.cmake: QVR_VERSION_DEV 0). docs/vr-port/ANDROID_RELEASE.md.
+option(QVR_RELEASE "A release build's code: QVR_RELEASE, the version without -dev (OFF: a development build)" OFF)
+if (QVR_RELEASE)
+	target_compile_definitions(ironwail PRIVATE QVR_RELEASE)
+endif()
 # Linker (Linux): mold, then LLD, else the default linker; the link is most of a one-file rebuild (7-8 s of 11 with GNU ld).
 # QVR_LINKER=default|lld|mold forces one; a missing one (or the auto probe failing, e.g. a Flatpak SDK without them)
 # falls back to the default linker, so the build never depends on them.
@@ -57,6 +64,7 @@ endif()
 set(QVR_GEN_DIR "${CMAKE_BINARY_DIR}/qvr_gen")
 add_custom_target(qvr_buildinfo ALL
 	COMMAND "${CMAKE_COMMAND}" "-DQVR_REPO=${CMAKE_CURRENT_LIST_DIR}/../.." "-DQVR_OUT=${QVR_GEN_DIR}/qvr_buildver.h"
+		"-DQVR_RELEASE=${QVR_RELEASE}"
 		-P "${CMAKE_CURRENT_LIST_DIR}/qvr_buildinfo.cmake"
 	BYPRODUCTS "${QVR_GEN_DIR}/qvr_buildver.h"
 	COMMENT "Quake VR build number"

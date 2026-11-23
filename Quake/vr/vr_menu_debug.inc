@@ -516,6 +516,11 @@ za::Vector<Item> pageDebugProfiling()
         command("List the Frame's Render Passes", "vr_gl_passes 1")
             .help("vr_gl_passes 1: the next frame's framebuffer binds in the console, in order, each with the draws made "
                   "into it (and the profiler's scope at the bind with vr_profile on), and its alias batches."),
+        command("Hide Gibs, Heads and Limbs", "vr_debug_hide_models \"gib,h_,#limb\"")
+            .help("vr_debug_hide_models <parts>: alias models whose name holds any of the comma-separated parts are not "
+                  "drawn in the eyes (gib, h_ and #limb: the gore). A cost found by leaving things out (the Quest's GPU "
+                  "times one render pass as a whole)."),
+        command("Show Every Model", "vr_debug_hide_models \"\"").help("vr_debug_hide_models \"\": every model drawn again."),
         row(opt::vr_profile_overlay),
         row(opt::vr_profile_csv),
         row(opt::vr_profile_hitch),
