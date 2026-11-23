@@ -9866,6 +9866,38 @@ Runs on origin/next 27fce84a7 (Release no-LTO, the shipped-defaults baseline). M
 - Smoke: `mp_test.py suite --only` the six touched scenarios and mp_coop: mp_suite passed (netsafe 14/0, coop 12/0,
   flow 17/0, melee 30/0, slide_vr 8/0, predict 31/0, predictclimb 29/0, predictslide 14/0). flatswing 4/0.
 
+## beta2: 1.2.0-beta2 made ready, not published: the beta tests failed once (agent/beta2, 2026-11-23)
+
+- **Notes:** RELEASE_NOTES_1.2.md retitled "1.2.0 beta 2", "New in beta 2" at the top (the Quest standalone version,
+  experimental: Setup's Install on > Meta Quest, the USB debugging steps as QuestTarget.SetupSteps words them, Library >
+  Unknown Sources, the Standalone preset, Ogg music, gib fights below 72 fps; ropes/poles/monkey ropes; tutorial 12-14;
+  Dwell's Lance and Rotary; Quoth kellbase; flat number keys; fixes; network version 44), beta 1's text kept below its
+  own heading. PATCH_NOTES_1.1.1.md: the same by area (Campaigns: kellbase, tutorial; Weapons: Lance, Rotary; Movement:
+  poles and monkey ropes; Menus: flat number keys, the visor crash; a new "Quest standalone" area; network 43 -> 44).
+- **make_release.ps1 -Apk** (new): passes make_release.py `--apk`, so the APK is the asset QuakeVR.apk and latest.json's
+  `quest` component (Setup's Quest target downloads it from the prerelease's own feed). RELEASING.md, "Prereleases".
+- **The APK** is built after the version commit: the CMake build reads VERSION when it configures (vr.cmake), so one
+  built before it names the old version. Android/build_native.sh + package_apk.sh on 0fd568d14: check_apk 20/0, the
+  library names 1.2.0-beta2 (still a dev build: CMake has no release switch), vr_blood_near and the Standalone preset in.
+- **The beta profile failed first:** scenario_check 183 run, 9 failed (6 AD scenes and humrepl_variants "no map
+  maps/ad_crucial.bsp", quoth_kellbase_field "no map maps/kellbase1.bsp", haste_guns "Lightning Gun is no toolgun
+  spawn entry"). Not the game: `vr_scenario validate` selects each add-on map's campaign (95a34239e); after it selected
+  Dawn of the Machine, `VR_SelectCampaignNoMap` refused AD and Quoth (experimental: nativeReady false; only a -game
+  start or `vr_campaign_native` makes them active), so their maps were never found again (alone, each scene passed).
+  Fix: `VR_SelectCampaignNoMapNative` (vr_gamedir.cpp) selects an experimental campaign the developer's way, used by
+  vr_scenario only; haste_guns spawns the "Thunderbolt" (the toolgun's name). scenario_check 183/0; then the whole
+  beta profile on the version commit 0fd568d14: 12 passed, 0 failed (3.7 min).
+- **Not published:** the brief says to stop on any failed step, so the release waits for the coordinator. Ready to
+  publish as beta1 was: `make_release.ps1 -Version 1.2.0-beta2 -Publish -NoDraft -NoBranchPush -RunTests -AllowFlaky
+  -SkipOnlineInstall -Notes docs/vr-port/RELEASE_NOTES_1.2.md -Apk build-android/apk/QuakeVR.apk` from posebake on
+  0fd568d14 (VERSION already 1.2.0-beta2: no -BumpVersion); its -DryRun is clean (assets QuakeVR.zip, QuakeVR-Setup.exe,
+  latest.json, SHA256SUMS.txt, QuakeVR.apk; tag v1.2.0-beta2 on 0fd568d1; --prerelease; Latest stays v1.1.0).
+- **Published** on the coordinator's go (the author's "publish if green", now green): that command, from posebake,
+  on 36d269540 (the version commit plus these notes): tests 12/0 again, ReleaseLTO build, checks, smoke launch, tag,
+  release, Latest guard, online check all passed. https://github.com/vittorioromeo/quakevr/releases/tag/v1.2.0-beta2:
+  prerelease true, draft false; assets QuakeVR.zip, QuakeVR-Setup.exe, QuakeVR.apk, latest.json, SHA256SUMS.txt;
+  `gh release view` (Latest) still v1.1.0; the downloaded latest.json's `quest` component is QuakeVR.apk with the
+  APK's size and SHA-256 and the release's own URL. Tag v1.2.0-beta2 (annotated) at 36d269540; agent/beta2 not pushed.
 ## hitzones: shots meet the players' bodies as drawn; Show Hit Zones in the shipped game (2026-11-23, `agent/hitzones`)
 
 His flat-screen deathmatch notes 17-19 (a crosshair on a bot's helmet missed; a shot well beside its arm hit; a shot only
