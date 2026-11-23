@@ -20,11 +20,11 @@
 #include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Concurrency/LockGuard.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/ChunkedVector.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
-#include <deque>
 #include "external/box3d/include/box3d/base.h"
 #include "vr_mem.hpp"
 #include "vr_jobs.hpp"
@@ -727,14 +727,14 @@ struct QCTable
     za::Vector<QCEntry> entries;
 };
 QCTable qcTables[3]; // one per VM (server, client); a spare slot
-std::deque<za::String> qcStrings; // backing store of the locations' names and files (stable addresses: no Zancle deque)
-std::deque<___tracy_source_location_data> qcLocations;
+za::ChunkedVector<za::String> qcStrings; // the locations' names and files (stable addresses: Tracy keeps them)
+za::ChunkedVector<___tracy_source_location_data> qcLocations; // (stable addresses, the same)
 ankerl::unordered_dense::map<za::String, const ___tracy_source_location_data*> qcInterned;
 za::String qcKey;
 
 const char* qcString(const char* text)
 {
-    return qcStrings.emplace_back(text).cStr();
+    return qcStrings.emplaceBack(text).cStr();
 }
 const ___tracy_source_location_data* qcLocation(const char* name, const char* kind, const char* file)
 {
@@ -744,7 +744,7 @@ const ___tracy_source_location_data* qcLocation(const char* name, const char* ki
     qcKey += '\x1f';
     qcKey += file;
     if(const auto it = qcInterned.find(qcKey); it != qcInterned.end()) return it->second;
-    const auto* loc = &qcLocations.emplace_back(___tracy_source_location_data{qcString(name), kind, qcString(file), 0, 0});
+    const auto* loc = &qcLocations.emplaceBack(___tracy_source_location_data{qcString(name), kind, qcString(file), 0, 0});
     qcInterned.emplace(qcKey, loc);
     return loc;
 }
