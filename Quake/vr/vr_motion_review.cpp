@@ -40,7 +40,6 @@
 
 #include <stdio.h>
 #include <time.h>
-#include <map>
 
 namespace qvr::motion::child
 {
@@ -217,10 +216,12 @@ struct Status
 const char* const statusColumns =
     "file,label,verdict,reason,expected,events,recorded_events,same_hits_as_recorded,weapons,evaluated";
 
-// ZANCLE-TODO: no ordered map: the verdicts by file name, written in that order.
-[[nodiscard]] std::map<za::String, Status> readStatus(const za::String& path)
+// The verdicts by file name (written in the names' order: writeStatus sorts them).
+using StatusMap = ankerl::unordered_dense::map<za::String, Status>;
+
+[[nodiscard]] StatusMap readStatus(const za::String& path)
 {
-    std::map<za::String, Status> out;
+    StatusMap out;
     ankerl::unordered_dense::map<za::String, size_t> col;
     for(const za::String& line : linesOf(path))
     {
@@ -251,14 +252,15 @@ const char* const statusColumns =
     return out;
 }
 
-[[nodiscard]] bool writeStatus(const za::String& path, const std::map<za::String, Status>& entries)
+[[nodiscard]] bool writeStatus(const za::String& path, const StatusMap& entries)
 {
     za::String text = "# eval_status.csv -- vr_motion_eval's verdict on each take of this folder, the latest evaluation "
                        "of each (docs/vr-port/MOTIONS.md, \"Reviewing failing takes\")\n";
     text += statusColumns;
     text += '\n';
-    for(const auto& [name, s] : entries)
+    for(const auto* entry : qza::sortedByKey(entries)) // (in the names' order, as a std::map had them)
     {
+        const Status& s = entry->second;
         text += cell(s.file) + ',' + cell(s.label) + ',' + cell(s.verdict) + ',' + cell(s.reason) + ',' + cell(s.expected) +
                 ',' + cell(s.events) + ',' + cell(s.recorded) + ',' + cell(s.same) + ',' + cell(s.weapons) + ',' +
                 cell(s.evaluated) + '\n';
@@ -304,7 +306,9 @@ struct Mark
     za::String date;
 };
 
-std::map<za::String, Mark> marks; // by the take's file name (ZANCLE-TODO: no ordered map: written in order, pointers kept)
+// By the take's file name; written in the names' order (writeMarks). The takes point into it: every change to it is
+// followed by changed(), whose scan points them again, before a take's mark is read.
+ankerl::unordered_dense::map<za::String, Mark> marks;
 
 void readMarks()
 {
@@ -326,8 +330,9 @@ void readMarks()
 [[nodiscard]] bool writeMarks()
 {
     za::String text = "# reviewed.csv -- the takes reviewed in the game (Review Takes): kept, or relabelled\nfile,decision,date\n";
-    for(const auto& [name, m] : marks)
+    for(const auto* entry : qza::sortedByKey(marks)) // (in the names' order, as a std::map had them)
     {
+        const auto& [name, m] = *entry;
         text += cell(name) + ',' + cell(m.decision) + ',' + cell(m.date) + '\n';
     }
     return writeWhole(reviewPath() / "reviewed.csv", text);
@@ -385,7 +390,7 @@ struct Take
     const Mark* mark{nullptr};     // reviewed
 };
 
-std::map<za::String, Status> statuses; // ZANCLE-TODO: no ordered map (the takes keep pointers into it)
+StatusMap statuses; // the takes point into it (filled by each scan, unchanged until the next)
 za::Vector<Suspect> suspectList;
 za::Vector<Take> takes;
 za::String lastEvaluated; // the newest verdict's date
@@ -445,8 +450,9 @@ void rebuild()
     readJournal(); // (as on disk: every change is written as it is made)
     lastEvaluated.clear();
     ankerl::unordered_dense::map<za::String, const Status*> byStamp; // a relabelled take's verdict, under its old name
-    for(const auto& [name, s] : statuses)
+    for(const auto* entry : qza::sortedByKey(statuses)) // (names' order: of two with one stamp, the later name's)
     {
+        const auto& [name, s] = *entry;
         if(const NameParts p = parseName(name); p.ok)
         {
             byStamp[p.stamp] = &s;
@@ -1543,7 +1549,7 @@ void recordEval(const za::Vector<Verdict>& verdicts)
     {
         const auto& [folder, list] = *entry;
         const za::String file = folder / "eval_status.csv";
-        std::map<za::String, Status> entries = readStatus(file);
+        StatusMap entries = readStatus(file);
         for(const Verdict* v : list)
         {
             const za::String name = fileName(v->path);
