@@ -15,6 +15,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_grasp.hpp"
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
@@ -523,6 +524,9 @@ struct Recorded
     const qmodel_t* model{nullptr};
     int frame{0};
     glm::mat4 toHand{1.f}; // the model's raw coordinates to the hand's frame
+    glm::mat4 shapeToHand{1.f}; // ... as last recorded with no wall turning the drawn gun (weaponShape: the pose's gun)
+    const qmodel_t* shapeModel{nullptr};
+    int shapeFrame{0};
     glm::vec3 handPos{0.f}, handRot{0.f}; // that frame: the hand as drawn (drawnWeaponPoints)
     za::Vector<glm::vec3> prop; // the prop held in the hand alone: its points (propSamples) in the hand's frame
 };
@@ -1485,6 +1489,20 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
             r.handPos = s.pos[hand];
             r.handRot = s.visualRot[hand];
             r.toHand = glm::inverse(handFrame(s.pos[hand], s.visualRot[hand])) * grasp::shapeToWorld(*e, mirrored[hand]);
+            // The pose's gun (weaponShape) is the gun as no wall turns it: drawn tilted up or slid at a wall (flatscreen
+            // play, flatsight's vr_flat_wall_tilt / _slide), the model stood up to 0.3 units elsewhere in the hand's frame
+            // (18 degrees), the level gun's depth in the wall moved with the tilt's ease, and the tilt went on and off
+            // every three frames (flatsweep's long gun standing at the wall looking 25 down: 0.95 units a frame for good).
+            // Kept while turned, for the same model and frame.
+            glm::vec3 wallShift{0.f};
+            const glm::mat3 wallTurn = flatplay::drawnWallTurn(hand, wallShift);
+            const bool wallTurned = wallTurn[0][0] + wallTurn[1][1] + wallTurn[2][2] < 3.f - 1e-6f || glm::length(wallShift) > 1e-4f;
+            if(!wallTurned || r.model != r.shapeModel || r.frame != r.shapeFrame)
+            {
+                r.shapeToHand = r.toHand;
+                r.shapeModel = r.model;
+                r.shapeFrame = r.frame;
+            }
         }
         // And the prop it holds alone, from the hand as drawn with it (moved by meeting the other's or a wall).
         r.prop.clear();
@@ -1528,7 +1546,7 @@ bool weaponShape(int hand, const glm::vec3& rot, za::Vector<glm::vec3>& out)
     {
         if(const za::Vector<glm::vec3>* samples = samplesOf(r.model, r.frame))
         {
-            const glm::mat4 toWorld = turn * r.toHand;
+            const glm::mat4 toWorld = turn * r.shapeToHand;
             for(const glm::vec3& v : *samples)
             {
                 out.pushBack(glm::vec3{toWorld * glm::vec4{v, 1.f}});

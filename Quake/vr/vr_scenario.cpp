@@ -191,7 +191,7 @@ bool mapFoundOrCampaignSelected(const char* map)
     }
     for(int i = 3; i < VR_CampaignCount(); ++i)
     {
-        if(VR_CampaignInstalled(i) && VR_SelectCampaignNoMap(i) && COM_FileExists(file.cStr(), nullptr))
+        if(VR_CampaignInstalled(i) && VR_SelectCampaignNoMapNative(i) && COM_FileExists(file.cStr(), nullptr))
         {
             return true;
         }

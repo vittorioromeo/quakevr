@@ -17,6 +17,7 @@
 #include "vr_geom.hpp"
 #include "vr_hands.hpp"
 #include "vr_hull.hpp"
+#include "vr_playerhit.hpp"
 #include "vr_progs.hpp"
 #include "vr_slide.hpp"
 #include "vr_testkit.hpp"
@@ -206,6 +207,9 @@ struct LadderTest
     float pitch{0.f};
     float yaw{0.f};
     bool turned{false};    // the case's second part has begun
+    bool sideSeen{false};  // Side: where he was 60 over the ladder's foot: off its middle, his box's front past its face
+    float sideOff{0.f}, sideFront{0.f};
+    bool sideBlocked{false}; // and no room further out (a clip, a mover in front of the ladder)
 };
 
 // vr_flatslide_rough_test (maps/vrtesthall.bsp): slides up its stairs and its ramp, then curves with A alone and D alone,
@@ -2016,6 +2020,8 @@ enum class LadderKind : za::U8
     PushOff,  // up it, then jump: away from it
     None,     // forward into it for 1.5 s: no ladder
     Fallback, // (vr_flat_ladder 0) jump held in a mod's trigger_ladder: the mod's own climb lifts him
+    Side,     // forward and right held into a ladder volume from off its middle (a run along it): up it and over the top, on
+              // the way up (60 over its foot) centred on its width and his box out of its bars (hubladder)
 };
 struct LadderCase
 {
@@ -2027,6 +2033,8 @@ struct LadderCase
     float top;    // and on its top
     float line;   // the rungs' line: how far along the look (yaw) from the origin 0 0 0 (Up ends 9 past it)
     bool free;    // the ladder stands free (non-solid): climbed down, he ends anywhere within 36 of its line
+    float mid{0.f};  // Side: the ladder's middle across its width (along the look's right: sin, -cos of yaw)
+    float face{0.f}; // and its bars' near face along the look (as `line`): his box's front no further
 };
 constexpr LadderCase ladderCases[] = {
     {"the tutorial ladder, up and over the top", LadderKind::Up, 2933.f, 704.f, 24.f, 0.f, -1e9f, 0.f, 156.f, 2951.f},
@@ -2062,6 +2070,10 @@ constexpr LadderCase quothLadderCases[] = {
         1336.f, true},
     {"Quoth's kellbase1 pillar ladder, down looking down", LadderKind::LookDown, -64.f, -1346.f, 281.f, 270.f, -1e9f, 256.f, 640.f,
         1336.f, true},
+    // (hubladder: the pillar's, from 24 left of its middle in its bars, forward and right held: its bars' near face y
+    // -1344, their middle x -64. The catwalk's can't be stood out of: a clip 22 units in front of it.)
+    {"Quoth's kellbase1 pillar ladder, run at from the side", LadderKind::Side, -40.f, -1346.f, 281.f, 270.f, -1e9f, 256.f, 640.f,
+        1336.f, true, 64.f, 1344.f},
     // (Alone only, with vr_flat_ladder 0: Quoth's own climb, AD's jump ladder.)
     {"Quoth's kellbase1 ladder, vr_flat_ladder 0: jump climbs it", LadderKind::Fallback, 32.f, -664.f, 664.f, 90.f, -1e9f, 640.f,
         896.f, -658.f, true},
@@ -2152,7 +2164,7 @@ void ladderTestFrame()
         q_snprintf(line, sizeof(line), "case %d timed out (step %d, ground %d, on the ladder %d, feet at %.1f, at %.1f %.1f)", t.index,
             t.phase, ground ? 1 : 0, climbing ? 1 : 0, feet, pl->v.origin[0], pl->v.origin[1]);
         testCheck(t.tally, tag, false, line);
-        Cbuf_InsertText("-forward\n-back\n-jump\n");
+        Cbuf_InsertText("-forward\n-back\n-jump\n-moveright\n");
         t.index++;
         next(1);
         return;
@@ -2162,7 +2174,7 @@ void ladderTestFrame()
     case 1: // placed
         if(t.index >= (t.only >= 0 ? caseCount : caseCount - 1) || (t.only >= 0 && t.index > t.only))
         {
-            Cbuf_InsertText("-forward\n-back\n-jump\n");
+            Cbuf_InsertText("-forward\n-back\n-jump\n-moveright\n");
             t.tally.verdict(tag);
             t = LadderTest{};
             return;
@@ -2202,7 +2214,11 @@ void ladderTestFrame()
             t.lastSerial = -1;
             t.minFeet = t.maxFeet = feet;
             t.turned = false;
-            Cbuf_InsertText(k.kind == LadderKind::Down ? "+back\n" : k.kind == LadderKind::Fallback ? "+jump\n" : "+forward\n");
+            t.sideSeen = false;
+            Cbuf_InsertText(k.kind == LadderKind::Down       ? "+back\n"
+                            : k.kind == LadderKind::Fallback ? "+jump\n"
+                            : k.kind == LadderKind::Side     ? "+forward\n+moveright\n"
+                                                             : "+forward\n");
             next(3);
         }
         break;
@@ -2242,26 +2258,58 @@ void ladderTestFrame()
         // How far past the rungs' line along the look (the tutorial's: x less 2951).
         const float yawRad = glm::radians(k.yaw);
         const float x = pl->v.origin[0] * za::cos(yawRad) + pl->v.origin[1] * za::sin(yawRad) - k.line;
+        if(k.kind == LadderKind::Side && climbing && !t.sideSeen && feet >= k.ground + 60.f)
+        {
+            t.sideSeen = true;
+            t.sideOff = pl->v.origin[0] * za::sin(yawRad) - pl->v.origin[1] * za::cos(yawRad) - k.mid;
+            t.sideFront = x + k.line + pl->v.maxs[0];
+            // (Or as far out as there is room: kellbase1's ladders have a clip, a func_train's path in front of them.)
+            vec3_t from{pl->v.origin[0], pl->v.origin[1], pl->v.origin[2]};
+            vec3_t to{from[0] - za::cos(yawRad), from[1] - za::sin(yawRad), from[2]};
+            t.sideBlocked = SV_Move(from, pl->v.mins, pl->v.maxs, to, MOVE_NOMONSTERS, pl).fraction < 1.f;
+            Cbuf_InsertText("-moveright\n"); // (forward on: up and over the top)
+        }
         switch(k.kind)
         {
         case LadderKind::Up:
+        case LadderKind::Side:
+        {
             t.frames = t.mantled && ground && !mantling ? t.frames + 1 : 0;
             done = t.frames >= 5;
             ok = climbed && t.mantled && za::abs(feet - k.top) < 2.f && x > 9.f && t.serials >= 4;
-            q_snprintf(line, sizeof(line), "%s: %s, %s, feet at %.1f, %.1f past the rungs; %d hand changes, hands drawn off %d main %d",
+            const bool side = k.kind == LadderKind::Side;
+            ok = ok && (!side || (t.sideSeen && za::abs(t.sideOff) <= 1.f && (t.sideFront <= k.face - 0.5f || t.sideBlocked)));
+            q_snprintf(line, sizeof(line), "%s: %s, %s, feet at %.1f, %.1f past the rungs; %d hand changes, hands drawn off %d main %d%s",
                 k.name, climbed ? "took the ladder" : "never took it", t.mantled ? "mantled" : "no mantle", feet, x, t.serials,
-                t.handBits & 1, (t.handBits >> 1) & 1);
+                t.handBits & 1, (t.handBits >> 1) & 1,
+                side ? va("; 60 up %.1f off its middle, his box's front %.1f past its face%s", t.sideOff, t.sideFront - k.face,
+                           t.sideBlocked ? " (no room further out)" : "")
+                     : "");
             break;
+        }
         case LadderKind::Down:
         case LadderKind::LookDown:
+        {
             t.frames = climbed && ground && !climbing && (k.kind == LadderKind::Down || t.turned) ? t.frames + 1 : 0;
             done = t.frames >= 5;
+            // (A free-standing ladder's way down may end on a mover passing in front of it, as it would in play: kellbase1's
+            // pillar ladder has a func_train by it, and since hubladder the body hangs out of the bars, over its path.)
+            bool onMover = false;
+            if(k.free && ground)
+            {
+                vec3_t from{pl->v.origin[0], pl->v.origin[1], pl->v.origin[2]}, to{from[0], from[1], from[2] - 2.f};
+                const trace_t under = SV_Move(from, pl->v.mins, pl->v.maxs, to, MOVE_NORMAL, pl);
+                onMover = under.ent && under.ent != EDICT_NUM(0) && static_cast<int>(under.ent->v.movetype) == MOVETYPE_PUSH;
+            }
             // (Down: lowered onto it off its top by the mantle's way backwards; looking down: no mantle.)
-            ok = climbed && (k.kind == LadderKind::Down) == t.mantled && za::abs(feet - k.ground) < 2.f && t.climbFrames >= 36 &&
+            ok = climbed && (k.kind == LadderKind::Down) == t.mantled &&
+                 (za::abs(feet - k.ground) < 2.f || (onMover && t.maxFeet - feet >= 100.f)) && t.climbFrames >= 36 &&
                  (k.free ? za::abs(x) < 36.f : x > -36.f && x < -6.f) && (k.kind == LadderKind::Down || t.maxFeet >= k.ground + 60.f);
-            q_snprintf(line, sizeof(line), "%s: %s, %d frames on it, the feet from %.1f down to %.1f, %.1f off the rungs%s", k.name,
-                climbed ? "took the ladder" : "never took it", t.climbFrames, t.maxFeet, feet, -x, t.mantled ? ", mantled" : "");
+            q_snprintf(line, sizeof(line), "%s: %s, %d frames on it, the feet from %.1f down to %.1f%s, %.1f off the rungs%s", k.name,
+                climbed ? "took the ladder" : "never took it", t.climbFrames, t.maxFeet, feet, onMover ? " (on a mover)" : "", -x,
+                t.mantled ? ", mantled" : "");
             break;
+        }
         case LadderKind::PushOff:
             t.frames = t.turned && ground && !climbing ? t.frames + 1 : 0;
             done = t.frames >= 5;
@@ -2285,7 +2333,7 @@ void ladderTestFrame()
         if(done)
         {
             testCheck(t.tally, tag, ok, line);
-            Cbuf_InsertText("-forward\n-back\n-jump\n");
+            Cbuf_InsertText("-forward\n-back\n-jump\n-moveright\n");
             t.index++;
             next(1);
         }
@@ -2636,6 +2684,10 @@ extern "C" int VR_LeanHitBoxes(edict_t* touch, float (*boxes)[6])
        static_cast<int>(touch->v.solid) == SOLID_NOT)
     {
         return 0;
+    }
+    if(playerhit::Shape s; playerhit::serverShape(touch, s))
+    {
+        return 0; // (hitzones: his body as drawn, leant as he leans, is what shots meet: vr_playerhit.cpp)
     }
     const int ofs = progs::fields().headpos;
     if(ofs < 0)

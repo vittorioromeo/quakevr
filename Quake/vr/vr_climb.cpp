@@ -309,6 +309,10 @@ struct Ledge
     ledges::Sample propSample;
     bool volume{false}; // AD support: a ladder volume's own rung (ladderHold), no solid under it
     bool drawn{false};  // and of those, one on a drawn rung (drawnRung)
+    // A ladder volume's (hubladder): how far out from the hold its ladder's near side is (the drawn bar's face, else the
+    // volume's), and its middle across its width (the body kept out of it and, flat-screen, centred on it: ladderKeep).
+    float ladderFace{0.f};
+    glm::vec2 ladderMid{0.f};
     // A climbable rope's (see "Holds on ropes"): `ent` the rope's entity, the hold `ropeS` along it from its top and
     // `ropeD` straight from it.
     bool rope{false};
@@ -865,11 +869,34 @@ constexpr float ladderInWall = 12.f;   // units: how far into the wall behind a 
 constexpr float drawnRungMargin = 12.f; // units: how far before or behind a ladder volume its drawn rungs are looked for
 constexpr float drawnRungReach = 40.f;  // units: the farthest from `z` a drawn rung is still its (the flat ladder's ladderGap)
 
+constexpr float drawnBarDepth = 12.f;   // units: a drawn rung's faces wholly this far under its top are the bar's (its depth)
+
 struct DrawnRung
 {
     float top{0.f};
-    glm::vec2 lo{0.f}, hi{0.f}; // its ridge (its top faces' vertices at its top): the bar's line
+    glm::vec2 lo{0.f}, hi{0.f};       // its ridge (its top faces' vertices at its top): the bar's line
+    glm::vec2 barLo{0.f}, barHi{0.f}; // the whole bar's (its faces within drawnBarDepth under its top): its depth across
 };
+
+// A brush model's surface's vertices' bounds (its mins, maxs are padded).
+void surfBounds(const qmodel_t* m, const msurface_t& surf, float (&fmin)[3], float (&fmax)[3])
+{
+    for(int axis = 0; axis < 3; ++axis)
+    {
+        fmin[axis] = 1e30f;
+        fmax[axis] = -1e30f;
+    }
+    for(int i = 0; i < surf.numedges; ++i)
+    {
+        const int se = m->surfedges[surf.firstedge + i];
+        const float* p = m->vertexes[se >= 0 ? m->edges[se].v[0] : m->edges[-se].v[1]].position;
+        for(int axis = 0; axis < 3; ++axis)
+        {
+            fmin[axis] = za::min(fmin[axis], p[axis]);
+            fmax[axis] = za::max(fmax[axis], p[axis]);
+        }
+    }
+}
 
 [[nodiscard]] za::Optional<DrawnRung> drawnRung(const edict_t* vol, float z)
 {
@@ -886,6 +913,7 @@ struct DrawnRung
         hi[axis] = vol->v.origin[axis] + vol->v.maxs[axis] + grow;
     }
     za::Optional<DrawnRung> best;
+    int bestModel = -1;
     float topLow = 1e30f, topHigh = -1e30f; // (all its tops: a ladder has two or more)
     const auto overlaps = [&](const float* mn, const float* mx) {
         return mn[0] <= hi.x && mx[0] >= lo.x && mn[1] <= hi.y && mx[1] >= lo.y && mn[2] <= hi.z && mx[2] >= lo.z;
@@ -915,17 +943,8 @@ struct DrawnRung
             {
                 continue;
             }
-            float fmin[3] = {1e30f, 1e30f, 1e30f}, fmax[3] = {-1e30f, -1e30f, -1e30f}; // (its vertices': mins, maxs are padded)
-            for(int i = 0; i < surf.numedges; ++i)
-            {
-                const int se = m->surfedges[surf.firstedge + i];
-                const float* p = m->vertexes[se >= 0 ? m->edges[se].v[0] : m->edges[-se].v[1]].position;
-                for(int axis = 0; axis < 3; ++axis)
-                {
-                    fmin[axis] = za::min(fmin[axis], p[axis]);
-                    fmax[axis] = za::max(fmax[axis], p[axis]);
-                }
-            }
+            float fmin[3], fmax[3];
+            surfBounds(m, surf, fmin, fmax);
             if(!overlaps(fmin, fmax))
             {
                 continue;
@@ -952,12 +971,30 @@ struct DrawnRung
             else if(!best || za::abs(top - z) < za::abs(best->top - z))
             {
                 best = za::Optional<DrawnRung>{DrawnRung{top, rlo, rhi}};
+                bestModel = k;
             }
         }
     }
     if(!best || topHigh - topLow < 4.f || za::abs(best->top - z) > drawnRungReach)
     {
         return za::nullOpt;
+    }
+    // The whole bar: its model's faces wholly within drawnBarDepth under its top, along its ridge (not the rails beside
+    // it, which run past that depth, nor the next bar down).
+    best->barLo = best->lo;
+    best->barHi = best->hi;
+    const qmodel_t* m = sv.models[bestModel];
+    const int along = best->hi.x - best->lo.x <= best->hi.y - best->lo.y ? 1 : 0;
+    for(int s = 0; s < m->nummodelsurfaces; ++s)
+    {
+        float fmin[3], fmax[3];
+        surfBounds(m, m->surfaces[m->firstmodelsurface + s], fmin, fmax);
+        if(fmin[2] >= best->top - drawnBarDepth && fmax[2] <= best->top + 0.05f && fmin[along] <= best->hi[along] &&
+            fmax[along] >= best->lo[along] && overlaps(fmin, fmax))
+        {
+            best->barLo = glm::min(best->barLo, glm::vec2{fmin[0], fmin[1]});
+            best->barHi = glm::max(best->barHi, glm::vec2{fmax[0], fmax[1]});
+        }
     }
     return best;
 }
@@ -1012,14 +1049,28 @@ struct DrawnRung
             const glm::vec3 org = vec(e->v.origin);
             l.hold = glm::vec3{za::clamp(hand.x, org.x + e->v.mins[0], org.x + e->v.maxs[0]),
                 za::clamp(hand.y, org.y + e->v.mins[1], org.y + e->v.maxs[1]), l.top + ledges::holdLift};
-            if(drawn) // (on the drawn rung itself, the hand round the bar it sees: along it where the hand is, on its middle across)
+            // (The ladder's width: the volume's, then the drawn bar's; its near side: the drawn bar's face, a volume
+            // alone has none drawn.)
+            const glm::vec2 vlo{org.x + e->v.mins[0], org.y + e->v.mins[1]}, vhi{org.x + e->v.maxs[0], org.y + e->v.maxs[1]};
+            l.ladderMid = 0.5f * (vlo + vhi);
+            if(drawn)
             {
+                // On the drawn rung itself: along it where the hand is; across it on its near side, as a ledge's hold is
+                // behind its lip (hubladder, his note 2026-11-23: the hands were through the bars, the hold on their
+                // middle), the way out square to the bar (the hand faces it).
                 const int thin = drawn->hi.x - drawn->lo.x <= drawn->hi.y - drawn->lo.y ? 0 : 1; // (across the bar)
+                const float side = l.out[thin] >= 0.f ? 1.f : -1.f;
+                l.out = glm::vec3{0.f};
+                l.out[thin] = side;
+                const float depth = drawn->barHi[thin] - drawn->barLo[thin];
+                const float face = side > 0.f ? drawn->barHi[thin] : drawn->barLo[thin];
                 for(int axis = 0; axis < 2; ++axis)
                 {
-                    l.hold[axis] = axis == thin ? (drawn->lo[axis] + drawn->hi[axis]) * 0.5f
+                    l.hold[axis] = axis == thin ? face - side * za::min(holdInset, 0.5f * depth)
                                                 : za::clamp(hand[axis], drawn->lo[axis], drawn->hi[axis]);
                 }
+                l.ladderFace = za::min(holdInset, 0.5f * depth);
+                l.ladderMid[1 - thin] = 0.5f * (drawn->lo[1 - thin] + drawn->hi[1 - thin]);
             }
             return za::Optional<Ledge>{l};
         }
@@ -2768,6 +2819,12 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
         {
             c.wasLow = staminaLow(ent); // (the breath as the hang makes it low, not for a pool low already)
         }
+        // Getting on a ladder volume: the run that brought him there stops (hubladder, his note 2026-11-23: it carried
+        // him sideways along the ladder while he climbed).
+        if(from == Phase::Free && ((c.grips[0].active && c.grips[0].ledge.volume) || (c.grips[1].active && c.grips[1].ledge.volume)))
+        {
+            ent->v.velocity[0] = ent->v.velocity[1] = 0.f;
+        }
         return;
     case Phase::Slipping:
         c.slipStart = time;
@@ -3875,10 +3932,23 @@ bool flatLadderMount(edict_t* ent, Climber& c, const VrMove& move, const glm::ve
         const trace_t down = tracePlayer(ent, mid, to);
         return !over.startsolid && over.fraction >= 1.f && !down.allsolid && down.fraction >= 1.f;
     };
-    const float off = volume ? ent->v.maxs[0] - ladderInBox - 0.5f : ent->v.maxs[0] + 1.f;
-    glm::vec3 to{line.x + lip.out.x * off, line.y + lip.out.y * off, hangZ};
-    glm::vec3 mid;
-    bool ok = tryHang(to, mid);
+    // (A volume's: out of the ladder (ladderKeep's), else as near it as there is room, down to ladderInBox into its bar.)
+    const float off = below.drawn ? ent->v.maxs[0] + below.ladderFace + 1.f
+                      : volume    ? ent->v.maxs[0] - ladderInBox - 0.5f
+                                  : ent->v.maxs[0] + 1.f;
+    const float offLeast = volume ? ent->v.maxs[0] - 2.f * ladderInBox - 0.5f : off;
+    glm::vec3 to, mid;
+    bool ok = false;
+    for(float o = off; !ok; o -= 4.f)
+    {
+        o = za::max(o, offLeast);
+        to = glm::vec3{line.x + lip.out.x * o, line.y + lip.out.y * o, hangZ};
+        ok = tryHang(to, mid);
+        if(o <= offLeast)
+        {
+            break;
+        }
+    }
     if(!ok && volume)
     {
         const float back = ent->v.maxs[0] - ladderInBox - 0.5f;
@@ -3909,7 +3979,55 @@ bool flatLadderMount(edict_t* ent, Climber& c, const VrMove& move, const glm::ve
     flatMantleHands(ent, c, &move, g);
     if(debug())
     {
-        Con_Printf("climb: flat ladder: lowered onto it from its top at %.1f\n", lip.top);
+        Con_Printf("climb: flat ladder: lowered onto it from its top at %.1f, to (%.1f %.1f %.1f), the rung's hold (%.1f %.1f)\n",
+            lip.top, to.x, to.y, to.z, below.hold.x, below.hold.y);
+    }
+    return true;
+}
+
+// A ladder volume held (a Quoth or AD trigger_ladder: Ledge::volume; hubladder, his note 2026-11-23): the body kept out
+// of the ladder, its box's front at the ladder's near side (Ledge::ladderFace), eased out at ladderPushSpeed (got on
+// inside it: a free-standing ladder's bars are not solid, so the view and the hands were in them), and flat-screen
+// (`centre`) eased to the middle of its width at ladderCentreSpeed. `target`: the body's place this frame, moved.
+// Whether a ladder volume is held.
+constexpr float ladderPushSpeed = 160.f;  // units/s
+constexpr float ladderCentreSpeed = 64.f; // units/s
+bool ladderKeep(const edict_t* ent, const Climber& c, glm::vec3& target, float dt, bool centre)
+{
+    const Grip* held = nullptr;
+    for(const Grip& g : c.grips)
+    {
+        held = held ? held : (g.active && g.ledge.volume ? &g : nullptr);
+    }
+    if(!held)
+    {
+        return false;
+    }
+    const glm::vec2 out{held->ledge.out.x, held->ledge.out.y};
+    const glm::vec3 hold = holdNow(*held);
+    const float ahead = glm::dot(glm::vec2{target.x - hold.x, target.y - hold.y}, out);
+    // (A volume with no rungs drawn: nothing seen to keep out of; as near as the flat ladder's other rungs, ladderInBox.)
+    if(!held->ledge.drawn && !centre)
+    {
+        return false; // (a headset's body: kept out of drawn rungs only)
+    }
+    const float least = held->ledge.drawn ? ent->v.maxs[0] + held->ledge.ladderFace + 1.f : ent->v.maxs[0] - ladderInBox;
+    if(ahead < least)
+    {
+        const glm::vec2 push = out * za::min(least - ahead, ladderPushSpeed * dt);
+        target += glm::vec3{push.x, push.y, 0.f};
+        if(vr_climb_debug.value >= 3.f)
+        {
+            Con_Printf("climb: ladder keep: %.1f in front of the hold (least %.1f), pushed out to (%.1f %.1f)\n", ahead, least,
+                target.x, target.y);
+        }
+    }
+    if(centre)
+    {
+        const glm::vec2 right{-out.y, out.x};
+        const float off = glm::dot(glm::vec2{target.x, target.y} - held->ledge.ladderMid, right);
+        const glm::vec2 step = right * za::clamp(off, -ladderCentreSpeed * dt, ladderCentreSpeed * dt);
+        target -= glm::vec3{step.x, step.y, 0.f};
     }
     return true;
 }
@@ -3962,7 +4080,7 @@ int flatLadderFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
     const float shoulderUp = ladderShoulder(ent, move).z - origin.z;
     const float speed = c.phase == Phase::Slipping ? pmove::hangSlipSink : za::clamp(vr_flat_ladder_speed.value, 20.f, 400.f);
     glm::vec3 target = origin + carry + glm::vec3{0.f, 0.f, static_cast<float>(dir) * speed * dt} - out * (40.f * dt);
-    if(held > 0)
+    if(held > 0 && !ladderKeep(ent, c, target, dt, true)) // (a ladder volume: out of it, centred on it)
     {
         // (Drawn in to the rungs, the box's front no further than ladderInBox past them: a ladder standing free, a Quoth
         // or AD trigger_ladder over a non-solid ladder, has no wall to stop it.)
@@ -4005,7 +4123,8 @@ int flatLadderFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
             ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) | FL_ONGROUND);
             if(debug())
             {
-                Con_Printf("climb: flat ladder: down at the ground at (%.1f %.1f %.1f), lets go\n", now.x, now.y, now.z);
+                Con_Printf("climb: flat ladder: down at the ground at (%.1f %.1f %.1f) (%s), lets go\n", now.x, now.y, now.z,
+                    below.ent ? PR_GetString(below.ent->v.classname) : "?");
             }
             return 1;
         }
@@ -4540,6 +4659,14 @@ void hangFramePart(Hang& hang)
     }
 
     noRoomBuzz(ent, c, hang.noRoom);
+
+    // (A ladder volume's: the body eased out of the ladder, ladderKeep.)
+    const glm::vec3 at = vec(ent->v.origin);
+    glm::vec3 kept = at;
+    if(ladderKeep(ent, c, kept, static_cast<float>(host_frametime), false) && kept != at)
+    {
+        moveBody(ent, kept);
+    }
 
     hangStamina(ent, c, hang.time);
     if(c.draining && fields().vr_climb_drain >= 0)

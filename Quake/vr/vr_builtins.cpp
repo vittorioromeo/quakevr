@@ -7,6 +7,7 @@
 #include "vr_arenawaves.hpp"
 #include "vr_progs.hpp"
 #include "vr_playersteps.hpp"
+#include "vr_playerhit.hpp"
 #include "vr_predict.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_brushes.hpp"
@@ -1137,6 +1138,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"selfhit_info", selfshot::PF_selfhit_info},
     {"selfhit_point", selfshot::PF_selfhit_point},
     {"debughitzone", PF_debughitzone},
+    {"playerhitzone", PF_playerhitzone},
     {"debugdisarm", disarmviz::PF_debugdisarm},
     {"debugdisarmnote", disarmviz::PF_debugdisarmnote},
     {"blowline", blowline::PF_blowline},

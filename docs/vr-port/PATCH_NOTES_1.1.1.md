@@ -36,6 +36,16 @@ that ships in 1.1.1.
 - **Heavy revolver headshots pop heads in Arcane Dimensions and Quoth too.** Where shells fly as projectiles (AD's and
   Quoth's maps, or Projectile Rules set to AD's), a heavy revolver's headshot kill never popped the head, and its slug
   did a big monster no extra damage. Its slug now follows the same head pop and big-body rules as everywhere else.
+- **Quoth's kellbase: its energy field is visible, and monsters keep out of it.** The field never drew anything (in
+  any port running it under Arcane Dimensions' rules); it now shows as pale blue sparks while it is on. Monsters no
+  longer step into hurting fields (it, and AD's and Hipnotic's), where an enforcer used to stand hurting itself. The
+  backpacks armed humanoids drop take their recolour (an energy enforcer's is blue).
+- **Tutorial: three new lessons.** Between the lava room and the arena: **12 Blades** (a sword, a dagger and an axe:
+  cut and stab a dummy, pull a stuck blade out, reverse grip, throw the axe into a target to open the door), **13 Bash
+  and Bat** (an armed grunt crosses a bridge over a pit: shove it off or disarm it; bat a spike back, catch a grenade
+  and throw it back) and **14 Ropes** (swing across a pit on a rope, a ladder back out; let go of armour over your
+  chest to put it on). The arena is now lesson 15, and its checkpoint saves the game at its door: dying in the arena
+  loads that save instead of bringing you back mid-wave, unarmed. New tips on disarming and on bullet time.
 
 ## Graphics
 
@@ -118,7 +128,7 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   and caught up over half a second): each ragdoll's poses now reach back as far as the smoothing does.
 - **Fixed: a prop tipped up on end spinning at the other players** (a crate standing on its side): its turn is now
   smoothed as it is drawn.
-- **Network version 43**: games of this version and older ones refuse each other with the reason.
+- **Network version 44**: games of this version and older ones refuse each other with the reason.
 - **Test runs stay off the internet**: with `-loopbackonly` (every test run) the map index, Slipseer, the update check
   and the add-on list are never fetched; asked for, each prints its "NET SAFETY" refusal.
 - **Everything you can do alone works together**: grabbing, throwing, melee and parries, climbing and mantling, the
@@ -204,6 +214,12 @@ aren't Map Library packages aren't sent to joining players.
   on your gun too. A knight's sword can disarm you now; parried blows, bites and light claws never do. The jolts,
   how long they last and what counts as heavy are new settings beside it. Other players' hits in multiplayer are
   unchanged.
+- **Dwell's Crystal Lance finished.** Its beam lasted a single frame; it now lasts as long as you fire, with violet
+  sparks, a heavy kick and a violet glow on the crystal. A coiled cord runs from the pole's butt into a cell in your
+  pouch (as the laser cannon's: Weapons > Reloading > Cell Cords), it is fed 6 cells a shot from the pouch, the weapon
+  hand slides along the pole too, a thrust hits harder with the head (1.5x) than with the shaft, and B flips the grip.
+- **Dwell's Rotary Shotgun remade** as a gauntlet: four round barrels with gaps and dark bores, a hollow housing with a
+  handle inside (as the super nailgun's), a bigger dark shell port, and the ammo screen in a wedge on top.
 
 ## Movement
 
@@ -217,6 +233,12 @@ aren't Map Library packages aren't sent to joining players.
   grab it: look up or down and hold forward to climb, look ahead and use the move keys to swing it, and jump off at the
   top of a swing to catch the next rope. In multiplayer, other players on a rope are drawn gripping it, their hips in
   close and their legs wrapped round it, even while it swings. Try them in the new test map `vrropes`.
+- **Climbing poles and monkey ropes.** Poles (`vr_pole`, wood or metal, with their own grip sounds) climb exactly as
+  ropes do. A rope can be strung between two points (mappers: `rope_end`, `rope_slack`; the toolgun's Span, End Rise
+  and Slack): steeper than 45 degrees it climbs as a rope, flatter it is a monkey traverse: hang under it, sagging and
+  swaying it, and go hand over hand (flat screen: the move keys), legs hanging. Spawn both with the toolgun (Spawn >
+  Props > Ropes > Pole; Rope and Pole Settings); the `vrropes` hall has two poles, a level rope and a diagonal one.
+  Ropes pause with the menu and the console, your knuckles face out on the rope, and gripping one thuds softly.
 - **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down
   flies up or down; strafing stays level and jump and crouch still go straight up and down. Flat and in the headset
   (there, what steers your walking steers the flight: the head, or the moving hand with hand-relative movement).
@@ -296,6 +318,11 @@ aren't Map Library packages aren't sent to joining players.
   Grab, not your binding, until you clear Force Grab). The `vr_flat_key_*` settings work in configs as before.
 - **Flat screen: 9 dims the gear lights**, as the wrist gadget's side button does in the headset: the visor's panels
   and the guns' ammo screens dim, and 9 again lights them. Rebind it in Controls ("Gear lights").
+- **Flat screen: number keys for hands and holsters.** With holsters on (the default), 1 and 2 cycle the off hand and
+  the main hand through their holsters (empty hand included), 3 swaps hands as before, 4 and 5 put each hand's weapon
+  in a holster, 6 and 7 drop it; other players see the same holster moves. They are flat keys in Controls' "Quake VR
+  (flat screen)" group; with holsters off, the number keys pick weapons as in Quake.
+- **Fixed: a crash in the headset when a map loaded with a centre message showing.**
 - **Centre messages in the headset look like the flat screen's.** The game's centre prints in front of your head (a key needed, a secret found, a map's text) and the maps' own view messages now appear in the flat visor's own message popup, drawn by the same code: its dark glass pill with cut corners, glowing bevelled frame, font, wrapping, scanlines, pop-in and fade, in a size that reads at the menu's distance. (`vr_center_panel 0` brings back the old look; `vr_center_panel_scale` sizes it.)
 - **Search filter (development builds).** The Search page has a "Show: Both / Cvars / Tunables" row over its text
   box: the menus' settings alone, the Tunables pages' constants alone, or both (the default). The results update
@@ -362,3 +389,21 @@ aren't Map Library packages aren't sent to joining players.
 - **Lighter melee in a crowd of armed enemies.** Swinging at several armed grunts up close now checks whether each
   blow strikes their weapons far more cheaply (about a tenth less game-code work with six around you); what a blow
   strikes is exactly as before.
+
+## Quest standalone (experimental)
+
+- **Quake VR runs on the Meta Quest itself.** The first public standalone build: an app installed on the headset by
+  Setup (Installer, below), started from Library > Unknown Sources. Made and tested on the Quest 3; the Quest 2 is not
+  tested yet. Experimental: close-up fights with many gibs can dip below 72 frames a second.
+- **It starts with the Standalone graphics preset** (Graphics, above).
+- **Ogg music plays on the Quest** (the store versions' soundtracks), as WAV music did; Setup copies it with the game.
+- The Quest cannot relight maps: Setup copies the maps your PC relit.
+
+## Installer
+
+- **Install to a Meta Quest from your PC.** The installer's first page now asks where to install: this PC (PC VR and
+  flatscreen), a Meta Quest (standalone), or both at once. For the Quest it gets Google's adb itself if your PC has
+  none, shows how to turn on developer mode and allow USB debugging (with a Check again button), installs the app and
+  copies your Quake files, the expansions you own, the HD textures and the mods it installed (Dwell, Quoth, Arcane
+  Dimensions) to the headset. Running it again only copies what changed; nothing on the headset is ever deleted, and
+  your saves and settings there are left alone. Start it from Library > Unknown Sources.

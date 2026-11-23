@@ -10,6 +10,10 @@ namespace qvr::view
 {
 struct HeldPlace;
 }
+namespace qvr::playerhit
+{
+struct Pose;
+}
 
 namespace qvr::server
 {
@@ -33,6 +37,10 @@ void init(); // registers commands
 // A bot's weapon in `hand` (0 off, 1 main) placed as every client draws it (view::placeHeld at its QC handpos, handrot;
 // its avatar sends this place): false none (an empty hand, a fist).
 [[nodiscard]] bool botHeld(struct edict_s* bot, int hand, view::HeldPlace& out);
+// (hitzones) What client slot `slot`'s body is drawn from, as his avatar sends it (writeAvatars: his head, his body's yaw,
+// his hands, from his entity's origin; his body's size, mpavatar::serverBody): his shots' shape (vr_playerhit.cpp). False:
+// no avatar (no move from him yet), or his body is id's ranger (his box is what is drawn).
+[[nodiscard]] bool avatarPose(int slot, playerhit::Pose& out);
 
 // How many of client `clientNum`'s moves came in a server frame that had one of his already (merged: their VR bits ORed,
 // the hands' last pose kept) since he connected: vr_mp_status `merged=` (MP_PLAN.md, B5d: melee at jitter).

@@ -7682,14 +7682,15 @@ def debugviz_case(s, srv, a, who, ent, label, host):
             "volumes %d, grab line %s..%s, drawn %s..%s, %.1f units off (at most %g)" % (
                 v["volumes"][0], v["grab0"], v["grab1"], w["butt"], w["muzzle"], off, most))
     head_off = math.dist(v["head"], av["head"])
-    s.check("%s: A draws his five hit zones, the head's at his drawn head" % label,
-            v["zones"][0] == 5 and head_off <= DEBUGVIZ_HEAD_OFF,
+    # (hitzones) His body's shape as shots meet it (vr_playerhit.cpp): the head, the torso, two capsules an arm and a leg
+    s.check("%s: A draws his ten hit zones, the head's at his drawn head" % label,
+            v["zones"][0] == 10 and head_off <= DEBUGVIZ_HEAD_OFF,
             "zones %d, head zone %s, drawn head %s, %.1f units apart (at most %g)" % (
                 v["zones"][0], v["head"], av["head"], head_off, DEBUGVIZ_HEAD_OFF))
 
 
 DEBUGVIZ_HOST_OFF = 4.0  # mp_debugviz: units the host's grab line (the server's) may be off the weapon A draws
-DEBUGVIZ_HEAD_OFF = 16.0  # ... units the head zone (his box's fixed head) may be off the head drawn
+DEBUGVIZ_HEAD_OFF = 4.5  # ... units the head zone's middle may be off his drawn eyes (the skull's middle: 2.5 behind, 1 up)
 
 
 def debugviz(s, listen):

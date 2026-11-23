@@ -11,5 +11,5 @@ give "Nail Pistol" off
 spawn "Haste" 96 0
 spawn "Heavy Revolver" 64 -48
 spawn "Flare Gun" 64 0
-spawn "Lightning Gun" 64 48
+spawn "Thunderbolt" 64 48
 hint Hold each trigger before and after taking the Haste: the nailgun and the lightning gun fire clearly faster hasted, the nail pistol, the heavy revolver and the flare gun keep firing while the trigger is held (one shot a pull without it).
