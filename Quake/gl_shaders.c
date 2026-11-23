@@ -1793,3 +1793,30 @@ void GL_ReloadShadersQueued_f (void)
 	GL_DeleteShaders ();
 	GL_CreateShadersAsync (false);
 }
+
+/*
+=============
+VR_InTileFragmentGLSL -- QVR
+
+The in-tile pass's fragment shader (vr/vr_tonemap.cpp drawInTile): over an eye drawn straight into its swapchain
+image, the post-process's steps after the tone curve (bullet time's look, the comfort vignette, the grade, the dither),
+each pixel read where the scene left it (GL_EXT_shader_framebuffer_fetch: in the tile, on a tiler). The post-process's
+own uniforms and snippets (vr/vr_glsl.h), so both look the same.
+=============
+*/
+const char *VR_InTileFragmentGLSL (void)
+{
+	return
+		"#version 430\n"
+		"#extension GL_EXT_shader_framebuffer_fetch : require\n"
+		NOISE_FUNCTIONS
+		QVR_POSTPROCESS_UNIFORMS
+		"layout(location=0) inout vec4 out_fragcolor; // (the pixel as the scene left it)\n"
+		"\n"
+		"void main()\n"
+		"{\n"
+		"	vec2 pp_size = PostView.xy;\n"
+		QVR_POSTPROCESS_GRADE_DITHER
+		"	out_fragcolor.a = 1.0;\n"
+		"}\n";
+}
