@@ -9703,3 +9703,32 @@ recipe; nothing of Dwell's shipped). Items 1, 4, 5 on both Rotary models; 2, 3, 
   rerelease's track02.ogg identically (132300 frames, 44100 Hz stereo, peak 21126 both), the rewind ok, start's track 4
   plays through stb_vorbis, no error: 12/0. music_test 7/0; vr_menu_path_check 0 missing; Android native build compiles.
 - Installer (`QuestFiles.MusicFormats`, on agent/questinstall, not on next): add `.ogg` there when both are merged.
+
+## questreal2: the Quest installer passes on the real headset; adb push, folder groups, the game's own folders (agent/questinstall, 2026-11-23)
+
+Follows "questreal" above. origin/next merged again (Ogg on the Quest): `QuestFiles.MusicFormats` = WAV + Ogg (MP3 stays);
+the test fixture has track02.ogg copied, track04.mp3 left behind. Release build 0 warnings; `quest:` self-tests 9/9.
+- **Real-headset test: ALL 7 STEPS PASS** (run `scratch/qi_realtest/20261123-012908`): 4,605 files planned, 101 copied
+  (222 MB) over 4,498 unchanged, the again-run "app unchanged, 0 files copied", every earlier file still there, the
+  game's own 18 files (saves, configs) unchanged in size and time. The Ogg soundtrack is in `id1/music/` (track02-11).
+- **The copy is `adb push` now, not one tar stream into `adb exec-in`.** With ustar headers the stream extracted, but
+  adb's server took 2.8 GB in ~3 s, the headset's tar got ~400 MB (pak0 whole, pak1 cut at 142 MB) and an 830 MB test
+  killed the server ("daemon not running"): the cause of the earlier "offline". `adb shell -T` with stdin: "tar: EOF:
+  Illegal seek" after 21 KB. `QuestInstaller.PushBatches`: files of one headset folder under their PC names in one push
+  (256 MB, 16,000 characters a push), any renamed file (PAK1.PAK -> id1/pak1.pak) alone; ~150-300 MB/s.
+- **Folders before pushing: the storage's group, set-group-ID** (`chgrp ext_data_rw`, `chmod 2777`). adb push into a
+  folder of the shell's group failed "remote fchown failed"; a folder push makes itself "secure_mkdirs failed". The
+  installer's own old `chmod 0777` cleared the bit (id1), so folders made in it got the shell's group; now 2777.
+- **Folders the game made itself** (u0_a207, 770: his `quakevr/doom` and `doom/wads`, made by `vr_doom.cpp
+  doomFolder()` when Doom was opened before its WADs came): adb cannot write there, so their 6 files (the Freedoom WADs)
+  are reported (`QuestResult.NotWritable`, a warning, the Done card says which folder), the rest copied, not a failed
+  install. Only the game (or uninstalling) can clear it. Open: `doomFolder()` could avoid making the folder on the Quest
+  when the WADs are missing.
+- A push adb's server lost under it ("cannot connect to daemon": another adb version on the PC took the server) is
+  retried 4 times. The SDK's adb (37.0.1) and the installer's (37.0.3) restart each other's server: use one.
+- **Gib-fight measurement: no result.** The only APK (`qvr-agents/quest/build-android/apk`, 2026-11-22 15:26) predates
+  `vr_blood_near` and `vr_standalone_preset` ("Unknown command"), so both parts ran the same settings. What it does
+  show for that APK: the frozen gib fight (six grunts gibbed 56-90 units ahead, `vr_limb_test 10`) at GPU median
+  14.8-15.5 ms, frame period median 15.8-16.9 ms, 64-80% of frames over 15.3 ms: 72 Hz does not hold. Needs a current
+  APK build, then `scratch/qr_run.sh gore1 600 qr_gore.cfg +vr_standalone_preset 0` with the test progs.dat pushed
+  (then `qvr-setup quest` puts the shipped one back, as done here: "1 files copied").
