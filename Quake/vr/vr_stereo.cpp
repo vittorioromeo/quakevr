@@ -1683,6 +1683,14 @@ extern "C" int VR_RenderView()
             noted < 0 ? notDirect : "", noted < 0 ? ")" : "");
     }
     const bool late = lateAcquire && !direct && !xrFoveated;
+    // The images' own framebuffers (vr_xr_direct 2) let go as soon as their images are gone (new swapchains: a level
+    // changed) or the eyes no longer use them: a framebuffer kept with a destroyed foveated image attached crashed the
+    // driver in xrEndFrame (qfov2: the post-process path after foveation was turned off mid-game).
+    if(stereo::directTargets.made &&
+        (!(direct && directWanted >= 2) || stereo::directTargets.serial != be->eyeImagesSerial()))
+    {
+        stereo::deleteDirectTargets();
+    }
     if(singlePass)
     {
         stereo::useView(stereo::eyeTargets, drawnWidth, drawnHeight);

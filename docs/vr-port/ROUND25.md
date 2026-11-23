@@ -10810,3 +10810,24 @@ Follows "flatwheel"'s noticed item (the nailgun put into a holster by the wheel 
   built (0 warnings, check_apk 20/0). **Headset block not run yet** (the headset was with qcombined). Scripts:
   `scratch/qfov2_mk.sh` (check, mid, ab, shots), `qfov2_pull.sh`, `qfov2_trace.sh`. No default changed; the
   `-xrfoveation` guard stays.
+- **Headset block (14:28-14:45; the frozen gib fight at 0.65, retro off).** Form 2 rebuilt no longer crashes: it ran at
+  launch with level 3, and through every mid-game change (H D H M L, and 12 interleaved parts with the post-process
+  path). The images carry the runtime's foveation: QCOM bits 3 (on, scaled bins), min density 0.25, 2 focal points.
+  - One crash came from a framebuffer kept with a destroyed image: the post-process path after a mid-game change, with
+    the old images' framebuffers still alive. That is fixed: they are let go as soon as the swapchains are new or form 2
+    is no longer used.
+  - GPU medians: P 16.34, D 17.00, L 17.31, M 17.98, H 17.43, R (refocused) 17.87 ms. **No foveation gain.** Eyeshots
+    show no blur at any level.
+- **Why (ovrgpuprofiler -t, its per-bin "Fov" scale):** each eye is 6 render passes. The first, the clear and the
+  hidden area, does get scaled bins (Fov 2/2). The main pass (6-9 ms) and the 3 after it begin with LoadColor and
+  LoadDepthStencil, and every bin runs at 1/1: the driver foveates only a pass that starts cleared. The passes are
+  ended by compute work between the scene's draws, most likely the brush models' indirect gathers in
+  R_FlushBModelCalls and the arrays' merges (gl_rlight's light clustering is to be checked). Form 2 also bins the whole
+  1680x1760 image (8 bins of 864x448) while the eye draws 0.65 of it, so the clear and the loads and stores cover the
+  whole image. That is likely why D is +0.7 ms over P.
+- **Next:** (1) no compute between an eye's draws: the gathers dispatched before the clear, or an ES path that draws
+  single-instance calls straight from the cull's commands (on ES the gather only copies them). This also saves every
+  pass's load and store, foveation or not. (2) The clear and the render area kept to the drawn part (a scissored clear),
+  or the eye images made at the drawn size when foveation is on. Then measure again. Scripts (not committed):
+  `scratch/qfov2_bins.py` (a line per render pass with its bins' Fov scales), `qfov2_mk.sh`, `qfov2_trace.sh`,
+  `qfov2_pull.sh`, `qfov2_pair.py`, `qfov2_crop.py`.
