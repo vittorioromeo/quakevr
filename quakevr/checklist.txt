@@ -36,6 +36,9 @@ Flat-screen or VR: climb the wooden and metal poles: the hands close round the p
 Flat-screen or VR: the level metal pole (south) is a hand-over-hand traverse hanging under it; the slanted wooden pole (south-east) climbs like the upright ones; the toolgun's Pole with a Span strings one. {test:ropes}
 Flat-screen or VR: walk into the poles (they stop you, climbing one doesn't), shoot and punch them: sparks off metal, splinters off wood. {test:ropes}
 Flat-screen or VR: the poles look like wood (grain along it) and brushed metal (a joint every so often), not a plain colour. {test:ropes}
+Flat-screen or VR: hang under the level rope and the level metal pole (third-person camera in flat play): each hand overhand under it, knuckles up over it, palm on the rope, back of the hand towards you, the arms joined to the shoulders. {test:ropes}
+Flat-screen or VR: climb a vertical rope and a pole (third-person camera in flat play): the hip holsters and their guns stay on the hips in every pose, not sticking out with the thighs. {test:ropes}
+Flat-screen or VR: on a chain in the ropes hall: climbing it clinks now and then; hanging still or just swinging on it is quiet; a shot or a shove on a free chain clinks. {test:ropes}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, and the crystal head glowing violet for a moment after each shot. {test:dwell_lance_pole}
