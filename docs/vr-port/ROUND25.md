@@ -10721,3 +10721,23 @@ Follows "flatwheel"'s noticed item (the nailgun put into a holster by the wheel 
   (QC vr_holsterammo_test.qc, holsterammo_test.sh [flat]): 28/0 headset, 28/0 flat. flatholster_test 54/0,
   reload/eject_test 28/0, `mp_test.py suite --only mp_weaponwheel` 9/0 (B now holds the nailgun: his hold kept its 24).
 - Noticed, not chased (as before): the multi-grenade's B/Y held longer than `vr_weaponwheel_hold` opens the wheel.
+
+## qfov2: Quest foveation, form 2 rebuilt as Meta's samples (branch agent/qfov2, 2026-11-23; headset block pending)
+
+- **Why form 1 gave no gain**: its depth is the composite's unfoveated depth texture. The Adreno driver does not foveate a
+  foveated colour beside an unfoveated depth texture (the same as 6o's "no effect" on our own targets), so only form 2
+  can foveate.
+- **Form 2's crash (likely cause)**: one framebuffer whose colour was swapped every eye, and a depth renderbuffer at the
+  drawn size (0.65: ~1092x1144) beside the 1680x1760 image. The crash was in the driver at the first xrEndFrame (frame 2),
+  when the foveated pass runs. Form 2 is now built as Meta's GLES samples build it: a framebuffer per swapchain image
+  with the image attached for good (never detached), each eye's depth renderbuffer at the image's size, and a
+  colour-only framebuffer per image for the UI. They are made again when the backend's swapchains are new
+  (`Backend::eyeImagesSerial`). Foveation now takes form 2. A log line per image gives its QCOM foveation bits, min
+  density, focal points and status.
+- `vr_xr_foveation_refocus` (new, 0, not saved; Debug > Profiling): the game sets the image's focal point on the eye's
+  projection centre in the part drawn. vr_eye_subimage and dynamic resolution draw the lower left part, but the runtime
+  foveates round the image's centre.
+- PC (-glescompat, Standalone, vr_xr_direct 2): the per-image framebuffers are complete (0x8cd5), with no GL error. APK
+  built (0 warnings, check_apk 20/0). **Headset block not run yet** (the headset was with qcombined). Scripts:
+  `scratch/qfov2_mk.sh` (check, mid, ab, shots), `qfov2_pull.sh`, `qfov2_trace.sh`. No default changed; the
+  `-xrfoveation` guard stays.
