@@ -762,6 +762,8 @@ int VR_ShotTargetClip (struct edict_s *mover, struct edict_s *touch, const float
 	const float *end, int type, trace_t *trace);	// SV_ClipToLinks: a shot or missile (type: SV_Move's, with its flags) against a grenade shots set off (.vr_shot_radius): -1 not one (Quake's rules), 0 passes it, 1 met (trace filled)
 int VR_PlayerShotClip (struct edict_s *touch, const float *start, const float *mins, const float *maxs, const float *end,
 	int hittype, float hitmodel, int hitgibs, trace_t *trace);	// SV_ClipToLinks: a shot, missile or thrown thing against another player's body as drawn (vr_playerhit.cpp): -1 his box decides, 0 missed, 1 met (trace filled)
+int VR_ChainShotClip (const float *start, const float *mins, const float *maxs, const float *end, struct edict_s *pass,
+	trace_t *trace);	// SV_Move (ropes8c): a gun's shot, a melee blow or a missile against the chains' links (vr_climbrope.cpp): 1 met before trace's fraction (trace filled, its ent the chain), 0 not
 
 // Client effects (r_part.c): Quake VR's particles in place of Quake's (nonzero if they took it).
 int VR_RunParticleEffect (const float *org, const float *dir, int color, int count);	// impacts, blood (svc_particle)

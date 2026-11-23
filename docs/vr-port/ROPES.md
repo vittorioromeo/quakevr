@@ -34,6 +34,14 @@ sized from its thickness). Both through a Catmull-Rom curve over the points (fou
 - **Shots:** the shot push (`physicsshot`, weapons.qc VR_ShotPush) kicks the first piece each rope's shot line crosses
   (within its thickness / 2 + 2 units): the shot's velocity times its mass over the piece's points' mass, 400 units/s at
   most.
+- **Chains stop shots (ropes8c):** a gun's shot (MOVE_HITMODEL), a melee blow's line (MOVE_HITMODEL_MELEE) and a missile
+  (MOVE_MISSILE: nails, rockets) meet a chain's links (world.c SV_Move after the entities: `VR_ChainShotClip`,
+  `climbrope::chainClip`, each link a cylinder of thickness / 2 + 1 unit, a missile's box as a sphere): the trace ends
+  there with the chain entity as its `trace_ent`. The chain takes damage (QC `VR_Rope_Setup`: DAMAGE_YES, never dealt any:
+  `T_DamageImpl`, `VR_Rope_Is`) and is metal (`VR_MaterialOf`, `VR_Rope_IsChain`): bullets and blows spark and tink off
+  it, nails spark (spike_touch's `spawn_touchblood` for a rope or a pole: poles' nails now splinter or spark too). It
+  still swings (the shot push kicks it). Ropes, bodies, sight lines, the grappling hook and thrown things pass chains;
+  so does anything of a player climbing a rope within 24 units of the chain (his own chain in his hands).
 
 ## Placing one
 
@@ -273,6 +281,9 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
   passed each. `rope_flat_test.sh <agent> pole`: walked into, up 80.6, down, never moved: 4 passed.
   `rope_flat_test.sh <agent> strung` (a rope strung 110 up along his way, 1% slack): jumped up to (a monkey traverse,
   sagging under him), forward along it 80 units, back 40, dropped with the move-down key.
+- (ropes8c) `vr_pole_solid_test` also checks the chains (5 more, 12 in all): a shot's, a blow's and a nail's line across
+  each of vrropes' three chains meet it within a unit of its links, metal, taking damage; a player's box, a sight line
+  and a plain trace pass; a nail (QC launch_spike) fired at one stops at it with a metal hit.
 - (ropes8a) `vr_pole_solid_test` (vrropes; Debug > Tests > Climbable Ropes > Test the Poles' Solidity): 4 poles, 35
   boxes (the slanted one 32), on their poles, a player's box and a shot's line stopped by each, wood 4 / metal 3, walking
   under the level pole free, the navmesh's obstacles rebuilt: 7 passed. `rope_climb_test.sh` `pole_monkey` (a level pole

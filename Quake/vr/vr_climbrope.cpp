@@ -51,6 +51,7 @@
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 #include "vr_api.h"
 
 using namespace qvr;
@@ -66,6 +67,7 @@ constexpr int maxSteps = 8;            // a frame's steps at most (a long frame:
 constexpr float handRadius = 3.f;      // units: a hand's sphere pushing the rope
 constexpr float shotReach = 2.f;       // units beyond the rope's thickness a shot pushes it from
 constexpr float maxKick = 400.f;       // units/s a shot gives a point at most
+constexpr float chainHitGrow = 1.f;    // (ropes8c) units beyond a chain's thickness its links stop a shot, a nail or a blow
 constexpr float maxHandSpeed = 1000.f; // units/s a hand's speed counts at most (a teleport: none)
 constexpr int flagChain = 1;           // QVR_SVC_CLIMBROPE's flags: drawn as a chain
 constexpr int flagGone = 2;            // the rope is gone (no points follow)
@@ -3062,12 +3064,17 @@ void soundTest_f()
 // middle within half a unit of its surface), the slanted one in several; a player's box swept across each pole is
 // stopped by them, and a shot's line meets them, their material (QC VR_MaterialOf) the pole's: metal 3 (sparks), wood 4
 // (splinters); walking under the level pole meets nothing; then (counted frames: the navmesh's rebuilds done) the
-// navmesh's obstacles count every box. 7 checks.
+// navmesh's obstacles count every box. (ropes8c) The chains: chainChecks, and a nail fired at one. 12 checks.
 struct SolidTest
 {
     int stage{0};
     int frames{0};
     int boxes{0};
+    int nail{0};                // (ropes8c) the nail fired at a chain (its edict), until it is gone
+    glm::vec3 nailAt{0.f};      // where it was last
+    glm::vec3 chainAt{0.f};     // the chain's middle it was fired at
+    glm::vec3 nailDir{0.f};     // its way (level)
+    float metalHits{0.f};       // QC vr_metal_hits before it
     testkit::Tally tally;
 };
 SolidTest solidTest;
@@ -3116,6 +3123,99 @@ void solidCheck(bool ok, const char* what)
     G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
     PR_ExecuteProgram(fn);
     return G_FLOAT(OFS_RETURN);
+}
+
+// A trace of `type` (SV_Move's, with its QVR flags) from `a` to `b`, a point, or a player's box: the entity it met (0
+// nothing or the world) and where.
+[[nodiscard]] int traceHits(const glm::vec3& a, const glm::vec3& b, int type, bool box, glm::vec3* at = nullptr)
+{
+    float s[3], mn[3], mx[3], e[3];
+    for(int c = 0; c < 3; c++)
+    {
+        s[c] = a[c];
+        e[c] = b[c];
+        mn[c] = !box ? 0.f : c < 2 ? -16.f : -24.f;
+        mx[c] = !box ? 0.f : c < 2 ? 16.f : 32.f;
+    }
+    const trace_t tr = SV_Move(s, mn, mx, e, type, nullptr);
+    if(at)
+    {
+        *at = vecOf(tr.endpos);
+    }
+    return tr.fraction < 1.f && tr.ent && tr.ent != sv.qcvm.edicts ? NUM_FOR_EDICT(tr.ent) : 0;
+}
+
+// (ropes8c) The chains: a gun's shot, a melee blow's line and a missile's across each one's middle (level, from 40 to
+// one side to 40 to the other) meet it, within a unit of its links, metal (QC VR_MaterialOf 3), taking damage (so the
+// shots' hits are its: sparks); a player's box, a sight line (nomonsters) and a plain point trace pass it (as a rope's);
+// then a nail (QC launch_spike, fired by the player) at the first one's middle (the frames after: solidTestFrame).
+void chainChecks(SolidTest& t)
+{
+    int chains = 0, met = 0, near = 0, metal = 0, hurt = 0, passed = 0;
+    float worst = 0.f;
+    const Rope* first = nullptr;
+    for(auto& kv : ropes)
+    {
+        const Rope& r = kv.second;
+        if(!r.params.chain || r.params.pole || r.p.size() < 2)
+        {
+            continue;
+        }
+        chains++;
+        const glm::vec3 m = r.p[r.p.size() / 2];
+        const glm::vec3 d = glm::normalize(r.p[r.p.size() / 2 + 1 < r.p.size() ? r.p.size() / 2 + 1 : r.p.size() / 2 - 1] - m);
+        const glm::vec3 side = za::abs(d.z) > 0.99f ? glm::vec3{1.f, 0.f, 0.f} : glm::normalize(glm::cross(d, glm::vec3{0.f, 0.f, 1.f}));
+        constexpr int types[3] = {MOVE_NORMAL | MOVE_HITMODEL, MOVE_HITGIBS | MOVE_HITMODEL | (2 << MOVE_HITMODEL_CLASS_SHIFT), MOVE_MISSILE};
+        int all = 0;
+        for(const int type : types)
+        {
+            glm::vec3 at{0.f};
+            if(traceHits(m - side * 40.f, m + side * 40.f, type, false, &at) == kv.first)
+            {
+                all++;
+                const float off = glm::length(at - m) - r.params.thickness * 0.5f;
+                worst = za::max(worst, off);
+            }
+        }
+        met += all == 3 ? 1 : 0;
+        edict_t* e = EDICT_NUM(kv.first);
+        metal += materialOfQc(e) == 3.f ? 1 : 0;
+        hurt += e->v.takedamage > 0.f ? 1 : 0;
+        passed += traceHits(m - side * 40.f, m + side * 40.f, MOVE_NORMAL, true) != kv.first &&
+                          traceHits(m - side * 40.f, m + side * 40.f, MOVE_NOMONSTERS, false) != kv.first &&
+                          traceHits(m - side * 40.f, m + side * 40.f, MOVE_NORMAL, false) != kv.first
+                      ? 1
+                      : 0;
+        if(!first && worldtrace::serverLine(m - side * 60.f, m, nullptr).fraction >= 1.f)
+        {
+            first = &r;
+            t.chainAt = m;
+            t.nailDir = side;
+        }
+    }
+    near = worst <= chainHitGrow + 0.1f ? met : 0;
+    solidCheck(chains >= 1 && met == chains, va("a shot's, a blow's and a nail's line across each chain meet it (%d of %d)", met, chains));
+    solidCheck(near == chains, va("each where its links are (at most %.2f units off them)", worst));
+    solidCheck(metal == chains && hurt == chains, va("its material metal (sparks), it takes damage (%d, %d of %d)", metal, hurt, chains));
+    solidCheck(passed == chains, va("a player's box, a sight line and a plain trace pass each chain (%d of %d)", passed, chains));
+    edict_t* player = firstPlayer();
+    const func_t launch = progs::findFunction("launch_spike");
+    if(!first || !launch || !player)
+    {
+        solidCheck(false, "a chain with a clear line to fire a nail at, and QC launch_spike");
+        return;
+    }
+    t.metalHits = PR_ServerGlobalFloat("vr_metal_hits");
+    pr_global_struct->self = EDICT_TO_PROG(player);
+    const glm::vec3 from = t.chainAt - t.nailDir * 60.f;
+    for(int c = 0; c < 3; c++)
+    {
+        G_FLOAT(OFS_PARM0 + c) = from[c];
+        G_FLOAT(OFS_PARM1 + c) = t.nailDir[c];
+    }
+    PR_ExecuteProgram(launch);
+    t.nail = NUM_FOR_EDICT(PROG_TO_EDICT(G_INT(OFS_RETURN)));
+    t.nailAt = from;
 }
 
 void solidTestFrame()
@@ -3170,9 +3270,30 @@ void solidTestFrame()
         solidCheck(shot == poles, va("a shot's line across each pole meets it (%d of %d)", shot, poles));
         solidCheck(rightStuff == poles, va("its material the pole's: metal sparks, wood splinters (%d of %d)", rightStuff, poles));
         solidCheck(under == 0, va("walking under the level pole meets nothing (met %d)", under));
+        chainChecks(t);
         t.stage = 2;
         t.frames = 0;
         return;
+    }
+    // (ropes8c) The nail at the chain: it stops at its links (sparks: a metal hit counted), not beyond.
+    if(t.nail > 0)
+    {
+        edict_t* n = EDICT_NUM(t.nail);
+        if(!n->free && ZA_STRCMP(PR_GetString(n->v.classname), "spike") == 0)
+        {
+            t.nailAt = vecOf(n->v.origin);
+            if(t.frames <= solidTestGiveUp)
+            {
+                return;
+            }
+        }
+        const float sparks = PR_ServerGlobalFloat("vr_metal_hits") - t.metalHits;
+        // (Its last place a frame's flight short: the chain the first thing on its way on from there.)
+        const float past = glm::dot(t.nailAt - t.chainAt, t.nailDir);
+        const int next = traceHits(t.nailAt, t.nailAt + t.nailDir * 48.f, MOVE_MISSILE, false);
+        solidCheck(sparks >= 1.f && past < 0.f && ropeOf(next) && ropeOf(next)->params.chain,
+            va("a nail fired at a chain stops at it with sparks (%.0f metal hits; last %.1f units short of it, it next)", sparks, -past));
+        t.nail = 0;
     }
     // The navmesh: every box an obstacle, its tiles rebuilt.
     const float pending = nav::obstacles(0), marked = nav::obstacles(1);
@@ -3519,6 +3640,74 @@ void shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocit
             }
         }
     }
+}
+
+int chainClip(const glm::vec3& start, const glm::vec3& end, float radius, const edict_t* shooter, float& fraction,
+    glm::vec3& normal)
+{
+    const glm::vec3 d = end - start;
+    const float len = glm::length(d);
+    if(len < 1e-3f || ropes.empty())
+    {
+        return 0;
+    }
+    const glm::vec3 lo = glm::min(start, end), hi = glm::max(start, end);
+    const bool climbing = shooter && climb::ropeHands(const_cast<edict_t*>(shooter)) > 0;
+    int best = 0;
+    for(const auto& kv : ropes)
+    {
+        const Rope& r = kv.second;
+        if(!r.params.chain || r.params.pole || r.p.size() < 2)
+        {
+            continue;
+        }
+        const float reach = r.params.thickness * 0.5f + chainHitGrow + radius;
+        glm::vec3 rlo = r.p.front(), rhi = r.p.front();
+        for(const glm::vec3& q : r.p)
+        {
+            rlo = glm::min(rlo, q);
+            rhi = glm::max(rhi, q);
+        }
+        if(glm::any(glm::greaterThan(lo, rhi + glm::vec3{reach})) || glm::any(glm::lessThan(hi, rlo - glm::vec3{reach})))
+        {
+            continue;
+        }
+        if(climbing && glm::all(glm::greaterThanEqual(geom::vec(shooter->v.absmax), rlo - glm::vec3{solidNear})) &&
+            glm::all(glm::lessThanEqual(geom::vec(shooter->v.absmin), rhi + glm::vec3{solidNear})))
+        {
+            continue; // (the one climbing it shoots and strikes past it: its links are in his hands)
+        }
+        for(za::SizeT j = 0; j + 1 < r.p.size(); j++)
+        {
+            float ta = 0.f, tb = 0.f;
+            const float dist = geom::segmentsDistance(start, end, r.p[j], r.p[j + 1], ta, tb);
+            if(dist >= reach)
+            {
+                continue;
+            }
+            // Where the line comes within `reach` of the link (its cylinder): back from the nearest point by the chord
+            // over the move's speed across the link.
+            const glm::vec3 e = r.p[j + 1] - r.p[j];
+            const float elen = glm::length(e);
+            const glm::vec3 across = elen > 1e-3f ? d - e * (glm::dot(d, e) / (elen * elen)) : d;
+            const float rate = glm::length(across);
+            if(rate < 1e-3f)
+            {
+                continue; // (along the link: met at its neighbour)
+            }
+            const float t = ta - za::sqrt(reach * reach - dist * dist) / rate;
+            if(t <= 0.f || t >= fraction)
+            {
+                continue; // (from in it: not a hit on it; a nearer hit first)
+            }
+            const glm::vec3 at = start + d * t, on = r.p[j] + e * tb;
+            const glm::vec3 out = at - on;
+            normal = glm::length(out) > 1e-3f ? glm::normalize(out) : -d / len;
+            fraction = t;
+            best = kv.first;
+        }
+    }
+    return best;
 }
 
 int pick(const glm::vec3& from, const glm::vec3& dir, float range, float& distance)
@@ -3990,3 +4179,42 @@ void drawOpaque()
 }
 
 } // namespace qvr::climbrope
+
+// (ropes8c) SV_Move's shots, nails and blows against the chains' links (world.c SV_ClipToChains).
+extern "C" int VR_ChainShotClip(const float* start, const float* mins, const float* maxs, const float* end, edict_t* pass, trace_t* trace)
+{
+    if(!sv.active || !progs::bindings().isVrProgs)
+    {
+        return 0;
+    }
+    float radius = 0.f;
+    for(int c = 0; c < 3; c++)
+    {
+        radius = za::max(radius, za::max(-mins[c], maxs[c]));
+    }
+    const edict_t* shooter = pass;
+    if(pass && !(static_cast<int>(pass->v.flags) & FL_CLIENT) && pass->v.owner)
+    {
+        shooter = PROG_TO_EDICT(pass->v.owner); // (a nail: its shooter's)
+    }
+    float fraction = trace->fraction;
+    glm::vec3 normal{0.f};
+    const glm::vec3 a = geom::vec(start), b = geom::vec(end);
+    const int ent = climbrope::chainClip(a, b, radius, shooter, fraction, normal);
+    if(!ent)
+    {
+        return 0;
+    }
+    const glm::vec3 at = a + (b - a) * fraction;
+    trace->fraction = fraction;
+    trace->allsolid = false;
+    trace->startsolid = false;
+    for(int c = 0; c < 3; c++)
+    {
+        trace->endpos[c] = at[c];
+        trace->plane.normal[c] = normal[c];
+    }
+    trace->plane.dist = glm::dot(normal, at);
+    trace->ent = EDICT_NUM(ent);
+    return 1;
+}
