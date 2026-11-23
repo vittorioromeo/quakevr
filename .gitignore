@@ -13,6 +13,8 @@ build/
 # QVR: the Android build's output (Android/README.md)
 /build-android/
 /build-android-gradle/
+/build-android-release/
+/build-android-dev/
 /Android/.gradle/
 /Android/build/
 /Android/app/build/
