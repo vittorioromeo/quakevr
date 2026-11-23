@@ -12,6 +12,10 @@ Quest standalone: with Quest Foveation High the picture should stay sharper in f
 On the Quest 3 (Standalone), fight in e1m1's first room and look at the floor's and walls' dark gradients: no banding and no fixed noise pattern in the lens, as before (the dither is now drawn by the scene itself). {test:quest_gibfight}
 On the Quest 3 (Standalone), start bullet time in a fight: the world still turns grey and tinted with darkened edges, and the comfort vignette still shows when you move with the stick. {test:quest_gibfight}
 Quest standalone: mid-game, switch Settings > Quest Foveation between High, Off, Low and back a few times (menu open): no crash, the picture right after each switch. {test:quest_gibfight}
+Flat-screen or VR: grip a rope or chain and look at your hands: the thumbs wrap round it the other way from the fingers; grip a pole: the thumbs rest along its side instead, not wrapped round it (Rope Thumb Wrap Thickness under Debug > Tunables sets where it switches). {test:ropes_flat}
+Flat-screen: climb a rope or pole and jump off it: you fall clear and are not caught by it again in the air; once landed, walking into it takes it again, and off a pole steered back to it in the air you take it again. {test:ropes_flat}
+Flat-screen: climb up a pole or rope and hold crouch: you slide down it quickly to the floor with a scrape, the hands sliding along it (Rope Slide Speed under Debug > Tunables). {test:ropes_flat}
+Flat-screen: jump up to a level rope or pole and press crouch while hanging under it: you drop off it. {test:ropes_flat}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the 1.2.0-beta2 pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names 1.2.0-beta2; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}

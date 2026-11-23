@@ -77,6 +77,8 @@ bool serverHold(edict_t* ent, int hand, glm::vec3& at, glm::vec3& out);
 // Server: the flatscreen rope climbs `ent` started since the map loaded (vr_flat_rope: walking or jumping into a
 // climbable rope; vr_climb.cpp flatRope), and whether it is on one now.
 [[nodiscard]] int flatRopes(edict_t* ent, bool& climbing);
+// Server (ropes13, the tests): the slides down a rope `ent` began (crouch held on one), and whether he slides now.
+[[nodiscard]] int flatRopeSlides(edict_t* ent, bool& sliding);
 
 // Server: every player's holds and mantle forgotten (a map loaded, a saved game loaded: their entity numbers and ledge
 // maps are another world's).

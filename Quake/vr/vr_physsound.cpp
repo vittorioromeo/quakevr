@@ -853,6 +853,8 @@ namespace
 {
 
 constexpr double ropeGap = 0.15; // a rope's grips' sounds: one at most in this long (seconds; both hands at once: one)
+constexpr float ropeSlideGain = 0.6f; // (ropes13) a slide down a rope's scrape (before vr_physsound)
+constexpr int ropeSlideChannel = 5;   // (ropes13) the player's own channel for it (QC's are 0 to 4)
 
 // A climbable rope's sound: one of `set`'s recordings from the world at `at` (heard there, quiet: ATTN_IDLE), remembered
 // for the tests.
@@ -907,6 +909,41 @@ void ropeGrab(edict_t* player, const glm::vec3& at, int rope, RopeMaterial mater
     {
         Con_Printf("physsound: %.2f %d grabs %s %d: %s, volume %.2f\n", qcvm->time, player ? NUM_FOR_EDICT(player) : 0,
             chain ? "chain" : material == RopeMaterial::Rope ? "rope" : "pole", rope, bodyOf(rope).ropeLast, volume);
+    }
+}
+
+bool ropeSlideGrain(edict_t* player, int rope, RopeMaterial material)
+{
+    const float volume = master() * ropeSlideGain;
+    if(volume <= 0.f || !sv.active || !player || rope <= 0)
+    {
+        return false;
+    }
+    const Material m = material == RopeMaterial::Rope       ? Material::Soft
+                       : material == RopeMaterial::WoodPole ? Material::Wood
+                                                            : Material::Metal;
+    const int k = static_cast<int>(m);
+    const char* name = "";
+    const glm::vec3 at{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+    if(!emit(NUM_FOR_EDICT(player), ropeSlideChannel, pick(scrapeSets[k], state.scrapes[k], &name), volume, 1.f, at, jitter()))
+    {
+        return false;
+    }
+    Body& b = bodyOf(rope);
+    b.ropeLast = name;
+    b.ropeSounds++;
+    if(debug())
+    {
+        Con_Printf("physsound: %.2f %d slides down %d: %s, volume %.2f\n", qcvm->time, NUM_FOR_EDICT(player), rope, name, volume);
+    }
+    return true;
+}
+
+void ropeSlideStop(edict_t* player)
+{
+    if(player && sv.active)
+    {
+        stop(NUM_FOR_EDICT(player), ropeSlideChannel);
     }
 }
 

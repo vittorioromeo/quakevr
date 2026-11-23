@@ -11318,3 +11318,30 @@ block (18:40-18:56; Standalone, 0.65, High straight in; beta2 and the shipped pr
   the controllers lying by the headset; qlrz's "left eye filled" looks the same): not the switch.
 - PC: unaffected (`VR_Android()` only); stereo_targets_test 12/0, e1m1 smoke. APK 0 warnings, check_apk 20/0. Beta2's
   APK and the shipped progs.dat put back. Scripts (not committed): `scratch/qfc_*`.
+
+## ropes13: thumbs along thick poles, no retake before leaving it, crouch slides down / drops off level ones (agent/ropes13, 2026-11-23)
+
+His flat feedback 2026-11-23, items 1-4. ROPES.md "Poles" (the thumb), "Climbing (flat-screen)" (off it and down it).
+- **Thumb (1):** `vr_rope_thumb_wrap` (2.5 units, Debug > Tunables): a rope (1.5) or chain (2) this thin keeps ropes12's
+  wrap; a thicker one (a pole, 3) has the thumb resting along its side: `Held::thumbAlong` -> `grasp::Settings::thumbAlong`
+  -> ThumbStyle Along: every turn tried, valued by `alongValues` (its base-to-tip way along the bar at least 0.6 first,
+  then the middle joint and tip nearest its surface, then the most along). Shared: VR, flat, other players' copies.
+  Check (`thumbHolds`, VR `vr_rope_climb_check thumb` and flat `flatThumbCheck`): along a pole 0.91 along, the tip 0.36
+  off its surface; ropes 90 degrees round as before.
+- **Retake (2), why 0.3 s didn't do it:** it applied to the jump (the same rope, both hands' entity), but a jump off a
+  rope goes straight up (only a pole pushes him off: vr_pole_jump_push) and air control barely moves him, so at the
+  jump's top, 0.3 s on, he was still within its reach and took it again (the debug run: never out of reach, clear only on
+  landing 0.72 s on). Now also not before he has been out of its reach or on the ground once since (`flatRopeClear`,
+  `findGrab`'s new `only`). Off a pole (pushed away) the regrab still works (pole fall regrab cases pass).
+- **Slide (3):** crouch held on an upright or slanted one: down at `vr_flat_rope_slide_speed` (350, Debug > Tunables),
+  the holds sliding with the body (`flatSlideHolds`, no hand over hand), the material's scrape grains (physsound
+  `ropeSlideGrain`: the props' scrape sets, soft / wood / metal, player channel 5, a grain every 0.42 s, stopped by
+  svc_stopsound as it ends). At the floor he stands; at its end over a drop he lets go.
+- **Drop (4):** on a monkey traverse a press of crouch drops him (as the move-down key; held from before taking it: not
+  until pressed again).
+- **Tests:** rope_flat_test new modes ropejump 8/0 (169 up, not taken again in the air; landed, walked in: taken),
+  slide 7/0 (317 u/s, 1 hand change at most, scrape played and stopped), poleslide 8/0 (330 u/s), strungcrouch 6/0; rope
+  10/0, pole 9/0, strungpole 6/0, chain 7/0; pole_fall_test upright 21/0, slant 21/0; rope_climb_test rope_climb 12/0,
+  pole_wood 11/0, pole_metal 11/0, rope_jump 6/0, pole_jump 6/0; rope_hands_test pass; mp_test pole 15/0, monkey_flat
+  9/0. Scene `ropes_flat`. Shot: kit scratch ropes13_pole.png (the thumbs along the pole).
+- Not tested: the slide's sound by ear; another player's copy of a slide (the holds are sent as for a climb).
