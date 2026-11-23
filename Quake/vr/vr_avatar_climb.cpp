@@ -18,6 +18,7 @@
 #include "vr_climb.hpp"
 #include "vr_climbrope.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tunables.hpp"
 #include "vr_lines.hpp"
 #include "vr_motion.hpp"
 #include "vr_profile.hpp"
@@ -652,7 +653,20 @@ void updateClimbing(const Body& b, float dt, bool legs)
         glm::vec3 to = f.held ? f.at : hangingFoot(b, side, hip[side]);
         if(!f.held && c.ropeWrap > 0.f)
         {
-            to = glm::mix(to, ropeFoot(b, side, hip[side], to), smooth01(c.ropeWrap));
+            // (ropes14, NOTES.md vrropes_2026-11-23_22-55-10: "any small change is almost instantaneous") The place round
+            // the rope eased from the hip (the body's climb carries it, the rope's moves and the search's steps ease):
+            // within about vr_rope_leg_smooth seconds (an exponential approach, a third of it the time constant).
+            const glm::vec3 rel = ropeFoot(b, side, hip[side], to) - hip[side];
+            const float ease = za::clamp(vr_rope_leg_smooth.value, 0.f, 2.f);
+            glm::vec3& kept = c.ropeFootRel[static_cast<za::SizeT>(side)];
+            bool& valid = c.ropeFootValid[static_cast<za::SizeT>(side)];
+            kept = !valid || ease <= 0.f ? rel : kept + (rel - kept) * (1.f - za::exp(-dt * 3.f / ease));
+            valid = true;
+            to = glm::mix(to, hip[side] + kept, smooth01(c.ropeWrap));
+        }
+        else
+        {
+            c.ropeFootValid[static_cast<za::SizeT>(side)] = false;
         }
         if(f.step >= 0.f)
         {
