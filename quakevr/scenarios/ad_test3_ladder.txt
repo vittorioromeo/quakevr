@@ -1,9 +1,0 @@
-# ad_test3_ladder: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Arcane Dimensions' ad_test3,
-# at the foot of its ladder (steps cut in a func_wall, a trigger_ladder over them), facing it: flat play's ladder
-# (vr_climb.cpp flatLadder; ROUND25 "backlog1122b").
-title Arcane Dimensions' ad_test3: its stepped ladder, from its floor
-hint Play with -flatscreenmode. Walk forward into the ladder: the hands take two rungs and the keys climb it, over its top.
-map ad_test3
-god
-notarget
-cmd setpos -512 -88 252 0 0 0

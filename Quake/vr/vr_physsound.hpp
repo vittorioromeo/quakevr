@@ -78,6 +78,13 @@ enum class RopeMaterial
     WoodPole,
 };
 void ropeGrab(edict_t* player, const glm::vec3& at, int rope, RopeMaterial material);
+// (ropes13) A player sliding down climbable rope `rope` (flat play's crouch, vr_climb.cpp): one grain of its material's
+// scrape (a rope's soft one, a wooden pole's wood, a chain's or metal pole's metal) on his own channel, following him;
+// the next one is due ropeSlideGrainGap after. Counted among the rope's sounds (ropeSoundInfo). ropeSlideStop: his
+// scrape cut off (the slide ended).
+inline constexpr double ropeSlideGrainGap = 0.42; // seconds: a grain's length (0.5) less its fade
+bool ropeSlideGrain(edict_t* player, int rope, RopeMaterial material);
+void ropeSlideStop(edict_t* player);
 
 // Chain `rope` this frame (vr_climbrope.cpp serverFrame): its fastest link moving `speed` units/s at `at`, its links
 // `jostle` units/s against their neighbours. Knocked hard enough (pushed, shot, taken, climbed: vr_physsound_chain_knock;
