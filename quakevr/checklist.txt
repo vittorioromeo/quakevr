@@ -45,6 +45,9 @@ Dwell's Rotary Shotgun in hand: your hand goes into a hole at the back of its ho
 Dwell's Rotary Shotgun: the ammo screen sits on the housing's top at the back in a wedge like the super nailgun's, tilted up to your eye in a riveted brown bezel, readable as you aim. {test:dwell_rotary}
 Dwell's Rotary Shotgun: the shell port on the inner side is a little bigger, black and set into the gun (not shiny); reloading there still fills it. {test:dwell_rotary}
 Dwell's Rotary Shotgun: four separate round barrels with deep gaps between them, open holes at the front, still turning as you fire; no orange flare on the housing's underside. {test:dwell_rotary}
+Flat-screen or VR: hold fire with Dwell's Crystal Lance: violet sparks gather at the crystal tip, a violet light there grows and a hum rises for about a second; let go early and they fade out smoothly with no shot and no cells spent. {test:dwell_lance_pole}
+Flat-screen or VR: hold Dwell's Crystal Lance's fire until fully charged (the light pulses), then let go: it fires once (6 cells) and its lightning bolt stays visible for a moment instead of flickering. {test:dwell_lance_pole}
+In multiplayer, a player charging Dwell's Crystal Lance shows the gathering sparks, light and hum at his Lance's tip to the others, and they see his bolt when he fires. {test:mp_coop_bot}
 
 [2. Quoth]
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open {test:hub_start}
@@ -130,6 +133,11 @@ Flat-screen: 4 and 5 put the left / right hand's weapon into a free holster (the
 Flat-screen: 6 and 7 drop what the left / right hand holds; 3 still swaps the hands. {test:flat_holster_numkeys}
 Flat-screen: Options > Controls lists the six new keys (Cycle/Holster/Drop left and right hand) under "Quake VR (flat screen)", rebindable, marked "!" where they clash, and Reset Flat Keys restores 1, 2, 4, 5, 6, 7. {test:flat_holster_numkeys}
 Flat-screen: holding the rocket launcher in the right hand, 1 takes the left hand off its grip with a holstered weapon, and pressing 1 until the hand is empty puts the left hand back on the grip. {test:flat_holster_numkeys}
+Flat-screen: swim in the pool: forward the hands do a breaststroke, back they push the water ahead, sideways they sweep it away, jump presses it down, down pulls it up, and still they tread water; the strokes speed up and grow with your speed. {test:flat_swim}
+Flat-screen: under water a two-handed gun (the nailgun) is held in one hand and the free hand swims; firing or reloading the gun hand's stroke gives way smoothly and comes back after; out of the water the free hand goes back on the gun. {test:flat_swim}
+Flat-screen: hold the right mouse button with the sword or the axe and click the left button: the weapon is pushed straight out of the guard in a quick bash instead of a swing, and the grunt is knocked back and staggers; the timings are in Debug > Tunables > Flatscreen > Guard Bash and Blade Grip. {test:flat_parry}
+Flat-screen: hold the right mouse button with the sword: your left hand quickly and smoothly takes the blade near its tip and lets go as you release the button; with the axe it stays where it was. {test:flat_parry}
+Flat-screen: in the tutorial, the boards and tips use flat wording and name your own keys ('W' 'A' 'S' 'D', 'SPACE', 'Mouse 4', 'G'); rebind Quick grenade to J in Options > Controls and lesson 10's GRENADES board says 'J' at once. {test:flat_tutorial_keys}
 
 [6. Ropes and chains]
 In the ropes hall, grab a rope or chain with both hands: each hand grips it with the rope through the fist, the right hand's knuckles to the right and the left's to the left, not pointing up. {test:ropes}

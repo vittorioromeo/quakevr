@@ -23,6 +23,7 @@
 #include "vr_adguns.hpp"
 #include "vr_adweapons.hpp"
 #include "vr_slidesound.hpp"
+#include "vr_lancecharge.hpp"
 #include "vr_render.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_bench.hpp"
@@ -102,6 +103,7 @@
 #include "vr_stealth.hpp"
 #include "vr_stereo.hpp"
 #include "vr_stereo_single.hpp"
+#include "vr_msgtokens.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tips.hpp"
 #include "vr_timescale.hpp"
@@ -2071,6 +2073,7 @@ constexpr PrewarmStep prewarmSteps[] = {
     {"AD crossbow", adcrossbow::prepare}, // AD support: its next bolt's sound
     {"Widowmaker", adweapons::prepare},   // AD support: its barrels' motor
     {"slide sound", slidesound::prepare}, // flat-screen play's slide scrape (vr_slidesound.cpp)
+    {"Crystal Lance hum", lancecharge::prepare}, // Dwell support: its charge's hum (vr_lancecharge.cpp)
     {"model light grid", ambient::prepareGrid},
     {"explosion debris", explosiondebris::prepare},
     {"muzzle flash", weaponfx::prepare},
@@ -2321,6 +2324,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_menu_stop_test", menu::stopTest_f);
     Cmd_AddCommand("vr_tips_reset", tips::reset_f);
     Cmd_AddCommand("vr_tips_test", tips::test_f);
+    Cmd_AddCommand("vr_msgtokens_test", msgtokens::test_f);
     Cmd_AddCommand("vr_mock_laser", menuui::mockLaser_f);
     Cmd_AddCommand("vr_menu_panel", menuui::panelPlace_f);
     Cmd_AddCommand("vr_menu_zoom", menuui::zoom_f);
@@ -2653,6 +2657,7 @@ extern "C" void VR_BeginFrame()
             QVR_TRACY_SCOPE(zoneNotesTips, "texts: notes, tips, highlights");
             voicenotes::frame(); // after the clear: its indicator is queued anew each frame
             voicechat::frame();  // (multiplayer: capture, play-out, the talking indicators, B10v)
+            msgtokens::frame();  // vr_msgtokens_test's run (before the tips queue their texts)
             tips::frame();       // a tip due, the one showing (vr_tips)
             highlights::frame(); // the game's clock against realtime, a multi-kill's end
         }

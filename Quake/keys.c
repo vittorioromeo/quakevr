@@ -746,10 +746,14 @@ const char *Key_KeynumToFriendlyString (int keynum)
 Key_SetBinding
 ===================
 */
+int key_bindgeneration; // QVR: counts the changes (a message naming a bound key resolves again: vr_msgtokens.cpp)
+
 void Key_SetBinding (int keynum, const char *binding)
 {
 	if (keynum == -1)
 		return;
+
+	key_bindgeneration++;
 
 // free old bindings
 	if (keybindings[keynum])

@@ -10006,3 +10006,115 @@ His flat notes 2026-11-23, items 9, 10, 12 (11, MP and the rest open, below). RO
   takedamage and T_DamageImpl's pole return, VR_MaterialOf metal; melee's own traces likewise; careful not to block
   monsters' sight traces); the MP scenarios (another player on a strung rope / a pole); rope_pump 238 vs 250; ropes8a's
   open list (flat fingertips 0.44 into a pole, MP clients' pole prediction, one climber passing a pole, props vs poles).
+## flatmelee: flat bash from the parry's guard; the sword's free hand on its blade in the guard (agent/flatmelee, 2026-11-23)
+
+His feedback 2026-11-23, items 15 and 16. FLATPLAY.md, "Parry guard" (Bash from the guard; Blade grip in the guard).
+
+- **Bash** (`vr_flat_bash` 1): the weapon hand's fire button pressed in the guard bashes instead of swinging
+  (`flatplay::startBash`, `bashAsked`). It shares the shove's clock, smoothing and cooldown (`fs.shoveBash`): its own parts
+  `vr_flat_bash_wind_time` 0.06, `_push_time` 0.07, `_hold_time` 0.06, `_recover_time` 0.2, `_anim_speed` 1, `_reach` 12
+  units, `_wind_back` 4, `_cooldown` 0.5 (Tunables > Flatscreen > Guard Bash and Blade Grip). The guard stays up through it
+  (`parryAsked` lets the bash's shove through); `bashPose` pushes the guard after `parryPose` (which would otherwise overwrite
+  the shove's offset at full share). Sent at the hold's end (`impulse 58` off / `59` main): at the push's end the smoothed
+  hand trailed by ~6 units and the line fell short of a grunt 44 units away.
+- **QC** `VR_FlatBash` (vr_melee_bash.qc): shared with the headset bash: `VR_Bash_Find` (stance 1, the weapon's line) and
+  `VR_Bash_Land` (damage, push, stagger, stamina, counter, sound), `VR_Bash_DeflectStart` (batting, the push straight ahead
+  at `vr_bash_speed`). The weapon's line comes from `VR_Melee_Line` (a synthesized hand keeps no `mh_near/far`:
+  `VR_Melee_Track` skips it), kept in the blow for the batting window. Two hands when `VRGet2HAiming` and the other hand is
+  empty, as the headset's.
+- **Blade grip** (`vr_flat_parry_blade` 1, `_in_time` 0.12, `_out_time` 0.15): in the guard with a sword-mode weapon that has a
+  Blade hotspot (`twohand::swordBlade`, shared with `applySword`), the free hand is carried to the hotspot's point
+  (`flatplay::bladePin`, called in `flatsight::apply` before `twohand::apply`); `applySword` takes `GRIP_BLADE` there only
+  while `flatplay::bladeAsked`, switches off the stance's foregrip to it, and lets go as the guard ends. flatsight's grip pin
+  and kept-grip pose stand aside while it runs. `steadyOther` turns the drawn hand onto the blade over the grip blend on the
+  flat screen (VR unchanged): 73 degrees a frame at the take before, 6.6 now (12.1 at the let-go, was 40).
+- **Tests**: new `Misc/quakevr/flatbash_test.sh` 15/0 (sword: blade taken, posed 0.0 u / drawn 1.3 u off the hotspot, the
+  bash two-handed on a grunt: 5 damage, 383 u/s, staggered 1.0 s, let-go; axe: no blade grip, one-handed bash 3 damage).
+  Scene `flat_parry`'s hint covers both.
+## flatswim: flat-screen swimming strokes (agent/flatswim, 2026-11-23)
+
+- **Strokes** (`Quake/vr/vr_flatswim.cpp`, new; FLATPLAY.md, "Swimming strokes"): swimming flat (waterlevel 3, or 2 off
+  the bottom; not noclip, not dead), the hands follow a stroke mixed from six cycles by the move's way in the view's
+  frame (forward along the look, up the world's): breaststroke, push ahead (back), sideways sweep, press down (up), pull up
+  (down), treading still. Speed sets rate (0.5..0.9 /s) and size; the mix is full stroke from 35% of
+  `vr_flat_swim_full_speed`, treading blended in below. Applied in `flatplay::poseHands`' hand loop after the hang and
+  melee poses, before the wall, sight, reload, grab, grenade and swap overlays; the player's hands only (not `poseBot`).
+- **Free hand vs held**: a free hand takes the stroke's pose (palm by `handAngles`: fingers + palm normal, flatplay's
+  roll-0-palm-in convention); a hand holding a weapon or prop gets `vr_flat_swim_gun_share` (0.3) of the motion only.
+- **2H -> 1H**: `flatswim::freesHand()` added to twohand's `flatLetsGo`, flatsight's `gripWanted` and `twoHandGun`
+  stance, flatplay's `twoHandAsked` (melee stance); all come back on leaving the water.
+- **Take-over**: per hand, linear take share (out over 0.12 s, back over 0.4 s) on `client::attacking` (+0.5 s hold),
+  punch, shove, parry, melee 2H, reload, force grab, quick grenade, swap, ADS (held hand).
+- **Tunables** (Debug > Tunables > Flatscreen > Swimming): `vr_flat_swim` 1, `_one_hand` 1, `_rate` 0.9, `_tread_rate`
+  0.5, `_size` 1, `_tread_size` 0.6, `_fwd` 0.2, `_up` 0.18, `_full_speed` 200, `_pitch` 0.5, `_gun_share` 0.3,
+  `_enter_time` 0.4, `_takeover_time` 0.12, `_return_time` 0.4, `_fire_hold` 0.5, `_turn_time` 0.35. Debug > Reports:
+  Flatscreen Swim Report / Probe (`vr_flatswim_report`, `vr_flatswim_probe`).
+- **Tests**: `Misc/quakevr/flatswim_test.sh` (+ `flatswim_check.py`): vrtesthall pool, seven directions (lead kind, sweep,
+  palm way, mirroring), the nail gun 2H on land, 1H in water, firing take-over (4 frames in 0.54, then 0, held through the
+  fire hold, back to 1), 2H back on land: 36/0. flatreload_test 54/0, flatsight_test 12/0. `flatswim_shots.sh`:
+  screenshots. Scene `flat_swim`.
+- Not done: open hands (the flat hands stay in their gripping pose), stroke sounds (the headset's are server-side from
+  tracked hand speed); `Misc/quakevr/menu_paths.txt` not regenerated for the new Tunables rows.
+## lancecharge: the Crystal Lance as a charged shot (agent/lancecharge, 2026-11-23)
+
+His note 2026-11-23: held fire repeated the beam's look (the Thunderbolt's per-frame stream, FrameDrawLightningTrail) while
+the damage came in pulses (a shot each 1.4 s). Now:
+- **Charge** (QC `dw_items.qc` `DW_LanceChargeFrame`, from `W_WeaponFrameImpl` once the hand may attack): the trigger
+  held charges it over `vr_dw_lance_charge` s (tunable, 1; 0: fires on the pull as before, without the stream). Let go
+  short of full: no shot, no cells. Let go full: `W_Attack` as any shot (6 cells, `DW_FireVariant`'s beam). Held on
+  full: it waits (a haptic tick as it fills). Without its 6 cells no charge begins, only the empty click (the old path
+  drained the few cells left and printed "ERROR: shot refused"). The stream is never drawn for the Lance. Developer
+  prints "dwlance: charging / charged (hand H) after T s / let go at C: no shot / let go charged: the shot".
+- **Seen and heard by everyone** (`QVR_SVC_LANCECHARGE` 56, MSG_ALL: begun, let go short, fired; with the charge time):
+  `vr_lancecharge.cpp` draws each player's charge at his Lance's drawn muzzle (yours from the view's weapons, the others'
+  from their copies, `mpavatar::drawnWeapon`; one path, flat and VR): violet sparks drawn in to the tip, denser as it
+  charges; a soft glow and a violet dlight growing (pulsing once full; `emissive::lanceChargeLight`, keys -0x5A40..);
+  a hum (`vr/lance_charge.wav`, our own synthesised loop, `Misc/quakevr/make_lance_sounds.py`) rising in pitch and
+  volume. Let go short they fade over `vr_dw_lance_charge_fade` (0.25 s); fired, out in 0.06 s. The Lance leaving the
+  hand ends it.
+- **The bolt lingers** `vr_dw_lance_bolt` s (0.35; Quake's beams 0.2): `CL_ParseBeam` asks `VR_BeamLife`
+  (`lancecharge::beamLife`: a beam from a player's hand holding the Lance, or from a Lance prop).
+- An armed grunt's Lance still fires at once (`VR_AG_ShootProp` calls `DW_FireVariant` itself).
+- **Tests**: `vr_ad_test 224` (`dwcharge`, in `dwell_lance_test.sh` section 7) 10/0: half charge in 0.500 s and let go
+  (no shot, no damage, 100 cells kept, none later), `tune vr_dw_lance_charge 0.5` full in 0.500 s, held 30 frames without
+  a shot, let go: 150 (188 unaware) and 6 cells; 4 cells: no charge. Section 3 now holds `+attack` 30 frames (let go
+  short) then 90 (the shot), with vr_debug_gunfx 1's "lancecharge: let go short / fired / bolt ... lingers 0.35 s".
+  Screenshot `qvr-kit/scratch/lancecharge_glow_bolt.png` (charging, then the bolt).
+- Not tested live: another player's charge in a real two-client game (the same message and draw path as yours, the
+  copy's weapon from mpavatar).
+## tutflat: the tutorial's messages in flat-screen play, with the player's own keys (agent/tutflat, 2026-11-23)
+
+His request 2026-11-23 (14): tutorial messages detect flat-screen mode and use flat wording, and show the player's
+actual binds ("Press 'G' to equip a grenade", following a rebind); VR messages unchanged.
+- **Tokens** (`Quake/vr/vr_msgtokens.hpp/.cpp`): a message's text may hold `{flat}` (before it the headset's wording,
+  after it the flat screen's: no headset, `!vrActive()`) and `{key:<cvar>}` (a key cvar's key: `vr_flat_key_grenade`
+  -> 'G') or `{key:<command>}` (the likeliest key bound to it: a letter or digit, then a mouse button, then another key,
+  then a gamepad's; in flat play not a key flat play reads itself, `VR_FlatKeyOwned`). Mouse buttons read 'Left Click',
+  'Right Click', 'Middle Click', 'Mouse 4/5', 'Wheel Up/Down'; other keys their friendly name upper-cased ('SPACE').
+  None bound: `[Quick grenade: not bound]` (a flat key's Controls label, else a short name for the command).
+- **Resolved on the client, as shown** (shared by both modes: one path, the mode picks the part): the centre print
+  (`SCR_CenterPrint`, so every caller, `VR_ExpandMessageTokens`), the view message (`clientParseViewMessage`), the map
+  tips (`tipText`, cached until the tip, its text or `msgtokens::signature()` changes) and the world text boards (the
+  client keeps the text as sent in `WorldText::raw` and resolves again in `clientTexts()` when the signature changes; a
+  demo records the text as sent). The signature hashes the mode, `key_bindgeneration` (keys.c: Key_SetBinding counts its
+  changes) and every flat key cvar's value: a rebind in Controls or the console shows at once on what is up. Text with
+  no token costs one `strstr` pair.
+- **The tutorial** (`vrtutorial_gen.py`): `FLAT_TIPS` (by tipname, 43) and `FLAT_BANNERS` (by the board's first line,
+  22) give the flat wording; `tip()` and `banner()` append it after `{flat}`; `check_flat_wording` fails the build on an
+  unused entry, `with_flat` on a value over 1000 characters (the engine's 1023); `banner_bounds` sizes a board by both
+  wordings (a key as long as 'Left Click'). The rest (doors, checkpoints, the welcome, the arena) read the same in both.
+  The BSP's entity lump was patched (bsp_set_entities.py `--from-file`, the regenerated .map's 65 changed lines
+  replaced in it) instead of a recompile: geometry and light unchanged.
+- **Flat wording follows flat play's controls** (FLATPLAY.md): walking over health, armour, keys and boxes; the force
+  grab key; punch, fire, shove, reload, drop, the quick grenade, the flashlight, bullet time, the holster keys and
+  menu; ladders, the mantle (jump held, looking up) and ropes (strafe swings, jump lets go); the swim keys; the HUD's
+  health top left. **Open:** lesson 10's gate (a thrown rock) and lesson 12's (a thrown axe) need a throw flat play
+  lacks (FLATPLAY.md's hotkey audit: "his call"); their flat wording says so ("a headset's move, not in flat play yet").
+  Lesson 13's grenade catch and the disarms likewise (the flat tips say to get clear / take the rifle once it dies).
+- **Test** `vr_msgtokens_test` (Debug > Tests, "Tutorial Messages: Keys And Wording"; run in vrtutorial: it waits for
+  the map's tips, a frame each): `-flatscreenmode`: 9/0 (no token left on the boards and seven tips; t2_grenade names
+  'G', 'J' after a rebind, `[Quick grenade: not bound]` with none; the GRENADES board follows the rebind; a centre
+  print's `A{flat}B {key:...}` -> `B 'G'`; t2_jump 'SPACE', then 'U' with +jump moved; t2_move's 'A' over ',');
+  headset (mock): 3/0 (the headset's wording, untouched). Binds and cvars put back after. The first screenshot of lesson
+  1's board read "MOVE: 'W' ',' 'S' '.'" (default.cfg binds , and . too, lower key numbers): hence the ranking; now
+  'W' 'A' 'S' 'D' (the test's t2_move). Scene `flat_tutorial_keys` (lesson 10).

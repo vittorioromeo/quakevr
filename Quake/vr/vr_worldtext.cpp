@@ -9,6 +9,7 @@
 #include "vr_gadget.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
+#include "vr_msgtokens.hpp"
 #include "vr_panel.hpp"
 #include "vr_protocol.hpp"
 #include "vr_setup.hpp"
@@ -41,6 +42,7 @@ za::Vector<WorldText> serverTexts;
 za::Vector<WorldText> clientTextList;
 za::Vector<FloatText> clientFloatTextList;
 unsigned clientListGeneration{1}; // clientGeneration
+unsigned clientTokenSignature{0}; // msgtokens::signature() the boards' tokens were last resolved at (clientTexts)
 
 // The view message (clientParseViewMessage): its text (the first line gold when a blank line follows, as VR
 // Calibration's titles), from and to (client time); none: an empty text.
@@ -81,7 +83,7 @@ void beginMessage(sizebuf_t* msg, int subcmd, int handle)
 void writeText(sizebuf_t* msg, int handle, const WorldText& wt)
 {
     beginMessage(msg, QVR_SVC_WORLDTEXT_TEXT, handle);
-    MSG_WriteString(msg, wt.text.cStr());
+    MSG_WriteString(msg, wt.raw.empty() ? wt.text.cStr() : wt.raw.cStr()); // (a demo's: as sent, resolved as it plays)
 }
 
 void writePos(sizebuf_t* msg, int handle, const WorldText& wt, unsigned int protocolflags)
@@ -314,7 +316,8 @@ void clientParseFloatText()
 void clientParseViewMessage(bool arena)
 {
     const float seconds = static_cast<float>(MSG_ReadShort()) / 10.f;
-    const char* text = MSG_ReadString();
+    const za::String shown = msgtokens::expand(MSG_ReadString()); // (the mode's wording, the player's keys)
+    const char* text = shown.cStr();
     // The arena's, in the headset: the wrist gadget's hologram (vr_arena_wrist), unless it has none (another HUD, the
     // hologram off, recording mode): then in view as before.
     const bool wrist = arena && vrActive() && vr_arena_wrist.value != 0.f && gadget::arenaMessage(text, seconds);
@@ -400,7 +403,13 @@ void clientParse(int subcmd)
     switch(subcmd)
     {
         case QVR_SVC_WORLDTEXT_MAKE: wt = WorldText{}; break;
-        case QVR_SVC_WORLDTEXT_TEXT: wt.text = MSG_ReadString(); break;
+        case QVR_SVC_WORLDTEXT_TEXT:
+        {
+            const char* text = MSG_ReadString();
+            wt.raw = msgtokens::has(text) ? za::String{text} : za::String{};
+            wt.text = wt.raw.empty() ? za::String{text} : msgtokens::expand(text);
+            break;
+        }
         case QVR_SVC_WORLDTEXT_POS:
             for(int i = 0; i < 3; i++)
             {
@@ -423,6 +432,19 @@ void clientParse(int subcmd)
 
 const za::Vector<WorldText>& clientTexts()
 {
+    // A board naming a key or with a flat wording, resolved again when the binds or the mode change.
+    const unsigned sig = msgtokens::signature();
+    if(sig != clientTokenSignature)
+    {
+        clientTokenSignature = sig;
+        for(WorldText& wt : clientTextList)
+        {
+            if(!wt.raw.empty())
+            {
+                wt.text = msgtokens::expand(wt.raw.cStr());
+            }
+        }
+    }
     return clientTextList;
 }
 

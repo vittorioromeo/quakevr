@@ -59,3 +59,11 @@ tip (a gun), a spear a pole with a blade tip (melee only), a staff a pole with t
   it a poke, times `vr_dw_lance_poke` (0.4). Developer print "dwlance: a thrust, the head (...)".
 - **The B flip** works in the mock (`dwell_lance_test.sh` section 3: B held 10 frames; dwellweap's 2-frame press never
   reached a player frame).
+
+## Built in lancecharge
+
+- **A charged shot** (his note 2026-11-23: held fire drew the stream while the damage came in pulses): the trigger held
+  charges it over `vr_dw_lance_charge` s (1; QC `DW_LanceChargeFrame`), let go full it fires, let go sooner nothing (no
+  cells). The clients draw the charge at the crystal tip (`vr_lancecharge.cpp`: sparks gathering in, a violet light
+  growing, a rising hum) for the player and every other player's copy (`QVR_SVC_LANCECHARGE`), and keep its bolt
+  `vr_dw_lance_bolt` s (0.35). ROUND25.md "lancecharge" has the detail.

@@ -614,6 +614,7 @@ void VR_RelinkHeld (void);								// end of CL_RelinkEntities: the local player'
 float VR_BeamScale (struct qmodel_s *model);				// CL_UpdateTEnts: scale of a beam's segments
 int VR_UpdateBeam (int ent, float *start, float *end);	// CL_UpdateTEnts: moves the player's own beams with the gun; nonzero: a rope (no random roll)
 int VR_BeamGone (int ent);								// CL_UpdateTEnts: nonzero if a hand's lightning outlived its gun there (thrown, dropped, holstered): ended at once
+float VR_BeamLife (int ent);							// CL_ParseBeam: seconds a new beam keyed `ent` is drawn (Quake's 0.2; Dwell's Crystal Lance's bolt lingers: vr_lancecharge.cpp)
 int VR_DrawRope (int ent, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a grappling hook's rope, drawn in one piece along its curve (vr_rope.cpp); zero if the beam is not one (drawn as any beam)
 void VR_ForgetEndedRopes (void); // CL_UpdateTEnts, before the beams: the ropes whose beams ended forgotten, the frame's ropes put anew
 void VR_BeamLights (int index, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a lightning beam lights the room along its length (vr_beam_lights)
@@ -786,6 +787,7 @@ int VR_ConsoleLogLine (const char *text, int length, int server);	// Con_DrawNot
 void VR_NotifyLogInfo (void);						// vr_notify_info: prints the wrist gadget's log lines
 
 // Screen (gl_screen.c).
+const char *VR_ExpandMessageTokens (const char *text);	// SCR_CenterPrint: the text with its {flat} wording and {key:} binds resolved (vr_msgtokens.cpp); `text` itself when it has none, else valid until the next call
 void VR_GameCenterPrint (const char *str);				// SCR_CenterPrint: a centre print, for the wrist gadget's hologram (vr_gadget.cpp)
 int VR_CenterPrintOnWrist (void);						// SCR_CheckDrawCenterString: nonzero while that hologram shows it (not in view)
 int VR_CenterPrintInView (const char *text, float alpha);	// SCR_CheckDrawCenterString: nonzero when the headset shows it on its head-following panel in the visor popup's style (vr_panel.cpp, vr_center_panel), not on the 2D canvas
