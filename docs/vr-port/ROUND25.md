@@ -9674,6 +9674,35 @@ Runs on origin/next 2de8233f1 (Release no-LTO, the shipped-defaults baseline). M
   rerelease's track02.ogg identically (132300 frames, 44100 Hz stereo, peak 21126 both), the rewind ok, start's track 4
   plays through stb_vorbis, no error: 12/0. music_test 7/0; vr_menu_path_check 0 missing; Android native build compiles.
 - Installer (`QuestFiles.MusicFormats`, on agent/questinstall, not on next): add `.ogg` there when both are merged.
+
+## flatjitter: the gun at a wall looking down settles; the level forward probe (agent/flatjitter, 2026-11-23)
+
+Built on origin/next with agent/flatgreen2 merged in (its test fixes are what flatsweep and flatlagbob are judged by).
+
+- **flatsweep's `settled wall/long/stand/hip` at 25 down** (0.947 units a frame for 500 frames): a limit cycle of the
+  muzzle-up tilt (`vr_flat_wall_tilt`, fixed: all 40 degrees or none). Its trigger, the level gun 0.25 units deep at the
+  most the way back takes it, read 0.24-0.27 there, and the reading moved with the tilt's own ease: the tilt went on
+  and off every three frames. Two paths fed the drawn (tilted) gun back into the pose's level gun:
+  - modelcollide's recorded weapon (`weaponShape`, handpose's gun depth): `toHand` is the drawn model in the drawn hand's
+    frame, and tilted it stood up to 0.3 units elsewhere (18 degrees: the model doesn't turn exactly round `s.pos`). Now
+    `shapeToHand`, kept while flatplay's `drawnWallTurn` turns or shifts the gun (same model and frame); the drawn
+    points (`drawnWeaponPoints`) still use the drawn one. VR: the turn is always identity there, so unchanged.
+  - flatsight's hotspot in the gun's frame (`spotLocal`, the stance's keepSpot holds it in the free arm's reach, which
+    moved the hand 0.04 units with the tilt): kept the same way while the wall tilt or slide is on.
+  With both, the 25-degree row settles (wall run: 140 rows, 0 unsettled; it was 1). A hysteresis on the trigger alone
+  (0.1 units) didn't help: the hand then crept to the lower edge. The check is flatsweep_check's own unsettled-row
+  failure. Tests: flatsweep 383 passed, 27 known, 0 failed (was 382/1); flatwall 17/0. flatxhair 27/4 (flatgreen2 had
+  28/3; the new one, "pixels open: drawn on the centre (4 px, centroid 479.5 vs 480.0)", came in the low-impact mode with
+  his game running: low-res mock eyes; not re-run). flatsight could not run (its runs wait for his game to close).
+- **flatlagbob's level case** (fwd 0 range 1.01, fwd 2 1.94; wants +1.0): **not the sway**. At a run the level fwd-0
+  range is 0.94 with `vr_flat_sway 1` and 1.05 with 0 (walking 0.67); the sway's forward part peaks at 0.15 on the run
+  (its kicks are the start and e1m1's stairs down, mostly up and down). Per frame, the main hand *and its shoulder* move
+  together along the view by about +-0.45 at the stride's rate (period ~31 frames, 2.3 Hz) while the run goes down
+  e1m1's stairs: the body rides something at the step rate with `vr_flat_bob_fwd 0` (looking 40 down the shoulder's range
+  is 0.00, so it is level-forward and up together, not along the view). Since that motion and the forward bob aren't in
+  phase, the ranges don't add: 1.01 + 1.2 gives 1.94. Open: which commit put a stride-rate forward ride on the body (a
+  bisect from 97446fada of the shoulder's range, not done: budget), or the check measures the bob's own amplitude
+  (fwd 2 minus fwd 0 per frame) instead of the ranges' difference.
 ## testbatch3: testbatch2's open items (agent/testbatch3, 2026-11-23)
 
 TESTING.md "Batching a suite, -QuitOn and -NoDraw". Times under other agents' load (run to run +-30%).
