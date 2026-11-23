@@ -24,6 +24,7 @@
 #include "vr_gfx.hpp"
 #include "vr_mem.hpp"
 #include "vr_move.hpp"
+#include "vr_nav.hpp"
 #include "vr_physsound.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
@@ -130,6 +131,9 @@ struct Rope
     float speed{0.f};    // the fastest point's speed over the last frame (units/s)
     bool monkey{false};  // (ropes7) traversed hanging under it: pinned at both ends, slanted past vr_rope_monkey_angle
     Rider rider;
+    za::Vector<int> solids;  // (ropes8a) a pole's boxes (QC vr_pole_solid: placeSolids)
+    int solidOwner{0};       // the player let through them (passSolids), 0 none
+    glm::vec3 solidsAt{0.f}; // the pole's top where they were placed
 };
 
 ankerl::unordered_dense::map<int, Rope> ropes;
@@ -185,6 +189,146 @@ const glm::vec3 keyLight = glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}); // (the m
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The server's ropes.
+
+// ---------------------------------------------------------------------------------------------------------------------
+// (ropes8a) A pole's solid: boxes along it (QC vr_pole_solid: SOLID_BBOX, takedamage, never dealt any), each the bounds
+// of its piece of the pole grown by half its thickness, as many as keep a slanted pole's boxes within its thickness of
+// it (at most maxSolids). Bodies meet them (players, monsters), shots, nails and blows hit them (sparks off metal,
+// splinters off wood: QC VR_MaterialOf), the navmesh cuts them out (vr_nav.cpp). The climber on it passes through: their
+// owner (passSolids). "goalentity" its pole (a save's are found again and made afresh), "rope_style" 1 metal.
+
+constexpr int maxSolids = 32;
+constexpr const char* solidClass = "vr_pole_solid";
+constexpr float solidNear = 24.f;   // units round a pole a climber holding a rope is let through it from (he takes it)
+constexpr float solidInside = 0.5f; // units a body must be in its box to be let out of it (stuck: made over him)
+
+[[nodiscard]] bool isSolidOf(const edict_t* s, int pole)
+{
+    return !s->free && !ZA_STRCMP(PR_GetString(s->v.classname), solidClass) && s->v.goalentity == EDICT_TO_PROG(EDICT_NUM(pole));
+}
+
+// Every box of pole `pole` freed (its own, and any a save brought back).
+void freeSolids(Rope& r, int pole)
+{
+    for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; i++)
+    {
+        if(edict_t* s = EDICT_NUM(i); isSolidOf(s, pole))
+        {
+            ED_Free(s);
+        }
+    }
+    r.solids.clear();
+    r.solidOwner = 0;
+}
+
+// Pole `pole`'s boxes placed along it (made, or made again where one went).
+void placeSolids(Rope& r, int pole)
+{
+    if(r.p.size() < 2)
+    {
+        return;
+    }
+    const glm::vec3 a = r.p.front(), d = r.p.back() - a;
+    const float len = glm::length(d), half = r.params.thickness * 0.5f;
+    const glm::vec3 u = len > 1e-3f ? glm::abs(d / len) : glm::vec3{0.f, 0.f, 1.f};
+    const float across = u.x >= u.y && u.x >= u.z ? za::max(u.y, u.z) : u.y >= u.z ? za::max(u.x, u.z) : za::max(u.x, u.y);
+    const int n = za::clamp(static_cast<int>(za::ceil(len * across / za::max(r.params.thickness, 1.f))), 1, maxSolids);
+    bool whole = static_cast<int>(r.solids.size()) == n;
+    for(const int s : r.solids)
+    {
+        whole = whole && s > 0 && s < sv.qcvm.num_edicts && isSolidOf(EDICT_NUM(s), pole);
+    }
+    if(whole && a == r.solidsAt)
+    {
+        return; // (where they were)
+    }
+    if(!whole)
+    {
+        freeSolids(r, pole);
+        for(int k = 0; k < n; k++)
+        {
+            edict_t* s = box3d::spawnClass(solidClass, a, glm::vec3{0.f});
+            if(!s)
+            {
+                break;
+            }
+            s->v.goalentity = EDICT_TO_PROG(EDICT_NUM(pole));
+            if(const progs::FieldOffsets& f = progs::fields(); f.rope_style >= 0)
+            {
+                progs::fieldFloat(s, f.rope_style) = r.params.metal ? 1.f : 0.f;
+            }
+            r.solids.pushBack(NUM_FOR_EDICT(s));
+        }
+    }
+    const int made = static_cast<int>(r.solids.size());
+    for(int k = 0; k < made; k++)
+    {
+        const glm::vec3 p0 = a + d * (static_cast<float>(k) / static_cast<float>(made));
+        const glm::vec3 p1 = a + d * (static_cast<float>(k + 1) / static_cast<float>(made));
+        const glm::vec3 lo = glm::min(p0, p1) - glm::vec3{half}, hi = glm::max(p0, p1) + glm::vec3{half};
+        const glm::vec3 mid = (lo + hi) * 0.5f;
+        edict_t* s = EDICT_NUM(r.solids[static_cast<za::SizeT>(k)]);
+        for(int c = 0; c < 3; c++)
+        {
+            s->v.origin[c] = mid[c];
+            s->v.mins[c] = lo[c] - mid[c];
+            s->v.maxs[c] = hi[c] - mid[c];
+            s->v.size[c] = hi[c] - lo[c];
+        }
+        SV_LinkEdict(s, false);
+    }
+    r.solidsAt = a;
+}
+
+// Whether `p`'s box is in box (`lo`, `hi`) by more than `by` units every way.
+[[nodiscard]] bool boxIn(const edict_t* p, const glm::vec3& lo, const glm::vec3& hi, float by)
+{
+    for(int c = 0; c < 3; c++)
+    {
+        if(p->v.absmin[c] > hi[c] - by || p->v.absmax[c] < lo[c] + by)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The player let through pole `r`'s boxes (their owner: Quake's moves skip what the mover owns): one holding a climbable
+// rope (hanging) within solidNear of it (he took it: the climb holds his body round it), or one in a box (made over him,
+// or let go of it, still in it), until he is out; the one let through before first. None: everyone meets it.
+void passSolids(Rope& r)
+{
+    if(r.solids.empty())
+    {
+        return;
+    }
+    const float half = r.params.thickness * 0.5f;
+    const glm::vec3 lo = glm::min(r.p.front(), r.p.back()) - glm::vec3{half}, hi = glm::max(r.p.front(), r.p.back()) + glm::vec3{half};
+    int owner = 0;
+    for(int i = 1; i <= svs.maxclients; i++)
+    {
+        edict_t* pl = EDICT_NUM(i);
+        if(!svs.clients[i - 1].active || pl->free)
+        {
+            continue;
+        }
+        bool pass = climb::ropeHands(pl) > 0 && boxIn(pl, lo - glm::vec3{solidNear}, hi + glm::vec3{solidNear}, 0.f);
+        for(za::SizeT k = 0; k < r.solids.size() && !pass; k++)
+        {
+            const edict_t* s = EDICT_NUM(r.solids[k]);
+            pass = boxIn(pl, geom::vec(s->v.absmin), geom::vec(s->v.absmax), solidInside);
+        }
+        if(pass && (owner == 0 || i == r.solidOwner))
+        {
+            owner = i;
+        }
+    }
+    r.solidOwner = owner;
+    for(const int s : r.solids)
+    {
+        EDICT_NUM(s)->v.owner = owner ? EDICT_TO_PROG(EDICT_NUM(owner)) : 0;
+    }
+}
 
 [[nodiscard]] Params readParams(edict_t* e)
 {
@@ -306,6 +450,11 @@ void make(edict_t* e, int num)
     }
     r.prev = r.p;
     r.from = r.p;
+    if(pr.pole)
+    {
+        freeSolids(r, num); // (ropes8a: a save's, or the last make's)
+        placeSolids(r, num);
+    }
     if(vr_rope_debug.value > 0.f)
     {
         Con_Printf("rope: %d made (%s, %.0f long, %d pieces, %.1f thick, %.1f kg%s)\n", num,
@@ -2641,9 +2790,155 @@ void soundTest_f()
     soundTest.stage = 1;
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// vr_pole_solid_test (ropes8a, ROPES.md "Tests"; in vrropes: its four poles): each pole's boxes made, on it (each box's
+// middle within half a unit of its surface), the slanted one in several; a player's box swept across each pole is
+// stopped by them, and a shot's line meets them, their material (QC VR_MaterialOf) the pole's: metal 3 (sparks), wood 4
+// (splinters); walking under the level pole meets nothing; then (counted frames: the navmesh's rebuilds done) the
+// navmesh's obstacles count every box. 7 checks.
+struct SolidTest
+{
+    int stage{0};
+    int frames{0};
+    int boxes{0};
+    testkit::Tally tally;
+};
+SolidTest solidTest;
+constexpr const char* solidTestName = "vr_pole_solid_test";
+constexpr int solidTestGiveUp = 72 * 40;
+
+void solidCheck(bool ok, const char* what)
+{
+    solidTest.tally.check(ok, solidTestName, what);
+    if(ok)
+    {
+        Con_Printf("%s: PASS %s\n", solidTestName, what);
+    }
+}
+
+[[nodiscard]] bool isPoleSolid(int num)
+{
+    glm::vec3 lo, hi;
+    return num > 0 && climbrope::solidBox(num, lo, hi);
+}
+
+// A player's box (or a point: a shot) swept from `a` to `b` (MOVE_NORMAL, no pass entity): the entity it met (0 nothing
+// or the world).
+[[nodiscard]] int sweepHits(const glm::vec3& a, const glm::vec3& b, bool point)
+{
+    float s[3], mn[3], mx[3], e[3];
+    for(int c = 0; c < 3; c++)
+    {
+        s[c] = a[c];
+        e[c] = b[c];
+        mn[c] = point ? 0.f : c < 2 ? -16.f : -24.f;
+        mx[c] = point ? 0.f : c < 2 ? 16.f : 32.f;
+    }
+    const trace_t tr = SV_Move(s, mn, mx, e, MOVE_NORMAL, nullptr);
+    return tr.fraction < 1.f && tr.ent && tr.ent != sv.qcvm.edicts ? NUM_FOR_EDICT(tr.ent) : 0;
+}
+
+// QC VR_MaterialOf(e) (-1: no such function).
+[[nodiscard]] float materialOfQc(edict_t* e)
+{
+    const func_t fn = progs::findFunction("VR_MaterialOf");
+    if(!fn)
+    {
+        return -1.f;
+    }
+    G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
+    PR_ExecuteProgram(fn);
+    return G_FLOAT(OFS_RETURN);
+}
+
+void solidTestFrame()
+{
+    SolidTest& t = solidTest;
+    t.frames++;
+    if(t.stage == 1)
+    {
+        int poles = 0, slanted = 0, stopped = 0, shot = 0, rightStuff = 0, under = -1;
+        float worstOff = 0.f;
+        for(auto& kv : ropes)
+        {
+            const Rope& r = kv.second;
+            if(!r.params.pole || r.p.size() < 2)
+            {
+                continue;
+            }
+            poles++;
+            t.boxes += static_cast<int>(r.solids.size());
+            const glm::vec3 a = r.p.front(), b = r.p.back(), d = glm::normalize(b - a);
+            const bool level = za::abs(d.z) < 0.1f, upright = za::abs(d.z) > 0.99f;
+            slanted = !level && !upright ? static_cast<int>(r.solids.size()) : slanted;
+            for(const int s : r.solids)
+            {
+                const edict_t* e = EDICT_NUM(s);
+                const glm::vec3 mid = (geom::vec(e->v.absmin) + geom::vec(e->v.absmax)) * 0.5f;
+                const glm::vec3 off = (mid - a) - d * glm::dot(mid - a, d);
+                worstOff = za::max(worstOff, glm::length(off) - r.params.thickness * 0.5f);
+            }
+            // Across its middle, level: a player's box and a shot's line from 40 to one side to 40 to the other (the level
+            // pole's at his chest).
+            const glm::vec3 m = (a + b) * 0.5f;
+            const glm::vec3 side = upright ? glm::vec3{1.f, 0.f, 0.f} : glm::normalize(glm::cross(d, glm::vec3{0.f, 0.f, 1.f}));
+            const glm::vec3 at = level ? m - glm::vec3{0.f, 0.f, 10.f} : m;
+            stopped += isPoleSolid(sweepHits(at - side * 40.f, at + side * 40.f, false)) ? 1 : 0;
+            if(const int line = sweepHits(m - side * 40.f, m + side * 40.f, true); isPoleSolid(line))
+            {
+                shot++;
+                rightStuff += materialOfQc(EDICT_NUM(line)) == (r.params.metal ? 3.f : 4.f) ? 1 : 0;
+            }
+            if(level)
+            {
+                // Walked under it: his box on the floor under its middle, across.
+                const trace_t down = worldtrace::serverLine(m, m - glm::vec3{0.f, 0.f, 1000.f}, nullptr);
+                const glm::vec3 feet = vecOf(down.endpos) + glm::vec3{0.f, 0.f, 25.f};
+                under = sweepHits(feet - side * 40.f, feet + side * 40.f, false);
+            }
+        }
+        solidCheck(poles >= 4 && slanted >= 2, va("%d poles made solid: %d boxes, the slanted one in %d", poles, t.boxes, slanted));
+        solidCheck(worstOff <= 0.5f, va("each box's middle on its pole (at most %.2f units off its surface)", worstOff));
+        solidCheck(stopped == poles, va("a player's box swept across each pole stopped by it (%d of %d)", stopped, poles));
+        solidCheck(shot == poles, va("a shot's line across each pole meets it (%d of %d)", shot, poles));
+        solidCheck(rightStuff == poles, va("its material the pole's: metal sparks, wood splinters (%d of %d)", rightStuff, poles));
+        solidCheck(under == 0, va("walking under the level pole meets nothing (met %d)", under));
+        t.stage = 2;
+        t.frames = 0;
+        return;
+    }
+    // The navmesh: every box an obstacle, its tiles rebuilt.
+    const float pending = nav::obstacles(0), marked = nav::obstacles(1);
+    if(pending == 0.f && marked >= static_cast<float>(t.boxes) && t.boxes > 0)
+    {
+        solidCheck(true, va("the navmesh's obstacles: %.0f marked (%d boxes), rebuilt after %.1f s", marked, t.boxes, t.frames / 72.f));
+        t.tally.verdict(solidTestName);
+        t.stage = 0;
+    }
+    else if(t.frames > solidTestGiveUp)
+    {
+        t.tally.check(false, solidTestName, va("timed out: the navmesh's obstacles (%.0f marked of %d boxes, %.0f pending)", marked, t.boxes, pending));
+        t.tally.verdict(solidTestName);
+        t.stage = 0;
+    }
+}
+
+void solidTest_f()
+{
+    if(!sv.active || !progs::bindings().isVrProgs || progs::fields().rope_length < 0)
+    {
+        Con_Printf("%s: FAIL usage: vr_pole_solid_test in single player, map vrropes\n", solidTestName);
+        testkit::verdict(solidTestName, 0, 1);
+        return;
+    }
+    solidTest = SolidTest{};
+    solidTest.stage = 1;
+}
+
 void serverReset()
 {
     ropes.clear();
+    solidTest = SolidTest{};
     soundTest = SoundTest{};
     climbTest = ClimbTest{};
     flatTest = FlatTest{};
@@ -2756,6 +3051,7 @@ void init()
     Cmd_AddCommand("vr_rope_hands_test", handsTest_f);
     Cmd_AddCommand("vr_rope_pause_test", pauseTest_f);
     Cmd_AddCommand("vr_rope_sound_test", soundTest_f);
+    Cmd_AddCommand("vr_pole_solid_test", solidTest_f);
 }
 
 void clientFrame()
@@ -2765,6 +3061,19 @@ void clientFrame()
     {
         pauseTestFrame();
     }
+}
+
+bool solidBox(int num, glm::vec3& lo, glm::vec3& hi)
+{
+    const edict_t* s = num > svs.maxclients && num < sv.qcvm.num_edicts ? EDICT_NUM(num) : nullptr;
+    if(!s || s->free || s->v.modelindex != 0.f || static_cast<int>(s->v.solid) != SOLID_BBOX ||
+        ZA_STRCMP(PR_GetString(s->v.classname), solidClass))
+    {
+        return false;
+    }
+    lo = geom::vec(s->v.absmin);
+    hi = geom::vec(s->v.absmax);
+    return true;
 }
 
 bool isRopeClass(const char* classname)
@@ -2813,6 +3122,10 @@ void serverFrame(bool worldRan)
     {
         soundTestFrame();
     }
+    if(solidTest.stage && worldRan)
+    {
+        solidTestFrame();
+    }
     // New ropes (a map's, the toolgun's): rope entities with no rope yet.
     for(int num = svs.maxclients + 1; num < sv.qcvm.num_edicts; num++)
     {
@@ -2844,6 +3157,11 @@ void serverFrame(bool worldRan)
         }
         r.monkey = monkeyOf(r);
         step(r, dt);
+        if(r.params.pole)
+        {
+            placeSolids(r, kv.first); // (ropes8a: made again where one went; moved with the pole)
+            passSolids(r);
+        }
         if(r.params.chain)
         {
             physsound::chainMoves(kv.first, r.p[r.p.size() / 2], r.speed); // its links' clink (ropes5)
@@ -2870,6 +3188,10 @@ void serverWriteAll(sizebuf_t* msg)
 
 void forget(int num)
 {
+    if(auto it = ropes.find(num); it != ropes.end() && it->second.params.pole && sv.active)
+    {
+        freeSolids(it->second, num); // (ropes8a: its boxes go with it)
+    }
     if(ropes.erase(num) && sv.active && sv.reliable_datagram.cursize + 16 < sv.reliable_datagram.maxsize)
     {
         write(&sv.reliable_datagram, num, nullptr);
