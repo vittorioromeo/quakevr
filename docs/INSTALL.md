@@ -504,6 +504,7 @@ need *Developer*.
 | Slow or stuttering | See [Performance](#performance). |
 | A crash | Run the **Diagnostics** shortcut, make it crash again and send the `quakevr\diagnostics\<date>_<time>` folder. Otherwise send `qconsole.log` up to the crash, the crash report and its `.dmp` (`quakevr\crash\`). Either way, say what you were doing. |
 | VR starts then fails, or crashes at the first frame | Set `vr_xr_api_layers 0` (Debug > Crashes > OpenXR API Layers). This turns off overlays' and toolkits' OpenXR layers. Close overlays such as RivaTuner, Discord's and Steam's. With Virtual Desktop, also try its OpenXR runtime set to SteamVR, with SteamVR started first. `vr_xr_runtime_explain` lists the layers and the other programs' DLLs in the game. |
+| Crashes while starting, before the first map (often after a graphics driver update) | Add `-glsafe` to the command line: graphics safe mode for that start, the renderer's riskier features (bindless textures, multi-bind and others) off. The game turns it on by itself after such a crash; `vr_glsafe_status` says what is off and why. |
 | Settings in a mess | *Options > Reset All*, or delete `quakevr\ironwail.cfg` for a completely fresh start (the installer's *Install again from scratch* with *Reset settings* does the same, keeping a backup). |
 
 Report bugs and ideas on the [GitHub issues page](https://github.com/vittorioromeo/quakevr/issues), with the log,
