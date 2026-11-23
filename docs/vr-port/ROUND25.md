@@ -11017,3 +11017,7 @@ His list of 2026-11-23 (ZANCLE.md has the mapping rows). Zancle changes on its b
 - Full rebuild (`-t:Rebuild -m`, the machine busy, so noisy): before 13.2-21.9 s (3 runs: 17.7, 21.9, 13.2), after
   17.9-25.5 s (21.1, 17.9, 23.0, 25.5): about the same to a few seconds more (five Zancle sources and the dense map's
   header beside the std headers that stay: regex, format, filesystem). An edit rebuilds only its file.
+
+## cltidy4: ticked lines retired, [New] sorted, sections reordered (agent/cltidy4, 2026-11-23)
+
+Checklist 223 -> 157 lines; no scene retired; details in CHECKLIST_REORG.md, "fourth pass". checklist_tests_check 99 passed, 0 failed.
