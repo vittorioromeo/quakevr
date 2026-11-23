@@ -6,6 +6,7 @@
 #include "vr_crtheap.h"
 
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/FwdStdNew.hpp" // operator new/delete's std::align_val_t, std::nothrow_t (not <new>)
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
@@ -19,7 +20,6 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 
-#include <new>
 #include <stdio.h>
 #include <stdlib.h>
 #ifdef _WIN32
@@ -176,43 +176,43 @@ void alignedRelease(void* p)
 #endif
 }
 }
-void* operator new(za::SizeT size, std::align_val_t alignment)
+void* operator new(za::SizeT size, za::AlignValT alignment)
 {
     account(qvr::alloccount::Kind::New, size);
     if(void* p = alignedAllocate(size, static_cast<size_t>(alignment))) return p;
     fprintf(stderr, "aligned operator new: out of memory\n");
     abort();
 }
-void* operator new[](za::SizeT size, std::align_val_t a) { return ::operator new(size, a); }
+void* operator new[](za::SizeT size, za::AlignValT a) { return ::operator new(size, a); }
 // The nothrow forms return null when out of memory (the library's would call the throwing ones above, which abort: there
 // are no exceptions to catch).
-void* operator new(za::SizeT size, const std::nothrow_t&) noexcept
+void* operator new(za::SizeT size, const za::NothrowT&) noexcept
 {
     account(qvr::alloccount::Kind::New, size);
     return malloc(size ? size : 1);
 }
-void* operator new[](za::SizeT size, const std::nothrow_t& n) noexcept { return ::operator new(size, n); }
-void* operator new(za::SizeT size, std::align_val_t alignment, const std::nothrow_t&) noexcept
+void* operator new[](za::SizeT size, const za::NothrowT& n) noexcept { return ::operator new(size, n); }
+void* operator new(za::SizeT size, za::AlignValT alignment, const za::NothrowT&) noexcept
 {
     account(qvr::alloccount::Kind::New, size);
     return alignedAllocate(size, static_cast<size_t>(alignment));
 }
-void* operator new[](za::SizeT size, std::align_val_t a, const std::nothrow_t& n) noexcept
+void* operator new[](za::SizeT size, za::AlignValT a, const za::NothrowT& n) noexcept
 {
     return ::operator new(size, a, n);
 }
-void operator delete(void* p, const std::nothrow_t&) noexcept { ::operator delete(p); }
-void operator delete[](void* p, const std::nothrow_t&) noexcept { ::operator delete(p); }
-void operator delete(void* p, std::align_val_t a, const std::nothrow_t&) noexcept { ::operator delete(p, a); }
-void operator delete[](void* p, std::align_val_t a, const std::nothrow_t&) noexcept { ::operator delete(p, a); }
-void operator delete(void* p, std::align_val_t) noexcept
+void operator delete(void* p, const za::NothrowT&) noexcept { ::operator delete(p); }
+void operator delete[](void* p, const za::NothrowT&) noexcept { ::operator delete(p); }
+void operator delete(void* p, za::AlignValT a, const za::NothrowT&) noexcept { ::operator delete(p, a); }
+void operator delete[](void* p, za::AlignValT a, const za::NothrowT&) noexcept { ::operator delete(p, a); }
+void operator delete(void* p, za::AlignValT) noexcept
 {
     if(p) account(qvr::alloccount::Kind::Delete, 0);
     alignedRelease(p);
 }
-void operator delete[](void* p, std::align_val_t a) noexcept { ::operator delete(p, a); }
-void operator delete(void* p, za::SizeT, std::align_val_t a) noexcept { ::operator delete(p, a); }
-void operator delete[](void* p, za::SizeT, std::align_val_t a) noexcept { ::operator delete(p, a); }
+void operator delete[](void* p, za::AlignValT a) noexcept { ::operator delete(p, a); }
+void operator delete(void* p, za::SizeT, za::AlignValT a) noexcept { ::operator delete(p, a); }
+void operator delete[](void* p, za::SizeT, za::AlignValT a) noexcept { ::operator delete(p, a); }
 extern "C" void* VR_HeapAlignedAlloc(size_t size, size_t alignment)
 {
     account(qvr::alloccount::Kind::Malloc, size);
