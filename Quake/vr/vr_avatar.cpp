@@ -1374,6 +1374,15 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         pole = glm::mix(pole, way * glm::length(pole), b.seenAds);
         flatElbow = za::max(flatElbow, b.seenAds);
     }
+    // (ropes10, his flat note 2026-11-23: on a rope the elbow swung in, in front of the view) On a climbable rope or pole
+    // (ropeHang, last frame's; yours and another player's copy alike): the elbow out at its side, a little down and back,
+    // by vr_rope_elbow_out, and the wrist's ease below swings it back in by as little of that share.
+    if(const float share = za::clamp(vr_rope_elbow_out.value, 0.f, 1.f) * ropeHang(); share > 0.f)
+    {
+        const glm::vec3 way = safeNormalize(lateral - cUp * 0.35f - cFwd * 0.2f, lateral);
+        pole = glm::mix(pole, way * glm::length(pole), share);
+        flatElbow = za::max(flatElbow, share);
+    }
     glm::vec3 elbow = twoBone(u.pos, wrist, a, l, pole, lateral, bend);
 
     // The hand bone's axes: the drawn hand's (or, without one, the wrist's roll only).

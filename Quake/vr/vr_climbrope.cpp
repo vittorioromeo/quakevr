@@ -34,6 +34,7 @@
 #include "vr_server.hpp"
 #include "vr_testkit.hpp"
 #include "vr_trace.hpp"
+#include "vr_tunables.hpp"
 #include "vr_units.hpp"
 #include "vr_verlet.hpp"
 #include "vr_view.hpp"
@@ -1593,6 +1594,12 @@ struct ClimbTest
     glm::vec3 along{0.f};       // (ropes7) a strung rope's way (level, unit)
     bool raised{false};         // (ropes7) strung again higher by its sag
     float floorZ{0.f};          // (ropes7) his feet as the test began (on the floor)
+    bool fallTrack{false};      // (ropes10) since `polejumped`: the fall followed each frame
+    float fallVz{0.f};          // (ropes10) last frame's speed up
+    int fallHeld{0};            // (ropes10) airborne frames whose speed down grew by under half of gravity's step
+    int fallFrames{0};          // (ropes10) airborne frames
+    bool fallRetaken{false};    // (ropes10) a hand took a rope again while he fell
+    bool fallLanded{false};     // (ropes10) on the floor again
 };
 ClimbTest climbTest;
 constexpr float climbTestStrungHeight = 2.0f; // m over the feet: a strung rope's (the play's hands reach it there)
@@ -1661,6 +1668,42 @@ int monkeyHands(float& up, float& under, float& gap)
         }
     }
     return true;
+}
+
+// (ropes10, his flat notes 2026-11-23 4 and 5) The drawn arms on an upright rope or pole: how far each hand drawn fully
+// on it has its fist's front (the knuckles' way) pitched up (`knuckles`: the least, degrees; vr_rope_hand_pitch), and
+// how far each elbow is bowed out of its arm's straight line (`elbowOut`: the least, cm of the body, along the view's
+// right for the right arm and its left for the left; < 0 bowed in, towards the view). Returns the hands measured.
+int ropeArms(float& knuckles, float& elbowOut)
+{
+    int on = 0;
+    knuckles = 90.f;
+    elbowOut = 1e9f;
+    for(int h = 0; h < 2; h++)
+    {
+        glm::vec3 back{0.f}, front{0.f};
+        if(climb::drawnShare(h) >= 0.99f && climb::drawnBack(h, back, &front) && glm::length(front) > 0.5f)
+        {
+            on++;
+            knuckles = za::min(knuckles, 90.f - glm::degrees(za::acos(za::clamp(glm::normalize(front).z, -1.f, 1.f))));
+        }
+    }
+    avatar::Skeleton k;
+    if(avatar::skeleton(k) && k.m2w > 0.f)
+    {
+        const float yaw = glm::radians(cl.viewangles[YAW]);
+        const glm::vec3 right{za::sin(yaw), -za::cos(yaw), 0.f};
+        for(int side = 0; side < 2; side++)
+        {
+            const glm::vec3 out = side == 0 ? -right : right;
+            // (Off the arm's straight line, shoulder to wrist: a straight arm reaching in to the pole has its elbow inside
+            // the shoulder's line; bowed out of that line it stays out of the view, bowed in it crosses in front of it.)
+            const glm::vec3 sw = k.wrist[side] - k.shoulder[side];
+            const float f = za::clamp(glm::dot(k.elbow[side] - k.shoulder[side], sw) / za::max(glm::dot(sw, sw), 1e-4f), 0.f, 1.f);
+            elbowOut = za::min(elbowOut, glm::dot(k.elbow[side] - (k.shoulder[side] + sw * f), out) / k.m2w * 100.f);
+        }
+    }
+    return on;
 }
 
 za::Vector<glm::vec4> sinkVerts; // (ropes8a: handsSink's drawn hand vertices, their parts)
@@ -1809,6 +1852,23 @@ void climbTestFrame()
         return;
     default:
     {
+        if(player && t.fallTrack && !t.fallLanded)
+        {
+            // (ropes10) After the jump off a pole: each airborne frame's speed down grows by gravity's step.
+            const bool ground = (static_cast<int>(player->v.flags) & FL_ONGROUND) != 0;
+            const float vz = player->v.velocity[2];
+            t.fallRetaken = t.fallRetaken || climb::ropeHands(player) > 0;
+            if(ground)
+            {
+                t.fallLanded = true;
+            }
+            else
+            {
+                t.fallHeld += t.fallFrames > 0 && t.fallVz - vz < 0.5f * sv_gravity.value * static_cast<float>(host_frametime) ? 1 : 0;
+                t.fallFrames++;
+            }
+            t.fallVz = vz;
+        }
         int ent = 0;
         glm::vec3 v{0.f};
         if(player && climbrope::riding(NUM_FOR_EDICT(player) - 1, ent, v))
@@ -1921,6 +1981,28 @@ void climbCheck_f()
         check(hands == 0 && v.z >= t.handVel.z + 0.6f * vr_rope_jump.value && glm::dot(hv, hh) >= 0.f,
             va("jumped off at %.0f up, %.0f level (the rope's %.0f up, %.0f level)", v.z, glm::length(hv), t.handVel.z,
                 glm::length(hh)));
+    }
+    else if(!ZA_STRCMP(what, "polejumped"))
+    {
+        // (ropes10) Off a pole (the test's, standing ahead at flatTest's x y: its points' first): a normal jump's speed up
+        // (vr_pole_jump) and pushed away from it (vr_pole_jump_push); the fall followed from here.
+        const Rope* r = ropeOf(t.rope);
+        const glm::vec2 axis = r && !r->p.empty() ? glm::vec2{r->p.front().x, r->p.front().y} : glm::vec2{o.x, o.y};
+        const glm::vec2 away = glm::vec2{o.x, o.y} - axis;
+        const float out = glm::length(away) > 1e-3f ? glm::dot(hv, glm::normalize(away)) : 0.f;
+        check(hands == 0 && v.z >= 0.85f * vr_pole_jump.value && out >= 0.85f * vr_pole_jump_push.value,
+            va("jumped off the pole at %.0f up (at least %.0f), %.0f level, %.0f of it away from the pole (at least %.0f)", v.z,
+                0.85f * vr_pole_jump.value, glm::length(hv), out, 0.85f * vr_pole_jump_push.value));
+        t.fallTrack = true;
+        t.fallVz = v.z;
+        t.fallHeld = t.fallFrames = 0;
+        t.fallRetaken = t.fallLanded = false;
+    }
+    else if(!ZA_STRCMP(what, "fellfree"))
+    {
+        check(t.fallTrack && t.fallLanded && t.fallHeld == 0 && !t.fallRetaken,
+            va("fell freely to the floor: %d airborne frames, %d held back, %s, %s", t.fallFrames, t.fallHeld,
+                t.fallLanded ? "landed" : "NOT LANDED", t.fallRetaken ? "TAKEN AGAIN" : "not taken again"));
     }
     else if(!ZA_STRCMP(what, "calm"))
     {
@@ -2086,6 +2168,11 @@ struct FlatTest
     bool wall{false};        // (ropes8e) `vr_rope_flat_test wall`: vr_flat_rope 0, walked into the pole: stopped by its boxes
     float flatRopeWas{1.f};  // (ropes8e) vr_flat_rope before it (put back at the end)
     glm::vec3 wallDir{1.f, 0.f, 0.f}; // (ropes8e) the way he walks into it (level)
+    bool jump{false};        // (ropes10) `vr_rope_flat_test polejump`: up the pole, jumped off, the free fall
+    bool slant{false};       // (ropes10) `vr_rope_flat_test slantjump`: polejump on a pole slanted away from him (its upper side)
+    bool side{false};        // (ropes10) `vr_rope_flat_test strungside`: the level pole faced across, the strafe keys along it
+    int crossed{0};          // (ropes10) frames the drawn hands were crossed (the right palm left of the left one)
+    float crossWorst{0.f};   // (ropes10) the most (units) the right palm was left of the left one
     za::Vector<glm::vec3> made; // (ropes7) the pole's points as made (it never moves)
 };
 FlatTest flatTest;
@@ -2118,7 +2205,7 @@ void flatTestEnd(FlatTest& t, bool timedOut, const char* what)
     {
         t.tally.check(false, flatTestName, va("timed out: %s", what));
     }
-    Cbuf_AddText("-forward\n-back\n-moveright\n-jump\n");
+    Cbuf_AddText("-forward\n-back\n-moveright\n-moveleft\n-movedown\n-jump\n");
     if(t.wall)
     {
         Cvar_SetValueQuick(&vr_flat_rope, t.flatRopeWas);
@@ -2164,6 +2251,11 @@ void flatTestFrame()
             return;
         }
         placeWith(e, at, 480.f, t.pole ? poleThickness : t.chain ? 2.f : 1.5f, 0, 0.f, 1.f, 0.5f, false);
+        if(t.slant)
+        {
+            // (ropes10) Slanted 27 degrees off upright, rising away from him: he climbs its upper side.
+            stringBetween(e, flatTestRope + glm::vec3{150.f, 0.f, 340.f}, flatTestRope + glm::vec3{0.f, 0.f, 40.f}, 0.f);
+        }
         t.rope = NUM_FOR_EDICT(e);
         t.pitch = 0.f;
         flatTestPlace(player, flatTestRope + glm::vec3{-80.f, 0.f, -player->v.mins[2] + 1.f}, 0.f);
@@ -2288,10 +2380,13 @@ void flatTestFrame()
         return;
     }
     case 4: // climbing up
-        if(!climbing || feet >= t.feet0 + 80.f || t.frames > 72 * 6)
+    {
+        // (ropes10: `polejump` from 300 up: the fall takes over the second the rope let go of isn't taken again for)
+        const float rise = t.jump && !t.slant ? 300.f : 80.f;
+        if(!climbing || feet >= t.feet0 + rise || t.frames > 72 * 6)
         {
             const char* how = t.pitch >= 0.f ? "looking level (a pole: only climbed)" : "looking up";
-            const bool ok = climbing && feet >= t.feet0 + 80.f && t.serials >= 4 && t.handBits == 3;
+            const bool ok = climbing && feet >= t.feet0 + rise && t.serials >= 4 && t.handBits == 3;
             t.tally.check(ok, flatTestName, va("climbed up %s: the feet from %.1f to %.1f, %d hand changes, hands drawn off %d main %d",
                                               how, t.feet0, feet, t.serials, t.handBits & 1, (t.handBits >> 1) & 1));
             if(ok)
@@ -2315,6 +2410,7 @@ void flatTestFrame()
             flatTestNext(t, 40);
         }
         return;
+    }
     case 40: // (ropes8a, his note 2026-11-23) hanging still on the pole (half a second): both hands round it, not through it
         if(t.frames == 12 && t.shots)
         {
@@ -2358,6 +2454,23 @@ void flatTestFrame()
             }
             return;
         }
+        if(t.frames == 37 && t.pole && !t.slant)
+        {
+            // (ropes10) The knuckles pitched up by vr_rope_hand_pitch (within 4 degrees); the elbows out at their sides
+            // (vr_rope_elbow_out at least a half: neither bowed in off its arm's line, towards the view).
+            float knuckles = 0.f, elbowOut = 0.f;
+            const int on = ropeArms(knuckles, elbowOut);
+            const bool pitched = on == 2 && za::abs(knuckles - za::clamp(vr_rope_hand_pitch.value, 0.f, 45.f)) <= 4.f;
+            const bool out = vr_rope_elbow_out.value < 0.5f || elbowOut >= 0.f;
+            const char* what = va("the arms on the pole: %d hands on it, the knuckles pitched up %.1f degrees (vr_rope_hand_pitch "
+                                  "%.0f), the elbows bowed out %.1f cm off the arms' lines at the least (vr_rope_elbow_out %.2f)",
+                on, knuckles, vr_rope_hand_pitch.value, elbowOut, vr_rope_elbow_out.value);
+            t.tally.check(pitched && out, flatTestName, what);
+            if(pitched && out)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, what);
+            }
+        }
         if(t.frames == 36 && t.pole)
         {
             int held = 0;
@@ -2372,6 +2485,12 @@ void flatTestFrame()
                 Con_Printf("%s: PASS the hands round the pole: both on it, the deepest %.2f units in (%s), %.2f off at the nearest\n",
                     flatTestName, sink, part, za::max(gap, 0.f));
             }
+        }
+        else if(t.frames >= 60 && t.jump)
+        {
+            // (ropes10) Jumped off the pole from up it.
+            Cbuf_AddText("+jump\n");
+            flatTestNext(t, 50);
         }
         else if(t.frames >= 60)
         {
@@ -2527,7 +2646,7 @@ void flatTestFrame()
         }
         t.rope = NUM_FOR_EDICT(e);
         t.pitch = 0.f;
-        flatTestPlace(player, flatTestRope + glm::vec3{-60.f, 0.f, -player->v.mins[2] + 1.f}, 0.f);
+        flatTestPlace(player, flatTestRope + glm::vec3{-60.f, 0.f, -player->v.mins[2] + 1.f}, t.side ? 90.f : 0.f);
         flatTestNext(t, 21);
         return;
     }
@@ -2598,7 +2717,7 @@ void flatTestFrame()
             t.lastVx = player->v.origin[0];
             t.serials = 0;
             t.lastSerial = -1;
-            Cbuf_AddText("+forward\n");
+            Cbuf_AddText(t.side ? "+moveright\n" : "+forward\n"); // (ropes10: faced across it, the strafe keys go along)
             flatTestNext(t, 24);
         }
         return;
@@ -2607,10 +2726,21 @@ void flatTestFrame()
     {
         const float gone = (player->v.origin[0] - t.lastVx) * (t.stage == 24 ? 1.f : -1.f);
         const float want = t.stage == 24 ? 80.f : 40.f;
+        if(t.side && climbing)
+        {
+            // (ropes10) Faced across it (his right +x): the right palm (hand 1) never left of the left one.
+            glm::vec3 p0{0.f}, p1{0.f};
+            if(climb::drawnPalm(0, p0) && climb::drawnPalm(1, p1))
+            {
+                const float order = p1.x - p0.x;
+                t.crossed += order < -0.5f ? 1 : 0;
+                t.crossWorst = za::max(t.crossWorst, -order);
+            }
+        }
         if(!climbing || gone >= want || t.frames > 72 * 6)
         {
             const bool ok = climbing && gone >= want && t.serials >= 3;
-            const char* way = t.stage == 24 ? "forward" : "back";
+            const char* way = t.side ? (t.stage == 24 ? "right (strafe)" : "left (strafe)") : t.stage == 24 ? "forward" : "back";
             t.tally.check(ok, flatTestName, va("along it %s: %.1f units, %d hand changes", way, gone, t.serials));
             if(ok)
             {
@@ -2619,8 +2749,96 @@ void flatTestFrame()
             t.lastVx = player->v.origin[0];
             t.serials = 0;
             t.lastSerial = -1;
-            Cbuf_AddText(t.stage == 24 ? "-forward\n+back\n" : "-back\n+movedown\n");
+            if(t.side)
+            {
+                Cbuf_AddText(t.stage == 24 ? "-moveright\n+moveleft\n" : "-moveleft\n+movedown\n");
+                if(t.stage == 25)
+                {
+                    const bool kept = t.crossed == 0;
+                    const char* what = va("faced across it, the hands kept their sides: %d frames crossed, the right palm at most "
+                                          "%.1f units left of the left one",
+                        t.crossed, t.crossWorst);
+                    t.tally.check(kept, flatTestName, what);
+                    if(kept)
+                    {
+                        Con_Printf("%s: PASS %s\n", flatTestName, what);
+                    }
+                }
+            }
+            else
+            {
+                Cbuf_AddText(t.stage == 24 ? "-forward\n+back\n" : "-back\n+movedown\n");
+            }
             flatTestNext(t, t.stage + 1);
+        }
+        return;
+    }
+    // (ropes10, his notes 2026-11-23 2 and 6) `vr_rope_flat_test polejump`: up the pole, jump: off it at a normal jump's
+    // speed up and pushed away from it (vr_pole_jump, vr_pole_jump_push), then a free fall to the floor: each airborne
+    // frame's speed down grows by gravity's (no frame held back: the slow slide he saw), never taken again.
+    case 50: // the jump pressed: off it
+    {
+        const glm::vec3 v = geom::vec(player->v.velocity);
+        if(!climbing)
+        {
+            Cbuf_AddText("-jump\n");
+            // (Square out from the pole's line to him, level: slanted, `slantjump`, off its upper side.)
+            glm::vec3 near{flatTestRope.x, flatTestRope.y, player->v.origin[2]};
+            if(t.made.size() >= 2)
+            {
+                const glm::vec3 a = t.made.front(), ab = t.made.back() - a;
+                const float s = za::clamp(glm::dot(geom::vec(player->v.origin) - a, ab) / za::max(glm::dot(ab, ab), 1e-3f), 0.f, 1.f);
+                near = a + ab * s;
+            }
+            const glm::vec2 away{player->v.origin[0] - near.x, player->v.origin[1] - near.y};
+            const float level = glm::length(glm::vec2{v.x, v.y});
+            const float out = glm::length(away) > 1e-3f ? glm::dot(glm::vec2{v.x, v.y}, glm::normalize(away)) : 0.f;
+            const bool ok = v.z >= 0.85f * vr_pole_jump.value && out >= 0.85f * vr_pole_jump_push.value;
+            const char* what = va("jumped off the pole: %.0f up (at least %.0f), %.0f level, %.0f of it away from the pole (at least %.0f)",
+                v.z, 0.85f * vr_pole_jump.value, level, out, 0.85f * vr_pole_jump_push.value);
+            t.tally.check(ok, flatTestName, what);
+            if(ok)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, what);
+            }
+            t.lastVx = v.z;
+            t.serials = 0;      // (the frames held back falling)
+            t.fastest = 0.f;    // (the least gravity's share of a frame's fall)
+            t.ropesBefore = taken;
+            t.feet0 = feet;
+            flatTestNext(t, 51);
+        }
+        else if(t.frames > 72)
+        {
+            Cbuf_AddText("-jump\n");
+            flatTestEnd(t, true, "jumping off the pole");
+        }
+        return;
+    }
+    case 51: // falling to the floor
+    {
+        const float vz = player->v.velocity[2];
+        const float g = sv_gravity.value * static_cast<float>(host_frametime);
+        if(!ground && !climbing && t.frames > 1)
+        {
+            // (Rising or falling, the speed down grows by gravity's step; a frame it grew by under half of that was held.)
+            const float drop = t.lastVx - vz;
+            t.serials += drop < 0.5f * g ? 1 : 0;
+            Con_DPrintf("%s: fall frame %d vz %.1f drop %.2f (g %.2f) at %.1f\n", flatTestName, t.frames, vz, drop, g, feet);
+        }
+        t.lastVx = vz;
+        if(ground || climbing || taken > t.ropesBefore || t.frames > 72 * 4)
+        {
+            const float off = glm::length(glm::vec2{player->v.origin[0] - flatTestRope.x, player->v.origin[1] - flatTestRope.y});
+            const bool ok = ground && !climbing && taken == t.ropesBefore && t.serials == 0 && za::abs(feet) < 2.f;
+            const char* what = va("fell freely to the floor: %.2f s from %.1f up, %d frames held back, landed %.1f from the pole, %s",
+                t.frames / 72.f, t.feet0, t.serials, off, taken > t.ropesBefore || climbing ? "TAKEN AGAIN" : "not taken again");
+            t.tally.check(ok, flatTestName, what);
+            if(ok)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, what);
+            }
+            flatTestEnd(t, false, "");
         }
         return;
     }
@@ -2655,7 +2873,10 @@ void flatTest_f()
     // (ropes8a) `strungpole`: the strung run on a level pole (no sag).
     const char* mode = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
     flatTest.wall = !ZA_STRCMP(mode, "wall");
-    flatTest.pole = !ZA_STRCMP(mode, "pole") || !ZA_STRCMP(mode, "strungpole") || flatTest.wall;
+    flatTest.slant = !ZA_STRCMP(mode, "slantjump");
+    flatTest.jump = !ZA_STRCMP(mode, "polejump") || flatTest.slant;
+    flatTest.side = !ZA_STRCMP(mode, "strungside");
+    flatTest.pole = !ZA_STRCMP(mode, "pole") || !ZA_STRCMP(mode, "strungpole") || flatTest.wall || flatTest.jump || flatTest.side;
     if(flatTest.wall)
     {
         flatTest.flatRopeWas = vr_flat_rope.value;
@@ -2663,7 +2884,7 @@ void flatTest_f()
     }
     flatTest.shots = Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(2), "shots");
     flatTest.chain = !ZA_STRCMP(mode, "chain");
-    flatTest.stage = !ZA_STRCMP(mode, "strung") || !ZA_STRCMP(mode, "strungpole") ? 20 : 1;
+    flatTest.stage = !ZA_STRCMP(mode, "strung") || !ZA_STRCMP(mode, "strungpole") || flatTest.side ? 20 : 1;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
