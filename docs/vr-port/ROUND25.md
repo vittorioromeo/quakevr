@@ -11406,3 +11406,21 @@ His flat feedback 2026-11-23, items 1-4. ROPES.md "Poles" (the thumb), "Climbing
   pole_wood 11/0, pole_metal 11/0, rope_jump 6/0, pole_jump 6/0; rope_hands_test pass; mp_test pole 15/0, monkey_flat
   9/0. Scene `ropes_flat`. Shot: kit scratch ropes13_pole.png (the thumbs along the pole).
 - Not tested: the slide's sound by ear; another player's copy of a slide (the holds are sent as for a climb).
+
+## flatmelee3: the Lance's hands turned on the pole, each by its own tunables (agent/flatmelee3, 2026-11-23)
+
+His item 14: each hand's position and rotation on the Crystal Lance in flat play. flatmelee2's off-hand turn never showed
+because the flat free hand on a pole is not vr_twohand's helping hand (realBlend 0: steadyOther's pole branch never runs):
+flatsight's `pinToGrip` puts the hand's own pose on the pole (new `flatsight::pinShare(h)`, 0..1).
+- **Where**: vr_view_hands.cpp, just before `drawHand` (the last word on the drawn pose, after the grip, look share and
+  pin): the shared `moveDrawnHand` (the vr_wofs hand offsets' helper), in the hand's own frame about its palm, as for the
+  main hand, mirrored for the off hand. Drawn only.
+- **New**: `vr_flat_pole_off_pitch` / `_off_yaw` 0 (the hand on the other's pole, by the pin's or grip's share);
+  `vr_flat_pole_off_roll` now works (about the hand's own forward, which lies along the pole; its dead copy in steadyOther
+  removed); `vr_flat_pole_hand_pitch` / `_yaw` / `_roll` 0 (the holding hand alone, the spear unturned; the spear's own
+  turn stays `vr_flat_pole_pitch` / `_yaw` / `_roll`). Tunables Spear rows; menu_paths.txt rows added by hand.
+- vr_flatplay_status "spear hands:" line: each hand's drawn forward and up.
+- **Tests**: `flatlance_test.sh` 14/0 (new: off_pitch 30 turns the other hand 30.1; hand_roll 30 rolls the fist, up 29.9,
+  forward 0.0). Probe (each cvar at 40): only the intended hand turns, 39.8-40.0 degrees about the intended local axis, the
+  other 0.0. `flatmelee_test.sh` 12/0, `flatbash_test.sh` 18/0. Shot: kit scratch flatmelee3_rot.png (base, off roll,
+  pitch, yaw, hand pitch, yaw, roll).

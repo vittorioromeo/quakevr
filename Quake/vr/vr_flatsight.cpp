@@ -2385,6 +2385,11 @@ float lookShare(int h)
     return flatplay::active() && h == st.lookHand ? geom::smooth01(st.lookT) : 0.f;
 }
 
+float pinShare(int h)
+{
+    return flatplay::active() && st.pinned && h == st.helping ? za::clamp(st.pinShare, 0.f, 1.f) : 0.f;
+}
+
 float lookSlide(int h)
 {
     return flatplay::active() && h == st.lookHand ? st.lookSlide : 0.f;

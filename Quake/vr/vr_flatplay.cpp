@@ -1244,7 +1244,7 @@ void twoHandPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& 
 // Other Hand Anywhere 3, the Crystal Lance), already aimed along the crosshair's way (its Shot Pitch is its pole's, so the
 // pole points there), moved by vr_flat_pole_fwd/_up/_out (`fwd`, `right`, `up`: the frame the hands are placed in) and
 // rolled about the pole by _roll (no other turn: the beam goes along the pole to the crosshair). The other hand goes on
-// the pole (vr_view_weapon.cpp chooseGrip, vr_flat_pole_off_along; vr_view_hands.cpp steadyOther, _off_roll).
+// the pole (vr_view_weapon.cpp chooseGrip, vr_flat_pole_off_along; vr_view_hands.cpp, before drawHand: _off_pitch / _yaw / _roll).
 void polePose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up)
 {
     const int slot = heldIn(h);
@@ -4604,7 +4604,8 @@ void status_f()
             const float up = glm::degrees(za::asin(za::clamp(way.z, -1.f, 1.f)));
             const float left = za::remainder(glm::degrees(za::atan2(way.y, way.x)) - cl.viewangles[1], 360.f);
             float along = 0.f, off = -1.f, otherUp = 0.f;
-            if(glm::vec3 other, otherRot; view::drawnHandPose(1 - h, other, otherRot))
+            glm::vec3 otherRot{0.f};
+            if(glm::vec3 other; view::drawnHandPose(1 - h, other, otherRot))
             {
                 along = glm::dot(other - fist, way);
                 off = glm::length(other - fist - way * along);
@@ -4612,6 +4613,12 @@ void status_f()
             }
             Con_Printf("  spear: %s, tip %.1f u from fist, pole up %.1f left %.1f (view up %.1f), other hand along %.1f off %.1f fwd %.1f\n",
                 h == HAND_MAIN ? "main" : "off", tipFrom, up, left, -cl.viewangles[0], along, off, otherUp);
+            // (Each hand's drawn turn, its forward and up: vr_flat_pole_hand_* and _off_* turn them.)
+            glm::vec3 f[2], r[2], u[2];
+            hands::angleVectors(fistRot, f[0], r[0], u[0]);
+            hands::angleVectors(otherRot, f[1], r[1], u[1]);
+            Con_Printf("  spear hands: fist fwd %.3f %.3f %.3f up %.3f %.3f %.3f, other fwd %.3f %.3f %.3f up %.3f %.3f %.3f\n",
+                f[0].x, f[0].y, f[0].z, u[0].x, u[0].y, u[0].z, f[1].x, f[1].y, f[1].z, u[1].x, u[1].y, u[1].z);
         }
         // The melee parry's guard (vr_flat_parry_*): RMB held with one melee weapon.
         if(meleeIn(h) || fs.parry[h] > 0.f)
