@@ -193,6 +193,12 @@ const DirectImage* directImage(int eye, GLuint image, int width, int height, uns
     {
         return nullptr;
     }
+    // (the log's GL error: this set-up's own; one the drawing since the last glGetError left pending, printed apart:
+    // beta3check's 0x502 came from the eye drawn before, most likely the in-tile pass: vr_tonemap.cpp drawInTile)
+    const GLenum pending = glGetError();
+    for(int i = 0; i < 16 && glGetError() != GL_NO_ERROR; i++)
+    {
+    }
     if(!depth.depth)
     {
         depth.width = width;
@@ -226,8 +232,8 @@ const DirectImage* directImage(int eye, GLuint image, int width, int height, uns
     }
     const GLenum status = GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER);
     Con_Printf("VR: eye %d image %u: its own framebuffer %u (%d x %d, depth renderbuffer %u): status 0x%x, foveation bits %d, "
-               "min density %g, focal points %d, GL error 0x%x\n", eye, image, d.fbo, width, height, depth.depth, status, bits,
-        static_cast<double>(minDensity), points, glGetError());
+               "min density %g, focal points %d, GL error 0x%x (pending before 0x%x)\n", eye, image, d.fbo, width, height,
+        depth.depth, status, bits, static_cast<double>(minDensity), points, glGetError(), pending);
     return &d;
 }
 

@@ -89,6 +89,10 @@ bool damp(edict_t* ent, const glm::vec3& relativeTo, float keep, float keepSpin,
 void beforeLoad();
 void finishLoads();
 
+// At startup (VR_Init): the physics' console commands (vr_physics_spawn ...), before any map, so `vr_scenario validate`
+// knows them; with no world yet they say so. Box3D itself starts at the first reset.
+void init();
+
 // Forgets the world and everything made for it (a new server: its bodies are rebuilt from the entities), the toolgun's
 // pins and joints too.
 void reset();

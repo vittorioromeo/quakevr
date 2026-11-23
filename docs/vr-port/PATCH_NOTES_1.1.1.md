@@ -128,7 +128,13 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   and caught up over half a second): each ragdoll's poses now reach back as far as the smoothing does.
 - **Fixed: a prop tipped up on end spinning at the other players** (a crate standing on its side): its turn is now
   smoothed as it is drawn.
-- **Network version 44**: games of this version and older ones refuse each other with the reason.
+- **Network version 46**: games of this version and older ones refuse each other with the reason.
+- **Your own holster places reach the other players**: they see your holsters where you put them; bots wear the
+  default ones. Holsters now show on bots and other players.
+- **Joining plays the server's campaign** (Quake, an expansion or a mod): the joining player's game switches to it if
+  they have it, with a clear message if they don't.
+- **Shots meet players' bodies as they are drawn** (head, arms, held weapon) instead of a plain box; Debug > Show Hit
+  Zones shows them.
 - **Test runs stay off the internet**: with `-loopbackonly` (every test run) the map index, Slipseer, the update check
   and the add-on list are never fetched; asked for, each prints its "NET SAFETY" refusal.
 - **Everything you can do alone works together**: grabbing, throwing, melee and parries, climbing and mantling, the
@@ -220,6 +226,19 @@ aren't Map Library packages aren't sent to joining players.
   hand slides along the pole too, a thrust hits harder with the head (1.5x) than with the shaft, and B flips the grip.
 - **Dwell's Rotary Shotgun remade** as a gauntlet: four round barrels with gaps and dark bores, a hollow housing with a
   handle inside (as the super nailgun's), a bigger dark shell port, and the ammo screen in a wedge on top.
+- **The weapon wheel.** Hold B or Y (a third of a second) to open a wheel around that hand: empty hand, your
+  holsters, drop and unload. Time slows while it is open; point at a slot and let go to take it, or let go off the
+  wheel to cancel (its settings in VR Settings). On the flat screen hold 1 or 2 for the same wheel (the mouse picks,
+  Esc cancels); a tap still cycles as before. Holding the button for the wheel no longer ejects your magazine (a tap
+  still does), and weapons put away through the wheel keep their rounds.
+- **Dwell's Crystal Lance fires a charged shot**: hold to charge (sparks, light and a hum), let go when it is full.
+- **Flat-screen throwing** (J by default): tap for a toss, hold to wind up; blades stick, the throw leaves your hand
+  towards the crosshair, and the tutorial's throwing lessons can be passed.
+- **Flat-screen melee**: guard + fire bashes; the Crystal Lance thrusts like a spear (V); long blades and the Lance
+  are held properly.
+- The super nailgun's barrels spin up and coast down; thrown blades' kills push the body less; Quake VR's own weapon
+  models' caps no longer look white; the flat-screen gun no longer jitters at a wall when you look down.
+- **Dwell's unused Rifle removed**: an old save holding it gets a shotgun instead.
 
 ## Movement
 
@@ -306,6 +325,12 @@ aren't Map Library packages aren't sent to joining players.
 - **Fixed: the pouches with Body Type Only Hands.** With the body hidden (`vr_body_mode 0`) the ammo pouch and the
   grenade pouch sat inside your own belly and back, out of your hand's reach. They are now where they are with the body
   drawn, on the front and the back of your belt.
+- **Climbing**: poles stop players and objects (crates rest on them); two climbers can share a pole; chains stop
+  shots, nails and blows (with sparks) and still swing. Your hands hang under the rope on a monkey traverse, thumbs
+  wrapped round ropes and thin poles, elbows out, and your holsters stay on your hips while you climb.
+- **Ropes and poles on the flat screen**: W and S climb when you look up or down and swing when you look level;
+  crouch slides down or lets go; jumping off a pole pushes you away from it. Your hands sit on a ladder's rungs.
+- **Flat-screen swimming**: your hands make the strokes, with water sounds and bubbles.
 
 ## Menus
 
@@ -340,6 +365,11 @@ aren't Map Library packages aren't sent to joining players.
 - **`-window` makes a normal window** with its title bar, to drag and resize, even with Borderless Window on (the
   setting is kept for the next launch without it). **`-windowpos <x> <y>`** places it (its inside's top-left, in
   desktop pixels) instead of centring it.
+- **The tutorial on the flat screen** uses flat-screen wording and shows your own keys.
+- The hub's lecterns stand in one row, in Select Campaign's order.
+- **The Steam Frame's controllers are supported** (thanks to Kasper Olesen).
+- **Launch options renamed**: `-vr-hide-mirror` is now `-hidemirror`, `-vr-unattended` is `-unattended`, and `-vrmock`
+  is `+vr_backend mock`. The old names still work until 1.3 and print a note.
 
 
 ## Monsters
@@ -398,6 +428,17 @@ aren't Map Library packages aren't sent to joining players.
 - **It starts with the Standalone graphics preset** (Graphics, above).
 - **Ogg music plays on the Quest** (the store versions' soundtracks), as WAV music did; Setup copies it with the game.
 - The Quest cannot relight maps: Setup copies the maps your PC relit.
+- **Faster in fights.** Quest Foveation (VR Settings > Graphics; High by default on the Quest 3) draws the edges
+  of the view in less detail; each eye is drawn in one pass; the image is allowed to get smaller only during big
+  fights; your own body and gore draw more cheaply; the Standalone preset turns retro (pixelated) lighting off, the
+  most expensive way to draw the world there. Armed grunts' weapon poses are worked out by the engine: less CPU in
+  big fights.
+- **Fixed: changing Quest Foveation during a game crashed.**
+- **Taking the headset off pauses a single player game** (Advanced > Headset > Headset Taken Off).
+- **The Quest 3S is untested**: a player reported a crash entering the hub on one, being looked at. Tested on the
+  Quest 3; the Quest 2 not yet.
+- The first start after installing or updating spends about 30 seconds on the loading panel while the game prepares
+  its shaders (later starts take a few seconds).
 
 ## Installer
 
@@ -407,3 +448,10 @@ aren't Map Library packages aren't sent to joining players.
   copies your Quake files, the expansions you own, the HD textures and the mods it installed (Dwell, Quoth, Arcane
   Dimensions) to the headset. Running it again only copies what changed; nothing on the headset is ever deleted, and
   your saves and settings there are left alone. Start it from Library > Unknown Sources.
+- **One-time uninstall on the Quest for 1.2.0-beta3.** From beta 3 the Quest app is signed with Quake VR's own
+  release key, and a Quest cannot update an app signed with another key: beta 1 and beta 2 players uninstall the old
+  app once (Library > Unknown Sources > Quake VR > Uninstall), which deletes its saves and settings on the headset.
+  Setup does not back them up (it stops with a message about a differently signed build): copy them first from
+  `Android/data/com.vittorioromeo.quakevr/files` (the `quakevr` folder's `*.sav` and `ironwail.cfg`, and any mod
+  folder's saves) with File Explorer, then uninstall, run Setup again and copy them back. Later updates install over
+  the app again.

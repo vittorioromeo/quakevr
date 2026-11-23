@@ -70,8 +70,13 @@ void finishLoads()
 bool toss(edict_t* ent)
 {
     (void)ent;
-    registerCommands();
+    printVersion();
     return wanted();
+}
+
+void init()
+{
+    startup();
 }
 
 void noteServerPhysicsStart()
@@ -81,7 +86,7 @@ void noteServerPhysicsStart()
 
 void reset()
 {
-    registerCommands();
+    printVersion();
     destroyWorld();
     toolRecords.pinned.clear();
     toolRecords.joints.clear();
