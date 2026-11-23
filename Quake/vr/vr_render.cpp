@@ -304,6 +304,12 @@ extern "C" int VR_WorldPrepass(void)
     return vr_world_prepass.value != 0.f ? 1 : 0;
 }
 
+// qfov3: the brush models drawn without the gather's compute (r_world.c R_BModelCallsOnePass), under OpenGL ES only.
+extern "C" int VR_GLOnePass(void)
+{
+    return VR_GLESForm(VR_GLES_FORM_GLSL) ? za::clamp(static_cast<int>(vr_gl_one_pass.value), 0, 2) : 0;
+}
+
 // Debug > Profiling > Hide Models (vr_debug_hide_models, questperf): an alias model whose name holds any of the
 // comma-separated parts is not drawn in the eyes' views (the shadow maps still draw it): a cost found by leaving
 // things out on the headset, where the GPU timer scopes of one render pass mean nothing (a tiler).
