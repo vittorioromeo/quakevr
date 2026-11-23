@@ -3345,6 +3345,7 @@ void ropeHeld(int hand, Held& held)
     held = {&ropeGraspEnt, false, -1};
     held.shape = shape;
     held.thumbTop = true; // (the thumb along it, not wrapped through it)
+    held.overlap = 0.f;   // (ropes8e: the fingers stop on its surface, not vr_hand_fit_overlap into it)
     held.toWorld = glm::mat4{glm::vec4{x, 0.f}, glm::vec4{glm::cross(up, x), 0.f}, glm::vec4{up, 0.f}, glm::vec4{at, 1.f}};
 }
 

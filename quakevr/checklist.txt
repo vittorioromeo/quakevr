@@ -43,6 +43,8 @@ Flat-screen or VR: in the ropes hall shoot a hanging chain with the shotgun, the
 Flat-screen or VR: walk into a hanging chain and climb it, shooting from it: your body still pushes through the chain as before, and your own shots and blows aren't stopped by the chain you're holding. {test:ropes}
 In a two-player game in the ropes hall, both of you climb the same upright pole from opposite sides: neither is pushed off or held away from it, and each sees the other's hands on the pole and legs wrapped round it. {test:ropes}
 In a two-player game in the ropes hall, one hangs under the level strung rope and goes along it hand over hand while the other watches (in VR and flat-screen): the hands stay on the rope as he moves, the legs hang under him. {test:ropes}
+Flat-screen or VR: with flat rope climbing off (vr_flat_rope 0) or in VR without gripping, walk straight into an upright pole: you stop against it and never pass through it. {test:ropes}
+Flat-screen: in a two-player game on vrropes, both players climb the same upright metal pole one after the other: both get on and climb, neither is pushed off or stuck. {test:mp_coop_passive}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, and the crystal head glowing violet for a moment after each shot. {test:dwell_lance_pole}

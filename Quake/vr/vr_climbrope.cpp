@@ -22,6 +22,7 @@
 #include "vr_cvars.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_geom.hpp"
+#include "vr_hull.hpp"
 #include "vr_gfx.hpp"
 #include "vr_mem.hpp"
 #include "vr_move.hpp"
@@ -141,6 +142,7 @@ struct Rope
     za::Vector<int> solids;  // (ropes8a) a pole's boxes (QC vr_pole_solid: placeSolids)
     int solidOwner{0};       // the player let through them (passSolids), 0 none
     za::U64 solidPass{0};    // (ropes8d) every player let through them (bit client - 1: VR_PoleSolidPasses), the owner too
+    za::U64 solidIn{0};      // (ropes8e) ... of them, those whose box is in one of them (vr_rope_info: passing it, not near)
     glm::vec3 solidsAt{0.f}; // the pole's top where they were placed
 };
 
@@ -229,6 +231,7 @@ void freeSolids(Rope& r, int pole)
     r.solids.clear();
     r.solidOwner = 0;
     r.solidPass = 0;
+    r.solidIn = 0;
 }
 
 // (ropes8d) How many boxes a pole from `a` to `a` + `d` of `thickness` has (placeSolids; the clients' prediction makes
@@ -305,12 +308,30 @@ void placeSolids(Rope& r, int pole)
     r.solidsAt = a;
 }
 
-// Whether `p`'s box is in box (`lo`, `hi`) by more than `by` units every way.
-[[nodiscard]] bool boxIn(const edict_t* p, const glm::vec3& lo, const glm::vec3& hi, float by)
+// (ropes8e) Player `p`'s box as his moves meet other entities' boxes (hull::entBox: vr_hull_ent_width, crouched), in the
+// world: `plo`, `phi`. His whole box (absmin/absmax) is wider: with it, walking into a pole put that box in one of its
+// boxes before his narrower one met it, and he was let through (passSolids' "in a box").
+void entBoxOf(const edict_t* p, glm::vec3& plo, glm::vec3& phi)
+{
+    float mn[3], mx[3];
+    if(!hull::entBox(p, p->v.mins, p->v.maxs, mn, mx))
+    {
+        for(int c = 0; c < 3; c++)
+        {
+            mn[c] = p->v.mins[c];
+            mx[c] = p->v.maxs[c];
+        }
+    }
+    plo = geom::vec(p->v.origin) + geom::vec(mn);
+    phi = geom::vec(p->v.origin) + geom::vec(mx);
+}
+
+// Whether box (`plo`, `phi`) is in box (`lo`, `hi`) by more than `by` units every way.
+[[nodiscard]] bool boxIn(const glm::vec3& plo, const glm::vec3& phi, const glm::vec3& lo, const glm::vec3& hi, float by)
 {
     for(int c = 0; c < 3; c++)
     {
-        if(p->v.absmin[c] > hi[c] - by || p->v.absmax[c] < lo[c] + by)
+        if(plo[c] > hi[c] - by || phi[c] < lo[c] + by)
         {
             return false;
         }
@@ -331,7 +352,7 @@ void passSolids(Rope& r)
     const float half = r.params.thickness * 0.5f;
     const glm::vec3 lo = glm::min(r.p.front(), r.p.back()) - glm::vec3{half}, hi = glm::max(r.p.front(), r.p.back()) + glm::vec3{half};
     int owner = 0;
-    za::U64 all = 0;
+    za::U64 all = 0, inside = 0;
     for(int i = 1; i <= svs.maxclients; i++)
     {
         edict_t* pl = EDICT_NUM(i);
@@ -339,11 +360,20 @@ void passSolids(Rope& r)
         {
             continue;
         }
-        bool pass = climb::ropeHands(pl) > 0 && boxIn(pl, lo - glm::vec3{solidNear}, hi + glm::vec3{solidNear}, 0.f);
-        for(za::SizeT k = 0; k < r.solids.size() && !pass; k++)
+        glm::vec3 plo, phi;
+        entBoxOf(pl, plo, phi); // (ropes8e: the box his moves meet them with, as the clients' prediction's)
+        bool in = false;
+        for(za::SizeT k = 0; k < r.solids.size() && !in; k++)
         {
             const edict_t* s = EDICT_NUM(r.solids[k]);
-            pass = boxIn(pl, geom::vec(s->v.absmin), geom::vec(s->v.absmax), solidInside);
+            // (ropes8e) its box itself: absmin / absmax are a unit wider each way (SV_LinkEdict), so a body stopped at its face
+            // was "in" it by 0.97 and let through
+            in = boxIn(plo, phi, geom::vec(s->v.origin) + geom::vec(s->v.mins), geom::vec(s->v.origin) + geom::vec(s->v.maxs), solidInside);
+        }
+        const bool pass = in || (climb::ropeHands(pl) > 0 && boxIn(plo, phi, lo - glm::vec3{solidNear}, hi + glm::vec3{solidNear}, 0.f));
+        if(in && i <= 64)
+        {
+            inside |= za::U64{1} << (i - 1);
         }
         if(pass && (owner == 0 || i == r.solidOwner))
         {
@@ -356,6 +386,7 @@ void passSolids(Rope& r)
     }
     r.solidOwner = owner;
     r.solidPass = all;
+    r.solidIn = inside;
     for(const int s : r.solids)
     {
         EDICT_NUM(s)->v.owner = owner ? EDICT_TO_PROG(EDICT_NUM(owner)) : 0;
@@ -1462,8 +1493,8 @@ void info_f()
         if(!r.solids.empty())
         {
             // (ropes8d) a pole's boxes and who passes them (passSolids: the owner, every climber on it; mp_test.py pole)
-            Con_Printf("rope_solid: ent=%d boxes=%d owner=%d pass=%llu\n", kv.first, static_cast<int>(r.solids.size()), r.solidOwner,
-                static_cast<unsigned long long>(r.solidPass));
+            Con_Printf("rope_solid: ent=%d boxes=%d owner=%d pass=%llu in=%llu\n", kv.first, static_cast<int>(r.solids.size()), r.solidOwner,
+                static_cast<unsigned long long>(r.solidPass), static_cast<unsigned long long>(r.solidIn));
         }
         if(r.rider.client >= 0)
         {
@@ -2051,6 +2082,9 @@ struct FlatTest
     bool chain{false};       // (ropes8b) `vr_rope_flat_test chain`: a chain, climbed (it clinks) and held still (quiet)
     int clinks{0};           // (ropes8b) the chain's clinks at the stage's start (physsound::ropeSoundInfo)
     bool shots{false};       // (ropes8b) `vr_rope_flat_test <mode> shots`: screenshots of the body from outside while hanging
+    bool wall{false};        // (ropes8e) `vr_rope_flat_test wall`: vr_flat_rope 0, walked into the pole: stopped by its boxes
+    float flatRopeWas{1.f};  // (ropes8e) vr_flat_rope before it (put back at the end)
+    glm::vec3 wallDir{1.f, 0.f, 0.f}; // (ropes8e) the way he walks into it (level)
     za::Vector<glm::vec3> made; // (ropes7) the pole's points as made (it never moves)
 };
 FlatTest flatTest;
@@ -2084,6 +2118,10 @@ void flatTestEnd(FlatTest& t, bool timedOut, const char* what)
         t.tally.check(false, flatTestName, va("timed out: %s", what));
     }
     Cbuf_AddText("-forward\n-back\n-moveright\n-jump\n");
+    if(t.wall)
+    {
+        Cvar_SetValueQuick(&vr_flat_rope, t.flatRopeWas);
+    }
     t.tally.verdict(flatTestName);
     t.stage = 0;
 }
@@ -2139,6 +2177,19 @@ void flatTestFrame()
                 t.made = r->p;
             }
             t.ropesBefore = taken;
+            if(t.wall)
+            {
+                // (ropes8e) Set back from it along the way forward walks him (a headset's: its view's yaw, v_angle).
+                const float yaw = player->v.v_angle[YAW] * (glm::pi<float>() / 180.f);
+                t.wallDir = glm::vec3{za::cos(yaw), za::sin(yaw), 0.f};
+                const glm::vec3 at = glm::vec3{flatTestRope.x, flatTestRope.y, player->v.origin[2]} - t.wallDir * 80.f;
+                for(int k = 0; k < 3; k++)
+                {
+                    player->v.origin[k] = player->v.oldorigin[k] = at[k];
+                    player->v.velocity[k] = 0.f;
+                }
+                SV_LinkEdict(player, false);
+            }
             if(!holstersOnHips(t.holstersStanding[0], t.holstersStanding[1]))
             {
                 t.holstersStanding[0] = t.holstersStanding[1] = 0.f;
@@ -2148,6 +2199,30 @@ void flatTestFrame()
         }
         return;
     case 3: // walked into it
+        if(t.wall)
+        {
+            // (ropes8e) Not taking it (vr_flat_rope 0): forward held 2 s into the pole, his box stopped by its boxes
+            // short of it (its near face less his half width against entities), never through, not climbing.
+            if(t.frames < 144)
+            {
+                return;
+            }
+            const Rope* r = ropeOf(t.rope);
+            const glm::vec3 to = glm::vec3{flatTestRope.x, flatTestRope.y, player->v.origin[2]} - geom::vec(player->v.origin);
+            const float gap = glm::dot(to, t.wallDir) - poleThickness * 0.5f;
+            const bool ok = r && !r->solids.empty() && gap > 0.f && gap <= -player->v.mins[0] + 0.5f && !climbing &&
+                            taken == t.ropesBefore;
+            const char* what = va("walked into the pole not taking it (vr_flat_rope 0): stopped %.1f units short of its face "
+                                  "(his box %.1f), its %d boxes, not taken",
+                gap, -player->v.mins[0], r ? static_cast<int>(r->solids.size()) : 0);
+            t.tally.check(ok, flatTestName, what);
+            if(ok)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, what);
+            }
+            flatTestEnd(t, false, "");
+            return;
+        }
         if(taken > t.ropesBefore && climbing)
         {
             t.tally.check(true, flatTestName, "walked into the rope: taken");
@@ -2247,8 +2322,8 @@ void flatTestFrame()
                                                 held, sink, part, za::max(gap, 0.f)));
             if(round)
             {
-                Con_Printf("%s: PASS the hands round the pole: both on it, the deepest %.2f units in, %.2f off at the nearest\n",
-                    flatTestName, sink, za::max(gap, 0.f));
+                Con_Printf("%s: PASS the hands round the pole: both on it, the deepest %.2f units in (%s), %.2f off at the nearest\n",
+                    flatTestName, sink, part, za::max(gap, 0.f));
             }
         }
         else if(t.frames >= 60)
@@ -2531,7 +2606,13 @@ void flatTest_f()
     flatTest = FlatTest{};
     // (ropes8a) `strungpole`: the strung run on a level pole (no sag).
     const char* mode = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    flatTest.pole = !ZA_STRCMP(mode, "pole") || !ZA_STRCMP(mode, "strungpole");
+    flatTest.wall = !ZA_STRCMP(mode, "wall");
+    flatTest.pole = !ZA_STRCMP(mode, "pole") || !ZA_STRCMP(mode, "strungpole") || flatTest.wall;
+    if(flatTest.wall)
+    {
+        flatTest.flatRopeWas = vr_flat_rope.value;
+        Cvar_SetValueQuick(&vr_flat_rope, 0.f);
+    }
     flatTest.shots = Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(2), "shots");
     flatTest.chain = !ZA_STRCMP(mode, "chain");
     flatTest.stage = !ZA_STRCMP(mode, "strung") || !ZA_STRCMP(mode, "strungpole") ? 20 : 1;
@@ -4349,17 +4430,30 @@ extern "C" int VR_PoleSolidPasses(edict_t* touch, edict_t* mover)
         return 0;
     }
     const Rope* r = ropeOf(NUM_FOR_EDICT(PROG_TO_EDICT(touch->v.goalentity)));
-    if(!r || !((r->solidPass >> (pn - 1)) & 1u))
+    if(!r)
     {
         return 0;
     }
     const int tn = NUM_FOR_EDICT(touch);
+    bool ours = false;
     for(const int s : r->solids)
     {
-        if(s == tn)
-        {
-            return 1;
-        }
+        ours = ours || s == tn;
     }
-    return 0;
+    if(!ours)
+    {
+        return 0;
+    }
+    if((r->solidPass >> (pn - 1)) & 1u)
+    {
+        return 1;
+    }
+    // (ropes8e) In it now (set there, or a box made over him since passSolids ran: SV_CheckStuck would put him back
+    // where he was), let out as passSolids would: his box against entities in its box by more than solidInside.
+    glm::vec3 plo, phi;
+    entBoxOf(mover, plo, phi);
+    return boxIn(plo, phi, geom::vec(touch->v.origin) + geom::vec(touch->v.mins), geom::vec(touch->v.origin) + geom::vec(touch->v.maxs),
+               solidInside)
+               ? 1
+               : 0;
 }
