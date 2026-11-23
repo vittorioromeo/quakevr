@@ -92,6 +92,39 @@ namespace
 
 
 ////////////////////////////////////////////////////////////
+/// \brief Read the OS wall clock, in nanoseconds since the Unix epoch
+///
+/// - Windows: `GetSystemTimePreciseAsFileTime` (100ns ticks since
+///   1601-01-01, as in MSVC's STL `std::chrono::system_clock`).
+/// - Elsewhere: `clock_gettime(CLOCK_REALTIME)` (as in libstdc++'s and
+///   libc++'s `std::chrono::system_clock`).
+///
+////////////////////////////////////////////////////////////
+[[nodiscard]] I64 unixNanoseconds() noexcept
+{
+#if defined(ZA_SYSTEM_WINDOWS)
+
+    FILETIME fileTime;
+    GetSystemTimePreciseAsFileTime(&fileTime);
+
+    const auto ticks = static_cast<I64>((static_cast<U64>(fileTime.dwHighDateTime) << 32u) | fileTime.dwLowDateTime);
+
+    // 100ns ticks from 1601-01-01 to 1970-01-01
+    constexpr I64 unixEpochTicks = 116'444'736'000'000'000;
+    return (ticks - unixEpochTicks) * 100;
+
+#else
+
+    timespec ts{};
+    clock_gettime(CLOCK_REALTIME, &ts);
+
+    return static_cast<I64>(ts.tv_sec) * 1'000'000'000 + static_cast<I64>(ts.tv_nsec);
+
+#endif
+}
+
+
+////////////////////////////////////////////////////////////
 /// \brief `stopPoint` value of a running clock (never returned by `monotonicNanoseconds`)
 ///
 ////////////////////////////////////////////////////////////
@@ -213,6 +246,13 @@ Time Clock::now()
 I64 Clock::nowNanoseconds() noexcept
 {
     return priv::monotonicNanoseconds();
+}
+
+
+////////////////////////////////////////////////////////////
+I64 Clock::nowUnixNanoseconds() noexcept
+{
+    return priv::unixNanoseconds();
 }
 
 } // namespace za

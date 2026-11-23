@@ -8,6 +8,11 @@ and the author's own (`license.md`); moodycamel's queue is under the simplified 
 - Commit: `2f8a1ca5b147019a9587e342107da167e48637ed` (2026-10-07, branch `zancle-concurrency-fixes` off `7bd385db`:
   the five concurrency fixes of `docs/vr-port/ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md`, for `rebrand_to_zancle`);
   with the local changes listed under "Local changes" below (not upstream yet: an update must keep them).
+- Plus three commits on branch `qvr/zancle3` (off `2f8a1ca5`; made by the zancle3 job, 2026-11-23, not yet upstream):
+  `db1a6af6` `Base/FwdStdNew.hpp` (`std::nothrow_t`/`nothrow` and the nothrow allocation functions without `<new>`;
+  `za::AlignValT`, `za::NothrowT`), `99163ba2` `Clock::nowUnixNanoseconds` (the wall clock since the Unix epoch:
+  `Chrono/Clock.hpp`, `src/Zancle/Chrono/Clock.cpp`), `e1737e7a` (tests only: the math and algorithms against the
+  standard library's, which replaced Quake VR's `vr_zancle_math_test`). The vendored files match `e1737e7a`.
 
 The Quake VR code is written on Zancle instead of the C++ standard library (`docs/vr-port/ROUND21.md`, "Zancle
 migration"; `docs/vr-port/CODE_STYLE.md`, "Zancle, not the standard library"). Vendored: the headers the VR code
