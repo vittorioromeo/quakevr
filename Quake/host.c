@@ -893,6 +893,32 @@ void Host_ShutdownServer(qboolean crash)
 
 /*
 ================
+Host_ClearOtherSeats -- QVR: splitscreen (split12): the other seats' clients had the old world too (their cl.worldmodel,
+entities, signon): each forgotten as the current seat's is, else a seat's client frame before its reconnect read the
+freed world (the crash of 2026-11-23 at a level exit: VR_TorchLights' Mod_PointInLeaf on seat 2's old world model).
+Their VR client state goes too (in each seat's scope: its own parts).
+================
+*/
+static void Host_ClearOtherSeats (void)
+{
+	int seat, was = CL_SeatIndex ();
+	for (seat = 0; seat < CL_SeatCount (); seat++)
+	{
+		if (seat == was || !CL_SeatNetIfMade (seat))
+			continue;
+		CL_SeatSet (seat);
+		if (cls.state != ca_dedicated)
+			VR_OnClientClearState ();
+		cl_entities = NULL;
+		cl_max_edicts = 0;
+		cls.signon = 0;
+		CL_FreeState ();
+	}
+	CL_SeatSet (was);
+}
+
+/*
+================
 Host_ClearMemory
 
 This clears all the memory used by both the client and server, but does
@@ -934,6 +960,7 @@ void Host_ClearMemory (void)
 	memset (&sv, 0, sizeof(sv));
 
 	CL_FreeState ();
+	Host_ClearOtherSeats ();
 }
 
 /*

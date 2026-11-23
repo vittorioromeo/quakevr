@@ -811,16 +811,26 @@ static void IN_Pads_f (void)
 ================
 IN_MockPad, IN_MockPadButton, IN_MockPadAxes -- QVR (vr_seat_test)
 
-A pad without a controller, its buttons and sticks set by the test, polled by IN_Commands as a real one is.
+A pad without a controller, its buttons and sticks set by the test, polled by IN_Commands as a real one is. split12: a
+real controller plugged in at k is stood in for while the mock is on (its reads are the mock's: every read takes
+mockbuttons / mockaxes when pad->mock), so the tests run the same with a controller attached (the seat tests' pad 0 was
+the plugged-in one, its stick at rest).
 ================
 */
 void IN_MockPad (int k, qboolean on)
 {
 	joypad_t *pad;
 
-	if (k < 0 || k >= MAX_JOYPADS || joy_pads[k].controller)
+	if (k < 0 || k >= MAX_JOYPADS)
 		return;
 	pad = &joy_pads[k];
+	if (pad->controller)
+	{
+		pad->mock = on;
+		memset (&pad->mockbuttons, 0, sizeof (pad->mockbuttons));
+		memset (&pad->mockaxes, 0, sizeof (pad->mockaxes));
+		return;
+	}
 	memset (pad, 0, sizeof (*pad));
 	pad->instanceid = -1;
 	pad->device = -1;

@@ -12,6 +12,8 @@
 // leaves, and joins again with its things (coop); in deathmatch it spawns, moves and leaves. Verdict
 // "seat_play_test: N passed, M failed".
 #include "vr_seat.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 
 #include "vr_engine.hpp"
 #include "vr_api.h"
@@ -19,8 +21,6 @@
 #include "vr_testkit.hpp"
 
 #include <SDL.h>
-#include <cmath>
-#include <cstring>
 
 namespace qvr::seat
 {
@@ -220,6 +220,10 @@ enum class Step
     WaitSeen,   // seat 1's client has seat 2's player where the server has him
     WaitLeft,   // seat 2 left: its slot free
     WaitRejoin, // seat 2 back: its slot and things
+    // split12 (coop): one player reaches the level exit (the crash of 2026-11-23: seat 2's client on the freed world)
+    WaitIntermission, // seat 2's player put in the level's trigger_changelevel: both seats' clients at the intermission
+    WaitNewMap,       // seat 2's A held: the next map, both seats signed on in it; no seat's client on the old world
+    PlayNewMap,       // both play the new map a second
 };
 
 // seat-shared: vr_seat_play_test's own state machine
@@ -231,6 +235,9 @@ struct PlayTest
     int slot = -1;  // seat 2's server slot
     vec3_t start0{}, start1{}; // seat 1's and seat 2's players where the walk started
     bool dm = false;
+    char fromMap[64]{};  // split12: the map the exit was taken on
+    int staleWorld = 0;  // frames a seat's client had a world model that is not the server's (a freed one)
+    int staleSeat = -1;  // the first such seat
 } playTest;
 
 constexpr int pad = 0;           // the test's mock pad
@@ -252,7 +259,7 @@ bool check(const bool ok, const char* what)
 
 [[nodiscard]] float flatDistance(const vec3_t a, const vec3_t b)
 {
-    return std::sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]));
+    return za::sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]));
 }
 
 void finish()
@@ -283,7 +290,7 @@ void checkJoined(const char* when)
     char name[64];
     CL_SeatName(1, name, sizeof(name));
     check(slot > 0 && slotOf(0) == 0, va("%s: seat 2 in a slot of its own (%d), seat 1 in slot 0 (%d)", when, slot, slotOf(0)));
-    check(slot >= 0 && !strcmp(svs.clients[slot].name, name), va("%s: under its own name (\"%s\")", when, slot >= 0 ? svs.clients[slot].name : ""));
+    check(slot >= 0 && !ZA_STRCMP(svs.clients[slot].name, name), va("%s: under its own name (\"%s\")", when, slot >= 0 ? svs.clients[slot].name : ""));
     const clientseat_t* n1 = CL_SeatNetIfMade(1);
     check(n1 && n1->cstate.viewentity == slot + 1, va("%s: seat 2's client views its own player (entity %d)", when, n1 ? n1->cstate.viewentity : -1));
     {
@@ -444,7 +451,86 @@ void testFrame()
             else
             {
                 check(p1 && p1->v.health > 0.f, "deathmatch: back, spawned again");
+                finish();
+                return;
             }
+            // split12: seat 2's player into the level's exit
+            edict_t* exit = nullptr;
+            {
+                const progs::ServerVm vm;
+                for(int i = 1; i < qcvm->num_edicts && !exit; i++)
+                {
+                    edict_t* e = EDICT_NUM(i);
+                    if(!e->free && !ZA_STRCMP(PR_GetString(e->v.classname), "trigger_changelevel"))
+                    {
+                        exit = e;
+                    }
+                }
+                if(exit && p1)
+                {
+                    for(int k = 0; k < 3; k++)
+                    {
+                        p1->v.origin[k] = (exit->v.absmin[k] + exit->v.absmax[k]) * 0.5f;
+                    }
+                    SV_LinkEdict(p1, false);
+                }
+            }
+            if(!check(exit && p1, "the level's exit found, seat 2's player put in it"))
+            {
+                finish();
+                return;
+            }
+            q_strlcpy(t.fromMap, sv.name, sizeof(t.fromMap));
+            go(Step::WaitIntermission);
+            return;
+        }
+        case Step::WaitIntermission:
+        {
+            const clientseat_t* n0 = CL_SeatNetIfMade(0);
+            const clientseat_t* n1 = CL_SeatNetIfMade(1);
+            if(!n0 || !n1 || !n0->cstate.intermission || !n1->cstate.intermission)
+            {
+                return;
+            }
+            check(true, va("both seats at the intermission (%d frames)", t.frames));
+            IN_MockPadButton(pad, SDL_CONTROLLER_BUTTON_A, true); // (held: the exit waits 2 s, then takes a press)
+            go(Step::WaitNewMap);
+            return;
+        }
+        case Step::WaitNewMap:
+        case Step::PlayNewMap:
+        {
+            // Every frame from the exit on: each seat's client has no world or the server's (the old one was freed)
+            for(int s = 0; s < 2; s++)
+            {
+                const clientseat_t* n = CL_SeatNetIfMade(s);
+                if(n && n->cstate.worldmodel && (!sv.active || n->cstate.worldmodel != sv.worldmodel))
+                {
+                    t.staleWorld++;
+                    t.staleSeat = t.staleSeat < 0 ? s : t.staleSeat;
+                }
+            }
+            if(t.step == Step::WaitNewMap)
+            {
+                if(!sv.active || !ZA_STRCMP(sv.name, t.fromMap) || !signedOn(0) || !signedOn(1))
+                {
+                    return;
+                }
+                IN_MockPadButton(pad, SDL_CONTROLLER_BUTTON_A, false);
+                check(true, va("the next map (%s after %s): both seats signed on in it", sv.name, t.fromMap));
+                go(Step::PlayNewMap);
+                return;
+            }
+            if(t.frames < 72)
+            {
+                return;
+            }
+            edict_t* p0 = playerOf(0);
+            edict_t* p1 = playerOf(slotOf(1));
+            check(p0 && p1 && p0->v.health > 0.f && p1->v.health > 0.f && slotOf(1) > 0,
+                va("both play the new map (seat 2 in slot %d)", slotOf(1)));
+            check(t.staleWorld == 0, va("no seat's client on the old (freed) world after the exit (%d frames, seat %d)",
+                t.staleWorld, t.staleSeat + 1));
             finish();
             return;
         }
