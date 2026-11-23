@@ -895,8 +895,9 @@ bool OpenXrBackend::createSwapchains()
 
 bool OpenXrBackend::createEyeSwapchains()
 {
+    ++eyeSwapchainsMade; // (the images' GL names may be reused by the new ones: vr_stereo.cpp's per-image framebuffers)
     const float scale = CLAMP(0.5f, vr_xr_eye_scale.value, 1.f);
-    const auto scaled = [scale](uint32_t recommended, uint32_t largest)
+    const auto scaled =[scale](uint32_t recommended, uint32_t largest)
     {
         const int32_t size = static_cast<int32_t>(static_cast<float>(recommended) * scale + 0.5f);
         return za::min(za::max(size, int32_t{64}), static_cast<int32_t>(za::max(largest, recommended)));

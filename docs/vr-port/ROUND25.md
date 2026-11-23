@@ -10818,6 +10818,46 @@ Follows "flatwheel"'s noticed item (the nailgun put into a holster by the wheel 
   reload/eject_test 28/0, `mp_test.py suite --only mp_weaponwheel` 9/0 (B now holds the nailgun: his hold kept its 24).
 - Noticed, not chased (as before): the multi-grenade's B/Y held longer than `vr_weaponwheel_hold` opens the wheel.
 
+## qfov2: Quest foveation, form 2 rebuilt as Meta's samples (branch agent/qfov2, 2026-11-23; headset block pending)
+
+- **Why form 1 gave no gain**: its depth is the composite's unfoveated depth texture. The Adreno driver does not foveate a
+  foveated colour beside an unfoveated depth texture (the same as 6o's "no effect" on our own targets), so only form 2
+  can foveate.
+- **Form 2's crash (likely cause)**: one framebuffer whose colour was swapped every eye, and a depth renderbuffer at the
+  drawn size (0.65: ~1092x1144) beside the 1680x1760 image. The crash was in the driver at the first xrEndFrame (frame 2),
+  when the foveated pass runs. Form 2 is now built as Meta's GLES samples build it: a framebuffer per swapchain image
+  with the image attached for good (never detached), each eye's depth renderbuffer at the image's size, and a
+  colour-only framebuffer per image for the UI. They are made again when the backend's swapchains are new
+  (`Backend::eyeImagesSerial`). Foveation now takes form 2. A log line per image gives its QCOM foveation bits, min
+  density, focal points and status.
+- `vr_xr_foveation_refocus` (new, 0, not saved; Debug > Profiling): the game sets the image's focal point on the eye's
+  projection centre in the part drawn. vr_eye_subimage and dynamic resolution draw the lower left part, but the runtime
+  foveates round the image's centre.
+- PC (-glescompat, Standalone, vr_xr_direct 2): the per-image framebuffers are complete (0x8cd5), with no GL error. APK
+  built (0 warnings, check_apk 20/0). **Headset block not run yet** (the headset was with qcombined). Scripts:
+  `scratch/qfov2_mk.sh` (check, mid, ab, shots), `qfov2_pull.sh`, `qfov2_trace.sh`. No default changed; the
+  `-xrfoveation` guard stays.
+- **Headset block (14:28-14:45; the frozen gib fight at 0.65, retro off).** Form 2 rebuilt no longer crashes: it ran at
+  launch with level 3, and through every mid-game change (H D H M L, and 12 interleaved parts with the post-process
+  path). The images carry the runtime's foveation: QCOM bits 3 (on, scaled bins), min density 0.25, 2 focal points.
+  - One crash came from a framebuffer kept with a destroyed image: the post-process path after a mid-game change, with
+    the old images' framebuffers still alive. That is fixed: they are let go as soon as the swapchains are new or form 2
+    is no longer used.
+  - GPU medians: P 16.34, D 17.00, L 17.31, M 17.98, H 17.43, R (refocused) 17.87 ms. **No foveation gain.** Eyeshots
+    show no blur at any level.
+- **Why (ovrgpuprofiler -t, its per-bin "Fov" scale):** each eye is 6 render passes. The first, the clear and the
+  hidden area, does get scaled bins (Fov 2/2). The main pass (6-9 ms) and the 3 after it begin with LoadColor and
+  LoadDepthStencil, and every bin runs at 1/1: the driver foveates only a pass that starts cleared. The passes are
+  ended by compute work between the scene's draws, most likely the brush models' indirect gathers in
+  R_FlushBModelCalls and the arrays' merges (gl_rlight's light clustering is to be checked). Form 2 also bins the whole
+  1680x1760 image (8 bins of 864x448) while the eye draws 0.65 of it, so the clear and the loads and stores cover the
+  whole image. That is likely why D is +0.7 ms over P.
+- **Next:** (1) no compute between an eye's draws: the gathers dispatched before the clear, or an ES path that draws
+  single-instance calls straight from the cull's commands (on ES the gather only copies them). This also saves every
+  pass's load and store, foveation or not. (2) The clear and the render area kept to the drawn part (a scissored clear),
+  or the eye images made at the drawn size when foveation is on. Then measure again. Scripts (not committed):
+  `scratch/qfov2_bins.py` (a line per render pass with its bins' Fov scales), `qfov2_mk.sh`, `qfov2_trace.sh`,
+  `qfov2_pull.sh`, `qfov2_pair.py`, `qfov2_crop.py`.
 ## dwrifle: Dwell's Rifle removed (agent/dwrifle, 2026-11-23)
 
 - **Ask** (his note): the Rifle out of the toolgun and never in an armed humanoid's random pool; all of it gone if unused.
