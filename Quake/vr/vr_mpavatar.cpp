@@ -948,7 +948,8 @@ void gearcheck_f()
         const float trunkMost = 0.5f * k.m2w, wristMost = 0.15f * k.m2w, hangMost = 0.25f * k.m2w;
         constexpr float tiltMost = 70.f, facingMost = 60.f;
         const bool turned = finite && tilt <= tiltMost && facing <= facingMost && hang <= hangMost;
-        const bool mirrorOk = mirrored(mirror) && mirrored(ownMirror);
+        // (yours printed, not demanded: your hips ride your thighs, which a stride or a crouch poses unevenly)
+        const bool mirrorOk = mirrored(mirror);
         const bool ok = hands == 2 && trunk <= trunkMost && wrist <= wristMost && turned && asOwn && mirrorOk;
         Con_Printf("mp_gear: ent=%d bot=%d hands=%d holsters=%d sheaths=%d trunk=%.1f trunkmost=%.1f wrist=%.1f wristmost=%.1f "
                    "finite=%d tilt=%.1f facing=%.1f hang=%.1f hangmost=%.1f turned=%d vsown=%d place=%.3f axis=%.1f "

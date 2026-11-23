@@ -11654,7 +11654,8 @@ Lance Bolt Linger): `vr_dw_lance_push` 1, `_hit_sparks` 24, `_hit_smoke` 6, `_em
 - **Check:** `vr_mp_gearcheck` adds `mirror`/`mplace`/`maxis`/`mflags` (each pair's left piece against its right one,
   reflected across the carrying part's middle plane: the pelvis's for the hips, the chest's for the rest; the guns only
   when the pair holds the same gun; `mflags`: the left drawn mirrored and the right not, as the renderer finds them) and
-  `ownmirror`... for yours; `mirrored` (at most 0.02 m, 3 degrees, flags right) is part of `ok`. New `vr_dm_test 24`
+  `ownmirror`... for yours (printed only: your hips ride your thighs, posed unevenly in a stride); `mirrored` (the
+  copy's: at most 0.02 m, 3 degrees, flags right) is part of `ok`. New `vr_dm_test 24`
   (16's hold, each pair one gun twice: shoulders revolvers, hips nailguns, uppers shotguns). Before the fix, mp_dm_passive
   with `vr_dm_test 24`: mirror=5 mplace 0.000 maxis 0.0 **mflags=0**, ok=0; after: mflags=1, ok=1 (own 4 pairs, 0.000/0.0).
   Eyeshots (`vr_mock_camera 0 0.95 -1.05 25 0`): the bot's left sheath's loop stood out beside its gun, now tucked as the
