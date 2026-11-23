@@ -267,7 +267,7 @@ void dumpPages()
         queue.pushBack(root);
         depth[root] = 0;
     }
-    for(size_t q = 0; q < queue.size(); q++)
+    for(za::SizeT q = 0; q < queue.size(); q++)
     {
         const int p = queue[q];
         showPage(p);
@@ -389,7 +389,7 @@ bool resolvePath(za::StringView spec, za::String& out)
         }
         return za::String{s};
     };
-    const size_t split = spec.find('>');
+    const za::SizeT split = spec.find('>');
     const za::String title = trim(spec.substrByPosLen(0, split));
     const za::String row = split == za::StringView::nPos ? za::String{} : trim(spec.substrByPosLen(split + 1));
     int target = -1;

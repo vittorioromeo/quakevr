@@ -50,6 +50,7 @@
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
@@ -973,7 +974,7 @@ extern "C" void VR_SnapEnd(sizebuf_t* msg)
                 if(j >= i && r.kinds[j] == qvr::server::scopedOther && r.ents[j] == e &&
                     len + jlen <= static_cast<int>(sizeof(w.poseJoin)))
                 {
-                    ZA_MEMCPY(w.poseJoin + len, r.roomBuf + jat, static_cast<size_t>(jlen));
+                    ZA_MEMCPY(w.poseJoin + len, r.roomBuf + jat, static_cast<za::SizeT>(jlen));
                     len += jlen;
                 }
             }
@@ -1002,7 +1003,7 @@ void qvr::server::queueBroadcast(const byte* data, int len)
     {
         return; // (unreliable, as the datagram is: none when full)
     }
-    ZA_MEMCPY(b.queued + used, data, static_cast<size_t>(len));
+    ZA_MEMCPY(b.queued + used, data, static_cast<za::SizeT>(len));
     b.queuedEnds[b.numQueued++] = used + len;
 }
 
@@ -1333,7 +1334,7 @@ extern "C" void VR_NoteClientSight(const edict_t* clent, const byte* pvs, const 
     s.eye = {eye[0], eye[1], eye[2]};
     const int bytes = (sv.worldmodel->numleafs + 7) >> 3;
     s.pvs.resize(static_cast<za::SizeT>(bytes));
-    ZA_MEMCPY(s.pvs.data(), pvs, static_cast<size_t>(bytes));
+    ZA_MEMCPY(s.pvs.data(), pvs, static_cast<za::SizeT>(bytes));
 }
 
 // SV_SendClientDatagram: the broadcast into this client's datagram (`local`: the loopback client's, all of it).
@@ -2581,7 +2582,7 @@ void writeAvatars()
         }
         AvatarSent& last = avatarsSent[i];
         const int keyframe = za::max(static_cast<int>(vr_net_avatar_keyframe.value), 1);
-        const bool same = last.size == tmp.cursize && ZA_MEMCMP(last.bytes, data, static_cast<size_t>(tmp.cursize)) == 0;
+        const bool same = last.size == tmp.cursize && ZA_MEMCMP(last.bytes, data, static_cast<za::SizeT>(tmp.cursize)) == 0;
         const bool waits = same && ++last.unsent < keyframe;
         // (queued either way: a snapshot client's snapshot has it every frame, B7b; to the others a waiting one goes not)
         sizebuf_t* msg = qvr::server::scopedBegin(i + 1, true);
@@ -2596,7 +2597,7 @@ void writeAvatars()
             avatarStats.skipped++;
             continue;
         }
-        ZA_MEMCPY(last.bytes, data, static_cast<size_t>(tmp.cursize));
+        ZA_MEMCPY(last.bytes, data, static_cast<za::SizeT>(tmp.cursize));
         last.size = tmp.cursize;
         last.unsent = 0;
         avatarStats.sent++;
@@ -2662,7 +2663,7 @@ extern "C" void VR_ServerFrameEnd(int worldRan)
     // his client (a dedicated server's frame between two of his moves, bunched moves) keeps it as it was, and an edge
     // (a grip pressed or let go) was seen again every such frame (a let-go noted twice: QC's grip times moved on).
     const int vrbitsOfs = fields().vrbits0;
-    for(size_t i = 0; i < clientBits.size(); i++)
+    for(za::SizeT i = 0; i < clientBits.size(); i++)
     {
         ClientBits& bits = clientBits[i];
         bits.previousFrame = bits.received;

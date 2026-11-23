@@ -112,17 +112,17 @@ bool validResource(FILE* file, long offset, long length, const char* name)
     bytes.clear();
     bytes.resize(static_cast<za::SizeT>(walked ? length : (length < 124 ? length : 124l)));
     if(fread(bytes.data(), 1, bytes.size(), file) != bytes.size()) { return false; }
-    const auto integer = [&](size_t pos) -> int32_t
+    const auto integer = [&](za::SizeT pos) -> int32_t
     {
         int32_t value = 0;
         if(pos <= bytes.size() && bytes.size() - pos >= 4) { ZA_MEMCPY(&value, bytes.data() + pos, 4); }
         return LittleLong(value);
     };
-    size_t cursor = 0;
+    za::SizeT cursor = 0;
     const auto advance = [&](int64_t count) -> bool
     {
         if(count < 0 || static_cast<uint64_t>(count) > bytes.size() - cursor) { return false; }
-        cursor += static_cast<size_t>(count);
+        cursor += static_cast<za::SizeT>(count);
         return true;
     };
     if(!q_strcasecmp(ext, "mdl"))
@@ -195,12 +195,12 @@ bool validResource(FILE* file, long offset, long length, const char* name)
             integer(4) < 36 || int64_t(integer(4)) + 8 > length) { return false; }
         bool format = false, samples = false;
         cursor = 12;
-        const size_t end = static_cast<size_t>(integer(4)) + 8;
+        const za::SizeT end = static_cast<za::SizeT>(integer(4)) + 8;
         while(cursor < end)
         {
             if(end - cursor < 8) { return false; }
             const int size = integer(cursor + 4);
-            if(size < 0 || static_cast<size_t>(size) > end - cursor - 8) { return false; }
+            if(size < 0 || static_cast<za::SizeT>(size) > end - cursor - 8) { return false; }
             if(!ZA_MEMCMP(bytes.data() + cursor, "fmt ", 4)) { format = size >= 16; }
             if(!ZA_MEMCMP(bytes.data() + cursor, "data", 4)) { samples = size > 0; }
             // Original pack WAVs can contain junk LIST metadata or omit the final pad byte.
@@ -220,7 +220,7 @@ bool validResource(FILE* file, long offset, long length, const char* name)
     return integer(120) >= 64; // at least the world model
 }
 
-int inspectPack(const char* game, const char* const* resources, size_t count, const char* onlyRoot = nullptr)
+int inspectPack(const char* game, const char* const* resources, za::SizeT count, const char* onlyRoot = nullptr)
 {
     za::Vector<unsigned char>& found = packScratch.found;
     found.assign(count, 0);
@@ -255,7 +255,7 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
             if(valid)
             {
                 entries.resize(length / sizeof(PackEntry));
-                valid = !fseek(file, offset, SEEK_SET) && fread(entries.data(), 1, length, file) == size_t(length);
+                valid = !fseek(file, offset, SEEK_SET) && fread(entries.data(), 1, length, file) == za::SizeT(length);
             }
             for(const PackEntry& entry : entries)
             {
@@ -265,7 +265,7 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
                     valid = false;
                     break;
                 }
-                for(size_t i = 0; i < count; ++i)
+                for(za::SizeT i = 0; i < count; ++i)
                 {
                     if(!ZA_STRCMP(entry.name, resources[i]))
                     {
@@ -286,7 +286,7 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
             }
         }
         // An extracted installation is also supported, but every required file must exist.
-        for(size_t i = 0; i < count; ++i)
+        for(za::SizeT i = 0; i < count; ++i)
         {
             char path[MAX_OSPATH];
             q_snprintf(path, sizeof(path), "%s/%s", folder, resources[i]);
@@ -302,7 +302,7 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
             }
         }
     }
-    for(size_t i = 0; i < count; ++i)
+    for(za::SizeT i = 0; i < count; ++i)
     {
         if(!found[i])
         {
@@ -321,7 +321,7 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
 // What a pack's files are now, without reading them: each pak's and each listed loose file's size and time, in every
 // base dir. The same signature: the same answer (inspectPack reads every listed model, sound and map whole, which is
 // worth doing once, not at every rebuild of the game folders: a campaign or a map package switched).
-za::U64 packSignature(const char* game, const char* const* resources, size_t count)
+za::U64 packSignature(const char* game, const char* const* resources, za::SizeT count)
 {
     za::U64 h = 1469598103934665603ull;
     const auto mix = [&](za::U64 v) { h = (h ^ v) * 1099511628211ull; };
@@ -343,7 +343,7 @@ za::U64 packSignature(const char* game, const char* const* resources, size_t cou
             if(Sys_FileType(path) != FS_ENT_FILE) { break; }
             file(path);
         }
-        for(size_t i = 0; i < count; ++i)
+        for(za::SizeT i = 0; i < count; ++i)
         {
             q_snprintf(path, sizeof(path), "%s/%s", folder, resources[i]);
             file(path);
@@ -353,7 +353,7 @@ za::U64 packSignature(const char* game, const char* const* resources, size_t cou
 }
 
 // inspectPack, again only when the pack's files changed since it was last read.
-int inspectPackCached(int which, const char* game, const char* const* resources, size_t count)
+int inspectPackCached(int which, const char* game, const char* const* resources, za::SizeT count)
 {
     const za::U64 now = packSignature(game, resources, count);
     if(!packMemoValid[which] || packSignatureMemo[which] != now)
@@ -402,7 +402,7 @@ struct Campaign
     int schema;
     bool nativeReady;
     const char* const* resources;
-    size_t resourceCount;
+    za::SizeT resourceCount;
     int status;
     char root[MAX_OSPATH];
     CampaignChecks checks;
@@ -625,9 +625,9 @@ int missingLanguage(int index, const char** first = nullptr)
 {
     if(index < 3 || index > 5) { return 0; } // (AD support: Arcane Dimensions has no rerelease language table)
     const char* const* keys = index == 3 ? dopaLanguageKeys : index == 4 ? mg1LanguageKeys : mg3LanguageKeys;
-    const size_t count = index == 3 ? countof(dopaLanguageKeys) : index == 4 ? countof(mg1LanguageKeys) : countof(mg3LanguageKeys);
+    const za::SizeT count = index == 3 ? countof(dopaLanguageKeys) : index == 4 ? countof(mg1LanguageKeys) : countof(mg3LanguageKeys);
     int missing = 0;
-    for(size_t i = 0; i < count; ++i)
+    for(za::SizeT i = 0; i < count; ++i)
     {
         const char* text = LOC_GetRawString(keys[i]);
         if(!text || !*text || !ZA_STRCMP(text, keys[i]))
@@ -702,7 +702,7 @@ char* lastSeparator(char* s)
 }
 
 // The game folder's name of a search path: its last component, or the folder a pak is in.
-void gameFolderName(const char* path, char* out, size_t size)
+void gameFolderName(const char* path, char* out, za::SizeT size)
 {
     char dir[MAX_OSPATH];
     q_strlcpy(dir, path, sizeof(dir));
@@ -745,22 +745,22 @@ extern "C" char* VR_LoadOwnedLocalization(const char* name)
         }
     }
     char* result = nullptr;
-    size_t used = 0;
+    za::SizeT used = 0;
     const auto append = [&](FILE* file, long offset, long length, const char* source)
     {
         constexpr long maxTable = 8 * 1024 * 1024;
         if(length <= 0 || length > maxTable || fseek(file, offset, SEEK_SET)) { return; }
-        char* buffer = static_cast<char*>(VR_HeapMalloc(static_cast<size_t>(length) + 1));
-        if(fread(buffer, 1, static_cast<size_t>(length), file) != static_cast<size_t>(length))
+        char* buffer = static_cast<char*>(VR_HeapMalloc(static_cast<za::SizeT>(length) + 1));
+        if(fread(buffer, 1, static_cast<za::SizeT>(length), file) != static_cast<za::SizeT>(length))
         { VR_HeapFree(buffer); return; }
         // A separate line between tables preserves the final entry of files without a newline.
         char marker[MAX_OSPATH + 32];
-        const size_t markerLength = q_snprintf(marker, sizeof(marker), "// vr-language-source %s\n", source);
-        result = static_cast<char*>(VR_HeapRealloc(result, used + markerLength + static_cast<size_t>(length) + 2));
+        const za::SizeT markerLength = q_snprintf(marker, sizeof(marker), "// vr-language-source %s\n", source);
+        result = static_cast<char*>(VR_HeapRealloc(result, used + markerLength + static_cast<za::SizeT>(length) + 2));
         ZA_MEMCPY(result + used, marker, markerLength);
         used += markerLength;
-        ZA_MEMCPY(result + used, buffer, static_cast<size_t>(length));
-        used += static_cast<size_t>(length);
+        ZA_MEMCPY(result + used, buffer, static_cast<za::SizeT>(length));
+        used += static_cast<za::SizeT>(length);
         result[used++] = '\n';
         result[used] = 0;
         VR_HeapFree(buffer);
@@ -1044,7 +1044,7 @@ extern "C" int VR_SelectCampaignNoMapNative(int index)
 {
     return VR_CampaignInstalled(index) && selectCampaign(index, index >= 3 && !campaigns[index].nativeReady, false, false) ? 1 : 0;
 }
-extern "C" void VR_GameFolderName(const char* path, char* out, size_t size) { gameFolderName(path, out, size); }
+extern "C" void VR_GameFolderName(const char* path, char* out, za::SizeT size) { gameFolderName(path, out, size); }
 
 // Multiplayer (mpcampaign; vr_mpdownload.cpp): a remote client plays the campaign of the server it joins (QVR_SVC_CAMPAIGN,
 // before each svc_serverinfo), made the active one as the selector makes it (no map started), and its own campaign
@@ -1233,7 +1233,7 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
         if(!ZA_STRCMP(map, "maps/start") ||
             (sharedOthers && (!ZA_STRCMP(map, "maps/hub") || !ZA_STRCMP(map, "maps/end") || !ZA_STRCMP(map, "maps/dm1")))) { return 1; }
         const Campaign& c = campaigns[activeCampaign];
-        for(size_t r = 0; r < c.resourceCount; ++r)
+        for(za::SizeT r = 0; r < c.resourceCount; ++r)
         {
             if(ZA_STRNCMP(c.resources[r], "maps/", 5)) { continue; }
             char owned[MAX_QPATH];
@@ -1285,7 +1285,7 @@ extern "C" const char* VR_ModelFile(const char* name)
 
 // The game folder a file comes from, as relit/ names it ("maps/e1m1.bsp": id1; a map package's folder name): false
 // if there is no such file (vr_relight.cpp).
-extern "C" int VR_MapGameFolder(const char* name, char* out, size_t size)
+extern "C" int VR_MapGameFolder(const char* name, char* out, za::SizeT size)
 {
     if(!COM_FileExists(name, nullptr) || !com_filesource[0])
     {
@@ -1634,7 +1634,7 @@ extern "C" int VR_CanChangeCampaignMap(const char* map)
 
 extern "C" int VR_HasNativeCampaignDirectory(const char* paths)
 {
-    const size_t length = ZA_STRLEN(vrGameDir);
+    const za::SizeT length = ZA_STRLEN(vrGameDir);
     for(const char* p = paths; p && *p;)
     {
         if(!q_strncasecmp(p, vrGameDir, length) && (p[length] == ';' || !p[length])) { return 1; }
@@ -1725,7 +1725,7 @@ void readOwnedIndex(OwnedIndex& index, const char* folder)
                 dirOffset <= fileSize && dirLength <= fileSize - dirOffset && !fseek(f, dirOffset, SEEK_SET))
             {
                 entries.resize(static_cast<za::SizeT>(count));
-                if(count > 0 && fread(entries.data(), sizeof(PackEntry), static_cast<size_t>(count), f) == static_cast<size_t>(count))
+                if(count > 0 && fread(entries.data(), sizeof(PackEntry), static_cast<za::SizeT>(count), f) == static_cast<za::SizeT>(count))
                 {
                     seen.clear();
                     for(const PackEntry& e : entries)
@@ -1762,7 +1762,7 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
     if(!slash || slash == folderStart || !slash[1] || ZA_STRSTR(name, "..") || strchr(name, ':') || strchr(name, '\\'))
     { return -1; }
     char folder[MAX_QPATH];
-    const size_t folderLength = static_cast<size_t>(slash - folderStart);
+    const za::SizeT folderLength = static_cast<za::SizeT>(slash - folderStart);
     if(folderLength >= sizeof(folder)) { return -1; }
     q_strlcpy(folder, folderStart, folderLength + 1);
     const int c = campaignIndex(folder);
@@ -1845,7 +1845,7 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
                 dirOffset <= fileSize && dirLength <= fileSize - dirOffset && !fseek(f, dirOffset, SEEK_SET))
             {
                 entries.resize(static_cast<za::SizeT>(count));
-                if(count > 0 && fread(entries.data(), sizeof(PackEntry), static_cast<size_t>(count), f) == static_cast<size_t>(count))
+                if(count > 0 && fread(entries.data(), sizeof(PackEntry), static_cast<za::SizeT>(count), f) == static_cast<za::SizeT>(count))
                 {
                     for(const PackEntry& e : entries)
                     {

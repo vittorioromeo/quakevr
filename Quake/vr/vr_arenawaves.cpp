@@ -7,6 +7,7 @@
 #include "vr_testkit.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -18,7 +19,6 @@
 #include "Zancle/Vocabulary/Span.hpp"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 namespace qvr::arenawaves
@@ -63,12 +63,12 @@ struct RunState
 };
 RunState run;
 
-void copyText(char* dst, size_t size, const char* src)
+void copyText(char* dst, za::SizeT size, const char* src)
 {
     q_strlcpy(dst, src, size);
 }
 
-template <size_t N>
+template <za::SizeT N>
 void setText(char (&dst)[N], const char* src)
 {
     copyText(dst, N, src);
@@ -136,7 +136,7 @@ void setText(char (&dst)[N], const char* src)
     }
     char buf[4096];
     out = za::String{};
-    size_t n;
+    za::SizeT n;
     while((n = fread(buf, 1, sizeof(buf) - 1, f)) > 0)
     {
         buf[n] = '\0';
@@ -160,7 +160,7 @@ bool writeAll(const char* path, const za::String& text)
     {
         return false;
     }
-    const size_t n = ZA_STRLEN(text.cStr());
+    const za::SizeT n = ZA_STRLEN(text.cStr());
     const bool ok = fwrite(text.cStr(), 1, n, f) == n;
     fclose(f);
     return ok;
@@ -188,7 +188,7 @@ int tokenize(const char* s, Token* tokens)
             break;
         }
         Token& t = tokens[n++];
-        size_t k = 0;
+        za::SizeT k = 0;
         while(*s && *s != '=' && *s != ' ' && *s != '\t')
         {
             if(k + 1 < sizeof(t.key))
@@ -198,7 +198,7 @@ int tokenize(const char* s, Token* tokens)
             s++;
         }
         t.key[k] = '\0';
-        size_t v = 0;
+        za::SizeT v = 0;
         t.value[0] = '\0';
         if(*s == '=')
         {
@@ -288,7 +288,7 @@ void putValue(za::String& out, const char* key, const char* value)
     while(*s)
     {
         const char* end = strchr(s, '+');
-        const size_t len = end ? static_cast<size_t>(end - s) : ZA_STRLEN(s);
+        const za::SizeT len = end ? static_cast<za::SizeT>(end - s) : ZA_STRLEN(s);
         bool known = false;
         for(const Piece& p : pieces)
         {
@@ -327,7 +327,7 @@ struct AssignLine
     while(*s)
     {
         const char* end = strchr(s, '\n');
-        const size_t len = end ? static_cast<size_t>(end - s) : ZA_STRLEN(s);
+        const za::SizeT len = end ? static_cast<za::SizeT>(end - s) : ZA_STRLEN(s);
         char line[192];
         copyText(line, za::min(sizeof(line), len + 1), s);
         s += len + (end ? 1 : 0);
@@ -673,12 +673,12 @@ bool parse(const char* text, Preset& out, za::String& report)
     while(*s)
     {
         const char* end = strchr(s, '\n');
-        const size_t len = end ? static_cast<size_t>(end - s) : ZA_STRLEN(s);
+        const za::SizeT len = end ? static_cast<za::SizeT>(end - s) : ZA_STRLEN(s);
         char line[512];
         copyText(line, za::min(sizeof(line), len + 1), s);
         s += len + (end ? 1 : 0);
         lineNo++;
-        const size_t l = ZA_STRLEN(line);
+        const za::SizeT l = ZA_STRLEN(line);
         if(l > 0 && line[l - 1] == '\r')
         {
             line[l - 1] = '\0';
@@ -808,12 +808,12 @@ const char* badReason(const Entry& e)
 
 bool validName(const char* name)
 {
-    const size_t n = ZA_STRLEN(name);
+    const za::SizeT n = ZA_STRLEN(name);
     if(n == 0 || n > 48 || !ZA_STRCMP(name, "assign") || !ZA_STRCMP(name, assignDefault))
     {
         return false;
     }
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         const char c = name[i];
         if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-'))

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 
 #include <glm/glm.hpp>
@@ -53,7 +54,7 @@ public:
 
     void clear();
     // Changes channel `c`'s tolerance (units that change with the world's scale).
-    void tolerance(int c, float t) { spec[static_cast<size_t>(c)].tolerance = t; }
+    void tolerance(int c, float t) { spec[static_cast<za::SizeT>(c)].tolerance = t; }
     [[nodiscard]] bool empty() const { return times.empty(); }
     [[nodiscard]] double lastTime() const { return times.empty() ? -1.0 : times.back(); }
     // A sample (one value per channel, in order). A second one at the same time (the other eye's pass) is left out;

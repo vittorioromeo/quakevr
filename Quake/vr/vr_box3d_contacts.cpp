@@ -7,6 +7,7 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -327,7 +328,7 @@ namespace
     {
         return false;
     }
-    const Slot& ps = world->slots[static_cast<size_t>(client)];
+    const Slot& ps = world->slots[static_cast<za::SizeT>(client)];
     const b3BodyId body = b3Shape_GetBody(player);
     const b3Vec3 centre = b3Body_GetPosition(body);
     const float feet = centre.z + ps.mins.z / world->m2u; // m
@@ -854,7 +855,7 @@ struct HandPush
     bool full{false};
     glm::vec3 normal{0.f};
     za::Array<b3BodyId, 32> counted; // (two players' hands, reach and body are already 8; held props add more)
-    size_t countedN{0};
+    za::SizeT countedN{0};
 };
 
 // Adds `prop`'s contacts with the hands' bodies to `hp`; true if one of them is its strongest push now.
@@ -869,7 +870,7 @@ bool scanHandPush(b3BodyId prop, HandPush& hp)
     bool strongest = false;
     for(int c = 0; c < count && !hp.full; c++)
     {
-        const b3ContactData& cd = contacts[static_cast<size_t>(c)];
+        const b3ContactData& cd = contacts[static_cast<za::SizeT>(c)];
         const bool propA = B3_ID_EQUALS(b3Shape_GetBody(cd.shapeIdA), prop);
         const b3ShapeId other = propA ? cd.shapeIdB : cd.shapeIdA;
         if((b3Shape_GetFilter(other).categoryBits & (catReach | catHand | catHeld)) == 0)
@@ -977,7 +978,7 @@ void limitRagdollPush(const Pushed& p, float dt)
     {
         return;
     }
-    Slot& slot = world->slots[static_cast<size_t>(p.num)];
+    Slot& slot = world->slots[static_cast<za::SizeT>(p.num)];
     const bool shove = slot.pushedStep >= world->steps - 1;
     slot.pushedStep = world->steps;
     const float bounce = za::clamp(vr_melee_ragdoll_bounce.value, 0.f, 1.f);
@@ -1032,7 +1033,7 @@ void limitPushes(float dt)
 {
     for(const Pushed& p : world->pushed)
     {
-        const Slot& s = world->slots[static_cast<size_t>(p.num)];
+        const Slot& s = world->slots[static_cast<za::SizeT>(p.num)];
         if(s.ragdoll >= 0)
         {
             limitRagdollPush(p, dt);
@@ -1051,7 +1052,7 @@ void limitPushes(float dt)
         {
             continue;
         }
-        Slot& pushed = world->slots[static_cast<size_t>(p.num)];
+        Slot& pushed = world->slots[static_cast<za::SizeT>(p.num)];
         const bool shove = pushed.pushedStep >= world->steps - 1;
         const glm::vec3 v = glmv(b3Body_GetLinearVelocity(s.body)), w = glmv(b3Body_GetAngularVelocity(s.body));
         const float gained = glm::dot(v - p.velocity, normal);

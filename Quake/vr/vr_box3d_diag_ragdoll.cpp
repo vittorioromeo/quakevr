@@ -12,6 +12,7 @@
 #include "vr_hands.hpp"
 #include "vr_units.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -332,7 +333,7 @@ void corpseList_f()
         int props = 0, hands = 0, level = 0;
         for(int c = 0; c < n; c++)
         {
-            const b3ContactData& cd = contacts[static_cast<size_t>(c)];
+            const b3ContactData& cd = contacts[static_cast<za::SizeT>(c)];
             if(cd.manifoldCount == 0 || cd.manifolds[0].pointCount == 0)
             {
                 continue;

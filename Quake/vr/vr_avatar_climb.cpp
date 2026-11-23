@@ -25,6 +25,7 @@
 #include "vr_seated.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -688,7 +689,7 @@ void logClimbing(const Body& b)
         const glm::vec3 tip = bone.pos + bone.rot[0] * (toeLength(side) * b.m2w);
         const bool inside = footTrace(bone.pos, bone.pos).solid || footTrace(tip, tip).solid;
         const int state = !f.held ? 0 : f.step >= 0.f ? 2 : 1;
-        n += q_snprintf(line + n, sizeof(line) - static_cast<size_t>(n), " %s %d %d %.2f %.2f %.2f %d", side == 0 ? "L" : "R",
+        n += q_snprintf(line + n, sizeof(line) - static_cast<za::SizeT>(n), " %s %d %d %.2f %.2f %.2f %d", side == 0 ? "L" : "R",
             state, f.serial, bone.pos.x, bone.pos.y, bone.pos.z, inside ? 1 : 0);
     }
     Con_Printf("%s\n", line);

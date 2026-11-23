@@ -7,6 +7,7 @@
 #include "vr_files.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -14,7 +15,6 @@
 #include "Zancle/String/String.hpp"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 namespace qvr::armourdata
@@ -85,10 +85,10 @@ constexpr const char* fileHead =
 // A part's name in the file (and its side): "bracer", "bracer_l", "thigh_sleeve_r". False: no such part.
 bool partOf(const char* name, int& part, int& side)
 {
-    const size_t len = ZA_STRLEN(name);
+    const za::SizeT len = ZA_STRLEN(name);
     for(int p = 0; p < NumParts; p++)
     {
-        const size_t n = ZA_STRLEN(partNames[p]);
+        const za::SizeT n = ZA_STRLEN(partNames[p]);
         if(!ZA_STRNCMP(name, partNames[p], n) && (len == n || (limbPart(p) && len == n + 2 && name[n] == '_' && (name[n + 1] == 'l' || name[n + 1] == 'r'))))
         {
             part = p;

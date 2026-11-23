@@ -1725,7 +1725,7 @@ void census_f()
     const Tree& pt = tree; // (the player's: its compile, for the blockers' share of it)
     Con_Printf("holes: phases %.1f %.1f %.1f %.1f ms\n", holePhases[0], holePhases[1], holePhases[2], holePhases[3]);
     Con_Printf("HOLECENSUS|%s|%u|%u|%d|%d|%d|%.1f|%d|%.0f|%.1f|%zu|%d|%d|%u|%d|%d\n", world->name, own, w.crossHoles, modelHoles,
-        models, b.holePairs, b.holeMs, reach, area, pt.ms, static_cast<size_t>(pt.nodes.size()), pt.fromDisk ? 1 : 0,
+        models, b.holePairs, b.holeMs, reach, area, pt.ms, static_cast<za::SizeT>(pt.nodes.size()), pt.fromDisk ? 1 : 0,
         tilted, w.standHoles, reachTilt, reachStand);
 }
 

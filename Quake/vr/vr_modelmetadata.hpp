@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "vr_modelmetadata.h"
 
 struct qmodel_s;
@@ -69,7 +70,7 @@ struct ModelMetadata
 // A model made from another's file (Mod_LoadModel's "<file>#<tag>": a ragdoll's skinned copy "#rag", the authored rig's
 // "#rig2", drawn in the .mdl's place; AD's VR weapons "#vr", melee weapons "#melee", our guns' "#adv<n>", "#gun<n>"): its
 // file's name (the part before the '#') into `out`; false (`out` untouched) for a model of its own. Any thread.
-bool sourceName(const char* name, char* out, size_t size);
+bool sourceName(const char* name, char* out, za::SizeT size);
 // A skinned copy of a .mdl drawn in its place (Ragdoll's "#rag", AuthoredRig's "#rig2"): the .mdl's skins and look.
 [[nodiscard]] bool skinnedCopy(const qmodel_s* model);
 // Live type/flags; entity overrides (held weapons, small gibs) belong to the consumer.

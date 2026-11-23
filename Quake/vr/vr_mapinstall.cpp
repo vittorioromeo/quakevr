@@ -610,7 +610,7 @@ struct Stream
     bool writeFailed{false};
 };
 
-size_t writeChunk(void* buffer, size_t size, size_t nmemb, void* opaque)
+za::SizeT writeChunk(void* buffer, za::SizeT size, za::SizeT nmemb, void* opaque)
 {
     if(SDL_AtomicGet(&cancelJob))
     {
@@ -628,7 +628,7 @@ size_t writeChunk(void* buffer, size_t size, size_t nmemb, void* opaque)
         st.overran = true; // (a server that sends on and on never fills the disk)
         return 0;
     }
-    if(n && fwrite(buffer, 1, static_cast<size_t>(n), st.file) != n)
+    if(n && fwrite(buffer, 1, static_cast<za::SizeT>(n), st.file) != n)
     {
         st.writeFailed = true; // (a full disk, most likely)
         return 0;
@@ -761,7 +761,7 @@ bool downloadZip(const za::String& part, za::String& why)
             unsigned char magic[4] = {};
             if(FILE* f = Sys_fopen(part.cStr(), "rb"))
             {
-                const size_t n = fread(magic, 1, sizeof(magic), f);
+                const za::SizeT n = fread(magic, 1, sizeof(magic), f);
                 fclose(f);
                 if(n == sizeof(magic) && magic[0] == 'P' && magic[1] == 'K' && magic[2] == 3 && magic[3] == 4)
                 {
@@ -804,7 +804,7 @@ struct ZipFile
     za::U64 pos{0}; // where the file is (a read that follows the last needs no seek)
 };
 
-size_t readFromFile(void* opaque, mz_uint64 ofs, void* buf, size_t n)
+za::SizeT readFromFile(void* opaque, mz_uint64 ofs, void* buf, za::SizeT n)
 {
     ZipFile& zf = *static_cast<ZipFile*>(opaque);
     if(ofs + n > zf.size)
@@ -816,7 +816,7 @@ size_t readFromFile(void* opaque, mz_uint64 ofs, void* buf, size_t n)
         zf.pos = ~za::U64{0};
         return 0;
     }
-    const size_t got = fread(buf, 1, n, zf.file);
+    const za::SizeT got = fread(buf, 1, n, zf.file);
     zf.pos = ofs + got;
     return got;
 }
@@ -1131,7 +1131,7 @@ bool extractZip(const za::String& zipFile, Job& job, za::String& why)
             paks.pushBack(Pak{pakNumber, it.index}); // (unpacked below, after every loose file)
             continue;
         }
-        size_t got = 0;
+        za::SizeT got = 0;
         void* data = mz_zip_reader_extract_to_heap(&z, static_cast<mz_uint>(it.index), &got, 0);
         if(!data)
         {
@@ -1150,7 +1150,7 @@ bool extractZip(const za::String& zipFile, Job& job, za::String& why)
     struct PakData // (one pak's bytes, freed when the next is taken)
     {
         void* data{nullptr};
-        size_t size{0};
+        za::SizeT size{0};
         PakData() = default;
         PakData(const PakData&) = delete;
         PakData& operator=(const PakData&) = delete;

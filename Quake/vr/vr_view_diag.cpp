@@ -8,6 +8,7 @@
 #include "vr_progs.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -845,7 +846,7 @@ void graspDump_f()
                 fprintf(f, "v %f %f %f\n", q.x, q.y, q.z);
             }
         }
-        for(size_t i = 0; i < tris.size(); i++)
+        for(za::SizeT i = 0; i < tris.size(); i++)
         {
             fprintf(f, "f %d %d %d\n", base + static_cast<int>(3 * i), base + static_cast<int>(3 * i + 1), base + static_cast<int>(3 * i + 2));
         }
@@ -1068,7 +1069,7 @@ bool drawnHandSurface(int hand, za::Vector<glm::vec4>& out, za::Vector<HandPart>
                 }
                 sphereMid /= static_cast<float>(za::max(static_cast<int>(rig.palmSpheres.size()), 1));
                 const glm::vec3 palmWay = sphereMid - palmMid;
-                for(size_t i = 0; i < posed.size(); i++)
+                for(za::SizeT i = 0; i < posed.size(); i++)
                 {
                     c.parts.pushBack(i < rig.vertices.size() ? restPart(rig.vertices[i], palmMid, palmWay) : HandPart::Hand);
                 }

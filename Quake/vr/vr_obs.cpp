@@ -408,7 +408,7 @@ void disconnect()
     }
     const za::SizeT old = conn.in.size();
     conn.in.resize(old + static_cast<za::SizeT>(n));
-    ZA_MEMCPY(conn.in.data() + old, buf, static_cast<size_t>(n));
+    ZA_MEMCPY(conn.in.data() + old, buf, static_cast<za::SizeT>(n));
     return 1;
 }
 

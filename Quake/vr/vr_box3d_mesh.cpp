@@ -9,6 +9,7 @@
 #include "vr_tunables.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -36,7 +37,7 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
     };
     za::Vector<Face> faces;
     za::Vector<int> corners; // BSP vertex numbers, each face's outline in order
-    za::Vector<uint8_t> used(static_cast<size_t>(map->numvertexes), 0);
+    za::Vector<uint8_t> used(static_cast<za::SizeT>(map->numvertexes), 0);
     const auto position = [&](int v) { return vec(map->vertexes[v].position); };
     for(int i = 0; i < map->nummodelsurfaces; i++)
     {
@@ -56,7 +57,7 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
             const int e = map->surfedges[surf.firstedge + k];
             const int v = static_cast<int>(e >= 0 ? map->edges[e].v[0] : map->edges[-e].v[1]);
             corners.pushBack(v);
-            used[static_cast<size_t>(v)] = 1;
+            used[static_cast<za::SizeT>(v)] = 1;
         }
     }
 
@@ -71,7 +72,7 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
     za::Vector<za::Pair<uint64_t, int>> grid;
     for(int v = 0; v < map->numvertexes; v++)
     {
-        if(used[static_cast<size_t>(v)])
+        if(used[static_cast<za::SizeT>(v)])
         {
             grid.emplaceBack(keyOf(cellOf(position(v))), v);
         }
@@ -92,11 +93,11 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
         i = j;
     }
 
-    za::Vector<int32_t> remap(static_cast<size_t>(map->numvertexes), -1);
+    za::Vector<int32_t> remap(static_cast<za::SizeT>(map->numvertexes), -1);
     za::Vector<b3Vec3> vertices;
     za::Vector<int32_t> indices;
     const auto index = [&](int v) {
-        int32_t& r = remap[static_cast<size_t>(v)];
+        int32_t& r = remap[static_cast<za::SizeT>(v)];
         if(r < 0)
         {
             r = static_cast<int32_t>(vertices.size());
@@ -139,7 +140,7 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
         bool split = false;
         for(int k = 0; k < f.count; k++)
         {
-            const int a = corners[static_cast<size_t>(f.first + k)], b = corners[static_cast<size_t>(f.first + (k + 1) % f.count)];
+            const int a = corners[static_cast<za::SizeT>(f.first + k)], b = corners[static_cast<za::SizeT>(f.first + (k + 1) % f.count)];
             outline.pushBack(a);
             corner.pushBack(1);
             const glm::vec3 pa = position(a), pb = position(b);
@@ -259,7 +260,7 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
         if(!split)
         {
             const int a = outline[0];
-            for(size_t k = 2; k < outline.size(); k++)
+            for(za::SizeT k = 2; k < outline.size(); k++)
             {
                 triangle(index(a), index(outline[k - 1]), index(outline[k]), position(a), position(outline[k - 1]), position(outline[k]),
                     f.normal);
@@ -269,9 +270,9 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
         // Fanned from one of its corners whose two edges have no junction in them (the fan's triangles then have every
         // piece of the outline as an edge, none of them flat), else from a new vertex in its middle.
         stats.junctionFaces++;
-        const size_t n = outline.size();
-        size_t from = n;
-        for(size_t k = 0; k < n && from == n; k++)
+        const za::SizeT n = outline.size();
+        za::SizeT from = n;
+        for(za::SizeT k = 0; k < n && from == n; k++)
         {
             if(corner[k] && corner[(k + 1) % n] && corner[(k + n - 1) % n])
             {
@@ -281,7 +282,7 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
         if(from < n)
         {
             const int a = outline[from];
-            for(size_t k = 2; k < n; k++)
+            for(za::SizeT k = 2; k < n; k++)
             {
                 const int b = outline[(from + k - 1) % n], c = outline[(from + k) % n];
                 triangle(index(a), index(b), index(c), position(a), position(b), position(c), f.normal);
@@ -297,7 +298,7 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
         middle /= static_cast<float>(outline.size());
         const int32_t m = static_cast<int32_t>(vertices.size());
         vertices.pushBack(b3Vec3{middle.x / m2u, middle.y / m2u, middle.z / m2u});
-        for(size_t k = 0; k < outline.size(); k++)
+        for(za::SizeT k = 0; k < outline.size(); k++)
         {
             const int a = outline[k], b = outline[(k + 1) % outline.size()];
             triangle(m, index(a), index(b), middle, position(a), position(b), f.normal);
@@ -331,7 +332,7 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
 
 namespace
 {
-constexpr size_t meshCacheScales = 4;
+constexpr za::SizeT meshCacheScales = 4;
 za::U32 meshCacheSerial = 0;
 
 [[nodiscard]] za::U32 floatWord(float f)
@@ -444,9 +445,9 @@ MeshCache& addMesh(MeshCache&& made, const qmodel_t* map)
     // Kept: this map's newest scales, then the other maps' newest (one scale each), newest first.
     za::Vector<za::U8> keep(meshCache.size(), 0);
     {
-        size_t scales = 1; // (the one being added)
+        za::SizeT scales = 1; // (the one being added)
         za::Vector<const MeshCache*> others;
-        for(size_t i = meshCache.size(); i-- > 0;)
+        for(za::SizeT i = meshCache.size(); i-- > 0;)
         {
             const MeshCache& c = meshCache[i];
             if(sameMap(c, map))
@@ -463,14 +464,14 @@ MeshCache& addMesh(MeshCache&& made, const qmodel_t* map)
             {
                 counted = counted || (!ZA_STRCMP(o->name, c.name) && o->inputsKey == c.inputsKey);
             }
-            if(!counted && others.size() < static_cast<size_t>(keepMaps))
+            if(!counted && others.size() < static_cast<za::SizeT>(keepMaps))
             {
                 others.pushBack(&c);
                 keep[i] = 1;
             }
         }
     }
-    size_t index = 0;
+    za::SizeT index = 0;
     for(auto it = meshCache.begin(); it != meshCache.end(); index++)
     {
         if(!keep[index] && !(world && world->mesh == it->mesh)) // (never the one the world's shape uses)
@@ -540,17 +541,17 @@ void settleMesh()
 [[nodiscard]] za::Vector<b3Vec3> corners(const za::Vector<HalfSpace>& planes, float m2u)
 {
     za::Vector<glm::dvec3> points;
-    const size_t count = planes.size();
-    for(size_t i = 0; i < count; i++)
+    const za::SizeT count = planes.size();
+    for(za::SizeT i = 0; i < count; i++)
     {
-        for(size_t j = i + 1; j < count; j++)
+        for(za::SizeT j = i + 1; j < count; j++)
         {
             const glm::dvec3 ij = glm::cross(planes[i].n, planes[j].n);
             if(glm::dot(ij, ij) < 1e-12)
             {
                 continue;
             }
-            for(size_t k = j + 1; k < count; k++)
+            for(za::SizeT k = j + 1; k < count; k++)
             {
                 const double det = glm::dot(ij, planes[k].n);
                 if(za::abs(det) < 1e-9)
@@ -561,7 +562,7 @@ void settleMesh()
                                          glm::cross(planes[k].n, planes[i].n) * planes[j].d + ij * planes[k].d) /
                                      det;
                 bool inside = true;
-                for(size_t m = 0; m < count && inside; m++)
+                for(za::SizeT m = 0; m < count && inside; m++)
                 {
                     inside = glm::dot(planes[m].n, p) <= planes[m].d + 0.01;
                 }
@@ -745,7 +746,7 @@ constexpr unsigned gunPiecesMostFile = 64; // (a file claiming more pieces is no
     snprintf(what, sizeof(what), "(%s, %016llx)", name ? name : "a gun", key);
     if(!diskcache::read(diskcache::Product::GunPieces, convex::build(), key, "gpc", gunPiecesMagic, count, points, data, what) ||
        count > gunPiecesMostFile ||
-       data.size() != sizeof(convex::Report) + count * sizeof(za::I32) + static_cast<size_t>(points) * sizeof(glm::vec3))
+       data.size() != sizeof(convex::Report) + count * sizeof(za::I32) + static_cast<za::SizeT>(points) * sizeof(glm::vec3))
     {
         return false;
     }
@@ -765,8 +766,8 @@ constexpr unsigned gunPiecesMostFile = 64; // (a file claiming more pieces is no
             return false;
         }
         pieces[i].points.resize(static_cast<za::SizeT>(end - begin));
-        ZA_MEMCPY(pieces[i].points.data(), at + static_cast<size_t>(begin) * sizeof(glm::vec3),
-            static_cast<size_t>(end - begin) * sizeof(glm::vec3));
+        ZA_MEMCPY(pieces[i].points.data(), at + static_cast<za::SizeT>(begin) * sizeof(glm::vec3),
+            static_cast<za::SizeT>(end - begin) * sizeof(glm::vec3));
         begin = end;
     }
     if(begin != static_cast<za::I32>(points))
@@ -786,14 +787,14 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
         points += static_cast<za::I32>(piece.points.size());
     }
     za::Vector<char> data;
-    data.resize(sizeof(report) + pieces.size() * sizeof(za::I32) + static_cast<size_t>(points) * sizeof(glm::vec3));
+    data.resize(sizeof(report) + pieces.size() * sizeof(za::I32) + static_cast<za::SizeT>(points) * sizeof(glm::vec3));
     ZA_MEMCPY(data.data(), &report, sizeof(report));
     char* ends = data.data() + sizeof(report);
     char* at = ends + pieces.size() * sizeof(za::I32);
     za::I32 end = 0;
     for(za::SizeT i = 0; i < pieces.size(); i++)
     {
-        ZA_MEMCPY(at + static_cast<size_t>(end) * sizeof(glm::vec3), pieces[i].points.data(),
+        ZA_MEMCPY(at + static_cast<za::SizeT>(end) * sizeof(glm::vec3), pieces[i].points.data(),
             pieces[i].points.size() * sizeof(glm::vec3));
         end += static_cast<za::I32>(pieces[i].points.size());
         ZA_MEMCPY(ends + i * sizeof(za::I32), &end, sizeof(end));
@@ -833,7 +834,7 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
 #ifdef QVR_TRACY
     char detail[192];
     snprintf(detail, sizeof(detail), "%s mode=%d hit=%d key=%016llx corners=%zu most=%d", name, mode, fromDisk, key,
-        static_cast<size_t>(triangles.size()), settings.maxPieces);
+        static_cast<za::SizeT>(triangles.size()), settings.maxPieces);
     VR_TracyText(detail);
 #endif
     if(fromDisk)

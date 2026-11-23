@@ -277,7 +277,7 @@ extern "C" byte* VR_SndLayered(const char* name, int* size)
     const float norm = 1.f / softClip(drive);
     const int samples = static_cast<int>(mix.size());
     const int dataBytes = samples * 2;
-    byte* wav = static_cast<byte*>(VR_HeapMalloc(static_cast<size_t>(44 + dataBytes)));
+    byte* wav = static_cast<byte*>(VR_HeapMalloc(static_cast<za::SizeT>(44 + dataBytes)));
     const auto put = [&](int at, int value, int bytes) {
         for(int i = 0; i < bytes; i++)
         {

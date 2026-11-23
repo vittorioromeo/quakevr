@@ -9,6 +9,7 @@
 
 #include "vr_box3d_internal.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -1050,7 +1051,7 @@ namespace
     const glm::vec3 a = glm::min(lo + glm::vec3{in}, 0.5f * (lo + hi)), b = glm::max(hi - glm::vec3{in}, 0.5f * (lo + hi));
     for(int k = 0; k < 8; k++)
     {
-        out[static_cast<size_t>(k)] = world->toM(rot * glm::vec3{k & 1 ? b.x : a.x, k & 2 ? b.y : a.y, k & 4 ? b.z : a.z});
+        out[static_cast<za::SizeT>(k)] = world->toM(rot * glm::vec3{k & 1 ? b.x : a.x, k & 2 ? b.y : a.y, k & 4 ? b.z : a.z});
     }
     return out;
 }
@@ -1126,7 +1127,7 @@ bool holdClear(int num, const glm::vec3& fromPos, const glm::quat& fromRot, glm:
     {
         return false;
     }
-    const Slot& s = world->slots[static_cast<size_t>(num)];
+    const Slot& s = world->slots[static_cast<za::SizeT>(num)];
     glm::vec3 lo, hi;
     ownBox(s, lo, hi);
     if(B3_IS_NULL(s.body) || (s.kind != Kind::Held && s.kind != Kind::Prop) || hi.x <= lo.x)

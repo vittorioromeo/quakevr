@@ -12,6 +12,7 @@
 #include "vr_geom.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -146,7 +147,7 @@ struct Words
     {
         n = 0;
         const int l = za::min(len, static_cast<int>(sizeof(buf)) - 1);
-        ZA_MEMCPY(buf, s, static_cast<size_t>(l));
+        ZA_MEMCPY(buf, s, static_cast<za::SizeT>(l));
         buf[l] = 0;
         char* hash = strchr(buf, '#');
         if(hash)
@@ -246,7 +247,7 @@ void filePath(const char* model, char* out, int size)
     char base[64], root[MAX_OSPATH];
     rigdata::baseName(model, base, sizeof(base));
     rigdata::rootDir(root, sizeof(root));
-    q_snprintf(out, static_cast<size_t>(size), "%s/rigs/%s.rig2.txt", root, base);
+    q_snprintf(out, static_cast<za::SizeT>(size), "%s/rigs/%s.rig2.txt", root, base);
 }
 
 [[nodiscard]] qmodel_t* skinnedOf(const qmodel_t* model)
@@ -1338,7 +1339,7 @@ void drawInfo()
 
 bool makeSkinnedModel(qmodel_t* mod)
 {
-    const size_t len = ZA_STRLEN(mod->name), suffix = ZA_STRLEN(skinnedSuffix);
+    const za::SizeT len = ZA_STRLEN(mod->name), suffix = ZA_STRLEN(skinnedSuffix);
     if(len <= suffix || ZA_STRCMP(mod->name + len - suffix, skinnedSuffix))
     {
         return false;
@@ -1359,7 +1360,7 @@ bool makeSkinnedModel(qmodel_t* mod)
     const int numVerts = sh->numverts_vbo, numIndexes = sh->numindexes, numBones = rig->numBones, numFrames = za::max(sh->numframes, 1);
 
     const int start = Hunk_LowMark();
-    const size_t hdrSize = sizeof(aliashdr_t) + sizeof(maliasframedesc_t) * static_cast<size_t>(numFrames - 1);
+    const za::SizeT hdrSize = sizeof(aliashdr_t) + sizeof(maliasframedesc_t) * static_cast<za::SizeT>(numFrames - 1);
     auto* hdr = static_cast<aliashdr_t*>(Hunk_Alloc(static_cast<int>(hdrSize)));
     auto* bones = static_cast<boneinfo_t*>(Hunk_Alloc(static_cast<int>(sizeof(boneinfo_t)) * numBones));
     auto* bind = static_cast<bonepose_t*>(Hunk_Alloc(static_cast<int>(sizeof(bonepose_t)) * numBones));
@@ -1451,7 +1452,7 @@ bool makeSkinnedModel(qmodel_t* mod)
             left -= o.weight[i];
         }
     }
-    ZA_MEMCPY(indexes, reinterpret_cast<const byte*>(sh) + sh->indexes, sizeof(unsigned short) * static_cast<size_t>(numIndexes));
+    ZA_MEMCPY(indexes, reinterpret_cast<const byte*>(sh) + sh->indexes, sizeof(unsigned short) * static_cast<za::SizeT>(numIndexes));
     hdr->boneinfo = reinterpret_cast<byte*>(bones) - reinterpret_cast<byte*>(hdr);
     hdr->bindpose = reinterpret_cast<byte*>(bind) - reinterpret_cast<byte*>(hdr);
     hdr->boneposedata = reinterpret_cast<byte*>(poses) - reinterpret_cast<byte*>(hdr);

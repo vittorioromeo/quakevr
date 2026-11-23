@@ -10,6 +10,7 @@
 
 #include "vr_backend_openxr_internal.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -130,7 +131,7 @@ bool OpenXrBackend::start()
     xrruntime::loaderDebug();
     const xrruntime::Plan plan = xrruntime::plan();
     xrruntime::note("OpenXR runtime choice: %s\n", plan.summary.cStr());
-    for(size_t i = 0; i < plan.attempts.size(); i++)
+    for(za::SizeT i = 0; i < plan.attempts.size(); i++)
     {
         const xrruntime::Attempt& attempt = plan.attempts[i];
         if(i > 0 && !plan.fallback)
@@ -708,7 +709,7 @@ bool OpenXrBackend::createSystem()
         q_strlcpy(this->system, system.systemName, sizeof(this->system));
         maxImageWidth = system.graphicsProperties.maxSwapchainImageWidth;
         maxImageHeight = system.graphicsProperties.maxSwapchainImageHeight;
-        const size_t len = ZA_STRLEN(crashBase);
+        const za::SizeT len = ZA_STRLEN(crashBase);
         q_snprintf(crashBase + len, sizeof(crashBase) - len, "; headset \"%s\"", system.systemName);
         xrruntime::logLine(va("OpenXR: system \"%s\" (vendor 0x%x): at most %u layers, swapchain images up to %ux%u\n",
             system.systemName, system.vendorId, system.graphicsProperties.maxLayerCount,
@@ -871,7 +872,7 @@ void OpenXrBackend::logGlInterop()
         "glImportSemaphoreWin32HandleEXT", "wglDXOpenDeviceNV", "wglDXRegisterObjectNV"};
     za::String text;
     bool memoryObjects = true;
-    for(size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++)
+    for(za::SizeT i = 0; i < sizeof(names) / sizeof(names[0]); i++)
     {
         const intptr_t p = reinterpret_cast<intptr_t>(wglGetProcAddress(names[i]));
         const bool has = p != 0 && p != 1 && p != 2 && p != 3 && p != -1; // (some drivers' failure values)

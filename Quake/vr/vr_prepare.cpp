@@ -13,6 +13,7 @@
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -131,7 +132,7 @@ void addLooseFiles(const za::String& dir, const za::String& relative, int depth,
 
 [[nodiscard]] bool isModel(const char* file, bool anyDepth)
 {
-    const size_t n = ZA_STRLEN(file);
+    const za::SizeT n = ZA_STRLEN(file);
     return n > 10 && !q_strncasecmp(file, "progs/", 6) && (anyDepth || !strchr(file + 6, '/')) &&
            !q_strcasecmp(file + n - 4, ".mdl");
 }

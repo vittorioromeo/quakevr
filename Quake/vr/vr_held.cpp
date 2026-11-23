@@ -37,6 +37,7 @@
 #include "Zancle/Base/Limits.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -438,7 +439,7 @@ constexpr float fistSurface[fistRows][fistColumns] = {
 float modelGap(const qmodel_t* model)
 {
     const char* list = vr_held_fit_gaps.string;
-    const size_t nameLength = ZA_STRLEN(model->name);
+    const za::SizeT nameLength = ZA_STRLEN(model->name);
     while(list && *list)
     {
         while(*list == ' ' || *list == ',' || *list == ';')
@@ -450,7 +451,7 @@ float modelGap(const qmodel_t* model)
         {
             break;
         }
-        const size_t length = static_cast<size_t>(eq - list);
+        const za::SizeT length = static_cast<za::SizeT>(eq - list);
         const float cm = static_cast<float>(atof(eq + 1));
         if(length > 0 && length <= nameLength && !q_strncasecmp(model->name + nameLength - length, list, static_cast<int>(length)))
         {
@@ -611,7 +612,7 @@ bool modelVertices(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>& 
     const DrawnTransform xf{model, glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{0.f}};
     const int pose = hdr->frames[0].firstpose;
     mdldequant::prepare(model); // the vertices as drawn (dequantised), not the stored bytes
-    out.reserve(static_cast<size_t>(hdr->numverts));
+    out.reserve(static_cast<za::SizeT>(hdr->numverts));
     for(int i = 0; i < hdr->numverts; i++)
     {
         glm::vec3 p = xf.stored(mdldequant::poseVertex(hdr, pose, i));
@@ -643,7 +644,7 @@ bool modelTriangles(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>&
     const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
     const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
     mdldequant::prepare(model); // the vertices as drawn (dequantised), not the stored bytes
-    out.reserve(static_cast<size_t>(hdr->numindexes));
+    out.reserve(static_cast<za::SizeT>(hdr->numindexes));
     for(int i = 0; i < hdr->numindexes; i++)
     {
         glm::vec3 p = xf.stored(mdldequant::poseVertex(hdr, pose, mesh[indexes[i]].vertindex));
@@ -677,7 +678,7 @@ bool magazinePoints(const DrawnTransform& xf, const qmodel_t* mag, bool mirrored
     const glm::vec3 so{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
     const glm::vec3 hs{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
     mdldequant::prepare(mag); // the vertices as drawn (dequantised), not the stored bytes
-    out.reserve(static_cast<size_t>(hdr->numverts));
+    out.reserve(static_cast<za::SizeT>(hdr->numverts));
     for(int i = 0; i < hdr->numverts; i++)
     {
         glm::vec3 p = xf.modelPoint(so + hs * mdldequant::poseVertex(hdr, pose, i));
@@ -901,7 +902,7 @@ float bounds(const za::Vector<glm::vec4>& spheres, glm::vec3& centre)
     {
         centre += glm::vec3{s};
     }
-    centre /= static_cast<float>(za::max<size_t>(spheres.size(), 1));
+    centre /= static_cast<float>(za::max<za::SizeT>(spheres.size(), 1));
     float bound = 0.f;
     for(const glm::vec4& s : spheres)
     {
@@ -1379,7 +1380,7 @@ bool fistContact(edict_t* ent, const za::Vector<glm::vec4>& spheres, float reach
         }
         any = true;
         const glm::vec3 n = outwards * glm::cross(t.p[1] - t.p[0], t.p[2] - t.p[0]);
-        for(size_t i = 0; i < local.size(); i++)
+        for(za::SizeT i = 0; i < local.size(); i++)
         {
             const glm::vec3 c{local[i]};
             const glm::vec3 q = geom::closestOnTriangle(c, t.p[0], t.p[1], t.p[2]);
@@ -1396,7 +1397,7 @@ bool fistContact(edict_t* ent, const za::Vector<glm::vec4>& spheres, float reach
     {
         return false;
     }
-    for(size_t i = 0; i < local.size(); i++)
+    for(za::SizeT i = 0; i < local.size(); i++)
     {
         if(nearest[i] == ZA_FLOAT_MAX)
         {
@@ -1566,7 +1567,7 @@ void drawCarryProbes()
         if(!p.fist.empty())
         {
             // The fist's spheres (faint; the touching one bright), the nearest of them to the surface's nearest point.
-            for(size_t i = 0; i < p.fist.size(); i++)
+            for(za::SizeT i = 0; i < p.fist.size(); i++)
             {
                 const bool touching = static_cast<int>(i) == p.touching;
                 lines::point(glm::vec3{p.fist[i]}, 2.f * p.fist[i].w,

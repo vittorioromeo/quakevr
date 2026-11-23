@@ -18,6 +18,7 @@
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -40,7 +41,7 @@ namespace
 // v_gruntgun.mdl is the plain burst rifle's own model now (models_src/burstrifle), made anew.
 constexpr const char* baseModel = "progs/vr_adrifle_base.mdl";
 constexpr const char* launcherModel = "progs/v_rock.mdl"; // our grenade launcher (its barrel and drum)
-constexpr size_t mdlHeader = 84;
+constexpr za::SizeT mdlHeader = 84;
 constexpr int extraRows = 160;
 constexpr float pi = 3.14159265f;
 const glm::vec3 corner{-29.9f, -6.170675f, -4.6f}; // v_gruntgun.mdl's scale_origin
@@ -92,29 +93,29 @@ void putf(za::Vector<byte>& out, float v)
 struct Mdl
 {
     const byte* src{nullptr};
-    size_t size{0};
+    za::SizeT size{0};
     glm::vec3 scale{1.f}, origin{0.f};
     int skinW{0}, skinH{0}, numVerts{0}, numTris{0}, flags{0};
     float sizeField{0.f};
     const byte* skin{nullptr};
-    size_t stAt{0}, triAt{0}, poseAt{0};
+    za::SizeT stAt{0}, triAt{0}, poseAt{0};
 
     [[nodiscard]] glm::vec3 pos(int v) const
     {
-        const byte* p = src + poseAt + static_cast<size_t>(v) * 4;
+        const byte* p = src + poseAt + static_cast<za::SizeT>(v) * 4;
         return glm::vec3{p[0] * scale.x + origin.x, p[1] * scale.y + origin.y, p[2] * scale.z + origin.z};
     }
     [[nodiscard]] glm::vec3 normal(int v) const
     {
-        const byte n = src[poseAt + static_cast<size_t>(v) * 4 + 3];
+        const byte n = src[poseAt + static_cast<za::SizeT>(v) * 4 + 3];
         return n < NUMVERTEXNORMALS ? geom::vec(r_avertexnormals[n])
                                     : glm::vec3{0.f, 0.f, 1.f};
     }
-    [[nodiscard]] int tri(int t, int k) const { return qvr::bytes::le32(src, triAt + static_cast<size_t>(t) * 16 + static_cast<size_t>(k) * 4); }
-    [[nodiscard]] int st(int v, int k) const { return qvr::bytes::le32(src, stAt + static_cast<size_t>(v) * 12 + static_cast<size_t>(k) * 4); }
+    [[nodiscard]] int tri(int t, int k) const { return qvr::bytes::le32(src, triAt + static_cast<za::SizeT>(t) * 16 + static_cast<za::SizeT>(k) * 4); }
+    [[nodiscard]] int st(int v, int k) const { return qvr::bytes::le32(src, stAt + static_cast<za::SizeT>(v) * 12 + static_cast<za::SizeT>(k) * 4); }
 };
 
-[[nodiscard]] bool readMdl(const byte* src, size_t size, Mdl& m, const char*& why)
+[[nodiscard]] bool readMdl(const byte* src, za::SizeT size, Mdl& m, const char*& why)
 {
     if(size < mdlHeader || qvr::bytes::le32(src, 0) != IDPOLYHEADER || qvr::bytes::le32(src, 4) != ALIAS_VERSION)
     {
@@ -138,8 +139,8 @@ struct Mdl
         why = "an empty model";
         return false;
     }
-    const size_t skinBytes = static_cast<size_t>(m.skinW) * static_cast<size_t>(m.skinH);
-    size_t at = mdlHeader;
+    const za::SizeT skinBytes = static_cast<za::SizeT>(m.skinW) * static_cast<za::SizeT>(m.skinH);
+    za::SizeT at = mdlHeader;
     for(int s = 0; s < numSkins; s++)
     {
         if(at + 8 > size)
@@ -156,8 +157,8 @@ struct Mdl
         else
         {
             const int n = za::max(qvr::bytes::le32(src, at + 4), 1);
-            picture = src + at + 8 + static_cast<size_t>(n) * 4;
-            at += 8 + static_cast<size_t>(n) * 4 + static_cast<size_t>(n) * skinBytes;
+            picture = src + at + 8 + static_cast<za::SizeT>(n) * 4;
+            at += 8 + static_cast<za::SizeT>(n) * 4 + static_cast<za::SizeT>(n) * skinBytes;
         }
         if(s == 0)
         {
@@ -165,17 +166,17 @@ struct Mdl
         }
     }
     m.stAt = at;
-    m.triAt = at + static_cast<size_t>(m.numVerts) * 12;
-    at = m.triAt + static_cast<size_t>(m.numTris) * 16;
+    m.triAt = at + static_cast<za::SizeT>(m.numVerts) * 12;
+    at = m.triAt + static_cast<za::SizeT>(m.numTris) * 16;
     // Frame 0 (a single frame or a group's first).
     if(at + 4 > size)
     {
         why = "truncated (frames)";
         return false;
     }
-    at += qvr::bytes::le32(src, at) == 0 ? 4 : 4 + 4 + 8 + static_cast<size_t>(za::max(qvr::bytes::le32(src, at + 4), 1)) * 4;
+    at += qvr::bytes::le32(src, at) == 0 ? 4 : 4 + 4 + 8 + static_cast<za::SizeT>(za::max(qvr::bytes::le32(src, at + 4), 1)) * 4;
     m.poseAt = at + 24;
-    if(m.poseAt + static_cast<size_t>(m.numVerts) * 4 > size || m.skin + skinBytes > src + size)
+    if(m.poseAt + static_cast<za::SizeT>(m.numVerts) * 4 > size || m.skin + skinBytes > src + size)
     {
         why = "truncated (vertices)";
         return false;
@@ -823,7 +824,7 @@ void graftLauncher(Build& b, const Mdl& g, W&& want, P&& place, int skinRow)
         for(int x = 0; x < halfW && x < b.skinW; x++)
         {
             // (the top-left texel of each 2 x 2: an indexed skin is not averaged)
-            const byte px = g.skin[static_cast<size_t>(y * 2) * static_cast<size_t>(g.skinW) + static_cast<size_t>(x * 2)];
+            const byte px = g.skin[static_cast<za::SizeT>(y * 2) * static_cast<za::SizeT>(g.skinW) + static_cast<za::SizeT>(x * 2)];
             b.skin[static_cast<za::SizeT>((skinRow + y) * b.skinW + x)] = px >= 224 ? px : b.quantize(palette(px) * 1.45f, false);
         }
     }
@@ -844,10 +845,10 @@ void graftLauncher(Build& b, const Mdl& g, W&& want, P&& place, int skinRow)
     // (vertices at the same place are one: a piece's skin seams split its vertices)
     for(int v = 0; v < g.numVerts; v++)
     {
-        const byte* pv = g.src + g.poseAt + static_cast<size_t>(v) * 4;
+        const byte* pv = g.src + g.poseAt + static_cast<za::SizeT>(v) * 4;
         for(int w = 0; w < v; w++)
         {
-            const byte* pw = g.src + g.poseAt + static_cast<size_t>(w) * 4;
+            const byte* pw = g.src + g.poseAt + static_cast<za::SizeT>(w) * 4;
             if(pv[0] == pw[0] && pv[1] == pw[1] && pv[2] == pw[2])
             {
                 parent[static_cast<za::SizeT>(root(v))] = root(w);
@@ -1412,7 +1413,7 @@ void writeMdl(const Build& b, const glm::vec3& from, int flags, float sizeField,
     out.tris = static_cast<int>(b.tris.size());
 }
 
-[[nodiscard]] bool makeVariant(int variant, const byte* src, size_t size, const byte* rockSrc, size_t rockSize, Built& out,
+[[nodiscard]] bool makeVariant(int variant, const byte* src, za::SizeT size, const byte* rockSrc, za::SizeT rockSize, Built& out,
     const char*& why, MeshStats* stats)
 {
     Mdl m;
@@ -1429,7 +1430,7 @@ void writeMdl(const Build& b, const glm::vec3& from, int flags, float sizeField,
     b.baseH = m.skinH;
     b.skinH = m.skinH + extraRows;
     b.skin.resize(static_cast<za::SizeT>(b.skinW * b.skinH), static_cast<byte>(0));
-    ZA_MEMCPY(b.skin.data(), m.skin, static_cast<size_t>(m.skinW) * static_cast<size_t>(m.skinH));
+    ZA_MEMCPY(b.skin.data(), m.skin, static_cast<za::SizeT>(m.skinW) * static_cast<za::SizeT>(m.skinH));
     b.atlasY = m.skinH;
 
     // The rifle as it is.
@@ -1489,14 +1490,14 @@ void writeMdl(const Build& b, const glm::vec3& from, int flags, float sizeField,
         why = "vr_adrifle_base.mdl not found";
         return false;
     }
-    const size_t size = static_cast<size_t>(com_filesize);
+    const za::SizeT size = static_cast<za::SizeT>(com_filesize);
     byte* rock = nullptr;
-    size_t rockSize = 0;
+    za::SizeT rockSize = 0;
     if(variant == Grenade)
     {
         unsigned int rockPath = 0;
         rock = COM_LoadMallocFile(VR_ModelFile(launcherModel), &rockPath);
-        rockSize = rock ? static_cast<size_t>(com_filesize) : 0;
+        rockSize = rock ? static_cast<za::SizeT>(com_filesize) : 0;
     }
     const bool ok = makeVariant(variant, src, size, rock, rockSize, out, why, stats);
     VR_HeapFree(src);
@@ -1653,7 +1654,7 @@ byte* flashFile(const char* name, unsigned int* path_id)
     }
     Mdl m;
     const char* why = "";
-    if(!readMdl(src, static_cast<size_t>(com_filesize), m, why))
+    if(!readMdl(src, static_cast<za::SizeT>(com_filesize), m, why))
     {
         return src;
     }

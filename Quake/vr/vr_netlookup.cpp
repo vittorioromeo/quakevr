@@ -32,6 +32,7 @@
 #include "vr_api.h"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Chrono/Time.hpp"
@@ -212,7 +213,7 @@ using namespace qvr::netlookup;
 
 extern "C" int VR_NetLookup(const char* name, unsigned int* netorder_ipv4, int mayStart)
 {
-    if(!name || !name[0] || ZA_STRLEN(name) >= static_cast<size_t>(nameLength))
+    if(!name || !name[0] || ZA_STRLEN(name) >= static_cast<za::SizeT>(nameLength))
     {
         return -1;
     }

@@ -9,6 +9,7 @@
 
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -73,7 +74,7 @@ struct Block
     [[nodiscard]] bool word(const char* k, const char* w) const
     {
         const char* s = str(k);
-        const size_t len = ZA_STRLEN(w);
+        const za::SizeT len = ZA_STRLEN(w);
         while(*s)
         {
             while(*s == ' ')
@@ -85,7 +86,7 @@ struct Block
             {
                 e++;
             }
-            if(static_cast<size_t>(e - s) == len && !ZA_STRNCMP(s, w, len))
+            if(static_cast<za::SizeT>(e - s) == len && !ZA_STRNCMP(s, w, len))
             {
                 return true;
             }
@@ -556,7 +557,7 @@ void splitAt(int w, const Block& theme, float out[4])
             break;
         }
         char tag[24];
-        q_strlcpy(tag, s, za::min(sizeof(tag), static_cast<size_t>(colon - s + 1)));
+        q_strlcpy(tag, s, za::min(sizeof(tag), static_cast<za::SizeT>(colon - s + 1)));
         char* e = nullptr;
         const float m = strtof(colon + 1, &e);
         if(b.word("tags", tag) || (g && g->word("tags", tag)))
@@ -1256,7 +1257,7 @@ void planOne(int w)
             withSurges[ns++] = ordered[i];
         }
     }
-    ZA_MEMCPY(run.foes, withSurges, sizeof(Foe) * static_cast<size_t>(ns));
+    ZA_MEMCPY(run.foes, withSurges, sizeof(Foe) * static_cast<za::SizeT>(ns));
     run.nFoes = ns;
 
     run.spent = 0.f;

@@ -18,6 +18,7 @@
 
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -197,12 +198,12 @@ struct Md5
         h[3] += d;
     }
 
-    void add(const unsigned char* p, size_t n)
+    void add(const unsigned char* p, za::SizeT n)
     {
         length += n;
         while(n > 0)
         {
-            const size_t take = za::min(n, static_cast<size_t>(64 - used));
+            const za::SizeT take = za::min(n, static_cast<za::SizeT>(64 - used));
             ZA_MEMCPY(block + used, p, take);
             used += static_cast<int>(take);
             p += take;
@@ -291,7 +292,7 @@ Catalog catalog;
 
 [[nodiscard]] bool endsWithWad(const char* name)
 {
-    const size_t n = ZA_STRLEN(name);
+    const za::SizeT n = ZA_STRLEN(name);
     return n > 4 && !q_strcasecmp(name + n - 4, ".wad");
 }
 
@@ -353,7 +354,7 @@ void md5File(const char* path, char (&out)[33])
     unsigned char buffer[1 << 16];
     for(;;)
     {
-        const size_t n = fread(buffer, 1, sizeof(buffer), f);
+        const za::SizeT n = fread(buffer, 1, sizeof(buffer), f);
         if(n == 0)
         {
             break;
@@ -716,7 +717,7 @@ bool makeWav(const unsigned char* dmx, int length, za::Vector<unsigned char>& ou
     u16(8);
     ZA_MEMCPY(p, "data", 4), p += 4;
     u32(static_cast<uint32_t>(count));
-    ZA_MEMCPY(p, samples, static_cast<size_t>(count));
+    ZA_MEMCPY(p, samples, static_cast<za::SizeT>(count));
     return true;
 }
 

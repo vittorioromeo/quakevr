@@ -11,6 +11,7 @@
 #include "vr_scenario.hpp"
 #include "vr_srvrandom.hpp"
 #include "vr_testkit.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -579,7 +580,7 @@ void testCmd()
     {
         // Room for the line with every choice at its longest value and a 5-digit seed (a cut line would lose the last
         // choices and the seed): the registry's ids, at most 2 digits a value.
-        size_t longest = ZA_STRLEN("// qvr_run seed=65535\n");
+        za::SizeT longest = ZA_STRLEN("// qvr_run seed=65535\n");
         for(int i = 0; i < registryCount; i++)
         {
             longest += ZA_STRLEN(registry[i].id) + 4; // " id=vv"

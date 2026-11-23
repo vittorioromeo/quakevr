@@ -13,6 +13,7 @@
 #include "vr_mem.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Chrono/Clock.hpp"
@@ -488,7 +489,7 @@ void make(Icon& icon)
         za::Vector<Texture>& textures = scratch.textures;
         tris.clear();
         textures.clear();
-        const size_t n = ZA_STRLEN(icon.model);
+        const za::SizeT n = ZA_STRLEN(icon.model);
         const bool bsp = n > 4 && !q_strcasecmp(icon.model + n - 4, ".bsp");
         if(bsp ? readBsp(r, tris, textures) : readMdl(r, icon.skin, tris, textures))
         {

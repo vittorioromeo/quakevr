@@ -30,6 +30,7 @@
 #include "vr_testkit.hpp"
 #include "vr_tunables.hpp"
 #include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -206,7 +207,7 @@ void parseLastStartText(LastStart& r, const char* text)
     char line[512];
     while(*text)
     {
-        const size_t n = strcspn(text, "\r\n");
+        const za::SizeT n = strcspn(text, "\r\n");
         q_strlcpy(line, text, za::min(n + 1, sizeof(line)));
         parseLastStartLine(r, line);
         text += n;
@@ -233,7 +234,7 @@ LastStart readLastStart(const char* path)
 }
 
 // What the last start says about this one: 1 automatic safe mode, 0 not (`why` says which and why; "" nothing to say).
-bool judgeLastStart(const LastStart& last, char* why, size_t whySize)
+bool judgeLastStart(const LastStart& last, char* why, za::SizeT whySize)
 {
     why[0] = 0;
     if(!last.exists || last.ended)
@@ -326,7 +327,7 @@ void applyEsKeep(const char* list)
     char kept[256] = "";
     for(const EsKeepName& k : esKeepNames)
     {
-        const size_t n = ZA_STRLEN(k.name);
+        const za::SizeT n = ZA_STRLEN(k.name);
         for(const char* at = ZA_STRSTR(list, k.name); at; at = ZA_STRSTR(at + 1, k.name))
         {
             if((at == list || at[-1] == ',') && (at[n] == 0 || at[n] == ','))
@@ -764,7 +765,7 @@ constexpr const char* esPrecisions =
     "precision highp uimage2D; precision highp uimage3D; precision highp uimage2DArray; precision highp uimageBuffer;\n";
 
 // The offset of the line after the one at i (a directive's "\" continuations followed).
-[[nodiscard]] size_t nextLine(const char* s, size_t i)
+[[nodiscard]] za::SizeT nextLine(const char* s, za::SizeT i)
 {
     while(s[i] && s[i] != '\n')
     {
@@ -776,14 +777,14 @@ constexpr const char* esPrecisions =
 // Where the precision statements go: the first line of code past the leading directives, comments and blank lines
 // (after every leading #extension, as ES requires), or the outermost #if around that line (a false branch never
 // hides them).
-[[nodiscard]] size_t codeStart(const char* s)
+[[nodiscard]] za::SizeT codeStart(const char* s)
 {
-    size_t i = 0;
-    size_t outerIf = 0;
+    za::SizeT i = 0;
+    za::SizeT outerIf = 0;
     int depth = 0;
     while(s[i])
     {
-        size_t j = i;
+        za::SizeT j = i;
         while(s[j] == ' ' || s[j] == '\t' || s[j] == '\r')
         {
             j++;
@@ -824,7 +825,7 @@ constexpr const char* esPrecisions =
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
 }
 
-[[nodiscard]] size_t skipBlanks(const char* s, size_t i)
+[[nodiscard]] za::SizeT skipBlanks(const char* s, za::SizeT i)
 {
     while(s[i] == ' ' || s[i] == '\t')
     {
@@ -833,7 +834,7 @@ constexpr const char* esPrecisions =
     return i;
 }
 
-[[nodiscard]] size_t identEnd(const char* s, size_t i)
+[[nodiscard]] za::SizeT identEnd(const char* s, za::SizeT i)
 {
     while(isIdent(s[i]))
     {
@@ -845,9 +846,9 @@ constexpr const char* esPrecisions =
 struct GlslStruct
 {
     const char* name = nullptr;
-    size_t nameLen = 0;
+    za::SizeT nameLen = 0;
     const char* body = nullptr; // between its braces
-    size_t bodyLen = 0;
+    za::SizeT bodyLen = 0;
 };
 constexpr int maxGlslStructs = 32;
 
@@ -855,22 +856,22 @@ constexpr int maxGlslStructs = 32;
 [[nodiscard]] int findStructs(const char* s, GlslStruct* out)
 {
     int n = 0;
-    for(size_t i = 0; s[i] && n < maxGlslStructs; i = nextLine(s, i))
+    for(za::SizeT i = 0; s[i] && n < maxGlslStructs; i = nextLine(s, i))
     {
-        size_t j = skipBlanks(s, i);
+        za::SizeT j = skipBlanks(s, i);
         if(!strings::startsWith(s + j, "struct") || isIdent(s[j + 6]))
         {
             continue;
         }
         j = skipBlanks(s, j + 6);
-        const size_t nameEnd = identEnd(s, j);
+        const za::SizeT nameEnd = identEnd(s, j);
         const char* open = strchr(s + nameEnd, '{');
         const char* close = open ? strchr(open, '}') : nullptr;
-        if(nameEnd == j || !close || strcspn(s + nameEnd, ";{") != static_cast<size_t>(open - (s + nameEnd)))
+        if(nameEnd == j || !close || strcspn(s + nameEnd, ";{") != static_cast<za::SizeT>(open - (s + nameEnd)))
         {
             continue;
         }
-        out[n++] = GlslStruct{s + j, nameEnd - j, open + 1, static_cast<size_t>(close - open - 1)};
+        out[n++] = GlslStruct{s + j, nameEnd - j, open + 1, static_cast<za::SizeT>(close - open - 1)};
     }
     return n;
 }
@@ -880,15 +881,15 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
 {
     const za::String body{st.body, static_cast<za::SizeT>(st.bodyLen)};
     const char* b = body.cStr();
-    for(size_t i = 0; b[i]; i = nextLine(b, i))
+    for(za::SizeT i = 0; b[i]; i = nextLine(b, i))
     {
-        const size_t lineEnd = i + strcspn(b + i, "\n");
-        size_t end = i;
+        const za::SizeT lineEnd = i + strcspn(b + i, "\n");
+        za::SizeT end = i;
         while(end < lineEnd && !(b[end] == '/' && b[end + 1] == '/'))
         {
             end++;
         }
-        size_t j = skipBlanks(b, i);
+        za::SizeT j = skipBlanks(b, i);
         if(j >= end)
         {
             continue;
@@ -903,12 +904,12 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
         j = skipBlanks(b, identEnd(b, j)); // (the type)
         while(j < end && isIdent(b[j]))
         {
-            const size_t nameEnd = identEnd(b, j);
+            const za::SizeT nameEnd = identEnd(b, j);
             const za::String name{b + j, static_cast<za::SizeT>(nameEnd - j)};
-            size_t k = skipBlanks(b, nameEnd);
+            za::SizeT k = skipBlanks(b, nameEnd);
             if(b[k] == '[')
             {
-                const size_t sizeEnd = k + strcspn(b + k, "]");
+                const za::SizeT sizeEnd = k + strcspn(b + k, "]");
                 const za::String size{b + k + 1, static_cast<za::SizeT>(sizeEnd - k - 1)};
                 // A literal size: element by element, unrolled (C4e: a loop's index into the local struct's array made
                 // Adreno keep the whole struct in scratch memory, every pixel of the world's light loop paying for
@@ -958,11 +959,11 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
     GlslStruct structs[maxGlslStructs];
     const int count = findStructs(s, structs);
     za::String out;
-    size_t copied = 0; // s up to here is in out
-    for(size_t i = 0; count > 0 && s[i]; i = nextLine(s, i))
+    za::SizeT copied = 0; // s up to here is in out
+    for(za::SizeT i = 0; count > 0 && s[i]; i = nextLine(s, i))
     {
-        const size_t t = skipBlanks(s, i);
-        const size_t typeEnd = identEnd(s, t);
+        const za::SizeT t = skipBlanks(s, i);
+        const za::SizeT typeEnd = identEnd(s, t);
         const GlslStruct* st = nullptr;
         for(int k = 0; k < count && typeEnd > t; k++)
         {
@@ -975,14 +976,14 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
         {
             continue;
         }
-        const size_t v = skipBlanks(s, typeEnd);
-        const size_t vEnd = identEnd(s, v);
-        size_t at = skipBlanks(s, vEnd);
+        const za::SizeT v = skipBlanks(s, typeEnd);
+        const za::SizeT vEnd = identEnd(s, v);
+        za::SizeT at = skipBlanks(s, vEnd);
         if(vEnd == v || s[at] != '=')
         {
             continue;
         }
-        const size_t from = skipBlanks(s, at + 1);
+        const za::SizeT from = skipBlanks(s, at + 1);
         at = identEnd(s, from);
         if(at == from || s[at] != '[')
         {
@@ -994,7 +995,7 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
             depth += s[at] == '[' ? 1 : s[at] == ']' ? -1 : 0;
             at++;
         } while(s[at] && s[at] != '\n' && depth > 0);
-        const size_t semi = skipBlanks(s, at);
+        const za::SizeT semi = skipBlanks(s, at);
         if(depth != 0 || s[semi] != ';')
         {
             continue;
@@ -1018,12 +1019,12 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
 [[nodiscard]] za::String dropCentroid(const char* s)
 {
     constexpr const char word[] = "centroid";
-    constexpr size_t wordLen = sizeof(word) - 1;
+    constexpr za::SizeT wordLen = sizeof(word) - 1;
     za::String out;
-    size_t copied = 0;
+    za::SizeT copied = 0;
     for(const char* p = ZA_STRSTR(s, word); p; p = ZA_STRSTR(p + wordLen, word))
     {
-        const size_t at = static_cast<size_t>(p - s);
+        const za::SizeT at = static_cast<za::SizeT>(p - s);
         const bool startsWord = at == 0 || !(isalnum(static_cast<unsigned char>(s[at - 1])) || s[at - 1] == '_');
         const char after = s[at + wordLen];
         if(!startsWord || !(after == ' ' || after == '\t'))
@@ -1050,8 +1051,8 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
     }
     const za::String joined = COM_CheckParm("-glesstructcopy") ? whole : expandStructCopies(whole.cStr()); // (-glesstructcopy: the copies left whole, as the PC's)
     const char* s = joined.cStr();
-    const size_t body = strings::startsWith(s, "#version") ? nextLine(s, 0) : 0;
-    const size_t code = body + codeStart(s + body);
+    const za::SizeT body = strings::startsWith(s, "#version") ? nextLine(s, 0) : 0;
+    const za::SizeT code = body + codeStart(s + body);
     za::String es{glsafe.esNoExt ? esHeaderNoExt : esHeader};
     // -glesdefine A,B,...: "#define A 1" (and B ...) in every ES shader's header: the shaders' QVR_PROBE_* switches
     // (gl_shaders.h; QUEST_PLAN.md 6j: the world and model programs split on a device)
@@ -1059,7 +1060,7 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
     const auto addDefines = [&es](const char* list) {
         for(const char* d = list; *d; d += strcspn(d, ",") + (d[strcspn(d, ",")] ? 1 : 0))
         {
-            const size_t len = strcspn(d, ",");
+            const za::SizeT len = strcspn(d, ",");
             if(len > 0)
             {
                 es += "#define ";
@@ -1124,7 +1125,7 @@ extern "C" void VR_GLShaderSource(unsigned int shader, int count, const char* co
             {
                 continue;
             }
-            size_t at = 0;
+            za::SizeT at = 0;
             for(int k = 1; k < line && text[at]; k++)
             {
                 at += strcspn(text + at, "\n") + (text[at + strcspn(text + at, "\n")] ? 1 : 0);

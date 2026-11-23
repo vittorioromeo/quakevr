@@ -486,7 +486,7 @@ void residuals(const FitInput& in, const za::Array<double, ParamCount>& p, za::V
     const avatar::ShoulderModel m = modelOf(p, in.scale);
     const glm::dvec3 elbow[2] = {{p[PElbowL], p[PElbowL + 1], p[PElbowL + 2]}, {p[PElbowR], p[PElbowR + 1], p[PElbowR + 2]}};
     out.resize(in.obs.size() + 5 + 6);
-    for(size_t i = 0; i < in.obs.size(); i++)
+    for(za::SizeT i = 0; i < in.obs.size(); i++)
     {
         const Obs& o = in.obs[i];
         const glm::dvec3 w{o.w};
@@ -509,7 +509,7 @@ void residuals(const FitInput& in, const za::Array<double, ParamCount>& p, za::V
         }
         out[i] = r / resUnit;
     }
-    size_t k = in.obs.size();
+    za::SizeT k = in.obs.size();
     out[k++] = (p[PRaise] - priorRaise) / priorRaiseSd;
     out[k++] = (p[PSwing] - priorSwing) / priorSwingSd;
     out[k++] = (p[PFore] - priorForeShare * p[PReach]) / priorForeSd;
@@ -587,11 +587,11 @@ void levenberg(const FitInput& in, const za::Vector<double>& weights, za::Array<
     double& cost, int& iterations)
 {
     const int n = ParamCount;
-    const size_t no = in.obs.size();
+    const za::SizeT no = in.obs.size();
     za::Vector<double> r, rp, rm;
     const auto weighted = [&](const za::Array<double, ParamCount>& q, za::Vector<double>& out) {
         residuals(in, q, out);
-        for(size_t i = 0; i < no; i++)
+        for(za::SizeT i = 0; i < no; i++)
         {
             out[i] *= weights[i];
         }
@@ -607,7 +607,7 @@ void levenberg(const FitInput& in, const za::Vector<double>& weights, za::Array<
     weighted(p, r);
     cost = sumSq(r);
     double lambda = 1e-3;
-    const size_t m = r.size();
+    const za::SizeT m = r.size();
     za::Vector<double> J(m * n);
     for(int it = 0; it < 80; it++)
     {
@@ -620,7 +620,7 @@ void levenberg(const FitInput& in, const za::Vector<double>& weights, za::Array<
             b[j] -= h;
             weighted(a, rp);
             weighted(b, rm);
-            for(size_t i = 0; i < m; i++)
+            for(za::SizeT i = 0; i < m; i++)
             {
                 J[i * n + j] = (rp[i] - rm[i]) / (2.0 * h);
             }
@@ -628,7 +628,7 @@ void levenberg(const FitInput& in, const za::Vector<double>& weights, za::Array<
         jtj.clear();
         jtj.resize(n * n, 0.0);
         za::Vector<double> g(n, 0.0);
-        for(size_t i = 0; i < m; i++)
+        for(za::SizeT i = 0; i < m; i++)
         {
             const double* row = &J[i * n];
             for(int a = 0; a < n; a++)
@@ -699,9 +699,9 @@ void levenberg(const FitInput& in, const za::Vector<double>& weights, za::Array<
 {
     FitOutput out;
     out.p = start;
-    const size_t no = in.obs.size();
+    const za::SizeT no = in.obs.size();
     za::Vector<double> weights(no);
-    for(size_t i = 0; i < no; i++)
+    for(za::SizeT i = 0; i < no; i++)
     {
         weights[i] = in.obs[i].weight;
     }
@@ -716,7 +716,7 @@ void levenberg(const FitInput& in, const za::Vector<double>& weights, za::Array<
         for(int kind : {ObsReach, ObsElbow})
         {
             za::Vector<double> vals;
-            for(size_t i = 0; i < no; i++)
+            for(za::SizeT i = 0; i < no; i++)
             {
                 if(in.obs[i].kind == kind && in.obs[i].weight == 1.0)
                 {
@@ -736,7 +736,7 @@ void levenberg(const FitInput& in, const za::Vector<double>& weights, za::Array<
             }
             za::quickSort(sorted.begin(), sorted.end());
             const double spread = za::max(1.4826 * sorted[sorted.size() / 2], 0.3);
-            for(size_t i = 0; i < no; i++)
+            for(za::SizeT i = 0; i < no; i++)
             {
                 if(in.obs[i].kind == kind && in.obs[i].weight == 1.0)
                 {
@@ -753,7 +753,7 @@ void levenberg(const FitInput& in, const za::Vector<double>& weights, za::Array<
 
     // The covariance: (J'J)^-1 times the residuals' variance.
     double used = 0.0;
-    for(size_t i = 0; i < no; i++)
+    for(za::SizeT i = 0; i < no; i++)
     {
         used += weights[i] > 0.0 ? 1.0 : 0.0;
     }
@@ -1094,8 +1094,8 @@ constexpr float trackDisagree = 0.3f;   // ... this far off, not at all
             continue;
         }
         const bool held = steps[st].kind == Kind::Static;
-        const size_t every = held ? 1 : za::max<size_t>(1, d.raw.size() / 240);
-        for(size_t i = 0; i < d.raw.size(); i += every)
+        const za::SizeT every = held ? 1 : za::max<za::SizeT>(1, d.raw.size() / 240);
+        for(za::SizeT i = 0; i < d.raw.size(); i += every)
         {
             const Raw& r = d.raw[i];
             if(!r.tracked)
@@ -1237,9 +1237,9 @@ void analyse()
             continue;
         }
         // At most 240 samples an arm, evenly.
-        const size_t every = za::max<size_t>(1, ls.size() / 240);
+        const za::SizeT every = za::max<za::SizeT>(1, ls.size() / 240);
         int counted[2]{};
-        for(size_t i = 0; i < ls.size(); i += every)
+        for(za::SizeT i = 0; i < ls.size(); i += every)
         {
             for(int side = 0; side < 2; side++)
             {
@@ -1343,7 +1343,7 @@ void analyse()
         }
         double s2 = 0.0, w2 = 0.0, worst = 0.0;
         int n = 0, kept = 0;
-        for(size_t i = 0; i < in.obs.size(); i++)
+        for(za::SizeT i = 0; i < in.obs.size(); i++)
         {
             const Obs& o = in.obs[i];
             if(o.step != st || o.kind == ObsLink)
@@ -2040,7 +2040,7 @@ void saveSession()
             {
                 for(int side = 0; side < 2; side++)
                 {
-                    const float* q = &v[static_cast<size_t>(side) * 24];
+                    const float* q = &v[static_cast<za::SizeT>(side) * 24];
                     l.wrist[side] = {q[0], q[1], q[2]};
                     for(int c = 0; c < 3; c++)
                     {
@@ -3043,8 +3043,8 @@ void frame()
     const double now = realtime;
     if(ses.sub == Sub::Read)
     {
-        const bool first = ses.todo.size() == static_cast<size_t>(StepCount) ||
-                           (ses.seated && ses.todo.size() == static_cast<size_t>(StepCount - 1));
+        const bool first = ses.todo.size() == static_cast<za::SizeT>(StepCount) ||
+                           (ses.seated && ses.todo.size() == static_cast<za::SizeT>(StepCount - 1));
         if(now - ses.subStart >= (first ? firstReadSeconds : readSeconds))
         {
             ses.sub = Sub::Countdown;

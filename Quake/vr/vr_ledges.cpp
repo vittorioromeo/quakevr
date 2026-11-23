@@ -443,7 +443,7 @@ void findPiecesIn(const qmodel_t* model, const Hull& h, int begin, int end, za::
             centre += poly.back();
         }
         centre /= static_cast<float>(poly.size());
-        for(size_t k = 0; k < poly.size(); k++)
+        for(za::SizeT k = 0; k < poly.size(); k++)
         {
             const glm::vec3 v0 = poly[k], v1 = poly[(k + 1) % poly.size()];
             const glm::vec2 e{v1.x - v0.x, v1.y - v0.y};
@@ -535,10 +535,10 @@ void joinPieces(const za::Vector<Piece>& pieces, za::Vector<Line>& lines)
     za::quickSort(keyed.begin(), keyed.end(), [](const Keyed& x, const Keyed& y) {
         return x.key != y.key ? x.key < y.key : x.line.s0 < y.line.s0;
     });
-    for(size_t i = 0; i < keyed.size();)
+    for(za::SizeT i = 0; i < keyed.size();)
     {
         Line line = keyed[i].line;
-        size_t j = i + 1;
+        za::SizeT j = i + 1;
         for(; j < keyed.size() && keyed[j].key == keyed[i].key; j++)
         {
             const Line& next = keyed[j].line;
@@ -567,8 +567,8 @@ void lineLedges(const Hull& h, const Line& line, za::Vector<Edge>& edges, za::Ve
     constexpr float endInset = 0.125f; // the tests just inside the lip's ends (not on a corner's planes)
     const auto sAt = [&](float t) { return line.s0 + za::clamp(t, endInset, length - endInset); };
     const int count = static_cast<int>(za::ceil(length / sampleStep - 1e-4f)) + 1;
-    za::Vector<Test> tests(static_cast<size_t>(count));
-    za::Vector<float> ts(static_cast<size_t>(count));
+    za::Vector<Test> tests(static_cast<za::SizeT>(count));
+    za::Vector<float> ts(static_cast<za::SizeT>(count));
     // Every fourth sample first, then those between: one between two that agree (the ledge or not, how far out the drop
     // starts, how deep the top is) is the same, else it is tested too. (A feature narrower than a few units along a lip,
     // between two samples that agree, is left out: a gap in a railing too narrow for a hand; the checks when a hold is
@@ -734,7 +734,7 @@ void resetCache()
 void printStats(const char* when)
 {
     int edges = 0, samples = 0;
-    size_t bytes = 0;
+    za::SizeT bytes = 0;
     double ms = 0.0;
     float length = 0.f;
     const Map* world = nullptr;
@@ -764,9 +764,9 @@ void printStats(const char* when)
     }
     // Their contents' hash (FNV-1a: the same on the pool and on one thread).
     za::U32 hash = 2166136261u;
-    const auto add = [&hash](const void* data, size_t size)
+    const auto add = [&hash](const void* data, za::SizeT size)
     {
-        for(size_t i = 0; i < size; i++)
+        for(za::SizeT i = 0; i < size; i++)
         {
             hash = (hash ^ static_cast<const unsigned char*>(data)[i]) * 16777619u;
         }
@@ -1054,7 +1054,7 @@ void propLedges(int num, const box3d::ClimbShape& shape, const box3d::ClimbBody&
 const Sample& Map::sampleAt(const Edge& e, float t) const
 {
     const int i = za::clamp(static_cast<int>(za::lround((t - e.sampleStart) / e.spacing)), 0, e.samples - 1);
-    return samples[static_cast<size_t>(e.firstSample + i)];
+    return samples[static_cast<za::SizeT>(e.firstSample + i)];
 }
 
 namespace
@@ -1085,7 +1085,7 @@ mem::Scratch<DrawScratch> drawScratch{"ledges draw"};
 void Map::finish()
 {
     cells.clear();
-    for(size_t i = 0; i < edges.size(); i++)
+    for(za::SizeT i = 0; i < edges.size(); i++)
     {
         const glm::ivec3 lo = cellOf(edges[i].mins, cellSize), hi = cellOf(edges[i].maxs, cellSize);
         for(int x = lo.x; x <= hi.x; x++)
@@ -1127,13 +1127,13 @@ void Map::nearby(const glm::vec3& mins, const glm::vec3& maxs, za::Vector<int>& 
                 auto it = za::lowerBound(cells.begin(), cells.end(), za::makePair(key, 0));
                 for(; it != cells.end() && it->first == key; ++it)
                 {
-                    const Edge& e = edges[static_cast<size_t>(it->second)];
-                    if(seen[static_cast<size_t>(it->second)] == stamp || e.mins.x > maxs.x || e.mins.y > maxs.y ||
+                    const Edge& e = edges[static_cast<za::SizeT>(it->second)];
+                    if(seen[static_cast<za::SizeT>(it->second)] == stamp || e.mins.x > maxs.x || e.mins.y > maxs.y ||
                         e.mins.z > maxs.z || e.maxs.x < mins.x || e.maxs.y < mins.y || e.maxs.z < mins.z)
                     {
                         continue;
                     }
-                    seen[static_cast<size_t>(it->second)] = stamp;
+                    seen[static_cast<za::SizeT>(it->second)] = stamp;
                     out.pushBack(it->second);
                 }
             }
@@ -1141,7 +1141,7 @@ void Map::nearby(const glm::vec3& mins, const glm::vec3& maxs, za::Vector<int>& 
     }
 }
 
-size_t Map::bytes() const
+za::SizeT Map::bytes() const
 {
     return sizeof(Map) + edges.capacity() * sizeof(Edge) + samples.capacity() * sizeof(Sample) +
            cells.capacity() * sizeof(cells[0]) + seen.capacity() * sizeof(uint32_t);
@@ -1253,7 +1253,7 @@ void debugDraw()
         m.nearby(eye - offset - glm::vec3{range}, eye - offset + glm::vec3{range}, nearby);
         for(const int i : nearby)
         {
-            const Edge& e = m.edges[static_cast<size_t>(i)];
+            const Edge& e = m.edges[static_cast<za::SizeT>(i)];
             const glm::vec3 a = e.a + offset, b = e.point(e.len) + offset;
             const glm::vec3 base = mover ? moverColour : lipColour;
             lines::glow(a, b, 0.8f, glm::vec4{base, 1.f}, glm::vec4{base, 1.f});

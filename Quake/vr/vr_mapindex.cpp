@@ -643,7 +643,7 @@ bool parseCache(Index& idx, const za::String& text, const za::String& url, bool 
 
 // ---------------------------------------------------------------- the fetch
 
-size_t writeChunk(void* buffer, size_t size, size_t nmemb, void* stream)
+za::SizeT writeChunk(void* buffer, za::SizeT size, za::SizeT nmemb, void* stream)
 {
     if(SDL_AtomicGet(&cancel))
     {

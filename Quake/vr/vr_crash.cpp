@@ -24,6 +24,7 @@ extern "C" void VR_InstallZancleAssertHandler (void);
 #include "vr_api.h"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
 #endif
@@ -229,7 +230,7 @@ void appendf (const char *fmt, ...)
 	if (reportLen >= (int)sizeof (report) - 1)
 		return;
 	va_start (ap, fmt);
-	n = vsnprintf (report + reportLen, sizeof (report) - (size_t)reportLen, fmt, ap);
+	n = vsnprintf (report + reportLen, sizeof (report) - (za::SizeT)reportLen, fmt, ap);
 	va_end (ap);
 	if (n > 0)
 		reportLen = reportLen + n < (int)sizeof (report) - 1 ? reportLen + n : (int)sizeof (report) - 1;
@@ -263,7 +264,7 @@ const char *exceptionName (DWORD code)
 DWORD64 moduleOf (DWORD64 addr, char *name, int nameSize)
 {
 	HMODULE mod = NULL;
-	snprintf (name, (size_t)nameSize, "?");
+	snprintf (name, (za::SizeT)nameSize, "?");
 	if (!GetModuleHandleExA (GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
 			(LPCSTR)(uintptr_t)addr, &mod) || !mod)
 		return 0;
@@ -274,7 +275,7 @@ DWORD64 moduleOf (DWORD64 addr, char *name, int nameSize)
 		if (n > 0 && n < MAX_PATH)
 		{
 			slash = strrchr (path, '\\');
-			snprintf (name, (size_t)nameSize, "%s", slash ? slash + 1 : path);
+			snprintf (name, (za::SizeT)nameSize, "%s", slash ? slash + 1 : path);
 		}
 	}
 	return (DWORD64)(uintptr_t)mod;
@@ -328,20 +329,20 @@ void describeFrame (DWORD64 pc, DWORD64 at, bool inlined, DWORD inlineContext)
 	if (named)
 	{
 		if (inlined)
-			len += snprintf (frameText + len, sizeof (frameText) - (size_t)len, "%s", sym->Name);
+			len += snprintf (frameText + len, sizeof (frameText) - (za::SizeT)len, "%s", sym->Name);
 		else
-			len += snprintf (frameText + len, sizeof (frameText) - (size_t)len, "%s+0x%llx", sym->Name, (unsigned long long)(disp + (pc - at)));
+			len += snprintf (frameText + len, sizeof (frameText) - (za::SizeT)len, "%s+0x%llx", sym->Name, (unsigned long long)(disp + (pc - at)));
 		if (lined && len < (int)sizeof (frameText))
-			len += snprintf (frameText + len, sizeof (frameText) - (size_t)len, " (%s:%lu)", shortSourcePath (line.FileName), (unsigned long)line.LineNumber);
+			len += snprintf (frameText + len, sizeof (frameText) - (za::SizeT)len, " (%s:%lu)", shortSourcePath (line.FileName), (unsigned long)line.LineNumber);
 	}
 	else
 		len += snprintf (frameText, sizeof (frameText), "?");
 	if (len < (int)sizeof (frameText))
 	{
 		if (inlined)
-			snprintf (frameText + len, sizeof (frameText) - (size_t)len, " [inlined]");
+			snprintf (frameText + len, sizeof (frameText) - (za::SizeT)len, " [inlined]");
 		else
-			snprintf (frameText + len, sizeof (frameText) - (size_t)len, " [%s+0x%llx]", mod, (unsigned long long)(base ? pc - base : pc));
+			snprintf (frameText + len, sizeof (frameText) - (za::SizeT)len, " [%s+0x%llx]", mod, (unsigned long long)(base ? pc - base : pc));
 	}
 }
 
@@ -918,7 +919,7 @@ void snapshotMainThread (EXCEPTION_POINTERS *ep)
 					DWORD64 hi = (DWORD64)(uintptr_t)mbi.BaseAddress + mbi.RegionSize;
 					if (hi - lo > mainStackMax)
 						hi = lo + mainStackMax;
-					ZA_MEMCPY(mainStack, (const void *)(uintptr_t)lo, (size_t)(hi - lo));
+					ZA_MEMCPY(mainStack, (const void *)(uintptr_t)lo, (za::SizeT)(hi - lo));
 					mainStackLo = lo;
 					mainStackHi = hi;
 					mainCaptured = true;
@@ -1253,7 +1254,7 @@ extern "C" unsigned VR_DescribeCallers (char *out, int outSize, int skip, int de
 		else
 			snprintf (frame, sizeof (frame), "%p", pcs[i]);
 		if (outSize > 0 && len < outSize - 1)
-			len += snprintf (out + len, (size_t)(outSize - len), "%s%s", i ? " < " : "", frame);
+			len += snprintf (out + len, (za::SizeT)(outSize - len), "%s%s", i ? " < " : "", frame);
 	}
 	ReleaseSRWLockExclusive (&dbgHelpLock);
 	return hash;
@@ -1317,7 +1318,7 @@ char reportPath[PATH_MAX + 64];            // the last report written ("": none;
 int reporting = 0;                         // a fatal report under way (one per process)
 alignas(16) unsigned char altStack[64 * 1024]; // the signal handlers' stack (a stack overflow has none left)
 char report[48 * 1024];                    // the report being written
-size_t reportLen = 0;
+za::SizeT reportLen = 0;
 
 #ifdef __ANDROID__
 struct UnwindState
@@ -1366,10 +1367,10 @@ void appendf (const char *fmt, ...)
 	const int n = vsnprintf (report + reportLen, sizeof (report) - reportLen, fmt, ap);
 	va_end (ap);
 	if (n > 0)
-		reportLen += (size_t)n < sizeof (report) - reportLen ? (size_t)n : sizeof (report) - reportLen - 1;
+		reportLen += (za::SizeT)n < sizeof (report) - reportLen ? (za::SizeT)n : sizeof (report) - reportLen - 1;
 }
 
-void writeAll (int fd, const char *data, size_t size)
+void writeAll (int fd, const char *data, za::SizeT size)
 {
 	while (size > 0)
 	{
@@ -1379,7 +1380,7 @@ void writeAll (int fd, const char *data, size_t size)
 		if (n <= 0)
 			return;
 		data += n;
-		size -= (size_t)n;
+		size -= (za::SizeT)n;
 	}
 }
 
@@ -1393,10 +1394,10 @@ void appendFrame (int i, void *pc)
 		module = module ? module + 1 : info.dli_fname;
 		const uintptr_t offset = (uintptr_t)pc - (uintptr_t)info.dli_fbase;
 		if (info.dli_sname)
-			appendf ("  #%d %p %s+0x%zx (%s+0x%zx)\n", i, pc, module, (size_t)offset, info.dli_sname,
-				(size_t)((uintptr_t)pc - (uintptr_t)info.dli_saddr));
+			appendf ("  #%d %p %s+0x%zx (%s+0x%zx)\n", i, pc, module, (za::SizeT)offset, info.dli_sname,
+				(za::SizeT)((uintptr_t)pc - (uintptr_t)info.dli_saddr));
 		else
-			appendf ("  #%d %p %s+0x%zx\n", i, pc, module, (size_t)offset);
+			appendf ("  #%d %p %s+0x%zx\n", i, pc, module, (za::SizeT)offset);
 	}
 	else
 		appendf ("  #%d %p\n", i, pc);
@@ -1456,9 +1457,9 @@ void writeReport (const char *what, void *const *frames, int count, int skip)
 #ifdef __ANDROID__
 	// logcat, a line a message (a message is cut at about 4 KB); the report's own lines, then where it is.
 	char line[512];
-	for (size_t at = 0; at < reportLen;)
+	for (za::SizeT at = 0; at < reportLen;)
 	{
-		size_t n = 0;
+		za::SizeT n = 0;
 		while (at + n < reportLen && report[at + n] != '\n' && n + 1 < sizeof (line))
 		{
 			line[n] = report[at + n];
@@ -1502,7 +1503,7 @@ volatile sig_atomic_t handedOn = 0; // a signal was given back to the previous h
 // The handler there before ours put back for `sig` (SIG_DFL if none was saved).
 void restorePrevious (int sig)
 {
-	for (size_t i = 0; i < sizeof (crashSignals) / sizeof (crashSignals[0]); i++)
+	for (za::SizeT i = 0; i < sizeof (crashSignals) / sizeof (crashSignals[0]); i++)
 	{
 		if (crashSignals[i] == sig)
 		{
@@ -1619,11 +1620,11 @@ extern "C" unsigned VR_DescribeCallers (char *out, int outSize, int skip, int de
 			name = info.dli_sname;
 		else
 		{
-			snprintf (offset, sizeof (offset), "+0x%zx", (size_t)(pc - (uintptr_t)(info.dli_fbase ? info.dli_fbase : 0)));
+			snprintf (offset, sizeof (offset), "+0x%zx", (za::SizeT)(pc - (uintptr_t)(info.dli_fbase ? info.dli_fbase : 0)));
 			name = offset;
 		}
 		if (outSize > used)
-			used += snprintf (out + used, (size_t)(outSize - used), "%s%s", i > first ? " < " : "", name);
+			used += snprintf (out + used, (za::SizeT)(outSize - used), "%s%s", i > first ? " < " : "", name);
 	}
 	return last > first ? (hash ? hash : 1u) : 0u;
 }
@@ -1649,7 +1650,7 @@ extern "C" void VR_InstallCrashHandler (void)
 	sa.sa_sigaction = crashSignal;
 	sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
 	sigemptyset (&sa.sa_mask);
-	for (size_t i = 0; i < sizeof (crashSignals) / sizeof (crashSignals[0]); i++)
+	for (za::SizeT i = 0; i < sizeof (crashSignals) / sizeof (crashSignals[0]); i++)
 	{
 		// (the handler before ours kept for endWithSignal: SIG_DFL usually; bionic's on Android, a sanitizer's)
 		if (sigaction (crashSignals[i], &sa, &previousActions[i]) != 0)

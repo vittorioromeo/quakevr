@@ -222,7 +222,7 @@ using StatusMap = ankerl::unordered_dense::map<za::String, Status>;
 [[nodiscard]] StatusMap readStatus(const za::String& path)
 {
     StatusMap out;
-    ankerl::unordered_dense::map<za::String, size_t> col;
+    ankerl::unordered_dense::map<za::String, za::SizeT> col;
     for(const za::String& line : linesOf(path))
     {
         if(line.empty() || line[0] == '#')
@@ -232,7 +232,7 @@ using StatusMap = ankerl::unordered_dense::map<za::String, Status>;
         const za::Vector<za::String> cells = motion::split(line, ',');
         if(col.empty())
         {
-            for(size_t i = 0; i < cells.size(); i++)
+            for(za::SizeT i = 0; i < cells.size(); i++)
             {
                 col[qvr::strings::trim(cells[i])] = i;
             }
@@ -287,7 +287,7 @@ struct Suspect
         {
             continue;
         }
-        const size_t space = line.findFirstOf(" \t");
+        const za::SizeT space = line.findFirstOf(" \t");
         Suspect s;
         s.pattern = line.substrByPosLen(0, space);
         s.reason = space == za::StringView::nPos ? za::String{"suspect"} : qvr::strings::trim(line.substrByPosLen(space));
@@ -431,7 +431,7 @@ enum Show : int
 {
     const auto& list = categories();
     const za::Vector<int> order = categoryOrder();
-    for(size_t i = 0; i < order.size(); i++)
+    for(za::SizeT i = 0; i < order.size(); i++)
     {
         if(category == list[order[i]].choice.name)
         {
@@ -612,7 +612,7 @@ void refilter()
     shown.clear();
     rowTexts.clear();
     rowHelps.clear();
-    for(size_t i = 0; i < takes.size(); i++)
+    for(za::SizeT i = 0; i < takes.size(); i++)
     {
         const Take& t = takes[i];
         if(!passesFilter(t, shownFilter, shownCategory))
@@ -887,8 +887,8 @@ struct Ghost
     float yaw0{0.f};
     double t{0.0};        // the take's time shown
     double holdUntil{0.0}; // between loops (realtime)
-    size_t nextEvent{0};  // the next frame whose events are shown
-    size_t nextReplay{0};
+    za::SizeT nextEvent{0};  // the next frame whose events are shown
+    za::SizeT nextReplay{0};
     bool hasTarget{false};
     glm::vec3 target{0.f}; // the dummy now
     bool anchored{false};
@@ -947,7 +947,7 @@ const za::String noCell; // (loadGhost: a column the table does not have)
         }
         if(line[0] == '#')
         {
-            const size_t colon = line.find(':');
+            const za::SizeT colon = line.find(':');
             if(colon != za::StringView::nPos)
             {
                 header[qvr::strings::trim(line.substrByPosLen(1, colon - 1))] = qvr::strings::trim(line.substrByPosLen(colon + 1));
@@ -957,7 +957,7 @@ const za::String noCell; // (loadGhost: a column the table does not have)
         const za::Vector<za::String> cells = motion::split(line, ',');
         if(col.empty())
         {
-            for(size_t i = 0; i < cells.size(); i++)
+            for(za::SizeT i = 0; i < cells.size(); i++)
             {
                 col[qvr::strings::trim(cells[i])] = static_cast<int>(i);
             }
@@ -1080,12 +1080,12 @@ const za::String noCell; // (loadGhost: a column the table does not have)
     {
         return out;
     }
-    size_t start = 0;
+    za::SizeT start = 0;
     while(start < events.size())
     {
-        size_t end = events.find("; ", start);
+        za::SizeT end = events.find("; ", start);
         const za::String e{events.substrByPosLen(start, end == za::StringView::nPos ? za::StringView::nPos : end - start)};
-        const size_t at = e.rfind(" @");
+        const za::SizeT at = e.rfind(" @");
         if(at != za::StringView::nPos)
         {
             out.pushBack({strtod(e.cStr() + at + 2, nullptr), za::String{e.substrByPosLen(0, at)}});
@@ -1192,7 +1192,7 @@ void drawGhost()
     }
 
     // The frames around it.
-    size_t i = 0;
+    za::SizeT i = 0;
     while(i + 1 < ghost.frames.size() && ghost.frames[i + 1].t <= ghost.t)
     {
         i++;
@@ -1248,7 +1248,7 @@ void drawGhost()
         // The far end's trail: the last 0.3 s of the take.
         glm::vec3 prev{0.f};
         bool havePrev = false;
-        for(size_t k = i + 1; k-- > 0;)
+        for(za::SizeT k = i + 1; k-- > 0;)
         {
             const GhostHand& hk = ghost.frames[k].hands[h];
             const double age = ghost.t - ghost.frames[k].t;
@@ -1310,14 +1310,14 @@ int detailsGen = -1;
 
 void wrapInto(za::Vector<za::String>& out, const za::String& text)
 {
-    constexpr size_t columns = 40;
+    constexpr za::SizeT columns = 40;
     za::String rest = text;
     const za::String indent = "  ";
     bool first = true;
     while(!rest.empty())
     {
-        const size_t width = first ? columns : columns - indent.size();
-        size_t n = rest.size();
+        const za::SizeT width = first ? columns : columns - indent.size();
+        za::SizeT n = rest.size();
         if(n > width)
         {
             n = rest.rfind(' ', width);
@@ -1451,13 +1451,13 @@ void review_f()
     else if(cmd == "relabel" && Cmd_Argc() > 2)
     {
         const auto& list = categories();
-        for(size_t c = 0; c < list.size(); c++)
+        for(za::SizeT c = 0; c < list.size(); c++)
         {
             if(!ZA_STRCMP(list[c].choice.name, Cmd_Argv(2)))
             {
                 Cvar_SetValueQuick(&vr_motion_relabel_category, static_cast<float>(c));
                 int detail = 0;
-                for(size_t d = 0; Cmd_Argc() > 3 && d < list[c].details.size(); d++)
+                for(za::SizeT d = 0; Cmd_Argc() > 3 && d < list[c].details.size(); d++)
                 {
                     if(!ZA_STRCMP(list[c].details[d].name, Cmd_Argv(3)))
                     {
@@ -1601,12 +1601,12 @@ void pick(int row)
     pickedDiscarded = t.discarded;
     // Relabel offers its own category first.
     const auto& list = categories();
-    for(size_t c = 0; c < list.size(); c++)
+    for(za::SizeT c = 0; c < list.size(); c++)
     {
         if(t.category == list[c].choice.name)
         {
             Cvar_SetValueQuick(&vr_motion_relabel_category, static_cast<float>(c));
-            for(size_t d = 0; d < list[c].details.size(); d++)
+            for(za::SizeT d = 0; d < list[c].details.size(); d++)
             {
                 if(t.detail == list[c].details[d].name)
                 {
@@ -1884,11 +1884,11 @@ void relabel()
     }
     za::String out;
     out.reserve(text.size() + 128);
-    size_t pos = 0;
+    za::SizeT pos = 0;
     bool inHeader = true, noted = false;
     while(pos < text.size())
     {
-        size_t eol = text.find('\n', pos);
+        za::SizeT eol = text.find('\n', pos);
         eol = eol == za::StringView::nPos ? text.size() : eol + 1;
         const za::String line{text.substrByPosLen(pos, eol - pos)};
         pos = eol;
@@ -2043,7 +2043,7 @@ namespace
         return ra != rb ? ra < rb : a.stamp != b.stamp ? a.stamp < b.stamp : a.name < b.name;
     };
     int row = after ? static_cast<int>(shown.size()) : -1;
-    for(size_t r = 0; r < shown.size(); r++)
+    for(za::SizeT r = 0; r < shown.size(); r++)
     {
         const Take& t = takes[shown[r]];
         if(p && &t == p)

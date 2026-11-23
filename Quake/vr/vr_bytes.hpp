@@ -13,13 +13,13 @@ namespace qvr::bytes
 {
 
 // The int / float at byte offset `at` of `b` (the caller has checked the offset).
-[[nodiscard]] inline int le32(const byte* b, const size_t at)
+[[nodiscard]] inline int le32(const byte* b, const za::SizeT at)
 {
     int v;
     ZA_MEMCPY(&v, b + at, 4);
     return LittleLong(v);
 }
-[[nodiscard]] inline float lef32(const byte* b, const size_t at)
+[[nodiscard]] inline float lef32(const byte* b, const za::SizeT at)
 {
     float v;
     ZA_MEMCPY(&v, b + at, 4);

@@ -338,7 +338,7 @@ void picture(const Picture& picture, float x, float y, float w, float h); // who
 void beginSignature();
 [[nodiscard]] unsigned long long endSignature();
 [[nodiscard]] bool signing();
-void sign(const void* bytes, size_t size);
+void sign(const void* bytes, za::SizeT size);
 } // namespace draw2D
 
 // The engine's 2D pass (menus, console, HUD) redirected into `canvas` (made for the size), cleared to transparent

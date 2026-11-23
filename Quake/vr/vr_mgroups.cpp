@@ -6,6 +6,7 @@
 #include "vr_progs.hpp"
 #include "vr_slottable.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -269,7 +270,7 @@ void makeMemberText()
     for(int g = 0; g < groupCount; ++g)
     {
         char* out = memberText[g];
-        size_t used = 0;
+        za::SizeT used = 0;
         out[0] = '\0';
         for(const Member& m : memberTable)
         {
@@ -279,11 +280,11 @@ void makeMemberText()
             }
             const int n = snprintf(out + used, sizeof(memberText[g]) - used, "%s%s", used ? ", " : "",
                 m.classname + (ZA_STRNCMP(m.classname, "monster_", 8) == 0 ? 8 : 0));
-            if(n < 0 || used + static_cast<size_t>(n) >= sizeof(memberText[g]))
+            if(n < 0 || used + static_cast<za::SizeT>(n) >= sizeof(memberText[g]))
             {
                 break;
             }
-            used += static_cast<size_t>(n);
+            used += static_cast<za::SizeT>(n);
         }
         if(g == otherGroup)
         {
@@ -714,7 +715,7 @@ const char* struggleProfilesText(int g)
         for(int k = 0; k < groupCount; ++k)
         {
             char* out = struggleText[k];
-            size_t used = 0;
+            za::SizeT used = 0;
             out[0] = '\0';
             for(const StruggleProfile& p : struggleProfiles)
             {
@@ -725,11 +726,11 @@ const char* struggleProfilesText(int g)
                 const int n = snprintf(out + used, sizeof(struggleText[k]) - used, "%s%s %g/%g/%g/%g", used ? ", " : "",
                     p.classname + (ZA_STRNCMP(p.classname, "monster_", 8) == 0 ? 8 : 0), static_cast<double>(p.strength),
                     static_cast<double>(p.speed), static_cast<double>(p.health), static_cast<double>(p.arms));
-                if(n < 0 || used + static_cast<size_t>(n) >= sizeof(struggleText[k]))
+                if(n < 0 || used + static_cast<za::SizeT>(n) >= sizeof(struggleText[k]))
                 {
                     break;
                 }
-                used += static_cast<size_t>(n);
+                used += static_cast<za::SizeT>(n);
             }
             for(const StruggleBase& b : struggleBases)
             {

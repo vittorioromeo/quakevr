@@ -9,6 +9,7 @@
 #include "vr_api.h"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "Zancle/Base/SizeT.hpp"
 
 #include <cstdio>
 
@@ -29,7 +30,7 @@ State state;
 constexpr int lineLength = 512;
 
 // h:mm:ss
-void clock(char* out, size_t size, double seconds)
+void clock(char* out, za::SizeT size, double seconds)
 {
     const int s = seconds > 0.0 ? static_cast<int>(seconds) : 0;
     q_snprintf(out, size, "%d:%02d:%02d", s / 3600, (s / 60) % 60, s % 60);
@@ -69,7 +70,7 @@ void print()
         {
             continue;
         }
-        len += q_snprintf(line + len, sizeof(line) - static_cast<size_t>(len), "%s%s %d ms", sep, c.name,
+        len += q_snprintf(line + len, sizeof(line) - static_cast<za::SizeT>(len), "%s%s %d ms", sep, c.name,
             VR_ClientPingMs(i));
         sep = ", ";
     }
@@ -79,7 +80,7 @@ void print()
     clock(upTime, sizeof(upTime), state.started >= 0.0 ? realtime - state.started : 0.0);
     if(len > 0 && len < lineLength)
     {
-        q_snprintf(line + len, sizeof(line) - static_cast<size_t>(len), " | map %s, up %s", mapTime, upTime);
+        q_snprintf(line + len, sizeof(line) - static_cast<za::SizeT>(len), " | map %s, up %s", mapTime, upTime);
     }
     Con_Printf("%s\n", line);
 }

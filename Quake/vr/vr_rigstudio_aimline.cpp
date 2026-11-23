@@ -30,6 +30,7 @@
 
 #include "thirdparty/imgui/imgui.h"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -291,10 +292,10 @@ void sharedWith(int code, char* out, int size)
     const int cls = agpose::classOf(code);
     if(cls == agpose::TwoGuns)
     {
-        q_strlcpy(out, "this key aims every pair of guns", static_cast<size_t>(size));
+        q_strlcpy(out, "this key aims every pair of guns", static_cast<za::SizeT>(size));
         return;
     }
-    int n = q_snprintf(out, static_cast<size_t>(size), "this key also aims:");
+    int n = q_snprintf(out, static_cast<za::SizeT>(size), "this key also aims:");
     int count = 0;
     for(int r = 0; r < agholds::count() && n < size - 40; r++)
     {
@@ -303,12 +304,12 @@ void sharedWith(int code, char* out, int size)
         {
             continue;
         }
-        n += q_snprintf(out + n, static_cast<size_t>(size - n), "%s %s", count ? "," : "", agholds::label(r));
+        n += q_snprintf(out + n, static_cast<za::SizeT>(size - n), "%s %s", count ? "," : "", agholds::label(r));
         count++;
     }
     if(count == 0)
     {
-        q_snprintf(out, static_cast<size_t>(size), "this key aims no other weapon of the %s's", agpose::kindName(kind));
+        q_snprintf(out, static_cast<za::SizeT>(size), "this key aims no other weapon of the %s's", agpose::kindName(kind));
     }
 }
 

@@ -32,6 +32,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/ReverseIterator.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Chrono/Time.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
@@ -103,7 +104,7 @@ void loadExpectations()
     files::forLines(text, [&](za::StringView l) { lines.pushBack(l); });
     for(za::StringView line : lines)
     {
-        const size_t hash = line.find('#');
+        const za::SizeT hash = line.find('#');
         if(hash != za::StringView::nPos)
         {
             line = line.substrByPosLen(0, hash);
@@ -181,13 +182,13 @@ void loadExpectations()
 {
     za::String kind = item;
     za::String points;
-    if(const size_t at = kind.find('@'); at != za::StringView::nPos)
+    if(const za::SizeT at = kind.find('@'); at != za::StringView::nPos)
     {
         points = kind.substrByPosLen(at + 1);
         kind = kind.substrByPosLen(0, at);
     }
     za::String sub;
-    if(const size_t slash = kind.find('/'); slash != za::StringView::nPos)
+    if(const za::SizeT slash = kind.find('/'); slash != za::StringView::nPos)
     {
         sub = kind.substrByPosLen(slash + 1);
         kind = kind.substrByPosLen(0, slash);
@@ -386,7 +387,7 @@ enum class Eval
 Eval evalState = Eval::Idle;
 za::Vector<za::String> evalFiles;
 za::Vector<za::String> evalFileOpts; // a list line's test options after its take ("<take> | at <x y z yaw> weapon <id>")
-size_t evalIndex = 0;
+za::SizeT evalIndex = 0;
 za::String evalMap = "vrmelee-recording";
 za::String evalOut;
 Options evalOpts;
@@ -862,7 +863,7 @@ void eval_f()
             }
             // "<take> | <test options>" (Options' at, weapon): that take with them.
             za::StringView lineOpts;
-            if(const size_t bar = line.find('|'); bar != za::StringView::nPos)
+            if(const za::SizeT bar = line.find('|'); bar != za::StringView::nPos)
             {
                 lineOpts = line.substrByPosLen(bar + 1);
                 line = line.substrByPosLen(0, bar);

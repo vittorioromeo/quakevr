@@ -30,6 +30,7 @@
 
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -2352,10 +2353,10 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone, const 
         static_cast<double>(nape), static_cast<double>(size.x), static_cast<double>(size.y), static_cast<double>(size.z));
 }
 
-[[nodiscard]] uint32_t fnv(uint32_t h, const void* data, size_t size)
+[[nodiscard]] uint32_t fnv(uint32_t h, const void* data, za::SizeT size)
 {
     const auto* p = static_cast<const uint8_t*>(data);
-    for(size_t i = 0; i < size; i++)
+    for(za::SizeT i = 0; i < size; i++)
     {
         h = (h ^ p[i]) * 16777619u;
     }
@@ -3160,7 +3161,7 @@ namespace
     Kind k;
     k.skinned = skinned;
     q_strlcpy(k.name, skinned->name, sizeof(k.name));
-    const size_t len = ZA_STRLEN(skinned->name), suffix = ZA_STRLEN(rigSuffix);
+    const za::SizeT len = ZA_STRLEN(skinned->name), suffix = ZA_STRLEN(rigSuffix);
     const bool rigged = len > suffix && !ZA_STRCMP(skinned->name + len - suffix, rigSuffix);
     if(rigged || isPlayerBody(skinned->name)) // (the player's body is drawn under its own name)
     {
@@ -3199,7 +3200,7 @@ namespace
         if(!k.bridgeAsked)
         {
             k.bridgeAsked = true;
-            const size_t len = ZA_STRLEN(k.armorName), suffix = ZA_STRLEN(armorSuffix);
+            const za::SizeT len = ZA_STRLEN(k.armorName), suffix = ZA_STRLEN(armorSuffix);
             char name[MAX_QPATH];
             q_strlcpy(name, k.armorName, za::min(sizeof(name), len - suffix + 1));
             q_strlcat(name, bridgeSuffix, sizeof(name));
@@ -3571,7 +3572,7 @@ void setWorn(int num, int type, int pieces)
 bool makeModel(qmodel_t* mod)
 {
     // "<model>#bridge": the joints' leather (vr_agarmor_bridge.cpp)
-    if(const size_t len = ZA_STRLEN(mod->name), suffix = ZA_STRLEN(bridgeSuffix); len > suffix && !ZA_STRCMP(mod->name + len - suffix, bridgeSuffix))
+    if(const za::SizeT len = ZA_STRLEN(mod->name), suffix = ZA_STRLEN(bridgeSuffix); len > suffix && !ZA_STRCMP(mod->name + len - suffix, bridgeSuffix))
     {
         char base[MAX_QPATH];
         q_strlcpy(base, mod->name, za::min(sizeof(base), len - suffix + 1));
@@ -3581,7 +3582,7 @@ bool makeModel(qmodel_t* mod)
         const Shell* s = kh ? shellFor(src) : nullptr;
         return s && s->bridgeVerts > 0 && makeBridgeModel(mod, *s, kh);
     }
-    const size_t len = ZA_STRLEN(mod->name), suffix = ZA_STRLEN(armorSuffix);
+    const za::SizeT len = ZA_STRLEN(mod->name), suffix = ZA_STRLEN(armorSuffix);
     if(len <= suffix || ZA_STRCMP(mod->name + len - suffix, armorSuffix))
     {
         return false;
@@ -3763,7 +3764,7 @@ void relink()
             continue;
         }
         char base[MAX_QPATH];
-        const size_t len = ZA_STRLEN(e->model->name), suffix = ZA_STRLEN(rigSuffix);
+        const za::SizeT len = ZA_STRLEN(e->model->name), suffix = ZA_STRLEN(rigSuffix);
         q_strlcpy(base, e->model->name, za::min(sizeof(base), len - suffix + 1));
         const int shell = shellNamed(base);
         if(shell < 0)
@@ -4853,7 +4854,7 @@ struct SplitInfo
         const float zig = 1.f - 4.f * za::abs(x - floorf(x) - 0.5f); // (-1..1, a triangle wave)
         at(units, u) = SplitUnit{glm::dot(m, nrm) - jag * zig, u, at(unitTris, u)};
     }
-    qsort(units.data(), static_cast<size_t>(numUnits), sizeof(SplitUnit), compareSplitUnits);
+    qsort(units.data(), static_cast<za::SizeT>(numUnits), sizeof(SplitUnit), compareSplitUnits);
     // The first units up to half the triangles one side (at least one either side).
     za::Vector<int> sideOf(static_cast<za::SizeT>(numUnits), 1);
     const int total = count(triUnit);
@@ -5434,7 +5435,7 @@ unsigned char* derivedFile(const char* name, unsigned int* path_id)
         return nullptr;
     }
     char base[MAX_QPATH];
-    q_strlcpy(base, name, za::min(sizeof(base), static_cast<size_t>(hash - name) + 1));
+    q_strlcpy(base, name, za::min(sizeof(base), static_cast<za::SizeT>(hash - name) + 1));
     const int piece = Q_atoi(hash + 6);
     // ("<model>#plate<piece>h<half>s<axis>": a split half, halfModel's)
     const char* halfAt = strchr(hash + 6, 'h');
@@ -5453,10 +5454,10 @@ unsigned char* derivedFile(const char* name, unsigned int* path_id)
     {
         return nullptr;
     }
-    const size_t skinSize = static_cast<size_t>(com_filesize);
+    const za::SizeT skinSize = static_cast<za::SizeT>(com_filesize);
     int hdr[3] = {0, 0, 0}; // numskins, width, height
     ZA_MEMCPY(hdr, skin + 48, sizeof(hdr));
-    const size_t skinBytes = static_cast<size_t>(hdr[0]) * (4u + static_cast<size_t>(hdr[1]) * static_cast<size_t>(hdr[2]));
+    const za::SizeT skinBytes = static_cast<za::SizeT>(hdr[0]) * (4u + static_cast<za::SizeT>(hdr[1]) * static_cast<za::SizeT>(hdr[2]));
     if(skinSize < 84u + skinBytes || hdr[0] <= 0)
     {
         VR_HeapFree(skin);
@@ -5536,7 +5537,7 @@ unsigned char* derivedFile(const char* name, unsigned int* path_id)
     putWord(f, 0); // synctype
     putWord(f, 0); // flags
     putFloat(f, 8.f);
-    for(size_t i = 0; i < skinBytes; i++)
+    for(za::SizeT i = 0; i < skinBytes; i++)
     {
         f.pushBack(skin[84 + i]);
     }
@@ -5603,14 +5604,14 @@ struct SplitStats
     float worstLong{0.f}, worstArea{0.f}; // (the thinnest triangle's longest edge and its area)
 };
 
-[[nodiscard]] int readInt(const unsigned char* f, size_t at)
+[[nodiscard]] int readInt(const unsigned char* f, za::SizeT at)
 {
     int v = 0;
     ZA_MEMCPY(&v, f + at, sizeof(v));
     return v;
 }
 
-[[nodiscard]] bool measureModel(const unsigned char* f, size_t size, SplitStats& st)
+[[nodiscard]] bool measureModel(const unsigned char* f, za::SizeT size, SplitStats& st)
 {
     st = SplitStats{};
     if(size < 84u)
@@ -5621,9 +5622,9 @@ struct SplitStats
     ZA_MEMCPY(&scale, f + 8, sizeof(scale));
     ZA_MEMCPY(&lo, f + 20, sizeof(lo));
     const int numSkins = readInt(f, 48), w = readInt(f, 52), h = readInt(f, 56), numVerts = readInt(f, 60), numTris = readInt(f, 64);
-    const size_t trisAt = 84u + static_cast<size_t>(numSkins) * (4u + static_cast<size_t>(w) * static_cast<size_t>(h)) + static_cast<size_t>(numVerts) * 12u;
-    const size_t vertsAt = trisAt + static_cast<size_t>(numTris) * 16u + 28u;
-    if(numVerts <= 0 || numTris <= 0 || vertsAt + static_cast<size_t>(numVerts) * 4u > size)
+    const za::SizeT trisAt = 84u + static_cast<za::SizeT>(numSkins) * (4u + static_cast<za::SizeT>(w) * static_cast<za::SizeT>(h)) + static_cast<za::SizeT>(numVerts) * 12u;
+    const za::SizeT vertsAt = trisAt + static_cast<za::SizeT>(numTris) * 16u + 28u;
+    if(numVerts <= 0 || numTris <= 0 || vertsAt + static_cast<za::SizeT>(numVerts) * 4u > size)
     {
         return false;
     }
@@ -5632,12 +5633,12 @@ struct SplitStats
     za::Vector<glm::vec3> p(static_cast<za::SizeT>(numVerts), glm::vec3{0.f});
     for(int v = 0; v < numVerts; v++)
     {
-        const unsigned char* b = f + vertsAt + static_cast<size_t>(v) * 4u;
+        const unsigned char* b = f + vertsAt + static_cast<za::SizeT>(v) * 4u;
         at(p, v) = lo + scale * glm::vec3{static_cast<float>(b[0]), static_cast<float>(b[1]), static_cast<float>(b[2])};
         at(weld, v) = v;
         for(int u = 0; u < v; u++)
         {
-            const unsigned char* c = f + vertsAt + static_cast<size_t>(u) * 4u;
+            const unsigned char* c = f + vertsAt + static_cast<za::SizeT>(u) * 4u;
             if(at(weld, u) == u && c[0] == b[0] && c[1] == b[1] && c[2] == b[2])
             {
                 at(weld, v) = u;
@@ -5659,7 +5660,7 @@ struct SplitStats
         int idx[3];
         for(int k = 0; k < 3; k++)
         {
-            idx[k] = za::clamp(readInt(f, trisAt + static_cast<size_t>(t) * 16u + 4u + static_cast<size_t>(k) * 4u), 0, numVerts - 1);
+            idx[k] = za::clamp(readInt(f, trisAt + static_cast<za::SizeT>(t) * 16u + 4u + static_cast<za::SizeT>(k) * 4u), 0, numVerts - 1);
         }
         const glm::vec3 a = at(p, idx[0]), b = at(p, idx[1]), c = at(p, idx[2]);
         const float area = 0.5f * glm::length(glm::cross(b - a, c - a));
@@ -5755,7 +5756,7 @@ struct SplitStats
     {
         return false;
     }
-    const bool ok = measureModel(f, static_cast<size_t>(com_filesize), st);
+    const bool ok = measureModel(f, static_cast<za::SizeT>(com_filesize), st);
     VR_HeapFree(f);
     return ok;
 }

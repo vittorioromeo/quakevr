@@ -12,6 +12,7 @@
 #include "vr_text3d.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Asin.hpp"
@@ -153,7 +154,7 @@ const glm::vec4 grey{0.8f, 0.8f, 0.8f, 0.35f};
 }
 
 // One readout line, padded to `columns` (centred lines of one length line up as a table).
-void pad(char* out, size_t size, const char* text)
+void pad(char* out, za::SizeT size, const char* text)
 {
     q_snprintf(out, size, "%-*s", columns, text);
 }

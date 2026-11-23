@@ -170,6 +170,7 @@
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -416,7 +417,7 @@ struct Candidate
 
     [[nodiscard]] const ledges::Edge& ledge() const
     {
-        return map->edges[static_cast<size_t>(edge)];
+        return map->edges[static_cast<za::SizeT>(edge)];
     }
     [[nodiscard]] Ledge toLedge() const
     {
@@ -522,7 +523,7 @@ void gather(const Seeker& s, const glm::vec3& hand, float radius, za::Vector<Can
         for(const int i : nearby)
         {
             st.points++;
-            const Place p = placeOf(m, m.edges[static_cast<size_t>(i)], hand - offset, toBody);
+            const Place p = placeOf(m, m.edges[static_cast<za::SizeT>(i)], hand - offset, toBody);
             if(p.dist <= radius + 1e-3f)
             {
                 out.pushBack(Candidate{&m, i, ent, offset, p});
@@ -538,7 +539,7 @@ void gather(const Seeker& s, const glm::vec3& hand, float radius, za::Vector<Can
         return; // (a replay's: the world alone)
     }
     za::Vector<edict_t*>& list = scratch.areaEdicts;
-    list.resize(static_cast<size_t>(za::max(1, qcvm->num_edicts)));
+    list.resize(static_cast<za::SizeT>(za::max(1, qcvm->num_edicts)));
     int count = 0;
     vec3_t mins{lo.x, lo.y, lo.z}, maxs{hi.x, hi.y, hi.z};
     SV_AreaEdicts(mins, maxs, list.data(), &count, static_cast<int>(list.size()));
@@ -548,7 +549,7 @@ void gather(const Seeker& s, const glm::vec3& hand, float radius, za::Vector<Can
     scratch.propNums.clear();
     for(int i = 0; i < count; i++)
     {
-        edict_t* e = list[static_cast<size_t>(i)];
+        edict_t* e = list[static_cast<za::SizeT>(i)];
         const int index = static_cast<int>(e->v.modelindex);
         // A solid prop (see "Holds on props"): its ledges as it lies now, near the hand.
         if(vr_climb_props.value != 0.f && e != player && !e->free && static_cast<int>(e->v.solid) == SOLID_BBOX)
@@ -556,9 +557,9 @@ void gather(const Seeker& s, const glm::vec3& hand, float radius, za::Vector<Can
             box3d::ClimbBody body;
             if(const box3d::ClimbShape* shape = box3d::climbShape(NUM_FOR_EDICT(e), body))
             {
-                const size_t first = props.edges.size();
+                const za::SizeT first = props.edges.size();
                 ledges::propLedges(NUM_FOR_EDICT(e), *shape, body, lo, hi, props, scratch.propNums);
-                for(size_t k = first; k < props.edges.size(); k++)
+                for(za::SizeT k = first; k < props.edges.size(); k++)
                 {
                     st.points++;
                     const Place p = placeOf(props, props.edges[k], hand, toBody);
@@ -1628,7 +1629,7 @@ void letGoAll(Climber& c)
     {
         return -1.f;
     }
-    const ledges::Edge& e = m->edges[static_cast<size_t>(g.ledge.edge)];
+    const ledges::Edge& e = m->edges[static_cast<za::SizeT>(g.ledge.edge)];
     const glm::vec3 along{-g.ledge.out.y, g.ledge.out.x, 0.f};
     const float t = g.ledge.t + side * glm::dot(along, e.dir);
     if(t < -1e-3f || t > e.len + 1e-3f)
@@ -1648,7 +1649,7 @@ void slideHold(Grip& g, const glm::vec3& tracked, const glm::vec3& shoulder, flo
     {
         return;
     }
-    const ledges::Edge& e = m->edges[static_cast<size_t>(g.ledge.edge)];
+    const ledges::Edge& e = m->edges[static_cast<za::SizeT>(g.ledge.edge)];
     const glm::vec3 hold = holdNow(g);
     float s = glm::dot(tracked - g.grabOffset - hold, e.dir);
     s = za::clamp(g.ledge.t + s, 0.f, e.len) - g.ledge.t;
@@ -4981,7 +4982,7 @@ void probe(edict_t* ent, float yaw)
         m.nearby(mins - offset, maxs - offset, nearby);
         for(const int i : nearby)
         {
-            const ledges::Edge& e = m.edges[static_cast<size_t>(i)];
+            const ledges::Edge& e = m.edges[static_cast<za::SizeT>(i)];
             const glm::vec3 p = e.a + offset, q = e.point(e.len) + offset;
             const ledges::Sample& s = m.sampleAt(e, 0.5f * e.len);
             Con_Printf("ledge%s: (%.1f %.1f %.1f) to (%.1f %.1f %.1f), %.0f above the feet, out (%.2f %.2f), the drop %.1f out, "
