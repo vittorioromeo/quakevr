@@ -11061,3 +11061,51 @@ blocks (16:11-16:45; the frozen gib fight, his config, retro off; beta2's APK an
   3/3/1. APK built (0 warnings, check_apk 20/0) and run on the headset through both blocks with no crash (level,
   dynamic and scale changes mid-game). Scripts (not committed): `scratch/qfov4_*` (mk, trace, bins.py, ab3, block1/2,
   crop.py), questperf's `qp_*`.
+
+## frameport: the Steam Frame pieces of PR #75, by Kasper Olesen (agent/frameport, 2026-11-23)
+
+Three pieces of kblood's Steam Frame port (PR #75), brought into `next` with his credit (docs/vr-port/CREDITS.md,
+"Contributors"; the rest of the PR is superseded or left out: the investigation in the kit's `pr75_report.md`).
+
+- **The Steam Frame's controller profile** (`XR_VALVE_frame_controller_interaction`,
+  `/interaction_profiles/valve/frame_controller_valve`): his commit (linuxtest 6a9325783e), his authorship kept, moved
+  to `vr_backend_openxr_actions.cpp`. One of the vendor profiles (`vr_xr_vendor_profiles`, `VendorFrame`): A/B on the
+  right, the left d-pad's down/up as X/Y, the menu on the left view or the right menu button, 30 bindings. Added to
+  `fullProfiles` (no limited-controls warning). One OpenXR backend serves the PC, Linux and the Quest/Android builds.
+- **`-vr-hide-mirror`**: linuxtest c77e62d815 cherry-picked (its Co-authored-by kept). The desktop window is never
+  shown; it counts as focused (every present made, no "not focused" warning) and, on `next`, as not visible
+  (`windowNotVisible`: the spectator camera skipped). Presents still happen (a glFlush in place of the swap lost the
+  Adreno device in his tests).
+- **`XR_EXT_user_presence`** (`vr_xr_user_presence` 1, Advanced > Headset > Headset Taken Off): re-done on our code from
+  his 7d0ba78904. Enabled when offered; used when the system has the sensor (logged in qvr_openxr.txt). The headset off
+  counts as the runtime's menu: the frame held (`vr_xr_unfocused`), a single player game paused
+  (`vr_xr_unfocused_pause`, "VR: the headset was taken off" / "is back on"), the controllers' input zeroed; the
+  height calibration waits ("Put on your headset to calibrate."). Differences from the PR: worn until the runtime says
+  otherwise (his waited for the first event: a runtime that never sends one would have stayed paused); poses kept
+  (the input zeroed and the frame held are enough); `vr_debug_head_pose` 1 (unworn GPU tests) ignores it.
+- **Tests**: fakexr `FAKEXR_UNWORN a-b` (the presence event and the sensor property). xr_runtime_test.sh section 9
+  (the Frame profile enabled, suggested, 30 bindings, played as it, no warning) and the new section 11 (paused for 100
+  host frames with the game time still, 100 frames held, resumed; `vr_xr_user_presence 0` plays on): 0 failed; section
+  5 (the runtime's menu pause) unchanged, 0 failed. `-vr-hide-mirror` with `-Visible`: `vr_debug_window` says hidden,
+  not visible.
+- **Not verified**: a real Steam Frame (no device) and a real runtime's presence events (SteamVR, Meta).
+## cltidy4: ticked lines retired, [New] sorted, sections reordered (agent/cltidy4, 2026-11-23)
+
+Checklist 223 -> 157 lines; no scene retired; details in CHECKLIST_REORG.md, "fourth pass". checklist_tests_check 99 passed, 0 failed.
+
+## userpresence: unmanned runs ignore the headset taken off (agent/userpresence, 2026-11-23)
+
+- **The Quest offers it**: its runtime lists `XR_EXT_user_presence` (the qfov logcats, 2026-11-23); since frameport the
+  game enables it, and a headset lying on a desk (the proximity sensor uncovered) may be reported unworn, which paused a
+  single player game and held the frame: an unmanned perf run would have stalled to its timeout. Not seen on the device
+  (no headset use): Meta's runtime may never send it while `prox_close` is in force.
+- **Ignored for automated runs** (`OpenXrBackend::presenceIgnored`, vr_backend_openxr_frame.cpp; `userPresent`, so the
+  input zeroing, the held frame, the pause and the height calibration's wait all follow it): `vr_xr_user_presence` 0,
+  `vr_debug_head_pose` 1, the new launch flag `-vr-unattended`, a timedemo, `vr_fixed_frames` 1 (every run.sh run). Logged
+  with the reason in qvr_openxr.txt and the console ("VR: the headset was taken off, ignored (...)": logcat on the Quest).
+  Players keep `vr_xr_user_presence` 1 as it was; no archived setting is touched.
+- **Quest scripts**: none are kept in the repo (the qp_* ones live in agents' scratch); QUEST_PLAN.md now says every
+  unmanned launch passes `-noconfigwrite -vr-unattended`.
+- **Tests**: xr_runtime_test.sh section 11: the paused run is a player's session now (`vr_fixed_frames 0`); new runs, an
+  unworn fake headset under a scripted run (fixed frames) and under `-vr-unattended` (`vr_fixed_frames 0`), play on and
+  log their reason: 8 passed, 0 failed.

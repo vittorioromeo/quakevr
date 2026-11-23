@@ -401,6 +401,7 @@ void OpenXrBackend::resetRuntimeState()
     lostByResult = false;
     panelFailedWidth = panelFailedHeight = 0;
     visibilityMaskExtension = false;
+    userPresenceExtension = userPresenceSensor = userAbsent = false;
     eyeGazeOffered = false;
     eyeGazeAsked = false;
     eyeGazeExtension = false;
@@ -498,6 +499,12 @@ bool OpenXrBackend::createInstance()
         {
             extensions.pushBack(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
             visibilityMaskExtension = true;
+        }
+        // The headset taken off (vr_xr_user_presence: the Steam Frame, SteamVR).
+        if(!ZA_STRCMP(p.extensionName, XR_EXT_USER_PRESENCE_EXTENSION_NAME))
+        {
+            extensions.pushBack(XR_EXT_USER_PRESENCE_EXTENSION_NAME);
+            userPresenceExtension = true;
         }
         // Eye tracking for the foveation's centre (vr_foveated_gaze; asked for only when it is on: some runtimes ask the
         // player's permission or start the eye tracker for it).
@@ -715,6 +722,21 @@ bool OpenXrBackend::createSystem()
             system.systemName, system.vendorId, system.graphicsProperties.maxLayerCount,
             system.graphicsProperties.maxSwapchainImageWidth, system.graphicsProperties.maxSwapchainImageHeight));
     }
+
+    // The headset taken off (vr_xr_user_presence): the extension enabled, and the system's sensor.
+    if(userPresenceExtension)
+    {
+        XrSystemUserPresencePropertiesEXT presence{XR_TYPE_SYSTEM_USER_PRESENCE_PROPERTIES_EXT};
+        XrSystemProperties props{XR_TYPE_SYSTEM_PROPERTIES};
+        props.next = &presence;
+        userPresenceSensor = XR_SUCCEEDED(xrGetSystemProperties(instance, systemId, &props)) &&
+                             presence.supportsUserPresence == XR_TRUE;
+    }
+    xrruntime::logLine(va("OpenXR: user presence (XR_EXT_user_presence): %s%s\n",
+        userPresenceSensor     ? "on: the headset taken off pauses as the runtime's menu does (vr_xr_user_presence)"
+        : userPresenceExtension ? "offered, but the system has no sensor for it"
+                                : "not offered by the runtime",
+        userPresenceSensor && COM_CheckParm("-vr-unattended") ? "; ignored for this run (-vr-unattended)" : ""));
 
     // Eye tracking (vr_foveated_gaze): the extension enabled, and the system's eye tracker able to give the gaze.
     if(eyeGazeExtension)
@@ -1061,6 +1083,7 @@ void OpenXrBackend::beginSession()
     if(sessionRunning)
     {
         panelFailedWidth = panelFailedHeight = 0; // (a panel swapchain that failed: tried again, the runtime may be back)
+        userAbsent = false; // (worn until the runtime says otherwise: XR_EXT_user_presence's event comes after the begin)
         traceFramesLeft = tracedFrames; // (traceFrame: the session's first frames' calls as steps)
         tracedFrame = 1;
         // (Usually none yet: runtimes pick them at the first xrSyncActions, and say so with an event.)
@@ -1101,6 +1124,34 @@ bool OpenXrBackend::pollEvents()
                     stateTrailText));
                 return false;
             case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED: updateControllers(); break;
+            case XR_TYPE_EVENT_DATA_USER_PRESENCE_CHANGED_EXT:
+            {
+                // The headset taken off or put back on (vr_xr_user_presence; from PR #75, by Kasper Olesen).
+                const auto& changed = reinterpret_cast<const XrEventDataUserPresenceChangedEXT&>(event);
+                if(changed.session == session && userPresenceSensor)
+                {
+                    const bool absent = changed.isUserPresent == XR_FALSE;
+                    if(absent != userAbsent)
+                    {
+                        noteState(absent ? "UNWORN" : "WORN");
+                        VR_PerfEvent(VR_PERF_MARK, 0.0, absent ? "xr user absent" : "xr user present");
+                        char held[64];
+                        q_snprintf(held, sizeof(held), "back on (%d frames held while off)", absentHeld);
+                        const char* ignored = absent ? presenceIgnored() : nullptr;
+                        xrruntime::logLine(va("%s user presence: the headset %s%s%s%s\n", wallClock(),
+                            absent ? "taken off" : held, ignored ? " (ignored: " : "", ignored ? ignored : "",
+                            ignored ? ")" : ""));
+                        if(ignored)
+                        {
+                            // (the console too: an unmanned run's log, the Quest's logcat, says why it played on)
+                            Con_Printf("VR: the headset was taken off, ignored (%s)\n", ignored);
+                        }
+                        absentHeld = 0;
+                    }
+                    userAbsent = absent;
+                }
+                break;
+            }
             case XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR:
             {
                 const auto& changed = reinterpret_cast<const XrEventDataVisibilityMaskChangedKHR&>(event);

@@ -277,6 +277,7 @@ public:
     [[nodiscard]] const HiddenArea* hiddenArea(int eye) const override;
 
     [[nodiscard]] bool runtimeMenuOpen() const override;
+    [[nodiscard]] bool userPresent() const override;
 
     [[nodiscard]] const char* systemName() const override;
     [[nodiscard]] EyeTracking eyeTracking() const override
@@ -377,6 +378,16 @@ private:
     XrView views[2]{{XR_TYPE_VIEW}, {XR_TYPE_VIEW}};
     XrViewConfigurationView configViews[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
     bool visibilityMaskExtension{false}; // XR_KHR_visibility_mask enabled
+    // XR_EXT_user_presence (vr_xr_user_presence; from PR #75, by Kasper Olesen): enabled when offered; the system's
+    // sensor (supportsUserPresence); the headset off by the runtime's last XrEventDataUserPresenceChangedEXT (on until
+    // one says otherwise, and again at each session start).
+    bool userPresenceExtension{false};
+    bool userPresenceSensor{false};
+    bool userAbsent{false};
+    int absentHeld{0}; // the frames held while it was off (logged when it is back on)
+    // Why the headset's sensor is ignored now (nullptr: it isn't): vr_xr_user_presence 0, vr_debug_head_pose 1, or an
+    // automated run (-vr-unattended, a timedemo, a scripted test's vr_fixed_frames 1) that nobody wears it for.
+    [[nodiscard]] const char* presenceIgnored() const;
     // Eye tracking (vr_foveated_gaze): XR_EXT_eye_gaze_interaction offered, enabled (asked for, and the system has it),
     // its pose action and space (FrameState::gaze).
     bool eyeGazeOffered{false};
@@ -394,11 +405,13 @@ private:
         VendorFocus3,  // HTC Vive Focus 3 (and XR Elite)
         VendorHp,      // HP Reverb G2
         VendorOdyssey, // Samsung Odyssey (a WMR controller)
+        VendorFrame,   // Valve Steam Frame (from PR #75, by Kasper Olesen)
         VendorCount
     };
     static constexpr const char* vendorExtensions[VendorCount] = {"XR_BD_controller_interaction",
         "XR_HTC_vive_cosmos_controller_interaction", "XR_HTC_vive_focus3_controller_interaction",
-        "XR_EXT_hp_mixed_reality_controller", "XR_EXT_samsung_odyssey_controller"};
+        "XR_EXT_hp_mixed_reality_controller", "XR_EXT_samsung_odyssey_controller",
+        "XR_VALVE_frame_controller_interaction"};
     bool vendorProfile[VendorCount]{};
     char runtime[XR_MAX_RUNTIME_NAME_SIZE + 32]{}; // its name and version
     char system[XR_MAX_SYSTEM_NAME_SIZE]{};        // the headset's name (systemName)
@@ -602,7 +615,8 @@ private:
         "/interaction_profiles/htc/vive_controller", "/interaction_profiles/microsoft/motion_controller",
         "/interaction_profiles/bytedance/pico_neo3_controller", "/interaction_profiles/bytedance/pico4_controller",
         "/interaction_profiles/htc/vive_cosmos_controller", "/interaction_profiles/htc/vive_focus3_controller",
-        "/interaction_profiles/hp/mixed_reality_controller", "/interaction_profiles/samsung/odyssey_controller"};
+        "/interaction_profiles/hp/mixed_reality_controller", "/interaction_profiles/samsung/odyssey_controller",
+        "/interaction_profiles/valve/frame_controller_valve"};
 
     [[nodiscard]] static const char* shortProfile(const char* name);
 

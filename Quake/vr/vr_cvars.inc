@@ -613,6 +613,12 @@ QVR_CVAR(vr_android_window, "0", CVAR_NONE)
 QVR_CVAR(vr_xr_unfocused_pause, "1", CVAR_ARCHIVE)
 // The game's volume while vr_xr_unfocused_pause holds it (0 silent .. 1 unchanged), faded over a tenth of a second.
 QVR_CVAR(vr_xr_unfocused_volume, "0", CVAR_ARCHIVE)
+// The headset taken off, where the runtime has a sensor for it (XR_EXT_user_presence: the Steam Frame, SteamVR, the
+// Quest's runtime; from PR #75, by Kasper Olesen): 1 it counts as the runtime's menu does (vr_xr_unfocused's held frame,
+// vr_xr_unfocused_pause's pause) and the controllers' buttons are ignored until it is back on; 0 ignored, the game plays
+// on. Automated runs ignore it too, whatever this says (nobody wears the headset): vr_debug_head_pose 1 (GPU tests on an
+// unworn headset), the launch flag -vr-unattended (the Quest's unmanned perf runs), a timedemo, vr_fixed_frames 1.
+QVR_CVAR(vr_xr_user_presence, "1", CVAR_ARCHIVE)
 // The runtime asking the game to exit (OpenXR's session EXITING: the player quit it from SteamVR's dashboard, Virtual
 // Desktop's or Meta's menu): 1 the game quits as the console's quit does (the config saved); 0 it plays on flat (1.0.0's
 // way; vr_restart starts VR again). The headset or runtime lost (LOSS_PENDING) always plays on flat.
@@ -898,7 +904,7 @@ QVR_CVAR(vr_debug_stick, "0", CVAR_NONE) // Debug: twice a second, the moving st
 // clicks together; 2: those, or Y (the off hand's upper button) held 0.8 s; 3: those, or B (the main hand's) held 0.8 s;
 // 4: those, or Y pressed (Y then never reaches the game: no previous weapon, voice notes or hook reel on it).
 QVR_CVAR(vr_menu_button, "1", CVAR_ARCHIVE)
-// 1: the vendors' controller profiles (Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2, Samsung Odyssey) asked of the
+// 1: the vendors' controller profiles (Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2, Samsung Odyssey, Steam Frame) asked of the
 // runtime when it offers their extensions, each with its menu button; 0: only the core profiles (Touch, Index, Vive
 // wands, WMR, simple). Read when the VR session starts.
 QVR_CVAR(vr_xr_vendor_profiles, "1", CVAR_ARCHIVE)
