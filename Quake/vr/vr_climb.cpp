@@ -5054,6 +5054,21 @@ constexpr float ropeHandSurface = 0.4f; // of its thickness: at least this far (
     return glm::mat3{front, glm::cross(up, front), up};
 }
 
+// (ropes8b, his flat note 2026-11-23) Under a monkey traverse's rope (the palm out from it downwards, `out`): which way
+// along it `up` (ropeTurn's thumb side) points for `hand`, so that its palm faces forward and in: an overhand grip
+// (the palm away from the face, the back of the hand towards him, the knuckles up over the rope) facing across the
+// rope; facing along it each palm towards the other side (the rope across the palm either way, never the back of the
+// hand on it).
+[[nodiscard]] glm::vec3 monkeyRopeUp(int hand, const glm::vec3& out, const glm::vec3& up)
+{
+    const float yaw = glm::radians(cl.viewangles[YAW]);
+    const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f}, right{za::sin(yaw), -za::cos(yaw), 0.f};
+    const glm::vec3 want = fwd + (hand == 1 ? -right : right);
+    const glm::mat3 m = ropeTurn(out, up);
+    const glm::vec3 palm = hand == 1 ? m[1] : -m[1]; // (the off hand's model mirrored: drawnBack)
+    return glm::dot(palm, want) < 0.f ? -up : up;
+}
+
 // The drawn hand's turn on a hold: gripping a rope (`up` set: ropeTurn) where vr_rope_hand_grip has it (1 flat-screen
 // play only, 2 VR too: the default since ropes6), else as on a ledge (holdTurn).
 [[nodiscard]] glm::mat3 turnOn(const glm::vec3& out, const glm::vec3& up, bool mirrored)
@@ -5390,7 +5405,7 @@ glm::vec3 qvr::climb::ropeHandOffset(const glm::vec3& out)
 }
 
 bool qvr::climb::ropePalm(const glm::vec3& hold, const glm::vec3& out, glm::vec3& palm, glm::vec3* up, glm::vec3* axis,
-    float* thick)
+    float* thick, glm::vec3* usedOut)
 {
     glm::vec3 at{0.f};
     glm::vec3 ropeUp{0.f, 0.f, 1.f};
@@ -5400,8 +5415,20 @@ bool qvr::climb::ropePalm(const glm::vec3& hold, const glm::vec3& out, glm::vec3
         return false;
     }
     glm::vec3 o = out - ropeUp * glm::dot(out, ropeUp); // (square to the rope where it is held)
+    // (ropes8b, his flat note 2026-11-23: on a level rope the hands were beside it, turned as on an upright one) Under
+    // a monkey traverse's rope (or level pole) the body hangs below it: the hand is out from it downwards (square to
+    // it), the palm under the rope, the knuckles up over it (turnOn).
+    if(climbrope::clientRopeMonkey(hold, ropeHoldNear))
+    {
+        const glm::vec3 down{0.f, 0.f, -1.f};
+        o = down - ropeUp * glm::dot(down, ropeUp);
+    }
     o = glm::length(o) > 1e-4f ? glm::normalize(o) : out;
     palm = at + o * za::max(ropeHandOut * units::metresToUnits(), ropeHandSurface * thickness);
+    if(usedOut)
+    {
+        *usedOut = o;
+    }
     if(up)
     {
         *up = ropeUp;
@@ -5444,8 +5471,13 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
         glm::vec3 ropeUp{0.f};
         glm::vec3 axis{0.f};
         float thick = 0.f;
-        if(ropePalm(at, out, hold, &ropeUp, &axis, &thick))
+        glm::vec3 palmOut = out;
+        if(ropePalm(at, out, hold, &ropeUp, &axis, &thick, &palmOut))
         {
+            if(palmOut.z < -0.5f)
+            {
+                ropeUp = monkeyRopeUp(hand, palmOut, ropeUp); // (ropes8b: under a monkey traverse's rope)
+            }
             pin.offset = hold - at;
             pin.axis = axis - hold;
             pin.thickness = thick;
@@ -5460,7 +5492,7 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
         if(pin.weight <= 0.f)
         {
             pin.from = pin.to = hold;
-            pin.fromOut = out;
+            pin.fromOut = palmOut;
             pin.fromUp = ropeUp;
             pin.along = 1.f;
             const float dist = glm::distance(hold, hands::palmPoint(s, hand));
@@ -5480,7 +5512,7 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
             pin.inTime = easeTime(glm::distance(hold, pin.from));
         }
         pin.to = hold; // (a hold on a moving brush model moves)
-        pin.toOut = out;
+        pin.toOut = palmOut;
         pin.toUp = ropeUp;
         pin.serial = serial;
         pin.along = za::min(1.f, pin.along + dt / pin.inTime);
@@ -5581,7 +5613,7 @@ bool qvr::climb::drawnPalm(int hand, glm::vec3& palm)
     return true;
 }
 
-bool qvr::climb::drawnBack(int hand, glm::vec3& back)
+bool qvr::climb::drawnBack(int hand, glm::vec3& back, glm::vec3* front)
 {
     if(hand < 0 || hand > 1 || pins[hand].weight <= 0.f)
     {
@@ -5590,6 +5622,10 @@ bool qvr::climb::drawnBack(int hand, glm::vec3& back)
     // (The hand model's left is a right hand's palm side; the off hand's mirrored model has it the other way.)
     const glm::mat3 m = turnOn(pins[hand].toOut, pins[hand].toUp, hand == 0);
     back = hand == 0 ? m[1] : -m[1];
+    if(front)
+    {
+        *front = m[0];
+    }
     return true;
 }
 
