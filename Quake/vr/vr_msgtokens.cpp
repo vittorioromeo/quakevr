@@ -267,7 +267,8 @@ void runTest()
     {
         clean = clean && !has(wt.text.cStr());
     }
-    const char* tipNames[] = {"t2_move", "t2_jump", "t2_grenade", "t2_forcegrab", "t2_punch", "t3_bash", "t1_menu"};
+    const char* tipNames[] = {
+        "t2_move", "t2_jump", "t2_grenade", "t2_forcegrab", "t2_punch", "t3_bash", "t1_menu", "t2_throw", "t3_axe"};
     for(const char* name : tipNames)
     {
         const za::String s = tips::shownTextOf(name);
@@ -300,6 +301,17 @@ void runTest()
         g = tips::shownTextOf("t2_grenade");
         check(t, contains(g, "[Quick grenade: not bound]"), "grenade unbound", g.cStr());
         Cvar_SetQuick(grenade, grenadeWas.cStr());
+
+        // The throw key (vr_flat_key_throw, default J) on lessons 10 and 12: their tips and boards.
+        cvar_t* throwKey = Cvar_FindVar("vr_flat_key_throw");
+        const za::String throwWas{throwKey->string};
+        Cvar_SetQuick(throwKey, "j");
+        const za::String rock = tips::shownTextOf("t2_throw"), axe = tips::shownTextOf("t3_axe");
+        const za::String b10 = boardText("LESSON 10: THROWING"), b12 = boardText("LESSON 12: BLADES");
+        check(t, contains(rock, "'J'") && !contains(rock, "not in flat play"), "throw key: rock", rock.cStr());
+        check(t, contains(axe, "'J'") && !contains(axe, "not in flat play"), "throw key: axe", axe.cStr());
+        check(t, contains(b10, "'J'") && contains(b12, "'J'"), "throw key: boards", b10.cStr());
+        Cvar_SetQuick(throwKey, throwWas.cStr());
 
         // A command's bind: +jump on SPACE, then on U alone.
         const za::String spaceWas{keybindings[K_SPACE] ? keybindings[K_SPACE] : ""};

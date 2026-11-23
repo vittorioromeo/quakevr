@@ -490,6 +490,7 @@ def K(what):
 
 
 GRAB, DROP, PUNCH, FIRE = K("vr_flat_key_grab"), K("vr_flat_key_drop"), K("vr_flat_key_punch"), K("+attack")
+THROW = K("vr_flat_key_throw")  # (held winds up, let go throws: FLATPLAY.md, "The throw key")
 JUMP, AIMKEY = K("+jump"), K("+offhandattack")
 
 FLAT_TIPS = {
@@ -524,7 +525,7 @@ FLAT_TIPS = {
     "t2_flip": K("vr_flat_key_flashlight") + " switches your flashlight" + N + "on and off.",
     "t2_clipgun": "Your flashlight lights where you" + N + "look: aim where you shoot.",
     "t2_cliphead": "Your flashlight is at your temple:" + N + "both hands stay free.",
-    "t2_throw": "Hit the button with a thrown rock:" + N + "a headset's move (not in flat play yet).",
+    "t2_throw": "Take a rock (" + GRAB + " at it). Hold " + THROW + N + "and let go to throw: hit the button.",
     "t2_grenade": "Take the rockets (walk over the box)." + N + "Then press " + K("vr_flat_key_grenade") +
                   ": a grenade in a free" + N + "hand. " + FIRE + " arms it; let go to throw.",
     "t2_torch_take": "Press " + GRAB + " at a torch" + N + "to take it off the wall.",
@@ -532,7 +533,7 @@ FLAT_TIPS = {
     "t3_blades": "Take a blade (" + GRAB + " at it), then" + N + FIRE + " swings it through the dummy.",
     "t3_stab": "A point that sticks in stays there:" + N + "force-grab it (" + GRAB + ") to pull it out.",
     "t3_reverse": K("vr_flat_key_ammo") + " turns the dagger point down," + N + "for stabbing down.",
-    "t3_axe": "Throw the axe at the target:" + N + "a headset's move (not in flat play yet).",
+    "t3_axe": "Throw the axe at the target: hold " + THROW + N + "and let go. " + GRAB + " pulls it back out.",
     "t3_bash": "Press " + K("vr_flat_key_shove") + " to shove:" + N + "push it off the bridge!",
     "t3_disarm": "It holds an axe: shove it off" + N + "the bridge, or beat it.",
     "t3_bat": "Swing your weapon (" + FIRE + ") or punch" + N + "(" + PUNCH + ") as the spike comes: it flies back.",
@@ -577,14 +578,14 @@ FLAT_BANNERS = {
     "LESSON 9: DARKNESS": ["LESSON 9: DARKNESS", "", "Your flashlight is at your temple:",
                            K("vr_flat_key_flashlight") + " switches it on or off."],
     "LESSON 10: THROWING": ["LESSON 10: THROWING", "", "The button is out of reach behind the bars.",
-                            "Hit it with a thrown rock or brick.", "(Throwing is not in flat play yet.)"],
+                            "Throw a rock or a brick at it:", GRAB + " to take one, hold " + THROW + ", let go."],
     "GRENADES": ["GRENADES", "With rockets in your pack, press " + K("vr_flat_key_grenade") + ":",
                  "a grenade in a free hand. " + FIRE + " arms it;", "hold to wind up, let go to throw."],
     "LESSON 11: FIRE": ["LESSON 11: FIRE", "", "Take a torch off the wall:", "press " + GRAB + " at it.",
                         "Set the crates alight and watch it spread.", "Enemies burn too. So do you: careful!"],
     "LESSON 12: BLADES": ["LESSON 12: BLADES", "", "Take a blade: " + GRAB + " at it.", FIRE + " swings: the edge cuts,",
                           "the point sticks in.", "", K("vr_flat_key_ammo") + ": the dagger point down.", "",
-                          "Throw an axe into the target to go on."],
+                          "THROW: hold " + THROW + ", let go.", "Throw an axe into the target to go on."],
     "LESSON 13: BASH AND BAT": ["LESSON 13: BASH AND BAT", "", "SHOVE: " + K("vr_flat_key_shove") +
                                 " pushes an open hand out.", "Shove the enemy off the bridge!", "",
                                 "BAT: press for a spike, swing through it.", "Press for a grenade: get clear!"],
