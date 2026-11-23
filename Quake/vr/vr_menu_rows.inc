@@ -4782,6 +4782,10 @@ QVR_SLIDER(vr_dynres_target, "Dynamic GPU Budget", 0.5f, 1.f, 0.05f, "%.2f", noE
     "rest is left for the headset's runtime and the window). Lower: drops sooner, steadier.")
 QVR_SLIDER(vr_dynres_min, "Dynamic Lowest Scale", 0.4f, 1.f, 0.05f, "%.2f", ext(0.25f, 2.f),
     "The lowest scale Dynamic Resolution goes to under load (times the headset's resolution).")
+QVR_SLIDER(vr_dynres_min_fight, "Dynamic Lowest in Fights", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 2.f),
+    "Lower still, only in a fight: once the eyes stay over the budget at Dynamic Lowest Scale for a moment, the "
+    "scale may go down to this; back at Dynamic Lowest Scale it needs a fight again. 0: never below Dynamic "
+    "Lowest Scale.")
 QVR_CYCLE(vr_upscale, "Upscaling",
     "Below Render Scale 1: how the image is enlarged to the headset's size. FSR (AMD) and NIS (NVIDIA) "
     "keep it sharper than Bilinear.",

@@ -135,6 +135,9 @@ constexpr presetcore::Row standaloneRows[] = {
     {&vr_render_scale,                {"0.9",    "0.75",   "0.65"}},
     {&vr_dynres,                      {"1",      "1",      "1"}},
     {&vr_dynres_min,                  {"0.65",   "0.5",    "0.5"}},   // his call 2026-11-22 (C5i): 0.55 -> 0.65 now the world's lights are Quake's way (C5g/C5h: the fight 11.3 -> 7.0 ms); C4o had cut 0.65 -> 0.55
+    // qtune (ROUND25): 0.55 only in a fight (the eyes over the budget at 0.65 for half a second), back to 0.65 by the
+    // usual slow rise: questperf's gib fight at 0.55 held 72 Hz (12.0 ms, 1.1% late; 0.65: 15.8, 21%)
+    {&vr_dynres_min_fight,            {"0.55",   "0",      "0"}},
     {&vr_upscale,                     {"0",      "0",      "0"}},     // bilinear: no full-size pass
     {&vid_fsaa,                       {"0",      "0",      "0"}},     // off: 2x cost the Quest 3 ~100 ms a frame (C4e: e1m1 138 -> 41 ms; the float scene's MSAA resolved through memory, not on chip)
     {&vr_taa,                         {"0",      "0",      "0"}},     // its history reads and writes: bandwidth
