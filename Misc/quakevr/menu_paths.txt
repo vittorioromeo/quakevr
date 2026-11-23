@@ -201,6 +201,7 @@ vr_render_scale|0|VR Settings - Display and Graphics|Render Scale|VR Settings > 
 vr_dynres|0|VR Settings - Display and Graphics|Dynamic Resolution|VR Settings > Display and Graphics > Dynamic Resolution
 vr_dynres_target|1|VR Settings - Display and Graphics|Dynamic GPU Budget|VR Settings > Display and Graphics > Dynamic GPU Budget
 vr_dynres_min|0|VR Settings - Display and Graphics|Dynamic Lowest Scale|VR Settings > Display and Graphics > Dynamic Lowest Scale
+vr_dynres_min_fight|1|VR Settings - Display and Graphics|Dynamic Lowest in Fights|VR Settings > Display and Graphics > Dynamic Lowest in Fights
 vr_dynres_max|1|VR Settings - Display and Graphics|Dynamic Highest Scale|VR Settings > Display and Graphics > Dynamic Highest Scale
 vr_upscale|0|VR Settings - Display and Graphics|Upscaling|VR Settings > Display and Graphics > Upscaling
 vr_upscale_sharpness|0|VR Settings - Display and Graphics|Sharpening|VR Settings > Display and Graphics > Sharpening
@@ -1475,6 +1476,9 @@ vr_flat_holster_menu_size|1|Locomotion|Holster Menu Size|Advanced VR Options > M
 vr_flat_holster_menu_fade_time|1|Locomotion|Holster Menu Fade Time|Advanced VR Options > Movement > Locomotion > Holster Menu Fade Time
 vr_flat_holster_menu_cursor_speed|1|Locomotion|Holster Menu Cursor Speed|Advanced VR Options > Movement > Locomotion > Holster Menu Cursor Speed
 vr_flat_holster_menu_crt|1|Locomotion|Holster Menu Screen Look|Advanced VR Options > Movement > Locomotion > Holster Menu Screen Look
+vr_flat_wheel|1|Locomotion|Weapon Wheel on 1 / 2|Advanced VR Options > Movement > Locomotion > Weapon Wheel on 1 / 2
+vr_flat_wheel_hold|1|Locomotion|Weapon Wheel Hold Time|Advanced VR Options > Movement > Locomotion > Weapon Wheel Hold Time
+vr_flat_wheel_size|1|Locomotion|Weapon Wheel Size|Advanced VR Options > Movement > Locomotion > Weapon Wheel Size
 vr_flat_holster_drop_ahead|1|Locomotion|Holster Drop Distance|Advanced VR Options > Movement > Locomotion > Holster Drop Distance
 vr_flat_unload_volume|1|Locomotion|Unload Volume|Advanced VR Options > Movement > Locomotion > Unload Volume
 vr_flat_ssg_break|1|Locomotion|Super Shotgun Breaks Open|Advanced VR Options > Movement > Locomotion > Super Shotgun Breaks Open
@@ -1921,6 +1925,7 @@ vr_limbs_corpses|1|Gore - Limb Gore|Corpses|Advanced VR Options > Gore > Limb Go
 vr_limbs_zombies|1|Gore - Limb Gore|Zombies and Mummies|Advanced VR Options > Gore > Limb Gore > Zombies and Mummies
 vr_limbs_body_speed|1|Gore - Limb Gore|Body's Speed After|Advanced VR Options > Gore > Limb Gore > Body's Speed After
 vr_limbs_max|1|Gore - Limb Gore|Most Limbs Lying About|Advanced VR Options > Gore > Limb Gore > Most Limbs Lying About
+vr_gore_trim_max|1|Gore - Limb Gore|Most Settled Gore|Advanced VR Options > Gore > Limb Gore > Most Settled Gore
 vr_limbs_prebuild|1|Gore - Limb Gore|Make Limbs as the Map Loads|Advanced VR Options > Gore > Limb Gore > Make Limbs as the Map Loads
 vr_limbs_mass_scale|1|Gore - Limb Gore|Limb Weight|Advanced VR Options > Gore > Limb Gore > Limb Weight
 vr_limbs_end_fountain|1|Gore - Limb Gore|Cut End Fountain|Advanced VR Options > Gore > Limb Gore > Cut End Fountain
@@ -2578,6 +2583,7 @@ vr_anim_smooth_tension|1|Graphics - Models and Effects|Animation Ease|Advanced V
 vr_anim_smooth_rig|1|Graphics - Models and Effects|Swing Limbs|Advanced VR Options > Graphics > Models and Effects > Swing Limbs
 vr_anim_smooth_rebuild|1|Graphics - Models and Effects|Rebuild From Skeleton|Advanced VR Options > Graphics > Models and Effects > Rebuild From Skeleton
 vr_rim_light|1|Graphics - Models and Effects|Rim Light|Advanced VR Options > Graphics > Models and Effects > Rim Light
+vr_rig_plain|1|Graphics - Models and Effects|Plain Own Models|Advanced VR Options > Graphics > Models and Effects > Plain Own Models
 vr_viewmodel_minlight|1|Graphics - Models and Effects|Hands' Least Light|Advanced VR Options > Graphics > Models and Effects > Hands' Least Light
 vr_weapon_reflections|1|Graphics - Models and Effects|Weapon Reflections|Advanced VR Options > Graphics > Models and Effects > Weapon Reflections
 vr_weapon_reflections_strength|1|Graphics - Models and Effects|Reflection Strength|Advanced VR Options > Graphics > Models and Effects > Reflection Strength
@@ -4475,6 +4481,7 @@ vr_flat_ladder_push|2|Tunables|Ladder Push Off|Advanced VR Options > Debug > Tun
 vr_flat_rope_look|2|Tunables|Rope Climb Look|Advanced VR Options > Debug > Tunables > Rope Climb Look
 vr_flat_rope_keys|2|Tunables|Rope Keys By Look|Advanced VR Options > Debug > Tunables > Rope Keys By Look
 vr_flat_rope_climb_pitch|2|Tunables|Rope Climb Pitch|Advanced VR Options > Debug > Tunables > Rope Climb Pitch
+vr_flat_rope_retake|2|Tunables|Rope Retake Time|Advanced VR Options > Debug > Tunables > Rope Retake Time
 vr_flat_ladder_reach|2|Tunables|Ladder Reach|Advanced VR Options > Debug > Tunables > Ladder Reach
 vr_flat_hand_collide|2|Tunables|Wall: Empty Hands And Swings|Advanced VR Options > Debug > Tunables > Wall: Empty Hands And Swings
 vr_flat_swing_wind_strikes|2|Tunables|Swing Windup Strikes|Advanced VR Options > Debug > Tunables > Swing Windup Strikes
@@ -4570,6 +4577,7 @@ vr_flat_bash_cooldown|2|Tunables|Bash Cooldown|Advanced VR Options > Debug > Tun
 vr_flat_parry_blade|2|Tunables|Guard Takes The Blade|Advanced VR Options > Debug > Tunables > Guard Takes The Blade
 vr_flat_parry_blade_in_time|2|Tunables|Blade Grip In Time|Advanced VR Options > Debug > Tunables > Blade Grip In Time
 vr_flat_parry_blade_out_time|2|Tunables|Blade Grip Out Time|Advanced VR Options > Debug > Tunables > Blade Grip Out Time
+vr_flat_parry_blade_palm|2|Tunables|Blade Grip Palm Down|Advanced VR Options > Debug > Tunables > Blade Grip Palm Down
 vr_flat_melee_2h|2|Tunables|Two-Handed Melee Stance|Advanced VR Options > Debug > Tunables > Two-Handed Melee Stance
 vr_flat_melee_2h_time|2|Tunables|Stance Blend Time|Advanced VR Options > Debug > Tunables > Stance Blend Time
 vr_flat_melee_2h_fwd|2|Tunables|Stance Ahead|Advanced VR Options > Debug > Tunables > Stance Ahead
@@ -4606,6 +4614,7 @@ vr_flat_eye_pivot|2|Tunables|Eye Turns About The Neck|Advanced VR Options > Debu
 vr_flat_eye_fwd|2|Tunables|Eye Forward Of The Neck|Advanced VR Options > Debug > Tunables > Eye Forward Of The Neck
 vr_flat_eye_up|2|Tunables|Eye Above The Neck|Advanced VR Options > Debug > Tunables > Eye Above The Neck
 vr_flat_eye_lean|2|Tunables|Eye Leans With The Chest|Advanced VR Options > Debug > Tunables > Eye Leans With The Chest
+vr_flat_eye_pitched_body|2|Tunables|Look Up With The Body Pitched|Advanced VR Options > Debug > Tunables > Look Up With The Body Pitched
 vr_flat_cam_fwd|2|Tunables|View Forward|Advanced VR Options > Debug > Tunables > View Forward
 vr_flat_cam_up|2|Tunables|View Up|Advanced VR Options > Debug > Tunables > View Up
 vr_flat_cam_side|2|Tunables|View Sideways|Advanced VR Options > Debug > Tunables > View Sideways
@@ -4727,6 +4736,9 @@ vr_flat_swim_takeover_time|2|Tunables|Swim: Take-Over Time|Advanced VR Options >
 vr_flat_swim_return_time|2|Tunables|Swim: Blend Back Time|Advanced VR Options > Debug > Tunables > Swim: Blend Back Time
 vr_flat_swim_fire_hold|2|Tunables|Swim: After a Shot|Advanced VR Options > Debug > Tunables > Swim: After a Shot
 vr_flat_swim_turn_time|2|Tunables|Swim: Stroke Change Time|Advanced VR Options > Debug > Tunables > Swim: Stroke Change Time
+vr_flat_swim_cup|2|Tunables|Swim: Hand Cup|Advanced VR Options > Debug > Tunables > Swim: Hand Cup
+vr_flat_swim_sound|2|Tunables|Swim: Stroke Sound|Advanced VR Options > Debug > Tunables > Swim: Stroke Sound
+vr_flat_swim_bubbles|2|Tunables|Swim: Bubbles|Advanced VR Options > Debug > Tunables > Swim: Bubbles
 vr_embed_sword_speed|2|Tunables|Thrown Sword: Least Speed|Advanced VR Options > Debug > Tunables > Thrown Sword: Least Speed
 vr_embed_sword_tip|2|Tunables|Thrown Sword: Point Length|Advanced VR Options > Debug > Tunables > Thrown Sword: Point Length
 vr_embed_sword_angle|2|Tunables|Thrown Sword: Most Off Its Line|Advanced VR Options > Debug > Tunables > Thrown Sword: Most Off Its Line
@@ -4937,6 +4949,7 @@ vr_gl_world_lite|2|Tunables|Lite World Shader (Quest)|Advanced VR Options > Debu
 vr_gl_alias_lite|2|Tunables|Lite Model Shader (Quest)|Advanced VR Options > Debug > Tunables > Lite Model Shader (Quest)
 vr_gl_lights_lite|2|Tunables|Lite Lights Loop (Quest)|Advanced VR Options > Debug > Tunables > Lite Lights Loop (Quest)
 vr_gl_lights_plain|2|Tunables|Plain Lights Loop (Quest)|Advanced VR Options > Debug > Tunables > Plain Lights Loop (Quest)
+vr_gl_mediump|2|Tunables|Medium Precision Colours (Quest)|Advanced VR Options > Debug > Tunables > Medium Precision Colours (Quest)
 vr_gl_world_unlit|2|Tunables|Unlit World Shader (Quest)|Advanced VR Options > Debug > Tunables > Unlit World Shader (Quest)
 vr_gl_pc_forms|2|Tunables|Quest Shader Forms on PC|Advanced VR Options > Debug > Tunables > Quest Shader Forms on PC
 vr_gl_alias_plain|2|Tunables|Plain Model Shader (Quest)|Advanced VR Options > Debug > Tunables > Plain Model Shader (Quest)
@@ -4944,6 +4957,8 @@ vr_gl_alias_plain_mask|2|Tunables|Plain Model Shader Leaves Out|Advanced VR Opti
 vr_gl_alias_gore|2|Tunables|Gore Model Shader (Quest)|Advanced VR Options > Debug > Tunables > Gore Model Shader (Quest)
 vr_gl_alias_body|2|Tunables|Body Lighting (Quest)|Advanced VR Options > Debug > Tunables > Body Lighting (Quest)
 vr_gl_alias_skin|2|Tunables|Skin Model Shader (Quest)|Advanced VR Options > Debug > Tunables > Skin Model Shader (Quest)
+vr_gl_alias_nofb|2|Tunables|No Fullbright Read (Quest)|Advanced VR Options > Debug > Tunables > No Fullbright Read (Quest)
+vr_gl_alias_flat|2|Tunables|Flat-Lit Gore (Quest)|Advanced VR Options > Debug > Tunables > Flat-Lit Gore (Quest)
 vr_gl_alias_vlight|2|Tunables|Plain Models Lit at Vertices (Quest)|Advanced VR Options > Debug > Tunables > Plain Models Lit at Vertices (Quest)
 vr_menu_render_scale|2|Tunables|Menu Render Scale|Advanced VR Options > Debug > Tunables > Menu Render Scale
 vr_gl_foveation|2|Tunables|Scene Foveation (Quest)|Advanced VR Options > Debug > Tunables > Scene Foveation (Quest)
@@ -4952,6 +4967,8 @@ vr_revgrip_pivot_shift|2|Tunables|Flip Pivot Shift|Advanced VR Options > Debug >
 vr_revgrip_2h_gate|2|Tunables|Two-Handed Flip|Advanced VR Options > Debug > Tunables > Two-Handed Flip
 vr_revgrip_blocked_pulse|2|Tunables|Refused Flip Pulse|Advanced VR Options > Debug > Tunables > Refused Flip Pulse
 vr_revgrip_2h_mirror|2|Tunables|Reversed Two-Handed Hand|Advanced VR Options > Debug > Tunables > Reversed Two-Handed Hand
+vr_rope_hand_pitch|2|Tunables|Rope Grip Knuckles Up|Advanced VR Options > Debug > Tunables > Rope Grip Knuckles Up
+vr_rope_elbow_out|2|Tunables|Rope Climb Elbows Out|Advanced VR Options > Debug > Tunables > Rope Climb Elbows Out
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -5397,6 +5414,7 @@ vr_flat_reload_debug|2|Debug - Reports|Flatscreen Reload Print|Advanced VR Optio
 |2|Debug - Reports|Holster Menu Test|Advanced VR Options > Debug > Reports > Holster Menu Test
 |2|Debug - Reports|Weapon Wheel Dump|Advanced VR Options > Debug > Reports > Weapon Wheel Dump
 |2|Debug - Reports|Weapon Wheel Test|Advanced VR Options > Debug > Reports > Weapon Wheel Test
+|2|Debug - Reports|Flat Weapon Wheel Test|Advanced VR Options > Debug > Reports > Flat Weapon Wheel Test
 |2|Debug - Reports|Flatscreen Grenade Report|Advanced VR Options > Debug > Reports > Flatscreen Grenade Report
 vr_flat_grenade_debug|2|Debug - Reports|Flatscreen Grenade Print|Advanced VR Options > Debug > Reports > Flatscreen Grenade Print
 |2|Debug - Reports|Flatscreen Swap Report|Advanced VR Options > Debug > Reports > Flatscreen Swap Report
@@ -6217,6 +6235,7 @@ vr_debug_pain|2|Debug - Tests|Print Hits|Advanced VR Options > Debug > Tests > P
 |2|Debug - Tests|Test the Climbable Ropes|Advanced VR Options > Debug > Tests > Test the Climbable Ropes
 |2|Debug - Tests|Test the Flat-Screen Rope Climb|Advanced VR Options > Debug > Tests > Test the Flat-Screen Rope Climb
 |2|Debug - Tests|Test the Poles' Solidity|Advanced VR Options > Debug > Tests > Test the Poles' Solidity
+|2|Debug - Tests|Test Falling Beside a Pole|Advanced VR Options > Debug > Tests > Test Falling Beside a Pole
 |2|Debug - Tests|Test the Rope and Chain Sounds|Advanced VR Options > Debug > Tests > Test the Rope and Chain Sounds
 |2|Debug - Tests|Deplete Stamina|Advanced VR Options > Debug > Tests > Deplete Stamina
 |2|Debug - Tests|Nearly Empty|Advanced VR Options > Debug > Tests > Nearly Empty

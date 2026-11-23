@@ -2249,6 +2249,7 @@ QVR_TUNABLE(vr_flat_eye_pivot, "1") // 1: the flatscreen look's pitch turns the 
 QVR_TUNABLE(vr_flat_eye_fwd, "1") // the eye off that point, forward at a level look (0..8 units)
 QVR_TUNABLE(vr_flat_eye_up, "4") // the same, up (0..8 units)
 QVR_TUNABLE(vr_flat_eye_lean, "12") // the chest's share of a look carries the head with it, about a point in the spine this far under the neck (0..30 units; with vr_flat_body_pose)
+QVR_TUNABLE(vr_flat_eye_pitched_body, "30") // the body pitched forward this many degrees (swimming, lying down) or more, a look up no longer carries the eye back nor leans the chest (0..90; 0: always does)
 QVR_TUNABLE(vr_flat_cam_fwd, "0") // how far the flatscreen eye is nudged forward, in the view's frame (-20..20 units; + is forward, towards what he looks at)
 QVR_TUNABLE(vr_flat_cam_up, "0") // the same, up (-20..20; + is higher; the crouch's own drop (vr_flat_crouch_drop) is added to it, not replaced by it)
 QVR_TUNABLE(vr_flat_cam_side, "0") // the same, sideways (-20..20; + is the view's own right, which is his left when he looks at it on the screen)

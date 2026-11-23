@@ -180,5 +180,23 @@ check(st is not None and st["swimming"] == 0 and "off" in h and h["off"]["stance
       "going on it, share 1.00" in stance(two.get("land2", [])),
       f"twohand land2: out of the water the two-handed grip is back ({stance(two.get('land2', [])).strip()[:60]})")
 
+# lookup: the eye at every pitch swimming off the bottom (the body tilted forward).
+VIEW = r"flatswim: view pitch (-?\d+): the shoulders (-?[\d.]+) ahead of the eye along the view, (\d+) deg off it; the eye (-?[\d.]+) ahead of the head joint; body pitch (-?[\d.]+)"
+look = cases("lookup")
+for p in (-89, -60, -30, 0, 30, 60, 89):
+    m = [re.search(VIEW, l) for l in look.get("pitch%s" % str(p).replace("-", "m"), [])]
+    m = [x for x in m if x]
+    if not m:
+        check(False, "lookup pitch %d: no view line" % p)
+        continue
+    sh, eye, body = float(m[0].group(2)), float(m[0].group(4)), float(m[0].group(5))
+    check(body > 30 and eye >= 0 and sh <= 0.5,
+          "lookup pitch %d (view %s): swimming tilted (body %.1f), the eye at the head (%.1f ahead of its joint), the shoulders "
+          "not ahead of it (%.1f)" % (p, m[0].group(1), body, eye, sh))
+m = [x for x in (re.search(VIEW, l) for l in look.get("oldm89", [])) if x]
+check(bool(m) and float(m[0].group(4)) < -2,
+      "lookup old eye (vr_flat_eye_pitched_body 0) at -89: carried back over the trunk (%s ahead of the head joint): the "
+      "measure sees the old fault" % (m[0].group(4) if m else "?"))
+
 print(f"flatswim: {passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

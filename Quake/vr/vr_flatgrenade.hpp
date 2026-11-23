@@ -27,4 +27,9 @@ void apply(hands::State& s);
 // punches nor takes a weapon's grip (vr_flatsight.cpp, vr_twohand.cpp).
 [[nodiscard]] bool busy(int h);
 
+// Whether the free hand `helping` lets go of a two-handed grip of the weapon `holding` holds: either hand busy (above).
+// The throwing hand's own throw too (his call 2026-11-23): a throw is one-handed, the other hand lets go and takes the
+// grip again after, as after the other let-go moves.
+[[nodiscard]] bool letsGo(int holding, int helping);
+
 } // namespace qvr::flatgrenade

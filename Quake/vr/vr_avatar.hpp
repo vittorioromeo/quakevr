@@ -321,6 +321,8 @@ glm::vec3 poseOther(int player, const Subject& who, const hands::State& s, qmode
 // its slide pose's share), false: not posed. ownPitch: your own body's, as last posed.
 [[nodiscard]] bool otherPitch(int player, float& angle, float& lying, float& sliding);
 [[nodiscard]] bool ownPitch(float& angle, float& lying, float& sliding);
+// Your own body's pitch (degrees forward) as last eased, whether or not it is posed this frame yet (ownPitch asks that).
+[[nodiscard]] float ownPitchAngle();
 // Player `player`'s body's climbing as posed this frame or the last (0 .. 1: the hanging trunk's and the feet's weight),
 // false: not posed.
 [[nodiscard]] bool otherClimb(int player, float& weight);

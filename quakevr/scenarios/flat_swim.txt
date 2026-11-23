@@ -1,8 +1,7 @@
-# flat_swim: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) swimming strokes (Quake/vr/vr_flatswim.cpp; docs/vr-port/FLATPLAY.md, "Swimming").
-title Flat-screen swimming: the vrtesthall pool, a nailgun held two-handed
+# flat_swim: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (FLATPLAY.md, "Swimming strokes")
+title Flat-screen swimming: vrtesthall's pool, you start under water
 map vrtesthall
-start 150 -264 40 0
 god
 notarget
-give "Nailgun" main
-hint Play with -flatscreenmode. Walk into the pool and swim: forward (the breaststroke), back, sideways, up (jump) and down; stay still to tread water. The nailgun's free hand lets go and swims; fire and reload under water: the gun hand's stroke gives way and comes back. Climb out: the free hand goes back on the nailgun. Debug > Tunables > Flatscreen > Swimming tunes it.
+start 384 -256 -40 90
+hint You are under water in the pool. Swim forward, back, sideways, up (jump) and down: the hands stroke, open, with bubbles and stroke sounds. Off the bottom, look straight up and sweep the look down to the floor: your own head, shoulders and arms never fill the view.
