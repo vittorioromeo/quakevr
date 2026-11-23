@@ -530,6 +530,12 @@ za::Vector<Item> pageDebugProfiling()
         command("Opaque Draws Unblended (Quest LRZ)", "vr_gl_opaque_noblend 1")
             .help("vr_gl_opaque_noblend 1 (an A/B): opaque draws with GL_BLEND off (-1: under OpenGL ES only). The same "
                   "pixels; on the Quest LRZ then lives until some models end it."),
+        command("Clamped Models First (Default)", "vr_gl_clamp_last 0")
+            .help("vr_gl_clamp_last 0: your held models drawn with depth clamp (vr_nearclip_held) whenever held, and "
+                  "before the world. On the Quest a depth-clamped draw ends LRZ for the rest of the pass."),
+        command("Clamped Models Last (Quest LRZ)", "vr_gl_clamp_last 1")
+            .help("vr_gl_clamp_last 1 (an A/B): depth clamp only where a model comes within reach of the near plane, "
+                  "and those models drawn after the others (-1: under OpenGL ES only). The same pixels."),
         command("LRZ Probe: After the Clear", "vr_debug_lrz_probe 1")
             .help("vr_debug_lrz_probe n: at point n of each eye's scene (1 after the clear, 2 after the lenses' hidden "
                   "area, 3 after the opaque world and models, 4 after the sky, 5 at the end) a near magenta quad, then a "

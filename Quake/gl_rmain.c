@@ -1233,6 +1233,7 @@ R_DrawEntitiesOnList
 */
 static entity_t *r_stereo_alias[MAX_VISEDICTS]; // QVR: the alias models a single-pass stereo pass draws
 static entity_t *r_first_alias[MAX_VISEDICTS], *r_rest_alias[MAX_VISEDICTS]; // QVR: those drawn before the world and after (R_AliasDrawsFirst)
+static entity_t *r_last_alias[MAX_VISEDICTS]; // QVR (qlrz2): those drawn with depth clamp, after the rest (VR_AliasClampLast)
 static entity_t *r_zoned_world[MAX_VISEDICTS], *r_zoned_player[MAX_VISEDICTS]; // QVR: R_DrawAliasModelsZoned's parts
 static const char *const r_zoned_player_parts[VR_DRAW_GROUPS] = { // QVR: the player's models' GPU sub-zones (VR_DRAW_*)
 	"player: hands", "player: body", "player: held", "player: holstered", "player: worn", "player: lying gear",
@@ -1426,16 +1427,23 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 	}
 	else if (!alphapass) // QVR: your own opaque models drawn before the world (vr_alias_player_first, R_AliasDrawsFirst)
 	{
-		int i, n = 0;
+		int i, n = 0, last = 0;
 		for (i = 0; i < aliascount; i++)
-			if (R_AliasDrawsFirst (aliasents[i]))
+			if (VR_AliasClampLast (aliasents[i])) // QVR (qlrz2): a depth-clamped draw ends the Quest's LRZ: after the rest
+				r_last_alias[last++] = aliasents[i];
+			else if (R_AliasDrawsFirst (aliasents[i]))
 				r_first_alias[firstcount++] = aliasents[i];
 			else
 				r_rest_alias[n++] = aliasents[i];
-		if (firstcount)
+		for (i = 0; i < last; i++)
+			r_rest_alias[n++] = r_last_alias[i];
+		if (firstcount || last)
 		{
 			aliasents = r_rest_alias;
 			aliascount = n;
+		}
+		if (firstcount)
+		{
 			VR_ProfileBeginGPU ("alias"); // QVR: profile
 			VR_GPUZoneBegin ("alias: player models first");
 			R_DrawAliasModelsZoned (r_first_alias, firstcount, alphapass);

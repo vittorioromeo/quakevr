@@ -1247,6 +1247,7 @@ struct AliasBatch
     int form; // the program (the Quest's lite forms)
     int needs;
     int tris;
+    int lrz; // VR_LRZ_* (qlrz2)
 };
 struct GlPasses
 {
@@ -1257,14 +1258,26 @@ struct GlPasses
 void printPasses()
 {
     Con_Printf("vr_gl_passes: %d alias batches (model, instances, draws, pass, first entity, skin, program, needs, "
-               "triangles each)\n",
+               "triangles each; lrz: B blended depth writes, C depth clamp, P depth pre-pass, D a program that may discard, "
+               "T no culling)\n",
         static_cast<int>(glPasses.batches.size()));
     static constexpr const char* forms[] = {"depth", "full", "opaque", "plain", "gore", "skin", "body", "?"};
     static constexpr const char* variants[] = {"", "_nofb", "_flat", "_nofb_flat"}; // (r_alias.c: ALIASVAR_* << 3)
     for(const AliasBatch& a : glPasses.batches)
     {
-        Con_Printf("  alias %-28s %3d inst %2d draws %s ent %d skin %d %s%s needs %d tris %d\n", a.model, a.instances,
-            a.draws, a.depth ? "depth" : "shade", a.ent, a.skin, forms[a.form & 7], variants[(a.form >> 3) & 3], a.needs, a.tris);
+        char lrz[8] = {};
+        int n = 0;
+        static constexpr char letters[] = "BCPDT";
+        for(int b = 0; b < 5; b++)
+        {
+            if(a.lrz & (1 << b))
+            {
+                lrz[n++] = letters[b];
+            }
+        }
+        Con_Printf("  alias %-28s %3d inst %2d draws %s ent %d skin %d %s%s needs %d tris %d lrz %s\n", a.model,
+            a.instances, a.draws, a.depth ? "depth" : "shade", a.ent, a.skin, forms[a.form & 7], variants[(a.form >> 3) & 3],
+            a.needs, a.tris, n ? lrz : "-");
     }
     Con_Printf("vr_gl_passes: %d draw framebuffer binds and render pass breakers in the frame (fbo, draws after it, the "
                "scope there; a breaker: what, in the bound fbo, and the GL group or scope it is in)\n",
@@ -1301,9 +1314,9 @@ extern "C" void VR_GLPassBreak(const char* what)
 }
 
 extern "C" void VR_GLAliasBatch(
-    const char* model, int instances, int draws0, int depth, int ent, int skin, int form, int needs, int tris)
+    const char* model, int instances, int draws0, int depth, int ent, int skin, int form, int needs, int tris, int lrz)
 {
-    glPasses.batches.pushBack({model, instances, vr_profcounts.drawcalls - draws0, depth, ent, skin, form, needs, tris});
+    glPasses.batches.pushBack({model, instances, vr_profcounts.drawcalls - draws0, depth, ent, skin, form, needs, tris, lrz});
 }
 
 extern "C" void VR_ProfileFrame()

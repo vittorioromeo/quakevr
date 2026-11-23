@@ -780,6 +780,10 @@ QVR_CVAR(vr_gl_one_pass, "1", CVAR_NONE)
 // Default 0 for now: with 1 the Quest's LRZ lives until the first id model (progs/) other than a grunt is drawn, which
 // ends it again (cause open), and the gib fight measures the same (ROUND25, qlrz).
 QVR_CVAR(vr_gl_opaque_noblend, "0", CVAR_NONE)
+// qlrz2: your models drawn with depth clamp (vr_nearclip_held) only where a part of them can come within the near
+// plane, and those drawn after the other opaque models (not before the world): on the Quest a depth-clamped draw
+// ends LRZ for the rest of the pass. -1 under OpenGL ES, 1 always, 0 as before (clamped whenever held, drawn first).
+QVR_CVAR(vr_gl_clamp_last, "0", CVAR_NONE)
 // qlrz, a probe: 0 GL_SAMPLE_SHADING never enabled (Ironwail enables it throughout; its rate is vid_fsaamode's).
 QVR_CVAR(vr_gl_sample_shading, "1", CVAR_NONE)
 // Debug > Profiling > LRZ Probe (qlrz): is the tiler's early depth rejection (Adreno's LRZ) alive at a point of the
