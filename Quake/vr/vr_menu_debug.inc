@@ -861,6 +861,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_agholds_report: each armed humanoid drawn lately, its weapon and its hands on it (one-handed, two: the "
                   "off hand on its second grip or cupping the other), what the Weapon Holds asked; vr_agholds_info the "
                   "settings' table."),
+        command("Armed Humanoids: Arm Pose Slots", "vr_agrunt_armpose_check")
+            .help("vr_agrunt_armpose_check: the armed humanoids drawn now and posed (their arms on their weapons), the "
+                  "arm pose slots live, the drawn ones' messages that found no slot since the last check (their arms "
+                  "stuck as the frames have them: should be 0) and the slots taken from undrawn ones."),
         toggle("Armed Humanoids: Arms' Warm Start", vr_agarms_warm)
             .help("vr_agarms_warm: a free hand's or fist's refinement started from last frame's forearm turn (1 or 2 solves, "
                   "not up to 4), settled fully: its hand's turn differs from the full search's (which stops short) by up to ~25 "

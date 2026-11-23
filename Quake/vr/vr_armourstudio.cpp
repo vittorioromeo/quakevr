@@ -395,7 +395,12 @@ void keepSubject()
         st.running = false; // (a new map: the studio closed)
         st.subject = 0;
         agarmor::studioView(0, 1.f, 0, false);
-        Cvar_SetValueQuick(&vr_agrunt_freeze, st.freezeWas);
+        // (only while still frozen: a scene that set it and put it back, or a map change that ended the scene, unfroze them
+        // first: putting the studio's value back then froze the next scene's humanoids; his note of 2026-11-23 23:03:39)
+        if(vr_agrunt_freeze.value != 0.f)
+        {
+            Cvar_SetValueQuick(&vr_agrunt_freeze, st.freezeWas);
+        }
         return;
     }
     // (a new kind put there once you are in the level: a script's `map x; vr_armourstudio` asks before)
@@ -451,7 +456,12 @@ void closeStudio(const char* why)
 {
     if(st.running)
     {
-        Cvar_SetValueQuick(&vr_agrunt_freeze, st.freezeWas);
+        // (only while still frozen: a scene that set it and put it back, or a map change that ended the scene, unfroze them
+        // first: putting the studio's value back then froze the next scene's humanoids; his note of 2026-11-23 23:03:39)
+        if(vr_agrunt_freeze.value != 0.f)
+        {
+            Cvar_SetValueQuick(&vr_agrunt_freeze, st.freezeWas);
+        }
     }
     st.running = false;
     st.menuSeen = false;

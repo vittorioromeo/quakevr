@@ -175,7 +175,7 @@ inline constexpr ArmedRig armedRigs[] = {
 // them on the body as drawn now (its step lerp, its poses' lerp), between the last two messages: the weapon drawn there
 // (the held entity's origin and angles replaced after the relink; the server's own is for the game) and the hands on it.
 
-constexpr int maxArmPoses = 64;
+constexpr int maxArmPoses = 128; // (more than are drawn at once; one drawn takes an undrawn one's slot: armPoseOf)
 constexpr double armPoseStale = 0.3; // seconds without a message: back to finding its weapon by its hand
 constexpr int apLeft = 2;            // the left hand to its own target (else on the weapon's second grip, or free)
 constexpr int apLeftFree = 4;        // ... the left as the animation has it
@@ -253,6 +253,8 @@ struct ArmPose
 struct ArmPoses
 {
     ArmPose slots[maxArmPoses];
+    int dropped{0}; // vr_agrunt_ik_err: messages that found no slot (that humanoid's arms unposed), since it last printed
+    int evicted{0}; // ... slots taken from a humanoid not drawn now for one that is
 };
 extern ArmPoses armPoses; // (vr_hitreact_arms.cpp)
 

@@ -143,6 +143,7 @@ struct State
     Scenario run;
     za::String lastHint;            // Reset Test's hint (the checklist line's)
     testbatch::CvarSnapshot saved;  // each setting changed: its value before (put back; the tests' one snapshot)
+    testbatch::CvarSnapshot before; // every setting at its start: a test toggle its commands left changed (SCNLEAK) put back
     za::Vector<za::String> errors;  // the last file read's errors ("<line>|<message>")
     za::Vector<za::String> notes;   // the last placing's problems (an entry not available, a spot in a wall)
     za::Vector<za::String> queue;   // vr_scenario runall's ids still to run
@@ -150,7 +151,7 @@ struct State
     za::String hint;                // the hint shown
     za::String skipWhy;             // runall: why the current one is skipped (an add-on it needs not here), "" to run it
     za::Vector<const char*> live;   // while the config is written: each changed setting's own string (put back after)
-    auto members() { return qvr::mem::list(placed, bots, run, lastHint, saved, errors, notes, queue, error, hint, skipWhy, live); }
+    auto members() { return qvr::mem::list(placed, bots, run, lastHint, saved, before, errors, notes, queue, error, hint, skipWhy, live); }
 };
 mem::Cache<State> state{"scenario", mem::Never};
 
@@ -629,9 +630,51 @@ void restoreSettings()
     state.saved.clear();
 }
 
+// A test toggle the scene's commands left changed (its `cmd` lines' tests and studios: vr_agrunt_freeze, a test cvar, a
+// measuring tag...; not its `cvar` lines, put back above): each non-archived vr_ setting that differs from the scene's
+// start, printed (SCNLEAK: runall counts it failed) and put back, so the next scene starts clean (his note of
+// 2026-11-23 23:03:39). The archived ones are his settings (a change made in the menus during a test stays).
+// Not toggles: the game's own state (the run's seed, the blood tallies), the menus' shown presets (a run set-up's new game
+// sets Handedness and Gore, kept as his) and the studios' panels' mirrors of their
+// subject (a grip's fields: setting one back would write it into his grips).
+constexpr const char* leakNotToggles[] = {"vr_run_seed", "vr_blood_tally", "vr_handedness", "vr_gore_preset", "vr_menu_",
+    "vr_agrunt_grip_", "vr_armourstudio_", "vr_humstudio_"};
+
+void restoreLeaks()
+{
+    int leaked = 0;
+    for(const testbatch::CvarSnapshot::Saved& v : state.before.saved())
+    {
+        cvar_t* var = v.var;
+        if(!var || !var->name || (var->flags & (CVAR_ARCHIVE | CVAR_ROM)) || q_strncasecmp(var->name, "vr_", 3) != 0 ||
+            !ZA_STRCMP(var->string, v.value.cStr()))
+        {
+            continue;
+        }
+        bool toggle = true;
+        for(const char* prefix : leakNotToggles)
+        {
+            toggle = toggle && q_strncasecmp(var->name, prefix, static_cast<int>(ZA_STRLEN(prefix))) != 0;
+        }
+        if(!toggle)
+        {
+            continue;
+        }
+        Con_Printf("SCNLEAK|%s|%s|%s|%s (put back)\n", state.run.id.cStr(), var->name, v.value.cStr(), var->string);
+        Cvar_SetQuick(var, v.value.cStr());
+        leaked++;
+    }
+    state.before.clear();
+    if(leaked > 0 && runAll)
+    {
+        runAllFailed++;
+    }
+}
+
 void end()
 {
     restoreSettings();
+    restoreLeaks();
     phase = Idle;
     hintUntil = 0.0;
 }
@@ -1210,6 +1253,7 @@ bool start(const char* id, const char* hint)
     state.error.clear();
     state.run = ZA_MOVE(s);
     state.lastHint = hint ? hint : "";
+    state.before.takeAll(); // (every setting as the scene starts: restoreLeaks)
     for(const Setting& c : state.run.cvars)
     {
         cvar_t* var = settingByName(c.name.cStr()); // (a tuning constant's stand-in sets it live; none in a release build)
