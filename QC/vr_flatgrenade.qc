@@ -186,7 +186,41 @@ void() VR_FlatGrenade_Key =
         VR_FlatGrenade_OnGrip(h) ? " (off the weapon's grip)" : ""));
 };
 
-// Thrown: let go of along the crosshair, `xHeld` seconds wound up.
+// Where a flat throw (the throw key's, the quick grenade's) leaves and its way (his words 2026-11-23: thrown things
+// "seem to come from the centre of the eyes rather than from the hand holding them"): from the throwing hand where it is
+// drawn (the client's pose is the server's: the wound-up hand, in view at the screen's corner), or where the line to it
+// from the eyes meets a wall; aimed at what the crosshair points at (up to VR_FLATTHROW_AIM_FAR away), so that it goes
+// there from the hand, `xUp` degrees above that line. What the crosshair points at lying at the hand or behind it (a
+// wall at the face): along the aim. Returns where it leaves; vr_flatthrow_dir its way, vr_flatthrow_ang its angles
+// (makevectors' convention) and v_forward / v_right / v_up made from them.
+float VR_FLATTHROW_AIM_FAR = 2048;
+float VR_FLATTHROW_AIM_NEAR = 24;
+vector vr_flatthrow_dir;
+vector vr_flatthrow_ang;
+vector(float xHand, float xUp) VR_FlatThrow_From =
+{
+    vector head = VRGetHeadPos(self);
+    makevectors(self.v_angle);
+    vector aim = v_forward;
+    traceline(head, head + aim * VR_FLATTHROW_AIM_FAR, FALSE, self);
+    vector at = trace_endpos;
+    vector hand = VRGetEntHandPos(self, xHand);
+    traceline(head, hand, TRUE, self);
+    vector from = trace_fraction < 1 ? trace_endpos - normalize(hand - head) * 2 : hand;
+    vector way = at - from;
+    if(way * aim < VR_FLATTHROW_AIM_NEAR)
+    {
+        way = aim;
+    }
+    vector ang = vectoangles(way);
+    ang_x = -ang_x - xUp; // (vectoangles' pitch is up positive, makevectors' down positive)
+    vr_flatthrow_ang = ang;
+    makevectors(ang);
+    vr_flatthrow_dir = v_forward;
+    return from;
+};
+
+// Thrown: let go of towards what the crosshair points at, `xHeld` seconds wound up.
 void(float xHand, entity g, float xHeld) VR_FlatGrenade_Throw =
 {
     float full = min(5, max(0.1, cvar_hget(cvarh_vr_flat_grenade_wind_full)));
@@ -194,17 +228,12 @@ void(float xHand, entity g, float xHeld) VR_FlatGrenade_Throw =
     float lo = max(0, cvar_hget(cvarh_vr_flat_grenade_speed_min));
     float hi = max(lo, cvar_hget(cvarh_vr_flat_grenade_speed_max));
     float speed = (lo + (hi - lo) * k) * min(3, max(0.1, cvar_hget(cvarh_vr_flat_grenade_speed_scale)));
-    vector ang = self.v_angle;
     // Above the crosshair: Throw Above Aim, and the arc's pitch on top of it (the two add).
     float up = min(60, max(-30, cvar_hget(cvarh_vr_flat_grenade_throw_up)));
     up = min(80, up + min(60, max(-30, cvar_hget(cvarh_vr_flat_grenade_throw_pitch))));
-    ang_x = ang_x - up; // (Quake's pitch: up is negative)
-    makevectors(ang);
-    vector dir = v_forward;
-    // It leaves just ahead of his eyes (the wound-up hand is behind his head): never inside a wall.
-    vector head = VRGetHeadPos(self);
-    traceline(head, head + dir * 12, TRUE, self);
-    vector start = trace_fraction < 1 ? trace_endpos - dir * 2 : trace_endpos;
+    // It leaves from the wound-up hand, towards what the crosshair points at (VR_FlatThrow_From).
+    vector start = VR_FlatThrow_From(xHand, up);
+    vector dir = vr_flatthrow_dir;
     VR_Hand_Release(self, xHand, "throw");
     setorigin(g, start);
     VR_Carry_Loose(g);
@@ -369,8 +398,8 @@ void() VR_FlatGrenade_Frame =
 // behind the shoulder (the drawn motion is the grenade's own, shared: vr_flat_throw_*); let go, it throws, as hard as it
 // was held (vr_flat_throw_speed_min .. _max m/s of the hand over vr_flat_throw_charge_time): a tap is a quick toss.
 // The throw is the headset's (one path, note_reuse.txt): the hand's throw estimate is set to the throw's (its velocity
-// along the crosshair, vr_flat_throw_up above it; its spin end over end, vr_flat_throw_spin; leaving from just ahead of
-// the eyes; the hand turned vr_flat_throw_release_pitch against the throw) and the hand lets go as a headset's does
+// from the hand to what the crosshair points at, vr_flat_throw_up above it; its spin end over end, vr_flat_throw_spin;
+// leaving from the wound-up hand, VR_FlatThrow_From; the hand turned vr_flat_throw_release_pitch against the throw) and the hand lets go as a headset's does
 // (DropWeaponInHand, VR_Carry_Release): the weight rules (throwvelocity), the throw assist, the spin by mass, the damage, an
 // axe's or a sword's sticking, a gib's burst, a grenade's owner are all theirs.
 // Held in both hands (a long gun with the other hand on its grip, a crate; his call 2026-11-23, replacing flatthrow's
@@ -382,6 +411,12 @@ void() VR_FlatGrenade_Frame =
 // does (an unarmed one leaves unarmed: a dud, as a headset's).
 // developer 1 prints each step ("flat throw: ...") and where the thing ended up ("flat throw: landed: ...").
 
+float vr_flatthrow_ammo0;      // (the tests) his ammo and the hand's clip as the wind-up began (none is shot meanwhile)
+float vr_flatthrow_ammo1;      // and as it is thrown
+float(float xHand) VR_FlatThrow_Rounds =
+{
+    return self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells + VR_FlatReload_Unloadable(xHand);
+};
 float vr_flatthrow_count;      // (the tests) throws, the last one's hand speed (m/s), wind-up and what it threw
 float vr_flatthrow_lastspeed;
 float vr_flatthrow_lastheld;
@@ -402,6 +437,13 @@ void(float xPhase) VR_FlatThrow_Set =
 float(entity xBox) VR_FlatThrow_WindsUp =
 {
     return self.vr_flatthrow_phase == VR_FLATTHROW_WIND && self.vr_flatthrow_ent == xBox;
+};
+
+// Whether `p`'s `xHand` winds up its weapon to throw it (his words 2026-11-23: no shooting the gun about to be thrown):
+// weapons.qc doesn't fire it meanwhile (the client neither fires nor sights it: vr_flatgrenade.cpp throwsWith).
+float(entity p, float xHand) VR_FlatThrow_WindsUpWeapon =
+{
+    return p.vr_flatthrow_phase == VR_FLATTHROW_WIND && p.vr_flatthrow_hand == xHand && p.vr_flatthrow_ent == world;
 };
 
 // What `xHand` of self can throw: 1 its weapon, 2 a carried thing, 0 nothing (empty; a grenade, the quick grenade's; a
@@ -483,9 +525,11 @@ void() VR_FlatThrow_Press =
     self.vr_flatthrow_wid = e == world ? VRGetEntWeapon(self, h) : 0;
     self.vr_flatthrow_both = both;
     VR_FlatThrow_Set(VR_FLATTHROW_WIND);
-    dprint(sprintf("flat throw: J: the %s hand winds up %s%s\n", VR_FlatGrenade_HandName(h),
+    vr_flatthrow_refused = 0;
+    vr_flatthrow_ammo0 = VR_FlatThrow_Rounds(h);
+    dprint(sprintf("flat throw: J: the %s hand winds up %s%s (ammo %g)\n", VR_FlatGrenade_HandName(h),
         e == world ? sprintf("weapon %g", self.vr_flatthrow_wid) : e.classname,
-        both ? " (held in both hands: the other hand lets go)" : ""));
+        both ? " (held in both hands: the other hand lets go)" : "", vr_flatthrow_ammo0));
 };
 
 // The hand's throw estimate (the headset's: VRGetHandThrowVel etc.) set to `xVel` (m/s), no flick, spin `xAVel` (rad/s),
@@ -514,17 +558,14 @@ void(float xHeld) VR_FlatThrow_Throw =
     float lo = max(0, cvar_hget(cvarh_vr_flat_throw_speed_min));
     float hi = max(lo, cvar_hget(cvarh_vr_flat_throw_speed_max));
     float speed = lo + (hi - lo) * k; // (m/s: the hand's, as a headset's estimate; the weight rules make the rest)
-    vector ang = self.v_angle;
-    ang_x = ang_x - min(60, max(-30, cvar_hget(cvarh_vr_flat_throw_up))); // (Quake's pitch: up is negative)
-    makevectors(ang);
-    vector dir = v_forward;
+    // It leaves from the wound-up hand, towards what the crosshair points at (VR_FlatThrow_From).
+    vector from = VR_FlatThrow_From(h, min(60, max(-30, cvar_hget(cvarh_vr_flat_throw_up))));
+    vector ang = vr_flatthrow_ang;
+    vector dir = vr_flatthrow_dir;
     vector spin = -v_right * max(0, cvar_hget(cvarh_vr_flat_throw_spin)); // end over end, the top going forward and down
     vector rot = ang;
     rot_x = rot_x + min(90, max(-90, cvar_hget(cvarh_vr_flat_throw_release_pitch)));
-    // It leaves just ahead of the eyes (the wound-up hand is behind the shoulder): never inside a wall.
     vector head = VRGetHeadPos(self);
-    traceline(head, head + dir * 12, TRUE, self);
-    vector from = trace_fraction < 1 ? trace_endpos - dir * 2 : trace_endpos;
 
     // (The estimate as it was, back after: the engine's own until the next move.)
     vector mV = self.handthrowvel, mF = self.handthrowflick, mA = self.handavel, mP = self.handthrowpos, mR = self.handrot;
@@ -532,6 +573,7 @@ void(float xHeld) VR_FlatThrow_Throw =
     vector oV = self.offhandthrowvel, oF = self.offhandthrowflick, oA = self.offhandavel, oP = self.offhandthrowpos, oR = self.offhandrot;
     float oG = self.offhandthrowage;
     VR_FlatThrow_SetHand(h, dir * speed, spin, from, rot);
+    vr_flatthrow_ammo1 = VR_FlatThrow_Rounds(h);
 
     // One-handed, whatever held it before the wind-up (his call 2026-11-23): the headset's two-handed window is not
     // counted (a quick toss lets go within it), kept as it was after.
@@ -592,6 +634,11 @@ void(float xHeld) VR_FlatThrow_Throw =
         thrown.classname, VR_FlatGrenade_HandName(h), self.vr_flatthrow_both ? " (one-handed: the other hand let go)" : "", xHeld, speed, k * 100));
     dprint(sprintf("it leaves at %.0f u/s, spin %.1f rad/s\n", vlen(thrown.velocity), vlen(thrown.vr_spin)));
     dprint(sprintf("flat throw:   from %v at %v (the aim %v, the eye %v)\n", thrown.origin, thrown.velocity, self.v_angle, head));
+    makevectors(self.v_angle);
+    vector off = thrown.origin - head;
+    dprint(sprintf("flat throw:   left %.1f forward, %.1f right, %.1f up of the eye\n", off * v_forward, off * v_right, off * v_up));
+    dprint(sprintf("flat throw:   ammo %g at the wind-up, %g now; fire refused %g frames\n", vr_flatthrow_ammo0, vr_flatthrow_ammo1,
+        vr_flatthrow_refused));
 };
 
 // J up (impulse 40): the throw (the throw key's grenade, or what the hand wound up with).

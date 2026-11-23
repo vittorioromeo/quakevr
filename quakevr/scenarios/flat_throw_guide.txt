@@ -1,0 +1,9 @@
+# flat_throw_guide: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (FLATPLAY.md, "The throw key": the wind-up in view, the guiding hand, the throw from the hand)
+title Flat-screen throw: the wind-up stays in view, a free other hand guides it, the throw leaves the hand
+map vrtesthall
+god
+notarget
+give "Axe" main
+spawn "Shotgun" 60 60
+cmd give r 10
+hint Play with -flatscreenmode. Hold J: the axe hand winds up at the screen's upper right corner (still in view), the empty left hand goes forward with its palm away and its fingers open; the fire button and the ironsight do nothing meanwhile. Let go: the axe leaves from the right hand (not the middle of the view) and goes where the crosshair points. Take the shotgun in the left hand and throw again: the left hand stays as it is. G and J with the quick grenade: the same guide while the other hand is empty.

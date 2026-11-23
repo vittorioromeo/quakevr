@@ -1107,8 +1107,8 @@ go throws it.
   own pouch grenade is taken (`VR_HandGrenade_Take`: a rocket leaves the reserve; the proximity launcher's round if the
   other hand holds it), carried in the hand. The fire button arms it with the headset's arming (`VR_HandGrenade_Arm`: the
   pin, `vr_grenade_fuse`, the cues); `vr_flat_grenade_arm_mode` 1 (default): the next press, held, winds up; 0: the
-  arming press itself winds up. Let go, it leaves just ahead of the eyes along the crosshair, `vr_flat_grenade_throw_up`
-  above it, at `vr_flat_grenade_speed_min` .. `_max` by the wind-up's share of `vr_flat_grenade_wind_full`, with his own
+  arming press itself winds up. Let go, it leaves from the wound-up hand towards what the crosshair points at
+  (`VR_FlatThrow_From`, the throw key's too), `vr_flat_grenade_throw_up` above that line, at `vr_flat_grenade_speed_min` .. `_max` by the wind-up's share of `vr_flat_grenade_wind_full`, with his own
   motion; the carry's own throw (`VR_Carry_Throw`) and release (`VR_Grenade_Released`). G again with it unarmed puts it
   back (the rocket back). No rockets: "No rockets for a grenade." `VR_HandGrenade_Trigger` doesn't arm for a flat-screen
   player (the quick grenade's frame does, whatever `vr_handgrenade_arm` says).
@@ -1142,7 +1142,9 @@ His ask (2026-11-23): a flat-screen throw, reusing and improving the grenade's t
 - **The throw is the headset's** (QC `vr_flatgrenade.qc`, "The throw key"): the hand's throw estimate (`handthrowvel`,
   `handavel`, `handthrowpos`, `handrot`; put back after) is set to the throw's and the hand lets go as a headset's does
   (`DropWeaponInHand`, `VR_Carry_Release`): weight, gain, assist, spin by mass, damage, sticking, gib bursts are theirs.
-  Along the crosshair `vr_flat_throw_up` above it, the hand at `vr_flat_throw_speed_min` (a tap) .. `_max` m/s over
+  From the wound-up hand where it is drawn (his words 2026-11-23: things seemed to come from the middle of the eyes;
+  `VR_FlatThrow_From`: the hand, or where the line to it from the eyes meets a wall) towards what the crosshair points at
+  (a trace up to 2048 units; at the hand or behind it, along the aim), `vr_flat_throw_up` above that line, the hand at `vr_flat_throw_speed_min` (a tap) .. `_max` m/s over
   `vr_flat_throw_charge_time`, spun end over end `vr_flat_throw_spin` rad/s, the hand turned `vr_flat_throw_release_pitch`.
 - **Held in both hands** (a long gun with the other hand on its grip or its stance's hotspot, a crate; his call
   2026-11-23): thrown one-handed. The other hand lets go as the wind-up begins (`flatgrenade::letsGo`: a throw of either
@@ -1151,8 +1153,17 @@ His ask (2026-11-23): a flat-screen throw, reusing and improving the grenade's t
   the press (`VR_Carry_EndTwoHands`, no second hand while it winds up); the headset's two-handed window isn't counted.
 - **As drawn** (`vr_flatgrenade.cpp`, STAT_QVR_FLATGREN's bits 16/32 the phase, 64 the main hand, 128 both): the throw's
   motion is shared with the quick grenade (Debug > Tunables > Flatscreen > Throw, replacing the grenade's wind/follow/back
-  tunables): wound up behind the shoulder (`vr_flat_throw_wind_*`), further back as it charges (`_charge_back`), the
-  follow-through along the look (`_follow_*`), back over `_back_time`.
+  tunables): wound up above and beside the shoulder along the look, in view at the screen's upper corner (his words
+  2026-11-23: it went too far back; `vr_flat_throw_wind_fwd/_out/_up/_pitch/_yaw/_roll`), a little further back as it
+  charges (`_charge_back`), the follow-through along the look (`_follow_*`), back over `_back_time`.
+- **The guiding hand** (his words 2026-11-23): while one hand winds up (a prop, a gun, a grenade), the other, if it holds
+  nothing (`flatsight::handEmpty`, and not busy), goes forward off its shoulder (`vr_flat_throw_guide_fwd/_out/_up`), its
+  fingers raised `_pitch` and turned in `_yaw` with the palm away from him (`_roll` about the fingers), its fingers open
+  by `_open` (`vr_view.cpp`'s finger curls, `flatgrenade::guideShare`); it eases back over `_back_time` as the throw
+  follows through. A hand that holds something stays as it is. `vr_flat_throw_guide 0` turns it off.
+- **No shooting the thrown gun** (his words 2026-11-23): while J winds a weapon up, its hand neither fires
+  (`flatplay::routeFire`, and the game: `VR_FlatThrow_WindsUpWeapon` in weapons.qc) nor takes the ironsight
+  (`flatsight::adsApplies`; `flatgrenade::throwsWith`).
 - `vr_flat_grenade_debug 1` prints the client's steps (`flatthrow:`), developer 1 the game's (`flat throw: ...`, and where
   it landed); `vr_flat_grenade_debug 2` the thrown thing's path a frame. Test: `Misc/quakevr/flatthrow_test.sh`.
 
