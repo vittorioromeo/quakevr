@@ -10665,3 +10665,25 @@ issue rather than regrabbing"). ROPES.md "Climbing (flat-screen)", "Poles", "Tes
   upright 11/0, slant 11/0; rope_flat_test rope 8/0, pole 7/0, polejump 7/0, slantjump 6/0, wall 1/0, wallvr 1/0,
   strungpole 5/0; rope_climb_test pole_jump 6/0, rope_jump 6/0, pole_wood 10/0, monkey_jump 7/0; vr_pole_solid_test
   14/0; mp_test.py pole 15/0. Not run: an MP free-fall scenario (prediction shares solidInside/solidLedge).
+
+## ropes12: thumbs wrap round ropes and poles (agent/ropes12, 2026-11-23)
+
+His ask 2026-11-23: the grip looked like a fist with the thumb over the fingers; the thumb should go round the other
+way from the fingers, meeting them, sized to the thickness. ROPES.md "Poles" (the hands round it).
+- **Why:** ropeHeld asked for Thumb on Top; and at every usual turn the open thumb is in the bar (a long cylinder in
+  the grip channel runs through the thumb's web), so the solve closed it from the fist: over the fingers. The rig's thumb
+  bends about an axis mostly along the palm's normal; opposed ~53 degrees that axis lies along the bar, and lifted off
+  the palm (a new third turn about the axis across it) the thumb clears the bar's near side and bends round it.
+- **Change:** `Held::thumbAround` -> `grasp::Settings::thumbAround` -> ThumbStyle Around: the usual turns plus 21
+  lifted ones (opposition 45/55/65 x lift 10-90); the turn reaching furthest round the bar the other way from the middle
+  finger wins (`aroundWraps`, in the shape's space: the bar along its z), a fist's thumb (from closed) only if none
+  closes from open; a kept turn gone bad is re-tried afresh. The thumb's controller curl is full on a rope (VR, as flat).
+  Shared: one grasp path for VR, flat and (through his snapshot's curls and thumb turn) another player's hands.
+- **Check:** `vr_rope_climb_check thumb <deg>` / flat `flatThumbCheck` (`ropeWraps`, `view::drawnFingerPoints`): each
+  drawn thumb's joints followed round the axis from the palm's middle. Before -79 (VR rope), -63 (VR pole), -49 (flat
+  pole); now 89 / 72 / 72, flat rope 90, chain 84 (bound 60). The meet (360 less thumb and middle finger): rope 126,
+  pole 172 short: the thumb's full curl is the limit; on a thinner rope it closes further.
+- **Cost:** an afresh Around solve 76 us median, 475 most (38 solves in the flat pole run, low-impact mode).
+- **Tests:** rope_climb_test 10 plays pass (rope_climb 12/0 with sink 0.3 and thumb, pole_wood/metal 11/0), rope_pump
+  5/1 (238 vs 250: known, the same on the base); rope_hands_test 6/0; rope_flat_test rope 9/0, pole 8/0, strung 5/0,
+  strungpole 5/0, chain 6/0. `vr_rope_flat_test <mode> shots` now also takes two close-ups of the hands.

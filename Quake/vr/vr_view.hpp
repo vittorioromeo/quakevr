@@ -581,6 +581,9 @@ struct DrawnWeapon
 // tracked place (hands::State::pos) along its tracked turn's forward, right and up (units): the gadget's side button
 // (vr_gearlights.cpp). False without the jointed hand drawn in the last two frames.
 [[nodiscard]] bool drawnIndexTip(int hand, glm::vec3& local);
+// (ropes12) The jointed hand `hand` as drawn: finger `finger`'s (handrig::Finger) joints, the knuckle first, and its tip's
+// end (world), and the middle of its palm's side (`palm`). False when it isn't drawn.
+[[nodiscard]] bool drawnFingerPoints(int hand, int finger, glm::vec3 out[4], glm::vec3& palm);
 // The magazine model attached to the magazine gun `gun` (vr_mag_on_<gun>.mdl, made in its model space), nullptr for
 // another gun (the server's guns lying about: their bodies in Box3D).
 [[nodiscard]] qmodel_t* magazineModelOf(const qmodel_t* gun);

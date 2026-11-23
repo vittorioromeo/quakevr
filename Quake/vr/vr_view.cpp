@@ -179,9 +179,14 @@ void updateFingerFrames()
         // along the index: vr_flat_swim_cup's curl, its share of the stroke; vr_flatswim.cpp.)
         const float swimOpen = flatplay::active() && !holder && !flatGrips ? flatswim::openShare(hand) : 0.f;
         const float cup = za::clamp(vr_flat_swim_cup.value, 0.f, 1.f);
+        // (ropes12, his ask 2026-11-23) On a climbable rope or pole the thumb closes round it whatever the controller's
+        // thumb rest says (VR; flat play's thumb is always closed): it wraps it, stopped on its surface (ropeHeld).
+        glm::vec3 ropeAt, ropeUp;
+        float ropeThick = 0.f, ropeWeight = 0.f;
+        const bool onRope = climb::ropeLine(hand, ropeAt, ropeUp, ropeThick, ropeWeight) && ropeWeight >= 0.5f;
         for(int finger = 0; finger < FingerCount; finger++)
         {
-            const float curl = targetCurl(in, finger, holdsOther);
+            const float curl = finger == FingerThumb && onRope ? 1.f : targetCurl(in, finger, holdsOther);
             approach(fingerFrames[hand][finger],
                 (finger == FingerBase || swimOpen <= 0.f ? curl : curl + (cup - curl) * swimOpen) * 5.f);
             approach(fingerBias[hand][finger], biasFor(hand, finger));
