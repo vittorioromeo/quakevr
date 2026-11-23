@@ -1,0 +1,7 @@
+# flat_swim: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (FLATPLAY.md, "Swimming strokes")
+title Flat-screen swimming: vrtesthall's pool, you start under water
+map vrtesthall
+god
+notarget
+start 384 -256 -40 90
+hint You are under water in the pool. Swim forward, back, sideways, up (jump) and down: the hands stroke, open, with bubbles and stroke sounds. Off the bottom, look straight up and sweep the look down to the floor: your own head, shoulders and arms never fill the view.

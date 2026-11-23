@@ -10665,3 +10665,30 @@ issue rather than regrabbing"). ROPES.md "Climbing (flat-screen)", "Poles", "Tes
   upright 11/0, slant 11/0; rope_flat_test rope 8/0, pole 7/0, polejump 7/0, slantjump 6/0, wall 1/0, wallvr 1/0,
   strungpole 5/0; rope_climb_test pole_jump 6/0, rope_jump 6/0, pole_wood 10/0, monkey_jump 7/0; vr_pole_solid_test
   14/0; mp_test.py pole 15/0. Not run: an MP free-fall scenario (prediction shares solidInside/solidLedge).
+## flatpolish2: one-handed flat throws, the eye looking up while swimming, the parry hand's fingers out (agent/flatpolish2, 2026-11-23)
+
+His flat feedback 2026-11-23, items 3, 5, 6. FLATPLAY.md, "The throw key", "The neck", "Blade grip in the guard".
+- **Throw one-handed (3)**: replaces flatthrow's two-handed throw. `flatgrenade::letsGo(holding, helping)` (either hand busy
+  with a throw: J's or the quick grenade's) in flatsight's `twoHandGun` / `gripWanted` and twohand's `flatLetsGo`: the
+  free hand lets go of a gun's grip or its stance's hotspot as the wind-up begins, is no longer drawn following the
+  throwing hand (`apply`'s follow removed), and takes the grip again after. QC (`vr_flatgrenade.qc`): a crate in both
+  hands lets go of the off hand at the press (`VR_Carry_EndTwoHands`; `VR_Carry_TrySecondHand` refuses while it winds up,
+  `VR_FlatThrow_WindsUp`); the throw clears `last_2h_time` / `carry_2h_end` around the let-go so the headset's two-handed
+  window isn't counted (a tap lets go inside it). Finding: a flat long gun's stance is drawn only (no `VRGet2HAiming`), so
+  the server's throw was already one-handed for it; the drawn free hand was what followed.
+- **Swimming, looking up (5)**: the swimming tilt turns the trunk forward about the top of the neck, swinging the
+  shoulders up behind it; a look up's neck turn (`vr_flat_eye_pivot`) and chest lean (`vr_flat_chest_up`) carried the
+  eye back among them (2.5 units behind the hidden head's joint), filling the view with his own body from below. Now both
+  fade with the body's forward pitch (`lookUpShare`: `avatar::ownPitchAngle`, new: `ownPitch` is false before the body is
+  posed in the frame, so the camera read 1), gone at `vr_flat_eye_pitched_body` (30, Debug > Tunables, next to Eye Leans
+  With The Chest; 0: never). Lying down looking up gets the same. A look down is unchanged.
+- **Parry fingers (6)**: `twohand::bladeGripHand` turns the palm-down hand end for end about its palm's normal when its
+  fingers point back at him; the choice is made while the guard asks for the grip (`flatplay::bladeAsked`) and kept as it
+  lets go (decided each frame, it flipped 35 degrees a frame mid-ease). The report's blade grip line: "fingers out".
+- **Tests**: flatthrow_test 23/0 (new `twoh` run: the nail gun's free hand on it 1.00, hanging 0.00 winding up, thrown by
+  the main hand, not the headset's two-handed throw); flatswim_test 48/0 (new `lookup` run: pitch -89..89 swimming off
+  the bottom, body 41-45, the eye 2.4-5.4 ahead of the head joint, the shoulders behind the view's plane; the old eye
+  -2.5 at -89); flatbash_test 17/0 (new: fingers out 0.64; turned 8 in, 15 out). Shots: kit scratch
+  flatpolish2_swim.png (looking up: now / `vr_flat_eye_pitched_body 0`), flatpolish2_parry.png, flatpolish2_throw.png.
+  Scenes: flat_throw_2h (new), flat_swim (was missing on next). menu_paths.txt regenerated (+19 rows, 18 others').
+- Not tested: a crate thrown from both hands by J (the QC path), lying down looking up.
