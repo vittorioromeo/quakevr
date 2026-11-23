@@ -395,6 +395,7 @@ vr_wornpack_test 22       vr_wornpack_test.qc              (test 2 on death knig
 vr_wornpack_test 23       vr_wornpack_test.qc              (test 3 on death knights: lifted by the pack)
 vr_wornpack_test 33       vr_wornpack_test.qc              (test 3 on enforcers: lifted by the zone on their model's pack)
 vr_ragsmash_test 1        vr_ragsmash_test.qc              (a corpse smashed into a wall: its sound and blood there; a slow touch: none)
+vr_ragsmash_test 2        vr_ragsmash_test.qc              (animfix2: wall glue: a grunt and a dog shoved into a wall, the active ragdoll on/off, the wiggle off: seconds a ragdoll, at the wall, propped against it)
 
 vr_agarmor_test  1*       vr_agarmor_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
 vr_agtune_test   1*       vr_agtune_test.qc                the armed humanoids' tuning: fire interval, reload, speed sliders, swing steady, the death knight's sweep

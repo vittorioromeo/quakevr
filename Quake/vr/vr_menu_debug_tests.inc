@@ -1049,6 +1049,10 @@ za::Vector<Item> pageDebugTests()
             .help("A grunt ahead killed 48 units off the nearest wall, its corpse flung at the wall hard (it thuds and "
                   "bloodies the wall), then softly (nothing): Impact Sound and Blood (vr_ragsmash_test 1; ends on "
                   "\"ragsmash: N passed, M failed\")."),
+        command("Shoved into a Wall: Glue A/B", "god; developer 1; vr_ragsmash_test 2")
+            .help("A grunt and a dog shoved into the nearest wall (every shove a knockdown), the active ragdoll on and "
+                  "off, the wiggle off, and onto the open floor: the seconds each lies propped against the wall and its "
+                  "middle's height (vr_ragsmash_test 2, best on vrfiringrange; ends on \"wallglue: N passed, M failed\")."),
         header("Enemy Shoves"),
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "
