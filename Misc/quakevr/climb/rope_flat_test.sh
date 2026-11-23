@@ -14,11 +14,15 @@
 # rope_flat_test.sh <agent> chain (ropes8b): a chain walked into and climbed (it clinks), held still 2 s (no clink).
 # (ropes8b) Every mode hanging still checks the hip holsters stay on the hips; strung, the hands overhand under it.
 # `vr_rope_flat_test <mode> shots` (in the console) screenshots the body from outside while hanging.
+# rope_flat_test.sh <agent> wall (ropes8e): vr_flat_rope 0, walked into an upright pole: stopped by its boxes, not taken.
+# rope_flat_test.sh <agent> wallvr (ropes8e): the same with the mock headset (VR play: forward along the view).
 AGENT=${1:-posebake}
 MODE=${2:-}
 QT_NAME=rope_flat${MODE:+_$MODE}
 source "$(dirname "$0")/../qvrtest.sh"
-out=$(bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -QuitOn "^vr_rope_flat_test: [0-9]+ passed" -Timeout 240 \
+FLAT=(-ExtraArgs "-flatscreenmode")
+if [ "$MODE" = wallvr ]; then FLAT=(); MODE=wall; fi
+out=$(bash $KIT/run.sh $AGENT "${FLAT[@]}" -QuitOn "^vr_rope_flat_test: [0-9]+ passed" -Timeout 240 \
     -Filter "^vr_rope_flat_test" -Script "map vrropes; wait60; god; notarget; vr_climb_stamina 0; vr_rope_flat_test $MODE" 2>&1)
 echo "$out" | grep -a "^vr_rope_flat_test: \(PASS\|FAIL\)"
 expect_verdict "$out" "vr_rope_flat_test" "flat ropes ${MODE:-rope}: walked into, up, down, rope to rope"

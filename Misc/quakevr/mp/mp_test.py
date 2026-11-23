@@ -1472,6 +1472,7 @@ def ropeclimb(s):
 POLE_A_AT = (-440.0, -490.0, 24.0)   # mp_pole (vrropes): A south of the metal pole (-440 -450, upright), facing north
 POLE_B_AT = (-440.0, -410.0, 24.0)   # ... B north of it facing south (flat: the second climber), or watching from further
 POLE_WATCH_AT = (-440.0, -640.0, 24.0)
+POLE_IN_AT = (-432.0, -450.0, 24.0)  # (ropes8e) B standing in the pole's box (his box against it 1.5 into it from the east)
 MONKEY_A_AT = (-60.0, 600.0, 24.0)   # mp_monkey (vrropes): A under the level rope (y 600, z 100, x -300..300), facing east
 MONKEY_WATCH_AT = (0.0, 420.0, 24.0)
 
@@ -1550,9 +1551,10 @@ def pole(s, vr_viewer=False):
         now = pred()
         bat = org_of(status(srv), "mp_client", "slot", eb - 1)
         dn = int(now["corr_n"]) - int(was["corr_n"])
-        # (ropes8d: the server let a walking flat player through the upright pole's box, y -474 where A stopped him: open,
-        # ROUND25 ropes8d; so only the prediction's agreement with the server is judged here)
-        s.note("B walked into the pole: the server has him at %s (the pole at y -450)" % (bat,))
+        # (ropes8e) stopped by its box on the server: his box against entities (8 half) off its face (1.5), not through
+        # (ropes8d had him at y -474: passSolids took his touching box as in one, ROUND25 ropes8e)
+        s.check("B walking into the pole (not taking it) is stopped by its box: the server has him at %s (the pole at y "
+                "-450, his box's face 9.5 off it)" % (bat,), bool(bat) and -444.0 <= bat[1] <= -438.0)
         s.check("B's walk at the pole predicted as the server ran it: prediction on=%s, %d corrections more (2 at most), "
                 "the most %s" % (now["on"], dn, now["corr_max"]), now["on"] == "1" and dn <= 2)
         srv.cmd("vr_flat_rope 1")
@@ -1561,8 +1563,18 @@ def pole(s, vr_viewer=False):
     a.cmd("centerview")
     rope_climber(s, srv, a, ea, "A walks into the pole and climbs it", ["forward"])
     if not vr_viewer:
+        # (ropes8e) Two passing it at once, a box really in its box: A climbs on over B's head; B set standing in the
+        # pole's box (his box 1.5 into it from the east) is let through as A is (pass: both; in: B), and takes it from
+        # there and climbs it too (not held by it). (Walking out of it is vr_flat_rope 0's, which would drop A.)
+        rope_climber(s, srv, a, ea, "A climbs on up the pole", ["forward"])
+        put_at(srv, b, eb, POLE_IN_AT, 180)
         b.cmd("centerview")
-        rope_climber(s, srv, b, eb, "B walks into the pole A is on and climbs it too", ["forward"])
+        solid = [fields(l) for l in rope_reports([srv])[0] if l.startswith("rope_solid")]
+        both = (1 << (ea - 1)) | (1 << (eb - 1))
+        s.check("A on the pole and B standing in its box both let through it (B's box in it)",
+                any(int(f["pass"]) & both == both and int(f.get("in", 0)) & (1 << (eb - 1)) for f in solid),
+                "rope_solid %s" % solid)
+        rope_climber(s, srv, b, eb, "B, standing in its box, takes the pole A is on and climbs it too", ["forward"])
         # the server lets both through its boxes (vr_rope_info's rope_solid: pass, a bit a client), not only its owner
         solid = [fields(l) for l in rope_reports([srv])[0] if l.startswith("rope_solid")]
         both = (1 << (ea - 1)) | (1 << (eb - 1))
