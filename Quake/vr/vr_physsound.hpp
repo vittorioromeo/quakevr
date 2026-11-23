@@ -79,14 +79,15 @@ enum class RopeMaterial
 };
 void ropeGrab(edict_t* player, const glm::vec3& at, int rope, RopeMaterial material);
 
-// Chain `rope` this frame (vr_climbrope.cpp serverFrame): its fastest link moving `speed` units/s at `at`. Swung,
-// climbed or pushed fast enough (vr_physsound_chain_speed) its links clink (the light metal knocks), quiet
-// (vr_physsound_chain), the faster the more often (every 0.6 s to 0.25 s).
-void chainMoves(int rope, const glm::vec3& at, float speed);
+// Chain `rope` this frame (vr_climbrope.cpp serverFrame): its fastest link moving `speed` units/s at `at`, its links
+// `jostle` units/s against their neighbours. Knocked hard enough (pushed, shot, taken, climbed: vr_physsound_chain_knock;
+// ropes8b: not a mere swing, nor held still) and moving (vr_physsound_chain_speed) its links clink (the light metal
+// knocks), quiet (vr_physsound_chain), the harder the more often (every 0.6 s to 0.25 s).
+void chainMoves(int rope, const glm::vec3& at, float speed, float jostle);
 
 // The tests (vr_rope_sound_test): rope entity `num`'s sounds since the map began (count) and its last one's recording
-// ("" none).
-[[nodiscard]] const char* ropeSoundInfo(int num, int& count);
+// ("" none); (ropes8b) `clinks`: a chain's clinks among them.
+[[nodiscard]] const char* ropeSoundInfo(int num, int& count, int* clinks = nullptr);
 
 // The first surface of brush model `m` the segment from `start` to `end` (the model's own space) crosses where its
 // texture's extents hold the crossing; nullptr: none (the grab's walk, shared: the stealth AI's see-through trace).

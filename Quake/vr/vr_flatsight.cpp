@@ -2043,6 +2043,7 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     st.gripWanted = carryToGrip && !flatplay::punching(st.helping) && !flatplay::shoving(st.helping) &&
                     !flatreload::busy(st.holding) && !flatgrenade::busy(st.helping) && !flatswap::gripBlocked() &&
                     !flatfgrab::busy(st.helping) && !flatplay::holdsThing(st.helping) &&
+                    flatplay::bladeShare(st.holding) <= 0.f && // (the guard's blade grip takes it: flatplay::bladePin)
                     !flatswim::freesHand(); // (swimming: the free hand swims, vr_flatswim.cpp)
     // A grip no pose carries the free hand to (a melee weapon's hs1 up the handle: the axe's, Mjolnir's, the super axe's;
     // carryToGrip false) that vr_twohand holds anyway, taken at a swing's end: held, the pose is pinned on it as a gun's
@@ -2053,7 +2054,8 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // force grab's palm turn (vr_flat_fg_detach_time), the shove's, the grenade's and the swap's poses start from the grip.
     // (vr_flat_melee_letgo 0: as before, the hand off the grip at once.)
     const bool heldOffPose = vr_flat_melee_letgo.value != 0.f && st.holding >= 0 && st.helping >= 0 && !carryToGrip && s.grip2HValid[st.holding] &&
-                             flatplay::meleeIn(st.holding) && twohand::helping(st.helping) && emptyHand(st.helping);
+                             flatplay::meleeIn(st.holding) && twohand::helping(st.helping) && emptyHand(st.helping) &&
+                             !twohand::bladeGrip(st.holding) && flatplay::bladeShare(st.holding) <= 0.f;
     if(freshFrame)
     {
         const bool same = st.holding == st.lastHolding && st.helping == st.lastHelping;
@@ -2065,6 +2067,9 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     QVR_TRACY_CALL("flatsight: centre on sight", centreOnSight(s, aim));
     QVR_TRACY_CALL("flatsight: push back", pushBack(s, aim));
     QVR_TRACY_CALL("flatsight: free off wall", freeOffWall(s));
+    // The guard's blade grip (vr_flat_parry_blade): the free hand onto a sword's blade near its tip, over the grip's pin,
+    // before vr_twohand takes the half-sword hold there (it lets go as the guard ends).
+    QVR_TRACY_CALL("flatsight: blade pin", flatplay::bladePin(s));
 
     // The grip's press, and only its press: true on the frame the empty hand arrives on the hotspot, false the frame it
     // leaves it or the weapon changes. applyHotspots' goodDistance, goodDot, the stickiness and the weapon's own

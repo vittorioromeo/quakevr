@@ -892,6 +892,11 @@ za::Vector<Item> pageDebugTests()
                   "what your hands hold."),
         command("Flat Lean / Slide Status", "vr_flatmove_status")
             .help("vr_flatmove_status: the lean's share, the eye's move and the roll, whether you slide and its pose."),
+        command("Tutorial Messages: Keys And Wording", "map vrtutorial; vr_msgtokens_test")
+            .help("vr_msgtokens_test: the tutorial's tips and boards as they show (vr_msgtokens.hpp): no {flat} or {key:} "
+                  "left; flat screen: the grenade tip names vr_flat_key_grenade's key and follows a rebind (J, then none: "
+                  "\"not bound\"), its board too, the jump tip follows +jump moved from SPACE to U (all put back after); a "
+                  "headset: the headset's wording. Ends on \"msgtokens: N passed, M failed\"."),
         command("Flat Keys", "vr_flatkeys_test 1")
             .help("vr_flatkeys_test 1 (-flatscreenmode only, Player > Flat Play): whether Left Ctrl has him crouched, how "
                    "upright the game sees him (.vr_stand), the height of your eyes over your feet, what each hand holds and "

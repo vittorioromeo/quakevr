@@ -8,6 +8,7 @@
 #include "vr_gadget.hpp"
 #include "vr_hands.hpp"
 #include "vr_mem.hpp"
+#include "vr_msgtokens.hpp"
 #include "vr_protocol.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
@@ -105,10 +106,34 @@ bool centerHeld = false; // new tips held back by a centre print (frame(); for i
     return t >= tipCount && t < tipTotal() ? &mapTips[static_cast<size_t>(t - tipCount)] : nullptr;
 }
 
+// A tip's text as shown (vr_msgtokens.hpp: the mode's wording, the player's keys), kept until its tip, text or the
+// binds change (the panel draws it every frame; the text queued for it points into this).
+struct ShownText
+{
+    int tip{-1};
+    unsigned signature{0};
+    za::String from;
+    za::String text;
+};
+ShownText shownText;
+
 [[nodiscard]] const char* tipText(int t)
 {
     const MapTip* mt = mapTipOf(t);
-    return mt ? mt->text.cStr() : tips[t].text;
+    const char* raw = mt ? mt->text.cStr() : tips[t].text;
+    if(!msgtokens::has(raw))
+    {
+        return raw;
+    }
+    const unsigned sig = msgtokens::signature();
+    if(shownText.tip != t || shownText.signature != sig || shownText.from != za::String{raw})
+    {
+        shownText.tip = t;
+        shownText.signature = sig;
+        shownText.from = raw;
+        shownText.text = msgtokens::expand(raw);
+    }
+    return shownText.text.cStr();
 }
 
 [[nodiscard]] const char* tipName(int t)
@@ -1135,6 +1160,18 @@ void test_f()
     }
     pendingTest = t; // (as the menu or the console closes)
     showing.tip = -1;
+}
+
+za::String shownTextOf(const char* name)
+{
+    for(int t = tipCount; t < tipTotal(); t++)
+    {
+        if(!q_strcasecmp(tipName(t), name))
+        {
+            return za::String{tipText(t)};
+        }
+    }
+    return za::String{};
 }
 
 } // namespace qvr::tips

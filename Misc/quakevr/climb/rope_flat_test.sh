@@ -11,6 +11,9 @@
 # rope_flat_test.sh <agent> strung (ropes7): a rope strung level overhead: jumped up to, hand over hand along it both
 #   ways (the forward and back keys), the legs hanging, dropped from (crouch), jumped off.
 # rope_flat_test.sh <agent> strungpole (ropes8a): the same on a level pole (it never sags).
+# rope_flat_test.sh <agent> chain (ropes8b): a chain walked into and climbed (it clinks), held still 2 s (no clink).
+# (ropes8b) Every mode hanging still checks the hip holsters stay on the hips; strung, the hands overhand under it.
+# `vr_rope_flat_test <mode> shots` (in the console) screenshots the body from outside while hanging.
 AGENT=${1:-posebake}
 MODE=${2:-}
 QT_NAME=rope_flat${MODE:+_$MODE}

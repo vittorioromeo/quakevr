@@ -91,4 +91,7 @@ void reset_f();
 // (its tipname; #<n> for an unnamed one) works too. vr_tips_test list: every tip here, and how it shows.
 void test_f();
 
+// The client's map tip called `name` as it shows now (its tokens resolved: vr_msgtokens.hpp); "" none (the test).
+[[nodiscard]] za::String shownTextOf(const char* name);
+
 } // namespace qvr::tips

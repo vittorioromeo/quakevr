@@ -103,6 +103,16 @@ struct FireRoute
 // `h` (0 at rest .. 1 in the guard), eased in and out over vr_flat_parry_in_time / _out_time.
 [[nodiscard]] float parryShare(int h);
 
+// The guard's blade grip (vr_flat_parry_blade; his notes 2026-11-23): whether the free hand is asked onto the blade of the
+// weapon hand `holding` holds as a sword (twohand::swordBlade), in the guard. vr_twohand.cpp takes the half-sword grip
+// only while it is, and lets go as it ends. False outside flatscreen play.
+[[nodiscard]] bool bladeAsked(int holding);
+// Its share (0 .. 1, eased over vr_flat_parry_blade_in_time / _out_time): how far the free hand has gone to the blade.
+[[nodiscard]] float bladeShare(int holding);
+// The free hand carried that share of the way to the blade's hotspot of the weapon in the guard (vr_flatsight.cpp apply,
+// over its grip's pin and before vr_twohand takes the hold).
+void bladePin(hands::State& s);
+
 // The two-handed melee stance (vr_flat_melee_2h_*: a melee weapon swung by a handle, the other hand empty): its share for
 // hand `h`, the one holding the weapon (0 the one-handed hold .. 1 the stance), eased in and out over
 // vr_flat_melee_2h_time. While it is above 0 vr_flatsight.cpp carries the free hand onto the weapon's grip, and

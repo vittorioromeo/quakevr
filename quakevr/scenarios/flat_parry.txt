@@ -4,4 +4,4 @@ map vrtesthall
 god
 give "Knight's Sword" main
 spawnarmed monster_vr_grunt 13 0 90
-hint Hold the right mouse button: the sword comes up level across your view, and the grunt's blows on it are parried (a clang, it staggers). Let go: back to the hold, and its blows land.
+hint Hold the right mouse button: the sword comes up level across your view, your left hand takes its blade near the tip, and the grunt's blows on it are parried (a clang, it staggers). Click the left button while holding it: a bash pushes the grunt back. Let go: the left hand lets go, back to the hold, and its blows land.

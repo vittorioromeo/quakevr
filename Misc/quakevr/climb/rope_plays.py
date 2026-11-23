@@ -218,6 +218,7 @@ def monkey(end):
     p.key(1.8, "main", (0.15, y1, z))
     p.check(1.9, "monkey 10")
     p.check(1.9, "legs 10")
+    p.check(1.9, "monkeygrip 2")  # (ropes8b: overhand under it, the knuckles up, the body's arms reaching the hands)
     p.check(1.92, "mark")
     t = 2.0
     hands = [("off", "-graboff", "+graboff", -0.15), ("main", "-grabmain", "+grabmain", 0.15)]
