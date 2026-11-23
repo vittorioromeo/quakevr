@@ -1,6 +1,7 @@
 // vr_envmap.cpp -- see vr_envmap.hpp.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_adweapons.hpp"
 #include "vr_envmap.hpp"
 #include "vr_geom.hpp"
 #include "vr_main.hpp"
@@ -1116,7 +1117,13 @@ using namespace qvr;
 
 // How metal a model is (0 none .. 1): the share of its grey and blue-grey texels (the alias shader's mask) that
 // reflect. Held weapons by their model; the rest none.
-[[nodiscard]] float weaponMetal(modelmeta::Id id, float& lod)
+// A made weapon model's (vr_adweapons.cpp: "<view model>#vr", AD's upgrades and Dwell's weapons): the Widowmaker's
+// numbers below. Their made parts and the caps closing their holes are a few flat texels (the caps Quake's palette's
+// dark grey, index 2) over big smooth faces: MetalMask counts that grey whole metal and the reflection's fresnel floor
+// (f0 0.25 whatever the texel's darkness) mirrored a bright room near-white over them (capcolour, ROUND25.md).
+constexpr float madeMetal = 0.2f, madeLod = 3.5f;
+
+[[nodiscard]] float weaponMetal(modelmeta::Id id, float& lod, bool made)
 {
     struct Entry
     {
@@ -1133,7 +1140,7 @@ using namespace qvr;
         {modelmeta::Id::Mg3SuperAxe, 0.8f, 2.5f}, {modelmeta::Id::Mg3SuperAxeGlow, 0.8f, 2.5f}, // (MG3's, as Mjolnir)
         // (AD's Widowmaker, its hand-made art: painted, rusted panels. At the others' 0.7 its grey panels mirrored a bright
         // room near-white in the hand, far lighter than the pickup's dark look: his note 2026-10-29.)
-        {modelmeta::Id::AdVrWidowmaker, 0.2f, 3.5f},
+        {modelmeta::Id::AdVrWidowmaker, madeMetal, madeLod},
     };
     for(const Entry& e : table)
     {
@@ -1142,6 +1149,11 @@ using namespace qvr;
             lod = e.lod;
             return e.metal;
         }
+    }
+    if(made)
+    {
+        lod = madeLod;
+        return madeMetal;
     }
     lod = 3.f;
     return 0.7f; // other weapons (the expansions')
@@ -1195,11 +1207,11 @@ extern "C" void VR_AliasSurface(const entity_t* e, float out[4])
     float metal = 0.f;
     if(weapon)
     {
-        metal = weaponMetal(modelmeta::get(e->model).id, lod);
+        metal = weaponMetal(info.id, lod, adweapons::isMade(e->model->name));
     }
     else if(!view && (info.has(modelmeta::Trait::WorldWeapon) || info.has(modelmeta::Trait::ViewWeapon)))
     {
-        metal = weaponMetal(modelmeta::get(e->model).id, lod) * 0.8f;
+        metal = weaponMetal(info.id, lod, adweapons::isMade(e->model->name)) * 0.8f;
         const glm::vec3 o{e->origin[0], e->origin[1], e->origin[2]};
         metal *= 1.f - glm::smoothstep(96.f, 256.f, glm::distance(o, envmap::place()));
         lod += 0.5f;

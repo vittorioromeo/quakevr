@@ -10055,3 +10055,22 @@ the damage came in pulses (a shot each 1.4 s). Now:
   Screenshot `qvr-kit/scratch/lancecharge_glow_bolt.png` (charging, then the bolt).
 - Not tested live: another player's charge in a real two-client game (the same message and draw path as yours, the
   copy's weapon from mpavatar).
+
+## capcolour: made weapon models' dark caps drew near-white (agent/capcolour, 2026-11-23)
+
+- **Finding (ROUND25 "dwellrotary"):** the caps that close a made model's holes (`vr_adweapons.cpp` `seal`, the cap
+  rows: Quake's palette index 2, (31,31,31)) and its made parts' dark texels drew nearly white in a bright room. Only
+  `vr_adweapons.cpp` makes such caps: AD's Shadow Axe, Widowmaker and Plasma Gun, Dwell's Rotary (both models), Lance
+  and Rifle (the lance-as-pole keeps its faces open: no caps).
+- **Cause:** not the texel (not fullbright, not the skin bake) but the weapon reflections (`vr_envmap.cpp`, alias
+  shader `ModelRimReflect`): `MetalMask` counts a flat dark grey as fully metal, and the fresnel's floor (f0 0.25 or
+  more, whatever the texel's darkness) mirrors the room over it. Big smooth made faces in a few flat texels show it as
+  one bright mirror. The made models fell to the expansions' default (metal 0.7, lod 3); the Rotary's barrels on
+  Dwell's own metal texels drew just as white, and `vr_weapon_reflections 0` drew them all dark.
+- **Fix:** `weaponMetal` gives every made model (`adweapons::isMade`: "<model>#vr") the Widowmaker's numbers (0.2, lod
+  3.5: his note 2026-10-29 for the same look): `madeMetal`, `madeLod`. Vanilla weapons, the shader and the skins are
+  unchanged; the Rotary's black hole and port (dwellrotary) kept.
+- **Tests:** release build 0 warnings; dwell_vrmodels 13/0, dwell_rotary 3/0; check_mdl_holes on the seven capped made
+  models ok (0 open loops); shots kit `scratch/capcolour_before.png`, `capcolour_before_ad.png` (axe) and
+  `capcolour_after.png` (side and front: axe, Rotary, Lance, Rifle, Rotary setting 0). The Plasma Gun was not caught
+  held by the mock camera (same rule).
