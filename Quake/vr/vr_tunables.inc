@@ -2168,6 +2168,21 @@ QVR_TUNABLE(vr_flat_parry_in_time, "0.05") // seconds into the guard from the ho
 QVR_TUNABLE(vr_flat_parry_out_time, "0.1") // seconds back to the hold when the button is let go (0: at once)
 QVR_TUNABLE(vr_flat_parry_cone, "120") // flatscreen: in the guard, any melee blow from within this many degrees of where you look (all of the cone, centred on the view) is parried, whatever its way (QC VR_Parry_FlatGuard; the headset keeps the directional parry); 0: the headset's rules
 
+// Flatscreen > Guard Bash and Blade Grip (his notes 2026-11-23: the fire button in the guard bashes, as the headset's bash;
+// a sword's free hand takes its blade near the tip in the guard; vr_flatplay.cpp startBash, bashPose, bladePin; QC VR_FlatBash)
+QVR_TUNABLE(vr_flat_bash, "1") // flatscreen: the fire button pressed in the parry's guard with a melee weapon bashes with it (the headset's bash: knockback, stagger, its damage); 0: it swings out of the guard, as before
+QVR_TUNABLE(vr_flat_bash_wind_time, "0.06") // the bash: seconds the guard is drawn back first
+QVR_TUNABLE(vr_flat_bash_push_time, "0.07") // seconds the push out takes (0.02..0.5)
+QVR_TUNABLE(vr_flat_bash_hold_time, "0.06") // seconds held out; the bash lands at its end (the smoothed hand all the way out)
+QVR_TUNABLE(vr_flat_bash_recover_time, "0.2") // seconds back to the guard (0.05..1)
+QVR_TUNABLE(vr_flat_bash_anim_speed, "1") // the bash's parts all played this many times faster (0.25..4)
+QVR_TUNABLE(vr_flat_bash_reach, "12") // the guard pushed this far out ahead at the push's end (units; the arm's reach still holds)
+QVR_TUNABLE(vr_flat_bash_wind_back, "4") // and drawn this far back in the windup (units)
+QVR_TUNABLE(vr_flat_bash_cooldown, "0.5") // seconds from one bash (or shove) to the next (at least the whole bash; the game's own bash cooldown holds too)
+QVR_TUNABLE(vr_flat_parry_blade, "1") // flatscreen: in the guard with a weapon held as a sword (a Blade hotspot: swords, the crowbar), the free hand takes the blade near its tip at that hotspot, and lets go as the guard ends (0: it stays where it was)
+QVR_TUNABLE(vr_flat_parry_blade_in_time, "0.12") // seconds the free hand takes to reach the blade (0: at once)
+QVR_TUNABLE(vr_flat_parry_blade_out_time, "0.15") // seconds back to where it was once it lets go (0: at once)
+
 // Flatscreen > Two-Handed Melee Stance (his notes 2026-11-12: a melee weapon with a two-handed grip is always held in both
 // hands while the other hand is empty; vr_flatplay.cpp twoHandPose, vr_flatsight.cpp carries the free hand onto the grip)
 QVR_TUNABLE(vr_flat_melee_2h, "0") // flatscreen: a melee weapon swung by a handle (axe, swords, crowbar, Mjolnir, super axe) is held in both hands, the free hand on its grip, while the other hand is empty (0: one hand, the free hand takes the grip only by chance, as before 2026-11-12)

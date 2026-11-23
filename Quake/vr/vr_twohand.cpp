@@ -384,6 +384,24 @@ void reportLetGo(int holding, const char* why, float value, float limit, float s
            flatswap::gripBlocked() || flatfgrab::busy(helping);
 }
 
+// The Blade hotspot of the weapon of `slot` held as a sword (Two-Handed: Sword) into `out`; false for none.
+[[nodiscard]] bool bladeHotspot(int slot, weapons::Hotspot& out)
+{
+    if(slot < 0 || static_cast<int>(weapons::value(slot, Key::TwoHMode)) != WPN_2H_SWORD)
+    {
+        return false;
+    }
+    for(int i = 0; i < weapons::maxHotspots; i++)
+    {
+        if(const weapons::Hotspot h = weapons::hotspot(slot, i); h.type == weapons::HotspotType::Blade)
+        {
+            out = h;
+            return true;
+        }
+    }
+    return false;
+}
+
 void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int slot)
 {
     const glm::vec3 holdingPos = s.pos[holding];
@@ -411,23 +429,23 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
         s.grip2HValid[holding] ? glm::distance(s.grip2HPalm[holding] ? hands::palmPoint(s, helping) : s.pos[helping], s.grip2H[holding]) - s.grip2HBias[holding] : 1e9f;
     // The blade's hotspot (round 21: its grip's middle, a share of the way from the hand to the tip; its bias).
     float bladeAt = 0.f, bladeFrom = 0.f, bladeTo = 0.f, bladeBias = 0.f, bladeSticky = 0.f;
-    for(int i = 0; i < weapons::maxHotspots; i++)
+    if(weapons::Hotspot h; bladeHotspot(slot, h))
     {
-        if(const weapons::Hotspot h = weapons::hotspot(slot, i); h.type == weapons::HotspotType::Blade)
-        {
-            bladeAt = h.pos.x;
-            bladeFrom = weapons::bladeFrom(h);
-            bladeTo = weapons::bladeTo(h);
-            bladeBias = h.bias;
-            bladeSticky = h.sticky;
-            break;
-        }
+        bladeAt = h.pos.x;
+        bladeFrom = weapons::bladeFrom(h);
+        bladeTo = weapons::bladeTo(h);
+        bladeBias = h.bias;
+        bladeSticky = h.sticky;
     }
     const float length = s.muzzleValid[holding] ? glm::distance(holdingPos, s.muzzle[holding]) : 0.f;
     float bladeDist = 1e9f;
-    // (Flatscreen play: never the blade. A melee weapon's two-handed hold is on its grip there (vr_flat_melee_grip; his notes
-    // 2026-11-10: it took the blade, the "sword" spot); the view chooses that grip, vr_view_weapon.cpp's chooseGrip.)
-    if(bladeAt > 0.f && length > 8.f && !(flatplay::active() && vr_flat_melee_grip.value != 0.f))
+    // (Flatscreen play: the blade only in the parry's guard, where the pose puts the free hand on it (flatplay::bladeAsked,
+    // vr_flat_parry_blade; his notes 2026-11-23), and it lets go as the guard ends. Else never: a melee weapon's two-handed
+    // hold is on its grip there (vr_flat_melee_grip; his notes 2026-11-10: it took the blade, the "sword" spot); the view
+    // chooses that grip, vr_view_weapon.cpp's chooseGrip.)
+    const bool flat = flatplay::active();
+    const bool flatBlade = flat && flatplay::bladeAsked(holding);
+    if(bladeAt > 0.f && length > 8.f && !(flat && vr_flat_melee_grip.value != 0.f && !flatBlade))
     {
         const glm::vec3 toTip = s.muzzle[holding] - holdingPos;
         bladeDist =
@@ -438,7 +456,11 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     if(canGrab && shouldAim[holding])
     {
         // Held: the grip holds on (as far as its Stickiness and vr_2h_sticky* let it).
-        if(grip[holding] == GRIP_BLADE)
+        if(grip[holding] == GRIP_BLADE && flat && !flatBlade)
+        {
+            reportLetGo(holding, "the flat guard ended", 0.f, 0.f, stickiness); // (the blade is the guard's alone)
+        }
+        else if(grip[holding] == GRIP_BLADE)
         {
             const float apart = glm::distance(holdingPos, s.pos[helping]);
             const float stick = stickinessOf(bladeSticky);
@@ -448,6 +470,13 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
             {
                 reportLetGo(holding, "the blade's hands apart", apart, most, stick);
             }
+        }
+        else if(flatBlade && bladeDist < bladeTake)
+        {
+            // (The flat guard takes the free hand off the two-handed stance's grip onto the blade: vr_flat_melee_2h.)
+            grip[holding] = GRIP_BLADE;
+            gripLength[holding] = length;
+            held = true;
         }
         else
         {
@@ -1447,6 +1476,17 @@ bool flickAllowed(int holding)
 bool bladeGrip(int hand)
 {
     return aimTransition[hand] > 0.f && grip[hand] == GRIP_BLADE;
+}
+
+bool swordBlade(int slot, float& at)
+{
+    weapons::Hotspot h;
+    if(!bladeHotspot(slot, h) || h.pos.x <= 0.f)
+    {
+        return false;
+    }
+    at = h.pos.x;
+    return true;
 }
 
 bool heldOffHandle(int holding)

@@ -1485,6 +1485,74 @@ void(float xHand, float xBoth) VR_FlatShove =
                  VR_Shove_HandsPush(xBoth) * max(0, cvar_hget(cvarh_vr_flat_shove_push)), 0, 0);
 };
 
+// Flatscreen play's bash (his notes 2026-11-23: the fire button pressed in the parry's guard with a melee weapon,
+// vr_flat_bash; impulse 58 the off hand, 59 the main, sent by the engine's vr_flatplay.cpp startBash as its drawn push of
+// the guard reaches out). The headset's bash of a weapon held across (VR_Bash): the weapon's line as the guard holds it
+// (the blow's mh_near .. mh_far, VR_Melee_Track) swept forward by VR_Bash_Find, what it finds bashed as VR_Bash_Land lands
+// it -- its damage, knockback and stagger, its stamina, a counter's window, its sound -- and its batting of projectiles
+// (VR_Bash_DeflectStart, the push straight ahead at vr_bash_speed: the drawn push is made up, no velocity of its own).
+// Held in two hands (the guard's blade grip, vr_flat_parry_blade, or the two-handed stance: VRGet2HAiming, the other
+// hand empty), the headset's two-handed bash. The bash's cooldown holds (VR_BASH_COOLDOWN); the key's is the engine's.
+void(float xHand) VR_FlatBash =
+{
+    if(!VR_FlatPlay(self) || !cvar_hget(cvarh_vr_flat_bash) || !cvar_hget(cvarh_vr_bash) || !self.ishuman || self.health <= 0)
+    {
+        return;
+    }
+    // The weapon's line as the guard holds it now (VR_Melee_Line: a flatscreen hand's motion is made up, so VR_Melee_Track
+    // keeps no lines for it), kept in the blow for the push's find and its batting's window (VR_Bash_Deflect).
+    entity b = VR_Blow(xHand);
+    float thing = VR_Melee_Thing(self, xHand);
+    if(!VR_Melee_HoldsWeapon(thing) || !VR_Melee_Line(self, xHand, thing))
+    {
+        VR_Melee_Event(sprintf("flat bash, hand %g, no weapon", xHand));
+        return;
+    }
+    b.mh_near = vr_mline_near;
+    b.mh_grip = vr_mline_grip;
+    b.mh_far = vr_mline_far;
+    float other = VRGetOtherHand(xHand);
+    float both = VRGet2HAiming(self) && VRIsHandEmpty(self, other);
+    vector fwd = VRForwardOf('0 1 0' * self.v_viewangle_y);
+    float m2u = VRMetersToUnits();
+    self.vr_blow_time = time; // (bullet time's screen tap: vr_bullettime_tap_blow_quiet)
+    self.vr_push_start = VR_PlayerTime(); // (its stamina once a push: VR_Bash_Pay)
+    VR_Motion_Event("push", "bash", both ? -1 : xHand, 0, VRGetHandPos(xHand), world, "flatscreen");
+
+    // The air it moves: the shove's swish (vr_flat_shove_swish, _pitch), landing or not.
+    float swv = clamp(cvar_hget(cvarh_vr_flat_shove_swish), 0, 1);
+    if(swv > 0)
+    {
+        vr_melee_whoosh_alt = !vr_melee_whoosh_alt;
+        VR_Swish_Play(vr_melee_whoosh_alt ? "knight/sword2.wav" : "knight/sword1.wav", VRGetHandChannel(xHand), swv,
+                      clamp(cvar_hget(cvarh_vr_flat_shove_swish_pitch), -30, 30));
+    }
+
+    // Batting, as the headset's bash bats (VR_Bash: its lines' motion, here the push straight ahead).
+    float speed = max(0.1, cvar_hget(cvarh_vr_bash_speed));
+    self.vr_bashdef_mvn = self.vr_bashdef_mvf = self.vr_bashdef_ovn = self.vr_bashdef_ovf = fwd * (speed * m2u);
+    VR_Bash_DeflectStart(both ? -1 : xHand, fwd, VR_Blow_ToPlaySpace(fwd) * speed, both);
+
+    if(VR_PlayerTime() < self.vr_bash_time)
+    {
+        VR_Melee_Event(sprintf("flat bash, hand %g, cooling down", xHand));
+        return;
+    }
+    float oldStance = b.mh_stance;
+    b.mh_stance = 1; // (a weapon's: VR_Bash_Find sweeps its line forward)
+    float hits = VR_Bash_Find(xHand, b, fwd);
+    b.mh_stance = oldStance;
+    dprint(sprintf("flat bash: hand %g, its line %v .. %v (%.0f and %.0f units ahead of you), %g in reach\n", xHand, b.mh_near,
+        b.mh_far, (b.mh_near - self.origin) * fwd, (b.mh_far - self.origin) * fwd, hits));
+    if(!hits)
+    {
+        VR_Melee_Event(sprintf("flat bash, hand %g, nothing in reach", xHand));
+        return;
+    }
+    VR_Bash_Land(xHand, both, TRUE, hits, (b.mh_near + b.mh_far) * 0.5, fwd, both ? 1 : VR_BASH_ONE_DAMAGE,
+                 VR_Shove_HandsPush(both), speed, 0);
+};
+
 // ----------------------------------------------------------------------------
 // Each frame
 
