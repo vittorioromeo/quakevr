@@ -10431,6 +10431,35 @@ has the table.
 - **Next:** the world's own ~8 ms at 0.65 (its shading per pixel: the scene is fill-bound) and your rig's 2.5 ms (the
   body's skin form, the held gun close to the eyes); his call whether the 72 Hz floor goes to 0.55 in fights.
 
+## qfov: the Quest's eyes straight into the headset's images with the look kept; Quest Foveation (branch agent/qfov, 2026-11-23)
+
+Step 1 (PC-side; the headset block is queued behind qworld and qtune):
+- **Straight into the images keeps the look.** `vr_xr_direct` (1 the composite's depth texture, 2 a depth renderbuffer
+  of the eye's own, kept on chip and invalidated, as Meta's samples) now also turns on by itself, in form 2, whenever the
+  runtime's foveation is on (`vr_xr_foveation` > 0 on Android): the runtime foveates only its swapchain images, so the
+  scene must be drawn there for the tiler's scaled bins to reach it (6w's "no effect" was the scene drawn into our own
+  float target). The tone curve moved into the scene's shaders: `QvrSceneTone` (vr_glsl.h, spliced after both frame-data
+  blocks) at the world's, the liquids' and the models' old clamps; `SceneTone.x` negative (`VR_SceneTone`) means "drawn
+  straight into an 8-bit image: times the exposure, rolled off with the post-process's curve (knee 0.8, white 4)". The
+  post-process's later steps (bullet time's look, the comfort vignette, the grade, the dither:
+  `QVR_POSTPROCESS_GRADE_DITHER`, unchanged) run as an in-tile pass right after the scene, in its render pass, each pixel
+  read where it is (`GL_EXT_shader_framebuffer_fetch`; `tonemap::drawInTile`, source `VR_InTileFragmentGLSL` in
+  gl_shaders.c). Falls back to the post-process per frame (one console line says why) for an exposure other than 1, the
+  headset gamma/contrast, bloom, OIT, under water, single-pass stereo, a resampled eye, or no framebuffer fetch (the PC).
+  Dynamic resolution's buckets now work with it (the eye in the image's lower left part, vr_eye_subimage).
+- With the eye's own depth renderbuffer there is no depth texture: soft particles and the liquids' shoreline distances
+  go without, and particles are drawn at full size (no half-size target to put them over); `VR_SceneTarget` gives no
+  colour texture for such an eye.
+- **Quest Foveation** (VR Settings > Scaling, Quest only; dimmed on PC, the PC's Foveated Rendering dimmed on the
+  Quest): `vr_xr_foveation` 0-3 (Off/Low/Medium/High) and `vr_xr_foveation_dynamic` (new, 0: the runtime may lower the
+  level while the GPU has room). Still behind `-xrfoveation` until the headset shows no crash.
+- PC mock (-glescompat, Standalone, frozen gib fight at 0.65, grade and dither off: no framebuffer fetch on PC):
+  straight-in vs post-process eyeshots mean |d| 0.63/255 per channel (the particles at full size instead of half).
+- Headset block (ready: `scratch/qfov_mk.sh` makes `qfov_ab.cfg`, 12 interleaved parts P D L M H Y Y H M L D P, eyeshots
+  in the first of each; run with `-xrfoveation`): to measure GPU median/p90, CPU, period and late share per level, and
+  see the periphery; then lift the guard and pick the Standalone default only if it wins clearly.
+- **Headset block (13:00-13:11; the frozen gib fight at 0.65, retro off; P post-process path, F straight in):** foveation changed mid-game crashed at once (as C4p), so the level is set at launch. Form 2 (the eye's own depth renderbuffer) with foveated images crashed the runtime in xrEndFrame within its first frames (SIGSEGV 0x30 in libGLESv2_adreno under libvrapiimpl: three launches, with and without the in-tile pass, vr_gl_invalidate 1 or 0); without foveation form 2 runs, and form 1 (the composite's depth texture) runs foveated. At level 3, form 1 vs the post-process path, 4 interleaved parts each: GPU median 14.62 vs 15.01 ms, p90 14.96 vs 16.30, period 15.67 vs 16.03, late 12.1% vs 21.4%: the post-process's ~0.4 ms, no foveation gain (the scene with an unfoveated depth texture is not foveated, as 6w). The in-tile program compiled and linked on the Quest. Foveation's automatic form is now 1 (no crash); `vr_xr_direct -1` forces the post-process path. Eyeshots were exported (vr_android_export) but not pulled. **No default changed; the `-xrfoveation` guard stays.** Next (if pursued): a foveated depth renderbuffer or texture the driver accepts (QCOM_texture_foveated on our depth with the runtime's parameters, or a multisampled-render-to-texture depth as Meta's GLES sample), or XR_FB_foveation_vulkan's path.
+
 ## qworld: the world in the Quest's gib fight: retro decals keep the unlit world; Standalone turns retro off (branch agent/qworld, 2026-11-23)
 
 Follows "questperf" and the shader review (qvr-kit/scratch/shaderreview_report.md, finding 1 first). The Quest's world in

@@ -27,6 +27,7 @@
 #include "vr_profile.hpp"
 #include "vr_profile_systems.hpp"
 #include "vr_retro.hpp"
+#include "vr_stereo.hpp"
 #include "vr_water.hpp"
 
 #include "Zancle/Algorithm/Erase.hpp"
@@ -1040,7 +1041,8 @@ struct Softness
 [[nodiscard]] bool softOn()
 {
     return vr_soft_particles.value != 0.f && vr_soft_particles_scale.value > 0.f &&
-           (GL_NeedsSceneEffects() || GL_NeedsPostprocess()); // else the window's depth: nothing to read
+           (GL_NeedsSceneEffects() || (GL_NeedsPostprocess() && stereo::directEye() < 2)); // else the window's
+                                                                       // depth, or an eye's own renderbuffer: none to read
 }
 
 [[nodiscard]] Softness softness(Cell cell, float radius)
@@ -2142,7 +2144,8 @@ extern "C" void VR_DrawSceneTranslucent()
     // (Also in the frames composited in reverse order, the densest: at 2784 an eye 1.4 against 5.0 ms at full size,
     // ROUND22.md "Half resolution in the densest frames"; vr_particle_halfres_dense 0, full size there, retired.)
     const bool half = inView && allowHalf &&
-                      (GL_NeedsSceneEffects() || GL_NeedsPostprocess()) && halfResThisFrame(split, viewport);
+                      (GL_NeedsSceneEffects() || (GL_NeedsPostprocess() && !stereo::directEye())) && // (direct: no
+                      halfResThisFrame(split, viewport); // colour texture of ours to put them over at half size)
     if(inView && loggedFrame != host_framecount && profile::systems::frameLogOn())
     {
         loggedFrame = host_framecount;

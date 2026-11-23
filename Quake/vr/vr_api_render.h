@@ -446,6 +446,7 @@ float VR_FlatNearPlane (void);	// flatscreen play's near plane, on the window's 
 int VR_SceneSamples (int samples);	// GL_CreateFrameBuffers: the scene's MSAA samples (the spectator camera's: vr_spectator_aa)
 float VR_SceneTone (void);						// R_SetupView: the brightest the world and models write (1: Quake's clamp)
 float VR_SceneDither (float dither);			// R_SetupView: the scene's screen dither (0 in the eyes with vr_dither: the post-process dithers last)
+const char *VR_InTileFragmentGLSL (void);	// gl_shaders.c: vr/vr_tonemap.cpp's in-tile pass (the post-process's grade and dither, read in the tile)
 void VR_PostProcessTone (void);					// GL_PostProcess, the non-palettized program in use: the tone curve, grade (unit 3) and dither
 
 // Split alias models at an active teleporter, using the same animation pose in both rooms.
