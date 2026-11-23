@@ -182,6 +182,53 @@ void RetroBeginParticle(vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy)
 #endif
 // The mipmap level the hardware would pick at uv (textureQueryLod's .y). OpenGL ES has no textureQueryLod (desktop
 // GL 4.0): there the same from the derivatives of uv in texels (the Quest's Adreno refuses it; C4b).
+#ifdef TUBE_PATTERN
+// (ropes8a) A tube's surface pattern (drawTube's `pattern`): 0 plain, 1 wood, 2 metal. `q` the surface point: x, y round
+// the tube's axis, z along it (units; the tube vertex shader's worldPos). Value noise, seamless round the tube (3D).
+layout(location = 12) uniform int Pattern;
+float tubeHash(vec3 p)
+{
+    p = fract(p * 0.3183099 + 0.1);
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float tubeNoise(vec3 x)
+{
+    vec3 i = floor(x);
+    vec3 f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(tubeHash(i), tubeHash(i + vec3(1.0, 0.0, 0.0)), f.x),
+                   mix(tubeHash(i + vec3(0.0, 1.0, 0.0)), tubeHash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+               mix(mix(tubeHash(i + vec3(0.0, 0.0, 1.0)), tubeHash(i + vec3(1.0, 0.0, 1.0)), f.x),
+                   mix(tubeHash(i + vec3(0.0, 1.0, 1.0)), tubeHash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+}
+vec3 tubePattern(vec3 q)
+{
+    if(Pattern == 1)
+    {
+        // Wood: a trunk's rings (their middle off the pole's) cut lengthwise, wavering along it: long grain streaks, the
+        // late wood's bands darker and redder; fine fibres; a broad blotchiness.
+        float warp = tubeNoise(q * vec3(0.5, 0.5, 0.025)) * 1.6 + tubeNoise(q * vec3(1.3, 1.3, 0.08)) * 0.5;
+        float ring = fract(length(q.xy + vec2(6.0, 2.5)) * 1.4 + warp);
+        float band = smoothstep(0.55, 0.9, ring) * (1.0 - smoothstep(0.9, 1.0, ring));
+        float fibre = tubeNoise(vec3(q.xy * 7.0, q.z * 0.12));
+        float blotch = tubeNoise(q * 0.06);
+        vec3 c = mix(vec3(1.18, 1.1, 1.0), vec3(0.62, 0.48, 0.38), band);
+        return c * (0.86 + 0.24 * fibre) * (0.9 + 0.2 * blotch);
+    }
+    if(Pattern == 2)
+    {
+        // Metal: brushed along it (fine lines), mottled, a joint every 48 units (a dark groove), a few duller scratches.
+        float brush = tubeNoise(vec3(q.xy * 9.0, q.z * 0.04));
+        float mottle = tubeNoise(q * 0.05);
+        float dz = abs(fract(q.z / 48.0 + 0.5) - 0.5) * 48.0;
+        float groove = mix(0.45, 1.0, smoothstep(0.25, 0.9, dz));
+        float scratch = smoothstep(0.82, 0.9, tubeNoise(vec3(q.xy * 2.0 + q.z * 0.35, q.z * 0.6)));
+        return vec3((0.9 + 0.18 * brush) * (0.88 + 0.24 * mottle) * groove * (1.0 - 0.18 * scratch));
+    }
+    return vec3(1.0);
+}
+#endif
 float queryLod()
 {
 #ifdef GL_ES
@@ -547,6 +594,10 @@ void main()
     result = hologram();
 #else
     result = color;
+#ifdef TUBE_PATTERN
+    if(Pattern != 0)
+        result.rgb = clamp(result.rgb * tubePattern(worldPos), 0.0, 1.0);
+#endif
 #endif
 #if BLENDED && !defined(PARTICLE_WASTE)
     if(result == vec4(0.0))
@@ -1007,6 +1058,7 @@ layout(location = 8) uniform int Sides;
 layout(location = 9) uniform vec3 Rust;
 layout(location = 10) uniform int Flat; // faceted: the sides turned half a side, each quad lit by its face's normal
 layout(location = 11) uniform float Alpha; // (below 1: blended, drawTube's `alpha`)
+layout(location = 12) uniform int Pattern; // (ropes8a) its surface: 0 plain, 1 wood, 2 metal (the fragment's tubePattern)
 struct Ring
 {
     vec4 mid;
@@ -1024,6 +1076,7 @@ out vec2 uv;
 out vec4 color;
 out float soft;
 out float viewDepth;
+out vec3 worldPos; // (ropes8a) Pattern: the surface point round the axis (x, y) and along it (z), units
 // The six corners (two triangles) of a quad: (ring, side) steps.
 const ivec2 corners[6] = ivec2[6](ivec2(0, 0), ivec2(1, 0), ivec2(1, 1), ivec2(0, 0), ivec2(1, 1), ivec2(0, 1));
 void main()
@@ -1054,6 +1107,8 @@ void main()
     color = vec4(clamp(albedo * light + vec3(sheen), 0.0, 1.0), Alpha);
     uv = vec2(0.0);
     soft = 0.0;
+    float t = 6.2831853 * (float(quad % Sides + c.y) + turn) / float(Sides); // (the vertex's own angle, not a flat face's)
+    worldPos = vec3(cos(t) * g.mid.w, sin(t) * g.mid.w, dot(pos, g.along.xyz));
     gl_Position = MVP * vec4(FlatFovDrawn(pos), 1.0);
     viewDepth = gl_Position.w;
 }
@@ -1071,7 +1126,7 @@ bool ensureTubeProgram()
     {
         const double start = Sys_DoubleTime();
         const za::String fragment = "#version 430\n#define MODE " + za::toString(static_cast<int>(Shade::Color)) +
-                                     "\n#define BLENDED 0\n#define RETRO 0\n" + fragmentShader;
+                                     "\n#define BLENDED 0\n#define RETRO 0\n#define TUBE_PATTERN 1\n" + fragmentShader;
         tubeProgram = glProgram(tubeVertexShader, fragment.cStr(), "vr tube");
         tubeProgramFailed = !tubeProgram;
         gfx::ownDeferred(tubeProgram, &tubeProgramFailed);
@@ -2119,7 +2174,7 @@ TubeBatch uploadTube(za::Span<const TubeRing> rings)
 }
 
 void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key, const glm::vec3& rust, bool flat,
-    float alpha)
+    float alpha, int pattern)
 {
     if(batch.count < 2 || !batch.buffer || sides < 3)
     {
@@ -2147,6 +2202,7 @@ void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const 
     GL_Uniform1iFunc(8, sides);
     GL_Uniform3fFunc(9, rust.x, rust.y, rust.z);
     GL_Uniform1iFunc(10, flat ? 1 : 0);
+    GL_Uniform1iFunc(12, pattern);
     // Binding 0 borrowed (the scene's lights, R_UploadFrameData): put back for what the view draws after.
     GLuint savedBuffer = 0;
     GLintptr savedOffset = 0;

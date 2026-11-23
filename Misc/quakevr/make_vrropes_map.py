@@ -12,7 +12,9 @@
 #   - north: a heavy chain (3 thick, 40 kg), 192 long;
 #   - north-east: a rope longer than the drop (600: the rest lies on the floor);
 #   - (ropes7) south-west: a wooden and a metal climbing pole (vr_pole), ceiling to floor; far north: a rope strung level
-#     100 high (2% slack) and east: a diagonal one (230 down to 90): monkey traverses.
+#     100 high (2% slack) and east: a diagonal one (230 down to 90): monkey traverses;
+#   - (ropes8a) south: a level metal pole 88 high on two posts (a monkey traverse); south-east: a slanted wooden pole
+#     from the floor up to a beam (27 degrees off upright: climbed).
 import argparse
 import os
 import shutil
@@ -108,6 +110,16 @@ strung((-300, 600, 100), (300, 600, 100), 0.02)
 board("LEVEL ROPE: hang under it, hand over hand", 0, 540, 40, 90, "0.35")
 strung((600, -300, 230), (600, 300, 90), 0.02)
 board("DIAGONAL ROPE: a monkey traverse", 560, 0, 40, 180, "0.35")
+
+# ---- (ropes8a) a level metal pole (south: a monkey traverse, a jump up to it) on two posts, and a slanted wooden one
+# (south-east: from the floor up to a beam, 27 degrees off upright: climbed as the upright ones)
+E.append(entity({"classname": "vr_pole", "origin": "-320 -250 88", "rope_end": "-80 -250 88", "rope_style": "1"}))
+for x in (-332, -68):
+    B.append(box(x - 4, -254, 0, x + 4, -246, 94, TRIM))
+board("LEVEL POLE: hang under it, hand over hand", -200, -300, 40, 90, "0.35")
+E.append(entity({"classname": "vr_pole", "origin": "520 -440 224", "rope_end": "520 -552 1", "rope_style": "0"}))
+B.append(box(504, -456, 224, 536, -424, Z1, TRIM))
+board("SLANTED POLE: climb it", 520, -620, 72, 90, "0.35")
 
 # ---- player, lights
 E.append(entity({"classname": "info_player_start", "origin": "0 -600 24", "angle": "90"}))

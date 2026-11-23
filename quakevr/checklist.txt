@@ -31,6 +31,11 @@ Flat-screen or VR: in the hub, from the top of the stairs all ten lecterns stand
 Flat-screen or VR: on Quoth's kellbase1 pillar ladder, run at it from the side and climb: no sideways slide once on it, and the hands close on each bar's front instead of through it. {test:quoth_kellbase_ladder}
 Flat-screen: on Quoth's kellbase1 pillar ladder, getting on off its middle eases you to the ladder's middle and out of its bars as far as the room in front allows. {test:quoth_kellbase_ladder}
 Run QuakeVR-Setup.exe downloaded from the 1.2.0-beta2 pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk from that release, installs it and the files, and the game starts from Library > Unknown Sources and its console names version 1.2.0-beta2. {test:hub_start}
+Flat-screen: in the ropes hall climb a rope and a pole looking level, up and down: forward always climbs up and back always down, whatever the pitch; the strafe keys pump a rope's swing. {test:ropes}
+Flat-screen or VR: climb the wooden and metal poles: the hands close round the pole's surface, the fingers wrapping it, no hand through it. {test:ropes}
+Flat-screen or VR: the level metal pole (south) is a hand-over-hand traverse hanging under it; the slanted wooden pole (south-east) climbs like the upright ones; the toolgun's Pole with a Span strings one. {test:ropes}
+Flat-screen or VR: walk into the poles (they stop you, climbing one doesn't), shoot and punch them: sparks off metal, splinters off wood. {test:ropes}
+Flat-screen or VR: the poles look like wood (grain along it) and brushed metal (a joint every so often), not a plain colour. {test:ropes}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, and the crystal head glowing violet for a moment after each shot. {test:dwell_lance_pole}
