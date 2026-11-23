@@ -1506,6 +1506,34 @@ constexpr int climbTestGiveUp = 72 * 60;
     return p && p->v.health > 0.f ? p : nullptr;
 }
 
+// (ropes8b, his flat note 2026-11-23: under a level rope the arms reached up off the shoulders, the hands twisted) The
+// drawn hands under a monkey traverse's rope: each drawn fully on it, the fist's front (the knuckles) up (`up`: the
+// least of their front's height, of 1), the palm's middle under the rope's axis (`under`: the least, units), and the
+// body's arms reaching them (`gap`: the most cm a wrist was past the drawn arm's reach, avatar::embedArmGapCm).
+// Returns the hands measured.
+int monkeyHands(float& up, float& under, float& gap)
+{
+    int on = 0;
+    up = 1.f;
+    under = 1e9f;
+    gap = 0.f;
+    for(int h = 0; h < 2; h++)
+    {
+        glm::vec3 back{0.f}, front{0.f}, palm{0.f}, at{0.f}, way{0.f};
+        float thick = 0.f, w = 0.f;
+        if(climb::drawnShare(h) < 0.99f || !climb::drawnBack(h, back, &front) || !climb::drawnPalm(h, palm) ||
+            !climb::ropeLine(h, at, way, thick, w))
+        {
+            continue;
+        }
+        on++;
+        up = za::min(up, front.z);
+        under = za::min(under, at.z - palm.z);
+        gap = za::max(gap, avatar::embedArmGapCm(h));
+    }
+    return on;
+}
+
 za::Vector<glm::vec4> sinkVerts; // (ropes8a: handsSink's drawn hand vertices, their parts)
 za::Vector<view::HandPart> sinkParts;
 
@@ -1809,6 +1837,17 @@ void climbCheck_f()
         check(on >= static_cast<int>(n) && worst >= 0.7f,
             va("%d hands drawn gripping it (%d), the knuckles outwards (worst %.2f of 1)", static_cast<int>(n), on, worst));
     }
+    else if(!ZA_STRCMP(what, "monkeygrip"))
+    {
+        // (ropes8b) Under a monkey traverse's rope: n hands drawn on it, the knuckles up, the palms under it, the arms
+        // reaching them (monkeyHands).
+        float up = 0.f, under = 0.f, gap = 0.f;
+        const int on = monkeyHands(up, under, gap);
+        check(on >= static_cast<int>(n) && up >= 0.7f && under > 0.f && gap <= 1.f,
+            va("%d hands drawn under it (%d): the knuckles up (least %.2f of 1), the palms %.1f under its axis, the arms "
+               "reaching them (%.1f cm past, at most 1)",
+                static_cast<int>(n), on, up, under, gap));
+    }
     else if(!ZA_STRCMP(what, "sink"))
     {
         // (ropes8a) The drawn hands on the rope round it, not through it: one or both drawn fully on it, the deepest
@@ -1910,6 +1949,7 @@ struct FlatTest
     float lastVx{0.f};
     float pitch{0.f}, yaw{0.f};
     bool pole{false};        // (ropes7) `vr_rope_flat_test pole`: a wooden pole instead of the rope, no rope to rope
+    bool shots{false};       // (ropes8b) `vr_rope_flat_test <mode> shots`: screenshots of the body from outside while hanging
     za::Vector<glm::vec3> made; // (ropes7) the pole's points as made (it never moves)
 };
 FlatTest flatTest;
@@ -2247,6 +2287,25 @@ void flatTestFrame()
         return;
     }
     case 23: // hanging: sagged under him; then forward along it
+        if(t.frames == 24 && t.shots)
+        {
+            Cbuf_AddText("vr_flat_orbit 150 90 -12\nwait\nwait\nscreenshot\nvr_flat_orbit 80 80 -12\nwait\nwait\nscreenshot\nvr_flat_orbit\n");
+        }
+        if(t.frames == 60)
+        {
+            // (ropes8b) The hands under it overhand, the knuckles up, the body's arms reaching them (monkeyHands).
+            float up = 0.f, under = 0.f, gap = 0.f;
+            const int on = monkeyHands(up, under, gap);
+            const bool ok = on == 2 && up >= 0.7f && under > 0.f && gap <= 1.f;
+            const char* what = va("hanging: %d hands drawn under it, the knuckles up (least %.2f of 1), the palms %.1f under "
+                                  "its axis, the arms reaching them (%.1f cm past, at most 1)",
+                on, up, under, gap);
+            t.tally.check(ok, flatTestName, what);
+            if(ok)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, what);
+            }
+        }
         if(t.frames == 72)
         {
             climbrope::Grab g;
@@ -2321,6 +2380,7 @@ void flatTest_f()
     // (ropes8a) `strungpole`: the strung run on a level pole (no sag).
     const char* mode = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
     flatTest.pole = !ZA_STRCMP(mode, "pole") || !ZA_STRCMP(mode, "strungpole");
+    flatTest.shots = Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(2), "shots");
     flatTest.stage = !ZA_STRCMP(mode, "strung") || !ZA_STRCMP(mode, "strungpole") ? 20 : 1;
 }
 
