@@ -1750,7 +1750,9 @@ def slide(s, flat=True):
     put_at(srv, b, eb, OPEN_SPOT, 90)
     b.quiet(r"mp_(move|pos): ", 0.5, 20, "B at rest")
     since = b.mark()
-    b.cmd("cl_alwaysrun 1; +forward" if flat else "vr_slide 1; vr_mock_stick off 0 1")
+    # (flatgreen3: VR B runs too: cl_alwaysrun 0 is the shipped default, and a walk's 200 is under vr_flat_slide_min's
+    # 220: no slide at all)
+    b.cmd("cl_alwaysrun 1; +forward" if flat else "cl_alwaysrun 1; vr_slide 1; vr_mock_stick off 0 1")
     b.wait(r"mp_move: .*self=1", 20, since, "B running north")
     # Up to his run's speed before the slide (a slide starts from a run): 40 units north of his spot in A's copy (at
     # most 40 reports: a definite end; on a busy machine the press once found him still walking, no slide).
@@ -6371,7 +6373,7 @@ def predict_slide(s):
     jump; at rest he stands where the server has him."""
     srv, a, b, ea, eb = join(s, lag=PREDICT_LAG, loss=SLIDE_LOSS)
     srv.cmd("vr_mp_watch %d" % PART_WATCH)
-    b.cmd("vr_slide 1; vr_mp_watch %d" % PART_WATCH)
+    b.cmd("cl_alwaysrun 1; vr_slide 1; vr_mp_watch %d" % PART_WATCH)  # (running: a walk is under the slide's least speed)
     takes = (("held to its end", ("", "vr_mock_stick main 0 -1", "", "vr_mock_stick main 0 0; vr_mock_stick off 0 0", "")),
              ("ended by a jump", ("", "vr_mock_stick main 0 -1", "+jump", "-jump; vr_mock_stick main 0 0; "
                                   "vr_mock_stick off 0 0", "")))
@@ -9948,7 +9950,7 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
     # (testspeed) the games start without the hub (mp_harness: -nostartmap), except these scenarios, which failed
     # without it every time (mp_flow: the Load Autosave list; mp_predict(climb): "A on start" timed out) and passed with
     # it: why is open (BACKLOG). QVR_MP_STARTMAP=1 in the environment: the hub for every scenario.
-    if test in STARTMAP_SCENARIOS and os.environ.get("QVR_MP_STARTMAP") != "1":
+    if test in STARTMAP_SCENARIOS and os.environ.get("QVR_MP_STARTMAP") not in ("0", "1"):
         os.environ["QVR_MP_STARTMAP"] = "1"
         try:
             return run(args, test, lag, jitter, loss)
