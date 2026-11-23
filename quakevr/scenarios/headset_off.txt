@@ -1,0 +1,5 @@
+# headset_off: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Taking the headset off pauses a single player game as the runtime's menu does (XR_EXT_user_presence, vr_xr_user_presence; from PR #75, by Kasper Olesen; Misc/quakevr/xr_runtime_test.sh section 11), on a runtime whose headset has a wear sensor.
+title Headset taken off: the game pauses, resumes when back on
+hint A single player game on e1m1. Take the headset off for a few seconds, then put it back on: the game paused meanwhile (nothing moved, the sounds quiet) and plays on as soon as it is back on. Advanced > Headset > Headset Taken Off sets it.
+map e1m1
+god

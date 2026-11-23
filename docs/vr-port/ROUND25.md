@@ -11017,3 +11017,31 @@ His list of 2026-11-23 (ZANCLE.md has the mapping rows). Zancle changes on its b
 - Full rebuild (`-t:Rebuild -m`, the machine busy, so noisy): before 13.2-21.9 s (3 runs: 17.7, 21.9, 13.2), after
   17.9-25.5 s (21.1, 17.9, 23.0, 25.5): about the same to a few seconds more (five Zancle sources and the dense map's
   header beside the std headers that stay: regex, format, filesystem). An edit rebuilds only its file.
+
+## frameport: the Steam Frame pieces of PR #75, by Kasper Olesen (agent/frameport, 2026-11-23)
+
+Three pieces of kblood's Steam Frame port (PR #75), brought into `next` with his credit (docs/vr-port/CREDITS.md,
+"Contributors"; the rest of the PR is superseded or left out: the investigation in the kit's `pr75_report.md`).
+
+- **The Steam Frame's controller profile** (`XR_VALVE_frame_controller_interaction`,
+  `/interaction_profiles/valve/frame_controller_valve`): his commit (linuxtest 6a9325783e), his authorship kept, moved
+  to `vr_backend_openxr_actions.cpp`. One of the vendor profiles (`vr_xr_vendor_profiles`, `VendorFrame`): A/B on the
+  right, the left d-pad's down/up as X/Y, the menu on the left view or the right menu button, 30 bindings. Added to
+  `fullProfiles` (no limited-controls warning). One OpenXR backend serves the PC, Linux and the Quest/Android builds.
+- **`-vr-hide-mirror`**: linuxtest c77e62d815 cherry-picked (its Co-authored-by kept). The desktop window is never
+  shown; it counts as focused (every present made, no "not focused" warning) and, on `next`, as not visible
+  (`windowNotVisible`: the spectator camera skipped). Presents still happen (a glFlush in place of the swap lost the
+  Adreno device in his tests).
+- **`XR_EXT_user_presence`** (`vr_xr_user_presence` 1, Advanced > Headset > Headset Taken Off): re-done on our code from
+  his 7d0ba78904. Enabled when offered; used when the system has the sensor (logged in qvr_openxr.txt). The headset off
+  counts as the runtime's menu: the frame held (`vr_xr_unfocused`), a single player game paused
+  (`vr_xr_unfocused_pause`, "VR: the headset was taken off" / "is back on"), the controllers' input zeroed; the
+  height calibration waits ("Put on your headset to calibrate."). Differences from the PR: worn until the runtime says
+  otherwise (his waited for the first event: a runtime that never sends one would have stayed paused); poses kept
+  (the input zeroed and the frame held are enough); `vr_debug_head_pose` 1 (unworn GPU tests) ignores it.
+- **Tests**: fakexr `FAKEXR_UNWORN a-b` (the presence event and the sensor property). xr_runtime_test.sh section 9
+  (the Frame profile enabled, suggested, 30 bindings, played as it, no warning) and the new section 11 (paused for 100
+  host frames with the game time still, 100 frames held, resumed; `vr_xr_user_presence 0` plays on): 0 failed; section
+  5 (the runtime's menu pause) unchanged, 0 failed. `-vr-hide-mirror` with `-Visible`: `vr_debug_window` says hidden,
+  not visible.
+- **Not verified**: a real Steam Frame (no device) and a real runtime's presence events (SteamVR, Meta).

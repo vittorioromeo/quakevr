@@ -301,6 +301,14 @@ public:
         return false;
     }
 
+    // The player wears the headset: false only when the runtime's sensor says it was taken off (OpenXR's
+    // XR_EXT_user_presence, vr_xr_user_presence 1; from PR #75, by Kasper Olesen). Off, the game acts as with the
+    // runtime's menu open (the frame held, a single player game paused) and the controllers press nothing.
+    [[nodiscard]] virtual bool userPresent() const
+    {
+        return true;
+    }
+
     // The headset's name as the runtime gives it (OpenXR's systemName; "" if none): its panel looked up by it for the
     // menu's status box (vr_main.cpp, panelSize).
     [[nodiscard]] virtual const char* systemName() const

@@ -277,6 +277,7 @@ public:
     [[nodiscard]] const HiddenArea* hiddenArea(int eye) const override;
 
     [[nodiscard]] bool runtimeMenuOpen() const override;
+    [[nodiscard]] bool userPresent() const override;
 
     [[nodiscard]] const char* systemName() const override;
     [[nodiscard]] EyeTracking eyeTracking() const override
@@ -377,6 +378,13 @@ private:
     XrView views[2]{{XR_TYPE_VIEW}, {XR_TYPE_VIEW}};
     XrViewConfigurationView configViews[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
     bool visibilityMaskExtension{false}; // XR_KHR_visibility_mask enabled
+    // XR_EXT_user_presence (vr_xr_user_presence; from PR #75, by Kasper Olesen): enabled when offered; the system's
+    // sensor (supportsUserPresence); the headset off by the runtime's last XrEventDataUserPresenceChangedEXT (on until
+    // one says otherwise, and again at each session start).
+    bool userPresenceExtension{false};
+    bool userPresenceSensor{false};
+    bool userAbsent{false};
+    int absentHeld{0}; // the frames held while it was off (logged when it is back on)
     // Eye tracking (vr_foveated_gaze): XR_EXT_eye_gaze_interaction offered, enabled (asked for, and the system has it),
     // its pose action and space (FrameState::gaze).
     bool eyeGazeOffered{false};
