@@ -4845,13 +4845,6 @@ Dwell's Crystal Lance (for now a lightning gun firing Dwell's piercing beam: 150
 [
 ]
 
-@PointClass color(0 128 204) size(-16 -16 0, 16 16 32) =
-	weapon_rifle : "From Dwell (rebuilt on Copper and Quake VR): spawns in any map while Dwell's data is installed, or by the toolgun as dw_<classname>.
-
-Dwell's Rifle (for now a shotgun firing one 50 bullet)."
-[
-]
-
 //
 // Other point entities
 //

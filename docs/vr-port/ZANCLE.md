@@ -6,7 +6,8 @@ His rule (standing; restated 2026-11-22): our C++ (Quake/vr, other Quake/*.cpp/.
 uses: Zancle's headers are fine-grained (faster to compile), its code is faster in Debug and its stack traces are
 shorter. CODE_STYLE.md, "Zancle, not the standard library", has the style; this page is the lookup table, and
 `qvr_checks std_uses` (Tools/qvr_checks/std_uses.cpp, its allowlist `Misc/quakevr/std_uses_allowlist.txt`) keeps
-`std::` and the heavy standard headers from creeping back.
+`std::` and the heavy standard headers from creeping back. The checker itself (Tools/qvr_checks, the build's source
+checks) is held to the same rule and scanned with its own allowlist rows (`Tools/qvr_checks/<file>`).
 
 Behaviour stays identical when converting: watch the float/double overloads (std's mixed-type calls promote, Zancle's
 math templates take exactly `float`, `double` or `long double`: cast where std promoted), integer `abs`, the types of
@@ -111,5 +112,11 @@ uses (the no-PCH build checks it: `Misc/quakevr/check_nopch.sh`).
   `qvr::files` wraps it in one place (CODE_STYLE.md, "Files").
 - (Zancle against the standard library, once `vr_zancle_math_test`, is Zancle's own unit test:
   `test/Base/MathAgainstStd.test.cpp`.)
+- **Tools/qvr_checks** (the build's source checks): `<regex>` (Zancle has no regex: the patterns ported from the
+  Python checks; matched over `const char*` ranges of `za::String`), `std::filesystem` and its `std::error_code`
+  (paths and directory walking), `<format>` (Zancle's formatter isn't vendored: `common.hpp`'s `fmt`/`Out::line` wrap
+  `std::format_to` into a `za::String`, with `std::formatter`s for `za::String`/`za::StringView`) and `std::exception`
+  (`main.cpp`: a check's throw reported as its failure). Files are read with the C stdio (`_wfopen`), processes and
+  wide strings through the Windows API and `za::Vector<wchar_t>`.
 - **Third-party code and its interfaces** (Tracy, OpenXR, imgui, lodepng, Box3D, Opus): untouched.
 - **Comments** that name a std facility (what the code replaced, or mimics): the check ignores comments.

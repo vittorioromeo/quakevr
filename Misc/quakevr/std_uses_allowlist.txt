@@ -1,5 +1,43 @@
-# qvr_checks std_uses: the std:: uses and C++ standard headers our Quake/vr code may still have (docs/vr-port/ZANCLE.md).
-# `<file> <name> <max>  # why`: <file> relative to Quake/vr; <name> a std::x (its first name), a <header>, or * (every
+# qvr_checks std_uses: the std:: uses and C++ standard headers our Quake/vr code and Tools/qvr_checks may still have
+# (docs/vr-port/ZANCLE.md).
+# `<file> <name> <max>  # why`: <file> relative to Quake/vr (Tools/qvr_checks/<file>: the checker's own); <name> a std::x (its first name), a <header>, or * (every
 # use in that file). A file over a cap fails the build: use Zancle instead, or (no equivalent) raise the cap and say why.
 # Misc/quakevr/std_uses_allowlist.py rewrites the counts from `qvr_checks std_uses --list` (keeping each `# why`).
 
+Tools/qvr_checks/canonical.cpp <regex> 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/canonical.cpp std::cmatch 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/canonical.cpp std::regex 4  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/canonical.cpp std::regex_constants 2  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/canonical.cpp std::regex_search 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/common.cpp <regex> 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/common.cpp std::cmatch 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/common.cpp std::error_code 3  # std::filesystem: Zancle has no paths or directory walking
+Tools/qvr_checks/common.cpp std::regex 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/common.cpp std::regex_constants 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/common.cpp std::regex_search 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/common.hpp <filesystem> 1  # std::filesystem: Zancle has no paths or directory walking
+Tools/qvr_checks/common.hpp <format> 1  # std::format: Zancle's formatter isn't vendored (common.hpp wraps it for za::String)
+Tools/qvr_checks/common.hpp std::filesystem 1  # std::filesystem: Zancle has no paths or directory walking
+Tools/qvr_checks/common.hpp std::format_string 3  # std::format: Zancle's formatter isn't vendored (common.hpp wraps it for za::String)
+Tools/qvr_checks/common.hpp std::format_to 1  # std::format: Zancle's formatter isn't vendored (common.hpp wraps it for za::String)
+Tools/qvr_checks/common.hpp std::formatter 6  # std::format: Zancle's formatter isn't vendored (common.hpp wraps it for za::String)
+Tools/qvr_checks/common.hpp std::string_view 6  # std::format: Zancle's formatter isn't vendored (common.hpp wraps it for za::String)
+Tools/qvr_checks/cvars_qc.cpp <regex> 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/cvars_qc.cpp std::cmatch 4  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/cvars_qc.cpp std::cregex_iterator 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/cvars_qc.cpp std::regex 4  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/cvars_qc.cpp std::regex_constants 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/cvars_qc.cpp std::regex_search 3  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/main.cpp <exception> 1  # std::exception: a check's throw (std::regex, std::filesystem) reported as its failure
+Tools/qvr_checks/main.cpp std::error_code 2  # std::filesystem: Zancle has no paths or directory walking
+Tools/qvr_checks/main.cpp std::exception 1  # std::exception: a check's throw (std::regex, std::filesystem) reported as its failure
+Tools/qvr_checks/qc_compiles.cpp std::error_code 3  # std::filesystem: Zancle has no paths or directory walking
+Tools/qvr_checks/small_checks.cpp <regex> 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/small_checks.cpp std::cmatch 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/small_checks.cpp std::cregex_iterator 3  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/small_checks.cpp std::error_code 2  # std::filesystem: Zancle has no paths or directory walking
+Tools/qvr_checks/small_checks.cpp std::regex 5  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/statics.cpp std::error_code 1  # std::filesystem: Zancle has no paths or directory walking
+Tools/qvr_checks/test_numbers.cpp <regex> 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/test_numbers.cpp std::cregex_iterator 1  # regex: Zancle has no regex (the checks match Python-era patterns)
+Tools/qvr_checks/test_numbers.cpp std::regex 1  # regex: Zancle has no regex (the checks match Python-era patterns)

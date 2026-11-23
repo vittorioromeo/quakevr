@@ -1093,7 +1093,7 @@ void() weapon_touch =
     else
         leave = 0;
 
-    // Its weapon as impl_weapon_item set it (Dwell's pickups keep Dwell's classnames, weapon_rifle..: by the class they
+    // Its weapon as impl_weapon_item set it (Dwell's pickups keep Dwell's classnames, weapon_railgun..: by the class they
     // asserted and were removed, his note 2026-11-21); a pickup made otherwise, by its class.
     float weaponId;
     weaponId = (self.weapon > WID_FIST && self.weapon <= WID_LAST) ? self.weapon : WeaponClassNameToWeaponId(self.classname);

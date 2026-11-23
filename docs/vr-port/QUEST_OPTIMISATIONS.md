@@ -219,6 +219,7 @@ warming), and parts of one setting within a launch by +-1.5 ms (draws 183-244 fr
 | qtune: the no-fullbright and no-loop variants alone (rig plain in both) | 15.11 vs 15.59 | 18.3% vs 21.4% | 211 / 214 | ~-0.5 ms (so the rig's plain form ~-0.3 to -0.5) |
 | qtune: dynres on (0.9 ceiling, 0.65 floor), the fight floor 0.55 (`vr_dynres_min_fight`) vs none | 13.36 vs 15.5-18.1 | 4.7% (20% with a load hitch) vs 19-37% | - | **near 72 Hz in the fight**; the e1m1 walk never left the 0.9 ceiling (0% of frames below 0.65) |
 | qtune: settled gore trimmed (`vr_gore_trim_max` 24, 5 s, none within 160) | not measured: by design it leaves the close-up fight alone | - | - | far gore after a fight; the gore was already instanced (gib1 76 instances in 2 batches) |
+| qfov2: form 2 rebuilt as Meta's samples (a framebuffer per eye image, the image attached for good, depth at the image's size), one launch, 2 parts each interleaved, level changed mid-game (new swapchains): P post-process, D straight in no foveation, L/M/H levels 1-3, R level 3 refocused | P 16.34, D 17.00, L 17.31, M 17.98, H 17.43, R 17.87 | 95-99% (a warm headset) | 208-213 | **no crash** (form 2 + foveation at launch and every mid-game change), **no gain**: the trace shows each eye as 6 render passes (the brush models' compute gathers between draws end the pass); only the first (the clear, hidden area) has scaled bins, the main pass (6-9 ms) loads colour and depth and runs every bin at 1/1. Form 2 also bins the whole 1680x1760 image while 0.65 of it is drawn. No default changed |
 
 Counts (PC mock, `-glescompat +vr_standalone_preset 0`, `vr_gl_passes`): 240 draws a frame, 88 of them alias (48
 batches, 290 instances, 72k alias triangles both eyes); the Quest's own frame 192-244 draws. Gibs 76 + 76 + 12
@@ -229,6 +230,41 @@ fragments shaded ~1.8 a pixel in the main pass, which includes the world's depth
 to take). Verdict: the scene is fill-bound at the preset's floor (0.55 holds 72 Hz, 0.6 and 0.58 do not reliably); no
 look-keeping cut found that reaches 72 Hz. No default changed.
 
+## CPU in fights (qcpu, 2026-11-23)
+
+Where a big fight's CPU goes and what was cut, keeping gameplay identical. Scenes (qcombined's): **C** 48 mixed
+monsters on vrfiringrange (grunts, ogres, knights, scrags; god mode), **E** the live e1m1 fight (two waves of six
+grunts, gibbed). PC: Release (no LTO), mock headset (eyes 2048) or `-flatscreenmode`, the Standalone preset, unpaced
+fixed frames, `vr_profile` trees and `vr_qcprofile` (600 frames), a Release-Tracy capture of C. Quest 3: Standalone as
+a new player gets it, the perf recorder (`c_` phases), this branch's APK with a temporary A/B switch, the two orders
+interleaved in each of 2 launches (a third skipped: another app was in front).
+
+Top CPU costs, ms a frame (main thread unless said):
+
+| # | PC VR, C (busy 5.4) | PC flat, C (busy 5.2) | PC VR, E (busy 3.5) | Quest, C (busy 25-27; qcombined's CSV) |
+|---|---|---|---|---|
+| 1 | QuakeC 1.70 (armed humanoids' weapon props 1.12: pose 0.59, the shot/throw scans 0.30, parry 0.16) | QuakeC 1.38 | QuakeC 1.15 (props 0.96) | SV_Physics 8.6 (QuakeC most of it, by the PC's share ~75%) |
+| 2 | alias set-up 1.07 (eye L 0.87, R 0.20) | SV_Physics' own 1.10 (monster moves, traces) | Box3D 0.40 | alias set-up 4.0 |
+| 3 | view entities 0.46 (holsters, ground spots, blood streams) | alias 0.62 | alias 0.33 | eye L's rest ~2 (world, lights, particles) |
+| 4 | relink: armed arms 0.45 (the solves on jobs: 0.62 a frame over the threads) | view entities 0.58 | relink: armed arms 0.23 | view entities 2.2 |
+| 5 | Box3D 0.29 | relink: armed arms 0.38 | view entities 0.28 | eye R 2.2 |
+| 6 | findradius 0.24 (108 calls) | hands 0.35 | particle light 0.14 | sound 1.45 |
+| 7 | vr particles 0.15 | Box3D 0.20 | box3d water and hits 0.12 | client read (relink) 1.36 |
+| 8 | SV_Physics' own 0.15 | vr particles 0.16 | gib trail 0.03 | vr particles 0.66 |
+| 9 | setup view (decals) 0.06 | send 0.09 | send 0.06 | lights 0.57 |
+| 10 | send 0.10 | client send 0.07 | client send 0.04 | xr submit 0.59 |
+
+QuakeC's builtins, C: findradiusmoving 0.19 (the props' two scans, 90 calls), traceline 0.04, findradius 0.04,
+modelanchorpoint 0.03, movetogoal 0.02; no other QuakeC function over 0.13 ms self. The Quest runs the same QuakeC ~4x
+slower (SV_Physics 8.6-10.5 vs 2.2) and the client ~5x (screen 11.3 vs 2.1).
+
+| Change | PC (C, 600 frames) | Quest C: old / new (2 launches) | Quest E: old / new | Same gameplay? |
+|---|---|---|---|---|
+| findradiusmoving's mover test in the search, before the grid's sort (the props' scans found ~52 a call, nearly all standing monsters and props, sorted only to be dropped) | findradius 2.20 -> 1.15 us a call, 0.238 -> 0.124 ms a frame | findradius 5.21, 5.36 -> 3.46, 3.31 us a call; 0.585 -> 0.358 ms a frame; SV_Physics 10.50 -> 9.82, CPU busy 27.36 -> 26.30 (the launches' spread ~2 ms) | 3.05, 3.01 -> 2.24, 2.24 us; 0.445 -> 0.326 ms; busy 17.66 -> 17.20 | yes: the same entities in the same order (a subset of a sorted set); vr_agrunt_test 50-60, 93 pass |
+
+Left (by size, for the next CPU job): the armed humanoids' QuakeC pose (VR_AGP_Pose, ~0.6 ms PC, ~2.5 Quest: many
+small helpers; a native port is the real win, too big to keep exact here), alias set-up on the Quest (4 ms: per-model
+state and uploads), the view entities (2.2 ms Quest), sound (1.45 ms Quest).
 ## Standalone status, 2026-11-23 (qcombined)
 
 `next` at 7df6f7ec8 (retro off, the unlit decal twin, rig plain, models without fullbright reads or a lights' loop,

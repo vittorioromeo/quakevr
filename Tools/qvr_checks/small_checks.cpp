@@ -1,9 +1,8 @@
 // progs_format and builtins: the two small checks.
 #include "common.hpp"
+#include "maps.hpp"
 
-#include <map>
 #include <regex>
-#include <set>
 
 namespace qvrc
 {
@@ -20,32 +19,32 @@ namespace qvrc
 // Prints one line: the format and the counts. Exit 1 when it is not FTE32 (or not a progs.dat).
 int checkProgsFormat(const Ctx& ctx, const Args& args, Out& out)
 {
-    const std::string shown = args.empty() ? "quakevr/progs.dat" : args[0];
-    fs::path path = shown;
+    const za::String shown = args.empty() ? za::String{"quakevr/progs.dat"} : args[0];
+    fs::path path = toPath(shown);
     if(path.is_relative())
     {
         path = ctx.tree / path;
     }
     bool ok = false;
-    const std::string data = readRaw(path, &ok);
+    const za::String data = readRaw(path, &ok);
     std::error_code ec;
     if(!ok || !fs::is_regular_file(path, ec))
     {
-        out.line("check_progs_format: {}: cannot read it", fs::path(shown).generic_string());
+        out.line("check_progs_format: {}: cannot read it", genericStr(toPath(shown)));
         return 1;
     }
     ProgsHeader hdr;
     bool isProgs = false;
-    const std::string fmt = progsFormat(data, hdr, isProgs);
+    const za::String format = progsFormat(data, hdr, isProgs);
     if(!isProgs)
     {
-        out.line("check_progs_format: {}: {}", fs::path(shown).generic_string(), fmt);
+        out.line("check_progs_format: {}: {}", genericStr(toPath(shown)), format);
         return 1;
     }
     const auto* h = hdr.h;
     out.line("check_progs_format: {}: {}, {} globals, {} statements, {} global defs, {} field defs, {} functions",
-             fs::path(shown).generic_string(), fmt, h[13], h[3], h[5], h[7], h[9]);
-    if(fmt != "fte32")
+             genericStr(toPath(shown)), format, h[13], h[3], h[5], h[7], h[9]);
+    if(format != "fte32")
     {
         out.line("check_progs_format: FAILED: not the 32-bit format (fte32). Compile with our FTEQCC "
                  "(Tools/fteqcc/fteqcc64.exe, or one built with Tools/fteqcc/fte32.patch): QC/defs.qc's "
@@ -71,16 +70,13 @@ int fgdgen(const Ctx& ctx, const Args& args, Out& out)
     {
         return 0;
     }
-    std::vector<std::string> cmd = {python.string(), script.string()};
-    cmd.insert(cmd.end(), args.begin(), args.end());
-    const ProcResult r = runProcess(cmd, ctx.tree, true);
-    for(char c : r.out)
+    za::Vector<za::String> cmd = {pathStr(python), pathStr(script)};
+    for(const auto& a : args)
     {
-        if(c != '\r')
-        {
-            out.text += c;
-        }
+        cmd.pushBack(a);
     }
+    const ProcResult r = runProcess(cmd, ctx.tree, true);
+    out.text += withoutCr(r.out);
     return r.started ? r.rc : 1;
 }
 
@@ -88,17 +84,17 @@ namespace
 {
 
 // re.sub(r"/\*.*?\*/", " ", s, flags=re.S) then re.sub(r"//[^\n]*", "", s)
-std::string stripCommentsLoose(std::string_view s)
+za::String stripCommentsLoose(za::StringView s)
 {
-    std::string a;
+    za::String a;
     a.reserve(s.size());
-    size_t i = 0;
+    za::SizeT i = 0;
     while(i < s.size())
     {
         if(s[i] == '/' && i + 1 < s.size() && s[i + 1] == '*')
         {
-            const size_t e = s.find("*/", i + 2);
-            if(e != std::string_view::npos)
+            const za::SizeT e = s.find("*/", i + 2);
+            if(e != npos)
             {
                 a += ' ';
                 i = e + 2;
@@ -107,7 +103,7 @@ std::string stripCommentsLoose(std::string_view s)
         }
         a += s[i++];
     }
-    std::string b;
+    za::String b;
     b.reserve(a.size());
     i = 0;
     while(i < a.size())
@@ -125,6 +121,12 @@ std::string stripCommentsLoose(std::string_view s)
     return b;
 }
 
+// A regex match's group as text.
+za::StringView group(const std::cmatch& m, int g)
+{
+    return za::StringView(m[g].first, static_cast<za::SizeT>(m[g].length()));
+}
+
 } // namespace
 
 // builtins: the QC's by-name builtins (`= #0`) against the engine's tables.
@@ -139,15 +141,15 @@ std::string stripCommentsLoose(std::string_view s)
 int checkBuiltins(const Ctx& ctx, const Args&, Out& out)
 {
     // vrBuiltins entries no QC prototype names (none today: add one here with the reason when it is meant).
-    const std::set<std::string> engineOnly;
-    const std::set<std::string> optionalFiles = {"QC/ad/ad_builtins.qc"};
+    const Set<za::String> engineOnly;
+    const Set<za::String> optionalFiles = {"QC/ad/ad_builtins.qc"};
 
-    const std::string vrSrc = readText(ctx.tree / "Quake/vr/vr_builtins.cpp");
+    const za::String vrSrc = readText(ctx.tree / "Quake/vr/vr_builtins.cpp");
     // VrBuiltin vrBuiltins\[\]\s*=\s*\{(.*?)\n\};
-    size_t bodyStart = std::string::npos;
-    for(size_t i = 0; (i = vrSrc.find("VrBuiltin vrBuiltins[]", i)) != std::string::npos; ++i)
+    za::SizeT bodyStart = npos;
+    for(za::SizeT i = 0; (i = vrSrc.find("VrBuiltin vrBuiltins[]", i)) != npos; ++i)
     {
-        size_t p = skipSpace(vrSrc, i + 22);
+        za::SizeT p = skipSpace(vrSrc, i + 22);
         if(p < vrSrc.size() && vrSrc[p] == '=')
         {
             p = skipSpace(vrSrc, p + 1);
@@ -158,62 +160,65 @@ int checkBuiltins(const Ctx& ctx, const Args&, Out& out)
             }
         }
     }
-    const size_t bodyEnd = bodyStart == std::string::npos ? bodyStart : vrSrc.find("\n};", bodyStart);
-    if(bodyEnd == std::string::npos)
+    const za::SizeT bodyEnd = bodyStart == npos ? bodyStart : vrSrc.find("\n};", bodyStart);
+    if(bodyEnd == npos)
     {
         out.line("check_builtins: vrBuiltins[] not found in Quake/vr/vr_builtins.cpp");
         return 1;
     }
-    const std::string body = stripCommentsLoose(std::string_view(vrSrc).substr(bodyStart, bodyEnd - bodyStart));
+    const za::String body = stripCommentsLoose(vrSrc.substrByPosLen(bodyStart, bodyEnd - bodyStart));
     const std::regex entryRe(R"re(\{\s*"(\w+)"\s*,)re");
-    std::vector<std::string> vrNames;
-    for(std::sregex_iterator it(body.begin(), body.end(), entryRe), end; it != end; ++it)
+    za::Vector<za::String> vrNames;
+    for(std::cregex_iterator it(body.begin(), body.end(), entryRe), end; it != end; ++it)
     {
-        vrNames.push_back((*it)[1].str());
+        vrNames.emplaceBack(group(*it, 1));
     }
-    std::set<std::string> ironwail;
+    Set<za::String> ironwail;
     {
-        const std::string pr = readText(ctx.tree / "Quake/pr_cmds.c");
+        const za::String pr = readText(ctx.tree / "Quake/pr_cmds.c");
         for(auto& name : lineStartGroups(pr, R"re(\s*\{\s*"(\w+)"\s*,)re", '{'))
         {
-            ironwail.insert(std::move(name));
+            ironwail.insert(ZA_MOVE(name));
         }
     }
 
-    std::vector<std::string> problems;
-    std::set<std::string> seen;
+    za::Vector<za::String> problems;
+    Set<za::String> seen;
     for(const auto& n : vrNames)
     {
         if(seen.contains(n))
         {
-            problems.push_back(std::format("vrBuiltins names \"{}\" twice", n));
+            problems.pushBack(fmt("vrBuiltins names \"{}\" twice", n));
         }
         seen.insert(n);
     }
 
-    std::vector<std::string> paths;
+    za::Vector<za::String> paths;
     for(const char* dir : {"QC", "QC/ad"})
     {
         for(const auto& p : listFiles(ctx.tree / dir, {".qc"}, false))
         {
-            paths.push_back(std::string(dir) + "\\" + p.filename().string()); // (sorted as Python's glob paths)
+            za::String s = dir;
+            s += "\\";
+            s += pathStr(p.filename());
+            paths.pushBack(ZA_MOVE(s)); // (sorted as Python's glob paths)
         }
     }
     sortStrings(paths);
-    std::map<std::string, std::vector<std::string>> protos;
+    Map<za::String, za::Vector<za::String>> protos;
     for(auto& path : paths)
     {
-        std::replace(path.begin(), path.end(), '\\', '/');
-        const std::string text = stripCommentsLoose(readText(ctx.tree / path));
+        replaceChar(path, '\\', '/');
+        const za::String text = stripCommentsLoose(readText(ctx.tree / toPath(path)));
         // (\w+)\s*=\s*#0\s*;  found from each "#0": the whole word before the `=` is the name
-        for(size_t p = 0; (p = text.find("#0", p)) != std::string::npos; p += 2)
+        for(za::SizeT p = 0; (p = text.find("#0", p)) != npos; p += 2)
         {
-            const size_t semi = skipSpace(text, p + 2);
+            const za::SizeT semi = skipSpace(text, p + 2);
             if(semi >= text.size() || text[semi] != ';')
             {
                 continue;
             }
-            size_t b = p;
+            za::SizeT b = p;
             while(b > 0 && isSpace(text[b - 1]))
             {
                 --b;
@@ -227,19 +232,20 @@ int checkBuiltins(const Ctx& ctx, const Args&, Out& out)
             {
                 --b;
             }
-            size_t a = b;
+            za::SizeT a = b;
             while(a > 0 && isWord(text[a - 1]))
             {
                 --a;
             }
             if(a < b)
             {
-                protos[text.substr(a, b - a)].push_back(path);
+                protos[za::String{text.substrByPosLen(a, b - a)}].pushBack(path);
             }
         }
     }
-    for(const auto& [name, ps] : protos)
+    for(const auto* e : qza::sortedByKey(protos))
     {
+        const auto& [name, ps] = *e;
         if(seen.contains(name) || ironwail.contains(name))
         {
             continue;
@@ -253,15 +259,13 @@ int checkBuiltins(const Ctx& ctx, const Args&, Out& out)
         {
             continue;
         }
-        problems.push_back(
-            std::format("{}: `{} = #0` names no engine builtin (vrBuiltins, pr_builtindefs)", ps[0], name));
+        problems.pushBack(fmt("{}: `{} = #0` names no engine builtin (vrBuiltins, pr_builtindefs)", ps[0], name));
     }
     for(const auto& n : vrNames)
     {
         if(!protos.contains(n) && !engineOnly.contains(n))
         {
-            problems.push_back(
-                std::format("vrBuiltins \"{}\" has no `#0` prototype in the QC (dead, or add it to engineOnly)", n));
+            problems.pushBack(fmt("vrBuiltins \"{}\" has no `#0` prototype in the QC (dead, or add it to engineOnly)", n));
         }
     }
     if(!problems.empty())
@@ -284,27 +288,27 @@ int checkBuiltins(const Ctx& ctx, const Args&, Out& out)
 // or as QVR_AD_GUN's third argument. WID_FIST (0) is the empty hand, WID_ADELIMINATOR (24) is gone.
 int checkToolgunWeapons(const Ctx& ctx, const Args&, Out& out)
 {
-    const std::set<int> exempt = {0, 24};
-    std::set<int> rows;
+    const Set<long long> exempt = {0, 24};
+    Set<long long> rows;
     const std::regex plainRe(R"re("weapon"\s*,\s*(\d+)\.f)re");
     const std::regex adRe(R"re(QVR_AD_GUN\([^,]*,[^,]*,\s*(\d+)\s*,)re");
     for(const char* f : {"Quake/vr/vr_toolgun.cpp", "Quake/vr/vr_toolgun_packs.inc", "Quake/vr/vr_ad_spawnguns.inc"})
     {
-        const std::string text = readText(ctx.tree / f);
+        const za::String text = readText(ctx.tree / f);
         for(const std::regex* re : {&plainRe, &adRe})
         {
-            for(std::sregex_iterator it(text.begin(), text.end(), *re), end; it != end; ++it)
+            for(std::cregex_iterator it(text.begin(), text.end(), *re), end; it != end; ++it)
             {
-                rows.insert(std::stoi((*it)[1].str()));
+                rows.insert(toInt(group(*it, 1)));
             }
         }
     }
-    const std::string ids = readText(ctx.tree / "Quake/vr/vr_weapon_ids.h");
+    const za::String ids = readText(ctx.tree / "Quake/vr/vr_weapon_ids.h");
     const std::regex idRe(R"re(#define\s+(WID_\w+)\s+(\d+))re");
     int checked = 0, missing = 0;
-    for(std::sregex_iterator it(ids.begin(), ids.end(), idRe), end; it != end; ++it)
+    for(std::cregex_iterator it(ids.begin(), ids.end(), idRe), end; it != end; ++it)
     {
-        const int n = std::stoi((*it)[2].str());
+        const long long n = toInt(group(*it, 2));
         if(exempt.contains(n))
         {
             continue;
@@ -312,7 +316,7 @@ int checkToolgunWeapons(const Ctx& ctx, const Args&, Out& out)
         ++checked;
         if(!rows.contains(n))
         {
-            out.line("check_toolgun_weapons: {} ({}) has no row in the toolgun's Weapons section", (*it)[1].str(), n);
+            out.line("check_toolgun_weapons: {} ({}) has no row in the toolgun's Weapons section", group(*it, 1), n);
             ++missing;
         }
     }
