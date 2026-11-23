@@ -11553,3 +11553,47 @@ beta2's re-signed APK and the shipped progs.dat (8a409520...) back. Scripts (not
   tells the player to uninstall, copying saves first): the notes give the manual steps (File Explorer,
   `Android/data/com.vittorioromeo.quakevr/files/quakevr`'s `*.sav` + `ironwail.cfg`, uninstall, Setup, copy back).
   Quest 3S untested (a hub-crash report being looked at); Standalone experimental.
+
+## animfix1123: armed humanoids unposed on big maps, scenes' leaked toggles (2026-11-24)
+
+- **Stuck arms, floating guns (his notes 2026-11-23 23:36:33, 23:34:15, 23:03:39, all ad_crucial).** The client kept
+  the armed humanoids' arm poses (QVR_SVC_ARMPOSE) in 64 slots (`vr_hitreact_internal.hpp` maxArmPoses), freed only
+  after 0.3 s without a message. The server sends one for every armed humanoid at least every 8 frames
+  (vr_agrunt_pose_lod_frames), so none ever went stale: ad_crucial has 97, the first 64 in the server's order kept the
+  slots and the rest (his enforcer was entity 1884) found none. Those were drawn with their arms as the frames have
+  them and their weapons where the server places them (ahead of the body): "IK stuck in one pose", "the Defender's gun
+  floating in front". A load (or a scene's fresh map) re-dealt the slots, so it showed after loads. Measured before the
+  fix: 64 of 64 slots live, 1274 messages in 300 frames found none. Now: 128 slots, and a message for a humanoid drawn
+  this packet (its entity sent before the broadcast datagram) takes the slot of one not drawn, the longest posed ago
+  (`armPoseOf`). After: 97 of 128 live, 0 found none. When posed, a weapon is placed from the solved hand
+  (`out.weapon = H * grip * offset`), so it cannot float; ad_crucial at his note's spot over 1200 frames of combat, before
+  and after a save/load: reach short right 1.4 / left 11-16 units (the off hand's own targets in strikes), every drawn
+  one posed. humrepl_variants (the eight AD soldiers, the Defender among them): reach short 0 / 0 over 800 frames.
+- **Check:** `vr_agrunt_armpose_check [label|done]` (Debug > Armed Humanoids: Arm Pose Slots): drawn and posed armed
+  humanoids, slots live, the drawn ones' messages that found no slot since the last check, slots taken from undrawn
+  ones; `<label>` passes with none found and some posed; `done` prints `armposecheck: N passed, M failed`.
+  `vr_agrunt_armpose_slots N` (test only, 0 all) caps the slots. The test (save -> load), AD mounted:
+  `run.sh <agent> -Games "-game hipnotic -game rogue -game ad -game quakevr" -QuitOn "armposecheck: \d+ passed"
+  -Script "map ad_crucial;vr_agrunt_armpose_slots 16;wait200;vr_agrunt_armpose_check fresh;save t;load t;wait200;
+  vr_agrunt_armpose_check loaded;vr_agrunt_armpose_slots 0;vr_agrunt_armpose_check done;toggleconsole;quit"` -> 2 passed
+  (one slot taken from an undrawn one after the load). Scene `agrunt_saveload`: ad_crucial where his note was made.
+- **Scenes' leaked toggles (his note 23:03:39: "a remnant of the previous test").** The Pose, Rig and Armour Studios
+  saved vr_agrunt_freeze when opened and put that value back when they closed, which a stale studio does on its next
+  frame after a map change: a scene with `cvar vr_agrunt_freeze 1` (agrunt_holds_enforcers, the pose_* scenes) and a
+  studio opened in it ended, the scene put freeze back to 0, then the studio put its 1 back and the next scene's
+  humanoids stood frozen (reproduced: rigstudio_strike then agrunt_saveload, SCNLEAK vr_agrunt_freeze 0 -> 1). Each now
+  puts its value back only while freeze is still on. And every scene now snapshots every setting at its start; at its
+  end each non-archived `vr_` setting that differs is printed (`SCNLEAK|<id>|<cvar>|<before>|<now> (put back)`) and
+  put back; runall counts a scene that leaked as failed (scenario_check.sh fails on it). Not counted (state or menu
+  mirrors, not toggles): vr_run_seed, vr_blood_tally*, vr_handedness, vr_gore_preset, vr_menu_*, vr_agrunt_grip_*
+  (setting one back would write his grips), vr_armourstudio_*, vr_humstudio_*. Archived settings (his own, changed
+  in the menus during a test) are kept. scenario_check: 181 scenes, the only leaks were those mirrors (now excluded).
+- **Bots' left holsters (his note dm3 23:05:16): not fixed.** `vr_mp_gearcheck 4 1` on mp_dm_passive: every piece of
+  the bot's matches the viewer's own in the same holster within 7 mm and 1.2 degrees, left and right alike (the guns
+  on 2 and 3, the sheaths on 2-5), and the mirrored flag is the same code on both paths (holsterOnOther, drawHolsters).
+  So the copy wears exactly what your own body wears; if its left side reads wrong, your own left holsters' turn is
+  the same (mirroring yaw and roll by the frame's side: holsterRotation) and the question is what the left should be.
+  The check compares the models' forward and up only, not their mirroring. Next: an eyeshot of a bot's left and right
+  hips side by side, and his own left hip from above.
+- **Wall glue (his note vrtutorial 23:14:32): not started** (out of budget): an A/B test with the active ragdoll's lean
+  off is left.

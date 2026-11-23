@@ -634,9 +634,11 @@ void restoreSettings()
 // measuring tag...; not its `cvar` lines, put back above): each non-archived vr_ setting that differs from the scene's
 // start, printed (SCNLEAK: runall counts it failed) and put back, so the next scene starts clean (his note of
 // 2026-11-23 23:03:39). The archived ones are his settings (a change made in the menus during a test stays).
-// Not toggles: the game's own state (the run's seed, the blood tallies) and the studios' panels' mirrors of their
+// Not toggles: the game's own state (the run's seed, the blood tallies), the menus' shown presets (a run set-up's new game
+// sets Handedness and Gore, kept as his) and the studios' panels' mirrors of their
 // subject (a grip's fields: setting one back would write it into his grips).
-constexpr const char* leakNotToggles[] = {"vr_run_seed", "vr_blood_tally", "vr_agrunt_grip_", "vr_armourstudio_", "vr_humstudio_"};
+constexpr const char* leakNotToggles[] = {"vr_run_seed", "vr_blood_tally", "vr_handedness", "vr_gore_preset", "vr_menu_",
+    "vr_agrunt_grip_", "vr_armourstudio_", "vr_humstudio_"};
 
 void restoreLeaks()
 {
