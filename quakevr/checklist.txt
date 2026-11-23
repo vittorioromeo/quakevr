@@ -102,6 +102,8 @@ Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down
 [9. Arcane Dimensions]
 Arcane Dimensions' rocket, grenade and plasma soldiers, defenders, eliminators, pyros, fumigators and crossbow knights hold their own gun as armed humanoids: disarm them, tug and shoot the guns out. {test:humrepl_variants}
 AD maps (ad_azad, ad_tears): grates, bars and pillar rows stop you without blocking any path you could walk before. {test:ad_azad_grates}
+In ad_crucial, save and load where the armed enforcer with a nail pistol and an axe comes for you: every armed grunt's and enforcer's arms follow its weapons after the load, never stuck in one pose with the weapons moving or floating ahead of them (Debug > Armed Humanoids: Arm Pose Slots says 0 found none). {test:agrunt_saveload}
+Run the frozen enforcers' Weapon Holds test, open the Pose Studio there, then run ad_crucial's lift test: the enforcers by the lift move and hold their guns animated, none left frozen from the test before. {test:ad_crucial_lift}
 
 [10. Survival Arena (Select Campaign > Arena Mode)]
 Play the arena a while: it feels good and each new wave starts without a hitch; note anything to improve. {test:arena_run}
