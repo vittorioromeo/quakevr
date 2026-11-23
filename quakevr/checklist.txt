@@ -45,6 +45,9 @@ Dwell's Rotary Shotgun in hand: your hand goes into a hole at the back of its ho
 Dwell's Rotary Shotgun: the ammo screen sits on the housing's top at the back in a wedge like the super nailgun's, tilted up to your eye in a riveted brown bezel, readable as you aim. {test:dwell_rotary}
 Dwell's Rotary Shotgun: the shell port on the inner side is a little bigger, black and set into the gun (not shiny); reloading there still fills it. {test:dwell_rotary}
 Dwell's Rotary Shotgun: four separate round barrels with deep gaps between them, open holes at the front, still turning as you fire; no orange flare on the housing's underside. {test:dwell_rotary}
+Flat-screen or VR: hold fire with Dwell's Crystal Lance: violet sparks gather at the crystal tip, a violet light there grows and a hum rises for about a second; let go early and they fade out smoothly with no shot and no cells spent. {test:dwell_lance_pole}
+Flat-screen or VR: hold Dwell's Crystal Lance's fire until fully charged (the light pulses), then let go: it fires once (6 cells) and its lightning bolt stays visible for a moment instead of flickering. {test:dwell_lance_pole}
+In multiplayer, a player charging Dwell's Crystal Lance shows the gathering sparks, light and hum at his Lance's tip to the others, and they see his bolt when he fires. {test:mp_coop_bot}
 
 [2. Quoth]
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open {test:hub_start}
