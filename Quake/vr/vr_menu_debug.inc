@@ -534,6 +534,12 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_xr_direct 1 (a probe, the Quest only): each eye's scene drawn straight into the headset's image, no "
                   "post-process (no tone curve: bright colours clip), single-pass stereo off; vr_xr_foveation then reaches "
                   "the scene. vr_xr_direct 0 and vr_stereo_single 1 undo it."),
+        command("Quest Foveation Centred by the Game", "vr_xr_foveation_refocus 1")
+            .help("vr_xr_foveation_refocus 1 (the Quest only): the eye image's foveation centred on the eye's view in the "
+                  "part of the image drawn (dynamic resolution draws a part), with the game's levels; 0 (Quest Foveation "
+                  "Centred by the Runtime) the runtime's own."),
+        command("Quest Foveation Centred by the Runtime", "vr_xr_foveation_refocus 0")
+            .help("vr_xr_foveation_refocus 0: the runtime's own foveation (the image's centre, its levels)."),
         command("Rig Lights Off the Walls (Quest)", "vr_rig_lights_world 0")
             .help("vr_rig_lights_world 0: under the ES profile's plain lights' loop (the Quest), the small lights of your "
                   "own gear (the guns' screens, the wrist gadget) light your hands and gear only, not the walls: cheaper "

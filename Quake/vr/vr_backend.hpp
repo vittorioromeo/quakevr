@@ -260,6 +260,12 @@ public:
     // GL texture to render an eye into, between acquire and release.
     [[nodiscard]] virtual unsigned acquireEyeImage(int eye) = 0;
     virtual void releaseEyeImage(int eye) = 0;
+    // Changes whenever the eye images are new (new swapchains: a GL name acquireEyeImage gave before may now be another
+    // image): framebuffers kept per image (vr_xr_direct 2) are made again.
+    [[nodiscard]] virtual unsigned eyeImagesSerial() const
+    {
+        return 0;
+    }
 
     // Finishes the frame begun by beginFrame; `rendered` if the eye images were rendered (or, FrameState::hold, the last
     // rendered ones are to be shown again).

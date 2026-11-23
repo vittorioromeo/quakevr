@@ -674,8 +674,14 @@ QVR_CVAR(vr_xr_foveation_probe, "0", CVAR_NONE)
 // with the composite's depth texture, 2 with a depth renderbuffer of its own (what vr_xr_foveation uses when this is 0);
 // no post-process: the scene's shaders roll colours off with the tone curve, the in-tile pass grades and dithers (qfov,
 // vr_tonemap.cpp); one pass an eye (not single-pass stereo). -1: never (the post-process path even with foveation). On the
-// Quest 3 form 2 with foveated images crashed the runtime in xrEndFrame at once (qfov), so foveation takes form 1.
+// Quest 3 qfov's form 2 (one framebuffer, its colour swapped each eye, the depth at the drawn size) with foveated images
+// crashed the runtime in xrEndFrame at once; qfov2's (a framebuffer per image, the image attached for good, the depth at
+// the image's size: Meta's samples') is what foveation takes (form 1's unfoveated depth texture keeps it from foveating).
 QVR_CVAR(vr_xr_direct, "0", CVAR_NONE)
+// qfov2: the eye image's foveation focal point set by the game before each eye (vr_stereo.cpp refocusImage) on the eye's
+// projection centre in the part of the image drawn (vr_eye_subimage, dynamic resolution); 0 the runtime's own (the
+// image's centre, its levels' gains).
+QVR_CVAR(vr_xr_foveation_refocus, "0", CVAR_NONE)
 // The headset panel's pixels per eye, "WxH", for the menu's status box (the runtime's resolution and the eyes' as a
 // share of it, and its warning); "" looked up by the headset's name (Quest 2, 3, 3S, Pro, Index, Vive, Reverb G2,
 // Pico 4...: SteamVR names none, Virtual Desktop and Meta do).
