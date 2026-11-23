@@ -743,6 +743,10 @@ QVR_CVAR(vr_alias_prepass_world, "1", CVAR_ARCHIVE) // saved (C5j): the Quest pr
 // authored rig, their armour, ragdolls) drawn as one batch, their bones in one buffer (PC ThinLTO: ragdolls_32_active
 // -0.11 ms GPU, combat_48 even; ROUND25); 0 a batch each, as before.
 QVR_CVAR(vr_alias_batch_posed, "1", CVAR_NONE)
+// The opaque world and brush models' depth pre-pass (r_world.c): 1 drawn first, so their shading runs once a pixel;
+// 0 shaded as drawn (an A/B switch: the Quest 3 gib fight measured no gain, questperf).
+QVR_CVAR(vr_world_prepass, "1", CVAR_NONE)
+QVR_CVAR(vr_debug_hide_models, "", CVAR_NONE)   // alias models whose name holds any of these comma-separated parts are not drawn in the eyes (vr_render.cpp VR_AliasDebugHidden; questperf)
 QVR_CVAR(vr_gl_passes, "0", CVAR_NONE)            // 1: the next frame's draw framebuffer binds and alias batches listed in the console (vr_profile.cpp; back to 0 after)
 QVR_CVAR(vr_perf_record, "0", CVAR_NONE)
 // Tests of the choice without the real runtimes (docs/vr-port/TESTING.md, "OpenXR runtime choice"): vr_xr_test 1 reads

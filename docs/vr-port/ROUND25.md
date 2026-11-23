@@ -10310,3 +10310,29 @@ His ask: could the debug-type APK cost performance; a release build for the next
   then `run-as tar` (not run end to end).
 - Headset left on beta2 (questperf's qp_restore: re-signed beta2 APK, versionName 1.1.0, shipped progs.dat md5
   8a409520). Left there: `ar_gore.cfg` in files/quakevr and /data/local/tmp, perf CSVs in the app's files/perf.
+
+## questperf: where the close-up gib fight's Quest frame goes (agent/questperf, 2026-11-23)
+
+Follows "questgore". Headset over USB (his OK), asleep with the home shell in front before each launch; this branch's
+APK signed with the quest tree's debug key (`adb install -r`, never an uninstall) and its test progs.dat; at the end
+beta2's re-signed APK and the shipped progs.dat (md5 8a409520...) put back. QUEST_OPTIMISATIONS.md "Quest gib fight"
+has the table.
+- **The costs** (GPU ms, both eyes, 0.65 fixed): base 15.8 (21% of frames late); the world ~8 (`r_drawworld 0`: 7.8),
+  your own rig ~2.5 (body, hands, held guns, gear hidden: 13.3), the gore ~1.9 (gibs, heads, limbs: 13.9), dropped
+  guns/packs/armour ~0.5, particles 0. Entities all hidden: 10.6, 0.2% late. Render scale 0.55: 12.0, 1.1% late (holds
+  72 Hz); 0.6 = 0.65 and 0.58 -1.4 ms in later launches. Counts (PC mock): 240 draws, 88 alias, 72k alias triangles;
+  the gore is ~160 tiny instances. `ovrgpuprofiler -t`: 4 bins of 576x576 an eye, the main pass 5.2 / 6.7 ms, the
+  compositor's preemption ~0.5 ms three times a frame, ~1.8 fragments a pixel with the world's depth pre-pass in it.
+- **Tried:** the world's depth pre-pass off (`vr_world_prepass`, new, default 1, not saved): no gain over three
+  launches (the first launch's -2.2 ms was the gibs' random cuts; fixed seeds after). Anisotropy 1 / 4: nothing seen
+  (not clean: the world's texture arrays take the filter at the map's load). No default changed; 72 Hz not reached
+  with the look kept.
+- **Noise:** the base drifted 15.4 -> 18.1 ms across the session (the headset warming) and parts of one setting
+  +-1.5 ms within a launch; seeds (`sv_random_seed 7; vr_particle_seed 7; vr_map_seed 7`) fix the cuts. Only gaps of
+  ~2 ms read; the next A/Bs want `vr_xr_gpu_level` pinned or a cool headset and 4+ rounds.
+- **Tools:** `vr_debug_hide_models <parts>` (Debug > Profiling: Hide Gibs, Heads and Limbs / Show Every Model): alias
+  models whose name holds a part are not drawn in the eyes. Scripts (not committed): `scratch/qp_*` (qp_apk.sh build
+  and sign, qp_install.sh / qp_restore.sh, qp_run.sh, qp_trace.sh, qp_mkab.sh, qg_ab.py with mean period and late
+  share, qp_hist.py, qp_batches.py for `vr_gl_passes`).
+- **Next:** the world's own ~8 ms at 0.65 (its shading per pixel: the scene is fill-bound) and your rig's 2.5 ms (the
+  body's skin form, the held gun close to the eyes); his call whether the 72 Hz floor goes to 0.55 in fights.
