@@ -45,6 +45,8 @@ extern GLuint gl_bmodel_marksurf_buffer;
 extern GLuint gl_bmodel_marksurf_buffer_size;
 extern GLuint gl_bmodel_vertcmd_buffer; // QVR: the bound path's world textures in arrays (r_brush.c)
 extern int *gl_bmodel_cmdcap, gl_bmodel_numcmds; // QVR
+extern bmodel_draw_indirect_t *gl_bmodel_cmds; // QVR: r_brush.c (qfov3)
+extern int gl_bmodel_cmds_count;
 
 typedef struct gpumark_frame_s {
 	vec4_t		frustum[4];
@@ -518,6 +520,11 @@ static union {
 	} bound;
 } bmodel_calls;
 static bmodel_gpu_call_remap_t		bmodel_call_remap[MAX_BMODEL_DRAWS];
+// QVR: qfov3, a flush's draws without the gather (vr_gl_one_pass, R_BModelCallsOnePass): each call's indirect command,
+// in the cull's buffer (one instance) or in the commands made here for its instances (bmodel_onepass_cmds, uploaded)
+static bmodel_draw_indirect_t		bmodel_onepass_cmds[MAX_BMODEL_DRAWS];
+static GLuint						bmodel_call_cmdbuf[MAX_BMODEL_DRAWS];
+static size_t						bmodel_call_cmdofs[MAX_BMODEL_DRAWS];
 static int							num_bmodel_calls;
 static GLuint						bmodel_batch_program;
 static int							bmodel_relief_filter; // QVR: R_AddBModelCall keeps 0 every call, 1 only those with parallax relief, 2 only those without (R_DrawSolidSplit)
@@ -700,7 +707,7 @@ its barrier: no compute pass of its own between the draws (on a tiler each one m
 typedef struct { int numgroups, numitems; GLuint idxbuf, grpbuf; size_t idxofs, grpofs; } bmodel_merge_t;
 static bmodel_merge_t bmodel_merge; // R_MergeBModelCallsArrays' groups, for R_DrawBModelCallsArrays
 
-static qboolean R_MergeBModelCallsArrays (qboolean depthonly)
+static qboolean R_MergeBModelCallsArrays (qboolean depthonly, qboolean nomerge) // QVR: nomerge: grouped, none merged (qfov3: no compute)
 {
 	int			i, g, k, numgroups = 0, numitems = 0;
 	GLuint		capacity = 0;
@@ -750,7 +757,7 @@ static qboolean R_MergeBModelCallsArrays (qboolean depthonly)
 			numgroups++;
 		}
 		bmodel_group_of[i] = g;
-		if (bmodel_calls.bound.numinst[i] == 1 && cmd >= 0 && cmd < bmodel_cmd_count && gl_bmodel_cmdcap[cmd] > 0 &&
+		if (!nomerge && bmodel_calls.bound.numinst[i] == 1 && cmd >= 0 && cmd < bmodel_cmd_count && gl_bmodel_cmdcap[cmd] > 0 &&
 			bmodel_cmd_stamp[cmd] != bmodel_flush_stamp)
 		{
 			bmodel_cmd_stamp[cmd] = bmodel_flush_stamp;
@@ -846,13 +853,71 @@ static void R_DrawBModelCallsArrays (GLuint twin, GLuint twin2, qboolean depthon
 			if (bmodel_group_of[i] != g || merged[i])
 				continue;
 			GL_Uniform1iFunc (0, i);
-			GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)(cmdofs + i * sizeof (bmodel_draw_indirect_t)));
+			if (!cmdbuf) // QVR: without the gather (qfov3): each call's own command
+			{
+				GL_BindBuffer (GL_DRAW_INDIRECT_BUFFER, bmodel_call_cmdbuf[i]);
+				GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)bmodel_call_cmdofs[i]);
+			}
+			else
+				GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)(cmdofs + i * sizeof (bmodel_draw_indirect_t)));
 			alone++;
 		}
 	}
 	VR_WorldArraysCount (many, bmodel_merge.numitems, alone, bound);
 }
 
+
+/*
+=============
+R_BModelCallsOnePass -- QVR
+
+qfov3 (vr_gl_one_pass, the bound path under OpenGL ES): the flush's calls drawn without the gather, so that no compute
+runs between an eye's draws (on a tiler each dispatch ends the render pass: the passes after it reload the colours and
+depths, and the runtime's foveation scales only a pass that starts cleared). On ES the gather only copies a command
+(its instances' count; baseInstance must be 0): a call of one instance is drawn from the cull's command itself, a call of
+more from a command made here from the brush model's own (gl_bmodel_cmds: those the cull never changes). False (the
+gather then): a call of more instances on a command the cull fills (the world drawn twice through a teleporter's gate).
+=============
+*/
+static qboolean R_BModelCallsOnePass (void)
+{
+	int		i, n = 0, worldcmds = cl.worldmodel->texofs[TEXTYPE_COUNT];
+	GLuint	buf = 0;
+	GLbyte	*ofs = NULL;
+
+	if (gl_bindless_able || !VR_GLOnePass ())
+		return false;
+	for (i = 0; i < num_bmodel_calls; i++)
+	{
+		int cmd = bmodel_calls.bound.cmd[i];
+		qboolean culled = cmd < worldcmds || (gl_bmodel_litcmd_first >= 0 && cmd >= gl_bmodel_litcmd_first &&
+			cmd < gl_bmodel_litcmd_first + gl_bmodel_litcmd_count);
+		if (bmodel_calls.bound.numinst[i] == 1)
+			continue;
+		if (culled || cmd < 0 || cmd >= gl_bmodel_cmds_count)
+			return false;
+		bmodel_onepass_cmds[n] = gl_bmodel_cmds[cmd];
+		bmodel_onepass_cmds[n].instanceCount = bmodel_onepass_cmds[n].count ? (GLuint) bmodel_calls.bound.numinst[i] : 0u;
+		bmodel_onepass_cmds[n].baseInstance = 0;
+		n++;
+	}
+	if (n > 0)
+		GL_Upload (GL_DRAW_INDIRECT_BUFFER, bmodel_onepass_cmds, sizeof (bmodel_onepass_cmds[0]) * n, &buf, &ofs);
+	for (i = 0, n = 0; i < num_bmodel_calls; i++)
+	{
+		if (bmodel_calls.bound.numinst[i] == 1)
+		{
+			bmodel_call_cmdbuf[i] = gl_bmodel_indirect_buffer;
+			bmodel_call_cmdofs[i] = (size_t) bmodel_calls.bound.cmd[i] * sizeof (bmodel_draw_indirect_t);
+		}
+		else
+		{
+			bmodel_call_cmdbuf[i] = buf;
+			bmodel_call_cmdofs[i] = (size_t) ofs + n++ * sizeof (bmodel_draw_indirect_t);
+		}
+	}
+	return true;
+}
 
 /*
 =============
@@ -867,7 +932,7 @@ static void R_FlushBModelCalls (void)
 	GLuint	twin = 0; // QVR: the program's array twin (the world's textures in arrays: vr/vr_worldarrays.cpp)
 	GLuint	twin2 = 0; // QVR: the second program's (C4v)
 	int		seg; // QVR: the second program's first call (num_bmodel_calls: none)
-	qboolean depthonly = false, merging = false;
+	qboolean depthonly = false, merging = false, onepass;
 
 	if (!num_bmodel_calls)
 		return;
@@ -884,11 +949,21 @@ static void R_FlushBModelCalls (void)
 		}
 	}
 
+	onepass = R_BModelCallsOnePass (); // QVR: qfov3, no gather (no compute between the eye's draws)
+	if (onepass)
+	{
+		cmdbuf = 0;
+		dstcmdofs = 0;
+		if (twin)
+			R_MergeBModelCallsArrays (depthonly, true); // (grouped, none merged: its merge is a compute too)
+	}
+	else
+	{
 	GL_ReserveDeviceMemory (GL_DRAW_INDIRECT_BUFFER, sizeof (bmodel_draw_indirect_t) * num_bmodel_calls, &cmdbuf, &dstcmdofs);
 
 	GL_BeginGroup ("cs: gather indirect draws"); // QVR: (vr_gl_markers)
 	if (twin) // QVR: (its own bindings; the gather's are made after)
-		merging = R_MergeBModelCallsArrays (depthonly);
+		merging = R_MergeBModelCallsArrays (depthonly, false);
 	GL_UseProgram (glprogs.gather_indirect);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 5, gl_bmodel_indirect_buffer, 0, gl_bmodel_indirect_buffer_size);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 6, cmdbuf, dstcmdofs, sizeof (bmodel_draw_indirect_t) * num_bmodel_calls);
@@ -897,6 +972,7 @@ static void R_FlushBModelCalls (void)
 	GL_DispatchComputeFunc ((num_bmodel_calls + 63) / 64, 1, 1);
 	GL_MemoryBarrierFunc (GL_COMMAND_BARRIER_BIT | (merging ? GL_ELEMENT_ARRAY_BARRIER_BIT : 0)); // QVR: (the merge's indices)
 	GL_EndGroup (); // QVR
+	}
 
 	GL_UseProgram (bmodel_batch_program);
 	VR_RetroBind (QVR_RETRO_LUT_UNIT_WORLD); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
@@ -946,6 +1022,12 @@ static void R_FlushBModelCalls (void)
 			GL_Bind (GL_TEXTURE3, bmodel_calls.bound.textures[i][2]); // QVR: the normal map
 			GL_Bind (GL_TEXTURE11, bmodel_calls.bound.textures[i][3]); // QVR: the specular map (SpecTex)
 			VR_GLProbeState ("a world call"); // QVR: vr_gl_probe (Debug > Startup)
+			if (onepass) // QVR: the call's own command (qfov3)
+			{
+				GL_BindBuffer (GL_DRAW_INDIRECT_BUFFER, bmodel_call_cmdbuf[i]);
+				GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)bmodel_call_cmdofs[i]);
+			}
+			else
 			GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)(dstcmdofs + i * sizeof (bmodel_draw_indirect_t)));
 		}
 		if (twin) // QVR

@@ -758,6 +758,10 @@ QVR_CVAR(vr_alias_batch_posed, "1", CVAR_NONE)
 // The opaque world and brush models' depth pre-pass (r_world.c): 1 drawn first, so their shading runs once a pixel;
 // 0 shaded as drawn (an A/B switch: the Quest 3 gib fight measured no gain, questperf).
 QVR_CVAR(vr_world_prepass, "1", CVAR_NONE)
+// qfov3: under OpenGL ES (the Quest), 1 the brush models drawn from the cull's own commands, without the gather's and
+// the arrays' merge's compute between the draws, so that an eye is one render pass on the tiler (no reloads; the
+// runtime's foveation reaches the whole scene); 0 gathered and merged as before (an A/B switch). No effect on the PC.
+QVR_CVAR(vr_gl_one_pass, "1", CVAR_NONE)
 QVR_CVAR(vr_debug_hide_models, "", CVAR_NONE)   // alias models whose name holds any of these comma-separated parts are not drawn in the eyes (vr_render.cpp VR_AliasDebugHidden; questperf)
 QVR_CVAR(vr_gl_passes, "0", CVAR_NONE)            // 1: the next frame's draw framebuffer binds and alias batches listed in the console (vr_profile.cpp; back to 0 after)
 QVR_CVAR(vr_perf_record, "0", CVAR_NONE)
