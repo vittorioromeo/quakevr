@@ -109,6 +109,25 @@ QVR_VIEW_UV_GLSL
 "		out_fragcolor.rgb += n * Dither.x * clamp(m * 255.0, 0.0, 1.0);\n" \
 "	}\n"
 
+// The colour the world, the liquids and the models write (after the frame data, which holds SceneTone): clamped at
+// SceneTone.x (1, or the float scene's top), or, negative, drawn straight into the eye's 8-bit image (vr_xr_direct,
+// the Quest's fixed foveation): times the exposure (-SceneTone.x), rolled off with the post-process's tone curve
+// (QvrTonemap, vr_tonemap.h, with vr_tonemap.hpp's knee 0.8 and white point 4: w = 16) instead of clipping at 1.
+#define QVR_SCENE_TONE_GLSL \
+"vec3 QvrSceneTone(vec3 c)\n" \
+"{\n" \
+"	if (SceneTone.x >= 0.0)\n" \
+"		return clamp(c, 0.0, SceneTone.x);\n" \
+"	c = max(c, 0.0) * -SceneTone.x;\n" \
+"	float m = max(c.r, max(c.g, c.b));\n" \
+"	if (m <= 0.8)\n" \
+"		return c;\n" \
+"	float t = (m - 0.8) / 0.2;\n" \
+"	float top = 0.8 + 0.2 * min(t * (1.0 + t / 256.0) / (1.0 + t), 1.0);\n" \
+"	float over = clamp((m - 1.0) / 3.0, 0.0, 1.0);\n" \
+"	return mix(c * (top / m), vec3(top), over * 0.8);\n" \
+"}\n"
+
 // the frame data's Quake VR fields (lights, liquids, detail, tone)
 #define QVR_FRAMEDATA_FIELDS \
 "	uint	ShadowFlags; // QVR\n" \
@@ -215,6 +234,7 @@ QVR_STEREO_VIEWS \
 "	vec4	FramePortalMax[8];\n"\
 "};\n"\
 "\n"\
+QVR_SCENE_TONE_GLSL \
 
 // The shaders' pieces by family, in their old order (the head above and the tail below stay here).
 #include "vr_glsl_lighting.h"

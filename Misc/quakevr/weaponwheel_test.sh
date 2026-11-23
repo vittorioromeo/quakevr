@@ -3,7 +3,8 @@
 # QC vr_flatholster.qc VR_Wheel_Pick; docs/vr-port/ROUND25.md, "weaponwheel", "flatwheel"). Fast mode; the run ends on
 # the test's own verdict line (-QuitOn "weaponwheel_test: N passed, M failed").
 #   (headset, the mock) vr_weaponwheel_test: a nailgun in the right hand (its grip held), a shotgun in the right shoulder
-#   holster; B held opens the wheel round the right hand (nine slots: the empty hand, six holsters, DROP, UNLOAD) and time
+#   holster; B held opens the wheel round the right hand (its press kept from the server: the nailgun's magazine stays
+#   in, the same rounds once holstered and drawn; a 2-frame tap of Y later still ejects it: ROUND25 "holsterammo") (nine slots: the empty hand, six holsters, DROP, UNLOAD) and time
 #   slows to vr_weaponwheel_timescale; the hand moved onto the right shoulder's slot lights it (a haptic tick), B let go:
 #   the shotgun in the right hand, the nailgun into a holster; the left hand's Y held, the hand moved off the wheel, let
 #   go: nothing moves; Y again onto the nailgun's slot: the left hand (its grip not held) takes it and keeps it; the right

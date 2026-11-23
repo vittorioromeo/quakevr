@@ -1,7 +1,0 @@
-# tutorial_lessons: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The tutorial's lessons 12-14
-# (tutorial5, ROUND25.md): you start inside lesson 12's room (blades), through room 11b's south door; lesson 13 (bash
-# and bat) is east through the door its target opens, lesson 14 (ropes, armour) south of that, the arena's hall after.
-title The tutorial's lessons 12-14: blades, bash and bat, ropes and armour
-map vrtutorial
-start 1856 -380 -120 270
-hint Lesson 12: take a blade, cut and stab the dummy, throw the axe at the target; then on to lessons 13 and 14.

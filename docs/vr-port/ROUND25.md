@@ -10431,6 +10431,35 @@ has the table.
 - **Next:** the world's own ~8 ms at 0.65 (its shading per pixel: the scene is fill-bound) and your rig's 2.5 ms (the
   body's skin form, the held gun close to the eyes); his call whether the 72 Hz floor goes to 0.55 in fights.
 
+## qfov: the Quest's eyes straight into the headset's images with the look kept; Quest Foveation (branch agent/qfov, 2026-11-23)
+
+Step 1 (PC-side; the headset block is queued behind qworld and qtune):
+- **Straight into the images keeps the look.** `vr_xr_direct` (1 the composite's depth texture, 2 a depth renderbuffer
+  of the eye's own, kept on chip and invalidated, as Meta's samples) now also turns on by itself, in form 2, whenever the
+  runtime's foveation is on (`vr_xr_foveation` > 0 on Android): the runtime foveates only its swapchain images, so the
+  scene must be drawn there for the tiler's scaled bins to reach it (6w's "no effect" was the scene drawn into our own
+  float target). The tone curve moved into the scene's shaders: `QvrSceneTone` (vr_glsl.h, spliced after both frame-data
+  blocks) at the world's, the liquids' and the models' old clamps; `SceneTone.x` negative (`VR_SceneTone`) means "drawn
+  straight into an 8-bit image: times the exposure, rolled off with the post-process's curve (knee 0.8, white 4)". The
+  post-process's later steps (bullet time's look, the comfort vignette, the grade, the dither:
+  `QVR_POSTPROCESS_GRADE_DITHER`, unchanged) run as an in-tile pass right after the scene, in its render pass, each pixel
+  read where it is (`GL_EXT_shader_framebuffer_fetch`; `tonemap::drawInTile`, source `VR_InTileFragmentGLSL` in
+  gl_shaders.c). Falls back to the post-process per frame (one console line says why) for an exposure other than 1, the
+  headset gamma/contrast, bloom, OIT, under water, single-pass stereo, a resampled eye, or no framebuffer fetch (the PC).
+  Dynamic resolution's buckets now work with it (the eye in the image's lower left part, vr_eye_subimage).
+- With the eye's own depth renderbuffer there is no depth texture: soft particles and the liquids' shoreline distances
+  go without, and particles are drawn at full size (no half-size target to put them over); `VR_SceneTarget` gives no
+  colour texture for such an eye.
+- **Quest Foveation** (VR Settings > Scaling, Quest only; dimmed on PC, the PC's Foveated Rendering dimmed on the
+  Quest): `vr_xr_foveation` 0-3 (Off/Low/Medium/High) and `vr_xr_foveation_dynamic` (new, 0: the runtime may lower the
+  level while the GPU has room). Still behind `-xrfoveation` until the headset shows no crash.
+- PC mock (-glescompat, Standalone, frozen gib fight at 0.65, grade and dither off: no framebuffer fetch on PC):
+  straight-in vs post-process eyeshots mean |d| 0.63/255 per channel (the particles at full size instead of half).
+- Headset block (ready: `scratch/qfov_mk.sh` makes `qfov_ab.cfg`, 12 interleaved parts P D L M H Y Y H M L D P, eyeshots
+  in the first of each; run with `-xrfoveation`): to measure GPU median/p90, CPU, period and late share per level, and
+  see the periphery; then lift the guard and pick the Standalone default only if it wins clearly.
+- **Headset block (13:00-13:11; the frozen gib fight at 0.65, retro off; P post-process path, F straight in):** foveation changed mid-game crashed at once (as C4p), so the level is set at launch. Form 2 (the eye's own depth renderbuffer) with foveated images crashed the runtime in xrEndFrame within its first frames (SIGSEGV 0x30 in libGLESv2_adreno under libvrapiimpl: three launches, with and without the in-tile pass, vr_gl_invalidate 1 or 0); without foveation form 2 runs, and form 1 (the composite's depth texture) runs foveated. At level 3, form 1 vs the post-process path, 4 interleaved parts each: GPU median 14.62 vs 15.01 ms, p90 14.96 vs 16.30, period 15.67 vs 16.03, late 12.1% vs 21.4%: the post-process's ~0.4 ms, no foveation gain (the scene with an unfoveated depth texture is not foveated, as 6w). The in-tile program compiled and linked on the Quest. Foveation's automatic form is now 1 (no crash); `vr_xr_direct -1` forces the post-process path. Eyeshots were exported (vr_android_export) but not pulled. **No default changed; the `-xrfoveation` guard stays.** Next (if pursued): a foveated depth renderbuffer or texture the driver accepts (QCOM_texture_foveated on our depth with the runtime's parameters, or a multisampled-render-to-texture depth as Meta's GLES sample), or XR_FB_foveation_vulkan's path.
+
 ## qworld: the world in the Quest's gib fight: retro decals keep the unlit world; Standalone turns retro off (branch agent/qworld, 2026-11-23)
 
 Follows "questperf" and the shader review (qvr-kit/scratch/shaderreview_report.md, finding 1 first). The Quest's world in
@@ -10692,3 +10721,99 @@ His flat feedback 2026-11-23, items 3, 5, 6. FLATPLAY.md, "The throw key", "The 
   flatpolish2_swim.png (looking up: now / `vr_flat_eye_pitched_body 0`), flatpolish2_parry.png, flatpolish2_throw.png.
   Scenes: flat_throw_2h (new), flat_swim (was missing on next). menu_paths.txt regenerated (+19 rows, 18 others').
 - Not tested: a crate thrown from both hands by J (the QC path), lying down looking up.
+
+## ropes12: thumbs wrap round ropes and poles (agent/ropes12, 2026-11-23)
+
+His ask 2026-11-23: the grip looked like a fist with the thumb over the fingers; the thumb should go round the other
+way from the fingers, meeting them, sized to the thickness. ROPES.md "Poles" (the hands round it).
+- **Why:** ropeHeld asked for Thumb on Top; and at every usual turn the open thumb is in the bar (a long cylinder in
+  the grip channel runs through the thumb's web), so the solve closed it from the fist: over the fingers. The rig's thumb
+  bends about an axis mostly along the palm's normal; opposed ~53 degrees that axis lies along the bar, and lifted off
+  the palm (a new third turn about the axis across it) the thumb clears the bar's near side and bends round it.
+- **Change:** `Held::thumbAround` -> `grasp::Settings::thumbAround` -> ThumbStyle Around: the usual turns plus 21
+  lifted ones (opposition 45/55/65 x lift 10-90); the turn reaching furthest round the bar the other way from the middle
+  finger wins (`aroundWraps`, in the shape's space: the bar along its z), a fist's thumb (from closed) only if none
+  closes from open; a kept turn gone bad is re-tried afresh. The thumb's controller curl is full on a rope (VR, as flat).
+  Shared: one grasp path for VR, flat and (through his snapshot's curls and thumb turn) another player's hands.
+- **Check:** `vr_rope_climb_check thumb <deg>` / flat `flatThumbCheck` (`ropeWraps`, `view::drawnFingerPoints`): each
+  drawn thumb's joints followed round the axis from the palm's middle. Before -79 (VR rope), -63 (VR pole), -49 (flat
+  pole); now 89 / 72 / 72, flat rope 90, chain 84 (bound 60). The meet (360 less thumb and middle finger): rope 126,
+  pole 172 short: the thumb's full curl is the limit; on a thinner rope it closes further.
+- **Cost:** an afresh Around solve 76 us median, 475 most (38 solves in the flat pole run, low-impact mode).
+- **Tests:** rope_climb_test 10 plays pass (rope_climb 12/0 with sink 0.3 and thumb, pole_wood/metal 11/0), rope_pump
+  5/1 (238 vs 250: known, the same on the base); rope_hands_test 6/0; rope_flat_test rope 9/0, pole 8/0, strung 5/0,
+  strungpole 5/0, chain 6/0. `vr_rope_flat_test <mode> shots` now also takes two close-ups of the hands.
+## weaponfx: thrown blades' kills thrown half as far; the super nailgun's barrels coast; the Lance charged at its middle crystal (agent/weaponfx, 2026-11-23)
+
+His feedback 2026-11-23, items 7-9.
+- **Thrown blade kills (7):** the kill push (QC combat.qc, `vr_kill_push`) times `VR_KillPush_Mult(inflictor)`: a thrown
+  weapon with an embed (weapons.txt: an axe, sword, dagger; VR and flat throws make the same `thrown_weapon`) gives
+  `vr_throw_kill_push` (tunable, 0.5; Debug > Tunables, "Thrown Blade Kill Push"); anything else 1. vr_debug_shots prints
+  "kill push: ... xN". Test `vr_embed_test 41` (vr_throwgib_test.qc) case 5: 20 damage on a fresh grunt's last point:
+  the player's blow 197.4 u/s, a thrown sword and axe 98.7 (0.50), a thrown shotgun 197.4; 23/0.
+- **Super nailgun spin (8):** vr_adweapons.cpp `spinFrame` drives v_nail2.mdl (and the lava variant, via
+  gunvariants::resolve) by the Widowmaker's and Rotary's `advance`: its firing frames 1..8 are an eighth of a turn each
+  (kick taken out in memory, vr_kickcancel), so the pose pair and blend come from the spin's phase (`SpinModel::ownFrames`,
+  45 degrees a step, 0.1 s a step at the top: Quake's own rate), coasting after the release to the nearest frame (frame 0
+  only at rest on a whole turn; frame 8 while turning so vr_gunfx's firing barrel is known). Spin-up/-down are the
+  Widowmaker's tunables. No motor whine (Quake's gun keeps its own sounds). vr_ad_widowmaker_spin_info prints its "own
+  frames". Test `Misc/quakevr/sng_spin_test.sh` (VR and flat) 10/0: turning while held, no jump or backward step over 100
+  frames after the release (215.6 deg at the release, at rest on 90.0), at rest on a frame. dwell_vrmodels 13/0 (the
+  Rotary's spin unchanged). Scenario `sng_spin`.
+- **Lance charge origin (9):** the spear model's (dw_lance, slot 55) muzzle_av "31.02 5.3 84.96" is the midpoint of its two
+  outer prongs' tips, a point in the air; an anchor binds to the surface nearest it, a prong's tip (vertex 273, 6.5 model
+  units off the pole's line): the charge was drawn there. vr_lancecharge.cpp now draws it at `tipVertex`: the vertex
+  furthest along the line from hand_av to muzzle_av (the anchors' own points) within 1 model unit of it, found once per
+  model: the spear's middle crystal (vertex 0, 28.16 5.27 77.41, on the pole's line; 3.96 world units from the old
+  place), the gun's (dw_rail) vertex 37 (14.45 0.13 5.64, its muzzle's own: 0.01 off). The beam's start (the muzzle) is
+  unchanged. vr_debug_gunfx prints "lancecharge: origin at the middle crystal's tip (...)". dwell_lance_test.sh 36/0 (new
+  check in section 3). Screenshot kit `scratch/weaponfx_lance_charge.png` (the head at the frame's edge),
+  `weaponfx_sng_coast.png` (coasting, then at rest).
+- Open: the spear's muzzle (the beam's start, the aim) is still the prongs' midpoint bound to a prong; moving muzzle_av to
+  the middle crystal's tip would start the bolt there too (his call: Weapon Offsets).
+
+## wheelpolish: the wheel's actions as buttons with icons; the view blurred behind the flat wheel (agent/wheelpolish, 2026-11-23)
+
+His flat feedback 2026-11-23. Follows "weaponwheel" and "flatwheel".
+- **Actions (both modes):** a `Choice` has an `icon` (`gadget::MenuIcon`, None for a slot); the holsters' provider gives
+  EMPTY HAND the wheel hand's hand icon, DROP the drop arrow and UNLOAD a new `MenuIcon::Unload` (a magazine, an arrow out
+  of its side). `render()` draws those as the holster menu's buttons (`holsterButton`, 56 x 32 against the slots' 68 x 46),
+  not as slots: a button 24 pixels tall or more stacks its icon above its label (sized to fit) and is lit with the drop
+  target's second ring, as a lit slot; greyed when unusable. The MMB menu's buttons are 12-14 tall: unchanged, except
+  UNLOAD now shows the new icon before its label (the same action, the same icon). The pick, hit test (by sector) and
+  provider are as before.
+- **Blur (flat):** `weaponwheel::blurRadius()` (the fade times `vr_flat_holster_menu_blur`, 0 in a headset's game);
+  `visor::menuBlur` takes the larger of the holster menu's and the wheel's (one path; the two never show together). The
+  Holster Menu Blur row's help and the cvar's comment mention the wheel. No new cvar.
+- **Tests:** weaponwheel_test 17/0 (VR mock), flat 17/0, flatholster_test 54/0; screenshots: the flat wheel over the
+  blurred view, the VR mock's wheel.
+## cltidy3: 51 ticked lines retired, the [New] section sorted (agent/cltidy3, 2026-11-23)
+
+Checklist 160 -> 114 lines; five scenes only the retired lines used moved out; details in CHECKLIST_REORG.md, "Checklist
+tidy, third pass". checklist_tests_check 86 passed, 0 failed. Nothing else touched.
+## holsterammo: the weapon wheel's hold no longer ejects the magazine (agent/holsterammo, 2026-11-23)
+
+Follows "flatwheel"'s noticed item (the nailgun put into a holster by the wheel came back with an empty clip).
+- **Cause: not the holsters.** B/Y is both the wheel's button (`vr_weaponwheel_button` 0) and the magazine's eject
+  (`vr_reload_eject_button`, Immersive reloading). The wheel lets its button's press reach the game at once, so the
+  hold's press edge reached the server: the nailgun's magazine (24 rounds) fell out on the floor a frame later, before
+  the wheel even opened (diagnosed: 24 before the press, 0 at the open, 0 nails in the reserve). The same edge breaks
+  open the super shotgun (`vr_reload_ssg_break` by button) and swings out the revolver's cylinder. The shotgun kept its 8:
+  no magazine.
+- **Every holster path keeps its rounds** (checked, nothing to fix): let go at a holster and drawn by a grip there, 5 and
+  2 (flat keys), the wheel's EMPTY HAND / slot / trade, the holster menu's swap, in reloading modes 1, 2, 3, headset and
+  flat: the record (`.weaponinst`, its clip, `QVR_WPNFLAG_NOMAG`) travels with the gun. The holsters' reload (modes 1,
+  2) takes from the reserve, clip + reserve conserved; Immersive never reloads the nailgun at a holster; flat never at
+  a holster. Quick Slots has no clips (`VRIsWeaponReloadingEnabled` needs Immersive holsters): the reserve untouched.
+- **Fix** (`vr_input.cpp` WheelHold, `wheelMoveBit`): the wheel's button's bit sent with the move
+  (`QVR_BUTTON_*HANDSECONDARY`, or PRIMARY for `vr_weaponwheel_button` 2) is held back while the hold may still open the
+  wheel and that hand holds a weapon (`weaponwheel::holdsButtonBack`: canOpen and not the fist); let go before the wheel
+  opens (a tap), the bit goes for 0.1 s (`wheelTapPulse`: a press edge a server at any frame rate sees). The game's key
+  event is unchanged (still at once). Not held back: the wheel off, an empty hand (the pouch's multi-grenade wants B/Y
+  held: `VR_HandGrenade_WantsMulti`), the grappling hook in that hand (its reel: canOpen refuses), a menu up, flat play.
+  So a tap ejects on the let-go (a tap's length later) instead of the press. Client-side, so MP clients the same.
+- **Tests:** weaponwheel_test.sh 20/0 (new: the hold kept the magazine in, 24 -> 24; holstered and drawn, 24; Y tapped
+  2 frames: no wheel, the magazine out; before the fix the first two failed); flat 17/0. New `vr_reload_test 49`
+  (QC vr_holsterammo_test.qc, holsterammo_test.sh [flat]): 28/0 headset, 28/0 flat. flatholster_test 54/0,
+  reload/eject_test 28/0, `mp_test.py suite --only mp_weaponwheel` 9/0 (B now holds the nailgun: his hold kept its 24).
+- Noticed, not chased (as before): the multi-grenade's B/Y held longer than `vr_weaponwheel_hold` opens the wheel.

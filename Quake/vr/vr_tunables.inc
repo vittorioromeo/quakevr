@@ -396,6 +396,7 @@ QVR_TUNABLE(vr_gib_health, "12") // the damage that destroys a gib (a head takes
 QVR_TUNABLE(vr_gib_overkill_melee, "0.5") // the share of a hand's blow's overkill (damage past its health) that counts towards gibbing a monster; Quad's all of it (QC combat.qc VR_Gib_Overkill; 1 before his note 2026-11-02)
 QVR_TUNABLE(vr_gib_overkill_prop, "0.1") // and of a thrown, flung or fallen prop's (a limb or head it hit still pops; 1 before his note 2026-11-02)
 QVR_TUNABLE(vr_gib_overkill_blade, "0") // and of a blade thrown blade first (point or edge in: it kills whole, the blade left in the body; 1 before his note 2026-11-12), and of a thrown sword or dagger any way (his note 2026-11-15)
+QVR_TUNABLE(vr_throw_kill_push, "0.5") // times vr_kill_push for a kill by a thrown blade (an axe, sword or dagger: weapons.txt embed; VR and flat throws): how far its body is thrown (QC combat.qc VR_KillPush_Mult; 1 before his note 2026-11-23: "they fly too far")
 QVR_TUNABLE(vr_gib_splat_speed, "250") // units/s a thrown gib or head must hit a wall or a monster at to burst
 QVR_TUNABLE(vr_gib_splat_throw, "7") // m/s of the throwing hand from which a thrown gib or head bursts on a wall instead of sticking, however heavy; 0 off
 QVR_TUNABLE(vr_gib_burst_speed, "5") // m/s: a hand's or weapon's hit on a gib, or one held and smashed into something, this fast (relative) bursts it; from half as fast it wears it (and bounces off the hand)
