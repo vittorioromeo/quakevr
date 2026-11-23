@@ -1046,6 +1046,7 @@ float cvarh_vr_flat_throw_release_pitch;
 float cvarh_vr_flat_throw_speed_max;
 float cvarh_vr_flat_throw_speed_min;
 float cvarh_vr_flat_throw_spin;
+float cvarh_vr_flat_throw_spin_time;
 float cvarh_vr_flat_throw_up;
 float cvarh_vr_flat_unload_volume;
 float cvarh_vr_flatblood_test;
@@ -3213,6 +3214,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flat_throw_speed_max = VR_CVar_Make("vr_flat_throw_speed_max");
     cvarh_vr_flat_throw_speed_min = VR_CVar_Make("vr_flat_throw_speed_min");
     cvarh_vr_flat_throw_spin = VR_CVar_Make("vr_flat_throw_spin");
+    cvarh_vr_flat_throw_spin_time = VR_CVar_Make("vr_flat_throw_spin_time");
     cvarh_vr_flat_throw_up = VR_CVar_Make("vr_flat_throw_up");
     cvarh_vr_flat_unload_volume = VR_CVar_Make("vr_flat_unload_volume");
     cvarh_vr_flatblood_test = VR_CVar_Make("vr_flatblood_test");

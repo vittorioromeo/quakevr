@@ -34,6 +34,7 @@
 #include "vr_server.hpp"
 #include "vr_testkit.hpp"
 #include "vr_trace.hpp"
+#include "vr_tunables.hpp"
 #include "vr_units.hpp"
 #include "vr_verlet.hpp"
 #include "vr_view.hpp"
@@ -211,7 +212,11 @@ const glm::vec3 keyLight = glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}); // (the m
 constexpr int maxSolids = 32;
 constexpr const char* solidClass = "vr_pole_solid";
 constexpr float solidNear = 24.f;   // units round a pole a climber holding a rope is let through it from (he takes it)
-constexpr float solidInside = 0.5f; // units a body must be in its box to be let out of it (stuck: made over him)
+// Units a body must be in its box to be let out of it (made over him, or let go of it still in it). (ropes11, his note
+// 2026-11-23: off a pole he slid down it slowly: a body in a box by under this was neither let through nor free: every
+// move started in it, and he crept down a gravity's step a frame) Any overlap: a body stopped at a face is DIST_EPSILON
+// off it, never in it (ropes8e's walk-through came from the wider absmin / absmax, not this).
+constexpr float solidInside = 0.f;
 
 [[nodiscard]] bool isSolidOf(const edict_t* s, int pole)
 {
@@ -251,6 +256,24 @@ void solidBounds(const glm::vec3& a, const glm::vec3& d, float thickness, int k,
     const glm::vec3 p1 = a + d * (static_cast<float>(k + 1) / static_cast<float>(n));
     lo = glm::min(p0, p1) - glm::vec3{thickness * 0.5f};
     hi = glm::max(p0, p1) + glm::vec3{thickness * 0.5f};
+}
+
+// (ropes11, his note 2026-11-23: off a slanted pole he crept down it) Whether a move that met box `k` of a pole along `d`
+// (`n` boxes: solidBounds) on the face whose normal's height is `normalZ` met a ledge of its boxes' staircase, which the
+// pole itself hasn't: a top (bottom) face, not the highest (lowest) box's, of a pole too steep to stand on (its upper
+// side's slope past Quake's ground slope: the up normal's height, the axis' level share, under 0.7). Such a ledge is
+// passed (the body goes on into the box, and is let through while in it: passSolids), so a body beside or landing on a
+// steep pole falls on at gravity's pace, its side faces still stopping him level; a level or gently slanted pole keeps
+// the tops he stands on, an upright one its cap. Server moves (VR_PoleSolidLedge) and the clients' prediction.
+[[nodiscard]] bool solidLedge(const glm::vec3& d, int k, int n, float normalZ)
+{
+    const float len = glm::length(d);
+    if(len < 1e-3f || za::abs(normalZ) < 0.7f || glm::length(glm::vec2{d.x, d.y}) >= 0.7f * len)
+    {
+        return false;
+    }
+    const int highest = d.z >= 0.f ? n - 1 : 0;
+    return normalZ > 0.f ? k != highest : k != n - 1 - highest;
 }
 
 // Pole `pole`'s boxes placed along it (made, or made again where one went).
@@ -1593,6 +1616,12 @@ struct ClimbTest
     glm::vec3 along{0.f};       // (ropes7) a strung rope's way (level, unit)
     bool raised{false};         // (ropes7) strung again higher by its sag
     float floorZ{0.f};          // (ropes7) his feet as the test began (on the floor)
+    bool fallTrack{false};      // (ropes10) since `polejumped`: the fall followed each frame
+    float fallVz{0.f};          // (ropes10) last frame's speed up
+    int fallHeld{0};            // (ropes10) airborne frames whose speed down grew by under half of gravity's step
+    int fallFrames{0};          // (ropes10) airborne frames
+    bool fallRetaken{false};    // (ropes10) a hand took a rope again while he fell
+    bool fallLanded{false};     // (ropes10) on the floor again
 };
 ClimbTest climbTest;
 constexpr float climbTestStrungHeight = 2.0f; // m over the feet: a strung rope's (the play's hands reach it there)
@@ -1661,6 +1690,42 @@ int monkeyHands(float& up, float& under, float& gap)
         }
     }
     return true;
+}
+
+// (ropes10, his flat notes 2026-11-23 4 and 5) The drawn arms on an upright rope or pole: how far each hand drawn fully
+// on it has its fist's front (the knuckles' way) pitched up (`knuckles`: the least, degrees; vr_rope_hand_pitch), and
+// how far each elbow is bowed out of its arm's straight line (`elbowOut`: the least, cm of the body, along the view's
+// right for the right arm and its left for the left; < 0 bowed in, towards the view). Returns the hands measured.
+int ropeArms(float& knuckles, float& elbowOut)
+{
+    int on = 0;
+    knuckles = 90.f;
+    elbowOut = 1e9f;
+    for(int h = 0; h < 2; h++)
+    {
+        glm::vec3 back{0.f}, front{0.f};
+        if(climb::drawnShare(h) >= 0.99f && climb::drawnBack(h, back, &front) && glm::length(front) > 0.5f)
+        {
+            on++;
+            knuckles = za::min(knuckles, 90.f - glm::degrees(za::acos(za::clamp(glm::normalize(front).z, -1.f, 1.f))));
+        }
+    }
+    avatar::Skeleton k;
+    if(avatar::skeleton(k) && k.m2w > 0.f)
+    {
+        const float yaw = glm::radians(cl.viewangles[YAW]);
+        const glm::vec3 right{za::sin(yaw), -za::cos(yaw), 0.f};
+        for(int side = 0; side < 2; side++)
+        {
+            const glm::vec3 out = side == 0 ? -right : right;
+            // (Off the arm's straight line, shoulder to wrist: a straight arm reaching in to the pole has its elbow inside
+            // the shoulder's line; bowed out of that line it stays out of the view, bowed in it crosses in front of it.)
+            const glm::vec3 sw = k.wrist[side] - k.shoulder[side];
+            const float f = za::clamp(glm::dot(k.elbow[side] - k.shoulder[side], sw) / za::max(glm::dot(sw, sw), 1e-4f), 0.f, 1.f);
+            elbowOut = za::min(elbowOut, glm::dot(k.elbow[side] - (k.shoulder[side] + sw * f), out) / k.m2w * 100.f);
+        }
+    }
+    return on;
 }
 
 za::Vector<glm::vec4> sinkVerts; // (ropes8a: handsSink's drawn hand vertices, their parts)
@@ -1809,6 +1874,23 @@ void climbTestFrame()
         return;
     default:
     {
+        if(player && t.fallTrack && !t.fallLanded)
+        {
+            // (ropes10) After the jump off a pole: each airborne frame's speed down grows by gravity's step.
+            const bool ground = (static_cast<int>(player->v.flags) & FL_ONGROUND) != 0;
+            const float vz = player->v.velocity[2];
+            t.fallRetaken = t.fallRetaken || climb::ropeHands(player) > 0;
+            if(ground)
+            {
+                t.fallLanded = true;
+            }
+            else
+            {
+                t.fallHeld += t.fallFrames > 0 && t.fallVz - vz < 0.5f * sv_gravity.value * static_cast<float>(host_frametime) ? 1 : 0;
+                t.fallFrames++;
+            }
+            t.fallVz = vz;
+        }
         int ent = 0;
         glm::vec3 v{0.f};
         if(player && climbrope::riding(NUM_FOR_EDICT(player) - 1, ent, v))
@@ -1921,6 +2003,28 @@ void climbCheck_f()
         check(hands == 0 && v.z >= t.handVel.z + 0.6f * vr_rope_jump.value && glm::dot(hv, hh) >= 0.f,
             va("jumped off at %.0f up, %.0f level (the rope's %.0f up, %.0f level)", v.z, glm::length(hv), t.handVel.z,
                 glm::length(hh)));
+    }
+    else if(!ZA_STRCMP(what, "polejumped"))
+    {
+        // (ropes10) Off a pole (the test's, standing ahead at flatTest's x y: its points' first): a normal jump's speed up
+        // (vr_pole_jump) and pushed away from it (vr_pole_jump_push); the fall followed from here.
+        const Rope* r = ropeOf(t.rope);
+        const glm::vec2 axis = r && !r->p.empty() ? glm::vec2{r->p.front().x, r->p.front().y} : glm::vec2{o.x, o.y};
+        const glm::vec2 away = glm::vec2{o.x, o.y} - axis;
+        const float out = glm::length(away) > 1e-3f ? glm::dot(hv, glm::normalize(away)) : 0.f;
+        check(hands == 0 && v.z >= 0.85f * vr_pole_jump.value && out >= 0.85f * vr_pole_jump_push.value,
+            va("jumped off the pole at %.0f up (at least %.0f), %.0f level, %.0f of it away from the pole (at least %.0f)", v.z,
+                0.85f * vr_pole_jump.value, glm::length(hv), out, 0.85f * vr_pole_jump_push.value));
+        t.fallTrack = true;
+        t.fallVz = v.z;
+        t.fallHeld = t.fallFrames = 0;
+        t.fallRetaken = t.fallLanded = false;
+    }
+    else if(!ZA_STRCMP(what, "fellfree"))
+    {
+        check(t.fallTrack && t.fallLanded && t.fallHeld == 0 && !t.fallRetaken,
+            va("fell freely to the floor: %d airborne frames, %d held back, %s, %s", t.fallFrames, t.fallHeld,
+                t.fallLanded ? "landed" : "NOT LANDED", t.fallRetaken ? "TAKEN AGAIN" : "not taken again"));
     }
     else if(!ZA_STRCMP(what, "calm"))
     {
@@ -2086,6 +2190,11 @@ struct FlatTest
     bool wall{false};        // (ropes8e) `vr_rope_flat_test wall`: vr_flat_rope 0, walked into the pole: stopped by its boxes
     float flatRopeWas{1.f};  // (ropes8e) vr_flat_rope before it (put back at the end)
     glm::vec3 wallDir{1.f, 0.f, 0.f}; // (ropes8e) the way he walks into it (level)
+    bool jump{false};        // (ropes10) `vr_rope_flat_test polejump`: up the pole, jumped off, the free fall
+    bool slant{false};       // (ropes10) `vr_rope_flat_test slantjump`: polejump on a pole slanted away from him (its upper side)
+    bool side{false};        // (ropes10) `vr_rope_flat_test strungside`: the level pole faced across, the strafe keys along it
+    int crossed{0};          // (ropes10) frames the drawn hands were crossed (the right palm left of the left one)
+    float crossWorst{0.f};   // (ropes10) the most (units) the right palm was left of the left one
     za::Vector<glm::vec3> made; // (ropes7) the pole's points as made (it never moves)
 };
 FlatTest flatTest;
@@ -2118,7 +2227,7 @@ void flatTestEnd(FlatTest& t, bool timedOut, const char* what)
     {
         t.tally.check(false, flatTestName, va("timed out: %s", what));
     }
-    Cbuf_AddText("-forward\n-back\n-moveright\n-jump\n");
+    Cbuf_AddText("-forward\n-back\n-moveright\n-moveleft\n-movedown\n-jump\n");
     if(t.wall)
     {
         Cvar_SetValueQuick(&vr_flat_rope, t.flatRopeWas);
@@ -2164,6 +2273,11 @@ void flatTestFrame()
             return;
         }
         placeWith(e, at, 480.f, t.pole ? poleThickness : t.chain ? 2.f : 1.5f, 0, 0.f, 1.f, 0.5f, false);
+        if(t.slant)
+        {
+            // (ropes10) Slanted 27 degrees off upright, rising away from him: he climbs its upper side.
+            stringBetween(e, flatTestRope + glm::vec3{150.f, 0.f, 340.f}, flatTestRope + glm::vec3{0.f, 0.f, 40.f}, 0.f);
+        }
         t.rope = NUM_FOR_EDICT(e);
         t.pitch = 0.f;
         flatTestPlace(player, flatTestRope + glm::vec3{-80.f, 0.f, -player->v.mins[2] + 1.f}, 0.f);
@@ -2288,10 +2402,13 @@ void flatTestFrame()
         return;
     }
     case 4: // climbing up
-        if(!climbing || feet >= t.feet0 + 80.f || t.frames > 72 * 6)
+    {
+        // (ropes10: `polejump` from 300 up: the fall takes over the second the rope let go of isn't taken again for)
+        const float rise = t.jump && !t.slant ? 300.f : 80.f;
+        if(!climbing || feet >= t.feet0 + rise || t.frames > 72 * 6)
         {
             const char* how = t.pitch >= 0.f ? "looking level (a pole: only climbed)" : "looking up";
-            const bool ok = climbing && feet >= t.feet0 + 80.f && t.serials >= 4 && t.handBits == 3;
+            const bool ok = climbing && feet >= t.feet0 + rise && t.serials >= 4 && t.handBits == 3;
             t.tally.check(ok, flatTestName, va("climbed up %s: the feet from %.1f to %.1f, %d hand changes, hands drawn off %d main %d",
                                               how, t.feet0, feet, t.serials, t.handBits & 1, (t.handBits >> 1) & 1));
             if(ok)
@@ -2315,6 +2432,7 @@ void flatTestFrame()
             flatTestNext(t, 40);
         }
         return;
+    }
     case 40: // (ropes8a, his note 2026-11-23) hanging still on the pole (half a second): both hands round it, not through it
         if(t.frames == 12 && t.shots)
         {
@@ -2358,6 +2476,23 @@ void flatTestFrame()
             }
             return;
         }
+        if(t.frames == 37 && t.pole && !t.slant)
+        {
+            // (ropes10) The knuckles pitched up by vr_rope_hand_pitch (within 4 degrees); the elbows out at their sides
+            // (vr_rope_elbow_out at least a half: neither bowed in off its arm's line, towards the view).
+            float knuckles = 0.f, elbowOut = 0.f;
+            const int on = ropeArms(knuckles, elbowOut);
+            const bool pitched = on == 2 && za::abs(knuckles - za::clamp(vr_rope_hand_pitch.value, 0.f, 45.f)) <= 4.f;
+            const bool out = vr_rope_elbow_out.value < 0.5f || elbowOut >= 0.f;
+            const char* what = va("the arms on the pole: %d hands on it, the knuckles pitched up %.1f degrees (vr_rope_hand_pitch "
+                                  "%.0f), the elbows bowed out %.1f cm off the arms' lines at the least (vr_rope_elbow_out %.2f)",
+                on, knuckles, vr_rope_hand_pitch.value, elbowOut, vr_rope_elbow_out.value);
+            t.tally.check(pitched && out, flatTestName, what);
+            if(pitched && out)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, what);
+            }
+        }
         if(t.frames == 36 && t.pole)
         {
             int held = 0;
@@ -2372,6 +2507,12 @@ void flatTestFrame()
                 Con_Printf("%s: PASS the hands round the pole: both on it, the deepest %.2f units in (%s), %.2f off at the nearest\n",
                     flatTestName, sink, part, za::max(gap, 0.f));
             }
+        }
+        else if(t.frames >= 60 && t.jump)
+        {
+            // (ropes10) Jumped off the pole from up it.
+            Cbuf_AddText("+jump\n");
+            flatTestNext(t, 50);
         }
         else if(t.frames >= 60)
         {
@@ -2527,7 +2668,7 @@ void flatTestFrame()
         }
         t.rope = NUM_FOR_EDICT(e);
         t.pitch = 0.f;
-        flatTestPlace(player, flatTestRope + glm::vec3{-60.f, 0.f, -player->v.mins[2] + 1.f}, 0.f);
+        flatTestPlace(player, flatTestRope + glm::vec3{-60.f, 0.f, -player->v.mins[2] + 1.f}, t.side ? 90.f : 0.f);
         flatTestNext(t, 21);
         return;
     }
@@ -2598,7 +2739,7 @@ void flatTestFrame()
             t.lastVx = player->v.origin[0];
             t.serials = 0;
             t.lastSerial = -1;
-            Cbuf_AddText("+forward\n");
+            Cbuf_AddText(t.side ? "+moveright\n" : "+forward\n"); // (ropes10: faced across it, the strafe keys go along)
             flatTestNext(t, 24);
         }
         return;
@@ -2607,10 +2748,21 @@ void flatTestFrame()
     {
         const float gone = (player->v.origin[0] - t.lastVx) * (t.stage == 24 ? 1.f : -1.f);
         const float want = t.stage == 24 ? 80.f : 40.f;
+        if(t.side && climbing)
+        {
+            // (ropes10) Faced across it (his right +x): the right palm (hand 1) never left of the left one.
+            glm::vec3 p0{0.f}, p1{0.f};
+            if(climb::drawnPalm(0, p0) && climb::drawnPalm(1, p1))
+            {
+                const float order = p1.x - p0.x;
+                t.crossed += order < -0.5f ? 1 : 0;
+                t.crossWorst = za::max(t.crossWorst, -order);
+            }
+        }
         if(!climbing || gone >= want || t.frames > 72 * 6)
         {
             const bool ok = climbing && gone >= want && t.serials >= 3;
-            const char* way = t.stage == 24 ? "forward" : "back";
+            const char* way = t.side ? (t.stage == 24 ? "right (strafe)" : "left (strafe)") : t.stage == 24 ? "forward" : "back";
             t.tally.check(ok, flatTestName, va("along it %s: %.1f units, %d hand changes", way, gone, t.serials));
             if(ok)
             {
@@ -2619,8 +2771,96 @@ void flatTestFrame()
             t.lastVx = player->v.origin[0];
             t.serials = 0;
             t.lastSerial = -1;
-            Cbuf_AddText(t.stage == 24 ? "-forward\n+back\n" : "-back\n+movedown\n");
+            if(t.side)
+            {
+                Cbuf_AddText(t.stage == 24 ? "-moveright\n+moveleft\n" : "-moveleft\n+movedown\n");
+                if(t.stage == 25)
+                {
+                    const bool kept = t.crossed == 0;
+                    const char* what = va("faced across it, the hands kept their sides: %d frames crossed, the right palm at most "
+                                          "%.1f units left of the left one",
+                        t.crossed, t.crossWorst);
+                    t.tally.check(kept, flatTestName, what);
+                    if(kept)
+                    {
+                        Con_Printf("%s: PASS %s\n", flatTestName, what);
+                    }
+                }
+            }
+            else
+            {
+                Cbuf_AddText(t.stage == 24 ? "-forward\n+back\n" : "-back\n+movedown\n");
+            }
             flatTestNext(t, t.stage + 1);
+        }
+        return;
+    }
+    // (ropes10, his notes 2026-11-23 2 and 6) `vr_rope_flat_test polejump`: up the pole, jump: off it at a normal jump's
+    // speed up and pushed away from it (vr_pole_jump, vr_pole_jump_push), then a free fall to the floor: each airborne
+    // frame's speed down grows by gravity's (no frame held back: the slow slide he saw), never taken again.
+    case 50: // the jump pressed: off it
+    {
+        const glm::vec3 v = geom::vec(player->v.velocity);
+        if(!climbing)
+        {
+            Cbuf_AddText("-jump\n");
+            // (Square out from the pole's line to him, level: slanted, `slantjump`, off its upper side.)
+            glm::vec3 near{flatTestRope.x, flatTestRope.y, player->v.origin[2]};
+            if(t.made.size() >= 2)
+            {
+                const glm::vec3 a = t.made.front(), ab = t.made.back() - a;
+                const float s = za::clamp(glm::dot(geom::vec(player->v.origin) - a, ab) / za::max(glm::dot(ab, ab), 1e-3f), 0.f, 1.f);
+                near = a + ab * s;
+            }
+            const glm::vec2 away{player->v.origin[0] - near.x, player->v.origin[1] - near.y};
+            const float level = glm::length(glm::vec2{v.x, v.y});
+            const float out = glm::length(away) > 1e-3f ? glm::dot(glm::vec2{v.x, v.y}, glm::normalize(away)) : 0.f;
+            const bool ok = v.z >= 0.85f * vr_pole_jump.value && out >= 0.85f * vr_pole_jump_push.value;
+            const char* what = va("jumped off the pole: %.0f up (at least %.0f), %.0f level, %.0f of it away from the pole (at least %.0f)",
+                v.z, 0.85f * vr_pole_jump.value, level, out, 0.85f * vr_pole_jump_push.value);
+            t.tally.check(ok, flatTestName, what);
+            if(ok)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, what);
+            }
+            t.lastVx = v.z;
+            t.serials = 0;      // (the frames held back falling)
+            t.fastest = 0.f;    // (the least gravity's share of a frame's fall)
+            t.ropesBefore = taken;
+            t.feet0 = feet;
+            flatTestNext(t, 51);
+        }
+        else if(t.frames > 72)
+        {
+            Cbuf_AddText("-jump\n");
+            flatTestEnd(t, true, "jumping off the pole");
+        }
+        return;
+    }
+    case 51: // falling to the floor
+    {
+        const float vz = player->v.velocity[2];
+        const float g = sv_gravity.value * static_cast<float>(host_frametime);
+        if(!ground && !climbing && t.frames > 1)
+        {
+            // (Rising or falling, the speed down grows by gravity's step; a frame it grew by under half of that was held.)
+            const float drop = t.lastVx - vz;
+            t.serials += drop < 0.5f * g ? 1 : 0;
+            Con_DPrintf("%s: fall frame %d vz %.1f drop %.2f (g %.2f) at %.1f\n", flatTestName, t.frames, vz, drop, g, feet);
+        }
+        t.lastVx = vz;
+        if(ground || climbing || taken > t.ropesBefore || t.frames > 72 * 4)
+        {
+            const float off = glm::length(glm::vec2{player->v.origin[0] - flatTestRope.x, player->v.origin[1] - flatTestRope.y});
+            const bool ok = ground && !climbing && taken == t.ropesBefore && t.serials == 0 && za::abs(feet) < 2.f;
+            const char* what = va("fell freely to the floor: %.2f s from %.1f up, %d frames held back, landed %.1f from the pole, %s",
+                t.frames / 72.f, t.feet0, t.serials, off, taken > t.ropesBefore || climbing ? "TAKEN AGAIN" : "not taken again");
+            t.tally.check(ok, flatTestName, what);
+            if(ok)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, what);
+            }
+            flatTestEnd(t, false, "");
         }
         return;
     }
@@ -2655,7 +2895,10 @@ void flatTest_f()
     // (ropes8a) `strungpole`: the strung run on a level pole (no sag).
     const char* mode = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
     flatTest.wall = !ZA_STRCMP(mode, "wall");
-    flatTest.pole = !ZA_STRCMP(mode, "pole") || !ZA_STRCMP(mode, "strungpole") || flatTest.wall;
+    flatTest.slant = !ZA_STRCMP(mode, "slantjump");
+    flatTest.jump = !ZA_STRCMP(mode, "polejump") || flatTest.slant;
+    flatTest.side = !ZA_STRCMP(mode, "strungside");
+    flatTest.pole = !ZA_STRCMP(mode, "pole") || !ZA_STRCMP(mode, "strungpole") || flatTest.wall || flatTest.jump || flatTest.side;
     if(flatTest.wall)
     {
         flatTest.flatRopeWas = vr_flat_rope.value;
@@ -2663,7 +2906,389 @@ void flatTest_f()
     }
     flatTest.shots = Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(2), "shots");
     flatTest.chain = !ZA_STRCMP(mode, "chain");
-    flatTest.stage = !ZA_STRCMP(mode, "strung") || !ZA_STRCMP(mode, "strungpole") ? 20 : 1;
+    flatTest.stage = !ZA_STRCMP(mode, "strung") || !ZA_STRCMP(mode, "strungpole") || flatTest.side ? 20 : 1;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// vr_pole_fall_test <upright|slant> [log] (ropes11, his note 2026-11-23: after jumping off a pole he sometimes slid down
+// slowly against it, "friction-based collision"; ROPES.md "Tests"; in vrropes, flat-screen play or the mock headset):
+// one pole (upright, or slanted 27 degrees rising to +x as the flat test's slantjump), then each case of the table:
+// jumped off it (flat play: taken in the air at 200 up, hung half a second, jump with a key held: a regrab case is then set
+// back within reach in the air and must be taken again) or set beside it in the air (vr_flat_rope 0: touching its
+// boxes' faces, or `into` units in them as a hold leaves him) with a key held. Each airborne frame his speed down must
+// grow by gravity's step (a frame it grew by under half of it was held back: the slide), until he stands on the floor
+// (not on a pole box) or is taken again. A held frame prints his speed, ground flag and entity, and the nearest pole box
+// (his box as his moves meet entities against it: the gap, < 0 in it) and whether he passes it; `log` every frame.
+// Counted server frames; the limits a safety net (FAIL timed out).
+struct FallCase
+{
+    bool jump;       // jumped off it (flat play only) instead of set beside it
+    float side;      // degrees: the way from the pole out to him (he faces it: 180 is its -x side, a slant's upper side)
+    float into;      // set beside: units into its boxes (0: touching their faces)
+    const char* key; // held from the jump or the set on: "" none, or a move key ("forward" towards the pole)
+    bool regrab;     // after the jump, set back within its reach in the air (velocity 0): taken again
+};
+constexpr FallCase fallCases[] = {
+    {true, 180.f, 0.f, "", false},
+    {true, 180.f, 0.f, "forward", false},
+    {true, 180.f, 0.f, "back", false},
+    {true, 180.f, 0.f, "moveright", false},
+    {true, 90.f, 0.f, "", false},
+    {true, 90.f, 0.f, "forward", false},
+    {true, 0.f, 0.f, "", false},
+    {true, 0.f, 0.f, "forward", false},
+    {true, 315.f, 0.f, "forward", false},
+    {true, 180.f, 0.f, "", true},
+    {false, 180.f, 0.f, "", false},
+    {false, 180.f, 0.f, "forward", false},
+    {false, 0.f, 0.f, "", false},
+    {false, 0.f, 0.f, "forward", false},
+    {false, 90.f, 0.f, "forward", false},
+    {false, 225.f, 0.f, "forward", false},
+    {false, 180.f, 0.3f, "", false},
+    {false, 180.f, 0.3f, "forward", false},
+    {false, 0.f, 0.3f, "forward", false},
+    {false, 180.f, 1.f, "forward", false},
+    {false, 180.f, 1.f, "back", false},
+};
+constexpr int fallCaseCount = static_cast<int>(sizeof(fallCases) / sizeof(fallCases[0]));
+constexpr const char* fallTestName = "vr_pole_fall_test";
+constexpr float fallTestHeight = 200.f; // units: his feet over the floor as a case begins
+
+struct FallTest
+{
+    int stage{0}; // 0 off
+    int frames{0};
+    testkit::Tally tally;
+    bool slant{false};
+    bool log{false};
+    bool flat{false};
+    int rope{0};
+    int index{0};          // the case
+    za::Vector<glm::vec3> made;
+    float lastVz{0.f};
+    float lastFeet{0.f};
+    int only{-1};          // `vr_pole_fall_test <pole> log|- <case>`: that case alone
+    int hung{0};           // frames hung on it before the jump
+    int held{0};           // airborne frames held back
+    int airborne{0};
+    int taken0{0};         // climb::flatRopes as the fall began
+    float flatRopeWas{1.f};
+    bool regrabbed{false}; // (a regrab case) set back by it
+    float worst{0.f};      // the least share of gravity's step a frame's fall grew by
+};
+FallTest fallTest;
+
+// The pole's axis at height `z` (its made points).
+[[nodiscard]] glm::vec3 fallAxisAt(const FallTest& t, float z)
+{
+    if(t.made.size() < 2)
+    {
+        return glm::vec3{flatTestRope.x, flatTestRope.y, z};
+    }
+    const glm::vec3 a = t.made.front(), ab = t.made.back() - a;
+    const float s = za::abs(ab.z) > 1e-3f ? za::clamp((z - a.z) / ab.z, 0.f, 1.f) : 0.f;
+    return glm::vec3{a.x + ab.x * s, a.y + ab.y * s, z};
+}
+
+// The nearest of the pole's boxes to player `p`'s box as his moves meet entities (entBoxOf): the gap (< 0: in it by that
+// much at the least), the box's index, and whether he passes the pole's boxes now (solidPass).
+[[nodiscard]] bool fallPoleBox(int num)
+{
+    glm::vec3 lo, hi;
+    return num > 0 && climbrope::solidBox(num, lo, hi);
+}
+
+float fallNearestBox(const FallTest& t, edict_t* p, int& index, bool& passes)
+{
+    index = -1;
+    passes = false;
+    const Rope* r = ropeOf(t.rope);
+    if(!r)
+    {
+        return 1e9f;
+    }
+    glm::vec3 plo, phi;
+    entBoxOf(p, plo, phi);
+    float best = 1e9f;
+    for(za::SizeT k = 0; k < r->solids.size(); k++)
+    {
+        const edict_t* s = EDICT_NUM(r->solids[k]);
+        const glm::vec3 lo = geom::vec(s->v.origin) + geom::vec(s->v.mins), hi = geom::vec(s->v.origin) + geom::vec(s->v.maxs);
+        float gap = -1e9f;
+        for(int c = 0; c < 3; c++)
+        {
+            gap = za::max(gap, za::max(lo[c] - phi[c], plo[c] - hi[c]));
+        }
+        if(gap < best)
+        {
+            best = gap;
+            index = static_cast<int>(k);
+        }
+    }
+    const int client = NUM_FOR_EDICT(p) - 1;
+    passes = client >= 0 && client < 64 && (r->solidPass & (za::U64{1} << client)) != 0;
+    return best;
+}
+
+void fallKeys(const char* key, bool down)
+{
+    if(key && key[0])
+    {
+        Cbuf_AddText(va("%c%s\n", down ? '+' : '-', key));
+    }
+}
+
+void fallTestEnd(FallTest& t, bool timedOut, const char* what)
+{
+    if(timedOut)
+    {
+        t.tally.check(false, fallTestName, va("timed out: %s", what));
+    }
+    Cbuf_AddText("-forward\n-back\n-moveright\n-moveleft\n-jump\n");
+    Cvar_SetValueQuick(&vr_flat_rope, t.flatRopeWas);
+    t.tally.verdict(fallTestName);
+    t.stage = 0;
+}
+
+// The next case (or the end), him set on the floor away from the pole first.
+void fallTestNextCase(FallTest& t, edict_t* player, int index)
+{
+    Cbuf_AddText("-forward\n-back\n-moveright\n-moveleft\n-jump\n");
+    Cvar_SetValueQuick(&vr_flat_rope, t.flatRopeWas);
+    while(index < fallCaseCount && ((fallCases[index].jump && !t.flat) || (t.only >= 0 && index != t.only)))
+    {
+        index++; // (the mock headset: no jump cases, its grips aren't scripted here; rope_climb_test pole_jump)
+    }
+    if(index >= fallCaseCount)
+    {
+        fallTestEnd(t, false, "");
+        return;
+    }
+    t.index = index;
+    flatTestPlace(player, flatTestRope + glm::vec3{-120.f, 60.f, -player->v.mins[2] + 1.f}, 0.f);
+    t.stage = 2;
+    t.frames = 0;
+}
+
+void fallTestFrame()
+{
+    FallTest& t = fallTest;
+    t.frames++;
+    edict_t* player = firstPlayer();
+    if(!player)
+    {
+        return;
+    }
+    const FallCase& fc = fallCases[za::min(t.index, fallCaseCount - 1)];
+    bool climbing = false;
+    const int taken = climb::flatRopes(player, climbing);
+    const bool ground = (static_cast<int>(player->v.flags) & FL_ONGROUND) != 0;
+    const float feet = player->v.origin[2] + player->v.mins[2];
+    const float facing = fc.side >= 180.f ? fc.side - 180.f : fc.side + 180.f;
+    cl.viewangles[PITCH] = 0.f;
+    cl.viewangles[YAW] = facing;
+    const glm::vec3 out{za::cos(glm::radians(fc.side)), za::sin(glm::radians(fc.side)), 0.f};
+    char name[160];
+    q_snprintf(name, sizeof(name), "%s case %d (%s, from %.0f, %.1f in, %s%s)", t.slant ? "slanted" : "upright", t.index,
+        fc.jump ? "jumped off" : "set beside", fc.side, fc.into, fc.key[0] ? fc.key : "no key", fc.regrab ? ", regrab" : "");
+    switch(t.stage)
+    {
+    case 1: // the pole made, him set on the floor away from it
+    {
+        const glm::vec3 at = flatTestRope + glm::vec3{0.f, 0.f, 1.f};
+        edict_t* e = box3d::spawnClass("vr_pole", at, glm::vec3{0.f});
+        if(!e)
+        {
+            t.tally.check(false, fallTestName, "the pole made");
+            fallTestEnd(t, false, "");
+            return;
+        }
+        placeWith(e, at, 480.f, poleThickness, 0, 0.f, 1.f, 0.5f, false);
+        if(t.slant)
+        {
+            stringBetween(e, flatTestRope + glm::vec3{150.f, 0.f, 340.f}, flatTestRope + glm::vec3{0.f, 0.f, 40.f}, 0.f);
+        }
+        t.rope = NUM_FOR_EDICT(e);
+        flatTestPlace(player, flatTestRope + glm::vec3{-120.f, 60.f, -player->v.mins[2] + 1.f}, 0.f);
+        t.stage = 10;
+        t.frames = 0;
+        return;
+    }
+    case 10: // settled
+        if(t.frames >= 108)
+        {
+            if(const Rope* r = ropeOf(t.rope))
+            {
+                t.made = r->p;
+            }
+            t.flat = hull::isFlat(player); // (known once he has played a frame)
+            fallTestNextCase(t, player, 0);
+        }
+        return;
+    case 2: // on the floor (a few frames): set on in the air
+    {
+        if(t.frames < 6)
+        {
+            return;
+        }
+        const float z = fallTestHeight - player->v.mins[2];
+        if(fc.jump)
+        {
+            // (Within reach in the air: flatRope takes it; the body hangs with the pole ahead along the view.)
+            const glm::vec3 axis = fallAxisAt(t, z + 20.f);
+            flatTestPlace(player, glm::vec3{axis.x, axis.y, z} + out * 14.f, facing);
+            t.hung = 0;
+            t.stage = 3;
+        }
+        else
+        {
+            // (Touching its boxes' faces: his box swept in from 60 out level to the axis, as his moves meet them.)
+            Cvar_SetValueQuick(&vr_flat_rope, 0.f);
+            const glm::vec3 axis = fallAxisAt(t, z);
+            float s[3], e[3];
+            for(int c = 0; c < 3; c++)
+            {
+                s[c] = axis[c] + out[c] * 60.f;
+                e[c] = axis[c];
+            }
+            const trace_t tr = SV_Move(s, player->v.mins, player->v.maxs, e, MOVE_NORMAL, player);
+            flatTestPlace(player, geom::vec(tr.endpos) - out * fc.into, facing);
+            fallKeys(fc.key, true);
+            t.lastVz = 0.f;
+            t.lastFeet = player->v.origin[2] + player->v.mins[2];
+            t.held = t.airborne = 0;
+            t.worst = 1.f;
+            t.taken0 = taken;
+            t.regrabbed = false;
+            t.stage = 5;
+        }
+        t.frames = 0;
+        return;
+    }
+    case 3: // taken in the air: hung half a second, then the jump (the key held)
+        if(climbing && t.hung++ == 36)
+        {
+            fallKeys(fc.key, true);
+            Cbuf_AddText("+jump\n");
+            t.stage = 4;
+            t.frames = 0;
+        }
+        else if(!climbing && t.frames <= 72)
+        {
+            // (Held where it is met until taken: off it from the last case, it isn't taken again for vr_flat_rope_retake.)
+            const glm::vec3 axis = fallAxisAt(t, fallTestHeight - player->v.mins[2] + 20.f);
+            flatTestPlace(player, glm::vec3{axis.x, axis.y, fallTestHeight - player->v.mins[2]} + out * 14.f, facing);
+            t.hung = 0;
+        }
+        else if(!climbing)
+        {
+            t.tally.check(false, fallTestName, va("%s: taken in the air (%s)", name, ground ? "on the ground" : "not taken"));
+            fallTestNextCase(t, player, t.index + 1);
+        }
+        return;
+    case 4: // the jump pressed: off it
+        if(!climbing)
+        {
+            Cbuf_AddText("-jump\n");
+            t.lastVz = player->v.velocity[2];
+            t.lastFeet = feet;
+            t.held = t.airborne = 0;
+            t.worst = 1.f;
+            t.taken0 = taken;
+            t.regrabbed = false;
+            t.stage = 5;
+            t.frames = 0;
+        }
+        else if(t.frames > 72)
+        {
+            t.tally.check(false, fallTestName, va("%s: jumped off it", name));
+            fallTestNextCase(t, player, t.index + 1);
+        }
+        return;
+    case 5: // falling
+    {
+        const float vz = player->v.velocity[2];
+        const float g = sv_gravity.value * static_cast<float>(host_frametime);
+        int box = -1;
+        bool passes = false;
+        const float gap = fallNearestBox(t, player, box, passes);
+        edict_t* gent = PROG_TO_EDICT(player->v.groundentity);
+        const int gnum = gent ? NUM_FOR_EDICT(gent) : 0;
+        if(!ground && !climbing && t.frames > 1)
+        {
+            // (Its speed down grew by gravity's step, and he went down by as much as it says: the speed alone kept growing
+            // while a box held him, ropes11's first runs.)
+            const float drop = t.lastVz - vz;
+            const float went = t.lastFeet - feet, due = -0.5f * (t.lastVz + vz) * static_cast<float>(host_frametime);
+            const bool held = drop < 0.5f * g || za::abs(went - due) > za::max(0.5f, 0.25f * za::abs(due));
+            t.held += held ? 1 : 0;
+            t.airborne++;
+            t.worst = za::min(t.worst, g > 0.f ? drop / g : 1.f);
+            if(t.log || (held && t.held <= 3))
+            {
+                Con_Printf("%s: %s %s frame %d: vz %.1f (drop %.2f of %.2f), down %.2f of %.2f, at (%.1f %.1f %.1f) vel (%.1f %.1f), "
+                           "ground %d ent %d%s, box %d gap %.2f%s\n",
+                    fallTestName, held ? "HELD" : "free", name, t.frames, vz, drop, g, went, due, player->v.origin[0], player->v.origin[1],
+                    feet, player->v.velocity[0], player->v.velocity[1], ground ? 1 : 0, gnum, fallPoleBox(gnum) ? " (a pole box)" : "", box,
+                    gap, passes ? " passes" : "");
+            }
+        }
+        t.lastVz = vz;
+        t.lastFeet = feet;
+        // (A regrab case: once the retake time is past, set back within reach in the air, still: taken again.)
+        if(fc.regrab && !t.regrabbed && !climbing && !ground && t.frames >= 36)
+        {
+            const glm::vec3 axis = fallAxisAt(t, player->v.origin[2] + 20.f);
+            flatTestPlace(player, glm::vec3{axis.x, axis.y, player->v.origin[2]} + out * 14.f, facing);
+            t.regrabbed = true;
+            t.lastVz = 0.f;
+            t.lastFeet = player->v.origin[2] + player->v.mins[2];
+        }
+        const bool retaken = climbing || taken > t.taken0;
+        if(ground || retaken || t.frames > 72 * 4)
+        {
+            const float off = glm::length(glm::vec2{player->v.origin[0], player->v.origin[1]} - glm::vec2{fallAxisAt(t, player->v.origin[2])});
+            const bool floor = ground && za::abs(feet) < 2.f;
+            const bool ok = fc.regrab ? retaken && t.held == 0 : t.held == 0 && (floor || (retaken && fc.key[0] != '\0'));
+            char end[64];
+            q_snprintf(end, sizeof(end), "%s", retaken ? "taken again" : floor ? "on the floor" : "STILL IN THE AIR");
+            if(ground && !floor && !retaken)
+            {
+                q_snprintf(end, sizeof(end), "STOOD at %.1f up on %s %d", feet, fallPoleBox(gnum) ? "pole box" : "entity", gnum);
+            }
+            const char* what = va("%s: %d airborne frames, %d held back (the least %.2f of gravity's step), %s, %.1f from the pole%s", name,
+                t.airborne, t.held, t.worst, end, off, t.frames > 72 * 4 ? " (4 s)" : "");
+            t.tally.check(ok, fallTestName, what);
+            if(ok)
+            {
+                Con_Printf("%s: PASS %s\n", fallTestName, what);
+            }
+            fallTestNextCase(t, player, t.index + 1);
+        }
+        return;
+    }
+    default:
+        return;
+    }
+}
+
+void fallTest_f()
+{
+    if(!sv.active || !progs::bindings().isVrProgs || progs::fields().rope_length < 0)
+    {
+        Con_Printf("%s: FAIL usage: vr_pole_fall_test <upright|slant> [log] in single player, map vrropes\n", fallTestName);
+        testkit::verdict(fallTestName, 0, 1);
+        return;
+    }
+    fallTest = FallTest{};
+    fallTest.slant = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "slant");
+    fallTest.log = Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(2), "log");
+    fallTest.only = Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : -1;
+    edict_t* player = firstPlayer();
+    fallTest.flat = player && hull::isFlat(player);
+    fallTest.flatRopeWas = vr_flat_rope.value;
+    fallTest.stage = 1;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -3706,6 +4331,7 @@ void init()
     Cmd_AddCommand("vr_rope_pause_test", pauseTest_f);
     Cmd_AddCommand("vr_rope_sound_test", soundTest_f);
     Cmd_AddCommand("vr_pole_solid_test", solidTest_f);
+    Cmd_AddCommand("vr_pole_fall_test", fallTest_f);
 }
 
 void clientFrame()
@@ -3785,6 +4411,10 @@ void serverFrame(bool worldRan)
     if(flatTest.stage)
     {
         flatTestFrame();
+    }
+    if(fallTest.stage && worldRan)
+    {
+        fallTestFrame();
     }
     if(handsTest.stage)
     {
@@ -4396,6 +5026,10 @@ bool clientSolidTrace(const float* start, const float* mins, const float* maxs, 
             tr.allsolid = true;
             VectorCopy(end, tr.endpos);
             SV_RecursiveHullCheck(h, h->firstclipnode, 0.f, 1.f, const_cast<float*>(start), const_cast<float*>(end), &tr);
+            if(tr.fraction < 1.f && !tr.allsolid && !tr.startsolid && solidLedge(d, k, n, tr.plane.normal[2]))
+            {
+                continue; // (ropes11: a steep pole's ledge, passed as the server's: VR_PoleSolidLedge)
+            }
             if(tr.allsolid || tr.startsolid || tr.fraction < best.fraction) // (SV_ClipToLinks' choice)
             {
                 const bool wasStuck = best.startsolid;
@@ -4591,29 +5225,68 @@ extern "C" int VR_ChainShotClip(const float* start, const float* mins, const flo
 
 // (ropes8d) SV_ClipToLinks: whether `mover` (a player) is let through pole box `touch` (passSolids' solidPass): every
 // climber on a pole passes it, not only its owner.
-extern "C" int VR_PoleSolidPasses(edict_t* touch, edict_t* mover)
+namespace
+{
+// (ropes11) The pole whose box `touch` is (QC vr_pole_solid), or null.
+[[nodiscard]] const Rope* poleOfSolid(edict_t* touch)
 {
     if(touch->v.modelindex != 0.f || !touch->v.goalentity || !sv.active)
     {
+        return nullptr;
+    }
+    const Rope* r = ropeOf(NUM_FOR_EDICT(PROG_TO_EDICT(touch->v.goalentity)));
+    if(!r || !r->params.pole)
+    {
+        return nullptr;
+    }
+    const int tn = NUM_FOR_EDICT(touch);
+    for(const int s : r->solids)
+    {
+        if(s == tn)
+        {
+            return r;
+        }
+    }
+    return nullptr;
+}
+} // namespace
+
+// (ropes11) SV_ClipToLinks: nonzero if the move's `trace` met pole box `touch` on a ledge of a steep pole's staircase
+// (solidLedge): passed. Players' moves only (`mover`: a player is let through a box he is in; a shot or a monster would
+// stick in it).
+extern "C" int VR_PoleSolidLedge(edict_t* touch, edict_t* mover, const trace_t* trace)
+{
+    const int pn = mover ? NUM_FOR_EDICT(mover) : 0;
+    if(pn < 1 || pn > svs.maxclients || trace->fraction >= 1.f || trace->allsolid || trace->startsolid ||
+        za::abs(trace->plane.normal[2]) < 0.7f)
+    {
         return 0;
     }
+    const Rope* r = poleOfSolid(touch);
+    if(!r || r->p.size() < 2)
+    {
+        return 0;
+    }
+    const int tn = NUM_FOR_EDICT(touch), n = static_cast<int>(r->solids.size());
+    for(int k = 0; k < n; k++)
+    {
+        if(r->solids[static_cast<za::SizeT>(k)] == tn)
+        {
+            return solidLedge(r->p.back() - r->p.front(), k, n, trace->plane.normal[2]) ? 1 : 0;
+        }
+    }
+    return 0;
+}
+
+extern "C" int VR_PoleSolidPasses(edict_t* touch, edict_t* mover)
+{
     const int pn = NUM_FOR_EDICT(mover);
     if(pn < 1 || pn > svs.maxclients || pn > 64)
     {
         return 0;
     }
-    const Rope* r = ropeOf(NUM_FOR_EDICT(PROG_TO_EDICT(touch->v.goalentity)));
+    const Rope* r = poleOfSolid(touch);
     if(!r)
-    {
-        return 0;
-    }
-    const int tn = NUM_FOR_EDICT(touch);
-    bool ours = false;
-    for(const int s : r->solids)
-    {
-        ours = ours || s == tn;
-    }
-    if(!ours)
     {
         return 0;
     }

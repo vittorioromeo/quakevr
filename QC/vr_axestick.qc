@@ -170,6 +170,17 @@ void(float xKind, float xSpeed) VR_AxeStick_Stuck =
     {
         VR_Decap_After(decapped);
     }
+    // A brush entity's own touch, as the engine's impact would have run it (a wall button pressed by a thing thrown at it,
+    // button_touch_any and the mods' own: a blade stuck in lesson 12's target pressed nothing). self.velocity is the throw's.
+    if(xKind == AXESTICK_LEVEL && other != world && other.touch && other.solid == SOLID_BSP)
+    {
+        entity blade = self, host = other;
+        self = host;
+        other = blade;
+        self.touch();
+        self = blade;
+        other = host;
+    }
     self.throwhit = QVR_THROWHIT_HIT;
     self.vr_stick_by = VR_Throw_Thrower(self); // (its owner; past vr_throw_self_grace who threw it)
     self.vr_stick_next = time + AXESTICK_BLEED_TICK;

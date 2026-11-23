@@ -2034,6 +2034,7 @@ QVR_TUNABLE(vr_flat_throw_speed_min, "5") // the hand's speed (m/s) of a tap: a 
 QVR_TUNABLE(vr_flat_throw_speed_max, "11") // the hand's speed (m/s) fully charged
 QVR_TUNABLE(vr_flat_throw_up, "4") // degrees above the crosshair the throw leaves at (-30..60)
 QVR_TUNABLE(vr_flat_throw_spin, "8") // the throw's spin end over end (rad/s, as a wrist's flick; limited by the thing's mass and vr_throw_spin_max)
+QVR_TUNABLE(vr_flat_throw_spin_time, "1") // 1: a thrown blade's spin timed so that its edge or point leads where its arc meets something (bladespinto)
 QVR_TUNABLE(vr_flat_throw_release_pitch, "-30") // the hand's pitch against the throw as it lets go (negative: tipped back; a thrown weapon's angles)
 
 // Flatscreen > Free Hands
@@ -2100,6 +2101,7 @@ QVR_TUNABLE(vr_flat_ladder_push, "120") // flatscreen ledge ladder: jump pushes 
 QVR_TUNABLE(vr_flat_rope_look, "25") // flatscreen ropes (vr_flat_rope): walking into a rope takes it looking no further down than this (degrees, 5..80); with vr_flat_rope_keys 1, looking up (down) further than this, forward climbs up (down) the rope, within it the move keys pump its swing
 QVR_TUNABLE(vr_flat_rope_keys, "0") // flatscreen ropes and poles (ropes9, his note 2026-11-23): 0 looking up or down past vr_flat_rope_climb_pitch forward climbs up and back down, nearer level forward / back pump the swing along the view, the strafe keys always pump, a pole is only climbed; 1 as before ropes8a: looking up or down past vr_flat_rope_look forward climbs up or down, nearer level the move keys pump; 2 as ropes8a: forward always climbs up and back down, whatever the pitch, the strafe keys pump
 QVR_TUNABLE(vr_flat_rope_climb_pitch, "30") // flatscreen ropes (vr_flat_rope_keys 0, ropes9): looking up or down further than this (degrees, 5..85) forward / back climb the rope; nearer level they pump its swing (eased over 5 degrees each side)
+QVR_TUNABLE(vr_flat_rope_retake, "0.3") // flatscreen ropes and poles (ropes11, his note 2026-11-23: grab the same pole again after jumping off it): the rope or pole let go of (a jump, a drop) is not taken again for this long (seconds, 0..2: so the jump itself is not taken back); after it, met in the air or walked into, it is taken as any other (ropes10 had kept it until he stood on the ground)
 QVR_TUNABLE(vr_flat_ladder_reach, "16") // flatscreen ledge ladder: how far ahead of his box's front its rungs are looked for (units, 4..48)
 QVR_TUNABLE(vr_flat_hand_collide, "1") // flatscreen: empty hands (the guard, at rest) go back off walls and props as a held weapon does, and a punch or a weapon's swing stops at the surface (vr_flatplay.cpp handOffWall, vr_flatsight.cpp pushBack; 0: they go through, as before)
 QVR_TUNABLE(vr_flat_swing_wind_strikes, "0") // 1: the overhead swing's windup (the raise) may land a blow on what it passes (it knocked a near knight out of the strike's way); 0: only from its top on
@@ -2198,6 +2200,7 @@ QVR_TUNABLE(vr_flat_bash_cooldown, "0.5") // seconds from one bash (or shove) to
 QVR_TUNABLE(vr_flat_parry_blade, "1") // flatscreen: in the guard with a weapon held as a sword (a Blade hotspot: swords, the crowbar), the free hand takes the blade near its tip at that hotspot, and lets go as the guard ends (0: it stays where it was)
 QVR_TUNABLE(vr_flat_parry_blade_in_time, "0.12") // seconds the free hand takes to reach the blade (0: at once)
 QVR_TUNABLE(vr_flat_parry_blade_out_time, "0.15") // seconds back to where it was once it lets go (0: at once)
+QVR_TUNABLE(vr_flat_parry_blade_palm, "1") // the free hand on the blade palm down, over it (0: turned the least from how it was: palm up under it)
 
 // Flatscreen > Two-Handed Melee Stance (his notes 2026-11-12: a melee weapon with a two-handed grip is always held in both
 // hands while the other hand is empty; vr_flatplay.cpp twoHandPose, vr_flatsight.cpp carries the free hand onto the grip)
@@ -2376,6 +2379,9 @@ QVR_TUNABLE(vr_flat_swim_takeover_time, "0.12") // seconds a hand's stroke takes
 QVR_TUNABLE(vr_flat_swim_return_time, "0.4") // seconds it takes to come back after
 QVR_TUNABLE(vr_flat_swim_fire_hold, "0.5") // seconds after the trigger is let go before the hand's stroke comes back
 QVR_TUNABLE(vr_flat_swim_turn_time, "0.35") // seconds the stroke takes to change with the way he moves and his speed
+QVR_TUNABLE(vr_flat_swim_cup, "0.15") // a swimming free hand's fingers' curl: open, together, the palm cupped (0 flat open .. 1 a fist)
+QVR_TUNABLE(vr_flat_swim_sound, "0.5") // each stroke's water sound at its power's start (a whoosh under water, a stroke at the surface): its volume (0: none)
+QVR_TUNABLE(vr_flat_swim_bubbles, "1") // the bubbles off the hands through each stroke's power under water: how many (1 as made, 0: none)
 
 // Combat > Embedded Blades: held stabs and swung axes (QC/vr_embedhold.qc; ROUND23.md, "Embedded blades, stage 2")
 // Embedded Blades: Thrown
@@ -2613,3 +2619,5 @@ QVR_TUNABLE(vr_revgrip_pivot_shift, "0.35") // ... units: that pivot this far fr
 QVR_TUNABLE(vr_revgrip_2h_gate, "1") // ... 1: a sword or dagger held in two hands flips (its eject button, the flat FLIP GRIP) only with the other hand on its two-handed grip hotspot (the handle), not anywhere on it or on its blade (his note 2026-11-15; ROUND25.md "flipgate"); 0: always (before)
 QVR_TUNABLE(vr_revgrip_blocked_pulse, "0.25") // ... a refused flip's pulse in the pressing hand (0..1; 0 none)
 QVR_TUNABLE(vr_revgrip_2h_mirror, "1") // ... held reversed, the other hand on its grip hotspot: 1 holds it as it did upright, turned as the holding hand (knuckles out), its place mirrored along the handle (above the hand, blade down; ROUND25.md "flipgrip2"); 0: turned half round with the blade (before)
+QVR_TUNABLE(vr_rope_hand_pitch, "10") // ropes10 (his flat note 2026-11-23): a hand gripping a climbable rope or pole is drawn with its knuckles pitched up this far off square to the rope (degrees, 0..45; the turn towards the world's up, so a monkey traverse's overhand knuckles, already up, are unchanged): VR, flat and other players' copies (vr_climb.cpp ropeTurn)
+QVR_TUNABLE(vr_rope_elbow_out, "1") // ropes10 (his flat note 2026-11-23): on a climbable rope or pole the arms' elbows are posed out to the sides and a little down and back (this share, 0..1, of the elbow's pole; the wrist's swing in eased off as much), not swung in across the face: yours (flat and VR) and other players' copies (vr_avatar.cpp solveArm, ropeHang)

@@ -36,6 +36,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_flathit.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_flatswim.hpp"
 #include "vr_flattp.hpp"
 #include "vr_geom.hpp"
 #include "vr_cvars.hpp"
@@ -174,9 +175,15 @@ void updateFingerFrames()
         const bool holdsOther = posingHotspot ? !holder
                                               : twohand::drawnHelping(hand) || held::heldEntity(hand) != 0 || flashlight::holds(hand) ||
                                                     holdsBody(hand);
+        // (Flatscreen swimming, an empty hand: open for the stroke, its fingers together and the palm cupped, the thumb
+        // along the index: vr_flat_swim_cup's curl, its share of the stroke; vr_flatswim.cpp.)
+        const float swimOpen = flatplay::active() && !holder && !flatGrips ? flatswim::openShare(hand) : 0.f;
+        const float cup = za::clamp(vr_flat_swim_cup.value, 0.f, 1.f);
         for(int finger = 0; finger < FingerCount; finger++)
         {
-            approach(fingerFrames[hand][finger], targetCurl(in, finger, holdsOther) * 5.f);
+            const float curl = targetCurl(in, finger, holdsOther);
+            approach(fingerFrames[hand][finger],
+                (finger == FingerBase || swimOpen <= 0.f ? curl : curl + (cup - curl) * swimOpen) * 5.f);
             approach(fingerBias[hand][finger], biasFor(hand, finger));
         }
     }

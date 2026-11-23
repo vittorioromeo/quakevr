@@ -491,6 +491,9 @@ void(float xHand, vector xVel, vector xAVel, vector xFrom, vector xRot) VR_FlatT
     self.handthrowpos = xFrom; self.handthrowage = 0; self.handrot = xRot;
 };
 
+float VR_FLATTHROW_SPIN_LEAST = 0.4; // a timed blade's spin: at least this times its own (vr_flat_throw_spin_time)
+float VR_FLATTHROW_SPIN_MOST = 2.5;  // and at most this times it (and vr_throw_spin_max)
+
 // Let go (impulse 40, `xHeld` seconds wound up): thrown along the crosshair by the headset's own throw.
 void(float xHeld) VR_FlatThrow_Throw =
 {
@@ -560,6 +563,14 @@ void(float xHeld) VR_FlatThrow_Throw =
     {
         dprint(sprintf("flat throw: the %s hand no longer holds what it wound up with: nothing thrown\n", VR_FlatGrenade_HandName(h)));
         return;
+    }
+    // No wrist times a flat throw's spin: a blade's is timed so that its edge or point leads where its arc meets something
+    // (bladespinto: the spin nearest its own, VR_FLATTHROW_SPIN_LEAST times it to vr_throw_spin_max), and it sticks there.
+    float spun = vlen(thrown.vr_spin);
+    if(thrown.classname == "thrown_weapon" && cvar_hget(cvarh_vr_flat_throw_spin_time) && spun > 0.1)
+    {
+        float most = min(VR_FLATTHROW_SPIN_MOST, max(1, cvar_hget(cvarh_vr_throw_spin_max) / spun));
+        thrown.vr_spin = bladespinto(thrown, thrown.vr_spin, VR_FLATTHROW_SPIN_LEAST, most);
     }
     vr_flatthrow_count++;
     vr_flatthrow_lastspeed = speed;

@@ -764,6 +764,7 @@ int VR_PlayerShotClip (struct edict_s *touch, const float *start, const float *m
 	int hittype, float hitmodel, int hitgibs, trace_t *trace);	// SV_ClipToLinks: a shot, missile or thrown thing against another player's body as drawn (vr_playerhit.cpp): -1 his box decides, 0 missed, 1 met (trace filled)
 int VR_ChainShotClip (const float *start, const float *mins, const float *maxs, const float *end, struct edict_s *pass,
 	trace_t *trace);	// SV_Move (ropes8c): a gun's shot, a melee blow or a missile against the chains' links (vr_climbrope.cpp): 1 met before trace's fraction (trace filled, its ent the chain), 0 not
+int VR_PoleSolidLedge (struct edict_s *touch, struct edict_s *mover, const trace_t *trace);	// SV_ClipToLinks (ropes11): nonzero if player mover's move met pole box `touch` on a ledge of a steep pole's box staircase: passed (vr_climbrope.cpp solidLedge)
 int VR_PoleSolidPasses (struct edict_s *touch, struct edict_s *mover);	// SV_ClipToLinks (ropes8d): nonzero if player `mover` is let through pole box `touch` (a climber on it: vr_climbrope.cpp passSolids)
 
 // Client effects (r_part.c): Quake VR's particles in place of Quake's (nonzero if they took it).

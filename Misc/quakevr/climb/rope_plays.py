@@ -198,6 +198,25 @@ def pole(material):
     return p
 
 
+def pole_jump():
+    # (ropes10, his notes 2026-11-23 2 and 6; a wooden pole) up hand over hand, both hands on it, jump with the grips
+    # still held (as a hand does): a normal jump's speed up and pushed off it, then a free fall to the floor, the held
+    # grips never taking it again; let go of them on the floor
+    p = Play()
+    up_two(p)
+    p.rope(3.6, "main", 1.75)
+    p.cmd(3.7, "+grabmain")
+    p.check(3.9, "held 2")
+    p.cmd(4.2, "+jump")
+    p.check(4.22, "polejumped")
+    p.cmd(4.3, "-jump")
+    p.check(5.6, "fellfree")
+    p.cmd(5.7, "-graboff")
+    p.cmd(5.7, "-grabmain")
+    p.check(5.8, "done")
+    return p
+
+
 def monkey(end):
     # (ropes7; rope_climb_test.sh strings a rope level overhead across him, `vr_rope_climb_test <play> 0 strung`) both
     # hands take it overhead (2.0 m), pull down to 1.6 (hanging under it, a monkey traverse, the feet up and hanging),
@@ -262,6 +281,7 @@ if __name__ == "__main__":
     monkey("drop").write(os.path.join(out, "pole_monkey.txt"))  # (ropes8a: on a level pole, `... 0 strungpole`)
     pole("wood").write(os.path.join(out, "pole_wood.txt"))
     pole("metal").write(os.path.join(out, "pole_metal.txt"))
+    pole_jump().write(os.path.join(out, "pole_jump.txt"))
     climb().write(os.path.join(out, "rope_climb.txt"))
     jump().write(os.path.join(out, "rope_jump.txt"))
     pump().write(os.path.join(out, "rope_pump.txt"))
