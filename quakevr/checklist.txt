@@ -44,6 +44,8 @@ Flat-screen or VR: tutorial lesson 13: the pits' walls and the room's north wall
 Flat-screen or VR: tutorial lesson 14: the room's west wall runs on into the hall to the arena with the same panels, lined up (no brighter, different texture past the doorway). {test:tut_lesson14}
 On the Quest, close the game from the headset's menu while the first start is still compiling shaders, then start it again: no "GL safe mode" warning line, and the hub plays normally. {test:hub_start}
 On the Quest, enter the hub three times (also once with GL safe mode on: Debug > Startup), and open and close the system menu in the hub: no crash. {test:hub_start}
+Flat-screen or VR: A bot's and another player's left hip and chest sheaths are the mirror images of the right ones, as yours are (not the right sheath turned round), and so are the guns in them. {test:mp_dm_passive}
+Flat-screen or VR: Shove the grunt and the dog into the wall behind them: knocked down against it, each slumps on it and gets up as on the open floor; say whether it looks stuck upright on the wall (it stays propped 2-4 s, with the active ragdoll on or off alike). {test:wall_shove}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the 1.2.0-beta2 pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names 1.2.0-beta2; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}

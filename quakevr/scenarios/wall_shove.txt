@@ -1,0 +1,12 @@
+# wall_shove: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A grunt and a dog with their backs
+# to the south wall, to shove into it (animfix2: his note vrtutorial 2026-11-23 23:14:32, "glued to the wall"; the A/B
+# measure is vr_ragsmash_test 2, Debug > Tests: Shoved into a Wall: Glue A/B).
+title Shoved into a wall: a grunt and a dog with their backs to it, every shove a knockdown
+map vrtesthall
+start -400 -400 25 -90
+god
+notarget
+cvar vr_knockdown_chance 100
+spawn "Grunt" 80 -40
+spawn monster_dog 76 50
+hint Shove each into the wall behind it (both hands). Knocked down against it, it should slump or slide down the wall and get up as on the open floor, not stay stuck upright on the wall. Debug > Tests: Shoved into a Wall: Glue A/B measures it.
