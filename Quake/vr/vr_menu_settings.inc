@@ -573,6 +573,7 @@ void resetBodyEquipment()
         row(opt::vr_dynres),
         row(opt::vr_dynres_target).advanced(),
         row(opt::vr_dynres_min),
+        row(opt::vr_dynres_min_fight).advanced(),
         dynresMaxSlider().advanced(),
         row(opt::vr_upscale),
         row(opt::vr_upscale_sharpness),

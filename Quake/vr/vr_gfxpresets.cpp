@@ -135,6 +135,9 @@ constexpr presetcore::Row standaloneRows[] = {
     {&vr_render_scale,                {"0.9",    "0.75",   "0.65"}},
     {&vr_dynres,                      {"1",      "1",      "1"}},
     {&vr_dynres_min,                  {"0.65",   "0.5",    "0.5"}},   // his call 2026-11-22 (C5i): 0.55 -> 0.65 now the world's lights are Quake's way (C5g/C5h: the fight 11.3 -> 7.0 ms); C4o had cut 0.65 -> 0.55
+    // qtune (ROUND25): 0.55 only in a fight (the eyes over the budget at 0.65 for half a second), back to 0.65 by the
+    // usual slow rise: questperf's gib fight at 0.55 held 72 Hz (12.0 ms, 1.1% late; 0.65: 15.8, 21%)
+    {&vr_dynres_min_fight,            {"0.55",   "0",      "0"}},
     {&vr_upscale,                     {"0",      "0",      "0"}},     // bilinear: no full-size pass
     {&vid_fsaa,                       {"0",      "0",      "0"}},     // off: 2x cost the Quest 3 ~100 ms a frame (C4e: e1m1 138 -> 41 ms; the float scene's MSAA resolved through memory, not on chip)
     {&vr_taa,                         {"0",      "0",      "0"}},     // its history reads and writes: bandwidth
@@ -153,6 +156,8 @@ constexpr presetcore::Row standaloneRows[] = {
     {&vr_heat_haze,                   {"0",      "0",      "0"}},
     {&vr_water_reflections,           {"0",      "0",      "0"}},     // (the envmap)
     {&vr_rim_light,                   {"0",      "0",      "0"}},     // (the envmap)
+    // qtune: your own models (~2.5 ms of the gib fight) by the plain / skin form: no normal maps, reflections, rim light
+    {&vr_rig_plain,                   {"1",      "1",      "1"}},
     // Lights from things (each one a cluster entry every pixel near it walks)
     {&vr_torch_lights,                {"2",      "2",      "1"}},
     {&vr_lavanail_lights,             {"2",      "2",      "1"}},
@@ -179,6 +184,8 @@ constexpr presetcore::Row standaloneRows[] = {
     {&vr_ragdoll_max,                 {"4",      "3",      "3"}},
     {&vr_smallgibs_max,               {"32",     "24",     "16"}},
     {&vr_limbs_max,                   {"12",     "8",      "8"}},
+    // qtune: gibs, heads and limbs settled 5 s after a fight past this many: the farthest from you go (none within 160)
+    {&vr_gore_trim_max,               {"24",     "20",     "16"}},
     {&vr_explosion_debris_max,        {"32",     "24",     "16"}},
     {&vr_gore_dents_max,              {"6",      "4",      "4"}},
     // Close-up blood thinned (pcopt E): a limb popped 4-30 units off the eye made 413 particles within 48 units, 64 at
