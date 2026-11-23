@@ -2322,8 +2322,8 @@ void flatTestFrame()
                                                 held, sink, part, za::max(gap, 0.f)));
             if(round)
             {
-                Con_Printf("%s: PASS the hands round the pole: both on it, the deepest %.2f units in, %.2f off at the nearest\n",
-                    flatTestName, sink, za::max(gap, 0.f));
+                Con_Printf("%s: PASS the hands round the pole: both on it, the deepest %.2f units in (%s), %.2f off at the nearest\n",
+                    flatTestName, sink, part, za::max(gap, 0.f));
             }
         }
         else if(t.frames >= 60)
