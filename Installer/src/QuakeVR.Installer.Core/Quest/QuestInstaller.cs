@@ -13,7 +13,12 @@ public sealed class QuestPlan
     public string? Serial { get; init; }
 }
 
-public sealed record QuestResult(string Device, bool ApkInstalled, int Pushed, int Skipped, long PushedBytes);
+public sealed record QuestResult(string Device, bool ApkInstalled, int Pushed, int Skipped, long PushedBytes)
+{
+    /// <summary>Files not copied: their folder on the headset was made by the game itself (u0_aNNN, mode 770), which adb's
+    /// shell user cannot write into (e.g. quakevr/doom, made when Doom was opened before its WADs were there).</summary>
+    public IReadOnlyList<string> NotWritable { get; init; } = [];
+}
 
 /// <summary>
 /// Installs Quake VR on a Quest over adb: checks the headset (none, not allowed yet, several: <see cref="QuestDeviceException"/>),
@@ -110,6 +115,7 @@ public sealed class QuestInstaller(IAdb adb)
         Report(0.2, "Comparing with the Quest's files",
             $"{plan.Files.Count} files for the Quest: {skipped} already there and unchanged, {toPush.Count} to copy ({PathUtil.FormatSize(bytes)}).");
 
+        List<QuestFile> refused = [];
         if (toPush.Count > 0)
         {
             var free = FreeBytes(serial, ct);
@@ -120,7 +126,7 @@ public sealed class QuestInstaller(IAdb adb)
                 throw new InstallException($"Not enough space on the Quest: {PathUtil.FormatSize(bytes)} to copy, " +
                                            $"{PathUtil.FormatSize(fb)} free (and {PathUtil.FormatSize(SpaceMargin)} kept free). Free some space in the headset, then try again.");
             }
-            Push(serial, toPush, bytes, (f, s) => Report(0.2 + 0.75 * f, s), ct);
+            refused = Push(serial, toPush, bytes, (f, s) => Report(0.2 + 0.75 * f, s), ct);
 
             // Readable by the game (what adb's shell writes is the shell's: Android/README.md).
             Report(0.96, "Finishing on the Quest");
@@ -136,17 +142,24 @@ public sealed class QuestInstaller(IAdb adb)
 
             // Checked: every copied file there, at its size.
             var after = ListSizes(serial, roots, ct);
-            var bad = toPush.Where(f => !after.TryGetValue(f.DevicePath, out var s) || s != f.Size).ToList();
+            var bad = toPush.Where(f => !refused.Contains(f) && (!after.TryGetValue(f.DevicePath, out var s) || s != f.Size)).ToList();
             if (bad.Count > 0)
             {
                 var full = FreeBytes(serial, ct) is < SpaceMargin;
                 throw new InstallException($"{bad.Count} file(s) did not arrive complete on the Quest (first: {bad[0].DevicePath})" +
                                            (full ? ": its storage is full. Free some space in the headset, then try again." : ". Check the cable, then try again: what arrived is kept and skipped."));
             }
-            Report(0.99, "Finishing on the Quest", $"{toPush.Count} files copied to the Quest and checked.", LogLevel.Success);
+            Report(0.99, "Finishing on the Quest", $"{toPush.Count - refused.Count} files copied to the Quest and checked.", LogLevel.Success);
+            if (refused.Count > 0)
+            {
+                Report(0.99, "Finishing on the Quest", NotWritableText(refused), LogLevel.Warning);
+            }
         }
         Report(1, "Done", "Quake VR is on the Quest: start it from Library > Unknown Sources (the app list's filter, top right).", LogLevel.Success);
-        return new QuestResult(status.Device.Model ?? serial, !apkSame, toPush.Count, skipped, bytes);
+        return new QuestResult(status.Device.Model ?? serial, !apkSame, toPush.Count - refused.Count, skipped, bytes - refused.Sum(f => f.Size))
+        {
+            NotWritable = [.. refused.Select(f => f.DevicePath)],
+        };
     }
 
     static string ApkFailure(string output)
@@ -241,7 +254,7 @@ public sealed class QuestInstaller(IAdb adb)
     /// stream into <c>adb exec-in tar -x</c> (the first design): on the real Quest 3 adb's server takes the whole stream at
     /// once (2.8 GB in 3 s), the headset's tar got ~400 MB of it, the server died and the headset went offline, while
     /// adb exec-in exited 0 with no output (and toybox refused .NET 9's GNU and pax tar headers besides).</summary>
-    void Push(string serial, IReadOnlyList<QuestFile> files, long total, Action<double, string> report, CancellationToken ct)
+    List<QuestFile> Push(string serial, IReadOnlyList<QuestFile> files, long total, Action<double, string> report, CancellationToken ct)
     {
         var dirs = files.Select(f => f.DevicePath[..f.DevicePath.LastIndexOf('/')]).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
         foreach (var cmd in Batches($"cd {Quote(QuestFiles.DeviceRoot)} && mkdir -p", dirs))
@@ -262,6 +275,7 @@ public sealed class QuestInstaller(IAdb adb)
             Shell(serial, cmd + " 2>/dev/null", ct);
         }
         long done = 0;
+        List<QuestFile> refused = [];
         foreach (var batch in PushBatches(files))
         {
             ct.ThrowIfCancellationRequested();
@@ -282,13 +296,28 @@ public sealed class QuestInstaller(IAdb adb)
             {
                 if (r.All.Contains("No space left", StringComparison.OrdinalIgnoreCase))
                 {
-                    return; // the check after the copy reports what is missing and that the storage is full
+                    return refused; // the check after the copy reports what is missing and that the storage is full
+                }
+                if (r.All.Contains("Permission denied", StringComparison.OrdinalIgnoreCase))
+                {
+                    refused.AddRange(batch); // a folder the game made (NotWritable): the others still go
+                    continue;
                 }
                 throw new InstallException($"Copying to the Quest failed ({first.DevicePath}): {r.All.Trim()}");
             }
             done += batch.Sum(f => f.Size);
         }
         report(1, $"Copying to the Quest ({PathUtil.FormatSize(total)})");
+        return refused;
+    }
+
+    /// <summary>The warning for files a folder the game made kept out (<see cref="QuestResult.NotWritable"/>).</summary>
+    public static string NotWritableText(IEnumerable<QuestFile> files)
+    {
+        var list = files.ToList();
+        var dirs = list.Select(f => f.DevicePath[..f.DevicePath.LastIndexOf('/')]).Distinct(StringComparer.Ordinal).ToList();
+        return $"{list.Count} file(s) not copied: the game itself made {string.Join(", ", dirs)} on the Quest, and only the game can " +
+               "write there. Everything else was copied. Uninstalling the app in the headset clears it (with its saves: copy them first).";
     }
 
     const int PushRetries = 4;

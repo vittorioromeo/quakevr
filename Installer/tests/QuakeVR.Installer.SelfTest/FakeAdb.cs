@@ -28,6 +28,8 @@ sealed class FakeAdb(string deviceFiles) : IAdb
     public long? WriteQuota { get; set; }
     public int TarFiles { get; private set; }
     public List<string> Chmodded { get; } = [];
+    /// <summary>Folders the game made itself (u0_aNNN, 770): adb push into them is refused (the real Quest's quakevr/doom).</summary>
+    public HashSet<string> GameFolders { get; } = new(StringComparer.Ordinal);
 
     public AdbResult Run(IReadOnlyList<string> args, Stream? stdin, CancellationToken ct)
     {
@@ -126,7 +128,12 @@ sealed class FakeAdb(string deviceFiles) : IAdb
         var buffer = new byte[65536];
         foreach (var source in sources)
         {
-            var path = Local(intoDir ? rel + Path.GetFileName(source) : rel);
+            var devicePath = intoDir ? rel + Path.GetFileName(source) : rel;
+            if (GameFolders.Contains(devicePath[..devicePath.LastIndexOf('/')]))
+            {
+                return new AdbResult(1, "", $"adb: error: failed to copy '{source}' to '{target}': remote couldn't create file: Permission denied");
+            }
+            var path = Local(devicePath);
             using var input = File.OpenRead(source);
             using var output = File.Create(path);
             ++TarFiles;

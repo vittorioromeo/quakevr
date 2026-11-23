@@ -243,6 +243,16 @@ static class QuestTests
                 True(File.Exists(Path.Combine(adb.DeviceFiles, p.Replace('/', '\\'))), $"{p} on the headset");
             }
             NothingRemoved(adb);
+
+            // A folder the game made itself (the real Quest's quakevr/doom, made by opening Doom before its WADs came):
+            // its files refused, the others copied, the Done page says which folder.
+            var s2 = MakeSetup(dir, "quest-gamefolder");
+            var adb2 = new FakeAdb(dir("quest-gamefolder-device"));
+            adb2.GameFolders.Add("quakevr/maps");
+            var inMaps = s2.Files.Count(f => f.DevicePath.StartsWith("quakevr/maps/", StringComparison.Ordinal));
+            var r2 = new QuestInstaller(adb2).Install(new QuestPlan { ApkPath = s2.Apk, Files = s2.Files }, null, CancellationToken.None);
+            True(inMaps > 0 && r2.NotWritable.Count == inMaps && r2.Pushed == s2.Files.Count - inMaps, $"the game's folder's files refused, the rest copied ({r2.Pushed}, {r2.NotWritable.Count})");
+            True(QuestTarget.Outcome(r2, null).Text.Contains("a folder the game made itself (quakevr/maps)"), $"the Done page names it: {QuestTarget.Outcome(r2, null).Text}");
         }),
 
         ("quest: installing again skips unchanged files and the same APK; a changed file is copied again", () =>

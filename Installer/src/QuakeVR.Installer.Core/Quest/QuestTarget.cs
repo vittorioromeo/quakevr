@@ -39,7 +39,8 @@ public static class QuestTarget
         }
         return (true, $"Installed on your {result.Device}",
             $"{(result.ApkInstalled ? "The app was installed" : "The app was already up to date")}; {result.Pushed} files copied" +
-            $"{(result.Pushed > 0 ? $" ({PathUtil.FormatSize(result.PushedBytes)})" : "")}, {result.Skipped} already there. {StartNote}");
+            $"{(result.Pushed > 0 ? $" ({PathUtil.FormatSize(result.PushedBytes)})" : "")}, {result.Skipped} already there. " +
+            $"{(result.NotWritable.Count > 0 ? $"{result.NotWritable.Count} not copied: a folder the game made itself ({result.NotWritable[0][..result.NotWritable[0].LastIndexOf('/')]}) only it can write. " : "")}{StartNote}");
     }
 
     /// <summary>The steps before the first install, for the window and the console.</summary>
