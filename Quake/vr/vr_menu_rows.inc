@@ -5007,7 +5007,7 @@ QVR_CYCLE(vr_xr_exit_quits, "Exit From Runtime Menu",
 QVR_TOGGLE(vr_xr_late_acquire, "Late Image Acquire",
     "Each eye's headset image is taken from the runtime only once its scene is drawn, so the runtime's wait for it (SteamVR copying the last one out) overlaps the drawing. Off: before the scene, the old way, to compare.")
 QVR_TOGGLE(vr_xr_vendor_profiles, "Vendor Controller Profiles",
-    "Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2 and Samsung Odyssey controllers get their own buttons, "
+    "Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2, Samsung Odyssey and Steam Frame controllers get their own buttons, "
     "menu button included, when the runtime offers them. Off: they go as the runtime emulates them (the "
     "1.0.0 way, if your hands' angle changed). From the next VR start.")
 QVR_TOGGLE(vr_alias_prepass_world, "World Models Pre-pass",

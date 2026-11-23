@@ -394,11 +394,13 @@ private:
         VendorFocus3,  // HTC Vive Focus 3 (and XR Elite)
         VendorHp,      // HP Reverb G2
         VendorOdyssey, // Samsung Odyssey (a WMR controller)
+        VendorFrame,   // Valve Steam Frame (from PR #75, by Kasper Olesen)
         VendorCount
     };
     static constexpr const char* vendorExtensions[VendorCount] = {"XR_BD_controller_interaction",
         "XR_HTC_vive_cosmos_controller_interaction", "XR_HTC_vive_focus3_controller_interaction",
-        "XR_EXT_hp_mixed_reality_controller", "XR_EXT_samsung_odyssey_controller"};
+        "XR_EXT_hp_mixed_reality_controller", "XR_EXT_samsung_odyssey_controller",
+        "XR_VALVE_frame_controller_interaction"};
     bool vendorProfile[VendorCount]{};
     char runtime[XR_MAX_RUNTIME_NAME_SIZE + 32]{}; // its name and version
     char system[XR_MAX_SYSTEM_NAME_SIZE]{};        // the headset's name (systemName)
@@ -602,7 +604,8 @@ private:
         "/interaction_profiles/htc/vive_controller", "/interaction_profiles/microsoft/motion_controller",
         "/interaction_profiles/bytedance/pico_neo3_controller", "/interaction_profiles/bytedance/pico4_controller",
         "/interaction_profiles/htc/vive_cosmos_controller", "/interaction_profiles/htc/vive_focus3_controller",
-        "/interaction_profiles/hp/mixed_reality_controller", "/interaction_profiles/samsung/odyssey_controller"};
+        "/interaction_profiles/hp/mixed_reality_controller", "/interaction_profiles/samsung/odyssey_controller",
+        "/interaction_profiles/valve/frame_controller_valve"};
 
     [[nodiscard]] static const char* shortProfile(const char* name);
 

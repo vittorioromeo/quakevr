@@ -358,6 +358,24 @@ void OpenXrBackend::suggestBindings()
                 QVR_BOTH(gripValueAction, "input/squeeze/click"),
                 QVR_BOTH(thumbTouchAction, "input/trackpad/touch")});
     }
+    // The Steam Frame's (XR_VALVE_frame_controller_interaction; by Kasper Olesen, tested on the headset, PR #75): the
+    // left d-pad's down and up as the primary and secondary buttons, A and B on the right; the menu the left view button
+    // or the right menu button; the triggers, grips, sticks, touches and haptics as the Index's.
+    if(vendorProfile[VendorFrame])
+    {
+        suggest("/interaction_profiles/valve/frame_controller_valve",
+            {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
+                QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                {&primaryAction, QVR_L("input/dpad_down/click")}, {&primaryAction, QVR_R("input/a/click")},
+                {&secondaryAction, QVR_L("input/dpad_up/click")}, {&secondaryAction, QVR_R("input/b/click")},
+                {&menuAction, QVR_L("input/view/click")}, {&menuAction, QVR_R("input/menu/click")},
+                QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value"),
+                QVR_BOTH(gripValueAction, "input/squeeze/value"), QVR_BOTH(thumbTouchAction, "input/thumbstick/touch"),
+                {&thumbTouchAction, QVR_L("input/dpad_down/touch")}, {&thumbTouchAction, QVR_L("input/dpad_up/touch")},
+                {&thumbTouchAction, QVR_R("input/a/touch")}, {&thumbTouchAction, QVR_R("input/b/touch")},
+                QVR_BOTH(triggerTouchAction, "input/trigger/touch")});
+    }
 
 #undef QVR_BOTH
 #undef QVR_L
