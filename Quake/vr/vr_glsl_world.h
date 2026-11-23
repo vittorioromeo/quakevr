@@ -373,9 +373,13 @@ QVR_BAYER4_GLSL \
 "		// read member by member, each test as soon as its members are in (qworld: most listed decals are rejected after\n" \
 "		// 2 of the 6 vec4 loads, not after all of them; the carve member never read)\n" \
 "		uint di = DecalGrid[first + k];\n" \
+"#ifdef QVR_PROBE_OLDDECAL\n" /* qworld, vr_gles_define's probe: the whole record first, as before */ \
+"		Decal d = Decals[di];\n" \
+"#else\n" \
 "		Decal d;\n" \
 "		d.n = Decals[di].n;\n" \
 "		d.centre = Decals[di].centre;\n" \
+"#endif\n" \
 "		if (dot(facing, d.n.xyz) < 0.5 || abs(dot(d.centre.xyz - q, facing)) > d.n.w) // its middle within n.w of this face's plane\n" \
 "			continue;\n" \
 "		// outside its rectangle at its full size (it only spreads to it; a little larger, for rounding): no more worked out\n" \
@@ -498,6 +502,9 @@ QVR_BAYER4_GLSL \
 "	vec4 here = PermDecalsAt(g, pages, dgdx, dgdy);\n" \
 "	if (here.w < 0.5) // no page here (most of the world): nothing to snap (a page's marks reach a texel into the next)\n" \
 "		return here;\n" \
+"#ifdef QVR_PROBE_PERMONE\n" /* qworld, vr_gles_define's probe: the smooth read alone (no blocky edges' 4 more) */ \
+"	return here;\n" \
+"#endif\n" \
 "	vec2 grid = vec2(0.0);\n" \
 "	float soft = 0.0, far = 0.0;\n" \
 "	if (Retro > 0)\n" \
@@ -744,7 +751,11 @@ QVR_PERMDECAL_FUNCTIONS \
 "	if (LightTweak.x != 1. || AmbientLight.x > 0.) // QVR: the room's own fill light first (vr_ambient_light: a share of Quake's full light added to the lightmap), then the contrast about Quake's full light (vr_light_contrast): darker shade, lamps as bright\n" \
 "	{\n" \
 "		QVR_MP vec3 lt_x = max(total_light, vec3(0.)) * 2.0 + AmbientLight.x;\n" \
+"#ifdef QVR_PROBE_OLDPOW\n" /* qworld, vr_gles_define's probe: the pow as before */ \
+"		total_light = 0.5 * pow(lt_x, vec3(LightTweak.x));\n" \
+"#else\n" \
 "		total_light = 0.5 * (LightTweak.x == 2.5 ? lt_x * lt_x * sqrt(lt_x) : pow(lt_x, vec3(LightTweak.x))); // qworld: the default contrast without the three pow (6 transcendentals a pixel)\n" \
+"#endif\n" \
 "	}\n" \
 "\n" \
 "	// QVR: the normal bent by the normal map (vr_normalmaps), for the baked light and the dynamic lights\n" \

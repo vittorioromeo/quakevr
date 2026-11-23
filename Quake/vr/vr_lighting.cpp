@@ -2893,6 +2893,13 @@ int qvr::lighting::takeWorldSplitViews()
     return n;
 }
 
+// qworld: retro decals keep the unlit world's form (r_world.c R_ChooseBModelProgram: its decal retro twin) unless
+// vr_gl_world_unlit is 0 (the A/B against the lit decal program they took before)
+extern "C" int VR_WorldUnlitDecalTwin(void)
+{
+    return vr_gl_world_unlit.value != 0.f;
+}
+
 extern "C" int VR_WorldUnlit(void)
 {
     if(worldUnlit && !worldUnlitDraw)

@@ -1336,7 +1336,7 @@ static GLuint R_ChooseBModelProgramAny (qboolean oit, qboolean alphatest, qboole
 	const int dither = R_WorldDither ();
 	if (!alphatest && r_framedata.decalclock[3] > 0.5f) // QVR: the decals with retro textures (VR_DecalsFrame: their set)
 	{
-		if (!oit && !pdo && glprogs.world_unlit[dither][0] && VR_WorldUnlit () && GL_WorldUnlitDecalRetroProgram (dither)) // QVR: qworld, still unlit (the ES forms)
+		if (!oit && !pdo && glprogs.world_unlit[dither][0] && VR_WorldUnlitDecalTwin () && VR_WorldUnlit () && GL_WorldUnlitDecalRetroProgram (dither)) // QVR: qworld, still unlit (the ES forms)
 			return glprogs.world_unlit_decal_retro[dither];
 		return GL_WorldDecalRetroProgram (oit, dither, pdo && !oit);
 	}
