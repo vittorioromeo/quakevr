@@ -196,6 +196,7 @@ int VR_ErrorDialogSuppressed (const char *errorMsg);	// PL_ErrorDialog: nonzero 
 // Start-up and map-load timing (vr_startup.cpp: vr_startup_times, vr_walltime).
 void VR_TimeStart (void);	// main, after Sys_Init: the process's start
 void VR_TimeInit (void);	// VR_Init: the commands
+void VR_TestTick (void);	// Host_Frame, after a server tick ("wait"'s): vr_waitquiton's held commands back when done (vr_testbatch.cpp)
 void VR_TestConsolePrint (const char *text);	// Con_Printf (main thread): vr_waitprint's wait for a line (vr_testbatch.cpp)
 int VR_LogFlushFrames (void);	// LOG_Tick: vr_log_flush_frames (the log out every frame; vr_testbatch.cpp)
 void VR_NoteConsolePrint (const char *text);	// Con_Printf (main thread): the voice notes' console ring (vr_notectx.cpp)
