@@ -37,12 +37,19 @@ inline constexpr float sceneMax = 8.f;
 
 // After such an eye's scene, its framebuffer `fbo` (its image) still bound on the tiler: the post-process's steps after
 // the tone curve (QVR_POSTPROCESS_GRADE_DITHER), each pixel read where it is (in the tile, before it is written out),
-// over its lower left width x height. Nothing when none is wanted.
-void drawInTile(unsigned fbo, int width, int height);
+// over its width x height from x, y (the eye's part of its image: vr_eye_rect_place). Nothing when none is wanted: the
+// dither not when the scene's shaders added it (vr_dither_in_scene: VR_SceneDither, sceneDithered).
+void drawInTile(unsigned fbo, int x, int y, int width, int height);
 
-// vr_eyeshot: after an eye's post-process, saves its image (`imageFbo`, width x height) and with vr_eyeshot 2 its
-// float scene (`sceneFbo`) to <gamedir>/eyeshots; clears vr_eyeshot after the right eye.
-void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int height);
+// This eye's scene shaders dithered into its image themselves (VR_SceneDither; false before each eye: vr_stereo.cpp).
+inline bool sceneDithered = false;
+
+// The eyes' dither noise's seed (vr_dither): x the right eye's own noise (1), y the frame's offset (0: fixed).
+[[nodiscard]] glm::vec2 ditherSeed();
+
+// vr_eyeshot: after an eye's post-process, saves its image (`imageFbo`, width x height from x, y: the eye's part) and with
+// vr_eyeshot 2 its float scene (`sceneFbo`, from its corner) to <gamedir>/eyeshots; clears vr_eyeshot after the right eye.
+void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int height, int x = 0, int y = 0);
 // vr_gl_probe: queries around an eye's scene (begin, then end: prints its primitives and whether samples passed).
 void glProbeScene(bool begin);
 // vr_gl_probe 2 and 3, the bisection's draws (a full-screen triangle of one colour): 2 blue under the scene (`after`

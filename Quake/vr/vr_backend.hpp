@@ -251,8 +251,9 @@ public:
 
     // The part of the eye's image (from its lower left corner, GL's) the layer shows this frame, scaled to the view by
     // the compositor (vr_eye_subimage: eyes drawn smaller than the image, no resample of ours); 0 x 0: the whole image.
+    // x, y: the part's lower left corner in the image (GL's: vr_eye_rect_place, the part centred on the foveation's bins).
     // False if the backend can't show a part (the eye then fills its image).
-    virtual bool setEyeImageRect(int /* eye */, int /* width */, int /* height */)
+    virtual bool setEyeImageRect(int /* eye */, int /* width */, int /* height */, int /* x */ = 0, int /* y */ = 0)
     {
         return false;
     }
