@@ -257,6 +257,14 @@ public sealed class QuestInstaller(IAdb adb)
                                           : $"{QuestFiles.DeviceRoot}/{first.DevicePath[..first.DevicePath.LastIndexOf('/')]}/";
             report(total == 0 ? 1 : (double)done / total, $"Copying to the Quest: {first.What} ({PathUtil.FormatSize(done)} of {PathUtil.FormatSize(total)})");
             var r = adb.Run(["-s", serial, "push", .. batch.Select(f => f.Source), target], null, ct);
+            // (adb's server restarted under it: another adb version on the PC, e.g. an SDK's or Meta's tools, takes the
+            // server over; seen on the real headset: "cannot connect to daemon". The same push again, a few times.)
+            for (var attempt = 1; r.ExitCode != 0 && attempt <= PushRetries && Transient(r.All); ++attempt)
+            {
+                ct.WaitHandle.WaitOne(TimeSpan.FromSeconds(3 * attempt));
+                ct.ThrowIfCancellationRequested();
+                r = adb.Run(["-s", serial, "push", .. batch.Select(f => f.Source), target], null, ct);
+            }
             if (r.ExitCode != 0)
             {
                 if (r.All.Contains("No space left", StringComparison.OrdinalIgnoreCase))
@@ -269,6 +277,13 @@ public sealed class QuestInstaller(IAdb adb)
         }
         report(1, $"Copying to the Quest ({PathUtil.FormatSize(total)})");
     }
+
+    const int PushRetries = 4;
+
+    /// <summary>adb lost its server or the headset for a moment (not a refusal by the headset).</summary>
+    public static bool Transient(string adbOutput) =>
+        new[] { "cannot connect to daemon", "daemon not running", "device offline", "no devices/emulators found", "device not found", "protocol fault", "connection reset" }
+            .Any(s => adbOutput.Contains(s, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>The pushes: files of one headset folder whose PC names are their headset names (case included), up to
     /// <see cref="MaxCommand"/> characters of paths and 256 MB a push (the progress); any other file alone.</summary>
