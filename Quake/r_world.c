@@ -1529,7 +1529,9 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	// QVR: the opaque world and brush models' depth first (the same draws, depth only), so that their costly shading
 	// (parallax, bumps, the lights' shadows) runs once a pixel, for the nearest surface only, not for the ones drawn
 	// over later. The vertex shader's gl_Position is invariant: the same depths, which the shading pass then passes.
-	if (pass == BP_SOLID && !translucent)
+	// Off (vr_world_prepass 0): a tiler's own early depth test (Adreno's LRZ, made at binning from every draw) may
+	// already reject the hidden surfaces, the pass then only doubling the world's vertices and binning (questperf).
+	if (pass == BP_SOLID && !translucent && VR_WorldPrepass ())
 	{
 		VR_GPUZoneBegin ("depth prepass"); // QVR: a GL debug group (vr_gl_markers); profiling builds: a GPU zone with vr_tracy_gpu_detail
 		GLuint depthprog = r_framedata.parallax2[3] > 0.f ? glprogs.world_depth_pdo : glprogs.world_depth; // QVR: with pixel depth offset, as far as the parallax hits can be (vr_parallax_depth_write)

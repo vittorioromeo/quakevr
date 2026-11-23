@@ -743,6 +743,10 @@ QVR_CVAR(vr_alias_prepass_world, "1", CVAR_ARCHIVE) // saved (C5j): the Quest pr
 // authored rig, their armour, ragdolls) drawn as one batch, their bones in one buffer (PC ThinLTO: ragdolls_32_active
 // -0.11 ms GPU, combat_48 even; ROUND25); 0 a batch each, as before.
 QVR_CVAR(vr_alias_batch_posed, "1", CVAR_NONE)
+// The opaque world and brush models' depth pre-pass (r_world.c): 1 drawn first, so their shading runs once a pixel;
+// 0 shaded as drawn (an A/B switch: the Quest 3 gib fight measured no gain, questperf).
+QVR_CVAR(vr_world_prepass, "1", CVAR_NONE)
+QVR_CVAR(vr_debug_hide_models, "", CVAR_NONE)   // alias models whose name holds any of these comma-separated parts are not drawn in the eyes (vr_render.cpp VR_AliasDebugHidden; questperf)
 QVR_CVAR(vr_gl_passes, "0", CVAR_NONE)            // 1: the next frame's draw framebuffer binds and alias batches listed in the console (vr_profile.cpp; back to 0 after)
 QVR_CVAR(vr_perf_record, "0", CVAR_NONE)
 // Tests of the choice without the real runtimes (docs/vr-port/TESTING.md, "OpenXR runtime choice"): vr_xr_test 1 reads
@@ -4649,7 +4653,7 @@ QVR_CVAR(vr_flat_mantle_look_max, "90", CVAR_ARCHIVE)   // flatscreen mantle: de
 QVR_CVAR(vr_flat_mantle_grunt_delay, "0.35", CVAR_ARCHIVE) // flatscreen mantle: seconds after the jump left the ground before the mantle's grunt (vr_climb_mantle_grunt) plays, so the jump's own grunt has ended and it is heard (0..1; 0: as the mantle starts)
 QVR_CVAR(vr_flat_mantle_time, "1", CVAR_ARCHIVE)        // flatscreen mantle: seconds after the jump left the ground that a ledge may still be mantled (the jump key held all along)
 QVR_CVAR(vr_flat_ladder, "1", CVAR_ARCHIVE)             // flatscreen play: 1 ledge ladders (vr_climb.cpp flatLadder; needs vr_climb): walking forward into a stack of graspable ledges (rungs) takes hold of them, as a headset's hands do; forward climbs hand over hand (looking down or back: down), jump pushes off, the top mantles over; 0 off (tuning: vr_flat_ladder_speed, _look_down, _push, _reach)
-QVR_CVAR(vr_flat_rope, "1", CVAR_ARCHIVE)               // flatscreen play: 1 climbable ropes (vr_climb.cpp flatRope; needs vr_climb and vr_rope_climb): walking or jumping into a rope takes hold of it, both hands on it; forward climbs it hand over hand, back climbs down (or the move up / down keys), the strafe keys pump its swing (vr_flat_rope_keys 1: by the view's pitch, as before), jump lets go keeping the swing; 0 off (tuning: vr_flat_rope_look, vr_flat_ladder_speed, _reach)
+QVR_CVAR(vr_flat_rope, "1", CVAR_ARCHIVE)               // flatscreen play: 1 climbable ropes (vr_climb.cpp flatRope; needs vr_climb and vr_rope_climb): walking or jumping into a rope takes hold of it, both hands on it; looking up or down forward climbs it hand over hand, back climbs down (or the move up / down keys), looking level they pump its swing, the strafe keys always pump (vr_flat_rope_keys, vr_flat_rope_climb_pitch), jump lets go keeping the swing; 0 off (tuning: vr_flat_rope_look, vr_flat_ladder_speed, _reach)
 QVR_CVAR(vr_flat_hud, "1", CVAR_ARCHIVE)               // the status bar at hudstyle 1 (vr_flathud.cpp): 1 flatscreen play's own (portrait and health over the ammo bar in the middle, each hand's ammo at its own bottom corner, the bullet time bar); 0 Ironwail's
 // The visor HUD (vr_visor.cpp; ROUND24.md, "Flat-screen visor HUD"): flatscreen play's HUD as a helmet's visor, the wrist
 // gadget's screens in small 3D panels near the view's corners.

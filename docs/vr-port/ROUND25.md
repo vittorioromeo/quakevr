@@ -10319,3 +10319,88 @@ the cursor; let go on a slot: that hand takes it, as reaching to the holster wou
   HAND back to its holster, time back at 1). `mp_test.py suite --only mp_weaponwheel` (new): B's wheel picks his
   holstered shotgun: the server and A have it in his hand, 9/0. flatholster_test 54/0; the number keys' cycle by hand.
   Scenario `weapon_wheel`.
+## ropes9: flat W/S swing looking level; physics props meet the poles (agent/ropes9, 2026-11-23)
+
+His correction 2026-11-23 and ropes8c's open props item. ROPES.md "Climbing (flat-screen)", "Poles", "Tests".
+- **Keys (1):** `vr_flat_rope_keys` 0 (default, new): past `vr_flat_rope_climb_pitch` (30, new tunable, Rope Climb Pitch)
+  up or down, forward climbs up and back down; nearer level forward / back pump the swing along the view, eased over 5
+  degrees each side (`flatRopeKeys` in vr_climb.cpp: a climb share and the forward / strafe pump shares, used by both
+  flatRopeFrame and the rider's pump); the strafe keys always pump; a pole (`climbrope::pole`) only climbs. 1 the old
+  look keys (unchanged), 2 ropes8a's (forward always climbs). Decision: pitched either way, W is up and S down (ropes8a's
+  sense kept); mode 1 keeps looking down + W = down.
+- **Props vs poles (2):** not the pole boxes (ropes8c's dead end) but a Box3D capsule per pole along its drawn line
+  (`syncPoles` after the edict sync, `climbrope::poleLines`): static with the world's category and mask (props and
+  corpses; Box3D's kinematic player/monster bodies never meet it), so a thrown crate's continuous collision sees the
+  thin pole; kinematic while its entity moves it, static again after a still second. Chains not done (they swing: a
+  kinematic capsule per link each frame; not cheap).
+- **Tests:** rope_flat_test.sh 8/0 (new: forward looking level pumps to 299 u/s in 4.9 s, the feet 0.0 -> 0.8; climbed
+  up looking up, down looking down), pole 6/0 (climbed looking level), chain 5/0 (climbed looking up from still: pumped
+  first, it clinked 0 times climbing; not looked into), strung 1/1 pass; vr_pole_solid_test 14/0 (new: a crate dropped
+  30 over the level pole rests on it, bottom 89.5 = top 89.5; one thrown at 400 u/s at an upright pole stops 14.0 short
+  of its axis and comes back at 55 u/s); vr_rope_test 16/0; rope_climb_test all but rope_pump (238 vs 250, known).
+## apkrelease: the Quest's release APK, the release key's setup (agent/apkrelease, 2026-11-23)
+
+His ask: could the debug-type APK cost performance; a release build for the next release; a fixed release key.
+- **What "debug-type" was:** native code already `-O3 -DNDEBUG` (the NDK's Release; vr_menu.cpp `-Os`), no Tracy,
+  stripped in the APK. What differed from the PC's release: no `QVR_RELEASE` (live tunables; every sound channel read a
+  checked call, `S_MixCheckAt`; "-dev" version), no LTO, `android:debuggable="true"` (ART debuggable, CheckJNI), the debug
+  key; and the APK said version 1.1.0 code 1 whatever VERSION was (aapt2 kept the manifest's). QC: not in the APK
+  (Setup installs the package's release-flavour progs.dat). ANDROID_RELEASE.md has the table.
+- **Release build:** `QVR_ANDROID_RELEASE=1` for build_native.sh (CMake `QVR_RELEASE=ON` (vr.cmake option, new: the
+  define and qvr_buildinfo.cmake's release version, `QVR_VERSION_DEV 0`), `QVR_ANDROID_LTO=ON` (android.cmake: ThinLTO
+  with a link cache; vr_menu.cpp `-fno-lto`), folder `build-android-release`) and package_apk.sh (debuggable false,
+  versionName = VERSION, code from VERSION (1.2.0 = 1020099, -betaN = 10200NN), the release key from
+  `QVR_ANDROID_RELEASE_KEYSTORE/STOREPASS[/KEYPASS/ALIAS]` or `~/.quakevr/android-release.env`, refused inside the repo,
+  passwords via `env:`; `QVR_ANDROID_SIGN=debug` for a test APK). `Android/release_apk.sh build|check`.
+  check_apk.sh 3rd argument `release|release-testkey`: not debuggable, code from VERSION, lib stripped, no "-dev build",
+  no `tune_reset`, signer not CN=Android Debug and = `Android/release-cert.sha256` once it exists. make_release.ps1
+  `-Apk build` (after the version commit; precondition: the key variables or file; the unstripped .so into symbols\),
+  `-Apk <file>` checked as release unless `-ApkDev` (never with -Final). Release build from scratch 358 s; dev APK
+  23.1 MB, release 24.6 MB. Checks: dev 20/0; release-testkey 24/0; `release` on the test APK fails exactly on the
+  debug signer and code 1; package_apk.sh without the key stops naming both variables.
+- **vr_perf_mark summaries (vr_perfrec.cpp):** each mark prints the frames since the last one (CPU busy med/p90, period,
+  GPU med/p90, late %) on the console: a non-debuggable APK's CSV can't be pulled (`run-as`). The engine's own session
+  marks ("xr session ...") split segments too.
+- **Headset A/B** (Quest 3, same commit and test progs, the frozen e1m1 gib fight at 0.65, dynres off, fixed seeds;
+  parts P2-P4 of one launch each, P1 and the tails cut by the unworn headset's pauses):
+
+| launch | CPU busy med (P2 P3 P4) | GPU med | late |
+|---|---|---|---|
+| A1 development | 11.39 11.54 11.55 | 16.19 16.41 16.13 | 29% 30% 24% |
+| B1 release (debug key) | 10.63 10.68 11.22 | 18.28 17.11 17.90 | 40% 35% 38% |
+
+  CPU about -0.6 ms (-5%) in every part; GPU +1.5 ms in the later launch, within questperf's launch-to-launch warming
+  (15.4 -> 18.1 over a session): not the build (nothing in it touches the GPU). Only one launch each: after every
+  force-stop the system's Quick Actions panel came to the front, which the scripts treat as "in use" and stop (twice).
+  So: the release build saves some CPU; the gib fight stays GPU-bound either way.
+- **Saves backup** for beta players (doc): the game's files are 0660 app-owned (adb lists, can't read); `run-as` is
+  refused in the external folder (checked); the doc's route is beta2's `vr_android_export` into the internal folder,
+  then `run-as tar` (not run end to end).
+- Headset left on beta2 (questperf's qp_restore: re-signed beta2 APK, versionName 1.1.0, shipped progs.dat md5
+  8a409520). Left there: `ar_gore.cfg` in files/quakevr and /data/local/tmp, perf CSVs in the app's files/perf.
+
+## questperf: where the close-up gib fight's Quest frame goes (agent/questperf, 2026-11-23)
+
+Follows "questgore". Headset over USB (his OK), asleep with the home shell in front before each launch; this branch's
+APK signed with the quest tree's debug key (`adb install -r`, never an uninstall) and its test progs.dat; at the end
+beta2's re-signed APK and the shipped progs.dat (md5 8a409520...) put back. QUEST_OPTIMISATIONS.md "Quest gib fight"
+has the table.
+- **The costs** (GPU ms, both eyes, 0.65 fixed): base 15.8 (21% of frames late); the world ~8 (`r_drawworld 0`: 7.8),
+  your own rig ~2.5 (body, hands, held guns, gear hidden: 13.3), the gore ~1.9 (gibs, heads, limbs: 13.9), dropped
+  guns/packs/armour ~0.5, particles 0. Entities all hidden: 10.6, 0.2% late. Render scale 0.55: 12.0, 1.1% late (holds
+  72 Hz); 0.6 = 0.65 and 0.58 -1.4 ms in later launches. Counts (PC mock): 240 draws, 88 alias, 72k alias triangles;
+  the gore is ~160 tiny instances. `ovrgpuprofiler -t`: 4 bins of 576x576 an eye, the main pass 5.2 / 6.7 ms, the
+  compositor's preemption ~0.5 ms three times a frame, ~1.8 fragments a pixel with the world's depth pre-pass in it.
+- **Tried:** the world's depth pre-pass off (`vr_world_prepass`, new, default 1, not saved): no gain over three
+  launches (the first launch's -2.2 ms was the gibs' random cuts; fixed seeds after). Anisotropy 1 / 4: nothing seen
+  (not clean: the world's texture arrays take the filter at the map's load). No default changed; 72 Hz not reached
+  with the look kept.
+- **Noise:** the base drifted 15.4 -> 18.1 ms across the session (the headset warming) and parts of one setting
+  +-1.5 ms within a launch; seeds (`sv_random_seed 7; vr_particle_seed 7; vr_map_seed 7`) fix the cuts. Only gaps of
+  ~2 ms read; the next A/Bs want `vr_xr_gpu_level` pinned or a cool headset and 4+ rounds.
+- **Tools:** `vr_debug_hide_models <parts>` (Debug > Profiling: Hide Gibs, Heads and Limbs / Show Every Model): alias
+  models whose name holds a part are not drawn in the eyes. Scripts (not committed): `scratch/qp_*` (qp_apk.sh build
+  and sign, qp_install.sh / qp_restore.sh, qp_run.sh, qp_trace.sh, qp_mkab.sh, qg_ab.py with mean period and late
+  share, qp_hist.py, qp_batches.py for `vr_gl_passes`).
+- **Next:** the world's own ~8 ms at 0.65 (its shading per pixel: the scene is fill-bound) and your rig's 2.5 ms (the
+  body's skin form, the held gun close to the eyes); his call whether the 72 Hz floor goes to 0.55 in fights.
