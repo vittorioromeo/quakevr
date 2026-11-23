@@ -65,6 +65,9 @@ Flat-screen: lessons 10 and 12's tips and boards name the throw key ('J'; rebind
 Flat-screen or VR: a hard axe throw at a far wall (6 m and more) sticks as a near one does (it used to bounce off once its flight passed a third of a second). {test:embed_throw}
 Flat-screen: climb a pole, jump off it, then jump or walk back into the same pole: you take hold of it again (in the air too, once a moment has passed since the jump). {test:ropes}
 Flat-screen or VR: jump or drop off a pole while pressed against it, and off the upper side of the slanted wooden pole: you fall at full speed past it to the floor, never creeping slowly down its side or stopping on it, while walking into a pole still stops you. {test:ropes}
+On the Quest (Standalone preset), look down at your hands, held gun, holsters and body: they still read well without their surface bumps and shine (Plain Own Models), and gibs near a lit rocket or the flashlight still look lit. {test:rag_gib}
+On the Quest, in a big close fight the picture may soften a little more than before (down to 0.55) and should hold its frame rate; once the fight is over it sharpens back within a few seconds, and walking about e1m1 it never softens. {test:agrunts_fight}
+On the Quest, after a fight, gibs and limbs far from you thin out after a few seconds while those near you stay. {test:rag_gib}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, the crystal head glowing violet a moment after each shot. {test:dwell_lance_pole}
