@@ -11048,3 +11048,20 @@ Three pieces of kblood's Steam Frame port (PR #75), brought into `next` with his
 ## cltidy4: ticked lines retired, [New] sorted, sections reordered (agent/cltidy4, 2026-11-23)
 
 Checklist 223 -> 157 lines; no scene retired; details in CHECKLIST_REORG.md, "fourth pass". checklist_tests_check 99 passed, 0 failed.
+
+## userpresence: unmanned runs ignore the headset taken off (agent/userpresence, 2026-11-23)
+
+- **The Quest offers it**: its runtime lists `XR_EXT_user_presence` (the qfov logcats, 2026-11-23); since frameport the
+  game enables it, and a headset lying on a desk (the proximity sensor uncovered) may be reported unworn, which paused a
+  single player game and held the frame: an unmanned perf run would have stalled to its timeout. Not seen on the device
+  (no headset use): Meta's runtime may never send it while `prox_close` is in force.
+- **Ignored for automated runs** (`OpenXrBackend::presenceIgnored`, vr_backend_openxr_frame.cpp; `userPresent`, so the
+  input zeroing, the held frame, the pause and the height calibration's wait all follow it): `vr_xr_user_presence` 0,
+  `vr_debug_head_pose` 1, the new launch flag `-vr-unattended`, a timedemo, `vr_fixed_frames` 1 (every run.sh run). Logged
+  with the reason in qvr_openxr.txt and the console ("VR: the headset was taken off, ignored (...)": logcat on the Quest).
+  Players keep `vr_xr_user_presence` 1 as it was; no archived setting is touched.
+- **Quest scripts**: none are kept in the repo (the qp_* ones live in agents' scratch); QUEST_PLAN.md now says every
+  unmanned launch passes `-noconfigwrite -vr-unattended`.
+- **Tests**: xr_runtime_test.sh section 11: the paused run is a player's session now (`vr_fixed_frames 0`); new runs, an
+  unworn fake headset under a scripted run (fixed frames) and under `-vr-unattended` (`vr_fixed_frames 0`), play on and
+  log their reason: 8 passed, 0 failed.

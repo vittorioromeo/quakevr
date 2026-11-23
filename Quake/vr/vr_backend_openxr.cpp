@@ -732,10 +732,11 @@ bool OpenXrBackend::createSystem()
         userPresenceSensor = XR_SUCCEEDED(xrGetSystemProperties(instance, systemId, &props)) &&
                              presence.supportsUserPresence == XR_TRUE;
     }
-    xrruntime::logLine(va("OpenXR: user presence (XR_EXT_user_presence): %s\n",
+    xrruntime::logLine(va("OpenXR: user presence (XR_EXT_user_presence): %s%s\n",
         userPresenceSensor     ? "on: the headset taken off pauses as the runtime's menu does (vr_xr_user_presence)"
         : userPresenceExtension ? "offered, but the system has no sensor for it"
-                                : "not offered by the runtime"));
+                                : "not offered by the runtime",
+        userPresenceSensor && COM_CheckParm("-vr-unattended") ? "; ignored for this run (-vr-unattended)" : ""));
 
     // Eye tracking (vr_foveated_gaze): the extension enabled, and the system's eye tracker able to give the gaze.
     if(eyeGazeExtension)
@@ -1136,11 +1137,15 @@ bool OpenXrBackend::pollEvents()
                         VR_PerfEvent(VR_PERF_MARK, 0.0, absent ? "xr user absent" : "xr user present");
                         char held[64];
                         q_snprintf(held, sizeof(held), "back on (%d frames held while off)", absentHeld);
-                        xrruntime::logLine(va("%s user presence: the headset %s%s\n", wallClock(),
-                            absent ? "taken off" : held,
-                            absent && (vr_xr_user_presence.value == 0.f || vr_debug_head_pose.value != 0.f)
-                                ? " (ignored: vr_xr_user_presence 0 or vr_debug_head_pose 1)"
-                                : ""));
+                        const char* ignored = absent ? presenceIgnored() : nullptr;
+                        xrruntime::logLine(va("%s user presence: the headset %s%s%s%s\n", wallClock(),
+                            absent ? "taken off" : held, ignored ? " (ignored: " : "", ignored ? ignored : "",
+                            ignored ? ")" : ""));
+                        if(ignored)
+                        {
+                            // (the console too: an unmanned run's log, the Quest's logcat, says why it played on)
+                            Con_Printf("VR: the headset was taken off, ignored (%s)\n", ignored);
+                        }
                         absentHeld = 0;
                     }
                     userAbsent = absent;
