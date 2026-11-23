@@ -97,7 +97,7 @@ struct Layer
     }
     else
     {
-        const float top = std::sqrt((1.f - k) / (-3.f * k));
+        const float top = za::sqrt((1.f - k) / (-3.f * k));
         const float fTop = f(top);
         if(len >= fTop)
         {
@@ -147,7 +147,7 @@ struct Layer
 }
 [[nodiscard]] float lensReach(float k)
 {
-    return k < 0.f ? std::sqrt((1.f - k) / (-3.f * k)) : 1e9f;
+    return k < 0.f ? za::sqrt((1.f - k) / (-3.f * k)) : 1e9f;
 }
 
 // The sway as layer pixels at the view's horizontal tan half-angle `tx` (degrees to pixels; never more than most of the

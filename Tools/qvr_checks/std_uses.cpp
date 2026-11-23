@@ -1,5 +1,6 @@
-// std_uses: our C++ in Quake/vr uses Zancle, not the standard library (docs/vr-port/ZANCLE.md): fails when a file has
-// more `std::` uses of a name, or includes a heavy standard header, than Misc/quakevr/std_uses_allowlist.txt allows.
+// std_uses: our C++ in Quake/vr (.cpp, .hpp and the .inc pieces of a .cpp) uses Zancle, not the standard library
+// (docs/vr-port/ZANCLE.md): fails when a file has more `std::` uses of a name, or includes a heavy standard header,
+// than Misc/quakevr/std_uses_allowlist.txt allows.
 //
 // Counted in the code only (comments, strings and character literals blanked): every `std::<name>` (by its first
 // name: `std::filesystem::path` counts as `std::filesystem`), and every `#include` of a C++ standard header other than
@@ -112,7 +113,7 @@ int checkStdUses(const Ctx& ctx, const Args& args, Out& out)
     }
     int total = 0;
     int over = 0;
-    for(const auto& p : listFiles(root, {".cpp", ".hpp"}, true))
+    for(const auto& p : listFiles(root, {".cpp", ".hpp", ".inc"}, true)) // (.inc: the pieces of a .cpp)
     {
         const std::string rel = relPosix(p, root);
         if(startsWith(rel, "external/"))
