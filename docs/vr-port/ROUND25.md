@@ -10271,6 +10271,32 @@ ropes8d's open bug and ropes8c's leftovers. ROPES.md "Poles".
   solve's stops per finger with vr_debug_grasp 2 against the drawn tips). rope_climb_test pole_metal (VR) 10/0.
 - **Not done (budget):** 3 (rope_pump still 238 vs 250, unchanged here), 4 (props vs poles).
 
+## flatthrow: a throw key in flat-screen play, the grenade's motion shared (agent/flatthrow, 2026-11-23)
+
+His ask 2026-11-23: a flat-screen throw, reusing and improving the grenade throw motions (FLATPLAY.md, "The throw key").
+- **J** (`vr_flat_key_throw`, default `j`: free in `default.cfg`; the hotkey audit's own proposal; in Controls' flat keys
+  with the clash mark and Reset Flat Keys). Held winds up, let go throws; a tap is a quick toss, held
+  `vr_flat_throw_charge_time` (1 s) the hardest. The client sends impulse 39 / 40 (40 again while the server still winds
+  up with the key up). The hand: a carried thing before a weapon, the off hand first (H's order); the quick grenade's hand
+  winds up its own throw (J's release = the fire button's; unarmed stays a dud, as in a headset).
+- **One throw path** (note_reuse): QC sets the hand's own throw estimate (velocity along the crosshair, no flick, the
+  spin end over end, leaving just ahead of the eyes, the hand's angle) and lets go through `DropWeaponInHand` /
+  `VR_Carry_Release`, restoring the estimate after. Only the input, the direction and the drawn motion are flat's.
+- **Two hands** (a long gun with the other hand on its grip, a crate held in both): thrown with both: the headset's
+  two-handed rules; the other hand stays on the grip and is drawn moving with the thrower (refusing would make J dead on
+  every long gun flat play holds two-handed; letting go first would turn a two-handed hold into a one-handed throw).
+- **Shared motion**: the grenade's wind/follow/back tunables became `vr_flat_throw_*` (Debug > Tunables > Flatscreen >
+  Throw; he had none of them set): the wind-up behind the shoulder now (was overhead in view), pulled further back as it
+  charges (the grenade's charge is its `wind_full`), then the follow-through. The grenade's places to the pouch and held
+  are its own still. No arc preview exists for the grenade, so none was added.
+- **Tests**: `Misc/quakevr/flatthrow_test.sh mp ["axe rock gren"]`: the throws themselves pass (the axe thrown from the
+  main hand at 486 u/s charged, rocks tapped 237 u/s vs charged 484, the tap's rock lands 216 units off; J with the quick
+  grenade); `flathands_test.sh` 76/0 (the grenade unchanged by the shared motion). **Open**: lesson 10's button and lesson
+  12's target are NOT pressed yet in the test: the charged rock stops at the grate's line (y -363, between the bars,
+  box +-2: something there stops a rock thrown from 214 units; the VR playtest throws from 38 units) and the axe reaches
+  lesson 12's target face at 400+ u/s (traced: x 1927, z 22, y -796) and bounces off without a press or a stick.
+  `vr_flat_grenade_debug 2` prints the path a frame for whoever follows up. The tutorial's flat tips (t2_throw, t3_axe,
+  the two banners) still say "not in flat play yet": not changed, as the lessons aren't proven passable.
 ## weaponwheel: a VR weapon wheel instead of reaching for the holsters (agent/weaponwheel, 2026-11-23)
 
 His design (2026-11-23): hold a button, a wheel of the holsters opens round that hand, time slows a little, the hand is
