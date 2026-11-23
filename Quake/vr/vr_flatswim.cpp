@@ -33,6 +33,7 @@
 #include "vr_flatswim.hpp"
 
 #include "vr_api.h"
+#include "vr_audio.hpp"
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN
 #include "vr_client.hpp"
 #include "vr_engine.hpp"
@@ -44,7 +45,9 @@
 #include "vr_flatswap.hpp"
 #include "vr_geom.hpp"
 #include "vr_handsource.hpp"
+#include "vr_particles.hpp"
 #include "vr_progs.hpp"
+#include "vr_trace.hpp"
 #include "vr_tunables.hpp"
 #include "vr_twohand.hpp"
 
@@ -53,6 +56,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "vr_zancle.hpp"
@@ -112,9 +116,33 @@ struct SwimState
     float speed{0.f};                    // units a second, last step
     bool swimming{false};                // last step
     Probe probe[2];
+    // The water's sounds and bubbles (vr_flat_swim_sound, vr_flat_swim_bubbles): each stroke's sound as its power starts
+    // (strokeStart into the cycle), and each hand's bubbles through its power, their fraction carried to the next frame.
+    int sounds{0};                       // stroke sounds played (the report's)
+    int lastSound{-1};                   // its kind then: 0 under water, 1 at the surface
+    int bubbles{0};                      // bubbles made (the report's)
+    float bubbleDue[2]{0.f, 0.f};
+    glm::vec3 lastPos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    double lastPosAt[2]{-1.0, -1.0};     // (cl.time: the hand's speed for its bubbles)
 };
 
 SwimState sw;
+
+// The water sounds a stroke plays (the headset's swimming's: vr_physics_water.cpp's; precached by the client, prepare):
+// under water a soft or a brisk whoosh (make_sounds.py), at the surface a stroke's recording.
+constexpr int underCount = 3, surfaceCount = 4;
+constexpr const char* softNames[underCount] = {"vr/swim_soft1.wav", "vr/swim_soft2.wav", "vr/swim_soft3.wav"};
+constexpr const char* hardNames[underCount] = {"vr/swim_hard1.wav", "vr/swim_hard2.wav", "vr/swim_hard3.wav"};
+constexpr const char* surfaceNames[surfaceCount] = {"vr/stroke1.wav", "vr/stroke2.wav", "vr/stroke3.wav", "vr/stroke4.wav"};
+struct StrokeSounds
+{
+    sfx_t* soft[underCount]{};
+    sfx_t* hard[underCount]{};
+    sfx_t* surface[surfaceCount]{};
+};
+StrokeSounds strokeSounds;
+constexpr float strokeStart = 0.04f;   // the cycle's share where the power begins to tell: the sound (the power: 0 .. 0.5)
+constexpr float bubbleRate = 16.f;     // bubbles a second off a hand through the power, at full speed and vr_flat_swim_bubbles 1
 
 [[nodiscard]] const char* handName(int h)
 {
@@ -244,6 +272,55 @@ void addPose(Pose& sum, const Pose& p, float w)
     return sum;
 }
 
+// A stroke's water sound, heard in the head (your own swimming): under water a whoosh, soft or brisk by the speed; at
+// the surface a stroke's splash. Louder the faster he swims.
+void strokeSound()
+{
+    const float volume = za::clamp(vr_flat_swim_sound.value, 0.f, 1.f) * (0.35f + 0.65f * sw.move);
+    const edict_t* local = progs::localPlayer();
+    if(volume <= 0.f || !local)
+    {
+        return;
+    }
+    const bool under = static_cast<int>(local->v.waterlevel) >= 3;
+    const int k = sw.strokes;
+    sfx_t* const sfx = !under            ? strokeSounds.surface[k % surfaceCount]
+                       : sw.move >= 0.5f ? strokeSounds.hard[k % underCount]
+                                         : strokeSounds.soft[k % underCount];
+    audio::playLocal(sfx, volume);
+    sw.sounds++;
+    sw.lastSound = under ? 0 : 1;
+}
+
+// Bubbles off hand `h` at `at` through the stroke's power, under water (vr_flat_swim_bubbles): its share of the rate.
+void bubblesOff(int h, const glm::vec3& at, float w)
+{
+    const double now = cl.time;
+    const float dt = sw.lastPosAt[h] >= 0.0 ? static_cast<float>(za::clamp(now - sw.lastPosAt[h], 0.0, 0.1)) : 0.f;
+    const glm::vec3 vel = dt > 0.f ? (at - sw.lastPos[h]) / dt : glm::vec3{0.f};
+    sw.lastPos[h] = at;
+    sw.lastPosAt[h] = now;
+    const float amount = za::clamp(vr_flat_swim_bubbles.value, 0.f, 5.f);
+    const bool power = sw.phase >= strokeStart && sw.phase < 0.5f;
+    if(amount <= 0.f || dt <= 0.f || !power || !sw.swimming ||
+        !worldtrace::isLiquid(worldtrace::liquidContents(at, true)))
+    {
+        sw.bubbleDue[h] = 0.f;
+        return;
+    }
+    sw.bubbleDue[h] += bubbleRate * amount * w * (0.4f + 0.6f * sw.move) * dt;
+    const float n = za::floor(sw.bubbleDue[h]);
+    if(n >= 1.f)
+    {
+        sw.bubbleDue[h] -= n;
+        // (Carried most of the way with the swimmer, a little of the hand's own sweep on top: left still in the water
+        // they were gone behind him in a fraction of a second, never seen.)
+        const glm::vec3 body{cl.velocity[0], cl.velocity[1], cl.velocity[2]};
+        particles::swimBubbles(at, body * 0.85f + (vel - body) * 0.3f, n);
+        sw.bubbles += static_cast<int>(n);
+    }
+}
+
 // Something else has hand `h` now: the stroke gives way to it.
 [[nodiscard]] bool takenOver(int h, bool holds)
 {
@@ -265,6 +342,11 @@ void report_f()
         sw.swimming ? 1 : 0, sw.in, sw.phase, sw.strokes, sw.speed, sw.move, sw.kind[Forward], sw.kind[Back], sw.kind[Side],
         sw.kind[Up], sw.kind[Down], local ? static_cast<int>(local->v.waterlevel) : -1, local ? local->v.origin[0] : 0.f,
         local ? local->v.origin[1] : 0.f, local ? local->v.origin[2] : 0.f);
+    Con_Printf("flatswim: water: %d stroke sounds (last %s; vr_flat_swim_sound %g), %d bubbles (vr_flat_swim_bubbles %g), "
+               "hands open main %.2f off %.2f (vr_flat_swim_cup %g); particles live %d; main hand at %.0f %.0f %.0f\n",
+        sw.sounds, sw.lastSound < 0 ? "none" : sw.lastSound == 0 ? "under water" : "at the surface", vr_flat_swim_sound.value,
+        sw.bubbles, vr_flat_swim_bubbles.value, openShare(HAND_MAIN), openShare(HAND_OFF), vr_flat_swim_cup.value,
+        particles::liveCount(), sw.lastPos[HAND_MAIN].x, sw.lastPos[HAND_MAIN].y, sw.lastPos[HAND_MAIN].z);
     for(int h : {HAND_OFF, HAND_MAIN})
     {
         const Probe& p = sw.probe[h];
@@ -353,6 +435,12 @@ void step(float dt, const glm::vec3& aim)
                        (za::clamp(vr_flat_swim_rate.value, 0.f, 4.f) - za::clamp(vr_flat_swim_tread_rate.value, 0.f, 4.f)) * sw.move;
     if(sw.in > 0.f)
     {
+        // (Each stroke's sound as its power starts: the cycle passing strokeStart.)
+        const float before = sw.phase, after = sw.phase + rate * dt;
+        if(sw.swimming && sw.in >= 0.5f && za::floor(after - strokeStart) > za::floor(before - strokeStart))
+        {
+            strokeSound();
+        }
         sw.phase += rate * dt;
         while(sw.phase >= 1.f)
         {
@@ -412,6 +500,10 @@ void poseHand(hands::State& s, int h, const glm::vec3& aim, const glm::vec3& sho
         s.rot[h] = flatplay::blendHandAngles(s.rot[h], flatplay::handFacing(h, world(p.fingers), world(p.palm)), w);
         handsource::mark(h, handsource::Source::Synthesized, "swim stroke");
     }
+    if(measure)
+    {
+        bubblesOff(h, s.pos[h], holds ? w * za::clamp(vr_flat_swim_gun_share.value, 0.f, 1.f) : w);
+    }
 
     Probe& pr = sw.probe[h];
     if(measure && pr.on)
@@ -439,6 +531,24 @@ void poseHand(hands::State& s, int h, const glm::vec3& aim, const glm::vec3& sho
 float share(int h)
 {
     return h >= 0 && h < 2 ? geom::smooth01(sw.in) * geom::smooth01(sw.take[h]) : 0.f;
+}
+
+float openShare(int h)
+{
+    return flatplay::heldIn(h) >= 0 || flatplay::holdsThing(h) ? 0.f : share(h);
+}
+
+void prepare()
+{
+    for(int i = 0; i < underCount; i++)
+    {
+        strokeSounds.soft[i] = S_PrecacheSound(softNames[i]);
+        strokeSounds.hard[i] = S_PrecacheSound(hardNames[i]);
+    }
+    for(int i = 0; i < surfaceCount; i++)
+    {
+        strokeSounds.surface[i] = S_PrecacheSound(surfaceNames[i]);
+    }
 }
 
 } // namespace qvr::flatswim

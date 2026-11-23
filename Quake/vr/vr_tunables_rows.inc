@@ -2346,6 +2346,9 @@ QVR_TUNABLE_SLIDER(vr_flat_swim_takeover_time, "Swim: Take-Over Time", 0.01f, 1.
 QVR_TUNABLE_SLIDER(vr_flat_swim_return_time, "Swim: Blend Back Time", 0.01f, 2.f, 0.01f, "%.2f s", 0.01f, 4.f, "Seconds the stroke takes to come back after (vr_flat_swim_return_time).")
 QVR_TUNABLE_SLIDER(vr_flat_swim_fire_hold, "Swim: After a Shot", 0.f, 2.f, 0.05f, "%.2f s", 0.f, 3.f, "Seconds after the trigger is let go before the gun hand's stroke comes back (vr_flat_swim_fire_hold).")
 QVR_TUNABLE_SLIDER(vr_flat_swim_turn_time, "Swim: Stroke Change Time", 0.02f, 2.f, 0.02f, "%.2f s", 0.02f, 4.f, "Seconds the stroke takes to change with the way you move and your speed (vr_flat_swim_turn_time).")
+QVR_TUNABLE_SLIDER(vr_flat_swim_cup, "Swim: Hand Cup", 0.f, 1.f, 0.02f, "%.2f", 0.f, 1.f, "A swimming free hand's fingers' curl: open and together, the palm cupped; 0 flat open, 1 a fist (vr_flat_swim_cup).")
+QVR_TUNABLE_SLIDER(vr_flat_swim_sound, "Swim: Stroke Sound", 0.f, 1.f, 0.05f, "%.2f", 0.f, 1.f, "Each stroke's water sound as its power starts (a whoosh under water, a stroke at the surface): its volume; 0 none (vr_flat_swim_sound).")
+QVR_TUNABLE_SLIDER(vr_flat_swim_bubbles, "Swim: Bubbles", 0.f, 3.f, 0.1f, "%.1f", 0.f, 5.f, "Bubbles off the hands through each stroke's power under water: how many; 1 as made, 0 none (vr_flat_swim_bubbles).")
 
 QVR_TUNABLE_GROUP("Combat > Embedded Blades > Thrown")
 QVR_TUNABLE_SLIDER(vr_embed_sword_speed, "Thrown Sword: Least Speed", 0.5f, 10.f, 0.25f, "%.2f m/s", 0.f, 30.f, "How fast a thrown sword's tip must go into what it meets to stick. Slower: it bounces.")

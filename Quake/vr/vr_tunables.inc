@@ -2366,6 +2366,9 @@ QVR_TUNABLE(vr_flat_swim_takeover_time, "0.12") // seconds a hand's stroke takes
 QVR_TUNABLE(vr_flat_swim_return_time, "0.4") // seconds it takes to come back after
 QVR_TUNABLE(vr_flat_swim_fire_hold, "0.5") // seconds after the trigger is let go before the hand's stroke comes back
 QVR_TUNABLE(vr_flat_swim_turn_time, "0.35") // seconds the stroke takes to change with the way he moves and his speed
+QVR_TUNABLE(vr_flat_swim_cup, "0.15") // a swimming free hand's fingers' curl: open, together, the palm cupped (0 flat open .. 1 a fist)
+QVR_TUNABLE(vr_flat_swim_sound, "0.5") // each stroke's water sound at its power's start (a whoosh under water, a stroke at the surface): its volume (0: none)
+QVR_TUNABLE(vr_flat_swim_bubbles, "1") // the bubbles off the hands through each stroke's power under water: how many (1 as made, 0: none)
 
 // Combat > Embedded Blades: held stabs and swung axes (QC/vr_embedhold.qc; ROUND23.md, "Embedded blades, stage 2")
 // Embedded Blades: Thrown
