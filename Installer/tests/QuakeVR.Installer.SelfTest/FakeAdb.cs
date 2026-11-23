@@ -195,6 +195,8 @@ sealed class FakeAdb(string deviceFiles) : IAdb
             case "chmod":
                 Chmodded.AddRange(words.Skip(2));
                 return Ok("");
+            case "chgrp" when words.Count > 2 && words[1] == "ext_data_rw":
+                return Ok("");
             case "find":
                 var exec = words.IndexOf("-type");
                 if (exec < 0 || words[exec..] is not ["-type", "f", "-exec", "stat", "-c", "%s %n", "{}", "+"])

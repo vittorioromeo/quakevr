@@ -125,7 +125,7 @@ public sealed class QuestInstaller(IAdb adb)
             // Readable by the game (what adb's shell writes is the shell's: Android/README.md).
             Report(0.96, "Finishing on the Quest");
             var dirs = toPush.SelectMany(f => Ancestors(f.DevicePath)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
-            foreach (var cmd in Batches($"cd {Quote(QuestFiles.DeviceRoot)} && chmod 0777", dirs))
+            foreach (var cmd in Batches($"cd {Quote(QuestFiles.DeviceRoot)} && chmod 2777", dirs)) // (set-group-ID kept: Push)
             {
                 Shell(serial, cmd + " 2>/dev/null", ct);
             }
@@ -248,6 +248,19 @@ public sealed class QuestInstaller(IAdb adb)
         {
             Shell(serial, cmd, ct);
         }
+        // adb push into Android/data needs its folders in the storage's group, set-group-ID (as files/ is, so folders made
+        // in it are): in a folder of the shell's group (an older "chmod 0777" cleared the bit) every push failed "remote
+        // fchown failed", and a folder adb push makes itself "secure_mkdirs failed" (the real Quest 3). Every folder on the
+        // way: the storage's group, mode 2777 (the shell's own folders; the app's refuse quietly and need neither).
+        var all = files.SelectMany(f => Ancestors(f.DevicePath)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+        foreach (var cmd in Batches($"cd {Quote(QuestFiles.DeviceRoot)} && chgrp {StorageGroup}", all))
+        {
+            Shell(serial, cmd + " 2>/dev/null", ct);
+        }
+        foreach (var cmd in Batches($"cd {Quote(QuestFiles.DeviceRoot)} && chmod 2777", all))
+        {
+            Shell(serial, cmd + " 2>/dev/null", ct);
+        }
         long done = 0;
         foreach (var batch in PushBatches(files))
         {
@@ -279,6 +292,9 @@ public sealed class QuestInstaller(IAdb adb)
     }
 
     const int PushRetries = 4;
+
+    /// <summary>Android/data's group (ext_data_rw), which adb's shell user is in.</summary>
+    const string StorageGroup = "ext_data_rw";
 
     /// <summary>adb lost its server or the headset for a moment (not a refusal by the headset).</summary>
     public static bool Transient(string adbOutput) =>
