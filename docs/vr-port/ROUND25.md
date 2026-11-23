@@ -10356,3 +10356,33 @@ has the table.
   share, qp_hist.py, qp_batches.py for `vr_gl_passes`).
 - **Next:** the world's own ~8 ms at 0.65 (its shading per pixel: the scene is fill-bound) and your rig's 2.5 ms (the
   body's skin form, the held gun close to the eyes); his call whether the 72 Hz floor goes to 0.55 in fights.
+
+## ropes10: pole jumps, no retake in the air, monkey hands keep their sides, elbows out, knuckles up (agent/ropes10, 2026-11-23)
+
+His flat notes 2026-11-23, items 2-6. ROPES.md "Climbing (VR)", "Strung ropes", "Climbing (flat-screen)", "Known
+limits", "Tests".
+- **Pole jump (2):** `vr_pole_jump` 270 (a normal jump) and `vr_pole_jump_push` 200 (rules) for a jump off a pole
+  (`poleJumpPush` in vr_climb.cpp fallFlung, shared by VR and flat): square out from its axis to the body, level (off a
+  slanted pole's upper side that is down its slope); under a level pole the view's way across it. Ropes keep
+  `vr_rope_jump` and their swing.
+- **The slow slide (6):** not the pole boxes nor the ground: flat play took the pole again a second into the fall
+  (`flatRopeRetake` ran out while he still fell beside it), then held him there or, with back or a look down, climbed
+  him down at the keys' speed. Now the rope let go of is not taken again in the air until he has stood on the ground
+  (`flatRopeLeftAir`; water counts). Reproduced with the old jump from 300 up: "TAKEN AGAIN" at 1.00 s; fixed: a free
+  fall, 0 frames held back. VR: held grips don't take it again (a press does); checked (`pole_jump`, grips held).
+- **Monkey hands (3):** facing across a level rope/pole (`flatMonkeyAcross`, within ~37 degrees of square) the hands
+  shuffle and keep their sides (right hand on his right; the lead hand a step on, then the trail up to a step behind);
+  crossed hands swap holds; the take puts the right hand on his right. Facing along it, hand over hand as before.
+  strungside: 0 frames crossed (48 frames, 12 units without it).
+- **Elbows (4):** solveArm on a rope (`ropeHang`, the climbing pose's weight; your body and another player's copy, flat
+  and VR) mixes the elbow's pole towards out at its side, a little down and back, by `vr_rope_elbow_out` (1, tunable),
+  and eases the wrist's swing off by the same share. Flat on a pole: elbows bowed 10.0 cm in off the arm's line -> 0.1
+  out. A straight arm reaching in to the pole still has its elbow inside the shoulder's line (7 cm; 18 before).
+- **Knuckles (5):** `ropeTurn` pitches the fist up `vr_rope_hand_pitch` (10, tunable) towards the world's up (0 on a
+  monkey rope, whose knuckles already point up); VR, flat, and another player's copy through his snapshot's hand turn.
+  Measured 10.0 degrees (0.0 before).
+- Tests: rope_flat_test polejump 7/0, slantjump 6/0, strungside 6/0, pole 7/0 (arms), rope 8/0, strung 5/0, strungpole 5/0;
+  rope_climb_test pole_jump 6/0 (new), rope_climb 11/0, rope_jump 6/0, monkey_jump 7/0, monkey_drop 7/0, pole_monkey 7/0,
+  pole_wood 10/0, pole_metal 10/0 (sink 0.3 with the pitched fist); rope_hands_test 6/0; vr_pole_solid_test 14/0.
+  Not run: MP suites (the copies share the code). Screenshots kit scratch ropes10_pole_before/after.png (low-res mock).
+- Commits: items 2, 3, 6 together (one test file and the take/let-go code); 4 and 5 together (shared tunables, test).

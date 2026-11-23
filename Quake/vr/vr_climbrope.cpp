@@ -34,6 +34,7 @@
 #include "vr_server.hpp"
 #include "vr_testkit.hpp"
 #include "vr_trace.hpp"
+#include "vr_tunables.hpp"
 #include "vr_units.hpp"
 #include "vr_verlet.hpp"
 #include "vr_view.hpp"
@@ -1669,6 +1670,42 @@ int monkeyHands(float& up, float& under, float& gap)
     return true;
 }
 
+// (ropes10, his flat notes 2026-11-23 4 and 5) The drawn arms on an upright rope or pole: how far each hand drawn fully
+// on it has its fist's front (the knuckles' way) pitched up (`knuckles`: the least, degrees; vr_rope_hand_pitch), and
+// how far each elbow is bowed out of its arm's straight line (`elbowOut`: the least, cm of the body, along the view's
+// right for the right arm and its left for the left; < 0 bowed in, towards the view). Returns the hands measured.
+int ropeArms(float& knuckles, float& elbowOut)
+{
+    int on = 0;
+    knuckles = 90.f;
+    elbowOut = 1e9f;
+    for(int h = 0; h < 2; h++)
+    {
+        glm::vec3 back{0.f}, front{0.f};
+        if(climb::drawnShare(h) >= 0.99f && climb::drawnBack(h, back, &front) && glm::length(front) > 0.5f)
+        {
+            on++;
+            knuckles = za::min(knuckles, 90.f - glm::degrees(za::acos(za::clamp(glm::normalize(front).z, -1.f, 1.f))));
+        }
+    }
+    avatar::Skeleton k;
+    if(avatar::skeleton(k) && k.m2w > 0.f)
+    {
+        const float yaw = glm::radians(cl.viewangles[YAW]);
+        const glm::vec3 right{za::sin(yaw), -za::cos(yaw), 0.f};
+        for(int side = 0; side < 2; side++)
+        {
+            const glm::vec3 out = side == 0 ? -right : right;
+            // (Off the arm's straight line, shoulder to wrist: a straight arm reaching in to the pole has its elbow inside
+            // the shoulder's line; bowed out of that line it stays out of the view, bowed in it crosses in front of it.)
+            const glm::vec3 sw = k.wrist[side] - k.shoulder[side];
+            const float f = za::clamp(glm::dot(k.elbow[side] - k.shoulder[side], sw) / za::max(glm::dot(sw, sw), 1e-4f), 0.f, 1.f);
+            elbowOut = za::min(elbowOut, glm::dot(k.elbow[side] - (k.shoulder[side] + sw * f), out) / k.m2w * 100.f);
+        }
+    }
+    return on;
+}
+
 za::Vector<glm::vec4> sinkVerts; // (ropes8a: handsSink's drawn hand vertices, their parts)
 za::Vector<view::HandPart> sinkParts;
 
@@ -2416,6 +2453,23 @@ void flatTestFrame()
                 flatTestEnd(t, false, "");
             }
             return;
+        }
+        if(t.frames == 37 && t.pole && !t.slant)
+        {
+            // (ropes10) The knuckles pitched up by vr_rope_hand_pitch (within 4 degrees); the elbows out at their sides
+            // (vr_rope_elbow_out at least a half: neither bowed in off its arm's line, towards the view).
+            float knuckles = 0.f, elbowOut = 0.f;
+            const int on = ropeArms(knuckles, elbowOut);
+            const bool pitched = on == 2 && za::abs(knuckles - za::clamp(vr_rope_hand_pitch.value, 0.f, 45.f)) <= 4.f;
+            const bool out = vr_rope_elbow_out.value < 0.5f || elbowOut >= 0.f;
+            const char* what = va("the arms on the pole: %d hands on it, the knuckles pitched up %.1f degrees (vr_rope_hand_pitch "
+                                  "%.0f), the elbows bowed out %.1f cm off the arms' lines at the least (vr_rope_elbow_out %.2f)",
+                on, knuckles, vr_rope_hand_pitch.value, elbowOut, vr_rope_elbow_out.value);
+            t.tally.check(pitched && out, flatTestName, what);
+            if(pitched && out)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, what);
+            }
         }
         if(t.frames == 36 && t.pole)
         {

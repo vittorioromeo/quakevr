@@ -5174,7 +5174,13 @@ constexpr float ropeHandSurface = 0.4f; // of its thickness: at least this far (
 {
     glm::vec3 front = -(out - up * glm::dot(out, up));
     front = glm::length(front) > 1e-4f ? glm::normalize(front) : glm::vec3{1.f, 0.f, 0.f};
-    return glm::mat3{front, glm::cross(up, front), up};
+    const glm::mat3 m{front, glm::cross(up, front), up};
+    // (ropes10, his flat note 2026-11-23: the knuckles exactly level) Pitched up by vr_rope_hand_pitch: turned about the
+    // level line square to the front, the front towards the world's up (a monkey traverse's knuckles, already up, stay).
+    const glm::vec3 axis = glm::cross(front, glm::vec3{0.f, 0.f, 1.f});
+    const float lean = glm::length(axis);
+    const float pitch = glm::radians(za::clamp(vr_rope_hand_pitch.value, 0.f, 45.f)) * za::min(1.f, lean / 0.5f);
+    return pitch > 1e-4f ? glm::mat3_cast(glm::angleAxis(pitch, axis / lean)) * m : m;
 }
 
 // (ropes8b, his flat note 2026-11-23) Under a monkey traverse's rope (the palm out from it downwards, `out`): which way
