@@ -65,6 +65,13 @@ Flat-screen: lessons 10 and 12's tips and boards name the throw key ('J'; rebind
 Flat-screen or VR: a hard axe throw at a far wall (6 m and more) sticks as a near one does (it used to bounce off once its flight passed a third of a second). {test:embed_throw}
 Flat-screen: climb a pole, jump off it, then jump or walk back into the same pole: you take hold of it again (in the air too, once a moment has passed since the jump). {test:ropes}
 Flat-screen or VR: jump or drop off a pole while pressed against it, and off the upper side of the slanted wooden pole: you fall at full speed past it to the floor, never creeping slowly down its side or stopping on it, while walking into a pole still stops you. {test:ropes}
+On the Quest (Standalone preset), look down at your hands, held gun, holsters and body: they still read well without their surface bumps and shine (Plain Own Models), and gibs near a lit rocket or the flashlight still look lit. {test:rag_gib}
+On the Quest, in a big close fight the picture may soften a little more than before (down to 0.55) and should hold its frame rate; once the fight is over it sharpens back within a few seconds, and walking about e1m1 it never softens. {test:agrunts_fight}
+On the Quest, after a fight, gibs and limbs far from you thin out after a few seconds while those near you stay. {test:rag_gib}
+On the Quest with the Standalone preset, cut a group of grunts apart up close: the walls and floor under the blood marks keep their usual light (no sudden change in the room's lighting when the first mark lands) and the frame rate holds better than before. {test:quest_gibfight}
+On the Quest, pick the Standalone preset again: Retro Textures and Retro Lighting turn off with it (turn them back on by hand if you want the retro look; it costs a lot of frame time in fights). {test:quest_gibfight}
+Flat-screen: tap 1 or 2 and the hand still cycles; hold it and the weapon wheel opens where that hand is on the screen (slow motion, the view stays still); point at a holster with the mouse and let go: that hand takes it, off the wheel nothing happens. {test:flat_weapon_wheel}
+Flat-screen or VR: the weapon wheel's new DROP and UNLOAD slots (at the bottom): DROP drops what that hand holds, UNLOAD empties its gun's magazine into your ammo; both are greyed when they would do nothing. {test:weapon_wheel}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, the crystal head glowing violet a moment after each shot. {test:dwell_lance_pole}

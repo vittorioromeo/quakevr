@@ -810,6 +810,7 @@ extern "C" void VR_End2D(void (*windowHud)())
         visor::renderPanels();   // (flatscreen play's visor HUD: its panels' images, shown in the next frame's view)
         toolgun::panel::drawFlat(); // (flatscreen play: the toolgun's panel over the window, its cursor on it)
         flatholster::draw(); // (flatscreen play: the holster menu, its cursor on it: vr_flatholster.cpp)
+        weaponwheel::drawFlat(); // (flatscreen play: the weapon wheel on 1 / 2 held, where that hand is: vr_weaponwheel.cpp)
         return;
     }
     drawingToCanvas = false;

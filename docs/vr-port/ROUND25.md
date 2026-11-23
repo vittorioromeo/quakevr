@@ -10460,6 +10460,33 @@ Step 1 (PC-side; the headset block is queued behind qworld and qtune):
   see the periphery; then lift the guard and pick the Standalone default only if it wins clearly.
 - **Headset block (13:00-13:11; the frozen gib fight at 0.65, retro off; P post-process path, F straight in):** foveation changed mid-game crashed at once (as C4p), so the level is set at launch. Form 2 (the eye's own depth renderbuffer) with foveated images crashed the runtime in xrEndFrame within its first frames (SIGSEGV 0x30 in libGLESv2_adreno under libvrapiimpl: three launches, with and without the in-tile pass, vr_gl_invalidate 1 or 0); without foveation form 2 runs, and form 1 (the composite's depth texture) runs foveated. At level 3, form 1 vs the post-process path, 4 interleaved parts each: GPU median 14.62 vs 15.01 ms, p90 14.96 vs 16.30, period 15.67 vs 16.03, late 12.1% vs 21.4%: the post-process's ~0.4 ms, no foveation gain (the scene with an unfoveated depth texture is not foveated, as 6w). The in-tile program compiled and linked on the Quest. Foveation's automatic form is now 1 (no crash); `vr_xr_direct -1` forces the post-process path. Eyeshots were exported (vr_android_export) but not pulled. **No default changed; the `-xrfoveation` guard stays.** Next (if pursued): a foveated depth renderbuffer or texture the driver accepts (QCOM_texture_foveated on our depth with the runtime's parameters, or a multisampled-render-to-texture depth as Meta's GLES sample), or XR_FB_foveation_vulkan's path.
 
+## qworld: the world in the Quest's gib fight: retro decals keep the unlit world; Standalone turns retro off (branch agent/qworld, 2026-11-23)
+
+Follows "questperf" and the shader review (qvr-kit/scratch/shaderreview_report.md, finding 1 first). The Quest's world in
+a fight already has no lights' loop (`vr_gl_world_dlmap 1`: the unlit form), so brief item 6's light caps had nothing
+to cap; the lighting cost was elsewhere:
+- **Retro decals sent the world to the lit program.** With `vr_retro 1` (the default; Standalone never set it) the first
+  blood mark has a retro set (`decalclock[3]`) and `R_ChooseBModelProgram` took `GL_WorldDecalRetroProgram`: the lit
+  world, the lights' loop compiled in and run, in every fight. New `GL_WorldUnlitDecalRetroProgram` (glprogs
+  `world_unlit_decal_retro`: `QVR_NOLIGHTS` with the decals' retro code; prewarmed with the decals' others, its array
+  twin made) is taken while the world is unlit; `vr_gl_world_unlit 0` restores the old choice (the A/B).
+- **Standalone rows `vr_retro 0`, `vr_retrolight 0`** (his own Quest config's): retro on cost ~15 ms of GPU here.
+- Light contrast at exactly 2.5 (the default) as `x*x*sqrt(x)` (same value; other values keep `pow`); `DecalsAt` reads
+  a decal member by member, rejecting after n and centre (2 of 6 vec4 loads) instead of after the whole record.
+- `vr_gl_mediump` (Debug > Tunables "Medium Precision Colours (Quest)", default 0; ES lite bit 29, `QVR_MP` in the shader
+  header: mediump under it, nothing elsewhere) on the world's and models' colour samplers, lightmap and light sums,
+  fullbrights, sheen, decal colours. **+3 ms on the Quest 3** (the world alone too), so off. Why not found (a guess: the
+  conversions between the highp functions and the mediump locals, or mediump array samplers); left as a switch.
+- `vr_gles_report` names the opaque world's last program (and vr_retro, vr_retrolight). Probes (`vr_gles_define`):
+  `QVR_PROBE_OLDPOW`, `OLDDECAL`, `PERMONE` (the permanent layer's single read; not measured), `MPNOWORLD`, `MPNOALIAS`.
+- **Headset** (Quest 3, frozen e1m1 gib fight, 0.65 fixed, seeds, 240-frame parts interleaved, 3 launches; GPU median):
+  his config (retro off) 13.3-14.1 ms; retro on with the twin 28.9, with the old lit program 39.1 (-10.2); pow and
+  decal loads -0.1 (retro off) / -0.8 (retro on); mediump 17.2 vs 14.1. Table: QUEST_OPTIMISATIONS.md "Quest gib fight".
+  No headset pictures: the game's eyeshots folder can't be read over adb (permission denied); the twin is the unlit
+  world's own look (the dynamic lights from the light texture), the pow and the loads exact.
+- PC: `-glescompat` Standalone gib fight draws "world unlit decal retro", 0 shader errors (mediump 0 and 1).
+  Scripts (not committed): scratch/qw_mkab*.sh, qw_pc.sh, qw_pull.sh with questperf's qp_*.
+- Next: why mediump costs on Adreno (a sampler-only and a varyings-only probe); the shader review's model items (qtune).
 ## flatthrow2: the flat throw finished: blades stick, the tutorial names the key (agent/flatthrow2, 2026-11-23)
 
 Follows "flatthrow". Traced with `vr_debug_axestick 3` (a new level-3 line says why a thrown thing isn't looked at).
@@ -10558,6 +10585,94 @@ limits", "Tests".
   positions, tallies, vr_mp_* keys and room, debug aids (scr_showfps, Spawn With a Toolgun, controller preview).
 - **Tests:** flatspeedfov 7/0, flatbash 15/0, tunables_test 13/0, vr_agrunt_test 83 PASS; a default-config run prints
   each promoted value as its default.
+## flatwheel: the weapon wheel on flat keys 1 / 2; DROP and UNLOAD on the wheel (agent/flatwheel, 2026-11-23)
+
+His ask 2026-11-23. Follows "weaponwheel" and "flatnumkeys"; FLATPLAY.md's keys table.
+- **Flat input** (`vr_flatplay.cpp` wheelKey, `vr_flat_wheel` 1 default, holsters on): 1 / 2 held `vr_flat_wheel_hold`
+  (0.35) open the headset's wheel for the left / right hand; a shorter press cycles the hand **when let go** (before: on
+  the press; `vr_flat_wheel 0` keeps exactly that). A press while the wheel is open (the other key) does nothing. Letting
+  go is `weaponwheel::release` (the lit slot, or nothing); Esc closes it (`VR_FlatToolgunEscape`).
+- **One wheel** (note_reuse): `vr_weaponwheel.cpp`'s provider, layout, image (`gadget::renderHolsterMenu`), pick (the
+  client command `vr_wheel_pick`, QC `VR_Wheel_Pick`) and test are shared; flat adds `ws.flat`: the cursor is the mouse
+  (`flatMouse` from `VR_FlatToolgunMouse`, the holster menu's `vr_flat_holster_menu_cursor_speed`, up to 60 image pixels
+  past its edge: off the wheel), the view stays, nothing fires (`routeFire`), the crosshair fades
+  (`vr_flat_holster_menu_xhair_fade`), time at `vr_weaponwheel_timescale` (the same as VR's). Placement: the hand's
+  point through `r_matviewproj` as it opens (off the view: low on its side), `vr_flat_wheel_size` (0.5) of the window's
+  height, kept on the window. Drawn on the window by the holster menu's own window composite, now shared:
+  `flatholster::drawOnWindow` (glow, face, CRT screen, frame) and `drawCursorOnWindow` (its arrow). The holster menu
+  and the wheel never show together (each refuses while the other is up; they share the render target).
+- **DROP and UNLOAD** (both modes): two more Choices of the holsters' provider (`keyDrop` -2, `keyUnload` -3), at the
+  bottom between the hips (nine slots: the layout is now 280 x 282 image pixels, ring 106, slots 68 x 46, so the
+  steep pairs clear). A pick is `vr_wheel_pick <hand> -2|-3`: QC `VR_Wheel_Pick` runs `VR_Forcegrab_FlatDropHand` (6 / 7's
+  and the menu's DROP) or `VR_FlatHolster_Unload` (the menu's UNLOAD). Greyed by the menu's own tests
+  (`flatholster::canDrop` / `canUnload`); UNLOAD's is now the server's: `STAT_QVR_FLATUNLOADFULL` bits 4, 5 (rounds to take
+  out, some fit, not reloading), which the menu's UNLOAD reads too. `VR_FlatReload_Unloadable` no longer requires flat
+  play, so a headset's UNLOAD empties the gun's clip into the reserve (a magazine taken out is not in the clip).
+- **Settings:** Flat-screen settings after the holster menu's rows: Weapon Wheel on 1 / 2 (`vr_flat_wheel`), Hold Time,
+  Size. Options > Controls keeps 1 / 2 as "Cycle left/right hand" (the rows are keys only). Debug menu: Flat Weapon
+  Wheel Test (`vr_weaponwheel_test flat`); `vr_weaponwheel_dump` also prints the hands' clips and those bits.
+- **Tests:** `weaponwheel_test.sh <agent>` 17/0 (nine slots; the right hand's UNLOAD: the shotgun's 8 shells back, 17 ->
+  25; the left hand's UNLOAD greyed, its DROP). `weaponwheel_test.sh <agent> flat` 17/0 (2 tapped twice cycles with no
+  wheel, held 27 frames opens it on the window, time x0.50, the mouse lights and picks LEFT HIP's axe, 1 off the wheel
+  nothing, UNLOAD 24 nails back, DROP, 1 onto an empty holster, `vr_flat_wheel 0`: 1 cycles on the press (2 frames) and a
+  long hold opens nothing). flatholster_test 54/0, flatkeybind_test 16/0. Scenario `flat_weapon_wheel`.
+- Noticed, not chased: in the headset test the nailgun put into a holster by the wheel came back out with an empty clip
+  (24 rounds, not into the reserve); the shotgun drawn from its holster kept its 8.
+
+## qtune: a fight-only resolution floor, your rig and the gore on cheaper forms, settled gore trimmed (agent/qtune, 2026-11-23)
+
+Follows "questperf" and the shader review (its model items 2 and 5). Built and checked on the PC mock (`-glescompat`,
+`vr_standalone_preset 0`), then on the Quest 3 over USB (his OK; one block, 4 launches, home shell in front before
+each; this branch's APK with the quest tree's key and test progs.dat; beta2's re-signed APK and the shipped progs.dat,
+md5 8a409520..., put back). All headset parts with `vr_retro 0; vr_retrolight 0` (qworld's new Standalone baseline)
+and fixed seeds. QUEST_OPTIMISATIONS.md "Quest gib fight" has the rows.
+- **Fight floor** (`vr_dynres_min_fight`, default 0, Standalone Q3 72 Hz 0.55, the other two 0;
+  `vr_dynres_fight_frames` 36; VR Settings > Graphics, Advanced: Dynamic Lowest in Fights): dynres keeps
+  `vr_dynres_min` (0.65) until the eyes have been over the budget at that floor for 36 frames (a frame under takes 4
+  back: a spike does not open it); then the floor is 0.55 and the usual fast drop goes there; the usual slow rise
+  (85% fit, 1 s after a drop, 0.5 s between rises) brings it back, and reaching 0.65 shuts the fight floor until the
+  next fight. The status line adds the openings and the share of frames below `vr_dynres_min`; `vr_dynres_log 1` prints
+  "fight floor open/shut". Mock (`vr_dynres 2`, `vr_dynres_test_load 300`, budget 0.3): 1.00 -> 0.65, open, -> 0.55;
+  load off: 0.55 -> 0.60, shut, -> 0.65 (ended on the shut line).
+- **Your rig** (`vr_rig_plain`, default 0, Standalone 1; VR Settings > Graphics: Plain Own Models): your hands, body,
+  held, holstered and worn models lose their normal maps, parallax, reflections and rim light (a glowing one keeps
+  them), so they take the plain form (the body, with skin tone, the skin form) instead of the whole opaque shader.
+  The gib fight's batches (vr_gl_passes): hand_rig, v_shot held, legholster, strap, mag `opaque` (needs 160 / 32) ->
+  `plain_nofb` (0). The body is an alias model (vrbody_bare.mdl, 6k triangles, one instance, 4 draws: its surfaces);
+  the gear pieces are separate models, one batch each (legholster's two are two batches: posed apart).
+- **No fullbright read** (`vr_gl_alias_nofb` tunable 1): the plain, gore and skin forms have a variant without the
+  fullbright texture's fetch (`QVR_APLAIN_NOFB`), taken by a batch none of whose skins has fullbrights (r_alias.c looks at
+  the surfaces' `fbtextures`). Picture: the same (two eyeshots of one frozen frame differ by 10 levels from the torches'
+  flicker; nofb on/off by 4).
+- **No lights' loop** (`vr_gl_alias_flat` tunable 1; with Quake's lights, `vr_gl_quake_dlights` 1 in Standalone): gibs,
+  heads and limbs (progs/gib*, progs/h_*, #limb) get their dynamic lights added flat on the CPU as your body already did
+  (VR_AliasBodyFlat), and a batch all flat-lit takes the forms' variant with `QVR_APLAIN_NODLIGHTS` (compiled out, not the
+  run-time `BatchDlightsFlat` skip: C5h measured -3.2 vs -1.0 ms). Mock fight: gibs and limbs `plain_nofb_flat`, heads
+  `gore_nofb_flat`, the body `skin_flat`. Variants are lite bits 29 / 30 (the programs remade when they change); up to
+  36 plain/gore/skin programs instead of 9 are prewarmed at the map load (the program cache keeps them after the first).
+- **Settled gore** (`vr_gore_trim_max`, default 0, Standalone 24 / 20 / 16; `vr_gore_trim_age` 5 s, `vr_gore_trim_near`
+  160; Gore > Limb Gore: Most Settled Gore; QC vr_dmloose.qc, not in deathmatch): twice a second, while more gibs, heads
+  and limbs lie about than the most, those lying 5 s or more go farthest first, never one within 160 units of a player,
+  one held, skewered or pulled. Mock (six grunts gibbed close, max 6): none while fresh, none with near 1000; near 0:
+  the two farthest limbs (406, 351 units) went, 6 left. By design it leaves the close-up fight alone.
+- **Batching:** the gore was already instanced (gib1 76 instances in 2 batches, both eyes), so no batching work; the
+  CPU side of the trim is a findflags walk twice a second.
+- **Quest 3** (frozen gib fight, 0.65 fixed, ABBAABBA, 240 frames a part, GPU median both eyes; xr missed share):
+  all three model changes (rig plain + no fullbright + no lights' loop) vs none: launch 1 **14.77 vs 15.84 ms, missed
+  15.2% vs 28.2%**; launch 4 **15.36 vs 16.17, 21.6% vs 23.7%** (the headset warmer); the shader variants alone (rig
+  plain in both): 15.11 vs 15.59, 18.3% vs 21.4%, so the rig's plain form ~0.3-0.5 and the variants ~0.5. Draws the same
+  (211-216). Dynres on (ceiling 0.9, floor 0.65, the fight 480 frames a part): **fight floor 0.55: GPU 13.36, missed
+  4.7% (the clean part; 20% in the part with the load's hitch) vs none: 15.5-18.1, 19-37%**; the fight launch spent 26%
+  of its frames at 0.55. e1m1 without a fight (turning round at four spots, 1834 frames, dynres on): **0% below 0.65**,
+  every frame at the 0.9 ceiling (GPU 7.9 ms median), so the fight floor never opened.
+- **Not checked: the look on the headset.** The parts' `screenshot` came out black (it grabs the Quest's empty window;
+  `vr_eyeshot` is the one to use): the rig without its normal maps and the flat-lit gore at 0.55 still want an eyes'
+  check (the PC mock's eyeshots: the no-fullbright variant matches; the rig was out of the mock's view).
+- **Scripts** (scratch, not committed): qt_apk.sh, qt_install.sh / qt_run.sh / qt_restore.sh (questperf's, this tree),
+  qt_mk.sh (the A/B cfgs), qt_mkwalk.py, qt_scale.py (frames per dynres scale), qt_pcfight.sh (vr_gl_passes on the
+  mock), qt_trim.sh, qt_diff.py (pure-Python PNG diff).
+- **Shared:** the forms' variants are one code path for ES and the PC's `vr_gl_pc_forms 1`; the rig test reuses the
+  "your own models" group list (rigModel, now also VR_AliasPlayerFirst's).
 ## ropes11: the same pole taken again after a jump; the slow slide was the pole's boxes (agent/ropes11, 2026-11-23)
 
 His correction 2026-11-23 to ropes10 item 6 ("grab the same pole/rope again after jumping"; "a friction-based collision

@@ -445,9 +445,30 @@ void(float xHand) VR_FlatHolster_Put =
 // is still in what was collected), an empty holster given a copy of the hand's (VRLetGoAtHolster's), -1 the hand empty.
 // A weapon drawn stays in the hand until its grip is pressed (VR_Scene_HoldGiven: a wheel needs no grip held), then the
 // grip holds it as ever. A holstered weapon is never in the other hand (immersive), so the wheel never offers that one.
+// The wheel's two actions (his words 2026-11-23), either mode: `slot` -2 DROP, what the hand holds dropped (6 and 7's,
+// the holster menu's DROP: VR_Forcegrab_FlatDropHand, a carried prop too); -3 UNLOAD, the hand's gun's live rounds back
+// into the reserve (the holster menu's UNLOAD: VR_FlatHolster_Unload).
+float VR_WHEEL_DROP = -2;
+float VR_WHEEL_UNLOAD = -3;
 void(float xHand, float slot) VR_Wheel_Pick =
 {
-    if(self.health <= 0 || !VR_FlatHolster_KeyHandOk(xHand))
+    if(self.health <= 0)
+    {
+        return;
+    }
+    if(slot == VR_WHEEL_DROP)
+    {
+        float dropped = VR_Forcegrab_FlatDropHand(xHand);
+        vr_flatholster_drops += dropped;
+        dprint(sprintf("weapon wheel: hand %g, DROP: %s\n", xHand, dropped ? "dropped" : "nothing held"));
+        return;
+    }
+    if(slot == VR_WHEEL_UNLOAD)
+    {
+        VR_FlatHolster_Unload(xHand);
+        return;
+    }
+    if(!VR_FlatHolster_KeyHandOk(xHand))
     {
         return;
     }

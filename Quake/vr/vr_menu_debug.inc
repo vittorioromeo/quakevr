@@ -1043,8 +1043,13 @@ za::Vector<Item> pageDebugReports()
                   "its counts) and each slot's choice (its holster, its weapon, greyed or not)."),
         command("Weapon Wheel Test", "vr_weaponwheel_test")
             .help("vr_weaponwheel_test: the weapon wheel driven by the mock's buttons and hands (a nailgun and a shotgun given): "
-                  "hold, a slot, let go, off the wheel, the other hand, EMPTY HAND, the time scale; ends "
+                  "hold, a slot, let go, off the wheel, the other hand, EMPTY HAND, UNLOAD, DROP, the time scale; ends "
                   "\"weaponwheel_test: N passed, M failed\" (Misc/quakevr/weaponwheel_test.sh)."),
+        command("Flat Weapon Wheel Test", "vr_weaponwheel_test flat")
+            .help("vr_weaponwheel_test flat: flatscreen play's weapon wheel on 1 / 2 (vr_flat_wheel; the holsters on, the shotgun "
+                  "in the right hand, the nailgun in the left): taps cycle, a hold opens it, the mouse picks, off the wheel, "
+                  "UNLOAD, DROP, vr_flat_wheel 0; ends \"weaponwheel_test: N passed, M failed\" "
+                  "(Misc/quakevr/weaponwheel_test.sh <agent> flat)."),
         command("Flatscreen Grenade Report", "vr_flatgrenade_report")
             .help("vr_flatgrenade_report: the quick grenade's phase and hand as the game sends them, each hand's shares of "
                   "the pouch trip, the held place, the wind-up and the follow-through, and G's presses."),

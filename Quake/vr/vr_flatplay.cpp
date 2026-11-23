@@ -73,6 +73,7 @@
 #include "vr_units.hpp"
 #include "vr_weapon_ids.h"
 #include "vr_weapons.hpp"
+#include "vr_weaponwheel.hpp"
 
 #include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
@@ -244,6 +245,9 @@ struct FlatKeys
     bool keySwap{false};    // Q (vr_flat_key_swap), last frame
     bool keyTime{false};    // Z (vr_flat_key_bullettime), last frame
     bool keyHands[6]{};     // 1, 2, 4, 5, 6, 7 (handKeys: the holsters' number keys), last frame
+    double wheelSince[2]{}; // 1, 2 with vr_flat_wheel: pressed at (realtime)
+    bool wheelTaken[2]{};   // that hold opened the weapon wheel (its letting go is the wheel's pick)
+    bool wheelSkip[2]{};    // pressed while the wheel was open (the other key's): neither a tap nor a wheel
     bool cmdHeld{false};    // +flatcrouch held: the console's way of the same hold
     bool keyProne{false};   // X (vr_flat_key_prone), last frame
     bool jumpSwallow{false}; // the jump press that stood him up (vr_flat_prone_jump_stands): no jump until the key is let go
@@ -1906,7 +1910,8 @@ extern "C" int VR_FlatToolgunMouse(int dx, int dy)
     {
         return 0;
     }
-    if(toolgun::panel::flatMouse(dx, dy) || flatholster::mouse(dx, dy)) // (the holster menu's cursor: vr_flatholster.cpp)
+    // (The holster menu's cursor: vr_flatholster.cpp; the weapon wheel's, 1 / 2 held: vr_weaponwheel.cpp.)
+    if(toolgun::panel::flatMouse(dx, dy) || flatholster::mouse(dx, dy) || weaponwheel::flatMouse(dx, dy))
     {
         return 1;
     }
@@ -1923,7 +1928,7 @@ extern "C" int VR_FlatToolgunMouse(int dx, int dy)
 // Key_Event's Esc in the game: closes the toolgun panel open on the screen instead of opening the menu.
 extern "C" int VR_FlatToolgunEscape(void)
 {
-    if(flatholster::escape()) // (the holster menu: closed until its key is pressed again)
+    if(flatholster::escape() || weaponwheel::escape()) // (the holster menu: closed until its key is pressed again; the wheel)
     {
         return 1;
     }
@@ -1952,21 +1957,67 @@ const HandKey handKeys[] = {{&vr_flat_key_cycle_left, 86, "cycle the left hand"}
     {&vr_flat_key_drop_left, 78, "drop the left hand's"}, {&vr_flat_key_drop_right, 79, "drop the right hand's"}};
 static_assert(za::getArraySize(handKeys) == 6, "a last-frame state for every hand key (FlatKeys::keyHands)");
 
+void sendHandKey(const HandKey& k)
+{
+    char cmd[32];
+    q_snprintf(cmd, sizeof(cmd), "impulse %d\n", k.impulse);
+    Cbuf_InsertText(cmd); // (InsertText: asked for now, as the F's and H's)
+    if(vr_flatplay_debug.value)
+    {
+        Con_Printf("flatplay: %s: %s\n", k.key->string, k.what);
+    }
+}
+
+// 1 / 2 with vr_flat_wheel (his words 2026-11-23): a tap cycles the hand when let go; held vr_flat_wheel_hold, the weapon
+// wheel opens for that hand (vr_weaponwheel.cpp: where the hand is on the screen, the mouse its cursor), and letting go is
+// its pick (or nothing off the wheel). A press while the wheel is open (the other key) does nothing.
+void wheelKey(size_t i, bool down, bool inGame)
+{
+    const int hand = i == 0 ? HAND_OFF : HAND_MAIN;
+    const bool was = keyState.keyHands[i];
+    if(down && !was)
+    {
+        keyState.wheelSince[i] = realtime;
+        keyState.wheelTaken[i] = false;
+        keyState.wheelSkip[i] = weaponwheel::isOpen();
+    }
+    else if(down && !keyState.wheelTaken[i] && !keyState.wheelSkip[i] &&
+            realtime - keyState.wheelSince[i] >= weaponwheel::flatHoldSeconds() && weaponwheel::canOpen(hand))
+    {
+        keyState.wheelTaken[i] = true;
+        weaponwheel::open(hand);
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: %s held: the weapon wheel\n", handKeys[i].key->string);
+        }
+    }
+    else if(!down && was)
+    {
+        if(keyState.wheelTaken[i])
+        {
+            weaponwheel::release(hand);
+        }
+        else if(!keyState.wheelSkip[i] && inGame)
+        {
+            sendHandKey(handKeys[i]); // (a tap: the cycle, as before but when let go)
+        }
+        keyState.wheelTaken[i] = keyState.wheelSkip[i] = false;
+    }
+}
+
 void pollHandKeys(bool inGame)
 {
     for(size_t i = 0; i < za::getArraySize(handKeys); i++)
     {
         const HandKey& k = handKeys[i];
         const bool down = inGame && keyActive(*k.key) && flatKeyHeld(*k.key);
-        if(down && !keyState.keyHands[i])
+        if(i < 2 && (vr_flat_wheel.value != 0.f || keyState.wheelTaken[i]))
         {
-            char cmd[32];
-            q_snprintf(cmd, sizeof(cmd), "impulse %d\n", k.impulse);
-            Cbuf_InsertText(cmd); // (InsertText: asked for now, as the F's and H's)
-            if(vr_flatplay_debug.value)
-            {
-                Con_Printf("flatplay: %s: %s\n", k.key->string, k.what);
-            }
+            wheelKey(i, down, inGame); // (1 / 2: a tap cycles, a hold opens the weapon wheel)
+        }
+        else if(down && !keyState.keyHands[i])
+        {
+            sendHandKey(k);
         }
         keyState.keyHands[i] = down;
     }
@@ -2427,7 +2478,7 @@ FireRoute routeFire(bool lmb, bool rmb)
     // A gun turned up out of a wall does not fire (flatsight::wallBlocksFire): the button does nothing till it comes down.
     // A melee weapon swings as ever (a blow is never stopped at a wall).
     // The holster menu open: the left button is its click (vr_flatholster.cpp), nothing fires and nothing aims.
-    if(flatholster::open())
+    if(flatholster::open() || weaponwheel::isOpen()) // (the weapon wheel's too: 1 / 2 held, the mouse its cursor)
     {
         return FireRoute{};
     }

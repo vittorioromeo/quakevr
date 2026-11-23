@@ -22,6 +22,7 @@
 #include "vr_units.hpp"
 #include "vr_weaponfx.hpp"
 #include "vr_weapons.hpp"
+#include "vr_weaponwheel.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -580,7 +581,8 @@ void one(const glm::vec2& c, int side, float dim, float spread)
     const float peak = za::max(za::max(colors.line.r, colors.line.g), za::max(colors.line.b, 1e-3f));
     const glm::vec3 lineRgb = glm::min(colors.line / peak, glm::vec3{1.f});
     const float opacity = tune(vr_flat_xhair_opacity, 0.f, 1.f) * dim * flatsight::crosshairFade() *
-                          flatholster::crosshairAlpha(); // (faded out under the holster menu: vr_flatholster.cpp)
+                          flatholster::crosshairAlpha() * // (faded out under the holster menu: vr_flatholster.cpp)
+                          weaponwheel::crosshairAlpha();  // (and under the weapon wheel: vr_weaponwheel.cpp)
     if(opacity <= 0.f)
     {
         return;

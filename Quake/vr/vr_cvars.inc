@@ -779,6 +779,8 @@ QVR_CVAR(vr_render_scale, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_dynres, "1", CVAR_ARCHIVE)            // 0 off, 1 on with a headset, 2 the mock headset too (tests)
 QVR_CVAR(vr_dynres_target, "0.85", CVAR_ARCHIVE)  // ... the budget: this share of the headset's display period (0.3-1) for the eyes' GPU time
 QVR_CVAR(vr_dynres_min, "0.6", CVAR_ARCHIVE)      // ... the lowest scale it goes to
+QVR_CVAR(vr_dynres_min_fight, "0", CVAR_ARCHIVE)  // ... below vr_dynres_min, the lowest in a fight: only once the eyes stayed over the budget at vr_dynres_min for vr_dynres_fight_frames; shut again once risen back to vr_dynres_min (0: none; Standalone 72 Hz: 0.55)
+QVR_CVAR(vr_dynres_fight_frames, "36", CVAR_ARCHIVE) // ... frames over the budget at vr_dynres_min before vr_dynres_min_fight opens (each frame under takes 4 back)
 QVR_CVAR(vr_dynres_max, "-1", CVAR_ARCHIVE)       // ... the highest (its ceiling); below 0: vr_render_scale
 QVR_CVAR(vr_dynres_log, "0", CVAR_NONE)           // ... 1: a console line at each change (Debug > Profiling); 2: also the scale and the eyes' GPU time twice a second
 QVR_CVAR(vr_dynres_test_load, "0", CVAR_NONE)     // ... an artificial GPU cost in each eye, units of work a pixel (Debug > Profiling; 0 none; negative: that load for one frame, a spike)
@@ -2179,6 +2181,7 @@ QVR_CVAR(vr_model_light_grid, "1", CVAR_ARCHIVE)      // hidden (no menu row sin
 QVR_CVAR(vr_model_ambient_dir, "1", CVAR_ARCHIVE)     // models lit by the baked light around them, brighter on the side facing lit walls (vr_ambient.cpp; 0: one brightness all round)
 QVR_CVAR(vr_model_ambient_contrast, "1.5", CVAR_ARCHIVE) // how much the sides differ (0: not at all, 1: as the surroundings do)
 QVR_CVAR(vr_rim_light, "0.5", CVAR_ARCHIVE)           // a faint light round models' edges, in the light around them, so they stand out from dark backgrounds (vr_envmap.cpp; 0 off .. 1)
+QVR_CVAR(vr_rig_plain, "0", CVAR_ARCHIVE)             // your own body, hands, held guns and gear without normal maps, reflections and rim light: the cheap model shader draws them (vr_render.cpp; Standalone 1)
 QVR_CVAR(vr_weapon_reflections, "1", CVAR_ARCHIVE)    // your weapons' metal reflects the room round you (a small cube map of the world, vr_envmap.cpp; 0 off)
 QVR_CVAR(vr_weapon_reflections_strength, "1.2", CVAR_ARCHIVE) // how strongly (0..2)
 QVR_CVAR(vr_relit_maps, "1", CVAR_ARCHIVE)           // maps re-lit by Misc/quakevr/relight_maps.py, when present (next map)
@@ -3612,6 +3615,9 @@ QVR_CVAR(vr_limbs_blast_chance, "0.6", CVAR_ARCHIVE) // a limb's chance to pop a
 QVR_CVAR(vr_gib_limbs, "1", CVAR_ARCHIVE) // a body gibbed throws its own limbs: 0 no (Quake's gibs), 1 besides Quake's gibs, 2 instead of the meat gibs
 QVR_CVAR(vr_limbs_prebuild, "2", CVAR_ARCHIVE) // limb gore: the whole limbs of the map's kinds of monster (those waiting for a trigger too) made as it loads (0: at the first cut, a hitch); 2 (the default since vr_cfg_version 147): also the kinds the firing range's dispensers and dummies (and vr_probe_test_spawn's) can make (the firing range's load +0.22 s with a filled cache; 1 makes those in play, one a frame, ~8 ms each)
 QVR_CVAR(vr_limbs_max, "24", CVAR_ARCHIVE) // most limbs lying about: past it, the oldest go (not one in a hand)
+QVR_CVAR(vr_gore_trim_max, "0", CVAR_ARCHIVE)  // most settled gibs, heads and limbs (QC vr_dmloose.qc; not deathmatch): past it, those lying vr_gore_trim_age s farthest from you go first, none within vr_gore_trim_near units (0: no cap; Standalone 24)
+QVR_CVAR(vr_gore_trim_age, "5", CVAR_ARCHIVE)  // ... seconds one lies about before it may go (after a fight)
+QVR_CVAR(vr_gore_trim_near, "160", CVAR_ARCHIVE) // ... none this close to a player goes (units: the look up close kept)
 QVR_CVAR(vr_dmgcredit_test, "0", CVAR_NONE) // the QC fires every weapon at a target that takes only one weapon's damage and prints the weapon each is credited with (vr_dmgcredit_test.qc; Debug > Tests)
 QVR_CVAR(vr_pickup_test, "0", CVAR_NONE) // the QC runs weapon pickup test n: 1 every weapon pickup in a row ahead with the same weapon dropped, 2 the nearest taken, 3 the next pair shown, 4 every weapon a monster can drop dropped ahead (its convex pieces cut: Setup's preparation), 5 the weapons lying near reported, 6 a floating pickup ahead, watched (the floating grace) (vr_pickup_test.qc; Debug > Tests)
 QVR_CVAR(vr_limbs_mass_scale, "1", CVAR_ARCHIVE) // a limb (or head) cut off weighs its share of its ragdoll's mass by the kind of limb (an arm 6.3%, a leg 15.5%, the head 7%) times this (at least 0.05)
@@ -4608,6 +4614,9 @@ QVR_CVAR(vr_weaponwheel_hold, "0.35", CVAR_ARCHIVE)    // the weapon wheel: seco
 QVR_CVAR(vr_weaponwheel_timescale, "0.5", CVAR_ARCHIVE) // the weapon wheel: time's speed while it is open (bullet time's slow motion, single player; 1 not slowed)
 QVR_CVAR(vr_weaponwheel_size, "16", CVAR_ARCHIVE)      // the weapon wheel's width (units; about 26 a metre): how far the hand moves to a slot
 QVR_CVAR(vr_weaponwheel_distance, "3", CVAR_ARCHIVE)   // the weapon wheel: its middle this many units beyond the hand as it opens (away from the eyes), facing them
+QVR_CVAR(vr_flat_wheel, "1", CVAR_ARCHIVE)             // flatscreen play (holsters on): holding 1 / 2 (vr_flat_key_cycle_left / _right) opens the weapon wheel where that hand is on the screen, time slowed, the mouse its cursor; let go on a slot: that hand takes it (a tap still cycles); 0: 1 / 2 only cycle, on the press, as before (his words 2026-11-23)
+QVR_CVAR(vr_flat_wheel_hold, "0.35", CVAR_ARCHIVE)     // flatscreen play: seconds 1 / 2 are held before the weapon wheel opens (a shorter press cycles the hand when let go)
+QVR_CVAR(vr_flat_wheel_size, "0.5", CVAR_ARCHIVE)      // flatscreen play: the weapon wheel's height, a share of the window's
 QVR_CVAR(vr_flat_holster_drop_ahead, "20", CVAR_ARCHIVE | QVR_PREF) // flatscreen play: how far ahead of him (units) a holster's DROP lays its weapon
 QVR_CVAR(vr_flat_unload_volume, "0.8", CVAR_ARCHIVE) // flatscreen play: the holster menu's UNLOAD sound's volume (its rounds back into the pouch); 0 silent
 QVR_CVAR(vr_flat_toolgun_cursor_speed, "1", CVAR_ARCHIVE) // flatscreen play: the toolgun panel's cursor speed (1: as the desktop's pointer, a mouse count a window pixel)
