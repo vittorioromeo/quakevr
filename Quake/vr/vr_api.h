@@ -1004,6 +1004,7 @@ const char *VR_CampaignFolder(int index);
 const char *VR_CampaignStartMap(int index);
 int VR_CampaignFolderOnlyWhenActive(int index);	// its folder searched only while it is the active campaign (dopa, mg1, mg3)
 int VR_SelectCampaignNoMap(int index);			// made the active one, no map started (0: it cannot be played; nothing changed)
+int VR_SelectCampaignNoMapNative(int index);	// the same, an experimental one (AD, Dwell, Quoth) too, as vr_campaign_native (tests)
 void VR_GameFolderName(const char *path, char *out, size_t size); // a search path's game folder ("C:/Quake/hipnotic/pak0.pak": hipnotic)
 int VR_SaveCampaign(const char *text);			// a save's campaign (vr_save_campaign), -1 if VR_CanLoadCampaignSave would refuse it (quiet)
 const char *VR_CampaignTitle(int index);		// "Quake", "Scourge of Armagon", ...
