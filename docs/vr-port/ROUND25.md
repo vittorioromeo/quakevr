@@ -10271,6 +10271,54 @@ ropes8d's open bug and ropes8c's leftovers. ROPES.md "Poles".
   solve's stops per finger with vr_debug_grasp 2 against the drawn tips). rope_climb_test pole_metal (VR) 10/0.
 - **Not done (budget):** 3 (rope_pump still 238 vs 250, unchanged here), 4 (props vs poles).
 
+## weaponwheel: a VR weapon wheel instead of reaching for the holsters (agent/weaponwheel, 2026-11-23)
+
+His design (2026-11-23): hold a button, a wheel of the holsters opens round that hand, time slows a little, the hand is
+the cursor; let go on a slot: that hand takes it, as reaching to the holster would; let go off the wheel: nothing.
+
+- **Input** (`vr_input.cpp` wheelHold): `vr_weaponwheel_button` 0 (default) the upper face button B/Y, 1 the stick's
+  click, 2 A/X, held `vr_weaponwheel_hold` (0.35 s) on either hand; that hand opens it and picks. Why B/Y: the bindings
+  survey (`vr_bindings.cfg`): triggers fire, grips grab, A jumps, X/right stick reload, left stick sprints, both sticks
+  are the menu chord (`vr_menu_button` 1), a stick click binds a magnetic holster; B/Y send `impulse 10/12`, which do
+  nothing under the default `vr_weapon_cycle_mode` 0. The press still reaches the game at once (a tap never waits, as
+  `vr_menu_button` 2/3's hold); once the wheel opens the game's key is let go (`keyEvent(key, false)`) and the button's
+  letting go is the wheel's. It only sees the press the game got: the flashlight's Y, a voice note at the mouth, the
+  toolgun's B/Y, the posing modes keep theirs. Not on a hand holding the grappling hook (B/Y reel it), nor on the hand
+  `vr_menu_button` 2 (Y) or 3 (B) holds for the menu.
+- **The wheel** (`vr_weaponwheel.cpp`): placed as it opens `vr_weaponwheel_distance` (3) units beyond the hand from the
+  eyes, facing them, `vr_weaponwheel_size` (16) units wide; the hand's point projected on it is the cursor; a slot is lit
+  by its sector (from 26 virtual px out to the ring plus 46: the middle and outside light nothing); a haptic tick on
+  each new slot (`haptics::pulse`), menu1 on opening, menu2 on a pick. Time at `vr_weaponwheel_timescale` (0.5, single
+  player: `timescale::wanted`); while it is open the hands are the controllers' (`filterHands` as in a menu), so the
+  cursor follows in real time.
+- **Shared with flat play** (note_reuse): the image is the flat holster menu's renderer (`gadget::renderHolsterMenu`,
+  its slots on a ring, the lit slot with the drop target's double frame, greyed ones dim) and its composite
+  (`flatholster::drawImage`, new: the face and the CRT screen, the flat menu's on the window and the wheel's on a world
+  quad: one code). The holsters' contents are one model, `flatholster::holsterSlot` / `handSlot` (the flat menu's slots
+  read them too). QC: the number keys' cycle body became `VR_FlatHolster_DrawInto(hand, holster)`, shared by the cycle
+  and the wheel's `VR_Wheel_Pick`. Not shared: the flat menu's buttons (DROP, UNLOAD, SWAP, drag) — the wheel is a
+  pick-one; the flat menu's own mouse cursor.
+- **A pick** (holsters' provider): the client command `vr_wheel_pick <hand> <slot>` (sv_user.c lets it through), QC
+  `VR_Wheel_Pick` with `self` the player. Immersive: a full holster is drawn (`VR_FlatHolster_DrawInto`: the hand's
+  weapon back to the holster it came from, else a free one, the picked one counting: the holster rules, too-big refusal
+  and messages of the number keys); an empty holster takes the hand's weapon (`VRHolsterHandWeapon`, too big:
+  `VRHolsterRefused`); EMPTY HAND puts it away (`VR_FlatHolster_Put`). Quick Slots: the holster's copy drawn
+  (`VRDrawHolsterWeapon`), an empty one given a copy (`VRLetGoAtHolster`). A drawn weapon is `VR_Scene_HoldGiven`: it
+  stays in a hand whose grip is not held until the grip is pressed (else the default grip-to-hold drops it at once).
+  The other hand's weapon: immersive, a holstered weapon is never in the other hand, so the wheel never offers it
+  (refused by construction); Quick Slots, a full holster greys when it is the weapon the hand already holds.
+- **Extension point** (`vr_weaponwheel.hpp`): a `Provider` is a `list(hand, Choice*, max)` (this frame's slots, in
+  order clockwise from the top: key, title, name, model, usable) and a `pick(hand, Choice)`; `setProvider()` swaps it.
+  "Every weapon the player may take" is a second provider: the layout takes any count up to `maxChoices` (16).
+- **Settings:** VR Settings > Immersion > Weapon Wheel: `vr_weaponwheel` (1), `_button` (0), `_hold` (0.35),
+  `_timescale` (0.5), `_size` (16), `_distance` (3). Debug menu (next to the holster menu's): Weapon Wheel Dump
+  (`vr_weaponwheel_dump`), Weapon Wheel Test.
+- **Tests:** `Misc/quakevr/weaponwheel_test.sh` (`vr_weaponwheel_test`, mock headset, fast mode, verdict line): 12/0
+  (opens after the hold, 7 slots, time x0.50, the slot lit with ticks, the shotgun drawn into the right hand and the
+  nailgun put away, the left hand off the wheel cancels, the left hand takes the nailgun and keeps it ungripped, EMPTY
+  HAND back to its holster, time back at 1). `mp_test.py suite --only mp_weaponwheel` (new): B's wheel picks his
+  holstered shotgun: the server and A have it in his hand, 9/0. flatholster_test 54/0; the number keys' cycle by hand.
+  Scenario `weapon_wheel`.
 ## ropes9: flat W/S swing looking level; physics props meet the poles (agent/ropes9, 2026-11-23)
 
 His correction 2026-11-23 and ropes8c's open props item. ROPES.md "Climbing (flat-screen)", "Poles", "Tests".
