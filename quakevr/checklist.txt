@@ -36,6 +36,9 @@ Flat-screen or VR: climb the wooden and metal poles: the hands close round the p
 Flat-screen or VR: the level metal pole (south) is a hand-over-hand traverse hanging under it; the slanted wooden pole (south-east) climbs like the upright ones; the toolgun's Pole with a Span strings one. {test:ropes}
 Flat-screen or VR: walk into the poles (they stop you, climbing one doesn't), shoot and punch them: sparks off metal, splinters off wood. {test:ropes}
 Flat-screen or VR: the poles look like wood (grain along it) and brushed metal (a joint every so often), not a plain colour. {test:ropes}
+Flat-screen or VR: hang under the level rope and the level metal pole (third-person camera in flat play): each hand overhand under it, knuckles up over it, palm on the rope, back of the hand towards you, the arms joined to the shoulders. {test:ropes}
+Flat-screen or VR: climb a vertical rope and a pole (third-person camera in flat play): the hip holsters and their guns stay on the hips in every pose, not sticking out with the thighs. {test:ropes}
+Flat-screen or VR: on a chain in the ropes hall: climbing it clinks now and then; hanging still or just swinging on it is quiet; a shot or a shove on a free chain clinks. {test:ropes}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, and the crystal head glowing violet for a moment after each shot. {test:dwell_lance_pole}
@@ -119,6 +122,8 @@ In a deathmatch, weapons a bot or player drops now lie 20 seconds before vanishi
 Flat-screen or VR: in a deathmatch with a bot, wear armour, die (not gibbed), respawn and pick up different armour: your old body keeps the armour plates it died in (no plates appearing or changing colour on it). {test:mp_dm_hostile}
 Flat-screen or VR: in a deathmatch with a passive armed bot, shoot squarely at its helmet from the front, the side and behind: every shot hits (headshot); a shot a hand's width beside its arm, or one only at its weapon's barrel from the side, does not hurt it or make it bleed. {test:mp_dm_hitzones}
 Flat-screen or VR: Debug > Show Hit Zones while hosting a deathmatch with a bot (and another player): a red sphere on each one's head, a green torso, yellow arms and blue legs drawn on their bodies, following their arms and turning with them; the same when joining. {test:mp_dm_hitzones}
+Flat-screen or VR: choose Dissolution of Eternity in Select Campaign, then join a friend's Quake coop server on start: you load Quake's start map (no "Model not found" drop) and Load Autosave lists the server's coop saves; after Leave Game, Dissolution is your campaign again. {test:mp_coop_passive}
+Flat-screen or VR: join a server running a campaign you don't have installed (e.g. Quoth or Dwell): you are refused with a message naming the missing campaign, not an error; joining a Quoth server with Quoth installed reconnects once by itself and plays. {test:mp_coop_passive}
 
 [5. Flat screen]
 Flat-screen: open Options > Controls and scroll to the end of the keyboard and mouse list: the "Quake VR (flat screen)" group lists every flat key (leans, swap, force grab, shove... toolgun adjust); rebind one with Enter and a key, clear one with Backspace, and check it works in game. {test:flat_force_grab}
@@ -137,6 +142,7 @@ Flat-screen: swim in the pool: forward the hands do a breaststroke, back they pu
 Flat-screen: under water a two-handed gun (the nailgun) is held in one hand and the free hand swims; firing or reloading the gun hand's stroke gives way smoothly and comes back after; out of the water the free hand goes back on the gun. {test:flat_swim}
 Flat-screen: hold the right mouse button with the sword or the axe and click the left button: the weapon is pushed straight out of the guard in a quick bash instead of a swing, and the grunt is knocked back and staggers; the timings are in Debug > Tunables > Flatscreen > Guard Bash and Blade Grip. {test:flat_parry}
 Flat-screen: hold the right mouse button with the sword: your left hand quickly and smoothly takes the blade near its tip and lets go as you release the button; with the axe it stays where it was. {test:flat_parry}
+Flat-screen: in the tutorial, the boards and tips use flat wording and name your own keys ('W' 'A' 'S' 'D', 'SPACE', 'Mouse 4', 'G'); rebind Quick grenade to J in Options > Controls and lesson 10's GRENADES board says 'J' at once. {test:flat_tutorial_keys}
 
 [6. Ropes and chains]
 In the ropes hall, grab a rope or chain with both hands: each hand grips it with the rope through the fist, the right hand's knuckles to the right and the left's to the left, not pointing up. {test:ropes}

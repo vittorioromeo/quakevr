@@ -1046,6 +1046,80 @@ extern "C" int VR_SelectCampaignNoMapNative(int index)
 }
 extern "C" void VR_GameFolderName(const char* path, char* out, size_t size) { gameFolderName(path, out, size); }
 
+// Multiplayer (mpcampaign; vr_mpdownload.cpp): a remote client plays the campaign of the server it joins (QVR_SVC_CAMPAIGN,
+// before each svc_serverinfo), made the active one as the selector makes it (no map started), and its own campaign
+// comes back once it left. Before, a client kept its own: one on Dissolution joining a Quake coop server read rogue's
+// start.bsp ("Model *43 not found") and its Load Autosave list hid the server's coop saves as another game's.
+namespace
+{
+int joinedOwnCampaign = -1;     // the client's own campaign while it plays a server's (-1: its own is the active one)
+bool joinedOwnDeveloper = false; // and its developerNative then
+} // namespace
+
+extern "C" int VR_CampaignIndexOf(const char* folder) { return folder && *folder ? campaignIndex(folder) : -1; }
+
+// Why this game can't play campaign `index` a server runs ("" when it can): data missing, incomplete or another
+// version, language data incomplete. The server checked its own gates (single-player only, native in progress): a
+// client follows it. -campaignmissing <folder> (tests): that campaign taken for one this game lacks.
+extern "C" const char* VR_CampaignMissingForJoin(int index)
+{
+    if(index < 0 || index >= int(countof(campaigns))) { return "it is not a campaign this version of Quake VR knows"; }
+    const Campaign& c = campaigns[index];
+    const int arg = COM_CheckParm("-campaignmissing");
+    if(arg && arg + 1 < com_argc && campaignIndex(com_argv[arg + 1]) == index)
+    { return va("its data is missing here (<basedir>/%s; -campaignmissing)", c.folder); }
+    if(c.status != 1) { return va("its data is %s here (<basedir>/%s)", campaignStatus(index), c.folder); }
+    if(index >= 3 && missingLanguage(index))
+    { return "its language data is incomplete here (supply updated owned rerelease id1 tables)"; }
+    return "";
+}
+
+// The server's campaign made the active one: in place among Quake and its mission packs (their folders are all
+// mounted: only which start.bsp is read changes, VR_CheckSpawnCampaignMap's way), returning 1; another one needs the
+// game folders rebuilt, which ends any connection: 0 unless `rebuild` (the client left first), then the selector's
+// switch. The client's own campaign is kept for VR_LeaveJoinedCampaign.
+extern "C" int VR_JoinCampaign(int index, int rebuild)
+{
+    if(!gameDirAlreadyAdded(vrGameDir) || index < 0 || index >= int(countof(campaigns)) || campaigns[index].status != 1)
+    { return 0; }
+    if(index == activeCampaign) { return 1; }
+    const bool inPlace = index <= 2 && activeCampaign <= 2;
+    if(!inPlace && !rebuild) { return 0; }
+    const int own = activeCampaign;
+    const bool ownDeveloper = developerNative;
+    if(inPlace)
+    {
+        activeCampaign = index;
+        publishCampaign(false); // (never the hub's choice: the player's own)
+    }
+    else if(!selectCampaign(index, index >= 3, false, false)) { return 0; } // (the server's gates are its own)
+    if(joinedOwnCampaign < 0)
+    {
+        joinedOwnCampaign = own;
+        joinedOwnDeveloper = ownDeveloper;
+    }
+    return 1;
+}
+
+// After leaving the server (vr_mpdownload.cpp's poll: disconnected, no joining again pending): the client's own
+// campaign the active one again. Returns its index, -1 when it was already (nothing changed).
+extern "C" int VR_LeaveJoinedCampaign(void)
+{
+    const int own = joinedOwnCampaign;
+    joinedOwnCampaign = -1;
+    if(own < 0 || own == activeCampaign || !gameDirAlreadyAdded(vrGameDir)) { return -1; }
+    if(own <= 2 && activeCampaign <= 2)
+    {
+        activeCampaign = own;
+        publishCampaign(false);
+    }
+    else if(!selectCampaign(own, joinedOwnDeveloper, false, false)) { return -1; }
+    developerNative = joinedOwnDeveloper;
+    return own;
+}
+extern "C" int VR_JoinedCampaignHeld(void) { return joinedOwnCampaign >= 0; }
+extern "C" void VR_ForgetJoinedCampaign(void) { joinedOwnCampaign = -1; }
+
 extern "C" void VR_BeforeAddGameDirectory(const char* dir)
 {
     if(addingMissionPacks || q_strcasecmp(dir, vrGameDir))

@@ -1598,6 +1598,7 @@ struct Posed
     glm::vec3 thighJoint[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // per side, in the pelvis's frame
     glm::mat3 thighNow[2]{glm::mat3{1.f}, glm::mat3{1.f}};
     glm::mat3 thighStill[2]{glm::mat3{1.f}, glm::mat3{1.f}};
+    float climb{0.f}; // (ropes8b) the climbing pose's weight as posed (climbHang): Follower::thigh's gear on the hips
 };
 
 Posed posed;
@@ -1890,7 +1891,9 @@ bool Follower::thigh(int side, ThighMotion& out) const
     // holsters ride the legs, down on the floor in front where they are drawn (with the hips, leant back with the trunk,
     // they stood out from the body in front of the camera, high: his note 2026-11-08); the belt's ammo pouch stays on the
     // belt (out.sliding: onBothThighs).
-    if(const float lie = bodyPitch.lying; lie > 0.f)
+    // (ropes8b, his flat note 2026-11-23: climbing a rope the guns stood out in front of the hips, turned with the thighs
+    // wrapped round it) Climbing (a rope, a pole, a ledge: the climbing pose's weight) likewise: the gear stays on the hips.
+    if(const float lie = za::max(bodyPitch.lying, posed.climb); lie > 0.f)
     {
         const glm::quat q = glm::normalize(glm::quat_cast(out.turn));
         out.turn = glm::mat3_cast(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, q, 1.f - za::min(1.f, lie)));
@@ -2079,6 +2082,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
 
     // The thighs relative to the pelvis, as they are and standing still (Follower::thigh).
     posed.legs = legs;
+    posed.climb = za::clamp(climbHang, 0.f, 1.f);
     {
         const Bone& p = b.bones[Pelvis];
         const glm::mat3 toPelvis = glm::transpose(p.rot);

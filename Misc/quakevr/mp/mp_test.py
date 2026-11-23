@@ -29,7 +29,10 @@ Tests:
              (memory, edicts, pace, B's link and moves); QVR_MP_LOW_IMPACT=1: idle priority.
     version a client of another Quake VR network version (-mpnetversion 1) is rejected with the reason; one of the
              same version joins.
-    avatar   B has A's avatar (QVR_SVC_AVATAR): head and drawn hands within 2 units of the server's, the main hand's
+    campfollow (mpcampaign) a joining client plays the server's campaign (QVR_SVC_CAMPAIGN): rogue's client on a Quake
+             start, Quake's on a Scourge of Armagon start (in place), Quoth's (left, switched, joined again), its own
+             campaign back after each leave; a client lacking the campaign's data refused with what is missing.
+    avatar  B has A's avatar (QVR_SVC_AVATAR): head and drawn hands within 2 units of the server's, the main hand's
              angles within 3 degrees, his weapon; none of himself; A closes his off hand: its finger curls at B within a
              step of the server's, closed; B draws A's jointed hands (and his weapon's model) where A drew them; the
              bytes it costs and the avatars the server sent and skipped as unchanged.
@@ -155,7 +158,7 @@ Tests:
              his nonce has him register again at once with it, then REGISTERED gives his code; a REFUSED with his
              nonce is taken.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab, guard,
-             teleport, held, ground, campaign, campaign_listen, flow, rejoin, rejoin_keep, download, pickup, forcegrab, melee, moves, climb,
+             teleport, held, ground, campaign, campaign_listen, campfollow, flow, rejoin, rejoin_keep, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, cmdguard, disarm, voice, voice with B 50 ms (30 ms
              jitter, 5% loss) away, dm, lockstep, lockstep_throw, nat (B23: room codes through simulated routers).
              The network layer's review checks (2026-11-18): emptyflood, spoof, backoff, lookup, roomnonce.
@@ -691,6 +694,102 @@ def version(s):
     a.cmd(s.connect_cmd(a))
     a.wait(r"mp_event: .*joined map=e1m1", 120, what="A joined e1m1")
     s.check("a client of the same network version joins", True)
+
+
+def campfollow(s):
+    """(mpcampaign) A joining client plays the server's campaign (QVR_SVC_CAMPAIGN, before each svc_serverinfo), and its
+    own comes back once it left. A dedicated coop server, A a fresh game (Dissolution's campaign, rogue: the -game
+    list's last, as a player who last chose it):
+    1. the server on Quake's start: A joins it (in place: Quake's start.bsp, not rogue's "Model *43 not found"), his
+       Load Autosave list this campaign's (the server's coop saves listed); after leaving, rogue again;
+    2. A on Quake's (his own start map) joins the server on Scourge of Armagon's start: hipnotic's start.bsp;
+    3. the server on Quoth's start (a campaign with folders of its own): A leaves, switches and joins again; after
+       leaving, Quake's again (his own);
+    4. C, whose game lacks Quoth (-campaignmissing quoth), is refused, told what is missing; no Host_Error."""
+    srv = s.server(dedicated=True)
+    srv.start()
+
+    def serve(cmd, label):
+        since = srv.mark()
+        srv.cmd("coop 1; deathmatch 0; skill 1; %s; vr_mp_status" % cmd)
+        srv.wait(r"mp_server: map=start", 180, since, label)
+
+    def campaign_of(g):
+        since = g.mark()
+        g.cmd("vr_campaign_probe maps/start.bsp")
+        _, line = g.wait(r"VR campaign source: maps/start\.bsp -> .*; campaign \w+", 30, since, "%s's probe" % g.name)
+        return re.search(r"campaign (\w+)\s*$", line).group(1), line.strip()
+
+    def join_server(g, label):
+        since = g.mark()
+        g.cmd(s.connect_cmd(g))
+        g.wait(r"mp_event: .*joined map=start", 180, since, label)
+        return since
+
+    def leave(g):
+        since = g.mark()
+        g.cmd("disconnect")
+        got = wait_quietly(g, r"mp_campaign: left the server: .* is this game's campaign again", 60, since,
+                           "%s's own campaign back" % g.name)
+        return got[1].strip() if got else None
+
+    # 1. rogue's client, Quake's server on start
+    serve("vr_campaign_select id1", "the server on Quake's start")
+    a = s.client("A").start()
+    first, _ = campaign_of(a)
+    s.check("A starts in Dissolution's campaign (rogue), as a player who last chose it", first == "rogue", first)
+    since0 = join_server(a, "A on the server's Quake start")
+    said = a.find(r"mp_campaign: the server plays Quake: this game's campaign while joined", since0)
+    now, line = campaign_of(a)
+    s.check("1. A (rogue) joins the server on Quake's start: Quake's campaign while joined, its start.bsp read",
+            said is not None and now == "id1", "%s; %s" % (said and said[1].strip(), line))
+    since = a.mark()
+    a.cmd("vr_autosave_list cold")
+    _, listed = a.wait(r"vr_autosave_list: \d+ autosaves.*this game: campaign \d+", 30, since, "A's Load Autosave list")
+    s.check("1. A's Load Autosave list is the server's campaign's (this game: campaign 0)",
+            "this game: campaign 0" in listed, listed.strip())
+    back = leave(a)
+    now, line = campaign_of(a)
+    s.check("1. A leaves: Dissolution's campaign again", back is not None and now == "rogue", "%s; %s" % (back, line))
+
+    # 2. A on Quake's own start map joins Scourge of Armagon's server
+    since = a.mark()
+    a.cmd("vr_campaign_select id1")
+    a.wait(r"mp_event: .*joined map=start", 180, since, "A on his own Quake start")
+    serve("vr_campaign_select hipnotic", "the server on Scourge of Armagon's start")
+    since = join_server(a, "A on the server's Scourge of Armagon start")
+    said = a.find(r"mp_campaign: the server plays Scourge of Armagon: this game's campaign while joined", since)
+    now, line = campaign_of(a)
+    s.check("2. A (Quake's) joins the server on Scourge of Armagon's start: hipnotic's start.bsp",
+            said is not None and now == "hipnotic", "%s; %s" % (said and said[1].strip(), line))
+    back = leave(a)
+    now, _ = campaign_of(a)
+    s.check("2. A leaves: Quake's campaign again", back is not None and now == "id1", "%s; %s" % (back, now))
+
+    # 3. a campaign with folders of its own: leave, switch, join again
+    serve("vr_campaign_native quoth", "the server on Quoth's start")
+    since = join_server(a, "A on the server's Quoth start (joined again)")
+    switched = a.find(r"mp_campaign: the server plays Quoth: switching this game to it, then joining again", since)
+    again = a.find(r"mp_campaign: .* is this game's campaign now; joining again", since)
+    now, line = campaign_of(a)
+    s.check("3. A joins the server on Quoth: left, switched to it, joined again (Quoth's start.bsp)",
+            switched is not None and again is not None and now == "quoth",
+            "%s; %s; %s" % (switched and switched[1].strip(), again and again[1].strip(), line))
+    back = leave(a)
+    now, _ = campaign_of(a)
+    s.check("3. A leaves: Quake's campaign again (the folders rebuilt back)", back is not None and now == "id1",
+            "%s; %s" % (back, now))
+    s.check("A never hit a Host_Error", a.find(r"Host_Error", since0) is None,
+            (a.find(r"Host_Error", since0) or (0, ""))[1].strip())
+
+    # 4. a game lacking the server's campaign is refused, told why
+    c = s.client("C", extra=["-campaignmissing", "quoth"]).start()
+    since = c.mark()
+    c.cmd(s.connect_cmd(c))
+    _, why = c.wait(r"mp_campaign: the server plays Quoth .*can't join: .*missing", 60, since, "C's refusal")
+    s.check("4. C, lacking Quoth, is refused with what is missing", True, why.strip())
+    s.check("4. C never joined the map and hit no Host_Error",
+            c.find(r"mp_event: .*joined map=", since) is None and c.find(r"Host_Error", since) is None, "")
 
 
 RENDEZVOUS = os.path.join(REPO, "Misc", "rendezvous")
@@ -9989,6 +10088,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             cmdguard(s)
         elif test == "mp_grab":
             grab(s)
+        elif test == "mp_campfollow":
+            campfollow(s)
         elif test == "mp_navfollow":
             navfollow(s)
         elif test == "mp_navfollow_listen":
@@ -10168,6 +10269,7 @@ SUITE = [
     ("mp_ground", ()),
     ("mp_campaign", ()),
     ("mp_campaign_listen", ()),
+    ("mp_campfollow", ()),
     ("mp_flow", ()),
     ("mp_rejoin", ()),
     ("mp_rejoin_keep", ()),
@@ -10230,7 +10332,7 @@ def in_profile(name, profile):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"])
     tree_base = default_base(REPO)
     ap.add_argument("--base", required=tree_base is None, default=tree_base,
                     help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")
@@ -10299,7 +10401,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"):
+                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

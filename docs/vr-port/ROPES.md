@@ -143,7 +143,9 @@ hands' middle along it (`sMid`, eased to the hands' middle at 60 units/s), the r
 bob to its bottom (`layMonkey`); the bob falls, sways round the line between the ends (gravity, the stick's pump, the
 swing's drag) and is held within the rope's reach of both ends (it pulls, never pushes), so a slack rope sags under him
 and swings sideways. Its length is as it lay when taken (the Verlet steps stretch it a little), so a grab doesn't
-jump. VR: the ledge rules (a hand pulled along it moves the body along: hand over hand), letting go drops, jump jumps
+jump. (ropes8b) The hands under it overhand (`climb::ropePalm`: out from it downwards, square to it; `monkeyRopeUp`:
+the knuckles up over it, the palm forward and in, the back of the hand towards him), yours (VR, flat) and another
+player's copy (his hands' places from `ropePalm`, their turn from his snapshot). VR: the ledge rules (a hand pulled along it moves the body along: hand over hand), letting go drops, jump jumps
 off (`vr_rope_jump`), the legs hang (`ropeFoot` and `ropeHips` skip a monkey rope: `clientRopeMonkey`, flag
 `flagMonkey`; another player's copy alike, the same code). Flat play: met overhead in the air (a jump up to it), both
 hands a step apart, the main hand the view's way; the move keys' part along it goes along at `vr_flat_ladder_speed`,
@@ -307,6 +309,12 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
   quiet; a grip on each (the rope's soft_m thud, the chain's grab_metal; ropes6: a headset's and flat play's alike),
   again (a second at once on the chain held back); both pushed swinging (the chain's metal_l clinks: 5 in 2 s; the rope
   quiet). 6 passed.
+- (ropes8b) `rope_flat_test.sh` hanging still also checks the hip holsters stay on the hips (35.4 cm from the hip
+  joints, standing 35.5; were 42.4, the guns turned out with the thighs); `strung` / `strungpole` the hands overhand
+  under it (knuckles up 0.97, palms 0.8 under the axis, the body's arms reaching them: 0.0 cm past); `chain` a chain
+  climbed (1 clink) and held still 2 s (0; were 4). `vr_rope_climb_check monkeygrip <n>` the same hands check in VR
+  (`monkey_drop`, `pole_monkey`: 7 passed). `vr_rope_flat_test <mode> shots`: outside screenshots while hanging.
+  `vr_rope_sound_test`'s chain is shoved after the grips' gap and clinks as knocked (1 to 9), no longer on and on.
 - Checklist scene `ropes` (vrropes, the toolgun given).
 
 ## Known limits (P1)
@@ -328,6 +336,11 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
 - Sounds (ropes5b, `vr_physsound.cpp` ropeGrab, chainMoves): a hand taking a chain makes the metal hold's grip
   (`vr_physsound_chain` 0.4 loud), and a chain swung, climbed or pushed (its fastest point from `vr_physsound_chain_speed`
   60 u/s) clinks with the light metal knocks, quieter and every 0.6 s near it, louder and every 0.25 s at four times it.
+  (ropes8b, his note: it clinked on and on held still) Now only as its links knock (`Rope::jostle`, step): a point's
+  move against its neighbours' mean (a swing moves them alike), a hold taken along it (climbing: 90 u/s at most), a
+  kick (shot, explosion); ridden, the free end under his hands is left out (it trails his swing). From
+  `vr_physsound_chain_knock` (30 u/s), louder and more often to four times it; `vr_physsound_chain_speed` still gates.
+  A swing pumped on a chain is quiet (only climbing and knocks clink). `vr_rope_debug 2` prints `chainjostle` lines.
   A rope's grip (ropes6): the soft material's thud (`vr_physsound_grab`), a headset's or flat play's (it was the stone
   slap, silent to a headset). All are Quake VR's
   own recordings (make_physics_sounds.py). A grip's sound plays once in 0.15 s per rope (both hands at once: one).

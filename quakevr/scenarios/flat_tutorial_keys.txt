@@ -1,0 +1,7 @@
+# flat_tutorial_keys: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The tutorial's messages in
+# flat-screen play (tutflat, ROUND25.md): their flat wording and the player's own keys (Quake/vr/vr_msgtokens.hpp),
+# resolved again on a rebind. You start at lesson 10 (throwing; the GRENADES board and tip).
+title Flat-screen tutorial: the messages name your own keys
+hint Play with -flatscreenmode. Lesson 10's GRENADES board and tips say the keys you have bound ('G', 'Left Click'). Rebind Quick grenade in Options > Controls (Quake VR (flat screen)) to J and look again: the board says 'J'. In a headset the same boards read as before.
+map vrtutorial
+start 3380 256 -120 180

@@ -9979,6 +9979,33 @@ His flat feedback 2026-11-23 (the AD lectern hid Quake's; Quoth ladders).
   fallback index 7, VR-hand holds moved to the near sides (-666/-662 catwalk, -1346 pillar): 10/0; flatladder_test.sh
   2/0; hub_start_test 7/0. Scene `quoth_kellbase_ladder`.
 
+## ropes8b: monkey-rope hands, holsters while climbing, quiet chains (agent/ropes8b, 2026-11-23)
+
+His flat notes 2026-11-23, items 9, 10, 12 (11, MP and the rest open, below). ROPES.md "Strung ropes", "Known limits"
+(sounds), "Tests".
+- **Monkey hands (9):** on a level/slanted (monkey) rope or pole the hands were turned as on an upright rope (out
+  sideways: the rope beside the palm, the forearm level, the body's arm stretched off the shoulder). `climb::ropePalm`
+  now puts the palm out from it downwards (square to it), `monkeyRopeUp` picks the rope's way so the palm faces forward
+  and in (overhand: knuckles up, back of the hand to him). Shared: VR, flat, and another player's copy (his hand places
+  from ropePalm; turns from his snapshot, which his own game drew this way). Flat strung test: knuckles up 0.97, palms
+  0.8 under the axis, arm gap 0.0 cm; VR `monkeygrip` in monkey_drop / pole_monkey 7/0. Shots kit scratch
+  ropes8b_monkey1c.png (third person, under the level rope).
+- **Holsters (12):** the hip holsters turned and moved with the thighs (vr_holster_leg_follow), and wrapped round a rope
+  the thighs go up: the guns stood out ahead of the hips (ropes8b_rope1d.png). Climbing (any: `climbHang`, kept in
+  `Posed::climb`) the gear stays on the hips as lying does (Follower::thigh). 42.4 -> 35.4 cm from the hip joints
+  (standing 35.5), guns 6 degrees off the trunk (standing 7). ropes8b_holsters_climb.png.
+- **Chains (10):** clinks came from the fastest point's speed (60 u/s), which a rider's chain keeps over (its free end
+  whipping round with his swing): 4 clinks in 2 s held still. Now `Rope::jostle` (links against their neighbours, a
+  hold taken along it capped at 90, kicks; ridden, the free end left out) over `vr_physsound_chain_knock` 30: still 0,
+  climbing 1-2, a shove 1. A pumped swing on a chain is quiet now (his "only perturbed or climbing" read literally).
+- Tests: rope_flat_test.sh rope 7/0, pole 6/0, strungpole 5/0, chain 5/0 (new), strung 5/0; rope_hands_test 6/0;
+  rope_sound_test 6/0 (the shove after the grips' gap); rope_climb_test monkey_drop 7/0, pole_monkey 7/0, rope_climb
+  11/0. Not run: MP suites.
+- **Open (not done, budget):** 11 chains solid for bullets/nails/melee with sparks (plan: a point-trace clip against
+  the chains' segments in SV_Move for point-size traces from shots and missiles, the chain entity as trace_ent with
+  takedamage and T_DamageImpl's pole return, VR_MaterialOf metal; melee's own traces likewise; careful not to block
+  monsters' sight traces); the MP scenarios (another player on a strung rope / a pole); rope_pump 238 vs 250; ropes8a's
+  open list (flat fingertips 0.44 into a pole, MP clients' pole prediction, one climber passing a pole, props vs poles).
 ## flatmelee: flat bash from the parry's guard; the sword's free hand on its blade in the guard (agent/flatmelee, 2026-11-23)
 
 His feedback 2026-11-23, items 15 and 16. FLATPLAY.md, "Parry guard" (Bash from the guard; Blade grip in the guard).
@@ -10074,3 +10101,58 @@ the damage came in pulses (a shot each 1.4 s). Now:
   models ok (0 open loops); shots kit `scratch/capcolour_before.png`, `capcolour_before_ad.png` (axe) and
   `capcolour_after.png` (side and front: axe, Rotary, Lance, Rifle, Rotary setting 0). The Plasma Gun was not caught
   held by the mock camera (same rule).
+## mpcampaign: a joining client plays the server's campaign (agent/mpcampaign, 2026-11-23)
+
+flatgreen3's open item (a client kept its own campaign: rogue's start.bsp on a Quake server, "Model *43 not found"; its
+Load Autosave list hid the server's coop saves).
+- **Wire:** `QVR_SVC_CAMPAIGN` 57 (the server's active campaign folder), before `QVR_SVC_PACKAGE` and each
+  svc_serverinfo (connect and every changelevel), read whatever protocol the last server had. `QVR_NET_VERSION` 45.
+- **Client** (vr_mpdownload.cpp parseCampaign, the map package's machinery shared: leave, switch, join again, one rejoin
+  per campaign): Quake and its mission packs switch in place (only which start.bsp is read: VR_CheckSpawnCampaignMap's
+  bookkeeping, the hub's choice untouched); a campaign with folders of its own (dopa, mg1, mg3, AD, Dwell, Quoth) leaves,
+  is selected the selector's way (no map, no prompt; the server's gates are its own) and joins again. A campaign whose
+  data is missing, incomplete or another version, or whose language data is incomplete: refused, console and centre
+  print naming it (Host_EndGame, no Host_Error). Disconnected with no rejoin pending: the client's own campaign back (in
+  place or rebuilt; a game started here meanwhile keeps its own). vr_gamedir.cpp: VR_JoinCampaign, VR_LeaveJoinedCampaign.
+- **Coop saves (2):** listed by the server's campaign while joined (the Load Autosave filter reads the active campaign).
+- **Test aid:** `-campaignmissing <folder>` (that campaign taken for one this game lacks, for joins only).
+- **Tests:** `mp_test.py campfollow` (in the suite) 15/0: a rogue client on Quake's start, Quake's on hipnotic's start,
+  Quoth (rejoin), its own campaign back after each leave, a client lacking Quoth refused. mp_harness's
+  `+vr_campaign_select id1` workaround dropped (the games start as a player's would).
+- Release notes not touched: the beta 2 text says network version 44 (now 45).
+## tutflat: the tutorial's messages in flat-screen play, with the player's own keys (agent/tutflat, 2026-11-23)
+
+His request 2026-11-23 (14): tutorial messages detect flat-screen mode and use flat wording, and show the player's
+actual binds ("Press 'G' to equip a grenade", following a rebind); VR messages unchanged.
+- **Tokens** (`Quake/vr/vr_msgtokens.hpp/.cpp`): a message's text may hold `{flat}` (before it the headset's wording,
+  after it the flat screen's: no headset, `!vrActive()`) and `{key:<cvar>}` (a key cvar's key: `vr_flat_key_grenade`
+  -> 'G') or `{key:<command>}` (the likeliest key bound to it: a letter or digit, then a mouse button, then another key,
+  then a gamepad's; in flat play not a key flat play reads itself, `VR_FlatKeyOwned`). Mouse buttons read 'Left Click',
+  'Right Click', 'Middle Click', 'Mouse 4/5', 'Wheel Up/Down'; other keys their friendly name upper-cased ('SPACE').
+  None bound: `[Quick grenade: not bound]` (a flat key's Controls label, else a short name for the command).
+- **Resolved on the client, as shown** (shared by both modes: one path, the mode picks the part): the centre print
+  (`SCR_CenterPrint`, so every caller, `VR_ExpandMessageTokens`), the view message (`clientParseViewMessage`), the map
+  tips (`tipText`, cached until the tip, its text or `msgtokens::signature()` changes) and the world text boards (the
+  client keeps the text as sent in `WorldText::raw` and resolves again in `clientTexts()` when the signature changes; a
+  demo records the text as sent). The signature hashes the mode, `key_bindgeneration` (keys.c: Key_SetBinding counts its
+  changes) and every flat key cvar's value: a rebind in Controls or the console shows at once on what is up. Text with
+  no token costs one `strstr` pair.
+- **The tutorial** (`vrtutorial_gen.py`): `FLAT_TIPS` (by tipname, 43) and `FLAT_BANNERS` (by the board's first line,
+  22) give the flat wording; `tip()` and `banner()` append it after `{flat}`; `check_flat_wording` fails the build on an
+  unused entry, `with_flat` on a value over 1000 characters (the engine's 1023); `banner_bounds` sizes a board by both
+  wordings (a key as long as 'Left Click'). The rest (doors, checkpoints, the welcome, the arena) read the same in both.
+  The BSP's entity lump was patched (bsp_set_entities.py `--from-file`, the regenerated .map's 65 changed lines
+  replaced in it) instead of a recompile: geometry and light unchanged.
+- **Flat wording follows flat play's controls** (FLATPLAY.md): walking over health, armour, keys and boxes; the force
+  grab key; punch, fire, shove, reload, drop, the quick grenade, the flashlight, bullet time, the holster keys and
+  menu; ladders, the mantle (jump held, looking up) and ropes (strafe swings, jump lets go); the swim keys; the HUD's
+  health top left. **Open:** lesson 10's gate (a thrown rock) and lesson 12's (a thrown axe) need a throw flat play
+  lacks (FLATPLAY.md's hotkey audit: "his call"); their flat wording says so ("a headset's move, not in flat play yet").
+  Lesson 13's grenade catch and the disarms likewise (the flat tips say to get clear / take the rifle once it dies).
+- **Test** `vr_msgtokens_test` (Debug > Tests, "Tutorial Messages: Keys And Wording"; run in vrtutorial: it waits for
+  the map's tips, a frame each): `-flatscreenmode`: 9/0 (no token left on the boards and seven tips; t2_grenade names
+  'G', 'J' after a rebind, `[Quick grenade: not bound]` with none; the GRENADES board follows the rebind; a centre
+  print's `A{flat}B {key:...}` -> `B 'G'`; t2_jump 'SPACE', then 'U' with +jump moved; t2_move's 'A' over ',');
+  headset (mock): 3/0 (the headset's wording, untouched). Binds and cvars put back after. The first screenshot of lesson
+  1's board read "MOVE: 'W' ',' 'S' '.'" (default.cfg binds , and . too, lower key numbers): hence the ranking; now
+  'W' 'A' 'S' 'D' (the test's t2_move). Scene `flat_tutorial_keys` (lesson 10).

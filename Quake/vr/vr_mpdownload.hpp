@@ -20,6 +20,10 @@ namespace qvr::mpdownload
 // QVR_SVC_PACKAGE read (vr_client.cpp): the server's package. A different one than the mounted one ends the connection
 // (Host_EndGame: does not return).
 void parsePackage();
+// QVR_SVC_CAMPAIGN read (vr_client.cpp, mpcampaign): the server's campaign made this game's active one, in place (Quake
+// and its mission packs) or, needing the game folders rebuilt, by leaving (Host_EndGame) and joining again; a campaign
+// whose data this game lacks: refused, told why (Host_EndGame). The client's own campaign comes back after it left.
+void parseCampaign();
 // Every frame (vr_main.cpp, after mapinstall::poll): the mount, the install and the joining again.
 void poll();
 

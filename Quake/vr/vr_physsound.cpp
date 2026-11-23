@@ -152,6 +152,7 @@ struct Body
     double ropeNext{0.0};       // a climbable chain's: the server's time its next clink may play (chainMoves)
     double ropeGrabNext{0.0};   // a climbable rope's: the server's time its next grip's sound may play (ropeGrab)
     const char* ropeLast{""};   // its last one's recording (the tests: ropeSoundInfo)
+    int ropeClinks{0};          // (ropes8b) a climbable chain's clinks so far (chainMoves; the tests: ropeSoundInfo)
     int ropeSounds{0};
 };
 
@@ -910,11 +911,13 @@ void ropeGrab(edict_t* player, const glm::vec3& at, int rope, RopeMaterial mater
     }
 }
 
-void chainMoves(int rope, const glm::vec3& at, float speed)
+void chainMoves(int rope, const glm::vec3& at, float speed, float jostle)
 {
-    const float from = za::max(vr_physsound_chain_speed.value, 1.f);
+    // (ropes8b, his flat note 2026-11-23: a constant clink, held still on one) Its links clink as they knock: moved
+    // against each other (`jostle`, vr_physsound_chain_knock), not as it swings or carries a rider round.
+    const float from = za::max(vr_physsound_chain_speed.value, 1.f), knock = za::max(vr_physsound_chain_knock.value, 1.f);
     const float volume = chainVolume();
-    if(volume <= 0.f || !sv.active || rope <= 0 || speed < from)
+    if(volume <= 0.f || !sv.active || rope <= 0 || speed < from || jostle < knock)
     {
         return;
     }
@@ -923,28 +926,38 @@ void chainMoves(int rope, const glm::vec3& at, float speed)
     {
         return;
     }
-    // Faster: louder (a third at the threshold, all of it at four times it) and more often.
-    const float fast = za::clamp((speed - from) / (3.f * from), 0.f, 1.f);
+    // Harder: louder (a third at the threshold, all of it at four times it) and more often.
+    const float fast = za::clamp((jostle - knock) / (3.f * knock), 0.f, 1.f);
     constexpr int light = 0; // (the light knocks: a link's)
     const int m = static_cast<int>(Material::Metal);
     if(ropeEmit(rope, impactSets[m][light], state.impacts[m][light], volume * (0.33f + 0.67f * fast), at, jitter()))
     {
         b.ropeNext = qcvm->time + 0.6 - 0.35 * fast;
+        b.ropeClinks++;
         if(debug())
         {
-            Con_Printf("physsound: %.2f chain %d clinks at %.0f u/s: %s\n", qcvm->time, rope, speed, b.ropeLast);
+            Con_Printf("physsound: %.2f chain %d clinks at %.0f u/s, its links %.0f: %s\n", qcvm->time, rope, speed, jostle,
+                b.ropeLast);
         }
     }
 }
 
-const char* ropeSoundInfo(int num, int& count)
+const char* ropeSoundInfo(int num, int& count, int* clinks)
 {
     if(num <= 0 || num >= static_cast<int>(state.bodies.size()))
     {
         count = 0;
+        if(clinks)
+        {
+            *clinks = 0;
+        }
         return "";
     }
     count = state.bodies[num].ropeSounds;
+    if(clinks)
+    {
+        *clinks = state.bodies[num].ropeClinks;
+    }
     return state.bodies[num].ropeLast;
 }
 
