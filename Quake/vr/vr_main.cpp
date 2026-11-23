@@ -644,7 +644,7 @@ void VR_Status_f()
             const int slot = weapons::heldSlot(h);
             if(slot >= 0 && hs.muzzleValid[h] && glm::distance(hs.muzzle[h], hs.pos[h]) > 1.f)
             {
-                const glm::vec3 shot = hands::forward(weapons::shotAngles(hs.rot[h], slot, h == qvr::HAND_OFF));
+                const glm::vec3 shot = hands::forward(view::heldShotAngles(hs.rot[h], h)); // (flipped: as drawn, lance3)
                 const glm::vec3 line = glm::normalize(hs.muzzle[h] - hs.pos[h]);
                 Con_Printf("  %-5s the shot %.1f deg off the line from the hand to the muzzle (%.1f deg above it)\n",
                     h == qvr::HAND_MAIN ? "main" : "off", glm::degrees(za::acos(za::clamp(glm::dot(shot, line), -1.f, 1.f))),

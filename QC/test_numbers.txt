@@ -162,6 +162,7 @@ vr_ad_test       205-207  dwell/dw_test.qc               Dwell's weapons drawn a
 vr_ad_test       208      dwell/dw_test.qc               Dwell's Rifle gone: the armed humanoids' random pool (4000 picks, 48 armed) never a Dwell variant nor the Rifle, a shotgun no Dwell variant, an older save's Rifle record a plain shotgun (dwell_weapons_test.sh; the toolgun has no Rifle row)
 vr_ad_test       217      dwell/dw_test.qc               the Crystal Lance as a lance (vr_dw_lance_pole): its lance model and crystal head blow, the pistol and the club with the setting off (dwell_lance_test.sh)
 vr_ad_test       224      dwell/dw_test.qc               the Crystal Lance's charged shot (vr_dw_lance_charge): let go at half charge no shot, no cells; full in the set time, fired as let go, 150 and 6 cells; no charge without its cells (dwell_lance_test.sh)
+vr_ad_test       225      dwell/dw_test.qc               the Crystal Lance's beam moves a crate and a ragdoll (positions before and after; unreliable, not in a suite yet: ROUND25 lance3)
 vr_ad_test       218      dwell/dw_test.qc               the Rotary Shotgun as a gauntlet (vr_dw_rotary_gauntlet): its gauntlet model, its shell port found and its tube filled there a handful at a time, the super shotgun's grip with the setting off (dwell_rotary_test.sh)
 
 vr_agrunt_test   1        vr_armedgrunt_test.qc            every weapon in turn ahead of you

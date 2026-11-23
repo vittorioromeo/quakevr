@@ -474,6 +474,11 @@ bool weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& butt, gl
 // The reverse grip's turn in `hand`'s frame for its weapon of `slot` as drawn now (the identity upright or carried): the two-handed
 // hold's blade line (vr_twohand.cpp bladeDirection) turns with it.
 [[nodiscard]] glm::mat3 heldReverseTurn(int slot, int hand);
+// Where `hand`'s shots go from its aim `rot`: turned by its weapon's Shot Pitch and Yaw; a pole weapon held reversed (the
+// Crystal Lance's grip flipped; lance3, his note vrtesthall_2026-11-23_23-23-39: it shot backwards) the way it is drawn,
+// that aim turned by heldReverseTurn too (as vr_twohand's blade line): along its crystal head. The move's shots, your beam
+// as drawn, vr_status.
+[[nodiscard]] glm::vec3 heldShotAngles(const glm::vec3& rot, int hand);
 // The two-handed hold by the grip below the hand (ROUND25.md "flipgrip2"): held reversed and mirrored (vr_revgrip_2h_mirror), the
 // other hand's grip is not where the half turn takes it but mirrored along the handle; the turn Q in `hand`'s frame that takes the
 // upright hold's line to it (the least turn after the half turn): the hold worked out for the hand turned by Q holds the weapon by

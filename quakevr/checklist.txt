@@ -31,6 +31,12 @@ Flat-screen or VR: Enforcers armed with their own laser rifle now wear the blue 
 Flat-screen or VR: On ad_crucial the lift west of the lower hall stays raised until you take the super shotgun lying in that hall (the map's own design); taking it brings the lift down and it then works as any lift. {test:ad_crucial_lift}
 Debug > Print My Position (viewpos) replaces Mark a Gap I Got Through: it prints where you stand, for reporting a spot. {test:hub_start}
 Flat-screen or VR: A bot's and another player's holstered guns sit on their bodies like yours: hip guns on the thighs, the chest ones on the chest (not out on the shoulders), turned as yours, and they keep up when the player moves or turns (Debug > Network > Holsters On Their Bodies off shows the old placement). {test:mp_dm_passive}
+Climb a pole with your hands: no grunt on the pulls any more (ropes keep theirs; Pole Pull Grunt under Debug > Tunables brings it back). {test:ropes}
+Grab the level pole overhand, then move your body and head across under it and look back at your hand: the hand stays on the side and in the grip it took; let go and take it again underhand (palm towards you): that grip stays, and both grips pull you up and lower you. {test:ropes}
+Hang under the level pole or strung rope and push yourself up over it: the wrists turn quickly but smoothly so the palms are on top and the fingers under it; drop back under it and they turn back (Rope Support Grip Height/Time/Turn under Debug > Tunables). {test:ropes}
+Climb a swinging rope and an upright pole and watch your legs: the feet round it follow the rope's moves smoothly, without sudden jumps (Rope Legs Smoothing under Debug > Tunables). {test:ropes}
+Grip a pole and look at your thumbs: the normal grip again, not the thumb pointing along the pole; tweak it under Debug > Tunables (Thick Rope Thumb, Rope Thumb Curl / Opposition / Swing / Lift / Shift, applied by thickness from Rope Thumb Tweak From to To) until it looks right. {test:ropes}
+Flat-screen or VR: jump off or let go of a rope or pole and move straight through where it is: for a moment it doesn't stop you or get pushed aside, so you go where you look (Rope Let-Go Pass Time under Debug > Tunables). {test:ropes}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the 1.2.0-beta2 pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names 1.2.0-beta2; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
@@ -90,6 +96,14 @@ Dwell's Crystal Lance: a coiled cord runs from the butt of its pole into a cell 
 Dwell's Crystal Lance in both hands: slide your off hand along the pole: it stays on the pole all the way. Then close the off hand, loosen your weapon hand's grip (not all the way) and move it along: it slides to the head or butt, stays where you close it, and the Lance never drops (if it does, tune Pole Slide Grip in Physics). {test:dwell_lance_pole}
 Dwell's Crystal Lance: thrust it head first into a monster: a heavier hit than a swing; a thrust landing on the shaft short of the head is only a weak poke. {test:dwell_lance_pole}
 Dwell's Crystal Lance: press B (the eject button) to turn your grip over, crystal head down, as with a sword. {test:dwell_lance_pole}
+With Dwell's Crystal Lance out of cells, hold the trigger while swinging it: no empty click sounds. {test:dwell_lance_pole}
+Stab a grunt with the very top of Dwell's Crystal Lance's head: it stays in, only a little way deep, as a sword's stab does; a stab with the shaft or lower head does not stick (tune with Debug > Tunables > Crystal Lance Stab Point, Stab Tip Share, Stab Speed). {test:dwell_lance_pole}
+Throw Dwell's Crystal Lance: it flies point first and settles in the air like a sword, and can stick where its tip lands. {test:dwell_lance_pole}
+Flip Dwell's Crystal Lance's grip (B) so the crystal head points down or back, then charge and fire: the bolt leaves from the middle crystal's tip and goes the way the crystal points. {test:dwell_lance_pole}
+Hold Dwell's Crystal Lance's pole with the other hand and turn that wrist round the shaft: the drawn hand turns round the pole with it while still sliding along it (Debug > Tunables > Pole Grip Turns). {test:dwell_lance_pole}
+Charge Dwell's Crystal Lance: it trembles slightly in the hand with a light buzz growing with the charge; as it fires it shakes harder and buzzes strongly for a moment (Debug > Tunables > Crystal Lance Charge Shake, Fire Shake, Charge Buzz, Fire Buzz). {test:dwell_lance_pole}
+Fire Dwell's Crystal Lance a few times and look at its head: the violet heat glow covers the whole tip, every crystal and the metal all round, not one side. {test:dwell_lance_pole}
+Fire Dwell's Crystal Lance at a ragdoll, a crate and a grunt: the ragdoll and props are pushed, a kill can pop a head or limb, and where the bolt stops there are sparks, smoke and a burn mark. {test:dwell_lance_pole}
 
 [8. Quoth]
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open. {test:hub_start}
@@ -102,6 +116,8 @@ Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down
 [9. Arcane Dimensions]
 Arcane Dimensions' rocket, grenade and plasma soldiers, defenders, eliminators, pyros, fumigators and crossbow knights hold their own gun as armed humanoids: disarm them, tug and shoot the guns out. {test:humrepl_variants}
 AD maps (ad_azad, ad_tears): grates, bars and pillar rows stop you without blocking any path you could walk before. {test:ad_azad_grates}
+In ad_crucial, save and load where the armed enforcer with a nail pistol and an axe comes for you: every armed grunt's and enforcer's arms follow its weapons after the load, never stuck in one pose with the weapons moving or floating ahead of them (Debug > Armed Humanoids: Arm Pose Slots says 0 found none). {test:agrunt_saveload}
+Run the frozen enforcers' Weapon Holds test, open the Pose Studio there, then run ad_crucial's lift test: the enforcers by the lift move and hold their guns animated, none left frozen from the test before. {test:ad_crucial_lift}
 
 [10. Survival Arena (Select Campaign > Arena Mode)]
 Play the arena a while: it feels good and each new wave starts without a hitch; note anything to improve. {test:arena_run}

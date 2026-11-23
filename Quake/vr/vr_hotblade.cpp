@@ -20,6 +20,7 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
@@ -45,6 +46,7 @@ constexpr float trailAreaEach = 0.8f;    // square units of the swept blade a tr
 constexpr int trailMaxPerFrame = 48;     // trail particles a blade a frame at most
 constexpr float trailSparkShare = 0.35f; // of them sparks (the rest small tongues of flame)
 constexpr int poseCacheSize = 6;
+constexpr float offAxis = 0.7f; // a hot barrel's grip-to-muzzle line further off its model's x than this cosine: its ramp along the line (barrelInstance)
 
 // A glowing weapon drawn this frame.
 struct Source
@@ -322,8 +324,13 @@ void matrixOf(const entity_t& e, float m[16])
 // The shader's Barrel for hand `hand`'s gun's part `e` (the gun itself or a part drawn in its place, in its space): 1 +
 // its mask's place in BarrelMasks (1: no mask), the ramp along its rest pose's x (its pose bytes: x * y + z, 1 at the
 // muzzle to 0 Barrel Glow Length back), 1 to show the mask flat (painting it). False: no barrel to glow.
-[[nodiscard]] bool barrelInstance(qmodel_t* gun, int slot, bool paint, const entity_t& e, float out[4])
+// `axis` (the shader's HotBlade xyz while a barrel glows: its fragment reads HotBlade only for a blade's glow): zero, the
+// ramp along x; a gun whose grip-to-muzzle line lies well off its model's x (the Crystal Lance as a spear: its pole along
+// (0.34 0 0.94), so the ramp along x lit one side of its head; lance3, his note vrtesthall_2026-11-23_23-25-32), the ramp
+// along that line instead: pose . axis + out[2], 1 at the muzzle to 0 Barrel Glow Length back, all round it.
+[[nodiscard]] bool barrelInstance(qmodel_t* gun, int slot, bool paint, const entity_t& e, float out[4], float axis[3])
 {
+    axis[0] = axis[1] = axis[2] = 0.f;
     const PoseBlade* p = slot >= 0 ? poseBlade(gun) : nullptr;
     if(!p || !e.model || e.model->type != mod_alias)
     {
@@ -331,8 +338,41 @@ void matrixOf(const entity_t& e, float m[16])
     }
     const auto* gh = static_cast<const aliashdr_t*>(Mod_Extradata(gun));
     const auto* dh = static_cast<const aliashdr_t*>(Mod_Extradata(e.model));
-    const float tip = p->tip.x * gh->scale[0] + gh->scale_origin[0], grip = p->grip.x * gh->scale[0] + gh->scale_origin[0];
-    const float length = za::clamp(weapons::value(slot, weapons::Key::GunfxBarrel), 0.f, 1.f) * (tip - grip);
+    const glm::vec3 gScale{gh->scale[0], gh->scale[1], gh->scale[2]}, gOrigin{gh->scale_origin[0], gh->scale_origin[1], gh->scale_origin[2]};
+    const glm::vec3 tipU = p->tip * gScale + gOrigin, gripU = p->grip * gScale + gOrigin;
+    const glm::vec3 line = tipU - gripU;
+    const float span = glm::length(line);
+    const float share = za::clamp(weapons::value(slot, weapons::Key::GunfxBarrel), 0.f, 1.f);
+    if(span > 1e-3f && za::abs(line.x) < offAxis * span)
+    {
+        const glm::vec3 a = line / span;
+        const float length = share * span;
+        const float mask = barrelmask::gpuMask(e.model, gun, slot);
+        if(length < 1e-3f && !paint)
+        {
+            return false;
+        }
+        const glm::vec3 dScale{dh->scale[0], dh->scale[1], dh->scale[2]}, dOrigin{dh->scale_origin[0], dh->scale_origin[1], dh->scale_origin[2]};
+        out[0] = 1.f + mask;
+        out[1] = 0.f;
+        out[2] = length >= 1e-3f ? 1.f + glm::dot(dOrigin - tipU, a) / length : 0.f;
+        out[3] = paint ? 1.f : 0.f;
+        if(length >= 1e-3f)
+        {
+            axis[0] = dScale.x * a.x / length;
+            axis[1] = dScale.y * a.y / length;
+            axis[2] = dScale.z * a.z / length;
+        }
+        if(paint && mask <= 0.f)
+        {
+            out[2] = -1.f;
+            out[3] = 0.f;
+            axis[0] = axis[1] = axis[2] = 0.f;
+        }
+        return true;
+    }
+    const float tip = tipU.x, grip = gripU.x;
+    const float length = share * (tip - grip);
     const float mask = barrelmask::gpuMask(e.model, gun, slot);
     if(length < 1e-3f && !paint)
     {
@@ -351,9 +391,9 @@ void matrixOf(const entity_t& e, float m[16])
     return true;
 }
 
-[[nodiscard]] bool barrelInstance(int hand, const entity_t& e, float out[4])
+[[nodiscard]] bool barrelInstance(int hand, const entity_t& e, float out[4], float axis[3])
 {
-    return barrelInstance(weapons::heldModel(hand), weapons::heldSlot(hand), barrelmask::painting(hand), e, out);
+    return barrelInstance(weapons::heldModel(hand), weapons::heldSlot(hand), barrelmask::painting(hand), e, out, axis);
 }
 
 // Another player's copy's held gun `e` (syncfix5): its hot barrel (gunfx::otherBarrelHeat: his shots), as barrelOf has
@@ -818,8 +858,9 @@ void bladePlane(const entity_t* e, const float matrix[16], float out[4], float b
         // A hot barrel (the gun or a part drawn in its place): its marked triangles, its glow's ramp along their rest
         // pose (the firing frames move the metal, the glow stays on it); none at all if it has no barrel (not the whole
         // gun). vr_debug_gunfx 2 measures the gun's drawn muzzle against its light's.
-        if(!barrelInstance(hand, *e, barrel))
+        if(!barrelInstance(hand, *e, barrel, out)) // (out xyz: a ramp off the model's x, its axis)
         {
+            out[0] = out[1] = out[2] = 0.f;
             out[3] = -1.f;
             return;
         }
@@ -844,8 +885,9 @@ void bladePlane(const entity_t* e, const float matrix[16], float out[4], float b
     {
         // Another player's copy's hot barrel (syncfix5): its marked triangles and ramp as yours (the gun itself: his
         // copy's parts drawn in its place glow not).
-        if(!barrelInstance(e->model, weapons::slotForModel(e->model), false, *e, barrel))
+        if(!barrelInstance(e->model, weapons::slotForModel(e->model), false, *e, barrel, out))
         {
+            out[0] = out[1] = out[2] = 0.f;
             out[3] = -1.f;
         }
         return;

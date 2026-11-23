@@ -17,9 +17,16 @@
 #   pole_monkey  (ropes8a) monkey_drop on a level pole strung across him (no sag)
 #   pole_jump  (ropes10) up a wooden pole, jump with the grips held: a normal jump up and pushed off it (vr_pole_jump,
 #               _push), a free fall to the floor (no frame held back), the held grips not taking it again
+#   pole_through  (ropes14) pole_jump, then straight back through the pole at 320 units/s: let through a moment after
+#               letting go (vr_rope_letgo_pass), on its far side
+#   monkey_keep  (ropes14) a level pole taken with the controllers turned; the head turned round and across under it: each
+#               hand keeps the grip it took; the main hand taken again turned the other way: the other grip; pulled up
+#   monkey_support  (ropes14) under a level pole, the hands pushed down (the body over it): the wrists turn over it (the
+#               palms on top, the knuckles down); back under it: turned back
+#   (ropes14) rope_climb and pole_wood/metal also check the feet eased (legjerk: vr_rope_leg_smooth)
 # Each ends on its verdict line ("vr_rope_climb_test: N passed, M failed").
 AGENT=${1:?agent}; shift
-PLAYS=${*:-rope_climb rope_jump rope_pump rope_calm rope_short pole_wood pole_metal monkey_drop monkey_jump pole_monkey pole_jump}
+PLAYS=${*:-rope_climb rope_jump rope_pump rope_calm rope_short pole_wood pole_metal monkey_drop monkey_jump pole_monkey pole_jump pole_through monkey_keep monkey_support}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 HERE=$(cd "$(dirname "$0")" && pwd -W 2>/dev/null || pwd)
 D=C:/OHWorkspace/qvr-agents/$AGENT/scratch/climb
@@ -33,6 +40,9 @@ for play in $PLAYS; do
     [ "$play" = pole_jump ] && length="0 wood"
     case $play in monkey_*) length="0 strung" ;; esac
     [ "$play" = pole_monkey ] && length="0 strungpole"
+    [ "$play" = pole_through ] && length="0 wood"
+    [ "$play" = monkey_keep ] && length="0 strungpole"
+    [ "$play" = monkey_support ] && length="0 strungpole"
     bash "$KIT/run.sh" "$AGENT" -Script "map vrropes; vr_rope_climb_test \"$D/$play.txt\" $length" -Filter "vr_rope_climb_test" \
         -QuitOn "vr_rope_climb_test: [0-9]+ passed" -Timeout 120 | grep "vr_rope_climb_test: \(FAIL\|[0-9]* passed\)"
 done

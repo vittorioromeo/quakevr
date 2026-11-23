@@ -1612,6 +1612,18 @@ QVR_TUNABLE(vr_dw_lance_head, "0.55")  // ... where its head starts: the share o
 QVR_TUNABLE(vr_dw_lance_charge, "1")   // ... its shot charged: s the trigger is held before it fires as it is let go (QC dw_items.qc DW_LanceChargeFrame; 0: fires on the pull)
 QVR_TUNABLE(vr_dw_lance_charge_fade, "0.25") // ... a charge let go short: s its sparks, light and hum fade out over (vr_lancecharge.cpp)
 QVR_TUNABLE(vr_dw_lance_bolt, "0.35")  // ... s its fired bolt lingers (vr_lancecharge.cpp beamLife; Quake's beam 0.2)
+QVR_TUNABLE(vr_dw_lance_push, "4")     // ... its beam's push on the props and ragdolls it hits or goes through, times a bolt's for its 150 damage (QC dw_fire_lance, lance3)
+QVR_TUNABLE(vr_dw_lance_hit_sparks, "24") // ... sparks thrown back off where its beam stops (a wall, a prop, a body; 0 none)
+QVR_TUNABLE(vr_dw_lance_hit_smoke, "6") // ... puffs of smoke there (0 none; its lasting burn on a surface is the lightning gun's)
+QVR_TUNABLE(vr_dw_lance_embed_length, "5") // ... held as a lance, a stab by its head's pointed top stays in: units of it that count as its blade (the swords' depth shares of it: shallow; vr_axestick.cpp)
+QVR_TUNABLE(vr_dw_lance_embed_tip, "15") // ... % of its blow line from the tip that may strike first for a stab to stay in (QC VR_Embed_Blow)
+QVR_TUNABLE(vr_dw_lance_embed_speed, "0") // ... m/s the hand must drive it at for a stab to stay in (0: vr_embed_stab_speed's)
+QVR_TUNABLE(vr_dw_lance_shake_charge, "0.05") // ... its tremble in the hand while charging at full charge, in its kicks (drawn: vr_weaponfx.cpp recoilOffset; 0 none)
+QVR_TUNABLE(vr_dw_lance_shake_fire, "0.3") // ... its shake as the charged shot fires, in its kicks, on top of the shot's kick (0 none)
+QVR_TUNABLE(vr_dw_lance_shake_time, "0.35") // ... s that shake dies away over
+QVR_TUNABLE(vr_dw_lance_haptic_charge, "0.15") // ... the controller's buzz while charging at full charge, 0..1 (0 none; vr_lancecharge.cpp)
+QVR_TUNABLE(vr_dw_lance_haptic_fire, "0.9") // ... its buzz as the charged shot fires, 0..1, over vr_dw_lance_shake_time (0 none)
+QVR_TUNABLE(vr_pole_grip_turn, "1")    // a pole weapon's other hand (the Crystal Lance's; any FREE_POLE grip, VR): the share of its own turn about the pole drawn (vr_twohand.cpp freeHand; 0: its turn fixed as it took hold)
 QVR_TUNABLE(vr_dmg_gun_bash, "12") // a gun swung as a club
 QVR_TUNABLE(vr_dmg_chainsaw_swing, "26") // an ogre's chainsaw swung (its running chain: vr_chainsaw_damage)
 QVR_TUNABLE(vr_dmg_mjolnir, "25") // Mjolnir's blow
@@ -2662,6 +2674,23 @@ QVR_TUNABLE(vr_revgrip_pivot_shift, "0.35") // ... units: that pivot this far fr
 QVR_TUNABLE(vr_revgrip_2h_gate, "1") // ... 1: a sword or dagger held in two hands flips (its eject button, the flat FLIP GRIP) only with the other hand on its two-handed grip hotspot (the handle), not anywhere on it or on its blade (his note 2026-11-15; ROUND25.md "flipgate"); 0: always (before)
 QVR_TUNABLE(vr_revgrip_blocked_pulse, "0.25") // ... a refused flip's pulse in the pressing hand (0..1; 0 none)
 QVR_TUNABLE(vr_revgrip_2h_mirror, "1") // ... held reversed, the other hand on its grip hotspot: 1 holds it as it did upright, turned as the holding hand (knuckles out), its place mirrored along the handle (above the hand, blade down; ROUND25.md "flipgrip2"); 0: turned half round with the blade (before)
-QVR_TUNABLE(vr_rope_thumb_wrap, "2.5") // ropes13 (his flat note 2026-11-23: the thumb wrapped round a pole looked unnatural, too thick): a rope, chain or pole this thick or thinner (units across) has the gripping thumbs wrapped round it the other way from the fingers (ropes12); a thicker one (a pole, 3) has them resting along its side; 0: never wrapped
+QVR_TUNABLE(vr_rope_thumb_wrap, "2.5") // ropes13 (his flat note 2026-11-23: the thumb wrapped round a pole looked unnatural, too thick): a rope, chain or pole this thick or thinner (units across) has the gripping thumbs wrapped round it the other way from the fingers (ropes12); a thicker one (a pole, 3) as vr_rope_thumb_thick says (ropes14: the normal grip); 0: never wrapped
 QVR_TUNABLE(vr_rope_hand_pitch, "10") // ropes10 (his flat note 2026-11-23): a hand gripping a climbable rope or pole is drawn with its knuckles pitched up this far off square to the rope (degrees, 0..45; the turn towards the world's up, so a monkey traverse's overhand knuckles, already up, are unchanged): VR, flat and other players' copies (vr_climb.cpp ropeTurn)
 QVR_TUNABLE(vr_rope_elbow_out, "1") // ropes10 (his flat note 2026-11-23): on a climbable rope or pole the arms' elbows are posed out to the sides and a little down and back (this share, 0..1, of the elbow's pole; the wrist's swing in eased off as much), not swung in across the face: yours (flat and VR) and other players' copies (vr_avatar.cpp solveArm, ropeHang)
+QVR_TUNABLE(vr_pole_grunt, "0") // ropes14 (his VR note 2026-11-23: "too much ... just disable it"): volume (0..1) of the exertion grunt a headset's pull up a climbable pole makes (ropes keep vr_rope_grunt); 0 none (vr_climb.cpp ropePullGrunt)
+QVR_TUNABLE(vr_rope_letgo_pass, "0.4") // ropes14 (his VR note 2026-11-23): seconds after letting go of a climbable rope or pole (a drop or a jump; VR and flat) it doesn't meet him: a pole's boxes let him through, his body doesn't push a rope aside (0..3; climb::ropeLetGoPass, the clients' prediction alike)
+QVR_TUNABLE(vr_rope_leg_smooth, "0.25") // ropes14 (his VR note 2026-11-23: the legs' IK changed too abruptly): seconds (about; an exponential approach, a third of it the time constant) the feet round a climbed rope or pole take to follow it to their new place (0: at once; vr_avatar_climb.cpp)
+QVR_TUNABLE(vr_rope_grip_keep, "1") // ropes14 (his VR notes 2026-11-23): VR only: 1 a hand on a level rope or pole keeps the grip it took (overhand or underhand, as the controller was turned as it gripped) until it lets go; 0 chosen from the view's way each frame (as flatscreen play does; vr_climb.cpp drawnHand)
+QVR_TUNABLE(vr_rope_support_rise, "0.3") // ropes14 (his VR note 2026-11-23): metres the eyes are over a level rope or pole the hands hold before the wrists turn over it (the palms on top, the fingers under it: holding himself up on it); back under it 0.05 lower (vr_climb.cpp drawnHand)
+QVR_TUNABLE(vr_rope_support_time, "0.15") // ropes14: seconds the wrists take to turn over a level rope or pole and back (0: at once)
+QVR_TUNABLE(vr_rope_support_turn, "180") // ropes14: degrees the hand turns round the rope's axis over it (180: the palm's middle straight over the axis), by the side the body is on
+QVR_TUNABLE(vr_rope_thumb_thick, "0") // ropes14 (his VR note 2026-11-23: the thumb along a thick pole looked unnatural): the thumbs round a rope or pole thicker than vr_rope_thumb_wrap: 0 the normal grip (the grasp's own wrap), 1 resting along its side (ropes13), 2 wrapped round it the other way from the fingers (ropes12)
+QVR_TUNABLE(vr_rope_thumb_from, "2") // ropes14: the gripping thumbs' tweaks below (vr_rope_thumb_curl ...) take effect from this thickness (units: none on a thinner one) ...
+QVR_TUNABLE(vr_rope_thumb_to, "3") // ... fully from this thickness (a pole is 3), eased between
+QVR_TUNABLE(vr_rope_thumb_curl, "0") // ropes14: curl frames (-4..4) added to a gripping thumb's joints (negative: opened)
+QVR_TUNABLE(vr_rope_thumb_opposition, "0") // ropes14: degrees a gripping thumb is turned more across the palm (opposition) at its base
+QVR_TUNABLE(vr_rope_thumb_swing, "0") // ropes14: degrees a gripping thumb is swung in the palm's plane (positive towards the little finger, negative up and away)
+QVR_TUNABLE(vr_rope_thumb_lift, "0") // ropes14: degrees a gripping thumb is lifted off the palm (over the bar's near side)
+QVR_TUNABLE(vr_rope_thumb_shift_x, "0") // ropes14: hand-rig units a gripping thumb's base is moved (x: along the hand's long axis)
+QVR_TUNABLE(vr_rope_thumb_shift_y, "0") // ropes14: ... (y: along the palm's normal)
+QVR_TUNABLE(vr_rope_thumb_shift_z, "0") // ropes14: ... (z: across the palm)
