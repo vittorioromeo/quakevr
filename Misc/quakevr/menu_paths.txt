@@ -5022,6 +5022,23 @@ vr_revgrip_2h_mirror|2|Tunables|Reversed Two-Handed Hand|Advanced VR Options > D
 vr_rope_thumb_wrap|2|Tunables|Rope Thumb Wrap Thickness|Advanced VR Options > Debug > Tunables > Rope Thumb Wrap Thickness
 vr_rope_hand_pitch|2|Tunables|Rope Grip Knuckles Up|Advanced VR Options > Debug > Tunables > Rope Grip Knuckles Up
 vr_rope_elbow_out|2|Tunables|Rope Climb Elbows Out|Advanced VR Options > Debug > Tunables > Rope Climb Elbows Out
+vr_pole_grunt|2|Tunables|Pole Pull Grunt|Advanced VR Options > Debug > Tunables > Pole Pull Grunt
+vr_rope_letgo_pass|2|Tunables|Rope Let-Go Pass Time|Advanced VR Options > Debug > Tunables > Rope Let-Go Pass Time
+vr_rope_leg_smooth|2|Tunables|Rope Legs Smoothing|Advanced VR Options > Debug > Tunables > Rope Legs Smoothing
+vr_rope_grip_keep|2|Tunables|Level Rope Grip Kept|Advanced VR Options > Debug > Tunables > Level Rope Grip Kept
+vr_rope_support_rise|2|Tunables|Rope Support Grip Height|Advanced VR Options > Debug > Tunables > Rope Support Grip Height
+vr_rope_support_time|2|Tunables|Rope Support Grip Time|Advanced VR Options > Debug > Tunables > Rope Support Grip Time
+vr_rope_support_turn|2|Tunables|Rope Support Grip Turn|Advanced VR Options > Debug > Tunables > Rope Support Grip Turn
+vr_rope_thumb_thick|2|Tunables|Thick Rope Thumb|Advanced VR Options > Debug > Tunables > Thick Rope Thumb
+vr_rope_thumb_from|2|Tunables|Rope Thumb Tweak From|Advanced VR Options > Debug > Tunables > Rope Thumb Tweak From
+vr_rope_thumb_to|2|Tunables|Rope Thumb Tweak To|Advanced VR Options > Debug > Tunables > Rope Thumb Tweak To
+vr_rope_thumb_curl|2|Tunables|Rope Thumb Curl|Advanced VR Options > Debug > Tunables > Rope Thumb Curl
+vr_rope_thumb_opposition|2|Tunables|Rope Thumb Opposition|Advanced VR Options > Debug > Tunables > Rope Thumb Opposition
+vr_rope_thumb_swing|2|Tunables|Rope Thumb Swing|Advanced VR Options > Debug > Tunables > Rope Thumb Swing
+vr_rope_thumb_lift|2|Tunables|Rope Thumb Lift|Advanced VR Options > Debug > Tunables > Rope Thumb Lift
+vr_rope_thumb_shift_x|2|Tunables|Rope Thumb Shift X|Advanced VR Options > Debug > Tunables > Rope Thumb Shift X
+vr_rope_thumb_shift_y|2|Tunables|Rope Thumb Shift Y|Advanced VR Options > Debug > Tunables > Rope Thumb Shift Y
+vr_rope_thumb_shift_z|2|Tunables|Rope Thumb Shift Z|Advanced VR Options > Debug > Tunables > Rope Thumb Shift Z
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode

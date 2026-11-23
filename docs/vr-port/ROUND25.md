@@ -11553,3 +11553,35 @@ beta2's re-signed APK and the shipped progs.dat (8a409520...) back. Scripts (not
   tells the player to uninstall, copying saves first): the notes give the manual steps (File Explorer,
   `Android/data/com.vittorioromeo.quakevr/files/quakevr`'s `*.sav` + `ironwail.cfg`, uninstall, Setup, copy back).
   Quest 3S untested (a hub-crash report being looked at); Standalone experimental.
+
+## ropes14: VR rope and pole feedback: the grip kept, the support grip, eased legs, the let-go's pass (agent/ropes14, 2026-11-24)
+
+His VR notes 2026-11-23 (vrropes 22-51-05 .. 22-56-44, vrtutorial 23-12-23). ROPES.md "Poles" (ropes14 paragraphs).
+- **Pole grunt (1):** a pull up a pole grunts at `vr_pole_grunt` (0, tunable: none); ropes keep `vr_rope_grunt`.
+- **The grip kept (2):** why it jumped: under a level rope `monkeyRopeUp` picked the thumb's way along it from
+  `cl.viewangles` every frame (in VR the aim's way, not the head's), so it flipped as he turned to look back at the hand.
+  VR now (`vr_rope_grip_keep` 1, `monkeyGrip`): taken at each new hold from the controller's turn (the grip whose palm
+  faces the controller palm's way; the view's when it can't tell, |d| < 0.3), kept until the hand lets go. Flat keeps the
+  view's. monkey_keep play: by the view, `gripkept` worst -1.00 (flipped); kept 1.00; a regrab turned the other way
+  takes the other grip (`gripflipped` 1.00) and both grips pull him up (`rose 5`).
+- **Support grip (3):** eyes `vr_rope_support_rise` (0.3 m) over the level rope: the hand turns round its axis by
+  `vr_rope_support_turn` (180) over `vr_rope_support_time` (0.15 s), the way the body hung (`monkeySupport`); back 5 cm
+  lower. monkey_support play: `support 2` (palms over the axis, knuckles down; with rise 5: -1.20 under, fails), then
+  `monkeygrip 2` back under it.
+- **Legs (4):** the feet's place round the rope eased from the hip (`vr_rope_leg_smooth` 0.25 s; Climbing::ropeFootRel,
+  per subject). `legjerk` (the posed ankle's most move from the pelvis in a frame): swinging rope 3.97 -> 1.57 units;
+  climbing a pole 1.20 -> 1.75 (both small; bound 2.5).
+- **Thumb (5):** thick poles back to the normal grip (`vr_rope_thumb_thick` 0; 1 along, 2 around) and tweaks by thickness
+  (`vr_rope_thumb_from` 2 / `_to` 3; `_curl`, `_opposition`, `_swing`, `_lift`, `_shift_x/y/z`): `grasp::thumbTurn`
+  after the solve, the shift before it. Pole check: the normal thumb not in it (`thumbHolds`' new branch); lift 60 moves
+  it 7+ degrees round the pole (`thumbmoved 6`). All 17 new tunables on Debug > Tunables (menu_paths.txt rows added).
+- **Let-go pass (6):** `vr_rope_letgo_pass` (0.4 s): `climb::ropeLetGoPass` (the rope any hand held as he fell free,
+  VR or flat): passSolids lets him through its boxes, `disturb` skips his body; a remote client's clientSolidTrace
+  passes poles by him that long after its hands were last on one. pole_through play: off a pole, back at it at 320 u/s:
+  55.9 past its axis; with 0: stopped 9.5 short (fails).
+- **Tests:** rope_climb_test all 14 plays pass but rope_pump (238 vs 250: known since ropes12); rope_flat_test rope 9/0,
+  pole 8/0, polejump 8/0, ropejump 7/0, strungpole 5/0, slide 6/0; pole_fall_test upright 21/0, slant 21/0;
+  rope_hands_test 6/0; mp_test pole 15/0, pole_vr 8/0. Shots (low-impact mode): scratch/ropes14_support.png,
+  ropes14_pole.png, ropes14_keep.png (the hands barely in view).
+- Not done: another player's copy's support grip places the palm under the rope (the turn is his); not checked in a
+  headset.
