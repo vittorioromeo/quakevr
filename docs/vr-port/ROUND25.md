@@ -11728,3 +11728,22 @@ Lance Bolt Linger): `vr_dw_lance_push` 1, `_hit_sparks` 24, `_hit_smoke` 6, `_em
   hips side by side, and his own left hip from above.
 - **Wall glue (his note vrtutorial 23:14:32): not started** (out of budget): an A/B test with the active ragdoll's lean
   off is left.
+
+## hubcrash2: replaced swapchains destroyed a few frames later (agent/hubcrash2, 2026-11-24)
+
+- **What was seen**: the hub crash (SIGSEGV 0x30 in libGLESv2_adreno under xrEndFrame) happens on next too, worn
+  (his launch 00:41:11 -> 00:41:31, build eb808daa9); unworn runs never showed it. On a cold start the runtime panel's
+  swapchain is made again at every size switch: 768x192 (the shader compile's loading panel) <-> 4128x2208 (the window's
+  canvas: the console, the loading plaque), up to 9 times in a start, the last one right as the compile ends and the hub's
+  first frames come (the 3S report's last OpenXR step: `xrCreateSwapchain (panel)`). Each switch destroyed the old
+  swapchain at once, though the frame before had submitted it (a quad layer the worn compositor still shows).
+- **Change** (vr_backend_openxr*.cpp): a replaced swapchain (the panel at a new size, the eyes' new images for Quest
+  Foveation or vr_xr_eye_scale) is retired, and destroyed only after 4 more frames ended without it (`retireSwapchain`,
+  `destroyRetired` after each xrEndFrame; all of them before the session ends; 8 slots, the oldest destroyed at once
+  if full). **The cause is not proven**: the crash wasn't reproduced unattended (prox_close brought the Guardian dialog
+  and the session stayed IDLE; worn-simulated runs had the session stopping and restarting), so this is the likely
+  cause's fix, not a confirmed one.
+- **Headset** (the fixed APK, next's progs.dat): 3 hub entries, the first a cold compile (`-glesdebug
+  srgbencode,centroid`, 5 panel swapchains made), the last two while he wore the headset: no crash, eyes straight in
+  (form 2), `HC DONE` each. PC Release build fine; APK 0 warnings, check_apk 20/0. prox_close automation turned off
+  (`automation_disable`). The fixed build is left installed. Scripts (not committed): `scratch/hc2/`.

@@ -364,6 +364,20 @@ private:
     Swapchain panel;
     int32_t panelFailedWidth{0}; // the size its swapchain failed at in this session, or is being made at (ensurePanelSwapchain)
     int32_t panelFailedHeight{0};
+    // Swapchains replaced mid-session (the panel at a new size, the eyes' new images) are destroyed only after
+    // retireFrames more frames ended without them (retireSwapchain, destroyRetired): the Quest's runtime, worn, still
+    // composites the last frames that showed them, and destroying the loading panel's swapchain at once as the hub's
+    // first frames came crashed it in xrEndFrame (SIGSEGV 0x30 in libGLESv2_adreno: hubcrash2).
+    struct Retired
+    {
+        XrSwapchain handle{XR_NULL_HANDLE};
+        int frames{0}; // frames ended since it was retired
+    };
+    static constexpr int retiredMax = 8;
+    static constexpr int retireFrames = 4;
+    Retired retired[retiredMax];
+    void retireSwapchain(Swapchain& sc);
+    void destroyRetired(bool all); // after each frame (those retired long enough), or all of them (the session's end)
     int64_t colorFormat{GL_RGBA8};
     bool panelPending{false}; // an image was released for the frame being finished
     bool panelShown{false};   // the panel was in the last submitted frame (keeps its place)
