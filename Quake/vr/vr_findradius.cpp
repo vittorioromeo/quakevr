@@ -194,7 +194,7 @@ float moverSpeed = -1.f;
 // the same entities in the same order as testing them after.
 [[nodiscard]] inline bool wanted(const edict_t* ent, const float* org, float rad)
 {
-    if(moverSpeed >= 0.f && !ent->free)
+    if(moverSpeed >= 0.f && !ent->free && vr_findradius_grid.value != 3.f) // TEMP qcpu A/B
     {
         const float v2 = DotProduct(ent->v.velocity, ent->v.velocity);
         if(((int)ent->v.flags & (FL_CLIENT | FL_MONSTER)) || static_cast<int>(ent->v.movetype) == static_cast<int>(MOVETYPE_PUSH) ||
@@ -352,7 +352,7 @@ extern "C" edict_t* VR_FindRadius(const float* org, float rad)
     // The grid: the server's, a sphere it can search (a number, not most of the map); a big map (or forced).
     const bool gridUsable = t && finite3(org) && rad >= 0.f && rad <= walkRadius * walkRadius;
     const int mode = static_cast<int>(vr_findradius_grid.value);
-    const bool grid = gridUsable && (mode == 2 || (mode == 1 && qcvm->num_edicts >= gridMinEdicts));
+    const bool grid = gridUsable && (mode == 2 || ((mode == 1 || mode == 3) && qcvm->num_edicts >= gridMinEdicts));
 
     za::Vector<edict_t*>& found = lists.found;
     if(grid)
@@ -366,7 +366,14 @@ extern "C" edict_t* VR_FindRadius(const float* org, float rad)
     }
 
     edict_t* chain = qcvm->edicts;
-    for(edict_t* ent : found) // (VR_FindRadiusMoving's movers only: wanted, in the search)
+    for(edict_t* ent : found) // TEMP qcpu A/B
+    {
+        if(moverSpeed >= 0.f && vr_findradius_grid.value == 3.f && (((int)ent->v.flags & (FL_CLIENT | FL_MONSTER)) || static_cast<int>(ent->v.movetype) == static_cast<int>(MOVETYPE_PUSH) || DotProduct(ent->v.velocity, ent->v.velocity) <= 0.f || DotProduct(ent->v.velocity, ent->v.velocity) < moverSpeed * moverSpeed))
+            continue;
+        ent->v.chain = EDICT_TO_PROG(chain);
+        chain = ent;
+    }
+    if(false) for(edict_t* ent : found)
     {
         ent->v.chain = EDICT_TO_PROG(chain);
         chain = ent;
