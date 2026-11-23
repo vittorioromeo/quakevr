@@ -525,4 +525,9 @@ bool slideIn()
     return detail::bodyPitch.slidingFrom > 0.f;
 }
 
+float ownPitchAngle()
+{
+    return detail::bodyPitch.angle;
+}
+
 } // namespace qvr::avatar

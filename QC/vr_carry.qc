@@ -2007,6 +2007,7 @@ void(entity box) VR_Carry_KeepAlive =
 // The other hand (`xHand`) takes hold of what one carries (self is the player): a grip press within
 // reach of its surface, as the first hand's (VR_Carry_Handtouch: a carried thing is not solid, so no
 // touch comes).
+float(entity xBox) VR_FlatThrow_WindsUp; // (vr_flatgrenade.qc)
 void(float xHand) VR_Carry_TrySecondHand =
 {
     float other = cVR_MainHand;
@@ -2032,6 +2033,10 @@ void(float xHand) VR_Carry_TrySecondHand =
     if(!propvalue(box, "two_hands"))
     {
         return; // one hand only (Held Object Offsets: Two Hands)
+    }
+    if(VR_FlatThrow_WindsUp(box))
+    {
+        return; // (flat play's throw key winds it up in one hand: the other let go for it, vr_flatgrenade.qc)
     }
 
     dprint("carry: both hands\n");

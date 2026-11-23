@@ -10694,6 +10694,33 @@ issue rather than regrabbing"). ROPES.md "Climbing (flat-screen)", "Poles", "Tes
   upright 11/0, slant 11/0; rope_flat_test rope 8/0, pole 7/0, polejump 7/0, slantjump 6/0, wall 1/0, wallvr 1/0,
   strungpole 5/0; rope_climb_test pole_jump 6/0, rope_jump 6/0, pole_wood 10/0, monkey_jump 7/0; vr_pole_solid_test
   14/0; mp_test.py pole 15/0. Not run: an MP free-fall scenario (prediction shares solidInside/solidLedge).
+## flatpolish2: one-handed flat throws, the eye looking up while swimming, the parry hand's fingers out (agent/flatpolish2, 2026-11-23)
+
+His flat feedback 2026-11-23, items 3, 5, 6. FLATPLAY.md, "The throw key", "The neck", "Blade grip in the guard".
+- **Throw one-handed (3)**: replaces flatthrow's two-handed throw. `flatgrenade::letsGo(holding, helping)` (either hand busy
+  with a throw: J's or the quick grenade's) in flatsight's `twoHandGun` / `gripWanted` and twohand's `flatLetsGo`: the
+  free hand lets go of a gun's grip or its stance's hotspot as the wind-up begins, is no longer drawn following the
+  throwing hand (`apply`'s follow removed), and takes the grip again after. QC (`vr_flatgrenade.qc`): a crate in both
+  hands lets go of the off hand at the press (`VR_Carry_EndTwoHands`; `VR_Carry_TrySecondHand` refuses while it winds up,
+  `VR_FlatThrow_WindsUp`); the throw clears `last_2h_time` / `carry_2h_end` around the let-go so the headset's two-handed
+  window isn't counted (a tap lets go inside it). Finding: a flat long gun's stance is drawn only (no `VRGet2HAiming`), so
+  the server's throw was already one-handed for it; the drawn free hand was what followed.
+- **Swimming, looking up (5)**: the swimming tilt turns the trunk forward about the top of the neck, swinging the
+  shoulders up behind it; a look up's neck turn (`vr_flat_eye_pivot`) and chest lean (`vr_flat_chest_up`) carried the
+  eye back among them (2.5 units behind the hidden head's joint), filling the view with his own body from below. Now both
+  fade with the body's forward pitch (`lookUpShare`: `avatar::ownPitchAngle`, new: `ownPitch` is false before the body is
+  posed in the frame, so the camera read 1), gone at `vr_flat_eye_pitched_body` (30, Debug > Tunables, next to Eye Leans
+  With The Chest; 0: never). Lying down looking up gets the same. A look down is unchanged.
+- **Parry fingers (6)**: `twohand::bladeGripHand` turns the palm-down hand end for end about its palm's normal when its
+  fingers point back at him; the choice is made while the guard asks for the grip (`flatplay::bladeAsked`) and kept as it
+  lets go (decided each frame, it flipped 35 degrees a frame mid-ease). The report's blade grip line: "fingers out".
+- **Tests**: flatthrow_test 23/0 (new `twoh` run: the nail gun's free hand on it 1.00, hanging 0.00 winding up, thrown by
+  the main hand, not the headset's two-handed throw); flatswim_test 48/0 (new `lookup` run: pitch -89..89 swimming off
+  the bottom, body 41-45, the eye 2.4-5.4 ahead of the head joint, the shoulders behind the view's plane; the old eye
+  -2.5 at -89); flatbash_test 17/0 (new: fingers out 0.64; turned 8 in, 15 out). Shots: kit scratch
+  flatpolish2_swim.png (looking up: now / `vr_flat_eye_pitched_body 0`), flatpolish2_parry.png, flatpolish2_throw.png.
+  Scenes: flat_throw_2h (new), flat_swim (was missing on next). menu_paths.txt regenerated (+19 rows, 18 others').
+- Not tested: a crate thrown from both hands by J (the QC path), lying down looking up.
 
 ## ropes12: thumbs wrap round ropes and poles (agent/ropes12, 2026-11-23)
 
@@ -10831,3 +10858,55 @@ Follows "flatwheel"'s noticed item (the nailgun put into a holster by the wheel 
   or the eye images made at the drawn size when foveation is on. Then measure again. Scripts (not committed):
   `scratch/qfov2_bins.py` (a line per render pass with its bins' Fov scales), `qfov2_mk.sh`, `qfov2_trace.sh`,
   `qfov2_pull.sh`, `qfov2_pair.py`, `qfov2_crop.py`.
+## dwrifle: Dwell's Rifle removed (agent/dwrifle, 2026-11-23)
+
+- **Ask** (his note): the Rifle out of the toolgun and never in an armed humanoid's random pool; all of it gone if unused.
+- **Found unused**: none of Dwell v2.2's 43 BSPs (loose and in its paks) has "rifle" in its entity lump (no
+  `weapon_rifle`, no `v_rifle`/`g_rifle` model); Dwell's progs reach it only by `Cheat_Rifle` (`g_rifle.mdl` is not even
+  shipped). Our pools never gave it: `VR_AG_PickWeapon`'s codes make no Dwell variant (only a pickup, the toolgun's
+  prop, or a thrown record set `wi_dwvar`); the arena, armed replacements and AD/Quoth variants have no Dwell entry.
+- **Removed**: `dw_weapon_rifle`, `toolgun_dw_rifle` and its toolgun row (the rows after it move up one; no number is
+  kept anywhere), `DW_VAR_RIFLE` (3 retired: an older save's record holding 3 is a plain shotgun: `DW_FireVariant` fires
+  only the Rotary's and Lance's, `VR_AG_NameOf` and `DW_WeaponModel` check `DW_VariantFor`), the FGD class, the made
+  model `progs/dw_rifle.mdl#vr` (recipe, `rifleParts`, `rifleHousingSpec`; screenstyle, gunfx, notectx entries) and
+  weapons.txt slot 54 (left empty: 55/56 keep their numbers and cvars). `weapon_rifle` stays a Copper/Dwell detection
+  signal (`vr_rules.cpp`, `dwell_maps.py`). DWELL.md: "The Rifle removed".
+- **Tests**: new `vr_ad_test 208` "dwrifle" (dwell_weapons_test.sh): 4000 pool picks, 48 humanoids armed from the pool:
+  no Dwell variant, no Rifle; a shotgun no Dwell variant; an old Rifle record plain; `vr_toolgun_select Rifle` finds no
+  row (Crystal Lance still found). 201-203 now hold a shotgun with the retired variant 3 in holster 0 (plain after a
+  save and load, and a level change; its shot not Dwell's); 205's holster drawn as ours; 206-207 screenshots (208 the
+  Rifle's, now the new test); 213 takes a map Rotary Shotgun instead. The Lance check takes each target's 150 or 188
+  alone (the first can see the player a frame sooner now). dwell_weapons_test 13/0, dwell_vrmodels (7 models made).
+## lancebolt: the Crystal Lance's bolt from its middle crystal's tip (agent/lancebolt, 2026-11-23)
+
+His decision 2026-11-23 (follows "weaponfx" item 9's open point): the bolt starts where the charge is drawn.
+- vr_lancecharge.cpp `boltStart(ent, hand, muzzle, out)`: player `ent`'s drawn Lance in `hand` (yours: `view::heldWeapon`;
+  another player's copy: `mpavatar::drawnWeapon`), spear (dw_lance, vertex 0) or gun (dw_rail, vertex 37): its middle
+  crystal's tip through the charge's own lookup (`tipAt` -> `tipVertex`, shared with `frame`). vr_client.cpp
+  `VR_UpdateBeam` uses it for beam ids 0/1, flat and VR alike: yours (the end kept on the aim from the muzzle, so the
+  bolt still ends where it hit) and other players' (the server's end kept). No Lance drawn there: the muzzle as before.
+  The server's trace (QC dw_fire_lance, VRGetMuzzlePos) is unchanged: 3.96 units apart on the spear, on the gun 0.01.
+- vr_debug_gunfx 1 prints "lancecharge: bolt ent E hand H from the tip (model vertex N) x y z, D off the muzzle" once a
+  bolt, and "lancecharge: the charge fired ent E hand H at x y z" (the charge's origin as it fired).
+- Test: dwell_lance_test.sh 41/0 (new `boltcheck`: the bolt's start within 1 unit of the charge's origin as it fired;
+  section 3 VR spear, new section 8 flat spear and VR gun): 0.00 from it each time; 3.96, 3.96, 0.01 off the muzzle.
+- Not tested: another player's copy (the same lookup on mpavatar's drawn weapon; no MP run).
+## qcombined: where Standalone stands on the Quest 3 with everything shipped (agent/qcombined, 2026-11-23)
+
+Follows questperf, qworld, qtune, qfov. Measuring only (no code). `next` at 7df6f7ec8's APK (the quest tree's debug key,
+`install -r`) and test progs, the preset as a new player gets it (`resetcfg; vr_standalone_preset 0`); one headset block
+13:58-14:23, 5 launches, then beta2's re-signed APK and the shipped progs.dat (md5 8a409520...) put back. Table and
+details: QUEST_OPTIMISATIONS.md "Standalone status, 2026-11-23".
+- **Hold 72 Hz:** e2m2 with all 48 monsters awake (dynres 0.65-0.9, 0.2% missed) and the hub (11.4 ms, but only at
+  the 0.55 fight floor: the floor opens there without a fight).
+- **Miss, GPU:** the frozen close-up gib fight: 0.65 fixed 17.9 ms (35% missed); dynres as shipped sits at 0.55, 14.8
+  ms, 13.5% missed. 3 big lights add nothing now. At 0.55: the world ~8 ms, gore ~1.2, your rig ~1.0, grunts ~0.
+  Dynres's 0.55 costs ~1 ms more than a fixed 0.55 (13.8): the sub-image in 0.9-sized images.
+- **Miss, CPU:** the live e1m1 fight (CPU busy 16.2 ms, server 5.4; 31% missed with GPU 11.6) and 48 monsters on the
+  firing range (CPU 25 ms, SV_Physics 9.8; 76% missed).
+- A new player's config costs the same GPU as his (17.0 both at 0.65; +1.2 ms CPU, +12 draws); his has many lights and
+  effects off (vr_dlight_models, vr_model_lighting, vr_colored_lights, vr_light_contrast 1, explosion debris...).
+  `gl_texture_anisotropy` is 16 for a new player (vr_defaults.cfg; the preset leaves it): 1 vs 16 ~0.5-0.9 ms, near the
+  noise. The 0.65 base reads 2-3 ms above qtune's morning numbers: warmth or a merge since; not split.
+- Next (by size): the world's shading at 0.55 (~8 ms of ~14); the server's CPU in big fights (monster physics);
+  dynres drawing into right-sized images; the hub's fight floor opening outside fights (his call).

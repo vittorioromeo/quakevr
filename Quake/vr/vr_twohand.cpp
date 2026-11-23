@@ -381,7 +381,7 @@ void reportLetGo(int holding, const char* why, float value, float limit, float s
 // force grab, the hand pinned on the crowbar's tape while the brick flew to it.
 [[nodiscard]] bool flatLetsGo(int holding, int helping)
 {
-    return flatplay::punching(helping) || flatplay::shoving(helping) || flatreload::busy(holding) || flatgrenade::busy(helping) ||
+    return flatplay::punching(helping) || flatplay::shoving(helping) || flatreload::busy(holding) || flatgrenade::letsGo(holding, helping) ||
            flatswap::gripBlocked() || flatfgrab::busy(helping) || flatswim::freesHand(); // (swimming: vr_flatswim.cpp)
 }
 
@@ -1495,6 +1495,14 @@ bool heldOffHandle(int holding)
     return holding >= 0 && holding < 2 && (freeGrips[holding].on || bladeGrip(holding));
 }
 
+namespace
+{
+// (Flatscreen play's guard: whether the free hand on the blade is turned end for end, its fingers away from him; decided
+// while the guard asks for the grip, kept while it lets go: the way away from him turns as the blade swings back, and
+// deciding each frame flipped the easing hand a half turn in a frame.)
+bool bladeFingersTurned[2]{false, false};
+} // namespace
+
 bool bladeGripHand(const hands::State& s, int hand, const glm::vec3& holderPos, const glm::vec3& holderRot, glm::vec3& pos,
     glm::vec3& rot)
 {
@@ -1506,7 +1514,8 @@ bool bladeGripHand(const hands::State& s, int hand, const glm::vec3& holderPos, 
     }
     bladeGripOn(slot, holding, s.muzzle[holding], s.visualRot[holding], holderPos, holderRot, pos, rot);
     // Flatscreen play's guard (vr_flat_parry_blade_palm; his note 2026-11-23: the palm was up, under the blade): rolled
-    // about the blade, its grip staying along it, to the palm down, the hand over it. A headset's hand keeps the tracked
+    // about the blade, its grip staying along it, to the palm down, the hand over it, its fingers pointing away from him
+    // (his second note that day: they pointed back at him). A headset's hand keeps the tracked
     // hand's roll (the least turn above).
     if(flatplay::active() && vr_flat_parry_blade_palm.value != 0.f)
     {
@@ -1522,8 +1531,24 @@ bool bladeGripHand(const hands::State& s, int hand, const glm::vec3& holderPos, 
             const float c = za::clamp(glm::dot(pn, wn), -1.f, 1.f), sn = glm::dot(glm::cross(pn, wn), d);
             const auto roll = [&](const glm::vec3& v) { return v * c + glm::cross(d, v) * sn + d * glm::dot(d, v) * (1.f - c); };
             const glm::vec3 onAxis = s.muzzle[holding] + d * glm::dot(pos - s.muzzle[holding], d);
-            pos = onAxis + roll(pos - onAxis);
-            rot = hands::anglesFromVectors(roll(f), roll(u));
+            glm::vec3 at = roll(pos - onAxis), fingers = roll(f), up = roll(u);
+            // The fingers away from him, over the blade (his note 2026-11-23: they pointed back at him): else the hand
+            // turned a half turn about its palm's normal, end for end along the blade, the palm still down.
+            glm::vec3 away = onAxis - s.head;
+            away.z = 0.f;
+            if(flatplay::bladeAsked(holding))
+            {
+                bladeFingersTurned[hand] = glm::dot(fingers, away) < 0.f;
+            }
+            if(bladeFingersTurned[hand])
+            {
+                const auto half = [&](const glm::vec3& v) { return wn * (2.f * glm::dot(wn, v)) - v; };
+                at = half(at);
+                fingers = half(fingers);
+                up = half(up);
+            }
+            pos = onAxis + at;
+            rot = hands::anglesFromVectors(fingers, up);
         }
     }
     return true;

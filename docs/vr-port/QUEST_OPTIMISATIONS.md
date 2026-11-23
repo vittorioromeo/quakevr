@@ -229,3 +229,33 @@ left eye's main pass 5.2 ms, the right's 6.7 (0.45 of it the compositor's preemp
 fragments shaded ~1.8 a pixel in the main pass, which includes the world's depth pre-pass (so no overdraw problem left
 to take). Verdict: the scene is fill-bound at the preset's floor (0.55 holds 72 Hz, 0.6 and 0.58 do not reliably); no
 look-keeping cut found that reaches 72 Hz. No default changed.
+
+## Standalone status, 2026-11-23 (qcombined)
+
+`next` at 7df6f7ec8 (retro off, the unlit decal twin, rig plain, models without fullbright reads or a lights' loop,
+the fight floor 0.55, settled gore trimmed, dynres) on the Quest 3, as a new player gets it: `resetcfg` then
+`vr_standalone_preset 0` (Android's first run), only the test's seeds and freeze set by hand (and the fixed scale where
+named). This tree's APK (the quest tree's key) and test progs; 3 launches with the scenes in changed orders (1, 2, 4),
+a 4th his config vs the new player's, a 5th leaving things out between base parts. GPU span ms (both eyes), CPU = the
+main thread's busy ms, period ms (13.9 a frame at 72 Hz); "missed" = frames the runtime reports late (`xr_missed`);
+">15.3" = periods past 1.1 frames (">13.9" reads ~55% even where nothing is missed: the period's jitter around 13.9).
+
+| scene | GPU med / p90 | CPU | period med / p90 | missed | >15.3 | dynres scale (share of frames) | 72 Hz? |
+|---|---|---|---|---|---|---|---|
+| e1m1 gib fight, frozen, 0.65 fixed | 17.85 / 18.62 | 11.9 | 18.70 / 21.03 | 35% | 96% | 0.65 fixed | no: GPU |
+| the same, dynres as shipped | 14.77 / 15.42 | 10.8 | 15.69 / 17.82 | 13.5% | 62% | 0.55 96%, 0.65 4% | no: GPU |
+| the same, 3 big lights (`vr_test_dlights 3`) | 14.77 / 15.52 | 10.7 | 15.78 / 18.06 | 14% | 63% | 0.55 93%, 0.65 7% | no: GPU (the lights cost ~0) |
+| live e1m1 fight (6 + 6 grunts, gibbed live) | 11.62 / 13.96 | 16.2 | 17.46 / 26.95 | 31% | 66% | 0.55 56%, 0.65 28%, 0.7-0.85 16% | no: CPU (server 5.4) |
+| firing range, 48 mixed monsters (combat_48) | 14.72 / 20.12 | 25.1 | 26.15 / 36.51 | 76% | 99.6% | 0.55 93%, 0.65 7% | no: CPU (SV_Physics 9.8) |
+| e2m2, every monster awake (48) | 10.54 / 11.49 | 9.3 | 14.12 / 16.74 | 0.2% | 28% | 0.65-0.8 43%, 0.85 34%, 0.9 23% | yes |
+| the hub (vrstart's campaign terrace) | 11.41 / 11.61 | 7.8 | 14.07 / 16.00 | 0.2% | 23% | 0.55 100% | yes, at the fight floor |
+
+What dominates the gib fight (0.55 fixed, each part between two base parts, launch 5; base 13.5-14.3): the world
+**~8 ms** (`r_drawworld 0`: 5.65-5.81), the gore ~1.0-1.4 (gibs, heads, limbs hidden: 12.87-12.97), your rig ~1.0
+(12.52-12.76), the grunts' bodies ~0 (13.48). Dynres's floor costs more than the same scale fixed: 14.8 vs 13.8 ms
+side by side (the eye drawn into the lower part of 0.9-sized images). Anisotropy (`gl_texture_anisotropy`, 16 from
+vr_defaults.cfg; the preset leaves it): 1 / 4 / 16 = 16.90 / 17.18 / 17.85 at 0.65 (2 launches; 1 vs 16 ~0.5-0.9 ms,
+near the noise). His config vs the new player's, same launch, 0.65 fixed, 3 pairs: 17.01 vs 16.96 GPU (CPU 10.4 vs
+11.6; 210 vs 222 draws). The 0.65 base is 2-3 ms above qtune's 14.8-15.4 of the morning (same scene and settings): the
+headset's warmth or something merged since; not split (no older build in the same launch). Scripts: posebake
+`scratch/qc/qc_*` (not committed).

@@ -16,7 +16,7 @@ log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;vr_adweapon_
     -QuitOn "dwlance: [0-9]+ passed" -Timeout 300 -Filter "dwlance|vr_adweapon_models:|progs/dw_lance|rror|exit=" 2>&1 | tr -d '\r')
 echo "$log" | grep -E "FAIL|vr_adweapon_models:|progs/dw_lance" | cut -c1-200 | head -6
 expect_verdict "$log" dwlance "the Lance as a lance, and as the pistol with the setting off"
-check $(grep -q "vr_adweapon_models: 8 made, 0 not made" <<<"$log" && echo 1 || echo 0) "the eight models made (the lance from Dwell's world model)"
+check $(grep -q "vr_adweapon_models: 7 made, 0 not made" <<<"$log" && echo 1 || echo 0) "the seven models made (the lance from Dwell's world model)"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "models: the run ended on its verdict"
 OFF="vr_mock_fingers main 0 1;+grableft;vr_mock_button off grip 1;wait30" # (the main hand's grip closed: it holds, the off hand slides)
 SLIDE="vr_mock_hand_to off held 0.95;wait30;echo dwlance-mark: far;vr_mock_hand_to off held 0.35;wait30;echo dwlance-mark: near;vr_status"
@@ -51,6 +51,17 @@ check $(grep -c "dwlance: the beam through" <<<"$log" | grep -qx 1 && echo 1 || 
 # (weaponfx, his note 2026-11-23: the charge drawn from the middle crystal's tip: the spear's (28.16 5.27 77.41, on its
 # pole's line; its muzzle anchor between the two outer prongs binds to a prong, 4 units off), vertexPosition's own place.)
 check $(grep -qE "lancecharge: origin at the middle crystal's tip \(progs/dw_lance.mdl#vr vertex [0-9]+, at rest 28\.1[0-9] 5\.2[0-9] 77\.4[0-9]\)" <<<"$log" && echo 1 || echo 0) "charge: drawn from the middle crystal's tip"
+# (lancebolt, his decision 2026-11-23: the bolt starts at the middle crystal's tip too, VR and flat, spear and gun: the
+# beam's start as drawn, vr_client.cpp VR_UpdateBeam, within 1 unit of where the charge was drawn as it fired.)
+boltcheck() { # <log> <label> <model regex> <min. units from the muzzle>
+    local o b d m
+    o=$(grep -oE "lancecharge: the charge fired ent 1 hand 1 at [-0-9.]+ [-0-9.]+ [-0-9.]+" <<<"$1" | tail -1 | awk '{ print $(NF-2), $(NF-1), $NF }')
+    b=$(grep -oE "lancecharge: bolt ent 1 hand 1 from the tip \($3 vertex [0-9]+\) [-0-9.]+ [-0-9.]+ [-0-9.]+, [0-9.]+ off" <<<"$1" | tail -1 | tr -d ',' | awk '{ print $(NF-4), $(NF-3), $(NF-2), $(NF-1) }')
+    d=$(awk -v o="$o" -v b="$b" 'BEGIN { if(split(o, p, " ") < 3 || split(b, q, " ") < 4) { print 99; exit } printf "%.2f", sqrt((p[1]-q[1])^2 + (p[2]-q[2])^2 + (p[3]-q[3])^2) }')
+    m=$(awk -v b="$b" 'BEGIN { split(b, q, " "); print q[4] + 0 }')
+    check $(awk -v d="$d" -v m="$m" -v n="$4" 'BEGIN { print (d + 0 <= 1 && m + 0 >= n) ? 1 : 0 }') "$2: the bolt starts at the middle crystal's tip ($d from the charge as it fired; $m from the muzzle)"
+}
+boltcheck "$log" "bolt (VR, spear)" "progs/dw_lance.mdl#vr" 2
 check $(grep -qE "ammo_cells +94" <<<"$log" && echo 1 || echo 0) "shot: 6 cells taken from the pouch's 100 (no magazine)"
 check $(grep -q "revgrip: hand 1 flips its grip: reversed" <<<"$log" && echo 1 || echo 0) "flip: B turned the Lance's grip over (head down)"
 check $(grep -q "revgrip: hand 1 flips its grip: upright" <<<"$log" && echo 1 || echo 0) "flip: B again, upright"
@@ -109,5 +120,17 @@ log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;vr_positiona
 echo "$log" | grep -E "FAIL" | cut -c1-200 | head -6
 expect_verdict "$log" dwcharge "the charged shot: let go short, the charge time, fired as let go, no cells"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "charge: the run ended on its verdict"
+# 8. lancebolt: a charged shot in flat play (the spear as drawn, its sway and all) and in VR as the gun (vr_dw_lance_pole
+#    0: its muzzle already on its middle crystal's tip): the bolt from that tip (boltcheck).
+for mode in flat gun; do
+    extra=""; pre="vr_mock_hand main 0.2 1.3 -0.3 -22 0 0;"; model="progs/dw_lance.mdl#vr"; away=2
+    [ "$mode" = flat ] && extra="-flatscreenmode" && pre=""
+    [ "$mode" = gun ] && pre="$pre""vr_dw_lance_pole 0;" && model="[^ ]*dw_rail[^ ]*" && away=0
+    log=$(bash $KIT/run.sh $AGENT -ExtraArgs "$extra" -Script "map e1m1;wait10;god;notarget;developer 1;$pre""vr_debug_gunfx 1;vr_ad_test 207;wait60;+attack;wait90;-attack;wait10;echo dwlance-test: done" \
+        -QuitOn "dwlance-test: done" -Timeout 300 -Filter "lancecharge: (bolt|the charge)|dwlance: charged|rror|exit=" 2>&1 | tr -d '\r')
+    echo "$log" | grep -E "lancecharge: (bolt .* from the tip|the charge)" | cut -c1-160 | head -2
+    boltcheck "$log" "bolt ($mode)" "$model" $away
+    check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "bolt ($mode): the run ended on its last line"
+done
 verdict
 exit $fail

@@ -204,7 +204,6 @@ QVR_PACK("Monsters", "Dwell", "The Awoken (boss)", "dw_monster_d1boss", "progs/m
 QVR_PACK("Monsters", "Dwell", "The Sculptor (boss)", "dw_monster_d2boss", "progs/mon_d2boss.mdl", 64.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Weapons", "Dwell", "Rotary Shotgun", "toolgun_dw_rotary", "progs/g_shot3.mdl", 8.f, nullptr, 0.f, 0, 1, "progs/e1/mon_kami.mdl", 0) // (the rerelease has a g_shot3 too: probe a file only Dwell has)
 QVR_PACK("Weapons", "Dwell", "Crystal Lance", "toolgun_dw_lance", "progs/g_rail.mdl", 8.f, nullptr, 0.f, 0, 1, nullptr, 0)
-QVR_PACK("Weapons", "Dwell", "Rifle", "toolgun_dw_rifle", "progs/v_rifle.mdl", 8.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Items", "Dwell", "Haste", "dw_item_artifact_haste", "progs/e2/item_haste.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Items", "Dwell", "Berserk", "dw_item_artifact_berserk", "progs/item_berserk.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Items", "Dwell", "Wetsuit", "dw_item_artifact_wetsuit", "progs/item_diving.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)
