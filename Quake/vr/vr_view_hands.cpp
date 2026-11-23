@@ -3232,8 +3232,9 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
             const glm::quat from = glm::quat_cast(anglesBasis(handRot)), to = glm::quat_cast(anglesBasis(attached));
             handRot = basisAngles(glm::mat3_cast(glm::slerp(from, to, gripBlend)));
             // Flatscreen play, a pole weapon held as a spear (lancespear): the hand's grip channel closed round the pole
-            // (the line from the holding hand to the tip) where it holds it, then rolled about the pole by
-            // vr_flat_pole_off_roll.
+            // (the line from the holding hand to the tip) where it holds it. (Its own turn there, vr_flat_pole_off_pitch /
+            // _yaw / _roll, is the last word on the drawn pose, before drawHand: flatsight's pinned free hand never comes
+            // here.)
             if(flatplay::active() && twohand::poleWeapon(otherSlot) && s.muzzleValid[other])
             {
                 const glm::vec3 hilt{entities.weapon[other].ent.origin[0], entities.weapon[other].ent.origin[1],
@@ -3243,11 +3244,6 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
                 {
                     glm::vec3 at = pos, turn = handRot;
                     alignChannel(hand, mirrored, hilt, along, at, turn);
-                    const glm::quat roll = glm::angleAxis(
-                        glm::radians(za::clamp(vr_flat_pole_off_roll.value, -180.f, 180.f)) * (mirrored ? -1.f : 1.f),
-                        glm::normalize(along));
-                    at = hilt + roll * (at - hilt);
-                    turn = basisAngles(glm::mat3_cast(roll) * anglesBasis(turn));
                     pos = glm::mix(pos, at, gripBlend);
                     const glm::quat was = glm::quat_cast(anglesBasis(handRot)), now = glm::quat_cast(anglesBasis(turn));
                     handRot = basisAngles(glm::mat3_cast(glm::slerp(was, now, gripBlend)));
@@ -3700,6 +3696,28 @@ void setupHand(const hands::State& s, int hand)
     else if(own && twohand::carryingHand(s, hand, pos, handRot))
     {
         hide = false;
+    }
+
+    // Flatscreen play's spear pose (flatmelee3; his item 14, 2026-11-23): each hand's own drawn turn on the pole, the last
+    // word on its pose (the grip's turn, the free hand's look share and pinned pose all came before): the hand on the
+    // other's pole by vr_flat_pole_off_pitch / _yaw (as it takes it), the holding hand by vr_flat_pole_hand_pitch / _yaw /
+    // _roll (the spear itself stays). In the hand's own frame, about its palm's middle; as for the main hand, mirrored for
+    // the off hand. Drawn only.
+    if(own && flatplay::active())
+    {
+        glm::vec3 turn{0.f};
+        const float onPole = za::max(gripBlend, flatsight::pinShare(hand));
+        if(onPole > 0.f && otherSlot >= 0 && twohand::poleWeapon(otherSlot))
+        {
+            turn = glm::vec3{za::clamp(vr_flat_pole_off_pitch.value, -90.f, 90.f), za::clamp(vr_flat_pole_off_yaw.value, -90.f, 90.f),
+                       za::clamp(vr_flat_pole_off_roll.value, -180.f, 180.f)} * onPole;
+        }
+        else if(slot >= 0 && slot != fist && twohand::poleWeapon(slot))
+        {
+            turn = glm::vec3{za::clamp(vr_flat_pole_hand_pitch.value, -90.f, 90.f), za::clamp(vr_flat_pole_hand_yaw.value, -90.f, 90.f),
+                za::clamp(vr_flat_pole_hand_roll.value, -180.f, 180.f)};
+        }
+        moveDrawnHand(hand, mirrored, handRot, glm::vec3{0.f}, turn, hand == HAND_OFF, pos, handRot);
     }
 
     // What the fingers wrap (vr_hand_fit): the gun in the hand, the other hand's gun it helps hold (its foregrip, a

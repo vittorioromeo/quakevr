@@ -4639,6 +4639,11 @@ vr_flat_pole_out|2|Tunables|Spear Out|Advanced VR Options > Debug > Tunables > S
 vr_flat_pole_roll|2|Tunables|Spear Roll|Advanced VR Options > Debug > Tunables > Spear Roll
 vr_flat_pole_off_along|2|Tunables|Spear Other Hand Along|Advanced VR Options > Debug > Tunables > Spear Other Hand Along
 vr_flat_pole_off_roll|2|Tunables|Spear Other Hand Roll|Advanced VR Options > Debug > Tunables > Spear Other Hand Roll
+vr_flat_pole_off_pitch|2|Tunables|Spear Other Hand Pitch|Advanced VR Options > Debug > Tunables > Spear Other Hand Pitch
+vr_flat_pole_off_yaw|2|Tunables|Spear Other Hand Yaw|Advanced VR Options > Debug > Tunables > Spear Other Hand Yaw
+vr_flat_pole_hand_pitch|2|Tunables|Spear Hand Pitch|Advanced VR Options > Debug > Tunables > Spear Hand Pitch
+vr_flat_pole_hand_yaw|2|Tunables|Spear Hand Yaw|Advanced VR Options > Debug > Tunables > Spear Hand Yaw
+vr_flat_pole_hand_roll|2|Tunables|Spear Hand Roll|Advanced VR Options > Debug > Tunables > Spear Hand Roll
 vr_flat_melee_2h_parry_fwd|2|Tunables|Two-Handed Guard Ahead|Advanced VR Options > Debug > Tunables > Two-Handed Guard Ahead
 vr_flat_melee_2h_parry_up|2|Tunables|Two-Handed Guard Up|Advanced VR Options > Debug > Tunables > Two-Handed Guard Up
 vr_flat_melee_2h_parry_out|2|Tunables|Two-Handed Guard Out|Advanced VR Options > Debug > Tunables > Two-Handed Guard Out

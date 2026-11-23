@@ -143,6 +143,10 @@ void keepRecoil(glm::vec3& pos, glm::vec3& angles);
 // draws it there with the pose a helping hand has there (no grip: twohand::drawnTransition). 0 in a headset.
 [[nodiscard]] float lookShare(int h);
 
+// How far the free hand `h` is pinned on the held weapon's two-handed grip (pinToGrip: its pose put there), 0..1. 0 in a
+// headset.
+[[nodiscard]] float pinShare(int h);
+
 // How far down the fore-end, towards the holding hand, the free hand `h` holds instead of on the hotspot itself (units along the
 // held hand's forward): where its arm can't take the hotspot (sighted with a long gun, looking up), it slides along the gun and
 // stays on it rather than letting go. 0 elsewhere.
