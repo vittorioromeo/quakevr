@@ -1669,7 +1669,8 @@ extern "C" int VR_RenderView()
     // 2: its depth at the image's size) placed in it by its lower left corner. The runtime's foveation reduces whole bins
     // of the image (864 x 448 of the Quest 3's 1680 x 1760) round the rect submitted: in the corner the part's bottom rows
     // stayed full at every level (qfov4). The scene's viewport (glx, gly: R_SetupGL, R_WarpScaleView), the in-tile pass,
-    // the UI, the eyeshots and the rect submitted all take the corner.
+    // the UI, the eyeshots and the rect submitted all take the corner. Measured (qeye): the middle is slower (the full
+    // bins round the rect's centre then straddle the grid's middle lines: 4 an eye at 0.65 instead of 2), so 0 stays.
     const float place = subImage && direct && directWanted >= 2 ? za::clamp(vr_eye_rect_place.value, 0.f, 2.f) * 0.5f : 0.f;
     const int partX = static_cast<int>(place * static_cast<float>(imageWidth - drawnWidth) + 0.5f);
     const int partY = static_cast<int>(place * static_cast<float>(imageHeight - drawnHeight) + 0.5f);
