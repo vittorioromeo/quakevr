@@ -3261,8 +3261,7 @@ void solidTestFrame()
                 // Walked under it: his box on the floor under its middle, across.
                 const trace_t down = worldtrace::serverLine(m, m - glm::vec3{0.f, 0.f, 1000.f}, nullptr);
                 const glm::vec3 feet = vecOf(down.endpos) + glm::vec3{0.f, 0.f, 25.f};
-                under = sweepHits(feet - side * 40.f, feet + side * 40.f, false);
-            }
+                under = sweepHits(feet - side * 40.f, feet + side * 40.f, false);            }
         }
         solidCheck(poles >= 4 && slanted >= 2, va("%d poles made solid: %d boxes, the slanted one in %d", poles, t.boxes, slanted));
         solidCheck(worstOff <= 0.5f, va("each box's middle on its pole (at most %.2f units off its surface)", worstOff));
@@ -3290,7 +3289,7 @@ void solidTestFrame()
         const float sparks = PR_ServerGlobalFloat("vr_metal_hits") - t.metalHits;
         // (Its last place a frame's flight short: the chain the first thing on its way on from there.)
         const float past = glm::dot(t.nailAt - t.chainAt, t.nailDir);
-        const int next = traceHits(t.nailAt, t.nailAt + t.nailDir * 48.f, MOVE_MISSILE, false);
+        const int next = traceHits(t.nailAt, t.nailAt + t.nailDir * (glm::length(t.chainAt - t.nailAt) + 8.f), MOVE_MISSILE, false);
         solidCheck(sparks >= 1.f && past < 0.f && ropeOf(next) && ropeOf(next)->params.chain,
             va("a nail fired at a chain stops at it with sparks (%.0f metal hits; last %.1f units short of it, it next)", sparks, -past));
         t.nail = 0;

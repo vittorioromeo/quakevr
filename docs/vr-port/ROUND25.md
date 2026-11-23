@@ -10118,3 +10118,26 @@ actual binds ("Press 'G' to equip a grenade", following a rebind); VR messages u
   headset (mock): 3/0 (the headset's wording, untouched). Binds and cvars put back after. The first screenshot of lesson
   1's board read "MOVE: 'W' ',' 'S' '.'" (default.cfg binds , and . too, lower key numbers): hence the ranking; now
   'W' 'A' 'S' 'D' (the test's t2_move). Scene `flat_tutorial_keys` (lesson 10).
+## ropes8c: chains stop shots, nails and blows (agent/ropes8c, 2026-11-23)
+
+Item 11 of his flat notes (ropes8b's open list). ROPES.md "What pushes it" (Chains stop shots), "Tests".
+- **Chains solid to hits (11):** no boxes (the chain swings, and bodies still push through it): world.c `SV_Move`, after
+  the entities and the lean boxes, `VR_ChainShotClip` -> `climbrope::chainClip` for a gun's shot (MOVE_HITMODEL class 0),
+  a melee line (class 2) and a missile (MOVE_MISSILE): each link a cylinder of thickness / 2 + 1 (`chainHitGrow`), a
+  missile's box as a sphere; the nearest hit ends the trace with the chain entity as `trace_ent`. Not: bodies, sight
+  lines (nomonsters, plain traces), the grappling hook, thrown things, ropes. Anything of a player holding a rope within
+  24 units of the chain passes it (his own chain). QC: every rope/chain/pole entity takes damage (`VR_Rope_Setup`),
+  `T_DamageImpl` returns at once for them (`VR_Rope_Is`, vr_util.qc); a chain is metal (`VR_Rope_IsChain` in
+  `VR_Hit_Metal` / `VR_MaterialOf`): bullets and blows spark and tink; spike_touch / superspike_touch give a rope's or
+  pole's hit `spawn_touchblood` (sparks; a wooden pole's nail splinters, was Quake's spike puff). The shot push still
+  kicks the chain.
+- **Test** `vr_pole_solid_test` 12/0 (was 7): vrropes' 3 chains: the shot's, blow's and nail's lines across each meet it
+  (at most 1.00 units off the links), metal, takedamage; a player's box, a sight line and a plain trace pass; a nail
+  (QC launch_spike) fired at one stops at it with 1 metal hit. vr_rope_test 16/0. Melee on a chain untested live.
+- **Props vs poles (3), tried, not kept:** Box3D's `kindOf` returns None for a modelless edict (the pole boxes), so
+  props never meet them. Making them `Kind::Actor` (kinematic boxes, catActor vs catProp) created the bodies (developer
+  print: "pole box N ... 3.0 x 6.5 x 10.0") but a vr_crate dropped 30 units over the level pole still fell to the floor
+  (-90.4); not found why within budget (next: check the Actor body's placement against the box, and whether a prop's
+  contacts with a kinematic box this thin are kept). Reverted.
+- **Not done (budget):** 2 (MP: another player on a strung rope / a pole, pole prediction on MP clients, two climbers
+  through one pole), 4 (flat fingertips 0.44 into a pole), 5 (rope_pump 238 vs 250).
