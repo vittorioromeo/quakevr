@@ -898,6 +898,23 @@ bool drawnIndexTip(int hand, glm::vec3& local)
     return true;
 }
 
+bool drawnFingerPoints(int hand, int finger, glm::vec3 out[4], glm::vec3& palm)
+{
+    if((hand != 0 && hand != 1) || finger < 0 || finger >= handrig::FingerCount || !rigHands[hand].drawn)
+    {
+        return false;
+    }
+    const RigHand& rh = rigHands[hand];
+    glm::vec3 points[4];
+    grasp::fingerPoints(rh.pose, finger, rh.pose.curl[finger], points);
+    for(int i = 0; i < 4; i++)
+    {
+        out[i] = glm::vec3{rh.rigToWorld * glm::vec4{drawnInRig(rh, points[i]), 1.f}};
+    }
+    palm = glm::vec3{rh.rigToWorld * glm::vec4{drawnInRig(rh, grasp::palmCentre()), 1.f}};
+    return true;
+}
+
 const char* handPartName(HandPart part)
 {
     constexpr const char* names[] = {"hand", "palm", "back of the hand", "knuckles", "fingers", "fingertips", "thumb"};

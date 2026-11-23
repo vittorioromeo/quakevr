@@ -106,6 +106,8 @@ struct Settings
     float thumbSink{0.f};     // with it: hand units more the thumb may sink into it (its base, on the thing the palm holds)
     bool thumbWide{false};    // with it: a thumb in it open at every usual turn opens wider (swung up to 60 degrees away
                               // from the index) and wraps round its outside, if one there does, rather than lying sunk in
+    bool thumbAround{false};  // (ropes12) a bar across the palm (a rope, a pole): the thumb opposed further (up to 90
+                              // degrees) and wrapped round it the other way from the fingers, never closed over them
     bool fixedPalm{false};    // round 21, third pass: the palm's move given (palmMove; no turn), not searched nor fitted
     glm::vec3 palmMove{0.f};
     glm::quat palmTurnMove{1.f, 0.f, 0.f, 0.f};
