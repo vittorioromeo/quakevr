@@ -10430,3 +10430,31 @@ has the table.
   share, qp_hist.py, qp_batches.py for `vr_gl_passes`).
 - **Next:** the world's own ~8 ms at 0.65 (its shading per pixel: the scene is fill-bound) and your rig's 2.5 ms (the
   body's skin form, the held gun close to the eyes); his call whether the 72 Hz floor goes to 0.55 in fights.
+
+## qworld: the world in the Quest's gib fight: retro decals keep the unlit world; Standalone turns retro off (branch agent/qworld, 2026-11-23)
+
+Follows "questperf" and the shader review (qvr-kit/scratch/shaderreview_report.md, finding 1 first). The Quest's world in
+a fight already has no lights' loop (`vr_gl_world_dlmap 1`: the unlit form), so brief item 6's light caps had nothing
+to cap; the lighting cost was elsewhere:
+- **Retro decals sent the world to the lit program.** With `vr_retro 1` (the default; Standalone never set it) the first
+  blood mark has a retro set (`decalclock[3]`) and `R_ChooseBModelProgram` took `GL_WorldDecalRetroProgram`: the lit
+  world, the lights' loop compiled in and run, in every fight. New `GL_WorldUnlitDecalRetroProgram` (glprogs
+  `world_unlit_decal_retro`: `QVR_NOLIGHTS` with the decals' retro code; prewarmed with the decals' others, its array
+  twin made) is taken while the world is unlit; `vr_gl_world_unlit 0` restores the old choice (the A/B).
+- **Standalone rows `vr_retro 0`, `vr_retrolight 0`** (his own Quest config's): retro on cost ~15 ms of GPU here.
+- Light contrast at exactly 2.5 (the default) as `x*x*sqrt(x)` (same value; other values keep `pow`); `DecalsAt` reads
+  a decal member by member, rejecting after n and centre (2 of 6 vec4 loads) instead of after the whole record.
+- `vr_gl_mediump` (Debug > Tunables "Medium Precision Colours (Quest)", default 0; ES lite bit 29, `QVR_MP` in the shader
+  header: mediump under it, nothing elsewhere) on the world's and models' colour samplers, lightmap and light sums,
+  fullbrights, sheen, decal colours. **+3 ms on the Quest 3** (the world alone too), so off. Why not found (a guess: the
+  conversions between the highp functions and the mediump locals, or mediump array samplers); left as a switch.
+- `vr_gles_report` names the opaque world's last program (and vr_retro, vr_retrolight). Probes (`vr_gles_define`):
+  `QVR_PROBE_OLDPOW`, `OLDDECAL`, `PERMONE` (the permanent layer's single read; not measured), `MPNOWORLD`, `MPNOALIAS`.
+- **Headset** (Quest 3, frozen e1m1 gib fight, 0.65 fixed, seeds, 240-frame parts interleaved, 3 launches; GPU median):
+  his config (retro off) 13.3-14.1 ms; retro on with the twin 28.9, with the old lit program 39.1 (-10.2); pow and
+  decal loads -0.1 (retro off) / -0.8 (retro on); mediump 17.2 vs 14.1. Table: QUEST_OPTIMISATIONS.md "Quest gib fight".
+  No headset pictures: the game's eyeshots folder can't be read over adb (permission denied); the twin is the unlit
+  world's own look (the dynamic lights from the light texture), the pow and the loads exact.
+- PC: `-glescompat` Standalone gib fight draws "world unlit decal retro", 0 shader errors (mediump 0 and 1).
+  Scripts (not committed): scratch/qw_mkab*.sh, qw_pc.sh, qw_pull.sh with questperf's qp_*.
+- Next: why mediump costs on Adreno (a sampler-only and a varyings-only probe); the shader review's model items (qtune).

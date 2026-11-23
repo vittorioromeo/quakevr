@@ -791,6 +791,10 @@ QVR_PARALLAX_DEPTH_OUT // PDO 1
 QVR_WORLD_DEPTH_FS_MAIN;
 
 static const char world_fragment_shader[] =
+"#ifdef QVR_PROBE_MPNOWORLD\n" // QVR: qworld, vr_gles_define's probe: vr_gl_mediump left out of the world's shader
+"#undef QVR_MP\n"
+"#define QVR_MP\n"
+"#endif\n"
 "#if BINDLESS\n"
 "	#extension GL_ARB_bindless_texture : require\n"
 "	#define QVR_WUV(x) (x)\n"
@@ -1877,6 +1881,10 @@ QVR_BOX_WOUND_PAINT_VS // QVR: a held brush model's blood: its box drawn into it
 ////////////////////////////////////////////////////////////////
 
 static const char alias_fragment_shader[] =
+"#ifdef QVR_PROBE_MPNOALIAS\n" // QVR: qworld, vr_gles_define's probe: vr_gl_mediump left out of the models' shader
+"#undef QVR_MP\n"
+"#define QVR_MP\n"
+"#endif\n"
 ALIAS_INSTANCE_BUFFER
 QVR_ALIAS_FS_HEADER // QVR: the frame data, lights and functions the alias fragment shader uses
 NOISE_FUNCTIONS

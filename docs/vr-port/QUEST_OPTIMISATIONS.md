@@ -210,6 +210,10 @@ warming), and parts of one setting within a launch by +-1.5 ms (draws 183-244 fr
 | render scale 0.58 (fourth launch, base 18.08) | 16.66 | 27.9% | 231 | -1.4 ms |
 | anisotropy 1 or 4 (round 2) | 17.85 / 17.40 | 36.5% / 29.7% | 221 / 217 | nothing seen (the world's arrays took the value of the part before: not clean) |
 | no world depth pre-pass (`vr_world_prepass 0`, new) | 15.78 vs 18.03, then 17.39 vs 17.28, 18.61 vs 17.22 | - | - | **no gain** over three launches (first launch's -2.2 was the gibs' random cuts): not in the preset |
+| (qworld) retro textures + retro lighting on (`vr_retro 1; vr_retrolight 1`, a fresh install's defaults), the world's unlit decal-retro twin (new) | 28.91 vs his config's (both 0) 13.28 | 98.7% vs 2.6% | 296 vs 189 | **retro costs ~15 ms here**: Standalone now sets `vr_retro 0`, `vr_retrolight 0` (his own Quest config's) |
+| (qworld) the same, the old lit "world decal retro" program (`vr_gl_world_unlit 0` restores it) | 39.07 vs 28.91 | 98.9% | 211 | **-10.2 ms**: a retro blood mark no longer sends the world to the lights' loop (`GL_WorldUnlitDecalRetroProgram`) |
+| (qworld) light contrast 2.5 as `x*x*sqrt(x)`, decals read member by member (old: probes `QVR_PROBE_OLDPOW,OLDDECAL`) | retro off 14.11 vs 14.22; retro on 28.91 vs 29.69 | 9.9% vs 10.0% | 213 | -0.1 / -0.8 ms: kept (exact) |
+| (qworld) colours and light terms at mediump (`vr_gl_mediump 1`; world alone: probe `QVR_PROBE_MPNOALIAS`) | 17.20 (world alone 17.09) vs 14.11; launch 1: 17.11 vs 15.61 | 31.9% | 215 | **+3 ms worse** on Adreno (two launches): default 0 |
 
 Counts (PC mock, `-glescompat +vr_standalone_preset 0`, `vr_gl_passes`): 240 draws a frame, 88 of them alias (48
 batches, 290 instances, 72k alias triangles both eyes); the Quest's own frame 192-244 draws. Gibs 76 + 76 + 12
