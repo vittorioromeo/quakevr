@@ -746,7 +746,7 @@ constexpr int aroundTurns = 15;
 // How the thumb holds: wrapped round (a grip, a handle), along the top (swung up and away: a hotspot's Thumb on Top), or
 // outside what the palm holds (In the Palm: a rock, a brick; any turn, never tucked between the palm and it; Wide: the
 // wide turns too); (ropes12) round a bar the other way from the fingers (Around: the usual turns and the opposed ones);
-// (ropes13) along a bar's side (Along: the usual and the wide turns, the one lying most along the bar on it).
+// (ropes13) along a bar's side (Along: every turn, the one lying most along the bar, on its surface).
 enum class ThumbStyle
 {
     Wrap,
@@ -776,7 +776,7 @@ enum class ThumbStyle
 {
     if(i >= aroundTurns)
     {
-        return style == ThumbStyle::Around;
+        return style == ThumbStyle::Around || style == ThumbStyle::Along; // (ropes13: Along tries every turn)
     }
     if(i >= wideTurns)
     {
@@ -879,10 +879,14 @@ void chooseThumb(const FingerStop (&tried)[thumbTurnCount], const bool (&tucked)
 }
 
 // (ropes13) Along: how much each turn's thumb, closed to its stop, lies along the bar (the held shape's z axis): its
-// base-to-tip way's share along the axis (0 across it .. 1 along it); one resting on the bar (met) gets alongMet more.
+// base-to-tip way's share along the axis (0 across it .. 1 along it): along it (alongShare at least) first, then the
+// nearest its middle joint and tip to the bar's surface (alongGapCost a hand unit off it: resting on its side, not held
+// up in the air beside it), then the most along; one met gets alongMet more.
+constexpr float alongShare = 0.6f;
+constexpr float alongGapCost = 0.12f;
 void alongValues(const handrig::Pose& pose, const Target& target, const FingerStop (&thumbs)[thumbTurnCount], float (&out)[thumbTurnCount])
 {
-    for(int i = 0; i < aroundTurns; i++)
+    for(int i = 0; i < thumbTurnCount; i++)
     {
         handrig::Pose turned = pose;
         turned.metacarpal = thumbQuat(thumbTurns[i]);
@@ -890,7 +894,9 @@ void alongValues(const handrig::Pose& pose, const Target& target, const FingerSt
         fingerPoints(turned, handrig::Thumb, thumbs[i].stop, t);
         const glm::vec3 a{target.rigToReal * glm::vec4{t[0], 1.f}}, b{target.rigToReal * glm::vec4{t[3], 1.f}};
         const float len = glm::length(b - a);
-        out[i] = len > 1e-4f ? za::fabs(b.z - a.z) / len : 0.f;
+        const float gap = 0.5f * (za::fmax(nearest(target, t[2], 4.f), 0.f) + za::fmax(nearest(target, t[3], 4.f), 0.f));
+        const float share = len > 1e-4f ? za::fabs(b.z - a.z) / len : 0.f;
+        out[i] = (share >= alongShare ? 1.f : 0.f) + 0.3f * share - alongGapCost * gap;
     }
 }
 
