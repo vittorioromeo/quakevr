@@ -10270,3 +10270,23 @@ ropes8d's open bug and ropes8c's leftovers. ROPES.md "Poles".
   in the pole at every turn (0.52); the grasp's cylinder 0.3 fatter than the pole (0.69: not monotonic; next, the
   solve's stops per finger with vr_debug_grasp 2 against the drawn tips). rope_climb_test pole_metal (VR) 10/0.
 - **Not done (budget):** 3 (rope_pump still 238 vs 250, unchanged here), 4 (props vs poles).
+
+## ropes9: flat W/S swing looking level; physics props meet the poles (agent/ropes9, 2026-11-23)
+
+His correction 2026-11-23 and ropes8c's open props item. ROPES.md "Climbing (flat-screen)", "Poles", "Tests".
+- **Keys (1):** `vr_flat_rope_keys` 0 (default, new): past `vr_flat_rope_climb_pitch` (30, new tunable, Rope Climb Pitch)
+  up or down, forward climbs up and back down; nearer level forward / back pump the swing along the view, eased over 5
+  degrees each side (`flatRopeKeys` in vr_climb.cpp: a climb share and the forward / strafe pump shares, used by both
+  flatRopeFrame and the rider's pump); the strafe keys always pump; a pole (`climbrope::pole`) only climbs. 1 the old
+  look keys (unchanged), 2 ropes8a's (forward always climbs). Decision: pitched either way, W is up and S down (ropes8a's
+  sense kept); mode 1 keeps looking down + W = down.
+- **Props vs poles (2):** not the pole boxes (ropes8c's dead end) but a Box3D capsule per pole along its drawn line
+  (`syncPoles` after the edict sync, `climbrope::poleLines`): static with the world's category and mask (props and
+  corpses; Box3D's kinematic player/monster bodies never meet it), so a thrown crate's continuous collision sees the
+  thin pole; kinematic while its entity moves it, static again after a still second. Chains not done (they swing: a
+  kinematic capsule per link each frame; not cheap).
+- **Tests:** rope_flat_test.sh 8/0 (new: forward looking level pumps to 299 u/s in 4.9 s, the feet 0.0 -> 0.8; climbed
+  up looking up, down looking down), pole 6/0 (climbed looking level), chain 5/0 (climbed looking up from still: pumped
+  first, it clinked 0 times climbing; not looked into), strung 1/1 pass; vr_pole_solid_test 14/0 (new: a crate dropped
+  30 over the level pole rests on it, bottom 89.5 = top 89.5; one thrown at 400 u/s at an upright pole stops 14.0 short
+  of its axis and comes back at 55 u/s); vr_rope_test 16/0; rope_climb_test all but rope_pump (238 vs 250, known).
