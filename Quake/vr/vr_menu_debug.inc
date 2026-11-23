@@ -524,6 +524,15 @@ za::Vector<Item> pageDebugProfiling()
         command("One Render Pass an Eye (Quest)", "vr_gl_one_pass 1")
             .help("vr_gl_one_pass 1: the brush models drawn from the cull's commands, the arrays' merges dispatched before "
                   "the eye's clear (the default); 2 the same, never merged (twice the draws)."),
+        command("LRZ Probe: After the Clear", "vr_debug_lrz_probe 1")
+            .help("vr_debug_lrz_probe n: at point n of each eye's scene (1 after the clear, 2 after the lenses' hidden "
+                  "area, 3 after the opaque world and models, 4 after the sky, 5 at the end) a near magenta quad, then a "
+                  "green one behind it that a tiler's early depth rejection kills whole (ovrgpuprofiler -t: LRZ Pixels "
+                  "Killed). It covers the middle of the view while on."),
+        command("LRZ Probe: Behind the Scene", "vr_debug_lrz_probe -5")
+            .help("vr_debug_lrz_probe -n: at point n one quad far behind the scene (the picture kept): killed where the "
+                  "scene's own draws wrote the low-resolution depth."),
+        command("LRZ Probe: Off", "vr_debug_lrz_probe 0").help("vr_debug_lrz_probe 0: no probe quads."),
         command("Hide Gibs, Heads and Limbs", "vr_debug_hide_models \"gib,h_,#limb\"")
             .help("vr_debug_hide_models <parts>: alias models whose name holds any of the comma-separated parts are not "
                   "drawn in the eyes (gib, h_ and #limb: the gore). A cost found by leaving things out (the Quest's GPU "
