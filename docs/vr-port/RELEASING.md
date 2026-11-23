@@ -129,6 +129,11 @@ installs that prerelease; another build points at it with `QVR_SETUP_FEED` or `q
 update notice still reads Latest's feed only (a prerelease game is told about the next final release). GitHub notifies
 the repository's release watchers of a published prerelease too.
 
+**The Quest APK** (from 1.2.0-beta2): build it first from the same commit (`Android/build_native.sh`,
+`Android/package_apk.sh`, then `Android/check_apk.sh` must pass), then pass `-Apk build-android\apk\QuakeVR.apk`: it is
+attached as `QuakeVR.apk` and becomes latest.json's `quest` component, which Setup's Meta Quest target downloads
+(Installer/README.md, "Quest").
+
 `-NoBranchPush` (prereleases only) never pushes the branch: the tag, pushed alone, carries its commit (the version
 commit stays local). A **rehearsal** of the whole path (done 2026-10-10: build, checks, tag, upload, online check) from
 a kit worktree's branch, then removed:
