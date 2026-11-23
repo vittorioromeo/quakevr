@@ -11268,3 +11268,23 @@ replaced the rest is docs/vr-port/LAUNCH_FLAGS.md (every new flag gets a row the
   `-glescompat -glesdebug verbose,keep:views,bogus` kept views and named the unknown word; xr_runtime_test.sh 1,11
   (user presence with `-unattended`) 0 failed; installer SelfTest 60/60; mp_test.py suite --only mp_coop, mp_version,
   mp_campfollow, mp_lookup (results in the report).
+
+## qfovcrash: Quest Foveation switched mid-game no longer crashes (agent/qfovcrash, 2026-11-23)
+
+- **Cause**: the eyes' path (vr_stereo.cpp: straight in, form 2, with foveation; the post-process without) was read
+  from `vr_xr_foveation` itself, but a level set mid-game (the menu, the console: after the frame began) reaches the
+  images only at the next frame's `beginFrame` (new eye swapchains, C4p). So High -> Off drew one frame through the
+  post-process (late acquire, the image's invalidate) into the still foveated images: C4p's crash in xrEndFrame
+  (SIGSEGV 0x30 in libGLESv2_adreno under libvrapiimpl). qfov4's level and dynamic changes stayed within form 2, so they
+  never met it; `vr_xr_direct -1` (the forced post-process path) did.
+- **Fix**: `Backend::eyeImagesFoveated()` (OpenXR: `QuestExtensions::foveates`, a level over 0 applied to the current
+  eye swapchains) decides the path; a switch takes effect a frame later, no restart. `vr_xr_foveation_probe` 4 keeps
+  the old check (the crash's A/B).
+- **Headset** (Quest 3, one block 18:26-18:31, e1m1, his config, 0.65): probe 4, High then Off: the crash at once (same
+  signature). Fixed, 2 launches each with High <-> Off x3, Low <-> High x3, `vr_xr_direct -1` with Off <-> High x3, and
+  the menu open with Off <-> High x3: no crash, each switch's new swapchains and path logged. Eyeshots after each switch
+  (24 an eye, pulled): the right eye the same picture through both paths (luma 38.33 in all 18 non-menu shots), the menu
+  shots whole. Some left-eye shots are filled by a near flesh surface in both paths alike (most likely the left hand,
+  the controllers lying by the headset; qlrz's "left eye filled" looks the same): not the switch.
+- PC: unaffected (`VR_Android()` only); stereo_targets_test 12/0, e1m1 smoke. APK 0 warnings, check_apk 20/0. Beta2's
+  APK and the shipped progs.dat put back. Scripts (not committed): `scratch/qfc_*`.

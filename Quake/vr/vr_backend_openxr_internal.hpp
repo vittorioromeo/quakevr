@@ -122,6 +122,11 @@ struct QuestExtensions
     // C4p: vr_xr_foveation changed while the eye swapchains are in use: the runtime crashed in xrEndFrame after the
     // update (QUEST_PLAN.md 6v), so the backend makes new swapchains first and the level goes on them before their use.
     bool wantNewEyes{false};
+    // These eye swapchains carry a level over 0 (applied: the frame's own; vr_xr_foveation may have changed since).
+    [[nodiscard]] bool foveates(XrSwapchain left, XrSwapchain right) const
+    {
+        return foveationApplied >= 1.f && left != XR_NULL_HANDLE && foveated[0] == left && foveated[1] == right;
+    }
 
     // Requests `offered` when it is one of these (Android): appended to `enabled`. Off Android, nothing.
     void want(const char* offered, za::Vector<const char*>& enabled);
@@ -299,6 +304,10 @@ public:
     [[nodiscard]] unsigned eyeImagesSerial() const override
     {
         return eyeSwapchainsMade;
+    }
+    [[nodiscard]] bool eyeImagesFoveated() const override
+    {
+        return quest.foveates(swapchains[0].handle, swapchains[1].handle);
     }
 
     void releaseEyeImage(int eye) override;
