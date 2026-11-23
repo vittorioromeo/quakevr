@@ -1,9 +1,0 @@
-# monsters_unaware: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title Three grunts facing away from you, a shotgun in your hand
-map vrtesthall
-start 0 -288 25 90
-god
-give "Shotgun" main
-spawn "Grunt" 300 -80 0 0
-spawn "Grunt" 340 0 0 0
-spawn "Grunt" 300 80 0 0
