@@ -783,6 +783,16 @@ void agpsLocalDir(const float* w, const Bindings& b) // (VR_AGP_WriteDir(VR_AGP_
 // its globals (vr_agp_*, vr_agk_*; vr_agp_waist) and: `p` its weapon (world: reaching, or fists), `pL` its left one, `fl`
 // the flags byte + 256 x the off-hand block's byte + 65536 with the body's block, `bytes` the IK stretch's byte + 256 x
 // the take's, `gx`, `gy`, `gz` the gun's axes. FALSE: not written (vr_agposesend 0, or a global missing): QC writes it.
+// vr_agpose_native 2's comparison (vr_builtins_agpose.inc): a pose's agposesend arguments (its 3 entities' numbers, fl,
+// bytes, gx, gy, gz) recorded; `capture` 1 records only (QuakeC's run: nothing sent), 2 records and sends.
+struct AgPoseSendCapture
+{
+    int capture{0};
+    bool got{false};
+    float args[14]{};
+};
+AgPoseSendCapture agpsCapture;
+
 void PF_agposesend()
 {
     const Bindings& b = bindings();
@@ -795,6 +805,26 @@ void PF_agposesend()
     {
         if(!g)
         {
+            return;
+        }
+    }
+    if(agpsCapture.capture)
+    {
+        float* a = agpsCapture.args;
+        for(int i = 0; i < 3; i++)
+        {
+            a[i] = static_cast<float>(G_EDICTNUM(OFS_PARM0 + 3 * i));
+        }
+        a[3] = G_FLOAT(OFS_PARM3);
+        a[4] = G_FLOAT(OFS_PARM4);
+        for(int i = 0; i < 9; i++)
+        {
+            a[5 + i] = G_FLOAT(OFS_PARM5 + i);
+        }
+        agpsCapture.got = true;
+        if(agpsCapture.capture == 1)
+        {
+            G_FLOAT(OFS_RETURN) = 1.f;
             return;
         }
     }

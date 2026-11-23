@@ -281,6 +281,10 @@ vector vr_ag_wx_front;
 // `pL` its left one, `fl` the flags byte + 256 x the off-hand block's byte + 65536 with the body's block, `bytes` the IK
 // stretch's byte + 256 x the take's, the gun's axes. FALSE: not written (vr_agposesend 0): QC writes it.
 float(entity g, entity p, entity pL, float fl, float bytes, vector gx, vector gy, vector gz) agposesend = #0;
+// agpose: armed humanoid `g`'s whole pose this server frame (VR_AGP_Pose, weapon `p`) by the engine, the same results as
+// VR_AGP_PoseQC (vr_agpose_native; vr_builtins_agpose.inc). FALSE: not done (vr_agpose_native 0, a case it leaves to
+// QuakeC: the Pose Studio's, the Grip Editor's, the toolgun's ghost, debug prints): VR_AGP_PoseQC does it.
+float(entity g, entity p) agpose = #0;
 // AD sword kind's (VR_ADMELEE_*) blade at share f of the line from the hand to its tip, off that line (shares of its
 // length): x along the line's normal in the blade's plane (the model's +y crossed with the line), y along its +y; z 1
 // if it is curved, else 0 (vr_admelee.cpp admelee::bend; QC VR_Melee_At).

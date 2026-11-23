@@ -36,4 +36,8 @@ enum class Stream : unsigned char
     Count
 };
 [[nodiscard]] float draw01(Stream s); // [0, 1)
+// The server's own stream (random(), VR_ServerRandom) as it is now, and put back (vr_agpose_native 2: a pose run twice,
+// QuakeC's then the engine's, draws the same numbers).
+[[nodiscard]] za::FastNonCryptoRng streamState();
+void setStreamState(const za::FastNonCryptoRng& s);
 }
