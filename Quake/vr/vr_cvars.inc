@@ -613,10 +613,11 @@ QVR_CVAR(vr_android_window, "0", CVAR_NONE)
 QVR_CVAR(vr_xr_unfocused_pause, "1", CVAR_ARCHIVE)
 // The game's volume while vr_xr_unfocused_pause holds it (0 silent .. 1 unchanged), faded over a tenth of a second.
 QVR_CVAR(vr_xr_unfocused_volume, "0", CVAR_ARCHIVE)
-// The headset taken off, where the runtime has a sensor for it (XR_EXT_user_presence: the Steam Frame, SteamVR; from
-// PR #75, by Kasper Olesen): 1 it counts as the runtime's menu does (vr_xr_unfocused's held frame, vr_xr_unfocused_pause's
-// pause) and the controllers' buttons are ignored until it is back on; 0 ignored, the game plays on. vr_debug_head_pose
-// 1 (GPU tests on an unworn headset) ignores it too.
+// The headset taken off, where the runtime has a sensor for it (XR_EXT_user_presence: the Steam Frame, SteamVR, the
+// Quest's runtime; from PR #75, by Kasper Olesen): 1 it counts as the runtime's menu does (vr_xr_unfocused's held frame,
+// vr_xr_unfocused_pause's pause) and the controllers' buttons are ignored until it is back on; 0 ignored, the game plays
+// on. Automated runs ignore it too, whatever this says (nobody wears the headset): vr_debug_head_pose 1 (GPU tests on an
+// unworn headset), the launch flag -vr-unattended (the Quest's unmanned perf runs), a timedemo, vr_fixed_frames 1.
 QVR_CVAR(vr_xr_user_presence, "1", CVAR_ARCHIVE)
 // The runtime asking the game to exit (OpenXR's session EXITING: the player quit it from SteamVR's dashboard, Virtual
 // Desktop's or Meta's menu): 1 the game quits as the console's quit does (the config saved); 0 it plays on flat (1.0.0's

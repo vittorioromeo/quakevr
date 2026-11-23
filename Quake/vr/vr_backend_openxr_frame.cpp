@@ -297,7 +297,20 @@ bool OpenXrBackend::runtimeMenuOpen() const
 
 bool OpenXrBackend::userPresent() const
 {
-    return !userAbsent || vr_xr_user_presence.value == 0.f || vr_debug_head_pose.value != 0.f;
+    return !userAbsent || presenceIgnored() != nullptr;
+}
+
+const char* OpenXrBackend::presenceIgnored() const
+{
+    // (An unmanned run on a headset lying on a desk, which the runtime may well report unworn, must never pause: the
+    // player's setting stays as it is, these runs are told apart by what only they do. Only asked while the headset
+    // is off: the command line's scan costs nothing then.)
+    return vr_xr_user_presence.value == 0.f       ? "vr_xr_user_presence 0"
+           : vr_debug_head_pose.value != 0.f      ? "vr_debug_head_pose 1"
+           : COM_CheckParm("-vr-unattended") != 0 ? "-vr-unattended, an unmanned run"
+           : cls.timedemo                         ? "a timedemo"
+           : vr_fixed_frames.value != 0.f         ? "a scripted run, vr_fixed_frames 1"
+                                                  : nullptr;
 }
 
 const char* OpenXrBackend::systemName() const

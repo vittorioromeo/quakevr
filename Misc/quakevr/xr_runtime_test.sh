@@ -499,13 +499,32 @@ if want 11; then
 # offers the extension, its system the sensor; the headset off for xrWaitFrame 200-300 (FAKEXR_UNWORN): a single player
 # game paused as by the runtime's menu, the frames held, resumed once it is back on (the run ends there: -QuitOn);
 # vr_xr_user_presence 0: the game plays on (ends at its own quit, wait1000 after the map: the headset back on by then).
+# The paused run is a player's session: vr_fixed_frames 0 (a scripted run's vr_fixed_frames 1 ignores the sensor).
+# Unmanned runs (a headset on a desk) play on with vr_xr_user_presence 1: a scripted test (run.sh's vr_fixed_frames 1)
+# and -vr-unattended (the Quest's perf scripts) with vr_fixed_frames 0; each logs why it ignored the sensor.
 LOG="$OUT/presence_fake.log"; : > "$LOG"
 export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_HEADSET=fakexr_steam FAKEXR_EXTENSIONS=XR_EXT_user_presence FAKEXR_UNWORN=200-300
 unset FAKEXR_FAIL_INSTANCE FAKEXR_D3D11 FAKEXR_EYE FAKEXR_UNFOCUS FAKEXR_REJECT_PATH FAKEXR_PROFILE
 P="vr_xr_test 1;vr_xr_runtime 0;vr_xr_runtime_fallback 0;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe;vr_xr_unfocused_pause 1;vr_xr_unfocused 1"
-bash "$KIT/run.sh" "$NAME" -Script "$P;vr_xr_user_presence 1;vr_backend openxr;map start;wait3000;echo presence: timed out;toggleconsole;quit" \
+bash "$KIT/run.sh" "$NAME" -Script "$P;vr_fixed_frames 0;vr_xr_user_presence 1;vr_backend openxr;map start;wait3000;echo presence: timed out;toggleconsole;quit" \
     -Full -QuitOn "VR: the game resumed|presence: timed out" -Filter "VR: the|session lost|presence" > "$OUT/presence_on.log"
 cp -f "$XRLOG" "$OUT/presence_on_openxr.txt"
+bash "$KIT/run.sh" "$NAME" -Script "$P;vr_xr_user_presence 1;vr_backend openxr;map start;wait1000;toggleconsole;quit" \
+    -Full -Filter "VR: the|session lost|presence" > "$OUT/presence_scripted.log"
+cp -f "$XRLOG" "$OUT/presence_scripted_openxr.txt"
+bash "$KIT/run.sh" "$NAME" -Script "$P;vr_fixed_frames 0;vr_xr_user_presence 1;vr_backend openxr;map start;wait1000;toggleconsole;quit" \
+    -ExtraArgs "-vr-unattended" -Full -Filter "VR: the|session lost|presence" > "$OUT/presence_unattended.log"
+cp -f "$XRLOG" "$OUT/presence_unattended_openxr.txt"
+for run in scripted:"a scripted run, vr_fixed_frames 1" unattended:"-vr-unattended, an unmanned run"; do
+    tag=${run%%:*} why=${run#*:}
+    check "$OUT/presence_${tag}.log" "user presence: $why: ignored, the game plays on" \
+        "VR: the headset was taken off, ignored \($why\)"
+    if grep -q "VR: the game paused\|VR: the headset was taken off$" "$OUT/presence_${tag}.log"; then
+        echo "FAIL: user presence: $why: paused"; fails=$((fails + 1))
+    fi
+done
+check "$OUT/presence_unattended_openxr.txt" "user presence: -vr-unattended logged at the start" \
+    "OpenXR: user presence \(XR_EXT_user_presence\): on: .*; ignored for this run \(-vr-unattended\)"
 bash "$KIT/run.sh" "$NAME" -Script "$P;vr_xr_user_presence 0;vr_backend openxr;map start;wait1000;toggleconsole;quit" \
     -Full -Filter "VR: the|session lost|presence" > "$OUT/presence_off.log"
 cp -f "$XRLOG" "$OUT/presence_off_openxr.txt"
@@ -518,7 +537,7 @@ check "$OUT/presence_on_openxr.txt" "user presence: the frames held while off" "
 if grep -q "^presence: timed out" "$OUT/presence_on.log"; then echo "FAIL: user presence: timed out"; fails=$((fails + 1)); fi
 check "$OUT/presence_off_openxr.txt" "vr_xr_user_presence 0: the event logged, ignored" \
     "user presence: the headset taken off \(ignored: vr_xr_user_presence 0" "user presence: the headset back on \(0 frames held"
-if grep -q "VR: the game paused\|VR: the headset was taken off" "$OUT/presence_off.log"; then echo "FAIL: vr_xr_user_presence 0: paused"; fails=$((fails + 1))
+if grep -q "VR: the game paused\|VR: the headset was taken off$" "$OUT/presence_off.log"; then echo "FAIL: vr_xr_user_presence 0: paused"; fails=$((fails + 1))
 else echo "PASS: vr_xr_user_presence 0: the game plays on"; fi
 fi
 echo "xr_runtime_test: $fails failed"
