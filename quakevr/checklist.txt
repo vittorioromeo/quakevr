@@ -86,6 +86,8 @@ Flat-screen: swim under water off the bottom and look straight up, then sweep th
 Flat-screen: hold the right mouse button with a knight's sword: your left hand on the blade is palm down with its fingers pointing away from you over the blade, not back at you; letting go it eases off without a sudden flip. {test:flat_parry}
 Flat-screen or VR: Dwell's Crystal Lance, as the spear and as the gun: charge a shot and let it go: the bolt starts at the middle crystal's tip, exactly where the charge's violet light gathered, not off a side prong. {test:dwell_lance_pole}
 Toolgun spawn panel, Weapons, Dwell: only the Rotary Shotgun and the Crystal Lance are listed (Dwell's Rifle is gone), and both still spawn as props with Dwell's look. {test:dwell_items}
+Quest standalone: in a close-up fight with Standalone graphics (Quest Foveation now Low by default), look for blurry or blocky edges of the view, and check the frame rate holds better than before; Quest Foveation Off in VR Settings > Scaling should look the same in the centre. {test:quest_gibfight}
+Quest standalone: change levels a few times and switch Quest Foveation between Off, Low and Medium mid-game: no crash, no black or stretched eye. {test:quest_gibfight}
 
 [1. Dwell]
 Flat-screen or VR: hold fire with Dwell's Crystal Lance: violet sparks gather at the tip, a light grows and a hum rises for about a second; let go early and nothing fires and no cells go; hold until the light pulses and let go: one shot (6 cells), its bolt visible a moment. {test:dwell_lance_pole}
