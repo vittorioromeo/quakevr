@@ -39,6 +39,8 @@ Flat-screen or VR: the poles look like wood (grain along it) and brushed metal (
 Flat-screen or VR: hang under the level rope and the level metal pole (third-person camera in flat play): each hand overhand under it, knuckles up over it, palm on the rope, back of the hand towards you, the arms joined to the shoulders. {test:ropes}
 Flat-screen or VR: climb a vertical rope and a pole (third-person camera in flat play): the hip holsters and their guns stay on the hips in every pose, not sticking out with the thighs. {test:ropes}
 Flat-screen or VR: on a chain in the ropes hall: climbing it clinks now and then; hanging still or just swinging on it is quiet; a shot or a shove on a free chain clinks. {test:ropes}
+Flat-screen or VR: in the ropes hall shoot a hanging chain with the shotgun, the nailgun and an axe or sword blow: each stops at the links with sparks and a metal tink, the chain swings from the hit, and nothing passes through to the wall behind it. {test:ropes}
+Flat-screen or VR: walk into a hanging chain and climb it, shooting from it: your body still pushes through the chain as before, and your own shots and blows aren't stopped by the chain you're holding. {test:ropes}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, and the crystal head glowing violet for a moment after each shot. {test:dwell_lance_pole}
