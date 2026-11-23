@@ -11143,3 +11143,41 @@ Checklist 223 -> 157 lines; no scene retired; details in CHECKLIST_REORG.md, "fo
 - **Tests**: xr_runtime_test.sh section 11: the paused run is a player's session now (`vr_fixed_frames 0`); new runs, an
   unworn fake headset under a scripted run (fixed frames) and under `-vr-unattended` (`vr_fixed_frames 0`), play on and
   log their reason: 8 passed, 0 failed.
+
+## qlrz: why the Quest's LRZ kills nothing: GL_BLEND is always on (branch agent/qlrz, 2026-11-23; the fix's headset block pending)
+
+His ask (qfov4's finding 1): Adreno's low-resolution Z (LRZ, the early rejection of hidden pixels) kills nothing in any path.
+One headset block so far (17:27-17:36; the frozen gib fight, Standalone, 0.65, High foveation straight in; beta2 back after).
+- **The probe** (`vr_debug_lrz_probe`, Debug > Profiling, `stereo::drawLrzProbe`): n > 0 draws at point n of an eye's scene
+  (1 after the clear, 2 after the hidden area, 3 after the opaque world and models, 4 after the sky, 5 at the end) a near
+  opaque quad then one behind it over the middle quarter of the eye (as clean as a draw gets: the vertex colour, no
+  discard, depth tested and written): ~300k pixels an eye that LRZ must kill; n < 0 one quad far behind the scene (the
+  picture kept), killed where the scene's own draws wrote LRZ.
+- **Traces** (`ovrgpuprofiler -t`, "LRZ Pixels Killed" summed over an eye's bins): the probe's second quad is **not killed
+  at points 1, 3 and 5** (0 pixels), nor the far quad at the end (0-32); the same **without clip control**
+  (`-noclipcontrol -glesnoclipcontrol`: OpenGL's depth, LEQUAL, cleared to 1): 0. With the far quad at the end and things
+  left out: no hidden-area mask 64 / 0, no world pre-pass 67 / 0, no entities 0 / 64, no world 0 / 0, no in-tile pass
+  261 / 0, no particles 0 / 0, no invalidate 259 / 143, D32F depth 56 / 0, all of them out (world alone, no pre-pass) 0 / 128.
+  So it is none of the brief's per-draw suspects (reversed depth and clip control, the pre-pass, the hidden area, decals'
+  offset, discards, the sky, particles, the in-tile pass, the depth format): LRZ is dead from the first draw after a full
+  clear, whatever the pass holds: a GL state every draw shares.
+- **The state**: Ironwail's `GL_SetupState` enables `GL_BLEND` once and never disables it; its opaque state is
+  `glBlendFunc(GL_ONE, GL_ZERO)`. Adreno's rule (as freedreno's: a draw that reads the target must not write LRZ, a later
+  draw's LRZ may kill what it blends over) is taken by the driver from the enable, so no depth-writing draw of ours ever
+  wrote LRZ. (`GL_SAMPLE_SHADING` is also on throughout: the second suspect, a probe cvar.)
+- **The candidate fix** (built, on the PC verified, **not yet run on the headset**): `GL_SetState`'s opaque state disables
+  `GL_BLEND` (`vr_gl_opaque_noblend` -1: under OpenGL ES; 1 always; 0 Ironwail's; gl_vidsdl.c `GL_SetStateEx`). The three
+  draws that blend after an opaque `GL_SetState` (the wounds' bakes: reverse-subtract and GL_MAX, vr_wounds.cpp) keep it
+  (`GL_OpaqueBlendKeep`). `vr_gl_sample_shading` 1 (0: never enabled, a probe; on the PC with MSAA 0 changes 8.5% of
+  e1m1's pixels, so it is no default). Debug > Profiling: the two blend rows and the three probe rows.
+- **PC** (Release, mock): e1m1's start, `vr_gl_opaque_noblend` 0 vs 1: 0 of 518,400 pixels differ (0 vs 0 again: 0). The
+  gib fight under `-glescompat +vr_standalone_preset 0`, a run per setting: 0 vs 1 3.64% of pixels differ at all (largest
+  15 levels), 0.02% by more than 8; 0 vs 0 again 2.98% (largest 18), 0.08%: within the scene's run-to-run noise.
+- **Found on the way**: switching from the foveated straight-in path to the post-process path mid-game (`vr_xr_direct
+  -1; vr_xr_foveation 0` after `vr_xr_foveation 3`) crashed in libGLESv2_adreno (SIGSEGV 0x30, twice, also without clip
+  control), as questperf's form 2 crash; whether the menu's Quest Foveation Off after High does the same is in block 2's
+  script, not yet run.
+- **Left** (block 2, scripts ready in scratch: `qlrz_block2a.sh`, `qlrz_block2b.sh`): the trace that confirms the kills
+  with blending off (and, if not, sample shading off), eyeshots on/off/on, 3 interleaved launches A (0) / B (1) / C (1, no
+  world pre-pass) at 0.65 fixed and with dynres, the Foveation Off check; then QUEST_OPTIMISATIONS's rows and the
+  checklist line. APK built from 1a69f7813 (0 warnings, check_apk 20/0). Scripts (not committed): `scratch/qlrz_*`.
