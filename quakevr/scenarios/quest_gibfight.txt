@@ -1,0 +1,8 @@
+# quest_gibfight: # see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". qworld (ROUND25.md, "qworld"): the Quest's close-up gib fight on e1m1 (six grunts cut apart in front of you, blood marks on the floor), as the GPU was measured.
+title Quest gib fight: six grunts cut apart close up on e1m1
+map e1m1
+god
+notarget
+cmd setpos 1312 1150 -240 0 270 0
+cmd vr_physics_spawn monster_army 56 -30;vr_physics_spawn monster_army 56 30;vr_physics_spawn monster_army 64 0;vr_physics_spawn monster_army 80 -55;vr_physics_spawn monster_army 80 55;vr_physics_spawn monster_army 90 0
+cmd vr_limb_test 10

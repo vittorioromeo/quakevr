@@ -560,6 +560,10 @@ static int worldLiteBits(void)
     {
         lite |= 2;
     }
+    if(vr_gl_mediump.value != 0.f)
+    {
+        lite |= 1 << 29; // qworld: colours and light terms at medium precision (gl_shaders.c QVR_MP; the PC's mask never keeps it)
+    }
     if(vr_gl_alias_lite.value != 0.f)
     {
         lite |= 256; // C4j: the models' programs take bits 1 and 32 (gl_shaders.c GL_AliasLiteDefines)
@@ -1510,6 +1514,10 @@ constexpr EsPending esPending[] = {
     {"clip control (shadows, reflections, portals need it)", "gl_rmain.c, vr_lighting.cpp, vr_envmap.cpp, vr_portals.cpp", "EXT_clip_control on the Quest [?] (-glesclipcontrol), else a standard-depth path"},
 };
 
+} // namespace
+extern "C" const char* R_WorldSolidProgramName(void); // (r_world.c)
+namespace
+{
 void glesReport_f()
 {
     Con_Printf("GLES compat: %s%s\n", glsafe.esCompat ? "on (-glescompat)" : "off (start with -glescompat)",
@@ -1535,6 +1543,8 @@ void glesReport_f()
     {
         Con_Printf("  %s (%s): %s\n", p.what, p.where, p.es);
     }
+    Con_Printf("vr_gles_report: the opaque world drew last with \"%s\"; vr_retro %g, vr_retrolight %g\n",
+        R_WorldSolidProgramName(), vr_retro.value, vr_retrolight.value); // (qworld)
     Con_Printf("vr_gles_report: %d pending, %d shader errors\n", static_cast<int>(sizeof(esPending) / sizeof(esPending[0])),
         glsafe.esShaderErrors);
 }

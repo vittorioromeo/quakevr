@@ -156,6 +156,11 @@ constexpr presetcore::Row standaloneRows[] = {
     {&vr_heat_haze,                   {"0",      "0",      "0"}},
     {&vr_water_reflections,           {"0",      "0",      "0"}},     // (the envmap)
     {&vr_rim_light,                   {"0",      "0",      "0"}},     // (the envmap)
+    // Retro textures and retro lighting off (his own Quest config's; a fresh install had both on): the frozen close-up
+    // gib fight at 0.65 cost 28.9 ms of the Quest 3's GPU with them on, 13.3 off (qworld, QUEST_OPTIMISATIONS.md
+    // "Quest gib fight"); with them on, the first retro blood mark also sent the world to its lit program (39.1 ms, fixed)
+    {&vr_retro,                       {"0",      "0",      "0"}},
+    {&vr_retrolight,                  {"0",      "0",      "0"}},
     // qtune: your own models (~2.5 ms of the gib fight) by the plain / skin form: no normal maps, reflections, rim light
     {&vr_rig_plain,                   {"1",      "1",      "1"}},
     // Lights from things (each one a cluster entry every pixel near it walks)
