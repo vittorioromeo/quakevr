@@ -19,13 +19,15 @@
 // and option; the console stays seat 1's; scr_splitmenu 1 gives seat 2 the full menu; Leave Seat. Verdict
 // "seat_menu_test: N passed, M failed".
 #include "vr_seat.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Math/Fabs.hpp"
 
 #include "vr_engine.hpp"
 #include "vr_testkit.hpp"
 
 #include <SDL.h>
-#include <cmath>
-#include <cstring>
 
 cvar_t scr_splitmenu = {"scr_splitmenu", "0", CVAR_ARCHIVE};   // 0: seats 2-4 open their seat menu; 1: the full menu
 cvar_t scr_splitpause = {"scr_splitpause", "1", CVAR_ARCHIVE}; // a menu holds the game: 0 never, 1 coop, 2 coop and dm
@@ -322,7 +324,7 @@ extern "C" void VR_SeatMenuDraw()
         const int h = holdingSeat();
         const char* line = h > 0 ? va("paused: seat %d's menu", h + 1) : "paused";
         GL_SetCanvas(CANVAS_MENU);
-        M_PrintWhite(160 - 4 * static_cast<int>(strlen(line)), 8, line);
+        M_PrintWhite(160 - 4 * static_cast<int>(ZA_STRLEN(line)), 8, line);
     }
 }
 
@@ -546,10 +548,10 @@ void testStage()
             next();
             return;
         case 7:
-            mcheck(std::fabs(m.lookScale - 1.25f) < 0.001f, va("seat 2's look sensitivity up (x%.2f)", static_cast<double>(m.lookScale)));
+            mcheck(za::fabs(m.lookScale - 1.25f) < 0.001f, va("seat 2's look sensitivity up (x%.2f)", static_cast<double>(m.lookScale)));
             {
                 const Scope in(at(1));
-                mcheck(std::fabs(VR_SeatLookScale() - 1.25f) < 0.001f, "the stick's look scale is seat 2's");
+                mcheck(za::fabs(VR_SeatLookScale() - 1.25f) < 0.001f, "the stick's look scale is seat 2's");
             }
             mcheck(VR_SeatLookScale() == 1.f && !VR_SeatInvertLook(), "seat 1's look exactly as before (x1, not inverted)");
             press(seatPad, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
@@ -575,7 +577,7 @@ void testStage()
         case 10:
         {
             edict_t* p = seatPlayer(1);
-            const float d = p ? std::sqrt((p->v.origin[0] - t.origin[0]) * (p->v.origin[0] - t.origin[0]) +
+            const float d = p ? za::sqrt((p->v.origin[0] - t.origin[0]) * (p->v.origin[0] - t.origin[0]) +
                                           (p->v.origin[1] - t.origin[1]) * (p->v.origin[1] - t.origin[1]))
                               : -1.f;
             IN_MockPadAxes(seatPad, 0.f, 0.f, 0.f, 0.f);

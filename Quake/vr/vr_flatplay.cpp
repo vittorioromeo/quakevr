@@ -1843,7 +1843,7 @@ void pollHandKeys(bool inGame)
     {
         const HandKey& k = handKeys[i];
         const bool down = inGame && keyActive(*k.key) && flatKeyHeld(*k.key);
-        if(down && !keyState.keyHands[i])
+        if(down && !keyState().keyHands[i])
         {
             char cmd[32];
             q_snprintf(cmd, sizeof(cmd), "impulse %d\n", k.impulse);
@@ -1853,7 +1853,7 @@ void pollHandKeys(bool inGame)
                 Con_Printf("flatplay: %s: %s\n", k.key->string, k.what);
             }
         }
-        keyState.keyHands[i] = down;
+        keyState().keyHands[i] = down;
     }
 }
 

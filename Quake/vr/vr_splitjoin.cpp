@@ -14,6 +14,8 @@
 // joined pad starts the game; every seat signs on in its own slot driven by its own pad; then a seat leaves and joins
 // again from the screen over the running game. Verdict "split_join_test: N passed, M failed".
 #include "vr_seat.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "vr_flatholster.hpp"
 
 #include "vr_engine.hpp"
@@ -21,7 +23,6 @@
 #include "vr_testkit.hpp"
 
 #include <SDL.h>
-#include <cstring>
 
 namespace qvr::seat
 {
@@ -88,7 +89,7 @@ constexpr int previewX = 236, previewY = 40, previewW = 76; // the layout's pict
 
 [[nodiscard]] bool isDmLevel(const char* name)
 {
-    return !strncmp(name, "dm", 2);
+    return !ZA_STRNCMP(name, "dm", 2);
 }
 
 // The mode's first level: coop e1m1 (or the game's second, its first after "start"), deathmatch the first "dm".
@@ -97,7 +98,7 @@ constexpr int previewX = 236, previewY = 40, previewW = 76; // the layout's pict
     const int n = M_NetLevelCount();
     for(int i = 0; i < n; i++)
     {
-        if(dm ? isDmLevel(M_NetLevelName(i)) : !strcmp(M_NetLevelName(i), "e1m1"))
+        if(dm ? isDmLevel(M_NetLevelName(i)) : !ZA_STRCMP(M_NetLevelName(i), "e1m1"))
         {
             return i;
         }
@@ -481,7 +482,7 @@ void jstage()
             jcheck((deathmatch.value != 0.f) == t.dm && (coop.value != 0.f) == !t.dm && svs.maxclients == maxSeats,
                 va("the game: deathmatch %g, coop %g, maxplayers %d", static_cast<double>(deathmatch.value),
                     static_cast<double>(coop.value), svs.maxclients));
-            jcheck(!strcmp(sv.name, M_NetLevelName(level())), va("on the chosen map (%s)", sv.name));
+            jcheck(!ZA_STRCMP(sv.name, M_NetLevelName(level())), va("on the chosen map (%s)", sv.name));
             bool slots = slotOfSeat(0) == 0;
             for(int s = 1; s < t.seats; s++)
             {
@@ -537,7 +538,7 @@ void jstage()
             const seatkeys_t* k = Key_SeatOf(lastPad + 1);
             const char* up = k->bindings[K_DPAD_UP];
             const char* x = k->bindings[K_XBUTTON];
-            jcheck(up && !strcmp(up, "+flatholsters") && x && x[0],
+            jcheck(up && !ZA_STRCMP(up, "+flatholsters") && x && x[0],
                 va("seat %d's pad has the holster menu (d-pad up: %s) and reload (X: %s)", lastPad + 2, up ? up : "-", x ? x : "-"));
             // the holster menu (the weapon wheel) by the pad: d-pad up held, the look stick pushed right
             IN_MockPadButton(lastPad, SDL_CONTROLLER_BUTTON_DPAD_UP, true);
@@ -631,7 +632,7 @@ void joinTest_f()
 {
     joinTest = JoinTest{};
     joinTest.seats = Cmd_Argc() > 1 ? CLAMP(2, Q_atoi(Cmd_Argv(1)), maxSeats) : 2;
-    joinTest.dm = Cmd_Argc() > 2 && !strcmp(Cmd_Argv(2), "dm");
+    joinTest.dm = Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(2), "dm");
     joinTest.on = true;
     screen = JoinScreen{};
     Con_Printf("split_join_test: started (%d seats, %s)\n", joinTest.seats, joinTest.dm ? "deathmatch" : "coop");
@@ -871,7 +872,7 @@ extern "C" void M_Splitscreen_Draw()
         {
             const int x = i % 2 == 0 ? 16 : 168, y = rowY0 + 2 + (i / 2) * 8;
             const char* name = Key_KeynumToFriendlyString(layout[i].key);
-            name += !strncmp(name, "DPAD ", 5) ? 5 : 0; // (the d-pad's Up, Down, Left, Right)
+            name += !ZA_STRNCMP(name, "DPAD ", 5) ? 5 : 0; // (the d-pad's Up, Down, Left, Right)
             printClipped(x, y, name, 6, true);
             printClipped(x + 56, y, layout[i].label, 12, false);
         }

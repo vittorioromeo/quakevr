@@ -1158,7 +1158,7 @@ void armedPage(Ui& ui)
 void ropePage(Ui& ui)
 {
     const float x0 = pad, x1 = panelWidth - pad;
-    if(!ps.ropeMore)
+    if(!ps().ropeMore)
     {
         sliderRow(ui, Rect{x0, 64.f, x1, 78.f}, "Length", vr_rope_spawn_length, 32.f, 1024.f, 16.f, "%.0f");
         sliderRow(ui, Rect{x0, 80.f, x1, 94.f}, "Thickness", vr_rope_spawn_thickness, 0.5f, 6.f, 0.25f, "%.2f");
@@ -1181,11 +1181,11 @@ void ropePage(Ui& ui)
     if(button(ui, Rect{bar.x0, bar.y0, bar.x0 + 40.f, bar.y1}, "Back", false, 6.f))
     {
         ps().rope = false;
-        ps.ropeMore = false;
+        ps().ropeMore = false;
     }
-    if(button(ui, Rect{bar.x0 + 42.f, bar.y0, bar.x0 + 74.f, bar.y1}, ps.ropeMore ? "< Rope" : "More", false, 6.f))
+    if(button(ui, Rect{bar.x0 + 42.f, bar.y0, bar.x0 + 74.f, bar.y1}, ps().ropeMore ? "< Rope" : "More", false, 6.f))
     {
-        ps.ropeMore = !ps.ropeMore;
+        ps().ropeMore = !ps().ropeMore;
     }
     spawnCommands(ui, bar);
 }

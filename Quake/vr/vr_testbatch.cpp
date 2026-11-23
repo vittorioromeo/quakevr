@@ -248,7 +248,7 @@ struct ReParser
         return static_cast<int>(re.nodes.size()) - 1;
     }
 
-    void classEscape(ReClass& cl, char e)
+    void classEscape(ReClass& rc, char e)
     {
         const bool neg = e == 'D' || e == 'S' || e == 'W';
         const char k = static_cast<char>(reLower(static_cast<unsigned char>(e)));
@@ -258,7 +258,7 @@ struct ReParser
             const bool s = i == ' ' || i == '\t' || i == '\r' || i == '\n' || i == '\f' || i == '\v';
             const bool w = d || (i >= 'a' && i <= 'z') || (i >= 'A' && i <= 'Z') || i == '_';
             const bool hit = k == 'd' ? d : k == 's' ? s : w;
-            cl.in[i] = cl.in[i] || (hit != neg);
+            rc.in[i] = rc.in[i] || (hit != neg);
         }
     }
 
@@ -363,15 +363,15 @@ struct ReParser
                 return node(ReNode::Empty);
             }
             p++;
-            ReClass& cl = re.classes[ci];
+            ReClass& rc = re.classes[ci];
             for(int i = 'a'; i <= 'z'; i++) // (case-insensitive: a letter in either case is both)
             {
-                const bool either = cl.in[i] || cl.in[i - 'a' + 'A'];
-                cl.in[i] = cl.in[i - 'a' + 'A'] = either;
+                const bool either = rc.in[i] || rc.in[i - 'a' + 'A'];
+                rc.in[i] = rc.in[i - 'a' + 'A'] = either;
             }
             if(neg)
             {
-                for(bool& b : cl.in)
+                for(bool& b : rc.in)
                 {
                     b = !b;
                 }

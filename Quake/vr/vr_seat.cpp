@@ -1,6 +1,8 @@
 // vr_seat.cpp -- splitscreen seats (vr_seat.hpp; docs/vr-port/SPLITSCREEN.md): the seats, the current one, the
 // `seat` command, and vr_seat_test (two seats' state kept apart).
 #include "vr_seat.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
 
 #include "vr_avatar.hpp"
 #include "vr_engine.hpp"
@@ -18,7 +20,6 @@
 #include "vr_throw.hpp"
 #include "vr_visor.hpp"
 
-#include <cstring>
 
 #include <SDL.h>
 
@@ -194,8 +195,8 @@ void testBindings()
         q_strlcpy(test.saved[i], b ? b : "", sizeof(test.saved[i]));
     }
     run("seat 2 bind YBUTTON \"+seattest\"");
-    check(k1->bindings[K_YBUTTON] && !strcmp(k1->bindings[K_YBUTTON], "+seattest") &&
-              (test.had[0] ? !strcmp(k0->bindings[K_YBUTTON], test.saved[0]) : !k0->bindings[K_YBUTTON]),
+    check(k1->bindings[K_YBUTTON] && !ZA_STRCMP(k1->bindings[K_YBUTTON], "+seattest") &&
+              (test.had[0] ? !ZA_STRCMP(k0->bindings[K_YBUTTON], test.saved[0]) : !k0->bindings[K_YBUTTON]),
           "seat 2 bind YBUTTON: seat 1's binding set, seat 0's as it was");
     run("bind YBUTTON \"+seattest\"");
     run("bind XBUTTON \"+seattest\"");
@@ -205,7 +206,7 @@ void testBindings()
 
     Key_SeatCopyBindings(2, 0);
     check(Key_SeatHasBindings(2) && k2->bindings[K_XBUTTON] && k2->bindings[K_XBUTTON] != k0->bindings[K_XBUTTON] &&
-              !strcmp(k2->bindings[K_XBUTTON], k0->bindings[K_XBUTTON]),
+              !ZA_STRCMP(k2->bindings[K_XBUTTON], k0->bindings[K_XBUTTON]),
           "a copy of seat 0's bindings: the same text, seat 2's own strings");
     run("seat 3 unbind XBUTTON");
     check(!k2->bindings[K_XBUTTON] && k0->bindings[K_XBUTTON], "unbind as seat 3: seat 0's binding kept");
@@ -349,8 +350,8 @@ void testViewHud()
     {
         const Scope in1(s1);
         SCR_CenterPrint("seat two\nsays hello");
-        check(std::strcmp(s1.hud.centerstring, "seat two\nsays hello") == 0 && s1.hud.center_lines == 2 &&
-                  std::strcmp(s0.hud.centerstring, hud0.centerstring) == 0 && s0.hud.center_lines == hud0.center_lines,
+        check(ZA_STRCMP(s1.hud.centerstring, "seat two\nsays hello") == 0 && s1.hud.center_lines == 2 &&
+                  ZA_STRCMP(s0.hud.centerstring, hud0.centerstring) == 0 && s0.hud.center_lines == hud0.center_lines,
               "a centre print in seat 1: seat 1's text and lines, seat 0's unchanged");
         check(s1.hud.centertime_off > 0.f && s0.hud.centertime_off == hud0.centertime_off, "its time is seat 1's alone");
         SCR_ClearCenterString();
@@ -979,7 +980,7 @@ void applyPadDefaults()
     for(const qvr::seat::PadAction& d : padDefaults)
     {
         const char* b = Key_Seat()->bindings[d.key];
-        if(!b || !b[0] || (d.stock && !strcmp(b, d.stock)))
+        if(!b || !b[0] || (d.stock && !ZA_STRCMP(b, d.stock)))
         {
             Key_SetBinding(d.key, d.command);
         }
@@ -989,7 +990,7 @@ void applyPadDefaults()
 
 const qvr::seat::PadAction* qvr::seat::padLayout(int& count)
 {
-    count = static_cast<int>(std::size(padDefaults));
+    count = static_cast<int>(za::getArraySize(padDefaults));
     return padDefaults;
 }
 

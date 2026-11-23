@@ -11,6 +11,7 @@
 // Phase 7 part 2: each seat's own drawn body (vr_avatar: posed at its own player); the shared particles fed once per
 // event (an explosion every seat reads drawn once, one only a later seat reads drawn too).
 #include "vr_seat.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 
 #include "vr_avatar.hpp"
 #include "vr_blood.hpp"
@@ -28,7 +29,6 @@
 #include "Zancle/Math/Abs.hpp"
 #include "vr_testkit.hpp"
 
-#include <cmath>
 
 namespace qvr::seat
 {
@@ -127,7 +127,7 @@ void finish()
 
 [[nodiscard]] float flatDistance(const vec3_t a, const vec3_t b)
 {
-    return std::sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]));
+    return za::sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]));
 }
 
 [[nodiscard]] bool overlaps(const vrect_t& a, const vrect_t& b)
@@ -619,7 +619,7 @@ void flashesOff()
             sbb += db * db;
         }
     }
-    return saa > 1e-6 && sbb > 1e-6 ? static_cast<float>(sab / std::sqrt(saa * sbb)) : 0.f;
+    return saa > 1e-6 && sbb > 1e-6 ? static_cast<float>(sab / za::sqrt(saa * sbb)) : 0.f;
 }
 
 [[nodiscard]] float pictureDiff(const byte* a, const byte* b)
