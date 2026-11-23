@@ -51,6 +51,8 @@ Dwell's Rotary Shotgun: four separate round barrels with deep gaps between them,
 Flat-screen or VR: hold fire with Dwell's Crystal Lance: violet sparks gather at the crystal tip, a violet light there grows and a hum rises for about a second; let go early and they fade out smoothly with no shot and no cells spent. {test:dwell_lance_pole}
 Flat-screen or VR: hold Dwell's Crystal Lance's fire until fully charged (the light pulses), then let go: it fires once (6 cells) and its lightning bolt stays visible for a moment instead of flickering. {test:dwell_lance_pole}
 In multiplayer, a player charging Dwell's Crystal Lance shows the gathering sparks, light and hum at his Lance's tip to the others, and they see his bolt when he fires. {test:mp_coop_bot}
+Dwell's Rotary Shotgun in a bright room: its barrels, their front rings and the dark caps closing its holes look dark metal with a soft sheen, not near-white or mirror-shiny. {test:dwell_rotary}
+Dwell's Crystal Lance, Rifle and AD's Shadow Axe and Plasma Gun in hand in a bright room: their dark parts and the dark caps on their cut ends stay dark metal, not pale or near-white. {test:dwell_rotary}
 
 [2. Quoth]
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open {test:hub_start}
