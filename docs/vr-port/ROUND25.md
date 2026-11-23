@@ -10030,3 +10030,23 @@ the damage came in pulses (a shot each 1.4 s). Now:
   Screenshot `qvr-kit/scratch/lancecharge_glow_bolt.png` (charging, then the bolt).
 - Not tested live: another player's charge in a real two-client game (the same message and draw path as yours, the
   copy's weapon from mpavatar).
+
+## mpcampaign: a joining client plays the server's campaign (agent/mpcampaign, 2026-11-23)
+
+flatgreen3's open item (a client kept its own campaign: rogue's start.bsp on a Quake server, "Model *43 not found"; its
+Load Autosave list hid the server's coop saves).
+- **Wire:** `QVR_SVC_CAMPAIGN` 57 (the server's active campaign folder), before `QVR_SVC_PACKAGE` and each
+  svc_serverinfo (connect and every changelevel), read whatever protocol the last server had. `QVR_NET_VERSION` 45.
+- **Client** (vr_mpdownload.cpp parseCampaign, the map package's machinery shared: leave, switch, join again, one rejoin
+  per campaign): Quake and its mission packs switch in place (only which start.bsp is read: VR_CheckSpawnCampaignMap's
+  bookkeeping, the hub's choice untouched); a campaign with folders of its own (dopa, mg1, mg3, AD, Dwell, Quoth) leaves,
+  is selected the selector's way (no map, no prompt; the server's gates are its own) and joins again. A campaign whose
+  data is missing, incomplete or another version, or whose language data is incomplete: refused, console and centre
+  print naming it (Host_EndGame, no Host_Error). Disconnected with no rejoin pending: the client's own campaign back (in
+  place or rebuilt; a game started here meanwhile keeps its own). vr_gamedir.cpp: VR_JoinCampaign, VR_LeaveJoinedCampaign.
+- **Coop saves (2):** listed by the server's campaign while joined (the Load Autosave filter reads the active campaign).
+- **Test aid:** `-campaignmissing <folder>` (that campaign taken for one this game lacks, for joins only).
+- **Tests:** `mp_test.py campfollow` (in the suite) 15/0: a rogue client on Quake's start, Quake's on hipnotic's start,
+  Quoth (rejoin), its own campaign back after each leave, a client lacking Quoth refused. mp_harness's
+  `+vr_campaign_select id1` workaround dropped (the games start as a player's would).
+- Release notes not touched: the beta 2 text says network version 44 (now 45).
