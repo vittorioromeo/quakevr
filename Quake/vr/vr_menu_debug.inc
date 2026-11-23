@@ -293,10 +293,9 @@ za::Vector<Item> pageDebugViews()
         row(opt::vr_nav_debug_range),
         row(opt::vr_hull_holes_show),
         row(opt::vr_hull_holes_show_range),
-        command("Mark a Gap I Got Through", "vr_hull_holes_mark")
-            .help("Stand by (or under) a gap you slipped or fell through that you shouldn't have: prints where you are, "
-                  "the solids, the gaps on the lines through you and the blockers near, and adds them to "
-                  "quakevr/hull_holes_marks.txt for a fix (vr_hull_holes_mark [radius] [note])."),
+        command("Print My Position", "viewpos")
+            .help("Prints where you stand (your eyes' place and angles), to give a worker the place of a gap "
+                  "you got through or anything else to look at."),
         command("Rebuild Gap Blockers Now", "vr_hull_holes_rebuild")
             .help("Finds the gap blockers again with the Close Gaps settings as they are now: saves the game "
                   "(holes_rebuild) and loads it (vr_hull_holes_rebuild)."),

@@ -152,6 +152,15 @@ void(entity p) VR_HUM_Test =
     VR_Test_Check(g1.vr_hum_look == VR_AM_GRUNT * 16 + VR_HUM_CAT_EXPLOSIVE, sprintf("a grunt with a rocket launcher: look %g", g1.vr_hum_look));
     VR_Test_Check(g2.vr_hum_look == VR_AM_ENFORCER * 16 + VR_HUM_CAT_NAILS, sprintf("an enforcer with a nailgun: look %g", g2.vr_hum_look));
     VR_Test_Check(g1.vr_wp_pack != world, "the rocket grunt wears a pack (its look the engine's from its wearer)");
+    // (fbmisc1123) The enforcer's own laser rifle uses cells: blue as any energy weapon (it was its own gun's: undyed).
+    entity g4 = spawn();
+    setorigin(g4, at - hf * 120);
+    g4.weapon = WID_ENFRIFLE;
+    self = g4;
+    monster_vr_enforcer();
+    self = os;
+    VR_Test_Check(g4.vr_hum_look == VR_AM_ENFORCER * 16 + VR_HUM_CAT_ENERGY, sprintf("an enforcer with its laser rifle: look %g (want %g)",
+        g4.vr_hum_look, VR_AM_ENFORCER * 16 + VR_HUM_CAT_ENERGY));
     // His note kellbase1 2026-11-22: an energy weapon's enforcer drops a blue pack (DropBackpack: its body's look + pack).
     entity g3 = spawn();
     setorigin(g3, at - hf * 60 - hr * 60);
