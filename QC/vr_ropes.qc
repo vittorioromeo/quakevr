@@ -15,8 +15,13 @@ void(float chain) VR_Rope_Setup =
     self.solid = SOLID_NOT;
     self.movetype = MOVETYPE_NONE;
     self.modelindex = 0;
+    // (ropes8c) A chain's links stop shots, nails and blows (the engine's SV_Move: vr_climbrope.cpp chainClip, the chain
+    // the trace's entity): it takes damage so that they hit it (sparks off its metal: VR_MaterialOf), never dealt any
+    // (T_DamageImpl). Ropes and poles too (the toolgun styles a rope after this; a pole's own boxes are what is met).
+    self.takedamage = DAMAGE_YES;
     setorigin(self, self.origin);
 };
+// (VR_Rope_IsChain, VR_Rope_Is: vr_util.qc, before combat.qc's and vr_crates.qc's calls.)
 
 /*QUAKED vr_rope (0.55 0.4 0.2) (-4 -4 -4) (4 4 4) PINNED
 Quake VR: a climbable rope, hanging from its origin (put it just under a ceiling or a beam). A physical rope: it swings,

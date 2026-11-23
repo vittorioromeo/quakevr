@@ -2322,9 +2322,9 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     {
         return VR_WallTorch_Shot(targ, inflictor, attacker, damage, isVRMelee); // (its coming off is what the damage does)
     }
-    if(targ.classname == "vr_pole_solid")
+    if(VR_Rope_Is(targ))
     {
-        return FALSE; // (ropes8a: a climbing pole takes no damage; its hit's sparks or splinters are the hit's own)
+        return FALSE; // (ropes8a: a climbing pole takes no damage, ropes8c: nor a chain; its hit's sparks or splinters are the hit's own)
     }
     float oldGibSpeed = vr_gib_speed;
     vr_gib_speed = VR_GibSpeedScale(inflictor, attacker, isVRMelee);

@@ -1601,7 +1601,8 @@ za::Vector<Item> pageDebugTests()
                   "then rope to rope on the swinging row (pumped, let go at the peak, the next caught). Prints PASS/FAIL lines."),
         command("Test the Poles' Solidity", "vr_pole_solid_test")
             .help("vr_pole_solid_test (map vrropes): each pole's collision boxes on it, a player's box and a shot stopped by them, "
-                  "their material (wood, metal), walking under the level pole, the navmesh's obstacles. Prints PASS/FAIL lines."),
+                  "their material (wood, metal), walking under the level pole, the navmesh's obstacles; the chains stopping "
+                  "shots, blows and a nail (sparks) while bodies pass them. Prints PASS/FAIL lines."),
         command("Test the Rope and Chain Sounds", "vr_rope_sound_test")
             .help("vr_rope_sound_test: a rope and a chain made ahead; gripped (the chain's metal grip, the rope's slap; a rope is silent "
                   "to a headset's grip), then pushed swinging (the chain's links clink, rate-limited; the rope stays quiet). Prints PASS/FAIL lines."),

@@ -3650,7 +3650,7 @@ void() spike_touch =
     {
         adjDmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_nail, 9) * vr_proj_factor; // (its part: VR_Proj_Begin)
 
-        if(T_Damage(other, self, self.owner, adjDmg))
+        if(T_Damage(other, self, self.owner, adjDmg) || VR_Rope_Is(other)) // (ropes8c: a chain's or a pole's sparks or splinters)
         {
             spawn_touchblood (adjDmg);
             bleed = TRUE;
@@ -3709,9 +3709,10 @@ void() superspike_touch =
     {
         adjDmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_super_nail, 18) * vr_proj_factor; // (its part: VR_Proj_Begin)
 
-        if(T_Damage(other, self, self.owner, adjDmg))
+        if(T_Damage(other, self, self.owner, adjDmg) || VR_Rope_Is(other)) // (ropes8c: a chain's or a pole's sparks or splinters)
         {
             spawn_touchblood (adjDmg);
+            bleed = VR_Rope_Is(other);
         }
         AD_NailPierce(other); // AD support: AD's Nail Piercer (vr_ad_items.qc)
     }

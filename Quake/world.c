@@ -1821,6 +1821,15 @@ static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, i
 	SV_ClipToLinks ( sv_areanodes, &clip );
 	if (!clip.bodymove && type != MOVE_NOMONSTERS && !clip.trace.allsolid)
 		SV_ClipToLeanBoxes (&clip); // QVR: a flat-screen player's leant upper body (vr/vr_flatmove.cpp)
+	// QVR (ropes8c): a gun's shot, a melee blow or a missile meets the chains' links (vr/vr_climbrope.cpp; not the
+	// grappling hook's, a thrown thing's or a body's move, nor sight lines: those pass, as through a rope)
+	if (type != MOVE_NOMONSTERS && !clip.trace.allsolid && !clip.trace.startsolid &&
+		(type == MOVE_MISSILE || ((clip.hittype & MOVE_HITMODEL) && ((clip.hittype & MOVE_HITMODEL_CLASS) >> MOVE_HITMODEL_CLASS_SHIFT) % 2 == 0)))
+	{
+		trace_t chain = clip.trace;
+		if (VR_ChainShotClip (start, mins, maxs, end, passedict, &chain))
+			clip.trace = chain;
+	}
 
 	return clip.trace;
 }
