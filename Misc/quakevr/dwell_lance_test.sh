@@ -106,9 +106,9 @@ check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "main slide: the r
 #    head (vr_dw_lance_head 0.55), its damage times vr_dw_lance_thrust (1.5).
 MOT=C:/OHWorkspace/qvr-agents/$AGENT/scratch; mkdir -p "$MOT"
 printf '0.000 main 0.20 1.10 0.10 -22 0 0\n0.300 main 0.20 1.10 0.10 -22 0 0\n0.450 main 0.20 1.10 -0.60 -22 0 0\n1.200 main 0.20 1.10 -0.60 -22 0 0\n2.000 main 0.20 1.10 0.10 -22 0 0\n' > "$MOT/dwlance_thrust.txt"
-log=$(bash $KIT/run.sh $AGENT -Script "sv_random_seed 7;map vrmelee-recording;wait60;god;notarget;developer 1;vr_melee_push 0;vr_dummy_attacks 0;setpos 3.3 -31.2 24 0 90 0;wait30;vr_mock_hand main 0.20 1.10 0.10 -22 0 0;vr_ad_test 207;wait30;vr_mock_fingers main 0 1;vr_mock_play $MOT/dwlance_thrust.txt;wait200;echo dwlance-test: done" \
-    -QuitOn "dwlance-test: done" -Timeout 300 -Filter "dwlance: a thrust|melee event|rror|exit=" 2>&1 | tr -d '\r')
-echo "$log" | grep -E "dwlance: a thrust|melee event" | cut -c1-160 | head -3
+log=$(bash $KIT/run.sh $AGENT -Script "sv_random_seed 7;map vrmelee-recording;wait60;god;notarget;developer 1;vr_debug_embed 1;vr_melee_push 0;vr_dummy_attacks 0;setpos 3.3 -31.2 24 0 90 0;wait30;vr_mock_hand main 0.20 1.10 0.10 -22 0 0;vr_ad_test 207;wait30;vr_mock_fingers main 0 1;vr_mock_play $MOT/dwlance_thrust.txt;wait200;echo dwlance-test: done" \
+    -QuitOn "dwlance-test: done" -Timeout 300 -Filter "dwlance: a thrust|melee event|may stay in|NOT STUCK|rror|exit=" 2>&1 | tr -d '\r')
+echo "$log" | grep -E "dwlance: a thrust|melee event|may stay in|NOT STUCK" | cut -c1-200 | head -5
 check $(grep -q "melee event: gun, hand 1, jab" <<<"$log" && echo 1 || echo 0) "thrust: read as a jab (a stab along the pole)"
 check $(grep -qE "dwlance: a thrust, the head \(" <<<"$log" && echo 1 || echo 0) "thrust: landed with the crystal head"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "thrust: the run ended on its last line"
@@ -132,5 +132,23 @@ for mode in flat gun; do
     boltcheck "$log" "bolt ($mode)" "$model" $away
     check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "bolt ($mode): the run ended on its last line"
 done
+# 9. lance3 (his VR notes 2026-11-23): its grip flipped, it shoots the way its crystal head points (vr_status: the shot
+#    within 6 degrees of the line from the hand to the tip, as drawn); its beam strikes as a bolt (vr_debug_shots: its push
+#    on what it meets, "shot push: kind 4"), its impact drawn on the wall behind; it shakes as it charges and more as it
+#    fires (vr_debug_gunfx: the charge's prints' "shake most", the buzzes); without cells and fired on the pull
+#    (vr_dw_lance_charge 0) the trigger held makes no empty click.
+log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;developer 1;vr_mock_hand main 0.2 1.3 -0.3 -22 0 0;vr_ad_test 207;wait60;vr_mock_button main secondary 1;wait10;vr_mock_button main secondary 0;wait60;echo dwlance-mark: flipped;vr_status;vr_debug_shots 1;vr_debug_gunfx 1;+attack;wait90;-attack;wait30;+attack;wait90;-attack;wait30;vr_debug_gunfx 0;give c 0;wait5;tune vr_dw_lance_charge 0;wait5;+attack;wait40;-attack;tune vr_dw_lance_charge 1;wait5;echo dwlance-test: done" \
+    -QuitOn "dwlance-test: done" -Timeout 300 -Filter "dwlance|lancecharge: (charging|fired)|shot push: kind 4|empty click|revgrip:|the shot|rror|exit=" 2>&1 | tr -d '\r')
+echo "$log" | grep -E "revgrip:|main  the shot|lancecharge: (charging|fired)|shot push" | cut -c1-170 | head -7
+check $(grep -q "revgrip: hand 1 flips its grip: reversed" <<<"$log" && echo 1 || echo 0) "flipped: B turned the Lance over"
+shot=$(sed -n '/dwlance-mark: flipped/,$p' <<<"$log" | grep -m1 "main  the shot" | awk '{ print $4 }')
+check $(awk -v d="$shot" 'BEGIN { print (d != "" && d + 0 < 6) ? 1 : 0 }') "flipped: it shoots along its crystal head ($shot deg off the line from the hand to the tip)"
+check $(grep -c "dwlance: the beam through" <<<"$log" | grep -qx 2 && echo 1 || echo 0) "flipped: two charged shots fired"
+check $(grep -q "shot push: kind 4" <<<"$log" && echo 1 || echo 0) "beam: it pushes what it meets as a bolt (props, ragdolls)"
+chs=$(grep -m1 -oE "lancecharge: fired ent 1 hand 1 .*shake most [0-9.]+" <<<"$log" | awk '{ print $NF }')
+fis=$(grep -oE "lancecharge: charging ent 1 hand 1 .*shake most [0-9.]+, buzzes [0-9]+" <<<"$log" | sed -n 2p | tr -d ',' | awk '{ print $(NF-2), $NF }')
+check $(awk -v c="$chs" -v f="$fis" 'BEGIN { split(f, q, " "); print (c + 0 >= 0.02 && q[1] + 0 >= 0.1 && q[2] + 0 >= 1) ? 1 : 0 }') "shake: charging $chs kicks, firing (shake, buzzes) $fis"
+check $(grep -q "empty click: hand 1" <<<"$log" && echo 0 || echo 1) "empty: no click with the trigger held"
+check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "lance3: the run ended on its last line"
 verdict
 exit $fail

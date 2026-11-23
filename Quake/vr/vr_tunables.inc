@@ -1612,6 +1612,18 @@ QVR_TUNABLE(vr_dw_lance_head, "0.55")  // ... where its head starts: the share o
 QVR_TUNABLE(vr_dw_lance_charge, "1")   // ... its shot charged: s the trigger is held before it fires as it is let go (QC dw_items.qc DW_LanceChargeFrame; 0: fires on the pull)
 QVR_TUNABLE(vr_dw_lance_charge_fade, "0.25") // ... a charge let go short: s its sparks, light and hum fade out over (vr_lancecharge.cpp)
 QVR_TUNABLE(vr_dw_lance_bolt, "0.35")  // ... s its fired bolt lingers (vr_lancecharge.cpp beamLife; Quake's beam 0.2)
+QVR_TUNABLE(vr_dw_lance_push, "1")     // ... its beam's push on the props and ragdolls it hits or goes through, times a bolt's for its 150 damage (QC dw_fire_lance, lance3)
+QVR_TUNABLE(vr_dw_lance_hit_sparks, "24") // ... sparks thrown back off where its beam stops (a wall, a prop, a body; 0 none)
+QVR_TUNABLE(vr_dw_lance_hit_smoke, "6") // ... puffs of smoke there (0 none; its lasting burn on a surface is the lightning gun's)
+QVR_TUNABLE(vr_dw_lance_embed_length, "5") // ... held as a lance, a stab by its head's pointed top stays in: units of it that count as its blade (the swords' depth shares of it: shallow; vr_axestick.cpp)
+QVR_TUNABLE(vr_dw_lance_embed_tip, "15") // ... % of its blow line from the tip that may strike first for a stab to stay in (QC VR_Embed_Blow)
+QVR_TUNABLE(vr_dw_lance_embed_speed, "0") // ... m/s the hand must drive it at for a stab to stay in (0: vr_embed_stab_speed's)
+QVR_TUNABLE(vr_dw_lance_shake_charge, "0.05") // ... its tremble in the hand while charging at full charge, in its kicks (drawn: vr_weaponfx.cpp recoilOffset; 0 none)
+QVR_TUNABLE(vr_dw_lance_shake_fire, "0.3") // ... its shake as the charged shot fires, in its kicks, on top of the shot's kick (0 none)
+QVR_TUNABLE(vr_dw_lance_shake_time, "0.35") // ... s that shake dies away over
+QVR_TUNABLE(vr_dw_lance_haptic_charge, "0.15") // ... the controller's buzz while charging at full charge, 0..1 (0 none; vr_lancecharge.cpp)
+QVR_TUNABLE(vr_dw_lance_haptic_fire, "0.9") // ... its buzz as the charged shot fires, 0..1, over vr_dw_lance_shake_time (0 none)
+QVR_TUNABLE(vr_pole_grip_turn, "1")    // a pole weapon's other hand (the Crystal Lance's; any FREE_POLE grip, VR): the share of its own turn about the pole drawn (vr_twohand.cpp freeHand; 0: its turn fixed as it took hold)
 QVR_TUNABLE(vr_dmg_gun_bash, "12") // a gun swung as a club
 QVR_TUNABLE(vr_dmg_chainsaw_swing, "26") // an ogre's chainsaw swung (its running chain: vr_chainsaw_damage)
 QVR_TUNABLE(vr_dmg_mjolnir, "25") // Mjolnir's blow

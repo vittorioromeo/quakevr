@@ -818,6 +818,7 @@ void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::ve
     }
     float shake = 0.f, shakeSideways = 0.f;
     streamShake(h, shake, shakeSideways); // (a stream weapon firing: vr_weapons.inc StreamShake)
+    lancecharge::shake(hand, shake, shakeSideways); // (the Crystal Lance charging, and as it fires: lance3)
     back += shake;
     rise += shake;
     sideways += shakeSideways;

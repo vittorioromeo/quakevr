@@ -340,29 +340,56 @@ void(entity p, float xPacked) DW_UnpackWeaponVariants =
 };
 
 // The Crystal Lance's beam: through every body on its line (8 at most), 150 to each, thrown back.
+// lance3 (his notes vrtesthall_2026-11-23_23-26-31, 23-26-51): it strikes as the lightning gun's bolt does
+// (LightningDamage's way): gibs, heads and monsters' models (MOVE_HITGIBS | MOVE_HITMODEL), the prop or ragdoll it hits
+// or goes through pushed (VR_ShotPush, a bolt's push times vr_dw_lance_push), a head or a limb popped (VR_LightningHit:
+// VR_Decap_BoltArm with vr_decap_weapon a bolt's), the body shocked, blood; where it stops, a wall's or a prop's:
+// sparks (vr_dw_lance_hit_sparks), smoke (vr_dw_lance_hit_smoke) and the bolt's lasting burn (VR_Lightning_Burn).
+float dw_lance_pushes; // (the tests: the props and ragdolls its beams pushed)
+float dw_lance_impacts; // (the tests: its beams' ends drawn on a surface)
 void(float xHand) dw_fire_lance =
 {
     vector src = VRGetMuzzlePos(xHand);
     vector dir = VRGetWeaponFireRotFwd(xHand);
     vector start = src;
     entity ignore = self;
+    float push = max(0, cvar_hget(cvarh_vr_dw_lance_push)) * 5; // (a player's bolt pushes 30 / 30: the Lance's 150 / 30)
+    float wasDecap = vr_decap_weapon;
+    if(self.flags & FL_CLIENT) { vr_decap_weapon = QVR_DECAP_LIGHTNING; } // (its heads and limbs pop as a bolt's)
+    VR_Stealth_Graze(src, src + dir * 8192, self, world);
+    float lc = lagcompbegin(self);
     float n;
     for(n = 0; n < 8; n++)
     {
-        traceline(src, src + dir * 8192, FALSE, ignore);
+        traceline(src, src + dir * 8192, MOVE_HITGIBS | MOVE_HITMODEL, ignore);
+        if(VR_ShotPush(trace_ent, src, trace_endpos, dir, QVR_SHOTPUSH_LIGHTNING, push) != world) { dw_lance_pushes++; }
         if(!trace_ent.takedamage || trace_ent == world) { break; }
         entity hit = trace_ent;
         vector end = trace_endpos;
-        T_Damage(hit, self, self, 150);
-        if(hit.health <= 0) { hit.velocity = hit.velocity + dir * 400 + '0 0 175'; }
+        if(VR_LightningHit(hit, self, 150, dir)) { VR_HitBloodSplash(hit, end, 150); }
+        if(hit.health <= 0 && !hit.vr_corpse) { hit.velocity = hit.velocity + dir * 400 + '0 0 175'; }
         // (dwellweap: the bolt crackling through it, violet crystal sparks where it enters and leaves)
         particle(end, dir * 30, 148 + rint(random() * 6), 40);
         particle(end + dir * 24, dir * 60, 148 + rint(random() * 6), 24);
         ignore = hit;
         src = end + dir * 4;
+        trace_endpos = end; // (the damage's death code may trace)
     }
-    particle(trace_endpos - dir * 2, dir * -40, 148 + rint(random() * 6), 32); // (and where it stops)
-    dprint(sprintf("dwlance: the beam through %g bodies, %.0f long\n", n, vlen(trace_endpos - start)));
+    if(lc) { lagcompend(); }
+    vr_decap_weapon = wasDecap;
+    vector stop = trace_endpos;
+    particle(stop - dir * 2, dir * -40, 148 + rint(random() * 6), 32); // (and where it stops)
+    if(vlen(stop - start) < 8190)
+    {
+        // Its impact (lance3): sparks thrown back off it, smoke, the bolt's burn on a surface.
+        dw_lance_impacts++;
+        float sparks = cvar_hget(cvarh_vr_dw_lance_hit_sparks), smoke = cvar_hget(cvarh_vr_dw_lance_hit_smoke);
+        if(sparks > 0) { particle2(stop - dir * 2, dir * -1, QVR_PARTICLE_PRESET_SPARKS, rint(sparks)); }
+        if(smoke > 0) { particle2(stop - dir * 3, dir * -1, QVR_PARTICLE_PRESET_SMOKE, rint(smoke)); }
+        VR_Lightning_Burn(start, stop);
+    }
+    dprint(sprintf("dwlance: the beam through %g bodies, %.0f long\n", n, vlen(stop - start)));
+    trace_endpos = stop;
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
     WriteEntity(MSG_BROADCAST, dw_beam_prop ? dw_beam_prop : self); // (an armed grunt's: from its gun, as its lightning)
@@ -383,7 +410,7 @@ float(float xHand, float* xOutAttackFinished) DW_FireVariant =
     {
         if(!delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 6))
         {
-            sound(self, VRGetHandChannel(xHand), "gunclick.wav", 1, ATTN_NORM);
+            // (Silent: no empty click, lance3. An armed grunt's Lance never comes here empty.)
             *xOutAttackFinished = time + 0.3;
             return TRUE;
         }
@@ -477,8 +504,8 @@ float(float xHand, float xPressed) DW_LanceChargeFrame =
     {
         if(charge > 0) { DW_LanceChargeSend(xHand, 0); dw_lc_cancels++; }
         charge = 0;
-        // The empty click, as W_AttackImpl's (its W_CheckNoAmmo lets a few cells through: the shot then refused).
-        sound(self, VRGetHandChannel(xHand), "gunclick.wav", 1, ATTN_NORM);
+        // No empty click (lance3; his note vrtesthall_2026-11-23_22-59-42: held as a melee weapon, the trigger is often
+        // closed): silent, as Mjolnir's (W_AttackImpl).
         VRSetAttackFinished(xHand, time + 0.5);
     }
     else if(xPressed)

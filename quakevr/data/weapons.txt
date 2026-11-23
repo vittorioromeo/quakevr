@@ -5055,6 +5055,10 @@ weapon 55
     rev "1" // dwellweap: a spear's grip turns over as a sword's (the eject button: no magazine; vr_revgrip.qc)
     bl_near "0.32"
     shot_pitch "92.5"
+    // lance3 (his notes vrtesthall_2026-11-23_23-00-45, 23-01-21): a pointed blade by its head's top (its tip: the
+    // muzzle): a stab there stays in, very shallow (vr_dw_lance_embed_length, _tip, _speed); thrown it flies point
+    // first, settling in the air as a sword (vr_box3d_step.cpp pointAlign).
+    embed "1"
 }
 
 // slot 56: progs/dw_rotary.mdl#vr (vr_wofs_*_57)
