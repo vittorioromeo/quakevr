@@ -1493,7 +1493,8 @@ void addProfile(b3Profile& a, const b3Profile& b);
 // entity's box (the first of them), still, noclip off; with near, on the floor beside it (see below).
 void playerOverProp(edict_t* p); // (below, with the players' shape against props)
 void watchInside();
-void registerCommands();
+void printVersion(); // Box3D's version line: once, at the first reset/toss/physics frame (the configs read by then)
+void startup();      // at startup (box3d::init): Box3D's allocator, the vr_physics_* commands (vr_scenario validate)
 void noteBraces(float dt);                      // before each step: what the props near the hands rest against
 // preSolve: a hand's body `hand` meeting `prop` (`n` from it to the prop) pressing it into what holds it: noted, no push.
 [[nodiscard]] bool pressHit(b3ShapeId hand, b3ShapeId prop, const glm::vec3& n, float separation);

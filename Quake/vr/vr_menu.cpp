@@ -225,7 +225,7 @@ void restartVr()
 }
 
 // A console command run as typed (the Debug pages' buttons: reports, reloads, tests). A command registered only once
-// its system first runs (the wrist gadget's, the physics') says so instead of "unknown command".
+// its system first runs (the wrist gadget's) says so instead of "unknown command".
 void runCommand(const char* text)
 {
     char name[64];

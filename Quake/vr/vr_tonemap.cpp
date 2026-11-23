@@ -237,8 +237,9 @@ void drawInTile(unsigned fbo, int x, int y, int width, int height)
     glViewport(x, y, width, height);
     GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
     GL_UseProgram(inTileProgram);
-    VR_PostProcessView(); // (PostView: the drawn size, for the vignettes)
-    GL_Uniform4fFunc(12, static_cast<float>(width), static_cast<float>(height), static_cast<float>(x), static_cast<float>(y)); // (PostView.zw: the part's corner)
+    // PostView: the drawn size, for the vignettes; zw the part's corner. Not VR_PostProcessView: its SceneMap and BloomMap
+    // (13, 14) are inactive here (no scene or glow read), and the Quest's driver answers setting them GL_INVALID_OPERATION.
+    GL_Uniform4fFunc(12, static_cast<float>(width), static_cast<float>(height), static_cast<float>(x), static_cast<float>(y));
     VR_PostProcessTone(); // (Tone's grade strength and its table on unit 3, Dither, SlowLook)
     if(sceneDithered)
     {

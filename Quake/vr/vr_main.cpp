@@ -2358,6 +2358,7 @@ extern "C" void VR_Init()
     arenacards::registerCommands(); // (the Survival Arena's perk cards)
     weaponwheel::registerCommands(); // (the weapon wheel: vr_wheel_pick, vr_weaponwheel_dump, vr_weaponwheel_test)
     brushes::registerCommands();
+    box3d::init(); // (the physics' commands: vr_physics_spawn ... known before any map, for vr_scenario validate)
     Cmd_AddCommand("vr_menu_search", menu::search_f);
     Cmd_AddCommand("vr_menu_slider_step", menu::sliderStep_f);
     Cmd_AddCommand("vr_appearance_random", menu::randomAppearance_f);

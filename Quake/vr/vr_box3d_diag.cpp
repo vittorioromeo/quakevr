@@ -621,7 +621,7 @@ void sink_f()
         counted ? total / static_cast<float>(counted) : 0.f, worst);
 }
 
-bool commandsRegistered = false; // (registerCommands: once)
+bool versionPrinted = false; // (printVersion: once)
 
 void portalInfo_f()
 {
@@ -660,66 +660,70 @@ void physicsMem_f()
 }
 } // namespace
 
-void registerCommands()
+void printVersion()
 {
-    bool& registered = commandsRegistered;
-    if(!registered)
+    bool& printed = versionPrinted;
+    if(!printed)
     {
-        registered = true;
-        b3SetAllocator(heapAllocate, heapFree);
+        printed = true;
         const b3Version v = b3GetVersion();
         Con_Printf("box3d: Box3D %d.%d.%d, %s\n", v.major, v.minor, v.revision,
             !cpuHasAvx2              ? "SSE2 kernels (4 lanes; no AVX2 on this CPU)"
             : vr_box3d_avx2.value    ? "AVX2 kernels (8 lanes)"
                                      : "SSE2 kernels (4 lanes; vr_box3d_avx2 0)");
-        Cmd_AddCommand("vr_physics_player", player_f);
-        Cmd_AddCommand("vr_gun_pieces_cache_stats", gunPiecesCacheStats_f);
-        Cmd_AddCommand("vr_physics_mem", physicsMem_f);
-        Cmd_AddCommand("vr_physics_stack", stack_f);
-        Cmd_AddCommand("vr_physics_pyramid", pyramid_f);
-        Cmd_AddCommand("vr_physics_list", list_f);
-        Cmd_AddCommand("vr_physics_shapes", shapes_f);
-        Cmd_AddCommand("vr_physics_loose", loose_f);
-        Cmd_AddCommand("vr_physics_pile", pile_f);
-        Cmd_AddCommand("vr_physics_bigpile", bigPile_f);
-        Cmd_AddCommand("vr_physics_clearpiles", clearPiles_f);
-        Cmd_AddCommand("vr_physics_hash", hash_f);
-        Cmd_AddCommand("vr_struggle_status", struggleStatus_f);
-        Cmd_AddCommand("vr_physics_hull_stats", hullStats_f);
-        Cmd_AddCommand("vr_physics_steptime", steptime_f);
-        Cmd_AddCommand("vr_physics_frametime", frametime_f);
-        Cmd_AddCommand("vr_physics_mtbench", mtbench_f);
-        Cmd_AddCommand("vr_physics_blast", blast_f);
-        Cmd_AddCommand("vr_physics_sink", sink_f);
-        Cmd_AddCommand("vr_prop_press_test", pressTest_f);
-        Cmd_AddCommand("vr_prop_strike_test", strikeTest_f);
-        Cmd_AddCommand("vr_physics_inlevel", inLevel_f);
-        Cmd_AddCommand("vr_physics_approach", approach_f);
-        Cmd_AddCommand("vr_physics_shotbench", shotBench_f);
-        Cmd_AddCommand("vr_physics_fire", fire_f);
-        Cmd_AddCommand("vr_knockdown_test", knockdownTest_f);
-        Cmd_AddCommand("vr_shock_ragdoll_check", shockCheck_f);
-        Cmd_AddCommand("vr_physics_inside", inside_f);
-        Cmd_AddCommand("vr_physics_spawn", spawn_f);
-        Cmd_AddCommand("vr_physics_fling", fling_f);
-        Cmd_AddCommand("vr_physics_forcegrab", forcegrabCheck_f);
-        Cmd_AddCommand("vr_physics_portals", portalInfo_f);
-        Cmd_AddCommand("vr_physics_portal_sleep_test", portalSleepTest_f);
-        Cmd_AddCommand("vr_physics_gun_shapes_test", gunShapesTest_f);
-        Cmd_AddCommand("vr_corpse_list", corpseList_f);
-        Cmd_AddCommand("vr_corpse_drop", corpseDrop_f);
-        Cmd_AddCommand("vr_corpse_poses", corpsePoses_f);
-        Cmd_AddCommand("vr_ragdoll_list", ragdollList_f);
-        Cmd_AddCommand("vr_ragdoll_speeds", ragdollSpeeds_f);
-        Cmd_AddCommand("vr_ragdoll_arm_test", ragdollArmTest_f);
-        Cmd_AddCommand("vr_ragdoll_draw_info", ragdoll::drawInfo_f);
-        Cmd_AddCommand("vr_limb_models", limbmodel::info_f);
-        Cmd_AddCommand("vr_drawn_motion_test", ragdoll::motionTest_f);
-        Cmd_AddCommand("vr_ragdoll_blast_test", ragdollBlastTest_f);
-        Cmd_AddCommand("vr_ragdoll_active_list", ragdollActiveList_f);
-
-        Cmd_AddCommand("vr_ragdoll_env_hit", ragdollEnvHit_f);
     }
+}
+
+void startup()
+{
+    b3SetAllocator(heapAllocate, heapFree); // (before anything of Box3D's: vr_physics_mtbench makes worlds with no map)
+    Cmd_AddCommand("vr_physics_player", player_f);
+    Cmd_AddCommand("vr_gun_pieces_cache_stats", gunPiecesCacheStats_f);
+    Cmd_AddCommand("vr_physics_mem", physicsMem_f);
+    Cmd_AddCommand("vr_physics_stack", stack_f);
+    Cmd_AddCommand("vr_physics_pyramid", pyramid_f);
+    Cmd_AddCommand("vr_physics_list", list_f);
+    Cmd_AddCommand("vr_physics_shapes", shapes_f);
+    Cmd_AddCommand("vr_physics_loose", loose_f);
+    Cmd_AddCommand("vr_physics_pile", pile_f);
+    Cmd_AddCommand("vr_physics_bigpile", bigPile_f);
+    Cmd_AddCommand("vr_physics_clearpiles", clearPiles_f);
+    Cmd_AddCommand("vr_physics_hash", hash_f);
+    Cmd_AddCommand("vr_struggle_status", struggleStatus_f);
+    Cmd_AddCommand("vr_physics_hull_stats", hullStats_f);
+    Cmd_AddCommand("vr_physics_steptime", steptime_f);
+    Cmd_AddCommand("vr_physics_frametime", frametime_f);
+    Cmd_AddCommand("vr_physics_mtbench", mtbench_f);
+    Cmd_AddCommand("vr_physics_blast", blast_f);
+    Cmd_AddCommand("vr_physics_sink", sink_f);
+    Cmd_AddCommand("vr_prop_press_test", pressTest_f);
+    Cmd_AddCommand("vr_prop_strike_test", strikeTest_f);
+    Cmd_AddCommand("vr_physics_inlevel", inLevel_f);
+    Cmd_AddCommand("vr_physics_approach", approach_f);
+    Cmd_AddCommand("vr_physics_shotbench", shotBench_f);
+    Cmd_AddCommand("vr_physics_fire", fire_f);
+    Cmd_AddCommand("vr_knockdown_test", knockdownTest_f);
+    Cmd_AddCommand("vr_shock_ragdoll_check", shockCheck_f);
+    Cmd_AddCommand("vr_physics_inside", inside_f);
+    Cmd_AddCommand("vr_physics_spawn", spawn_f);
+    Cmd_AddCommand("vr_physics_fling", fling_f);
+    Cmd_AddCommand("vr_physics_forcegrab", forcegrabCheck_f);
+    Cmd_AddCommand("vr_physics_portals", portalInfo_f);
+    Cmd_AddCommand("vr_physics_portal_sleep_test", portalSleepTest_f);
+    Cmd_AddCommand("vr_physics_gun_shapes_test", gunShapesTest_f);
+    Cmd_AddCommand("vr_corpse_list", corpseList_f);
+    Cmd_AddCommand("vr_corpse_drop", corpseDrop_f);
+    Cmd_AddCommand("vr_corpse_poses", corpsePoses_f);
+    Cmd_AddCommand("vr_ragdoll_list", ragdollList_f);
+    Cmd_AddCommand("vr_ragdoll_speeds", ragdollSpeeds_f);
+    Cmd_AddCommand("vr_ragdoll_arm_test", ragdollArmTest_f);
+    Cmd_AddCommand("vr_ragdoll_draw_info", ragdoll::drawInfo_f);
+    Cmd_AddCommand("vr_limb_models", limbmodel::info_f);
+    Cmd_AddCommand("vr_drawn_motion_test", ragdoll::motionTest_f);
+    Cmd_AddCommand("vr_ragdoll_blast_test", ragdollBlastTest_f);
+    Cmd_AddCommand("vr_ragdoll_active_list", ragdollActiveList_f);
+
+    Cmd_AddCommand("vr_ragdoll_env_hit", ragdollEnvHit_f);
 }
 
 } // namespace box3d::detail
