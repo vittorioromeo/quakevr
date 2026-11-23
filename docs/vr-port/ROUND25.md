@@ -10690,5 +10690,5 @@ Follows "flatwheel"'s noticed item (the nailgun put into a holster by the wheel 
 - **Tests:** weaponwheel_test.sh 20/0 (new: the hold kept the magazine in, 24 -> 24; holstered and drawn, 24; Y tapped
   2 frames: no wheel, the magazine out; before the fix the first two failed); flat 17/0. New `vr_reload_test 49`
   (QC vr_holsterammo_test.qc, holsterammo_test.sh [flat]): 28/0 headset, 28/0 flat. flatholster_test 54/0,
-  reload/eject_test 28/0, mp_test.py weaponwheel (now with the nailgun in his hand: the hold keeps its magazine).
+  reload/eject_test 28/0, `mp_test.py suite --only mp_weaponwheel` 9/0 (B now holds the nailgun: his hold kept its 24).
 - Noticed, not chased (as before): the multi-grenade's B/Y held longer than `vr_weaponwheel_hold` opens the wheel.
