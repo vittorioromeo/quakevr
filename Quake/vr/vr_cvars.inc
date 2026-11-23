@@ -4553,6 +4553,7 @@ QVR_CVAR(vr_flat_key_holster_right, "5", CVAR_ARCHIVE)  // the same for the righ
 QVR_CVAR(vr_flat_key_drop_left, "6", CVAR_ARCHIVE)      // the key that drops what the left hand holds (impulse 78: the holster menu's left DROP); by its bind name; "" none
 QVR_CVAR(vr_flat_key_drop_right, "7", CVAR_ARCHIVE)     // the same for the right hand (impulse 79); by its bind name; "" none
 QVR_CVAR(vr_flat_key_grenade, "g", CVAR_ARCHIVE)        // the quick grenade key (impulse 57, QC vr_flatgrenade.qc; vr_flatgrenade.cpp): a free hand fetches the back pouch's grenade, the fire button arms it, held winds up, let go throws; by its bind name; "" none
+QVR_CVAR(vr_flat_key_throw, "j", CVAR_ARCHIVE)          // the throw key (impulse 39 down, 40 up; QC vr_flatgrenade.qc "The throw key"; vr_flatgrenade.cpp): held, the hand holding something winds up behind the shoulder; let go, throws it along the crosshair by the headset's throw, as hard as it was held; by its bind name; "" none
 QVR_CVAR(vr_flat_grenade, "1", CVAR_ARCHIVE)            // flat-screen play: 1 the quick grenade key (vr_flat_key_grenade) takes a grenade from the pouch; 0 it does nothing
 QVR_CVAR(vr_flat_grenade_arm_mode, "1", CVAR_ARCHIVE | QVR_PREF)   // the quick grenade's fire button: 1 a press arms it (its fuse runs), the next press held winds up the throw and its release throws; 0 one press: it arms, held winds up, let go throws
 QVR_CVAR(vr_flat_grenade_debug, "0", CVAR_NONE)         // 1: the quick grenade's drawn hand printed step by step (flatgren: ...; vr_flatgrenade.cpp); developer 1 prints the game's side (flat grenade: ...)
@@ -4593,6 +4594,12 @@ QVR_CVAR(vr_flat_holster_menu_size, "0.62", CVAR_ARCHIVE) // flatscreen play: th
 QVR_CVAR(vr_flat_holster_menu_fade_time, "0.12", CVAR_ARCHIVE) // flatscreen play: seconds the holster menu takes to fade in or out (real time)
 QVR_CVAR(vr_flat_holster_menu_cursor_speed, "1", CVAR_ARCHIVE) // flatscreen play: the holster menu's cursor speed (1: as the desktop's pointer)
 QVR_CVAR(vr_flat_holster_menu_crt, "0.5", CVAR_ARCHIVE) // flatscreen play: the holster menu's screen's CRT look (scanlines, flicker; 0 none), as the visor's panels
+QVR_CVAR(vr_weaponwheel, "1", CVAR_ARCHIVE)            // the headset's weapon wheel (vr_weaponwheel.cpp): holding vr_weaponwheel_button opens a wheel of the holsters round that hand, time slowed, the hand its cursor; let go on a slot: that hand takes it (as reaching there would); 0 off
+QVR_CVAR(vr_weaponwheel_button, "0", CVAR_ARCHIVE)     // the weapon wheel's button, held on either hand (that hand picks): 0 the upper face button (B, Y), 1 the stick's click, 2 the lower face button (A, X); its tap still does what it is bound to
+QVR_CVAR(vr_weaponwheel_hold, "0.35", CVAR_ARCHIVE)    // the weapon wheel: seconds the button is held before it opens (a shorter press is the button's own)
+QVR_CVAR(vr_weaponwheel_timescale, "0.5", CVAR_ARCHIVE) // the weapon wheel: time's speed while it is open (bullet time's slow motion, single player; 1 not slowed)
+QVR_CVAR(vr_weaponwheel_size, "16", CVAR_ARCHIVE)      // the weapon wheel's width (units; about 26 a metre): how far the hand moves to a slot
+QVR_CVAR(vr_weaponwheel_distance, "3", CVAR_ARCHIVE)   // the weapon wheel: its middle this many units beyond the hand as it opens (away from the eyes), facing them
 QVR_CVAR(vr_flat_holster_drop_ahead, "20", CVAR_ARCHIVE | QVR_PREF) // flatscreen play: how far ahead of him (units) a holster's DROP lays its weapon
 QVR_CVAR(vr_flat_unload_volume, "0.8", CVAR_ARCHIVE) // flatscreen play: the holster menu's UNLOAD sound's volume (its rounds back into the pouch); 0 silent
 QVR_CVAR(vr_flat_toolgun_cursor_speed, "1", CVAR_ARCHIVE) // flatscreen play: the toolgun panel's cursor speed (1: as the desktop's pointer, a mouse count a window pixel)

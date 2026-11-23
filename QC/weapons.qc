@@ -101,6 +101,8 @@ void(float xHand, float xAid) updateAmmoCounter =
 float(entity p, float xHand) VR_FlatReload_Busy; // (vr_flatreload.qc)
 void() VR_FlatReload_Key;
 void() VR_FlatGrenade_Key; // (vr_flatgrenade.qc)
+void() VR_FlatThrow_Press; // (vr_flatgrenade.qc: the throw key)
+void() VR_FlatThrow_Release;
 void(float xHand, float xWeapon, float xWeaponFlags) VR_FlatReload_CycleOut;
 void(float xHand) VR_FlatReload_CycleIn;
 
@@ -4873,6 +4875,23 @@ void() ImpulseCommands =
     {
         self.impulse = 0;
         VR_FlatGrenade_Key();
+        return;
+    }
+
+    // Flatscreen play: J throws what a hand holds (vr_flatgrenade.cpp reads the key, vr_flat_key_throw: 39 as it goes
+    // down, the wind-up; 40 as it comes up, the throw; vr_flatgrenade.qc "The throw key"). Nobody else's impulses.
+    if((self.impulse == 39 || self.impulse == 40) && VR_FlatPlay(self))
+    {
+        float throwUp = self.impulse == 40;
+        self.impulse = 0;
+        if(throwUp)
+        {
+            VR_FlatThrow_Release();
+        }
+        else
+        {
+            VR_FlatThrow_Press();
+        }
         return;
     }
 

@@ -113,6 +113,7 @@ moved by `fullConfigChanges`, a sparse config never held it); `""` none |
 | `9` | dims and lights the gear: the wrist gadget's side button in VR (`vr_gear_lights_toggle`, `vr_gearlights.cpp`: the visor's panels and the guns' ammo screens dimmed to `vr_gear_lights_screen_dim`, their light with them; kept in the config). The key is `vr_flat_key_gearlights` (default `9`, bound to nothing by `default.cfg`; `""` none). Since 2026-11-22 (Hotkeys, below) |
 | `H` | lets go of what a hand holds, the off hand first and the main hand after (his words 2026-11-10: "drops the object held in the non-dominant hand first"; the main hand first until then) (`impulse 47` -> `VR_Forcegrab_FlatDrop`, `QC/vr_wpnforcegrab.qc`): a weapon out of the hand the way the game drops one -- never handed to the other hand on its grip (his words 2026-11-10: the grip hand caught a dropped Enforcer's rifle as a prop) -- a box or a prop carried in it let go at his feet (physics again, free to take again); carried in both hands, one press frees both. The key is `vr_flat_key_drop` (default `h`; `G` until 2026-11-10, then hard-coded: no saved bind to move) |
 | `G` | the quick grenade (The quick grenade, below): `vr_flat_key_grenade` (default `g`; `""` none) |
+| `J` | the throw key (The throw key, below): held winds up, let go throws what a hand holds along the crosshair: `vr_flat_key_throw` (default `j`, bound to nothing by `default.cfg`; `""` none) |
 
 `1` and `2` go through the existing weapon cycling (`CycleWeaponCommand`, the controller's B and Y); `getWeaponCycleMode`
 In this mode the cycle (1, 2 and the mouse wheel) also stops at the empty hand (the fist), both directions; VR cycling is unchanged.
@@ -1121,6 +1122,29 @@ go throws it.
   `vr_flat_grenade_debug 1` prints the drawn places (`flatgren:`), developer 1 the game's steps (`flat grenade:`);
   `vr_flatgrenade_report`. Test: `Misc/quakevr/flathands_test.sh` (gren2h, grenempty, grendual).
 
+## The throw key
+
+His ask (2026-11-23): a flat-screen throw, reusing and improving the grenade's throw motion.
+
+- **The key**: J (`vr_flat_key_throw`, Controls' flat keys: the "!" clash mark, Reset Flat Keys; the client sends
+  `impulse 39` as it goes down and `40` as it comes up, 40 again every 8 frames while the server still winds up with it up).
+  The hand: a carried thing (a rock, a prop, a crate, a gib, a head) before a weapon, the off hand before the main (H's
+  order); the quick grenade's hand winds up its own throw (J's release throws it as the fire button's does; unarmed, a dud).
+- **The throw is the headset's** (QC `vr_flatgrenade.qc`, "The throw key"): the hand's throw estimate (`handthrowvel`,
+  `handavel`, `handthrowpos`, `handrot`; put back after) is set to the throw's and the hand lets go as a headset's does
+  (`DropWeaponInHand`, `VR_Carry_Release`): weight, gain, assist, spin by mass, damage, sticking, gib bursts are theirs.
+  Along the crosshair `vr_flat_throw_up` above it, the hand at `vr_flat_throw_speed_min` (a tap) .. `_max` m/s over
+  `vr_flat_throw_charge_time`, spun end over end `vr_flat_throw_spin` rad/s, the hand turned `vr_flat_throw_release_pitch`.
+- **Held in both hands** (a long gun with the other hand on its grip, a crate): thrown with both, the headset's two-handed
+  throw; the other hand stays on the grip and is drawn along with the throwing hand (letting go first would make it a
+  one-handed throw of a gun he holds with both).
+- **As drawn** (`vr_flatgrenade.cpp`, STAT_QVR_FLATGREN's bits 16/32 the phase, 64 the main hand, 128 both): the throw's
+  motion is shared with the quick grenade (Debug > Tunables > Flatscreen > Throw, replacing the grenade's wind/follow/back
+  tunables): wound up behind the shoulder (`vr_flat_throw_wind_*`), further back as it charges (`_charge_back`), the
+  follow-through along the look (`_follow_*`), back over `_back_time`.
+- `vr_flat_grenade_debug 1` prints the client's steps (`flatthrow:`), developer 1 the game's (`flat throw: ...`, and where
+  it landed); `vr_flat_grenade_debug 2` the thrown thing's path a frame. Test: `Misc/quakevr/flatthrow_test.sh`.
+
 ## The hand swap
 
 His words (2026-11-10): the swap key (3) gets a short animation: the hands come together, swap, and go back; a weapon
@@ -1371,7 +1395,7 @@ binds for the headset's grips and reloads; a flat grab could reuse K/L).
 |---|---|---|---|
 | Parry | a melee weapon held into the blow | RMB with one melee weapon (Parry guard) | dual melee, a gun's block: none (his call: RMB is the left hand's blow there) |
 | Ammo switch | the gun's weapon button (impulse 42/43) | B (main hand); 7 and 8 (`default.cfg`: impulse 42/43, off and main hand) | done |
-| Throw | let go of the grip while swinging: a weapon, a prop, a dagger, a body | G throws the quick grenade; H drops at the feet; nothing else is thrown | **his call**: a throw that swings the hand and opens it at speed, so the headset's own throw (hand speed, spin) does the rest; on H held (tap still drops: H changes) or its own key (J, free) |
+| Throw | let go of the grip while swinging: a weapon, a prop, a dagger, a body | J throws what a hand holds (The throw key); G the quick grenade; H drops at the feet | done (2026-11-23): J, the headset's own throw fed the hand's estimate |
 | Shove | an open hand pushed out | mouse 5 | done |
 | Punch, overhead swing | the hand's own motion | V, the fire buttons | done |
 | Climb | either empty hand on a ledge or rung (`vr_climb`): hang, hand over hand, shimmy | automatic: the mantle (`vr_flat_mantle`), ladders (`vr_flat_ladder`), ropes (`vr_flat_rope`) | hanging, shimmy: VR only (two tracked hands; the mantle takes the ledges in reach) |

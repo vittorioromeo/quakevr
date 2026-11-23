@@ -207,6 +207,7 @@
 #include "vr_closequarters.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_arenacards.hpp"
+#include "vr_weaponwheel.hpp"
 #include "vr_brushes.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
@@ -2308,6 +2309,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("menu_vr", menu::command_f);
     toolgun::registerCommands();
     arenacards::registerCommands(); // (the Survival Arena's perk cards)
+    weaponwheel::registerCommands(); // (the weapon wheel: vr_wheel_pick, vr_weaponwheel_dump, vr_weaponwheel_test)
     brushes::registerCommands();
     Cmd_AddCommand("vr_menu_search", menu::search_f);
     Cmd_AddCommand("vr_menu_slider_step", menu::sliderStep_f);
@@ -2720,6 +2722,7 @@ extern "C" void VR_BeginFrame()
         input::roomscaleJump(hands::current());
         toolgun::frame(hands::current()); // the toolgun's tools, with the hands of this frame
         arenacards::frame(hands::current()); // the Survival Arena's perk cards: the offer, the panel, the lasers
+        weaponwheel::frame(hands::current()); // the weapon wheel: its cursor, the lit slot (vr_weaponwheel.cpp)
         waveeditor::frame(hands::current()); // the Arena Wave Editor's panel and lasers, in a headset
         brushes::frame(); // the boxes made in the game: their slots written (vr_brushes.cpp)
     }

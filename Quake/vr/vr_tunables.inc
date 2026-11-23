@@ -2007,23 +2007,34 @@ QVR_TUNABLE(vr_flat_grenade_hold_fwd, "0.75") // the held grenade's place: forwa
 QVR_TUNABLE(vr_flat_grenade_hold_out, "0.1") // out at its side
 QVR_TUNABLE(vr_flat_grenade_hold_down, "-0.2") // below the shoulder (negative: above; in view at the screen's lower corner)
 QVR_TUNABLE(vr_flat_grenade_hold_pitch, "-20") // its pitch against the look's
-QVR_TUNABLE(vr_flat_grenade_wind_time, "0.25") // seconds the hand takes up into the overhead throw pose once the fire button winds up
-QVR_TUNABLE(vr_flat_grenade_wind_fwd, "0.5") // the overhead pose: forward of the shoulder (negative: behind; 0.7 keeps the raised hand in view at the top corner), level with the body
-QVR_TUNABLE(vr_flat_grenade_wind_out, "0.4") // out at its side
-QVR_TUNABLE(vr_flat_grenade_wind_up, "0.85") // above the shoulder
-QVR_TUNABLE(vr_flat_grenade_wind_pitch, "-45") // the hand's pitch there (negative: tipped back)
 QVR_TUNABLE(vr_flat_grenade_wind_full, "1.5") // seconds of wind-up for the hardest throw (0.1..5)
 QVR_TUNABLE(vr_flat_grenade_speed_min, "350") // the throw's speed let go at once (units/s)
 QVR_TUNABLE(vr_flat_grenade_speed_max, "900") // and wound up fully (units/s)
 QVR_TUNABLE(vr_flat_grenade_throw_up, "6") // degrees above the crosshair the throw leaves at (-30..60)
 QVR_TUNABLE(vr_flat_grenade_throw_pitch, "5") // degrees more upward on top of vr_flat_grenade_throw_up, for a higher arc (-30..60; the two add, the launch at most 80 above the crosshair)
 QVR_TUNABLE(vr_flat_grenade_speed_scale, "0.75") // the throw's speed (speed_min .. speed_max by the wind-up) times this (0.1..3)
-QVR_TUNABLE(vr_flat_grenade_follow_time, "0.1") // seconds of the throw's follow-through (the arm out along the look)
-QVR_TUNABLE(vr_flat_grenade_follow_fwd, "0.9") // the follow-through's place: forward along the look
-QVR_TUNABLE(vr_flat_grenade_follow_out, "0.05") // out at its side
-QVR_TUNABLE(vr_flat_grenade_follow_down, "0.25") // below the shoulder
-QVR_TUNABLE(vr_flat_grenade_follow_pitch, "25") // its pitch against the look's
-QVR_TUNABLE(vr_flat_grenade_back_time, "0.3") // seconds the hand takes from the follow-through back to its pose (an empty hand's rest, a weapon's grip)
+
+// Flatscreen > Throw (vr_flatgrenade.cpp, QC vr_flatgrenade.qc "The throw key"; vr_flat_key_throw). The throw's
+// drawn motion, shared by the throw key and the quick grenade (places off the hand's shoulder as shares of the arm's
+// reach), and the throw key's throw.
+QVR_TUNABLE(vr_flat_throw_wind_time, "0.2") // seconds the hand takes back into the wind-up (the throw key held, the quick grenade's fire button held)
+QVR_TUNABLE(vr_flat_throw_wind_fwd, "-0.2") // the wind-up: in front of the shoulder (negative: behind), level with the body
+QVR_TUNABLE(vr_flat_throw_wind_out, "0.4") // out at its side
+QVR_TUNABLE(vr_flat_throw_wind_up, "0.85") // above the shoulder
+QVR_TUNABLE(vr_flat_throw_wind_pitch, "-50") // the hand's pitch there (negative: tipped back)
+QVR_TUNABLE(vr_flat_throw_charge_back, "0.2") // fully charged, the wind-up this much further back (a share of the reach; the charge: vr_flat_throw_charge_time, the grenade's vr_flat_grenade_wind_full)
+QVR_TUNABLE(vr_flat_throw_follow_time, "0.12") // seconds of the throw's follow-through (the arm out along the look)
+QVR_TUNABLE(vr_flat_throw_follow_fwd, "0.9") // the follow-through's place: forward along the look
+QVR_TUNABLE(vr_flat_throw_follow_out, "0.05") // out at its side
+QVR_TUNABLE(vr_flat_throw_follow_down, "0.25") // below the shoulder
+QVR_TUNABLE(vr_flat_throw_follow_pitch, "25") // its pitch against the look's
+QVR_TUNABLE(vr_flat_throw_back_time, "0.3") // seconds the hand takes from the follow-through back to its pose (an empty hand's rest, a weapon's grip)
+QVR_TUNABLE(vr_flat_throw_charge_time, "1") // seconds the throw key is held for the hardest throw (0.05..5)
+QVR_TUNABLE(vr_flat_throw_speed_min, "5") // the hand's speed (m/s) of a tap: a quick toss (the headset's throw rules make the rest: weight, gain, assist)
+QVR_TUNABLE(vr_flat_throw_speed_max, "11") // the hand's speed (m/s) fully charged
+QVR_TUNABLE(vr_flat_throw_up, "4") // degrees above the crosshair the throw leaves at (-30..60)
+QVR_TUNABLE(vr_flat_throw_spin, "8") // the throw's spin end over end (rad/s, as a wrist's flick; limited by the thing's mass and vr_throw_spin_max)
+QVR_TUNABLE(vr_flat_throw_release_pitch, "-30") // the hand's pitch against the throw as it lets go (negative: tipped back; a thrown weapon's angles)
 
 // Flatscreen > Free Hands
 QVR_TUNABLE(vr_flat_empty_fwd, "7.5") // an empty hand: how far in front of its shoulder it hangs (-30..30; 5 off the old anchor)
