@@ -138,7 +138,7 @@ void() DW_PowerupFrame =
 // Weapons (placeholders, DWELL.md P3): the pickup gives one of our weapons with Dwell's variant on its instance; the
 // variant fires with Dwell's numbers. Rotary Shotgun: a super shotgun firing 20 pellets of 2 ('0.1 0.02' spread), a
 // shell a shot, 5 a second. Crystal Lance: a lightning gun firing a piercing crystal beam, 150 to each body it passes,
-// 6 cells, every 1.4 s. Rifle: a shotgun firing one 50 bullet, a shell, every 1.4 s. (Haste: 0.6 of each.)
+// 6 cells, every 1.4 s. (Haste: 0.6 of each.) Dwell's Rifle (weapon_rifle) is not made: no Dwell map places it.
 
 void(string mdl, float wid, float xVar, string nm) dw_weapon =
 {
@@ -160,10 +160,6 @@ void() dw_weapon_quad_shotgun = { dw_weapon("progs/g_shot3.mdl", WID_SUPER_SHOTG
 Dwell's Crystal Lance (for now a lightning gun firing Dwell's piercing beam: 150 each, 6 cells).
 */
 void() dw_weapon_railgun = { dw_weapon("progs/g_rail.mdl", WID_LIGHTNING, DW_VAR_LANCE, "Crystal Lance"); };
-/*dw:QUAKED weapon_rifle (0 .5 .8) (-16 -16 0) (16 16 32)
-Dwell's Rifle (for now a shotgun firing one 50 bullet).
-*/
-void() dw_weapon_rifle = { dw_weapon("progs/v_rifle.mdl", WID_SHOTGUN, DW_VAR_RIFLE, "Rifle"); };
 
 // The toolgun's Dwell weapons: the weapon laid as a prop (func_weapon_grabbable: a rigid body like every other weapon
 // there) with its variant on its record, not the floating pickup (his note 2026-11-21; AD_UpgradeProp, the same).
@@ -180,7 +176,6 @@ void(float xWid, float xVar) DW_WeaponProp =
 // (the toolgun's entries: Quake VR/vr_toolgun_packs.inc, by these names)
 void() toolgun_dw_rotary = { DW_WeaponProp(WID_SUPER_SHOTGUN, DW_VAR_ROTARY); };
 void() toolgun_dw_lance = { DW_WeaponProp(WID_LIGHTNING, DW_VAR_LANCE); };
-void() toolgun_dw_rifle = { DW_WeaponProp(WID_SHOTGUN, DW_VAR_RIFLE); };
 
 // weapon_touch: the pickup's variant on the weapon it gave (none: a plain one; one or the other: no AD upgrade on it).
 void(entity xPickup, entity p, float xHand) DW_VariantGiven =
@@ -201,19 +196,18 @@ string(float xVar) DW_VariantName =
 {
     if(xVar == DW_VAR_ROTARY) { return "Rotary Shotgun"; }
     if(xVar == DW_VAR_LANCE) { return "Crystal Lance"; }
-    return "Rifle";
+    return "";
 };
 
 // Dwell's weapons drawn as themselves (DWELL.md 9.6): their VR models, made from Dwell's own view models as they load
-// (engine vr_adweapons.cpp: Dwell's v_shot3.mdl, v_rail.mdl, v_rifle.mdl read in place from its folder, laid as the
-// weapon they are a variant of; weapons.txt slots 52-54), never written anywhere. Without Dwell's data: ours.
+// (engine vr_adweapons.cpp: Dwell's v_shot3.mdl, v_rail.mdl read in place from its folder, laid as the weapon they are
+// a variant of; weapons.txt slots 52-53), never written anywhere. Without Dwell's data: ours.
 float() DW_LancePole;
 float() DW_RotaryGauntlet;
 string(float xWid) DW_VRModelOf =
 {
     if(xWid == WID_SUPER_SHOTGUN) { return DW_RotaryGauntlet() ? "progs/dw_rotary.mdl#vr" : "progs/dw_shot3.mdl#vr"; }
     if(xWid == WID_LIGHTNING) { return DW_LancePole() ? "progs/dw_lance.mdl#vr" : "progs/dw_rail.mdl#vr"; }
-    if(xWid == WID_SHOTGUN) { return "progs/dw_rifle.mdl#vr"; }
     return "";
 };
 
@@ -312,7 +306,6 @@ float(float xWid) DW_VariantFor =
 {
     if(xWid == WID_SUPER_SHOTGUN) { return DW_VAR_ROTARY; }
     if(xWid == WID_LIGHTNING) { return DW_VAR_LANCE; }
-    if(xWid == WID_SHOTGUN) { return DW_VAR_RIFLE; }
     return 0;
 };
 
@@ -384,7 +377,7 @@ float(float xHand, float* xOutAttackFinished) DW_FireVariant =
 {
     entity inst = VRGetEntWeaponInst(self, xHand);
     float v = inst != world ? inst.wi_dwvar : 0;
-    if(!v) { return FALSE; }
+    if(v != DW_VAR_ROTARY && v != DW_VAR_LANCE) { return FALSE; } // (an older save's retired Rifle, 3: a plain shotgun)
     vector dir = VRGetWeaponFireRotFwd(xHand);
     if(v == DW_VAR_LANCE)
     {
@@ -409,24 +402,13 @@ float(float xHand, float* xOutAttackFinished) DW_FireVariant =
         *xOutAttackFinished = time + 0.3;
         return TRUE;
     }
-    if(v == DW_VAR_ROTARY)
-    {
-        sound(self, VRGetGunChannel(xHand), "weapons/shotgn2.wav", 1, ATTN_NORM);
-        self.punchangle_x = -2;
-        vr_pellet_damage = 2;
-        vr_decap_weapon = QVR_DECAP_SSG;
-        FireBullets(xHand, 20, dir, '0.1 0.02 0');
-        *xOutAttackFinished = time + RuneApplyHell(0.2, self);
-    }
-    else
-    {
-        sound(self, VRGetGunChannel(xHand), "weapons/guncock.wav", 1, ATTN_NORM);
-        self.punchangle_x = -4;
-        vr_pellet_damage = 50;
-        vr_decap_weapon = QVR_DECAP_SHOTGUN;
-        FireBullets(xHand, 1, dir, '0.001 0.001 0');
-        *xOutAttackFinished = time + RuneApplyHell(1.4, self);
-    }
+    // The Rotary Shotgun.
+    sound(self, VRGetGunChannel(xHand), "weapons/shotgn2.wav", 1, ATTN_NORM);
+    self.punchangle_x = -2;
+    vr_pellet_damage = 2;
+    vr_decap_weapon = QVR_DECAP_SSG;
+    FireBullets(xHand, 20, dir, '0.1 0.02 0');
+    *xOutAttackFinished = time + RuneApplyHell(0.2, self);
     vr_decap_weapon = 0;
     vr_pellet_damage = 0;
     dw_variant_shots++;

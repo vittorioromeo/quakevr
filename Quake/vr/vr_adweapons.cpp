@@ -74,7 +74,6 @@ void plasmaParts(Parts& p);
 void rotaryParts(Parts& p);
 void rotaryGauntletParts(Parts& p);
 void lanceParts(Parts& p);
-void rifleParts(Parts& p);
 
 // One weapon: AD's view model in one pose (`frame`), its pieces holding `drop` taken off, laid into the Quake VR weapon's
 // frame (src axis/up -> dst axis/up, scaled by k, srcPivot onto dstPivot), cut to dot(clipN, p) >= clipD, the Quake VR
@@ -176,9 +175,8 @@ const Recipe recipes[] = {
     //   lightning gun's corner), its wooden handle's back middle (11.94 -0.17 -18.17) over the lightning gun's grip
     //   (-4 0 5.8: the grip's top inside the handle). Its trigger guard and trigger 0.4 up (dwellgun: they hung 0.37
     //   under the blades' underside, 4.31 over them; vr_adweapon_models prints the least gaps).
-    // - The Rifle (v_rifle.mdl, shot1: tilted 6.25 degrees down): level, 0.7 (35.7 long, the shotgun 33; its shroud's 10.8
-    //   inside the corner), its back middle (-0.88 -0.04 -10.86) on the shotgun's barrel line over its grip (0.6 0 2.7).
-    // Each an ammo screen housing on its rear face (rotaryParts, lanceParts, rifleParts).
+    // Each an ammo screen housing on its rear face (rotaryParts, lanceParts). (Dwell's Rifle, v_rifle.mdl, is not made: no
+    // Dwell map places it; removed 2026-11-23.)
     {"progs/dw_shot3.mdl#vr", {"progs/v_shot3.mdl", 260, 286, 256, 256, "dwell"}, "frame1", {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f},
         {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.8f, {-2.88f, -0.11f, -20.71f}, {0.6f, 0.f, 2.6f}, {4, -1, -1}, false, {0.f, 0.f, 0.f},
         0.f, {"progs/v_shot2.mdl", 0, 0, 0, 0}, {151, 241, 281}, {-15.5775f, -4.6938f, -4.2402f}, false, {0.f, 0.f, 0.f},
@@ -189,10 +187,6 @@ const Recipe recipes[] = {
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_light.mdl", 0, 0, 0, 0}, {234, 403, 493}, {-5.6211f, -9.3429f, -6.0018f}, false,
         {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_light.mdl", true, noRect, lanceParts, 403, {0.f, 0.f, 0.8f}, 0, 0.f,
         {0.f, 0.f, 0.f}, 493},
-    {"progs/dw_rifle.mdl#vr", {"progs/v_rifle.mdl", 117, 121, 256, 128, "dwell"}, "shot1", {45.7f, 0.f, -5.f},
-        {5.f, 0.f, 45.7f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.7f, {-0.88f, -0.04f, -10.86f}, {0.6f, 0.f, 2.7f}, {76, -1, -1},
-        false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_shot.mdl", 0, 0, 0, 0}, {219, 309, 349}, {-6.301f, -3.7943f, -6.5165f}, false,
-        {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_shot.mdl", true, noRect, rifleParts, -1, {0.f, 0.f, 0.f}},
     // - The Crystal Lance as a lance held like a spear (lancespear; Dwell's world model g_rail.mdl, fr_0: a staff standing
     //   tilted 22.6 degrees off upright, 67.5 long, its pole 2.2 thick about the line through (-10.49 -0.15 9.78) along
     //   (0.3843 0 0.9231), its crystal head from 43 along it): a plain pole and its head, nothing put on (no handle, no
@@ -1232,7 +1226,7 @@ struct Housing
                                           // darkS0 below 0: the caps' dark grey (Parts::capS, capT)
     // The rivets' octagon's Z offsets (steps) at the middle rows and the top/bottom, its middle this far above the
     // window's (the Plasma Gun's: half steps either side of the window's middle, between two rows). No two of its corners
-    // nearer than capWeld (the holes' search welds them: the Rifle's Z step is 0.048).
+    // nearer than capWeld (the holes' search welds them: a Z step can be under 0.05).
     float rivetZIn{0.5f}, rivetZOut{1.5f}, rivetZAt{0.f};
 };
 // The Plasma Gun's: on the corner's third byte; AD's bronze plate (33..64 x 1..12, 7 texels a unit) on the bezel, a
@@ -1477,12 +1471,12 @@ void plasmaParts(Parts& p)
     housing(p, plasmaHousingSpec);
 }
 
-// Dwell support (DWELL.md 9.6, "dwellgun"): the Plasma Gun's housing on Dwell's three weapons' rear faces (measured on
+// Dwell support (DWELL.md 9.6, "dwellgun"): the Plasma Gun's housing on Dwell's two weapons' rear faces (measured on
 // the made models, Dwell v2.2), upright as the Plasma Gun's, read from behind along the gun. Each window the glass the
 // screen has without a housing (the Plasma Gun's 22.5 x 20.4 font pixels at the slot's wpntxt_scale: the digits at the
 // font's size, fillMax 1), to the grid's steps; the bezel's bands, cut corners and rivets about the Plasma Gun's in h
 // where the grid allows; the window's walls and the back the caps' dark grey. vr_adweapon_models prints each glass's
-// place (vr_screenstyle.cpp's entries, weapons.txt slots 52-54's wpntxt_av). Their faces are holes closed after the
+// place (vr_screenstyle.cpp's entries, weapons.txt slots 52-53's wpntxt_av). Their faces are holes closed after the
 // housing is made, so its "corners on the gun's face" count says 0 (the shots show them on it).
 // - The Rotary Shotgun: on its housing's flat octagonal back (x 0.51, y -4.44..4.48, z 2.62..11.37), in its middle (the
 //   barrels' axis); window 2x13 Y by 17 Z steps (1.08 x 1.04 at wpntxt_scale 0.25), bands 6 Y / 2 Z, rivets 16 Y out;
@@ -1491,16 +1485,10 @@ void plasmaParts(Parts& p)
 //   on its foot's byte, the face leaning away above it; y -1.32..1.29, z 4.97..7.30), in its middle; window 2x10 Y by
 //   25 Z steps (1.45 x 1.31 at 0.25), bands 5 Y / 2 Z, the rivets between two Y steps (12.5 out, 3 steps across: the Y
 //   step is 0.072); the frame's dark metal (60 140) on the bezel, a crystal's violet (22 45) on the rivets.
-// - The Rifle: on its butt (x 0.74 at its foot to 1.07 at its top, leaning; y -1.69..1.71, z 0.73..4.76), in its
-//   middle; window 2x27 Y by 31 Z steps (1.60 x 1.49 at 0.35), bands 12 Y / 3 Z, corners cut 4 Y / 2 Z, rivets 33 out
-//   (8 Y steps across, 4 Z rows tall, their middles on a row: the Z step is under capWeld); the brass ring's texels
-//   (232 60) on the bezel, the shotgun's brass nut (325 216: the grip's graft) on the rivets.
 constexpr Housing rotaryHousingSpec{{0.f, 7.f}, -1, 0.51f, 13, 17, 6, 2, 2, 1, 16.f, 2.f, 1.f, 0.04f, {192.f, 150.f}, 8.f,
     {8.f, 188.f}, -1.f, 0.f, 0.f, 0.f};
 constexpr Housing lanceHousingSpec{{0.f, 6.14f}, -1, -3.93f, 10, 25, 5, 2, 2, 1, 12.5f, 1.5f, 0.5f, 0.04f, {60.f, 140.f},
     6.f, {22.f, 45.f}, -1.f, 0.f, 0.f, 0.f};
-constexpr Housing rifleHousingSpec{{0.f, 2.745f}, -1, 0.905f, 27, 31, 12, 3, 4, 2, 33.f, 4.f, 2.f, 0.04f, {232.f, 60.f},
-    8.f, {325.f, 216.f}, -1.f, 0.f, 0.f, 0.f, 1.f, 2.f, 0.5f};
 
 // The Rotary Shotgun's four barrels (dwellrotary; his notes 2026-11-22: "make the geometry in between the barrels a little
 // bit deeper, so that it looks like there's actually separate barrels", and "the muzzle is completely solid. It should
@@ -1814,11 +1802,6 @@ void rotaryGauntletParts(Parts& p)
 void lanceParts(Parts& p)
 {
     housing(p, lanceHousingSpec);
-}
-
-void rifleParts(Parts& p)
-{
-    housing(p, rifleHousingSpec);
 }
 
 // The vertices' welding for their normals: at one place (to a 0.001 grid) and in one smoothing group (Out::group).
