@@ -770,6 +770,12 @@ QVR_CVAR(vr_world_prepass, "1", CVAR_NONE)
 // frame's plans); 2 the same, the arrays' calls never merged (an A/B switch: twice the draws); 0 gathered and merged
 // between the draws as before. No effect on the PC.
 QVR_CVAR(vr_gl_one_pass, "1", CVAR_NONE)
+// qlrz: opaque draws with GL_BLEND off (GL_SetState, gl_vidsdl.c): -1 under OpenGL ES (the Quest: with blending left on
+// as Ironwail has it, opaque being glBlendFunc(GL_ONE, GL_ZERO), Adreno's driver lets no depth-writing draw write its
+// low-resolution depth, LRZ, so no hidden pixel is rejected early), 1 always, 0 never (Ironwail's). The same pixels.
+QVR_CVAR(vr_gl_opaque_noblend, "-1", CVAR_NONE)
+// qlrz, a probe: 0 GL_SAMPLE_SHADING never enabled (Ironwail enables it throughout; its rate is vid_fsaamode's).
+QVR_CVAR(vr_gl_sample_shading, "1", CVAR_NONE)
 // Debug > Profiling > LRZ Probe (qlrz): is the tiler's early depth rejection (Adreno's LRZ) alive at a point of the
 // eye's scene? n > 0: at point n (1 after the clear, 2 after the lenses' hidden area, 3 after the opaque world and
 // models, 4 after the sky, 5 at the scene's end) two opaque quads over the middle quarter of the eye, a near one

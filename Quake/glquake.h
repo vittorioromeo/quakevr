@@ -320,6 +320,8 @@ typedef enum {
 extern unsigned glstate;
 void GL_SetState (unsigned mask);
 void GL_ResetState (void);
+void GL_OpaqueBlendKeep (qboolean keep); // QVR: custom blending after an opaque GL_SetState (vr_gl_opaque_noblend)
+void GL_SampleShading (qboolean on); // QVR: GL_SAMPLE_SHADING (vr_gl_sample_shading)
 
 extern GLint ssbo_align; // SSBO alignment - 1
 extern GLint ubo_align; // UBO alignment - 1

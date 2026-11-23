@@ -1331,9 +1331,28 @@ static void GL_CheckExtensions (void)
 GL_SetStateEx
 =============
 */
+static qboolean gl_blend_off; // QVR: GL_BLEND is disabled (an opaque state under vr_gl_opaque_noblend)
+static qboolean gl_opaque_blend_keep; // QVR: GL_OpaqueBlendKeep
+
 static void GL_SetStateEx (unsigned mask, unsigned force)
 {
 	unsigned diff = (mask ^ glstate) | force;
+
+	// QVR: opaque draws with GL_BLEND off (vr_gl_opaque_noblend; qlrz). Ironwail leaves GL_BLEND on throughout, its opaque
+	// state being glBlendFunc (GL_ONE, GL_ZERO): the same pixels, but Adreno's driver takes a depth-writing draw with
+	// blending on as one that must not write its low-resolution depth (LRZ), so no draw ever did and no hidden pixel
+	// was rejected early (the Quest's ovrgpuprofiler: LRZ Pixels Killed 0 in every pass)
+	{
+		qboolean off = (mask & GLS_MASK_BLEND) == GLS_BLEND_OPAQUE && !gl_opaque_blend_keep && VR_GLOpaqueNoBlend ();
+		if (off != gl_blend_off)
+		{
+			if (off)
+				glDisable (GL_BLEND);
+			else
+				glEnable (GL_BLEND);
+			gl_blend_off = off;
+		}
+	}
 
 	if (diff & GLS_MASK_BLEND)
 	{
@@ -1457,6 +1476,36 @@ void GL_ResetState (void)
 }
 
 /*
+=============
+GL_OpaqueBlendKeep -- QVR
+
+While kept, GLS_BLEND_OPAQUE leaves GL_BLEND on: for the draws that set their own blend function or equation after
+an opaque GL_SetState (the wounds' bakes, vr/vr_wounds.cpp), which vr_gl_opaque_noblend would otherwise draw unblended.
+=============
+*/
+void GL_OpaqueBlendKeep (qboolean keep)
+{
+	gl_opaque_blend_keep = keep;
+	GL_SetStateEx (glstate, 0);
+}
+
+/*
+=============
+GL_SampleShading -- QVR
+
+GL_SAMPLE_SHADING as Ironwail has it (on; its rate is vid_fsaamode's glMinSampleShading), unless vr_gl_sample_shading
+is 0 (a probe, qlrz); off for the draws that ask (the particles, vr/vr_gfx_gl.cpp).
+=============
+*/
+void GL_SampleShading (qboolean on)
+{
+	if (on && VR_GLSampleShading ())
+		glEnable (GL_SAMPLE_SHADING);
+	else
+		glDisable (GL_SAMPLE_SHADING);
+}
+
+/*
 ===============
 GL_SetupState -- johnfitz
 
@@ -1481,9 +1530,10 @@ static void GL_SetupState (void)
 	VR_GLPolygonMode (GL_FILL); // QVR: none on ES
 	GL_DepthRange (ZRANGE_FULL); //johnfitz -- moved here becuase gl_ztrick is gone.
 	glEnable (GL_BLEND);
+	gl_blend_off = false; // QVR: (GL_SetStateEx's)
 	if (!VR_GLESCompat ()) // QVR: always on in ES 3.x (no such switch there)
 		glEnable (GL_TEXTURE_CUBE_MAP_SEAMLESS);
-	glEnable (GL_SAMPLE_SHADING);
+	GL_SampleShading (true); // QVR: (vr_gl_sample_shading)
 
 	GL_ResetState ();
 }

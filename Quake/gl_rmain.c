@@ -1027,6 +1027,7 @@ void R_Clear (void)
 		clearbits |= GL_COLOR_BUFFER_BIT;
 
 	GL_SetState (glstate & ~GLS_NO_ZWRITE); // make sure depth writes are enabled
+	GL_SampleShading (true); // QVR: (vr_gl_sample_shading changed: by the scene's start)
 	glStencilMask (~0u);
 	glClear (clearbits);
 }

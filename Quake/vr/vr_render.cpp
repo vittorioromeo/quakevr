@@ -298,6 +298,19 @@ extern "C" int VR_AliasDepthPrepass(const entity_t* e)
     return ve && ve->morph == 0.f;
 }
 
+// qlrz: GL_SetState's opaque state with GL_BLEND off (vr_gl_opaque_noblend: -1 under OpenGL ES, the Quest; 1 always).
+extern "C" int VR_GLOpaqueNoBlend(void)
+{
+    const float v = vr_gl_opaque_noblend.value;
+    return v < 0.f ? VR_GLESCompat() : (v != 0.f ? 1 : 0);
+}
+
+// qlrz: GL_SAMPLE_SHADING on as Ironwail has it, unless vr_gl_sample_shading is 0.
+extern "C" int VR_GLSampleShading(void)
+{
+    return vr_gl_sample_shading.value != 0.f ? 1 : 0;
+}
+
 // questperf: the world's depth pre-pass (r_world.c R_DrawBrushModels_Real) on unless vr_world_prepass is 0.
 extern "C" int VR_WorldPrepass(void)
 {

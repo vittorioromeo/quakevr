@@ -524,6 +524,12 @@ za::Vector<Item> pageDebugProfiling()
         command("One Render Pass an Eye (Quest)", "vr_gl_one_pass 1")
             .help("vr_gl_one_pass 1: the brush models drawn from the cull's commands, the arrays' merges dispatched before "
                   "the eye's clear (the default); 2 the same, never merged (twice the draws)."),
+        command("Opaque Draws Blended (Ironwail's)", "vr_gl_opaque_noblend 0")
+            .help("vr_gl_opaque_noblend 0 (an A/B): GL_BLEND left on for opaque draws, as Ironwail has it. On the Quest "
+                  "no draw then writes the low-resolution depth (LRZ) and hidden pixels are not rejected early."),
+        command("Opaque Draws Unblended (Default)", "vr_gl_opaque_noblend -1")
+            .help("vr_gl_opaque_noblend -1: opaque draws with GL_BLEND off under OpenGL ES (the Quest), 1 everywhere. "
+                  "The same pixels."),
         command("LRZ Probe: After the Clear", "vr_debug_lrz_probe 1")
             .help("vr_debug_lrz_probe n: at point n of each eye's scene (1 after the clear, 2 after the lenses' hidden "
                   "area, 3 after the opaque world and models, 4 after the sky, 5 at the end) a near magenta quad, then a "

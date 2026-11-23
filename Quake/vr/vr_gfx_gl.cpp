@@ -1851,7 +1851,7 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     const unsigned stateMask = GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | (depthTest ? 0 : GLS_NO_ZTEST) | GLS_NO_ZWRITE;
     GL_SetState(stateMask);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // premultiplied
-    glDisable(GL_SAMPLE_SHADING);
+    GL_SampleShading(false);
     const glm::mat4 mvp = sceneViewProjection();
     glm::vec3 eye, right, up;
     sceneCamera(eye, right, up);
@@ -1955,7 +1955,7 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     {
         GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, savedBuffer, savedOffset, savedSize);
     }
-    glEnable(GL_SAMPLE_SHADING);
+    GL_SampleShading(true);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // what GLS_BLEND_ALPHA expects
 }
 
@@ -2135,7 +2135,7 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
     }
     GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | GLS_NO_ZTEST | GLS_NO_ZWRITE);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_SAMPLE_SHADING);
+    GL_SampleShading(false);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, target->tex);
     // The half of the scene's viewport drawn into it (its texels from the corner): the whole target but under dynamic
     // resolution (made at its ceiling, a part of it drawn: stereo::ViewSize); its edge read as clamp-to-edge read the whole.
@@ -2153,7 +2153,7 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
         GL_Uniform4fFunc(1, 0.5f / w, 0.5f / h, (static_cast<float>(drawnW) - 0.5f) / w, (static_cast<float>(drawnH) - 0.5f) / h);
     }
     glDrawArrays(GL_TRIANGLES, 0, 3);
-    glEnable(GL_SAMPLE_SHADING);
+    GL_SampleShading(true);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     if(depthAware)
     {
