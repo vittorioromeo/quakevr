@@ -10248,3 +10248,25 @@ ropes8c's open item 2 (MP). ROPES.md "Poles", "Multiplayer".
   prediction agreed (0 corrections). ropes8a's "players stop at it" was only checked by vr_pole_solid_test's traces.
   Next: trace B's server move against the box (SV_ClipToLinks' entbox / bodymove path for a SOLID_BBOX of no model).
 - **Not done (budget):** 2 (flat fingertips 0.44 into a pole), 3 (rope_pump 238 vs 250), 4 (props vs poles).
+
+## ropes8e: poles stop walking players; flat fingertips on a pole (agent/ropes8e, 2026-11-23)
+
+ropes8d's open bug and ropes8c's leftovers. ROPES.md "Poles".
+- **Walking into a pole went through it (1):** two faults in passSolids' "in a box" (a player let through a pole's boxes
+  while he is in one): it judged his whole box (absmin/absmax, 16 half) though his moves meet entities with his narrower
+  box (hull::entBox, vr_hull_ent_width: 8 half), and the pole box's absmin/absmax, which SV_LinkEdict grows a unit each
+  way. So a body stopped at the face (0.03 off) counted as 0.97 in it, became its owner and walked on through (single
+  player, VR and a dedicated server alike; the clients' prediction already used the exact boxes). Now his entBox against
+  the box itself (`entBoxOf`). Monsters were never let through (only clients are in solidPass).
+- **In a box now (1):** VR_PoleSolidPasses also lets out a player whose box is in one of its boxes this moment (set
+  there, or a box made over him since passSolids ran; else SV_CheckStuck put him back). `vr_rope_info`'s rope_solid
+  gains `in=` (bits: players whose box is in a box).
+- **Tests:** `rope_flat_test.sh <agent> wall` (flat, vr_flat_rope 0: forward 2 s into a pole, stopped 8.0 short of its
+  face, not taken; was 309 units past) 1/0, `wallvr` (mock headset, forward along the view) 1/0; `mp_test.py pole` 14/0:
+  B stopped at y -440.5 (was -474), A climbs on over B's head, B set standing 1.5 into the pole's box is let through
+  with A (pass 3, in 2) and takes it from there, both pass. vr_pole_solid_test 12/0, rope_flat_test pole 6/0.
+- **Fingertips (2), partly:** a rope's grasp now has no Fit Overlap (held.overlap 0): flat play hanging still 0.44 ->
+  0.30 units into a pole (the deepest: fingertips, not the thumb). Tried, not kept: the thumb held straight when it is
+  in the pole at every turn (0.52); the grasp's cylinder 0.3 fatter than the pole (0.69: not monotonic; next, the
+  solve's stops per finger with vr_debug_grasp 2 against the drawn tips). rope_climb_test pole_metal (VR) 10/0.
+- **Not done (budget):** 3 (rope_pump still 238 vs 250, unchanged here), 4 (props vs poles).
