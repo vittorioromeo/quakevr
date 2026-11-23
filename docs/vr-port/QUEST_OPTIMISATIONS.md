@@ -219,6 +219,7 @@ warming), and parts of one setting within a launch by +-1.5 ms (draws 183-244 fr
 | qtune: the no-fullbright and no-loop variants alone (rig plain in both) | 15.11 vs 15.59 | 18.3% vs 21.4% | 211 / 214 | ~-0.5 ms (so the rig's plain form ~-0.3 to -0.5) |
 | qtune: dynres on (0.9 ceiling, 0.65 floor), the fight floor 0.55 (`vr_dynres_min_fight`) vs none | 13.36 vs 15.5-18.1 | 4.7% (20% with a load hitch) vs 19-37% | - | **near 72 Hz in the fight**; the e1m1 walk never left the 0.9 ceiling (0% of frames below 0.65) |
 | qtune: settled gore trimmed (`vr_gore_trim_max` 24, 5 s, none within 160) | not measured: by design it leaves the close-up fight alone | - | - | far gore after a fight; the gore was already instanced (gib1 76 instances in 2 batches) |
+| qfov2: form 2 rebuilt as Meta's samples (a framebuffer per eye image, the image attached for good, depth at the image's size), one launch, 2 parts each interleaved, level changed mid-game (new swapchains): P post-process, D straight in no foveation, L/M/H levels 1-3, R level 3 refocused | P 16.34, D 17.00, L 17.31, M 17.98, H 17.43, R 17.87 | 95-99% (a warm headset) | 208-213 | **no crash** (form 2 + foveation at launch and every mid-game change), **no gain**: the trace shows each eye as 6 render passes (the brush models' compute gathers between draws end the pass); only the first (the clear, hidden area) has scaled bins, the main pass (6-9 ms) loads colour and depth and runs every bin at 1/1. Form 2 also bins the whole 1680x1760 image while 0.65 of it is drawn. No default changed |
 
 Counts (PC mock, `-glescompat +vr_standalone_preset 0`, `vr_gl_passes`): 240 draws a frame, 88 of them alias (48
 batches, 290 instances, 72k alias triangles both eyes); the Quest's own frame 192-244 draws. Gibs 76 + 76 + 12
@@ -264,3 +265,32 @@ slower (SV_Physics 8.6-10.5 vs 2.2) and the client ~5x (screen 11.3 vs 2.1).
 Left (by size, for the next CPU job): the armed humanoids' QuakeC pose (VR_AGP_Pose, ~0.6 ms PC, ~2.5 Quest: many
 small helpers; a native port is the real win, too big to keep exact here), alias set-up on the Quest (4 ms: per-model
 state and uploads), the view entities (2.2 ms Quest), sound (1.45 ms Quest).
+## Standalone status, 2026-11-23 (qcombined)
+
+`next` at 7df6f7ec8 (retro off, the unlit decal twin, rig plain, models without fullbright reads or a lights' loop,
+the fight floor 0.55, settled gore trimmed, dynres) on the Quest 3, as a new player gets it: `resetcfg` then
+`vr_standalone_preset 0` (Android's first run), only the test's seeds and freeze set by hand (and the fixed scale where
+named). This tree's APK (the quest tree's key) and test progs; 3 launches with the scenes in changed orders (1, 2, 4),
+a 4th his config vs the new player's, a 5th leaving things out between base parts. GPU span ms (both eyes), CPU = the
+main thread's busy ms, period ms (13.9 a frame at 72 Hz); "missed" = frames the runtime reports late (`xr_missed`);
+">15.3" = periods past 1.1 frames (">13.9" reads ~55% even where nothing is missed: the period's jitter around 13.9).
+
+| scene | GPU med / p90 | CPU | period med / p90 | missed | >15.3 | dynres scale (share of frames) | 72 Hz? |
+|---|---|---|---|---|---|---|---|
+| e1m1 gib fight, frozen, 0.65 fixed | 17.85 / 18.62 | 11.9 | 18.70 / 21.03 | 35% | 96% | 0.65 fixed | no: GPU |
+| the same, dynres as shipped | 14.77 / 15.42 | 10.8 | 15.69 / 17.82 | 13.5% | 62% | 0.55 96%, 0.65 4% | no: GPU |
+| the same, 3 big lights (`vr_test_dlights 3`) | 14.77 / 15.52 | 10.7 | 15.78 / 18.06 | 14% | 63% | 0.55 93%, 0.65 7% | no: GPU (the lights cost ~0) |
+| live e1m1 fight (6 + 6 grunts, gibbed live) | 11.62 / 13.96 | 16.2 | 17.46 / 26.95 | 31% | 66% | 0.55 56%, 0.65 28%, 0.7-0.85 16% | no: CPU (server 5.4) |
+| firing range, 48 mixed monsters (combat_48) | 14.72 / 20.12 | 25.1 | 26.15 / 36.51 | 76% | 99.6% | 0.55 93%, 0.65 7% | no: CPU (SV_Physics 9.8) |
+| e2m2, every monster awake (48) | 10.54 / 11.49 | 9.3 | 14.12 / 16.74 | 0.2% | 28% | 0.65-0.8 43%, 0.85 34%, 0.9 23% | yes |
+| the hub (vrstart's campaign terrace) | 11.41 / 11.61 | 7.8 | 14.07 / 16.00 | 0.2% | 23% | 0.55 100% | yes, at the fight floor |
+
+What dominates the gib fight (0.55 fixed, each part between two base parts, launch 5; base 13.5-14.3): the world
+**~8 ms** (`r_drawworld 0`: 5.65-5.81), the gore ~1.0-1.4 (gibs, heads, limbs hidden: 12.87-12.97), your rig ~1.0
+(12.52-12.76), the grunts' bodies ~0 (13.48). Dynres's floor costs more than the same scale fixed: 14.8 vs 13.8 ms
+side by side (the eye drawn into the lower part of 0.9-sized images). Anisotropy (`gl_texture_anisotropy`, 16 from
+vr_defaults.cfg; the preset leaves it): 1 / 4 / 16 = 16.90 / 17.18 / 17.85 at 0.65 (2 launches; 1 vs 16 ~0.5-0.9 ms,
+near the noise). His config vs the new player's, same launch, 0.65 fixed, 3 pairs: 17.01 vs 16.96 GPU (CPU 10.4 vs
+11.6; 210 vs 222 draws). The 0.65 base is 2-3 ms above qtune's 14.8-15.4 of the morning (same scene and settings): the
+headset's warmth or something merged since; not split (no older build in the same launch). Scripts: posebake
+`scratch/qc/qc_*` (not committed).

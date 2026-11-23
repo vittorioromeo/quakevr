@@ -10834,3 +10834,95 @@ and the Quest 3; table and top 10s in QUEST_OPTIMISATIONS.md "CPU in fights".
   interleaved (the third skipped: another app in front), beta2's APK and progs.dat (8a409520...) put back.
 - Not done, too big to keep exact here: a native port of the props' pose QuakeC (VR_AGP_Pose and helpers), the
   Quest's alias set-up. Scripts: `scratch/qcpu_*` (not committed).
+## qfov2: Quest foveation, form 2 rebuilt as Meta's samples (branch agent/qfov2, 2026-11-23; headset block pending)
+
+- **Why form 1 gave no gain**: its depth is the composite's unfoveated depth texture. The Adreno driver does not foveate a
+  foveated colour beside an unfoveated depth texture (the same as 6o's "no effect" on our own targets), so only form 2
+  can foveate.
+- **Form 2's crash (likely cause)**: one framebuffer whose colour was swapped every eye, and a depth renderbuffer at the
+  drawn size (0.65: ~1092x1144) beside the 1680x1760 image. The crash was in the driver at the first xrEndFrame (frame 2),
+  when the foveated pass runs. Form 2 is now built as Meta's GLES samples build it: a framebuffer per swapchain image
+  with the image attached for good (never detached), each eye's depth renderbuffer at the image's size, and a
+  colour-only framebuffer per image for the UI. They are made again when the backend's swapchains are new
+  (`Backend::eyeImagesSerial`). Foveation now takes form 2. A log line per image gives its QCOM foveation bits, min
+  density, focal points and status.
+- `vr_xr_foveation_refocus` (new, 0, not saved; Debug > Profiling): the game sets the image's focal point on the eye's
+  projection centre in the part drawn. vr_eye_subimage and dynamic resolution draw the lower left part, but the runtime
+  foveates round the image's centre.
+- PC (-glescompat, Standalone, vr_xr_direct 2): the per-image framebuffers are complete (0x8cd5), with no GL error. APK
+  built (0 warnings, check_apk 20/0). **Headset block not run yet** (the headset was with qcombined). Scripts:
+  `scratch/qfov2_mk.sh` (check, mid, ab, shots), `qfov2_pull.sh`, `qfov2_trace.sh`. No default changed; the
+  `-xrfoveation` guard stays.
+- **Headset block (14:28-14:45; the frozen gib fight at 0.65, retro off).** Form 2 rebuilt no longer crashes: it ran at
+  launch with level 3, and through every mid-game change (H D H M L, and 12 interleaved parts with the post-process
+  path). The images carry the runtime's foveation: QCOM bits 3 (on, scaled bins), min density 0.25, 2 focal points.
+  - One crash came from a framebuffer kept with a destroyed image: the post-process path after a mid-game change, with
+    the old images' framebuffers still alive. That is fixed: they are let go as soon as the swapchains are new or form 2
+    is no longer used.
+  - GPU medians: P 16.34, D 17.00, L 17.31, M 17.98, H 17.43, R (refocused) 17.87 ms. **No foveation gain.** Eyeshots
+    show no blur at any level.
+- **Why (ovrgpuprofiler -t, its per-bin "Fov" scale):** each eye is 6 render passes. The first, the clear and the
+  hidden area, does get scaled bins (Fov 2/2). The main pass (6-9 ms) and the 3 after it begin with LoadColor and
+  LoadDepthStencil, and every bin runs at 1/1: the driver foveates only a pass that starts cleared. The passes are
+  ended by compute work between the scene's draws, most likely the brush models' indirect gathers in
+  R_FlushBModelCalls and the arrays' merges (gl_rlight's light clustering is to be checked). Form 2 also bins the whole
+  1680x1760 image (8 bins of 864x448) while the eye draws 0.65 of it, so the clear and the loads and stores cover the
+  whole image. That is likely why D is +0.7 ms over P.
+- **Next:** (1) no compute between an eye's draws: the gathers dispatched before the clear, or an ES path that draws
+  single-instance calls straight from the cull's commands (on ES the gather only copies them). This also saves every
+  pass's load and store, foveation or not. (2) The clear and the render area kept to the drawn part (a scissored clear),
+  or the eye images made at the drawn size when foveation is on. Then measure again. Scripts (not committed):
+  `scratch/qfov2_bins.py` (a line per render pass with its bins' Fov scales), `qfov2_mk.sh`, `qfov2_trace.sh`,
+  `qfov2_pull.sh`, `qfov2_pair.py`, `qfov2_crop.py`.
+## dwrifle: Dwell's Rifle removed (agent/dwrifle, 2026-11-23)
+
+- **Ask** (his note): the Rifle out of the toolgun and never in an armed humanoid's random pool; all of it gone if unused.
+- **Found unused**: none of Dwell v2.2's 43 BSPs (loose and in its paks) has "rifle" in its entity lump (no
+  `weapon_rifle`, no `v_rifle`/`g_rifle` model); Dwell's progs reach it only by `Cheat_Rifle` (`g_rifle.mdl` is not even
+  shipped). Our pools never gave it: `VR_AG_PickWeapon`'s codes make no Dwell variant (only a pickup, the toolgun's
+  prop, or a thrown record set `wi_dwvar`); the arena, armed replacements and AD/Quoth variants have no Dwell entry.
+- **Removed**: `dw_weapon_rifle`, `toolgun_dw_rifle` and its toolgun row (the rows after it move up one; no number is
+  kept anywhere), `DW_VAR_RIFLE` (3 retired: an older save's record holding 3 is a plain shotgun: `DW_FireVariant` fires
+  only the Rotary's and Lance's, `VR_AG_NameOf` and `DW_WeaponModel` check `DW_VariantFor`), the FGD class, the made
+  model `progs/dw_rifle.mdl#vr` (recipe, `rifleParts`, `rifleHousingSpec`; screenstyle, gunfx, notectx entries) and
+  weapons.txt slot 54 (left empty: 55/56 keep their numbers and cvars). `weapon_rifle` stays a Copper/Dwell detection
+  signal (`vr_rules.cpp`, `dwell_maps.py`). DWELL.md: "The Rifle removed".
+- **Tests**: new `vr_ad_test 208` "dwrifle" (dwell_weapons_test.sh): 4000 pool picks, 48 humanoids armed from the pool:
+  no Dwell variant, no Rifle; a shotgun no Dwell variant; an old Rifle record plain; `vr_toolgun_select Rifle` finds no
+  row (Crystal Lance still found). 201-203 now hold a shotgun with the retired variant 3 in holster 0 (plain after a
+  save and load, and a level change; its shot not Dwell's); 205's holster drawn as ours; 206-207 screenshots (208 the
+  Rifle's, now the new test); 213 takes a map Rotary Shotgun instead. The Lance check takes each target's 150 or 188
+  alone (the first can see the player a frame sooner now). dwell_weapons_test 13/0, dwell_vrmodels (7 models made).
+## lancebolt: the Crystal Lance's bolt from its middle crystal's tip (agent/lancebolt, 2026-11-23)
+
+His decision 2026-11-23 (follows "weaponfx" item 9's open point): the bolt starts where the charge is drawn.
+- vr_lancecharge.cpp `boltStart(ent, hand, muzzle, out)`: player `ent`'s drawn Lance in `hand` (yours: `view::heldWeapon`;
+  another player's copy: `mpavatar::drawnWeapon`), spear (dw_lance, vertex 0) or gun (dw_rail, vertex 37): its middle
+  crystal's tip through the charge's own lookup (`tipAt` -> `tipVertex`, shared with `frame`). vr_client.cpp
+  `VR_UpdateBeam` uses it for beam ids 0/1, flat and VR alike: yours (the end kept on the aim from the muzzle, so the
+  bolt still ends where it hit) and other players' (the server's end kept). No Lance drawn there: the muzzle as before.
+  The server's trace (QC dw_fire_lance, VRGetMuzzlePos) is unchanged: 3.96 units apart on the spear, on the gun 0.01.
+- vr_debug_gunfx 1 prints "lancecharge: bolt ent E hand H from the tip (model vertex N) x y z, D off the muzzle" once a
+  bolt, and "lancecharge: the charge fired ent E hand H at x y z" (the charge's origin as it fired).
+- Test: dwell_lance_test.sh 41/0 (new `boltcheck`: the bolt's start within 1 unit of the charge's origin as it fired;
+  section 3 VR spear, new section 8 flat spear and VR gun): 0.00 from it each time; 3.96, 3.96, 0.01 off the muzzle.
+- Not tested: another player's copy (the same lookup on mpavatar's drawn weapon; no MP run).
+## qcombined: where Standalone stands on the Quest 3 with everything shipped (agent/qcombined, 2026-11-23)
+
+Follows questperf, qworld, qtune, qfov. Measuring only (no code). `next` at 7df6f7ec8's APK (the quest tree's debug key,
+`install -r`) and test progs, the preset as a new player gets it (`resetcfg; vr_standalone_preset 0`); one headset block
+13:58-14:23, 5 launches, then beta2's re-signed APK and the shipped progs.dat (md5 8a409520...) put back. Table and
+details: QUEST_OPTIMISATIONS.md "Standalone status, 2026-11-23".
+- **Hold 72 Hz:** e2m2 with all 48 monsters awake (dynres 0.65-0.9, 0.2% missed) and the hub (11.4 ms, but only at
+  the 0.55 fight floor: the floor opens there without a fight).
+- **Miss, GPU:** the frozen close-up gib fight: 0.65 fixed 17.9 ms (35% missed); dynres as shipped sits at 0.55, 14.8
+  ms, 13.5% missed. 3 big lights add nothing now. At 0.55: the world ~8 ms, gore ~1.2, your rig ~1.0, grunts ~0.
+  Dynres's 0.55 costs ~1 ms more than a fixed 0.55 (13.8): the sub-image in 0.9-sized images.
+- **Miss, CPU:** the live e1m1 fight (CPU busy 16.2 ms, server 5.4; 31% missed with GPU 11.6) and 48 monsters on the
+  firing range (CPU 25 ms, SV_Physics 9.8; 76% missed).
+- A new player's config costs the same GPU as his (17.0 both at 0.65; +1.2 ms CPU, +12 draws); his has many lights and
+  effects off (vr_dlight_models, vr_model_lighting, vr_colored_lights, vr_light_contrast 1, explosion debris...).
+  `gl_texture_anisotropy` is 16 for a new player (vr_defaults.cfg; the preset leaves it): 1 vs 16 ~0.5-0.9 ms, near the
+  noise. The 0.65 base reads 2-3 ms above qtune's morning numbers: warmth or a merge since; not split.
+- Next (by size): the world's shading at 0.55 (~8 ms of ~14); the server's CPU in big fights (monster physics);
+  dynres drawing into right-sized images; the hub's fight floor opening outside fights (his call).

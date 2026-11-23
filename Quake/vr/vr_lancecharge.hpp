@@ -24,6 +24,12 @@ void frame(const view::ViewEntity (&own)[2]);
 // drawn: vr_dw_lance_bolt for a Crystal Lance's (a player's hand holding one, a Lance prop's), Quake's 0.2 else.
 [[nodiscard]] float beamLife(int ent);
 
+// VR_UpdateBeam: the start of player `ent`'s bolt from `hand` (beam ids 0, 1) as drawn: his Crystal Lance's (yours, your
+// hand's drawn weapon; another player's copy's, mpavatar), spear or gun, its middle crystal's tip, the charge's origin
+// (his decision 2026-11-23), in flat and VR play; false: no Lance drawn there (the beam's start kept). `muzzle`: the start
+// it replaces (vr_debug_gunfx's print).
+[[nodiscard]] bool boltStart(int ent, int hand, const glm::vec3& muzzle, glm::vec3& out);
+
 // The hum's sound loaded (vr_main.cpp's map preparation).
 void prepare();
 

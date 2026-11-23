@@ -294,6 +294,10 @@ public:
     }
 
     [[nodiscard]] unsigned acquireEyeImage(int eye) override;
+    [[nodiscard]] unsigned eyeImagesSerial() const override
+    {
+        return eyeSwapchainsMade;
+    }
 
     void releaseEyeImage(int eye) override;
 
@@ -690,6 +694,7 @@ private:
     // projection) and smaller ones not at all (a GL_INVALID_VALUE copy).
     // vr_xr_eye_scale: smaller than recommended (each side; within 64 and the largest), at the start only.
     bool createEyeSwapchains();
+    unsigned eyeSwapchainsMade{0}; // eyeImagesSerial: counts createEyeSwapchains' calls
 
     void beginSession();
 

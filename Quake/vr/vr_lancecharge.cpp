@@ -51,6 +51,7 @@ struct Charge
     float owed{0.f};    // sparks owed (a fraction carried to the next frame)
     double last{-1.0};  // the frame last drawn
     channel_t* ch{nullptr};
+    bool logFired{false}; // vr_debug_gunfx: where it fired from to print (its bolt's start: boltStart)
 };
 
 // A Lance model's middle crystal's tip (his note 2026-11-23: the charge's light and sparks came from a little off it):
@@ -72,6 +73,7 @@ struct State
     za::U32 seed{0x1a2b3c4du};
     Tip tips[2]; // (the gun's and the spear's)
     za::Vector<glm::vec3> rest, now; // (tipVertex's)
+    bool boltLog[MAX_SCOREBOARD + 1][2]{}; // a new bolt's start to print (vr_debug_gunfx: beamLife, then boltStart)
 };
 
 State st;
@@ -149,6 +151,18 @@ State st;
     t.model = m;
     t.vertex = best;
     return best;
+}
+
+// The drawn Lance `w`'s middle crystal's tip (Tip) into `at` (its muzzle as drawn going in, kept without a tip): the tip's
+// vertex, -1 none. The charge's origin (frame) and its bolt's start (boltStart).
+[[nodiscard]] int tipAt(const view::ViewEntity& w, glm::vec3& at)
+{
+    const int tip = tipVertex(w, weapons::slotForModel(w.ent.model), at);
+    if(tip >= 0)
+    {
+        at = view::vertexPosition(w, tip);
+    }
+    return tip;
 }
 
 [[nodiscard]] channel_t* playing(const Charge& c, int ent, int hand)
@@ -281,6 +295,7 @@ void parse()
     }
     c.charging = false;
     c.fade = state == 2 ? firedFade : za::max(vr_dw_lance_charge_fade.value, 0.02f);
+    c.logFired = state == 2 && vr_debug_gunfx.value;
     debugPrint(state == 2 ? "fired" : "let go short", p, hand, c);
 }
 
@@ -317,12 +332,8 @@ void frame(const view::ViewEntity (&own)[2])
             c.level = c.charging ? za::clamp(static_cast<float>(cl.time - c.start) / c.seconds, 0.f, 1.f)
                                  : za::max(0.f, c.level - dt / c.fade);
             // Drawn from the middle crystal's tip as drawn (Tip).
-            const int tip = tipVertex(*w, weapons::slotForModel(w->ent.model), m.at);
             const glm::vec3 muzzle = m.at;
-            if(tip >= 0)
-            {
-                m.at = view::vertexPosition(*w, tip);
-            }
+            const int tip = tipAt(*w, m.at);
             if(vr_debug_gunfx.value && c.charging && was <= 0.f && c.level > 0.f && tip >= 0 && tip < static_cast<int>(st.rest.size()))
             {
                 const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(w->ent.model)));
@@ -331,6 +342,11 @@ void frame(const view::ViewEntity (&own)[2])
                 Con_Printf("lancecharge: origin at the middle crystal's tip (%s vertex %d, at rest %.2f %.2f %.2f); the muzzle "
                            "anchor %.3f from it\n",
                     w->ent.model->name, tip, r.x, r.y, r.z, glm::distance(muzzle, m.at));
+            }
+            if(c.logFired)
+            {
+                c.logFired = false;
+                Con_Printf("lancecharge: the charge fired ent %d hand %d at %.2f %.2f %.2f\n", p, hand, m.at.x, m.at.y, m.at.z);
             }
             if(c.charging && c.level >= 1.f && was < 1.f)
             {
@@ -377,8 +393,39 @@ float beamLife(int ent)
     if(vr_debug_gunfx.value)
     {
         Con_Printf("lancecharge: bolt ent %d hand %d lingers %.2f s\n", e, id, life);
+        if(e <= MAX_SCOREBOARD)
+        {
+            st.boltLog[e][id] = true;
+        }
     }
     return life;
+}
+
+bool boltStart(int ent, int hand, const glm::vec3& muzzle, glm::vec3& out)
+{
+    if(ent < 1 || ent > MAX_SCOREBOARD || ent > cl.maxclients || hand < 0 || hand > 1)
+    {
+        return false;
+    }
+    const view::ViewEntity* w = ent == cl.viewentity ? view::heldWeapon(hand) : mpavatar::drawnWeapon(ent, hand);
+    gunfx::Muzzle m;
+    if(!w || !isLance(w->ent.model) || !gunfx::drawnMuzzle(*w, weapons::slotForModel(w->ent.model), m))
+    {
+        return false;
+    }
+    const int tip = tipAt(*w, m.at);
+    if(tip < 0)
+    {
+        return false;
+    }
+    out = m.at;
+    if(st.boltLog[ent][hand])
+    {
+        st.boltLog[ent][hand] = false;
+        Con_Printf("lancecharge: bolt ent %d hand %d from the tip (%s vertex %d) %.2f %.2f %.2f, %.2f off the muzzle\n",
+            ent, hand, w->ent.model->name, tip, out.x, out.y, out.z, glm::distance(out, muzzle));
+    }
+    return true;
 }
 
 void prepare()
@@ -394,6 +441,7 @@ void clear()
         {
             stopHum(st.of[p][hand], p, hand);
             st.of[p][hand] = Charge{};
+            st.boltLog[p][hand] = false;
         }
     }
 }
