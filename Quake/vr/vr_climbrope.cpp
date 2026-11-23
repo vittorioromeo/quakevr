@@ -3390,7 +3390,8 @@ void drawOpaque()
         if(c.batch.count)
         {
             QVR_GPU_PROFILE("climbable ropes draw");
-            gfx::drawTube(c.batch, c.sides, c.cord.albedo(), keyLight, c.cord.rust(), c.cord.flat());
+            gfx::drawTube(c.batch, c.sides, c.cord.albedo(), keyLight, c.cord.rust(), c.cord.flat(), 1.f,
+                c.pole ? (c.metal ? 2 : 1) : 0); // (ropes8a: a pole's wood or metal surface)
         }
     }
 }
