@@ -261,10 +261,11 @@ slower (SV_Physics 8.6-10.5 vs 2.2) and the client ~5x (screen 11.3 vs 2.1).
 | Change | PC (C, 600 frames) | Quest C: old / new (2 launches) | Quest E: old / new | Same gameplay? |
 |---|---|---|---|---|
 | findradiusmoving's mover test in the search, before the grid's sort (the props' scans found ~52 a call, nearly all standing monsters and props, sorted only to be dropped) | findradius 2.20 -> 1.15 us a call, 0.238 -> 0.124 ms a frame | findradius 5.21, 5.36 -> 3.46, 3.31 us a call; 0.585 -> 0.358 ms a frame; SV_Physics 10.50 -> 9.82, CPU busy 27.36 -> 26.30 (the launches' spread ~2 ms) | 3.05, 3.01 -> 2.24, 2.24 us; 0.445 -> 0.326 ms; busy 17.66 -> 17.20 | yes: the same entities in the same order (a subset of a sorted set); vr_agrunt_test 50-60, 93 pass |
+| (qcpu2) the armed humanoids' weapon pose (VR_AGP_Pose and its ~45 helpers) in the engine: `agpose`, vr_builtins_agpose.inc, the same float steps on QC's globals and fields, its gameplay hooks (blows, parries, the chainsaw's engine) still QuakeC's; `vr_agpose_native` 1 (0: QuakeC, 2: both compared) | the pose (incl. its QC hooks) 0.559 -> 0.103 ms; QuakeC 1.575 -> 1.019 ms; SV_Physics 1.55 -> 1.17; CPU busy 3.72 -> 3.29 (VR mock). Flat: pose 0.544 -> 0.120, QuakeC 1.537 -> 1.153, busy 4.62 -> 4.08. E (VR): pose 0.378 -> 0.071, QuakeC 1.392 -> 1.039, busy 3.16 -> 3.04 | pending (headset block not run yet: APK built, qcpu2_qblock.sh) | pending | yes, bit for bit: vr_agpose_native 2 over C, E, C flat and 8 extra grunt waves (100,318 poses: guns, melee, two weapons, gun and blade, pickups, reloads, kicks, parries met, shoves) and the vr_agrunt_test group (213 cases): every vr_*/v_*/trace_* global, the humanoid's and its weapons' fields and the message equal; MP armed/disarm compared on the server too |
 
-Left (by size, for the next CPU job): the armed humanoids' QuakeC pose (VR_AGP_Pose, ~0.6 ms PC, ~2.5 Quest: many
-small helpers; a native port is the real win, too big to keep exact here), alias set-up on the Quest (4 ms: per-model
-state and uploads), the view entities (2.2 ms Quest), sound (1.45 ms Quest).
+Left (by size, for the next CPU job): alias set-up on the Quest (4 ms: per-model state and uploads), the view entities
+(2.2 ms Quest), sound (1.45 ms Quest); the props' other QuakeC (the shot and throw scans VR_AGS_Projectiles and
+VR_AG_WeaponStruck ~0.3 ms PC, the parry's frame VR_AGPar_Frame 0.16).
 ## Standalone status, 2026-11-23 (qcombined)
 
 `next` at 7df6f7ec8 (retro off, the unlit decal twin, rig plain, models without fullbright reads or a lights' loop,
