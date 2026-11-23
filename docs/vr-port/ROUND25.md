@@ -10156,6 +10156,43 @@ actual binds ("Press 'G' to equip a grenade", following a rebind); VR messages u
   headset (mock): 3/0 (the headset's wording, untouched). Binds and cvars put back after. The first screenshot of lesson
   1's board read "MOVE: 'W' ',' 'S' '.'" (default.cfg binds , and . too, lower key numbers): hence the ranking; now
   'W' 'A' 'S' 'D' (the test's t2_move). Scene `flat_tutorial_keys` (lesson 10).
+
+## questgore: the close-up gib fight on the Quest 3, blood cap on and off (agent/questgore, 2026-11-23)
+
+Follows "questreal2" and "pcopt". Headset over USB, overnight (his OK), asleep with the home shell in front before each
+launch (woken by `KEYCODE_WAKEUP`, no settings changed).
+- **The build:** the published 1.2.0-beta2 APK would not install: the headset's build (the quest tree's, 2026-11-22)
+  has another debug key, and an uninstall deletes his saves. So beta2's own aligned APK (posebake
+  `build-android/apk/aligned.apk`, the published QuakeVR.apk's contents) re-signed with the quest tree's
+  `debug.keystore` (same certificate as installed: 7622690272...) and installed in place by `qvr-setup quest` from a
+  sandbox install of beta2's QuakeVR.zip. The test progs.dat: beta2's commit (36d269540) QC compiled with tests; its
+  release flavour compiled the same way equals the zip's progs.dat byte for byte. Afterwards `qvr-setup quest` put the
+  shipped one back ("1 files copied", md5 8a409520... on the headset). The headset now runs beta2 (still that key).
+- **The scene:** `scratch/qg_mkgore2.py` (questreal's, every part on a fresh e1m1 so no corpses or decals pile up, an
+  end mark per part so the next load is not counted): six grunts 56-90 units ahead, `vr_limb_test 10`, frozen 8 frames
+  later, 240 frames measured; launched with `+vr_standalone_preset 0` (Quest 3 72 Hz: render scale 0.9, no MSAA).
+  ABBAAB, BAABBA, and once with the grunts at 0.65 of the distance (36-58 units). `qg_ab.py`, `qg_phases.py`.
+
+| launch | arm | rounds | GPU med (per round) | GPU p90 | period med | > 13.9 ms | > 15.3 ms | g_particles |
+|---|---|---|---|---|---|---|---|---|
+| g3 ABBAAB | A 96 / 0.3 | 3 | 17.52 (16.98 17.18 17.98) | 27.51* | 18.64 | 98.6% | 95.7% | 0.92 |
+| g3 | B off | 3 | 16.33 (16.42 16.35 15.54) | 17.45 | 17.37 | 96.4% | 88.2% | 0.92 |
+| g5 BAABBA | A | 3 | 17.76 (17.00 18.57 17.75) | 18.77 | 18.71 | 99.0% | 98.1% | 0.92 |
+| g5 | B | 3 | 16.74 (17.43 16.86 15.10) | 42.44* | 17.75 | 94.7% | 85.6% | 0.93 |
+| g6 near, ABBAAB | A | 3 | 18.00 (15.83 19.22 17.46) | 25.16* | 19.01 | 97.3% | 92.0% | 0.91 |
+| g6 near | B | 3 | 17.83 (18.49 17.84 15.89) | 18.79 | 18.53 | 97.3% | 92.6% | 0.98 |
+
+(* the launch's first part carries the map load's hitch.) **A = B within the rounds' spread (±1.5 ms, the gibs' random
+cuts change the draw count 186-230); 72 Hz holds in neither** (GPU ~17 ms, 95-99% of frames over 13.9 ms). The cap
+works (close up: blood made within 48 units 2,240-2,470 off, 325-1,353 on) but the particles' whole GPU cost is ~1 ms.
+- **Where the time goes** (g4, BPESSEPB): `g_world_brush` 13-15 ms of the ~16-17 (the world and the models); with
+  `r_drawentities 0` GPU 11.37 ms, period 14.01, 54% over 13.9 (so the grunts, gibs and limbs ~4-5 ms); a much stronger
+  cap (`vr_blood_near 512; vr_blood_near_mult 0.1`: 10.4k blood particles instead of 35k) g_particles 1.01 -> 0.65 ms,
+  GPU no lower (17.61); `r_particles 0` no lower either (17.49). Stronger blood values cannot reach 72 Hz, so no
+  screenshots were taken and **no default changed** (Standalone keeps 96 / 0.3). Next for this scene: the models
+  (gibs/limbs/corpses draws, the posed batches, their shading under Standalone) and the world's own ~9 ms per pair of eyes.
+- Left on the headset: `files/quakevr/qg_gore*.cfg` (6, tiny), 6 perf CSVs in the app's `files/perf`, the cfgs'
+  copies in `/data/local/tmp`. Scripts in `dagger/scratch/qg_*` (not committed).
 ## ropes8c: chains stop shots, nails and blows (agent/ropes8c, 2026-11-23)
 
 Item 11 of his flat notes (ropes8b's open list). ROPES.md "What pushes it" (Chains stop shots), "Tests".
