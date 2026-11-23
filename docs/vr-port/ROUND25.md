@@ -10055,3 +10055,39 @@ the damage came in pulses (a shot each 1.4 s). Now:
   Screenshot `qvr-kit/scratch/lancecharge_glow_bolt.png` (charging, then the bolt).
 - Not tested live: another player's charge in a real two-client game (the same message and draw path as yours, the
   copy's weapon from mpavatar).
+## tutflat: the tutorial's messages in flat-screen play, with the player's own keys (agent/tutflat, 2026-11-23)
+
+His request 2026-11-23 (14): tutorial messages detect flat-screen mode and use flat wording, and show the player's
+actual binds ("Press 'G' to equip a grenade", following a rebind); VR messages unchanged.
+- **Tokens** (`Quake/vr/vr_msgtokens.hpp/.cpp`): a message's text may hold `{flat}` (before it the headset's wording,
+  after it the flat screen's: no headset, `!vrActive()`) and `{key:<cvar>}` (a key cvar's key: `vr_flat_key_grenade`
+  -> 'G') or `{key:<command>}` (the likeliest key bound to it: a letter or digit, then a mouse button, then another key,
+  then a gamepad's; in flat play not a key flat play reads itself, `VR_FlatKeyOwned`). Mouse buttons read 'Left Click',
+  'Right Click', 'Middle Click', 'Mouse 4/5', 'Wheel Up/Down'; other keys their friendly name upper-cased ('SPACE').
+  None bound: `[Quick grenade: not bound]` (a flat key's Controls label, else a short name for the command).
+- **Resolved on the client, as shown** (shared by both modes: one path, the mode picks the part): the centre print
+  (`SCR_CenterPrint`, so every caller, `VR_ExpandMessageTokens`), the view message (`clientParseViewMessage`), the map
+  tips (`tipText`, cached until the tip, its text or `msgtokens::signature()` changes) and the world text boards (the
+  client keeps the text as sent in `WorldText::raw` and resolves again in `clientTexts()` when the signature changes; a
+  demo records the text as sent). The signature hashes the mode, `key_bindgeneration` (keys.c: Key_SetBinding counts its
+  changes) and every flat key cvar's value: a rebind in Controls or the console shows at once on what is up. Text with
+  no token costs one `strstr` pair.
+- **The tutorial** (`vrtutorial_gen.py`): `FLAT_TIPS` (by tipname, 43) and `FLAT_BANNERS` (by the board's first line,
+  22) give the flat wording; `tip()` and `banner()` append it after `{flat}`; `check_flat_wording` fails the build on an
+  unused entry, `with_flat` on a value over 1000 characters (the engine's 1023); `banner_bounds` sizes a board by both
+  wordings (a key as long as 'Left Click'). The rest (doors, checkpoints, the welcome, the arena) read the same in both.
+  The BSP's entity lump was patched (bsp_set_entities.py `--from-file`, the regenerated .map's 65 changed lines
+  replaced in it) instead of a recompile: geometry and light unchanged.
+- **Flat wording follows flat play's controls** (FLATPLAY.md): walking over health, armour, keys and boxes; the force
+  grab key; punch, fire, shove, reload, drop, the quick grenade, the flashlight, bullet time, the holster keys and
+  menu; ladders, the mantle (jump held, looking up) and ropes (strafe swings, jump lets go); the swim keys; the HUD's
+  health top left. **Open:** lesson 10's gate (a thrown rock) and lesson 12's (a thrown axe) need a throw flat play
+  lacks (FLATPLAY.md's hotkey audit: "his call"); their flat wording says so ("a headset's move, not in flat play yet").
+  Lesson 13's grenade catch and the disarms likewise (the flat tips say to get clear / take the rifle once it dies).
+- **Test** `vr_msgtokens_test` (Debug > Tests, "Tutorial Messages: Keys And Wording"; run in vrtutorial: it waits for
+  the map's tips, a frame each): `-flatscreenmode`: 9/0 (no token left on the boards and seven tips; t2_grenade names
+  'G', 'J' after a rebind, `[Quick grenade: not bound]` with none; the GRENADES board follows the rebind; a centre
+  print's `A{flat}B {key:...}` -> `B 'G'`; t2_jump 'SPACE', then 'U' with +jump moved; t2_move's 'A' over ',');
+  headset (mock): 3/0 (the headset's wording, untouched). Binds and cvars put back after. The first screenshot of lesson
+  1's board read "MOVE: 'W' ',' 'S' '.'" (default.cfg binds , and . too, lower key numbers): hence the ranking; now
+  'W' 'A' 'S' 'D' (the test's t2_move). Scene `flat_tutorial_keys` (lesson 10).

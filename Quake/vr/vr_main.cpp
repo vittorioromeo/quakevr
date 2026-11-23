@@ -103,6 +103,7 @@
 #include "vr_stealth.hpp"
 #include "vr_stereo.hpp"
 #include "vr_stereo_single.hpp"
+#include "vr_msgtokens.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tips.hpp"
 #include "vr_timescale.hpp"
@@ -2323,6 +2324,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_menu_stop_test", menu::stopTest_f);
     Cmd_AddCommand("vr_tips_reset", tips::reset_f);
     Cmd_AddCommand("vr_tips_test", tips::test_f);
+    Cmd_AddCommand("vr_msgtokens_test", msgtokens::test_f);
     Cmd_AddCommand("vr_mock_laser", menuui::mockLaser_f);
     Cmd_AddCommand("vr_menu_panel", menuui::panelPlace_f);
     Cmd_AddCommand("vr_menu_zoom", menuui::zoom_f);
@@ -2655,6 +2657,7 @@ extern "C" void VR_BeginFrame()
             QVR_TRACY_SCOPE(zoneNotesTips, "texts: notes, tips, highlights");
             voicenotes::frame(); // after the clear: its indicator is queued anew each frame
             voicechat::frame();  // (multiplayer: capture, play-out, the talking indicators, B10v)
+            msgtokens::frame();  // vr_msgtokens_test's run (before the tips queue their texts)
             tips::frame();       // a tip due, the one showing (vr_tips)
             highlights::frame(); // the game's clock against realtime, a multi-kill's end
         }

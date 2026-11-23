@@ -26966,7 +26966,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "634 416 100"
-"worldtext" "LESSON 1: MOVING\n\nMOVE: left thumbstick.\nTURN: right thumbstick.\nOr simply turn your head and body.\n\nFollow the yellow arrows.\n\nTo run, hold the left thumbstick down."
+"worldtext" "LESSON 1: MOVING\n\nMOVE: left thumbstick.\nTURN: right thumbstick.\nOr simply turn your head and body.\n\nFollow the yellow arrows.\n\nTo run, hold the left thumbstick down.{flat}LESSON 1: MOVING\n\nMOVE: {key:+forward} {key:+moveleft} {key:+back} {key:+moveright}.\nTURN: the mouse.\n\nFollow the yellow arrows.\n\nTo run, hold {key:+speed}."
 "worldtext_halign" "1"
 "worldtext_scale" "0.32"
 "angle" "180"
@@ -26976,7 +26976,7 @@
 "classname" "func_vr_tip"
 "origin" "220 256 60"
 "tipname" "t2_move"
-"message" "Push the left stick to walk.\nPush the right stick sideways to turn."
+"message" "Push the left stick to walk.\nPush the right stick sideways to turn.{flat}Walk with {key:+forward} {key:+moveleft} {key:+back} {key:+moveright};\nturn with the mouse."
 "distance" "253"
 }
 // entity 59
@@ -27022,7 +27022,7 @@
 "classname" "func_vr_tip"
 "origin" "700 256 60"
 "tipname" "t2_turn"
-"message" "The hall bends: turn with the right stick\n(or turn your body) to follow it."
+"message" "The hall bends: turn with the right stick\n(or turn your body) to follow it.{flat}The hall bends: turn with the mouse\nto follow it."
 "distance" "184"
 }
 // entity 65
@@ -27121,7 +27121,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "1432 704 176"
-"worldtext" "LESSON 2: BUTTONS\n\nPush the button beside the door.\nYour hand, anything you hold, your body\nor something you throw presses a button."
+"worldtext" "LESSON 2: BUTTONS\n\nPush the button beside the door.\nYour hand, anything you hold, your body\nor something you throw presses a button.{flat}LESSON 2: BUTTONS\n\nPush the button beside the door.\nWalk into it, or touch it\nwith what you hold."
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "180"
@@ -27131,7 +27131,7 @@
 "classname" "func_vr_tip"
 "origin" "1428 592 76"
 "tipname" "t2_button"
-"message" "Reach out and push the button\nwith your hand."
+"message" "Reach out and push the button\nwith your hand.{flat}Walk into the button\nto press it."
 "distance" "328"
 }
 // entity 74
@@ -27396,7 +27396,7 @@
 "classname" "func_vr_tip"
 "origin" "1776 990 60"
 "tipname" "t2_settings"
-"message" "Optional: these change how you move\nand turn. Try Snap turning if smooth\nturning makes you queasy."
+"message" "Optional: these change how you move\nand turn. Try Snap turning if smooth\nturning makes you queasy.{flat}Optional: these change how you move\nand turn in a headset."
 "distance" "299"
 }
 // entity 92
@@ -27404,7 +27404,7 @@
 "classname" "func_vr_tip"
 "origin" "1872 1000 46"
 "tipname" "t2_teleport"
-"message" "Teleport: aim and release the stick\nto jump to a spot (if you turn it on)."
+"message" "Teleport: aim and release the stick\nto jump to a spot (if you turn it on).{flat}Teleport is a headset option:\non a flat screen you walk."
 "distance" "138"
 }
 // entity 93
@@ -27483,7 +27483,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "2380 956 120"
-"worldtext" "LESSON 3: JUMPING AND CLIMBING\n\nJUMP: press A (the right controller).\nOr jump for real: you jump in the game.\nJump the low barriers."
+"worldtext" "LESSON 3: JUMPING AND CLIMBING\n\nJUMP: press A (the right controller).\nOr jump for real: you jump in the game.\nJump the low barriers.{flat}LESSON 3: JUMPING AND CLIMBING\n\nJUMP: press {key:+jump}.\nJump the low barriers."
 "worldtext_halign" "1"
 "worldtext_scale" "0.32"
 "angle" "270"
@@ -27492,7 +27492,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "2956 840 112"
-"worldtext" "CLIMB: grip a rung or a ledge with an empty hand\nand pull yourself up, hand over hand.\nPull up at the top to climb onto it."
+"worldtext" "CLIMB: grip a rung or a ledge with an empty hand\nand pull yourself up, hand over hand.\nPull up at the top to climb onto it.{flat}CLIMB: walk into the rungs: forward\nclimbs, back climbs down.\nAt the top you climb onto it."
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "180"
@@ -27501,7 +27501,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "3164 600 276"
-"worldtext" "TOO HIGH TO REACH?\nJump, and grab the edge\nat the top of the jump."
+"worldtext" "TOO HIGH TO REACH?\nJump, and grab the edge\nat the top of the jump.{flat}TOO HIGH TO REACH?\nJump, hold {key:+jump} and look\nup: you pull yourself up."
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "180"
@@ -27511,7 +27511,7 @@
 "classname" "func_vr_tip"
 "origin" "2500 704 56"
 "tipname" "t2_jump"
-"message" "Press A, or jump for real, to jump.\nJump over the yellow barriers."
+"message" "Press A, or jump for real, to jump.\nJump over the yellow barriers.{flat}Press {key:+jump} to jump.\nJump over the yellow barriers."
 "distance" "253"
 }
 // entity 106
@@ -27519,7 +27519,7 @@
 "classname" "func_vr_tip"
 "origin" "2944 704 70"
 "tipname" "t2_climb"
-"message" "Grip a rung with an empty hand, pull\ndown; grip the next one with the other."
+"message" "Grip a rung with an empty hand, pull\ndown; grip the next one with the other.{flat}Walk into the rungs to climb them;\nback (or look down) climbs down."
 "distance" "173"
 }
 // entity 107
@@ -27558,7 +27558,7 @@
 "classname" "func_vr_tip"
 "origin" "3144 704 216"
 "tipname" "t2_catch"
-"message" "Jump, reach up and grip the edge\nas you rise: then pull yourself up."
+"message" "Jump, reach up and grip the edge\nas you rise: then pull yourself up.{flat}Jump, hold {key:+jump} and look up at the\nedge: you pull yourself up onto it."
 "distance" "184"
 }
 // entity 110
@@ -27650,7 +27650,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "3760 956 406"
-"worldtext" "LESSON 4: SWIMMING\n\nDive in, swim down into the passage,\nround the corner and up into the next room.\n\nImmersive: stroke with your arms.\n\nVanilla: the stick moves you where you look;\nA swims up."
+"worldtext" "LESSON 4: SWIMMING\n\nDive in, swim down into the passage,\nround the corner and up into the next room.\n\nImmersive: stroke with your arms.\n\nVanilla: the stick moves you where you look;\nA swims up.{flat}LESSON 4: SWIMMING\n\nDive in, swim down into the passage,\nround the corner and up into the next room.\n\nSwim where you look;\n{key:+jump} held swims up."
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "270"
@@ -27660,7 +27660,7 @@
 "classname" "func_vr_tip"
 "origin" "3760 930 320"
 "tipname" "t2_swim"
-"message" "Immersive swimming: pull your arms\nthrough the water like a breast stroke.\nPress SWIMMING for the stick instead."
+"message" "Immersive swimming: pull your arms\nthrough the water like a breast stroke.\nPress SWIMMING for the stick instead.{flat}Swim where you look with the move\nkeys; hold {key:+jump} to rise."
 "distance" "230"
 }
 // entity 121
@@ -27732,7 +27732,7 @@
 "classname" "func_vr_tip"
 "origin" "4160 1184 286"
 "tipname" "t2_out"
-"message" "Climb out: grip the edge and pull,\nor swim to the steps."
+"message" "Climb out: grip the edge and pull,\nor swim to the steps.{flat}Climb out: swim at the edge\nand jump, or swim to the steps."
 "distance" "230"
 }
 // entity 130
@@ -27862,7 +27862,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "4544 1468 -24"
-"worldtext" "LESSON 5: HEALING\n\nHealth kits mend you. Grip one and hold it\nto your body, or put it in a holster:\nat your hips, over your shoulders."
+"worldtext" "LESSON 5: HEALING\n\nHealth kits mend you. Grip one and hold it\nto your body, or put it in a holster:\nat your hips, over your shoulders.{flat}LESSON 5: HEALING\n\nHealth kits mend you:\nwalk over one to use it."
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "270"
@@ -27871,7 +27871,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "4940 1064 -64"
-"worldtext" "GRAB: close your hand round it.\n\nFORCE GRAB: point at something far,\nhold the trigger and flick your hand back;\ngrip as it reaches you to catch it.\n\nCOLLECT: put it in a holster, your pouch,\nor over your shoulder into your pack."
+"worldtext" "GRAB: close your hand round it.\n\nFORCE GRAB: point at something far,\nhold the trigger and flick your hand back;\ngrip as it reaches you to catch it.\n\nCOLLECT: put it in a holster, your pouch,\nor over your shoulder into your pack.{flat}FORCE GRAB: point at something far\nand press {key:vr_flat_key_grab}: it flies to you.\nA kit or a box is taken at once.\n\nDROP: {key:vr_flat_key_drop} lets go of what you hold."
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "180"
@@ -27881,7 +27881,7 @@
 "classname" "func_vr_tip"
 "origin" "4544 1380 -74"
 "tipname" "t2_health"
-"message" "You are hurt. Take a health kit:\ngrip it, then hold it to your belly\nor a holster."
+"message" "You are hurt. Take a health kit:\ngrip it, then hold it to your belly\nor a holster.{flat}You are hurt. Walk over a health\nkit to use it."
 "distance" "230"
 }
 // entity 149
@@ -27889,7 +27889,7 @@
 "classname" "func_vr_tip"
 "origin" "4880 1400 -68"
 "tipname" "t2_forcegrab"
-"message" "Point at the kit on the shelf, hold\nthe trigger and flick your hand back:\nit flies to you. Grip as it arrives."
+"message" "Point at the kit on the shelf, hold\nthe trigger and flick your hand back:\nit flies to you. Grip as it arrives.{flat}Point at the kit on the shelf and\npress {key:vr_flat_key_grab}: it flies to you."
 "distance" "253"
 }
 // entity 150
@@ -28023,7 +28023,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "5216 1468 -24"
-"worldtext" "LESSON 6: MELEE\n\nMake a fist and punch the crate\nuntil it breaks. Swing hard!\n\nYou can also grab the crate\nwith both hands and throw it."
+"worldtext" "LESSON 6: MELEE\n\nMake a fist and punch the crate\nuntil it breaks. Swing hard!\n\nYou can also grab the crate\nwith both hands and throw it.{flat}LESSON 6: MELEE\n\nPunch the crate until it breaks:\n{key:vr_flat_key_punch}, or {key:+attack} with empty hands."
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "270"
@@ -28033,7 +28033,7 @@
 "classname" "func_vr_tip"
 "origin" "5216 1300 -84"
 "tipname" "t2_punch"
-"message" "Make a fist (grip and trigger)\nand punch the crate until it breaks."
+"message" "Make a fist (grip and trigger)\nand punch the crate until it breaks.{flat}Press {key:vr_flat_key_punch} (or {key:+attack}) to punch;\nbreak the crate."
 "distance" "230"
 }
 // entity 164
@@ -28041,7 +28041,7 @@
 "classname" "func_vr_tip"
 "origin" "5216 1320 -104"
 "tipname" "t2_key"
-"message" "A keycard! Grip it, then hold it\nto a holster to keep it."
+"message" "A keycard! Grip it, then hold it\nto a holster to keep it.{flat}A keycard! Walk over it\nto keep it."
 "distance" "345"
 "targetname" "r6_crate"
 "spawnflags" "8"
@@ -28052,7 +28052,7 @@
 "classname" "func_vr_tip"
 "origin" "5216 1344 -104"
 "tipname" "t2_key_held"
-"message" "Don't carry it to the door: let go of it\nat a holster first, to keep it."
+"message" "Don't carry it to the door: let go of it\nat a holster first, to keep it.{flat}Don't carry it in your hand: {key:vr_flat_key_drop}\nlets go; walk over it to keep it."
 "distance" "173"
 "target" "r6_key"
 "spawnflags" "20"
@@ -28165,7 +28165,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "5216 772 -40"
-"worldtext" "LESSON 7: FIGHT\n\nWARNING: AN ENEMY IS COMING!\nFight it with your fists:\nblock its blows, then strike.\n\nOnce it is dead, take its rifle\nand shoot the three targets to go on."
+"worldtext" "LESSON 7: FIGHT\n\nWARNING: AN ENEMY IS COMING!\nFight it with your fists:\nblock its blows, then strike.\n\nOnce it is dead, take its rifle\nand shoot the three targets to go on.{flat}LESSON 7: FIGHT\n\nWARNING: AN ENEMY IS COMING!\nFight it with your fists:\n{key:vr_flat_key_punch} or {key:+attack} punches.\n\nOnce it is dead, take its rifle\nand shoot the three targets to go on."
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "90"
@@ -28239,7 +28239,7 @@
 "classname" "func_vr_tip"
 "origin" "5216 780 -74"
 "tipname" "t2_parry"
-"message" "PARRY: hold your fist or weapon across\nan enemy's blow to block it: it staggers,\nopen to your strike."
+"message" "PARRY: hold your fist or weapon across\nan enemy's blow to block it: it staggers,\nopen to your strike.{flat}PARRY: a melee weapon in one hand,\nhold {key:+offhandattack} to guard: a blocked\nblow staggers the enemy."
 "distance" "253"
 }
 // entity 183
@@ -28247,7 +28247,7 @@
 "classname" "func_vr_tip"
 "origin" "5216 640 -104"
 "tipname" "t2_rifle"
-"message" "Take its rifle: grip it by its handle,\naim, pull the trigger. Its magazine is all\nit has: it can't be reloaded."
+"message" "Take its rifle: grip it by its handle,\naim, pull the trigger. Its magazine is all\nit has: it can't be reloaded.{flat}Take its rifle: walk over it or press\n{key:vr_flat_key_grab} at it; {key:+attack} fires. Its magazine\nis all it has: it can't be reloaded."
 "distance" "575"
 "targetname" "r7_dead"
 "spawnflags" "8"
@@ -28790,7 +28790,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "5216 -540 36"
-"worldtext" "LESSON 8: WEAPONS\n\nTake the shotgun from the bench: grip it.\nLoad shells: take one from the pouch at\nyour belly, push it into the gun's port.\nDestroy every target to go on."
+"worldtext" "LESSON 8: WEAPONS\n\nTake the shotgun from the bench: grip it.\nLoad shells: take one from the pouch at\nyour belly, push it into the gun's port.\nDestroy every target to go on.{flat}LESSON 8: WEAPONS\n\nTake the shotgun from the bench:\npress {key:vr_flat_key_grab} at it.\nReload with {key:vr_flat_key_reload}.\nDestroy every target to go on."
 "worldtext_halign" "1"
 "worldtext_scale" "1"
 "angle" "90"
@@ -28799,7 +28799,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "4928 396 6"
-"worldtext" "HOLSTERS: let go of a gun at your hip\nor shoulder to put it away; grip there\nto draw it again."
+"worldtext" "HOLSTERS: let go of a gun at your hip\nor shoulder to put it away; grip there\nto draw it again.{flat}HOLSTERS: {key:vr_flat_key_holster_right} puts the gun away,\n{key:vr_flat_key_cycle_right} draws the next one;\n{key:vr_flat_key_holster_menu} held: the holster menu."
 "worldtext_halign" "1"
 "worldtext_scale" "0.25"
 "angle" "270"
@@ -28808,7 +28808,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "5504 396 6"
-"worldtext" "TWO HANDS: grip the gun's front with\nyour other hand to steady it. Virtual\nstock: hold it to your shoulder."
+"worldtext" "TWO HANDS: grip the gun's front with\nyour other hand to steady it. Virtual\nstock: hold it to your shoulder.{flat}TWO HANDS: your free hand steadies\nthe gun by itself.\nAIM: hold {key:+offhandattack} for the sights."
 "worldtext_halign" "1"
 "worldtext_scale" "0.25"
 "angle" "270"
@@ -28818,7 +28818,7 @@
 "classname" "func_vr_tip"
 "origin" "4880 350 -74"
 "tipname" "t2_shotgun"
-"message" "Grip the shotgun to take it."
+"message" "Grip the shotgun to take it.{flat}Press {key:vr_flat_key_grab} at the shotgun\nto take it."
 "distance" "184"
 }
 // entity 230
@@ -28826,7 +28826,7 @@
 "classname" "func_vr_tip"
 "origin" "5008 350 -74"
 "tipname" "t2_shells"
-"message" "Shells: grip the box and hold it to\na holster (or your belly): they go\nto your ammo pouch."
+"message" "Shells: grip the box and hold it to\na holster (or your belly): they go\nto your ammo pouch.{flat}Shells: walk over the box (or press\n{key:vr_flat_key_grab} at it): they go to your ammo."
 "distance" "184"
 }
 // entity 231
@@ -28834,7 +28834,7 @@
 "classname" "func_vr_tip"
 "origin" "5216 260 -84"
 "tipname" "t2_reload"
-"message" "To load: with your other hand grip at\nyour belly pouch for a shell, then push it\ninto the port under the gun."
+"message" "To load: with your other hand grip at\nyour belly pouch for a shell, then push it\ninto the port under the gun.{flat}To load: press {key:vr_flat_key_reload}."
 "distance" "230"
 }
 // entity 232
@@ -28842,7 +28842,7 @@
 "classname" "func_vr_tip"
 "origin" "5216 190 -80"
 "tipname" "t2_range"
-"message" "Each target needs a good hit. The gun\nholds 8 shells: reload when it clicks."
+"message" "Each target needs a good hit. The gun\nholds 8 shells: reload when it clicks.{flat}Each target needs a good hit. The gun\nholds 8 shells: {key:vr_flat_key_reload} reloads."
 "distance" "253"
 }
 // entity 233
@@ -28903,7 +28903,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "4640 164 -24"
-"worldtext" "LESSON 9: DARKNESS\n\nYour flashlight hangs on your torso:\ngrip it; pull the trigger to switch\nit on or off.\n\nHold it to your temple\n(helmet) or to a gun in your other hand\nand release: it clips on.\n\nPress B/Y to unclip it from guns."
+"worldtext" "LESSON 9: DARKNESS\n\nYour flashlight hangs on your torso:\ngrip it; pull the trigger to switch\nit on or off.\n\nHold it to your temple\n(helmet) or to a gun in your other hand\nand release: it clips on.\n\nPress B/Y to unclip it from guns.{flat}LESSON 9: DARKNESS\n\nYour flashlight is at your temple:\n{key:vr_flat_key_flashlight} switches it on or off."
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "90"
@@ -28913,7 +28913,7 @@
 "classname" "func_vr_tip"
 "origin" "4640 200 -84"
 "tipname" "t2_torch"
-"message" "Take your flashlight: grip it on your torso\n(the side set by FLASHLIGHT SIDE), trigger\nto switch it on."
+"message" "Take your flashlight: grip it on your torso\n(the side set by FLASHLIGHT SIDE), trigger\nto switch it on.{flat}It's dark: press {key:vr_flat_key_flashlight}\nto switch on your flashlight."
 "distance" "230"
 "targetname" "r9v_in"
 "spawnflags" "8"
@@ -28982,7 +28982,7 @@
 "classname" "func_vr_tip"
 "origin" "4400 200 -84"
 "tipname" "t2_flip"
-"message" "Press B or Y with the flashlight in hand\nto flip it round in your fist."
+"message" "Press B or Y with the flashlight in hand\nto flip it round in your fist.{flat}{key:vr_flat_key_flashlight} switches your flashlight\non and off."
 "distance" "184"
 "targetname" "r9_in"
 "spawnflags" "8"
@@ -28992,7 +28992,7 @@
 "classname" "func_vr_tip"
 "origin" "4136 -260 -84"
 "tipname" "t2_clipgun"
-"message" "Hold the flashlight to a gun in your other\nhand and press B or Y: it clips on."
+"message" "Hold the flashlight to a gun in your other\nhand and press B or Y: it clips on.{flat}Your flashlight lights where you\nlook: aim where you shoot."
 "distance" "184"
 }
 // entity 244
@@ -29000,7 +29000,7 @@
 "classname" "func_vr_tip"
 "origin" "3880 260 -84"
 "tipname" "t2_cliphead"
-"message" "Hold it to your temple and press B or Y:\na head torch, both hands free."
+"message" "Hold it to your temple and press B or Y:\na head torch, both hands free.{flat}Your flashlight is at your temple:\nboth hands stay free."
 "distance" "184"
 }
 // entity 245
@@ -29160,7 +29160,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "2928 -348 16"
-"worldtext" "LESSON 10: THROWING\n\nThe button is out of reach behind the bars.\nThrow a rock or a brick at it:\ngrip, swing, let go."
+"worldtext" "LESSON 10: THROWING\n\nThe button is out of reach behind the bars.\nThrow a rock or a brick at it:\ngrip, swing, let go.{flat}LESSON 10: THROWING\n\nThe button is out of reach behind the bars.\nHit it with a thrown rock or brick.\n(Throwing is not in flat play yet.)"
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "90"
@@ -29170,7 +29170,7 @@
 "classname" "func_vr_tip"
 "origin" "2800 -260 -74"
 "tipname" "t2_throw"
-"message" "Grip a rock, swing your arm and let go\nas it comes forward. Hit the button."
+"message" "Grip a rock, swing your arm and let go\nas it comes forward. Hit the button.{flat}Hit the button with a thrown rock:\na headset's move (not in flat play yet)."
 "distance" "230"
 }
 // entity 262
@@ -29196,7 +29196,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "3264 -348 -24"
-"worldtext" "GRENADES\nWith rockets in your pack, reach behind you:\nthe pouch on your lower back gives a grenade.\nTrigger pulls the pin; throw it.\nOr drop one, pin in, where they will come:\na trap you can shoot to set off. No launcher needed."
+"worldtext" "GRENADES\nWith rockets in your pack, reach behind you:\nthe pouch on your lower back gives a grenade.\nTrigger pulls the pin; throw it.\nOr drop one, pin in, where they will come:\na trap you can shoot to set off. No launcher needed.{flat}GRENADES\nWith rockets in your pack, press {key:vr_flat_key_grenade}:\na grenade in a free hand. {key:+attack} arms it;\nhold to wind up, let go to throw."
 "worldtext_halign" "1"
 "worldtext_scale" "0.26"
 "angle" "90"
@@ -29206,7 +29206,7 @@
 "classname" "func_vr_tip"
 "origin" "3264 -296 -80"
 "tipname" "t2_grenade"
-"message" "Take the rockets (hold the box to a holster).\nThen reach for the pouch on your lower\nback: a grenade."
+"message" "Take the rockets (hold the box to a holster).\nThen reach for the pouch on your lower\nback: a grenade.{flat}Take the rockets (walk over the box).\nThen press {key:vr_flat_key_grenade}: a grenade in a free\nhand. {key:+attack} arms it; let go to throw."
 "distance" "207"
 }
 // entity 267
@@ -29441,7 +29441,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "2164 -192 -26"
-"worldtext" "LESSON 11: FIRE\n\nTake a torch off the wall: grip it.\nSet the crates alight and watch it spread.\nEnemies burn too. So do you: careful!"
+"worldtext" "LESSON 11: FIRE\n\nTake a torch off the wall: grip it.\nSet the crates alight and watch it spread.\nEnemies burn too. So do you: careful!{flat}LESSON 11: FIRE\n\nTake a torch off the wall:\npress {key:vr_flat_key_grab} at it.\nSet the crates alight and watch it spread.\nEnemies burn too. So do you: careful!"
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "0"
@@ -29451,7 +29451,7 @@
 "classname" "func_vr_tip"
 "origin" "2272 -264 -80"
 "tipname" "t2_torch_take"
-"message" "Grip a torch and pull it off the wall."
+"message" "Grip a torch and pull it off the wall.{flat}Press {key:vr_flat_key_grab} at a torch\nto take it off the wall."
 "distance" "184"
 }
 // entity 295
@@ -29459,7 +29459,7 @@
 "classname" "func_vr_tip"
 "origin" "2200 0 -80"
 "tipname" "t2_burn"
-"message" "Touch the crates with the flame\nor hit them with the torch."
+"message" "Touch the crates with the flame\nor hit them with the torch.{flat}Touch the crates with the flame\nor hit them with the torch ({key:+attack})."
 "distance" "184"
 }
 // entity 296
@@ -30319,7 +30319,7 @@
 "classname" "func_vr_tip"
 "origin" "4688 1112 -84"
 "tipname" "t2_wrist"
-"message" "The fall hurt. Look at your wrist:\nraise your forearm as if reading a watch.\nThe gadget there shows your health."
+"message" "The fall hurt. Look at your wrist:\nraise your forearm as if reading a watch.\nThe gadget there shows your health.{flat}The fall hurt. Your health is\nat the top left of the screen."
 "distance" "138"
 }
 // entity 391
@@ -30377,7 +30377,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "1500 -532 -48"
-"worldtext" "BULLET TIME\n\nDouble-tap your wrist gadget's screen\nwith your other hand: time slows down.\nDouble-tap again to stop it.\nIt runs down, then recharges."
+"worldtext" "BULLET TIME\n\nDouble-tap your wrist gadget's screen\nwith your other hand: time slows down.\nDouble-tap again to stop it.\nIt runs down, then recharges.{flat}BULLET TIME\n\nPress {key:vr_flat_key_bullettime}: time slows down.\nPress it again to stop it.\nIt runs down, then recharges."
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "270"
@@ -30403,7 +30403,7 @@
 "classname" "func_vr_tip"
 "origin" "520 256 60"
 "tipname" "t1_menu"
-"message" "The menu: the menu button,\nor click both sticks together."
+"message" "The menu: the menu button,\nor click both sticks together.{flat}The menu: press {key:togglemenu}."
 "distance" "184"
 }
 // entity 400
@@ -30524,7 +30524,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "1760 -812 -32"
-"worldtext" "LESSON 12: BLADES\n\nSwing the edge hard: it cuts.\nThrust the point: it sticks in.\nGrip the handle again to pull it out.\n\nB (Y on the off hand) turns the blade\npoint down: a reverse grip.\n\nThrow an axe into the target to go on."
+"worldtext" "LESSON 12: BLADES\n\nSwing the edge hard: it cuts.\nThrust the point: it sticks in.\nGrip the handle again to pull it out.\n\nB (Y on the off hand) turns the blade\npoint down: a reverse grip.\n\nThrow an axe into the target to go on.{flat}LESSON 12: BLADES\n\nTake a blade: {key:vr_flat_key_grab} at it.\n{key:+attack} swings: the edge cuts,\nthe point sticks in.\n\n{key:vr_flat_key_ammo}: the dagger point down.\n\nThrow an axe into the target to go on."
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "90"
@@ -30534,7 +30534,7 @@
 "classname" "func_vr_tip"
 "origin" "1750 -512 -84"
 "tipname" "t3_blades"
-"message" "Take a blade by its handle and swing\nthe edge through the dummy."
+"message" "Take a blade by its handle and swing\nthe edge through the dummy.{flat}Take a blade ({key:vr_flat_key_grab} at it), then\n{key:+attack} swings it through the dummy."
 "distance" "184"
 }
 // entity 415
@@ -30542,7 +30542,7 @@
 "classname" "func_vr_tip"
 "origin" "1920 -520 -84"
 "tipname" "t3_stab"
-"message" "Thrust the point in: it sticks.\nGrip the handle again to pull it out."
+"message" "Thrust the point in: it sticks.\nGrip the handle again to pull it out.{flat}A point that sticks in stays there:\nforce-grab it ({key:vr_flat_key_grab}) to pull it out."
 "distance" "126"
 }
 // entity 416
@@ -30550,7 +30550,7 @@
 "classname" "func_vr_tip"
 "origin" "1710 -512 -104"
 "tipname" "t3_reverse"
-"message" "B (Y on the off hand) turns the dagger\npoint down, for stabbing down."
+"message" "B (Y on the off hand) turns the dagger\npoint down, for stabbing down.{flat}{key:vr_flat_key_ammo} turns the dagger point down,\nfor stabbing down."
 "distance" "173"
 "target" "r12_dagger"
 "spawnflags" "20"
@@ -30561,7 +30561,7 @@
 "classname" "func_vr_tip"
 "origin" "1920 -690 -84"
 "tipname" "t3_axe"
-"message" "Throw the axe at the target: swing and\nlet go. Grip it to pull it back out."
+"message" "Throw the axe at the target: swing and\nlet go. Grip it to pull it back out.{flat}Throw the axe at the target:\na headset's move (not in flat play yet)."
 "distance" "184"
 }
 // entity 418
@@ -30813,7 +30813,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "2320 -372 6"
-"worldtext" "LESSON 13: BASH AND BAT\n\nBASH: hold a weapon level across (a guard)\nand push forward hard. An open hand shoves.\nShove the enemy off the bridge!\nOr disarm it: grip its axe and pull.\n\nBAT: press for a spike, swing through it.\nPress for a grenade: catch it, throw it back."
+"worldtext" "LESSON 13: BASH AND BAT\n\nBASH: hold a weapon level across (a guard)\nand push forward hard. An open hand shoves.\nShove the enemy off the bridge!\nOr disarm it: grip its axe and pull.\n\nBAT: press for a spike, swing through it.\nPress for a grenade: catch it, throw it back.{flat}LESSON 13: BASH AND BAT\n\nSHOVE: {key:vr_flat_key_shove} pushes an open hand out.\nShove the enemy off the bridge!\n\nBAT: press for a spike, swing through it.\nPress for a grenade: get clear!"
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "270"
@@ -30823,7 +30823,7 @@
 "classname" "func_vr_tip"
 "origin" "2400 -624 -84"
 "tipname" "t3_bash"
-"message" "From a guard (a weapon level across),\npush hard: a bash. Shove it off!"
+"message" "From a guard (a weapon level across),\npush hard: a bash. Shove it off!{flat}Press {key:vr_flat_key_shove} to shove:\npush it off the bridge!"
 "distance" "253"
 }
 // entity 440
@@ -30831,7 +30831,7 @@
 "classname" "func_vr_tip"
 "origin" "2400 -624 -104"
 "tipname" "t3_disarm"
-"message" "Disarm it: grip its axe and pull hard.\nIt holds on: a tug of war."
+"message" "Disarm it: grip its axe and pull hard.\nIt holds on: a tug of war.{flat}It holds an axe: shove it off\nthe bridge, or beat it."
 "distance" "345"
 "targetname" "r13_spawn"
 "spawnflags" "8"
@@ -30842,7 +30842,7 @@
 "classname" "func_vr_tip"
 "origin" "2272 -420 -84"
 "tipname" "t3_bat"
-"message" "Swing your weapon or fist through\nthe spike to send it back."
+"message" "Swing your weapon or fist through\nthe spike to send it back.{flat}Swing your weapon ({key:+attack}) or punch\n({key:vr_flat_key_punch}) as the spike comes: it flies back."
 "distance" "184"
 "targetname" "r13_spike"
 "spawnflags" "8"
@@ -30853,7 +30853,7 @@
 "classname" "func_vr_tip"
 "origin" "2368 -420 -104"
 "tipname" "t3_catch"
-"message" "Catch the grenade with an empty hand\nand throw it back before it bursts."
+"message" "Catch the grenade with an empty hand\nand throw it back before it bursts.{flat}A grenade! Get clear\nbefore it bursts."
 "distance" "184"
 "targetname" "r13_grenade"
 "spawnflags" "8"
@@ -30986,7 +30986,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "2272 -1404 -4"
-"worldtext" "LESSON 14: ROPES\n\nGrip the rope with both hands\nand step off: you hang on it.\nPull down to climb, push up to slide.\nPush the stick to swing it higher,\nthen jump to let go and fly across.\n\nFall in? The ladder brings you back up."
+"worldtext" "LESSON 14: ROPES\n\nGrip the rope with both hands\nand step off: you hang on it.\nPull down to climb, push up to slide.\nPush the stick to swing it higher,\nthen jump to let go and fly across.\n\nFall in? The ladder brings you back up.{flat}LESSON 14: ROPES\n\nWalk or jump into the rope: you hang on.\nForward climbs, back slides down.\nThe strafe keys swing it higher;\n{key:+jump} lets go: you fly across.\n\nFall in? The ladder brings you back up."
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "90"
@@ -30996,7 +30996,7 @@
 "classname" "func_vr_tip"
 "origin" "2080 -1104 -84"
 "tipname" "t3_rope"
-"message" "Grip the rope, step off the edge, push\nthe stick to swing, then jump."
+"message" "Grip the rope, step off the edge, push\nthe stick to swing, then jump.{flat}Jump into the rope, swing it with\n{key:+moveleft} {key:+moveright}, then {key:+jump} to let go."
 "distance" "173"
 }
 // entity 458
@@ -31017,7 +31017,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "1600 -1404 -24"
-"worldtext" "ARMOUR\n\nTake it and hold it to your chest,\nthen let go: you wear it.\n(Only if it beats what you wear.)"
+"worldtext" "ARMOUR\n\nTake it and hold it to your chest,\nthen let go: you wear it.\n(Only if it beats what you wear.){flat}ARMOUR\n\nWalk over it to put it on.\n(Only if it beats what you wear.)"
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "90"
@@ -31027,7 +31027,7 @@
 "classname" "func_vr_tip"
 "origin" "1600 -1340 -84"
 "tipname" "t3_armor"
-"message" "Hold the armour to your chest\nand let go to put it on."
+"message" "Hold the armour to your chest\nand let go to put it on.{flat}Walk over the armour\nto put it on."
 "distance" "173"
 }
 // entity 462
@@ -31035,7 +31035,7 @@
 "classname" "func_vr_tip"
 "origin" "5216 720 -94"
 "tipname" "t2_disarm"
-"message" "Or disarm it: grip its rifle while it\nlives and pull hard."
+"message" "Or disarm it: grip its rifle while it\nlives and pull hard.{flat}Its rifle drops when it dies:\ntake it then."
 "distance" "299"
 "targetname" "r7_spawn"
 "spawnflags" "8"
@@ -31046,7 +31046,7 @@
 "classname" "func_vr_tip"
 "origin" "1100 -640 -84"
 "tipname" "t3_bullettime"
-"message" "Too many at once? Double-tap your\nwrist gadget: bullet time."
+"message" "Too many at once? Double-tap your\nwrist gadget: bullet time.{flat}Too many at once? Press\n{key:vr_flat_key_bullettime}: bullet time."
 "distance" "460"
 "targetname" "r12_go"
 "spawnflags" "8"
