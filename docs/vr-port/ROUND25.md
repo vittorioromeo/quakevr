@@ -10721,3 +10721,23 @@ Follows "flatwheel"'s noticed item (the nailgun put into a holster by the wheel 
   (QC vr_holsterammo_test.qc, holsterammo_test.sh [flat]): 28/0 headset, 28/0 flat. flatholster_test 54/0,
   reload/eject_test 28/0, `mp_test.py suite --only mp_weaponwheel` 9/0 (B now holds the nailgun: his hold kept its 24).
 - Noticed, not chased (as before): the multi-grenade's B/Y held longer than `vr_weaponwheel_hold` opens the wheel.
+
+## qcombined: where Standalone stands on the Quest 3 with everything shipped (agent/qcombined, 2026-11-23)
+
+Follows questperf, qworld, qtune, qfov. Measuring only (no code). `next` at 7df6f7ec8's APK (the quest tree's debug key,
+`install -r`) and test progs, the preset as a new player gets it (`resetcfg; vr_standalone_preset 0`); one headset block
+13:58-14:23, 5 launches, then beta2's re-signed APK and the shipped progs.dat (md5 8a409520...) put back. Table and
+details: QUEST_OPTIMISATIONS.md "Standalone status, 2026-11-23".
+- **Hold 72 Hz:** e2m2 with all 48 monsters awake (dynres 0.65-0.9, 0.2% missed) and the hub (11.4 ms, but only at
+  the 0.55 fight floor: the floor opens there without a fight).
+- **Miss, GPU:** the frozen close-up gib fight: 0.65 fixed 17.9 ms (35% missed); dynres as shipped sits at 0.55, 14.8
+  ms, 13.5% missed. 3 big lights add nothing now. At 0.55: the world ~8 ms, gore ~1.2, your rig ~1.0, grunts ~0.
+  Dynres's 0.55 costs ~1 ms more than a fixed 0.55 (13.8): the sub-image in 0.9-sized images.
+- **Miss, CPU:** the live e1m1 fight (CPU busy 16.2 ms, server 5.4; 31% missed with GPU 11.6) and 48 monsters on the
+  firing range (CPU 25 ms, SV_Physics 9.8; 76% missed).
+- A new player's config costs the same GPU as his (17.0 both at 0.65; +1.2 ms CPU, +12 draws); his has many lights and
+  effects off (vr_dlight_models, vr_model_lighting, vr_colored_lights, vr_light_contrast 1, explosion debris...).
+  `gl_texture_anisotropy` is 16 for a new player (vr_defaults.cfg; the preset leaves it): 1 vs 16 ~0.5-0.9 ms, near the
+  noise. The 0.65 base reads 2-3 ms above qtune's morning numbers: warmth or a merge since; not split.
+- Next (by size): the world's shading at 0.55 (~8 ms of ~14); the server's CPU in big fights (monster physics);
+  dynres drawing into right-sized images; the hub's fight floor opening outside fights (his call).
