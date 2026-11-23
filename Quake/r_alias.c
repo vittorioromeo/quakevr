@@ -2246,7 +2246,8 @@ void R_DrawAliasModels (entity_t **ents, int count)
 {
 	int i;
 	for (i = 0; i < count; i++)
-		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias model", R_DrawAliasModel_Real (ents[i], ALIAS_STANDARD)); // QVR: (vr_tracy_render_detail)
+		if (!VR_AliasDebugHidden (ents[i])) // QVR: (vr_debug_hide_models)
+			VR_TRACY_DETAIL (vr_tracy_render_zones, "alias model", R_DrawAliasModel_Real (ents[i], ALIAS_STANDARD)); // QVR: (vr_tracy_render_detail)
 	R_FlushAliasInstances (false);
 	VR_TemporalMotionWrites (0); // QVR: on through the models' batches (switching the draw buffers a batch cost GPU time)
 }

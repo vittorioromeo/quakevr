@@ -222,3 +222,4 @@ Takes: record a voice note in a take, shoot a few takes with marks, rate some ke
 Start the Armour Studio near an armed grunt, then leave the menu (or close the studio's window): the grunt fights again and your blows hurt it. {test:armourstudio_close}
 Debug > Embedded Blades: Why, in slow motion: each stab says why it stuck or not, why it came out and how far a miss was off, with a sound when a blade stays in or comes out. {test:embed_stab}
 Show Melee Arcs: each blow's own rule is drawn (a spawn's leap ring, the dragon's tail all round, a vore's shove cone, armed grunts' arcs). {test:agrunt_melee_spacing}
+Debug > Profiling: Hide Gibs, Heads and Limbs makes every gib, severed head and limb vanish from your eyes (they still cast shadows), and Show Every Model brings them back. {test:rag_gib}
