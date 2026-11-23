@@ -63,6 +63,8 @@ Flat-screen: in the sword's parry guard the free hand on the blade has its palm 
 Flat-screen: in the tutorial's lesson 12, take the axe and hold J at the high target, let go: it sticks in the target and presses it (the door opens); throw an axe and a sword at a plain wall from 3-8 m: they stick edge or point first. {test:flat_tutorial_keys}
 Flat-screen: lessons 10 and 12's tips and boards name the throw key ('J'; rebind it in Controls and they follow); a rock thrown a little higher (aim 10 degrees up) still goes through lesson 10's grate and presses the button. {test:flat_tutorial_keys}
 Flat-screen or VR: a hard axe throw at a far wall (6 m and more) sticks as a near one does (it used to bounce off once its flight passed a third of a second). {test:embed_throw}
+Flat-screen: climb a pole, jump off it, then jump or walk back into the same pole: you take hold of it again (in the air too, once a moment has passed since the jump). {test:ropes}
+Flat-screen or VR: jump or drop off a pole while pressed against it, and off the upper side of the slanted wooden pole: you fall at full speed past it to the floor, never creeping slowly down its side or stopping on it, while walking into a pole still stops you. {test:ropes}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, the crystal head glowing violet a moment after each shot. {test:dwell_lance_pole}
