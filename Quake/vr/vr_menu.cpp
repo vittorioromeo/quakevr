@@ -818,6 +818,7 @@ int doomPageGeneration = -1; // the WAD search the Doom page's rows were built f
         action("Show a Test Message", hologramTestMessage)
             .help("One of the game's messages in the hologram, as they come: raise the gadget to see it while you change these settings. Press again for another: they stack."),
         row(opt::vr_messages_hologram_only),
+        row(opt::vr_center_panel_scale), // (his note e1m1_2026-11-23_23-15-34: a tunable for it)
         // (The author's note vrstart_2026-10-23_01-23-46: VR Calibration's texts jumped to each turn of the head.)
         row(opt::vr_view_text_smooth).developer(),
         row(opt::vr_hud_console_log),

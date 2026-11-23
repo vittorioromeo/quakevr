@@ -895,11 +895,13 @@ weapon 4
     fx_rise_deg "4.91606"
     w_heft "0" // super nailgun
     fx_punch "0.644016"
+    fx_flash "1" // (his note 2026-11-23: the model's own flash taken out, the programmatic one out of the firing barrel)
+    fx_flash_size "0.5"
     // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
     fx_gfx_wisp_charge "0.08"
     fx_gfx_wisp_alpha "0.3"
     fx_gfx_wisp_barrels "1"
-    fx_gfx_mask "1154:DYAAMw_5z5__n_5f-_PnAAAAA8__w8M_c473_Do_DAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_______PAAnXAA3f__BAAAAAAAAAAAAMAAAwAAAADMAAMwAAwABAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    fx_gfx_mask "934:jBM_nPn__f-n_5__cCzz8zhvf_Pg-PAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8_______AAceBAc_9_HAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
     reload_port_x "0"
     reload_port_y "0"
     reload_port_z "0"

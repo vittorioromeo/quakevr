@@ -59,6 +59,10 @@ struct Muzzle
 // weapon settings' slot whose Gunfire multipliers apply (Weapon Offsets > Effects; -1: the weapon id's, if any).
 void shot(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports, int slot = -1);
 
+// The barrel drawn weapon `w` fires out of on its drawn frame (the nailguns: their firing frames 1..8): its number, its
+// bore end in `at`; -1 none (another gun, at rest on frame 0). The sparks' and the programmatic muzzle flash's place.
+int firingBarrelOf(const view::ViewEntity& w, glm::vec3& at);
+
 // Your hand `hand` fired (vr_weaponfx.cpp): its particles at its drawn muzzle at the next handFrame.
 void playerFired(int hand);
 // Once a frame, each hand's drawn weapon `w` (vr_weaponfx.cpp frame; `slot` its weapon settings, -1 none): its shot due,
