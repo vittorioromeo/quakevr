@@ -5322,8 +5322,10 @@ SWING_PLAY = ("0.000 main 0.95 1.25 -0.15 0 -100 0", "0.400 main 0.95 1.25 -0.15
               "3.400 main 0.95 1.25 -0.15 0 -100 0", "3.600 main 0.95 1.25 -0.15 0 -100 0")
 SWING_READY = "vr_mock_hand main 0.95 1.25 -0.15 0 -100 0"
 # The other's crowbar held upright in front, across a level swing's way (square to its blade and its way: the
-# directional parry's), its grip under the blade's height.
-UPRIGHT = "vr_mock_hand main -0.50 1.05 -0.45 90 0 0"
+# directional parry's), its grip under the blade's height. (flatgreen3: the hand's pitch 59.5, was 90 under the old
+# baseline's vr_gunangle 39.5; the shipped 70 turned the crowbar 30.5 further: 52 deg off square, no parry. Now 25-27
+# deg off, score 1.00; 120.5 the other way: 79 off.)
+UPRIGHT = "vr_mock_hand main -0.50 1.05 -0.45 59.5 0 0"
 # (MP bots phase 1) The crowbar held level across in front, pointing to his right, over his chest: square to an overhead
 # blow's blade and its way down (a bot's swing: a flat-screen player's overhead swing), across its way.
 LEVEL_GUARD = "vr_mock_hand main -0.45 1.45 -0.50 0 -90 0"
