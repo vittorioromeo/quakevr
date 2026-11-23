@@ -459,27 +459,19 @@ int campaignIndex(const char* name)
 }
 
 // The Epic Games Store's Quake (the 2021 release): the launcher's install manifests (<ProgramData>/Epic/
-// EpicGamesLauncher/Data/Manifests/*.item, JSON; or the folder after -epicmanifests, for tests), each with its
+// EpicGamesLauncher/Data/Manifests/*.item, JSON; Windows only), each with its
 // DisplayName and InstallLocation. A manifest counts when its name says Quake and its folder holds the rerelease's
 // id1/pak0.pak, in rerelease/ (Steam's layout) or at its root (GOG's): that folder is the root. -noepic: none.
 void addEpicRoots(za::Vector<za::String>& roots)
 {
     za::String dir;
-    if(const int arg = COM_CheckParm("-epicmanifests"); arg && arg + 1 < com_argc)
-    {
-        dir = com_argv[arg + 1];
-    }
-    else
-    {
 #ifdef _WIN32
-        const char* programData = getenv("PROGRAMDATA");
-        if(!programData || !*programData) { return; }
+    if(const char* programData = getenv("PROGRAMDATA"); programData && *programData)
+    {
         dir = za::String{programData} + "/Epic/EpicGamesLauncher/Data/Manifests";
-#else
-        return;
-#endif
     }
-    if(!qvr::files::isDirectory(dir.cStr())) { return; }
+#endif
+    if(!dir.cStr()[0] || !qvr::files::isDirectory(dir.cStr())) { return; }
     qvr::files::forEachEntry(dir.cStr(), [&](const char* name, bool isDirectory)
     {
         const za::SizeT n = ZA_STRLEN(name);
@@ -1060,14 +1052,13 @@ extern "C" int VR_CampaignIndexOf(const char* folder) { return folder && *folder
 
 // Why this game can't play campaign `index` a server runs ("" when it can): data missing, incomplete or another
 // version, language data incomplete. The server checked its own gates (single-player only, native in progress): a
-// client follows it. -campaignmissing <folder> (tests): that campaign taken for one this game lacks.
+// client follows it. vr_mp_test_campaign_missing <folder> (tests): that campaign taken for one this game lacks.
 extern "C" const char* VR_CampaignMissingForJoin(int index)
 {
     if(index < 0 || index >= int(countof(campaigns))) { return "it is not a campaign this version of Quake VR knows"; }
     const Campaign& c = campaigns[index];
-    const int arg = COM_CheckParm("-campaignmissing");
-    if(arg && arg + 1 < com_argc && campaignIndex(com_argv[arg + 1]) == index)
-    { return va("its data is missing here (<basedir>/%s; -campaignmissing)", c.folder); }
+    if(qvr::vr_mp_test_campaign_missing.string[0] && campaignIndex(qvr::vr_mp_test_campaign_missing.string) == index)
+    { return va("its data is missing here (<basedir>/%s; vr_mp_test_campaign_missing)", c.folder); }
     if(c.status != 1) { return va("its data is %s here (<basedir>/%s)", campaignStatus(index), c.folder); }
     if(index >= 3 && missingLanguage(index))
     { return "its language data is incomplete here (supply updated owned rerelease id1 tables)"; }

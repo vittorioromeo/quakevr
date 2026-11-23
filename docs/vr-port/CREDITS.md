@@ -47,7 +47,7 @@ articles, talks and other engines' source are credited with where they came from
 
 - **Kasper Olesen (kblood)**: the Steam Frame port (PR #75, a native Linux ARM64 + OpenXR build first run on the
   headset in October 2026). From it: the Steam Frame controller profile (`XR_VALVE_frame_controller_interaction`, its
-  bindings tested on the headset), `-vr-hide-mirror` (no desktop window on a standalone headset) and the pause when
+  bindings tested on the headset), `-vr-hide-mirror` (now `-hidemirror`; no desktop window on a standalone headset) and the pause when
   the headset is taken off (`XR_EXT_user_presence`, `vr_xr_user_presence`); also the Turnip findings
   (`TU_DEBUG=sysmem`). His commits keep his authorship, or carry a `Co-authored-by` line where we re-did them on our
   code.

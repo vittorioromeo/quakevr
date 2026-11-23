@@ -15,7 +15,7 @@
 //     the process); a start stopped during a shader compile, after >= 10 s of them or after living on is not counted
 //     (judgeLastStart; said in the log): this start is in safe mode, and says so. Kept on later starts while a start in it ends well (a release
 //     build; a dev build tries the full renderer again next time) until "vr_glsafe_retry" (Debug > Startup). Never in
-//     automated test runs (QVR_NO_ERROR_DIALOG, QVR_TEST_HIDDEN) unless "-glsafeauto"; "-noglsafe" turns it off.
+//     automated test runs (QVR_NO_ERROR_DIALOG, QVR_TEST_HIDDEN); "-noglsafe" turns it off.
 //   - vendor workarounds (vr_gl_workarounds 1, default): on AMD/ATI, bindless textures off without safe mode
 //     (amdDefaults: what crashed 1.0.0 there).
 // A start ends well at the first map's 30th drawn frame, or at a quit or an error (Sys_Error: not a crash).
@@ -77,7 +77,7 @@ struct State
     bool keepAuto = false; // the last start was in automatic safe mode and ended well
     unsigned vendorOff = 0; // the vendor workarounds' features (and -glescompat's)
     bool esCompat = false;  // -glescompat: the features OpenGL ES 3.2 lacks off (QUEST_PLAN.md, C2)
-    unsigned esKeep = 0;    // -gleskeep: the VR_GLES_FORM_* whose PC form stays (a measurement of each one's cost)
+    unsigned esKeep = 0;    // -glesdebug keep:<name>: the VR_GLES_FORM_* whose PC form stays (a measurement of each one's cost)
     bool esNoExt = false;   // -glesnoext: as an ES driver without the optional extensions we have a fallback for
     int esShaderErrors = 0; // -glescompat: programs that failed as ES 3.2 GLSL (VR_GLESShaderError)
     za::String esDefineUsed; // vr_gles_define as the ES shaders last took it (VR_GLESDefineChanged)
@@ -302,9 +302,9 @@ constexpr unsigned amdDefaults = VR_GLSAFE_BINDLESS;
 constexpr unsigned esCompatOff =
     VR_GLSAFE_BINDLESS | VR_GLSAFE_MULTI_BIND | VR_GLSAFE_CLIP_CONTROL | VR_GLSAFE_VIEWPORT_LAYER;
 
-// -gleskeep <list> (QVR_GLES_KEEP=<list>; comma-separated): under -glescompat, these switches keep their PC form, one
-// run each, to measure what each ES form costs (QUEST_PLAN.md section 6b). The safe-mode features (the PC feature
-// kept on) and -glescompat's own forms (VR_GLESForm).
+// -glesdebug keep:<name>,... (QVR_GLES_DEBUG): under -glescompat, these switches keep their PC form, one run each, to
+// measure what each ES form costs (QUEST_PLAN.md section 6b). The safe-mode features (the PC feature kept on) and
+// -glescompat's own forms (VR_GLESForm).
 struct EsKeepName
 {
     const char* name;
@@ -321,28 +321,102 @@ constexpr EsKeepName esKeepNames[] = {
     {"views", 0, VR_GLES_FORM_VIEWS},
 };
 
-// The -gleskeep list applied to the run's switches; what was kept logged.
-void applyEsKeep(const char* list)
+// -glesdebug's other words (VR_GLES_DEBUG_*, vr_api.h). They replace seven flags of the Quest's bring-up (-glesnoclipcontrol,
+// -gleskeep, -glesshaderset, -glessrgbencode, -glesstructcopy, -glescentroid, -glesverbose) that nobody passed.
+struct EsDebugName
 {
-    char kept[256] = "";
-    for(const EsKeepName& k : esKeepNames)
+    const char* name;
+    unsigned bit;
+};
+constexpr EsDebugName esDebugNames[] = {
+    {"noclipcontrol", VR_GLES_DEBUG_NOCLIPCONTROL},
+    {"shaderset", VR_GLES_DEBUG_SHADERSET},
+    {"srgbencode", VR_GLES_DEBUG_SRGBENCODE},
+    {"structcopy", VR_GLES_DEBUG_STRUCTCOPY},
+    {"centroid", VR_GLES_DEBUG_CENTROID},
+    {"verbose", VR_GLES_DEBUG_VERBOSE},
+};
+constexpr char esKeepPrefix[] = "keep:";
+
+// The -glesdebug list (else QVR_GLES_DEBUG), read once: its switches' bits, its keep:<name> entries' features and forms
+// (applyEsKeep, under -glescompat). Unknown words are said once, with the names there are.
+struct EsDebug
+{
+    bool read = false;
+    unsigned bits = 0;
+    unsigned keepFeatures = 0; // VR_GLSAFE_*: back on
+    unsigned keepForms = 0;    // VR_GLES_FORM_*: the PC form kept
+    char kept[256]{};          // the keep:<name> entries taken, for the log
+};
+EsDebug esDebug;
+
+void readEsDebug()
+{
+    if(esDebug.read)
     {
-        const za::SizeT n = ZA_STRLEN(k.name);
-        for(const char* at = ZA_STRSTR(list, k.name); at; at = ZA_STRSTR(at + 1, k.name))
+        return;
+    }
+    esDebug.read = true;
+    const int arg = COM_CheckParm("-glesdebug");
+    const char* list = arg && arg + 1 < com_argc ? com_argv[arg + 1] : getenv("QVR_GLES_DEBUG");
+    if(!list || !list[0])
+    {
+        return;
+    }
+    for(const char* w = list; *w; w += strcspn(w, ",") + (w[strcspn(w, ",")] ? 1 : 0))
+    {
+        const za::SizeT len = strcspn(w, ",");
+        if(len == 0)
         {
-            if((at == list || at[-1] == ',') && (at[n] == 0 || at[n] == ','))
+            continue;
+        }
+        const za::String word{w, len};
+        bool known = false;
+        if(strings::startsWith(word.cStr(), esKeepPrefix))
+        {
+            const char* name = word.cStr() + sizeof(esKeepPrefix) - 1;
+            for(const EsKeepName& k : esKeepNames)
             {
-                glsafe.vendorOff &= ~k.feature;
-                glsafe.esKeep |= k.form;
-                q_strlcat(kept, kept[0] ? ", " : "", sizeof(kept));
-                q_strlcat(kept, k.name, sizeof(kept));
-                break;
+                if(!q_strcasecmp(name, k.name))
+                {
+                    esDebug.keepFeatures |= k.feature;
+                    esDebug.keepForms |= k.form;
+                    q_strlcat(esDebug.kept, esDebug.kept[0] ? ", " : "", sizeof(esDebug.kept));
+                    q_strlcat(esDebug.kept, k.name, sizeof(esDebug.kept));
+                    known = true;
+                }
             }
         }
+        for(const EsDebugName& d : esDebugNames)
+        {
+            if(!q_strcasecmp(word.cStr(), d.name))
+            {
+                esDebug.bits |= d.bit;
+                known = true;
+            }
+        }
+        if(!known)
+        {
+            Con_Printf("-glesdebug: \"%s\" unknown (noclipcontrol, shaderset, srgbencode, structcopy, centroid, verbose, "
+                       "keep:bindless|multibind|layer|clip|glsl|foveation|views)\n",
+                word.cStr());
+        }
     }
-    VR_GLStep("GLES compat: PC forms kept (-gleskeep): %s", kept[0] ? kept : "none");
-    Con_Printf("GLES compat: PC forms kept (-gleskeep): %s\n", kept[0] ? kept : "none (names: bindless, multibind, "
-                                                                                  "layer, clip, glsl, foveation, views)");
+    Con_Printf("-glesdebug %s\n", list);
+}
+
+// -glesdebug's keep:<name> entries applied to the run's switches; what was kept logged.
+void applyEsKeep()
+{
+    readEsDebug();
+    if(!esDebug.keepFeatures && !esDebug.keepForms)
+    {
+        return;
+    }
+    glsafe.vendorOff &= ~esDebug.keepFeatures;
+    glsafe.esKeep |= esDebug.keepForms;
+    VR_GLStep("GLES compat: PC forms kept (-glesdebug keep:): %s", esDebug.kept);
+    Con_Printf("GLES compat: PC forms kept (-glesdebug keep:): %s\n", esDebug.kept);
 }
 
 } // namespace
@@ -400,7 +474,7 @@ extern "C" void VR_GLStartupBegin(void)
     q_snprintf(glsafe.logPath, sizeof(glsafe.logPath), "%s/gl_startup.log", dir);
     const LastStart last = readLastStart(glsafe.logPath);
 
-    const bool autoAllowed = !COM_CheckParm("-noglsafe") && (!testRun() || COM_CheckParm("-glsafeauto"));
+    const bool autoAllowed = !COM_CheckParm("-noglsafe") && !testRun();
     char judged[sizeof(glsafe.why)];
     const bool counted = judgeLastStart(last, judged, sizeof(judged));
     if(COM_CheckParm("-glsafe"))
@@ -496,29 +570,21 @@ extern "C" void VR_GLStartupVendor(const char* vendor, const char* renderer, con
         glsafe.vendorOff |= esCompatOff;
         // -glesclipcontrol (QVR_GLES_CLIP_CONTROL=1): as an ES driver with EXT_clip_control (the Quest's: [?], C4),
         // which the shadows, reflections and portals need (without it they are off).
-        // Android: kept unless -glesnoclipcontrol (the driver's EXT_clip_control, gl_vidsdl.c; the Quest 3 has it: C4c).
-        if(COM_CheckParm("-glesclipcontrol") || getenv("QVR_GLES_CLIP_CONTROL") || (esContext && !COM_CheckParm("-glesnoclipcontrol")))
+        // Android: kept unless -glesdebug noclipcontrol (the driver's EXT_clip_control, gl_vidsdl.c; the Quest 3 has it: C4c).
+        if(COM_CheckParm("-glesclipcontrol") || getenv("QVR_GLES_CLIP_CONTROL") ||
+           (esContext && !VR_GLESDebug(VR_GLES_DEBUG_NOCLIPCONTROL)))
         {
             glsafe.vendorOff &= ~static_cast<unsigned>(VR_GLSAFE_CLIP_CONTROL);
         }
         // -glesnoext (QVR_GLES_NOEXT=1): as an ES driver without the optional extensions that have a fallback
         // (NV_shader_noperspective_interpolation: the w-multiplied form, VR_GLShaderSource), to test the fallbacks.
-        if(const int define = COM_CheckParm("-glesdefine"); define && define < com_argc - 1)
-        {
-            Con_Printf("GLES compat: every shader with -glesdefine %s (VR_GLShaderSource)\n", com_argv[define + 1]);
-        }
         if(COM_CheckParm("-glesnoext") || getenv("QVR_GLES_NOEXT"))
         {
             glsafe.esNoExt = true;
             VR_GLStep("GLES compat: optional extensions treated as absent (-glesnoext)");
             Con_Printf("GLES compat: optional extensions treated as absent (-glesnoext): noperspective w-multiplied\n");
         }
-        const int keep = COM_CheckParm("-gleskeep");
-        const char* keepList = keep && keep < com_argc - 1 ? com_argv[keep + 1] : getenv("QVR_GLES_KEEP");
-        if(keepList && keepList[0])
-        {
-            applyEsKeep(keepList);
-        }
+        applyEsKeep();
         VR_GLStep("GLES compat (-glescompat): the features OpenGL ES 3.2 lacks off");
         Con_Printf("GLES compat (-glescompat): the features OpenGL ES 3.2 lacks off (vr_gles_report)%s\n",
             glsafe.vendorOff & VR_GLSAFE_CLIP_CONTROL ? "" : "; clip control kept (-glesclipcontrol: EXT_clip_control)");
@@ -530,6 +596,12 @@ extern "C" int VR_GLESCompat(void)
     return glsafe.esCompat ? 1 : 0;
 }
 
+extern "C" int VR_GLESDebug(unsigned bit)
+{
+    readEsDebug();
+    return (esDebug.bits & bit) != 0 ? 1 : 0;
+}
+
 extern "C" int VR_GLESForm(int form)
 {
     return glsafe.esCompat && !(glsafe.esKeep & static_cast<unsigned>(form)) ? 1 : 0;
@@ -538,7 +610,7 @@ extern "C" int VR_GLESForm(int form)
 // C4g: the world programs' lite form under the ES profile: the parts of the world's fragment shader the settings turn
 // off compiled out (Adreno pays for their mere presence: QUEST_PLAN.md 6n, e1m1 GPU 18.7 -> 15.7 ms a frame).
 // Bits: 1 no parallax mapping (vr_parallax or vr_normalmaps 0), 2 no carved decals (vr_decal_carve
-// 0). The programs are made again when this changes (GL_WorldLiteCheck). -glesfull: never (the whole shader, as the PC's).
+// 0). The programs are made again when this changes (GL_WorldLiteCheck). vr_gl_world_lite 0: never (the whole shader, as the PC's).
 // C4m (QUEST_PLAN.md 6t): vr_gles_define no longer what the ES shaders were made with (GL_WorldLiteCheck makes them again).
 extern "C" int VR_GLESDefineChanged(void)
 {
@@ -548,7 +620,7 @@ extern "C" int VR_GLESDefineChanged(void)
 // The lite form's bits the settings give, ES or not (VR_GLESWorldLite: the PC's share of them, vr_gl_pc_forms).
 static int worldLiteBits(void)
 {
-    if(vr_gl_world_lite.value <= 0.f || COM_CheckParm("-glesfull"))
+    if(vr_gl_world_lite.value <= 0.f)
     {
         return 0;
     }
@@ -606,7 +678,7 @@ static int worldLiteBits(void)
         // (64, retro textures, never: with RetroBegin compiled out Adreno's compiler (Quest 3, driver 0837) can read every
         // world texture at its smallest mip level, the walls flat in their average colours (C4j, QUEST_PLAN.md 6q). It
         // depends on the rest of the shader: C4m's eyeshots had them textured with the lights' lite form on, flat with it
-        // off (6t), so it is no safe cut (-0.8 ms in a fight, -0.4 at the start). -glesdefine/vr_gles_define
+        // off (6t), so it is no safe cut (-0.8 ms in a fight, -0.4 at the start). vr_gles_define
         // QVR_LITE_NORETRO, QVR_ALITE_NORETRO (the models') still try it.)
         {vr_detail.value == 0.f, 128},
     };
@@ -1045,18 +1117,18 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
     {
         whole += strings[k];
     }
-    if(!COM_CheckParm("-glescentroid")) // (-glescentroid: kept, as the PC's: a driver update's check)
+    if(!VR_GLESDebug(VR_GLES_DEBUG_CENTROID)) // (-glesdebug centroid: kept, as the PC's: a driver update's check)
     {
         whole = dropCentroid(whole.cStr());
     }
-    const za::String joined = COM_CheckParm("-glesstructcopy") ? whole : expandStructCopies(whole.cStr()); // (-glesstructcopy: the copies left whole, as the PC's)
+    const za::String joined = VR_GLESDebug(VR_GLES_DEBUG_STRUCTCOPY) ? whole : expandStructCopies(whole.cStr()); // (-glesdebug structcopy: the copies left whole, as the PC's)
     const char* s = joined.cStr();
     const za::SizeT body = strings::startsWith(s, "#version") ? nextLine(s, 0) : 0;
     const za::SizeT code = body + codeStart(s + body);
     za::String es{glsafe.esNoExt ? esHeaderNoExt : esHeader};
-    // -glesdefine A,B,...: "#define A 1" (and B ...) in every ES shader's header: the shaders' QVR_PROBE_* switches
-    // (gl_shaders.h; QUEST_PLAN.md 6j: the world and model programs split on a device)
-    // and vr_gles_define's (C4m: the same in a session, the shaders made again when it changes: GL_WorldLiteCheck)
+    // vr_gles_define A,B,...: "#define A 1" (and B ...) in every ES shader's header: the shaders' QVR_PROBE_* switches
+    // (gl_shaders.h; QUEST_PLAN.md 6j: the world and model programs split on a device; C4m: set in a session, the
+    // shaders are made again when it changes: GL_WorldLiteCheck; at launch: +vr_gles_define A,B)
     const auto addDefines = [&es](const char* list) {
         for(const char* d = list; *d; d += strcspn(d, ",") + (d[strcspn(d, ",")] ? 1 : 0))
         {
@@ -1069,11 +1141,6 @@ void appendMemberCopies(za::String& out, const GlslStruct& st, const za::String&
             }
         }
     };
-    const int define = COM_CheckParm("-glesdefine");
-    if(define && define < com_argc - 1)
-    {
-        addDefines(com_argv[define + 1]);
-    }
     glsafe.esDefineUsed = vr_gles_define.string;
     addDefines(vr_gles_define.string);
     es += za::String{s + body, static_cast<za::SizeT>(code - body)};
@@ -1106,7 +1173,7 @@ extern "C" void VR_GLShaderSource(unsigned int shader, int count, const char* co
     const za::String es = esShaderText(count, strings);
     const char* text = es.cStr();
     GL_ShaderSourceFunc(shader, 1, &text, nullptr);
-    if(COM_CheckParm("-glesverbose")) // (a check run: each error with its source line; the compile waited for)
+    if(VR_GLESDebug(VR_GLES_DEBUG_VERBOSE)) // (a check run: each error with its source line; the compile waited for)
     {
         GL_CompileShaderFunc(shader);
         GLint ok = 0;
@@ -1385,7 +1452,7 @@ za::String shaderSetPath()
 extern "C" int VR_GLESWorldLiteFirst(void)
 {
     const int now = VR_GLESWorldLite();
-    if(glsafe.liteFirstTaken || !VR_GLESForm(VR_GLES_FORM_GLSL) || (testRun() && !COM_CheckParm("-glesshaderset")))
+    if(glsafe.liteFirstTaken || !VR_GLESForm(VR_GLES_FORM_GLSL) || (testRun() && !VR_GLESDebug(VR_GLES_DEBUG_SHADERSET)))
     {
         glsafe.liteFirstTaken = true;
         return now;
@@ -1439,7 +1506,7 @@ extern "C" void VR_GLShadersEnd(int lite, int programs)
     {
         Con_DPrintf("%s", shadersLine);
     }
-    if(VR_GLESForm(VR_GLES_FORM_GLSL) && (!testRun() || COM_CheckParm("-glesshaderset")))
+    if(VR_GLESForm(VR_GLES_FORM_GLSL) && (!testRun() || VR_GLESDebug(VR_GLES_DEBUG_SHADERSET)))
     {
         if(FILE* f = fopen(shaderSetPath().cStr(), "wb"))
         {

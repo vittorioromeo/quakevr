@@ -38,7 +38,8 @@ void onParallel(cvar_t* var)
 
 } // namespace
 
-// -jobs <n>: the pool's workers from the start (vr_jobs_threads is read after the pool is made).
+// `+vr_jobs_threads <n>` on the command line: the pool's workers from the start (read here, before the `+` commands
+// apply; the cvar itself is read after the pool is made, its callback remaking it).
 namespace
 {
 za::ThreadId mainThread; // (start's: VR_Init runs on the main thread)
@@ -47,7 +48,7 @@ za::ThreadId mainThread; // (start's: VR_Init runs on the main thread)
 void start()
 {
     mainThread = za::ThisThread::getId();
-    const int i = COM_CheckParm("-jobs");
+    const int i = COM_CheckParm("+vr_jobs_threads");
     init(i && i + 1 < com_argc ? za::clamp(Q_atoi(com_argv[i + 1]), 0, 64) : 0);
 }
 

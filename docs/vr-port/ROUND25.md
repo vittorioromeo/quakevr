@@ -11143,3 +11143,34 @@ Checklist 223 -> 157 lines; no scene retired; details in CHECKLIST_REORG.md, "fo
 - **Tests**: xr_runtime_test.sh section 11: the paused run is a player's session now (`vr_fixed_frames 0`); new runs, an
   unworn fake headset under a scripted run (fixed frames) and under `-vr-unattended` (`vr_fixed_frames 0`), play on and
   log their reason: 8 passed, 0 failed.
+
+## flagcleanup: the launch-flag audit applied (agent/flagcleanup, 2026-11-23)
+
+The audit (51 flags we add on top of Ironwail) applied in full; the table of what is left, who passes each and what
+replaced the rest is docs/vr-port/LAUNCH_FLAGS.md (every new flag gets a row there).
+- **Removed** (nobody passed them): `-glesdefine` (= `+vr_gles_define A,B`), `-glesfull` (= `+vr_gl_world_lite 0`),
+  `-glsafeauto`, `-nochildprocesses` (`-fakeandroid` covers it), `-rangerhead_nodetail`, `-shadersasynctest` (its numbers
+  now a `developer 1` line), `-shaderloadshot`, `-epicmanifests`.
+- **To `+cvar`**: `-vrmock` -> `+vr_backend mock` (vr_main.cpp `commandLineBackend()`: read before the `+` commands apply,
+  for VR_BeforeVideoInit and the loading panel's early start); the installer's preparation run, the motion review's
+  copy and physbench.py pass it. `-jobs n` -> `+vr_jobs_threads n` read from the command line when the pool is made.
+  The MP test knobs became CVAR_NONE test cvars: `vr_net_test_version` (was `-mpnetversion`), `vr_net_test_lookup_delay`
+  / `vr_net_test_lookup_fail` (were `-netlookupdelay` / `-netlookupfail`; read at each lookup now, settable mid-run),
+  `vr_mp_test_campaign_missing` (was `-campaignmissing`); mp_test.py passes them as `+cvar`.
+- **Merged**: the seven GLES bring-up switches nobody passed (`-glesnoclipcontrol`, `-gleskeep`, `-glesshaderset`,
+  `-glessrgbencode`, `-glesstructcopy`, `-glescentroid`, `-glesverbose`) are one `-glesdebug a,b,...` (env
+  `QVR_GLES_DEBUG`, replacing `QVR_GLES_KEEP`): words `noclipcontrol shaderset srgbencode structcopy centroid verbose`
+  and `keep:<name>`; an unknown word is said with the list (vr_glsafe.cpp `readEsDebug`, `VR_GLESDebug`).
+- **Renamed**: `-vr-hide-mirror` -> `-hidemirror`, `-vr-unattended` -> `-unattended` (`VR_HideMirror()`,
+  `VR_Unattended()` in vr_api.h). `-vrmock`, `-vr-hide-mirror` and `-vr-unattended` still work until 1.3: each prints
+  "note: <old> is deprecated (removed in 1.3): use <new>" at start-up (vr_main.cpp `noteDeprecatedFlags`).
+- **Docs**: INSTALL.md troubleshooting has a `-glsafe` row; INSTALLER.md, MOTIONS.md, MP_PLAN.md, QUEST_OPTIMISATIONS.md,
+  QUEST_PLAN.md (the unmanned launches' `-unattended`) and CREDITS.md say the new names. Older rounds and QUEST_PLAN's
+  history keep the old ones.
+- **Kit**: linux_inside.sh, linux_wsl.sh and brief_questhead.md still say the old names (they work): the patch is
+  qvr-kit/scratch/flagcleanup_kit.patch.
+- **Checked**: the aliases' notes and the mock backend (run.sh with `-vrmock -vr-hide-mirror -vr-unattended`); a run with
+  `-noautoexec +vr_backend mock` (the preparation run's shape) started the mock; `+vr_jobs_threads 3` gave 3 workers;
+  `-glescompat -glesdebug verbose,keep:views,bogus` kept views and named the unknown word; xr_runtime_test.sh 1,11
+  (user presence with `-unattended`) 0 failed; installer SelfTest 60/60; mp_test.py suite --only mp_coop, mp_version,
+  mp_campfollow, mp_lookup (results in the report).

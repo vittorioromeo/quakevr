@@ -179,7 +179,7 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "// represents the folded source/exit path; attenuation therefore keeps its full travelled distance.\n"\
 "float PortalLightPath(Light l, vec3 pos)\n"\
 "{\n"\
-"#if defined(QVR_PROBE_NOGATE) || defined(QVR_LITE_NOPORTALLIGHT)\n" /* QVR: -glesdefine's probe (C4l); the ES lite form (C4l): no portal lights (vr_portals 0: none made) */ \
+"#if defined(QVR_PROBE_NOGATE) || defined(QVR_LITE_NOPORTALLIGHT)\n" /* QVR: vr_gles_define's probe (C4l); the ES lite form (C4l): no portal lights (vr_portals 0: none made) */ \
 "    return 1.0;\n"\
 "#endif\n"\
 "    if (l.gatelo.w <= 0.0) return 1.0;\n"\
@@ -216,13 +216,13 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "// its shadow lets through (fading in or out: vr_lighting.cpp's selectDlights; 0 a full shadow).\n"\
 "float LightShadow(Light l, vec3 pos, vec3 n, float cone)\n"\
 "{\n"\
-"#ifdef QVR_PROBE_NOSHADOW\n" /* QVR: -glesdefine's probe (C4e): no shadow code */ \
+"#ifdef QVR_PROBE_NOSHADOW\n" /* QVR: vr_gles_define's probe (C4e): no shadow code */ \
 "	return cone;\n"\
 "#endif\n"\
 "	cone *= PortalLightPath(l, pos);\n"\
 "	if (l.shadow.z <= 0. || cone <= 0.)\n"\
 "		return cone;\n"\
-"#ifdef QVR_PROBE_NOSPOTSHADOW\n" /* QVR: -glesdefine's probe (C4l): no spot lights' shadow code */ \
+"#ifdef QVR_PROBE_NOSPOTSHADOW\n" /* QVR: vr_gles_define's probe (C4l): no spot lights' shadow code */ \
 "	if (false)\n"\
 "#elif defined(QVR_LITE_ONEFILTER)\n" \
 "	return cone * mix(RetroShadowQuant(DlightShadowMap(l, pos, n)), 1.0, l.shadow2.y);\n"\
@@ -298,7 +298,7 @@ QVR_SAMPLER_TWINS(QVR_BUMPED_NORMAL_FUNCS)\
 "// light gave and something moving now blocks, where the world itself does not (the baked light has that).\n"\
 "float MapLightShadow(Light l, vec3 pos, vec3 n, vec3 lit)\n"\
 "{\n"\
-"#if defined(QVR_PROBE_NOSHADOW) || defined(QVR_LITE_NOMAPSHADOW)\n" /* QVR: -glesdefine's probe (C4e): no shadow code; the ES lite form (C4l): no map light shadows (vr_shadow_maplights 0: no light has one) */ \
+"#if defined(QVR_PROBE_NOSHADOW) || defined(QVR_LITE_NOMAPSHADOW)\n" /* QVR: vr_gles_define's probe (C4e): no shadow code; the ES lite form (C4l): no map light shadows (vr_shadow_maplights 0: no light has one) */ \
 "	return 1.0;\n"\
 "#endif\n"\
 "	vec3 d = pos - l.origin;\n"\

@@ -9,8 +9,9 @@
 // firstWait to mostWait; a found one is kept keepFor, then looked up again while its old address is still given out. The
 // caller says whether a lookup may start now (net_dgrm.c: not while remote clients are connected).
 //
-// Test knobs (the multiplayer harness, mp_test.py lookup): -netlookupdelay <s> each lookup waits that long on its worker
-// first (a slow resolver); -netlookupfail each lookup fails. net_lookups lists the names, their state, tries and waits.
+// Test knobs (the multiplayer harness, mp_test.py lookup): vr_net_test_lookup_delay <s> each lookup waits that long on
+// its worker first (a slow resolver); vr_net_test_lookup_fail 1 each lookup fails. net_lookups lists the names, their
+// state, tries and waits.
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -27,6 +28,7 @@
 #include <sys/socket.h>
 #endif
 
+#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_jobs.hpp"
 #include "vr_api.h"
@@ -72,30 +74,12 @@ struct Entry
     double usedAt{0.0}; // (the slot taken by a new name: the least recently used)
 };
 
-// The names (the main thread's: net_dgrm.c's callers); the test knobs, read once.
+// The names (the main thread's: net_dgrm.c's callers).
 struct Lookups
 {
     za::Array<Entry, maxNames> entries;
-    bool knobsRead{false};
-    double testDelay{0.0};
-    bool testFail{false};
 };
 Lookups lookups;
-
-void readKnobs()
-{
-    if(lookups.knobsRead)
-    {
-        return;
-    }
-    lookups.knobsRead = true;
-    const int delay = COM_CheckParm("-netlookupdelay");
-    if(delay && delay + 1 < com_argc)
-    {
-        lookups.testDelay = za::max(0.0, static_cast<double>(Q_atof(com_argv[delay + 1])));
-    }
-    lookups.testFail = COM_CheckParm("-netlookupfail") != 0;
-}
 
 // getaddrinfo on the worker (no engine state touched: the name copied in, the address returned)
 Found resolve(const za::Array<char, nameLength>& name, double delay, bool fail) noexcept
@@ -158,7 +142,10 @@ void start(Entry& e, double now)
     q_strlcpy(name.data(), e.name, nameLength);
     e.tries++;
     e.nextTry = now; // (a failure sets the next)
-    e.lookup = jobs::async([name, delay = lookups.testDelay, fail = lookups.testFail]() noexcept
+    // (the test knobs read at each lookup's start: settable mid-run)
+    const double testDelay = za::max(0.0, static_cast<double>(vr_net_test_lookup_delay.value));
+    const bool testFail = vr_net_test_lookup_fail.value != 0.f;
+    e.lookup = jobs::async([name, delay = testDelay, fail = testFail]() noexcept
                            { return resolve(name, delay, fail); });
 }
 
@@ -217,7 +204,6 @@ extern "C" int VR_NetLookup(const char* name, unsigned int* netorder_ipv4, int m
     {
         return -1;
     }
-    readKnobs();
     const double now = Sys_DoubleTime();
     Entry& e = slotFor(name, now);
     e.usedAt = now;

@@ -736,7 +736,7 @@ bool OpenXrBackend::createSystem()
         userPresenceSensor     ? "on: the headset taken off pauses as the runtime's menu does (vr_xr_user_presence)"
         : userPresenceExtension ? "offered, but the system has no sensor for it"
                                 : "not offered by the runtime",
-        userPresenceSensor && COM_CheckParm("-vr-unattended") ? "; ignored for this run (-vr-unattended)" : ""));
+        userPresenceSensor && VR_Unattended() ? "; ignored for this run (-unattended)" : ""));
 
     // Eye tracking (vr_foveated_gaze): the extension enabled, and the system's eye tracker able to give the gaze.
     if(eyeGazeExtension)
@@ -836,12 +836,12 @@ void OpenXrBackend::logGlInterop()
     // The eyes' sRGB swapchain (GL_SRGB8_ALPHA8) takes the game's colours as they are, gamma-encoded already, as the PC's
     // OpenGL does with GL_FRAMEBUFFER_SRGB off. OpenGL ES encodes every write to an sRGB image unless
     // EXT_sRGB_write_control turns that off: encoded twice, the headset showed the game pale and bright (C4f).
-    // -glessrgbencode keeps the driver's encoding (the check).
-    if(extensions && ZA_STRSTR(extensions, "GL_EXT_sRGB_write_control") && !COM_CheckParm("-glessrgbencode"))
+    // -glesdebug srgbencode keeps the driver's encoding (the check).
+    if(extensions && ZA_STRSTR(extensions, "GL_EXT_sRGB_write_control") && !VR_GLESDebug(VR_GLES_DEBUG_SRGBENCODE))
     {
         constexpr GLenum framebufferSrgb = 0x8DB9; // GL_FRAMEBUFFER_SRGB_EXT
         glDisable(framebufferSrgb);
-        xrruntime::logLine("OpenXR: GL ES: sRGB writes as they are (EXT_sRGB_write_control; -glessrgbencode: encoded)\n");
+        xrruntime::logLine("OpenXR: GL ES: sRGB writes as they are (EXT_sRGB_write_control; -glesdebug srgbencode: encoded)\n");
     }
 }
 #else

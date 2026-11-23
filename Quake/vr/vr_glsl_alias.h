@@ -1397,7 +1397,7 @@ QVR_DENT_FUNCTIONS \
 // The ES lite form (GL_AliasLiteDefines, C4j; QUEST_PLAN.md 6q): retro lighting (vr_retrolight 0: its frame data all
 // 0, so RetroLight[5].z 0) taken out of main() as constants, as the world's QVR_WORLD_FS_LITE; after every function.
 #define QVR_ALIAS_FS_LITE \
-"#ifdef QVR_ALITE_NORETRO\n" /* -glesdefine's probe (C4l): the models' retro textures' code out (vr_retro 0; C4m: no safe cut, QUEST_PLAN.md 6t) */ \
+"#ifdef QVR_ALITE_NORETRO\n" /* vr_gles_define's probe (C4l): the models' retro textures' code out (vr_retro 0; C4m: no safe cut, QUEST_PLAN.md 6t) */ \
 "#define RetroBegin(a, b, c, d, e, f, g) Retro = 0\n" \
 "#endif\n" \
 "#ifdef QVR_LITE_NORETROLIGHT\n" \
