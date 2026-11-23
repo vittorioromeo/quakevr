@@ -10099,3 +10099,20 @@ Runs on origin/next 2de8233f1 (Release no-LTO, the shipped-defaults baseline). M
   rerelease's track02.ogg identically (132300 frames, 44100 Hz stereo, peak 21126 both), the rewind ok, start's track 4
   plays through stb_vorbis, no error: 12/0. music_test 7/0; vr_menu_path_check 0 missing; Android native build compiles.
 - Installer (`QuestFiles.MusicFormats`, on agent/questinstall, not on next): add `.ogg` there when both are merged.
+
+## split12 (2026-11-23): splitscreen fixes from his second try (agent/split)
+
+- Merged origin/next (300 commits: Zancle phase 6's ZA_ calls against the seats' renames, token-merged with the base;
+  ropes7's pole slides made each seat's, `TwoHand::poleSlides`; next's 125 new file-scope renderer/platform/GL globals
+  `--accept`ed into seat_state's allowlist: the shader queue, r_world's lit-split and bmodel batching, dlightmap, tonemap
+  probes, stereo/foveation, Android; the seat files moved to Zancle). seat_render_test 200/0 right after.
+- Fixed: the level-exit crash (every seat's client world cleared with the hunk), seat 1's doubled sighted mouse (r_refdef
+  each seat's), ragdolls/rigged enemies per seat (swap lists), obituaries (fallback line, broadcasts once to the local
+  seats), mock pads over a plugged-in controller. Details and how to try: SPLITSCREEN.md section 22.
+- Not fixed: items 1-2 of his try (seat 1's hands seen at seat 2's hands; seat 2's ghost gun and alternating ammo
+  screen). Likely the same family (a shared per-entity or per-frame record of the hands / held weapon / ammo screen,
+  written by each seat's pass): `vr_view_internal.hpp`'s `inline Entities entities` and `rigHands` (one set of view
+  entities for all seats), the ammo screen's per-frame guards (`pouchCounterFrame`), mpavatar's own-hands paths.
+- Tests: seat_play_test.sh 63/0 (coop 33: the exit, intermission, next map, no stale world; dm 30: the obituary once and
+  whole; the exit check fails with the fix off: 2 frames on seat 2's old world), seat_render_test.sh 211/0 (r_refdef
+  each seat's, 11 new), vr_seat_test 70/0, split_join_test.sh 113/0. Screenshots: qvr-kit/scratch/split12_*.png.

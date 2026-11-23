@@ -900,3 +900,44 @@ full menu, the other seats their own small menu.
   opens seat 2's holster menu and its stick moves the cursor, not the view; the seat leaves in the game, its pad drives
   no seat, its Start joins directly with no menu, then again with A.
 - **Before and after**: ROUND25.md "split11".
+
+## 22. Split12 (2026-11-23): fixes from his second try
+
+His try: flatscreen, 2 seats (seat 2 on a controller), stacked tiles on an ultrawide, `play_splitscreen.ps1`. The root
+cause of most: client state that must be each seat's was shared, so each seat's pass or frame overwrote the other's.
+
+### How to try it (for him)
+
+1. Start as before (`qvr-kit/scratch/play_splitscreen.ps1`), Multiplayer > Splitscreen, A on the controller, Start.
+2. **Coop**: walk one player into the level's exit: the intermission shows in both tiles, A or fire goes on, both play
+   the next map (it crashed: access violation).
+3. **Sights**: seat 1 aims down sights with the mouse: it turns as in single player (it was about twice as fast).
+4. **Enemies**: kill some near both players and near one only: the bodies fall as ragdolls in both tiles, no flicker;
+   the rigged grunts and enforcers walk in seat 2's tile (they stood still or floated).
+5. **Deathmatch**: kill the other player: one line, "player 2 was killed by player's <weapon>" (it said
+   "playerplayer 2playerplayer 2").
+6. Still open: seat 1's hands seen by seat 2 (at seat 2's hands) and seat 2's ghost gun / ammo screen alternating
+   (items 1-2 of the try): not fixed in split12.
+
+### What changed
+
+- **Level exit crash** (host.c `Host_ClearOtherSeats`, from `Host_ClearMemory`): a map change cleared the current
+  seat's client only; seat 2's `cl.worldmodel` pointed into the freed hunk until its reconnect, and its client frame's
+  torch lights (`VR_TorchLights`, `Mod_PointInLeaf`) read it. Now every made seat's client (its VR client state, entity
+  table, signon, `cl`) is forgotten with the world.
+- **r_refdef is the current seat's** (vr_seat.hpp `Seat::refdef`, swapped by `seat::makeCurrent`): r_refdef was the last
+  drawn seat's in every other seat's input and client frame, so seat 1's sighted mouse scale (`IN_FovScale`) read seat
+  2's unsighted fov. A seat never drawn takes the one there is; one seat: nothing changes.
+- **Ragdolls and rigged enemies** (vr_ragdoll_internal.hpp `DrawState::swapped[seat]`, vr_rig2.cpp `Drawn::sw[seat]`):
+  each seat's client frame swaps its ragdolls' and authored-rig enemies' models in and puts them back; the one shared
+  list (and one saved lerp per entity) had seat 2's swap or restore act on seat 1's entities.
+- **Obituaries**: QC `ClientObituary`: a kill by a weapon not in `VR_OBIT_WEAPONS` (the sword, the grunt's gun, the
+  revolver, AD's...) says "<targ> was killed by <attacker>'s <weapon name>" (both names alone, no line end, before).
+  host.c `SV_BroadcastPrintf`: a broadcast goes to the first local seat's client only (the seats share one console).
+- **Mock pads** (in_sdl.c `IN_MockPad`): a test's mock pad stands in for a real controller plugged in at its index (the
+  seat tests' pad 0 was his plugged-in controller, its stick at rest: seat_play_test timed out).
+- **Tests**: `seat_play_test.sh`: coop takes the exit with two seats (seat 2 put in the trigger_changelevel, both at
+  the intermission, seat 2's A, e1m2, both signed on and playing; every frame no seat's client on a world model that is
+  not the server's: with the fix off it fails, 2 frames, seat 2); deathmatch: seat 1 kills seat 2 with the revolver,
+  the obituary line once and whole. `seat_render_test.sh`: each seat's r_refdef is its own view's in its frame.
+  Not yet: a ragdoll / animation test seen from both seats, the hands tests.
