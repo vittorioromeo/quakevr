@@ -133,7 +133,10 @@ Pole: taut, level or slanted): past `vr_rope_monkey_angle` a monkey traverse, el
 88 high, south, and a slanted wooden one 27 degrees off upright, south-east). **Solid:** boxes along it (QC
 `vr_pole_solid`, `placeSolids`: one upright or level, up to 32 slanted, within its thickness of it): players and
 monsters stop at it, the climber on it passes (their owner, `passSolids`: holding a rope within 24 units, or inside a
-box until out), shots, nails and blows hit it (takedamage, never dealt any: `T_DamageImpl`) and `VR_MaterialOf` makes
+box until out: ropes11, any overlap, `solidInside` 0; it was 0.5, and a body in a box by less was neither let through
+nor free and crept down it a gravity's step a frame, the slow slide off a pole he saw; a steep pole's boxes' staircase
+ledges, the tops and bottoms but its ends', are passed by players, `solidLedge`, so a body landing on a slanted pole
+falls on beside it instead of standing on a ledge; the side faces still stop him; the clients' prediction the same), shots, nails and blows hit it (takedamage, never dealt any: `T_DamageImpl`) and `VR_MaterialOf` makes
 it metal (sparks) or wood (splinters); the navmesh cuts each box out (vr_nav.cpp, 8 units across at least). (ropes9)
 **The physics props** (crates, barrels, thrown things) and corpses meet it as the world: a Box3D capsule along it, its
 thickness across (vr_box3d_props.cpp `syncPoles`, from `climbrope::poleLines`; the world's category and mask), static
@@ -297,6 +300,13 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
   passed each. `rope_flat_test.sh <agent> pole`: walked into, up 80.6, down, never moved: 4 passed.
   `rope_flat_test.sh <agent> strung` (a rope strung 110 up along his way, 1% slack): jumped up to (a monkey traverse,
   sagging under him), forward along it 80 units, back 40, dropped with the move-down key.
+- (ropes11) `pole_fall_test.sh <agent> [upright|slant] [vr]` (`vr_pole_fall_test <upright|slant> [log [case]]`, vrropes):
+  21 cases flat (11 with the mock headset: no jumps): jumped off from four sides with no key, forward, back or strafe
+  held, or set in the air beside it (touching, 0.3 or 1 unit into its boxes) with a key held; each airborne frame the
+  speed down grows by gravity's step and he goes down by as much, landing on the floor (or taken again, a key held
+  towards it); the regrab case is set back within reach in the air past `vr_flat_rope_retake`: taken again. A held frame
+  prints his speed, ground entity and the nearest pole box's gap. Before: upright 3 failed (in a box by 0.3-0.45: 0.15
+  units down a frame), slanted 6 (stood on its ledges), the regrab case both.
 - (ropes9) `vr_pole_solid_test` then the physics props (2 more, 14 in all): a crate dropped 30 units over the level
   pole's middle rests on it (its bottom at the pole's top), one thrown level at 400 units/s at an upright pole bounces
   back off it (its middle 14 short of the axis, back at 55 units/s).
