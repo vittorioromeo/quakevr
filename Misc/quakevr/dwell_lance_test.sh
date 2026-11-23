@@ -36,7 +36,8 @@ echo "  the beam off the pole (the line from the hand to the tip): $shot deg"
 check $(awk -v d="$shot" 'BEGIN { print (d != "" && d + 0 < 6) ? 1 : 0 }') "the beam goes along the pole (Shot Pitch: the spear held through the fist)"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "pole: the run ended on its last line"
 # 3. dwellweap: its shot (no magazine: 6 cells from the pouch's 100, the beam's print), lancecharge: charged (held 30
-#    frames and let go: no shot; held 90, a 1 s charge: the shot as it is let go, its bolt lingering); dwellweap2: its grip flipped by
+#    frames and let go: no shot; held 90, a 1 s charge: the shot as it is let go, its bolt lingering; the charge drawn from the middle crystal's tip);
+#    dwellweap2: its grip flipped by
 #    the eject button (B, vr_revgrip.qc VR_RevGrip_HandFrame), reversed then upright again. (B held 10 frames: a 2-frame
 #    press, dwellweap's, never reached a player frame, so it did not flip.)
 log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;developer 1;vr_mock_hand main 0.2 1.3 -0.3 -22 0 0;vr_debug_gunfx 1;vr_ad_test 207;wait60;+attack;wait30;-attack;wait30;+attack;wait90;-attack;wait5;edict 1;vr_debug_gunfx 0;echo dwlance-mark: flips;vr_mock_button main secondary 1;wait10;vr_mock_button main secondary 0;wait30;vr_mock_button main secondary 1;wait10;vr_mock_button main secondary 0;wait30;echo dwlance-test: done" \
@@ -47,6 +48,9 @@ check $(grep -q "dwlance: let go at 0\.[0-9]* (hand 1): no shot" <<<"$log" && gr
 check $(grep -q "lancecharge: fired ent 1 hand 1" <<<"$log" && grep -q "dwlance: charged (hand 1) after 1\.0" <<<"$log" && echo 1 || echo 0) "charge: held 90 frames, charged in 1 s, fired as let go"
 check $(grep -q "lancecharge: bolt ent 1 hand 1 lingers 0\.35 s" <<<"$log" && echo 1 || echo 0) "charge: its bolt lingers 0.35 s (vr_dw_lance_bolt)"
 check $(grep -c "dwlance: the beam through" <<<"$log" | grep -qx 1 && echo 1 || echo 0) "charge: one shot only (none while held)"
+# (weaponfx, his note 2026-11-23: the charge drawn from the middle crystal's tip: the spear's (28.16 5.27 77.41, on its
+# pole's line; its muzzle anchor between the two outer prongs binds to a prong, 4 units off), vertexPosition's own place.)
+check $(grep -qE "lancecharge: origin at the middle crystal's tip \(progs/dw_lance.mdl#vr vertex [0-9]+, at rest 28\.1[0-9] 5\.2[0-9] 77\.4[0-9]\)" <<<"$log" && echo 1 || echo 0) "charge: drawn from the middle crystal's tip"
 check $(grep -qE "ammo_cells +94" <<<"$log" && echo 1 || echo 0) "shot: 6 cells taken from the pouch's 100 (no magazine)"
 check $(grep -q "revgrip: hand 1 flips its grip: reversed" <<<"$log" && echo 1 || echo 0) "flip: B turned the Lance's grip over (head down)"
 check $(grep -q "revgrip: hand 1 flips its grip: upright" <<<"$log" && echo 1 || echo 0) "flip: B again, upright"

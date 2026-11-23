@@ -2101,6 +2101,7 @@ float cvarh_vr_throw_heavy_exp;
 float cvarh_vr_throw_heavy_from;
 float cvarh_vr_throw_heavy_max;
 float cvarh_vr_throw_inherit;
+float cvarh_vr_throw_kill_push;
 float cvarh_vr_throw_max_speed;
 float cvarh_vr_throw_point_align;
 float cvarh_vr_throw_point_spin;
@@ -4269,6 +4270,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_throw_heavy_from = VR_CVar_Make("vr_throw_heavy_from");
     cvarh_vr_throw_heavy_max = VR_CVar_Make("vr_throw_heavy_max");
     cvarh_vr_throw_inherit = VR_CVar_Make("vr_throw_inherit");
+    cvarh_vr_throw_kill_push = VR_CVar_Make("vr_throw_kill_push");
     cvarh_vr_throw_max_speed = VR_CVar_Make("vr_throw_max_speed");
     cvarh_vr_throw_point_align = VR_CVar_Make("vr_throw_point_align");
     cvarh_vr_throw_point_spin = VR_CVar_Make("vr_throw_point_spin");

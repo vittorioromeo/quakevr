@@ -51,7 +51,7 @@ vr_embed_test    4        vr_embed_test.qc                 after the load: each 
 vr_embed_test    40       vr_dagger_test.qc                the dagger: a swing, a stab (less deep than the sword's), thrown at a wall and a grunt
 vr_embed_test    47       vr_throwpoint_test.qc            his 2026-11-15: thrown swords and daggers settle point first in the air (good and VR-style overhand throws point first, spun swords stay a spin, extremes steady all; axes unchanged; daggers let go any way as often as swords); then vr_throwdmg_test.qc: thrown blades at max speed at grunts, knights, ogres never gib, point first stay in the body, else blunt; no blade left floating off a body
 vr_embed_test    48       vr_airskewer_test.qc             his 2026-11-15: a gib tossed up skewered in the air by a fast thrust (not a slow push, not a swing across; a hanging one the same)
-vr_embed_test    41       vr_throwgib_test.qc              his 2026-11-12: a running throw blade first (sword, dagger) kills a grunt whole, the blade deep in the body; Quad gibs; handle first unchanged
+vr_embed_test    41       vr_throwgib_test.qc              his 2026-11-12: a running throw blade first (sword, dagger) kills a grunt whole, the blade deep in the body; Quad gibs; handle first unchanged; 2026-11-23: a thrown blade's kill push vr_throw_kill_push of a blow's
 vr_embed_test    42       vr_revgrip_test.qc               the reverse grip (his 2026-11-13): caught blade down reversed, blade up upright, force grab upright, the eject button's flip over frames, holstered and drawn kept, a reversed downward stab sticks, the hand on its handle as held
 vr_embed_test    43       vr_revgrip_test.qc               the pictures' scene: the dagger before your eyes upright, then reversed
 vr_embed_test    44       vr_flipgrip_test.qc              the flip grip (his 2026-11-14): reversed, its 2H hotspot there and held; handed off upright, taken back reversed; let go of reversed, lying as held; off a table reversed and upright by the handle; stuck upright, taken reversed, the hand on the handle as the real hand; flipgrip2: reversed 2H (dagger and knight's sword), the hotspot on the pommel's side above the hand, the off hand turned as upright (knuckles out)
@@ -331,6 +331,7 @@ vr_reload_test   42       vr_reload_test.qc                (VR_Reload_TestMagNai
 vr_reload_test   43       vr_reload_test.qc                (VR_Reload_TestMagForceGrab)
 vr_reload_test   44       vr_reload_test.qc                (VR_Reload_TestPouchCatch)
 vr_reload_test   45-48    vr_reload_test.qc                (VR_Reload_TestStartGun)
+vr_reload_test   49       vr_reload_test.qc                a holstered gun keeps its rounds, every path and reload mode (VR_HolsterAmmo_Test, vr_holsterammo_test.qc)
 
 vr_rv_test       1*       vr_revolver_test.qc              (the self-test (its fall-through))
 vr_rv_test       2-4      vr_revolver_test.qc              (VR_WeaponUtil_EntAddWeapon)

@@ -1,0 +1,8 @@
+# hub_start_test: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The VR hub (vrstart), nothing
+# set: its lecterns, the teleporter and the Run Setup's Start (vrnotes1122c2; Misc/quakevr/hub_start_test.py drives
+# the same flow headless).
+title The VR hub: the lecterns, the teleporter and the Run Setup's Start
+map vrstart
+god
+notarget
+hint Choose a campaign or mod at its lectern (Dimension of the Past, Arcane Dimensions, Dwell, Quoth, Arena Mode), step into the teleporter and press Start on the Run Setup.

@@ -1257,6 +1257,8 @@ void(float xStep) VR_Reload_TestStartGun =
     }
 };
 
+void() VR_HolsterAmmo_Test; // (vr_holsterammo_test.qc: after vr_flatholster.qc)
+
 void() VR_Reload_Test =
 {
     float step = cvar_hget(cvarh_vr_reload_test);
@@ -1264,6 +1266,10 @@ void() VR_Reload_Test =
     if(step >= 45 && step <= 48)
     {
         VR_Reload_TestStartGun(step);
+    }
+    else if(step == 49)
+    {
+        VR_HolsterAmmo_Test(); // (a holstered gun keeps its rounds: vr_holsterammo_test.qc)
     }
     else if(step == 44)
     {

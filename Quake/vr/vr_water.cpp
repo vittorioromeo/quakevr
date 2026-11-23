@@ -2333,7 +2333,7 @@ unsigned opaqueSceneDistances()
         source = framebufs.scene.depth_stencil_tex;
         multisampled = framebufs.scene.samples > 1;
     }
-    else if(GL_NeedsPostprocess())
+    else if(GL_NeedsPostprocess() && stereo::directEye() < 2) // (2: an eye's own depth renderbuffer, no texture)
     {
         source = framebufs.composite.depth_stencil_tex;
     }

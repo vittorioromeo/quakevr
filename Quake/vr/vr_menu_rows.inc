@@ -4802,6 +4802,14 @@ QVR_CYCLE(vr_foveated, "Foveated Rendering",
     "Draws the edges of the view, which the lenses blur anyway, in less detail: faster. NVIDIA graphics "
     "cards only.",
     {0.f, "Off"}, {1.f, "Conservative"}, {2.f, "Balanced"}, {3.f, "Aggressive"})
+QVR_CYCLE(vr_xr_foveation, "Quest Foveation",
+    "Quest standalone: the headset draws the edges of each eye's view, which the lenses blur anyway, at a lower "
+    "resolution (fixed foveated rendering): faster, near-invisible through the lenses. Higher levels blur more of "
+    "the edges.",
+    {0.f, "Off"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"})
+QVR_TOGGLE(vr_xr_foveation_dynamic, "Quest Foveation: Dynamic",
+    "On: the headset uses less foveation than Quest Foveation's level while the graphics have room to spare, and "
+    "up to that level when they are busy.")
 QVR_TOGGLE(vr_foveated_gaze, "Eye-Tracked Foveation",
     "On: with an eye-tracking headset (Quest Pro via Virtual Desktop with eye tracking shared to the PC, Varjo...) "
     "the sharp middle of Foveated Rendering follows your eyes; without one (or while your eyes are not tracked) it "
@@ -6619,7 +6627,8 @@ QVR_SLIDER(vr_flat_holster_menu_timescale, "Holster Menu Time Speed", 0.05f, 1.f
     "How fast time runs while the holster menu is held open: 0.3 (the default) slows it as bullet time does; 1 not at all "
     "(vr_flat_holster_menu_timescale).")
 QVR_SLIDER(vr_flat_holster_menu_blur, "Holster Menu Blur", 0.f, 20.f, 1.f, "%.0f px", noExt,
-    "How much the view blurs behind the holster menu (pixels at 1080p; 0 none) (vr_flat_holster_menu_blur).")
+    "How much the view blurs behind the holster menu and the weapon wheel (pixels at 1080p; 0 none) "
+    "(vr_flat_holster_menu_blur).")
 QVR_SLIDER(vr_flat_holster_menu_xhair_fade, "Holster Menu Crosshair Fade", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "How far the crosshair fades out while the holster menu is open: 1 gone, 0 kept (vr_flat_holster_menu_xhair_fade).")
 QVR_SLIDER(vr_flat_holster_menu_size, "Holster Menu Size", 0.3f, 1.f, 0.02f, "%.2f", noExt,
