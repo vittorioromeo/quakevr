@@ -10356,3 +10356,25 @@ has the table.
   share, qp_hist.py, qp_batches.py for `vr_gl_passes`).
 - **Next:** the world's own ~8 ms at 0.65 (its shading per pixel: the scene is fill-bound) and your rig's 2.5 ms (the
   body's skin form, the held gun close to the eyes); his call whether the 72 Hz floor goes to 0.55 in fights.
+
+## promote1123: 51 ticked lines retired, the checklist sorted, his tuning promoted (branch agent/promote1123, 2026-11-23)
+
+- **Checklist:** his 51 ticked lines retired (no voice note against them: his notes since 2026-11-22 all predate the
+  lines, which answer them), with the 11 scenes only they used; the [New] section sorted, near-duplicates merged:
+  194 -> 114 lines (CHECKLIST_REORG.md, "Checklist sort (2026-11-23)"). checklist_tests_check 83 passed, 0 failed.
+- **Promoted** (his proposed_defaults/2026-11-23_11-27-54.cfg, ironwail.cfg and tunables.cfg, read only; 135 settings
+  off the defaults): tunables `vr_flat_bash_wind_time` 0.06 -> 0.15 and `vr_flat_bash_wind_back` 4 -> 8
+  (tune_promote.py; --check now 0); cvars `vr_flat_speed_fov_from` 340 -> 350, `vr_flat_speed_fov_ease` and
+  `_ease_out` 0.15 -> 0.3 (flat speed FOV feel, as 803c3406fc's flat tunables; added after the 217 configs, so no
+  FullConfigChange row; configs are sparse, no configVersion bump); `pose_defaults.py --write`: the death knight's
+  sprayer Idle / Carry (319000, new) and Run (319020) keys; `weapons_data.py promote`: slot 24 bl_near 0.4951 -> 0.495
+  (the other 23 vr_wofs lines differ only by the config's 6-digit rounding). FLATPLAY.md's values updated.
+- **Skipped as personal or state** (as the 11-16 and 11-12 promotions): handedness, height and body calibration,
+  comfort preset, volume, cl_alwaysrun, sensitivity, fov, gamma/contrast, HUD/console/menu scales and the flat menu
+  panel's size and place (his window), crosshair, host_maxfps, vr_xr_runtime, window view and spectator, vr_flat_taa,
+  vr_flat_tp_fov, vr_gore_dents, vr_notes, vr_autosave_list_all, vr_takes_keys, vr_motion_button, toolgun and its rope
+  spawn settings, rig studio, Armour/Texture Studio and Grip Editor sliders (editor state, not archived), run picks and
+  run state, skill, map-set vr_gameplayfix_*, vr_pickup_scale, vr_prop_id_72-77 (no tuning on them), versions, menu
+  positions, tallies, vr_mp_* keys and room, debug aids (scr_showfps, Spawn With a Toolgun, controller preview).
+- **Tests:** flatspeedfov 7/0, flatbash 15/0, tunables_test 13/0, vr_agrunt_test 83 PASS; a default-config run prints
+  each promoted value as its default.
