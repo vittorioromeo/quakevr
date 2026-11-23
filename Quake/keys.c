@@ -54,6 +54,7 @@ keydest_t Key_SeatDest (void)
 qboolean	consolekeys[MAX_KEYS];	// if true, can't be rebound while in console -- seat-shared: a table set once (Key_Init)
 qboolean	menubound[MAX_KEYS];	// if true, can't be rebound while in menu -- seat-shared: a table set once (Key_Init)
 // QVR: splitscreen: keydown[] and keybindings[] are a seat's (seatkeys_t, keys.h; Key_Seat)
+int		key_lastpress = -1; // QVR: the last key pressed (Key_EventWithKeycode)
 
 typedef struct
 {
@@ -1254,6 +1255,8 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 
 	wasdown = Key_Seat ()->down[key];
 	Key_Seat ()->down[key] = down;
+	if (down)
+		key_lastpress = key; // QVR: the last key pressed (menu.c: what opened the main menu, its VR Hub line)
 
 	if (key_inputgrab.active && !seatmenu) // QVR: (the full menu's grab is seat 1's)
 	{

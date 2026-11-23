@@ -8,6 +8,7 @@
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -258,7 +259,7 @@ const Flesh& fleshOf(const qmodel_t* model, const aliashdr_t* hdr)
     {
         for(int b = 0; rig && b < rig->numBones; b++)
         {
-            if(modelmeta::is(model, nb.model) && strcmp(rig->bones[b].name, nb.bone) == 0)
+            if(modelmeta::is(model, nb.model) && ZA_STRCMP(rig->bones[b].name, nb.bone) == 0)
             {
                 labelled |= 1u << b;
             }

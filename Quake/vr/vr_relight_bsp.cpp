@@ -3,9 +3,11 @@
 // taken out, and the texture rules (relight_rules.txt) read and matched.
 
 #include "vr_relight_internal.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Container/Vector.hpp"
-#include "Zancle/String/String.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
 extern "C" {
@@ -43,7 +45,7 @@ namespace detail
         end = za::max(end, static_cast<za::SizeT>(b.lumpOffset(i)) + static_cast<za::SizeT>(b.lumpLength(i)));
     }
     end = (end + 3) & ~static_cast<za::SizeT>(3);
-    if(end + 8 > b.size || memcmp(b.data + end, "BSPX", 4))
+    if(end + 8 > b.size || ZA_MEMCMP(b.data + end, "BSPX", 4))
     {
         return out;
     }
@@ -56,7 +58,7 @@ namespace detail
             break;
         }
         BspxLump l;
-        memcpy(l.name, b.data + at, 24);
+        ZA_MEMCPY(l.name, b.data + at, 24);
         l.offset = b.i32(at + 24);
         l.length = b.i32(at + 28);
         if(l.offset < 0 || l.length < 0 || static_cast<za::SizeT>(l.offset) + static_cast<za::SizeT>(l.length) > b.size)
@@ -82,10 +84,10 @@ namespace detail
     };
     const auto put32 = [&](za::SizeT at, int v) {
         v = LittleLong(v);
-        memcpy(out.data() + at, &v, 4);
+        ZA_MEMCPY(out.data() + at, &v, 4);
     };
     out.resize(4 + 15 * 8, 0);
-    memcpy(out.data(), b.data, 4);
+    ZA_MEMCPY(out.data(), b.data, 4);
     for(int i = 0; i < 15; i++)
     {
         pad();
@@ -93,7 +95,7 @@ namespace detail
         if(i == 0)
         {
             out.resize(at + entities.size() + 1, 0);
-            memcpy(out.data() + at, entities.data(), entities.size());
+            ZA_MEMCPY(out.data() + at, entities.data(), entities.size());
         }
         else if(patch && (i == 4 || i == 10))
         {
@@ -101,7 +103,7 @@ namespace detail
             out.resize(at + lump.size(), 0);
             if(!lump.empty())
             {
-                memcpy(out.data() + at, lump.data(), lump.size());
+                ZA_MEMCPY(out.data() + at, lump.data(), lump.size());
             }
         }
         else
@@ -110,7 +112,7 @@ namespace detail
             out.resize(at + static_cast<za::SizeT>(l), 0);
             if(l)
             {
-                memcpy(out.data() + at, b.data + o, static_cast<za::SizeT>(l));
+                ZA_MEMCPY(out.data() + at, b.data + o, static_cast<za::SizeT>(l));
             }
         }
         put32(4 + static_cast<za::SizeT>(i) * 8, static_cast<int>(at));
@@ -122,15 +124,15 @@ namespace detail
     {
         const za::SizeT table = out.size() + 8;
         out.resize(table + 32 * bspx.size(), 0);
-        memcpy(out.data() + table - 8, "BSPX", 4);
+        ZA_MEMCPY(out.data() + table - 8, "BSPX", 4);
         put32(table - 4, static_cast<int>(bspx.size()));
         for(za::SizeT i = 0; i < bspx.size(); i++)
         {
             pad();
             const za::SizeT at = out.size();
             out.resize(at + static_cast<za::SizeT>(bspx[i].length), 0);
-            memcpy(out.data() + at, b.data + bspx[i].offset, static_cast<za::SizeT>(bspx[i].length));
-            memcpy(out.data() + table + i * 32, bspx[i].name, 24);
+            ZA_MEMCPY(out.data() + at, b.data + bspx[i].offset, static_cast<za::SizeT>(bspx[i].length));
+            ZA_MEMCPY(out.data() + table + i * 32, bspx[i].name, 24);
             put32(table + i * 32 + 24, static_cast<int>(at));
             put32(table + i * 32 + 28, bspx[i].length);
         }
@@ -235,7 +237,7 @@ namespace detail
     {
         return false;
     }
-    memcpy(buf, word.data() + a, b - a);
+    ZA_MEMCPY(buf, word.data() + a, b - a);
     buf[b - a] = 0;
     char* end = nullptr;
     out = strtod(buf, &end);
@@ -808,7 +810,7 @@ za::Vector<unsigned char> mapBspxLump(const char* path, const char* name)
         if(!q_strncasecmp(l.name, name, sizeof(l.name)))
         {
             out.resize(static_cast<za::SizeT>(l.length));
-            memcpy(out.data(), b.data + l.offset, out.size());
+            ZA_MEMCPY(out.data(), b.data + l.offset, out.size());
             break;
         }
     }

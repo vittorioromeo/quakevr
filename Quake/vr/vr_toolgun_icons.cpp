@@ -12,6 +12,9 @@
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -103,7 +106,7 @@ struct Reader
     [[nodiscard]] int i32(int ofs) const
     {
         int v = 0;
-        memcpy(&v, data + ofs, 4);
+        ZA_MEMCPY(&v, data + ofs, 4);
         return LittleLong(v);
     }
 
@@ -114,7 +117,7 @@ struct Reader
     [[nodiscard]] float f32(int ofs) const
     {
         float v = 0.f;
-        memcpy(&v, data + ofs, 4);
+        ZA_MEMCPY(&v, data + ofs, 4);
         return LittleFloat(v);
     }
 };
@@ -278,7 +281,7 @@ struct Reader
         if(m > 0 && r.has(m, 40))
         {
             char name[17]{};
-            memcpy(name, r.data + m, 16);
+            ZA_MEMCPY(name, r.data + m, 16);
             const int w = r.i32(m + 16), h = r.i32(m + 20), pixels = r.i32(m + 24);
             const bool hidden = !q_strncasecmp(name, "sky", 3) || !q_strncasecmp(name, "trigger", 7) || !q_strncasecmp(name, "clip", 4);
             if(!hidden && w > 0 && h > 0 && w <= 1024 && h <= 1024 && pixels > 0 && pixels <= r.size - m &&
@@ -487,7 +490,7 @@ void make(Icon& icon)
         za::Vector<Texture>& textures = scratch.textures;
         tris.clear();
         textures.clear();
-        const size_t n = strlen(icon.model);
+        const size_t n = ZA_STRLEN(icon.model);
         const bool bsp = n > 4 && !q_strcasecmp(icon.model + n - 4, ".bsp");
         if(bsp ? readBsp(r, tris, textures) : readMdl(r, icon.skin, tris, textures))
         {
@@ -520,7 +523,7 @@ const gfx::Picture* get(const char* model, int skin, bool side)
     }
     for(const Icon& icon : iconSet.icons)
     {
-        if(icon.skin == skin && icon.side == side && !strcmp(icon.model, model))
+        if(icon.skin == skin && icon.side == side && !ZA_STRCMP(icon.model, model))
         {
             return icon.state == IconState::Made ? &icon.picture : nullptr;
         }

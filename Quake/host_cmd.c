@@ -2572,7 +2572,10 @@ qboolean Host_IsSaving (void)
 	{
 		sv.lastsave[0] = '\0';
 		if (save_data.abort.value < 0)
-			Con_Printf ("Save error.\n");
+		{
+			Con_Printf ("Save error.%s%s\n", pr_save_error[0] ? " " : "", pr_save_error);
+			pr_save_error[0] = 0;
+		}
 	}
 
 	return false;

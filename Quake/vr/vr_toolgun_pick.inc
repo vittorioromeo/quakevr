@@ -248,7 +248,7 @@ void spawnHere()
     if(e && climbrope::isRopeClass(sel.classname))
     {
         const progs::ServerVm vm;
-        climbrope::toolgunPlaced(e, tg().ghostOrigin); // (hung from the ceiling above the ghost: vr_climbrope.cpp)
+        climbrope::toolgunPlaced(e, tg().ghostOrigin, tg.ghostAngles.y); // (hung from the ceiling above the ghost, or strung: vr_climbrope.cpp)
     }
     if(e)
     {

@@ -219,6 +219,7 @@ void lightReport_f();
 // vr_particle_jobs_test: the particle passes split between the game's threads give the same particles and records, bit
 // for bit, as on one thread (vr_particles.cpp).
 void jobsTest_f();
+void bloodEmitters_f(); // vr_blood_emitters [reset]: the blood particles made by emitter (vr_particles_blood.cpp)
 // vr_particle_waste_report: the shaded fragments that showed (next to) nothing since the last (vr_debug_particle_waste).
 void wasteReport_f();
 // vr_water_foam_info: the shore's foam particles (vr_water_foam_particles and lava's, slime's): the world's shore

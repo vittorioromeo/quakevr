@@ -116,6 +116,10 @@ constexpr float foregripTake = gripTakeUnits; // units from the grip point to ta
 constexpr float foregripKeep = 20.f;  // and to keep it
 constexpr float bladeTake = 6.f;      // units from the blade's outer part (its Blade hotspot's range)
 constexpr float poleMinApart = 4.f;   // a pole grip nearer the holding hand than this (units) keeps its last turn
+// The holding hand's own slide along a pole (poleShift): as far back as the butt less half a fist (units), as far
+// forward as this share of the handle-to-tip line (the Crystal Lance's head starts at about 0.52 of it, less a fist).
+constexpr float poleFist = 1.5f;
+constexpr float poleHeadShare = 0.45f;
 constexpr float bladeKeepMin = 0.25f; // the hands kept this share of the blade's length apart,
 constexpr float bladeKeepMax = 1.35f; // at most this
 
@@ -172,9 +176,22 @@ struct FreeGrip
     glm::vec3 axis{1.f, 0.f, 0.f};
     float u = 0.f, uMin = -1e9f, uMax = 1e9f;
     glm::vec3 handPoint{0.f};
+    // The holding hand's own slide (PoleSlide) when the grip began (uMin/uMax were measured on the weapon drawn so), and
+    // the holding hand's limits along the pole from the handle (the butt, the head's start; units).
+    float alongAtStart = 0.f;
+    float alongMin = 0.f, alongMax = 0.f;
 };
 
 // seat-shared: the grip clicks' random pitch (no player's state)
+
+// Per holding hand: its own slide along its pole weapon (the main hand slides too: poleShift). Kept while it holds the
+// same weapon (resetHolding clears it), the other hand on the pole or not.
+struct PoleSlide
+{
+    float along = 0.f;            // units from the handle towards the tip
+    glm::vec3 axis{1.f, 0.f, 0.f}; // the pole's way in the hand's frame
+    bool sliding = false;         // this frame (vr_debug_2h_grip prints)
+};
 za::FastNonCryptoRng gripRng{static_cast<za::U64>(za::Clock::nowNanoseconds())};
 
 [[nodiscard]] RelPose relativeTo(const glm::vec3& basePos, const glm::vec3& baseRot, const glm::vec3& pos,
@@ -223,6 +240,7 @@ struct TwoHand
     glm::vec3 handleReversed[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // (the flip grip: a hand taking it back reversed; `handle` when none)
     GroundSpot groundSpots[2];
     FreeGrip freeGrips[2];
+    PoleSlide poleSlides[2];
     bool freeCandidate[2]{false, false}; // the view's (setFreeCandidate), at candidateTime
     double candidateTime[2]{-1.0, -1.0};
     bool grabWas[2]{false, false};
@@ -556,7 +574,7 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
 // A pole grip's place along its pole for the hand at `h` (the holding hand's frame): the u whose point is as far from the
 // holding hand as the hand is (so a turn about the holding hand puts it there), the root nearest the last; `gap` how far
 // the hand is off that (0 on the pole; past its butt or tip, or nearer the holding hand than the line passes).
-[[nodiscard]] float poleSlide(const FreeGrip& g, const glm::vec3& h, float& gap)
+[[nodiscard]] float poleSlide(const FreeGrip& g, const glm::vec3& h, float& gap, float shift)
 {
     const float pa = glm::dot(g.base, g.axis);
     const float disc = pa * pa - glm::dot(g.base, g.base) + glm::dot(h, h);
@@ -567,9 +585,25 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
         const float a = -pa + r, b = -pa - r;
         u = za::abs(a - g.u) <= za::abs(b - g.u) ? a : b;
     }
-    u = za::clamp(u, g.uMin, g.uMax);
+    u = za::clamp(u, g.uMin - shift, g.uMax - shift); // (`shift`: the holding hand slid on since the grip began)
     gap = za::abs(glm::length(h) - glm::length(g.base + g.axis * u));
     return u;
+}
+
+// The holding hand slides along the pole itself (poleShift) rather than the other hand: its grip loose (the analog grip
+// under vr_pole_slide_grip) while the other hand's is closed on the pole (at or over it). A controller whose grip is only
+// a button (no value while pressed) never slides this way.
+[[nodiscard]] bool holderSlides(int holding, int helping)
+{
+    if(vr_pole_slide.value == 0.f)
+    {
+        return false;
+    }
+    const InputState& in = tracking().input;
+    const HandInput& m = in.hands[holding];
+    const HandInput& o = in.hands[helping];
+    const bool analog = m.gripValue > 0.01f || !m.grip;
+    return analog && m.gripValue < vr_pole_slide_grip.value && o.gripValue >= vr_pole_slide_grip.value;
 }
 
 // How far (units) a free grip's hand may be off its place on the weapon before it lets go, as a prop held in both hands
@@ -631,6 +665,7 @@ void resetHolding(int holding, int was, int now)
     }
     endFree(holding, "another weapon", 0.f, 0.f);
     th().freeGrips[holding] = FreeGrip{};
+    th().poleSlides[holding] = PoleSlide{};
     th().aimTransition[holding] = th().stockTransition[holding] = 0.f;
     th().shouldAim[holding] = false;
     th().grip[holding] = GRIP_FOREGRIP;
@@ -676,13 +711,29 @@ bool updateFree(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     {
         // Slid along the pole to where the hand is (as far from the holding hand), then the least turn putting that place
         // on the line from the holding hand through the hand; within a few units of the holding hand, the last turn kept.
+        // The holding hand loose and this one closed: this hand keeps its place on the pole and the holding hand slides
+        // instead (the weapon drawn moved back along the pole by its slide: poleShift; its place on the pole from the
+        // handle, along, changes by as much as this hand's place from the holding hand would have).
         const glm::vec3 h = relativeTo(holdingPos, rot0, s.pos[helping], rot0).pos;
-        g.u = poleSlide(g, h, off);
+        PoleSlide& ps = th().poleSlides[holding];
+        const float uWas = g.u;
+        g.u = poleSlide(g, h, off, ps.along - g.alongAtStart);
+        ps.sliding = false;
+        if(holderSlides(holding, helping))
+        {
+            const float along = za::clamp(ps.along - (g.u - uWas), g.alongMin, g.alongMax);
+            ps.sliding = za::abs(along - ps.along) > 1e-4f;
+            ps.along = along;
+        }
         g.point = g.base + g.axis * g.u;
         if(vr_debug_2h_grip.value >= 2 && vr_gametime >= th().debugPrintAt)
         {
             Con_Printf("2h grip: on the pole %.1f units along it from where it took hold (%.1f .. %.1f), %.1f from the "
-                       "holding hand along it, %.1f off\n", g.u, g.uMin, g.uMax, glm::dot(g.point, g.axis), off);
+                       "holding hand along it, %.1f off; the holding hand %.1f along it from the handle (%.1f .. %.1f)%s, "
+                       "the tip drawn %.1f ahead of it\n",
+                g.u, g.uMin, g.uMax, glm::dot(g.point, g.axis), off, ps.along, g.alongMin, g.alongMax,
+                ps.sliding ? ", sliding" : "",
+                s.muzzleValid[holding] ? glm::dot(relativeTo(holdingPos, rot0, s.muzzle[holding], rot0).pos, g.axis) : 0.f);
             th().debugPrintAt = vr_gametime + 0.25;
         }
         if(glm::length(h) > poleMinApart && glm::length(g.point) > poleMinApart)
@@ -745,11 +796,16 @@ FreeGrip& beginFree(const hands::State& s, const glm::vec3 (&originalRots)[2], i
     }
     if(g.mode == FREE_POLE)
     {
-        // The pole: the weapon's long axis (its blade line, bladeDirection) in the holding hand's frame, through where the
-        // hand took hold; from its butt (Blade Near: that share of the hand-to-tip length behind the hand) to its tip (the
-        // muzzle), along the axis.
+        // The pole: the weapon's long axis in the holding hand's frame, through where the hand took hold; from its butt
+        // (Blade Near: that share of the hand-to-tip length behind the hand) to its tip (the muzzle), along the axis. The
+        // axis is the line from the hand to the drawn tip (the pole goes through the fist; dwellweap2: bladeDirection, the
+        // two-handed aim's way, lay some 70 degrees off the Lance's pole, so the other hand's place slid off it), else
+        // bladeDirection.
         const glm::vec3& rot0 = originalRots[holding];
-        g.axis = safeNormalize(relativeTo(glm::vec3{0.f}, rot0, bladeDirection(slot, holding, rot0), rot0).pos);
+        const glm::vec3 tipRel = s.muzzleValid[holding] ? relativeTo(s.pos[holding], rot0, s.muzzle[holding], rot0).pos : glm::vec3{0.f};
+        g.axis = glm::length(tipRel) > 4.f
+                     ? glm::normalize(tipRel)
+                     : safeNormalize(relativeTo(glm::vec3{0.f}, rot0, bladeDirection(slot, holding, rot0), rot0).pos);
         g.base = point;
         g.u = 0.f;
         const float pa = glm::dot(point, g.axis);
@@ -757,8 +813,16 @@ FreeGrip& beginFree(const hands::State& s, const glm::vec3 (&originalRots)[2], i
         {
             const float tip = glm::dot(relativeTo(s.pos[holding], rot0, s.muzzle[holding], rot0).pos, g.axis);
             const float nearShare = weapons::value(slot, Key::BladeNear);
+            // (The weapon drawn moved back by the holding hand's own slide: its handle that far behind the hand.)
+            const float along = th().poleSlides[holding].along;
+            const float tip0 = tip + along; // the handle's to the tip
+            const float butt0 = (nearShare >= 0.f ? nearShare : 0.5f) * tip0;
             g.uMax = tip - pa;
-            g.uMin = -(nearShare >= 0.f ? nearShare : 0.5f) * tip - pa;
+            g.uMin = -butt0 - along - pa;
+            g.alongAtStart = along;
+            g.alongMin = za::min(-butt0 + poleFist, 0.f);
+            g.alongMax = za::max(poleHeadShare * tip0, 0.f);
+            th().poleSlides[holding].axis = g.axis;
         }
         else
         {
@@ -1470,6 +1534,7 @@ void reset()
         th().heldWas[h] = -1;
         th().carriedWas[h] = false;
         th().helpingWas[h] = false;
+        th().poleSlides[h] = PoleSlide{};
     }
     th().lastTime = -1.0;
     th().fastShare = 0.f;
@@ -1676,6 +1741,17 @@ bool poleGrip(int slot)
 bool poleWeapon(int slot)
 {
     return slot >= 0 && freeModeFor(slot) == FREE_POLE;
+}
+
+bool poleShift(int holding, float& along, glm::vec3& axis)
+{
+    if(holding < 0 || holding > 1 || za::abs(th().poleSlides[holding].along) < 0.01f)
+    {
+        return false;
+    }
+    along = th().poleSlides[holding].along;
+    axis = th().poleSlides[holding].axis;
+    return true;
 }
 
 bool freeHelping(int hand)

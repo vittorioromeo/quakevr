@@ -25,6 +25,7 @@
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -175,7 +176,7 @@ constexpr float farAway = 1536.f;  // units: nothing drips this far from the eye
 [[nodiscard]] glm::vec3 tunableColor(const Tunable& t, const glm::vec3& def)
 {
     glm::vec3 c = def;
-    if(std::sscanf(t.string, "%f %f %f", &c.x, &c.y, &c.z) != 3)
+    if(sscanf(t.string, "%f %f %f", &c.x, &c.y, &c.z) != 3)
     {
         return def;
     }
@@ -915,7 +916,7 @@ void testStep()
         case 1: // the map in: a probe (the player's model) under the pool's surface
         {
             if(cls.signon != SIGNONS || !cl.worldmodel || cl.viewentity <= 0 || !cl_entities[cl.viewentity].model ||
-                !strstr(cl.worldmodel->name, "vrtesthall"))
+                !ZA_STRSTR(cl.worldmodel->name, "vrtesthall"))
             {
                 return; // (the map vr_scenario loads, not the one before it)
             }
@@ -1107,7 +1108,7 @@ void testStep()
         }
         case 20: // vr_drips_bleed_test: the scenario's grunts on dry floor; the nearest hit by a real blow to half health
         {
-            if(cls.signon != SIGNONS || !cl.worldmodel || cl.viewentity <= 0 || !strstr(cl.worldmodel->name, "vrtesthall"))
+            if(cls.signon != SIGNONS || !cl.worldmodel || cl.viewentity <= 0 || !ZA_STRSTR(cl.worldmodel->name, "vrtesthall"))
             {
                 return;
             }
@@ -1287,7 +1288,7 @@ void check_f()
     int n = 0;
     for(const Wet& w : wets)
     {
-        if(w.what == What::Thing && w.wet > 0.f && (!*only || (w.ent->model && strstr(w.ent->model->name, only))))
+        if(w.what == What::Thing && w.wet > 0.f && (!*only || (w.ent->model && ZA_STRSTR(w.ent->model->name, only))))
         {
             n++;
             const entity_t& e = *w.ent;
@@ -1652,7 +1653,7 @@ const char* saveLines()
 void readSaveLines(const char* text)
 {
     saved.staged.clear();
-    for(const char* l = text ? strstr(text, "\n// qvrwet ") : nullptr; l; l = strstr(l + 1, "\n// qvrwet "))
+    for(const char* l = text ? ZA_STRSTR(text, "\n// qvrwet ") : nullptr; l; l = ZA_STRSTR(l + 1, "\n// qvrwet "))
     {
         int what = 0, liquid = 0;
         SavedWet s;

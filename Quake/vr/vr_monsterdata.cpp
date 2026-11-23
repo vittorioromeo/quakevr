@@ -5,6 +5,7 @@
 #include "vr_monstervalues.hpp"
 #include "vr_slottable.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -12,7 +13,6 @@
 #include "Zancle/Vocabulary/Span.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 namespace qvr
 {
@@ -64,7 +64,7 @@ ankerl::unordered_dense::map<za::String, int, NameHash, NameEqual> byName; // a 
 {
     for(za::SizeT i = 0; i < names.size(); i++)
     {
-        if(!strcmp(names[i], name))
+        if(!ZA_STRCMP(names[i], name))
         {
             return static_cast<int>(i);
         }
@@ -75,7 +75,7 @@ ankerl::unordered_dense::map<za::String, int, NameHash, NameEqual> byName; // a 
 
 [[nodiscard]] bool changed(int i)
 {
-    return strcmp(monsterValues[i].string, monsterValues[i].default_string) != 0;
+    return ZA_STRCMP(monsterValues[i].string, monsterValues[i].default_string) != 0;
 }
 
 // vr_monster_dump: each classname's values in monsters.txt and how many of them differ from it;
@@ -90,7 +90,7 @@ void dump_f()
             int own = 0;
             for(int i = 0; i < monsterValueCount; i++)
             {
-                if(!strcmp(entries[i].classname, klass))
+                if(!ZA_STRCMP(entries[i].classname, klass))
                 {
                     n++;
                     own += changed(i);
@@ -107,7 +107,7 @@ void dump_f()
         bool wanted = all;
         for(int a = 1; a < Cmd_Argc() && !wanted; a++)
         {
-            wanted = !strcmp(Cmd_Argv(a), klass);
+            wanted = !ZA_STRCMP(Cmd_Argv(a), klass);
         }
         if(!wanted)
         {
@@ -116,7 +116,7 @@ void dump_f()
         Con_Printf("monster %s\n", klass);
         for(int i = 0; i < monsterValueCount; i++)
         {
-            if(!strcmp(entries[i].classname, klass))
+            if(!ZA_STRCMP(entries[i].classname, klass))
             {
                 const cvar_t& v = monsterValues[i];
                 Con_Printf("    %s \"%s\" // %s, default \"%s\"%s\n", entries[i].key, v.string, v.name, v.default_string,
@@ -186,7 +186,7 @@ bool setStandIn(cvar_t* var, const char* value)
     {
         return false;
     }
-    if(!strcmp(var->string, value))
+    if(!ZA_STRCMP(var->string, value))
     {
         return true;
     }

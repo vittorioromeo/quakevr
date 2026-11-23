@@ -2,12 +2,18 @@
 //
 // Session lifecycle, stage reference space, the controllers' actions (poses, buttons, sticks,
 // haptics), one swapchain per eye and one for the 2D panel, and the wait/begin/locate/end frame
-// loop. The graphics binding (XR_KHR_opengl_enable, WGL, GL swapchain formats and images) is
+// loop. Linux binds GLX or EGL; Android (the Quest) OpenGL ES (XR_KHR_opengl_es_enable, the loader's Android init;
+// its runtime's extensions: vr_backend_openxr_quest.cpp). The graphics binding (XR_KHR_opengl_enable, WGL, GL
+// swapchain formats and images) is
 // the renderer-bound part: a Vulkan engine binds with XR_KHR_vulkan_enable2 instead
 // (docs/vr-port/PORTING.md).
 
 #include "vr_backend_openxr_internal.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
@@ -34,6 +40,54 @@ XRAPI_ATTR XrBool32 XRAPI_CALL debugMessage(XrDebugUtilsMessageSeverityFlagsEXT 
     VR_DiagnosticsXr(level, data ? data->messageId : nullptr, data ? data->functionName : nullptr, data ? data->message : nullptr);
     return XR_FALSE;
 }
+
+#ifdef __ANDROID__
+// Android: the loader's init (XR_KHR_loader_init_android, before any other OpenXR call: it finds the runtime through
+// the system's broker) and the instance's Android info (XR_KHR_android_create_instance) take the JavaVM and the
+// activity: SDL's, the activity held as a global reference for the process's life. Once a process.
+struct AndroidLoader
+{
+    bool tried{false};
+    bool ready{false};
+    JavaVM* vm{nullptr};
+    jobject activity{nullptr};
+};
+AndroidLoader androidLoader;
+
+bool initAndroidLoader()
+{
+    if(androidLoader.tried)
+    {
+        return androidLoader.ready;
+    }
+    androidLoader.tried = true;
+    JNIEnv* const env = static_cast<JNIEnv*>(SDL_AndroidGetJNIEnv());
+    const jobject activity = env ? static_cast<jobject>(SDL_AndroidGetActivity()) : nullptr;
+    if(!env || !activity || env->GetJavaVM(&androidLoader.vm) != JNI_OK || !androidLoader.vm)
+    {
+        xrruntime::warn("OpenXR: no JavaVM or activity from SDL (env %p, activity %p): the loader not initialised\n",
+            static_cast<void*>(env), static_cast<void*>(activity));
+        return false;
+    }
+    androidLoader.activity = env->NewGlobalRef(activity);
+    env->DeleteLocalRef(activity);
+    PFN_xrInitializeLoaderKHR initialize = nullptr;
+    xrGetInstanceProcAddr(XR_NULL_HANDLE, "xrInitializeLoaderKHR", reinterpret_cast<PFN_xrVoidFunction*>(&initialize));
+    XrLoaderInitInfoAndroidKHR info{XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR};
+    info.applicationVM = androidLoader.vm;
+    info.applicationContext = androidLoader.activity;
+    const XrResult result =
+        initialize ? initialize(reinterpret_cast<const XrLoaderInitInfoBaseHeaderKHR*>(&info)) : XR_ERROR_FUNCTION_UNSUPPORTED;
+    xrruntime::logLine(va("OpenXR: xrInitializeLoaderKHR (JavaVM %p, activity %p): %d\n", static_cast<void*>(androidLoader.vm),
+        static_cast<void*>(androidLoader.activity), static_cast<int>(result)));
+    androidLoader.ready = XR_SUCCEEDED(result);
+    if(!androidLoader.ready)
+    {
+        xrruntime::warn("OpenXR: xrInitializeLoaderKHR failed (%d): no OpenXR on this device\n", static_cast<int>(result));
+    }
+    return androidLoader.ready;
+}
+#endif
 
 } // namespace
 
@@ -352,6 +406,7 @@ void OpenXrBackend::resetRuntimeState()
 #ifndef _WIN32
     eglExtension = false;
 #endif
+    quest = QuestExtensions{};
     for(bool& v : vendorProfile)
     {
         v = false;
@@ -367,8 +422,21 @@ void OpenXrBackend::resetRuntimeState()
 
 bool OpenXrBackend::createInstance()
 {
-    // Quest 3 controllers get their own profile with this extension (Touch otherwise).
+#ifdef __ANDROID__
+    // Android: the loader initialised first; OpenGL ES and the instance's Android info (the activity).
+    if(!initAndroidLoader())
+    {
+        return false;
+    }
+    za::Vector<const char*> extensions{XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME, XR_KHR_ANDROID_CREATE_INSTANCE_EXTENSION_NAME};
+    XrInstanceCreateInfoAndroidKHR androidInfo{XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR};
+    androidInfo.applicationVM = androidLoader.vm;
+    androidInfo.applicationActivity = androidLoader.activity;
+    const void* const platformNext = &androidInfo;
+#else
     za::Vector<const char*> extensions{XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
+    const void* const platformNext = nullptr;
+#endif
     bodytrack::xr::reset();
     uint32_t available = 0;
     // (The loader loads the runtime here first: its messages, and the runtime's, caught for the log on Linux.)
@@ -400,37 +468,39 @@ bool OpenXrBackend::createInstance()
     xrruntime::logLine("\n");
     for(const XrExtensionProperties& p : extensionList)
     {
-        if(!strcmp(p.extensionName, "XR_META_touch_controller_plus"))
+        quest.want(p.extensionName, extensions); // (Android: refresh rate, performance levels, foveation)
+        // Quest 3 controllers get their own profile with this extension (Touch otherwise).
+        if(!ZA_STRCMP(p.extensionName, "XR_META_touch_controller_plus"))
         {
             extensions.pushBack("XR_META_touch_controller_plus");
         }
         for(int v = 0; v < VendorCount; v++)
         {
-            if(vr_xr_vendor_profiles.value != 0.f && !strcmp(p.extensionName, vendorExtensions[v]))
+            if(vr_xr_vendor_profiles.value != 0.f && !ZA_STRCMP(p.extensionName, vendorExtensions[v]))
             {
                 extensions.pushBack(vendorExtensions[v]);
                 vendorProfile[v] = true;
                 xrruntime::logLine(va("OpenXR: the %s controller profile enabled (vr_xr_vendor_profiles)\n", vendorExtensions[v]));
             }
         }
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__ANDROID__)
         // Linux: the EGL binding, for an EGL context (SDL's Wayland driver, or X11 on EGL): Monado and WiVRn
         // have it, SteamVR doesn't (createSession).
-        if(!strcmp(p.extensionName, XR_MNDX_EGL_ENABLE_EXTENSION_NAME))
+        if(!ZA_STRCMP(p.extensionName, XR_MNDX_EGL_ENABLE_EXTENSION_NAME))
         {
             extensions.pushBack(XR_MNDX_EGL_ENABLE_EXTENSION_NAME);
             eglExtension = true;
         }
 #endif
         // The lenses' hidden area (vr_visibility_mask).
-        if(!strcmp(p.extensionName, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME))
+        if(!ZA_STRCMP(p.extensionName, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME))
         {
             extensions.pushBack(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
             visibilityMaskExtension = true;
         }
         // Eye tracking for the foveation's centre (vr_foveated_gaze; asked for only when it is on: some runtimes ask the
         // player's permission or start the eye tracker for it).
-        if(!strcmp(p.extensionName, XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME))
+        if(!ZA_STRCMP(p.extensionName, XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME))
         {
             eyeGazeOffered = true;
             if(vr_foveated_gaze.value != 0.f)
@@ -446,7 +516,7 @@ bool OpenXrBackend::createInstance()
             extensions.pushBack(body);
         }
         // The loader's and the runtime's own messages (every run: logs/<date>_<time>/openxr_debug.log).
-        if(vr_diagnostics_xr.value != 0.f && !strcmp(p.extensionName, XR_EXT_DEBUG_UTILS_EXTENSION_NAME))
+        if(vr_diagnostics_xr.value != 0.f && !ZA_STRCMP(p.extensionName, XR_EXT_DEBUG_UTILS_EXTENSION_NAME))
         {
             extensions.pushBack(XR_EXT_DEBUG_UTILS_EXTENSION_NAME);
             debugUtils = true;
@@ -469,7 +539,7 @@ bool OpenXrBackend::createInstance()
         for(const XrApiLayerProperties& l : layerList)
         {
             names += va("%s%s", names.empty() ? "" : " ", l.layerName);
-            if(vr_diagnostics_xr_validation.value != 0.f && !strcmp(l.layerName, "XR_APILAYER_LUNARG_core_validation"))
+            if(vr_diagnostics_xr_validation.value != 0.f && !ZA_STRCMP(l.layerName, "XR_APILAYER_LUNARG_core_validation"))
             {
                 layers.pushBack("XR_APILAYER_LUNARG_core_validation");
             }
@@ -504,8 +574,10 @@ bool OpenXrBackend::createInstance()
     messengerInfo.messageTypes = XR_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | XR_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                                  XR_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     messengerInfo.userCallback = debugMessage;
+    info.next = platformNext; // (Android: the activity)
     if(debugUtils && vr_diagnostics_xr.value >= 2.f)
     {
+        messengerInfo.next = platformNext;
         info.next = &messengerInfo;
     }
     za::String enabled;
@@ -539,7 +611,7 @@ bool OpenXrBackend::createInstance()
         za::Vector<const char*> kept;
         for(const char* e : extensions)
         {
-            if(strcmp(e, XR_EXT_DEBUG_UTILS_EXTENSION_NAME) != 0)
+            if(ZA_STRCMP(e, XR_EXT_DEBUG_UTILS_EXTENSION_NAME) != 0)
             {
                 kept.pushBack(e);
             }
@@ -549,7 +621,7 @@ bool OpenXrBackend::createInstance()
         info.enabledExtensionNames = extensions.data();
         info.enabledApiLayerCount = 0;
         info.enabledApiLayerNames = nullptr;
-        info.next = nullptr;
+        info.next = platformNext;
         xrruntime::captureLoaderOutput("xrCreateInstance (again, without the API layers and the debug messenger)");
         created = xrCreateInstance(&info, &instance);
         xrruntime::endLoaderOutput("xrCreateInstance", XR_FAILED(created));
@@ -562,13 +634,14 @@ bool OpenXrBackend::createInstance()
         }
         return false;
     }
+    quest.bind(instance);
 
     XrInstanceProperties props{XR_TYPE_INSTANCE_PROPERTIES};
     if(XR_SUCCEEDED(xrGetInstanceProperties(instance, &props)))
     {
         q_snprintf(runtime, sizeof(runtime), "%s %u.%u.%u", props.runtimeName, XR_VERSION_MAJOR(props.runtimeVersion),
             XR_VERSION_MINOR(props.runtimeVersion), XR_VERSION_PATCH(props.runtimeVersion));
-        vdxr = !strncmp(props.runtimeName, "VirtualDesktopXR", 16);
+        vdxr = !ZA_STRNCMP(props.runtimeName, "VirtualDesktopXR", 16);
         Con_Printf("OpenXR runtime: %s\n", runtime);
     }
     xrruntime::loaded(currentAttempt, runtime[0] ? runtime : "a runtime without a name");
@@ -599,7 +672,7 @@ bool OpenXrBackend::createSystem()
     XrResult result = xrGetSystem(instance, &info, &systemId);
     // SteamVR just started (by this instance, or a moment before) says there is no headset until its driver
     // (Virtual Desktop's, the Link's) finds it: asked again for a while (vr_xr_steamvr_wait).
-    const bool steamVR = xrruntime::isSteamVR(currentAttempt) || strstr(runtime, "SteamVR");
+    const bool steamVR = xrruntime::isSteamVR(currentAttempt) || ZA_STRSTR(runtime, "SteamVR");
     if(result == XR_ERROR_FORM_FACTOR_UNAVAILABLE && steamVR && vr_xr_steamvr_wait.value > 0.f)
     {
         xrruntime::note("OpenXR: SteamVR has no headset yet: asking again for up to %g s (vr_xr_steamvr_wait)\n",
@@ -635,7 +708,7 @@ bool OpenXrBackend::createSystem()
         q_strlcpy(this->system, system.systemName, sizeof(this->system));
         maxImageWidth = system.graphicsProperties.maxSwapchainImageWidth;
         maxImageHeight = system.graphicsProperties.maxSwapchainImageHeight;
-        const size_t len = strlen(crashBase);
+        const size_t len = ZA_STRLEN(crashBase);
         q_snprintf(crashBase + len, sizeof(crashBase) - len, "; headset \"%s\"", system.systemName);
         xrruntime::logLine(va("OpenXR: system \"%s\" (vendor 0x%x): at most %u layers, swapchain images up to %ux%u\n",
             system.systemName, system.vendorId, system.graphicsProperties.maxLayerCount,
@@ -657,6 +730,22 @@ bool OpenXrBackend::createSystem()
         : eyeGazeAsked      ? "offered, but the system has no eye tracker (or it is not shared with the PC): the lens centre"
                                         : "offered, not used (vr_foveated_gaze 0)"));
 
+    // Required before creating an OpenGL (ES) session.
+#ifdef __ANDROID__
+    PFN_xrGetOpenGLESGraphicsRequirementsKHR getRequirements = nullptr;
+    xrGetInstanceProcAddr(instance, "xrGetOpenGLESGraphicsRequirementsKHR",
+        reinterpret_cast<PFN_xrVoidFunction*>(&getRequirements));
+    XrGraphicsRequirementsOpenGLESKHR requirements{XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR};
+    if(!getRequirements || !check(getRequirements(instance, systemId, &requirements), "xrGetOpenGLESGraphicsRequirementsKHR"))
+    {
+        return false;
+    }
+    xrruntime::logLine(va("OpenXR: OpenGL ES %u.%u to %u.%u wanted (the context: %s)\n",
+        XR_VERSION_MAJOR(requirements.minApiVersionSupported), XR_VERSION_MINOR(requirements.minApiVersionSupported),
+        XR_VERSION_MAJOR(requirements.maxApiVersionSupported), XR_VERSION_MINOR(requirements.maxApiVersionSupported),
+        reinterpret_cast<const char*>(glGetString(GL_VERSION))));
+    return true;
+#else
     // Required before creating an OpenGL session.
     PFN_xrGetOpenGLGraphicsRequirementsKHR getRequirements = nullptr;
     xrGetInstanceProcAddr(instance, "xrGetOpenGLGraphicsRequirementsKHR",
@@ -664,6 +753,7 @@ bool OpenXrBackend::createSystem()
     XrGraphicsRequirementsOpenGLKHR requirements{XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_KHR};
     return getRequirements &&
            check(getRequirements(instance, systemId, &requirements), "xrGetOpenGLGraphicsRequirementsKHR");
+#endif
 }
 #ifndef _WIN32
 
@@ -686,6 +776,13 @@ bool OpenXrBackend::contextReady(const char* what)
     {
         return true;
     }
+    if(now.api == xrgl::Api::Egl && glctx.api == xrgl::Api::Egl && now.context == glctx.context)
+    {
+        // The session's EGL context, current with another surface (mid-game: the window's, where the session was made
+        // with its own): the runtime's GL calls need the context alone. Making the session's surface current again
+        // failed on the Quest (C4p: the eye swapchains made anew for vr_xr_foveation).
+        return true;
+    }
     const bool made = xrgl::makeCurrent(glctx);
     xrruntime::warn("OpenXR: %s: the game's %s context wasn't current on this thread (%s %p instead of %p): made "
                     "current again: %s\n",
@@ -694,6 +791,37 @@ bool OpenXrBackend::contextReady(const char* what)
     return made;
 }
 
+#ifdef __ANDROID__
+// Android: the ES driver's extensions that matter to the eyes' images (the renderer draws each eye on its own and
+// copies it into its swapchain: multiview, one pass into a two-layer swapchain, is C5's; the QCOM foveation is what
+// XR_FB_foveation drives), for the log.
+void OpenXrBackend::logGlInterop()
+{
+    constexpr const char* names[] = {"GL_OVR_multiview2", "GL_OVR_multiview_multisampled_render_to_texture",
+        "GL_EXT_multisampled_render_to_texture", "GL_QCOM_texture_foveated", "GL_EXT_sRGB_write_control"};
+    const char* extensions = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+    za::String text;
+    for(const char* name : names)
+    {
+        text += va("%s%s %s", text.empty() ? "" : ", ", name, extensions && ZA_STRSTR(extensions, name) ? "yes" : "NO");
+    }
+    GLint images[2] = {}; // (5b's open item: the world and model fragment shaders' image units)
+    glGetIntegerv(GL_MAX_FRAGMENT_IMAGE_UNIFORMS, &images[0]);
+    glGetIntegerv(GL_MAX_COMBINED_IMAGE_UNIFORMS, &images[1]);
+    xrruntime::logLine(va("OpenXR: GL ES: %s; %s; fragment/combined image uniforms %d/%d\n",
+        reinterpret_cast<const char*>(glGetString(GL_RENDERER)), text.cStr(), images[0], images[1]));
+    // The eyes' sRGB swapchain (GL_SRGB8_ALPHA8) takes the game's colours as they are, gamma-encoded already, as the PC's
+    // OpenGL does with GL_FRAMEBUFFER_SRGB off. OpenGL ES encodes every write to an sRGB image unless
+    // EXT_sRGB_write_control turns that off: encoded twice, the headset showed the game pale and bright (C4f).
+    // -glessrgbencode keeps the driver's encoding (the check).
+    if(extensions && ZA_STRSTR(extensions, "GL_EXT_sRGB_write_control") && !COM_CheckParm("-glessrgbencode"))
+    {
+        constexpr GLenum framebufferSrgb = 0x8DB9; // GL_FRAMEBUFFER_SRGB_EXT
+        glDisable(framebufferSrgb);
+        xrruntime::logLine("OpenXR: GL ES: sRGB writes as they are (EXT_sRGB_write_control; -glessrgbencode: encoded)\n");
+    }
+}
+#else
 void OpenXrBackend::logGlInterop()
 {
     constexpr const char* names[] = {"glCreateMemoryObjectsEXT", "glImportMemoryFdEXT", "glTextureStorageMem2DEXT",
@@ -704,9 +832,10 @@ void OpenXrBackend::logGlInterop()
         text += va("%s%s %s", text.empty() ? "" : ", ", name, xrgl::proc(glctx.api, name) ? "yes" : "NO");
     }
     const char* extensions = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
-    const bool fd = extensions ? strstr(extensions, "GL_EXT_memory_object_fd") != nullptr : true; // (core: not listed)
+    const bool fd = extensions ? ZA_STRSTR(extensions, "GL_EXT_memory_object_fd") != nullptr : true; // (core: not listed)
     xrruntime::logLine(va("OpenXR: GL interop: %s%s\n", text.cStr(), fd ? "" : " (GL_EXT_memory_object_fd not listed)"));
 }
+#endif
 #else
 
 bool OpenXrBackend::contextReady(const char* what)
@@ -780,6 +909,23 @@ bool OpenXrBackend::createSession()
         xrruntime::warn("OpenXR: xrCreateSession not called: %s (SDL video driver %s)\n", why, driver);
         return false;
     }
+#ifdef __ANDROID__
+    // Android: XR_KHR_opengl_es_enable's binding, SDL's EGL display, config and context (its ES 3.2 context).
+    if(why[0])
+    {
+        xrruntime::warn("OpenXR: %s\n", why);
+    }
+    XrGraphicsBindingOpenGLESAndroidKHR esBinding{XR_TYPE_GRAPHICS_BINDING_OPENGL_ES_ANDROID_KHR};
+    esBinding.display = static_cast<EGLDisplay>(glctx.eglDisplay);
+    esBinding.config = static_cast<EGLConfig>(glctx.eglConfig);
+    esBinding.context = static_cast<EGLContext>(glctx.context);
+    const void* binding = &esBinding;
+    const char* bindingName = "xrCreateSession (OpenGL ES binding, XR_KHR_opengl_es_enable)";
+    logGlInterop();
+    step("xrCreateSession (OpenGL ES, binding XrGraphicsBindingOpenGLESAndroidKHR: %s; display %p, config %p, context %p, "
+         "surface %p)",
+        xrgl::eglDescription(glctx), glctx.eglDisplay, glctx.eglConfig, glctx.context, glctx.eglDraw);
+#else
     if(glctx.api == xrgl::Api::Egl && !eglExtension)
     {
         xrruntime::warn("OpenXR: xrCreateSession not called: SDL's GL context is EGL (SDL video driver %s) and %s "
@@ -825,6 +971,7 @@ bool OpenXrBackend::createSession()
              "config %p, context %p, surface %p)",
             driver, xrgl::eglDescription(glctx), glctx.eglDisplay, glctx.eglConfig, glctx.context, glctx.eglDraw);
     }
+#endif
     void* const boundContext = glctx.context;
 #endif
     // (SDL's idea of the current context: the same one, or the engine's context is not what is current here.)
@@ -854,6 +1001,7 @@ bool OpenXrBackend::createSession()
     {
         return false;
     }
+    quest.log(session);
 
     getVisibilityMask = nullptr;
     if(visibilityMaskExtension)

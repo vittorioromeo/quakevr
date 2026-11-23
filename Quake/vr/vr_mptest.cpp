@@ -41,13 +41,14 @@
 #include "vr_lagcomp.hpp"
 #include "vr_wounds.hpp"
 
+#include "Zancle/Base/Memchr.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Chrono/Time.hpp"
-#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 #include <chrono>
 #include <stdio.h>
-#include <string.h>
 
 namespace
 {
@@ -166,7 +167,7 @@ void pollInbox()
         if(inbox.skipping)
         {
             // (the rest of a too-long line: dropped up to its newline, the lines after it read from the next frame)
-            const void* nl = memchr(buf, '\n', got);
+            const void* nl = ZA_MEMCHR(buf, '\n', got);
             const size_t drop = nl ? static_cast<size_t>(static_cast<const char*>(nl) - buf) + 1 : got;
             inbox.offset += static_cast<long>(drop);
             inbox.skipping = nl == nullptr;
@@ -215,7 +216,7 @@ void watchScore()
         const scoreboard_t& sc = cl.scores[i];
         Score& w = scoreWatch.slots[i];
         const bool named = sc.name[0] != 0;
-        if(named == w.shown && (!named || (sc.frags == w.frags && strcmp(sc.name, w.name) == 0)))
+        if(named == w.shown && (!named || (sc.frags == w.frags && ZA_STRCMP(sc.name, w.name) == 0)))
         {
             continue;
         }
@@ -592,7 +593,7 @@ void edicts_f()
         Kind* k = nullptr;
         for(Kind& c : kinds)
         {
-            if(!strcmp(c.name, name))
+            if(!ZA_STRCMP(c.name, name))
             {
                 k = &c;
                 break;

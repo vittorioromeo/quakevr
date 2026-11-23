@@ -17,13 +17,13 @@
 #include "vr_text3d.hpp"
 #include "vr_toolgun.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Round.hpp"
 
-#include <string.h>
 
 using namespace qvr;
 using qvr::toolgun::brushtool::Input;
@@ -768,7 +768,7 @@ void pickFrame(const Input& in, int hand)
     {
         brushes::setCurrentTexture(tex);
     }
-    Con_Printf("toolgun: texture %s%s\n", brushes::currentTexture(), tex && !strcmp(brushes::currentTexture(), tex) ? " (picked)" : " (that one can't be picked)");
+    Con_Printf("toolgun: texture %s%s\n", brushes::currentTexture(), tex && !ZA_STRCMP(brushes::currentTexture(), tex) ? " (picked)" : " (that one can't be picked)");
     bt().picking = false;
     tick(hand, 0.4f);
 }

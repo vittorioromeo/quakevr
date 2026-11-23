@@ -10,16 +10,25 @@
 AGENT=${1:-dagger}
 QT_NAME=flatladder
 source "$(dirname "$0")/qvrtest.sh"
+# (its runs played as batches: many cases a game, copies in parallel; TESTING.md "Batched test cases")
+source "$(dirname "$0")/testbatch/testbatch.sh"
+# (the batch at run.sh's own clock: vr_fixed_frames_rate 72, a tick a frame, as each run alone; and the collect
+# pass without its awk/grep checks)
+export TB_RATE=${TB_RATE-72} TB_COLLECT_STUBS=${TB_COLLECT_STUBS-2}
 F=(-ExtraArgs "-flatscreenmode")
 H="map vrtutorial; wait60; god; notarget"
 
-out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatladder: [0-9]+ passed" -Timeout 180 -Filter "^flatladder" \
+tb_body() {
+out=$(tb_run_sh "${F[@]}" -QuitOn "^flatladder: [0-9]+ passed" -Timeout 180 -Filter "^flatladder" \
     -Script "$H; vr_flatladder_test; wait9000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatladder: \(PASS\|FAIL\)"
 expect_verdict "$out" "flatladder" "ledge ladder: up and over, down from the top, down looking down, push off; no ladder at a wall, single ledges, stairs"
 
-out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatladder: [0-9]+ passed" -Timeout 120 -Filter "^flatladder" \
+out=$(tb_run_sh "${F[@]}" -QuitOn "^flatladder: [0-9]+ passed" -Timeout 120 -Filter "^flatladder" \
     -Script "$H; vr_flat_ladder 0; vr_flatladder_test 9; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatladder: \(PASS\|FAIL\)"
 expect_verdict "$out" "flatladder" "ledge ladder: vr_flat_ladder 0, walked into: no climb"
-verdict; exit $fail
+verdict
+}
+tb_main "$AGENT" tb_body
+exit $fail

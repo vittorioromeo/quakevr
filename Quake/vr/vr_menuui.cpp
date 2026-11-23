@@ -61,6 +61,7 @@
 #include "vr_window.hpp"
 
 #include "Zancle/Base/Exchange.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -929,7 +930,7 @@ struct ToolbarLayout
     float widest = 0.f;
     for(const char* label : toolLabels)
     {
-        widest = za::fmax(widest, 8.f * static_cast<float>(strlen(label)));
+        widest = za::fmax(widest, 8.f * static_cast<float>(ZA_STRLEN(label)));
     }
     const float width = ToolbarLayout::pad + ToolbarLayout::icon + ToolbarLayout::labelGap + widest + ToolbarLayout::pad;
     l.limit = menu::contentLeft() - ToolbarLayout::columnGap;
@@ -1149,7 +1150,7 @@ constexpr float bannerTextX = ToolbarLayout::pad + 6.f + ToolbarLayout::labelGap
     for(const char* text : texts)
     {
         b.text = text;
-        width = textX + 8.f * static_cast<float>(strlen(text)) + ToolbarLayout::pad;
+        width = textX + 8.f * static_cast<float>(ZA_STRLEN(text)) + ToolbarLayout::pad;
         b.x1 = l.edge;
         b.x0 = b.x1 - width;
         if(b.x0 < l.left + ToolbarLayout::corner)
@@ -1264,7 +1265,7 @@ void placeFlatRecording(const ToolbarLayout& l)
 {
     FlatRecording& f = flatRecording;
     f.x0 = l.left + FlatRecording::corner;
-    f.x1 = f.x0 + FlatRecording::pad + FlatRecording::size * static_cast<float>(strlen(FlatRecording::text)) +
+    f.x1 = f.x0 + FlatRecording::pad + FlatRecording::size * static_cast<float>(ZA_STRLEN(FlatRecording::text)) +
            FlatRecording::pad;
     f.y1 = l.bottom - (FlatRecording::corner + ToolbarLayout::labelReserve) / l.k;
     f.y0 = f.y1 - (FlatRecording::pad + FlatRecording::size + FlatRecording::pad) / l.k;
@@ -3485,7 +3486,7 @@ extern "C" void VR_MenuDrawOverlay()
     {
         const char* label = named == ToolChecklist ? checklistLabel : toolLabel(named);
         const float x0 = l.bx0(named);
-        const float x1 = x0 + 4.f + 8.f * static_cast<float>(strlen(label)) + 4.f;
+        const float x1 = x0 + 4.f + 8.f * static_cast<float>(ZA_STRLEN(label)) + 4.f;
         const float yc = l.buttonsBottom() + 2.f + ToolbarLayout::rowHalf;
         p.rounded(x0, x1, yc, ToolbarLayout::rowHalf, 3.f, colors::highlightEdge);
         p.rounded(x0 + 1.f, x1 - 1.f, yc, ToolbarLayout::rowHalf - 1.f, 2.f, colors::boxFill);

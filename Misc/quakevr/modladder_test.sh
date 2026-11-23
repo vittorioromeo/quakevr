@@ -3,9 +3,10 @@
 # volume's own rungs (Quake/vr/vr_climb.cpp ladderHold, ladderRungStep), climbed by hand and by flatscreen play's ladder
 # (docs/vr-port/ARCANE_DIMENSIONS.md 16.5, FLATPLAY.md "Ladders"), headless. Needs Quoth 2.2 in the test base
 # (quoth_setup.py) and AD 1.80. Prints PASS/FAIL lines and a verdict, exits 1 on a failure.
-#   Quoth's kellbase1 (a free-standing non-solid ladder, its trigger_ladder 2 units thick): flat: up and over the top,
-#   down from its top (lowered onto it off the catwalk's edge), down looking down (vr_flatladder_test); vr_flat_ladder 0:
-#   Quoth's own jump climb lifts him. AD's ad_e1m1 (a wall ladder): the same three, and AD's own jump climb. VR hands (the
+#   Quoth's kellbase1 (free-standing non-solid ladders, their trigger_ladder 2 units thick): flat, on the drawn rungs as
+#   the hands (vr_climb.cpp findRungs' drawnBelow): the catwalk's ladder (bars 24 apart) and a pillar's (32 apart, 256
+#   up to 640) each up and over the top, down from its top (lowered onto it off the edge), down looking down
+#   (vr_flatladder_test); vr_flat_ladder 0: Quoth's own jump climb lifts him. AD's ad_e1m1 (a wall ladder): the same three, and AD's own jump climb. VR hands (the
 #   mock headset): vr_climb_try along kellbase1's ladders, exact holds on their drawn rungs (the func_illusionary's bars:
 #   24 apart on the catwalk's, 32 on the pillars'), none past its top or with Hand-Climbed Ladders off.
 AGENT=${1:-dagger}
@@ -16,13 +17,13 @@ Q="vr_campaign_native quoth;wait30;map kellbase1;wait60;god;notarget"
 AD=(-Games "-game ad -game quakevr" -ExtraArgs "-flatscreenmode -nomapindex -noaddons")
 A="map ad_e1m1;wait60;god;notarget"
 
-out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatladder: [0-9]+ passed" -Timeout 240 -Filter "^flatladder" \
-    -Script "$Q;vr_flatladder_test;wait20000;toggleconsole;quit" 2>&1)
+out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatladder: [0-9]+ passed" -Timeout 360 -Filter "^flatladder" \
+    -Script "$Q;vr_flatladder_test;wait40000;toggleconsole;quit" 2>&1)
 echo "$out" | grep -a "^flatladder: \(PASS\|FAIL\)"
-expect_verdict "$out" "flatladder" "Quoth's ladder, flat: up and over, down from the top, down looking down"
+expect_verdict "$out" "flatladder" "Quoth's ladders (catwalk, pillar), flat on their drawn rungs: up and over, down from the top, down looking down"
 
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatladder: [0-9]+ passed" -Timeout 120 -Filter "^flatladder" \
-    -Script "$Q;vr_flat_ladder 0;vr_flatladder_test 3;wait3000;toggleconsole;quit" 2>&1)
+    -Script "$Q;vr_flat_ladder 0;vr_flatladder_test 6;wait3000;toggleconsole;quit" 2>&1)
 echo "$out" | grep -a "^flatladder: \(PASS\|FAIL\)"
 expect_verdict "$out" "flatladder" "Quoth's ladder, vr_flat_ladder 0: its own jump climb"
 

@@ -58,7 +58,9 @@
       <AdditionalIncludeDirectories>..\..\Quake\vr;..\..\Quake\vr\external;..\..\Quake\vr\external\box3d\include;..\..\Quake\vr\external\zancle\include;..\..\Quake\vr\external\recastnavigation\Recast\Include;..\..\Quake\vr\external\recastnavigation\Detour\Include;..\..\Quake\vr\external\opus\include;..\..\Quake\vr\external\rnnoise\include;..\OpenXR\include;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <!-- SDL_DISABLE_MM3DNOW_H: SDL_cpuinfo.h includes <mm3dnow.h> where __3dNOW__ is defined (clang-cl for 32-bit x86),
            a header clang deprecates with a #warning. -->
-      <PreprocessorDefinitions>ZA_STATIC;SDL_DISABLE_MM3DNOW_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- QVR_STB_VORBIS: stb_vorbis (Quake/vr/external/stb_vorbis/README.md, below) is built in: snd_vorbis.c decodes
+           Ogg with it in the fake-Android mode (-fakeandroid), as the Quest's build does, libvorbisfile otherwise. -->
+      <PreprocessorDefinitions>ZA_STATIC;SDL_DISABLE_MM3DNOW_H;QVR_STB_VORBIS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Platform)'=='x64'">QVR_HAVE_OPENXR;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <!-- QVR_RELEASE: a release (make_release.ps1's /p:QvrReleaseVersion), or /p:QvrRelease=1 to build one's code
            (a check): the tuning constants (Quake/vr/vr_tunables.inc) constexpr, no live tuning (vr_tunables.cpp). -->
@@ -75,12 +77,20 @@
       <AdditionalDependencies>openxr_loader.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\OpenXR\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
-    <PostBuildEvent Condition="'$(Platform)'=='x64'">
-      <Command>%(Command)
-copy "$(SolutionDir)..\OpenXR\lib\x64\openxr_loader.dll" "$(TargetDir)"
-copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dll" "$(TargetDir)"</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
+  <!-- The run-time DLLs next to the exe (codecs, SDL2, curl, zlib; OpenXR's loader and Steam Audio on x64): copied by
+       MSBuild's own Copy task, only those that changed. They were the post-build event's `copy` commands (ironwail.vcxproj
+       and here), a cmd.exe and every DLL copied again on every build, even one with nothing to do (~1.3 s on a loaded
+       machine; docs/vr-port/BUILD_SPEED.md). Same files, same place, same time stamps (Copy keeps them). -->
+  <Target Name="QvrCopyRuntimeDlls" BeforeTargets="PostBuildEvent">
+    <ItemGroup>
+      <_QvrRuntimeDll Include="$(SolutionDir)..\codecs\x64\*.dll;$(SolutionDir)..\SDL2\lib64\*.dll" />
+      <_QvrRuntimeDll Include="$(SolutionDir)..\curl\lib\$(PlatformShortName)\*.dll;$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" />
+      <_QvrRuntimeDll Condition="'$(Platform)'=='x64'" Include="$(SolutionDir)..\OpenXR\lib\x64\openxr_loader.dll" />
+      <_QvrRuntimeDll Condition="'$(Platform)'=='x64'" Include="$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_QvrRuntimeDll)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+  </Target>
   <!-- ReleaseLTO (releases, timings, profiling) and Release-Tracy: ThinLTO (the ClangCL toolset ignores
        WholeProgramOptimization and the MSVC linker's LTCG), its cache in the intermediate folder so that a rebuild of one
        file re-optimises only what changed. Release, the everyday dev build (F5, the kit's build.sh), has the same
@@ -184,6 +194,16 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <AdditionalOptions>/FIintrin.h %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ClInclude Include="..\..\Quake\vr\external\box3d\src\*.h;..\..\Quake\vr\external\box3d\src\*.inl;..\..\Quake\vr\external\box3d\include\box3d\*.h" />
+    <!-- stb_vorbis (Quake/vr/external/stb_vorbis/README.md): the Quest's Ogg Vorbis decoder, built here for the
+         fake-Android mode (snd_vorbis.c, QVR_STB_VORBIS above); vendored code, warnings off, always optimised. -->
+    <ClCompile Include="..\..\Quake\vr\external\stb_vorbis\stb_vorbis.c">
+      <CompileAs>CompileAsC</CompileAs>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <ObjectFileName>$(IntDir)stb_vorbis\</ObjectFileName>
+    </ClCompile>
     <!-- The C heap (Quake/vr/vr_crtheap.c): its report (vr_crtheap_info.c), a C file each; QVR_MIMALLOC with mimalloc. -->
     <ClCompile Include="..\..\Quake\vr\vr_crtheap.c;..\..\Quake\vr\vr_crtheap_info.c">
       <CompileAs>CompileAsC</CompileAs>
@@ -229,27 +249,31 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
     <!-- A release (Misc/release/make_release.ps1, /p:QvrReleaseVersion=1.2.3) is VERSION's own: the script checks it. -->
     <Error Condition="'$(QvrReleaseVersion)'!='' and '$(QvrReleaseVersion)'!='$(QvrSemver)'"
            Text="QvrReleaseVersion $(QvrReleaseVersion) is not VERSION's $(QvrSemver): bump VERSION (make_release.ps1 -BumpVersion)" />
-    <Exec Command="git -C &quot;$(QvrRepo)&quot; log -1 --date=format:%25%25Y-%25%25m-%25%25d --format=&quot;%25%25cd %25%25h&quot; --abbrev=8 2&gt;nul"
+    <!-- One Exec (one cmd.exe, three git runs; it was four Execs, eight processes: on a loaded machine a process
+         start costs 0.2-1.5 s, so this step was ~9 s of a 12 s no-op build; docs/vr-port/BUILD_SPEED.md). Its lines:
+         1. the commit's date, its short hash (abbreviated to 7: QVR_BUILD_INFO's) and full hash; 2. the commit count;
+         3+. the changed tracked files (any: "-dirty"). The exit code is 0 exactly when the first git call worked.
+         The 8-character hash of QVR_BUILD_VERSION is what an abbreviation to 8 gives: the 7-character one when git had to lengthen it,
+         else the full hash's first 8 (an abbreviation unique at 7 characters is unique at 8). -->
+    <Exec Command="git -C &quot;$(QvrRepo)&quot; log -1 --date=format:%25%25Y-%25%25m-%25%25d --format=&quot;%25%25cd %25%25h %25%25H&quot; --abbrev=7 2&gt;nul || exit 1&#10;git -C &quot;$(QvrRepo)&quot; rev-list --count HEAD 2&gt;nul&#10;git -C &quot;$(QvrRepo)&quot; --no-optional-locks status --porcelain --untracked-files=no 2&gt;nul&#10;exit 0"
           ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
-      <Output TaskParameter="ConsoleOutput" PropertyName="QvrGitCommit" />
+      <Output TaskParameter="ConsoleOutput" ItemName="_QvrGitLine" />
       <Output TaskParameter="ExitCode" PropertyName="QvrGitExit" />
     </Exec>
-    <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; --no-optional-locks status --porcelain --untracked-files=no 2&gt;nul"
-          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
-      <Output TaskParameter="ConsoleOutput" PropertyName="QvrGitChanges" />
-    </Exec>
+    <PropertyGroup Condition="'$(QvrGitExit)'=='0'">
+      <_QvrGitAll>@(_QvrGitLine, '|')</_QvrGitAll>
+      <_QvrGitHead>$(_QvrGitAll.Split('|')[0])</_QvrGitHead>
+      <QvrBuildNumber>$(_QvrGitAll.Split('|')[1].Trim())</QvrBuildNumber>
+      <QvrBuildHash>$(_QvrGitHead.Split(' ')[1])</QvrBuildHash>
+      <_QvrGitHash8>$(_QvrGitHead.Split(' ')[2].Substring(0, 8))</_QvrGitHash8>
+      <_QvrGitHash8 Condition="$(QvrBuildHash.Length) &gt;= 8">$(QvrBuildHash)</_QvrGitHash8>
+      <QvrGitCommit>$(_QvrGitHead.Split(' ')[0]) $(_QvrGitHash8)</QvrGitCommit>
+      <QvrGitChanges Condition="@(_QvrGitLine->Count()) &gt; 2">1</QvrGitChanges>
+    </PropertyGroup>
     <!-- The build number (QVR_BUILD_NUMBER: the commit count, always increasing; QVR_BUILD_INFO: "1.1.0-dev build 4321
          (abc1234+dirty) 2026-10-17", the menus' bottom left corner and the console): 0 and "unknown" without git.
          The date is the build's local date, no time of day: the header is rewritten only when its text changes, so a
          build with nothing new recompiles and relinks nothing (with a clock it did, every minute). -->
-    <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; rev-list --count HEAD 2&gt;nul"
-          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
-      <Output TaskParameter="ConsoleOutput" PropertyName="QvrBuildNumber" />
-    </Exec>
-    <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; rev-parse --short=7 HEAD 2&gt;nul"
-          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
-      <Output TaskParameter="ConsoleOutput" PropertyName="QvrBuildHash" />
-    </Exec>
     <PropertyGroup>
       <QvrBuildDirty>0</QvrBuildDirty>
       <QvrBuildDirty Condition="'$(QvrGitExit)'=='0' and '$(QvrGitChanges)'!=''">1</QvrBuildDirty>

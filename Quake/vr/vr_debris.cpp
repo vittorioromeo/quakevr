@@ -19,6 +19,11 @@
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/SmallVector.hpp"
@@ -43,7 +48,6 @@
 #include "vr_api.h"
 
 #include <ctype.h>
-#include <string.h>
 
 namespace qvr::debris
 {
@@ -202,14 +206,14 @@ constexpr int numModels = static_cast<int>(za::getArraySize(models));
 [[nodiscard]] int32_t readInt(const byte* p)
 {
     int32_t v;
-    memcpy(&v, p, 4);
+    ZA_MEMCPY(&v, p, 4);
     return v;
 }
 
 [[nodiscard]] float readFloat(const byte* p)
 {
     float v;
-    memcpy(&v, p, 4);
+    ZA_MEMCPY(&v, p, 4);
     return v;
 }
 
@@ -231,7 +235,7 @@ void loadModel(ModelInfo& m)
         m.skinLab.clear();
         VR_HeapFree(data);
     };
-    if(size < 84 || memcmp(data, "IDPO", 4) != 0 || readInt(data + 4) != 6)
+    if(size < 84 || ZA_MEMCMP(data, "IDPO", 4) != 0 || readInt(data + 4) != 6)
     {
         return fail("not an alias model");
     }
@@ -534,8 +538,8 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
         glm::vec3 reach{0.f};
         if(qvr::strings::startsWith(klass, "func_"))
         {
-            if(!strcmp(klass, "func_wall") || !strcmp(klass, "func_illusionary") || !strcmp(klass, "func_episodegate") ||
-                !strcmp(klass, "func_bossgate") || qvr::strings::startsWith(klass, "func_detail") || !strcmp(klass, "func_group"))
+            if(!ZA_STRCMP(klass, "func_wall") || !ZA_STRCMP(klass, "func_illusionary") || !ZA_STRCMP(klass, "func_episodegate") ||
+                !ZA_STRCMP(klass, "func_bossgate") || qvr::strings::startsWith(klass, "func_detail") || !ZA_STRCMP(klass, "func_group"))
             {
                 margin = 8.f; // still brushes: not under or in them
             }
@@ -551,7 +555,7 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
                 }
             }
         }
-        else if(!strcmp(klass, "trigger_teleport") || !strcmp(klass, "info_teleport_destination") ||
+        else if(!ZA_STRCMP(klass, "trigger_teleport") || !ZA_STRCMP(klass, "info_teleport_destination") ||
                 qvr::strings::startsWith(klass, "info_player") || qvr::strings::startsWith(klass, "trigger_changelevel"))
         {
             margin = 64.f;
@@ -620,7 +624,7 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
 
 [[nodiscard]] bool nameInList(const char* list, const char* name)
 {
-    const size_t len = strlen(name);
+    const size_t len = ZA_STRLEN(name);
     for(const char* p = list; *p;)
     {
         while(*p == ' ' || *p == ',' || *p == ';')
@@ -855,7 +859,7 @@ void list_f()
     {
         edict_t* e = EDICT_NUM(i);
         const char* klass = e->free ? "" : PR_GetString(e->v.classname);
-        if(strcmp(klass, "vr_rock") != 0 && strcmp(klass, "vr_brick") != 0)
+        if(ZA_STRCMP(klass, "vr_rock") != 0 && ZA_STRCMP(klass, "vr_brick") != 0)
         {
             continue;
         }
@@ -868,7 +872,7 @@ void list_f()
                 light)});
     }
     PR_PopQCVM(oldVm);
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "lit"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "lit"))
     {
         za::stableSort(rows.begin(), rows.end(), [](const Row& a, const Row& b) { return a.light > b.light; });
     }
@@ -899,7 +903,7 @@ void PlanKey::add(const void* data, za::SizeT bytes)
     for(; i + 8 <= bytes; i += 8)
     {
         uint64_t w;
-        memcpy(&w, p + i, 8);
+        ZA_MEMCPY(&w, p + i, 8);
         h = (h ^ w) * 1099511628211ull;
         h ^= h >> 29;
     }
@@ -911,7 +915,7 @@ void PlanKey::add(const void* data, za::SizeT bytes)
 
 void PlanKey::add(const char* s)
 {
-    add(s, s ? strlen(s) + 1 : 0);
+    add(s, s ? ZA_STRLEN(s) + 1 : 0);
 }
 
 PlanKey planKey(const za::Vector<Obstacle>& obstacles)
@@ -926,8 +930,8 @@ PlanKey planKey(const za::Vector<Obstacle>& obstacles)
     // seeds, limits; not the vr_debug_* reports) and the world's scale, by their values as typed.
     for(const cvar_t* v = Cvar_FindVarAfter("", 0); v; v = v->next)
     {
-        if(!strncmp(v->name, "vr_crate", 8) || !strncmp(v->name, "vr_debris", 9) || !strncmp(v->name, "vr_place_", 9) ||
-            !strcmp(v->name, "vr_world_scale"))
+        if(!ZA_STRNCMP(v->name, "vr_crate", 8) || !ZA_STRNCMP(v->name, "vr_debris", 9) || !ZA_STRNCMP(v->name, "vr_place_", 9) ||
+            !ZA_STRCMP(v->name, "vr_world_scale"))
         {
             k.add(v->name);
             k.add(v->string);
@@ -1010,7 +1014,7 @@ Material materialOf(const char* texture)
     {
         return Material::None; // liquids
     }
-    if(!strncmp(s.cStr(), "rock", 4) && s.size() > 4 && isdigit(static_cast<unsigned char>(s[4])))
+    if(!ZA_STRNCMP(s.cStr(), "rock", 4) && s.size() > 4 && isdigit(static_cast<unsigned char>(s[4])))
     {
         size_t i = 4;
         while(i < s.size() && isdigit(static_cast<unsigned char>(s[i])))
@@ -1024,7 +1028,7 @@ Material materialOf(const char* texture)
     }
     for(const Rule& r : rules)
     {
-        const bool hit = r.prefix ? !strncmp(s.cStr(), r.pattern, strlen(r.pattern)) : s.find(r.pattern) != za::StringView::nPos;
+        const bool hit = r.prefix ? !ZA_STRNCMP(s.cStr(), r.pattern, ZA_STRLEN(r.pattern)) : s.find(r.pattern) != za::StringView::nPos;
         if(hit)
         {
             return r.material;

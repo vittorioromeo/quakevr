@@ -8,7 +8,6 @@
 #include "vr_api.h"
 
 #include <cstdio>
-#include <cstring>
 
 namespace
 {

@@ -29,6 +29,8 @@
 #include "vr_testkit.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
@@ -39,7 +41,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -346,7 +347,7 @@ void editInBlender_f()
     const char* what = "";
     for(int i = 1; i < Cmd_Argc(); i++)
     {
-        if(strcmp(Cmd_Argv(i), "-n") == 0)
+        if(ZA_STRCMP(Cmd_Argv(i), "-n") == 0)
         {
             dry = true;
         }
@@ -402,7 +403,7 @@ void editSkin_f()
     for(int i = 1; i < Cmd_Argc(); i++)
     {
         const char* a = Cmd_Argv(i);
-        if(strcmp(a, "-n") == 0)
+        if(ZA_STRCMP(a, "-n") == 0)
         {
             dry = true;
         }
@@ -648,10 +649,10 @@ void test_f()
     // (The hand and the body have source .blends: the bare-forearm body is a skinned model still imported.)
     const Edit bare = resolve("vrbody_bare");
     const za::String cmd = commandLine("blender.exe", bare);
-    (void)t.check(strstr(cmd.cStr(), "edit_from_game(r'") && strstr(cmd.cStr(), "vrbody_bare.md5mesh')"),
+    (void)t.check(ZA_STRSTR(cmd.cStr(), "edit_from_game(r'") && ZA_STRSTR(cmd.cStr(), "vrbody_bare.md5mesh')"),
         name, "a skinned model without a source: its command line imports it through the add-on");
     const za::String skinCmd = skinCommandLine("blender.exe", resolve("armor"), 2);
-    (void)t.check(strstr(skinCmd.cStr(), "armor.blend\" --python-expr") && strstr(skinCmd.cStr(), "edit_skin_from_game(2)"),
+    (void)t.check(ZA_STRSTR(skinCmd.cStr(), "armor.blend\" --python-expr") && ZA_STRSTR(skinCmd.cStr(), "edit_skin_from_game(2)"),
         name, "vr_edit_skin's command line opens the source and edits skin 2 through the add-on");
 #ifdef _WIN32
     if(!vr_blender_path.string[0])
@@ -668,7 +669,7 @@ void test_f()
     link.seen = 0;
     const int ran = poll();
     (void)t.check(ran == 2, name, "two lines run, two refused");
-    (void)t.check(preview.on && preview.ent.model && strcmp(preview.ent.model->name, "progs/v_shot.mdl") == 0, name,
+    (void)t.check(preview.on && preview.ent.model && ZA_STRCMP(preview.ent.model->name, "progs/v_shot.mdl") == 0, name,
         "show v_shot: shown");
     (void)t.check(poll() == 0, name, "the same request isn't run twice");
     (void)t.check(!showModel("vrbody") && !preview.on, name, "the body isn't shown (it is drawn on you)");

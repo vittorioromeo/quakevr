@@ -12,6 +12,7 @@
 #include "vr_text3d.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -537,18 +538,18 @@ void draw(const glm::vec3& eye)
 
 void lineCheck_f()
 {
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "reset"))
     {
         viz.check = Check{};
     }
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "dump"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "dump"))
     {
         viz.dump = true; // (printed as the next line is measured)
         return;
     }
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "look"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "look"))
     {
-        const bool off = Cmd_Argc() > 2 && !strcmp(Cmd_Argv(2), "off");
+        const bool off = Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(2), "off");
         viz.look = !off;
         if(off && viz.cams)
         {

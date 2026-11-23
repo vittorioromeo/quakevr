@@ -40,6 +40,8 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/ReverseIterator.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Chrono/Time.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -59,7 +61,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 
 namespace qvr::motion
@@ -583,7 +584,7 @@ void applySettings(const Take& take, bool melee)
         {
             notAnchors++;
         }
-        if(!strcmp(var->string, value.cStr()))
+        if(!ZA_STRCMP(var->string, value.cStr()))
         {
             continue;
         }
@@ -662,7 +663,7 @@ namespace detail
 void applyLineOptions(const char* s, Options& o)
 {
     float x, y, z, yaw;
-    const char* at = strstr(s, "at ");
+    const char* at = ZA_STRSTR(s, "at ");
     if(at && sscanf(at + 3, "%f %f %f %f", &x, &y, &z, &yaw) == 4)
     {
         o.atSet = true;
@@ -670,7 +671,7 @@ void applyLineOptions(const char* s, Options& o)
         o.atYaw = yaw;
     }
     int id;
-    const char* w = strstr(s, "weapon ");
+    const char* w = ZA_STRSTR(s, "weapon ");
     if(w && sscanf(w + 7, "%d", &id) == 1)
     {
         o.weapon = id;
@@ -1289,7 +1290,7 @@ void stopPlayback(const char* why)
         return false;
     }
     const Backend* be = backend();
-    if(!be || strcmp(be->name(), "mock") != 0)
+    if(!be || ZA_STRCMP(be->name(), "mock") != 0)
     {
         Con_Printf("vr_motion_play: plays in the mock headset only (vr_backend mock)\n");
         return false;
@@ -1486,7 +1487,7 @@ void play_f()
     }
     const bool keepMap = sv.active && !mapGiven && (!o.place || !o.target.empty());
     const Backend* be = backend();
-    if(be && strcmp(be->name(), "mock") == 0 && !keepMap && (!sv.active || q_strcasecmp(cl.mapname, playMap.cStr()) != 0))
+    if(be && ZA_STRCMP(be->name(), "mock") == 0 && !keepMap && (!sv.active || q_strcasecmp(cl.mapname, playMap.cStr()) != 0))
     {
         if(!COM_FileExists(va("maps/%s.bsp", playMap.cStr()), nullptr))
         {

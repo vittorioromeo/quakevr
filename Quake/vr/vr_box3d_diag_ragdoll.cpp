@@ -12,6 +12,8 @@
 #include "vr_hands.hpp"
 #include "vr_units.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -35,7 +37,7 @@ void ragdollArmTest_f()
         for(int b = 0; b < r.count; b++)
         {
             const ragdoll::Bone& bone = r.rig->bones[b];
-            if(partCut(r, b) || strncmp(bone.name, "upperarm", 8) != 0 || bone.parent < 0) { continue; }
+            if(partCut(r, b) || ZA_STRNCMP(bone.name, "upperarm", 8) != 0 || bone.parent < 0) { continue; }
             const float k = r.scale / world->m2u;
             const b3WorldTransform arm = b3Body_GetTransform(r.body[static_cast<za::SizeT>(b)]);
             const glm::vec3 socket = glmv(b3Body_GetWorldPoint(r.body[static_cast<za::SizeT>(b)], b3v(bone.pivot * k)));
@@ -167,7 +169,7 @@ void ragdollList_f()
             {
                 edict_t* fl = EDICT_NUM(e);
                 const glm::vec3 at = vec(fl->v.origin);
-                if(fl->free || strcmp(PR_GetString(fl->v.classname), "vr_burn_flame") ||
+                if(fl->free || ZA_STRCMP(PR_GetString(fl->v.classname), "vr_burn_flame") ||
                    glm::any(glm::lessThan(at, lo - glm::vec3{16.f})) || glm::any(glm::greaterThan(at, hi + glm::vec3{16.f})))
                 {
                     continue;
@@ -367,7 +369,7 @@ void corpsePoses_f()
         edict_t* ent = EDICT_NUM(num);
         // (A mapper's corpse too: misc_corpse, a dead monster's body when vr_corpse_placed is on, else scenery.)
         const bool mapper = !ent->free && (fieldFloatOr(ent, fields().vr_corpse_placed, 0.f) != 0.f ||
-                                              !strcmp(PR_GetString(ent->v.classname), "misc_corpse"));
+                                              !ZA_STRCMP(PR_GetString(ent->v.classname), "misc_corpse"));
         if(ent->free || !ent->v.modelindex || (!mapper && (!hasFlag(ent, FL_MONSTER) || ent->v.health > 0.f)))
         {
             continue;

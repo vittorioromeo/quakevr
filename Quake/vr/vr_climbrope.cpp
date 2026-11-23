@@ -23,19 +23,23 @@
 #include "vr_geom.hpp"
 #include "vr_gfx.hpp"
 #include "vr_mem.hpp"
+#include "vr_move.hpp"
 #include "vr_physsound.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
+#include "vr_server.hpp"
 #include "vr_testkit.hpp"
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
 #include "vr_verlet.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
-#include "Zancle/Math/Abs.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -61,6 +65,14 @@ constexpr float maxKick = 400.f;       // units/s a shot gives a point at most
 constexpr float maxHandSpeed = 1000.f; // units/s a hand's speed counts at most (a teleport: none)
 constexpr int flagChain = 1;           // QVR_SVC_CLIMBROPE's flags: drawn as a chain
 constexpr int flagGone = 2;            // the rope is gone (no points follow)
+constexpr int flagPole = 4;            // (ropes7) a climbing pole: drawn as a straight pole
+constexpr int flagMetal = 8;           // ... of metal (else wood)
+constexpr int flagMonkey = 16;         // (ropes7) traversed hanging under it (a monkey traverse): the legs hang
+constexpr float poleThickness = 3.f;   // units across: a pole's (vr_pole) unless its rope_thickness
+constexpr float poleThickest = 12.f;   // units across at most (a rope's: 8)
+constexpr float polePiece = 32.f;      // units: a pole's points this far apart (it never bends)
+constexpr float strungHeight = 80.f;   // units over the ghost the toolgun strings a rope from (overhead: a monkey traverse)
+constexpr float monkeyEase = 60.f;     // units/s a monkey rider's weight moves along the rope to his hands' middle at most
 constexpr float riderBelow = 24.f;     // units: a climber's weight this far below his highest hand (the swing's radius)
 constexpr float maxRiderSpeed = 800.f; // units/s a rider's bob moves at most
 constexpr float topClear = 4.f;        // units: no hold this close to the rope's top (its anchor)
@@ -77,6 +89,10 @@ struct Params
     float damping{0.5f};   // per second, of its speed lost to the air
     bool chain{false};
     bool pinned{false};    // the bottom held where it first hung (or at the target)
+    // (ropes7) A climbing pole (vr_pole): straight from its top to its bottom (its length down to the floor, or to its
+    // target or rope_end), every point held: it never moves (but with its entity), climbed as a pinned rope is.
+    bool pole{false};
+    bool metal{false};     // a pole's look, sounds and haptics: metal (else wood)
 };
 
 // The player climbing a rope (P2, ROPES.md "Climbing"): his weight hangs on it as a bob swinging round its top, the rope
@@ -93,6 +109,12 @@ struct Rider
     bool started{false};
     glm::vec3 grabVel{0.f};    // the body's velocity as it took hold (the first frame's swing)
     glm::vec3 pump{0.f};       // the pump's push (units/s/s, level: P3)
+    // (ropes7) A monkey traverse's rider (a rope pinned at both ends, slanted past vr_rope_monkey_angle): his weight a bob
+    // at his hands, `sMid` along the rope (eased to their middle), the rope taut from its top through the bob to its
+    // bottom; the bob sways round the line between its ends (the rope pulls, never pushes).
+    bool monkey{false};
+    float sMid{0.f};
+    float stretch{1.f}; // its length as it lay when taken over its rest length (taken where it hangs: no jump up)
 };
 
 struct Rope
@@ -106,6 +128,7 @@ struct Rope
     double sentAt{-1.0};
     float lastStep{0.f}; // the last step's length (seconds; 0: none yet)
     float speed{0.f};    // the fastest point's speed over the last frame (units/s)
+    bool monkey{false};  // (ropes7) traversed hanging under it: pinned at both ends, slanted past vr_rope_monkey_angle
     Rider rider;
 };
 
@@ -148,6 +171,8 @@ struct ClientRope
     double shownTime{-1.0};      // the client time it was made for (-1: to make again)
     float thickness{1.5f};
     bool chain{false};
+    bool pole{false}, metal{false}; // (ropes7) a climbing pole, of metal or wood
+    bool monkey{false};             // (ropes7) traversed hanging under it: the legs hang (vr_avatar_climb.cpp ropeFoot)
     coil::Cord cord;
     gfx::TubeBatch batch;
     int sides{0};
@@ -170,11 +195,14 @@ const glm::vec3 keyLight = glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}); // (the m
 {
     const progs::FieldOffsets& f = progs::fields();
     Params pr;
-    pr.chain = !strcmp(PR_GetString(e->v.classname), "vr_chain") || progs::fieldFloatOr(e, f.rope_style, 0.f) >= 1.f;
+    pr.pole = !ZA_STRCMP(PR_GetString(e->v.classname), "vr_pole");
+    const bool styled = progs::fieldFloatOr(e, f.rope_style, 0.f) >= 1.f;
+    pr.metal = pr.pole && styled;
+    pr.chain = !pr.pole && (!ZA_STRCMP(PR_GetString(e->v.classname), "vr_chain") || styled);
     const float length = progs::fieldFloatOr(e, f.rope_length, 0.f);
     pr.length = length > 0.f ? za::clamp(length, 16.f, 2048.f) : 256.f;
     const float thickness = progs::fieldFloatOr(e, f.rope_thickness, 0.f);
-    pr.thickness = thickness > 0.f ? za::clamp(thickness, 0.25f, 8.f) : 1.5f;
+    pr.thickness = thickness > 0.f ? za::clamp(thickness, 0.25f, pr.pole ? poleThickest : 8.f) : pr.pole ? poleThickness : 1.5f;
     const float pieces = progs::fieldFloatOr(e, f.rope_segments, 0.f);
     pr.pieces = za::clamp(static_cast<int>(za::lround(pieces > 0.f ? pieces : pr.length / 16.f)), 2, maxPieces);
     const float mass = progs::fieldFloatOr(e, f.rope_mass, 0.f);
@@ -194,25 +222,42 @@ void make(edict_t* e, int num)
     Rope& r = ropes[num];
     r = Rope{};
     r.params = readParams(e);
-    const Params& pr = r.params;
+    Params& pr = r.params;
     r.top = vecOf(e->v.origin);
-    const za::SizeT n = static_cast<za::SizeT>(pr.pieces + 1);
     bool targeted = false;
     if(const char* target = PR_GetString(e->v.target); target[0])
     {
         for(int i = 1; i < sv.qcvm.num_edicts && !targeted; i++)
         {
             edict_t* t = EDICT_NUM(i);
-            if(!t->free && t != e && !strcmp(PR_GetString(t->v.targetname), target))
+            if(!t->free && t != e && !ZA_STRCMP(PR_GetString(t->v.targetname), target))
             {
                 r.bottom = vecOf(t->v.origin);
                 targeted = true;
             }
         }
     }
-    r.params.pinned = pr.pinned || targeted;
-    const glm::vec3 end = targeted ? r.bottom : r.top - glm::vec3{0.f, 0.f, pr.length};
-    // (A free rope longer than the drop: the points below the floor lie on it.)
+    // (ropes7) Or its rope_end: its bottom pinned at that point (the toolgun's strung rope, a map's).
+    const progs::FieldOffsets& f = progs::fields();
+    if(const glm::vec3 to = f.rope_end >= 0 ? progs::fieldVec(e, f.rope_end) : glm::vec3{0.f}; !targeted && to != glm::vec3{0.f})
+    {
+        r.bottom = to;
+        targeted = true;
+    }
+    // (ropes7) Strung between two points: its length the straight line's, its rope_slack longer (unless only its
+    // rope_length is given); a pole's the line's.
+    const float slack = za::clamp(progs::fieldFloatOr(e, f.rope_slack, 0.f), 0.f, 2.f);
+    if(targeted && (pr.pole || slack > 0.f || progs::fieldFloatOr(e, f.rope_length, 0.f) <= 0.f))
+    {
+        pr.length = za::clamp(glm::distance(r.top, r.bottom) * (1.f + (pr.pole ? 0.f : slack)), 16.f, 2048.f);
+    }
+    r.params.pinned = pr.pinned || targeted || pr.pole;
+    if(pr.pole && !targeted && progs::fieldFloatOr(e, f.rope_length, 0.f) <= 0.f)
+    {
+        pr.length = 2048.f; // (a pole with no length: down to the floor, found below)
+    }
+    glm::vec3 end = targeted ? r.bottom : r.top - glm::vec3{0.f, 0.f, pr.length};
+    // (A free rope longer than the drop: the points below the floor lie on it. A pole stands on the floor there.)
     float floorZ = -1e9f;
     if(!targeted)
     {
@@ -220,8 +265,18 @@ void make(edict_t* e, int num)
         if(tr.fraction < 1.f)
         {
             floorZ = tr.endpos[2] + pr.thickness * 0.5f;
+            if(pr.pole)
+            {
+                end = vecOf(tr.endpos);
+                pr.length = za::max(16.f, r.top.z - end.z);
+            }
         }
     }
+    if(progs::fieldFloatOr(e, f.rope_segments, 0.f) <= 0.f)
+    {
+        pr.pieces = za::clamp(static_cast<int>(za::lround(pr.length / (pr.pole ? polePiece : 16.f))), 2, maxPieces);
+    }
+    const za::SizeT n = static_cast<za::SizeT>(pr.pieces + 1);
     r.p.resize(n);
     r.rest.resize(n - 1);
     r.pinned.resize(n);
@@ -245,12 +300,22 @@ void make(edict_t* e, int num)
         r.pinned[n - 1] = 1;
         r.bottom = r.p[n - 1];
     }
+    if(pr.pole)
+    {
+        for(za::SizeT i = 0; i < n; i++)
+        {
+            r.p[i] = r.top + (end - r.top) * (static_cast<float>(i) / static_cast<float>(n - 1)); // (no floor clamp: straight)
+            r.pinned[i] = 1;
+        }
+        r.bottom = end;
+    }
     r.prev = r.p;
     r.from = r.p;
     if(vr_rope_debug.value > 0.f)
     {
-        Con_Printf("rope: %d made (%s, %.0f long, %d pieces, %.1f thick, %.1f kg%s)\n", num, pr.chain ? "chain" : "rope",
-            pr.length, pr.pieces, pr.thickness, pr.mass, r.params.pinned ? ", pinned" : "");
+        Con_Printf("rope: %d made (%s, %.0f long, %d pieces, %.1f thick, %.1f kg%s)\n", num,
+            pr.pole ? (pr.metal ? "metal pole" : "wooden pole") : pr.chain ? "chain" : "rope", pr.length, pr.pieces,
+            pr.thickness, pr.mass, r.params.pinned ? ", pinned" : "");
     }
 }
 
@@ -427,11 +492,97 @@ void disturb(Rope& r, float h)
     return len > 1e-3f ? d / len : glm::vec3{0.f, 0.f, -1.f};
 }
 
+[[nodiscard]] float ropeLength(const Rope& r)
+{
+    float length = 0.f;
+    for(const float piece : r.rest)
+    {
+        length += piece;
+    }
+    return length;
+}
+
+// (ropes7) Whether `r` is traversed hanging under it: pinned at both ends (or a pole), the line between them slanted
+// past vr_rope_monkey_angle from upright.
+[[nodiscard]] bool monkeyOf(const Rope& r)
+{
+    const glm::vec3 chord = r.bottom - r.top;
+    const float len = glm::length(chord);
+    const float angle = glm::radians(za::clamp(vr_rope_monkey_angle.value, 5.f, 90.f));
+    return r.params.pinned && len > 1.f && za::abs(chord.z) < len * za::cos(angle);
+}
+
+// (ropes7) A monkey rider's hold `s` along the rope: on the taut line from its top through his bob (at sMid along it)
+// to its bottom.
+[[nodiscard]] glm::vec3 monkeyAt(const Rope& r, const glm::vec3& bob, float s)
+{
+    const float length = ropeLength(r), sm = r.rider.sMid;
+    if(s <= sm)
+    {
+        return r.top + (bob - r.top) * (s / za::max(sm, 1e-3f));
+    }
+    return bob + (r.bottom - bob) * za::min(1.f, (s - sm) / za::max(length - sm, 1e-3f));
+}
+
+// (ropes7) The bob kept within the rope's reach of both its ends (its top sMid along it, its bottom the rest): the rope
+// pulls, it doesn't push.
+void monkeyHold(const Rope& r, glm::vec3& bob)
+{
+    const float k = za::max(r.rider.stretch, 1.f); // (as stretched as it lay when taken)
+    const float toTop = r.rider.sMid * k, toBottom = (ropeLength(r) - r.rider.sMid) * k;
+    for(int pass = 0; pass < 8; pass++)
+    {
+        if(const glm::vec3 d = bob - r.top; glm::length(d) > toTop)
+        {
+            bob = r.top + d * (toTop / glm::length(d));
+        }
+        if(const glm::vec3 d = bob - r.bottom; glm::length(d) > toBottom)
+        {
+            bob = r.bottom + d * (toBottom / glm::length(d));
+        }
+    }
+}
+
+[[nodiscard]] float monkeyMid(const Rope& r)
+{
+    const float length = ropeLength(r);
+    return za::clamp((r.rider.sHigh + r.rider.sLow) * 0.5f, topClear, za::max(topClear, length - topClear));
+}
+
 // A new rider's bob: on the line from the top through his lowest hand's point, his swing the rope's there and his own
-// as he took hold, shared by their weights (a jump onto a rope swings it), across the rope only.
+// as he took hold, shared by their weights (a jump onto a rope swings it), across the rope only. (ropes7) A monkey
+// traverse's: at his hands' middle on the rope, with his swing and the rope's there shared as well.
 void startRider(Rope& r, float h)
 {
     Rider& rd = r.rider;
+    if(rd.monkey)
+    {
+        if(rd.started)
+        {
+            return;
+        }
+        rd.started = true;
+        // (Its length as it lies now, stretched a little by its weight: taken where it hangs, it doesn't jump up.)
+        float lying = 0.f;
+        for(za::SizeT i = 0; i + 1 < r.p.size(); i++)
+        {
+            lying += glm::distance(r.p[i], r.p[i + 1]);
+        }
+        rd.stretch = za::clamp(lying / za::max(ropeLength(r), 1.f), 1.f, 1.25f);
+        rd.sMid = monkeyMid(r);
+        glm::vec3 ropeVel{0.f};
+        rd.bob = pointAtArc(r, rd.sMid, &ropeVel);
+        monkeyHold(r, rd.bob);
+        const float m = playerMass(), mr = r.params.mass;
+        glm::vec3 v = (rd.grabVel * m + ropeVel * mr) / (m + mr);
+        v.z = za::min(v.z, 0.f); // (a jump up to it doesn't throw the rope up: the hands meet it at the jump's top)
+        if(glm::length(v) > maxRiderSpeed)
+        {
+            v *= maxRiderSpeed / glm::length(v);
+        }
+        rd.bobPrev = rd.bob - v * h;
+        return;
+    }
     rd.radius = rd.dHigh + riderBelow;
     if(rd.started)
     {
@@ -457,14 +608,58 @@ void riderKick(Rope& r, float lastH)
     Rider& rd = r.rider;
     glm::vec3 sum{0.f};
     float arc = 0.f;
-    for(za::SizeT i = 1; i < r.p.size() && arc + r.rest[i - 1] <= rd.sLow + 1e-3f; i++)
+    for(za::SizeT i = 1; i < r.p.size() && (rd.monkey || arc + r.rest[i - 1] <= rd.sLow + 1e-3f); i++)
     {
         arc += r.rest[i - 1];
         sum += r.kick[i] * (r.params.mass / static_cast<float>(r.p.size()));
     }
-    if(!r.params.pinned)
+    if(rd.monkey)
+    {
+        rd.bobPrev -= sum / (playerMass() + r.params.mass) * lastH; // (ropes7: the bob at his hands)
+    }
+    else if(!r.params.pinned)
     {
         rd.bobPrev -= sum / (playerMass() + r.params.mass) * (rd.radius / za::max(rd.dLow, 1.f)) * lastH;
+    }
+}
+
+// (ropes7) A step of a monkey traverse's rider: his bob's middle eased along the rope to his hands' (monkeyEase a
+// second), the bob swung (gravity, the pump, the drag) and held within the rope's reach of its ends, then every piece laid
+// on the taut line from the top through it to the bottom, pinned for the step.
+void layMonkey(Rope& r, float h)
+{
+    Rider& rd = r.rider;
+    const float want = monkeyMid(r);
+    rd.sMid += za::clamp(want - rd.sMid, -monkeyEase * h, monkeyEase * h);
+    glm::vec3 v = rd.bob - rd.bobPrev;
+    if(r.lastStep > 0.f)
+    {
+        v *= h / r.lastStep;
+    }
+    v *= za::max(0.f, 1.f - za::max(vr_rope_swing_drag.value, 0.f) * h);
+    if(glm::length(v) > maxRiderSpeed * h)
+    {
+        v *= maxRiderSpeed * h / glm::length(v);
+    }
+    glm::vec3 pump = rd.pump;
+    if(const float p = glm::length(pump); p > 1e-3f)
+    {
+        const float along = glm::dot(v / h, pump / p);
+        if(along < -1.f || along >= za::max(vr_rope_swing_cap.value, 0.f))
+        {
+            pump = glm::vec3{0.f};
+        }
+    }
+    rd.bobPrev = rd.bob;
+    rd.bob += v + (glm::vec3{0.f, 0.f, -sv_gravity.value} + pump) * (h * h);
+    monkeyHold(r, rd.bob);
+    float arc = 0.f;
+    for(za::SizeT i = 1; i + 1 < r.p.size(); i++)
+    {
+        arc += r.rest[i - 1];
+        r.p[i] = monkeyAt(r, rd.bob, arc);
+        r.prev[i] = monkeyAt(r, rd.bobPrev, arc);
+        r.pinned[i] = 1;
     }
 }
 
@@ -535,6 +730,21 @@ void step(Rope& r, float dt)
     const za::SizeT n = r.p.size();
     const Params& pr = r.params;
     r.from = r.p;
+    if(pr.pole)
+    {
+        // (ropes7) A pole never moves but with its entity (a mover, the physgun): every point along by its top's move.
+        const glm::vec3 moved = r.top - r.p[0];
+        for(za::SizeT i = 0; i < n; i++)
+        {
+            r.p[i] += moved;
+            r.kick[i] = glm::vec3{0.f};
+        }
+        r.bottom += moved;
+        r.prev = r.p;
+        r.lastStep = dt;
+        r.speed = dt > 0.f ? glm::length(moved) / dt : 0.f;
+        return;
+    }
     // The kicks (explosions, shots) since the last frame: speed added to their points (a rider's: to his swing, shared
     // with his weight).
     const float lastH = r.lastStep > 0.f ? r.lastStep : dt;
@@ -559,7 +769,11 @@ void step(Rope& r, float dt)
     }
     for(int s = 0; s < steps; s++)
     {
-        if(r.rider.client >= 0)
+        if(r.rider.client >= 0 && r.rider.monkey)
+        {
+            layMonkey(r, h);
+        }
+        else if(r.rider.client >= 0)
         {
             layRider(r, h);
         }
@@ -594,7 +808,9 @@ void write(sizebuf_t* msg, int num, const Rope* r)
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_CLIMBROPE);
     MSG_WriteShort(msg, num);
-    MSG_WriteByte(msg, r ? (r->params.chain ? flagChain : 0) : flagGone);
+    MSG_WriteByte(msg, r ? (r->params.chain ? flagChain : 0) | (r->params.pole ? flagPole : 0) |
+                               (r->params.metal ? flagMetal : 0) | (r->monkey ? flagMonkey : 0)
+                         : flagGone);
     MSG_WriteByte(msg, r ? za::clamp(static_cast<int>(za::lround(r->params.thickness * 16.f)), 1, 255) : 0);
     MSG_WriteByte(msg, n);
     glm::vec3 at{0.f};
@@ -720,6 +936,33 @@ void placeWith(edict_t* e, const glm::vec3& at, float length, float thickness, i
     ropes.erase(NUM_FOR_EDICT(e)); // (made afresh from these at the next frame)
 }
 
+// (ropes7) Rope entity `e` strung from `start` to `end`, `slack` longer than the line (a test's).
+void stringBetween(edict_t* e, const glm::vec3& start, const glm::vec3& end, float slack)
+{
+    const progs::FieldOffsets& f = progs::fields();
+    if(f.rope_end >= 0)
+    {
+        float* v = progs::fieldPtr(e, f.rope_end);
+        v[0] = end.x;
+        v[1] = end.y;
+        v[2] = end.z;
+    }
+    if(f.rope_slack >= 0)
+    {
+        progs::fieldFloat(e, f.rope_slack) = slack;
+    }
+    if(f.rope_length >= 0)
+    {
+        progs::fieldFloat(e, f.rope_length) = 0.f;
+    }
+    for(int k = 0; k < 3; k++)
+    {
+        e->v.origin[k] = start[k];
+    }
+    SV_LinkEdict(e, false);
+    ropes.erase(NUM_FOR_EDICT(e));
+}
+
 void testFrame()
 {
     RopeTest& t = test;
@@ -763,9 +1006,9 @@ void testFrame()
         testCheck(a && a->p.size() == 11 && !a->params.chain && !a->params.pinned, "a map-keyed rope made: 10 pieces, free");
         testCheck(b && b->p.size() == 7 && b->params.chain && b->params.pinned && b->params.thickness == 2.f,
             "a toolgun-placed chain made: 6 pieces, pinned, 2 thick");
-        if(!strcmp(sv.name, "vrropes"))
+        if(!ZA_STRCMP(sv.name, "vrropes"))
         {
-            int count = 0, chains = 0, targeted = 0;
+            int count = 0, chains = 0, targeted = 0, poles = 0, monkeys = 0;
             for(const auto& kv : ropes)
             {
                 if(kv.first == t.ropeA || kv.first == t.chainB)
@@ -775,10 +1018,13 @@ void testFrame()
                 count++;
                 chains += kv.second.params.chain ? 1 : 0;
                 targeted += kv.second.params.pinned ? 1 : 0;
+                poles += kv.second.params.pole ? 1 : 0;      // (ropes7: the wood and metal poles)
+                monkeys += monkeyOf(kv.second) ? 1 : 0;       // (ropes7: the level and the diagonal rope)
             }
-            char what[96];
-            q_snprintf(what, sizeof(what), "vrropes' own ropes made (%d, %d chains, %d pinned)", count, chains, targeted);
-            testCheck(count >= 6 && chains >= 2 && targeted >= 1, what);
+            char what[128];
+            q_snprintf(what, sizeof(what), "vrropes' own ropes made (%d, %d chains, %d pinned, %d poles, %d monkey traverses)", count,
+                chains, targeted, poles, monkeys);
+            testCheck(count >= 11 && chains >= 3 && targeted >= 5 && poles == 2 && monkeys == 2, what);
         }
         next(3);
         break;
@@ -1096,9 +1342,17 @@ struct ClimbTest
     float freeFastest{0.f}; // (ropes6) the ridden rope's free end's fastest level speed since the last mark
     int grunts{0};          // (ropes6) his pull grunts at the last mark
     float length{470.f};    // the rope's (vrropes' ceiling 480 over the floor: to near the floor; ropes6: shorter)
+    int kind{0};            // (ropes7) 0 a rope; 1 a wooden pole, 2 a metal one (standing on the floor); 3 a strung rope
+    za::Vector<glm::vec3> made; // (ropes7) a pole's points as made (it never moves)
+    glm::vec3 along{0.f};       // (ropes7) a strung rope's way (level, unit)
+    bool raised{false};         // (ropes7) strung again higher by its sag
+    float floorZ{0.f};          // (ropes7) his feet as the test began (on the floor)
 };
 // seat-shared: a test's
 ClimbTest climbTest;
+constexpr float climbTestStrungHeight = 2.0f; // m over the feet: a strung rope's (the play's hands reach it there)
+constexpr float climbTestSlack = 0.003f;      // a strung rope's slack: hung from him it sags about as much as settled (12 units)
+constexpr const char* climbTestKinds[] = {"rope", "wood", "metal", "strung"};
 constexpr const char* climbTestName = "vr_rope_climb_test";
 constexpr int climbTestGiveUp = 72 * 60;
 
@@ -1132,7 +1386,35 @@ void climbTestFrame()
         const float yaw = glm::radians(player->v.angles[1]);
         const glm::vec3 at = vecOf(player->v.origin) + glm::vec3{za::cos(yaw), za::sin(yaw), 0.f} * (0.5f * units::metresToUnits()) +
                              glm::vec3{0.f, 0.f, player->v.mins[2]};
-        edict_t* e = box3d::spawnClass("vr_rope", at, glm::vec3{0.f});
+        if(t.kind == 3)
+        {
+            // (ropes7) Strung level overhead (climbTestStrungHeight over the feet), half a metre ahead, across him (his
+            // left to his right), taut (the mock hands meet it where the play reaches).
+            const glm::vec3 right{za::sin(yaw), -za::cos(yaw), 0.f};
+            const glm::vec3 mid = at + glm::vec3{za::cos(yaw), za::sin(yaw), climbTestStrungHeight} * glm::vec3{0.15f, 0.15f, 1.f} * units::metresToUnits(); // (0.65 m ahead: clear of his box)
+            edict_t* e = box3d::spawnClass("vr_rope", mid - right * 160.f, glm::vec3{0.f});
+            if(!e)
+            {
+                t.tally.check(false, climbTestName, "the rope made");
+                t.tally.verdict(climbTestName);
+                t.stage = 0;
+                return;
+            }
+            stringBetween(e, mid - right * 160.f, mid + right * 160.f, climbTestSlack);
+            if(progs::fields().rope_damping >= 0)
+            {
+                progs::fieldFloat(e, progs::fields().rope_damping) = 4.f; // (it settles soon)
+            }
+            t.rope = NUM_FOR_EDICT(e);
+            t.along = right;
+            t.floorZ = player->v.origin[2] + player->v.mins[2];
+            Con_Printf("%s: strung rope %d across at %.0f %.0f, %.0f high\n", climbTestName, t.rope, mid.x, mid.y, mid.z);
+            t.stage = 2;
+            t.frames = 0;
+            return;
+        }
+        const bool pole = t.kind == 1 || t.kind == 2;
+        edict_t* e = box3d::spawnClass(pole ? "vr_pole" : "vr_rope", at, glm::vec3{0.f});
         if(!e)
         {
             t.tally.check(false, climbTestName, "the rope made");
@@ -1140,20 +1422,48 @@ void climbTestFrame()
             t.stage = 0;
             return;
         }
-        placeWith(e, at, 470.f, 1.5f, 0, 0.f, 1.f, 0.5f, false);
+        placeWith(e, at, 470.f, pole ? poleThickness : 1.5f, 0, 0.f, 1.f, 0.5f, false);
         if(progs::fields().rope_length >= 0)
         {
             progs::fieldFloat(e, progs::fields().rope_length) = t.length; // (from the same ceiling: shorter, ropes6)
         }
+        if(pole && progs::fields().rope_style >= 0)
+        {
+            progs::fieldFloat(e, progs::fields().rope_style) = t.kind == 2 ? 1.f : 0.f;
+        }
         t.rope = NUM_FOR_EDICT(e);
-        Con_Printf("%s: rope %d hung at %.0f %.0f, top %.0f\n", climbTestName, t.rope, at.x, at.y, e->v.origin[2]);
+        Con_Printf("%s: %s %d hung at %.0f %.0f, top %.0f\n", climbTestName, climbTestKinds[t.kind], t.rope, at.x, at.y,
+            e->v.origin[2]);
         t.stage = 2;
         t.frames = 0;
         return;
     }
     case 2:
+        if(t.kind == 3 && t.frames < 216)
+        {
+            return; // (a strung rope: 3 s to settle, its bounce died down: damping 4 a second)
+        }
+        if(t.frames >= 72 && t.kind == 3 && !t.raised)
+        {
+            // (ropes7) A strung rope settled sags (its pieces' pull back each step, under its weight): strung again that
+            // much higher, so its middle settles where the play's hands meet it.
+            if(const Rope* r = ropeOf(t.rope); r && r->p.size() > 2)
+            {
+                const float sag = r->top.z - r->p[r->p.size() / 2].z;
+                const glm::vec3 up{0.f, 0.f, sag};
+                stringBetween(EDICT_NUM(t.rope), r->top + up, r->bottom + up, climbTestSlack);
+                Con_Printf("%s: strung again %.1f higher (its sag)\n", climbTestName, sag);
+            }
+            t.raised = true;
+            t.frames = 0;
+            return;
+        }
         if(t.frames >= 72)
         {
+            if(const Rope* r = ropeOf(t.rope))
+            {
+                t.made = r->p;
+            }
             Cbuf_AddText(va("vr_mock_play \"%s\"\n", t.play));
             t.stage = 3;
         }
@@ -1182,15 +1492,20 @@ void climbTest_f()
 {
     if(!sv.active || !progs::bindings().isVrProgs || progs::fields().rope_length < 0 || Cmd_Argc() < 2)
     {
-        Con_Printf("%s: FAIL usage: vr_rope_climb_test <play> [length] in a game with Quake VR's progs\n", climbTestName);
+        Con_Printf("%s: FAIL usage: vr_rope_climb_test <play> [length] [rope|wood|metal|strung] in a game with Quake VR's progs\n",
+            climbTestName);
         testkit::verdict(climbTestName, 0, 1);
         return;
     }
     climbTest = ClimbTest{};
     q_strlcpy(climbTest.play, Cmd_Argv(1), sizeof(climbTest.play));
-    if(Cmd_Argc() > 2)
+    if(Cmd_Argc() > 2 && Q_atof(Cmd_Argv(2)) > 0.0)
     {
         climbTest.length = za::clamp(static_cast<float>(Q_atof(Cmd_Argv(2))), 32.f, 2048.f);
+    }
+    for(int k = 0; k < 4 && Cmd_Argc() > 3; k++)
+    {
+        climbTest.kind = !ZA_STRCMP(Cmd_Argv(3), climbTestKinds[k]) ? k : climbTest.kind;
     }
     climbTest.stage = 1;
 }
@@ -1216,11 +1531,11 @@ void climbCheck_f()
         }
     };
     const glm::vec2 hv{v.x, v.y}, hh{t.handVel.x, t.handVel.y};
-    if(!strcmp(what, "held"))
+    if(!ZA_STRCMP(what, "held"))
     {
         check(hands == static_cast<int>(n), va("%d hands on the rope (%d)", static_cast<int>(n), hands));
     }
-    else if(!strcmp(what, "mark"))
+    else if(!ZA_STRCMP(what, "mark"))
     {
         t.mark = o;
         t.fastest = 0.f;
@@ -1228,20 +1543,20 @@ void climbCheck_f()
         t.grunts = climb::ropePullGrunts(player);
         Con_Printf("%s: mark at %.1f %.1f %.1f\n", climbTestName, o.x, o.y, o.z);
     }
-    else if(!strcmp(what, "swing"))
+    else if(!ZA_STRCMP(what, "swing"))
     {
         check(t.fastest >= n && t.fastest <= vr_rope_swing_cap.value + 25.f,
             va("pumped the swing to %.0f units/s at the hands (at least %.0f, the cap %.0f)", t.fastest, n, vr_rope_swing_cap.value));
     }
-    else if(!strcmp(what, "rose"))
+    else if(!ZA_STRCMP(what, "rose"))
     {
         check(o.z - t.mark.z >= n, va("climbed up %.1f units (at least %.0f)", o.z - t.mark.z, n));
     }
-    else if(!strcmp(what, "lowered"))
+    else if(!ZA_STRCMP(what, "lowered"))
     {
         check(t.mark.z - o.z >= n, va("climbed down %.1f units (at least %.0f)", t.mark.z - o.z, n));
     }
-    else if(!strcmp(what, "nudge"))
+    else if(!ZA_STRCMP(what, "nudge"))
     {
         // A sideways push on his swing (a test aid; the pump is P3's): n units/s at the hands, along +x.
         Rope* r = riddenBy(NUM_FOR_EDICT(player) - 1);
@@ -1252,23 +1567,23 @@ void climbCheck_f()
         }
         check(r != nullptr, "the rope ridden (nudged)");
     }
-    else if(!strcmp(what, "moved"))
+    else if(!ZA_STRCMP(what, "moved"))
     {
         const float d = glm::length(glm::vec2{o.x - t.mark.x, o.y - t.mark.y});
         check(d >= n, va("swung %.1f units with the rope (at least %.0f)", d, n));
     }
-    else if(!strcmp(what, "flung"))
+    else if(!ZA_STRCMP(what, "flung"))
     {
         check(hands == 0 && glm::length(hh) >= n && glm::dot(hv, hh) > 0.f && glm::length(hv) >= 0.6f * glm::length(hh),
             va("let go at %.0f units/s level, the rope's at the hands %.0f (at least %.0f)", glm::length(hv), glm::length(hh), n));
     }
-    else if(!strcmp(what, "jumped"))
+    else if(!ZA_STRCMP(what, "jumped"))
     {
         check(hands == 0 && v.z >= t.handVel.z + 0.6f * vr_rope_jump.value && glm::dot(hv, hh) >= 0.f,
             va("jumped off at %.0f up, %.0f level (the rope's %.0f up, %.0f level)", v.z, glm::length(hv), t.handVel.z,
                 glm::length(hh)));
     }
-    else if(!strcmp(what, "calm"))
+    else if(!ZA_STRCMP(what, "calm"))
     {
         // (ropes6) Climbed up close to it: its swing at the hands at most n units/s since the mark, its free end at most
         // the second number's.
@@ -1277,13 +1592,13 @@ void climbCheck_f()
             va("calm: swing %.1f u/s at the hands (max %.0f), free end %.1f (max %.0f)", t.fastest, n, t.freeFastest,
                 freeMost));
     }
-    else if(!strcmp(what, "grunts"))
+    else if(!ZA_STRCMP(what, "grunts"))
     {
         // (ropes6) His pull grunts since the mark: n to the second number (a pull up grunts, a grab or a climb down not).
         const int most = Q_atoi(Cmd_Argv(3)), got = climb::ropePullGrunts(player) - t.grunts;
         check(got >= static_cast<int>(n) && got <= most, va("pull grunts since the mark: %d (%d to %d)", got, static_cast<int>(n), most));
     }
-    else if(!strcmp(what, "legs"))
+    else if(!ZA_STRCMP(what, "legs"))
     {
         // (ropes6) Hanging from a short rope taken overhead (its end near his legs): the feet hang under the pelvis, at
         // least n units under it, never reaching up for the rope's end. (The body as last posed: single player.)
@@ -1292,7 +1607,7 @@ void climbCheck_f()
         const float high = posed ? za::max(k.ankle[0].z, k.ankle[1].z) - k.pelvis.z : 0.f;
         check(posed && high <= -n, va("the feet hang: the higher ankle %.1f units from the pelvis's height (at most %.0f)", high, -n));
     }
-    else if(!strcmp(what, "grip"))
+    else if(!ZA_STRCMP(what, "grip"))
     {
         // (ropes6) The drawn hands on the rope gripping it, the knuckles outwards: the back of the right hand to his
         // right, the left's to his left (vr_rope_hand_grip 2, VR too). n: hands that must be drawn on it.
@@ -1312,7 +1627,61 @@ void climbCheck_f()
         check(on >= static_cast<int>(n) && worst >= 0.7f,
             va("%d hands drawn gripping it (%d), the knuckles outwards (worst %.2f of 1)", static_cast<int>(n), on, worst));
     }
-    else if(!strcmp(what, "done"))
+    else if(!ZA_STRCMP(what, "where"))
+    {
+        // (ropes7) A test writer's aid: the hands and the feet now.
+        if(const VrMove* m = server::clientMove(player))
+        {
+            Con_Printf("%s: where: off hand %.1f %.1f %.1f, main %.1f %.1f %.1f, feet %.1f\n", climbTestName, m->hands[0].pos.x,
+                m->hands[0].pos.y, m->hands[0].pos.z, m->hands[1].pos.x, m->hands[1].pos.y, m->hands[1].pos.z, o.z + player->v.mins[2]);
+            if(climbrope::Grab g; climbrope::findGrab(m->hands[0].pos, 64.f, g))
+            {
+                Con_Printf("%s: where: the rope nearest the off hand at %.1f %.1f %.1f\n", climbTestName, g.at.x, g.at.y, g.at.z);
+            }
+        }
+    }
+    else if(!ZA_STRCMP(what, "monkey"))
+    {
+        // (ropes7) Hanging under a strung rope: ridden as a monkey traverse, the feet off the floor by n units at least.
+        const Rope* r = riddenBy(NUM_FOR_EDICT(player) - 1);
+        const float off = o.z + player->v.mins[2] - t.floorZ;
+        check(r && r->rider.monkey && off >= n, va("hanging under it, a monkey traverse (%s), the feet up %.1f (at least %.0f)",
+                                                   r && r->rider.monkey ? "yes" : "no", off, n));
+    }
+    else if(!ZA_STRCMP(what, "along"))
+    {
+        // (ropes7) Gone along the strung rope n units at least since the mark (either way), still hanging.
+        const float d = za::abs(glm::dot(o - t.mark, t.along));
+        check(hands > 0 && d >= n, va("went along the rope %.1f units (at least %.0f), %d hands on it", d, n, hands));
+    }
+    else if(!ZA_STRCMP(what, "dropped"))
+    {
+        // (ropes7) Let go: off it, falling (or down), n units under the mark at least.
+        check(hands == 0 && t.mark.z - o.z >= n, va("let go: off it, dropped %.1f units (at least %.0f)", t.mark.z - o.z, n));
+    }
+    else if(!ZA_STRCMP(what, "fixed"))
+    {
+        // (ropes7) A pole never moves: its points where they were made.
+        const Rope* r = ropeOf(t.rope);
+        const float moved = r && r->params.pole && r->p.size() == t.made.size() ? displacement(*r, t.made) : 1e9f;
+        check(moved < 0.01f, va("the pole never moved (%.3f units)", moved));
+    }
+    else if(!ZA_STRCMP(what, "sound"))
+    {
+        // (ropes7) The rope's last grip sound: its recording's name has `Cmd_Argv(2)` in it (wood, metal, soft).
+        int count = 0;
+        const char* last = physsound::ropeSoundInfo(t.rope, count);
+        check(count > 0 && ZA_STRSTR(last, Cmd_Argv(2)) != nullptr, va("its grip sounds of %s (%d, the last %s)", Cmd_Argv(2), count, last));
+    }
+    else if(!ZA_STRCMP(what, "wrapped"))
+    {
+        // (ropes7) The feet round it as round a rope: both ankles within n units of it (the body as last posed).
+        avatar::Skeleton k;
+        const bool posed = avatar::skeleton(k);
+        const float far = posed ? za::max(climbrope::clientRopeDistance(k.ankle[0]), climbrope::clientRopeDistance(k.ankle[1])) : 1e9f;
+        check(posed && far <= n, va("the feet round it: the further ankle %.1f units from it (at most %.0f)", far, n));
+    }
+    else if(!ZA_STRCMP(what, "done"))
     {
         t.tally.verdict(climbTestName);
         t.stage = 0;
@@ -1345,12 +1714,15 @@ struct FlatTest
     float fastest{0.f};      // the swing's fastest level speed at the hands
     float lastVx{0.f};
     float pitch{0.f}, yaw{0.f};
+    bool pole{false};        // (ropes7) `vr_rope_flat_test pole`: a wooden pole instead of the rope, no rope to rope
+    za::Vector<glm::vec3> made; // (ropes7) the pole's points as made (it never moves)
 };
 // seat-shared: a test's
 FlatTest flatTest;
 constexpr const char* flatTestName = "vr_rope_flat_test";
 constexpr glm::vec3 flatTestRope{200.f, -400.f, 0.f}; // (vrropes: open floor south-east of the row)
 constexpr glm::vec3 flatTestRow[2] = {{-288.f, 0.f, 0.f}, {-96.f, 0.f, 0.f}};
+constexpr float flatStrungHeight = 110.f; // (ropes7) units over the floor: the strung rope (a jump up to it)
 
 void flatTestNext(FlatTest& t, int stage)
 {
@@ -1409,14 +1781,14 @@ void flatTestFrame()
     case 1: // the rope hung, the player set before it
     {
         const glm::vec3 at = flatTestRope + glm::vec3{0.f, 0.f, 1.f};
-        edict_t* e = box3d::spawnClass("vr_rope", at, glm::vec3{0.f});
+        edict_t* e = box3d::spawnClass(t.pole ? "vr_pole" : "vr_rope", at, glm::vec3{0.f});
         if(!e)
         {
             t.tally.check(false, flatTestName, "the rope made");
             flatTestEnd(t, false, "");
             return;
         }
-        placeWith(e, at, 480.f, 1.5f, 0, 0.f, 1.f, 0.5f, false);
+        placeWith(e, at, 480.f, t.pole ? poleThickness : 1.5f, 0, 0.f, 1.f, 0.5f, false);
         t.rope = NUM_FOR_EDICT(e);
         t.pitch = 0.f;
         flatTestPlace(player, flatTestRope + glm::vec3{-80.f, 0.f, -player->v.mins[2] + 1.f}, 0.f);
@@ -1426,6 +1798,10 @@ void flatTestFrame()
     case 2: // settled (the rope at rest, him on the floor): forward
         if(t.frames >= 108)
         {
+            if(const Rope* r = ropeOf(t.rope))
+            {
+                t.made = r->p;
+            }
             t.ropesBefore = taken;
             Cbuf_AddText("+forward\n");
             flatTestNext(t, 3);
@@ -1477,6 +1853,19 @@ void flatTestFrame()
             }
             Cbuf_AddText("-forward\n");
             t.pitch = 0.f;
+            if(t.pole)
+            {
+                // (ropes7) Climbed up and down it: the pole stood where it was made.
+                const Rope* r = ropeOf(t.rope);
+                const float moved = r && r->params.pole && r->p.size() == t.made.size() ? displacement(*r, t.made) : 1e9f;
+                t.tally.check(moved < 0.01f, flatTestName, va("the pole never moved (%.3f units)", moved));
+                if(moved < 0.01f)
+                {
+                    Con_Printf("%s: PASS the pole never moved (%.3f units)\n", flatTestName, moved);
+                }
+                flatTestEnd(t, false, "");
+                return;
+            }
             climbrope::Grab g;
             t.first = climbrope::findGrab(flatTestRow[0] + glm::vec3{0.f, 0.f, 300.f}, 8.f, g) ? g.ent : 0;
             t.second = climbrope::findGrab(flatTestRow[1] + glm::vec3{0.f, 0.f, 300.f}, 8.f, g) ? g.ent : 0;
@@ -1575,6 +1964,114 @@ void flatTestFrame()
         }
         return;
     }
+    // (ropes7) `vr_rope_flat_test strung`: a rope strung level overhead along his way (1% slack), jumped up to (taken,
+    // a monkey traverse, sagging under him), along it with forward, back with back, dropped from with the move-down key.
+    case 20:
+    {
+        const glm::vec3 a = flatTestRope + glm::vec3{-200.f, 0.f, flatStrungHeight}, b = flatTestRope + glm::vec3{200.f, 0.f, flatStrungHeight};
+        edict_t* e = box3d::spawnClass("vr_rope", a, glm::vec3{0.f});
+        if(!e)
+        {
+            t.tally.check(false, flatTestName, "the rope made");
+            flatTestEnd(t, false, "");
+            return;
+        }
+        stringBetween(e, a, b, 0.01f);
+        if(progs::fields().rope_damping >= 0)
+        {
+            progs::fieldFloat(e, progs::fields().rope_damping) = 4.f; // (it settles soon)
+        }
+        t.rope = NUM_FOR_EDICT(e);
+        t.pitch = 0.f;
+        flatTestPlace(player, flatTestRope + glm::vec3{-60.f, 0.f, -player->v.mins[2] + 1.f}, 0.f);
+        flatTestNext(t, 21);
+        return;
+    }
+    case 21: // settled (3 s, damping 4): jump up to it
+        if(t.frames >= 216)
+        {
+            const Rope* r = ropeOf(t.rope);
+            climbrope::Grab g;
+            t.feet0 = r && climbrope::findGrab(glm::vec3{player->v.origin[0], flatTestRope.y, flatStrungHeight}, 96.f, g) ? g.at.z : 0.f;
+            t.ropesBefore = taken;
+            Cbuf_AddText("+jump\n");
+            flatTestNext(t, 22);
+        }
+        return;
+    case 22: // taken in the air: a monkey traverse
+    {
+        const Rope* r = ropeOf(t.rope);
+        if(taken > t.ropesBefore && climbing && r && r->rider.monkey && r->rider.started)
+        {
+            Cbuf_AddText("-jump\n");
+            t.lastVx = player->v.origin[0];
+            t.serials = 0;
+            t.lastSerial = -1;
+            t.handBits = 0;
+            flatTestNext(t, 23);
+        }
+        else if(t.frames > 72 * 2)
+        {
+            flatTestEnd(t, true, "jumping up to the strung rope");
+        }
+        return;
+    }
+    case 23: // hanging: sagged under him; then forward along it
+        if(t.frames == 72)
+        {
+            climbrope::Grab g;
+            const float now = climbrope::findGrab(glm::vec3{player->v.origin[0], flatTestRope.y, flatStrungHeight}, 96.f, g) ? g.at.z : 0.f;
+            const bool ok = climbing && now <= t.feet0 - 2.f;
+            t.tally.check(ok, flatTestName, va("jumped up to the strung rope: taken, a monkey traverse, sagging under him from %.1f to %.1f",
+                                              t.feet0, now));
+            if(ok)
+            {
+                Con_Printf("%s: PASS jumped up to the strung rope: taken, a monkey traverse, sagging under him from %.1f to %.1f\n",
+                    flatTestName, t.feet0, now);
+            }
+            t.lastVx = player->v.origin[0];
+            t.serials = 0;
+            t.lastSerial = -1;
+            Cbuf_AddText("+forward\n");
+            flatTestNext(t, 24);
+        }
+        return;
+    case 24: // along it forward
+    case 25: // back
+    {
+        const float gone = (player->v.origin[0] - t.lastVx) * (t.stage == 24 ? 1.f : -1.f);
+        const float want = t.stage == 24 ? 80.f : 40.f;
+        if(!climbing || gone >= want || t.frames > 72 * 6)
+        {
+            const bool ok = climbing && gone >= want && t.serials >= 3;
+            const char* way = t.stage == 24 ? "forward" : "back";
+            t.tally.check(ok, flatTestName, va("along it %s: %.1f units, %d hand changes", way, gone, t.serials));
+            if(ok)
+            {
+                Con_Printf("%s: PASS along it %s: %.1f units, %d hand changes\n", flatTestName, way, gone, t.serials);
+            }
+            t.lastVx = player->v.origin[0];
+            t.serials = 0;
+            t.lastSerial = -1;
+            Cbuf_AddText(t.stage == 24 ? "-forward\n+back\n" : "-back\n+movedown\n");
+            flatTestNext(t, t.stage + 1);
+        }
+        return;
+    }
+    case 26: // the move-down key: dropped
+        if(!climbing)
+        {
+            Cbuf_AddText("-movedown\n");
+            t.tally.check(true, flatTestName, "dropped from it with the move-down key");
+            Con_Printf("%s: PASS dropped from it with the move-down key (feet at %.1f)\n", flatTestName, feet);
+            flatTestEnd(t, false, "");
+        }
+        else if(t.frames > 72)
+        {
+            Cbuf_AddText("-movedown\n");
+            flatTestEnd(t, true, "dropping with the move-down key");
+        }
+        return;
     default:
         return;
     }
@@ -1589,7 +2086,8 @@ void flatTest_f()
         return;
     }
     flatTest = FlatTest{};
-    flatTest.stage = 1;
+    flatTest.pole = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "pole");
+    flatTest.stage = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "strung") ? 20 : 1;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -2073,7 +2571,7 @@ void soundTestFrame()
         }
         break;
     case 4:
-        check(rn == t.ropeCount + 1 && strstr(rLast, "soft_m") && cn == t.chainCount + 1 && strstr(cLast, "grab_metal"),
+        check(rn == t.ropeCount + 1 && ZA_STRSTR(rLast, "soft_m") && cn == t.chainCount + 1 && ZA_STRSTR(cLast, "grab_metal"),
             va("a grip: the rope's soft thud (%d: %s), the chain's metal grip (%d: %s)", rn - t.ropeCount, rLast,
                 cn - t.chainCount, cLast));
         mark();
@@ -2089,9 +2587,9 @@ void soundTestFrame()
         }
         break;
     case 6:
-        check(rn == t.ropeCount + 1 && strstr(rLast, "soft_m"),
+        check(rn == t.ropeCount + 1 && ZA_STRSTR(rLast, "soft_m"),
             va("a grip on the rope again: its soft thud (%d: %s)", rn - t.ropeCount, rLast));
-        check(cn == t.chainCount + 1 && strstr(cLast, "grab_metal"),
+        check(cn == t.chainCount + 1 && ZA_STRSTR(cLast, "grab_metal"),
             va("on the chain: its metal grip, the second at once held back (%d: %s)", cn - t.chainCount, cLast));
         mark();
         // Both pushed sideways (as a shove: the speed added to every point but the top).
@@ -2108,7 +2606,7 @@ void soundTestFrame()
         if(t.frames >= 144)
         {
             const int clinks = cn - t.chainCount;
-            check(clinks >= 2 && clinks <= 9 && strstr(cLast, "metal_l"),
+            check(clinks >= 2 && clinks <= 9 && ZA_STRSTR(cLast, "metal_l"),
                 va("swung, the chain's links clink: %d in 2 s (2 to 9: rate-limited), %s", clinks, cLast));
             check(rn == t.ropeCount, va("swung, the rope stays quiet (%d)", rn - t.ropeCount));
             next(99);
@@ -2234,7 +2732,8 @@ void smoothInto(const za::Vector<glm::vec3>& p, za::Vector<glm::vec3>& out)
     else
     {
         s.wireRadius = m * 0.5f;
-        s.albedo = glm::vec3{0.42f, 0.32f, 0.2f};
+        // (ropes7) A pole: dark varnished wood, or bare steel.
+        s.albedo = !c.pole ? glm::vec3{0.42f, 0.32f, 0.2f} : c.metal ? glm::vec3{0.52f, 0.53f, 0.56f} : glm::vec3{0.33f, 0.2f, 0.1f};
     }
     return s;
 }
@@ -2269,7 +2768,20 @@ void clientFrame()
 
 bool isRopeClass(const char* classname)
 {
-    return !strcmp(classname, "vr_rope") || !strcmp(classname, "vr_chain");
+    return !ZA_STRCMP(classname, "vr_rope") || !ZA_STRCMP(classname, "vr_chain") || !ZA_STRCMP(classname, "vr_pole");
+}
+
+bool monkey(int ent)
+{
+    const Rope* r = ropeOf(ent);
+    return r && (r->monkey || r->rider.monkey);
+}
+
+physsound::RopeMaterial material(int ent)
+{
+    const Rope* r = ropeOf(ent);
+    using M = physsound::RopeMaterial;
+    return !r ? M::Rope : r->params.pole ? (r->params.metal ? M::MetalPole : M::WoodPole) : r->params.chain ? M::Chain : M::Rope;
 }
 
 void serverFrame(bool worldRan)
@@ -2329,6 +2841,7 @@ void serverFrame(bool worldRan)
         {
             r.rider = Rider{}; // (let go: the rope swings on as he left it)
         }
+        r.monkey = monkeyOf(r);
         step(r, dt);
         if(r.params.chain)
         {
@@ -2340,8 +2853,7 @@ void serverFrame(bool worldRan)
 
 void grabbed(edict_t* player, int ent, const glm::vec3& at)
 {
-    const auto it = ropes.find(ent);
-    physsound::ropeGrab(player, at, ent, it != ropes.end() && it->second.params.chain);
+    physsound::ropeGrab(player, at, ent, material(ent));
 }
 
 void serverWriteAll(sizebuf_t* msg)
@@ -2477,7 +2989,12 @@ bool grabAlong(int ent, int client, float s, Grab& out)
     const Rider& rd = r->rider;
     float d = 0.f;
     glm::vec3 at{0.f};
-    if(rd.client == client && rd.started)
+    if(rd.client == client && rd.started && rd.monkey)
+    {
+        at = monkeyAt(*r, rd.bob, s); // (ropes7: on his taut line through the bob)
+        d = glm::distance(at, r->top);
+    }
+    else if(rd.client == client && rd.started)
     {
         // (On his line: straight from the top as the line's other holds are, layRider's scale.)
         d = s * (rd.sLow > 1e-3f ? rd.dLow / rd.sLow : 1.f);
@@ -2499,7 +3016,9 @@ bool holdAt(int ent, int client, float s, float d, glm::vec3& at)
     {
         return false;
     }
-    at = r->rider.client == client && r->rider.started ? r->top + riderDir(*r, r->rider.bob) * d : pointAtArc(*r, s);
+    const Rider& rd = r->rider;
+    at = rd.client == client && rd.started ? (rd.monkey ? monkeyAt(*r, rd.bob, s) : r->top + riderDir(*r, rd.bob) * d)
+                                           : pointAtArc(*r, s);
     return true;
 }
 
@@ -2514,6 +3033,10 @@ glm::vec3 holdVelocity(int ent, int client, float s, float d)
     if(rd.client == client && rd.started)
     {
         const float h = r->lastStep > 0.f ? r->lastStep : longestStep;
+        if(rd.monkey)
+        {
+            return (monkeyAt(*r, rd.bob, s) - monkeyAt(*r, rd.bobPrev, s)) / h;
+        }
         return (riderDir(*r, rd.bob) - riderDir(*r, rd.bobPrev)) * (d / h);
     }
     glm::vec3 vel{0.f};
@@ -2524,9 +3047,9 @@ glm::vec3 holdVelocity(int ent, int client, float s, float d)
 bool ride(int client, int ent, float sHigh, float dHigh, float sLow, float dLow, const glm::vec3& grabVel)
 {
     Rope* r = ropeOf(ent);
-    if(!r)
+    if(!r || r->params.pole)
     {
-        return false;
+        return false; // (a pole: no weight on it, its holds on its fixed points)
     }
     Rider& rd = r->rider;
     if(rd.client >= 0 && rd.client != client && rd.frame >= host_framecount - 1)
@@ -2542,8 +3065,9 @@ bool ride(int client, int ent, float sHigh, float dHigh, float sLow, float dLow,
         rd = Rider{};
         rd.client = client;
         rd.grabVel = grabVel;
+        rd.monkey = r->monkey; // (ropes7: kept while he rides it)
     }
-    else if(rd.started && za::abs(dHigh + riderBelow - rd.radius) > 1e-3f)
+    else if(rd.started && !rd.monkey && za::abs(dHigh + riderBelow - rd.radius) > 1e-3f)
     {
         // The highest hand changed (hand over hand): the bob kept at its angle and its swing, at the new radius.
         const float k = (dHigh + riderBelow) / za::max(rd.radius, 1.f);
@@ -2578,7 +3102,7 @@ void riderBlocked(int client, const glm::vec3& missed)
     {
         v -= n * into;
     }
-    rd.bob -= missed * (rd.radius / za::max(rd.dLow, 1.f));
+    rd.bob -= missed * (rd.monkey ? 1.f : rd.radius / za::max(rd.dLow, 1.f)); // (ropes7: a monkey's bob at his hands)
     rd.bobPrev = rd.bob - v;
 }
 
@@ -2600,19 +3124,73 @@ bool riding(int client, int& ent, glm::vec3& handVel)
         {
             ent = kv.first;
             const float h = r.lastStep > 0.f ? r.lastStep : longestStep;
-            handVel = (riderDir(r, rd.bob) - riderDir(r, rd.bobPrev)) * (rd.dLow / h);
+            handVel = rd.monkey ? (rd.bob - rd.bobPrev) / h : (riderDir(r, rd.bob) - riderDir(r, rd.bobPrev)) * (rd.dLow / h);
             return true;
         }
     }
     return false;
 }
 
-void toolgunPlaced(edict_t* e, const glm::vec3& at)
+void toolgunPlaced(edict_t* e, const glm::vec3& at, float yaw)
 {
-    placeWith(e, at, za::clamp(vr_rope_spawn_length.value, 16.f, 2048.f), za::clamp(vr_rope_spawn_thickness.value, 0.25f, 8.f),
+    const bool pole = !ZA_STRCMP(PR_GetString(e->v.classname), "vr_pole");
+    const float length = za::clamp(vr_rope_spawn_length.value, 16.f, 2048.f);
+    placeWith(e, at, length,
+        pole ? za::clamp(vr_rope_spawn_pole_thickness.value, 0.25f, poleThickest) : za::clamp(vr_rope_spawn_thickness.value, 0.25f, 8.f),
         za::clamp(static_cast<int>(vr_rope_spawn_segments.value), 0, maxPieces), za::max(vr_rope_spawn_mass.value, 0.f),
         za::clamp(vr_rope_spawn_stiffness.value, 0.f, 1.f), za::max(vr_rope_spawn_damping.value, 0.f),
         vr_rope_spawn_pinned.value != 0.f);
+    const progs::FieldOffsets& f = progs::fields();
+    const glm::vec3 start = at + glm::vec3{0.f, 0.f, 1.f};
+    glm::vec3 top{0.f}, end{0.f};
+    if(pole)
+    {
+        // (ropes7) A pole: from the floor up to the ceiling, or its length (it stands on the floor: make()).
+        const trace_t tr = worldtrace::serverLine(start, start + glm::vec3{0.f, 0.f, length}, e);
+        top = vecOf(tr.endpos) - glm::vec3{0.f, 0.f, tr.fraction < 1.f ? 1.f : 0.f};
+        if(f.rope_style >= 0)
+        {
+            progs::fieldFloat(e, f.rope_style) = vr_rope_spawn_metal.value != 0.f ? 1.f : 0.f;
+        }
+        if(f.rope_length >= 0)
+        {
+            progs::fieldFloat(e, f.rope_length) = za::max(16.f, top.z - at.z);
+        }
+    }
+    else if(vr_rope_spawn_span.value > 0.f && f.rope_end >= 0)
+    {
+        // (ropes7) Strung: from strungHeight over the ghost (or under the ceiling) to its span the ghost's way and its rise
+        // up (short of a wall), its slack longer than the line between.
+        const trace_t up = worldtrace::serverLine(start, at + glm::vec3{0.f, 0.f, strungHeight}, e);
+        top = vecOf(up.endpos) - glm::vec3{0.f, 0.f, up.fraction < 1.f ? 1.f : 0.f};
+        const float r = glm::radians(yaw + 180.f); // (the ghost faces the player: away from him)
+        const glm::vec3 dir{za::cos(r), za::sin(r), 0.f};
+        const glm::vec3 want = top + dir * za::min(vr_rope_spawn_span.value, 2048.f) + glm::vec3{0.f, 0.f, vr_rope_spawn_rise.value};
+        const trace_t across = worldtrace::serverLine(top, want, e);
+        end = vecOf(across.endpos);
+        if(across.fraction < 1.f && glm::length(want - top) > 1.f)
+        {
+            end -= glm::normalize(want - top) * 2.f;
+        }
+        float* v = progs::fieldPtr(e, f.rope_end);
+        v[0] = end.x;
+        v[1] = end.y;
+        v[2] = end.z;
+        progs::fieldFloat(e, f.rope_length) = 0.f;
+        if(f.rope_slack >= 0)
+        {
+            progs::fieldFloat(e, f.rope_slack) = za::clamp(vr_rope_spawn_slack.value, 0.f, 2.f);
+        }
+    }
+    else
+    {
+        return;
+    }
+    for(int k = 0; k < 3; k++)
+    {
+        e->v.origin[k] = top[k];
+    }
+    SV_LinkEdict(e, false);
 }
 
 void parse()
@@ -2632,6 +3210,9 @@ void parse()
     }
     ClientRope& c = clientRopes[num];
     c.chain = (flags & flagChain) != 0;
+    c.pole = (flags & flagPole) != 0;
+    c.metal = (flags & flagMetal) != 0;
+    c.monkey = (flags & flagMonkey) != 0;
     c.thickness = static_cast<float>(thick) / 16.f;
     // (The last message's points kept to draw between: only when it came in the message just before this one.)
     const bool again = c.msgTime == cl.mtime[0]; // (sent twice in one message: the first's prev kept)
@@ -2671,6 +3252,26 @@ float clientRopeDistance(const glm::vec3& p)
         }
     }
     return best;
+}
+
+bool clientRopeMonkey(const glm::vec3& near, float within)
+{
+    const ClientRope* best = nullptr;
+    float bestDist = within;
+    for(auto& kv : clientRopes)
+    {
+        const za::Vector<glm::vec3>& q = shownOf(kv.second);
+        for(za::SizeT j = 0; j + 1 < q.size(); j++)
+        {
+            float ta = 0.f, tb = 0.f;
+            if(const float d = geom::segmentsDistance(near, near, q[j], q[j + 1], ta, tb); d < bestDist)
+            {
+                bestDist = d;
+                best = &kv.second;
+            }
+        }
+    }
+    return best && best->monkey;
 }
 
 bool clientRopeAt(const glm::vec3& near, float within, float z, glm::vec3& at, float* bottom)

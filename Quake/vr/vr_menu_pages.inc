@@ -1245,6 +1245,7 @@ void resetHandMoves()
         row(opt::vr_cellcord_laser),
         row(opt::vr_cellcord_hammer),
         row(opt::vr_cellcord_superaxe),
+        row(opt::vr_cellcord_lance),
         open("Cord Points", pageIndex(pageReloadCellCords))
             .help("Where each cord leaves its weapon (off its lowest point), to tune."),
         header("All Guns"),
@@ -1337,6 +1338,11 @@ void resetHandMoves()
         action("Ultra", []() { gfxpresets::menuApply(4); })
             .help("Past the defaults, for fast graphics cards: 12 shadowed dynamic lights and 6 map lights out to 4096 "
                   "units, more torch lights, particles at full resolution, the finer bloom, deeper parallax steps."),
+        action("Standalone", gfxpresets::menuApplyStandalone)
+            .help("The best settings for a standalone headset (the Quest 3, picked on its first start): Low, then a "
+                  "steady 72 frames a second first. A smaller image with dynamic resolution, no MSAA, shadows, bloom "
+                  "or order-independent transparency, the dynamic lights Quake's way, and capped particles, marks, "
+                  "gibs, ragdolls and blood near your eyes. The least GPU time with Quake VR's look."),
         header("Your Own"),
         action("My Settings", gfxpresets::menuRestoreMine)
             .help("Your own graphics settings back, exactly as they were before you first picked a preset (or as you "
@@ -1957,6 +1963,8 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
         row(opt::vr_particle_near_fade),
         row(opt::vr_particle_near_cull),
         row(opt::vr_particle_max_screen),
+        row(opt::vr_blood_near),
+        row(opt::vr_blood_near_mult),
         row(opt::vr_particle_retro_min_blocks),
         row(opt::vr_particle_halfres),
         row(opt::vr_particle_trim),

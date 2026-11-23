@@ -9,7 +9,7 @@ jump_gun wall/long/stand/hip 2 4.510
 jump_hand0 wall/long/stand/hip 2 2.280
 # His relief 4 / promoted defaults, accepted 2026-11-06 ("Ship, accept rows"; ROUND24 "Flat-screen: his values as
 # defaults"): Eye Relief 4 puts the sighted gun and hands against the head and chest.
-fore_torso low/long/crouch/ads 2 1.904
+fore_torso low/long/crouch/ads 2 2.012
 fore_torso open/long/stand/hip 2 1.737
 fore_torso open/pistol/crouch/ads 2 2.436
 fore_torso open/pistol/stand/ads 2 3.423
@@ -19,20 +19,24 @@ gun_torso open/long/crouch/ads 2 1.966
 gun_torso open/long/stand/ads 2 3.438
 gun_torso wall/long/crouch/ads 2 1.966
 gun_torso wall/long/stand/ads 2 3.437
-hand_head low/long/crouch/ads 2 0.763
-hand_head open/long/crouch/ads 2 0.763
-hand_head open/long/stand/ads 2 0.763
-hand_head wall/long/crouch/ads 2 0.763
-hand_head wall/long/stand/ads 2 0.763
+# (flatgreen2, 2026-11-23: the hand in the head and the long gun's sighted forearm rows measured on the tests' new
+# baseline, the shipped defaults (6d47923de; the old one was a full saved config): hand_head 0.763 -> 0.842, under the
+# 0.870 his offsets' rows were accepted at (4499299093); fore_torso +0.08..0.23. Body overlap not seen from the eye:
+# his acceptance of 52c0442eec.)
+hand_head low/long/crouch/ads 2 0.842
+hand_head open/long/crouch/ads 2 0.842
+hand_head open/long/stand/ads 2 0.842
+hand_head wall/long/crouch/ads 2 0.841
+hand_head wall/long/stand/ads 2 0.841
 hand_torso open/long/stand/ads 2 0.969
 hand_torso wall/long/stand/ads 2 0.969
 # Wall candidate poses (2026-11-06): turned poses looking 20-45 down bring the long gun stock into the chest; next: score poses with flatsweep shapes
 # His weapon offsets 2026-11-06 (accepted; ROUND24 "Flat-screen wall: muzzle up only"): the promoted offsets move the
 # long gun's forearm and the pistol's gun and hand further into the torso, measured on origin/next.
-fore_torso open/long/crouch/ads 2 2.533
-fore_torso open/long/stand/ads 2 3.433
-fore_torso wall/long/crouch/ads 2 2.532
-fore_torso wall/long/stand/ads 2 3.433
+fore_torso open/long/crouch/ads 2 2.613
+fore_torso open/long/stand/ads 2 3.664
+fore_torso wall/long/crouch/ads 2 2.613
+fore_torso wall/long/stand/ads 2 3.664
 gun_torso open/pistol/stand/ads 2 1.780
 hand_torso open/pistol/crouch/ads 2 1.143
 hand_torso open/pistol/stand/ads 2 2.793

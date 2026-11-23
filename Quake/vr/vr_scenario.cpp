@@ -21,6 +21,9 @@
 #include "vr_zancle.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
@@ -433,7 +436,7 @@ bool read(const char* id, Scenario& out)
             g.what = w[1];
             g.hand = w.size() == 3 && !q_strcasecmp(w[2].cStr(), "off") ? 0 : 1;
             g.entry = findEntry(g.what.cStr());
-            if(g.entry < 0 || strcmp(toolgun::spawnableSection(g.entry), "Weapons") != 0)
+            if(g.entry < 0 || ZA_STRCMP(toolgun::spawnableSection(g.entry), "Weapons") != 0)
             {
                 error(lineNo, va("\"%s\" is not a toolgun Weapons entry", g.what.cStr()));
                 return;
@@ -537,7 +540,7 @@ bool read(const char* id, Scenario& out)
                 b.weapon.line = lineNo;
                 b.weapon.hand = w.size() == 6 && !q_strcasecmp(w[5].cStr(), "off") ? 0 : 1;
                 b.weapon.entry = findEntry(w[4].cStr());
-                if(b.weapon.entry < 0 || strcmp(toolgun::spawnableSection(b.weapon.entry), "Weapons") != 0)
+                if(b.weapon.entry < 0 || ZA_STRCMP(toolgun::spawnableSection(b.weapon.entry), "Weapons") != 0)
                 {
                     error(lineNo, va("\"%s\" is not a toolgun Weapons entry", w[4].cStr()));
                     return;
@@ -755,7 +758,7 @@ void placeBots(edict_t* p, const glm::vec3& feet, const glm::vec3& fwd, const gl
         }
         pr_global_struct->self = oldSelf;
         edict_t* b = slot >= 0 && slot + 1 < qcvm->num_edicts ? EDICT_NUM(slot + 1) : nullptr;
-        if(b && (b->free || strcmp(PR_GetString(b->v.classname), "player") != 0))
+        if(b && (b->free || ZA_STRCMP(PR_GetString(b->v.classname), "player") != 0))
         {
             b = nullptr;
         }
@@ -954,7 +957,7 @@ void place()
         }
         else
         {
-            const float lift = !strncmp(sp.what.cStr(), "monster_", 8) ? 25.f : 1.f;
+            const float lift = !ZA_STRNCMP(sp.what.cStr(), "monster_", 8) ? 25.f : 1.f;
             e = box3d::spawnClass(sp.what.cStr(), at + glm::vec3{0.f, 0.f, lift}, glm::vec3{0.f, faceYaw, 0.f});
         }
         if(!e)
@@ -966,7 +969,7 @@ void place()
         // vr_toolgun_armed_armor 2`); otherwise its own roll, as a map gives it. (Its spawn names it monster_army and
         // the like: what was asked for says it is armed.)
         const char* asked = sp.armed ? sp.what.cStr() : sp.entry >= 0 ? toolgun::spawnableClass(sp.entry) : "";
-        if(vr_toolgun_armed_armor.value != 0.f && !strncmp(asked, "monster_vr_", 11))
+        if(vr_toolgun_armed_armor.value != 0.f && !ZA_STRNCMP(asked, "monster_vr_", 11))
         {
             Con_DPrintf("vr_scenario: line %d: the toolgun's armour on edict %d\n", sp.line, NUM_FOR_EDICT(e));
             toolgun::armArmedSpawn(e);
@@ -1039,7 +1042,7 @@ void allIds(za::Vector<za::String>& out)
 {
     out.clear();
     files::forEachEntry(dirPath().cStr(), [&](const char* name, bool isDir) {
-        const size_t n = strlen(name);
+        const size_t n = ZA_STRLEN(name);
         if(!isDir && n > 4 && !q_strcasecmp(name + n - 4, ".txt"))
         {
             out.pushBack(za::String{za::StringView{name, n - 4}});
@@ -1047,7 +1050,7 @@ void allIds(za::Vector<za::String>& out)
     });
     for(size_t i = 1; i < out.size(); i++) // (a few dozen: an insertion sort)
     {
-        for(size_t j = i; j > 0 && strcmp(out[j - 1].cStr(), out[j].cStr()) > 0; j--)
+        for(size_t j = i; j > 0 && ZA_STRCMP(out[j - 1].cStr(), out[j].cStr()) > 0; j--)
         {
             za::genericSwap(out[j - 1], out[j]);
         }
@@ -1412,7 +1415,7 @@ void frame()
             for(const PlacedBot& pb : state.bots)
             {
                 edict_t* b = pb.num < qcvm->num_edicts ? EDICT_NUM(pb.num) : nullptr;
-                const bool in = b && !b->free && !strcmp(PR_GetString(b->v.classname), "player");
+                const bool in = b && !b->free && !ZA_STRCMP(PR_GetString(b->v.classname), "player");
                 const float moved = in ? glm::distance(geom::vec(b->v.origin), pb.at) : 0.f;
                 const float hand = !in ? -1.f : pb.hand == 1 ? b->v.weapon : weapon2 >= 0 ? progs::fieldFloat(b, weapon2) : -1.f;
                 const bool passive = state.run.botMode == BotMode::Passive;

@@ -30,6 +30,10 @@
 
 #include "thirdparty/imgui/imgui.h"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -43,7 +47,6 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include <stdio.h>
-#include <string.h>
 
 using namespace qvr;
 using namespace qvr::rigstudio::detail;
@@ -746,18 +749,18 @@ void strike_f()
     {
         const char* w = Cmd_Argv(i);
         const float v = i + 1 < Cmd_Argc() ? static_cast<float>(Q_atof(Cmd_Argv(i + 1))) : 0.f;
-        if(!strcmp(w, "play")) { stopRefresh(); if(!s.on && s.heldPose < 0) { swingPlay(); } else { s.playing = true; s.parked = false; } }
-        else if(!strcmp(w, "pause")) { stopRefresh(); s.playing = false; }
-        else if(!strcmp(w, "park")) { strikePark(); }
-        else if(!strcmp(w, "t")) { strikeSetTime(v); i++; }
-        else if(!strcmp(w, "step")) { strikeSetTime(s.t + v * frameStep); i++; }
-        else if(!strcmp(w, "speed")) { s.speed = za::clamp(v, strikeSpeedMin, strikeSpeedMax); i++; }
-        else if(!strcmp(w, "loop")) { s.loop = v != 0.f; i++; }
-        else if(!strcmp(w, "refresh")) { refreshGhosts(); }
-        else if(!strcmp(w, "addkey")) { (void)strikeAddKey(); }
-        else if(!strcmp(w, "delkey")) { (void)strikeRemoveKey(); }
-        else if(!strcmp(w, "keytime")) { strikeKeyTime(v, true); i++; }
-        else if(!strcmp(w, "keyreset")) { pushPoseUndo(pickedCode(st.pdPhase)); agpose::clearKeyTime(pickedCode(st.pdPhase)); readKeyTimes(); }
+        if(!ZA_STRCMP(w, "play")) { stopRefresh(); if(!s.on && s.heldPose < 0) { swingPlay(); } else { s.playing = true; s.parked = false; } }
+        else if(!ZA_STRCMP(w, "pause")) { stopRefresh(); s.playing = false; }
+        else if(!ZA_STRCMP(w, "park")) { strikePark(); }
+        else if(!ZA_STRCMP(w, "t")) { strikeSetTime(v); i++; }
+        else if(!ZA_STRCMP(w, "step")) { strikeSetTime(s.t + v * frameStep); i++; }
+        else if(!ZA_STRCMP(w, "speed")) { s.speed = za::clamp(v, strikeSpeedMin, strikeSpeedMax); i++; }
+        else if(!ZA_STRCMP(w, "loop")) { s.loop = v != 0.f; i++; }
+        else if(!ZA_STRCMP(w, "refresh")) { refreshGhosts(); }
+        else if(!ZA_STRCMP(w, "addkey")) { (void)strikeAddKey(); }
+        else if(!ZA_STRCMP(w, "delkey")) { (void)strikeRemoveKey(); }
+        else if(!ZA_STRCMP(w, "keytime")) { strikeKeyTime(v, true); i++; }
+        else if(!ZA_STRCMP(w, "keyreset")) { pushPoseUndo(pickedCode(st.pdPhase)); agpose::clearKeyTime(pickedCode(st.pdPhase)); readKeyTimes(); }
         else
         {
             Con_Printf("vr_rigstudio_strike [play | pause | park | t <s> | step <frames> | speed <x> | loop 0|1 | refresh | "
@@ -1599,11 +1602,11 @@ void strikeKeysTestTick()
             const bool gone = !agpose::hasKey(c);
             Cvar_SetQuick(&vr_agrunt_poses, text.cStr());
             const agpose::Key after = agpose::value(c);
-            t.check(gone && agpose::hasKey(c) && memcmp(&before, &after, sizeof(before)) == 0, name,
-                va("saved and read back: the key exactly (text %d chars)", static_cast<int>(strlen(text.cStr()))));
+            t.check(gone && agpose::hasKey(c) && ZA_MEMCMP(&before, &after, sizeof(before)) == 0, name,
+                va("saved and read back: the key exactly (text %d chars)", static_cast<int>(ZA_STRLEN(text.cStr()))));
             za::String dump;
             agpose::dumpText(dump);
-            t.check(strstr(dump.cStr(), "Horizontal, in-between") != nullptr, name, "the dump's row names the in-between");
+            t.check(ZA_STRSTR(dump.cStr(), "Horizontal, in-between") != nullptr, name, "the dump's row names the in-between");
             bool same = true;
             for(int i = 0; i < 4; i++)
             {
@@ -1629,7 +1632,7 @@ void strikeKeysTestTick()
             t.check(keyCount() == agpose::numPhases + 1, name, va("the removal undone: %d keys", keyCount()));
             Cvar_SetQuick(&vr_agrunt_poses, ktest.text0.cStr());
             readKeyTimes();
-            t.check(keyCount() == agpose::numPhases && strcmp(vr_agrunt_poses.string, ktest.text0.cStr()) == 0, name,
+            t.check(keyCount() == agpose::numPhases && ZA_STRCMP(vr_agrunt_poses.string, ktest.text0.cStr()) == 0, name,
                 "the text put back");
             next();
         }
@@ -1848,7 +1851,7 @@ void strikeTestTick()
         {
             undo();
             const agpose::Key k = agpose::value(stest.code);
-            t.check(memcmp(&k, &stest.key0, sizeof(k)) == 0, name, "IK ghost: the key undone exactly");
+            t.check(ZA_MEMCMP(&k, &stest.key0, sizeof(k)) == 0, name, "IK ghost: the key undone exactly");
             Cvar_SetValueQuick(&vr_rigstudio_ikghost, 0.f);
             // the fly camera: a second forward at Shift
             stest.cam0 = st.cam.focus;

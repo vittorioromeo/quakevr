@@ -12,6 +12,8 @@
 #include "vr_api.h"
 #include "vr_api_render.h"
 #include "vr_seat.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -254,7 +256,7 @@ void setupBody(const hands::State& s)
 {
     const glm::vec3 d = fingertip - (at - face * za::max(vr_weapon_button_depth.value, 0.f));
     const float len = glm::length(d);
-    angle = len > 0.05f ? glm::degrees(std::acos(CLAMP(-1.f, glm::dot(d / len, face), 1.f))) : 0.f;
+    angle = len > 0.05f ? glm::degrees(za::acos(CLAMP(-1.f, glm::dot(d / len, face), 1.f))) : 0.f;
     return vr_weapon_button_cone.value >= 180.f || angle <= vr_weapon_button_cone.value;
 }
 
@@ -759,7 +761,7 @@ testkit::Tally platesModelTally;
 void platesModelCheck_f()
 {
     testkit::Tally& c = platesModelTally;
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "end"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "end"))
     {
         c.verdict("ppmodel");
         c.reset();
@@ -773,8 +775,8 @@ void platesModelCheck_f()
     const int build = avatar::bodyBuild();
     char want[MAX_QPATH];
     q_snprintf(want, sizeof(want), "%s#armor", bodyName);
-    const bool bodyOk = !strcmp(bodyName, bodyModelName(build, drawnBare));
-    const bool plateOk = plate.ent.model && plate.ent.model->type == mod_alias && !strcmp(plateName, want);
+    const bool bodyOk = !ZA_STRCMP(bodyName, bodyModelName(build, drawnBare));
+    const bool plateOk = plate.ent.model && plate.ent.model->type == mod_alias && !ZA_STRCMP(plateName, want);
     const bool ok = c.check(bodyOk && plateOk && ownPlates().entityPieces[0] != 0);
     Con_Printf("ppmodel: %s build %d, body %s, plates %s (pieces %d)\n", ok ? "ok" : "FAIL", build, bodyName, plateName, ownPlates().entityPieces[0]);
 }

@@ -162,6 +162,9 @@ static GLuint GL_CreateFBOAttachment (GLenum format, int samples, GLenum filter,
 	}
 	else
 	{
+		int foveation = VR_SceneAttachmentFoveation (name); // QVR: the eyes' scene foveated (vr_gl_foveation), before its storage
+		if (foveation)
+			glTexParameteri (target, 0x8BFB, foveation); // GL_TEXTURE_FOVEATED_FEATURE_BITS_QCOM
 		GL_TexStorage2DFunc (target, 1, format, vid.width, vid.height);
 		glTexParameteri (target, GL_TEXTURE_MAG_FILTER, filter);
 		glTexParameteri (target, GL_TEXTURE_MIN_FILTER, filter);
@@ -203,7 +206,7 @@ static GLuint GL_CreateFBO (GLenum target, const GLuint *colors, int numcolors, 
 		GL_FramebufferTexture2DFunc (GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, target, stencil, 0);
 
 	status = GL_CheckFramebufferStatusFunc (GL_FRAMEBUFFER);
-	if (status != GL_FRAMEBUFFER_COMPLETE)
+	if (status != GL_FRAMEBUFFER_COMPLETE && !VR_SceneFoveationIncomplete (status, name)) // QVR: foveated eye targets made again without it
 		Sys_Error ("Failed to create %s (status code 0x%X)", name, status);
 
 	return fbo;
@@ -567,21 +570,21 @@ void GL_DepthRange (zrange_t range)
 	{
 	default:
 	case ZRANGE_FULL:
-		glDepthRange (0.f, 1.f);
+		GL_DepthRangefFunc (0.f, 1.f);
 		break;
 
 	case ZRANGE_VIEWMODEL:
 		if (gl_clipcontrol_able)
-			glDepthRange (0.7f, 1.f);
+			GL_DepthRangefFunc (0.7f, 1.f);
 		else
-			glDepthRange (0.f, 0.3f);
+			GL_DepthRangefFunc (0.f, 0.3f);
 		break;
 
 	case ZRANGE_NEAR:
 		if (gl_clipcontrol_able)
-			glDepthRange (1.f, 1.f);
+			GL_DepthRangefFunc (1.f, 1.f);
 		else
-			glDepthRange (0.f, 0.f);
+			GL_DepthRangefFunc (0.f, 0.f);
 		break;
 	}
 }
@@ -1065,6 +1068,7 @@ void R_UploadFrameData (void)
 
 	GL_Upload (GL_UNIFORM_BUFFER, &r_framedata, sizeof (r_framedata), &buf, &ofs);
 	GL_BindBufferRange (GL_UNIFORM_BUFFER, 0, buf, (GLintptr)ofs, sizeof (r_framedata));
+	VR_GLProbeUpload ("frame data", buf, (size_t)ofs, &r_framedata, sizeof (r_framedata)); // QVR: vr_gl_probe
 
 	VR_RetroUpload (); // QVR: retro textures' settings (vr/vr_retro.cpp), uniform block 3
 }
@@ -1169,6 +1173,7 @@ void R_SetupView (void)
 	VR_ProfileBeginGPU ("lights"); // QVR: profile (clustering)
 	R_PushDlights ();
 	VR_ProfileEnd (); // QVR
+	R_MarkSurfacesLate (); // QVR: the ES profile's world cull, knowing the lights reaching the world (C4v)
 
 	//johnfitz -- cheat-protect some draw modes
 	r_fullbright_cheatsafe = r_lightmap_cheatsafe = false;
@@ -1266,6 +1271,11 @@ static modelfragments_t modelfragments;
 
 void R_ModelFragments_f (void)
 {
+	if (VR_GLESCompat ())
+	{
+		Con_Printf ("vr_model_fragments: not under -glescompat (OpenGL ES has no pipeline statistics or sample counts)\n");
+		return;
+	}
 	if (modelfragments.queries[0])
 		GL_DeleteQueriesFunc (MF_QUERIES, modelfragments.queries);
 	memset (&modelfragments, 0, sizeof (modelfragments));
@@ -2163,7 +2173,7 @@ void R_ShowTris (void)
 
 	if (r_showtris.value == 1)
 		GL_DepthRange (ZRANGE_NEAR);
-	glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
+	VR_GLPolygonMode (GL_LINE); // QVR: ES: none (filled)
 	GL_PolygonOffset (OFFSET_SHOWTRIS);
 
 	ofs = cl_modtype_ofs;
@@ -2186,7 +2196,7 @@ void R_ShowTris (void)
 
 	R_DrawParticles_ShowTris ();
 
-	glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+	VR_GLPolygonMode (GL_FILL);
 	GL_PolygonOffset (OFFSET_NONE);
 	if (r_showtris.value == 1)
 		GL_DepthRange (ZRANGE_FULL);
@@ -2375,6 +2385,12 @@ void R_RenderScene (void)
 	R_ShowSkeletons ();
 
 	R_ShowPointFile ();
+
+	{ // QVR: vr_gl_probe 3 to 5 (Debug > Startup)
+		extern GLuint gl_bmodel_vbo, gl_bmodel_ibo;
+		extern size_t gl_bmodel_ibo_size;
+		VR_GLProbeSceneEnd (gl_bmodel_vbo, gl_bmodel_ibo, (int)sizeof (glvert_t), (int)q_min (gl_bmodel_ibo_size / 4, (size_t)65536));
+	}
 }
 
 /*

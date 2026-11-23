@@ -330,7 +330,7 @@
 "// (gl_mesh.c); a muzzle flash's vertex keeps its gun vertex there (the flag in its normal's 4th byte): none.\n" \
 "float PoseAO(uint pose)\n" \
 "{\n" \
-"	uvec2 data = PackedPosNor[pose + gl_VertexID];\n" \
+"	uvec2 data = PackedPosNor[pose + uint(gl_VertexID)];\n" \
 "	return (data.y & 0x80000000u) != 0u ? 1.0 : float(data.x >> 24) * (1.0 / 255.0);\n" \
 "}\n" \
 "#elif POSEVERTTYPE == 1 // PV_IQM\n" \
@@ -375,7 +375,11 @@
 #define QVR_ALIAS_VS_OUTPUTS \
 "layout(location=3) out vec3 out_nor; // QVR: per-pixel dynamic lights (vr/vr_lighting.cpp)\n" \
 "layout(location=4) out float out_depth; // QVR\n" \
+"#ifdef QVR_NOPERSP_W // ES without NV_shader_noperspective_interpolation: w-multiplied (vr_glsafe.cpp esHeader)\n" \
+"layout(location=5) out vec2 out_coord; // QVR\n" \
+"#else\n" \
 "layout(location=5) noperspective out vec2 out_coord; // QVR\n" \
+"#endif\n" \
 "layout(location=6) flat out float out_glow; // QVR\n" \
 "layout(location=7) flat out float out_fbboost; // QVR\n" \
 "layout(location=8) flat out float out_pdepth; // QVR: parallax mapping\n" \
@@ -437,13 +441,80 @@
 "	}\n" \
 "#endif\n"
 
+// C4y (QUEST_PLAN.md 6ze): the models' plain forms lit at their vertices (QVR_APLAIN_VLIGHT, vr_gl_alias_vlight; the ES
+// profile only, with no shadows or dynamic occlusion; retro lighting keeps its levels, not its blocks): the model's own light times its ambient cube and
+// its occlusion, plus the dynamic lights (the plain loop's falloff and angle, every light tested by its reach; no
+// sheen), worked out per vertex as Quake lit its models, not per pixel. A probe (vr_gl_alias_vlight 0): the early-return
+// probes put ~1.8 ms of a fight's 3.3 ms of the models' shading in the per-pixel light, but this cut gained nothing
+// (the same 8.37 ms with every solid model plain). The declarations (after the instance buffer).
+#define QVR_ALIAS_VS_VLIGHT_DECL \
+"#ifdef QVR_APLAIN_VLIGHT\n" \
+ALIAS_FRAMEDATA_BUFFER \
+LIGHT_BUFFER \
+"layout(location=19) out vec3 out_vlight;\n" \
+"layout(location=20) out vec3 out_vdyn;\n" \
+"vec3 VertexLights(vec3 pos, vec3 n)\n" \
+"{\n" \
+"	vec3 total = vec3(0.);\n" \
+"	if ((ShadowFlags & 8u) == 0u)\n" \
+"		return total;\n" \
+"#ifdef QVR_LITE_NODLFALLOFF\n" \
+"	const bool darkplaces = false;\n" \
+"#else\n" \
+"	bool darkplaces = (ShadowFlags & 16u) != 0u;\n" \
+"#endif\n" \
+"	float unit = (ShadowFlags & 32u) != 0u ? 1.0 / 128.0 : Fog.w < 0. ? 2.0 / 200.0 : 1.0 / 200.0;\n" \
+"	float angleScale = darkplaces ? 1.0 : 2.0;\n" \
+"	uint count = min(NumLights, 64u);\n" \
+"	for (uint k = 0u; k < count; k++)\n" \
+"	{\n" \
+"		if (Lights[k].shadow.w != 0.)\n" \
+"			continue;\n" \
+"		vec4 po = vec4(Lights[k].origin, Lights[k].radius);\n" \
+"		vec3 tl = po.xyz - pos;\n" \
+"		float d2 = dot(tl, tl);\n" \
+"		if (d2 >= po.w * po.w)\n" \
+"			continue;\n" \
+"		float inv = inversesqrt(max(d2, 1e-12));\n" \
+"		vec3 dir = tl * inv;\n" \
+"		float d = d2 * inv;\n" \
+"		vec4 sp = Lights[k].spot;\n" \
+"		float lit = (darkplaces ? clamp((1.0 - d / max(po.w, 1.0)) * 2.0 / (1.0 + (d / max(po.w, 1.0)) * (d / max(po.w, 1.0))), 0.0, 1.0) : (po.w - d) * unit) * (1.0 - smoothstep(0.0, 1.0, sp.w + dot(sp.xyz, dir)));\n" /* DarkPlacesAtten, SpotCone */ \
+"		if (lit <= 0.)\n" \
+"			continue;\n" \
+"		float amb = darkplaces ? Lights[k].minlight : 0.3;\n" \
+"		total += lit * mix(1.0, amb + (1.0 - amb) * angleScale * max(dot(n, dir), 0.0), DlightAngle) * Lights[k].color;\n" \
+"	}\n" \
+"	return total;\n" \
+"}\n" \
+"#endif\n"
+
+// ... and the light (in main, once out_color and out_vao are set): ModelAmbient's cube (no bumps in these forms), the
+// occlusion, the dynamic lights (QVR_ALIAS_FS_LIGHT reads it as the whole light)
+#define QVR_ALIAS_VS_VLIGHT \
+"#ifdef QVR_APLAIN_VLIGHT\n" \
+"	{\n" \
+"		vec3 vn = normalize(out_nor);\n" \
+"		vec3 vamb = vec3(1.0);\n" \
+"		if (inst.Ambient[0].w > 0.)\n" \
+"		{\n" \
+"			vec3 n2 = vn * vn;\n" \
+"			vec3 c = n2.x * inst.Ambient[vn.x >= 0. ? 0 : 1].xyz + n2.y * inst.Ambient[vn.y >= 0. ? 2 : 3].xyz + n2.z * inst.Ambient[vn.z >= 0. ? 4 : 5].xyz;\n" \
+"			vamb = mix(vec3(1.0), c, inst.Ambient[0].w);\n" \
+"		}\n" \
+"		float vvao = clamp(out_vao, 0.0, 1.0);\n" \
+"		out_vlight = out_color.rgb * vamb * vvao;\n" \
+"		out_vdyn = VertexLights(lerpedVert, vn) * sqrt(vvao);\n" \
+"	}\n" \
+"#endif\n"
+
 // the model's light direction and shade (vr_model_light_parity), its outputs
 #define QVR_ALIAS_VS_SHADE \
 "	vec3 lightdir = normalize(mix(vec3(0.70710678, 0.0, 0.70710678), inst.LightDir.xyz, inst.LightDir.w)); // QVR: vr/vr_modellight.cpp\n" \
 "	vec3 shadevector = orientation * lightdir;\n" \
 "	out_instance = ALIAS_INSTANCE_ID; // QVR: its instance (a layered shadow draw's: FaceDraws)\n" \
 "	out_morph = inst.Ambient[2].w; // QVR\n" \
-"	out_vao = inst.AO.y > 0. ? max(1.0 - inst.AO.y * (1.0 - mix(PoseAO(inst.Pose1), PoseAO(inst.Pose2), inst.Blend)), 0.0) : 1.0; // QVR\n" \
+"	out_vao = inst.AO.y > 0. ? max(1.0 - inst.AO.y * (1.0 - mix(PoseAO(uint(inst.Pose1)), PoseAO(uint(inst.Pose2)), inst.Blend)), 0.0) : 1.0; // QVR\n" \
 "	out_morphpos = vec4(lerpedPos, 0.0); // QVR: the pose's space (Morph scales it to the model's units)\n" \
 "#if POSEVERTTYPE == 1\n" \
 "	if (inst.Ambient[2].w != 0.0) // QVR: a skeletal model morphing (your armour's plates): its rest pose, so the noise rides it\n" \
@@ -678,7 +749,12 @@ SPECULAR_AA_FUNCTIONS
 #define QVR_ALIAS_FS_INPUTS \
 "layout(location=3) in vec3 in_nor; // QVR\n" \
 "layout(location=4) in float in_depth; // QVR\n" \
+"#ifdef QVR_NOPERSP_W // ES without NV_shader_noperspective_interpolation: w-multiplied (vr_glsafe.cpp esHeader)\n" \
+"layout(location=5) in vec2 in_coord_w; // QVR\n" \
+"#define in_coord (in_coord_w * gl_FragCoord.w)\n" \
+"#else\n" \
 "layout(location=5) noperspective in vec2 in_coord; // QVR\n" \
+"#endif\n" \
 "layout(location=6) flat in float in_glow; // QVR\n" \
 "layout(location=7) flat in float in_fbboost; // QVR\n" \
 "layout(location=8) flat in float in_pdepth; // QVR: parallax mapping's depth in units (vr_parallax_models; 0 off; negative: an authored map's, vr_parallax_authored)\n" \
@@ -692,6 +768,10 @@ SPECULAR_AA_FUNCTIONS
 "layout(location=16) in vec3 in_restpos; // QVR: flesh dents (vr/vr_dents.cpp): where in the model's rest pose\n" \
 "layout(location=17) in vec4 in_restnor; // QVR: ... its normal there, and its flesh (w: 0 a weapon)\n" \
 "layout(location=18) in vec4 in_stump; // QVR: a stump's flesh (StumpFlesh): xyz the rest pose's place, w how near a cut joint (1 its reach)\n" \
+"#ifdef QVR_APLAIN_VLIGHT\n" \
+"layout(location=19) in vec3 in_vlight; // QVR: the own light worked out at the vertices (QVR_ALIAS_VS_VLIGHT)\n" \
+"layout(location=20) in vec3 in_vdyn; // QVR: ... and the dynamic lights\n" \
+"#endif\n" \
 "layout(std430, binding=16) restrict readonly buffer BarrelMaskBuffer { uint BarrelMasks[]; }; // QVR: hot barrels' triangles, a bit each (vr/vr_barrelmask.cpp)\n"
 
 // per-pixel lights, normal maps, ambient, wounds, morphs
@@ -702,7 +782,7 @@ SPECULAR_AA_FUNCTIONS
 "vec3 ModelDynamicLights(vec3 n, vec3 bumped, out vec3 spec)\n" \
 "{\n" \
 "	spec = vec3(0.);\n" \
-"	if ((ShadowFlags & 8u) == 0u || NumLights == 0u)\n" \
+"	if ((ShadowFlags & 8u) == 0u || NumLights == 0u || BatchDlightsFlat > 0.5) /* C5h: or added flat on the CPU (r_alias.c) */\n" \
 "		return vec3(0.);\n" \
 "	ivec3 cluster_coord;\n" \
 "	cluster_coord.x = int(floor(in_coord.x));\n" \
@@ -716,7 +796,11 @@ SPECULAR_AA_FUNCTIONS
 "		return vec3(0.);\n" \
 "	vec3 pos = RetroLightAt(in_pos + EyePos, RetroLight[5].y); /* QVR: or its retro lighting block's (vr_retrolight.h) */\n" \
 "	vec3 spos = RetroShadowAt(in_pos + EyePos, pos); /* ... where the shadows are looked up */\n" \
+"#ifdef QVR_LITE_NODLFALLOFF\n" /* the ES lite form (C4l): no DarkPlaces falloff (vr_dlight_falloff 0) */ \
+"	const bool darkplaces = false;\n" \
+"#else\n" \
 "	bool darkplaces = (ShadowFlags & 16u) != 0u;\n" \
+"#endif\n" \
 "	float unit = (ShadowFlags & 32u) != 0u ? 1.0 / 128.0 : Fog.w < 0. ? 2.0 / 200.0 : 1.0 / 200.0; // the sign of Fog.w: overbright models\n" \
 "	float angleScale = darkplaces ? 1.0 : 2.0; // LightAngle doubles the lit part (over its ambient 0.3)\n" \
 "	vec3 toEye = normalize(EyePos - pos);\n" \
@@ -730,7 +814,32 @@ SPECULAR_AA_FUNCTIONS
 "		{\n" \
 "			int j = findLSB(mask);\n" \
 "			mask ^= 1u << j;\n" \
-"			Light l = Lights[ofs + j];\n" \
+"#if defined(QVR_LITE_PLAINLIGHT) && !defined(QVR_PROBE_NOAPLAIN)\n" /* the ES lite form (C4q, QUEST_PLAN.md 6x): plain lights alone */ \
+"			{\n" /* (no shadow maps: their code out of the loop, the light's members read one by one; a spot's cone, DarkPlaces' falloff kept) */ \
+"				uint pk = ofs + uint(j);\n" \
+"				if (Lights[pk].shadow.w != 0.)\n" \
+"					continue;\n" \
+"				vec4 po = vec4(Lights[pk].origin, Lights[pk].radius);\n" \
+"				vec3 ptl = po.xyz - pos;\n" \
+"				float pd2 = dot(ptl, ptl);\n" \
+"				if (pd2 >= po.w * po.w)\n" \
+"					continue;\n" \
+"				float pinv = inversesqrt(max(pd2, 1e-12));\n" \
+"				vec3 pdir = ptl * pinv;\n" \
+"				vec4 psp = Lights[pk].spot;\n" \
+"				float pd = pd2 * pinv;\n" \
+"				float plit = (darkplaces ? DarkPlacesAtten(pd, po.w) : (po.w - pd) * unit) * (1.0 - smoothstep(0.0, 1.0, psp.w + dot(psp.xyz, pdir)));\n" /* SpotCone */ \
+"				if (plit <= 0.)\n" \
+"					continue;\n" \
+"				float pndl = dot(bumped, pdir);\n" \
+"				vec3 pcol = Lights[pk].color;\n" \
+"				float pamb = darkplaces ? Lights[pk].minlight : 0.3;\n" \
+"				total += plit * mix(1.0, pamb + (1.0 - pamb) * angleScale * max(pndl, 0.0), DlightAngle) * pcol;\n" \
+"				if (LightTweak.z > 0. && pndl > 0.)\n" \
+"					spec += plit * (pow(max(dot(bumped, normalize(pdir + toEye)), 0.0), SpecLobe.x) * SpecLobe.y * LightTweak.z) * pcol;\n" \
+"			}\n" \
+"#else\n" \
+"			Light l = Lights[ofs + uint(j)];\n" \
 "			if (l.shadow.w != 0.)\n" \
 "				continue;\n" \
 "			vec3 tl = l.origin - pos;\n" \
@@ -742,7 +851,11 @@ SPECULAR_AA_FUNCTIONS
 "			vec3 dir = tl * inv;\n" \
 "			float lit = (darkplaces ? DarkPlacesAtten(d, l.radius) : (l.radius - d) * unit) * (1.0 - smoothstep(0.0, 1.0, l.spot.w + dot(l.spot.xyz, dir))); // SpotCone\n" \
 "			if (lit > 0. && l.shadow.z > 0.)\n" \
+"#ifdef QVR_LITE_ONEFILTER\n" /* the ES lite form (C4l): one filter's code (vr_glsl_lighting.h) */ \
+"				lit *= mix(RetroShadowQuant(DlightShadowMap(l, spos, n)), 1.0, l.shadow2.y);\n" \
+"#else\n" \
 "				lit *= mix(RetroShadowQuant(l.shadow2.x > 0. ? SpotShadow(l, spos, n) : ShadowLookup(ShadowAtlas, l.shadow.xyz, ShadowOffset(spos - l.origin, n, l.shadow.z))), 1.0, l.shadow2.y);\n" \
+"#endif\n" \
 "			if (lit <= 0.)\n" \
 "				continue;\n" \
 "			float ndl = dot(bumped, dir);\n" \
@@ -750,6 +863,7 @@ SPECULAR_AA_FUNCTIONS
 "			total += lit * mix(1.0, ambient + (1.0 - ambient) * angleScale * max(ndl, 0.0), DlightAngle) * l.color;\n" \
 "			if (LightTweak.z > 0. && ndl > 0.)\n" \
 "				spec += lit * (pow(max(dot(bumped, normalize(dir + toEye)), 0.0), SpecLobe.x) * SpecLobe.y * LightTweak.z) * l.color;\n" \
+"#endif\n" /* (the plain form) */ \
 "		}\n" \
 "	}\n" \
 "	return total;\n" \
@@ -1272,11 +1386,50 @@ QVR_DENT_FUNCTIONS \
 // bare forearms' ends tinted to the hand's skin (vr/vr_view.cpp skinTint): the arms' skin block's rows towards the wrist
 // (SkinTintRange) times SkinTint's colour, more and more of it, all of it at the wrist where the hand comes out
 #define QVR_ALIAS_FS_SKINTINT \
+"#ifndef QVR_APLAIN_NOSKIN\n" \
 "	{\n" \
 "		vec4 st = instances[in_instance].SkinTint, sr = instances[in_instance].SkinTintRange;\n" \
 "		if (st.w > 0.0 && in_texcoord.x < sr.x && in_texcoord.y < sr.w)\n" \
 "			result.rgb *= mix(vec3(1.0), st.rgb, st.w * smoothstep(sr.y, sr.z, in_texcoord.y));\n" \
-"	}\n"
+"	}\n" \
+"#endif\n"
+
+// The ES lite form (GL_AliasLiteDefines, C4j; QUEST_PLAN.md 6q): retro lighting (vr_retrolight 0: its frame data all
+// 0, so RetroLight[5].z 0) taken out of main() as constants, as the world's QVR_WORLD_FS_LITE; after every function.
+#define QVR_ALIAS_FS_LITE \
+"#ifdef QVR_ALITE_NORETRO\n" /* -glesdefine's probe (C4l): the models' retro textures' code out (vr_retro 0; C4m: no safe cut, QUEST_PLAN.md 6t) */ \
+"#define RetroBegin(a, b, c, d, e, f, g) Retro = 0\n" \
+"#endif\n" \
+"#ifdef QVR_LITE_NORETROLIGHT\n" \
+"#define RetroLightBegin(a, b, c, d, e, f)\n" \
+"#define RetroLightModel(a, b, c)\n" \
+"#endif\n" \
+QVR_ALIAS_FS_PLAIN
+
+// The models' plain form (glprogs.alias_plain, C4k; QUEST_PLAN.md 6r): a batch whose every instance leaves a feature off
+// (vr_render.cpp VR_AliasPlainNeeds: its instance data's switch 0) is drawn by a program without that feature's code, as
+// the lite form does for the settings; Adreno pays for an untaken branch's registers. Each QVR_APLAIN_* one feature:
+// NOSKIN skin tone, gloves, nails, glove shells, forearm tint; NOGLOW hot blades and barrels, power-up and force grab
+// glows; NOWOUNDS painted wounds and the wet coat; NODENTS flesh dents; NOSTUMP stumps; NOBUMP the normal map; NOMORPH
+// morphs; NORIM rim light and reflections. Probes only (vr_gl_alias_plain_mask): NOAO the dynamic occlusion, NODLIGHTS
+// the dynamic lights.
+#define QVR_ALIAS_FS_PLAIN \
+"#ifdef QVR_APLAIN_NOSKIN\n" \
+"#define GloveSheen(b, c) vec3(0.0)\n" \
+"#define NailGloss(b, c, g) vec3(0.0)\n" \
+"#endif\n" \
+"#ifdef QVR_APLAIN_NOWOUNDS\n" \
+"#define WoundSheen(w, b) vec3(0.0)\n" \
+"#endif\n" \
+"#ifdef QVR_APLAIN_NORIM\n" \
+"#define ModelRimReflect(n, b, s, l) vec3(0.0)\n" \
+"#endif\n" \
+"#if defined(QVR_APLAIN_NOAO) || defined(QVR_ALITE_NOAO)\n" /* (C4x: the lite form's when the settings leave no occluder) */ \
+"#define DynamicAO(p, n, s, c, d) 1.0\n" \
+"#endif\n" \
+"#ifdef QVR_APLAIN_NODLIGHTS\n" \
+"#define ModelDynamicLights(n, b, s) ((s) = vec3(0.0), vec3(0.0))\n" \
+"#endif\n"
 
 // an armed humanoid's recolour by the weapon it spawned with (vr/vr_humlook.cpp, quakevr/humlook.txt): its skin's mask
 // (2 bits a Quake texel: 0 left, 1 clothes, 2 pack; built from the skin's palette rows and our painted texels) and the dye
@@ -1315,8 +1468,9 @@ QVR_DENT_FUNCTIONS \
 "		}\n" \
 "	}\n"
 
-// parallax occlusion mapping on the skin's heights
+// parallax occlusion mapping on the skin's heights (none in the ES lite form without parallax: every in_pdepth 0)
 #define QVR_ALIAS_FS_PARALLAX \
+"#ifndef QVR_LITE_NOPARALLAX\n" \
 "	// QVR: parallax occlusion mapping (vr_parallax_models) on the skin's heights, in the triangle's own frame, with\n" \
 "	// fewer steps than the world's; read with the surface's mip level (the moved coordinates jump at occlusions)\n" \
 "	if (in_pdepth != 0.) // < 0: an authored map's heights (real steep relief: all the world's steps)\n" \
@@ -1329,17 +1483,23 @@ QVR_DENT_FUNCTIONS \
 "		float pdepth = abs(in_pdepth) * (in_pdepth < 0. ? smoothstep(0.5, 0.8, -dot(normalize(in_pos), n)) : smoothstep(0.34, 0.64, -dot(normalize(in_pos), n)));\n" \
 "		if (pdepth > 0.)\n" \
 "			uv = ParallaxUV(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n, in_pos, pdepth, in_pdepth < 0. ? max(Parallax.z, 8.0) : max(Parallax.z * 0.5, 4.0), vec4(0.));\n" \
-"	}\n"
+"	}\n" \
+"#endif\n"
 
 // wounds, normal maps, occlusion, the model's light
 #define QVR_ALIAS_FS_LIGHT \
+"#ifdef QVR_APLAIN_NOWOUNDS\n" /* (the plain form: QVR_ALIAS_FS_PLAIN) */ \
+"	Wounds wounds = Wounds(0.0, 0.0, 0.0, result.rgb, 0.0, 0.0, vec3(0.0), vec2(0.0));\n" \
+"#else\n" \
 "	Wounds wounds = WoundsAt(uv, result.rgb); // QVR: wounds painted on the model (vr/vr_wounds.cpp)\n" \
+"#endif\n" \
 "	vec4 tone = instances[in_instance].SkinTone;\n" \
 "	vec4 glove = instances[in_instance].Glove;\n" \
 "	vec4 nails = instances[in_instance].Nails; // QVR: painted nails (vr_nails): the polish's colour, w 1 + its gloss (0 none)\n" \
 "	vec2 leatherSlope = vec2(0.0); // QVR: a glove's leather (GloveLeather): its relief, its cover, its sheen\n" \
 "	float leatherCover = 0.0, leatherGloss = 0.0;\n" \
 "	float nailCover = 0.0; // QVR: the polish's cover (for its smooth coat and gloss: NailGloss)\n" \
+"#ifndef QVR_APLAIN_NOSKIN\n" \
 "	if (tone.w > 0.0 || glove.w > 0.0 || nails.w > 0.0) // QVR: skin only (vr_skin_tone): the skin's share of the look toned, painted blood/char keep their colour,\n" \
 "	{ // their soft edges blending in (no untoned ring); gloves (vr_gloves) over it, the skin toned where they leave it bare\n" \
 "		float skinShare = (1.0 - wounds.burn) * (1.0 - wounds.blood * instances[in_instance].WoundSide.w);\n" \
@@ -1420,7 +1580,9 @@ QVR_DENT_FUNCTIONS \
 "		}\n" \
 "		wounds.look += skinShare * (mix(toned, leather, cover) - result.rgb);\n" \
 "	}\n" \
+"#endif\n" \
 "	result.rgb = wounds.look;\n" \
+"#ifndef QVR_APLAIN_NOSTUMP\n" \
 "	if (in_stump.w < 1.1) // QVR: a cut-off limb's stump (StumpFlesh): the cone closing it and round it, its edge ragged\n" \
 "	{\n" \
 "		vec3 sc = in_stump.xyz * 2.5;\n" \
@@ -1429,6 +1591,7 @@ QVR_DENT_FUNCTIONS \
 "		wounds.gloss = mix(wounds.gloss, 0.25, cover); // (wet, not glazed)\n" \
 "		wounds.flatten = max(wounds.flatten, cover);\n" \
 "	}\n" \
+"#endif\n" \
 "	if (wounds.wet > 0.0 && instances[in_instance].GloveShell.w < 1.5) // QVR: the wet coat (vr/vr_wounds.cpp wetCoat): all of the look a little darker,\n" \
 "	{ // evenly (not a fullbright texel's: unlit); w 2 (a brain chunk's own wetness: VR_AliasWetCoat) only shines\n" \
 "		float wetDark = 0.3 * min(wounds.wet, 2.0);\n" \
@@ -1438,7 +1601,11 @@ QVR_DENT_FUNCTIONS \
 "		result.rgb *= 1.0 - wetDark;\n" \
 "		wounds.flatten = max(wounds.flatten, 0.35 * min(wounds.wet, 1.0)); // the film fills the bumps a little\n" \
 "	}\n" \
+"#ifdef QVR_APLAIN_NODENTS\n" /* (the plain form) */ \
+"	Dented dent = Dented(0.0, 0.0, 0.0, 1e9, vec3(0.0));\n" \
+"#else\n" \
 "	Dented dent = DentsAt(); // QVR: flesh dents (vr/vr_dents.cpp): raw flesh in the crater, a bloody rim round it\n" \
+"#endif\n" \
 "	if (dent.cover + dent.rim > 0.0)\n" \
 "	{\n" \
 "		result.rgb = mix(result.rgb, vec3(0.3, 0.02, 0.02) * (0.7 + 0.6 * dot(result.rgb, vec3(0.3, 0.59, 0.11))), dent.rim * 0.85);\n" \
@@ -1454,9 +1621,17 @@ QVR_DENT_FUNCTIONS \
 "#else\n" \
 "	vec3 emissive = result.rgb * (1.0 - result.a); // QVR: fullbright texels, unlit (ALPHABRIGHT skins keep them in the alpha)\n" \
 "#endif\n" \
+"#ifdef QVR_PROBE_ALOOKEND\n" /* vr_gles_define's probe (C4m): the models' shader ended after their look (skin, wounds, dents) */ \
+"	out_fragcolor = vec4(result.rgb * in_color.rgb, 1.0);\n" \
+"	return;\n" \
+"#endif\n" \
 "	// QVR: the normal bent by the skin's normal map (vr_normalmaps), for the model's own light and the dynamic lights\n" \
 "	vec3 n = normalize(in_nor);\n" \
+"#ifdef QVR_APLAIN_NOBUMP\n" \
+"	const float bumpk = 0.0;\n" \
+"#else\n" \
 "	float bumpk = instances[in_instance].AO.z; // QVR: its normal map's strength: a made one's LightTweak.w, an authored one's own (vr_normalmap_authored)\n" \
+"#endif\n" \
 "	vec3 bumped = bumpk > 0. && (in_bumplight.w > 0. || NumLights > 0u || instances[in_instance].Ambient[0].w > 0.) ? BumpedNormalK(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n, bumpk) : n;\n" \
 "	if (leatherCover > 0.) // QVR: a glove's leather: the skin's bumps (creases, nails) under it gone, its own relief instead:\n" \
 "	{ // its painted relief's normal map (vr_glove_relief; vr_render.cpp gloveHeightToNormals: one tap, mipmapped) and its grain\n" \
@@ -1482,6 +1657,8 @@ QVR_DENT_FUNCTIONS \
 "		bumped = DentBump(normalize(mix(bumped, n, dent.cover)), dent.grad, drdx, drdy, dpdx, dpdy);\n" \
 "#if ALPHATEST\n" \
 "	SpecularAA(0.0); // QVR: the normal map's spread only (no derivatives after the discard)\n" \
+"#elif defined(QVR_PROBE_ANOSPECAA)\n" /* vr_gles_define's probe (C4m) */ \
+"	SpecularAA(0.0);\n" \
 "#else\n" \
 "	SpecularAA(Parallax.w > 0. ? NormalSpread(bumped) : 0.0); // QVR: the sheen's lobe widened by the bumps and curves under the pixel (vr_specular_aa)\n" \
 "#endif\n" \
@@ -1492,11 +1669,24 @@ QVR_DENT_FUNCTIONS \
 "	// (in_vao clamped: under foveated rendering's coarse shading a fragment's inputs are interpolated at its block's\n" \
 "	// centre, which can be past the triangle's edge, where in_vao runs on below 0: sqrt gave NaN, drawn white)\n" \
 "	float vao = clamp(in_vao, 0.0, 1.0);\n" \
+"#ifdef QVR_APLAIN_VLIGHT\n" /* C4y: the plain forms' light worked out at the vertices (QVR_ALIAS_VS_VLIGHT) */ \
+"	vec3 own_light = in_vlight;\n" \
+"#else\n" \
 "	float occlusion = vao * DynamicAO(in_pos + EyePos, AONormal(n, in_bumplight.xyz), instances[in_instance].AO.x, in_coord, in_depth);\n" \
+"#ifdef QVR_PROBE_AAMB\n" /* vr_gles_define's probe (C4m): the model's own light the vertex light alone */ \
+"	vec3 own_light = in_color.rgb;\n" \
+"#else\n" \
 "	vec3 own_light = in_color.rgb * ModelBumpShade(n, bumped) * ModelAmbient(n, bumped) * occlusion; // QVR\n" \
+"#endif\n" \
+"#endif\n" \
 "	if (dent.depth > 0.0) // QVR: a dent's bowl shaded by the model's light whatever the bumps' share of it: its far wall lit, its near one dark\n" \
 "		own_light *= max(1.0 + 1.2 * dot(bumped - n * dot(bumped, n), in_bumplight.xyz * inversesqrt(max(dot(in_bumplight.xyz, in_bumplight.xyz), 1e-6))), 0.3);\n" \
+"#if defined(QVR_APLAIN_VLIGHT)\n" \
+"	vec3 dyn_light = in_vdyn; // (C4y: no sheen from them)\n" \
+"	spec = vec3(0.0);\n" \
+"#else\n" \
 "	vec3 dyn_light = ModelDynamicLights(n, bumped, spec) * sqrt(vao); // QVR\n" \
+"#endif\n" \
 "	if (RetroLight[5].z > 0.) // QVR: retro lighting's levels (vr_retrolight.h; no derivatives after the discard)\n" \
 "	{\n" \
 "#if ALPHATEST\n" \
@@ -1514,6 +1704,7 @@ QVR_DENT_FUNCTIONS \
 "	vec3 glowing = fullbright + emissive;\n" \
 "	result.rgb += fullbright + glowing * (in_fbboost * (1.0 - max(glowing.r, max(glowing.g, glowing.b))));\n" \
 "	result.rgb += wounds.glow; // QVR: a fresh burn's embers\n" \
+"#ifndef QVR_APLAIN_NOGLOW\n" \
 "	if (in_glow > 3.5) // QVR: an incandescent blade (vr/vr_meleehud.cpp hotGlow): 4 + 2 x its colour (16 levels a channel: r + 16g + 256b) + its strength (0..2); the metal glows from within, its bright parts most and yellower\n" \
 "	{\n" \
 "		vec4 hb = instances[in_instance].HotBlade; // QVR: only the blade glows: a plane across it in the pose's space (vr/vr_hotblade.cpp bladePlane; zero: all of it)\n" \
@@ -1552,8 +1743,11 @@ QVR_DENT_FUNCTIONS \
 "		float glowStrength = in_glow > 1.5 ? in_glow - 2.0 : abs(in_glow);\n" \
 "		result.rgb += glowColor * glowStrength * (pow(rim, 2.0) * 1.1 + (in_glow > 0. ? 0.08 : 0.12));\n" \
 "	}\n" \
+"#endif\n" \
 "	result.rgb += morphSeam; // QVR: a morph's glowing seam\n" \
+"#ifndef QVR_ALIAS_OPAQUE\n" /* QVR: the opaque form (glprogs.alias_opaque, vr_gl_alias_opaque): no discard, so a tiler rejects hidden pixels before shading them (C4i) */ \
 "	if (!morphShown) // QVR: this model is not there yet (or any more) in a morph\n" \
 "		discard;\n" \
 "	if (in_color.a < 1.0 && BehindShownGate(in_pos + EyePos)) // QVR: see-through, behind a teleporter shown in this view\n" \
-"		discard;\n"
+"		discard;\n" \
+"#endif\n"

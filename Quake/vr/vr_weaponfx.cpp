@@ -34,16 +34,16 @@
 #include "vr_weight.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
-#include "Zancle/Vocabulary/Span.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 
 namespace qvr::weaponfx
@@ -1346,7 +1346,7 @@ void conversionTest(const Check& check)
         }
         const RecoilAmount a = recoilAmount(s, 1.f, 1.f, 0.f);
         const float back = weapons::value(s, Key::RecoilReturn);
-        const auto changed = [&](Key key) { return strcmp(weapons::cvar(s, key)->string, weapons::cvar(s, key)->default_string); };
+        const auto changed = [&](Key key) { return ZA_STRCMP(weapons::cvar(s, key)->string, weapons::cvar(s, key)->default_string); };
         // (a slot at the shipped recoil of then takes today's defaults: takeRecoilUnits74)
         const weapons::NewRecoil n = weapons::convertRecoil(o, g);
         const weapons::NewRecoil then = weapons::convertRecoil(weapons::oldRecoilDefault(s), weapons::OldRecoilGlobals{});

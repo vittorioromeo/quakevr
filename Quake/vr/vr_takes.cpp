@@ -20,6 +20,10 @@
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
@@ -165,7 +169,7 @@ za::Vector<gfx::Vertex> discVerts;  // the light
 // A take number in a file's name: <prefix><NN>_..., else 0.
 [[nodiscard]] int numberIn(const char* name, const za::String& prefix)
 {
-    if(strncmp(name, prefix.cStr(), prefix.size()))
+    if(ZA_STRNCMP(name, prefix.cStr(), prefix.size()))
     {
         return 0;
     }
@@ -201,7 +205,7 @@ za::Vector<gfx::Vertex> discVerts;  // the light
         scan(dir);
         scan(files::join(dir.toStringView(), "rejected"));
         files::forEachEntry(dir.cStr(), [&](const char* name, bool isDirectory) {
-            if(isDirectory && !strncmp(name, "session_", 8))
+            if(isDirectory && !ZA_STRNCMP(name, "session_", 8))
             {
                 scan(files::join(dir.toStringView(), name));
             }
@@ -457,27 +461,27 @@ void message(const za::String& text)
         const char* type = JSON_FindString(d, "eventType");
         const jsonentry_t* data = JSON_Find(d, "eventData", JSON_OBJECT);
         const char* state = data ? JSON_FindString(data, "outputState") : nullptr;
-        if(type && state && !strcmp(type, "RecordStateChanged"))
+        if(type && state && !ZA_STRCMP(type, "RecordStateChanged"))
         {
-            if(!strcmp(state, "OBS_WEBSOCKET_OUTPUT_STARTED"))
+            if(!ZA_STRCMP(state, "OBS_WEBSOCKET_OUTPUT_STARTED"))
             {
                 recordStarted();
             }
-            else if(!strcmp(state, "OBS_WEBSOCKET_OUTPUT_STOPPED"))
+            else if(!ZA_STRCMP(state, "OBS_WEBSOCKET_OUTPUT_STOPPED"))
             {
                 recordStopped(JSON_FindString(data, "outputPath"));
             }
         }
-        else if(type && state && !strcmp(type, "ReplayBufferStateChanged"))
+        else if(type && state && !ZA_STRCMP(type, "ReplayBufferStateChanged"))
         {
-            if(!strcmp(state, "OBS_WEBSOCKET_OUTPUT_STARTED"))
+            if(!ZA_STRCMP(state, "OBS_WEBSOCKET_OUTPUT_STARTED"))
             {
                 session.replaySince = realtime;
             }
-            session.replayActive = !strcmp(state, "OBS_WEBSOCKET_OUTPUT_STARTED") ||
-                                   (session.replayActive && strcmp(state, "OBS_WEBSOCKET_OUTPUT_STOPPED"));
+            session.replayActive = !ZA_STRCMP(state, "OBS_WEBSOCKET_OUTPUT_STARTED") ||
+                                   (session.replayActive && ZA_STRCMP(state, "OBS_WEBSOCKET_OUTPUT_STOPPED"));
         }
-        else if(type && data && !strcmp(type, "ReplayBufferSaved"))
+        else if(type && data && !ZA_STRCMP(type, "ReplayBufferSaved"))
         {
             replaySaved(JSON_FindString(data, "savedReplayPath"));
         }
@@ -493,7 +497,7 @@ void message(const za::String& text)
         if(!type)
         {
         }
-        else if(!strcmp(type, "GetVideoSettings") && good && data)
+        else if(!ZA_STRCMP(type, "GetVideoSettings") && good && data)
         {
             const double* num = JSON_FindNumber(data, "fpsNumerator");
             const double* den = JSON_FindNumber(data, "fpsDenominator");
@@ -504,24 +508,24 @@ void message(const za::String& text)
             session.width = w ? static_cast<int>(*w) : 0;
             session.height = h ? static_cast<int>(*h) : 0;
         }
-        else if(!strcmp(type, "GetRecordDirectory") && good && data)
+        else if(!ZA_STRCMP(type, "GetRecordDirectory") && good && data)
         {
             const char* dir = JSON_FindString(data, "recordDirectory");
             session.recordDir = files::generic(dir ? dir : "");
         }
-        else if(!strcmp(type, "GetOutputSettings") && good && data)
+        else if(!ZA_STRCMP(type, "GetOutputSettings") && good && data)
         {
             const jsonentry_t* settings = JSON_Find(data, "outputSettings", JSON_OBJECT);
             const double* seconds = settings ? JSON_FindNumber(settings, "max_time_sec") : nullptr;
             session.clipSeconds = seconds && *seconds > 0.0 ? *seconds : 0.0;
         }
-        else if(!strcmp(type, "StopRecord") && good && data)
+        else if(!ZA_STRCMP(type, "StopRecord") && good && data)
         {
             recordStopped(JSON_FindString(data, "outputPath")); // (the file, if the event had none)
         }
-        else if(!strcmp(type, "StartReplayBuffer"))
+        else if(!ZA_STRCMP(type, "StartReplayBuffer"))
         {
-            if(good || (comment && strstr(comment, "already")))
+            if(good || (comment && ZA_STRSTR(comment, "already")))
             {
                 session.replayActive = true;
             }
@@ -533,14 +537,14 @@ void message(const za::String& text)
                     comment ? comment : "?");
             }
         }
-        else if(!strcmp(type, "CreateRecordChapter"))
+        else if(!ZA_STRCMP(type, "CreateRecordChapter"))
         {
             if(!good)
             {
                 Con_DPrintf("takes: OBS made no chapter (%s): the marks are kept in the take alone\n", comment ? comment : "?");
             }
         }
-        else if(!good && (!strcmp(type, "StartRecord") || !strcmp(type, "StopRecord") || !strcmp(type, "SaveReplayBuffer")))
+        else if(!good && (!ZA_STRCMP(type, "StartRecord") || !ZA_STRCMP(type, "StopRecord") || !ZA_STRCMP(type, "SaveReplayBuffer")))
         {
             Con_Printf("takes: OBS's %s failed: %s\n", type, comment ? comment : "?");
         }
@@ -684,7 +688,7 @@ void take_f()
 {
     if(Cmd_Argc() > 1 && obs::ready())
     {
-        doTake(!strcmp(Cmd_Argv(1), "start") ? 1 : !strcmp(Cmd_Argv(1), "stop") ? 0 : -1);
+        doTake(!ZA_STRCMP(Cmd_Argv(1), "start") ? 1 : !ZA_STRCMP(Cmd_Argv(1), "stop") ? 0 : -1);
         return;
     }
     act(Pending::Take);
@@ -754,7 +758,7 @@ void list_f()
 void session_f()
 {
     const char* a = Cmd_Argc() > 1 ? Cmd_Argv(1) : "status";
-    if(!strcmp(a, "start"))
+    if(!ZA_STRCMP(a, "start"))
     {
         if(!obs::ready())
         {
@@ -762,7 +766,7 @@ void session_f()
         }
         openSession();
     }
-    else if(!strcmp(a, "end"))
+    else if(!ZA_STRCMP(a, "end"))
     {
         if(runningTake())
         {
@@ -1578,7 +1582,7 @@ void drawInEye(const hands::State& s)
     shapeVerts.clear();
     discVerts.clear();
     const auto line = [&](const char* text, const glm::vec3& at, const glm::vec4& color) {
-        const float len = static_cast<float>(strlen(text));
+        const float len = static_cast<float>(ZA_STRLEN(text));
         quad(shapeVerts, at - r * (ch * 0.3f) - u * (ch * 0.25f), r * (ch * (len + 0.6f)), u * (ch * 1.5f), {0.f, 0.f, 0.f, 0.5f}, false);
         for(int i = 0; text[i]; i++)
         {

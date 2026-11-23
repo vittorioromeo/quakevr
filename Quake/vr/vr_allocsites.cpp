@@ -20,6 +20,10 @@
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Chrono/Time.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
@@ -160,14 +164,14 @@ void heapTest()
     void* c = calloc(3, 40);
     expect(c, "calloc");
     for(int i = 0; c && i < 120; i++) ok = ok && static_cast<unsigned char*>(c)[i] == 0;
-    if(m) memcpy(m, "mimalloc", 9);
+    if(m) ZA_MEMCPY(m, "mimalloc", 9);
     m = realloc(m, 5000);
     expect(m, "realloc");
-    ok = ok && m && memcmp(m, "mimalloc", 9) == 0;
+    ok = ok && m && ZA_MEMCMP(m, "mimalloc", 9) == 0;
     ok = ok && realloc(c, 0) == nullptr; // frees it (the C runtime's semantics)
     char* d = strdup("quake");
     expect(d, "strdup");
-    ok = ok && d && strcmp(d, "quake") == 0;
+    ok = ok && d && ZA_STRCMP(d, "quake") == 0;
     void* hm = VR_HeapMalloc(100);
     expect(hm, "VR_HeapMalloc");
     int* n = new int(7);
@@ -215,14 +219,14 @@ void tempTest()
     const int base = Temp_Mark();
     bool ok = true;
     auto* a = static_cast<unsigned char*>(Temp_Alloc(200 * 1024));
-    memset(a, 0x11, 200 * 1024);
+    ZA_MEMSET(a, 0x11, 200 * 1024);
     const int m1 = Temp_Mark();
     ok = ok && m1 >= base + 200 * 1024 && reinterpret_cast<uintptr_t>(a) % 16 == 0;
     auto* b = static_cast<unsigned char*>(Temp_Alloc(200 * 1024)); // past the first chunk: the next one
-    memset(b, 0x22, 200 * 1024);
+    ZA_MEMSET(b, 0x22, 200 * 1024);
     const int m2 = Temp_Mark();
     auto* big = static_cast<unsigned char*>(Temp_Alloc(3 * 1024 * 1024)); // larger than the next chunk would be
-    memset(big, 0x33, 3 * 1024 * 1024);
+    ZA_MEMSET(big, 0x33, 3 * 1024 * 1024);
     ok = ok && Temp_Mark() > m2 && reinterpret_cast<uintptr_t>(big) % 16 == 0;
     Temp_FreeToMark(m2);
     ok = ok && Temp_Mark() == m2 && b[0] == 0x22 && b[200 * 1024 - 1] == 0x22 && a[0] == 0x11;
@@ -295,7 +299,7 @@ void heapStressThread(HeapStressShared& shared, za::U32 seed)
                     if(!p || p[0] != s.tag) errors++;
                     s.p = p;
                     s.size = size;
-                    memset(p, s.tag, size);
+                    ZA_MEMSET(p, s.tag, size);
                 }
                 else if(s.kind <= 1 && r % 4 == 1) // to another thread
                 {
@@ -320,7 +324,7 @@ void heapStressThread(HeapStressShared& shared, za::U32 seed)
                   : s.kind == 2 ? new unsigned char[size]
                                 : static_cast<unsigned char*>(::operator new(size, std::align_val_t{64}));
             if(s.kind == 1 && (s.p[0] != 0 || s.p[size - 1] != 0)) errors++;
-            memset(s.p, s.tag, size);
+            ZA_MEMSET(s.p, s.tag, size);
         }
         // Another thread's blocks freed here.
         void* theirs[64];

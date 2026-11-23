@@ -22,7 +22,9 @@
 #include "vr_testkit.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -33,7 +35,6 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 
 namespace qvr
 {
@@ -250,7 +251,7 @@ void newDefault()
         const bool atDefault = !VR_ConfigSaves(var);
         MovedDefault* slot = atDefault && !isSlot(var) && !m[0].var ? &m[0]
                              : atDefault && isSlot(var) && !m[1].var ? &m[1]
-                             : !atDefault && !isSlot(var) && !m[2].var && !strstr(var->name, "_version") ? &m[2]
+                             : !atDefault && !isSlot(var) && !m[2].var && !ZA_STRSTR(var->name, "_version") ? &m[2]
                                                                                                                  : nullptr;
         if(!slot)
         {
@@ -294,7 +295,7 @@ void otherCopy()
     m[0] = m[1] = MovedDefault{};
     for(cvar_t* var = firstArchived(); var; var = nextArchived(var))
     {
-        if(!plain(var) || !isNumber(var->default_string) || isSlot(var) || strstr(var->name, "_version"))
+        if(!plain(var) || !isNumber(var->default_string) || isSlot(var) || ZA_STRSTR(var->name, "_version"))
         {
             continue;
         }
@@ -380,7 +381,7 @@ void hasLine()
     }
     want += va("\"%s\"", Cmd_Argv(Cmd_Argc() - 1)); // (then \n or \r\n: the closing quote ends the value)
     const za::String all = za::String{"\n"} + text;
-    configTest.tally.check(strstr(all.cStr(), want.cStr()) != nullptr, testName, va("%s has no line %s", name, want.cStr() + 1));
+    configTest.tally.check(ZA_STRSTR(all.cStr(), want.cStr()) != nullptr, testName, va("%s has no line %s", name, want.cStr() + 1));
 }
 
 // A check's line either way: "config_test: PASS|FAIL <what>".
@@ -432,8 +433,8 @@ void trackEdit()
     cvar_t* var = nullptr;
     for(cvar_t* v = firstArchived(); v && !var; v = Cvar_FindVarAfter(v->name, CVAR_ARCHIVE))
     {
-        var = plain(v) && !isSlot(v) && isNumber(v->default_string) && !strcmp(v->string, v->default_string)
-                      && !strstr(v->name, "_version")
+        var = plain(v) && !isSlot(v) && isNumber(v->default_string) && !ZA_STRCMP(v->string, v->default_string)
+                      && !ZA_STRSTR(v->name, "_version")
                   ? v
                   : nullptr;
     }
@@ -441,7 +442,7 @@ void trackEdit()
     const auto tables = standInTables(); // (held: a range-for over standInTables()[0] would dangle)
     for(cvar_t& v : tables[0])
     {
-        standIn = standIn ? standIn : isNumber(v.default_string) && !strcmp(v.string, v.default_string) ? &v : nullptr;
+        standIn = standIn ? standIn : isNumber(v.default_string) && !ZA_STRCMP(v.string, v.default_string) ? &v : nullptr;
     }
     if(!configTest.tally.check(var && standIn, testName, "trackedit: no settings to change"))
     {
@@ -537,59 +538,59 @@ void test_f()
 {
     const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
     const char* arg = Cmd_Argc() > 2 ? Cmd_Argv(2) : "";
-    if(!strcmp(step, "snap"))
+    if(!ZA_STRCMP(step, "snap"))
     {
         snap();
     }
-    else if(!strcmp(step, "hasline") && Cmd_Argc() >= 5)
+    else if(!ZA_STRCMP(step, "hasline") && Cmd_Argc() >= 5)
     {
         hasLine();
     }
-    else if(!strcmp(step, "checkfile") && *arg)
+    else if(!ZA_STRCMP(step, "checkfile") && *arg)
     {
         checkFile(arg);
     }
-    else if(!strcmp(step, "scramble"))
+    else if(!ZA_STRCMP(step, "scramble"))
     {
         scramble();
     }
-    else if(!strcmp(step, "compare"))
+    else if(!ZA_STRCMP(step, "compare"))
     {
         compare();
     }
-    else if(!strcmp(step, "newdefault"))
+    else if(!ZA_STRCMP(step, "newdefault"))
     {
         newDefault();
     }
-    else if(!strcmp(step, "checkdefault"))
+    else if(!ZA_STRCMP(step, "checkdefault"))
     {
         checkDefault();
     }
-    else if(!strcmp(step, "othercopy"))
+    else if(!ZA_STRCMP(step, "othercopy"))
     {
         otherCopy();
     }
-    else if(!strcmp(step, "checkmerge"))
+    else if(!ZA_STRCMP(step, "checkmerge"))
     {
         checkMerge();
     }
-    else if(!strcmp(step, "dumpfull") && *arg)
+    else if(!ZA_STRCMP(step, "dumpfull") && *arg)
     {
         dumpFull(arg);
     }
-    else if(!strcmp(step, "tracked"))
+    else if(!ZA_STRCMP(step, "tracked"))
     {
         tracked();
     }
-    else if(!strcmp(step, "trackedit"))
+    else if(!ZA_STRCMP(step, "trackedit"))
     {
         trackEdit();
     }
-    else if(!strcmp(step, "cost"))
+    else if(!ZA_STRCMP(step, "cost"))
     {
         cost(*arg ? za::max(Q_atoi(arg), 1) : 20);
     }
-    else if(!strcmp(step, "done"))
+    else if(!ZA_STRCMP(step, "done"))
     {
         configTest.tally.verdict(testName);
         configTest.tally.reset();

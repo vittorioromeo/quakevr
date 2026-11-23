@@ -18,6 +18,8 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -497,11 +499,11 @@ namespace
 {
     const char* name = ad::vrClass(PR_GetString(ent->v.classname)); // AD support: AD's knights in plate sink as knights
     float own = 1.f;
-    if(!strcmp(name, "monster_knight") || !strcmp(name, "monster_hell_knight") || !strcmp(name, "monster_ranged_knight"))
+    if(!ZA_STRCMP(name, "monster_knight") || !ZA_STRCMP(name, "monster_hell_knight") || !ZA_STRCMP(name, "monster_ranged_knight"))
     {
         own = 0.85f;
     }
-    else if(!strcmp(name, "monster_enforcer"))
+    else if(!ZA_STRCMP(name, "monster_enforcer"))
     {
         own = 0.92f;
     }
@@ -520,8 +522,8 @@ namespace
 [[nodiscard]] bool torsoPart(const ragdoll::Rig& rig, int b)
 {
     const char* name = rig.bones[b].name;
-    return b == 0 || !strncmp(name, "chest", 5) || !strncmp(name, "spine", 5) || !strncmp(name, "torso", 5) ||
-           !strncmp(name, "belly", 5);
+    return b == 0 || !ZA_STRNCMP(name, "chest", 5) || !ZA_STRNCMP(name, "spine", 5) || !ZA_STRNCMP(name, "torso", 5) ||
+           !ZA_STRNCMP(name, "belly", 5);
 }
 
 // One awake body in a liquid: its lift for this step (applied; returned for liftAgain: N up) and its drag. 0 out of any.

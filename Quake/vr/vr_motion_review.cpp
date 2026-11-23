@@ -7,6 +7,7 @@
 #include "vr_motion.hpp"
 #include "vr_motion_take.hpp"
 
+#include "vr_api.h"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -26,6 +27,7 @@
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -37,7 +39,6 @@
 #include "vr_zancle.hpp"
 
 #include <stdio.h>
-#include <string.h>
 #include <time.h>
 #include <map>
 
@@ -723,6 +724,13 @@ void startJob(const za::Vector<za::String>& paths)
     if(COM_CheckParm("-evalcopy"))
     {
         say("this is the evaluation's copy of the game: it doesn't start another", false);
+        return;
+    }
+    if(!VR_ChildProcesses())
+    {
+        say("the re-evaluation runs in a second copy of the game: none on this platform (Android, -nochildprocesses); "
+            "run vr_motion_eval here instead",
+            false);
         return;
     }
     if(jobRunning)
@@ -1448,7 +1456,7 @@ void review_f()
     else if(cmd == "stopeval") stopReevaluation();
     else if(cmd == "reeval")
     {
-        if(Cmd_Argc() > 2 && !strcmp(Cmd_Argv(2), "take"))
+        if(Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(2), "take"))
         {
             reevaluateTake();
         }
@@ -1462,13 +1470,13 @@ void review_f()
         const auto& list = categories();
         for(size_t c = 0; c < list.size(); c++)
         {
-            if(!strcmp(list[c].choice.name, Cmd_Argv(2)))
+            if(!ZA_STRCMP(list[c].choice.name, Cmd_Argv(2)))
             {
                 Cvar_SetValueQuick(&vr_motion_relabel_category, static_cast<float>(c));
                 int detail = 0;
                 for(size_t d = 0; Cmd_Argc() > 3 && d < list[c].details.size(); d++)
                 {
-                    if(!strcmp(list[c].details[d].name, Cmd_Argv(3)))
+                    if(!ZA_STRCMP(list[c].details[d].name, Cmd_Argv(3)))
                     {
                         detail = static_cast<int>(d);
                     }
@@ -1776,7 +1784,7 @@ void replayMock()
         return;
     }
     const Backend* be = backend();
-    if(!be || strcmp(be->name(), "mock") != 0)
+    if(!be || ZA_STRCMP(be->name(), "mock") != 0)
     {
         say("Replay drives the tracking: the mock headset only (in the headset: Play Ghost)", false);
         return;

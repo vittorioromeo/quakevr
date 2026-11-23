@@ -28,12 +28,13 @@
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Iota.hpp"
 #include "Zancle/Algorithm/NthElement.hpp"
+#include "Zancle/Base/BitCast.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Chrono/Clock.hpp"
-#include "Zancle/Base/BitCast.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -2192,7 +2193,7 @@ extern "C" int VR_HitModelClip(edict_t* ent, const float* start, const float* mi
     {
         return 0;
     }
-    memset(trace, 0, sizeof(*trace));
+    ZA_MEMSET(trace, 0, sizeof(*trace));
     trace->fraction = h.t;
     trace->startsolid = h.startInside;
     trace->allsolid = false;
@@ -2363,7 +2364,7 @@ extern "C" int VR_ShotTargetClip(edict_t* mover, edict_t* touch, const float* st
         return 0;
     }
 
-    memset(trace, 0, sizeof(*trace));
+    ZA_MEMSET(trace, 0, sizeof(*trace));
     trace->inopen = true;
     trace->ent = touch;
     if(enter <= 0.f || axis < 0)

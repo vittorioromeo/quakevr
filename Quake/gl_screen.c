@@ -2648,6 +2648,11 @@ void SCR_UpdateScreen (void)
 		return;				// not initialized yet
 
 	VR_LoadJobsJoin (); // QVR: the load's work on the job threads committed before anything is drawn (vr/vr_normalmaps.cpp)
+	if (GL_ShadersPending ()) // QVR: (a print's redraw while the shaders are queued: as below)
+	{
+		VR_ShadersLoadingFrame ();
+		return;
+	}
 
 	if (VR_SkipScreen ()) // QVR: a test run's unpaced frames, not drawn (vr_mock_fast 2): the view set up alone
 	{
@@ -2659,6 +2664,12 @@ void SCR_UpdateScreen (void)
 		return;
 	}
 
+	GL_WorldLiteCheck (); // QVR: the ES lite world's programs made again if a setting changed what they leave out
+	if (GL_ShadersPending ()) // QVR: queued (gl_shaders.c, QUEST_PLAN.md 6zi): nothing drawn with them until done, the loading panel instead
+	{
+		VR_ShadersLoadingFrame ();
+		return;
+	}
 
 	GL_BeginRendering (&glx, &gly, &glwidth, &glheight);
 	scr_window.width = glwidth; // QVR: splitscreen: the tiles' window (a seat's pass shrinks glwidth to its tile)

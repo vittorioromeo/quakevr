@@ -25,6 +25,12 @@
 #include "vr_rigpose.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -33,14 +39,12 @@
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
-#include "Zancle/Base/Swap.hpp"
 #include "Zancle/String/String.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
 #include <stdlib.h>
-#include <string.h>
 
 namespace qvr::agarmor
 {
@@ -71,16 +75,16 @@ constexpr const char* regionNames[NumRegions] = {"neck", "shoulders", "waist", "
 [[nodiscard]] int regionOf(const rig2::Rig& rig, int bone)
 {
     const char* n = bone >= 0 && bone < rig.numBones ? rig.bones[bone].name : "";
-    if(!strcmp(n, "neck") || !strcmp(n, "head"))
+    if(!ZA_STRCMP(n, "neck") || !ZA_STRCMP(n, "head"))
     {
         return RNeck;
     }
-    if(!strncmp(n, "clavicle", 8) || !strncmp(n, "upperarm", 8) || !strncmp(n, "forearm", 7) || !strncmp(n, "hand", 4) ||
-       !strcmp(n, "weapon"))
+    if(!ZA_STRNCMP(n, "clavicle", 8) || !ZA_STRNCMP(n, "upperarm", 8) || !ZA_STRNCMP(n, "forearm", 7) || !ZA_STRNCMP(n, "hand", 4) ||
+       !ZA_STRCMP(n, "weapon"))
     {
         return RShoulders;
     }
-    if(!strcmp(n, "pelvis") || !strncmp(n, "thigh", 5) || !strncmp(n, "shin", 4) || !strncmp(n, "foot", 4))
+    if(!ZA_STRCMP(n, "pelvis") || !ZA_STRNCMP(n, "thigh", 5) || !ZA_STRNCMP(n, "shin", 4) || !ZA_STRNCMP(n, "foot", 4))
     {
         return RWaist;
     }
@@ -596,7 +600,7 @@ struct LookPose
     } bends[] = {{"forearm", -75.f}, {"shin", 70.f}, {"thigh", -40.f}, {"upperarm", -30.f}, {"spine", -12.f}, {"chest", -10.f}};
     for(const auto& b : bends)
     {
-        if(!strncmp(name, b.name, strlen(b.name)))
+        if(!ZA_STRNCMP(name, b.name, ZA_STRLEN(b.name)))
         {
             return b.degrees;
         }
@@ -727,7 +731,7 @@ void lookCoverage(const Shell& s, const rig2::Rig& rig, bool bent, float backCut
                 hit = rayHitsTri(o, d, at(posed, at(s.tris, k)), at(posed, at(s.tris, k + 1)), at(posed, at(s.tris, k + 2)), reach);
             }
             covered += hit ? 1 : 0;
-            if(!hit && !bent && piece == lookListPiece && lookListModel && !strcmp(lookListModel, s.model.cStr()))
+            if(!hit && !bent && piece == lookListPiece && lookListModel && !ZA_STRCMP(lookListModel, s.model.cStr()))
             {
                 const PlateTube& tb = s.tubes[piece];
                 const glm::vec3 q = at(s.body.p, v) - tb.origin;
@@ -966,7 +970,7 @@ void lookCheck_f()
         check(every, va("%s: every piece has plates", m));
         // Left against right.
         const rig2::Rig* rig = rigOfShell(src);
-        const bool player = !strncmp(m, "progs/vrbody", 12);
+        const bool player = !ZA_STRNCMP(m, "progs/vrbody", 12);
         const float widthLimit = player ? widthOverMost : widthOverMostAuthored, taperLimit = player ? taperOffMost : taperOffMostAuthored;
         float worst = lookMirror(*sp, *rig, Cuirass, Cuirass, !player);
         for(int p = PauldronL; p + 1 < NumPieces; p += 2)
@@ -979,13 +983,13 @@ void lookCheck_f()
             player ? "as it stands" : "its limbs in their own frames, their rest poses differ"));
         // The fit: the plates' width against the skin's, row by row; the taper; the step down each row.
         LookFit fit;
-        lookFit(*sp, *rig, strstr(m, "hknight") != nullptr, fit); // (a death knight's upper arms: its shoulder shells, not its upper arm's skin, are what they cover)
+        lookFit(*sp, *rig, ZA_STRSTR(m, "hknight") != nullptr, fit); // (a death knight's upper arms: its shoulder shells, not its upper arm's skin, are what they cover)
         check(fit.widthOver <= widthLimit, va("%s: each row follows the body: at most %.2f units wider than the skin (%s; limit %.2f), %.2f on each side on average", m, static_cast<double>(fit.widthOver), pieceNames[fit.widthPiece], static_cast<double>(widthLimit), static_cast<double>(fit.standoff)));
         check(fit.taperOff <= taperLimit, va("%s: the tapers the body's: thinnest to thickest row off by %.2f at worst (%s; limit %.2f; plates %.2f, body %.2f)", m, static_cast<double>(fit.taperOff), pieceNames[fit.taperPiece], static_cast<double>(taperLimit), static_cast<double>(fit.taperPlates), static_cast<double>(fit.taperBody)));
         check(fit.step >= stepLeast, va("%s: a real step at every row: %.2f units at least (limit %.2f)", m, static_cast<double>(fit.step), static_cast<double>(stepLeast)));
         // The skin under the plates.
         float rest[NumPieces], bent[NumPieces];
-        const float cut = strstr(m, "enforcer") ? -9.f : -1e9f;
+        const float cut = ZA_STRSTR(m, "enforcer") ? -9.f : -1e9f;
         lookCoverage(*sp, *rig, false, cut, rest);
         lookCoverage(*sp, *rig, true, cut, bent);
         float restLeast = 1.f, bentLeast = 1.f;
@@ -999,10 +1003,10 @@ void lookCheck_f()
             static_cast<double>(za::min(rest[BracerL], rest[BracerR])), static_cast<double>(za::min(bent[BracerL], bent[BracerR])), static_cast<double>(za::min(rest[ThighL], rest[ThighR])),
             static_cast<double>(za::min(bent[ThighL], bent[ThighR])), static_cast<double>(za::min(rest[ShinL], rest[ShinR])), static_cast<double>(za::min(bent[ShinL], bent[ShinR])));
         // (a death knight's shins: 82% at rest, their skin past the sleeves, which hug it; ROUND24.md, "Armour round four's loose ends")
-        const float restLimit = strstr(m, "hknight") ? 0.8f : coverRest;
+        const float restLimit = ZA_STRSTR(m, "hknight") ? 0.8f : coverRest;
         check(restLeast >= restLimit, va("%s: no body showing at rest: at least %.0f%% of each covered piece's skin under plates (%.0f%%)", m, static_cast<double>(restLimit * 100.f), static_cast<double>(restLeast * 100.f)));
         // (a death knight's upper arms: his shoulder shells stay on his clavicles, his arm bends out from under them)
-        const float bentLimit = strstr(m, "hknight") ? 0.6f : coverBent;
+        const float bentLimit = ZA_STRSTR(m, "hknight") ? 0.6f : coverBent;
         check(bentLeast >= bentLimit, va("%s: bent: at least %.0f%% (%.0f%%)", m, static_cast<double>(bentLimit * 100.f), static_cast<double>(bentLeast * 100.f)));
     }
     float hue[3]{}, sat[3]{};
@@ -1016,7 +1020,7 @@ void lookCheck_f()
         za::Vector<byte> rgba(static_cast<za::SizeT>(za::max(w * h, 1) * 4), byte{0});
         for(int i = 0; indexed && i < w * h; i++)
         {
-            memcpy(&rgba[static_cast<za::SizeT>(i * 4)], &d_8to24table[indexed[i]], 4);
+            ZA_MEMCPY(&rgba[static_cast<za::SizeT>(i * 4)], &d_8to24table[indexed[i]], 4);
         }
         const byte* px = indexed ? rgba.data() : nullptr;
         const enum srcformat fmt = SRC_RGBA;
@@ -1523,7 +1527,7 @@ void popPoseBone(const rig2::Rig& rig, int b, const PopDef& def, LookPose& pose)
         up = pose.m[parent];
     }
     const char* name = rig.bones[b].name;
-    const auto is = [&](const char* prefix) { return !strncmp(name, prefix, strlen(prefix)); };
+    const auto is = [&](const char* prefix) { return !ZA_STRNCMP(name, prefix, ZA_STRLEN(prefix)); };
     const float deg = is("forearm") ? def.forearm : is("shin") ? def.shin : is("thigh") ? def.thigh : is("upperarm") ? def.upperarm : is("spine") ? def.spine : is("chest") ? def.spine * 0.8f : 0.f;
     const float a = glm::radians(deg);
     glm::mat4 turn{1.f};
@@ -1561,7 +1565,7 @@ void popCheck_f()
     };
     for(const char* m : all)
     {
-        if(Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), m))
+        if(Cmd_Argc() > 1 && ZA_STRCMP(Cmd_Argv(1), m))
         {
             continue;
         }
@@ -1593,7 +1597,7 @@ void popCheck_f()
                 popPoseBone(*rig, b, popDefs[d], pose);
             }
             PopTotals& one = at(perPose, d);
-            popListMask = Cmd_Argc() > 3 && !strcmp(Cmd_Argv(2), popDefs[d].name) ? atoi(Cmd_Argv(3)) : 0;
+            popListMask = Cmd_Argc() > 3 && !ZA_STRCMP(Cmd_Argv(2), popDefs[d].name) ? atoi(Cmd_Argv(3)) : 0;
             popPose(*sp, *rig, pose.m, one);
             popListMask = 0;
             const PopTally& x = one.states[0];
@@ -1664,7 +1668,7 @@ void popSample_f()
             continue;
         }
         int slot = 0;
-        while(slot < popLiveCount && strcmp(popLive[slot].model.cStr(), s->model.cStr()))
+        while(slot < popLiveCount && ZA_STRCMP(popLive[slot].model.cStr(), s->model.cStr()))
         {
             slot++;
         }

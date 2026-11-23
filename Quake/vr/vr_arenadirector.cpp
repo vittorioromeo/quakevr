@@ -7,6 +7,11 @@
 #include "vr_engine.hpp"
 #include "vr_testkit.hpp"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -51,7 +56,7 @@ struct Block
     {
         for(int i = 0; i < n; i++)
         {
-            if(!strcmp(keys[i], k))
+            if(!ZA_STRCMP(keys[i], k))
             {
                 return vals[i];
             }
@@ -68,7 +73,7 @@ struct Block
     [[nodiscard]] bool word(const char* k, const char* w) const
     {
         const char* s = str(k);
-        const size_t len = strlen(w);
+        const size_t len = ZA_STRLEN(w);
         while(*s)
         {
             while(*s == ' ')
@@ -80,7 +85,7 @@ struct Block
             {
                 e++;
             }
-            if(static_cast<size_t>(e - s) == len && !strncmp(s, w, len))
+            if(static_cast<size_t>(e - s) == len && !ZA_STRNCMP(s, w, len))
             {
                 return true;
             }
@@ -134,7 +139,7 @@ const Block empty{};
 {
     for(int i = 0; i < data.n; i++)
     {
-        if(!strcmp(data.blocks[i].kind, kind) && !strcmp(data.blocks[i].name, name))
+        if(!ZA_STRCMP(data.blocks[i].kind, kind) && !ZA_STRCMP(data.blocks[i].name, name))
         {
             return &data.blocks[i];
         }
@@ -185,12 +190,12 @@ bool load()
             break;
         }
         q_strlcpy(b.name, com_token, sizeof(b.name));
-        if(!(p = COM_Parse(p)) || strcmp(com_token, "{") != 0)
+        if(!(p = COM_Parse(p)) || ZA_STRCMP(com_token, "{") != 0)
         {
             Con_Printf("\x02%s: \"%s %s\": no {\n", dataPath, b.kind, b.name);
             break;
         }
-        while((p = COM_Parse(p)) != nullptr && strcmp(com_token, "}") != 0)
+        while((p = COM_Parse(p)) != nullptr && ZA_STRCMP(com_token, "}") != 0)
         {
             char key[24];
             q_strlcpy(key, com_token, sizeof(key));
@@ -217,12 +222,12 @@ bool load()
                 list[count++] = idx;
             }
         };
-        if(!strcmp(b.kind, "body")) { add(data.bodies, data.nBodies); }
-        else if(!strcmp(b.kind, "weapon")) { add(data.weapons, data.nWeapons); }
-        else if(!strcmp(b.kind, "boss")) { add(data.bosses, data.nBosses); }
-        else if(!strcmp(b.kind, "theme")) { add(data.themes, data.nThemes); }
-        else if(!strcmp(b.kind, "supply")) { add(data.supplies, data.nSupplies); }
-        else if(strcmp(b.kind, "curve") != 0 && strcmp(b.kind, "extra") != 0)
+        if(!ZA_STRCMP(b.kind, "body")) { add(data.bodies, data.nBodies); }
+        else if(!ZA_STRCMP(b.kind, "weapon")) { add(data.weapons, data.nWeapons); }
+        else if(!ZA_STRCMP(b.kind, "boss")) { add(data.bosses, data.nBosses); }
+        else if(!ZA_STRCMP(b.kind, "theme")) { add(data.themes, data.nThemes); }
+        else if(!ZA_STRCMP(b.kind, "supply")) { add(data.supplies, data.nSupplies); }
+        else if(ZA_STRCMP(b.kind, "curve") != 0 && ZA_STRCMP(b.kind, "extra") != 0)
         {
             Con_Printf("\x02%s: \"%s %s\": unknown block\n", dataPath, b.kind, b.name);
         }
@@ -267,7 +272,7 @@ bool load()
             s = (*e == ',') ? e + 1 : e;
         }
         data.splitWave[data.splitN] = static_cast<int>(w);
-        memcpy(data.split[data.splitN], v, sizeof(v));
+        ZA_MEMCPY(data.split[data.splitN], v, sizeof(v));
         data.splitN++;
     }
     data.sawN = floats(data.threat->str("saw", "1"), data.saw, 8);
@@ -454,8 +459,8 @@ char nameText[2][96]{}; // arenadirname's answers
     return c;
 }
 
-[[nodiscard]] bool humanoid(int b) { return strcmp(body(b).str("arms", "none"), "none") != 0; }
-[[nodiscard]] bool isBlade(int wi) { return !strcmp(weapon(wi).str("family"), "blades"); }
+[[nodiscard]] bool humanoid(int b) { return ZA_STRCMP(body(b).str("arms", "none"), "none") != 0; }
+[[nodiscard]] bool isBlade(int wi) { return !ZA_STRCMP(weapon(wi).str("family"), "blades"); }
 
 // The threat curve with its sawtooth, by the skill and the wave size.
 [[nodiscard]] float threat(int w)
@@ -574,7 +579,7 @@ void buildCombos(int w)
             continue;
         }
         const char* arms = b.str("arms", "none");
-        if(!strcmp(arms, "none"))
+        if(!ZA_STRCMP(arms, "none"))
         {
             combos[nCombos++] = {bi, -1, b.num("cost")};
             continue;
@@ -587,15 +592,15 @@ void buildCombos(int w)
             }
             const Block& g = weapon(wi);
             const bool fists = g.num("row", 0) < 0;
-            if(fists && strcmp(b.name, "grunt") != 0)
+            if(fists && ZA_STRCMP(b.name, "grunt") != 0)
             {
                 continue;
             }
-            if(!strcmp(arms, "melee") && !isBlade(wi))
+            if(!ZA_STRCMP(arms, "melee") && !isBlade(wi))
             {
                 continue;
             }
-            if(!strcmp(arms, "guns") && (isBlade(wi) || fists))
+            if(!ZA_STRCMP(arms, "guns") && (isBlade(wi) || fists))
             {
                 continue;
             }
@@ -615,7 +620,7 @@ void buildCombos(int w)
         g = &weapon(c.weapon);
         float again = theme.num("again", data.novelty->num("again", 0.75f));
         k *= g->num("weight", 1) * novelty(run.seenWeapon[c.weapon], w) * age(*g, w);
-        if(run.family >= 0 && !strcmp(g->str("family"), weapon(run.family).str("family")))
+        if(run.family >= 0 && !ZA_STRCMP(g->str("family"), weapon(run.family).str("family")))
         {
             k *= 5.f;
             again = 1.f;
@@ -682,7 +687,7 @@ float spend(Rng& rng, float budget, float lo, float hi, int w, const Block& them
             for(int i = 0; i < nCombos; i++)
             {
                 const Combo& c = combos[i];
-                if(c.cost >= lo && c.cost <= hi && c.cost <= budget + over && !strcmp(body(c.body).str("kind"), "grunt"))
+                if(c.cost >= lo && c.cost <= hi && c.cost <= budget + over && !ZA_STRCMP(body(c.body).str("kind"), "grunt"))
                 {
                     cand[n++] = i;
                 }
@@ -746,7 +751,7 @@ float buyBoss(Rng& rng, int w, float total)
         int bi = -1;
         for(int k = 0; k < data.nBodies; k++)
         {
-            if(!strcmp(body(k).name, b.str("body")))
+            if(!ZA_STRCMP(body(k).name, b.str("body")))
             {
                 bi = k;
             }
@@ -756,7 +761,7 @@ float buyBoss(Rng& rng, int w, float total)
             continue;
         }
         int wi = -1;
-        if(!strcmp(b.str("weapon"), "tierpick"))
+        if(!ZA_STRCMP(b.str("weapon"), "tierpick"))
         {
             const char* arms = body(bi).str("arms", "none");
             int top = -1;
@@ -765,8 +770,8 @@ float buyBoss(Rng& rng, int w, float total)
             for(int k = 0; k < data.nWeapons; k++)
             {
                 const bool fists = weapon(k).num("row", 0) < 0;
-                if(!weaponOk(k, w) || fists || (!strcmp(arms, "melee") && !isBlade(k)) ||
-                   (!strcmp(arms, "guns") && isBlade(k)))
+                if(!weaponOk(k, w) || fists || (!ZA_STRCMP(arms, "melee") && !isBlade(k)) ||
+                   (!ZA_STRCMP(arms, "guns") && isBlade(k)))
                 {
                     continue;
                 }
@@ -865,7 +870,7 @@ float guarantee(Rng& rng, int w, float budget)
     int grunt = -1;
     for(int k = 0; k < data.nBodies; k++)
     {
-        grunt = !strcmp(body(k).str("kind"), "grunt") ? k : grunt;
+        grunt = !ZA_STRCMP(body(k).str("kind"), "grunt") ? k : grunt;
     }
     if(grunt < 0)
     {
@@ -990,7 +995,7 @@ float upgrades(Rng& rng, float budget, int w, float total)
             }
             r -= ow[i];
         }
-        if(!strcmp(opts[o], "armour"))
+        if(!ZA_STRCMP(opts[o], "armour"))
         {
             const int type = 1 + rng.below(best);
             const float c = armourCost(type, armourPlates(w));
@@ -1002,7 +1007,7 @@ float upgrades(Rng& rng, float budget, int w, float total)
                 armourSpent += c;
             }
         }
-        else if(!strcmp(opts[o], "gun2"))
+        else if(!ZA_STRCMP(opts[o], "gun2"))
         {
             const float c = weapon(f.weapon).num("cost") * data.gun2->num("mult", 0.6f);
             if(c <= budget && gun2Spent + c <= data.gun2->num("share", 0.15f) * total)
@@ -1074,7 +1079,7 @@ int rollTheme(Rng& rng, int w)
                 bool found = false;
                 for(int k = 0; k < data.nBodies; k++)
                 {
-                    found = found || (!strcmp(body(k).name, name) && unlocked(body(k), w));
+                    found = found || (!ZA_STRCMP(body(k).name, name) && unlocked(body(k), w));
                 }
                 ok = found;
             }
@@ -1109,12 +1114,12 @@ void resetRun()
     const int skill = run.skill;
     const uint32_t seed = run.seed;
     bool rows[gunRows];
-    memcpy(rows, run.rowOk, sizeof(rows));
+    ZA_MEMCPY(rows, run.rowOk, sizeof(rows));
     run = Run{};
     run.on = on;
     run.skill = skill;
     run.seed = seed;
-    memcpy(run.rowOk, rows, sizeof(rows));
+    ZA_MEMCPY(run.rowOk, rows, sizeof(rows));
 }
 
 void planOne(int w)
@@ -1122,10 +1127,10 @@ void planOne(int w)
     Rng rng{mix(run.seed, static_cast<uint32_t>(w) * 7919u + 1u)};
     const float total = threat(w) + run.carry;
     run.nFoes = 0;
-    memset(run.spentBody, 0, sizeof(run.spentBody));
-    memset(run.spentWeapon, 0, sizeof(run.spentWeapon));
-    memset(run.countBody, 0, sizeof(run.countBody));
-    memset(run.countWeapon, 0, sizeof(run.countWeapon));
+    ZA_MEMSET(run.spentBody, 0, sizeof(run.spentBody));
+    ZA_MEMSET(run.spentWeapon, 0, sizeof(run.spentWeapon));
+    ZA_MEMSET(run.countBody, 0, sizeof(run.countBody));
+    ZA_MEMSET(run.countWeapon, 0, sizeof(run.countWeapon));
     run.theme = rollTheme(rng, w);
     run.themeOf[za::min(w, maxWaves - 1)] = run.theme;
     const Block& theme = themeBlock(run.theme);
@@ -1138,14 +1143,14 @@ void planOne(int w)
         for(int i = 0; i < nCombos; i++) // (one weapon of each family the wave could field)
         {
             const int wi = combos[i].weapon;
-            if(wi < 0 || !strcmp(weapon(wi).str("family", "none"), "none"))
+            if(wi < 0 || !ZA_STRCMP(weapon(wi).str("family", "none"), "none"))
             {
                 continue;
             }
             bool dup = false;
             for(int k = 0; k < nf; k++)
             {
-                dup = dup || !strcmp(weapon(fam[k]).str("family"), weapon(wi).str("family"));
+                dup = dup || !ZA_STRCMP(weapon(fam[k]).str("family"), weapon(wi).str("family"));
             }
             if(!dup)
             {
@@ -1251,7 +1256,7 @@ void planOne(int w)
             withSurges[ns++] = ordered[i];
         }
     }
-    memcpy(run.foes, withSurges, sizeof(Foe) * static_cast<size_t>(ns));
+    ZA_MEMCPY(run.foes, withSurges, sizeof(Foe) * static_cast<size_t>(ns));
     run.nFoes = ns;
 
     run.spent = 0.f;
@@ -1326,7 +1331,7 @@ bool start(int skill, uint32_t seed, const char* rows)
     run.seed = seed ? seed : 1u;
     for(int i = 0; i < gunRows; i++)
     {
-        run.rowOk[i] = rows && static_cast<int>(strlen(rows)) > i ? rows[i] == '1' : true;
+        run.rowOk[i] = rows && static_cast<int>(ZA_STRLEN(rows)) > i ? rows[i] == '1' : true;
     }
     run.on = true;
     resetRun();
@@ -1373,7 +1378,7 @@ float supplyPlan(int w, float threatBeaten, float hp, float dom, float spent[4])
         for(int i = 0; i < data.nSupplies; i++)
         {
             const Block& it = blk(data.supplies[i]);
-            if(!strcmp(it.str("kind"), kinds[k]) && unlocked(it, w))
+            if(!ZA_STRCMP(it.str("kind"), kinds[k]) && unlocked(it, w))
             {
                 items[n++] = i;
             }
@@ -1515,7 +1520,7 @@ void test_f()
                 {
                     themeEarly++;
                 }
-                if(!strcmp(th.name, "knightfall"))
+                if(!ZA_STRCMP(th.name, "knightfall"))
                 {
                     knightfall++;
                 }
@@ -1527,9 +1532,9 @@ void test_f()
                     bossCost += f.boss ? f.cost : 0.f;
                     surgeFoes += f.surge ? 1.f : 0.f;
                     const char* k = body(f.body).name;
-                    if(f.weapon >= 0 && !strcmp(k, "gun_knight")) { knightsGun++; }
-                    if(f.weapon >= 0 && !strcmp(k, "gun_dk") && !f.boss) { dkGun++; }
-                    if(f.boss && !strcmp(k, "gun_dk") && f.armour == 3) { dkBoss++; }
+                    if(f.weapon >= 0 && !ZA_STRCMP(k, "gun_knight")) { knightsGun++; }
+                    if(f.weapon >= 0 && !ZA_STRCMP(k, "gun_dk") && !f.boss) { dkGun++; }
+                    if(f.boss && !ZA_STRCMP(k, "gun_dk") && f.armour == 3) { dkBoss++; }
                 }
                 const float allowance = data.threat->num("overshoot", 2) + 0.01f +
                                         za::max(0.f, bossCost - data.threat->num("boss_share", 0.55f) * run.budget);
@@ -1613,7 +1618,7 @@ void test_f()
 
     // A row the game lacks never comes (rowsOk), and a plan with director data off is refused.
     char rows[gunRows + 1];
-    memcpy(rows, allRows, sizeof(rows));
+    ZA_MEMCPY(rows, allRows, sizeof(rows));
     rows[14] = '0'; // (the rocket launcher)
     start(3, 5, rows);
     int rl = 0;
@@ -1676,7 +1681,7 @@ void pfGet()
         int kind = 0;
         for(int k = 0; k < kindCount; k++)
         {
-            kind = !strcmp(kindNames[k], body(f.body).str("kind")) ? k : kind;
+            kind = !ZA_STRCMP(kindNames[k], body(f.body).str("kind")) ? k : kind;
         }
         switch(field)
         {

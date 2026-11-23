@@ -276,6 +276,15 @@ void dumpSetting(const char* name)
                 }
             }
         }
+        for(const Item& item : items(pageIndex(pageGraphicsPresets)))
+        {
+            if(item.kind == Item::Action && item.label && !strcmp(item.label, "Standalone"))
+            {
+                Con_Printf("MS|%s|choice|%d|%s\n", name, gfxpresets::levelStandalone, jsonText(item.label).cStr());
+                Con_Printf("MS|%s|choicehelp|%d|%s\n", name, gfxpresets::levelStandalone, jsonText(item.helpText).cStr());
+                break;
+            }
+        }
         return;
     }
     // A preset (Handedness): a button too; its choices are the ones that set something, its default the one the

@@ -43,6 +43,10 @@
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -113,7 +117,7 @@ void callSpawnServerEntryPoint(func_t fn)
     for(int i = 0; i < qcvm->progs->numglobaldefs; i++)
     {
         ddef_t* def = &qcvm->globaldefs[i];
-        if(!strcmp(PR_GetString(def->s_name), name))
+        if(!ZA_STRCMP(PR_GetString(def->s_name), name))
         {
             return def;
         }
@@ -177,7 +181,7 @@ func_t findFunction(const char* name)
     }
     for(int i = 0; i < qcvm->progs->numfunctions; i++)
     {
-        if(!strcmp(PR_GetString(qcvm->functions[i].s_name), name))
+        if(!ZA_STRCMP(PR_GetString(qcvm->functions[i].s_name), name))
         {
             return i;
         }
@@ -267,7 +271,7 @@ bool globalVec(const char* name, glm::vec3& out)
     for(int i = 0; i < vm.progs->numglobaldefs; i++)
     {
         const ddef_t& def = vm.globaldefs[i];
-        if((def.type & ~DEF_SAVEGLOBAL) == ev_vector && def.s_name >= 0 && def.s_name < vm.stringssize && !strcmp(vm.strings + def.s_name, name))
+        if((def.type & ~DEF_SAVEGLOBAL) == ev_vector && def.s_name >= 0 && def.s_name < vm.stringssize && !ZA_STRCMP(vm.strings + def.s_name, name))
         {
             const float* v = &vm.globals[def.ofs];
             out = {v[0], v[1], v[2]};
@@ -876,7 +880,7 @@ void qvr::progs::modelCheck_f()
         checked++;
         const char* has = index > 0 && index < MAX_MODELS && sv.model_precache[index] ? sv.model_precache[index] : "(none)";
         // (the ring of shadows' eyes on the player's model: deliberate)
-        if(strcmp(has, name) && !(num <= svs.maxclients && !strcmp(has, "progs/eyes.mdl")))
+        if(ZA_STRCMP(has, name) && !(num <= svs.maxclients && !ZA_STRCMP(has, "progs/eyes.mdl")))
         {
             wrong++;
             if(verbose)
@@ -893,7 +897,7 @@ void qvr::progs::modelCheck_f()
         for(int i = 1; i <= models; i++)
         {
             const qmodel_t* m = cl.model_precache[i];
-            if(!m || strcmp(m->name, sv.model_precache[i]))
+            if(!m || ZA_STRCMP(m->name, sv.model_precache[i]))
             {
                 clientWrong++;
                 if(verbose)
@@ -964,7 +968,7 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
     saveInfo.models.clear();
     saveInfo.sounds.clear();
     saveInfo.notice.clear();
-    const char* line = strstr(text, "\n// qvr_save ");
+    const char* line = ZA_STRSTR(text, "\n// qvr_save ");
     if(!line)
     {
         Con_Printf("ERROR: %s has no \"// qvr_save\" line: a save of a Quake VR build before 2026-10-06, of another "
@@ -993,7 +997,7 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
         SCR_CenterPrint("Saved game from a newer build:\nnot loaded (see the console)");
         return 0;
     }
-    if(strcmp(build, VR_BuildVersion()) != 0)
+    if(ZA_STRCMP(build, VR_BuildVersion()) != 0)
     {
         const unsigned int now = sv.qcvm.progs ? sv.qcvm.crc : 0u;
         Con_Warning("%s was saved by build %s (progs %04x); this is build %s (progs %04x%s)\n", relname, build, crc,
@@ -1001,7 +1005,7 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
         saveInfo.notice = va("Saved game from another build\n%s", build);
     }
     const char* p = strchr(line, '\n');
-    for(; p && !strncmp(p + 1, "// qvr_model ", 13); p = strchr(p + 1, '\n'))
+    for(; p && !ZA_STRNCMP(p + 1, "// qvr_model ", 13); p = strchr(p + 1, '\n'))
     {
         const char* at = p + 1 + 13;
         char* end = nullptr;
@@ -1018,7 +1022,7 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
     }
     // The sound precache list, its lines together after the context's (saves before 2026-10-20 have none: their late
     // sounds are lost)
-    for(p = strstr(line, "\n// qvr_sound "); p && !strncmp(p + 1, "// qvr_sound ", 13); p = strchr(p + 1, '\n'))
+    for(p = ZA_STRSTR(line, "\n// qvr_sound "); p && !ZA_STRNCMP(p + 1, "// qvr_sound ", 13); p = strchr(p + 1, '\n'))
     {
         const char* at = p + 1 + 13;
         const size_t length = strcspn(at, "\r\n");
@@ -1127,7 +1131,7 @@ namespace
 {
     for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
     {
-        if(!strcmp(sv.model_precache[i], name))
+        if(!ZA_STRCMP(sv.model_precache[i], name))
         {
             return i;
         }
@@ -1166,7 +1170,7 @@ namespace
         return false;
     }
     const char* name = PR_GetString(d.s_name);
-    return !strcmp(name, "weaponmodel") || !strcmp(name, "weaponmodel2") || !strncmp(name, "holsterweaponmodel", 18);
+    return !ZA_STRCMP(name, "weaponmodel") || !ZA_STRCMP(name, "weaponmodel2") || !ZA_STRNCMP(name, "holsterweaponmodel", 18);
 }
 
 // Today's precache index of the model the save's list had at `saved` (precached now if need be); -1: the save's list
@@ -1191,9 +1195,9 @@ namespace
         return false;
     }
     const char* name = PR_GetString(d.s_name);
-    const size_t len = strlen(name);
-    return !strcmp(name, "modelindex") || !strncmp(name, "modelindex_", 11) ||
-           (len > 6 && !strcmp(name + len - 6, "_model"));
+    const size_t len = ZA_STRLEN(name);
+    return !ZA_STRCMP(name, "modelindex") || !ZA_STRNCMP(name, "modelindex_", 11) ||
+           (len > 6 && !ZA_STRCMP(name + len - 6, "_model"));
 }
 
 void remapModelValue(float& value, const char* what, int num)
@@ -1228,7 +1232,7 @@ void restoreLateSounds()
         int i = 1;
         for(; i < MAX_SOUNDS && sv.sound_precache[i]; i++)
         {
-            if(!strcmp(sv.sound_precache[i], name.cStr()))
+            if(!ZA_STRCMP(sv.sound_precache[i], name.cStr()))
             {
                 break;
             }
@@ -1453,7 +1457,7 @@ extern "C" int VR_LatePrecacheModel(const char* name)
             const double t0 = Sys_DoubleTime(); // (its load: the frame's hitch, said with developer 1)
             sv.model_precache[i] = name;
             // (a limb model in play: its skins' and normal maps' lookups answered from the map load's listings)
-            const bool derived = strstr(name, qvr::limbmodel::suffix) != nullptr;
+            const bool derived = ZA_STRSTR(name, qvr::limbmodel::suffix) != nullptr;
             if(derived)
             {
                 VR_FileCacheDerived(1);
@@ -1470,7 +1474,7 @@ extern "C" int VR_LatePrecacheModel(const char* name)
             return i;
         }
 
-        if(!strcmp(sv.model_precache[i], name))
+        if(!ZA_STRCMP(sv.model_precache[i], name))
         {
             return i;
         }

@@ -15,10 +15,15 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Llround.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 
-#include <cmath>
-#include <cstring>
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -46,7 +51,7 @@ void writeQuat(sizebuf_t* m, const glm::quat& q)
     int big = 0;
     for(int i = 1; i < 4; i++)
     {
-        big = std::fabs(c[i]) > std::fabs(c[big]) ? i : big;
+        big = za::fabs(c[i]) > za::fabs(c[big]) ? i : big;
     }
     const float sign = c[big] < 0.f ? -1.f : 1.f;
     za::U64 bits = static_cast<za::U64>(big);
@@ -57,7 +62,7 @@ void writeQuat(sizebuf_t* m, const glm::quat& q)
         {
             continue;
         }
-        const long v = za::clamp(std::lround(c[i] * sign / quatMost * quatSteps), -16383l, 16383l);
+        const long v = za::clamp(za::lround(c[i] * sign / quatMost * quatSteps), -16383l, 16383l);
         bits |= (static_cast<za::U64>(v) & 0x7fffu) << (2 + 15 * k);
         k++;
     }
@@ -90,7 +95,7 @@ void writeQuat(sizebuf_t* m, const glm::quat& q)
         sum += c[i] * c[i];
         k++;
     }
-    c[big] = std::sqrt(sum < 1.f ? 1.f - sum : 0.f);
+    c[big] = za::sqrt(sum < 1.f ? 1.f - sum : 0.f);
     return glm::normalize(glm::quat{c[0], c[1], c[2], c[3]});
 }
 
@@ -358,7 +363,7 @@ void selftest_f()
     for(int i = 0; i < 200; i++)
     {
         const float a = static_cast<float>(i) * 0.37f, b = static_cast<float>(i) * 1.13f, c = static_cast<float>(i) * 0.71f;
-        const glm::quat q = glm::normalize(glm::quat{glm::vec3{a, b, c}} * glm::quat{std::cos(a), std::sin(b), -std::sin(c), 0.3f});
+        const glm::quat q = glm::normalize(glm::quat{glm::vec3{a, b, c}} * glm::quat{za::cos(a), za::sin(b), -za::sin(c), 0.3f});
         sizebuf_t m{};
         m.data = data;
         m.maxsize = sizeof(data);
@@ -370,7 +375,7 @@ void selftest_f()
         const glm::quat r = readQuat();
         net_message = saved;
         msg_readcount = savedCount;
-        const float d = glm::degrees(2.f * std::acos(za::clamp(std::fabs(glm::dot(q, r)), 0.f, 1.f)));
+        const float d = glm::degrees(2.f * za::acos(za::clamp(za::fabs(glm::dot(q, r)), 0.f, 1.f)));
         worst = d > worst ? d : worst;
     }
     check("200 turns read back within 0.02 degrees", worst < 0.02f, worst);
@@ -409,18 +414,18 @@ bool serverWrite(int num, sizebuf_t* m)
     MSG_WriteLong(m, static_cast<int>(p.cut));
     MSG_WriteByte(m, (p.bleeds ? 1 : 0) | heldBy << 1);
     MSG_WriteFloat(m, p.scale);
-    MSG_WriteLong(m, static_cast<int>(std::llround(p.time * 1000.0))); // (ms: a float's would lose them in hours)
+    MSG_WriteLong(m, static_cast<int>(za::llround(p.time * 1000.0))); // (ms: a float's would lose them in hours)
     const glm::vec3 root = p.pos[0];
     for(int k = 0; k < 3; k++)
     {
-        MSG_WriteLong(m, static_cast<int>(std::lround(root[k] * posScale)));
+        MSG_WriteLong(m, static_cast<int>(za::lround(root[k] * posScale)));
     }
     writeQuat(m, p.rot[0]);
     for(int b = 1; b < p.bodies; b++)
     {
         for(int k = 0; k < 3; k++)
         {
-            MSG_WriteShort(m, static_cast<int>(za::clamp(std::lround((p.pos[b][k] - root[k]) * posScale), -32767l, 32767l)));
+            MSG_WriteShort(m, static_cast<int>(za::clamp(za::lround((p.pos[b][k] - root[k]) * posScale), -32767l, 32767l)));
         }
         writeQuat(m, p.rot[b]);
     }
@@ -428,7 +433,7 @@ bool serverWrite(int num, sizebuf_t* m)
     {
         for(int k = 0; k < 3 && (heldBy & (1 << h)); k++)
         {
-            MSG_WriteLong(m, static_cast<int>(std::lround(hand[h][k] * posScale)));
+            MSG_WriteLong(m, static_cast<int>(za::lround(hand[h][k] * posScale)));
         }
     }
     return true;

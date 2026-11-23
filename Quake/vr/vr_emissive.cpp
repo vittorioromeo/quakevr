@@ -1335,6 +1335,7 @@ void screenLight(int key, const glm::vec3& pos, const glm::vec3& angles)
     }
     lighting::dlightSpot(dl, n, screenLightInner, screenLightOuter);
     lighting::dlightNoShadow(dl);
+    lighting::dlightRig(dl);
 }
 } // namespace
 

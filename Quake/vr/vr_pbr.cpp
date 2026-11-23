@@ -8,12 +8,15 @@
 #include "vr_sha256.hpp"
 #include "vr_mem.hpp"
 #include "vr_modelmetadata.h"
-#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
-#include <cstring>
-#include <initializer_list>
 
 namespace qvr::pbr
 {
@@ -84,8 +87,8 @@ mem::Cache<Session> session{"pbr companions", mem::GameDirChange};
 template <class F>
 bool parseLines(const char* data, const char* header, F&& record)
 {
-    const size_t headerLength = strlen(header);
-    if(!data || strncmp(data, header, headerLength)) return false;
+    const size_t headerLength = ZA_STRLEN(header);
+    if(!data || ZA_STRNCMP(data, header, headerLength)) return false;
     const char* line = data + headerLength;
     if(*line == '\r') ++line;
     if(*line != '\n') return false;
@@ -93,7 +96,7 @@ bool parseLines(const char* data, const char* header, F&& record)
     while(*line)
     {
         const char* end = strchr(line, '\n');
-        size_t length = end ? static_cast<size_t>(end - line) : strlen(line);
+        size_t length = end ? static_cast<size_t>(end - line) : ZA_STRLEN(line);
         const char* next = end ? end + 1 : line + length;
         if(length && line[length - 1] == '\r') --length;
         if(length && !record(line, length)) break; // malformed: the rest is not trusted
@@ -109,7 +112,7 @@ int parseStock(const char* data, za::Vector<StockSource>& out)
     {
         if(length != 32 || strspn(line, "0123456789abcdef") < 32) return false;
         StockSource source{};
-        memcpy(source.hash, line, 32);
+        ZA_MEMCPY(source.hash, line, 32);
         out.emplaceBack(source);
         ++records;
         return true;
@@ -124,12 +127,12 @@ int parseProvenance(const char* data, za::Vector<Provenance>& out)
     {
         char text[160];
         if(length >= sizeof(text)) return false;
-        memcpy(text, line, length);
+        ZA_MEMCPY(text, line, length);
         text[length] = 0;
         Provenance p{};
         int consumed{};
         if(sscanf(text, "%32s %64s %u%n", p.source, p.output, &p.flags, &consumed) != 3 ||
-            strlen(p.source) != 32 || strlen(p.output) != 64 || p.flags > 3 || consumed == 0)
+            ZA_STRLEN(p.source) != 32 || ZA_STRLEN(p.output) != 64 || p.flags > 3 || consumed == 0)
             return false; // Malformed or unknown records never acquire generated strength.
         out.emplaceBack(p);
         ++records;
@@ -157,7 +160,7 @@ bool isStockSource(const char* hash)
         loadIndex("textures/pbr/stock.txt", parseStock, session.stockSources);
     }
     for(const StockSource& source : session.stockSources)
-        if(!strncmp(source.hash, hash, 32)) return true;
+        if(!ZA_STRNCMP(source.hash, hash, 32)) return true;
     return false;
 }
 
@@ -180,14 +183,14 @@ void loadProvenance()
 Companion* companion(const char* hash)
 {
     for(Companion& c : session.companions)
-        if(!strncmp(c.source, hash, 32)) return &c;
+        if(!ZA_STRNCMP(c.source, hash, 32)) return &c;
     return nullptr;
 }
 
 void rememberStrength(const char* path, unsigned flags)
 {
     for(Strength& s : strengths)
-        if(!strcmp(s.path, path)) { s.flags = flags; return; }
+        if(!ZA_STRCMP(s.path, path)) { s.flags = flags; return; }
     Strength s{};
     q_strlcpy(s.path, path, sizeof(s.path));
     s.flags = flags;
@@ -228,7 +231,7 @@ void hashSource(const byte* data, enum srcformat fmt, int w, int h, char (&hex)[
             for(size_t i = 0; i < count; ++i)
             {
                 const byte* rgb = reinterpret_cast<const byte*>(&d_8to24table[data[start + i]]);
-                memcpy(row + i * 4, rgb, 3);
+                ZA_MEMCPY(row + i * 4, rgb, 3);
                 row[i * 4 + 3] = 255; // Hash the source palette, including index 255, before fence rendering.
             }
             hash.update(row, count * 4);
@@ -259,11 +262,11 @@ void sourceHash(const byte* data, enum srcformat fmt, int w, int h, char (&hex)[
     const za::U64 key = sourceKey(data, fmt, w, h);
     if(const auto it = session.sourceHashes.find(key); it != session.sourceHashes.end())
     {
-        memcpy(hex, it->second.hex, sizeof(hex));
+        ZA_MEMCPY(hex, it->second.hex, sizeof(hex));
         return;
     }
     hashSource(data, fmt, w, h, hex);
-    memcpy(session.sourceHashes[key].hex, hex, sizeof(hex));
+    ZA_MEMCPY(session.sourceHashes[key].hex, hex, sizeof(hex));
 }
 
 unsigned verifiedFlags(const char* source, const byte* rgba, int w, int h)
@@ -272,7 +275,7 @@ unsigned verifiedFlags(const char* source, const byte* rgba, int w, int h)
     char digest[65];
     hashSource(rgba, SRC_RGBA, w, h, digest);
     for(const Provenance& p : session.provenance)
-        if(!strncmp(p.source, source, 32) && !strcmp(p.output, digest)) return p.flags;
+        if(!ZA_STRNCMP(p.source, source, 32) && !ZA_STRCMP(p.output, digest)) return p.flags;
     return 0; // Missing/stale metadata is conservatively treated as authored.
 }
 
@@ -314,7 +317,7 @@ byte* compose(const Recipe& recipe, int* w, int* h, enum srcformat* fmt)
         byte* p = out + (static_cast<size_t>(y) * *w + x) * 4;
         const byte* g = sample(generated, gw, gh, x, y, *w, *h);
         const byte* n = normal ? sample(normal, nw, nh, x, y, *w, *h) : g;
-        memcpy(p, n, 3);
+        ZA_MEMCPY(p, n, 3);
         const byte* b = bump ? sample(bump, bw, bh, x, y, *w, *h) : nullptr;
         p[3] = height ? n[3] : b ? static_cast<byte>((b[0] + b[1] + b[2]) / 3) : g[3];
     }
@@ -330,7 +333,7 @@ void stats_f()
     int queried{}, found{}, normal{}, height{};
     for(const Use& u : uses)
     {
-        if(!u.base || (u.base->owner != cl.worldmodel && (Cmd_Argc() < 2 || strcmp(Cmd_Argv(1), "models"))))
+        if(!u.base || (u.base->owner != cl.worldmodel && (Cmd_Argc() < 2 || ZA_STRCMP(Cmd_Argv(1), "models"))))
             continue;
         ++queried;
         found += u.found;
@@ -359,7 +362,7 @@ void stats_f()
                     const size_t n = static_cast<size_t>(nm->width) * nm->height;
                     byte* rgba = static_cast<byte*>(VR_HeapMalloc(n * 4));
                     GL_Bind(GL_TEXTURE0, nm);
-                    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+                    VR_GLGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
                     int lo = 255, hi = 0;
                     for(size_t p = 0; p < n; ++p)
                     {
@@ -382,14 +385,14 @@ void stats_f()
 void audit_f()
 {
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    const bool worldOnly = Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "world");
+    const bool worldOnly = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "world");
     auto audit = [](qmodel_t* owner, const char* name, gltexture_t* base, gltexture_t* nm)
     {
         if(!nm) return;
         const size_t bytes = static_cast<size_t>(nm->width) * nm->height * 4;
         byte* pixels = static_cast<byte*>(VR_HeapMalloc(bytes));
         GL_Bind(GL_TEXTURE0, nm);
-        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+        VR_GLGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
         char digest[65];
         hashSource(pixels, SRC_RGBA, nm->width, nm->height, digest);
         const size_t count = bytes / 4;
@@ -490,7 +493,7 @@ void test_f()
     check(normal == 0.f && height == 0.f, "generated zero lower bound");
     componentStrength(3, 99.f, &normal, &height);
     check(normal == 8.f && height == 8.f, "generated upper bound");
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "stock"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "stock"))
     {
         int checked{};
         for(const Use& u : uses)
@@ -510,14 +513,14 @@ void test_f()
     const byte pixels[] = {1, 2, 3, 255, 4, 5, 6, 255};
     char a[65], b[65];
     hashSource(pixels, SRC_RGBA, 2, 1, a);
-    check(!strcmp(a, "041b6db783e4f7010517b9834bbb0f6052d12caf0fd823f8d95fd407b23a67c6"), "SHA256 wire contract");
+    check(!ZA_STRCMP(a, "041b6db783e4f7010517b9834bbb0f6052d12caf0fd823f8d95fd407b23a67c6"), "SHA256 wire contract");
     hashSource(pixels, SRC_RGBA, 1, 2, b);
-    check(strcmp(a, b) != 0, "dimensions distinguish sources");
+    check(ZA_STRCMP(a, b) != 0, "dimensions distinguish sources");
     byte changed[8];
-    memcpy(changed, pixels, sizeof(changed));
+    ZA_MEMCPY(changed, pixels, sizeof(changed));
     changed[0] ^= 1;
     hashSource(changed, SRC_RGBA, 2, 1, b);
-    check(strcmp(a, b) != 0, "same-name different pixels distinguish sources");
+    check(ZA_STRCMP(a, b) != 0, "same-name different pixels distinguish sources");
     loadProvenance();
     Provenance proof{};
     q_strlcpy(proof.source, "00000000000000000000000000000000", sizeof(proof.source));
@@ -532,7 +535,7 @@ void test_f()
         // The indexes parse alike with LF and CRLF line ends (a Windows checkout or an editor can make the latter).
         auto withCRLF = [](const char* text)
         {
-            const size_t length = strlen(text);
+            const size_t length = ZA_STRLEN(text);
             char* out = static_cast<char*>(Hunk_Alloc(length * 2 + 1));
             char* o = out;
             for(const char* c = text; *c; ++c)
@@ -548,14 +551,14 @@ void test_f()
         za::Vector<StockSource> lf, crlf;
         const int records = parseStock(stock, lf);
         check(records > 1000 && parseStock(withCRLF(stock ? stock : ""), crlf) == records &&
-                  !memcmp(lf.back().hash, crlf.back().hash, 33),
+                  !ZA_MEMCMP(lf.back().hash, crlf.back().hash, 33),
             "shipped stock.txt parses, the same with CRLF");
         const char provenanceText[] = "qvr-pbr-provenance-v1\n"
             "000498127d0fd3e511919fd2abe15e2d 16188e3b8952f9e0f48f677a14145fd03b9a083a7efee70c5694666b16c3b1c4 3\n"
             "0008d2d8e0c3c884494127187ebbc296 9716bbde367499f2b2e8c5f5bd00799d79869750d8c495b87b53d977e3f5298d 0\n";
         za::Vector<Provenance> plf, pcrlf;
         check(parseProvenance(provenanceText, plf) == 2 && parseProvenance(withCRLF(provenanceText), pcrlf) == 2 &&
-                  pcrlf[0].flags == 3 && !strcmp(pcrlf[1].output, plf[1].output),
+                  pcrlf[0].flags == 3 && !ZA_STRCMP(pcrlf[1].output, plf[1].output),
             "provenance parses the same with CRLF");
         za::Vector<StockSource> bad;
         check(parseStock("qvr-pbr-stock-v1\r\n0123456789abcdef0123456789abcdeX\n", bad) == 0 &&
@@ -579,23 +582,23 @@ void test_f()
                 against[i + 2] = with[i + 2] = 255;
                 against[i + 3] = with[i + 3] = rows[y];
             }
-        memcpy(expected, with, sizeof(with));
+        ZA_MEMCPY(expected, with, sizeof(with));
         VR_ExtMapsGreen(against, 8, 8, "vrext/pbrtest_against");
         VR_ExtMapsGreen(with, 8, 8, "vrext/pbrtest_with");
-        check(!memcmp(against, expected, sizeof(expected)) && !memcmp(with, expected, sizeof(expected)),
+        check(!ZA_MEMCMP(against, expected, sizeof(expected)) && !ZA_MEMCMP(with, expected, sizeof(expected)),
             "external green judged against the carried generated height");
     }
     const byte indexed[] = {0, 1, 254, 255};
     byte expanded[16];
     for(int i = 0; i < 4; ++i)
     {
-        memcpy(expanded + i * 4, &d_8to24table[indexed[i]], 3);
+        ZA_MEMCPY(expanded + i * 4, &d_8to24table[indexed[i]], 3);
         expanded[i * 4 + 3] = 255;
     }
     hashSource(indexed, SRC_INDEXED, 2, 2, a);
     hashSource(expanded, SRC_RGBA, 2, 2, b);
-    check(!strcmp(a, b), "palette-expanded RGBA including index255");
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "fixtures"))
+    check(!ZA_STRCMP(a, b), "palette-expanded RGBA including index255");
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "fixtures"))
     {
         const int mark = Hunk_LowMark();
         constexpr const char* normals[] = {"", "textures/pbrtest/normal", "textures/pbrtest/complete", ""};
@@ -611,13 +614,13 @@ void test_f()
             int w{}, h{};
             enum srcformat fmt{};
             byte* image = compose(r, &w, &h, &fmt);
-            check(image && w == 4 && h == 4 && !memcmp(image, rgb[i], 3) && image[3] == alpha[i],
+            check(image && w == 4 && h == 4 && !ZA_MEMCMP(image, rgb[i], 3) && image[3] == alpha[i],
                 i == 0 ? "generated RGBA" : i == 1 ? "authored RGB plus generated height" :
                 i == 2 ? "complete authored RGB and alpha" : "generated RGB plus authored bump height");
         }
         Hunk_FreeToLowMark(mark);
     }
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "boxes"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "boxes"))
     {
         int checked{};
         for(const Use& u : uses)
@@ -629,8 +632,8 @@ void test_f()
             gltexture_t* nm = TexMgr_NormalMap(u.base);
             float ns{}, hs{};
             VR_PBRStrength(nm, &ns, &hs);
-            check(!u.attached && strncmp(nm->source_file, "textures/pbr/", 13) &&
-                  strncmp(nm->source_file, "pbrmix/", 7) && ns == 1.f && hs == 1.f &&
+            check(!u.attached && ZA_STRNCMP(nm->source_file, "textures/pbr/", 13) &&
+                  ZA_STRNCMP(nm->source_file, "pbrmix/", 7) && ns == 1.f && hs == 1.f &&
                   TexMgr_NormalMapParallax(u.base) != 0, "box retains original material relief");
         }
         check(checked == 6, "both stock box models inspected");
@@ -659,7 +662,7 @@ void hashRgba(const unsigned char* rgba, int w, int h, za::U64& key, char (&hex)
 
 void noteHash(za::U64 key, const char (&hex)[65])
 {
-    memcpy(session.sourceHashes[key].hex, hex, sizeof(hex));
+    ZA_MEMCPY(session.sourceHashes[key].hex, hex, sizeof(hex));
 }
 } // namespace qvr::pbr
 
@@ -685,8 +688,8 @@ extern "C" void VR_PBRExternal(gltexture_t* base, const char* normal, char* path
         r.external = true;
         r.generatedFlags = use.generatedFlags & 2u;
         sha256::Hasher identity;
-        identity.update(r.generated, strlen(r.generated));
-        identity.update(r.normal, strlen(r.normal) + 1);
+        identity.update(r.generated, ZA_STRLEN(r.generated));
+        identity.update(r.normal, ZA_STRLEN(r.normal) + 1);
         constexpr char tag[] = "external";
         identity.update(tag, sizeof(tag));
         char hex[65];
@@ -694,7 +697,7 @@ extern "C" void VR_PBRExternal(gltexture_t* base, const char* normal, char* path
         q_snprintf(r.path, sizeof(r.path), "pbrmix/%.32s", hex);
         pbr::rememberStrength(r.path, r.generatedFlags);
         for(const pbr::Recipe& existing : pbr::recipes)
-            if(!strcmp(existing.path, r.path))
+            if(!ZA_STRCMP(existing.path, r.path))
             {
                 q_strlcpy(path, r.path, size);
                 return;
@@ -726,7 +729,7 @@ extern "C" void VR_AddReliefsPath()
 extern "C" byte* VR_PBRImage(const char* name, int* w, int* h, enum srcformat* fmt)
 {
     for(const qvr::pbr::Recipe& r : qvr::pbr::recipes)
-        if(!strcmp(r.path, name))
+        if(!ZA_STRCMP(r.path, name))
             return qvr::pbr::compose(r, w, h, fmt);
     return nullptr;
 }
@@ -736,7 +739,7 @@ extern "C" int VR_PBRGeneratedFlags(const char* source)
 {
     if(source && source[0])
         for(const qvr::pbr::Strength& s : qvr::pbr::strengths)
-            if(!strcmp(s.path, source)) return static_cast<int>(s.flags);
+            if(!ZA_STRCMP(s.path, source)) return static_cast<int>(s.flags);
     return 0;
 }
 
@@ -800,7 +803,7 @@ extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* sh
         {
             // Verified once per session: the bundle is content-addressed, so the same file decodes the same.
             pbr::Companion c{};
-            memcpy(c.source, use.hash, 32);
+            ZA_MEMCPY(c.source, use.hash, 32);
             c.missing = !use.found;
             c.flags = use.found ? pbr::verifiedFlags(use.hash, generated, w, h) : 0u;
             pbr::session.companions.emplaceBack(c);
@@ -849,16 +852,16 @@ extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* sh
                 r.generatedFlags &= ~(use.normal ? 1u : 0u);
                 r.generatedFlags &= ~(use.height ? 2u : 0u);
                 sha256::Hasher identity;
-                identity.update(r.generated, strlen(r.generated));
-                identity.update(r.normal, strlen(r.normal) + 1);
-                identity.update(r.bump, strlen(r.bump) + 1);
+                identity.update(r.generated, ZA_STRLEN(r.generated));
+                identity.update(r.normal, ZA_STRLEN(r.normal) + 1);
+                identity.update(r.bump, ZA_STRLEN(r.bump) + 1);
                 char hex[65];
                 sha256::toHex(identity.finish(), hex);
                 q_snprintf(r.path, sizeof(r.path), "pbrmix/%.32s", hex);
                 pbr::rememberStrength(r.path, r.generatedFlags);
                 bool registered = false;
                 for(pbr::Recipe& existing : pbr::recipes)
-                    if(!strcmp(existing.path, r.path))
+                    if(!ZA_STRCMP(existing.path, r.path))
                     {
                         existing = r;
                         registered = true;

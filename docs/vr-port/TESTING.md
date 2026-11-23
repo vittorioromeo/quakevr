@@ -265,6 +265,36 @@ the reload suites, makes the collect pass's grep/sed/cut/tr/head/tail/wc/paste/s
 (`[ "$TB_PASS" = collect ] && continue`), parse with bash's `[[ =~ ]]` / `read`, and check every case with one Python
 at the end rather than one a case (mapflameburn_test.sh, throw_spin_test.sh).
 
+### Batching a suite, -QuitOn and -NoDraw (testbatch2, 2026-11-22)
+
+- **-QuitOn is batched.** A case's `-QuitOn <regex>` no longer makes it a game of its own: testbatch.py arms the pattern
+  at the case's start (`vr_test_quiton "<regex>"`, engine) and turns the case's closing `waitN` into `vr_waitquiton N`,
+  which ends at the first console line since then that matches (a script with no closing quit, the agrunt cases' shape,
+  waits until its `-Timeout`). The case's header reads `exit=quit-on (the log matched '...')` as run.sh's does. The
+  engine matches run.ps1's (.NET, case-insensitive) patterns as far as the tests use them: literals, `. ^ $`, `[..]`
+  classes, `\d \s \w` (and capitals), escapes, `* + ?` (lazy `?` ignored), `(?:...)` groups and `|`; anything else
+  matches as plain text. Lines end as in the log (echo's with a space: `\s*$`). A pattern with a `"` runs alone.
+- **The clock:** a run alone (kit fast mode, since 2026-10-25) plays `vr_fixed_frames 1` at its default rate, 72 (a
+  tick a frame); the batches' default `TB_RATE` is still 250 (the old real-time runs'). A suite converted since sets
+  `export TB_RATE=${TB_RATE-72}` so its batch plays what `TB_SLOW=1` plays (and 3.5 times fewer frames).
+- **vr_waitquiton holds, it doesn't wait:** the commands after it are taken out of the buffer and put back at the tick
+  after the match, so what QC queues meanwhile (localcmd) runs at once, as after a lone run's script (with a plain
+  `wait` loop it queued behind the rest of the batch: flatitems' cases all timed out).
+- **-Low** is ignored in a batch (the copies run below normal priority anyway), so a `-Low` run batches.
+- **Converting a bash suite:** `source "$(dirname "$0")/testbatch/testbatch.sh"` after qvrtest.sh; the part from the
+  first run to `verdict` into `tb_body() { ... }`; `bash $KIT/run.sh $AGENT` -> `tb_run_sh`; then
+  `tb_main "$AGENT" tb_body; exit $fail`. Runs with `-Out`/`-Clean`/a screenshot stay alone by themselves. Prove it:
+  `TB_SLOW=1` (the old way) and batched, check by check the same (a flaky check aside), and time both.
+- **When it pays:** since the spawn-free run.sh a single run costs 4-9 s held, so a suite of a dozen short runs gains
+  little from the batch (two passes over the body: every `$(awk ...)`/`grep` a check runs costs 0.1-1 s, twice). It
+  pays for many cases (the agrunt group), long frames (big waits), or undrawn cases. `TB_COLLECT_STUBS=2` also makes
+  awk and cat no-ops in the collect pass (the flat suites' checks are awk calls between runs).
+- **-NoDraw** (kit run.sh/run.ps1, and per case in a batch): `vr_mock_fast 2`, the unpaced frames not drawn. Safe only
+  when no check reads what the drawing makes: screenshots and eyeshots, `r_norefresh 0` runs, "drawn eye"/"drawn ray"
+  measurements (flatplay, flatpose, flatslide's sights and pose cases), first-drawn lines, the view's own place when the
+  renderer computes it. A suite opts in per run (`-NoDraw` on the QC-measured runs) or as a whole
+  (`export TB_NODRAW=${TB_NODRAW-1}`) once its verdicts are the same both ways.
+
 ### The release suite: lanes and profiles (2026-11-22)
 
 `Misc/release/run_test_suite.py` runs its tests in parallel lanes (`--jobs N`; 0, the default: a lane per 8 CPUs, at
@@ -300,7 +330,26 @@ and a test checks what ships. Until 2026-11-22 it was a copy of an old full conf
 8,321 vr_wofs_* lines, the author's body calibration and Height 1.5474, cl_alwaysrun 1, HUD scales 3): after its
 migration 566 weapon settings still differed from weapons.txt (the Super Axe's pre-11-12 offsets, ROUND25 "axelag").
 A test that needs a setting off its default sets it in its own script; a line belongs here only when every run
-needs it, with its reason.
+needs it, with its reason. Since testspeed (2026-11-22) run.ps1 also copies `test_baseline.cfg` over the tree's
+`quakevr/ironwail.cfg.baseline` (and `ironwail.cfg`) whenever the two differ in size or time, so long-lived trees run it
+too (the old 14k-line one cost 2.7-4 s of config exec per game start) and an edit to it reaches the next run: edit
+`test_baseline.cfg`, never the `.baseline` copy.
+
+### The MP suite's profiles (2026-11-22)
+
+`python Misc/quakevr/mp/mp_test.py suite` runs its default profile: every scenario but the soaks and diagnostics in
+`LONG` (mp_adspose, mp_fuzz, mp_rejoin_keep, mp_voice_lossy: a quarter of the suite's time). `--profile long` runs just
+those, `--profile all` everything (releases, nightly); `--only a,b` runs the named scenarios whatever the profile. The
+harness's games start with `-nostartmap` (no vrstart hub before their `connect` or `map`: about 6 s a game).
+
+### Which tests to run (2026-11-22)
+
+`python Misc/quakevr/tests_for.py [files...]` (no files: what the branch changed against origin/next, uncommitted
+included) prints, for each file, a fixed rule (tables, headers, generated files) or its best few tests with the command
+that runs each: test scripts, `mp_test.py suite --only` scenarios, engine test commands, and the numbered in-engine
+tests (`test_numbers.txt`) by the scripts that run their numbers. It ranks by the commands, cvars and (QC) functions a
+file shares with each test, the rarest counting most (`--why` shows them). It's where to start, not proof of coverage:
+add what you know it misses, and a smoke run.
 
 ## The spawn census: "no behaviour change" in one command (2026-11-19)
 

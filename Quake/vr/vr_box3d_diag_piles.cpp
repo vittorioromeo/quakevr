@@ -12,6 +12,7 @@
 #include "vr_hands.hpp"
 #include "vr_units.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_api.h"
@@ -377,7 +378,7 @@ void clearPiles_f()
     int removed = 0;
     progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
         const bool tagged = (static_cast<int>(e->v.spawnflags) & stressTagBit) != 0;
-        if(tagged || !strcmp(PR_GetString(e->v.classname), "vr_crate_piece"))
+        if(tagged || !ZA_STRCMP(PR_GetString(e->v.classname), "vr_crate_piece"))
         {
             ED_Free(e);
             removed++;
@@ -399,7 +400,7 @@ void blast_f()
     dfunction_t* fn = nullptr;
     for(int i = 1; i < qcvm->progs->numfunctions && !fn; i++)
     {
-        if(!strcmp(PR_GetString(qcvm->functions[i].s_name), "T_RadiusDamage"))
+        if(!ZA_STRCMP(PR_GetString(qcvm->functions[i].s_name), "T_RadiusDamage"))
         {
             fn = &qcvm->functions[i];
         }

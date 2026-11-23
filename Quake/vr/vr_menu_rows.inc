@@ -3410,6 +3410,9 @@ QVR_TOGGLE_BYNAME(vr_cellcord_hammer, "Mjolnir Cord",
     "The same cord on Mjolnir (Hipnotic's hammer), from the end of its handle: it draws cells too.")
 QVR_TOGGLE_BYNAME(vr_cellcord_superaxe, "Super Axe Cord",
     "The same cord on the Super Axe (MG3), from the end of its handle: it draws cells too.")
+QVR_TOGGLE_BYNAME(vr_cellcord_lance, "Crystal Lance Cord",
+    "The same cord on Dwell's Crystal Lance held as a lance (it has no magazine: each shot takes cells from the "
+    "pouch), from the butt of its pole. No cells left: it hangs loose off the butt, swinging.")
 QVR_SLIDER_BYNAME(vr_reload_reinsert_clearance, "Magazine Reinsertion Clearance", 0.f, 16.f, 0.25f, "%.2f units", ext(0.f, 64.f),
     "After pulling or knocking a magazine out, withdraw this far beyond its insertion reach before it can "
     "go back in. Also applies to the new magazine that knocked it out. Smaller: a shorter out-and-back "
@@ -3785,8 +3788,9 @@ QVR_SLIDER_BYNAME(vr_bloom_color, "Bloom: Coloured Lights", 0.f, 3.f, 0.05f, "%.
     "Glow of coloured lights (red buttons, blue panels), times Bloom.")
 QVR_SLIDER_BYNAME(vr_bloom_adapt, "Bloom: Adapt", 0.f, 10.f, 0.25f, "%.2f", ext(),
     "How much bloom weakens when much of the view glows (a brightly lit map); 0: never.")
-QVR_TOGGLE_BYNAME(vr_tonemap, "Tone Mapping",
-    "Bright lights, flashes, lava and explosions keep their colour and detail instead of clipping to yellow and white (a filmic shoulder). The rest is unchanged. Off: Quake's.")
+QVR_CYCLE_BYNAME(vr_tonemap, "Tone Mapping",
+    "Bright lights, flashes, lava and explosions keep their colour and detail instead of clipping to yellow and white (a filmic shoulder). The rest is unchanged. Off: Quake's. On (64-bit): the scene in a finer float format, slower (the same picture).",
+    {0.f, "Off"}, {1.f, "On (64-bit)"}, {2.f, "On"})
 QVR_SLIDER_BYNAME(vr_exposure, "Exposure", 0.5f, 2.f, 0.05f, "%.2f", ext(), "Brightness before tone mapping (1: as Quake).")
 QVR_CYCLE_BYNAME(vr_grade, "Colour Grade",
     "A subtle colour mood. Quake VR: a touch of contrast, cool shadows, warm highlights. By Episode: cold, mossy, warm, violet for episodes 1 to 4.",
@@ -3854,6 +3858,10 @@ QVR_SLIDER_BYNAME(vr_particle_near_cull, "Particles Hidden Nearer", 0.f, 50.f, 1
     "Particles nearer your eyes than this are not drawn at all (0: all drawn).")
 QVR_SLIDER_BYNAME(vr_particle_max_screen, "Largest Particle", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A particle is never drawn larger than this part of the view's height across: a bigger one is shrunk round its centre (cheaper on the GPU, no single puff filling the view). 0: no limit.")
+QVR_SLIDER_BYNAME(vr_blood_near, "Thinner Blood Nearer", 0.f, 256.f, 8.f, "%.0f units", noExt,
+    "Blood made nearer your eyes than this (a hit's, a gib's trail) makes fewer particles, down to Blood at the Eyes right at them: the same look, less of the GPU's time on a cloud filling the view (the Standalone preset's). 0: off.")
+QVR_SLIDER_BYNAME(vr_blood_near_mult, "Blood at the Eyes", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "With Thinner Blood Nearer: how much of the usual blood is made right at your eyes, rising to all of it at that distance.")
 QVR_SLIDER_BYNAME(vr_particle_retro_min_blocks, "Retro Particle Detail", 0.f, 16.f, 1.f, "%.0f blocks", noExt,
     "With retro particles (Retro Textures > Particles), at least this many blocks across each particle's texture: small drops and sparks keep their shape instead of turning into one flat square, big near your eyes. 0: blocks in world units alone.")
 QVR_TOGGLE_BYNAME(vr_particle_halfres, "Half-Res Heavy Particles",
@@ -4177,6 +4185,13 @@ QVR_CYCLE(vr_weapon_anygrip_mode, "Other Hand Anywhere",
     "Rigid: the weapon follows both hands as a box held in both. Each weapon may override it (Weapon "
     "Offsets: Other Hand Anywhere).",
     {0.f, "As a Foregrip"}, {1.f, "Support Only"}, {2.f, "Rigid"})
+QVR_TOGGLE(vr_pole_slide, "Weapon Hand Slides on Poles",
+    "A pole weapon held in both hands (the Crystal Lance): loosen your weapon hand's grip while the other hand "
+    "holds the pole closed, and the weapon hand slides along the pole as you move it (choke up towards the head, "
+    "or back to the butt). Off: only the other hand slides.")
+QVR_SLIDER(vr_pole_slide_grip, "Pole Slide Grip", 0.2f, 0.95f, 0.05f, "%.2f", noExt,
+    "How far your grip may close and still slide on a pole: under this the hand slides, at or over it the hand "
+    "holds. Keep it over the point where your controller lets go of the weapon.")
 QVR_TOGGLE(vr_carry_local, "Drawn In the Hand",
     "What you carry is drawn in your hand as it is this frame: no lag or lead as you walk or turn. Off: where the server has it.")
 QVR_TOGGLE(vr_carry_two_hands, "Two-Handed Carrying",
@@ -4984,7 +4999,7 @@ QVR_TOGGLE(vr_alias_batch_posed, "Batch Posed Models",
     "vr_alias_batch_posed: the world's posed models of one model and skin (armed grunts, their armour, ragdolls) "
     "drawn as one batch, their bones in one buffer (On), or a batch each (Off, as before). The same images.")
 QVR_TOGGLE(vr_perf_record, "Perf Recorder",
-    "Every frame's CPU, GPU and OpenXR times and its events (shader compiles, uploads, loads, saves) to a CSV while on: profile/perf/. Misc/quakevr/perf_report.py ranks the hitches.")
+    "Every frame's CPU, GPU and OpenXR times and its events (shader compiles, uploads, loads, saves) to a CSV while on: profile/perf/ (on the Quest the app's files/perf/). Misc/quakevr/perf_report.py ranks the hitches.")
 QVR_TOGGLE(vr_xr_log_timing, "OpenXR Timing Log",
     "A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered, frames missed, each OpenXR call's time and the session's state.")
 QVR_TOGGLE(vr_visibility_mask, "Hide Lens Corners",
@@ -6173,6 +6188,10 @@ QVR_CYCLE(vr_profile_hitch, "Hitch Log",
     "While the profiler runs (the panel, a capture), frames that take this long go to the console and "
     "quakevr/profile/hitches_<date>_<time>.csv, with what took their time.",
     {0.f, "Off"}, {1.5f, "Over 1.5 Frames"}, {2.f, "Over 2 Frames"}, {3.f, "Over 3 Frames"})
+QVR_CYCLE(vr_profile_slow_ms, "Slow Frames Kept",
+    "vr_profile_slow_ms: the profiler leaves frames longer than this out of its averages (a map load, a hitch). Raise "
+    "it on a device whose every frame is that slow, to see where those frames go.",
+    {250.f, "Under 250 ms"}, {1000.f, "Under 1 s"}, {5000.f, "Under 5 s"})
 QVR_CYCLE(vr_renderdoc_delay, "Capture Delay",
     "vr_renderdoc_delay: seconds from the press to the capture, to close the menu or get into position.",
     {0.f, "None"}, {1.f, "1 s"}, {3.f, "3 s"})
@@ -6298,6 +6317,33 @@ QVR_TOGGLE(vr_alias_prepass_own, "Own Models Pre-pass",
     "vr_alias_prepass_own: your hands and what they hold drawn into the depth first, then shaded once a "
     "pixel (On; not while a gun morphs), or shaded as drawn (Off, as before): the glove over the hand, the "
     "fingers over the palm and a gun's own parts shaded once. The same images either way.")
+QVR_TOGGLE(vr_alias_prepass_body, "Body Pre-pass",
+    "vr_alias_prepass_body: your body drawn into the depth first, then shaded once a pixel (On, as before), or "
+    "shaded as drawn (Off): its skinning run once a view instead of twice. The same images either way; Off is "
+    "the Quest preset's when it measures faster there.")
+QVR_TOGGLE(vr_debug_head_pose, "Pose the Head (Unworn Tests)",
+    "vr_debug_head_pose: for GPU tests on a headset lying on a table (OpenXR): the view drawn level at the Head "
+    "Pitch below, its direction and place kept (the headset still shows it as tracked). Off: as tracked.")
+QVR_SLIDER(vr_debug_head_pitch, "Head Pitch", -90.f, 90.f, 5.f, "%.0f deg", noExt,
+    "vr_debug_head_pitch: the posed head's pitch, down positive (Pose the Head).")
+QVR_TOGGLE(vr_debug_hands_front, "Hands in Front (Unworn Tests)",
+    "vr_debug_hands_front: with Pose the Head, both hands held in front of the posed head at the waist, as a worn "
+    "view's forearms (the controllers' own poses ignored).")
+QVR_TOGGLE(vr_gl_world_lit_skip, "Skip Empty Lit Commands (Quest)",
+    "vr_gl_world_lit_skip: with the world split by surface (Unlit World Shader By Surface, the Quest), only the "
+    "textures with a surface a reaching light touches get their lit draw (On), or every texture (Off, as before). "
+    "The same picture, fewer draws.")
+QVR_TOGGLE(vr_gl_quake_dlights, "Quake-Style Dynamic Lights (Quest)",
+    "vr_gl_quake_dlights: under the ES profile (the Quest), the dynamic lights as Quake added them, once a frame: on "
+    "the world summed into a texture at the lightmap's 16-unit grid, on your body added to its light as one colour "
+    "(On), or per pixel (Off). As bright either way; flatter (no sheen, no bumps), and much cheaper on the Quest.")
+QVR_TOGGLE(vr_gl_world_dlmap, "Dynamic Lights in the Lightmap (Quest)",
+    "vr_gl_world_dlmap: under the ES profile (the Quest), the dynamic lights added into the lightmap once a frame "
+    "(Quake's own way, its 16-unit grid) and the world drawn without the lights' loop (On), or lit per pixel "
+    "(Off, the default). Models and particles are lit per pixel either way.")
+QVR_TOGGLE(vr_gl_world_dlmap_batch, "Batch Lightmap Uploads (Quest)",
+    "vr_gl_world_dlmap_batch: with Dynamic Lights in the Lightmap, the frame's changed lightmap texels sent in "
+    "one upload per band of 16 rows (On), or one upload per surface (Off, as before). The same picture.")
 QVR_CYCLE(vr_shadow_setup_share, "Shadow Caster Set-up Shared",
     "vr_shadow_setup_share: each animated shadow caster set up once for all the frame's shadow lights (its "
     "whole instance copied into each light's draw, drawn without textures) and the first eye taking the "

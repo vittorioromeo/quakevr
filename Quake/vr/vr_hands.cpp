@@ -910,7 +910,10 @@ void update()
 {
     QVR_PROFILE("hands");
     rig().state.valid = false;
-    if(!(cl.protocolflags & PRFL_QUAKEVR) || cls.state != ca_connected || !cl.viewentity)
+    // A demo of another protocol (id's demo1-3) on the Quest has its view placed too: the eyes are drawn from it
+    // (VR_RenderView needs the head), or the headset showed nothing while the window played it (QUEST_PLAN.md 6z). The
+    // PC keeps the window's flat demo (its HUD and the demo's own gun; the headset blank), as before.
+    if(!((cl.protocolflags & PRFL_QUAKEVR) || demoViewOnly()) || cls.state != ca_connected || !cl.viewentity)
     {
         rig().previous.valid = false;
         rig().lastHeadValid = false;
@@ -1175,6 +1178,11 @@ glm::vec3 takeRoomscaleMove()
     const glm::vec3 move = rig().roomscaleMove;
     rig().roomscaleMove = glm::vec3{0.f};
     return move;
+}
+
+bool demoViewOnly()
+{
+    return cls.demoplayback && !(cl.protocolflags & PRFL_QUAKEVR) && (VR_Android() || VR_GLESCompat());
 }
 
 State& current()

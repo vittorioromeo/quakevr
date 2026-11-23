@@ -10,21 +10,22 @@
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
-#include "Zancle/Math/Clamp.hpp"
 #include "vr_zancle.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <string.h>
 
 namespace qvr::kickcancel
 {
@@ -444,7 +445,7 @@ void buildCancelled(const aliashdr_t* hdr, ModelKick& m)
     for(int p = 0; p < hdr->numposes && m.probe < 0; p++)
     {
         const za::SizeT at = static_cast<za::SizeT>(p) * nv;
-        m.probe = memcmp(m.cancelled.data() + at, m.original.data() + at, nv * sizeof(trivertx_t)) != 0 ? p : -1;
+        m.probe = ZA_MEMCMP(m.cancelled.data() + at, m.original.data() + at, nv * sizeof(trivertx_t)) != 0 ? p : -1;
     }
 }
 
@@ -467,13 +468,13 @@ enum class Held
     }
     const za::SizeT nv = static_cast<za::SizeT>(hdr->numverts), at = static_cast<za::SizeT>(m.probe) * nv;
     const za::SizeT poseSize = nv * sizeof(trivertx_t);
-    if(memcmp(posesOf(hdr) + at, m.cancelled.data() + at, poseSize) == 0)
+    if(ZA_MEMCMP(posesOf(hdr) + at, m.cancelled.data() + at, poseSize) == 0)
     {
         return Held::Cancelled;
     }
-    if(memcmp(posesOf(hdr) + at, m.original.data() + at, poseSize) == 0)
+    if(ZA_MEMCMP(posesOf(hdr) + at, m.original.data() + at, poseSize) == 0)
     {
-        return memcmp(posesOf(hdr), m.original.data(), bytes) == 0 ? Held::Original : Held::Other;
+        return ZA_MEMCMP(posesOf(hdr), m.original.data(), bytes) == 0 ? Held::Original : Held::Other;
     }
     return Held::Other;
 }
@@ -494,7 +495,7 @@ enum class Held
         const double start = Sys_DoubleTime();
         fit(model, hdr, m);
         m.original.resize(static_cast<za::SizeT>(hdr->numposes) * static_cast<za::SizeT>(hdr->numverts));
-        memcpy(m.original.data(), posesOf(hdr), poseBytes(hdr));
+        ZA_MEMCPY(m.original.data(), posesOf(hdr), poseBytes(hdr));
         buildCancelled(hdr, m);
         Con_DPrintf("kick cancel: %s fitted (%d poses, body %d of %d vertices) in %.1f ms\n", m.name.cStr(),
             hdr->numposes, m.bodyCount, m.numverts, (Sys_DoubleTime() - start) * 1000.0);
@@ -534,7 +535,7 @@ void ensure(qmodel_t* model, aliashdr_t* hdr)
     {
         return;
     }
-    memcpy(posesOf(hdr), m->cancelled.data(), poseBytes(hdr));
+    ZA_MEMCPY(posesOf(hdr), m->cancelled.data(), poseBytes(hdr));
     hdr->dequantready = 0;
     if(model->meshvbo)
     {

@@ -24,7 +24,9 @@ SKIP=" 12 14 " # melee weapons longer than the room in front at a wall even upri
 
 # a. Every weapon.
 if [[ $ONLY == *a* ]]; then
-A="map vrtesthall; god; notarget; developer 1; r_norefresh 0"
+# (vr_flat_aim_zoom 0: every gun's ironsight. The launchers and the centurion guns aim by zoom since his weapons.txt
+# fsight_mode 1 (0ab8a76f7, 5475ff16a): no two-handed sighted hold to keep; their ironsight holds are what this reads.)
+A="map vrtesthall; god; notarget; developer 1; r_norefresh 0; vr_flat_aim_zoom 0"
 for i in $(seq 1 31); do
   A="$A; vr_flat_aim 0; wait3; vr_test_give_wid $i; impulse 149; wait25"
   for YP in "90 0" "45 0" "90 30" "60 -30"; do

@@ -5,13 +5,17 @@
 #include "vr_bytes.hpp"
 #include "vr_admelee.hpp"
 
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/InitializerList.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_api.h"
 
-#include <algorithm>
 #include <math.h>
-#include <string.h>
 
 namespace qvr::admelee
 {
@@ -125,7 +129,7 @@ constexpr float swordScale = 2.6f;
 {
     for(const Weapon& w : weapons)
     {
-        if(!strcmp(w.model, base))
+        if(!ZA_STRCMP(w.model, base))
         {
             return &w;
         }
@@ -136,8 +140,8 @@ constexpr float swordScale = 2.6f;
 // "<base>#melee" taken apart; false if it isn't one.
 [[nodiscard]] bool parse(const char* name, char* base, size_t baseSize)
 {
-    const char* at = strstr(name, suffix);
-    if(!at || at[strlen(suffix)] != '\0')
+    const char* at = ZA_STRSTR(name, suffix);
+    if(!at || at[ZA_STRLEN(suffix)] != '\0')
     {
         return false;
     }
@@ -146,7 +150,7 @@ constexpr float swordScale = 2.6f;
     {
         return false;
     }
-    memcpy(base, name, n);
+    ZA_MEMCPY(base, name, n);
     base[n] = '\0';
     return true;
 }
@@ -154,8 +158,8 @@ constexpr float swordScale = 2.6f;
 // "<the flail's model>#flailhead" taken apart; false if it isn't one.
 [[nodiscard]] bool flailHeadOf(const char* name, char* base, size_t baseSize)
 {
-    const char* at = strstr(name, flailHeadSuffix);
-    if(!at || at[strlen(flailHeadSuffix)] != '\0')
+    const char* at = ZA_STRSTR(name, flailHeadSuffix);
+    if(!at || at[ZA_STRLEN(flailHeadSuffix)] != '\0')
     {
         return false;
     }
@@ -164,7 +168,7 @@ constexpr float swordScale = 2.6f;
     {
         return false;
     }
-    memcpy(base, name, n);
+    ZA_MEMCPY(base, name, n);
     base[n] = '\0';
     return true;
 }
@@ -596,7 +600,7 @@ void heavyHandle(Mesh& m, const Heavy& h)
     const glm::vec3 dir = glm::normalize(to - from);
     const float top = to.x;
     za::Vector<glm::vec2> prof;
-    const auto part = [&](std::initializer_list<glm::vec2> pts, const float* s, const float* t) {
+    const auto part = [&](za::InitializerList<glm::vec2> pts, const float* s, const float* t) {
         prof.clear();
         for(const glm::vec2 q : pts)
         {
@@ -760,7 +764,8 @@ void shade(Mesh& m)
         const glm::vec3 &p = m.pos[x], &q = m.pos[y];
         return p.x != q.x ? p.x < q.x : (p.y != q.y ? p.y < q.y : p.z < q.z);
     };
-    std::sort(order.begin(), order.end(), less);
+    // Equal vertices (one group, one position) by index: each run's normals sum in one fixed order.
+    za::quickSort(order.begin(), order.end(), [&](int x, int y) { return less(x, y) || (!less(y, x) && x < y); });
     for(size_t i = 0; i < order.size();)
     {
         size_t j = i + 1;
@@ -923,7 +928,7 @@ void check(const Mesh& m, Built& out)
         const glm::vec3 &p = m.pos[x], &q = m.pos[y];
         return p.x != q.x ? p.x < q.x : (p.y != q.y ? p.y < q.y : p.z < q.z);
     };
-    std::sort(order.begin(), order.end(), less);
+    za::quickSort(order.begin(), order.end(), less);
     int ids = 0;
     for(size_t i = 0; i < order.size(); i++)
     {
@@ -944,7 +949,7 @@ void check(const Mesh& m, Built& out)
         }
         out.volume += glm::dot(m.pos[m.tri[i]], glm::cross(m.pos[m.tri[i + 1]], m.pos[m.tri[i + 2]]));
     }
-    std::sort(edges.begin(), edges.end());
+    za::quickSort(edges.begin(), edges.end());
     out.openEdges = out.overEdges = 0;
     for(size_t i = 0; i < edges.size();)
     {
@@ -1128,15 +1133,15 @@ constexpr float flailHeadScale = swordScale * 0.34f;
                         static_cast<size_t>(nv) * 4,
         byte{0});
     byte* f = out.file.data();
-    memcpy(f, src, headerSize);
-    memcpy(f + headerSize, src + headerSize, skins);
+    ZA_MEMCPY(f, src, headerSize);
+    ZA_MEMCPY(f + headerSize, src + headerSize, skins);
     const auto setf = [&](size_t off, float v) {
         const float le = LittleFloat(v);
-        memcpy(f + off, &le, 4);
+        ZA_MEMCPY(f + off, &le, 4);
     };
     const auto seti = [&](size_t off, int v) {
         const int le = LittleLong(v);
-        memcpy(f + off, &le, 4);
+        ZA_MEMCPY(f + off, &le, 4);
     };
     const glm::vec3 eye = fr.place(fr.local(glm::vec3{qvr::bytes::lef32(src, 36), qvr::bytes::lef32(src, 40), qvr::bytes::lef32(src, 44)}));
     for(int i = 0; i < 3; i++)
@@ -1165,7 +1170,7 @@ constexpr float flailHeadScale = swordScale * 0.34f;
         }
     }
     seti(at, 0); // (one frame, a single pose: AD's first's name)
-    memcpy(f + at + 12, src + s.pose + 8, 16);
+    ZA_MEMCPY(f + at + 12, src + s.pose + 8, 16);
     byte* lo = f + at + 4;
     byte* hi = f + at + 8;
     at += 28;
@@ -1269,7 +1274,7 @@ char bendsGameDir[MAX_OSPATH]; // the game folder they were made in
 
 [[nodiscard]] const Bend* bendOf(size_t w)
 {
-    if(strcmp(bendsGameDir, com_gamedir) != 0)
+    if(ZA_STRCMP(bendsGameDir, com_gamedir) != 0)
     {
         q_strlcpy(bendsGameDir, com_gamedir, sizeof(bendsGameDir));
         for(Bend& b : bends)
@@ -1394,7 +1399,7 @@ bool spineAt(const char* model, float f, glm::vec3& out, glm::vec3& line)
     {
         char name[MAX_QPATH];
         q_snprintf(name, sizeof(name), "%s%s", weapons[w].model, suffix);
-        if(strcmp(name, model) != 0)
+        if(ZA_STRCMP(name, model) != 0)
         {
             continue;
         }
@@ -1421,7 +1426,7 @@ int kindOfModel(const char* model)
     {
         char name[MAX_QPATH];
         q_snprintf(name, sizeof(name), "%s%s", weapons[w].model, suffix);
-        if(!strcmp(name, model))
+        if(!ZA_STRCMP(name, model))
         {
             return static_cast<int>(w) + 1;
         }
@@ -1443,9 +1448,9 @@ bool tipOf(const char* model, glm::vec3& tip, glm::vec3& hand)
 
 byte* derivedFile(const char* name, unsigned int* path_id)
 {
-    const char* at = strstr(name, suffix);
+    const char* at = ZA_STRSTR(name, suffix);
     char base[MAX_QPATH];
-    if((!at || at[strlen(suffix)] != '\0') && !flailHeadOf(name, base, sizeof(base)))
+    if((!at || at[ZA_STRLEN(suffix)] != '\0') && !flailHeadOf(name, base, sizeof(base)))
     {
         return nullptr;
     }
@@ -1464,7 +1469,7 @@ byte* derivedFile(const char* name, unsigned int* path_id)
         return COM_LoadMallocFile("progs/v_ksword.mdl", path_id);
     }
     byte* out = static_cast<byte*>(VR_HeapMalloc(b.file.size() + 1));
-    memcpy(out, b.file.data(), b.file.size());
+    ZA_MEMCPY(out, b.file.data(), b.file.size());
     out[b.file.size()] = 0;
     com_filesize = static_cast<int>(b.file.size());
     Con_DPrintf("AD melee model: %s made: %d triangles, %d vertices\n", name, b.tris, b.verts);
@@ -1475,7 +1480,7 @@ byte* derivedFile(const char* name, unsigned int* path_id)
 // at in a model viewer or a script).
 void info_f()
 {
-    const bool write = Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "write");
+    const bool write = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "write");
     for(const Weapon& w : weapons)
     {
         const int index = static_cast<int>(&w - weapons);

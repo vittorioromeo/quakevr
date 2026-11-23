@@ -13,12 +13,12 @@
 #include "vr_progs.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
-#include <string.h>
 
 namespace qvr::lagcomp
 {
@@ -103,8 +103,8 @@ Saved saved;
 void take(const edict_t* e, Entry& out)
 {
     out.num = NUM_FOR_EDICT(const_cast<edict_t*>(e));
-    memcpy(out.origin, e->v.origin, sizeof(out.origin));
-    memcpy(out.angles, e->v.angles, sizeof(out.angles));
+    ZA_MEMCPY(out.origin, e->v.origin, sizeof(out.origin));
+    ZA_MEMCPY(out.angles, e->v.angles, sizeof(out.angles));
     out.frame = e->v.frame;
     out.step = static_cast<int>(e->v.movetype) == MOVETYPE_STEP;
     out.tracked = out.num < static_cast<int>(hitmodel::detail::tracks.size());
@@ -123,8 +123,8 @@ void take(const edict_t* e, Entry& out)
 
 void put(edict_t* e, const Entry& in)
 {
-    memcpy(e->v.origin, in.origin, sizeof(in.origin));
-    memcpy(e->v.angles, in.angles, sizeof(in.angles));
+    ZA_MEMCPY(e->v.origin, in.origin, sizeof(in.origin));
+    ZA_MEMCPY(e->v.angles, in.angles, sizeof(in.angles));
     e->v.frame = in.frame;
     if(in.tracked && in.num < static_cast<int>(hitmodel::detail::tracks.size()))
     {
@@ -156,7 +156,7 @@ void put(edict_t* e, const Entry& in)
     }
     if(!same(cur.angles, m.then.angles))
     {
-        memcpy(out.angles, cur.angles, sizeof(out.angles));
+        ZA_MEMCPY(out.angles, cur.angles, sizeof(out.angles));
     }
     if(cur.frame != m.then.frame)
     {

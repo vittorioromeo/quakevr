@@ -19,21 +19,23 @@
 
 #include "thirdparty/imgui/imgui.h"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
-#include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
 #include <SDL.h>
 
 #include <stdio.h>
-#include <string.h>
 
 extern "C" int VR_IsActive(void);
 
@@ -170,7 +172,7 @@ void refreshCatalogue()
         c.progs = nullptr;
         return;
     }
-    if(c.progs == sv.qcvm.progs && !strcmp(c.map, sv.name) && c.ad == vr_ad_mounted.value)
+    if(c.progs == sv.qcvm.progs && !ZA_STRCMP(c.map, sv.name) && c.ad == vr_ad_mounted.value)
     {
         return;
     }
@@ -238,7 +240,7 @@ void refreshCatalogue()
 {
     for(int i = 0; i < ed.cat.kinds; i++)
     {
-        if(!strcmp(ed.cat.kindName[i], kind))
+        if(!ZA_STRCMP(ed.cat.kindName[i], kind))
         {
             return ed.cat.kindRow[i];
         }
@@ -264,7 +266,7 @@ void refreshCatalogue()
     for(int i = 0; i < ed.cat.codeCount; i++)
     {
         const int code = ed.cat.codes[i];
-        if(fitsOf(row, code) && !strcmp(ed.cat.codeName[code], name))
+        if(fitsOf(row, code) && !ZA_STRCMP(ed.cat.codeName[code], name))
         {
             return code;
         }
@@ -287,7 +289,7 @@ void refreshCatalogue()
     if(row >= 0)
     {
         int mainCode = 0;
-        if(strcmp(e.mainHand, "random") != 0 && strcmp(e.mainHand, "none") != 0)
+        if(ZA_STRCMP(e.mainHand, "random") != 0 && ZA_STRCMP(e.mainHand, "none") != 0)
         {
             mainCode = codeOf(row, e.mainHand);
             if(!mainCode)
@@ -295,7 +297,7 @@ void refreshCatalogue()
                 return "a weapon its kind can't hold";
             }
         }
-        if(strcmp(e.off, "none") != 0)
+        if(ZA_STRCMP(e.off, "none") != 0)
         {
             const int off = codeOf(row, e.off);
             if(!off)
@@ -311,7 +313,7 @@ void refreshCatalogue()
     bool known = false;
     for(int i = 0; i < ed.cat.infect; i++)
     {
-        known = known || !strcmp(ed.cat.infectName[i], e.infected);
+        known = known || !ZA_STRCMP(ed.cat.infectName[i], e.infected);
     }
     return known ? "" : "an unknown infection";
 }
@@ -323,22 +325,22 @@ void describe(char* out, size_t size, const aw::Entry& e)
     char hands[96] = "";
     if(row >= 0)
     {
-        if(strcmp(e.off, "none") != 0)
+        if(ZA_STRCMP(e.off, "none") != 0)
         {
             q_snprintf(hands, sizeof(hands), ": %s + %s", e.mainHand, e.off);
         }
         else
         {
-            q_snprintf(hands, sizeof(hands), ": %s", !strcmp(e.mainHand, "none") ? "fists" : !strcmp(e.mainHand, "random") ? "from the pool" : e.mainHand);
+            q_snprintf(hands, sizeof(hands), ": %s", !ZA_STRCMP(e.mainHand, "none") ? "fists" : !ZA_STRCMP(e.mainHand, "random") ? "from the pool" : e.mainHand);
         }
     }
     char armour[72] = "";
-    if(row >= 0 && strcmp(e.armour, "none") != 0)
+    if(row >= 0 && ZA_STRCMP(e.armour, "none") != 0)
     {
         q_snprintf(armour, sizeof(armour), ", %s armour (%s)", e.armour, e.pieces);
     }
     char infected[48] = "";
-    if(strcmp(e.infected, "none") != 0)
+    if(ZA_STRCMP(e.infected, "none") != 0)
     {
         q_snprintf(infected, sizeof(infected), ", infected: %s", e.infected);
     }
@@ -512,7 +514,7 @@ void noteSpot(const char* name)
 void cleanLabel(char* out, size_t size, const char* label)
 {
     q_strlcpy(out, label, size);
-    if(char* hash = strstr(out, "##"))
+    if(char* hash = ZA_STRSTR(out, "##"))
     {
         *hash = '\0';
     }
@@ -576,7 +578,7 @@ bool pickWord(const char* label, char (&value)[N], const char* const (&words)[M]
     {
         for(const char* w : words)
         {
-            if(pickItem(label, w, !strcmp(value, w)))
+            if(pickItem(label, w, !ZA_STRCMP(value, w)))
             {
                 setText(value, w);
                 changed = true;
@@ -596,7 +598,7 @@ void presetBar()
     {
         for(const za::String& f : ed.files)
         {
-            if(pickItem("load", f.cStr(), !strcmp(ed.pick, f.cStr())))
+            if(pickItem("load", f.cStr(), !ZA_STRCMP(ed.pick, f.cStr())))
             {
                 setText(ed.pick, f.cStr());
             }
@@ -834,7 +836,7 @@ void entryColumn()
     {
         for(int i = 0; i < ed.cat.kinds; i++)
         {
-            if(pickItem("Kind", ed.cat.kindName[i], !strcmp(e->kind, ed.cat.kindName[i])))
+            if(pickItem("Kind", ed.cat.kindName[i], !ZA_STRCMP(e->kind, ed.cat.kindName[i])))
             {
                 setText(e->kind, ed.cat.kindName[i]);
                 ed.dirty = true;
@@ -844,7 +846,7 @@ void entryColumn()
     }
     const int row = rowOf(e->kind);
     // What the new kind can't hold falls back to what it can.
-    if(row < 0 && (strcmp(e->mainHand, "none") != 0 || strcmp(e->off, "none") != 0 || strcmp(e->armour, "none") != 0))
+    if(row < 0 && (ZA_STRCMP(e->mainHand, "none") != 0 || ZA_STRCMP(e->off, "none") != 0 || ZA_STRCMP(e->armour, "none") != 0))
     {
         if(row == -1)
         {
@@ -853,25 +855,25 @@ void entryColumn()
             setText(e->armour, "none");
         }
     }
-    if(row >= 0 && strcmp(e->mainHand, "random") != 0 && strcmp(e->mainHand, "none") != 0 && !codeOf(row, e->mainHand) && ed.dirty)
+    if(row >= 0 && ZA_STRCMP(e->mainHand, "random") != 0 && ZA_STRCMP(e->mainHand, "none") != 0 && !codeOf(row, e->mainHand) && ed.dirty)
     {
         setText(e->mainHand, "random");
     }
     const bool armed = row >= 0;
-    const int mainCode = armed && strcmp(e->mainHand, "random") != 0 && strcmp(e->mainHand, "none") != 0 ? codeOf(row, e->mainHand) : 0;
-    if(armed && strcmp(e->off, "none") != 0 && ed.dirty && (!mainCode || !pairsOf(row, mainCode, codeOf(row, e->off))))
+    const int mainCode = armed && ZA_STRCMP(e->mainHand, "random") != 0 && ZA_STRCMP(e->mainHand, "none") != 0 ? codeOf(row, e->mainHand) : 0;
+    if(armed && ZA_STRCMP(e->off, "none") != 0 && ed.dirty && (!mainCode || !pairsOf(row, mainCode, codeOf(row, e->off))))
     {
         setText(e->off, "none");
     }
     ImGui::SetNextItemWidth(width);
     if(pickBegin("Main Hand", e->mainHand, armed))
     {
-        if(pickItem("Main Hand", "random", !strcmp(e->mainHand, "random")))
+        if(pickItem("Main Hand", "random", !ZA_STRCMP(e->mainHand, "random")))
         {
             setText(e->mainHand, "random");
             ed.dirty = true;
         }
-        if(pickItem("Main Hand", "none", !strcmp(e->mainHand, "none")))
+        if(pickItem("Main Hand", "none", !ZA_STRCMP(e->mainHand, "none")))
         {
             setText(e->mainHand, "none");
             ed.dirty = true;
@@ -880,7 +882,7 @@ void entryColumn()
         {
             const int code = ed.cat.codes[i];
             const char* name = ed.cat.codeName[code];
-            if(fitsOf(row, code) && pickItem("Main Hand", name, !strcmp(e->mainHand, name)))
+            if(fitsOf(row, code) && pickItem("Main Hand", name, !ZA_STRCMP(e->mainHand, name)))
             {
                 setText(e->mainHand, name);
                 ed.dirty = true;
@@ -891,7 +893,7 @@ void entryColumn()
     ImGui::SetNextItemWidth(width);
     if(pickBegin("Off Hand", e->off, armed && (fitsOf(row, mainCode) & 2) != 0))
     {
-        if(pickItem("Off Hand", "none", !strcmp(e->off, "none")))
+        if(pickItem("Off Hand", "none", !ZA_STRCMP(e->off, "none")))
         {
             setText(e->off, "none");
             ed.dirty = true;
@@ -900,7 +902,7 @@ void entryColumn()
         {
             const int code = ed.cat.codes[i];
             const char* name = ed.cat.codeName[code];
-            if(pairsOf(row, mainCode, code) && pickItem("Off Hand", name, !strcmp(e->off, name)))
+            if(pairsOf(row, mainCode, code) && pickItem("Off Hand", name, !ZA_STRCMP(e->off, name)))
             {
                 setText(e->off, name);
                 ed.dirty = true;
@@ -914,7 +916,7 @@ void entryColumn()
         ed.dirty = true;
     }
     ImGui::SetNextItemWidth(width);
-    if(pickWord("Pieces", e->pieces, pieceWords, armed && strcmp(e->armour, "none") != 0))
+    if(pickWord("Pieces", e->pieces, pieceWords, armed && ZA_STRCMP(e->armour, "none") != 0))
     {
         ed.dirty = true;
     }
@@ -923,7 +925,7 @@ void entryColumn()
     {
         for(int i = 0; i < ed.cat.infect; i++)
         {
-            if(pickItem("Infected With", ed.cat.infectName[i], !strcmp(e->infected, ed.cat.infectName[i])))
+            if(pickItem("Infected With", ed.cat.infectName[i], !ZA_STRCMP(e->infected, ed.cat.infectName[i])))
             {
                 setText(e->infected, ed.cat.infectName[i]);
                 ed.dirty = true;
@@ -959,20 +961,20 @@ void assignBar()
     ImGui::SetNextItemWidth(170.f);
     if(pickBegin("Map", ed.map))
     {
-        if(sv.active && pickItem("Map", sv.name, !strcmp(ed.map, sv.name)))
+        if(sv.active && pickItem("Map", sv.name, !ZA_STRCMP(ed.map, sv.name)))
         {
             setText(ed.map, sv.name);
         }
         for(const char* arena : aw::arenaMaps())
         {
-            if(strcmp(sv.active ? sv.name : "", arena) != 0 && pickItem("Map", arena, !strcmp(ed.map, arena)))
+            if(ZA_STRCMP(sv.active ? sv.name : "", arena) != 0 && pickItem("Map", arena, !ZA_STRCMP(ed.map, arena)))
             {
                 setText(ed.map, arena);
             }
         }
         for(const za::String& m : ed.assignMaps)
         {
-            if(!aw::isArenaMap(m.cStr()) && strcmp(m.cStr(), sv.active ? sv.name : "") != 0 && pickItem("Map", m.cStr(), !strcmp(ed.map, m.cStr())))
+            if(!aw::isArenaMap(m.cStr()) && ZA_STRCMP(m.cStr(), sv.active ? sv.name : "") != 0 && pickItem("Map", m.cStr(), !ZA_STRCMP(ed.map, m.cStr())))
             {
                 setText(ed.map, m.cStr());
             }
@@ -995,7 +997,7 @@ void assignBar()
             }
             for(const za::String& f : ed.files)
             {
-                if(pickItem(aw::skillNames[skill], f.cStr(), !strcmp(now.cStr(), f.cStr())))
+                if(pickItem(aw::skillNames[skill], f.cStr(), !ZA_STRCMP(now.cStr(), f.cStr())))
                 {
                     aw::setAssigned(ed.map, skill, f.cStr());
                     ed.assignMaps = aw::listedMaps();
@@ -1095,7 +1097,7 @@ void popups()
         {
             const bool gone = aw::removeFile(ed.name);
             say(va("%s %s", gone ? "deleted" : "couldn't delete", ed.name));
-            if(!strcmp(ed.pick, ed.name))
+            if(!ZA_STRCMP(ed.pick, ed.name))
             {
                 ed.pick[0] = '\0';
             }
@@ -1128,7 +1130,7 @@ void popups()
                 }
                 if(ImGui::Button(key, ImVec2{36.f, 36.f}))
                 {
-                    const size_t n = strlen(ed.saveName);
+                    const size_t n = ZA_STRLEN(ed.saveName);
                     if(n + 1 < sizeof(ed.saveName))
                     {
                         ed.saveName[n] = keyRows[i];
@@ -1141,7 +1143,7 @@ void popups()
             }
             if(btn("Backspace"))
             {
-                const size_t n = strlen(ed.saveName);
+                const size_t n = ZA_STRLEN(ed.saveName);
                 if(n > 0)
                 {
                     ed.saveName[n - 1] = '\0';
@@ -1260,7 +1262,7 @@ void click(const char* name)
 {
     for(const Spot& s : ed.spots)
     {
-        if(!strcmp(s.name, name))
+        if(!ZA_STRCMP(s.name, name))
         {
             return &s;
         }
@@ -1353,29 +1355,29 @@ void testFrame()
     case 3: check(ed.preset.waves.size() == 2 && ed.wave == 1, "Remove Wave: two"); click("Add Entry"); break;
     case 4: check(ed.preset.waves[1].entries.size() == 2 && ed.entry == 1, "Add Entry: the wave holds two"); click("Kind"); break;
     case 5: click("Kind:ogre"); break;
-    case 6: check(!strcmp(ed.preset.waves[1].entries[1].kind, "ogre") && !strcmp(ed.preset.waves[1].entries[1].mainHand, "none"), "Kind: an ogre, no weapon"); click("Infected With"); break;
+    case 6: check(!ZA_STRCMP(ed.preset.waves[1].entries[1].kind, "ogre") && !ZA_STRCMP(ed.preset.waves[1].entries[1].mainHand, "none"), "Kind: an ogre, no weapon"); click("Infected With"); break;
     case 7: click("Infected With:shambler"); break;
-    case 8: check(!strcmp(ed.preset.waves[1].entries[1].infected, "shambler"), "Infected With: a shambler"); click("entry1"); break;
+    case 8: check(!ZA_STRCMP(ed.preset.waves[1].entries[1].infected, "shambler"), "Infected With: a shambler"); click("entry1"); break;
     case 9: click("Main Hand"); break;
     case 10: click("Main Hand:Axe"); break;
-    case 11: check(!strcmp(ed.preset.waves[1].entries[0].mainHand, "Axe"), va("Main Hand: the axe (%s, entry %d)", ed.preset.waves[1].entries[0].mainHand, ed.entry)); click("Armour"); break;
+    case 11: check(!ZA_STRCMP(ed.preset.waves[1].entries[0].mainHand, "Axe"), va("Main Hand: the axe (%s, entry %d)", ed.preset.waves[1].entries[0].mainHand, ed.entry)); click("Armour"); break;
     case 12: click("Armour:red"); break;
-    case 13: check(!strcmp(ed.preset.waves[1].entries[0].armour, "red"), "Armour: red"); click("Wave Up"); break;
+    case 13: check(!ZA_STRCMP(ed.preset.waves[1].entries[0].armour, "red"), "Armour: red"); click("Wave Up"); break;
     case 14: check(ed.wave == 0 && ed.preset.waves[0].entries.size() == 2, "Wave Up: it's first now"); click("Entry Down"); break;
-    case 15: check(!strcmp(ed.preset.waves[0].entries[1].kind, "grunt") && ed.entry == 1, "Entry Down"); click("Save As"); break;
+    case 15: check(!ZA_STRCMP(ed.preset.waves[0].entries[1].kind, "grunt") && ed.entry == 1, "Entry Down"); click("Save As"); break;
     case 16: setText(ed.saveName, testName); click("Name"); break; // (the field typed in: below, with the panel's keys)
     case 17: if(ed.panelUp) { click("key:x"); } break;
-    case 18: if(ed.panelUp) { check(!strcmp(ed.saveName, "fixture_uix"), "the panel's keys type"); click("Backspace"); } break;
-    case 19: check(!strcmp(ed.saveName, testName), "the name to save under"); click("Save It"); break;
-    case 20: check(!strcmp(ed.name, testName) && !ed.dirty, "Save As: saved, nothing unsaved"); click("New"); break;
+    case 18: if(ed.panelUp) { check(!ZA_STRCMP(ed.saveName, "fixture_uix"), "the panel's keys type"); click("Backspace"); } break;
+    case 19: check(!ZA_STRCMP(ed.saveName, testName), "the name to save under"); click("Save It"); break;
+    case 20: check(!ZA_STRCMP(ed.name, testName) && !ed.dirty, "Save As: saved, nothing unsaved"); click("New"); break;
     case 21: check(ed.preset.waves.size() == 1 && !ed.name[0], "New: one wave, no name"); setText(ed.pick, testName); click("Load"); break;
-    case 22: check(!strcmp(ed.name, testName) && ed.preset.waves.size() == 2 && !strcmp(w0->entries[1].kind, "grunt"), "Load: it's back"); click("Normal"); break;
+    case 22: check(!ZA_STRCMP(ed.name, testName) && ed.preset.waves.size() == 2 && !ZA_STRCMP(w0->entries[1].kind, "grunt"), "Load: it's back"); click("Normal"); break;
     case 23: click(va("Normal:%s", testName)); break;
-    case 24: check(!strcmp(aw::assigned(ed.map, 1).cStr(), testName), "Normal's preset for this map"); click("Normal"); break;
+    case 24: check(!ZA_STRCMP(aw::assigned(ed.map, 1).cStr(), testName), "Normal's preset for this map"); click("Normal"); break;
     case 25: click("Normal:Default"); break;
     case 26: check(aw::assigned(ed.map, 1).empty(), "Normal back to Default"); click("Delete"); break;
     case 27: click("Keep It"); break;
-    case 28: check(!strcmp(ed.name, testName), "Delete asks: Keep It keeps it"); click("Delete"); break;
+    case 28: check(!ZA_STRCMP(ed.name, testName), "Delete asks: Keep It keeps it"); click("Delete"); break;
     case 29: click("Yes, Delete"); break;
     case 30:
     {
@@ -1384,7 +1386,7 @@ void testFrame()
         bool left = false;
         for(const za::String& f : ed.files)
         {
-            left = left || !strcmp(f.cStr(), testName);
+            left = left || !ZA_STRCMP(f.cStr(), testName);
         }
         check(!left, "Yes, Delete: its file is gone");
         clickToClose("Close", 0, 32);

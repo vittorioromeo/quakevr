@@ -3,16 +3,18 @@
 
 #include "vr_brushbake.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 
 #include <stdio.h>
-#include <string.h>
 
 namespace qvr::brushbake
 {
@@ -72,7 +74,7 @@ struct Writer
     {
         const za::SizeT at = v.size();
         v.resize(at + n);
-        memcpy(v.data() + at, p, n);
+        ZA_MEMCPY(v.data() + at, p, n);
     }
     void i32(int x)
     {
@@ -95,7 +97,7 @@ struct Writer
 [[nodiscard]] int readI32(const unsigned char* p)
 {
     int v;
-    memcpy(&v, p, 4);
+    ZA_MEMCPY(&v, p, 4);
     return LittleLong(v);
 }
 
@@ -155,7 +157,7 @@ const Baked& bakedOfWorld()
     b.world = w;
     b.entities = w ? w->entities : nullptr;
     b.list.clear();
-    for(const char* p = b.entities ? strstr(b.entities, "// qvr_brushbake *") : nullptr; p; p = strstr(p + 1, "// qvr_brushbake *"))
+    for(const char* p = b.entities ? ZA_STRSTR(b.entities, "// qvr_brushbake *") : nullptr; p; p = ZA_STRSTR(p + 1, "// qvr_brushbake *"))
     {
         BakedEntry e;
         if(sscanf(p, "// qvr_brushbake *%d %llx %d", &e.model, &e.hash, &e.faces) == 3)
@@ -223,11 +225,11 @@ bool augment(const unsigned char* data, za::SizeT size, za::Vector<unsigned char
     {
         format = Format::Bsp29;
     }
-    else if(!memcmp(data, "BSP2", 4))
+    else if(!ZA_MEMCMP(data, "BSP2", 4))
     {
         format = Format::Bsp2;
     }
-    else if(!memcmp(data, "2PSB", 4))
+    else if(!ZA_MEMCMP(data, "2PSB", 4))
     {
         format = Format::Bsp2rmq;
     }
@@ -250,7 +252,7 @@ bool augment(const unsigned char* data, za::SizeT size, za::Vector<unsigned char
         lumps[i].resize(static_cast<za::SizeT>(l));
         if(l)
         {
-            memcpy(lumps[i].data(), data + o, static_cast<za::SizeT>(l));
+            ZA_MEMCPY(lumps[i].data(), data + o, static_cast<za::SizeT>(l));
         }
     }
     const auto count = [&](Lump l, int each) { return static_cast<int>(lumps[l].size()) / each; };
@@ -265,7 +267,7 @@ bool augment(const unsigned char* data, za::SizeT size, za::Vector<unsigned char
             char name[17] = "";
             if(off >= 0 && static_cast<za::SizeT>(off) + 16 <= lumps[Textures].size())
             {
-                memcpy(name, lumps[Textures].data() + off, 16);
+                ZA_MEMCPY(name, lumps[Textures].data() + off, 16);
             }
             textureNames.pushBack(za::String{name});
         }
@@ -539,7 +541,7 @@ bool augment(const unsigned char* data, za::SizeT size, za::Vector<unsigned char
         text += entities;
         text += notes;
         lumps[Entities].resize(text.size() + 1);
-        memcpy(lumps[Entities].data(), text.cStr(), text.size() + 1);
+        ZA_MEMCPY(lumps[Entities].data(), text.cStr(), text.size() + 1);
     }
     // The file: its header, its 15 lumps one after another (no BSPX: light makes its own).
     Writer w{out};
@@ -554,8 +556,8 @@ bool augment(const unsigned char* data, za::SizeT size, za::Vector<unsigned char
         const int at = static_cast<int>(out.size());
         w.bytes(lumps[i].data(), lumps[i].size());
         const int o = LittleLong(at), l = LittleLong(static_cast<int>(lumps[i].size()));
-        memcpy(out.data() + 4 + i * 8, &o, 4);
-        memcpy(out.data() + 8 + i * 8, &l, 4);
+        ZA_MEMCPY(out.data() + 4 + i * 8, &o, 4);
+        ZA_MEMCPY(out.data() + 8 + i * 8, &l, 4);
     }
     while(out.size() % 4)
     {

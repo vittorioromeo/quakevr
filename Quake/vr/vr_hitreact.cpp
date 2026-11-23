@@ -45,13 +45,16 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Trait/IsTriviallyCopyable.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "vr_api.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <string.h>
-#include <type_traits>
 
 using namespace qvr;
 
@@ -991,7 +994,7 @@ namespace hitreact_detail
 {
     const auto finite = [](float x) {
         uint32_t bits = 0;
-        memcpy(&bits, &x, sizeof(bits));
+        ZA_MEMCPY(&bits, &x, sizeof(bits));
         return (bits & 0x7f800000u) != 0x7f800000u && x > -1e6f && x < 1e6f; // (NaN, infinite: exponent all ones)
     };
     for(int i = 0; i < 3; i++)
@@ -1017,7 +1020,7 @@ namespace
 
 static_assert(sizeof(ArmPose) <= poselive::poseBytes, "the Live tape's room for an arm pose");
 static_assert(sizeof(entity_t) <= poselive::entBytes, "the Live tape's room for an entity");
-static_assert(std::is_trivially_copyable_v<ArmPose>, "copied as bytes");
+static_assert(ZA_IS_TRIVIALLY_COPYABLE(ArmPose), "copied as bytes");
 
 // The subject as the game had it when paused (put back on Play): its arm pose, its solve's state, its entity.
 struct LiveHeld
@@ -1070,8 +1073,8 @@ void liveRecord(const ArmPose& s, const entity_t* e, int pose1, int pose2, float
     f->pose2 = pose2;
     f->blend = blend;
     f->frame = e->frame;
-    memcpy(f->ent, e, sizeof(entity_t));
-    memcpy(f->pose, &s, sizeof(ArmPose));
+    ZA_MEMCPY(f->ent, e, sizeof(entity_t));
+    ZA_MEMCPY(f->pose, &s, sizeof(ArmPose));
     f->armsLen = agarms::saveState(s.ent, f->arms);
     f->legsLen = aglegs::saveState(s.ent, f->legs);
     f->bodyLen = agbody::saveState(s.ent, f->body);
@@ -1159,14 +1162,14 @@ void liveReplay(ArmPose& s, entity_t* e, const aliashdr_t* hdr)
             aglegs::loadState(ent, f.legs, f.legsLen);
             agbody::loadState(ent, f.body, f.bodyLen);
         }
-        memcpy(&s, f.pose, sizeof(ArmPose));
+        ZA_MEMCPY(&s, f.pose, sizeof(ArmPose));
         s.ent = ent;
         agpose::Key d;
         if(poselive::delta(f, d))
         {
             liveEdit(s, d, scale);
         }
-        memcpy(&rec, f.ent, sizeof(entity_t));
+        ZA_MEMCPY(&rec, f.ent, sizeof(entity_t));
         cl.time = f.time;
         host_framecount = frameWas - (count - 1 - k); // (each frame of the window a frame of its own to the solve)
         livePlace(*e, rec, 0.f);
@@ -1700,7 +1703,7 @@ void tiltModelNow(const entity_t* e, float matrix[16])
     const glm::mat4 turn = glm::mat4_cast(rigpose::fromVector(total));
     glm::mat4 m = glm::make_mat4(matrix);
     m = m * glm::translate(glm::mat4{1.f}, feet) * turn * glm::translate(glm::mat4{1.f}, -feet);
-    memcpy(matrix, glm::value_ptr(m), sizeof(float) * 16);
+    ZA_MEMCPY(matrix, glm::value_ptr(m), sizeof(float) * 16);
 }
 
 bool boneKicks(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, rigpose::Rigid* out)
@@ -1720,7 +1723,7 @@ bool armsWanted(const entity_t* e)
 {
     const bool want = vr_agrunt_ik.value != 0.f && e && e->model && e->model->type == mod_alias && client::entityNumber(e) > 0 &&
                       armedRigOf(e->model) != nullptr;
-    if(!want && vr_agrunt_ik_debug.value >= 2.f && e && e->model && strstr(e->model->name, "vrgrunt"))
+    if(!want && vr_agrunt_ik_debug.value >= 2.f && e && e->model && ZA_STRSTR(e->model->name, "vrgrunt"))
     {
         Con_Printf("agik ent %d: not wanted (%s)\n", client::entityNumber(e), e->model->name);
     }
@@ -1919,12 +1922,12 @@ RagWeaponTally ragWeaponTally;
 void ragWeaponErr_f()
 {
     const char* what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    if(!strcmp(what, "clear"))
+    if(!ZA_STRCMP(what, "clear"))
     {
         ragWeaponErr = RagWeaponErr{};
         return;
     }
-    if(!strcmp(what, "done"))
+    if(!ZA_STRCMP(what, "done"))
     {
         qvr::testkit::verdict("ragweapon", ragWeaponTally.passed, ragWeaponTally.failed);
         ragWeaponTally = RagWeaponTally{};

@@ -13,6 +13,8 @@
 #include "vr_tunables.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -200,7 +202,7 @@ bool playing(int slot)
 // first it begins), next (the next other player after the one followed, none past the last) -> his slot, -1 none, -2 off.
 int resolve(int self, const char* arg)
 {
-    if(!strcmp(arg, "0") || !q_strcasecmp(arg, "off"))
+    if(!ZA_STRCMP(arg, "0") || !q_strcasecmp(arg, "off"))
     {
         return -2;
     }
@@ -227,7 +229,7 @@ int resolve(int self, const char* arg)
         for(int s = 0; s < svs.maxclients; ++s)
         {
             if(playing(s) && (pass == 0 ? !q_strcasecmp(svs.clients[s].name, arg)
-                                        : !q_strncasecmp(svs.clients[s].name, arg, static_cast<int>(strlen(arg)))))
+                                        : !q_strncasecmp(svs.clients[s].name, arg, static_cast<int>(ZA_STRLEN(arg)))))
             {
                 return s;
             }

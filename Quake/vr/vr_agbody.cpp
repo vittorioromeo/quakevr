@@ -1,13 +1,13 @@
 // vr_agbody.cpp -- armed humanoids' body proxies (vr_agbody.hpp; ROUND22.md, "Armed humanoids in motion: the glitch
 // finder and a robust solve").
 
-#include <type_traits>
-#include <string.h>
 #include "vr_agbody.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -16,6 +16,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Trait/IsTriviallyCopyable.hpp"
 
 using namespace qvr;
 
@@ -219,7 +220,7 @@ const Proxies* of(const qmodel_t* model, const ragdoll::Rig& rig, int chest, flo
         int dc = -1;
         for(int b = 0; d && b < d->numBones; b++)
         {
-            dc = dc < 0 && !strcmp(d->bones[b].name, "chest") ? b : dc;
+            dc = dc < 0 && !ZA_STRCMP(d->bones[b].name, "chest") ? b : dc;
         }
         Proxy p;
         // (its sides from the lower 0.4: 6.4 units each way, the waist up to the chest's middle; from the lower 0.6, the
@@ -408,13 +409,13 @@ float segmentDepth(const Posed& q, const glm::vec3& p0, const glm::vec3& p1, int
 int saveState(int ent, unsigned char* out)
 {
     static_assert(sizeof(Upper) <= stateBytes, "the Live tape's room for its state");
-    static_assert(std::is_trivially_copyable_v<Upper>, "copied as bytes");
+    static_assert(ZA_IS_TRIVIALLY_COPYABLE(Upper), "copied as bytes");
     const Upper* st = upperOf(ent, false);
     if(!st)
     {
         return 0;
     }
-    memcpy(out, st, sizeof(Upper));
+    ZA_MEMCPY(out, st, sizeof(Upper));
     return static_cast<int>(sizeof(Upper));
 }
 
@@ -430,7 +431,7 @@ void loadState(int ent, const unsigned char* in, int len)
         *st = Upper{}; // (none then: dropped)
         return;
     }
-    memcpy(st, in, sizeof(Upper));
+    ZA_MEMCPY(st, in, sizeof(Upper));
 }
 
 void resetModels()

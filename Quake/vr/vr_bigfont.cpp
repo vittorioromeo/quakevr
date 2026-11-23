@@ -23,14 +23,15 @@
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "vr_api.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 namespace
 {
@@ -109,8 +110,8 @@ za::Array<RowPicture, za::getArraySize(rowPictureNames)> rowPictures;
     if(file && size >= 8)
     {
         int w, h;
-        memcpy(&w, file, 4);
-        memcpy(&h, file + 4, 4);
+        ZA_MEMCPY(&w, file, 4);
+        ZA_MEMCPY(&h, file + 4, 4);
         w = LittleLong(w);
         h = LittleLong(h);
         if(w > 0 && h > 0 && w <= 4096 && h <= 4096 && 8 + w * h <= size)
@@ -297,7 +298,7 @@ void ensureBuilt()
     }
     for(za::SizeT i = 0; i < za::getArraySize(rowPictureNames); i++)
     {
-        if(strcmp(name, rowPictureNames[i]) != 0)
+        if(ZA_STRCMP(name, rowPictureNames[i]) != 0)
         {
             continue;
         }

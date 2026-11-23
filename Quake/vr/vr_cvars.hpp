@@ -13,7 +13,8 @@ extern "C" {
 #include "cvar.h"
 }
 
-#include <initializer_list>
+#include "Zancle/Base/InitializerList.hpp"
+
 
 namespace qvr
 {

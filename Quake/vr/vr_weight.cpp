@@ -42,6 +42,7 @@
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Ceil.hpp"
@@ -59,7 +60,6 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include <stdio.h>
-#include <string.h>
 
 namespace qvr::weight
 {
@@ -191,7 +191,7 @@ namespace
         }
         edict_t* e = EDICT_NUM(ent);
         if(sv.models[static_cast<int>(e->v.modelindex)] == nullptr ||
-            strcmp(sv.models[static_cast<int>(e->v.modelindex)]->name, model->name) == 0)
+            ZA_STRCMP(sv.models[static_cast<int>(e->v.modelindex)]->name, model->name) == 0)
         {
             c.mass = box3d::propMass(e);
         }

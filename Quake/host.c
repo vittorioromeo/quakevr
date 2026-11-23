@@ -1819,6 +1819,7 @@ void _Host_Frame (double time)
 	qboolean ranserver = false;
 	int seat; // QVR: the seat loop's (Host_NextSeat)
 	usercmd_t pendingcmds[MAX_SPLITSEATS]; // QVR: each seat's look and move gathered this frame
+	qboolean shaderwait; // QVR
 
 	time1 = Sys_DoubleTime ();
 	VR_TRACY_DETAIL (1, "frame: profile begin", VR_ProfileFrame ()); // QVR: ends the last frame's profile, begins this one's
@@ -1827,6 +1828,7 @@ void _Host_Frame (double time)
 	{
 		VR_TracyAbort();
 		CL_SeatSet (0); // QVR: (an error may have left a seat's client frame: seat 0 current again)
+		cbuf_executing = 0; // QVR: a Host_Error out of a command left Cbuf_Execute's depth up (cmd.c)
 		return;			// something bad happened, or the server disconnected
 	}
 
@@ -1845,12 +1847,18 @@ void _Host_Frame (double time)
 
 	time = VR_HostFrameTime (time); // QVR: a motion take playing back: its recorded frame times
 
+	// QVR: while the queued shaders compile (gl_shaders.c, QUEST_PLAN.md 6zi) the frames show the loading panel alone and
+	// no time passes (nor a random number drawn): what follows is the same however long the compile took
+	shaderwait = GL_ShadersPending ();
+	if (!shaderwait)
+	{
 // keep the random time dependent
 	rand ();
 
 // decide the simulation time
 	accumtime += host_netinterval?CLAMP(0.0, time, 0.2):0.0;	//for renderer/server isolation
 	Host_AdvanceTime (time);
+	}
 
 // run async procs
 	VR_TRACY_DETAIL (1, "frame: async drain", AsyncQueue_Drain (&async_queue)); // QVR: (profiling builds: a zone)
@@ -1865,6 +1873,14 @@ void _Host_Frame (double time)
 	IN_Commands ();
 	VR_ProfileEnd (); // QVR
 	VR_BeginFrame (); // QVR
+	if (shaderwait) // QVR: the queued shaders: the loading panel's frame alone until done, then this frame's time after all
+	{
+		if (VR_ShadersLoadingFrame ())
+			return;
+		rand ();
+		accumtime += host_netinterval?CLAMP(0.0, time, 0.2):0.0;
+		Host_AdvanceTime (time);
+	}
 	if (host_framecount == 0) VR_TimeMark ("first frame: input, VR backend start"); // QVR
 
 //check the stdin for commands (dedicated servers)
@@ -1952,6 +1968,7 @@ void _Host_Frame (double time)
 		}
 		host_frametime = realframetime;
 		Cbuf_Waited();
+		VR_TestTick (); // QVR: vr_waitquiton's tick: a batch case's held rest back when its pattern matched (vr/vr_testbatch.cpp)
 		ranserver = true;
 	}
 
@@ -2201,6 +2218,12 @@ void Host_Init (void)
 	// johnfitz -- in case the vid mode was locked during vid_init, we can unlock it now.
 		// note: two leading newlines because the command buffer swallows one of them.
 		Cbuf_AddText ("\n\nvid_unlock\n");
+		if (VR_AndroidFirstRun ()) // QVR: Android's first run (no config yet): the Standalone graphics preset, its Quest 3 level (vr_android.cpp)
+			cmd_before_stuffcmds = "vr_standalone_preset 0\n";
+		else if (VR_Android ()) // QVR: later runs: the saved settings checked against the Quest's (vr/vr_gfxpresets.cpp)
+			cmd_before_stuffcmds = "vr_quest_check\n";
+		// QVR: both after the configs, before the command line's +map/+exec (cmd.c Cmd_StuffCmds_f; they ran after
+		// them all, a +exec'd file's waits too: the guard's rows missed a scripted session, QUEST_PLAN.md 6zk)
 	}
 
 	if (cls.state == ca_dedicated)

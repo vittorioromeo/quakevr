@@ -17,6 +17,8 @@
 
 #include "thirdparty/imgui/imgui.h"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -29,7 +31,6 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include <stdlib.h>
-#include <string.h>
 
 using namespace qvr;
 using namespace qvr::rigstudio::detail;
@@ -187,7 +188,7 @@ void setAngles(rig2::Rig& rig, int b, const glm::vec3& a)
 
 void updateReport()
 {
-    if(rom.reportValid && !memcmp(&rom.reportFor, &rom.pose, sizeof(rig2::Pose)))
+    if(rom.reportValid && !ZA_MEMCMP(&rom.reportFor, &rom.pose, sizeof(rig2::Pose)))
     {
         return;
     }
@@ -542,7 +543,7 @@ void romWindow()
     if(!rig)
     {
         // (the plain knight's model has none: his armed one's, vrknight.mdl, has)
-        const bool plainKnight = st.model && !strcmp(st.model->name, "progs/knight.mdl");
+        const bool plainKnight = st.model && !ZA_STRCMP(st.model->name, "progs/knight.mdl");
         ImGui::TextWrapped("No authored rig for %s (quakevr/rigs/<model>.rig2.txt: Misc/quakevr/make_rig2.py)%s.",
             st.model ? st.model->name : "-", plainKnight ? ": pick the armed Knight (Armed Knights on)" : "");
         ImGui::End();
@@ -1001,9 +1002,9 @@ void romTestTick(rig2::Rig& rig)
 void rom_f()
 {
     const char* sub = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    if(!*sub || !strcmp(sub, "on") || !strcmp(sub, "off"))
+    if(!*sub || !ZA_STRCMP(sub, "on") || !ZA_STRCMP(sub, "off"))
     {
-        rom.on = strcmp(sub, "off") != 0;
+        rom.on = ZA_STRCMP(sub, "off") != 0;
         if(!rom.on)
         {
             clearLive();
@@ -1011,12 +1012,12 @@ void rom_f()
         Con_Printf("rigstudio rom: %s\n", rom.on ? "on" : "off");
         return;
     }
-    if(!strcmp(sub, "test"))
+    if(!ZA_STRCMP(sub, "test"))
     {
         // (it waits for its subject: run as the studio opens; `weapon`: the weapon test)
         rom.on = true;
         romTest = RomTest{};
-        romTest.step = Cmd_Argc() > 2 && !strcmp(Cmd_Argv(2), "weapon") ? 20 : 1;
+        romTest.step = Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(2), "weapon") ? 20 : 1;
         return;
     }
     rig2::Rig* rig = romRig();
@@ -1034,12 +1035,12 @@ void rom_f()
         }
         return b;
     };
-    if(!strcmp(sub, "joint"))
+    if(!ZA_STRCMP(sub, "joint"))
     {
         const int b = joint(2);
         rom.joint = b >= 0 ? b : rom.joint;
     }
-    else if(!strcmp(sub, "set"))
+    else if(!ZA_STRCMP(sub, "set"))
     {
         const int b = joint(2);
         if(b >= 0)
@@ -1055,13 +1056,13 @@ void rom_f()
             Con_Printf("rigstudio rom: %s %.1f %.1f %.1f\n", rig->bones[b].name, rom.pose.a[b].x, rom.pose.a[b].y, rom.pose.a[b].z);
         }
     }
-    else if(!strcmp(sub, "reset"))
+    else if(!ZA_STRCMP(sub, "reset"))
     {
         pushRomUndoNow(*rig, "reset pose");
         rom.pose = rig2::restPose(*rig);
         rom.sweepJoint = -1;
     }
-    else if(!strcmp(sub, "random"))
+    else if(!ZA_STRCMP(sub, "random"))
     {
         pushRomUndoNow(*rig, "random pose");
         if(Cmd_Argc() > 2)
@@ -1070,7 +1071,7 @@ void rom_f()
         }
         rom.pose = rig2::randomPose(*rig, rom.seed);
     }
-    else if(!strcmp(sub, "sweep"))
+    else if(!ZA_STRCMP(sub, "sweep"))
     {
         const int b = joint(2);
         if(b >= 0)
@@ -1080,7 +1081,7 @@ void rom_f()
             rom.sweepT = 0.f;
         }
     }
-    else if(!strcmp(sub, "limit") && Cmd_Argc() > 5)
+    else if(!ZA_STRCMP(sub, "limit") && Cmd_Argc() > 5)
     {
         const int b = joint(2);
         if(b >= 0)
@@ -1089,8 +1090,8 @@ void rom_f()
             rig2::Bone& bone = rig->bones[b];
             const glm::vec2 v{static_cast<float>(atof(Cmd_Argv(4))), static_cast<float>(atof(Cmd_Argv(5)))};
             const char* f = Cmd_Argv(3);
-            glm::vec2* dst = !strcmp(f, "swingx") ? &bone.swingX : !strcmp(f, "swingy") ? &bone.swingY : !strcmp(f, "twist") ? &bone.twist
-                           : !strcmp(f, "range") ? &bone.range : nullptr;
+            glm::vec2* dst = !ZA_STRCMP(f, "swingx") ? &bone.swingX : !ZA_STRCMP(f, "swingy") ? &bone.swingY : !ZA_STRCMP(f, "twist") ? &bone.twist
+                           : !ZA_STRCMP(f, "range") ? &bone.range : nullptr;
             if(dst)
             {
                 *dst = v;
@@ -1100,7 +1101,7 @@ void rom_f()
             Con_Printf("rigstudio rom: %s %s %g %g\n", bone.name, f, v.x, v.y);
         }
     }
-    else if(!strcmp(sub, "pivot") && Cmd_Argc() > 5)
+    else if(!ZA_STRCMP(sub, "pivot") && Cmd_Argc() > 5)
     {
         const int b = joint(2);
         if(b >= 0)
@@ -1111,14 +1112,14 @@ void rom_f()
             rom.dirty = true;
         }
     }
-    else if(!strcmp(sub, "save"))
+    else if(!ZA_STRCMP(sub, "save"))
     {
         za::String path;
         const bool ok = rig2::save(*rig, path);
         rom.dirty = rom.dirty && !ok;
         Con_Printf("rigstudio rom: %s %s\n", ok ? "saved" : "could not write", path.cStr());
     }
-    else if(!strcmp(sub, "camera"))
+    else if(!ZA_STRCMP(sub, "camera"))
     {
         // the camera on a joint (its posed pivot), from yaw/pitch (degrees, the subject's facing: 0 its front) and a distance
         const int b = joint(2);
@@ -1131,7 +1132,7 @@ void rom_f()
             st.cam.dist = Cmd_Argc() > 5 ? static_cast<float>(atof(Cmd_Argv(5))) : 40.f;
         }
     }
-    else if(!strcmp(sub, "status"))
+    else if(!ZA_STRCMP(sub, "status"))
     {
         rig2::forward(*rig, rom.pose, rom.F);
         updateReport();

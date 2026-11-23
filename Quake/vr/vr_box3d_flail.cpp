@@ -25,12 +25,13 @@
 #include "vr_admelee.hpp"
 #include "vr_timescale.hpp"
 
-#include "Zancle/Math/Cos.hpp"
-#include "Zancle/Math/Remainder.hpp"
-#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 
@@ -159,7 +160,7 @@ void drop(Head& h)
     const FieldOffsets& f = fields();
     const char* name = h ? PR_GetString(player->v.weaponmodel)
                          : (f.weaponmodel2 >= 0 ? PR_GetString(fieldInt(player, f.weaponmodel2)) : "");
-    return name && !strcmp(name, admelee::flailModel);
+    return name && !ZA_STRCMP(name, admelee::flailModel);
 }
 
 // The head's middle put at `want` from the anchor at `at`, short of the level between them by its radius.
@@ -694,8 +695,8 @@ void flailInfo_f()
     int handles = 0, heads = 0, paired = 0, orphans = 0, bare = 0;
     progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
         const char* klass = PR_GetString(e->v.classname);
-        const bool head = !strcmp(klass, "vr_flailhead");
-        const bool handle = !strcmp(klass, "thrown_weapon") && !strcmp(PR_GetString(e->v.model), qvr::admelee::flailModel);
+        const bool head = !ZA_STRCMP(klass, "vr_flailhead");
+        const bool handle = !ZA_STRCMP(klass, "thrown_weapon") && !ZA_STRCMP(PR_GetString(e->v.model), qvr::admelee::flailModel);
         if(!head && !handle)
         {
             return;
@@ -703,7 +704,7 @@ void flailInfo_f()
         const int ofs = fieldInt(e, link);
         edict_t* other = ofs ? PROG_TO_EDICT(ofs) : nullptr;
         const bool mutual = other && !other->free && fieldInt(other, link) == EDICT_TO_PROG(e) &&
-                            !strcmp(PR_GetString(other->v.classname), head ? "thrown_weapon" : "vr_flailhead");
+                            !ZA_STRCMP(PR_GetString(other->v.classname), head ? "thrown_weapon" : "vr_flailhead");
         heads += head ? 1 : 0;
         handles += handle ? 1 : 0;
         paired += head && mutual ? 1 : 0;

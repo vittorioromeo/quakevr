@@ -38,6 +38,9 @@
 #include "vr_brushes.hpp"
 #include "vr_toolpanel.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -122,6 +125,7 @@ struct PanelState
     bool more{false};            // More's page instead of the tool's
     bool armed{false};           // Spawn > Monsters' Armed Humanoid page instead of its grid (armedPage)
     bool rope{false};            // Spawn > Props' Rope Settings page instead of its grid (ropePage)
+    bool ropeMore{false};        // (ropes7) its second page: strung ropes and poles
     DropList drop;               // a dropdown's list open over the panel
     bool overlayNow{false};      // the list's widgets being laid out (the others sleep while it is open)
     int shownTool{-1};           // the tool the last frame saw (another, from the stick press: More's page closes)
@@ -256,7 +260,7 @@ int paragraph(float x, float y, float width, float dim, const char* s, bool gold
     int lines = 0;
     while(*s)
     {
-        int n = static_cast<int>(strlen(s));
+        int n = static_cast<int>(ZA_STRLEN(s));
         if(n > perLine)
         {
             n = perLine;
@@ -569,7 +573,7 @@ int dropdown(Ui& ui, const Rect& r, const char* label, const char* const* labels
 {
     DropList& d = ps().drop;
     int picked = -1;
-    if(d.picked >= 0 && !strcmp(d.pickedFor, label))
+    if(d.picked >= 0 && !ZA_STRCMP(d.pickedFor, label))
     {
         picked = d.picked < n ? d.picked : -1;
         d.picked = -1;
@@ -582,7 +586,7 @@ int dropdown(Ui& ui, const Rect& r, const char* label, const char* const* labels
         q_strlcpy(d.name, label, sizeof(d.name));
         d.page = chosen >= 0 ? chosen / listPerPage(n) : 0;
     }
-    const bool open = d.name[0] && !strcmp(d.name, label);
+    const bool open = d.name[0] && !ZA_STRCMP(d.name, label);
     if(open)
     {
         d.labels = labels;
@@ -772,7 +776,7 @@ bool thumbTile(Ui& ui, const Rect& r, int entry)
         const bool chosen = available && toolgun::selectedSpawnable() == entry; // AD support
         const bool hover = available && hovering(r); // AD support
         tile(r, chosen, hover);
-        const bool side = !strcmp(toolgun::spawnableSection(entry), "Weapons");
+        const bool side = !ZA_STRCMP(toolgun::spawnableSection(entry), "Weapons");
         const gfx::Picture* pic = toolgun::icons::get(toolgun::spawnableModel(entry), toolgun::spawnableSkin(entry), side);
         const float size = 36.f;
         if(pic)
@@ -786,7 +790,7 @@ bool thumbTile(Ui& ui, const Rect& r, int entry)
         }
         // Its name: one line, or split at the space nearest its middle.
         const bool gold = !available || (!chosen && !hover); // AD support: unavailable entries stay visible
-        const int len = static_cast<int>(strlen(name));
+        const int len = static_cast<int>(ZA_STRLEN(name));
         const float dim = 6.f;
         if(len * dim <= r.w() - 3.f || !strchr(name, ' '))
         {
@@ -821,7 +825,7 @@ constexpr int armedEntry = -2; // the grid's Armed Humanoid tile (Monsters, afte
 // (vr_toolgun_select, the Debug menus).
 [[nodiscard]] bool armedPackHidden(int i)
 {
-    return vr_toolgun_armed_tiles.value == 0.f && !strncmp(toolgun::spawnablePack(i), "Armed ", 6);
+    return vr_toolgun_armed_tiles.value == 0.f && !ZA_STRNCMP(toolgun::spawnablePack(i), "Armed ", 6);
 }
 
 struct SpawnGrid
@@ -850,16 +854,16 @@ const SpawnGrid& spawnGrid(int perPage)
     g.perPage = perPage;
     g.entries.clear();
     g.groupPages.clear();
-    const auto inSection = [](int i) { return !strcmp(toolgun::spawnableSection(i), sections[ps().section]) && !armedPackHidden(i); };
+    const auto inSection = [](int i) { return !ZA_STRCMP(toolgun::spawnableSection(i), sections[ps().section]) && !armedPackHidden(i); };
     za::InPlaceVector<const char*, maxPacks> packs;
     packs.pushBack("");
     for(int i = 0; i < toolgun::spawnableCount(); i++)
     {
         const char* pack = toolgun::spawnablePack(i);
-        bool known = !strcmp(pack, "AD");
+        bool known = !ZA_STRCMP(pack, "AD");
         for(int k = 0; k < static_cast<int>(packs.size()) && !known; k++)
         {
-            known = !strcmp(packs[k], pack);
+            known = !ZA_STRCMP(packs[k], pack);
         }
         if(inSection(i) && !known && packs.size() < packs.capacity() - 1)
         {
@@ -873,7 +877,7 @@ const SpawnGrid& spawnGrid(int perPage)
         bool first = true;
         for(int i = 0; i < toolgun::spawnableCount() && entries.size() < entries.capacity(); i++)
         {
-            if(!inSection(i) || strcmp(toolgun::spawnablePack(i), packs[k]))
+            if(!inSection(i) || ZA_STRCMP(toolgun::spawnablePack(i), packs[k]))
             {
                 continue;
             }
@@ -1154,17 +1158,34 @@ void armedPage(Ui& ui)
 void ropePage(Ui& ui)
 {
     const float x0 = pad, x1 = panelWidth - pad;
-    sliderRow(ui, Rect{x0, 64.f, x1, 78.f}, "Length", vr_rope_spawn_length, 32.f, 1024.f, 16.f, "%.0f");
-    sliderRow(ui, Rect{x0, 80.f, x1, 94.f}, "Thickness", vr_rope_spawn_thickness, 0.5f, 6.f, 0.25f, "%.2f");
-    sliderRow(ui, Rect{x0, 96.f, x1, 110.f}, "Pieces (0: auto)", vr_rope_spawn_segments, 0.f, 64.f, 1.f, "%.0f");
-    sliderRow(ui, Rect{x0, 112.f, x1, 126.f}, "Mass kg (0: auto)", vr_rope_spawn_mass, 0.f, 100.f, 1.f, "%.0f");
-    sliderRow(ui, Rect{x0, 128.f, x1, 142.f}, "Stiffness", vr_rope_spawn_stiffness, 0.05f, 1.f, 0.05f, "%.2f");
-    sliderRow(ui, Rect{x0, 144.f, x1, 158.f}, "Damping", vr_rope_spawn_damping, 0.f, 5.f, 0.1f, "%.1f");
-    toggleRow(ui, Rect{x0, 160.f, x1, 174.f}, "Pin the Bottom", vr_rope_spawn_pinned);
+    if(!ps.ropeMore)
+    {
+        sliderRow(ui, Rect{x0, 64.f, x1, 78.f}, "Length", vr_rope_spawn_length, 32.f, 1024.f, 16.f, "%.0f");
+        sliderRow(ui, Rect{x0, 80.f, x1, 94.f}, "Thickness", vr_rope_spawn_thickness, 0.5f, 6.f, 0.25f, "%.2f");
+        sliderRow(ui, Rect{x0, 96.f, x1, 110.f}, "Pieces (0: auto)", vr_rope_spawn_segments, 0.f, 64.f, 1.f, "%.0f");
+        sliderRow(ui, Rect{x0, 112.f, x1, 126.f}, "Mass kg (0: auto)", vr_rope_spawn_mass, 0.f, 100.f, 1.f, "%.0f");
+        sliderRow(ui, Rect{x0, 128.f, x1, 142.f}, "Stiffness", vr_rope_spawn_stiffness, 0.05f, 1.f, 0.05f, "%.2f");
+        sliderRow(ui, Rect{x0, 144.f, x1, 158.f}, "Damping", vr_rope_spawn_damping, 0.f, 5.f, 0.1f, "%.1f");
+        toggleRow(ui, Rect{x0, 160.f, x1, 174.f}, "Pin the Bottom", vr_rope_spawn_pinned);
+    }
+    else
+    {
+        // (ropes7) Strung ropes (a span: from overhead to that far ahead, its end pinned) and the poles.
+        sliderRow(ui, Rect{x0, 64.f, x1, 78.f}, "Span (0: hangs)", vr_rope_spawn_span, 0.f, 1024.f, 16.f, "%.0f");
+        sliderRow(ui, Rect{x0, 80.f, x1, 94.f}, "End Rise", vr_rope_spawn_rise, -512.f, 512.f, 16.f, "%.0f");
+        sliderRow(ui, Rect{x0, 96.f, x1, 110.f}, "Slack", vr_rope_spawn_slack, 0.f, 1.f, 0.05f, "%.2f");
+        sliderRow(ui, Rect{x0, 120.f, x1, 134.f}, "Pole Thickness", vr_rope_spawn_pole_thickness, 1.f, 12.f, 0.5f, "%.1f");
+        toggleRow(ui, Rect{x0, 136.f, x1, 150.f}, "Metal Pole (else wood)", vr_rope_spawn_metal);
+    }
     const Rect bar{pad, 177.f, panelWidth - pad, 190.f};
     if(button(ui, Rect{bar.x0, bar.y0, bar.x0 + 40.f, bar.y1}, "Back", false, 6.f))
     {
         ps().rope = false;
+        ps.ropeMore = false;
+    }
+    if(button(ui, Rect{bar.x0 + 42.f, bar.y0, bar.x0 + 74.f, bar.y1}, ps.ropeMore ? "< Rope" : "More", false, 6.f))
+    {
+        ps.ropeMore = !ps.ropeMore;
     }
     spawnCommands(ui, bar);
 }
@@ -1238,7 +1259,7 @@ void spawnPage(Ui& ui)
     }
     // The Ropes group's page (its own, a row of tiles): the Rope Settings page's button under them.
     if(ropeCells > 0 && pageCells <= gridColumns &&
-        button(ui, Rect{pad + 30.f, 125.f, panelWidth - pad - 30.f, 141.f}, "Rope Settings (length, thickness, ...)", false, 6.f))
+        button(ui, Rect{pad + 30.f, 125.f, panelWidth - pad - 30.f, 141.f}, "Rope and Pole Settings (length, span, ...)", false, 6.f))
     {
         ps().rope = true;
     }

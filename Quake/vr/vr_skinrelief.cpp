@@ -20,8 +20,10 @@
 #include "vr_geom.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 
-#include <initializer_list>
 #include <limits.h>
 #include <math.h>
 #include <stdlib.h>
@@ -95,7 +97,7 @@ void blur(const float* in, float* out, const float* cov, int w, int h, float sig
     const size_t n = (size_t)w * h;
     if(sigma <= 0.f)
     {
-        memcpy(out, in, n * sizeof(float));
+        ZA_MEMCPY(out, in, n * sizeof(float));
         return;
     }
     const int r = (int)ceilf(sigma * 3.f);
@@ -568,7 +570,7 @@ void reliefStats(const byte* map, int W, int H, const byte* mask, int mw, int mh
 
 [[nodiscard]] bool isRifleVariant(const gltexture_t* glt)
 {
-    return !strncmp(glt->name, rifleModel, strlen(rifleModel));
+    return !ZA_STRNCMP(glt->name, rifleModel, ZA_STRLEN(rifleModel));
 }
 
 // Our burst rifle's variants: the rifle's own baked map over the rows of their skin that are the rifle's.
@@ -580,7 +582,7 @@ void rifleRows(byte* map, int W, int H)
     byte* img = Image_LoadImage(rifleMap, &fw, &fh, &fmt);
     if(img && fmt == SRC_RGBA && fw == W && fh <= H)
     {
-        memcpy(map, img, (size_t)fw * fh * 4);
+        ZA_MEMCPY(map, img, (size_t)fw * fh * 4);
     }
     Hunk_FreeToLowMark(mark);
 }
@@ -600,7 +602,7 @@ extern "C" int VR_SkinReliefWanted(const char* model)
         return 0;
     }
     const char* tag = strchr(model, '#');
-    return tag && (!strncmp(tag, "#vr", 3) || !strncmp(tag, "#adv", 4) || !strncmp(tag, "#gun", 4) || !strncmp(tag, "#melee", 6));
+    return tag && (!ZA_STRNCMP(tag, "#vr", 3) || !ZA_STRNCMP(tag, "#adv", 4) || !ZA_STRNCMP(tag, "#gun", 4) || !ZA_STRNCMP(tag, "#melee", 6));
 }
 
 /*
@@ -621,12 +623,12 @@ extern "C" void VR_SkinReliefBegin(const void* hdr, const void* stverts, const v
     const dtriangle_t* tris = static_cast<const dtriangle_t*>(triangles);
     const byte* p = static_cast<const byte*>(frames);
     int type;
-    memcpy(&type, p, 4);
+    ZA_MEMCPY(&type, p, 4);
     p += 4;
     if(LittleLong(type) != ALIAS_SINGLE)
     {
         int count;
-        memcpy(&count, p, 4);
+        ZA_MEMCPY(&count, p, 4);
         p += sizeof(daliasgroup_t) + (size_t)LittleLong(count) * sizeof(daliasinterval_t);
     }
     const trivertx_t* v = reinterpret_cast<const trivertx_t*>(p + sizeof(daliasframe_t));

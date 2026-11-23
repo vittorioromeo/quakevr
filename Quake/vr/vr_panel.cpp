@@ -15,6 +15,7 @@
 #include "vr_cvars.hpp"
 #include "vr_deathview.hpp"
 #include "vr_engine.hpp"
+#include "vr_api.h"
 #include "vr_gadget.hpp"
 #include "vr_flatholster.hpp"
 #include "vr_gfx.hpp"
@@ -42,6 +43,7 @@
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Remainder.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "vr_zancle.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_visor.hpp"
@@ -836,8 +838,10 @@ extern "C" void VR_End2D(void (*windowHud)())
     // (vr_window_hud_mirror, on) and the spectator camera's (vr_window_hud_spectator, off: a recording shows the
     // game as the headset does, with the wrist gadget).
     const window::View view = window::view();
-    const bool windowHudShown = !stereoThisFrame ||
-                                (view == window::View::Spectator ? vr_window_hud_spectator.value : vr_window_hud_mirror.value) != 0.f;
+    // (VR_NoWindow: no window is shown: neither its HUD nor the canvas over it, QUEST_PLAN.md 6o)
+    const bool noWindow = stereoThisFrame && VR_NoWindow();
+    const bool windowHudShown = !noWindow && (!stereoThisFrame ||
+                                (view == window::View::Spectator ? vr_window_hud_spectator.value : vr_window_hud_mirror.value) != 0.f);
     if(za::exchange(windowHudPending, false) && windowHud && windowHudShown)
     {
         windowHud();
@@ -850,7 +854,7 @@ extern "C" void VR_End2D(void (*windowHud)())
     // text (centre prints, notify lines), which the mirrored eye leaves out too (vr_stereo.cpp).
     const bool headTextHidden = stereoThisFrame && view == window::View::Raw && vr_mirror_hide_hud_text.value != 0.f &&
                                 !panelVisible();
-    if((!recording && !headTextHidden) || key_dest == key_console || con_forcedup)
+    if(!noWindow && ((!recording && !headTextHidden) || key_dest == key_console || con_forcedup))
     {
         glm::mat4 toNdc{1.f};
         toNdc[0][0] = 2.f;

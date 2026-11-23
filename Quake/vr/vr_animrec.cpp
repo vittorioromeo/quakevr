@@ -22,15 +22,15 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/ToString.hpp"
-#include "Zancle/Container/Vector.hpp"
-#include "Zancle/Math/Clamp.hpp"
 
 #include <math.h>
 #include <stdio.h>
-#include <string.h>
 #include <time.h>
 
 
@@ -754,7 +754,7 @@ void list_f()
     const za::String dir = animsDir();
     int n = 0;
     files::forEachEntry(dir.cStr(), [&](const char* name, bool isDirectory) {
-        if(!isDirectory && strstr(name, ".anim"))
+        if(!isDirectory && ZA_STRSTR(name, ".anim"))
         {
             Con_Printf("  %s\n", name);
             n++;

@@ -48,10 +48,15 @@ m = re.search(r"x2 t [\d.]+ \(([\d.]+) s after the break, ([\d.]+) s after it wa
 check("ssg: its shells out vr_flat_ssg_eject_delay (0.05 s) after it was drawn open", bool(m) and 0.04 <= float(m.group(2)) <= 0.08,
       m.group(0) if m else "no line")
 
-# ssgold: the control: the old ejection dropped them (hardly any speed sideways, none up).
+# ssgold: the control: the old ejection dropped them (none up, not thrown off sideways as ssg's are). (flatgreen2: it was
+# "< 0.8 m/s sideways"; the open gun's breech now sits far enough to the side of the head that the face rule's push off
+# the face alone gives 0.6-0.8 m/s sideways, and the shells' random speed (0.8..1.2) and scatter (vr_shells_ssg_spread,
+# a new sequence every run: vr_shells.cpp's rng) took one over 0.8 in some runs. The control is now the negation of
+# ssg's own check: under its 1.2 m/s sideways bar and none up.)
 v = vels(log("ssgold"))
 ended("ssgold", log("ssgold"))
-check("ssgold: the old ejection drops them (< 0.8 m/s sideways)", len(v) == 2 and all(abs(r) < 0.8 for f, r, u in v), str(v))
+check("ssgold: the old ejection drops them (none up, < 1.2 m/s sideways: not ssg's throw)",
+      len(v) == 2 and all(abs(r) < 1.2 and u <= 0.05 for f, r, u in v), str(v))
 
 # rv: six shells straight back out of their chambers (along the cylinder's axis as drawn, on each chamber's axis), then
 # turned past the face away from the frame (the side the cylinder hangs out on; his 2026-11-11: they went across the gun,

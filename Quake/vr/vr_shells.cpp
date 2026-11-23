@@ -40,6 +40,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
@@ -599,7 +600,7 @@ void ejectFrom(const view::ViewEntity& ve, const Pending& p, bool own, bool pump
                 const glm::vec3 chamber = view::modelPoint(ve, view::revolverChamber(p.hand, i % 6, 0.f));
                 const glm::vec3 rel = s.vel - geom::vec(cl.velocity) - seatTracks()[p.hand].vel * 0.9f;
                 const float len = glm::length(rel);
-                const float off = len > 1e-4f ? glm::degrees(std::acos(za::clamp(glm::dot(rel / len, -fwd), -1.f, 1.f))) : 0.f;
+                const float off = len > 1e-4f ? glm::degrees(za::acos(za::clamp(glm::dot(rel / len, -fwd), -1.f, 1.f))) : 0.f;
                 const glm::vec3 d = pos - chamber;
                 Con_Printf("shells rv hand %d chamber %d: back %.2f out %.2f up %.2f m/s, %.0f deg off the axis; starts "
                            "%.2f across its chamber's axis, %.2f along\n",

@@ -34,8 +34,11 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
-#include "Zancle/Base/Limits.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Limits.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -438,7 +441,7 @@ constexpr float fistSurface[fistRows][fistColumns] = {
 float modelGap(const qmodel_t* model)
 {
     const char* list = vr_held_fit_gaps.string;
-    const size_t nameLength = strlen(model->name);
+    const size_t nameLength = ZA_STRLEN(model->name);
     while(list && *list)
     {
         while(*list == ' ' || *list == ',' || *list == ';')
@@ -761,7 +764,7 @@ struct CentreKey
     float xf[25]{}; // DrawnTransform's numbers
     [[nodiscard]] bool operator==(const CentreKey& o) const
     {
-        return model == o.model && pose == o.pose && !memcmp(xf, o.xf, sizeof(xf));
+        return model == o.model && pose == o.pose && !ZA_MEMCMP(xf, o.xf, sizeof(xf));
     }
 };
 struct CentreEntry
@@ -802,7 +805,7 @@ bool drawnCentre(edict_t* ent, glm::vec3& out)
         xf.t.scale.x, xf.t.scale.y, xf.t.scale.z, xf.so.x, xf.so.y, xf.so.z, xf.hs.x, xf.hs.y, xf.hs.z, xf.netScale.x,
         xf.netScale.y, xf.netScale.z, xf.scaleOrigin.x, xf.scaleOrigin.y, xf.scaleOrigin.z, xf.offset.x, xf.offset.y, xf.offset.z, xf.size};
     static_assert(sizeof(numbers) == sizeof(key.xf));
-    memcpy(key.xf, numbers, sizeof(numbers));
+    ZA_MEMCPY(key.xf, numbers, sizeof(numbers));
     za::U64 h = 1469598103934665603ull; // (FNV-1a over the key's bytes: the model's address, the pose, the numbers)
     const auto mix = [&h](const void* p, za::SizeT n) {
         for(za::SizeT i = 0; i < n; i++)

@@ -12,12 +12,15 @@
 #include "vr_physics.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 
-#include <cstring>
 
 namespace box3d::detail
 {
@@ -229,7 +232,7 @@ constexpr float handleFollow = 12.f;    // 1/s: a blade's handle hold's point on
 // its most: the forces barely mattered. vr_embed_test 27, 2026-11-08.)
 [[nodiscard]] float bladeHertz()
 {
-    return za::max(vr_embed_move_hertz.value * std::sqrt(za::max(vr_embed_hold_strength.value, 0.f)), 0.5f);
+    return za::max(vr_embed_move_hertz.value * za::sqrt(za::max(vr_embed_hold_strength.value, 0.f)), 0.5f);
 }
 
 // A blade's hold's place of its wound from the hand turned `turn` now (bladeReach as it took hold, turned by vr_embed_move_turn
@@ -667,14 +670,14 @@ bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force,
             distance = za::min(distance, d);
         }
     }
-    else if(torso && part > 0 && part != headPart && std::strcmp(r->rig->bones[part].name, "chest") != 0)
+    else if(torso && part > 0 && part != headPart && ZA_STRCMP(r->rig->bones[part].name, "chest") != 0)
     {
         // (Lifted: its torso rather than an arm across it, if near enough: an arm held hangs slack.)
         int best = -1;
         float bestD = distance + 10.f;
         for(int b = 0; b < r->count; b++)
         {
-            if((b == 0 || !std::strcmp(r->rig->bones[b].name, "chest")) && !partCut(*r, b))
+            if((b == 0 || !ZA_STRCMP(r->rig->bones[b].name, "chest")) && !partCut(*r, b))
             {
                 b3Vec3 closest;
                 const float d = b3Body_GetClosestPoint(r->body[static_cast<za::SizeT>(b)], &closest, world->toM(at)) * world->m2u;
@@ -1971,7 +1974,7 @@ int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out, const cha
         part = best->count;
         for(int b = 0; b < best->count && name; b++)
         {
-            if(!partCut(*best, b) && !std::strncmp(best->rig->bones[b].name, name, std::strlen(name)))
+            if(!partCut(*best, b) && !ZA_STRNCMP(best->rig->bones[b].name, name, ZA_STRLEN(name)))
             {
                 part = b;
                 break;
@@ -2519,7 +2522,7 @@ constexpr float thighShare = 0.095f, shinShare = 0.045f, footShare = 0.015f;
 
 [[nodiscard]] Kind kindOf(const char* name)
 {
-    const auto is = [name](const char* prefix) { return !strncmp(name, prefix, strlen(prefix)); };
+    const auto is = [name](const char* prefix) { return !ZA_STRNCMP(name, prefix, ZA_STRLEN(prefix)); };
     if(is("head")) { return Kind::Head; }
     if(is("jaw")) { return Kind::Jaw; }
     if(is("upperarm")) { return Kind::UpperArm; }
@@ -2639,7 +2642,7 @@ namespace
 {
     for(const RagdollClass& c : ragdollClasses)
     {
-        if(model && c.head && !strcmp(model, c.head))
+        if(model && c.head && !ZA_STRCMP(model, c.head))
         {
             return &c;
         }
@@ -2649,7 +2652,7 @@ namespace
     {
         for(const RagdollClass& c : ragdollClasses)
         {
-            if(!strcmp(classname, c.classname))
+            if(!ZA_STRCMP(classname, c.classname))
             {
                 return &c;
             }

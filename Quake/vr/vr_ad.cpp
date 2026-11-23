@@ -23,14 +23,16 @@
 #include "vr_rules.hpp"
 #include "vr_sha256.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Exp.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
-#include <cmath>
 #include <cstdio>
-#include <cstring>
 
 extern "C" {
 int VR_ActiveCampaign(void);
@@ -39,7 +41,7 @@ void VR_GameFolderName(const char* path, char* out, size_t size);
 
 bool qvr::ad::precisePellet(const edict_s* ent)
 {
-    return ent && !std::strcmp(PR_GetString(ent->v.classname), "proj_bullet");
+    return ent && !ZA_STRCMP(PR_GetString(ent->v.classname), "proj_bullet");
 }
 
 namespace
@@ -90,7 +92,7 @@ template <size_t N>
 {
     for(const char* e : list)
     {
-        if(!strcmp(e, s)) { return true; }
+        if(!ZA_STRCMP(e, s)) { return true; }
     }
     return false;
 }
@@ -129,14 +131,14 @@ int versionStatus(const char* folder)
         fseek(f, 0, SEEK_END);
         const long size = ftell(f);
         rewind(f);
-        if(size == VR_AD_PAK2_SIZE && fread(&header, 1, sizeof(header), f) == sizeof(header) && !memcmp(header.id, "PACK", 4))
+        if(size == VR_AD_PAK2_SIZE && fread(&header, 1, sizeof(header), f) == sizeof(header) && !ZA_MEMCMP(header.id, "PACK", 4))
         {
             const int offset = LittleLong(header.offset), length = LittleLong(header.length);
             if(offset >= 12 && length > 0 && length < (1 << 20) && offset <= size - length)
             {
                 za::Vector<unsigned char> bytes;
                 bytes.resize(static_cast<za::SizeT>(length) + sizeof(header));
-                memcpy(bytes.data(), &header, sizeof(header));
+                ZA_MEMCPY(bytes.data(), &header, sizeof(header));
                 if(!fseek(f, offset, SEEK_SET) && fread(bytes.data() + sizeof(header), 1, length, f) == size_t(length) &&
                     qvr::sha256::matches(qvr::sha256::of(bytes.data(), bytes.size()), VR_AD_PAK2_DIRSHA))
                 {
@@ -367,7 +369,7 @@ extern "C" void VR_AD_TintBlend(float* r, float* g, float* b, float* a, float pe
 
     const double dt = cl.time - tintState.last;
     const float k = (tintState.last < 0.0 || dt < 0.0 || dt > 0.5) ? 1.f
-                    : 1.f - std::exp(-static_cast<float>(dt) / tintEase);
+                    : 1.f - za::exp(-static_cast<float>(dt) / tintEase);
     tintState.last = cl.time;
     const bool snapColour = tintState.shown < 1.f;
     // (A camera's fade darkens at once: it hides the cut to the camera, as AD's own; it eases back like a tint.)
@@ -422,6 +424,6 @@ extern "C" int VR_AD_PelletsPass(const edict_t* mover, const edict_t* target)
     {
         return 0;
     }
-    return std::strcmp(PR_GetString(mover->v.classname), "proj_bullet") == 0 &&
-           std::strcmp(PR_GetString(target->v.classname), "proj_bullet") == 0;
+    return ZA_STRCMP(PR_GetString(mover->v.classname), "proj_bullet") == 0 &&
+           ZA_STRCMP(PR_GetString(target->v.classname), "proj_bullet") == 0;
 }

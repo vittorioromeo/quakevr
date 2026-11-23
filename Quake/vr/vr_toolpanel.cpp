@@ -4,10 +4,10 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 
-#include <string.h>
 
 namespace qvr::toolpanel
 {
@@ -39,7 +39,7 @@ void text(float x, float y, float dim, const char* s, bool gold)
 
 void textFit(float cx, float y, float width, float dim, const char* s, bool gold)
 {
-    const float len = static_cast<float>(strlen(s));
+    const float len = static_cast<float>(ZA_STRLEN(s));
     const float d = len > 0.f ? za::min(dim, width / len) : dim;
     text(cx - len * d * 0.5f, y + (dim - d) * 0.5f, d, s, gold);
 }

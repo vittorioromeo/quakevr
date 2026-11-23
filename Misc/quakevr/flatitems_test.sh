@@ -17,6 +17,11 @@
 AGENT=${1:?agent}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 source "$(dirname "$0")/qvrtest.sh"
+# (its runs played as batches: many cases a game, copies in parallel; TESTING.md "Batched test cases")
+source "$(dirname "$0")/testbatch/testbatch.sh"
+# (the batch at run.sh's own clock: vr_fixed_frames_rate 72, a tick a frame, as each run alone; and the collect
+# pass without its awk/grep checks)
+export TB_RATE=${TB_RATE-72} TB_COLLECT_STUBS=${TB_COLLECT_STUBS-2}
 S=$TREE/scratch; mkdir -p "$S"
 QT_NAME=flatitems_sh
 F="^flatitems:|^flatplates:|^flatfgrab: (off|main) (hand: idle|prop:)|Assertion|ENGINE CRASH|Host_Error|^ff_done"
@@ -27,11 +32,12 @@ run() # run <tag> <flat|vr> <script> <quit-on>
 {
     local extra=()
     [ "$2" = flat ] && extra=(-ExtraArgs "-flatscreenmode")
-    bash "$KIT/run.sh" "$AGENT" -Low "${extra[@]}" -Timeout 180 -QuitOn "$4" -Script "$3" -Filter "$F" > "$S/$1.log" 2>&1
+    tb_run_sh -Low "${extra[@]}" -Timeout 180 -QuitOn "$4" -Script "$3" -Filter "$F" > "$S/$1.log" 2>&1
 }
 V="flatitems: [0-9]+ passed"
 noassert() { grep -aq "Assertion failure" "$S/$1.log" && echo 0 || echo 1; }
 
+tb_body() {
 run fi_hold flat "$P; vr_flatitems_test 1" "$V"
 expect_verdict "$(cat "$S/fi_hold.log")" "flatitems" "held in the off hand, the shotgun fired"
 check $(noassert fi_hold) "... and no assertion ($(grep -ac 'Assertion failure' "$S/fi_hold.log"))"
@@ -85,4 +91,7 @@ run fi_vrwalk vr "$P; vr_body_interactions 0; vr_flatitems_test 2" "$V"
 left=$(grep -ac "walked over the .*armour: taken 0\|walked over the .*key: taken 0\|walked over the biosuit: taken 0\|walked over the \(shells\|health\|rockets\|cells\|nails\|megahealth\|backpack\): taken 0" "$S/fi_vrwalk.log")
 check $([ "$left" = 13 ] && echo 1 || echo 0) "headset: armour, keys, the suit and the boxes walked over are left lying, as they were (left: $left of 13)"
 
-verdict; exit $fail
+verdict
+}
+tb_main "$AGENT" tb_body
+exit $fail

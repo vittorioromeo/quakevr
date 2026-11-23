@@ -26,7 +26,11 @@
 #include "vr_region_shared.h"
 
 #include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -37,11 +41,10 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
-#include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_api.h"
 
-#include <cstring>
 
 using namespace qvr;
 using namespace qvr::ragdoll::detail;
@@ -1603,10 +1606,10 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
                 table.seeds[b].name, t.members[static_cast<za::SizeT>(b)]);
             for(int c = 0; c < table.count; c++)
             {
-                const size_t len = strlen(log.text);
+                const size_t len = ZA_STRLEN(log.text);
                 q_snprintf(log.text + len, sizeof(log.text) - len, " %d", t.members[static_cast<za::SizeT>(c)]);
             }
-            const size_t len = strlen(log.text);
+            const size_t len = ZA_STRLEN(log.text);
             q_snprintf(log.text + len, sizeof(log.text) - len, ")\n");
             return false;
         }
@@ -1961,7 +1964,7 @@ struct RigOut
     {
         const za::SizeT at = b.size();
         b.resize(at + sizeof(T));
-        memcpy(b.data() + at, &v, sizeof(T));
+        ZA_MEMCPY(b.data() + at, &v, sizeof(T));
     }
     template <typename T>
     void vec(const za::Vector<T>& v)
@@ -1972,7 +1975,7 @@ struct RigOut
         b.resize(at + n * sizeof(T));
         if(n)
         {
-            memcpy(b.data() + at, v.data(), n * sizeof(T));
+            ZA_MEMCPY(b.data() + at, v.data(), n * sizeof(T));
         }
     }
 };
@@ -1990,7 +1993,7 @@ struct RigIn
             ok = false;
             return;
         }
-        memcpy(&v, p, sizeof(T));
+        ZA_MEMCPY(&v, p, sizeof(T));
         p += sizeof(T);
     }
     template <typename T>
@@ -2006,7 +2009,7 @@ struct RigIn
         v.resize(n);
         if(n)
         {
-            memcpy(v.data(), p, n * sizeof(T));
+            ZA_MEMCPY(v.data(), p, n * sizeof(T));
         }
         p += n * sizeof(T);
     }
@@ -2100,7 +2103,7 @@ bool deriveCached(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table
         za::Vector<char> before;
         RigOut old{before};
         (void)rigFields(old, fromFile);
-        qvr::diskcache::noteChecked(Product::Rigs, before.size() == bytes.size() && !memcmp(before.data(), bytes.data(), bytes.size()),
+        qvr::diskcache::noteChecked(Product::Rigs, before.size() == bytes.size() && !ZA_MEMCMP(before.data(), bytes.data(), bytes.size()),
             model->name);
         return true;
     }
@@ -2714,7 +2717,7 @@ void rigSpans_f()
             for(int k = 0; k < 3; k++)
             {
                 const trivertx_t& t = rest[v[k]];
-                const size_t n = strlen(line);
+                const size_t n = ZA_STRLEN(line);
                 q_snprintf(line + n, sizeof(line) - n, " %d %s (%.1f %.1f %.1f)", v[k], rig->bones[b[k]].name,
                     hdr->scale_origin[0] + hdr->scale[0] * t.v[0], hdr->scale_origin[1] + hdr->scale[1] * t.v[1],
                     hdr->scale_origin[2] + hdr->scale[2] * t.v[2]);
@@ -2764,7 +2767,7 @@ constexpr za::SizeT mostProportioned = 64; // (more: the base rig; a player's ow
 {
     for(int b = 0; b < rig.numBones; b++)
     {
-        if(strcmp(rig.bones[b].name, name) == 0)
+        if(ZA_STRCMP(rig.bones[b].name, name) == 0)
         {
             return b;
         }
@@ -2939,8 +2942,8 @@ bool limbJoint(const Rig& rig, int b)
     const Bone& bone = rig.bones[b];
     // (the authored rig's torso and shoulder girdle too: its spine, neck and clavicles are no limbs to cut; the head's
     // cut is at its own joint, the arm's at the shoulder)
-    const bool torso = !strcmp(bone.name, "chest") ||
-                       (rig.authored && (!strcmp(bone.name, "spine") || !strcmp(bone.name, "neck") || !strncmp(bone.name, "clavicle", 8)));
+    const bool torso = !ZA_STRCMP(bone.name, "chest") ||
+                       (rig.authored && (!ZA_STRCMP(bone.name, "spine") || !ZA_STRCMP(bone.name, "neck") || !ZA_STRNCMP(bone.name, "clavicle", 8)));
     return bone.parent >= 0 && (bone.joint == Joint::Ball || bone.joint == Joint::Hinge) && !torso;
 }
 
@@ -2981,7 +2984,7 @@ glm::vec3 limbMiddle(const Rig& rig, uint32_t bones)
 
 int boneRegion(const Bone& b)
 {
-    const auto starts = [&](const char* p) { return ZA_STRNCMP(b.name, p, strlen(p)) == 0; };
+    const auto starts = [&](const char* p) { return ZA_STRNCMP(b.name, p, ZA_STRLEN(p)) == 0; };
     if(b.joint == Joint::Loose)
     {
         return VR_REGION_NONE;
@@ -3272,7 +3275,7 @@ namespace
 // An upper arm by its name (the active ragdolls' limb chains' rule: vr_ragactive.cpp's).
 [[nodiscard]] bool upperArmBone(const char* n)
 {
-    return std::strncmp(n, "upperarm_", 9) == 0 || std::strncmp(n, "arm_", 4) == 0;
+    return ZA_STRNCMP(n, "upperarm_", 9) == 0 || ZA_STRNCMP(n, "arm_", 4) == 0;
 }
 
 // A tug-of-war's held arm drawn longer (his note 2026-11-01: "a tunable IK stretch multiplier that applies to the
@@ -3556,10 +3559,10 @@ namespace
         return rig2::skinnedFor(p.rig->model); // "<model>#rig2": its blended skin (made again after a rig file's edit)
     }
     const char* base = p.rig->model->name;
-    const size_t len = strlen(base);
+    const size_t len = ZA_STRLEN(base);
     qmodel_t* m = p.skinned;
-    if(m && !m->needload && m->type == mod_alias && Cache_Check(&m->cache) && !strncmp(m->name, base, len) &&
-       !strcmp(m->name + len, skinnedSuffix))
+    if(m && !m->needload && m->type == mod_alias && Cache_Check(&m->cache) && !ZA_STRNCMP(m->name, base, len) &&
+       !ZA_STRCMP(m->name + len, skinnedSuffix))
     {
         return m;
     }
@@ -3695,7 +3698,7 @@ void printDrawInfo()
         }
         const auto* h0 = static_cast<const aliashdr_t*>(Mod_Extradata(s.original));
         const auto* h1 = static_cast<const aliashdr_t*>(Mod_Extradata(s.skinned));
-        if(memcmp(h0->gltextures, h1->gltextures, sizeof(h0->gltextures)) || memcmp(h0->fbtextures, h1->fbtextures, sizeof(h0->fbtextures)))
+        if(ZA_MEMCMP(h0->gltextures, h1->gltextures, sizeof(h0->gltextures)) || ZA_MEMCMP(h0->fbtextures, h1->fbtextures, sizeof(h0->fbtextures)))
         {
             differ++;
             Con_Printf("  skins: the copy's textures are not its .mdl's now\n");
@@ -4192,8 +4195,8 @@ struct SkinMemo
     {
         // (bit for bit: a value that only compares equal, -0 and 0, is made again)
         return rig == p.rig && model == p.rig->model && numVerts == p.rig->numVerts && bodies == p.bodies && cut == p.cut &&
-               !memcmp(&scale, &p.scale, sizeof(scale)) && !memcmp(rot.data(), p.rot.data(), sizeof(glm::quat) * maxBones) &&
-               !memcmp(pos.data(), p.pos.data(), sizeof(glm::vec3) * maxBones);
+               !ZA_MEMCMP(&scale, &p.scale, sizeof(scale)) && !ZA_MEMCMP(rot.data(), p.rot.data(), sizeof(glm::quat) * maxBones) &&
+               !ZA_MEMCMP(pos.data(), p.pos.data(), sizeof(glm::vec3) * maxBones);
     }
 };
 [[nodiscard]] za::SizeT heldBytes(const SkinMemo& x) // (vr_mem.hpp)
@@ -4364,7 +4367,7 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
     {
         return true; // "<model>#armor": its armour shells (vr_agarmor.cpp)
     }
-    const size_t len = strlen(mod->name), suffix = strlen(skinnedSuffix);
+    const size_t len = ZA_STRLEN(mod->name), suffix = ZA_STRLEN(skinnedSuffix);
     if(len <= suffix || !modelmeta::has(mod, modelmeta::Trait::Ragdoll))
     {
         return false;
@@ -4414,8 +4417,8 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
         hdr->frames[f].firstpose = 0;
         hdr->frames[f].numposes = 1;
     }
-    memcpy(hdr->gltextures, sh->gltextures, sizeof(hdr->gltextures));
-    memcpy(hdr->fbtextures, sh->fbtextures, sizeof(hdr->fbtextures));
+    ZA_MEMCPY(hdr->gltextures, sh->gltextures, sizeof(hdr->gltextures));
+    ZA_MEMCPY(hdr->fbtextures, sh->fbtextures, sizeof(hdr->fbtextures));
     for(int i = 0; i < MAX_SKINS; i++) // the source's texels, as offsets from this header (they are other blocks)
         hdr->texels[i] = sh->texels[i] ? reinterpret_cast<const byte*>(sh) + sh->texels[i] - reinterpret_cast<const byte*>(hdr) : 0;
     for(int b = 0; b < numBones; b++)
@@ -4451,7 +4454,7 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
         o.idx[1] = o.idx[2] = o.idx[3] = 0;
     }
     (void)fillAO(*rig, verts, numVerts); // (else later: catchUpAO)
-    memcpy(indexes, reinterpret_cast<const byte*>(sh) + sh->indexes, sizeof(unsigned short) * static_cast<size_t>(numIndexes));
+    ZA_MEMCPY(indexes, reinterpret_cast<const byte*>(sh) + sh->indexes, sizeof(unsigned short) * static_cast<size_t>(numIndexes));
     hdr->boneinfo = reinterpret_cast<byte*>(bones) - reinterpret_cast<byte*>(hdr);
     hdr->bindpose = reinterpret_cast<byte*>(bind) - reinterpret_cast<byte*>(hdr);
     hdr->boneposedata = reinterpret_cast<byte*>(poses) - reinterpret_cast<byte*>(hdr);

@@ -4,7 +4,6 @@
 // multi-rocket launcher, the plasma Thunderbolt) is its base model with another skin. What the engine keeps per model
 // is the base's for a variant: look a model's name up through resolve() where a table is keyed by it.
 
-#include <cstring>
 
 namespace qvr::gunvariants
 {
@@ -18,6 +17,7 @@ struct Variant
 inline constexpr Variant table[] = {
 #define QVR_GUN_VARIANT(variant, base, skin) {variant, base},
 #include "vr_gunvariants.inc"
+#include "Zancle/Base/Strcmp.hpp"
 #undef QVR_GUN_VARIANT
 };
 
@@ -26,7 +26,7 @@ inline constexpr Variant table[] = {
 {
     for(const Variant& v : table)
     {
-        if(!strcmp(v.variant, name))
+        if(!ZA_STRCMP(v.variant, name))
         {
             return v.base;
         }

@@ -15,20 +15,20 @@
 #include "vr_testkit.hpp"
 #include "vr_trace.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Atan2.hpp"
-#include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 
 #include <glm/geometric.hpp>
 #include <glm/trigonometric.hpp>
 
 #include <cstdlib>
-#include <cstring>
 
 namespace qvr::flatleanpose
 {
@@ -810,15 +810,15 @@ void slideTest_f()
     for(; first < Cmd_Argc(); first++)
     {
         const char* a = Cmd_Argv(first);
-        if(!strcmp(a, "keep"))
+        if(!ZA_STRCMP(a, "keep"))
         {
             keep = true;
         }
-        else if(!strcmp(a, "shots"))
+        else if(!ZA_STRCMP(a, "shots"))
         {
             t.shots = true;
         }
-        else if(!strcmp(a, "level"))
+        else if(!ZA_STRCMP(a, "level"))
         {
             t.pitches = 1;
         }

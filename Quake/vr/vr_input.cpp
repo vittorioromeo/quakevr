@@ -54,6 +54,7 @@
 #include "vr_mem.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Copysign.hpp"
@@ -2015,7 +2016,7 @@ void guardBindings()
     {
         for(const char* name : {"config.cfg", "autoexec.cfg", CONFIG_NAME})
         {
-            const bool ran = (Cmd_ForeignConfigsAllowed() && strcmp(name, CONFIG_NAME) != 0) ||
+            const bool ran = (Cmd_ForeignConfigsAllowed() && ZA_STRCMP(name, CONFIG_NAME) != 0) ||
                              COM_SamePath(s->filename, com_gamedir);
             if(!s->pack && ran && Sys_FileType(va("%s/%s", s->filename, name)) == FS_ENT_FILE)
             {

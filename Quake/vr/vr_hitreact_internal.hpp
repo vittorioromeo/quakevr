@@ -43,12 +43,11 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <string.h>
-#include <type_traits>
 
 using namespace qvr;
 
@@ -162,7 +161,7 @@ inline constexpr ArmedRig armedRigs[] = {
 {
     for(int b = 0; b < rig.numBones; b++)
     {
-        if(strcmp(rig.bones[b].name, name) == 0)
+        if(ZA_STRCMP(rig.bones[b].name, name) == 0)
         {
             return b;
         }

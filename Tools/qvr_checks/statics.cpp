@@ -665,6 +665,11 @@ std::vector<fs::path> treeFiles(const fs::path& root)
 
 } // namespace
 
+std::string stripCode(std::string_view text)
+{
+    return strip(text);
+}
+
 int checkStatics(const Ctx& ctx, const Args& args, Out& out)
 {
     const fs::path root = ctx.tree / "Quake" / "vr";

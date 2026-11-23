@@ -51,9 +51,11 @@
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/ReverseIterator.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -72,7 +74,6 @@
 #include "vr_zancle.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 extern "C" qboolean Image_WritePNG(const char* name, byte* data, int width, int height, int bpp, qboolean upsidedown); // image.c
 
@@ -163,12 +164,12 @@ void buildGreys()
         const qpic_t* p = nullptr;
         size_t bytes = 0;
         za::Vector<byte> file; // (a picture's own file: AD's icons)
-        if(!strncmp(picNames[i], "gfx/", 4)) // AD support: Arcane Dimensions' icons, while its data is mounted
+        if(!ZA_STRNCMP(picNames[i], "gfx/", 4)) // AD support: Arcane Dimensions' icons, while its data is mounted
         {
             if(byte* buf = COM_LoadMallocFile(picNames[i], nullptr))
             {
                 file.resize(static_cast<za::SizeT>(com_filesize));
-                memcpy(file.data(), buf, file.size());
+                ZA_MEMCPY(file.data(), buf, file.size());
                 free(buf);
                 p = reinterpret_cast<const qpic_t*>(file.data());
                 bytes = file.size();
@@ -280,7 +281,7 @@ namespace
     }
     constexpr int size = 16 * 10, whiteRows = 8 * 10; // characters 0..127: the white half
     brightFont.data.resize(static_cast<za::SizeT>(size) * size);
-    memcpy(brightFont.data.data(), char_texture_data, static_cast<size_t>(size) * size);
+    ZA_MEMCPY(brightFont.data.data(), char_texture_data, static_cast<size_t>(size) * size);
     const int top = fontstyle::consoleGreyTop(); // (the restyled font's bright copy stretches the same greys)
     if(top > 0 && top < 15)
     {
@@ -432,7 +433,7 @@ void number(float x, float y, int value, int digits, const glm::vec3& rgb, float
 {
     char str[16];
     q_snprintf(str, sizeof(str), "%d", CLAMP(-99, value, 999));
-    const int length = static_cast<int>(strlen(str));
+    const int length = static_cast<int>(ZA_STRLEN(str));
     numberRun(x + static_cast<float>(digits - length) * 24.f * scale, y, str, 24.f * scale, 24.f * scale, rgb, pal);
 }
 
@@ -884,7 +885,7 @@ void infoRows(const Readout& r, const Palette& pal)
     }
     const auto entryWidth = [&](const Entry& e) {
         return e.pic >= 0 ? (greyPic(e.pic) ? static_cast<float>(greyPic(e.pic)->width) : 16.f)
-                          : static_cast<float>(strlen(e.text)) * 8.f;
+                          : static_cast<float>(ZA_STRLEN(e.text)) * 8.f;
     };
 
     float itemsW = 0.f; // at full size, with their gaps
@@ -897,7 +898,7 @@ void infoRows(const Readout& r, const Palette& pal)
     q_snprintf(stats, sizeof(stats), "KILLS %d/%d  SECRETS %d/%d", r.kills, r.totalKills, r.secrets, r.totalSecrets);
     q_snprintf(shortStats, sizeof(shortStats), "K %d/%d  S %d/%d", r.kills, r.totalKills, r.secrets, r.totalSecrets);
     const int fullColumns = columnsLeftOf(meterRight - itemsW);
-    const bool small = itemsW > 0.f && static_cast<int>(strlen(shortStats)) > fullColumns &&
+    const bool small = itemsW > 0.f && static_cast<int>(ZA_STRLEN(shortStats)) > fullColumns &&
                        (r.relight || vr_gadget_show_level.value);
     const float scale = small ? 0.5f : 1.f;
 
@@ -942,7 +943,7 @@ void infoRows(const Readout& r, const Palette& pal)
     {
         return;
     }
-    const char* chosen = static_cast<int>(strlen(stats)) <= columns2 ? stats : shortStats;
+    const char* chosen = static_cast<int>(ZA_STRLEN(stats)) <= columns2 ? stats : shortStats;
     q_snprintf(line, sizeof(line), "%.*s", za::min(columns2, 40), chosen); // (never past the items)
     drawText(margin, infoY[1], 8.f, line, pal.label, pal);
 }
@@ -1031,6 +1032,7 @@ void light(int key, const Pose& pose, float out, float radius, float k)
         lighting::dlightLook(dl, 0.f, 0.f);
     }
     lighting::dlightNoShadow(dl);
+    lighting::dlightRig(dl);
 }
 
 // The screen's light, in its colour. There are no spot lights: the beam is a light well in front of

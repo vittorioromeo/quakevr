@@ -10,6 +10,7 @@
 #include "vr_main.hpp"
 #include "vr_testkit.hpp"
 #include "vr_api_render.h"
+#include "vr_api.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -20,11 +21,12 @@
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
-#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Tan.hpp"
 
 
@@ -322,7 +324,7 @@ bool supported()
         const auto* name = reinterpret_cast<const char*>(GL_GetStringiFunc(GL_EXTENSIONS, static_cast<GLuint>(i)));
         found = name && !ZA_STRCMP(name, "GL_NV_shading_rate_image");
     }
-    if(found)
+    if(found && !VR_GLESForm(VR_GLES_FORM_FOVEATION)) // (-glescompat: no shading-rate image on OpenGL ES)
     {
         bindShadingRateImage =
             reinterpret_cast<BindShadingRateImageFn>(SDL_GL_GetProcAddress("glBindShadingRateImageNV"));
@@ -589,13 +591,13 @@ void gazeTest_f()
             tally.check(gazed && za::abs(on.x - want.x) <= static_cast<float>(tileWidth) &&
                             za::abs(on.y - want.y) <= static_cast<float>(tileHeight),
                 name, "mock gaze: the centre follows it");
-            tally.check(strstr(gazeStatus(), "your eyes") != nullptr, name, "the menu line says the eyes");
+            tally.check(ZA_STRSTR(gazeStatus(), "your eyes") != nullptr, name, "the menu line says the eyes");
         }
         else
         {
             // (vr_mock_eye_tracking 0: the runtime offers none; the same frame's foveation, nothing restarted.)
             tally.check(!gazed && on == live.centre, name, "no eye tracker: the lens centre, the gaze ignored");
-            tally.check(strstr(gazeStatus(), "no eye tracking") != nullptr, name, "the menu line says the lens centre");
+            tally.check(ZA_STRSTR(gazeStatus(), "no eye tracking") != nullptr, name, "the menu line says the lens centre");
         }
     }
     tally.verdict(name);

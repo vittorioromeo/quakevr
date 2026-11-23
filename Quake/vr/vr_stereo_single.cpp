@@ -19,6 +19,7 @@
 #include "vr_strings.hpp"
 #include "vr_testkit.hpp"
 #include "vr_api_render.h"
+#include "vr_api.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -26,6 +27,7 @@
 #include "SDL.h"
 #endif
 
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Tan.hpp"
@@ -144,7 +146,10 @@ bool supported()
     if(found)
     {
         state.multiview = reinterpret_cast<MultiviewFn>(SDL_GL_GetProcAddress("glFramebufferTextureMultiviewOVR"));
-        state.textureView = reinterpret_cast<TextureViewFn>(SDL_GL_GetProcAddress("glTextureView"));
+        // (Not under -glescompat: ES 3.2 has no texture views. The Quest's multiview draws into the OpenXR swapchain's
+        // array layers directly: C4.)
+        state.textureView =
+            VR_GLESForm(VR_GLES_FORM_VIEWS) ? nullptr : reinterpret_cast<TextureViewFn>(SDL_GL_GetProcAddress("glTextureView"));
         state.support = state.multiview && state.textureView ? 1 : 0;
     }
     Con_DPrintf("VR: single-pass stereo (GL_OVR_multiview2) %s\n", state.support ? "available" : "not available");
@@ -636,7 +641,7 @@ extern "C" int VR_StereoSingleViewReady()
 
 extern "C" void VR_StereoSingleFrustum(mplane_t* frustum)
 {
-    memcpy(frustum, stereosingle::state.frustum, sizeof(stereosingle::state.frustum));
+    ZA_MEMCPY(frustum, stereosingle::state.frustum, sizeof(stereosingle::state.frustum));
 }
 
 extern "C" void VR_StereoSingleEyeOrigin(int eye, float out[3])
@@ -647,8 +652,8 @@ extern "C" void VR_StereoSingleEyeOrigin(int eye, float out[3])
 extern "C" void VR_StereoSingleEyeMatrices(int eye, float proj[16], float view[16])
 {
     const stereosingle::EyeView& v = stereosingle::state.eyes[eye & 1];
-    memcpy(proj, v.proj, sizeof(v.proj));
-    memcpy(view, v.view, sizeof(v.view));
+    ZA_MEMCPY(proj, v.proj, sizeof(v.proj));
+    ZA_MEMCPY(view, v.view, sizeof(v.view));
 }
 
 extern "C" unsigned VR_StereoSingleClusterTexture()
@@ -659,8 +664,15 @@ extern "C" unsigned VR_StereoSingleClusterTexture()
         glGenTextures(1, &tex);
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_3D, tex);
         GL_ObjectLabelFunc(GL_TEXTURE, tex, -1, "light clusters (right eye)");
-        GL_TexImage3DFunc(GL_TEXTURE_3D, 0, GL_RG32UI, LIGHT_TILES_X, LIGHT_TILES_Y, LIGHT_TILES_Z, 0, GL_RG_INTEGER,
-            GL_UNSIGNED_INT, nullptr);
+        if(VR_GLESForm(VR_GLES_FORM_GLSL)) // (rgba32ui, immutable: OpenGL ES binds only those as images)
+        {
+            GL_TexStorage3DFunc(GL_TEXTURE_3D, 1, VR_GLESImageFormat(GL_RG32UI), LIGHT_TILES_X, LIGHT_TILES_Y, LIGHT_TILES_Z);
+        }
+        else
+        {
+            GL_TexImage3DFunc(GL_TEXTURE_3D, 0, GL_RG32UI, LIGHT_TILES_X, LIGHT_TILES_Y, LIGHT_TILES_Z, 0, GL_RG_INTEGER,
+                GL_UNSIGNED_INT, nullptr);
+        }
         glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_BASE_LEVEL, 0);
         glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, 0);
         glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -692,7 +704,7 @@ extern "C" unsigned VR_StereoSingleBeginScene()
     stereosingle::ViewsBlock block;
     for(int eye = 0; eye < 2; eye++)
     {
-        memcpy(block.viewProj[eye], s.eyes[eye].viewProj, sizeof(block.viewProj[eye]));
+        ZA_MEMCPY(block.viewProj[eye], s.eyes[eye].viewProj, sizeof(block.viewProj[eye]));
         block.eyePos[eye][0] = s.eyes[eye].origin[0];
         block.eyePos[eye][1] = s.eyes[eye].origin[1];
         block.eyePos[eye][2] = s.eyes[eye].origin[2];

@@ -22,6 +22,8 @@
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_testkit.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
@@ -212,7 +214,7 @@ cvar_t vr_tunables_show_changed = {"vr_tunables_show_changed", "0", CVAR_NONE}; 
 [[nodiscard]] bool sameAsDefault(int id, const char* value)
 {
     const char* def = tunableDefaults[id];
-    return !strcmp(value, def) || (numeric(value) && numeric(def) && Q_atof(value) == Q_atof(def));
+    return !ZA_STRCMP(value, def) || (numeric(value) && numeric(def) && Q_atof(value) == Q_atof(def));
 }
 
 [[nodiscard]] za::String filePath()
@@ -357,8 +359,8 @@ void testExpectSet(bool set)
     testReaders("vr_throw_gain_lo", vr_throw_gain_lo.value, set ? 2.25f : 1.5f);
     testReaders("vr_throw_gain_hi", vr_throw_gain_hi.value, set ? 7.5f : 6.f);
     const char* tint = set ? "1 0.5 0.25" : "0.85 0.95 1.15";
-    testCheck(!strcmp(vr_bullettime_fx_tint.string, tint), va("vr_bullettime_fx_tint: C++ reads \"%s\"", vr_bullettime_fx_tint.string));
-    testCheck(!strcmp(Cvar_VariableString("vr_bullettime_fx_tint"), tint),
+    testCheck(!ZA_STRCMP(vr_bullettime_fx_tint.string, tint), va("vr_bullettime_fx_tint: C++ reads \"%s\"", vr_bullettime_fx_tint.string));
+    testCheck(!ZA_STRCMP(Cvar_VariableString("vr_bullettime_fx_tint"), tint),
         va("vr_bullettime_fx_tint: QC cvar_string() reads \"%s\"", Cvar_VariableString("vr_bullettime_fx_tint")));
     testCheck(overrideCount == (set ? 3 : 0), va("%d changed", overrideCount));
 }
@@ -366,7 +368,7 @@ void testExpectSet(bool set)
 void tunablesTest_f()
 {
     const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    if(!strcmp(step, "set"))
+    if(!ZA_STRCMP(step, "set"))
     {
         tunablesResetAll();
         testExpectSet(false);
@@ -378,21 +380,21 @@ void tunablesTest_f()
         testCheck(!tunableChanged(tunableId_vr_throw_gain_lo) && overrideCount == 2, "set to its default: not changed");
         Cmd_ExecuteString("tune vr_throw_gain_lo 2.25", src_command);
     }
-    else if(!strcmp(step, "write"))
+    else if(!ZA_STRCMP(step, "write"))
     {
         fileDirty = true;
         VR_TunablesWrite();
     }
-    else if(!strcmp(step, "checkfile"))
+    else if(!ZA_STRCMP(step, "checkfile"))
     {
         long len = 0;
         char* text = reinterpret_cast<char*>(COM_LoadMallocFile_TextMode_OSPath(filePath().cStr(), &len));
-        testCheck(text && strstr(text, "tune vr_throw_gain_lo \"2.25\"\n") && strstr(text, "tune vr_throw_gain_hi \"7.5\"\n") &&
-                strstr(text, "tune vr_bullettime_fx_tint \"1 0.5 0.25\"\n") && !strstr(text, "vr_throw_peak_span"),
+        testCheck(text && ZA_STRSTR(text, "tune vr_throw_gain_lo \"2.25\"\n") && ZA_STRSTR(text, "tune vr_throw_gain_hi \"7.5\"\n") &&
+                ZA_STRSTR(text, "tune vr_bullettime_fx_tint \"1 0.5 0.25\"\n") && !ZA_STRSTR(text, "vr_throw_peak_span"),
             "tunables.cfg holds the three changed, nothing else");
         free(text);
     }
-    else if(!strcmp(step, "reload"))
+    else if(!ZA_STRCMP(step, "reload"))
     {
         const bool was = fileDirty;
         tunablesResetAll();
@@ -402,27 +404,27 @@ void tunablesTest_f()
         testExpectSet(true);
         fileDirty = was;
     }
-    else if(!strcmp(step, "checkloaded"))
+    else if(!ZA_STRCMP(step, "checkloaded"))
     {
         testCheck(loadedCount == 3, va("tunables.cfg set %d at start (and said so)", loadedCount));
         testExpectSet(true);
     }
-    else if(!strcmp(step, "checkset"))
+    else if(!ZA_STRCMP(step, "checkset"))
     {
         testExpectSet(true);
     }
-    else if(!strcmp(step, "reset"))
+    else if(!ZA_STRCMP(step, "reset"))
     {
         Cmd_ExecuteString("tune_reset vr_throw_gain_lo", src_command);
         testCheck(!tunableChanged(tunableId_vr_throw_gain_lo) && vr_throw_gain_lo.value == 1.5f, "tune_reset <name>");
         Cmd_ExecuteString("tune_reset", src_command);
         testExpectSet(false);
     }
-    else if(!strcmp(step, "oldconfig"))
+    else if(!ZA_STRCMP(step, "oldconfig"))
     {
         testCheck(overrideCount == 0, va("an old full config sets no constant (%d set)", overrideCount));
     }
-    else if(!strcmp(step, "configline"))
+    else if(!ZA_STRCMP(step, "configline"))
     {
         // tunables.cfg with one constant, then the start's order: the config's lines, then that file.
         tunablesResetAll();
@@ -447,7 +449,7 @@ void tunablesTest_f()
         testCheck(vr_throw_gain_lo.value == 2.25f && vr_throw_gain_hi.value == 7.5f && overrideCount == 2 && fileDirty,
             va("kept beside tunables.cfg's, still to be written (%d set, dirty %d)", overrideCount, fileDirty));
     }
-    else if(!strcmp(step, "done"))
+    else if(!ZA_STRCMP(step, "done"))
     {
         testTally.verdict("tunables_test");
     }
@@ -547,7 +549,7 @@ void tunableSet(int id, const char* value)
     }
     else
     {
-        if(overrides[id] && !strcmp(overrides[id], value))
+        if(overrides[id] && !ZA_STRCMP(overrides[id], value))
         {
             return;
         }
@@ -631,7 +633,7 @@ void tunablesLoad()
     int set = 0;
     while((data = COM_Parse(data)) != nullptr)
     {
-        if(strcmp(com_token, "tune"))
+        if(ZA_STRCMP(com_token, "tune"))
         {
             continue;
         }

@@ -7,11 +7,15 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "vr_api.h"
 
 namespace box3d::detail
@@ -384,7 +388,7 @@ namespace
 {
 [[nodiscard]] bool sameMap(const MeshCache& c, const qmodel_t* map)
 {
-    if(strcmp(c.name, map->name) || c.vertexes != map->numvertexes || c.surfaces != map->numsurfaces)
+    if(ZA_STRCMP(c.name, map->name) || c.vertexes != map->numvertexes || c.surfaces != map->numsurfaces)
     {
         return false;
     }
@@ -399,7 +403,7 @@ namespace
         return true;
     }
     if(c.inputs.size() != in.words.size() ||
-       memcmp(c.inputs.data(), in.words.data(), in.words.size() * sizeof(za::U32)) != 0)
+       ZA_MEMCMP(c.inputs.data(), in.words.data(), in.words.size() * sizeof(za::U32)) != 0)
     {
         return false;
     }
@@ -457,7 +461,7 @@ MeshCache& addMesh(MeshCache&& made, const qmodel_t* map)
             bool counted = false;
             for(const MeshCache* o : others)
             {
-                counted = counted || (!strcmp(o->name, c.name) && o->inputsKey == c.inputsKey);
+                counted = counted || (!ZA_STRCMP(o->name, c.name) && o->inputsKey == c.inputsKey);
             }
             if(!counted && others.size() < static_cast<size_t>(keepMaps))
             {
@@ -745,7 +749,7 @@ constexpr unsigned gunPiecesMostFile = 64; // (a file claiming more pieces is no
     {
         return false;
     }
-    memcpy(&report, data.data(), sizeof(report));
+    ZA_MEMCPY(&report, data.data(), sizeof(report));
     const char* ends = data.data() + sizeof(report);
     const char* at = ends + count * sizeof(za::I32);
     pieces.clear();
@@ -754,14 +758,14 @@ constexpr unsigned gunPiecesMostFile = 64; // (a file claiming more pieces is no
     for(unsigned i = 0; i < count; i++)
     {
         za::I32 end = 0;
-        memcpy(&end, ends + i * sizeof(za::I32), sizeof(end));
+        ZA_MEMCPY(&end, ends + i * sizeof(za::I32), sizeof(end));
         if(end < begin || end > static_cast<za::I32>(points))
         {
             pieces.clear();
             return false;
         }
         pieces[i].points.resize(static_cast<za::SizeT>(end - begin));
-        memcpy(pieces[i].points.data(), at + static_cast<size_t>(begin) * sizeof(glm::vec3),
+        ZA_MEMCPY(pieces[i].points.data(), at + static_cast<size_t>(begin) * sizeof(glm::vec3),
             static_cast<size_t>(end - begin) * sizeof(glm::vec3));
         begin = end;
     }
@@ -783,16 +787,16 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
     }
     za::Vector<char> data;
     data.resize(sizeof(report) + pieces.size() * sizeof(za::I32) + static_cast<size_t>(points) * sizeof(glm::vec3));
-    memcpy(data.data(), &report, sizeof(report));
+    ZA_MEMCPY(data.data(), &report, sizeof(report));
     char* ends = data.data() + sizeof(report);
     char* at = ends + pieces.size() * sizeof(za::I32);
     za::I32 end = 0;
     for(za::SizeT i = 0; i < pieces.size(); i++)
     {
-        memcpy(at + static_cast<size_t>(end) * sizeof(glm::vec3), pieces[i].points.data(),
+        ZA_MEMCPY(at + static_cast<size_t>(end) * sizeof(glm::vec3), pieces[i].points.data(),
             pieces[i].points.size() * sizeof(glm::vec3));
         end += static_cast<za::I32>(pieces[i].points.size());
-        memcpy(ends + i * sizeof(za::I32), &end, sizeof(end));
+        ZA_MEMCPY(ends + i * sizeof(za::I32), &end, sizeof(end));
     }
     diskcache::write(diskcache::Product::GunPieces, convex::build(), key, "gpc", gunPiecesMagic, static_cast<unsigned>(pieces.size()),
         static_cast<unsigned>(points), data.data(), data.size());
@@ -807,7 +811,7 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
     for(za::SizeT i = 0; i < a.size(); i++)
     {
         if(a[i].points.size() != b[i].points.size() ||
-           memcmp(a[i].points.data(), b[i].points.data(), a[i].points.size() * sizeof(glm::vec3)) != 0)
+           ZA_MEMCMP(a[i].points.data(), b[i].points.data(), a[i].points.size() * sizeof(glm::vec3)) != 0)
         {
             return false;
         }
@@ -834,7 +838,7 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
 #endif
     if(fromDisk)
     {
-        gunPiecesDisk.read++;
+        gunPiecesDisk.read.fetchAddSeqCst(1);
         report.ms = (Sys_DoubleTime() - t0) * 1000.0; // (the read's time)
         if(mode < 2)
         {
@@ -847,22 +851,22 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
     {
         cut.clear();
     }
-    gunPiecesDisk.cut++;
+    gunPiecesDisk.cut.fetchAddSeqCst(1);
     if(fromDisk)
     {
-        gunPiecesDisk.checked++;
+        gunPiecesDisk.checked.fetchAddSeqCst(1);
         diskcache::noteChecked(diskcache::Product::GunPieces, samePieces(pieces, cut), name);
         if(!samePieces(pieces, cut))
         {
-            gunPiecesDisk.differed++;
+            gunPiecesDisk.differed.fetchAddSeqCst(1);
             Con_Warning("vr_gun_pieces_cache 2: %s's convex pieces differ from their file (%d of %d so far)\n", name,
-                gunPiecesDisk.differed.load(), gunPiecesDisk.checked.load());
+                gunPiecesDisk.differed.loadSeqCst(), gunPiecesDisk.checked.loadSeqCst());
         }
     }
     else if(mode)
     {
         writeGunPieces(key, cut, cutReport);
-        gunPiecesDisk.written++;
+        gunPiecesDisk.written.fetchAddSeqCst(1);
     }
     pieces = ZA_MOVE(cut);
     report = cutReport;
@@ -939,7 +943,7 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
 [[nodiscard]] bool isGun(edict_t* ent)
 {
     const char* name = PR_GetString(ent->v.classname);
-    return !strcmp(name, "thrown_weapon") || !strncmp(name, "weapon_", 7);
+    return !ZA_STRCMP(name, "thrown_weapon") || !ZA_STRNCMP(name, "weapon_", 7);
 }
 
 namespace

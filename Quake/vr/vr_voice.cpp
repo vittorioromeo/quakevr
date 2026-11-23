@@ -23,11 +23,13 @@
 #include "vr_climb.hpp"
 
 #include "Zancle/Algorithm/NthElement.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Constants.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
@@ -35,7 +37,6 @@
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/Log10.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
@@ -899,9 +900,9 @@ void writeWav(const char* path, const za::Vector<float>& x, const int rate)
         file[at] = static_cast<byte>(v & 0xff);
         file[at + 1] = static_cast<byte>((v >> 8) & 0xff);
     };
-    memcpy(file.data(), "RIFF", 4);
+    ZA_MEMCPY(file.data(), "RIFF", 4);
     u32(4, static_cast<unsigned>(36 + bytes));
-    memcpy(file.data() + 8, "WAVEfmt ", 8);
+    ZA_MEMCPY(file.data() + 8, "WAVEfmt ", 8);
     u32(16, 16);
     u16(20, 1);
     u16(22, 1);
@@ -909,7 +910,7 @@ void writeWav(const char* path, const za::Vector<float>& x, const int rate)
     u32(28, static_cast<unsigned>(rate * 2));
     u16(32, 2);
     u16(34, 16);
-    memcpy(file.data() + 36, "data", 4);
+    ZA_MEMCPY(file.data() + 36, "data", 4);
     u32(40, static_cast<unsigned>(bytes));
     for(za::SizeT i = 0; i < x.size(); i++)
     {

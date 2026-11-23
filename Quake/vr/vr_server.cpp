@@ -49,11 +49,14 @@
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Container/Vector.hpp"
-#include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Vocabulary/Optional.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Round.hpp"
+#include "Zancle/Vocabulary/Optional.hpp"
 #include "vr_api.h"
 #include "vr_netmove.hpp"
 #include "vr_predict.hpp"
@@ -490,7 +493,7 @@ void noteExplosion(int at)
         {
             const int32_t bits = i32(p);
             float f;
-            memcpy(&f, &bits, sizeof(f));
+            ZA_MEMCPY(&f, &bits, sizeof(f));
             org[k] = f;
             p += 4;
         }
@@ -552,7 +555,7 @@ SoundLoops soundLoops;
 void soundLoopsFor()
 {
     SoundLoops& s = soundLoops;
-    if(s.world != sv.worldmodel || strcmp(s.map, sv.name) != 0)
+    if(s.world != sv.worldmodel || ZA_STRCMP(s.map, sv.name) != 0)
     {
         s.world = sv.worldmodel;
         q_strlcpy(s.map, sv.name, sizeof(s.map));
@@ -602,7 +605,7 @@ void soundLoops_f()
     soundLoopsFor();
     SoundLoops& s = soundLoops;
     const char* const what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
-    if(!strcmp(what, "end"))
+    if(!ZA_STRCMP(what, "end"))
     {
         s.tally.verdict(Cmd_Argc() > 2 ? Cmd_Argv(2) : "sndloops");
         s.tally.reset();
@@ -622,7 +625,7 @@ void soundLoops_f()
             }
         }
     }
-    if(!strcmp(what, "check"))
+    if(!ZA_STRCMP(what, "check"))
     {
         const int most = Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : 0;
         const int least = Cmd_Argc() > 4 ? Q_atoi(Cmd_Argv(4)) : 0;
@@ -684,7 +687,7 @@ extern "C" void VR_SoundLoopsFreed(edict_t* ed)
     int null = 0;
     for(int i = 1; i < MAX_SOUNDS && sv.sound_precache[i]; i++)
     {
-        if(!strcmp(sv.sound_precache[i], "misc/null.wav"))
+        if(!ZA_STRCMP(sv.sound_precache[i], "misc/null.wav"))
         {
             null = i;
             break;
@@ -969,7 +972,7 @@ extern "C" void VR_SnapEnd(sizebuf_t* msg)
                 if(j >= i && r.kinds[j] == qvr::server::scopedOther && r.ents[j] == e &&
                     len + jlen <= static_cast<int>(sizeof(w.poseJoin)))
                 {
-                    memcpy(w.poseJoin + len, r.roomBuf + jat, static_cast<size_t>(jlen));
+                    ZA_MEMCPY(w.poseJoin + len, r.roomBuf + jat, static_cast<size_t>(jlen));
                     len += jlen;
                 }
             }
@@ -998,7 +1001,7 @@ void qvr::server::queueBroadcast(const byte* data, int len)
     {
         return; // (unreliable, as the datagram is: none when full)
     }
-    memcpy(b.queued + used, data, static_cast<size_t>(len));
+    ZA_MEMCPY(b.queued + used, data, static_cast<size_t>(len));
     b.queuedEnds[b.numQueued++] = used + len;
 }
 
@@ -1184,7 +1187,7 @@ constexpr float soundMargin = 64.f;     // units more
         if(sv.protocolflags & PRFL_FLOATCOORD)
         {
             const int32_t bits = i32(p);
-            memcpy(&org[k], &bits, sizeof(float));
+            ZA_MEMCPY(&org[k], &bits, sizeof(float));
             p += 4;
         }
         else if(sv.protocolflags & PRFL_INT32COORD)
@@ -1311,7 +1314,7 @@ void broadcastReport_f()
         static_cast<unsigned long long>(s.sent), static_cast<unsigned long long>(s.culled),
         static_cast<unsigned long long>(s.unknown), vr_net_cullbroadcast.value,
         static_cast<unsigned long long>(heldCounts.held), static_cast<unsigned long long>(heldCounts.dropped));
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "reset"))
     {
         broadcastSight.sent = broadcastSight.culled = broadcastSight.unknown = 0;
         heldCounts = HeldCounts{};
@@ -1329,7 +1332,7 @@ extern "C" void VR_NoteClientSight(const edict_t* clent, const byte* pvs, const 
     s.eye = {eye[0], eye[1], eye[2]};
     const int bytes = (sv.worldmodel->numleafs + 7) >> 3;
     s.pvs.resize(static_cast<za::SizeT>(bytes));
-    memcpy(s.pvs.data(), pvs, static_cast<size_t>(bytes));
+    ZA_MEMCPY(s.pvs.data(), pvs, static_cast<size_t>(bytes));
 }
 
 // SV_SendClientDatagram: the broadcast into this client's datagram (`local`: the loopback client's, all of it).
@@ -1470,7 +1473,7 @@ void netReliableTest_f()
         return;
     }
     const char* const mark = va("mp_reliable: %d bytes\n", atoi(Cmd_Argv(2)));
-    const int room = c->message.maxsize - c->message.cursize - static_cast<int>(strlen(mark)) - 2;
+    const int room = c->message.maxsize - c->message.cursize - static_cast<int>(ZA_STRLEN(mark)) - 2;
     const int n = za::max(0, za::min(atoi(Cmd_Argv(2)), room));
     for(int i = 0; i < n; i++)
     {
@@ -1483,7 +1486,7 @@ void netReliableTest_f()
 
 void netStats_f()
 {
-    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
+    if(Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "reset"))
     {
         for(NetStat& n : netStats)
         {
@@ -2364,7 +2367,7 @@ extern "C" void VR_WriteRecentPrecaches(sizebuf_t* msg)
     }
     for(const RecentPrecache& p : recentPrecaches)
     {
-        if(msg->cursize + 4 + static_cast<int>(strlen(p.name)) + 1 > msg->maxsize / 2)
+        if(msg->cursize + 4 + static_cast<int>(ZA_STRLEN(p.name)) + 1 > msg->maxsize / 2)
         {
             break; // (the entities first: the reliable copy follows anyway)
         }
@@ -2386,7 +2389,7 @@ void writeEighths(sizebuf_t* msg, const glm::vec3& v)
 {
     for(int i = 0; i < 3; i++)
     {
-        MSG_WriteShort(msg, static_cast<int>(za::clamp(std::round(v[i] * 8.f), -32767.f, 32767.f)));
+        MSG_WriteShort(msg, static_cast<int>(za::clamp(za::round(v[i] * 8.f), -32767.f, 32767.f)));
     }
 }
 
@@ -2692,7 +2695,7 @@ bool isBot(int slot)
     const FieldOffsets& f = fields();
     edict_t* const ent = EDICT_NUM(slot + 1);
     return !ent->free && ent->v.modelindex != 0.f && f.ishuman >= 0 && fieldFloatOr(ent, f.ishuman, 1.f) == 0.f &&
-           !strcmp(PR_GetString(ent->v.classname), "player");
+           !ZA_STRCMP(PR_GetString(ent->v.classname), "player");
 }
 
 bool botHeld(edict_t* bot, int hand, view::HeldPlace& out)

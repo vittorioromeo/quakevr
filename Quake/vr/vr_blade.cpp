@@ -7,11 +7,14 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -160,7 +163,7 @@ void dump(int slot)
         {
             continue;
         }
-        const bool changed = var->default_string && strcmp(var->string, var->default_string) != 0;
+        const bool changed = var->default_string && ZA_STRCMP(var->string, var->default_string) != 0;
         Con_Printf("    %s \"%s\"%s\n", weapons::keyName(n.key), var->string, changed ? " //*" : "");
     }
 }
@@ -260,7 +263,7 @@ void dumpFit(int slot)
     char grid[rows][cols + 1];
     for(int i = 0; i < rows; i++)
     {
-        memset(grid[i], ' ', cols);
+        ZA_MEMSET(grid[i], ' ', cols);
         grid[i][cols] = 0;
     }
     const float x0 = za::min(lo, 0.f) * len - 0.5f;
@@ -297,7 +300,7 @@ void dumpFist()
     Con_Printf("// the fist's blow line (vr_cvars.inc lines, their comments left out; * changed)\n");
     for(const cvar_t* var : fistDumped)
     {
-        const bool changed = var->default_string && strcmp(var->string, var->default_string) != 0;
+        const bool changed = var->default_string && ZA_STRCMP(var->string, var->default_string) != 0;
         Con_Printf("QVR_CVAR(%s, \"%s\", CVAR_ARCHIVE)%s\n", var->name, var->string, changed ? " //*" : "");
     }
 }

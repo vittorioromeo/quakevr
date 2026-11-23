@@ -7,14 +7,15 @@
 #include "vr_engine.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
-#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_api.h"
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/stat.h>
 
 #ifdef _WIN32
@@ -215,7 +216,7 @@ void forEachEntry(const char* dir, za::FunctionRef<void(const char* name, bool i
 {
     for(findfile_t* find = Sys_FindFirst(dir, nullptr); find; find = Sys_FindNext(find))
     {
-        if(!strcmp(find->name, ".") || !strcmp(find->name, ".."))
+        if(!ZA_STRCMP(find->name, ".") || !ZA_STRCMP(find->name, ".."))
         {
             continue;
         }
@@ -507,11 +508,11 @@ za::String resolved(za::StringView path)
         return abs;
     }
     const char* p = out;
-    if(strncmp(p, "\\\\?\\UNC\\", 8) == 0)
+    if(ZA_STRNCMP(p, "\\\\?\\UNC\\", 8) == 0)
     {
         return generic(za::String{"\\\\"} + (p + 8));
     }
-    if(strncmp(p, "\\\\?\\", 4) == 0)
+    if(ZA_STRNCMP(p, "\\\\?\\", 4) == 0)
     {
         p += 4;
     }

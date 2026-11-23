@@ -7,6 +7,11 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -73,7 +78,7 @@ constexpr Turned turnedModels[] = {
 {
     for(const Turned& t : turnedModels)
     {
-        if(!strcmp(t.model, base))
+        if(!ZA_STRCMP(t.model, base))
         {
             return &t;
         }
@@ -98,14 +103,14 @@ void putf(za::Vector<byte>& out, float v)
 // "<base>#gun<skin>" taken apart; false if it isn't one.
 [[nodiscard]] bool parse(const char* name, char* base, size_t baseSize, int& skin)
 {
-    const char* at = strstr(name, suffix);
+    const char* at = ZA_STRSTR(name, suffix);
     if(!at || at == name || static_cast<size_t>(at - name) >= baseSize)
     {
         return false;
     }
-    memcpy(base, name, static_cast<size_t>(at - name));
+    ZA_MEMCPY(base, name, static_cast<size_t>(at - name));
     base[at - name] = 0;
-    const char* digits = at + strlen(suffix);
+    const char* digits = at + ZA_STRLEN(suffix);
     skin = 0;
     for(const char* p = digits; *p; p++)
     {
@@ -231,8 +236,8 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
                 break;
             }
             char frameName[17] = {};
-            memcpy(frameName, src + nameAt, 16);
-            if(!strcmp(frameName, gun->frame))
+            ZA_MEMCPY(frameName, src + nameAt, 16);
+            if(!ZA_STRCMP(frameName, gun->frame))
             {
                 poseAt = vertsAt;
                 break;
@@ -479,7 +484,7 @@ namespace
     byte* f = out.file.data();
     const auto setf = [&](size_t at, float v) {
         const float le = LittleFloat(v);
-        memcpy(f + at, &le, 4);
+        ZA_MEMCPY(f + at, &le, 4);
     };
     for(int i = 0; i < 3; i++)
     {
@@ -628,7 +633,7 @@ namespace
         }
         f = out.file.data();
         const int frames = LittleLong(1 + adcrossbow::addedFrames);
-        memcpy(f + 68, &frames, 4);
+        ZA_MEMCPY(f + 68, &frames, 4);
         setf(32, radius);
     }
     out.cornerKept = true;
@@ -673,19 +678,19 @@ namespace
 
 byte* derivedFile(const char* name, unsigned int* path_id)
 {
-    if(strstr(name, flashSuffix))
+    if(ZA_STRSTR(name, flashSuffix))
     {
         return flashFile(name, path_id); // (the plasma guns' flashes: vr_adgunart.cpp)
     }
-    if(strstr(name, variantSuffix))
+    if(ZA_STRSTR(name, variantSuffix))
     {
         return variantFile(name, path_id); // (our burst rifle's variants: vr_adgunart.cpp)
     }
-    if(strstr(name, tankSuffix))
+    if(ZA_STRSTR(name, tankSuffix))
     {
         return tankFile(name, path_id); // (the fuelled guns' tank lying about: vr_adgunart.cpp)
     }
-    if(!strstr(name, suffix))
+    if(!ZA_STRSTR(name, suffix))
     {
         return nullptr;
     }
@@ -703,7 +708,7 @@ byte* derivedFile(const char* name, unsigned int* path_id)
         return COM_LoadMallocFile(standIn, path_id);
     }
     byte* out = static_cast<byte*>(VR_HeapMalloc(b.file.size() + 1));
-    memcpy(out, b.file.data(), b.file.size());
+    ZA_MEMCPY(out, b.file.data(), b.file.size());
     out[b.file.size()] = 0;
     com_filesize = static_cast<int>(b.file.size());
     Con_DPrintf("AD gun model: %s made: %d triangles, %d vertices\n", name, b.tris, b.verts);
@@ -713,11 +718,11 @@ byte* derivedFile(const char* name, unsigned int* path_id)
 bool slotNames(const char* id, const char* name)
 {
     // Our burst rifle's variants: "<base>#adv<digits>" names each variant listed ("#adv" alone: all of them).
-    if(const char* v = strstr(name, variantSuffix))
+    if(const char* v = ZA_STRSTR(name, variantSuffix))
     {
-        const char* own = strstr(id, variantSuffix);
-        const size_t n = static_cast<size_t>(v - name) + strlen(variantSuffix);
-        if(!own || static_cast<size_t>(own - id) + strlen(variantSuffix) != n || strncmp(id, name, n) != 0)
+        const char* own = ZA_STRSTR(id, variantSuffix);
+        const size_t n = static_cast<size_t>(v - name) + ZA_STRLEN(variantSuffix);
+        if(!own || static_cast<size_t>(own - id) + ZA_STRLEN(variantSuffix) != n || ZA_STRNCMP(id, name, n) != 0)
         {
             return false;
         }
@@ -725,13 +730,13 @@ bool slotNames(const char* id, const char* name)
         const char* listed = id + n;
         return digit >= '0' && digit <= '9' && name[n + 1] == 0 && (!listed[0] || strchr(listed, digit) != nullptr);
     }
-    const char* gun = strstr(name, suffix);
+    const char* gun = ZA_STRSTR(name, suffix);
     if(!gun)
     {
         return false;
     }
-    const size_t n = static_cast<size_t>(gun - name) + strlen(suffix);
-    return strlen(id) == n && !strncmp(id, name, n);
+    const size_t n = static_cast<size_t>(gun - name) + ZA_STRLEN(suffix);
+    return ZA_STRLEN(id) == n && !ZA_STRNCMP(id, name, n);
 }
 
 void info_f()

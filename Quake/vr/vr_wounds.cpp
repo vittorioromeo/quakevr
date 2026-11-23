@@ -32,30 +32,30 @@
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Remove.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
-#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
-#include "Zancle/Vocabulary/Span.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/Lround.hpp"
-#include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
 
 #include <glm/gtc/type_ptr.hpp>
 
-#include <string.h>
 
 extern "C" qboolean Image_WritePNG(const char* name, byte* data, int width, int height, int bpp, qboolean upsidedown); // image.c
 
@@ -783,7 +783,7 @@ constexpr float boxTexels = 2.5f; // a unit (the monsters' skins' about 2)
     // "<model>#rig2"): the mask stays across the swap (modelmeta::skinnedCopy, sourceName).
     const qmodel_t* copy = modelmeta::skinnedCopy(a) ? a : modelmeta::skinnedCopy(b) ? b : nullptr;
     char base[MAX_QPATH];
-    if(copy && modelmeta::sourceName(copy->name, base, sizeof(base)) && strcmp(base, (copy == a ? b : a)->name) == 0)
+    if(copy && modelmeta::sourceName(copy->name, base, sizeof(base)) && ZA_STRCMP(base, (copy == a ? b : a)->name) == 0)
     {
         return true;
     }
@@ -3902,7 +3902,7 @@ void logDrawn(const entity_t* e, const entity_t* key, int layer)
     }
     // (A part drawn in a gun's place not taken for its gun: "progs/vr_<part>_on_<gun>.mdl", polish_weapons.py
     // SPLIT_OUTPUTS: listed too; not the magazines and their wells, drawn with the gun, their skins their own.)
-    const bool part = !weapon && strstr(e->model->name, "_on_v_") != nullptr && !strstr(e->model->name, "/vr_mag");
+    const bool part = !weapon && ZA_STRSTR(e->model->name, "_on_v_") != nullptr && !ZA_STRSTR(e->model->name, "/vr_mag");
     if(!part && (!weapon || maskOfWeapon.find(weapon) == maskOfWeapon.end()))
     {
         return; // (not a weapon with blood on it)
@@ -4049,7 +4049,7 @@ extern "C" void VR_AliasWetCoat(const entity_t* e, float out[2])
     // A brain chunk (make_brains.py) is wet of its own, all over (vr_smallgibs_brains_gloss): w 2, the sheen without
     // the coat's darkening or its film over the bumps (the folds' relief stays), and a warm rim (the light through it).
     const float gloss = za::clamp(qvr::vr_smallgibs_brains_gloss.value, 0.f, 2.f);
-    if(gloss > 0.f && e && e->model && strncmp(e->model->name, "progs/gib_brain", 15) == 0)
+    if(gloss > 0.f && e && e->model && ZA_STRNCMP(e->model->name, "progs/gib_brain", 15) == 0)
     {
         out[0] = za::max(out[0], gloss);
         out[1] = 2.f;

@@ -26,17 +26,19 @@
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Concurrency/LockGuard.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
-#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "vr_api.h"
 
-#include <string.h>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -242,7 +244,7 @@ void fold(za::String& s)
 // "/"): false if too long.
 [[nodiscard]] bool parentOf(const char* path, char (&out)[MAX_OSPATH])
 {
-    const size_t length = strlen(path);
+    const size_t length = ZA_STRLEN(path);
     if(length >= sizeof(out))
     {
         return false;
@@ -257,7 +259,7 @@ void fold(za::String& s)
     {
         end = name; // ... but a root's kept
     }
-    memcpy(out, path, end);
+    ZA_MEMCPY(out, path, end);
     out[end] = '\0';
     return true;
 }
@@ -327,7 +329,7 @@ void forgetMisses(za::StringView path)
         {
             return false;
         }
-        memcpy(name, miss.data(), miss.size());
+        ZA_MEMCPY(name, miss.data(), miss.size());
         fold(name, miss.size());
         const za::SizeT at = path.size() - miss.size();
         return (at == 0 || path[at - 1] == '/') && path.substrByPosLen(at) == za::StringView{name, miss.size()};
@@ -415,11 +417,11 @@ void addRoots()
                 }
             }
         }
-        if(!parentOf(cur, up) || !strcmp(up, cur))
+        if(!parentOf(cur, up) || !ZA_STRCMP(up, cur))
         {
             return false; // (the volume's root, not a root's folder nor in one)
         }
-        memcpy(cur, up, sizeof(cur));
+        ZA_MEMCPY(cur, up, sizeof(cur));
     }
     return true;
 }
@@ -633,7 +635,7 @@ extern "C" int VR_FileCacheMissKnown(const char* name)
     }
     takePending();
     lookupEpoch = missesEpoch;
-    return misses.find(za::StringView{name, strlen(name)}) != misses.end() ? 1 : 0;
+    return misses.find(za::StringView{name, ZA_STRLEN(name)}) != misses.end() ? 1 : 0;
 }
 
 extern "C" void VR_FileCacheMissNote(const char* name)
@@ -728,12 +730,12 @@ namespace
     }
     // (folded in a buffer on the stack: a lookup makes no string; a longer path is the file system's to answer)
     char full[MAX_OSPATH];
-    const size_t length = strlen(path);
+    const size_t length = ZA_STRLEN(path);
     if(length >= sizeof(full))
     {
         return -1;
     }
-    memcpy(full, path, length + 1);
+    ZA_MEMCPY(full, path, length + 1);
     fold(full, length);
     const za::StringView view{full, length};
     const size_t slash = view.findLastOf("/\\");
@@ -815,7 +817,7 @@ void testCommand()
     check(Sys_remove((root + "/a.tmp").cStr()) == 0 && has(root + "/a.tmp") == 0, "a removed file gone");
 
     // misses (COM_FindFile's, by the game directory's search path): a file written forgets its own name only
-    const auto miss = [](const char* name) { return misses.find(za::StringView{name, strlen(name)}) != misses.end(); };
+    const auto miss = [](const char* name) { return misses.find(za::StringView{name, ZA_STRLEN(name)}) != misses.end(); };
     check(!COM_FileExists("fscache_test/m.tmp", nullptr) && !COM_FileExists("fscache_test/n.tmp", nullptr) &&
               miss("fscache_test/m.tmp") && miss("fscache_test/n.tmp"),
         "misses noted");

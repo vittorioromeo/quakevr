@@ -18,6 +18,7 @@
 #include "vr_gadget.hpp"
 #include "vr_mem.hpp"
 #include "Zancle/Algorithm/StableSort.hpp"
+#include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -30,7 +31,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 namespace qvr::relight::detail
 {
@@ -130,7 +130,7 @@ struct Bsp : bytes::View
     // A Quake .bsp whose 15 lumps all lie in the file.
     [[nodiscard]] bool valid() const
     {
-        if(size < 124 || !(i32(0) == 29 || !memcmp(data, "BSP2", 4) || !memcmp(data, "2PSB", 4)))
+        if(size < 124 || !(i32(0) == 29 || !ZA_MEMCMP(data, "BSP2", 4) || !ZA_MEMCMP(data, "2PSB", 4)))
         {
             return false;
         }

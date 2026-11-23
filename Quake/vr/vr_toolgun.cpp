@@ -49,6 +49,11 @@
 #include "vr_units.hpp"
 
 #include "Zancle/Base/Exchange.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -213,7 +218,7 @@ constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spaw
     char file[MAX_QPATH];
     const size_t n = static_cast<size_t>(tag - model);
     if(n >= sizeof(file)) { return false; }
-    memcpy(file, model, n);
+    ZA_MEMCPY(file, model, n);
     file[n] = '\0';
     return COM_FileExists(file, nullptr);
 }
@@ -574,7 +579,7 @@ void armedRefresh()
         return;
     }
     const float ad = vr_ad_mounted.value;
-    if(c.valid && c.progs == sv.qcvm.progs && c.ad == ad && c.knight == vr_agknight.value && c.dknight == vr_agdknight.value && !strcmp(c.map, sv.name))
+    if(c.valid && c.progs == sv.qcvm.progs && c.ad == ad && c.knight == vr_agknight.value && c.dknight == vr_agdknight.value && !ZA_STRCMP(c.map, sv.name))
     {
         return;
     }
@@ -1419,14 +1424,14 @@ void tempEntities()
         qmodel_t* model = nullptr;
         for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
         {
-            if(!strcmp(cl.model_precache[i]->name, name))
+            if(!ZA_STRCMP(cl.model_precache[i]->name, name))
             {
                 model = cl.model_precache[i];
                 break;
             }
         }
-        const size_t n = strlen(name);
-        const bool derivedGun = strstr(name, ".mdl#") != nullptr; // AD support: an AD soldier's gun (vr_adguns.cpp)
+        const size_t n = ZA_STRLEN(name);
+        const bool derivedGun = ZA_STRSTR(name, ".mdl#") != nullptr; // AD support: an AD soldier's gun (vr_adguns.cpp)
         if(!model && ((n > 4 && !q_strcasecmp(name + n - 4, ".mdl")) || derivedGun))
         {
             model = Mod_ForName(name, false);
@@ -1434,7 +1439,7 @@ void tempEntities()
         return model && !client::lateBrushModel(model) ? model : nullptr;
     };
     const GhostLook& look = gh().ghostLook;
-    const bool looked = look.valid && probedChoice(tg().sel) && look.entry == tg().sel.entry && !strcmp(look.classname, tg().sel.classname);
+    const bool looked = look.valid && probedChoice(tg().sel) && look.entry == tg().sel.entry && !ZA_STRCMP(look.classname, tg().sel.classname);
     qmodel_t* model = modelNamed(looked ? look.model : tg().sel.model);
     if(!model)
     {
@@ -1725,7 +1730,7 @@ void spawnTestCheck()
             Con_Printf("spawntest: %d \"%s\" %s %s %s\n", m.entry, spawnables[m.entry].label, kept ? "alive" : "gone",
                 e->free ? "(freed)" : PR_GetString(e->v.classname), look);
             (kept ? alive : gone)++;
-            invisible += !strncmp(look, "invisible", 9) ? 1 : 0;
+            invisible += !ZA_STRNCMP(look, "invisible", 9) ? 1 : 0;
         }
     }
     for(const SpawnTestMade& m : spawnTest.made)
@@ -1742,7 +1747,7 @@ void spawnTestCheck()
     int models = 0, sounds = 0, missing = 0;
     for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++, models++)
     {
-        if(!cl.model_precache[i] || strcmp(cl.model_precache[i]->name, sv.model_precache[i]) != 0)
+        if(!cl.model_precache[i] || ZA_STRCMP(cl.model_precache[i]->name, sv.model_precache[i]) != 0)
         {
             Con_Printf("spawntest: the client lacks model %d %s\n", i, sv.model_precache[i]);
             missing++;
@@ -1750,7 +1755,7 @@ void spawnTestCheck()
     }
     for(int i = 1; i < MAX_SOUNDS && sv.sound_precache[i]; i++, sounds++)
     {
-        if(cl.sound_precache[i] && strcmp(cl.sound_precache[i]->name, sv.sound_precache[i]) != 0)
+        if(cl.sound_precache[i] && ZA_STRCMP(cl.sound_precache[i]->name, sv.sound_precache[i]) != 0)
         {
             Con_Printf("spawntest: the client has sound %d %s as %s\n", i, sv.sound_precache[i], cl.sound_precache[i]->name);
             missing++;
@@ -1919,7 +1924,7 @@ edict_t* qvr::toolgun::spawnEntryAt(int i, const glm::vec3& feet, float yaw)
     if(e && climbrope::isRopeClass(s.classname))
     {
         const progs::ServerVm vm;
-        climbrope::toolgunPlaced(e, feet); // (hung from the ceiling above, as the spawn tool hangs one)
+        climbrope::toolgunPlaced(e, feet, yaw); // (hung from the ceiling above, as the spawn tool hangs one; a pole, a strung rope)
     }
     return e;
 }
@@ -2191,7 +2196,7 @@ void armedArmourTest_f()
                 char what[160];
                 q_snprintf(what, sizeof(what), "%s, %s, %s: %s type %d, pieces %d", kind ? "enforcer" : "grunt", armourNames[armour],
                     piecesNames[pieces], model, type, mask);
-                verdict(e && !strcmp(model, kindModels[kind]) && typeOk && maskOk, what);
+                verdict(e && !ZA_STRCMP(model, kindModels[kind]) && typeOk && maskOk, what);
                 if(e)
                 {
                     removeTarget(NUM_FOR_EDICT(e), true);
@@ -2272,7 +2277,7 @@ void armedPairTest_f()
         const int wid = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ag_wid)) : -9;
         const int wid2 = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ag_wid2)) : -9;
         const bool gunAxe = e && progs::fieldFloat(e, f.vr_ag_gunaxe) != 0.f;
-        const size_t n = strlen(what);
+        const size_t n = ZA_STRLEN(what);
         q_snprintf(what + n, sizeof(what) - n, ", spawned %s holding %d and %d, gun and axe %d", e ? "one" : "none", wid, wid2,
             gunAxe);
         verdict(e && wid > 0 && wid2 > 0 && wid != wid2 && gunAxe == c.gunAxe && tg().sel.value2 == static_cast<float>(c.code2), what);

@@ -4,13 +4,16 @@
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_dynres.hpp"
+#include "vr_lighting.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_api.h"
+#include "vr_tunables_api.hpp"
 
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Clamp.hpp"
 
 #include "SDL.h"
 
@@ -64,6 +67,8 @@ struct Row
     float scale{0.f};
     int drawcalls{0};
     int dlights{0};
+    int unlit{0}; // the frame's views whose world was drawn without the lights' loop (vr_gl_world_unlit)
+    int split{0}; // ... drawn split by surface, the lit ones alone with the loop (vr_gl_world_unlit 2, C4v)
     za::U64 allocs{0};
     int count[VR_PERF_KINDS]{};
     float ms[VR_PERF_KINDS]{};
@@ -152,6 +157,9 @@ void writeHeader()
     char when[64];
     strftime(when, sizeof when, "%Y-%m-%d %H:%M:%S", localtime(&now));
     fprintf(f, "# Quake VR perf recording (vr_perf_record), %s; GL %s\n", when, gl_renderer ? gl_renderer : "?");
+    // (the Quest's: tuning constants mostly, found by their stand-ins: C4q, Cvar_FindVar never found them)
+    const char* const quest[] = {"vr_gles_define", "vr_dlight_falloff", "vr_gl_lights_lite", "vr_gl_lights_plain",
+        "vr_gl_alias_plain_mask", "vr_gl_world_lite", "vr_xr_foveation", "vr_xr_direct"};
     fprintf(f, "# settings:");
     for(const char* name : profile::settingCvars)
     {
@@ -160,9 +168,17 @@ void writeHeader()
             fprintf(f, " %s=%s", name, v->string);
         }
     }
+    for(const char* name : quest)
+    {
+        const cvar_t* v = Cvar_FindVar(name);
+        if(v || (v = tunableFind(name)) != nullptr)
+        {
+            fprintf(f, " %s=%s", name, v->string);
+        }
+    }
     fprintf(f, "\n# times in ms; c_ a phase's CPU, g_ its GPU (empty: 0, or not read back); gpu_span the GPU's first to last "
                "timestamp; xr_missed display periods missed; ev_<kind>_n/_ms the frame's events; events their names\n");
-    fprintf(f, "serial,t,map,period,host,busy,xr_period,xr_missed,scale,gpu_span,draws,dlights,allocs");
+    fprintf(f, "serial,t,map,period,host,busy,xr_period,xr_missed,scale,gpu_span,draws,dlights,unlit,split,allocs");
     char col[48];
     for(int i = 0; i < profile::PhaseCount; i++)
     {
@@ -208,7 +224,7 @@ void writeRow(const Row& r)
     {
         fputc(',', f);
     }
-    fprintf(f, ",%d,%d,%llu", r.drawcalls, r.dlights, static_cast<unsigned long long>(r.allocs));
+    fprintf(f, ",%d,%d,%d,%d,%llu", r.drawcalls, r.dlights, r.unlit, r.split, static_cast<unsigned long long>(r.allocs));
     for(int i = 0; i < profile::PhaseCount; i++)
     {
         putMs(f, r.cpuMs[i]);
@@ -264,9 +280,14 @@ void drain(za::U64 forceUpTo)
 void start()
 {
     char dir[MAX_OSPATH];
+#ifdef __ANDROID__
+    const char* internal = SDL_AndroidGetInternalStoragePath();
+    q_snprintf(dir, sizeof dir, "%s/perf", internal ? internal : com_gamedir);
+#else
     q_snprintf(dir, sizeof dir, "%s/profile", com_gamedir);
     Sys_mkdir(dir);
     q_snprintf(dir, sizeof dir, "%s/profile/perf", com_gamedir);
+#endif
     Sys_mkdir(dir);
     const time_t now = time(nullptr);
     char stamp[32];
@@ -379,6 +400,8 @@ void frame(za::U64 serial, double startS, double periodMs, double hostMs, double
         {
             r.dlights += d.die >= cl.time && d.radius > 0.f ? 1 : 0;
         }
+        r.unlit = lighting::takeWorldUnlitViews();
+        r.split = lighting::takeWorldSplitViews();
         const za::U64 allocs = allocsNow();
         r.allocs = allocs - za::min(allocs, rec.allocs0);
         rec.allocs0 = allocs;

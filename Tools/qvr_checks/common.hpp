@@ -52,6 +52,10 @@ int checkReleaseQc(const Ctx& ctx, const Args& args, Out& out);
 int checkQcPrecedence(const Ctx& ctx, const Args& args, Out& out);
 int checkProgsFormat(const Ctx& ctx, const Args& args, Out& out);
 int fgdgen(const Ctx& ctx, const Args& args, Out& out);
+int checkStdUses(const Ctx& ctx, const Args& args, Out& out);
+
+// The source with comments, strings and character literals blanked (newlines kept): statics.cpp's.
+std::string stripCode(std::string_view text);
 
 // --- files
 

@@ -21,11 +21,12 @@
 #include "vr_twohand.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
-#include <string.h>
 
 namespace qvr::heldpose
 {
@@ -219,7 +220,7 @@ Slots slots; // seat-shared: the server's, each player slot's
     for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; i++)
     {
         edict_t* e = edictOf(i);
-        if(!e || e->free || !e->v.modelindex || strcmp(PR_GetString(e->v.classname), "thrown_weapon") != 0)
+        if(!e || e->free || !e->v.modelindex || ZA_STRCMP(PR_GetString(e->v.classname), "thrown_weapon") != 0)
         {
             continue;
         }
@@ -782,7 +783,7 @@ void send()
         }
         MSG_WriteByte(&cls.message, clc_stringcmd);
         MSG_WriteString(&cls.message, text);
-        memcpy(up().sent[hand], v, sizeof(v));
+        ZA_MEMCPY(up().sent[hand], v, sizeof(v));
         up().wasSent[hand] = true;
         up().nextSend[hand] = now + static_cast<double>(za::max(vr_net_avatarcal_interval.value, 0.f));
     }

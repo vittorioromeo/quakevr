@@ -35,15 +35,20 @@
 #include "vr_dwell.hpp"
 #include "vr_quoth.hpp"
 
+#include "Zancle/Base/Memchr.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
-#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "vr_api.h"
 
 #include <cstdio>
-#include <cstdint>
-#include <cstring>
 #include <sys/stat.h>
 extern "C" {
 #include "steam.h"
@@ -110,7 +115,7 @@ bool validResource(FILE* file, long offset, long length, const char* name)
     const auto integer = [&](size_t pos) -> int32_t
     {
         int32_t value = 0;
-        if(pos <= bytes.size() && bytes.size() - pos >= 4) { memcpy(&value, bytes.data() + pos, 4); }
+        if(pos <= bytes.size() && bytes.size() - pos >= 4) { ZA_MEMCPY(&value, bytes.data() + pos, 4); }
         return LittleLong(value);
     };
     size_t cursor = 0;
@@ -122,7 +127,7 @@ bool validResource(FILE* file, long offset, long length, const char* name)
     };
     if(!q_strcasecmp(ext, "mdl"))
     {
-        if(length < 84 || memcmp(bytes.data(), "IDPO", 4) || integer(4) != 6) { return false; }
+        if(length < 84 || ZA_MEMCMP(bytes.data(), "IDPO", 4) || integer(4) != 6) { return false; }
         const int skins = integer(48), width = integer(52), height = integer(56);
         const int vertices = integer(60), triangles = integer(64), frames = integer(68);
         if(skins <= 0 || width <= 0 || height <= 0 || vertices <= 0 || triangles <= 0 || frames <= 0)
@@ -162,7 +167,7 @@ bool validResource(FILE* file, long offset, long length, const char* name)
     }
     if(!q_strcasecmp(ext, "spr"))
     {
-        if(length < 36 || memcmp(bytes.data(), "IDSP", 4) || integer(4) != 1 || integer(24) <= 0)
+        if(length < 36 || ZA_MEMCMP(bytes.data(), "IDSP", 4) || integer(4) != 1 || integer(24) <= 0)
         { return false; }
         cursor = 36;
         for(int i = 0; i < integer(24); ++i)
@@ -186,7 +191,7 @@ bool validResource(FILE* file, long offset, long length, const char* name)
     }
     if(!q_strcasecmp(ext, "wav"))
     {
-        if(length < 44 || memcmp(bytes.data(), "RIFF", 4) || memcmp(bytes.data() + 8, "WAVE", 4) ||
+        if(length < 44 || ZA_MEMCMP(bytes.data(), "RIFF", 4) || ZA_MEMCMP(bytes.data() + 8, "WAVE", 4) ||
             integer(4) < 36 || int64_t(integer(4)) + 8 > length) { return false; }
         bool format = false, samples = false;
         cursor = 12;
@@ -196,8 +201,8 @@ bool validResource(FILE* file, long offset, long length, const char* name)
             if(end - cursor < 8) { return false; }
             const int size = integer(cursor + 4);
             if(size < 0 || static_cast<size_t>(size) > end - cursor - 8) { return false; }
-            if(!memcmp(bytes.data() + cursor, "fmt ", 4)) { format = size >= 16; }
-            if(!memcmp(bytes.data() + cursor, "data", 4)) { samples = size > 0; }
+            if(!ZA_MEMCMP(bytes.data() + cursor, "fmt ", 4)) { format = size >= 16; }
+            if(!ZA_MEMCMP(bytes.data() + cursor, "data", 4)) { samples = size > 0; }
             // Original pack WAVs can contain junk LIST metadata or omit the final pad byte.
             // The engine needs the bounded fmt/data chunks; trailing metadata is not consumed.
             if(format && samples) { return true; }
@@ -206,7 +211,7 @@ bool validResource(FILE* file, long offset, long length, const char* name)
         return format && samples;
     }
     if(length < 124 || (integer(0) != 29 && integer(0) != 30 &&
-        memcmp(bytes.data(), "BSP2", 4) && memcmp(bytes.data(), "2PSB", 4))) { return false; }
+        ZA_MEMCMP(bytes.data(), "BSP2", 4) && ZA_MEMCMP(bytes.data(), "2PSB", 4))) { return false; }
     for(int i = 0; i < 15; ++i)
     {
         const int pos = integer(4 + i * 8), size = integer(8 + i * 8);
@@ -240,7 +245,7 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
             rewind(file);
             struct { char id[4]; int32_t offset; int32_t length; } header{};
             bool valid = fread(&header, 1, sizeof(header), file) == sizeof(header) &&
-                         !memcmp(header.id, "PACK", 4);
+                         !ZA_MEMCMP(header.id, "PACK", 4);
             const int offset = LittleLong(header.offset);
             const int length = LittleLong(header.length);
             valid &= offset >= 12 && length > 0 && length % sizeof(PackEntry) == 0 &&
@@ -255,14 +260,14 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
             for(const PackEntry& entry : entries)
             {
                 const int pos = LittleLong(entry.offset), len = LittleLong(entry.length);
-                if(!memchr(entry.name, 0, sizeof(entry.name)) || pos < 0 || len < 0 || pos > size || len > size - pos)
+                if(!ZA_MEMCHR(entry.name, 0, sizeof(entry.name)) || pos < 0 || len < 0 || pos > size || len > size - pos)
                 {
                     valid = false;
                     break;
                 }
                 for(size_t i = 0; i < count; ++i)
                 {
-                    if(!strcmp(entry.name, resources[i]))
+                    if(!ZA_STRCMP(entry.name, resources[i]))
                     {
                         if(!validResource(file, pos, len, entry.name))
                         {
@@ -477,7 +482,7 @@ void addEpicRoots(za::Vector<za::String>& roots)
     if(!qvr::files::isDirectory(dir.cStr())) { return; }
     qvr::files::forEachEntry(dir.cStr(), [&](const char* name, bool isDirectory)
     {
-        const za::SizeT n = strlen(name);
+        const za::SizeT n = ZA_STRLEN(name);
         if(isDirectory || n < 5 || q_strcasecmp(name + n - 5, ".item")) { return; }
         za::String text;
         if(!qvr::files::readText(qvr::files::join(dir.cStr(), name).cStr(), text)) { return; }
@@ -625,7 +630,7 @@ int missingLanguage(int index, const char** first = nullptr)
     for(size_t i = 0; i < count; ++i)
     {
         const char* text = LOC_GetRawString(keys[i]);
-        if(!text || !*text || !strcmp(text, keys[i]))
+        if(!text || !*text || !ZA_STRCMP(text, keys[i]))
         { if(first && !missing) { *first = keys[i]; } ++missing; }
     }
     return missing;
@@ -670,7 +675,7 @@ void reportPackStatus()
 [[nodiscard]] bool gameDirAlreadyAdded(const char* game)
 {
     // com_gamenames is "a;b;c" (without id1).
-    const za::SizeT len = strlen(game);
+    const za::SizeT len = ZA_STRLEN(game);
     for(const char* p = com_gamenames; *p;)
     {
         if(!q_strncasecmp(p, game, len) && (p[len] == ';' || p[len] == '\0'))
@@ -724,7 +729,7 @@ static bool ownedLocalizationRootsKnown = false;
 // changes com_basedirs (and therefore cannot redirect saves/configs to a store).
 extern "C" char* VR_LoadOwnedLocalization(const char* name)
 {
-    if(strncmp(name, "localization/loc_", 17) || strchr(name, ':') || strstr(name, "..")) { return nullptr; }
+    if(ZA_STRNCMP(name, "localization/loc_", 17) || strchr(name, ':') || ZA_STRSTR(name, "..")) { return nullptr; }
     // The store and rerelease roots only, found once (Steam's, GOG's and Epic's lookups are not free, and the roots do
     // not change while the game runs): a base dir itself is on the search path already, its table read by
     // LOC_ReadFile, and reading it here too parsed and kept every entry twice.
@@ -752,9 +757,9 @@ extern "C" char* VR_LoadOwnedLocalization(const char* name)
         char marker[MAX_OSPATH + 32];
         const size_t markerLength = q_snprintf(marker, sizeof(marker), "// vr-language-source %s\n", source);
         result = static_cast<char*>(VR_HeapRealloc(result, used + markerLength + static_cast<size_t>(length) + 2));
-        memcpy(result + used, marker, markerLength);
+        ZA_MEMCPY(result + used, marker, markerLength);
         used += markerLength;
-        memcpy(result + used, buffer, static_cast<size_t>(length));
+        ZA_MEMCPY(result + used, buffer, static_cast<size_t>(length));
         used += static_cast<size_t>(length);
         result[used++] = '\n';
         result[used] = 0;
@@ -784,7 +789,7 @@ extern "C" char* VR_LoadOwnedLocalization(const char* name)
             const long size = ftell(file);
             rewind(file);
             struct { char id[4]; int32_t dirofs; int32_t dirlen; } header{};
-            if(fread(&header, sizeof(header), 1, file) == 1 && !memcmp(header.id, "PACK", 4))
+            if(fread(&header, sizeof(header), 1, file) == 1 && !ZA_MEMCMP(header.id, "PACK", 4))
             {
                 const int offset = LittleLong(header.dirofs), length = LittleLong(header.dirlen);
                 if(offset >= 12 && length >= 0 && length % sizeof(PackEntry) == 0 &&
@@ -795,7 +800,7 @@ extern "C" char* VR_LoadOwnedLocalization(const char* name)
                         PackEntry item{};
                         fseek(file, offset + entry * sizeof(PackEntry), SEEK_SET);
                         if(fread(&item, sizeof(item), 1, file) != 1) { break; }
-                        if(!memchr(item.name, 0, sizeof(item.name)) || strcmp(item.name, name)) { continue; }
+                        if(!ZA_MEMCHR(item.name, 0, sizeof(item.name)) || ZA_STRCMP(item.name, name)) { continue; }
                         const int pos = LittleLong(item.offset), len = LittleLong(item.length);
                         if(pos >= 12 && len > 0 && pos <= size && len <= size - pos) { append(file, pos, len, path); }
                         break;
@@ -952,7 +957,7 @@ void campaignProbeCommand()
     const bool exists = COM_FileExists(file, nullptr);
     Con_Printf("VR campaign source: %s -> %s; campaign %s\n", file,
         exists ? com_filesource : "missing", campaigns[activeCampaign].folder);
-    if(!strncmp(file, "maps/", 5))
+    if(!ZA_STRNCMP(file, "maps/", 5))
     { Con_Printf("VR campaign relit: %s -> %s\n", file, VR_ModelFile(file)); }
 }
 
@@ -1127,33 +1132,33 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
     // hub and dm1 stay visible while it runs; round 22, the hub's end slipgate stopped on "cannot find map".)
     const bool sharedOthers = activeCampaign >= 3 && !campaigns[activeCampaign].checks.release; // (the third-party
                                                        // ones, AD's, Dwell's, Quoth's: a start of their own only)
-    const bool start = strncmp(filename, "maps/start.", 11) == 0 ||
-        (sharedOthers && (strncmp(filename, "maps/end.", 9) == 0 || strncmp(filename, "maps/hub.", 9) == 0 ||
-                             strncmp(filename, "maps/dm1.", 9) == 0));
+    const bool start = ZA_STRNCMP(filename, "maps/start.", 11) == 0 ||
+        (sharedOthers && (ZA_STRNCMP(filename, "maps/end.", 9) == 0 || ZA_STRNCMP(filename, "maps/hub.", 9) == 0 ||
+                             ZA_STRNCMP(filename, "maps/dm1.", 9) == 0));
     char name[MAX_OSPATH];
     gameFolderName(path, name, sizeof(name));
     const int i = campaignIndex(name);
     if(i < 0) { return 0; }
-    if(!strcmp(filename, "progs.dat") && i >= 3) { return 1; }
+    if(!ZA_STRCMP(filename, "progs.dat") && i >= 3) { return 1; }
     if(campaigns[i].checks.skipInFolder && campaigns[i].checks.skipInFolder(filename)) { return 1; } // (AD's, Dwell's: only their own files)
     if(campaigns[i].checks.skipOutside && i != activeCampaign) { return campaigns[i].checks.skipOutside(filename) ? 1 : 0; } // (AD's, Dwell's: and in another campaign, only their models, sounds, icons)
     if(i >= 3) { return i != activeCampaign; }
     if(start) { return i != activeCampaign; }
     // Isolate campaign maps and sidecars, while retaining optional pack brush models
     // (e.g. maps/b_explob.bsp) used by VR's global resource precaches.
-    if(activeCampaign >= 3 && !strncmp(filename, "maps/", 5) && i != activeCampaign)
+    if(activeCampaign >= 3 && !ZA_STRNCMP(filename, "maps/", 5) && i != activeCampaign)
     {
         char map[MAX_QPATH];
         COM_StripExtension(filename, map, sizeof(map));
-        if(!strcmp(map, "maps/start") ||
-            (sharedOthers && (!strcmp(map, "maps/hub") || !strcmp(map, "maps/end") || !strcmp(map, "maps/dm1")))) { return 1; }
+        if(!ZA_STRCMP(map, "maps/start") ||
+            (sharedOthers && (!ZA_STRCMP(map, "maps/hub") || !ZA_STRCMP(map, "maps/end") || !ZA_STRCMP(map, "maps/dm1")))) { return 1; }
         const Campaign& c = campaigns[activeCampaign];
         for(size_t r = 0; r < c.resourceCount; ++r)
         {
-            if(strncmp(c.resources[r], "maps/", 5)) { continue; }
+            if(ZA_STRNCMP(c.resources[r], "maps/", 5)) { continue; }
             char owned[MAX_QPATH];
             COM_StripExtension(c.resources[r], owned, sizeof(owned));
-            if(!strcmp(owned, map)) { return 1; }
+            if(!ZA_STRCMP(owned, map)) { return 1; }
         }
     }
     return 0;
@@ -1171,7 +1176,7 @@ char relitPath[MAX_QPATH * 2]; // VR_ModelFile's answer: valid until its next ca
 
 extern "C" const char* VR_ModelFile(const char* name)
 {
-    if(!qvr::vr_relit_maps.value || strncmp(name, "maps/", 5) != 0)
+    if(!qvr::vr_relit_maps.value || ZA_STRNCMP(name, "maps/", 5) != 0)
     {
         return name;
     }
@@ -1268,10 +1273,10 @@ int campaignForMap(const char* map, int current)
     // (e1m1..e4m8, exactly: Quoth's e1m1quoth and e1m2quoth are Quoth's own)
     const bool idEpisode = map[0] == 'e' && map[1] >= '1' && map[1] <= '4' && map[2] == 'm' && map[3] >= '1' &&
                            map[3] <= '9' && !map[4];
-    if(idEpisode || !strcmp(map, "vrtest")) { named = 0; }
-    if(!strncmp(map, "hip", 3)) { named = 1; }
-    if(!strncmp(map, "r1m", 3) || !strncmp(map, "r2m", 3)) { named = 2; }
-    if(!strncmp(map, "e5", 2)) { named = 3; }
+    if(idEpisode || !ZA_STRCMP(map, "vrtest")) { named = 0; }
+    if(!ZA_STRNCMP(map, "hip", 3)) { named = 1; }
+    if(!ZA_STRNCMP(map, "r1m", 3) || !ZA_STRNCMP(map, "r2m", 3)) { named = 2; }
+    if(!ZA_STRNCMP(map, "e5", 2)) { named = 3; }
     if(named != current && campaigns[named].status != 1 && COM_FileExists(va("maps/%s.bsp", map), nullptr))
     { return current; }
     // Arcane Dimensions plays id's episodes in its own rules: its hub's lower level has the original slipgates
@@ -1288,7 +1293,7 @@ int campaignForMap(const char* map, int current)
 // (vrtutorial_gen.py).
 extern "C" int VR_IsVrMap(const char* map)
 {
-    return !strcmp(map, "vrstart") || !strcmp(map, "vrtutorial") || !strcmp(map, "vrfiringrange");
+    return !ZA_STRCMP(map, "vrstart") || !ZA_STRCMP(map, "vrtutorial") || !ZA_STRCMP(map, "vrfiringrange");
 }
 
 // The hub the game starts in and returns to.
@@ -1303,7 +1308,7 @@ extern "C" int VR_CanLoadCampaignMap(const char* map)
     if(VR_IsVrMap(map))
     { return activeCampaign == 0 || selectCampaign(0, false, false, false); }
     int requested = campaignForMap(map, activeCampaign);
-    if(!strcmp(map, "start") && activeCampaign <= 2)
+    if(!ZA_STRCMP(map, "start") && activeCampaign <= 2)
     {
         const int legacy = static_cast<int>(qvr::vr_activestartpaknameidx.value);
         if(legacy < 0 || legacy >= int(countof(campaigns)))
@@ -1327,9 +1332,9 @@ namespace
 // A save's campaign (its vr_save_campaign global, world.qc), -1 when it has none.
 int savedCampaignKey(const char* text)
 {
-    const char* context = strstr(text, "\"vr_save_campaign\"");
+    const char* context = ZA_STRSTR(text, "\"vr_save_campaign\"");
     if(!context) { return -1; }
-    COM_Parse(context + strlen("\"vr_save_campaign\""));
+    COM_Parse(context + ZA_STRLEN("\"vr_save_campaign\""));
     const int saved = Q_atoi(com_token);
     return saved >= 0 && saved < int(countof(campaigns)) ? saved : -1;
 }
@@ -1368,13 +1373,13 @@ extern "C" void VR_CheckSpawnCampaignMap(const char* map)
 {
     if(!gameDirAlreadyAdded(vrGameDir)) { return; }
     int requested = campaignForMap(map, activeCampaign);
-    if(!strcmp(map, "start") && activeCampaign <= 2)
+    if(!ZA_STRCMP(map, "start") && activeCampaign <= 2)
     {
         const int legacy = static_cast<int>(qvr::vr_activestartpaknameidx.value);
         requested = legacy >= 0 && legacy <= 2 ? legacy : activeCampaign;
     }
     if(VR_IsVrMap(map)) { requested = 0; }
-    else if(spawnSaveCampaign >= 0 && !strcmp(map, spawnSaveMap)) { requested = spawnSaveCampaign; } // (a load's)
+    else if(spawnSaveCampaign >= 0 && !ZA_STRCMP(map, spawnSaveMap)) { requested = spawnSaveCampaign; } // (a load's)
     spawnSaveCampaign = -1;
     if(requested != activeCampaign)
     {
@@ -1409,8 +1414,8 @@ extern "C" int VR_CanLoadCampaignSave(const char* text)
 {
     if(!gameDirAlreadyAdded(vrGameDir)) { return 1; }
     constexpr const char* key = "\"vr_save_packmask\"";
-    const char* marker = strstr(text, key);
-    const char* context = strstr(text, "\"vr_save_campaign\"");
+    const char* marker = ZA_STRSTR(text, key);
+    const char* context = ZA_STRSTR(text, "\"vr_save_campaign\"");
     if(!marker || !context)
     {
         // (world.qc has written both since 2026-10-05: an older save's or another game's.)
@@ -1419,7 +1424,7 @@ extern "C" int VR_CanLoadCampaignSave(const char* text)
         SCR_CenterPrint("Saved game from an older build\nor another game: not loaded\n(see the console)");
         return 0;
     }
-    COM_Parse(marker + strlen(key));
+    COM_Parse(marker + ZA_STRLEN(key));
     const int saved = Q_atoi(com_token);
     const int installed = 1 + (packStatus[0] == 1) + 2 * (packStatus[1] == 1);
     if(saved != installed)
@@ -1429,7 +1434,7 @@ extern "C" int VR_CanLoadCampaignSave(const char* text)
         return 0;
     }
     {
-        COM_Parse(context + strlen("\"vr_save_campaign\""));
+        COM_Parse(context + ZA_STRLEN("\"vr_save_campaign\""));
         const int savedCampaign = Q_atoi(com_token);
         if(savedCampaign < 0 || savedCampaign >= int(countof(campaigns)))
         { Con_Printf("VR: save has an invalid campaign context.\n"); return 0; }
@@ -1460,13 +1465,13 @@ extern "C" int VR_CanLoadCampaignSave(const char* text)
 // campaign this game can't start now).
 extern "C" int VR_SaveCampaign(const char* text)
 {
-    const char* marker = strstr(text, "\"vr_save_packmask\"");
-    const char* context = strstr(text, "\"vr_save_campaign\"");
+    const char* marker = ZA_STRSTR(text, "\"vr_save_packmask\"");
+    const char* context = ZA_STRSTR(text, "\"vr_save_campaign\"");
     if(!marker || !context) { return -1; }
     if(!gameDirAlreadyAdded(vrGameDir)) { return 0; }
-    COM_Parse(marker + strlen("\"vr_save_packmask\""));
+    COM_Parse(marker + ZA_STRLEN("\"vr_save_packmask\""));
     if(Q_atoi(com_token) != 1 + (packStatus[0] == 1) + 2 * (packStatus[1] == 1)) { return -1; }
-    COM_Parse(context + strlen("\"vr_save_campaign\""));
+    COM_Parse(context + ZA_STRLEN("\"vr_save_campaign\""));
     const int saved = Q_atoi(com_token);
     if(saved < 0 || saved >= int(countof(campaigns)) || VR_CampaignUnavailable(saved)) { return -1; }
     return saved;
@@ -1505,11 +1510,11 @@ extern "C" int VR_CanChangeCampaignMap(const char* map)
     if(VR_IsVrMap(map) && activeCampaign != 0)
     { Cbuf_InsertText(va("vr_campaign_hub %s\n", map)); return 0; }
     int requested = activeCampaign;
-    if(!strcmp(map, "start") && activeCampaign <= 2)
+    if(!ZA_STRCMP(map, "start") && activeCampaign <= 2)
     {
         requested = static_cast<int>(qvr::vr_activestartpaknameidx.value);
-        // The hub's choice of a campaign with a game folder of its own (vrstart's lecterns 3, 4 and 5: Dimension of
-        // the Past, Dimension of the Machine, Dawn of the Machine): its teleporter runs the selector, which rebuilds the
+        // The hub's choice of a campaign with a game folder of its own (vrstart's lecterns 3-8: Dimension of
+        // the Past, of the Machine, Dawn of the Machine, AD, Dwell, Quoth): its teleporter runs the selector, which rebuilds the
         // folders and starts the campaign's first map (a changelevel can't). From any other map such a choice is stale:
         // "start" stays the running campaign's.
         if(requested >= 3 && requested < int(countof(campaigns)))
@@ -1520,7 +1525,10 @@ extern "C" int VR_CanChangeCampaignMap(const char* map)
                 if(realtime - hubSelectTime > 2.0)
                 {
                     hubSelectTime = realtime;
-                    Cbuf_InsertText(va("vr_campaign_select %s\n", campaigns[requested].folder));
+                    // (the mods' lecterns, 6-8: Arcane Dimensions, Dwell, Quoth, experimental: their developer launch,
+                    // as Select Campaign's rows after their notice; vrnotes1122c2)
+                    Cbuf_InsertText(va("%s %s\n", campaigns[requested].checks.experimental ? "vr_campaign_native" : "vr_campaign_select",
+                        campaigns[requested].folder));
                 }
                 return 0;
             }
@@ -1546,7 +1554,7 @@ extern "C" int VR_CanChangeCampaignMap(const char* map)
 
 extern "C" int VR_HasNativeCampaignDirectory(const char* paths)
 {
-    const size_t length = strlen(vrGameDir);
+    const size_t length = ZA_STRLEN(vrGameDir);
     for(const char* p = paths; p && *p;)
     {
         if(!q_strncasecmp(p, vrGameDir, length) && (p[length] == ';' || !p[length])) { return 1; }
@@ -1629,7 +1637,7 @@ void readOwnedIndex(OwnedIndex& index, const char* folder)
         const long fileSize = ftell(f);
         rewind(f);
         struct { char id[4]; int32_t dirofs; int32_t dirlen; } header{};
-        if(fread(&header, sizeof(header), 1, f) == 1 && !memcmp(header.id, "PACK", 4))
+        if(fread(&header, sizeof(header), 1, f) == 1 && !ZA_MEMCMP(header.id, "PACK", 4))
         {
             const long dirOffset = LittleLong(header.dirofs), dirLength = LittleLong(header.dirlen);
             const long count = dirLength / static_cast<long>(sizeof(PackEntry));
@@ -1642,7 +1650,7 @@ void readOwnedIndex(OwnedIndex& index, const char* folder)
                     seen.clear();
                     for(const PackEntry& e : entries)
                     {
-                        if(!memchr(e.name, 0, sizeof(e.name))) { continue; }
+                        if(!ZA_MEMCHR(e.name, 0, sizeof(e.name))) { continue; }
                         q_strlcpy(lower, e.name, sizeof(lower));
                         q_strlwr(lower);
                         za::String key{lower};
@@ -1671,7 +1679,7 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
     if(q_strncasecmp(name, prefix, sizeof(prefix) - 1)) { return 0; }
     const char* folderStart = name + sizeof(prefix) - 1;
     const char* slash = strchr(folderStart, '/');
-    if(!slash || slash == folderStart || !slash[1] || strstr(name, "..") || strchr(name, ':') || strchr(name, '\\'))
+    if(!slash || slash == folderStart || !slash[1] || ZA_STRSTR(name, "..") || strchr(name, ':') || strchr(name, '\\'))
     { return -1; }
     char folder[MAX_QPATH];
     const size_t folderLength = static_cast<size_t>(slash - folderStart);
@@ -1722,7 +1730,7 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
         q_strlcpy(lower, file, sizeof(lower));
         q_strlwr(lower);
         const auto it = index.files.find(za::String{lower});
-        if(strlen(file) >= sizeof(lower) || it == index.files.end()) { return -1; }
+        if(ZA_STRLEN(file) >= sizeof(lower) || it == index.files.end()) { return -1; }
         q_strlcpy(out, index.paks[it->second.pak].cStr(), size);
         *offset = it->second.offset;
         *length = it->second.length;
@@ -1749,7 +1757,7 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
         rewind(f);
         struct { char id[4]; int32_t dirofs; int32_t dirlen; } header{};
         bool found = false;
-        if(fread(&header, sizeof(header), 1, f) == 1 && !memcmp(header.id, "PACK", 4))
+        if(fread(&header, sizeof(header), 1, f) == 1 && !ZA_MEMCMP(header.id, "PACK", 4))
         {
             const long dirOffset = LittleLong(header.dirofs), dirLength = LittleLong(header.dirlen);
             const long count = dirLength / static_cast<long>(sizeof(PackEntry));
@@ -1761,7 +1769,7 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
                 {
                     for(const PackEntry& e : entries)
                     {
-                        if(!memchr(e.name, 0, sizeof(e.name)) || q_strcasecmp(e.name, file)) { continue; }
+                        if(!ZA_MEMCHR(e.name, 0, sizeof(e.name)) || q_strcasecmp(e.name, file)) { continue; }
                         const long pos = LittleLong(e.offset), len = LittleLong(e.length);
                         if(pos >= 12 && len >= 0 && pos <= fileSize && len <= fileSize - pos)
                         {

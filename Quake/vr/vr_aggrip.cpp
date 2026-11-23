@@ -6,6 +6,7 @@
 #include "vr_cvars.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Asin.hpp"
@@ -147,7 +148,7 @@ cvar_t* const sliderCvars[6] = {&vr_agrunt_grip_x, &vr_agrunt_grip_y, &vr_agrunt
 
 void parse()
 {
-    if(state.everParsed && strcmp(state.parsed, vr_agrunt_grips.string) == 0)
+    if(state.everParsed && ZA_STRCMP(state.parsed, vr_agrunt_grips.string) == 0)
     {
         return;
     }
@@ -164,7 +165,7 @@ void parse()
         if(sscanf(p, " %d %255s %d %f %f %f %f %f %f%n", &o.kind, id, &o.hand, &o.o.pos.x, &o.o.pos.y, &o.o.pos.z,
                &o.o.angles.x, &o.o.angles.y, &o.o.angles.z, &used) == 9)
         {
-            o.slot = strcmp(id, "*") == 0 ? aggrip::allWeapons : weapons::slotForName(id);
+            o.slot = ZA_STRCMP(id, "*") == 0 ? aggrip::allWeapons : weapons::slotForName(id);
             if((o.slot >= 0 || o.slot == aggrip::allWeapons) && o.kind >= 0 && o.kind < aggrip::numKinds && o.hand >= 0 && o.hand < aggrip::NumHands)
             {
                 state.over[state.numOver++] = o;
@@ -228,7 +229,7 @@ void write()
     const char* id = slot >= 0 ? slotId(slot) : nullptr;
     for(const Row& r : defaults)
     {
-        if(id && r.kind == kind && r.hand == hand && strcmp(r.weapon, id) == 0)
+        if(id && r.kind == kind && r.hand == hand && ZA_STRCMP(r.weapon, id) == 0)
         {
             out.pos = {r.x, r.y, r.z};
             out.angles = {r.pitch, r.yaw, r.roll};
@@ -305,13 +306,13 @@ void dumpEffective()
 
 void dump_f()
 {
-    if(Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "effective") == 0)
+    if(Cmd_Argc() > 1 && ZA_STRCMP(Cmd_Argv(1), "effective") == 0)
     {
         dumpEffective();
         return;
     }
     za::String text;
-    dumpInto(text, Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "all") == 0);
+    dumpInto(text, Cmd_Argc() > 1 && ZA_STRCMP(Cmd_Argv(1), "all") == 0);
     Con_Printf("%s", text.cStr());
 }
 
@@ -343,7 +344,7 @@ void fit_f()
 void reset_f()
 {
     parse();
-    const bool all = Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "all") == 0;
+    const bool all = Cmd_Argc() > 1 && ZA_STRCMP(Cmd_Argv(1), "all") == 0;
     int kept = 0;
     for(int i = 0; i < state.numOver; i++)
     {

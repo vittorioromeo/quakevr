@@ -415,3 +415,5 @@
 .float rope_damping;   // per second (0.5)
 .float rope_style;     // 1: drawn as a chain (vr_rope)
 .float rope_pinned;    // its bottom held where it first hangs (PINNED; a target: at it)
+.float rope_slack;     // ropes7: with a target or rope_end, its length over the straight line between its ends (0.1: 10% longer)
+.vector rope_end;      // ropes7: its bottom pinned at this point (as a target's origin; '0 0 0': none)

@@ -27,13 +27,15 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
-#include "Zancle/Container/Vector.hpp"
 #include "vr_api.h"
 
 #include <string.h>
@@ -364,9 +366,9 @@ bool sameBody(const qmodel_t* a, const qmodel_t* b)
 {
     const char* ha = strchr(a->name, '#');
     const char* hb = strchr(b->name, '#');
-    const size_t la = ha ? static_cast<size_t>(ha - a->name) : strlen(a->name);
-    const size_t lb = hb ? static_cast<size_t>(hb - b->name) : strlen(b->name);
-    return la == lb && !strncmp(a->name, b->name, la);
+    const size_t la = ha ? static_cast<size_t>(ha - a->name) : ZA_STRLEN(a->name);
+    const size_t lb = hb ? static_cast<size_t>(hb - b->name) : ZA_STRLEN(b->name);
+    return la == lb && !ZA_STRNCMP(a->name, b->name, la);
 }
 
 namespace

@@ -103,8 +103,10 @@ $ericw = if ($env:QVR_ERICW_TOOLS) { $env:QVR_ERICW_TOOLS } else { Join-Path $ro
 $ericwFiles = @("light.exe", "embree4.dll", "tbb12.dll", "tbbmalloc.dll", "gpl_v3.txt", "LICENSE-embree.txt", "README.md")
 $haveEricw = Test-Path (Join-Path $ericw "light.exe")
 # The licences of the libraries linked into the engine whose licences ask for their notice beside a binary (BSD-3: Opus
-# and RNNoise, voice chat; docs/vr-port/CREDITS.md), as licenses/<name>.txt.
-$licenseFiles = [ordered]@{ "opus.txt" = "Quake\vr\external\opus\COPYING"; "rnnoise.txt" = "Quake\vr\external\rnnoise\COPYING" }
+# and RNNoise, voice chat; MIT or public domain: stb_vorbis, the fake-Android mode's Ogg decoder; docs/vr-port/CREDITS.md),
+# as licenses/<name>.txt.
+$licenseFiles = [ordered]@{ "opus.txt" = "Quake\vr\external\opus\COPYING"; "rnnoise.txt" = "Quake\vr\external\rnnoise\COPYING"
+    "stb_vorbis.txt" = "Quake\vr\external\stb_vorbis\LICENSE" }
 
 if ($DryRun) {
     $engineFiles | ForEach-Object { $_.Name }

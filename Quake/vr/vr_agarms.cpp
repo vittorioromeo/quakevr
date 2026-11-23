@@ -1,8 +1,6 @@
 // vr_agarms.cpp -- armed humanoids' arms posed and skinned (vr_agarms.hpp; ROUND22.md, "Armed humanoids' arms: posed
 // and skinned").
 
-#include <type_traits>
-#include <string.h>
 #include "vr_mdldequant.hpp"
 #include "vr_agarms.hpp"
 #include "vr_client.hpp"
@@ -17,6 +15,8 @@
 #include "vr_portals.hpp"
 #include "vr_tracy.h"
 
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -29,6 +29,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Math/Tan.hpp"
+#include "Zancle/Trait/IsTriviallyCopyable.hpp"
 
 #include <string.h>
 #include "vr_jobs.hpp"
@@ -496,7 +497,7 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
         // (the authored rig: its forearm ends at the wrist, its hand a bone of its own: the hand's end its end)
         for(int h = 0; rig.authored && h < rig.numBones; h++)
         {
-            if(rig.bones[h].parent == spec.fore[s] && !strncmp(rig.bones[h].name, "hand", 4))
+            if(rig.bones[h].parent == spec.fore[s] && !ZA_STRNCMP(rig.bones[h].name, "hand", 4))
             {
                 sd.W = H;
                 H = at0(h, rig.bones[h].end);
@@ -565,7 +566,7 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
                 bestBone = b;
                 // (the authored rig's hand: its forearm's here, as the derived rigs' hands are on their forearms)
                 const int par = rig.bones[b].parent;
-                if(rig.authored && par >= 0 && (par == spec.fore[0] || par == spec.fore[1]) && !strncmp(rig.bones[b].name, "hand", 4))
+                if(rig.authored && par >= 0 && (par == spec.fore[0] || par == spec.fore[1]) && !ZA_STRNCMP(rig.bones[b].name, "hand", 4))
                 {
                     bestBone = par;
                 }
@@ -591,7 +592,7 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
             // gauntlet past its short forearm was the body's, its grip 5 units back in the fist)
             for(int h = 0; rig.authored && h < rig.numBones; h++)
             {
-                if(rig.bones[h].parent == spec.fore[s] && !strncmp(rig.bones[h].name, "hand", 4))
+                if(rig.bones[h].parent == spec.fore[s] && !ZA_STRNCMP(rig.bones[h].name, "hand", 4))
                 {
                     onArm = za::min(onArm, motionMiss(v, h));
                 }
@@ -2454,7 +2455,7 @@ void solveCore(SolveJob& j)
         {
             const float sum = r->pos.x + r->pos.y + r->pos.z + r->rot.x + r->rot.y + r->rot.z + r->rot.w;
             uint32_t bits = 0;
-            memcpy(&bits, &sum, sizeof(bits));
+            ZA_MEMCPY(&bits, &sum, sizeof(bits));
             if((bits & 0x7f800000u) == 0x7f800000u || za::abs(sum) > 1e5f) // (NaN or infinite: exponent all ones)
             {
                 out = Placed{};
@@ -3059,13 +3060,13 @@ void printErr()
 int saveState(int ent, unsigned char* out)
 {
     static_assert(sizeof(Ent) <= stateBytes, "the Live tape's room for its state");
-    static_assert(std::is_trivially_copyable_v<Ent>, "copied as bytes");
+    static_assert(ZA_IS_TRIVIALLY_COPYABLE(Ent), "copied as bytes");
     const Ent* st = entOf(ent, false);
     if(!st)
     {
         return 0;
     }
-    memcpy(out, st, sizeof(Ent));
+    ZA_MEMCPY(out, st, sizeof(Ent));
     return static_cast<int>(sizeof(Ent));
 }
 
@@ -3081,7 +3082,7 @@ void loadState(int ent, const unsigned char* in, int len)
         *st = Ent{}; // (none then: dropped)
         return;
     }
-    memcpy(st, in, sizeof(Ent));
+    ZA_MEMCPY(st, in, sizeof(Ent));
 }
 
 } // namespace qvr::agarms

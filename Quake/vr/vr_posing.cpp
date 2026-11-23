@@ -18,6 +18,7 @@
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Copysign.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -173,7 +174,7 @@ void write(Step& step, int slot, Key key, float value)
     if(target != slot)
     {
         cvar_t* own = weapons::cvar(slot, key);
-        if(own && strcmp(own->string, own->default_string) != 0)
+        if(own && ZA_STRCMP(own->string, own->default_string) != 0)
         {
             remember(own);
             Cvar_SetQuick(own, own->default_string);

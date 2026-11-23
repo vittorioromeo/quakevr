@@ -4,10 +4,12 @@
 // strings, lower case, trimming, appending a printf). Implemented in vr_strings.cpp.
 
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 
-#include <string.h>
 
 namespace qvr::strings
 {
@@ -15,15 +17,15 @@ namespace qvr::strings
 // s begins with prefix (strncmp over the prefix's length).
 [[nodiscard]] inline bool startsWith(const char* s, const char* prefix)
 {
-    return !strncmp(s, prefix, strlen(prefix));
+    return !ZA_STRNCMP(s, prefix, ZA_STRLEN(prefix));
 }
 
 // s ends with suffix.
 [[nodiscard]] inline bool endsWith(const char* s, const char* suffix)
 {
-    const za::SizeT n = strlen(s);
-    const za::SizeT m = strlen(suffix);
-    return n >= m && !strcmp(s + n - m, suffix);
+    const za::SizeT n = ZA_STRLEN(s);
+    const za::SizeT m = ZA_STRLEN(suffix);
+    return n >= m && !ZA_STRCMP(s + n - m, suffix);
 }
 
 // A copy with every byte lower-cased (tolower of the unsigned char: ASCII in the C locale).

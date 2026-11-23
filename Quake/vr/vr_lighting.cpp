@@ -4,6 +4,7 @@
 #include "vr_seat.hpp"
 #include "vr_geom.hpp"
 #include "vr_lighting.hpp"
+#include "vr_dlightmap.hpp"
 #include "vr_tracy.h"
 #include "vr_brushes.hpp"
 #include "vr_portals.hpp"
@@ -25,6 +26,8 @@
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/SmallVector.hpp"
@@ -33,6 +36,7 @@
 #include "Zancle/Math/Cbrt.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Exp2.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/Log2.hpp"
@@ -44,7 +48,6 @@
 #include "vr_api.h"
 #include "vr_api_render.h"
 
-#include <string.h>
 
 using namespace qvr;
 
@@ -718,7 +721,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
     {
         QVR_PROFILE("shadow alias draw");
         mplane_t savedFrustum[4];
-        memcpy(savedFrustum, frustum, sizeof(savedFrustum));
+        ZA_MEMCPY(savedFrustum, frustum, sizeof(savedFrustum));
         profile::begin("shadow caster faces", false); // which faces each caster reaches
         cs.layered.clear();
         cs.holey.clear();
@@ -742,7 +745,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
                 {
                     continue;
                 }
-                memcpy(frustum, planes[face], sizeof(planes[face]));
+                ZA_MEMCPY(frustum, planes[face], sizeof(planes[face]));
                 if((!view || sphereInView(frustum, e->origin, reach)) && !R_CullBox(mins, maxs))
                 {
                     bits |= 1u << face;
@@ -766,7 +769,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
                 cs.layered.pushBack({e, static_cast<unsigned char>(bits)});
             }
         }
-        memcpy(frustum, savedFrustum, sizeof(savedFrustum));
+        ZA_MEMCPY(frustum, savedFrustum, sizeof(savedFrustum));
         // By model and skin: the alias renderer draws a run of the same model and skin as one batch (the depth is the
         // nearest whatever the order).
         za::quickSort(cs.layered.begin(), cs.layered.end(), [](const LayeredCaster& a, const LayeredCaster& b)
@@ -804,13 +807,13 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
             za::quickSort(cs.faceCasters.begin(), cs.faceCasters.end(), castersInBatchOrder); // (as a face at a time's)
             const ShadowView& view = views[face];
             glViewport(static_cast<int>(view.at.x), static_cast<int>(view.at.y), static_cast<int>(size), static_cast<int>(size));
-            memcpy(frustum, planes[face], sizeof(planes[face]));
+            ZA_MEMCPY(frustum, planes[face], sizeof(planes[face]));
             float savedViewProj[16];
-            memcpy(savedViewProj, r_matviewproj, sizeof(savedViewProj));
-            memcpy(r_matviewproj, &vps[face][0][0], sizeof(r_matviewproj));
+            ZA_MEMCPY(savedViewProj, r_matviewproj, sizeof(savedViewProj));
+            ZA_MEMCPY(r_matviewproj, &vps[face][0][0], sizeof(r_matviewproj));
             R_DrawAliasModelsDepth(cs.faceCasters.data(), static_cast<int>(cs.faceCasters.size()));
-            memcpy(r_matviewproj, savedViewProj, sizeof(savedViewProj));
-            memcpy(frustum, savedFrustum, sizeof(savedFrustum));
+            ZA_MEMCPY(r_matviewproj, savedViewProj, sizeof(savedViewProj));
+            ZA_MEMCPY(frustum, savedFrustum, sizeof(savedFrustum));
         }
     }
 }
@@ -846,7 +849,7 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
             R_EntityMatrix(m, b.e->origin, angles, b.e->scale);
             VR_BrushTransform(b.e, m);
             glm::mat4& model = brushModels.emplaceBack();
-            memcpy(&model[0][0], m, sizeof(m));
+            ZA_MEMCPY(&model[0][0], m, sizeof(m));
         }
     }
     // Skeletal (IK-posed) casters: the alias renderer draws them unculled (their limbs reach past the
@@ -902,7 +905,7 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
             QVR_PROFILE("shadow alias draw");
             // The alias renderer reads the camera's view-projection and frustum: this face's.
             mplane_t savedFrustum[4];
-            memcpy(savedFrustum, frustum, sizeof(savedFrustum));
+            ZA_MEMCPY(savedFrustum, frustum, sizeof(savedFrustum));
             viewFrustum(light, view, size, frustum);
             // Only the casters in this face: the alias renderer's own cull (R_CullModelForEntity, after
             // it has set the model up) would leave out the rest.
@@ -922,13 +925,13 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
                 // pile's 135 casters: 1806 draws and 1.16 ms of GPU for 12 faces, ES's path; QUEST_PLAN.md 6b).
                 za::quickSort(faceCasters.begin(), faceCasters.end(), castersInBatchOrder);
                 float savedViewProj[16];
-                memcpy(savedViewProj, r_matviewproj, sizeof(savedViewProj));
-                memcpy(r_matviewproj, &vp[0][0], sizeof(r_matviewproj));
+                ZA_MEMCPY(savedViewProj, r_matviewproj, sizeof(savedViewProj));
+                ZA_MEMCPY(r_matviewproj, &vp[0][0], sizeof(r_matviewproj));
                 R_DrawAliasModelsDepth(faceCasters.data(), static_cast<int>(faceCasters.size())); // no lighting set up
                 modelsDrawn += static_cast<int>(faceCasters.size());
-                memcpy(r_matviewproj, savedViewProj, sizeof(savedViewProj));
+                ZA_MEMCPY(r_matviewproj, savedViewProj, sizeof(savedViewProj));
             }
-            memcpy(frustum, savedFrustum, sizeof(savedFrustum));
+            ZA_MEMCPY(frustum, savedFrustum, sizeof(savedFrustum));
         }
     }
     if(clip) { glDisable(GL_CLIP_DISTANCE0); }
@@ -1059,6 +1062,7 @@ struct NoShadow
     float die = -1.f;
 };
 za::Array<NoShadow, MAX_DLIGHTS> noShadows;
+za::Array<NoShadow, MAX_DLIGHTS> rigLights; // (lighting::dlightRig: the same key and death time; C4v)
 
 struct MapSlot
 {
@@ -1556,7 +1560,7 @@ AtlasGrowth atlasGrowth;
             GL_BindFramebufferFunc(GL_FRAMEBUFFER, atlas.fbo);
             glDisable(GL_SCISSOR_TEST);
             GL_SetState(glstate & ~GLS_NO_ZWRITE);
-            glClearDepth(0.f);
+            GL_ClearDepthfFunc(0.f);
             glClear(GL_DEPTH_BUFFER_BIT);
             GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
             glFinish();
@@ -1637,7 +1641,7 @@ void renderPortalLight(PortalLight& l, const BrushCandidates& candidates)
     const glm::vec3 origin{source.origin[0], source.origin[1], source.origin[2]};
     const int own = source.key > 0 && source.key < cl.num_entities ? source.key : 0;
     mplane_t saved[4];
-    memcpy(saved, frustum, sizeof(saved));
+    ZA_MEMCPY(saved, frustum, sizeof(saved));
     // Source occlusion is evaluated at the entry point, before the source's backing wall.
     // These tiles cannot be culled by the destination camera.
     for(mplane_t& p : frustum) { p.dist = -1e9f; }
@@ -1649,7 +1653,7 @@ void renderPortalLight(PortalLight& l, const BrushCandidates& candidates)
     collectAliases(origin, source.radius, own, source.key != cl.viewentity, true);
     renderLight(atlas, origin, source.radius, views, cubeViews(l.sourceTile, l.size, views), l.size,
         worldCount, true, true);
-    memcpy(frustum, saved, sizeof(saved));
+    ZA_MEMCPY(frustum, saved, sizeof(saved));
     const glm::vec3 normal = l.gate.turn * -l.gate.normal;
     const glm::vec4 clip{normal, -glm::dot(normal, l.gate.to)};
     indices.clear();
@@ -1744,7 +1748,7 @@ void readDepth(const DepthTarget& t, za::Vector<float>& out)
         return;
     }
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, t.tex);
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, GL_FLOAT, out.data());
+    VR_GLGetTexImage(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, GL_FLOAT, out.data());
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
 }
 
@@ -1768,8 +1772,8 @@ DepthDiff compareDepth(const za::Vector<float>& a, const za::Vector<float>& b)
     for(size_t i = 0; i < a.size() && i < b.size(); i++)
     {
         uint32_t ua = 0u, ub = 0u;
-        memcpy(&ua, &a[i], sizeof(ua));
-        memcpy(&ub, &b[i], sizeof(ub));
+        ZA_MEMCPY(&ua, &a[i], sizeof(ua));
+        ZA_MEMCPY(&ub, &b[i], sizeof(ub));
         hash[0] = (hash[0] ^ ua) * 16777619u;
         hash[1] = (hash[1] ^ ub) * 16777619u;
         if(ua != ub)
@@ -1880,6 +1884,20 @@ void layeredCheck(const Render& renderAll)
 }
 
 } // namespace
+
+void lighting::readbackTest(int& passed, int& failed)
+{
+    for(const DepthTarget* t : {&atlas, &staticAtlas})
+    {
+        if(t->tex && t->width > 0)
+        {
+            GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, t->tex);
+            const int same = gfx::readTexImageSame(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, GL_FLOAT, "shadow atlas");
+            (same > 0 ? passed : failed)++;
+            GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
+        }
+    }
+}
 
 // ----------------------------------------------------------------------------
 // Engine hooks
@@ -2093,13 +2111,13 @@ extern "C" void VR_RenderShadowMaps(void)
             glScissor(static_cast<int>(s.staticOrigin.x), static_cast<int>(s.staticOrigin.y), static_cast<int>(3.f * mapSlotSize),
                 static_cast<int>(2.f * mapSlotSize));
             GL_SetState(glstate & ~GLS_NO_ZWRITE);
-            glClearDepth(0.f);
+            GL_ClearDepthfFunc(0.f);
             glClear(GL_DEPTH_BUFFER_BIT);
             indices.clear();
             collectWorld(cl.worldmodel->nodes, l.pos, l.value / l.scale);
             // All six faces: the cache must not depend on where the viewer looks.
             mplane_t saved[4];
-            memcpy(saved, frustum, sizeof(saved));
+            ZA_MEMCPY(saved, frustum, sizeof(saved));
             for(mplane_t& p : frustum)
             {
                 p.dist = -1e9f;
@@ -2107,7 +2125,7 @@ extern "C" void VR_RenderShadowMaps(void)
             ShadowView views[6];
             renderLight(staticAtlas, l.pos, l.value / l.scale, views, cubeViews(s.staticOrigin, mapSlotSize, views), mapSlotSize,
                 indices.size(), false, false);
-            memcpy(frustum, saved, sizeof(saved));
+            ZA_MEMCPY(frustum, saved, sizeof(saved));
             s.cached = true;
         }
         profile::end();
@@ -2116,7 +2134,7 @@ extern "C" void VR_RenderShadowMaps(void)
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, atlas.fbo);
         glScissor(0, 0, atlas.width, atlas.height);
         GL_SetState(glstate & ~GLS_NO_ZWRITE);
-        glClearDepth(0.f);
+        GL_ClearDepthfFunc(0.f);
         glClear(GL_DEPTH_BUFFER_BIT);
         glDisable(GL_SCISSOR_TEST);
         profile::end();
@@ -2291,10 +2309,10 @@ void darkplacesLight(int index, gpulight_t* out)
 // R_PushDlights, for each dynamic light it sends: its shadow's faces, if it has one.
 extern "C" void VR_DlightShadow(int index, gpulight_t* out)
 {
-    memset(out->shadow, 0, sizeof(out->shadow));
-    memset(out->shadow2, 0, sizeof(out->shadow2));
-    memset(out->spot, 0, sizeof(out->spot));
-    memset(out->gateplane, 0, sizeof(*out) - offsetof(gpulight_t, gateplane));
+    ZA_MEMSET(out->shadow, 0, sizeof(out->shadow));
+    ZA_MEMSET(out->shadow2, 0, sizeof(out->shadow2));
+    ZA_MEMSET(out->spot, 0, sizeof(out->spot));
+    ZA_MEMSET(out->gateplane, 0, sizeof(*out) - offsetof(gpulight_t, gateplane));
     const Spot* spot = spotOf(index);
     if(spot)
     {
@@ -2321,6 +2339,13 @@ extern "C" void VR_DlightShadow(int index, gpulight_t* out)
     {
         darkplacesLight(index, out);
     }
+    // C4v: a rig light the world's programs skip (vr_rig_lights_world 0: QVR_LITE_RIGNOWORLD; shadow2.w unread for an
+    // unshadowed dynamic light); VR_WorldLightsCheck ignores it too
+    if(index >= 0 && index < MAX_DLIGHTS && out->shadow[2] == 0.f && rigLights[index].key == cl_dlights[index].key &&
+        rigLights[index].die == cl_dlights[index].die && GL_WorldRigLightsOff())
+    {
+        out->shadow2[3] = -1.f;
+    }
 }
 
 extern "C" void VR_AliasShadowClip(void)
@@ -2336,7 +2361,7 @@ extern "C" void VR_PushPortalLights(void)
         const PortalLight& l = portalLights[i];
         const dlight_t& source = cl_dlights[l.index];
         gpulight_t* out = &r_lightbuffer.lights[r_framedata.numlights++];
-        memset(out, 0, sizeof(*out));
+        ZA_MEMSET(out, 0, sizeof(*out));
         VR_DlightShadow(l.index, out);
         out->radius = source.radius;
         out->minlight = source.minlight;
@@ -2345,7 +2370,7 @@ extern "C" void VR_PushPortalLights(void)
         const glm::vec3 spot = l.gate.turn * geom::vec(out->spot);
         for(int c = 0; c < 3; c++) { out->spot[c] = spot[c]; }
         out->shadow[0] = l.exitTile.x; out->shadow[1] = l.exitTile.y; out->shadow[2] = l.size;
-        memset(out->shadow2, 0, sizeof(out->shadow2)); // cube maps even for a spotlight
+        ZA_MEMSET(out->shadow2, 0, sizeof(out->shadow2)); // cube maps even for a spotlight
         const glm::vec3 normal = l.gate.turn * -l.gate.normal;
         for(int c = 0; c < 3; c++)
         {
@@ -2394,6 +2419,42 @@ extern "C" float VR_SpotCone(const gpulight_t* l, const float point[3])
     }
     const float t = za::clamp(l->spot[3] - glm::dot(axis, d) / len, 0.f, 1.f);
     return 1.f - t * t * (3.f - 2.f * t);
+}
+
+// C5f (QUEST_PLAN.md 6zq): r_alias.c, your body under vr_gl_alias_body 2: a light's share at a point as the models'
+// per-pixel loop gives it (vr_glsl_alias.h ModelDynamicLights, the plain loop: DarkPlaces' falloff or Quake's, its spot
+// cone), a surface facing it (no angle term), so the flat add is as bright as the per-pixel light it stands in for.
+// overbright: gl_overbright_models (the loop's unit for Quake's falloff, as the shader's Fog.w sign).
+extern "C" float VR_DlightFlatLit(const gpulight_t* l, const float point[3], int overbright)
+{
+    const glm::vec3 d{point[0] - l->pos[0], point[1] - l->pos[1], point[2] - l->pos[2]};
+    const float dist = glm::length(d);
+    const float radius = l->radius;
+    if(dist >= radius)
+    {
+        return 0.f;
+    }
+    float lit;
+    if(vr_dlight_falloff.value != 0.f)
+    {
+        const float x = dist / za::max(radius, 1.f);
+        lit = za::clamp((1.f - x) * 2.f / (1.f + x * x), 0.f, 1.f);
+    }
+    else
+    {
+        const float unit = vr_model_light_parity.value != 0.f ? 1.f / 128.f : overbright ? 2.f / 200.f : 1.f / 200.f;
+        lit = (radius - dist) * unit;
+    }
+    return lit * VR_SpotCone(l, point);
+}
+
+void lighting::dlightRig(const dlight_t* dl)
+{
+    const za::PtrDiffT index = dl - cl_dlights;
+    if(index >= 0 && index < MAX_DLIGHTS)
+    {
+        rigLights[index] = NoShadow{dl->key, dl->die};
+    }
 }
 
 void lighting::dlightNoShadow(const dlight_t* dl)
@@ -2445,7 +2506,7 @@ void lighting::lightCurve(float* lightcolor)
         if(m > knee)
         {
             const float room = za::max(cap - knee, 1e-4f);
-            const float out = knee + room * (1.f - std::exp(-(m - knee) / room));
+            const float out = knee + room * (1.f - za::exp(-(m - knee) / room));
             const float k = out / m;
             for(int i = 0; i < 3; i++)
             {
@@ -2606,9 +2667,253 @@ extern "C" void VR_PushMapLights(void)
         out->shadow2[1] = s.staticOrigin.y;
         out->shadow2[2] = l.value;
         out->shadow2[3] = l.scale;
-        memset(out->spot, 0, sizeof(out->spot));
-        memset(out->gateplane, 0, sizeof(*out) - offsetof(gpulight_t, gateplane));
+        ZA_MEMSET(out->spot, 0, sizeof(out->spot));
+        ZA_MEMSET(out->gateplane, 0, sizeof(*out) - offsetof(gpulight_t, gateplane));
     }
+}
+
+// C4t (QUEST_PLAN.md 6z): the world's program without the lights' loop for a view no light reaches the world's surfaces
+// in. On the Quest 3 the loop merely compiled in cost ~4 ms of the world's shading at 0.9 (Adreno: registers), run or
+// not, and most of a walk has only the guns' screen lights (28 units, at the hands): the picture is the same, a light
+// adding nothing beyond its radius in either falloff.
+namespace
+{
+bool worldUnlit = false;  // the last R_PushDlights' answer (single-pass stereo's eye views keep the pass's)
+int worldUnlitViews = 0;  // views drawn unlit since the perf recorder last took them
+bool worldUnlitDraw = false; // VR_WorldUnlit asked in this view (counted once a view)
+// C4v (vr_gl_world_unlit 2): the split by surface. The lights reaching the world (centre, radius) for the GPU's cull
+// to send the surfaces they touch to the lit commands, -1: no split (all lit, or worldUnlit); and whether a light
+// touches a brush entity (they are drawn lit then)
+int worldLitCount = -1;
+float worldLitSpheres[QVR_WORLD_LIT_SPHERES][4];
+bool worldLitBModels = false;
+int worldSplitViews = 0; // views drawn split since the perf recorder last took them
+
+bool sphereTouchesBox(const glm::vec3& c, float r, const float* mins, const float* maxs)
+{
+    float d2 = 0.f;
+    for(int i = 0; i < 3; i++)
+    {
+        const float e = c[i] < mins[i] ? mins[i] - c[i] : c[i] > maxs[i] ? c[i] - maxs[i] : 0.f;
+        d2 += e * e;
+    }
+    return d2 <= r * r;
+}
+
+// Whether the sphere touches a surface of the world drawn by its programs (not the sky, not the liquids): the BSP
+// walked as Quake's R_MarkLights, the surfaces on a node whose plane is within r tested by their bounds.
+bool sphereTouchesWorld(const qmodel_t* m, const mnode_t* node, const glm::vec3& c, float r)
+{
+    while(node && node->contents >= 0)
+    {
+        const mplane_t* p = node->plane;
+        const float d = (p->type < 3 ? c[p->type] : c.x * p->normal[0] + c.y * p->normal[1] + c.z * p->normal[2]) - p->dist;
+        if(d > r)
+        {
+            node = node->children[0];
+            continue;
+        }
+        if(d < -r)
+        {
+            node = node->children[1];
+            continue;
+        }
+        const msurface_t* s = m->surfaces + node->firstsurface;
+        for(unsigned i = 0; i < node->numsurfaces; i++, s++)
+        {
+            if(!(s->flags & (SURF_DRAWSKY | SURF_DRAWTURB)) && sphereTouchesBox(c, r, s->mins, s->maxs))
+            {
+                return true;
+            }
+        }
+        if(sphereTouchesWorld(m, node->children[0], c, r))
+        {
+            return true;
+        }
+        node = node->children[1];
+    }
+    return false;
+}
+
+// Whether the sphere reaches a leaf of the view's PVS (R_ViewVis: a bit per leaf, leaf 0 the solid one left out).
+bool sphereTouchesVisibleLeaf(const qmodel_t* m, const mnode_t* node, const glm::vec3& c, float r, const byte* vis)
+{
+    while(node && node->contents >= 0)
+    {
+        const mplane_t* p = node->plane;
+        const float d = (p->type < 3 ? c[p->type] : c.x * p->normal[0] + c.y * p->normal[1] + c.z * p->normal[2]) - p->dist;
+        if(d > r)
+        {
+            node = node->children[0];
+            continue;
+        }
+        if(d < -r)
+        {
+            node = node->children[1];
+            continue;
+        }
+        if(sphereTouchesVisibleLeaf(m, node->children[0], c, r, vis))
+        {
+            return true;
+        }
+        node = node->children[1];
+    }
+    if(!node || node->contents == CONTENTS_SOLID)
+    {
+        return false;
+    }
+    const int leaf = static_cast<int>(reinterpret_cast<const mleaf_t*>(node) - m->leafs) - 1;
+    return leaf >= 0 && leaf < m->numleafs && (vis[leaf >> 3] & (1 << (leaf & 7))) != 0;
+}
+
+// Whether the sphere touches a brush entity's bounds (unturned: its box; turned: the sphere round its origin holding it).
+bool sphereTouchesBrushEntities(const glm::vec3& c, float r)
+{
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        const entity_t* e = cl_visedicts[i];
+        if(!e || !e->model || e->model->type != mod_brush || e->model == cl.worldmodel)
+        {
+            continue;
+        }
+        const qmodel_t* m = e->model;
+        if(e->angles[0] == 0.f && e->angles[1] == 0.f && e->angles[2] == 0.f)
+        {
+            const float lo[3] = {e->origin[0] + m->mins[0], e->origin[1] + m->mins[1], e->origin[2] + m->mins[2]};
+            const float hi[3] = {e->origin[0] + m->maxs[0], e->origin[1] + m->maxs[1], e->origin[2] + m->maxs[2]};
+            if(sphereTouchesBox(c, r, lo, hi))
+            {
+                return true;
+            }
+            continue;
+        }
+        float reach2 = 0.f;
+        for(int k = 0; k < 3; k++)
+        {
+            const float a = za::max(za::abs(m->mins[k]), za::abs(m->maxs[k]));
+            reach2 += a * a;
+        }
+        const glm::vec3 o{e->origin[0], e->origin[1], e->origin[2]};
+        const float reach = za::sqrt(reach2) + r;
+        if(glm::dot(c - o, c - o) <= reach * reach)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+} // namespace
+
+extern "C" void VR_WorldLightsCheck(void)
+{
+    worldUnlit = false;
+    worldUnlitDraw = false;
+    worldLitCount = -1;
+    worldLitBModels = false;
+    // C5b: the dynamic lights in the lightmap (vr_gl_world_dlmap): the world without the loop, unless a map light or one
+    // through a portal is in the view (none under the Quest preset; the walls then take the dynamic lights twice)
+    if(qvr::dlightmap::frame())
+    {
+        for(int i = 0; i < r_framedata.numlights; i++)
+        {
+            const gpulight_t& l = r_lightbuffer.lights[i];
+            if(l.shadow[3] != 0.f || l.gateplane[0] != 0.f || l.gateplane[1] != 0.f || l.gateplane[2] != 0.f || l.gateplane[3] != 0.f)
+            {
+                return;
+            }
+        }
+        worldUnlit = true;
+        return;
+    }
+    if(vr_gl_world_unlit.value == 0.f || !glprogs.world_unlit[0][0] || !cl.worldmodel || !cl.worldmodel->nodes)
+    {
+        return;
+    }
+    // C4v: by surface (vr_gl_world_unlit 2, the lit commands made: r_brush.c): the lights reaching the world kept
+    const bool split = vr_gl_world_unlit.value >= 2.f && gl_bmodel_litcmd_first >= 0;
+    int count = 0;
+    for(int i = 0; i < r_framedata.numlights; i++)
+    {
+        const gpulight_t& l = r_lightbuffer.lights[i];
+        // a map light, or one through a portal (its place a virtual one): reaching, whatever its sphere
+        if(l.shadow[3] != 0.f || l.gateplane[0] != 0.f || l.gateplane[1] != 0.f || l.gateplane[2] != 0.f || l.gateplane[3] != 0.f)
+        {
+            return;
+        }
+        if(l.shadow2[3] < 0.f) // C4v: a rig light the world's shader skips (vr_rig_lights_world 0: VR_DlightShadow)
+        {
+            continue;
+        }
+        const glm::vec3 c{l.pos[0], l.pos[1], l.pos[2]};
+        const float r = l.radius + 4.f;
+        // C4u: a light whose sphere reaches no leaf of the view's PVS lights none of its pixels (a torch round a corner)
+        const byte* vis = R_ViewVis();
+        if(vis && !sphereTouchesVisibleLeaf(cl.worldmodel, cl.worldmodel->nodes, c, r, vis))
+        {
+            continue;
+        }
+        const bool bmodels = sphereTouchesBrushEntities(c, r);
+        const bool world = sphereTouchesWorld(cl.worldmodel, cl.worldmodel->nodes, c, r);
+        if((world || bmodels) && (!split || (world && count == QVR_WORLD_LIT_SPHERES)))
+        {
+            return;
+        }
+        worldLitBModels = worldLitBModels || bmodels;
+        if(world)
+        {
+            float* s = worldLitSpheres[count++];
+            s[0] = c.x;
+            s[1] = c.y;
+            s[2] = c.z;
+            s[3] = r;
+        }
+    }
+    if(count == 0 && !worldLitBModels)
+    {
+        worldUnlit = true;
+        return;
+    }
+    worldLitCount = count;
+}
+
+// R_MarkVisSurfaces (the cull, after R_PushDlights under the split): -1 no split; else the spheres the cull sends the
+// world's lit surfaces by (0 or more), *bmodels nonzero when the brush entities are drawn lit.
+extern "C" int VR_WorldLitSpheres(float spheres[][4], int* bmodels)
+{
+    *bmodels = worldLitBModels ? 1 : 0;
+    if(worldLitCount > 0)
+    {
+        ZA_MEMCPY(spheres, worldLitSpheres, sizeof(worldLitSpheres[0]) * static_cast<size_t>(worldLitCount));
+    }
+    if(worldLitCount >= 0)
+    {
+        worldSplitViews++;
+    }
+    return worldLitCount;
+}
+
+int qvr::lighting::takeWorldSplitViews()
+{
+    const int n = worldSplitViews;
+    worldSplitViews = 0;
+    return n;
+}
+
+extern "C" int VR_WorldUnlit(void)
+{
+    if(worldUnlit && !worldUnlitDraw)
+    {
+        worldUnlitDraw = true;
+        worldUnlitViews++;
+    }
+    return worldUnlit ? 1 : 0;
+}
+
+int qvr::lighting::takeWorldUnlitViews()
+{
+    const int n = worldUnlitViews;
+    worldUnlitViews = 0;
+    return n;
 }
 
 // R_SetupAliasLighting: nonzero when the shader lights models per pixel (skip the flat add).

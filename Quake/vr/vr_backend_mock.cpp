@@ -37,6 +37,8 @@
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -540,7 +542,7 @@ edict_t* nearestThrownWeapon(bool armed = false, int side = 0)
     edict_t* best = nullptr;
     float bestDist = 0.f;
     progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
-        if(strcmp(PR_GetString(e->v.classname), armed ? "vr_ag_weapon" : "thrown_weapon") || !e->v.modelindex)
+        if(ZA_STRCMP(PR_GetString(e->v.classname), armed ? "vr_ag_weapon" : "thrown_weapon") || !e->v.modelindex)
         {
             return;
         }
@@ -1106,7 +1108,7 @@ void handToNearest(int hand)
     for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
         const edict_t* e = EDICT_NUM(i);
-        if(e->free || strcmp(PR_GetString(e->v.classname), Cmd_Argv(3)) != 0)
+        if(e->free || ZA_STRCMP(PR_GetString(e->v.classname), Cmd_Argv(3)) != 0)
         {
             continue;
         }
@@ -1160,7 +1162,7 @@ void handToNearestModel(int hand)
     {
         const entity_t* e = cl_visedicts[i];
         if(!e || e < cl_entities || e >= cl_entities + cl_max_edicts || !e->model || view::find(e) ||
-            e == &cl_entities[cl.viewentity] || !strstr(e->model->name, Cmd_Argv(3)))
+            e == &cl_entities[cl.viewentity] || !ZA_STRSTR(e->model->name, Cmd_Argv(3)))
         {
             continue;
         }
@@ -1701,7 +1703,7 @@ void walkFrame()
         float best = 1e30f;
         PR_PushQCVM(&sv.qcvm, &oldVm);
         progs::forEachEdict(svs.maxclients + 1, [&](const edict_t* e) {
-            if(strcmp(PR_GetString(e->v.classname), mockWalk.klass) != 0)
+            if(ZA_STRCMP(PR_GetString(e->v.classname), mockWalk.klass) != 0)
             {
                 return;
             }
@@ -2154,6 +2156,12 @@ public:
             makeHiddenArea();
         }
         return &hidden_;
+    }
+
+    // (as OpenXR's projection layer would show the part: nothing here reads the images after the frame)
+    bool setEyeImageRect(int /* eye */, int /* width */, int /* height */) override
+    {
+        return true;
     }
 
     [[nodiscard]] unsigned acquireEyeImage(int eye) override

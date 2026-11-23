@@ -126,6 +126,7 @@ int VR_SkipScreen (void);	// SCR_UpdateScreen: nonzero to skip this frame's draw
 							// frames aren't drawn)
 void VR_HeadlessView (void);	// ... and instead: the eyes' views and view entities set up (what the game reads), no GL
 int VR_DebugWindowUnfocused (void); // main loop: vr_debug_window_unfocused (the flat screen's background sleep, tests)
+int VR_NoWindow (void);		// GL_EndRendering: Android with VR running: no window image nor present (vr_android_window)
 int VR_SkipSwap (void);		// GL_EndRendering: nonzero to leave this frame unpresented (unpaced frames present
 							// ten a second: a present waits for the display's refresh, the bulk of such a frame;
 							// in VR the focused mirror at most once a refresh, vr_mirror_hz; unfocused vr_mirror_unfocused_hz)
@@ -189,11 +190,13 @@ void VR_SetCrashDir (const char *gamedir);	// Host_Init: the reports go to <game
 void VR_ErrorReport (const char *message);	// Sys_ReportError: the error's report, the stack from Sys_Error's caller (VR_LastCrashReport names it)
 void VR_FatalError (const char *message);	// Sys_ReportError off the main thread (Windows): the report, a dialog, the process ended there (no engine shutdown from a worker)
 const char *VR_LastCrashReport (void);	// PL_ErrorDialog: the report written ("": none)
+const char *VR_CrashReportDir (void);	// the folder the reports go to (VR_SetCrashDir's; vr_android_test)
 int VR_ErrorDialogSuppressed (const char *errorMsg);	// PL_ErrorDialog: nonzero if written to qvr_error.txt instead
 
 // Start-up and map-load timing (vr_startup.cpp: vr_startup_times, vr_walltime).
 void VR_TimeStart (void);	// main, after Sys_Init: the process's start
 void VR_TimeInit (void);	// VR_Init: the commands
+void VR_TestTick (void);	// Host_Frame, after a server tick ("wait"'s): vr_waitquiton's held commands back when done (vr_testbatch.cpp)
 void VR_TestConsolePrint (const char *text);	// Con_Printf (main thread): vr_waitprint's wait for a line (vr_testbatch.cpp)
 int VR_LogFlushFrames (void);	// LOG_Tick: vr_log_flush_frames (the log out every frame; vr_testbatch.cpp)
 void VR_NoteConsolePrint (const char *text);	// Con_Printf (main thread): the voice notes' console ring (vr_notectx.cpp)
@@ -292,6 +295,21 @@ int VR_ReliefCacheLoad (const char *build, unsigned long long key, unsigned char
 void VR_ReliefCacheStore (const char *build, unsigned long long key, const unsigned char *rgba, int width, int height);
 void VR_NoteModelLoad (const char *name, double seconds); // a model's load from its file; counted while a map is in play
 void VR_TexCacheFinishWrites (void); // the cache files still being written finished (VR_Shutdown)
+// The GL programs' binaries (gl_shaders.c; vr_diskcache.cpp; QUEST_PLAN.md, C4d): one pack file per GL driver under the
+// cache root (<root>/programs/<driver hash>.bin), read once, written when a program was made: the Quest's ~51 s of
+// shader compiles at every start. vr_program_cache (default 1: on on Android; 2 also on the PC; 0 off).
+int VR_ProgCacheOn (void);
+unsigned long long VR_ProgCacheKey (unsigned long long h, const char *text); // a program's key, part by part (h 0: the first)
+void VR_ProgCacheBegin (const char *vendor, const char *renderer, const char *version); // GL_CreateShaders' start
+const void *VR_ProgCacheFind (unsigned long long key, unsigned *format, int *length); // a binary, or NULL
+void VR_ProgCacheReject (unsigned long long key); // the driver refused it (dropped; made again)
+void VR_ProgCacheAdd (unsigned long long key, unsigned format, const void *data, int length);
+void VR_ProgCacheEnd (void); // GL_CreateShaders' end: the pack written when one was added (later adds: at once)
+void VR_ProgCacheFlush (void); // GL_ShadersPump: a queued set's programs done so far written (every few seconds)
+void VR_ShadersLoaded (int programs, int frames, double ms, double maxwork, double maxgap); // GL_ShadersPump: a queued set done (vr_shaderload.cpp: its trace mark, the test's verdict)
+int VR_ShadersLoadingFrame (void); // host.c, SCR_UpdateScreen: while the shaders are queued, the set pumped and (still pending: nonzero) the loading panel's frame (vr_shaderload.cpp)
+void VR_ProgCacheCounts (int *hits, int *misses); // the last batch's programs given back / compiled
+unsigned long long VR_GLShaderHash (unsigned long long h, int count, const char *const *strings); // vr_glsafe.cpp: the text VR_GLShaderSource gives the driver
 void VR_NormalCacheChecked (int same, const char *name);	// vr_normalmap_cache 2: a map made again against its file	// end of _Host_Frame: the first frame drawn ends the start-up, and a load once signed on
 
 // Filesystem (common.c).
@@ -323,6 +341,31 @@ enum
 	VR_GLSAFE_MSAA = 1 << 6,		// multisampled scene targets
 	VR_GLSAFE_SHADOW_ATLAS = 1 << 7		// the shadow atlas at most 4096
 };
+// -glescompat's own ES forms (VR_GLESForm); -gleskeep (QVR_GLES_KEEP) keeps the PC form of some, to measure each
+enum
+{
+	VR_GLES_FORM_GLSL = 1 << 0,		// every program as ES 3.2 GLSL, the image formats ES 3.1 has (VR_GLShaderSource, VR_GLESImageFormat)
+	VR_GLES_FORM_FOVEATION = 1 << 1,	// no NVIDIA shading-rate image (vr_foveated.cpp)
+	VR_GLES_FORM_VIEWS = 1 << 2		// no texture views (single-pass stereo's eye targets, the envmap's mipmaps)
+};
+int VR_GLESForm (int form);	// nonzero: -glescompat takes the ES form of `form` (VR_GLES_FORM_*) this run
+enum // pcopt: the ES profile's program forms the PC takes too (vr_gl_pc_forms' bits; VR_GLLiteForms)
+{
+	VR_GL_PCFORM_MODELS = 1 << 0,		// the models' plain, gore and skin forms (vr_gl_alias_plain/gore/skin)
+	VR_GL_PCFORM_PLAINLIGHTS = 1 << 1,	// the plain lights' loop while no light is shadowed (vr_gl_lights_plain)
+	VR_GL_PCFORM_UNLIT = 1 << 2,		// the unlit world and its split by surface (vr_gl_world_unlit)
+	VR_GL_PCFORM_LITEWORLD = 1 << 3		// the lite world: the settings' dead features compiled out (vr_gl_world_lite)
+};
+#define VR_GL_PCFORM_UNLIT_BIT (1 << 30) // VR_GLESWorldLite's bit on the PC: the unlit world's programs made (gl_shaders.c)
+int VR_GLLiteForms (int part);	// vr_glsafe.cpp: nonzero: the program forms of `part` (VR_GL_PCFORM_*) in use (ES: all)
+#define VR_ALIAS_GORE_NEEDS (4 | 8) // C4x: the features the models' gore form keeps (wounds and the wet coat, dents: vr_api_render.h VR_AliasPlainNeeds' bits)
+#define VR_ALIAS_SKIN_NEEDS (1 | 4 | 8) // C4y: ... and its skin form (skin tone, gloves, nails too: your body, bare hands)
+int VR_GLESDefineChanged (void);	// vr_glsafe.cpp: vr_gles_define changed since the ES shaders were made (C4m; GL_WorldLiteCheck)
+int VR_GLESWorldLite (void);	// vr_glsafe.cpp: the world programs' lite form under the ES profile (bits: 1 no parallax, 2 no carved decals; 0 the whole)
+int VR_GLESWorldLiteFirst (void);	// the lite form a set is made with: the start's first set takes the one the last session made last (gl_shader_set.txt), later sets VR_GLESWorldLite
+void VR_GLShadersBegin (const char *why);	// GL_CreateShaders' start: a set counted, gl_startup.log's "shaders: set N begun" (a start stopped there is no failed start)
+void VR_GLShadersEnd (int lite, int programs);	// GL_CreateShaders' end: its time, the program cache's hits; the lite form kept for the next start
+void VR_GLStartupCrashed (void);	// the crash handler: "== crashed" in gl_startup.log while the game starts (the next start's safe mode)
 void VR_GLStep (const char *fmt, ...) FUNC_PRINTF(1,2);	// a breadcrumb, before the GL call it names: the crash report's last steps; gl_startup.log while the game starts
 int VR_GLRecentSteps (char *out, int outSize, int count);	// vr_crash.cpp: the last `count` breadcrumbs, a line each; how many
 // Every run's logs (vr_runlogs.cpp): <game folder>/logs/<date>_<time>/, the last 5 runs kept; the bug report.
@@ -350,10 +393,21 @@ const char *VR_GLSafeDescribe (void);	// "off", "on (-glsafe)", ...
 void VR_GLFrame (void);	// GL_EndRendering, before the swap
 void VR_GLMapSpawned (const char *map);	// VR_NoteMapSpawn
 void VR_GLStartupShutdown (int error);	// Host_Shutdown: the start-up's log ended (a quit, an error)
-void VR_GLStartupCrashed (void);	// the crash handler: "== crashed" in gl_startup.log while the game starts (counted: the next start's safe mode)
-void VR_GLShadersBegin (void);	// GL_CreateShaders' start: "shaders: set N begun" in gl_startup.log (a start stopped in it is not counted)
-void VR_GLShadersEnd (int programs);	// GL_CreateShaders' end: the set's time
-void VR_GLSafeInit (void);	// VR_Init: vr_glsafe_retry, vr_glsafe_status
+void VR_GLSafeInit (void);	// VR_Init: vr_glsafe_retry, vr_glsafe_status, vr_gles_report
+void VR_GLESInstallForms (void);	// GL_Init, the functions loaded: -glescompat: glMultiDrawElementsIndirect as a glDrawElementsIndirect loop
+const char *VR_AndroidStart (int argc, char **argv);	// main, first: on Android (or -fakeandroid on the PC) the base folder and the crash reports' folder (<base>/quakevr/crash; the handler: vr_crash.cpp's); the base folder to use, or NULL (vr_android.cpp; QUEST_PLAN.md C2c, C3)
+int VR_Android (void);	// nonzero: an Android build, or the PC's fake-Android mode (-fakeandroid, QVR_FAKE_ANDROID)
+void VR_AndroidLog (const char *text);	// Sys_Printf on Android: the console's text into logcat, a line a message (vr_android.cpp)
+int VR_AndroidFirstRun (void);	// Host_Init's end: nonzero on Android's first run (no config in the game folder yet): vr_standalone_preset 0 follows quake.rc
+int VR_ChildProcesses (void);	// nonzero: processes of our own may start (relighting's light, the motion review's evaluation copy); 0 on Android and with -nochildprocesses
+void VR_AndroidInit (void);	// VR_Init: vr_android_test
+int VR_GLESCompat (void);	// nonzero: -glescompat, the renderer kept to what OpenGL ES 3.2 has (vr_glsafe.cpp; QUEST_PLAN.md)
+void VR_GLShaderSource (unsigned int shader, int count, const char *const *strings);	// glShaderSource for every program: -glescompat: as "#version 320 es" with precisions
+unsigned VR_GLESImageFormat (unsigned format);	// an image (load/store) texture's format: -glescompat: one ES 3.1 has (rg32ui as rgba32ui, r8ui as r32ui, r8 as rgba8)
+int VR_GLESShaderError (const char *message);	// -glescompat: a program's compile or link error printed and counted (vr_gles_report), 1; else 0
+void VR_GLPolygonMode (unsigned mode);	// glPolygonMode on both faces; -glescompat: nothing (ES has no polygon modes: debug wireframes draw filled)
+void VR_GLGetTexImage (unsigned target, int level, unsigned format, unsigned type, void *pixels);	// glGetTexImage of the bound texture; -glescompat: its ES form, a framebuffer and glReadPixels (vr_glutil.cpp gfx::readTexImage)
+int VR_GLReadTexImageSame (unsigned target, int level, unsigned format, unsigned type, const char *what);	// vr_gles_readback_test: the bound texture read both ways; 1 same, 0 differ, -1 skipped (gfx::readTexImageSame)
 void VR_SimdTestInit (void);	// VR_Init: vr_simd_test (vr_simd_test.cpp)
 unsigned VR_DescribeCallers (char *out, int outSize, int skip, int depth);	// vr_crash.cpp: the caller's stack as one line ("fn (file.c:12) < caller ..."); a hash of it (0: none; not Windows)
 const char *VR_ModelFile (const char *name);	// Mod_LoadModel, Mod_LoadLighting: the file to load a model from (relit maps)

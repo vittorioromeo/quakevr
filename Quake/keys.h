@@ -225,6 +225,7 @@ seatkeys_t *Key_Seat (void);			// the current seat's (vr_seat.cpp)
 seatkeys_t *Key_SeatOf (int seat);		// seat 0..3's
 void Key_SeatCopyBindings (int to, int from);	// a seat's bindings made a copy of another's (a pad's seat at its join)
 qboolean Key_SeatHasBindings (int seat);
+extern int	key_lastpress; // QVR: the last key pressed (menu.c: what opened the main menu)
 
 #define		CMDLINES 64
 

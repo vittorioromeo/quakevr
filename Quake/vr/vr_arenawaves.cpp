@@ -7,9 +7,13 @@
 #include "vr_testkit.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
 
@@ -156,7 +160,7 @@ bool writeAll(const char* path, const za::String& text)
     {
         return false;
     }
-    const size_t n = strlen(text.cStr());
+    const size_t n = ZA_STRLEN(text.cStr());
     const bool ok = fwrite(text.cStr(), 1, n, f) == n;
     fclose(f);
     return ok;
@@ -255,7 +259,7 @@ void putValue(za::String& out, const char* key, const char* value)
     constexpr const char* const words[] = {"none", "green", "yellow", "red", "random"};
     for(int i = 0; i < 5; i++)
     {
-        if(!strcmp(s, words[i]))
+        if(!ZA_STRCMP(s, words[i]))
         {
             return i;
         }
@@ -266,11 +270,11 @@ void putValue(za::String& out, const char* key, const char* value)
 // The plates' mask (vr_agarmor.qc's bits: 0 the cuirass, 1 the helmet, then pairs), -1 random, -2 not understood.
 [[nodiscard]] int piecesMask(const char* s)
 {
-    if(!strcmp(s, "full"))
+    if(!ZA_STRCMP(s, "full"))
     {
         return 1023;
     }
-    if(!strcmp(s, "random"))
+    if(!ZA_STRCMP(s, "random"))
     {
         return -1;
     }
@@ -284,11 +288,11 @@ void putValue(za::String& out, const char* key, const char* value)
     while(*s)
     {
         const char* end = strchr(s, '+');
-        const size_t len = end ? static_cast<size_t>(end - s) : strlen(s);
+        const size_t len = end ? static_cast<size_t>(end - s) : ZA_STRLEN(s);
         bool known = false;
         for(const Piece& p : pieces)
         {
-            if(strlen(p.word) == len && !strncmp(p.word, s, len))
+            if(ZA_STRLEN(p.word) == len && !ZA_STRNCMP(p.word, s, len))
             {
                 mask |= p.bits;
                 known = true;
@@ -323,7 +327,7 @@ struct AssignLine
     while(*s)
     {
         const char* end = strchr(s, '\n');
-        const size_t len = end ? static_cast<size_t>(end - s) : strlen(s);
+        const size_t len = end ? static_cast<size_t>(end - s) : ZA_STRLEN(s);
         char line[192];
         copyText(line, za::min(sizeof(line), len + 1), s);
         s += len + (end ? 1 : 0);
@@ -361,7 +365,7 @@ struct AssignLine
     for(const AssignLine& own : readAssignFile(playerFolder()))
     {
         za::SizeT i = 0;
-        while(i < lines.size() && !(lines[i].skill == own.skill && !strcmp(lines[i].map, own.map)))
+        while(i < lines.size() && !(lines[i].skill == own.skill && !ZA_STRCMP(lines[i].map, own.map)))
         {
             i++;
         }
@@ -369,7 +373,7 @@ struct AssignLine
         {
             lines.erase(lines.begin() + i);
         }
-        if(strcmp(own.name, assignDefault) != 0)
+        if(ZA_STRCMP(own.name, assignDefault) != 0)
         {
             lines.insert(lines.begin() + i, own);
         }
@@ -382,7 +386,7 @@ struct AssignLine
 {
     run.running = false;
     run.report = za::String{};
-    if(run.playOn && strcmp(run.playMap, sv.name) != 0)
+    if(run.playOn && ZA_STRCMP(run.playMap, sv.name) != 0)
     {
         run.playOn = false; // (another map: the editor's Play is over)
     }
@@ -479,7 +483,7 @@ void play_f()
         Con_Printf("vr_arena_play <preset | default> [wave] [map]\n");
         return;
     }
-    if(!strcmp(Cmd_Argv(1), "default"))
+    if(!ZA_STRCMP(Cmd_Argv(1), "default"))
     {
         playOff();
         Con_Printf("arena preset: back to what's assigned\n");
@@ -505,7 +509,7 @@ void assign_f()
         Con_Printf("vr_arena_assign <map> <skill 0..3> <preset | default>\n");
         return;
     }
-    setAssigned(Cmd_Argv(1), za::clamp(Q_atoi(Cmd_Argv(2)), 0, skillCount - 1), !strcmp(Cmd_Argv(3), "default") ? "" : Cmd_Argv(3));
+    setAssigned(Cmd_Argv(1), za::clamp(Q_atoi(Cmd_Argv(2)), 0, skillCount - 1), !ZA_STRCMP(Cmd_Argv(3), "default") ? "" : Cmd_Argv(3));
 }
 
 // vr_arena_preset_list: the saved presets and what's assigned where.
@@ -578,24 +582,24 @@ void test_f()
     verdict(parse(fixtureGood, p, why) && why.empty(), "the good fixture parses with nothing to say");
     verdict(p.waves.size() == 3 && p.waves[0].entries.size() == 2 && p.waves[1].entries.size() == 3 && p.waves[1].pool == 3,
         "its waves, entries and pool");
-    verdict(!strcmp(p.waves[1].entries[2].off, "Axe") && p.waves[1].entries[2].boss == 1 && p.waves[0].entries[1].delay == 1.f,
+    verdict(!ZA_STRCMP(p.waves[1].entries[2].off, "Axe") && p.waves[1].entries[2].boss == 1 && p.waves[0].entries[1].delay == 1.f,
         "an entry's fields");
-    verdict(!strcmp(write(p).cStr(), fixtureGood), "written again it is byte for byte the same");
+    verdict(!ZA_STRCMP(write(p).cStr(), fixtureGood), "written again it is byte for byte the same");
     Sys_mkdir(folder().cStr());
     za::String saved, again;
     Preset q;
     const bool stored = save("fixture_roundtrip", p, why) && readAll(presetPath("fixture_roundtrip").cStr(), saved) &&
         load("fixture_roundtrip", q, why) && save("fixture_roundtrip", q, why) && readAll(presetPath("fixture_roundtrip").cStr(), again);
-    verdict(stored && !strcmp(saved.cStr(), fixtureGood) && !strcmp(again.cStr(), fixtureGood), "saved, loaded, saved: the same bytes on disk");
+    verdict(stored && !ZA_STRCMP(saved.cStr(), fixtureGood) && !ZA_STRCMP(again.cStr(), fixtureGood), "saved, loaded, saved: the same bytes on disk");
 
     Preset b;
     za::String badSaid;
     verdict(parse(fixtureBad, b, badSaid) && b.waves.size() == 1 && b.waves[0].entries.size() == 7, "a file with odd entries still parses: they're the game's to judge");
-    verdict(strstr(badSaid.cStr(), "flurble") != nullptr, "a line it doesn't understand is said");
+    verdict(ZA_STRSTR(badSaid.cStr(), "flurble") != nullptr, "a line it doesn't understand is said");
     const za::String canon = write(b);
     Preset b2;
     za::String ignored;
-    verdict(parse(canon.cStr(), b2, ignored) && !strcmp(write(b2).cStr(), canon.cStr()), "a hand-written file, once saved, is stable");
+    verdict(parse(canon.cStr(), b2, ignored) && !ZA_STRCMP(write(b2).cStr(), canon.cStr()), "a hand-written file, once saved, is stable");
     verdict(badReason(b.waves[0].entries[3])[0] != 0 && badReason(b.waves[0].entries[4])[0] != 0 && !badReason(b.waves[0].entries[0])[0],
         "an unknown armour or pieces word is a reason; the kind is QC's");
     verdict(!parse("arena_waves 99\n", q, why), "a version from the future is refused");
@@ -607,7 +611,7 @@ void test_f()
     setAssigned("vrarena", 1, "fixture_good");
     setAssigned("someothermap", 2, "fixture_othermap");
     setAssigned("vrarena", 3, "fixture_bad");
-    verdict(!strcmp(assigned("vrarena", 1).cStr(), "fixture_good") && !strcmp(assigned("someothermap", 2).cStr(), "fixture_othermap") && assigned("vrarena", 0).empty(), "assign.cfg by map and skill");
+    verdict(!ZA_STRCMP(assigned("vrarena", 1).cStr(), "fixture_good") && !ZA_STRCMP(assigned("someothermap", 2).cStr(), "fixture_othermap") && assigned("vrarena", 0).empty(), "assign.cfg by map and skill");
     verdict(mapListed("someothermap") && !mapListed("e1m1"), "a map named there is listed");
     setAssigned("vrarena", 3, "");
     setAssigned("vrarena", 1, "");
@@ -630,12 +634,12 @@ void test_f()
     verdict(load("fixture_shipped", read, why) && read.waves.size() == p.waves.size() && !removable("fixture_shipped"),
         "a player reads a shipped preset, and can't delete it");
     verdict(save("fixture_shipped", one, why) && fileThere(writePath("fixture_shipped").cStr()) && load("fixture_shipped", read, why) &&
-            read.waves.size() == 1 && readAll(presetPath("fixture_shipped").cStr(), now) && !strcmp(now.cStr(), shippedBytes.cStr()),
+            read.waves.size() == 1 && readAll(presetPath("fixture_shipped").cStr(), now) && !ZA_STRCMP(now.cStr(), shippedBytes.cStr()),
         "saving over it keeps a copy of their own, which wins; the shipped file's bytes the same");
     int seen = 0;
     for(const za::String& n : list())
     {
-        seen += !strcmp(n.cStr(), "fixture_shipped");
+        seen += !ZA_STRCMP(n.cStr(), "fixture_shipped");
     }
     verdict(seen == 1, "the list has the name once");
     verdict(removable("fixture_shipped") && removeFile("fixture_shipped") && load("fixture_shipped", read, why) && read.waves.size() == p.waves.size(),
@@ -643,9 +647,9 @@ void test_f()
     setAssigned("vrarena", 1, "fixture_good");
     setAssigned("vrarena", 2, "");
     setAssigned("anothermap", 0, "fixture_good");
-    verdict(!strcmp(assigned("vrarena", 1).cStr(), "fixture_good") && assigned("vrarena", 2).empty() && !strcmp(assigned("anothermap", 0).cStr(), "fixture_good"),
+    verdict(!ZA_STRCMP(assigned("vrarena", 1).cStr(), "fixture_good") && assigned("vrarena", 2).empty() && !ZA_STRCMP(assigned("anothermap", 0).cStr(), "fixture_good"),
         "their assignments win over the shipped ones, a cleared one too");
-    verdict(readAll((folder() + "/" + assignFile).cStr(), now) && !strcmp(now.cStr(), shippedAssign.cStr()), "the shipped assign.cfg's bytes the same");
+    verdict(readAll((folder() + "/" + assignFile).cStr(), now) && !ZA_STRCMP(now.cStr(), shippedAssign.cStr()), "the shipped assign.cfg's bytes the same");
     setAssigned("vrarena", 1, "");
     setAssigned("anothermap", 0, "");
     verdict(assigned("vrarena", 1).empty() && !mapListed("anothermap"), "cleared again");
@@ -669,12 +673,12 @@ bool parse(const char* text, Preset& out, za::String& report)
     while(*s)
     {
         const char* end = strchr(s, '\n');
-        const size_t len = end ? static_cast<size_t>(end - s) : strlen(s);
+        const size_t len = end ? static_cast<size_t>(end - s) : ZA_STRLEN(s);
         char line[512];
         copyText(line, za::min(sizeof(line), len + 1), s);
         s += len + (end ? 1 : 0);
         lineNo++;
-        const size_t l = strlen(line);
+        const size_t l = ZA_STRLEN(line);
         if(l > 0 && line[l - 1] == '\r')
         {
             line[l - 1] = '\0';
@@ -688,7 +692,7 @@ bool parse(const char* text, Preset& out, za::String& report)
         const char* word = t[0].key;
         if(!header)
         {
-            if(strcmp(word, "arena_waves") != 0 || n < 2)
+            if(ZA_STRCMP(word, "arena_waves") != 0 || n < 2)
             {
                 say(report, lineNo, "not an arena preset (it starts with arena_waves <version>)", "");
                 return false;
@@ -700,14 +704,14 @@ bool parse(const char* text, Preset& out, za::String& report)
             }
             header = true;
         }
-        else if(!strcmp(word, "after") && n >= 2)
+        else if(!ZA_STRCMP(word, "after") && n >= 2)
         {
-            if(!strcmp(t[1].key, "end")) { out.after = After::End; }
-            else if(!strcmp(t[1].key, "last")) { out.after = After::Last; }
-            else if(!strcmp(t[1].key, "loop")) { out.after = After::Loop; }
+            if(!ZA_STRCMP(t[1].key, "end")) { out.after = After::End; }
+            else if(!ZA_STRCMP(t[1].key, "last")) { out.after = After::Last; }
+            else if(!ZA_STRCMP(t[1].key, "loop")) { out.after = After::Loop; }
             else { say(report, lineNo, "an unknown after", t[1].key); }
         }
-        else if(!strcmp(word, "wave"))
+        else if(!ZA_STRCMP(word, "wave"))
         {
             if(static_cast<int>(out.waves.size()) >= maxWaves)
             {
@@ -717,12 +721,12 @@ bool parse(const char* text, Preset& out, za::String& report)
             Wave w;
             for(int i = 1; i < n; i++)
             {
-                if(!strcmp(t[i].key, "pool")) { w.pool = za::clamp(Q_atoi(t[i].value), 0, maxCount); }
+                if(!ZA_STRCMP(t[i].key, "pool")) { w.pool = za::clamp(Q_atoi(t[i].value), 0, maxCount); }
                 else { say(report, lineNo, "an unknown word on a wave", t[i].key); }
             }
             out.waves.pushBack(static_cast<Wave&&>(w));
         }
-        else if(!strcmp(word, "entry"))
+        else if(!ZA_STRCMP(word, "entry"))
         {
             if(out.waves.empty())
             {
@@ -740,15 +744,15 @@ bool parse(const char* text, Preset& out, za::String& report)
             {
                 const char* k = t[i].key;
                 const char* v = t[i].value;
-                if(!strcmp(k, "kind")) { setText(e.kind, v); }
-                else if(!strcmp(k, "main")) { setText(e.mainHand, v); }
-                else if(!strcmp(k, "off")) { setText(e.off, v); }
-                else if(!strcmp(k, "armour")) { setText(e.armour, v); }
-                else if(!strcmp(k, "pieces")) { setText(e.pieces, v); }
-                else if(!strcmp(k, "infected")) { setText(e.infected, v); }
-                else if(!strcmp(k, "count")) { e.count = za::clamp(Q_atoi(v), 0, maxCount); }
-                else if(!strcmp(k, "delay")) { e.delay = za::clamp(Q_atof(v), 0.f, 240.f); }
-                else if(!strcmp(k, "boss")) { e.boss = Q_atoi(v) != 0 ? 1 : 0; }
+                if(!ZA_STRCMP(k, "kind")) { setText(e.kind, v); }
+                else if(!ZA_STRCMP(k, "main")) { setText(e.mainHand, v); }
+                else if(!ZA_STRCMP(k, "off")) { setText(e.off, v); }
+                else if(!ZA_STRCMP(k, "armour")) { setText(e.armour, v); }
+                else if(!ZA_STRCMP(k, "pieces")) { setText(e.pieces, v); }
+                else if(!ZA_STRCMP(k, "infected")) { setText(e.infected, v); }
+                else if(!ZA_STRCMP(k, "count")) { e.count = za::clamp(Q_atoi(v), 0, maxCount); }
+                else if(!ZA_STRCMP(k, "delay")) { e.delay = za::clamp(Q_atof(v), 0.f, 240.f); }
+                else if(!ZA_STRCMP(k, "boss")) { e.boss = Q_atoi(v) != 0 ? 1 : 0; }
                 else { say(report, lineNo, "an unknown word on an entry", k); }
             }
             w.entries.pushBack(e);
@@ -804,8 +808,8 @@ const char* badReason(const Entry& e)
 
 bool validName(const char* name)
 {
-    const size_t n = strlen(name);
-    if(n == 0 || n > 48 || !strcmp(name, "assign") || !strcmp(name, assignDefault))
+    const size_t n = ZA_STRLEN(name);
+    if(n == 0 || n > 48 || !ZA_STRCMP(name, "assign") || !ZA_STRCMP(name, assignDefault))
     {
         return false;
     }
@@ -901,7 +905,7 @@ za::String assigned(const char* map, int skill)
 {
     for(const AssignLine& a : readAssign())
     {
-        if(a.skill == skill && !strcmp(a.map, map))
+        if(a.skill == skill && !ZA_STRCMP(a.map, map))
         {
             return za::String{a.name};
         }
@@ -916,12 +920,12 @@ void setAssigned(const char* map, int skill, const char* nameOrNone)
     za::Vector<AssignLine> lines = readAssignFile(dir);
     const auto shipped = readAssignFile(folder());
     const bool shippedLine = keepsPlayersApart() &&
-        za::anyOf(shipped.begin(), shipped.end(), [&](const AssignLine& a) { return a.skill == skill && !strcmp(a.map, map); });
+        za::anyOf(shipped.begin(), shipped.end(), [&](const AssignLine& a) { return a.skill == skill && !ZA_STRCMP(a.map, map); });
     const char* name = !nameOrNone[0] && shippedLine ? assignDefault : nameOrNone;
     bool found = false;
     for(za::SizeT i = 0; i < lines.size();)
     {
-        if(lines[i].skill == skill && !strcmp(lines[i].map, map))
+        if(lines[i].skill == skill && !ZA_STRCMP(lines[i].map, map))
         {
             if(name[0] && !found)
             {
@@ -946,7 +950,7 @@ void setAssigned(const char* map, int skill, const char* nameOrNone)
         a.skill = skill;
         setText(a.name, name);
         za::SizeT at = 0;
-        while(at < lines.size() && (strcmp(lines[at].map, a.map) < 0 || (!strcmp(lines[at].map, a.map) && lines[at].skill < a.skill)))
+        while(at < lines.size() && (ZA_STRCMP(lines[at].map, a.map) < 0 || (!ZA_STRCMP(lines[at].map, a.map) && lines[at].skill < a.skill)))
         {
             at++;
         }
@@ -967,7 +971,7 @@ bool isArenaMap(const char* map)
 {
     for(const char* name : arenaMapNames)
     {
-        if(!strcmp(name, map))
+        if(!ZA_STRCMP(name, map))
         {
             return true;
         }
@@ -989,7 +993,7 @@ bool mapListed(const char* map)
 {
     for(const AssignLine& a : readAssign())
     {
-        if(!strcmp(a.map, map))
+        if(!ZA_STRCMP(a.map, map))
         {
             return true;
         }
@@ -1005,7 +1009,7 @@ za::Vector<za::String> listedMaps()
         bool seen = false;
         for(const za::String& m : maps)
         {
-            seen = seen || !strcmp(m.cStr(), a.map);
+            seen = seen || !ZA_STRCMP(m.cStr(), a.map);
         }
         if(!seen)
         {

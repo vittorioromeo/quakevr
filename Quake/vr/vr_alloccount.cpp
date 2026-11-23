@@ -6,14 +6,18 @@
 #include "vr_crtheap.h"
 
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Concurrency/LockGuard.hpp"
-#include "Zancle/Base/IntTypes.hpp"
-#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
-#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 
 #include <new>
 #include <stdio.h>
@@ -21,7 +25,6 @@
 #ifdef _WIN32
 #include <malloc.h>
 #endif
-#include <string.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -65,7 +68,7 @@ thread_local bool tracing = false; // this thread's allocations are traced
         TracedStack& t = traceTable[i];
         if(t.count == 0)
         {
-            memcpy(t.pc, pc, sizeof(void*) * depth);
+            ZA_MEMCPY(t.pc, pc, sizeof(void*) * depth);
             t.depth = depth;
             t.hash = hash;
             t.count = 1;
@@ -75,7 +78,7 @@ thread_local bool tracing = false; // this thread's allocations are traced
             t.frameBytes = bytes;
             return;
         }
-        if(t.kind == kind && t.hash == hash && t.depth == depth && memcmp(t.pc, pc, sizeof(void*) * depth) == 0)
+        if(t.kind == kind && t.hash == hash && t.depth == depth && ZA_MEMCMP(t.pc, pc, sizeof(void*) * depth) == 0)
         {
             t.count++;
             t.bytes += bytes;
@@ -241,10 +244,10 @@ extern "C" void* VR_HeapRealloc(void* p, size_t size)
 }
 extern "C" char* VR_HeapStrdup(const char* s)
 {
-    const size_t n = strlen(s) + 1;
+    const size_t n = ZA_STRLEN(s) + 1;
     account(qvr::alloccount::Kind::Malloc, n);
     char* copy = static_cast<char*>(malloc(n));
-    if(copy) memcpy(copy, s, n);
+    if(copy) ZA_MEMCPY(copy, s, n);
     return copy;
 }
 extern "C" void VR_HeapFree(void* p)
@@ -270,7 +273,7 @@ const char* kindName(Kind kind)
 
 void traceBegin()
 {
-    memset(traceTable, 0, sizeof(traceTable));
+    ZA_MEMSET(traceTable, 0, sizeof(traceTable));
     traceTotal = 0;
     traceDropped = 0;
     tracing = true;
@@ -311,8 +314,8 @@ namespace
         "za::", "std::", "ankerl::", "malloc", "qvr::mem::"};
     for(const char* p : prefixes)
     {
-        const za::SizeT n = strlen(p);
-        if(name.size() >= n && memcmp(name.data(), p, n) == 0)
+        const za::SizeT n = ZA_STRLEN(p);
+        if(name.size() >= n && ZA_MEMCMP(name.data(), p, n) == 0)
         {
             return true;
         }
@@ -359,14 +362,14 @@ za::AtomicMutex liveLock;
         TracedStack& t = traceTable[i];
         if(t.peakCount == 0)
         {
-            memcpy(t.pc, pc, sizeof(void*) * depth);
+            ZA_MEMCPY(t.pc, pc, sizeof(void*) * depth);
             t.depth = depth;
             t.hash = hash;
             t.kind = qvr::alloccount::Kind::Malloc;
             t.peakCount = 1;
             return static_cast<za::I32>(i);
         }
-        if(t.hash == hash && t.depth == depth && memcmp(t.pc, pc, sizeof(void*) * depth) == 0)
+        if(t.hash == hash && t.depth == depth && ZA_MEMCMP(t.pc, pc, sizeof(void*) * depth) == 0)
         {
             return static_cast<za::I32>(i);
         }
@@ -452,8 +455,8 @@ bool liveBegin(za::U64 minSize, za::U64 maxSize)
     }
     {
         za::LockGuard guard{liveLock};
-        memset(traceTable, 0, sizeof(traceTable));
-        memset(liveTable, 0, liveSlots * sizeof(LiveBlock));
+        ZA_MEMSET(traceTable, 0, sizeof(traceTable));
+        ZA_MEMSET(liveTable, 0, liveSlots * sizeof(LiveBlock));
         traceTotal = traceDropped = 0;
         liveUsed = 0;
         liveDropped = liveAllocs = 0;

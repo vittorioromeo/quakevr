@@ -3,6 +3,7 @@
 
 #include "vr_audio_internal.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -39,7 +40,7 @@ extern "C" const char* VR_SndDerived(const char* name, float* rate)
 {
     for(const DerivedSound& d : derivedSounds)
     {
-        if(!strcmp(d.name, name))
+        if(!ZA_STRCMP(d.name, name))
         {
             *rate = d.rate;
             return d.source;
