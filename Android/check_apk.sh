@@ -71,8 +71,10 @@ else
 fi
 if [ "$build" = "release" ] || [ "$build" = "release-testkey" ]; then
 	! grep -q "application-debuggable" <<< "$badging"; check "not debuggable (the release manifest)" $?
-	code="$(sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" <<< "$badging" | head -1)"
-	[ "${code:-1}" -gt 1 ]; check "a version code from VERSION (got ${code:-none})" $?
+	if [ "$build" = "release" ]; then # (a test APK may keep the installed build's code: QVR_ANDROID_VERSION_CODE)
+		code="$(sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" <<< "$badging" | head -1)"
+		[ "${code:-1}" -gt 1 ]; check "a version code from VERSION (got ${code:-none})" $?
+	fi
 	# The APK's engine library, unpacked beside the APK for the section listing.
 	packed="$(dirname "$apk")/check_apk_libquakevr.so"
 	unzip -p "$apk" lib/arm64-v8a/libquakevr.so > "$packed" 2>/dev/null
