@@ -37,7 +37,8 @@ void VR_ProfileEnd (void);					// ends the innermost scope
 extern int vr_glpass_trace;					// vr_gl_passes: this frame's draw framebuffer binds and alias batches are being noted
 void VR_GLPassBind (unsigned fbo);			// gl_vidsdl.c's bind shadow, while vr_glpass_trace: a draw framebuffer bound
 void VR_GLPassBreak (const char *what);		// gl_vidsdl.c's shadows, while vr_glpass_trace: a call a tiler may end its render pass at (qfov3)
-void VR_GLAliasBatch (const char *model, int instances, int draws0, int depth, int ent, int skin, int form, int needs, int tris); // R_FlushAliasInstances, while vr_glpass_trace (form: 0 depth only, 1 full, 2 opaque, 3 plain; needs: VR_AliasPlainNeeds; tris: an instance's)
+void VR_GLAliasBatch (const char *model, int instances, int draws0, int depth, int ent, int skin, int form, int needs, int tris, int lrz); // R_FlushAliasInstances, while vr_glpass_trace (form: 0 depth only, 1 full, 2 opaque, 3 plain; needs: VR_AliasPlainNeeds; tris: an instance's; lrz: VR_LRZ_* states that bear on a tiler's LRZ)
+enum { VR_LRZ_BLENDZ = 1, VR_LRZ_CLAMP = 2, VR_LRZ_PREPASS = 4, VR_LRZ_DISCARD = 8, VR_LRZ_TWOSIDED = 16 }; // (qlrz2: blended depth writes, depth clamp, the depth pre-pass, a program that may discard, no culling)
 
 // GL debug groups (vr_gl_markers, latched at each frame's start into vr_gl_markers_on): every GPU scope is also one,
 // named as its profile scope; these open one alone (the main thread; balanced as scopes, each pops what its begin

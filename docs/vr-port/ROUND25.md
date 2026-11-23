@@ -11269,6 +11269,36 @@ replaced the rest is docs/vr-port/LAUNCH_FLAGS.md (every new flag gets a row the
   (user presence with `-unattended`) 0 failed; installer SelfTest 60/60; mp_test.py suite --only mp_coop, mp_version,
   mp_campfollow, mp_lookup (results in the report).
 
+## qlrz2: what ends LRZ in the opaque entity pass: not found; not the depth clamp, not one kind of model, not the motion store (agent/qlrz2, 2026-11-23)
+
+His ask: qlrz's second cause (with `vr_gl_opaque_noblend 1` LRZ still dies inside the opaque entity pass). One headset
+block (18:40-18:56; Standalone, 0.65, High straight in; beta2 and the shipped progs.dat back after).
+- **qlrz's "only grunts hidden: dead" hid nothing**: `vr_debug_hide_models soldier` matches no batch (the armed grunts
+  are drawn as `progs/vrgrunt.mdl#rig/#plate/#limb/#armor`; checked on the PC with `vr_gl_passes`: 68 batches either
+  way), and "progs/" hides every alias batch, your rig too. So every alias model was still a suspect.
+- **`vr_gl_passes` now lists each alias batch's LRZ-relevant states** (`lrz` B blended depth writes, C depth clamp, P
+  depth pre-pass, D a program that may discard, T no culling). The gib fight (PC mock, `-glescompat`, Standalone): no
+  blended depth writes, no discarding program; depth clamp on your whole rig (axe, shotgun, holsters, body, hands,
+  strap, mag: `vr_nearclip_held 2` clamps every view entity), drawn before the world (`vr_alias_player_first`).
+- **Traces** (pair probe after the opaque pass, point 3, blending off; LRZ pixels killed, both eyes): nothing hidden 0;
+  every alias model hidden ("progs/") 2.7M / 3.3M; **depth clamp off** (`vr_nearclip_held 0`) 0 / 0; the clamp only
+  within reach of the near plane and the clamped models drawn last (a `vr_gl_clamp_last` A/B, built and removed) 0;
+  your rig hidden 0; the body 0; gibs 0; heads 0; held and dropped guns ("v_,g_") 0; the opaque form off with clamp off
+  0 / 0 (grunts, backpacks: the trace did not capture). The alias vertex shader's motion-vector store (an SSBO write,
+  `QVR_PROBE_NOMOTION` through `+vr_gles_define`, gl_shaders.h): 0 with and without, also the scene without a probe.
+  So no single kind of model and none of those states: either several kinds each end it or something every alias
+  batch does (left: the instanced `glDrawElementsInstanced` path with SSBO-fed vertices, the per-batch state the
+  `lrz` column does not list). Next step: a probe that draws only N alias batches (bisect by batch, not by name).
+- **The world's own draws**: world only, no pre-pass, far quad at the end: 34 / 33 killed; sample shading off 0 / 216,
+  the hidden-area mask off too 216 / 32; **with the world pre-pass (the default) 1.05M / 0.78M**: the pre-pass's
+  depth-only draws write LRZ, the shading draws do not (no discard, no gl_FragDepth outside parallax depth write, not
+  sample shading, not the mask; not found). With the pre-pass on, as shipped, the world does feed LRZ.
+- **The look**: static e1m1 start eyeshots (frozen, the headset still): blended vs unblended differ by more than 8 in
+  8.05% of the left eye's pixels, blended vs blended again 8.18%: within the headset's own noise (tracking jitter); no
+  flesh-filled eye this time (qfovcrash: that was a controller's hand model next to the headset).
+- **No gain to measure, so no default changed**: `vr_gl_opaque_noblend` stays 0 (LRZ still dies before the models'
+  bulk); no A/B launches. Kept: the `lrz` column, the `QVR_PROBE_NOMOTION` probe. Scripts (not committed):
+  `scratch/qlrz2_*`, `scratch/qlrz_tr_t8..t11.cfg`.
 ## qfovcrash: Quest Foveation switched mid-game no longer crashes (agent/qfovcrash, 2026-11-23)
 
 - **Cause**: the eyes' path (vr_stereo.cpp: straight in, form 2, with foveation; the post-process without) was read

@@ -793,10 +793,12 @@ void R_FlushAliasInstances (qboolean showtris)
 	qboolean	dlightsflat;	// QVR (C5h): the batch's dynamic lights added flat on the CPU (BatchDlightsFlat)
 	int			formid;		// QVR: the program's form for vr_gl_passes (1 full, 2 opaque, 3 plain, 4 gore, 5 skin, 6 body; ALIASVAR_* << 3)
 	int			draws0;		// QVR: the draw count before the batch (vr_gl_passes)
+	int			lrzflags;	// QVR: VR_LRZ_* states drawn with (vr_gl_passes; qlrz2)
 
 	if (!ibuf.count)
 		return;
 	draws0 = vr_profcounts.drawcalls; // QVR: vr_gl_passes' alias batches
+	lrzflags = 0; // QVR
 
 	model = ibuf.ent->model;
 	mainhdr = (aliashdr_t*)Mod_Extradata (model);
@@ -913,6 +915,9 @@ void R_FlushAliasInstances (qboolean showtris)
 		state = (state & ~GLS_MASK_CULL) | GLS_CULL_NONE;
 	if (aliasnear & 1) // QVR: a held item nearer than the near plane is drawn at it, not cut (vr_nearclip_held)
 		glEnable (GL_DEPTH_CLAMP);
+	if (vr_glpass_trace) // QVR (qlrz2)
+		lrzflags |= ((aliasnear & 1) ? VR_LRZ_CLAMP : 0) | ((state & GLS_MASK_CULL) == GLS_CULL_NONE ? VR_LRZ_TWOSIDED : 0)
+			| (!depthonly && (formid == 1 || alphatest) ? VR_LRZ_DISCARD : 0);
 
 	opaque_state = (state | GLS_BLEND_OPAQUE) & ~(GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE);
 	transparent_state = (state | GLS_BLEND_ALPHA) & ~(GLS_BLEND_OPAQUE | GLS_CULL_BACK);
@@ -1038,6 +1043,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	{ // QVR: your body's depth first (the world's models too): its opaque skins with no fragment shader, the same instances and
 	  // the same invariant gl_Position, so that the shading below runs once a pixel (it passes the depth equal, no writes)
 		VR_GPUZoneBegin ("body depth prepass");
+		lrzflags |= VR_LRZ_PREPASS; // QVR (qlrz2)
 		GL_UseProgram (glprogs.alias_depth[poseverttype]);
 		VR_AliasShadowClip (); // (its own program's plane, the same as the shading's)
 		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
@@ -1150,6 +1156,7 @@ void R_FlushAliasInstances (qboolean showtris)
 				continue;
 			}
 			VR_TemporalMotionWrites (0); // QVR: (not blended into the motion target)
+			lrzflags |= (transparent_state & GLS_NO_ZWRITE) ? 0 : VR_LRZ_BLENDZ; // QVR (qlrz2): blended, writing depth
 			if (notex) // QVR: (no fragment shader to read them)
 			{
 				GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount);
@@ -1187,7 +1194,7 @@ void R_FlushAliasInstances (qboolean showtris)
 		for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
 			tris += hdr->numindexes / 3;
 		VR_GLAliasBatch (model->name, ibuf.count, draws0, aliasdepth, ibuf.ent >= cl_entities && ibuf.ent < cl_entities + cl_max_edicts ? (int)(ibuf.ent - cl_entities) : -1, ibuf.ent->skinnum,
-			depthonly ? 0 : formid, aliasneeds, tris);
+			depthonly ? 0 : formid, aliasneeds, tris, lrzflags);
 	}
 	ibuf.count = 0;
 	GL_EndGroup ();

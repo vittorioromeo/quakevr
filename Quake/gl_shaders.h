@@ -1803,7 +1803,7 @@ QVR_ALIAS_VS_VLIGHT_DECL // QVR: the plain forms' light at the vertices (C4y)
 QVR_ALIAS_VS_OUTPUTS // QVR: the alias vertex shader's Quake VR outputs
 QVR_TEMPORAL_BLOCK // QVR: temporal AA's motion vectors (vr/vr_temporal.cpp): each vertex's world position kept a frame
 QVR_TEMPORAL_VS_OUTPUT
-"#if !defined(QVR_MULTIVIEW) && !defined(LAYERED) && !defined(WOUNDPAINT)\n"
+"#if !defined(QVR_MULTIVIEW) && !defined(LAYERED) && !defined(WOUNDPAINT) && !defined(QVR_PROBE_NOMOTION)\n"
 "layout(std430, binding=13) restrict writeonly buffer MotionCurBuffer { vec4 MotionCur[]; };\n"
 "layout(std430, binding=14) restrict readonly buffer MotionPrevBuffer { vec4 MotionPrev[]; };\n"
 "#endif\n"
@@ -1843,7 +1843,7 @@ QVR_ALIAS_VS_DENTS // QVR: flesh dents (vr/vr_dents.cpp): pushed in round where 
 "	gl_Position = ViewProj * vec4(flatfov ? FlatFovPoint(lerpedVert, EyePos, vec3(ViewProj[0][3], ViewProj[1][3], ViewProj[2][3]), vec3(FlatFovScale, FlatFovNear, FlatFovFar)) : lerpedVert, 1.0);\n"
 "#endif\n"
 "	out_prevclip = vec4(0.0); // QVR: temporal AA (vr/vr_temporal.cpp): where this vertex was drawn a frame ago\n"
-"#if !defined(QVR_MULTIVIEW) && !defined(LAYERED) && !defined(WOUNDPAINT)\n"
+"#if !defined(QVR_MULTIVIEW) && !defined(LAYERED) && !defined(WOUNDPAINT) && !defined(QVR_PROBE_NOMOTION)\n"
 "	if (inst.Motion.x >= 0)\n"
 "		MotionCur[inst.Motion.x + gl_VertexID] = vec4(lerpedVert, 1.0);\n"
 "	if (TemporalJitter.w > 0.0)\n"
