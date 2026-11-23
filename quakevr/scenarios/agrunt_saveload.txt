@@ -1,0 +1,8 @@
+# agrunt_saveload: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". An armed enforcer with a nail
+# pistol and an axe (his note 2026-11-23 23:36:33: after loading a save its arms stayed in one pose, its weapons moving
+# without them). Save, load, and watch its arms follow its weapons (vr_agrunt_test 230 checks it headless).
+title Armed enforcer after a save and load: its arms follow its weapons
+map vrtesthall
+god
+spawnarmed monster_vr_enforcer 29 2 220 0
+hint An armed enforcer with a nail pistol and an axe comes for you. Save (Escape > Save), load that save, and watch it: its arms follow its pistol and axe as before the load, never stuck in one pose while the weapons move.
