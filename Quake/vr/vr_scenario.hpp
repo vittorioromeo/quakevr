@@ -53,6 +53,9 @@ void worldReset();
 // worldReset's put-back at the map's spawn would set the scene's old values over the run's (presetlate: his
 // classic_drops scene, then Levels > E1M1 Classic, the first run with the old preset).
 void endBeforeRun();
+// A game that sets its own client slots (the tutorial's single player, VR_TutorialSinglePlayer): an mp scene's slots
+// from before it are not put back over them once no game runs.
+void dropSlots();
 
 // vr_scenario [<id> | reset | stop | hint | list | validate | runall | where]: see vr_scenario.cpp's command_f.
 void command_f();

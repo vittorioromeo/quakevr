@@ -34,6 +34,7 @@
 #include "vr_ad.hpp"
 #include "vr_dwell.hpp"
 #include "vr_quoth.hpp"
+#include "vr_scenario.hpp"
 
 #include "Zancle/Base/Memchr.hpp"
 #include "Zancle/Base/Memcmp.hpp"
@@ -1396,6 +1397,37 @@ extern "C" int VR_CanLoadCampaignMap(const char* map)
     { gameFolderName(com_filesource, source, sizeof(source)); }
     Cvar_SetROM("vr_honey_context", !q_strcasecmp(source, "honey") ? "1" : "0");
     return 1;
+}
+
+// Host_Map_f, the old server shut down (no game runs): the tutorial is always a single-player game of Quake's campaign,
+// however it is started (the start flow, the menus, the hub's button, the console). The author, 2026-11-23: after a
+// multiplayer test scene it kept the scene's client slots (maxplayers 4), and it behaved oddly. One player (the network
+// closed: MaxPlayers_f's way), no deathmatch, coop or teamplay, FrikBot's coop bots not brought back (scratch1), an mp
+// scene's slots not put back later, Quake the hub's chosen campaign (vr_activestartpaknameidx; the game folders are
+// Quake's already: VR_CanLoadCampaignMap).
+extern "C" void VR_TutorialSinglePlayer(const char* map)
+{
+    if(q_strcasecmp(map, "vrtutorial") && q_strcasecmp(map, "vrtutorial.bsp")) { return; }
+    qvr::scenario::dropSlots();
+    cvar_t* const teamplayVar = Cvar_FindVar("teamplay");
+    cvar_t* const bots = Cvar_FindVar("scratch1");
+    const bool multi = svs.maxclients > 1 || deathmatch.value != 0.f || coop.value != 0.f ||
+        (teamplayVar && teamplayVar->value != 0.f) || (bots && bots->value != 0.f);
+    if(multi)
+    {
+        Con_Printf("VR: the tutorial: a single-player game (was %d players, deathmatch %g, coop %g, teamplay %g)\n",
+            svs.maxclients, deathmatch.value, coop.value, teamplayVar ? teamplayVar->value : 0.f);
+    }
+    if(svs.maxclients > 1)
+    {
+        svs.maxclients = 1;
+        Cbuf_AddText("listen 0\n"); // (as `maxplayers 1` does; a no-op while nothing listens)
+    }
+    Cvar_SetQuick(&deathmatch, "0");
+    Cvar_SetQuick(&coop, "0");
+    if(teamplayVar && teamplayVar->value != 0.f) { Cvar_SetQuick(teamplayVar, "0"); }
+    if(bots && bots->value != 0.f) { Cvar_SetQuick(bots, "0"); }
+    if(qvr::vr_activestartpaknameidx.value != 0.f) { Cvar_SetValueQuick(&qvr::vr_activestartpaknameidx, 0); }
 }
 
 namespace
