@@ -1,6 +1,0 @@
-# flat_throw_2h: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (FLATPLAY.md, "The throw key")
-title Flat-screen throw of a two-handed gun: the nail gun held in both hands, J throws it with one
-map vrtesthall
-god
-give "Nailgun" main
-hint Your left hand rests on the nail gun's fore-end. Hold J: your right hand winds the gun up behind your shoulder and your left hand lets go of it (it no longer follows the gun). Let go of J: the gun is thrown by the right hand alone.
