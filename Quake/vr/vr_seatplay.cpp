@@ -13,12 +13,14 @@
 // "seat_play_test: N passed, M failed".
 #include "vr_seat.hpp"
 #include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 
 #include "vr_engine.hpp"
 #include "vr_api.h"
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
+#include "vr_weapon_ids.h"
 
 #include <SDL.h>
 
@@ -224,6 +226,7 @@ enum class Step
     WaitIntermission, // seat 2's player put in the level's trigger_changelevel: both seats' clients at the intermission
     WaitNewMap,       // seat 2's A held: the next map, both seats signed on in it; no seat's client on the old world
     PlayNewMap,       // both play the new map a second
+    WaitObituary,     // (deathmatch) seat 1 killed seat 2: its obituary line printed once, whole
 };
 
 // seat-shared: vr_seat_play_test's own state machine
@@ -238,6 +241,13 @@ struct PlayTest
     char fromMap[64]{};  // split12: the map the exit was taken on
     int staleWorld = 0;  // frames a seat's client had a world model that is not the server's (a freed one)
     int staleSeat = -1;  // the first such seat
+    // split12 (deathmatch): the obituary's lines as the console has them (playTestPrint)
+    bool obitTap = false;
+    char tapLine[256]{};
+    int tapLen = 0;
+    int obitSeen = 0;  // lines with "was killed by"
+    int obitFrame = 0; // t.frames at the first
+    char obitText[256]{};
 } playTest;
 
 constexpr int pad = 0;           // the test's mock pad
@@ -451,7 +461,27 @@ void testFrame()
             else
             {
                 check(p1 && p1->v.health > 0.f, "deathmatch: back, spawned again");
-                finish();
+                // split12: seat 1's player kills seat 2's with a weapon the obituary table lacks (the revolver)
+                edict_t* p0 = playerOf(0);
+                const progs::ServerVm vm;
+                const func_t fn = progs::findFunction("T_Damage");
+                if(!check(p0 && p1 && fn, "seat 1's player kills seat 2's (T_Damage, the revolver's)"))
+                {
+                    finish();
+                    return;
+                }
+                const float weaponWas = p0->v.weapon;
+                p0->v.weapon = WID_REVOLVER;
+                t.obitTap = true;
+                pr_global_struct->time = qcvm->time;
+                pr_global_struct->self = EDICT_TO_PROG(p1);
+                G_INT(OFS_PARM0) = EDICT_TO_PROG(p1);
+                G_INT(OFS_PARM1) = EDICT_TO_PROG(p0);
+                G_INT(OFS_PARM2) = EDICT_TO_PROG(p0);
+                G_FLOAT(OFS_PARM3) = 1000.f;
+                PR_ExecuteProgram(fn);
+                p0->v.weapon = weaponWas;
+                go(Step::WaitObituary);
                 return;
             }
             // split12: seat 2's player into the level's exit
@@ -484,6 +514,18 @@ void testFrame()
             go(Step::WaitIntermission);
             return;
         }
+        case Step::WaitObituary:
+            // (both seats' clients read the same frame's messages: 36 frames after the first line, a second would be in)
+            if(t.obitSeen == 0 || t.frames - t.obitFrame < 36)
+            {
+                return;
+            }
+            t.obitTap = false;
+            check(t.obitSeen == 1, va("the obituary printed once in the shared console (%d times)", t.obitSeen));
+            check(ZA_STRSTR(t.obitText, "player 2 was killed by player") && ZA_STRSTR(t.obitText, "Revolver"),
+                va("the obituary names both and the weapon: \"%s\"", t.obitText));
+            finish();
+            return;
         case Step::WaitIntermission:
         {
             const clientseat_t* n0 = CL_SeatNetIfMade(0);
@@ -547,6 +589,34 @@ void playTest_f()
 }
 
 } // namespace
+
+void playTestPrint(const char* text)
+{
+    PlayTest& t = playTest;
+    if(!t.obitTap)
+    {
+        return;
+    }
+    for(const char* p = text; *p; p++)
+    {
+        if(*p != '\n' && t.tapLen < static_cast<int>(sizeof(t.tapLine)) - 1)
+        {
+            t.tapLine[t.tapLen++] = *p;
+            continue;
+        }
+        if(*p != '\n')
+        {
+            continue;
+        }
+        t.tapLine[t.tapLen] = 0;
+        t.tapLen = 0;
+        if(ZA_STRSTR(t.tapLine, "was killed by"))
+        {
+            t.obitFrame = t.obitSeen++ ? t.obitFrame : t.frames;
+            q_strlcpy(t.obitText, t.tapLine, sizeof(t.obitText));
+        }
+    }
+}
 
 int joinPad(const int pad)
 {

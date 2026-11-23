@@ -699,6 +699,9 @@ void SV_ClientPrintf (const char *fmt, ...)
 SV_BroadcastPrintf
 
 Sends text to all active clients
+
+QVR: splitscreen (split12): the local seats share one console, so a broadcast goes to the first local seat's client
+only (each seat's printed it: every obituary and "entered the game" twice); remote clients each get theirs as before
 =================
 */
 void SV_BroadcastPrintf (const char *fmt, ...)
@@ -706,6 +709,7 @@ void SV_BroadcastPrintf (const char *fmt, ...)
 	va_list		argptr;
 	char		string[1024];
 	int			i;
+	qboolean	localsent = false; // QVR
 
 	va_start (argptr,fmt);
 	q_vsnprintf (string, sizeof(string), fmt, argptr);
@@ -715,6 +719,12 @@ void SV_BroadcastPrintf (const char *fmt, ...)
 	{
 		if (svs.clients[i].active && svs.clients[i].spawned)
 		{
+			if (svs.clients[i].netconnection && NET_QSocketLocalSeat (svs.clients[i].netconnection) >= 0) // QVR
+			{
+				if (localsent)
+					continue;
+				localsent = true;
+			}
 			MSG_WriteByte (&svs.clients[i].message, svc_print);
 			MSG_WriteString (&svs.clients[i].message, string);
 		}

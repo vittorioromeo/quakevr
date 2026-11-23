@@ -2677,7 +2677,9 @@ string VR_OBIT_TRAPS[] =
 #define VR_OBIT_TRAPS_N 18
 
 // A player's kill by another: "<targ><a><attacker><b>" by the killer's weapon; a2, b2 with its secondary ammo ("": the
-// same). Its other words (a gib, the water, the laser's two) are ClientObituary's. A weapon not here says neither.
+// same). Its other words (a gib, the water, the laser's two) are ClientObituary's. A weapon not here (Quake VR's and
+// the mods' own: the sword, the grunt's gun, the revolver, AD's...): "<targ> was killed by <attacker>'s <weapon name>"
+// (split12: it said both names alone, no line end: "playerplayer 2" ran into the next print).
 typedef struct
 {
     float wid;
@@ -2853,6 +2855,20 @@ void(entity targ, entity attacker) ClientObituary =
                 else if(rnum == WID_LASER_CANNON && random() >= 0.5) //MED
                 {
                     deathstring = " was radiated by ";
+                }
+                if(deathstring == "") // QVR: a weapon not in VR_OBIT_WEAPONS
+                {
+                    bprint(targ.netname);
+                    bprint(" was killed by ");
+                    bprint(attacker.netname);
+                    string wname = VR_WROW_OK(rnum) ? WeaponNameOf(rnum, attacker.weaponflags) : "";
+                    if(wname != "")
+                    {
+                        bprint("'s ");
+                        bprint(wname);
+                    }
+                    bprint("\n");
+                    return;
                 }
                 bprint(targ.netname);
                 bprint(deathstring);

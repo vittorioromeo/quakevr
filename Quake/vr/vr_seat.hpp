@@ -196,6 +196,7 @@ void registerCommands(); // vr_seat_test
 // Phase 6 (vr_seatplay.cpp): the seats joining and leaving the local game (seat_join, seat_leave), the seat loop's
 // per-frame step (CL_SeatFrame), vr_seat_play_test.
 void registerPlayCommands();
+void playTestPrint(const char* text); // split12: vr_seat_play_test's console tap (vr_testbatch.cpp VR_TestConsolePrint)
 // Phase 10's join screen: pad k's player into the next free seat (2-4), the local game running or not (a seat in play
 // joins the next local game by itself): the seat, or -1 (printed: none free, the pad plays already). A seat leaving.
 int joinPad(int pad);

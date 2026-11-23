@@ -27,6 +27,7 @@
 //                              own waitN ran out)
 
 #include "vr_testbatch.hpp"
+#include "vr_seat.hpp"
 #include "vr_backend.hpp"
 #include "vr_config.hpp"
 #include "vr_cvars.hpp"
@@ -878,6 +879,7 @@ extern "C" void VR_TestConsolePrint(const char* text)
     using qvr::testbatch::waiting;
     using qvr::testbatch::WaitKind;
     using qvr::testbatch::quitOn;
+    qvr::seat::playTestPrint(text);
     if(quitOn.armed && !quitOn.matched)
     {
         for(const char* p = text; *p && !quitOn.matched; p++)
