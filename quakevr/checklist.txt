@@ -70,6 +70,8 @@ On the Quest, in a big close fight the picture may soften a little more than bef
 On the Quest, after a fight, gibs and limbs far from you thin out after a few seconds while those near you stay. {test:rag_gib}
 On the Quest with the Standalone preset, cut a group of grunts apart up close: the walls and floor under the blood marks keep their usual light (no sudden change in the room's lighting when the first mark lands) and the frame rate holds better than before. {test:quest_gibfight}
 On the Quest, pick the Standalone preset again: Retro Textures and Retro Lighting turn off with it (turn them back on by hand if you want the retro look; it costs a lot of frame time in fights). {test:quest_gibfight}
+Flat-screen: tap 1 or 2 and the hand still cycles; hold it and the weapon wheel opens where that hand is on the screen (slow motion, the view stays still); point at a holster with the mouse and let go: that hand takes it, off the wheel nothing happens. {test:flat_weapon_wheel}
+Flat-screen or VR: the weapon wheel's new DROP and UNLOAD slots (at the bottom): DROP drops what that hand holds, UNLOAD empties its gun's magazine into your ammo; both are greyed when they would do nothing. {test:weapon_wheel}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, the crystal head glowing violet a moment after each shot. {test:dwell_lance_pole}
