@@ -795,6 +795,171 @@ void(entity p) DW_LanceTest =
     t.nextthink = time;
 };
 
+// vr_ad_test 224 (lancecharge): the Crystal Lance's charged shot (dw_items.qc DW_LanceChargeFrame), in the main hand
+// (207's), a grunt held 64 units ahead on its line, the trigger held by the test (dw_lc_test: through W_WeaponFrameImpl
+// as the real one). With vr_dw_lance_charge 1: held to half charge (in 0.5 s), let go: no shot, no damage, no cells, a
+// charge let go short; nothing later either. With 0.5: full in 0.5 s, held on charged 30 frames without a shot, let go:
+// the shot (150 to the grunt, 6 cells). Without its 6 cells (4): no charge begins, its cells kept. The setting (a
+// tunable: `tune`, taken the next frame) put back.
+// "dwcharge: N passed, M failed".
+float dw_ct_step, dw_ct_frames, dw_ct_wait, dw_ct_was;
+float dw_ct_cells, dw_ct_shots, dw_ct_starts, dw_ct_cancels, dw_ct_fires;
+entity dw_ct_a;
+
+void(entity p) DW_ChargeTest_Place =
+{
+    entity os = self;
+    self = p;
+    vector src = VRGetMuzzlePos(cVR_MainHand);
+    vector dir = VRGetWeaponFireRotFwd(cVR_MainHand);
+    self = os;
+    DW_WeaponsTest_Hold(dw_ct_a, src + dir * 64);
+};
+
+void(entity p) DW_ChargeTest_End =
+{
+    dw_lc_test = dw_lc_test_press = 0;
+    localcmd(sprintf("tune vr_dw_lance_charge %g\n", dw_ct_was)); // (a tunable: set by `tune`)
+    cvar_set("vr_dw_lance_pole", ftos(dw_lt_was));
+    VR_Test_Verdict();
+    remove(dw_ct_a);
+    remove(self);
+};
+
+void() DW_ChargeTest_Think =
+{
+    entity p = self.owner;
+    self.nextthink = time;
+    dw_ct_frames++;
+    if(dw_ct_frames > 1500)
+    {
+        VR_Test_Check(FALSE, sprintf("timed out (step %g)", dw_ct_step));
+        DW_ChargeTest_End(p);
+        return;
+    }
+    if(!dw_ct_a.takedamage) { return; } // (its monster start: a frame or two)
+    float dmg = 1000 - dw_ct_a.health;
+    float shots = dw_variant_shots - dw_ct_shots;
+    if(dw_ct_step == 0)
+    {
+        VR_Test_BeginFlags("dwcharge", VR_TEST_LOUD);
+        entity os = self;
+        self = p;
+        VR_Test_Check(DW_LanceCharged(cVR_MainHand), "the Lance in the main hand charges its shots");
+        self = os;
+        localcmd("tune vr_dw_lance_charge 1\n");
+        dw_lc_test = 1;
+        dw_lc_test_press = 0;
+        DW_ChargeTest_Place(p);
+        dw_ct_cells = p.ammo_cells;
+        dw_ct_shots = dw_variant_shots;
+        dw_ct_starts = dw_lc_starts;
+        dw_ct_cancels = dw_lc_cancels;
+        dw_ct_fires = dw_lc_fires;
+        dw_ct_step = 1;
+    }
+    else if(dw_ct_step == 1) // (its refire over: it may attack)
+    {
+        if(time < p.attack_finished || cvar_hget(cvarh_vr_dw_lance_charge) != 1) { return; }
+        dw_lc_test_press = 1;
+        dw_ct_step = 2;
+    }
+    else if(dw_ct_step == 2)
+    {
+        if(p.dw_lc1 < 0.5) { return; }
+        VR_Test_Check(dw_lc_starts == dw_ct_starts + 1 && fabs(time - p.dw_lc_s1 - 0.5) <= 0.03,
+            sprintf("charge time 1: half charged %.3f s after it began (0.5; charges begun %g)", time - p.dw_lc_s1,
+            dw_lc_starts - dw_ct_starts));
+        dw_lc_test_press = 0;
+        dw_ct_step = 3;
+    }
+    else if(dw_ct_step == 3)
+    {
+        if(p.dw_lc1 > 0) { return; }
+        VR_Test_Check(dw_lc_cancels == dw_ct_cancels + 1 && dw_lc_fires == dw_ct_fires,
+            sprintf("let go at half charge: a charge let go short (%g), none fired (%g)", dw_lc_cancels - dw_ct_cancels,
+            dw_lc_fires - dw_ct_fires));
+        VR_Test_Check(dmg == 0 && shots == 0 && p.ammo_cells == dw_ct_cells,
+            sprintf("let go at half charge: no shot (%g), no damage (%g), no cells (%g of %g)", shots, dmg, p.ammo_cells, dw_ct_cells));
+        dw_ct_wait = 0;
+        dw_ct_step = 4;
+    }
+    else if(dw_ct_step == 4)
+    {
+        if(++dw_ct_wait < 20) { return; }
+        VR_Test_Check(dmg == 0 && shots == 0, sprintf("no shot later (%g frames on: %g shots, %g damage)", dw_ct_wait, shots, dmg));
+        localcmd("tune vr_dw_lance_charge 0.5\n");
+        DW_ChargeTest_Place(p);
+        dw_ct_step = 10;
+    }
+    else if(dw_ct_step == 10) // (the setting taken: the next frame's commands)
+    {
+        if(cvar_hget(cvarh_vr_dw_lance_charge) != 0.5) { return; }
+        dw_lc_test_press = 1;
+        dw_ct_step = 5;
+    }
+    else if(dw_ct_step == 5)
+    {
+        if(p.dw_lc1 < 1) { return; }
+        VR_Test_Check(fabs(time - p.dw_lc_s1 - 0.5) <= 0.03, sprintf("charge time 0.5: full %.3f s after it began", time - p.dw_lc_s1));
+        dw_ct_wait = 0;
+        dw_ct_step = 6;
+    }
+    else if(dw_ct_step == 6)
+    {
+        if(++dw_ct_wait < 30) { return; }
+        VR_Test_Check(dmg == 0 && shots == 0 && p.ammo_cells == dw_ct_cells && p.dw_lc1 >= 1,
+            sprintf("held charged 30 frames: no shot yet (%g), no cells (%g), still charged (%.2f)", shots, p.ammo_cells, p.dw_lc1));
+        dw_lc_test_press = 0;
+        dw_ct_wait = 0;
+        dw_ct_step = 7;
+    }
+    else if(dw_ct_step == 7)
+    {
+        if(!shots && ++dw_ct_wait < 20) { return; }
+        VR_Test_Check(shots == 1 && dw_lc_fires == dw_ct_fires + 1, sprintf("let go charged: the shot (%g, a charge fired %g)",
+            shots, dw_lc_fires - dw_ct_fires));
+        // (150 through our damage: 188 to an unaware target, as test 202's)
+        VR_Test_Check(dmg >= 150 && dmg <= 188 && p.ammo_cells == dw_ct_cells - 6,
+            sprintf("let go charged: 150 to the grunt (%g), 6 cells (%g of %g)", dmg, p.ammo_cells, dw_ct_cells));
+        dw_ct_step = 8;
+    }
+    else if(dw_ct_step == 8) // (its refire over)
+    {
+        if(time < p.attack_finished) { return; }
+        p.ammo_cells = 4;
+        dw_ct_starts = dw_lc_starts;
+        dw_ct_shots = dw_variant_shots;
+        dw_lc_test_press = 1;
+        dw_ct_wait = 0;
+        dw_ct_step = 9;
+    }
+    else if(dw_ct_step == 9)
+    {
+        if(++dw_ct_wait < 40) { return; }
+        VR_Test_Check(dw_lc_starts == dw_ct_starts && p.dw_lc1 == 0 && shots == 0 && p.ammo_cells == 4,
+            sprintf("4 cells: no charge begun (%g), no shot (%g), the cells kept (%g)", dw_lc_starts - dw_ct_starts, shots,
+            p.ammo_cells));
+        DW_ChargeTest_End(p);
+    }
+};
+
+void(entity p) DW_ChargeTest =
+{
+    dw_ct_was = cvar_hget(cvarh_vr_dw_lance_charge);
+    dw_lt_was = cvar("vr_dw_lance_pole");
+    cvar_set("vr_dw_lance_pole", "1");
+    DW_ModelsTest(p, 207);
+    dw_ct_step = dw_ct_frames = 0;
+    makevectors('0 1 0' * p.angles_y);
+    dw_ct_a = VR_Test_Spawn(world, 0, p.origin + v_forward * 200 + '0 0 64', p.angles_y + 180);
+    entity t = spawn();
+    t.classname = "dw_chargetest";
+    t.owner = p;
+    t.think = DW_ChargeTest_Think;
+    t.nextthink = time;
+};
+
 // vr_ad_test 218 (dwellwpn3): the Rotary Shotgun as a gauntlet (vr_dw_rotary_gauntlet), its reload found. In the off
 // hand, its tube empty, the main hand free: drawn with its gauntlet model (slot 56, the super nailgun's hold); its shell
 // port found (the engine's load point for it: vr_view_internal.hpp loadPorts, DwVrRotary; waited for a frame at a time,

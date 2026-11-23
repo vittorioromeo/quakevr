@@ -35,13 +35,18 @@ shot=$(grep -m1 "main  the shot" <<<"$log" | awk '{ print $4 }')
 echo "  the beam off the pole (the line from the hand to the tip): $shot deg"
 check $(awk -v d="$shot" 'BEGIN { print (d != "" && d + 0 < 6) ? 1 : 0 }') "the beam goes along the pole (Shot Pitch: the spear held through the fist)"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "pole: the run ended on its last line"
-# 3. dwellweap: its shot (no magazine: 6 cells from the pouch's 100, the beam's print); dwellweap2: its grip flipped by
+# 3. dwellweap: its shot (no magazine: 6 cells from the pouch's 100, the beam's print), lancecharge: charged (held 30
+#    frames and let go: no shot; held 90, a 1 s charge: the shot as it is let go, its bolt lingering); dwellweap2: its grip flipped by
 #    the eject button (B, vr_revgrip.qc VR_RevGrip_HandFrame), reversed then upright again. (B held 10 frames: a 2-frame
 #    press, dwellweap's, never reached a player frame, so it did not flip.)
-log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;developer 1;vr_mock_hand main 0.2 1.3 -0.3 -22 0 0;vr_ad_test 207;wait60;+attack;wait10;-attack;edict 1;echo dwlance-mark: flips;vr_mock_button main secondary 1;wait10;vr_mock_button main secondary 0;wait30;vr_mock_button main secondary 1;wait10;vr_mock_button main secondary 0;wait30;echo dwlance-test: done" \
-    -QuitOn "dwlance-test: done" -Timeout 300 -Filter "dwlance:|ammo_cells|revgrip:|rror|exit=" 2>&1 | tr -d '\r')
-echo "$log" | grep -E "dwlance:|ammo_cells|revgrip:" | cut -c1-160 | head -5
+log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;developer 1;vr_mock_hand main 0.2 1.3 -0.3 -22 0 0;vr_debug_gunfx 1;vr_ad_test 207;wait60;+attack;wait30;-attack;wait30;+attack;wait90;-attack;wait5;edict 1;vr_debug_gunfx 0;echo dwlance-mark: flips;vr_mock_button main secondary 1;wait10;vr_mock_button main secondary 0;wait30;vr_mock_button main secondary 1;wait10;vr_mock_button main secondary 0;wait30;echo dwlance-test: done" \
+    -QuitOn "dwlance-test: done" -Timeout 300 -Filter "dwlance:|lancecharge:|ammo_cells|revgrip:|rror|exit=" 2>&1 | tr -d '\r')
+echo "$log" | grep -E "dwlance:|lancecharge: (let|fired|bolt)|ammo_cells|revgrip:" | cut -c1-160 | head -9
 check $(grep -q "dwlance: the beam through" <<<"$log" && echo 1 || echo 0) "shot: the beam fired"
+check $(grep -q "dwlance: let go at 0\.[0-9]* (hand 1): no shot" <<<"$log" && grep -q "lancecharge: let go short ent 1 hand 1" <<<"$log" && echo 1 || echo 0) "charge: held 30 frames and let go: no shot (the client fades it out)"
+check $(grep -q "lancecharge: fired ent 1 hand 1" <<<"$log" && grep -q "dwlance: charged (hand 1) after 1\.0" <<<"$log" && echo 1 || echo 0) "charge: held 90 frames, charged in 1 s, fired as let go"
+check $(grep -q "lancecharge: bolt ent 1 hand 1 lingers 0\.35 s" <<<"$log" && echo 1 || echo 0) "charge: its bolt lingers 0.35 s (vr_dw_lance_bolt)"
+check $(grep -c "dwlance: the beam through" <<<"$log" | grep -qx 1 && echo 1 || echo 0) "charge: one shot only (none while held)"
 check $(grep -qE "ammo_cells +94" <<<"$log" && echo 1 || echo 0) "shot: 6 cells taken from the pouch's 100 (no magazine)"
 check $(grep -q "revgrip: hand 1 flips its grip: reversed" <<<"$log" && echo 1 || echo 0) "flip: B turned the Lance's grip over (head down)"
 check $(grep -q "revgrip: hand 1 flips its grip: upright" <<<"$log" && echo 1 || echo 0) "flip: B again, upright"
@@ -92,5 +97,13 @@ echo "$log" | grep -E "dwlance: a thrust|melee event" | cut -c1-160 | head -3
 check $(grep -q "melee event: gun, hand 1, jab" <<<"$log" && echo 1 || echo 0) "thrust: read as a jab (a stab along the pole)"
 check $(grep -qE "dwlance: a thrust, the head \(" <<<"$log" && echo 1 || echo 0) "thrust: landed with the crystal head"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "thrust: the run ended on its last line"
+# 7. lancecharge: vr_ad_test 224 (dw_test.qc DW_ChargeTest): let go at half charge (no shot, no cells), the charge time
+#    (vr_dw_lance_charge 1, then 0.5), held charged without a shot, fired as let go (150 to a grunt, 6 cells), no charge
+#    without its 6 cells.
+log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;vr_positional_damage 0;vr_mock_hand main 0.2 1.3 -0.3 -22 0 0;vr_ad_test 224" \
+    -QuitOn "dwcharge: [0-9]+ passed" -Timeout 300 -Filter "dwcharge|rror|exit=" 2>&1 | tr -d '\r')
+echo "$log" | grep -E "FAIL" | cut -c1-200 | head -6
+expect_verdict "$log" dwcharge "the charged shot: let go short, the charge time, fired as let go, no cells"
+check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "charge: the run ended on its verdict"
 verdict
 exit $fail
