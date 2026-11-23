@@ -1,9 +1,0 @@
-# ad_mod_ladder: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The mods' ladders (AD's and
-# Quoth's trigger_ladder brushes) on our climbing: Quake/vr/vr_climb.cpp ladderHold, its rungs ladderRungStep apart down
-# from the volume's top where the ladder has no real rungs (Quoth's kellbase1); Misc/quakevr/modladder_test.sh.
-title Mod ladders (AD, Quoth): climbed by hand and by the flat ladder
-map ad_crucial
-start -417 -2420 -107 90
-god
-notarget
-hint In a headset: grip the ladder ahead and climb hand over hand, over the top. With -flatscreenmode: walk forward into it (Ladders on): your hands take its rungs and you climb; with Desktop Screen Play > Ladders off, hold jump in it (AD's own climb). Quoth's kellbase1 (Quoth 2.2 installed) has the ladder-on-a-pillar kind (a drawn ladder, no real rungs): the pillar ladders off its arena; there the hands take the drawn rungs themselves (32 units apart; 24 on the catwalk's), in a headset and with -flatscreenmode alike.

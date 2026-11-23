@@ -41,6 +41,10 @@ check(bool(t) and t[0].group(1) == "thrown_weapon", "axe: J held, let go: the ax
 check(bool(find(ls, r'button: .*\(target "r12b_open"\) pressed by (player: )?thrown_weapon')), "axe: it presses lesson 12's high target (r12b_open)")
 landed = find(ls, r"flat throw: landed: thrown_weapon (\d+) units level from where it left, (-?\d+) down, (.*)")
 check(bool(landed) and landed[0].group(3) == "stuck", "axe: it sticks (%s)" % (landed[0].group(0) if landed else "no landing"))
+LEFT = r"flat throw:   left (-?[\d.]+) forward, (-?[\d.]+) right, (-?[\d.]+) up of the eye"
+AMMO = r"flat throw:   ammo (\d+) at the wind-up, (\d+) now; fire refused (\d+) frames"
+lf = find(ls, LEFT)
+check(bool(lf) and float(lf[0].group(2)) > 5, "axe: it leaves from the right (main) hand, not the middle of the view (%s)" % (lf[0].group(0) if lf else "none"))
 
 ls = lines("rock")
 done(ls, "rock")
@@ -60,6 +64,20 @@ else:
     check(False, "rock: a tap and a charge (missing throws)")
     check(False, "rock: the charged throw leaves faster (missing throws)")
 check(bool(find(ls, r'button: .*\(target "r10_open"\) pressed by (player: )?vr_(rock|brick|debris_piece)')), "rock: it presses lesson 10's button behind the bars (r10_open: the gate)")
+lf = find(ls, LEFT)
+side = 1 if len(t) >= 2 and t[1].group(2) == "main" else -1
+check(len(lf) >= 2 and float(lf[1].group(2)) * side > 5,
+      "rock: the charged rock leaves from its hand's side (the %s hand: %s)" % (t[1].group(2) if len(t) > 1 else "?", lf[1].group(0) if len(lf) > 1 else "none"))
+
+ls = lines("nofire")
+done(ls, "nofire")
+w = find(ls, r"flat throw: J: the main hand winds up weapon \d+.* \(ammo (\d+)\)")
+lf = find(ls, AMMO)
+if len(w) >= 2 and len(lf) >= 2:
+    check(int(w[1].group(1)) < int(w[0].group(1)), "nofire: the fire button held before J shoots (ammo %s, then %s)" % (w[0].group(1), w[1].group(1)))
+    check(lf[1].group(1) == lf[1].group(2), "nofire: held through the wind-up it shoots nothing (ammo %s at the wind-up, %s at the throw)" % (lf[1].group(1), lf[1].group(2)))
+else:
+    check(False, "nofire: two nail gun throws (%d wind-ups, %d throws)" % (len(w), len(lf)))
 
 ls = lines("gren")
 done(ls, "gren")

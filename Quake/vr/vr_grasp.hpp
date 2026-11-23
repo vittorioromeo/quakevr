@@ -108,6 +108,8 @@ struct Settings
                               // from the index) and wraps round its outside, if one there does, rather than lying sunk in
     bool thumbAround{false};  // (ropes12) a bar across the palm (a rope, a pole): the thumb opposed further (up to 90
                               // degrees) and wrapped round it the other way from the fingers, never closed over them
+    bool thumbAlong{false};   // (ropes13) a bar too thick to wrap (a pole, vr_rope_thumb_wrap): the thumb resting along its
+                              // side, pointing along it, not round it nor over the fingers
     bool fixedPalm{false};    // round 21, third pass: the palm's move given (palmMove; no turn), not searched nor fitted
     glm::vec3 palmMove{0.f};
     glm::quat palmTurnMove{1.f, 0.f, 0.f, 0.f};

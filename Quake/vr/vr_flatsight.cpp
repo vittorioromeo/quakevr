@@ -753,7 +753,7 @@ bool adsApplies()
     // (Nor with the other hand busy, from the console too: a prop in it, or a blade it holds stuck in a body, flatplay::holdsThing;
     // his words 2026-11-21: "ADS also becomes possible in that state". The sight comes back once it is free.)
     return flatplay::active() && st.ads && st.holding >= 0 && sightalign::alignable(st.holding) && !tilted &&
-           !flatreload::busy(st.holding) && emptyHand(st.helping);
+           !flatreload::busy(st.holding) && !flatgrenade::throwsWith(st.holding) && emptyHand(st.helping);
 }
 
 // The weapon's way back from a wall, a unit vector in the view's frame: towards the hand's shoulder in hipfire, along the
@@ -1828,6 +1828,11 @@ void recoilProbe_f()
 }
 
 } // namespace
+
+bool handEmpty(int h)
+{
+    return h >= 0 && h < 2 && emptyHand(h);
+}
 
 glm::vec3 crosshairHit(const hands::State& s, const glm::vec3& aim)
 {

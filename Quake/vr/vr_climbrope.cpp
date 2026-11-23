@@ -1774,9 +1774,11 @@ za::Vector<view::HandPart> sinkParts;
 // (the middle one: the grip closes it, VR's index is the trigger's) one way, the thumb the other. Per hand drawn fully
 // on one: `thumb` the least of the thumbs' wraps (degrees), `fingers` the middle finger's; `meet` the most of 360 less the two (0: the thumb's tip meets the fingertips, below
 // 0 past them: overlapping), `tipOff` the thumb tip's end's distance off the surface (units, the most). Hands measured.
+// (ropes13) `along` the least of the thumbs' base-to-tip ways' share along the axis (0 across .. 1 along it), `thick`
+// the thickest rope held (a pole thicker than vr_rope_thumb_wrap: the thumb rests along it).
 struct RopeWrap
 {
-    float thumb{1e9f}, fingers{1e9f}, meet{-1e9f}, tipOff{0.f};
+    float thumb{1e9f}, fingers{1e9f}, meet{-1e9f}, tipOff{0.f}, along{1e9f}, thick{0.f};
 };
 [[nodiscard]] int ropeWraps(RopeWrap& out)
 {
@@ -1831,8 +1833,31 @@ struct RopeWrap
         out.thumb = za::min(out.thumb, -thumb * sense);
         out.meet = za::max(out.meet, 360.f - index * sense + thumb * sense);
         out.tipOff = za::max(out.tipOff, za::abs(glm::length(flat(thumbPts[3])) - thick * 0.5f));
+        const glm::vec3 way = thumbPts[3] - thumbPts[0];
+        out.along = za::min(out.along, glm::length(way) > 1e-3f ? za::abs(glm::dot(way, up)) / glm::length(way) : 0.f);
+        out.thick = za::max(out.thick, thick);
     }
     return held;
+}
+
+// (ropes12, ropes13) The thumbs' check: round a rope this thin (vr_rope_thumb_wrap) at least `least` degrees the other way
+// from the fingers; along a thicker one (a pole), its way along the axis at least thumbAlongLeast; the tip on its surface.
+constexpr float thumbAlongLeast = 0.6f;
+[[nodiscard]] bool thumbHolds(const RopeWrap& wrap, int held, float least, const char*& what)
+{
+    const float wrapThick = za::clamp(vr_rope_thumb_wrap.value, 0.f, 64.f);
+    const bool round = wrapThick > 0.f && wrap.thick <= wrapThick;
+    if(round)
+    {
+        what = va("the thumbs round it (%.1f thick): %d hands, the thumb %.0f degrees round (at least %.0f), the fingers %.0f, %.0f "
+                  "short of meeting (below 0: past), the tip %.2f off its surface (at most 1.5)",
+            wrap.thick, held, held ? wrap.thumb : 0.f, least, held ? wrap.fingers : 0.f, held ? wrap.meet : 0.f, wrap.tipOff);
+        return held >= 1 && wrap.thumb >= least && wrap.tipOff <= 1.5f;
+    }
+    what = va("the thumbs along its side (%.1f thick, over vr_rope_thumb_wrap %.1f): %d hands, the thumb %.2f along it (at least "
+              "%.2f), %.0f degrees round, the tip %.2f off its surface (at most 1.5)",
+        wrap.thick, wrapThick, held, held ? wrap.along : 0.f, thumbAlongLeast, held ? wrap.thumb : 0.f, wrap.tipOff);
+    return held >= 1 && wrap.along >= thumbAlongLeast && wrap.tipOff <= 1.5f;
 }
 
 void climbTestFrame()
@@ -2164,12 +2189,12 @@ void climbCheck_f()
     {
         // (ropes12, his ask 2026-11-23) The drawn hands' thumbs wrap the rope the other way round from the fingers: each
         // at least n degrees round it from the palm's middle, its tip on the surface (within 1.5 units).
+        // (ropes13) Along a thicker pole's side instead (thumbHolds).
         RopeWrap wrap;
         const int held = ropeWraps(wrap);
-        check(held >= 1 && wrap.thumb >= n && wrap.tipOff <= 1.5f,
-            va("the thumbs round it: %d hands, the thumb %.0f degrees round (at least %.0f), the fingers %.0f, %.0f short "
-               "of meeting (below 0: past), the tip %.2f off its surface (at most 1.5)",
-                held, held ? wrap.thumb : 0.f, n, held ? wrap.fingers : 0.f, held ? wrap.meet : 0.f, wrap.tipOff));
+        const char* what = "";
+        const bool ok = thumbHolds(wrap, held, n, what);
+        check(ok, what);
     }
     else if(!ZA_STRCMP(what, "where"))
     {
@@ -2275,6 +2300,11 @@ struct FlatTest
     int crossed{0};          // (ropes10) frames the drawn hands were crossed (the right palm left of the left one)
     float crossWorst{0.f};   // (ropes10) the most (units) the right palm was left of the left one
     za::Vector<glm::vec3> made; // (ropes7) the pole's points as made (it never moves)
+    bool ropeJump{false};    // (ropes13) `vr_rope_flat_test ropejump`: up the rope, jumped off: not taken again in the air;
+                             // landed, walked into again: taken
+    bool slide{false};       // (ropes13) `slide` / `poleslide`: up it, crouch held: a quick slide down to the floor
+    bool crouchDrop{false};  // (ropes13) `strungcrouch`: `strung` (the level pole) dropped from with crouch
+    int slides0{0}, sounds0{0}; // (ropes13) the slides begun and the rope's sounds as the slide began
 };
 FlatTest flatTest;
 constexpr const char* flatTestName = "vr_rope_flat_test";
@@ -2306,7 +2336,7 @@ void flatTestEnd(FlatTest& t, bool timedOut, const char* what)
     {
         t.tally.check(false, flatTestName, va("timed out: %s", what));
     }
-    Cbuf_AddText("-forward\n-back\n-moveright\n-moveleft\n-movedown\n-jump\n");
+    Cbuf_AddText("-forward\n-back\n-moveright\n-moveleft\n-movedown\n-jump\n-flatcrouch\n");
     if(t.wall)
     {
         Cvar_SetValueQuick(&vr_flat_rope, t.flatRopeWas);
@@ -2320,12 +2350,11 @@ void flatTestEnd(FlatTest& t, bool timedOut, const char* what)
 constexpr float flatThumbLeast = 60.f; // (ropes12: 90 on the rope, 72 on the pole; the thumb over the fingers: -50)
 void flatThumbCheck(FlatTest& t)
 {
+    // (ropes13: along a thicker pole's side instead, thumbHolds)
     RopeWrap wrap;
     const int held = ropeWraps(wrap);
-    const bool round = held == 2 && wrap.thumb >= flatThumbLeast && wrap.tipOff <= 1.5f;
-    const char* what = va("the thumbs round it: %d hands on it, the thumb %.0f degrees round (at least %.0f), the fingers %.0f, "
-                          "%.0f short of meeting (below 0: past), the tip %.2f off its surface",
-        held, held ? wrap.thumb : 0.f, flatThumbLeast, held ? wrap.fingers : 0.f, held ? wrap.meet : 0.f, wrap.tipOff);
+    const char* what = "";
+    const bool round = thumbHolds(wrap, held, flatThumbLeast, what) && held == 2;
     t.tally.check(round, flatTestName, what);
     if(round)
     {
@@ -2449,11 +2478,11 @@ void flatTestFrame()
             t.fastest = t.fastEarly = 0.f;
             int sounds = 0;
             (void)physsound::ropeSoundInfo(t.rope, sounds, &t.clinks); // (ropes8b: a chain's clinks from here)
-            if(!t.pole && !t.chain)
+            if(!t.pole && !t.chain && !t.ropeJump) // (ropes13: a rope jumped off still, no swing)
             {
                 t.pitch = 0.f;
             }
-            flatTestNext(t, t.pole || t.chain ? 4 : 30);
+            flatTestNext(t, t.pole || t.chain || t.ropeJump ? 4 : 30);
         }
         else if(t.frames > 72 * 4)
         {
@@ -2501,7 +2530,7 @@ void flatTestFrame()
     case 4: // climbing up
     {
         // (ropes10: `polejump` from 300 up: the fall takes over the second the rope let go of isn't taken again for)
-        const float rise = t.jump && !t.slant ? 300.f : 80.f;
+        const float rise = (t.jump && !t.slant && !t.ropeJump) || t.slide ? 300.f : 80.f; // (ropes13: a slide from 300 up)
         if(!climbing || feet >= t.feet0 + rise || t.frames > 72 * 6)
         {
             const char* how = t.pitch >= 0.f ? "looking level (a pole: only climbed)" : "looking up";
@@ -2607,6 +2636,18 @@ void flatTestFrame()
                 Con_Printf("%s: PASS the hands round the pole: both on it, the deepest %.2f units in (%s), %.2f off at the nearest\n",
                     flatTestName, sink, part, za::max(gap, 0.f));
             }
+        }
+        else if(t.frames >= 60 && t.slide)
+        {
+            // (ropes13) Crouch held: the slide down.
+            bool sliding = false;
+            t.slides0 = climb::flatRopeSlides(player, sliding);
+            (void)physsound::ropeSoundInfo(t.rope, t.sounds0);
+            t.feet0 = feet;
+            t.serials = 0;
+            t.lastSerial = -1;
+            Cbuf_AddText("+flatcrouch\n");
+            flatTestNext(t, 60);
         }
         else if(t.frames >= 60 && t.jump)
         {
@@ -2889,7 +2930,7 @@ void flatTestFrame()
             }
             else
             {
-                Cbuf_AddText(t.stage == 24 ? "-forward\n+back\n" : "-back\n+movedown\n");
+                Cbuf_AddText(t.stage == 24 ? "-forward\n+back\n" : t.crouchDrop ? "-back\n+flatcrouch\n" : "-back\n+movedown\n");
             }
             flatTestNext(t, t.stage + 1);
         }
@@ -2915,9 +2956,11 @@ void flatTestFrame()
             const glm::vec2 away{player->v.origin[0] - near.x, player->v.origin[1] - near.y};
             const float level = glm::length(glm::vec2{v.x, v.y});
             const float out = glm::length(away) > 1e-3f ? glm::dot(glm::vec2{v.x, v.y}, glm::normalize(away)) : 0.f;
-            const bool ok = v.z >= 0.85f * vr_pole_jump.value && out >= 0.85f * vr_pole_jump_push.value;
-            const char* what = va("jumped off the pole: %.0f up (at least %.0f), %.0f level, %.0f of it away from the pole (at least %.0f)",
-                v.z, 0.85f * vr_pole_jump.value, level, out, 0.85f * vr_pole_jump_push.value);
+            // (ropes13) Off a rope: its jump up only (vr_rope_jump; no push).
+            const bool ok = t.pole ? v.z >= 0.85f * vr_pole_jump.value && out >= 0.85f * vr_pole_jump_push.value : v.z >= 0.6f * vr_rope_jump.value; // (its swing from the walk in adds or takes some)
+            const char* what = t.pole ? va("jumped off the pole: %.0f up (at least %.0f), %.0f level, %.0f of it away from the pole (at least %.0f)",
+                                            v.z, 0.85f * vr_pole_jump.value, level, out, 0.85f * vr_pole_jump_push.value)
+                                      : va("jumped off the rope: %.0f up (at least %.0f), %.0f level", v.z, 0.6f * vr_rope_jump.value, level);
             t.tally.check(ok, flatTestName, what);
             if(ok)
             {
@@ -2953,8 +2996,56 @@ void flatTestFrame()
         {
             const float off = glm::length(glm::vec2{player->v.origin[0] - flatTestRope.x, player->v.origin[1] - flatTestRope.y});
             const bool ok = ground && !climbing && taken == t.ropesBefore && t.serials == 0 && za::abs(feet) < 2.f;
-            const char* what = va("fell freely to the floor: %.2f s from %.1f up, %d frames held back, landed %.1f from the pole, %s",
-                t.frames / 72.f, t.feet0, t.serials, off, taken > t.ropesBefore || climbing ? "TAKEN AGAIN" : "not taken again");
+            const char* what = va("fell freely to the floor: %.2f s from %.1f up, %d frames held back, landed %.1f from the %s, %s",
+                t.frames / 72.f, t.feet0, t.serials, off, t.pole ? "pole" : "rope", taken > t.ropesBefore || climbing ? "TAKEN AGAIN" : "not taken again");
+            t.tally.check(ok, flatTestName, what);
+            if(ok)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, what);
+            }
+            if(t.ropeJump && ok)
+            {
+                // (ropes13) Landed: the same rope walked into again is taken (the retake time past, on the ground once).
+                t.ropesBefore = taken;
+                Cbuf_AddText("+forward\n");
+                flatTestNext(t, 52);
+                return;
+            }
+            flatTestEnd(t, false, "");
+        }
+        return;
+    }
+    case 52: // (ropes13) walked into the rope jumped off, landed
+        if(taken > t.ropesBefore && climbing)
+        {
+            const char* what = va("landed, walked into the same rope again: taken after %.2f s", t.frames / 72.f);
+            t.tally.check(true, flatTestName, what);
+            Con_Printf("%s: PASS %s\n", flatTestName, what);
+            flatTestEnd(t, false, "");
+        }
+        else if(t.frames > 72 * 3)
+        {
+            flatTestEnd(t, true, "walking into the rope jumped off again");
+        }
+        return;
+    // (ropes13, his note 2026-11-23) `slide` / `poleslide`: crouch held up it: down to the floor at vr_flat_rope_slide_speed
+    // (at least 80% of it on average), the hands sliding with him (no hand over hand), its scrape playing while he slides
+    // (a grain each ropeSlideGrainGap), stopped as he stands on the floor.
+    case 60:
+    {
+        bool sliding = false;
+        const int slides = climb::flatRopeSlides(player, sliding);
+        if(!climbing && ground)
+        {
+            int sounds = 0;
+            (void)physsound::ropeSoundInfo(t.rope, sounds);
+            const float speed = t.frames > 0 ? (t.feet0 - feet) / (static_cast<float>(t.frames) / 72.f) : 0.f;
+            const float want = 0.8f * za::clamp(vr_flat_rope_slide_speed.value, 20.f, 800.f);
+            const bool ok = speed >= want && za::abs(feet) < 2.f && slides == t.slides0 + 1 && t.serials <= 1 && sounds - t.sounds0 >= 1 && !sliding;
+            const char* what = va("crouch held: slid down the %s from %.1f to %.1f in %.2f s, %.0f units/s (at least %.0f), %d slide, "
+                                  "%d hand changes (at most 1), %d scrape grains, %s at the floor",
+                t.pole ? "pole" : "rope", t.feet0, feet, t.frames / 72.f, speed, want, slides - t.slides0, t.serials, sounds - t.sounds0,
+                sliding ? "STILL SCRAPING" : "the scrape stopped");
             t.tally.check(ok, flatTestName, what);
             if(ok)
             {
@@ -2962,22 +3053,29 @@ void flatTestFrame()
             }
             flatTestEnd(t, false, "");
         }
+        else if(t.frames > 72 * 6)
+        {
+            flatTestEnd(t, true, va("sliding down (feet at %.1f from %.1f)", feet, t.feet0));
+        }
         return;
     }
-    case 26: // the move-down key: dropped
+    case 26: // the move-down key (ropes13: or crouch, `strungcrouch`): dropped
+    {
+        const char* key = t.crouchDrop ? "crouch" : "the move-down key";
         if(!climbing)
         {
-            Cbuf_AddText("-movedown\n");
-            t.tally.check(true, flatTestName, "dropped from it with the move-down key");
-            Con_Printf("%s: PASS dropped from it with the move-down key (feet at %.1f)\n", flatTestName, feet);
+            Cbuf_AddText(t.crouchDrop ? "-flatcrouch\n" : "-movedown\n");
+            t.tally.check(true, flatTestName, va("dropped from it with %s", key));
+            Con_Printf("%s: PASS dropped from it with %s (feet at %.1f)\n", flatTestName, key, feet);
             flatTestEnd(t, false, "");
         }
         else if(t.frames > 72)
         {
-            Cbuf_AddText("-movedown\n");
-            flatTestEnd(t, true, "dropping with the move-down key");
+            Cbuf_AddText(t.crouchDrop ? "-flatcrouch\n" : "-movedown\n");
+            flatTestEnd(t, true, va("dropping with %s", key));
         }
         return;
+    }
     default:
         return;
     }
@@ -2996,9 +3094,13 @@ void flatTest_f()
     const char* mode = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
     flatTest.wall = !ZA_STRCMP(mode, "wall");
     flatTest.slant = !ZA_STRCMP(mode, "slantjump");
-    flatTest.jump = !ZA_STRCMP(mode, "polejump") || flatTest.slant;
+    flatTest.ropeJump = !ZA_STRCMP(mode, "ropejump");
+    flatTest.jump = !ZA_STRCMP(mode, "polejump") || flatTest.slant || flatTest.ropeJump;
+    flatTest.slide = !ZA_STRCMP(mode, "slide") || !ZA_STRCMP(mode, "poleslide");
+    flatTest.crouchDrop = !ZA_STRCMP(mode, "strungcrouch");
     flatTest.side = !ZA_STRCMP(mode, "strungside");
-    flatTest.pole = !ZA_STRCMP(mode, "pole") || !ZA_STRCMP(mode, "strungpole") || flatTest.wall || flatTest.jump || flatTest.side;
+    flatTest.pole = !ZA_STRCMP(mode, "pole") || !ZA_STRCMP(mode, "strungpole") || flatTest.wall || (flatTest.jump && !flatTest.ropeJump) ||
+                    flatTest.side || !ZA_STRCMP(mode, "poleslide") || flatTest.crouchDrop;
     if(flatTest.wall)
     {
         flatTest.flatRopeWas = vr_flat_rope.value;
@@ -3006,7 +3108,7 @@ void flatTest_f()
     }
     flatTest.shots = Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(2), "shots");
     flatTest.chain = !ZA_STRCMP(mode, "chain");
-    flatTest.stage = !ZA_STRCMP(mode, "strung") || !ZA_STRCMP(mode, "strungpole") || flatTest.side ? 20 : 1;
+    flatTest.stage = !ZA_STRCMP(mode, "strung") || !ZA_STRCMP(mode, "strungpole") || flatTest.side || flatTest.crouchDrop ? 20 : 1;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -4745,11 +4847,15 @@ int pick(const glm::vec3& from, const glm::vec3& dir, float range, float& distan
     return best;
 }
 
-bool findGrab(const glm::vec3& hand, float reach, Grab& out)
+bool findGrab(const glm::vec3& hand, float reach, Grab& out, int only)
 {
     float best = 1e9f;
     for(const auto& kv : ropes)
     {
+        if(only > 0 && kv.first != only)
+        {
+            continue;
+        }
         const Rope& r = kv.second;
         float arc = 0.f;
         for(za::SizeT j = 0; j + 1 < r.p.size(); arc += r.rest[j], j++)

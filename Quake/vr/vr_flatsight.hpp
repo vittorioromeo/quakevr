@@ -111,6 +111,10 @@ void noteDrawn(const hands::State& s);
 // (flatplay::routeFire). A melee weapon is never stopped (the caller's: it knows what punches).
 [[nodiscard]] bool wallBlocksFire(int h);
 
+// Whether hand `h` has nothing in it: no weapon but the fist, no gun, prop or foe it carries (the ironsight's helping
+// hand's test; the flat throw's guiding hand, vr_flatgrenade.cpp).
+[[nodiscard]] bool handEmpty(int h);
+
 // Lying down (vr_flat_prone_floor): hand `h`'s gun met the floor this frame and its tilt is the floor's (laid flush on
 // it); `left` (if given): how deep in it the tilt left it (units, the tilt's own measure; the room past it does the rest).
 [[nodiscard]] bool floorFlush(int h, float* left = nullptr);
