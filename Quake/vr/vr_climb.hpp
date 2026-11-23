@@ -159,7 +159,11 @@ float drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm:
 // way out `out` (towards the climber) -> true: its palm's middle on the rope as drawn this frame (the drawn curve's
 // point nearest the hold, out from it by ropeHandOffset's or, a thick chain, its surface a little in) and the rope's way
 // up there (`up`, if given). False: no rope drawn near it. Yours (drawnHand) and another player's (vr_mpavatar.cpp).
-[[nodiscard]] bool ropePalm(const glm::vec3& hold, const glm::vec3& out, glm::vec3& palm, glm::vec3* up);
+[[nodiscard]] bool ropePalm(const glm::vec3& hold, const glm::vec3& out, glm::vec3& palm, glm::vec3* up, glm::vec3* axis = nullptr,
+    float* thick = nullptr); // (ropes8a: `axis` the rope's point there, `thick` its thickness)
+// Client (ropes8a): the drawn `hand` on a rope or a pole: its axis as drawn at the hand (`at`, its way up `up`), its
+// thickness, how far the hand is drawn on it (`weight`, 0..1). False: not on one. (vr_view_hands.cpp: the grip round it.)
+[[nodiscard]] bool ropeLine(int hand, glm::vec3& at, glm::vec3& up, float& thickness, float& weight);
 
 // Client: how far the drawn `hand` is on its hold, as drawnHand last made it (0..1): a flat mantle's free hand leaves the
 // other hand's gun for it (vr_view_hands.cpp).

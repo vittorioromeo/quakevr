@@ -160,6 +160,7 @@ vr_ad_test       213      dwell/dw_test.qc                Dwell's map pickups ta
 vr_ad_test       210      dwell/dw_test.qc                the Sculptor's ring (d2end): shots hit it past its old 96-unit box and fly through its hole (DW_D2_FightBox, precise hits)
 vr_ad_test       205-208  dwell/dw_test.qc               Dwell's weapons drawn as their own VR models (made from Dwell's view models) in the hands and a holster, AD's Widowmaker still its own; 206-208 one alone in the main hand (dwell_vrmodels_test.sh's screenshots)
 vr_ad_test       217      dwell/dw_test.qc               the Crystal Lance as a lance (vr_dw_lance_pole): its lance model and crystal head blow, the pistol and the club with the setting off (dwell_lance_test.sh)
+vr_ad_test       224      dwell/dw_test.qc               the Crystal Lance's charged shot (vr_dw_lance_charge): let go at half charge no shot, no cells; full in the set time, fired as let go, 150 and 6 cells; no charge without its cells (dwell_lance_test.sh)
 vr_ad_test       218      dwell/dw_test.qc               the Rotary Shotgun as a gauntlet (vr_dw_rotary_gauntlet): its gauntlet model, its shell port found and its tube filled there a handful at a time, the super shotgun's grip with the setting off (dwell_rotary_test.sh)
 
 vr_agrunt_test   1        vr_armedgrunt_test.qc            every weapon in turn ahead of you

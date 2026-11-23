@@ -228,6 +228,30 @@
 ( 604 316 96 ) ( 605 316 96 ) ( 604 316 97 ) qvr_trim [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
 ( 604 316 96 ) ( 604 316 97 ) ( 604 317 96 ) qvr_trim [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
+{
+( -336 -254 0 ) ( -336 -253 0 ) ( -336 -254 1 ) qvr_trim [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -336 -254 0 ) ( -336 -254 1 ) ( -335 -254 0 ) qvr_trim [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -336 -254 0 ) ( -335 -254 0 ) ( -336 -253 0 ) qvr_trim [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -328 -246 94 ) ( -328 -245 94 ) ( -327 -246 94 ) qvr_trim [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -328 -246 94 ) ( -327 -246 94 ) ( -328 -246 95 ) qvr_trim [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -328 -246 94 ) ( -328 -246 95 ) ( -328 -245 94 ) qvr_trim [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+}
+{
+( -72 -254 0 ) ( -72 -253 0 ) ( -72 -254 1 ) qvr_trim [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -72 -254 0 ) ( -72 -254 1 ) ( -71 -254 0 ) qvr_trim [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -72 -254 0 ) ( -71 -254 0 ) ( -72 -253 0 ) qvr_trim [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -64 -246 94 ) ( -64 -245 94 ) ( -63 -246 94 ) qvr_trim [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -64 -246 94 ) ( -63 -246 94 ) ( -64 -246 95 ) qvr_trim [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -64 -246 94 ) ( -64 -246 95 ) ( -64 -245 94 ) qvr_trim [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+}
+{
+( 504 -456 224 ) ( 504 -455 224 ) ( 504 -456 225 ) qvr_trim [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 504 -456 224 ) ( 504 -456 225 ) ( 505 -456 224 ) qvr_trim [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 504 -456 224 ) ( 505 -456 224 ) ( 504 -455 224 ) qvr_trim [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 536 -424 512 ) ( 536 -423 512 ) ( 537 -424 512 ) qvr_trim [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 536 -424 512 ) ( 537 -424 512 ) ( 536 -424 513 ) qvr_trim [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 536 -424 512 ) ( 536 -424 513 ) ( 536 -423 512 ) qvr_trim [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+}
 }
 // entity 1
 {
@@ -371,11 +395,43 @@
 }
 // entity 20
 {
+"classname" "vr_pole"
+"origin" "-320 -250 88"
+"rope_end" "-80 -250 88"
+"rope_style" "1"
+}
+// entity 21
+{
+"classname" "func_worldtext_banner"
+"worldtext" "LEVEL POLE: hang under it, hand over hand"
+"worldtext_halign" "1"
+"worldtext_scale" "0.35"
+"angle" "90"
+"origin" "-200 -300 40"
+}
+// entity 22
+{
+"classname" "vr_pole"
+"origin" "520 -440 224"
+"rope_end" "520 -552 1"
+"rope_style" "0"
+}
+// entity 23
+{
+"classname" "func_worldtext_banner"
+"worldtext" "SLANTED POLE: climb it"
+"worldtext_halign" "1"
+"worldtext_scale" "0.35"
+"angle" "90"
+"origin" "520 -620 72"
+}
+// entity 24
+{
 "classname" "info_player_start"
 "origin" "0 -600 24"
 "angle" "90"
 }
-// entity 21
+// entity 25
 {
 "classname" "light"
 "origin" "-576 -576 464"
@@ -383,7 +439,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 22
+// entity 26
 {
 "classname" "light"
 "origin" "-576 -192 464"
@@ -391,7 +447,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 23
+// entity 27
 {
 "classname" "light"
 "origin" "-576 192 464"
@@ -399,7 +455,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 24
+// entity 28
 {
 "classname" "light"
 "origin" "-576 576 464"
@@ -407,7 +463,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 25
+// entity 29
 {
 "classname" "light"
 "origin" "-192 -576 464"
@@ -415,7 +471,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 26
+// entity 30
 {
 "classname" "light"
 "origin" "-192 -192 464"
@@ -423,7 +479,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 27
+// entity 31
 {
 "classname" "light"
 "origin" "-192 192 464"
@@ -431,7 +487,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 28
+// entity 32
 {
 "classname" "light"
 "origin" "-192 576 464"
@@ -439,7 +495,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 29
+// entity 33
 {
 "classname" "light"
 "origin" "192 -576 464"
@@ -447,7 +503,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 30
+// entity 34
 {
 "classname" "light"
 "origin" "192 -192 464"
@@ -455,7 +511,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 31
+// entity 35
 {
 "classname" "light"
 "origin" "192 192 464"
@@ -463,7 +519,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 32
+// entity 36
 {
 "classname" "light"
 "origin" "192 576 464"
@@ -471,7 +527,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 33
+// entity 37
 {
 "classname" "light"
 "origin" "576 -576 464"
@@ -479,7 +535,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 34
+// entity 38
 {
 "classname" "light"
 "origin" "576 -192 464"
@@ -487,7 +543,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 35
+// entity 39
 {
 "classname" "light"
 "origin" "576 192 464"
@@ -495,7 +551,7 @@
 "wait" "0.5"
 "_color" "1 0.96 0.9"
 }
-// entity 36
+// entity 40
 {
 "classname" "light"
 "origin" "576 576 464"

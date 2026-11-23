@@ -118,6 +118,18 @@ texture (debris::materialOf: wood, metal). A map flag (`_qvr_poles 1`) or a key 
 brushes would need a pass over the BSP's brushes at map load (their hull 0 planes) and an entity-less record (a negative
 id, never sent as gone). Nothing else changes: the holds, the legs and the flat climb already work on any pinned line.
 
+**ropes8a (his flat notes 2026-11-23):** a pole is strung as a rope is (`target` / `rope_end`; the toolgun's Span with
+Pole: taut, level or slanted): past `vr_rope_monkey_angle` a monkey traverse, else climbed (vrropes: a level metal pole
+88 high, south, and a slanted wooden one 27 degrees off upright, south-east). **Solid:** boxes along it (QC
+`vr_pole_solid`, `placeSolids`: one upright or level, up to 32 slanted, within its thickness of it): players and
+monsters stop at it, the climber on it passes (their owner, `passSolids`: holding a rope within 24 units, or inside a
+box until out), shots, nails and blows hit it (takedamage, never dealt any: `T_DamageImpl`) and `VR_MaterialOf` makes
+it metal (sparks) or wood (splinters); the navmesh cuts each box out (vr_nav.cpp, 8 units across at least). **Drawn**
+with a per-pixel surface (the tube shader's `Pattern`): wood grain along it, or brushed steel with a joint every 48.
+**The hands round it** (VR and flat, `vr_view_hands.cpp` ropeGrip / ropeHeld; ropes too): the hand's grip channel laid
+on the rope's axis, out along the palm's normal by the radius less the channel's, then by what of the palm and thumb is
+still in it; the fingers wrap a cylinder of its thickness (the grasp's solve, a kept shape per quarter unit).
+
 ## Strung ropes and the monkey traverse (ropes7)
 
 A rope between two points: `vr_rope` with `target` or `rope_end` ("x y z"), `rope_slack` its length over the line
@@ -147,7 +159,9 @@ flatRope, flatRopeFrame), the flat ladder's way (`flatLadder`) on a rope:
   shoulders, at least `vr_climb_min_height` over the feet, at most an arm over the shoulders. Both hands take it: the
   main hand half an arm over the shoulders, the off hand 12 units under it. The hang is the headset's rope hang (his
   weight rides it, `climbrope::ride`; the swing he brings to it swings it: walking in at full speed swings it well).
-- **The keys:** looking up past `vr_flat_rope_look` (25 degrees), forward climbs up at `vr_flat_ladder_speed` (100;
+- **(ropes8a) The keys:** forward always climbs up and back down (ropes and poles), whatever the view's pitch; the
+  strafe keys pump the swing (sideways to the view). `vr_flat_rope_keys 1` brings back the old keys:
+- **The old keys:** looking up past `vr_flat_rope_look` (25 degrees), forward climbs up at `vr_flat_ladder_speed` (100;
   looking down, down; back the other way; the move up / down keys too); the hands go hand over hand along it (the lower
   one, once under the shoulders, 12 units over the other; going down the higher, once half an arm over them, 12 under).
   Looking nearer level the move keys pump its swing (the pump's rules above, the view's yaw). Jump lets go keeping the
@@ -257,6 +271,13 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
   passed each. `rope_flat_test.sh <agent> pole`: walked into, up 80.6, down, never moved: 4 passed.
   `rope_flat_test.sh <agent> strung` (a rope strung 110 up along his way, 1% slack): jumped up to (a monkey traverse,
   sagging under him), forward along it 80 units, back 40, dropped with the move-down key.
+- (ropes8a) `vr_pole_solid_test` (vrropes; Debug > Tests > Climbable Ropes > Test the Poles' Solidity): 4 poles, 35
+  boxes (the slanted one 32), on their poles, a player's box and a shot's line stopped by each, wood 4 / metal 3, walking
+  under the level pole free, the navmesh's obstacles rebuilt: 7 passed. `rope_climb_test.sh` `pole_monkey` (a level pole
+  across him): 6 passed; `vr_rope_climb_check sink <n>` (rope_climb, pole_wood, pole_metal at 0.3): the drawn hands'
+  deepest vertex 0.00 units in (was 1.42 on a pole), on it. `rope_flat_test.sh <agent> strungpole`: 4 passed; the flat
+  rope test climbs with forward looking level, down with back looking up, and pumps with the strafe key facing across
+  the row (let go passing the next rope); `pole` also checks the hands hanging still (fingertips 0.44 in, bound 0.5).
 - `mp_test.py ropes` (`Misc/quakevr/mp`; dedicated server, A, and B through the proxy): the server hangs a rope and a
   chain (`vr_rope_spawn`); B has both with the server's points and style (bottom within a unit); pushed
   (`vr_rope_push`), B sees both swing (over 20 units); B's copies within a unit of the server's after. 9 passed.

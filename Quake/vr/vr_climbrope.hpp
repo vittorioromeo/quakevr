@@ -41,6 +41,10 @@ void blast(const glm::vec3& at, float damage);
 // through pushed where it crosses them.
 void shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity, float mass);
 
+// Server (ropes8a): whether edict `num` is a climbing pole's collision box (QC vr_pole_solid) -> true and its bounds
+// (the navmesh's obstacles, vr_nav.cpp).
+[[nodiscard]] bool solidBox(int num, glm::vec3& lo, glm::vec3& hi);
+
 // Whether `classname` is a rope's (vr_rope, vr_chain) or a climbing pole's (vr_pole, ropes7: a static rope).
 [[nodiscard]] bool isRopeClass(const char* classname);
 

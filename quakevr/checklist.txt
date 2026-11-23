@@ -31,6 +31,11 @@ Flat-screen or VR: in the hub, from the top of the stairs all ten lecterns stand
 Flat-screen or VR: on Quoth's kellbase1 pillar ladder, run at it from the side and climb: no sideways slide once on it, and the hands close on each bar's front instead of through it. {test:quoth_kellbase_ladder}
 Flat-screen: on Quoth's kellbase1 pillar ladder, getting on off its middle eases you to the ladder's middle and out of its bars as far as the room in front allows. {test:quoth_kellbase_ladder}
 Run QuakeVR-Setup.exe downloaded from the 1.2.0-beta2 pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk from that release, installs it and the files, and the game starts from Library > Unknown Sources and its console names version 1.2.0-beta2. {test:hub_start}
+Flat-screen: in the ropes hall climb a rope and a pole looking level, up and down: forward always climbs up and back always down, whatever the pitch; the strafe keys pump a rope's swing. {test:ropes}
+Flat-screen or VR: climb the wooden and metal poles: the hands close round the pole's surface, the fingers wrapping it, no hand through it. {test:ropes}
+Flat-screen or VR: the level metal pole (south) is a hand-over-hand traverse hanging under it; the slanted wooden pole (south-east) climbs like the upright ones; the toolgun's Pole with a Span strings one. {test:ropes}
+Flat-screen or VR: walk into the poles (they stop you, climbing one doesn't), shoot and punch them: sparks off metal, splinters off wood. {test:ropes}
+Flat-screen or VR: the poles look like wood (grain along it) and brushed metal (a joint every so often), not a plain colour. {test:ropes}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, and the crystal head glowing violet for a moment after each shot. {test:dwell_lance_pole}
@@ -40,6 +45,9 @@ Dwell's Rotary Shotgun in hand: your hand goes into a hole at the back of its ho
 Dwell's Rotary Shotgun: the ammo screen sits on the housing's top at the back in a wedge like the super nailgun's, tilted up to your eye in a riveted brown bezel, readable as you aim. {test:dwell_rotary}
 Dwell's Rotary Shotgun: the shell port on the inner side is a little bigger, black and set into the gun (not shiny); reloading there still fills it. {test:dwell_rotary}
 Dwell's Rotary Shotgun: four separate round barrels with deep gaps between them, open holes at the front, still turning as you fire; no orange flare on the housing's underside. {test:dwell_rotary}
+Flat-screen or VR: hold fire with Dwell's Crystal Lance: violet sparks gather at the crystal tip, a violet light there grows and a hum rises for about a second; let go early and they fade out smoothly with no shot and no cells spent. {test:dwell_lance_pole}
+Flat-screen or VR: hold Dwell's Crystal Lance's fire until fully charged (the light pulses), then let go: it fires once (6 cells) and its lightning bolt stays visible for a moment instead of flickering. {test:dwell_lance_pole}
+In multiplayer, a player charging Dwell's Crystal Lance shows the gathering sparks, light and hum at his Lance's tip to the others, and they see his bolt when he fires. {test:mp_coop_bot}
 
 [2. Quoth]
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open {test:hub_start}
@@ -125,6 +133,8 @@ Flat-screen: 4 and 5 put the left / right hand's weapon into a free holster (the
 Flat-screen: 6 and 7 drop what the left / right hand holds; 3 still swaps the hands. {test:flat_holster_numkeys}
 Flat-screen: Options > Controls lists the six new keys (Cycle/Holster/Drop left and right hand) under "Quake VR (flat screen)", rebindable, marked "!" where they clash, and Reset Flat Keys restores 1, 2, 4, 5, 6, 7. {test:flat_holster_numkeys}
 Flat-screen: holding the rocket launcher in the right hand, 1 takes the left hand off its grip with a holstered weapon, and pressing 1 until the hand is empty puts the left hand back on the grip. {test:flat_holster_numkeys}
+Flat-screen: swim in the pool: forward the hands do a breaststroke, back they push the water ahead, sideways they sweep it away, jump presses it down, down pulls it up, and still they tread water; the strokes speed up and grow with your speed. {test:flat_swim}
+Flat-screen: under water a two-handed gun (the nailgun) is held in one hand and the free hand swims; firing or reloading the gun hand's stroke gives way smoothly and comes back after; out of the water the free hand goes back on the gun. {test:flat_swim}
 
 [6. Ropes and chains]
 In the ropes hall, grab a rope or chain with both hands: each hand grips it with the rope through the fist, the right hand's knuckles to the right and the left's to the left, not pointing up. {test:ropes}

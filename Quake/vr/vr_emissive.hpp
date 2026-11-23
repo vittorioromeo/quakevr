@@ -38,6 +38,9 @@ void hotBladeLight(int index, const glm::vec3& pos, const glm::vec3& color, floa
 // (syncfix5) Another player's copy's hot barrel in `hand` (player entity `player`, 1..16): the same light, keys -0x5A20 ..
 // -0x5A3F (lasting a frame: none cast, it goes out by itself).
 void otherHotBarrelLight(int player, int hand, const glm::vec3& pos, const glm::vec3& color, float strength, float radius);
+// Dwell's Crystal Lance charging (vr_lancecharge.cpp): player `player`'s (1..16: yours too) crystal tip in `hand` lit this
+// frame, the same light, keys -0x5A40 .. -0x5A5F (lasting a frame).
+void lanceChargeLight(int player, int hand, const glm::vec3& pos, const glm::vec3& color, float strength, float radius);
 
 // A power-up's glow on you (vr_view.cpp powerupGlow: Quad's blue, the pentagram's red, the biosuit's green): light
 // `index` (0, 1 the hands) this frame at `pos` in `color`, reaching `radius` units, `strength` 0..2 (0: put out).

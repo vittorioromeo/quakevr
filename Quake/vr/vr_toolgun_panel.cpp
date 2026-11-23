@@ -1164,7 +1164,7 @@ void ropePage(Ui& ui)
     else
     {
         // (ropes7) Strung ropes (a span: from overhead to that far ahead, its end pinned) and the poles.
-        sliderRow(ui, Rect{x0, 64.f, x1, 78.f}, "Span (0: hangs)", vr_rope_spawn_span, 0.f, 1024.f, 16.f, "%.0f");
+        sliderRow(ui, Rect{x0, 64.f, x1, 78.f}, "Span (0: hangs, stands)", vr_rope_spawn_span, 0.f, 1024.f, 16.f, "%.0f");
         sliderRow(ui, Rect{x0, 80.f, x1, 94.f}, "End Rise", vr_rope_spawn_rise, -512.f, 512.f, 16.f, "%.0f");
         sliderRow(ui, Rect{x0, 96.f, x1, 110.f}, "Slack", vr_rope_spawn_slack, 0.f, 1.f, 0.05f, "%.2f");
         sliderRow(ui, Rect{x0, 120.f, x1, 134.f}, "Pole Thickness", vr_rope_spawn_pole_thickness, 1.f, 12.f, 0.5f, "%.1f");

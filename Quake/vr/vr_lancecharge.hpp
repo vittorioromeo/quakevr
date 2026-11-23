@@ -1,0 +1,33 @@
+// vr_lancecharge.hpp -- Dwell's Crystal Lance's charged shot as drawn and heard (ROUND25.md, "lancecharge"; his note
+// 2026-11-23). The server (QC dw_items.qc DW_LanceChargeFrame) charges it while the trigger is held and fires it as it is
+// let go fully charged; it tells every client of each charge begun, let go short or fired (QVR_SVC_LANCECHARGE). Here, at
+// the player's Lance's crystal tip (its drawn muzzle: yours, or another player's copy's, mpavatar): violet sparks
+// gathering in, denser as it charges; a violet light growing with the charge (pulsing once full); a hum rising in pitch
+// and volume (vr/lance_charge.wav, looped: Misc/quakevr/make_lance_sounds.py). Let go short, they fade out over
+// vr_dw_lance_charge_fade s; fired, they go out at once and its bolt (the beam) lingers vr_dw_lance_bolt s (beamLife).
+// The same code for flat and VR play, yours and the other players'. vr_debug_gunfx 1 prints "lancecharge: ..." lines.
+
+#pragma once
+
+#include "vr_view.hpp"
+
+namespace qvr::lancecharge
+{
+
+// QVR_SVC_LANCECHARGE.
+void parse();
+
+// Once a frame (vr_weaponfx.cpp frame), your hands' drawn weapons `own`: every charge drawn and heard.
+void frame(const view::ViewEntity (&own)[2]);
+
+// CL_ParseBeam: seconds a new beam keyed `ent` (an entity | (beam id + 1) << 16, vr_client.cpp VR_ParseBeamEntity) is
+// drawn: vr_dw_lance_bolt for a Crystal Lance's (a player's hand holding one, a Lance prop's), Quake's 0.2 else.
+[[nodiscard]] float beamLife(int ent);
+
+// The hum's sound loaded (vr_main.cpp's map preparation).
+void prepare();
+
+// Everything forgotten (the client's state cleared).
+void clear();
+
+} // namespace qvr::lancecharge

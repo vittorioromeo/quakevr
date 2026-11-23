@@ -1608,6 +1608,9 @@ QVR_TUNABLE(vr_dmg_axe, "20") // the axe's blow
 QVR_TUNABLE(vr_dw_lance_thrust, "1.5") // Dwell's Crystal Lance held as a lance: a thrust (a stab) landing with its crystal head, times its blow's damage (QC dw_items.qc DW_LanceMelee)
 QVR_TUNABLE(vr_dw_lance_poke, "0.4")   // ... a stab landing on its shaft short of the head: a poke, times its blow's damage
 QVR_TUNABLE(vr_dw_lance_head, "0.55")  // ... where its head starts: the share of the line from the hand to the tip
+QVR_TUNABLE(vr_dw_lance_charge, "1")   // ... its shot charged: s the trigger is held before it fires as it is let go (QC dw_items.qc DW_LanceChargeFrame; 0: fires on the pull)
+QVR_TUNABLE(vr_dw_lance_charge_fade, "0.25") // ... a charge let go short: s its sparks, light and hum fade out over (vr_lancecharge.cpp)
+QVR_TUNABLE(vr_dw_lance_bolt, "0.35")  // ... s its fired bolt lingers (vr_lancecharge.cpp beamLife; Quake's beam 0.2)
 QVR_TUNABLE(vr_dmg_gun_bash, "12") // a gun swung as a club
 QVR_TUNABLE(vr_dmg_chainsaw_swing, "26") // an ogre's chainsaw swung (its running chain: vr_chainsaw_damage)
 QVR_TUNABLE(vr_dmg_mjolnir, "25") // Mjolnir's blow
@@ -2083,7 +2086,8 @@ QVR_TUNABLE(vr_flat_mantle_hand_spread, "14") // flatscreen mantle: the hands on
 QVR_TUNABLE(vr_flat_ladder_speed, "100") // flatscreen ledge ladder (vr_flat_ladder): how fast he climbs up or down it (units/s, 20..400)
 QVR_TUNABLE(vr_flat_ladder_look_down, "35") // flatscreen ledge ladder: looking down further than this (degrees, 0..90), forward climbs down
 QVR_TUNABLE(vr_flat_ladder_push, "120") // flatscreen ledge ladder: jump pushes off it at this speed away from it (units/s, 0..600; and half that up)
-QVR_TUNABLE(vr_flat_rope_look, "25") // flatscreen ropes (vr_flat_rope): looking up (down) further than this (degrees, 5..80), forward climbs up (down) the rope; within it the move keys pump its swing
+QVR_TUNABLE(vr_flat_rope_look, "25") // flatscreen ropes (vr_flat_rope): walking into a rope takes it looking no further down than this (degrees, 5..80); with vr_flat_rope_keys 1, looking up (down) further than this, forward climbs up (down) the rope, within it the move keys pump its swing
+QVR_TUNABLE(vr_flat_rope_keys, "0") // flatscreen ropes and poles (ropes8a, his note 2026-11-23): 0 forward always climbs up and back down, whatever the view's pitch, the strafe keys pump the swing (sideways to the view); 1 as before ropes8a: looking up or down past vr_flat_rope_look forward climbs, nearer level the move keys pump
 QVR_TUNABLE(vr_flat_ladder_reach, "16") // flatscreen ledge ladder: how far ahead of his box's front its rungs are looked for (units, 4..48)
 QVR_TUNABLE(vr_flat_hand_collide, "1") // flatscreen: empty hands (the guard, at rest) go back off walls and props as a held weapon does, and a punch or a weapon's swing stops at the surface (vr_flatplay.cpp handOffWall, vr_flatsight.cpp pushBack; 0: they go through, as before)
 QVR_TUNABLE(vr_flat_swing_wind_strikes, "0") // 1: the overhead swing's windup (the raise) may land a blow on what it passes (it knocked a near knight out of the strike's way); 0: only from its top on
@@ -2342,6 +2346,24 @@ QVR_TUNABLE(vr_flat_hitdir_arc, "40") // a mark's length round the crosshair (5.
 QVR_TUNABLE(vr_flat_blood_health_size, "0.5") // low on health, how far in the screen's blood reaches (0..1; vr_blood_health_size in a headset)
 QVR_TUNABLE(vr_flat_blood_health_opacity, "0.35") // and its strongest opacity at a beat (0..0.8; vr_blood_health_intensity in a headset)
 QVR_TUNABLE(vr_flat_cutoff_fling_mult, "1.25") // flat screen: a cut-off head's or limb's fling (vr_decap_head_speed's share of the blade, vr_decap_head_lift) times this (his note 2026-11-10)
+
+// Flatscreen > Swimming (vr_flatswim.cpp; FLATPLAY.md, "Swimming"; his words 2026-11-23)
+QVR_TUNABLE(vr_flat_swim, "1") // flat-screen play under water: the hands swim, their strokes by the way he moves (0: the hands as on land)
+QVR_TUNABLE(vr_flat_swim_one_hand, "1") // swimming, a two-handed grip or stance lets go so the free hand can swim; it comes back on leaving the water
+QVR_TUNABLE(vr_flat_swim_rate, "0.9") // strokes a second at vr_flat_swim_full_speed (0..4; slower moves slower, down to the treading's)
+QVR_TUNABLE(vr_flat_swim_tread_rate, "0.5") // treading water still, its sweeps a second (0..4)
+QVR_TUNABLE(vr_flat_swim_size, "1") // the strokes' size, times their own (0..2; slower moves a little smaller)
+QVR_TUNABLE(vr_flat_swim_tread_size, "0.6") // treading water's sweeps' size (0..2)
+QVR_TUNABLE(vr_flat_swim_fwd, "0.2") // the strokes moved ahead as a whole, a share of the arm's reach (-0.5..0.5: into sight)
+QVR_TUNABLE(vr_flat_swim_up, "0.18") // and up (-0.5..0.5)
+QVR_TUNABLE(vr_flat_swim_full_speed, "200") // units a second at which the strokes are at their full rate and size (Quake swims at 224)
+QVR_TUNABLE(vr_flat_swim_pitch, "0.5") // the strokes' frame tips with this share of the look's pitch, at most 45 degrees (0..1: looking down they stay in sight)
+QVR_TUNABLE(vr_flat_swim_gun_share, "0.3") // a hand holding a weapon or a prop moves with this share of the stroke's motion, its aim kept (0..1)
+QVR_TUNABLE(vr_flat_swim_enter_time, "0.4") // seconds the hands take into the strokes in the water, and back out of them leaving it
+QVR_TUNABLE(vr_flat_swim_takeover_time, "0.12") // seconds a hand's stroke takes to give way to a shot, a punch, a swing, a reload, a grab, the sight
+QVR_TUNABLE(vr_flat_swim_return_time, "0.4") // seconds it takes to come back after
+QVR_TUNABLE(vr_flat_swim_fire_hold, "0.5") // seconds after the trigger is let go before the hand's stroke comes back
+QVR_TUNABLE(vr_flat_swim_turn_time, "0.35") // seconds the stroke takes to change with the way he moves and his speed
 
 // Combat > Embedded Blades: held stabs and swung axes (QC/vr_embedhold.qc; ROUND23.md, "Embedded blades, stage 2")
 // Embedded Blades: Thrown

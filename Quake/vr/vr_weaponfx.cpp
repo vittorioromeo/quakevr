@@ -24,6 +24,7 @@
 #include "vr_gfx.hpp"
 #include "vr_gunsfx.hpp"
 #include "vr_hands.hpp"
+#include "vr_lancecharge.hpp"
 #include "vr_mem.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
@@ -1045,6 +1046,7 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
             perUnit / weaponScale * za::max(weapons::value(slot, Key::FlashSize), 0.f) * feel.flash * h.flashJitter);
     }
     gunfx::looseFrame(); // (guns that left a hand smoking: their wisps on the prop or in the holster)
+    lancecharge::frame(weapons); // (Dwell's Crystal Lance charging: yours and the other players')
     model = view::viewModel(flashModelName);
 
     // The grunts'.

@@ -9866,6 +9866,29 @@ Runs on origin/next 27fce84a7 (Release no-LTO, the shipped-defaults baseline). M
 - Smoke: `mp_test.py suite --only` the six touched scenarios and mp_coop: mp_suite passed (netsafe 14/0, coop 12/0,
   flow 17/0, melee 30/0, slide_vr 8/0, predict 31/0, predictclimb 29/0, predictslide 14/0). flatswing 4/0.
 
+## ropes8a: poles grip, solid, textured, level and slanted; flat W/S climbing (agent/ropes8a, 2026-11-23)
+
+His flat notes 2026-11-23, items 4-8. ROPES.md "Poles" (the ropes8a paragraph), "Climbing (flat-screen)", "Tests".
+- **Keys (5):** flat play's forward always climbs up and back down (ropes and poles), whatever the pitch; the strafe keys
+  pump the swing (sideways to the view: the only free keys). `vr_flat_rope_keys` 1 (tunable) brings back the look-based
+  keys. The flat rope test now climbs looking level / looking up with back, pumps facing across the row with the strafe
+  key and lets go passing the next rope (the strafe pump swings wider than the forward key did: at the peak it was past).
+- **Level and slanted poles (6):** poles already took `target` / `rope_end`; the toolgun's Span now strings a Pole too
+  (taut). vrropes: a level metal pole 88 high (110 was out of a flat jump's reach) and a slanted wooden one (27 degrees
+  off upright: climbed). vr_rope_test's counts 13 / 7 pinned / 4 poles / 3 monkey traverses.
+- **Solid (7):** QC `vr_pole_solid` boxes along each pole (engine-placed; a save's found by `goalentity` and made again);
+  the climber passes as their owner. Shots/nails/blows: takedamage, `T_DamageImpl` returns at once, `VR_MaterialOf` wood
+  or metal. Navmesh: refreshProps marks each box at once (8 units across at least). Not done: MP clients don't predict
+  against them (no model: not sent), so walking into a pole in MP is corrected by the server; two players can't share a
+  pole's pass-through (the first holds it); props (Box3D) don't collide with them. Melee on a pole untested in VR.
+- **Textures (8):** the tube shader's `Pattern` (fragment, per pixel: value noise; wood grain, brushed steel with joints).
+  Screenshot kit scratch ropes8a_poles.png.
+- **Hands (4):** `ropeGrip` (grip channel on the axis, out along the palm's normal) and `ropeHeld` (a cylinder for the
+  grasp) in vr_view_hands.cpp, shared by VR and flat (another player's hands: not changed, they come from his snapshot).
+  Deepest drawn vertex in the pole: 1.42 -> 0.00 units (VR play, steady); flat play hanging still: fingertips 0.44 (bound
+  0.5; open: the flat curls press the fingertips past the grasp's stops).
+- Tests: vr_pole_solid_test 7/0; rope_climb_test.sh rope_climb 11/0, pole_wood 10/0, pole_metal 10/0, pole_monkey 6/0;
+  rope_flat_test.sh 6/0, pole 5/0, strungpole 4/0; rope_hands_test.sh 6/0; vr_rope_test 16/0. Not run: mp ropes suites.
 ## beta2: 1.2.0-beta2 made ready, not published: the beta tests failed once (agent/beta2, 2026-11-23)
 
 - **Notes:** RELEASE_NOTES_1.2.md retitled "1.2.0 beta 2", "New in beta 2" at the top (the Quest standalone version,
@@ -9981,3 +10004,54 @@ His feedback 2026-11-23, items 15 and 16. FLATPLAY.md, "Parry guard" (Bash from 
 - **Tests**: new `Misc/quakevr/flatbash_test.sh` 15/0 (sword: blade taken, posed 0.0 u / drawn 1.3 u off the hotspot, the
   bash two-handed on a grunt: 5 damage, 383 u/s, staggered 1.0 s, let-go; axe: no blade grip, one-handed bash 3 damage).
   Scene `flat_parry`'s hint covers both.
+## flatswim: flat-screen swimming strokes (agent/flatswim, 2026-11-23)
+
+- **Strokes** (`Quake/vr/vr_flatswim.cpp`, new; FLATPLAY.md, "Swimming strokes"): swimming flat (waterlevel 3, or 2 off
+  the bottom; not noclip, not dead), the hands follow a stroke mixed from six cycles by the move's way in the view's
+  frame (forward along the look, up the world's): breaststroke, push ahead (back), sideways sweep, press down (up), pull up
+  (down), treading still. Speed sets rate (0.5..0.9 /s) and size; the mix is full stroke from 35% of
+  `vr_flat_swim_full_speed`, treading blended in below. Applied in `flatplay::poseHands`' hand loop after the hang and
+  melee poses, before the wall, sight, reload, grab, grenade and swap overlays; the player's hands only (not `poseBot`).
+- **Free hand vs held**: a free hand takes the stroke's pose (palm by `handAngles`: fingers + palm normal, flatplay's
+  roll-0-palm-in convention); a hand holding a weapon or prop gets `vr_flat_swim_gun_share` (0.3) of the motion only.
+- **2H -> 1H**: `flatswim::freesHand()` added to twohand's `flatLetsGo`, flatsight's `gripWanted` and `twoHandGun`
+  stance, flatplay's `twoHandAsked` (melee stance); all come back on leaving the water.
+- **Take-over**: per hand, linear take share (out over 0.12 s, back over 0.4 s) on `client::attacking` (+0.5 s hold),
+  punch, shove, parry, melee 2H, reload, force grab, quick grenade, swap, ADS (held hand).
+- **Tunables** (Debug > Tunables > Flatscreen > Swimming): `vr_flat_swim` 1, `_one_hand` 1, `_rate` 0.9, `_tread_rate`
+  0.5, `_size` 1, `_tread_size` 0.6, `_fwd` 0.2, `_up` 0.18, `_full_speed` 200, `_pitch` 0.5, `_gun_share` 0.3,
+  `_enter_time` 0.4, `_takeover_time` 0.12, `_return_time` 0.4, `_fire_hold` 0.5, `_turn_time` 0.35. Debug > Reports:
+  Flatscreen Swim Report / Probe (`vr_flatswim_report`, `vr_flatswim_probe`).
+- **Tests**: `Misc/quakevr/flatswim_test.sh` (+ `flatswim_check.py`): vrtesthall pool, seven directions (lead kind, sweep,
+  palm way, mirroring), the nail gun 2H on land, 1H in water, firing take-over (4 frames in 0.54, then 0, held through the
+  fire hold, back to 1), 2H back on land: 36/0. flatreload_test 54/0, flatsight_test 12/0. `flatswim_shots.sh`:
+  screenshots. Scene `flat_swim`.
+- Not done: open hands (the flat hands stay in their gripping pose), stroke sounds (the headset's are server-side from
+  tracked hand speed); `Misc/quakevr/menu_paths.txt` not regenerated for the new Tunables rows.
+## lancecharge: the Crystal Lance as a charged shot (agent/lancecharge, 2026-11-23)
+
+His note 2026-11-23: held fire repeated the beam's look (the Thunderbolt's per-frame stream, FrameDrawLightningTrail) while
+the damage came in pulses (a shot each 1.4 s). Now:
+- **Charge** (QC `dw_items.qc` `DW_LanceChargeFrame`, from `W_WeaponFrameImpl` once the hand may attack): the trigger
+  held charges it over `vr_dw_lance_charge` s (tunable, 1; 0: fires on the pull as before, without the stream). Let go
+  short of full: no shot, no cells. Let go full: `W_Attack` as any shot (6 cells, `DW_FireVariant`'s beam). Held on
+  full: it waits (a haptic tick as it fills). Without its 6 cells no charge begins, only the empty click (the old path
+  drained the few cells left and printed "ERROR: shot refused"). The stream is never drawn for the Lance. Developer
+  prints "dwlance: charging / charged (hand H) after T s / let go at C: no shot / let go charged: the shot".
+- **Seen and heard by everyone** (`QVR_SVC_LANCECHARGE` 56, MSG_ALL: begun, let go short, fired; with the charge time):
+  `vr_lancecharge.cpp` draws each player's charge at his Lance's drawn muzzle (yours from the view's weapons, the others'
+  from their copies, `mpavatar::drawnWeapon`; one path, flat and VR): violet sparks drawn in to the tip, denser as it
+  charges; a soft glow and a violet dlight growing (pulsing once full; `emissive::lanceChargeLight`, keys -0x5A40..);
+  a hum (`vr/lance_charge.wav`, our own synthesised loop, `Misc/quakevr/make_lance_sounds.py`) rising in pitch and
+  volume. Let go short they fade over `vr_dw_lance_charge_fade` (0.25 s); fired, out in 0.06 s. The Lance leaving the
+  hand ends it.
+- **The bolt lingers** `vr_dw_lance_bolt` s (0.35; Quake's beams 0.2): `CL_ParseBeam` asks `VR_BeamLife`
+  (`lancecharge::beamLife`: a beam from a player's hand holding the Lance, or from a Lance prop).
+- An armed grunt's Lance still fires at once (`VR_AG_ShootProp` calls `DW_FireVariant` itself).
+- **Tests**: `vr_ad_test 224` (`dwcharge`, in `dwell_lance_test.sh` section 7) 10/0: half charge in 0.500 s and let go
+  (no shot, no damage, 100 cells kept, none later), `tune vr_dw_lance_charge 0.5` full in 0.500 s, held 30 frames without
+  a shot, let go: 150 (188 unaware) and 6 cells; 4 cells: no charge. Section 3 now holds `+attack` 30 frames (let go
+  short) then 90 (the shot), with vr_debug_gunfx 1's "lancecharge: let go short / fired / bolt ... lingers 0.35 s".
+  Screenshot `qvr-kit/scratch/lancecharge_glow_bolt.png` (charging, then the bolt).
+- Not tested live: another player's charge in a real two-client game (the same message and draw path as yours, the
+  copy's weapon from mpavatar).

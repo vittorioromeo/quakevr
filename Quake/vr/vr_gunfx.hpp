@@ -49,6 +49,9 @@ struct Muzzle
 
 // The weapon id a gun model is drawn with (our weapons' models by name, an AD gun variant's), else -1.
 [[nodiscard]] int weaponIdOf(const qmodel_t* model);
+// Gun `w` (drawn with weapon settings `slot`): its muzzle as drawn, the way it points and its up (the shots' particles'
+// own: vr_lancecharge.cpp's crystal tip). False: not placed.
+[[nodiscard]] bool drawnMuzzle(const view::ViewEntity& w, int slot, Muzzle& m);
 
 // A shot by weapon `wid` out of `m`. `shooter`: 0, 1 your hands, else the monster's entity (its fire rate's key).
 // `adBurst`: an AD gun's own sparks and backblast made already (vr_weaponfx.cpp adGunBurst): not again. `ports`: the
