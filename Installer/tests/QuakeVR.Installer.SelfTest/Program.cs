@@ -2329,6 +2329,8 @@ static string JsonString(string s) => System.Text.Json.JsonSerializer.Serialize(
 static string Snapshot(string dir) => string.Join("|", Directory.EnumerateFileSystemEntries(dir, "*", SearchOption.AllDirectories).Order()
     .Select(p => File.Exists(p) ? $"{p}:{new FileInfo(p).Length}:{File.GetLastWriteTimeUtc(p).Ticks}" : p));
 
+tests.AddRange(QuestTests.All(Dir));
+
 var failed = 0;
 var ran = 0;
 foreach (var (name, body) in tests)

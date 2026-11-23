@@ -362,3 +362,12 @@ aren't Map Library packages aren't sent to joining players.
 - **Lighter melee in a crowd of armed enemies.** Swinging at several armed grunts up close now checks whether each
   blow strikes their weapons far more cheaply (about a tenth less game-code work with six around you); what a blow
   strikes is exactly as before.
+
+## Installer
+
+- **Install to a Meta Quest from your PC.** The installer's first page now asks where to install: this PC (PC VR and
+  flatscreen), a Meta Quest (standalone), or both at once. For the Quest it gets Google's adb itself if your PC has
+  none, shows how to turn on developer mode and allow USB debugging (with a Check again button), installs the app and
+  copies your Quake files, the expansions you own, the HD textures and the mods it installed (Dwell, Quoth, Arcane
+  Dimensions) to the headset. Running it again only copies what changed; nothing on the headset is ever deleted, and
+  your saves and settings there are left alone. Start it from Library > Unknown Sources.

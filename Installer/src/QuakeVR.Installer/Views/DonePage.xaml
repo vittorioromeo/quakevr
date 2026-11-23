@@ -16,7 +16,8 @@
                 </StackPanel>
             </DockPanel>
 
-            <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
+            <!-- This PC's Play buttons: not after a Quest-only run (its staging folder is not a PC install). -->
+            <StackPanel Orientation="Horizontal" Margin="0,24,0,0" Visibility="{Binding TargetPc, Converter={StaticResource BoolToVis}}">
                 <Button Style="{StaticResource AccentButton}" Command="{Binding LaunchVrCommand}" Padding="22,10">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE768;" Style="{StaticResource Glyph}" FontSize="13" Margin="0,0,10,0" />
@@ -27,10 +28,20 @@
                 <Button Content="Open the Quake VR folder" Style="{StaticResource LinkButton}" Command="{Binding OpenFolderCommand}" VerticalAlignment="Center" Margin="18,0,0,0" />
             </StackPanel>
 
+            <!-- The Quest's result (Quest ticked): installed, the files copied, where to start it; or why not. -->
+            <Border Style="{StaticResource CardBorder}" BorderBrush="{StaticResource Accent}" Margin="0,22,0,0"
+                    Visibility="{Binding TargetQuest, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
+                    <TextBlock Text="META QUEST" Style="{StaticResource SectionTitle}" />
+                    <TextBlock Text="{Binding QuestDoneTitle}" Style="{StaticResource Body}" FontWeight="SemiBold" Margin="0,6,0,0" />
+                    <TextBlock Text="{Binding QuestDoneText}" Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                </StackPanel>
+            </Border>
+
             <TextBlock Text="GOOD TO KNOW" Style="{StaticResource SectionTitle}" Margin="2,26,0,10" />
             <ItemsControl ItemsSource="{Binding DoneNotes}" ItemTemplate="{StaticResource CheckItemTemplate}" />
 
-            <Border Style="{StaticResource CardBorder}" Margin="0,6,0,0">
+            <Border Style="{StaticResource CardBorder}" Margin="0,6,0,0" Visibility="{Binding TargetPc, Converter={StaticResource BoolToVis}}">
                 <StackPanel>
                     <TextBlock Text="Play from Steam or SteamVR's library (optional)" Style="{StaticResource Body}" FontWeight="SemiBold" />
                     <TextBlock Style="{StaticResource Small}" Margin="0,4,0,0">

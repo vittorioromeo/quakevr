@@ -21,18 +21,27 @@ public static class FirstStartRelight
     /// folder). The first-start batch skips every one still relit from the same map with the same settings
     /// (vr_relight.cpp, <c>relitAlready</c>): after an update or a reinstall into the same folder only new or changed
     /// maps are relit.</summary>
-    public static int RelitCopies(string installDir)
+    public static int RelitCopies(string installDir) =>
+        RelitGames(installDir).Sum(g => Directory.EnumerateFiles(g.MapsDir, "*.relight", SearchOption.AllDirectories).Count());
+
+    /// <summary>Where the game writes its relit copies: <c>quakevr\relit_custom</c> (vr_relight.cpp: com_gamedir).</summary>
+    public const string RelitFolder = "quakevr/relit_custom";
+
+    /// <summary>Each game's folder of relit copies (<c>quakevr\relit_custom\&lt;game&gt;\maps</c>, <c>&lt;game&gt;</c> the
+    /// name of the game folder the game found the map in: id1, hipnotic, ad...), not the <c>_stale</c> nor <c>_work</c>
+    /// folders.</summary>
+    public static IReadOnlyList<(string Game, string MapsDir)> RelitGames(string installDir)
     {
-        var root = Path.Combine(installDir, "quakevr", "relit_custom");
+        var root = Path.Combine(installDir, RelitFolder.Replace('/', Path.DirectorySeparatorChar));
         if (!Directory.Exists(root))
         {
-            return 0;
+            return [];
         }
-        return Directory.EnumerateDirectories(root)
+        return [.. Directory.EnumerateDirectories(root)
             .Where(d => !Path.GetFileName(d).StartsWith('_'))
-            .Select(d => Path.Combine(d, "maps"))
-            .Where(Directory.Exists)
-            .Sum(d => Directory.EnumerateFiles(d, "*.relight", SearchOption.AllDirectories).Count());
+            .Select(d => (Game: Path.GetFileName(d), MapsDir: Path.Combine(d, "maps")))
+            .Where(g => Directory.Exists(g.MapsDir))
+            .OrderBy(g => g.Game, StringComparer.OrdinalIgnoreCase)];
     }
 
     /// <summary>The game has not started since the installer asked for the relight.</summary>
