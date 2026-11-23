@@ -2145,8 +2145,42 @@ void(entity g, entity p) VR_AGP_LodCarry =
     }
 };
 
-// `g`'s pose this server frame, its weapon `p` (world: its fists) placed by it and the pose sent (QVR_SVC_ARMPOSE).
+// The cast's volley as his off hand is whole in its Cast key: from its palm, as drawn (VR_AGP_Pose; the engine's too).
+void(entity g) VR_AGP_CastLands =
+{
+    g.vr_ag_act_hit = 1;
+    if(g.vr_ag_act_cast == 1 && g.enemy)
+    {
+        VR_AGP_CastVolley(g, VR_AGP_Palm(g), weapondrawnpose(g, VR_AGP_CastSide(g), 42), 4);
+    }
+};
+
+// The shove's push lands as its push phase ends (its key whole: the contact), if you are still in reach and ahead
+// (VR_AGP_Pose, its times set; the engine's too).
+void(entity g) VR_AGP_ShoveLands =
+{
+    g.vr_ag_act_hit = 1;
+    g.vr_ag_shove_s = time - g.vr_ag_act_at;
+    VR_AG_Log(sprintf("agp: shove lands %.3f s in (wind-up %.2f, push %.2f)", g.vr_ag_shove_s, vr_agp_tw, vr_agp_ts));
+    entity shoveSelf = self;
+    self = g;
+    VR_EnemyShove_Hit();
+    self = shoveSelf;
+};
+
+// `g`'s pose this server frame, its weapon `p` (world: its fists) placed by it and the pose sent (QVR_SVC_ARMPOSE): by
+// the engine (agpose: the same results, vr_builtins_agpose.inc), else by QuakeC.
+void(entity g, entity p) VR_AGP_PoseQC;
 void(entity g, entity p) VR_AGP_Pose =
+{
+    if(!agpose(g, p))
+    {
+        VR_AGP_PoseQC(g, p);
+    }
+};
+
+// ... by QuakeC (vr_agpose_native 0; the cases the engine leaves to it; its comparison, vr_agpose_native 2).
+void(entity g, entity p) VR_AGP_PoseQC =
 {
     vr_agk_hpose = -1;
     if(!vr_agp_quiet)
@@ -2209,12 +2243,7 @@ void(entity g, entity p) VR_AGP_Pose =
         VR_AGP_Times(g);
         if(time - g.vr_ag_act_at >= vr_agp_tw - 0.001)
         {
-            // His off hand whole in its Cast key: the volley from its palm, as drawn.
-            g.vr_ag_act_hit = 1;
-            if(g.vr_ag_act_cast == 1 && g.enemy)
-            {
-                VR_AGP_CastVolley(g, VR_AGP_Palm(g), weapondrawnpose(g, VR_AGP_CastSide(g), 42), 4);
-            }
+            VR_AGP_CastLands(g);
         }
     }
     if(g.vr_ag_act == VR_AGP_SHOVE && !vr_agp_quiet && !g.vr_ag_act_hit && time - g.vr_ag_act_tick < 0.15)
@@ -2222,15 +2251,7 @@ void(entity g, entity p) VR_AGP_Pose =
         VR_AGP_Times(g);
         if(time - g.vr_ag_act_at >= vr_agp_tw + vr_agp_ts - 0.001)
         {
-            // The push lands as its push phase ends (its key whole: the contact), if you are still in reach and ahead.
-            g.vr_ag_act_hit = 1;
-            g.vr_ag_shove_s = time - g.vr_ag_act_at;
-            VR_AG_Log(sprintf("agp: shove lands %.3f s in (wind-up %.2f, push %.2f)", g.vr_ag_shove_s, vr_agp_tw,
-                vr_agp_ts));
-            entity shoveSelf = self;
-            self = g;
-            VR_EnemyShove_Hit();
-            self = shoveSelf;
+            VR_AGP_ShoveLands(g);
         }
     }
     entity pL = world; // (two held: the right hand's in `p`, the left's here; the slots don't say which)

@@ -15,6 +15,11 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/Unique.hpp"
 #include "vr_melee_shared.h"
+#include "vr_weapon_ids.h"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "vr_srvrandom.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "vr_agarmor.hpp"
 #include "vr_agarms.hpp"
 #include "vr_axestick.hpp"
@@ -897,6 +902,7 @@ void PF_WriteVec3()
 #include "vr_builtins_nav.inc"
 #include "vr_builtins_held.inc"
 #include "vr_builtins_hitmodel.inc"
+#include "vr_builtins_agpose.inc"
 
 // ----------------------------------------------------------------------------
 // The console
@@ -935,6 +941,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"arenadirname", arenadirector::pfName},
     {"arenadirsupply", arenadirector::pfSupply},
     {"agposekey", PF_agposekey},
+    {"agpose", PF_agpose},
     {"agstrikeblend", PF_agstrikeblend},
     {"agkeytime", PF_agkeytime},
     {"agdrawnframe", PF_agdrawnframe},
@@ -1184,6 +1191,18 @@ void sendWound(int num, const float* org, const float* dir, int kind, int amount
 void sendParticle2(const float* org, const float* dir, int preset, int count)
 {
     particle2Message(org, dir, preset, count);
+}
+
+// vr_agpose_compare: vr_agpose_native 2's differences since the last (vr_builtins_agpose.inc).
+void agposeCompare_f()
+{
+    if(!sv.active)
+    {
+        Con_Printf("vr_agpose_compare: enter a map first\n");
+        return;
+    }
+    ServerVm vm;
+    agposeCompareReport();
 }
 
 // vr_forcegrab_grid_stats: the force grab's searches since the last (and resets them).

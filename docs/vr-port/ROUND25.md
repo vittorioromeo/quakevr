@@ -10926,6 +10926,40 @@ details: QUEST_OPTIMISATIONS.md "Standalone status, 2026-11-23".
   noise. The 0.65 base reads 2-3 ms above qtune's morning numbers: warmth or a merge since; not split.
 - Next (by size): the world's shading at 0.55 (~8 ms of ~14); the server's CPU in big fights (monster physics);
   dynres drawing into right-sized images; the hub's fight floor opening outside fights (his call).
+## qcpu2: the armed humanoids' weapon pose in the engine, exact (agent/qcpu2, 2026-11-23)
+
+- **What:** QC `VR_AGP_Pose` and its ~45 helpers (fists, melee, the left blade, guns, the Pose Studio's keys, the torso's
+  turn, the take, the reach clamps, the message) ported to `Quake/vr/vr_builtins_agpose.inc` (builtin `agpose`, in
+  vr_builtins.cpp's unit). It follows the VM's float steps on QC's own globals and fields: PF_vlen/normalize in double,
+  C's double sin/cos/atan2, `0 - x` for unary minus, short-circuits as FTEQCC's. QuakeC still owns the gameplay hooks,
+  which it calls: VR_AGP_Strike, VR_DRP_Frame, VR_AGPar_Pose/_Meet, VR_AGP_Saw, VR_AGP_Demo, VR_AGP_Geo, VR_AM_Row,
+  VR_AI_Origin, and the cast's and shove's landings (moved into VR_AGP_CastLands / VR_AGP_ShoveLands, which both
+  paths share). Left to QuakeC (`agpose` answers FALSE before touching anything): the toolgun's ghost, vr_agrunt_debug
+  2, the Pose Studio's holds and Live, the Grip Editor's freeze, test 90's hold. FTEQCC keeps no names for constants:
+  the pose file's own and 11 others are C++ constants (`agc_*`).
+- `vr_agpose_native` 1 (Debug > Armed Humanoids: Pose in the Engine); 0 is QuakeC's VR_AGP_PoseQC (as before, kept for a
+  release); 2 runs both. It runs QuakeC on the state and keeps the results, then puts back the globals, every edict's
+  fields (freeing what QuakeC spawned) and the server's random stream (`srvrandom::streamState`), then runs the engine.
+  `vr_agpose_compare` prints differences per QC def, the coverage and a verdict; a MISMATCH line appears at each value's
+  first. A pose whose QuakeC run landed a blow, shove or cast, or spawned anything, compares only its own state:
+  Box3D's bodies and ragdolls aren't put back, so the engine's run meets a different world from that blow on.
+- **Exact:** C, E, C flat and 8 grunt waves (100,318 poses: 23k melee, 66k guns, 31k with two weapons, pickups and
+  reaches, reloads, kicks, parries met, shoves) all `PASS exact`. The vr_agrunt_test group under mode 2 shows no
+  difference outside struck poses. MP mp_armed and mp_disarm with `+vr_agpose_native 2` on the server: no difference.
+- **PC (Release, mock, 600 fixed frames, single runs):** C VR: pose 0.559 -> 0.103 ms (its QC hooks included),
+  QuakeC 1.575 -> 1.019, SV_Physics 1.55 -> 1.17, busy 3.72 -> 3.29. C flat: pose 0.544 -> 0.120, QuakeC 1.537 ->
+  1.153, busy 4.62 -> 4.08. E VR: pose 0.378 -> 0.071, QuakeC 1.392 -> 1.039, busy 3.16 -> 3.04.
+- **Tests:** vr_agrunt_test group 207 pass natively. Its 10 failures (3, 16, 35, 42, 61, 74, 203, the script-only 228
+  and 229, and a lane flake on 65) fail the same with `vr_agpose_native 0` in this build, and 65 passes alone. MP
+  mp_armed, mp_disarm and mp_held pass.
+- **Quest 3** (this tree's APK and progs, the shipped preset as a new player gets it; C and E with the pose by QuakeC
+  (a) and by the engine (b), interleaved, 3 launches in changed orders; means, then per launch): C: c_server 11.09 ->
+  9.67 ms (11.83/10.39/11.03 -> 9.65/10.62/8.75), CPU busy median 25.20 -> 23.35, period median 26.52 -> 24.73, late
+  ~100% both (still CPU-bound), GPU 19.0 -> 18.0. E: c_server 6.54 -> 5.75 (6.19/6.98/6.44 -> 5.96/5.72/5.56), busy
+  15.95 -> 15.11, period 17.96 -> 16.87, late 80% -> 75%, GPU 12.0 both. The runtime stopped and restarted the XR
+  session 6-7 times a launch (the headset not worn), and each part still recorded its 720-900 frames. Launch 2 ran
+  again after Quick Actions was in front at first. Beta2's APK and progs.dat (8a409520...) were put back.
+  Scripts: `scratch/qcpu2_qblock.sh`, `qcpu2_qmk.py`, `qcpu2_qsum.py` (not committed).
 
 ## qfov3: one render pass an eye; Quest foveation on in Standalone (branch agent/qfov3, 2026-11-23)
 

@@ -854,6 +854,10 @@ za::Vector<Item> pageDebugProfiling()
         toggle("Armed Humanoids: Arms' Grip Slide Bisected", vr_agarms_fast)
             .help("vr_agarms_fast: the off hand's slide along a two-handed gun to its reach found by bisection, last frame's "
                   "answer checked first (2-5 arm solves, not up to 19); off: the whole-unit steps, as before."),
+        toggle("Armed Humanoids: Pose in the Engine", vr_agpose_native)
+            .help("vr_agpose_native: an armed humanoid's weapon pose (QC VR_AGP_Pose and its helpers) worked out by the "
+                  "engine, the same results; off: by QuakeC, as before. 2 (console): both, compared; vr_agpose_compare "
+                  "prints the differences."),
         toggle("Armed Humanoids: Pose Message in One Builtin", vr_agposesend)
             .help("vr_agposesend: an armed humanoid's pose message written by one builtin (agposesend), the same bytes as "
                   "QuakeC's ~50 Write calls (vr_agarms_hash); off: QuakeC writes it, as before."),
