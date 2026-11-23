@@ -10926,3 +10926,27 @@ details: QUEST_OPTIMISATIONS.md "Standalone status, 2026-11-23".
   noise. The 0.65 base reads 2-3 ms above qtune's morning numbers: warmth or a merge since; not split.
 - Next (by size): the world's shading at 0.55 (~8 ms of ~14); the server's CPU in big fights (monster physics);
   dynres drawing into right-sized images; the hub's fight floor opening outside fights (his call).
+
+## qvrcheckszancle: Tools/qvr_checks on Zancle (agent/qvrcheckszancle, 2026-11-23)
+
+- The build's source checker uses Zancle as the engine does: `za::String`/`za::StringView`/`za::Vector`, ankerl dense
+  maps and sets (`Tools/qvr_checks/maps.hpp`; ordered walks through `qza::sortedByKey`, vr_zancle.hpp, or
+  `sortedItems`), `za::Pair`/`za::Optional`/`za::Array`, `za::quickSort`/`za::stableSort`, `za::min`/`za::max`,
+  `za::Thread`, `za::Clock`, `ZA_MEMCPY`/`ZA_MOVE`/`ZA_FORWARD`, `za::toString`. Files are read and written with the C
+  stdio (`_wfopen`), the child processes' command lines are `za::Vector<wchar_t>`. The project is C++23
+  (`/clang:-std=c++23`, as zancle.vcxproj), `ZA_STATIC`, and compiles Zancle's Abort, Assert, Clock, Thread and String
+  sources (winmm for the clock).
+- Kept from std (ZANCLE.md's kept list): `<regex>` (over `const char*` ranges), `std::filesystem` and its
+  `std::error_code`, `<format>` (common.hpp's `fmt`/`appendFmt`/`Out::line` format into a `za::String`;
+  `std::formatter`s for Zancle's strings) and `std::exception` (main.cpp's catch).
+- `qvr_checks std_uses` scans `Tools/qvr_checks/*.cpp|hpp` too; its rows in `Misc/quakevr/std_uses_allowlist.txt` are
+  named `Tools/qvr_checks/<file>` (37 rows, each with its why).
+- Same output: every check (`all`, `statics` with files, `test_numbers [--list]`, `builtins`, `toolgun_weapons`,
+  `cvars_qc --check`, `canonical` and `--list` of all 24 families and an unknown one, `release_qc`, `qc_precedence`,
+  `progs_format`, `fgd --check`, `help`) printed byte-identical output and exit codes before and after on the same
+  tree; only `std_uses` differs (the new rows). `canonical --tighten` lowers the same 4 lines as before. The one change
+  on a pathological input: a number too long for 64 bits saturates instead of std::stoll's throw (the "check crashed"
+  line).
+- Full rebuild (`-t:Rebuild -m`, the machine busy, so noisy): before 13.2-21.9 s (3 runs: 17.7, 21.9, 13.2), after
+  17.9-25.5 s (21.1, 17.9, 23.0, 25.5): about the same to a few seconds more (five Zancle sources and the dense map's
+  header beside the std headers that stay: regex, format, filesystem). An edit rebuilds only its file.
