@@ -1,5 +1,3 @@
-using System.Formats.Tar;
-using System.IO.Pipes;
 using System.Security.Cryptography;
 using System.Text;
 using QuakeVR.Installer.Core.Packaging;
@@ -20,8 +18,8 @@ public sealed record QuestResult(string Device, bool ApkInstalled, int Pushed, i
 /// <summary>
 /// Installs Quake VR on a Quest over adb: checks the headset (none, not allowed yet, several: <see cref="QuestDeviceException"/>),
 /// installs the APK (<c>install -r</c>, which keeps the app's files; skipped when the same APK is installed), then copies
-/// the files the headset lacks or holds in another version (size, then MD5 against the headset's own md5sum) as one tar
-/// stream (<c>exec-in tar</c>: one stream, as Android/README.md does it), checks the free space first and every copied
+/// the files the headset lacks or holds in another version (size, then MD5 against the headset's own md5sum) by
+/// <c>adb push</c> (several files of a folder a push: <see cref="PushBatches"/>), checks the free space first and every copied
 /// file's size afterwards. It only ever adds and replaces the files it ships: nothing on the headset is deleted, and the
 /// player's saves and configs (never shipped) are never touched. No command it sends removes anything.
 /// </summary>
@@ -121,10 +119,6 @@ public sealed class QuestInstaller(IAdb adb)
             {
                 throw new InstallException($"Not enough space on the Quest: {PathUtil.FormatSize(bytes)} to copy, " +
                                            $"{PathUtil.FormatSize(fb)} free (and {PathUtil.FormatSize(SpaceMargin)} kept free). Free some space in the headset, then try again.");
-            }
-            foreach (var f in toPush)
-            {
-                TarEntryFor(f.DevicePath); // (every path one the headset's tar takes, before anything is sent)
             }
             Push(serial, toPush, bytes, (f, s) => Report(0.2 + 0.75 * f, s), ct);
 
@@ -242,114 +236,74 @@ public sealed class QuestInstaller(IAdb adb)
         return parts.Length >= 4 && long.TryParse(parts[3], out var kb) ? kb * 1024 : null;
     }
 
-    /// <summary>The files as one tar stream into <c>tar -x</c> on the headset (paths relative to the files folder).</summary>
+    /// <summary>The files by <c>adb push</c> (adb's sync protocol, flow-controlled): several files of one folder in one push
+    /// when their names on the PC are those on the headset, the others one by one; the folders made first. Not one tar
+    /// stream into <c>adb exec-in tar -x</c> (the first design): on the real Quest 3 adb's server takes the whole stream at
+    /// once (2.8 GB in 3 s), the headset's tar got ~400 MB of it, the server died and the headset went offline, while
+    /// adb exec-in exited 0 with no output (and toybox refused .NET 9's GNU and pax tar headers besides).</summary>
     void Push(string serial, IReadOnlyList<QuestFile> files, long total, Action<double, string> report, CancellationToken ct)
     {
-        using var server = new AnonymousPipeServerStream(PipeDirection.Out);
-        using var client = new AnonymousPipeClientStream(PipeDirection.In, server.ClientSafePipeHandle);
+        var dirs = files.Select(f => f.DevicePath[..f.DevicePath.LastIndexOf('/')]).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
+        foreach (var cmd in Batches($"cd {Quote(QuestFiles.DeviceRoot)} && mkdir -p", dirs))
+        {
+            Shell(serial, cmd, ct);
+        }
         long done = 0;
-        long lastReported = 0;
-        var producer = Task.Run(() =>
+        foreach (var batch in PushBatches(files))
         {
-            try
+            ct.ThrowIfCancellationRequested();
+            var first = batch[0];
+            var target = batch.Count == 1 ? $"{QuestFiles.DeviceRoot}/{first.DevicePath}"
+                                          : $"{QuestFiles.DeviceRoot}/{first.DevicePath[..first.DevicePath.LastIndexOf('/')]}/";
+            report(total == 0 ? 1 : (double)done / total, $"Copying to the Quest: {first.What} ({PathUtil.FormatSize(done)} of {PathUtil.FormatSize(total)})");
+            var r = adb.Run(["-s", serial, "push", .. batch.Select(f => f.Source), target], null, ct);
+            if (r.ExitCode != 0)
             {
-                using var tar = new TarWriter(server, TarEntryFormat.Ustar, leaveOpen: true);
-                foreach (var f in files)
+                if (r.All.Contains("No space left", StringComparison.OrdinalIgnoreCase))
                 {
-                    ct.ThrowIfCancellationRequested();
-                    using var data = new CountingStream(File.OpenRead(f.Source), n =>
-                    {
-                        done += n;
-                        if (done - lastReported < total / 500 && done != total)
-                        {
-                            return;
-                        }
-                        lastReported = done;
-                        report(total == 0 ? 1 : (double)done / total, $"Copying to the Quest: {f.What} ({PathUtil.FormatSize(done)} of {PathUtil.FormatSize(total)})");
-                    });
-                    var entry = TarEntryFor(f.DevicePath);
-                    entry.DataStream = data;
-                    entry.Mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.GroupWrite |
-                                 UnixFileMode.OtherRead | UnixFileMode.OtherWrite;
-                    entry.ModificationTime = File.GetLastWriteTimeUtc(f.Source);
-                    tar.WriteEntry(entry);
+                    return; // the check after the copy reports what is missing and that the storage is full
                 }
+                throw new InstallException($"Copying to the Quest failed ({first.DevicePath}): {r.All.Trim()}");
             }
-            catch (IOException)
-            {
-                // tar on the headset stopped reading (full, unplugged): the check after the copy reports it.
-            }
-            finally
-            {
-                server.Dispose();
-            }
-        }, ct);
-        var r = adb.Run(["-s", serial, "exec-in", $"tar -xf - -C {Quote(QuestFiles.DeviceRoot)}"], client, ct);
-        client.Dispose(); // adb stopped reading (done, or failed): the writer's next write fails instead of waiting
-        try
-        {
-            producer.GetAwaiter().GetResult();
+            done += batch.Sum(f => f.Size);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        if (r.ExitCode != 0)
-        {
-            throw new InstallException($"Copying to the Quest failed: {r.All}");
-        }
+        report(1, $"Copying to the Quest ({PathUtil.FormatSize(total)})");
     }
 
-    /// <summary>A tar entry the headset's tar (toybox) reads: ustar. Never GNU: .NET 9 writes a GNU entry's access and
-    /// change times where ustar keeps its prefix, and toybox refuses the whole stream ("tar: Not tar") while adb exec-in
-    /// still exits 0 (the real-headset test: 566 files sent, none arrived). Nor pax (.NET 9's: "tar: bad header" on the
-    /// Quest 3). A path ustar cannot hold (over 100 bytes with no '/' splitting it into a 155-byte prefix and a 100-byte
-    /// name; the longest the install sends is ~60) is refused here, before anything is sent.</summary>
-    public static TarEntry TarEntryFor(string devicePath)
+    /// <summary>The pushes: files of one headset folder whose PC names are their headset names (case included), up to
+    /// <see cref="MaxCommand"/> characters of paths and 256 MB a push (the progress); any other file alone.</summary>
+    public static List<List<QuestFile>> PushBatches(IReadOnlyList<QuestFile> files)
     {
-        var bytes = Encoding.UTF8.GetByteCount(devicePath);
-        var fits = bytes <= 100;
-        for (var i = devicePath.IndexOf('/'); !fits && i > 0; i = devicePath.IndexOf('/', i + 1))
+        const long maxBytes = 256L << 20;
+        var batches = new List<List<QuestFile>>();
+        foreach (var group in files.GroupBy(f => f.DevicePath[..f.DevicePath.LastIndexOf('/')], StringComparer.Ordinal))
         {
-            fits = Encoding.UTF8.GetByteCount(devicePath[..i]) <= 155 && Encoding.UTF8.GetByteCount(devicePath[(i + 1)..]) <= 100;
+            List<QuestFile>? cur = null;
+            long bytes = 0, chars = 0;
+            foreach (var f in group)
+            {
+                if (Path.GetFileName(f.Source) != f.DevicePath[(f.DevicePath.LastIndexOf('/') + 1)..])
+                {
+                    batches.Add([f]);
+                    continue;
+                }
+                if (cur is null || bytes + f.Size > maxBytes || chars + f.Source.Length + 3 > MaxCommand)
+                {
+                    cur = [];
+                    batches.Add(cur);
+                    bytes = chars = 0;
+                }
+                cur.Add(f);
+                bytes += f.Size;
+                chars += f.Source.Length + 3;
+            }
         }
-        return fits ? new UstarTarEntry(TarEntryType.RegularFile, devicePath)
-                    : throw new InstallException($"A path too long to copy to the Quest: {devicePath}");
+        return batches;
     }
 
     static string Md5(string path)
     {
         using var s = File.OpenRead(path);
         return Convert.ToHexStringLower(MD5.HashData(s));
-    }
-
-    sealed class CountingStream(Stream inner, Action<long> onRead) : Stream
-    {
-        public override bool CanRead => true;
-        public override bool CanSeek => inner.CanSeek;
-        public override bool CanWrite => false;
-        public override long Length => inner.Length;
-        public override long Position { get => inner.Position; set => inner.Position = value; }
-        public override void Flush() { }
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            var n = inner.Read(buffer, offset, count);
-            if (n > 0)
-            {
-                onRead(n);
-            }
-            return n;
-        }
-        public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
-        public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                inner.Dispose();
-            }
-            base.Dispose(disposing);
-        }
     }
 }

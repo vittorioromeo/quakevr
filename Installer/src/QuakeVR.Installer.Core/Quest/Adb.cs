@@ -14,7 +14,7 @@ public sealed record AdbResult(int ExitCode, string Output, string Error)
 
 /// <summary>
 /// adb, behind an interface: the real one runs Google's adb.exe (<see cref="ProcessAdb"/>); the self-tests use a fake
-/// that records every command and simulates a headset in a folder. <paramref name="stdin"/> (exec-in's tar stream) is
+/// that records every command and simulates a headset in a folder. <paramref name="stdin"/> (none of the installer's commands use it now) is
 /// copied to adb's standard input, then closed.
 /// </summary>
 public interface IAdb

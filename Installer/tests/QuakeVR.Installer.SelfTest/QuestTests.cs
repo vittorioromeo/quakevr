@@ -189,10 +189,18 @@ static class QuestTests
             File.WriteAllText(Path.Combine(dwell, "s0.sav"), "my save");
             var copyFiles = QuestFiles.ModCopyFiles(new ModCopy(s.Quake, dwell, ModCopyState.Ready, "v2.2")).Select(f => f.DevicePath).ToList();
             Eq("dwellv2p2/gfx/conback.lmp|dwellv2p2/progs.dat", string.Join("|", copyFiles), "a mod copy under its folder's name, its saves left out");
-            // The tar entries the headset's toybox tar reads: ustar (prefix split for long paths), never GNU or pax.
-            Eq(System.Formats.Tar.TarEntryFormat.Ustar, QuestInstaller.TarEntryFor("quakevr/progs.dat").Format, "a short path: ustar");
-            Eq(System.Formats.Tar.TarEntryFormat.Ustar, QuestInstaller.TarEntryFor(new string('d', 120) + "/" + new string('f', 90)).Format, "a long path ustar splits");
-            Throws<InstallException>(() => QuestInstaller.TarEntryFor("quakevr/" + new string('f', 120)), "a name over 100 bytes: refused (the Quest takes neither GNU nor pax)");
+            // The pushes: each file once; several in one push only from one headset folder under their own names (adb push
+            // keeps the PC's name); PAK1.PAK (id1/pak1.pak on the headset) alone.
+            var batches = QuestInstaller.PushBatches(s.Files);
+            Eq(s.Files.Count, batches.Sum(b => b.Count), "every file in one push");
+            Eq(s.Files.Count, batches.SelectMany(b => b).Select(f => f.DevicePath).Distinct().Count(), "no file twice");
+            True(batches.Any(b => b.Count > 1), "several files a push");
+            foreach (var b in batches.Where(b => b.Count > 1))
+            {
+                True(b.All(f => f.DevicePath[..f.DevicePath.LastIndexOf('/')] == b[0].DevicePath[..b[0].DevicePath.LastIndexOf('/')] &&
+                                f.DevicePath.EndsWith("/" + Path.GetFileName(f.Source), StringComparison.Ordinal)), "a push: one folder, the PC's names");
+            }
+            True(batches.Single(b => b.Any(f => f.DevicePath == "id1/pak1.pak")).Count == 1, "PAK1.PAK pushed alone, to its lower-case name");
         }),
 
         ("quest: the whole procedure on a fake headset (PC install, then the Quest from it; the PC install unchanged, the player's files kept)", () =>
@@ -211,7 +219,7 @@ static class QuestTests
             True(adb.Commands.Contains($"-s {FakeAdb.Serial} install -r {s.Apk}"), "install -r: keeps the app's files");
             Eq(s.Files.Count, result.Pushed, "every file copied");
             Eq(0, result.Skipped, "nothing there before");
-            Eq(s.Files.Count, adb.TarFiles, "one tar stream with every file");
+            Eq(s.Files.Count, adb.TarFiles, "every file pushed once");
             foreach (var f in s.Files)
             {
                 var onDevice = Path.Combine(adb.DeviceFiles, f.DevicePath.Replace('/', '\\'));
@@ -251,7 +259,7 @@ static class QuestTests
             True(againText.StartsWith("The app was already up to date; 0 files copied, ") && againText.Contains($"{s.Files.Count} already there"),
                 $"the Done page after nothing changed: {againText}");
             Eq(1, adb.Installs, "one install in all");
-            Eq(s.Files.Count, adb.TarFiles, "no tar stream the second time");
+            Eq(s.Files.Count, adb.TarFiles, "nothing pushed the second time");
 
             // A new release: progs.dat changes at the same size (the MD5 tells), the APK changes.
             var progs = Path.Combine(s.Install, "quakevr", "progs.dat");

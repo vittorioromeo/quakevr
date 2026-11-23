@@ -55,6 +55,8 @@ sealed class FakeAdb(string deviceFiles) : IAdb
                 return Ok("Performing Streamed Install\nSuccess\n");
             case "exec-in":
                 return Tar(args[3], stdin!);
+            case "push":
+                return Push([.. args.Skip(3).SkipLast(1)], args[^1]);
             case "shell":
                 return Shell(args[3]);
         }
@@ -107,6 +109,46 @@ sealed class FakeAdb(string deviceFiles) : IAdb
         return Ok("");
     }
 
+    /// <summary>adb push: one file to a path, or several into a folder ("dir/"), which must exist (as adb's); counts
+    /// each file in <see cref="TarFiles"/>; a full disk stops it ("No space left on device", exit 1).</summary>
+    AdbResult Push(List<string> sources, string target)
+    {
+        if (!target.StartsWith(QuestFiles.DeviceRoot + "/", StringComparison.Ordinal))
+        {
+            return new AdbResult(1, "", $"adb: error: unexpected target {target}");
+        }
+        var rel = target[(QuestFiles.DeviceRoot.Length + 1)..];
+        var intoDir = rel.EndsWith('/');
+        if ((sources.Count > 1 && !intoDir) || (intoDir && !Directory.Exists(Local(rel.TrimEnd('/')))))
+        {
+            return new AdbResult(1, "", $"adb: error: target '{target}' is not a directory");
+        }
+        var buffer = new byte[65536];
+        foreach (var source in sources)
+        {
+            var path = Local(intoDir ? rel + Path.GetFileName(source) : rel);
+            using var input = File.OpenRead(source);
+            using var output = File.Create(path);
+            ++TarFiles;
+            int n;
+            while ((n = input.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                var take = WriteQuota is { } q ? (int)Math.Min(q, n) : n;
+                output.Write(buffer, 0, take);
+                if (WriteQuota is not null)
+                {
+                    WriteQuota -= take;
+                    if (WriteQuota == 0)
+                    {
+                        FreeBytes = 0;
+                        return new AdbResult(1, "", $"adb: error: failed to copy '{source}' to '{target}': remote No space left on device");
+                    }
+                }
+            }
+        }
+        return Ok($"{sources.Count} files pushed.\n");
+    }
+
     string Local(string devicePath) => Path.GetFullPath(Path.Combine(DeviceFiles, devicePath.Replace('/', '\\')));
 
     AdbResult Shell(string command)
@@ -129,7 +171,10 @@ sealed class FakeAdb(string deviceFiles) : IAdb
             case "pm" when words is ["pm", "path", var package]:
                 return Ok(package == QuestFiles.Package && InstalledApkMd5 is not null ? "package:/data/app/~~x/" + package + "/base.apk\n" : "");
             case "mkdir":
-                Directory.CreateDirectory(Local(words[^1] == QuestFiles.DeviceRoot ? "" : words[^1]));
+                foreach (var d in words.Skip(1).Where(w => !w.StartsWith('-')))
+                {
+                    Directory.CreateDirectory(Local(d == QuestFiles.DeviceRoot ? "" : d));
+                }
                 return Ok("");
             case "df":
                 return Ok($"Filesystem     1K-blocks      Used Available Use% Mounted on\n/dev/fuse      110000000  50000000 {FreeBytes / 1024} 45% /storage/emulated\n");

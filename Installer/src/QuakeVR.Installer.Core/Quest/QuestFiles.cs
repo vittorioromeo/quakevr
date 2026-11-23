@@ -53,7 +53,7 @@ public static class QuestFiles
         void Add(string devicePath, string source, string what)
         {
             // (a path relative to the app's files/ folder, '/' between parts: the headset's storage refuses ':' and '\',
-            // and one refused name stops the whole tar stream)
+            // where the copy would fail)
             if (devicePath.StartsWith('/') || devicePath.IndexOfAny([':', '\\']) >= 0)
             {
                 throw new InstallException($"Not a path on the Quest: {devicePath} (from {source}).");
