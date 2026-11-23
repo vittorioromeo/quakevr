@@ -1513,6 +1513,29 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		if (clip->type == MOVE_NOMONSTERS && touch->v.solid != SOLID_BSP)
 			continue;
 
+		// QVR: a shot, missile or thrown thing meets another player's body as drawn (vr/vr_playerhit.cpp), not his box
+		// (his drawn head reaches over it: its own bounds, not his box's)
+		if (!corpse && touch->v.solid != SOLID_BSP && ((int)touch->v.flags & FL_CLIENT)
+			&& !(clip->passedict && PROG_TO_EDICT(clip->passedict->v.owner) == touch && !clip->hitowner))
+		{
+			shot = VR_PlayerShotClip (touch, clip->start, clip->mins, clip->maxs, clip->end, clip->hittype, clip->hitmodel,
+				clip->hitgibs, &trace);
+			if (shot == 0)
+				continue;
+			if (shot > 0)
+			{
+				if (clip->trace.allsolid)
+					return;
+				if (trace.fraction < clip->trace.fraction)
+				{
+					qboolean wasStartSolid = clip->trace.startsolid;
+					clip->trace = trace;
+					clip->trace.startsolid = wasStartSolid;
+				}
+				continue;
+			}
+		}
+
 		if (clip->boxmins[0] > touch->v.absmax[0]
 		|| clip->boxmins[1] > touch->v.absmax[1]
 		|| clip->boxmins[2] > touch->v.absmax[2]

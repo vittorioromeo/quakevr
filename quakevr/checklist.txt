@@ -108,6 +108,8 @@ In a deathmatch with bots, let a bot take your heavy revolver (or play the revol
 Look at a bot's holsters up close from the front and the side: the sheaths sit on its belly and chest and turn with its body, and its holstered guns hang in them as yours do (no gun at a wrong angle or missing at the hips). {test:mp_dm_passive}
 In a deathmatch, weapons a bot or player drops now lie 20 seconds before vanishing (10 before): enough time to walk over and grab one. {test:mp_dm_hostile}
 Flat-screen or VR: in a deathmatch with a bot, wear armour, die (not gibbed), respawn and pick up different armour: your old body keeps the armour plates it died in (no plates appearing or changing colour on it). {test:mp_dm_hostile}
+Flat-screen or VR: in a deathmatch with a passive armed bot, shoot squarely at its helmet from the front, the side and behind: every shot hits (headshot); a shot a hand's width beside its arm, or one only at its weapon's barrel from the side, does not hurt it or make it bleed. {test:mp_dm_hitzones}
+Flat-screen or VR: Debug > Show Hit Zones while hosting a deathmatch with a bot (and another player): a red sphere on each one's head, a green torso, yellow arms and blue legs drawn on their bodies, following their arms and turning with them; the same when joining. {test:mp_dm_hitzones}
 
 [5. Flat screen]
 Flat-screen: open Options > Controls and scroll to the end of the keyboard and mouse list: the "Quake VR (flat screen)" group lists every flat key (leans, swap, force grab, shove... toolgun adjust); rebind one with Enter and a key, clear one with Backspace, and check it works in game. {test:flat_force_grab}

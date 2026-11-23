@@ -717,10 +717,9 @@ void(float xTest) VR_Decap_Test =
     }
 };
 
-// Every server frame (StartFrame): Show Hit Zones (VR_Decap_DebugFrame), a test asked for (vr_decap_test).
+// Every server frame (StartFrame): a test asked for (vr_decap_test). (Show Hit Zones: StartFrame's own, world.qc.)
 void() VR_Decap_TestFrame =
 {
-    VR_Decap_DebugFrame();
     float ask = cvar_hget(cvarh_vr_decap_test);
     if(!ask)
     {
