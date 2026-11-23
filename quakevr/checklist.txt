@@ -16,6 +16,11 @@ Flat-screen or VR: grip a rope or chain and look at your hands: the thumbs wrap 
 Flat-screen: climb a rope or pole and jump off it: you fall clear and are not caught by it again in the air; once landed, walking into it takes it again, and off a pole steered back to it in the air you take it again. {test:ropes_flat}
 Flat-screen: climb up a pole or rope and hold crouch: you slide down it quickly to the floor with a scrape, the hands sliding along it (Rope Slide Speed under Debug > Tunables). {test:ropes_flat}
 Flat-screen: jump up to a level rope or pole and press crouch while hanging under it: you drop off it. {test:ropes_flat}
+Flat-screen or VR: open the weapon wheel and pick a weapon, DROP or UNLOAD: no menu click sound plays on the pick (the holster's own sounds still do). {test:flat_weapon_wheel}
+Flat-screen: hold J with a gun, then hold the fire button and the ironsight key: the gun neither shoots nor sights while it is wound up; let go of J and it is thrown. {test:flat_throw_guide}
+Flat-screen: throw the axe, a rock and the quick grenade with J: each leaves from the hand that holds it (not the middle of the view) and still lands where the crosshair points. {test:flat_throw_guide}
+Flat-screen: hold J: the wound-up hand and what it holds stay in view at the screen's upper corner, a little further back as it charges (Debug > Tunables > Flatscreen > Throw: Wind-Up Forward/Out/Up/Pitch/Yaw/Roll). {test:flat_throw_guide}
+Flat-screen: hold J with the other hand empty (an axe, a prop, a gun, the quick grenade): the free hand goes forward, palm away and fingers open, guiding the throw; with a gun or a prop in the other hand it stays as it is (Throw: Guide rows to tune it). {test:flat_throw_guide}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the 1.2.0-beta2 pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names 1.2.0-beta2; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
