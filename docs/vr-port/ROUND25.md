@@ -10952,6 +10952,11 @@ details: QUEST_OPTIMISATIONS.md "Standalone status, 2026-11-23".
 - **Tests:** vr_agrunt_test group 207 pass natively. Its 10 failures (3, 16, 35, 42, 61, 74, 203, the script-only 228
   and 229, and a lane flake on 65) fail the same with `vr_agpose_native 0` in this build, and 65 passes alone. MP
   mp_armed, mp_disarm and mp_held pass.
-- **Quest:** not measured yet. The APK is built (0 warnings, check_apk 20/0) and the block is scripted
-  (`scratch/qcpu2_qblock.sh`: install, 3 launches A/B with `vr_agpose_native` 0/1 at runtime, then put back beta2).
-  It waits for the headset.
+- **Quest 3** (this tree's APK and progs, the shipped preset as a new player gets it; C and E with the pose by QuakeC
+  (a) and by the engine (b), interleaved, 3 launches in changed orders; means, then per launch): C: c_server 11.09 ->
+  9.67 ms (11.83/10.39/11.03 -> 9.65/10.62/8.75), CPU busy median 25.20 -> 23.35, period median 26.52 -> 24.73, late
+  ~100% both (still CPU-bound), GPU 19.0 -> 18.0. E: c_server 6.54 -> 5.75 (6.19/6.98/6.44 -> 5.96/5.72/5.56), busy
+  15.95 -> 15.11, period 17.96 -> 16.87, late 80% -> 75%, GPU 12.0 both. The runtime stopped and restarted the XR
+  session 6-7 times a launch (the headset not worn), and each part still recorded its 720-900 frames. Launch 2 ran
+  again after Quick Actions was in front at first. Beta2's APK and progs.dat (8a409520...) were put back.
+  Scripts: `scratch/qcpu2_qblock.sh`, `qcpu2_qmk.py`, `qcpu2_qsum.py` (not committed).
