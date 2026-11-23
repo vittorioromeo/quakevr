@@ -1,8 +1,76 @@
-**Quake VR: UNLEASHED 1.2.0 beta 2**: the second preview of the next update, and the first with **Quake VR on the Meta Quest itself**, no PC needed to play. This is a **beta**: expect rough edges. Beta 2 also brings ropes, poles and monkey ropes to climb, three new tutorial lessons, Dwell's Crystal Lance and Rotary Shotgun finished, fixes for Quoth's kellbase, number keys for hands and holsters on the flat screen, and many fixes. What came in beta 1 (multiplayer, Dwell, Quoth and much more) is below. Please report bugs: Options > Create Bug Report makes a zip you can attach.
+**Quake VR: UNLEASHED 1.2.0 beta 3**: the third preview of the next update. This is a **beta**: expect rough edges, and the standalone Quest version is still **experimental**. Beta 3 brings a weapon wheel, your own holster places in multiplayer, joining a server's campaign, flat-screen throwing, melee and swimming, a charged Crystal Lance and a faster Quest version. **On the Quest, beta 1 and beta 2 players must uninstall the old app once before updating, and back up their saves first** (steps below). What came in betas 1 and 2 is further below. Please report bugs: Options > Create Bug Report makes a zip you can attach.
 
 **The full patch notes** (every change since 1.1.0, by area): [PATCH_NOTES_1.1.1.md](https://github.com/vittorioromeo/quakevr/blob/next/docs/vr-port/PATCH_NOTES_1.1.1.md) (they become the 1.2 notes at the final release).
 
-# New in beta 2
+# New in beta 3
+
+## Before you update on the Quest: uninstall once (back up your saves first)
+
+- Beta 3's Quest app is signed with Quake VR's own release key. A Quest cannot update an app signed with a different key, so **if you installed beta 1 or beta 2 on your Quest, uninstall the old app once** before installing beta 3. Uninstalling deletes the app's folder on the headset, **your saves and settings there too**. Setup does not back them up for you (if you skip the uninstall, it stops and says the Quest has a differently signed build), so copy them yourself first:
+  1. Connect the Quest to your PC with its USB cable and put the headset on: if it asks to allow access to its files, allow it.
+  2. On the PC, open the Quest in File Explorer (This PC > your Quest > Internal shared storage) and go to `Android\data\com.vittorioromeo.quakevr\files`.
+  3. Copy your saves (`*.sav`) and settings (`ironwail.cfg`) from the `quakevr` folder to your PC, and the saves in the folder of any mod you played there.
+  4. In the headset: Library > Unknown Sources > Quake VR > Uninstall.
+  5. Run Setup again with Meta Quest ticked: it installs beta 3 and copies the game to the headset again.
+  6. Copy your files back into the same folders.
+- From beta 3 on, updates install over the old app again, keeping your saves.
+
+## Multiplayer: beta 2 players can't join beta 3
+
+- **Network version 46**: everyone in a game needs beta 3 (a beta 2 player gets a "different version" message).
+- **Your own holster places** are sent to the other players, so they see your holsters where you put them; bots wear the default ones. Holsters now show on bots and other players.
+- A player joining a server now plays the **server's campaign** (Quake, an expansion or a mod), switching to it if they have it, with a clear message if they don't.
+- Shots now meet players' bodies **as they are drawn** (head, arms, held weapon) instead of a plain box; Show Hit Zones shows them.
+
+## Weapon wheel
+
+- **Hold B or Y** (a third of a second) to open a wheel around that hand: empty hand, your holsters, drop and unload. Time slows while it is open; point at a slot and let go to take it, or let go off the wheel to cancel. Its settings are in VR Settings.
+- On the flat screen: hold 1 or 2 for the same wheel (the mouse picks, Esc cancels); a tap still cycles as before.
+- Holding the button for the wheel no longer ejects your magazine (a tap still does), and weapons put away through the wheel keep their rounds.
+
+## Flat-screen play
+
+- **Throwing** (J by default): tap for a toss, hold to wind up. Blades stick, the throw leaves your hand towards the crosshair, and the tutorial's throwing lessons can be passed.
+- **Melee**: guard + fire bashes; the Crystal Lance thrusts like a spear (V); long blades and the Lance are held properly.
+- **Swimming**: your hands make the strokes, with water sounds and bubbles.
+- The tutorial's messages use flat-screen wording and show **your own keys**.
+- Ropes and poles: W and S climb when you look up or down and swing when you look level; crouch slides down or lets go; jumping off a pole pushes you away from it.
+- Smaller fixes: the gun no longer jitters at a wall when you look down; the hub's lecterns stand in one row, in Select Campaign's order; your hands sit on a ladder's rungs.
+
+## Climbing
+
+- Poles stop players and objects (crates rest on them); two climbers can share a pole; chains stop shots, nails and blows (with sparks) and still swing.
+- Hands: under the rope on a monkey traverse, thumbs wrapped round ropes and thin poles, elbows out; your holsters stay on your hips while you climb.
+
+## Weapons
+
+- **Dwell's Crystal Lance** is now a charged shot: hold to charge (sparks, light and a hum), and let go when it is full to fire.
+- The super nailgun's barrels spin up and coast down; thrown blades' kills push the body less; Quake VR's own weapon models' caps no longer look white; Dwell's unused Rifle is gone (an old save holding it gets a shotgun instead).
+
+## Quest (standalone, experimental)
+
+- **Faster in fights**: **Quest Foveation** (VR Settings > Graphics; High by default on the Quest 3) draws the edges of the view in less detail; each eye is drawn in one pass; the image is allowed to get smaller only during big fights; your own body and gore draw more cheaply; the Standalone preset turns retro (pixelated) lighting off, the most expensive way to draw the world there. Armed grunts' weapon poses are worked out by the engine now: less CPU in big fights.
+- Changing Quest Foveation during a game no longer crashes.
+- Taking the headset off pauses a single player game (Advanced > Headset > Headset Taken Off).
+- **The Quest 3S is untested**: a player reported a crash entering the hub on one, and we are looking at it. Beta 3 is tested on the Quest 3; the Quest 2 is not tested yet.
+
+## Other
+
+- The Steam Frame's controllers are supported (thanks to Kasper Olesen).
+- **Launch options renamed**: `-vr-hide-mirror` is now `-hidemirror`, `-vr-unattended` is `-unattended`, and `-vrmock` is `+vr_backend mock`. The old names still work until 1.3 and print a note.
+
+## Known issues (beta 3)
+
+- **The Quest version is experimental**: close-up fights with many gibs and very large battles can dip below 72 frames a second; tested on the Quest 3 only (the Quest 3S is untested, see above).
+- Quest: the first start after installing or updating spends about 30 seconds on the loading panel while the game prepares its shaders (later starts take a few seconds).
+- **Splitscreen is not included yet.**
+- The rest of beta 1's known issues below still apply (multiplayer is a beta; single player only features; Dwell and Quoth experimental; no code signing).
+
+# Beta 2 (2026-11-23)
+
+(The second beta's notes, unchanged. Where they say Setup's Quest install keeps your saves: it does again from beta 3 on, after the one-time uninstall above. Where they say the Quest 3S should behave the same: it is untested.)
+
+**Quake VR: UNLEASHED 1.2.0 beta 2**: the second preview of the next update, and the first with **Quake VR on the Meta Quest itself**, no PC needed to play. This is a **beta**: expect rough edges. Beta 2 also brings ropes, poles and monkey ropes to climb, three new tutorial lessons, Dwell's Crystal Lance and Rotary Shotgun finished, fixes for Quoth's kellbase, number keys for hands and holsters on the flat screen, and many fixes. What came in beta 1 (multiplayer, Dwell, Quoth and much more) is below.
 
 ## Quake VR on the Quest (standalone, experimental)
 
