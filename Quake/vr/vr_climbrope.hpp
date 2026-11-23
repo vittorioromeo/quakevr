@@ -12,6 +12,7 @@
 
 #include "vr_engine.hpp"
 #include "vr_physsound.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 
 namespace qvr::climbrope
@@ -61,6 +62,17 @@ void shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocit
 
 // Server (ropes9): whether rope entity `ent` is a climbing pole (rigid: climbed, never swung).
 [[nodiscard]] bool pole(int ent);
+
+// Server (ropes9): a climbing pole as the physics props meet it (vr_box3d_props.cpp syncPoles): its entity, its two
+// ends and its radius (half its thickness), units.
+struct PoleLine
+{
+    int ent{0};
+    glm::vec3 a{0.f}, b{0.f};
+    float radius{0.f};
+};
+// Every pole now -> `out` (cleared first).
+void poleLines(za::Vector<PoleLine>& out);
 
 // Server: what rope entity `ent` is made of (its grip's sound and haptics): a rope, a chain, a metal or wooden pole.
 [[nodiscard]] physsound::RopeMaterial material(int ent);

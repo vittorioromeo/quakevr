@@ -132,7 +132,12 @@ Pole: taut, level or slanted): past `vr_rope_monkey_angle` a monkey traverse, el
 `vr_pole_solid`, `placeSolids`: one upright or level, up to 32 slanted, within its thickness of it): players and
 monsters stop at it, the climber on it passes (their owner, `passSolids`: holding a rope within 24 units, or inside a
 box until out), shots, nails and blows hit it (takedamage, never dealt any: `T_DamageImpl`) and `VR_MaterialOf` makes
-it metal (sparks) or wood (splinters); the navmesh cuts each box out (vr_nav.cpp, 8 units across at least). **Drawn**
+it metal (sparks) or wood (splinters); the navmesh cuts each box out (vr_nav.cpp, 8 units across at least). (ropes9)
+**The physics props** (crates, barrels, thrown things) and corpses meet it as the world: a Box3D capsule along it, its
+thickness across (vr_box3d_props.cpp `syncPoles`, from `climbrope::poleLines`; the world's category and mask), static
+(fast props' continuous collision), kinematic while its entity moves it (a mover, the physgun) until still a second;
+Box3D's player and monster bodies are kinematic and never meet it (they keep the Quake boxes). Chains: not (they swing).
+**Drawn**
 with a per-pixel surface (the tube shader's `Pattern`): wood grain along it, or brushed steel with a joint every 48.
 **The hands round it** (VR and flat, `vr_view_hands.cpp` ropeGrip / ropeHeld; ropes too): the hand's grip channel laid
 on the rope's axis, out along the palm's normal by the radius less the channel's, then by what of the palm and thumb is
@@ -284,6 +289,9 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
   passed each. `rope_flat_test.sh <agent> pole`: walked into, up 80.6, down, never moved: 4 passed.
   `rope_flat_test.sh <agent> strung` (a rope strung 110 up along his way, 1% slack): jumped up to (a monkey traverse,
   sagging under him), forward along it 80 units, back 40, dropped with the move-down key.
+- (ropes9) `vr_pole_solid_test` then the physics props (2 more, 14 in all): a crate dropped 30 units over the level
+  pole's middle rests on it (its bottom at the pole's top), one thrown level at 400 units/s at an upright pole bounces
+  back off it (its middle 14 short of the axis, back at 55 units/s).
 - (ropes8c) `vr_pole_solid_test` also checks the chains (5 more, 12 in all): a shot's, a blow's and a nail's line across
   each of vrropes' three chains meet it within a unit of its links, metal, taking damage; a player's box, a sight line
   and a plain trace pass; a nail (QC launch_spike) fired at one stops at it with a metal hit.
