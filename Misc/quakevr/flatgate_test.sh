@@ -30,7 +30,7 @@ echo "flatgate_sh: steps $steps"
 check $(python -c "import sys; v=dict(a.split('=') for a in sys.argv[1:]); print(1 if float(v['pitch'])<3 and float(v['gun'])<15 else 0)" $steps) \
     "no jump at a crossing: in the view's pitch (under 3 degrees a frame, what setpos sets is left out) or the gun in the camera's frame (under 15 units: a fresh gate 0.1, while the walk's sway runs 9.5 for one frame; it was 708, the gun in the room he left)"
 
-run fg_turning "$P; vr_flatplay_debug 2; setpos -1280 704 24 10 90 0; wait20; cl_yawspeed 40; +right; +forward; wait120; -right; -forward; wait5; echo ff_gate_done" "ff_gate_done"
+run fg_turning "$P; vr_flatplay_debug 2; setpos -1280 704 24 10 90 0; noclip; wait20; cl_yawspeed 40; +right; +forward; wait120; -right; -forward; wait5; echo ff_gate_done" "ff_gate_done"
 turn=$(python "$(dirname "$0")/flatgate_steps.py" "$S/fg_turning.log" --turn 90)
 echo "flatgate_sh: turning $turn"
 check $(python -c "import sys; v=dict(a.split('=') for a in sys.argv[1:]); print(1 if float(v['crossings'])>=1 and float(v['gatestep'])<1.5 else 0)" $turn) \
