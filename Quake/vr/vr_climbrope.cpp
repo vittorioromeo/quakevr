@@ -132,6 +132,8 @@ struct Rope
     double sentAt{-1.0};
     float lastStep{0.f}; // the last step's length (seconds; 0: none yet)
     float speed{0.f};    // the fastest point's speed over the last frame (units/s)
+    float jostle{0.f};   // (ropes8b) how hard its links knock (units/s; step): against their neighbours, climbed, kicked
+    float handsWas[2]{-1.f, -1.f}; // (ropes8b) its rider's highest and lowest hands along it last frame (-1: none)
     bool monkey{false};  // (ropes7) traversed hanging under it: pinned at both ends, slanted past vr_rope_monkey_angle
     Rider rider;
     za::Vector<int> solids;  // (ropes8a) a pole's boxes (QC vr_pole_solid: placeSolids)
@@ -871,6 +873,8 @@ void layRider(Rope& r, float h)
     return nullptr;
 }
 
+constexpr float climbKnock = 90.f; // (ropes8b) units/s: the most a hold taken along it knocks a chain's links (step)
+
 // A frame of `dt` seconds for `r`.
 void step(Rope& r, float dt)
 {
@@ -895,6 +899,11 @@ void step(Rope& r, float dt)
     // The kicks (explosions, shots) since the last frame: speed added to their points (a rider's: to his swing, shared
     // with his weight).
     const float lastH = r.lastStep > 0.f ? r.lastStep : dt;
+    float kicked = 0.f; // (ropes8b: the hardest kick, units/s: its links knocked, ridden or not)
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        kicked = za::max(kicked, glm::length(r.kick[i]));
+    }
     if(r.rider.client >= 0 && r.rider.started)
     {
         riderKick(r, lastH);
@@ -946,6 +955,33 @@ void step(Rope& r, float dt)
         fastest = za::max(fastest, glm::length(r.p[i] - r.from[i]));
     }
     r.speed = dt > 0.f ? fastest / dt : 0.f;
+    // (ropes8b, his flat note 2026-11-23: a chain clinked on and on, held still) How hard its links knock: each point's
+    // move against the mean of its neighbours' (the moves' second difference along it), the most. A swing (the chain
+    // turning about its top, a rider on it carried round) moves them alike: none; a push, a shot, a hand taking it or
+    // pulling him up along it, the end flicking: they do.
+    // Ridden, its free end under his hands is left out: it trails the swing he rides (whipping round with it, held
+    // still or not), and the part he hangs on lies straight; his hands going along it (climbing: a hold taken higher
+    // or lower) knock it as a firm push does (climbKnock at most), as do the kicks (shots, explosions).
+    const bool ridden = r.rider.client >= 0 && r.rider.started && !r.rider.monkey;
+    float climbed = 0.f;
+    if(ridden && r.handsWas[0] >= 0.f)
+    {
+        climbed = za::fabs(r.rider.sHigh - r.handsWas[0]) + za::fabs(r.rider.sLow - r.handsWas[1]);
+    }
+    r.handsWas[0] = ridden ? r.rider.sHigh : -1.f;
+    r.handsWas[1] = r.rider.sLow;
+    float knock = 0.f, s = 0.f;
+    for(za::SizeT i = 1; i + 1 < n; i++)
+    {
+        s += r.rest[i - 1];
+        if(ridden && s + r.rest[i] > r.rider.sLow)
+        {
+            break;
+        }
+        const glm::vec3 m = r.p[i] - r.from[i], a = r.p[i - 1] - r.from[i - 1], b = r.p[i + 1] - r.from[i + 1];
+        knock = za::max(knock, glm::length(m - 0.5f * (a + b)));
+    }
+    r.jostle = za::max(dt > 0.f ? za::max(knock / dt, za::min(climbed / dt, climbKnock)) : 0.f, kicked);
 }
 
 // Writes rope `num` to `msg` (as it is, or gone).
@@ -1979,6 +2015,8 @@ struct FlatTest
     float pitch{0.f}, yaw{0.f};
     bool pole{false};        // (ropes7) `vr_rope_flat_test pole`: a wooden pole instead of the rope, no rope to rope
     float holstersStanding[2]{0.f, 0.f}; // (ropes8b) holstersOnHips standing before the rope: cm, degrees
+    bool chain{false};       // (ropes8b) `vr_rope_flat_test chain`: a chain, climbed (it clinks) and held still (quiet)
+    int clinks{0};           // (ropes8b) the chain's clinks at the stage's start (physsound::ropeSoundInfo)
     bool shots{false};       // (ropes8b) `vr_rope_flat_test <mode> shots`: screenshots of the body from outside while hanging
     za::Vector<glm::vec3> made; // (ropes7) the pole's points as made (it never moves)
 };
@@ -2046,14 +2084,14 @@ void flatTestFrame()
     case 1: // the rope hung, the player set before it
     {
         const glm::vec3 at = flatTestRope + glm::vec3{0.f, 0.f, 1.f};
-        edict_t* e = box3d::spawnClass(t.pole ? "vr_pole" : "vr_rope", at, glm::vec3{0.f});
+        edict_t* e = box3d::spawnClass(t.pole ? "vr_pole" : t.chain ? "vr_chain" : "vr_rope", at, glm::vec3{0.f});
         if(!e)
         {
             t.tally.check(false, flatTestName, "the rope made");
             flatTestEnd(t, false, "");
             return;
         }
-        placeWith(e, at, 480.f, t.pole ? poleThickness : 1.5f, 0, 0.f, 1.f, 0.5f, false);
+        placeWith(e, at, 480.f, t.pole ? poleThickness : t.chain ? 2.f : 1.5f, 0, 0.f, 1.f, 0.5f, false);
         t.rope = NUM_FOR_EDICT(e);
         t.pitch = 0.f;
         flatTestPlace(player, flatTestRope + glm::vec3{-80.f, 0.f, -player->v.mins[2] + 1.f}, 0.f);
@@ -2086,6 +2124,8 @@ void flatTestFrame()
             t.lastSerial = -1;
             t.handBits = 0;
             t.pitch = 0.f; // (ropes8a: looking level, forward held: up, whatever the pitch)
+            int sounds = 0;
+            (void)physsound::ropeSoundInfo(t.rope, sounds, &t.clinks); // (ropes8b: a chain's clinks from here)
             flatTestNext(t, 4);
         }
         else if(t.frames > 72 * 4)
@@ -2103,6 +2143,18 @@ void flatTestFrame()
             {
                 Con_Printf("%s: PASS climbed up looking level: the feet from %.1f to %.1f, %d hand changes, both hands drawn\n", flatTestName,
                     t.feet0, feet, t.serials);
+            }
+            if(t.chain)
+            {
+                // (ropes8b) Climbed, the chain clinks (the hands taking it, pulling him up it, knock its links).
+                int sounds = 0, clinks = 0;
+                (void)physsound::ropeSoundInfo(t.rope, sounds, &clinks);
+                const char* what = va("the chain clinks as he climbs it: %d clinks (at least 1)", clinks - t.clinks);
+                t.tally.check(clinks - t.clinks >= 1, flatTestName, what);
+                if(clinks - t.clinks >= 1)
+                {
+                    Con_Printf("%s: PASS %s\n", flatTestName, what);
+                }
             }
             Cbuf_AddText("-forward\n"); // (ropes8a: hanging still, the hands looked at; ropes8b: a rope's too, the holsters)
             flatTestNext(t, 40);
@@ -2128,6 +2180,28 @@ void flatTestFrame()
             {
                 Con_Printf("%s: PASS %s\n", flatTestName, what);
             }
+        }
+        if(t.chain)
+        {
+            // (ropes8b, his flat note 2026-11-23) Held still on a chain (2 s, from half a second on): no clink.
+            int sounds = 0, clinks = 0;
+            (void)physsound::ropeSoundInfo(t.rope, sounds, &clinks);
+            if(t.frames == 36)
+            {
+                t.clinks = clinks;
+            }
+            else if(t.frames == 36 + 144)
+            {
+                const bool quiet = climbing && clinks == t.clinks;
+                const char* what = va("held still on the chain for 2 s: %d clinks (none)", clinks - t.clinks);
+                t.tally.check(quiet, flatTestName, what);
+                if(quiet)
+                {
+                    Con_Printf("%s: PASS %s\n", flatTestName, what);
+                }
+                flatTestEnd(t, false, "");
+            }
+            return;
         }
         if(t.frames == 36 && t.pole)
         {
@@ -2426,6 +2500,7 @@ void flatTest_f()
     const char* mode = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
     flatTest.pole = !ZA_STRCMP(mode, "pole") || !ZA_STRCMP(mode, "strungpole");
     flatTest.shots = Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(2), "shots");
+    flatTest.chain = !ZA_STRCMP(mode, "chain");
     flatTest.stage = !ZA_STRCMP(mode, "strung") || !ZA_STRCMP(mode, "strungpole") ? 20 : 1;
 }
 
@@ -2931,22 +3006,27 @@ void soundTestFrame()
         check(cn == t.chainCount + 1 && ZA_STRSTR(cLast, "grab_metal"),
             va("on the chain: its metal grip, the second at once held back (%d: %s)", cn - t.chainCount, cLast));
         mark();
-        // Both pushed sideways (as a shove: the speed added to every point but the top).
-        for(Rope* x : {r, c})
-        {
-            for(za::SizeT i = 1; i < x->p.size(); i++)
-            {
-                x->kick[i] += glm::vec3{180.f, 180.f, 0.f} * (static_cast<float>(i) / static_cast<float>(x->p.size() - 1));
-            }
-        }
         next(7);
         break;
     case 7: // swinging for two seconds
-        if(t.frames >= 144)
+        if(t.frames == 18)
         {
+            // Both pushed sideways (as a shove: the speed added to every point but the top), after the grips' gap
+            // (ropes8b: a sound a rope within 0.15 s of its last is held back).
+            for(Rope* x : {r, c})
+            {
+                for(za::SizeT i = 1; i < x->p.size(); i++)
+                {
+                    x->kick[i] += glm::vec3{180.f, 180.f, 0.f} * (static_cast<float>(i) / static_cast<float>(x->p.size() - 1));
+                }
+            }
+        }
+        if(t.frames >= 18 + 144)
+        {
+            // (ropes8b, his note: a chain clinks as it is knocked, not on and on as it swings) The shove knocks it.
             const int clinks = cn - t.chainCount;
-            check(clinks >= 2 && clinks <= 9 && ZA_STRSTR(cLast, "metal_l"),
-                va("swung, the chain's links clink: %d in 2 s (2 to 9: rate-limited), %s", clinks, cLast));
+            check(clinks >= 1 && clinks <= 9 && ZA_STRSTR(cLast, "metal_l"),
+                va("shoved, the chain's links clink: %d in 2 s (1 to 9: as knocked, rate-limited), %s", clinks, cLast));
             check(rn == t.ropeCount, va("swung, the rope stays quiet (%d)", rn - t.ropeCount));
             next(99);
         }
@@ -3351,7 +3431,11 @@ void serverFrame(bool worldRan)
         }
         if(r.params.chain)
         {
-            physsound::chainMoves(kv.first, r.p[r.p.size() / 2], r.speed); // its links' clink (ropes5)
+            physsound::chainMoves(kv.first, r.p[r.p.size() / 2], r.speed, r.jostle); // its links' clink (ropes5, ropes8b)
+            if(vr_rope_debug.value >= 2.f && host_framecount % 18 == 0)
+            {
+                Con_Printf("chainjostle %d: t %.2f speed %.1f jostle %.1f rider %d\n", kv.first, qcvm->time, r.speed, r.jostle, r.rider.client);
+            }
         }
         send(kv.first, r);
     }
