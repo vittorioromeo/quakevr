@@ -1469,6 +1469,126 @@ def ropeclimb(s):
     s.check("A jumps off: B's copy holds the rope no more", True, "after %d reports" % n)
 
 
+POLE_A_AT = (-440.0, -490.0, 24.0)   # mp_pole (vrropes): A south of the metal pole (-440 -450, upright), facing north
+POLE_B_AT = (-440.0, -410.0, 24.0)   # ... B north of it facing south (flat: the second climber), or watching from further
+POLE_WATCH_AT = (-440.0, -640.0, 24.0)
+MONKEY_A_AT = (-60.0, 600.0, 24.0)   # mp_monkey (vrropes): A under the level rope (y 600, z 100, x -300..300), facing east
+MONKEY_WATCH_AT = (0.0, 420.0, 24.0)
+
+
+def rope_climber(s, srv, inst, ent, what, keys):
+    """`inst` (flat) holds `keys` until the server has him 48 units up (or along) from where he was -> his place then,
+    once he is still."""
+    def at():
+        return org_of(status(srv), "mp_client", "slot", ent - 1)
+    start = at()
+    inst.cmd(" ".join("+%s;" % k for k in keys))
+    moved = None
+    for _ in range(120):
+        p = at()
+        if p and start and max(abs(p[i] - start[i]) for i in range(3)) >= 48:
+            moved = p
+            break
+    inst.cmd(" ".join("-%s;" % k for k in keys))
+    s.check("%s (the server has him from %s to %s)" % (what, start, moved), moved is not None, "the server's at %s" % (at(),))
+    if not moved:
+        raise StepFailed(what)
+    prev = moved
+    for _ in range(60):
+        p = at()
+        if p and prev and max(abs(p[i] - prev[i]) for i in range(3)) < 1.0:
+            return p
+        prev = p
+    return prev
+
+
+def rope_copy_check(s, viewer, other, ent, what, feet):
+    """`viewer`'s copy of player `ent` on a rope or pole: climbing, its held wrists within ROPE_HANDS_NEAR of it as the
+    viewer has it, (`feet`) the ankles within ROPE_FEET_NEAR (a monkey traverse's legs hang: not judged)."""
+    def pose(ls):
+        return by_ent(ls[0], "mp_ropepose").get(ent)
+    lines, n = reports_until(s, [viewer, other], lambda ls: (pose(ls) or {}).get("climb", [0.0])[0] >= 0.9, what)
+    p = pose(lines) or {}
+    s.note("%s: " % viewer.name + " ".join("%s=%.1f" % (k, v[0]) for k, v in sorted(p.items()) if k != "ent"))
+    if not p:
+        s.check(what, False, "no mp_ropepose after %d reports" % n)
+        return
+    hands = max([p[k][0] for k in ("wrist0", "wrist1") if p[k][0] >= 0.0] or [99.0])
+    ankles = max(p["ankle0"][0], p["ankle1"][0])
+    s.check("%s: climbing %.2f, the wrists %.1f from it at most (%.0f)%s" % (
+        what, p["climb"][0], hands, ROPE_HANDS_NEAR, (", the ankles %.1f (%.0f)" % (ankles, ROPE_FEET_NEAR)) if feet else ""),
+        hands <= ROPE_HANDS_NEAR and (not feet or ankles <= ROPE_FEET_NEAR))
+
+
+def pole(s, vr_viewer=False):
+    """(ropes8d) Another player on a pole (ROPES.md "Poles", "Multiplayer"), vrropes' upright metal pole: flat A walks into
+    it and climbs (forward); flat B (mp_pole) walks into it from the other side and climbs it too (two climbers pass one
+    pole's boxes: passSolids' solidPass), each seeing the other's copy on it: climbing, the hands on it, the legs round it.
+    mp_pole_vr: B (VR, watching) sees A's copy so."""
+    srv, a, b, ea, eb = join(s, flat="A" if vr_viewer else "AB", level="vrropes",
+                             first=lambda srv, a, ea: put_at(srv, a, ea, POLE_A_AT, 90))
+    put_at(srv, b, eb, POLE_WATCH_AT if vr_viewer else POLE_B_AT, 90 if vr_viewer else 270)
+    srv.cmd("vr_climb_stamina 0")
+    if not vr_viewer:
+        # B's walk into the pole's box (not taking it: vr_flat_rope 0) predicted against it: his corrections few and small
+        srv.cmd("vr_flat_rope 0")
+        b.cmd("vr_flat_rope 0; centerview")
+        def pred():
+            since = b.mark()
+            b.cmd("vr_mp_predict_report")
+            _, l = b.wait(r"mp_predict: ", 10, since, "B's prediction report")
+            return fields(l)
+        was = pred()
+        b.cmd("+forward")
+        pushed = 0
+        for _ in range(120):  # (until he has pushed against it for 10 reads: his box stops 8.5 units off the pole)
+            bat = org_of(status(srv), "mp_client", "slot", eb - 1)
+            pushed += 1 if bat and bat[1] < -438.0 else 0
+            if pushed >= 10:
+                break
+        b.cmd("-forward")
+        now = pred()
+        bat = org_of(status(srv), "mp_client", "slot", eb - 1)
+        dn = int(now["corr_n"]) - int(was["corr_n"])
+        # (ropes8d: the server let a walking flat player through the upright pole's box, y -474 where A stopped him: open,
+        # ROUND25 ropes8d; so only the prediction's agreement with the server is judged here)
+        s.note("B walked into the pole: the server has him at %s (the pole at y -450)" % (bat,))
+        s.check("B's walk at the pole predicted as the server ran it: prediction on=%s, %d corrections more (2 at most), "
+                "the most %s" % (now["on"], dn, now["corr_max"]), now["on"] == "1" and dn <= 2)
+        srv.cmd("vr_flat_rope 1")
+        b.cmd("vr_flat_rope 1")
+        put_at(srv, b, eb, POLE_B_AT, 270)
+    a.cmd("centerview")
+    rope_climber(s, srv, a, ea, "A walks into the pole and climbs it", ["forward"])
+    if not vr_viewer:
+        b.cmd("centerview")
+        rope_climber(s, srv, b, eb, "B walks into the pole A is on and climbs it too", ["forward"])
+        # the server lets both through its boxes (vr_rope_info's rope_solid: pass, a bit a client), not only its owner
+        solid = [fields(l) for l in rope_reports([srv])[0] if l.startswith("rope_solid")]
+        both = (1 << (ea - 1)) | (1 << (eb - 1))
+        s.check("the server lets both climbers through the pole's boxes", any(int(f["pass"]) & both == both for f in solid),
+                "rope_solid %s" % solid)
+    rope_copy_check(s, b, a, ea, "%s B's copy of A on the pole" % ("VR" if vr_viewer else "flat"), True)
+    if not vr_viewer:
+        rope_copy_check(s, a, b, eb, "flat A's copy of B on the pole", True)
+
+
+def monkey(s, vr_viewer=True):
+    """(ropes8d) Another player on a strung rope (ROPES.md "Strung ropes"), vrropes' level rope: flat A jumps up to it
+    (taken overhead), goes along it hand over hand (forward, facing along it); B's copy of him (mp_monkey: VR B;
+    mp_monkey_flat: flat B) hangs under it: climbing, the hands on it (the legs hang: not judged), as he goes too."""
+    srv, a, b, ea, eb = join(s, flat="A" if vr_viewer else "AB", level="vrropes",
+                             first=lambda srv, a, ea: put_at(srv, a, ea, MONKEY_A_AT, 0))
+    put_at(srv, b, eb, MONKEY_WATCH_AT, 90)
+    srv.cmd("vr_climb_stamina 0")
+    a.cmd("centerview; +jump")
+    view = "VR" if vr_viewer else "flat"
+    rope_copy_check(s, b, a, ea, "%s B's copy of A hanging under the strung rope" % view, False)
+    a.cmd("-jump")
+    rope_climber(s, srv, a, ea, "A goes along the strung rope hand over hand", ["forward"])
+    rope_copy_check(s, b, a, ea, "%s B's copy of A still under the rope where he went" % view, False)
+
+
 def avatarcal(s):
     """The avatar calibration (QVR_SVC_AVATARCAL): each client's own (height, arm length, handedness, gloves, body...)
     reaches the other and the server exactly; A changes his gloves: B gets the change; B leaves: A forgets his; B joins
@@ -10070,6 +10190,10 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             retransmit(s)
         elif test == "mp_version":
             version(s)
+        elif test in ("mp_pole", "mp_pole_vr"):
+            pole(s, vr_viewer=test == "mp_pole_vr")
+        elif test in ("mp_monkey", "mp_monkey_flat"):
+            monkey(s, vr_viewer=test == "mp_monkey")
         elif test == "mp_avatarcal":
             avatarcal(s)
         elif test == "mp_ropes":
@@ -10258,6 +10382,8 @@ SUITE = [
     ("mp_avatarcal", ()),
     ("mp_ropes", ()),
     ("mp_ropeclimb", ()),
+    ("mp_pole", ()),
+    ("mp_monkey", ()),
     ("mp_body", ()),
     ("mp_prefs", ()),
     ("mp_grab", ()),
@@ -10332,7 +10458,7 @@ def in_profile(name, profile):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"])
     tree_base = default_base(REPO)
     ap.add_argument("--base", required=tree_base is None, default=tree_base,
                     help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")
@@ -10401,7 +10527,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"):
+                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

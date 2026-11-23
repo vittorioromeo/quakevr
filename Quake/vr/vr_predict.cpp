@@ -5,6 +5,7 @@
 #include "vr_units.hpp"
 #include "vr_api.h"
 #include "vr_climb.hpp"
+#include "vr_climbrope.hpp"
 #include "vr_clientprefs.hpp"
 #include "vr_server.hpp"
 #include "vr_slide.hpp"
@@ -706,6 +707,14 @@ struct ClientBody final : pmove::Body
             {
                 best.startsolid = true;
             }
+        }
+        // (ropes8d) The poles' boxes (QC vr_pole_solid: no model, never sent), from the poles as sent: his box as the
+        // server's moves meet boxes (hull::entBox: vr_hull_ent_width's default, vr_hull_width's; his crouched height).
+        const float half = (cp.hullWidth > 0.f ? cp.hullWidth : 32.f) * 0.5f;
+        const float mins[3]{-half, -half, -24.f}, maxs[3]{half, half, -24.f + (cp.rules.boxHeight > 0.f ? cp.rules.boxHeight : 56.f)};
+        if(climbrope::clientSolidTrace(start, mins, maxs, end, best))
+        {
+            hit = 0;
         }
         logTrace("box", start, end, best);
         return best;

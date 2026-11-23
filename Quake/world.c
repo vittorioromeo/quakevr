@@ -1557,6 +1557,8 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 				continue;	// don't clip against own missiles
 			if (PROG_TO_EDICT(clip->passedict->v.owner) == touch && !clip->hitowner)
 				continue;	// don't clip against owner (QVR: but a missile come through a teleporter meets it: VR_PortalHitsOwner)
+			if (touch->v.solid == SOLID_BBOX && VR_PoleSolidPasses (touch, clip->passedict))
+				continue;	// QVR (ropes8d): a pole's box every climber on it passes, not only its owner
 		}
 
 		// QVR: precise hits (vr/vr_hitmodel.cpp): a monster's box (grown by the

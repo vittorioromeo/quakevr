@@ -140,6 +140,7 @@ struct Rope
     Rider rider;
     za::Vector<int> solids;  // (ropes8a) a pole's boxes (QC vr_pole_solid: placeSolids)
     int solidOwner{0};       // the player let through them (passSolids), 0 none
+    za::U64 solidPass{0};    // (ropes8d) every player let through them (bit client - 1: VR_PoleSolidPasses), the owner too
     glm::vec3 solidsAt{0.f}; // the pole's top where they were placed
 };
 
@@ -187,6 +188,7 @@ struct ClientRope
 };
 ankerl::unordered_dense::map<int, ClientRope> clientRopes;
 int builtFrame = -1;
+bool boxHullReady = false; // (ropes8d) world.c's box hull made on a remote client (clientSolidTrace)
 const glm::vec3 keyLight = glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}); // (the magnetic holsters' chains')
 
 [[nodiscard]] glm::vec3 vecOf(const float* v)
@@ -226,6 +228,26 @@ void freeSolids(Rope& r, int pole)
     }
     r.solids.clear();
     r.solidOwner = 0;
+    r.solidPass = 0;
+}
+
+// (ropes8d) How many boxes a pole from `a` to `a` + `d` of `thickness` has (placeSolids; the clients' prediction makes
+// the same from the pole as sent: solidTrace).
+[[nodiscard]] int solidCount(const glm::vec3& d, float thickness)
+{
+    const float len = glm::length(d);
+    const glm::vec3 u = len > 1e-3f ? glm::abs(d / len) : glm::vec3{0.f, 0.f, 1.f};
+    const float across = u.x >= u.y && u.x >= u.z ? za::max(u.y, u.z) : u.y >= u.z ? za::max(u.x, u.z) : za::max(u.x, u.y);
+    return za::clamp(static_cast<int>(za::ceil(len * across / za::max(thickness, 1.f))), 1, maxSolids);
+}
+
+// ... and its box `k` of `n`: the bounds of its piece grown by half its thickness.
+void solidBounds(const glm::vec3& a, const glm::vec3& d, float thickness, int k, int n, glm::vec3& lo, glm::vec3& hi)
+{
+    const glm::vec3 p0 = a + d * (static_cast<float>(k) / static_cast<float>(n));
+    const glm::vec3 p1 = a + d * (static_cast<float>(k + 1) / static_cast<float>(n));
+    lo = glm::min(p0, p1) - glm::vec3{thickness * 0.5f};
+    hi = glm::max(p0, p1) + glm::vec3{thickness * 0.5f};
 }
 
 // Pole `pole`'s boxes placed along it (made, or made again where one went).
@@ -236,10 +258,7 @@ void placeSolids(Rope& r, int pole)
         return;
     }
     const glm::vec3 a = r.p.front(), d = r.p.back() - a;
-    const float len = glm::length(d), half = r.params.thickness * 0.5f;
-    const glm::vec3 u = len > 1e-3f ? glm::abs(d / len) : glm::vec3{0.f, 0.f, 1.f};
-    const float across = u.x >= u.y && u.x >= u.z ? za::max(u.y, u.z) : u.y >= u.z ? za::max(u.x, u.z) : za::max(u.x, u.y);
-    const int n = za::clamp(static_cast<int>(za::ceil(len * across / za::max(r.params.thickness, 1.f))), 1, maxSolids);
+    const int n = solidCount(d, r.params.thickness);
     bool whole = static_cast<int>(r.solids.size()) == n;
     for(const int s : r.solids)
     {
@@ -270,9 +289,8 @@ void placeSolids(Rope& r, int pole)
     const int made = static_cast<int>(r.solids.size());
     for(int k = 0; k < made; k++)
     {
-        const glm::vec3 p0 = a + d * (static_cast<float>(k) / static_cast<float>(made));
-        const glm::vec3 p1 = a + d * (static_cast<float>(k + 1) / static_cast<float>(made));
-        const glm::vec3 lo = glm::min(p0, p1) - glm::vec3{half}, hi = glm::max(p0, p1) + glm::vec3{half};
+        glm::vec3 lo, hi;
+        solidBounds(a, d, r.params.thickness, k, made, lo, hi);
         const glm::vec3 mid = (lo + hi) * 0.5f;
         edict_t* s = EDICT_NUM(r.solids[static_cast<za::SizeT>(k)]);
         for(int c = 0; c < 3; c++)
@@ -303,6 +321,7 @@ void placeSolids(Rope& r, int pole)
 // The player let through pole `r`'s boxes (their owner: Quake's moves skip what the mover owns): one holding a climbable
 // rope (hanging) within solidNear of it (he took it: the climb holds his body round it), or one in a box (made over him,
 // or let go of it, still in it), until he is out; the one let through before first. None: everyone meets it.
+// (ropes8d) Every other player let through likewise (`solidPass`, world.c's VR_PoleSolidPasses): two climbers on one pole.
 void passSolids(Rope& r)
 {
     if(r.solids.empty())
@@ -312,6 +331,7 @@ void passSolids(Rope& r)
     const float half = r.params.thickness * 0.5f;
     const glm::vec3 lo = glm::min(r.p.front(), r.p.back()) - glm::vec3{half}, hi = glm::max(r.p.front(), r.p.back()) + glm::vec3{half};
     int owner = 0;
+    za::U64 all = 0;
     for(int i = 1; i <= svs.maxclients; i++)
     {
         edict_t* pl = EDICT_NUM(i);
@@ -329,8 +349,13 @@ void passSolids(Rope& r)
         {
             owner = i;
         }
+        if(pass && i <= 64)
+        {
+            all |= za::U64{1} << (i - 1);
+        }
     }
     r.solidOwner = owner;
+    r.solidPass = all;
     for(const int s : r.solids)
     {
         EDICT_NUM(s)->v.owner = owner ? EDICT_TO_PROG(EDICT_NUM(owner)) : 0;
@@ -1434,6 +1459,12 @@ void info_f()
             kv.first, static_cast<int>(r.p.size()), r.params.chain ? 1 : 0, r.p.back().x, r.p.back().y, r.p.back().z, r.speed,
             r.params.length, r.params.thickness, r.params.mass, r.params.stiffness, r.params.damping,
             r.params.pinned ? ", pinned" : "", r.top.x, r.top.y, r.top.z);
+        if(!r.solids.empty())
+        {
+            // (ropes8d) a pole's boxes and who passes them (passSolids: the owner, every climber on it; mp_test.py pole)
+            Con_Printf("rope_solid: ent=%d boxes=%d owner=%d pass=%llu\n", kv.first, static_cast<int>(r.solids.size()), r.solidOwner,
+                static_cast<unsigned long long>(r.solidPass));
+        }
         if(r.rider.client >= 0)
         {
             Con_Printf("rope_rider: ent=%d client=%d hands %.0f..%.0f along, swing radius %.0f\n", kv.first, r.rider.client,
@@ -4038,6 +4069,92 @@ float clientRopeDistance(const glm::vec3& p)
     return best;
 }
 
+bool clientSolidTrace(const float* start, const float* mins, const float* maxs, const float* end, trace_t& best)
+{
+    if(sv.active || clientRopes.empty())
+    {
+        return false; // (a server here: its own player isn't predicted)
+    }
+    if(!boxHullReady)
+    {
+        SV_InitBoxHull(); // (a remote client never cleared a server's world: SV_ClearWorld makes it)
+        boxHullReady = true;
+    }
+    bool holding = false;
+    for(int hand = 0; hand < 2 && !holding; hand++)
+    {
+        glm::vec3 at, up;
+        float thick = 0.f, w = 0.f;
+        holding = climb::ropeLine(hand, at, up, thick, w) && w > 0.f;
+    }
+    const glm::vec3 s = vecOf(start), slo = s + vecOf(mins), shi = s + vecOf(maxs);
+    const auto overlaps = [&](const glm::vec3& lo, const glm::vec3& hi, float by)
+    {
+        for(int c = 0; c < 3; c++)
+        {
+            if(slo[c] > hi[c] - by || shi[c] < lo[c] + by)
+            {
+                return false;
+            }
+        }
+        return true;
+    };
+    bool met = false;
+    for(const auto& kv : clientRopes)
+    {
+        const ClientRope& c = kv.second;
+        if(!c.pole || c.p.size() < 2)
+        {
+            continue;
+        }
+        const glm::vec3 a = c.p.front(), d = c.p.back() - a;
+        const glm::vec3 grow{c.thickness * 0.5f + solidNear};
+        if(holding && overlaps(glm::min(a, c.p.back()) - grow, glm::max(a, c.p.back()) + grow, 0.f))
+        {
+            continue; // (passSolids: he holds a rope by it)
+        }
+        const int n = solidCount(d, c.thickness);
+        bool inside = false;
+        for(int k = 0; k < n && !inside; k++)
+        {
+            glm::vec3 lo, hi;
+            solidBounds(a, d, c.thickness, k, n, lo, hi);
+            inside = overlaps(lo, hi, solidInside);
+        }
+        if(inside)
+        {
+            continue; // (... or he is in one of its boxes)
+        }
+        for(int k = 0; k < n; k++)
+        {
+            glm::vec3 lo, hi;
+            solidBounds(a, d, c.thickness, k, n, lo, hi);
+            vec3_t hullMins, hullMaxs;
+            for(int i = 0; i < 3; i++)
+            {
+                hullMins[i] = lo[i] - maxs[i];
+                hullMaxs[i] = hi[i] - mins[i];
+            }
+            hull_t* h = SV_HullForBox(hullMins, hullMaxs);
+            trace_t tr;
+            ZA_MEMSET(&tr, 0, sizeof(tr));
+            tr.fraction = 1.f;
+            tr.allsolid = true;
+            VectorCopy(end, tr.endpos);
+            SV_RecursiveHullCheck(h, h->firstclipnode, 0.f, 1.f, const_cast<float*>(start), const_cast<float*>(end), &tr);
+            if(tr.allsolid || tr.startsolid || tr.fraction < best.fraction) // (SV_ClipToLinks' choice)
+            {
+                const bool wasStuck = best.startsolid;
+                best = tr;
+                best.startsolid = best.startsolid || wasStuck;
+                best.ent = nullptr;
+                met = true;
+            }
+        }
+    }
+    return met;
+}
+
 bool clientRopeMonkey(const glm::vec3& near, float within)
 {
     const ClientRope* best = nullptr;
@@ -4216,4 +4333,33 @@ extern "C" int VR_ChainShotClip(const float* start, const float* mins, const flo
     trace->plane.dist = glm::dot(normal, at);
     trace->ent = EDICT_NUM(ent);
     return 1;
+}
+
+// (ropes8d) SV_ClipToLinks: whether `mover` (a player) is let through pole box `touch` (passSolids' solidPass): every
+// climber on a pole passes it, not only its owner.
+extern "C" int VR_PoleSolidPasses(edict_t* touch, edict_t* mover)
+{
+    if(touch->v.modelindex != 0.f || !touch->v.goalentity || !sv.active)
+    {
+        return 0;
+    }
+    const int pn = NUM_FOR_EDICT(mover);
+    if(pn < 1 || pn > svs.maxclients || pn > 64)
+    {
+        return 0;
+    }
+    const Rope* r = ropeOf(NUM_FOR_EDICT(PROG_TO_EDICT(touch->v.goalentity)));
+    if(!r || !((r->solidPass >> (pn - 1)) & 1u))
+    {
+        return 0;
+    }
+    const int tn = NUM_FOR_EDICT(touch);
+    for(const int s : r->solids)
+    {
+        if(s == tn)
+        {
+            return 1;
+        }
+    }
+    return 0;
 }
