@@ -57,6 +57,9 @@ Flat-screen: press G for a grenade, then hold J and let go: the grenade is throw
 Flat-screen or VR: climb a pole a little way and press jump: you leave it like a normal jump, pushed away from the pole, and fall freely to the floor (no slow slide, not caught again on the way down). {test:ropes}
 Flat-screen: hang on the level pole facing across it and strafe left and right along it: the hands shuffle and keep their sides, the forearms never cross over your head. {test:ropes}
 Flat-screen or VR: on a rope or a pole, look at your arms (and another player's in third person): the elbows stay out at the sides instead of swinging in across your view, and the fists' knuckles tilt a little up rather than dead level. {test:ropes}
+In the VR hub the campaign lecterns run west to east in Select Campaign's order (Quake, Scourge of Armagon, Dissolution of Eternity, Dimension of the Past, Dimension of the Machine, Dawn of the Machine, Arcane Dimensions, Dwell, Quoth, Arena Mode); the "MODS", "MOD AND ARENA" and "Every campaign, and what its data needs" boards are gone. {test:hub_start}
+Flat-screen: swimming, the free hands are open with the fingers together and the palm slightly cupped (no fist); each stroke makes a water whoosh under water (a stroke splash at the surface) as its pull starts, and small bubbles come off the hands through the pull (Tunables > Flatscreen > Swimming: Hand Cup, Stroke Sound, Bubbles). {test:flat_swim}
+Flat-screen: in the sword's parry guard the free hand on the blade has its palm down, over the blade (not palm up under it), and takes and lets go of it smoothly (Blade Grip Palm Down to compare). {test:flat_parry}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, the crystal head glowing violet a moment after each shot. {test:dwell_lance_pole}

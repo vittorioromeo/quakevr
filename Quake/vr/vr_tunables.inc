@@ -2198,6 +2198,7 @@ QVR_TUNABLE(vr_flat_bash_cooldown, "0.5") // seconds from one bash (or shove) to
 QVR_TUNABLE(vr_flat_parry_blade, "1") // flatscreen: in the guard with a weapon held as a sword (a Blade hotspot: swords, the crowbar), the free hand takes the blade near its tip at that hotspot, and lets go as the guard ends (0: it stays where it was)
 QVR_TUNABLE(vr_flat_parry_blade_in_time, "0.12") // seconds the free hand takes to reach the blade (0: at once)
 QVR_TUNABLE(vr_flat_parry_blade_out_time, "0.15") // seconds back to where it was once it lets go (0: at once)
+QVR_TUNABLE(vr_flat_parry_blade_palm, "1") // the free hand on the blade palm down, over it (0: turned the least from how it was: palm up under it)
 
 // Flatscreen > Two-Handed Melee Stance (his notes 2026-11-12: a melee weapon with a two-handed grip is always held in both
 // hands while the other hand is empty; vr_flatplay.cpp twoHandPose, vr_flatsight.cpp carries the free hand onto the grip)
@@ -2376,6 +2377,9 @@ QVR_TUNABLE(vr_flat_swim_takeover_time, "0.12") // seconds a hand's stroke takes
 QVR_TUNABLE(vr_flat_swim_return_time, "0.4") // seconds it takes to come back after
 QVR_TUNABLE(vr_flat_swim_fire_hold, "0.5") // seconds after the trigger is let go before the hand's stroke comes back
 QVR_TUNABLE(vr_flat_swim_turn_time, "0.35") // seconds the stroke takes to change with the way he moves and his speed
+QVR_TUNABLE(vr_flat_swim_cup, "0.15") // a swimming free hand's fingers' curl: open, together, the palm cupped (0 flat open .. 1 a fist)
+QVR_TUNABLE(vr_flat_swim_sound, "0.5") // each stroke's water sound at its power's start (a whoosh under water, a stroke at the surface): its volume (0: none)
+QVR_TUNABLE(vr_flat_swim_bubbles, "1") // the bubbles off the hands through each stroke's power under water: how many (1 as made, 0: none)
 
 // Combat > Embedded Blades: held stabs and swung axes (QC/vr_embedhold.qc; ROUND23.md, "Embedded blades, stage 2")
 // Embedded Blades: Thrown
