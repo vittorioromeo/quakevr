@@ -56,6 +56,8 @@ Tests:
     cmdguard (review 2026-11-18 finding 9) client string commands: the test shot and punch refused by a server without
              vr_mp_watch (the harness's), taken with it; each client's commands under a budget: both players' own
              (spawn's vr_rig chunks...) far under it, B's flood of 150 in a frame cut to it and the rest dropped.
+    weaponwheel  the headset's weapon wheel: B holds his B, his right hand onto his shoulder holster's slot, lets go: the
+             server and A have the shotgun in his right hand (QC VR_Wheel_Pick through "vr_wheel_pick").
     teleport client-side traces: B (a remote client) traces his own map down to his floor; he aims a teleport with his off
              hand (his own trace: valid) and lets go: the server moves him there, A sees him there.
     held     the held weapon's drawn pose up: B holds a shotgun still; the server places its hotspots where B's view
@@ -4945,6 +4947,39 @@ def forcegrab(s):
     put_at(srv, b, eb, side_spot(srv, ea))
     wa = force_grab(s, srv, a, ea, play, "A")
     s.metric("force_grab_wid", max(wa, wb))
+    srv.cmd("developer 0")
+
+
+def weaponwheel(s):
+    """The headset's weapon wheel in coop (Quake/vr/vr_weaponwheel.cpp; QC VR_Wheel_Pick): B (a remote client) runs
+    vr_weaponwheel_test mp: a shotgun given into his right shoulder holster (impulse 91), his B held opens the wheel round
+    his right hand, the hand onto the shoulder's slot, let go: his client sends "vr_wheel_pick 1 1". His own client has the
+    shotgun in his main hand (the test's verdict), the server has it there, and A sees it (B's avatar's weapon at A)."""
+    srv, a, b, ea, eb = join(s)
+    a.cmd("name A")
+    b.cmd("name B")
+    srv.cmd("developer 1")
+    since, sv_since = b.mark(), srv.mark()
+    b.cmd("developer 1; vr_weaponwheel_test mp")
+    _, verdict = b.wait(r"weaponwheel_test: \d+ passed, \d+ failed", 60, since, "B's weapon wheel test")
+    for l in b.lines[since:]:
+        if l.startswith("weaponwheel_test:") or l.startswith("weapon wheel:"):
+            s.note("B: " + l.strip())
+    for l in srv.lines[sv_since:]:
+        if l.startswith("weapon wheel:"):
+            s.note("server: " + l.strip())
+    s.check("B's wheel: the shotgun drawn into his right hand by his own client's account", " 0 failed" in verdict,
+            verdict.strip())
+    seen = weapon_until(s, srv, eb, 4)
+    s.check("the server: B's main hand holds the shotgun from his holster", seen[-1] == 4, "by report: %s" % seen)
+    got = {}
+    for _ in range(30):  # (a definite end: at most 30 reports)
+        (lines_a,) = reports(s, [a])
+        got = by_ent(lines_a, "mp_avatar")
+        if eb in got and int(got[eb]["wpn"][0]) == 4:
+            break
+    s.check("A sees B's shotgun drawn (B's avatar's weapon at A)", eb in got and int(got[eb]["wpn"][0]) == 4,
+            "A has B's weapon %s" % (got[eb].get("wpn") if eb in got else None))
     srv.cmd("developer 0")
 
 
@@ -10270,6 +10305,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             climb(s)
         elif test == "mp_forcegrab":
             forcegrab(s)
+        elif test == "mp_weaponwheel":
+            weaponwheel(s)
         elif test == "mp_rules":
             rules(s)
         elif test == "mp_cosmetics":
@@ -10414,6 +10451,7 @@ SUITE = [
     ("mp_download", ()),
     ("mp_pickup", ()),
     ("mp_forcegrab", ()),
+    ("mp_weaponwheel", ()),
     ("mp_melee", ()),
     ("mp_moves", ()),
     ("mp_climb", ()),
@@ -10470,7 +10508,7 @@ def in_profile(name, profile):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"])
     tree_base = default_base(REPO)
     ap.add_argument("--base", required=tree_base is None, default=tree_base,
                     help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")

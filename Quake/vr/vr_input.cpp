@@ -37,6 +37,7 @@
 #include "vr_teleport.hpp"
 #include "vr_voicenotes.hpp"
 #include "vr_voicechat.hpp"
+#include "vr_weaponwheel.hpp"
 #include "vr_takes.hpp"
 #include "vr_seated.hpp"
 #include "vr_timescale.hpp"
@@ -2041,9 +2042,56 @@ void describeBindings(char* out, size_t size)
 namespace
 {
 const InputState released; // (update: without VR, everything is released)
+
+// The weapon wheel's button (vr_weaponwheel_button; vr_weaponwheel.cpp) held as the game got it (after every tool and
+// mode that takes it: the flashlight's, a voice note's, the toolgun's...): vr_weaponwheel_hold seconds on, the wheel
+// opens round that hand and the game's key is let go (its press reached the game at once: a tap must not wait; B and Y
+// do nothing by default, vr_weapon_cycle_mode 0). Its letting go is then the wheel's (the pick), never the game's.
+struct WheelHold
+{
+    bool down[HAND_COUNT]{};     // held, as the game got it
+    double since[HAND_COUNT]{};  // pressed at (realtime)
+    bool taken[HAND_COUNT]{};    // the wheel opened on this hold
+};
+WheelHold wheelHold;
+
+[[nodiscard]] const ButtonKeys& wheelButtonKeys()
+{
+    const int kind = weaponwheel::buttonKind();
+    return buttonKeys[kind == 1 ? 4 : kind == 2 ? 2 : 3]; // (stickClick, primary, secondary)
+}
+
+// Once a frame, before the buttons: a hold long enough opens the wheel.
+void wheelHoldFrame()
+{
+    WheelHold& w = wheelHold;
+    const ButtonKeys& b = wheelButtonKeys();
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        if(!w.down[h] || w.taken[h] || realtime - w.since[h] < weaponwheel::holdSeconds() || !weaponwheel::canOpen(h))
+        {
+            continue;
+        }
+        w.taken[h] = true;
+        keyEvent(b.key[h], false); // (the game's key let go: the hook's reel, a held +speed)
+        secondaryDown[h] = b.button == &HandInput::secondary ? false : secondaryDown[h];
+        primaryDown[h] = b.button == &HandInput::primary ? false : primaryDown[h];
+        logButton(h, b, false, b.key[h], "the weapon wheel (held: it opens)");
+        weaponwheel::open(h);
+    }
+}
+
 // update's phases: a hand's button changed: whatever takes it first (a menu gesture, a tool, a mode), else its key.
 void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
 {
+    // The weapon wheel's button let go after it opened the wheel: the wheel's pick (wheelHoldFrame let the key go).
+    if(!now && b.button == wheelButtonKeys().button && wheelHold.taken[h])
+    {
+        wheelHold.down[h] = wheelHold.taken[h] = false;
+        logButton(h, b, now, b.key[h], "the weapon wheel (let go: its pick)");
+        weaponwheel::release(h);
+        return;
+    }
     // A menu gesture's button is the menu's alone (vr_menu_button: both stick clicks, Y).
     if(menuGestureButton(in, h, b.button, now))
     {
@@ -2200,6 +2248,12 @@ void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
     const int key = b.button == &HandInput::trigger ? menuui::triggerKey(h, now, b.key[h]) : b.key[h];
     logButton(h, b, now, key, nullptr);
     keyEvent(key, now);
+    if(b.button == wheelButtonKeys().button)
+    {
+        wheelHold.down[h] = now;
+        wheelHold.since[h] = now ? realtime : wheelHold.since[h];
+        wheelHold.taken[h] = false;
+    }
     if(b.button == &HandInput::secondary)
     {
         secondaryDown[h] = now;
@@ -2463,6 +2517,7 @@ void update(const InputState& tracked)
         menuGestures.press[h] = false;
     }
     menuHold(secondaryDown);
+    wheelHoldFrame(); // (the weapon wheel's button held: it opens)
 
     for(int h = 0; h < HAND_COUNT; h++)
     {
