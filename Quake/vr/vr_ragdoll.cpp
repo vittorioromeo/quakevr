@@ -2437,12 +2437,12 @@ template <typename Rots, typename Poss>
 
 [[nodiscard]] const Swapped* swappedOf(const entity_t* e)
 {
-    if(draw.swapped.empty() || !cl_entities || e < cl_entities || e >= cl_entities + cl_max_edicts)
+    if(swappedHere().empty() || !cl_entities || e < cl_entities || e >= cl_entities + cl_max_edicts)
     {
         return nullptr; // not a client entity (the view entities, the static and temporary ones): none of them (the
                         // shadow casters and the alias batches ask for every model, several times a light)
     }
-    for(const Swapped& s : draw.swapped)
+    for(const Swapped& s : swappedHere())
     {
         if(&cl_entities[s.num] == e)
         {
@@ -3454,7 +3454,7 @@ void recordGetup()
     }
     entity_t* e = &cl_entities[g.num];
     bool swapped = false;
-    for(const Swapped& s : draw.swapped)
+    for(const Swapped& s : swappedHere())
     {
         swapped = swapped || s.num == g.num;
     }
@@ -3664,7 +3664,7 @@ bool drawInfoPending = false; // vr_ragdoll_draw_info: printed as the ragdolls a
 void printDrawInfo()
 {
     int printed = 0;
-    for(const Swapped& s : draw.swapped)
+    for(const Swapped& s : swappedHere())
     {
         entity_t* e = &cl_entities[s.num];
         if(e->model != s.skinned)
@@ -3763,7 +3763,7 @@ void swapModels()
     {
         gunCheckNext = cl.time + 0.25;
     }
-    draw.swapped.clear();
+    swappedHere().clear();
     if((!sv.active && !netDraw.any) || cls.state != ca_connected) // (a remote server's: vr_netragdoll.cpp)
     {
         return;
@@ -3898,13 +3898,13 @@ void swapModels()
             e->previouspose = e->currentpose = 0;
             e->lerpflags |= LERP_RESETANIM;
             e->alpha = s.look == 3 ? static_cast<byte>(ENTALPHA_ZERO) : e->alpha;
-            draw.swapped.pushBack(s);
+            swappedHere().pushBack(s);
             continue;
         }
         e->model = skinned;
         e->previouspose = e->currentpose = 0; // (its one pose: no lerp from the corpse's)
         e->lerpflags &= static_cast<byte>(~(LERP_RESETANIM | LERP_RESETANIM2));
-        draw.swapped.pushBack(s);
+        swappedHere().pushBack(s);
     }
     recordGetup();
     if(drawInfoPending)
@@ -3926,7 +3926,7 @@ void tracyPlots()
 #endif
 void restoreModels()
 {
-    for(const Swapped& s : draw.swapped)
+    for(const Swapped& s : swappedHere())
     {
         entity_t* e = &cl_entities[s.num];
         if(s.look >= 2 && e->model == s.original)
@@ -3949,7 +3949,7 @@ void restoreModels()
             e->lerpflags = s.lerpFlags;
         }
     }
-    draw.swapped.clear();
+    swappedHere().clear();
 }
 
 const qmodel_t* sourceModel(const entity_t* e)

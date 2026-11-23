@@ -59,13 +59,24 @@ struct Drawn
     int frame{-1}; // host_framecount it was published at
     int bones{0};
     float skin[maxBones * 12]{};
-    // swapped:
-    qmodel_t* original{nullptr};
-    qmodel_t* skinned{nullptr};
-    short previousPose{0}, currentPose{0};
-    float lerpStart{0.f}, lerpTime{0.f};
-    byte lerpFlags{0};
-    bool swapped{false};
+    qmodel_t* skinned{nullptr}; // its model on the authored rig (swapModels)
+    // swapped, each seat's (split12: its client world's entity at num, swapped and put back in that seat's frame; one
+    // record had seat 2's swap keep seat 1's lerp, its walk drawn from the other seat's)
+    struct Swap
+    {
+        qmodel_t* original{nullptr};
+        short previousPose{0}, currentPose{0};
+        float lerpStart{0.f}, lerpTime{0.f};
+        byte lerpFlags{0};
+        bool swapped{false};
+    };
+    Swap sw[MAX_SPLITSEATS];
+    [[nodiscard]] Swap& here() { return sw[CL_SeatIndex()]; }
+    [[nodiscard]] const Swap& here() const { return sw[CL_SeatIndex()]; }
+    [[nodiscard]] bool anySwapped() const
+    {
+        return sw[0].swapped || sw[1].swapped || sw[2].swapped || sw[3].swapped;
+    }
     int drawsFrame{-1}, draws{0}, lastDraws{0}; // its bone matrices handed to the renderer (vr_rig2_draw_info)
     int studioFrame{-1};       // the Rig Studio's pose published at (drawPosed: the game's drawLive yields to it)
     za::U32 serial{0};         // its publish (drawnSerial's at it): liveKey, what liveVertices makes of it the same
@@ -563,14 +574,14 @@ bool unswapped(int num, entity_t& out)
     out = cl_entities[num];
     for(const Drawn& d : drawn)
     {
-        if(d.num == num && d.swapped && out.model == d.skinned)
+        if(d.num == num && d.here().swapped && out.model == d.skinned)
         {
-            out.model = d.original;
-            out.previouspose = d.previousPose;
-            out.currentpose = d.currentPose;
-            out.lerpstart = d.lerpStart;
-            out.lerptime = d.lerpTime;
-            out.lerpflags = d.lerpFlags;
+            out.model = d.here().original;
+            out.previouspose = d.here().previousPose;
+            out.currentpose = d.here().currentPose;
+            out.lerpstart = d.here().lerpStart;
+            out.lerptime = d.here().lerpTime;
+            out.lerpflags = d.here().lerpFlags;
         }
     }
     return true;
@@ -973,7 +984,7 @@ void publishDrawn(int entnum, const qmodel_t* model, const rigpose::Rigid* F, in
         // (a slot drawn by nobody lately reused: the drawn entities' list stays as long as the most drawn at once)
         for(Drawn& x : drawn)
         {
-            d = !d && x.frame < host_framecount - 2 && !x.swapped ? &x : d;
+            d = !d && x.frame < host_framecount - 2 && !x.anySwapped() ? &x : d;
         }
     }
     if(!d)
@@ -1092,7 +1103,7 @@ void swapModels()
     }
     for(Drawn& d : drawn)
     {
-        d.swapped = false;
+        d.here().swapped = false;
         if(d.frame < host_framecount - 2 || d.num <= 0 || d.num >= cl_max_edicts)
         {
             continue;
@@ -1107,17 +1118,17 @@ void swapModels()
         {
             continue;
         }
-        d.original = e->model;
+        d.here().original = e->model;
         d.skinned = sk;
-        d.previousPose = e->previouspose;
-        d.currentPose = e->currentpose;
-        d.lerpStart = e->lerpstart;
-        d.lerpTime = e->lerptime;
-        d.lerpFlags = e->lerpflags;
+        d.here().previousPose = e->previouspose;
+        d.here().currentPose = e->currentpose;
+        d.here().lerpStart = e->lerpstart;
+        d.here().lerpTime = e->lerptime;
+        d.here().lerpFlags = e->lerpflags;
         e->model = sk;
         e->previouspose = e->currentpose = 0;
         e->lerpflags &= static_cast<byte>(~(LERP_RESETANIM | LERP_RESETANIM2));
-        d.swapped = true;
+        d.here().swapped = true;
     }
 }
 
@@ -1125,25 +1136,25 @@ void restoreModels()
 {
     for(Drawn& d : drawn)
     {
-        if(!d.swapped || d.num <= 0 || d.num >= cl_max_edicts)
+        if(!d.here().swapped || d.num <= 0 || d.num >= cl_max_edicts)
         {
             continue;
         }
         entity_t* e = &cl_entities[d.num];
         if(e->model == d.skinned)
         {
-            e->model = d.original;
-            e->previouspose = d.previousPose;
-            e->currentpose = d.currentPose;
-            e->lerpstart = d.lerpStart;
-            e->lerptime = d.lerpTime;
+            e->model = d.here().original;
+            e->previouspose = d.here().previousPose;
+            e->currentpose = d.here().currentPose;
+            e->lerpstart = d.here().lerpStart;
+            e->lerptime = d.here().lerpTime;
             // Its frame lerp's flags back, not its move lerp's: drawing it (R_SetupEntityTransform) spent a
             // LERP_RESETMOVE (a new entity's, a teleport's), and putting that back reset its move lerp every frame
             // after: a walking grunt drawn at each step's end, jumping up to 15 units ten times a second (ROUND23,
             // "Armed grunts choppy").
-            e->lerpflags = static_cast<byte>((d.lerpFlags & ~LERP_RESETMOVE) | (e->lerpflags & LERP_RESETMOVE));
+            e->lerpflags = static_cast<byte>((d.here().lerpFlags & ~LERP_RESETMOVE) | (e->lerpflags & LERP_RESETMOVE));
         }
-        d.swapped = false;
+        d.here().swapped = false;
     }
 }
 
@@ -1155,7 +1166,7 @@ int bonePoses(const entity_t* e, const float** matrices)
     }
     for(Drawn& d : drawn)
     {
-        if(d.swapped && e->model == d.skinned && e == &cl_entities[d.num])
+        if(d.here().swapped && e->model == d.skinned && e == &cl_entities[d.num])
         {
             if(!matrices)
             {
@@ -1257,9 +1268,9 @@ const qmodel_t* sourceModel(const entity_t* e)
     }
     for(const Drawn& d : drawn)
     {
-        if(d.swapped && e->model == d.skinned && e == &cl_entities[d.num])
+        if(d.here().swapped && e->model == d.skinned && e == &cl_entities[d.num])
         {
-            return d.original;
+            return d.here().original;
         }
     }
     return nullptr;
@@ -1274,7 +1285,7 @@ const qmodel_t* studioPosedModel(const entity_t* e)
     for(const Drawn& d : drawn)
     {
         if(e == &cl_entities[d.num] && d.studioFrame >= host_framecount - 1 && d.model &&
-            (e->model == d.model || (d.swapped && e->model == d.skinned)))
+            (e->model == d.model || (d.here().swapped && e->model == d.skinned)))
         {
             return d.model;
         }

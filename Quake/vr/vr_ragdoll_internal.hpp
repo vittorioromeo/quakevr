@@ -94,11 +94,17 @@ struct Swapped
 struct DrawState
 {
     za::Vector<Published> byNum;  // by edict number (rig null: none)
-    za::Vector<Swapped> swapped;  // this frame's (swapModels .. restoreModels)
-    auto members() { return mem::list(byNum, swapped); }
+    // this frame's (swapModels .. restoreModels), each seat's (split12: its client world's entities, swapped and put
+    // back in its own frame: one list had seat 2's swap or restore act on seat 1's entities, its ragdolls drawn standing)
+    za::Vector<Swapped> swapped[MAX_SPLITSEATS];
+    auto members() { return mem::list(byNum, swapped[0], swapped[1], swapped[2], swapped[3]); }
 };
 
 inline mem::Cache<DrawState> draw{"ragdolls drawn", mem::MapChange};
+[[nodiscard]] inline za::Vector<Swapped>& swappedHere() // the current seat's (DrawState::swapped)
+{
+    return draw.swapped[CL_SeatIndex()];
+}
 
 inline constexpr float deg = 0.017453292f;
 
