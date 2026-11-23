@@ -46,7 +46,8 @@ float VR_FLATGREN_THROWN = 5;  // thrown: the follow-through (vr_flat_throw_foll
 .float vr_flatthrow_phase; // VR_FLATTHROW_*
 .float vr_flatthrow_hand;  // the hand that throws
 .float vr_flatthrow_at;    // when the phase began
-.float vr_flatthrow_both;  // held in both hands (a weapon with the other hand on its grip, a crate): thrown with both
+.float vr_flatthrow_both;  // held in both hands as the wind-up began (a weapon with the other hand on its grip, a crate):
+                           // the other hand lets go, the throw is the throwing hand's alone
 .entity vr_flatthrow_ent;  // what it throws (a carried thing; world: the hand's weapon)
 .float vr_flatthrow_wid;   // the hand's weapon as the wind-up began (0: a carried thing)
 float VR_FLATTHROW_WIND = 1;   // the key held: the wind-up behind the shoulder, charging
@@ -372,9 +373,11 @@ void() VR_FlatGrenade_Frame =
 // the eyes; the hand turned vr_flat_throw_release_pitch against the throw) and the hand lets go as a headset's does
 // (DropWeaponInHand, VR_Carry_Release): the weight rules (throwvelocity), the throw assist, the spin by mass, the damage, an
 // axe's or a sword's sticking, a gib's burst, a grenade's owner are all theirs.
-// Held in both hands (a long gun with the other hand on its grip, a crate): thrown with both, the headset's two-handed
-// throw (vr_2h_throw_velocity_mult, vr_throw_2h_damage), both hands drawn winding up together: the other hand stays on the
-// grip, so letting go of it first would make it a one-handed throw of a gun the player holds with both.
+// Held in both hands (a long gun with the other hand on its grip, a crate; his call 2026-11-23, replacing flatthrow's
+// two-handed throw): the throwing hand alone throws, one-handed. The other hand lets go as the wind-up begins (a crate's
+// at once here, VR_Carry_EndTwoHands, and not taken again while it winds up; a gun's grip by the client, the throw's hand
+// busy: vr_flatgrenade.cpp letsGo) and takes a gun's grip again after the throw, as after the other let-go moves; the
+// headset's two-handed window (vr_throw_2h_window) is not counted for it.
 // The quick grenade's hand: J winds up its own throw (VR_FlatGrenade_Throw), let go throws it as the fire button's release
 // does (an unarmed one leaves unarmed: a dud, as a headset's).
 // developer 1 prints each step ("flat throw: ...") and where the thing ended up ("flat throw: landed: ...").
@@ -393,6 +396,12 @@ void(float xPhase) VR_FlatThrow_Set =
     self.vr_flatthrow_at = time;
     self.vr_flatgren = (self.vr_flatgren_phase ? self.vr_flatgren_phase + (self.vr_flatgren_hand == cVR_MainHand ? 8 : 0) : 0) +
                        VR_FlatThrow_Bits();
+};
+
+// Whether self winds up `xBox` with the throw key (one-handed: vr_carry.qc's second hand doesn't take it meanwhile).
+float(entity xBox) VR_FlatThrow_WindsUp =
+{
+    return self.vr_flatthrow_phase == VR_FLATTHROW_WIND && self.vr_flatthrow_ent == xBox;
 };
 
 // What `xHand` of self can throw: 1 its weapon, 2 a carried thing, 0 nothing (empty; a grenade, the quick grenade's; a
@@ -460,7 +469,8 @@ void() VR_FlatThrow_Press =
             if(VR_Carry_Held(self, other) == e)
             {
                 both = TRUE;
-                h = cVR_MainHand; // (VR_Carry_EndTwoHands: the off hand lets go, the main hand throws)
+                h = cVR_MainHand;
+                VR_Carry_EndTwoHands(e); // (the off hand lets go now, the main hand winds up and throws it alone)
             }
         }
     }
@@ -474,7 +484,8 @@ void() VR_FlatThrow_Press =
     self.vr_flatthrow_both = both;
     VR_FlatThrow_Set(VR_FLATTHROW_WIND);
     dprint(sprintf("flat throw: J: the %s hand winds up %s%s\n", VR_FlatGrenade_HandName(h),
-        e == world ? sprintf("weapon %g", self.vr_flatthrow_wid) : e.classname, both ? " (held in both hands)" : ""));
+        e == world ? sprintf("weapon %g", self.vr_flatthrow_wid) : e.classname,
+        both ? " (held in both hands: the other hand lets go)" : ""));
 };
 
 // The hand's throw estimate (the headset's: VRGetHandThrowVel etc.) set to `xVel` (m/s), no flick, spin `xAVel` (rad/s),
@@ -498,7 +509,6 @@ float VR_FLATTHROW_SPIN_MOST = 2.5;  // and at most this times it (and vr_throw_
 void(float xHeld) VR_FlatThrow_Throw =
 {
     float h = self.vr_flatthrow_hand;
-    float other = VRGetOtherHand(h);
     float full = min(5, max(0.05, cvar_hget(cvarh_vr_flat_throw_charge_time)));
     float k = min(1, max(0, xHeld / full));
     float lo = max(0, cvar_hget(cvarh_vr_flat_throw_speed_min));
@@ -522,35 +532,35 @@ void(float xHeld) VR_FlatThrow_Throw =
     vector oV = self.offhandthrowvel, oF = self.offhandthrowflick, oA = self.offhandavel, oP = self.offhandthrowpos, oR = self.offhandrot;
     float oG = self.offhandthrowage;
     VR_FlatThrow_SetHand(h, dir * speed, spin, from, rot);
-    if(self.vr_flatthrow_both)
-    {
-        VR_FlatThrow_SetHand(other, dir * speed, spin, from, rot); // (both hands' estimate: the two-handed throw's)
-    }
 
+    // One-handed, whatever held it before the wind-up (his call 2026-11-23): the headset's two-handed window is not
+    // counted (a quick toss lets go within it), kept as it was after.
     entity e = self.vr_flatthrow_ent;
     entity thrown = world;
     if(e != world)
     {
         if(VR_Carry_Held(self, h) == e)
         {
-            if(self.vr_flatthrow_both && e.carry_2h)
+            if(e.carry_2h)
             {
-                VR_Carry_EndTwoHands(e); // (the off hand lets go: within vr_throw_2h_window, a two-handed throw)
+                VR_Carry_EndTwoHands(e); // (taken in both again since the wind-up began: let go of now)
             }
+            float was2h = e.carry_2h_end;
+            e.carry_2h_end = 0;
             VR_Carry_Release(h, e);
+            e.carry_2h_end = was2h;
             thrown = e;
         }
     }
     else if(!VRIsHandWeaponless(self, h) && VRGetEntWeapon(self, h) == self.vr_flatthrow_wid)
     {
-        if(self.vr_flatthrow_both)
-        {
-            self.last_2h_time = time; // (held in both until now: DropWeaponInHandScaled's two-handed throw)
-        }
+        float last2h = self.last_2h_time;
+        self.last_2h_time = 0;
         vr_wpn_dropped = world;
         DropWeaponInHand(self, h, VRGetEntWeapon(self, h), VRGetEntWeaponFlags(self, h));
         VRHandStopFiring(self, h);
         thrown = vr_wpn_dropped;
+        self.last_2h_time = last2h;
     }
 
     self.handthrowvel = mV; self.handthrowflick = mF; self.handavel = mA; self.handthrowpos = mP; self.handrot = mR;
@@ -579,7 +589,7 @@ void(float xHeld) VR_FlatThrow_Throw =
     vr_flatthrow_from = thrown.origin;
     vr_flatthrow_watch = time + 4;
     dprint(sprintf("flat throw: %s thrown by the %s hand%s after %.2f s: the hand at %.1f m/s (%.0f%% charged), ",
-        thrown.classname, VR_FlatGrenade_HandName(h), self.vr_flatthrow_both ? " (both hands)" : "", xHeld, speed, k * 100));
+        thrown.classname, VR_FlatGrenade_HandName(h), self.vr_flatthrow_both ? " (one-handed: the other hand let go)" : "", xHeld, speed, k * 100));
     dprint(sprintf("it leaves at %.0f u/s, spin %.1f rad/s\n", vlen(thrown.velocity), vlen(thrown.vr_spin)));
     dprint(sprintf("flat throw:   from %v at %v (the aim %v, the eye %v)\n", thrown.origin, thrown.velocity, self.v_angle, head));
 };
@@ -643,6 +653,11 @@ void() VR_FlatThrow_Frame =
         {
             dprint(sprintf("flat throw: the %s hand's wind-up is over: what it held is gone\n", VR_FlatGrenade_HandName(h)));
             VR_FlatThrow_Set(0);
+        }
+        else if(self.vr_flatthrow_both == 1 && self.vr_flatthrow_ent == world && !VRGet2HAiming(self))
+        {
+            self.vr_flatthrow_both = 2; // (printed once)
+            dprint(sprintf("flat throw: the other hand let go of the grip, %.2f s into the wind-up\n", time - self.vr_flatthrow_at));
         }
         return;
     }

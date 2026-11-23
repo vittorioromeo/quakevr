@@ -31,7 +31,7 @@ def done(ls, tag):
     check(any(("flatthrow_test: %s done" % tag) in l for l in ls), "%s: the run reached its end (no timeout)" % tag)
 
 
-THROWN = r"flat throw: (\S+) thrown by the (\w+) hand(?: \(both hands\))? after ([\d.]+) s: the hand at ([\d.]+) m/s"
+THROWN = r"flat throw: (\S+) thrown by the (\w+) hand(?: \(one-handed: the other hand let go\))? after ([\d.]+) s: the hand at ([\d.]+) m/s"
 LEAVES = r"it leaves at (\d+) u/s"
 
 ls = lines("axe")
@@ -66,6 +66,25 @@ done(ls, "gren")
 check(bool(find(ls, r"flat throw: J: the main hand winds up its grenade")), "gren: J winds up the quick grenade")
 check(bool(find(ls, r"flat grenade: thrown by the main hand after 0\.[5-9]\d s wound up")), "gren: J's release throws it (as the fire button's)")
 check(bool(find(ls, r"flatgren: main hand at overhead")), "gren: the drawn hand reaches the shared wind-up")
+
+ls = lines("twoh")
+done(ls, "twoh")
+def after(ls, mark):
+    return ls[next((i for i, l in enumerate(ls) if l.startswith(mark)), len(ls)):]
+
+
+def stance_of(ls):
+    m = find(ls, r"^  stance: \w+, torso [-\d.]+ deg, free hand (.+?), share ([\d.]+)")
+    return (m[0].group(1), float(m[0].group(2))) if m else ("none", -1.0)
+
+
+hand, share = stance_of(after(ls, "flatthrow_test: before"))
+check(hand == "going on it" and share > 0.95, "twoh: before J the free hand is on the nail gun (%s, share %.2f)" % (hand, share))
+hand, share = stance_of(after(ls, "flatthrow_test: winding"))
+check(hand == "hanging" and share < 0.05, "twoh: winding up, the free hand has let go, not following the gun (%s, share %.2f)" % (hand, share))
+t = find(ls, THROWN)
+check(bool(t) and t[0].group(1) == "thrown_weapon" and t[0].group(2) == "main", "twoh: the main hand throws it (%s)" % (t[0].group(0) if t else "none"))
+check(not find(ls, r"throw: a weapon held in both hands"), "twoh: one-handed: not the headset's two-handed throw")
 
 ls = lines("wall")
 done(ls, "wall")

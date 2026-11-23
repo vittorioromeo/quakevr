@@ -82,6 +82,22 @@ void holsterIcon(MenuIcon icon, float cx, float cy, const glm::vec3& c)
         }
         break;
     }
+    case MenuIcon::Unload:
+    {
+        // A magazine with its rounds stacked in it, an arrow out of its side: the rounds back into the reserve.
+        holsterOutline({cx - 6.f, cy - 5.f, 6.f, 11.f}, c);
+        for(int r = 0; r < 3; r++)
+        {
+            fill(cx - 4.f, cy - 3.f + static_cast<float>(r) * 3.f, 2.f, 1.5f, c);
+        }
+        fill(cx + 1.f, cy - 0.5f, 3.f, 1.f, c);
+        for(int r = 0; r < 3; r++)
+        {
+            const float h = 5.f - static_cast<float>(r) * 2.f;
+            fill(cx + 3.f + static_cast<float>(r), cy - h * 0.5f, 1.f, h, c);
+        }
+        break;
+    }
     default: break;
     }
 }
@@ -171,6 +187,19 @@ void holsterButton(const HolsterMenuButton& b, const Palette& pal)
     fill(r.x, r.y, r.z, r.w, b.hovered && b.enabled ? pal.line * 0.45f : pal.dim * 0.1f);
     holsterOutline(r, b.enabled ? (b.hovered ? pal.value : pal.line) : pal.dim * 0.5f);
     const bool labelled = b.label[0] != 0;
+    if(labelled && r.w >= 24.f)
+    {
+        // Tall (the weapon wheel's actions): the icon above its label (as large as fits, 6 pixels a character at most);
+        // lit with the drop target's second ring, as the wheel's lit slot.
+        if(b.hovered && b.enabled)
+        {
+            holsterOutline({r.x - 1.f, r.y - 1.f, r.z + 2.f, r.w + 2.f}, pal.value * 0.6f);
+        }
+        holsterIcon(b.icon, r.x + r.z * 0.5f, r.y + r.w * 0.5f - 4.f, ink);
+        const float size = za::min(6.f, (r.z - 4.f) / static_cast<float>(za::max<size_t>(strlen(b.label), 1)));
+        holsterTextMid(r.x + r.z * 0.5f, r.y + r.w * 0.5f + 4.f, size, b.label, ink, pal);
+        return;
+    }
     const float iconX = labelled ? r.x + 8.f : r.x + r.z * 0.5f;
     holsterIcon(b.icon, iconX, r.y + r.w * 0.5f, ink);
     if(labelled)

@@ -9,10 +9,13 @@
 //   3 the sword handle first: no blade in, its blow (if any) never counted blade first (its overkill unchanged);
 //   4 vr_embed 0 (no blade sticks: its box's blow alone, VR_Throw_PointFirst; the touch called at the chest at the throw's
 //     speed), the sword point first: it dies whole.
+//   5 a killing blow's push (his note 2026-11-23: a thrown blade's kills flew too far): 20 damage on a fresh grunt's last
+//     point of health from a thrown sword, a thrown axe, a thrown shotgun and the player's own blow: the blades' body speed
+//     vr_throw_kill_push (0.5) of the player's, the shotgun's the same as his (VR_KillPush_Mult).
 // Ends `throwgib: N passed, M failed`.
 
 float VR_TG_SPEED = 20; // m/s: a hard throw while running (VR_ET_SPEED's 14 plus a run)
-float VR_TG_CASES = 5;
+float VR_TG_CASES = 6;
 float vr_tg_hp;         // the grunt's health before the throw
 float vr_tg_dead;       // whether the throw killed it
 float vr_tg_count0;     // vr_throw_bladein_count before the throw
@@ -39,6 +42,76 @@ float(entity m) VR_TG_Gibbed =
     return m.model != vr_tg_model || m.vr_gib;
 };
 
+// Case 5's: the level speed the grunt `m`'s body is thrown at by 20 damage on its last point of health from a weapon of
+// `xWid` thrown, still, beside it (-1: the player's own blow). The grunt removed.
+float(entity m, float xWid) VR_TG_KillSpeed =
+{
+    entity p = self;
+    m.health = 1;
+    entity inf = p;
+    if(xWid >= 0)
+    {
+        inf = CreateThrownWeapon(p, xWid, 0, WeaponInst_New(0), m.origin - normalize(m.origin - p.origin) * 40, '0 0 0', '0 0 0',
+            '0 0 0', FALSE, TRUE, WeaponIdToThrowDamage(xWid));
+    }
+    T_Damage(m, inf, p, 20);
+    vector v = m.velocity;
+    v_z = 0;
+    float s = vlen(v);
+    dprint(sprintf("throwgib: kill push from %s: %.1f u/s (health %g)\n", inf.classname, s, m.health));
+    if(inf != p)
+    {
+        remove(inf);
+    }
+    remove(m);
+    vr_et_m = world;
+    return s;
+};
+
+// Case 5, a grunt at a time: state 2k spawns it, 2k+1 strikes it once it takes damage (its start's next frame); k 0 the
+// player's blow, 1 a sword, 2 an axe, 3 a shotgun.
+float vr_tg_own, vr_tg_sword, vr_tg_axe, vr_tg_gun;
+void() VR_TG_KillPush =
+{
+    float k = floor(vr_et_s / 2);
+    if(k < 4 && (vr_et_s & 1) == 0)
+    {
+        vr_et_m = VR_ET_Grunt(110);
+        VR_ET_To(vr_et_s + 1);
+        return;
+    }
+    if(k < 4)
+    {
+        if(!vr_et_m.takedamage)
+        {
+            return;
+        }
+        float wid = -1;
+        if(k == 1) { wid = WID_SWORD; }
+        if(k == 2) { wid = WID_AXE; }
+        if(k == 3) { wid = WID_SHOTGUN; }
+        float sp = VR_TG_KillSpeed(vr_et_m, wid);
+        if(k == 0) { vr_tg_own = sp; }
+        if(k == 1) { vr_tg_sword = sp; }
+        if(k == 2) { vr_tg_axe = sp; }
+        if(k == 3) { vr_tg_gun = sp; }
+        VR_ET_To(vr_et_s + 1);
+        return;
+    }
+    float mult = cvar_hget(cvarh_vr_throw_kill_push);
+    float own = vr_tg_own;
+    float sword = vr_tg_sword;
+    float axe = vr_tg_axe;
+    float gun = vr_tg_gun;
+    VR_Test_Check(own > 50, sprintf("kill push: the player's blow throws the body (%.1f u/s)", own));
+    VR_Test_Check(fabs(sword - own * mult) < 1, sprintf("kill push: a thrown sword's %.1f u/s, %.2f of the player's %.1f (want %.2f)",
+        sword, sword / max(1, own), own, mult));
+    VR_Test_Check(fabs(axe - own * mult) < 1, sprintf("kill push: a thrown axe's %.1f u/s, %.2f of the player's (want %.2f)", axe,
+        axe / max(1, own), mult));
+    VR_Test_Check(fabs(gun - own) < 1, sprintf("kill push: a thrown shotgun's %.1f u/s, unchanged (the player's %.1f)", gun, own));
+    VR_ET_To(9);
+};
+
 void() VR_TG_Frame =
 {
     entity p = self;
@@ -55,6 +128,15 @@ void() VR_TG_Frame =
     {
         VR_Test_Verdict();
         vr_et_on = 0;
+        return;
+    }
+    if(vr_et_case == 5)
+    {
+        VR_TG_KillPush();
+        if(vr_et_s >= 9)
+        {
+            VR_ET_NextCase();
+        }
         return;
     }
     string name = (vr_et_case == 1) ? "dagger" : "sword";

@@ -60,6 +60,8 @@ constexpr glm::vec2 ringMid{140.f, 144.f};
 constexpr float ringR = 106.f;
 constexpr float slotW = 68.f;
 constexpr float slotH = 46.f;
+constexpr float actionW = 56.f; // an action's (EMPTY HAND, DROP, UNLOAD: the holster menu's buttons, smaller than a slot)
+constexpr float actionH = 32.f;
 constexpr float innerR = 26.f;
 constexpr float outerR = ringR + 46.f;
 constexpr float fadeSeconds = 0.1f;
@@ -118,6 +120,7 @@ int listHolsters(int hand, Choice* out, int max)
         copyText(c.title, sizeof(c.title), "EMPTY HAND");
         copyText(c.name, sizeof(c.name), handFull ? "put away" : "");
         c.usable = handFull;
+        c.icon = hand == HAND_MAIN ? gadget::MenuIcon::HandRight : gadget::MenuIcon::HandLeft;
     }
     for(const int i : holsterOrder)
     {
@@ -136,6 +139,7 @@ int listHolsters(int hand, Choice* out, int max)
             copyText(c.title, sizeof(c.title), drop ? "DROP" : "UNLOAD");
             c.usable = drop ? flatholster::canDrop(hand) : flatholster::canUnload(hand);
             copyText(c.name, sizeof(c.name), handFull ? held.name : drop && c.usable ? "carried" : "");
+            c.icon = drop ? gadget::MenuIcon::Drop : gadget::MenuIcon::Unload;
             continue;
         }
         const flatholster::HolsterSlot s = flatholster::holsterSlot(i);
@@ -1082,6 +1086,11 @@ float crosshairAlpha()
     return ws.flat ? 1.f - ws.fade * za::clamp(vr_flat_holster_menu_xhair_fade.value, 0.f, 1.f) : 1.f;
 }
 
+float blurRadius()
+{
+    return ws.flat ? ws.fade * za::clamp(vr_flat_holster_menu_blur.value, 0.f, 40.f) : 0.f;
+}
+
 float timeScale()
 {
     return ws.hand >= 0 ? za::clamp(vr_weaponwheel_timescale.value, 0.05f, 1.f) : 1.f;
@@ -1123,12 +1132,25 @@ void render()
         return;
     }
     gadget::HolsterMenuSlot slots[maxChoices]{};
+    gadget::HolsterMenuButton buttons[maxChoices]{};
+    int slotCount = 0, buttonCount = 0;
     using Drop = gadget::HolsterMenuSlot::Drop;
     for(int i = 0; i < ws.count; i++)
     {
         const Choice& c = ws.choices[i];
-        gadget::HolsterMenuSlot& s = slots[i];
         const glm::vec2 mid = slotMid(i, ws.count);
+        if(c.icon != gadget::MenuIcon::None)
+        {
+            // An action: smaller, the holster menu's button (its icon above its title; lit with a second ring).
+            gadget::HolsterMenuButton& b = buttons[buttonCount++];
+            b.rect = {mid.x - actionW * 0.5f, mid.y - actionH * 0.5f, actionW, actionH};
+            b.icon = c.icon;
+            b.label = c.title;
+            b.hovered = i == ws.hovered;
+            b.enabled = c.usable;
+            continue;
+        }
+        gadget::HolsterMenuSlot& s = slots[slotCount++];
         s.rect = {mid.x - slotW * 0.5f, mid.y - slotH * 0.5f, slotW, slotH};
         s.title = c.title;
         s.name = c.name;
@@ -1148,7 +1170,9 @@ void render()
     gadget::HolsterMenuView v;
     v.size = {panelW, panelH};
     v.slots = slots;
-    v.slotCount = ws.count;
+    v.slotCount = slotCount;
+    v.buttons = buttons;
+    v.buttonCount = buttonCount;
     v.lines = lines;
     v.lineCount = len > innerR * 0.5f ? 3 : 2;
     v.header = ws.shownHand == HAND_MAIN ? "WEAPON WHEEL - RIGHT HAND" : "WEAPON WHEEL - LEFT HAND";

@@ -7,6 +7,7 @@
 #include "vr_backend.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_gunvariants.hpp"
 #include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_hands.hpp"
@@ -2402,6 +2403,7 @@ struct SpinModel
     bool spins{false};
     int barrels{3};
     bool dwell{false}; // Dwell's Rotary Shotgun (its own rate of fire: dwRotaryRefire)
+    bool ownFrames{false}; // the super nailgun: its own firing frames are the turn (ownFramesStep a frame), no motor
 };
 SpinModel spinModel;
 
@@ -2412,20 +2414,46 @@ constexpr const char* widowmakerArtName = "progs/v_widowmaker.mdl"; // the hand-
 constexpr const char* rotaryName = "progs/dw_shot3.mdl#vr";
 constexpr const char* rotaryGauntletName = "progs/dw_rotary.mdl#vr"; // (dwellwpn3: held as a gauntlet)
 constexpr float dwRotaryRefire = 0.2f;
+// The super nailgun (his note 2026-11-23: its barrels snapped back to their start when the trigger was let go): Quake's
+// firing frames 1..8 turn its barrels an eighth of a turn each (their baked kick taken out in memory: vr_kickcancel.hpp;
+// frame 8 the rest pose's turn), a frame each 0.1 s (QC player_nail_BaseImpl). Driven by the Widowmaker's spin: up while
+// the trigger is held, coasting down after to the nearest frame, never back to frame 0 (spinFrame).
+constexpr const char* superNailgunName = "progs/v_nail2.mdl"; // (and its variants: the lava one, gunvariants::resolve)
+constexpr int ownFramesTurn = 8;                              // frames 1..8: a whole turn
+constexpr float ownFramesStep = 360.f / static_cast<float>(ownFramesTurn);
+constexpr float superNailgunRefire = 0.1f; // s a frame (QC: a frame each think)
 
 // (Each hand's weapon is asked about just before its spin is advanced: spinFrame; the last asked is the one cached.)
 [[nodiscard]] bool spinsBarrels(const qmodel_t* m)
 {
-    if(!m || m->type != mod_alias
-        || (q_strcasecmp(m->name, widowmakerName) && q_strcasecmp(m->name, rotaryName) && q_strcasecmp(m->name, rotaryGauntletName)))
+    if(!m || m->type != mod_alias)
+    {
+        return false;
+    }
+    const bool sng = !q_strcasecmp(gunvariants::resolve(m->name), superNailgunName);
+    if(!sng && q_strcasecmp(m->name, widowmakerName) && q_strcasecmp(m->name, rotaryName) && q_strcasecmp(m->name, rotaryGauntletName))
     {
         return false;
     }
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(m)));
+    if(sng)
+    {
+        if(m != spinModel.model || hdr != spinModel.hdr)
+        {
+            spinModel = SpinModel{};
+            spinModel.model = m;
+            spinModel.hdr = hdr;
+            spinModel.spins = hdr && hdr->numframes > ownFramesTurn;
+            spinModel.barrels = ownFramesTurn;
+            spinModel.ownFrames = true;
+        }
+        return spinModel.spins;
+    }
     if(m != spinModel.model || hdr != spinModel.hdr)
     {
         spinModel.model = m;
         spinModel.hdr = hdr;
+        spinModel.ownFrames = false;
         const bool framesOk = hdr && hdr->numframes == frameCount + spinPoses;
         const bool three = framesOk && !ZA_STRCMP(hdr->frames[frameCount].name, "spin0");
         const bool two = framesOk && !ZA_STRCMP(hdr->frames[frameCount].name, "twin0");
@@ -2446,7 +2474,9 @@ constexpr float dwRotaryRefire = 0.2f;
 // Seconds between its shots (the Widowmaker's vr_ad_widowmaker_refire; Dwell's Rotary Shotgun's own).
 [[nodiscard]] float spinRefire()
 {
-    return spinModel.dwell ? dwRotaryRefire : za::max(vr_ad_widowmaker_refire.value, 0.05f);
+    return spinModel.ownFrames ? superNailgunRefire
+           : spinModel.dwell   ? dwRotaryRefire
+                               : za::max(vr_ad_widowmaker_refire.value, 0.05f);
 }
 
 // The barrels' fastest: a barrel a shot.
@@ -2632,9 +2662,29 @@ void spinFrame(view::ViewEntity (&weapons)[2])
         s.held = true;
         s.lastTime = cl.time;
         advance(s, hand, dt);
-        motorFrame(hand, s);
         float at = vr_ad_widowmaker_spin_at.value >= 0.f ? vr_ad_widowmaker_spin_at.value : s.phase;
         at -= 360.f * static_cast<float>(static_cast<int>(at / 360.f));
+        if(spinModel.ownFrames)
+        {
+            motorFrame(hand, Spin{}); // (no motor: Quake's gun, its own sounds)
+            // The turn's two frames (k eighths of a turn: frame k; a whole turn frame 8 while turning, so the gun's firing
+            // barrel is known, vr_gunfx.cpp firingBarrel; frame 0 at rest), its drawn frame the nearer.
+            const float k = at / ownFramesStep;
+            const int i = static_cast<int>(k);
+            const bool still = s.speed <= 0.f && !s.coasting;
+            const auto frameOf = [still](int j)
+            {
+                j %= ownFramesTurn;
+                return j == 0 ? (still ? 0 : ownFramesTurn) : j;
+            };
+            w.poseFrame[0] = frameOf(i);
+            w.poseFrame[1] = frameOf(i + 1);
+            w.poseBlend = k - static_cast<float>(i);
+            w.ent.frame = w.poseBlend < 0.5f ? w.poseFrame[0] : w.poseFrame[1];
+            w.zeroBlend = 0.f;
+            continue;
+        }
+        motorFrame(hand, s);
         const float k = at / spinStep;
         const int i = static_cast<int>(k);
         w.poseFrame[0] = frameCount + i % spinPoses;
@@ -2692,6 +2742,17 @@ void spinInfo_f()
             continue;
         }
         (void)spinsBarrels(drawn[hand].model); // (this hand's model the one asked about: its barrels, its rate)
+        if(spinModel.ownFrames)
+        {
+            const float k = s.phase / ownFramesStep;
+            Con_Printf("widowmaker spin hand %d: turn %.1f deg, speed %.0f deg/s (top %.0f)%s, own frames %d %d blend %.2f, "
+                       "trigger %d\n",
+                hand, s.phase, s.speed, spinTop(), s.coasting ? ", coasting" : "", static_cast<int>(k) % ownFramesTurn,
+                (static_cast<int>(k) + 1) % ownFramesTurn, k - static_cast<float>(static_cast<int>(k)), client::attacking(hand) ? 1 : 0);
+            Con_Printf("  model: the super nailgun (its own firing frames), %d barrels (%.0f deg a shot), at rest %s\n",
+                spinModel.barrels, barrelStep(), !s.coasting && s.speed <= 0.f && fmodf(s.phase, barrelStep()) < 0.01f ? "yes" : "no");
+            continue;
+        }
         const float k = s.phase / spinStep;
         Con_Printf("widowmaker spin hand %d: turn %.1f deg, speed %.0f deg/s (top %.0f)%s, frames %d %d blend %.2f, trigger %d, "
                    "last shot %.2f s ago\n",

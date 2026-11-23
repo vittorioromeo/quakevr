@@ -396,6 +396,7 @@ QVR_TUNABLE(vr_gib_health, "12") // the damage that destroys a gib (a head takes
 QVR_TUNABLE(vr_gib_overkill_melee, "0.5") // the share of a hand's blow's overkill (damage past its health) that counts towards gibbing a monster; Quad's all of it (QC combat.qc VR_Gib_Overkill; 1 before his note 2026-11-02)
 QVR_TUNABLE(vr_gib_overkill_prop, "0.1") // and of a thrown, flung or fallen prop's (a limb or head it hit still pops; 1 before his note 2026-11-02)
 QVR_TUNABLE(vr_gib_overkill_blade, "0") // and of a blade thrown blade first (point or edge in: it kills whole, the blade left in the body; 1 before his note 2026-11-12), and of a thrown sword or dagger any way (his note 2026-11-15)
+QVR_TUNABLE(vr_throw_kill_push, "0.5") // times vr_kill_push for a kill by a thrown blade (an axe, sword or dagger: weapons.txt embed; VR and flat throws): how far its body is thrown (QC combat.qc VR_KillPush_Mult; 1 before his note 2026-11-23: "they fly too far")
 QVR_TUNABLE(vr_gib_splat_speed, "250") // units/s a thrown gib or head must hit a wall or a monster at to burst
 QVR_TUNABLE(vr_gib_splat_throw, "7") // m/s of the throwing hand from which a thrown gib or head bursts on a wall instead of sticking, however heavy; 0 off
 QVR_TUNABLE(vr_gib_burst_speed, "5") // m/s: a hand's or weapon's hit on a gib, or one held and smashed into something, this fast (relative) bursts it; from half as fast it wears it (and bounces off the hand)
@@ -2248,6 +2249,7 @@ QVR_TUNABLE(vr_flat_eye_pivot, "1") // 1: the flatscreen look's pitch turns the 
 QVR_TUNABLE(vr_flat_eye_fwd, "1") // the eye off that point, forward at a level look (0..8 units)
 QVR_TUNABLE(vr_flat_eye_up, "4") // the same, up (0..8 units)
 QVR_TUNABLE(vr_flat_eye_lean, "12") // the chest's share of a look carries the head with it, about a point in the spine this far under the neck (0..30 units; with vr_flat_body_pose)
+QVR_TUNABLE(vr_flat_eye_pitched_body, "30") // the body pitched forward this many degrees (swimming, lying down) or more, a look up no longer carries the eye back nor leans the chest (0..90; 0: always does)
 QVR_TUNABLE(vr_flat_cam_fwd, "0") // how far the flatscreen eye is nudged forward, in the view's frame (-20..20 units; + is forward, towards what he looks at)
 QVR_TUNABLE(vr_flat_cam_up, "0") // the same, up (-20..20; + is higher; the crouch's own drop (vr_flat_crouch_drop) is added to it, not replaced by it)
 QVR_TUNABLE(vr_flat_cam_side, "0") // the same, sideways (-20..20; + is the view's own right, which is his left when he looks at it on the screen)

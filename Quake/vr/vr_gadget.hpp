@@ -144,7 +144,8 @@ enum class MenuIcon : int
     HandLeft,
     HandRight,
     Drop,
-    Swap
+    Swap,
+    Unload // a magazine, an arrow out of it (the rounds back into the reserve)
 };
 struct HolsterMenuSlot
 {
@@ -164,6 +165,8 @@ struct HolsterMenuSlot
     };
     Drop drop{Drop::None};
 };
+// A button: its icon left of its label; one 24 pixels tall or more (the weapon wheel's actions: EMPTY HAND, DROP,
+// UNLOAD) has its icon above its label, and is lit (hovered and enabled) with a second ring, as a lit slot.
 struct HolsterMenuButton
 {
     glm::vec4 rect{0.f};
