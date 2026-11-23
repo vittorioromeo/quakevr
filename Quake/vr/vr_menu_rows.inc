@@ -4792,6 +4792,14 @@ QVR_CYCLE(vr_foveated, "Foveated Rendering",
     "Draws the edges of the view, which the lenses blur anyway, in less detail: faster. NVIDIA graphics "
     "cards only.",
     {0.f, "Off"}, {1.f, "Conservative"}, {2.f, "Balanced"}, {3.f, "Aggressive"})
+QVR_CYCLE(vr_xr_foveation, "Quest Foveation",
+    "Quest standalone: the headset draws the edges of each eye's view, which the lenses blur anyway, at a lower "
+    "resolution (fixed foveated rendering): faster, near-invisible through the lenses. Higher levels blur more of "
+    "the edges.",
+    {0.f, "Off"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"})
+QVR_TOGGLE(vr_xr_foveation_dynamic, "Quest Foveation: Dynamic",
+    "On: the headset uses less foveation than Quest Foveation's level while the graphics have room to spare, and "
+    "up to that level when they are busy.")
 QVR_TOGGLE(vr_foveated_gaze, "Eye-Tracked Foveation",
     "On: with an eye-tracking headset (Quest Pro via Virtual Desktop with eye tracking shared to the PC, Varjo...) "
     "the sharp middle of Foveated Rendering follows your eyes; without one (or while your eyes are not tracked) it "
