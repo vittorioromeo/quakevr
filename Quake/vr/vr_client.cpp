@@ -1121,9 +1121,10 @@ extern "C" int VR_ParseServerMessage(int cmd)
     {
         return 0;
     }
-    // The server's map package comes before its svc_serverinfo (vr_mpdownload.cpp): read whatever protocol the last
-    // server had (a Quake VR server takes Quake VR clients of its own network version only: net_dgrm.c).
-    const bool package = msg_readcount < net_message.cursize && net_message.data[msg_readcount] == QVR_SVC_PACKAGE;
+    // The server's campaign and map package come before its svc_serverinfo (vr_mpdownload.cpp): read whatever protocol
+    // the last server had (a Quake VR server takes Quake VR clients of its own network version only: net_dgrm.c).
+    const bool package = msg_readcount < net_message.cursize &&
+        (net_message.data[msg_readcount] == QVR_SVC_PACKAGE || net_message.data[msg_readcount] == QVR_SVC_CAMPAIGN);
     if(!vrProtocol() && !package)
     {
         return 0;
@@ -1154,6 +1155,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_HELDPLACE: held::parsePlaces(); break; // where the server has what our hands hold (vr_held.cpp, B27)
         case QVR_SVC_SNAPSHOT: netsnap::parse(); break; // our state, the entities and avatars, delta-coded (vr_netsnap.cpp)
         case QVR_SVC_PACKAGE: mpdownload::parsePackage(); break; // the server's map package (vr_mpdownload.cpp)
+        case QVR_SVC_CAMPAIGN: mpdownload::parseCampaign(); break; // the server's campaign (vr_mpdownload.cpp, mpcampaign)
         case QVR_SVC_AVATARCAL: mpavatar::parseCalibration(); break; // a player's height, arms, gloves, body (vr_mpavatar.cpp)
         case QVR_SVC_VOICE: voicechat::parse(); break; // another player's voice frames (vr_voicechat.cpp, B10v)
         case QVR_SVC_TIP_MAKE:
