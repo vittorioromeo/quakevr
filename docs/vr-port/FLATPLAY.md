@@ -440,6 +440,27 @@ out with). Before, looking 60 degrees up he rose 23 units in half a second (78 n
 `Misc/quakevr/flatmove_test.sh` (swim: e1m4's deep water; ledge: the start map's pool), measured by `vr_flatmove_test`
 (Debug > Tests > Flat Move: Speed, Flat Ledges; 8 and 9 find deep water and water-jump ledges near him).
 
+**Swimming strokes** (`Quake/vr/vr_flatswim.cpp`; his words 2026-11-23). While he swims (the water at his waist off the
+bottom, or over his head; `vr_flat_swim` 1) the hands stroke by the way he moves: forward the breaststroke (out wide and back,
+palms back, in under the chin and forward), back pushing the water ahead (palms forward), sideways sweeping it away from
+where he goes, up (jump) pressing it down, down pulling it up, and still treading water. The way is his velocity in the
+view's frame (its forward along the look, its up the world's: a dive is the breaststroke, jump the press down); his speed
+against `vr_flat_swim_full_speed` (200) sets the stroke's rate (`vr_flat_swim_tread_rate` 0.5 .. `vr_flat_swim_rate` 0.9 a
+second) and size (`vr_flat_swim_size`, `vr_flat_swim_tread_size`), and the mix changes over `vr_flat_swim_turn_time`. The
+strokes sit `vr_flat_swim_fwd` / `vr_flat_swim_up` of the arm's reach ahead and up, and tip with `vr_flat_swim_pitch` of the
+look's pitch, so they are seen. A free hand takes the stroke (over `vr_flat_swim_enter_time`); a hand holding a weapon or a
+prop only follows its motion by `vr_flat_swim_gun_share` (0.3), its aim kept (the ironsight's pose aims it after). Any
+two-handed grip or stance lets go so the free hand can swim (`vr_flat_swim_one_hand`: twohand's `flatLetsGo`, flatsight's
+`gripWanted` and stance, flatplay's two-handed melee stance) and comes back on leaving the water. A shot (the trigger held,
+then `vr_flat_swim_fire_hold`), a punch, a swing, the shove, the parry, the reload, the force grab, the quick grenade, the
+swap and the ironsight take the hand over: its stroke eases out over `vr_flat_swim_takeover_time` and back over
+`vr_flat_swim_return_time`. Debug > Tunables > Flatscreen > Swimming; Debug > Reports: Flatscreen Swim Report / Probe.
+The headset's swimming reads tracked strokes and makes none, so no pose is shared with it; the strokes are flatplay's pose
+framework (`poseHands`, the shoulders, the arm's reach, the hands' angles and their blend). `Misc/quakevr/flatswim_test.sh`
+(vrtesthall's pool: each direction's path and palm, the nail gun's grip in and out of the water, the shot's take-over);
+`flatswim_shots.sh` for screenshots. Not done: the hands stay closed (the flat hands' gripping pose), and the strokes make
+no sound (the headset's stroke sounds are the server's, from tracked hand speed).
+
 **Ladders** (**Ladders**, `vr_flat_ladder`, 1; his request 2026-11-16). A ladder made of individual ledges (the tutorial's
 rungs, any stack of graspable ledges) climbs as a headset's hands climb it, on the same code (`vr_climb.cpp` `flatLadder`,
 `flatLadderFrame`, `flatLadderMount`): walking forward into one (in the air, back too) finds the ledges facing him in a

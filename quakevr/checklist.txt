@@ -133,6 +133,8 @@ Flat-screen: 4 and 5 put the left / right hand's weapon into a free holster (the
 Flat-screen: 6 and 7 drop what the left / right hand holds; 3 still swaps the hands. {test:flat_holster_numkeys}
 Flat-screen: Options > Controls lists the six new keys (Cycle/Holster/Drop left and right hand) under "Quake VR (flat screen)", rebindable, marked "!" where they clash, and Reset Flat Keys restores 1, 2, 4, 5, 6, 7. {test:flat_holster_numkeys}
 Flat-screen: holding the rocket launcher in the right hand, 1 takes the left hand off its grip with a holstered weapon, and pressing 1 until the hand is empty puts the left hand back on the grip. {test:flat_holster_numkeys}
+Flat-screen: swim in the pool: forward the hands do a breaststroke, back they push the water ahead, sideways they sweep it away, jump presses it down, down pulls it up, and still they tread water; the strokes speed up and grow with your speed. {test:flat_swim}
+Flat-screen: under water a two-handed gun (the nailgun) is held in one hand and the free hand swims; firing or reloading the gun hand's stroke gives way smoothly and comes back after; out of the water the free hand goes back on the gun. {test:flat_swim}
 
 [6. Ropes and chains]
 In the ropes hall, grab a rope or chain with both hands: each hand grips it with the rope through the fist, the right hand's knuckles to the right and the left's to the left, not pointing up. {test:ropes}
