@@ -25,6 +25,7 @@ Flat-screen: hold RMB with the phantom swordsman's sword (or any long sword): th
 Flat-screen or VR: press B (flat) or the weapon button (VR) with the Crystal Lance: nothing changes, it stays the Lance and never turns into the lightning gun. {test:flat_lance}
 Flat-screen: hold the Crystal Lance: the other hand grips the pole ahead of the right hand; tune Debug > Tunables > Spear rows (Hand Along, Pitch, Yaw, Other Hand Along/Up/Out) and check each moves the spear or hand. {test:flat_lance}
 Flat-screen: press V with the Crystal Lance: a spear thrust (pulled back, thrust along the pole, recovered) that stabs what is ahead with the crystal head; the other hand stays put as the pole slides through it. {test:flat_lance}
+Flat-screen: with the Crystal Lance, the Debug > Tunables rows Spear Other Hand Pitch / Yaw / Roll turn the hand on the pole and Spear Hand Pitch / Yaw / Roll turn the holding fist alone, each about its palm, the spear staying put. {test:flat_lance}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the 1.2.0-beta2 pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names 1.2.0-beta2; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
