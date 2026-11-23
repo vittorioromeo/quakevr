@@ -22,6 +22,7 @@
 #include "vr_cvars.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_geom.hpp"
+#include "vr_handrig.hpp"
 #include "vr_hull.hpp"
 #include "vr_gfx.hpp"
 #include "vr_mem.hpp"
@@ -46,6 +47,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -1767,6 +1769,72 @@ za::Vector<view::HandPart> sinkParts;
     return worst;
 }
 
+// (ropes12) How the drawn hands on ropes wrap them, round the rope's axis seen along it from the palm's middle: each
+// finger's joints in turn (its angle followed from joint to joint, so a wrap past half way counts on), the fingers
+// (the middle one: the grip closes it, VR's index is the trigger's) one way, the thumb the other. Per hand drawn fully
+// on one: `thumb` the least of the thumbs' wraps (degrees), `fingers` the middle finger's; `meet` the most of 360 less the two (0: the thumb's tip meets the fingertips, below
+// 0 past them: overlapping), `tipOff` the thumb tip's end's distance off the surface (units, the most). Hands measured.
+struct RopeWrap
+{
+    float thumb{1e9f}, fingers{1e9f}, meet{-1e9f}, tipOff{0.f};
+};
+[[nodiscard]] int ropeWraps(RopeWrap& out)
+{
+    out = RopeWrap{};
+    int held = 0;
+    for(int h = 0; h < 2; h++)
+    {
+        glm::vec3 at, up, thumbPts[4], indexPts[4], palm;
+        float thick = 0.f, w = 0.f;
+        if(!climb::ropeLine(h, at, up, thick, w) || w < 0.99f || !view::drawnFingerPoints(h, handrig::Thumb, thumbPts, palm) ||
+            !view::drawnFingerPoints(h, handrig::Middle, indexPts, palm))
+        {
+            continue;
+        }
+        const auto flat = [&](const glm::vec3& p) {
+            const glm::vec3 d = p - at;
+            return d - up * glm::dot(d, up);
+        };
+        const glm::vec3 ref = flat(palm);
+        if(glm::length(ref) < 1e-3f)
+        {
+            continue;
+        }
+        const glm::vec3 x = glm::normalize(ref), y = glm::cross(up, x);
+        const auto angle = [&](const glm::vec3& p) {
+            const glm::vec3 d = flat(p);
+            return glm::degrees(za::atan2(glm::dot(d, y), glm::dot(d, x)));
+        };
+        // Followed along the finger: each joint's angle from the one before, within half a turn of it.
+        const auto followed = [&](const glm::vec3 (&pts)[4]) {
+            float a = angle(pts[0]);
+            for(int i = 1; i < 4; i++)
+            {
+                a += geom::wrap180(angle(pts[i]) - angle(pts[i - 1]));
+            }
+            return a;
+        };
+        const float index = followed(indexPts), thumb = followed(thumbPts);
+        const float sense = index >= 0.f ? 1.f : -1.f; // (the fingers' way round)
+        if(vr_climb_debug.value >= 3.f)
+        {
+            for(int i = 0; i < 4; i++)
+            {
+                Con_Printf("ropewrap %s: joint %d: the thumb at %.0f degrees, %.2f off the axis, %.2f along; the index %.0f, %.2f, %.2f\n",
+                    h == 1 ? "main" : "off", i, angle(thumbPts[i]) * sense, glm::length(flat(thumbPts[i])),
+                    glm::dot(thumbPts[i] - at, up), angle(indexPts[i]) * sense, glm::length(flat(indexPts[i])),
+                    glm::dot(indexPts[i] - at, up));
+            }
+        }
+        held++;
+        out.fingers = za::min(out.fingers, index * sense);
+        out.thumb = za::min(out.thumb, -thumb * sense);
+        out.meet = za::max(out.meet, 360.f - index * sense + thumb * sense);
+        out.tipOff = za::max(out.tipOff, za::abs(glm::length(flat(thumbPts[3])) - thick * 0.5f));
+    }
+    return held;
+}
+
 void climbTestFrame()
 {
     ClimbTest& t = climbTest;
@@ -2092,6 +2160,17 @@ void climbCheck_f()
         check(held >= 1 && sink <= n && gap <= 0.5f, va("the hands round it, not in it: %d drawn on it, the deepest %.2f units in (%s; at most %.2f), on it (%.2f off at the nearest)",
                                           held, sink, part, n, za::max(gap, 0.f)));
     }
+    else if(!ZA_STRCMP(what, "thumb"))
+    {
+        // (ropes12, his ask 2026-11-23) The drawn hands' thumbs wrap the rope the other way round from the fingers: each
+        // at least n degrees round it from the palm's middle, its tip on the surface (within 1.5 units).
+        RopeWrap wrap;
+        const int held = ropeWraps(wrap);
+        check(held >= 1 && wrap.thumb >= n && wrap.tipOff <= 1.5f,
+            va("the thumbs round it: %d hands, the thumb %.0f degrees round (at least %.0f), the fingers %.0f, %.0f short "
+               "of meeting (below 0: past), the tip %.2f off its surface (at most 1.5)",
+                held, held ? wrap.thumb : 0.f, n, held ? wrap.fingers : 0.f, held ? wrap.meet : 0.f, wrap.tipOff));
+    }
     else if(!ZA_STRCMP(what, "where"))
     {
         // (ropes7) A test writer's aid: the hands and the feet now.
@@ -2234,6 +2313,24 @@ void flatTestEnd(FlatTest& t, bool timedOut, const char* what)
     }
     t.tally.verdict(flatTestName);
     t.stage = 0;
+}
+
+// (ropes12, his ask 2026-11-23) Hanging on it: both drawn thumbs wrap it the other way round from the fingers (at least
+// flatThumbLeast degrees from the palm's middle), the tips on its surface (the VR plays' `thumb` check: ropeWraps).
+constexpr float flatThumbLeast = 60.f; // (ropes12: 90 on the rope, 72 on the pole; the thumb over the fingers: -50)
+void flatThumbCheck(FlatTest& t)
+{
+    RopeWrap wrap;
+    const int held = ropeWraps(wrap);
+    const bool round = held == 2 && wrap.thumb >= flatThumbLeast && wrap.tipOff <= 1.5f;
+    const char* what = va("the thumbs round it: %d hands on it, the thumb %.0f degrees round (at least %.0f), the fingers %.0f, "
+                          "%.0f short of meeting (below 0: past), the tip %.2f off its surface",
+        held, held ? wrap.thumb : 0.f, flatThumbLeast, held ? wrap.fingers : 0.f, held ? wrap.meet : 0.f, wrap.tipOff);
+    t.tally.check(round, flatTestName, what);
+    if(round)
+    {
+        Con_Printf("%s: PASS %s\n", flatTestName, what);
+    }
 }
 
 void flatTestFrame()
@@ -2436,7 +2533,9 @@ void flatTestFrame()
     case 40: // (ropes8a, his note 2026-11-23) hanging still on the pole (half a second): both hands round it, not through it
         if(t.frames == 12 && t.shots)
         {
-            Cbuf_AddText("vr_flat_orbit 150 80 -5\nwait\nwait\nscreenshot\nvr_flat_orbit 80 70 -5\nwait\nwait\nscreenshot\nvr_flat_orbit\n");
+            // (ropes12: then the hands close up, the thumbs round it, from his front right and his left)
+            Cbuf_AddText("vr_flat_orbit 150 80 -5\nwait\nwait\nscreenshot\nvr_flat_orbit 80 70 -5\nwait\nwait\nscreenshot\n"
+                         "vr_flat_orbit 70 12 -12\nwait\nwait\nscreenshot\nvr_flat_orbit -70 12 -12\nwait\nwait\nscreenshot\nvr_flat_orbit\n");
         }
         if(t.frames == 36)
         {
@@ -2453,6 +2552,7 @@ void flatTestFrame()
             {
                 Con_Printf("%s: PASS %s\n", flatTestName, what);
             }
+            flatThumbCheck(t); // (ropes12)
         }
         if(t.chain)
         {

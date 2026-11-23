@@ -147,6 +147,15 @@ with a per-pixel surface (the tube shader's `Pattern`): wood grain along it, or 
 **The hands round it** (VR and flat, `vr_view_hands.cpp` ropeGrip / ropeHeld; ropes too): the hand's grip channel laid
 on the rope's axis, out along the palm's normal by the radius less the channel's, then by what of the palm and thumb is
 still in it; the fingers wrap a cylinder of its thickness (the grasp's solve, a kept shape per quarter unit).
+(ropes12) **The thumb wraps it the other way** (`Held::thumbAround`, the grasp's `Settings::thumbAround`, ThumbStyle
+Around in vr_grasp.cpp): besides the usual turns, the thumb's metacarpal is tried opposed 45-65 degrees (its bend then
+round an axis along the bar) and lifted off the palm 10-90 degrees (a third turn, `ThumbTurn::lift`, about the axis
+across the palm: over the bar's near side; a 1.5 rope takes about 20-30, a 3 pole 60-75); of those whose thumb closes
+from open, the one reaching furthest round the bar from the palm's middle, the other way from the middle finger, wins
+(`aroundWraps`); a kept turn no longer closing from open is tried afresh. A usual turn's thumb (closed from the fist:
+over the fingers) only if none does. On a rope its controller curl is full (VR too: `updateFingerFrames`). Measured
+(`vr_rope_climb_check thumb`): the rope's thumb 89 degrees round (the middle finger 145 the other way), the pole's 72;
+before, the thumb lay over the fingers (-50 to -80). Another player's hands take his drawn curls and thumb turn.
 
 ## Strung ropes and the monkey traverse (ropes7)
 

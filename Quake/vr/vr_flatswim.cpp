@@ -34,6 +34,7 @@
 
 #include "vr_api.h"
 #include "vr_audio.hpp"
+#include "vr_avatar.hpp"
 #include "vr_backend.hpp" // HAND_OFF / HAND_MAIN
 #include "vr_client.hpp"
 #include "vr_engine.hpp"
@@ -44,6 +45,7 @@
 #include "vr_flatsight.hpp"
 #include "vr_flatswap.hpp"
 #include "vr_geom.hpp"
+#include "vr_hands.hpp"
 #include "vr_handsource.hpp"
 #include "vr_particles.hpp"
 #include "vr_progs.hpp"
@@ -52,6 +54,7 @@
 #include "vr_twohand.hpp"
 
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -347,6 +350,28 @@ void report_f()
         sw.sounds, sw.lastSound < 0 ? "none" : sw.lastSound == 0 ? "under water" : "at the surface", vr_flat_swim_sound.value,
         sw.bubbles, vr_flat_swim_bubbles.value, openShare(HAND_MAIN), openShare(HAND_OFF), vr_flat_swim_cup.value,
         particles::liveCount(), sw.lastPos[HAND_MAIN].x, sw.lastPos[HAND_MAIN].y, sw.lastPos[HAND_MAIN].z);
+    // The view against his own body (his note 2026-11-23: looking up under water he saw his own shoulders from below):
+    // the shoulders' furthest ahead of the eye along the view (units; > 0 in front of it) and their least angle off it; the
+    // eye ahead of the (hidden) head's joint, level along the view's yaw (< 0: back over the trunk, among the shoulders).
+    if(avatar::Skeleton k; flatplay::drawnSkeleton(hands::current(), k))
+    {
+        const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+        const glm::vec3 f = hands::forward(glm::vec3{r_refdef.viewangles[0], r_refdef.viewangles[1], r_refdef.viewangles[2]});
+        const glm::vec3 level = hands::forward(glm::vec3{0.f, r_refdef.viewangles[1], 0.f});
+        float ahead = -1e9f, off = 180.f;
+        for(const glm::vec3& sh : k.shoulder)
+        {
+            const glm::vec3 d = sh - eye;
+            ahead = za::max(ahead, glm::dot(d, f));
+            if(glm::length(d) > 1e-3f)
+            {
+                off = za::min(off, glm::degrees(za::acos(za::clamp(glm::dot(glm::normalize(d), f), -1.f, 1.f))));
+            }
+        }
+        Con_Printf("flatswim: view pitch %.0f: the shoulders %.1f ahead of the eye along the view, %.0f deg off it; the eye %.1f "
+                   "ahead of the head joint; body pitch %.1f\n",
+            r_refdef.viewangles[0], ahead, off, glm::dot(eye - k.headJoint, level), avatar::ownPitchAngle());
+    }
     for(int h : {HAND_OFF, HAND_MAIN})
     {
         const Probe& p = sw.probe[h];

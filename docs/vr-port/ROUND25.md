@@ -10694,6 +10694,55 @@ issue rather than regrabbing"). ROPES.md "Climbing (flat-screen)", "Poles", "Tes
   upright 11/0, slant 11/0; rope_flat_test rope 8/0, pole 7/0, polejump 7/0, slantjump 6/0, wall 1/0, wallvr 1/0,
   strungpole 5/0; rope_climb_test pole_jump 6/0, rope_jump 6/0, pole_wood 10/0, monkey_jump 7/0; vr_pole_solid_test
   14/0; mp_test.py pole 15/0. Not run: an MP free-fall scenario (prediction shares solidInside/solidLedge).
+## flatpolish2: one-handed flat throws, the eye looking up while swimming, the parry hand's fingers out (agent/flatpolish2, 2026-11-23)
+
+His flat feedback 2026-11-23, items 3, 5, 6. FLATPLAY.md, "The throw key", "The neck", "Blade grip in the guard".
+- **Throw one-handed (3)**: replaces flatthrow's two-handed throw. `flatgrenade::letsGo(holding, helping)` (either hand busy
+  with a throw: J's or the quick grenade's) in flatsight's `twoHandGun` / `gripWanted` and twohand's `flatLetsGo`: the
+  free hand lets go of a gun's grip or its stance's hotspot as the wind-up begins, is no longer drawn following the
+  throwing hand (`apply`'s follow removed), and takes the grip again after. QC (`vr_flatgrenade.qc`): a crate in both
+  hands lets go of the off hand at the press (`VR_Carry_EndTwoHands`; `VR_Carry_TrySecondHand` refuses while it winds up,
+  `VR_FlatThrow_WindsUp`); the throw clears `last_2h_time` / `carry_2h_end` around the let-go so the headset's two-handed
+  window isn't counted (a tap lets go inside it). Finding: a flat long gun's stance is drawn only (no `VRGet2HAiming`), so
+  the server's throw was already one-handed for it; the drawn free hand was what followed.
+- **Swimming, looking up (5)**: the swimming tilt turns the trunk forward about the top of the neck, swinging the
+  shoulders up behind it; a look up's neck turn (`vr_flat_eye_pivot`) and chest lean (`vr_flat_chest_up`) carried the
+  eye back among them (2.5 units behind the hidden head's joint), filling the view with his own body from below. Now both
+  fade with the body's forward pitch (`lookUpShare`: `avatar::ownPitchAngle`, new: `ownPitch` is false before the body is
+  posed in the frame, so the camera read 1), gone at `vr_flat_eye_pitched_body` (30, Debug > Tunables, next to Eye Leans
+  With The Chest; 0: never). Lying down looking up gets the same. A look down is unchanged.
+- **Parry fingers (6)**: `twohand::bladeGripHand` turns the palm-down hand end for end about its palm's normal when its
+  fingers point back at him; the choice is made while the guard asks for the grip (`flatplay::bladeAsked`) and kept as it
+  lets go (decided each frame, it flipped 35 degrees a frame mid-ease). The report's blade grip line: "fingers out".
+- **Tests**: flatthrow_test 23/0 (new `twoh` run: the nail gun's free hand on it 1.00, hanging 0.00 winding up, thrown by
+  the main hand, not the headset's two-handed throw); flatswim_test 48/0 (new `lookup` run: pitch -89..89 swimming off
+  the bottom, body 41-45, the eye 2.4-5.4 ahead of the head joint, the shoulders behind the view's plane; the old eye
+  -2.5 at -89); flatbash_test 17/0 (new: fingers out 0.64; turned 8 in, 15 out). Shots: kit scratch
+  flatpolish2_swim.png (looking up: now / `vr_flat_eye_pitched_body 0`), flatpolish2_parry.png, flatpolish2_throw.png.
+  Scenes: flat_throw_2h (new), flat_swim (was missing on next). menu_paths.txt regenerated (+19 rows, 18 others').
+- Not tested: a crate thrown from both hands by J (the QC path), lying down looking up.
+
+## ropes12: thumbs wrap round ropes and poles (agent/ropes12, 2026-11-23)
+
+His ask 2026-11-23: the grip looked like a fist with the thumb over the fingers; the thumb should go round the other
+way from the fingers, meeting them, sized to the thickness. ROPES.md "Poles" (the hands round it).
+- **Why:** ropeHeld asked for Thumb on Top; and at every usual turn the open thumb is in the bar (a long cylinder in
+  the grip channel runs through the thumb's web), so the solve closed it from the fist: over the fingers. The rig's thumb
+  bends about an axis mostly along the palm's normal; opposed ~53 degrees that axis lies along the bar, and lifted off
+  the palm (a new third turn about the axis across it) the thumb clears the bar's near side and bends round it.
+- **Change:** `Held::thumbAround` -> `grasp::Settings::thumbAround` -> ThumbStyle Around: the usual turns plus 21
+  lifted ones (opposition 45/55/65 x lift 10-90); the turn reaching furthest round the bar the other way from the middle
+  finger wins (`aroundWraps`, in the shape's space: the bar along its z), a fist's thumb (from closed) only if none
+  closes from open; a kept turn gone bad is re-tried afresh. The thumb's controller curl is full on a rope (VR, as flat).
+  Shared: one grasp path for VR, flat and (through his snapshot's curls and thumb turn) another player's hands.
+- **Check:** `vr_rope_climb_check thumb <deg>` / flat `flatThumbCheck` (`ropeWraps`, `view::drawnFingerPoints`): each
+  drawn thumb's joints followed round the axis from the palm's middle. Before -79 (VR rope), -63 (VR pole), -49 (flat
+  pole); now 89 / 72 / 72, flat rope 90, chain 84 (bound 60). The meet (360 less thumb and middle finger): rope 126,
+  pole 172 short: the thumb's full curl is the limit; on a thinner rope it closes further.
+- **Cost:** an afresh Around solve 76 us median, 475 most (38 solves in the flat pole run, low-impact mode).
+- **Tests:** rope_climb_test 10 plays pass (rope_climb 12/0 with sink 0.3 and thumb, pole_wood/metal 11/0), rope_pump
+  5/1 (238 vs 250: known, the same on the base); rope_hands_test 6/0; rope_flat_test rope 9/0, pole 8/0, strung 5/0,
+  strungpole 5/0, chain 6/0. `vr_rope_flat_test <mode> shots` now also takes two close-ups of the hands.
 ## weaponfx: thrown blades' kills thrown half as far; the super nailgun's barrels coast; the Lance charged at its middle crystal (agent/weaponfx, 2026-11-23)
 
 His feedback 2026-11-23, items 7-9.
@@ -10783,3 +10832,22 @@ His decision 2026-11-23 (follows "weaponfx" item 9's open point): the bolt start
 - Test: dwell_lance_test.sh 41/0 (new `boltcheck`: the bolt's start within 1 unit of the charge's origin as it fired;
   section 3 VR spear, new section 8 flat spear and VR gun): 0.00 from it each time; 3.96, 3.96, 0.01 off the muzzle.
 - Not tested: another player's copy (the same lookup on mpavatar's drawn weapon; no MP run).
+## qcombined: where Standalone stands on the Quest 3 with everything shipped (agent/qcombined, 2026-11-23)
+
+Follows questperf, qworld, qtune, qfov. Measuring only (no code). `next` at 7df6f7ec8's APK (the quest tree's debug key,
+`install -r`) and test progs, the preset as a new player gets it (`resetcfg; vr_standalone_preset 0`); one headset block
+13:58-14:23, 5 launches, then beta2's re-signed APK and the shipped progs.dat (md5 8a409520...) put back. Table and
+details: QUEST_OPTIMISATIONS.md "Standalone status, 2026-11-23".
+- **Hold 72 Hz:** e2m2 with all 48 monsters awake (dynres 0.65-0.9, 0.2% missed) and the hub (11.4 ms, but only at
+  the 0.55 fight floor: the floor opens there without a fight).
+- **Miss, GPU:** the frozen close-up gib fight: 0.65 fixed 17.9 ms (35% missed); dynres as shipped sits at 0.55, 14.8
+  ms, 13.5% missed. 3 big lights add nothing now. At 0.55: the world ~8 ms, gore ~1.2, your rig ~1.0, grunts ~0.
+  Dynres's 0.55 costs ~1 ms more than a fixed 0.55 (13.8): the sub-image in 0.9-sized images.
+- **Miss, CPU:** the live e1m1 fight (CPU busy 16.2 ms, server 5.4; 31% missed with GPU 11.6) and 48 monsters on the
+  firing range (CPU 25 ms, SV_Physics 9.8; 76% missed).
+- A new player's config costs the same GPU as his (17.0 both at 0.65; +1.2 ms CPU, +12 draws); his has many lights and
+  effects off (vr_dlight_models, vr_model_lighting, vr_colored_lights, vr_light_contrast 1, explosion debris...).
+  `gl_texture_anisotropy` is 16 for a new player (vr_defaults.cfg; the preset leaves it): 1 vs 16 ~0.5-0.9 ms, near the
+  noise. The 0.65 base reads 2-3 ms above qtune's morning numbers: warmth or a merge since; not split.
+- Next (by size): the world's shading at 0.55 (~8 ms of ~14); the server's CPU in big fights (monster physics);
+  dynres drawing into right-sized images; the hub's fight floor opening outside fights (his call).

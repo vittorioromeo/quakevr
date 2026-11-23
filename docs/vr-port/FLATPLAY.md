@@ -836,7 +836,10 @@ stood. So nothing changes at a level look, whatever the yaw: no height, no move,
 `camShiftWorld` as the nudges, so the view (`VR_FlatViewDrop`), the crosshair's ray, the drawn hands, the pose's hands (they carry it,
 so the gun stays where it is on the screen and the muzzle where the ray is read) and `vr_flat_gun_near`'s measure (the eye's own moves
 are put back first) all read one eye. The body doesn't move: `solveTorso` stands the neck under a level look's eye. His box is 16 from
-its middle to its side: the eye's most is 5.5 at the defaults, and 15.3 at the 8 and 8 `eyeOffMax` allows. `vr_flat_eye_pivot 0` is the eye
+its middle to its side: the eye's most is 5.5 at the defaults, and 15.3 at the 8 and 8 `eyeOffMax` allows. With the trunk pitched
+forward (swimming's tilt, lying down: `avatar::ownPitchAngle`) a look up's neck turn and chest lean fade, gone at
+`vr_flat_eye_pitched_body` (30) degrees of it (his note 2026-11-23: looking up under water the eye stood among his own
+shoulders and saw them from below). `vr_flat_eye_pivot 0` is the eye
 turning about itself, measured the same to the last digit (`flatsweep_test.sh`, ROUND24.md). The numbers were chosen on the sweep's
 rows: see ROUND24.md, "Flat pose, phase 1".
 
@@ -1141,9 +1144,11 @@ His ask (2026-11-23): a flat-screen throw, reusing and improving the grenade's t
   (`DropWeaponInHand`, `VR_Carry_Release`): weight, gain, assist, spin by mass, damage, sticking, gib bursts are theirs.
   Along the crosshair `vr_flat_throw_up` above it, the hand at `vr_flat_throw_speed_min` (a tap) .. `_max` m/s over
   `vr_flat_throw_charge_time`, spun end over end `vr_flat_throw_spin` rad/s, the hand turned `vr_flat_throw_release_pitch`.
-- **Held in both hands** (a long gun with the other hand on its grip, a crate): thrown with both, the headset's two-handed
-  throw; the other hand stays on the grip and is drawn along with the throwing hand (letting go first would make it a
-  one-handed throw of a gun he holds with both).
+- **Held in both hands** (a long gun with the other hand on its grip or its stance's hotspot, a crate; his call
+  2026-11-23): thrown one-handed. The other hand lets go as the wind-up begins (`flatgrenade::letsGo`: a throw of either
+  hand, J's or the quick grenade's, in flatsight's stance and grip lists and twohand's `flatLetsGo`) and doesn't follow
+  the throwing hand; it takes a gun's grip again after, as after the other let-go moves. A crate's off hand lets go at
+  the press (`VR_Carry_EndTwoHands`, no second hand while it winds up); the headset's two-handed window isn't counted.
 - **As drawn** (`vr_flatgrenade.cpp`, STAT_QVR_FLATGREN's bits 16/32 the phase, 64 the main hand, 128 both): the throw's
   motion is shared with the quick grenade (Debug > Tunables > Flatscreen > Throw, replacing the grenade's wind/follow/back
   tunables): wound up behind the shoulder (`vr_flat_throw_wind_*`), further back as it charges (`_charge_back`), the
@@ -1279,7 +1284,10 @@ and its bits) only while the guard asks for it, switching off the stance's grip 
 (`steadyOther`; at once it turned 73 degrees in a frame, now 7 in and 12 out). Palm down over the blade
 (`vr_flat_parry_blade_palm` 1; his note 2026-11-23: it was palm up under it): `twohand::bladeGripHand` rolls the hand about
 the blade (its grip staying along it) to the palm down, flat screen only (a headset's keeps the tracked hand's roll); the
-blend's quaternions kept on last frame's side (`steadyOther`'s `bladeBlend`) so the near half turn never flips (11 in, 20 out). Weapons without a Blade hotspot (axes,
+blend's quaternions kept on last frame's side (`steadyOther`'s `bladeBlend`) so the near half turn never flips (11 in, 20 out).
+Its fingers point away from him over the blade (his second note 2026-11-23: they pointed back): else the hand is turned
+end for end about its palm's normal, decided while the guard asks for the grip and kept as it lets go (8 in, 15 out;
+fingers out 0.64 in the report's blade grip line). Weapons without a Blade hotspot (axes,
 Mjolnir, the chainsaw) leave the free hand where it was. Debug > Tunables > Flatscreen > Guard Bash and Blade Grip;
 `vr_flatplay_status` prints "guard bash:" and two "blade grip:" lines (the free hand off the hotspot, posed and drawn);
 `vr_flatplay_debug 1` the bash's start and the blade's take. Test: `Misc/quakevr/flatbash_test.sh <agent>`; scene `flat_parry`.
