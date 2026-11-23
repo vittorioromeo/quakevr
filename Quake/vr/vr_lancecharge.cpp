@@ -2,6 +2,7 @@
 
 #include "vr_lancecharge.hpp"
 
+#include "vr_anchor.hpp"
 #include "vr_cvars.hpp"
 #include "vr_emissive.hpp"
 #include "vr_engine.hpp"
@@ -52,11 +53,25 @@ struct Charge
     channel_t* ch{nullptr};
 };
 
+// A Lance model's middle crystal's tip (his note 2026-11-23: the charge's light and sparks came from a little off it):
+// the vertex furthest along the line from its hand to its muzzle (weapons.txt hand_av, muzzle_av) within tipReach model
+// units of that line, found once per model as drawn. The gun's muzzle is on that tip; the spear's (dw_lance) between its
+// two outer prongs' tips, a point in the air, bound to the nearer prong (6.5 units off the line), its middle crystal 8
+// units back on the line.
+constexpr float tipReach = 1.f;
+struct Tip
+{
+    const qmodel_t* model{nullptr};
+    int vertex{-1};
+};
+
 struct State
 {
     sfx_t* hum{nullptr};
     Charge of[MAX_SCOREBOARD + 1][2];
     za::U32 seed{0x1a2b3c4du};
+    Tip tips[2]; // (the gun's and the spear's)
+    za::Vector<glm::vec3> rest, now; // (tipVertex's)
 };
 
 State st;
@@ -71,6 +86,69 @@ State st;
 {
     const view::ViewEntity* w = p == cl.viewentity ? &own[hand] : mpavatar::drawnWeapon(p, hand);
     return w && w->ent.model && (w->visible || p != cl.viewentity) && isLance(w->ent.model) ? w : nullptr;
+}
+
+// An anchor's text ("x y z", weapons.txt *_av) as a point in model units; false: not three numbers.
+[[nodiscard]] bool modelUnits(const char* text, glm::vec3& out)
+{
+    const char* p = text ? text : "";
+    for(int k = 0; k < 3; k++)
+    {
+        char* end = nullptr;
+        out[k] = strtof(p, &end);
+        if(end == p)
+        {
+            return false;
+        }
+        p = end;
+    }
+    return true;
+}
+
+// The drawn Lance `w` (weapon slot `slot`)'s middle crystal's tip vertex (Tip), its muzzle drawn at `muzzle`; -1 none
+// (no Quake vertices, no line).
+[[nodiscard]] int tipVertex(const view::ViewEntity& w, int slot, glm::vec3 muzzle)
+{
+    const qmodel_t* m = w.ent.model;
+    for(const Tip& t : st.tips)
+    {
+        if(t.model == m)
+        {
+            return t.vertex;
+        }
+    }
+    int best = -1;
+    // (The anchors' own points, in the model's units: as drawn, an anchor is bound to the surface nearest it.)
+    glm::vec3 handAt{0.f}, muzzleAt{0.f};
+    const bool points = modelUnits(weapons::anchor(slot, weapons::Key::HandAnchor), handAt) &&
+                        modelUnits(weapons::anchor(slot, weapons::Key::MuzzleAnchor), muzzleAt);
+    const glm::vec3 hand = points ? view::modelPoint(w, handAt)
+                                  : view::anchorPosition(w, weapons::anchor(slot, weapons::Key::HandAnchor), glm::vec3{0.f});
+    if(points)
+    {
+        muzzle = view::modelPoint(w, muzzleAt);
+    }
+    const float perUnit = glm::length(view::modelPoint(w, glm::vec3{1.f, 0.f, 0.f}) - view::modelPoint(w, glm::vec3{0.f}));
+    const float len = glm::length(muzzle - hand);
+    if(len > 1e-3f && anchor::posedVertices(w.ent, w.zeroBlend, st.rest, st.now))
+    {
+        const glm::vec3 dir = (muzzle - hand) / len;
+        float bestAlong = -1e30f;
+        for(int v = 0; v < static_cast<int>(st.now.size()); v++)
+        {
+            const glm::vec3 d = view::vertexPosition(w, v) - hand;
+            const float along = glm::dot(d, dir);
+            if(glm::length(d - dir * along) <= tipReach * perUnit && along > bestAlong)
+            {
+                bestAlong = along;
+                best = v;
+            }
+        }
+    }
+    Tip& t = st.tips[st.tips[0].model ? 1 : 0];
+    t.model = m;
+    t.vertex = best;
+    return best;
 }
 
 [[nodiscard]] channel_t* playing(const Charge& c, int ent, int hand)
@@ -238,6 +316,22 @@ void frame(const view::ViewEntity (&own)[2])
             const float was = c.level;
             c.level = c.charging ? za::clamp(static_cast<float>(cl.time - c.start) / c.seconds, 0.f, 1.f)
                                  : za::max(0.f, c.level - dt / c.fade);
+            // Drawn from the middle crystal's tip as drawn (Tip).
+            const int tip = tipVertex(*w, weapons::slotForModel(w->ent.model), m.at);
+            const glm::vec3 muzzle = m.at;
+            if(tip >= 0)
+            {
+                m.at = view::vertexPosition(*w, tip);
+            }
+            if(vr_debug_gunfx.value && c.charging && was <= 0.f && c.level > 0.f && tip >= 0 && tip < static_cast<int>(st.rest.size()))
+            {
+                const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(w->ent.model)));
+                const glm::vec3 r = st.rest[tip] * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]} +
+                                    glm::vec3{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+                Con_Printf("lancecharge: origin at the middle crystal's tip (%s vertex %d, at rest %.2f %.2f %.2f); the muzzle "
+                           "anchor %.3f from it\n",
+                    w->ent.model->name, tip, r.x, r.y, r.z, glm::distance(muzzle, m.at));
+            }
             if(c.charging && c.level >= 1.f && was < 1.f)
             {
                 debugPrint("full", p, hand, c);
