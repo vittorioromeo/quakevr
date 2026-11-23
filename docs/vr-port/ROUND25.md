@@ -9674,6 +9674,39 @@ Runs on origin/next 2de8233f1 (Release no-LTO, the shipped-defaults baseline). M
   rerelease's track02.ogg identically (132300 frames, 44100 Hz stereo, peak 21126 both), the rewind ok, start's track 4
   plays through stb_vorbis, no error: 12/0. music_test 7/0; vr_menu_path_check 0 missing; Android native build compiles.
 - Installer (`QuestFiles.MusicFormats`, on agent/questinstall, not on next): add `.ogg` there when both are merged.
+## testbatch3: testbatch2's open items (agent/testbatch3, 2026-11-23)
+
+TESTING.md "Batching a suite, -QuitOn and -NoDraw". Times under other agents' load (run to run +-30%).
+- **Agrunt batch, proven: not the same.** Kit `scratch/refactor/run_baseline.py --groups agrunt`: alone 11.1 min,
+  batched 3.7 min, 213 of 217 cases the same; agrunt_16 and 74 pass batched and fail alone, 65 fails batched, 203's
+  counts differ, and each does so again on a rerun of the four both ways (so not flaky: a case comes out of a batch
+  game differently, even a 4-case batch). The default is back to alone (kit script: `--agrunt-batch` opts in).
+- **`vr_waitquiton N wait`** (vr_testbatch.cpp): a batched -QuitOn case's closing `waitN` is now a wait at the head of
+  the buffer that the match ends early (what QC queues meanwhile runs after it, as behind the lone run's waits);
+  testbatch.py writes it for every closing waitN, and the hold (`vr_waitquiton N`) only after a script with no closing
+  quit. selftest.sh 5/0; reload_test.sh's -QuitOn case (`reload magnails lying: 9 magazines, 0 wrong`) batched 2/0.
+- **flatplay's "tune_reset leak" was the ironsight:** the status line's "within N of his head" is keepNear(), eased to
+  vr_flat_ads_near (24) by the ironsight's share, and an earlier case's `vr_flat_aim 1` (a toggle, not a +command)
+  stayed on across vr_test_reset and the next map. `vr_test_reset` now calls `flatsight::testReset()` (the state
+  frame() clears outside flatscreen play). flatplay plays many cases a game again (TB_ISOLATE dropped): 31/0.
+- **-NoDraw on** flatmove, flatitems, flatladder (`TB_NODRAW` default 1) and flatslide's 10 runs that read no drawing
+  (`N`; its sights, lean pose, slide pose and prone-dual runs stay drawn): every check the same drawn and undrawn
+  (flatslide's drawn slide pose on e1m1 failed once in the drawn run, a drawn case either way: the known flaky one).
+- **Batched:** melee_space (32 cases, a monster and setting each, undrawn): the table identical, digit for digit, to
+  the old two one-game runs. Verdict lines added: melee_space, voreshove (already batched, ends on its 4th shove),
+  bodytrack_elbow (one run that quits; its waits are measurement windows). slots.log's other most-run unbatched
+  families are single runs (arenapath, load_models) or the per-case agtest/arena runs agents make by hand.
+
+  | suite | before s | after s | what |
+  |---|---|---|---|
+  | flatplay | 136 (isolated, testbatch2) | ~90 (collect 21, batch 27, replay 33) | many cases a game |
+  | flatmove | 94 drawn | 63 undrawn | -NoDraw |
+  | flatitems | 107 drawn (batch 69) | 52 undrawn (batch 31) | -NoDraw |
+  | flatladder | 20-23 drawn | 34-35 undrawn | (2 short cases: shell-bound, noise) |
+  | flatslide | 162 drawn | 111 partly undrawn | -NoDraw on 10 of 14 runs |
+  | melee_space | 97 (two games) | 38 | batched, undrawn |
+  | voreshove / bodytrack_elbow | 20 / 28 | same | verdict lines |
+  | agrunt (run_baseline) | 11.1 min alone | (3.7 min batched, not used) | default back to alone |
 
 ## flatgreen3: the MP suites and the last open flat tests (agent/flatgreen3, 2026-11-23)
 

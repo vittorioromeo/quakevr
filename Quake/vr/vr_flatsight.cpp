@@ -1840,9 +1840,11 @@ void init()
     Cmd_AddCommand("vr_flat_sight_check", check_f);
 }
 
-void frame()
+// Everything back to nothing: the ironsight's toggle off, every travel and hold undone (outside flatscreen play, and a
+// batched test case's start: vr_test_reset, testbatch3: a case's vr_flat_aim 1 otherwise left the next case's
+// ironsight on).
+void forget()
 {
-    if(!flatplay::active())
     {
         st.ads = st.keyWas = false;
         st.gripWanted = st.adsWanted = false;
@@ -1874,6 +1876,19 @@ void frame()
             st.fovNarrow = 0.f; // a headset took the game back with the ironsight on: the view is the player's own again
             vid.recalc_refdef = 1;
         }
+    }
+}
+
+void testReset()
+{
+    forget();
+}
+
+void frame()
+{
+    if(!flatplay::active())
+    {
+        forget();
         return;
     }
 
