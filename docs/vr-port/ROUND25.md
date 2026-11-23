@@ -11143,6 +11143,74 @@ Checklist 223 -> 157 lines; no scene retired; details in CHECKLIST_REORG.md, "fo
 - **Tests**: xr_runtime_test.sh section 11: the paused run is a player's session now (`vr_fixed_frames 0`); new runs, an
   unworn fake headset under a scripted run (fixed frames) and under `-vr-unattended` (`vr_fixed_frames 0`), play on and
   log their reason: 8 passed, 0 failed.
+
+## qlrz: why the Quest's LRZ kills nothing: GL_BLEND always on ends it, then some models do (branch agent/qlrz, 2026-11-23)
+
+His ask (qfov4's finding 1): Adreno's low-resolution Z (LRZ, the early rejection of hidden pixels) kills nothing in any path.
+One headset block so far (17:27-17:36; the frozen gib fight, Standalone, 0.65, High foveation straight in; beta2 back after).
+- **The probe** (`vr_debug_lrz_probe`, Debug > Profiling, `stereo::drawLrzProbe`): n > 0 draws at point n of an eye's scene
+  (1 after the clear, 2 after the hidden area, 3 after the opaque world and models, 4 after the sky, 5 at the end) a near
+  opaque quad then one behind it over the middle quarter of the eye (as clean as a draw gets: the vertex colour, no
+  discard, depth tested and written): ~300k pixels an eye that LRZ must kill; n < 0 one quad far behind the scene (the
+  picture kept), killed where the scene's own draws wrote LRZ.
+- **Traces** (`ovrgpuprofiler -t`, "LRZ Pixels Killed" summed over an eye's bins): the probe's second quad is **not killed
+  at points 1, 3 and 5** (0 pixels), nor the far quad at the end (0-32); the same **without clip control**
+  (`-noclipcontrol -glesnoclipcontrol`: OpenGL's depth, LEQUAL, cleared to 1): 0. With the far quad at the end and things
+  left out: no hidden-area mask 64 / 0, no world pre-pass 67 / 0, no entities 0 / 64, no world 0 / 0, no in-tile pass
+  261 / 0, no particles 0 / 0, no invalidate 259 / 143, D32F depth 56 / 0, all of them out (world alone, no pre-pass) 0 / 128.
+  So it is none of the brief's per-draw suspects (reversed depth and clip control, the pre-pass, the hidden area, decals'
+  offset, discards, the sky, particles, the in-tile pass, the depth format): LRZ is dead from the first draw after a full
+  clear, whatever the pass holds: a GL state every draw shares.
+- **The state**: Ironwail's `GL_SetupState` enables `GL_BLEND` once and never disables it; its opaque state is
+  `glBlendFunc(GL_ONE, GL_ZERO)`. Adreno's rule (as freedreno's: a draw that reads the target must not write LRZ, a later
+  draw's LRZ may kill what it blends over) is taken by the driver from the enable, so no depth-writing draw of ours ever
+  wrote LRZ. (`GL_SAMPLE_SHADING` is also on throughout: the second suspect, a probe cvar.)
+- **The candidate fix** (built, on the PC verified, **not yet run on the headset**): `GL_SetState`'s opaque state disables
+  `GL_BLEND` (`vr_gl_opaque_noblend` -1: under OpenGL ES; 1 always; 0 Ironwail's; gl_vidsdl.c `GL_SetStateEx`). The three
+  draws that blend after an opaque `GL_SetState` (the wounds' bakes: reverse-subtract and GL_MAX, vr_wounds.cpp) keep it
+  (`GL_OpaqueBlendKeep`). `vr_gl_sample_shading` 1 (0: never enabled, a probe; on the PC with MSAA 0 changes 8.5% of
+  e1m1's pixels, so it is no default). Debug > Profiling: the two blend rows and the three probe rows.
+- **PC** (Release, mock): e1m1's start, `vr_gl_opaque_noblend` 0 vs 1: 0 of 518,400 pixels differ (0 vs 0 again: 0). The
+  gib fight under `-glescompat +vr_standalone_preset 0`, a run per setting: 0 vs 1 3.64% of pixels differ at all (largest
+  15 levels), 0.02% by more than 8; 0 vs 0 again 2.98% (largest 18), 0.08%: within the scene's run-to-run noise.
+- **Found on the way**: switching from the foveated straight-in path to the post-process path mid-game (`vr_xr_direct
+  -1; vr_xr_foveation 0` after `vr_xr_foveation 3`) crashed in libGLESv2_adreno (SIGSEGV 0x30, twice, also without clip
+  control), as questperf's form 2 crash; whether the menu's Quest Foveation Off after High does the same is in block 2's
+  script, not yet run.
+- **Left** (block 2, scripts ready in scratch: `qlrz_block2a.sh`, `qlrz_block2b.sh`): the trace that confirms the kills
+  with blending off (and, if not, sample shading off), eyeshots on/off/on, 3 interleaved launches A (0) / B (1) / C (1, no
+  world pre-pass) at 0.65 fixed and with dynres, the Foveation Off check; then QUEST_OPTIMISATIONS's rows and the
+  checklist line. APK built from 1a69f7813 (0 warnings, check_apk 20/0). Scripts (not committed): `scratch/qlrz_*`.
+- **Block 2** (17:52-18:15, 4 trace launches, eyeshots, 3 A/B launches; beta2 back after). Confirmed: with
+  `vr_gl_opaque_noblend 1` the probe's second quad is killed after the clear and after the hidden area (693k / 846k LRZ
+  pixels an eye, the quad being 312k: the scene behind the near quad too); with blending on 0; with
+  `vr_gl_sample_shading 0` alone 0 (not a cause). So **a depth-writing draw with GL_BLEND on ends LRZ for the rest of
+  the pass** on this driver, and Ironwail's first draw is one.
+- **A second cause, open**: with blending off LRZ still dies inside the opaque entity pass. The pair probe after it
+  (point 3): world and brush entities only, with or without the pre-pass: alive (1.0-3.4M summed); the unlit world,
+  the light texture and the gathered path make no difference; models without the world: dead; every `progs/` model
+  hidden (your rig and the procedural limbs still drawn): alive; only the grunts hidden: dead; the models' pre-passes
+  off: dead. So some id model other than a grunt ends it: gibs, heads, dropped guns and packs, or the held weapons
+  (the "gore hidden" and "every model hidden" traces failed to capture). Not their GL state as read (no blended state,
+  stencil, depth function, depth range or polygon offset in r_alias.c's opaque path): the next suspect is the forms that
+  keep `discard` with depth writes (anything not on the opaque/plain form: morphs, stumps' gates). Next step: the pair
+  probe at point 3 with `vr_debug_hide_models` "gib", "h_", "backpack", "v_,g_", and `vr_gl_alias_opaque 0` against
+  hidden grunts; then draw those models last in the opaque pass.
+- **The world's own draws write no LRZ either way**: the far quad after a world-only pass (no pre-pass) is not killed
+  (0 / 152) though LRZ is alive there. Not looked into (clip distances on, the instances' buffer).
+- **The post-process path** with blending off: the far quad 0 kills too (not the shipped path; not looked into).
+- **Measured** (the gib fight, Standalone, High, 3 launches x 2 interleaved parts, GPU median ms): fixed 0.65: blended
+  (old) 13.84 / 13.49 / 13.34, unblended 13.63 / 14.69 / 13.21, unblended without the world pre-pass 13.29 / 13.61 /
+  13.52; dynres as shipped (0.9, floors 0.65 / 0.55): 12.58 / 12.72 / 12.60, 12.78 / 12.44 / 12.39, 12.06 / 12.22 /
+  12.34. **No gain yet** (LRZ dies before most of the frame), so **`vr_gl_opaque_noblend` defaults to 0** (Ironwail's);
+  1 is the A/B (Debug > Profiling) and what the next step needs.
+- **Eyeshots** (blended, unblended, blended; each part a new fight, so not pixel-comparable: blended vs blended 43% /
+  63% of pixels differ): the unblended right eye is a normal picture (walls, models, gore, blood); its **left eye is
+  filled by one flesh-textured surface**, most likely a gib against the eye (the right eye of the same frame is
+  whole), not proven: check the look with 1 before it becomes a default.
+- **A crash a player can reach, not fixed**: `vr_xr_foveation 0` after `vr_xr_foveation 3` mid-game (Quest Foveation
+  High to off: "VR: eyes through the post-process") crashed in libGLESv2_adreno (SIGSEGV 0x30) in the one launch that
+  tried it, as the two forced switches of block 1 did.
 ## qeye: the eye's part centred on the foveation bins (slower: kept in the corner); the scene's shaders dither straight-in eyes (agent/qeye, 2026-11-23)
 
 - **The part's place** (`vr_eye_rect_place`, new, 0; Debug > Profiling beside Eye Sub-Image): an eye drawn straight into a

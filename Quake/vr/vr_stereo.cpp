@@ -1279,6 +1279,55 @@ void drawHiddenAreaOf(int eye)
     currentEye = saved;
 }
 
+// Debug > Profiling > LRZ Probe (vr_debug_lrz_probe; qlrz): opaque quads over the middle quarter of the eye, drawn as
+// the hidden area is (the vertex colour, no discard, depth tested and written, every colour channel): 0 near (half the
+// depth range), 1 behind it, 2 far behind the scene. Made once per depth convention.
+za::Array<gfx::StaticTriangles, 3> lrzProbeQuads;
+za::Vector<gfx::Vertex> lrzProbeVertices;
+float lrzProbeMadeFor = 0.f; // 1: reversed depth (clip control), -1: OpenGL's; 0: not made yet
+
+void drawLrzProbe(int point)
+{
+    const int probe = static_cast<int>(vr_debug_lrz_probe.value);
+    if(probe == 0 || (probe < 0 ? -probe : probe) != point)
+    {
+        return;
+    }
+    const float convention = gl_clipcontrol_able ? 1.f : -1.f;
+    if(lrzProbeMadeFor != convention)
+    {
+        static constexpr float nearness[3] = {0.5f, 0.25f, 0.0005f}; // window depth from the far plane (0) to the near one (1)
+        static constexpr float corners[6][2] = {{-0.5f, -0.5f}, {0.5f, -0.5f}, {0.5f, 0.5f}, {-0.5f, -0.5f}, {0.5f, 0.5f}, {-0.5f, 0.5f}};
+        for(int q = 0; q < 3; q++)
+        {
+            lrzProbeVertices.clear();
+            for(const auto& c : corners)
+            {
+                gfx::Vertex v;
+                v.pos = {c[0], c[1], gl_clipcontrol_able ? nearness[q] : 1.f - 2.f * nearness[q]};
+                v.color = q == 0 ? glm::vec4{1.f, 0.f, 1.f, 1.f} : glm::vec4{0.f, 1.f, 0.f, 1.f};
+                lrzProbeVertices.pushBack(v);
+            }
+            gfx::upload(lrzProbeQuads[q], lrzProbeVertices);
+        }
+        lrzProbeMadeFor = convention;
+    }
+    gfx::State state;
+    state.shade = gfx::Shade::Color;
+    state.blend = gfx::Blend::Opaque;
+    state.depthTest = true;
+    state.depthWrite = true;
+    if(probe > 0)
+    {
+        gfx::draw(lrzProbeQuads[0], glm::mat4{1.f}, state);
+        gfx::draw(lrzProbeQuads[1], glm::mat4{1.f}, state);
+    }
+    else
+    {
+        gfx::draw(lrzProbeQuads[2], glm::mat4{1.f}, state);
+    }
+}
+
 void eyeSceneFormats(unsigned& color, unsigned& depth)
 {
     color = eyeTargets.format;
@@ -2004,6 +2053,14 @@ extern "C" void VR_HeadlessView()
 extern "C" int VR_RenderingEye()
 {
     return stereo::renderingEye;
+}
+
+extern "C" void VR_LrzProbe(int point)
+{
+    if(stereo::renderingEye && !stereo::spectatorView && vr_debug_lrz_probe.value != 0.f)
+    {
+        stereo::drawLrzProbe(point);
+    }
 }
 
 extern "C" void VR_DrawHiddenArea()

@@ -1027,6 +1027,7 @@ void R_Clear (void)
 		clearbits |= GL_COLOR_BUFFER_BIT;
 
 	GL_SetState (glstate & ~GLS_NO_ZWRITE); // make sure depth writes are enabled
+	GL_SampleShading (true); // QVR: (vr_gl_sample_shading changed: by the scene's start)
 	glStencilMask (~0u);
 	glClear (clearbits);
 }
@@ -2313,9 +2314,11 @@ void R_RenderScene (void)
 	VR_ProfileBegin ("clear"); // QVR: profile
 	R_Clear ();
 	VR_ProfileEnd (); // QVR
+	VR_LrzProbe (1); // QVR: vr_debug_lrz_probe (Debug > Profiling)
 	VR_DrawHiddenArea (); // QVR: the lenses' hidden area, skipped by what follows
 	VR_DrawPortalMask (); // QVR: through a teleporter, all but the gate skipped (vr/vr_portals.cpp)
 	}
+	VR_LrzProbe (2); // QVR
 
 	Fog_EnableGFog (); //johnfitz
 	VR_ProfileEnd (); // QVR
@@ -2325,6 +2328,7 @@ void R_RenderScene (void)
 	VR_ProfileEnd (); // QVR
 
 	R_DrawEntitiesOnList (false); //johnfitz -- false means this is the pass for nonalpha entities
+	VR_LrzProbe (3); // QVR
 
 	VR_ProfileBeginGPU ("particles"); // QVR: profile
 	R_DrawParticles (false);
@@ -2335,6 +2339,7 @@ void R_RenderScene (void)
 	VR_ProfileBeginGPU ("sky"); // QVR: profile
 	Sky_DrawSky (); //johnfitz
 	VR_ProfileEnd (); // QVR
+	VR_LrzProbe (4); // QVR
 
 	VR_ProfileBeginGPU ("water"); // QVR: profile
 	R_DrawWater (false);
@@ -2368,6 +2373,7 @@ void R_RenderScene (void)
 	VR_ProfileBeginGPU ("view model"); // QVR: profile
 	R_DrawViewModel (); //johnfitz -- moved here from R_RenderView -- il8r -- moved for oit reasons
 	VR_ProfileEnd (); // QVR
+	VR_LrzProbe (5); // QVR
 
 	R_ShowTris (); //johnfitz
 

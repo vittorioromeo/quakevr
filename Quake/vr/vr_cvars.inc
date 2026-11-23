@@ -774,6 +774,21 @@ QVR_CVAR(vr_world_prepass, "1", CVAR_NONE)
 // frame's plans); 2 the same, the arrays' calls never merged (an A/B switch: twice the draws); 0 gathered and merged
 // between the draws as before. No effect on the PC.
 QVR_CVAR(vr_gl_one_pass, "1", CVAR_NONE)
+// qlrz: opaque draws with GL_BLEND off (GL_SetState, gl_vidsdl.c): 0 never (Ironwail's: blending left on, opaque being
+// glBlendFunc(GL_ONE, GL_ZERO); on the Quest a depth-writing draw with blending on ends Adreno's low-resolution depth,
+// LRZ, for the rest of the pass, so no hidden pixel is rejected early), 1 always, -1 under OpenGL ES. The same pixels.
+// Default 0 for now: with 1 the Quest's LRZ lives until the first id model (progs/) other than a grunt is drawn, which
+// ends it again (cause open), and the gib fight measures the same (ROUND25, qlrz).
+QVR_CVAR(vr_gl_opaque_noblend, "0", CVAR_NONE)
+// qlrz, a probe: 0 GL_SAMPLE_SHADING never enabled (Ironwail enables it throughout; its rate is vid_fsaamode's).
+QVR_CVAR(vr_gl_sample_shading, "1", CVAR_NONE)
+// Debug > Profiling > LRZ Probe (qlrz): is the tiler's early depth rejection (Adreno's LRZ) alive at a point of the
+// eye's scene? n > 0: at point n (1 after the clear, 2 after the lenses' hidden area, 3 after the opaque world and
+// models, 4 after the sky, 5 at the scene's end) two opaque quads over the middle quarter of the eye, a near one
+// (magenta) then one behind it (green): every pixel of the second is one LRZ can kill (ovrgpuprofiler -t, "LRZ Pixels
+// Killed"). n < 0: at point -n one quad far behind the scene (hidden: the picture kept): killed where the scene's own
+// draws wrote LRZ. 0 off.
+QVR_CVAR(vr_debug_lrz_probe, "0", CVAR_NONE)
 QVR_CVAR(vr_debug_hide_models, "", CVAR_NONE)   // alias models whose name holds any of these comma-separated parts are not drawn in the eyes (vr_render.cpp VR_AliasDebugHidden; questperf)
 QVR_CVAR(vr_gl_passes, "0", CVAR_NONE)            // 1: the next frame's draw framebuffer binds and alias batches listed in the console (vr_profile.cpp; back to 0 after)
 QVR_CVAR(vr_perf_record, "0", CVAR_NONE)
