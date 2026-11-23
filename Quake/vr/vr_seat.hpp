@@ -97,6 +97,8 @@ enum class Part
     MpAvatars,     // vr_mpavatar.cpp: the other players' avatars as this seat's client read them, and what it drew of them
     // Phase 9: menus per seat.
     SeatMenu,      // vr_seatmenu.cpp: a seat 2-4's own menu (open, cursor, its look sensitivity and invert)
+    // split13: the first-person view's drawn state.
+    View,          // vr_view_internal.hpp SeatView: the view entities, the rigged hands, the eases, the ammo screens' guards
     Count
 };
 
@@ -214,6 +216,9 @@ void joinTestFrame();
 // Phase 7 (vr_seatrender.cpp): vr_seat_render_test (each seat drawn in its tile), its per-frame step (CL_SeatFrame's).
 void registerRenderCommands();
 void renderTestFrame();
+// split13: vr_seat_render_test's probe of one entity's pose as each seat's pass draws it (R_DrawAliasModel's standard
+// draws, through VR_DebugAliasPose): its two poses, the blend, its matrix and its bones (a ragdoll's, a rig's).
+void poseProbe(const entity_t* e, int pose1, int pose2, float blend, const float matrix[16]);
 
 // Phase 9 (vr_seatmenu.cpp): seats 2-4's own menus, the menus' pause, vr_seat_menu_test, its per-frame step.
 void registerMenuCommands();

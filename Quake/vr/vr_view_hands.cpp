@@ -160,7 +160,7 @@ namespace
 // with a held weapon's finger tweak.
 [[nodiscard]] float rigCurl(int hand, int finger)
 {
-    return CLAMP(0.f, fingerFrames[hand][finger] + 5.f * fingerBias[hand][finger], 5.f);
+    return CLAMP(0.f, fingerFrames()[hand][finger] + 5.f * fingerBias()[hand][finger], 5.f);
 }
 namespace
 {
@@ -275,7 +275,7 @@ namespace
 // microseconds: no thread, the same inputs the same pose.
 void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float rigUnit)
 {
-    RigHand& rh = rigHands[hand];
+    RigHand& rh = rigHands()[hand];
     Grasp& g = rh.grasp;
     if(g.rig != handrig::generation()) // the hand was edited (vr_hand_reload): solved afresh
     {
@@ -320,7 +320,7 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
 
     // Cupping the other hand (a two-handed pistol grip): that hand is in the way too, as drawn (its fingers move with
     // its trigger and grip: solved again when they, or it, move).
-    const RigHand& otherHand = rigHands[1 - hand];
+    const RigHand& otherHand = rigHands()[1 - hand];
     const bool cup = held.cup && otherHand.drawn;
     float other[handrig::FingerCount * handrig::jointsPerFinger]{};
     glm::mat4 otherInRig{1.f};
@@ -481,9 +481,9 @@ void alignChannel(int hand, bool mirrored, const glm::vec3& on, const glm::vec3&
     }
     if(legacy)
     {
-        grasp::legacyGripChannel(rigHands[hand].pose, cp, cd, radius);
+        grasp::legacyGripChannel(rigHands()[hand].pose, cp, cd, radius);
     }
-    else if(!grasp::gripChannel(rigHands[hand].pose, cp, cd, radius))
+    else if(!grasp::gripChannel(rigHands()[hand].pose, cp, cd, radius))
     {
         return;
     }
@@ -606,11 +606,11 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
     if(shape)
     {
         toWorld = grasp::shapeToWorld(against, againstMirrored);
-        toWorld = glm::translate(glm::mat4{1.f}, -weaponPressed[1 - hand]) * toWorld; // where it is without the press
+        toWorld = glm::translate(glm::mat4{1.f}, -weaponPressed()[1 - hand]) * toWorld; // where it is without the press
         const glm::mat4 toShape = glm::inverse(toWorld);
         const grasp::Shape* partShape = part ? grasp::shapeOf(*part, part->frame) : nullptr;
         const glm::mat4 partToWorld =
-            partShape ? glm::translate(glm::mat4{1.f}, -weaponPressed[1 - hand]) * grasp::shapeToWorld(*part, partMirrored)
+            partShape ? glm::translate(glm::mat4{1.f}, -weaponPressed()[1 - hand]) * grasp::shapeToWorld(*part, partMirrored)
                       : glm::mat4{1.f};
         const glm::mat3 normalToWorld = glm::transpose(glm::inverse(glm::mat3{toWorld}));
         const glm::mat3 normalToShape = glm::transpose(glm::mat3{toWorld});
@@ -807,7 +807,7 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
     const float ease = za::fmin(1.f, dt / 0.08f);
     const bool holding = glm::length(target) > 0.f && !(glm::length(target) < glm::length(rh.pushed) - u);
     rh.pushed = holding ? target : rh.pushed + (target - rh.pushed) * ease;
-    glm::vec3& w = weaponPressed[1 - hand];
+    glm::vec3& w = weaponPressed()[1 - hand];
     w = holding ? press : w + (press - w) * ease;
     if(holding && !rh.weaponTouching)
     {
@@ -820,7 +820,7 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
         // how far the drawn hand is in (its palm and knuckles: the fingertips bend out of it, setupRigHand).
         // (And its part's, the seated magazine's: "mag".)
         const grasp::Shape* partShape = part ? grasp::shapeOf(*part, part->frame) : nullptr;
-        const glm::mat4 partToWorld = partShape ? glm::translate(glm::mat4{1.f}, -weaponPressed[1 - hand]) *
+        const glm::mat4 partToWorld = partShape ? glm::translate(glm::mat4{1.f}, -weaponPressed()[1 - hand]) *
                                                       grasp::shapeToWorld(*part, partMirrored)
                                                 : glm::mat4{1.f};
         float real = 1e9f, drawn = 1e9f, partReal = 1e9f, partDrawn = 1e9f;
@@ -832,7 +832,7 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
             {
                 real = za::fmin(real, d);
             }
-            const glm::vec3 apart = rh.pushed - weaponPressed[1 - hand];
+            const glm::vec3 apart = rh.pushed - weaponPressed()[1 - hand];
             if(tested[i] && grasp::signedDistance(*shape, toWorld, points[i] + apart, 4.f * most + margin, d, at, n))
             {
                 drawn = za::fmin(drawn, d);
@@ -851,7 +851,7 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
         {
             Con_Printf("handcollide: hand %d real %.2f drawn %.2f depth %.2f target %.2f pushed %.2f weapon %.2f%s%s\n", hand,
                 real / u, drawn / u, deepest / u, glm::length(target) / u, glm::length(rh.pushed) / u,
-                glm::length(weaponPressed[1 - hand]) / u, held::heldAlone(1 - hand) ? " (prop)" : "",
+                glm::length(weaponPressed()[1 - hand]) / u, held::heldAlone(1 - hand) ? " (prop)" : "",
                 partShape ? va(" mag real %.2f drawn %.2f", partReal / u, partDrawn / u) : "");
         }
     }
@@ -864,7 +864,7 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
 void pushOut(int hand, bool free, glm::vec3& pos, const glm::vec3& handRot, bool mirrored)
 {
     QVR_PROFILE("hand collide");
-    RigHand& rh = rigHands[hand];
+    RigHand& rh = rigHands()[hand];
     const double now = cl.time;
     const float dt = rh.pushedTime >= 0.0 ? static_cast<float>(CLAMP(0.0, now - rh.pushedTime, 0.1)) : 0.f;
     rh.pushedTime = now;
@@ -873,12 +873,12 @@ void pushOut(int hand, bool free, glm::vec3& pos, const glm::vec3& handRot, bool
     // that hand by what stops it). A prop held in both hands is theirs; the prop this hand holds is never tested (not
     // free).
     const float u = 0.01f * units::metresToUnits();
-    const view::ViewEntity& other = entities.weapon[1 - hand];
+    const view::ViewEntity& other = entities().weapon[1 - hand];
     const int slot = weapons::slotForModel(other.ent.model);
     if(other.visible && slot >= 0 && slot != weapons::fistSlot())
     {
         // (Its seated magazine solid with it: vr_reload_mag_collide.)
-        const view::ViewEntity& mag = entities.mag[1 - hand];
+        const view::ViewEntity& mag = entities().mag[1 - hand];
         const bool magSolid = vr_reload_mag_collide.value && mag.visible && mag.ent.model;
         pushAgainst(rh, hand, free, other.ent, other.mirrored, za::fmax(vr_hand_collide.value, 0.f) * u, pos, handRot,
             mirrored, dt, magSolid ? &mag.ent : nullptr, mag.mirrored);
@@ -893,7 +893,7 @@ void pushOut(int hand, bool free, glm::vec3& pos, const glm::vec3& handRot, bool
     else
     {
         // (Nothing there: the press let go of, eased.)
-        weaponPressed[1 - hand] -= weaponPressed[1 - hand] * za::fmin(1.f, dt / 0.08f);
+        weaponPressed()[1 - hand] -= weaponPressed()[1 - hand] * za::fmin(1.f, dt / 0.08f);
         rh.weaponTouching = false;
         rh.propAgainst = nullptr;
         rh.pushed -= rh.pushed * za::fmin(1.f, dt / 0.08f); // let go of, eased
@@ -1416,34 +1416,34 @@ void gearStatus_f()
     int guns = 0, sleeves = 0, gunParts = 0;
     for(int h = 0; h < HolsterCount; h++)
     {
-        guns += entities.holster[h].visible ? 1 : 0;
-        sleeves += entities.holsterSlot[h].visible ? 1 : 0;
-        for(const view::ViewEntity* e : {&entities.holsterMag[h], &entities.holsterWell[h], &entities.holsterSsgFrame[h],
-                &entities.holsterSsgBarrels[h], &entities.holsterButton[h], &entities.holsterFrontButton[h]})
+        guns += entities().holster[h].visible ? 1 : 0;
+        sleeves += entities().holsterSlot[h].visible ? 1 : 0;
+        for(const view::ViewEntity* e : {&entities().holsterMag[h], &entities().holsterWell[h], &entities().holsterSsgFrame[h],
+                &entities().holsterSsgBarrels[h], &entities().holsterButton[h], &entities().holsterFrontButton[h]})
         {
             gunParts += e->visible ? 1 : 0;
         }
     }
     int pouchRounds = 0, straps = 0, pauldrons = 0;
-    for(const view::ViewEntity& e : entities.ammoPouchItem)
+    for(const view::ViewEntity& e : entities().ammoPouchItem)
     {
         pouchRounds += e.visible ? 1 : 0;
     }
     for(int side = 0; side < 2; side++)
     {
-        straps += entities.gadgetStrap[side].visible ? 1 : 0;
-        pauldrons += (entities.pauldron[side].visible ? 1 : 0) + (entities.pauldronArm[side].visible ? 1 : 0);
+        straps += entities().gadgetStrap[side].visible ? 1 : 0;
+        pauldrons += (entities().pauldron[side].visible ? 1 : 0) + (entities().pauldronArm[side].visible ? 1 : 0);
     }
     Con_Printf("gear: health %d, hidden for death %d; holstered guns %d (their parts %d), holster sleeves %d, ammo pouch %d "
                "(rounds %d), grenade pouch %d, flashlight %d (cord %d), wrist gadget %d (drawn %d, straps %d), body %d "
                "(pauldrons %d), status bar on a hand %d\n",
-        cl.stats[STAT_HEALTH], body::gearHiddenForDeath() ? 1 : 0, guns, gunParts, sleeves, entities.ammoPouch.visible ? 1 : 0,
-        pouchRounds, entities.pouch.visible ? 1 : 0, entities.flashlight.visible ? 1 : 0, flashlight::cordDrawn() ? 1 : 0,
-        gadget::active() ? 1 : 0, entities.gadget.visible ? 1 : 0, straps, entities.body.visible ? 1 : 0, pauldrons,
+        cl.stats[STAT_HEALTH], body::gearHiddenForDeath() ? 1 : 0, guns, gunParts, sleeves, entities().ammoPouch.visible ? 1 : 0,
+        pouchRounds, entities().pouch.visible ? 1 : 0, entities().flashlight.visible ? 1 : 0, flashlight::cordDrawn() ? 1 : 0,
+        gadget::active() ? 1 : 0, entities().gadget.visible ? 1 : 0, straps, entities().body.visible ? 1 : 0, pauldrons,
         panel::statusBarOnHand() ? 1 : 0);
     // Each pair's guns drawn, of those it holds (vr_holster_weapons_draw_*).
     const auto pair = [](int left, int bodyLeft, char* out, int size) {
-        const int drawn = (entities.holster[left].visible ? 1 : 0) + (entities.holster[left + 1].visible ? 1 : 0);
+        const int drawn = (entities().holster[left].visible ? 1 : 0) + (entities().holster[left + 1].visible ? 1 : 0);
         int held = 0;
         for(int stat = bodyLeft; stat < bodyLeft + 2; stat++)
         {
@@ -1468,8 +1468,8 @@ void gearStatus_f()
         const qmodel_t* model = precachedModel(holsterStat(h, STAT_QVR_HOLSTERWEAPONMODEL0));
         Con_Printf("gear: holster %s: %s clip %d flags %d; drawn %d, magazine %d, open parts %d\n", names[h],
             model ? model->name : "-", holsterStat(h, STAT_QVR_HOLSTERWEAPONCLIP0),
-            holsterStat(h, STAT_QVR_HOLSTERWEAPONFLAGS0), entities.holster[h].visible ? 1 : 0,
-            entities.holsterMag[h].visible ? 1 : 0, entities.holsterSsgFrame[h].visible ? 1 : 0);
+            holsterStat(h, STAT_QVR_HOLSTERWEAPONFLAGS0), entities().holster[h].visible ? 1 : 0,
+            entities().holsterMag[h].visible ? 1 : 0, entities().holsterSsgFrame[h].visible ? 1 : 0);
     }
 }
 
@@ -1502,7 +1502,7 @@ void noteIndexTip(int hand, const RigHand& rh)
     glm::vec3 fwd, right, up;
     hands::angleVectors(s.rot[hand], fwd, right, up);
     const glm::vec3 d = tip - s.pos[hand];
-    indexTips[hand] = {{glm::dot(d, fwd), glm::dot(d, right), glm::dot(d, up)}, host_framecount};
+    indexTips()[hand] = {{glm::dot(d, fwd), glm::dot(d, right), glm::dot(d, up)}, host_framecount};
 }
 
 // setupRigHand's phases. What the palm's and the fingers' share of a frame read.
@@ -1621,8 +1621,8 @@ void poseFinger(const RigFrame& rf, int f)
     const glm::mat4& rigToWorld = rf.rigToWorld;
     const bool brushing = rf.brushing;
     const float follow = rf.follow;
-    const float curl = fingerFrames[hand][rigFinger[f]];
-    const float bias = fingerBias[hand][rigFinger[f]];
+    const float curl = fingerFrames()[hand][rigFinger[f]];
+    const float bias = fingerBias()[hand][rigFinger[f]];
     float target[handrig::jointsPerFinger];
     // Set by hand: the finger stops at its curl, as a solved finger stops on what it holds.
     grasp::FingerStop manualStop;
@@ -1745,7 +1745,7 @@ void traceGrasp(int hand, const RigHand& rh, const view::ViewEntity& ve, const g
         const glm::vec3 at{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
         line += va(" %.3f %.4f %d %.3f %.2f %d %.3f\n", turned, moved, twohand::helping(hand) ? 1 : 0,
             glm::distance(glm::vec3{motion * glm::vec4{at, 1.f}}, at), glm::degrees(glm::angle(glm::quat_cast(glm::mat3{motion}))),
-            entities.weapon[hand].ent.frame, glm::length(rh.pushed));
+            entities().weapon[hand].ent.frame, glm::length(rh.pushed));
         if(!trace)
         {
             trace = fopen(va("%s/grasp_trace.txt", com_gamedir), "w");
@@ -1762,12 +1762,12 @@ void setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     const glm::mat4& motion)
 {
     QVR_PROFILE("rig hand");
-    RigHand& rh = rigHands[hand];
+    RigHand& rh = rigHands()[hand];
     rh.drawn = false;
     qmodel_t* const model = viewModel(handrig::modelName());
     if(!handrig::usable(model))
     {
-        entities.hand[hand].visible = false;
+        entities().hand[hand].visible = false;
         return;
     }
 
@@ -1777,7 +1777,7 @@ void setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     rigShifts(model, hand, rh.pose);
     rh.pose.metacarpal = glm::quat{1.f, 0.f, 0.f, 0.f};
 
-    view::ViewEntity& ve = entities.hand[hand];
+    view::ViewEntity& ve = entities().hand[hand];
     const glm::mat4 rigToWorld = rigPlacement(hand, pos, handRot, mirrored, &ve);
 
     // The fingers: the controller's curls (as the six models'), or wrapping what the hand holds, or set by hand (the
@@ -1821,7 +1821,7 @@ void setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
         poseFinger(rf, f);
     }
     // The thumb turns across the palm (opposition) as the grasp found, as far as it closes.
-    const float w = CLAMP(0.f, fingerFrames[hand][FingerThumb] / 3.f, 1.f);
+    const float w = CLAMP(0.f, fingerFrames()[hand][FingerThumb] / 3.f, 1.f);
     // Set by hand: across the palm by its share of 45 degrees (the solver's widest opposition), about the same axis.
     const glm::quat manualThumb = glm::angleAxis(glm::radians(45.f * held.manualThumbAcross), glm::vec3{-1.f, 0.f, 0.f});
     const bool brushThumb = brushing && rh.brushValid && !rh.brush.finger[handrig::Thumb].startsInside &&
@@ -2343,7 +2343,7 @@ void updateFreeSpots(const hands::State& s)
     for(int hand = 0; hand < 2; hand++)
     {
         const int other = 1 - hand;
-        const view::ViewEntity& w = entities.weapon[other];
+        const view::ViewEntity& w = entities().weapon[other];
         const int slot = weapons::slotForModel(w.ent.model);
         bool on = false;
         if(vr_weapon_grab_anywhere.value && s.valid && held::handEmpty(hand) && !twohand::carrying(hand) &&
@@ -2352,19 +2352,19 @@ void updateFreeSpots(const hands::State& s)
             !isHandModel(w.ent.model))
         {
             const glm::vec3 at = s.pos[hand];
-            float handle = glm::distance(at, drawnAs[other].pos);
-            if(glm::vec3 reversed; weaponCarried[other] && view::carriedReversedHandPoint(other, reversed))
+            float handle = glm::distance(at, drawnAs()[other].pos);
+            if(glm::vec3 reversed; weaponCarried()[other] && view::carriedReversedHandPoint(other, reversed))
             {
                 handle = za::min(handle, glm::distance(at, reversed)); // (taken back reversed there: the flip grip)
             }
             float nearestSpot = 1e30f;
             // (A pole grip's weapon: its hotspots take nothing in VR, twohand::poleGrip.)
-            if(!weaponCarried[other] && !twohand::poleGrip(slot))
+            if(!weaponCarried()[other] && !twohand::poleGrip(slot))
             {
                 for(int i = 0; i < weapons::maxHotspots; i++)
                 {
-                    const WorldHotspot& h = worldHotspots[other][i];
-                    if(i == magSpot[other] && s.magBoxValid[other])
+                    const WorldHotspot& h = worldHotspots()[other][i];
+                    if(i == magSpot()[other] && s.magBoxValid[other])
                     {
                         nearestSpot = za::min(nearestSpot, boxDistance(s.magBox[other], at)); // (its attached magazine)
                     }
@@ -2376,14 +2376,14 @@ void updateFreeSpots(const hands::State& s)
             }
             const float surface = handle < 64.f ? fistSurfaceGap(w.ent, w.mirrored, s, hand, reach) : reach;
             // (A carried weapon's handle: where gripping takes it back, HS_CARRIED_GRIP.)
-            const float fromHandle = weaponCarried[other] ? za::max(minAway, twohand::carriedGripRadius) : minAway;
+            const float fromHandle = weaponCarried()[other] ? za::max(minAway, twohand::carriedGripRadius) : minAway;
             // (On its attached magazine: gripping there holds the magazine, hotspot HS_MAGAZINE.)
             on = surface <= allowed && handle >= fromHandle && nearestSpot >= minAway && !s.onMagazine[hand];
             if(print)
             {
                 Con_Printf("anywhere: %s hand's fist %.1f units off the %s weapon's surface, %.1f from its handle, %.1f from its "
                            "nearest hotspot: %s\n", hand == HAND_MAIN ? "main" : "off", surface,
-                    weaponCarried[other] ? "carried" : "held", handle, nearestSpot < 1e29f ? nearestSpot : -1.f,
+                    weaponCarried()[other] ? "carried" : "held", handle, nearestSpot < 1e29f ? nearestSpot : -1.f,
                     on ? "on it" : "no");
             }
         }
@@ -2960,7 +2960,7 @@ void embedGripProbe(int hand, bool armed, int slot, const glm::vec3& pos, const 
     {
         return;
     }
-    const entity_t& e = armed ? entities.weapon[hand].ent : cl_entities[pin.ent];
+    const entity_t& e = armed ? entities().weapon[hand].ent : cl_entities[pin.ent];
     const glm::mat3 turn = glm::transpose(entityTurn(e));
     const glm::vec3 relPos = turn * (pos - glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
     const glm::mat3 relTurn = turn * anglesBasis(handRot);
@@ -2989,7 +2989,7 @@ constexpr float tugDrawnMost = 1.f;   // m: the most a tug's hand is drawn off i
 // `pos`, `angles` (the controller's pose of `hand`) moved onto the limb it holds, as if its controller were there.
 void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
 {
-    LimbEase& e = limbEase[hand];
+    LimbEase& e = limbEase()[hand];
     const float dt = e.time >= 0.0 ? static_cast<float>(CLAMP(0.0, cl.time - e.time, 0.1)) : 0.f;
     e.time = cl.time;
     float stick = za::fmax(vr_ragdoll_hand_stick.value, 0.f) * 0.01f * units::metresToUnits();
@@ -3105,7 +3105,7 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
     limbDrawnHand(hand, controllerPos, controllerRot);
     // Holding the other hand's weapon anywhere on it (vr_twohand.cpp's free grips): drawn where it holds it, as if its
     // controller were there (the weapon drawn from drawnAs: as held by its handle, or carried), its fingers wrapping it.
-    const bool freeHelp = twohand::freeHand(hand, s.pos[hand], s.rot[hand], drawnAs[1 - hand].pos, drawnAs[1 - hand].rot,
+    const bool freeHelp = twohand::freeHand(hand, s.pos[hand], s.rot[hand], drawnAs()[1 - hand].pos, drawnAs()[1 - hand].rot,
         controllerPos, controllerRot);
     glm::vec3 lightShift{0.f}; // a hand holding a ledge or a rung: drawn on it, facing it (vr_climb.cpp), lit as without the looks' offset
     const float onHold = climb::drawnHand(s, hand, anglesBasis(weaponAngleOffsets(fist, mirrored)), controllerPos, controllerRot, lightShift);
@@ -3123,7 +3123,7 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
         controllerPos += shakePos * onHold;
         controllerRot += shakeAngles * onHold;
     }
-    entities.hand[hand].lightShift = lightShift;
+    entities().hand[hand].lightShift = lightShift;
     return freeHelp;
 }
 
@@ -3161,7 +3161,7 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
     glm::vec3 bladePos = pos, bladeRot = handRot;
     if(gripBlend > 0.f && twohand::bladeGrip(other) && otherSlot >= 0 &&
         twohand::bladeGripHand(s, hand,
-            glm::vec3{entities.weapon[other].ent.origin[0], entities.weapon[other].ent.origin[1], entities.weapon[other].ent.origin[2]},
+            glm::vec3{entities().weapon[other].ent.origin[0], entities().weapon[other].ent.origin[1], entities().weapon[other].ent.origin[2]},
             // (the holding hand as drawn: its turn composed with the fist's offsets, not added to its Euler angles)
             basisAngles(anglesBasis(s.rot[other]) * anglesBasis(weaponAngleOffsets(fist, other == HAND_OFF))), bladePos,
             bladeRot))
@@ -3171,16 +3171,16 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
         // blade lay beside the fingers, the author's "very far away from the blade").
         if(s.muzzleValid[other])
         {
-            const glm::vec3 hilt{entities.weapon[other].ent.origin[0], entities.weapon[other].ent.origin[1],
-                entities.weapon[other].ent.origin[2]};
+            const glm::vec3 hilt{entities().weapon[other].ent.origin[0], entities().weapon[other].ent.origin[1],
+                entities().weapon[other].ent.origin[2]};
             alignChannel(hand, mirrored, hilt, s.muzzle[other] - hilt, bladePos, bladeRot);
         }
         pos = glm::mix(pos, bladePos, gripBlend);
         handRot = bladeRot;
         hide = false;
-        motion = partMotion(animationMotion(entities.weapon[other], bladePos), gripBlend, bladePos);
+        motion = partMotion(animationMotion(entities().weapon[other], bladePos), gripBlend, bladePos);
     }
-    else if(gripBlend > 0.f && !hp.look && heldSpot && magSpot[other] >= 0 && chosenGrip[other] == magSpot[other] &&
+    else if(gripBlend > 0.f && !hp.look && heldSpot && magSpot()[other] >= 0 && chosenGrip()[other] == magSpot()[other] &&
             s.magBoxValid[other])
     {
         // On the gun's attached magazine (immersive reloading): the hand's grip channel along it where the hand holds it,
@@ -3193,15 +3193,15 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
         const glm::quat from = glm::quat_cast(anglesBasis(handRot)), to = glm::quat_cast(anglesBasis(turn));
         handRot = basisAngles(glm::mat3_cast(glm::slerp(from, to, gripBlend)));
         hide = false;
-        motion = partMotion(animationMotion(entities.weapon[other], at), gripBlend, at);
+        motion = partMotion(animationMotion(entities().weapon[other], at), gripBlend, at);
     }
     else if(gripBlend > 0.f)
     {
         pos = glm::mix(pos, hp.gripPoint, gripBlend);
         hide = false;
         // (A still grip, weapons::Hotspot::still, ignores the animation: the super nailgun's barrel spins beside it.)
-        motion = heldSpot ? partMotion(gripMotion(entities.weapon[other], heldSpot->def, hp.gripPoint), gripBlend, hp.gripPoint) :
-                            partMotion(animationMotion(entities.weapon[other], hp.gripPoint), gripBlend, hp.gripPoint);
+        motion = heldSpot ? partMotion(gripMotion(entities().weapon[other], heldSpot->def, hp.gripPoint), gripBlend, hp.gripPoint) :
+                            partMotion(animationMotion(entities().weapon[other], hp.gripPoint), gripBlend, hp.gripPoint);
 
         if(hp.helps && otherSlot >= 0)
         {
@@ -3225,8 +3225,8 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
             // vr_flat_pole_off_roll.
             if(flatplay::active() && twohand::poleWeapon(otherSlot) && s.muzzleValid[other])
             {
-                const glm::vec3 hilt{entities.weapon[other].ent.origin[0], entities.weapon[other].ent.origin[1],
-                    entities.weapon[other].ent.origin[2]};
+                const glm::vec3 hilt{entities().weapon[other].ent.origin[0], entities().weapon[other].ent.origin[1],
+                    entities().weapon[other].ent.origin[2]};
                 const glm::vec3 along = s.muzzle[other] - hilt;
                 if(glm::length(along) > 1.f)
                 {
@@ -3246,11 +3246,11 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
             // shut gun's turn, as if it held nothing).
             if(heldSpot && heldSpot->ssgTurned)
             {
-                handRot = basisAngles(ssgWorldTurn(entities.weapon[other], ssgHands[other].angle) * anglesBasis(handRot));
+                handRot = basisAngles(ssgWorldTurn(entities().weapon[other], ssgHands()[other].angle) * anglesBasis(handRot));
                 if(vr_reload_debug.value >= 2 && developer.value)
                 {
                     Con_Printf("ssg: the hand on the open barrels turned %.1f deg with them (pitch %.1f)\n",
-                        static_cast<double>(ssgHands[other].angle), static_cast<double>(handRot.x));
+                        static_cast<double>(ssgHands()[other].angle), static_cast<double>(handRot.x));
                 }
             }
         }
@@ -3281,14 +3281,14 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
     const bool freeHelp = hp.freeHelp;
     const view::ViewEntity& weapon = hp.weapon;
     Held held;
-    if(gripBlend > 0.f && entities.weapon[other].ent.model)
+    if(gripBlend > 0.f && entities().weapon[other].ent.model)
     {
-        held = {&entities.weapon[other].ent, other == HAND_OFF, 0, true};
-        if(heldSpot && magSpot[other] >= 0 && heldSpot == &worldHotspots[other][magSpot[other]] &&
-            entities.mag[other].visible && entities.mag[other].ent.model)
+        held = {&entities().weapon[other].ent, other == HAND_OFF, 0, true};
+        if(heldSpot && magSpot()[other] >= 0 && heldSpot == &worldHotspots()[other][magSpot()[other]] &&
+            entities().mag[other].visible && entities().mag[other].ent.model)
         {
             // Its attached magazine: wrapped round the magazine (or the fingers its page sets).
-            held = {&entities.mag[other].ent, entities.mag[other].mirrored, 0, true};
+            held = {&entities().mag[other].ent, entities().mag[other].mirrored, 0, true};
             held.overlap = CLAMP(0.f, heldSpot->overlap, 1.f) * weapons::maxOverlapCm;
             setManualFingers(held, heldSpot->def.manual, heldSpot->def.curl, heldSpot->def.thumbAcross);
         }
@@ -3305,29 +3305,29 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
             {
                 held.canonical = true;
                 held.canonicalInRig =
-                    canonicalHotspotGrip(hand, otherSlot, entities.weapon[other].ent.model, heldSpot->def, true, drawnFlip(other));
+                    canonicalHotspotGrip(hand, otherSlot, entities().weapon[other].ent.model, heldSpot->def, true, drawnFlip(other));
                 held.offset = heldSpot->def.visualPos != glm::vec3{0.f} || heldSpot->def.visualAngles != glm::vec3{0.f};
                 if(held.offset)
                 {
                     held.fitInRig =
-                        canonicalHotspotGrip(hand, otherSlot, entities.weapon[other].ent.model, heldSpot->def, false, drawnFlip(other));
+                        canonicalHotspotGrip(hand, otherSlot, entities().weapon[other].ent.model, heldSpot->def, false, drawnFlip(other));
                 }
             }
         }
     }
-    else if(freeHelp && entities.weapon[other].ent.model)
+    else if(freeHelp && entities().weapon[other].ent.model)
     {
         // The other hand's weapon, held anywhere: wrapped where the hand is on it.
-        held = {&entities.weapon[other].ent, entities.weapon[other].mirrored, 0, true};
+        held = {&entities().weapon[other].ent, entities().weapon[other].mirrored, 0, true};
         held.overlap = otherSlot >= 0 ? CLAMP(0.f, weapons::value(otherSlot, Key::GripOverlap), 1.f) * weapons::maxOverlapCm : -1.f;
     }
     else if(slot >= 0 && slot != fist)
     {
         held = {&weapon.ent, mirrored, 0, true, true};
         weaponFingers(held, slot);
-        const float flip = weaponCarried[hand] ? 0.f : gripFlip(hand);
+        const float flip = weaponCarried()[hand] ? 0.f : gripFlip(hand);
         reverseGripFingers(held, slot, flip);
-        if(!weaponCarried[hand] && handrig::usable(viewModel(handrig::modelName())))
+        if(!weaponCarried()[hand] && handrig::usable(viewModel(handrig::modelName())))
         {
             held.canonical = true;
             held.canonicalInRig = canonicalOwnGrip(hand, slot, weapon.ent.model, true, flip);
@@ -3396,11 +3396,11 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
             held.toWorld = limb.toWorld;
         }
     }
-    else if(flashlight::holds(hand) && entities.flashlight.ent.model)
+    else if(flashlight::holds(hand) && entities().flashlight.ent.model)
     {
         // The torch as it is placed this frame (it is set up after the hands).
         entity_t(&torch)[2] = placedTorch;
-        torch[hand] = entities.flashlight.ent;
+        torch[hand] = entities().flashlight.ent;
         glm::vec3 origin, angles;
         if(flashlight::heldPlace(s, hand, origin, angles))
         {
@@ -3426,16 +3426,16 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
 void setupHand(const hands::State& s, int hand)
 {
     QVR_PROFILE("hand");
-    const view::ViewEntity& weapon = entities.weapon[hand];
+    const view::ViewEntity& weapon = entities().weapon[hand];
     const bool mirrored = hand == HAND_OFF;
     const int fist = weapons::fistSlot();
     const int slot = weapons::slotForModel(weapon.ent.model);
 
     if(!weapon.ent.model)
     {
-        entities.hand[hand].visible = false;
-        rigHands[hand].drawn = false;
-        rigHands[hand].held = Held{};
+        entities().hand[hand].visible = false;
+        rigHands()[hand].drawn = false;
+        rigHands()[hand].held = Held{};
         return;
     }
 
@@ -3516,23 +3516,23 @@ void setupHand(const hands::State& s, int hand)
     }
     // (Off it while the hand is drawn on a hold: a flat mantle's free hand goes from the gun to the ledge and back.)
     const float gripBlend = (lookSpot >= 0 ? lookBlend : realBlend) * (1.f - climb::drawnShare(hand));
-    const int otherSlot = weapons::slotForModel(entities.weapon[other].ent.model);
+    const int otherSlot = weapons::slotForModel(entities().weapon[other].ent.model);
     // The hotspot it holds the other hand's weapon by (the blade's, for the half-sword grip).
     const WorldHotspot* heldSpot = nullptr;
     if(gripBlend > 0.f && twohand::bladeGrip(other))
     {
-        for(const WorldHotspot& w : worldHotspots[other])
+        for(const WorldHotspot& w : worldHotspots()[other])
         {
             heldSpot = w.type == weapons::HotspotType::Blade ? &w : heldSpot;
         }
     }
     else if(lookSpot >= 0)
     {
-        heldSpot = &worldHotspots[other][lookSpot];
+        heldSpot = &worldHotspots()[other][lookSpot];
     }
-    else if(gripBlend > 0.f && chosenGrip[other] >= 0)
+    else if(gripBlend > 0.f && chosenGrip()[other] >= 0)
     {
-        heldSpot = &worldHotspots[other][chosenGrip[other]];
+        heldSpot = &worldHotspots()[other][chosenGrip()[other]];
     }
     const HandPose hp{s, hand, mirrored, fist, slot, other, gripBlend, otherSlot, heldSpot, freeHelp, weapon,
         (own && twohand::helping(hand)) || lookSpot >= 0, lookSpot >= 0, lookSpot >= 0 ? lookPoint : s.grip2H[other]};
@@ -3557,14 +3557,14 @@ void setupHand(const hands::State& s, int hand)
     // most: past that it passes into it until it is out again (vr_hand_collide).
     pushOut(hand,
         own && gripBlend <= 0.f && !freeHelp && (slot < 0 || slot == fist) && !held::heldEntity(hand) && !flashlight::holds(hand) &&
-            limbEase[hand].blend <= 0.f && vh().embedPins[hand].weight <= 0.f,
+            limbEase()[hand].blend <= 0.f && vh().embedPins[hand].weight <= 0.f,
         pos, handRot, mirrored);
 
     // The hand-off (vr_twohand.cpp): a helping hand's drawn pose is what it carries a gun by, and a
     // hand carrying one is drawn so.
     if(own && twohand::helping(hand))
     {
-        twohand::recordHelp(s, hand, pos, handRot, drawnAs[other].pos, drawnAs[other].rot, drawnAs[other].mirrored);
+        twohand::recordHelp(s, hand, pos, handRot, drawnAs()[other].pos, drawnAs()[other].rot, drawnAs()[other].mirrored);
     }
     else if(own && twohand::carryingHand(s, hand, pos, handRot))
     {
@@ -3591,11 +3591,11 @@ void setupGhostHands(const hands::State& s)
     const float m2u = units::metresToUnits();
     for(int hand = 0; hand < 2; hand++)
     {
-        view::ViewEntity& ghost = entities.ghostHand[hand];
+        view::ViewEntity& ghost = entities().ghostHand[hand];
         ghost.visible = false;
-        const view::ViewEntity& base = entities.hand[hand];
+        const view::ViewEntity& base = entities().hand[hand];
         const GhostDrawn& drawn = ghostDrawn[hand];
-        if(mode <= 0 || !s.valid || (vr_ghost_hands_which.value >= 1.f && hand != HAND_OFF) || !rigHands[hand].drawn ||
+        if(mode <= 0 || !s.valid || (vr_ghost_hands_which.value >= 1.f && hand != HAND_OFF) || !rigHands()[hand].drawn ||
             !base.visible || !base.ent.model || drawn.frame != host_framecount)
         {
             continue;
@@ -3604,7 +3604,7 @@ void setupGhostHands(const hands::State& s)
         // and the weight's spring) and nothing holding it elsewhere: on its own weapon as held, or empty.
         const bool mirrored = hand == HAND_OFF;
         const int fist = weapons::fistSlot();
-        const int slot = weapons::slotForModel(entities.weapon[hand].ent.model);
+        const int slot = weapons::slotForModel(entities().weapon[hand].ent.model);
         // The hand placed for controller pose `at`, `turn`: its place (returned) and its angles (`handRot`).
         const auto placeAt = [&](const glm::vec3& at, const glm::vec3& turn, glm::vec3& handRot)
         {
@@ -3764,7 +3764,7 @@ void holdFloating(hands::State& s, const posing::Session& ps)
     s.pos[wh] = ps.modelOrigin - glm::vec3{hotspotFrame(ve.ent, mirrored)[3]};
     // (weaponTurn undone: its angle offsets are composed in the hand's frame.)
     s.rot[wh] = s.visualRot[wh] = handTurnOfWeapon(wt, ps.slot, mirrored);
-    wholeTurn[wh] = glm::mat3{1.f};
+    wholeTurn()[wh] = glm::mat3{1.f};
 }
 } // namespace view_detail
 
@@ -3774,13 +3774,13 @@ bool view::heldHandPoint(int hand, glm::vec3& out)
     {
         return false;
     }
-    const view::ViewEntity& w = entities.weapon[hand];
-    const view::ViewEntity& base = entities.hand[hand];
+    const view::ViewEntity& w = entities().weapon[hand];
+    const view::ViewEntity& base = entities().hand[hand];
     if(!w.visible || !w.ent.model || !base.ent.model)
     {
         return false;
     }
-    if(rigHands[hand].drawn)
+    if(rigHands()[hand].drawn)
     {
         out = view::ModelSpace{base}.point(grasp::palmCentre());
         return true;
@@ -3816,18 +3816,18 @@ void swapSubject(SubjectHands& o)
 {
     for(int h = 0; h < 2; h++)
     {
-        za::genericSwap(o.weapon[h], entities.weapon[h]);
-        za::genericSwap(o.hand[h], entities.hand[h]);
-        za::genericSwap(o.rig[h], rigHands[h]);
+        za::genericSwap(o.weapon[h], entities().weapon[h]);
+        za::genericSwap(o.hand[h], entities().hand[h]);
+        za::genericSwap(o.rig[h], rigHands()[h]);
         for(int f = 0; f < FingerCount; f++)
         {
-            za::genericSwap(o.fingers[h][f], fingerFrames[h][f]);
-            za::genericSwap(o.bias[h][f], fingerBias[h][f]);
+            za::genericSwap(o.fingers[h][f], fingerFrames()[h][f]);
+            za::genericSwap(o.bias[h][f], fingerBias()[h][f]);
         }
-        za::genericSwap(o.drawnAs[h], drawnAs[h]);
-        za::genericSwap(o.carried[h], weaponCarried[h]);
+        za::genericSwap(o.drawnAs[h], drawnAs()[h]);
+        za::genericSwap(o.carried[h], weaponCarried()[h]);
         za::genericSwap(o.ghost[h], ghostDrawn[h]);
-        za::genericSwap(o.wholeTurn[h], wholeTurn[h]);
+        za::genericSwap(o.wholeTurn[h], wholeTurn()[h]);
     }
 }
 } // namespace
@@ -3847,8 +3847,8 @@ void view::solveHands(int player, const glm::vec3 pos[2], const glm::vec3 rot[2]
         // (his entities set up as yours were: drawn by the same placing from here on)
         for(int h = 0; h < 2; h++)
         {
-            o.weapon[h] = entities.weapon[h];
-            o.hand[h] = entities.hand[h];
+            o.weapon[h] = entities().weapon[h];
+            o.hand[h] = entities().hand[h];
         }
         o.used = true;
     }
@@ -3886,7 +3886,7 @@ void view::solveHands(int player, const glm::vec3 pos[2], const glm::vec3 rot[2]
     // own weapon settings.
     for(int h = 0; h < 2 && placed; h++)
     {
-        view::ViewEntity& ve = entities.weapon[h];
+        view::ViewEntity& ve = entities().weapon[h];
         if((placed[h].flags & VrDrawnHand::weaponBit) && ve.visible && ve.ent.model)
         {
             place(ve, ve.ent.model, placed[h].weaponOrigin, placed[h].weaponAngles, ve.ent.frame, ve.mirrored);

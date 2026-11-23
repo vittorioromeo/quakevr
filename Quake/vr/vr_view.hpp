@@ -890,4 +890,21 @@ void graspSweep_f();
 // drawn, and that frame (vr_seat_render_test: every seat draws its own first-person hands, weapons and body).
 [[nodiscard]] int ownEntitiesAdded(int seat, int& frame);
 
+// Splitscreen (split13; vr_seat_render_test): the current seat's first-person hands and held guns as its last pass drew
+// them, and what its visible list holds: its own hands and guns (each once), any other seat's first-person entity
+// (`foreign`: none), and another entity drawn with its gun's model within 8 units of its gun (`ghosts`: the other seat's
+// avatar holding this seat's gun, split12's item 2).
+struct SeatPass
+{
+    bool hand[2]{};
+    glm::vec3 handAt[2]{};
+    bool gun[2]{};
+    glm::vec3 gunAt[2]{};
+    int ownHands = 0;
+    int ownGuns = 0;
+    int foreign = 0;
+    int ghosts = 0;
+};
+[[nodiscard]] SeatPass seatPass();
+
 } // namespace qvr::view

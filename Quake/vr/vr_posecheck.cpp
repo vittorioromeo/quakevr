@@ -7,6 +7,7 @@
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_cvars.hpp"
+#include "vr_seat.hpp"
 
 #include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -90,6 +91,7 @@ void endSquash(int num, Squash& q, const char* model)
 extern "C" void VR_DebugAliasPose(const entity_t* e, const void* aliashdr, int pose1, int pose2, float blend,
     const float matrix[16])
 {
+    seat::poseProbe(e, pose1, pose2, blend, matrix); // (splitscreen: vr_seat_render_test's anim run; a test's entity alone)
     const int mode = static_cast<int>(vr_debug_pose_check.value);
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
     const int num = static_cast<int>(e - cl_entities);

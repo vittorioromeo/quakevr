@@ -22,7 +22,10 @@
 #include "vr_mpavatar.hpp"
 #include "vr_particles.hpp"
 #include "vr_protocol.hpp"
+#include "vr_text3d.hpp"
+#include "vr_weapon_ids.h"
 #include "vr_api.h"
+#include "vr_api_render.h"
 #include "vr_view.hpp"
 #include "vr_visor.hpp"
 
@@ -42,6 +45,11 @@ enum class Step
     WaitGame,   // seat 1 (index 0) in the game
     WaitJoined, // seats 2..n signed on
     WaitDrawn,  // every seat's view drawn a few times, turned its own way
+    Hands,      // split13: over a few drawn frames, each seat's first-person hands, gun and ammo screen, the others' avatars
+    AnimFind,   // split13 (anim): a grunt spawned ahead of both seats, found in seat 1's client, drawn by both
+    AnimLive,   // its pose drawn the same in both seats' passes of each frame, and animating
+    AnimDead,   // killed: its ragdoll drawn in both passes of each frame, the same pose
+    AnimOneNear, // seat 2 turned away: seat 1 draws the ragdoll (never the standing pose) each frame
     WaitBooted, // every seat's visor powered on (its boot sweep), then the screenshot
     WaitShot,   // the screenshot taken (the frame after its command)
     FlashBase,  // split11: no seat under water; each seat's picture read (its probe grid), then every flash on every seat
@@ -62,7 +70,50 @@ struct RenderTest
     int drawnAt[maxSeats] = {}; // each seat's drawn count when the step began
     float notifyTime = 3.f;     // con_notifytime before (the notify lines hidden while the markers are read)
     byte base[maxSeats][SEAT_PROBEGRID * SEAT_PROBEGRID] = {}; // split11: each seat's picture before the flashes
+    // split13 (Step::Hands), by seat: the frames read, those whose pass was wrong (and the last such pass), its ammo
+    // screen found on its gun, the screen's text changing, the farthest another seat's avatar hand was from that seat's own
+    struct Hands
+    {
+        int frames = 0;
+        int badPasses = 0;
+        view::SeatPass bad;
+        int screenFound = 0;
+        int screenChanged = 0;
+        za::U32 screenHash = 0;
+        float avatarOff[maxSeats][2] = {}; // seat o's avatar hands as this seat draws them, from seat o's own (units)
+        float avatarApart[maxSeats] = {}; // and from this seat's own hands (the bug: these near 0)
+        int avatarSeen[maxSeats] = {};
+    } hands[maxSeats];
+    int handsDrawn[maxSeats] = {}; // each seat's drawn count at the last frame read
+    bool handsArmed = false;       // every seat's gun drawn in its hand (the frames read from then)
+    // split13 (vr_seat_render_test 2 anim): the probed monster (its entity number), each seat's pass's draw of it last
+    // (poseProbe: the frame, its pose's hash, its bones), and the anim steps' tallies
+    bool anim = false;
+    int probeNum = 0;
+    struct Probe
+    {
+        int frame = -1;
+        za::U32 hash = 0;
+        int bones = 0;
+    } probe[maxSeats];
+    int animRead = 0;    // frames read in the step
+    int animSame = 0;    // both seats drew it, the same pose
+    int animBones = 0;   // ... and as a ragdoll (bones)
+    int animChanged = 0; // seat 1's pose changed from the frame before
+    int animNear = 0;    // (AnimOneNear) seat 1 drew it as a ragdoll
+    int animFar = 0;     // (AnimOneNear) seat 2 drew it
+    za::U32 animLast = 0;
+    float yaw1 = 0.f;    // seat 1's yaw (seat 2 turned so for the anim steps)
 } renderTest;
+
+constexpr int animFramesWanted = 16; // split13: drawn frames read in each anim step
+constexpr const char* gruntModel = "progs/soldier.mdl";
+
+constexpr int handFramesWanted = 8; // split13: drawn frames read in Step::Hands
+// units: another seat's avatar hand from that seat's drawn hand (the networked hand as any client draws it: the empty off
+// hand 5-6 units off, the gun hand 1-2; split12's bug drew it at the viewing seat's own hand, ~100 units off here)
+constexpr float avatarHandTolerance = 8.f;
+constexpr float screenReach = 16.f; // units: an ammo screen from its gun's origin
 
 constexpr int stepFrames = 1440; // a step's give-up (20 s of game time): a FAIL "timed out"
 constexpr int drawsWanted = 4;   // each seat's view drawn this many times before the checks (the markers' read-back)
@@ -641,6 +692,191 @@ void flashesOff()
     return static_cast<float>(sum) / n;
 }
 
+// split13: one drawn frame of every seat read (Step::Hands): each seat's pass (its own hands and gun once each, no other
+// seat's first-person entity, no ghost of its gun), its ammo screen on its own gun and its text, the other seats'
+// avatars' hands against those seats' own drawn hands. False: not every seat has drawn a new frame yet.
+bool readHands()
+{
+    RenderTest& t = renderTest;
+    const int n = t.seats;
+    for(int s = 0; s < n; s++)
+    {
+        if(V_SeatViewOf(s)->drawnframes == t.handsDrawn[s])
+        {
+            return false;
+        }
+    }
+    view::SeatPass pass[maxSeats];
+    bool armed = true;
+    for(int s = 0; s < n; s++)
+    {
+        t.handsDrawn[s] = V_SeatViewOf(s)->drawnframes;
+        const Scope in(at(s));
+        pass[s] = view::seatPass();
+        armed = armed && (pass[s].gun[0] || pass[s].gun[1]);
+        if(t.frames % 300 == 299)
+        {
+            Con_Printf("seat_render_test: seat %d waits for its gun: weapon %d, items %d, guns %d %d, hands %d %d\n", s + 1,
+                cl.stats[protocol::STAT_QVR_WEAPON], cl.items, pass[s].gun[0], pass[s].gun[1], pass[s].hand[0],
+                pass[s].hand[1]);
+        }
+    }
+    if(!t.handsArmed && !armed)
+    {
+        return false; // (the shotguns drawn into the hands first: WaitJoined's impulse 2)
+    }
+    t.handsArmed = true;
+    for(int s = 0; s < n; s++)
+    {
+        RenderTest::Hands& h = t.hands[s];
+        const view::SeatPass& p = pass[s];
+        h.frames++;
+        const int handsShown = (p.hand[0] ? 1 : 0) + (p.hand[1] ? 1 : 0);
+        const int gunsShown = (p.gun[0] ? 1 : 0) + (p.gun[1] ? 1 : 0);
+        const bool wrong =
+            handsShown == 0 || p.ownHands != handsShown || gunsShown != 1 || p.ownGuns != 1 || p.foreign || p.ghosts;
+        h.badPasses += wrong ? 1 : 0;
+        if(wrong || h.badPasses == 0)
+        {
+            h.bad = p; // (the last wrong pass, else the last pass)
+        }
+        const int gunHand = p.gun[1] ? 1 : 0; // ([1] the main hand)
+        const glm::vec3* pos = nullptr;
+        const za::U32* hash = nullptr;
+        const int screens = text3d::passScreens(s, pos, hash);
+        int nearest = -1;
+        float best = screenReach;
+        for(int i = 0; i < screens; i++)
+        {
+            const float d = glm::distance(pos[i], p.gunAt[gunHand]);
+            if(d < best)
+            {
+                best = d;
+                nearest = i;
+            }
+        }
+        if(nearest >= 0)
+        {
+            h.screenChanged += h.screenFound > 0 && hash[nearest] != h.screenHash ? 1 : 0;
+            h.screenHash = hash[nearest];
+            h.screenFound++;
+        }
+        for(int o = 0; o < n; o++)
+        {
+            const clientseat_t* net = CL_SeatNetIfMade(o);
+            if(o == s || !net)
+            {
+                continue;
+            }
+            entity_t* drawn[3];
+            bool doll = false;
+            const Scope in(at(s));
+            if(!mpavatar::woundTargets(net->cstate.viewentity, drawn, doll))
+            {
+                continue;
+            }
+            for(int side = 0; side < 2; side++)
+            {
+                if(!pass[o].hand[side] || !drawn[1 + side])
+                {
+                    continue;
+                }
+                const glm::vec3 at{drawn[1 + side]->origin[0], drawn[1 + side]->origin[1], drawn[1 + side]->origin[2]};
+                h.avatarOff[o][side] = za::max(h.avatarOff[o][side], glm::distance(at, pass[o].handAt[side]));
+                const float apart = p.hand[side] ? glm::distance(at, p.handAt[side]) : 1e9f;
+                h.avatarApart[o] = h.avatarSeen[o] ? za::min(h.avatarApart[o], apart) : apart;
+                h.avatarSeen[o]++;
+            }
+        }
+    }
+    return true;
+}
+
+void checkHands()
+{
+    const RenderTest& t = renderTest;
+    for(int s = 0; s < t.seats; s++)
+    {
+        const RenderTest::Hands& h = t.hands[s];
+        const view::SeatPass& b = h.bad;
+        check(h.badPasses == 0,
+            va("seat %d's pass: own hands %d/%d, gun %d/%d, foreign %d, ghost guns %d (%d of %d frames wrong)", s + 1,
+                b.ownHands, (b.hand[0] ? 1 : 0) + (b.hand[1] ? 1 : 0), b.ownGuns, (b.gun[0] ? 1 : 0) + (b.gun[1] ? 1 : 0),
+                b.foreign, b.ghosts, h.badPasses, h.frames));
+        check(h.screenFound == h.frames && h.screenChanged == 0,
+            va("seat %d's ammo screen on its gun each pass, same text (%d of %d, changed %d)", s + 1, h.screenFound,
+                h.frames, h.screenChanged));
+        for(int o = 0; o < t.seats; o++)
+        {
+            if(o == s)
+            {
+                continue;
+            }
+            check(h.avatarSeen[o] > 0 && h.avatarOff[o][0] < avatarHandTolerance && h.avatarOff[o][1] < avatarHandTolerance,
+                va("seat %d sees seat %d's avatar hands at its hands (%.2f %.2f off, %d read; %.0f from seat %d's)", s + 1,
+                    o + 1, static_cast<double>(h.avatarOff[o][0]), static_cast<double>(h.avatarOff[o][1]), h.avatarSeen[o],
+                    static_cast<double>(h.avatarApart[o]), s + 1));
+        }
+    }
+}
+
+// split13: every seat has drawn a new frame since the last read (handsDrawn), read now.
+[[nodiscard]] bool newFrameDrawn()
+{
+    RenderTest& t = renderTest;
+    for(int s = 0; s < t.seats; s++)
+    {
+        if(V_SeatViewOf(s)->drawnframes == t.handsDrawn[s])
+        {
+            return false;
+        }
+    }
+    for(int s = 0; s < t.seats; s++)
+    {
+        t.handsDrawn[s] = V_SeatViewOf(s)->drawnframes;
+    }
+    return true;
+}
+
+// The grunt the anim run spawned, in seat 1's client (0: not there yet).
+[[nodiscard]] int findGrunt()
+{
+    const Scope in(at(0));
+    for(int i = cl.maxclients + 1; i < cl.num_entities; i++)
+    {
+        const entity_t& e = cl_entities[i];
+        if(e.model && !q_strcasecmp(e.model->name, gruntModel))
+        {
+            return i;
+        }
+    }
+    return 0;
+}
+
+// The anim steps' read of one drawn frame: both seats' passes drew the probed monster in the last frame, and alike.
+void readAnim()
+{
+    RenderTest& t = renderTest;
+    const RenderTest::Probe& a = t.probe[0];
+    const RenderTest::Probe& b = t.probe[1];
+    const int last = za::max(a.frame, b.frame);
+    t.animRead++;
+    const bool both = a.frame == last && b.frame == last;
+    t.animSame += both && a.hash == b.hash ? 1 : 0;
+    t.animBones += both && a.hash == b.hash && a.bones > 0 && b.bones > 0 ? 1 : 0;
+    t.animChanged += t.animRead > 1 && a.hash != t.animLast ? 1 : 0;
+    t.animLast = a.hash;
+    t.animNear += a.frame == last && a.bones > 0 ? 1 : 0;
+    t.animFar += b.frame == last ? 1 : 0;
+}
+
+void animGo(const Step s)
+{
+    RenderTest& t = renderTest;
+    t.animRead = t.animSame = t.animBones = t.animChanged = t.animNear = t.animFar = 0;
+    go(s);
+}
+
 [[nodiscard]] bool drawnSince(const int wanted)
 {
     for(int s = 0; s < renderTest.seats; s++)
@@ -662,7 +898,7 @@ void testFrame()
     t.frames++;
     if(t.frames > stepFrames)
     {
-        check(false, va("timed out (step %d)", static_cast<int>(t.step)));
+        check(false, va("timed out (step %d; probe %d drawn %d %d, %d)", static_cast<int>(t.step), t.probeNum, t.probe[0].frame, t.probe[1].frame, host_framecount));
         finish();
         return;
     }
@@ -701,6 +937,8 @@ void testFrame()
                 cl.viewangles[YAW] = 90.f * static_cast<float>(s) + 30.f;
                 cl.viewangles[PITCH] = 0.f;
                 cl.forceunderwater = s == 0; // (phase 8: seat 1 alone under water: its sounds muffled alone; checkWater)
+                // (split13: a shotgun in the main hand, test impulse 150 + its id: its ammo screen read in Step::Hands)
+                Cbuf_AddText(va("seat %d impulse %d\n", s + 1, 150 + WID_SHOTGUN));
             }
             go(Step::WaitDrawn);
             return;
@@ -731,6 +969,97 @@ void testFrame()
                     va("seat %d's visor HUD as vr_flat_visor %g says (%d)", s + 1, static_cast<double>(vr_flat_visor.value),
                         visor::active() ? 1 : 0));
             }
+            for(int s = 0; s < t.seats; s++)
+            {
+                t.handsDrawn[s] = V_SeatViewOf(s)->drawnframes;
+            }
+            go(Step::Hands);
+            return;
+        case Step::Hands:
+            if(!readHands() || t.hands[0].frames < handFramesWanted)
+            {
+                return;
+            }
+            checkHands();
+            if(!t.anim)
+            {
+                go(Step::WaitBooted);
+                return;
+            }
+            {
+                const Scope in(at(0));
+                t.yaw1 = cl.viewangles[YAW];
+            }
+            for(int s = 1; s < t.seats; s++) // (both seats face the grunt: it is spawned ahead of seat 1)
+            {
+                const Scope in(at(s));
+                cl.viewangles[YAW] = t.yaw1;
+            }
+            Cbuf_AddText("seat 1 god; seat 2 god; vr_test_spawn_dist 160; vr_test_spawn 0; seat 1 impulse 241\n");
+            animGo(Step::AnimFind);
+            return;
+        case Step::AnimFind:
+            if(!t.probeNum)
+            {
+                t.probeNum = findGrunt();
+                return;
+            }
+            if(!newFrameDrawn() || t.probe[0].frame < 0 || t.probe[0].frame != t.probe[1].frame)
+            {
+                return; // (both seats' passes draw it)
+            }
+            animGo(Step::AnimLive);
+            return;
+        case Step::AnimLive:
+            if(!newFrameDrawn())
+            {
+                return;
+            }
+            readAnim();
+            if(t.animRead < animFramesWanted)
+            {
+                return;
+            }
+            check(t.animSame == t.animRead && t.animChanged > 0,
+                va("a live grunt: both seats' passes draw one pose a frame (%d of %d), it animates (%d changes)", t.animSame,
+                    t.animRead, t.animChanged));
+            Cbuf_AddText("vr_test_kill 1\n");
+            animGo(Step::AnimDead);
+            return;
+        case Step::AnimDead:
+            if(!newFrameDrawn() || (t.animRead == 0 && t.probe[0].bones == 0))
+            {
+                return; // (its ragdoll drawn first)
+            }
+            readAnim();
+            if(t.animRead < animFramesWanted)
+            {
+                return;
+            }
+            check(t.animBones == t.animRead,
+                va("its ragdoll: both seats' passes draw it, the same pose, each frame (%d of %d; one pose %d)", t.animBones,
+                    t.animRead, t.animSame));
+            for(int s = 1; s < t.seats; s++)
+            {
+                const Scope in(at(s));
+                cl.viewangles[YAW] = t.yaw1 + 180.f; // (seat 2 looks away: seat 1 alone near it in sight)
+            }
+            animGo(Step::AnimOneNear);
+            return;
+        case Step::AnimOneNear:
+            if(!newFrameDrawn())
+            {
+                return;
+            }
+            readAnim();
+            if(t.animRead < animFramesWanted)
+            {
+                return;
+            }
+            check(t.animNear == t.animRead,
+                va("seat 2 looking away: seat 1 draws the ragdoll each frame, never standing (%d of %d; seat 2 drew it %d)",
+                    t.animNear, t.animRead, t.animFar));
+            t.probeNum = 0;
             go(Step::WaitBooted);
             return;
         case Step::WaitBooted:
@@ -852,6 +1181,7 @@ void renderTest_f()
     renderTest = RenderTest{};
     renderTest.seats = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 2;
     renderTest.torches = Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "torches");
+    renderTest.anim = Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "anim");
     if(renderTest.seats < 2 || renderTest.seats > maxSeats)
     {
         Con_Printf("vr_seat_render_test <2-%d>\n", maxSeats);
@@ -866,6 +1196,39 @@ void renderTest_f()
 void registerRenderCommands()
 {
     Cmd_AddCommand("vr_seat_render_test", renderTest_f);
+}
+
+void poseProbe(const entity_t* e, const int pose1, const int pose2, const float blend, const float matrix[16])
+{
+    RenderTest& t = renderTest;
+    if(t.probeNum <= 0 || !cl_entities || t.probeNum >= cl.num_entities || e != &cl_entities[t.probeNum])
+    {
+        return;
+    }
+    RenderTest::Probe& p = t.probe[CLAMP(0, CL_SeatIndex(), maxSeats - 1)];
+    if(p.frame == host_framecount)
+    {
+        return; // (its first draw in the seat's pass)
+    }
+    za::U32 h = 2166136261u; // (FNV-1a over the pose, quantized)
+    const auto mix = [&h](const float v, const float scale) {
+        h = (h ^ static_cast<za::U32>(static_cast<int>(lroundf(v * scale)))) * 16777619u;
+    };
+    mix(static_cast<float>(pose1), 1.f);
+    mix(static_cast<float>(pose2), 1.f);
+    mix(blend, 1000.f);
+    for(int i = 0; i < 16; i++)
+    {
+        mix(matrix[i], 100.f);
+    }
+    const float* bones = nullptr;
+    p.bones = VR_AliasBonePoses(e, &bones);
+    for(int i = 0; bones && i < p.bones * 12; i++)
+    {
+        mix(bones[i], 100.f);
+    }
+    p.frame = host_framecount;
+    p.hash = h;
 }
 
 void renderTestFrame()

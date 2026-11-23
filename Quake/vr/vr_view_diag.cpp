@@ -47,7 +47,7 @@ float fingerCurl(int hand, int finger)
 void resetCaches()
 {
     za::fill(viewModels, ViewModelEntry{});
-    for(RigHand& rh : rigHands)
+    for(RigHand& rh : rigHands())
     {
         rh.drawn = false;
         rh.held = Held{};
@@ -194,10 +194,10 @@ void reloadModels(const za::Vector<za::String>& names)
 
 void woundTargets(entity_t* out[3])
 {
-    out[0] = entities.body.visible && entities.body.ent.model ? &entities.body.ent : nullptr;
+    out[0] = entities().body.visible && entities().body.ent.model ? &entities().body.ent : nullptr;
     for(int hand = 0; hand < 2; hand++)
     {
-        out[1 + hand] = rigHands[hand].drawn && entities.hand[hand].ent.model ? &entities.hand[hand].ent : nullptr;
+        out[1 + hand] = rigHands()[hand].drawn && entities().hand[hand].ent.model ? &entities().hand[hand].ent : nullptr;
     }
 }
 
@@ -205,11 +205,11 @@ int handBonePoses(const entity_t* e, const float** matrices)
 {
     for(int hand = 0; hand < 2; hand++)
     {
-        if(rigHands[hand].drawn && (e == &entities.hand[hand].ent || e == &entities.ghostHand[hand].ent))
+        if(rigHands()[hand].drawn && (e == &entities().hand[hand].ent || e == &entities().ghostHand[hand].ent))
         {
             if(matrices)
             {
-                *matrices = rigHands[hand].skin.data();
+                *matrices = rigHands()[hand].skin.data();
             }
             return handrig::data::numJoints;
         }
@@ -242,8 +242,8 @@ void netHands(VrDrawnHand out[2])
     {
         VrDrawnHand& h = out[hand];
         h = VrDrawnHand{};
-        const ViewEntity& he = entities.hand[hand];
-        if(rigHands[hand].drawn && he.visible && he.ent.model)
+        const ViewEntity& he = entities().hand[hand];
+        if(rigHands()[hand].drawn && he.visible && he.ent.model)
         {
             h.flags |= VrDrawnHand::handBit | (he.mirrored ? VrDrawnHand::handMirrorBit : 0);
             h.handOrigin = vec3Of(he.ent.origin);
@@ -252,12 +252,12 @@ void netHands(VrDrawnHand out[2])
             {
                 for(int j = 0; j < VrDrawnHand::joints; j++)
                 {
-                    h.curl[f][j] = rigHands[hand].pose.curl[f][j];
+                    h.curl[f][j] = rigHands()[hand].pose.curl[f][j];
                 }
             }
-            h.thumb = rigHands[hand].pose.metacarpal;
+            h.thumb = rigHands()[hand].pose.metacarpal;
         }
-        const ViewEntity& we = entities.weapon[hand];
+        const ViewEntity& we = entities().weapon[hand];
         if(we.visible && we.ent.model && !isHandModel(we.ent.model))
         {
             if(const int index = precacheIndex(hand, we.ent.model); index > 0)
@@ -313,14 +313,14 @@ void printHands(const char* what, int ent, const ViewEntity hand[2], const float
 
 void printOwnHands(int ent)
 {
-    const float* const skin[2] = {rigHands[0].drawn ? rigHands[0].skin.data() : nullptr,
-        rigHands[1].drawn ? rigHands[1].skin.data() : nullptr};
-    ViewEntity weapon[2] = {entities.weapon[0], entities.weapon[1]};
+    const float* const skin[2] = {rigHands()[0].drawn ? rigHands()[0].skin.data() : nullptr,
+        rigHands()[1].drawn ? rigHands()[1].skin.data() : nullptr};
+    ViewEntity weapon[2] = {entities().weapon[0], entities().weapon[1]};
     for(ViewEntity& w : weapon)
     {
         w.visible = w.visible && w.ent.model && !isHandModel(w.ent.model); // (the empty hand's "weapon": none)
     }
-    printHands("mp_hands_own", ent, entities.hand, skin, weapon, entities.holster, HolsterCount);
+    printHands("mp_hands_own", ent, entities().hand, skin, weapon, entities().holster, HolsterCount);
 }
 
 qmodel_t* bodyModel(int build, bool bare)
@@ -357,7 +357,7 @@ void ragdollHandProbe_f()
             continue;
         }
         any = true;
-        const RigHand& rh = rigHands[hand];
+        const RigHand& rh = rigHands()[hand];
         // The drawn index finger's curl (0 open .. 4 closed: its joints' mean).
         float index = 0.f;
         for(int j = 0; j < handrig::jointsPerFinger; j++)
@@ -370,7 +370,7 @@ void ragdollHandProbe_f()
         }
         // A tug-of-war (an armed monster's weapon in its hand): the drawn hand and its controller to where it took hold
         // of the weapon, on the weapon as drawn, and the drawn palm to the drawn weapon's surface.
-        const LimbEase& le = limbEase[hand];
+        const LimbEase& le = limbEase()[hand];
         if(TugGrab tg; tugGrab(hand, limb, tg))
         {
             // (the hold's place: its palm's rest on the weapon taken out)
@@ -414,7 +414,7 @@ void ragdollHandProbe_f()
             progs::ServerVm vm;
             lag = box3d::ragdollHandReach(EDICT_NUM(cl.viewentity), hand);
         }
-        const LimbEase& e = limbEase[hand];
+        const LimbEase& e = limbEase()[hand];
         Con_Printf("ragdoll hand %s: edict %d part %d; the limb's held point %.1f cm from the hand (the spring's lag and sag); "
                    "the hand drawn %.1f cm and %.0f degrees (of %.0f) off its controller (eased %.2f)\n",
             name, limb.num, limb.part, lag * cm, glm::length(e.offset * e.blend) * cm,
@@ -542,7 +542,7 @@ void graspBench_f()
     const int runs = Cmd_Argc() > 1 ? CLAMP(1, Q_atoi(Cmd_Argv(1)), 100000) : 1000;
     for(int hand = 0; hand < 2; hand++)
     {
-        const RigHand& rh = rigHands[hand];
+        const RigHand& rh = rigHands()[hand];
         if(!rh.drawn || !rh.held.ent || !rh.held.ent->model)
         {
             continue;
@@ -619,7 +619,7 @@ void graspSweep_f()
     };
     for(int hand = 0; hand < 2; hand++)
     {
-        const RigHand& rh = rigHands[hand];
+        const RigHand& rh = rigHands()[hand];
         if(!rh.drawn || !rh.held.ent || !rh.held.ent->model)
         {
             continue;
@@ -637,7 +637,7 @@ void graspSweep_f()
         const grasp::Settings base = graspSettings(rh.held, rh.rigUnit);
 
         // The other hand as drawn, for the cup (as updateGrasp makes it).
-        const RigHand& other = rigHands[1 - hand];
+        const RigHand& other = rigHands()[1 - hand];
         grasp::Shape otherShape;
         if(other.drawn)
         {
@@ -765,7 +765,7 @@ void graspSweep_f()
 void graspDump_f()
 {
     const int hand = Cmd_Argc() >= 2 && !q_strcasecmp(Cmd_Argv(1), "off") ? HAND_OFF : HAND_MAIN;
-    const RigHand& rh = rigHands[hand];
+    const RigHand& rh = rigHands()[hand];
     if(!rh.drawn)
     {
         Con_Printf("vr_grasp_dump: the %s hand's jointed hand is not drawn\n", hand == HAND_MAIN ? "main" : "off");
@@ -799,7 +799,7 @@ void graspDump_f()
     mesh(rh, glm::mat4{1.f}, "hand");
 
     // The other hand, when this one cups it.
-    const RigHand& otherHand = rigHands[1 - hand];
+    const RigHand& otherHand = rigHands()[1 - hand];
     if(rh.held.cup && otherHand.drawn)
     {
         mesh(otherHand, glm::inverse(rh.rigToWorld) * otherHand.rigToWorld, "other");
@@ -856,7 +856,7 @@ void graspDump_f()
 
 bool hotspotAt(int hand, const glm::vec3& p, glm::vec3& out)
 {
-    const ViewEntity& ve = entities.weapon[hand];
+    const ViewEntity& ve = entities().weapon[hand];
     const int slot = weapons::slotForModel(ve.ent.model);
     if(!ve.ent.model || slot < 0 || slot == weapons::fistSlot())
     {
@@ -868,16 +868,16 @@ bool hotspotAt(int hand, const glm::vec3& p, glm::vec3& out)
 
 const DrawnWeapon& drawnWeapon(int hand)
 {
-    return drawnWeapons[hand == 0 ? 0 : 1];
+    return drawnWeapons()[hand == 0 ? 0 : 1];
 }
 
 bool drawnWeaponPlace(int hand, const qmodel_t* model, glm::vec3& origin, glm::vec3& angles)
 {
-    if(hand < 0 || hand >= HAND_COUNT || !model || entities.weapon[hand].ent.model != model)
+    if(hand < 0 || hand >= HAND_COUNT || !model || entities().weapon[hand].ent.model != model)
     {
         return false;
     }
-    const entity_t& e = entities.weapon[hand].ent;
+    const entity_t& e = entities().weapon[hand].ent;
     origin = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
     angles = glm::vec3{e.angles[0], e.angles[1], e.angles[2]};
     return true;
@@ -889,8 +889,8 @@ bool drawnIndexTip(int hand, glm::vec3& local)
     {
         return false;
     }
-    const IndexTip& t = indexTips[hand];
-    if(t.frame < 0 || host_framecount - t.frame > 2 || !rigHands[hand].drawn)
+    const IndexTip& t = indexTips()[hand];
+    if(t.frame < 0 || host_framecount - t.frame > 2 || !rigHands()[hand].drawn)
     {
         return false;
     }
@@ -959,8 +959,8 @@ int twoHandSpot(const hands::State& s, int hand, glm::vec3& at)
     float bestAlong = 0.f;
     for(int i = 0; i < weapons::maxHotspots; i++)
     {
-        const WorldHotspot& w = worldHotspots[hand][i];
-        if(!weapons::isGripType(w.type) || i == magSpot[hand])
+        const WorldHotspot& w = worldHotspots()[hand][i];
+        if(!weapons::isGripType(w.type) || i == magSpot()[hand])
         {
             continue;
         }
@@ -975,7 +975,7 @@ int twoHandSpot(const hands::State& s, int hand, glm::vec3& at)
     }
     if(best >= 0)
     {
-        at = worldHotspots[hand][best].pos;
+        at = worldHotspots()[hand][best].pos;
     }
     return best;
 }
@@ -983,12 +983,12 @@ int twoHandSpot(const hands::State& s, int hand, glm::vec3& at)
 int chosenGripSpot(int hand, int& type)
 {
     type = 0;
-    if(hand < 0 || hand >= HAND_COUNT || chosenGrip[hand] < 0 || chosenGrip[hand] >= weapons::maxHotspots)
+    if(hand < 0 || hand >= HAND_COUNT || chosenGrip()[hand] < 0 || chosenGrip()[hand] >= weapons::maxHotspots)
     {
         return -1;
     }
-    type = static_cast<int>(worldHotspots[hand][chosenGrip[hand]].type);
-    return chosenGrip[hand];
+    type = static_cast<int>(worldHotspots()[hand][chosenGrip()[hand]].type);
+    return chosenGrip()[hand];
 }
 
 bool drawnHandPose(int hand, glm::vec3& pos, glm::vec3& rot)
@@ -1014,7 +1014,7 @@ bool drawnHandSurface(int hand, za::Vector<glm::vec4>& out, za::Vector<HandPart>
     {
         return false;
     }
-    const RigHand& rh = rigHands[hand];
+    const RigHand& rh = rigHands()[hand];
     if(rh.drawn)
     {
         // The mesh's vertices as drawn (as the index fingertip: view::drawnIndexTip).
@@ -1063,7 +1063,7 @@ bool drawnHandSurface(int hand, za::Vector<glm::vec4>& out, za::Vector<HandPart>
         }
         return !out.empty();
     }
-    const view::ViewEntity& he = entities.hand[hand];
+    const view::ViewEntity& he = entities().hand[hand];
     const hands::State& s = hands::current();
     if(!he.visible || !he.ent.model || !s.valid)
     {
@@ -1085,7 +1085,7 @@ bool drawnHandSurface(int hand, za::Vector<glm::vec4>& out, za::Vector<HandPart>
 
 glm::vec3 handPress(int hand)
 {
-    return hand == 0 || hand == 1 ? weaponPressed[hand] : glm::vec3{0.f};
+    return hand == 0 || hand == 1 ? weaponPressed()[hand] : glm::vec3{0.f};
 }
 
 glm::vec3 heldOutOf(int hand, int ent)
@@ -1095,21 +1095,21 @@ glm::vec3 heldOutOf(int hand, int ent)
     {
         return glm::vec3{0.f};
     }
-    const RigHand& rh = rigHands[hand];
+    const RigHand& rh = rigHands()[hand];
     if(rh.propAgainst != &cl_entities[ent] || !rh.weaponTouching)
     {
         return glm::vec3{0.f};
     }
-    return rh.pushed - weaponPressed[1 - hand]; // (the hand off the prop as drawn: each moved apart)
+    return rh.pushed - weaponPressed()[1 - hand]; // (the hand off the prop as drawn: each moved apart)
 }
 
 WeaponHotspot weaponHotspot(int hand, int index)
 {
-    if(hand < 0 || hand > 1 || index < 0 || index >= weapons::maxHotspots || !entities.weapon[hand].visible)
+    if(hand < 0 || hand > 1 || index < 0 || index >= weapons::maxHotspots || !entities().weapon[hand].visible)
     {
         return {};
     }
-    const WorldHotspot& w = worldHotspots[hand][index];
+    const WorldHotspot& w = worldHotspots()[hand][index];
     const glm::vec3 pos = w.type == weapons::HotspotType::Blade ? glm::mix(w.pos, w.end, 0.5f) : w.pos;
     return {static_cast<int>(w.type), pos, w.bias, w.share};
 }
@@ -1177,7 +1177,7 @@ void hotspotFit_f()
     };
     for(int i = 0; i < weapons::maxHotspots; i++)
     {
-        const WorldHotspot& w = worldHotspots[HAND_MAIN][i];
+        const WorldHotspot& w = worldHotspots()[HAND_MAIN][i];
         if(w.type == weapons::HotspotType::Blade)
         {
             report(i, "(blade) its near end", w.pos);
@@ -1201,7 +1201,7 @@ void hotspotHere_f()
     const int index = CLAMP(1, Q_atoi(Cmd_Argv(1)), weapons::maxHotspots) - 1;
     const int type = Cmd_Argc() >= 3 ? CLAMP(0, Q_atoi(Cmd_Argv(2)), 3) : 1;
     const int hand = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(3), "off") ? HAND_OFF : HAND_MAIN;
-    const int slot = weapons::slotForModel(entities.weapon[hand].ent.model);
+    const int slot = weapons::slotForModel(entities().weapon[hand].ent.model);
     glm::vec3 p;
     // A cup is where the other hand's palm is (round 21, third pass).
     const glm::vec3 at = type == static_cast<int>(weapons::HotspotType::Cup) ? hands::palmPoint(hands::current(), 1 - hand)
@@ -1215,7 +1215,7 @@ void hotspotHere_f()
     h.type = static_cast<weapons::HotspotType>(type);
     h.pos = type ? p : glm::vec3{0.f};
     weapons::setHotspot(slot, index, h);
-    Con_Printf("vr_weapon_hotspot_here: %s hotspot %d: type %d at %.2f %.2f %.2f\n", entities.weapon[hand].ent.model->name, index + 1,
+    Con_Printf("vr_weapon_hotspot_here: %s hotspot %d: type %d at %.2f %.2f %.2f\n", entities().weapon[hand].ent.model->name, index + 1,
         type, p.x, p.y, p.z);
 }
 
@@ -1227,7 +1227,7 @@ void anchorWhere_f()
 {
     for(int hand = 0; hand < 2; hand++)
     {
-        const ViewEntity& ve = entities.weapon[hand];
+        const ViewEntity& ve = entities().weapon[hand];
         const int slot = ve.ent.model ? weapons::slotForModel(ve.ent.model) : -1;
         if(!ve.visible || slot < 0 || ve.ent.model->type != mod_alias)
         {
@@ -1249,7 +1249,7 @@ void anchorWhere_f()
             weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ)));
         print("text", screenPosition(ve, weapons::anchor(slot, Key::WpnTextAnchor),
             weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ)));
-        for(const ViewEntity* part : {&entities.mag[hand], &entities.well[hand]})
+        for(const ViewEntity* part : {&entities().mag[hand], &entities().well[hand]})
         {
             if(part->visible && part->ent.model)
             {
@@ -1278,7 +1278,7 @@ void holsterPoseCheck(weapons::HolsterKind kind, const qmodel_t* model, const gl
     int found = 0;
     for(int h = 0; h < HolsterCount; h++)
     {
-        const HolsterSeen& seen = holsterSeen[h];
+        const HolsterSeen& seen = holsterSeen()[h];
         if(!seen.valid || seen.floating || seen.kind != kind || seen.slot != slot || slot < 0)
         {
             continue;
@@ -1304,8 +1304,8 @@ void posingCheck(bool weaponTarget, int weaponHand, const glm::mat4& rigInWeapon
     const glm::mat4& rigWorld)
 {
     const int hand = weaponTarget ? weaponHand : 1 - weaponHand;
-    const ViewEntity& weapon = entities.weapon[weaponHand];
-    const RigHand& rh = rigHands[hand];
+    const ViewEntity& weapon = entities().weapon[weaponHand];
+    const RigHand& rh = rigHands()[hand];
     if(!weapon.visible || !rh.drawn || posing::active())
     {
         Con_Printf("vr_pose_check: hold the weapon in the %s hand (out of the posing mode)\n", weaponHand == HAND_MAIN ? "main" : "off");
@@ -1363,9 +1363,9 @@ void dumpView_f()
         Con_Printf("%s grip (Show Controller) at (%.4f %.4f %.4f) angles (%.4f %.4f %.4f), %.2f cm from the controller\n",
             h == HAND_MAIN ? "main" : "off", s.gripPos[h].x, s.gripPos[h].y, s.gripPos[h].z, s.gripRot[h].x, s.gripRot[h].y,
             s.gripRot[h].z, glm::distance(s.gripPos[h], s.controllerPos[h]) / (0.01f * units::metresToUnits()));
-        if(rigHands[h].drawn)
+        if(rigHands()[h].drawn)
         {
-            const glm::vec3 palm{rigHands[h].rigToWorld * glm::vec4{drawnInRig(rigHands[h], grasp::palmCentre()), 1.f}};
+            const glm::vec3 palm{rigHands()[h].rigToWorld * glm::vec4{drawnInRig(rigHands()[h], grasp::palmCentre()), 1.f}};
             Con_Printf("%s drawn palm at (%.4f %.4f %.4f)\n", h == HAND_MAIN ? "main" : "off", palm.x, palm.y, palm.z);
         }
         // The grab test's fist, and the open hand, in the hand's frame (cm from its point: forward, left, up): how far
@@ -1411,11 +1411,11 @@ void dumpView_f()
         }
         const HandInput& in = tracking().input.hands[h];
         Con_Printf("%s hand: trigger %.2f grip %.2f thumb %d, curls %.1f %.1f %.1f %.1f %.1f\n",
-            h == HAND_MAIN ? "main" : "off", in.triggerValue, in.gripValue, in.thumbTouch, fingerFrames[h][FingerThumb],
-            fingerFrames[h][FingerIndex], fingerFrames[h][FingerMiddle], fingerFrames[h][FingerRing],
-            fingerFrames[h][FingerPinky]);
-        Con_Printf("  finger tweaks %+.2f %+.2f %+.2f %+.2f %+.2f\n", fingerBias[h][FingerThumb],
-            fingerBias[h][FingerIndex], fingerBias[h][FingerMiddle], fingerBias[h][FingerRing], fingerBias[h][FingerPinky]);
+            h == HAND_MAIN ? "main" : "off", in.triggerValue, in.gripValue, in.thumbTouch, fingerFrames()[h][FingerThumb],
+            fingerFrames()[h][FingerIndex], fingerFrames()[h][FingerMiddle], fingerFrames()[h][FingerRing],
+            fingerFrames()[h][FingerPinky]);
+        Con_Printf("  finger tweaks %+.2f %+.2f %+.2f %+.2f %+.2f\n", fingerBias()[h][FingerThumb],
+            fingerBias()[h][FingerIndex], fingerBias()[h][FingerMiddle], fingerBias()[h][FingerRing], fingerBias()[h][FingerPinky]);
     }
 
     if(body::pouchEnabled())
@@ -1434,14 +1434,14 @@ void dumpView_f()
             s.hotspot[HAND_MAIN], glm::distance(s.pos[HAND_OFF], pouch), s.hotspot[HAND_OFF]);
         // What it holds (vr_pouchitems.cpp): its leather's frame, the rounds placed in it, the first one's skin and model.
         const int rounds = ammoPouchItemCount();
-        const entity_t& first = entities.ammoPouchItem[0].ent;
+        const entity_t& first = entities().ammoPouchItem[0].ent;
         const glm::vec3 lag = pouchitems::wobble();
-        Con_Printf("ammo pouch: frame %d rounds %d skin %d %s wobble %.3f %.3f %.3f\n", entities.ammoPouch.ent.frame, rounds,
+        Con_Printf("ammo pouch: frame %d rounds %d skin %d %s wobble %.3f %.3f %.3f\n", entities().ammoPouch.ent.frame, rounds,
             rounds ? first.skinnum : 0, rounds && first.model ? first.model->name : "-", lag.x, lag.y, lag.z);
         // The nail magazines' top nails (vr_view.cpp magFrame: 0 two, 1 one, 2 none): the first and last in the pouch,
         // and the ones seated in the hands' guns.
-        const entity_t& last = entities.ammoPouchItem[za::max(rounds - 1, 0)].ent;
-        const view::ViewEntity* seated = entities.mag;
+        const entity_t& last = entities().ammoPouchItem[za::max(rounds - 1, 0)].ent;
+        const view::ViewEntity* seated = entities().mag;
         Con_Printf("magazine frames: pouch first %d last %d, seated main %d (%s) off %d (%s)\n", rounds ? first.frame : -1,
             rounds ? last.frame : -1, seated[HAND_MAIN].visible ? seated[HAND_MAIN].ent.frame : -1,
             seated[HAND_MAIN].visible ? seated[HAND_MAIN].ent.model->name : "-",
@@ -1468,8 +1468,8 @@ bool previewGripMove(const hands::State& s, int hand, glm::vec3& worldMove)
 {
     glm::vec3 cp, cd;
     float radius;
-    if(!s.valid || !handrig::usable(viewModel(handrig::modelName())) || !rigHands[hand].drawn ||
-        !grasp::gripChannel(rigHands[hand].pose, cp, cd, radius))
+    if(!s.valid || !handrig::usable(viewModel(handrig::modelName())) || !rigHands()[hand].drawn ||
+        !grasp::gripChannel(rigHands()[hand].pose, cp, cd, radius))
     {
         return false;
     }
@@ -1513,7 +1513,7 @@ void pouchMags_f()
         return glm::vec3{glm::dot(d, ax[0]), glm::dot(d, ax[1]), glm::dot(d, ax[2])} * cm;
     };
     Con_Printf("pouchmags: kind %d, %d left, frame %d: %d drawn, %d found\n", cl.stats[protocol::STAT_QVR_POUCHKIND],
-        cl.stats[protocol::STAT_QVR_POUCHCOUNT], entities.ammoPouch.ent.frame, n, m);
+        cl.stats[protocol::STAT_QVR_POUCHCOUNT], entities().ammoPouch.ent.frame, n, m);
     const glm::vec3 old = box[0] + box[3];
     for(int j = 0; j < n; j++)
     {
@@ -1577,7 +1577,7 @@ void aimCheck_f()
         }
         const glm::vec3 shot = hands::forward(weapons::shotAngles(s.rot[h], slot, h == HAND_OFF));
         const glm::vec3 aim = hands::forward(s.aimRot[h]);
-        const glm::vec3 barrel = glm::normalize(glm::vec3{hotspotFrame(entities.weapon[h].ent, h == HAND_OFF)[0]});
+        const glm::vec3 barrel = glm::normalize(glm::vec3{hotspotFrame(entities().weapon[h].ent, h == HAND_OFF)[0]});
         Con_Printf("aim_check: %s hand slot %d: shot-barrel %.2f deg, shot-aim %.2f, barrel-aim %.2f; pitch shot %.2f "
                    "barrel %.2f aim %.2f; wrist bend %.1f\n",
             name, slot, deg(shot, barrel), deg(shot, aim), deg(barrel, aim), pitchOf(shot), pitchOf(barrel), pitchOf(aim),
@@ -1585,7 +1585,7 @@ void aimCheck_f()
         // Each direction in the frame of the hand the weapon was drawn from this frame (drawnAs: forward, left, up; the
         // hand still moving, hands::State::rot is a frame on), as up and left angles: the shots (from that hand), the
         // barrel and the sight line (rear to front sight, as drawn). All rigid with the hand: the same whatever its roll.
-        const glm::vec3 drawnRot = drawnAs[h].rot;
+        const glm::vec3 drawnRot = drawnAs()[h].rot;
         const glm::mat3 hb = hands::basisOf(drawnRot);
         const glm::vec3 drawnShot = hands::forward(weapons::shotAngles(drawnRot, slot, h == HAND_OFF));
         const auto local = [&](const glm::vec3& d) {
@@ -1630,15 +1630,15 @@ void handCheck_f()
         };
         const auto placeIn = [&](const glm::vec3& p) { return glm::transpose(g) * (p - s.gripPos[h]); };
         const glm::vec3 aim = turnIn(hands::basisOf(s.rot[h])), at = placeIn(s.pos[h]);
-        const view::ViewEntity& we = entities.weapon[h];
+        const view::ViewEntity& we = entities().weapon[h];
         const bool armed = we.visible && we.ent.model;
         const glm::mat4 hs = armed ? hotspotFrame(we.ent, we.mirrored) : glm::mat4{1.f};
         const glm::vec3 wt = armed ? turnIn(glm::mat3{hs} * (we.mirrored ? unmirror : glm::mat3{1.f})) : glm::vec3{0.f};
         const glm::vec3 wo = armed ? placeIn(glm::vec3{hs[3]}) : glm::vec3{0.f};
-        const RigHand& rh = rigHands[h];
+        const RigHand& rh = rigHands()[h];
         // (The hand's entity as drawn: the palm's fit to what it holds and the firing motion in.)
         float hm[16];
-        render::entityMatrix(entities.hand[h].ent, h == HAND_OFF, ENTSCALE_DEFAULT, glm::vec3{0.f}, hm);
+        render::entityMatrix(entities().hand[h].ent, h == HAND_OFF, ENTSCALE_DEFAULT, glm::vec3{0.f}, hm);
         const glm::mat4 handToWorld = glm::make_mat4(hm);
         const glm::vec3 ht = rh.drawn ? turnIn(glm::mat3{handToWorld} * unmirror) : glm::vec3{0.f};
         const glm::vec3 ho = rh.drawn ? placeIn(glm::vec3{handToWorld[3]}) : glm::vec3{0.f};

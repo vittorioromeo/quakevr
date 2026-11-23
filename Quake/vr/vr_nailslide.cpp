@@ -86,7 +86,7 @@ ModelTravel measured;
 {
     for(int hand = 0; hand < 2; hand++)
     {
-        if(e == &view_detail::entities.weapon[hand].ent && hands[hand].gun == e->model)
+        if(e == &view_detail::entities().weapon[hand].ent && hands[hand].gun == e->model)
         {
             return hand;
         }
@@ -147,7 +147,7 @@ glm::vec3 screenShift(const entity_t& e, const char* anchor, float zeroBlend)
 
 void probe()
 {
-    const view::ViewEntity& held = view_detail::entities.weapon[HAND_MAIN];
+    const view::ViewEntity& held = view_detail::entities().weapon[HAND_MAIN];
     const entity_t& gun = held.ent;
     float screen = 0.f;
     if(isNailPistol(gun.model))
@@ -160,7 +160,7 @@ void probe()
         screen = glm::length(moved * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]});
     }
     int holstered = 0;
-    for(const view::ViewEntity& ve : view_detail::entities.holster)
+    for(const view::ViewEntity& ve : view_detail::entities().holster)
     {
         if(ve.visible && isNailPistol(ve.ent.model))
         {

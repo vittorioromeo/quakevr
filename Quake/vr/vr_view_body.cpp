@@ -27,24 +27,24 @@ void wristInfo_f()
     const hands::State& s = hands::current();
     const float m2w = units::metresToUnits() * units::bodyScale();
     const gadget::Pose& mount = gadget::pose();
-    Con_Printf("wrist mount: bracers %d, valid %d, origin %.5f %.5f %.5f, straps %d\n", drawnBare ? 0 : 1,
+    Con_Printf("wrist mount: bracers %d, valid %d, origin %.5f %.5f %.5f, straps %d\n", drawnBare() ? 0 : 1,
         mount.valid ? 1 : 0, mount.origin.x, mount.origin.y, mount.origin.z,
-        static_cast<int>(entities.gadgetStrap[0].visible) + static_cast<int>(entities.gadgetStrap[1].visible));
+        static_cast<int>(entities().gadgetStrap[0].visible) + static_cast<int>(entities().gadgetStrap[1].visible));
     for(int hand = 0; hand < 2; hand++)
     {
-        const view::ViewEntity& base = entities.hand[hand];
+        const view::ViewEntity& base = entities().hand[hand];
         if(!s.valid || !base.ent.model)
         {
             Con_Printf("wrist %d: no hand drawn\n", hand);
             continue;
         }
-        const glm::vec3 w = rigHands[hand].drawn ? vec3Of(handrig::data::wrist) : glm::vec3{-6.86f, -1.08f, 1.42f};
+        const glm::vec3 w = rigHands()[hand].drawn ? vec3Of(handrig::data::wrist) : glm::vec3{-6.86f, -1.08f, 1.42f};
         const glm::vec3 o = view::modelPoint(base, w);
         const glm::vec3 k{glm::distance(view::modelPoint(base, w + glm::vec3{1.f, 0.f, 0.f}), o) / m2w,
             glm::distance(view::modelPoint(base, w + glm::vec3{0.f, 1.f, 0.f}), o) / m2w,
             glm::distance(view::modelPoint(base, w + glm::vec3{0.f, 0.f, 1.f}), o) / m2w};
         avatar::ForearmFrame f;
-        const float gap = entities.body.visible && avatar::forearmFrame(hand, 1.f, f) ? glm::distance(f.point, o) / m2w : -1.f;
+        const float gap = entities().body.visible && avatar::forearmFrame(hand, 1.f, f) ? glm::distance(f.point, o) / m2w : -1.f;
         // The wrist from the controller in the play space's axes (as vr_mock_hand and vr_mock_camera take them: x right,
         // y up, -z forward), metres.
         const glm::vec3 d = (o - s.gripPos[hand]) / units::metresToUnits();
@@ -55,16 +55,16 @@ void wristInfo_f()
         const glm::vec3 fa = gap >= 0.f ? f.axes[0] : handFwd;
         Con_Printf("wrist %d: rig %d, body %s%s, m/unit %.5f %.5f %.5f, arm's wrist off the hand's %.2f mm; the wrist from "
                    "the controller %.3f %.3f %.3f m, the forearm along %.3f %.3f %.3f (play space), the wrist bent %.0f deg\n",
-            hand, rigHands[hand].drawn ? 1 : 0,
-            entities.body.visible && entities.body.ent.model ? entities.body.ent.model->name : "-", drawnBare ? " (bare)" : "",
+            hand, rigHands()[hand].drawn ? 1 : 0,
+            entities().body.visible && entities().body.ent.model ? entities().body.ent.model->name : "-", drawnBare() ? " (bare)" : "",
             k.x, k.y, k.z, gap * 1000.f, glm::dot(d, right), d.z, -glm::dot(d, fwd), glm::dot(fa, right), fa.z,
             -glm::dot(fa, fwd), glm::degrees(za::acos(CLAMP(-1.f, glm::dot(fa, handFwd), 1.f))));
     }
     Con_Printf("wrist light: body %.3f %.3f %.3f, off hand %.3f %.3f %.3f, main hand %.3f %.3f %.3f (its own; drawn in the "
                "body's: %s)\n",
-        bareLit.color.x, bareLit.color.y, bareLit.color.z, bareLit.hand[0].x, bareLit.hand[0].y,
-        bareLit.hand[0].z, bareLit.hand[1].x, bareLit.hand[1].y, bareLit.hand[1].z,
-        bareLitHand(&entities.hand[0].ent) >= 0 ? "yes" : "no");
+        bareLit().color.x, bareLit().color.y, bareLit().color.z, bareLit().hand[0].x, bareLit().hand[0].y,
+        bareLit().hand[0].z, bareLit().hand[1].x, bareLit().hand[1].y, bareLit().hand[1].z,
+        bareLitHand(&entities().hand[0].ent) >= 0 ? "yes" : "no");
 }
 
 // Blood dripping from the wounds (vr_body_blood, vr_bodyblood.cpp): from the hands where they are
@@ -75,7 +75,7 @@ void dripBlood(const hands::State& s)
     const avatar::HandPose* drawn[2]{nullptr, nullptr};
     for(int hand = 0; hand < 2; hand++)
     {
-        const view::ViewEntity& base = entities.hand[hand];
+        const view::ViewEntity& base = entities().hand[hand];
         if(base.visible && base.ent.model)
         {
             poses[hand] = drawnHand(s, hand);
@@ -197,7 +197,7 @@ void setupBody(const hands::State& s)
     // The build (vr_body_build): progs/vrbody_lean, vrbody (athletic), vrbody_brawny or vrbody_fem; their bare forearms'
     // (vr_body_bracers 0) if both hands are the jointed hand they are fitted round.
     b.build = avatar::bodyBuild();
-    b.bare = bareForearms() && rigHands[0].drawn && rigHands[1].drawn;
+    b.bare = bareForearms() && rigHands()[0].drawn && rigHands()[1].drawn;
     b.legs = mode >= 3;
     // Flatscreen play: the body rides the drawn view's own move off the pose's eye (the walk's bob, a step's easing) as the
     // drawn hands do (flatplay::drawnOffset), so the arms move with the hands. The whole body: its head height stays (taking
@@ -214,17 +214,17 @@ void setupBody(const hands::State& s)
     look.build = b.build;
     look.armour = armorWorn();
     view::BodyEntities out;
-    out.body = &entities.body;
-    out.plates = entities.plate;
+    out.body = &entities().body;
+    out.plates = entities().plate;
     out.numPlates = plateEntities;
     out.platePieces = ownPlates().entityPieces;
-    out.bridge = &entities.plate[plateBridge];
-    out.cap = entities.pauldron;
-    out.arm = entities.pauldronArm;
+    out.bridge = &entities().plate[plateBridge];
+    out.cap = entities().pauldron;
+    out.arm = entities().pauldronArm;
     qmodel_t* model = view::drawBody(b, out);
-    drawnBuild = model && model != viewModel("progs/vrbody.mdl") ? b.build : 1;
-    drawnBare = model && b.bare && model == viewModel(bodyModelName(b.build, true));
-    if(entities.plate[plateBridge].visible)
+    drawnBuild() = model && model != viewModel("progs/vrbody.mdl") ? b.build : 1;
+    drawnBare() = model && b.bare && model == viewModel(bodyModelName(b.build, true));
+    if(entities().plate[plateBridge].visible)
     {
         ownPlates().bridgePieces = b.plates.pieces;
     }
@@ -266,8 +266,8 @@ void pressWeaponButtons(const hands::State& s)
     {
         const int hand = k & 1;
         const bool front = k >= 2;
-        ButtonState& st = front ? frontButtonStates[hand] : buttonStates[hand];
-        const view::ViewEntity& button = front ? entities.frontButton[hand] : entities.button[hand];
+        ButtonState& st = front ? frontButtonStates()[hand] : buttonStates()[hand];
+        const view::ViewEntity& button = front ? entities().frontButton[hand] : entities().button[hand];
         if(!button.visible)
         {
             st.hover = false;
@@ -313,8 +313,8 @@ void pressWeaponButtons(const hands::State& s)
 
 void setupButton(int hand)
 {
-    view::ViewEntity& ve = entities.button[hand];
-    const view::ViewEntity& weapon = entities.weapon[hand];
+    view::ViewEntity& ve = entities().button[hand];
+    const view::ViewEntity& weapon = entities().weapon[hand];
     const int slot = weapons::slotForModel(weapon.ent.model);
 
     if(!weapon.ent.model || slot < 0 || weapons::value(slot, Key::WpnButtonMode) == 0.f)
@@ -326,7 +326,7 @@ void setupButton(int hand)
     // On the weapon as it is drawn: mirrored as the weapon is, and turned with the pose it is drawn
     // from (a gun carried by its foregrip is drawn from the pose of the hand that let it go, not
     // from the carrying hand's: round 18).
-    const twohand::HeldAs& held = drawnAs[hand];
+    const twohand::HeldAs& held = drawnAs()[hand];
     const bool mirrored = held.mirrored;
     const glm::vec3 pos = view::anchorPosition(weapon,
         weapons::anchor(slot, Key::WpnButtonAnchor),
@@ -347,21 +347,21 @@ void setupButton(int hand)
 // (vr_grapple_front_button_x/y/z, model units), turned as it is.
 void setupFrontButton(int hand)
 {
-    view::ViewEntity& ve = entities.frontButton[hand];
-    const view::ViewEntity& weapon = entities.weapon[hand];
+    view::ViewEntity& ve = entities().frontButton[hand];
+    const view::ViewEntity& weapon = entities().weapon[hand];
     const int slot = weapon.ent.model ? weapons::slotForModel(weapon.ent.model) : -1;
     if(!vr_grapple_front_button.value || slot < 0 || !modelmeta::is(weapon.ent.model, modelmeta::Id::VGrpple) ||
-        weapons::value(slot, Key::WpnButtonMode) == 0.f || !entities.button[hand].visible)
+        weapons::value(slot, Key::WpnButtonMode) == 0.f || !entities().button[hand].visible)
     {
         ve.visible = false;
         return;
     }
-    const twohand::HeldAs& held = drawnAs[hand];
+    const twohand::HeldAs& held = drawnAs()[hand];
     const bool mirrored = held.mirrored;
     const glm::vec3 pos = view::anchorPosition(weapon, weapons::anchor(slot, Key::WpnButtonAnchor),
         weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ) +
             glm::vec3{vr_grapple_front_button_x.value, vr_grapple_front_button_y.value, vr_grapple_front_button_z.value});
-    const view::ViewEntity& back = entities.button[hand];
+    const view::ViewEntity& back = entities().button[hand];
     place(ve, viewModel("progs/wpnbutton.mdl"), pos, geom::vec(back.ent.angles), 0,
         mirrored);
     double& logAt = grappleDebug.frontLogAt;
@@ -510,15 +510,15 @@ void printPauldrons(const char* what, int ent, const ViewEntity cap[2])
 
 void printOwnPauldrons(int ent)
 {
-    printPauldrons("mp_pauldron_own", ent, entities.pauldron);
+    printPauldrons("mp_pauldron_own", ent, entities().pauldron);
 }
 
 int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass)
 {
-    if(e == &entities.plate[plateBridge].ent)
+    if(e == &entities().plate[plateBridge].ent)
     {
         // The joints' leather: from the body's bones as the views draw it (the limbs are the same in every pass)
-        const entity_t& body = entities.body.ent;
+        const entity_t& body = entities().body.ent;
         if(!matrices)
         {
             return agarmor::playerBridgePoses(body.model, ownPlates().bridgePieces, nullptr, 0, nullptr);
@@ -530,13 +530,13 @@ int plateBonePoses(const entity_t* e, const float** matrices, PlatePass pass)
     int index = -1;
     for(int i = 0; i < plateEntities; i++)
     {
-        index = e == &entities.plate[i].ent ? i : index;
+        index = e == &entities().plate[i].ent ? i : index;
     }
     if(index < 0)
     {
         return 0;
     }
-    const entity_t& body = entities.body.ent;
+    const entity_t& body = entities().body.ent;
     int numSlots = 0;
     const int* slotBone = nullptr;
     const int* slotPiece = nullptr;
@@ -696,10 +696,10 @@ int otherPlateBonePoses(const entity_t& body, bool bridge, int pieces, float* ou
 void printOwnPlates(int ent)
 {
     // (the settled ones, else the first coming in)
-    const view::ViewEntity* shown = &entities.plate[0];
+    const view::ViewEntity* shown = &entities().plate[0];
     for(int i = plateEntities - 1; i >= 0; i--)
     {
-        shown = entities.plate[i].visible ? &entities.plate[i] : shown;
+        shown = entities().plate[i].visible ? &entities().plate[i] : shown;
     }
     const view::ViewEntity& plate = *shown;
     int coming = 0;
@@ -722,31 +722,31 @@ void platesResync()
 
 bool playerArmourShown()
 {
-    return vr_player_plates.value != 0.f && ownPlates().type > 0 && ownPlates().pieces != 0 && entities.body.visible;
+    return vr_player_plates.value != 0.f && ownPlates().type > 0 && ownPlates().pieces != 0 && entities().body.visible;
 }
 
 void platesInfo_f()
 {
     const PlayerPlates& p = ownPlates();
-    const entity_t& body = entities.body.ent;
+    const entity_t& body = entities().body.ent;
     Con_Printf("plates: on %d, colour %d, pieces %d, morphs begun %d, body %s (visible %d, scale %.3f)\n", vr_player_plates.value != 0.f ? 1 : 0,
-        p.type, p.pieces, p.begun, body.model ? body.model->name : "-", entities.body.visible ? 1 : 0, static_cast<double>(avatar::modelScale(&body)));
+        p.type, p.pieces, p.begun, body.model ? body.model->name : "-", entities().body.visible ? 1 : 0, static_cast<double>(avatar::modelScale(&body)));
     for(int i = 0; i < plateEntities; i++)
     {
-        const view::ViewEntity& ve = entities.plate[i];
+        const view::ViewEntity& ve = entities().plate[i];
         Con_Printf("plates: entity %d: visible %d, pieces %d, skin %d, morph %.3f, model %s, origin %.1f %.1f %.1f, alpha %d, scale %d\n", i, ve.visible ? 1 : 0,
             p.entityPieces[i], ve.ent.skinnum, static_cast<double>(ve.morph), ve.ent.model ? ve.ent.model->name : "-", static_cast<double>(ve.ent.origin[0]),
             static_cast<double>(ve.ent.origin[1]), static_cast<double>(ve.ent.origin[2]), static_cast<int>(ve.ent.alpha), static_cast<int>(ve.ent.scale));
     }
-    if(qmodel_t* mod = entities.plate[0].ent.model; mod && mod->type == mod_alias)
+    if(qmodel_t* mod = entities().plate[0].ent.model; mod && mod->type == mod_alias)
     {
         const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(mod));
         Con_Printf("plates: %s: %d verts, %d indexes, %d bones, vbo %u/%u, skins %d (%d x %d), texture %p, flags %d, mins %.0f\n", mod->name, hdr->numverts_vbo, hdr->numindexes,
             hdr->numbones, mod->meshvbo, mod->meshindexesvbo, hdr->numskins, hdr->skinwidth, hdr->skinheight,
-            static_cast<const void*>(hdr->gltextures[za::clamp(entities.plate[0].ent.skinnum, 0, 3)][0]), mod->flags, static_cast<double>(mod->mins[0]));
+            static_cast<const void*>(hdr->gltextures[za::clamp(entities().plate[0].ent.skinnum, 0, 3)][0]), mod->flags, static_cast<double>(mod->mins[0]));
     }
     const float* m = nullptr;
-    const int n = plateBonePoses(&entities.plate[0].ent, &m, PlatePass::View);
+    const int n = plateBonePoses(&entities().plate[0].ent, &m, PlatePass::View);
     const float* b = nullptr;
     const int nb = VR_AliasBonePoses(&body, &b);
     Con_Printf("plates: drawn from the eyes %d, with the head %d, in the mirror image %d; %d slots, slot 0 row 0 %.3f %.3f %.3f %.3f; %d body bones, bone 1 row 0 %.3f %.3f %.3f %.3f\n",
@@ -768,14 +768,14 @@ void platesModelCheck_f()
         return;
     }
     // The settled plates drawn, as the armour made for the body drawn ("<body>#armor"), the body the build's own.
-    const view::ViewEntity& body = entities.body;
-    const view::ViewEntity& plate = entities.plate[0];
+    const view::ViewEntity& body = entities().body;
+    const view::ViewEntity& plate = entities().plate[0];
     const char* bodyName = body.visible && body.ent.model ? body.ent.model->name : "-";
     const char* plateName = plate.visible && plate.ent.model ? plate.ent.model->name : "-";
     const int build = avatar::bodyBuild();
     char want[MAX_QPATH];
     q_snprintf(want, sizeof(want), "%s#armor", bodyName);
-    const bool bodyOk = !ZA_STRCMP(bodyName, bodyModelName(build, drawnBare));
+    const bool bodyOk = !ZA_STRCMP(bodyName, bodyModelName(build, drawnBare()));
     const bool plateOk = plate.ent.model && plate.ent.model->type == mod_alias && !ZA_STRCMP(plateName, want);
     const bool ok = c.check(bodyOk && plateOk && ownPlates().entityPieces[0] != 0);
     Con_Printf("ppmodel: %s build %d, body %s, plates %s (pieces %d)\n", ok ? "ok" : "FAIL", build, bodyName, plateName, ownPlates().entityPieces[0]);
@@ -808,7 +808,7 @@ int platesState(int what)
         case 14: return p.begun;
         case 15: return p.fromEyesLast;
         case 16: return p.withHeadLast;
-        case 17: return agarmor::playerSlots(entities.body.ent.model, slots, bone, piece) ? slots : 0;
+        case 17: return agarmor::playerSlots(entities().body.ent.model, slots, bone, piece) ? slots : 0;
         case 18: return p.type;
         case 19: return p.cloneLast;
         default: return -1;

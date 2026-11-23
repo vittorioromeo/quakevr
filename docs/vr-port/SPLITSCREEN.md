@@ -941,3 +941,36 @@ cause of most: client state that must be each seat's was shared, so each seat's 
   not the server's: with the fix off it fails, 2 frames, seat 2); deathmatch: seat 1 kills seat 2 with the revolver,
   the obituary line once and whole. `seat_render_test.sh`: each seat's r_refdef is its own view's in its frame.
   Not yet: a ragdoll / animation test seen from both seats, the hands tests.
+
+## 23. Split13 (2026-11-23): each seat's hands, gun and ammo screens
+
+### How to try it (for him)
+
+1. As before (`qvr-kit/scratch/play_splitscreen.ps1`), Multiplayer > Splitscreen, A on the controller, Start.
+2. Stand next to each other, both holding a gun. In seat 2's tile: seat 1's avatar holds seat 1's gun in seat 1's hands
+   (they were at seat 2's own hands: stretched arms, two pairs of hands in seat 2's view, a lagging ghost of seat 2's gun).
+3. Each seat's ammo screen on its own gun reads its own numbers every frame (magazine over total with reloading on; it
+   alternated with the total alone).
+
+### What changed
+
+- **The view's drawn state is each seat's** (vr_view_internal.hpp `SeatView`, `seat::Part::View`): the view entities
+  (`entities()`), the rigged hands (`rigHands()`), the hands' eases and holds (limb ease, finger frames, flips, morphs,
+  carried guns, grips, hotspots, magazine slides, the super shotgun's and revolver's parts, buttons, the bare body's
+  light), the once-a-frame guards (`oncePerFrame()`: the ammo screens' text, the idle guns' screens, the gadget's
+  touches, the quad arcs) and vr_view.cpp's pouch counter, holster and lying-gun records. Reached through accessors (the
+  current seat's); one seat: seat 0's, as before. The root cause: one shared set, and each seat's move sent its hands
+  from it (`view::netHands`, `netHolsters`, `ownGunLook`): both seats sent the last drawn seat's (seat 2's), so seat 2
+  saw seat 1's avatar with its own hands and gun. vr_mpavatar.cpp needed no change: a local seat's avatar is drawn from
+  the hands that seat now sends.
+- **Ammo screens and other queued 3D texts** (vr_text3d.cpp `Queued::seat`): a text is drawn in the pass of the seat
+  that queued it (seat 2's pass drew seat 1's screens; with the shared guard seat 2 queued none of its own).
+- **Tests** (`seat_render_test.sh`, Step::Hands, every seat count): each seat gets a shotgun (test impulse 150 + id),
+  then over 8 drawn frames: each seat's pass holds its own hands and its one gun once each, no other seat's first-person
+  entity, no ghost of its gun (`view::seatPass`); its ammo screen laid out on its own gun in every pass with the same text
+  (`text3d::passScreens`); every other seat's avatar hands within 8 units of that seat's own drawn hands (the empty off
+  hand reads 5-6 off through the network, the gun hand 1-2; the bug: ~100, the viewing seat's own). 255/0 over 2, 3,
+  4 seats and the torches run.
+- **Not finished: the animation / ragdoll test** (`vr_seat_render_test 2 anim`, steps AnimFind..AnimOneNear, a pose probe
+  per seat pass in VR_DebugAliasPose: `seat::poseProbe`): its grunt (`vr_test_spawn 0`, `seat 1 impulse 241`) is never
+  found in seat 1's client (times out in AnimFind); not in seat_render_test.sh yet.

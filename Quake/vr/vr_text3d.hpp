@@ -113,6 +113,11 @@ void counts(int& queuedTexts, int& boardCount);
 // The ammo screens' images drawn so far, and the screens shown through another's image (the same text) so far.
 void screenStats(int& draws, int& shared);
 
+// Splitscreen (split13; vr_seat_render_test): the ammo screens seat `seat`'s last pass laid out (each its place and its
+// text's hash), their count (at most maxPassScreens).
+inline constexpr int maxPassScreens = 16;
+int passScreens(int seat, const glm::vec3*& pos, const za::U32*& hash);
+
 // Its command (VR_Init): vr_fontstyle_live_test, a change to a font's style (Screens > World Text / Ammo Screen / Wrist
 // Gadget Font) drawing that surface's cached text images again once, on the next frame.
 void init();

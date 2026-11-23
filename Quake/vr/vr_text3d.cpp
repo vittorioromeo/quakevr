@@ -64,12 +64,22 @@ struct Queued
     bool overlay{false}; // over the eye's image, not depth tested (queueOverlay)
     za::Vector<OverlayBar> bars; // queueOverlay's
     float backing{0.55f};
+    int seat{0}; // split13: the seat whose code queued it (its view's pass): drawn in that seat's pass alone
 };
 
 // This frame's texts: the first queuedCount of `queued`, whose elements (and their strings' buffers) are kept for the
 // next frame's.
 za::Vector<Queued> queued;
 za::SizeT queuedCount = 0;
+
+// split13: the ammo screens each seat's last pass laid out (passScreens)
+struct PassScreens
+{
+    int count = 0;
+    glm::vec3 pos[maxPassScreens]{};
+    za::U32 hash[maxPassScreens]{};
+};
+PassScreens passShown[MAX_SPLITSEATS]; // seat-shared: by seat (vr_seat_render_test's record)
 
 [[nodiscard]] za::Span<const Queued> queuedTexts()
 {
@@ -82,7 +92,9 @@ za::SizeT queuedCount = 0;
     {
         queued.emplaceBack();
     }
-    return queued[queuedCount++];
+    Queued& q = queued[queuedCount++];
+    q.seat = CL_SeatIndex();
+    return q;
 }
 za::Vector<gfx::Vertex> vertices; // glyphs
 za::Vector<gfx::Vertex> screenGlyphs; // the ammo screens' whitened glyphs without the CRT look (in the brightened font)
@@ -1789,6 +1801,14 @@ void init()
     Cmd_AddCommand("vr_fontstyle_live_test", liveTestCommand);
 }
 
+int passScreens(const int seat, const glm::vec3*& pos, const za::U32*& hash)
+{
+    const PassScreens& p = passShown[CLAMP(0, seat, MAX_SPLITSEATS - 1)];
+    pos = p.pos;
+    hash = p.hash;
+    return p.count;
+}
+
 void screenStats(int& draws, int& shared)
 {
     draws = screenSlots.draws;
@@ -1870,8 +1890,28 @@ extern "C" void VR_DrawSceneOpaque()
         }
         if(!portals::viewing())
         {
+            const int seat = CL_SeatIndex();
+            PassScreens& shown = passShown[CLAMP(0, seat, MAX_SPLITSEATS - 1)];
+            shown.count = 0;
             for(const Queued& q : queuedTexts())
             {
+                if(q.seat == seat && q.screen && !q.overlay && shown.count < maxPassScreens)
+                {
+                    za::U32 h = 2166136261u; // (FNV-1a)
+                    for(const char c : q.text)
+                    {
+                        h = (h ^ static_cast<unsigned char>(c)) * 16777619u;
+                    }
+                    shown.pos[shown.count] = q.pos;
+                    shown.hash[shown.count++] = h;
+                }
+                if(q.seat != seat)
+                {
+                    // split13: another seat's (its ammo screens on its guns): not in this seat's view. (Counted: a
+                    // screen's index is its place among all the frame's, renderScreens' byOrder.)
+                    screenCount += q.screen ? 1 : 0;
+                    continue;
+                }
                 if(q.overlay)
                 {
                     layoutOverlay(q);
