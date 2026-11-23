@@ -3149,7 +3149,12 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
             alignChannel(hand, mirrored, hilt, s.muzzle[other] - hilt, bladePos, bladeRot);
         }
         pos = glm::mix(pos, bladePos, gripBlend);
-        handRot = bladeRot;
+        // (Flatscreen play: turned onto the blade over the grip's blend too, as it is slid there: the guard's blade grip,
+        // vr_flat_parry_blade, takes and lets go of it in a fraction of a second, and the turn at once was 73 degrees in a
+        // frame. A headset's hand is turned at once, as before.)
+        handRot = flatplay::active() ? basisAngles(glm::mat3_cast(glm::slerp(glm::quat_cast(anglesBasis(handRot)),
+                                           glm::quat_cast(anglesBasis(bladeRot)), za::clamp(gripBlend, 0.f, 1.f))))
+                                     : bladeRot;
         hide = false;
         motion = partMotion(animationMotion(entities.weapon[other], bladePos), gripBlend, bladePos);
     }

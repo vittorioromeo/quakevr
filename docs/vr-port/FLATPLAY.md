@@ -1212,7 +1212,8 @@ The two-handed grip (the same notes: "The two-handed melee holding spot seems to
 hotspot lowest on the handle (least far along the line from the holding hand to the tip: the axe's, Mjolnir's and the
 super axe's hs1 just above the holding hand, not hs2 up by the head; a sword's and the crowbar's hs1 below it), never the
 one the hanging hand happens to be nearest (`chooseGrip`, `vr_view_weapon.cpp`), and `vr_twohand`'s sword grips never take
-the blade (the half-sword grip, hs2) on the flat screen. A headset's hand chooses as before. `vr_flatplay_status` prints
+the blade (the half-sword grip, hs2) on the flat screen but in the guard (Blade grip in the guard, below). A headset's hand
+chooses as before. `vr_flatplay_status` prints
 "melee grip: hs1 (type 1), the free hand on that grip". Scene `flat_melee_grip`.
 
 A melee weapon held in both hands lets go as a gun does (his note 2026-11-10: "the off hand doesn't seem to detach
@@ -1221,6 +1222,34 @@ carries the free hand to, taken only at a swing's end; held, the pose is now pin
 grab, the shove, G, 3 and a punch take it off the grip over the gun's own ease (`gripEase`, then `vr_flat_fg_detach_time` for
 E). 0: the old way (the hand hanging while held, off at once). Test: `Misc/quakevr/flatfg2h_test.sh <agent> [letgo]`
 (`vr_flatitems_test 9`; the drawn off hand's most a frame, `vr_flat_fg_report`'s "drawn off hand" line); scene `flat_fg_melee2h`.
+
+**Bash from the guard** (his notes 2026-11-23, item 15: "pressing fire while holding the parry button with a melee weapon
+performs a bash"; `vr_flat_bash` 1): the weapon hand's fire button pressed in the guard (asked for) bashes instead of
+swinging out of it (`flatplay::startBash`, from `pollKeys`). It runs on the shove's clock (one or the other at a time, the
+shove's `shoveFrame` and smoothing), with its own parts: drawn back `vr_flat_bash_wind_back` (4 units) over `_wind_time`
+(0.06 s), pushed straight out `_reach` (12 units, within the arm's reach) over `_push_time` (0.07), held `_hold_time` (0.06)
+and back to the guard over `_recover_time` (0.2), all `_anim_speed` (1) times faster; next one after `_cooldown` (0.5 s, at
+least the whole bash). The guard stays up through it (`parryAsked`), and the push is drawn over the guard (`bashPose`).
+At the hold's end (the smoothed hand all the way out) the engine sends `impulse 58` (off hand) / `59` (main), and QC
+`VR_FlatBash` (`vr_melee_bash.qc`) bashes as the headset's bash: the weapon's line as the guard holds it
+(`VR_Melee_Line`: a flatscreen hand's motion keeps no lines) swept forward by `VR_Bash_Find` (`VR_BASH_REACH`), landed by
+`VR_Bash_Land` (damage, knockback, stagger, stamina, a counter's window, its sound: the headset's numbers), with the
+headset's batting window (`VR_Bash_DeflectStart`, the push straight ahead at `vr_bash_speed`). Held in two hands (the blade
+grip below, or the two-handed stance) it is the headset's two-handed bash. Its whoosh is the shove's (`vr_flat_shove_swish`).
+
+**Blade grip in the guard** (the same notes, item 16: "the off hand smoothly but quickly grab the blade near its tip at the
+sword-grip hotspot; it lets go when the parry ends"; `vr_flat_parry_blade` 1): in the guard with a weapon held as a sword
+(Two-Handed: Sword with a Blade hotspot, `twohand::swordBlade`: the knight's sword, the crowbar; any weapon whose offsets give it one) and the other
+hand empty and not busy (a punch, the shove, E, G, the swap), the free hand goes to the blade hotspot's point (its share of
+the way from the hand to the tip, on the weapon's line as the guard holds it: `flatplay::bladePin`, from `flatsight::apply`
+before `vr_twohand`) over `vr_flat_parry_blade_in_time` (0.12 s, eased) and back over `_out_time` (0.15). `vr_twohand`'s
+`applySword` takes the half-sword grip there (the headset's: the drawn hand slid onto the blade, the game's two-handed hold
+and its bits) only while the guard asks for it, switching off the stance's grip if held there, and lets go as it ends
+("the flat guard ended"). The drawn hand is turned onto the blade over the grip's blend on the flat screen
+(`steadyOther`; at once it turned 73 degrees in a frame, now 7 in and 12 out). Weapons without a Blade hotspot (axes,
+Mjolnir, the chainsaw) leave the free hand where it was. Debug > Tunables > Flatscreen > Guard Bash and Blade Grip;
+`vr_flatplay_status` prints "guard bash:" and two "blade grip:" lines (the free hand off the hotspot, posed and drawn);
+`vr_flatplay_debug 1` the bash's start and the blade's take. Test: `Misc/quakevr/flatbash_test.sh <agent>`; scene `flat_parry`.
 ## Two-handed melee stance
 
 His notes 2026-11-12: a melee weapon that can be held in two hands, held in one with the other hand free, took the
