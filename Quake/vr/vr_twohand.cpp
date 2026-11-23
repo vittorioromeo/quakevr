@@ -46,6 +46,7 @@
 #include "vr_flatgrenade.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flatswap.hpp"
+#include "vr_flatswim.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_handpose.hpp"
 #include "vr_held.hpp"
@@ -381,7 +382,7 @@ void reportLetGo(int holding, const char* why, float value, float limit, float s
 [[nodiscard]] bool flatLetsGo(int holding, int helping)
 {
     return flatplay::punching(helping) || flatplay::shoving(helping) || flatreload::busy(holding) || flatgrenade::busy(helping) ||
-           flatswap::gripBlocked() || flatfgrab::busy(helping);
+           flatswap::gripBlocked() || flatfgrab::busy(helping) || flatswim::freesHand(); // (swimming: vr_flatswim.cpp)
 }
 
 void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int slot)

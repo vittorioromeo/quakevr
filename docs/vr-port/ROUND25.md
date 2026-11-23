@@ -9923,3 +9923,28 @@ His flat feedback 2026-11-23 (the AD lectern hid Quake's; Quoth ladders).
   centred to 0.0, pushed out as far as there is room); Down cases may end on a mover (the pillar's train). modladder:
   fallback index 7, VR-hand holds moved to the near sides (-666/-662 catwalk, -1346 pillar): 10/0; flatladder_test.sh
   2/0; hub_start_test 7/0. Scene `quoth_kellbase_ladder`.
+
+## flatswim: flat-screen swimming strokes (agent/flatswim, 2026-11-23)
+
+- **Strokes** (`Quake/vr/vr_flatswim.cpp`, new; FLATPLAY.md, "Swimming strokes"): swimming flat (waterlevel 3, or 2 off
+  the bottom; not noclip, not dead), the hands follow a stroke mixed from six cycles by the move's way in the view's
+  frame (forward along the look, up the world's): breaststroke, push ahead (back), sideways sweep, press down (up), pull up
+  (down), treading still. Speed sets rate (0.5..0.9 /s) and size; the mix is full stroke from 35% of
+  `vr_flat_swim_full_speed`, treading blended in below. Applied in `flatplay::poseHands`' hand loop after the hang and
+  melee poses, before the wall, sight, reload, grab, grenade and swap overlays; the player's hands only (not `poseBot`).
+- **Free hand vs held**: a free hand takes the stroke's pose (palm by `handAngles`: fingers + palm normal, flatplay's
+  roll-0-palm-in convention); a hand holding a weapon or prop gets `vr_flat_swim_gun_share` (0.3) of the motion only.
+- **2H -> 1H**: `flatswim::freesHand()` added to twohand's `flatLetsGo`, flatsight's `gripWanted` and `twoHandGun`
+  stance, flatplay's `twoHandAsked` (melee stance); all come back on leaving the water.
+- **Take-over**: per hand, linear take share (out over 0.12 s, back over 0.4 s) on `client::attacking` (+0.5 s hold),
+  punch, shove, parry, melee 2H, reload, force grab, quick grenade, swap, ADS (held hand).
+- **Tunables** (Debug > Tunables > Flatscreen > Swimming): `vr_flat_swim` 1, `_one_hand` 1, `_rate` 0.9, `_tread_rate`
+  0.5, `_size` 1, `_tread_size` 0.6, `_fwd` 0.2, `_up` 0.18, `_full_speed` 200, `_pitch` 0.5, `_gun_share` 0.3,
+  `_enter_time` 0.4, `_takeover_time` 0.12, `_return_time` 0.4, `_fire_hold` 0.5, `_turn_time` 0.35. Debug > Reports:
+  Flatscreen Swim Report / Probe (`vr_flatswim_report`, `vr_flatswim_probe`).
+- **Tests**: `Misc/quakevr/flatswim_test.sh` (+ `flatswim_check.py`): vrtesthall pool, seven directions (lead kind, sweep,
+  palm way, mirroring), the nail gun 2H on land, 1H in water, firing take-over (4 frames in 0.54, then 0, held through the
+  fire hold, back to 1), 2H back on land: 36/0. flatreload_test 54/0, flatsight_test 12/0. `flatswim_shots.sh`:
+  screenshots. Scene `flat_swim`.
+- Not done: open hands (the flat hands stay in their gripping pose), stroke sounds (the headset's are server-side from
+  tracked hand speed); `Misc/quakevr/menu_paths.txt` not regenerated for the new Tunables rows.

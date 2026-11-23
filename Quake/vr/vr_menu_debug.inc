@@ -1010,6 +1010,12 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Reload Report", "vr_flatreload_report")
             .help("vr_flatreload_report: each hand's reload trip as drawn (the server's bit, the share of the way to the hip, "
                   "which hip, the hand's distance from it, its pitch and hotspot) and R's presses."),
+        command("Flatscreen Swim Report", "vr_flatswim_report")
+            .help("vr_flatswim_report: the swimming strokes as drawn (swimming, the stroke's cycle, speed and mix of kinds), each "
+                  "hand's share and take-over, and what vr_flatswim_probe measured since: each hand's path and palm."),
+        command("Flatscreen Swim Probe", "vr_flatswim_probe")
+            .help("vr_flatswim_probe: starts measuring each hand's swimming path, palm and where it is seen; the next Swim Report "
+                  "prints it."),
         command("Flatscreen Force Grab Report", "vr_flat_fg_report")
             .help("vr_flat_fg_report: each hand's force grab as drawn (turning its palm out, pulling, back), its pose's share, how "
                   "open the hand is, the carry pose's share, the palm's angle off its object, what the server says it pulls, and E's "

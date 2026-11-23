@@ -57,6 +57,7 @@
 #include "vr_flatgrenade.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flatswap.hpp"
+#include "vr_flatswim.hpp"
 #include "vr_flatspeedfov.hpp"
 #include "vr_flattp.hpp"
 
@@ -1711,7 +1712,8 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     // (A gun on its reload trip to the hip has no stance: the free hand hangs relaxed until it is back; vr_flatreload.cpp.)
     // (Nor while the free hand is away with the quick grenade, vr_flatgrenade.cpp: the gun is held one-handed till it is back.)
     const bool twoHandGun = st.holding >= 0 && st.helping >= 0 && aimsAtPoint(s, st.holding) && emptyHand(st.helping) &&
-                            st.spot[st.holding] >= 0 && !flatreload::busy(st.holding) && !flatgrenade::busy(st.helping);
+                            st.spot[st.holding] >= 0 && !flatreload::busy(st.holding) && !flatgrenade::busy(st.helping) &&
+                            !flatswim::freesHand(); // (nor swimming: the free hand swims, vr_flatswim.cpp)
     const bool pistol = twoHandGun && glm::length(st.muzzleLocal[st.holding]) < longGunMuzzle;
     const bool longGun = twoHandGun && (!pistol || vr_flat_stance_pistol.value != 0.f);
     st.armHip = st.armSight = 0.f;
@@ -2040,7 +2042,8 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // 2026-11-10) never goes to the grip: the gun is held one-handed (emptyHand: no stance either), as dual wielding.
     st.gripWanted = carryToGrip && !flatplay::punching(st.helping) && !flatplay::shoving(st.helping) &&
                     !flatreload::busy(st.holding) && !flatgrenade::busy(st.helping) && !flatswap::gripBlocked() &&
-                    !flatfgrab::busy(st.helping) && !flatplay::holdsThing(st.helping);
+                    !flatfgrab::busy(st.helping) && !flatplay::holdsThing(st.helping) &&
+                    !flatswim::freesHand(); // (swimming: the free hand swims, vr_flatswim.cpp)
     // A grip no pose carries the free hand to (a melee weapon's hs1 up the handle: the axe's, Mjolnir's, the super axe's;
     // carryToGrip false) that vr_twohand holds anyway, taken at a swing's end: held, the pose is pinned on it as a gun's
     // free hand is (before 2026-11-10 it was left hanging, the hand not drawn on the handle). When it lets go -- E's force

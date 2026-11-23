@@ -49,6 +49,7 @@
 #include "vr_held.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flatswap.hpp"
+#include "vr_flatswim.hpp"
 #include "vr_flycam.hpp"
 #include "vr_flatsight.hpp"
 #include "vr_flataimsens.hpp"
@@ -1085,7 +1086,8 @@ void parryPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& e
 {
     const int other = 1 - h;
     return vr_flat_melee_2h.value != 0.f && swungMelee(h) && loneWeaponHand() == h && s.grip2HValid[h] && !s.grip2HPalm[h] &&
-           !twohand::forbidden(h) && !holdsThing(other) && !twohand::carrying(other);
+           !twohand::forbidden(h) && !holdsThing(other) && !twohand::carrying(other) &&
+           !flatswim::freesHand(); // (swimming, the free hand swims: vr_flatswim.cpp)
 }
 
 // One frame's step of the stance's share (fs.twoH, linear): in and out over vr_flat_melee_2h_time (0: at once). Another
@@ -2556,6 +2558,7 @@ void init()
     flatfgrab::init();  // vr_flat_fg_report, vr_flat_fg_press (vr_flatfgrab.cpp)
     flatgrenade::init(); // vr_flatgrenade_report (vr_flatgrenade.cpp)
     flatswap::init(); // vr_flatswap_report (vr_flatswap.cpp)
+    flatswim::init(); // vr_flatswim_report, vr_flatswim_probe (vr_flatswim.cpp)
     flathit::init();   // vr_flat_hit_probe, vr_flat_hit_test (vr_flathit.cpp)
     flatxhair::init(); // vr_flat_xhair_probe (vr_flatxhair.cpp)
     flatspeedfov::init(); // vr_flat_speed_fov_test, _status (vr_flatspeedfov.cpp)
@@ -3443,6 +3446,13 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     glm::vec3 viewFwd, viewRight, viewUp;
     hands::angleVectors(aim, viewFwd, viewRight, viewUp);
 
+    // Swimming (vr_flatswim.cpp): the stroke's cycle, once a frame; the player's own hands only (not a bot's: poseBot).
+    const bool swims = bot == nullptr;
+    if(swims && dt > 0.0)
+    {
+        flatswim::step(static_cast<float>(dt), aim);
+    }
+
     QVR_TRACY_SCOPE(zoneFlatPoseHands, "flat pose: hands");
     for(int h = 0; h < HAND_COUNT; h++)
     {
@@ -3638,6 +3648,12 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         if(propSwing)
         {
             swingOverhead(); // (a prop in the fist: from the guard, back to it)
+        }
+        // The swimming stroke (vr_flatswim.cpp), over the rest and the melee poses; the wall, the sight, the reload, the
+        // grabs and the swap come after it and take over.
+        if(swims)
+        {
+            flatswim::poseHand(s, h, aim, shoulder(s, h) + nudge, armSpan(), dt > 0.0);
         }
         QVR_TRACY_CALL("flat pose: off wall", handOffWall(s, h, shoulder(s, h) + nudge, static_cast<float>(dt)));
     }

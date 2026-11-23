@@ -2328,6 +2328,24 @@ QVR_TUNABLE(vr_flat_blood_health_size, "0.5") // low on health, how far in the s
 QVR_TUNABLE(vr_flat_blood_health_opacity, "0.35") // and its strongest opacity at a beat (0..0.8; vr_blood_health_intensity in a headset)
 QVR_TUNABLE(vr_flat_cutoff_fling_mult, "1.25") // flat screen: a cut-off head's or limb's fling (vr_decap_head_speed's share of the blade, vr_decap_head_lift) times this (his note 2026-11-10)
 
+// Flatscreen > Swimming (vr_flatswim.cpp; FLATPLAY.md, "Swimming"; his words 2026-11-23)
+QVR_TUNABLE(vr_flat_swim, "1") // flat-screen play under water: the hands swim, their strokes by the way he moves (0: the hands as on land)
+QVR_TUNABLE(vr_flat_swim_one_hand, "1") // swimming, a two-handed grip or stance lets go so the free hand can swim; it comes back on leaving the water
+QVR_TUNABLE(vr_flat_swim_rate, "0.9") // strokes a second at vr_flat_swim_full_speed (0..4; slower moves slower, down to the treading's)
+QVR_TUNABLE(vr_flat_swim_tread_rate, "0.5") // treading water still, its sweeps a second (0..4)
+QVR_TUNABLE(vr_flat_swim_size, "1") // the strokes' size, times their own (0..2; slower moves a little smaller)
+QVR_TUNABLE(vr_flat_swim_tread_size, "0.6") // treading water's sweeps' size (0..2)
+QVR_TUNABLE(vr_flat_swim_fwd, "0.2") // the strokes moved ahead as a whole, a share of the arm's reach (-0.5..0.5: into sight)
+QVR_TUNABLE(vr_flat_swim_up, "0.18") // and up (-0.5..0.5)
+QVR_TUNABLE(vr_flat_swim_full_speed, "200") // units a second at which the strokes are at their full rate and size (Quake swims at 224)
+QVR_TUNABLE(vr_flat_swim_pitch, "0.5") // the strokes' frame tips with this share of the look's pitch, at most 45 degrees (0..1: looking down they stay in sight)
+QVR_TUNABLE(vr_flat_swim_gun_share, "0.3") // a hand holding a weapon or a prop moves with this share of the stroke's motion, its aim kept (0..1)
+QVR_TUNABLE(vr_flat_swim_enter_time, "0.4") // seconds the hands take into the strokes in the water, and back out of them leaving it
+QVR_TUNABLE(vr_flat_swim_takeover_time, "0.12") // seconds a hand's stroke takes to give way to a shot, a punch, a swing, a reload, a grab, the sight
+QVR_TUNABLE(vr_flat_swim_return_time, "0.4") // seconds it takes to come back after
+QVR_TUNABLE(vr_flat_swim_fire_hold, "0.5") // seconds after the trigger is let go before the hand's stroke comes back
+QVR_TUNABLE(vr_flat_swim_turn_time, "0.35") // seconds the stroke takes to change with the way he moves and his speed
+
 // Combat > Embedded Blades: held stabs and swung axes (QC/vr_embedhold.qc; ROUND23.md, "Embedded blades, stage 2")
 // Embedded Blades: Thrown
 QVR_TUNABLE(vr_embed_sword_speed, "2.5") // m/s a thrown sword's tip must go at into what it meets
