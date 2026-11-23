@@ -11143,6 +11143,32 @@ Checklist 223 -> 157 lines; no scene retired; details in CHECKLIST_REORG.md, "fo
 - **Tests**: xr_runtime_test.sh section 11: the paused run is a player's session now (`vr_fixed_frames 0`); new runs, an
   unworn fake headset under a scripted run (fixed frames) and under `-vr-unattended` (`vr_fixed_frames 0`), play on and
   log their reason: 8 passed, 0 failed.
+## qeye: the eye's part centred on the foveation bins (slower: kept in the corner); the scene's shaders dither straight-in eyes (agent/qeye, 2026-11-23)
+
+- **The part's place** (`vr_eye_rect_place`, new, 0; Debug > Profiling beside Eye Sub-Image): an eye drawn straight into a
+  part of its image (form 2: its own framebuffers, depth at the image's size) can sit anywhere in it: 0 the lower left
+  corner (as before), 1 the middle, 2 the upper right. The corner goes through glx/gly (R_SetupGL's and R_WarpScaleView's
+  viewport), the in-tile pass (its viewport; PostView.zw for bullet time's and the vignette's centre), the UI
+  (`stereo::drawUi`), the eyeshots and the submitted imageRect.offset (`Backend::setEyeImageRect`'s x, y; GL's origin).
+  PC (-glescompat, form 2, 0.65): eyeshots at 0, 1, 2 the same picture (mean 0.06-0.25/255: Ironwail's ordered dither
+  moves with the pixel grid).
+- **Measured** (Quest 3, High, the frozen gib fight, his look, 3 launches, GPU medians): corner / middle at 0.65
+  12.7-13.0 / 14.0-15.9 ms, 0.78 12.7-13.2 / 15.2-15.9, 0.9 14.4-14.8 / 16.6-17.2: the middle is 1-2.8 ms slower. The
+  bins trace: the runtime keeps full the bins round the rect's centre, which in the middle lies on the grid's middle lines
+  (x 864, y 896), so 4 bins an eye stay full at 0.65 (2 in the corner, its right column reduced) and the fragments rise
+  2.3-2.7 M -> 2.8-3.3 M. With 2 x 4 bins of 864 x 448 no placement reduces more than the corner. **Default stays 0**;
+  the cvar is kept for a runtime with finer bins.
+- **Dither in the scene** (`vr_dither_in_scene`, new, 1): a straight-in eye's scene shaders add vr_dither's own noise (the
+  post-process's triangular white noise, its seed per eye and frame) in Ironwail's ScreenDither slot (`QvrScreenDither`,
+  gl_shaders.h: ScreenDither < 0 is -1 - the seed, from VR_SceneDither), so the in-tile pass runs only for the grade,
+  bullet time's look or the comfort vignette (a developer line says when it runs or is skipped). PC: straight in now
+  works with vr_dither on without framebuffer fetch; its eyeshots vs the post-process's dithered ones mean 0.076/255 (no
+  dither on either: 0.089). Headset: skipped with his look, runs again in bullet time.
+- **Measured**: no change within the noise (in-tile 13.15/13.00/12.74 vs scene 12.72/13.04/12.96 ms; late frames 51-58%
+  vs 54-57%): the hash in every scene fragment costs about what the pass did. A new player's `vr_grade` 1 keeps the
+  pass anyway (the grade could only move into the scene at ~4 fragments a pixel). Kept on: one pass fewer, same look.
+- Scripts (not committed): `scratch/qeye_*` (mk, block, bins, diff, pull), questperf's `qp_*` (qp_run.sh now passes
+  `-vr-unattended`), qfov4's ab3, trace and bins. Beta2's APK and the shipped progs.dat (8a409520...) put back.
 
 ## flagcleanup: the launch-flag audit applied (agent/flagcleanup, 2026-11-23)
 

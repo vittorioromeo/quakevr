@@ -11,6 +11,7 @@
 #include "vr_glutil.hpp"
 #include "vr_input.hpp"
 #include "vr_stereo.hpp"
+#include "vr_tunables.hpp"
 #include "vr_visor.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
@@ -172,14 +173,17 @@ namespace
 GLuint inTileProgram = 0;
 bool inTileFailed = false;
 int inTileAble = -1; // GL_EXT_shader_framebuffer_fetch (-1: not looked up yet)
+int inTileNoted = -1; // whether the console last said the pass runs (1) or is skipped (0)
 
 // The post-process's steps after the tone curve that the eye needs now: bullet time's look, the comfort vignette, the
 // grade, the dither (QVR_POSTPROCESS_GRADE_DITHER).
-[[nodiscard]] bool inTileWanted()
+// The dither: not when the scene's shaders add it (vr_dither_in_scene: VR_SceneDither; `drawn`: this eye's scene did).
+[[nodiscard]] bool inTileWanted(bool drawn = false)
 {
     const int choice = static_cast<int>(vr_grade.value);
     const bool grade = choice >= 1 && choice <= 4 && vr_grade_strength.value > 0.f;
-    return grade || vr_dither.value > 0.f || bullettime::look().strength > 0.f || input::comfortVignette() > 0.f;
+    const bool dither = vr_dither.value > 0.f && !(drawn ? sceneDithered : vr_dither_in_scene.value > 0.f);
+    return grade || dither || bullettime::look().strength > 0.f || input::comfortVignette() > 0.f;
 }
 
 [[nodiscard]] bool inTileSupported()
@@ -200,9 +204,21 @@ bool postInScene()
            (!inTileWanted() || inTileSupported());
 }
 
-void drawInTile(unsigned fbo, int width, int height)
+glm::vec2 ditherSeed()
 {
-    if(!inTileWanted() || !inTileSupported())
+    const int mode = static_cast<int>(vr_dither.value);
+    return {mode != 3 && stereo::eye() == 1 ? 1.f : 0.f, mode == 2 ? static_cast<float>(host_framecount % 64) : 0.f};
+}
+
+void drawInTile(unsigned fbo, int x, int y, int width, int height)
+{
+    const bool wanted = inTileWanted(true);
+    if(const int noted = wanted ? 1 : 0; noted != inTileNoted)
+    {
+        inTileNoted = noted;
+        Con_DPrintf("VR: the in-tile pass %s\n", wanted ? "runs" : "skipped (none of its effects on; the scene's shaders dither)");
+    }
+    if(!wanted || !inTileSupported())
     {
         return;
     }
@@ -218,15 +234,20 @@ void drawInTile(unsigned fbo, int width, int height)
         }
     }
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, fbo);
-    glViewport(0, 0, width, height);
+    glViewport(x, y, width, height);
     GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
     GL_UseProgram(inTileProgram);
     VR_PostProcessView(); // (PostView: the drawn size, for the vignettes)
+    GL_Uniform4fFunc(12, static_cast<float>(width), static_cast<float>(height), static_cast<float>(x), static_cast<float>(y)); // (PostView.zw: the part's corner)
     VR_PostProcessTone(); // (Tone's grade strength and its table on unit 3, Dither, SlowLook)
+    if(sceneDithered)
+    {
+        GL_Uniform4fFunc(8, 0.f, 0.f, 0.f, 0.f); // (the scene's shaders dithered: VR_SceneDither)
+    }
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int height)
+void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int height, int x, int y)
 {
     if(vr_eyeshot.value <= 0.f)
     {
@@ -246,7 +267,7 @@ void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int heigh
     while(glGetError() != GL_NO_ERROR)
     {
     }
-    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+    glReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
     if(const GLenum err = glGetError(); err != GL_NO_ERROR) // (the image unread: say why, not a black file alone)
     {
         Con_Printf("eyeshot: the image's read failed (OpenGL error 0x%X, framebuffer %u status 0x%X)\n", err, imageFbo,
@@ -784,8 +805,20 @@ extern "C" float VR_SceneTone(void)
 
 extern "C" float VR_SceneDither(float dither)
 {
-    // (the eyes' post-process dithers into the 8-bit image; drawn straight into it, the in-tile pass: tonemap::drawInTile)
-    return stereo::isRenderingEye() && vr_dither.value > 0.f ? 0.f : dither;
+    // (the eyes' post-process dithers into the 8-bit image. Drawn straight into it (vr_dither_in_scene; qeye): the scene's
+    // shaders add the same noise themselves (QvrScreenDither, gl_shaders.h), so the in-tile pass need not run for it alone:
+    // negative, -1 - its seed; else the in-tile pass: tonemap::drawInTile. Called only without the software look, softemu.)
+    if(!stereo::isRenderingEye() || vr_dither.value <= 0.f)
+    {
+        return dither;
+    }
+    tonemap::sceneDithered = stereo::directEye() && vr_dither_in_scene.value > 0.f;
+    if(!tonemap::sceneDithered)
+    {
+        return 0.f;
+    }
+    const glm::vec2 seed = tonemap::ditherSeed();
+    return -1.f - (seed.x + 2.f * seed.y);
 }
 
 // Flatscreen play's window needs the post-process pass while bullet time's look is on (GL_NeedsPostprocess).
@@ -825,10 +858,8 @@ extern "C" void VR_PostProcessTone(void)
     }
     const glm::vec4 tone = tonemap::bind(3);
     GL_Uniform4fFunc(7, tone.x, tone.y, tone.z, tone.w);
-    const int mode = static_cast<int>(vr_dither.value);
-    const float frame = mode == 2 ? static_cast<float>(host_framecount % 64) : 0.f;
-    const float otherEye = mode != 3 && stereo::eye() == 1 ? 1.f : 0.f;
-    GL_Uniform4fFunc(8, mode > 0 ? 1.f / 255.f : 0.f, otherEye, frame, 0.f);
+    const glm::vec2 seed = tonemap::ditherSeed();
+    GL_Uniform4fFunc(8, vr_dither.value > 0.f ? 1.f / 255.f : 0.f, seed.x, seed.y, 0.f);
     const bullettime::Look slow = bullettime::look(); // bullet time's look (the eyes only: not the spectator camera)
     GL_Uniform4fFunc(9, slow.strength, slow.desaturate, slow.vignette, input::comfortVignette()); // (and the comfort vignette)
     GL_Uniform3fFunc(10, slow.tint.x, slow.tint.y, slow.tint.z);

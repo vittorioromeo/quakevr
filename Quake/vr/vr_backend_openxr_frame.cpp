@@ -370,6 +370,7 @@ void OpenXrBackend::endFrame(bool rendered)
             const XrExtent2Di rect = eyeRects[eye];
             projViews[eye].subImage.imageRect.extent = rect.width > 0 && rect.height > 0
                 ? rect : XrExtent2Di{swapchains[eye].width, swapchains[eye].height};
+            projViews[eye].subImage.imageRect.offset = rect.width > 0 && rect.height > 0 ? eyeRectOrigins[eye] : XrOffset2Di{0, 0};
             lastViews[eye] = projViews[eye];
         }
         haveLastViews = true;

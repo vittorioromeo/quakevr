@@ -288,9 +288,10 @@ public:
                                 : EyeTracking::NotOffered;
     }
 
-    bool setEyeImageRect(int eye, int width, int height) override
+    bool setEyeImageRect(int eye, int width, int height, int x = 0, int y = 0) override
     {
         eyeRects[eye] = {width, height};
+        eyeRectOrigins[eye] = width > 0 && height > 0 ? XrOffset2Di{x, y} : XrOffset2Di{0, 0};
         return true;
     }
 
@@ -350,6 +351,7 @@ private:
     XrSpace handSpaces[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
     Swapchain swapchains[2];
     XrExtent2Di eyeRects[2]{}; // setEyeImageRect: the part of each eye's image shown this frame (0 x 0: all of it)
+    XrOffset2Di eyeRectOrigins[2]{}; // ... and its lower left corner (GL's origin, as the OpenGL (ES) bindings take it)
     Swapchain panel;
     int32_t panelFailedWidth{0}; // the size its swapchain failed at in this session, or is being made at (ensurePanelSwapchain)
     int32_t panelFailedHeight{0};

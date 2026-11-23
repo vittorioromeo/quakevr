@@ -303,6 +303,18 @@ SOFTWARE.*/\
 "// QVR: functions, not macros without parameters: the Quest's Adreno compiler refuses those (QUEST_PLAN.md, C4b)\n"\
 "float SCREEN_SPACE_NOISE() { return DITHER_NOISE(floor(gl_FragCoord.xy)+0.5); }\n"\
 "float SUPPRESS_BANDING() { return bayer(ivec2(gl_FragCoord.xy)); }\n"\
+"// QVR: the screen dither added to c: Ironwail's ordered one (sd > 0, its amplitude), or (sd < 0) the eyes' last one drawn by\n"\
+"// the scene's shaders straight into an eye's 8-bit image (vr/vr_tonemap.cpp VR_SceneDither; qeye): QVR_POSTPROCESS_GRADE_DITHER's\n"\
+"// triangular white noise, 1/255 either way, less on black; sd = -1 - (the right eye's own noise + 2 x the frame's offset)\n"\
+"vec3 QvrScreenDither(vec3 c, float sd)\n"\
+"{\n"\
+"	if (sd > 0.)\n"\
+"		return vec3(SUPPRESS_BANDING() * sd);\n"\
+"	float seed = -sd - 1.;\n"\
+"	vec2 p = floor(gl_FragCoord.xy) + mod(seed, 2.) * vec2(1733.0, 911.0) + floor(seed * 0.5) * vec2(193.0, 97.0);\n"\
+"	float n = whitenoise01(p) + whitenoise01(p + vec2(57.0, 113.0)) - 1.0;\n"\
+"	return vec3(n * (1.0 / 255.0) * clamp(max(c.r, max(c.g, c.b)) * 255.0, 0.0, 1.0));\n"\
+"}\n"\
 
 ////////////////////////////////////////////////////////////////
 
@@ -1263,7 +1275,7 @@ QVR_WORLD_FS_ALPHA // QVR: alpha to coverage; the liquid's alpha and refraction
 "	// nuke extra precision in 10-bit framebuffer\n"
 "	out_fragcolor.rgb = floor(out_fragcolor.rgb * 255. + 0.5) * (1./255.);\n"
 "#elif DITHER == 0\n"
-"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += QvrScreenDither(out_fragcolor.rgb, ScreenDither); // QVR: 0 in the eyes (vr_dither: VR_SceneDither), but drawn straight into an image (negative: the eyes' own dither); no noise made to be multiplied by 0\n"
 "#endif\n"
 "#ifdef QVR_PROBE_UVLATE\n" // QVR: vr_gles_define's probe (C4g): the texture coordinates' fractions, the whole shader kept live
 "	{\n"
@@ -1393,7 +1405,7 @@ QVR_TEMPORAL_FS_OUTPUT
 "		out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "	}\n"
 "#else\n"
-"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += QvrScreenDither(out_fragcolor.rgb, ScreenDither); // QVR: 0 in the eyes (vr_dither: VR_SceneDither), but drawn straight into an image (negative: the eyes' own dither); no noise made to be multiplied by 0\n"
 "#endif\n"
 "}\n";
 
@@ -1483,7 +1495,7 @@ NOISE_FUNCTIONS
 "	result.rgb = mix(result.rgb, layer.rgb, layer.a);\n"
 "	result.rgb = mix(result.rgb, SkyFog.rgb, SkyFog.a);\n"
 "	out_fragcolor = result;\n"
-"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += QvrScreenDither(out_fragcolor.rgb, ScreenDither); // QVR: 0 in the eyes (vr_dither: VR_SceneDither), but drawn straight into an image (negative: the eyes' own dither); no noise made to be multiplied by 0\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
@@ -1550,7 +1562,7 @@ NOISE_FUNCTIONS
 "	if (ScreenDither != 0.) out_fragcolor.rgb += SCREEN_SPACE_NOISE() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "	out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "#else\n"
-"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += QvrScreenDither(out_fragcolor.rgb, ScreenDither); // QVR: 0 in the eyes (vr_dither: VR_SceneDither), but drawn straight into an image (negative: the eyes' own dither); no noise made to be multiplied by 0\n"
 "#endif\n"
 "}\n";
 
@@ -1602,7 +1614,7 @@ NOISE_FUNCTIONS
 "	if (ScreenDither != 0.) out_fragcolor.rgb += SCREEN_SPACE_NOISE() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
 "	out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "#else\n"
-"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += QvrScreenDither(out_fragcolor.rgb, ScreenDither); // QVR: 0 in the eyes (vr_dither: VR_SceneDither), but drawn straight into an image (negative: the eyes' own dither); no noise made to be multiplied by 0\n"
 "#endif\n"
 "}\n";
 
@@ -2032,7 +2044,7 @@ QVR_ALIAS_FS_GLOW // QVR: fullbrights, wounds' glow, force grab's glow, morphs
 "		out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "	}\n"
 "#else\n"
-"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += QvrScreenDither(out_fragcolor.rgb, ScreenDither); // QVR: 0 in the eyes (vr_dither: VR_SceneDither), but drawn straight into an image (negative: the eyes' own dither); no noise made to be multiplied by 0\n"
 "#endif\n"
 "}\n";
 
@@ -2101,7 +2113,7 @@ QVR_BEHIND_SHOWN_GATE // QVR: behind a teleporter shown in this view
 "		out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "	}\n"
 "#else\n"
-"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += QvrScreenDither(out_fragcolor.rgb, ScreenDither); // QVR: 0 in the eyes (vr_dither: VR_SceneDither), but drawn straight into an image (negative: the eyes' own dither); no noise made to be multiplied by 0\n"
 "#endif\n"
 QVR_SPRITES_FS_SOFT // QVR: soft sprites, fading out close in front of the scene
 "}\n";
@@ -2196,7 +2208,7 @@ OIT_OUTPUT (out_fragcolor)
 "		out_fragcolor.rgb *= out_fragcolor.rgb;\n"
 "	}\n"
 "#else\n"
-"	if (ScreenDither != 0.) out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither; // QVR: 0 in the eyes (vr_dither: VR_SceneDither): no noise made to be multiplied by 0\n"
+"	if (ScreenDither != 0.) out_fragcolor.rgb += QvrScreenDither(out_fragcolor.rgb, ScreenDither); // QVR: 0 in the eyes (vr_dither: VR_SceneDither), but drawn straight into an image (negative: the eyes' own dither); no noise made to be multiplied by 0\n"
 "#endif\n"
 "}\n";
 
