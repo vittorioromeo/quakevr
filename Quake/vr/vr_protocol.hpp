@@ -224,7 +224,8 @@ enum Stat : int
     STAT_QVR_FLATGREN,
     // Flat-screen play's holster menu (QC vr_flatreload.qc .vr_flatrl_full; vr_flatholster.cpp): the hands whose UNLOAD is
     // greyed, their gun's rounds having no room in the reserve (that ammo full up), bit 0 the off hand, 1 the main; bits 2
-    // and 3: that hand's weapon too big for a holster (QC WeaponIdToHolsterable: the menu's drag greys the holsters).
+    // and 3: that hand's weapon too big for a holster (QC WeaponIdToHolsterable: the menu's drag greys the holsters); bits 4
+    // and 5: that hand's UNLOAD would move rounds now (the menu's and the weapon wheel's UNLOAD lit; either mode).
     STAT_QVR_FLATUNLOADFULL,
     // Dwell support: Dwell's powerups on the player (QC dwell/dw_items.qc DW_PowerupFrame, .vr_dw_hud): the seconds left
     // of Haste (bits 0-7), Berserk (8-15) and the Wetsuit (16-23), 0 not held; the wrist gadget's row and the flat

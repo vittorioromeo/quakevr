@@ -38,6 +38,8 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 
+#include <glm/gtc/type_ptr.hpp>
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -49,16 +51,19 @@ namespace
 
 // The image's virtual pixels (the holster menu's renderer: its header on top, its footer at the bottom), the ring's
 // middle, its radius (the slots' middles), a slot's size, and where the hand counts as in the middle (nothing lit) or
-// outside (let go: cancelled).
-constexpr float panelW = 260.f;
-constexpr float panelH = 276.f;
-constexpr glm::vec2 ringMid{130.f, 142.f};
-constexpr float ringR = 92.f;
-constexpr float slotW = 70.f;
-constexpr float slotH = 54.f;
+// outside (let go: cancelled). Nine slots fit (the holsters' provider: the empty hand, six holsters, DROP, UNLOAD): side by
+// side 68 wide (the longest title, "RIGHT CHEST", 11 characters of 6 pixels), and the steep pairs (120 and 160 degrees)
+// clear above one another.
+constexpr float panelW = 280.f;
+constexpr float panelH = 282.f;
+constexpr glm::vec2 ringMid{140.f, 144.f};
+constexpr float ringR = 106.f;
+constexpr float slotW = 68.f;
+constexpr float slotH = 46.f;
 constexpr float innerR = 26.f;
 constexpr float outerR = ringR + 46.f;
 constexpr float fadeSeconds = 0.1f;
+constexpr float flatCursorMargin = 60.f; // flatscreen play: how far past the image's edge the mouse's cursor goes (off the wheel)
 constexpr int giveUp = 400; // the test: frames a step may wait
 
 struct WheelState
@@ -66,6 +71,9 @@ struct WheelState
     const Provider* provider{nullptr}; // setProvider's (nullptr: the holsters')
     int hand{-1};                      // open for this hand (-1 closed)
     int shownHand{0};                  // the last hand it opened for (its fade out)
+    bool flat{false};                  // opened in flatscreen play (the mouse its cursor, drawn on the window)
+    glm::vec2 screenAt{0.f};           // flatscreen play: where the hand was on the window as it opened (pixels, y down)
+    float scale{1.f};                  // flatscreen play: window pixels an image pixel, as last drawn
     glm::vec3 centre{0.f}, right{0.f, -1.f, 0.f}, up{0.f, 0.f, 1.f}, normal{-1.f, 0.f, 0.f}; // the ring's middle; towards the eyes
     Choice choices[maxChoices];
     int count{0};
@@ -86,9 +94,10 @@ WheelState ws;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The holsters' provider: the holster menu's model (flatholster::holsterSlot), clockwise from the top: the empty hand,
-// then the right shoulder, chest and hip, then the left hip, chest and shoulder (the body's own places round the hand).
+// then the right shoulder, chest and hip, DROP and UNLOAD at the bottom, then the left hip, chest and shoulder (the body's
+// own places round the hand).
 
-constexpr int holsterOrder[] = {1, 5, 3, 2, 4, 0};
+constexpr int holsterOrder[] = {1, 5, 3, keyDrop, keyUnload, 2, 4, 0};
 
 void copyText(char* to, size_t size, const char* from)
 {
@@ -116,10 +125,20 @@ int listHolsters(int hand, Choice* out, int max)
         {
             break;
         }
-        const flatholster::HolsterSlot s = flatholster::holsterSlot(i);
         Choice& c = out[n++];
         c = Choice{};
         c.key = i;
+        if(i == keyDrop || i == keyUnload)
+        {
+            // The hand's actions (the holster menu's DROP and UNLOAD, its own tests): what the hand holds, greyed when
+            // nothing would happen.
+            const bool drop = i == keyDrop;
+            copyText(c.title, sizeof(c.title), drop ? "DROP" : "UNLOAD");
+            c.usable = drop ? flatholster::canDrop(hand) : flatholster::canUnload(hand);
+            copyText(c.name, sizeof(c.name), handFull ? held.name : drop && c.usable ? "carried" : "");
+            continue;
+        }
+        const flatholster::HolsterSlot s = flatholster::holsterSlot(i);
         copyText(c.title, sizeof(c.title), s.title);
         copyText(c.name, sizeof(c.name), s.name);
         copyText(c.model, sizeof(c.model), s.model);
@@ -193,7 +212,28 @@ const Provider holsters{"holsters", listHolsters, pickHolster};
 void tick(int hand)
 {
     ws.ticks++;
-    haptics::pulse(hand, 0.012f, 0.35f, 180.f);
+    if(!ws.flat)
+    {
+        haptics::pulse(hand, 0.012f, 0.35f, 180.f);
+    }
+}
+
+// Flatscreen play: where hand `hand` is on the window (pixels, y down) through the last view drawn; off the view or behind
+// the eye: low on that hand's side.
+[[nodiscard]] glm::vec2 flatHandOnWindow(int hand, const hands::State& s)
+{
+    const float W = static_cast<float>(za::max(vid.width, 1)), H = static_cast<float>(za::max(vid.height, 1));
+    const glm::vec2 fallback{W * (hand == HAND_MAIN ? 0.72f : 0.28f), H * 0.68f};
+    if(!s.valid)
+    {
+        return fallback;
+    }
+    const glm::vec4 c = glm::make_mat4(r_matviewproj) * glm::vec4{s.pos[hand], 1.f};
+    if(c.w <= 1e-3f)
+    {
+        return fallback;
+    }
+    return {(c.x / c.w * 0.5f + 0.5f) * W, (0.5f - c.y / c.w * 0.5f) * H};
 }
 
 [[nodiscard]] int handWeapon(int hand)
@@ -224,6 +264,12 @@ struct Test
     int waited{0};
     int mark{0}; // a step's own count
     int nailgunAt{-1};
+    int clip{0}, ammo{0}; // the rounds in the gun and the reserve before UNLOAD
+    bool flat{false};     // "flat": flatscreen play's (flatTestStep)
+    int shotgunAt{-1};    // flat: the shotgun's holster
+    int firstWid{0};      // flat: the weapon 2's first tap drew (the first holstered)
+    int pickAt{-1};       // flat: its holster, the wheel's pick
+    int opens{0};         // flat: the wheel's opens before a step
     testkit::Tally t;
 };
 Test test;
@@ -237,7 +283,9 @@ void result(bool ok, const char* what)
 void finish()
 {
     test.on = false;
-    Cbuf_AddText("vr_mock_button main secondary 0; vr_mock_button off secondary 0\n");
+    Cbuf_AddText(test.flat ? va("vr_mock_key %s up; vr_mock_key %s up; vr_flat_wheel 1\n", vr_flat_key_cycle_left.string,
+                                 vr_flat_key_cycle_right.string)
+                           : "vr_mock_button main secondary 0; vr_mock_button off secondary 0\n");
     test.t.verdict("weaponwheel_test");
 }
 
@@ -289,16 +337,272 @@ void press(int hand, bool down)
     }
     if(++test.waited > giveUp)
     {
-        result(false, va("timed out: %s", what));
+        result(false, va("timed out: %s (wheel hand %d; hands %d %d; holsters %d %d %d %d %d %d)", what, ws.hand,
+                          handWeapon(HAND_OFF), handWeapon(HAND_MAIN), holsterStat(0), holsterStat(1), holsterStat(2),
+                          holsterStat(3), holsterStat(4), holsterStat(5)));
         finish();
     }
     return false;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// vr_weaponwheel_test flat (Misc/quakevr/weaponwheel_test.sh flat; flatscreen play, the holsters on, the script's own
+// weapons: the shotgun in the right hand, the nailgun in the left): the keys by vr_mock_key, the cursor by
+// vr_flat_mouse_move. The shotgun put away (impulse 89); 2 tapped twice: the right hand cycles to the first holstered
+// weapon, then the next, no wheel; 2 held: the wheel opens for the right hand (nine slots), time slows; the mouse onto the
+// first weapon's slot, 2 let go: the right hand takes it; 1 held, the mouse off the wheel, let go: nothing; 1 held, UNLOAD:
+// the nailgun's rounds back in the reserve; 2 held, DROP: the right hand's weapon dropped; 1 held, an empty holster: the
+// nailgun put in it; vr_flat_wheel 0: 1 cycles on the press and a long hold opens nothing; time back at 1.
+
+void flatKey(int hand, bool down)
+{
+    const cvar_t& key = hand == HAND_MAIN ? vr_flat_key_cycle_right : vr_flat_key_cycle_left;
+    Cbuf_AddText(va("vr_mock_key %s %s\n", key.string, down ? "down" : "up"));
+}
+
+// The mouse's cursor onto choice `i`'s slot (-1: off the wheel, to its left), by the counts vr_flat_mouse_move hands on.
+void flatPoint(int i)
+{
+    const glm::vec2 p = i >= 0 ? slotMid(i, ws.count) : ringMid - glm::vec2{outerR + 40.f, 0.f};
+    const float k = za::max(ws.scale, 0.1f) / za::max(vr_flat_holster_menu_cursor_speed.value, 0.01f);
+    const int dx = static_cast<int>(za::floor((p.x - ws.cursor.x) * k + 0.5f));
+    const int dy = static_cast<int>(za::floor((p.y - ws.cursor.y) * k + 0.5f));
+    Cbuf_AddText(va("vr_flat_mouse_move %d %d\n", dx, dy));
+}
+
+// A step pointing the cursor at choice `want` (once, two frames in: the image drawn, its scale known), waiting until lit.
+[[nodiscard]] bool flatPointed(int want, const char* what)
+{
+    if(++test.mark == 2)
+    {
+        flatPoint(want);
+    }
+    return waitFor(test.mark > 2 && (want < 0 ? ws.outside : ws.hovered == want), what);
+}
+
+[[nodiscard]] int freeHolster()
+{
+    for(int i = 0; i < flatholster::holsterSlots; i++)
+    {
+        if(holsterStat(i) == WID_FIST)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void flatTestStep()
+{
+    const int main = HAND_MAIN, off = HAND_OFF;
+    switch(test.step)
+    {
+    case 0:
+        if(waitFor(cls.signon == SIGNONS && cl.stats[STAT_HEALTH] > 0 && handWeapon(main) == WID_SHOTGUN &&
+                       handWeapon(off) == WID_NAILGUN, "the game up, both hands full"))
+        {
+            Cbuf_AddText("impulse 89\n"); // (5's: the right hand's shotgun into a free holster)
+        }
+        break;
+    case 1:
+        for(int i = 0; i < flatholster::holsterSlots; i++)
+        {
+            test.shotgunAt = holsterStat(i) == WID_SHOTGUN ? i : test.shotgunAt;
+        }
+        if(waitFor(handWeapon(main) == WID_FIST && test.shotgunAt >= 0, "the shotgun holstered"))
+        {
+            test.opens = ws.opens;
+            flatKey(main, true);
+        }
+        break;
+    case 2:
+    case 4:
+        if(waitFor(++test.mark >= 4, "a tap"))
+        {
+            flatKey(main, false);
+        }
+        break;
+    case 3:
+        if(waitFor(handWeapon(main) != WID_FIST, "the tap's cycle"))
+        {
+            test.firstWid = handWeapon(main);
+            result(ws.opens == test.opens, va("2 tapped: the right hand cycles to the first holstered weapon (%d), no wheel", test.firstWid));
+            flatKey(main, true);
+        }
+        break;
+    case 5:
+        if(waitFor(handWeapon(main) != WID_FIST && handWeapon(main) != test.firstWid, "the second tap's cycle"))
+        {
+            result(ws.opens == test.opens, va("2 tapped again: the next holstered one (%d), no wheel", handWeapon(main)));
+            for(int i = 0; i < flatholster::holsterSlots; i++)
+            {
+                test.pickAt = holsterStat(i) == test.firstWid ? i : test.pickAt;
+            }
+            flatKey(main, true);
+        }
+        break;
+    case 6:
+    {
+        const int frames = ++test.mark;
+        if(waitFor(ws.hand == main, "2 held: the wheel open for the right hand"))
+        {
+            result(ws.flat && frames >= 10, va("2 held: the wheel opens for the right hand (after %d frames), on the window", frames));
+            result(ws.count == 9, va("nine slots (%d)", ws.count));
+        }
+        break;
+    }
+    case 7:
+        if(waitFor(timescale::current() <= za::clamp(vr_weaponwheel_timescale.value, 0.05f, 1.f) + 0.02f, "time slowed"))
+        {
+            result(true, va("time slowed while open (x%.2f)", timescale::current()));
+        }
+        break;
+    case 8:
+        if(flatPointed(choiceOfKey(test.pickAt), "the cursor onto the first weapon's slot"))
+        {
+            result(ws.ticks > 1, va("the mouse lights that holster's slot (%s)", ws.choices[ws.hovered].title));
+        }
+        break;
+    case 9:
+    case 13:
+    {
+        const int hand = test.step == 9 ? main : off; // (before waitFor moves the step on)
+        // (the screenshot a few frames after the cursor settled: the window's image is drawn after the move)
+        if(++test.mark == 4)
+        {
+            Cbuf_AddText("screenshot\n");
+        }
+        if(waitFor(test.mark >= 9, "the screenshot"))
+        {
+            flatKey(hand, false);
+        }
+        break;
+    }
+    case 10:
+        if(waitFor(ws.hand < 0 && test.pickAt >= 0 && handWeapon(main) == test.firstWid && holsterStat(test.pickAt) == WID_FIST, "the pick"))
+        {
+            result(true, "2 let go on that slot: the right hand takes its weapon (what it held back to its holster)");
+            test.opens = ws.cancels;
+            flatKey(off, true);
+        }
+        break;
+    case 11:
+    case 15:
+    case 21:
+        (void)waitFor(ws.hand == off, "1 held: the wheel open for the left hand");
+        break;
+    case 12:
+        if(flatPointed(-1, "the cursor off the wheel"))
+        {
+            result(ws.hovered < 0, "off the wheel: nothing lit");
+        }
+        break;
+    case 14:
+        if(waitFor(++test.mark >= 30, "a pick's time"))
+        {
+            result(ws.hand < 0 && handWeapon(off) == WID_NAILGUN && ws.cancels > test.opens, "1 let go off the wheel: nothing moved");
+            flatKey(off, true);
+        }
+        break;
+    case 16:
+    {
+        const int want = choiceOfKey(keyUnload);
+        if(flatPointed(want, "the cursor onto UNLOAD"))
+        {
+            test.clip = cl.stats[protocol::STAT_QVR_WEAPONCLIP2];
+            test.ammo = cl.stats[STAT_NAILS];
+            result(ws.choices[want].usable && test.clip > 0, va("UNLOAD lit (%d rounds in the nailgun, %d nails)", test.clip, test.ammo));
+            flatKey(off, false);
+        }
+        break;
+    }
+    case 17:
+        if(waitFor(cl.stats[protocol::STAT_QVR_WEAPONCLIP2] == 0, "the nailgun unloaded"))
+        {
+            result(cl.stats[STAT_NAILS] > test.ammo, va("UNLOAD: the nailgun empty, nails %d -> %d", test.ammo, cl.stats[STAT_NAILS]));
+            flatKey(main, true);
+        }
+        break;
+    case 18:
+        (void)waitFor(ws.hand == main, "2 held: the wheel open for the right hand");
+        break;
+    case 19:
+    {
+        const int want = choiceOfKey(keyDrop);
+        if(flatPointed(want, "the cursor onto DROP"))
+        {
+            result(ws.choices[want].usable, "DROP lit: the right hand holds a weapon");
+            flatKey(main, false);
+        }
+        break;
+    }
+    case 20:
+        if(waitFor(handWeapon(main) == WID_FIST, "the right hand's weapon dropped"))
+        {
+            result(true, "DROP: the right hand's weapon dropped");
+            flatKey(off, true);
+        }
+        break;
+    case 22:
+        test.nailgunAt = freeHolster();
+        if(flatPointed(choiceOfKey(test.nailgunAt), "the cursor onto an empty holster"))
+        {
+            flatKey(off, false);
+        }
+        break;
+    case 23:
+        if(waitFor(handWeapon(off) == WID_FIST && test.nailgunAt >= 0 && holsterStat(test.nailgunAt) == WID_NAILGUN, "the nailgun holstered"))
+        {
+            result(true, "1 let go on an empty holster: the left hand's nailgun put in it");
+            Cbuf_AddText("vr_flat_wheel 0\n");
+            test.opens = ws.opens;
+        }
+        break;
+    case 24:
+        if(waitFor(++test.mark >= 3 && vr_flat_wheel.value == 0.f, "vr_flat_wheel 0"))
+        {
+            flatKey(off, true);
+        }
+        break;
+    case 25:
+    {
+        const int frames = ++test.mark;
+        if(waitFor(handWeapon(off) != WID_FIST, "vr_flat_wheel 0: 1's cycle"))
+        {
+            result(frames < 10, va("vr_flat_wheel 0: 1 cycles the left hand on the press (%d frames)", frames));
+        }
+        break;
+    }
+    case 26:
+        if(waitFor(++test.mark >= 50, "a long hold"))
+        {
+            result(ws.opens == test.opens && ws.hand < 0, "vr_flat_wheel 0: a long hold of 1 opens no wheel");
+            flatKey(off, false);
+            Cbuf_AddText("vr_flat_wheel 1\n");
+        }
+        break;
+    case 27:
+        if(waitFor(timescale::current() >= 0.99f, "time back at 1"))
+        {
+            result(true, "time back at 1");
+            finish();
+        }
+        break;
+    default:
+        finish();
+        break;
+    }
 }
 
 void testStep()
 {
     if(!test.on)
     {
+        return;
+    }
+    if(test.flat)
+    {
+        flatTestStep();
         return;
     }
     const int main = HAND_MAIN, off = HAND_OFF;
@@ -331,7 +635,7 @@ void testStep()
         if(waitFor(ws.hand == main, "the wheel open round the right hand"))
         {
             result(frames > 1, va("held, the wheel opens round that hand (after %d frames)", frames));
-            result(ws.count == 7, va("seven slots: the empty hand and the six holsters (%d)", ws.count));
+            result(ws.count == 9, va("nine slots: the empty hand, the six holsters, DROP and UNLOAD (%d)", ws.count));
         }
         break;
     }
@@ -382,7 +686,34 @@ void testStep()
                 return;
             }
             Con_Printf("weaponwheel_test: PASS the nailgun put away in a holster (%d)\n", test.nailgunAt);
+            press(main, true); // (the right hand's UNLOAD: steps 30 .. 32, then back to 7)
+            test.step = 30;
+        }
+        break;
+    case 30:
+        (void)waitFor(ws.hand == main, "the wheel open round the right hand for UNLOAD");
+        break;
+    case 31:
+    {
+        const int want = choiceOfKey(keyUnload);
+        aimAt(main, want);
+        if(waitFor(want >= 0 && ws.hovered == want, "the right hand onto UNLOAD"))
+        {
+            test.clip = cl.stats[protocol::STAT_QVR_WEAPONCLIP];
+            test.ammo = cl.stats[STAT_SHELLS];
+            result(ws.choices[want].usable && test.clip > 0,
+                va("UNLOAD lit for the right hand's shotgun (%d shells in it, %d in the reserve)", test.clip, test.ammo));
+            press(main, false);
+        }
+        break;
+    }
+    case 32:
+        if(waitFor(cl.stats[protocol::STAT_QVR_WEAPONCLIP] == 0, "the shotgun unloaded"))
+        {
+            result(handWeapon(main) == WID_SHOTGUN && cl.stats[STAT_SHELLS] == test.ammo + test.clip,
+                va("UNLOAD: the shotgun empty, its shells in the reserve (%d -> %d)", test.ammo, cl.stats[STAT_SHELLS]));
             press(off, true);
+            test.step = 7;
         }
         break;
     case 7:
@@ -464,6 +795,37 @@ void testStep()
         }
         break;
     case 18:
+        // The left hand's nailgun: DROP (its UNLOAD greyed: put away and drawn again it came back empty, the headset's
+        // holster rules; the right hand's UNLOAD was steps 30 .. 32).
+        if(waitFor(++test.mark >= 10, "a pick's time"))
+        {
+            press(off, true);
+        }
+        test.step = test.step == 19 ? 22 : test.step;
+        break;
+    case 22:
+        (void)waitFor(ws.hand == off, "the wheel open round the left hand for DROP");
+        break;
+    case 23:
+    {
+        const int un = choiceOfKey(keyUnload), want = choiceOfKey(keyDrop);
+        aimAt(off, want);
+        if(waitFor(want >= 0 && ws.hovered == want, "the left hand onto DROP"))
+        {
+            result(un >= 0 && !ws.choices[un].usable && cl.stats[protocol::STAT_QVR_WEAPONCLIP2] == 0,
+                "UNLOAD greyed: nothing in the left hand's nailgun");
+            result(ws.choices[want].usable, "DROP lit: the left hand holds the nailgun");
+            press(off, false);
+        }
+        break;
+    }
+    case 24:
+        if(waitFor(handWeapon(off) == WID_FIST, "the nailgun dropped"))
+        {
+            result(true, "DROP: the left hand's nailgun dropped");
+        }
+        break;
+    case 25:
         if(waitFor(timescale::current() >= 0.99f, "time back at 1"))
         {
             result(true, "closed: time back at 1");
@@ -488,7 +850,7 @@ void serverPick_f()
         return;
     }
     const int hand = atoi(Cmd_Argv(1)), slot = atoi(Cmd_Argv(2));
-    if((hand != 0 && hand != 1) || slot < -1 || slot >= flatholster::holsterSlots)
+    if((hand != 0 && hand != 1) || slot < keyUnload || slot >= flatholster::holsterSlots)
     {
         return;
     }
@@ -515,6 +877,9 @@ void dump_f()
                "opens %d, picks %d, cancels %d, ticks %d\n",
         ws.hand >= 0 ? "open" : "closed", ws.hand, provider().name, ws.count, ws.hovered, ws.outside ? " (outside)" : "",
         ws.cursor.x, ws.cursor.y, ws.fade, timeScale(), ws.opens, ws.picks, ws.cancels, ws.ticks);
+    Con_Printf("  hands: left weapon %d clip %d, right weapon %d clip %d; unload/drop bits %d (STAT_QVR_FLATUNLOADFULL)\n",
+        handWeapon(HAND_OFF), cl.stats[protocol::STAT_QVR_WEAPONCLIP2], handWeapon(HAND_MAIN), cl.stats[protocol::STAT_QVR_WEAPONCLIP],
+        cl.stats[protocol::STAT_QVR_FLATUNLOADFULL]);
     for(int i = 0; i < ws.count; i++)
     {
         const Choice& c = ws.choices[i];
@@ -527,7 +892,8 @@ void test_f()
     test = Test{};
     test.on = true;
     test.mp = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "mp");
-    Con_Printf("weaponwheel_test: start%s\n", test.mp ? " (mp)" : "");
+    test.flat = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "flat");
+    Con_Printf("weaponwheel_test: start%s\n", test.mp ? " (mp)" : test.flat ? " (flat)" : "");
 }
 
 } // namespace
@@ -552,10 +918,25 @@ double holdSeconds()
     return za::clamp(static_cast<double>(vr_weaponwheel_hold.value), 0.0, 2.0);
 }
 
+double flatHoldSeconds()
+{
+    return za::clamp(static_cast<double>(vr_flat_wheel_hold.value), 0.0, 2.0);
+}
+
 bool canOpen(int hand)
 {
-    if(vr_weaponwheel.value == 0.f || !vrActive() || flatplay::active() || key_dest != key_game || cls.signon != SIGNONS ||
-        cl.stats[STAT_HEALTH] <= 0 || cl.intermission || ws.hand >= 0 || toolgun::heldHand() == hand)
+    if(key_dest != key_game || cls.signon != SIGNONS || cl.stats[STAT_HEALTH] <= 0 || cl.intermission || ws.hand >= 0 ||
+        toolgun::heldHand() == hand)
+    {
+        return false;
+    }
+    if(flatplay::active())
+    {
+        // (The holster menu draws the same image: one at a time. The toolgun's panel has the mouse.)
+        return vr_flat_wheel.value != 0.f && vr_flat_holsters.value != 0.f && !flatholster::shown() &&
+               !toolgun::panel::flatShown();
+    }
+    if(vr_weaponwheel.value == 0.f || !vrActive())
     {
         return false;
     }
@@ -574,15 +955,28 @@ bool canOpen(int hand)
 void open(int hand)
 {
     const hands::State& s = hands::current();
-    if(!canOpen(hand) || !s.valid)
+    const bool flat = flatplay::active();
+    if(!canOpen(hand) || (!flat && !s.valid))
     {
         return;
     }
     ws.hand = ws.shownHand = hand;
+    ws.flat = flat;
     ws.count = provider().list(hand, ws.choices, maxChoices);
     ws.hovered = -1;
     ws.outside = false;
     ws.cursor = ringMid;
+    ws.opens++;
+    if(flat)
+    {
+        // Where that hand is on the screen; the mouse starts in the middle (drawFlat keeps it all on the window).
+        ws.screenAt = flatHandOnWindow(hand, s);
+        menuui::uiSound(menuui::UiSound::Move);
+        tick(hand);
+        Con_DPrintf("weapon wheel: opens at the %s hand on the screen (%.0f %.0f, %d choices)\n",
+            hand == HAND_MAIN ? "right" : "left", ws.screenAt.x, ws.screenAt.y, ws.count);
+        return;
+    }
     // Beyond the hand from the eyes, facing them (upright: its up the world's, leaned to face them).
     const glm::vec3 at = s.pos[hand];
     glm::vec3 away = at - s.head;
@@ -592,7 +986,6 @@ void open(int hand)
     const glm::vec3 side = glm::cross(glm::vec3{0.f, 0.f, 1.f}, ws.normal);
     ws.right = glm::length(side) > 0.01f ? glm::normalize(side) : glm::vec3{0.f, -1.f, 0.f};
     ws.up = glm::cross(ws.normal, ws.right);
-    ws.opens++;
     menuui::uiSound(menuui::UiSound::Move);
     tick(hand);
     Con_DPrintf("weapon wheel: opens round the %s hand (%d choices)\n", hand == HAND_MAIN ? "right" : "left", ws.count);
@@ -624,6 +1017,41 @@ bool isOpen()
     return ws.hand >= 0;
 }
 
+bool openInHeadset()
+{
+    return ws.hand >= 0 && !ws.flat;
+}
+
+bool flatMouse(int dx, int dy)
+{
+    if(ws.hand < 0 || !ws.flat)
+    {
+        return false;
+    }
+    // The holster menu's cursor speed (vr_flat_holster_menu_cursor_speed 1: as the desktop's pointer), a little past the
+    // image's edge (off the wheel: letting go cancels).
+    const float k = za::max(vr_flat_holster_menu_cursor_speed.value, 0.f) / za::max(ws.scale, 0.1f);
+    ws.cursor.x = za::clamp(ws.cursor.x + static_cast<float>(dx) * k, -flatCursorMargin, panelW + flatCursorMargin);
+    ws.cursor.y = za::clamp(ws.cursor.y + static_cast<float>(dy) * k, -flatCursorMargin, panelH + flatCursorMargin);
+    return true;
+}
+
+bool escape()
+{
+    if(ws.hand < 0 || !ws.flat)
+    {
+        return false;
+    }
+    Con_DPrintf("weapon wheel: closed (Esc)\n");
+    close(false);
+    return true;
+}
+
+float crosshairAlpha()
+{
+    return ws.flat ? 1.f - ws.fade * za::clamp(vr_flat_holster_menu_xhair_fade.value, 0.f, 1.f) : 1.f;
+}
+
 float timeScale()
 {
     return ws.hand >= 0 ? za::clamp(vr_weaponwheel_timescale.value, 0.05f, 1.f) : 1.f;
@@ -634,15 +1062,18 @@ void frame(const hands::State& s)
     const double now = realtime;
     const float dt = ws.lastTime >= 0.0 ? za::clamp(static_cast<float>(now - ws.lastTime), 0.f, 0.1f) : 0.f;
     ws.lastTime = now;
-    if(ws.hand >= 0 && (vr_weaponwheel.value == 0.f || key_dest != key_game || cls.signon != SIGNONS ||
-                           cl.stats[STAT_HEALTH] <= 0 || cl.intermission || !s.valid))
+    const bool modeGone = ws.flat ? !flatplay::active() || vr_flat_wheel.value == 0.f : vr_weaponwheel.value == 0.f || !s.valid;
+    if(ws.hand >= 0 && (modeGone || key_dest != key_game || cls.signon != SIGNONS || cl.stats[STAT_HEALTH] <= 0 || cl.intermission))
     {
         close(false); // (a menu, death, the level's end: closed, its button's letting go does nothing)
     }
     if(ws.hand >= 0)
     {
         ws.count = provider().list(ws.hand, ws.choices, maxChoices); // (what the holsters hold now)
-        ws.cursor = cursorOf(s.pos[ws.hand]);
+        if(!ws.flat)
+        {
+            ws.cursor = cursorOf(s.pos[ws.hand]); // (flatscreen play: the mouse's, flatMouse)
+        }
         const int was = ws.hovered;
         ws.hovered = choiceAt(ws.cursor, ws.outside);
         if(ws.hovered >= 0 && ws.hovered != was)
@@ -692,19 +1123,54 @@ void render()
     v.lineCount = len > innerR * 0.5f ? 3 : 2;
     v.header = ws.shownHand == HAND_MAIN ? "WEAPON WHEEL - RIGHT HAND" : "WEAPON WHEEL - LEFT HAND";
     const bool lit = ws.hovered >= 0 && ws.choices[ws.hovered].usable;
-    v.footer = lit ? "Let go: take it" : ws.outside ? "Let go here: cancel" : "Move the hand to a slot";
+    const int litKey = lit ? ws.choices[ws.hovered].key : 0;
+    v.footer = !lit                 ? (ws.outside ? "Let go here: cancel" : ws.flat ? "Point at a slot" : "Move the hand to a slot")
+               : litKey == keyDrop   ? "Let go: drop it"
+               : litKey == keyUnload ? "Let go: unload it"
+                                     : "Let go: take it";
     const gadget::VisorImage img = gadget::renderHolsterMenu(v);
     ws.texture = img.shown ? img.texture : 0;
 }
 
 void drawInEye(const hands::State& s)
 {
-    if(!ws.texture || ws.fade <= 0.f || !s.valid || renderdoc::hidingPanel())
+    if(!ws.texture || ws.fade <= 0.f || ws.flat || !s.valid || renderdoc::hidingPanel())
     {
         return;
     }
     const glm::vec3 corner[4] = {worldAt({0.f, panelH}), worldAt({panelW, panelH}), worldAt({panelW, 0.f}), worldAt({0.f, 0.f})};
     flatholster::drawImage(ws.texture, {panelW, panelH}, corner, gfx::sceneViewProjection(), ws.fade);
+}
+
+void drawFlat()
+{
+    if(!ws.flat || ws.fade <= 0.f || !flatplay::active() || vid.width <= 0 || vid.height <= 0)
+    {
+        return;
+    }
+    render();
+    if(!ws.texture)
+    {
+        return;
+    }
+    // vr_flat_wheel_size of the window's height, its middle where the hand was (all of it kept on the window), framed as the
+    // holster menu is on the window (its composite: flatholster::drawOnWindow), the mouse's arrow on it while open.
+    const float W = static_cast<float>(vid.width), H = static_cast<float>(vid.height);
+    float h = za::clamp(vr_flat_wheel_size.value, 0.2f, 1.f) * H;
+    float w = h * panelW / panelH;
+    if(w > W * 0.96f)
+    {
+        w = W * 0.96f;
+        h = w * panelH / panelW;
+    }
+    ws.scale = h / panelH;
+    const float x0 = za::clamp(ws.screenAt.x - w * 0.5f, W * 0.02f, za::max(W * 0.98f - w, W * 0.02f));
+    const float y0 = za::clamp(ws.screenAt.y - h * 0.5f, H * 0.02f, za::max(H * 0.98f - h, H * 0.02f));
+    flatholster::drawOnWindow(ws.texture, {panelW, panelH}, {x0, y0, w, h}, ws.fade);
+    if(ws.hand >= 0)
+    {
+        flatholster::drawCursorOnWindow({x0 + ws.cursor.x * ws.scale, y0 + ws.cursor.y * ws.scale}, ws.fade);
+    }
 }
 
 void registerCommands()

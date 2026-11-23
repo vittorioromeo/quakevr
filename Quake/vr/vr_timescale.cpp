@@ -329,7 +329,7 @@ void filterHands(TrackingState& t)
     }
 
     // (The weapon wheel open: the hands are the controllers', as in a menu: the hand is its cursor, in real time.)
-    const bool inGame = key_dest == key_game && cls.state == ca_connected && !weaponwheel::isOpen();
+    const bool inGame = key_dest == key_game && cls.state == ca_connected && !weaponwheel::openInHeadset();
     bool following = false;
     for(const Follow& f : slowHands.hand)
     {
