@@ -694,7 +694,7 @@ weapon 2
     fx_gfx_wisp_charge "1"
     fx_gfx_wisp_alpha "0.32"
     fx_gfx_wisp_barrels "2"
-    fx_gfx_mask "1025:f-5__TO__wPUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAeA4HAewHA-BgHAIA-___________________________A4_______HAAAAAAAAAYoHAAYoHAAAgGAAAgGAA4_f8fA-____HAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    fx_gfx_mask "1121:f-5__TO__AEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAAAPA8DAP4DA_AwDAEA___________________________fA8_______DAAAAAAAAAM0DAAM0DAAAQDAAAQDAA8_P-PA_____DAAAAAAAAAAAAAAAAAAAAAAAAAAw________________f"
     reload_port_x "0"
     reload_port_y "0"
     reload_port_z "0"
