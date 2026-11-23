@@ -2044,6 +2044,16 @@ bool drawnNow(int ent)
     return ent > 0 && ent <= MAX_SCOREBOARD && drawn.of[ent].frame >= 0 && drawn.of[ent].frame >= host_framecount - 1;
 }
 
+bool drawnSkeleton(int ent, avatar::Skeleton& out)
+{
+    if(!drawnNow(ent) || !drawn.of[ent].bodyPosed)
+    {
+        return false;
+    }
+    out = drawn.of[ent].skeleton;
+    return true;
+}
+
 bool woundTargets(int ent, entity_t* out[3], bool& doll)
 {
     out[0] = out[1] = out[2] = nullptr;

@@ -2,6 +2,7 @@
 
 #include "vr_drips.hpp"
 #include "vr_playergore.hpp"
+#include "vr_playerhit.hpp"
 #include "vr_animrec.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_dynres.hpp"
@@ -2404,6 +2405,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_agrunt_grab_bench", physics::grabBench_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
     Cmd_AddCommand("vr_gun_wall_depth", handpose::gunWallDepth_f);
+    playerhit::init(); // vr_hitzones_aim (vr_playerhit.cpp)
     hitmodel::registerDiagCommands(); // vr_hitmodel_bench, _stats, _check, vr_hitzones_check (vr_hitmodel_diag.cpp)
     qza::registerDiagCommands(); // vr_zancle_math_test (vr_zancle_diag.cpp)
     mem::registerDiagCommands(); // vr_resets: the registered resets listed, traced, checked (vr_mem_diag.cpp)

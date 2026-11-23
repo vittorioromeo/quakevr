@@ -17,6 +17,7 @@
 #include "vr_geom.hpp"
 #include "vr_hands.hpp"
 #include "vr_hull.hpp"
+#include "vr_playerhit.hpp"
 #include "vr_progs.hpp"
 #include "vr_slide.hpp"
 #include "vr_testkit.hpp"
@@ -2636,6 +2637,10 @@ extern "C" int VR_LeanHitBoxes(edict_t* touch, float (*boxes)[6])
        static_cast<int>(touch->v.solid) == SOLID_NOT)
     {
         return 0;
+    }
+    if(playerhit::Shape s; playerhit::serverShape(touch, s))
+    {
+        return 0; // (hitzones: his body as drawn, leant as he leans, is what shots meet: vr_playerhit.cpp)
     }
     const int ofs = progs::fields().headpos;
     if(ofs < 0)
