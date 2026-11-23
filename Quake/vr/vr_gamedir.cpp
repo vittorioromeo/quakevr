@@ -1038,6 +1038,12 @@ extern "C" const char* VR_CampaignStartMap(int index)
 extern "C" int VR_CampaignFolderOnlyWhenActive(int index) { return index >= 3 && index < int(countof(campaigns)); }
 extern "C" int VR_SelectCampaignNoMap(int index)
 { return !VR_CampaignUnavailable(index) && selectCampaign(index, false, false, false) ? 1 : 0; }
+// (vr_scenario's add-on maps: an experimental campaign is selected the developer's way, as `vr_campaign_native` and a
+// -game start do; VR_SelectCampaignNoMap refuses it, so once another campaign was selected AD's maps were never found.)
+extern "C" int VR_SelectCampaignNoMapNative(int index)
+{
+    return VR_CampaignInstalled(index) && selectCampaign(index, index >= 3 && !campaigns[index].nativeReady, false, false) ? 1 : 0;
+}
 extern "C" void VR_GameFolderName(const char* path, char* out, size_t size) { gameFolderName(path, out, size); }
 
 extern "C" void VR_BeforeAddGameDirectory(const char* dir)

@@ -1608,6 +1608,9 @@ QVR_TUNABLE(vr_dmg_axe, "20") // the axe's blow
 QVR_TUNABLE(vr_dw_lance_thrust, "1.5") // Dwell's Crystal Lance held as a lance: a thrust (a stab) landing with its crystal head, times its blow's damage (QC dw_items.qc DW_LanceMelee)
 QVR_TUNABLE(vr_dw_lance_poke, "0.4")   // ... a stab landing on its shaft short of the head: a poke, times its blow's damage
 QVR_TUNABLE(vr_dw_lance_head, "0.55")  // ... where its head starts: the share of the line from the hand to the tip
+QVR_TUNABLE(vr_dw_lance_charge, "1")   // ... its shot charged: s the trigger is held before it fires as it is let go (QC dw_items.qc DW_LanceChargeFrame; 0: fires on the pull)
+QVR_TUNABLE(vr_dw_lance_charge_fade, "0.25") // ... a charge let go short: s its sparks, light and hum fade out over (vr_lancecharge.cpp)
+QVR_TUNABLE(vr_dw_lance_bolt, "0.35")  // ... s its fired bolt lingers (vr_lancecharge.cpp beamLife; Quake's beam 0.2)
 QVR_TUNABLE(vr_dmg_gun_bash, "12") // a gun swung as a club
 QVR_TUNABLE(vr_dmg_chainsaw_swing, "26") // an ogre's chainsaw swung (its running chain: vr_chainsaw_damage)
 QVR_TUNABLE(vr_dmg_mjolnir, "25") // Mjolnir's blow
@@ -2083,7 +2086,8 @@ QVR_TUNABLE(vr_flat_mantle_hand_spread, "14") // flatscreen mantle: the hands on
 QVR_TUNABLE(vr_flat_ladder_speed, "100") // flatscreen ledge ladder (vr_flat_ladder): how fast he climbs up or down it (units/s, 20..400)
 QVR_TUNABLE(vr_flat_ladder_look_down, "35") // flatscreen ledge ladder: looking down further than this (degrees, 0..90), forward climbs down
 QVR_TUNABLE(vr_flat_ladder_push, "120") // flatscreen ledge ladder: jump pushes off it at this speed away from it (units/s, 0..600; and half that up)
-QVR_TUNABLE(vr_flat_rope_look, "25") // flatscreen ropes (vr_flat_rope): looking up (down) further than this (degrees, 5..80), forward climbs up (down) the rope; within it the move keys pump its swing
+QVR_TUNABLE(vr_flat_rope_look, "25") // flatscreen ropes (vr_flat_rope): walking into a rope takes it looking no further down than this (degrees, 5..80); with vr_flat_rope_keys 1, looking up (down) further than this, forward climbs up (down) the rope, within it the move keys pump its swing
+QVR_TUNABLE(vr_flat_rope_keys, "0") // flatscreen ropes and poles (ropes8a, his note 2026-11-23): 0 forward always climbs up and back down, whatever the view's pitch, the strafe keys pump the swing (sideways to the view); 1 as before ropes8a: looking up or down past vr_flat_rope_look forward climbs, nearer level the move keys pump
 QVR_TUNABLE(vr_flat_ladder_reach, "16") // flatscreen ledge ladder: how far ahead of his box's front its rungs are looked for (units, 4..48)
 QVR_TUNABLE(vr_flat_hand_collide, "1") // flatscreen: empty hands (the guard, at rest) go back off walls and props as a held weapon does, and a punch or a weapon's swing stops at the surface (vr_flatplay.cpp handOffWall, vr_flatsight.cpp pushBack; 0: they go through, as before)
 QVR_TUNABLE(vr_flat_swing_wind_strikes, "0") // 1: the overhead swing's windup (the raise) may land a blow on what it passes (it knocked a near knight out of the strike's way); 0: only from its top on

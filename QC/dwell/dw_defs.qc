@@ -40,6 +40,13 @@ nosave float vr_grab_dwvar; // VR_WeaponGrabbable_Make: the variant the placed w
 float(entity targ, entity attacker, float damage, float isVRMelee) DW_DamageScale; // T_DamageImpl: berserk
 void(entity xPickup, entity p, float xHand) DW_VariantGiven;                      // weapon_touch
 float(float xHand, float* xOutAttackFinished) DW_FireVariant;                     // W_Fire_*: TRUE fired
+float(float xHand) DW_LanceInHand;                                                // FrameDrawLightningTrail: no stream
+float(float xHand) DW_LanceCharged;                                               // W_WeaponFrameImpl: charged shots
+float(float xHand, float xPressed) DW_LanceChargeFrame;                           // ...: TRUE fire now
+// The Crystal Lance's charge (lancecharge, dw_items.qc): vr_ad_test 224 holds the trigger itself (dw_lc_test: its
+// press in dw_lc_test_press, every hand); the charges begun, let go short and fired (the tests).
+float dw_lc_test, dw_lc_test_press;
+float dw_lc_starts, dw_lc_cancels, dw_lc_fires;
 float(float xWid) DW_VariantFor;                                                  // VR_AG_ShootProp
 string(float xVar) DW_VariantName;                                                // VR_AG_NameOf
 string(float xWid, entity xInst) DW_WeaponModel;                                  // AD_WeaponModel: its VR model or ""

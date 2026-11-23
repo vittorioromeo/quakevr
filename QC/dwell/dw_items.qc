@@ -436,6 +436,108 @@ float(float xHand, float* xOutAttackFinished) DW_FireVariant =
     return TRUE;
 };
 
+// The Crystal Lance as a charged shot (lancecharge; his note 2026-11-23: the trigger held repeated the beam's look while
+// its damage came in pulses). The trigger held charges it over vr_dw_lance_charge s (the client gathers violet sparks
+// and a growing light at its crystal tip, with a rising hum: vr_lancecharge.cpp); let go short of full, the charge
+// fades out (no shot, no cells); let go full, it fires (DW_FireVariant through W_Attack: 6 cells, the beam, which the
+// clients leave lingering vr_dw_lance_bolt s). Every client hears of each charge begun, let go short or fired
+// (QVR_SVC_LANCECHARGE: [short player][byte hand][byte 1 charging, 0 let go short, 2 fired][byte its seconds * 50]),
+// so the others see it on his copy's Lance. vr_dw_lance_charge 0: it fires as the trigger is pulled (each 1.4 s held).
+// An armed grunt's Lance fires at once (VR_AG_ShootProp calls DW_FireVariant itself).
+.float dw_lc0, dw_lc1;     // each hand's charge (0 .. 1)
+.float dw_lc_t0, dw_lc_t1; // when it was last advanced (a frame skipped longer: forgotten)
+.float dw_lc_s0, dw_lc_s1; // when it began (the developer print's time to full)
+
+// The weapon in `xHand` is the Crystal Lance (its gun's shot: the primary ammo).
+float(float xHand) DW_LanceInHand =
+{
+    if(VRGetWeapon(xHand) != WID_LIGHTNING || (VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)) { return FALSE; }
+    entity inst = VRGetEntWeaponInst(self, xHand);
+    return inst != world && inst.wi_dwvar == DW_VAR_LANCE;
+};
+
+float(float xHand) DW_LanceCharged =
+{
+    return cvar_hget(cvarh_vr_dw_lance_charge) > 0 && DW_LanceInHand(xHand);
+};
+
+// Its 6 cells are there (as delAmmoOrClipAndUpdateCounter pays them: the clip, else the pouch).
+float(float xHand) DW_LanceCanPay =
+{
+    float have = VRIsWeaponReloadingEnabledFor(self, xHand) ? VRGetWeaponClip(xHand) : VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_CELLS);
+    return have >= 6;
+};
+
+void(float xHand, float xState) DW_LanceChargeSend =
+{
+    WriteByte(MSG_ALL, 39); // svc_quakevr
+    WriteByte(MSG_ALL, 56); // QVR_SVC_LANCECHARGE
+    WriteEntity(MSG_ALL, self);
+    WriteByte(MSG_ALL, xHand);
+    WriteByte(MSG_ALL, xState);
+    WriteByte(MSG_ALL, rint(min(255, max(1, cvar_hget(cvarh_vr_dw_lance_charge) * 50))));
+};
+
+// W_WeaponFrameImpl, each frame the hand may attack (its refire over), the Lance in `xHand` (DW_LanceCharged), its
+// trigger `xPressed`: the charge advanced, begun or let go. TRUE: attack now (let go fully charged). The trigger held
+// without its 6 cells: no charge, the empty click.
+float(float xHand, float xPressed) DW_LanceChargeFrame =
+{
+    float off = xHand == cVR_OffHand;
+    float charge = off ? self.dw_lc0 : self.dw_lc1;
+    float last = off ? self.dw_lc_t0 : self.dw_lc_t1;
+    float began = off ? self.dw_lc_s0 : self.dw_lc_s1;
+    float dt = time - last;
+    if(dt > 0.25 || dt < 0) { charge = 0; } // (not advanced since: the refire, the weapon away, a load)
+    float full = charge >= 1;
+    float fire = FALSE;
+    if(xPressed && !DW_LanceCanPay(xHand))
+    {
+        if(charge > 0) { DW_LanceChargeSend(xHand, 0); dw_lc_cancels++; }
+        charge = 0;
+        // The empty click, as W_AttackImpl's (its W_CheckNoAmmo lets a few cells through: the shot then refused).
+        sound(self, VRGetHandChannel(xHand), "gunclick.wav", 1, ATTN_NORM);
+        VRSetAttackFinished(xHand, time + 0.5);
+    }
+    else if(xPressed)
+    {
+        if(charge <= 0)
+        {
+            DW_LanceChargeSend(xHand, 1);
+            dw_lc_starts++;
+            began = time;
+            dprint(sprintf("dwlance: charging (hand %g, %.2f s)\n", xHand, cvar_hget(cvarh_vr_dw_lance_charge)));
+        }
+        // (full vr_dw_lance_charge s after it began; above 0 from its first frame: begun)
+        charge = min(1, max(0.001, (time - began) / max(0.05, cvar_hget(cvarh_vr_dw_lance_charge))));
+        if(charge >= 1 && !full)
+        {
+            VRGunHaptic(xHand, 0.12, 120, 0.5); // (charged: a tick in the hand)
+            dprint(sprintf("dwlance: charged (hand %g) after %.3f s\n", xHand, time - began));
+        }
+    }
+    else if(charge > 0)
+    {
+        if(full)
+        {
+            DW_LanceChargeSend(xHand, 2);
+            dw_lc_fires++;
+            fire = TRUE;
+            dprint(sprintf("dwlance: let go charged (hand %g): the shot\n", xHand));
+        }
+        else
+        {
+            DW_LanceChargeSend(xHand, 0);
+            dw_lc_cancels++;
+            dprint(sprintf("dwlance: let go at %.2f (hand %g): no shot\n", charge, xHand));
+        }
+        charge = 0;
+    }
+    if(off) { self.dw_lc0 = charge; self.dw_lc_t0 = time; self.dw_lc_s0 = began; }
+    else    { self.dw_lc1 = charge; self.dw_lc_t1 = time; self.dw_lc_s1 = began; }
+    return fire;
+};
+
 // ---------------------------------------------------------------------------------------------------------------------
 // World: misc_crystal (a crystal cluster's model by its style 1-8, turned by `mangle`), func_fade (a brush fading in as
 // a player comes near: `alpha` near, `alpha2` far, between 192 and 384 units; used, it fades out or back), and

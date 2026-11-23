@@ -83,7 +83,7 @@ void CL_ParseBeam (qmodel_t *m)
 			b->entity = ent;
 			b->model = m;
 			b->starttime = cl.time - 0.001;
-			b->endtime = cl.time + 0.2;
+			b->endtime = cl.time + VR_BeamLife (ent); // QVR: (0.2; the Crystal Lance's bolt lingers)
 			VectorCopy (start, b->start);
 			VectorCopy (end, b->end);
 			return;
@@ -97,7 +97,7 @@ void CL_ParseBeam (qmodel_t *m)
 			b->entity = ent;
 			b->model = m;
 			b->starttime = cl.time - 0.001;
-			b->endtime = cl.time + 0.2;
+			b->endtime = cl.time + VR_BeamLife (ent); // QVR: (0.2; the Crystal Lance's bolt lingers)
 			VectorCopy (start, b->start);
 			VectorCopy (end, b->end);
 			return;

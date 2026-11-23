@@ -53,3 +53,17 @@ void() vr_pole =
 {
     VR_Rope_Setup(0);
 };
+
+// (ropes8a) A climbing pole's collision box: the engine (vr_climbrope.cpp placeSolids) makes one or more along each pole,
+// sizes them, keeps them with it and frees them with it; "goalentity" its pole, "rope_style" 1 metal. Solid to bodies
+// (players, monsters; the climber on it passes: its owner), met by shots, nails and blows (takedamage, never dealt any:
+// T_DamageImpl), which throw sparks off metal and splinters off wood (VR_MaterialOf). The navmesh cuts it out
+// (vr_nav.cpp, its props' obstacles).
+void() vr_pole_solid =
+{
+    self.solid = SOLID_BBOX;
+    self.movetype = MOVETYPE_NONE;
+    self.takedamage = DAMAGE_YES; // (not DAMAGE_AIM: nothing aims at it)
+    self.modelindex = 0;
+    setorigin(self, self.origin);
+};

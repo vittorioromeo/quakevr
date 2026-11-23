@@ -48,6 +48,7 @@
 #include "vr_handpose.hpp"
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
+#include "vr_lancecharge.hpp"
 #include "vr_lighting.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
@@ -1183,6 +1184,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_XRAY: arenaxray::parseEvent(); break;
         case QVR_SVC_HUMLOOK: humlook::parseEvent(); break;
         case QVR_SVC_CLIMBROPE: climbrope::parse(); break;
+        case QVR_SVC_LANCECHARGE: lancecharge::parse(); break; // Dwell's Crystal Lance's charge (vr_lancecharge.cpp)
         case QVR_SVC_GORESOUND: goresound::parseEvent(); break;
         case QVR_SVC_WEAPONGONE: wounds::parseWeaponGone(); break;
         case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;
@@ -1472,6 +1474,11 @@ extern "C" int VR_BeamGone(int ent)
     }
     Con_DPrintf("beam: the %s hand's lightning ended: its gun left the hand\n", id == HAND_MAIN ? "main" : "off");
     return 1;
+}
+
+extern "C" float VR_BeamLife(int ent)
+{
+    return lancecharge::beamLife(ent);
 }
 
 // The player's own beams follow the gun as drawn, every frame, rather than where the server last

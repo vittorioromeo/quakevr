@@ -614,6 +614,7 @@ void VR_RelinkHeld (void);								// end of CL_RelinkEntities: the local player'
 float VR_BeamScale (struct qmodel_s *model);				// CL_UpdateTEnts: scale of a beam's segments
 int VR_UpdateBeam (int ent, float *start, float *end);	// CL_UpdateTEnts: moves the player's own beams with the gun; nonzero: a rope (no random roll)
 int VR_BeamGone (int ent);								// CL_UpdateTEnts: nonzero if a hand's lightning outlived its gun there (thrown, dropped, holstered): ended at once
+float VR_BeamLife (int ent);							// CL_ParseBeam: seconds a new beam keyed `ent` is drawn (Quake's 0.2; Dwell's Crystal Lance's bolt lingers: vr_lancecharge.cpp)
 int VR_DrawRope (int ent, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a grappling hook's rope, drawn in one piece along its curve (vr_rope.cpp); zero if the beam is not one (drawn as any beam)
 void VR_ForgetEndedRopes (void); // CL_UpdateTEnts, before the beams: the ropes whose beams ended forgotten, the frame's ropes put anew
 void VR_BeamLights (int index, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a lightning beam lights the room along its length (vr_beam_lights)
@@ -1006,6 +1007,7 @@ const char *VR_CampaignFolder(int index);
 const char *VR_CampaignStartMap(int index);
 int VR_CampaignFolderOnlyWhenActive(int index);	// its folder searched only while it is the active campaign (dopa, mg1, mg3)
 int VR_SelectCampaignNoMap(int index);			// made the active one, no map started (0: it cannot be played; nothing changed)
+int VR_SelectCampaignNoMapNative(int index);	// the same, an experimental one (AD, Dwell, Quoth) too, as vr_campaign_native (tests)
 void VR_GameFolderName(const char *path, char *out, size_t size); // a search path's game folder ("C:/Quake/hipnotic/pak0.pak": hipnotic)
 int VR_SaveCampaign(const char *text);			// a save's campaign (vr_save_campaign), -1 if VR_CanLoadCampaignSave would refuse it (quiet)
 const char *VR_CampaignTitle(int index);		// "Quake", "Scourge of Armagon", ...

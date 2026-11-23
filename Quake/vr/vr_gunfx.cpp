@@ -1294,6 +1294,11 @@ void shot(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports, int s
     (void)emit(wid, m, shooter, adBurst, ports, slot);
 }
 
+bool drawnMuzzle(const view::ViewEntity& w, int slot, Muzzle& m)
+{
+    return slot >= 0 && w.ent.model && muzzleOf(w, slot, m);
+}
+
 void playerFired(int hand)
 {
     if(hand >= 0 && hand < 2)
