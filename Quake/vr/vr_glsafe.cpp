@@ -12,7 +12,8 @@
 //   - "-glsafe" or "vr_glsafe 1" (read before the window opens): this run.
 //   - automatic: the last start's gl_startup.log has no end line (it died before its first map was drawn) and it
 //     crashed (the crash handler's "== crashed"), or died within 20 s of its shaders without a report (a driver killing
-//     the process); a start stopped during a shader compile, after >= 10 s of them or after living on is not counted
+//     the process; never on Android, where a process gone without a report was stopped by the system or the player);
+//     a start stopped during a shader compile, after >= 10 s of them or after living on is not counted
 //     (judgeLastStart; said in the log): this start is in safe mode, and says so. Kept on later starts while a start in it ends well (a release
 //     build; a dev build tries the full renderer again next time) until "vr_glsafe_retry" (Debug > Startup). Never in
 //     automated test runs (QVR_NO_ERROR_DIALOG, QVR_TEST_HIDDEN); "-noglsafe" turns it off.
@@ -234,7 +235,11 @@ LastStart readLastStart(const char* path)
 }
 
 // What the last start says about this one: 1 automatic safe mode, 0 not (`why` says which and why; "" nothing to say).
-bool judgeLastStart(const LastStart& last, char* why, za::SizeT whySize)
+// reportOnly (Android): only a crash report counts. A process gone without one there was stopped by the system or the
+// player (closed from the headset's menu, a force-stop, the memory killer; a signal, a driver's abort included, reaches
+// the crash handler), never the GL failing: a start closed right after its long first compile turned safe mode on
+// (hubcrash, 2026-11-24).
+bool judgeLastStart(const LastStart& last, char* why, za::SizeT whySize, bool reportOnly)
 {
     why[0] = 0;
     if(!last.exists || last.ended)
@@ -246,6 +251,12 @@ bool judgeLastStart(const LastStart& last, char* why, za::SizeT whySize)
         q_snprintf(why, whySize, "on (automatic: the last start crashed before its first map, in \"%s\")",
             last.lastStep[0] ? last.lastStep : "?");
         return true;
+    }
+    if(reportOnly)
+    {
+        q_snprintf(why, whySize, "off (the last start ended %.0f s in, before its first map, without a crash report: stopped "
+                                 "by the system or the player, not counted)", last.lastMs / 1000.0);
+        return false;
     }
     const double shaderMs = last.shaderMs + (last.inSet ? last.lastMs - last.shaderBeganMs : 0.0);
     if(last.inShaders)
@@ -476,7 +487,7 @@ extern "C" void VR_GLStartupBegin(void)
 
     const bool autoAllowed = !COM_CheckParm("-noglsafe") && !testRun();
     char judged[sizeof(glsafe.why)];
-    const bool counted = judgeLastStart(last, judged, sizeof(judged));
+    const bool counted = judgeLastStart(last, judged, sizeof(judged), VR_Android() != 0);
     if(COM_CheckParm("-glsafe"))
     {
         glsafe.safe = 1;
@@ -1643,6 +1654,7 @@ void judgeTest_f()
         const char* name;
         const char* log;
         bool counted;
+        bool android = false; // judged as on Android (only a crash report counts)
     };
     const Case cases[] = {
         {"ended well", "    0.0 ms  safe mode: off\n  900.0 ms  shaders: set 1 begun (start-up)\n== ended: the first map drawn\n", false},
@@ -1656,6 +1668,10 @@ void judgeTest_f()
         {"an old log stopped in a compile", "    0.0 ms  safe mode: off\n 45000.0 ms  compile alias fragment shader\n", false},
         {"an old log, a quick death", "    0.0 ms  safe mode: off\n  700.0 ms  link world\n  800.0 ms  framebuffers (GL_CreateFrameBuffers)\n", true},
         {"no log", "", false},
+        // Android (reportOnly): only the crash handler's line counts
+        {"android: crashed", "  500.0 ms  shaders: set 1 begun (start-up)\n 2500.0 ms  shaders: set 1 done in 2000 ms\n 2600.0 ms  frame 1: swap\n== crashed\n", true, true},
+        {"android: closed after the shaders", "  500.0 ms  shaders: set 1 begun (start-up)\n 2500.0 ms  shaders: set 1 done in 2000 ms\n 2600.0 ms  done: signon prewarm: translucent decal programs\n", false, true},
+        {"android: closed before the shaders", "    0.0 ms  safe mode: off\n   80.0 ms  GL_VENDOR x; GL_RENDERER y; GL_VERSION z\n", false, true},
     };
     testkit::Tally t;
     for(const Case& c : cases)
@@ -1663,7 +1679,7 @@ void judgeTest_f()
         LastStart r;
         parseLastStartText(r, c.log);
         char why[256];
-        const bool counted = judgeLastStart(r, why, sizeof(why));
+        const bool counted = judgeLastStart(r, why, sizeof(why), c.android);
         Con_Printf("  %-32s %s\n", c.name, why[0] ? why : "(nothing to say)");
         t.check(counted == c.counted, "vr_glsafe_judge_test", va("%s: %s, not %s", c.name, counted ? "counted" : "not counted",
                                                                   c.counted ? "counted" : "not counted"));

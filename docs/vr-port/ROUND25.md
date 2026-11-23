@@ -11554,6 +11554,34 @@ beta2's re-signed APK and the shipped progs.dat (8a409520...) back. Scripts (not
   `Android/data/com.vittorioromeo.quakevr/files/quakevr`'s `*.sav` + `ironwail.cfg`, uninstall, Setup, copy back).
   Quest 3S untested (a hub-crash report being looked at); Standalone experimental.
 
+## hubcrash: beta2's Quest crash entering the hub; a closed start no longer turns safe mode on (agent/hubcrash, 2026-11-24)
+
+- **The reports** (the 3S player's, his Quest 3's logcat 22:47:43 and 22:48:08; libquakevr ca0f587a, beta2): SIGSEGV
+  0x30 in libGLESv2_adreno under xrEndFrame from VR_RenderView, i.e. in the hub's first eye frames. The 3S's safe mode
+  is a **consequence**, not the cause: its trigger was a real `== crashed` (the previous start crashed the same way,
+  before its first map counted as drawn), and the start in safe mode crashed again. His two crashes came 26 and 20 s
+  after launch, the end of a cold shader compile.
+- **Safe mode on the Quest** changes only clip control (reversed Z: shadows, reflections, portals off), MSAA (0 there
+  anyway), debug output and the shadow atlas cap; persistent buffers stay. It doesn't touch the eyes' path or the
+  swapchains (foveation follows the images since qfovcrash).
+- **Headset** (Quest 3, 00:03-00:26; every launch `-noconfigwrite -unattended`, `resetcfg; vr_standalone_preset 0;
+  map vrtutorial`, 2000 frames there, verdict `HC DONE`). beta2: `-glsafe` (warm), `-noglsafe` with a cold compile
+  (`-glesdefine` new: 19 s, the session started early, 24 panel frames), a warm start with a system-menu key: **no crash**
+  (not reproduced unworn). next: `-glsafe` with a cold compile (form 2 straight in, foveation 3): no crash. So the hub
+  crash is **not reproduced**; next (qfovcrash and the later eye-path fixes) is not known to have it, but a worn headset
+  (real focus changes, the guardian at start) was not tested.
+- **The false trigger, found on next**: a start force-stopped ~10 s into its first compile turned the next start's safe
+  mode on: "the last start ended 19 s in, before its first map, without a crash report, after `done: signon prewarm:
+  translucent decal programs`" (judgeLastStart's quick-death rule, meant for a PC driver killing the process). **Fix**
+  (vr_glsafe.cpp): on Android only a crash report counts (`judgeLastStart(..., reportOnly)`): a process gone without
+  one was closed by the player or the system (a signal, a driver abort included, reaches the crash handler). The PC
+  keeps the rule. vr_glsafe_judge_test 14/0 (3 Android cases added). Headset, the fixed APK: killed in its compile,
+  the next start "GL safe mode off (... without a crash report: stopped by the system or the player, not counted)".
+- **The first start's wait** is already visible in the headset: the loading panel ("Compiling shaders: n / N", 24-76
+  frames in the headset in these runs; the session starts early for it).
+- **Not changed**: the auto safe mode stays kept (release builds) after a start in it ends well, so a player already in
+  it (the 3S) stays there until Debug > Startup > Retry Full Renderer (`vr_glsafe_retry`). APK 0 warnings, check_apk
+  20/0. beta2's re-signed APK and the shipped progs.dat (8a409520) put back. Scripts (not committed): `scratch/hc/`.
 ## tutfix1123: the tutorial always single player; lesson 13's spike battable, its black stripes; lit alcove; hall 15's walls (agent/tutfix1123, 2026-11-24)
 
 His voice notes vrtutorial_2026-11-23_23-07-33 .. 23-13-43.
