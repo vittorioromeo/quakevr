@@ -43,11 +43,11 @@
 
 #include "Zancle/Base/Memchr.hpp"
 #include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Chrono/Time.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/Vector.hpp"
 
-#include <chrono>
 #include <stdio.h>
 
 namespace
@@ -139,10 +139,9 @@ constexpr double restTime = 0.25;  // s still before a move counts as one from r
 constexpr float stillEps = 0.25f;  // units a frame that still counts as still
 constexpr float posStep = 32.f;    // units of travel between mp_pos lines
 
-[[nodiscard]] long long wallMs()
+[[nodiscard]] long long wallMs() // epoch milliseconds: compared across processes (za::Clock::now's epoch is unspecified)
 {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
+    return za::Clock::nowUnixNanoseconds() / 1'000'000; // (system_clock's, truncated as duration_cast did)
 }
 
 // The new whole lines of the inbox, to the command buffer.

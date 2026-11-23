@@ -46,7 +46,6 @@
 #include <windows.h>
 #include <objbase.h> // (CoInitializeEx: the microphone opened on a worker)
 #endif
-#include <chrono>
 #include <math.h>
 #include <stdlib.h>
 
@@ -75,10 +74,9 @@ constexpr int hangFrames = 20;                 // voice activation: frames sent 
 constexpr int voiceEntChannel = 1000;          // the voices' sound channel on the speaker's entity (none of the game's)
 constexpr double meterLevelFloor = -50.0, meterLevelSpan = 30.0; // dBFS: denoise off, the level as a voice probability
 
-[[nodiscard]] long long wallMs()
+[[nodiscard]] long long wallMs() // epoch milliseconds: compared across processes (za::Clock::now's epoch is unspecified)
 {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
-        .count();
+    return za::Clock::nowUnixNanoseconds() / 1'000'000; // (system_clock's, truncated as duration_cast did)
 }
 
 // ---- Sending -------------------------------------------------------------------------------------------------------
