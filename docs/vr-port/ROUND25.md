@@ -10529,3 +10529,24 @@ limits", "Tests".
   positions, tallies, vr_mp_* keys and room, debug aids (scr_showfps, Spawn With a Toolgun, controller preview).
 - **Tests:** flatspeedfov 7/0, flatbash 15/0, tunables_test 13/0, vr_agrunt_test 83 PASS; a default-config run prints
   each promoted value as its default.
+## ropes11: the same pole taken again after a jump; the slow slide was the pole's boxes (agent/ropes11, 2026-11-23)
+
+His correction 2026-11-23 to ropes10 item 6 ("grab the same pole/rope again after jumping"; "a friction-based collision
+issue rather than regrabbing"). ROPES.md "Climbing (flat-screen)", "Poles", "Tests".
+- **Regrab (1):** ropes10's `flatRopeLeftAir` is gone; the rope let go of is only not taken again for
+  `vr_flat_rope_retake` (0.3 s, tunable, Debug > Tunables; was a fixed 1 s), then taken again in the air or walked into.
+  A jump off with forward still held is steered back by the air control and taken again ~0.4 s later (by design now).
+- **The slide (2), reproduced:** `vr_pole_fall_test` logs each airborne frame (speed, ground entity, the nearest pole box's
+  gap, pass bit). Upright: a body in a pole box by 0.3-0.45 units (under `solidInside` 0.5) was neither let through nor
+  free: every move started in it, his speed grew to -2000 while he crept down 0.15 units a frame (a gravity step).
+  Slanted: he stood (or crept along, forward held) on the ledges of its boxes' staircase. The speed alone looked free;
+  the test now also checks he goes down by as much as his speed says.
+- **Fix:** `solidInside` 0 (any overlap lets him out; a body stopped at a face is DIST_EPSILON off it, so ropes8e's
+  walk-through stays fixed: wall/wallvr pass); `solidLedge`: a pole too steep to stand on (its axis' level share under
+  0.7) has its inner box tops/bottoms passed by players (SV_ClipToLinks' `VR_PoleSolidLedge`, world.c; the clients'
+  prediction in `clientSolidTrace` the same), so he falls on beside it at gravity's pace while the side faces stop him
+  level. Shots and monsters keep every face (they would stick inside). Level poles keep their tops, upright ones the cap.
+- **Tests:** pole_fall_test.sh upright 21/0, slant 21/0 (before: 3 and 6 failed, the regrab case both), mock headset
+  upright 11/0, slant 11/0; rope_flat_test rope 8/0, pole 7/0, polejump 7/0, slantjump 6/0, wall 1/0, wallvr 1/0,
+  strungpole 5/0; rope_climb_test pole_jump 6/0, rope_jump 6/0, pole_wood 10/0, monkey_jump 7/0; vr_pole_solid_test
+  14/0; mp_test.py pole 15/0. Not run: an MP free-fall scenario (prediction shares solidInside/solidLedge).

@@ -1404,7 +1404,6 @@ struct Climber
     int flatRopes{0};                // rope climbs it started (vr_rope_flat_test)
     int flatRopeLeft{0};             // the rope it last let go of, and when (not taken again for flatRopeRetake)
     double flatRopeLeftAt{-1.0};
-    bool flatRopeLeftAir{false};     // (ropes10) off it and not yet on the ground since: not taken again in the air (flatRopeRetake)
     // (ropes6) A headset's pulls up a rope (ropePullGrunt): each hand's rope grip last seen (its serial), the newest
     // grip's hand and the body's height over its hold as it took it, whether its pull has grunted, when the next grunt
     // may come, and the grunts so far (the tests').
@@ -2838,7 +2837,6 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
         {
             c.flatRopeLeft = c.grips[1].rope ? c.grips[1].entNum : c.grips[0].entNum;
             c.flatRopeLeftAt = time;
-            c.flatRopeLeftAir = true;
         }
         letGoAll(c);
         c.flatLadder = false;
@@ -4262,7 +4260,14 @@ int flatLadderFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
 constexpr float flatRopeGap = 10.f;    // units: the rope this far ahead of the box's middle (the chest's front)
 constexpr float flatRopeStep = 12.f;   // units along the rope: a hand's new hold past the other's
 constexpr float flatRopeTurn = 120.f;  // units/s the body goes round the rope (turning) or in under it at most
-constexpr float flatRopeRetake = 1.f;  // seconds the rope let go of isn't taken again (off one, the next one is taken)
+
+// Whether the rope let go of (flatRopeLeft) is still not taken again: for vr_flat_rope_retake seconds (off one, the next
+// one is taken). (ropes11, his note 2026-11-23: he wants to grab the same pole again after jumping off; ropes10 kept it
+// until he stood on the ground, for a slow slide down a pole that was its boxes holding him, vr_pole_fall_test)
+[[nodiscard]] bool flatRopeRetake(const Climber& c, int rope, double time)
+{
+    return rope == c.flatRopeLeft && time - c.flatRopeLeftAt < za::clamp(vr_flat_rope_retake.value, 0.f, 2.f);
+}
 
 constexpr float flatRopeBlend = 5.f; // (ropes9) degrees either side of vr_flat_rope_climb_pitch: the pump eases into the climb
 
@@ -4356,12 +4361,6 @@ void ropeTake(edict_t* ent, Climber& c, const VrMove& move, int h, const climbro
 // takes it: the main hand half an arm over the shoulders, the off hand flatRopeStep under it.
 void flatRope(edict_t* ent, Climber& c, const VrMove* move, double time)
 {
-    // (ropes10, his note 2026-11-23: off a tall pole, a second into the fall it was taken again: held there, or climbed
-    // down at the keys' speed, a slow slide) The rope let go of is taken again only once he has stood on the ground.
-    if((static_cast<int>(ent->v.flags) & FL_ONGROUND) != 0 || ent->v.waterlevel >= 2.f)
-    {
-        c.flatRopeLeftAir = false;
-    }
     if(!move || vr_flat_rope.value == 0.f || vr_rope_climb.value == 0.f || !hull::isFlat(ent) || ent->v.waterlevel >= 2.f ||
         time < c.noGrabUntil)
     {
@@ -4389,7 +4388,7 @@ void flatRope(edict_t* ent, Climber& c, const VrMove* move, double time)
     }
     climbrope::Grab grab;
     if(!climbrope::findGrab(glm::vec3{origin.x, origin.y, shoulder.z}, reach, grab) || climbrope::monkey(grab.ent) ||
-        (grab.ent == c.flatRopeLeft && (time - c.flatRopeLeftAt < flatRopeRetake || c.flatRopeLeftAir)) ||
+        flatRopeRetake(c, grab.ent, time) ||
         grab.at.z < origin.z + ent->v.mins[2] + vr_climb_min_height.value || grab.at.z > shoulder.z + armReach())
     {
         return;
@@ -4447,7 +4446,7 @@ bool flatMonkeyTake(edict_t* ent, Climber& c, const VrMove& move, double time, c
     const int client = NUM_FOR_EDICT(ent) - 1;
     climbrope::Grab grab;
     if(!climbrope::findGrab(glm::vec3{origin.x, origin.y, shoulder.z + 0.5f * armReach()}, reach, grab) || !climbrope::monkey(grab.ent) ||
-        (grab.ent == c.flatRopeLeft && (time - c.flatRopeLeftAt < flatRopeRetake || c.flatRopeLeftAir)) || grab.at.z < shoulder.z ||
+        flatRopeRetake(c, grab.ent, time) || grab.at.z < shoulder.z ||
         grab.at.z > shoulder.z + armReach())
     {
         return false;
