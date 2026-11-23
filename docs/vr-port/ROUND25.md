@@ -11017,6 +11017,50 @@ His list of 2026-11-23 (ZANCLE.md has the mapping rows). Zancle changes on its b
 - Full rebuild (`-t:Rebuild -m`, the machine busy, so noisy): before 13.2-21.9 s (3 runs: 17.7, 21.9, 13.2), after
   17.9-25.5 s (21.1, 17.9, 23.0, 25.5): about the same to a few seconds more (five Zancle sources and the dense map's
   header beside the std headers that stay: regex, format, filesystem). An edit rebuilds only its file.
+## qfov4: High foveation was never slower; the game's refocus removed; the Quest 3's Standalone takes High (branch agent/qfov4, 2026-11-23)
+
+His ask: why higher Quest Foveation levels were slower than Low (qfov3), and whether the cause also costs Low. Two headset
+blocks (16:11-16:45; the frozen gib fight, his config, retro off; beta2's APK and the shipped progs.dat back after each).
+- **It was the measurement.** qfov3's interleaved parts ran H after R (`vr_xr_foveation_refocus 1`), and the game's focal
+  points stay on an image once set (the same level takes no new swapchains, nothing reads the runtime's points back): that
+  H was R. qfov3's own clean H parts were its fastest (12.97, 13.18 ms). Clean (every part on new swapchains), GPU median
+  of 3 launches: none 18.15/16.64/17.54, Low 14.87/15.19/14.21, Medium 14.37/14.70/14.94, **High 14.10/12.90/13.33**,
+  High + dynamic 14.47/13.89/13.58; refocused Low/Medium/High 17.1-18.2 / 16.3-17.3 / 16.0-17.2 (as none).
+- **What the levels are** (`ovrgpuprofiler -t`, each bin's Fov scale): the driver foveates by whole bins, 864 x 448 of the
+  1680 x 1760 image (8; the size comes from the colour + D24S8 bytes, not the level), each at 1/1, 2/1 or 2/2, reduced
+  neighbours merged into one bin (min density 0.25 at every level). At 0.65 the eye covers 2 x 2.55 bins: Low and Medium
+  are the same bins (only the top strip, and the right eye's right strip, at 2/2); High also reduces the left eye's right
+  strip (2/1 and 2/2): ~0.8 ms. The bottom two rows (78% of the height: floor, your body, the gore; 4-5 fragments a
+  pixel) stay full at every level: one 864 x 448 bin there is 2.2-3.5 ms an eye, 42% of the frame.
+- **The focal point**: the runtime already centres on the rect submitted: the full bins follow the drawn part (rows 0-896
+  at 0.65, 448-1344 at 0.78 and 0.9). The
+  game's refocus (guessed gains, milder than the runtime's) left all six of the left eye's bins at 1/1: hence 2-3 ms
+  slower. **`vr_xr_foveation_refocus` is removed** (cvar, `refocusImage`, its two Debug > Profiling rows).
+- **Render scale and level** (block 2, 3 launches): High at 0.65 13.26/13.21/13.13, **at 0.78 13.00/13.14/12.76** (the
+  bottom bin row turns 2/2 there: 44% more pixels for nothing), at 0.9 14.58/15.16/14.68; **Low at 0.9
+  25.04/24.74/23.91** (next to nothing reduced: the pattern scales with the rect), Low at 0.65 14.09/14.12/13.78. Late
+  frames (>13.9 ms) at 0.65: Low 63-72%, High 57-60%.
+- **Ruled out, with the trace's counters**: bin size or count rising with the level (fewer bins at higher levels: 8
+  rendered with none, 5 + 4 at any level); overdraw rising with the level (the same fragments in a full bin at none,
+  Low, Medium, High); texture bandwidth (a 2/2 bin reads ~3x the texture bytes a fragment, the mip as at full size,
+  but less in all; texture stall 1-6%, non-base mips 0-27%); the framebuffer fetch (one Render stage a bin, no load);
+  the dynamic level (the trace shows High's bins while the GPU is busy).
+- **Found on the way, not fixed** (each costs Low too): (1) LRZ kills nothing in any path (LRZ Pixels Killed 0 through
+  the post-process, 952 pixels in a whole straight-in trace): cause unknown (reversed Z with clip control, the equal
+  test after the depth pre-pass, stencil?); try `-noclipcontrol` under a trace first. (2) Straight in shades twice the
+  fragments of the post-process path (3.9 vs 1.9 a pixel): the in-tile pass (+1 a pixel; his config needs it only for
+  `vr_dither`; without it High is 12.75/12.88/12.98: 0.15-0.5 ms) and the particles at full size (~0.1-0.3 ms here).
+  (3) A bin costs ~0.25-0.3 ms however few fragments. (4) The eye sits in the image's lower left corner, so only its
+  top and right edges are ever reduced at 0.65, and the bottom third at 0.78-0.9: drawing it centred on the bin grid
+  (an offset rect) would make the reduction symmetric; it needs the viewport's origin carried through the eye's passes.
+- **Default**: Standalone's `vr_xr_foveation` 3 (High) in the Quest 3's two columns, 1 kept in the Quest 2's (its bins
+  never measured). Eyeshots (pulled; crops at 2x): High at 0.65 (the left eye's lower right, 2/2) and at 0.9 (the right
+  eye's right column, 2/2) show the floor's and walls' texels with no blocks over them; model edges a little more
+  stepped. With dynamic resolution on, High lets the scale sit higher for the same GPU time.
+- PC: Release build, 0 warnings; e1m1 smoke (the removed cvar unknown, as meant); `vr_standalone_preset 0/1/2` gives
+  3/3/1. APK built (0 warnings, check_apk 20/0) and run on the headset through both blocks with no crash (level,
+  dynamic and scale changes mid-game). Scripts (not committed): `scratch/qfov4_*` (mk, trace, bins.py, ab3, block1/2,
+  crop.py), questperf's `qp_*`.
 
 ## frameport: the Steam Frame pieces of PR #75, by Kasper Olesen (agent/frameport, 2026-11-23)
 
