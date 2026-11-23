@@ -1650,7 +1650,7 @@ extern "C" int VR_RenderView()
     // acquired after the scene, or their old colours invalidated: with foveation they are acquired first, not invalidated.
     // (vr_xr_foveation_probe 1: late acquire and the invalidate allowed anyway, to narrow the crash: C4q, 6x)
     const int fovProbe = static_cast<int>(vr_xr_foveation_probe.value);
-    const bool xrFoveation = VR_Android() && vr_xr_foveation.value > 0.f && COM_CheckParm("-xrfoveation"); // (guarded)
+    const bool xrFoveation = VR_Android() && vr_xr_foveation.value > 0.f; // (no longer behind -xrfoveation: qfov3)
     const bool xrFoveated = xrFoveation && !(fovProbe & 1);
     // qfov: the runtime's foveation reaches the scene only drawn straight into the images, so with it the eyes are, with
     // framebuffers of each image's own and its depth renderbuffer (2; the tiler keeps it on chip, as Meta's samples do;

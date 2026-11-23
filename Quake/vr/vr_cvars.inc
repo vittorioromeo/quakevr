@@ -667,7 +667,7 @@ QVR_CVAR(vr_xr_foveation_dynamic, "0", CVAR_ARCHIVE)
 // (XR_SWAPCHAIN_CREATE_FOVEATION_SCALED_BIN_BIT_FB), 0 none (Meta's GLES sample's: the runtime's choice).
 QVR_CVAR(vr_xr_foveation_flags, "1", CVAR_NONE)
 // C4q (6x; a probe): bits narrowing the foveated images' crash in xrEndFrame: 1 late acquire and the image's invalidate
-// allowed with them (off with vr_xr_foveation and -xrfoveation since C4p), 2 the eye image released before it is detached
+// allowed with them (off with vr_xr_foveation since C4p), 2 the eye image released before it is detached
 // from the engine's framebuffer (the order before C4q).
 QVR_CVAR(vr_xr_foveation_probe, "0", CVAR_NONE)
 // C5's first path (QUEST_PLAN.md 6w; the ES profile only): 1 draws each eye's scene straight into its swapchain image

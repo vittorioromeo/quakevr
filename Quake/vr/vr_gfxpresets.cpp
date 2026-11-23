@@ -139,6 +139,9 @@ constexpr presetcore::Row standaloneRows[] = {
     // usual slow rise: questperf's gib fight at 0.55 held 72 Hz (12.0 ms, 1.1% late; 0.65: 15.8, 21%)
     {&vr_dynres_min_fight,            {"0.55",   "0",      "0"}},
     {&vr_upscale,                     {"0",      "0",      "0"}},     // bilinear: no full-size pass
+    // qfov3 (ROUND25): the runtime's fixed foveation, Low (the eyes then drawn straight into the headset's images, one
+    // render pass an eye): the gib fight 13.6-13.8 ms vs 15.9-17.3 through the post-process; Medium and High were slower
+    {&vr_xr_foveation,                {"1",      "1",      "1"}},
     {&vid_fsaa,                       {"0",      "0",      "0"}},     // off: 2x cost the Quest 3 ~100 ms a frame (C4e: e1m1 138 -> 41 ms; the float scene's MSAA resolved through memory, not on chip)
     {&vr_taa,                         {"0",      "0",      "0"}},     // its history reads and writes: bandwidth
     {&r_oit,                          {"0",      "0",      "0"}},     // translucent things sorted, not order-independent: OIT's own target is a render pass more an eye (-0.6 to -0.9 ms of the Quest 3's GPU, C4j)
