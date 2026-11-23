@@ -825,6 +825,19 @@ struct World
     za::Vector<int> roomWanted, roomRefused;
     // The corpses waiting for their ragdoll (vr_ragdoll_per_frame: the most made a frame), oldest death first.
     za::Vector<int> ragdollQueue;
+    // (ropes9) The climbing poles' bodies (syncPoles): a kinematic capsule each, the props' and corpses' only (as the
+    // world's), from its top `a` to its bottom; made again when it changes length or turns, else moved to it.
+    struct PoleBody
+    {
+        int ent{0};
+        b3BodyId body{};
+        b3ShapeId shape{};
+        glm::vec3 a{0.f}, b{0.f};
+        float radius{0.f};
+        bool seen{false};
+        double stillSince{0.0}; // a kinematic one's: when it last moved
+    };
+    za::Vector<PoleBody> poles;
     bool syncingEntities{false};
     za::Vector<Recovery> recoveries;    // knocked-down monsters getting up (Knockdowns)
     // Hands holding a ragdoll's limb (vr_ragdoll_grab; "Ragdolls"): a kinematic body at the hand and a motor joint to
