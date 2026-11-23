@@ -9979,6 +9979,55 @@ His flat feedback 2026-11-23 (the AD lectern hid Quake's; Quoth ladders).
   fallback index 7, VR-hand holds moved to the near sides (-666/-662 catwalk, -1346 pillar): 10/0; flatladder_test.sh
   2/0; hub_start_test 7/0. Scene `quoth_kellbase_ladder`.
 
+## flatmelee: flat bash from the parry's guard; the sword's free hand on its blade in the guard (agent/flatmelee, 2026-11-23)
+
+His feedback 2026-11-23, items 15 and 16. FLATPLAY.md, "Parry guard" (Bash from the guard; Blade grip in the guard).
+
+- **Bash** (`vr_flat_bash` 1): the weapon hand's fire button pressed in the guard bashes instead of swinging
+  (`flatplay::startBash`, `bashAsked`). It shares the shove's clock, smoothing and cooldown (`fs.shoveBash`): its own parts
+  `vr_flat_bash_wind_time` 0.06, `_push_time` 0.07, `_hold_time` 0.06, `_recover_time` 0.2, `_anim_speed` 1, `_reach` 12
+  units, `_wind_back` 4, `_cooldown` 0.5 (Tunables > Flatscreen > Guard Bash and Blade Grip). The guard stays up through it
+  (`parryAsked` lets the bash's shove through); `bashPose` pushes the guard after `parryPose` (which would otherwise overwrite
+  the shove's offset at full share). Sent at the hold's end (`impulse 58` off / `59` main): at the push's end the smoothed
+  hand trailed by ~6 units and the line fell short of a grunt 44 units away.
+- **QC** `VR_FlatBash` (vr_melee_bash.qc): shared with the headset bash: `VR_Bash_Find` (stance 1, the weapon's line) and
+  `VR_Bash_Land` (damage, push, stagger, stamina, counter, sound), `VR_Bash_DeflectStart` (batting, the push straight ahead
+  at `vr_bash_speed`). The weapon's line comes from `VR_Melee_Line` (a synthesized hand keeps no `mh_near/far`:
+  `VR_Melee_Track` skips it), kept in the blow for the batting window. Two hands when `VRGet2HAiming` and the other hand is
+  empty, as the headset's.
+- **Blade grip** (`vr_flat_parry_blade` 1, `_in_time` 0.12, `_out_time` 0.15): in the guard with a sword-mode weapon that has a
+  Blade hotspot (`twohand::swordBlade`, shared with `applySword`), the free hand is carried to the hotspot's point
+  (`flatplay::bladePin`, called in `flatsight::apply` before `twohand::apply`); `applySword` takes `GRIP_BLADE` there only
+  while `flatplay::bladeAsked`, switches off the stance's foregrip to it, and lets go as the guard ends. flatsight's grip pin
+  and kept-grip pose stand aside while it runs. `steadyOther` turns the drawn hand onto the blade over the grip blend on the
+  flat screen (VR unchanged): 73 degrees a frame at the take before, 6.6 now (12.1 at the let-go, was 40).
+- **Tests**: new `Misc/quakevr/flatbash_test.sh` 15/0 (sword: blade taken, posed 0.0 u / drawn 1.3 u off the hotspot, the
+  bash two-handed on a grunt: 5 damage, 383 u/s, staggered 1.0 s, let-go; axe: no blade grip, one-handed bash 3 damage).
+  Scene `flat_parry`'s hint covers both.
+## flatswim: flat-screen swimming strokes (agent/flatswim, 2026-11-23)
+
+- **Strokes** (`Quake/vr/vr_flatswim.cpp`, new; FLATPLAY.md, "Swimming strokes"): swimming flat (waterlevel 3, or 2 off
+  the bottom; not noclip, not dead), the hands follow a stroke mixed from six cycles by the move's way in the view's
+  frame (forward along the look, up the world's): breaststroke, push ahead (back), sideways sweep, press down (up), pull up
+  (down), treading still. Speed sets rate (0.5..0.9 /s) and size; the mix is full stroke from 35% of
+  `vr_flat_swim_full_speed`, treading blended in below. Applied in `flatplay::poseHands`' hand loop after the hang and
+  melee poses, before the wall, sight, reload, grab, grenade and swap overlays; the player's hands only (not `poseBot`).
+- **Free hand vs held**: a free hand takes the stroke's pose (palm by `handAngles`: fingers + palm normal, flatplay's
+  roll-0-palm-in convention); a hand holding a weapon or prop gets `vr_flat_swim_gun_share` (0.3) of the motion only.
+- **2H -> 1H**: `flatswim::freesHand()` added to twohand's `flatLetsGo`, flatsight's `gripWanted` and `twoHandGun`
+  stance, flatplay's `twoHandAsked` (melee stance); all come back on leaving the water.
+- **Take-over**: per hand, linear take share (out over 0.12 s, back over 0.4 s) on `client::attacking` (+0.5 s hold),
+  punch, shove, parry, melee 2H, reload, force grab, quick grenade, swap, ADS (held hand).
+- **Tunables** (Debug > Tunables > Flatscreen > Swimming): `vr_flat_swim` 1, `_one_hand` 1, `_rate` 0.9, `_tread_rate`
+  0.5, `_size` 1, `_tread_size` 0.6, `_fwd` 0.2, `_up` 0.18, `_full_speed` 200, `_pitch` 0.5, `_gun_share` 0.3,
+  `_enter_time` 0.4, `_takeover_time` 0.12, `_return_time` 0.4, `_fire_hold` 0.5, `_turn_time` 0.35. Debug > Reports:
+  Flatscreen Swim Report / Probe (`vr_flatswim_report`, `vr_flatswim_probe`).
+- **Tests**: `Misc/quakevr/flatswim_test.sh` (+ `flatswim_check.py`): vrtesthall pool, seven directions (lead kind, sweep,
+  palm way, mirroring), the nail gun 2H on land, 1H in water, firing take-over (4 frames in 0.54, then 0, held through the
+  fire hold, back to 1), 2H back on land: 36/0. flatreload_test 54/0, flatsight_test 12/0. `flatswim_shots.sh`:
+  screenshots. Scene `flat_swim`.
+- Not done: open hands (the flat hands stay in their gripping pose), stroke sounds (the headset's are server-side from
+  tracked hand speed); `Misc/quakevr/menu_paths.txt` not regenerated for the new Tunables rows.
 ## lancecharge: the Crystal Lance as a charged shot (agent/lancecharge, 2026-11-23)
 
 His note 2026-11-23: held fire repeated the beam's look (the Thunderbolt's per-frame stream, FrameDrawLightningTrail) while

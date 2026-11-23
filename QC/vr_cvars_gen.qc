@@ -991,6 +991,7 @@ float cvarh_vr_flaregun_gravity;
 float cvarh_vr_flaregun_speed;
 float cvarh_vr_flaregun_volume;
 float cvarh_vr_flat_autoreload;
+float cvarh_vr_flat_bash;
 float cvarh_vr_flat_fg_detach_time;
 float cvarh_vr_flat_fg_turn_time;
 float cvarh_vr_flat_grab_preview;
@@ -3147,6 +3148,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flaregun_speed = VR_CVar_Make("vr_flaregun_speed");
     cvarh_vr_flaregun_volume = VR_CVar_Make("vr_flaregun_volume");
     cvarh_vr_flat_autoreload = VR_CVar_Make("vr_flat_autoreload");
+    cvarh_vr_flat_bash = VR_CVar_Make("vr_flat_bash");
     cvarh_vr_flat_fg_detach_time = VR_CVar_Make("vr_flat_fg_detach_time");
     cvarh_vr_flat_fg_turn_time = VR_CVar_Make("vr_flat_fg_turn_time");
     cvarh_vr_flat_grab_preview = VR_CVar_Make("vr_flat_grab_preview");

@@ -4849,6 +4849,14 @@ void() ImpulseCommands =
         self.impulse = 0;
         return;
     }
+    // Flatscreen play: the fire button in the parry's guard with a melee weapon bashes (vr_flatplay.cpp startBash,
+    // vr_flat_bash: 58 the off hand, 59 the main, as the drawn push reaches out; vr_melee_bash.qc VR_FlatBash).
+    if((self.impulse == 58 || self.impulse == 59) && VR_FlatPlay(self))
+    {
+        VR_FlatBash(self.impulse == 58 ? cVR_OffHand : cVR_MainHand);
+        self.impulse = 0;
+        return;
+    }
 
     // Flatscreen play: R reloads (vr_flatplay.cpp reads the key, vr_flat_key_reload; vr_flatreload.qc).
     if(self.impulse == 55 && VR_FlatPlay(self))
