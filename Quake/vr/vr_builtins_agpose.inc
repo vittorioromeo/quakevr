@@ -2147,6 +2147,7 @@ void agpNote(float& maxd, int& count, float a, float b, bool isInt, const char* 
     {
         agpStats = AgpCompareStats{};
         agpStats.progs = pr;
+        Con_Printf("agpose compare: on (vr_agpose_native 2): each pose by QuakeC and by the engine, compared\n");
         agpStats.globalMax.resize(static_cast<za::SizeT>(pr->numglobaldefs));
         agpStats.globalCount.resize(static_cast<za::SizeT>(pr->numglobaldefs));
         agpStats.fieldMax.resize(static_cast<za::SizeT>(pr->numfielddefs));
