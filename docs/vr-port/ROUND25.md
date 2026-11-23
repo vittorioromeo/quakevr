@@ -9892,3 +9892,9 @@ Runs on origin/next 27fce84a7 (Release no-LTO, the shipped-defaults baseline). M
   -SkipOnlineInstall -Notes docs/vr-port/RELEASE_NOTES_1.2.md -Apk build-android/apk/QuakeVR.apk` from posebake on
   0fd568d14 (VERSION already 1.2.0-beta2: no -BumpVersion); its -DryRun is clean (assets QuakeVR.zip, QuakeVR-Setup.exe,
   latest.json, SHA256SUMS.txt, QuakeVR.apk; tag v1.2.0-beta2 on 0fd568d1; --prerelease; Latest stays v1.1.0).
+- **Published** on the coordinator's go (the author's "publish if green", now green): that command, from posebake,
+  on 36d269540 (the version commit plus these notes): tests 12/0 again, ReleaseLTO build, checks, smoke launch, tag,
+  release, Latest guard, online check all passed. https://github.com/vittorioromeo/quakevr/releases/tag/v1.2.0-beta2:
+  prerelease true, draft false; assets QuakeVR.zip, QuakeVR-Setup.exe, QuakeVR.apk, latest.json, SHA256SUMS.txt;
+  `gh release view` (Latest) still v1.1.0; the downloaded latest.json's `quest` component is QuakeVR.apk with the
+  APK's size and SHA-256 and the release's own URL. Tag v1.2.0-beta2 (annotated) at 36d269540; agent/beta2 not pushed.
