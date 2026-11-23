@@ -59,6 +59,9 @@ void shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocit
 // pinned at both ends, slanted past vr_rope_monkey_angle from upright), not climbed.
 [[nodiscard]] bool monkey(int ent);
 
+// Server (ropes9): whether rope entity `ent` is a climbing pole (rigid: climbed, never swung).
+[[nodiscard]] bool pole(int ent);
+
 // Server: what rope entity `ent` is made of (its grip's sound and haptics): a rope, a chain, a metal or wooden pole.
 [[nodiscard]] physsound::RopeMaterial material(int ent);
 

@@ -2075,6 +2075,7 @@ struct FlatTest
     int serials{0};
     int handBits{0};
     float fastest{0.f};      // the swing's fastest level speed at the hands
+    float fastEarly{0.f};    // (ropes9) its fastest along the view in the walk in's first half second
     float lastVx{0.f};
     float pitch{0.f}, yaw{0.f};
     bool pole{false};        // (ropes7) `vr_rope_flat_test pole`: a wooden pole instead of the rope, no rope to rope
@@ -2231,26 +2232,72 @@ void flatTestFrame()
             t.serials = 0;
             t.lastSerial = -1;
             t.handBits = 0;
-            t.pitch = 0.f; // (ropes8a: looking level, forward held: up, whatever the pitch)
+            // (ropes9, his note 2026-11-23: a pole climbed looking level, forward held; a rope pumped looking level
+            // first, then climbed looking up; a chain climbed looking up from still: its clinks as he climbs)
+            t.pitch = t.pole ? 0.f : -50.f;
+            t.fastest = t.fastEarly = 0.f;
             int sounds = 0;
             (void)physsound::ropeSoundInfo(t.rope, sounds, &t.clinks); // (ropes8b: a chain's clinks from here)
-            flatTestNext(t, 4);
+            if(!t.pole && !t.chain)
+            {
+                t.pitch = 0.f;
+            }
+            flatTestNext(t, t.pole || t.chain ? 4 : 30);
         }
         else if(t.frames > 72 * 4)
         {
             flatTestEnd(t, true, "walking into the rope (flat-screen play, -flatscreenmode?)");
         }
         return;
+    case 30: // (ropes9) a rope looking level, forward held 3 s: it pumps the swing along the view, no climb
+    {
+        int ent = 0;
+        glm::vec3 v{0.f};
+        if(climbing && climbrope::riding(client, ent, v))
+        {
+            // (Its swing along the view: the walk in's in the first half second, the pump's in the last second.)
+            const float along = za::abs(v.x);
+            if(t.frames <= 36)
+            {
+                t.fastEarly = za::max(t.fastEarly, along);
+            }
+            else
+            {
+                t.fastest = za::max(t.fastest, along);
+            }
+        }
+        // (Pumped to near vr_rope_swing_cap, past the walk in's swing, which only dies down unpumped.)
+        const float want = za::max(0.85f * za::max(vr_rope_swing_cap.value, 0.f), t.fastEarly + 40.f);
+        if(!climbing || (t.frames > 36 && t.fastest >= want) || t.frames > 72 * 8)
+        {
+            const bool ok = climbing && za::abs(feet - t.feet0) < 8.f && t.fastest >= want;
+            const char* what = va("level forward pumps: feet %.1f->%.1f, swing %.0f u/s in %.1f s (walk-in %.0f)", t.feet0, feet,
+                t.fastest, t.frames / 72.f, t.fastEarly);
+            t.tally.check(ok, flatTestName, what);
+            if(ok)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, what);
+            }
+            t.feet0 = feet;
+            t.serials = 0;
+            t.lastSerial = -1;
+            t.handBits = 0;
+            t.pitch = -50.f; // (looking up: forward climbs)
+            flatTestNext(t, 4);
+        }
+        return;
+    }
     case 4: // climbing up
         if(!climbing || feet >= t.feet0 + 80.f || t.frames > 72 * 6)
         {
+            const char* how = t.pitch >= 0.f ? "looking level (a pole: only climbed)" : "looking up";
             const bool ok = climbing && feet >= t.feet0 + 80.f && t.serials >= 4 && t.handBits == 3;
-            t.tally.check(ok, flatTestName, va("climbed up looking level: the feet from %.1f to %.1f, %d hand changes, hands drawn off %d main %d",
-                                              t.feet0, feet, t.serials, t.handBits & 1, (t.handBits >> 1) & 1));
+            t.tally.check(ok, flatTestName, va("climbed up %s: the feet from %.1f to %.1f, %d hand changes, hands drawn off %d main %d",
+                                              how, t.feet0, feet, t.serials, t.handBits & 1, (t.handBits >> 1) & 1));
             if(ok)
             {
-                Con_Printf("%s: PASS climbed up looking level: the feet from %.1f to %.1f, %d hand changes, both hands drawn\n", flatTestName,
-                    t.feet0, feet, t.serials);
+                Con_Printf("%s: PASS climbed up %s: the feet from %.1f to %.1f, %d hand changes, both hands drawn\n", flatTestName,
+                    how, t.feet0, feet, t.serials);
             }
             if(t.chain)
             {
@@ -2328,7 +2375,7 @@ void flatTestFrame()
         }
         else if(t.frames >= 60)
         {
-            t.pitch = -50.f; // (looking up, back held: down, whatever the pitch)
+            t.pitch = t.pole ? -50.f : 50.f; // (back held: down, looking up or (ropes9) down past vr_flat_rope_climb_pitch)
             Cbuf_AddText("+back\n");
             t.serials = 0;
             t.lastSerial = -1;
@@ -2339,11 +2386,12 @@ void flatTestFrame()
         if(!climbing && ground)
         {
             const bool ok = za::abs(feet) < 2.f && t.serials >= 2;
-            t.tally.check(ok, flatTestName, va("climbed down looking up (back held): off it standing, the feet at %.1f, %d hand changes", feet, t.serials));
+            const char* look = t.pitch < 0.f ? "up" : "down";
+            t.tally.check(ok, flatTestName, va("climbed down looking %s (back held): off it standing, the feet at %.1f, %d hand changes", look, feet, t.serials));
             if(ok)
             {
-                Con_Printf("%s: PASS climbed down looking up (back held): off it standing, the feet at %.1f, %d hand changes\n", flatTestName, feet,
-                    t.serials);
+                Con_Printf("%s: PASS climbed down looking %s (back held): off it standing, the feet at %.1f, %d hand changes\n", flatTestName, look,
+                    feet, t.serials);
             }
             Cbuf_AddText("-back\n");
             t.pitch = 0.f;
@@ -3584,6 +3632,12 @@ bool monkey(int ent)
 {
     const Rope* r = ropeOf(ent);
     return r && (r->monkey || r->rider.monkey);
+}
+
+bool pole(int ent)
+{
+    const Rope* r = ropeOf(ent);
+    return r && r->params.pole;
 }
 
 physsound::RopeMaterial material(int ent)

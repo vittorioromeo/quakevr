@@ -2144,7 +2144,13 @@ void followRopes(edict_t* ent, Climber& c)
     }
 }
 
-[[nodiscard]] int flatRopeDir(edict_t* ent, const VrMove* move); // (below: flat play's rope, the keys' climb)
+struct FlatRopeKeys
+{
+    float climb{0.f};    // -1..1: up +, a share of vr_flat_ladder_speed
+    float fwdPump{0.f};  // 0..1: how much of forward / back pumps the swing
+    float sidePump{0.f}; // 0..1: how much of the strafe keys pumps it
+};
+[[nodiscard]] FlatRopeKeys flatRopeKeys(edict_t* ent, const VrMove* move, int rope); // (below: flat play's rope keys)
 
 // Told to the ropes each frame (climbrope::ride): the rope this climber's hands hold, his highest and lowest hand on it
 // (a rope's rider: his weight on it, its swing his). A hand on a ledge too: the ledge holds him, no ride.
@@ -2182,13 +2188,11 @@ void reportRopes(edict_t* ent, const Climber& c)
         {
             push = glm::vec3{0.f}; // (flat play: the keys go along it: flatMonkeyFrame)
         }
-        else if(c.flatRope && vr_flat_rope_keys.value == 0.f)
+        else if(c.flatRope)
         {
-            push = right * cmd.sidemove; // (ropes8a: forward and back climb it, the strafe keys pump: flatRopeFrame)
-        }
-        else if(c.flatRope && flatRopeDir(ent, server::clientMove(ent)) != 0)
-        {
-            push = glm::vec3{0.f}; // (flat play: the keys climb it now, looking up or down: flatRopeFrame)
+            // (Flat play: by the view's pitch the forward key climbs it or pumps, the strafe keys pump: flatRopeKeys.)
+            const FlatRopeKeys k = flatRopeKeys(ent, server::clientMove(ent), hi->entNum);
+            push = fwd * (cmd.forwardmove * k.fwdPump) + right * (cmd.sidemove * k.sidePump);
         }
         const float len = glm::length(push);
         push = len > 1.f ? push / len * (za::min(len / pumpFullMove, 1.f) * za::max(vr_rope_pump.value, 0.f)) : glm::vec3{0.f};
@@ -4200,40 +4204,65 @@ int flatLadderFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
 // (flat-screen)"). A headset's hands take a rope hand over hand; here walking forward into one, or meeting one in the
 // air (a jump, a fall, a swing off another rope), takes it with both hands, the hang the headset's rope hang (its
 // rider: his weight swings it, the holds on its line, the QC's climbing bits, the drawn hands, the feet round it, the
-// stamina), only the body is moved by the keys as on the flat ladder (flatLadderFrame): looking up past
-// vr_flat_rope_look, forward climbs up (looking down, down; back the other way; the move up / down keys too) at
-// vr_flat_ladder_speed, the hands going hand over hand along it; looking nearer level the move keys pump its swing
-// (reportRopes); jump lets go keeping the swing (ropeJump). The body hangs with the rope flatRopeGap ahead of its
+// stamina), only the body is moved by the keys as on the flat ladder (flatLadderFrame): looking up or down past
+// vr_flat_rope_climb_pitch, forward climbs up (back down; the move up / down keys too) at vr_flat_ladder_speed, the hands
+// going hand over hand along it; looking nearer level forward and back pump its swing, the strafe keys always do
+// (reportRopes; flatRopeKeys, vr_flat_rope_keys); jump lets go keeping the swing (ropeJump). The body hangs with the rope flatRopeGap ahead of its
 // middle, the view's way (turning goes round the rope).
 constexpr float flatRopeGap = 10.f;    // units: the rope this far ahead of the box's middle (the chest's front)
 constexpr float flatRopeStep = 12.f;   // units along the rope: a hand's new hold past the other's
 constexpr float flatRopeTurn = 120.f;  // units/s the body goes round the rope (turning) or in under it at most
 constexpr float flatRopeRetake = 1.f;  // seconds the rope let go of isn't taken again (off one, the next one is taken)
 
-// Which way the keys climb the rope: the move up / down keys; forward looking up past vr_flat_rope_look up, looking down
-// down (back: the other way); 0 none (looking nearer level: the keys pump its swing instead).
-int flatRopeDir(edict_t* ent, const VrMove* move)
+constexpr float flatRopeBlend = 5.f; // (ropes9) degrees either side of vr_flat_rope_climb_pitch: the pump eases into the climb
+
+// How the keys work rope entity `rope` (vr_flat_rope_keys): `climb` -1..1 (up +, a share of vr_flat_ladder_speed), and
+// how much of forward / back (`fwdPump`) and of the strafe keys (`sidePump`) pump its swing (reportRopes).
+// 0 (ropes9, his note 2026-11-23): looking up or down past vr_flat_rope_climb_pitch forward climbs up, back down; nearer
+//   level forward / back pump the swing along the view (eased over flatRopeBlend each way); the strafe keys always pump;
+//   a pole (rigid) is only climbed. 1 (before ropes8a): looking up past vr_flat_rope_look forward climbs up, looking
+//   down down (back the other way), nearer level the move keys pump. 2 (ropes8a): forward up, back down, whatever the
+//   pitch; the strafe keys pump. The move up / down keys climb in every mode.
+FlatRopeKeys flatRopeKeys(edict_t* ent, const VrMove* move, int rope)
 {
+    FlatRopeKeys k;
     const int client = NUM_FOR_EDICT(ent) - 1;
     if(client < 0 || client >= svs.maxclients)
     {
-        return 0;
+        return k;
     }
     const usercmd_t& cmd = svs.clients[client].cmd;
+    const int mode = static_cast<int>(vr_flat_rope_keys.value);
     if(za::abs(cmd.upmove) > 1.f)
     {
-        return cmd.upmove > 0.f ? 1 : -1;
+        k.climb = cmd.upmove > 0.f ? 1.f : -1.f;
+        k.sidePump = mode == 1 ? 0.f : 1.f;
+        return k;
     }
-    const int f = cmd.forwardmove > 1.f ? 1 : cmd.forwardmove < -1.f ? -1 : 0;
-    if(vr_flat_rope_keys.value == 0.f)
+    const float f = cmd.forwardmove > 1.f ? 1.f : cmd.forwardmove < -1.f ? -1.f : 0.f;
+    const float pitch = move ? move->headAngles.x : 0.f; // (pitch: down is +)
+    if(mode == 1)
     {
-        return f; // (ropes8a, his note 2026-11-23: forward always up, back down, whatever the view's pitch)
+        if(!move || f == 0.f || za::abs(pitch) < za::clamp(vr_flat_rope_look.value, 5.f, 80.f))
+        {
+            k.fwdPump = k.sidePump = 1.f;
+            return k;
+        }
+        k.climb = pitch < 0.f ? f : -f;
+        return k;
     }
-    if(!move || f == 0 || za::abs(move->headAngles.x) < za::clamp(vr_flat_rope_look.value, 5.f, 80.f))
+    k.sidePump = 1.f;
+    if(mode >= 2 || climbrope::pole(rope))
     {
-        return 0;
+        k.climb = f;
+        return k;
     }
-    return move->headAngles.x < 0.f ? f : -f; // (pitch: down is +)
+    const float at = za::clamp(vr_flat_rope_climb_pitch.value, flatRopeBlend, 90.f - flatRopeBlend);
+    const float t = move ? za::clamp((za::abs(pitch) - (at - flatRopeBlend)) / (2.f * flatRopeBlend), 0.f, 1.f) : 0.f;
+    const float w = t * t * (3.f - 2.f * t);
+    k.climb = f * w;
+    k.fwdPump = 1.f - w;
+    return k;
 }
 
 // Hand `h` takes rope hold `grab`: a grip on it as a headset's (ropeHold's ledge), drawn there if the hand is empty.
@@ -4502,7 +4531,8 @@ int flatRopeFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
     {
         return flatMonkeyFrame(ent, c, move, time, hi, lo, held);
     }
-    const int dir = c.phase == Phase::Slipping ? -1 : flatRopeDir(ent, &move);
+    const float climbKeys = c.phase == Phase::Slipping ? -1.f : flatRopeKeys(ent, &move, c.grips[hi].entNum).climb;
+    const int dir = climbKeys > 0.01f ? 1 : climbKeys < -0.01f ? -1 : 0;
     const float dt = static_cast<float>(host_frametime);
     const glm::vec3 origin = vec(ent->v.origin);
     const float shoulderUp = ladderShoulder(ent, move).z - origin.z;
@@ -4510,7 +4540,7 @@ int flatRopeFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
     const float yaw = glm::radians(move.headAngles.y);
     const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
     const glm::vec3 low = holdNow(c.grips[lo]), high = holdNow(c.grips[hi]);
-    glm::vec3 target = origin + carry + glm::vec3{0.f, 0.f, static_cast<float>(dir) * speed * dt};
+    glm::vec3 target = origin + carry + glm::vec3{0.f, 0.f, (dir != 0 ? climbKeys : 0.f) * speed * dt};
     // (Level: to its place behind the rope, at most flatRopeTurn a second: turning goes round it.)
     const glm::vec3 place{low.x - fwd.x * flatRopeGap, low.y - fwd.y * flatRopeGap, target.z};
     if(const glm::vec3 d = place - target; glm::length(d) > 1e-3f)

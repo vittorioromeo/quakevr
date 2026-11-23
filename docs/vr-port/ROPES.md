@@ -169,8 +169,11 @@ flatRope, flatRopeFrame), the flat ladder's way (`flatLadder`) on a rope:
   shoulders, at least `vr_climb_min_height` over the feet, at most an arm over the shoulders. Both hands take it: the
   main hand half an arm over the shoulders, the off hand 12 units under it. The hang is the headset's rope hang (his
   weight rides it, `climbrope::ride`; the swing he brings to it swings it: walking in at full speed swings it well).
-- **(ropes8a) The keys:** forward always climbs up and back down (ropes and poles), whatever the view's pitch; the
-  strafe keys pump the swing (sideways to the view). `vr_flat_rope_keys 1` brings back the old keys:
+- **(ropes9, his correction 2026-11-23) The keys:** looking up or down past `vr_flat_rope_climb_pitch` (30 degrees),
+  forward climbs up and back down; nearer level forward and back pump the swing along the view (eased over 5 degrees
+  either side of it: `flatRopeKeys`); the strafe keys always pump it (sideways to the view). A pole (rigid) is only
+  climbed, at any pitch. `vr_flat_rope_keys 2` is ropes8a's (forward always climbs, whatever the pitch);
+  `vr_flat_rope_keys 1` brings back the old keys:
 - **The old keys:** looking up past `vr_flat_rope_look` (25 degrees), forward climbs up at `vr_flat_ladder_speed` (100;
   looking down, down; back the other way; the move up / down keys too); the hands go hand over hand along it (the lower
   one, once under the shoulders, 12 units over the other; going down the higher, once half an arm over them, 12 under).
