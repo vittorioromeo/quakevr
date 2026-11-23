@@ -126,7 +126,6 @@ struct DirectImage
     int eye{0};
     GLuint fbo{0};   // the image and its eye's depth: the scene's
     GLuint uiFbo{0}; // the image alone: the UI's, the eyeshots'
-    GLint points{1}; // its foveation's focal points (vr_xr_foveation_refocus)
 };
 struct DirectDepth
 {
@@ -225,7 +224,6 @@ const DirectImage* directImage(int eye, GLuint image, int width, int height, uns
         glGetTexParameteriv(GL_TEXTURE_2D, 0x8BFE, &points);     // GL_TEXTURE_FOVEATED_NUM_FOCAL_POINTS_QUERY_QCOM
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
     }
-    d.points = za::clamp(points, 1, 4);
     const GLenum status = GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER);
     Con_Printf("VR: eye %d image %u: its own framebuffer %u (%d x %d, depth renderbuffer %u): status 0x%x, foveation bits %d, "
                "min density %g, focal points %d, GL error 0x%x\n", eye, image, d.fbo, width, height, depth.depth, status, bits,
@@ -446,24 +444,6 @@ void foveateEye(const Fov& fov)
     for(const GLuint texture : foveatedTextures(t))
     {
         focusTexture(texture, foveationPoints, fov, sx, sy, gains[level], areas[level]);
-    }
-}
-
-// vr_xr_foveation_refocus (qfov2): the runtime foveates its swapchain images round their centre, but the eye may be
-// drawn into an image's lower left part (vr_eye_subimage, dynamic resolution's buckets): the image's focal point set
-// again before each eye's scene, on its projection's centre in the part drawn, with the fall-off of the level's gain
-// over that part.
-void refocusImage(GLuint image, GLint points, const Fov& fov, float sx, float sy)
-{
-    // (the levels' gains and full-resolution areas, QCOM's units: Low ~half the density at the image's edges, High a
-    // quarter; the runtime's own are not readable)
-    constexpr float gains[] = {0.f, 1.4f, 1.7f, 2.f};
-    constexpr float areas[] = {0.f, 0.5f, 0.4f, 0.25f};
-    const int level = za::clamp(static_cast<int>(vr_xr_foveation.value), 0, 3);
-    static_cast<void>(foveationLevel()); // (looks the extension's function up)
-    if(level > 0 && foveationParams)
-    {
-        focusTexture(image, points, fov, sx, sy, gains[level], areas[level]);
     }
 }
 
@@ -1757,12 +1737,7 @@ extern "C" int VR_RenderView()
         stereosingle::beginEye(eye);
         temporal::beginEye(eye);
         tonemap::glProbeScene(true); // (vr_gl_probe)
-        stereo::foveateEye(frame.eyes[eye].fov); // (vr_gl_foveation)
-        if(directOwn && xrFoveation && vr_xr_foveation_refocus.value != 0.f)
-        {
-            stereo::refocusImage(eyeImage, own->points, frame.eyes[eye].fov, static_cast<float>(drawnWidth) / imageWidth,
-                static_cast<float>(drawnHeight) / imageHeight);
-        }
+        stereo::foveateEye(frame.eyes[eye].fov); // (vr_gl_foveation; the runtime's own, vr_xr_foveation, follows the rect)
         V_RenderView();
         if(stereo::directForm) // (no GPU scope of its own: in the scene's render pass, the tile still on chip)
         {
