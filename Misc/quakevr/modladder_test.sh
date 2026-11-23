@@ -23,7 +23,7 @@ echo "$out" | grep -a "^flatladder: \(PASS\|FAIL\)"
 expect_verdict "$out" "flatladder" "Quoth's ladders (catwalk, pillar), flat on their drawn rungs: up and over, down from the top, down looking down"
 
 out=$(bash $KIT/run.sh $AGENT "${F[@]}" -QuitOn "^flatladder: [0-9]+ passed" -Timeout 120 -Filter "^flatladder" \
-    -Script "$Q;vr_flat_ladder 0;vr_flatladder_test 6;wait3000;toggleconsole;quit" 2>&1)
+    -Script "$Q;vr_flat_ladder 0;vr_flatladder_test 7;wait3000;toggleconsole;quit" 2>&1)
 echo "$out" | grep -a "^flatladder: \(PASS\|FAIL\)"
 expect_verdict "$out" "flatladder" "Quoth's ladder, vr_flat_ladder 0: its own jump climb"
 
@@ -39,25 +39,27 @@ expect_verdict "$out" "flatladder" "AD's ladder, vr_flat_ladder 0: its own jump 
 
 # VR hands (no -flatscreenmode): along kellbase1's ladder (x 32, the trigger's face at y -657), the hand 4 units into
 # it from the body's side; its drawn rungs (a func_illusionary's bars, their ridge on y -664, tops 704 + 24 k: his note
-# kellbase1 2026-11-22 16:06): exact holds on the bar nearest the hand, 1 over its top; over its top none; Hand-Climbed
-# Ladders off, none. The pillar ladders (x -64): their bars 32 apart (tops 508 + 32 k, their ridge on y -1354).
+# kellbase1 2026-11-22 16:06): exact holds on the bar nearest the hand, 1 over its top and 2 in from the bar's near face
+# (hubladder: the bars -668..-660, so y -666 from the south, -662 from the catwalk); over its top none; Hand-Climbed
+# Ladders off, none. The pillar ladders (x -64): their bars 32 apart (tops 508 + 32 k, their ridge on y -1354, their
+# near face -1344: the hold y -1346).
 T=""
 for z in 700 726 760 790 885; do T="$T;vr_climb_try 32 -655 $z main"; done
 out=$(bash $KIT/run.sh $AGENT -Filter "^climbtry" -Timeout 120 \
     -Script "$Q;noclip;setpos 32 -664 664 0 90 0;wait5;vr_climb_leniency 0;vr_climb_leniency_air 0$T;vr_climb_try 32 -655 930 main;vr_climb_ladders 0;vr_climb_try 32 -655 726 main;vr_climb_ladders 1;setpos 17 -619 920 0 270 0;wait5;vr_climb_try 32 -656 878 main;setpos -64 -1300 480 0 270 0;wait5;vr_climb_try -64 -1336 500 main;vr_climb_try -64 -1336 530 main;toggleconsole;quit" 2>&1)
 echo "$out" | grep -a "^climbtry" | cut -c1-120
 n=0
-for want in "700.00 main: exact hold 32.00 -664.00 705.00" "726.00 main: exact hold 32.00 -664.00 729.00" \
-    "760.00 main: exact hold 32.00 -664.00 753.00" "790.00 main: exact hold 32.00 -664.00 801.00" \
-    "885.00 main: exact hold 32.00 -660.00 897.00"; do
+for want in "700.00 main: exact hold 32.00 -666.00 705.00" "726.00 main: exact hold 32.00 -666.00 729.00" \
+    "760.00 main: exact hold 32.00 -666.00 753.00" "790.00 main: exact hold 32.00 -666.00 801.00" \
+    "885.00 main: exact hold 32.00 -666.00 897.00"; do
     if echo "$out" | grep -q "$want"; then n=$((n+1)); fi
 done
 check "$([ "$n" = 5 ] && echo 1 || echo 0)" "VR hands on Quoth's ladder: 5 exact holds on its drawn rungs ($n of 5)"
 nn=$(echo "$out" | grep -c ': none')
 check "$([ "$nn" = 2 ] && echo 1 || echo 0)" "VR hands: none over its top, none with Hand-Climbed Ladders off ($nn of 2)"
 # (From its top: standing on the catwalk, the hand reaching down past its edge to the ladder's top rung.)
-check "$(echo "$out" | grep -q '878.00 main: exact hold 32.00 -664.00 873.00' && echo 1 || echo 0)" "VR hands from its top: the drawn rung under the catwalk's edge"
-check "$(echo "$out" | grep -q '500.00 main: exact hold -64.00 -1354.00 509.00' && echo "$out" | grep -q '530.00 main: exact hold -64.00 -1354.00 541.00' && echo 1 || echo 0)" "VR hands on the pillar ladder: its drawn rungs 32 apart"
+check "$(echo "$out" | grep -q '878.00 main: exact hold 32.00 -662.00 873.00' && echo 1 || echo 0)" "VR hands from its top: the drawn rung under the catwalk's edge"
+check "$(echo "$out" | grep -q '500.00 main: exact hold -64.00 -1346.00 509.00' && echo "$out" | grep -q '530.00 main: exact hold -64.00 -1346.00 541.00' && echo 1 || echo 0)" "VR hands on the pillar ladder: its drawn rungs 32 apart"
 
 # kellbase1's corridor fail-safe (QC vr_quoth.qc VR_Quoth_KellThink): shut in between its top doors and its south exit
 # doors (both shut, no monster), the top doors open again after 10 s; standing in the arena, nothing.

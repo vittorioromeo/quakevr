@@ -9898,3 +9898,60 @@ Runs on origin/next 27fce84a7 (Release no-LTO, the shipped-defaults baseline). M
   prerelease true, draft false; assets QuakeVR.zip, QuakeVR-Setup.exe, QuakeVR.apk, latest.json, SHA256SUMS.txt;
   `gh release view` (Latest) still v1.1.0; the downloaded latest.json's `quest` component is QuakeVR.apk with the
   APK's size and SHA-256 and the release's own URL. Tag v1.2.0-beta2 (annotated) at 36d269540; agent/beta2 not pushed.
+## hitzones: shots meet the players' bodies as drawn; Show Hit Zones in the shipped game (2026-11-23, `agent/hitzones`)
+
+His flat-screen deathmatch notes 17-19 (a crosshair on a bot's helmet missed; a shot well beside its arm hit; a shot only
+at its weapon hurt it; Show Hit Zones drew nothing).
+
+- **Cause of 18 (and 17):** a player is drawn as his VR body (vr_mpavatar.cpp) but shots met his box: 24 wide (vr_hull_hit_width),
+  axis-aligned (34 wide seen across its corner), its top at QC headpos + 5. A bot's drawn head is raised to the default
+  player's height (units::botEyeRaise: eyes 27.8 over its origin at world scale 1.2, the skull's middle ~29, the helmet's
+  top ~33) while its box ended at its box eyes + 5 (27): the helmet stood over the box. The QC head zone (PositionalHead
+  "player": 4 forward, 23 up) was 5.5 units ahead of and 6 under the drawn head. A weapon held out in front sat inside the
+  box, so a shot at it alone hurt the bot: 17 is 18 (the disarm logic, VR_PD_Shot, is separate and unchanged).
+- **Fix (`vr_playerhit.cpp`, `vr_hit_player_shape` 1, QVR_RULE):** each living player's (human, bot, seat: any client slot
+  of a multiplayer server) hit shape, 10 capsules from what every client poses his body from (his avatar: head, body yaw,
+  hands; his body size, mpavatar::serverBody): the head sphere (r 0.13 m), the torso (neck to pelvis, 0.14 m), each arm
+  shoulder-elbow-hand (two-bone, 0.055 m), each leg hip-knee-ankle (0.07 m), in vrbody.mdl's proportions measured on the
+  posed bot (vr_mp_avatars' mp_body). world.c SV_ClipToLinks: shots (MOVE_HITMODEL's guns and thrown classes), missiles
+  and gib-hitting moves meet it (VR_PlayerShotClip, grown by vr_hit_tolerance_guns and the mover's radius) instead of the
+  box; melee, the grappling hook and bodies moving keep the box. QC PositionalRegion takes the zone of the capsule met
+  (new builtin `playerhitzone`); the flat lean boxes (VR_LeanHitBoxes) step aside while a shape is used (the avatar's head
+  leans). Offsets from the origin, so lag compensation moves them with it. Shared: server::avatarPose reads writeAvatars'
+  own values (botHead() factored out); a client rebuilds the same shape from the received avatar (clientShape).
+- **19:** VR_Decap_DebugFrame (Show Hit Zones' QC) ran only from the tests' frame, which the shipped progs leave out
+  (QVR_TESTS): StartFrame calls it now. zonesDraw draws each other player's shape (the host the server's, a client its
+  rebuild; capsules along their own axis) in place of the box zones; monsters unchanged.
+- **Test** `vr_hitzones_aim` (scene mp_dm_hitzones, now with a shotgun in the bot's hand): VR mock 19/1 (the -45 near
+  miss into the thigh, before that check was corrected), flat 20/0: the shape's joints within 1.7 (head), 0.8 (shoulders), 2.7 (elbows), 0.0 (pelvis), 0.1
+  (ankles) units of the drawn skeleton (wrists 5.9: the arm ends at the hand's controller, the grip); the head's middle and
+  the helmet's top hit the head from 0, ±45, ±90 and 150 degrees; the main forearm hits an arm from 0, -45, -90; 6.7 units
+  beside it misses from the front (from -45 the shot goes on into the thigh behind: a leg, not the arm); the weapon's
+  muzzle from either side misses. `mp_test.py debugviz` 9/0 and `debugviz_listen` 8/0 (zones 10, the head zone 2.6 units
+  from the drawn eyes, for B and the bot; the first listen run failed once on the bot's disarm grab line, 53.6 off: not
+  touched here, passed on the rerun).
+- **Not covered:** crouched and moving poses (the shape follows the sent head, so a crouch lowers the trunk and bends the
+  legs, but no test poses one); a VR human's hands (his controller as the arm's end, as a bot's); melee against players
+  (still the box).
+## hubladder: the hub's lecterns in one row; mod ladders' hands, sideways run, overlap (agent/hubladder, 2026-11-23)
+
+His flat feedback 2026-11-23 (the AD lectern hid Quake's; Quoth ladders).
+- **Hub** (`vrstart_gen.py`): all ten lecterns one row facing south (the stairs), 30 wide under a 36 cap (the Continue
+  lectern too), 44 apart, five either side of the way to the gate (`LECTERNS_X` +-44..220, `LECTERN_Y` -100): Arcane
+  Dimensions, Quoth, Quake, Scourge, Dissolution | Dimension of the Past, of the Machine, Dawn, Dwell, Arena Mode. The
+  terrace is an ellipse (`TERRACE` rx 280, r 232: its zone, curb, braziers; its east edge stops short of the bridge's
+  deck), the west/east braziers at 195/345 degrees (south of the row's ends); "MODS" and "MOD AND ARENA" boards over the
+  end pairs, the Official Campaigns board over the dais's left front. Rebuilt (`--compile`, final; id WAD made locally).
+- **Hands on drawn bars** (`vr_climb.cpp` `drawnRung`, `ladderHold`): the whole bar's faces (`barLo/barHi`: its model's
+  faces wholly within 12 under its top, along its ridge); the hold on its near side, 2 in from the face (or its middle if
+  thinner than 4), the way out square to the bar. The drawn hand (out 10 cm, down 10.5 cm) was inside a deep bar (the
+  pillar's are 20 deep: its palm 6.7 units in); now 1.3 out. Shared: a headset's hands and the flat ladder's (one hold).
+- **Sideways run, overlap** (`ladderKeep`): getting on a ladder volume zeroes the horizontal speed (VR; flat already
+  did); holding one, the body is eased out of its drawn bars (box front 1 off their face, 160 u/s; VR's hang too) and,
+  flat, to the ladder's middle (64 u/s). A volume with no bars drawn keeps the flat ladder's ladderInBox. The flat mount
+  off a ladder's top tries out of the bars first, then nearer. kellbase1 can't show the push-out: its catwalk ladder has
+  a clip 22 units in front (the box stays in its bars) and its pillar ladder a func_train's path (2 units of room).
+- **Tests**: `vr_flatladder_test` gains kellbase1 case 6 (the pillar, run at from 24 off its middle with forward and right:
+  centred to 0.0, pushed out as far as there is room); Down cases may end on a mover (the pillar's train). modladder:
+  fallback index 7, VR-hand holds moved to the near sides (-666/-662 catwalk, -1346 pillar): 10/0; flatladder_test.sh
+  2/0; hub_start_test 7/0. Scene `quoth_kellbase_ladder`.
