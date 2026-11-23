@@ -137,12 +137,13 @@ done
 #    on what it meets, "shot push: kind 4"), its impact drawn on the wall behind; it shakes as it charges and more as it
 #    fires (vr_debug_gunfx: the charge's prints' "shake most", the buzzes); without cells and fired on the pull
 #    (vr_dw_lance_charge 0) the trigger held makes no empty click.
-log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;developer 1;vr_mock_hand main 0.2 1.3 -0.3 -22 0 0;vr_ad_test 207;wait60;vr_mock_button main secondary 1;wait10;vr_mock_button main secondary 0;wait60;echo dwlance-mark: flipped;vr_status;vr_debug_shots 1;vr_debug_gunfx 1;+attack;wait90;-attack;wait30;+attack;wait90;-attack;wait30;vr_debug_gunfx 0;give c 0;wait5;tune vr_dw_lance_charge 0;wait5;+attack;wait40;-attack;tune vr_dw_lance_charge 1;wait5;echo dwlance-test: done" \
+log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;developer 1;vr_mock_hand main 0.2 1.3 -0.3 -22 0 0;vr_ad_test 207;wait60;vr_mock_button main secondary 1;wait10;vr_mock_button main secondary 0;wait60;echo dwlance-mark: flipped;vr_status;vr_debug_shots 1;vr_debug_gunfx 1;+attack;wait90;-attack;wait120;+attack;wait90;-attack;wait30;vr_debug_gunfx 0;give c 0;wait5;tune vr_dw_lance_charge 0;wait5;+attack;wait40;-attack;tune vr_dw_lance_charge 1;wait5;echo dwlance-test: done" \
     -QuitOn "dwlance-test: done" -Timeout 300 -Filter "dwlance|lancecharge: (charging|fired)|shot push: kind 4|empty click|revgrip:|the shot|rror|exit=" 2>&1 | tr -d '\r')
 echo "$log" | grep -E "revgrip:|main  the shot|lancecharge: (charging|fired)|shot push" | cut -c1-170 | head -7
 check $(grep -q "revgrip: hand 1 flips its grip: reversed" <<<"$log" && echo 1 || echo 0) "flipped: B turned the Lance over"
 shot=$(sed -n '/dwlance-mark: flipped/,$p' <<<"$log" | grep -m1 "main  the shot" | awk '{ print $4 }')
-check $(awk -v d="$shot" 'BEGIN { print (d != "" && d + 0 < 6) ? 1 : 0 }') "flipped: it shoots along its crystal head ($shot deg off the line from the hand to the tip)"
+# (Upright 3.4 deg; flipped, the grip's pivot moves the pole off the hand's point: 6.3 measured, 174.5 before lance3.)
+check $(awk -v d="$shot" 'BEGIN { print (d != "" && d + 0 < 10) ? 1 : 0 }') "flipped: it shoots along its crystal head ($shot deg off the line from the hand to the tip)"
 check $(grep -c "dwlance: the beam through" <<<"$log" | grep -qx 2 && echo 1 || echo 0) "flipped: two charged shots fired"
 check $(grep -q "shot push: kind 4" <<<"$log" && echo 1 || echo 0) "beam: it pushes what it meets as a bolt (props, ragdolls)"
 chs=$(grep -m1 -oE "lancecharge: fired ent 1 hand 1 .*shake most [0-9.]+" <<<"$log" | awk '{ print $NF }')

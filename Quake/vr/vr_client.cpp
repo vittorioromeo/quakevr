@@ -273,28 +273,6 @@ za::Vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
     return e;
 }
 
-// Where hand `h`'s shots go from its aim `rot`: turned by its weapon's Shot Pitch and Yaw. A pole weapon held reversed (the
-// Crystal Lance's grip flipped; lance3, his note vrtesthall_2026-11-23_23-23-39: it shot backwards) shoots the way it is
-// drawn: that aim turned by the reverse grip's turn as well (view::heldReverseTurn, as vr_twohand's blade line), along its
-// crystal head.
-[[nodiscard]] glm::vec3 handShotAngles(const glm::vec3& rot, int h)
-{
-    const int slot = weapons::heldSlot(h);
-    const glm::vec3 shot = weapons::shotAngles(rot, slot, h == HAND_OFF);
-    if(!twohand::poleWeapon(slot))
-    {
-        return shot;
-    }
-    const glm::mat3 g = view::heldReverseTurn(slot, h);
-    if(g == glm::mat3{1.f})
-    {
-        return shot;
-    }
-    const glm::mat3 b = hands::basisOf(rot);
-    const glm::mat3 t = b * g * glm::transpose(b) * hands::basisOf(shot);
-    return hands::anglesFromVectors(glm::normalize(t[0]), glm::normalize(t[2]));
-}
-
 [[nodiscard]] glm::vec3 handMuzzle(const hands::State& hs, int h)
 {
     const int slot = weapons::heldSlot(h);
@@ -405,7 +383,7 @@ void handMove(VrMove& move, const hands::State& hs, int h)
     }
 
     // Where its shots go: the aim turned by the weapon's Shot Pitch and Yaw (the drawn weapon doesn't move).
-    move.shotRot[h] = handShotAngles(hs.rot[h], h);
+    move.shotRot[h] = view::heldShotAngles(hs.rot[h], h); // (a flipped pole weapon: the way it is drawn, lance3)
     // Flatscreen play: a gun a wall turned shoots the way its muzzle points (vr_flat_wall_shot; its muzzle is the drawn one:
     // flatsight's keepMuzzle).
     move.shotRot[h] = flatsight::wallShotAngles(h, move.shotRot[h]);
@@ -1546,7 +1524,7 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
         if(id < 2)
         {
             const float len = glm::distance(geom::vec(start), geom::vec(end));
-            const glm::vec3 e = muzzle + hands::forward(handShotAngles(s.rot[hand], hand)) * len;
+            const glm::vec3 e = muzzle + hands::forward(view::heldShotAngles(s.rot[hand], hand)) * len;
             end[0] = e.x;
             end[1] = e.y;
             end[2] = e.z;
