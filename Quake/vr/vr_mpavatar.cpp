@@ -720,6 +720,42 @@ struct InBody
     return {local(p - anchor) / za::max(k.m2w, 1e-3f), local(mf), local(mu)};
 }
 
+// (animfix2; his note dm3 2026-11-23 23:05:16: a copy's left holsters "should be mirrored or rotated") A body's left
+// holster pieces against their right ones: the left reflected across the middle plane of the part that carries the pair
+// (the pelvis for the hips, the chest for the rest: its side axis, body::standingHolsters' frames), its place (metres
+// of the body), its model's forward and up; and drawn mirrored where the right one is not (a model's y flipped: with
+// forward and up reflected, the exact mirror image).
+struct MirrorStat
+{
+    int pairs{0};
+    float place{0.f}, axis{0.f};
+    bool flags{true};
+};
+
+void mirrorPair(const avatar::Skeleton& k, int left, const glm::vec3& atL, const glm::vec3& anglesL, bool mirroredL,
+    const glm::vec3& atR, const glm::vec3& anglesR, bool mirroredR, MirrorStat& s)
+{
+    const avatar::Frame& part = left == body::LeftHip ? k.pelvisFrame : k.chestFrame;
+    const glm::mat3 toPart = glm::transpose(part.rot); // (columns: along the bone, side, forward)
+    const auto reflect = [](glm::vec3 v) { return glm::vec3{v.x, -v.y, v.z}; };
+    const auto axes = [](const glm::vec3& a, glm::vec3& f, glm::vec3& u) {
+        glm::vec3 r;
+        hands::angleVectors({-a.x, a.y, a.z}, f, r, u); // (alias models' pitch is the other way)
+    };
+    glm::vec3 fL, uL, fR, uR;
+    axes(anglesL, fL, uL);
+    axes(anglesR, fR, uR);
+    const float m2w = za::max(k.m2w, 1e-3f);
+    const glm::vec3 pL = reflect(toPart * (atL - part.pos)) / m2w, pR = toPart * (atR - part.pos) / m2w;
+    const auto turnedBy = [](const glm::vec3& a, const glm::vec3& b) {
+        return glm::degrees(za::acos(CLAMP(-1.f, glm::dot(a, b), 1.f)));
+    };
+    s.place = za::max(s.place, glm::distance(pL, pR));
+    s.axis = za::max(s.axis, za::max(turnedBy(reflect(toPart * fL), toPart * fR), turnedBy(reflect(toPart * uL), toPart * uR)));
+    s.flags = s.flags && mirroredL && !mirroredR;
+    s.pairs++;
+}
+
 // vr_mp_gearcheck [ent] (mpbothands; his report 2026-11-22: bots drawn with an extra pair of fists, a gun and a shovel
 // floating beside the body; Debug > Reports > Network: Other Players' Gear): each other player's copy as drawn last frame
 // (or `ent`'s): how many hand models it draws (its two hands, nothing else: an empty holster -- the fists' -- draws none),
@@ -845,6 +881,48 @@ void gearcheck_f()
                 }
             }
         }
+        // (animfix2) Left against right, the copy's (`mirror`: pairs compared, `mplace`, `maxis`, `mflags`) and yours
+        // (`ownmirror`...): a gun only against the same gun in the pair's other holster.
+        MirrorStat mirror, ownMirror;
+        {
+            const auto angOf = [](const view::ViewEntity& ve) { return glm::vec3{ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]}; };
+            // (drawn mirrored as the alias renderer finds it: VR_AliasMirrored asks find(), which missed the sheaths)
+            const auto drawnMirrored = [](const view::ViewEntity& ve) {
+                const view::ViewEntity* f = find(&ve.ent);
+                return f != nullptr && f->mirrored;
+            };
+            const bool ownBody = avatar::skeleton(own);
+            for(const int l : {static_cast<int>(body::LeftShoulder), static_cast<int>(body::LeftHip), static_cast<int>(body::LeftUpper)})
+            {
+                const int r = l + 1;
+                if(shown(d.holster[l]) && shown(d.holster[r]) && d.holster[l].ent.model == d.holster[r].ent.model)
+                {
+                    mirrorPair(k, l, at(d.holster[l]), angOf(d.holster[l]), drawnMirrored(d.holster[l]), at(d.holster[r]),
+                        angOf(d.holster[r]), drawnMirrored(d.holster[r]), mirror);
+                }
+                if(shown(d.gear[l]) && shown(d.gear[r]) && d.gear[l].ent.model == d.gear[r].ent.model)
+                {
+                    mirrorPair(k, l, at(d.gear[l]), angOf(d.gear[l]), drawnMirrored(d.gear[l]), at(d.gear[r]), angOf(d.gear[r]),
+                        drawnMirrored(d.gear[r]), mirror);
+                }
+                const int ml = ownHolsters.model[l], mr = ownHolsters.model[r];
+                if(ownBody && (ownHolsters.weapons & (1 << l)) && (ownHolsters.weapons & (1 << r)) && ml > 0 && ml < MAX_MODELS &&
+                    ml == mr && !view::handModel(cl.model_precache[ml]))
+                {
+                    mirrorPair(own, l, ownHolsters.origin[l], ownHolsters.angles[l], (ownHolsters.mirrored >> l) & 1,
+                        ownHolsters.origin[r], ownHolsters.angles[r], (ownHolsters.mirrored >> r) & 1, ownMirror);
+                }
+                if(ownBody && (ownGear.shown & (1 << l)) && (ownGear.shown & (1 << r)))
+                {
+                    mirrorPair(own, l, ownGear.origin[l], ownGear.angles[l], (ownGear.mirrored >> l) & 1, ownGear.origin[r],
+                        ownGear.angles[r], (ownGear.mirrored >> r) & 1, ownMirror);
+                }
+            }
+        }
+        constexpr float mirrorPlaceMost = 0.02f, mirrorAxisMost = 3.f;
+        const auto mirrored = [&](const MirrorStat& m) {
+            return m.pairs == 0 || (m.place <= mirrorPlaceMost && m.axis <= mirrorAxisMost && m.flags);
+        };
         // (as yours: within 7 cm and 20 degrees -- the same build and holster on the same parts; a flat viewer's own sit a
         // few cm off a VR player's, his crouched flat body's) (holstersync) Only when his copy wears the places yours have
         // (`sameprefs`: his holster settings sent as yours, or a bot's, the shipped ones, yours at them); else his own
@@ -870,14 +948,19 @@ void gearcheck_f()
         const float trunkMost = 0.5f * k.m2w, wristMost = 0.15f * k.m2w, hangMost = 0.25f * k.m2w;
         constexpr float tiltMost = 70.f, facingMost = 60.f;
         const bool turned = finite && tilt <= tiltMost && facing <= facingMost && hang <= hangMost;
-        const bool ok = hands == 2 && trunk <= trunkMost && wrist <= wristMost && turned && asOwn;
+        const bool mirrorOk = mirrored(mirror) && mirrored(ownMirror);
+        const bool ok = hands == 2 && trunk <= trunkMost && wrist <= wristMost && turned && asOwn && mirrorOk;
         Con_Printf("mp_gear: ent=%d bot=%d hands=%d holsters=%d sheaths=%d trunk=%.1f trunkmost=%.1f wrist=%.1f wristmost=%.1f "
                    "finite=%d tilt=%.1f facing=%.1f hang=%.1f hangmost=%.1f turned=%d vsown=%d place=%.3f axis=%.1f "
-                   "sameprefs=%d asown=%d ok=%d\n",
+                   "sameprefs=%d asown=%d mirror=%d mplace=%.3f maxis=%.1f mflags=%d ownmirror=%d ownmplace=%.3f "
+                   "ownmaxis=%.1f ownmflags=%d mirrored=%d ok=%d\n",
             e, bot ? 1 : 0, hands, holsters, sheaths, static_cast<double>(trunk), static_cast<double>(trunkMost),
             static_cast<double>(wrist), static_cast<double>(wristMost), finite ? 1 : 0, static_cast<double>(tilt),
             static_cast<double>(facing), static_cast<double>(hang), static_cast<double>(hangMost), turned ? 1 : 0, vsOwn,
-            static_cast<double>(place), static_cast<double>(axis), samePrefs ? 1 : 0, asOwn ? 1 : 0, ok ? 1 : 0);
+            static_cast<double>(place), static_cast<double>(axis), samePrefs ? 1 : 0, asOwn ? 1 : 0, mirror.pairs,
+            static_cast<double>(mirror.place), static_cast<double>(mirror.axis), mirror.flags ? 1 : 0, ownMirror.pairs,
+            static_cast<double>(ownMirror.place), static_cast<double>(ownMirror.axis), ownMirror.flags ? 1 : 0,
+            mirrorOk ? 1 : 0, ok ? 1 : 0);
         players++;
         bad += ok ? 0 : 1;
     }
@@ -2906,6 +2989,10 @@ const view::ViewEntity* find(const entity_t* e)
     const view::ViewEntity* found = in(d.hand, 2);
     found = found ? found : in(d.weapon, 2);
     found = found ? found : in(d.holster, VrDrawnHolsters::count);
+    // (animfix2; his note dm3 2026-11-23 23:05:16: a copy's left sheaths turned wrong) His worn gear too: missing here,
+    // its left sheaths were drawn with their mirrored angles but not mirrored (the right one's model turned, not its
+    // mirror image), the winding unflipped.
+    found = found ? found : in(d.gear, VrDrawnGear::count);
     for(int side = 0; side < 2 && !found; side++)
     {
         found = in(d.gun[side].part, view::GunParts::Count);
