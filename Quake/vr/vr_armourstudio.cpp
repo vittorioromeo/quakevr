@@ -13,6 +13,7 @@
 #include "vr_testkit.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -319,7 +320,7 @@ void readAnims(const qmodel_t* m)
     {
         char name[16];
         q_strlcpy(name, named && i < named->numframes ? named->frames[i].name : hdr->frames[i].name, sizeof(name));
-        size_t n = ZA_STRLEN(name);
+        za::SizeT n = ZA_STRLEN(name);
         while(n > 0 && ((name[n - 1] >= '0' && name[n - 1] <= '9') || name[n - 1] == '_'))
         {
             name[--n] = '\0';

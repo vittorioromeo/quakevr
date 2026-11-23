@@ -9,6 +9,7 @@
 #include "vr_ragtool.hpp"
 #include "vr_text3d.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -297,10 +298,10 @@ void struggleDraw(const glm::vec3& eye)
         int n = q_snprintf(text, sizeof(text), "struggle %d  effort %.2f  fatigue %.2f\n", r.num, g.effort, g.fatigue);
         for(int b = 0; b < ragactive::behaviourCount && n < static_cast<int>(sizeof(text)); b++)
         {
-            n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), "%-7s %4.2f %10s\n", ragactive::behaviourName(b),
+            n += q_snprintf(text + n, sizeof(text) - static_cast<za::SizeT>(n), "%-7s %4.2f %10s\n", ragactive::behaviourName(b),
                 g.weight[static_cast<za::SizeT>(b)], "");
         }
-        q_snprintf(text + n, sizeof(text) - static_cast<size_t>(za::min(n, static_cast<int>(sizeof(text)))),
+        q_snprintf(text + n, sizeof(text) - static_cast<za::SizeT>(za::min(n, static_cast<int>(sizeof(text)))),
             "held %s%s%s%s\nfloor %.2f drag %.2f\nprone %.2f head-down %.2f\ngrip lag %.1f u  guard %.2f",
             g.heldTorso > 0.f ? "torso " : "", g.heldHead > 0.f ? "head " : "", g.heldLegs > 0.f ? "legs " : "",
             g.heldArms > 0.f ? "arm " : "", g.contact, g.drag, g.prone, g.inverted, g.gripError, g.guard);
@@ -396,7 +397,7 @@ void struggleStatus_f()
             const b3Vec3 p = b3Body_GetPosition(r.body[static_cast<za::SizeT>(b)]);
             const float v[3] = {p.x, p.y, p.z};
             const auto* bytes = reinterpret_cast<const unsigned char*>(v);
-            for(size_t i = 0; i < sizeof(v); i++)
+            for(za::SizeT i = 0; i < sizeof(v); i++)
             {
                 h = (h ^ bytes[i]) * 1099511628211ull;
             }
@@ -448,14 +449,14 @@ void struggleStatus_f()
         const int headPart = r->rig->head > 0 && r->rig->head < r->count ? r->rig->head : 0;
         const glm::vec3 ownHead = glmv(b3Body_GetWorldCenter(r->body[static_cast<za::SizeT>(headPart)]));
         const char* heldName = r->rig->bones[g.part].name;
-        const size_t heldLen = ZA_STRLEN(heldName);
+        const za::SizeT heldLen = ZA_STRLEN(heldName);
         float legs = 0.f;
         int legCount = 0;
         for(int b = 0; b < r->count; b++)
         {
             const ragdoll::Bone& bone = r->rig->bones[b];
             const char* n = bone.name;
-            const size_t len = ZA_STRLEN(n);
+            const za::SizeT len = ZA_STRLEN(n);
             const auto at3 = [&](int part, const glm::vec3& rest) {
                 return glmv(b3Body_GetWorldPoint(r->body[static_cast<za::SizeT>(part)], b3v(rest * k)));
             };

@@ -8,6 +8,7 @@
 #include "vr_motion_take.hpp"
 #include "vr_zancle.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Pair.hpp"
@@ -75,7 +76,7 @@ struct Take
     bool hasWeapons{false};
     bool dummyAttacks{false}; // recorded with the training dummy striking back (the header's "dummy attacks: on")
     za::Vector<Frame> frames;
-    size_t firstRec{0};
+    za::SizeT firstRec{0};
 };
 
 enum class State

@@ -21,6 +21,7 @@
 
 #include "Zancle/Base/InitializerList.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
@@ -165,7 +166,7 @@ XrResult guardedCall(Call& call, Fault&)
     return call();
 }
 
-inline void describeFault(const Fault& fault, char* out, size_t size)
+inline void describeFault(const Fault& fault, char* out, za::SizeT size)
 {
     q_snprintf(out, size, "fault %u", fault.code);
 }
@@ -217,7 +218,7 @@ XrResult guardedCall(Call& call, Fault& fault)
 }
 
 // "an access violation reading 0x0 in virtualdesktop-openxr.dll+0x9a668"
-inline void describeFault(const Fault& fault, char* out, size_t size)
+inline void describeFault(const Fault& fault, char* out, za::SizeT size)
 {
     char module[MAX_PATH] = "an unknown module";
     uintptr_t offset = reinterpret_cast<uintptr_t>(fault.address);

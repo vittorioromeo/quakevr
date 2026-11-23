@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -523,7 +524,7 @@ struct WavBytes
 int wavinfoGuarded(unsigned char* pageEnd, const WavBytes& wav, wavinfo_t* info)
 {
     unsigned char* at = pageEnd - wav.n;
-    ZA_MEMCPY(at, wav.b, static_cast<size_t>(wav.n));
+    ZA_MEMCPY(at, wav.b, static_cast<za::SizeT>(wav.n));
 #ifdef _WIN32
     __try
     {

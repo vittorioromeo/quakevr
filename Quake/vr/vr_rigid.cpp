@@ -250,7 +250,7 @@ void keepInWorld(edict_t* ent, bool rigid)
     const int num = NUM_FOR_EDICT(ent);
     if(num >= static_cast<int>(freePlaces.size()))
     {
-        freePlaces.resize(static_cast<size_t>(num) + 64);
+        freePlaces.resize(static_cast<za::SizeT>(num) + 64);
     }
     FreePlace& place = freePlaces[num];
 

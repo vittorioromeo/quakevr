@@ -4,6 +4,7 @@
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -170,7 +171,7 @@ bool readMappedCopy(GLenum target, GLintptr offset, GLsizeiptr size, void* out)
     bool read = false;
     if(p)
     {
-        ZA_MEMCPY(out, p, static_cast<size_t>(size));
+        ZA_MEMCPY(out, p, static_cast<za::SizeT>(size));
         read = GL_UnmapBufferFunc(GL_COPY_WRITE_BUFFER) == GL_TRUE;
     }
     GL_BindBufferFunc(GL_COPY_WRITE_BUFFER, static_cast<GLuint>(previous));
@@ -210,7 +211,7 @@ bool readBuffer(GLenum target, GLintptr offset, GLsizeiptr size, void* out)
         {
             return false;
         }
-        ZA_MEMCPY(out, p, static_cast<size_t>(size));
+        ZA_MEMCPY(out, p, static_cast<za::SizeT>(size));
         return GL_UnmapBufferFunc(target) == GL_TRUE;
     }
     lookUpDesktopOnly();
@@ -338,7 +339,7 @@ EsReadback esReadback;
 
 // The depth bits of level `level` of 2D texture `tex` (w by h), drawn into an R32UI texture, read row strips at a time
 // (as RGBA_INTEGER, the form ES guarantees) into `out` (w * h floats, rows `stride` bytes apart).
-[[nodiscard]] bool readDepthBits(GLuint tex, GLint level, int w, int h, unsigned char* out, size_t stride)
+[[nodiscard]] bool readDepthBits(GLuint tex, GLint level, int w, int h, unsigned char* out, za::SizeT stride)
 {
     if(!makeDepthBitsProgram())
     {
@@ -376,7 +377,7 @@ EsReadback esReadback;
         glDrawArrays(GL_TRIANGLES, 0, 3);
         GL_BindSamplerFunc(0, static_cast<GLuint>(sampler));
         za::Vector<GLuint> strip;
-        strip.resize(static_cast<size_t>(w) * depthStripRows * 4);
+        strip.resize(static_cast<za::SizeT>(w) * depthStripRows * 4);
         GLint packAlignment = 4;
         glGetIntegerv(GL_PACK_ALIGNMENT, &packAlignment);
         glPixelStorei(GL_PACK_ALIGNMENT, 4);
@@ -386,10 +387,10 @@ EsReadback esReadback;
             glReadPixels(0, y, w, rows, GL_RGBA_INTEGER, GL_UNSIGNED_INT, strip.data());
             for(int r = 0; r < rows; r++)
             {
-                unsigned char* row = out + static_cast<size_t>(y + r) * stride;
+                unsigned char* row = out + static_cast<za::SizeT>(y + r) * stride;
                 for(int x = 0; x < w; x++)
                 {
-                    ZA_MEMCPY(row + static_cast<size_t>(x) * 4, &strip[(static_cast<size_t>(r) * w + x) * 4], 4);
+                    ZA_MEMCPY(row + static_cast<za::SizeT>(x) * 4, &strip[(static_cast<za::SizeT>(r) * w + x) * 4], 4);
                 }
             }
         }
@@ -420,7 +421,7 @@ EsReadback esReadback;
 
 // The ES form of readTexImage (the framebuffer bindings kept; `out` already zeroed).
 [[nodiscard]] bool readTexImageEs(GLenum target, GLint level, GLenum format, GLenum type, unsigned char* out, int w,
-    int h, int layers, size_t stride)
+    int h, int layers, za::SizeT stride)
 {
     GLint name = 0;
     glGetIntegerv(bindingOf(target), &name);
@@ -439,9 +440,9 @@ EsReadback esReadback;
         return false; // (integer and compressed textures: no ES read)
     }
     const int channels = channelsOf(format);
-    const size_t texelBytes = floats ? 16 : 4; // what glReadPixels gives: RGBA floats or bytes
+    const za::SizeT texelBytes = floats ? 16 : 4; // what glReadPixels gives: RGBA floats or bytes
     za::Vector<unsigned char> rgba;
-    rgba.resize(static_cast<size_t>(w) * static_cast<size_t>(h) * texelBytes);
+    rgba.resize(static_cast<za::SizeT>(w) * static_cast<za::SizeT>(h) * texelBytes);
     GLint packAlignment = 4;
     glGetIntegerv(GL_PACK_ALIGNMENT, &packAlignment);
     glPixelStorei(GL_PACK_ALIGNMENT, 4);
@@ -468,13 +469,13 @@ EsReadback esReadback;
         glReadPixels(0, 0, w, h, GL_RGBA, floats ? GL_FLOAT : GL_UNSIGNED_BYTE, rgba.data());
         for(int y = 0; y < h; y++)
         {
-            unsigned char* row = out + (static_cast<size_t>(z) * h + y) * stride;
+            unsigned char* row = out + (static_cast<za::SizeT>(z) * h + y) * stride;
             for(int x = 0; x < w; x++)
             {
-                const unsigned char* src = &rgba[(static_cast<size_t>(y) * w + x) * texelBytes];
+                const unsigned char* src = &rgba[(static_cast<za::SizeT>(y) * w + x) * texelBytes];
                 for(int c = 0; c < channels; c++)
                 {
-                    const size_t at = static_cast<size_t>(x) * channels + c;
+                    const za::SizeT at = static_cast<za::SizeT>(x) * channels + c;
                     if(type == GL_FLOAT)
                     {
                         float v = 0.f;
@@ -518,12 +519,12 @@ bool readTexImage(GLenum target, GLint level, GLenum format, GLenum type, void* 
         glGetTexLevelParameteriv(target, level, GL_TEXTURE_DEPTH, &d);
     }
     const int channels = channelsOf(format);
-    const size_t typeBytes = type == GL_FLOAT ? 4 : type == GL_UNSIGNED_BYTE ? 1 : 0;
+    const za::SizeT typeBytes = type == GL_FLOAT ? 4 : type == GL_UNSIGNED_BYTE ? 1 : 0;
     GLint packAlignment = 4;
     glGetIntegerv(GL_PACK_ALIGNMENT, &packAlignment);
-    const size_t align = static_cast<size_t>(za::max(packAlignment, 1));
-    const size_t stride = (static_cast<size_t>(w) * channels * typeBytes + align - 1) / align * align;
-    const size_t bytes = stride * static_cast<size_t>(h) * static_cast<size_t>(d);
+    const za::SizeT align = static_cast<za::SizeT>(za::max(packAlignment, 1));
+    const za::SizeT stride = (static_cast<za::SizeT>(w) * channels * typeBytes + align - 1) / align * align;
+    const za::SizeT bytes = stride * static_cast<za::SizeT>(h) * static_cast<za::SizeT>(d);
 #ifdef __ANDROID__
     esForm = true; // (OpenGL ES has no glGetTexImage: the ES form, whatever was asked)
 #endif
@@ -568,7 +569,7 @@ int readTexImageSame(GLenum target, GLint level, GLenum format, GLenum type, con
     {
         glGetTexLevelParameteriv(target, level, GL_TEXTURE_DEPTH, &d);
     }
-    const size_t bytes = static_cast<size_t>(w) * h * d * 4 * (type == GL_FLOAT ? 4 : 1) + 16; // (the most it needs)
+    const za::SizeT bytes = static_cast<za::SizeT>(w) * h * d * 4 * (type == GL_FLOAT ? 4 : 1) + 16; // (the most it needs)
     za::Vector<unsigned char> desktop, es;
     desktop.resize(bytes);
     es.resize(bytes);

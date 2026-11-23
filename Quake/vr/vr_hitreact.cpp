@@ -30,6 +30,7 @@
 
 #include "Zancle/Base/GetArraySize.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -565,19 +566,19 @@ void traceLine(const entity_t* e, Reaction& r, const ragdoll::Rig* rig, const gl
                 mostBone = b;
             }
         }
-        n += snprintf(line + n, sizeof(line) - static_cast<size_t>(n), " most %.2f deg %s", most, mostBone >= 0 ? rig->bones[mostBone].name : "-");
+        n += snprintf(line + n, sizeof(line) - static_cast<za::SizeT>(n), " most %.2f deg %s", most, mostBone >= 0 ? rig->bones[mostBone].name : "-");
         for(int b = 0; b < rig->numBones && n < static_cast<int>(sizeof(line)) - 24; b++)
         {
             const float a = za::sqrt(glm::dot(total[b], total[b])) * (180.f / 3.14159265f);
             if(a > 0.05f)
             {
-                n += snprintf(line + n, sizeof(line) - static_cast<size_t>(n), " %s=%.2f", rig->bones[b].name, a);
+                n += snprintf(line + n, sizeof(line) - static_cast<za::SizeT>(n), " %s=%.2f", rig->bones[b].name, a);
             }
         }
     }
     else
     {
-        n += snprintf(line + n, sizeof(line) - static_cast<size_t>(n), " tilt %.2f deg", tiltDeg);
+        n += snprintf(line + n, sizeof(line) - static_cast<za::SizeT>(n), " tilt %.2f deg", tiltDeg);
     }
     Con_Printf("%s\n", line);
 }

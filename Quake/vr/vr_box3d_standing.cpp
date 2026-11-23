@@ -10,6 +10,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -59,12 +60,12 @@ constexpr float unstickSpeed = 1.f;
 // (to feel the weight), a jump's push on the prop jumped from.
 void beforeStanding()
 {
-    world->stands.resize(static_cast<size_t>(svs.maxclients) + 1);
+    world->stands.resize(static_cast<za::SizeT>(svs.maxclients) + 1);
     const float mass = za::max(vr_box3d_player_mass.value, 0.f);
     for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
         edict_t* player = EDICT_NUM(i);
-        World::Stand& st = world->stands[static_cast<size_t>(i)];
+        World::Stand& st = world->stands[static_cast<za::SizeT>(i)];
         const bool live = vr_box3d_player_stand.value && !player->free && svs.clients[i - 1].active;
         const int num = live ? standingOn(player) : 0;
         if(!num)
@@ -161,7 +162,7 @@ void nudgeWalkedRagdolls(float dt)
     {
         edict_t* e = EDICT_NUM(player);
         const glm::vec3 origin = vec(e->v.origin);
-        glm::vec3& previous = world->walkOrigins[static_cast<size_t>(player)];
+        glm::vec3& previous = world->walkOrigins[static_cast<za::SizeT>(player)];
         const glm::vec3 walked{origin.x - previous.x, origin.y - previous.y, 0.f};
         const bool physical = previous != glm::vec3{0.f} && glm::length(walked) < world->m2u;
         previous = origin;
@@ -310,7 +311,7 @@ void unstickProps()
         za::Array<b3Vec3, 8> corners;
         for(int k = 0; k < 8; k++)
         {
-            corners[static_cast<size_t>(k)] = world->toM(glm::vec3{k & 1 ? hi.x : lo.x, k & 2 ? hi.y : lo.y, k & 4 ? hi.z : lo.z});
+            corners[static_cast<za::SizeT>(k)] = world->toM(glm::vec3{k & 1 ? hi.x : lo.x, k & 2 ? hi.y : lo.y, k & 4 ? hi.z : lo.z});
         }
         const b3ShapeProxy proxy{corners.data(), 8, 0.f};
         b3QueryFilter filter = b3DefaultQueryFilter();
@@ -329,7 +330,7 @@ void unstickProps()
                 if(num != oq.ground && solidProp(num) && oq.count < static_cast<int>(oq.nums.size()) &&
                    za::find(oq.nums.begin(), oq.nums.begin() + oq.count, num) == oq.nums.begin() + oq.count)
                 {
-                    oq.nums[static_cast<size_t>(oq.count++)] = num;
+                    oq.nums[static_cast<za::SizeT>(oq.count++)] = num;
                 }
                 return true;
             },
@@ -337,11 +338,11 @@ void unstickProps()
         const glm::vec3 middle = origin + 0.5f * (geom::vec(mins) + geom::vec(maxs));
         for(int k = 0; k < q.count; k++)
         {
-            if(vr_box3d_player_hold.value && feetInTop(player, EDICT_NUM(q.nums[static_cast<size_t>(k)])))
+            if(vr_box3d_player_hold.value && feetInTop(player, EDICT_NUM(q.nums[static_cast<za::SizeT>(k)])))
             {
                 continue; // (he is on it: put back on top, SV_CheckStuck)
             }
-            const b3BodyId body = world->slots[q.nums[static_cast<size_t>(k)]].body;
+            const b3BodyId body = world->slots[q.nums[static_cast<za::SizeT>(k)]].body;
             glm::vec3 away = world->toU(b3Body_GetWorldCenter(body)) - middle;
             away.z = za::max(away.z, 0.f);
             away = glm::length(away) > 0.1f ? glm::normalize(away) : glm::vec3{0.f, 0.f, 1.f};
@@ -352,7 +353,7 @@ void unstickProps()
             }
             if(vr_debug_box3d.value)
             {
-                Con_Printf("box3d: %d in player %d's body: pushed out (%.2f %.2f %.2f)\n", q.nums[static_cast<size_t>(k)], i,
+                Con_Printf("box3d: %d in player %d's body: pushed out (%.2f %.2f %.2f)\n", q.nums[static_cast<za::SizeT>(k)], i,
                     away.x, away.y, away.z);
             }
         }
@@ -433,7 +434,7 @@ void rideStanding()
 {
     for(int i = 1; i < static_cast<int>(world->stands.size()) && i < qcvm->num_edicts; i++)
     {
-        World::Stand& st = world->stands[static_cast<size_t>(i)];
+        World::Stand& st = world->stands[static_cast<za::SizeT>(i)];
         const b3BodyId body = standBody(st.ground);
         if(B3_IS_NULL(body))
         {
@@ -500,8 +501,8 @@ void addNormal(Shape& p, glm::dvec3 n)
         n[k] = za::abs(n[k]) < 1e-7 ? 0.0 : n[k]; // (a wall's normal is flat: Quake's step up needs normal z 0)
     }
     n = glm::normalize(n);
-    p.normals[static_cast<size_t>(p.count++)] = n;
-    p.normals[static_cast<size_t>(p.count++)] = -n;
+    p.normals[static_cast<za::SizeT>(p.count++)] = n;
+    p.normals[static_cast<za::SizeT>(p.count++)] = -n;
 }
 
 // The prop `touch` (slot s) and the player's box (mins, maxs from his origin) as they meet.
@@ -525,14 +526,14 @@ namespace
     int up = 0;
     for(int k = 0; k < 3; k++)
     {
-        p.axes[static_cast<size_t>(k)] = glm::normalize(glm::dvec3{axes[k]});
+        p.axes[static_cast<za::SizeT>(k)] = glm::normalize(glm::dvec3{axes[k]});
         if(za::abs(axes[k].z) > za::abs(axes[up].z))
         {
             up = k;
         }
     }
     // The column turned with the prop's sides (its yaw): an upright box's faces meet its flats, at exactly his half-width.
-    const glm::dvec3 side = p.axes[static_cast<size_t>((up + 1) % 3)];
+    const glm::dvec3 side = p.axes[static_cast<za::SizeT>((up + 1) % 3)];
     const double yaw = za::atan2(side.y, side.x);
     const double r = 0.5 * za::min(maxs[0] - mins[0], maxs[1] - mins[1]);
     const double corner = r / za::cos(glm::pi<double>() / columnSides);
@@ -540,7 +541,7 @@ namespace
     for(int k = 0; k < columnSides; k++)
     {
         const double a = yaw + (k + 0.5) * 2.0 * glm::pi<double>() / columnSides;
-        p.ring[static_cast<size_t>(k)] = at + corner * glm::dvec2{za::cos(a), za::sin(a)};
+        p.ring[static_cast<za::SizeT>(k)] = at + corner * glm::dvec2{za::cos(a), za::sin(a)};
     }
     p.bottom = mins[2];
     p.top = maxs[2];
@@ -571,7 +572,7 @@ namespace
     double box = glm::dot(n, p.centre);
     for(int k = 0; k < 3; k++)
     {
-        box += p.half[k] * za::abs(glm::dot(n, p.axes[static_cast<size_t>(k)]));
+        box += p.half[k] * za::abs(glm::dot(n, p.axes[static_cast<za::SizeT>(k)]));
     }
     double ring = -1e300;
     for(const glm::dvec2& v : p.ring)
@@ -587,7 +588,7 @@ namespace
     double h = glm::dot(n, p.centre);
     for(int k = 0; k < 3; k++)
     {
-        h += p.half[k] * za::abs(glm::dot(n, p.axes[static_cast<size_t>(k)])) + p.ext[k] * za::abs(n[k]);
+        h += p.half[k] * za::abs(glm::dot(n, p.axes[static_cast<za::SizeT>(k)])) + p.ext[k] * za::abs(n[k]);
     }
     return h;
 }
@@ -603,7 +604,7 @@ namespace
         glm::dvec3 out{0.0};
         for(int i = 0; i < 3; i++)
         {
-            const double t = glm::dot(d, p.axes[static_cast<size_t>(i)]);
+            const double t = glm::dot(d, p.axes[static_cast<za::SizeT>(i)]);
             out[i] = za::max(za::abs(t) - p.half[i], 0.0);
         }
         best = za::min(best, glm::length(out));
@@ -643,7 +644,7 @@ namespace
     double depth = 1e300;
     for(int k = 0; k < p.count; k++)
     {
-        const glm::dvec3& n = p.normals[static_cast<size_t>(k)];
+        const glm::dvec3& n = p.normals[static_cast<za::SizeT>(k)];
         depth = za::min(depth, propSupport(p, n) - glm::dot(n, o));
     }
     return depth;
@@ -664,10 +665,10 @@ namespace
     };
     if(shaped)
     {
-        const PropShape p = propShape(prop, world->slots[static_cast<size_t>(NUM_FOR_EDICT(prop))], mins, maxs);
+        const PropShape p = propShape(prop, world->slots[static_cast<za::SizeT>(NUM_FOR_EDICT(prop))], mins, maxs);
         for(int k = 0; k < p.count; k++)
         {
-            const glm::dvec3& n = p.normals[static_cast<size_t>(k)];
+            const glm::dvec3& n = p.normals[static_cast<za::SizeT>(k)];
             face(n, propSupport(p, n) - glm::dot(n, o));
         }
     }
@@ -737,7 +738,7 @@ void watchInside()
                 continue;
             }
             // (Its body as it is, not the entity's origin and angles its shape is traced from.)
-            const Slot& s = world->slots[static_cast<size_t>(g)];
+            const Slot& s = world->slots[static_cast<za::SizeT>(g)];
             const b3WorldTransform xf = b3Body_GetTransform(s.body);
             const PropShape shape = propShapeAt(world->toU(xf.p), glm::mat3_cast(fromB3(xf.q)), s, mins, maxs);
             depth = insideDepth(shape, glm::dvec3{p->v.origin[0], p->v.origin[1], p->v.origin[2]});
@@ -747,7 +748,7 @@ void watchInside()
                 traced = insideDepth(propShape(e, s, mins, maxs), glm::dvec3{p->v.origin[0], p->v.origin[1], p->v.origin[2]});
             }
         }
-        const size_t k = static_cast<size_t>(num);
+        const za::SizeT k = static_cast<za::SizeT>(num);
         if(in)
         {
             insideWatch.inside++;
@@ -762,7 +763,7 @@ void watchInside()
                     qcvm->time, num, in, depth, traced, p->v.origin[0], p->v.origin[1], p->v.origin[2], p->v.velocity[0], p->v.velocity[1],
                     p->v.velocity[2], (static_cast<int>(p->v.flags) & FL_ONGROUND) ? "grounded" : "in the air", NUM_FOR_EDICT(g),
                     e->v.origin[0], e->v.origin[1], e->v.origin[2], e->v.angles[0], e->v.angles[1], e->v.angles[2],
-                    world->slots[static_cast<size_t>(in)].asleep ? "asleep" : "awake");
+                    world->slots[static_cast<za::SizeT>(in)].asleep ? "asleep" : "awake");
             }
         }
         insideWatch.in[k] = in;
@@ -882,7 +883,7 @@ extern "C" void VR_PlayerBumps(edict_t* ent, edict_t* other, const float* normal
     }
     // (Not the one he stands on: walking into a steep part of it, a tilted box's upper end, he would shove it from under
     // himself, and ride it on.)
-    if(num < static_cast<int>(world->stands.size()) && world->stands[static_cast<size_t>(num)].ground == g)
+    if(num < static_cast<int>(world->stands.size()) && world->stands[static_cast<za::SizeT>(num)].ground == g)
     {
         return;
     }
@@ -941,7 +942,7 @@ extern "C" void VR_PlayerBumps(edict_t* ent, edict_t* other, const float* normal
     {
         return false;
     }
-    const Slot& s = world->slots[static_cast<size_t>(num)];
+    const Slot& s = world->slots[static_cast<za::SizeT>(num)];
     glm::vec3 lo, hi;
     qvr::box3d::ownBox(s, lo, hi);
     if(B3_IS_NULL(s.body) || hi.x <= lo.x)
@@ -1056,7 +1057,7 @@ namespace
     const int num = NUM_FOR_EDICT(mover);
     if(num < static_cast<int>(world->slots.size()))
     {
-        const Kind k = world->slots[static_cast<size_t>(num)].kind;
+        const Kind k = world->slots[static_cast<za::SizeT>(num)].kind;
         return k != Kind::Prop && k != Kind::Held && k != Kind::Fixture;
     }
     return true;
@@ -1092,8 +1093,8 @@ namespace
     p.ext = glm::dvec3{0.5 * (maxs[0] - mins[0]), 0.5 * (maxs[1] - mins[1]), 0.5 * (maxs[2] - mins[2])};
     for(int k = 0; k < 3; k++)
     {
-        p.axes[static_cast<size_t>(k)] = glm::normalize(glm::dvec3{axes[k]});
-        addNormal(p, p.axes[static_cast<size_t>(k)]);
+        p.axes[static_cast<za::SizeT>(k)] = glm::normalize(glm::dvec3{axes[k]});
+        addNormal(p, p.axes[static_cast<za::SizeT>(k)]);
     }
     if(p.ext.x > 0.0 || p.ext.y > 0.0 || p.ext.z > 0.0)
     {
@@ -1135,7 +1136,7 @@ extern "C" int VR_PropShotClip(edict_t* mover, edict_t* touch, const float* star
     {
         return 0;
     }
-    const ShotShape p = shotShape(touch, world->slots[static_cast<size_t>(g)], mins, maxs);
+    const ShotShape p = shotShape(touch, world->slots[static_cast<za::SizeT>(g)], mins, maxs);
     ZA_MEMSET(trace, 0, sizeof(*trace));
     trace->fraction = 1.f;
     VectorCopy(end, trace->endpos);
@@ -1160,8 +1161,8 @@ bool qvr::box3d::missileMeetsItem(edict_t* missile, edict_t* item)
         return false;
     }
     const int g = NUM_FOR_EDICT(item);
-    return g > svs.maxclients && g < static_cast<int>(world->slots.size()) && world->slots[static_cast<size_t>(g)].kind == Kind::Prop &&
-           B3_IS_NON_NULL(world->slots[static_cast<size_t>(g)].body);
+    return g > svs.maxclients && g < static_cast<int>(world->slots.size()) && world->slots[static_cast<za::SizeT>(g)].kind == Kind::Prop &&
+           B3_IS_NON_NULL(world->slots[static_cast<za::SizeT>(g)].body);
 }
 
 // SV_ClipToLinks: a flying missile's move against a dropped pickup lying loose (box3d::missileMeetsItem) meets its drawn
@@ -1173,7 +1174,7 @@ extern "C" int VR_ItemShotClip(edict_t* mover, edict_t* touch, const float* star
     {
         return -1;
     }
-    const ShotShape p = shotShape(touch, world->slots[static_cast<size_t>(NUM_FOR_EDICT(touch))], mins, maxs);
+    const ShotShape p = shotShape(touch, world->slots[static_cast<za::SizeT>(NUM_FOR_EDICT(touch))], mins, maxs);
     ZA_MEMSET(trace, 0, sizeof(*trace));
     trace->fraction = 1.f;
     VectorCopy(end, trace->endpos);
@@ -1203,12 +1204,12 @@ extern "C" void VR_MissileHitDebug(edict_t* ent, edict_t* other, const trace_t* 
     if(solidProp(g))
     {
         const float zero[3]{0.f, 0.f, 0.f};
-        const ShotShape p = shotShape(other, world->slots[static_cast<size_t>(g)], zero, zero);
+        const ShotShape p = shotShape(other, world->slots[static_cast<za::SizeT>(g)], zero, zero);
         Con_Printf("missile hit: prop %d centre %.3f %.3f %.3f half %.3f %.3f %.3f\n", g, p.centre.x, p.centre.y, p.centre.z,
             p.half.x, p.half.y, p.half.z);
         for(int k = 0; k < 3; k++)
         {
-            const glm::dvec3& a = p.axes[static_cast<size_t>(k)];
+            const glm::dvec3& a = p.axes[static_cast<za::SizeT>(k)];
             Con_Printf("missile hit: prop %d axis %d %.5f %.5f %.5f\n", g, k, a.x, a.y, a.z);
         }
     }

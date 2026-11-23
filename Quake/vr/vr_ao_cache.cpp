@@ -5,6 +5,7 @@
 #include "vr_sha256.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 
@@ -40,7 +41,7 @@ struct FileHeader
 };
 static_assert(sizeof(FileHeader) == 64);
 
-[[nodiscard]] za::U64 fnv64(const unsigned char* b, size_t n)
+[[nodiscard]] za::U64 fnv64(const unsigned char* b, za::SizeT n)
 {
     return diskcache::fnv(aoFnvStart, b, n);
 }
@@ -61,8 +62,8 @@ namespace qvr::ao::detail
 [[nodiscard]] sha256::Digest bakeKey(const BakeJob& job)
 {
     za::Vector<unsigned char> bytes;
-    const auto put = [&bytes](const void* data, size_t n) {
-        const size_t at = bytes.size();
+    const auto put = [&bytes](const void* data, za::SizeT n) {
+        const za::SizeT at = bytes.size();
         bytes.resize(at + n);
         ZA_MEMCPY(bytes.data() + at, data, n);
     };
@@ -103,7 +104,7 @@ namespace qvr::ao::detail
     {
         return FileRead::Missing;
     }
-    const size_t count = static_cast<size_t>(job.numposes) * job.numverts;
+    const za::SizeT count = static_cast<za::SizeT>(job.numposes) * job.numverts;
     FileHeader h;
     bool ok = fread(&h, 1, sizeof(h), in) == sizeof(h) && ZA_MEMCMP(h.magic, FILE_MAGIC, 4) == 0 && h.version == BAKE_VERSION &&
               h.numverts == static_cast<za::U32>(job.numverts) && h.numposes == static_cast<za::U32>(job.numposes) &&

@@ -30,6 +30,7 @@
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Asin.hpp"
@@ -141,7 +142,7 @@ constexpr float LEDGE_WATER_BELOW = 40.f; // units under the lip the water may s
     float best = -1.f;
     for(const int i : near)
     {
-        const ledges::Edge& e = m->edges[static_cast<size_t>(i)];
+        const ledges::Edge& e = m->edges[static_cast<za::SizeT>(i)];
         const float t = CLAMP(0.f, glm::dot(head - e.a, e.dir), e.len);
         const glm::vec3 lip = e.point(t);
         const float d = glm::distance(head, lip);

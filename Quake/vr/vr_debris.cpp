@@ -21,6 +21,7 @@
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -493,13 +494,13 @@ struct FloorGrid
         }
         for(const int i : it->second)
         {
-            const MapFace& f = faces[static_cast<size_t>(i)];
+            const MapFace& f = faces[static_cast<za::SizeT>(i)];
             if(za::abs(glm::dot(f.normal, p) - f.dist) > 1.f)
             {
                 continue;
             }
             bool inside = false; // crossings of a ray along +x, in the xy plane
-            for(size_t a = 0, b = f.pts.size() - 1; a < f.pts.size(); b = a++)
+            for(za::SizeT a = 0, b = f.pts.size() - 1; a < f.pts.size(); b = a++)
             {
                 const glm::vec3 &pa = f.pts[a], &pb = f.pts[b];
                 if((pa.y > p.y) != (pb.y > p.y) && p.x < (pb.x - pa.x) * (p.y - pa.y) / (pb.y - pa.y) + pa.x)
@@ -624,7 +625,7 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
 
 [[nodiscard]] bool nameInList(const char* list, const char* name)
 {
-    const size_t len = ZA_STRLEN(name);
+    const za::SizeT len = ZA_STRLEN(name);
     for(const char* p = list; *p;)
     {
         while(*p == ' ' || *p == ',' || *p == ';')
@@ -636,7 +637,7 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
         {
             p++;
         }
-        if(static_cast<size_t>(p - start) == len && !q_strncasecmp(start, name, len))
+        if(static_cast<za::SizeT>(p - start) == len && !q_strncasecmp(start, name, len))
         {
             return true;
         }
@@ -797,7 +798,7 @@ struct Planner
         const float sigma = keen ? 0.025f : 0.06f, floorWeight = keen ? 0.02f : 0.35f;
         za::Vector<float> w(m.skinLab.size());
         float total = 0.f;
-        for(size_t k = 0; k < w.size(); k++)
+        for(za::SizeT k = 0; k < w.size(); k++)
         {
             glm::vec3 d = m.skinLab[k] - lab;
             d.x *= 0.3f; // lightness counts less than hue: the world's lightmaps and the models' shading differ
@@ -805,7 +806,7 @@ struct Planner
             total += w[k];
         }
         float u = rng.uniform() * total;
-        for(size_t k = 0; k < w.size(); k++)
+        for(za::SizeT k = 0; k < w.size(); k++)
         {
             u -= w[k];
             if(u <= 0.f)
@@ -1016,7 +1017,7 @@ Material materialOf(const char* texture)
     }
     if(!ZA_STRNCMP(s.cStr(), "rock", 4) && s.size() > 4 && isdigit(static_cast<unsigned char>(s[4])))
     {
-        size_t i = 4;
+        za::SizeT i = 4;
         while(i < s.size() && isdigit(static_cast<unsigned char>(s[i])))
         {
             i++;
@@ -1123,7 +1124,7 @@ int plan()
 
     // The world's faces, their materials; the floors in a grid.
     const qmodel_t* map = sv.worldmodel;
-    pl.faces.reserve(static_cast<size_t>(map->nummodelsurfaces));
+    pl.faces.reserve(static_cast<za::SizeT>(map->nummodelsurfaces));
     for(int i = 0; i < map->nummodelsurfaces; i++)
     {
         const msurface_t& surf = map->surfaces[map->firstmodelsurface + i];
@@ -1159,7 +1160,7 @@ int plan()
     // The spots: along each wall's bottom edge, every 16 units, where a floor meets it.
     za::Vector<Spot> spots;
     int edgesSeen = 0;
-    for(size_t fi = 0; fi < pl.faces.size(); fi++)
+    for(za::SizeT fi = 0; fi < pl.faces.size(); fi++)
     {
         const MapFace& f = pl.faces[fi];
         const glm::vec2 outFull{f.normal};
@@ -1182,7 +1183,7 @@ int plan()
             lo = za::min(lo, p.z);
         }
         const glm::vec2 out = glm::normalize(outFull);
-        for(size_t k = 0; k < f.pts.size(); k++)
+        for(za::SizeT k = 0; k < f.pts.size(); k++)
         {
             const glm::vec3 a = f.pts[k], b = f.pts[(k + 1) % f.pts.size()];
             if(za::abs(a.z - lo) > 0.5f || za::abs(b.z - lo) > 0.5f || glm::length(b - a) < 8.f)
@@ -1205,7 +1206,7 @@ int plan()
                     continue;
                 }
                 const int floorFace = pl.floors.at(pl.faces, vec(down.endpos));
-                const Material floorMat = floorFace >= 0 ? pl.faces[static_cast<size_t>(floorFace)].material : Material::Other;
+                const Material floorMat = floorFace >= 0 ? pl.faces[static_cast<za::SizeT>(floorFace)].material : Material::Other;
                 const float floorRock = floorMat == Material::Natural ? 1.f : 0.f;
                 const float floorBrick = floorMat == Material::Brick ? 0.25f : 0.f;
                 Spot s;
@@ -1219,17 +1220,17 @@ int plan()
                 {
                     continue;
                 }
-                const texture_t* floorTex = floorFace >= 0 ? pl.faces[static_cast<size_t>(floorFace)].texture : nullptr;
+                const texture_t* floorTex = floorFace >= 0 ? pl.faces[static_cast<za::SizeT>(floorFace)].texture : nullptr;
                 s.rockLab = textureLab(wallRock >= floorRock ? f.texture : floorTex);
                 s.brickLab = textureLab(wallBrick >= floorBrick ? f.texture : floorTex);
-                s.light = floorFace >= 0 ? floorLight(map, pl.faces[static_cast<size_t>(floorFace)].surf, s.at + glm::vec3{out * 4.f, 0.f}) : 255.f;
+                s.light = floorFace >= 0 ? floorLight(map, pl.faces[static_cast<za::SizeT>(floorFace)].surf, s.at + glm::vec3{out * 4.f, 0.f}) : 255.f;
                 spots.pushBack(s);
             }
         }
     }
 
     // In a random order (the same each load), so that the limits leave no part of the map favoured.
-    for(size_t i = spots.size(); i > 1; i--)
+    for(za::SizeT i = spots.size(); i > 1; i--)
     {
         za::genericSwap(spots[i - 1], spots[pl.rng.next() % i]);
     }
@@ -1399,7 +1400,7 @@ int plan()
         }
         if(vr_debug_debris.value >= 2)
         {
-            for(size_t i = 0; i < placements.size(); i++)
+            for(za::SizeT i = 0; i < placements.size(); i++)
             {
                 const Placement& p = placements[i];
                 Con_Printf("debris: %d %s skin %d at (%.1f %.1f %.1f) yaw %.0f%s size %.2f, out (%.2f %.2f)\n", static_cast<int>(i),
@@ -1413,7 +1414,7 @@ int plan()
 
 const char* modelOf(int i)
 {
-    return i >= 0 && i < static_cast<int>(placements.size()) ? models[placements[static_cast<size_t>(i)].model].name() : "";
+    return i >= 0 && i < static_cast<int>(placements.size()) ? models[placements[static_cast<za::SizeT>(i)].model].name() : "";
 }
 
 namespace
@@ -1466,7 +1467,7 @@ int put(edict_t* e, int i)
     {
         return 0;
     }
-    const Placement& p = placements[static_cast<size_t>(i)];
+    const Placement& p = placements[static_cast<za::SizeT>(i)];
     const progs::FieldOffsets& f = fields();
     e->v.skin = static_cast<float>(p.skin);
     e->v.frame = 0.f;

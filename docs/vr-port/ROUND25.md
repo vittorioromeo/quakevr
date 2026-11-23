@@ -10818,6 +10818,22 @@ Follows "flatwheel"'s noticed item (the nailgun put into a holster by the wheel 
   reload/eject_test 28/0, `mp_test.py suite --only mp_weaponwheel` 9/0 (B now holds the nailgun: his hold kept its 24).
 - Noticed, not chased (as before): the multi-grenade's B/Y held longer than `vr_weaponwheel_hold` opens the wheel.
 
+## qcpu: where a big fight's CPU goes; findradiusmoving's sort cut (agent/qcpu, 2026-11-23)
+
+Profiling of qcombined's CPU-bound scenes (48 monsters on vrfiringrange, the live e1m1 fight) on PC VR mock, PC flat
+and the Quest 3; table and top 10s in QUEST_OPTIMISATIONS.md "CPU in fights".
+- **Where it goes:** QuakeC is the biggest single cost (PC 1.2-1.7 ms; on the Quest most of SV_Physics' 8.6-10.5),
+  two thirds of it the armed humanoids' weapon props every frame (VR_AG_PropThink: the pose 0.59 ms, the shot and throw
+  scans 0.30, the parry 0.16 on PC). Then alias set-up (PC 1.07, Quest 4.0), the view entities, the armed arms' relink
+  (its solves already on jobs), Box3D. No other single function over 0.13 ms on PC.
+- **Cut:** `VR_FindRadiusMoving` (vr_findradius.cpp) tests "moving, not a player, monster or pusher" inside the search,
+  before the grid's sort, instead of on the sorted chain: the props' scans found ~52 entities a call, nearly all
+  dropped. Same chain, same order. findradius per call: PC 2.20 -> 1.15 us; Quest 5.3 -> 3.4 us (48 monsters), 3.0 ->
+  2.2 (e1m1); a frame: Quest -0.23 ms (48 monsters), -0.12 (e1m1). CPU busy moved within the launches' spread.
+- Quest A/B: a temporary `vr_findradius_grid 3` (the old order) in the APK only, reverted on the branch; 2 launches
+  interleaved (the third skipped: another app in front), beta2's APK and progs.dat (8a409520...) put back.
+- Not done, too big to keep exact here: a native port of the props' pose QuakeC (VR_AGP_Pose and helpers), the
+  Quest's alias set-up. Scripts: `scratch/qcpu_*` (not committed).
 ## qfov2: Quest foveation, form 2 rebuilt as Meta's samples (branch agent/qfov2, 2026-11-23; headset block pending)
 
 - **Why form 1 gave no gain**: its depth is the composite's unfoveated depth texture. The Adreno driver does not foveate a
@@ -10943,3 +10959,61 @@ details: QUEST_OPTIMISATIONS.md "Standalone status, 2026-11-23".
 - PC: `-glescompat` eyeshots one pass vs gather: mean |d| 0.035/255 (blood's randomness); smoke runs (ES and PC, map
   changes) clean. Scripts (not committed): `scratch/qfov3_*` (mk, ab3, trace, pc, diff, fresh.cfg), `qp_run.sh` now
   also accepts the Quick Actions menu in front.
+## zancle3: the last std:: in our code, vr_zancle_math_test retired (agent/zancle3, 2026-11-23)
+
+His list of 2026-11-23 (ZANCLE.md has the mapping rows). Zancle changes on its branch `qvr/zancle3` (worktree
+`C:\OHWorkspace\SFML-qvr`, off `2f8a1ca5`, not pushed), vendored (external/zancle/README.md names the commits):
+- **`<new>`**: `Zancle/Base/FwdStdNew.hpp` (db1a6af6) forward-declares `std::nothrow_t`, `std::nothrow` and the nothrow
+  allocation functions (`std::align_val_t` from FwdStdAlignedNewDelete.hpp) in plain `namespace std`, as MSVC's
+  vcruntime_new.h, libstdc++'s `<new>` and libc++'s (its "purposefully not using versioning namespace", NDK 27 checked)
+  all do: so replacement `operator new`/`delete` written with them still replace the library's, and `<new>` may come
+  before or after. `za::AlignValT`/`za::NothrowT` aliases. Zancle tests: the header alone (nothrow and aligned
+  allocations, `std::nothrow` the library's object), and with `<new>` in both orders. vr_alloccount/vr_allocsites use it.
+- **Wall clock**: `za::Clock::nowUnixNanoseconds()` (99163ba2; GetSystemTimePreciseAsFileTime / clock_gettime
+  REALTIME, tested against system_clock): `wallMs` in vr_mptest/vr_voicechat (the mp_ lines' `t=` still epoch ms).
+- **vr_zancle_math_test** retired: what Zancle's tests lacked (bit-for-bit against std on edge values, min/max folds
+  against std's, clamp, fmod/remainder and the angle wrap, stableSort/nthElement against std) is Zancle's
+  `test/Base/MathAgainstStd.test.cpp` (e1737e7a). The file, its registration, Debug menu row (menu_paths.txt
+  regenerated) and allowlist row went.
+- Zancle's tests were built and run without CMake (its CPM fetches dependencies): kit-less script
+  `scratch/zancle3_ztest.sh <test files>` (clang-cl, the Tst runner and the core sources): 7 cases, 10,059 assertions,
+  0 failed (FwdStdNew x3, MathAgainstStd, Clock, SourceLocation, ChunkedVector).
+- **Our code**: `.inc` std math -> za (the std_uses check scans `.inc` now: Tools/qvr_checks/std_uses.cpp, one line);
+  `za::InitializerList` (vr_imgprefetch); `za::SourceLocation` (vr_jobs, Tracy builds); `za::ChunkedVector` for
+  vr_tracy's QC zone names/locations (stable addresses); vr_motion_review's three `std::map`s -> ankerl maps with
+  `qza::sortedByKey` where written (eval_status.csv, reviewed.csv: the names' order, as before) and for the stamp
+  lookup (of two verdicts with one stamp the later name's, as before); not vectors of pairs (hundreds to thousands of
+  takes, a lookup per take each scan); the takes' pointers into them are set again by the scan every change is
+  followed by (`changed()`).
+- **size_t**: every `size_t`/`std::size_t` in our C++ (Quake/vr .cpp/.hpp/.inc, not external/ or doom/) -> `za::SizeT`
+  (2,094 uses in 215 files, code only: comments and strings untouched; `Zancle/Base/SizeT.hpp` added to 172 files);
+  `<stdlib.h>`/`<stddef.h>` dropped in 6 files using nothing else of theirs. C files and the C headers they share keep
+  `size_t` (the same type). vr_playerhit.cpp: `Zancle/Base/Memset.hpp` (a no-PCH failure already on origin/next).
+- **Counts** (`qvr_checks std_uses --list`): std:: 95 -> 0 (40 outside vr_zancle_diag.cpp), standard headers 10 -> 0;
+  the allowlist has no rows left.
+- **Tests**: Release build 0 warnings each phase; check_nopch.sh ok; Android native build compiles; Release-Tracy
+  compile of vr_jobs, vr_tracy, vr_imgprefetch, vr_alloccount (MSBuild ClCompile into scratch); smoke e1m1:
+  vr_alloc_test PASS, vr_heap test PASS, vr_voicechat_selftest 24/0; mp_test mp_prefs 12/0 (`t=` epoch ms checked).
+## qvrcheckszancle: Tools/qvr_checks on Zancle (agent/qvrcheckszancle, 2026-11-23)
+
+- The build's source checker uses Zancle as the engine does: `za::String`/`za::StringView`/`za::Vector`, ankerl dense
+  maps and sets (`Tools/qvr_checks/maps.hpp`; ordered walks through `qza::sortedByKey`, vr_zancle.hpp, or
+  `sortedItems`), `za::Pair`/`za::Optional`/`za::Array`, `za::quickSort`/`za::stableSort`, `za::min`/`za::max`,
+  `za::Thread`, `za::Clock`, `ZA_MEMCPY`/`ZA_MOVE`/`ZA_FORWARD`, `za::toString`. Files are read and written with the C
+  stdio (`_wfopen`), the child processes' command lines are `za::Vector<wchar_t>`. The project is C++23
+  (`/clang:-std=c++23`, as zancle.vcxproj), `ZA_STATIC`, and compiles Zancle's Abort, Assert, Clock, Thread and String
+  sources (winmm for the clock).
+- Kept from std (ZANCLE.md's kept list): `<regex>` (over `const char*` ranges), `std::filesystem` and its
+  `std::error_code`, `<format>` (common.hpp's `fmt`/`appendFmt`/`Out::line` format into a `za::String`;
+  `std::formatter`s for Zancle's strings) and `std::exception` (main.cpp's catch).
+- `qvr_checks std_uses` scans `Tools/qvr_checks/*.cpp|hpp` too; its rows in `Misc/quakevr/std_uses_allowlist.txt` are
+  named `Tools/qvr_checks/<file>` (37 rows, each with its why).
+- Same output: every check (`all`, `statics` with files, `test_numbers [--list]`, `builtins`, `toolgun_weapons`,
+  `cvars_qc --check`, `canonical` and `--list` of all 24 families and an unknown one, `release_qc`, `qc_precedence`,
+  `progs_format`, `fgd --check`, `help`) printed byte-identical output and exit codes before and after on the same
+  tree; only `std_uses` differs (the new rows). `canonical --tighten` lowers the same 4 lines as before. The one change
+  on a pathological input: a number too long for 64 bits saturates instead of std::stoll's throw (the "check crashed"
+  line).
+- Full rebuild (`-t:Rebuild -m`, the machine busy, so noisy): before 13.2-21.9 s (3 runs: 17.7, 21.9, 13.2), after
+  17.9-25.5 s (21.1, 17.9, 23.0, 25.5): about the same to a few seconds more (five Zancle sources and the dense map's
+  header beside the std headers that stay: regex, format, filesystem). An edit rebuilds only its file.

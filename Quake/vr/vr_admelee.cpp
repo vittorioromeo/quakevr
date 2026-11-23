@@ -8,6 +8,7 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/InitializerList.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -22,7 +23,7 @@ namespace qvr::admelee
 namespace
 {
 
-constexpr size_t headerSize = 84;
+constexpr za::SizeT headerSize = 84;
 
 // Units below are AD's, in the weapon's own frame at the hand: x along the handle towards the tip (the head), y along
 // the guard (the head's width), z across the blade (the head's depth).
@@ -138,14 +139,14 @@ constexpr float swordScale = 2.6f;
 }
 
 // "<base>#melee" taken apart; false if it isn't one.
-[[nodiscard]] bool parse(const char* name, char* base, size_t baseSize)
+[[nodiscard]] bool parse(const char* name, char* base, za::SizeT baseSize)
 {
     const char* at = ZA_STRSTR(name, suffix);
     if(!at || at[ZA_STRLEN(suffix)] != '\0')
     {
         return false;
     }
-    const size_t n = static_cast<size_t>(at - name);
+    const za::SizeT n = static_cast<za::SizeT>(at - name);
     if(n + 1 > baseSize)
     {
         return false;
@@ -156,14 +157,14 @@ constexpr float swordScale = 2.6f;
 }
 
 // "<the flail's model>#flailhead" taken apart; false if it isn't one.
-[[nodiscard]] bool flailHeadOf(const char* name, char* base, size_t baseSize)
+[[nodiscard]] bool flailHeadOf(const char* name, char* base, za::SizeT baseSize)
 {
     const char* at = ZA_STRSTR(name, flailHeadSuffix);
     if(!at || at[ZA_STRLEN(flailHeadSuffix)] != '\0')
     {
         return false;
     }
-    const size_t n = static_cast<size_t>(at - name);
+    const za::SizeT n = static_cast<za::SizeT>(at - name);
     if(n + 1 > baseSize)
     {
         return false;
@@ -244,12 +245,12 @@ struct Source
         int island;
     };
     int skinW{0}, skinH{0};
-    size_t skinsEnd{0}, pose{0};
+    za::SizeT skinsEnd{0}, pose{0};
     za::Vector<glm::vec3> pos, nrm;
     za::Vector<Tri> tris;
 };
 
-[[nodiscard]] bool readSource(const Frame& fr, const byte* src, size_t size, Source& out, const char*& why)
+[[nodiscard]] bool readSource(const Frame& fr, const byte* src, za::SizeT size, Source& out, const char*& why)
 {
     if(size < headerSize || qvr::bytes::le32(src, 0) != IDPOLYHEADER || qvr::bytes::le32(src, 4) != ALIAS_VERSION)
     {
@@ -265,8 +266,8 @@ struct Source
     }
     const glm::vec3 scale{qvr::bytes::lef32(src, 8), qvr::bytes::lef32(src, 12), qvr::bytes::lef32(src, 16)};
     const glm::vec3 origin{qvr::bytes::lef32(src, 20), qvr::bytes::lef32(src, 24), qvr::bytes::lef32(src, 28)};
-    const size_t skinBytes = static_cast<size_t>(skinW) * static_cast<size_t>(skinH);
-    size_t at = headerSize;
+    const za::SizeT skinBytes = static_cast<za::SizeT>(skinW) * static_cast<za::SizeT>(skinH);
+    za::SizeT at = headerSize;
     for(int s = 0; s < numSkins; s++)
     {
         if(at + 8 > size)
@@ -281,15 +282,15 @@ struct Source
         else
         {
             const int n = za::max(qvr::bytes::le32(src, at + 4), 1);
-            at += 8 + static_cast<size_t>(n) * 4 + static_cast<size_t>(n) * skinBytes;
+            at += 8 + static_cast<za::SizeT>(n) * 4 + static_cast<za::SizeT>(n) * skinBytes;
         }
     }
     out.skinW = skinW;
     out.skinH = skinH;
     out.skinsEnd = at;
-    const size_t st = at, tr = st + static_cast<size_t>(numVerts) * 12;
-    at = tr + static_cast<size_t>(numTris) * 16;
-    if(at + 4 + 24 + static_cast<size_t>(numVerts) * 4 > size || qvr::bytes::le32(src, at) != 0)
+    const za::SizeT st = at, tr = st + static_cast<za::SizeT>(numVerts) * 12;
+    at = tr + static_cast<za::SizeT>(numTris) * 16;
+    if(at + 4 + 24 + static_cast<za::SizeT>(numVerts) * 4 > size || qvr::bytes::le32(src, at) != 0)
     {
         why = "truncated, or its first frame a group";
         return false;
@@ -299,7 +300,7 @@ struct Source
     out.nrm.clear();
     for(int v = 0; v < numVerts; v++)
     {
-        const byte* b = src + out.pose + 24 + static_cast<size_t>(v) * 4;
+        const byte* b = src + out.pose + 24 + static_cast<za::SizeT>(v) * 4;
         out.pos.pushBack(fr.local(glm::vec3{b[0], b[1], b[2]} * scale + origin));
         out.nrm.pushBack(b[3] < NUMVERTEXNORMALS
                              ? fr.localDir(glm::vec3{r_avertexnormals[b[3]][0], r_avertexnormals[b[3]][1],
@@ -310,22 +311,22 @@ struct Source
     // Triangles: AD's winding is clockwise seen from outside (as every MDL's).
     out.tris.clear();
     za::Vector<int> owner, parent;
-    owner.resize(static_cast<size_t>(numVerts) * 2, -1);
+    owner.resize(static_cast<za::SizeT>(numVerts) * 2, -1);
     for(int i = 0; i < numTris; i++)
     {
-        const size_t o = tr + static_cast<size_t>(i) * 16;
+        const za::SizeT o = tr + static_cast<za::SizeT>(i) * 16;
         Source::Tri t;
         const bool front = qvr::bytes::le32(src, o) != 0;
         int keys[3];
         for(int c = 0; c < 3; c++)
         {
-            const int v = qvr::bytes::le32(src, o + 4 + static_cast<size_t>(c) * 4);
+            const int v = qvr::bytes::le32(src, o + 4 + static_cast<za::SizeT>(c) * 4);
             if(v < 0 || v >= numVerts)
             {
                 why = "bad triangle";
                 return false;
             }
-            const size_t sv = st + static_cast<size_t>(v) * 12;
+            const za::SizeT sv = st + static_cast<za::SizeT>(v) * 12;
             const bool back = !front && qvr::bytes::le32(src, sv) != 0;
             t.v[c] = v;
             t.s[c] = static_cast<float>(qvr::bytes::le32(src, sv + 4) + (back ? skinW / 2 : 0));
@@ -538,7 +539,7 @@ void blade(Mesh& m, const Sword& s)
             ring(glm::vec3{p.x, p.y, 0.f}, glm::normalize(glm::vec2{d}), za::max(p.z, 0.f));
         }
     }
-    for(size_t i = 1; i < mids.size(); i++) // (not the closing point inside the guard)
+    for(za::SizeT i = 1; i < mids.size(); i++) // (not the closing point inside the guard)
     {
         m.spine.pushBack(mids[i]);
     }
@@ -690,19 +691,19 @@ void heavyHandle(Mesh& m, const Heavy& h)
             }
         }
     }
-    for(size_t e = 0; e < open.size(); e++)
+    for(za::SizeT e = 0; e < open.size(); e++)
     {
         if(open[e].used)
         {
             continue;
         }
         za::Vector<int> loop;
-        size_t at = e;
+        za::SizeT at = e;
         while(!open[at].used)
         {
             open[at].used = true;
             loop.pushBack(static_cast<int>(at));
-            for(size_t f = 0; f < open.size(); f++)
+            for(za::SizeT f = 0; f < open.size(); f++)
             {
                 if(!open[f].used && same(open[f].from, open[at].to))
                 {
@@ -737,10 +738,10 @@ void heavyHandle(Mesh& m, const Heavy& h)
 // Each vertex's normal: given, or its triangles' (those of its group in its place).
 void shade(Mesh& m)
 {
-    const size_t nv = m.pos.size();
+    const za::SizeT nv = m.pos.size();
     za::Vector<glm::vec3> acc;
     acc.resize(nv, glm::vec3{0.f});
-    for(size_t i = 0; i + 2 < m.tri.size(); i += 3)
+    for(za::SizeT i = 0; i + 2 < m.tri.size(); i += 3)
     {
         const int a = m.tri[i], b = m.tri[i + 1], c = m.tri[i + 2];
         const glm::vec3 n = glm::cross(m.pos[c] - m.pos[a], m.pos[b] - m.pos[a]); // (outward: MDL winding)
@@ -749,7 +750,7 @@ void shade(Mesh& m)
         acc[c] += n;
     }
     za::Vector<int> order;
-    for(size_t v = 0; v < nv; v++)
+    for(za::SizeT v = 0; v < nv; v++)
     {
         if(m.group[v] >= 0)
         {
@@ -766,20 +767,20 @@ void shade(Mesh& m)
     };
     // Equal vertices (one group, one position) by index: each run's normals sum in one fixed order.
     za::quickSort(order.begin(), order.end(), [&](int x, int y) { return less(x, y) || (!less(y, x) && x < y); });
-    for(size_t i = 0; i < order.size();)
+    for(za::SizeT i = 0; i < order.size();)
     {
-        size_t j = i + 1;
+        za::SizeT j = i + 1;
         while(j < order.size() && !less(order[i], order[j]) && !less(order[j], order[i]))
         {
             j++;
         }
         glm::vec3 sum{0.f};
-        for(size_t k = i; k < j; k++)
+        for(za::SizeT k = i; k < j; k++)
         {
             sum += acc[order[k]];
         }
         const float len = glm::length(sum);
-        for(size_t k = i; k < j; k++)
+        for(za::SizeT k = i; k < j; k++)
         {
             m.nrm[order[k]] = len > 1e-8f ? sum / len : glm::vec3{1.f, 0.f, 0.f};
         }
@@ -874,7 +875,7 @@ void skin(Mesh& m, const Source& src)
         }
         glm::vec3 mid{0.f}, n{0.f};
         int count = 0;
-        for(size_t v = 0; v < m.pos.size(); v++)
+        for(za::SizeT v = 0; v < m.pos.size(); v++)
         {
             if(m.patch[v] == p)
             {
@@ -892,7 +893,7 @@ void skin(Mesh& m, const Source& src)
             -1, bary);
         pt.island = t >= 0 ? src.tris[t].island : -1;
     }
-    for(size_t v = 0; v < m.pos.size(); v++)
+    for(za::SizeT v = 0; v < m.pos.size(); v++)
     {
         if(m.patch[v] < 0)
         {
@@ -930,7 +931,7 @@ void check(const Mesh& m, Built& out)
     };
     za::quickSort(order.begin(), order.end(), less);
     int ids = 0;
-    for(size_t i = 0; i < order.size(); i++)
+    for(za::SizeT i = 0; i < order.size(); i++)
     {
         if(i > 0 && less(order[i - 1], order[i]))
         {
@@ -940,7 +941,7 @@ void check(const Mesh& m, Built& out)
     }
     za::Vector<long long> edges;
     out.volume = 0.f;
-    for(size_t i = 0; i + 2 < m.tri.size(); i += 3)
+    for(za::SizeT i = 0; i + 2 < m.tri.size(); i += 3)
     {
         for(int c = 0; c < 3; c++)
         {
@@ -951,9 +952,9 @@ void check(const Mesh& m, Built& out)
     }
     za::quickSort(edges.begin(), edges.end());
     out.openEdges = out.overEdges = 0;
-    for(size_t i = 0; i < edges.size();)
+    for(za::SizeT i = 0; i < edges.size();)
     {
-        size_t j = i + 1;
+        za::SizeT j = i + 1;
         while(j < edges.size() && edges[j] == edges[i])
         {
             j++;
@@ -1009,7 +1010,7 @@ constexpr int flailVerts = 384, flailTris = 286;
 // The flail's head's frame: its ball's middle at the origin, +x towards the ring the chain holds, at the size the
 // held weapons are drawn (the knight sword's 2.6 times AD's, drawn at 0.34): drawn at scale 1 where the physics has it.
 constexpr float flailHeadScale = swordScale * 0.34f;
-[[nodiscard]] bool flailHeadFrame(const byte* src, size_t size, Frame& out, const char*& why)
+[[nodiscard]] bool flailHeadFrame(const byte* src, za::SizeT size, Frame& out, const char*& why)
 {
     Frame raw;
     raw.grip = glm::vec3{0.f};
@@ -1058,7 +1059,7 @@ constexpr float flailHeadScale = swordScale * 0.34f;
 
 // AD's weapon made anew (its skins and, on the heavy ones, its head kept), laid as the knight's sword; `flailHead`: the
 // flail's head alone (flailHeadFrame).
-[[nodiscard]] bool build(const Weapon& w, const byte* src, size_t size, Built& out, const char*& why, bool flailHead = false)
+[[nodiscard]] bool build(const Weapon& w, const byte* src, za::SizeT size, Built& out, const char*& why, bool flailHead = false)
 {
     Frame fr = frameOf(w);
     if(flailHead && !flailHeadFrame(src, size, fr, why))
@@ -1071,7 +1072,7 @@ constexpr float flailHeadScale = swordScale * 0.34f;
         return false;
     }
     Mesh m;
-    size_t headVerts = 0; // (the head's vertices come first)
+    za::SizeT headVerts = 0; // (the head's vertices come first)
     if(w.flail)
     {
         if(static_cast<int>(s.pos.size()) != flailVerts || static_cast<int>(s.tris.size()) != flailTris)
@@ -1127,34 +1128,34 @@ constexpr float flailHeadScale = swordScale * 0.34f;
     const glm::vec3 scale = glm::max((out.hi - out.lo) / 255.f, glm::vec3{1e-4f});
     const glm::vec3 origin = out.lo;
 
-    const size_t skins = s.skinsEnd - headerSize;
+    const za::SizeT skins = s.skinsEnd - headerSize;
     out.file.clear();
-    out.file.resize(headerSize + skins + static_cast<size_t>(nv) * 12 + static_cast<size_t>(nt) * 16 + 4 + 24 +
-                        static_cast<size_t>(nv) * 4,
+    out.file.resize(headerSize + skins + static_cast<za::SizeT>(nv) * 12 + static_cast<za::SizeT>(nt) * 16 + 4 + 24 +
+                        static_cast<za::SizeT>(nv) * 4,
         byte{0});
     byte* f = out.file.data();
     ZA_MEMCPY(f, src, headerSize);
     ZA_MEMCPY(f + headerSize, src + headerSize, skins);
-    const auto setf = [&](size_t off, float v) {
+    const auto setf = [&](za::SizeT off, float v) {
         const float le = LittleFloat(v);
         ZA_MEMCPY(f + off, &le, 4);
     };
-    const auto seti = [&](size_t off, int v) {
+    const auto seti = [&](za::SizeT off, int v) {
         const int le = LittleLong(v);
         ZA_MEMCPY(f + off, &le, 4);
     };
     const glm::vec3 eye = fr.place(fr.local(glm::vec3{qvr::bytes::lef32(src, 36), qvr::bytes::lef32(src, 40), qvr::bytes::lef32(src, 44)}));
     for(int i = 0; i < 3; i++)
     {
-        setf(8 + static_cast<size_t>(i) * 4, scale[i]);
-        setf(20 + static_cast<size_t>(i) * 4, origin[i]);
-        setf(36 + static_cast<size_t>(i) * 4, eye[i]);
+        setf(8 + static_cast<za::SizeT>(i) * 4, scale[i]);
+        setf(20 + static_cast<za::SizeT>(i) * 4, origin[i]);
+        setf(36 + static_cast<za::SizeT>(i) * 4, eye[i]);
     }
     setf(32, radius);
     seti(60, nv);
     seti(64, nt);
     seti(68, 1);
-    size_t at = s.skinsEnd;
+    za::SizeT at = s.skinsEnd;
     for(int v = 0; v < nv; v++, at += 12)
     {
         seti(at, 0);
@@ -1166,7 +1167,7 @@ constexpr float flailHeadScale = swordScale * 0.34f;
         seti(at, 1);
         for(int c = 0; c < 3; c++)
         {
-            seti(at + 4 + static_cast<size_t>(c) * 4, m.tri[static_cast<size_t>(t) * 3 + c]);
+            seti(at + 4 + static_cast<za::SizeT>(c) * 4, m.tri[static_cast<za::SizeT>(t) * 3 + c]);
         }
     }
     seti(at, 0); // (one frame, a single pose: AD's first's name)
@@ -1207,7 +1208,7 @@ constexpr float flailHeadScale = swordScale * 0.34f;
         out.spine.pushBack(fr.place(l));
     }
     out.head.clear();
-    for(size_t v = 0; v < headVerts && v < pts.size(); v++)
+    for(za::SizeT v = 0; v < headVerts && v < pts.size(); v++)
     {
         out.head.pushBack(pts[v]);
     }
@@ -1238,7 +1239,7 @@ constexpr float flailHeadScale = swordScale * 0.34f;
         why = "its model's file not found";
         return false;
     }
-    const size_t size = static_cast<size_t>(com_filesize);
+    const za::SizeT size = static_cast<za::SizeT>(com_filesize);
     const bool ok = build(*w, src, size, out, why, flailHead);
     VR_HeapFree(src);
     if(path_id)
@@ -1268,11 +1269,11 @@ struct Bend
     glm::vec3 headLo{0.f}, headHi{0.f};
 };
 
-constexpr size_t weaponCount = sizeof(weapons) / sizeof(weapons[0]);
+constexpr za::SizeT weaponCount = sizeof(weapons) / sizeof(weapons[0]);
 Bend bends[weaponCount];
 char bendsGameDir[MAX_OSPATH]; // the game folder they were made in
 
-[[nodiscard]] const Bend* bendOf(size_t w)
+[[nodiscard]] const Bend* bendOf(za::SizeT w)
 {
     if(ZA_STRCMP(bendsGameDir, com_gamedir) != 0)
     {
@@ -1342,7 +1343,7 @@ char bendsGameDir[MAX_OSPATH]; // the game folder they were made in
         }
     }
     float most = 0.f;
-    size_t seg = 0;
+    za::SizeT seg = 0;
     for(int k = 0; k < bendSamples; k++)
     {
         const float f = static_cast<float>(k) / (bendSamples - 1);
@@ -1363,7 +1364,7 @@ char bendsGameDir[MAX_OSPATH]; // the game folder they were made in
 
 [[nodiscard]] const Bend* bendOfKind(int kind)
 {
-    return kind >= 1 && kind <= static_cast<int>(weaponCount) ? bendOf(static_cast<size_t>(kind - 1)) : nullptr;
+    return kind >= 1 && kind <= static_cast<int>(weaponCount) ? bendOf(static_cast<za::SizeT>(kind - 1)) : nullptr;
 }
 
 } // namespace
@@ -1395,7 +1396,7 @@ bool head(int kind, glm::vec3& lo, glm::vec3& hi)
 
 bool spineAt(const char* model, float f, glm::vec3& out, glm::vec3& line)
 {
-    for(size_t w = 0; w < weaponCount; w++)
+    for(za::SizeT w = 0; w < weaponCount; w++)
     {
         char name[MAX_QPATH];
         q_snprintf(name, sizeof(name), "%s%s", weapons[w].model, suffix);
@@ -1422,7 +1423,7 @@ int kindOfModel(const char* model)
     {
         return 0;
     }
-    for(size_t w = 0; w < weaponCount; w++)
+    for(za::SizeT w = 0; w < weaponCount; w++)
     {
         char name[MAX_QPATH];
         q_snprintf(name, sizeof(name), "%s%s", weapons[w].model, suffix);

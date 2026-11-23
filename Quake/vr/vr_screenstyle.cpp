@@ -3,6 +3,7 @@
 #include "vr_screenstyle.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gunvariants.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 
 
@@ -313,7 +314,7 @@ constexpr Entry table[] = {
 // along the glass's right, which a mirrored model does not turn (the screen reads the same in either hand), while the
 // housing it seats the glass in is mirrored with the model: unturned, the glass sat 2 * offset.x to the side in the left
 // hand (the grenade launcher's 0.054 the most of any: his report, 2026-11-11). The default's offset is 0.
-constexpr size_t tableSize = sizeof(table) / sizeof(table[0]);
+constexpr za::SizeT tableSize = sizeof(table) / sizeof(table[0]);
 
 struct MirroredTable
 {
@@ -323,7 +324,7 @@ struct MirroredTable
 [[nodiscard]] MirroredTable makeMirroredTable()
 {
     MirroredTable t{};
-    for(size_t i = 0; i < tableSize; i++)
+    for(za::SizeT i = 0; i < tableSize; i++)
     {
         t.styles[i] = table[i].style;
         t.styles[i].offset.x = -t.styles[i].offset.x;
@@ -368,7 +369,7 @@ const Style& forModel(const char* model, bool mirrored)
                 break;
             }
         }
-        for(size_t i = 0; i < tableSize; i++)
+        for(za::SizeT i = 0; i < tableSize; i++)
         {
             if(as ? !ZA_STRCMP(table[i].stem, as) : stemIs(model, table[i].stem))
             {

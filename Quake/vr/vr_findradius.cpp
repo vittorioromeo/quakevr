@@ -23,6 +23,7 @@
 #include "vr_cvars.hpp"
 #include "vr_mem.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "vr_api.h"
@@ -98,7 +99,7 @@ Stats stats;
 
 [[nodiscard]] edict_t* edictAt(int e)
 {
-    return reinterpret_cast<edict_t*>(reinterpret_cast<byte*>(sv.qcvm.edicts) + static_cast<size_t>(e) * sv.qcvm.edict_size);
+    return reinterpret_cast<edict_t*>(reinterpret_cast<byte*>(sv.qcvm.edicts) + static_cast<za::SizeT>(e) * sv.qcvm.edict_size);
 }
 
 // The server edict's number, or -1 (another VM's, or none).
@@ -110,7 +111,7 @@ Stats stats;
     }
     const byte* p = reinterpret_cast<const byte*>(ed);
     const byte* base = reinterpret_cast<const byte*>(sv.qcvm.edicts);
-    if(p < base || p >= base + static_cast<size_t>(sv.qcvm.max_edicts) * sv.qcvm.edict_size)
+    if(p < base || p >= base + static_cast<za::SizeT>(sv.qcvm.max_edicts) * sv.qcvm.edict_size)
     {
         return -1;
     }
@@ -185,6 +186,27 @@ void dirty(Tracking& t, int e)
     return !(lensq > rad);
 }
 
+// VR_FindRadiusMoving's speed for the search under way (-1: every entity found; the server's frame, one call).
+float moverSpeed = -1.f;
+
+// What the search keeps: in the radius and, for VR_FindRadiusMoving, moving at moverSpeed or more, never a player, a
+// monster or a pusher. The mover test runs in the search, before the grid's sort (qcpu, 2026-11-23: the armed humanoids'
+// scans found ~50 a call on the firing range, nearly all standing monsters and props, each sorted only to be dropped);
+// the same entities in the same order as testing them after.
+[[nodiscard]] inline bool wanted(const edict_t* ent, const float* org, float rad)
+{
+    if(moverSpeed >= 0.f && !ent->free)
+    {
+        const float v2 = DotProduct(ent->v.velocity, ent->v.velocity);
+        if(((int)ent->v.flags & (FL_CLIENT | FL_MONSTER)) || static_cast<int>(ent->v.movetype) == static_cast<int>(MOVETYPE_PUSH) ||
+           v2 <= 0.f || v2 < moverSpeed * moverSpeed)
+        {
+            return false;
+        }
+    }
+    return inRadius(ent, org, rad);
+}
+
 constexpr int walkAhead = 8; // edicts prefetched ahead of the walk
 
 // Quake's walk: every edict, in order.
@@ -205,7 +227,7 @@ void walk(const float* org, float rad, za::Vector<edict_t*>& out)
             __builtin_prefetch(ahead + offsetof(edict_t, v.mins));
             __builtin_prefetch(ahead + offsetof(edict_t, v.maxs) + sizeof(ent->v.maxs) - 1);
         }
-        if(inRadius(ent, org, rad))
+        if(wanted(ent, org, rad))
         {
             out.pushBack(ent);
         }
@@ -241,7 +263,7 @@ void gridSearch(Tracking& t, const float* org, float rad, za::Vector<edict_t*>& 
             continue;
         }
         listed[kept++] = e;
-        if(inRadius(ent, org, rad))
+        if(wanted(ent, org, rad))
         {
             out.pushBack(edictAt(e));
         }
@@ -272,7 +294,7 @@ void gridSearch(Tracking& t, const float* org, float rad, za::Vector<edict_t*>& 
         {
             continue; // (tested above)
         }
-        if(inRadius(ent, org, rad))
+        if(wanted(ent, org, rad))
         {
             out.pushBack(ent);
         }
@@ -308,9 +330,6 @@ void stats_f()
     stats.cycles0 = ticks();
     stats.seconds0 = Sys_DoubleTime();
 }
-
-// VR_FindRadiusMoving's speed for the next VR_FindRadius chain (-1: every entity found; the server's frame, one call).
-float moverSpeed = -1.f;
 
 } // namespace
 
@@ -348,18 +367,8 @@ extern "C" edict_t* VR_FindRadius(const float* org, float rad)
     }
 
     edict_t* chain = qcvm->edicts;
-    for(edict_t* ent : found)
+    for(edict_t* ent : found) // (VR_FindRadiusMoving's movers only: wanted, in the search)
     {
-        // (VR_FindRadiusMoving: only what moves at minSpeed or more, never a player, a monster or a pusher)
-        if(moverSpeed >= 0.f)
-        {
-            const float v2 = DotProduct(ent->v.velocity, ent->v.velocity);
-            if(((int)ent->v.flags & (FL_CLIENT | FL_MONSTER)) || static_cast<int>(ent->v.movetype) == static_cast<int>(MOVETYPE_PUSH) || v2 <= 0.f ||
-               v2 < moverSpeed * moverSpeed)
-            {
-                continue;
-            }
-        }
         ent->v.chain = EDICT_TO_PROG(chain);
         chain = ent;
     }

@@ -10,6 +10,7 @@
 #pragma once
 
 #include "vr_engine.hpp"
+#include "Zancle/Base/SizeT.hpp"
 
 namespace qvr::limbmodel
 {
@@ -18,7 +19,7 @@ inline constexpr const char* suffix = "#limb";
 
 // "<base>#limb<bone>" into `out` ("<base>#limb<bone>m<bones>" when `bones`, bits, is not all a cut at <bone> takes: a
 // limb whose own end was cut off before, the hand gone from the forearm); false if it doesn't fit.
-bool name(const char* base, int bone, uint32_t bones, char* out, size_t size);
+bool name(const char* base, int bone, uint32_t bones, char* out, za::SizeT size);
 
 // The same name kept for good (a QC string, a precache's): the same pointer for the same name.
 [[nodiscard]] const char* keptName(const char* base, int bone, uint32_t bones);

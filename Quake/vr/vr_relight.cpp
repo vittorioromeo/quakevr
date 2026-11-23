@@ -58,6 +58,7 @@
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -80,7 +81,7 @@ extern "C" {
 void VR_HeapFree(void* pointer);                                       // vr_alloccount.cpp
 void VR_FileCacheEnable(int on);                                       // vr_fscache.cpp
 void VR_FileCacheForget();                                             // vr_fscache.cpp
-int VR_MapGameFolder(const char* name, char* out, size_t size);        // vr_gamedir.cpp
+int VR_MapGameFolder(const char* name, char* out, za::SizeT size);        // vr_gamedir.cpp
 }
 
 namespace qvr::relight
@@ -433,7 +434,7 @@ struct Fnv
 
 // The map's file as the game finds it, and the folder of its game (id1, hipnotic, quakevr, a package's): false if
 // there is no such map.
-[[nodiscard]] bool mapSource(const char* map, za::Vector<unsigned char>& data, char* game, size_t size, bool& fromRelit)
+[[nodiscard]] bool mapSource(const char* map, za::Vector<unsigned char>& data, char* game, za::SizeT size, bool& fromRelit)
 {
     char name[MAX_QPATH];
     q_snprintf(name, sizeof(name), "maps/%s.bsp", map);
@@ -518,7 +519,7 @@ struct Fnv
 }
 
 // The map now in play ("e1m1"), or false.
-[[nodiscard]] bool currentMap(char* out, size_t size)
+[[nodiscard]] bool currentMap(char* out, za::SizeT size)
 {
     if(!cl.worldmodel || ZA_STRNCMP(cl.worldmodel->name, "maps/", 5))
     {
@@ -861,11 +862,11 @@ void readProgress(Slot& slot)
     }
     fseek(f, static_cast<long>(slot.logRead), SEEK_SET);
     char buf[4096];
-    size_t n;
+    za::SizeT n;
     while((n = fread(buf, 1, sizeof(buf), f)) > 0)
     {
         slot.logRead += n;
-        for(size_t i = 0; i < n; i++)
+        for(za::SizeT i = 0; i < n; i++)
         {
             slot.logTail.pushBack(buf[i]);
         }

@@ -26,6 +26,7 @@
 #include "vr_geom.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -312,13 +313,13 @@ void printTally(const char* what, const Tally& t)
         int at0 = q_snprintf(line, sizeof(line), "agarmor check:   %s: body in plate", pieceNames[p]);
         for(int r = 0; r < NumRegions; r++)
         {
-            at0 += q_snprintf(line + at0, sizeof(line) - static_cast<size_t>(at0), " %s %d (%.2f)", regionNames[r], t.bodyIn[p][r].count,
+            at0 += q_snprintf(line + at0, sizeof(line) - static_cast<za::SizeT>(at0), " %s %d (%.2f)", regionNames[r], t.bodyIn[p][r].count,
                 static_cast<double>(t.bodyIn[p][r].deepest));
         }
-        at0 += q_snprintf(line + at0, sizeof(line) - static_cast<size_t>(at0), "; plate in body");
+        at0 += q_snprintf(line + at0, sizeof(line) - static_cast<za::SizeT>(at0), "; plate in body");
         for(int r = 0; r < NumRegions; r++)
         {
-            at0 += q_snprintf(line + at0, sizeof(line) - static_cast<size_t>(at0), " %s %d (%.2f)", regionNames[r], t.plateIn[p][r].count,
+            at0 += q_snprintf(line + at0, sizeof(line) - static_cast<za::SizeT>(at0), " %s %d (%.2f)", regionNames[r], t.plateIn[p][r].count,
                 static_cast<double>(t.plateIn[p][r].deepest));
         }
         Con_Printf("%s\n", line);

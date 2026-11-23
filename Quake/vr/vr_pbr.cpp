@@ -10,6 +10,7 @@
 #include "vr_modelmetadata.h"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -87,7 +88,7 @@ mem::Cache<Session> session{"pbr companions", mem::GameDirChange};
 template <class F>
 bool parseLines(const char* data, const char* header, F&& record)
 {
-    const size_t headerLength = ZA_STRLEN(header);
+    const za::SizeT headerLength = ZA_STRLEN(header);
     if(!data || ZA_STRNCMP(data, header, headerLength)) return false;
     const char* line = data + headerLength;
     if(*line == '\r') ++line;
@@ -96,7 +97,7 @@ bool parseLines(const char* data, const char* header, F&& record)
     while(*line)
     {
         const char* end = strchr(line, '\n');
-        size_t length = end ? static_cast<size_t>(end - line) : ZA_STRLEN(line);
+        za::SizeT length = end ? static_cast<za::SizeT>(end - line) : ZA_STRLEN(line);
         const char* next = end ? end + 1 : line + length;
         if(length && line[length - 1] == '\r') --length;
         if(length && !record(line, length)) break; // malformed: the rest is not trusted
@@ -108,7 +109,7 @@ bool parseLines(const char* data, const char* header, F&& record)
 int parseStock(const char* data, za::Vector<StockSource>& out)
 {
     int records{};
-    parseLines(data, "qvr-pbr-stock-v1", [&](const char* line, size_t length)
+    parseLines(data, "qvr-pbr-stock-v1", [&](const char* line, za::SizeT length)
     {
         if(length != 32 || strspn(line, "0123456789abcdef") < 32) return false;
         StockSource source{};
@@ -123,7 +124,7 @@ int parseStock(const char* data, za::Vector<StockSource>& out)
 int parseProvenance(const char* data, za::Vector<Provenance>& out)
 {
     int records{};
-    parseLines(data, "qvr-pbr-provenance-v1", [&](const char* line, size_t length)
+    parseLines(data, "qvr-pbr-provenance-v1", [&](const char* line, za::SizeT length)
     {
         char text[160];
         if(length >= sizeof(text)) return false;
@@ -219,16 +220,16 @@ void hashSource(const byte* data, enum srcformat fmt, int w, int h, char (&hex)[
     hash.update(dims, sizeof(dims));
     if(fmt == SRC_RGBA)
     {
-        hash.update(data, static_cast<size_t>(w) * h * 4);
+        hash.update(data, static_cast<za::SizeT>(w) * h * 4);
     }
     else
     {
         byte row[4096];
-        const size_t pixels = static_cast<size_t>(w) * h;
-        for(size_t start = 0; start < pixels; start += 1024)
+        const za::SizeT pixels = static_cast<za::SizeT>(w) * h;
+        for(za::SizeT start = 0; start < pixels; start += 1024)
         {
-            const size_t count = q_min(size_t{1024}, pixels - start);
-            for(size_t i = 0; i < count; ++i)
+            const za::SizeT count = q_min(za::SizeT{1024}, pixels - start);
+            for(za::SizeT i = 0; i < count; ++i)
             {
                 const byte* rgb = reinterpret_cast<const byte*>(&d_8to24table[data[start + i]]);
                 ZA_MEMCPY(row + i * 4, rgb, 3);
@@ -244,7 +245,7 @@ void hashSource(const byte* data, enum srcformat fmt, int w, int h, char (&hex)[
 // key for its result. Any thread for an RGBA image (an 8-bit one reads the palette: the main thread's).
 za::U64 sourceKey(const byte* data, enum srcformat fmt, int w, int h)
 {
-    const size_t size = static_cast<size_t>(w) * h * (fmt == SRC_RGBA ? 4 : 1);
+    const za::SizeT size = static_cast<za::SizeT>(w) * h * (fmt == SRC_RGBA ? 4 : 1);
     const int dims[3] = {static_cast<int>(fmt), w, h};
     za::U64 key = ankerl::unordered_dense::detail::wyhash::hash(data, size);
     key ^= ankerl::unordered_dense::detail::wyhash::hash(dims, sizeof(dims)) * 0x9E3779B97F4A7C15ull;
@@ -281,7 +282,7 @@ unsigned verifiedFlags(const char* source, const byte* rgba, int w, int h)
 
 bool hasHeights(const byte* rgba, int w, int h)
 {
-    for(size_t i = 0, n = static_cast<size_t>(w) * h; i < n; ++i)
+    for(za::SizeT i = 0, n = static_cast<za::SizeT>(w) * h; i < n; ++i)
         if(rgba[i * 4 + 3] != 255)
             return true;
     return false;
@@ -290,9 +291,9 @@ bool hasHeights(const byte* rgba, int w, int h)
 // Preserve the component at its authored resolution, and sample the missing one periodically.
 const byte* sample(const byte* pixels, int w, int h, int x, int y, int outW, int outH)
 {
-    const int sx = static_cast<int>(static_cast<size_t>(x) * w / outW);
-    const int sy = static_cast<int>(static_cast<size_t>(y) * h / outH);
-    return pixels + (static_cast<size_t>(sy) * w + sx) * 4;
+    const int sx = static_cast<int>(static_cast<za::SizeT>(x) * w / outW);
+    const int sy = static_cast<int>(static_cast<za::SizeT>(y) * h / outH);
+    return pixels + (static_cast<za::SizeT>(sy) * w + sx) * 4;
 }
 
 byte* compose(const Recipe& recipe, int* w, int* h, enum srcformat* fmt)
@@ -310,11 +311,11 @@ byte* compose(const Recipe& recipe, int* w, int* h, enum srcformat* fmt)
     *w = normal ? nw : bump ? bw : gw;
     *h = normal ? nh : bump ? bh : gh;
     *fmt = SRC_RGBA;
-    byte* out = static_cast<byte*>(Hunk_Alloc(static_cast<size_t>(*w) * *h * 4));
+    byte* out = static_cast<byte*>(Hunk_Alloc(static_cast<za::SizeT>(*w) * *h * 4));
     for(int y = 0; y < *h; ++y)
     for(int x = 0; x < *w; ++x)
     {
-        byte* p = out + (static_cast<size_t>(y) * *w + x) * 4;
+        byte* p = out + (static_cast<za::SizeT>(y) * *w + x) * 4;
         const byte* g = sample(generated, gw, gh, x, y, *w, *h);
         const byte* n = normal ? sample(normal, nw, nh, x, y, *w, *h) : g;
         ZA_MEMCPY(p, n, 3);
@@ -359,12 +360,12 @@ void stats_f()
                     VR_ExtMapsCall(tx, &nm, &spec, &fullbright, material);
                     VR_PBRStrength(nm, &ns, &hs);
                     Con_Printf("pbr strength active: %s normal %.2f height %.2f\n", tx->name, ns, hs);
-                    const size_t n = static_cast<size_t>(nm->width) * nm->height;
+                    const za::SizeT n = static_cast<za::SizeT>(nm->width) * nm->height;
                     byte* rgba = static_cast<byte*>(VR_HeapMalloc(n * 4));
                     GL_Bind(GL_TEXTURE0, nm);
                     VR_GLGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
                     int lo = 255, hi = 0;
-                    for(size_t p = 0; p < n; ++p)
+                    for(za::SizeT p = 0; p < n; ++p)
                     {
                         lo = q_min(lo, static_cast<int>(rgba[p * 4 + 3]));
                         hi = q_max(hi, static_cast<int>(rgba[p * 4 + 3]));
@@ -377,7 +378,7 @@ void stats_f()
         }
     }
     Con_Printf("pbr: %d/%d source hashes found; authored normal %d height %d; recipes %zu\n",
-        found, queried, normal, height, static_cast<size_t>(recipes.size()));
+        found, queried, normal, height, static_cast<za::SizeT>(recipes.size()));
 }
 
 // Machine-readable GPU census: includes all precached brush and alias models, animated frames,
@@ -389,15 +390,15 @@ void audit_f()
     auto audit = [](qmodel_t* owner, const char* name, gltexture_t* base, gltexture_t* nm)
     {
         if(!nm) return;
-        const size_t bytes = static_cast<size_t>(nm->width) * nm->height * 4;
+        const za::SizeT bytes = static_cast<za::SizeT>(nm->width) * nm->height * 4;
         byte* pixels = static_cast<byte*>(VR_HeapMalloc(bytes));
         GL_Bind(GL_TEXTURE0, nm);
         VR_GLGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
         char digest[65];
         hashSource(pixels, SRC_RGBA, nm->width, nm->height, digest);
-        const size_t count = bytes / 4;
+        const za::SizeT count = bytes / 4;
         byte* alpha = static_cast<byte*>(VR_HeapMalloc(count));
-        for(size_t p = 0; p < count; ++p)
+        for(za::SizeT p = 0; p < count; ++p)
         {
             alpha[p] = pixels[p * 4 + 3];
             pixels[p * 4 + 3] = 255;
@@ -535,7 +536,7 @@ void test_f()
         // The indexes parse alike with LF and CRLF line ends (a Windows checkout or an editor can make the latter).
         auto withCRLF = [](const char* text)
         {
-            const size_t length = ZA_STRLEN(text);
+            const za::SizeT length = ZA_STRLEN(text);
             char* out = static_cast<char*>(Hunk_Alloc(length * 2 + 1));
             char* o = out;
             for(const char* c = text; *c; ++c)
@@ -666,7 +667,7 @@ void noteHash(za::U64 key, const char (&hex)[65])
 }
 } // namespace qvr::pbr
 
-extern "C" void VR_PBRExternal(gltexture_t* base, const char* normal, char* path, size_t size)
+extern "C" void VR_PBRExternal(gltexture_t* base, const char* normal, char* path, za::SizeT size)
 {
     using namespace qvr;
     q_strlcpy(path, normal, size);

@@ -11,6 +11,7 @@
 #include "vr_progs.hpp"
 #include "vr_server.hpp"
 #include "vr_testkit.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"

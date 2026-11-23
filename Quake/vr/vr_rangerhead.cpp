@@ -7,6 +7,7 @@
 
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -154,11 +155,11 @@ Ranger ranger;
 struct Reader
 {
     const unsigned char* p{nullptr};
-    size_t n{0};
-    size_t at{0};
+    za::SizeT n{0};
+    za::SizeT at{0};
     bool bad{false};
 
-    const unsigned char* take(size_t k)
+    const unsigned char* take(za::SizeT k)
     {
         if(bad || k > n - at)
         {
@@ -210,12 +211,12 @@ struct Tri
     {
         return false;
     }
-    out.resize(static_cast<size_t>(length));
+    out.resize(static_cast<za::SizeT>(length));
     return fseek(f, offset, SEEK_SET) == 0 && fread(out.data(), 1, out.size(), f) == out.size();
 }
 
 // The search path's progs/player.mdl (its pak's entry, or its folder's file), if it has one.
-[[nodiscard]] bool readFrom(const searchpath_t* s, za::Vector<unsigned char>& out, char* where, size_t whereSize)
+[[nodiscard]] bool readFrom(const searchpath_t* s, za::Vector<unsigned char>& out, char* where, za::SizeT whereSize)
 {
     if(s->pack)
     {
@@ -327,7 +328,7 @@ struct Tri
     }
 
     // The halves' texels: [first s, last s + 1) x [first t, last t + 1).
-    for(size_t i = 0; i < out.src.size(); i++)
+    for(za::SizeT i = 0; i < out.src.size(); i++)
     {
         const glm::vec2 s = out.src[i];
         const int h = s.x >= static_cast<float>(skinW / 2) ? 1 : 0;
@@ -349,15 +350,15 @@ struct Tri
     // The neck's opening: the edges one head triangle has (by the model's own vertices: a seam's two copies are one),
     // closed with a fan to their middle, wound against them, one colour (the texel of its foremost vertex: the chin's).
     za::Vector<int> edges; // a, b (output vertices) per boundary edge, as its triangle winds it
-    const size_t headIndexes = out.tris.size();
-    for(size_t t = 0; t < headIndexes; t += 3)
+    const za::SizeT headIndexes = out.tris.size();
+    for(za::SizeT t = 0; t < headIndexes; t += 3)
     {
         for(int k = 0; k < 3; k++)
         {
             const int a = out.tris[t + k];
             const int b = out.tris[t + (k + 1) % 3];
             int uses = 0;
-            for(size_t u = 0; u < headIndexes; u += 3)
+            for(za::SizeT u = 0; u < headIndexes; u += 3)
             {
                 for(int m = 0; m < 3; m++)
                 {
@@ -430,29 +431,29 @@ struct Tri
 
     za::Vector<int> parent;
     parent.resize(p.size());
-    for(size_t i = 0; i < p.size(); i++)
+    for(za::SizeT i = 0; i < p.size(); i++)
     {
         parent[i] = static_cast<int>(i);
     }
     const auto root = [&](int a) {
-        while(parent[static_cast<size_t>(a)] != a)
+        while(parent[static_cast<za::SizeT>(a)] != a)
         {
-            parent[static_cast<size_t>(a)] = parent[static_cast<size_t>(parent[static_cast<size_t>(a)])];
-            a = parent[static_cast<size_t>(a)];
+            parent[static_cast<za::SizeT>(a)] = parent[static_cast<za::SizeT>(parent[static_cast<za::SizeT>(a)])];
+            a = parent[static_cast<za::SizeT>(a)];
         }
         return a;
     };
     for(const Tri& t : tris)
     {
         const int a = root(t.v[0]);
-        parent[static_cast<size_t>(root(t.v[1]))] = a;
-        parent[static_cast<size_t>(root(t.v[2]))] = a;
+        parent[static_cast<za::SizeT>(root(t.v[1]))] = a;
+        parent[static_cast<za::SizeT>(root(t.v[2]))] = a;
     }
     za::Vector<float> lowest; // per island (by its root)
     lowest.resize(p.size(), zMax);
-    for(size_t i = 0; i < p.size(); i++)
+    for(za::SizeT i = 0; i < p.size(); i++)
     {
-        const size_t r = static_cast<size_t>(root(static_cast<int>(i)));
+        const za::SizeT r = static_cast<za::SizeT>(root(static_cast<int>(i)));
         lowest[r] = za::min(lowest[r], p[i].z);
     }
 
@@ -463,7 +464,7 @@ struct Tri
     out.tris.clear();
     for(const Tri& t : tris)
     {
-        if(lowest[static_cast<size_t>(root(t.v[0]))] <= cut)
+        if(lowest[static_cast<za::SizeT>(root(t.v[0]))] <= cut)
         {
             continue;
         }
@@ -471,13 +472,13 @@ struct Tri
         {
             const bool back = !t.front && st[i].onSeam;
             const int key = i * 2 + (back ? 1 : 0);
-            if(remap[static_cast<size_t>(key)] < 0)
+            if(remap[static_cast<za::SizeT>(key)] < 0)
             {
-                remap[static_cast<size_t>(key)] = static_cast<int>(out.pos.size());
+                remap[static_cast<za::SizeT>(key)] = static_cast<int>(out.pos.size());
                 out.pos.pushBack(p[i]);
                 out.src.pushBack({static_cast<float>(st[i].s + (back ? skinW / 2 : 0)) + 0.5f, static_cast<float>(st[i].t) + 0.5f});
             }
-            out.tris.pushBack(static_cast<unsigned short>(remap[static_cast<size_t>(key)]));
+            out.tris.pushBack(static_cast<unsigned short>(remap[static_cast<za::SizeT>(key)]));
         }
     }
     const int headTris = static_cast<int>(out.tris.size() / 3);
@@ -520,7 +521,7 @@ struct Tri
     const float y = za::clamp(f.y0 + (v - t.y0) / (t.y1 - t.y0) * (f.y1 - f.y0), f.y0, f.y1 - 0.01f);
     const int xi = za::clamp(static_cast<int>(x), 0, r.skinW - 1);
     const int yi = za::clamp(static_cast<int>(y), 0, r.skinH - 1);
-    return r.skin[static_cast<size_t>(yi) * static_cast<size_t>(r.skinW) + static_cast<size_t>(xi)];
+    return r.skin[static_cast<za::SizeT>(yi) * static_cast<za::SizeT>(r.skinW) + static_cast<za::SizeT>(xi)];
 }
 
 // The detailed head's islands packed into the body's head block (the placeholder's head-only texels, free once his head
@@ -529,39 +530,39 @@ struct Tri
 // his skin laid out so (`packed`, each axis as fine as his skin's texels or finer, up to maxPackedSide). False: none.
 [[nodiscard]] bool packDetailed(Ranger& r)
 {
-    const size_t nv = r.src.size();
+    const za::SizeT nv = r.src.size();
     if(nv == 0 || r.skin.empty() || r.skinW <= 0 || r.skinH <= 0)
     {
         return false;
     }
     za::Vector<int> parent;
     parent.resize(nv);
-    for(size_t i = 0; i < nv; i++)
+    for(za::SizeT i = 0; i < nv; i++)
     {
         parent[i] = static_cast<int>(i);
     }
     const auto root = [&](int a) {
-        while(parent[static_cast<size_t>(a)] != a)
+        while(parent[static_cast<za::SizeT>(a)] != a)
         {
-            parent[static_cast<size_t>(a)] = parent[static_cast<size_t>(parent[static_cast<size_t>(a)])];
-            a = parent[static_cast<size_t>(a)];
+            parent[static_cast<za::SizeT>(a)] = parent[static_cast<za::SizeT>(parent[static_cast<za::SizeT>(a)])];
+            a = parent[static_cast<za::SizeT>(a)];
         }
         return a;
     };
-    for(size_t t = 0; t + 2 < r.tris.size(); t += 3)
+    for(za::SizeT t = 0; t + 2 < r.tris.size(); t += 3)
     {
         const int a = root(r.tris[t]);
-        parent[static_cast<size_t>(root(r.tris[t + 1]))] = a;
-        parent[static_cast<size_t>(root(r.tris[t + 2]))] = a;
+        parent[static_cast<za::SizeT>(root(r.tris[t + 1]))] = a;
+        parent[static_cast<za::SizeT>(root(r.tris[t + 2]))] = a;
     }
     za::Vector<int> islandOf; // per vertex
     islandOf.resize(nv, -1);
     za::Vector<int> islandOfRoot;
     islandOfRoot.resize(nv, -1);
     r.islands.clear();
-    for(size_t i = 0; i < nv; i++)
+    for(za::SizeT i = 0; i < nv; i++)
     {
-        const size_t root_ = static_cast<size_t>(root(static_cast<int>(i)));
+        const za::SizeT root_ = static_cast<za::SizeT>(root(static_cast<int>(i)));
         if(islandOfRoot[root_] < 0)
         {
             islandOfRoot[root_] = static_cast<int>(r.islands.size());
@@ -569,7 +570,7 @@ struct Tri
         }
         const int k = islandOfRoot[root_];
         islandOf[i] = k;
-        Rect& f = r.islands[static_cast<size_t>(k)].from;
+        Rect& f = r.islands[static_cast<za::SizeT>(k)].from;
         f.x0 = za::min(f.x0, r.src[i].x);
         f.y0 = za::min(f.y0, r.src[i].y);
         f.x1 = za::max(f.x1, r.src[i].x);
@@ -600,9 +601,9 @@ struct Tri
         u = is.to.x1 + detailGap;
     }
     r.st.resize(nv);
-    for(size_t i = 0; i < nv; i++)
+    for(za::SizeT i = 0; i < nv; i++)
     {
-        const Ranger::Island& is = r.islands[static_cast<size_t>(islandOf[i])];
+        const Ranger::Island& is = r.islands[static_cast<za::SizeT>(islandOf[i])];
         r.st[i] = {is.to.x0 + (r.src[i].x - is.from.x0) * ku, is.to.y0 + (r.src[i].y - is.from.y0) * kv};
     }
     const auto side = [](float texels) {
@@ -615,12 +616,12 @@ struct Tri
     };
     r.packedW = side(1.f / ku);
     r.packedH = side(1.f / kv);
-    r.packed.resize(static_cast<size_t>(r.packedW) * static_cast<size_t>(r.packedH));
+    r.packed.resize(static_cast<za::SizeT>(r.packedW) * static_cast<za::SizeT>(r.packedH));
     for(int y = 0; y < r.packedH; y++)
     {
         for(int x = 0; x < r.packedW; x++)
         {
-            r.packed[static_cast<size_t>(y) * static_cast<size_t>(r.packedW) + static_cast<size_t>(x)] = static_cast<unsigned char>(
+            r.packed[static_cast<za::SizeT>(y) * static_cast<za::SizeT>(r.packedW) + static_cast<za::SizeT>(x)] = static_cast<unsigned char>(
                 detailIndexAt(r, (static_cast<float>(x) + 0.5f) / static_cast<float>(r.packedW), (static_cast<float>(y) + 0.5f) / static_cast<float>(r.packedH)));
         }
     }
@@ -660,7 +661,7 @@ struct Tri
     {
         return false;
     }
-    const size_t skinBytes = static_cast<size_t>(w) * static_cast<size_t>(h);
+    const za::SizeT skinBytes = static_cast<za::SizeT>(w) * static_cast<za::SizeT>(h);
     for(int i = 0; i < numSkins; i++)
     {
         int pictures = 1;
@@ -671,9 +672,9 @@ struct Tri
             {
                 return false;
             }
-            r.take(static_cast<size_t>(pictures) * 4);
+            r.take(static_cast<za::SizeT>(pictures) * 4);
         }
-        const unsigned char* pixels = r.take(skinBytes * static_cast<size_t>(pictures));
+        const unsigned char* pixels = r.take(skinBytes * static_cast<za::SizeT>(pictures));
         if(!pixels)
         {
             return false;
@@ -709,7 +710,7 @@ struct Tri
     }
     // stand1 (a frame of its own, or in a group; the detailed head's: by its place when no frame is named so).
     za::Vector<glm::vec3> pose;
-    const size_t frameVerts = static_cast<size_t>(numVerts) * 4;
+    const za::SizeT frameVerts = static_cast<za::SizeT>(numVerts) * 4;
     int frameAt = 0; // (the frames read, a group's each)
     for(int i = 0; i < numFrames && pose.empty() && !r.bad; i++)
     {
@@ -721,7 +722,7 @@ struct Tri
             {
                 return false;
             }
-            r.take(8 + static_cast<size_t>(count) * 4); // its bounds, its intervals
+            r.take(8 + static_cast<za::SizeT>(count) * 4); // its bounds, its intervals
         }
         for(int j = 0; j < count && pose.empty(); j++)
         {
@@ -876,7 +877,7 @@ struct Tri
     const float y = za::clamp(r.y0 + (v - dv.x) / (dv.y - dv.x) * (r.y1 - r.y0), r.y0, r.y1 - 0.01f);
     const int xi = za::clamp(static_cast<int>(x), 0, ranger.skinW - 1);
     const int yi = za::clamp(static_cast<int>(y), 0, ranger.skinH - 1);
-    return ranger.skin[static_cast<size_t>(yi) * static_cast<size_t>(ranger.skinW) + static_cast<size_t>(xi)];
+    return ranger.skin[static_cast<za::SizeT>(yi) * static_cast<za::SizeT>(ranger.skinW) + static_cast<za::SizeT>(xi)];
 }
 
 enum class Kind
@@ -891,7 +892,7 @@ enum class Kind
 [[nodiscard]] Kind kindOf(const char* name)
 {
     constexpr const char* prefix = "progs/vrbody_";
-    const size_t n = ZA_STRLEN(prefix);
+    const za::SizeT n = ZA_STRLEN(prefix);
     if(!name || q_strncasecmp(name, prefix, n))
     {
         return Kind::None;
@@ -903,7 +904,7 @@ enum class Kind
     }
     p += 5;
     const char* dot = strchr(p, '.');
-    const size_t len = dot ? static_cast<size_t>(dot - p) : ZA_STRLEN(p);
+    const za::SizeT len = dot ? static_cast<za::SizeT>(dot - p) : ZA_STRLEN(p);
     if(len == 0)
     {
         return Kind::Skin;
@@ -983,7 +984,7 @@ struct Placed
 };
 za::Vector<Placed> placed;
 
-[[nodiscard]] glm::vec3 headPoint(const Placed& p, const Pose& q, size_t i)
+[[nodiscard]] glm::vec3 headPoint(const Placed& p, const Pose& q, za::SizeT i)
 {
     const glm::vec3 base = ranger.pos[i] * p.scale + p.offset;
     return p.pivot + q.turn * ((base - p.pivot) * q.size) + q.move;
@@ -994,8 +995,8 @@ za::Vector<Placed> placed;
 // welded) unless the loader makes them.
 void writeHead(const Placed& p, const Pose& q, iqmvert_t* v, iqmvert_t* h, bool normals)
 {
-    const size_t n = ranger.pos.size();
-    for(size_t i = 0; i < n && h; i++)
+    const za::SizeT n = ranger.pos.size();
+    for(za::SizeT i = 0; i < n && h; i++)
     {
         const glm::vec3 x = headPoint(p, q, i);
         for(int k = 0; k < 3; k++)
@@ -1004,7 +1005,7 @@ void writeHead(const Placed& p, const Pose& q, iqmvert_t* v, iqmvert_t* h, bool 
         }
     }
     const float dz = za::max(q.upUnits - q.sinkUnits, -p.ringDropMax);
-    for(size_t k = 0; k < p.ring.size() && v; k++)
+    for(za::SizeT k = 0; k < p.ring.size() && v; k++)
     {
         const glm::vec3 x = p.ringBase[k] + glm::vec3{q.move.x, q.move.y, dz};
         for(int a = 0; a < 3; a++)
@@ -1016,13 +1017,13 @@ void writeHead(const Placed& p, const Pose& q, iqmvert_t* v, iqmvert_t* h, bool 
     {
         return;
     }
-    const auto at = [&](size_t i) { return geom::vec(h[i].xyz); };
+    const auto at = [&](za::SizeT i) { return geom::vec(h[i].xyz); };
     za::Vector<unsigned short> weld;
     weld.resize(n);
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         weld[i] = static_cast<unsigned short>(i);
-        for(size_t j = 0; j < i; j++)
+        for(za::SizeT j = 0; j < i; j++)
         {
             if(at(j) == at(i))
             {
@@ -1033,17 +1034,17 @@ void writeHead(const Placed& p, const Pose& q, iqmvert_t* v, iqmvert_t* h, bool 
     }
     za::Vector<glm::vec3> sum;
     sum.resize(n, glm::vec3{0.f});
-    for(size_t t = 0; t + 2 < ranger.tris.size(); t += 3)
+    for(za::SizeT t = 0; t + 2 < ranger.tris.size(); t += 3)
     {
-        const size_t i0 = weld[ranger.tris[t]];
-        const size_t i1 = weld[ranger.tris[t + (p.flip ? 2 : 1)]];
-        const size_t i2 = weld[ranger.tris[t + (p.flip ? 1 : 2)]];
+        const za::SizeT i0 = weld[ranger.tris[t]];
+        const za::SizeT i1 = weld[ranger.tris[t + (p.flip ? 2 : 1)]];
+        const za::SizeT i2 = weld[ranger.tris[t + (p.flip ? 1 : 2)]];
         const glm::vec3 face = glm::cross(at(i2) - at(i0), at(i1) - at(i0));
         sum[i0] += face;
         sum[i1] += face;
         sum[i2] += face;
     }
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         const glm::vec3 s = sum[weld[i]];
         const float len = glm::length(s);
@@ -1130,7 +1131,7 @@ void qvr::rangerhead::info_f()
         const glm::vec3 top = headPoint(p, q, 0);
         float crown = top.z;
         float bottom = top.z;
-        for(size_t i = 0; i < ranger.pos.size(); i++)
+        for(za::SizeT i = 0; i < ranger.pos.size(); i++)
         {
             crown = za::max(crown, headPoint(p, q, i).z);
             bottom = za::min(bottom, headPoint(p, q, i).z);
@@ -1192,7 +1193,7 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, int mesh, const c
             return 0;
         }
         auto* v = static_cast<iqmvert_t*>(*verts);
-        for(size_t i = 0; i < ranger.pos.size(); i++)
+        for(za::SizeT i = 0; i < ranger.pos.size(); i++)
         {
             v[i].st[0] = ranger.st[i].x;
             v[i].st[1] = ranger.st[i].y;
@@ -1203,7 +1204,7 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, int mesh, const c
             }
         }
         unsigned short* idx = *indexes;
-        for(size_t t = 0; t + 2 < ranger.tris.size(); t += 3)
+        for(za::SizeT t = 0; t + 2 < ranger.tris.size(); t += 3)
         {
             idx[t] = ranger.tris[t];
             idx[t + 1] = ranger.tris[t + (p->flip ? 2 : 1)];
@@ -1217,7 +1218,7 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, int mesh, const c
     const int nv = *numVerts;
     const int ni = *numIndexes;
     za::Vector<unsigned char> headOnly;
-    headOnly.resize(static_cast<size_t>(nv));
+    headOnly.resize(static_cast<za::SizeT>(nv));
     glm::vec3 mins{0.f};
     glm::vec3 maxs{0.f};
     int count = 0;
@@ -1225,7 +1226,7 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, int mesh, const c
     glm::vec3 neckMaxs{0.f};
     int neckCount = 0;
     za::Vector<unsigned char> moved;
-    moved.resize(static_cast<size_t>(nv), static_cast<unsigned char>(0));
+    moved.resize(static_cast<za::SizeT>(nv), static_cast<unsigned char>(0));
     for(int i = 0; i < nv; i++)
     {
         int w = 0;
@@ -1258,7 +1259,7 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, int mesh, const c
     }
     // (the detailed head: in a mesh of his own after this one, VR_RangerHeadExtend's)
     const bool detailed = ranger.detailed;
-    const size_t total = static_cast<size_t>(nv) + (detailed ? 0 : ranger.pos.size());
+    const za::SizeT total = static_cast<za::SizeT>(nv) + (detailed ? 0 : ranger.pos.size());
     if(!count || total > 65535)
     {
         return 0;
@@ -1272,10 +1273,10 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, int mesh, const c
         mins.z - (detailed ? detailSink : sink) - ranger.mins.z * scale};
 
     auto* out = static_cast<iqmvert_t*>(Hunk_Alloc(static_cast<int>(sizeof(iqmvert_t) * total)));
-    ZA_MEMCPY(out, in, sizeof(iqmvert_t) * static_cast<size_t>(nv));
-    for(size_t i = 0; i < ranger.pos.size() && !detailed; i++)
+    ZA_MEMCPY(out, in, sizeof(iqmvert_t) * static_cast<za::SizeT>(nv));
+    for(za::SizeT i = 0; i < ranger.pos.size() && !detailed; i++)
     {
-        iqmvert_t& v = out[static_cast<size_t>(nv) + i];
+        iqmvert_t& v = out[static_cast<za::SizeT>(nv) + i];
         const glm::vec3 p = ranger.pos[i] * scale + offset;
         const glm::vec2 st = toBody(ranger.src[i]);
         for(int k = 0; k < 3; k++)
@@ -1309,16 +1310,16 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, int mesh, const c
     }
     float rangerVolume = 0.f;
     const glm::vec3 rangerMiddle = rangerCentre * scale + offset;
-    const auto placedAt = [&](size_t i) { return ranger.pos[i] * scale + offset; };
-    for(size_t t = 0; t + 2 < ranger.tris.size(); t += 3)
+    const auto placedAt = [&](za::SizeT i) { return ranger.pos[i] * scale + offset; };
+    for(za::SizeT t = 0; t + 2 < ranger.tris.size(); t += 3)
     {
         rangerVolume += volume(placedAt(ranger.tris[t]), placedAt(ranger.tris[t + 1]), placedAt(ranger.tris[t + 2]), rangerMiddle);
     }
     const bool flip = (placeholderVolume < 0.f) != (rangerVolume < 0.f);
 
-    const size_t indexCount = static_cast<size_t>(kept) + (detailed ? 0 : ranger.tris.size());
+    const za::SizeT indexCount = static_cast<za::SizeT>(kept) + (detailed ? 0 : ranger.tris.size());
     auto* outIdx = static_cast<unsigned short*>(Hunk_Alloc(static_cast<int>(sizeof(unsigned short) * indexCount)));
-    size_t o = 0;
+    za::SizeT o = 0;
     for(int t = 0; t + 2 < ni; t += 3)
     {
         if(!(headOnly[inIdx[t]] && headOnly[inIdx[t + 1]] && headOnly[inIdx[t + 2]]))
@@ -1341,7 +1342,7 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, int mesh, const c
             }
         }
     }
-    for(size_t t = 0; t + 2 < ranger.tris.size() && !detailed; t += 3)
+    for(za::SizeT t = 0; t + 2 < ranger.tris.size() && !detailed; t += 3)
     {
         outIdx[o++] = static_cast<unsigned short>(nv + ranger.tris[t]);
         outIdx[o++] = static_cast<unsigned short>(nv + ranger.tris[t + (flip ? 2 : 1)]);
@@ -1424,7 +1425,7 @@ extern "C" void VR_RangerHeadImage(const char* name, unsigned char* data, int wi
         const float v = (static_cast<float>(y) + 0.5f) / static_cast<float>(height);
         for(int x = x0; x < x1; x++)
         {
-            unsigned char* px = data + (static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)) * 4;
+            unsigned char* px = data + (static_cast<za::SizeT>(y) * static_cast<za::SizeT>(width) + static_cast<za::SizeT>(x)) * 4;
             if(kind == Kind::Normals) // flat
             {
                 px[0] = 128;
@@ -1521,14 +1522,14 @@ extern "C" char* VR_RangerHeadExtend(const char* name, const char* md5mesh)
     for(int i = 0; i < nv; i++)
     {
         q_snprintf(buf, sizeof(buf), "\tvert %d ( %.6f %.6f ) %d 1\n", i,
-            static_cast<double>(ranger.st[static_cast<size_t>(i)].x), static_cast<double>(ranger.st[static_cast<size_t>(i)].y), i);
+            static_cast<double>(ranger.st[static_cast<za::SizeT>(i)].x), static_cast<double>(ranger.st[static_cast<za::SizeT>(i)].y), i);
         out += buf;
     }
     q_snprintf(buf, sizeof(buf), "\n\tnumtris %d\n", nt);
     out += buf;
     for(int t = 0; t < nt; t++)
     {
-        const size_t k = static_cast<size_t>(t) * 3;
+        const za::SizeT k = static_cast<za::SizeT>(t) * 3;
         q_snprintf(buf, sizeof(buf), "\ttri %d %d %d %d\n", t, ranger.tris[k], ranger.tris[k + 1], ranger.tris[k + 2]);
         out += buf;
     }

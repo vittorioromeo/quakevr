@@ -1613,7 +1613,7 @@ bool deserialise(const za::Vector<char>& in, unsigned count, NavClass& c)
             freeTiles(c.built);
             return false;
         }
-        auto* data = static_cast<unsigned char*>(dtAlloc(static_cast<size_t>(head[2]), DT_ALLOC_PERM));
+        auto* data = static_cast<unsigned char*>(dtAlloc(static_cast<za::SizeT>(head[2]), DT_ALLOC_PERM));
         ZA_MEMCPY(data, in.data() + at, static_cast<za::SizeT>(head[2]));
         at += static_cast<za::SizeT>(head[2]);
         c.built.pushBack(Tile{head[0], head[1], data, head[2]});
@@ -2607,7 +2607,7 @@ void hash_f()
                 continue;
             }
             mesh = diskcache::fnv(mesh, &i, sizeof(i));
-            mesh = diskcache::fnv(mesh, tile->data, static_cast<size_t>(tile->dataSize));
+            mesh = diskcache::fnv(mesh, tile->data, static_cast<za::SizeT>(tile->dataSize));
             tiles++;
         }
     }
@@ -2625,7 +2625,7 @@ void hash_f()
         paths = diskcache::fnv(paths, &n, sizeof(n));
         paths = diskcache::fnv(paths, &a.goal, sizeof(a.goal));
         paths = diskcache::fnv(paths, a.path.data(), a.path.size() * sizeof(dtPolyRef));
-        paths = diskcache::fnv(paths, a.corners, sizeof(float) * 3 * static_cast<size_t>(a.cornerCount));
+        paths = diskcache::fnv(paths, a.corners, sizeof(float) * 3 * static_cast<za::SizeT>(a.cornerCount));
         paths = diskcache::fnv(paths, &a.next, sizeof(a.next));
         paths = diskcache::fnv(paths, &a.link, sizeof(a.link));
         paths = diskcache::fnv(paths, &a.phase, sizeof(a.phase));
@@ -3491,7 +3491,7 @@ void dumpPolys()
                 for(int v = 0; v < poly.vertCount && len < 440; ++v)
                 {
                     const glm::vec3 q = fromRc(&tile->verts[poly.verts[v] * 3]);
-                    len += q_snprintf(line + len, sizeof(line) - static_cast<size_t>(len), "|%.0f %.0f %.0f", static_cast<double>(q.x),
+                    len += q_snprintf(line + len, sizeof(line) - static_cast<za::SizeT>(len), "|%.0f %.0f %.0f", static_cast<double>(q.x),
                         static_cast<double>(q.y), static_cast<double>(q.z));
                 }
                 Con_Printf("%s\n", line);

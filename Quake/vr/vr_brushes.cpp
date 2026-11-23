@@ -171,7 +171,7 @@ void recordUndo(UndoStep::Kind kind, int id, const Brush* before)
 
 [[nodiscard]] int idFromName(const char* name)
 {
-    const size_t n = ZA_STRLEN(modelPrefix);
+    const za::SizeT n = ZA_STRLEN(modelPrefix);
     if(ZA_STRNCMP(name, modelPrefix, n) != 0)
     {
         return 0;

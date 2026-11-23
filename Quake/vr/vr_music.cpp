@@ -14,6 +14,7 @@
 
 #include "vr_engine.hpp"
 #include "vr_api.h"
+#include "Zancle/Base/SizeT.hpp"
 
 #include <cstdio>
 
@@ -48,7 +49,7 @@ const char* lastSeparator(const char* s)
 }
 
 // The game folder's name of a search path entry: its last component, or the folder its pak is in.
-void folderOf(const searchpath_t* sp, char* out, size_t size)
+void folderOf(const searchpath_t* sp, char* out, za::SizeT size)
 {
     char dir[MAX_OSPATH];
     q_strlcpy(dir, sp->pack ? sp->pack->filename : sp->filename, sizeof(dir));

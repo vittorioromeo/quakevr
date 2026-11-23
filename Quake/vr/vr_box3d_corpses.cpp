@@ -7,6 +7,7 @@
 #include "vr_edictindex.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -76,8 +77,8 @@ constexpr float corpsePiece = 24.f;  // units: the pieces of a fitted shape abou
 void watchCorpses()
 {
     auto& watch = world->corpseWatch;
-    watch.resize(static_cast<size_t>(qcvm->num_edicts));
-    world->motion.resize(static_cast<size_t>(qcvm->num_edicts));
+    watch.resize(static_cast<za::SizeT>(qcvm->num_edicts));
+    world->motion.resize(static_cast<za::SizeT>(qcvm->num_edicts));
     const bool on = corpseMode() != 0 || vr_ragdoll.value >= 1.f; // (ragdolls: when a frame changed, createRagdoll)
     // The monsters now and the edicts it left a watch or a motion on last frame (no longer monsters: theirs cleared), in
     // edict order; every other edict's are cleared already (the edict index's FL_MONSTER).
@@ -87,7 +88,7 @@ void watchCorpses()
     {
         // A monster's motion (a beheaded one's ragdoll goes on with it: ownMotion). A teleport (or a respawn) starts it
         // again.
-        World::MonsterMotion& m = world->motion[static_cast<size_t>(num)];
+        World::MonsterMotion& m = world->motion[static_cast<za::SizeT>(num)];
         edict_t* const me = EDICT_NUM(num);
         if(vr_ragdoll.value < 1.f || me->free || !hasFlag(me, FL_MONSTER))
         {
@@ -120,7 +121,7 @@ void watchCorpses()
             edict_t* const me = EDICT_NUM(num);
             if(!me->free && hasFlag(me, FL_MONSTER) && me->v.health > 0.f)
             {
-                World::MonsterMotion& m = world->motion[static_cast<size_t>(num)];
+                World::MonsterMotion& m = world->motion[static_cast<za::SizeT>(num)];
                 m.alive = ownMotion(num);
                 m.aliveAt = qcvm->time;
             }
@@ -129,7 +130,7 @@ void watchCorpses()
     world->corpseNums.clear();
     for(const int num : scan)
     {
-        World::CorpseWatch& w = watch[static_cast<size_t>(num)];
+        World::CorpseWatch& w = watch[static_cast<za::SizeT>(num)];
         if(!EDICT_NUM(num)->free && hasFlag(EDICT_NUM(num), FL_MONSTER))
         {
             world->corpseNums.pushBack(num); // (a watch or a motion left on it, maybe)
@@ -170,7 +171,7 @@ void watchCorpses()
     {
         return glm::vec3{0.f};
     }
-    const World::MonsterMotion& m = world->motion[static_cast<size_t>(num)];
+    const World::MonsterMotion& m = world->motion[static_cast<za::SizeT>(num)];
     if(m.n < 2 || qcvm->time - m.when[0] > 0.2)
     {
         return glm::vec3{0.f};
@@ -202,7 +203,7 @@ void watchCorpses()
     {
         return f->walk; // (a test's stumble, or a monster it moved: vr_ragdoll_act)
     }
-    const World::MonsterMotion& m = world->motion[static_cast<size_t>(num)];
+    const World::MonsterMotion& m = world->motion[static_cast<za::SizeT>(num)];
     return m.aliveAt >= 0.0 && qcvm->time - m.aliveAt < 0.6 ? m.alive : glm::vec3{0.f};
 }
 
@@ -214,7 +215,7 @@ void watchCorpses()
     {
         return false;
     }
-    const World::CorpseWatch& w = world->corpseWatch[static_cast<size_t>(num)];
+    const World::CorpseWatch& w = world->corpseWatch[static_cast<za::SizeT>(num)];
     if(w.since < 0.0)
     {
         return false;
@@ -352,7 +353,7 @@ int shrunkCorners(b3ShapeId shape, const b3WorldTransform& xf, float sink, za::A
         q.x = q.x > c.x ? za::max(c.x, q.x - sink) : za::min(c.x, q.x + sink);
         q.y = q.y > c.y ? za::max(c.y, q.y - sink) : za::min(c.y, q.y + sink);
         q.z = q.z > c.z ? za::max(c.z, q.z - sink) : za::min(c.z, q.z + sink);
-        points[static_cast<size_t>(v)] = b3RotateVector(xf.q, q);
+        points[static_cast<za::SizeT>(v)] = b3RotateVector(xf.q, q);
     }
     return n;
 }

@@ -4,6 +4,7 @@
 
 #include "vr_backend.hpp"
 #include "vr_hands.hpp"
+#include "Zancle/Base/SizeT.hpp"
 
 namespace qvr::input
 {
@@ -15,7 +16,7 @@ void init();
 void guardBindings();
 
 // The controller keys' bindings in a line (and guardBindings' repair, if any): qvr_openxr.txt at the session's start.
-void describeBindings(char* out, size_t size);
+void describeBindings(char* out, za::SizeT size);
 
 // Once per host frame with the backend's input.
 void update(const InputState& in);

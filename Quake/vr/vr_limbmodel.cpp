@@ -15,6 +15,7 @@
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -33,7 +34,7 @@ namespace qvr::limbmodel
 namespace
 {
 
-constexpr size_t headerSize = 84;
+constexpr za::SizeT headerSize = 84;
 
 // The names handed out (keptName): never freed, the strings the QC and the precaches point at.
 struct KeptName
@@ -183,7 +184,7 @@ void putf(za::Vector<byte>& out, float v)
 }
 
 // A limb model's name taken apart: its base model and bone; false if it isn't one.
-[[nodiscard]] bool parse(const char* name, char* base, size_t baseSize, int& bone, uint32_t& bones)
+[[nodiscard]] bool parse(const char* name, char* base, za::SizeT baseSize, int& bone, uint32_t& bones)
 {
     const char* at = ZA_STRSTR(name, suffix);
     if(!at || at == name)
@@ -198,7 +199,7 @@ void putf(za::Vector<byte>& out, float v)
     bone = atoi(digits);
     const char* m = strchr(digits, 'm');
     bones = m ? static_cast<uint32_t>(strtoul(m + 1, nullptr, 10)) : 0u;
-    const size_t len = static_cast<size_t>(at - name);
+    const za::SizeT len = static_cast<za::SizeT>(at - name);
     if(len + 1 > baseSize)
     {
         return false;
@@ -226,7 +227,7 @@ struct Built
 };
 
 // The limb model of `bone` of `rig`'s .mdl (its file `src`, `srcSize` bytes) into `out`. False: it can't be.
-[[nodiscard]] bool build(const ragdoll::Rig& rig, int bone, uint32_t only, const byte* src, size_t srcSize, bool zombie, Built& out, const char*& why)
+[[nodiscard]] bool build(const ragdoll::Rig& rig, int bone, uint32_t only, const byte* src, za::SizeT srcSize, bool zombie, Built& out, const char*& why)
 {
     if(srcSize < headerSize || qvr::bytes::le32(src, 0) != IDPOLYHEADER)
     {
@@ -247,8 +248,8 @@ struct Built
     }
     const glm::vec3 scale{qvr::bytes::lef32(src, 8), qvr::bytes::lef32(src, 12), qvr::bytes::lef32(src, 16)};
     const glm::vec3 origin{qvr::bytes::lef32(src, 20), qvr::bytes::lef32(src, 24), qvr::bytes::lef32(src, 28)};
-    const size_t skinBytes = static_cast<size_t>(skinW) * static_cast<size_t>(skinH);
-    size_t at = headerSize;
+    const za::SizeT skinBytes = static_cast<za::SizeT>(skinW) * static_cast<za::SizeT>(skinH);
+    za::SizeT at = headerSize;
     for(int s = 0; s < numSkins; s++)
     {
         if(at + 4 > srcSize)
@@ -263,19 +264,19 @@ struct Built
         else
         {
             const int n = at + 8 <= srcSize ? qvr::bytes::le32(src, at + 4) : 0;
-            at += 8 + static_cast<size_t>(za::max(n, 0)) * (4 + skinBytes);
+            at += 8 + static_cast<za::SizeT>(za::max(n, 0)) * (4 + skinBytes);
         }
     }
-    const size_t skinsEnd = at;
-    const size_t stAt = at;
-    const size_t trisAt = stAt + static_cast<size_t>(numVerts) * 12;
-    const size_t framesAt = trisAt + static_cast<size_t>(numTris) * 16;
+    const za::SizeT skinsEnd = at;
+    const za::SizeT stAt = at;
+    const za::SizeT trisAt = stAt + static_cast<za::SizeT>(numVerts) * 12;
+    const za::SizeT framesAt = trisAt + static_cast<za::SizeT>(numTris) * 16;
     if(framesAt + 4 > srcSize)
     {
         why = "short";
         return false;
     }
-    size_t poseAt = 0; // the first frame's vertices (the rig's rest pose)
+    za::SizeT poseAt = 0; // the first frame's vertices (the rig's rest pose)
     if(qvr::bytes::le32(src, framesAt) == 0)
     {
         poseAt = framesAt + 4 + 24;
@@ -283,9 +284,9 @@ struct Built
     else
     {
         const int n = framesAt + 8 <= srcSize ? qvr::bytes::le32(src, framesAt + 4) : 0;
-        poseAt = framesAt + 16 + static_cast<size_t>(za::max(n, 0)) * 4 + 24;
+        poseAt = framesAt + 16 + static_cast<za::SizeT>(za::max(n, 0)) * 4 + 24;
     }
-    if(poseAt + static_cast<size_t>(numVerts) * 4 > srcSize || skinsEnd > srcSize)
+    if(poseAt + static_cast<za::SizeT>(numVerts) * 4 > srcSize || skinsEnd > srcSize)
     {
         why = "short";
         return false;
@@ -296,7 +297,7 @@ struct Built
         return v >= 0 && v < numVerts && (bones & (1u << rig.vertBone[static_cast<za::SizeT>(v)])) != 0 && !isLeftOff(rig, v);
     };
     const auto posOf = [&](int v) {
-        const byte* t = src + poseAt + static_cast<size_t>(v) * 4;
+        const byte* t = src + poseAt + static_cast<za::SizeT>(v) * 4;
         return glm::vec3{t[0], t[1], t[2]} * scale + origin;
     };
 
@@ -317,13 +318,13 @@ struct Built
     int capCorners = 0;
     for(int t = 0; t < numTris; t++)
     {
-        const size_t o = trisAt + static_cast<size_t>(t) * 16;
+        const za::SizeT o = trisAt + static_cast<za::SizeT>(t) * 16;
         const int front = qvr::bytes::le32(src, o);
         int v[3];
         int on = 0;
         for(int c = 0; c < 3; c++)
         {
-            v[c] = qvr::bytes::le32(src, o + 4 + static_cast<size_t>(c) * 4);
+            v[c] = qvr::bytes::le32(src, o + 4 + static_cast<za::SizeT>(c) * 4);
             if(v[c] < 0 || v[c] >= numVerts)
             {
                 why = "bad triangle";
@@ -341,10 +342,10 @@ struct Built
                 {
                     OutVert ov;
                     ov.p = posOf(v[c]);
-                    ov.onseam = qvr::bytes::le32(src, stAt + static_cast<size_t>(v[c]) * 12);
-                    ov.s = qvr::bytes::le32(src, stAt + static_cast<size_t>(v[c]) * 12 + 4);
-                    ov.t = qvr::bytes::le32(src, stAt + static_cast<size_t>(v[c]) * 12 + 8);
-                    ov.normal = src[poseAt + static_cast<size_t>(v[c]) * 4 + 3];
+                    ov.onseam = qvr::bytes::le32(src, stAt + static_cast<za::SizeT>(v[c]) * 12);
+                    ov.s = qvr::bytes::le32(src, stAt + static_cast<za::SizeT>(v[c]) * 12 + 4);
+                    ov.t = qvr::bytes::le32(src, stAt + static_cast<za::SizeT>(v[c]) * 12 + 8);
+                    ov.normal = src[poseAt + static_cast<za::SizeT>(v[c]) * 4 + 3];
                     k = static_cast<int>(verts.size());
                     verts.pushBack(ov);
                 }
@@ -494,7 +495,7 @@ struct Built
         f.emplaceBackRange(pixels, skinBytes);
         if(strip)
         {
-            f.emplaceBackRange(flesh.data(), static_cast<size_t>(flesh.size()));
+            f.emplaceBackRange(flesh.data(), static_cast<za::SizeT>(flesh.size()));
         }
     };
     at = headerSize;
@@ -511,13 +512,13 @@ struct Built
             const int n = za::max(qvr::bytes::le32(src, at + 4), 0);
             put(f, 1);
             put(f, n);
-            f.emplaceBackRange(src + at + 8, static_cast<size_t>(n) * 4);
-            const size_t first = at + 8 + static_cast<size_t>(n) * 4;
+            f.emplaceBackRange(src + at + 8, static_cast<za::SizeT>(n) * 4);
+            const za::SizeT first = at + 8 + static_cast<za::SizeT>(n) * 4;
             for(int j = 0; j < n; j++)
             {
-                image(src + first + static_cast<size_t>(j) * skinBytes);
+                image(src + first + static_cast<za::SizeT>(j) * skinBytes);
             }
-            at = first + static_cast<size_t>(n) * skinBytes;
+            at = first + static_cast<za::SizeT>(n) * skinBytes;
         }
     }
     for(const OutVert& v : verts)
@@ -595,7 +596,7 @@ struct Built
         why = "its model's file not found";
         return false;
     }
-    const size_t size = static_cast<size_t>(com_filesize);
+    const za::SizeT size = static_cast<za::SizeT>(com_filesize);
     const bool zombie = modelmeta::is(rig->model, modelmeta::Id::Zombie);
     const bool ok = build(*rig, bone, only, src, size, zombie, out, why);
     VR_HeapFree(src);
@@ -640,10 +641,10 @@ void newMap()
     late.seen.resize(MAX_MODELS, 0);
 }
 
-bool name(const char* base, int bone, uint32_t bones, char* out, size_t size)
+bool name(const char* base, int bone, uint32_t bones, char* out, za::SizeT size)
 {
     const int n = bones ? q_snprintf(out, size, "%s%s%dm%u", base, suffix, bone, bones) : q_snprintf(out, size, "%s%s%d", base, suffix, bone);
-    return n > 0 && static_cast<size_t>(n) < size;
+    return n > 0 && static_cast<za::SizeT>(n) < size;
 }
 
 const char* keptName(const char* base, int bone, uint32_t bones)

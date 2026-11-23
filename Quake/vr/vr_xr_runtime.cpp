@@ -28,6 +28,7 @@
 #endif
 
 #include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -257,9 +258,9 @@ struct VdSetting
     }
     za::String text;
     char buffer[4096];
-    for(size_t n; (n = fread(buffer, 1, sizeof(buffer), f)) > 0 && text.size() < 1024 * 1024;)
+    for(za::SizeT n; (n = fread(buffer, 1, sizeof(buffer), f)) > 0 && text.size() < 1024 * 1024;)
     {
-        for(size_t i = 0; i < n; i++)
+        for(za::SizeT i = 0; i < n; i++)
         {
             text += buffer[i];
         }
@@ -293,7 +294,7 @@ struct VdSetting
         vd.choice = vdChoiceOf(strtol(p, nullptr, 10));
     }
     char value[32];
-    size_t n = 0;
+    za::SizeT n = 0;
     for(; p[n] && p[n] != ',' && p[n] != '\r' && p[n] != '\n' && p[n] != '}' && n + 1 < sizeof(value); n++)
     {
         value[n] = p[n];
@@ -367,7 +368,7 @@ struct Environment
     }
     if(FILE* f = fopen(va("/proc/%s/cmdline", pid), "rb"))
     {
-        const size_t got = fread(text, 1, sizeof(text) - 1, f);
+        const za::SizeT got = fread(text, 1, sizeof(text) - 1, f);
         fclose(f);
         text[got] = 0;
         const char* arg = text;
@@ -581,7 +582,7 @@ struct Environment
         {
             while(const dirent* e = readdir(d))
             {
-                const size_t n = ZA_STRLEN(e->d_name);
+                const za::SizeT n = ZA_STRLEN(e->d_name);
                 if(n > 5 && !ZA_STRCMP(e->d_name + n - 5, ".json") && ZA_STRNCMP(e->d_name, "active_runtime.", 15))
                 {
                     env.available.pushBack(za::String{va("%s/%s", dir, e->d_name)});
@@ -725,12 +726,12 @@ struct Installed
 void autoOrder(const Environment& env, const za::Vector<Installed>& installed, Plan& plan)
 {
     za::Vector<bool> taken(installed.size(), false);
-    auto take = [&](size_t i, const char* reason) {
+    auto take = [&](za::SizeT i, const char* reason) {
         taken[i] = true;
         plan.attempts.pushBack(Attempt{installed[i].manifest, labelOf(installed[i].manifest.cStr()), za::String{reason}});
     };
     auto takeKind = [&](Kind kind, bool running) {
-        for(size_t i = 0; i < installed.size(); i++)
+        for(za::SizeT i = 0; i < installed.size(); i++)
         {
             const Installed& r = installed[i];
             if(!taken[i] && r.exists && r.kind == kind && (r.running != nullptr) == running)
@@ -746,7 +747,7 @@ void autoOrder(const Environment& env, const za::Vector<Installed>& installed, P
     bool steamFirst = false;
     if(streamer && vd == VdChoice::SteamVR)
     {
-        for(size_t i = 0; i < installed.size(); i++)
+        for(za::SizeT i = 0; i < installed.size(); i++)
         {
             if(!taken[i] && installed[i].exists && installed[i].kind == Kind::SteamVR)
             {
@@ -755,7 +756,7 @@ void autoOrder(const Environment& env, const za::Vector<Installed>& installed, P
             }
         }
     }
-    for(size_t i = 0; i < installed.size(); i++)
+    for(za::SizeT i = 0; i < installed.size(); i++)
     {
         if(!taken[i] && installed[i].exists && installed[i].kind == Kind::VirtualDesktop && installed[i].running)
         {
@@ -772,7 +773,7 @@ void autoOrder(const Environment& env, const za::Vector<Installed>& installed, P
             take(i, reason);
         }
     }
-    for(size_t i = 0; i < installed.size(); i++)
+    for(za::SizeT i = 0; i < installed.size(); i++)
     {
         if(!taken[i] && installed[i].exists && installed[i].active && installed[i].running)
         {
@@ -782,7 +783,7 @@ void autoOrder(const Environment& env, const za::Vector<Installed>& installed, P
     takeKind(Kind::Meta, true);
     takeKind(Kind::SteamVR, true);
     const bool anyRunning = !plan.attempts.empty();
-    for(size_t i = 0; i < installed.size(); i++)
+    for(za::SizeT i = 0; i < installed.size(); i++)
     {
         if(!taken[i] && installed[i].exists && installed[i].active)
         {
@@ -791,7 +792,7 @@ void autoOrder(const Environment& env, const za::Vector<Installed>& installed, P
     }
     takeKind(Kind::VirtualDesktop, false);
     takeKind(Kind::Meta, false);
-    for(size_t i = 0; i < installed.size(); i++)
+    for(za::SizeT i = 0; i < installed.size(); i++)
     {
         if(!taken[i] && installed[i].exists && installed[i].kind == Kind::Other)
         {
@@ -1057,7 +1058,7 @@ constexpr IncompatibleLayer incompatibleLayers[] = {
     if(FILE* f = fopen(manifest, "rb"))
     {
         char text[8192];
-        const size_t n = fread(text, 1, sizeof(text) - 1, f);
+        const za::SizeT n = fread(text, 1, sizeof(text) - 1, f);
         fclose(f);
         text[n] = 0;
         layer.name = jsonString(text, "name");
@@ -1328,7 +1329,7 @@ void foreignModules(za::Vector<za::String>& lines, za::String& summary)
 // nvapi64_impl.dll called from nvoglv64.dll's thread, reading the unloaded d3d11.dll's memory).
 #ifdef _WIN32
 constexpr const char* graphicsModules[] = {"d3d11.dll", "dxgi.dll", "d3d12.dll", "vulkan-1.dll"};
-constexpr size_t graphicsModuleCount = sizeof(graphicsModules) / sizeof(graphicsModules[0]);
+constexpr za::SizeT graphicsModuleCount = sizeof(graphicsModules) / sizeof(graphicsModules[0]);
 bool graphicsModuleKept[graphicsModuleCount] = {};
 #endif
 
@@ -1351,7 +1352,7 @@ void describe()
     note("  XR_RUNTIME_JSON when the game started: %s\n", state.outside.empty() ? "not set" : state.outside.cStr());
 #ifdef _WIN32
     za::String modules;
-    for(size_t i = 0; i < graphicsModuleCount; i++)
+    for(za::SizeT i = 0; i < graphicsModuleCount; i++)
     {
         modules += i ? ", " : "";
         modules += graphicsModules[i];
@@ -1428,7 +1429,7 @@ void describe()
         note("  installed: none\n");
     }
     note("choice: %s\n", p.summary.cStr());
-    for(size_t i = 0; i < p.attempts.size(); i++)
+    for(za::SizeT i = 0; i < p.attempts.size(); i++)
     {
         const Attempt& a = p.attempts[i];
         note("  %d. %s (%s)%s\n", static_cast<int>(i + 1), a.label.cStr(), a.reason.cStr(),
@@ -1441,7 +1442,7 @@ void describe()
     }
     // Where the tries would end if each simulated failure fails and every other attempt starts.
     int first = -1;
-    for(size_t i = 0; i < p.attempts.size() && first < 0; i++)
+    for(za::SizeT i = 0; i < p.attempts.size() && first < 0; i++)
     {
         if(!simulatedFailure(p.attempts[i]) && (i == 0 || p.fallback))
         {
@@ -1468,7 +1469,7 @@ void explain_f()
         return library;
     }
     char text[8192];
-    const size_t n = fread(text, 1, sizeof(text) - 1, f);
+    const za::SizeT n = fread(text, 1, sizeof(text) - 1, f);
     fclose(f);
     text[n] = 0;
     const za::String path = jsonString(text, "library_path");
@@ -1504,7 +1505,7 @@ za::String foreignArch(const char* manifest)
 #else
     // Its name: <name>.<arch>.json.
     const char* name = fileName(manifest);
-    const size_t n = ZA_STRLEN(name);
+    const za::SizeT n = ZA_STRLEN(name);
     if(n > 5 && !q_strcasecmp(name + n - 5, ".json"))
     {
         const char* end = name + n - 5;
@@ -1533,7 +1534,7 @@ za::String foreignArch(const char* manifest)
         return za::String{};
     }
     unsigned char header[20] = {};
-    const size_t got = fread(header, 1, sizeof(header), f);
+    const za::SizeT got = fread(header, 1, sizeof(header), f);
     fclose(f);
     if(got < sizeof(header) || header[0] != 0x7f || header[1] != 'E' || header[2] != 'L' || header[3] != 'F')
     {
@@ -1833,7 +1834,7 @@ void logLine(const char* text)
 void keepGraphicsModules()
 {
 #ifdef _WIN32
-    for(size_t i = 0; i < graphicsModuleCount && vr_xr_keep_graphics_dlls.value != 0.f; i++)
+    for(za::SizeT i = 0; i < graphicsModuleCount && vr_xr_keep_graphics_dlls.value != 0.f; i++)
     {
         HMODULE module = nullptr;
         if(!graphicsModuleKept[i] && GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_PIN, graphicsModules[i], &module))
@@ -1992,7 +1993,7 @@ void setOutcome(const Plan& plan, int started)
     }
     else
     {
-        const Attempt& a = plan.attempts[static_cast<size_t>(started)];
+        const Attempt& a = plan.attempts[static_cast<za::SizeT>(started)];
         q_snprintf(line, sizeof(line), "%s: %s - %s (%s failed)", plan.mode.cStr(), a.label.cStr(), a.reason.cStr(),
             plan.attempts[0].label.cStr());
     }

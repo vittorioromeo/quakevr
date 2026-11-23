@@ -35,6 +35,7 @@
 #include "vr_weight.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -226,7 +227,7 @@ constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share o
     const auto middle = [&](za::Span<const char* const> anchors, za::Span<const float> twins) {
         glm::vec3 sum{0.f};
         float count = 0.f;
-        for(size_t i = 0; i < anchors.size(); i++)
+        for(za::SizeT i = 0; i < anchors.size(); i++)
         {
             const float w = twins.empty() ? 1.f : twins[i];
             sum += anchor::posedAnchor(e, anchors[i], 0.f) * w;

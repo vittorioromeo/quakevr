@@ -12,6 +12,7 @@
 
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -100,7 +101,7 @@ void cleanName(const char* in, char* out, int size)
     out[n] = 0;
     if(n == 0)
     {
-        q_strlcpy(out, "unnamed", static_cast<size_t>(size));
+        q_strlcpy(out, "unnamed", static_cast<za::SizeT>(size));
     }
 }
 
@@ -113,7 +114,7 @@ struct Words
     void split(const char* line, int len)
     {
         len = za::min(len, static_cast<int>(sizeof(buf)) - 1);
-        ZA_MEMCPY(buf, line, static_cast<size_t>(len));
+        ZA_MEMCPY(buf, line, static_cast<za::SizeT>(len));
         buf[len] = 0;
         n = 0;
         char* p = buf;
@@ -528,9 +529,9 @@ void loadEntry(Entry& e)
     {
         za::Vector<za::String> names;
         const char* suffix = rig->authored ? ".anim2.txt" : ".anim.txt";
-        const size_t sn = ZA_STRLEN(suffix);
+        const za::SizeT sn = ZA_STRLEN(suffix);
         files::forEachEntry(dir, [&](const char* name, bool isDir) {
-            const size_t n = ZA_STRLEN(name);
+            const za::SizeT n = ZA_STRLEN(name);
             if(!isDir && n > sn && !ZA_STRCMP(name + n - sn, suffix))
             {
                 names.pushBack(za::String{name});
@@ -685,11 +686,11 @@ void rootDir(char* out, int size)
     {
         char clean[64];
         cleanName(vr_rigdata_dir.string, clean, sizeof(clean));
-        q_snprintf(out, static_cast<size_t>(size), "%s/%s", com_gamedir, clean);
+        q_snprintf(out, static_cast<za::SizeT>(size), "%s/%s", com_gamedir, clean);
     }
     else
     {
-        q_snprintf(out, static_cast<size_t>(size), "%s", com_gamedir);
+        q_snprintf(out, static_cast<za::SizeT>(size), "%s", com_gamedir);
     }
 }
 
@@ -697,14 +698,14 @@ void rigPath(const char* base, char* out, int size, bool authored)
 {
     char root[MAX_OSPATH];
     rootDir(root, sizeof(root));
-    q_snprintf(out, static_cast<size_t>(size), "%s/rigs/%s.%s", root, base, authored ? "rig2anim.txt" : "rig.txt");
+    q_snprintf(out, static_cast<za::SizeT>(size), "%s/rigs/%s.%s", root, base, authored ? "rig2anim.txt" : "rig.txt");
 }
 
 void animDir(const char* base, char* out, int size)
 {
     char root[MAX_OSPATH];
     rootDir(root, sizeof(root));
-    q_snprintf(out, static_cast<size_t>(size), "%s/anims/%s", root, base);
+    q_snprintf(out, static_cast<za::SizeT>(size), "%s/anims/%s", root, base);
 }
 
 void animPath(const char* base, const char* name, char* out, int size, bool authored)
@@ -712,7 +713,7 @@ void animPath(const char* base, const char* name, char* out, int size, bool auth
     char dir[MAX_OSPATH], clean[64];
     animDir(base, dir, sizeof(dir));
     cleanName(name, clean, sizeof(clean));
-    q_snprintf(out, static_cast<size_t>(size), "%s/%s.%s", dir, clean, authored ? "anim2.txt" : "anim.txt");
+    q_snprintf(out, static_cast<za::SizeT>(size), "%s/%s.%s", dir, clean, authored ? "anim2.txt" : "anim.txt");
 }
 
 void writeRig(const ModelData& m, const ragdoll::Rig& rig, za::String& out)
@@ -1475,10 +1476,10 @@ void frameName(const aliashdr_t* hdr, int frame, char* out, int size)
     int i = 0;
     if(groupOfFrame(hdr, frame, g, i))
     {
-        q_snprintf(out, static_cast<size_t>(size), "%s%d", g.name, i + 1);
+        q_snprintf(out, static_cast<za::SizeT>(size), "%s%d", g.name, i + 1);
         return;
     }
-    q_snprintf(out, static_cast<size_t>(size), "%s", frame >= 0 && frame < hdr->numframes ? hdr->frames[frame].name : "?");
+    q_snprintf(out, static_cast<za::SizeT>(size), "%s", frame >= 0 && frame < hdr->numframes ? hdr->frames[frame].name : "?");
 }
 
 int poseOfFrame(const aliashdr_t* hdr, int frame)

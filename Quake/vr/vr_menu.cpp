@@ -44,6 +44,7 @@
 #include "vr_geom.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Math/Round.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -228,7 +229,7 @@ void restartVr()
 void runCommand(const char* text)
 {
     char name[64];
-    size_t n = 0;
+    za::SizeT n = 0;
     while(text[n] && text[n] != ' ' && n + 1 < sizeof(name))
     {
         name[n] = text[n];
@@ -374,7 +375,7 @@ int motionPageCategory = -1;
     }
     za::Vector<Choice> details;
     const auto& chosen = motion::chosenCategory().details;
-    for(size_t i = 0; i < chosen.size(); i++)
+    for(za::SizeT i = 0; i < chosen.size(); i++)
     {
         details.pushBack({static_cast<float>(i), chosen[i].display});
     }
@@ -454,7 +455,7 @@ char reviewListHeader[64];
     za::Vector<Choice> details;
     const auto& chosen =
         list[CLAMP(0, static_cast<int>(vr_motion_relabel_category.value), static_cast<int>(list.size()) - 1)].details;
-    for(size_t i = 0; i < chosen.size(); i++)
+    for(za::SizeT i = 0; i < chosen.size(); i++)
     {
         details.pushBack({static_cast<float>(i), chosen[i].display});
     }
@@ -1845,7 +1846,7 @@ void resetHolsters()
 // pitch and yaw: Reset Hand Offsets resets those). The world's scale is a choice: reset.
 [[nodiscard]] bool keptOnResetAll(const cvar_t& var)
 {
-    const size_t n = ZA_STRLEN(var.name);
+    const za::SizeT n = ZA_STRLEN(var.name);
     if(n > 8 && !ZA_STRCMP(var.name + n - 8, "_version"))
     {
         return true;
@@ -2063,14 +2064,14 @@ void loadPositions()
 
     int rank = 0;
     const za::String& text = positionsParsed;
-    for(size_t start = 0; start < text.size();)
+    for(za::SizeT start = 0; start < text.size();)
     {
-        size_t end = text.find(';', start);
+        za::SizeT end = text.find(';', start);
         end = end == za::StringView::nPos ? text.size() : end;
         za::Vector<za::String> fields;
-        for(size_t f = start; f <= end;)
+        for(za::SizeT f = start; f <= end;)
         {
-            const size_t bar = za::min(text.find('|', f), end);
+            const za::SizeT bar = za::min(text.find('|', f), end);
             fields.pushBack(text.substrByPosLen(f, bar - f));
             f = bar + 1;
         }
@@ -2143,7 +2144,7 @@ int levelOverride = -1;
 void dropEmptyHeaders(za::Vector<Item>& list)
 {
     za::Vector<Item> kept;
-    for(size_t i = 0; i < list.size(); i++)
+    for(za::SizeT i = 0; i < list.size(); i++)
     {
         if(list[i].kind == Item::Header && (i + 1 == list.size() || list[i + 1].kind == Item::Header))
         {
@@ -2224,9 +2225,9 @@ Folds folds;
 // Whether vr_menu_folded names `key` (one of its ';'-separated entries).
 [[nodiscard]] bool foldListed(za::StringView list, const za::String& key)
 {
-    for(size_t start = 0; start <= list.size();)
+    for(za::SizeT start = 0; start <= list.size();)
     {
-        size_t end = list.find(';', start);
+        za::SizeT end = list.find(';', start);
         end = end == za::StringView::nPos ? list.size() : end;
         if(end - start == key.size() && !ZA_STRNCMP(list.data() + start, key.cStr(), key.size()))
         {
@@ -2243,9 +2244,9 @@ void setFolded(int page, const char* header, bool fold)
     const za::String key = foldKey(page, header);
     const za::StringView list{vr_menu_folded.string};
     za::String next;
-    for(size_t start = 0; start <= list.size();)
+    for(za::SizeT start = 0; start <= list.size();)
     {
-        size_t end = list.find(';', start);
+        za::SizeT end = list.find(';', start);
         end = end == za::StringView::nPos ? list.size() : end;
         const za::StringView entry = list.substrByPosLen(start, end - start);
         if(!entry.empty() && !(entry.size() == key.size() && !ZA_STRNCMP(entry.data(), key.cStr(), key.size())))
@@ -2785,7 +2786,7 @@ void consoleEdges(float& left, float& right);
     if(&list == &menuPages.built[page] && folds.openBuild[page] == builds[page] &&
         folds.open[page].size() == list.size())
     {
-        return folds.open[page][static_cast<size_t>(i)];
+        return folds.open[page][static_cast<za::SizeT>(i)];
     }
     return list[i].folded ? 0.f : 1.f;
 }
@@ -2830,7 +2831,7 @@ void stepFolds(int page, const za::Vector<Item>& list)
     }
     const float time = CLAMP(0.f, vr_menu_fold_time.value, 0.5f);
     const float step = fresh || time <= 0.f ? 1.f : CLAMP(0.f, dt / time, 1.f);
-    for(size_t i = 0; i < list.size(); i++)
+    for(za::SizeT i = 0; i < list.size(); i++)
     {
         const float target = list[i].folded ? 0.f : 1.f;
         if(fresh)
@@ -3423,7 +3424,7 @@ constexpr const char* flatOnlyCvars[] = {"vr_flat_tonemap", "vr_flat_bloom", "vr
 
 [[nodiscard]] bool cvarNamed(const cvar_t* cvar, const char* pattern)
 {
-    const size_t n = ZA_STRLEN(pattern);
+    const za::SizeT n = ZA_STRLEN(pattern);
     return n > 0 && pattern[n - 1] == '*' ? ZA_STRNCMP(cvar->name, pattern, n - 1) == 0 : ZA_STRCMP(cvar->name, pattern) == 0;
 }
 
@@ -3524,7 +3525,7 @@ bool fineForced = false; // (vr_menu_slider_step's "fine": the modifier as if he
 
 // A slider's value as its format shows it, with more decimals where the value has them (a fine step) or while the fine
 // steps are on (their size's).
-void sliderText(const Item& item, float value, char* buf, size_t size)
+void sliderText(const Item& item, float value, char* buf, za::SizeT size)
 {
     const char* dot = ZA_STRSTR(item.format, "%");
     while(dot && *dot && *dot != '.' && *dot != 'f')
@@ -3543,7 +3544,7 @@ void sliderText(const Item& item, float value, char* buf, size_t size)
         n = q_max(n, decimalsOf(sliderStep(item)));
     }
     char format[32];
-    const size_t at = static_cast<size_t>(dot - item.format) + 1;
+    const za::SizeT at = static_cast<za::SizeT>(dot - item.format) + 1;
     if(n == own || at + 2 >= sizeof(format) || ZA_STRLEN(item.format) + 1 >= sizeof(format))
     {
         q_snprintf(buf, size, item.format, value);
@@ -3626,14 +3627,14 @@ float stepSlider(const Item& item, int dir, bool repeat)
 cvar_t* keyCapture{nullptr};
 
 // A row's key where another row has it (a flat key) or a Quake binding does: its name, written to out; false: free.
-[[nodiscard]] bool keyConflict(const cvar_t& var, char* out, size_t size)
+[[nodiscard]] bool keyConflict(const cvar_t& var, char* out, za::SizeT size)
 {
     const int key = var.string[0] ? Key_StringToKeynum(var.string) : -1;
     if(key <= 0 || key >= MAX_KEYS)
     {
         return false;
     }
-    constexpr size_t prefix = sizeof("vr_flat_key_") - 1;
+    constexpr za::SizeT prefix = sizeof("vr_flat_key_") - 1;
     for(const cvar_t* c : flatplay::keyCvars())
     {
         if(c != &var && c->string[0] && Key_StringToKeynum(c->string) == key)
@@ -4343,7 +4344,7 @@ void drawItemLooked(const Item& item, int y, float open, bool selected);
 
 // `text` in `out` at most `chars` characters, cut at a word (a run's " / " parts, else a space) with " ..." after it
 // (Select Campaign's run line: never cut mid-word; the row's help has it whole).
-void fitAtWord(const char* text, int chars, char* out, size_t size)
+void fitAtWord(const char* text, int chars, char* out, za::SizeT size)
 {
     const int len = static_cast<int>(ZA_STRLEN(text));
     if(len <= chars)
@@ -5489,7 +5490,7 @@ void menuExpectCommand(const char* text)
 {
     char want[128];
     q_strlcpy(want, text[0] == '"' ? text + 1 : text, sizeof(want));
-    for(size_t n = ZA_STRLEN(want); n > 0 && (want[n - 1] == ' ' || want[n - 1] == '"' || want[n - 1] == '\n'); n--)
+    for(za::SizeT n = ZA_STRLEN(want); n > 0 && (want[n - 1] == ' ' || want[n - 1] == '"' || want[n - 1] == '\n'); n--)
     {
         want[n - 1] = 0;
     }

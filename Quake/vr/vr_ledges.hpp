@@ -5,6 +5,7 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
@@ -76,7 +77,7 @@ public:
     int faces{0}, pieces{0}, lines{0};
     double ms{0.0};
     za::U32 serial{0}; // which map of the cache it is (each one made a new number: alive)
-    [[nodiscard]] size_t bytes() const;
+    [[nodiscard]] za::SizeT bytes() const;
 
     void finish(); // the grid, once the edges are in
 

@@ -14,6 +14,7 @@
 #include "vr_startlog.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
@@ -177,7 +178,7 @@ za::String workLine(const Group& g)
     }
     za::insertionSort(top.begin(), top.end(), [](const Group::Sum* a, const Group::Sum* b) { return a->ms > b->ms; });
     za::String line;
-    for(size_t i = 0; i < top.size() && i < 4; i++)
+    for(za::SizeT i = 0; i < top.size() && i < 4; i++)
     {
         const char* what = top[i]->what.cStr();
         while(*what == ' ')

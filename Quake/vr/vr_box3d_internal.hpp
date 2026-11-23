@@ -1156,9 +1156,9 @@ template <typename Corners>
         for(int i = made->firstPiece; i < made->firstPiece + made->pieces; i++)
         {
             points.clear();
-            for(int k = i > 0 ? gunShapes.pieceEnds[static_cast<size_t>(i - 1)] : 0; k < gunShapes.pieceEnds[static_cast<size_t>(i)]; k++)
+            for(int k = i > 0 ? gunShapes.pieceEnds[static_cast<za::SizeT>(i - 1)] : 0; k < gunShapes.pieceEnds[static_cast<za::SizeT>(i)]; k++)
             {
-                points.pushBack(world->toM(gunShapes.points[static_cast<size_t>(k)]));
+                points.pushBack(world->toM(gunShapes.points[static_cast<za::SizeT>(k)]));
             }
             if(b3HullData* hull = convex::hull(points.data(), static_cast<int>(points.size()), static_cast<int>(points.size())))
             {
@@ -1578,7 +1578,7 @@ template <typename Shape>
     double dist = 0.0;
     for(int k = 0; k < p.count; k++)
     {
-        const glm::dvec3& n = p.normals[static_cast<size_t>(k)];
+        const glm::dvec3& n = p.normals[static_cast<za::SizeT>(k)];
         const double h = propSupport(p, n);
         const double d1 = glm::dot(n, start) - h, d2 = glm::dot(n, end) - h;
         getOut = getOut || d2 > 0.0;

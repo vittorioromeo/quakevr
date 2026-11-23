@@ -17,6 +17,7 @@
 
 #include "thirdparty/imgui/imgui.h"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -92,14 +93,14 @@ int anchorSlotShown{-1};
 }
 
 // A Combo's word list: the words, each ended by \0, then one more \0. `pos` is where the next word goes.
-void addWord(char* list, size_t size, int& pos, const char* word)
+void addWord(char* list, za::SizeT size, int& pos, const char* word)
 {
     if(pos + 2 >= static_cast<int>(size))
         return;
-    pos += q_snprintf(list + pos, size - static_cast<size_t>(pos), "%s%c", word ? word : "?", 0);
+    pos += q_snprintf(list + pos, size - static_cast<za::SizeT>(pos), "%s%c", word ? word : "?", 0);
 }
 
-void closeList(char* list, size_t size, int pos)
+void closeList(char* list, za::SizeT size, int pos)
 {
     if(pos + 1 < static_cast<int>(size))
         list[pos] = 0;

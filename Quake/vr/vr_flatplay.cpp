@@ -77,6 +77,7 @@
 
 #include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -1986,7 +1987,7 @@ void sendHandKey(const HandKey& k)
 // 1 / 2 with vr_flat_wheel (his words 2026-11-23): a tap cycles the hand when let go; held vr_flat_wheel_hold, the weapon
 // wheel opens for that hand (vr_weaponwheel.cpp: where the hand is on the screen, the mouse its cursor), and letting go is
 // its pick (or nothing off the wheel). A press while the wheel is open (the other key) does nothing.
-void wheelKey(size_t i, bool down, bool inGame)
+void wheelKey(za::SizeT i, bool down, bool inGame)
 {
     const int hand = i == 0 ? HAND_OFF : HAND_MAIN;
     const bool was = keyState.keyHands[i];
@@ -2022,7 +2023,7 @@ void wheelKey(size_t i, bool down, bool inGame)
 
 void pollHandKeys(bool inGame)
 {
-    for(size_t i = 0; i < za::getArraySize(handKeys); i++)
+    for(za::SizeT i = 0; i < za::getArraySize(handKeys); i++)
     {
         const HandKey& k = handKeys[i];
         const bool down = inGame && keyActive(*k.key) && flatKeyHeld(*k.key);

@@ -10,6 +10,7 @@
 #include "vr_lines.hpp"
 #include "vr_ragpose.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -64,7 +65,7 @@ namespace detail
 // Its side by its name's end: 0 left (_l), 1 right (_r), -1 neither.
 [[nodiscard]] int sideOf(const char* name)
 {
-    const size_t n = ZA_STRLEN(name);
+    const za::SizeT n = ZA_STRLEN(name);
     if(n >= 2 && name[n - 2] == '_')
     {
         return name[n - 1] == 'l' ? 0 : name[n - 1] == 'r' ? 1 : -1;

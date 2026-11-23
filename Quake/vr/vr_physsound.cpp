@@ -35,6 +35,7 @@
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -45,8 +46,6 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_api.h"
-
-#include <stdlib.h>
 
 using namespace qvr;
 
@@ -223,7 +222,7 @@ mem::Scratch<PhysSoundScratch> scratch{"physsound"};
 {
     if(num >= static_cast<int>(state.bodies.size()))
     {
-        state.bodies.resize(static_cast<size_t>(num) + 64);
+        state.bodies.resize(static_cast<za::SizeT>(num) + 64);
     }
     return state.bodies[num];
 }

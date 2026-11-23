@@ -6,6 +6,7 @@
 #include "vr_crtheap.h"
 
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/FwdStdNew.hpp" // operator new/delete's std::align_val_t, std::nothrow_t (not <new>)
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
@@ -19,7 +20,6 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 
-#include <new>
 #include <stdio.h>
 #include <stdlib.h>
 #ifdef _WIN32
@@ -116,7 +116,7 @@ void deallocate(void* p)
     }
     // Out of memory: the game ends here, with the crash report (abort: vr_crash's SIGABRT handler). The engine is built
     // without exceptions, so there is no std::bad_alloc to throw (the C code's Sys_Error is not for a thread's new).
-    fprintf(stderr, "operator new: out of memory (%zu bytes)\n", static_cast<size_t>(size));
+    fprintf(stderr, "operator new: out of memory (%zu bytes)\n", static_cast<za::SizeT>(size));
     abort();
 }
 
@@ -155,7 +155,7 @@ void operator delete[](void* p, za::SizeT) noexcept
 
 namespace
 {
-void* alignedAllocate(size_t size, size_t alignment)
+void* alignedAllocate(za::SizeT size, za::SizeT alignment)
 {
 #ifdef _WIN32
     return _aligned_malloc(size ? size : 1, alignment);
@@ -176,44 +176,44 @@ void alignedRelease(void* p)
 #endif
 }
 }
-void* operator new(za::SizeT size, std::align_val_t alignment)
+void* operator new(za::SizeT size, za::AlignValT alignment)
 {
     account(qvr::alloccount::Kind::New, size);
-    if(void* p = alignedAllocate(size, static_cast<size_t>(alignment))) return p;
+    if(void* p = alignedAllocate(size, static_cast<za::SizeT>(alignment))) return p;
     fprintf(stderr, "aligned operator new: out of memory\n");
     abort();
 }
-void* operator new[](za::SizeT size, std::align_val_t a) { return ::operator new(size, a); }
+void* operator new[](za::SizeT size, za::AlignValT a) { return ::operator new(size, a); }
 // The nothrow forms return null when out of memory (the library's would call the throwing ones above, which abort: there
 // are no exceptions to catch).
-void* operator new(za::SizeT size, const std::nothrow_t&) noexcept
+void* operator new(za::SizeT size, const za::NothrowT&) noexcept
 {
     account(qvr::alloccount::Kind::New, size);
     return malloc(size ? size : 1);
 }
-void* operator new[](za::SizeT size, const std::nothrow_t& n) noexcept { return ::operator new(size, n); }
-void* operator new(za::SizeT size, std::align_val_t alignment, const std::nothrow_t&) noexcept
+void* operator new[](za::SizeT size, const za::NothrowT& n) noexcept { return ::operator new(size, n); }
+void* operator new(za::SizeT size, za::AlignValT alignment, const za::NothrowT&) noexcept
 {
     account(qvr::alloccount::Kind::New, size);
-    return alignedAllocate(size, static_cast<size_t>(alignment));
+    return alignedAllocate(size, static_cast<za::SizeT>(alignment));
 }
-void* operator new[](za::SizeT size, std::align_val_t a, const std::nothrow_t& n) noexcept
+void* operator new[](za::SizeT size, za::AlignValT a, const za::NothrowT& n) noexcept
 {
     return ::operator new(size, a, n);
 }
-void operator delete(void* p, const std::nothrow_t&) noexcept { ::operator delete(p); }
-void operator delete[](void* p, const std::nothrow_t&) noexcept { ::operator delete(p); }
-void operator delete(void* p, std::align_val_t a, const std::nothrow_t&) noexcept { ::operator delete(p, a); }
-void operator delete[](void* p, std::align_val_t a, const std::nothrow_t&) noexcept { ::operator delete(p, a); }
-void operator delete(void* p, std::align_val_t) noexcept
+void operator delete(void* p, const za::NothrowT&) noexcept { ::operator delete(p); }
+void operator delete[](void* p, const za::NothrowT&) noexcept { ::operator delete(p); }
+void operator delete(void* p, za::AlignValT a, const za::NothrowT&) noexcept { ::operator delete(p, a); }
+void operator delete[](void* p, za::AlignValT a, const za::NothrowT&) noexcept { ::operator delete(p, a); }
+void operator delete(void* p, za::AlignValT) noexcept
 {
     if(p) account(qvr::alloccount::Kind::Delete, 0);
     alignedRelease(p);
 }
-void operator delete[](void* p, std::align_val_t a) noexcept { ::operator delete(p, a); }
-void operator delete(void* p, za::SizeT, std::align_val_t a) noexcept { ::operator delete(p, a); }
-void operator delete[](void* p, za::SizeT, std::align_val_t a) noexcept { ::operator delete(p, a); }
-extern "C" void* VR_HeapAlignedAlloc(size_t size, size_t alignment)
+void operator delete[](void* p, za::AlignValT a) noexcept { ::operator delete(p, a); }
+void operator delete(void* p, za::SizeT, za::AlignValT a) noexcept { ::operator delete(p, a); }
+void operator delete[](void* p, za::SizeT, za::AlignValT a) noexcept { ::operator delete(p, a); }
+extern "C" void* VR_HeapAlignedAlloc(za::SizeT size, za::SizeT alignment)
 {
     account(qvr::alloccount::Kind::Malloc, size);
     return alignedAllocate(size, alignment);
@@ -224,19 +224,19 @@ extern "C" void VR_HeapAlignedFree(void* p)
     alignedRelease(p);
 }
 
-extern "C" void* VR_HeapMalloc(size_t size)
+extern "C" void* VR_HeapMalloc(za::SizeT size)
 {
     account(qvr::alloccount::Kind::Malloc, size);
     return malloc(size);
 }
-extern "C" void* VR_HeapCalloc(size_t count, size_t size)
+extern "C" void* VR_HeapCalloc(za::SizeT count, za::SizeT size)
 {
     // Do not overflow the accounting multiplication or change CRT failure semantics.
-    const size_t bytes = size && count > static_cast<size_t>(-1) / size ? 0 : count * size;
+    const za::SizeT bytes = size && count > static_cast<za::SizeT>(-1) / size ? 0 : count * size;
     account(qvr::alloccount::Kind::Calloc, bytes);
     return calloc(count, size);
 }
-extern "C" void* VR_HeapRealloc(void* p, size_t size)
+extern "C" void* VR_HeapRealloc(void* p, za::SizeT size)
 {
     // realloc(NULL, n) allocates and realloc(p, 0) frees: counted as such, so that requests and frees balance.
     account(!p ? qvr::alloccount::Kind::Malloc : size == 0 ? qvr::alloccount::Kind::Free : qvr::alloccount::Kind::Realloc, size);
@@ -244,7 +244,7 @@ extern "C" void* VR_HeapRealloc(void* p, size_t size)
 }
 extern "C" char* VR_HeapStrdup(const char* s)
 {
-    const size_t n = ZA_STRLEN(s) + 1;
+    const za::SizeT n = ZA_STRLEN(s) + 1;
     account(qvr::alloccount::Kind::Malloc, n);
     char* copy = static_cast<char*>(malloc(n));
     if(copy) ZA_MEMCPY(copy, s, n);
@@ -406,7 +406,7 @@ void liveForget(void* p)
     liveTable[i].p = nullptr;
 }
 
-void liveHook(void* p, size_t size)
+void liveHook(void* p, za::SizeT size)
 {
     za::LockGuard guard{liveLock};
     if(!liveOn)
@@ -616,12 +616,12 @@ za::Vector<Site> traceSites(za::U64& total, za::U64& dropped, bool peakFrame)
 // page reserved, never committed: an overrun faults); its free decommits the pages and keeps them reserved, so the
 // address is never handed out again and any later read or write through a kept pointer faults (a crash report with the
 // stack of the use). Elsewhere than Windows: plain calloc/free (no guard).
-extern "C" void* VR_PageGuardAlloc(size_t size)
+extern "C" void* VR_PageGuardAlloc(za::SizeT size)
 {
 #ifdef _WIN32
-    const size_t page = 4096;
-    const size_t span = (size + page - 1) / page * page;
-    const size_t lead = span - ((size + 15) & ~static_cast<size_t>(15)); // 16-byte aligned, ending at most 15 bytes short
+    const za::SizeT page = 4096;
+    const za::SizeT span = (size + page - 1) / page * page;
+    const za::SizeT lead = span - ((size + 15) & ~static_cast<za::SizeT>(15)); // 16-byte aligned, ending at most 15 bytes short
     unsigned char* base = static_cast<unsigned char*>(VirtualAlloc(nullptr, span + page, MEM_RESERVE, PAGE_NOACCESS));
     if(!base || !VirtualAlloc(base, span, MEM_COMMIT, PAGE_READWRITE)) return nullptr;
     return base + lead; // committed pages are zeroed
@@ -630,13 +630,13 @@ extern "C" void* VR_PageGuardAlloc(size_t size)
 #endif
 }
 
-extern "C" void VR_PageGuardFree(void* pointer, size_t size)
+extern "C" void VR_PageGuardFree(void* pointer, za::SizeT size)
 {
     if(!pointer) return;
 #ifdef _WIN32
-    const size_t page = 4096;
-    const size_t span = (size + page - 1) / page * page;
-    const size_t lead = span - ((size + 15) & ~static_cast<size_t>(15)); // 16-byte aligned, ending at most 15 bytes short
+    const za::SizeT page = 4096;
+    const za::SizeT span = (size + page - 1) / page * page;
+    const za::SizeT lead = span - ((size + 15) & ~static_cast<za::SizeT>(15)); // 16-byte aligned, ending at most 15 bytes short
     unsigned char* base = static_cast<unsigned char*>(pointer) - lead;
     VirtualFree(base, span, MEM_DECOMMIT);
 #else

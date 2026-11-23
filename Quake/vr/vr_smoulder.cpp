@@ -17,6 +17,7 @@
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -168,11 +169,11 @@ Body* find(int num, bool make)
 // mostly from the parts facing up (smoke rises off the top of it); false on degenerate ones.
 [[nodiscard]] bool wispPlace(const za::Vector<glm::vec3>& tris, const glm::vec3& mid, glm::vec3& at, glm::vec3& out)
 {
-    const size_t count = tris.size() / 3;
+    const za::SizeT count = tris.size() / 3;
     bool found = false;
     for(int tries = 0; tries < 4; tries++)
     {
-        const size_t tri = za::min(static_cast<size_t>(rnd() * static_cast<float>(count)), count - 1);
+        const za::SizeT tri = za::min(static_cast<za::SizeT>(rnd() * static_cast<float>(count)), count - 1);
         const glm::vec3 a = tris[tri * 3], b = tris[tri * 3 + 1], c = tris[tri * 3 + 2];
         const glm::vec3 cross = glm::cross(b - a, c - a);
         const float area = glm::length(cross);

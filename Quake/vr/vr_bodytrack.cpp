@@ -23,6 +23,7 @@
 #include "vr_geom.hpp"
 
 #include "Zancle/Base/InitializerList.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -1166,8 +1167,8 @@ void loadReplay(const char* name)
     fseek(f, 0, SEEK_END);
     const long size = ftell(f);
     fseek(f, 0, SEEK_SET);
-    za::Vector<char> text(static_cast<size_t>(za::max(0L, size)) + 1, '\0');
-    const size_t got = fread(text.data(), 1, static_cast<size_t>(za::max(0L, size)), f);
+    za::Vector<char> text(static_cast<za::SizeT>(za::max(0L, size)) + 1, '\0');
+    const za::SizeT got = fread(text.data(), 1, static_cast<za::SizeT>(za::max(0L, size)), f);
     fclose(f);
     text[got] = '\0';
 
@@ -1198,7 +1199,7 @@ void loadReplay(const char* name)
     split(at);
     za::Vector<char*> header = fields;
     const auto col = [&](const char* name) {
-        for(size_t i = 0; i < header.size(); i++)
+        for(za::SizeT i = 0; i < header.size(); i++)
         {
             if(!ZA_STRCMP(header[i], name))
             {
@@ -1289,7 +1290,7 @@ void replayFrame(TrackingState& t)
     {
         return;
     }
-    const ReplayRow& row = replay.rows[static_cast<size_t>(replay.next) % replay.rows.size()];
+    const ReplayRow& row = replay.rows[static_cast<za::SizeT>(replay.next) % replay.rows.size()];
     replay.next = (replay.next + 1) % static_cast<int>(replay.rows.size());
     t.head.position = trackingOf(row, row.head);
     t.head.valid = true;

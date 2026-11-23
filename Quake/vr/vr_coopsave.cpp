@@ -20,6 +20,7 @@
 #include "vr_engine.hpp"
 #include "vr_progs.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -228,7 +229,7 @@ extern "C" int VR_ReadCoopLines(const char* text, const char* relname)
         {
             end++;
         }
-        const size_t n = strcspn(end, "\r\n");
+        const za::SizeT n = strcspn(end, "\r\n");
         q_strlcpy(s.name, end, za::min(n + 1, sizeof(s.name)));
         s.in = true;
     }

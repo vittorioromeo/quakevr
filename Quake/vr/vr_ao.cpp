@@ -661,11 +661,11 @@ void build()
         }
         order.pushBack(i);
     }
-    const size_t keep = za::min(order.size(), static_cast<size_t>(MAX_OCCLUDERS));
+    const za::SizeT keep = za::min(order.size(), static_cast<za::SizeT>(MAX_OCCLUDERS));
     // (All sorted: the first `keep` are std::partial_sort's, but for the order of equal distances.)
     za::quickSort(order.begin(), order.end(), [](int a, int b) { return candidates[a].distance < candidates[b].distance; });
     float nextGroup = PLAYER_GROUP + 1.f;
-    for(size_t k = 0; k < keep; k++)
+    for(za::SizeT k = 0; k < keep; k++)
     {
         Occluder o = candidates[order[k]];
         const entity_t* e = owners[order[k]];
@@ -685,7 +685,7 @@ void build()
     // The block's occluders (the tiles are each eye's).
     block.params[0] = static_cast<float>(chosen.size());
     block.params[1] = block.params[2] = block.params[3] = 0.f;
-    for(size_t i = 0; i < chosen.size(); i++)
+    for(za::SizeT i = 0; i < chosen.size(); i++)
     {
         const Occluder& o = chosen[i];
         float(*v)[4] = &block.occ[i * VECS];
@@ -740,7 +740,7 @@ void binTiles()
 void binTiles(const float* m)
 {
     const float depthScale = za::sqrt(m_sq(m[3], m[7], m[11])); // w per unit along the view
-    for(size_t i = 0; i < chosen.size(); i++)
+    for(za::SizeT i = 0; i < chosen.size(); i++)
     {
         const Occluder& o = chosen[i];
         bool culled = false;
@@ -892,7 +892,7 @@ struct PoseJob
 void bakePoseReference(const PoseJob& job, int pose, za::Vector<int>& cand)
 {
     const za::Array<glm::vec3, RAYS>& dirs = rayDirs;
-    const trivertx_t* tv = job.verts + static_cast<size_t>(pose) * job.numverts;
+    const trivertx_t* tv = job.verts + static_cast<za::SizeT>(pose) * job.numverts;
     const int nv = job.numverts;
     za::Vector<glm::vec3> p(nv);
     for(int i = 0; i < nv; i++)
@@ -900,10 +900,10 @@ void bakePoseReference(const PoseJob& job, int pose, za::Vector<int>& cand)
         p[i] = glm::vec3{tv[i].v[0], tv[i].v[1], tv[i].v[2]} * job.scale + job.origin;
     }
     const za::Vector<Tri>& tris = *job.tris;
-    const size_t nt = tris.size();
+    const za::SizeT nt = tris.size();
     za::Vector<glm::vec3> v0(nt), e1(nt), e2(nt), mid(nt);
     za::Vector<float> rad(nt);
-    for(size_t t = 0; t < nt; t++)
+    for(za::SizeT t = 0; t < nt; t++)
     {
         const glm::vec3 a = p[tris[t].v[0]], b = p[tris[t].v[1]], c = p[tris[t].v[2]];
         v0[t] = a;
@@ -914,7 +914,7 @@ void bakePoseReference(const PoseJob& job, int pose, za::Vector<int>& cand)
     }
     const float reach = job.reach;
     const float tmin = reach * NEAREST_SHARE;
-    unsigned char* out = job.out + static_cast<size_t>(pose) * nv;
+    unsigned char* out = job.out + static_cast<za::SizeT>(pose) * nv;
     za::Vector<int> mark(nv, -1);
     for(int i = 0; i < nv; i++)
     {
@@ -933,7 +933,7 @@ void bakePoseReference(const PoseJob& job, int pose, za::Vector<int>& cand)
         const glm::vec3 n{nn[0], nn[1], nn[2]};
         const glm::vec3 o = p[i] + n * (reach * LIFT_SHARE);
         cand.clear();
-        for(size_t t = 0; t < nt; t++)
+        for(za::SizeT t = 0; t < nt; t++)
         {
             const Tri& tr = tris[t];
             if(mark[tr.v[0]] == i || mark[tr.v[1]] == i || mark[tr.v[2]] == i)
@@ -1042,13 +1042,13 @@ struct Grid
 
 [[nodiscard]] Grid buildGrid(PoseScratch& s, float reach)
 {
-    const size_t nt = s.mid.size();
+    const za::SizeT nt = s.mid.size();
     Grid g;
     g.margin = 0.01f + reach * 0.01f;
     const float wide = reach * 0.5f;
     glm::vec3 lo{1e30f}, hi{-1e30f};
     s.big.clear();
-    for(size_t t = 0; t < nt; t++)
+    for(za::SizeT t = 0; t < nt; t++)
     {
         if(s.rad[t] > wide)
         {
@@ -1073,11 +1073,11 @@ struct Grid
     }
     const int cells = g.n[0] * g.n[1] * g.n[2];
     s.cellStart.clear();
-    s.cellStart.resize(static_cast<size_t>(cells) + 1, 0);
+    s.cellStart.resize(static_cast<za::SizeT>(cells) + 1, 0);
     s.cellRadius.clear();
-    s.cellRadius.resize(static_cast<size_t>(cells), 0.f);
+    s.cellRadius.resize(static_cast<za::SizeT>(cells), 0.f);
     s.cellOf.resize(nt);
-    for(size_t t = 0; t < nt; t++)
+    for(za::SizeT t = 0; t < nt; t++)
     {
         if(s.rad[t] > wide)
         {
@@ -1086,23 +1086,23 @@ struct Grid
         }
         const int c = g.cell(s.mid[t].x, 0) + g.n[0] * (g.cell(s.mid[t].y, 1) + g.n[1] * g.cell(s.mid[t].z, 2));
         s.cellOf[t] = c;
-        s.cellStart[static_cast<size_t>(c) + 1]++;
-        s.cellRadius[static_cast<size_t>(c)] = za::max(s.cellRadius[static_cast<size_t>(c)], s.rad[t]);
+        s.cellStart[static_cast<za::SizeT>(c) + 1]++;
+        s.cellRadius[static_cast<za::SizeT>(c)] = za::max(s.cellRadius[static_cast<za::SizeT>(c)], s.rad[t]);
     }
     for(int c = 0; c < cells; c++)
     {
-        s.cellStart[static_cast<size_t>(c) + 1] += s.cellStart[static_cast<size_t>(c)];
+        s.cellStart[static_cast<za::SizeT>(c) + 1] += s.cellStart[static_cast<za::SizeT>(c)];
     }
     s.cellItems.clear();
-    s.cellItems.resize(static_cast<size_t>(s.cellStart[static_cast<size_t>(cells)]), 0);
+    s.cellItems.resize(static_cast<za::SizeT>(s.cellStart[static_cast<za::SizeT>(cells)]), 0);
     s.cellMidRad.resize(s.cellItems.size());
     za::Vector<int>& fill = s.cand; // (each cell's next free place; cand is free until the vertices)
     fill.assignRange(s.cellStart.begin(), s.cellStart.end() - 1);
-    for(size_t t = 0; t < nt; t++)
+    for(za::SizeT t = 0; t < nt; t++)
     {
         if(s.cellOf[t] >= 0)
         {
-            const size_t k = static_cast<size_t>(fill[static_cast<size_t>(s.cellOf[t])]++);
+            const za::SizeT k = static_cast<za::SizeT>(fill[static_cast<za::SizeT>(s.cellOf[t])]++);
             s.cellItems[k] = static_cast<int>(t);
             s.cellMidRad[k] = glm::vec4{s.mid[t], s.rad[t]};
         }
@@ -1238,21 +1238,21 @@ void bakePose(const PoseJob& job, int pose, PoseScratch& s)
 {
     const za::Array<glm::vec3, RAYS>& dirs = rayDirs;
     static_assert(RAYS % 4 == 0);
-    const trivertx_t* tv = job.verts + static_cast<size_t>(pose) * job.numverts;
+    const trivertx_t* tv = job.verts + static_cast<za::SizeT>(pose) * job.numverts;
     const int nv = job.numverts;
-    s.p.resize(static_cast<size_t>(nv));
+    s.p.resize(static_cast<za::SizeT>(nv));
     for(int i = 0; i < nv; i++)
     {
         s.p[i] = glm::vec3{tv[i].v[0], tv[i].v[1], tv[i].v[2]} * job.scale + job.origin;
     }
     const za::Vector<Tri>& tris = *job.tris;
-    const size_t nt = tris.size();
+    const za::SizeT nt = tris.size();
     for(za::Vector<glm::vec3>* v : {&s.v0, &s.e1, &s.e2, &s.mid})
     {
         v->resize(nt);
     }
     s.rad.resize(nt);
-    for(size_t t = 0; t < nt; t++)
+    for(za::SizeT t = 0; t < nt; t++)
     {
         const glm::vec3 a = s.p[tris[t].v[0]], b = s.p[tris[t].v[1]], c = s.p[tris[t].v[2]];
         s.v0[t] = a;
@@ -1264,11 +1264,11 @@ void bakePose(const PoseJob& job, int pose, PoseScratch& s)
     }
     const float reach = job.reach;
     const float tmin = reach * NEAREST_SHARE;
-    unsigned char* out = job.out + static_cast<size_t>(pose) * nv;
+    unsigned char* out = job.out + static_cast<za::SizeT>(pose) * nv;
     const Grid grid = buildGrid(s, reach);
     s.cand.resize(nt); // (room for every triangle: each vertex's candidates are written whether they pass or not)
     s.mark.clear();
-    s.mark.resize(static_cast<size_t>(nv), -1);
+    s.mark.resize(static_cast<za::SizeT>(nv), -1);
     for(za::Vector<float>* v : {&s.e1x, &s.e1y, &s.e1z, &s.e2x, &s.e2y, &s.e2z, &s.sx, &s.sy, &s.sz, &s.qx, &s.qy, &s.qz, &s.e2q})
     {
         v->resize(nt);
@@ -1295,7 +1295,7 @@ void bakePose(const PoseJob& job, int pose, PoseScratch& s)
         // (the same test as the reference's, for every triangle it reaches)
         int nc = 0;
         const auto consider = [&](int t, const glm::vec4& midRad) {
-            const Tri& tr = tris[static_cast<size_t>(t)];
+            const Tri& tr = tris[static_cast<za::SizeT>(t)];
             const glm::vec3 d = glm::vec3{midRad} - pi;
             const float r = reach + midRad.w;
             // (without branches: a quarter of them pass, unpredictably)
@@ -1324,7 +1324,7 @@ void bakePose(const PoseJob& job, int pose, PoseScratch& s)
                 const float gy = za::max(0.f, za::max(cy - grid.margin - pi.y, pi.y - (cy + grid.size + grid.margin)));
                 for(int x = x0; x <= x1; x++)
                 {
-                    const size_t c = static_cast<size_t>(x + grid.n[0] * (y + grid.n[1] * z));
+                    const za::SizeT c = static_cast<za::SizeT>(x + grid.n[0] * (y + grid.n[1] * z));
                     if(s.cellStart[c] == s.cellStart[c + 1])
                     {
                         continue;
@@ -1338,7 +1338,7 @@ void bakePose(const PoseJob& job, int pose, PoseScratch& s)
                     }
                     for(int k = s.cellStart[c]; k < s.cellStart[c + 1]; k++)
                     {
-                        consider(s.cellItems[static_cast<size_t>(k)], s.cellMidRad[static_cast<size_t>(k)]);
+                        consider(s.cellItems[static_cast<za::SizeT>(k)], s.cellMidRad[static_cast<za::SizeT>(k)]);
                     }
                 }
             }
@@ -1348,7 +1348,7 @@ void bakePose(const PoseJob& job, int pose, PoseScratch& s)
         {
             for(int c = 0; c < nc; c++)
             {
-                const int t = s.cand[static_cast<size_t>(c)];
+                const int t = s.cand[static_cast<za::SizeT>(c)];
                 const glm::vec3 sv = o - s.v0[t];
                 const glm::vec3 q = glm::cross(sv, s.e1[t]);
                 s.e1x[c] = s.e1[t].x;
@@ -1437,8 +1437,8 @@ za::U64 modelHash(const aliashdr_t* hdr)
 {
     za::U64 h = aoFnvStart;
     h = diskcache::fnv(h, reinterpret_cast<const byte*>(hdr) + hdr->vertexes,
-        static_cast<size_t>(hdr->numposes) * hdr->numverts * sizeof(trivertx_t));
-    h = diskcache::fnv(h, reinterpret_cast<const byte*>(hdr) + hdr->indexes, static_cast<size_t>(hdr->numindexes) * sizeof(unsigned short));
+        static_cast<za::SizeT>(hdr->numposes) * hdr->numverts * sizeof(trivertx_t));
+    h = diskcache::fnv(h, reinterpret_cast<const byte*>(hdr) + hdr->indexes, static_cast<za::SizeT>(hdr->numindexes) * sizeof(unsigned short));
     return diskcache::fnv(h, hdr->scale, sizeof(hdr->scale));
 }
 
@@ -1544,7 +1544,7 @@ void bakeModel(BakeJob& job, int maxThreads, BakeKind kind)
         hi = glm::max(hi, p);
     }
     job.vis.clear();
-    job.vis.resize(static_cast<size_t>(job.numposes) * job.numverts, 255);
+    job.vis.resize(static_cast<za::SizeT>(job.numposes) * job.numverts, 255);
     PoseJob pj;
     pj.verts = job.verts.data();
     pj.numverts = job.numverts;
@@ -1687,7 +1687,7 @@ void integrateBakes()
             mean += v;
             texels = (texels ^ v) * 16777619u;
         }
-        mean /= za::max<size_t>(entry.vis.size(), 1) * 255.0;
+        mean /= za::max<za::SizeT>(entry.vis.size(), 1) * 255.0;
         Con_DPrintf("vr_ao: %s: %d poses x %d vertices, %d triangles %s in %.1f ms, open %.2f on average (%08x)\n",
             job->name.cStr(), job->numposes, job->numverts, static_cast<int>(job->tris.size()),
             job->fromDisk ? "read from the disk cache" : "baked", job->seconds * 1000.0, mean, texels);
@@ -1711,7 +1711,7 @@ namespace
 // A bake's copy of a model's poses and triangles (the bake reads nothing else of the model's).
 [[nodiscard]] za::UniquePtr<BakeJob> makeJob(qmodel_t* model, const aliashdr_t* hdr, za::U64 hash)
 {
-    const size_t count = static_cast<size_t>(hdr->numposes) * hdr->numverts;
+    const za::SizeT count = static_cast<za::SizeT>(hdr->numposes) * hdr->numverts;
     auto job = za::makeUnique<BakeJob>();
     job->name = model->name;
     job->model = model;
@@ -1769,7 +1769,7 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
         ~Timer() { queueSeconds += za::nanosecondsToSeconds(za::Clock::nowNanoseconds() - start); }
     } timer{t0};
     QVR_TRACY_SCOPE(tracyScope, "alias vertex AO");
-    const size_t count = static_cast<size_t>(hdr->numposes) * hdr->numverts;
+    const za::SizeT count = static_cast<za::SizeT>(hdr->numposes) * hdr->numverts;
     const za::U64 h = modelHash(hdr);
     const auto it = baked.find(za::StringView{model->name});
     if(it != baked.end() && it->second.hash == h && it->second.vis.size() == count)
@@ -2008,7 +2008,7 @@ void bench_f()
         {
             if(kinds[k] && at > 0 && at < static_cast<int>(sizeof(line)))
             {
-                at += snprintf(line + at, sizeof(line) - static_cast<size_t>(at), ", %s %.1f ms", names[k], ms[k]);
+                at += snprintf(line + at, sizeof(line) - static_cast<za::SizeT>(at), ", %s %.1f ms", names[k], ms[k]);
             }
         }
         Con_Printf("%s%s (%08x)\n", line, kinds[1] || kinds[2] ? (same ? ", the same" : ", DIFFERENT") : "", texels);
@@ -2089,7 +2089,7 @@ int ao::warmBake(const char* name, int numverts, int numposes, const unsigned ch
     job.numverts = numverts;
     job.numposes = numposes;
     const auto* v = reinterpret_cast<const trivertx_t*>(verts);
-    job.verts.assignRange(v, v + static_cast<size_t>(numverts) * numposes);
+    job.verts.assignRange(v, v + static_cast<za::SizeT>(numverts) * numposes);
     job.tris.reserve(static_cast<za::SizeT>(numtris));
     for(int i = 0; i < numtris; i++)
     {
@@ -2112,7 +2112,7 @@ int ao::warmBake(const char* name, int numverts, int numposes, const unsigned ch
         return 0;
     }
     bakeModel(job, 1, BakeKind::Fast);
-    if(bakeQueue().stop.loadRelaxed() || job.vis.size() != static_cast<size_t>(numverts) * numposes)
+    if(bakeQueue().stop.loadRelaxed() || job.vis.size() != static_cast<za::SizeT>(numverts) * numposes)
     {
         return -1;
     }

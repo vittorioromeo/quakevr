@@ -11,13 +11,13 @@
 // The registry's format is in QC/test_numbers.txt's header. Exit 1 on a problem. `--list` prints each cvar's
 // dispatched numbers (for a new registry line).
 #include "common.hpp"
+#include "maps.hpp"
 
-#include <algorithm>
-#include <cctype>
-#include <map>
-#include <optional>
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Vocabulary/Optional.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
+
 #include <regex>
-#include <set>
 
 namespace qvrc
 {
@@ -27,58 +27,55 @@ namespace
 constexpr const char* registryPath = "QC/test_numbers.txt";
 constexpr long long inf = 1LL << 30;
 
-std::string fmtRange(long long lo, long long hi)
+using Range = za::Pair<long long, long long>;
+
+za::String fmtRange(long long lo, long long hi)
 {
     if(hi >= inf)
     {
-        return std::format("{}+", lo);
+        return fmt("{}+", lo);
     }
-    return lo == hi ? std::format("{}", lo) : std::format("{}-{}", lo, hi);
-}
-
-bool allDigits(std::string_view s)
-{
-    return !s.empty() && std::all_of(s.begin(), s.end(), isDigit);
+    return lo == hi ? fmt("{}", lo) : fmt("{}-{}", lo, hi);
 }
 
 // "48", "20-39", "100+"
-std::optional<std::pair<long long, long long>> parseNumbers(std::string_view spec)
+za::Optional<Range> parseNumbers(za::StringView spec)
 {
-    size_t k = 0;
+    za::SizeT k = 0;
     while(k < spec.size() && isDigit(spec[k]))
     {
         ++k;
     }
     if(k == 0)
     {
-        return std::nullopt;
+        return za::nullOpt;
     }
-    const long long lo = std::stoll(std::string(spec.substr(0, k)));
+    const long long lo = toInt(spec.substrByPosLen(0, k));
     long long hi = lo;
-    const auto rest = spec.substr(k);
+    const auto rest = spec.substrByPosLen(k);
     if(rest == "+")
     {
         hi = inf;
     }
     else if(!rest.empty())
     {
-        if(rest[0] != '-' || !allDigits(rest.substr(1)))
+        if(rest[0] != '-' || !allDigits(rest.substrByPosLen(1)))
         {
-            return std::nullopt;
+            return za::nullOpt;
         }
-        hi = std::stoll(std::string(rest.substr(1)));
+        hi = toInt(rest.substrByPosLen(1));
     }
     if(hi < lo)
     {
-        return std::nullopt;
+        return za::nullOpt;
     }
-    return std::pair{lo, hi};
+    return za::Optional<Range>{Range{lo, hi}};
 }
 
 struct Dispatcher
 {
-    std::string cvar, file, func, var;
-    std::optional<std::pair<long long, long long>> within;
+    za::String cvar, file, func, var;
+    za::Optional<Range> within;
     int line;
     bool loose;
 };
@@ -90,28 +87,28 @@ struct Entry
     bool fallthrough;
 };
 
-std::string stripComments(std::string_view text)
+za::String stripComments(za::StringView text)
 {
-    std::string out;
+    za::String out;
     out.reserve(text.size());
-    size_t i = 0;
+    za::SizeT i = 0;
     while(i < text.size())
     {
         if(text[i] == '/' && i + 1 < text.size() && text[i + 1] == '/')
         {
-            const size_t j = text.find('\n', i);
-            i = j == std::string_view::npos ? text.size() : j;
+            const za::SizeT j = text.find('\n', i);
+            i = j == npos ? text.size() : j;
         }
         else if(text[i] == '/' && i + 1 < text.size() && text[i + 1] == '*')
         {
-            const size_t j = text.find("*/", i + 2);
-            const size_t k = j == std::string_view::npos ? text.size() : j + 2;
-            out += blankKeepNewlines(text.substr(i, k - i));
+            const za::SizeT j = text.find("*/", i + 2);
+            const za::SizeT k = j == npos ? text.size() : j + 2;
+            out += blankKeepNewlines(text.substrByPosLen(i, k - i));
             i = k;
         }
         else if(text[i] == '"')
         {
-            size_t j = i + 1;
+            za::SizeT j = i + 1;
             while(j < text.size() && text[j] != '"')
             {
                 j += text[j] == '\\' ? 2 : 1;
@@ -131,50 +128,50 @@ std::string stripComments(std::string_view text)
 
 struct Branch
 {
-    std::vector<std::pair<long long, long long>> nums;
-    size_t start, end;
+    za::Vector<Range> nums;
+    za::SizeT start, end;
     int lineOffset;
 };
 
-std::string_view stripParens(std::string_view s)
+za::StringView stripParens(za::StringView s)
 {
     s = trim(s);
     while(!s.empty() && (s.front() == '(' || s.front() == ')'))
     {
-        s.remove_prefix(1);
+        s.removePrefix(1);
     }
     while(!s.empty() && (s.back() == '(' || s.back() == ')'))
     {
-        s.remove_suffix(1);
+        s.removeSuffix(1);
     }
     return trim(s);
 }
 
-std::vector<std::string_view> splitOn(std::string_view s, std::string_view sep)
+za::Vector<za::StringView> splitOn(za::StringView s, za::StringView sep)
 {
-    std::vector<std::string_view> out;
-    size_t a = 0;
+    za::Vector<za::StringView> out;
+    za::SizeT a = 0;
     while(true)
     {
-        const size_t e = s.find(sep, a);
-        if(e == std::string_view::npos)
+        const za::SizeT e = s.find(sep, a);
+        if(e == npos)
         {
-            out.push_back(s.substr(a));
+            out.pushBack(s.substrByPosLen(a));
             return out;
         }
-        out.push_back(s.substr(a, e - a));
+        out.pushBack(s.substrByPosLen(a, e - a));
         a = e + sep.size();
     }
 }
 
-// The numbers a condition takes if it tests only `var` against numbers (an || of ==, >=, <=, ranges); nullopt if it is
+// The numbers a condition takes if it tests only `var` against numbers (an || of ==, >=, <=, ranges); nullOpt if it is
 // anything else (another variable in it: a refinement, not a dispatch).
-std::optional<std::vector<std::pair<long long, long long>>> conditionNumbers(std::string_view cond, const std::string& var)
+za::Optional<za::Vector<Range>> conditionNumbers(za::StringView cond, za::StringView var)
 {
     // (re.sub(r"\bvar\b", "", cond), then no letter or underscore may be left)
-    for(size_t i = 0; i < cond.size();)
+    for(za::SizeT i = 0; i < cond.size();)
     {
-        if(cond.compare(i, var.size(), var) == 0 && wordStart(cond, i) && wordEnd(cond, i + var.size()))
+        if(cond.substrByPosLen(i, var.size()) == var && wordStart(cond, i) && wordEnd(cond, i + var.size()))
         {
             i += var.size();
             continue;
@@ -182,11 +179,11 @@ std::optional<std::vector<std::pair<long long, long long>>> conditionNumbers(std
         const char c = cond[i];
         if((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')
         {
-            return std::nullopt;
+            return za::nullOpt;
         }
         ++i;
     }
-    std::vector<std::pair<long long, long long>> out;
+    za::Vector<Range> out;
     for(auto alt : splitOn(cond, "||"))
     {
         alt = stripParens(alt);
@@ -197,15 +194,15 @@ std::optional<std::vector<std::pair<long long, long long>>> conditionNumbers(std
         {
             term = stripParens(term);
             // var \s* (==|>=|<=|>|<) \s* (\d+), the whole term
-            if(term.substr(0, var.size()) != var)
+            if(term.substrByPosLen(0, var.size()) != var)
             {
-                return std::nullopt;
+                return za::nullOpt;
             }
-            size_t p = skipSpace(term, var.size());
-            std::string_view op;
-            for(std::string_view o : {"==", ">=", "<=", ">", "<"})
+            za::SizeT p = skipSpace(term, var.size());
+            za::StringView op;
+            for(za::StringView o : {"==", ">=", "<=", ">", "<"})
             {
-                if(term.substr(p, o.size()) == o)
+                if(term.substrByPosLen(p, o.size()) == o)
                 {
                     op = o;
                     break;
@@ -213,74 +210,74 @@ std::optional<std::vector<std::pair<long long, long long>>> conditionNumbers(std
             }
             if(op.empty())
             {
-                return std::nullopt;
+                return za::nullOpt;
             }
             p = skipSpace(term, p + op.size());
-            const auto digits = term.substr(p);
+            const auto digits = term.substrByPosLen(p);
             if(!allDigits(digits))
             {
-                return std::nullopt;
+                return za::nullOpt;
             }
-            const long long k = std::stoll(std::string(digits));
+            const long long k = toInt(digits);
             ok = true;
             if(op == "==")
             {
-                lo = std::max(lo, k);
-                hi = std::min(hi, k);
+                lo = za::max(lo, k);
+                hi = za::min(hi, k);
             }
             else if(op == ">=")
             {
-                lo = std::max(lo, k);
+                lo = za::max(lo, k);
             }
             else if(op == ">")
             {
-                lo = std::max(lo, k + 1);
+                lo = za::max(lo, k + 1);
             }
             else if(op == "<=")
             {
-                hi = std::min(hi, k);
+                hi = za::min(hi, k);
             }
             else
             {
-                hi = std::min(hi, k - 1);
+                hi = za::min(hi, k - 1);
             }
         }
         if(!ok || lo > hi)
         {
-            return std::nullopt;
+            return za::nullOpt;
         }
-        out.emplace_back(std::max(lo, 0LL), hi);
+        out.pushBack(Range{za::max(lo, 0LL), hi});
     }
-    return out;
+    return za::Optional<za::Vector<Range>>{ZA_MOVE(out)};
 }
 
 // Each `if(...)` testing only `var`: (ranges, start, end of its block, line offset).
-std::vector<Branch> branches(std::string_view body, const std::string& var)
+za::Vector<Branch> branches(za::StringView body, za::StringView var)
 {
-    std::vector<Branch> found;
-    for(size_t i = 0; (i = body.find("if", i)) != std::string_view::npos; i += 2)
+    za::Vector<Branch> found;
+    for(za::SizeT i = 0; (i = body.find("if", i)) != npos; i += 2)
     {
         if(!wordStart(body, i))
         {
             continue;
         }
-        const size_t c0 = skipSpace(body, i + 2);
+        const za::SizeT c0 = skipSpace(body, i + 2);
         if(c0 >= body.size() || body[c0] != '(')
         {
             continue;
         }
-        const size_t c1 = matchClose(body, c0, '(', ')');
-        if(c1 == std::string_view::npos)
+        const za::SizeT c1 = matchClose(body, c0, '(', ')');
+        if(c1 == npos)
         {
             continue;
         }
-        auto nums = conditionNumbers(body.substr(c0 + 1, c1 - c0 - 1), var);
+        auto nums = conditionNumbers(body.substrByPosLen(c0 + 1, c1 - c0 - 1), var);
         if(!nums)
         {
             continue;
         }
-        const size_t j = skipSpace(body, c1 + 1);
-        size_t end;
+        const za::SizeT j = skipSpace(body, c1 + 1);
+        za::SizeT end;
         if(j < body.size() && body[j] == '{')
         {
             end = matchClose(body, j, '{', '}');
@@ -289,44 +286,44 @@ std::vector<Branch> branches(std::string_view body, const std::string& var)
         {
             end = body.find(';', j);
         }
-        const long long endPos = end == std::string_view::npos ? -1 : static_cast<long long>(end);
-        found.push_back({std::move(*nums), i, static_cast<size_t>(endPos), lineAt(body, i) - 1});
+        const long long endPos = end == npos ? -1 : static_cast<long long>(end);
+        found.pushBack({ZA_MOVE(*nums), i, static_cast<za::SizeT>(endPos), lineAt(body, i) - 1});
     }
     // (a branch inside another's block refines it: not a dispatch of its own)
-    std::vector<Branch> top;
-    for(size_t b = 0; b < found.size(); ++b)
+    za::Vector<Branch> top;
+    for(za::SizeT b = 0; b < found.size(); ++b)
     {
         bool inner = false;
-        for(size_t o = 0; o < found.size() && !inner; ++o)
+        for(za::SizeT o = 0; o < found.size() && !inner; ++o)
         {
             inner = o != b && found[o].start < found[b].start &&
                     static_cast<long long>(found[b].end) <= static_cast<long long>(found[o].end);
         }
         if(!inner)
         {
-            top.push_back(found[b]);
+            top.pushBack(found[b]);
         }
     }
     return top;
 }
 
 // Every identifier followed by `(` in body[start..end].
-std::set<std::string> callsIn(std::string_view body, size_t start, size_t end)
+Set<za::String> callsIn(za::StringView body, za::SizeT start, za::SizeT end)
 {
-    std::set<std::string> out;
-    const auto s = body.substr(start, end == static_cast<size_t>(-1) ? 0 : end + 1 - start);
-    for(size_t i = 0; i < s.size();)
+    Set<za::String> out;
+    const auto s = body.substrByPosLen(start, end == static_cast<za::SizeT>(-1) ? 0 : end + 1 - start);
+    for(za::SizeT i = 0; i < s.size();)
     {
-        const size_t n = identAt(s, i);
+        const za::SizeT n = identAt(s, i);
         if(n == 0 || !wordStart(s, i))
         {
             ++i;
             continue;
         }
-        const size_t p = skipSpace(s, i + n);
+        const za::SizeT p = skipSpace(s, i + n);
         if(p < s.size() && s[p] == '(')
         {
-            out.emplace(s.substr(i, n));
+            out.emplace(s.substrByPosLen(i, n));
         }
         i += n;
     }
@@ -341,20 +338,20 @@ bool overlap(long long alo, long long ahi, long long blo, long long bhi)
 struct Leaf
 {
     long long lo, hi;
-    std::string where;
-    std::string looseFunc; // empty: not loose
+    za::String where;
+    za::String looseFunc; // empty: not loose
 };
 
-// A C string literal's text at s[i] (the opening quote), escapes kept as written; i past its closing quote. nullopt if
+// A C string literal's text at s[i] (the opening quote), escapes kept as written; i past its closing quote. nullOpt if
 // s[i] is not a quote or the literal doesn't close on the line.
-std::optional<std::string> quoted(std::string_view s, size_t& i)
+za::Optional<za::String> quoted(za::StringView s, za::SizeT& i)
 {
     if(i >= s.size() || s[i] != '"')
     {
-        return std::nullopt;
+        return za::nullOpt;
     }
-    std::string text;
-    for(size_t k = i + 1; k < s.size(); ++k)
+    za::String text;
+    for(za::SizeT k = i + 1; k < s.size(); ++k)
     {
         if(s[k] == '\\' && k + 1 < s.size())
         {
@@ -364,33 +361,35 @@ std::optional<std::string> quoted(std::string_view s, size_t& i)
         else if(s[k] == '"')
         {
             i = k + 1;
-            return text;
+            return za::Optional<za::String>{ZA_MOVE(text)};
         }
         else
         {
             text += s[k];
         }
     }
-    return std::nullopt;
+    return za::nullOpt;
 }
 
 // The commands of a line's `command("<label>", "<command>"` menu rows (the second literal of each). By hand, not by
-// std::regex: an alternation repeated over a long literal (a 700-character row) runs VS 2022's STL out of stack
+// a regex: an alternation repeated over a long literal (a 700-character row) runs VS 2022's STL out of stack
 // (regex_error error_stack, make_release's build), where VS 2026's copes.
-std::vector<std::string> commandRowCommands(std::string_view line)
+za::Vector<za::String> commandRowCommands(za::StringView line)
 {
-    std::vector<std::string> cmds;
-    auto skipWs = [&](size_t i) {
+    za::Vector<za::String> cmds;
+    auto skipWs = [&](za::SizeT i) {
         while(i < line.size() && (line[i] == ' ' || line[i] == '\t'))
         {
             ++i;
         }
         return i;
     };
-    for(size_t at = line.find("command("); at != std::string_view::npos; at = line.find("command(", at + 1))
+    for(za::SizeT at = line.find("command("); at != npos; at = line.find("command(", at + 1))
     {
-        const bool wordStart = at == 0 || !(std::isalnum(static_cast<unsigned char>(line[at - 1])) || line[at - 1] == '_');
-        size_t i = skipWs(at + 8);
+        // (isalnum in the "C" locale: ASCII letters and digits)
+        const char before = at == 0 ? ' ' : line[at - 1];
+        const bool wordStart = !((isAlnum(before) && static_cast<unsigned char>(before) < 0x80) || before == '_');
+        za::SizeT i = skipWs(at + 8);
         if(!wordStart || !quoted(line, i))
         {
             continue;
@@ -403,7 +402,7 @@ std::vector<std::string> commandRowCommands(std::string_view line)
         i = skipWs(i + 1);
         if(auto cmd = quoted(line, i))
         {
-            cmds.push_back(std::move(*cmd));
+            cmds.pushBack(ZA_MOVE(*cmd));
         }
     }
     return cmds;
@@ -413,11 +412,11 @@ std::vector<std::string> commandRowCommands(std::string_view line)
 
 int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
 {
-    std::vector<std::string> errors;
-    std::vector<Dispatcher> dispatchers;
-    std::map<std::string, std::vector<Entry>> entries;
+    za::Vector<za::String> errors;
+    za::Vector<Dispatcher> dispatchers;
+    Map<za::String, za::Vector<Entry>> entries;
     bool ok = false;
-    const std::string reg = readText(ctx.tree / registryPath, &ok);
+    const za::String reg = readText(ctx.tree / registryPath, &ok);
     if(!ok)
     {
         out.line("test numbers: {} not found", registryPath);
@@ -428,7 +427,7 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
     {
         ++n;
         const auto cut = rawLine.find('#');
-        const auto line = trim(cut == std::string_view::npos ? rawLine : rawLine.substr(0, cut));
+        const auto line = trim(cut == npos ? rawLine : rawLine.substrByPosLen(0, cut));
         if(line.empty())
         {
             continue;
@@ -436,31 +435,36 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
         auto words = splitWords(line);
         if(words[0] == "dispatch")
         {
-            std::vector<std::string_view> opts(words.begin() + std::min<size_t>(5, words.size()), words.end());
-            const auto li = std::find(opts.begin(), opts.end(), "loose");
-            const bool loose = li != opts.end();
-            if(loose)
+            // the options after the 5 words, the first `loose` taken out
+            za::Vector<za::StringView> opts;
+            bool loose = false;
+            for(za::SizeT k = za::min<za::SizeT>(5, words.size()); k < words.size(); ++k)
             {
-                opts.erase(li);
+                if(!loose && words[k] == "loose")
+                {
+                    loose = true;
+                    continue;
+                }
+                opts.pushBack(words[k]);
             }
             if(words.size() < 5 || (opts.size() != 0 && opts.size() != 2) || (!opts.empty() && opts[0] != "within"))
             {
-                errors.push_back(std::format(
-                    "{}:{}: dispatch <cvar> <file> <function> <variable> [within A-B] [loose]", registryPath, n));
+                errors.pushBack(
+                    fmt("{}:{}: dispatch <cvar> <file> <function> <variable> [within A-B] [loose]", registryPath, n));
                 continue;
             }
-            Dispatcher d{std::string(words[1]), std::string(words[2]), std::string(words[3]), std::string(words[4]),
-                         std::nullopt, n, loose};
+            Dispatcher d{za::String{words[1]}, za::String{words[2]}, za::String{words[3]}, za::String{words[4]},
+                         za::nullOpt, n, loose};
             if(!opts.empty())
             {
                 d.within = parseNumbers(opts[1]);
             }
-            dispatchers.push_back(std::move(d));
+            dispatchers.pushBack(ZA_MOVE(d));
             continue;
         }
         if(words.size() < 3)
         {
-            errors.push_back(std::format("{}:{}: <cvar> <number|A-B|A+> <file> <what it tests>", registryPath, n));
+            errors.pushBack(fmt("{}:{}: <cvar> <number|A-B|A+> <file> <what it tests>", registryPath, n));
             continue;
         }
         // (N*: the dispatcher's fall-through, e.g. `if(req) { ... }` past its numbered branches: no branch of its own)
@@ -468,43 +472,43 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
         auto spec = words[1];
         while(!spec.empty() && spec.back() == '*')
         {
-            spec.remove_suffix(1);
+            spec.removeSuffix(1);
         }
         const auto r = parseNumbers(spec);
         if(!r)
         {
-            errors.push_back(std::format("{}:{}: bad number '{}'", registryPath, n, words[1]));
+            errors.pushBack(fmt("{}:{}: bad number '{}'", registryPath, n, words[1]));
             continue;
         }
-        entries[std::string(words[0])].push_back({r->first, r->second, n, fallthrough});
+        entries[za::String{words[0]}].pushBack({r->first, r->second, n, fallthrough});
     }
 
-    std::map<std::string, std::set<std::string>> subsOf;
+    Map<za::String, Set<za::String>> subsOf;
     for(const auto& d : dispatchers)
     {
         subsOf[d.cvar].insert(d.func);
     }
-    std::map<std::string, std::vector<Leaf>> leaves;
-    std::vector<std::string> leafOrder; // (Python dicts keep insertion order)
+    Map<za::String, za::Vector<Leaf>> leaves;
+    za::Vector<za::String> leafOrder; // (Python dicts keep insertion order)
     for(const auto& d : dispatchers)
     {
         bool fileOk = false;
-        const std::string raw = readText(ctx.tree / d.file, &fileOk);
+        const za::String raw = readText(ctx.tree / toPath(d.file), &fileOk);
         if(!fileOk)
         {
-            errors.push_back(std::format("{}: dispatcher file {} not found", registryPath, d.file));
+            errors.pushBack(fmt("{}: dispatcher file {} not found", registryPath, d.file));
             continue;
         }
-        const std::string text = stripComments(raw);
+        const za::String text = stripComments(raw);
         // \bNAME\s*=\s*\{
-        size_t start = std::string::npos;
-        for(size_t i = 0; (i = text.find(d.func, i)) != std::string::npos; ++i)
+        za::SizeT start = npos;
+        for(za::SizeT i = 0; (i = text.find(d.func, i)) != npos; ++i)
         {
             if(!wordStart(text, i))
             {
                 continue;
             }
-            size_t p = skipSpace(text, i + d.func.size());
+            za::SizeT p = skipSpace(text, i + d.func.size());
             if(p >= text.size() || text[p] != '=')
             {
                 continue;
@@ -516,21 +520,20 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
                 break;
             }
         }
-        if(start == std::string::npos)
+        if(start == npos)
         {
-            errors.push_back(std::format("{}: dispatcher {} not found in {}", registryPath, d.func, d.file));
+            errors.pushBack(fmt("{}: dispatcher {} not found in {}", registryPath, d.func, d.file));
             continue;
         }
-        const size_t end = matchClose(text, start, '{', '}');
+        const za::SizeT end = matchClose(text, start, '{', '}');
         // (Python's text[start:end + 1] with end = -1 is empty)
-        const std::string_view body =
-            end == std::string::npos ? std::string_view() : std::string_view(text).substr(start, end + 1 - start);
+        const za::StringView body = end == npos ? za::StringView() : text.substrByPosLen(start, end + 1 - start);
         const int line0 = lineAt(text, start);
-        std::set<std::string> others = subsOf[d.cvar];
+        Set<za::String> others = subsOf[d.cvar];
         others.erase(d.func);
         for(const auto& b : branches(body, d.var))
         {
-            const std::string where = std::format("{}:{} ({})", d.file, line0 + b.lineOffset, d.func);
+            const za::String where = fmt("{}:{} ({})", d.file, line0 + b.lineOffset, d.func);
             bool handsOn = false;
             for(const auto& c : callsIn(body, b.start, b.end))
             {
@@ -548,33 +551,38 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
                 }
                 if(d.within && !(d.within->first <= lo && hi <= d.within->second))
                 {
-                    errors.push_back(std::format("{}: {} {} outside its dispatcher's range {}", where, d.cvar,
-                                                 fmtRange(lo, hi), fmtRange(d.within->first, d.within->second)));
+                    errors.pushBack(fmt("{}: {} {} outside its dispatcher's range {}", where, d.cvar, fmtRange(lo, hi),
+                                        fmtRange(d.within->first, d.within->second)));
                 }
                 if(!leaves.contains(d.cvar))
                 {
-                    leafOrder.push_back(d.cvar);
+                    leafOrder.pushBack(d.cvar);
                 }
-                leaves[d.cvar].push_back({lo, hi, where, d.loose ? d.func : std::string()});
+                leaves[d.cvar].pushBack({lo, hi, where, d.loose ? d.func : za::String()});
             }
         }
     }
-    if(std::find(args.begin(), args.end(), "--list") != args.end())
+    if(has(args, "--list"))
     {
-        for(const auto& [cvar, ls] : leaves)
+        for(const auto* e : qza::sortedByKey(leaves))
         {
-            std::set<std::pair<long long, std::string>> specs;
+            const auto& [cvar, ls] = *e;
+            // (the specs ordered by their first number, then their text; each printed once)
+            za::Vector<za::Pair<long long, za::String>> specs;
             for(const auto& l : ls)
             {
-                specs.emplace(l.lo, fmtRange(l.lo, l.hi));
+                specs.pushBack({l.lo, fmtRange(l.lo, l.hi)});
             }
-            std::string line = cvar + ":";
-            std::set<std::string> seenSpec;
+            za::quickSort(specs.begin(), specs.end(), [](const auto& a, const auto& b) { return a < b; });
+            za::String line = cvar;
+            line += ':';
+            Set<za::String> seenSpec;
             for(const auto& [lo, s] : specs)
             {
                 if(seenSpec.insert(s).second)
                 {
-                    line += " " + s;
+                    line += ' ';
+                    line += s;
                 }
             }
             out.raw(line);
@@ -585,9 +593,9 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
     for(const auto& cvar : leafOrder)
     {
         const auto& ls = leaves[cvar];
-        for(size_t i = 0; i < ls.size(); ++i)
+        for(za::SizeT i = 0; i < ls.size(); ++i)
         {
-            for(size_t j = i + 1; j < ls.size(); ++j)
+            for(za::SizeT j = i + 1; j < ls.size(); ++j)
             {
                 if(!ls[i].looseFunc.empty() && ls[i].looseFunc == ls[j].looseFunc)
                 {
@@ -595,39 +603,37 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
                 }
                 if(overlap(ls[i].lo, ls[i].hi, ls[j].lo, ls[j].hi))
                 {
-                    errors.push_back(std::format("{} test number clash: {} takes {} and {} takes {}", cvar, ls[i].where,
-                                                 fmtRange(ls[i].lo, ls[i].hi), ls[j].where,
-                                                 fmtRange(ls[j].lo, ls[j].hi)));
+                    errors.pushBack(fmt("{} test number clash: {} takes {} and {} takes {}", cvar, ls[i].where,
+                                        fmtRange(ls[i].lo, ls[i].hi), ls[j].where, fmtRange(ls[j].lo, ls[j].hi)));
                 }
             }
         }
     }
     // Registry clashes, coverage both ways. (Python's dict order: the cvars in their first registry line's order.)
-    std::vector<std::string> entryOrder;
+    za::Vector<za::String> entryOrder;
     {
-        std::vector<std::pair<int, std::string>> firsts;
+        za::Vector<za::Pair<int, za::String>> firsts;
         for(const auto& [cvar, es] : entries)
         {
-            firsts.emplace_back(es.front().line, cvar);
+            firsts.pushBack({es.front().line, cvar});
         }
-        std::sort(firsts.begin(), firsts.end());
+        za::quickSort(firsts.begin(), firsts.end(), [](const auto& a, const auto& b) { return a < b; });
         for(auto& f : firsts)
         {
-            entryOrder.push_back(f.second);
+            entryOrder.pushBack(f.second);
         }
     }
     for(const auto& cvar : entryOrder)
     {
         const auto& es = entries[cvar];
-        for(size_t i = 0; i < es.size(); ++i)
+        for(za::SizeT i = 0; i < es.size(); ++i)
         {
-            for(size_t j = i + 1; j < es.size(); ++j)
+            for(za::SizeT j = i + 1; j < es.size(); ++j)
             {
                 if(overlap(es[i].lo, es[i].hi, es[j].lo, es[j].hi))
                 {
-                    errors.push_back(std::format("{}:{} and :{} both claim {} {}", registryPath, es[i].line, es[j].line,
-                                                 cvar, fmtRange(std::max(es[i].lo, es[j].lo),
-                                                                std::min(es[i].hi, es[j].hi))));
+                    errors.pushBack(fmt("{}:{} and :{} both claim {} {}", registryPath, es[i].line, es[j].line, cvar,
+                                        fmtRange(za::max(es[i].lo, es[j].lo), za::min(es[i].hi, es[j].hi))));
                 }
             }
         }
@@ -643,13 +649,13 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
             }
             if(!e.fallthrough && !run)
             {
-                errors.push_back(std::format("{}:{}: {} {} is registered but no dispatcher runs it", registryPath,
-                                             e.line, cvar, fmtRange(e.lo, e.hi)));
+                errors.pushBack(fmt("{}:{}: {} {} is registered but no dispatcher runs it", registryPath, e.line, cvar,
+                                    fmtRange(e.lo, e.hi)));
             }
         }
     }
     // (lo..hi within the union of the cvar's registry lines)
-    const auto covered = [&](const std::string& cvar, long long lo, long long hi) {
+    const auto covered = [&](const za::String& cvar, long long lo, long long hi) {
         const auto it = entries.find(cvar);
         long long pos = lo;
         while(pos <= hi)
@@ -684,13 +690,13 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
         {
             if(!covered(cvar, l.lo, l.hi))
             {
-                errors.push_back(std::format("{}: {} {} is not in {} (claim it there)", l.where, cvar,
-                                             fmtRange(l.lo, l.hi), registryPath));
+                errors.pushBack(
+                    fmt("{}: {} {} is not in {} (claim it there)", l.where, cvar, fmtRange(l.lo, l.hi), registryPath));
             }
         }
     }
     // The menus' commands.
-    std::set<std::string> cvars;
+    Set<za::String> cvars;
     for(const auto& [c, _] : entries)
     {
         cvars.insert(c);
@@ -702,17 +708,17 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
     const std::regex testRe(R"(\b(vr_\w+_test)\s+(\d+))");
     for(const char* ext : {".inc", ".cpp", ".hpp"})
     {
-        std::vector<std::string> paths;
+        za::Vector<za::String> paths;
         for(const auto& p : listFiles(ctx.tree / "Quake/vr", {ext}, false))
         {
-            paths.push_back("Quake/vr\\" + p.filename().string()); // (sorted as Python's glob paths)
+            paths.pushBack("Quake/vr\\" + pathStr(p.filename())); // (sorted as Python's glob paths)
         }
         sortStrings(paths);
         for(auto& path : paths)
         {
-            std::replace(path.begin(), path.end(), '\\', '/');
-            const std::string text = readText(ctx.tree / path);
-            if(text.find("command(") == std::string::npos)
+            replaceChar(path, '\\', '/');
+            const za::String text = readText(ctx.tree / toPath(path));
+            if(text.find("command(") == npos)
             {
                 continue;
             }
@@ -720,16 +726,17 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
             for(auto line : splitLines(text))
             {
                 ++ln;
-                if(line.find("command(") == std::string_view::npos)
+                if(line.find("command(") == npos)
                 {
                     continue;
                 }
-                for(const std::string& cmd : commandRowCommands(line))
+                for(const za::String& cmd : commandRowCommands(line))
                 {
-                    for(std::sregex_iterator t(cmd.begin(), cmd.end(), testRe), tend; t != tend; ++t)
+                    for(std::cregex_iterator t(cmd.begin(), cmd.end(), testRe), tend; t != tend; ++t)
                     {
-                        const std::string cvar = (*t)[1].str();
-                        const long long k = std::stoll((*t)[2].str());
+                        const za::String cvar{za::StringView((*t)[1].first, static_cast<za::SizeT>((*t)[1].length()))};
+                        const long long k =
+                            toInt(za::StringView((*t)[2].first, static_cast<za::SizeT>((*t)[2].length())));
                         bool reg2 = false;
                         if(const auto e = entries.find(cvar); e != entries.end())
                         {
@@ -740,8 +747,8 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
                         }
                         if(cvars.contains(cvar) && k != 0 && !reg2)
                         {
-                            errors.push_back(std::format("{}:{}: the menu runs {} {}: not in {}", path, ln, cvar, k,
-                                                         registryPath));
+                            errors.pushBack(
+                                fmt("{}:{}: the menu runs {} {}: not in {}", path, ln, cvar, k, registryPath));
                         }
                     }
                 }
@@ -752,12 +759,12 @@ int checkTestNumbers(const Ctx& ctx, const Args& args, Out& out)
     {
         out.line("test numbers: {}", e);
     }
-    size_t total = 0;
+    za::SizeT total = 0;
     for(const auto& [_, es] : entries)
     {
         total += es.size();
     }
-    size_t branchCount = 0;
+    za::SizeT branchCount = 0;
     for(const auto& [_, ls] : leaves)
     {
         branchCount += ls.size();

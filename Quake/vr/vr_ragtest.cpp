@@ -19,6 +19,7 @@
 
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -945,7 +946,7 @@ constexpr int actionCount = static_cast<int>(za::getArraySize(actions));
     char name[64];
     for(const char* p = needs; *p;)
     {
-        size_t n = 0;
+        za::SizeT n = 0;
         while(p[n] && p[n] != ' ' && n + 1 < sizeof(name))
         {
             name[n] = p[n];

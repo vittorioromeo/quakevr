@@ -695,7 +695,7 @@ Section section(const Rig& r, const Classes& c, int finger, const glm::vec3& a, 
 [[nodiscard]] float tipLength(const Rig& r, const Classes& c, int finger, const glm::vec3& pivot, const glm::vec3& x)
 {
     float most = 0.f;
-    for(size_t i = 0; i < r.vertices.size(); i++)
+    for(za::SizeT i = 0; i < r.vertices.size(); i++)
     {
         if(c.finger[i] == finger && c.segment[i] == 3)
         {
@@ -1062,7 +1062,7 @@ bool readRig(const char* meshText, Rig& out, za::String& error, Report& report)
 
     // The triangles.
     int degenerate = 0;
-    for(size_t t = 0; t < m.tris.size(); t++)
+    for(za::SizeT t = 0; t < m.tris.size(); t++)
     {
         const auto& tri = m.tris[t];
         for(const int i : tri)
@@ -1780,7 +1780,7 @@ void vertices(const Posed& posed, za::Vector<glm::vec3>& out)
 {
     const Rig& r = current();
     out.resize(r.vertices.size());
-    for(size_t v = 0; v < r.vertices.size(); v++)
+    for(za::SizeT v = 0; v < r.vertices.size(); v++)
     {
         out[v] = blend(posed, r.vertices[v]);
     }
@@ -1925,23 +1925,23 @@ void info_f()
     }
     bool spheres = r.segmentSpheres.size() == ref.segmentSpheres.size() && r.palmSpheres.size() == ref.palmSpheres.size() &&
                    r.thenarSpheres.size() == ref.thenarSpheres.size();
-    for(size_t i = 0; spheres && i < r.segmentSpheres.size(); i++)
+    for(za::SizeT i = 0; spheres && i < r.segmentSpheres.size(); i++)
     {
         const SegmentSphere &a = r.segmentSpheres[i], &b = ref.segmentSpheres[i];
         spheres = a.finger == b.finger && a.bone == b.bone && a.c == b.c && a.r == b.r;
     }
-    for(size_t i = 0; spheres && i < r.palmSpheres.size(); i++)
+    for(za::SizeT i = 0; spheres && i < r.palmSpheres.size(); i++)
     {
         spheres = r.palmSpheres[i].c == ref.palmSpheres[i].c && r.palmSpheres[i].r == ref.palmSpheres[i].r;
     }
-    for(size_t i = 0; spheres && i < r.thenarSpheres.size(); i++)
+    for(za::SizeT i = 0; spheres && i < r.thenarSpheres.size(); i++)
     {
         spheres = r.thenarSpheres[i].c == ref.thenarSpheres[i].c && r.thenarSpheres[i].r == ref.thenarSpheres[i].r;
     }
     // The mesh as the triangles' corners (the file's vertices are split at the skin's seams, the tables' at the
     // palm's and the fingers' parts: the same corners either way).
     bool mesh = r.triangles.size() == ref.triangles.size();
-    for(size_t t = 0; mesh && t < r.triangles.size(); t++)
+    for(za::SizeT t = 0; mesh && t < r.triangles.size(); t++)
     {
         for(int c = 0; c < 3 && mesh; c++)
         {
@@ -1982,7 +1982,7 @@ void info_f()
                 }
             }
         }
-        for(size_t v = 0; v < r.vertices.size() && v < s.vertices.size(); v++)
+        for(za::SizeT v = 0; v < r.vertices.size() && v < s.vertices.size(); v++)
         {
             most = za::fmax(most, glm::distance(r.vertices[v].pos, s.vertices[v].pos));
         }
@@ -2042,7 +2042,7 @@ extern "C" char* VR_ModelReplacementExtend(const char* name, const char* md5mesh
     using namespace qvr::handrig;
     const qvr::modelmeta::ModelMetadata info = qvr::modelmeta::describePath(name);
     const bool hand = info.has(qvr::modelmeta::Trait::RigHandInsensitive) || info.has(qvr::modelmeta::Trait::RigHandFInsensitive);
-    const size_t len = ZA_STRLEN(name);
+    const za::SizeT len = ZA_STRLEN(name);
     const bool body = !ZA_STRNCMP(name, "progs/vrbody", 12) && len > 9 && !ZA_STRCMP(name + len - 9, "_bare.mdl");
     if(!hand && !body)
     {

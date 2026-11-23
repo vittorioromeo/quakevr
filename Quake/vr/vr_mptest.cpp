@@ -42,12 +42,13 @@
 #include "vr_wounds.hpp"
 
 #include "Zancle/Base/Memchr.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Chrono/Time.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/Vector.hpp"
 
-#include <chrono>
 #include <stdio.h>
 
 namespace
@@ -139,10 +140,9 @@ constexpr double restTime = 0.25;  // s still before a move counts as one from r
 constexpr float stillEps = 0.25f;  // units a frame that still counts as still
 constexpr float posStep = 32.f;    // units of travel between mp_pos lines
 
-[[nodiscard]] long long wallMs()
+[[nodiscard]] long long wallMs() // epoch milliseconds: compared across processes (za::Clock::now's epoch is unspecified)
 {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
+    return za::Clock::nowUnixNanoseconds() / 1'000'000; // (system_clock's, truncated as duration_cast did)
 }
 
 // The new whole lines of the inbox, to the command buffer.
@@ -156,18 +156,18 @@ void pollInbox()
     char buf[4096];
     if(fseek(f, inbox.offset, SEEK_SET) == 0)
     {
-        const size_t got = fread(buf, 1, sizeof(buf) - 1, f);
+        const za::SizeT got = fread(buf, 1, sizeof(buf) - 1, f);
         if(inbox.skipping)
         {
             // (the rest of a too-long line: dropped up to its newline, the lines after it read from the next frame)
             const void* nl = ZA_MEMCHR(buf, '\n', got);
-            const size_t drop = nl ? static_cast<size_t>(static_cast<const char*>(nl) - buf) + 1 : got;
+            const za::SizeT drop = nl ? static_cast<za::SizeT>(static_cast<const char*>(nl) - buf) + 1 : got;
             inbox.offset += static_cast<long>(drop);
             inbox.skipping = nl == nullptr;
             fclose(f);
             return;
         }
-        size_t end = got;
+        za::SizeT end = got;
         while(end > 0 && buf[end - 1] != '\n')
         {
             end--; // (a line still being written waits for the next frame)
