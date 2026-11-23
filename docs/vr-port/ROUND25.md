@@ -9888,3 +9888,31 @@ His flat feedback 2026-11-23 (the AD lectern hid Quake's; Quoth ladders).
   centred to 0.0, pushed out as far as there is room); Down cases may end on a mover (the pillar's train). modladder:
   fallback index 7, VR-hand holds moved to the near sides (-666/-662 catwalk, -1346 pillar): 10/0; flatladder_test.sh
   2/0; hub_start_test 7/0. Scene `quoth_kellbase_ladder`.
+
+## lancecharge: the Crystal Lance as a charged shot (agent/lancecharge, 2026-11-23)
+
+His note 2026-11-23: held fire repeated the beam's look (the Thunderbolt's per-frame stream, FrameDrawLightningTrail) while
+the damage came in pulses (a shot each 1.4 s). Now:
+- **Charge** (QC `dw_items.qc` `DW_LanceChargeFrame`, from `W_WeaponFrameImpl` once the hand may attack): the trigger
+  held charges it over `vr_dw_lance_charge` s (tunable, 1; 0: fires on the pull as before, without the stream). Let go
+  short of full: no shot, no cells. Let go full: `W_Attack` as any shot (6 cells, `DW_FireVariant`'s beam). Held on
+  full: it waits (a haptic tick as it fills). Without its 6 cells no charge begins, only the empty click (the old path
+  drained the few cells left and printed "ERROR: shot refused"). The stream is never drawn for the Lance. Developer
+  prints "dwlance: charging / charged (hand H) after T s / let go at C: no shot / let go charged: the shot".
+- **Seen and heard by everyone** (`QVR_SVC_LANCECHARGE` 56, MSG_ALL: begun, let go short, fired; with the charge time):
+  `vr_lancecharge.cpp` draws each player's charge at his Lance's drawn muzzle (yours from the view's weapons, the others'
+  from their copies, `mpavatar::drawnWeapon`; one path, flat and VR): violet sparks drawn in to the tip, denser as it
+  charges; a soft glow and a violet dlight growing (pulsing once full; `emissive::lanceChargeLight`, keys -0x5A40..);
+  a hum (`vr/lance_charge.wav`, our own synthesised loop, `Misc/quakevr/make_lance_sounds.py`) rising in pitch and
+  volume. Let go short they fade over `vr_dw_lance_charge_fade` (0.25 s); fired, out in 0.06 s. The Lance leaving the
+  hand ends it.
+- **The bolt lingers** `vr_dw_lance_bolt` s (0.35; Quake's beams 0.2): `CL_ParseBeam` asks `VR_BeamLife`
+  (`lancecharge::beamLife`: a beam from a player's hand holding the Lance, or from a Lance prop).
+- An armed grunt's Lance still fires at once (`VR_AG_ShootProp` calls `DW_FireVariant` itself).
+- **Tests**: `vr_ad_test 224` (`dwcharge`, in `dwell_lance_test.sh` section 7) 10/0: half charge in 0.500 s and let go
+  (no shot, no damage, 100 cells kept, none later), `tune vr_dw_lance_charge 0.5` full in 0.500 s, held 30 frames without
+  a shot, let go: 150 (188 unaware) and 6 cells; 4 cells: no charge. Section 3 now holds `+attack` 30 frames (let go
+  short) then 90 (the shot), with vr_debug_gunfx 1's "lancecharge: let go short / fired / bolt ... lingers 0.35 s".
+  Screenshot `qvr-kit/scratch/lancecharge_glow_bolt.png` (charging, then the bolt).
+- Not tested live: another player's charge in a real two-client game (the same message and draw path as yours, the
+  copy's weapon from mpavatar).
