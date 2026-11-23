@@ -125,9 +125,12 @@ for lo in "154; wait5; impulse 170|off 1 main 0|a gun in the main hand: the off 
     check $(echo "$out" | grep -aq "^flatmantle: PASS lip 64: hands on the ledge ${rest%%|*} " && echo 1 || echo 0) "mantle: ${rest#*|} on the ledge (${rest%%|*})"
 done
 
+# (flatgreen2: 60 frames after +flatcrouch, not 30: crouched and leant, the sighted arm's reach ("stance arm: ... sight
+# 0.69 -> 0.75 of 26.8") eases on after the crouch's 0.25 s; the sights were 0.065 off the ray at 30 frames, 0.003 at 45,
+# 0.0001 at 60.)
 P="map e1m1; god; notarget; developer 1; r_norefresh 0; setpos 480 -352 88 0 0 0; impulse 154; wait30; vr_flat_aim 1; wait30"
 out=$(tb_run_sh "${F[@]}" -Timeout 120 -Filter "^flatsightcheck|^flataim: main" \
-    -Script "$P; vr_flat_sight_check; +flatleanright; wait30; vr_flat_sight_check; vr_flatplay_debug 2; wait2; vr_flatplay_debug 0; +flatcrouch; wait30; vr_flat_sight_check; -flatcrouch; -flatleanright; +flatleanleft; wait30; vr_flat_sight_check; -flatleanleft; vr_flat_aim 0; wait2; toggleconsole; quit" 2>&1)
+    -Script "$P; vr_flat_sight_check; +flatleanright; wait30; vr_flat_sight_check; vr_flatplay_debug 2; wait2; vr_flatplay_debug 0; +flatcrouch; wait60; vr_flat_sight_check; -flatcrouch; -flatleanright; +flatleanleft; wait30; vr_flat_sight_check; -flatleanleft; vr_flat_aim 0; wait2; toggleconsole; quit" 2>&1)
 n=$(echo "$out" | grep -ac "^flatsightcheck: .* rear off 0\.00[0-9]* front off 0\.00")
 check $([ "$n" = 4 ] && echo 1 || echo 0) "sights: on the drawn ray upright, leant right, leant right crouched, leant left ($n of 4 within 0.01)"
 aim=$(echo "$out" | grep -a "^flataim: main" | head -1)

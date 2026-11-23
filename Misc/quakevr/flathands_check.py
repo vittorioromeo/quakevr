@@ -177,11 +177,13 @@ for tag, two in (("swap1", True), ("swap2h", True), ("swapdual", False)):  # (sw
         # The release, then the pass, then the attach (his words 2026-11-10): the free hand at the empty hand's guard
         # before the gun comes across, the swap there, the other hand on the grip at the end.
         idx = lambda pat: next((i for i, l in enumerate(ls) if re.search(pat, l)), -1)
-        rel = [re.search(r"2h: released \(([\d.]+) s\): the off hand ([\d.]+) units from the empty hand's guard, ([\d.]+) from the main hand \(moved ([\d.]+)", l) for l in ls]
+        # (flatgreen2: up to "from the main hand": the console wraps this long line, and a wider number (swap1's 10.5 from
+        # the main hand) put "(moved N" on the next console line, which the run's filter drops; moved is not checked.)
+        rel = [re.search(r"2h: released \(([\d.]+) s\): the off hand ([\d.]+) units from the empty hand's guard, ([\d.]+) from the main hand", l) for l in ls]
         rel = [x for x in rel if x]
         # (vr_flat_swap_2h_release_time, _pass_time, _attach_time 0.1 each since 2026-11-11, his values: were 0.2, 0.25, 0.25)
         check(bool(rel) and abs(float(rel[0].group(1)) - 0.1) < 0.03 and float(rel[0].group(2)) < 1 and float(rel[0].group(3)) > 6,
-              "swap2h: first the off hand off the grip to the empty hand's guard (%s)" % (rel[0].group(0) if rel else "none",))
+              "%s: first the off hand off the grip to the empty hand's guard (%s)" % (tag, rel[0].group(0) if rel else "none",))
         i_rel, i_met, i_sent, i_seen, i_done = (idx(p) for p in (r"2h: released", r"flatswap: met: .*\(the pass\)", r"swap sent",
                                                                  r"flatswap: swapped", r"flatswap: done"))
         check(-1 < i_rel < i_met and -1 < i_rel < i_sent < i_seen < i_done,
