@@ -1404,6 +1404,7 @@ struct Climber
     int flatRopes{0};                // rope climbs it started (vr_rope_flat_test)
     int flatRopeLeft{0};             // the rope it last let go of, and when (not taken again for flatRopeRetake)
     double flatRopeLeftAt{-1.0};
+    bool flatRopeLeftAir{false};     // (ropes10) off it and not yet on the ground since: not taken again in the air (flatRopeRetake)
     // (ropes6) A headset's pulls up a rope (ropePullGrunt): each hand's rope grip last seen (its serial), the newest
     // grip's hand and the body's height over its hold as it took it, whether its pull has grunted, when the next grunt
     // may come, and the grunts so far (the tests').
@@ -2712,6 +2713,44 @@ void gripHand(edict_t* ent, Climber& c, const VrMove* move, bool enabled, double
     return m;
 }
 
+// (ropes10) A jump off a pole (a held hand on one): the push away from it, level (vr_pole_jump_push units/s): from its
+// axis at the hold out to the body; under a level pole (no way out from it) the view's way across it.
+[[nodiscard]] bool poleJumpPush(edict_t* ent, const Climber& c, const bool* held, glm::vec3& push)
+{
+    const int client = NUM_FOR_EDICT(ent) - 1;
+    for(int h = 0; h < 2; h++)
+    {
+        const Grip& g = c.grips[h];
+        if(!held[h] || !g.rope || !climbrope::pole(g.entNum))
+        {
+            continue;
+        }
+        glm::vec3 axis{0.f, 0.f, 1.f};
+        climbrope::Grab g0, g1;
+        if(climbrope::grabAlong(g.entNum, client, g.ropeS - 8.f, g0) && climbrope::grabAlong(g.entNum, client, g.ropeS + 8.f, g1) &&
+            glm::length(g1.at - g0.at) > 1e-3f)
+        {
+            axis = glm::normalize(g1.at - g0.at);
+        }
+        // (Square out from its axis to the body, level: off a slanted pole's upper side that is down its slope, clear of it.)
+        const glm::vec3 to = vec(ent->v.origin) - holdNow(g);
+        glm::vec3 away = to - axis * glm::dot(to, axis);
+        away.z = 0.f;
+        if(glm::length(away) < 4.f)
+        {
+            glm::vec3 level{axis.x, axis.y, 0.f};
+            level = glm::length(level) > 0.1f ? glm::normalize(level) : glm::vec3{0.f};
+            const float yaw = glm::radians(ent->v.v_angle[YAW]);
+            const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
+            const glm::vec3 across = fwd - level * glm::dot(fwd, level);
+            away = glm::length(across) > 0.3f ? across : fwd;
+        }
+        push = glm::normalize(away) * za::max(0.f, vr_pole_jump_push.value);
+        return true;
+    }
+    return false;
+}
+
 // Let go of everything: the fall, flung by the hands' release.
 void fallFlung(edict_t* ent, Climber& c, const VrMove* move, const bool* held, double time)
 {
@@ -2749,7 +2788,17 @@ void fallFlung(edict_t* ent, Climber& c, const VrMove* move, const bool* held, d
     if(ropeHands > 0)
     {
         fling += ropeVel / static_cast<float>(ropeHands);
-        fling.z += c.ropeJumped ? za::max(0.f, vr_rope_jump.value) : 0.f;
+        glm::vec3 push{0.f};
+        if(c.ropeJumped && poleJumpPush(ent, c, held, push))
+        {
+            // (ropes10, his note 2026-11-23: off a pole he barely moved) A pole jump: a normal jump up, pushed off it.
+            fling.z += za::max(0.f, vr_pole_jump.value);
+            fling += push;
+        }
+        else
+        {
+            fling.z += c.ropeJumped ? za::max(0.f, vr_rope_jump.value) : 0.f;
+        }
         if(glm::length(fling) > ropeLetGoMax)
         {
             fling *= ropeLetGoMax / glm::length(fling);
@@ -2789,6 +2838,7 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
         {
             c.flatRopeLeft = c.grips[1].rope ? c.grips[1].entNum : c.grips[0].entNum;
             c.flatRopeLeftAt = time;
+            c.flatRopeLeftAir = true;
         }
         letGoAll(c);
         c.flatLadder = false;
@@ -4306,6 +4356,12 @@ void ropeTake(edict_t* ent, Climber& c, const VrMove& move, int h, const climbro
 // takes it: the main hand half an arm over the shoulders, the off hand flatRopeStep under it.
 void flatRope(edict_t* ent, Climber& c, const VrMove* move, double time)
 {
+    // (ropes10, his note 2026-11-23: off a tall pole, a second into the fall it was taken again: held there, or climbed
+    // down at the keys' speed, a slow slide) The rope let go of is taken again only once he has stood on the ground.
+    if((static_cast<int>(ent->v.flags) & FL_ONGROUND) != 0 || ent->v.waterlevel >= 2.f)
+    {
+        c.flatRopeLeftAir = false;
+    }
     if(!move || vr_flat_rope.value == 0.f || vr_rope_climb.value == 0.f || !hull::isFlat(ent) || ent->v.waterlevel >= 2.f ||
         time < c.noGrabUntil)
     {
@@ -4333,7 +4389,7 @@ void flatRope(edict_t* ent, Climber& c, const VrMove* move, double time)
     }
     climbrope::Grab grab;
     if(!climbrope::findGrab(glm::vec3{origin.x, origin.y, shoulder.z}, reach, grab) || climbrope::monkey(grab.ent) ||
-        (grab.ent == c.flatRopeLeft && time - c.flatRopeLeftAt < flatRopeRetake) ||
+        (grab.ent == c.flatRopeLeft && (time - c.flatRopeLeftAt < flatRopeRetake || c.flatRopeLeftAir)) ||
         grab.at.z < origin.z + ent->v.mins[2] + vr_climb_min_height.value || grab.at.z > shoulder.z + armReach())
     {
         return;
@@ -4372,6 +4428,18 @@ void flatRope(edict_t* ent, Climber& c, const VrMove* move, double time)
 // past the hands' middle, flatRopeStep past the leading one; at its end the body stops); the move-down key lets go (a
 // drop), jump jumps off (ropeJump). No pump: the keys go along it.
 constexpr float flatMonkeyHang = 0.8f;
+// (ropes10, his flat note 2026-11-23: facing across a level pole, moving sideways crossed the forearms in an X over the
+// head) Facing across the rope (the view's way within this cosine of square to it, about 37 degrees off along), the hands
+// keep their sides: the right hand on his right of the left. Going along it they shuffle (the leading hand, on the way's
+// side, a step on; then the trailing one up to a step behind it), never hand over hand past each other; hands found
+// crossed (taken facing along it, then turned) change holds.
+constexpr float flatMonkeyAcrossCos = 0.8f;
+
+[[nodiscard]] bool flatMonkeyAcross(const glm::vec3& fwd, glm::vec3 along)
+{
+    along.z = 0.f;
+    return glm::length(along) > 1e-3f && za::abs(glm::dot(glm::normalize(along), fwd)) < flatMonkeyAcrossCos;
+}
 
 bool flatMonkeyTake(edict_t* ent, Climber& c, const VrMove& move, double time, const glm::vec3& origin, const glm::vec3& shoulder,
     const glm::vec3& fwd, float reach)
@@ -4379,7 +4447,7 @@ bool flatMonkeyTake(edict_t* ent, Climber& c, const VrMove& move, double time, c
     const int client = NUM_FOR_EDICT(ent) - 1;
     climbrope::Grab grab;
     if(!climbrope::findGrab(glm::vec3{origin.x, origin.y, shoulder.z + 0.5f * armReach()}, reach, grab) || !climbrope::monkey(grab.ent) ||
-        (grab.ent == c.flatRopeLeft && time - c.flatRopeLeftAt < flatRopeRetake) || grab.at.z < shoulder.z ||
+        (grab.ent == c.flatRopeLeft && (time - c.flatRopeLeftAt < flatRopeRetake || c.flatRopeLeftAir)) || grab.at.z < shoulder.z ||
         grab.at.z > shoulder.z + armReach())
     {
         return false;
@@ -4390,7 +4458,10 @@ bool flatMonkeyTake(edict_t* ent, Climber& c, const VrMove& move, double time, c
     {
         return false;
     }
-    const bool bAhead = glm::dot(b.at - a.at, fwd) >= 0.f;
+    // (ropes10) Facing across it, the right hand takes the hold on his right (flatMonkeyAcross: the hands keep their sides).
+    const glm::vec3 right{fwd.y, -fwd.x, 0.f};
+    const bool across = flatMonkeyAcross(fwd, b.at - a.at);
+    const bool bAhead = across ? glm::dot(b.at - a.at, right) >= 0.f : glm::dot(b.at - a.at, fwd) >= 0.f;
     ropeTake(ent, c, move, 1, bAhead ? b : a);
     ropeTake(ent, c, move, 0, bAhead ? a : b);
     c.flatRope = true;
@@ -4475,7 +4546,29 @@ int flatMonkeyFrame(edict_t* ent, Climber& c, const VrMove& move, double time, i
     // Hand over hand: the trailing hand once the body is half a step past the hands' middle, a step past the leading one.
     climbrope::Grab next;
     const float past = glm::dot(now - mid, along) * static_cast<float>(dir);
-    if(held == 2 && dir != 0 && past > 0.5f * flatRopeStep)
+    const bool across = held == 2 && flatMonkeyAcross(fwd, along);
+    // (ropes10) Facing across it: `toRight` the rope's way (further along it) to his right (+1) or left (-1).
+    const float toRight = glm::dot(along, right) >= 0.f ? 1.f : -1.f;
+    climbrope::Grab ga, gb;
+    if(across && (c.grips[1].ropeS - c.grips[0].ropeS) * toRight < -1.f && climbrope::grabAlong(ropeEnt, client, c.grips[0].ropeS, ga) &&
+        climbrope::grabAlong(ropeEnt, client, c.grips[1].ropeS, gb))
+    {
+        ropeTake(ent, c, move, 0, gb); // (crossed: each takes the other's hold)
+        ropeTake(ent, c, move, 1, ga);
+    }
+    else if(across && dir != 0 && past > 0.5f * flatRopeStep)
+    {
+        const int lead = static_cast<float>(dir) * toRight > 0.f ? 1 : 0, trail = 1 - lead;
+        const float gap = (c.grips[lead].ropeS - c.grips[trail].ropeS) * static_cast<float>(dir);
+        const float to = gap <= 1.01f * flatRopeStep ? za::max(c.grips[lead].ropeS * static_cast<float>(dir), c.grips[trail].ropeS * static_cast<float>(dir)) + flatRopeStep
+                                                     : c.grips[lead].ropeS * static_cast<float>(dir) - flatRopeStep;
+        const int who = gap <= 1.01f * flatRopeStep ? lead : trail;
+        if(climbrope::grabAlong(ropeEnt, client, to * static_cast<float>(dir), next) && za::abs(next.s - c.grips[who].ropeS) > 1.f)
+        {
+            ropeTake(ent, c, move, who, next);
+        }
+    }
+    else if(held == 2 && dir != 0 && past > 0.5f * flatRopeStep)
     {
         const int lead = dir > 0 ? lo : hi, trail = dir > 0 ? hi : lo;
         const float leadS = c.grips[lead].ropeS;

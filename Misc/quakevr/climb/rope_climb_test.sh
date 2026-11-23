@@ -15,9 +15,11 @@
 #               (a monkey traverse, the feet up 10 and hanging), hand over hand along it (15), then let go (dropped 5)
 #               or jump off (as off a rope)
 #   pole_monkey  (ropes8a) monkey_drop on a level pole strung across him (no sag)
+#   pole_jump  (ropes10) up a wooden pole, jump with the grips held: a normal jump up and pushed off it (vr_pole_jump,
+#               _push), a free fall to the floor (no frame held back), the held grips not taking it again
 # Each ends on its verdict line ("vr_rope_climb_test: N passed, M failed").
 AGENT=${1:?agent}; shift
-PLAYS=${*:-rope_climb rope_jump rope_pump rope_calm rope_short pole_wood pole_metal monkey_drop monkey_jump pole_monkey}
+PLAYS=${*:-rope_climb rope_jump rope_pump rope_calm rope_short pole_wood pole_metal monkey_drop monkey_jump pole_monkey pole_jump}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 HERE=$(cd "$(dirname "$0")" && pwd -W 2>/dev/null || pwd)
 D=C:/OHWorkspace/qvr-agents/$AGENT/scratch/climb
@@ -28,6 +30,7 @@ for play in $PLAYS; do
     [ "$play" = rope_short ] && length=425
     [ "$play" = pole_wood ] && length="0 wood"
     [ "$play" = pole_metal ] && length="0 metal"
+    [ "$play" = pole_jump ] && length="0 wood"
     case $play in monkey_*) length="0 strung" ;; esac
     [ "$play" = pole_monkey ] && length="0 strungpole"
     bash "$KIT/run.sh" "$AGENT" -Script "map vrropes; vr_rope_climb_test \"$D/$play.txt\" $length" -Filter "vr_rope_climb_test" \
