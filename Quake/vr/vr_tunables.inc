@@ -2007,23 +2007,34 @@ QVR_TUNABLE(vr_flat_grenade_hold_fwd, "0.75") // the held grenade's place: forwa
 QVR_TUNABLE(vr_flat_grenade_hold_out, "0.1") // out at its side
 QVR_TUNABLE(vr_flat_grenade_hold_down, "-0.2") // below the shoulder (negative: above; in view at the screen's lower corner)
 QVR_TUNABLE(vr_flat_grenade_hold_pitch, "-20") // its pitch against the look's
-QVR_TUNABLE(vr_flat_grenade_wind_time, "0.25") // seconds the hand takes up into the overhead throw pose once the fire button winds up
-QVR_TUNABLE(vr_flat_grenade_wind_fwd, "0.5") // the overhead pose: forward of the shoulder (negative: behind; 0.7 keeps the raised hand in view at the top corner), level with the body
-QVR_TUNABLE(vr_flat_grenade_wind_out, "0.4") // out at its side
-QVR_TUNABLE(vr_flat_grenade_wind_up, "0.85") // above the shoulder
-QVR_TUNABLE(vr_flat_grenade_wind_pitch, "-45") // the hand's pitch there (negative: tipped back)
 QVR_TUNABLE(vr_flat_grenade_wind_full, "1.5") // seconds of wind-up for the hardest throw (0.1..5)
 QVR_TUNABLE(vr_flat_grenade_speed_min, "350") // the throw's speed let go at once (units/s)
 QVR_TUNABLE(vr_flat_grenade_speed_max, "900") // and wound up fully (units/s)
 QVR_TUNABLE(vr_flat_grenade_throw_up, "6") // degrees above the crosshair the throw leaves at (-30..60)
 QVR_TUNABLE(vr_flat_grenade_throw_pitch, "5") // degrees more upward on top of vr_flat_grenade_throw_up, for a higher arc (-30..60; the two add, the launch at most 80 above the crosshair)
 QVR_TUNABLE(vr_flat_grenade_speed_scale, "0.75") // the throw's speed (speed_min .. speed_max by the wind-up) times this (0.1..3)
-QVR_TUNABLE(vr_flat_grenade_follow_time, "0.1") // seconds of the throw's follow-through (the arm out along the look)
-QVR_TUNABLE(vr_flat_grenade_follow_fwd, "0.9") // the follow-through's place: forward along the look
-QVR_TUNABLE(vr_flat_grenade_follow_out, "0.05") // out at its side
-QVR_TUNABLE(vr_flat_grenade_follow_down, "0.25") // below the shoulder
-QVR_TUNABLE(vr_flat_grenade_follow_pitch, "25") // its pitch against the look's
-QVR_TUNABLE(vr_flat_grenade_back_time, "0.3") // seconds the hand takes from the follow-through back to its pose (an empty hand's rest, a weapon's grip)
+
+// Flatscreen > Throw (vr_flatgrenade.cpp, QC vr_flatgrenade.qc "The throw key"; vr_flat_key_throw). The throw's
+// drawn motion, shared by the throw key and the quick grenade (places off the hand's shoulder as shares of the arm's
+// reach), and the throw key's throw.
+QVR_TUNABLE(vr_flat_throw_wind_time, "0.2") // seconds the hand takes back into the wind-up (the throw key held, the quick grenade's fire button held)
+QVR_TUNABLE(vr_flat_throw_wind_fwd, "-0.2") // the wind-up: in front of the shoulder (negative: behind), level with the body
+QVR_TUNABLE(vr_flat_throw_wind_out, "0.4") // out at its side
+QVR_TUNABLE(vr_flat_throw_wind_up, "0.85") // above the shoulder
+QVR_TUNABLE(vr_flat_throw_wind_pitch, "-50") // the hand's pitch there (negative: tipped back)
+QVR_TUNABLE(vr_flat_throw_charge_back, "0.2") // fully charged, the wind-up this much further back (a share of the reach; the charge: vr_flat_throw_charge_time, the grenade's vr_flat_grenade_wind_full)
+QVR_TUNABLE(vr_flat_throw_follow_time, "0.12") // seconds of the throw's follow-through (the arm out along the look)
+QVR_TUNABLE(vr_flat_throw_follow_fwd, "0.9") // the follow-through's place: forward along the look
+QVR_TUNABLE(vr_flat_throw_follow_out, "0.05") // out at its side
+QVR_TUNABLE(vr_flat_throw_follow_down, "0.25") // below the shoulder
+QVR_TUNABLE(vr_flat_throw_follow_pitch, "25") // its pitch against the look's
+QVR_TUNABLE(vr_flat_throw_back_time, "0.3") // seconds the hand takes from the follow-through back to its pose (an empty hand's rest, a weapon's grip)
+QVR_TUNABLE(vr_flat_throw_charge_time, "1") // seconds the throw key is held for the hardest throw (0.05..5)
+QVR_TUNABLE(vr_flat_throw_speed_min, "5") // the hand's speed (m/s) of a tap: a quick toss (the headset's throw rules make the rest: weight, gain, assist)
+QVR_TUNABLE(vr_flat_throw_speed_max, "11") // the hand's speed (m/s) fully charged
+QVR_TUNABLE(vr_flat_throw_up, "4") // degrees above the crosshair the throw leaves at (-30..60)
+QVR_TUNABLE(vr_flat_throw_spin, "8") // the throw's spin end over end (rad/s, as a wrist's flick; limited by the thing's mass and vr_throw_spin_max)
+QVR_TUNABLE(vr_flat_throw_release_pitch, "-30") // the hand's pitch against the throw as it lets go (negative: tipped back; a thrown weapon's angles)
 
 // Flatscreen > Free Hands
 QVR_TUNABLE(vr_flat_empty_fwd, "7.5") // an empty hand: how far in front of its shoulder it hangs (-30..30; 5 off the old anchor)
@@ -2176,13 +2187,13 @@ QVR_TUNABLE(vr_flat_parry_cone, "120") // flatscreen: in the guard, any melee bl
 // Flatscreen > Guard Bash and Blade Grip (his notes 2026-11-23: the fire button in the guard bashes, as the headset's bash;
 // a sword's free hand takes its blade near the tip in the guard; vr_flatplay.cpp startBash, bashPose, bladePin; QC VR_FlatBash)
 QVR_TUNABLE(vr_flat_bash, "1") // flatscreen: the fire button pressed in the parry's guard with a melee weapon bashes with it (the headset's bash: knockback, stagger, its damage); 0: it swings out of the guard, as before
-QVR_TUNABLE(vr_flat_bash_wind_time, "0.06") // the bash: seconds the guard is drawn back first
+QVR_TUNABLE(vr_flat_bash_wind_time, "0.15") // the bash: seconds the guard is drawn back first
 QVR_TUNABLE(vr_flat_bash_push_time, "0.07") // seconds the push out takes (0.02..0.5)
 QVR_TUNABLE(vr_flat_bash_hold_time, "0.06") // seconds held out; the bash lands at its end (the smoothed hand all the way out)
 QVR_TUNABLE(vr_flat_bash_recover_time, "0.2") // seconds back to the guard (0.05..1)
 QVR_TUNABLE(vr_flat_bash_anim_speed, "1") // the bash's parts all played this many times faster (0.25..4)
 QVR_TUNABLE(vr_flat_bash_reach, "12") // the guard pushed this far out ahead at the push's end (units; the arm's reach still holds)
-QVR_TUNABLE(vr_flat_bash_wind_back, "4") // and drawn this far back in the windup (units)
+QVR_TUNABLE(vr_flat_bash_wind_back, "8") // and drawn this far back in the windup (units)
 QVR_TUNABLE(vr_flat_bash_cooldown, "0.5") // seconds from one bash (or shove) to the next (at least the whole bash; the game's own bash cooldown holds too)
 QVR_TUNABLE(vr_flat_parry_blade, "1") // flatscreen: in the guard with a weapon held as a sword (a Blade hotspot: swords, the crowbar), the free hand takes the blade near its tip at that hotspot, and lets go as the guard ends (0: it stays where it was)
 QVR_TUNABLE(vr_flat_parry_blade_in_time, "0.12") // seconds the free hand takes to reach the blade (0: at once)
@@ -2604,3 +2615,5 @@ QVR_TUNABLE(vr_revgrip_pivot_shift, "0.35") // ... units: that pivot this far fr
 QVR_TUNABLE(vr_revgrip_2h_gate, "1") // ... 1: a sword or dagger held in two hands flips (its eject button, the flat FLIP GRIP) only with the other hand on its two-handed grip hotspot (the handle), not anywhere on it or on its blade (his note 2026-11-15; ROUND25.md "flipgate"); 0: always (before)
 QVR_TUNABLE(vr_revgrip_blocked_pulse, "0.25") // ... a refused flip's pulse in the pressing hand (0..1; 0 none)
 QVR_TUNABLE(vr_revgrip_2h_mirror, "1") // ... held reversed, the other hand on its grip hotspot: 1 holds it as it did upright, turned as the holding hand (knuckles out), its place mirrored along the handle (above the hand, blade down; ROUND25.md "flipgrip2"); 0: turned half round with the blade (before)
+QVR_TUNABLE(vr_rope_hand_pitch, "10") // ropes10 (his flat note 2026-11-23): a hand gripping a climbable rope or pole is drawn with its knuckles pitched up this far off square to the rope (degrees, 0..45; the turn towards the world's up, so a monkey traverse's overhand knuckles, already up, are unchanged): VR, flat and other players' copies (vr_climb.cpp ropeTurn)
+QVR_TUNABLE(vr_rope_elbow_out, "1") // ropes10 (his flat note 2026-11-23): on a climbable rope or pole the arms' elbows are posed out to the sides and a little down and back (this share, 0..1, of the elbow's pole; the wrist's swing in eased off as much), not swung in across the face: yours (flat and VR) and other players' copies (vr_avatar.cpp solveArm, ropeHang)

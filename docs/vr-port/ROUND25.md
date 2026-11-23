@@ -10271,6 +10271,80 @@ ropes8d's open bug and ropes8c's leftovers. ROPES.md "Poles".
   solve's stops per finger with vr_debug_grasp 2 against the drawn tips). rope_climb_test pole_metal (VR) 10/0.
 - **Not done (budget):** 3 (rope_pump still 238 vs 250, unchanged here), 4 (props vs poles).
 
+## flatthrow: a throw key in flat-screen play, the grenade's motion shared (agent/flatthrow, 2026-11-23)
+
+His ask 2026-11-23: a flat-screen throw, reusing and improving the grenade throw motions (FLATPLAY.md, "The throw key").
+- **J** (`vr_flat_key_throw`, default `j`: free in `default.cfg`; the hotkey audit's own proposal; in Controls' flat keys
+  with the clash mark and Reset Flat Keys). Held winds up, let go throws; a tap is a quick toss, held
+  `vr_flat_throw_charge_time` (1 s) the hardest. The client sends impulse 39 / 40 (40 again while the server still winds
+  up with the key up). The hand: a carried thing before a weapon, the off hand first (H's order); the quick grenade's hand
+  winds up its own throw (J's release = the fire button's; unarmed stays a dud, as in a headset).
+- **One throw path** (note_reuse): QC sets the hand's own throw estimate (velocity along the crosshair, no flick, the
+  spin end over end, leaving just ahead of the eyes, the hand's angle) and lets go through `DropWeaponInHand` /
+  `VR_Carry_Release`, restoring the estimate after. Only the input, the direction and the drawn motion are flat's.
+- **Two hands** (a long gun with the other hand on its grip, a crate held in both): thrown with both: the headset's
+  two-handed rules; the other hand stays on the grip and is drawn moving with the thrower (refusing would make J dead on
+  every long gun flat play holds two-handed; letting go first would turn a two-handed hold into a one-handed throw).
+- **Shared motion**: the grenade's wind/follow/back tunables became `vr_flat_throw_*` (Debug > Tunables > Flatscreen >
+  Throw; he had none of them set): the wind-up behind the shoulder now (was overhead in view), pulled further back as it
+  charges (the grenade's charge is its `wind_full`), then the follow-through. The grenade's places to the pouch and held
+  are its own still. No arc preview exists for the grenade, so none was added.
+- **Tests**: `Misc/quakevr/flatthrow_test.sh mp ["axe rock gren"]`: the throws themselves pass (the axe thrown from the
+  main hand at 486 u/s charged, rocks tapped 237 u/s vs charged 484, the tap's rock lands 216 units off; J with the quick
+  grenade); `flathands_test.sh` 76/0 (the grenade unchanged by the shared motion). **Open**: lesson 10's button and lesson
+  12's target are NOT pressed yet in the test: the charged rock stops at the grate's line (y -363, between the bars,
+  box +-2: something there stops a rock thrown from 214 units; the VR playtest throws from 38 units) and the axe reaches
+  lesson 12's target face at 400+ u/s (traced: x 1927, z 22, y -796) and bounces off without a press or a stick.
+  `vr_flat_grenade_debug 2` prints the path a frame for whoever follows up. The tutorial's flat tips (t2_throw, t3_axe,
+  the two banners) still say "not in flat play yet": not changed, as the lessons aren't proven passable.
+## weaponwheel: a VR weapon wheel instead of reaching for the holsters (agent/weaponwheel, 2026-11-23)
+
+His design (2026-11-23): hold a button, a wheel of the holsters opens round that hand, time slows a little, the hand is
+the cursor; let go on a slot: that hand takes it, as reaching to the holster would; let go off the wheel: nothing.
+
+- **Input** (`vr_input.cpp` wheelHold): `vr_weaponwheel_button` 0 (default) the upper face button B/Y, 1 the stick's
+  click, 2 A/X, held `vr_weaponwheel_hold` (0.35 s) on either hand; that hand opens it and picks. Why B/Y: the bindings
+  survey (`vr_bindings.cfg`): triggers fire, grips grab, A jumps, X/right stick reload, left stick sprints, both sticks
+  are the menu chord (`vr_menu_button` 1), a stick click binds a magnetic holster; B/Y send `impulse 10/12`, which do
+  nothing under the default `vr_weapon_cycle_mode` 0. The press still reaches the game at once (a tap never waits, as
+  `vr_menu_button` 2/3's hold); once the wheel opens the game's key is let go (`keyEvent(key, false)`) and the button's
+  letting go is the wheel's. It only sees the press the game got: the flashlight's Y, a voice note at the mouth, the
+  toolgun's B/Y, the posing modes keep theirs. Not on a hand holding the grappling hook (B/Y reel it), nor on the hand
+  `vr_menu_button` 2 (Y) or 3 (B) holds for the menu.
+- **The wheel** (`vr_weaponwheel.cpp`): placed as it opens `vr_weaponwheel_distance` (3) units beyond the hand from the
+  eyes, facing them, `vr_weaponwheel_size` (16) units wide; the hand's point projected on it is the cursor; a slot is lit
+  by its sector (from 26 virtual px out to the ring plus 46: the middle and outside light nothing); a haptic tick on
+  each new slot (`haptics::pulse`), menu1 on opening, menu2 on a pick. Time at `vr_weaponwheel_timescale` (0.5, single
+  player: `timescale::wanted`); while it is open the hands are the controllers' (`filterHands` as in a menu), so the
+  cursor follows in real time.
+- **Shared with flat play** (note_reuse): the image is the flat holster menu's renderer (`gadget::renderHolsterMenu`,
+  its slots on a ring, the lit slot with the drop target's double frame, greyed ones dim) and its composite
+  (`flatholster::drawImage`, new: the face and the CRT screen, the flat menu's on the window and the wheel's on a world
+  quad: one code). The holsters' contents are one model, `flatholster::holsterSlot` / `handSlot` (the flat menu's slots
+  read them too). QC: the number keys' cycle body became `VR_FlatHolster_DrawInto(hand, holster)`, shared by the cycle
+  and the wheel's `VR_Wheel_Pick`. Not shared: the flat menu's buttons (DROP, UNLOAD, SWAP, drag) — the wheel is a
+  pick-one; the flat menu's own mouse cursor.
+- **A pick** (holsters' provider): the client command `vr_wheel_pick <hand> <slot>` (sv_user.c lets it through), QC
+  `VR_Wheel_Pick` with `self` the player. Immersive: a full holster is drawn (`VR_FlatHolster_DrawInto`: the hand's
+  weapon back to the holster it came from, else a free one, the picked one counting: the holster rules, too-big refusal
+  and messages of the number keys); an empty holster takes the hand's weapon (`VRHolsterHandWeapon`, too big:
+  `VRHolsterRefused`); EMPTY HAND puts it away (`VR_FlatHolster_Put`). Quick Slots: the holster's copy drawn
+  (`VRDrawHolsterWeapon`), an empty one given a copy (`VRLetGoAtHolster`). A drawn weapon is `VR_Scene_HoldGiven`: it
+  stays in a hand whose grip is not held until the grip is pressed (else the default grip-to-hold drops it at once).
+  The other hand's weapon: immersive, a holstered weapon is never in the other hand, so the wheel never offers it
+  (refused by construction); Quick Slots, a full holster greys when it is the weapon the hand already holds.
+- **Extension point** (`vr_weaponwheel.hpp`): a `Provider` is a `list(hand, Choice*, max)` (this frame's slots, in
+  order clockwise from the top: key, title, name, model, usable) and a `pick(hand, Choice)`; `setProvider()` swaps it.
+  "Every weapon the player may take" is a second provider: the layout takes any count up to `maxChoices` (16).
+- **Settings:** VR Settings > Immersion > Weapon Wheel: `vr_weaponwheel` (1), `_button` (0), `_hold` (0.35),
+  `_timescale` (0.5), `_size` (16), `_distance` (3). Debug menu (next to the holster menu's): Weapon Wheel Dump
+  (`vr_weaponwheel_dump`), Weapon Wheel Test.
+- **Tests:** `Misc/quakevr/weaponwheel_test.sh` (`vr_weaponwheel_test`, mock headset, fast mode, verdict line): 12/0
+  (opens after the hold, 7 slots, time x0.50, the slot lit with ticks, the shotgun drawn into the right hand and the
+  nailgun put away, the left hand off the wheel cancels, the left hand takes the nailgun and keeps it ungripped, EMPTY
+  HAND back to its holster, time back at 1). `mp_test.py suite --only mp_weaponwheel` (new): B's wheel picks his
+  holstered shotgun: the server and A have it in his hand, 9/0. flatholster_test 54/0; the number keys' cycle by hand.
+  Scenario `weapon_wheel`.
 ## ropes9: flat W/S swing looking level; physics props meet the poles (agent/ropes9, 2026-11-23)
 
 His correction 2026-11-23 and ropes8c's open props item. ROPES.md "Climbing (flat-screen)", "Poles", "Tests".
@@ -10376,3 +10450,53 @@ His flat feedback 2026-11-23, items 1, 7, 8. FLATPLAY.md, "Swimming strokes", "B
   (`bladeBlend`): the shortest-way slerp flipped near the half turn (148 degrees in a frame at the let-go). VR unchanged (the
   tracked hand's least turn; no fixed hotspot pose). flatbash_test 16/0 (new palm check; turns 11 in, 20 out). Shared:
   `flatplay::handFacing` / `palmOf` (the strokes' own handAngles moved there). flatpolish_parry.png.
+## ropes10: pole jumps, no retake in the air, monkey hands keep their sides, elbows out, knuckles up (agent/ropes10, 2026-11-23)
+
+His flat notes 2026-11-23, items 2-6. ROPES.md "Climbing (VR)", "Strung ropes", "Climbing (flat-screen)", "Known
+limits", "Tests".
+- **Pole jump (2):** `vr_pole_jump` 270 (a normal jump) and `vr_pole_jump_push` 200 (rules) for a jump off a pole
+  (`poleJumpPush` in vr_climb.cpp fallFlung, shared by VR and flat): square out from its axis to the body, level (off a
+  slanted pole's upper side that is down its slope); under a level pole the view's way across it. Ropes keep
+  `vr_rope_jump` and their swing.
+- **The slow slide (6):** not the pole boxes nor the ground: flat play took the pole again a second into the fall
+  (`flatRopeRetake` ran out while he still fell beside it), then held him there or, with back or a look down, climbed
+  him down at the keys' speed. Now the rope let go of is not taken again in the air until he has stood on the ground
+  (`flatRopeLeftAir`; water counts). Reproduced with the old jump from 300 up: "TAKEN AGAIN" at 1.00 s; fixed: a free
+  fall, 0 frames held back. VR: held grips don't take it again (a press does); checked (`pole_jump`, grips held).
+- **Monkey hands (3):** facing across a level rope/pole (`flatMonkeyAcross`, within ~37 degrees of square) the hands
+  shuffle and keep their sides (right hand on his right; the lead hand a step on, then the trail up to a step behind);
+  crossed hands swap holds; the take puts the right hand on his right. Facing along it, hand over hand as before.
+  strungside: 0 frames crossed (48 frames, 12 units without it).
+- **Elbows (4):** solveArm on a rope (`ropeHang`, the climbing pose's weight; your body and another player's copy, flat
+  and VR) mixes the elbow's pole towards out at its side, a little down and back, by `vr_rope_elbow_out` (1, tunable),
+  and eases the wrist's swing off by the same share. Flat on a pole: elbows bowed 10.0 cm in off the arm's line -> 0.1
+  out. A straight arm reaching in to the pole still has its elbow inside the shoulder's line (7 cm; 18 before).
+- **Knuckles (5):** `ropeTurn` pitches the fist up `vr_rope_hand_pitch` (10, tunable) towards the world's up (0 on a
+  monkey rope, whose knuckles already point up); VR, flat, and another player's copy through his snapshot's hand turn.
+  Measured 10.0 degrees (0.0 before).
+- Tests: rope_flat_test polejump 7/0, slantjump 6/0, strungside 6/0, pole 7/0 (arms), rope 8/0, strung 5/0, strungpole 5/0;
+  rope_climb_test pole_jump 6/0 (new), rope_climb 11/0, rope_jump 6/0, monkey_jump 7/0, monkey_drop 7/0, pole_monkey 7/0,
+  pole_wood 10/0, pole_metal 10/0 (sink 0.3 with the pitched fist); rope_hands_test 6/0; vr_pole_solid_test 14/0.
+  Not run: MP suites (the copies share the code). Screenshots kit scratch ropes10_pole_before/after.png (low-res mock).
+- Commits: items 2, 3, 6 together (one test file and the take/let-go code); 4 and 5 together (shared tunables, test).
+## promote1123: 51 ticked lines retired, the checklist sorted, his tuning promoted (branch agent/promote1123, 2026-11-23)
+
+- **Checklist:** his 51 ticked lines retired (no voice note against them: his notes since 2026-11-22 all predate the
+  lines, which answer them), with the 11 scenes only they used; the [New] section sorted, near-duplicates merged:
+  194 -> 114 lines (CHECKLIST_REORG.md, "Checklist sort (2026-11-23)"). checklist_tests_check 83 passed, 0 failed.
+- **Promoted** (his proposed_defaults/2026-11-23_11-27-54.cfg, ironwail.cfg and tunables.cfg, read only; 135 settings
+  off the defaults): tunables `vr_flat_bash_wind_time` 0.06 -> 0.15 and `vr_flat_bash_wind_back` 4 -> 8
+  (tune_promote.py; --check now 0); cvars `vr_flat_speed_fov_from` 340 -> 350, `vr_flat_speed_fov_ease` and
+  `_ease_out` 0.15 -> 0.3 (flat speed FOV feel, as 803c3406fc's flat tunables; added after the 217 configs, so no
+  FullConfigChange row; configs are sparse, no configVersion bump); `pose_defaults.py --write`: the death knight's
+  sprayer Idle / Carry (319000, new) and Run (319020) keys; `weapons_data.py promote`: slot 24 bl_near 0.4951 -> 0.495
+  (the other 23 vr_wofs lines differ only by the config's 6-digit rounding). FLATPLAY.md's values updated.
+- **Skipped as personal or state** (as the 11-16 and 11-12 promotions): handedness, height and body calibration,
+  comfort preset, volume, cl_alwaysrun, sensitivity, fov, gamma/contrast, HUD/console/menu scales and the flat menu
+  panel's size and place (his window), crosshair, host_maxfps, vr_xr_runtime, window view and spectator, vr_flat_taa,
+  vr_flat_tp_fov, vr_gore_dents, vr_notes, vr_autosave_list_all, vr_takes_keys, vr_motion_button, toolgun and its rope
+  spawn settings, rig studio, Armour/Texture Studio and Grip Editor sliders (editor state, not archived), run picks and
+  run state, skill, map-set vr_gameplayfix_*, vr_pickup_scale, vr_prop_id_72-77 (no tuning on them), versions, menu
+  positions, tallies, vr_mp_* keys and room, debug aids (scr_showfps, Spawn With a Toolgun, controller preview).
+- **Tests:** flatspeedfov 7/0, flatbash 15/0, tunables_test 13/0, vr_agrunt_test 83 PASS; a default-config run prints
+  each promoted value as its default.

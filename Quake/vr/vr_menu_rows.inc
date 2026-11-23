@@ -6621,6 +6621,24 @@ QVR_SLIDER(vr_flat_holster_menu_cursor_speed, "Holster Menu Cursor Speed", 0.2f,
 QVR_SLIDER(vr_flat_holster_menu_crt, "Holster Menu Screen Look", 0.f, 2.f, 0.1f, "%.1f", noExt,
     "The holster menu's screen as a small CRT, as the visor's panels: scanlines and flicker (0 none) "
     "(vr_flat_holster_menu_crt).")
+QVR_TOGGLE(vr_weaponwheel, "Weapon Wheel",
+    "Hold the wheel's button on either hand: a wheel of your holsters opens round that hand and time slows a little. Move "
+    "the hand to a slot and let go: that hand takes its weapon, as reaching for the holster would (what it held goes back "
+    "to its holster; EMPTY HAND puts it away). Let go in the middle or off the wheel: nothing (vr_weaponwheel).")
+QVR_CYCLE(vr_weaponwheel_button, "Weapon Wheel Button",
+    "The button you hold for the weapon wheel, on either hand (that hand picks): the upper face button (B or Y, the "
+    "default: free in the game unless weapon cycling is on; the grappling hook's hand keeps its reel), the stick's click, "
+    "or the lower face button (A or X). A short press still does what the button is bound to (vr_weaponwheel_button).",
+    {0.f, "B / Y"}, {1.f, "Stick Click"}, {2.f, "A / X"})
+QVR_SLIDER(vr_weaponwheel_hold, "Weapon Wheel Hold Time", 0.1f, 1.f, 0.05f, "%.2f s", noExt,
+    "How long the button is held before the weapon wheel opens (vr_weaponwheel_hold).")
+QVR_SLIDER(vr_weaponwheel_timescale, "Weapon Wheel Time Speed", 0.05f, 1.f, 0.05f, "x%.2f", noExt,
+    "How fast time runs while the weapon wheel is open (single player): 0.5 (the default) slows it as bullet time does; 1 "
+    "not at all (vr_weaponwheel_timescale).")
+QVR_SLIDER(vr_weaponwheel_size, "Weapon Wheel Size", 6.f, 40.f, 1.f, "%.0f", noExt,
+    "The weapon wheel's width (units, about 26 a metre): how far the hand moves to reach a slot (vr_weaponwheel_size).")
+QVR_SLIDER(vr_weaponwheel_distance, "Weapon Wheel Distance", 0.f, 16.f, 0.5f, "%.1f", noExt,
+    "How far beyond the hand (units, away from your eyes) the weapon wheel's middle opens (vr_weaponwheel_distance).")
 QVR_SLIDER(vr_flat_holster_drop_ahead, "Holster Drop Distance", 0.f, 48.f, 2.f, "%.0f", noExt,
     "How far ahead of you (units) a holster's DROP in the holster menu lays its weapon (vr_flat_holster_drop_ahead).")
 QVR_SLIDER(vr_flat_unload_volume, "Unload Volume", 0.f, 1.f, 0.05f, "%.2f", noExt,
