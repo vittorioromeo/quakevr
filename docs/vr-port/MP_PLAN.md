@@ -285,7 +285,7 @@ First results (2026-11-14, release no-LTO build, loopback):
 | Scenario | Result |
 |---|---|
 | `mp_bandwidth` | B idle on e1m1: down 15.5 KB/s (216 B a datagram) with `vr_net_cullposes 1`, 96.6 KB/s with 0; 19.6-22.5 KB/s with A's avatar added. Largest packet down 1405 B (was 14998 B) |
-| `mp_version` | A client with `-mpnetversion 1` is told "This Quake VR server has network version 2, your game 1..."; the server logs it; a right one joins |
+| `mp_version` | A client with `+vr_net_test_version 1` is told "This Quake VR server has network version 2, your game 1..."; the server logs it; a right one joins |
 | `mp_avatar` | B's copy of A's head and hands within 0.10 units of the server's, the main hand's angles exact, the weapon the same; B has none of himself |
 | `mp_coop`, `mp_coop_lag` (150 ms, 2% loss) | Unchanged: pass; B sees A move off in 184-211 ms under the lag; signon over the lossy link with the chunked reliable channel |
 
@@ -296,7 +296,7 @@ What changed:
   flight, go back N). Works with unchanged peers in both directions.
 - The connect request carries "QVR" and `QVR_NET_VERSION` (2, `vr_api.h`): a server with the VR protocol rejects a
   client of another version or none, with the reason; `qsocket_t.qvrNetVersion` keeps it per client.
-  `-mpnetversion N` fakes another (the test).
+  `vr_net_test_version N` fakes another (the test).
 - `sv_user.c`, `vr_server.cpp`: every move since the server's last frame counts (buttons and VR bits ORed:
   `VR_MoveMerges`); `VR_ClientReset` clears a slot's moves and bits on connect and drop. (Single player too: a
   press and release between two ticks was lost.)

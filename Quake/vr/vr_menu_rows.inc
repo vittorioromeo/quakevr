@@ -6459,7 +6459,7 @@ QVR_TOGGLE(vr_hitmodel_cachestress, "Evict Models at Map Start",
     "thread pool. They must come out the same (developer 1: the hash in the console). For testing.")
 QVR_CYCLE(vr_jobs_threads, "Worker Threads",
     "The thread pool's workers besides the main thread (Auto: the CPU's threads less one). Changed, the pool is "
-    "made again. -jobs <n> on the command line sets it from the start.",
+    "made again. +vr_jobs_threads <n> on the command line sets it from the start.",
     {0.f, "Auto"}, {1.f, "1"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {8.f, "8"}, {16.f, "16"})
 QVR_TOGGLE(vr_box3d_threads, "Physics on Threads",
     "Box3D's step (the props' physics) shared between the thread pool and the main thread. Off: the main "

@@ -288,9 +288,10 @@ public:
                                 : EyeTracking::NotOffered;
     }
 
-    bool setEyeImageRect(int eye, int width, int height) override
+    bool setEyeImageRect(int eye, int width, int height, int x = 0, int y = 0) override
     {
         eyeRects[eye] = {width, height};
+        eyeRectOrigins[eye] = width > 0 && height > 0 ? XrOffset2Di{x, y} : XrOffset2Di{0, 0};
         return true;
     }
 
@@ -350,6 +351,7 @@ private:
     XrSpace handSpaces[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
     Swapchain swapchains[2];
     XrExtent2Di eyeRects[2]{}; // setEyeImageRect: the part of each eye's image shown this frame (0 x 0: all of it)
+    XrOffset2Di eyeRectOrigins[2]{}; // ... and its lower left corner (GL's origin, as the OpenGL (ES) bindings take it)
     Swapchain panel;
     int32_t panelFailedWidth{0}; // the size its swapchain failed at in this session, or is being made at (ensurePanelSwapchain)
     int32_t panelFailedHeight{0};
@@ -386,7 +388,7 @@ private:
     bool userAbsent{false};
     int absentHeld{0}; // the frames held while it was off (logged when it is back on)
     // Why the headset's sensor is ignored now (nullptr: it isn't): vr_xr_user_presence 0, vr_debug_head_pose 1, or an
-    // automated run (-vr-unattended, a timedemo, a scripted test's vr_fixed_frames 1) that nobody wears it for.
+    // automated run (-unattended, a timedemo, a scripted test's vr_fixed_frames 1) that nobody wears it for.
     [[nodiscard]] const char* presenceIgnored() const;
     // Eye tracking (vr_foveated_gaze): XR_EXT_eye_gaze_interaction offered, enabled (asked for, and the system has it),
     // its pose action and space (FrameState::gaze).

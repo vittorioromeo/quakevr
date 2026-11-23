@@ -714,7 +714,7 @@ void startJob(const za::Vector<za::String>& paths)
     }
     if(!VR_ChildProcesses())
     {
-        say("the re-evaluation runs in a second copy of the game: none on this platform (Android, -nochildprocesses); "
+        say("the re-evaluation runs in a second copy of the game: none on this platform (Android); "
             "run vr_motion_eval here instead",
             false);
         return;
@@ -752,8 +752,9 @@ void startJob(const za::Vector<za::String>& paths)
 
     // The script first: the engine keeps only the command line's first 256 characters for its + commands (a long
     // -basedir would cut it off). -noautoexec: the player's autoexec.cfg could start anything, a re-evaluation among
-    // them; -evalcopy: this copy never starts copies of its own.
-    za::Vector<za::String> args{"+exec", "motions/review/eval_job.cfg", "-vrmock", "-noconfigwrite", "-noautoexec",
+    // them; -evalcopy: this copy never starts copies of its own. `+vr_backend mock` before the script (its waits would
+    // delay it past the backend's start): the mock headset, never the runtime's session.
+    za::Vector<za::String> args{"+vr_backend", "mock", "+exec", "motions/review/eval_job.cfg", "-noconfigwrite", "-noautoexec",
         "-evalcopy", "-nosound", "-window", "-width", "480", "-height", "270"};
     bool baseDir = false;
     for(int i = 1; i < com_argc; i++)

@@ -2495,10 +2495,9 @@ static void SendConnectRequest (sys_socket_t sock, struct qsockaddr *to, unsigne
 	MSG_WriteByte(&net_message, CCREQ_CONNECT);
 	MSG_WriteString(&net_message, "QUAKE");
 	MSG_WriteByte(&net_message, NET_PROTOCOL_VERSION);
-	// QVR: Quake VR's network version (vr/vr_api.h; -mpnetversion N: another, the harness's reject test)
+	// QVR: Quake VR's network version (vr/vr_api.h; vr_net_test_version N: another, the harness's reject test)
 	MSG_WriteString(&net_message, "QVR");
-	MSG_WriteLong(&net_message, COM_CheckParm("-mpnetversion") && COM_CheckParm("-mpnetversion") + 1 < com_argc
-		? Q_atoi(com_argv[COM_CheckParm("-mpnetversion") + 1]) : QVR_NET_VERSION);
+	MSG_WriteLong(&net_message, (int) Cvar_VariableValue ("vr_net_test_version") ? (int) Cvar_VariableValue ("vr_net_test_version") : QVR_NET_VERSION);
 	MSG_WriteString(&net_message, cl_name.string); // QVR: a loaded coop game gives him his saved slot by it
 	MSG_WriteString(&net_message, Cvar_VariableString ("vr_mp_clientkey")); // QVR: (B25) this game's, for "back from a crash"
 	MSG_WriteLong(&net_message, (int) firstOut); // QVR: (review finding 2) its channels' first sequence (39)

@@ -240,6 +240,7 @@ bool resampling = false; // this frame's eyes are
 bool renderingEye = false;
 int directForm = 0; // this eye drawn straight into its image (directEye): 0 no, 1 the composite's depth, 2 its own
 int directNoted = 0; // the form the console last said the eyes are drawn with (-1 wanted but not possible)
+int partNoted = -1;  // the part's place the console last said (vr_eye_rect_place: x * 65536 + y; -1 none said)
 bool spectatorView = false; // rendering the window's spectator camera (as an eye)
 int currentEye = 0;
 bool firstEye = false; // no other eye rendered before it this frame
@@ -850,11 +851,12 @@ void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHei
 // prints, notify lines): the spectator camera's and the mirror's choice (vr_spectator_hide_hud_text,
 // vr_mirror_hide_hud_text), for recording. `headset`: the headset's own eye (not the mirror's copy nor the spectator
 // camera): the takes' recording light and rating prompt (vr_takes.cpp), never in what OBS records.
-void drawUi(const glm::vec3& viewOrigin, GLuint fbo, int width, int height, bool headText = true, bool headset = false)
+void drawUi(const glm::vec3& viewOrigin, GLuint fbo, int width, int height, bool headText = true, bool headset = false,
+    int x = 0, int y = 0)
 {
     QVR_GPU_PROFILE("ui");
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, fbo);
-    glViewport(0, 0, width, height);
+    glViewport(x, y, width, height); // (x, y: the eye's part in its image, vr_eye_rect_place)
     lines::drawInEye(viewOrigin);
     panel::drawInEye(hands::current(), headText);
     text3d::drawOverlay();
@@ -1712,6 +1714,21 @@ extern "C" int VR_RenderView()
             noted < 0 ? notDirect : "", noted < 0 ? ")" : "");
     }
     const bool late = lateAcquire && !direct && !xrFoveated;
+    // vr_eye_rect_place (qeye): an eye drawn straight into a part of its image with framebuffers of the image's own (form
+    // 2: its depth at the image's size) placed in it by its lower left corner. The runtime's foveation reduces whole bins
+    // of the image (864 x 448 of the Quest 3's 1680 x 1760) round the rect submitted: in the corner the part's bottom rows
+    // stayed full at every level (qfov4). The scene's viewport (glx, gly: R_SetupGL, R_WarpScaleView), the in-tile pass,
+    // the UI, the eyeshots and the rect submitted all take the corner. Measured (qeye): the middle is slower (the full
+    // bins round the rect's centre then straddle the grid's middle lines: 4 an eye at 0.65 instead of 2), so 0 stays.
+    const float place = subImage && direct && directWanted >= 2 ? za::clamp(vr_eye_rect_place.value, 0.f, 2.f) * 0.5f : 0.f;
+    const int partX = static_cast<int>(place * static_cast<float>(imageWidth - drawnWidth) + 0.5f);
+    const int partY = static_cast<int>(place * static_cast<float>(imageHeight - drawnHeight) + 0.5f);
+    if(const int noted = place > 0.f ? partX * 65536 + partY : -1; noted != stereo::partNoted)
+    {
+        stereo::partNoted = noted;
+        Con_DPrintf("VR: the eyes' %dx%d part at %d %d of their %dx%d images (vr_eye_rect_place)\n", drawnWidth, drawnHeight,
+            partX, partY, imageWidth, imageHeight);
+    }
     // The images' own framebuffers (vr_xr_direct 2) let go as soon as their images are gone (new swapchains: a level
     // changed) or the eyes no longer use them: a framebuffer kept with a destroyed foveated image attached crashed the
     // driver in xrEndFrame (qfov2: the post-process path after foveation was turned off mid-game).
@@ -1764,6 +1781,14 @@ extern "C" int VR_RenderView()
         stereo::useView(stereo::eyeTargets, drawnWidth, drawnHeight);
         const bool directOwn = own != nullptr;
         stereo::directForm = direct && eyeImage ? (directOwn ? 2 : 1) : 0;
+        // The eye's part in its image (vr_eye_rect_place: form 2 alone; the corner else, as useView left it)
+        const int eyeX = directOwn ? partX : 0, eyeY = directOwn ? partY : 0;
+        if(subImage)
+        {
+            be->setEyeImageRect(eye, drawnWidth, drawnHeight, eyeX, eyeY);
+        }
+        glx = eyeX;
+        gly = eyeY;
         if(directOwn)
         {
             framebufs.composite.fbo = own->fbo;
@@ -1787,11 +1812,13 @@ extern "C" int VR_RenderView()
         temporal::beginEye(eye);
         tonemap::glProbeScene(true); // (vr_gl_probe)
         stereo::foveateEye(frame.eyes[eye].fov); // (vr_gl_foveation; the runtime's own, vr_xr_foveation, follows the rect)
+        tonemap::sceneDithered = false; // (VR_SceneDither: set by the eye's view)
         V_RenderView();
         if(stereo::directForm) // (no GPU scope of its own: in the scene's render pass, the tile still on chip)
         {
-            tonemap::drawInTile(framebufs.composite.fbo, drawnWidth, drawnHeight); // (the image's framebuffer, as drawn)
+            tonemap::drawInTile(framebufs.composite.fbo, eyeX, eyeY, drawnWidth, drawnHeight); // (the image's framebuffer, as drawn)
         }
+        glx = gly = 0; // (the eye's part: the passes after the scene are given it)
         tonemap::glProbeScene(false);
         stereo::invalidateSceneDepth(); // (vr_gl_invalidate)
         temporal::endEye();
@@ -1849,7 +1876,7 @@ extern "C" int VR_RenderView()
         }
         if(!shotFinal && !shotUi)
         {
-            tonemap::eyeshot(eye, VR_PostProcessTarget(), framebufs.composite.fbo, drawnWidth, drawnHeight);
+            tonemap::eyeshot(eye, VR_PostProcessTarget(), framebufs.composite.fbo, drawnWidth, drawnHeight, eyeX, eyeY);
         }
         profile::end();
         if(stereo::resampling)
@@ -1869,7 +1896,7 @@ extern "C" int VR_RenderView()
         }
         if(shotFinal)
         {
-            tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, shownWidth, shownHeight);
+            tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, shownWidth, shownHeight, eyeX, eyeY);
         }
         tonemap::glProbe(eye, 1, 0, framebufs.composite.fbo, stereo::targetFbo, drawnWidth, drawnHeight, shownWidth, shownHeight);
 
@@ -1880,11 +1907,12 @@ extern "C" int VR_RenderView()
         panel::noteEyeImage(static_cast<float>(shownHeight) / za::max(1e-3f, za::tan(eyeFov.up) - za::tan(eyeFov.down)));
         {
             QVR_TRACY_SCOPE(zoneUi, "eye: UI");
-            stereo::drawUi(hands::current().eyeOrigin[eye], stereo::targetFbo, shownWidth, shownHeight, !recordingClean(), true); // (recording mode: no head text)
+            stereo::drawUi(hands::current().eyeOrigin[eye], stereo::targetFbo, shownWidth, shownHeight, !recordingClean(), true, eyeX,
+                eyeY); // (recording mode: no head text)
         }
         if(shotUi)
         {
-            tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, shownWidth, shownHeight);
+            tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, shownWidth, shownHeight, eyeX, eyeY);
         }
         tonemap::glProbe(eye, 2, 0, framebufs.composite.fbo, stereo::targetFbo, drawnWidth, drawnHeight, shownWidth, shownHeight);
         if(stereo::mirrored(eye))

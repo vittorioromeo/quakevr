@@ -791,14 +791,9 @@ struct Tri
 }
 
 // The first progs/player.mdl that is Quake's ranger (`detailed`: Quake VR's detailed one), the game's own folder's
-// first, then id1's, then the rest's: his head. -rangerhead_nodetail (the tests): no detailed one found.
+// first, then id1's, then the rest's: his head.
 [[nodiscard]] bool load(bool detailed)
 {
-    if(detailed && COM_CheckParm("-rangerhead_nodetail"))
-    {
-        Con_DPrintf("vr_body_ranger_head: -rangerhead_nodetail: no detailed head\n");
-        return false;
-    }
     ranger.detailed = detailed;
     za::Vector<unsigned char> file;
     char where[MAX_OSPATH];

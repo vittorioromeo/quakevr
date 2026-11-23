@@ -11211,3 +11211,60 @@ One headset block so far (17:27-17:36; the frozen gib fight, Standalone, 0.65, H
 - **A crash a player can reach, not fixed**: `vr_xr_foveation 0` after `vr_xr_foveation 3` mid-game (Quest Foveation
   High to off: "VR: eyes through the post-process") crashed in libGLESv2_adreno (SIGSEGV 0x30) in the one launch that
   tried it, as the two forced switches of block 1 did.
+## qeye: the eye's part centred on the foveation bins (slower: kept in the corner); the scene's shaders dither straight-in eyes (agent/qeye, 2026-11-23)
+
+- **The part's place** (`vr_eye_rect_place`, new, 0; Debug > Profiling beside Eye Sub-Image): an eye drawn straight into a
+  part of its image (form 2: its own framebuffers, depth at the image's size) can sit anywhere in it: 0 the lower left
+  corner (as before), 1 the middle, 2 the upper right. The corner goes through glx/gly (R_SetupGL's and R_WarpScaleView's
+  viewport), the in-tile pass (its viewport; PostView.zw for bullet time's and the vignette's centre), the UI
+  (`stereo::drawUi`), the eyeshots and the submitted imageRect.offset (`Backend::setEyeImageRect`'s x, y; GL's origin).
+  PC (-glescompat, form 2, 0.65): eyeshots at 0, 1, 2 the same picture (mean 0.06-0.25/255: Ironwail's ordered dither
+  moves with the pixel grid).
+- **Measured** (Quest 3, High, the frozen gib fight, his look, 3 launches, GPU medians): corner / middle at 0.65
+  12.7-13.0 / 14.0-15.9 ms, 0.78 12.7-13.2 / 15.2-15.9, 0.9 14.4-14.8 / 16.6-17.2: the middle is 1-2.8 ms slower. The
+  bins trace: the runtime keeps full the bins round the rect's centre, which in the middle lies on the grid's middle lines
+  (x 864, y 896), so 4 bins an eye stay full at 0.65 (2 in the corner, its right column reduced) and the fragments rise
+  2.3-2.7 M -> 2.8-3.3 M. With 2 x 4 bins of 864 x 448 no placement reduces more than the corner. **Default stays 0**;
+  the cvar is kept for a runtime with finer bins.
+- **Dither in the scene** (`vr_dither_in_scene`, new, 1): a straight-in eye's scene shaders add vr_dither's own noise (the
+  post-process's triangular white noise, its seed per eye and frame) in Ironwail's ScreenDither slot (`QvrScreenDither`,
+  gl_shaders.h: ScreenDither < 0 is -1 - the seed, from VR_SceneDither), so the in-tile pass runs only for the grade,
+  bullet time's look or the comfort vignette (a developer line says when it runs or is skipped). PC: straight in now
+  works with vr_dither on without framebuffer fetch; its eyeshots vs the post-process's dithered ones mean 0.076/255 (no
+  dither on either: 0.089). Headset: skipped with his look, runs again in bullet time.
+- **Measured**: no change within the noise (in-tile 13.15/13.00/12.74 vs scene 12.72/13.04/12.96 ms; late frames 51-58%
+  vs 54-57%): the hash in every scene fragment costs about what the pass did. A new player's `vr_grade` 1 keeps the
+  pass anyway (the grade could only move into the scene at ~4 fragments a pixel). Kept on: one pass fewer, same look.
+- Scripts (not committed): `scratch/qeye_*` (mk, block, bins, diff, pull), questperf's `qp_*` (qp_run.sh now passes
+  `-vr-unattended`), qfov4's ab3, trace and bins. Beta2's APK and the shipped progs.dat (8a409520...) put back.
+
+## flagcleanup: the launch-flag audit applied (agent/flagcleanup, 2026-11-23)
+
+The audit (51 flags we add on top of Ironwail) applied in full; the table of what is left, who passes each and what
+replaced the rest is docs/vr-port/LAUNCH_FLAGS.md (every new flag gets a row there).
+- **Removed** (nobody passed them): `-glesdefine` (= `+vr_gles_define A,B`), `-glesfull` (= `+vr_gl_world_lite 0`),
+  `-glsafeauto`, `-nochildprocesses` (`-fakeandroid` covers it), `-rangerhead_nodetail`, `-shadersasynctest` (its numbers
+  now a `developer 1` line), `-shaderloadshot`, `-epicmanifests`.
+- **To `+cvar`**: `-vrmock` -> `+vr_backend mock` (vr_main.cpp `commandLineBackend()`: read before the `+` commands apply,
+  for VR_BeforeVideoInit and the loading panel's early start); the installer's preparation run, the motion review's
+  copy and physbench.py pass it. `-jobs n` -> `+vr_jobs_threads n` read from the command line when the pool is made.
+  The MP test knobs became CVAR_NONE test cvars: `vr_net_test_version` (was `-mpnetversion`), `vr_net_test_lookup_delay`
+  / `vr_net_test_lookup_fail` (were `-netlookupdelay` / `-netlookupfail`; read at each lookup now, settable mid-run),
+  `vr_mp_test_campaign_missing` (was `-campaignmissing`); mp_test.py passes them as `+cvar`.
+- **Merged**: the seven GLES bring-up switches nobody passed (`-glesnoclipcontrol`, `-gleskeep`, `-glesshaderset`,
+  `-glessrgbencode`, `-glesstructcopy`, `-glescentroid`, `-glesverbose`) are one `-glesdebug a,b,...` (env
+  `QVR_GLES_DEBUG`, replacing `QVR_GLES_KEEP`): words `noclipcontrol shaderset srgbencode structcopy centroid verbose`
+  and `keep:<name>`; an unknown word is said with the list (vr_glsafe.cpp `readEsDebug`, `VR_GLESDebug`).
+- **Renamed**: `-vr-hide-mirror` -> `-hidemirror`, `-vr-unattended` -> `-unattended` (`VR_HideMirror()`,
+  `VR_Unattended()` in vr_api.h). `-vrmock`, `-vr-hide-mirror` and `-vr-unattended` still work until 1.3: each prints
+  "note: <old> is deprecated (removed in 1.3): use <new>" at start-up (vr_main.cpp `noteDeprecatedFlags`).
+- **Docs**: INSTALL.md troubleshooting has a `-glsafe` row; INSTALLER.md, MOTIONS.md, MP_PLAN.md, QUEST_OPTIMISATIONS.md,
+  QUEST_PLAN.md (the unmanned launches' `-unattended`) and CREDITS.md say the new names. Older rounds and QUEST_PLAN's
+  history keep the old ones.
+- **Kit**: linux_inside.sh, linux_wsl.sh and brief_questhead.md still say the old names (they work): the patch is
+  qvr-kit/scratch/flagcleanup_kit.patch.
+- **Checked**: the aliases' notes and the mock backend (run.sh with `-vrmock -vr-hide-mirror -vr-unattended`); a run with
+  `-noautoexec +vr_backend mock` (the preparation run's shape) started the mock; `+vr_jobs_threads 3` gave 3 workers;
+  `-glescompat -glesdebug verbose,keep:views,bogus` kept views and named the unknown word; xr_runtime_test.sh 1,11
+  (user presence with `-unattended`) 0 failed; installer SelfTest 60/60; mp_test.py suite --only mp_coop, mp_version,
+  mp_campfollow, mp_lookup (results in the report).

@@ -180,8 +180,8 @@ def run(a):
     for r in range(a.reps):
         for scene in scenes:
             for tag, exe in exes:
-                cmd = [exe, "-basedir", a.basedir, "-game", "quakevr", "-vrmock", "-noconfigwrite", "-window", "-width", "320", "-height",
-                       "240", "-nosound", "+vr_fixed_frames", "1", "+vr_fixed_frames_rate", str(a.rate), "+vr_mock_fast",
+                cmd = [exe, "-basedir", a.basedir, "-game", "quakevr", "-noconfigwrite", "-window", "-width", "320", "-height",
+                       "240", "-nosound", "+vr_backend", "mock", "+vr_fixed_frames", "1", "+vr_fixed_frames_rate", str(a.rate), "+vr_mock_fast",
                        "2", *a.extra, "+map", MAPS.get(scene, "vrfiringrange"), "+exec", f"physbench_{scene}.cfg"]
                 t0 = time.time()
                 p = subprocess.run(cmd, capture_output=True, text=True, errors="replace", timeout=a.timeout)

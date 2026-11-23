@@ -688,7 +688,7 @@ var tests = new List<(string Name, Action Body)>
         }, null, CancellationToken.None);
         var info = GamePreparation.StartInfo(target, quake, relight: true);
         True(info.Arguments.StartsWith(LaunchCommand.Arguments(quake, target, LaunchVariant.Vr), StringComparison.Ordinal), "the shortcut's arguments first");
-        foreach (var a in new[] { "-prepare \"", "-preparerelight", "-vrmock", "-noconfigwrite", "-noautoexec", "-nosound" })
+        foreach (var a in new[] { "-prepare \"", "-preparerelight", "+vr_backend mock", "-noconfigwrite", "-noautoexec", "-nosound" })
         {
             True(info.Arguments.Contains(a, StringComparison.Ordinal), $"argument {a}");
         }

@@ -15,7 +15,7 @@
 // tutorial or the first-start relight: quake.rc's vr_startgame starts this instead (VR_StartGame_f). No tips either
 // (vr_tips 0: one shown to the mock headset would be marked seen for the player).
 //
-// The installer starts it as the motion review starts its copies (-vrmock -noconfigwrite -noautoexec -nosound: no
+// The installer starts it as the motion review starts its copies (+vr_backend mock -noconfigwrite -noautoexec -nosound: no
 // headset, no config written, no player's autoexec), with QVR_TEST_HIDDEN, QVR_TEST_BACKGROUND and QVR_NO_ERROR_DIALOG
 // (no window, no network, no dialog). Its progress goes to the file, a line each, flushed:
 //   step maps <i> <n> <map>        a map loading (i from 1)
