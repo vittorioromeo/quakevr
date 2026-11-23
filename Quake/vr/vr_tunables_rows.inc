@@ -2021,6 +2021,7 @@ QVR_TUNABLE_SLIDER(vr_flat_throw_speed_min, "Throw: Hand Speed Tap", 0.f, 20.f, 
 QVR_TUNABLE_SLIDER(vr_flat_throw_speed_max, "Throw: Hand Speed Charged", 0.f, 20.f, 0.5f, "%.1f m/s", 0.f, 30.f, "The hand's speed fully charged (vr_flat_throw_speed_max).")
 QVR_TUNABLE_SLIDER(vr_flat_throw_up, "Throw: Above Aim", -30.f, 60.f, 1.f, "%.0f deg", -30.f, 60.f, "How far above the crosshair the throw leaves (vr_flat_throw_up).")
 QVR_TUNABLE_SLIDER(vr_flat_throw_spin, "Throw: Spin", 0.f, 30.f, 0.5f, "%.1f rad/s", 0.f, 60.f, "The throw's spin end over end, as a wrist's flick (limited by the thing's mass and vr_throw_spin_max) (vr_flat_throw_spin).")
+QVR_TUNABLE_CYCLE(vr_flat_throw_spin_time, "Throw: Blade Arrives First", "A thrown axe, sword or dagger has its spin timed (a little faster or slower) so that its edge or point leads where its arc meets something: it sticks there as a well-timed headset throw does (vr_flat_throw_spin_time).", {0.0f, "Off"}, {1.0f, "On"})
 QVR_TUNABLE_SLIDER(vr_flat_throw_release_pitch, "Throw: Release Pitch", -90.f, 90.f, 5.f, "%.0f deg", -90.f, 90.f, "The hand's pitch against the throw as it lets go (negative: tipped back): a thrown weapon's angles (vr_flat_throw_release_pitch).")
 QVR_TUNABLE_GROUP("Flatscreen > Free Hands")
 QVR_TUNABLE_SLIDER(vr_flat_empty_fwd, "Empty Hand Forward", -30.f, 30.f, 0.5f, "%.1f", -30.f, 30.f, "How far in front of its shoulder a hand holding nothing stands, times the reach (5), when the other hand holds a weapon one-handed (vr_flat_empty_fwd).")

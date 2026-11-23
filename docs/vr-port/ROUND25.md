@@ -10431,6 +10431,35 @@ has the table.
 - **Next:** the world's own ~8 ms at 0.65 (its shading per pixel: the scene is fill-bound) and your rig's 2.5 ms (the
   body's skin form, the held gun close to the eyes); his call whether the 72 Hz floor goes to 0.55 in fights.
 
+## flatthrow2: the flat throw finished: blades stick, the tutorial names the key (agent/flatthrow2, 2026-11-23)
+
+Follows "flatthrow". Traced with `vr_debug_axestick 3` (a new level-3 line says why a thrown thing isn't looked at).
+- **Why lesson 12's axe bounced (VR too):** a hard throw gives its owner up `vr_throw_self_grace` (0.35 s) after it leaves
+  the hand (QC VR_Throw_SelfFrame, so it can hurt its thrower), and `axestick::beforeStep` only looked at a blade whose
+  owner is a player: any throw flying longer than 0.35 s (over ~5 m at 15 m/s) was never looked at and bounced. Now its
+  thrower is the hand that let go (`.carry_letgo` while `.vr_throw_self` is 2: QC's VR_Throw_Thrower), `vr_fields.inc`.
+- **A blade stuck in a wall button presses it:** sticking ends the flight before the engine's impact runs the button's
+  touch; VR_AxeStick_Stuck now runs a brush entity's own touch (button_touch_any and the mods' buttons) with the throw's
+  velocity.
+- **The flat throw's spin timed** (`vr_flat_throw_spin_time` 1, Debug > Tunables > Flatscreen > Throw: "Blade Arrives
+  First"): after the throw QC calls `bladespinto` (new builtin; `axestick::timeSpin`): the arc followed a frame at a time
+  (its .gravity, Box3D's) to what it meets, then the spin about the same axis that turns the cutting part (an edge's
+  facing, a point's line) round to lead there, halfway between its way and straight into the surface (a long throw meets
+  the floor glancing). An edge: the exact spin nearest its own (0.4x to 2.5x, and vr_throw_spin_max); a point: the
+  slowest exact one (a sword's spin swings its point off its way: 9.7 rad/s is side on at 12 m/s). Too short a flight
+  for any: the range's end that leaves the least turn. VR throws are untouched (the wrist times them).
+- **Measured** (lesson 12's south wall, charged): axe from 44-280 units 7/7 stuck (was 6/7, and 0 past 0.35 s), 280-500
+  units onto the floor 2/3 (the miss lands in the wall's foot); taps onto the floor 5/5; sword and dagger from 80-190 units
+  stuck, under ~70 units (2 m) side on (their release pose needs more turn than any spin gives in 0.2 s: open).
+- **Lesson 10's board** (2928,-348) is `SOLID_NOT` and world text boards have no collision: nothing to change. A
+  pitch -10 rock throw goes through the grate (z -76 at the bars) and presses the button.
+- **Tutorial**: t2_throw, t3_axe and the LESSON 10 / 12 boards' flat wording name `{key:vr_flat_key_throw}` (THROW in
+  vrtutorial_gen.py); the BSP's lump patched line by line (`bsp_set_entities.py --replace`, the .map's 4 changed lines).
+- **menu_paths.txt** regenerated (it was stale: 143 rows added by recent work and this one); vrcalibration 0 missing.
+- **Tests**: `flatthrow_test.sh` 18/0 (new `wall` run: the axe from 280 units and the sword from 150 stick, both spins
+  timed); `vr_msgtokens_test` flat 12/0 (new: the two tips and boards name 'J'), headset 3/0; `flathands_test.sh` 76/0;
+  `vr_embed_test 1` 61/0, once 60/1 ("a sword side on bounces off the wall" stuck: its 80-unit flight is inside the grace,
+  so not this change; flaky?).
 ## flatpolish: hub lecterns in Select Campaign's order; flat swimming's open hands, sounds, bubbles; the parry's palm down (agent/flatpolish, 2026-11-23)
 
 His flat feedback 2026-11-23, items 1, 7, 8. FLATPLAY.md, "Swimming strokes", "Blade grip in the guard".

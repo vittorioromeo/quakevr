@@ -946,6 +946,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"embedsay", PF_embedsay},
     {"bladewound", PF_bladewound},
     {"bladewoundage", PF_bladewoundage},
+    {"bladespinto", PF_bladespinto},
     {"magholsterpoll", PF_magholsterpoll},
     {"holsterpos", PF_holsterpos},
     {"modelbounds", PF_modelbounds},
