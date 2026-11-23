@@ -9731,3 +9731,27 @@ Runs on origin/next 27fce84a7 (Release no-LTO, the shipped-defaults baseline). M
   server's campaign at its serverinfo (`VR_CheckSpawnCampaignMap`'s client side); BACKLOG candidate.
 - Smoke: `mp_test.py suite --only` the six touched scenarios and mp_coop: mp_suite passed (netsafe 14/0, coop 12/0,
   flow 17/0, melee 30/0, slide_vr 8/0, predict 31/0, predictclimb 29/0, predictslide 14/0). flatswing 4/0.
+
+## ropes8a: poles grip, solid, textured, level and slanted; flat W/S climbing (agent/ropes8a, 2026-11-23)
+
+His flat notes 2026-11-23, items 4-8. ROPES.md "Poles" (the ropes8a paragraph), "Climbing (flat-screen)", "Tests".
+- **Keys (5):** flat play's forward always climbs up and back down (ropes and poles), whatever the pitch; the strafe keys
+  pump the swing (sideways to the view: the only free keys). `vr_flat_rope_keys` 1 (tunable) brings back the look-based
+  keys. The flat rope test now climbs looking level / looking up with back, pumps facing across the row with the strafe
+  key and lets go passing the next rope (the strafe pump swings wider than the forward key did: at the peak it was past).
+- **Level and slanted poles (6):** poles already took `target` / `rope_end`; the toolgun's Span now strings a Pole too
+  (taut). vrropes: a level metal pole 88 high (110 was out of a flat jump's reach) and a slanted wooden one (27 degrees
+  off upright: climbed). vr_rope_test's counts 13 / 7 pinned / 4 poles / 3 monkey traverses.
+- **Solid (7):** QC `vr_pole_solid` boxes along each pole (engine-placed; a save's found by `goalentity` and made again);
+  the climber passes as their owner. Shots/nails/blows: takedamage, `T_DamageImpl` returns at once, `VR_MaterialOf` wood
+  or metal. Navmesh: refreshProps marks each box at once (8 units across at least). Not done: MP clients don't predict
+  against them (no model: not sent), so walking into a pole in MP is corrected by the server; two players can't share a
+  pole's pass-through (the first holds it); props (Box3D) don't collide with them. Melee on a pole untested in VR.
+- **Textures (8):** the tube shader's `Pattern` (fragment, per pixel: value noise; wood grain, brushed steel with joints).
+  Screenshot kit scratch ropes8a_poles.png.
+- **Hands (4):** `ropeGrip` (grip channel on the axis, out along the palm's normal) and `ropeHeld` (a cylinder for the
+  grasp) in vr_view_hands.cpp, shared by VR and flat (another player's hands: not changed, they come from his snapshot).
+  Deepest drawn vertex in the pole: 1.42 -> 0.00 units (VR play, steady); flat play hanging still: fingertips 0.44 (bound
+  0.5; open: the flat curls press the fingertips past the grasp's stops).
+- Tests: vr_pole_solid_test 7/0; rope_climb_test.sh rope_climb 11/0, pole_wood 10/0, pole_metal 10/0, pole_monkey 6/0;
+  rope_flat_test.sh 6/0, pole 5/0, strungpole 4/0; rope_hands_test.sh 6/0; vr_rope_test 16/0. Not run: mp ropes suites.
