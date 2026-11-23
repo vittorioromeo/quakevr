@@ -10356,3 +10356,23 @@ has the table.
   share, qp_hist.py, qp_batches.py for `vr_gl_passes`).
 - **Next:** the world's own ~8 ms at 0.65 (its shading per pixel: the scene is fill-bound) and your rig's 2.5 ms (the
   body's skin form, the held gun close to the eyes); his call whether the 72 Hz floor goes to 0.55 in fights.
+
+## flatpolish: hub lecterns in Select Campaign's order; flat swimming's open hands, sounds, bubbles; the parry's palm down (agent/flatpolish, 2026-11-23)
+
+His flat feedback 2026-11-23, items 1, 7, 8. FLATPLAY.md, "Swimming strokes", "Blade grip in the guard".
+- **Hub** (`vrstart_gen.py` CAMPAIGNS): the lecterns west to east in Select Campaign's order (vr_menu.cpp `pageCampaigns`:
+  vr_gamedir.cpp `campaigns[]` by index, then Arena Mode): Quake, Scourge, Dissolution, DotP, DotM, Dawn, AD, Dwell, Quoth,
+  Arena. The "MODS", "MOD AND ARENA" and "Every campaign, and what its data needs" boards removed; the campaign tip's target
+  is Quake's lectern. Rebuilt (final, 592 s; id WAD made locally). hub_start_test 7/0; kit scratch flatpolish_hub.png.
+- **Swimming** (`vr_flatswim.cpp`; `vr_view.cpp`'s finger curls): a free swimming hand open, fingers together, palm a little
+  cupped (`vr_flat_swim_cup` 0.15, by its share of the stroke: `flatswim::openShare`); each stroke's sound as its power
+  starts (`vr_flat_swim_sound` 0.5: the headset's swim_soft / swim_hard whoosh under water, a stroke recording at the
+  surface; client-side, heard in the head); bubbles off the hands through the power under water (`vr_flat_swim_bubbles` 1,
+  `particles::swimBubbles`: additive drops rising, carried mostly with the swimmer: left in the water he passed them
+  unseen). The report's "water:" line. flatswim_test 40/0 (new: hands open 1.00 / 1.00, a sound under water, 14 bubbles in
+  the forward probe, the gun hand closed). flatpolish_swim.png (bubbles as white specks). Not done: surface splash particles.
+- **Parry palm** (`twohand::bladeGripHand`, flat only; `vr_flat_parry_blade_palm` 1): the free hand rolled about the blade to
+  palm down (drawn palm z 0.88 -> -0.98). `steadyOther`'s blend keeps each end's quaternion on last frame's side
+  (`bladeBlend`): the shortest-way slerp flipped near the half turn (148 degrees in a frame at the let-go). VR unchanged (the
+  tracked hand's least turn; no fixed hotspot pose). flatbash_test 16/0 (new palm check; turns 11 in, 20 out). Shared:
+  `flatplay::handFacing` / `palmOf` (the strokes' own handAngles moved there). flatpolish_parry.png.
