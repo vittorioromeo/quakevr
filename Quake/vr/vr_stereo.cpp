@@ -2216,12 +2216,6 @@ extern "C" void VR_OverrideProjection(float matrix[16])
     // desktop's near plane (up to 4 units, 12 cm) cut them open, and 1 unit (3 cm) still cut a shouldered gun's
     // stock and receiver. Reversed Z in a float depth buffer keeps the precision far away at any near plane; a
     // 24-bit one loses it below 1 unit (held items are never cut anyway: vr_nearclip_held).
-    setProjectionNear(matrix, VR_EyeNearPlane());
-}
-
-// The eyes' near plane (the projection's above): vr_nearclip, at least 1 unit on a 24-bit depth buffer.
-extern "C" float VR_EyeNearPlane()
-{
     const unsigned depth = (stereo::spectatorView ? stereo::spectatorTargets : stereo::eyeTargets).depth;
-    return CLAMP(depth == GL_DEPTH32F_STENCIL8 ? 0.02f : 1.f, vr_nearclip.value, 4.f);
+    setProjectionNear(matrix, CLAMP(depth == GL_DEPTH32F_STENCIL8 ? 0.02f : 1.f, vr_nearclip.value, 4.f));
 }

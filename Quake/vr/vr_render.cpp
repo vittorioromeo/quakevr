@@ -567,61 +567,6 @@ extern "C" int VR_ViewEntityGroup(const entity_t* e)
     return view::drawGroup(e);
 }
 
-// qlrz2: vr_gl_clamp_last on (-1: under OpenGL ES, the Quest).
-static bool clampLastOn()
-{
-    const float v = vr_gl_clamp_last.value;
-    return v < 0.f ? VR_GLESCompat() != 0 : v != 0.f;
-}
-
-// qlrz2: e (your own model) is of a model drawn with depth clamp in a recent view: the opaque pass draws it after the
-// other models, not before the world (gl_rmain.c R_DrawEntitiesOnList): on Adreno a depth-clamped draw ends the
-// low-resolution depth (LRZ) for the rest of the pass. Kept by model (the two holsters swap their entity_t between
-// frames), for a few views (r_framecount): both eyes of the last frame. The order of opaque, depth-tested draws does
-// not change the picture; a model whose clamp changed takes its new place within a frame.
-struct NearClamp
-{
-    const qmodel_t* model;
-    int framecount; // r_framecount when an entity of it was last drawn clamped
-};
-struct NearClamps
-{
-    static constexpr int size = 32; // (your own models: a few dozen at most)
-    static constexpr int views = 4; // (R_SetupView counts each eye's view and any other)
-    NearClamp slots[size];
-    int next; // the slot a new model takes (round robin)
-} nearClamps;
-
-static void nearClampKeep(const entity_t* e)
-{
-    for(NearClamp& s : nearClamps.slots)
-    {
-        if(s.model == e->model)
-        {
-            s.framecount = r_framecount;
-            return;
-        }
-    }
-    nearClamps.slots[nearClamps.next] = {e->model, r_framecount};
-    nearClamps.next = (nearClamps.next + 1) % NearClamps::size;
-}
-
-extern "C" int VR_AliasClampLast(const entity_t* e)
-{
-    if(!clampLastOn() || !e || !e->model)
-    {
-        return 0;
-    }
-    for(const NearClamp& s : nearClamps.slots)
-    {
-        if(s.model == e->model)
-        {
-            return r_framecount - s.framecount <= NearClamps::views && VR_IsViewEntity(e) ? 1 : 0;
-        }
-    }
-    return 0;
-}
-
 // What you hold, right at the eyes (vr_nearclip_held): 1 its parts nearer than the near plane are drawn at it (depth
 // clamp) rather than cut away, which showed the world through a shouldered gun; 2 also both sides of it while the eye
 // is inside its bounds, so a gun pushed into the face blocks the view with its inside. In a headset and in flatscreen play.
@@ -641,39 +586,18 @@ extern "C" int VR_AliasNearEye(const entity_t* e, const float matrix[16], const 
     // The eye in the model's own space (the vertices' before their packing: scale and scale_origin), against its
     // bounds over every frame.
     const aliashdr_t* hdr = static_cast<const aliashdr_t*>(aliashdr);
-    const glm::mat4 m = glm::make_mat4(matrix);
-    const glm::vec4 v = glm::inverse(m) * glm::vec4{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2], 1.f};
+    const glm::vec4 v = glm::inverse(glm::make_mat4(matrix)) *
+                        glm::vec4{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2], 1.f};
     constexpr float margin = 0.25f; // model units: an eye just outside a face
-    bool inside = true;
-    float dist2 = 0.f; // (qlrz2) the eye's distance to the bounds in world units (the matrix's scale on each axis)
     for(int i = 0; i < 3; ++i)
     {
         const float p = v[i] * hdr->scale[i] + hdr->scale_origin[i];
-        inside = inside && p >= e->model->mins[i] - margin && p <= e->model->maxs[i] + margin;
-        const float out = za::max(za::max(e->model->mins[i] - p, p - e->model->maxs[i]), 0.f);
-        const float world = out / (hdr->scale[i] != 0.f ? hdr->scale[i] : 1.f) * glm::length(glm::vec3{m[i]});
-        dist2 += world * world;
-    }
-    if(inside)
-    {
-        nearClampKeep(e);
-        return 3;
-    }
-    // qlrz2 (vr_gl_clamp_last): no clamp where it cannot show. A point nearer than the near plane and inside the view
-    // is within near * sqrt(1 + tan^2 + tan^2) of the eye (under 3 near planes for any headset's view); 4 near planes
-    // and 4 units more for a posed model's parts outside its authored bounds. Only in the eyes (flatscreen play's near
-    // plane is its own).
-    if(clampLastOn() && VR_RenderingEye())
-    {
-        const float reach = 4.f * VR_EyeNearPlane() + 4.f;
-        const bool clamped = dist2 < reach * reach;
-        if(clamped)
+        if(p < e->model->mins[i] - margin || p > e->model->maxs[i] + margin)
         {
-            nearClampKeep(e);
+            return 1;
         }
-        return clamped ? 1 : 0;
     }
-    return 1;
+    return 3;
 }
 
 extern "C" void VR_AliasPreTransform(const entity_t* e, float matrix[16])
