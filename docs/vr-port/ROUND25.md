@@ -11554,6 +11554,50 @@ beta2's re-signed APK and the shipped progs.dat (8a409520...) back. Scripts (not
   `Android/data/com.vittorioromeo.quakevr/files/quakevr`'s `*.sav` + `ironwail.cfg`, uninstall, Setup, copy back).
   Quest 3S untested (a hub-crash report being looked at); Standalone experimental.
 
+## lance3: the Crystal Lance's VR feedback: combat and feel (agent/lance3, 2026-11-23)
+
+His VR notes vrtesthall_2026-11-23_22-59-42 .. 23-26-51 (nine items). New tunables (Debug > Tunables, after Crystal
+Lance Bolt Linger): `vr_dw_lance_push` 1, `_hit_sparks` 24, `_hit_smoke` 6, `_embed_length` 5, `_embed_tip` 15,
+`_embed_speed` 0, `_shake_charge` 0.05, `_shake_fire` 0.3, `_shake_time` 0.35, `_haptic_charge` 0.15, `_haptic_fire`
+0.9, `vr_pole_grip_turn` 1.
+- **No empty click** (1): W_AttackImpl returns silently for the Lance without cells (as Mjolnir's); DW_LanceChargeFrame
+  and DW_FireVariant's empty paths are silent too.
+- **Tip stab** (2) and **thrown point first** (3): weapons.txt slot 55 `embed "1"` (a point; its tip the muzzle anchor),
+  so the engine's embedding and point-first settling (vr_box3d_step.cpp pointAlign) treat it as a sword. Shallow:
+  vr_axestick.cpp `pointLength` counts only `vr_dw_lance_embed_length` units of it as its blade (the swords' depth
+  shares, 30-80%, of 5 units), held or thrown. QC VR_Embed_Blow: the Lance's own least speed (`_embed_speed`, 0: the
+  swords') and only a stab struck within `_embed_tip` % of its blow line from the tip; its keys read from
+  dw_lance.mdl#vr (WeaponIdToModel gave the lightning gun's).
+- **Flipped grip** (4): `view::heldShotAngles` (vr_view.cpp): a pole weapon's aim turned by heldReverseTurn as drawn
+  (vr_twohand's blade line's way); the move's shotRot, your beam's drawn end and vr_status use it. The move's muzzle is
+  the middle crystal's tip as drawn (lancecharge::boltStart; flat and VR).
+- **Off hand turns about the pole** (5): vr_twohand.cpp `poleTurn` in freeHand (FREE_POLE, VR only): the swing-twist of
+  the tracked hand's turn since it took hold, about the pole's axis, times `vr_pole_grip_turn`; its place turned round the
+  pole's line with it. Flat's spear pose (flatsight's pin, vr_flat_pole_*) untouched.
+- **Shake** (6): vr_lancecharge.cpp `shake` (yours): a tremble growing with the charge and a shake dying away after it
+  fires, added in vr_weaponfx.cpp recoilOffset as a stream's (the slot taken before the first shot); buzzes
+  (`haptics::pulse`) every 50 ms while charging and one as it fires (QC's own pulses kept). vr_debug_gunfx's charge prints
+  gain "shake most N, buzzes N".
+- **Barrel heat all round** (7): the ramp was along the model's x; the spear's pole lies along (0.34 0 0.94), so one side
+  of the head lit. vr_hotblade.cpp barrelInstance: a grip-to-muzzle line off x (cos < 0.7) ramps along that line, its
+  coefficients in HotBlade xyz (a barrel's fragment never reads HotBlade); vr_glsl_alias.h's vertex step uses them. Other
+  guns unchanged (x).
+- **Beam as an attack** (8) and **impact** (9): dw_fire_lance traces as LightningDamage (MOVE_HITGIBS | MOVE_HITMODEL,
+  lag compensated, stealth graze), pushes what it meets (VR_ShotPush, a bolt's kind x5 x`_push`), damages through
+  VR_LightningHit (heads and limbs pop as a bolt's: vr_decap_weapon set; shock, blood); where it stops: sparks, smoke and
+  the bolt's lasting burn (VR_Lightning_Burn).
+- **Tests**: dwell_lance_test.sh (new section 9: flipped, the shot along the crystal; the beam's push; charge and fire
+  shake and buzzes; no empty click with the trigger held): 47/1, then the flipped threshold set to 10 deg (6.3 measured,
+  174.5 before; upright 3.4). Sections 1-8 pass unchanged (the bolt 0.40 from the charge as it fired). Section 6's thrust
+  (the head, 1.00 of the line, 5 m/s) printed no embed verdict with vr_debug_embed 1: whether the Lance's stab now stays
+  in is not shown by a test (open).
+- **Follow-up**: dwell_lance_test.sh 49/0 (section 6 now checks the tip stab stays in: 1.5 units, vr_debug_axestick's
+  "embedhold: Thunderbolt held by hand 1, N units in"; vr_debug_embed's verdicts go to the screen, not the console).
+  `vr_dw_lance_push` default 4 (120 N s; 1 moved a crate 0.3 units). New vr_ad_test 225 (dwpush: a crate and a ragdoll,
+  their places before and after a test-aimed beam, `dw_lance_aim_test`) is NOT in the suite: unreliable so far (the
+  crate's spot varied between runs, the ragdoll's root bone read 552 units moved, likely through the floor); open.
+- Not verified here: the twist and the glow by eye in a headset; an actual ragdoll or prop pushed by the beam (the push
+  path runs: "shot push: kind 4"); a thrown Lance's flight by eye.
 ## animfix1123: armed humanoids unposed on big maps, scenes' leaked toggles (2026-11-24)
 
 - **Stuck arms, floating guns (his notes 2026-11-23 23:36:33, 23:34:15, 23:03:39, all ad_crucial).** The client kept
