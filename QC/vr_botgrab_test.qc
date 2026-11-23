@@ -11,6 +11,8 @@
 //   weapon is taken (its hold, its weapon in his hand). 18: the same point, where nothing must be taken hold of.
 // - 23: the hold of 16 with every holster of the human and the victim filled, the same gun in the same holster
 //   (fbmisc1123, mp_test.py botgear: the copies' holstered guns against the human's own).
+// - 24: the hold of 16 with each pair of holsters holding one gun twice (shoulders revolvers, hips nailguns, uppers
+//   shotguns), on both: each left piece against its right one (animfix2: vr_mp_gearcheck's mirror).
 // Each grab ends with `dmtest: N passed, M failed` (the victim still held there until then).
 
 float vr_bg_on;      // the running test's number
@@ -167,7 +169,14 @@ void(float ask) VR_BG_Run =
         VR_FNK_SetHolsters(vr_bg_victim, WID_NAILPISTOL, WID_REVOLVER, WID_SHOTGUN, WID_NAILGUN, WID_SUPER_SHOTGUN,
             WID_GRENADE_LAUNCHER);
     }
-    if(ask == 16 || ask == 23)
+    if(ask == 24 && !vr_bg_filled)
+    {
+        // (animfix2) the same gun in both holsters of a pair, on both: left against right (vr_mp_gearcheck's mirror)
+        vr_bg_filled = TRUE;
+        VR_FNK_SetHolsters(vr_dmt_human, WID_REVOLVER, WID_REVOLVER, WID_NAILGUN, WID_NAILGUN, WID_SHOTGUN, WID_SHOTGUN);
+        VR_FNK_SetHolsters(vr_bg_victim, WID_REVOLVER, WID_REVOLVER, WID_NAILGUN, WID_NAILGUN, WID_SHOTGUN, WID_SHOTGUN);
+    }
+    if(ask == 16 || ask == 23 || ask == 24)
     {
         if(!vr_bg_ready && vr_bg_n >= VR_DMT_HOLD)
         {
@@ -186,7 +195,7 @@ void(float ask) VR_BG_Run =
 void() VR_BotGrabTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_dm_test);
-    if((ask >= 16 && ask <= 18) || ask == 23) { VR_BG_Run(ask); }
+    if((ask >= 16 && ask <= 18) || ask == 23 || ask == 24) { VR_BG_Run(ask); }
     else if(vr_bg_on) { VR_BG_End(); }
 };
 #endif

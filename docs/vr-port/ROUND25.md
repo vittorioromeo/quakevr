@@ -11728,3 +11728,37 @@ Lance Bolt Linger): `vr_dw_lance_push` 1, `_hit_sparks` 24, `_hit_smoke` 6, `_em
   hips side by side, and his own left hip from above.
 - **Wall glue (his note vrtutorial 23:14:32): not started** (out of budget): an A/B test with the active ragdoll's lean
   off is left.
+
+## animfix2: copies' left sheaths mirrored, the wall glue measured (branch agent/animfix2, 2026-11-24)
+
+- **scenario_check.sh in full** (after animfix1123's SCNLEAK exclusions): 181 scenes, 0 failed, 0 leaks, 0 errors.
+- **A copy's left holsters (his note dm3 23:05:16).** Placement and turns were the exact mirror image all along (the new
+  check: 0.000 m, 0.0 degrees, left against right, the copy's and yours), but the copy's sheaths were drawn wrong: the
+  alias renderer asks `mpavatar::find` whether a copy's piece is mirrored (VR_AliasMirrored: the y flip and the winding),
+  and `find` covered his hands, weapons, holstered guns, parts and plates but not his worn gear (`Drawn::gear`). His
+  left sheaths (hip and chest) were drawn with their mirrored angles unmirrored: the right sheath turned round, its
+  belt loop out on the wrong side. `find` now covers `gear`. Your own were right (view::find covers every view entity).
+- **Check:** `vr_mp_gearcheck` adds `mirror`/`mplace`/`maxis`/`mflags` (each pair's left piece against its right one,
+  reflected across the carrying part's middle plane: the pelvis's for the hips, the chest's for the rest; the guns only
+  when the pair holds the same gun; `mflags`: the left drawn mirrored and the right not, as the renderer finds them) and
+  `ownmirror`... for yours (printed only: your hips ride your thighs, posed unevenly in a stride); `mirrored` (the
+  copy's: at most 0.02 m, 3 degrees, flags right) is part of `ok`. New `vr_dm_test 24`
+  (16's hold, each pair one gun twice: shoulders revolvers, hips nailguns, uppers shotguns). Before the fix, mp_dm_passive
+  with `vr_dm_test 24`: mirror=5 mplace 0.000 maxis 0.0 **mflags=0**, ok=0; after: mflags=1, ok=1 (own 4 pairs, 0.000/0.0).
+  Eyeshots (`vr_mock_camera 0 0.95 -1.05 25 0`): the bot's left sheath's loop stood out beside its gun, now tucked as the
+  right's.
+- **Wall glue (his note vrtutorial 23:14:32): measured, not changed.** `vr_ragsmash_test 2` (Debug > Tests: Shoved into
+  a Wall: Glue A/B; vrfiringrange, `sv_random_seed 1`): a grunt and a dog shoved (two hands, aware, every shove a
+  knockdown) into the nearest wall from 8 units off it, 3 times each under: all on / the active ragdoll off
+  (vr_ragdoll_active, _stagger, _getup, _env 0) / the wiggle off; and a control, all on, shoved away from the wall onto
+  the open floor. Means (ragdoll s, propped against the wall s, its middle's height over the floor while a ragdoll):
+  grunt all on 5.50, 4.07, 19.1; active off 3.09, 2.16, 23.1; wiggle off 5.62, 4.03, 19.3; open floor 5.56, 0, 9.3.
+  Dog all on 2.86, 2.59, 26.4; active off 2.43, 2.38, 27.2; wiggle off 2.76, 2.53, 24.4; open floor 2.33, 0, 10.8.
+  So: knocked down against a wall, both kinds lie propped up on it (their middle at about standing height, against
+  9-11 lying) for nearly their whole knockdown, then get up (every trial up within 10 s; the longest single propped run
+  2.6 s on average, under 4 s). The active ragdoll and its wall lean (env Lean is for deaths only) and the wiggle make no
+  difference: it is the plain knockdown ragdoll leaning on the wall (ragdoll friction `vr_ragdoll_friction` 0.8 with the
+  wall's 0.6 holds it rather than letting it slide down). Not a clear bug: his call (a slide down the wall while knocked
+  down: lower friction against walls, or a push off it; a next test variant with `tune vr_ragdoll_friction 0.2`).
+  `wallglue: 24 passed, 0 failed` (checks: each trial up again within 10 s, never propped over 7 s at a time).
+  Scene `wall_shove` (vrtesthall's south wall: a grunt and a dog with their backs to it, every shove a knockdown).
