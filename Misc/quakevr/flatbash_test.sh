@@ -47,6 +47,9 @@ for k in "sword guard" "sword let go"; do
   t=$(turned "$k")
   check $([ -n "$t" ] && awk -v t="$t" 'BEGIN{exit !(t <= 20)}' && echo 1 || echo 0) "$k: the drawn off hand turned at most ${t:-?} degrees a frame (20)"
 done
+# Its palm down over the blade (vr_flat_parry_blade_palm; his note 2026-11-23: it was up, under the blade: z 0.88).
+pz=$(block "sword guard" | grep -a "blade grip: the off hand" | grep -ao 'palm z -\?[0-9.]*' | grep -ao -- '-\?[0-9.]*$' | head -1)
+check $([ -n "$pz" ] && awk -v z="$pz" 'BEGIN{exit !(z <= -0.7)}' && echo 1 || echo 0) "sword: the drawn free hand's palm down on the blade (palm z ${pz:-?}, -1 straight down)"
 p=$(posed "sword guard"); d=$(drawn "sword guard")
 check $([ -n "$p" ] && awk -v p="$p" 'BEGIN{exit !(p >= 0 && p <= 1)}' && echo 1 || echo 0) "sword: the posed free hand on the hotspot (${p:-?} u)"
 check $([ -n "$d" ] && awk -v d="$d" 'BEGIN{exit !(d >= 0 && d <= 6)}' && echo 1 || echo 0) "sword: the drawn free hand on the blade at the hotspot (${d:-?} u, the half-sword grip's slide along the blade)"

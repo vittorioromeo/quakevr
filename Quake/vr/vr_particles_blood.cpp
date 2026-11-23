@@ -532,6 +532,32 @@ void smoulderSmoke(const glm::vec3& org, const glm::vec3& out, int count, float 
     });
 }
 
+void swimBubbles(const glm::vec3& org, const glm::vec3& vel, float count)
+{
+    if(!vr_particles.value || count <= 0.f || !ensureAtlas())
+    {
+        return;
+    }
+    // Air shaken off a stroking hand: small clear balls, thrown along with the hand, slowed by the water and rising,
+    // wobbling, gone in a second or so.
+    make(count, [&](Particle& p, int) {
+        // (Added to the scene, as their glints are: lit as the water is, alpha blended, they were lost in its murk.)
+        p.cell = CellDrop;
+        p.additive = true;
+        p.color = glm::vec4{0.55f, 0.62f, 0.68f, vrand::range(rng, 0.5f, 0.8f)};
+        const float life = vrand::range(rng, 0.7f, 1.4f);
+        p.die = cl.time + life;
+        p.scale = vrand::range(rng, 0.3f, 0.6f);
+        p.type = Custom;
+        p.fade = -p.color.a / life;
+        p.grow = 0.05f;
+        p.drag = 1.f;
+        p.acc = gravity(-0.06f) + inBox(6.f);
+        p.org = org + inBox(1.5f);
+        p.vel = vel * vrand::range(rng, 0.85f, 1.05f) + inBox(4.f) + glm::vec3{0.f, 0.f, vrand::range(rng, 3.f, 8.f)};
+    });
+}
+
 void torchDrip(const glm::vec3& org, const glm::vec3& vel)
 {
     if(!enabled())

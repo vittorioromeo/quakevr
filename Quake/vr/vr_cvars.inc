@@ -3795,6 +3795,8 @@ QVR_CVAR(vr_rope_swing_drag, "0.15", CVAR_ARCHIVE | QVR_RULE)    // per second, 
 QVR_CVAR(vr_rope_pump, "300", CVAR_ARCHIVE | QVR_RULE)           // units/s/s the stick (or WASD) pushes a climber's swing on a rope its way (pumping it, rope to rope); 0: none
 QVR_CVAR(vr_rope_swing_cap, "350", CVAR_ARCHIVE | QVR_RULE)      // units/s at the hands the pump builds a rope's swing to at most (a push, a jump onto it, can swing it faster)
 QVR_CVAR(vr_rope_jump, "200", CVAR_ARCHIVE | QVR_RULE)          // units/s up a jump off a rope adds to the rope's swing at the hands (jump while holding one); 0: a jump lets go only
+QVR_CVAR(vr_pole_jump, "270", CVAR_ARCHIVE | QVR_RULE)          // units/s up a jump off a climbable pole gives (ropes10: a normal jump's; ropes keep vr_rope_jump)
+QVR_CVAR(vr_pole_jump_push, "200", CVAR_ARCHIVE | QVR_RULE)     // units/s level a jump off a pole pushes him away from it (under a level pole: the view's way across it)
 QVR_CVAR(vr_rope_grunt, "0.4", CVAR_ARCHIVE | QVR_RULE)         // volume (0..1) of the player's short exertion grunt as a headset's pull lifts him up a climbable rope (once a grip, when the body has risen 15 cm over its hold; at most every 0.6 s; vr_climb.cpp ropePullGrunt; ropes6); 0 off
 QVR_CVAR(vr_rope_grunt_sound, "2", CVAR_ARCHIVE | QVR_OWN)      // the rope pull's grunt (the mantle's list, vr_climb.cpp mantleGrunts): 0 the jump's, 1 a hard landing's, 2 the jump's deeper (the default: told apart from a jump off the rope), 3 a hard landing's deeper, 4 a short pain grunt
 QVR_CVAR(vr_rope_hand_grip, "2", CVAR_ARCHIVE | QVR_OWN)        // a hand on a climbable rope drawn gripping it (the rope through the fist, the knuckles outwards: the right hand's to the right, the left's to the left; vr_climb.cpp ropeTurn): 1 in flat-screen play only, 2 in VR too (ropes6); 0 as on a ledge (vr_climb_hand_pitch/yaw/roll), display only
@@ -4626,11 +4628,11 @@ QVR_CVAR(vr_slide_camera, "1", CVAR_ARCHIVE)            // vr_slide: the view (t
 QVR_CVAR(vr_slide_camera_time, "0.15", CVAR_ARCHIVE)    // vr_slide_camera: seconds (0.05..0.5) the view takes down and back up (95% of the way; critically damped, no overshoot)
 QVR_CVAR(vr_flat_speed_fov, "1", CVAR_ARCHIVE)          // flatscreen play: faster than the run along the floor (a slide, a bunny hop chain) the view widens, eased (vr_flat_speed_fov_*; vr_flatspeedfov.cpp); 0 off
 QVR_CVAR(vr_flat_speed_fov_max, "1.2", CVAR_ARCHIVE)    // the speed FOV: the field of view times this at vr_flat_speed_fov_top and faster (1..1.5)
-QVR_CVAR(vr_flat_speed_fov_from, "340", CVAR_ARCHIVE)   // the speed FOV: none up to this speed along the floor (units/s; 320: the run, sv_maxspeed)
+QVR_CVAR(vr_flat_speed_fov_from, "350", CVAR_ARCHIVE)   // the speed FOV: none up to this speed along the floor (units/s; 320: the run, sv_maxspeed)
 QVR_CVAR(vr_flat_speed_fov_top, "420", CVAR_ARCHIVE)    // the speed FOV: all of vr_flat_speed_fov_max from this speed (units/s), smoothstep between (400: a slide's start, the run and its boost; a bunny hop chain passes it)
-QVR_CVAR(vr_flat_speed_fov_ease, "0.15", CVAR_ARCHIVE)  // the speed FOV: seconds (time constant) it widens over as the speed comes (0: at once)
+QVR_CVAR(vr_flat_speed_fov_ease, "0.3", CVAR_ARCHIVE)  // the speed FOV: seconds (time constant) it widens over as the speed comes (0: at once)
 QVR_CVAR(vr_flat_slide_fov_bonus, "0.15", CVAR_ARCHIVE)    // the speed FOV: added to its multiplier while sliding, on top of the speed's (0..0.5; 0.04 takes a level slide to about x1.1)
-QVR_CVAR(vr_flat_speed_fov_ease_out, "0.15", CVAR_ARCHIVE) // the speed FOV: seconds (time constant) it narrows back over as the speed goes (landing, stopping; 0: at once)
+QVR_CVAR(vr_flat_speed_fov_ease_out, "0.3", CVAR_ARCHIVE) // the speed FOV: seconds (time constant) it narrows back over as the speed goes (landing, stopping; 0: at once)
 QVR_CVAR(vr_flat_mantle_fov_bonus, "0.06", CVAR_ARCHIVE)    // the speed FOV: added to its multiplier while mantling (0..0.5; 0 none; 0.06: 40% of the slide's vr_flat_slide_fov_bonus; vr_flatspeedfov.cpp)
 QVR_CVAR(vr_flat_mantle_fov_ease, "0.15", CVAR_ARCHIVE)     // the mantle's FOV kick: seconds (time constant) it widens over as a mantle starts (0: at once)
 QVR_CVAR(vr_flat_mantle_fov_ease_out, "0.25", CVAR_ARCHIVE) // the mantle's FOV kick: seconds (time constant) it narrows back over after the mantle (0: at once)

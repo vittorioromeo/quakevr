@@ -46,6 +46,12 @@ void say(const char* fmt, ...);
 // swords', the dagger's more; unset or 0: 1).
 [[nodiscard]] float pointLeniency(edict_t* ent);
 
+// A blade just thrown (`ent`, its origin, angles and velocity; `spin` its spin, rad/s, world axes): its arc followed to what
+// it meets (`flight` s later, at `at`), and `spin` set to the spin about the same axis nearest its own (within `least` ..
+// `most` times it) that turns what cuts (an edge's facing, a point's line) round to its way there: it arrives edge or point
+// first (the flat throw's, QC VR_FlatThrow_Throw: no wrist to time it). False: not a blade, no spin, or nothing met in 3 s.
+[[nodiscard]] bool timeSpin(edict_t* ent, float least, float most, glm::vec3& spin, float& flight, glm::vec3& at);
+
 // Embedded blades, stage 2 (QC/vr_embedhold.qc): the blade `ent` (a thrown weapon just made, at rest) a hand's blow has just
 // put into the body `host` at `at`, going at `vel` (units/s). Set where the hand's weapon is drawn (`hand`; a player not the
 // local one: where QC put it), its checks made (an axe's edge first, not its side; a plate: its spark): stuck, by its point
