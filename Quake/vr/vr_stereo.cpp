@@ -157,6 +157,8 @@ gfx::RenderTarget resample;
 bool resampling = false; // this frame's eyes are
 
 bool renderingEye = false;
+int directForm = 0; // this eye drawn straight into its image (directEye): 0 no, 1 the composite's depth, 2 its own
+int directNoted = 0; // the form the console last said the eyes are drawn with (-1 wanted but not possible)
 bool spectatorView = false; // rendering the window's spectator camera (as an eye)
 int currentEye = 0;
 bool firstEye = false; // no other eye rendered before it this frame
@@ -1161,6 +1163,11 @@ bool isRenderingEye()
     return renderingEye;
 }
 
+int directEye()
+{
+    return renderingEye ? directForm : 0;
+}
+
 int eye()
 {
     return currentEye;
@@ -1539,13 +1546,40 @@ extern "C" int VR_RenderView()
     // into its swapchain image, the image in place of the composite target's colour, no post-process (no tone curve:
     // colours over 1 clip). Only where the eye is drawn at the image's size or into its lower left part (vr_eye_subimage),
     // one pass an eye (not single-pass stereo), and the image acquired before the scene.
-    const bool direct = vr_xr_direct.value != 0.f && VR_GLESForm(VR_GLES_FORM_GLSL) && !singlePass && !splitTargets &&
-                        !stereo::resampling && allocatedWidth == drawnWidth && allocatedHeight == drawnHeight;
     // The Quest's runtime crashed in xrEndFrame (C4p, QUEST_PLAN.md 6w) when foveated eye images (vr_xr_foveation) were
     // acquired after the scene, or their old colours invalidated: with foveation they are acquired first, not invalidated.
     // (vr_xr_foveation_probe 1: late acquire and the invalidate allowed anyway, to narrow the crash: C4q, 6x)
     const int fovProbe = static_cast<int>(vr_xr_foveation_probe.value);
-    const bool xrFoveated = VR_Android() && vr_xr_foveation.value > 0.f && COM_CheckParm("-xrfoveation") && !(fovProbe & 1); // (guarded)
+    const bool xrFoveation = VR_Android() && vr_xr_foveation.value > 0.f && COM_CheckParm("-xrfoveation"); // (guarded)
+    const bool xrFoveated = xrFoveation && !(fovProbe & 1);
+    // qfov: the runtime's foveation reaches the scene only drawn straight into the images, so with it the eyes are, with
+    // a depth renderbuffer of their own (2; the tiler keeps it on chip, as Meta's samples do), unless vr_xr_direct says
+    // otherwise. Drawn there the scene's shaders roll their colours off themselves (VR_SceneTone) and the in-tile pass
+    // grades and dithers (tonemap::drawInTile): only while that is all the post-process would do (tonemap::postInScene;
+    // no bloom, no OIT, not under water) and the eye fits in its image (at its size, or its lower left part:
+    // vr_eye_subimage, dynamic resolution's buckets).
+    const int directWanted = vr_xr_direct.value != 0.f ? (vr_xr_direct.value >= 2.f ? 2 : 1) : xrFoveation ? 2 : 0;
+    const glm::vec3 wobble = water::viewWobble(); // (the last frame's liquid: the eye's own is known in its view)
+    const char* const notDirect = directWanted <= 0                       ? ""
+                                  : !VR_GLESForm(VR_GLES_FORM_GLSL)       ? "not OpenGL ES"
+                                  : singlePass                            ? "single-pass stereo"
+                                  : splitTargets                          ? "split eye targets"
+                                  : stereo::resampling                    ? "resampled into the image"
+                                  : drawnWidth > imageWidth || drawnHeight > imageHeight ? "larger than the image"
+                                  : !tonemap::postInScene()               ? "an exposure, the headset gamma or contrast, or no in-tile grade"
+                                  : vr_bloom.value != 0.f                 ? "bloom"
+                                  : R_GetEffectiveAlphaMode() == ALPHAMODE_OIT ? "OIT"
+                                  : wobble.y + wobble.z > 0.f             ? "under water"
+                                                                          : nullptr;
+    const bool direct = notDirect == nullptr;
+    if(const int noted = direct ? directWanted : directWanted > 0 ? -1 : 0; noted != stereo::directNoted)
+    {
+        stereo::directNoted = noted;
+        Con_Printf("VR: eyes %s%s%s\n", noted > 0 ? va("drawn straight into the headset's images (form %d)", noted)
+                                         : noted < 0 ? "through the post-process (straight into the images wanted, not now: "
+                                                     : "through the post-process",
+            noted < 0 ? notDirect : "", noted < 0 ? ")" : "");
+    }
     const bool late = lateAcquire && !direct && !xrFoveated;
     if(singlePass)
     {
@@ -1579,10 +1613,12 @@ extern "C" int VR_RenderView()
         }
 
         stereo::useView(stereo::eyeTargets, drawnWidth, drawnHeight);
-        const bool directOwn = direct && eyeImage && vr_xr_direct.value >= 2.f;
+        const bool directOwn = direct && eyeImage && directWanted >= 2;
+        stereo::directForm = direct && eyeImage ? directWanted : 0;
         if(directOwn)
         {
-            stereo::bindDirectTarget(eyeImage, drawnWidth, drawnHeight);
+            // (allocated at the targets' size, not the drawn one: dynamic resolution's buckets draw a part of it)
+            stereo::bindDirectTarget(eyeImage, allocatedWidth, allocatedHeight);
             framebufs.composite.fbo = stereo::directTarget.fbo;
         }
         else if(direct && eyeImage)
@@ -1604,6 +1640,10 @@ extern "C" int VR_RenderView()
         tonemap::glProbeScene(true); // (vr_gl_probe)
         stereo::foveateEye(frame.eyes[eye].fov); // (vr_gl_foveation)
         V_RenderView();
+        if(stereo::directForm) // (no GPU scope of its own: in the scene's render pass, the tile still on chip)
+        {
+            tonemap::drawInTile(framebufs.composite.fbo, drawnWidth, drawnHeight); // (the image's framebuffer, as drawn)
+        }
         tonemap::glProbeScene(false);
         stereo::invalidateSceneDepth(); // (vr_gl_invalidate)
         temporal::endEye();
@@ -1615,6 +1655,7 @@ extern "C" int VR_RenderView()
         // own colour wasn't drawn this frame, so the post-process reading it would put an old picture over the image.
         // The composite target gets its own colour back.
         const bool drawnDirect = direct && eyeImage;
+        stereo::directForm = 0; // (the scene's: not the UI's, nor the spectator camera's after the eyes)
         if(directOwn)
         {
             framebufs.composite.fbo = stereo::eyeTargets.fb.composite.fbo;

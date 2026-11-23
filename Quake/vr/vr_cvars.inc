@@ -660,6 +660,9 @@ QVR_CVAR(vr_quest_guard, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_cpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_foveation, "0", CVAR_ARCHIVE)
+// qfov: the eye images drawn straight into (their scene with it) whenever vr_xr_foveation is on (vr_stereo.cpp); 1 lets
+// the runtime lower the level while the GPU has room (XR_FOVEATION_DYNAMIC_LEVEL_ENABLED_FB), vr_xr_foveation the most.
+QVR_CVAR(vr_xr_foveation_dynamic, "0", CVAR_ARCHIVE)
 // C4q (QUEST_PLAN.md 6x; a probe): the eye swapchains' foveation create flags, read when they are made: 1 scaled bins
 // (XR_SWAPCHAIN_CREATE_FOVEATION_SCALED_BIN_BIT_FB), 0 none (Meta's GLES sample's: the runtime's choice).
 QVR_CVAR(vr_xr_foveation_flags, "1", CVAR_NONE)
@@ -667,8 +670,10 @@ QVR_CVAR(vr_xr_foveation_flags, "1", CVAR_NONE)
 // allowed with them (off with vr_xr_foveation and -xrfoveation since C4p), 2 the eye image released before it is detached
 // from the engine's framebuffer (the order before C4q).
 QVR_CVAR(vr_xr_foveation_probe, "0", CVAR_NONE)
-// C5's first path (QUEST_PLAN.md 6w; a probe, the ES profile only): 1 draws each eye's scene straight into its swapchain
-// image (no post-process: no tone curve), so vr_xr_foveation reaches the scene; one pass an eye (not single-pass stereo).
+// C5's first path (QUEST_PLAN.md 6w; the ES profile only): 1 draws each eye's scene straight into its swapchain image
+// with the composite's depth texture, 2 with a depth renderbuffer of its own (what vr_xr_foveation uses when this is 0);
+// no post-process: the scene's shaders roll colours off with the tone curve, the in-tile pass grades and dithers (qfov,
+// vr_tonemap.cpp); one pass an eye (not single-pass stereo).
 QVR_CVAR(vr_xr_direct, "0", CVAR_NONE)
 // The headset panel's pixels per eye, "WxH", for the menu's status box (the runtime's resolution and the eyes' as a
 // share of it, and its warning); "" looked up by the headset's name (Quest 2, 3, 3S, Pro, Index, Vive, Reverb G2,
