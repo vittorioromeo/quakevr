@@ -176,6 +176,10 @@ bool gunArcs(const glm::vec3& org, const glm::vec3& dir, int count, float size);
 // vr_particles 0 or vr_water_splash 0.
 void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength);
 
+// Bubbles off a swimming hand under water at `org` (flat-screen swimming's strokes, vr_flatswim.cpp), starting at
+// `vel` (units a second; jittered, slowed by the water): `count` of them (times vr_particle_mult, cut to a whole number), rising. Nothing with vr_particles 0.
+void swimBubbles(const glm::vec3& org, const glm::vec3& vel, float count);
+
 // A lava nail's streak (vr_emissive.cpp) from `from` to `to`: a hot, short-lived glowing core and a
 // few embers falling off it. Nothing with vr_particles 0.
 // A running chainsaw's exhaust smoke (Preset::ChainsawSmoke): `count` puffs at `org` going out along `dir` (a unit

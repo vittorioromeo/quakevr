@@ -1994,6 +1994,9 @@ QVR_SLIDER(vr_limbs_body_speed, "Body's Speed After", 0.f, 1.f, 0.05f, "%.2fx", 
     "stood; 1: flung as a kill) (vr_limbs_body_speed).")
 QVR_SLIDER(vr_limbs_max, "Most Limbs Lying About", 1.f, 64.f, 1.f, "%.0f", ext(1.f, 256.f),
     "Past it, the oldest go first (not one in your hand) (vr_limbs_max).")
+QVR_SLIDER(vr_gore_trim_max, "Most Settled Gore", 0.f, 128.f, 1.f, "%.0f", ext(0.f, 1024.f),
+    "Gibs, heads and limbs lying about after a fight: past this many, the farthest from you go first; none close to "
+    "you (0: no limit; on in the Standalone preset).")
 QVR_CYCLE_BYNAME(vr_limbs_prebuild, "Make Limbs as the Map Loads",
     "The Map's: the limbs of every kind of monster the map has (those waiting to appear too) are made as it "
     "loads (about 5 ms each: a tenth of a second or so more), not at their first cut (a dropped frame). And the "
@@ -3839,6 +3842,9 @@ QVR_TOGGLE_BYNAME(vr_anim_smooth_rebuild, "Rebuild From Skeleton",
     "A monster with a ragdoll rig is drawn from its skeleton every frame, with any Model Animation: each point keeps one place on its bone and moves with it, so the wobble left by the file's rounding is gone; points the skeleton fits less well (round the joints) keep the frames' places. Off: the frames' points as stored (steadied: each one's smoothest path within the file's rounding).")
 QVR_SLIDER_BYNAME(vr_rim_light, "Rim Light", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A faint light round the edges of monsters and things, in the light around them, so they stand out from dark backgrounds (0 off).")
+QVR_TOGGLE(vr_rig_plain, "Plain Own Models",
+    "Your own body, hands, held weapons and gear drawn without their surface bumps, reflections and rim light, by "
+    "the cheaper model shader (on in the Standalone preset: they cover much of the view).")
 QVR_SLIDER_BYNAME(vr_viewmodel_minlight, "Hands' Least Light", 0.f, 32.f, 1.f, "%.0f", ext(),
     "How lit your hands and weapons stay in the dark (Quake: 24).")
 QVR_TOGGLE_BYNAME(vr_weapon_reflections, "Weapon Reflections",
@@ -4782,6 +4788,10 @@ QVR_SLIDER(vr_dynres_target, "Dynamic GPU Budget", 0.5f, 1.f, 0.05f, "%.2f", noE
     "rest is left for the headset's runtime and the window). Lower: drops sooner, steadier.")
 QVR_SLIDER(vr_dynres_min, "Dynamic Lowest Scale", 0.4f, 1.f, 0.05f, "%.2f", ext(0.25f, 2.f),
     "The lowest scale Dynamic Resolution goes to under load (times the headset's resolution).")
+QVR_SLIDER(vr_dynres_min_fight, "Dynamic Lowest in Fights", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 2.f),
+    "Lower still, only in a fight: once the eyes stay over the budget at Dynamic Lowest Scale for a moment, the "
+    "scale may go down to this; back at Dynamic Lowest Scale it needs a fight again. 0: never below Dynamic "
+    "Lowest Scale.")
 QVR_CYCLE(vr_upscale, "Upscaling",
     "Below Render Scale 1: how the image is enlarged to the headset's size. FSR (AMD) and NIS (NVIDIA) "
     "keep it sharper than Bilinear.",

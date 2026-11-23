@@ -560,6 +560,10 @@ static int worldLiteBits(void)
     {
         lite |= 2;
     }
+    if(vr_gl_mediump.value != 0.f)
+    {
+        lite |= 1 << 29; // qworld: colours and light terms at medium precision (gl_shaders.c QVR_MP; the PC's mask never keeps it)
+    }
     if(vr_gl_alias_lite.value != 0.f)
     {
         lite |= 256; // C4j: the models' programs take bits 1 and 32 (gl_shaders.c GL_AliasLiteDefines)
@@ -570,6 +574,17 @@ static int worldLiteBits(void)
         // VR_AliasPlainNeeds)
         lite |= (static_cast<int>(vr_gl_alias_plain_mask.value) & 1023) << 9;
         // (C5f's bit 29, your body's own flat-lit form, gone in C5h: the usual form skips the loop, r_alias.c)
+        // qtune: the plain, gore and skin forms' variants (gl_shaders.c GL_AliasFormVariants): bit 29 without the
+        // fullbright read (a batch whose skins have none), bit 30 without the dynamic lights' loop (a batch whose lights
+        // are all added flat on the CPU: your body and, with vr_gl_alias_flat, the gore; Quake's lights only)
+        if(vr_gl_alias_nofb.value != 0.f)
+        {
+            lite |= 1 << 29;
+        }
+        if(vr_gl_alias_flat.value != 0.f && (vr_gl_quake_dlights.value != 0.f || vr_gl_alias_body.value >= 2.f))
+        {
+            lite |= 1 << 30;
+        }
     }
     if(vr_gl_world_lite.value < 2.f)
     {
@@ -1499,6 +1514,10 @@ constexpr EsPending esPending[] = {
     {"clip control (shadows, reflections, portals need it)", "gl_rmain.c, vr_lighting.cpp, vr_envmap.cpp, vr_portals.cpp", "EXT_clip_control on the Quest [?] (-glesclipcontrol), else a standard-depth path"},
 };
 
+} // namespace
+extern "C" const char* R_WorldSolidProgramName(void); // (r_world.c)
+namespace
+{
 void glesReport_f()
 {
     Con_Printf("GLES compat: %s%s\n", glsafe.esCompat ? "on (-glescompat)" : "off (start with -glescompat)",
@@ -1524,6 +1543,8 @@ void glesReport_f()
     {
         Con_Printf("  %s (%s): %s\n", p.what, p.where, p.es);
     }
+    Con_Printf("vr_gles_report: the opaque world drew last with \"%s\"; vr_retro %g, vr_retrolight %g\n",
+        R_WorldSolidProgramName(), vr_retro.value, vr_retrolight.value); // (qworld)
     Con_Printf("vr_gles_report: %d pending, %d shader errors\n", static_cast<int>(sizeof(esPending) / sizeof(esPending[0])),
         glsafe.esShaderErrors);
 }

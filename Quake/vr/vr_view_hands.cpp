@@ -3101,6 +3101,16 @@ struct LookLast
 };
 LookLast lookLast[2];
 
+// A flatscreen hand's last turns blended onto a blade it holds (steadyOther): the quaternions' sides, kept from frame to
+// frame.
+struct BladeBlend
+{
+    glm::quat from{1.f, 0.f, 0.f, 0.f};
+    glm::quat to{1.f, 0.f, 0.f, 0.f};
+    bool known{false};
+};
+BladeBlend bladeBlend[2];
+
 // setupHand's phases. What the steadying hand's pose and what its fingers wrap read.
 struct HandPose
 {
@@ -3132,6 +3142,8 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
     const int otherSlot = hp.otherSlot;
     const WorldHotspot* const heldSpot = hp.heldSpot;
     glm::vec3 bladePos = pos, bladeRot = handRot;
+    const BladeBlend lastBlend = bladeBlend[hand];
+    bladeBlend[hand].known = false;
     if(gripBlend > 0.f && twohand::bladeGrip(other) && otherSlot >= 0 &&
         twohand::bladeGripHand(s, hand,
             glm::vec3{entities.weapon[other].ent.origin[0], entities.weapon[other].ent.origin[1], entities.weapon[other].ent.origin[2]},
@@ -3152,9 +3164,26 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
         // (Flatscreen play: turned onto the blade over the grip's blend too, as it is slid there: the guard's blade grip,
         // vr_flat_parry_blade, takes and lets go of it in a fraction of a second, and the turn at once was 73 degrees in a
         // frame. A headset's hand is turned at once, as before.)
-        handRot = flatplay::active() ? basisAngles(glm::mat3_cast(glm::slerp(glm::quat_cast(anglesBasis(handRot)),
-                                           glm::quat_cast(anglesBasis(bladeRot)), za::clamp(gripBlend, 0.f, 1.f))))
-                                     : bladeRot;
+        // (The palm-down roll, vr_flat_parry_blade_palm, puts the blade's turn near a half turn from the hand's: the
+        // shortest way flipped as the guard's own turn eased out, 148 degrees in a frame. Each end's quaternion kept on
+        // last frame's side and blended without the shortest-way choice, the way goes on as it began.)
+        if(flatplay::active())
+        {
+            glm::quat from = glm::quat_cast(anglesBasis(handRot)), to = glm::quat_cast(anglesBasis(bladeRot));
+            if(lastBlend.known)
+            {
+                from = glm::dot(from, lastBlend.from) < 0.f ? -from : from;
+                to = glm::dot(to, lastBlend.to) < 0.f ? -to : to;
+            }
+            // (First, or the long way round grown to a whole turn: the short way.)
+            to = !lastBlend.known || glm::dot(from, to) < -0.999f ? (glm::dot(from, to) < 0.f ? -to : to) : to;
+            bladeBlend[hand] = {from, to, true};
+            handRot = basisAngles(glm::mat3_cast(glm::normalize(glm::mix(from, to, za::clamp(gripBlend, 0.f, 1.f)))));
+        }
+        else
+        {
+            handRot = bladeRot;
+        }
         hide = false;
         motion = partMotion(animationMotion(entities.weapon[other], bladePos), gripBlend, bladePos);
     }

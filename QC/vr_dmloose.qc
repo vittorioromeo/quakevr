@@ -110,3 +110,97 @@ void() VR_DMLoose_Frame =
         VR_DMLoose_Cap(1, most);
     }
 };
+
+// ----------------------------------------------------------------------------
+// Settled gore trimmed (qtune; the Quest's Standalone preset): out of deathmatch, twice a second, while more gibs, heads
+// and limbs lie about than Most Settled Gore (vr_gore_trim_max), the farthest from every player of those lying there for
+// vr_gore_trim_age seconds go first (after a fight: fresh ones are left alone), never one within vr_gore_trim_near units
+// of a player (the look up close kept), nor one in a hand, on a blade or being pulled. Small gibs have their own cap
+// (vr_smallgibs_max). 0: no cap (the default; Standalone 24).
+
+.float vr_gtrim_dist; // its distance to the nearest player (VR_GoreTrim_Frame)
+float vr_gtrim_next;  // the next pass's time
+float vr_gtrim_gone;  // removed by it (the tests)
+
+// One that counts: a gib, a head or a limb (not a small gib, a player's head or a body in the queue), free.
+float(entity g) VR_GoreTrim_Counts =
+{
+    return !(g.flags & FL_CLIENT) && g.classname != "bodyque" && !g.vr_sgib && g.carry_player == world &&
+           g.vr_skewer_p == world && g.fg_state == 0;
+};
+
+// Its distance to the nearest player.
+float(entity g) VR_GoreTrim_Dist =
+{
+    float best = 999999;
+    for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
+    {
+        best = min(best, vlen(g.origin - p.origin));
+    }
+    return best;
+};
+
+void() VR_GoreTrim_Frame =
+{
+    float most = floor(cvar_hget(cvarh_vr_gore_trim_max));
+    if(deathmatch || most <= 0 || time < vr_gtrim_next)
+    {
+        return;
+    }
+    vr_gtrim_next = time + 0.5;
+    float age = cvar_hget(cvarh_vr_gore_trim_age);
+    float near = cvar_hget(cvarh_vr_gore_trim_near);
+    // The ones that count, and the candidates (old enough, far enough) chained with their distances.
+    entity first = world, last = world;
+    float n = 0;
+    for(entity e = findflags(world, vr_gib, 1); e; e = findflags(e, vr_gib, 1))
+    {
+        if(!VR_GoreTrim_Counts(e))
+        {
+            continue;
+        }
+        n++;
+        if(time - e.vr_gib_made < age)
+        {
+            continue;
+        }
+        float d = VR_GoreTrim_Dist(e);
+        if(d <= near)
+        {
+            continue;
+        }
+        e.vr_dml_next = world;
+        e.vr_gtrim_dist = d;
+        if(last) { last.vr_dml_next = e; } else { first = e; }
+        last = e;
+    }
+    while(first && n > most)
+    {
+        entity far = world, before = world, prev = world;
+        for(entity c = first; c; c = c.vr_dml_next)
+        {
+            if(far == world || c.vr_gtrim_dist > far.vr_gtrim_dist ||
+               (c.vr_gtrim_dist == far.vr_gtrim_dist && c.vr_gib_made < far.vr_gib_made))
+            {
+                far = c;
+                before = prev;
+            }
+            prev = c;
+        }
+        if(before) { before.vr_dml_next = far.vr_dml_next; } else { first = far.vr_dml_next; }
+        n--;
+        vr_gtrim_gone++;
+        if(cvar_hget(cvarh_developer)) dprint(sprintf("goretrim: %s removed at %d units (the most is %d)\n", far.model, far.vr_gtrim_dist, most));
+        if(far.classname == "vr_limb")
+        {
+            far.classname = "vr_limb_gone"; // (as VR_Limb_MakeRoom)
+            far.nextthink2 = 0;
+        }
+        else
+        {
+            VR_Head_StopFlies(far);
+        }
+        far.vr_gib = FALSE;
+        remove(far);
+    }
+};

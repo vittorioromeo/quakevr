@@ -633,6 +633,7 @@ typedef struct glprogs_s {
 	GLuint		world_pdo[3];		// QVR: [standard/dithered/banded] solid, not OIT, writing the parallax hits' depth (vr_parallax_depth_write)
 	GLuint		world_unlit[3][2];	// QVR: [dither][alphatest] world[0][dither][alphatest] without the lights' loop (vr_gl_world_unlit; the ES profile only, else 0)
 	GLuint		world_decal_retro[2][3];	// QVR: [OIT][standard/dithered/banded] solid, with the decals' retro textures' code (world[][][solid] and world_pdo go without it, NO_DECAL_RETRO): made when first needed (GL_WorldDecalRetroProgram)
+	GLuint		world_unlit_decal_retro[3];	// QVR: qworld, [dither] world_unlit[][solid] with the decals' retro textures' code (GL_WorldUnlitDecalRetroProgram; the unlit forms only)
 	GLuint		world_pdo_decal_retro[3];	// QVR: [standard/dithered/banded] world_pdo's, the same
 	GLuint		water[2][2];		// [OIT][dither]
 	GLuint		skystencil;
@@ -643,9 +644,9 @@ typedef struct glprogs_s {
 	GLuint		skyboxside[2];		// [dither]
 	GLuint		alias[2][3][2][3];	// [OIT][mode:standard/dithered/noperspective][alpha test][poseverttype]
 	GLuint		alias_opaque[3][3];	// QVR: [mode][poseverttype] alias[0][mode][0][poseverttype] without discard (vr_gl_alias_opaque; the ES profile only, else 0)
-	GLuint		alias_plain[3][3];	// QVR: [mode][poseverttype] alias_opaque without the per-model features no instance of a batch has (vr_gl_alias_plain; the ES profile only, else 0)
-	GLuint		alias_gore[3][3];	// QVR: [mode][poseverttype] alias_plain keeping the wounds and dents (vr_gl_alias_gore, C4x; the ES profile only, else 0)
-	GLuint		alias_skin[3][3];	// QVR: [mode][poseverttype] ... and the skin tone (vr_gl_alias_skin, C4y; the ES profile only, else 0)
+	GLuint		alias_plain[4][3][3];	// QVR: [variant: ALIASVAR_*][mode][poseverttype] alias_opaque without the per-model features no instance of a batch has (vr_gl_alias_plain; the ES profile only, else 0)
+	GLuint		alias_gore[4][3][3];	// QVR: [variant][mode][poseverttype] alias_plain keeping the wounds and dents (vr_gl_alias_gore, C4x; the ES profile only, else 0)
+	GLuint		alias_skin[4][3][3];	// QVR: [variant][mode][poseverttype] ... and the skin tone (vr_gl_alias_skin, C4y; the ES profile only, else 0)
 	GLuint		alias_body[3][3];	// QVR: [mode][poseverttype] alias_skin lit at its vertices: your body (vr_gl_alias_body, C5e; ES only)
 	GLuint		alias_depth[3];		// QVR: [poseverttype] the shadow maps' casters: depth only (no fragment shader)
 	GLuint		alias_depth_layered[3];	// QVR: [poseverttype] the same, drawn into all their faces at once (gl_viewport_layer_able; 0 without)
@@ -681,6 +682,7 @@ void VID_LoadingSwap (void); // QVR
 void GL_WorldLiteCheck (void); // QVR: the shaders made again when the ES lite world no longer fits the settings
 void GL_DeleteShaders (void);
 GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
+GLuint GL_WorldUnlitDecalRetroProgram (int dither); // QVR: qworld, world_unlit with the decals' retro code (0 without the unlit forms)
 // QVR: these groups' variants, made when first asked for under the ES profile (the PC makes them all at the start):
 // gl_shaders.c, GL_ShadersLazyStart
 enum { ALIASFORM_OPAQUE, ALIASFORM_PLAIN, ALIASFORM_GORE, ALIASFORM_SKIN, ALIASFORM_BODY, ALIASFORM_COUNT };
@@ -690,6 +692,13 @@ GLuint GL_AliasProgram (int oit, int mode, int alphatest, int poseverttype);
 qboolean GL_WorldUnlitForms (void); // QVR: the unlit world's programs and the cull's split made (ES; the PC: vr_gl_pc_forms 4)
 qboolean GL_AliasFormAvailable (int form); // the form exists here (the ES profile's; plain, gore, skin: with the lite models' bits)
 GLuint GL_AliasFormProgram (int form, int mode, int poseverttype); // 0: not available
+// QVR (qtune): the plain, gore and skin forms' variants: without the fullbright texture's read (a batch whose skins have
+// none: vr_gl_alias_nofb), without the dynamic lights' loop (a batch whose lights are all added flat on the CPU:
+// vr_gl_alias_flat). GL_AliasFormVariants: the variant bits made here; GL_AliasFormProgramV: the form's variant (only its
+// bits made here; other forms: variant 0).
+enum { ALIASVAR_NOFB = 1, ALIASVAR_FLAT = 2 };
+int GL_AliasFormVariants (void);
+GLuint GL_AliasFormProgramV (int form, int variant, int mode, int poseverttype);
 GLuint GL_WaterProgram (int oit, int dither);
 GLuint GL_ParticlesProgram (int oit, int dither);
 int R_AliasShaderMode (void); // QVR: r_alias.c: the models' ALIASSHADER_* for the software emulation's settings

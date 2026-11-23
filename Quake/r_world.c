@@ -1207,6 +1207,7 @@ void R_PrewarmDecalPrograms (qboolean pdo)
 	GL_WorldDecalRetroProgram (0, R_WorldDither (), pdo);
 	if (pdo) // its plain twin too: the depth write's split draws the far and flat surfaces with it (R_DrawSolidSplit)
 		GL_WorldDecalRetroProgram (0, R_WorldDither (), false);
+	GL_WorldUnlitDecalRetroProgram (R_WorldDither ()); // qworld: the unlit world's (the ES forms; 0 elsewhere)
 	if (bmodel_arrays_on) // QVR: and their array twins (vr/vr_worldarrays.cpp)
 		R_PrewarmArrayTwins ();
 }
@@ -1238,6 +1239,8 @@ static void R_PrewarmArrayTwins (void)
 	for (alphatest = 0; alphatest < 2; alphatest++)
 		if (glprogs.world_unlit[dither][alphatest]) // (the split's batch program: R_AddBModelPassCallsSplit)
 			GL_WorldArraysProgram (glprogs.world_unlit[dither][alphatest], &depthonly);
+	if (glprogs.world_unlit_decal_retro[dither]) // qworld
+		GL_WorldArraysProgram (glprogs.world_unlit_decal_retro[dither], &depthonly);
 	GL_WorldArraysProgram (glprogs.world_pdo[dither], &depthonly);
 	if (glprogs.world_pdo_decal_retro[dither])
 		GL_WorldArraysProgram (glprogs.world_pdo_decal_retro[dither], &depthonly);
@@ -1295,14 +1298,53 @@ void R_PrewarmSelectedPrograms (void)
 	}
 	for (form = 0; form < ALIASFORM_COUNT; form++)
 		for (poseverttype = 0; poseverttype < 3; poseverttype++)
-			GL_AliasFormProgram (form, amode, poseverttype);
+		{
+			int variant;
+			for (variant = 0; variant < 4; variant++) // QVR (qtune): the plain, gore and skin forms' variants made here
+				if ((variant & ~GL_AliasFormVariants ()) == 0 && (variant == 0 || (form >= ALIASFORM_PLAIN && form <= ALIASFORM_SKIN)))
+					GL_AliasFormProgramV (form, variant, amode, poseverttype);
+		}
 }
 
+static GLuint r_world_solid_program; // QVR: qworld, the opaque world's last program (R_WorldSolidProgramName: vr_gles_report)
+
+static GLuint R_ChooseBModelProgramAny (qboolean oit, qboolean alphatest, qboolean pdo);
 static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean pdo)
+{
+	GLuint program = R_ChooseBModelProgramAny (oit, alphatest, pdo);
+	if (!oit && !alphatest)
+		r_world_solid_program = program;
+	return program;
+}
+
+const char *R_WorldSolidProgramName (void) // QVR: qworld, which of the opaque world's programs drew last
+{
+	const int dither = R_WorldDither ();
+	const GLuint p = r_world_solid_program;
+	if (!p)
+		return "none yet";
+	if (p == glprogs.world_unlit_decal_retro[dither])
+		return "world unlit decal retro";
+	if (p == glprogs.world_unlit[dither][0])
+		return "world unlit";
+	if (p == glprogs.world_decal_retro[0][dither])
+		return "world decal retro (lit)";
+	if (p == glprogs.world_pdo_decal_retro[dither])
+		return "world pdo decal retro (lit)";
+	if (p == glprogs.world_pdo[dither])
+		return "world pdo";
+	return "world (lit)";
+}
+
+static GLuint R_ChooseBModelProgramAny (qboolean oit, qboolean alphatest, qboolean pdo)
 {
 	const int dither = R_WorldDither ();
 	if (!alphatest && r_framedata.decalclock[3] > 0.5f) // QVR: the decals with retro textures (VR_DecalsFrame: their set)
+	{
+		if (!oit && !pdo && glprogs.world_unlit[dither][0] && VR_WorldUnlitDecalTwin () && VR_WorldUnlit () && GL_WorldUnlitDecalRetroProgram (dither)) // QVR: qworld, still unlit (the ES forms)
+			return glprogs.world_unlit_decal_retro[dither];
 		return GL_WorldDecalRetroProgram (oit, dither, pdo && !oit);
+	}
 	if (pdo && !oit && !alphatest) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)
 		return glprogs.world_pdo[dither];
 	if (!oit && glprogs.world_unlit[dither][alphatest] && VR_WorldUnlit ()) // QVR: no light reaches the world: no lights' loop (C4t, ES only)

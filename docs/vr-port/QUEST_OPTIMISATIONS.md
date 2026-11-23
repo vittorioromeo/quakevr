@@ -210,6 +210,14 @@ warming), and parts of one setting within a launch by +-1.5 ms (draws 183-244 fr
 | render scale 0.58 (fourth launch, base 18.08) | 16.66 | 27.9% | 231 | -1.4 ms |
 | anisotropy 1 or 4 (round 2) | 17.85 / 17.40 | 36.5% / 29.7% | 221 / 217 | nothing seen (the world's arrays took the value of the part before: not clean) |
 | no world depth pre-pass (`vr_world_prepass 0`, new) | 15.78 vs 18.03, then 17.39 vs 17.28, 18.61 vs 17.22 | - | - | **no gain** over three launches (first launch's -2.2 was the gibs' random cuts): not in the preset |
+| (qworld) retro textures + retro lighting on (`vr_retro 1; vr_retrolight 1`, a fresh install's defaults), the world's unlit decal-retro twin (new) | 28.91 vs his config's (both 0) 13.28 | 98.7% vs 2.6% | 296 vs 189 | **retro costs ~15 ms here**: Standalone now sets `vr_retro 0`, `vr_retrolight 0` (his own Quest config's) |
+| (qworld) the same, the old lit "world decal retro" program (`vr_gl_world_unlit 0` restores it) | 39.07 vs 28.91 | 98.9% | 211 | **-10.2 ms**: a retro blood mark no longer sends the world to the lights' loop (`GL_WorldUnlitDecalRetroProgram`) |
+| (qworld) light contrast 2.5 as `x*x*sqrt(x)`, decals read member by member (old: probes `QVR_PROBE_OLDPOW,OLDDECAL`) | retro off 14.11 vs 14.22; retro on 28.91 vs 29.69 | 9.9% vs 10.0% | 213 | -0.1 / -0.8 ms: kept (exact) |
+| (qworld) colours and light terms at mediump (`vr_gl_mediump 1`; world alone: probe `QVR_PROBE_MPNOALIAS`) | 17.20 (world alone 17.09) vs 14.11; launch 1: 17.11 vs 15.61 | 31.9% | 215 | **+3 ms worse** on Adreno (two launches): default 0 |
+| qtune (retro off in both): your rig plain (`vr_rig_plain` 1), no fullbright read (`vr_gl_alias_nofb`), gore flat-lit and no lights' loop (`vr_gl_alias_flat`), vs none | 14.77 vs 15.84; 15.36 vs 16.17 | 15.2% vs 28.2%; 21.6% vs 23.7% | 215 / 214 | **-0.8 to -1.1 ms**: in the preset (the look on the headset not yet checked) |
+| qtune: the no-fullbright and no-loop variants alone (rig plain in both) | 15.11 vs 15.59 | 18.3% vs 21.4% | 211 / 214 | ~-0.5 ms (so the rig's plain form ~-0.3 to -0.5) |
+| qtune: dynres on (0.9 ceiling, 0.65 floor), the fight floor 0.55 (`vr_dynres_min_fight`) vs none | 13.36 vs 15.5-18.1 | 4.7% (20% with a load hitch) vs 19-37% | - | **near 72 Hz in the fight**; the e1m1 walk never left the 0.9 ceiling (0% of frames below 0.65) |
+| qtune: settled gore trimmed (`vr_gore_trim_max` 24, 5 s, none within 160) | not measured: by design it leaves the close-up fight alone | - | - | far gore after a fight; the gore was already instanced (gib1 76 instances in 2 batches) |
 
 Counts (PC mock, `-glescompat +vr_standalone_preset 0`, `vr_gl_passes`): 240 draws a frame, 88 of them alias (48
 batches, 290 instances, 72k alias triangles both eyes); the Quest's own frame 192-244 draws. Gibs 76 + 76 + 12

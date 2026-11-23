@@ -791,12 +791,16 @@ QVR_PARALLAX_DEPTH_OUT // PDO 1
 QVR_WORLD_DEPTH_FS_MAIN;
 
 static const char world_fragment_shader[] =
+"#ifdef QVR_PROBE_MPNOWORLD\n" // QVR: qworld, vr_gles_define's probe: vr_gl_mediump left out of the world's shader
+"#undef QVR_MP\n"
+"#define QVR_MP\n"
+"#endif\n"
 "#if BINDLESS\n"
 "	#extension GL_ARB_bindless_texture : require\n"
 "	#define QVR_WUV(x) (x)\n"
 "#elif defined(QVR_WORLD_ARRAYS)\n" // QVR: the bound path's array twins (vr/vr_worldarrays.cpp): the call's layer in all four
-"	layout(binding=0) uniform sampler2DArray Tex;\n"
-"	layout(binding=1) uniform sampler2DArray FullbrightTex;\n"
+"	layout(binding=0) uniform QVR_MP sampler2DArray Tex;\n"
+"	layout(binding=1) uniform QVR_MP sampler2DArray FullbrightTex;\n"
 "	layout(binding=3) uniform sampler2DArray NormalTex;\n"
 "	layout(binding=11) uniform sampler2DArray SpecTex;\n"
 "	#define QVR_WLAYER_DECL\n"
@@ -805,15 +809,15 @@ static const char world_fragment_shader[] =
 "	layout(location=9) flat in float in_layer;\n"
 "#else\n"
 "	#define QVR_WUV(x) (x)\n"
-"	layout(binding=0) uniform sampler2D Tex;\n"
-"	layout(binding=1) uniform sampler2D FullbrightTex;\n"
+"	layout(binding=0) uniform QVR_MP sampler2D Tex;\n"
+"	layout(binding=1) uniform QVR_MP sampler2D FullbrightTex;\n"
 "	layout(binding=3) uniform sampler2D NormalTex; // QVR\n"
 "	layout(binding=11) uniform sampler2D SpecTex; // QVR: an external pack's specular map (CF_SPECMAP)\n"
 "#endif\n"
-"layout(binding=2) uniform sampler2D LMTex;\n"
+"layout(binding=2) uniform QVR_MP sampler2D LMTex;\n"
 "layout(binding=9) uniform sampler2D LuxTex; // QVR: the baked light's directions (deluxemaps: r_brush.c), as LMTex\n"
 "#ifdef QVR_NOLIGHTS\n"
-"layout(binding=15) uniform sampler2D DlightTex; // QVR: C5g, the dynamic lights summed on the CPU (vr_gl_world_dlmap), as LMTex\n"
+"layout(binding=15) uniform QVR_MP sampler2D DlightTex; // QVR: C5g, the dynamic lights summed on the CPU (vr_gl_world_dlmap), as LMTex\n"
 "#endif\n"
 "\n"
 FRAMEDATA_BUFFER
@@ -848,7 +852,7 @@ LIQUID_FUNCTIONS // QVR
 "#else\n"
 "layout(location=6) noperspective in vec2 in_coord;\n"
 "#endif\n"
-"layout(location=7) flat in vec4 in_styles;\n"
+"layout(location=7) flat in QVR_MP vec4 in_styles;\n"
 "layout(location=8) flat in float in_lmofs;\n"
 "#if BINDLESS\n"
 "	layout(location=9) flat in uvec4 in_samplers;\n"
@@ -884,7 +888,7 @@ QVR_WORLD_FS_LITE // QVR: the ES lite world's features compiled out of main (VR_
 "#ifdef QVR_WORLD_ARRAYS\n"
 "	WLayer = in_layer; // QVR\n"
 "#endif\n"
-"	vec3 fullbright = vec3(0.);\n"
+"	QVR_MP vec3 fullbright = vec3(0.);\n"
 "	vec2 uv = in_uv;\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
 "	uint liquid = LiquidKind(in_flags); // QVR: the waves (vr_water_waves) bend the texture a little\n"
@@ -899,8 +903,8 @@ QVR_WORLD_FS_LITE // QVR: the ES lite world's features compiled out of main (VR_
 "#endif\n"
 "	vec3 facing = normalize(cross(dpdx, dpdy)); // QVR: the surface's normal, towards the viewer\n"
 "	facing = dot(facing, EyePos - in_pos) < 0. ? -facing : facing;\n"
-"	vec3 specular_light = vec3(0.); // QVR: dynamic lights' sheen, added over the texture\n"
-"	vec3 specular_map = vec3(1.); // QVR: an external pack's specular map's colour here (QVR_WORLD_FS_LIGHT)\n"
+"	QVR_MP vec3 specular_light = vec3(0.); // QVR: dynamic lights' sheen, added over the texture\n"
+"	QVR_MP vec3 specular_map = vec3(1.); // QVR: an external pack's specular map's colour here (QVR_WORLD_FS_LIGHT)\n"
 "#if BINDLESS\n"
 "	sampler2D NormalTex = sampler2D(in_nmsampler.xy); // QVR\n"
 "	sampler2D SpecTex = sampler2D(in_nmsampler.zw); // QVR\n"
@@ -970,7 +974,7 @@ QVR_WORLD_FS_CARVE // QVR: the carved decals (vr/vr_decals.cpp): their craters m
 "	}\n"
 "	if ((in_flags & CF_USE_FULLBRIGHT) != 0u)\n" // QVR: parallax: the moved coordinates
 "		fullbright = Retro > 0 ? RetroSample(FullbrightTex, puv, duvdx, duvdy, false).rgb : parallax ? textureGrad(FullbrightTex, QVR_WUV(puv), duvdx, duvdy).rgb : texture(FullbrightTex, QVR_WUV(uv)).rgb;\n"
-"	vec4 result;\n"
+"	QVR_MP vec4 result;\n"
 "	if (Retro > 0)\n" // QVR
 "		result = RetroSample(Tex, puv, duvdx, duvdy, true);\n"
 "	else\n"
@@ -1031,17 +1035,17 @@ QVR_WORLD_FS_DECALS // QVR: the decals on the world (vr/vr_decals.cpp)
 "#endif // DITHER\n"
 "	if (rl_lightmapped)\n" // QVR: retro lighting: the lightmap on its blocky grid (vr_retrolight.h)
 "		lmuv = RetroLightmapUV(lmuv, vec2(textureSize(LMTex, 0).xy) * 16.);\n"
-"	vec4 lm0 = textureLod(LMTex, lmuv, 0.);\n"
+"	QVR_MP vec4 lm0 = textureLod(LMTex, lmuv, 0.);\n"
 "#ifdef QVR_PROBE_LM\n" // QVR: -glesdefine's probe (C4f): the lightmap's first style as read
 "	out_fragcolor = vec4(lm0.rgb, 1.0);\n"
 "	return;\n"
 "#endif\n"
-"	vec3 total_light;\n"
+"	QVR_MP vec3 total_light;\n"
 "	if (in_styles.y < 0.) // single style fast path\n"
 "		total_light = in_styles.x * lm0.xyz;\n"
 "	else\n"
 "	{\n"
-"		vec4 lm1 = textureLod(LMTex, vec2(lmuv.x + in_lmofs, lmuv.y), 0.);\n"
+"		QVR_MP vec4 lm1 = textureLod(LMTex, vec2(lmuv.x + in_lmofs, lmuv.y), 0.);\n"
 "		if (in_styles.z < 0.) // 2 styles\n"
 "		{\n"
 "			total_light =\n"
@@ -1050,7 +1054,7 @@ QVR_WORLD_FS_DECALS // QVR: the decals on the world (vr/vr_decals.cpp)
 "		}\n"
 "		else // 3 or 4 lightstyles\n"
 "		{\n"
-"			vec4 lm2 = textureLod(LMTex, vec2(lmuv.x + in_lmofs * 2., lmuv.y), 0.);\n"
+"			QVR_MP vec4 lm2 = textureLod(LMTex, vec2(lmuv.x + in_lmofs * 2., lmuv.y), 0.);\n"
 "			total_light = vec3\n"
 "			(\n"
 "				dot(in_styles, lm0),\n"
@@ -1071,7 +1075,7 @@ QVR_WORLD_FS_DECALS // QVR: the decals on the world (vr/vr_decals.cpp)
 "#endif\n"
 "\n"
 QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specular
-"	vec3 dynamic_light = vec3(0.);\n" // QVR: out here, for retro lighting's levels after the lights
+"	QVR_MP vec3 dynamic_light = vec3(0.);\n" // QVR: out here, for retro lighting's levels after the lights
 "	vec3 rl_pos = RetroLightAt(in_pos, RetroLight[1].w); // QVR: retro lighting: where the dynamic lights are found (their blocks)\n"
 "	vec3 rl_spos = RetroShadowAt(in_pos, rl_pos), rl_mpos = RetroShadowAt(in_pos, in_pos); // ... their shadows; the map lights'\n"
 "#ifdef QVR_PROBE_CUT5\n" // QVR: -glesdefine's probe (C4e): the world's fragment shader cut before the lights' loop
@@ -1877,12 +1881,16 @@ QVR_BOX_WOUND_PAINT_VS // QVR: a held brush model's blood: its box drawn into it
 ////////////////////////////////////////////////////////////////
 
 static const char alias_fragment_shader[] =
+"#ifdef QVR_PROBE_MPNOALIAS\n" // QVR: qworld, vr_gles_define's probe: vr_gl_mediump left out of the models' shader
+"#undef QVR_MP\n"
+"#define QVR_MP\n"
+"#endif\n"
 ALIAS_INSTANCE_BUFFER
 QVR_ALIAS_FS_HEADER // QVR: the frame data, lights and functions the alias fragment shader uses
 NOISE_FUNCTIONS
 "\n"
-"layout(binding=0) uniform sampler2D Tex;\n"
-"layout(binding=1) uniform sampler2D FullbrightTex;\n"
+"layout(binding=0) uniform QVR_MP sampler2D Tex;\n"
+"layout(binding=1) uniform QVR_MP sampler2D FullbrightTex;\n"
 "layout(binding=2) uniform sampler2D NormalTex; // QVR\n"
 "layout(binding=6) uniform sampler2D SkinMaskTex; // QVR: authored skin only\n"
 "layout(binding=7) uniform sampler2D GloveTex; // QVR: a glove's painted leather (vr_glove_paint): RGB its detail, A its wear\n"
@@ -1897,7 +1905,7 @@ NOISE_FUNCTIONS
 "#else\n"
 "	layout(location=0) in vec2 in_texcoord;\n"
 "#endif\n"
-"layout(location=1) in vec4 in_color;\n"
+"layout(location=1) in QVR_MP vec4 in_color;\n"
 "layout(location=2) in vec3 in_pos;\n"
 QVR_ALIAS_FS_INPUTS // QVR: the alias fragment shader's Quake VR inputs
 "\n"
@@ -1950,12 +1958,12 @@ QVR_ALIAS_FS_LITE // QVR: the ES lite form's switches compiled out of main (GL_A
 // sample sat exactly on a texel boundary and rounding read the texels either side of it: the glow strips next to
 // them showed as red, orange and white specks over the shotgun and the super shotgun (r_softemu_mdl_warp 1;
 // ROUND22.md, "Glowing specks, part 3"). A linear gl_texturemode blended them in half.
-"	vec4 result = textureLod(Tex, uv, 0.);\n"
+"	QVR_MP vec4 result = textureLod(Tex, uv, 0.);\n"
 "#else\n"
 QVR_ALIAS_FS_PARALLAX // QVR: parallax occlusion mapping on the skin's heights
 "	vec4 retro = instances[in_instance].Retro; // QVR: retro textures (vr_retro.h)\n"
 "	RetroBegin(in_retroset, retro.y > 0.0 ? retro.yz : vec2(textureSize(Tex, 0)), duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));\n"
-"	vec4 result = Retro > 0 ? RetroSample(Tex, uv, duvdx, duvdy, true) : textureGrad(Tex, uv, duvdx, duvdy);\n"
+"	QVR_MP vec4 result = Retro > 0 ? RetroSample(Tex, uv, duvdx, duvdy, true) : textureGrad(Tex, uv, duvdx, duvdy);\n"
 "#endif\n"
 QVR_ALIAS_FS_SKINTINT // QVR: bare forearms' ends tinted to the hand's skin
 QVR_ALIAS_FS_RECOLOR // QVR: an armed humanoid's recolour by its weapon (vr/vr_humlook.cpp)
@@ -2000,11 +2008,11 @@ QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
 "		result.a = clamp(coverage, 0.0, 1.0); // QVR: the samples it covers (GL_SAMPLE_ALPHA_TO_ONE writes 1)\n"
 "#endif\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
-"	vec3 fullbright = textureLod(FullbrightTex, uv, 0.).rgb;\n" // QVR: fullbright: dimmed or boosted (QVR_ALIAS_FS_GLOW)
-"#elif defined(QVR_PROBE_ANOFB)\n" // QVR: vr_gles_define's probe (C5f): no fullbright fetch
-"	vec3 fullbright = vec3(0.0);\n"
+"	QVR_MP vec3 fullbright = textureLod(FullbrightTex, uv, 0.).rgb;\n" // QVR: fullbright: dimmed or boosted (QVR_ALIAS_FS_GLOW)
+"#elif defined(QVR_PROBE_ANOFB) || defined(QVR_APLAIN_NOFB)\n" // QVR: vr_gles_define's probe (C5f); qtune: a batch whose skins have no fullbrights (gl_shaders.c ALIASVAR_NOFB): no fullbright fetch
+"	QVR_MP vec3 fullbright = vec3(0.0);\n"
 "#else\n"
-"	vec3 fullbright = Retro > 0 ? RetroSample(FullbrightTex, uv, duvdx, duvdy, false).rgb : textureGrad(FullbrightTex, uv, duvdx, duvdy).rgb; // QVR: uv moved by parallax mapping; retro textures\n"
+"	QVR_MP vec3 fullbright = Retro > 0 ? RetroSample(FullbrightTex, uv, duvdx, duvdy, false).rgb : textureGrad(FullbrightTex, uv, duvdx, duvdy).rgb; // QVR: uv moved by parallax mapping; retro textures\n"
 "#endif\n"
 QVR_ALIAS_FS_GLOW // QVR: fullbrights, wounds' glow, force grab's glow, morphs
 "	result.rgb = clamp(result.rgb, 0.0, SceneTone.x); // QVR: above 1 in the eyes' float scene (vr_tonemap)\n"

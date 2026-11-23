@@ -460,8 +460,13 @@ swap and the ironsight take the hand over: its stroke eases out over `vr_flat_sw
 The headset's swimming reads tracked strokes and makes none, so no pose is shared with it; the strokes are flatplay's pose
 framework (`poseHands`, the shoulders, the arm's reach, the hands' angles and their blend). `Misc/quakevr/flatswim_test.sh`
 (vrtesthall's pool: each direction's path and palm, the nail gun's grip in and out of the water, the shot's take-over);
-`flatswim_shots.sh` for screenshots. Not done: the hands stay closed (the flat hands' gripping pose), and the strokes make
-no sound (the headset's stroke sounds are the server's, from tracked hand speed).
+`flatswim_shots.sh` for screenshots. A free swimming hand is drawn open, fingers together and the palm a little cupped
+(`vr_flat_swim_cup` 0.15: the curl of every finger and the thumb, its share of the stroke; `vr_view.cpp`'s finger curls,
+`flatswim::openShare`). Each stroke sounds as its power starts (the cycle at 0.04; `vr_flat_swim_sound` 0.5, louder with
+speed): under water the headset's soft or brisk whoosh (`vr/swim_soft*`, `swim_hard*`), at the surface a stroke's recording
+(`vr/stroke*`), heard in the head (client-side, `audio::playLocal`). Through the power the hands shed bubbles under water
+(`particles::swimBubbles`: small additive drops rising, carried mostly with the swimmer; 16 a second a hand at full speed
+times `vr_flat_swim_bubbles` 1 and the hand's stroke share; a gun hand by its gun share). The report's "water:" line counts both.
 
 **Ladders** (**Ladders**, `vr_flat_ladder`, 1; his request 2026-11-16). A ladder made of individual ledges (the tutorial's
 rungs, any stack of graspable ledges) climbs as a headset's hands climb it, on the same code (`vr_climb.cpp` `flatLadder`,
@@ -1271,7 +1276,10 @@ before `vr_twohand`) over `vr_flat_parry_blade_in_time` (0.12 s, eased) and back
 `applySword` takes the half-sword grip there (the headset's: the drawn hand slid onto the blade, the game's two-handed hold
 and its bits) only while the guard asks for it, switching off the stance's grip if held there, and lets go as it ends
 ("the flat guard ended"). The drawn hand is turned onto the blade over the grip's blend on the flat screen
-(`steadyOther`; at once it turned 73 degrees in a frame, now 7 in and 12 out). Weapons without a Blade hotspot (axes,
+(`steadyOther`; at once it turned 73 degrees in a frame, now 7 in and 12 out). Palm down over the blade
+(`vr_flat_parry_blade_palm` 1; his note 2026-11-23: it was palm up under it): `twohand::bladeGripHand` rolls the hand about
+the blade (its grip staying along it) to the palm down, flat screen only (a headset's keeps the tracked hand's roll); the
+blend's quaternions kept on last frame's side (`steadyOther`'s `bladeBlend`) so the near half turn never flips (11 in, 20 out). Weapons without a Blade hotspot (axes,
 Mjolnir, the chainsaw) leave the free hand where it was. Debug > Tunables > Flatscreen > Guard Bash and Blade Grip;
 `vr_flatplay_status` prints "guard bash:" and two "blade grip:" lines (the free hand off the hotspot, posed and drawn);
 `vr_flatplay_debug 1` the bash's start and the blade's take. Test: `Misc/quakevr/flatbash_test.sh <agent>`; scene `flat_parry`.

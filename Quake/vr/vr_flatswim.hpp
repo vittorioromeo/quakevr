@@ -30,4 +30,11 @@ void poseHand(hands::State& s, int h, const glm::vec3& aim, const glm::vec3& sho
 // Hand `h`'s share of the stroke now (0..1, eased: the water's and the take-over's).
 [[nodiscard]] float share(int h);
 
+// The share a free hand (holding nothing) is drawn open for the stroke, its fingers together and the palm cupped
+// (vr_flat_swim_cup; vr_view.cpp's finger curls): its share of the stroke; 0 for a hand holding something.
+[[nodiscard]] float openShare(int h);
+
+// A map's load: the stroke sounds precached (the client's; vr_flat_swim_sound).
+void prepare();
+
 } // namespace qvr::flatswim

@@ -1868,6 +1868,24 @@ glm::vec3 blendHandAngles(const glm::vec3& a, const glm::vec3& b, float k)
     return blendAngles(a, b, k);
 }
 
+// (At roll 0 a hand's palm faces in towards the body's middle (palmAt): its right is the palm's opposite for the right
+// hand, the palm's way for the left.)
+glm::vec3 handFacing(int h, const glm::vec3& fingers, const glm::vec3& palm)
+{
+    const float side = h == HAND_OFF ? -1.f : 1.f;
+    const glm::vec3 f = glm::length(fingers) > 1e-4f ? glm::normalize(fingers) : glm::vec3{1.f, 0.f, 0.f};
+    const glm::vec3 pp = palm - f * glm::dot(palm, f);
+    const glm::vec3 p = glm::length(pp) > 1e-4f ? glm::normalize(pp) : glm::vec3{0.f, 0.f, -1.f};
+    return hands::anglesFromVectors(f, glm::cross(-side * p, f));
+}
+
+glm::vec3 palmOf(int h, const glm::vec3& angles)
+{
+    glm::vec3 f, r, u;
+    hands::angleVectors(angles, f, r, u);
+    return h == HAND_OFF ? r : -r;
+}
+
 void swapHands(const char* what)
 {
     keyState.swaps++;
@@ -4373,18 +4391,23 @@ void status_f()
             float at = 0.f;
             const bool sword = twohand::swordBlade(heldIn(h), at);
             const int other = 1 - h;
-            float posed = -1.f, drawn = -1.f;
+            float posed = -1.f, drawn = -1.f, palmZ = 0.f;
             glm::vec3 dPos, dRot;
             if(fs.bladePointKnown[h])
             {
                 posed = glm::distance(hands::current().pos[other], fs.bladePoint[h]);
-                drawn = view::drawnHandPose(other, dPos, dRot) ? glm::distance(dPos, fs.bladePoint[h]) : -1.f;
+                if(view::drawnHandPose(other, dPos, dRot))
+                {
+                    drawn = glm::distance(dPos, fs.bladePoint[h]);
+                    palmZ = palmOf(other, dRot).z;
+                }
             }
             Con_Printf("  blade grip: %s hand, %s, %s, share %.2f, %s\n", h == HAND_MAIN ? "main" : "off",
                 sword ? "a blade hotspot" : "no blade hotspot", fs.bladeWant[h] ? "asked for" : "not asked for", bladeShare(h),
                 twohand::bladeGrip(h) ? "held by its blade" : "not held by its blade");
-            Con_Printf("  blade grip: the %s hand %.1f u off the hotspot, drawn %.1f u (vr_flat_parry_blade %g; taken %d)\n",
-                other == HAND_MAIN ? "main" : "off", posed, drawn, vr_flat_parry_blade.value, fs.bladeTakes);
+            Con_Printf("  blade grip: the %s hand %.1f u off the hotspot, drawn %.1f u, palm z %.2f (-1 down; "
+                       "vr_flat_parry_blade %g; taken %d)\n",
+                other == HAND_MAIN ? "main" : "off", posed, drawn, palmZ, vr_flat_parry_blade.value, fs.bladeTakes);
         }
         // The two-handed melee stance (vr_flat_melee_2h_*): the other hand empty.
         if(swungMelee(h) || fs.twoH[h] > 0.f)

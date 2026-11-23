@@ -10431,6 +10431,110 @@ has the table.
 - **Next:** the world's own ~8 ms at 0.65 (its shading per pixel: the scene is fill-bound) and your rig's 2.5 ms (the
   body's skin form, the held gun close to the eyes); his call whether the 72 Hz floor goes to 0.55 in fights.
 
+## qworld: the world in the Quest's gib fight: retro decals keep the unlit world; Standalone turns retro off (branch agent/qworld, 2026-11-23)
+
+Follows "questperf" and the shader review (qvr-kit/scratch/shaderreview_report.md, finding 1 first). The Quest's world in
+a fight already has no lights' loop (`vr_gl_world_dlmap 1`: the unlit form), so brief item 6's light caps had nothing
+to cap; the lighting cost was elsewhere:
+- **Retro decals sent the world to the lit program.** With `vr_retro 1` (the default; Standalone never set it) the first
+  blood mark has a retro set (`decalclock[3]`) and `R_ChooseBModelProgram` took `GL_WorldDecalRetroProgram`: the lit
+  world, the lights' loop compiled in and run, in every fight. New `GL_WorldUnlitDecalRetroProgram` (glprogs
+  `world_unlit_decal_retro`: `QVR_NOLIGHTS` with the decals' retro code; prewarmed with the decals' others, its array
+  twin made) is taken while the world is unlit; `vr_gl_world_unlit 0` restores the old choice (the A/B).
+- **Standalone rows `vr_retro 0`, `vr_retrolight 0`** (his own Quest config's): retro on cost ~15 ms of GPU here.
+- Light contrast at exactly 2.5 (the default) as `x*x*sqrt(x)` (same value; other values keep `pow`); `DecalsAt` reads
+  a decal member by member, rejecting after n and centre (2 of 6 vec4 loads) instead of after the whole record.
+- `vr_gl_mediump` (Debug > Tunables "Medium Precision Colours (Quest)", default 0; ES lite bit 29, `QVR_MP` in the shader
+  header: mediump under it, nothing elsewhere) on the world's and models' colour samplers, lightmap and light sums,
+  fullbrights, sheen, decal colours. **+3 ms on the Quest 3** (the world alone too), so off. Why not found (a guess: the
+  conversions between the highp functions and the mediump locals, or mediump array samplers); left as a switch.
+- `vr_gles_report` names the opaque world's last program (and vr_retro, vr_retrolight). Probes (`vr_gles_define`):
+  `QVR_PROBE_OLDPOW`, `OLDDECAL`, `PERMONE` (the permanent layer's single read; not measured), `MPNOWORLD`, `MPNOALIAS`.
+- **Headset** (Quest 3, frozen e1m1 gib fight, 0.65 fixed, seeds, 240-frame parts interleaved, 3 launches; GPU median):
+  his config (retro off) 13.3-14.1 ms; retro on with the twin 28.9, with the old lit program 39.1 (-10.2); pow and
+  decal loads -0.1 (retro off) / -0.8 (retro on); mediump 17.2 vs 14.1. Table: QUEST_OPTIMISATIONS.md "Quest gib fight".
+  No headset pictures: the game's eyeshots folder can't be read over adb (permission denied); the twin is the unlit
+  world's own look (the dynamic lights from the light texture), the pow and the loads exact.
+- PC: `-glescompat` Standalone gib fight draws "world unlit decal retro", 0 shader errors (mediump 0 and 1).
+  Scripts (not committed): scratch/qw_mkab*.sh, qw_pc.sh, qw_pull.sh with questperf's qp_*.
+- Next: why mediump costs on Adreno (a sampler-only and a varyings-only probe); the shader review's model items (qtune).
+## flatthrow2: the flat throw finished: blades stick, the tutorial names the key (agent/flatthrow2, 2026-11-23)
+
+Follows "flatthrow". Traced with `vr_debug_axestick 3` (a new level-3 line says why a thrown thing isn't looked at).
+- **Why lesson 12's axe bounced (VR too):** a hard throw gives its owner up `vr_throw_self_grace` (0.35 s) after it leaves
+  the hand (QC VR_Throw_SelfFrame, so it can hurt its thrower), and `axestick::beforeStep` only looked at a blade whose
+  owner is a player: any throw flying longer than 0.35 s (over ~5 m at 15 m/s) was never looked at and bounced. Now its
+  thrower is the hand that let go (`.carry_letgo` while `.vr_throw_self` is 2: QC's VR_Throw_Thrower), `vr_fields.inc`.
+- **A blade stuck in a wall button presses it:** sticking ends the flight before the engine's impact runs the button's
+  touch; VR_AxeStick_Stuck now runs a brush entity's own touch (button_touch_any and the mods' buttons) with the throw's
+  velocity.
+- **The flat throw's spin timed** (`vr_flat_throw_spin_time` 1, Debug > Tunables > Flatscreen > Throw: "Blade Arrives
+  First"): after the throw QC calls `bladespinto` (new builtin; `axestick::timeSpin`): the arc followed a frame at a time
+  (its .gravity, Box3D's) to what it meets, then the spin about the same axis that turns the cutting part (an edge's
+  facing, a point's line) round to lead there, halfway between its way and straight into the surface (a long throw meets
+  the floor glancing). An edge: the exact spin nearest its own (0.4x to 2.5x, and vr_throw_spin_max); a point: the
+  slowest exact one (a sword's spin swings its point off its way: 9.7 rad/s is side on at 12 m/s). Too short a flight
+  for any: the range's end that leaves the least turn. VR throws are untouched (the wrist times them).
+- **Measured** (lesson 12's south wall, charged): axe from 44-280 units 7/7 stuck (was 6/7, and 0 past 0.35 s), 280-500
+  units onto the floor 2/3 (the miss lands in the wall's foot); taps onto the floor 5/5; sword and dagger from 80-190 units
+  stuck, under ~70 units (2 m) side on (their release pose needs more turn than any spin gives in 0.2 s: open).
+- **Lesson 10's board** (2928,-348) is `SOLID_NOT` and world text boards have no collision: nothing to change. A
+  pitch -10 rock throw goes through the grate (z -76 at the bars) and presses the button.
+- **Tutorial**: t2_throw, t3_axe and the LESSON 10 / 12 boards' flat wording name `{key:vr_flat_key_throw}` (THROW in
+  vrtutorial_gen.py); the BSP's lump patched line by line (`bsp_set_entities.py --replace`, the .map's 4 changed lines).
+- **menu_paths.txt** regenerated (it was stale: 143 rows added by recent work and this one); vrcalibration 0 missing.
+- **Tests**: `flatthrow_test.sh` 18/0 (new `wall` run: the axe from 280 units and the sword from 150 stick, both spins
+  timed); `vr_msgtokens_test` flat 12/0 (new: the two tips and boards name 'J'), headset 3/0; `flathands_test.sh` 76/0;
+  `vr_embed_test 1` 61/0, once 60/1 ("a sword side on bounces off the wall" stuck: its 80-unit flight is inside the grace,
+  so not this change; flaky?).
+## flatpolish: hub lecterns in Select Campaign's order; flat swimming's open hands, sounds, bubbles; the parry's palm down (agent/flatpolish, 2026-11-23)
+
+His flat feedback 2026-11-23, items 1, 7, 8. FLATPLAY.md, "Swimming strokes", "Blade grip in the guard".
+- **Hub** (`vrstart_gen.py` CAMPAIGNS): the lecterns west to east in Select Campaign's order (vr_menu.cpp `pageCampaigns`:
+  vr_gamedir.cpp `campaigns[]` by index, then Arena Mode): Quake, Scourge, Dissolution, DotP, DotM, Dawn, AD, Dwell, Quoth,
+  Arena. The "MODS", "MOD AND ARENA" and "Every campaign, and what its data needs" boards removed; the campaign tip's target
+  is Quake's lectern. Rebuilt (final, 592 s; id WAD made locally). hub_start_test 7/0; kit scratch flatpolish_hub.png.
+- **Swimming** (`vr_flatswim.cpp`; `vr_view.cpp`'s finger curls): a free swimming hand open, fingers together, palm a little
+  cupped (`vr_flat_swim_cup` 0.15, by its share of the stroke: `flatswim::openShare`); each stroke's sound as its power
+  starts (`vr_flat_swim_sound` 0.5: the headset's swim_soft / swim_hard whoosh under water, a stroke recording at the
+  surface; client-side, heard in the head); bubbles off the hands through the power under water (`vr_flat_swim_bubbles` 1,
+  `particles::swimBubbles`: additive drops rising, carried mostly with the swimmer: left in the water he passed them
+  unseen). The report's "water:" line. flatswim_test 40/0 (new: hands open 1.00 / 1.00, a sound under water, 14 bubbles in
+  the forward probe, the gun hand closed). flatpolish_swim.png (bubbles as white specks). Not done: surface splash particles.
+- **Parry palm** (`twohand::bladeGripHand`, flat only; `vr_flat_parry_blade_palm` 1): the free hand rolled about the blade to
+  palm down (drawn palm z 0.88 -> -0.98). `steadyOther`'s blend keeps each end's quaternion on last frame's side
+  (`bladeBlend`): the shortest-way slerp flipped near the half turn (148 degrees in a frame at the let-go). VR unchanged (the
+  tracked hand's least turn; no fixed hotspot pose). flatbash_test 16/0 (new palm check; turns 11 in, 20 out). Shared:
+  `flatplay::handFacing` / `palmOf` (the strokes' own handAngles moved there). flatpolish_parry.png.
+## ropes10: pole jumps, no retake in the air, monkey hands keep their sides, elbows out, knuckles up (agent/ropes10, 2026-11-23)
+
+His flat notes 2026-11-23, items 2-6. ROPES.md "Climbing (VR)", "Strung ropes", "Climbing (flat-screen)", "Known
+limits", "Tests".
+- **Pole jump (2):** `vr_pole_jump` 270 (a normal jump) and `vr_pole_jump_push` 200 (rules) for a jump off a pole
+  (`poleJumpPush` in vr_climb.cpp fallFlung, shared by VR and flat): square out from its axis to the body, level (off a
+  slanted pole's upper side that is down its slope); under a level pole the view's way across it. Ropes keep
+  `vr_rope_jump` and their swing.
+- **The slow slide (6):** not the pole boxes nor the ground: flat play took the pole again a second into the fall
+  (`flatRopeRetake` ran out while he still fell beside it), then held him there or, with back or a look down, climbed
+  him down at the keys' speed. Now the rope let go of is not taken again in the air until he has stood on the ground
+  (`flatRopeLeftAir`; water counts). Reproduced with the old jump from 300 up: "TAKEN AGAIN" at 1.00 s; fixed: a free
+  fall, 0 frames held back. VR: held grips don't take it again (a press does); checked (`pole_jump`, grips held).
+- **Monkey hands (3):** facing across a level rope/pole (`flatMonkeyAcross`, within ~37 degrees of square) the hands
+  shuffle and keep their sides (right hand on his right; the lead hand a step on, then the trail up to a step behind);
+  crossed hands swap holds; the take puts the right hand on his right. Facing along it, hand over hand as before.
+  strungside: 0 frames crossed (48 frames, 12 units without it).
+- **Elbows (4):** solveArm on a rope (`ropeHang`, the climbing pose's weight; your body and another player's copy, flat
+  and VR) mixes the elbow's pole towards out at its side, a little down and back, by `vr_rope_elbow_out` (1, tunable),
+  and eases the wrist's swing off by the same share. Flat on a pole: elbows bowed 10.0 cm in off the arm's line -> 0.1
+  out. A straight arm reaching in to the pole still has its elbow inside the shoulder's line (7 cm; 18 before).
+- **Knuckles (5):** `ropeTurn` pitches the fist up `vr_rope_hand_pitch` (10, tunable) towards the world's up (0 on a
+  monkey rope, whose knuckles already point up); VR, flat, and another player's copy through his snapshot's hand turn.
+  Measured 10.0 degrees (0.0 before).
+- Tests: rope_flat_test polejump 7/0, slantjump 6/0, strungside 6/0, pole 7/0 (arms), rope 8/0, strung 5/0, strungpole 5/0;
+  rope_climb_test pole_jump 6/0 (new), rope_climb 11/0, rope_jump 6/0, monkey_jump 7/0, monkey_drop 7/0, pole_monkey 7/0,
+  pole_wood 10/0, pole_metal 10/0 (sink 0.3 with the pitched fist); rope_hands_test 6/0; vr_pole_solid_test 14/0.
+  Not run: MP suites (the copies share the code). Screenshots kit scratch ropes10_pole_before/after.png (low-res mock).
+- Commits: items 2, 3, 6 together (one test file and the take/let-go code); 4 and 5 together (shared tunables, test).
 ## promote1123: 51 ticked lines retired, the checklist sorted, his tuning promoted (branch agent/promote1123, 2026-11-23)
 
 - **Checklist:** his 51 ticked lines retired (no voice note against them: his notes since 2026-11-22 all predate the
@@ -10485,3 +10589,79 @@ His ask 2026-11-23. Follows "weaponwheel" and "flatnumkeys"; FLATPLAY.md's keys 
   long hold opens nothing). flatholster_test 54/0, flatkeybind_test 16/0. Scenario `flat_weapon_wheel`.
 - Noticed, not chased: in the headset test the nailgun put into a holster by the wheel came back out with an empty clip
   (24 rounds, not into the reserve); the shotgun drawn from its holster kept its 8.
+
+## qtune: a fight-only resolution floor, your rig and the gore on cheaper forms, settled gore trimmed (agent/qtune, 2026-11-23)
+
+Follows "questperf" and the shader review (its model items 2 and 5). Built and checked on the PC mock (`-glescompat`,
+`vr_standalone_preset 0`), then on the Quest 3 over USB (his OK; one block, 4 launches, home shell in front before
+each; this branch's APK with the quest tree's key and test progs.dat; beta2's re-signed APK and the shipped progs.dat,
+md5 8a409520..., put back). All headset parts with `vr_retro 0; vr_retrolight 0` (qworld's new Standalone baseline)
+and fixed seeds. QUEST_OPTIMISATIONS.md "Quest gib fight" has the rows.
+- **Fight floor** (`vr_dynres_min_fight`, default 0, Standalone Q3 72 Hz 0.55, the other two 0;
+  `vr_dynres_fight_frames` 36; VR Settings > Graphics, Advanced: Dynamic Lowest in Fights): dynres keeps
+  `vr_dynres_min` (0.65) until the eyes have been over the budget at that floor for 36 frames (a frame under takes 4
+  back: a spike does not open it); then the floor is 0.55 and the usual fast drop goes there; the usual slow rise
+  (85% fit, 1 s after a drop, 0.5 s between rises) brings it back, and reaching 0.65 shuts the fight floor until the
+  next fight. The status line adds the openings and the share of frames below `vr_dynres_min`; `vr_dynres_log 1` prints
+  "fight floor open/shut". Mock (`vr_dynres 2`, `vr_dynres_test_load 300`, budget 0.3): 1.00 -> 0.65, open, -> 0.55;
+  load off: 0.55 -> 0.60, shut, -> 0.65 (ended on the shut line).
+- **Your rig** (`vr_rig_plain`, default 0, Standalone 1; VR Settings > Graphics: Plain Own Models): your hands, body,
+  held, holstered and worn models lose their normal maps, parallax, reflections and rim light (a glowing one keeps
+  them), so they take the plain form (the body, with skin tone, the skin form) instead of the whole opaque shader.
+  The gib fight's batches (vr_gl_passes): hand_rig, v_shot held, legholster, strap, mag `opaque` (needs 160 / 32) ->
+  `plain_nofb` (0). The body is an alias model (vrbody_bare.mdl, 6k triangles, one instance, 4 draws: its surfaces);
+  the gear pieces are separate models, one batch each (legholster's two are two batches: posed apart).
+- **No fullbright read** (`vr_gl_alias_nofb` tunable 1): the plain, gore and skin forms have a variant without the
+  fullbright texture's fetch (`QVR_APLAIN_NOFB`), taken by a batch none of whose skins has fullbrights (r_alias.c looks at
+  the surfaces' `fbtextures`). Picture: the same (two eyeshots of one frozen frame differ by 10 levels from the torches'
+  flicker; nofb on/off by 4).
+- **No lights' loop** (`vr_gl_alias_flat` tunable 1; with Quake's lights, `vr_gl_quake_dlights` 1 in Standalone): gibs,
+  heads and limbs (progs/gib*, progs/h_*, #limb) get their dynamic lights added flat on the CPU as your body already did
+  (VR_AliasBodyFlat), and a batch all flat-lit takes the forms' variant with `QVR_APLAIN_NODLIGHTS` (compiled out, not the
+  run-time `BatchDlightsFlat` skip: C5h measured -3.2 vs -1.0 ms). Mock fight: gibs and limbs `plain_nofb_flat`, heads
+  `gore_nofb_flat`, the body `skin_flat`. Variants are lite bits 29 / 30 (the programs remade when they change); up to
+  36 plain/gore/skin programs instead of 9 are prewarmed at the map load (the program cache keeps them after the first).
+- **Settled gore** (`vr_gore_trim_max`, default 0, Standalone 24 / 20 / 16; `vr_gore_trim_age` 5 s, `vr_gore_trim_near`
+  160; Gore > Limb Gore: Most Settled Gore; QC vr_dmloose.qc, not in deathmatch): twice a second, while more gibs, heads
+  and limbs lie about than the most, those lying 5 s or more go farthest first, never one within 160 units of a player,
+  one held, skewered or pulled. Mock (six grunts gibbed close, max 6): none while fresh, none with near 1000; near 0:
+  the two farthest limbs (406, 351 units) went, 6 left. By design it leaves the close-up fight alone.
+- **Batching:** the gore was already instanced (gib1 76 instances in 2 batches, both eyes), so no batching work; the
+  CPU side of the trim is a findflags walk twice a second.
+- **Quest 3** (frozen gib fight, 0.65 fixed, ABBAABBA, 240 frames a part, GPU median both eyes; xr missed share):
+  all three model changes (rig plain + no fullbright + no lights' loop) vs none: launch 1 **14.77 vs 15.84 ms, missed
+  15.2% vs 28.2%**; launch 4 **15.36 vs 16.17, 21.6% vs 23.7%** (the headset warmer); the shader variants alone (rig
+  plain in both): 15.11 vs 15.59, 18.3% vs 21.4%, so the rig's plain form ~0.3-0.5 and the variants ~0.5. Draws the same
+  (211-216). Dynres on (ceiling 0.9, floor 0.65, the fight 480 frames a part): **fight floor 0.55: GPU 13.36, missed
+  4.7% (the clean part; 20% in the part with the load's hitch) vs none: 15.5-18.1, 19-37%**; the fight launch spent 26%
+  of its frames at 0.55. e1m1 without a fight (turning round at four spots, 1834 frames, dynres on): **0% below 0.65**,
+  every frame at the 0.9 ceiling (GPU 7.9 ms median), so the fight floor never opened.
+- **Not checked: the look on the headset.** The parts' `screenshot` came out black (it grabs the Quest's empty window;
+  `vr_eyeshot` is the one to use): the rig without its normal maps and the flat-lit gore at 0.55 still want an eyes'
+  check (the PC mock's eyeshots: the no-fullbright variant matches; the rig was out of the mock's view).
+- **Scripts** (scratch, not committed): qt_apk.sh, qt_install.sh / qt_run.sh / qt_restore.sh (questperf's, this tree),
+  qt_mk.sh (the A/B cfgs), qt_mkwalk.py, qt_scale.py (frames per dynres scale), qt_pcfight.sh (vr_gl_passes on the
+  mock), qt_trim.sh, qt_diff.py (pure-Python PNG diff).
+- **Shared:** the forms' variants are one code path for ES and the PC's `vr_gl_pc_forms 1`; the rig test reuses the
+  "your own models" group list (rigModel, now also VR_AliasPlayerFirst's).
+## ropes11: the same pole taken again after a jump; the slow slide was the pole's boxes (agent/ropes11, 2026-11-23)
+
+His correction 2026-11-23 to ropes10 item 6 ("grab the same pole/rope again after jumping"; "a friction-based collision
+issue rather than regrabbing"). ROPES.md "Climbing (flat-screen)", "Poles", "Tests".
+- **Regrab (1):** ropes10's `flatRopeLeftAir` is gone; the rope let go of is only not taken again for
+  `vr_flat_rope_retake` (0.3 s, tunable, Debug > Tunables; was a fixed 1 s), then taken again in the air or walked into.
+  A jump off with forward still held is steered back by the air control and taken again ~0.4 s later (by design now).
+- **The slide (2), reproduced:** `vr_pole_fall_test` logs each airborne frame (speed, ground entity, the nearest pole box's
+  gap, pass bit). Upright: a body in a pole box by 0.3-0.45 units (under `solidInside` 0.5) was neither let through nor
+  free: every move started in it, his speed grew to -2000 while he crept down 0.15 units a frame (a gravity step).
+  Slanted: he stood (or crept along, forward held) on the ledges of its boxes' staircase. The speed alone looked free;
+  the test now also checks he goes down by as much as his speed says.
+- **Fix:** `solidInside` 0 (any overlap lets him out; a body stopped at a face is DIST_EPSILON off it, so ropes8e's
+  walk-through stays fixed: wall/wallvr pass); `solidLedge`: a pole too steep to stand on (its axis' level share under
+  0.7) has its inner box tops/bottoms passed by players (SV_ClipToLinks' `VR_PoleSolidLedge`, world.c; the clients'
+  prediction in `clientSolidTrace` the same), so he falls on beside it at gravity's pace while the side faces stop him
+  level. Shots and monsters keep every face (they would stick inside). Level poles keep their tops, upright ones the cap.
+- **Tests:** pole_fall_test.sh upright 21/0, slant 21/0 (before: 3 and 6 failed, the regrab case both), mock headset
+  upright 11/0, slant 11/0; rope_flat_test rope 8/0, pole 7/0, polejump 7/0, slantjump 6/0, wall 1/0, wallvr 1/0,
+  strungpole 5/0; rope_climb_test pole_jump 6/0, rope_jump 6/0, pole_wood 10/0, monkey_jump 7/0; vr_pole_solid_test
+  14/0; mp_test.py pole 15/0. Not run: an MP free-fall scenario (prediction shares solidInside/solidLedge).

@@ -773,6 +773,8 @@ QVR_CVAR(vr_render_scale, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_dynres, "1", CVAR_ARCHIVE)            // 0 off, 1 on with a headset, 2 the mock headset too (tests)
 QVR_CVAR(vr_dynres_target, "0.85", CVAR_ARCHIVE)  // ... the budget: this share of the headset's display period (0.3-1) for the eyes' GPU time
 QVR_CVAR(vr_dynres_min, "0.6", CVAR_ARCHIVE)      // ... the lowest scale it goes to
+QVR_CVAR(vr_dynres_min_fight, "0", CVAR_ARCHIVE)  // ... below vr_dynres_min, the lowest in a fight: only once the eyes stayed over the budget at vr_dynres_min for vr_dynres_fight_frames; shut again once risen back to vr_dynres_min (0: none; Standalone 72 Hz: 0.55)
+QVR_CVAR(vr_dynres_fight_frames, "36", CVAR_ARCHIVE) // ... frames over the budget at vr_dynres_min before vr_dynres_min_fight opens (each frame under takes 4 back)
 QVR_CVAR(vr_dynres_max, "-1", CVAR_ARCHIVE)       // ... the highest (its ceiling); below 0: vr_render_scale
 QVR_CVAR(vr_dynres_log, "0", CVAR_NONE)           // ... 1: a console line at each change (Debug > Profiling); 2: also the scale and the eyes' GPU time twice a second
 QVR_CVAR(vr_dynres_test_load, "0", CVAR_NONE)     // ... an artificial GPU cost in each eye, units of work a pixel (Debug > Profiling; 0 none; negative: that load for one frame, a spike)
@@ -2173,6 +2175,7 @@ QVR_CVAR(vr_model_light_grid, "1", CVAR_ARCHIVE)      // hidden (no menu row sin
 QVR_CVAR(vr_model_ambient_dir, "1", CVAR_ARCHIVE)     // models lit by the baked light around them, brighter on the side facing lit walls (vr_ambient.cpp; 0: one brightness all round)
 QVR_CVAR(vr_model_ambient_contrast, "1.5", CVAR_ARCHIVE) // how much the sides differ (0: not at all, 1: as the surroundings do)
 QVR_CVAR(vr_rim_light, "0.5", CVAR_ARCHIVE)           // a faint light round models' edges, in the light around them, so they stand out from dark backgrounds (vr_envmap.cpp; 0 off .. 1)
+QVR_CVAR(vr_rig_plain, "0", CVAR_ARCHIVE)             // your own body, hands, held guns and gear without normal maps, reflections and rim light: the cheap model shader draws them (vr_render.cpp; Standalone 1)
 QVR_CVAR(vr_weapon_reflections, "1", CVAR_ARCHIVE)    // your weapons' metal reflects the room round you (a small cube map of the world, vr_envmap.cpp; 0 off)
 QVR_CVAR(vr_weapon_reflections_strength, "1.2", CVAR_ARCHIVE) // how strongly (0..2)
 QVR_CVAR(vr_relit_maps, "1", CVAR_ARCHIVE)           // maps re-lit by Misc/quakevr/relight_maps.py, when present (next map)
@@ -3606,6 +3609,9 @@ QVR_CVAR(vr_limbs_blast_chance, "0.6", CVAR_ARCHIVE) // a limb's chance to pop a
 QVR_CVAR(vr_gib_limbs, "1", CVAR_ARCHIVE) // a body gibbed throws its own limbs: 0 no (Quake's gibs), 1 besides Quake's gibs, 2 instead of the meat gibs
 QVR_CVAR(vr_limbs_prebuild, "2", CVAR_ARCHIVE) // limb gore: the whole limbs of the map's kinds of monster (those waiting for a trigger too) made as it loads (0: at the first cut, a hitch); 2 (the default since vr_cfg_version 147): also the kinds the firing range's dispensers and dummies (and vr_probe_test_spawn's) can make (the firing range's load +0.22 s with a filled cache; 1 makes those in play, one a frame, ~8 ms each)
 QVR_CVAR(vr_limbs_max, "24", CVAR_ARCHIVE) // most limbs lying about: past it, the oldest go (not one in a hand)
+QVR_CVAR(vr_gore_trim_max, "0", CVAR_ARCHIVE)  // most settled gibs, heads and limbs (QC vr_dmloose.qc; not deathmatch): past it, those lying vr_gore_trim_age s farthest from you go first, none within vr_gore_trim_near units (0: no cap; Standalone 24)
+QVR_CVAR(vr_gore_trim_age, "5", CVAR_ARCHIVE)  // ... seconds one lies about before it may go (after a fight)
+QVR_CVAR(vr_gore_trim_near, "160", CVAR_ARCHIVE) // ... none this close to a player goes (units: the look up close kept)
 QVR_CVAR(vr_dmgcredit_test, "0", CVAR_NONE) // the QC fires every weapon at a target that takes only one weapon's damage and prints the weapon each is credited with (vr_dmgcredit_test.qc; Debug > Tests)
 QVR_CVAR(vr_pickup_test, "0", CVAR_NONE) // the QC runs weapon pickup test n: 1 every weapon pickup in a row ahead with the same weapon dropped, 2 the nearest taken, 3 the next pair shown, 4 every weapon a monster can drop dropped ahead (its convex pieces cut: Setup's preparation), 5 the weapons lying near reported, 6 a floating pickup ahead, watched (the floating grace) (vr_pickup_test.qc; Debug > Tests)
 QVR_CVAR(vr_limbs_mass_scale, "1", CVAR_ARCHIVE) // a limb (or head) cut off weighs its share of its ragdoll's mass by the kind of limb (an arm 6.3%, a leg 15.5%, the head 7%) times this (at least 0.05)
@@ -3790,6 +3796,8 @@ QVR_CVAR(vr_rope_swing_drag, "0.15", CVAR_ARCHIVE | QVR_RULE)    // per second, 
 QVR_CVAR(vr_rope_pump, "300", CVAR_ARCHIVE | QVR_RULE)           // units/s/s the stick (or WASD) pushes a climber's swing on a rope its way (pumping it, rope to rope); 0: none
 QVR_CVAR(vr_rope_swing_cap, "350", CVAR_ARCHIVE | QVR_RULE)      // units/s at the hands the pump builds a rope's swing to at most (a push, a jump onto it, can swing it faster)
 QVR_CVAR(vr_rope_jump, "200", CVAR_ARCHIVE | QVR_RULE)          // units/s up a jump off a rope adds to the rope's swing at the hands (jump while holding one); 0: a jump lets go only
+QVR_CVAR(vr_pole_jump, "270", CVAR_ARCHIVE | QVR_RULE)          // units/s up a jump off a climbable pole gives (ropes10: a normal jump's; ropes keep vr_rope_jump)
+QVR_CVAR(vr_pole_jump_push, "200", CVAR_ARCHIVE | QVR_RULE)     // units/s level a jump off a pole pushes him away from it (under a level pole: the view's way across it)
 QVR_CVAR(vr_rope_grunt, "0.4", CVAR_ARCHIVE | QVR_RULE)         // volume (0..1) of the player's short exertion grunt as a headset's pull lifts him up a climbable rope (once a grip, when the body has risen 15 cm over its hold; at most every 0.6 s; vr_climb.cpp ropePullGrunt; ropes6); 0 off
 QVR_CVAR(vr_rope_grunt_sound, "2", CVAR_ARCHIVE | QVR_OWN)      // the rope pull's grunt (the mantle's list, vr_climb.cpp mantleGrunts): 0 the jump's, 1 a hard landing's, 2 the jump's deeper (the default: told apart from a jump off the rope), 3 a hard landing's deeper, 4 a short pain grunt
 QVR_CVAR(vr_rope_hand_grip, "2", CVAR_ARCHIVE | QVR_OWN)        // a hand on a climbable rope drawn gripping it (the rope through the fist, the knuckles outwards: the right hand's to the right, the left's to the left; vr_climb.cpp ropeTurn): 1 in flat-screen play only, 2 in VR too (ropes6); 0 as on a ledge (vr_climb_hand_pitch/yaw/roll), display only
