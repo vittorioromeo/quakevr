@@ -77,6 +77,9 @@ Hold B with the nailgun in that hand until the weapon wheel opens and pick a hol
 Flat-screen or VR: open the weapon wheel; EMPTY HAND, DROP and UNLOAD are smaller button-style slots with the holster menu's icons (a hand, a down arrow, a magazine with an arrow), lit with a double frame when pointed at and dimmed when they would do nothing. {test:weapon_wheel}
 Flat-screen: hold 1 or 2 to open the weapon wheel; the game behind it blurs like behind the MMB holster menu (Holster Menu Blur sets both) and clears as it closes. {test:flat_weapon_wheel}
 Flat-screen: in the MMB holster menu the UNLOAD buttons now show a magazine icon before their label; check it reads well next to DROP's arrow. {test:flat_weapon_wheel}
+Flat-screen or VR: kill a grunt with a thrown axe, sword or dagger: its body is thrown about half as far as before (Debug > Tunables, "Thrown Blade Kill Push"); other killing blows are unchanged. {test:embed_throw}
+Flat-screen or VR: fire the super nailgun and let go: its barrels slow down and stop where they are instead of snapping back, and spin up again from rest when you fire. {test:sng_spin}
+Hold the Crystal Lance's trigger to charge it: the violet light, glow and sparks gather on the tip of the middle crystal, not on an outer prong. {test:dwell_lance_pole}
 
 [1. Dwell]
 Flat-screen or VR: hold fire with Dwell's Crystal Lance: violet sparks gather at the tip, a light grows and a hum rises for about a second; let go early and nothing fires and no cells go; hold until the light pulses and let go: one shot (6 cells), its bolt visible a moment. {test:dwell_lance_pole}
