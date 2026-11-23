@@ -1,0 +1,10 @@
+# ad_crucial_lift: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". ad_crucial's lift1
+# (fbmisc1123; his note 2026-11-23: "raised and can't be brought down"): AD's func_plat with a targetname waits raised
+# and locked until the super shotgun in the lower hall (-320 80 -328, target lift1) is taken (the map's design; checked
+# by vr_pickup_test 24). Needs Arcane Dimensions mounted (Play > Official Campaigns > Arcane Dimensions, or -game ad).
+title ad_crucial's lift: raised until you take the super shotgun in the hall
+map ad_crucial
+start -460 -12 -299 0
+god
+notarget
+hint The lift shaft is behind you to the west, its lift raised. Take the super shotgun lying in this hall (a little north-east): the lift comes down (three enforcers appear by it) and then works as any lift.
