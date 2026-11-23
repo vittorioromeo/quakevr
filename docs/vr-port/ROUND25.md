@@ -11529,3 +11529,27 @@ beta2's re-signed APK and the shipped progs.dat (8a409520...) back. Scripts (not
 - **Release blockers**: scenario_check (make_release -RunTests stops on it); the notes "New in beta 3" (draft:
   qvr-kit/scratch/beta3_notes_draft.md, incl. the one-time Quest uninstall for the release key and net version 46);
   the weapon wheel not checked on the headset (human); the release-signed APK not built (his key).
+
+## beta3fix: beta3's blockers cleared (agent/beta3fix, 2026-11-23; nothing published)
+
+- **scenario_check**: Box3D's diag commands (`vr_physics_spawn` and the 45 others) are registered at startup:
+  `box3d::init` (VR_Init) -> `detail::startup` (vr_box3d_diag.cpp), which also sets Box3D's allocator (vr_physics_mtbench
+  makes worlds with no map). The version line (`printVersion`) still prints at the first reset/toss/physics frame, after
+  the configs. Every command run with no map, no args (and `vr_physics_spawn monster_army 56 -30`): each says "no world"
+  / "in a game" / its usage; no crash. The other late-registered sets (gadget, crates, debris, emissive, rope, ropesim,
+  rigid, pbr, ambient, view_hands) are used by no scenario `cmd` line (validate checks a line's first word only).
+  `run_test_suite.py --profile beta`: **12 passed, 0 failed** (scenario_check 301 s).
+- **GL error 0x502 on the Quest's eye-image set-up line**: not the set-up's calls. glGetError returns what is pending,
+  and the line came right after the other eye's drawing: in beta3check's logcat it is 0x0 whenever an eyeshot (which
+  drains errors) ran in between, 0x502 after an eye drawn without one, foveated or not. The Quest-only call in that
+  drawing is the in-tile pass (vr_tonemap.cpp `drawInTile`, GL_EXT_shader_framebuffer_fetch): it called
+  VR_PostProcessView, which sets SceneMap and BloomMap (13, 14), uniforms the in-tile program doesn't read (inactive);
+  Adreno answers that with GL_INVALID_OPERATION (desktop drivers ignore it). It now sets PostView (12) only (it
+  overwrote it anyway): no behaviour change. The set-up line drains what is pending first and prints it apart
+  (`GL error 0x0 (pending before 0x502)`), so the next headset log says which. **Not verified on the headset**; on PC the
+  path doesn't run (no framebuffer fetch: `-glescompat` + `vr_xr_direct 2` stays on the post-process).
+- **Notes**: RELEASE_NOTES_1.2.md "New in beta 3" on top (beta 2's text under "# Beta 2 (2026-11-23)"), PATCH_NOTES
+  by area. Setup does **not** back up Quest saves (QuestInstaller.cs: `install -r` only; INSTALL_FAILED_UPDATE_INCOMPATIBLE
+  tells the player to uninstall, copying saves first): the notes give the manual steps (File Explorer,
+  `Android/data/com.vittorioromeo.quakevr/files/quakevr`'s `*.sav` + `ironwail.cfg`, uninstall, Setup, copy back).
+  Quest 3S untested (a hub-crash report being looked at); Standalone experimental.
