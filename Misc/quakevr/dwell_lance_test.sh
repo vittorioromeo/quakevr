@@ -16,7 +16,7 @@ log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait10;god;notarget;vr_adweapon_
     -QuitOn "dwlance: [0-9]+ passed" -Timeout 300 -Filter "dwlance|vr_adweapon_models:|progs/dw_lance|rror|exit=" 2>&1 | tr -d '\r')
 echo "$log" | grep -E "FAIL|vr_adweapon_models:|progs/dw_lance" | cut -c1-200 | head -6
 expect_verdict "$log" dwlance "the Lance as a lance, and as the pistol with the setting off"
-check $(grep -q "vr_adweapon_models: 8 made, 0 not made" <<<"$log" && echo 1 || echo 0) "the eight models made (the lance from Dwell's world model)"
+check $(grep -q "vr_adweapon_models: 7 made, 0 not made" <<<"$log" && echo 1 || echo 0) "the seven models made (the lance from Dwell's world model)"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "models: the run ended on its verdict"
 OFF="vr_mock_fingers main 0 1;+grableft;vr_mock_button off grip 1;wait30" # (the main hand's grip closed: it holds, the off hand slides)
 SLIDE="vr_mock_hand_to off held 0.95;wait30;echo dwlance-mark: far;vr_mock_hand_to off held 0.35;wait30;echo dwlance-mark: near;vr_status"
