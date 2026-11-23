@@ -2462,6 +2462,8 @@ struct FlatTest
                              // landed, walked into again: taken
     bool slide{false};       // (ropes13) `slide` / `poleslide`: up it, crouch held: a quick slide down to the floor
     bool crouchDrop{false};  // (ropes13) `strungcrouch`: `strung` (the level pole) dropped from with crouch
+    float slideOff{-1e9f};   // (flatfb1124) `slide` / `poleslide`: the feet where he was first off it (none yet)
+    bool slideLanded{false}; // and the slide's own check made (on the floor)
     int slides0{0}, sounds0{0}; // (ropes13) the slides begun and the rope's sounds as the slide began
 };
 FlatTest flatTest;
@@ -3193,8 +3195,36 @@ void flatTestFrame()
     {
         bool sliding = false;
         const int slides = climb::flatRopeSlides(player, sliding);
+        // (flatfb1124, his note 2026-11-24: the slide let go almost at once, and he fell to the floor: crouch held only
+        // slides, off it only standing on the floor. Crouch kept held 2 s: still on the floor, not taken again.)
+        if(!climbing && t.slideOff < -1e8f)
+        {
+            t.slideOff = feet;
+        }
+        if(t.slideLanded)
+        {
+            if(t.frames >= 72 * 2)
+            {
+                const bool ok = !climbing && ground && za::abs(feet) < 2.f;
+                const char* what = va("crouch held 2 s: %s, the feet at %.1f", climbing ? "HOLDING IT AGAIN" : ground ? "standing on the floor" : "IN THE AIR", feet);
+                t.tally.check(ok, flatTestName, what);
+                if(ok)
+                {
+                    Con_Printf("%s: PASS %s\n", flatTestName, what);
+                }
+                flatTestEnd(t, false, "");
+            }
+            return;
+        }
         if(!climbing && ground)
         {
+            const bool held = t.slideOff < 2.f;
+            const char* off = va("off it at the floor only: first off it with the feet at %.1f (under 2)", t.slideOff);
+            t.tally.check(held, flatTestName, off);
+            if(held)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, off);
+            }
             int sounds = 0;
             (void)physsound::ropeSoundInfo(t.rope, sounds);
             const float speed = t.frames > 0 ? (t.feet0 - feet) / (static_cast<float>(t.frames) / 72.f) : 0.f;
@@ -3209,7 +3239,7 @@ void flatTestFrame()
             {
                 Con_Printf("%s: PASS %s\n", flatTestName, what);
             }
-            flatTestEnd(t, false, "");
+            t.slideLanded = true; // (crouch still held: on to 2 s)
         }
         else if(t.frames > 72 * 6)
         {
@@ -3217,6 +3247,50 @@ void flatTestFrame()
         }
         return;
     }
+    // (flatfb1124, his note 2026-11-24) `slideend`: set in the air on the swinging row's first rope (as case 6), crouch held
+    // 2 s: still holding it (at its end over the drop) or standing on the floor, never let go in the air.
+    case 62:
+    {
+        if(t.frames == 36)
+        {
+            climbrope::Grab g;
+            t.first = climbrope::findGrab(flatTestRow[0] + glm::vec3{0.f, 0.f, 300.f}, 8.f, g) ? g.ent : 0;
+            flatTestPlace(player, flatTestRow[0] + glm::vec3{0.f, -12.f, 170.f}, 90.f);
+        }
+        int ent = 0;
+        glm::vec3 v{0.f};
+        if(t.frames > 36 && climbing && climbrope::riding(client, ent, v) && ent == t.first)
+        {
+            Con_Printf("%s: PASS set in the air by a rope: taken (rope %d, the feet at %.1f); crouch held\n", flatTestName, ent, feet);
+            t.tally.check(true, flatTestName, "set in the air by a rope: taken");
+            t.slideOff = -1e9f;
+            Cbuf_AddText("+flatcrouch\n");
+            flatTestNext(t, 63);
+        }
+        else if(t.frames > 72 * 3)
+        {
+            flatTestEnd(t, true, "taking the row's first rope in the air");
+        }
+        return;
+    }
+    case 63:
+        if(!climbing && !ground && t.slideOff < -1e8f)
+        {
+            t.slideOff = feet; // (off it in the air)
+        }
+        if(t.frames >= 72 * 2)
+        {
+            const bool ok = t.slideOff < -1e8f && (climbing || (ground && za::abs(feet) < 2.f));
+            const char* what = va("crouch held 2 s on a rope: %s, the feet at %.1f%s", climbing ? "still holding it" : ground ? "standing on the floor" : "IN THE AIR",
+                feet, t.slideOff < -1e8f ? "" : va(", LET GO IN THE AIR at %.1f", t.slideOff));
+            t.tally.check(ok, flatTestName, what);
+            if(ok)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, what);
+            }
+            flatTestEnd(t, false, "");
+        }
+        return;
     case 26: // the move-down key (ropes13: or crouch, `strungcrouch`): dropped
     {
         const char* key = t.crouchDrop ? "crouch" : "the move-down key";
@@ -3267,6 +3341,10 @@ void flatTest_f()
     flatTest.shots = Cmd_Argc() > 2 && !ZA_STRCMP(Cmd_Argv(2), "shots");
     flatTest.chain = !ZA_STRCMP(mode, "chain");
     flatTest.stage = !ZA_STRCMP(mode, "strung") || !ZA_STRCMP(mode, "strungpole") || flatTest.side || flatTest.crouchDrop ? 20 : 1;
+    if(!ZA_STRCMP(mode, "slideend"))
+    {
+        flatTest.stage = 62; // (flatfb1124)
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

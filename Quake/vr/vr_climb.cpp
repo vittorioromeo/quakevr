@@ -4302,6 +4302,7 @@ int flatLadderFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
 // (reportRopes; flatRopeKeys, vr_flat_rope_keys); jump lets go keeping the swing (ropeJump). The body hangs with the rope flatRopeGap ahead of its
 // middle, the view's way (turning goes round the rope).
 constexpr float flatRopeGap = 10.f;    // units: the rope this far ahead of the box's middle (the chest's front)
+constexpr float flatSlideFloorDrop = 48.f; // (flatfb1124) units: a slide at its end lets him down onto a floor this near
 constexpr float flatRopeStep = 12.f;   // units along the rope: a hand's new hold past the other's
 constexpr float flatRopeTurn = 120.f;  // units/s the body goes round the rope (turning) or in under it at most
 
@@ -4694,6 +4695,26 @@ void flatSlideHolds(Climber& c, int client, float slid)
     }
 }
 
+// (flatfb1124) Whether every holding hand has more rope under it to slide down to (not at its free end).
+[[nodiscard]] bool flatSlideRoom(const Climber& c, int client)
+{
+    bool any = false;
+    for(const Grip& g : c.grips)
+    {
+        climbrope::Grab to;
+        if(!g.active || !g.rope)
+        {
+            continue;
+        }
+        if(!climbrope::grabAlong(g.entNum, client, g.ropeS + 1.f, to) || to.s < g.ropeS + 0.5f)
+        {
+            return false;
+        }
+        any = true;
+    }
+    return any;
+}
+
 // A flat rope's frame (hangFrame's): the body under the hands, the rope ahead of it (going round it as he turns), carried
 // by the holds' motion (the swing), moved up or down by the keys (the shoulders no higher than the top hand, no lower
 // than an arm under the lowest); hand over hand along it; the ground ends it going down, as the rope's end does (let go,
@@ -4751,7 +4772,11 @@ int flatRopeFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
         target += d * za::min(1.f, flatRopeTurn * dt / glm::length(d));
     }
     const float highest = high.z - shoulderUp + 2.f;
-    const float lowest = low.z - armReach() - shoulderUp;
+    // (flatfb1124, his note 2026-11-24: the slide let go at once: hanging, the body is already an arm under the lowest
+    // hand, and the holds follow the body only after it moved, so its first step down met this bound and the end's
+    // let-go below; let a step under it, the holds lagged a frame behind and held him to half the speed. Sliding while
+    // the holds have more rope under them, the body goes its slide down unbounded, the holds after it.)
+    const float lowest = slide && flatSlideRoom(c, client) ? origin.z + carry.z - speed * dt : low.z - armReach() - shoulderUp;
     target.z = za::clamp(target.z, za::min(lowest, origin.z + carry.z), za::max(highest, origin.z + carry.z));
     moveBody(ent, target);
     const glm::vec3 now = vec(ent->v.origin);
@@ -4765,6 +4790,11 @@ int flatRopeFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
     if(slid > 0.01f)
     {
         flatSlideHolds(c, client, slid);
+    }
+    if(slide && debug())
+    {
+        Con_Printf("climb: flat slide: from %.1f to %.1f (lowest %.1f, low hand %.1f -> %.1f, s %.1f, room %d)\n", origin.z, now.z, lowest,
+            low.z, holdNow(c.grips[lo]).z, c.grips[lo].ropeS, flatSlideRoom(c, client) ? 1 : 0);
     }
     if(slid > 0.25f * speed * dt)
     {
@@ -4816,7 +4846,16 @@ int flatRopeFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
     {
         ropeTake(ent, c, move, 1 - hi, next); // (one hand on it: the other takes it under)
     }
-    if(dir < 0 && now.z <= lowest + 0.5f)
+    // (flatfb1124) Sliding, at its end: the floor just under his feet (a pole ending over it), down onto it; over a drop he
+    // hangs there (crouch only slides down an upright or slanted one, never drops him).
+    const bool slideEnd = slide && now.z <= lowest + 0.5f && !flatSlideRoom(c, client);
+    bool ontoFloor = false;
+    if(slideEnd)
+    {
+        const trace_t below = tracePlayer(ent, now, now - glm::vec3{0.f, 0.f, flatSlideFloorDrop});
+        ontoFloor = !below.startsolid && below.fraction < 1.f && below.plane.normal[2] >= 0.7f;
+    }
+    if(dir < 0 && ((!slide && now.z <= lowest + 0.5f) || ontoFloor))
     {
         // At the rope's end over a drop (no more of it under the lowest hand): let go, the swing kept.
         c.grips[0].active = c.grips[1].active = false;
