@@ -4602,7 +4602,7 @@ QVR_CVAR(vr_flat_key_voicechat, "CAPSLOCK", CVAR_ARCHIVE) // multiplayer voice c
 QVR_CVAR(vr_flat_key_holster_menu, "mouse3", CVAR_ARCHIVE) // flatscreen play: the holster menu's key (a bind name; "" none; how it opens and picks: vr_flat_holster_menu_mode)
 QVR_CVAR(vr_flat_holster_menu_mode, "0", CVAR_ARCHIVE) // flatscreen play: 0 hold the key, hover a button and let go: that button (let go over nothing: just closed; a left click while held clicks too, and then letting go only closes); 1 a press opens it, left clicks as many as wanted, the next press (or Esc) closes it (his words 2026-11-10)
 QVR_CVAR(vr_flat_holster_menu_timescale, "0.3", CVAR_ARCHIVE) // flatscreen play: time's speed while the holster menu is open (bullet time's slow motion; 1 not slowed)
-QVR_CVAR(vr_flat_holster_menu_blur, "6", CVAR_ARCHIVE)  // flatscreen play: the view's blur behind the holster menu (pixels at 1080p, 0 none)
+QVR_CVAR(vr_flat_holster_menu_blur, "6", CVAR_ARCHIVE)  // flatscreen play: the view's blur behind the holster menu and the weapon wheel (pixels at 1080p, 0 none)
 QVR_CVAR(vr_flat_holster_menu_xhair_fade, "1", CVAR_ARCHIVE) // flatscreen play: how far the crosshair fades out while the holster menu is open (1 gone, 0 kept)
 QVR_CVAR(vr_flat_holster_menu_size, "0.62", CVAR_ARCHIVE) // flatscreen play: the holster menu's height, a share of the window's
 QVR_CVAR(vr_flat_holster_menu_fade_time, "0.12", CVAR_ARCHIVE) // flatscreen play: seconds the holster menu takes to fade in or out (real time)

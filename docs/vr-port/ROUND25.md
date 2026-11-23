@@ -10695,6 +10695,21 @@ issue rather than regrabbing"). ROPES.md "Climbing (flat-screen)", "Poles", "Tes
   strungpole 5/0; rope_climb_test pole_jump 6/0, rope_jump 6/0, pole_wood 10/0, monkey_jump 7/0; vr_pole_solid_test
   14/0; mp_test.py pole 15/0. Not run: an MP free-fall scenario (prediction shares solidInside/solidLedge).
 
+## wheelpolish: the wheel's actions as buttons with icons; the view blurred behind the flat wheel (agent/wheelpolish, 2026-11-23)
+
+His flat feedback 2026-11-23. Follows "weaponwheel" and "flatwheel".
+- **Actions (both modes):** a `Choice` has an `icon` (`gadget::MenuIcon`, None for a slot); the holsters' provider gives
+  EMPTY HAND the wheel hand's hand icon, DROP the drop arrow and UNLOAD a new `MenuIcon::Unload` (a magazine, an arrow out
+  of its side). `render()` draws those as the holster menu's buttons (`holsterButton`, 56 x 32 against the slots' 68 x 46),
+  not as slots: a button 24 pixels tall or more stacks its icon above its label (sized to fit) and is lit with the drop
+  target's second ring, as a lit slot; greyed when unusable. The MMB menu's buttons are 12-14 tall: unchanged, except
+  UNLOAD now shows the new icon before its label (the same action, the same icon). The pick, hit test (by sector) and
+  provider are as before.
+- **Blur (flat):** `weaponwheel::blurRadius()` (the fade times `vr_flat_holster_menu_blur`, 0 in a headset's game);
+  `visor::menuBlur` takes the larger of the holster menu's and the wheel's (one path; the two never show together). The
+  Holster Menu Blur row's help and the cvar's comment mention the wheel. No new cvar.
+- **Tests:** weaponwheel_test 17/0 (VR mock), flat 17/0, flatholster_test 54/0; screenshots: the flat wheel over the
+  blurred view, the VR mock's wheel.
 ## cltidy3: 51 ticked lines retired, the [New] section sorted (agent/cltidy3, 2026-11-23)
 
 Checklist 160 -> 114 lines; five scenes only the retired lines used moved out; details in CHECKLIST_REORG.md, "Checklist
