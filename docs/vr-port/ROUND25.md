@@ -10306,3 +10306,15 @@ Runs on origin/next 27fce84a7 (Release no-LTO, the shipped-defaults baseline). M
   server's campaign at its serverinfo (`VR_CheckSpawnCampaignMap`'s client side); BACKLOG candidate.
 - Smoke: `mp_test.py suite --only` the six touched scenarios and mp_coop: mp_suite passed (netsafe 14/0, coop 12/0,
   flow 17/0, melee 30/0, slide_vr 8/0, predict 31/0, predictclimb 29/0, predictslide 14/0). flatswing 4/0.
+
+## split13 (2026-11-23): splitscreen hands, ghost gun, ammo screens (agent/split)
+
+- Merged origin/next (one conflict, vr_flatsight.cpp: next's wall-turned hotspot keep against the seats' `st()`).
+- Fixed split12's items 1-2: the view's drawn state (view entities, rigged hands, eases, once-a-frame guards, 39
+  variables) moved into `SeatView`, each seat's (`seat::Part::View`; a scripted rename to accessors,
+  scratch/split13_seatview.py); queued 3D texts drawn in their own seat's pass. Root cause: each seat's move sent its
+  hands from the one shared set, so both sent seat 2's. Details: SPLITSCREEN.md section 23.
+- Tests: seat_render_test.sh 255/0 (2, 3, 4 seats, torches; Step::Hands new: own hands/gun once, no foreign or ghost,
+  ammo screen on its gun same text 8/8 frames, avatar hands 1-6 units from the other seat's own vs ~100 with the bug).
+  Not run with the fix reverted (the refactor is not a one-line revert). The anim/ragdoll test is written but not
+  working (its grunt never found; `vr_seat_render_test 2 anim`, not in the .sh).
