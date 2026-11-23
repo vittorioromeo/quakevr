@@ -11495,3 +11495,6 @@ settings: everyone's holsters sat where yours do.
   pieces (8 pieces), A's at B 0.002 m; each 0.29 m from the viewer's own (sameprefs 0); the bot 0.237 m from A's changed
   own (sameprefs 0); A back at the defaults: 0 differ, the bot as A's own 0.027 m / 3.9 degrees. 16/0. botgear 17/0,
   body 13/0, version 7/0, avatarcal 10/0; scene mp_dm_passive: the bot sameprefs 1, ok 1.
+
+## holsterbake
+vr_mp_holster_check (vr_mpavatar.cpp) puts every archived vr_ cvar at its shipped default for a moment (restored after), computes the holsters and compares them with defaultHolsterCal: PASS, or FAIL N of M differ with the field names, the re-bake instruction and the table. It runs in Misc/quakevr/selfchecks_test.sh (release suite selfchecks; "PASS bot default holsters"). Proven: vr_hip_offset_y default 11.5 -> 12.5 failed it (8 of 46: at2y at3y po2y po2z pc2 po3y po3z pc3); reverted, passes.
