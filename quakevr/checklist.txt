@@ -11,6 +11,7 @@ Quest standalone: Standalone graphics now set Quest Foveation to High on the Que
 Quest standalone: with Quest Foveation High the picture should stay sharper in fights than before (dynamic resolution drops less) and the frame rate should hold at least as well as with Low; switch between High and Low mid-game: no crash, no black or stretched eye. {test:quest_gibfight}
 On the Quest 3 (Standalone), fight in e1m1's first room and look at the floor's and walls' dark gradients: no banding and no fixed noise pattern in the lens, as before (the dither is now drawn by the scene itself). {test:quest_gibfight}
 On the Quest 3 (Standalone), start bullet time in a fight: the world still turns grey and tinted with darkened edges, and the comfort vignette still shows when you move with the stick. {test:quest_gibfight}
+Quest standalone: mid-game, switch Settings > Quest Foveation between High, Off, Low and back a few times (menu open): no crash, the picture right after each switch. {test:quest_gibfight}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the 1.2.0-beta2 pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names 1.2.0-beta2; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
