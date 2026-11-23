@@ -2213,6 +2213,7 @@ QVR_TUNABLE(vr_flat_parry_blade, "1") // flatscreen: in the guard with a weapon 
 QVR_TUNABLE(vr_flat_parry_blade_in_time, "0.12") // seconds the free hand takes to reach the blade (0: at once)
 QVR_TUNABLE(vr_flat_parry_blade_out_time, "0.15") // seconds back to where it was once it lets go (0: at once)
 QVR_TUNABLE(vr_flat_parry_blade_palm, "1") // the free hand on the blade palm down, over it (0: turned the least from how it was: palm up under it)
+QVR_TUNABLE(vr_flat_parry_blade_reach, "14") // the free hand on the blade at most this far from the holding hand (units, about shoulder width: the crowbar's hotspot; a long blade's hotspot is brought in; 0 no limit)
 
 // Flatscreen > Two-Handed Melee Stance (his notes 2026-11-12: a melee weapon with a two-handed grip is always held in both
 // hands while the other hand is empty; vr_flatplay.cpp twoHandPose, vr_flatsight.cpp carries the free hand onto the grip)
@@ -2232,6 +2233,27 @@ QVR_TUNABLE(vr_flat_pole_out, "3") // and this far further out at its own side (
 QVR_TUNABLE(vr_flat_pole_roll, "0") // and rolled this far about its pole (degrees)
 QVR_TUNABLE(vr_flat_pole_off_along, "16") // the other hand on the pole this far ahead of the holding hand (units; negative behind it)
 QVR_TUNABLE(vr_flat_pole_off_roll, "0") // and rolled this far about the pole from where it closes on it (degrees)
+// (flatmelee2, his notes 2026-11-23: each hand's place and turn, where they lie along the shaft.)
+QVR_TUNABLE(vr_flat_pole_pitch, "0") // the spear turned about the holding fist, its tip up (degrees; drawn only: the beam keeps to the crosshair)
+QVR_TUNABLE(vr_flat_pole_yaw, "0") // and its tip in towards the middle (degrees; negative out; drawn only)
+QVR_TUNABLE(vr_flat_pole_along, "0") // the holding hand this far up the pole towards its tip (units; negative towards the butt: the pole slid through the fist)
+QVR_TUNABLE(vr_flat_pole_off_up, "0") // the other hand this far up off the pole (units; negative down)
+QVR_TUNABLE(vr_flat_pole_off_out, "0") // and this far out to its own side (units; negative in)
+// The spear thrust (flatmelee2, his notes 2026-11-23): V with a pole weapon; vr_flatplay.cpp thrustPose.
+QVR_TUNABLE(vr_flat_thrust, "1") // flatscreen: V with a pole weapon (the Crystal Lance) thrusts it as a spear (0: the overhead swing)
+QVR_TUNABLE(vr_flat_thrust_wind_time, "0.16") // seconds of its windup, drawn back along the pole
+QVR_TUNABLE(vr_flat_thrust_wind_back, "8") // units drawn back along the pole
+QVR_TUNABLE(vr_flat_thrust_wind_up, "1") // and up (units; negative down)
+QVR_TUNABLE(vr_flat_thrust_wind_pitch, "6") // the tip turned up (degrees; negative down)
+QVR_TUNABLE(vr_flat_thrust_wind_yaw, "0") // and in towards the middle (degrees; negative out)
+QVR_TUNABLE(vr_flat_thrust_hold_time, "0.05") // seconds held drawn back
+QVR_TUNABLE(vr_flat_thrust_strike_time, "0.1") // seconds of the thrust out (the blow)
+QVR_TUNABLE(vr_flat_thrust_reach, "14") // its end this far ahead of the spear pose along the pole (units; within the arm's reach)
+QVR_TUNABLE(vr_flat_thrust_up, "0") // and up (units; negative down)
+QVR_TUNABLE(vr_flat_thrust_pitch, "-3") // the tip turned up at its end (degrees; negative down)
+QVR_TUNABLE(vr_flat_thrust_yaw, "0") // and in towards the middle (degrees; negative out)
+QVR_TUNABLE(vr_flat_thrust_dwell_time, "0.08") // seconds held out
+QVR_TUNABLE(vr_flat_thrust_back_time, "0.25") // seconds back to the spear pose
 QVR_TUNABLE(vr_flat_melee_2h_parry_fwd, "0") // the parry's guard held in two hands: the hand this far further ahead than the one-handed guard (units)
 QVR_TUNABLE(vr_flat_melee_2h_parry_up, "0") // and this far higher (units; negative lower)
 QVR_TUNABLE(vr_flat_melee_2h_parry_out, "0") // and this far further out at its own side (units; negative inwards)

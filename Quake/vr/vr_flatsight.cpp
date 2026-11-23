@@ -2017,7 +2017,10 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
         hands::angleVectors(s.rot[st.holding], fwd, right, up);
         const glm::vec3 d = placedGrip - s.placedFrom[st.holding];
         st.gripReach = glm::length(d);
-        st.gripFwd = glm::dot(d, fwd);
+        // (A pole weapon's spear grip is ahead along its pole, the way its shot goes: its hand's own forward lies some 90
+        // degrees off the Lance's pole, Shot Pitch 92.5, and the free hand was never carried onto it; flatmelee2.)
+        const int heldSlot = flatplay::heldIn(st.holding);
+        st.gripFwd = glm::dot(d, twohand::poleWeapon(heldSlot) ? hands::forward(weapons::shotAngles(s.rot[st.holding], heldSlot, st.holding == HAND_OFF)) : fwd);
         st.gripRight = glm::dot(d, right);
         st.gripUp = glm::dot(d, up);
     }

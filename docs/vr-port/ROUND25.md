@@ -11318,6 +11318,41 @@ block (18:40-18:56; Standalone, 0.65, High straight in; beta2 and the shipped pr
   the controllers lying by the headset; qlrz's "left eye filled" looks the same): not the switch.
 - PC: unaffected (`VR_Android()` only); stereo_targets_test 12/0, e1m1 smoke. APK 0 warnings, check_apk 20/0. Beta2's
   APK and the shipped progs.dat put back. Scripts (not committed): `scratch/qfc_*`.
+
+## flatmelee2: long blades' guard grip within reach; the Lance: no other ammo, its flat grip, a spear thrust (agent/flatmelee2, 2026-11-23)
+
+His flatscreen feedback 2026-11-23 (four items).
+- **Long blades' guard grip** (`vr_flat_parry_blade_reach` 14, Tunables > Flatscreen > Guard Bash and Blade Grip, "Blade Grip
+  Most Apart"): `flatplay::bladePin` holds the blade's point within that many units of the holding hand (the hotspots from the
+  hand: crowbar 6.0, knight's sword 19.5, phantom swordsman's 38.6, drawn hands 34.2 apart: off the wrist). vr_twohand's
+  half-sword grip follows it in flat play: `bladeGripOn`'s nearest place a fist (`bladeFlatFist` 4) off the hand, the take's
+  segment from the reach in, the hands-apart keep the same. Now 14.0 / 6.0 / 14.0 (drawn 14.0 / 6.2 / 13.8 apart).
+  vr_flatplay_status: "blade grip: point N u from the hand (hotspot, reach), drawn hands N u apart".
+- **The Lance's other ammo** (QC `ToggleSecondaryAmmo`): refused while `DW_LanceInHand` (flat B and the headset's button
+  alike; "ammo switch: refused, the Crystal Lance has no other ammo"); a Lance left on it by an older game still switches back.
+- **The Lance's flat grip**: the free hand was never carried onto the pole: flatsight's "grip ahead" (`gripFwd`) and the view's
+  cup test measured along the holding hand's forward, ~90 degrees off the Lance's pole (Shot Pitch 92.5), so its place read as
+  behind the hand / a cup. Both now measure along the pole (vr_flatsight.cpp, vr_view_weapon.cpp chooseGrip `flatPole`): the
+  other hand on the pole 16.0 from the fist, 0.2 off it. New tunables (Flatscreen > Two-Handed Melee Stance, the Spear rows):
+  `vr_flat_pole_pitch` / `_yaw` 0 (the spear turned about the fist, drawn only: drawnOffset `poleDrawnTurn`, the beam keeps to
+  the crosshair), `vr_flat_pole_along` 0 (the hand up the pole: the weapon drawn moved along it, the headset slide's move),
+  `vr_flat_pole_off_up` / `_off_out` 0 (the other hand off the pole: its grip point). `vr_flat_pole_off_along` is now from the
+  fist on the pole. vr_flatplay_status "spear:" line: tip from fist, pole up/left, other hand along/off.
+- **Spear thrust** (`vr_flat_thrust` 1; V with a pole weapon, `fs.punchThrust`, `thrustPose`): drawn back along the pole
+  (`vr_flat_thrust_wind_time` 0.16, `_wind_back` 8, `_wind_up` 1, `_wind_pitch` 6, `_wind_yaw` 0), held (`_hold_time` 0.05),
+  thrust (`_strike_time` 0.1, `_reach` 14, `_up` 0, `_pitch` -3, `_yaw` 0), held (`_dwell_time` 0.08), back (`_back_time` 0.25).
+  Only the strike and its hold are the blow (handsource Action); the windup and way back Synthesized; no view tilt. The other
+  hand stays put as a guide, the pole sliding through it (`flatplay::thrustAlong`): carried with the thrust, its fist met the
+  target first and the head's stab was lost (20 damage, no stab). Probe line "flatmelee: main thrust".
+- **Tests**: new `Misc/quakevr/flatlance_test.sh` 12/0 (B refused, still the Lance; along 6: tip 26.9 -> 20.9; pitch 20 yaw 15:
+  pole up 0.1 -> 20.1, left 3.5 -> 18.8; the other hand 16.0 along, off_up 3: 0.2 -> 4.0; the thrust: "spear thrust", the
+  head's stab 58 damage at 9 m/s on an ogre 52 ahead). `flatbash_test.sh` 18/0 (new: the knight's sword's point 14.0, drawn
+  hands 14.0 apart), `flat_ammo_key_test.sh` 3/0, `flatmelee_test.sh` 12/0. Shots: `qvr-kit/scratch/flatmelee2_parry.png`
+  (phantom sword in the guard, reach 0 then 14), `flatmelee2_lance.png` (spear pose, windup, thrust).
+- **Not done**: the other hand's own turn on the pole (pitch/yaw): tried in the drawn helping hand (steadyOther's pole branch)
+  and in flatsight's pinned pose; neither showed on the drawn hand (the pinned free hand's drawn turn comes from another
+  path), so no cvar shipped. `vr_flat_pole_off_roll` (lancespear) is likely as inert for the same reason: unverified.
+  The test base needs Dwell (copied `dwellv2p2` into the kit base `bases/qtune/qbase`).
 ## flatthrow3: the flat throw from the hand, its wind-up in view, the free hand guiding; no wheel click (agent/flatthrow3, 2026-11-23)
 
 His flat feedback 2026-11-23. FLATPLAY.md, "The throw key".

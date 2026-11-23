@@ -4589,6 +4589,13 @@ void(float xHand) ToggleSecondaryAmmo =
     {
         return; // AD support: AD's Plasma Gun fires cells only (AD's W_FirePlasma), no button (vr_weapons.inc slot 35)
     }
+    if(DW_LanceInHand(xHand))
+    {
+        // Dwell's Crystal Lance (the lightning gun's record with its variant): no other ammo, flat or headset (his note
+        // 2026-11-23: B made it the lightning gun). (One left on the other ammo by an older game still switches back.)
+        dprint("ammo switch: refused, the Crystal Lance has no other ammo\n"); // (flat_ammo_key_test.sh)
+        return;
+    }
 
     // vr_ammo_switch_empty_hand: pressable only with the other hand empty (nothing held at all): not akimbo.
     if(cvar_hget(cvarh_vr_ammo_switch_empty_hand) && !VRIsHandEmpty(self, VRGetOtherHand(xHand)))
