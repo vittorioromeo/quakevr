@@ -1316,6 +1316,10 @@ za::Vector<Item> pageDebugReports()
             .help("vr_mp_gearcheck [ent]: each other player's or bot's copy as drawn: its hand models (two: no extra fists "
                   "in empty holsters), holstered weapons and sheaths, how far they are from its trunk and wrists, and the "
                   "sheaths' turn against its trunk (tilt, facing; mp_test.py botgear)."),
+        command("Network: Holsters vs the Defaults", "vr_mp_holster_defaults")
+            .help("vr_mp_holster_defaults [1]: your holsters' places as the other players get them (each player's copy "
+                  "wears his own; a bot's the shipped settings') against the shipped ones: how many differ (0 at the "
+                  "defaults). 1 also prints them, the table a bot's copy wears (mp_test.py holstersync)."),
         command("Network: Log Physics Bodies (5 s)", "vr_mp_bodylog 5 700")
             .help("vr_mp_bodylog <seconds> [radius]: logs each tick the physics things within the radius (props, gibs, "
                   "dropped weapons, every ragdoll part): a listen host the server's truth, a remote client what it draws "

@@ -11471,3 +11471,27 @@ flatsight's `pinToGrip` puts the hand's own pose on the pole (new `flatsight::pi
   forward 0.0). Probe (each cvar at 40): only the intended hand turns, 39.8-40.0 degrees about the intended local axis, the
   other 0.0. `flatmelee_test.sh` 12/0, `flatbash_test.sh` 18/0. Shot: kit scratch flatmelee3_rot.png (base, off roll,
   pitch, yaw, hand pitch, yaw, roll).
+
+## holstersync: each player's own holster places, synced in multiplayer (agent/holstersync, 2026-11-23)
+
+His words: "Other players' holster placement should be synced in multiplayer, they should not all share the host's
+preferences." fbmisc1123 put every copy's holsters on its body by `body::standingHolsters`, but from the viewer's own
+settings: everyone's holsters sat where yours do.
+- **What is sent:** not the settings but their result: each client's `body::standingHolsters` (every holster setting in
+  it: `vr_hip_offset_*`, `vr_upper_holster_offset_*`, `vr_shoulder_*`, the Hotspots trims, body, build, height, world
+  scale, the seated layout), in the existing avatar calibration (`vr_avatarcal`, QVR_SVC_AVATARCAL: reliable, on a change,
+  at most every `vr_net_avatarcal_interval`). 47 fields more (`numCalFields` 37 -> 84, `calCommandVersion` 5): "hk"
+  (known), each holster's place in its part's frame (mm of the body), the four body holsters' plates (out, up in
+  thousandths, clearance mm). Stable while walking, turning, jumping (the same numbers before and after).
+  `QVR_NET_VERSION` 46.
+- **Who wears what** (`holsterFieldsOf`): a player's copy his own fields; a bot, or a player whose fields have not come
+  ("hk" 0), the shipped settings' (`defaultHolsterCal`, baked from `vr_mp_holster_defaults 1` at the defaults), never
+  the viewer's. Not carried: the holster turns (tunables, constants in release builds: the same for everyone) and the
+  sheath model's size and offset (`vr_leg_holster_model_*`: applied by model, the viewer's).
+- **Checks:** `vr_mp_gearcheck` prints `sameprefs` (the copy wears the viewer's places) and demands `asown` only then.
+  New `vr_mp_holster_defaults [1]` (Debug > Reports > Network: Holsters vs the Defaults): your fields against the shipped
+  table (0 differ at the defaults; 1 prints it anew: re-bake when a holster or body default changes). `mp_test.py
+  holstersync` (suite): A (VR) and B (flat) with different settings: B's copy at A within 0.015 m of B's own client's
+  pieces (8 pieces), A's at B 0.002 m; each 0.29 m from the viewer's own (sameprefs 0); the bot 0.237 m from A's changed
+  own (sameprefs 0); A back at the defaults: 0 differ, the bot as A's own 0.027 m / 3.9 degrees. 16/0. botgear 17/0,
+  body 13/0, version 7/0, avatarcal 10/0; scene mp_dm_passive: the bot sameprefs 1, ok 1.
