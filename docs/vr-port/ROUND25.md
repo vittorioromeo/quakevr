@@ -11045,3 +11045,6 @@ Three pieces of kblood's Steam Frame port (PR #75), brought into `next` with his
   5 (the runtime's menu pause) unchanged, 0 failed. `-vr-hide-mirror` with `-Visible`: `vr_debug_window` says hidden,
   not visible.
 - **Not verified**: a real Steam Frame (no device) and a real runtime's presence events (SteamVR, Meta).
+## cltidy4: ticked lines retired, [New] sorted, sections reordered (agent/cltidy4, 2026-11-23)
+
+Checklist 223 -> 157 lines; no scene retired; details in CHECKLIST_REORG.md, "fourth pass". checklist_tests_check 99 passed, 0 failed.
