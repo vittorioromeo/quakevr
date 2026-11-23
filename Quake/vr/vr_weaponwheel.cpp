@@ -269,6 +269,7 @@ struct Test
     int mark{0}; // a step's own count
     int nailgunAt{-1};
     int clip{0}, ammo{0}; // the rounds in the gun and the reserve before UNLOAD
+    int nailClip{0};      // the nailgun's rounds before the wheel's hold
     bool flat{false};     // "flat": flatscreen play's (flatTestStep)
     int shotgunAt{-1};    // flat: the shotgun's holster
     int firstWid{0};      // flat: the weapon 2's first tap drew (the first holstered)
@@ -618,18 +619,18 @@ void testStep()
             // (one impulse a frame: a move carries one)
             // (the hands held out in front at the chest, where a player opens it: in view)
             Cbuf_AddText("vr_mock_hand main 0.15 1.35 -0.4 0 0 0; vr_mock_hand off -0.15 1.35 -0.4 0 0 0; vr_mock_look 35 0\n");
-            Cbuf_AddText(test.mp ? "vr_mock_button main grip 1; impulse 91\n"
-                                 : "vr_mock_button main grip 1; vr_mock_button off grip 0; impulse 156\n");
+            Cbuf_AddText("vr_mock_button main grip 1; vr_mock_button off grip 0; impulse 156\n");
         }
         break;
     case 1:
-        if(!test.mp && test.mark == 0 && handWeapon(main) == WID_NAILGUN)
+        if(test.mark == 0 && handWeapon(main) == WID_NAILGUN)
         {
             test.mark = 1;
             Cbuf_AddText("impulse 91\n");
         }
-        if(waitFor(holsterStat(1) == WID_SHOTGUN && (test.mp || handWeapon(main) == WID_NAILGUN), "the shotgun holstered"))
+        if(waitFor(holsterStat(1) == WID_SHOTGUN && handWeapon(main) == WID_NAILGUN, "the shotgun holstered"))
         {
+            test.nailClip = cl.stats[protocol::STAT_QVR_WEAPONCLIP];
             press(main, true);
         }
         break;
@@ -638,6 +639,11 @@ void testStep()
         const int frames = ++test.mark;
         if(waitFor(ws.hand == main, "the wheel open round the right hand"))
         {
+            // (B is the magazine's eject button too: the hold that opens the wheel must not reach the server's press:
+            // vr_input.cpp WheelHold. ROUND25 "holsterammo".)
+            result(test.nailClip > 0 && cl.stats[protocol::STAT_QVR_WEAPONCLIP] == test.nailClip,
+                va("the hold kept the nailgun's magazine in (%d rounds, %d before)", cl.stats[protocol::STAT_QVR_WEAPONCLIP],
+                    test.nailClip));
             result(frames > 1, va("held, the wheel opens round that hand (after %d frames)", frames));
             result(ws.count == 9, va("nine slots: the empty hand, the six holsters, DROP and UNLOAD (%d)", ws.count));
         }
@@ -769,6 +775,9 @@ void testStep()
         if(waitFor(handWeapon(off) == WID_NAILGUN && holsterStat(test.nailgunAt) == WID_FIST, "the nailgun in the left hand"))
         {
             result(true, "the left hand (either hand) takes the nailgun from its holster");
+            result(cl.stats[protocol::STAT_QVR_WEAPONCLIP2] == test.nailClip,
+                va("holstered and drawn, the nailgun kept its rounds (%d, %d before)", cl.stats[protocol::STAT_QVR_WEAPONCLIP2],
+                    test.nailClip));
         }
         break;
     case 14:
@@ -799,13 +808,29 @@ void testStep()
         }
         break;
     case 18:
-        // The left hand's nailgun: DROP (its UNLOAD greyed: put away and drawn again it came back empty, the headset's
-        // holster rules; the right hand's UNLOAD was steps 30 .. 32).
+        // The left hand's nailgun: Y tapped (shorter than the wheel's hold) still ejects its magazine (its bit sent as it is
+        // let go: vr_input.cpp WheelHold), steps 40 .. 41; then DROP (its UNLOAD greyed: the clip empty; the right hand's
+        // UNLOAD was steps 30 .. 32).
         if(waitFor(++test.mark >= 10, "a pick's time"))
         {
             press(off, true);
         }
-        test.step = test.step == 19 ? 22 : test.step;
+        test.step = test.step == 19 ? 40 : test.step;
+        break;
+    case 40:
+        // (two counted frames: well short of vr_weaponwheel_hold)
+        if(waitFor(++test.mark >= 2, "a tap"))
+        {
+            press(off, false);
+        }
+        break;
+    case 41:
+        if(waitFor(cl.stats[protocol::STAT_QVR_WEAPONCLIP2] == 0, "the tap's eject"))
+        {
+            result(ws.hand < 0 && handWeapon(off) == WID_NAILGUN, "Y tapped: no wheel, its magazine ejected");
+            press(off, true);
+            test.step = 22;
+        }
         break;
     case 22:
         (void)waitFor(ws.hand == off, "the wheel open round the left hand for DROP");
@@ -954,6 +979,11 @@ bool canOpen(int hand)
         }
     }
     return true;
+}
+
+bool holdsButtonBack(int hand)
+{
+    return !flatplay::active() && handWeapon(hand) != WID_FIST && canOpen(hand);
 }
 
 void open(int hand)

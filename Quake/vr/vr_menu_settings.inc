@@ -577,9 +577,12 @@ void resetBodyEquipment()
         dynresMaxSlider().advanced(),
         row(opt::vr_upscale),
         row(opt::vr_upscale_sharpness),
-        row(opt::vr_foveated),
+        row(opt::vr_foveated).unavailableBecause(VR_Android() ? "NVIDIA graphics cards only: on the Quest, Quest Foveation." : nullptr),
         row(opt::vr_foveated_gaze).advanced(),
         info(foveated::gazeStatus).advanced(),
+        // (qfov: the runtime's fixed foveation, the eyes drawn straight into its images; the PC's runtimes have none)
+        row(opt::vr_xr_foveation).unavailableBecause(VR_Android() ? nullptr : "Quest standalone only: on a PC, Foveated Rendering."),
+        row(opt::vr_xr_foveation_dynamic).advanced().unavailableBecause(VR_Android() ? nullptr : "Quest standalone only."),
     };
 }
 

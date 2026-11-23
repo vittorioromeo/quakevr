@@ -78,6 +78,10 @@ void setProvider(const Provider* p);
 // hook's reel in that hand, nor vr_menu_button's hold on it, nor the toolgun's hand); flatscreen play: vr_flat_wheel and
 // the holsters on, neither the holster menu nor the toolgun's panel up.
 [[nodiscard]] bool canOpen(int hand);
+// A press of its button on `hand` is kept from the server while the hold may still open it (vr_input.cpp WheelHold):
+// it may open there and that hand holds a weapon, whose press edge would act on it first (a magazine's eject, the super
+// shotgun broken open, the revolver's cylinder swung out). An empty hand's goes at once (the pouch's multi-grenade).
+[[nodiscard]] bool holdsButtonBack(int hand);
 // Its button held vr_weaponwheel_hold on `hand` (vr_input.cpp, which then lets the game's key go), or 1 / 2 held in
 // flatscreen play (vr_flatplay.cpp): it opens there.
 void open(int hand);
