@@ -1,0 +1,6 @@
+# tut_lesson13: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title The tutorial's lesson 13 (bash and bat): the SPIKE and GRENADE buttons, the pit across the room
+map vrtutorial
+start 2304 -560 -120 0
+give "Shotgun" main
+hint Press SPIKE and swing through the spike: it flies back. Press GRENADE and catch it. Look into the pits: no black stripes. Jump in: you die at once.
