@@ -2127,9 +2127,17 @@ void reportRopes(edict_t* ent, const Climber& c)
         const float yaw = glm::radians(ent->v.v_angle[1]);
         const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f}, right{za::sin(yaw), -za::cos(yaw), 0.f};
         glm::vec3 push = fwd * cmd.forwardmove + right * cmd.sidemove;
-        if(c.flatRope && (flatRopeDir(ent, server::clientMove(ent)) != 0 || climbrope::monkey(hi->entNum)))
+        if(c.flatRope && climbrope::monkey(hi->entNum))
         {
-            push = glm::vec3{0.f}; // (flat play: the keys climb it now, looking up or down, or go along it: flatRopeFrame)
+            push = glm::vec3{0.f}; // (flat play: the keys go along it: flatMonkeyFrame)
+        }
+        else if(c.flatRope && vr_flat_rope_keys.value == 0.f)
+        {
+            push = right * cmd.sidemove; // (ropes8a: forward and back climb it, the strafe keys pump: flatRopeFrame)
+        }
+        else if(c.flatRope && flatRopeDir(ent, server::clientMove(ent)) != 0)
+        {
+            push = glm::vec3{0.f}; // (flat play: the keys climb it now, looking up or down: flatRopeFrame)
         }
         const float len = glm::length(push);
         push = len > 1.f ? push / len * (za::min(len / pumpFullMove, 1.f) * za::max(vr_rope_pump.value, 0.f)) : glm::vec3{0.f};
@@ -4098,6 +4106,10 @@ int flatRopeDir(edict_t* ent, const VrMove* move)
         return cmd.upmove > 0.f ? 1 : -1;
     }
     const int f = cmd.forwardmove > 1.f ? 1 : cmd.forwardmove < -1.f ? -1 : 0;
+    if(vr_flat_rope_keys.value == 0.f)
+    {
+        return f; // (ropes8a, his note 2026-11-23: forward always up, back down, whatever the view's pitch)
+    }
     if(!move || f == 0 || za::abs(move->headAngles.x) < za::clamp(vr_flat_rope_look.value, 5.f, 80.f))
     {
         return 0;

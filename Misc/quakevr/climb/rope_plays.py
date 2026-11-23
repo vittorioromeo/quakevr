@@ -256,6 +256,7 @@ if __name__ == "__main__":
     os.makedirs(out, exist_ok=True)
     monkey("drop").write(os.path.join(out, "monkey_drop.txt"))
     monkey("jump").write(os.path.join(out, "monkey_jump.txt"))
+    monkey("drop").write(os.path.join(out, "pole_monkey.txt"))  # (ropes8a: on a level pole, `... 0 strungpole`)
     pole("wood").write(os.path.join(out, "pole_wood.txt"))
     pole("metal").write(os.path.join(out, "pole_metal.txt"))
     climb().write(os.path.join(out, "rope_climb.txt"))
