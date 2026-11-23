@@ -1279,6 +1279,15 @@ void emissive::otherHotBarrelLight(int player, int hand, const glm::vec3& pos, c
     }
 }
 
+void emissive::lanceChargeLight(int player, int hand, const glm::vec3& pos, const glm::vec3& color, float strength, float radius)
+{
+    constexpr int lanceLightKey = -0x5A40; // - (player - 1) * 2 - hand (lancecharge): to -0x5A5F
+    if(player >= 1 && player <= MAX_SCOREBOARD && hand >= 0 && hand <= 1 && strength > 0.f && radius > 0.f)
+    {
+        hotLight(lanceLightKey - (player - 1) * 2 - hand, pos, color, strength, radius);
+    }
+}
+
 namespace
 {
 void screenLight(int key, const glm::vec3& pos, const glm::vec3& angles)

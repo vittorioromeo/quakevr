@@ -22,6 +22,7 @@
 #include "vr_adguns.hpp"
 #include "vr_adweapons.hpp"
 #include "vr_slidesound.hpp"
+#include "vr_lancecharge.hpp"
 #include "vr_render.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_bench.hpp"
@@ -2070,6 +2071,7 @@ constexpr PrewarmStep prewarmSteps[] = {
     {"AD crossbow", adcrossbow::prepare}, // AD support: its next bolt's sound
     {"Widowmaker", adweapons::prepare},   // AD support: its barrels' motor
     {"slide sound", slidesound::prepare}, // flat-screen play's slide scrape (vr_slidesound.cpp)
+    {"Crystal Lance hum", lancecharge::prepare}, // Dwell support: its charge's hum (vr_lancecharge.cpp)
     {"model light grid", ambient::prepareGrid},
     {"explosion debris", explosiondebris::prepare},
     {"muzzle flash", weaponfx::prepare},

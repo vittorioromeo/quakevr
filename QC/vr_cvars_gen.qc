@@ -809,6 +809,7 @@ float cvarh_vr_dummy_regen;
 float cvarh_vr_dummy_streams;
 float cvarh_vr_dummy_test;
 float cvarh_vr_dummy_type;
+float cvarh_vr_dw_lance_charge;
 float cvarh_vr_dw_lance_head;
 float cvarh_vr_dw_lance_poke;
 float cvarh_vr_dw_lance_pole;
@@ -2964,6 +2965,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_dummy_streams = VR_CVar_Make("vr_dummy_streams");
     cvarh_vr_dummy_test = VR_CVar_Make("vr_dummy_test");
     cvarh_vr_dummy_type = VR_CVar_Make("vr_dummy_type");
+    cvarh_vr_dw_lance_charge = VR_CVar_Make("vr_dw_lance_charge");
     cvarh_vr_dw_lance_head = VR_CVar_Make("vr_dw_lance_head");
     cvarh_vr_dw_lance_poke = VR_CVar_Make("vr_dw_lance_poke");
     cvarh_vr_dw_lance_pole = VR_CVar_Make("vr_dw_lance_pole");

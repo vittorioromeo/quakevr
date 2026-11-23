@@ -1608,6 +1608,9 @@ QVR_TUNABLE(vr_dmg_axe, "20") // the axe's blow
 QVR_TUNABLE(vr_dw_lance_thrust, "1.5") // Dwell's Crystal Lance held as a lance: a thrust (a stab) landing with its crystal head, times its blow's damage (QC dw_items.qc DW_LanceMelee)
 QVR_TUNABLE(vr_dw_lance_poke, "0.4")   // ... a stab landing on its shaft short of the head: a poke, times its blow's damage
 QVR_TUNABLE(vr_dw_lance_head, "0.55")  // ... where its head starts: the share of the line from the hand to the tip
+QVR_TUNABLE(vr_dw_lance_charge, "1")   // ... its shot charged: s the trigger is held before it fires as it is let go (QC dw_items.qc DW_LanceChargeFrame; 0: fires on the pull)
+QVR_TUNABLE(vr_dw_lance_charge_fade, "0.25") // ... a charge let go short: s its sparks, light and hum fade out over (vr_lancecharge.cpp)
+QVR_TUNABLE(vr_dw_lance_bolt, "0.35")  // ... s its fired bolt lingers (vr_lancecharge.cpp beamLife; Quake's beam 0.2)
 QVR_TUNABLE(vr_dmg_gun_bash, "12") // a gun swung as a club
 QVR_TUNABLE(vr_dmg_chainsaw_swing, "26") // an ogre's chainsaw swung (its running chain: vr_chainsaw_damage)
 QVR_TUNABLE(vr_dmg_mjolnir, "25") // Mjolnir's blow

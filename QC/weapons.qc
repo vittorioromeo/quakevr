@@ -5074,11 +5074,12 @@ float(entity ent, float xHand) VRWeaponLeavingHand;
 
 void(float xHand, float xButton) FrameDrawLightningTrail =
 {
-    // Lightning effect (per-frame)
+    // Lightning effect (per-frame). Not Dwell's Crystal Lance's: its shots are single (dw_items.qc DW_LanceChargeFrame;
+    // the stream drawn while its trigger was held, its damage in pulses: his note 2026-11-23).
     if(xButton &&
        VRGetWeapon(xHand) == WID_LIGHTNING &&
        (!(VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)) &&
-       getCurrentAmmoOrClip(xHand) > 0)
+       getCurrentAmmoOrClip(xHand) > 0 && !DW_LanceInHand(xHand))
     {
         PlayerLightningGunEffect(VRGetMuzzlePos(xHand), xHand);
     }
@@ -5125,7 +5126,17 @@ void(float xHand) W_WeaponFrameImpl =
 
     // check for attack
     // (Flat-screen play: not while the gun is on its reload trip to the hip, vr_flatreload.qc.)
-    if(VRGetFireButtonPressed(xHand) && !VR_Forcegrab_IsHandBusy(self, xHand) && !VR_FlatReload_Busy(self, xHand))
+    float pressed = VRGetFireButtonPressed(xHand) && !VR_Forcegrab_IsHandBusy(self, xHand) && !VR_FlatReload_Busy(self, xHand);
+    // Dwell's Crystal Lance: charged while the trigger is held, fired as it is let go fully charged (dw_items.qc).
+    if(DW_LanceCharged(xHand))
+    {
+        if(!DW_LanceChargeFrame(xHand, dw_lc_test ? dw_lc_test_press : pressed))
+        {
+            return;
+        }
+        pressed = TRUE;
+    }
+    if(pressed)
     {
         // Quad's sound: not here (the trigger), but where damage is dealt: each gun's shot, a blow landing
         // (VR_QuadSound, combat.qc).
