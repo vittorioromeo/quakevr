@@ -2034,6 +2034,7 @@ QVR_TUNABLE(vr_flat_throw_speed_min, "5") // the hand's speed (m/s) of a tap: a 
 QVR_TUNABLE(vr_flat_throw_speed_max, "11") // the hand's speed (m/s) fully charged
 QVR_TUNABLE(vr_flat_throw_up, "4") // degrees above the crosshair the throw leaves at (-30..60)
 QVR_TUNABLE(vr_flat_throw_spin, "8") // the throw's spin end over end (rad/s, as a wrist's flick; limited by the thing's mass and vr_throw_spin_max)
+QVR_TUNABLE(vr_flat_throw_spin_time, "1") // 1: a thrown blade's spin timed so that its edge or point leads where its arc meets something (bladespinto)
 QVR_TUNABLE(vr_flat_throw_release_pitch, "-30") // the hand's pitch against the throw as it lets go (negative: tipped back; a thrown weapon's angles)
 
 // Flatscreen > Free Hands
