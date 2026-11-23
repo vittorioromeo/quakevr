@@ -4667,6 +4667,19 @@ void status_f()
             }
             Con_Printf("  blade grip: point %.1f u from the hand (hotspot %.1f, reach %g), drawn hands %.1f u apart\n",
                 fs.bladeFrom[h], fs.bladeHotspot[h], vr_flat_parry_blade_reach.value, drawnApart);
+            // (flatfb1124, his note 2026-11-24: the free hand's turn on the blade, in the holding hand's drawn frame -- the
+            // same whatever the view's pitch -- and the holding hand's own fingers and up.)
+            if(glm::vec3 hPos, hRot; drawn >= 0.f && view::drawnHandPose(h, hPos, hRot))
+            {
+                glm::vec3 hf, hr, hu, of, orr, ou;
+                hands::angleVectors(hRot, hf, hr, hu);
+                hands::angleVectors(dRot, of, orr, ou);
+                const auto in = [&](const glm::vec3& v) { return glm::vec3{glm::dot(v, hf), glm::dot(v, hr), glm::dot(v, hu)}; };
+                const glm::vec3 a = in(of), b = in(ou);
+                Con_Printf("  blade grip: the free hand in the holding hand's frame: fwd %.3f %.3f %.3f up %.3f %.3f %.3f\n", a.x, a.y,
+                    a.z, b.x, b.y, b.z);
+                Con_Printf("  blade grip: the holding hand: fwd %.3f %.3f %.3f up %.3f %.3f %.3f\n", hf.x, hf.y, hf.z, hu.x, hu.y, hu.z);
+            }
         }
         // The two-handed melee stance (vr_flat_melee_2h_*): the other hand empty.
         if(swungMelee(h) || fs.twoH[h] > 0.f)
