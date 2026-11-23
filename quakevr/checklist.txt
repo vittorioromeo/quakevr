@@ -73,6 +73,7 @@ On the Quest, pick the Standalone preset again: Retro Textures and Retro Lightin
 Flat-screen: tap 1 or 2 and the hand still cycles; hold it and the weapon wheel opens where that hand is on the screen (slow motion, the view stays still); point at a holster with the mouse and let go: that hand takes it, off the wheel nothing happens. {test:flat_weapon_wheel}
 Flat-screen or VR: the weapon wheel's new DROP and UNLOAD slots (at the bottom): DROP drops what that hand holds, UNLOAD empties its gun's magazine into your ammo; both are greyed when they would do nothing. {test:weapon_wheel}
 On the Quest, open VR Settings > Scaling: Quest Foveation and Quest Foveation: Dynamic are listed (they only take effect with -xrfoveation for now) and Foveated Rendering is dimmed; on PC it is the other way round. {test:hub_start}
+Hold B with the nailgun in that hand until the weapon wheel opens and pick a holster: the nailgun goes into a holster with its magazine still in, and drawn again it has the same rounds. A quick tap of B still drops the magazine out. {test:weapon_wheel}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, the crystal head glowing violet a moment after each shot. {test:dwell_lance_pole}
