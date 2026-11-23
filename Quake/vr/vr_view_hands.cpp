@@ -2941,6 +2941,14 @@ void embedGripProbe(int hand, bool armed, int slot, const glm::vec3& pos, const 
 
 namespace
 {
+constexpr float ropeGripSkin = 0.15f; // (ropes8a) units the palm stays off a pole's surface (ropeGrip)
+constexpr int ropeShapeIds = 4000;   // (ropes8a) keptShape ids of the ropes' cylinders (ropeHeld): -(this + quarter units across)
+constexpr int ropeShapeSides = 16;
+constexpr float ropeShapeHalf = 8.f; // units along it either way
+entity_t ropeGraspEnt{};              // (ropes8a) what a hand on a rope holds: the grasp's key (the world model)
+za::Vector<glm::vec4> ropeGripVerts;  // (ropes8a) ropeGrip's: the hand as last drawn, its parts
+za::Vector<view::HandPart> ropeGripParts;
+
 constexpr float limbEaseTime = 0.1f; // s
 constexpr float tugDrawnMost = 1.f;   // m: the most a tug's hand is drawn off its controller (it lets go well before)
 
@@ -3231,6 +3239,110 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
     }
 }
 
+// (ropes8a, his note 2026-11-23: the hands went through a pole) A hand on a climbable rope or pole, yours in VR or
+// flat-screen play: its grip channel (the line the half-closed fingers curl round: grasp::gripChannel) laid along the
+// rope's axis as drawn, then out from it by what the rope's radius is over the channel's (a pole thicker than a handle:
+// the palm on its surface, not in it), eased in as the hand is drawn onto the hold (climb::ropeLine's weight).
+void ropeGrip(int hand, bool mirrored, glm::vec3& pos, glm::vec3& handRot)
+{
+    glm::vec3 at, up;
+    float thick = 0.f, w = 0.f;
+    if(!climb::ropeLine(hand, at, up, thick, w) || !handrig::usable(viewModel(handrig::modelName())))
+    {
+        return;
+    }
+    glm::vec3 p = pos, r = handRot;
+    alignChannel(hand, mirrored, at, up, p, r);
+    glm::vec3 cp, cd;
+    float radius = 0.f;
+    if(grasp::gripChannel(rigHands[hand].pose, cp, cd, radius))
+    {
+        // Out along the palm's normal (the rig's y: the grasp's flush move's way), towards the palm's side.
+        const glm::mat4 m = rigPlacement(hand, p, r, mirrored, nullptr);
+        const glm::vec3 c{m * glm::vec4{cp, 1.f}};
+        glm::vec3 out = glm::mat3{m} * glm::vec3{0.f, 1.f, 0.f};
+        out = glm::dot(out, palmAt(hand, p, r, mirrored) - c) < 0.f ? -out : out;
+        out -= up * glm::dot(out, up);
+        const float push = thick * 0.5f + ropeGripSkin - radius * glm::length(glm::vec3{m[0]});
+        if(glm::length(out) > 1e-3f && push > 0.f)
+        {
+            p += glm::normalize(out) * push;
+        }
+        // Then out by what of the palm and the thumb (as last drawn: the fingers wrap it, solved) is still in it there.
+        const RigHand& rh = rigHands[hand];
+        if(glm::length(out) > 1e-3f && rh.drawn && view::drawnHandSurface(hand, ropeGripVerts, &ropeGripParts))
+        {
+            const glm::mat4 toNew = rigPlacement(hand, p, r, mirrored, nullptr) * glm::inverse(rh.rigToWorld);
+            float deepest = 0.f;
+            for(za::SizeT i = 0; i < ropeGripVerts.size() && i < ropeGripParts.size(); i++)
+            {
+                if(ropeGripParts[i] == view::HandPart::Fingers || ropeGripParts[i] == view::HandPart::Fingertips)
+                {
+                    continue;
+                }
+                const glm::vec3 d = glm::vec3{toNew * glm::vec4{glm::vec3{ropeGripVerts[i]}, 1.f}} - at;
+                const float along = glm::dot(d, up);
+                if(za::fabs(along) < ropeShapeHalf)
+                {
+                    deepest = za::max(deepest, thick * 0.5f + ropeGripSkin - glm::length(d - up * along));
+                }
+            }
+            p += glm::normalize(out) * deepest;
+        }
+        if(vr_climb_debug.value >= 3.f)
+        {
+            Con_Printf("ropegrip %s: thick %.2f, channel radius %.2f units (%.2f from the axis), the palm %.2f from it, pushed %.2f\n",
+                hand == HAND_MAIN ? "main" : "off", thick, radius * glm::length(glm::vec3{m[0]}),
+                glm::length((c - at) - up * glm::dot(c - at, up)), glm::length(palmAt(hand, p, r, mirrored) - c), push);
+        }
+    }
+    pos = glm::mix(pos, p, w);
+    handRot = basisAngles(glm::mat3_cast(glm::slerp(glm::quat_cast(anglesBasis(handRot)), glm::quat_cast(anglesBasis(r)), w)));
+}
+
+// (ropes8a) What a hand on a climbable rope or pole wraps: a length of it as a cylinder of its thickness (a shape kept
+// per quarter unit of thickness, made once), along its axis as drawn, so the fingers close round it (the grasp's solve)
+// and stop at its surface.
+void ropeHeld(int hand, Held& held)
+{
+    glm::vec3 at, up;
+    float thick = 0.f, w = 0.f;
+    if(!cl.worldmodel || !climb::ropeLine(hand, at, up, thick, w) || w < 0.5f)
+    {
+        return;
+    }
+    const int quarters = za::clamp(static_cast<int>(thick * 4.f + 0.5f), 1, 64);
+    const int id = -(ropeShapeIds + quarters); // (keptShape's own shapes: negative ids)
+    const grasp::Shape* shape = grasp::keptShape(cl.worldmodel, id);
+    if(!shape)
+    {
+        za::Vector<grasp::Triangle>& tris = scratch.otherHandTris;
+        tris.clear();
+        const float rr = static_cast<float>(quarters) * 0.125f; // (its radius: half the quarter units)
+        for(int k = 0; k < ropeShapeSides; k++)
+        {
+            const float a0 = glm::two_pi<float>() * static_cast<float>(k) / ropeShapeSides;
+            const float a1 = glm::two_pi<float>() * static_cast<float>(k + 1) / ropeShapeSides;
+            const glm::vec3 p0{za::cos(a0) * rr, za::sin(a0) * rr, -ropeShapeHalf}, p1{za::cos(a1) * rr, za::sin(a1) * rr, -ropeShapeHalf};
+            const glm::vec3 q0 = p0 + glm::vec3{0.f, 0.f, 2.f * ropeShapeHalf}, q1 = p1 + glm::vec3{0.f, 0.f, 2.f * ropeShapeHalf};
+            tris.pushBack({{p0, p1, q1}});
+            tris.pushBack({{p0, q1, q0}});
+        }
+        shape = grasp::keptShape(cl.worldmodel, id, &tris);
+    }
+    if(!shape)
+    {
+        return;
+    }
+    const glm::vec3 x = glm::normalize(glm::abs(up.z) < 0.9f ? glm::cross(up, glm::vec3{0.f, 0.f, 1.f}) : glm::cross(up, glm::vec3{1.f, 0.f, 0.f}));
+    ropeGraspEnt.model = cl.worldmodel;
+    ropeGraspEnt.frame = quarters; // (the grasp's key: solved again for another thickness)
+    held = {&ropeGraspEnt, false, -1};
+    held.shape = shape;
+    held.thumbTop = true; // (the thumb along it, not wrapped through it)
+    held.toWorld = glm::mat4{glm::vec4{x, 0.f}, glm::vec4{glm::cross(up, x), 0.f}, glm::vec4{up, 0.f}, glm::vec4{at, 1.f}};
+}
+
 // What the fingers wrap.
 [[nodiscard]] Held heldBy(const HandPose& hp)
 {
@@ -3383,6 +3495,10 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
             }
         }
     }
+    if(!held.ent && !otherSubject)
+    {
+        ropeHeld(hand, held); // (ropes8a: a climbable rope or pole in the hand)
+    }
     return held;
 }
 
@@ -3442,6 +3558,10 @@ void setupHand(const hands::State& s, int hand)
             weapons::vec(embedSlot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ),
             weapons::vec(embedSlot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll), mirrored, pos, handRot);
         embedGripProbe(hand, false, embedSlot, pos, handRot);
+    }
+    else if(own)
+    {
+        ropeGrip(hand, mirrored, pos, handRot); // (ropes8a: on a climbable rope or pole, round it)
     }
     // Just off a blade in a body: eased from where it was on it, the weapon in it with it (setupWeapon), one turn about the
     // controller and one move for both (his note 2026-11-06: the axe stays in the drawn hand all the way).

@@ -34,6 +34,7 @@
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
 #include "vr_verlet.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
@@ -1505,6 +1506,45 @@ constexpr int climbTestGiveUp = 72 * 60;
     return p && p->v.health > 0.f ? p : nullptr;
 }
 
+za::Vector<glm::vec4> sinkVerts; // (ropes8a: handsSink's drawn hand vertices, their parts)
+za::Vector<view::HandPart> sinkParts;
+
+// (ropes8a) How deep the drawn hands on ropes are in them: each hand drawn fully on one, its mesh's vertices as drawn
+// within a hand's length of its hold along the rope, the deepest's depth under the rope's surface (units; 0 none in it).
+// `held`: hands measured; `part`: the deepest vertex's part of the hand (view::handPartName).
+[[nodiscard]] float handsSink(int& held, const char*& part, float& gap)
+{
+    held = 0;
+    part = "-";
+    gap = 1e9f;
+    float worst = 0.f;
+    za::Vector<glm::vec4>& verts = sinkVerts;
+    za::Vector<view::HandPart>& parts = sinkParts;
+    for(int h = 0; h < 2; h++)
+    {
+        glm::vec3 at, up;
+        float thick = 0.f, w = 0.f;
+        if(!climb::ropeLine(h, at, up, thick, w) || w < 0.99f || !view::drawnHandSurface(h, verts, &parts))
+        {
+            continue;
+        }
+        held++;
+        for(za::SizeT i = 0; i < verts.size(); i++)
+        {
+            const glm::vec3 d = glm::vec3{verts[i]} - at;
+            const float along = glm::dot(d, up);
+            const float in = thick * 0.5f - glm::length(d - up * along);
+            gap = za::abs(along) < 6.f ? za::min(gap, -in) : gap; // (its nearest to the surface, out of it)
+            if(za::abs(along) < 6.f && in > worst)
+            {
+                worst = in;
+                part = i < parts.size() ? view::handPartName(parts[i]) : "-";
+            }
+        }
+    }
+    return worst;
+}
+
 void climbTestFrame()
 {
     ClimbTest& t = climbTest;
@@ -1769,6 +1809,17 @@ void climbCheck_f()
         check(on >= static_cast<int>(n) && worst >= 0.7f,
             va("%d hands drawn gripping it (%d), the knuckles outwards (worst %.2f of 1)", static_cast<int>(n), on, worst));
     }
+    else if(!ZA_STRCMP(what, "sink"))
+    {
+        // (ropes8a) The drawn hands on the rope round it, not through it: one or both drawn fully on it, the deepest
+        // vertex at most n units under its surface.
+        int held = 0;
+        const char* part = "-";
+        float gap = 0.f;
+        const float sink = handsSink(held, part, gap);
+        check(held >= 1 && sink <= n && gap <= 0.5f, va("the hands round it, not in it: %d drawn on it, the deepest %.2f units in (%s; at most %.2f), on it (%.2f off at the nearest)",
+                                          held, sink, part, n, za::max(gap, 0.f)));
+    }
     else if(!ZA_STRCMP(what, "where"))
     {
         // (ropes7) A test writer's aid: the hands and the feet now.
@@ -1979,8 +2030,39 @@ void flatTestFrame()
                 Con_Printf("%s: PASS climbed up looking level: the feet from %.1f to %.1f, %d hand changes, both hands drawn\n", flatTestName,
                     t.feet0, feet, t.serials);
             }
+            if(t.pole)
+            {
+                Cbuf_AddText("-forward\n"); // (ropes8a: hanging still, the hands looked at)
+                flatTestNext(t, 40);
+                return;
+            }
             t.pitch = -50.f; // (ropes8a: looking up, back held: down, whatever the pitch)
             Cbuf_AddText("-forward\n+back\n");
+            t.serials = 0;
+            t.lastSerial = -1;
+            flatTestNext(t, 5);
+        }
+        return;
+    case 40: // (ropes8a, his note 2026-11-23) hanging still on the pole (half a second): both hands round it, not through it
+        if(t.frames == 36)
+        {
+            int held = 0;
+            const char* part = "-";
+            float gap = 0.f;
+            const float sink = handsSink(held, part, gap);
+            const bool round = held == 2 && sink <= 0.5f && gap <= 0.5f; // (flat play's fingertips 0.44 in: ropes8a)
+            t.tally.check(round, flatTestName, va("the hands round the pole: %d drawn on it, the deepest %.2f in (%s), %.2f off at the nearest",
+                                                held, sink, part, za::max(gap, 0.f)));
+            if(round)
+            {
+                Con_Printf("%s: PASS the hands round the pole: both on it, the deepest %.2f units in, %.2f off at the nearest\n",
+                    flatTestName, sink, za::max(gap, 0.f));
+            }
+        }
+        else if(t.frames >= 60)
+        {
+            t.pitch = -50.f; // (looking up, back held: down, whatever the pitch)
+            Cbuf_AddText("+back\n");
             t.serials = 0;
             t.lastSerial = -1;
             flatTestNext(t, 5);

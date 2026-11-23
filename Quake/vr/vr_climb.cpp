@@ -4844,6 +4844,8 @@ struct Pin
     glm::vec3 offset{0.f}; // the looks' offset on the hold (vr_climb_hand_*)
     glm::vec3 fromOut{1.f, 0.f, 0.f}, toOut{1.f, 0.f, 0.f}; // the holds' ways out (the hand's turn on them)
     glm::vec3 fromUp{0.f}, toUp{0.f}; // on a rope: its way up at the hold, as drawn (0: a ledge's hold; ropeTurn)
+    glm::vec3 axis{0.f};   // (ropes8a) on a rope: its axis's point, less the palm's hold (to), as drawn
+    float thickness{0.f};  // and its thickness (0: a ledge's hold)
     double last{-1.0};
     [[nodiscard]] float eased() const
     {
@@ -5260,7 +5262,8 @@ glm::vec3 qvr::climb::ropeHandOffset(const glm::vec3& out)
     return out * (ropeHandOut * units::metresToUnits());
 }
 
-bool qvr::climb::ropePalm(const glm::vec3& hold, const glm::vec3& out, glm::vec3& palm, glm::vec3* up)
+bool qvr::climb::ropePalm(const glm::vec3& hold, const glm::vec3& out, glm::vec3& palm, glm::vec3* up, glm::vec3* axis,
+    float* thick)
 {
     glm::vec3 at{0.f};
     glm::vec3 ropeUp{0.f, 0.f, 1.f};
@@ -5275,6 +5278,14 @@ bool qvr::climb::ropePalm(const glm::vec3& hold, const glm::vec3& out, glm::vec3
     if(up)
     {
         *up = ropeUp;
+    }
+    if(axis)
+    {
+        *axis = at;
+    }
+    if(thick)
+    {
+        *thick = thickness;
     }
     return true;
 }
@@ -5304,12 +5315,17 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
         // step a server frame in the hand, no gap where the drawn rope is between messages or bent off the line)
         glm::vec3 hold{0.f};
         glm::vec3 ropeUp{0.f};
-        if(ropePalm(at, out, hold, &ropeUp))
+        glm::vec3 axis{0.f};
+        float thick = 0.f;
+        if(ropePalm(at, out, hold, &ropeUp, &axis, &thick))
         {
             pin.offset = hold - at;
+            pin.axis = axis - hold;
+            pin.thickness = thick;
         }
         else
         {
+            pin.thickness = 0.f;
             pin.offset = handOffset(out, hand);
             hold = at + pin.offset;
         }
@@ -5402,6 +5418,20 @@ int qvr::climb::heldProp(edict_t* ent, int hand)
     }
     const Grip& g = c->grips[hand];
     return g.active && g.prop ? g.entNum : 0;
+}
+
+bool qvr::climb::ropeLine(int hand, glm::vec3& at, glm::vec3& up, float& thickness, float& weight)
+{
+    if(hand < 0 || hand > 1 || pins[hand].weight <= 0.f || pins[hand].thickness <= 0.f || glm::length(pins[hand].toUp) < 0.5f)
+    {
+        return false;
+    }
+    const Pin& pin = pins[hand];
+    at = pin.hold() + pin.axis;
+    up = glm::normalize(pin.toUp);
+    thickness = pin.thickness;
+    weight = pin.weight * pin.weight * (3.f - 2.f * pin.weight);
+    return true;
 }
 
 float qvr::climb::drawnShare(int hand)
