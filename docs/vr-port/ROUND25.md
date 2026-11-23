@@ -10768,3 +10768,18 @@ Follows "flatwheel"'s noticed item (the nailgun put into a holster by the wheel 
   (QC vr_holsterammo_test.qc, holsterammo_test.sh [flat]): 28/0 headset, 28/0 flat. flatholster_test 54/0,
   reload/eject_test 28/0, `mp_test.py suite --only mp_weaponwheel` 9/0 (B now holds the nailgun: his hold kept its 24).
 - Noticed, not chased (as before): the multi-grenade's B/Y held longer than `vr_weaponwheel_hold` opens the wheel.
+
+## lancebolt: the Crystal Lance's bolt from its middle crystal's tip (agent/lancebolt, 2026-11-23)
+
+His decision 2026-11-23 (follows "weaponfx" item 9's open point): the bolt starts where the charge is drawn.
+- vr_lancecharge.cpp `boltStart(ent, hand, muzzle, out)`: player `ent`'s drawn Lance in `hand` (yours: `view::heldWeapon`;
+  another player's copy: `mpavatar::drawnWeapon`), spear (dw_lance, vertex 0) or gun (dw_rail, vertex 37): its middle
+  crystal's tip through the charge's own lookup (`tipAt` -> `tipVertex`, shared with `frame`). vr_client.cpp
+  `VR_UpdateBeam` uses it for beam ids 0/1, flat and VR alike: yours (the end kept on the aim from the muzzle, so the
+  bolt still ends where it hit) and other players' (the server's end kept). No Lance drawn there: the muzzle as before.
+  The server's trace (QC dw_fire_lance, VRGetMuzzlePos) is unchanged: 3.96 units apart on the spear, on the gun 0.01.
+- vr_debug_gunfx 1 prints "lancecharge: bolt ent E hand H from the tip (model vertex N) x y z, D off the muzzle" once a
+  bolt, and "lancecharge: the charge fired ent E hand H at x y z" (the charge's origin as it fired).
+- Test: dwell_lance_test.sh 41/0 (new `boltcheck`: the bolt's start within 1 unit of the charge's origin as it fired;
+  section 3 VR spear, new section 8 flat spear and VR gun): 0.00 from it each time; 3.96, 3.96, 0.01 off the muzzle.
+- Not tested: another player's copy (the same lookup on mpavatar's drawn weapon; no MP run).

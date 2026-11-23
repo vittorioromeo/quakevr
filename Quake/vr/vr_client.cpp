@@ -1497,9 +1497,14 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
     }
     if((ent & 0xFFFF) != cl.viewentity)
     {
+        glm::vec3 tip;
         if(id == 2)
         {
             thrownGunRopeStart(ent, start);
+        }
+        else if(id < 2 && lancecharge::boltStart(ent & 0xFFFF, id, geom::vec(start), tip))
+        {
+            geom::store(tip, start); // (another player's Crystal Lance: its bolt from its middle crystal's tip as drawn)
         }
         return 0;
     }
@@ -1523,6 +1528,11 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
             // The rope: a little inside the barrel (it comes out of the gun, not off its end).
             from -= hands::forward(weapons::shotAngles(s.rot[hand], weapons::heldSlot(hand), hand == HAND_OFF)) *
                     za::max(0.f, vr_grapple_rope_depth.value);
+        }
+        glm::vec3 tip;
+        if(id < 2 && lancecharge::boltStart(cl.viewentity, hand, from, tip))
+        {
+            from = tip; // (the Crystal Lance: its bolt from its middle crystal's tip as drawn; its end kept on the aim)
         }
         start[0] = from.x;
         start[1] = from.y;
