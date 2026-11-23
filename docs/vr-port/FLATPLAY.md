@@ -460,7 +460,10 @@ off a ladder's top (on it, facing away from the drop, back held at its lip) lowe
 non-solid model's bars over it, `drawnRung`, the same rungs a headset's hands take), else its own 16 apart; drawn bars may
 stand farther apart than the window over the feet (kellbase1's 24 and 32), so once the window sees one, drawn rungs up to
 40 under it count too (`findRungs`' `drawnBelow`: getting on, going down, lowered off the top), the lower hand then under
-Lowest Ledge. Test: `Misc/quakevr/flatladder_test.sh` (`vr_flatladder_test`, Debug >
+Lowest Ledge. A drawn bar is held on its near side (2 units in from its face, as a ledge behind its lip; a headset's hands
+too), the body is eased out of the drawn bars (its box's front 1 unit off their face, 160 u/s, as far as there is room:
+kellbase1's catwalk ladder has a clip in front of it, its pillar ladder a func_train's path) and to the middle of the
+ladder's width (64 u/s); getting on stops the run's sideways speed (`ladderKeep`, hubladder). Test: `Misc/quakevr/flatladder_test.sh` (`vr_flatladder_test`, Debug >
 Tests > Flat Ladder; scene `flat_ladder`).
 
 **Left Ctrl's firing bind, taken and given back.** In the plain game Left Ctrl is the fire key: `bind CTRL +attack` is in

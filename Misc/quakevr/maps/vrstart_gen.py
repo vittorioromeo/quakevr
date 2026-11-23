@@ -109,7 +109,7 @@ DEEP = [(1160, -1110, 260)]
 PIER = dict(x=-1200, y0=-850, y1=-1370, z=24, w=104)
 ARRIVAL = (-1170, -760)
 STAIR1 = dict(cx=-1200, cy=-500, dx=0, dy=-1, zb=16, zt=112, run=12, w=96)   # (its top edge, the way down)
-TERRACE = dict(x=-1150, y=-150, r=232, z=112)
+TERRACE = dict(x=-1150, y=-150, r=232, rx=280, z=112)  # (an ellipse: r north-south, rx east-west; hubladder)
 GATE = dict(x=-1150, y=46)                                                  # the teleporter (faces south)
 BRIDGE = dict(x0=-868, x1=-436, y=-150, z=112, arch=14, w=96)
 PAVILION = dict(x0=-300, x1=84, y0=-232, y1=40, z=128)
@@ -146,7 +146,7 @@ def build_layout():
     ZONES.append(("ramp", ("rect",) + fp1, (s1["cx"], s1["cy"], s1["zt"] - 22, s1_bot[0], s1_bot[1], s1["zb"] - 6), 8))
     ZONES.append(("ramp", ("rect",) + fp2, (s2["cx"], s2["cy"], s2["zt"] - 24, s2_bot[0], s2_bot[1], s2["zb"] - 6), 8))
     # the campaign terrace and the path to it
-    ZONES.append(("set", ("circle", t["x"], t["y"], t["r"] + 24), t["z"] - 8, 90))
+    ZONES.append(("set", ("ellipse", t["x"], t["y"], t["rx"] + 24, t["r"] + 24), t["z"] - 8, 90))
     PATHS.append(([(s1["cx"], s1["cy"] + 52, s1["zt"] - 6), (s1["cx"] + 20, s1["cy"] + 100, s1["zt"] - 6),
                    (t["x"] - 10, t["y"] - t["r"] - 10, t["z"] - 6)], 52))
     # the bridge's ends
@@ -286,6 +286,9 @@ def zone_weight(shape, x, y, blend):
     if shape[0] == "circle":
         _, cx, cy, r = shape
         dist = math.hypot(x - cx, y - cy) - r
+    elif shape[0] == "ellipse":  # (the distance in the north-south radius's units: near enough for the blend)
+        _, cx, cy, rx, ry = shape
+        dist = math.hypot((x - cx) * ry / rx, y - cy) - ry
     else:
         _, x0, y0, x1, y1 = shape
         dx = max(x0 - x, 0, x - x1)
@@ -411,6 +414,12 @@ def terrain_points():
             for i in range(n):
                 a = 2 * math.pi * i / n
                 add_feat(cx + r * math.cos(a), cy + r * math.sin(a))
+        elif shape[0] == "ellipse":
+            _, cx, cy, rx, ry = shape
+            n = max(8, int(2 * math.pi * max(rx, ry) / 56))
+            for i in range(n):
+                a = 2 * math.pi * i / n
+                add_feat(cx + rx * math.cos(a), cy + ry * math.sin(a))
         elif kind in ("set", "ramp"):
             _, x0, y0, x1, y1 = shape
             for (ax, ay, bx, by) in ((x0, y0, x1, y0), (x1, y0, x1, y1), (x1, y1, x0, y1), (x0, y1, x0, y0)):
@@ -872,26 +881,24 @@ def build_stairs(mw):
     staircase(part(mw, "staircase down to the range"), STAIR2)
 
 
-# the campaign lecterns, from the gate's centre: two rows of three either side of the way to the gate (50 wide, as
-# when there were four), id's three on the left, the rerelease's three on the right; 58 apart, each 40 wide under a
-# 46-wide cap (the row ends within the curb, as the four's did)
-LECTERNS_X = (-164, -106, -48, 48, 106, 164)
-LECTERN_HALF = 20                        # the lectern's half width (its cap's: 3 more)
-LECTERN_Y = -60                          # their south faces (the buttons on them)
-# the mods' lecterns (vrnotes1122c2: Dwell, Quoth, Arcane Dimensions, Arena Mode): a row facing east on the terrace's
-# west side, between its two left braziers (160 and 225 degrees), a little thinner than the campaigns' (30 wide under
-# a 36-wide cap), 48 apart north to south
-MOD_LECTERN_X = -150                     # their east faces, from the gate's x
-MOD_LECTERNS_Y = (-95, -143, -191, -239)
-MOD_LECTERN_HALF = 15
+# the lecterns, from the gate's centre (hubladder, his note 2026-11-23: the mods' row hid Quake's): one row of ten
+# facing south, five either side of the way to the gate (88 wide between the inner two's sides), 44 apart, all 30 wide
+# under a 36-wide cap: the official campaigns in the middle (id's three left, the rerelease's three right), the mods
+# at the ends (Arcane Dimensions, Quoth left; Dwell, Arena Mode right). The terrace is an ellipse (TERRACE rx) so the
+# row ends within its curb; no lectern stands in front of another, and every button faces the stairs' way up.
+LECTERNS_X = (-220, -176, -132, -88, -44, 44, 88, 132, 176, 220)
+LECTERN_HALF = 15                        # the lectern's half width (its cap's: 3 more)
+LECTERN_Y = -100                         # their south faces (the buttons on them)
 
 
 def build_terrace(mw):
     out = part(mw, "campaign terrace")
     t = TERRACE
     cx, cy, r, z = t["x"], t["y"], t["r"], t["z"]
+    sx = t["rx"] / r                     # (east-west stretch: the terrace is an ellipse)
     pts = []
     for (x, y) in ngon(cx, cy, r, 24, math.pi / 24):
+        x = cx + (x - cx) * sx
         pts += [(x, y, z), (x, y, z - 14)]
     out.append(hull(pts, T("flag", scale=0.5), lambda n, c: None if n[2] > 0.5 else T("block", mode="face", scale=0.5)))
     # the curb round the rim, open to the south (the stairs), east (the bridge) and north (the gate)
@@ -905,8 +912,8 @@ def build_terrace(mw):
         for a in (a0 + 0.6, a1 - 0.6):
             ar = math.radians(a)
             for rr in (r - 14, r + 1):
-                q += [(cx + rr * math.cos(ar), cy + rr * math.sin(ar), z),
-                      (cx + rr * math.cos(ar), cy + rr * math.sin(ar), z + 10)]
+                q += [(cx + rr * sx * math.cos(ar), cy + rr * math.sin(ar), z),
+                      (cx + rr * sx * math.cos(ar), cy + rr * math.sin(ar), z + 10)]
         out.append(hull(q, T("block", mode="face", scale=0.5)))
     # the teleporter: a dais, two pillars of stacked blocks, an arch of voussoirs
     gx, gy = GATE["x"], GATE["y"]
@@ -944,10 +951,6 @@ def build_terrace(mw):
         out.append(chamfer_box(gx + lx - hw, LECTERN_Y, z, gx + lx + hw, LECTERN_Y + 22, z + 62, 2, T("block", scale=0.5)))
         out.append(chamfer_box(gx + lx - hw - 3, LECTERN_Y - 3, z + 62, gx + lx + hw + 3, LECTERN_Y + 25, z + 68, 2,
                                T("trim", scale=0.5)))
-    mx, mh = gx + MOD_LECTERN_X, MOD_LECTERN_HALF
-    for ly in MOD_LECTERNS_Y:
-        out.append(chamfer_box(mx - 22, ly - mh, z, mx, ly + mh, z + 62, 2, T("block", scale=0.5)))
-        out.append(chamfer_box(mx - 25, ly - mh - 3, z + 62, mx + 3, ly + mh + 3, z + 68, 2, T("trim", scale=0.5)))
 
 
 def build_bridge(mw):
@@ -1259,9 +1262,10 @@ def build_lights(mw):
         wall_torch(mw, out, s1["cx"] + sx * (s1["w"] / 2 + 2), bot1[1] - 4, s1["zb"] + 46, 270)
         torch_post(mw, out, s1["cx"] + sx * 64, s1["cy"] + 60, s1["zt"] - 6, 90 if sx < 0 else 90)
     # the terrace: braziers round its rim, torches on the gate's pillars, the portal's glow
-    for a in (225, 315, 160, 20):
+    # (the west and east ones south of the lecterns' row's ends, lighting their buttons: 195 and 345 degrees)
+    for a in (225, 315, 195, 345):
         ar = math.radians(a)
-        brazier(mw, out, t["x"] + (t["r"] - 30) * math.cos(ar), t["y"] + (t["r"] - 30) * math.sin(ar), t["z"])
+        brazier(mw, out, t["x"] + (t["rx"] - 30) * math.cos(ar), t["y"] + (t["r"] - 30) * math.sin(ar), t["z"])
     gx, gy = GATE["x"], GATE["y"]
     for sx in (-1, 1):
         wall_torch(mw, out, gx + sx * 58, gy - 15, t["z"] + 16 + 70, 270)
@@ -1551,19 +1555,19 @@ N = "\\n"
 # vr_activestartpaknameidx; QC's buttons.qc marks a campaign whose data is missing); 3, 4 and 5 (Dimension of the Past,
 # Dimension of the Machine, Dawn of the Machine) have game folders of their own, so the teleporter's changelevel runs
 # vr_campaign_select dopa, mg1 or mg3 (vr_gamedir.cpp)
-CAMPAIGNS = [("QUAKE", "vr_activestartpaknameidx 0; echo Quake selected: step into the teleporter"),
+CAMPAIGNS = [("ARCANE" + N + "DIMENSIONS", "vr_activestartpaknameidx 6; echo Arcane Dimensions selected: step into the teleporter"),
+             ("QUOTH", "vr_activestartpaknameidx 8; echo Quoth selected: step into the teleporter"),
+             ("QUAKE","vr_activestartpaknameidx 0; echo Quake selected: step into the teleporter"),
              ("SCOURGE OF" + N + "ARMAGON", "vr_activestartpaknameidx 1; echo Scourge of Armagon selected: step into the teleporter"),
              ("DISSOLUTION" + N + "OF ETERNITY", "vr_activestartpaknameidx 2; echo Dissolution of Eternity selected: step into the teleporter"),
              ("DIMENSION" + N + "OF THE PAST", "vr_activestartpaknameidx 3; echo Dimension of the Past selected: step into the teleporter"),
              ("DIMENSION" + N + "OF THE MACHINE", "vr_activestartpaknameidx 4; echo Dimension of the Machine selected: step into the teleporter"),
-             ("DAWN OF" + N + "THE MACHINE", "vr_activestartpaknameidx 5; echo Dawn of the Machine selected: step into the teleporter")]
-# the mods' lecterns (west row, north to south): Arcane Dimensions (6), Dwell (7) and Quoth (8) chosen as the campaigns
-# are (the teleporter runs their launch: vr_gamedir.cpp, VR_CanChangeCampaignMap; QC's buttons.qc says when one is not
-# installed), Arena Mode's Run Setup at once (its Start: the arena, vr_menu_runsetup.inc)
-MODS = [("ARCANE" + N + "DIMENSIONS", "vr_activestartpaknameidx 6; echo Arcane Dimensions selected: step into the teleporter"),
-        ("DWELL", "vr_activestartpaknameidx 7; echo Dwell selected: step into the teleporter"),
-        ("QUOTH", "vr_activestartpaknameidx 8; echo Quoth selected: step into the teleporter"),
-        ("ARENA" + N + "MODE", "vr_runsetup arena")]
+             ("DAWN OF" + N + "THE MACHINE", "vr_activestartpaknameidx 5; echo Dawn of the Machine selected: step into the teleporter"),
+             ("DWELL", "vr_activestartpaknameidx 7; echo Dwell selected: step into the teleporter"),
+             ("ARENA" + N + "MODE", "vr_runsetup arena")]
+# (LECTERNS_X's order, west to east.) The mods, Arcane Dimensions (6), Quoth (8) and Dwell (7), are chosen as the
+# campaigns are (the teleporter runs their launch: vr_gamedir.cpp, VR_CanChangeCampaignMap; QC's buttons.qc says when
+# one is not installed), Arena Mode's Run Setup at once (its Start: the arena, vr_menu_runsetup.inc).
 
 # the pavilion's setting buttons (vr_setup_option <key>: Quake/vr/vr_setup.cpp's table; each press steps the setting,
 # shows it on a screen over the button and saves the config): the north board's rows, the south board's
@@ -1599,16 +1603,16 @@ def build_entities(mw):
     for (label, cmd), lx in zip(CAMPAIGNS, LECTERNS_X):
         cx = gx + lx
         button(mw, label, cmd, cx, LECTERN_Y, zb + 42, 90)
-    for (label, cmd), ly in zip(MODS, MOD_LECTERNS_Y):
-        button(mw, label, cmd, gx + MOD_LECTERN_X, ly, zb + 42, 180)
-    banner(mw, N.join(["MODS AND ARENA", "Press a stone: a mod, then the teleporter."]),
-           gx + MOD_LECTERN_X - 30, (MOD_LECTERNS_Y[0] + MOD_LECTERNS_Y[-1]) // 2, zb + 120, 0, "0.3")
+    # the mods' boards over the row's ends (their pairs' middles), over the labels
+    banner(mw, "MODS", gx + (LECTERNS_X[0] + LECTERNS_X[1]) // 2, LECTERN_Y + 11, zb + 92, 270, "0.3")
+    banner(mw, "MOD AND ARENA", gx + (LECTERNS_X[-2] + LECTERNS_X[-1]) // 2, LECTERN_Y + 11, zb + 92, 270, "0.3")
     banner(mw, N.join(["CHOOSE A CAMPAIGN", "Press its stone, then step into the teleporter."]),
            gx, gy - 24, zb + 16 + 205, 270, "0.45")
+    # (in front of the gate's dais, left of the way in: over the lecterns from the stairs)
     banner(mw, N.join(["Every campaign, and what", "its data needs:", "{menu:Official Campaigns}"]),
-           gx - 250, LECTERN_Y - 20, zb + 60, 270, "0.25")
+           gx - 80, gy - 68, zb + 92, 270, "0.25")
     tip(mw, "vs2_campaign", "Press a campaign's stone with your hand," + N + "then walk into the teleporter.",
-        gx - 55, LECTERN_Y - 10, zb + 50, 220, target=CAMPAIGNS[0][1] + "\\n")
+        gx - 110, LECTERN_Y - 10, zb + 50, 220, target=CAMPAIGNS[2][1] + "\\n")
     # ---- the pavilion's settings
     x0, x1, y0, y1, z = pv["x0"], pv["x1"], pv["y0"], pv["y1"], pv["z"]
     cxs = [-228, -168, -108, -48, 12]

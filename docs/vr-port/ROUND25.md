@@ -9865,3 +9865,26 @@ Runs on origin/next 27fce84a7 (Release no-LTO, the shipped-defaults baseline). M
   server's campaign at its serverinfo (`VR_CheckSpawnCampaignMap`'s client side); BACKLOG candidate.
 - Smoke: `mp_test.py suite --only` the six touched scenarios and mp_coop: mp_suite passed (netsafe 14/0, coop 12/0,
   flow 17/0, melee 30/0, slide_vr 8/0, predict 31/0, predictclimb 29/0, predictslide 14/0). flatswing 4/0.
+
+## hubladder: the hub's lecterns in one row; mod ladders' hands, sideways run, overlap (agent/hubladder, 2026-11-23)
+
+His flat feedback 2026-11-23 (the AD lectern hid Quake's; Quoth ladders).
+- **Hub** (`vrstart_gen.py`): all ten lecterns one row facing south (the stairs), 30 wide under a 36 cap (the Continue
+  lectern too), 44 apart, five either side of the way to the gate (`LECTERNS_X` +-44..220, `LECTERN_Y` -100): Arcane
+  Dimensions, Quoth, Quake, Scourge, Dissolution | Dimension of the Past, of the Machine, Dawn, Dwell, Arena Mode. The
+  terrace is an ellipse (`TERRACE` rx 280, r 232: its zone, curb, braziers; its east edge stops short of the bridge's
+  deck), the west/east braziers at 195/345 degrees (south of the row's ends); "MODS" and "MOD AND ARENA" boards over the
+  end pairs, the Official Campaigns board over the dais's left front. Rebuilt (`--compile`, final; id WAD made locally).
+- **Hands on drawn bars** (`vr_climb.cpp` `drawnRung`, `ladderHold`): the whole bar's faces (`barLo/barHi`: its model's
+  faces wholly within 12 under its top, along its ridge); the hold on its near side, 2 in from the face (or its middle if
+  thinner than 4), the way out square to the bar. The drawn hand (out 10 cm, down 10.5 cm) was inside a deep bar (the
+  pillar's are 20 deep: its palm 6.7 units in); now 1.3 out. Shared: a headset's hands and the flat ladder's (one hold).
+- **Sideways run, overlap** (`ladderKeep`): getting on a ladder volume zeroes the horizontal speed (VR; flat already
+  did); holding one, the body is eased out of its drawn bars (box front 1 off their face, 160 u/s; VR's hang too) and,
+  flat, to the ladder's middle (64 u/s). A volume with no bars drawn keeps the flat ladder's ladderInBox. The flat mount
+  off a ladder's top tries out of the bars first, then nearer. kellbase1 can't show the push-out: its catwalk ladder has
+  a clip 22 units in front (the box stays in its bars) and its pillar ladder a func_train's path (2 units of room).
+- **Tests**: `vr_flatladder_test` gains kellbase1 case 6 (the pillar, run at from 24 off its middle with forward and right:
+  centred to 0.0, pushed out as far as there is room); Down cases may end on a mover (the pillar's train). modladder:
+  fallback index 7, VR-hand holds moved to the near sides (-666/-662 catwalk, -1346 pillar): 10/0; flatladder_test.sh
+  2/0; hub_start_test 7/0. Scene `quoth_kellbase_ladder`.
