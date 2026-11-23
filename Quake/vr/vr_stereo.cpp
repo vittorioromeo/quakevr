@@ -1681,7 +1681,12 @@ extern "C" int VR_RenderView()
     // acquired after the scene, or their old colours invalidated: with foveation they are acquired first, not invalidated.
     // (vr_xr_foveation_probe 1: late acquire and the invalidate allowed anyway, to narrow the crash: C4q, 6x)
     const int fovProbe = static_cast<int>(vr_xr_foveation_probe.value);
-    const bool xrFoveation = VR_Android() && vr_xr_foveation.value > 0.f; // (no longer behind -xrfoveation: qfov3)
+    // (no longer behind -xrfoveation: qfov3.) The images' own level, not vr_xr_foveation's: a level changed after the
+    // frame began (the menu's Quest Foveation, the console) is on the images only from the next frame's new swapchains.
+    // Read from the cvar, Off after High took the post-process path (late acquire, the image's invalidate) on the still
+    // foveated images, and the runtime crashed in xrEndFrame (SIGSEGV 0x30 in libGLESv2_adreno, as C4p: qfovcrash).
+    // (vr_xr_foveation_probe 4: from the cvar, the crash's check)
+    const bool xrFoveation = VR_Android() && ((fovProbe & 4) ? vr_xr_foveation.value > 0.f : be->eyeImagesFoveated());
     const bool xrFoveated = xrFoveation && !(fovProbe & 1);
     // qfov: the runtime's foveation reaches the scene only drawn straight into the images, so with it the eyes are, with
     // framebuffers of each image's own and its depth renderbuffer (2; the tiler keeps it on chip, as Meta's samples do;
