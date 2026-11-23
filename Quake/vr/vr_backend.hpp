@@ -267,6 +267,13 @@ public:
     {
         return 0;
     }
+    // True while this frame's eye images carry the runtime's fixed foveation (the Quest's vr_xr_foveation, a level over
+    // 0). Settled when the frame begins: a level changed later in the frame (the menu, the console) reaches the images
+    // only with the next frame's new swapchains, so the eyes' path follows this, not the cvar (qfovcrash).
+    [[nodiscard]] virtual bool eyeImagesFoveated() const
+    {
+        return false;
+    }
 
     // Finishes the frame begun by beginFrame; `rendered` if the eye images were rendered (or, FrameState::hold, the last
     // rendered ones are to be shown again).
