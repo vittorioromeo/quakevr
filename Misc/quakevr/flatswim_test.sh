@@ -8,6 +8,10 @@
 #   twohand  the nail gun on land (the free hand on its hotspot: the stance), in the pool (one hand: the free hand swims),
 #            and the trigger held there (the gun hand's stroke gives way, blends back after), then back on land (the
 #            stance again)
+#   lookup   swimming off the pool's bottom (the body tilted forward, vr_body_swim_tilt), the view's pitch -89..89: the eye
+#            stays at the head, never carried back over the tilted trunk among its shoulders (his note 2026-11-23: looking
+#            up under water the view was filled by his own body seen from below; vr_flat_eye_pitched_body), and once with
+#            vr_flat_eye_pitched_body 0 (the old eye) to show the measure sees it
 # Screenshots: flatswim_shots.sh.
 AGENT=${1:?agent}
 source "$(dirname "$0")/qvrtest.sh"
@@ -37,6 +41,10 @@ $(at water '384 -256 -64 0 90 0'); wait40; echo flatswim_test: case water; $REP;
 +attack; wait4; echo flatswim_test: case firing; vr_flatswim_report; wait20; echo flatswim_test: case fired; vr_flatswim_report; \
 -attack; wait20; echo flatswim_test: case hold; vr_flatswim_report; wait60; echo flatswim_test: case back; vr_flatswim_report; \
 $(at land2 '0 300 25 0 90 0'); wait90; echo flatswim_test: case land2; $REP"
+
+LOOK=""
+for p in -89 -60 -30 0 30 60 89; do LOOK="$LOOK; $(at "pitch${p/-/m}" "384 -256 -40 $p 90 0"); wait30; vr_flatswim_report"; done
+run lookup "$BASE$LOOK; vr_flat_eye_pitched_body 0; $(at oldm89 '384 -256 -40 -89 90 0'); wait30; vr_flatswim_report"
 
 python "$HERE/flatswim_check.py" "$S"
 exit $?

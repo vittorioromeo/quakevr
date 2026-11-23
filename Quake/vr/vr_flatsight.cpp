@@ -1712,7 +1712,7 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     // (A gun on its reload trip to the hip has no stance: the free hand hangs relaxed until it is back; vr_flatreload.cpp.)
     // (Nor while the free hand is away with the quick grenade, vr_flatgrenade.cpp: the gun is held one-handed till it is back.)
     const bool twoHandGun = st.holding >= 0 && st.helping >= 0 && aimsAtPoint(s, st.holding) && emptyHand(st.helping) &&
-                            st.spot[st.holding] >= 0 && !flatreload::busy(st.holding) && !flatgrenade::busy(st.helping) &&
+                            st.spot[st.holding] >= 0 && !flatreload::busy(st.holding) && !flatgrenade::letsGo(st.holding, st.helping) &&
                             !flatswim::freesHand(); // (nor swimming: the free hand swims, vr_flatswim.cpp)
     const bool pistol = twoHandGun && glm::length(st.muzzleLocal[st.holding]) < longGunMuzzle;
     const bool longGun = twoHandGun && (!pistol || vr_flat_stance_pistol.value != 0.f);
@@ -2041,7 +2041,7 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // the pull). The same list as twohand's canGrab. A free hand holding anything (a prop, an item, a torch: his note
     // 2026-11-10) never goes to the grip: the gun is held one-handed (emptyHand: no stance either), as dual wielding.
     st.gripWanted = carryToGrip && !flatplay::punching(st.helping) && !flatplay::shoving(st.helping) &&
-                    !flatreload::busy(st.holding) && !flatgrenade::busy(st.helping) && !flatswap::gripBlocked() &&
+                    !flatreload::busy(st.holding) && !flatgrenade::letsGo(st.holding, st.helping) && !flatswap::gripBlocked() &&
                     !flatfgrab::busy(st.helping) && !flatplay::holdsThing(st.helping) &&
                     flatplay::bladeShare(st.holding) <= 0.f && // (the guard's blade grip takes it: flatplay::bladePin)
                     !flatswim::freesHand(); // (swimming: the free hand swims, vr_flatswim.cpp)

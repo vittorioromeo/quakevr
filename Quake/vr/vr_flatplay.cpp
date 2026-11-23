@@ -409,6 +409,21 @@ constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye of
         za::clamp(vr_flat_cam_up.value, -camOffMax, camOffMax)};
 }
 
+// The share of a look up (`pitch` < 0) the chest's lean and the neck's turn of the eye still take while his trunk is pitched
+// forward (the body's pitch, avatar::ownPitchAngle: swimming under water, lying down): none from vr_flat_eye_pitched_body
+// degrees on. His note 2026-11-23: looking up under water, the eye -- carried back by the neck's turn and the chest's
+// lean, both made for an upright trunk -- stood among his own shoulders, swung up behind it by the swimming tilt, and saw
+// them from below. A look down keeps both (they carry the eye forward, clear of the chest).
+[[nodiscard]] float lookUpShare(float pitch)
+{
+    const float full = za::clamp(vr_flat_eye_pitched_body.value, 0.f, 90.f);
+    if(pitch >= 0.f || full <= 0.f)
+    {
+        return 1.f;
+    }
+    return 1.f - za::clamp(avatar::ownPitchAngle() / full, 0.f, 1.f);
+}
+
 // How far the chest's share of the look carries the neck, and the head on it, off where a level look has them: a turn about the
 // spine (vr_flat_eye_lean: how far under the neck it stands; flatplay::chestPitch, the chest's own turn, in solveTorso).
 [[nodiscard]] glm::vec3 chestCarry(const glm::vec3& viewAngles)
@@ -430,7 +445,7 @@ constexpr float eyeOffMax = 8.f; // vr_flat_eye_fwd / vr_flat_eye_up: the eye of
     {
         return glm::vec3{0.f, 0.f, 0.f};
     }
-    return neckTurn(viewAngles) + chestCarry(viewAngles);
+    return neckTurn(viewAngles) * lookUpShare(viewAngles.x) + chestCarry(viewAngles);
 }
 
 // The eye's whole move in the world: the neck's turn, and the nudge along the axes of the view it is drawn with (the drawn view's
@@ -2982,7 +2997,9 @@ float chestPitch(float pitch)
     {
         return 0.f;
     }
-    return pitch * za::clamp(pitch > 0.f ? vr_flat_chest_down.value : vr_flat_chest_up.value, 0.f, 1.f) + meleeLean().chest;
+    // (A look up's share fades with the trunk pitched forward: lookUpShare.)
+    return pitch * za::clamp(pitch > 0.f ? vr_flat_chest_down.value : vr_flat_chest_up.value, 0.f, 1.f) * lookUpShare(pitch) +
+           meleeLean().chest;
 }
 
 glm::vec3 crouchNeck(const glm::vec3& levelFwd, float pitch)
@@ -4391,7 +4408,7 @@ void status_f()
             float at = 0.f;
             const bool sword = twohand::swordBlade(heldIn(h), at);
             const int other = 1 - h;
-            float posed = -1.f, drawn = -1.f, palmZ = 0.f;
+            float posed = -1.f, drawn = -1.f, palmZ = 0.f, fingersOut = 0.f;
             glm::vec3 dPos, dRot;
             if(fs.bladePointKnown[h])
             {
@@ -4400,14 +4417,22 @@ void status_f()
                 {
                     drawn = glm::distance(dPos, fs.bladePoint[h]);
                     palmZ = palmOf(other, dRot).z;
+                    // (The fingers' way level, against the level way from the eye to the hand: 1 straight away from him.)
+                    glm::vec3 f, r, u, away = dPos - hands::current().head;
+                    hands::angleVectors(dRot, f, r, u);
+                    f.z = away.z = 0.f;
+                    if(glm::length(f) > 1e-3f && glm::length(away) > 1e-3f)
+                    {
+                        fingersOut = glm::dot(glm::normalize(f), glm::normalize(away));
+                    }
                 }
             }
             Con_Printf("  blade grip: %s hand, %s, %s, share %.2f, %s\n", h == HAND_MAIN ? "main" : "off",
                 sword ? "a blade hotspot" : "no blade hotspot", fs.bladeWant[h] ? "asked for" : "not asked for", bladeShare(h),
                 twohand::bladeGrip(h) ? "held by its blade" : "not held by its blade");
-            Con_Printf("  blade grip: the %s hand %.1f u off the hotspot, drawn %.1f u, palm z %.2f (-1 down; "
-                       "vr_flat_parry_blade %g; taken %d)\n",
-                other == HAND_MAIN ? "main" : "off", posed, drawn, palmZ, vr_flat_parry_blade.value, fs.bladeTakes);
+            Con_Printf("  blade grip: the %s hand %.1f u off the hotspot, drawn %.1f u, palm z %.2f, fingers out %.2f (-1 down, "
+                       "1 away from him; vr_flat_parry_blade %g; taken %d)\n",
+                other == HAND_MAIN ? "main" : "off", posed, drawn, palmZ, fingersOut, vr_flat_parry_blade.value, fs.bladeTakes);
         }
         // The two-handed melee stance (vr_flat_melee_2h_*): the other hand empty.
         if(swungMelee(h) || fs.twoH[h] > 0.f)

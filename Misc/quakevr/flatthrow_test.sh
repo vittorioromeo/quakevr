@@ -9,14 +9,16 @@
 #          grabbed, J held 1.1 s at the button behind the bars: it presses it (r10_open, the gate); the charged throw
 #          leaves much faster than the tap
 #   gren   G, then J held 0.7 s with the quick grenade: thrown as its fire button's release throws it (the shared motion)
+#   twoh   the nail gun held two-handed (the free hand on its hotspot), J: the free hand lets go (hanging) as it winds
+#          up and the gun is thrown one-handed (his call 2026-11-23; no two-handed throw)
 #   wall   lesson 12's plain south wall: an axe charged from 280 units (flying past vr_throw_self_grace, once never stuck)
 #          and a sword from 150: both stick (the flat throw's timed spin, bladespinto)
-AGENT=${1:?agent}; ONLY=$2 # (optional: the runs to make, "axe rock")
+AGENT=${1:?agent}; ONLY=$2 # (optional: the runs to make, "axe rock twoh")
 source "$(dirname "$0")/qvrtest.sh"
 S=C:/OHWorkspace/qvr-agents/$AGENT/scratch/flatthrow
 mkdir -p "$S"
 HERE=$(cd "$(dirname "$0")" && pwd -W)
-FILTER="^(flat ?(throw|grenade|gren)|button: .*pressed|force grab: caught|flatthrow_test|axestick|carry: thrown|bladespinto)"
+FILTER="^(  (stance|two hands):|flat ?(throw|grenade|gren)|throw: a (weapon|prop) held in both|button: .*pressed|force grab: caught|flatthrow_test|axestick|carry: thrown|bladespinto)"
 run() { local tag=$1 script=$2; [ -n "$ONLY" ] && [[ " $ONLY " != *" $tag "* ]] && return
         bash $KIT/run.sh $AGENT -ExtraArgs -flatscreenmode -Script "$script; echo flatthrow_test: $tag done; toggleconsole; quit" \
             -QuitOn "^flatthrow_test: $tag done" -Timeout 150 -Filter "$FILTER" > "$S/$tag.log" 2>&1; }
@@ -31,6 +33,7 @@ GRAB2="setpos 2800 -240 -120 6 270 0; wait5; impulse 46; wait60" # (the next roc
 run axe "$BASE; setpos 1990 -640 -120 -35 248 0; wait5; impulse 152; wait30; $J; wait80; $JU; wait300"
 run rock "$BASE; $GRAB; setpos 3200 0 -120 -10 0 0; wait5; $J; wait2; $JU; wait300; $GRAB2; setpos 2928 -200 -120 -5 270 0; wait5; $J; wait80; $JU; wait300"
 run gren "$BASE; give r 10; setpos 3200 0 -120 0 0 0; wait5; vr_mock_key g down; wait2; vr_mock_key g up; wait50; $J; wait50; $JU; wait60; vr_flatgrenade_report; wait2"
+run twoh "$BASE; setpos 3200 0 -120 0 0 0; wait5; vr_test_give_wid 6; impulse 149; give n 200; wait90; echo flatthrow_test: before; vr_flatplay_status; $J; wait40; echo flatthrow_test: winding; vr_flatplay_status; $JU; wait150"
 run wall "$BASE; vr_debug_axestick 1; setpos 2000 -520 -120 0 270 0; wait5; impulse 152; wait30; $J; wait80; $JU; wait200; setpos 2000 -650 -120 0 270 0; wait5; impulse 163; wait30; $J; wait80; $JU; wait200"
 
 python "$HERE/flatthrow_check.py" "$S"

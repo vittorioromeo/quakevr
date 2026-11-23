@@ -12,7 +12,7 @@
 //     button or J held) and the throw key's alike, in vr_flat_throw_wind_time, drawn further back as it charges
 //     (vr_flat_throw_charge_back); gone as the throw's follow-through comes;
 //   - follow: the throw's follow-through (vr_flat_throw_follow_*, along the look), in vr_flat_throw_follow_time, then
-//     back with the hold; a thing held in both hands takes the other hand along;
+//     back with the hold; a thing held in both hands is thrown by the one hand, the other letting go (letsGo);
 //   - away: the trip to the pouch (vr_flat_grenade_fetch_*, at his side and a little behind, level with the body, out of
 //     view), over vr_flat_grenade_fetch_time; back in view with the grenade over vr_flat_grenade_up_time.
 // The pose made is the game's too (the server sees the hand where it is drawn, and the grenade follows it). While a hand
@@ -80,7 +80,7 @@ struct GrenadeState
     // The throw key.
     int throwPhase{0};       // the server's, this frame
     int throwHand{-1};       // its hand (kept while it eases back)
-    bool throwBoth{false};   // held in both hands: the other hand goes with it
+    bool throwBoth{false};   // held in both hands as it wound up: the other hand let go (letsGo)
     bool throwKeyDown{false};
     bool throwKeyWound{false}; // J went down on a quick grenade: its wind-up is J's (QC .vr_flatgren_bykey)
     int throwPresses{0};
@@ -119,7 +119,7 @@ void report_f()
         gs.hand[HAND_OFF].wind, gs.hand[HAND_OFF].follow, gs.hand[HAND_MAIN].away, gs.hand[HAND_MAIN].hold,
         gs.hand[HAND_MAIN].wind, gs.hand[HAND_MAIN].follow, gs.presses);
     Con_Printf("flatthrow: phase %d, hand %s%s; charge off %.2f main %.2f; J presses %d\n", gs.throwPhase,
-        gs.throwHand < 0 ? "none" : handName(gs.throwHand), gs.throwBoth ? " (both hands)" : "", gs.hand[HAND_OFF].charge,
+        gs.throwHand < 0 ? "none" : handName(gs.throwHand), gs.throwBoth ? " (was in both hands: the other let go)" : "", gs.hand[HAND_OFF].charge,
         gs.hand[HAND_MAIN].charge, gs.throwPresses);
 }
 
@@ -300,7 +300,6 @@ void apply(hands::State& s)
         {
             continue;
         }
-        const glm::vec3 was = s.pos[h];
         const glm::vec3 sh = flatplay::shoulderOf(s, h);
         const float span = flatplay::armReach();
         // The look, pitched no further than the hands follow it (vr_flat_pose_pitch), and the body's level frame.
@@ -329,11 +328,7 @@ void apply(hands::State& s)
         blend(s, h, followAt, {look.x + pitch(vr_flat_throw_follow_pitch), look.y, 0.f}, geom::smooth01(a.follow));
         blend(s, h, fetchAt, {pitch(vr_flat_grenade_fetch_pitch), look.y, 0.f}, geom::smooth01(a.away));
 
-        // Held in both hands (a long gun with the other hand on its grip, a crate): the other hand goes along, as far.
-        if(gs.throwBoth && h == gs.throwHand)
-        {
-            s.pos[1 - h] += s.pos[h] - was;
-        }
+        // (Held in both hands as the wind-up began: the other hand let go, letsGo; it doesn't go along: his call 2026-11-23.)
 
         // (vr_flat_grenade_debug: where the hand is as each place is reached, off the head along the look: the tests.)
         if(vr_flat_grenade_debug.value)
@@ -364,8 +359,13 @@ bool busy(int h)
 {
     // (The phases only: on the way back after the throw the hand may take the grip again, so it eases from the
     // follow-through straight onto it.)
-    // The throw key's hand too (not the other hand of a thing held in both: it stays on the gun's grip, vr_flatsight.cpp).
+    // The throw key's hand too (the other hand of a thing held in both lets go of it: letsGo).
     return h >= 0 && h < 2 && ((gs.phase != 0 && gs.hand0 == h) || (gs.throwPhase != 0 && gs.throwHand == h));
+}
+
+bool letsGo(int holding, int helping)
+{
+    return busy(holding) || busy(helping);
 }
 
 } // namespace qvr::flatgrenade

@@ -81,6 +81,9 @@ Flat-screen or VR: kill a grunt with a thrown axe, sword or dagger: its body is 
 Flat-screen or VR: fire the super nailgun and let go: its barrels slow down and stop where they are instead of snapping back, and spin up again from rest when you fire. {test:sng_spin}
 Hold the Crystal Lance's trigger to charge it: the violet light, glow and sparks gather on the tip of the middle crystal, not on an outer prong. {test:dwell_lance_pole}
 Flat-screen or VR: hang on a rope, then on a pole, and look at your hands (and another player's in third person): the fingers wrap one way round and the thumb the other way round to meet them, touching the rope or pole, not folded over the fingers like a fist; on the thin rope the thumb nearly reaches the fingertips, on the thicker pole it stops short of them. {test:ropes}
+Flat-screen: hold a long gun with your left hand on its fore-end and hold J: the left hand lets go of the gun as the right winds it up behind the shoulder (it doesn't follow the gun), and the gun is thrown with the right hand alone; a crate carried in both hands is likewise thrown by one. {test:flat_throw_2h}
+Flat-screen: swim under water off the bottom and look straight up, then sweep the look down to the floor: the view is never filled by your own head, shoulders or arms seen from below, at any pitch. {test:flat_swim}
+Flat-screen: hold the right mouse button with a knight's sword: your left hand on the blade is palm down with its fingers pointing away from you over the blade, not back at you; letting go it eases off without a sudden flip. {test:flat_parry}
 
 [1. Dwell]
 Flat-screen or VR: hold fire with Dwell's Crystal Lance: violet sparks gather at the tip, a light grows and a hum rises for about a second; let go early and nothing fires and no cells go; hold until the light pulses and let go: one shot (6 cells), its bolt visible a moment. {test:dwell_lance_pole}
