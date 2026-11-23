@@ -515,7 +515,15 @@ za::Vector<Item> pageDebugProfiling()
                   "your eyes and colour."),
         command("List the Frame's Render Passes", "vr_gl_passes 1")
             .help("vr_gl_passes 1: the next frame's framebuffer binds in the console, in order, each with the draws made "
-                  "into it (and the profiler's scope at the bind with vr_profile on), and its alias batches."),
+                  "into it (and the profiler's scope at the bind with vr_profile on), the calls a tiler may end its render "
+                  "pass at (compute, blits, buffer and texture updates) with their GL group, and its alias batches."),
+        command("Brush Models Gathered Between Draws (Quest)", "vr_gl_one_pass 0")
+            .help("vr_gl_one_pass 0 (OpenGL ES only, an A/B): the brush models' draws gathered and the arrays merged by "
+                  "compute between the eye's draws, as before qfov3 (each dispatch ends the Quest's render pass: reloads, "
+                  "no foveation past it). 1 (One Render Pass an Eye) the default."),
+        command("One Render Pass an Eye (Quest)", "vr_gl_one_pass 1")
+            .help("vr_gl_one_pass 1: the brush models drawn from the cull's commands, the arrays' merges dispatched before "
+                  "the eye's clear (the default); 2 the same, never merged (twice the draws)."),
         command("Hide Gibs, Heads and Limbs", "vr_debug_hide_models \"gib,h_,#limb\"")
             .help("vr_debug_hide_models <parts>: alias models whose name holds any of the comma-separated parts are not "
                   "drawn in the eyes (gib, h_ and #limb: the gore). A cost found by leaving things out (the Quest's GPU "

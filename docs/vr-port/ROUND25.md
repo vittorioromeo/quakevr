@@ -10910,3 +10910,36 @@ details: QUEST_OPTIMISATIONS.md "Standalone status, 2026-11-23".
   noise. The 0.65 base reads 2-3 ms above qtune's morning numbers: warmth or a merge since; not split.
 - Next (by size): the world's shading at 0.55 (~8 ms of ~14); the server's CPU in big fights (monster physics);
   dynres drawing into right-sized images; the hub's fight floor opening outside fights (his call).
+
+## qfov3: one render pass an eye; Quest foveation on in Standalone (branch agent/qfov3, 2026-11-23)
+
+- **The passes' breakers** (`vr_gl_passes` now lists them: compute dispatches, blits, buffer and 3D texture updates,
+  mipmaps, each with its GL group, between the binds; gl_vidsdl.c shadows the calls as it does the binds): on the PC
+  mock of the Quest's path (`-glescompat`, form 2) the only ones inside an eye were the brush models' gathers (six a
+  frame's eye) and the arrays' merges beside them, as qfov2 guessed. No blits, uploads or framebuffer switches.
+- **`vr_gl_one_pass`** (new, 1; OpenGL ES only, the PC's paths untouched; Debug > Profiling has both): ES's bound
+  path draws each call from the cull's own command (on ES the gather only copied it: one instance, baseInstance 0); a
+  call of more instances takes a command made on the CPU from the brush model's own (r_brush.c keeps the commands as
+  made: `gl_bmodel_cmds`, runtime brushes too); one of more instances on a command the cull fills (the world twice
+  through a gate) falls back to the gather. The arrays' merges (C4v: one draw a set) can't run between draws either:
+  each flush's merge plan is kept per scene of the frame and flush (`R_PreMergeBModelCalls`, called by R_RenderScene
+  before the clear), and the next frame's same scene dispatches every kept plan into buffers of its own with that
+  frame's cull; a flush whose plan matches draws its groups from them, any other draws its calls alone that frame
+  (another map: `gl_bmodel_buildserial`). 2: never merged (an A/B: the draws 192 -> 429, +1.2..3 ms on the Quest).
+- Headset trace (ovrgpuprofiler -t, level 3): each eye is now one render pass, no LoadColor/LoadDepthStencil, no depth
+  store, foveated bins in it; only the drawn part's bins are rendered (5 of 8), so no scissored clear or resized image
+  was needed for that (step 2). Eye images at the drawn size (`vr_xr_eye_scale` 0.65, which now makes new swapchains
+  mid-game on the Quest) were slower (E 15.5 ms vs L 13.8).
+- **Numbers** (frozen gib fight at 0.65, retro off; 3 launches, each part twice interleaved; GPU medians): today's path
+  (post-process + gather) 17.33/15.86/16.31; post-process one pass 15.98/15.98/16.29; straight in, no foveation,
+  gather/one pass 17.1/16.8; **Low 13.61/13.78/14.06**, Medium 14.33/14.24/14.05, High 15.39/15.47/15.53, High
+  refocused 15.5-17.3, High + dynamic 13.74/14.06/13.48. Late frames (>13.9 ms) 95-98% -> 67-76% at Low. CPU busy
+  unchanged (~9.7-10.3 ms). High slower than Low in every launch (not explained; the scaled bins' cost, a guess).
+- Eyeshots (exported): the periphery at Low and Medium shows the floor's texels with no visible blocks.
+- **Defaults**: Standalone sets `vr_xr_foveation` 1 (Low: the fastest and the mildest). The `-xrfoveation` guard is gone
+  (vr_backend_openxr_quest.cpp, vr_stereo.cpp); Quest Foveation (VR Settings > Scaling) turns it off. Checked on the
+  headset without the flag: `vr_standalone_preset 0` gives level 1, form 2 straight in, e1m1 -> e1m2 -> start and
+  mid-game level changes (1 -> 2 -> 1, new swapchains) ran with no crash.
+- PC: `-glescompat` eyeshots one pass vs gather: mean |d| 0.035/255 (blood's randomness); smoke runs (ES and PC, map
+  changes) clean. Scripts (not committed): `scratch/qfov3_*` (mk, ab3, trace, pc, diff, fresh.cfg), `qp_run.sh` now
+  also accepts the Quick Actions menu in front.
