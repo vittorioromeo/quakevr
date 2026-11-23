@@ -66,6 +66,10 @@ bool serverHold(edict_t* ent, int hand, glm::vec3& at, glm::vec3& out);
 [[nodiscard]] int ropeHands(edict_t* ent);
 // Server: the exertion grunts `ent`'s pulls up ropes have made so far (vr_rope_grunt; ropes6, the tests').
 [[nodiscard]] int ropePullGrunts(edict_t* ent);
+// Server: (ropes14, NOTES.md vrtutorial_2026-11-23_23-12-23) whether `ent` let go of rope or pole `rope` (its edict
+// number; any hand, VR or flat: a drop, a jump) under vr_rope_letgo_pass seconds ago: its boxes let him through and his
+// body doesn't push it (vr_climbrope.cpp passSolids, disturb), so he jumps where he looks without meeting it.
+[[nodiscard]] bool ropeLetGoPass(edict_t* ent, int rope);
 
 // Server: the flatscreen mantles `ent` started since the map loaded (vr_flat_mantle: after a jump, the jump key held,
 // looking up at a ledge in reach; vr_climb.cpp flatMantle), and whether it mantles now (any mantle).

@@ -222,6 +222,9 @@ struct Climbing
     int traces{0};                // this frame's (the logs)
     double updateMs{0.0};         // this frame's updateClimbing (vr_debug_climb_feet 2)
     float ropeWrap{0.f};          // 0 .. 1, eased: the feet round a climbable rope the hands hold (vr_climbrope.cpp)
+    // (ropes14) Each foot's place round the rope (ropeFoot) from its hip, eased (vr_rope_leg_smooth); invalid: taken as is.
+    za::Array<glm::vec3, 2> ropeFootRel{};
+    za::Array<bool, 2> ropeFootValid{};
 };
 
 extern Climbing climbing;

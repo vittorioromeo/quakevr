@@ -147,6 +147,7 @@ struct Rope
     za::U64 solidPass{0};    // (ropes8d) every player let through them (bit client - 1: VR_PoleSolidPasses), the owner too
     za::U64 solidIn{0};      // (ropes8e) ... of them, those whose box is in one of them (vr_rope_info: passing it, not near)
     glm::vec3 solidsAt{0.f}; // the pole's top where they were placed
+    int self{0};             // (ropes14) its edict number (the frame's: climb::ropeLetGoPass)
 };
 
 ankerl::unordered_dense::map<int, Rope> ropes;
@@ -194,6 +195,7 @@ struct ClientRope
 ankerl::unordered_dense::map<int, ClientRope> clientRopes;
 int builtFrame = -1;
 bool boxHullReady = false; // (ropes8d) world.c's box hull made on a remote client (clientSolidTrace)
+double clientHeldAt = -1.0; // (ropes14) cl.time a hand was last drawn on a rope (clientSolidTrace: the let-go's pass)
 const glm::vec3 keyLight = glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}); // (the magnetic holsters' chains')
 
 [[nodiscard]] glm::vec3 vecOf(const float* v)
@@ -395,7 +397,9 @@ void passSolids(Rope& r)
             // was "in" it by 0.97 and let through
             in = boxIn(plo, phi, geom::vec(s->v.origin) + geom::vec(s->v.mins), geom::vec(s->v.origin) + geom::vec(s->v.maxs), solidInside);
         }
-        const bool pass = in || (climb::ropeHands(pl) > 0 && boxIn(plo, phi, lo - glm::vec3{solidNear}, hi + glm::vec3{solidNear}, 0.f));
+        // (ropes14) and one who let go of it a moment ago (climb::ropeLetGoPass: jumped off where he looks)
+        const bool pass = in || (climb::ropeHands(pl) > 0 && boxIn(plo, phi, lo - glm::vec3{solidNear}, hi + glm::vec3{solidNear}, 0.f)) ||
+                          climb::ropeLetGoPass(pl, r.self);
         if(in && i <= 64)
         {
             inside |= za::U64{1} << (i - 1);
@@ -665,6 +669,10 @@ void disturb(Rope& r, float h)
         if(solid != SOLID_BBOX && solid != SOLID_SLIDEBOX && !box3d::isBox3DProp(num))
         {
             continue;
+        }
+        if(num <= svs.maxclients && climb::ropeLetGoPass(e, r.self))
+        {
+            continue; // (ropes14: let go of it a moment ago: his body passes it, not pushing it aside)
         }
         const glm::vec3 mins = vecOf(e->v.absmin), maxs = vecOf(e->v.absmax), vel = vecOf(e->v.velocity);
         for(za::SizeT i = 0; i < n; i++)
@@ -1624,6 +1632,12 @@ struct ClimbTest
     int fallFrames{0};          // (ropes10) airborne frames
     bool fallRetaken{false};    // (ropes10) a hand took a rope again while he fell
     bool fallLanded{false};     // (ropes10) on the floor again
+    glm::vec3 gripBack[2]{};    // (ropes14) each drawn hand's back at `gripmark` (0: not drawn on it then)
+    glm::vec3 aimFrom{0.f};     // (ropes14) `aimthrough`: his place then, less the pole's axis (level)
+    float thumbMarked{0.f};     // (ropes14) `thumbmark`: the thumbs' wrap round it then (degrees)
+    glm::vec3 ankleRel[2]{};    // (ropes14) the posed ankles from the pelvis last frame (`legjerk`)
+    bool ankleValid{false};
+    float ankleJerk{0.f};       // (ropes14) the most an ankle moved so from one frame to the next since the last mark
 };
 ClimbTest climbTest;
 constexpr float climbTestStrungHeight = 2.0f; // m over the feet: a strung rope's (the play's hands reach it there)
@@ -1779,6 +1793,7 @@ za::Vector<view::HandPart> sinkParts;
 struct RopeWrap
 {
     float thumb{1e9f}, fingers{1e9f}, meet{-1e9f}, tipOff{0.f}, along{1e9f}, thick{0.f};
+    float sunk{-1e9f}; // (ropes14) the thumb's joints' deepest under its surface (units; below 0: all outside it)
 };
 [[nodiscard]] int ropeWraps(RopeWrap& out)
 {
@@ -1836,6 +1851,10 @@ struct RopeWrap
         const glm::vec3 way = thumbPts[3] - thumbPts[0];
         out.along = za::min(out.along, glm::length(way) > 1e-3f ? za::abs(glm::dot(way, up)) / glm::length(way) : 0.f);
         out.thick = za::max(out.thick, thick);
+        for(int i = 1; i < 4; i++)
+        {
+            out.sunk = za::max(out.sunk, thick * 0.5f - glm::length(flat(thumbPts[i])));
+        }
     }
     return held;
 }
@@ -1843,6 +1862,7 @@ struct RopeWrap
 // (ropes12, ropes13) The thumbs' check: round a rope this thin (vr_rope_thumb_wrap) at least `least` degrees the other way
 // from the fingers; along a thicker one (a pole), its way along the axis at least thumbAlongLeast; the tip on its surface.
 constexpr float thumbAlongLeast = 0.6f;
+constexpr float thumbSunkMost = 0.5f; // (ropes14) units the normal grip's thumb joints may be in a pole
 [[nodiscard]] bool thumbHolds(const RopeWrap& wrap, int held, float least, const char*& what)
 {
     const float wrapThick = za::clamp(vr_rope_thumb_wrap.value, 0.f, 64.f);
@@ -1853,6 +1873,21 @@ constexpr float thumbAlongLeast = 0.6f;
                   "short of meeting (below 0: past), the tip %.2f off its surface (at most 1.5)",
             wrap.thick, held, held ? wrap.thumb : 0.f, least, held ? wrap.fingers : 0.f, held ? wrap.meet : 0.f, wrap.tipOff);
         return held >= 1 && wrap.thumb >= least && wrap.tipOff <= 1.5f;
+    }
+    const int thickStyle = za::clamp(static_cast<int>(vr_rope_thumb_thick.value), 0, 2);
+    if(thickStyle == 0)
+    {
+        // (ropes14) The normal grip (vr_rope_thumb_thick 0, the default): the grasp's own thumb, not in it.
+        what = va("the thumbs in the normal grip (%.1f thick, over vr_rope_thumb_wrap %.1f): %d hands, the thumb %.0f degrees round, "
+                  "%.2f along it, its joints at most %.2f into it (at most %.2f)",
+            wrap.thick, wrapThick, held, held ? wrap.thumb : 0.f, held ? wrap.along : 0.f, wrap.sunk, thumbSunkMost);
+        return held >= 1 && wrap.sunk <= thumbSunkMost;
+    }
+    if(thickStyle == 2)
+    {
+        what = va("the thumbs round it (%.1f thick, vr_rope_thumb_thick 2): %d hands, the thumb %.0f degrees round (at least %.0f)",
+            wrap.thick, held, held ? wrap.thumb : 0.f, least);
+        return held >= 1 && wrap.thumb >= least;
     }
     what = va("the thumbs along its side (%.1f thick, over vr_rope_thumb_wrap %.1f): %d hands, the thumb %.2f along it (at least "
               "%.2f), %.0f degrees round, the tip %.2f off its surface (at most 1.5)",
@@ -1984,6 +2019,21 @@ void climbTestFrame()
             }
             t.fallVz = vz;
         }
+        // (ropes14) The posed ankles' moves from the pelvis, a frame at a time (`legjerk`), while a hand holds it.
+        if(avatar::Skeleton k; player && climb::ropeHands(player) > 0 && avatar::skeleton(k) && k.legs)
+        {
+            for(int s = 0; s < 2; s++)
+            {
+                const glm::vec3 rel = k.ankle[s] - k.pelvis;
+                t.ankleJerk = t.ankleValid ? za::max(t.ankleJerk, glm::distance(rel, t.ankleRel[s])) : t.ankleJerk;
+                t.ankleRel[s] = rel;
+            }
+            t.ankleValid = true;
+        }
+        else
+        {
+            t.ankleValid = false;
+        }
         int ent = 0;
         glm::vec3 v{0.f};
         if(player && climbrope::riding(NUM_FOR_EDICT(player) - 1, ent, v))
@@ -2055,6 +2105,7 @@ void climbCheck_f()
         t.fastest = 0.f;
         t.freeFastest = 0.f;
         t.grunts = climb::ropePullGrunts(player);
+        t.ankleJerk = 0.f;
         Con_Printf("%s: mark at %.1f %.1f %.1f\n", climbTestName, o.x, o.y, o.z);
     }
     else if(!ZA_STRCMP(what, "swing"))
@@ -2163,6 +2214,13 @@ void climbCheck_f()
         check(on >= static_cast<int>(n) && worst >= 0.7f,
             va("%d hands drawn gripping it (%d), the knuckles outwards (worst %.2f of 1)", static_cast<int>(n), on, worst));
     }
+    else if(!ZA_STRCMP(what, "legjerk"))
+    {
+        // (ropes14, NOTES.md vrropes_2026-11-23_22-55-10) Climbing it since the mark: the posed ankles moved from the pelvis
+        // by at most n units from one frame to the next (vr_rope_leg_smooth: no sudden jumps as the rope moves).
+        check(t.ankleJerk > 0.f && t.ankleJerk <= n, va("the feet eased: an ankle moved at most %.2f units a frame from the pelvis (at most %.2f)",
+                                                         t.ankleJerk, n));
+    }
     else if(!ZA_STRCMP(what, "monkeygrip"))
     {
         // (ropes8b) Under a monkey traverse's rope: n hands drawn on it, the knuckles up, the palms under it, the arms
@@ -2173,6 +2231,86 @@ void climbCheck_f()
             va("%d hands drawn under it (%d): the knuckles up (least %.2f of 1), the palms %.1f under its axis, the arms "
                "reaching them (%.1f cm past, at most 1)",
                 static_cast<int>(n), on, up, under, gap));
+    }
+    else if(!ZA_STRCMP(what, "gripmark") || !ZA_STRCMP(what, "gripkept") || !ZA_STRCMP(what, "gripflipped"))
+    {
+        // (ropes14, his VR notes 2026-11-23) Under a level rope: each hand drawn fully on it, its back's way (gripmark);
+        // since, the same grip kept (gripkept: each back within n of 1 of the mark's; the hand didn't jump round it as the
+        // head crossed it), or the other grip taken (gripflipped: a back at least n the other way: taken again underhand).
+        const bool mark = !ZA_STRCMP(what, "gripmark"), kept = !ZA_STRCMP(what, "gripkept");
+        int on = 0;
+        float worst = kept ? 1.f : -1.f; // (kept: every hand; flipped: the hand taken again, the best)
+        for(int h = 0; h < 2; h++)
+        {
+            glm::vec3 back{0.f};
+            if(climb::drawnShare(h) < 0.99f || !climb::drawnBack(h, back))
+            {
+                continue;
+            }
+            if(mark)
+            {
+                t.gripBack[h] = back;
+                Con_Printf("%s: grip mark: %s hand's back %.2f %.2f %.2f\n", climbTestName, h ? "main" : "off", back.x, back.y, back.z);
+                continue;
+            }
+            if(glm::length(t.gripBack[h]) < 0.5f)
+            {
+                continue;
+            }
+            on++;
+            const float d = glm::dot(back, t.gripBack[h]);
+            worst = kept ? za::min(worst, d) : za::max(worst, -d);
+        }
+        if(!mark)
+        {
+            check(on >= 1 && worst >= n, va("%s: %d hands drawn on it as marked, the backs %s (%s %.2f, at least %.2f)", what, on,
+                                              kept ? "kept" : "one turned the other way", kept ? "worst" : "best", worst, n));
+        }
+    }
+    else if(!ZA_STRCMP(what, "support"))
+    {
+        // (ropes14, his VR note 2026-11-23) Over a level rope: n hands drawn fully on it with the wrists turned over it, the
+        // palms' middles over its axis and the knuckles down (the fingers under it).
+        int on = 0;
+        float over = 1e9f, down = 1.f;
+        for(int h = 0; h < 2; h++)
+        {
+            glm::vec3 back{0.f}, front{0.f}, palm{0.f}, at{0.f}, way{0.f};
+            float thick = 0.f, w = 0.f;
+            if(climb::drawnShare(h) < 0.99f || !climb::drawnBack(h, back, &front) || !climb::drawnPalm(h, palm) ||
+                !climb::ropeLine(h, at, way, thick, w))
+            {
+                continue;
+            }
+            on++;
+            over = za::min(over, palm.z - at.z);
+            down = za::min(down, -front.z);
+        }
+        check(on >= static_cast<int>(n) && over > 0.f && down >= 0.7f,
+            va("%d hands over it (%d): the palms %.2f over its axis, the knuckles down (least %.2f of 1)", static_cast<int>(n), on,
+                on ? over : 0.f, on ? down : 0.f));
+    }
+    else if(!ZA_STRCMP(what, "aimthrough"))
+    {
+        // (ropes14, NOTES.md vrtutorial_2026-11-23_23-12-23) Just off the test's pole: his level speed set at n units/s
+        // straight through its axis (a jump where he looks, the pole in the way); `passedthrough` checks he went through.
+        const Rope* r = ropeOf(t.rope);
+        const glm::vec3 axis = r && !r->p.empty() ? r->p.front() : o;
+        t.aimFrom = glm::vec3{o.x - axis.x, o.y - axis.y, 0.f};
+        const glm::vec3 way = glm::length(t.aimFrom) > 1e-3f ? -glm::normalize(t.aimFrom) : glm::vec3{1.f, 0.f, 0.f};
+        player->v.velocity[0] = way.x * n;
+        player->v.velocity[1] = way.y * n;
+        Con_Printf("%s: aimed through the pole at %.0f units/s from %.1f off its axis\n", climbTestName, n, glm::length(t.aimFrom));
+    }
+    else if(!ZA_STRCMP(what, "passedthrough"))
+    {
+        // (ropes14) Since `aimthrough`: on its other side now by n units at least (its boxes let him through: the let-go's
+        // pass, vr_rope_letgo_pass), not stopped at it.
+        const Rope* r = ropeOf(t.rope);
+        const glm::vec3 axis = r && !r->p.empty() ? r->p.front() : o;
+        const glm::vec3 now{o.x - axis.x, o.y - axis.y, 0.f};
+        const float beyond = glm::length(t.aimFrom) > 1e-3f ? -glm::dot(now, glm::normalize(t.aimFrom)) : 0.f;
+        check(hands == 0 && beyond >= n, va("went through the pole: %.1f units past its axis (at least %.0f), %d hands", beyond, n, hands));
     }
     else if(!ZA_STRCMP(what, "sink"))
     {
@@ -2196,13 +2334,33 @@ void climbCheck_f()
         const bool ok = thumbHolds(wrap, held, n, what);
         check(ok, what);
     }
+    else if(!ZA_STRCMP(what, "thumbmark") || !ZA_STRCMP(what, "thumbmoved"))
+    {
+        // (ropes14, his VR note 2026-11-23) The thumb's tweaks (vr_rope_thumb_*) turn the drawn thumb: its wrap round the
+        // rope at the mark, then moved by n degrees at least.
+        RopeWrap wrap;
+        const int held = ropeWraps(wrap);
+        if(!ZA_STRCMP(what, "thumbmark"))
+        {
+            t.thumbMarked = held ? wrap.thumb : 0.f;
+            Con_Printf("%s: thumb mark: %d hands, %.1f degrees round\n", climbTestName, held, t.thumbMarked);
+        }
+        else
+        {
+            const float moved = held ? za::abs(wrap.thumb - t.thumbMarked) : 0.f;
+            check(held >= 1 && moved >= n, va("the thumb tweaked: %.1f degrees round, %.1f from the mark's (at least %.0f)",
+                                               held ? wrap.thumb : 0.f, moved, n));
+        }
+    }
     else if(!ZA_STRCMP(what, "where"))
     {
         // (ropes7) A test writer's aid: the hands and the feet now.
         if(const VrMove* m = server::clientMove(player))
         {
-            Con_Printf("%s: where: off hand %.1f %.1f %.1f, main %.1f %.1f %.1f, feet %.1f\n", climbTestName, m->hands[0].pos.x,
-                m->hands[0].pos.y, m->hands[0].pos.z, m->hands[1].pos.x, m->hands[1].pos.y, m->hands[1].pos.z, o.z + player->v.mins[2]);
+            Con_Printf("%s: where: off hand %.1f %.1f %.1f, main %.1f %.1f %.1f, feet %.1f, view yaw %.0f, head yaw %.0f, eyes %.1f %.1f %.1f\n",
+                climbTestName, m->hands[0].pos.x, m->hands[0].pos.y, m->hands[0].pos.z, m->hands[1].pos.x, m->hands[1].pos.y,
+                m->hands[1].pos.z, o.z + player->v.mins[2], cl.viewangles[YAW], hands::current().headAngles[YAW],
+                hands::current().head.x, hands::current().head.y, hands::current().head.z);
             if(climbrope::Grab g; climbrope::findGrab(m->hands[0].pos, 64.f, g))
             {
                 Con_Printf("%s: where: the rope nearest the off hand at %.1f %.1f %.1f\n", climbTestName, g.at.x, g.at.y, g.at.z);
@@ -4660,6 +4818,7 @@ void serverFrame(bool worldRan)
             r.rider = Rider{}; // (let go: the rope swings on as he left it)
         }
         r.monkey = monkeyOf(r);
+        r.self = kv.first;
         step(r, dt);
         if(r.params.pole)
         {
@@ -5177,6 +5336,13 @@ bool clientSolidTrace(const float* start, const float* mins, const float* maxs, 
         float thick = 0.f, w = 0.f;
         holding = climb::ropeLine(hand, at, up, thick, w) && w > 0.f;
     }
+    // (ropes14) A moment after letting go (vr_rope_letgo_pass), as the server's climb::ropeLetGoPass: a pole by him still
+    // passed (the one let go of: the nearest are taken for it).
+    if(holding)
+    {
+        clientHeldAt = cl.time;
+    }
+    holding = holding || (clientHeldAt >= 0.0 && cl.time >= clientHeldAt && cl.time - clientHeldAt < za::clamp(vr_rope_letgo_pass.value, 0.f, 3.f));
     const glm::vec3 s = vecOf(start), slo = s + vecOf(mins), shi = s + vecOf(maxs);
     const auto overlaps = [&](const glm::vec3& lo, const glm::vec3& hi, float by)
     {
