@@ -19,8 +19,10 @@ S="developer 1; tune vr_flat_turnlag 0; $(T lag0)"
 S="$S; tune vr_flat_turnlag 1; $(T lag1); tune vr_flat_turnlag -1; $(T lagneg)"
 S="$S; tune vr_flat_turnlag 1; tune vr_flat_turnlag_cap 0.5; $(T lagcap); tune_reset"
 # (The forward bob at a run, as vr_flat_bob_fwd is sized: "1: 0.6 units each way at a run". The shipped default walks
-# (cl_alwaysrun 0, cl_input.c; the tests' baseline has it since 6d47923de): at 200 the bob's size is 0.6 of a run's.)
-S="$S; cl_alwaysrun 1; $(P fwd0 0); tune vr_flat_bob_fwd 2; $(P fwd2 0); tune vr_flat_bob_fwd 0; $(P fwd0p 40); tune vr_flat_bob_fwd 2; $(P fwd2p 40)"
+# (cl_alwaysrun 0, cl_input.c; the tests' baseline has it since 6d47923de): at 200 the bob's size is 0.6 of a run's.
+# The fwd0 probes set vr_flat_bob_fwd 0 themselves: its shipped default is 1 since 803c3406fc, and the level fwd0 case,
+# run at that default, measured the bob itself: 1.01 against fwd 2's 1.94, a "fail" by 0.07.)
+S="$S; cl_alwaysrun 1; tune vr_flat_bob_fwd 0; $(P fwd0 0); tune vr_flat_bob_fwd 2; $(P fwd2 0); tune vr_flat_bob_fwd 0; $(P fwd0p 40); tune vr_flat_bob_fwd 2; $(P fwd2p 40)"
 S="$S; cl_alwaysrun 0; tune_reset; echo flatlagbob done; toggleconsole; quit"
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$S" -Filter "^flatwalkfwd|^flatwalk: |^flatlagbob" -QuitOn "flatlagbob done" -Timeout 300 > "$log" 2>&1
 grep -a "^flatwalkfwd" "$log" | sed 's/^/  /'

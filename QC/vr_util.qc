@@ -787,3 +787,16 @@ inline float(vector xA0, vector xA1, vector xB0, vector xB1) VR_SegmentDistance 
 {
     return VR_SegmentDistanceEps(xA0, xA1, xB0, xB1, 0.0001, 0.0001);
 };
+
+// (ropes8c, vr_ropes.qc) Whether `e` is a chain (a vr_chain, or a vr_rope styled as one): its links stop shots, nails and
+// blows (the engine's SV_Move), metal (VR_MaterialOf).
+float(entity e) VR_Rope_IsChain =
+{
+    return e.classname == "vr_chain" || (e.classname == "vr_rope" && e.rope_style >= 1);
+};
+
+// (ropes8c) Whether `e` is a rope, a chain, a pole or a pole's box: they take no damage (T_DamageImpl).
+float(entity e) VR_Rope_Is =
+{
+    return e.classname == "vr_rope" || e.classname == "vr_chain" || e.classname == "vr_pole" || e.classname == "vr_pole_solid";
+};

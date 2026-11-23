@@ -10083,6 +10083,24 @@ the damage came in pulses (a shot each 1.4 s). Now:
 - Not tested live: another player's charge in a real two-client game (the same message and draw path as yours, the
   copy's weapon from mpavatar).
 
+## capcolour: made weapon models' dark caps drew near-white (agent/capcolour, 2026-11-23)
+
+- **Finding (ROUND25 "dwellrotary"):** the caps that close a made model's holes (`vr_adweapons.cpp` `seal`, the cap
+  rows: Quake's palette index 2, (31,31,31)) and its made parts' dark texels drew nearly white in a bright room. Only
+  `vr_adweapons.cpp` makes such caps: AD's Shadow Axe, Widowmaker and Plasma Gun, Dwell's Rotary (both models), Lance
+  and Rifle (the lance-as-pole keeps its faces open: no caps).
+- **Cause:** not the texel (not fullbright, not the skin bake) but the weapon reflections (`vr_envmap.cpp`, alias
+  shader `ModelRimReflect`): `MetalMask` counts a flat dark grey as fully metal, and the fresnel's floor (f0 0.25 or
+  more, whatever the texel's darkness) mirrors the room over it. Big smooth made faces in a few flat texels show it as
+  one bright mirror. The made models fell to the expansions' default (metal 0.7, lod 3); the Rotary's barrels on
+  Dwell's own metal texels drew just as white, and `vr_weapon_reflections 0` drew them all dark.
+- **Fix:** `weaponMetal` gives every made model (`adweapons::isMade`: "<model>#vr") the Widowmaker's numbers (0.2, lod
+  3.5: his note 2026-10-29 for the same look): `madeMetal`, `madeLod`. Vanilla weapons, the shader and the skins are
+  unchanged; the Rotary's black hole and port (dwellrotary) kept.
+- **Tests:** release build 0 warnings; dwell_vrmodels 13/0, dwell_rotary 3/0; check_mdl_holes on the seven capped made
+  models ok (0 open loops); shots kit `scratch/capcolour_before.png`, `capcolour_before_ad.png` (axe) and
+  `capcolour_after.png` (side and front: axe, Rotary, Lance, Rifle, Rotary setting 0). The Plasma Gun was not caught
+  held by the mock camera (same rule).
 ## mpcampaign: a joining client plays the server's campaign (agent/mpcampaign, 2026-11-23)
 
 flatgreen3's open item (a client kept its own campaign: rogue's start.bsp on a Quake server, "Model *43 not found"; its
@@ -10175,3 +10193,37 @@ works (close up: blood made within 48 units 2,240-2,470 off, 325-1,353 on) but t
   (gibs/limbs/corpses draws, the posed batches, their shading under Standalone) and the world's own ~9 ms per pair of eyes.
 - Left on the headset: `files/quakevr/qg_gore*.cfg` (6, tiny), 6 perf CSVs in the app's `files/perf`, the cfgs'
   copies in `/data/local/tmp`. Scripts in `dagger/scratch/qg_*` (not committed).
+## ropes8c: chains stop shots, nails and blows (agent/ropes8c, 2026-11-23)
+
+Item 11 of his flat notes (ropes8b's open list). ROPES.md "What pushes it" (Chains stop shots), "Tests".
+- **Chains solid to hits (11):** no boxes (the chain swings, and bodies still push through it): world.c `SV_Move`, after
+  the entities and the lean boxes, `VR_ChainShotClip` -> `climbrope::chainClip` for a gun's shot (MOVE_HITMODEL class 0),
+  a melee line (class 2) and a missile (MOVE_MISSILE): each link a cylinder of thickness / 2 + 1 (`chainHitGrow`), a
+  missile's box as a sphere; the nearest hit ends the trace with the chain entity as `trace_ent`. Not: bodies, sight
+  lines (nomonsters, plain traces), the grappling hook, thrown things, ropes. Anything of a player holding a rope within
+  24 units of the chain passes it (his own chain). QC: every rope/chain/pole entity takes damage (`VR_Rope_Setup`),
+  `T_DamageImpl` returns at once for them (`VR_Rope_Is`, vr_util.qc); a chain is metal (`VR_Rope_IsChain` in
+  `VR_Hit_Metal` / `VR_MaterialOf`): bullets and blows spark and tink; spike_touch / superspike_touch give a rope's or
+  pole's hit `spawn_touchblood` (sparks; a wooden pole's nail splinters, was Quake's spike puff). The shot push still
+  kicks the chain.
+- **Test** `vr_pole_solid_test` 12/0 (was 7): vrropes' 3 chains: the shot's, blow's and nail's lines across each meet it
+  (at most 1.00 units off the links), metal, takedamage; a player's box, a sight line and a plain trace pass; a nail
+  (QC launch_spike) fired at one stops at it with 1 metal hit. vr_rope_test 16/0. Melee on a chain untested live.
+- **Props vs poles (3), tried, not kept:** Box3D's `kindOf` returns None for a modelless edict (the pole boxes), so
+  props never meet them. Making them `Kind::Actor` (kinematic boxes, catActor vs catProp) created the bodies (developer
+  print: "pole box N ... 3.0 x 6.5 x 10.0") but a vr_crate dropped 30 units over the level pole still fell to the floor
+  (-90.4); not found why within budget (next: check the Actor body's placement against the box, and whether a prop's
+  contacts with a kinematic box this thin are kept). Reverted.
+- **Not done (budget):** 2 (MP: another player on a strung rope / a pole, pole prediction on MP clients, two climbers
+  through one pole), 4 (flat fingertips 0.44 into a pole), 5 (rope_pump 238 vs 250).
+
+## flatbob: flatlagbob's level case; no ride on the body (agent/flatbob, 2026-11-23)
+
+- **No unintended motion.** The level `fwd0` probe was never at `vr_flat_bob_fwd 0`: the script set 0 only before the
+  looking-down pair, and the level pair ran first at the shipped default, 1 since 803c3406fc (2026-11-06, his flatscreen
+  tunables promoted; it was 0 when the case was written in 97446fada). So "fwd 0" measured the forward bob itself (0.6
+  each way at a run: range 1.01-1.07), and fwd 2 minus that is 0.93, not +1.0. flatgreen2's sway and flatjitter's
+  "stride-rate ride with fwd 0" were that bob. A per-frame probe of the shoulder in the camera's frame (temporary, not
+  kept) at a run on e1m1 with the cvar really 0: the shoulder's range along the view 0.00, the hand's 0.19; at 1: 1.06.
+- **Fix (test only):** `tune vr_flat_bob_fwd 0` before the level fwd0 probe. flatlagbob 5 passed, 0 failed (level: hand
+  0.19 -> 1.94, shoulder 0.00 -> 1.91; 40 down unchanged, 0.18 -> 1.92). No engine change, so no flatsight/flatmove run.

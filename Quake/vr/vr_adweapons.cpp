@@ -1525,8 +1525,8 @@ void dwBarrels(Parts& p)
     const Rect breech{12.f, 37.f, 54.f, 37.f, false};
     const Rect core{54.f, 162.f, 65.f, 37.f, false};
     const glm::vec2 c{axis.y, axis.z};
-    // (Their fronts' rings on Dwell's barrel metal, not the caps' dark grey: that draws pale, nearly white, in the game's
-    // light.)
+    // (Their fronts' rings on Dwell's barrel metal, not the caps' dark grey. Both drew nearly white in a bright room: the
+    // weapon reflections' mirror, not the texels; made models reflect less since capcolour: vr_envmap.cpp madeMetal.)
     const int capS = p.capS, capT = p.capT;
     p.capS = 40;
     p.capT = 20;
@@ -1720,7 +1720,7 @@ void rotaryHousingShell(Parts& p)
     // upper diagonal (y+ z+): Dwell's octagon unrolled.
     constexpr float band[8][2] = {{254.f, 219.f}, {219.f, 197.f}, {197.f, 161.f}, {161.f, 138.f}, {138.f, 102.f},
         {102.f, 80.f}, {80.f, 43.f}, {34.f, 11.f}};
-    const int cs = p.boreS, ct = p.boreT; // (the hole black: the caps' dark grey draws pale in the game's light)
+    const int cs = p.boreS, ct = p.boreT; // (the hole black, so it reads as going in)
     // The faces from ring (xa, size sa) to ring (xb, sb): outside in the bands, or (inside) dark facing the axis.
     const auto ringToRing = [&](float xa, float sa, float xb, float sb, bool inside) {
         const za::Vector<glm::vec2> a = rotaryOctagon(sa), b = rotaryOctagon(sb);
@@ -1776,8 +1776,8 @@ void rotaryHousingShell(Parts& p)
 // His notes 2026-11-22 ("the place where you put the shells in should be a little bit bigger, maybe 10% bigger, and its
 // internal color should be black and look a little bit more inset. At the moment, it looks a bit too shiny"): the
 // opening 10% bigger each way (3.96 x 1.21, was 3.6 x 1.1), a pocket 0.6 deep into the block, its walls and floor black
-// (the bores' texels: it was a dark box standing out of the face in the caps' dark grey, which draws pale); the block
-// reaches into the housing's wall (rotaryHousingShell: the side is 5.46 out at most).
+// (the bores' texels: it was a box standing out of the face in the caps' dark grey, mirrored pale: vr_envmap.cpp
+// madeMetal); the block reaches into the housing's wall (rotaryHousingShell: the side is 5.46 out at most).
 void rotaryGauntletParts(Parts& p)
 {
     rotaryHousingShell(p);

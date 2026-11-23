@@ -41,6 +41,13 @@ void blast(const glm::vec3& at, float damage);
 // through pushed where it crosses them.
 void shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity, float mass);
 
+// Server (ropes8c, ROPES.md "Chains"): a shot's, a nail's or a blow's line from `start` to `end` (a missile's box as a
+// sphere of `radius`) against the chains' links (ropes are passed through): the nearest chain it meets before `fraction`
+// (the move's hit so far) -> its entity, `fraction` and `normal` there; 0 none. `shooter` (or null): one climbing a rope
+// passes the chains round him (his own in his hands).
+[[nodiscard]] int chainClip(const glm::vec3& start, const glm::vec3& end, float radius, const edict_t* shooter,
+    float& fraction, glm::vec3& normal);
+
 // Server (ropes8a): whether edict `num` is a climbing pole's collision box (QC vr_pole_solid) -> true and its bounds
 // (the navmesh's obstacles, vr_nav.cpp).
 [[nodiscard]] bool solidBox(int num, glm::vec3& lo, glm::vec3& hi);
