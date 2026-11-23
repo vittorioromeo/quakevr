@@ -11553,3 +11553,32 @@ beta2's re-signed APK and the shipped progs.dat (8a409520...) back. Scripts (not
   tells the player to uninstall, copying saves first): the notes give the manual steps (File Explorer,
   `Android/data/com.vittorioromeo.quakevr/files/quakevr`'s `*.sav` + `ironwail.cfg`, uninstall, Setup, copy back).
   Quest 3S untested (a hub-crash report being looked at); Standalone experimental.
+
+## tutfix1123: the tutorial always single player; lesson 13's spike battable, its black stripes; lit alcove; hall 15's walls (agent/tutfix1123, 2026-11-24)
+
+His voice notes vrtutorial_2026-11-23_23-07-33 .. 23-13-43.
+
+- **Single player, however started**: Host_Map_f calls `VR_TutorialSinglePlayer` (vr_gamedir.cpp) once the old server
+  is shut down: for `vrtutorial` it sets one client slot (`listen 0` as `maxplayers 1` does), deathmatch, coop,
+  teamplay 0, FrikBot's coop bots not brought back (`scratch1` 0), the hub's campaign Quake
+  (`vr_activestartpaknameidx` 0; the game folders were Quake's already: VR_CanLoadCampaignMap), and an mp scene's
+  saved slots dropped (`scenario::dropSlots`: else `vr_scenario` put its 4 slots back once no game ran). It prints
+  `VR: the tutorial: a single-player game (was N players, ...)` when it changed something. Every way in (the start
+  flow, Play Tutorial, Debug's The Tutorial, the hub's button, the console) goes through `map`. The cause seen: after
+  `mp_dm_passive`, `skill 0; map vrtutorial` kept `maxplayers` 4 (the scene's settings were put back, its slots were
+  not). The 10-15 s alive in the pit did not reproduce headless (dead 13 frames after the drop, with 4 slots or 1).
+- **Spike batting**: trap_vr_shooter's spike is `vr_foeshot` (an enemy's shot no monster owns, Dwell's way), so
+  VR_Deflect_IsProjectile takes it: the swing/bash batting code shared with every enemy projectile, flat and VR. The
+  SPIKE button stays.
+- **Map** (vrtutorial_gen.py, compiled `final`): a structural face takes its texture from the air in front of its
+  centre; a face whose centre is behind another box but part of which is open (room 13's floor slab's side across
+  both pits and the bridge; its north wall over room 10's alcove; 71 faces in all, e.g. room 14's north wall, the
+  teleporter hall) was black. `piece_tex` now takes the air in front of most of the face (0 such faces left). Hall
+  15 (room 14 to the arena) had panel3 (tech08_2) on the wall that runs on from room 14's west wall (tech14_1): now
+  room 14's style, its walls aligned to room 14's (`Air(align=...)`). Lesson 7's alcove: a ceiling lamp (light 260)
+  over the spawner.
+- **Tests**: `Misc/quakevr/tutorial_start_test.sh` (8 checks: `mp_dm_passive`, then `skill 0; map vrtutorial`: one
+  slot, no dm/coop/teamplay, campaign 0, then `vr_pickup_test 25`: the spike passes VR_Deflect_IsProjectile, the
+  grenade is a VR grenade, the pit kills within 72 frames). Debug > Tests > Tutorial > Lesson 13: Shooters And Pit.
+  Scenes tut_lesson7, tut_lesson13, tut_lesson14.
+- `vr_pickup_test 13` (the keycard tip) fails 2 of 8 here with the old map too: not this change.

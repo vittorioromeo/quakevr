@@ -1327,6 +1327,11 @@ void endBeforeRun()
     }
 }
 
+void dropSlots()
+{
+    slotsBefore = 0;
+}
+
 void frame()
 {
     if(phase == Loading)
