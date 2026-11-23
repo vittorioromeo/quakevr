@@ -45,6 +45,12 @@ In a two-player game in the ropes hall, both of you climb the same upright pole 
 In a two-player game in the ropes hall, one hangs under the level strung rope and goes along it hand over hand while the other watches (in VR and flat-screen): the hands stay on the rope as he moves, the legs hang under him. {test:ropes}
 Flat-screen or VR: with flat rope climbing off (vr_flat_rope 0) or in VR without gripping, walk straight into an upright pole: you stop against it and never pass through it. {test:ropes}
 Flat-screen: in a two-player game on vrropes, both players climb the same upright metal pole one after the other: both get on and climb, neither is pushed off or stuck. {test:mp_coop_passive}
+Flat-screen: in the ropes hall hang on a rope: looking up or down (past about 30 degrees) forward climbs up and back climbs down; looking roughly level forward and back swing the rope toward and away from where you look; the strafe keys swing it sideways either way; a pole climbs with forward and back at any pitch. {test:ropes}
+Flat-screen or VR: in the ropes hall spawn crates or barrels (or throw one) onto the level metal pole and at an upright pole: a crate dropped on the level pole rests on it or rolls off it, one thrown at an upright pole bounces off it, none pass through. {test:ropes}
+Hold B or Y about a third of a second: a wheel of your six holsters (and EMPTY HAND) opens round that hand, readable, time slowing a little; move the hand to a slot: it lights with a tick in the controller; let go there: that hand takes the weapon, its old one back in its own holster. {test:weapon_wheel}
+Weapon wheel from either hand, and let go in the middle or off the wheel: nothing changes; a weapon drawn by the wheel into a hand whose grip is not held stays in it until you grip. {test:weapon_wheel}
+Weapon wheel settings (Immersion > Weapon Wheel: button B/Y, stick click or A/X, hold time, time speed, size, distance) each change it as their help says; the grappling hook's hand keeps B/Y as its reel. {test:weapon_wheel}
+In a coop game, pick a holstered weapon with the wheel: the other player sees it drawn in your hand. {test:mp_coop_guns}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, and the crystal head glowing violet for a moment after each shot. {test:dwell_lance_pole}
@@ -222,3 +228,4 @@ Takes: record a voice note in a take, shoot a few takes with marks, rate some ke
 Start the Armour Studio near an armed grunt, then leave the menu (or close the studio's window): the grunt fights again and your blows hurt it. {test:armourstudio_close}
 Debug > Embedded Blades: Why, in slow motion: each stab says why it stuck or not, why it came out and how far a miss was off, with a sound when a blade stays in or comes out. {test:embed_stab}
 Show Melee Arcs: each blow's own rule is drawn (a spawn's leap ring, the dragon's tail all round, a vore's shove cone, armed grunts' arcs). {test:agrunt_melee_spacing}
+Debug > Profiling: Hide Gibs, Heads and Limbs makes every gib, severed head and limb vanish from your eyes (they still cast shadows), and Show Every Model brings them back. {test:rag_gib}

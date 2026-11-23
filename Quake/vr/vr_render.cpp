@@ -296,6 +296,43 @@ extern "C" int VR_AliasDepthPrepass(const entity_t* e)
     return ve && ve->morph == 0.f;
 }
 
+// questperf: the world's depth pre-pass (r_world.c R_DrawBrushModels_Real) on unless vr_world_prepass is 0.
+extern "C" int VR_WorldPrepass(void)
+{
+    return vr_world_prepass.value != 0.f ? 1 : 0;
+}
+
+// Debug > Profiling > Hide Models (vr_debug_hide_models, questperf): an alias model whose name holds any of the
+// comma-separated parts is not drawn in the eyes' views (the shadow maps still draw it): a cost found by leaving
+// things out on the headset, where the GPU timer scopes of one render pass mean nothing (a tiler).
+extern "C" int VR_AliasDebugHidden(const entity_t* e)
+{
+    const char* list = vr_debug_hide_models.string;
+    if(!list || !*list || !e || !e->model)
+    {
+        return 0;
+    }
+    const char* name = e->model->name;
+    while(*list)
+    {
+        const char* end = list;
+        while(*end && *end != ',')
+        {
+            end++;
+        }
+        const za::SizeT len = static_cast<za::SizeT>(end - list);
+        for(const char* p = name; len && *p; p++)
+        {
+            if(q_strncasecmp(p, list, len) == 0)
+            {
+                return 1;
+            }
+        }
+        list = *end ? end + 1 : end;
+    }
+    return 0;
+}
+
 // C4i: the models' program without discard (glprogs.alias_opaque, made under the ES profile only): every discard of
 // the models' fragment shader is a morph's (a view entity's: VR_AliasMorph) or a see-through model's behind a gate, so
 // an opaque draw of anything not morphing never needs one. r_alias.c keeps a morphing entity out of others' batches.

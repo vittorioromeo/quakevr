@@ -184,3 +184,38 @@ rounds (rounds spread +-0.3 to 1.0 ms at 2048: this GPU runs these scenes in 1.2
 Headline: on this desktop GPU none of the Quest's GPU optimisations wins clearly at the same look: the scenes cost
 1.2-3.4 ms a frame and the differences sit inside the rounds' spread. The one exception is the 32-bit float scene (`vr_tonemap 2`): -0.33 ms (-13%) in both GPU-bound 3072 scenes, the same picture, so it is now the PC default (a saved config keeps its 1). Nothing else is turned on for PC;
 `vr_gl_pc_forms` stays as the A/B switch for a weaker GPU.
+
+## Quest gib fight (questperf, 2026-11-23)
+
+The frozen e1m1 gib fight up close (questgore's scene: six grunts 56-90 units ahead, `vr_limb_test 10`, frozen), on
+the Quest 3 under the Standalone preset (72 Hz) at a fixed 0.65, the dynres floor where questgore's frames sat; this
+branch's APK (the quest tree's key) and test progs. GPU ms a frame, both eyes, medians of 2 interleaved parts of 240
+frames each (one launch); "missed" is the share of frames the runtime reports late (`xr_missed`). Leaving things out
+uses `vr_debug_hide_models` (new, Debug > Profiling: the Quest's GPU timer scopes inside one render pass mean nothing,
+so a cost is found by its absence). Launch-to-launch the base moved 15.4 -> 18.1 ms over the session (the headset
+warming), and parts of one setting within a launch by +-1.5 ms (draws 183-244 from the gibs' random cuts; fixed seeds,
+`sv_random_seed 7; vr_particle_seed 7; vr_map_seed 7`, from the third A/B on): only gaps of ~2 ms or more read.
+
+| Left out / changed | GPU (base) | Missed (base) | Draws | Reading |
+|---|---|---|---|---|
+| nothing (base) | 15.77 | 21.4% | 215 | 72 Hz misses one frame in five |
+| every entity (`r_drawentities 0`) | 10.60 | 0.2% | 114 | the models ~5.2 ms |
+| the world (`r_drawworld 0`) | 7.83 | 1.6% | 188 | **the world ~8 ms**: the top cost |
+| your rig (body, hands, held guns, gear) | 13.27 | 2.1% | 168 | **your own models ~2.5 ms**: the second |
+| the gore (gibs, heads, limbs) | 13.87 | 6.6% | 198 | **~1.9 ms** (round 2 split: gibs alone, limbs+heads alone each within the noise) |
+| dropped guns, packs, the grunts' rig and armour | 15.22 | 15.8% | 213 | ~0.55 ms |
+| particles (`r_particles 0`) | 16.13 | 22.0% | 217 | nothing (questgore: blood ~1 ms at most) |
+| render scale 0.55 (round 2, base 15.38) | 12.04 | 1.1% | 219 | **holds 72 Hz** (both parts 12.0) |
+| render scale 0.6 (third launch, base 17.22) | 17.46 | 31.4% | 233 | nothing: as 0.65 |
+| render scale 0.58 (fourth launch, base 18.08) | 16.66 | 27.9% | 231 | -1.4 ms |
+| anisotropy 1 or 4 (round 2) | 17.85 / 17.40 | 36.5% / 29.7% | 221 / 217 | nothing seen (the world's arrays took the value of the part before: not clean) |
+| no world depth pre-pass (`vr_world_prepass 0`, new) | 15.78 vs 18.03, then 17.39 vs 17.28, 18.61 vs 17.22 | - | - | **no gain** over three launches (first launch's -2.2 was the gibs' random cuts): not in the preset |
+
+Counts (PC mock, `-glescompat +vr_standalone_preset 0`, `vr_gl_passes`): 240 draws a frame, 88 of them alias (48
+batches, 290 instances, 72k alias triangles both eyes); the Quest's own frame 192-244 draws. Gibs 76 + 76 + 12
+instances, limbs 4 x 12, heads 12 (both eyes; 28-110 triangles each): the gore is many tiny draws, not triangles. The
+render stage trace (`ovrgpuprofiler -t`, 0.65): each eye's scene is 4 bins of 576x576 (colour 32-bit, D24S8); the
+left eye's main pass 5.2 ms, the right's 6.7 (0.45 of it the compositor's preemption, ~0.5 ms three times a frame);
+fragments shaded ~1.8 a pixel in the main pass, which includes the world's depth pre-pass (so no overdraw problem left
+to take). Verdict: the scene is fill-bound at the preset's floor (0.55 holds 72 Hz, 0.6 and 0.58 do not reliably); no
+look-keeping cut found that reaches 72 Hz. No default changed.

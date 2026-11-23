@@ -4,10 +4,15 @@
 # category, OpenXR's immersive category, head tracking, focus awareness, the loader's permissions and broker queries;
 # none of the VR lines in the flat-panel APK). Ends on "check_apk: N passed, M failed"; exits 1 on a failure.
 #
-#   Android/check_apk.sh [apk (default <repo>/build-android/apk/QuakeVR.apk)] [vr|flat (default vr)]
+#   Android/check_apk.sh [apk (default <repo>/build-android/apk/QuakeVR.apk)] [vr|flat (default vr)] [dev|release|release-testkey]
 #
 # Needs ANDROID_HOME (build-tools 34.0.0) and ANDROID_NDK_HOME (llvm-readelf, llvm-nm); the unstripped
 # libquakevr.so beside the APK's build folder (<apk>/../../libquakevr.so) for the imports.
+# release (the release APK, docs/vr-port/ANDROID_RELEASE.md) also checks: not debuggable, a version code from VERSION,
+# the APK's libquakevr.so stripped (no .symtab, no debug sections), the engine a release build (QVR_RELEASE: no "-dev"
+# version, no live tuning), and the signer: not a debug certificate, and the release certificate's SHA-256 when known
+# (QVR_ANDROID_RELEASE_CERT_SHA256, else the file Android/release-cert.sha256). release-testkey: the same but the signer
+# (a release build signed with the debug key for a test on the headset: never published).
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "$here/.." && pwd)"
@@ -20,6 +25,7 @@ aapt2="$ANDROID_HOME/build-tools/34.0.0/aapt2$exe"
 llvm="$(ls -d "$ANDROID_NDK_HOME"/toolchains/llvm/prebuilt/*/bin | head -1)"
 apk="${1:-$repo/build-android/apk/QuakeVR.apk}"
 kind="${2:-vr}"
+build="${3:-dev}"
 lib="$(dirname "$apk")/../libquakevr.so"
 passed=0
 failed=0
@@ -62,6 +68,33 @@ if [ -f "$lib" ]; then
 	done
 else
 	check "the unstripped $lib" 1
+fi
+if [ "$build" = "release" ] || [ "$build" = "release-testkey" ]; then
+	! grep -q "application-debuggable" <<< "$badging"; check "not debuggable (the release manifest)" $?
+	if [ "$build" = "release" ]; then # (a test APK may keep the installed build's code: QVR_ANDROID_VERSION_CODE)
+		code="$(sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" <<< "$badging" | head -1)"
+		[ "${code:-1}" -gt 1 ]; check "a version code from VERSION (got ${code:-none})" $?
+	fi
+	# The APK's engine library, unpacked beside the APK for the section listing.
+	packed="$(dirname "$apk")/check_apk_libquakevr.so"
+	unzip -p "$apk" lib/arm64-v8a/libquakevr.so > "$packed" 2>/dev/null
+	sections="$("$llvm/llvm-readelf$exe" -S "$(win "$packed")" 2>&1)"
+	! grep -q -E " \.symtab | \.debug_" <<< "$sections"; check "the APK's libquakevr.so stripped (no .symtab, no debug sections)" $?
+	! grep -a -q -e "-dev build" "$packed"; check "a release engine (no -dev build info: QVR_RELEASE)" $?
+	! grep -a -q -e "tune_reset" "$packed"; check "a release engine (no live tuning: QVR_RELEASE)" $?
+	if [ "$build" = "release" ]; then
+		certs="$("$ANDROID_HOME/build-tools/34.0.0/apksigner$([ -n "$exe" ] && echo .bat)" verify --print-certs "$(win "$apk")" 2>&1)"
+		grep -q "Signer #1 certificate DN" <<< "$certs"; check "apksigner reads the signer" $?
+		! grep -q "Signer #1 certificate DN: CN=Android Debug" <<< "$certs"; check "the signer is not a debug key" $?
+		want="${QVR_ANDROID_RELEASE_CERT_SHA256:-}"
+		[ -n "$want" ] || [ ! -f "$here/release-cert.sha256" ] || want="$(head -1 "$here/release-cert.sha256")"
+		want="$(tr -d ' :\r\n' <<< "$want" | tr 'A-F' 'a-f')"
+		if [ -n "$want" ]; then
+			grep -q "Signer #1 certificate SHA-256 digest: $want" <<< "$certs"; check "the signer is the release certificate ($want)" $?
+		else
+			echo "check_apk: note: the release certificate's SHA-256 is not known (Android/release-cert.sha256): signer checked only as not a debug key"
+		fi
+	fi
 fi
 echo "check_apk: $passed passed, $failed failed"
 [ "$failed" = "0" ]

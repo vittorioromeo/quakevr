@@ -8,8 +8,10 @@
 #include "vr_alloccount.hpp"
 #include "vr_api.h"
 #include "vr_tunables_api.hpp"
+#include "vr_stats.hpp"
 
 #include "Zancle/Algorithm/Fill.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -104,6 +106,89 @@ struct Recorder
     int scopeOpen[VR_PERF_KINDS]{}; // the main thread's tagged scopes open (only the outermost counts)
 };
 Recorder rec;
+
+// The frames since the last vr_perf_mark, summed up on the console at the next mark or the recording's end: the numbers
+// of an A/B without the CSV (a release APK is not debuggable: `run-as` can't read the app's files; the console reaches
+// logcat). docs/vr-port/ANDROID_RELEASE.md, "Measuring".
+constexpr int segmentFrames = 4096; // (frames beyond it counted, not in the medians)
+struct Segment
+{
+    char name[48]{};
+    int n{0};
+    int late{0}; // frames the runtime reports late (xr_missed)
+    int gpuN{0};
+    float busy[segmentFrames]{};
+    float period[segmentFrames]{};
+    float gpu[segmentFrames]{};
+};
+Segment segment;
+
+// The q quantile of a segment's n values (sorted here, in place).
+float quantileOf(float* v, int n, float q)
+{
+    za::quickSort(v, v + n, [](float a, float b) { return a < b; });
+    return vrstats::quantileSorted(v, static_cast<za::SizeT>(za::max(n, 0)), q, vrstats::Rank::Count);
+}
+
+void segmentEnd()
+{
+    Segment& s = segment;
+    if(s.name[0] && s.n > 0)
+    {
+        const int kept = za::min(s.n, segmentFrames);
+        const int gpuKept = za::min(s.gpuN, segmentFrames);
+        const float busyMed = quantileOf(s.busy, kept, 0.5f);
+        const float busyP90 = quantileOf(s.busy, kept, 0.9f);
+        const float periodMed = quantileOf(s.period, kept, 0.5f);
+        const float gpuMed = quantileOf(s.gpu, gpuKept, 0.5f);
+        const float gpuP90 = quantileOf(s.gpu, gpuKept, 0.9f);
+        Con_Printf("vr_perf_mark: %s: %d frames, CPU busy med %.2f p90 %.2f ms, period med %.2f ms, GPU med %.2f p90 %.2f ms "
+                   "(%d timed), late %d (%.1f%%)\n",
+            s.name, s.n, static_cast<double>(busyMed), static_cast<double>(busyP90), static_cast<double>(periodMed),
+            static_cast<double>(gpuMed), static_cast<double>(gpuP90), s.gpuN, s.late,
+            100.0 * static_cast<double>(s.late) / static_cast<double>(s.n));
+    }
+    s.name[0] = 0;
+    s.n = 0;
+    s.late = 0;
+    s.gpuN = 0;
+}
+
+// A written row: a mark ("mark:<name>:" in its events) ends the segment and names the next one.
+void segmentRow(const Row& r)
+{
+    Segment& s = segment;
+    if(r.count[VR_PERF_MARK])
+    {
+        segmentEnd();
+        const char* m = strstr(r.detail, "mark:");
+        if(m)
+        {
+            m += 5;
+            q_snprintf(s.name, sizeof s.name, "%.*s", static_cast<int>(strcspn(m, ":|")), m);
+        }
+        return; // (the mark's own frame: the command's work, not the segment's)
+    }
+    if(!s.name[0])
+    {
+        return;
+    }
+    if(s.n < segmentFrames)
+    {
+        s.busy[s.n] = r.busyMs;
+        s.period[s.n] = r.periodMs;
+    }
+    ++s.n;
+    s.late += r.xrMissed > 0 ? 1 : 0;
+    if(r.gpuState == 1)
+    {
+        if(s.gpuN < segmentFrames)
+        {
+            s.gpu[s.gpuN] = r.gpuSpanMs;
+        }
+        ++s.gpuN;
+    }
+}
 
 void appendDetail(Pending& p, const char* kind, const char* name, double ms)
 {
@@ -248,6 +333,7 @@ void writeRow(const Row& r)
         }
     }
     fprintf(f, ",%s\n", r.detail);
+    segmentRow(r);
     ++rec.rows;
     if(++rec.unflushed >= flushRows)
     {
@@ -308,6 +394,8 @@ void start()
     rec.unflushed = 0;
     rec.started = 0.0;
     rec.allocs0 = allocsNow();
+    segment.name[0] = 0;
+    segment.n = 0;
     za::fill(rec.scopeOpen, 0);
     for(Row& r : rec.ring)
     {
@@ -330,6 +418,7 @@ void stop()
         return;
     }
     drain(~za::U64{0});
+    segmentEnd();
     fclose(rec.file);
     rec.file = nullptr;
     Con_Printf("vr_perf_record: %llu frames written to %s\n", static_cast<unsigned long long>(rec.rows), rec.path);
