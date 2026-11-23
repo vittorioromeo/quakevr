@@ -284,10 +284,12 @@ static int GL_ShaderStrings (GLenum type, const char *source, const char *extrad
 		"\n"
 		"#define BINDLESS %d\n"
 		"#define REVERSED_Z %d\n"
-		"#define QVR_SHADER_AB %d\n", // QVR: tests (vr_shader_reload)
+		"#define QVR_SHADER_AB %d\n" // QVR: tests (vr_shader_reload)
+		"#define QVR_MP %s\n", // QVR: qworld, the ES profile's medium precision for colours and light terms (vr_gl_mediump: lite bit 29); nothing elsewhere
 		gl_bindless_able,
 		gl_clipcontrol_able,
-		gl_shader_ab
+		gl_shader_ab,
+		(gl_world_lite & (1 << 29)) ? "mediump" : ""
 	);
 	strings[numstrings++] = header;
 	if (gl_multiview_compile) // QVR: a multiview twin (single-pass stereo): both eyes from each draw
@@ -1575,6 +1577,25 @@ GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo)
 		else
 			*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world decal retro|OIT %d; DITHER %d; MODE %d%s", oit, dither, WORLDSHADER_SOLID, GL_WorldLiteDefines ());
 	}
+	return *program;
+}
+
+/*
+=============
+GL_WorldUnlitDecalRetroProgram -- QVR
+
+qworld (the shader review's finding 1): the unlit world's solid program (glprogs.world_unlit: no lights' loop, the
+dynamic lights from vr_gl_world_dlmap's texture) with the decals' retro textures' code. Without it the first retro
+blood mark sent the whole solid world to GL_WorldDecalRetroProgram's lit program, the lights' loop compiled in and run
+per pixel (the form the unlit world exists to avoid: QUEST_PLAN.md 6z), in every fight. Made with the decals' others
+(R_PrewarmDecalPrograms); 0 where the unlit forms are not made (the PC).
+=============
+*/
+GLuint GL_WorldUnlitDecalRetroProgram (int dither)
+{
+	GLuint *program = &glprogs.world_unlit_decal_retro[dither];
+	if (!*program && GL_WorldUnlitForms ())
+		*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world unlit decal retro|OIT 0; DITHER %d; MODE %d; QVR_NOLIGHTS 1%s", dither, WORLDSHADER_SOLID, GL_WorldLiteDefines ());
 	return *program;
 }
 
