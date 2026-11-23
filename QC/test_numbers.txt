@@ -305,6 +305,7 @@ vr_pickup_test   20       vr_itemrules_test.qc             the ammo boxes' weapo
 vr_pickup_test   21       vr_itemrules_test.qc             CTF's level change (SetChangeParms, teamplay 4): the weapons' flags, magazines and ids a new game's, the team and the next weapon id kept (VR_CtfParmsTest_Run)
 vr_pickup_test   22       vr_itemrules_test.qc             each player's readiness after his spawn is his own (.vr_readytime): another's spawn doesn't hold his trigger, his own does (VR_ReadyTest_Start)
 vr_pickup_test   23       vr_itemrules_test.qc             a player holding Mjolnir is player.mdl (model index not 0), at rest and in pain, with or without Hipnotic (VR_MjolnirModelTest_Run)
+vr_pickup_test   24       vr_itemrules_test.qc             ad_crucial's lift1 waits raised (the map's design) and comes down to its bottom once its super shotgun is taken (VR_CrucialLiftTest_Run)
 
 vr_reload_test   1        vr_reload_test.qc                (VRIsHandEmpty)
 vr_reload_test   2        vr_reload_test.qc                (VR_Reload_IsRound)
