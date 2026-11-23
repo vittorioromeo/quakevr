@@ -3519,6 +3519,8 @@ A vr_rope drawn as a chain of iron links (20 kg by default), with the same keys 
 	rope_stiffness(float) : "Stiffness" : 1 : "0.05 to 1: how little it stretches."
 	rope_damping(float) : "Damping" : "0.5" : "Per second: how fast its swing dies down."
 	target(target_destination) : "Bottom pinned at" : "" : "Its bottom held at that entity's origin (an info_notnull)."
+	rope_end(string) : "Bottom pinned at point" : "" : "Its bottom held at this point (x y z), instead of a target."
+	rope_slack(float) : "Slack" : 0 : "With a target or end point: its length over the straight line between its ends (0.1: 10% longer)."
 ]
 
 @PointClass color(153 115 64) size(-16 -16 0, 16 16 32) =
@@ -3577,6 +3579,22 @@ on whatever is below its origin (within 128 units), whatever Rocks and Bricks' o
 [
 ]
 
+@PointClass base(Appearflags, Targetname) color(128 89 51) size(-4 -4 -4, 4 4 4) =
+	vr_pole : "Quake VR: climbing pole
+
+A static pole standing from its origin (its top) down to the floor, its length down, or to its target or end point (slanted or level past vr_rope_monkey_angle: traversed hanging under it). It never moves; climbed as a rope is. docs/vr-port/ROPES.md."
+[
+	rope_length(float) : "Length" : 0 : "Units from its origin down (0: to the floor)."
+	rope_thickness(float) : "Thickness" : 3 : "Units across."
+	target(target_destination) : "Bottom at" : "" : "Its bottom at that entity's origin (an info_notnull)."
+	rope_end(string) : "Bottom at point" : "" : "Its bottom at this point (x y z), instead of a target."
+	rope_style(choices) : "Material" : 0 : "Its look, sounds and haptics." =
+	[
+		0 : "Wood"
+		1 : "Metal"
+	]
+]
+
 @PointClass base(Appearflags, Targetname) color(140 102 51) size(-4 -4 -4, 4 4 4) =
 	vr_rope : "Quake VR: climbable rope
 
@@ -3593,6 +3611,8 @@ A physical rope hanging from its origin (put it just under a ceiling or a beam):
 	rope_stiffness(float) : "Stiffness" : 1 : "0.05 to 1: how little it stretches."
 	rope_damping(float) : "Damping" : "0.5" : "Per second: how fast its swing dies down."
 	target(target_destination) : "Bottom pinned at" : "" : "Its bottom held at that entity's origin (an info_notnull)."
+	rope_end(string) : "Bottom pinned at point" : "" : "Its bottom held at this point (x y z), instead of a target."
+	rope_slack(float) : "Slack" : 0 : "With a target or end point: its length over the straight line between its ends (0.1: 10% longer)."
 	rope_style(choices) : "Style" : 0 : "How it is drawn (it behaves the same)." =
 	[
 		0 : "Rope"

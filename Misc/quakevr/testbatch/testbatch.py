@@ -122,10 +122,13 @@ def case_lines(script, quiton=""):
         if cmds and cmds[-1].lower() == "toggleconsole":
             cmds.pop()
     if quiton:
+        # A closing waitN: a wait that the match ends early (vr_waitquiton N wait: what QC queues meanwhile runs after
+        # it, as behind the lone run's waits; testbatch3). No closing quit: after the script the rest of the batch is
+        # held until the match (vr_waitquiton N: QC's commands run meanwhile, as after the lone run's script).
         m = re.match(r"^wait(\d+)$", cmds[-1]) if cmds else None
         if m:
-            cmds[-1] = f"vr_waitquiton {m.group(1)}"
-        elif not quits:
+            cmds[-1] = f"vr_waitquiton {m.group(1)} wait"
+        if not quits:
             cmds.append(f"vr_waitquiton {QUITON_FOREVER}")
     out = []
     for s in cmds:

@@ -15,6 +15,9 @@ source "$(dirname "$0")/testbatch/testbatch.sh"
 # (the batch at run.sh's own clock: vr_fixed_frames_rate 72, a tick a frame, as each run alone; and the collect
 # pass without its awk/grep checks)
 export TB_RATE=${TB_RATE-72} TB_COLLECT_STUBS=${TB_COLLECT_STUBS-2}
+# (the batch's frames undrawn, vr_mock_fast 2: its checks are QC-measured, none reads the drawing; the same verdicts
+# drawn and undrawn, testbatch3. TB_NODRAW=0: drawn)
+export TB_NODRAW=${TB_NODRAW-1}
 F=(-ExtraArgs "-flatscreenmode")
 H="map vrtutorial; wait60; god; notarget"
 

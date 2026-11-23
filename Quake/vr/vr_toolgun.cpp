@@ -1903,7 +1903,7 @@ edict_t* qvr::toolgun::spawnEntryAt(int i, const glm::vec3& feet, float yaw)
     if(e && climbrope::isRopeClass(s.classname))
     {
         const progs::ServerVm vm;
-        climbrope::toolgunPlaced(e, feet); // (hung from the ceiling above, as the spawn tool hangs one)
+        climbrope::toolgunPlaced(e, feet, yaw); // (hung from the ceiling above, as the spawn tool hangs one; a pole, a strung rope)
     }
     return e;
 }

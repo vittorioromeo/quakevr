@@ -10,7 +10,9 @@
 #     128 high at the west wall (steps up its south side) to jump off towards the first;
 #   - north-west: a rope pinned at both ends (its target an info_notnull on the floor);
 #   - north: a heavy chain (3 thick, 40 kg), 192 long;
-#   - north-east: a rope longer than the drop (600: the rest lies on the floor).
+#   - north-east: a rope longer than the drop (600: the rest lies on the floor);
+#   - (ropes7) south-west: a wooden and a metal climbing pole (vr_pole), ceiling to floor; far north: a rope strung level
+#     100 high (2% slack) and east: a diagonal one (230 down to 90): monkey traverses.
 import argparse
 import os
 import shutil
@@ -82,6 +84,30 @@ rope(0, 400, 192, chain=True, rope_thickness=3, rope_mass=40)
 board("HEAVY CHAIN: 3 thick, 40 kg", 0, 330, 72, 90, "0.35")
 rope(400, 400, 600)
 board("LONG ROPE: longer than the drop", 400, 330, 72, 90, "0.35")
+
+# ---- (ropes7) climbing poles (south-west): wood and metal, ceiling to floor
+for x, metal in ((-560, 0), (-440, 1)):
+    E.append(entity({"classname": "vr_pole", "origin": f"{x} -450 {Z1 - 8}", "rope_style": str(metal)}))
+    B.append(box(x - 24, -474, Z1 - 4, x + 24, -426, Z1, TRIM))
+board("POLES: wood, metal", -500, -520, 72, 90, "0.35")
+
+
+def strung(a, b, slack):
+    # (ropes7) a rope strung from a to b, slack longer than the line between; a post just past each end
+    E.append(entity({"classname": "vr_rope", "origin": f"{a[0]} {a[1]} {a[2]}", "rope_end": f"{b[0]} {b[1]} {b[2]}",
+                     "rope_slack": str(slack)}))
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    n = (dx * dx + dy * dy) ** 0.5
+    for p, s in ((a, -1), (b, 1)):
+        x, y = round(p[0] + s * 12 * dx / n), round(p[1] + s * 12 * dy / n)
+        B.append(box(x - 4, y - 4, 0, x + 4, y + 4, p[2] + 6, TRIM))
+
+
+# ---- (ropes7) a level rope overhead (north), a diagonal one (east): monkey traverses (hang under, hand over hand)
+strung((-300, 600, 100), (300, 600, 100), 0.02)
+board("LEVEL ROPE: hang under it, hand over hand", 0, 540, 40, 90, "0.35")
+strung((600, -300, 230), (600, 300, 90), 0.02)
+board("DIAGONAL ROPE: a monkey traverse", 560, 0, 40, 180, "0.35")
 
 # ---- player, lights
 E.append(entity({"classname": "info_player_start", "origin": "0 -600 24", "angle": "90"}))

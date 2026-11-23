@@ -148,6 +148,7 @@ struct Sight
     float lookPitch{0.f};
     int spot[2]{-1, -1};        // each hand's weapon's two-handed hotspot (view::twoHandSpot), as the hand held it when last drawn
     glm::vec3 spotLocal[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // ... in that hand's frame
+    const qmodel_t* spotModel[2]{nullptr, nullptr};          // ... measured on this model (kept while a wall turns it)
     float armHip{0.f};          // the share of its arm the free hand uses on it: the gun where the hipfire pose has it
     float armSight{0.f};        // ... and on the sight's place
     glm::vec3 drawnLocal{0.f};  // the free hand as drawn last frame, in the held hand's frame (forward, right, up), and how it
@@ -1840,9 +1841,11 @@ void init()
     Cmd_AddCommand("vr_flat_sight_check", check_f);
 }
 
-void frame()
+// Everything back to nothing: the ironsight's toggle off, every travel and hold undone (outside flatscreen play, and a
+// batched test case's start: vr_test_reset, testbatch3: a case's vr_flat_aim 1 otherwise left the next case's
+// ironsight on).
+void forget()
 {
-    if(!flatplay::active())
     {
         st.ads = st.keyWas = false;
         st.gripWanted = st.adsWanted = false;
@@ -1874,6 +1877,19 @@ void frame()
             st.fovNarrow = 0.f; // a headset took the game back with the ironsight on: the view is the player's own again
             vid.recalc_refdef = 1;
         }
+    }
+}
+
+void testReset()
+{
+    forget();
+}
+
+void frame()
+{
+    if(!flatplay::active())
+    {
+        forget();
         return;
     }
 
@@ -2144,8 +2160,20 @@ void noteDrawn(const hands::State& s)
         st.drawnMuzzle[h] = s.muzzle[h];
         st.drawnRot[h] = s.visualRot[h];
         glm::vec3 at{0.f};
-        st.spot[h] = view::twoHandSpot(s, h, at);
-        st.spotLocal[h] = glm::transpose(axesOf(s.visualRot[h])) * (at - s.pos[h]);
+        const int spot = view::twoHandSpot(s, h, at);
+        // The hotspot in the gun's own frame, as last measured on the gun no wall turns (the stance's keep, flatplay's
+        // keepSpot, holds it in the free arm's reach): measured on the drawn gun a wall turns, it stood 0.03 units
+        // elsewhere for each few degrees of the tilt's ease, the keep moved the hand by that, the level gun went in and
+        // out of the wall by it, and the tilt went on and off every three frames (flatsweep's long gun standing at the
+        // wall looking 25 down swung 0.95 units a frame for good). Kept for the same hotspot of the same model.
+        const bool wallTurned = st.tiltOn[h] > 0.f || za::abs(st.flatYaw[h]) > 0.05f;
+        const qmodel_t* model = weapons::heldModel(h);
+        if(!wallTurned || spot != st.spot[h] || model != st.spotModel[h])
+        {
+            st.spotLocal[h] = glm::transpose(axesOf(s.visualRot[h])) * (at - s.pos[h]);
+            st.spotModel[h] = model;
+        }
+        st.spot[h] = spot;
         view::WeaponFrame wf;
         st.sightModel[h] = nullptr;
         st.stockModel[h] = nullptr;

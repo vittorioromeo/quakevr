@@ -9685,6 +9685,54 @@ recipe; nothing of Dwell's shipped). Items 1, 4, 5 on both Rotary models; 2, 3, 
   `qvr_checks std_uses` 95 uses counting the `*` files). Tests: smoke e1m1, vr_android_test 16/0,
   vr_voicechat_selftest 24/0, startuplog 3/0, mp_test coop 12/0; Android native build compiles.
 
+## ropes7: climbing poles, strung ropes and the monkey traverse (agent/ropes7, 2026-11-23)
+
+His notes vrropes_2026-11-22_15-47-23, 16-09-28. ROPES.md "Poles", "Strung ropes and the monkey traverse", "Tests".
+- **Poles (1):** `vr_pole` is a rope with every point held (one system: holds, legs, flat climb, MP all shared); wood or
+  metal look, grab sound (`physsound::RopeMaterial`) and haptic; toolgun Spawn > Props > Ropes > Pole, its settings on
+  the Rope and Pole Settings page's second page (More). The thin-brush-as-pole plan is in ROPES.md (not built).
+- **Strung ropes (2):** `rope_end` / `rope_slack` keys (new QC fields), toolgun Span / End Rise / Slack. Past
+  `vr_rope_monkey_angle` (45, rule) a pinned rope (or pole) is a monkey traverse: a rider bob at the hands' middle, the
+  rope taut through it (sags and sways under him), VR hand over hand by the ledge rules, flat play's keys along it
+  (`flatMonkeyFrame`), legs hanging (`clientRopeMonkey`, flag 16 in QVR_SVC_CLIMBROPE; another player's copy alike).
+  Vertical ropes untouched: their rider, pump, jump and legs code paths are unchanged.
+- Tests: rope_climb_test.sh pole_wood 9/0, pole_metal 9/0, monkey_drop 6/0, monkey_jump 6/0; rope_climb 10/0,
+  rope_jump 6/0, rope_calm 4/0, rope_short 3/0; rope_flat_test.sh pole 4/0, strung 4/0 (sagged 82.1 to 77.7 under
+  him, forward 80.6, back 40.3). **rope_pump 5/1** (238 units/s, bound 250): the same 238 on the branch's base
+  (53b869dc7, built and run in this tree): not this branch's; open (the play or the bound, not the pumping, which he likes).
+- **The hall (3):** vrropes gains a wooden and a metal pole (south-west, ceiling to floor), a rope strung level 100 high
+  (far north, 2% slack) and a diagonal one (east, 230 down to 90), posts under the strung ends; recompiled.
+  vr_rope_test counts them (11, 3 chains, 5 pinned, 2 poles, 2 monkey traverses): 16/0. A pole with no `rope_length`
+  now stands to the floor (it stopped 256 down). mp_test.py ropeclimb 12/0 (pelvis 13.4 vs A's own 13.2). Not built: an
+  MP check on a strung rope (another player's hanging legs share `ropeFoot`'s monkey skip; untested in MP). Screenshots:
+  kit scratch ropes7_poles.png, ropes7_hall.png (the level and the diagonal rope), ropes7_monkey.png (eye view hanging
+  under the strung rope).
+## flatgreen2: the rest of the suites failing on origin/next (agent/flatgreen2, 2026-11-23)
+
+Runs on origin/next 2de8233f1 (Release no-LTO, the shipped-defaults baseline). Most of it is the baseline's walk:
+`cl_alwaysrun` 0 is the shipped default (cl_input.c, his 2026-10-10 choice), the old full baseline ran.
+
+| suite | before | after | cause | fix |
+|---|---|---|---|---|
+| flatmove | 7/3 | 10/0 | test drift (6d47923de): the headset's crouch cases walked (200) against the flat-screen's run (320); the swim's 50-unit rise was set at a run (47.5 walking) | `cl_alwaysrun 1` in the headset and swimming cases too, as the crouch's flat cases had |
+| flatlagbob | 3/2 | 4/1 | the same: the forward bob is sized "at a run" and was probed walking (amp 0.6); looking 40 down now 0.18 -> 1.92 | `cl_alwaysrun 1` for the forward probes. **Open, level case**: 1.01 -> 1.94 (wants +1.0): the move sway (`vr_flat_sway`) rings about 1 unit along the view on e1m1's run (sway 0: 0.02 -> 2.06; FLATPLAY.md measured 0.20 at fwd 0 when it passed). Not a test change; worth a bisect of the sway at a steady run |
+| flathands | 75/1 | 76/0 | the console wrapped swap1's "2h: released ... 10.5 from the main hand (moved N" before the number (a wider number than swap2h's 9.9); the regex required it (unchecked) | the regex stops at "from the main hand"; the label names its own case |
+| flateject | 16/1 | 17/0 | the ssgold control: the old rule's push off the face alone gives 0.6-0.8 m/s sideways now, plus the random speed and scatter (a new sequence each run): one shell 1.14 | the control is the negation of ssg's own check: none up, under its 1.2 m/s sideways bar |
+| flatpose | 21/1 | c PASS (the re-run: every check through "point" passed; its last case, near, `-Full`, still waiting at the report) | section c: the next knight's spawn came in the frames before the last one's `vr_test_kill` was read: made inside the dying knight (alone: 29 units off; batched: the shot went to a grunt 1045 away, "0.0 units") | 30 frames after each kill before the next spawn |
+| flatslide | 25/1 | 26/0 | sights, crouched and leant: the sighted arm's reach eases on after the crouch (stance arm sight 0.69 -> 0.75): 0.065 off the ray at 30 frames, 0.003 at 45, 0.0001 at 60 | 60 frames after +flatcrouch |
+| flatsweep | 382/11 | 382/1 | 10 rows (hand_head 0.763 -> 0.842, long-gun sighted fore_torso +0.08..0.23) moved with the baseline: under the 0.870 his offsets' rows were accepted at (4499299093), body overlap "not visible from the eye" (52c0442eec) | rows refreshed in flatsweep_known.txt. **Open, real**: `settled wall/long/stand/hip` at pitch 25: the pose never settles (swing 0.947 units a frame for 500 frames, gun_out -0.04: the muzzle at the wall's edge), the same in a second run (`vr_flat_sweep x wall 5` on vrtesthall): the gun jitters at a wall looking 25 down |
+| flatswing | 4/1 | 4/1 | the pathoff control: `vr_flat_swing_path_stop 0` no longer misses from any place (15 places, 600-630, at 0.075 and 0.14: one blow each at 612-630): the control can't see the old bug under the current swing | open: the control needs a new set-up (or retiring: his call); the real checks pass |
+| flatxhair | 28/3 | 28/3 | flush: wall share 0.0 with the barrel 107 px off the crosshair: the gun at that wall now turns by the slide (`vr_flat_wall_slide`, 4c96bc061), whose turn the wall shot (`wallShotShare`: the tilt only) doesn't follow | open: a design question (should a slid gun shoot along its barrel?) or the case's place/yaw (setpos keeps the turn test's yaw) |
+| flatgate | 3/2 | 3/2 | as flatgreen: case 0 timed out at state 2; the turned gate's step | not looked into (budget) |
+| flatsight, flatswap, flatstance | pass | - | flatsight 12/0, flatswap 0 failed, flatstance 7/0 | - |
+
+- **hub_start_test**: checklist lines 10-11 tag `{test:hub_start_test}` (a Python test's name); the Test scene now
+  exists: `quakevr/scenarios/hub_start_test.txt`, the VR hub (vrstart). checklist_tests_check 96/0.
+- **MP**: a first `mp_test.py suite --only ...` run started beside flat runs on the same tree: its mp_netsafe fence
+  game read a flat test's start-up script (the tree's base is shared: the fence loaded vrtesthall and ran
+  "flathands_test: gren2h done"; quit), so mp_netsafe failed and the suite stopped. Never run MP and flat tests of one
+  tree at once. Not re-run (budget): mp_melee, mp_slide_vr, mp_predictslide, and why mp_flow/mp_predict/mp_predictclimb
+  need the hub (mp_predict waits for "joined map=start" after `changelevel start`; not looked into further) stay open.
 ## questogg: Ogg Vorbis music on the Quest (agent/questogg, 2026-11-23)
 
 - The PC decodes Ogg with libvorbisfile (`Windows/codecs`, prebuilt; pkg-config on Linux): no source in the
@@ -9732,3 +9780,88 @@ the test fixture has track02.ogg copied, track04.mp3 left behind. Release build 
   14.8-15.5 ms, frame period median 15.8-16.9 ms, 64-80% of frames over 15.3 ms: 72 Hz does not hold. Needs a current
   APK build, then `scratch/qr_run.sh gore1 600 qr_gore.cfg +vr_standalone_preset 0` with the test progs.dat pushed
   (then `qvr-setup quest` puts the shipped one back, as done here: "1 files copied").
+## flatjitter: the gun at a wall looking down settles; the level forward probe (agent/flatjitter, 2026-11-23)
+
+Built on origin/next with agent/flatgreen2 merged in (its test fixes are what flatsweep and flatlagbob are judged by).
+
+- **flatsweep's `settled wall/long/stand/hip` at 25 down** (0.947 units a frame for 500 frames): a limit cycle of the
+  muzzle-up tilt (`vr_flat_wall_tilt`, fixed: all 40 degrees or none). Its trigger, the level gun 0.25 units deep at the
+  most the way back takes it, read 0.24-0.27 there, and the reading moved with the tilt's own ease: the tilt went on
+  and off every three frames. Two paths fed the drawn (tilted) gun back into the pose's level gun:
+  - modelcollide's recorded weapon (`weaponShape`, handpose's gun depth): `toHand` is the drawn model in the drawn hand's
+    frame, and tilted it stood up to 0.3 units elsewhere (18 degrees: the model doesn't turn exactly round `s.pos`). Now
+    `shapeToHand`, kept while flatplay's `drawnWallTurn` turns or shifts the gun (same model and frame); the drawn
+    points (`drawnWeaponPoints`) still use the drawn one. VR: the turn is always identity there, so unchanged.
+  - flatsight's hotspot in the gun's frame (`spotLocal`, the stance's keepSpot holds it in the free arm's reach, which
+    moved the hand 0.04 units with the tilt): kept the same way while the wall tilt or slide is on.
+  With both, the 25-degree row settles (wall run: 140 rows, 0 unsettled; it was 1). A hysteresis on the trigger alone
+  (0.1 units) didn't help: the hand then crept to the lower edge. The check is flatsweep_check's own unsettled-row
+  failure. Tests: flatsweep 383 passed, 27 known, 0 failed (was 382/1); flatwall 17/0. flatxhair 27/4 (flatgreen2 had
+  28/3; the new one, "pixels open: drawn on the centre (4 px, centroid 479.5 vs 480.0)", came in the low-impact mode with
+  his game running: low-res mock eyes; not re-run). flatsight could not run (its runs wait for his game to close).
+- **flatlagbob's level case** (fwd 0 range 1.01, fwd 2 1.94; wants +1.0): **not the sway**. At a run the level fwd-0
+  range is 0.94 with `vr_flat_sway 1` and 1.05 with 0 (walking 0.67); the sway's forward part peaks at 0.15 on the run
+  (its kicks are the start and e1m1's stairs down, mostly up and down). Per frame, the main hand *and its shoulder* move
+  together along the view by about +-0.45 at the stride's rate (period ~31 frames, 2.3 Hz) while the run goes down
+  e1m1's stairs: the body rides something at the step rate with `vr_flat_bob_fwd 0` (looking 40 down the shoulder's range
+  is 0.00, so it is level-forward and up together, not along the view). Since that motion and the forward bob aren't in
+  phase, the ranges don't add: 1.01 + 1.2 gives 1.94. Open: which commit put a stride-rate forward ride on the body (a
+  bisect from 97446fada of the shoulder's range, not done: budget), or the check measures the bob's own amplitude
+  (fwd 2 minus fwd 0 per frame) instead of the ranges' difference.
+## testbatch3: testbatch2's open items (agent/testbatch3, 2026-11-23)
+
+TESTING.md "Batching a suite, -QuitOn and -NoDraw". Times under other agents' load (run to run +-30%).
+- **Agrunt batch, proven: not the same.** Kit `scratch/refactor/run_baseline.py --groups agrunt`: alone 11.1 min,
+  batched 3.7 min, 213 of 217 cases the same; agrunt_16 and 74 pass batched and fail alone, 65 fails batched, 203's
+  counts differ, and each does so again on a rerun of the four both ways (so not flaky: a case comes out of a batch
+  game differently, even a 4-case batch). The default is back to alone (kit script: `--agrunt-batch` opts in).
+- **`vr_waitquiton N wait`** (vr_testbatch.cpp): a batched -QuitOn case's closing `waitN` is now a wait at the head of
+  the buffer that the match ends early (what QC queues meanwhile runs after it, as behind the lone run's waits);
+  testbatch.py writes it for every closing waitN, and the hold (`vr_waitquiton N`) only after a script with no closing
+  quit. selftest.sh 5/0; reload_test.sh's -QuitOn case (`reload magnails lying: 9 magazines, 0 wrong`) batched 2/0.
+- **flatplay's "tune_reset leak" was the ironsight:** the status line's "within N of his head" is keepNear(), eased to
+  vr_flat_ads_near (24) by the ironsight's share, and an earlier case's `vr_flat_aim 1` (a toggle, not a +command)
+  stayed on across vr_test_reset and the next map. `vr_test_reset` now calls `flatsight::testReset()` (the state
+  frame() clears outside flatscreen play). flatplay plays many cases a game again (TB_ISOLATE dropped): 31/0.
+- **-NoDraw on** flatmove, flatitems, flatladder (`TB_NODRAW` default 1) and flatslide's 10 runs that read no drawing
+  (`N`; its sights, lean pose, slide pose and prone-dual runs stay drawn): every check the same drawn and undrawn
+  (flatslide's drawn slide pose on e1m1 failed once in the drawn run, a drawn case either way: the known flaky one).
+- **Batched:** melee_space (32 cases, a monster and setting each, undrawn): the table identical, digit for digit, to
+  the old two one-game runs. Verdict lines added: melee_space, voreshove (already batched, ends on its 4th shove),
+  bodytrack_elbow (one run that quits; its waits are measurement windows). slots.log's other most-run unbatched
+  families are single runs (arenapath, load_models) or the per-case agtest/arena runs agents make by hand.
+
+  | suite | before s | after s | what |
+  |---|---|---|---|
+  | flatplay | 136 (isolated, testbatch2) | ~90 (collect 21, batch 27, replay 33) | many cases a game |
+  | flatmove | 94 drawn | 63 undrawn | -NoDraw |
+  | flatitems | 107 drawn (batch 69) | 52 undrawn (batch 31) | -NoDraw |
+  | flatladder | 20-23 drawn | 34-35 undrawn | (2 short cases: shell-bound, noise) |
+  | flatslide | 162 drawn | 111 partly undrawn | -NoDraw on 10 of 14 runs |
+  | melee_space | 97 (two games) | 38 | batched, undrawn |
+  | voreshove / bodytrack_elbow | 20 / 28 | same | verdict lines |
+  | agrunt (run_baseline) | 11.1 min alone | (3.7 min batched, not used) | default back to alone |
+
+## flatgreen3: the MP suites and the last open flat tests (agent/flatgreen3, 2026-11-23)
+
+Runs on origin/next 27fce84a7 (Release no-LTO, the shipped-defaults baseline). MP and flat never run at once.
+
+| suite | before | after | cause | fix |
+|---|---|---|---|---|
+| mp_melee | 28/2 | 30/0 | test drift (the baseline: `vr_gunangle` 70 shipped, the old baseline's 39.5): the defender's "upright" crowbar (`UPRIGHT`, hand pitch 90) came out 50-52 deg off square to the sword's blade and way, score 0.47-0.50: no directional parry | `UPRIGHT` hand pitch 59.5 (90 - 30.5): 25-27 deg off square, score 1.00 both ways (120.5, the other sign: 79 off) |
+| mp_slide_vr | 6/2 | 8/0 | test drift (6d47923de's baseline: `cl_alwaysrun` 0 shipped): VR B's full stick walks at 200, under `vr_flat_slide_min` 220: no slide at all (A heard footsteps only) | VR B `cl_alwaysrun 1`, as flat B had |
+| mp_predictslide | 12/2 | 14/0 | the same: 0 states sliding | B `cl_alwaysrun 1` |
+| mp_flow, mp_predict, mp_predictclimb without the hub | 16/1, 6/1 (`--part waterjump`), - | 17/0, 31/0, 29/0 | the harness's games start with `-game hipnotic -game rogue -game quakevr`: the active campaign is rogue (2) until a map is loaded; the hub (vrstart) selected Quake's (0). The server selects Quake's at `map e1m1`, a client never (it takes no campaign from the server it joins). So on `changelevel start` the client read rogue's start.bsp: `Host_Error: Model *43 not found` in CL_ParseServerInfo ("A on start" timed out); and A's Load Autosave list ("this game: campaign 2") passed over the server's coop~e1m2 save as another game's | mp_harness: a client started without the hub gets `+vr_campaign_select id1` (what the hub did, without its map load); `STARTMAP_SCENARIOS` gone, all scenarios without the hub; `QVR_MP_STARTMAP=0` also accepted |
+| flatgate | 3/2 | 5/0 (seamless 20/0) | `setpos` turns noclip on (Host_SetPos_f, upstream): the walk flew along the view's pitch through the floor (y +181, z -84 a second, case 0's 25 down) and never met the gate; a turned or level view crossed or not by timing | the QC's setpos and the turning case's are followed by `noclip` (off again); the walk starts once he is walking, on the ground, the setpos's pitch read back (a condition, the give-up as before) |
+| flatswing | 4/1 | 4/0 (2 runs less) | the pathoff control could no longer see the old bug | retired (his decision 2026-11-23); the wall and knight checks unchanged |
+| flatxhair | 28/3 (23/8, 27/4 seen: wall/dual pellet spread and `pixels open` vary run to run) | 28/3 | flush: no wall state at all at its place: wall share 0.00, gun way 0.0 deg, the barrel's hit 102-107 px off the crosshair | open, not the slide: the same with `vr_flat_wall_slide 0`, facing the wall (yaw 90, its own setpos kept the turn test's yaw), `vr_flat_wall_tilt_fixed 1`, noclip off, 10 units further off, looking 20 down, and alone right after the start (no dual, no turn test). The gun at the wall 2 units off his box neither pushes back nor tilts: the case needs a new place (flatwall's vrtesthall wall) or the wall pose a look (the flatwall suite passes). Test unchanged |
+
+- **Design question (flatxhair, his call)**: `wallShotShare` is the drawn turn's angle (`tiltAngle`: the slide's level
+  turn and the tilt), so a slid gun's shot should already follow its barrel; the flush case could not show it (no
+  turn there at all).
+- **Player-visible, not fixed (engine)**: a client keeps its own active campaign whatever the server runs. A player
+  who chose Dissolution (rogue) in the hub and joins a Quake coop server on `start` would read rogue's start.bsp and
+  drop with "Model *N not found"; his Load Autosave list hides the server's coop autosaves. The client should take the
+  server's campaign at its serverinfo (`VR_CheckSpawnCampaignMap`'s client side); BACKLOG candidate.
+- Smoke: `mp_test.py suite --only` the six touched scenarios and mp_coop: mp_suite passed (netsafe 14/0, coop 12/0,
+  flow 17/0, melee 30/0, slide_vr 8/0, predict 31/0, predictclimb 29/0, predictslide 14/0). flatswing 4/0.
