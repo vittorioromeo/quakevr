@@ -126,12 +126,6 @@ SwimState sw;
     return dt > 0.f ? 1.f - za::exp(-k * dt) : 1.f;
 }
 
-[[nodiscard]] glm::vec3 norm(const glm::vec3& v, const glm::vec3& fallback)
-{
-    const float len = glm::length(v);
-    return len > 1e-4f ? v / len : fallback;
-}
-
 [[nodiscard]] bool on()
 {
     return flatplay::active() && vr_flat_swim.value != 0.f;
@@ -248,18 +242,6 @@ void addPose(Pose& sum, const Pose& p, float w)
     }
     addPose(sum, tread(t, za::clamp(vr_flat_swim_tread_size.value, 0.f, 2.f)), 1.f - m);
     return sum;
-}
-
-// Hand angles with its fingers along `fingers` and its palm facing `palm` (world): at roll 0 a hand's palm faces in
-// towards the body's middle (flatplay's palmAt), so its right is the palm's opposite for the right hand, the palm's way for
-// the left.
-[[nodiscard]] glm::vec3 handAngles(int h, const glm::vec3& fingers, const glm::vec3& palm)
-{
-    const float side = h == HAND_OFF ? -1.f : 1.f;
-    const glm::vec3 f = norm(fingers, glm::vec3{1.f, 0.f, 0.f});
-    const glm::vec3 p = norm(palm - f * glm::dot(palm, f), glm::vec3{0.f, 0.f, -1.f});
-    const glm::vec3 right = -side * p;
-    return hands::anglesFromVectors(f, glm::cross(right, f));
 }
 
 // Something else has hand `h` now: the stroke gives way to it.
@@ -427,7 +409,7 @@ void poseHand(hands::State& s, int h, const glm::vec3& aim, const glm::vec3& sho
         const glm::vec3 lift{za::clamp(vr_flat_swim_fwd.value, -0.5f, 0.5f), 0.f, za::clamp(vr_flat_swim_up.value, -0.5f, 0.5f)};
         const glm::vec3 to = shoulder + world(p.at + lift) * span;
         s.pos[h] += (to - s.pos[h]) * w;
-        s.rot[h] = flatplay::blendHandAngles(s.rot[h], handAngles(h, world(p.fingers), world(p.palm)), w);
+        s.rot[h] = flatplay::blendHandAngles(s.rot[h], flatplay::handFacing(h, world(p.fingers), world(p.palm)), w);
         handsource::mark(h, handsource::Source::Synthesized, "swim stroke");
     }
 
