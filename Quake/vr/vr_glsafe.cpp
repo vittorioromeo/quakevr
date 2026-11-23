@@ -570,6 +570,17 @@ static int worldLiteBits(void)
         // VR_AliasPlainNeeds)
         lite |= (static_cast<int>(vr_gl_alias_plain_mask.value) & 1023) << 9;
         // (C5f's bit 29, your body's own flat-lit form, gone in C5h: the usual form skips the loop, r_alias.c)
+        // qtune: the plain, gore and skin forms' variants (gl_shaders.c GL_AliasFormVariants): bit 29 without the
+        // fullbright read (a batch whose skins have none), bit 30 without the dynamic lights' loop (a batch whose lights
+        // are all added flat on the CPU: your body and, with vr_gl_alias_flat, the gore; Quake's lights only)
+        if(vr_gl_alias_nofb.value != 0.f)
+        {
+            lite |= 1 << 29;
+        }
+        if(vr_gl_alias_flat.value != 0.f && (vr_gl_quake_dlights.value != 0.f || vr_gl_alias_body.value >= 2.f))
+        {
+            lite |= 1 << 30;
+        }
     }
     if(vr_gl_world_lite.value < 2.f)
     {

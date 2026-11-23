@@ -2175,6 +2175,7 @@ QVR_CVAR(vr_model_light_grid, "1", CVAR_ARCHIVE)      // hidden (no menu row sin
 QVR_CVAR(vr_model_ambient_dir, "1", CVAR_ARCHIVE)     // models lit by the baked light around them, brighter on the side facing lit walls (vr_ambient.cpp; 0: one brightness all round)
 QVR_CVAR(vr_model_ambient_contrast, "1.5", CVAR_ARCHIVE) // how much the sides differ (0: not at all, 1: as the surroundings do)
 QVR_CVAR(vr_rim_light, "0.5", CVAR_ARCHIVE)           // a faint light round models' edges, in the light around them, so they stand out from dark backgrounds (vr_envmap.cpp; 0 off .. 1)
+QVR_CVAR(vr_rig_plain, "0", CVAR_ARCHIVE)             // your own body, hands, held guns and gear without normal maps, reflections and rim light: the cheap model shader draws them (vr_render.cpp; Standalone 1)
 QVR_CVAR(vr_weapon_reflections, "1", CVAR_ARCHIVE)    // your weapons' metal reflects the room round you (a small cube map of the world, vr_envmap.cpp; 0 off)
 QVR_CVAR(vr_weapon_reflections_strength, "1.2", CVAR_ARCHIVE) // how strongly (0..2)
 QVR_CVAR(vr_relit_maps, "1", CVAR_ARCHIVE)           // maps re-lit by Misc/quakevr/relight_maps.py, when present (next map)

@@ -2001,7 +2001,7 @@ QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
 "#endif\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	vec3 fullbright = textureLod(FullbrightTex, uv, 0.).rgb;\n" // QVR: fullbright: dimmed or boosted (QVR_ALIAS_FS_GLOW)
-"#elif defined(QVR_PROBE_ANOFB)\n" // QVR: vr_gles_define's probe (C5f): no fullbright fetch
+"#elif defined(QVR_PROBE_ANOFB) || defined(QVR_APLAIN_NOFB)\n" // QVR: vr_gles_define's probe (C5f); qtune: a batch whose skins have no fullbrights (gl_shaders.c ALIASVAR_NOFB): no fullbright fetch
 "	vec3 fullbright = vec3(0.0);\n"
 "#else\n"
 "	vec3 fullbright = Retro > 0 ? RetroSample(FullbrightTex, uv, duvdx, duvdy, false).rgb : textureGrad(FullbrightTex, uv, duvdx, duvdy).rgb; // QVR: uv moved by parallax mapping; retro textures\n"

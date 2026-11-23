@@ -1422,7 +1422,7 @@ The models' plain form (glprogs.alias_plain, C4k; QUEST_PLAN.md 6r): the feature
 from 9 up: VR_GLESWorldLite, vr_gl_alias_plain_mask), but those of `keep` (the gore form's: VR_ALIAS_GORE_NEEDS).
 =============
 */
-static const char *GL_AliasPlainDefines (int keep)
+static const char *GL_AliasPlainDefinesV (int keep, int variant)
 {
 	int i, mask = (gl_world_lite >> 9) & ~keep;
 	gl_alias_plain_defines[0] = 0;
@@ -1431,7 +1431,29 @@ static const char *GL_AliasPlainDefines (int keep)
 			q_strlcat (gl_alias_plain_defines, gl_alias_plain_names[i], sizeof (gl_alias_plain_defines));
 	if (gl_world_lite & (1 << 28)) // C4y: lit at their vertices (vr_gl_alias_vlight; vr_glsl_alias.h QVR_ALIAS_VS_VLIGHT)
 		q_strlcat (gl_alias_plain_defines, "; QVR_APLAIN_VLIGHT 1", sizeof (gl_alias_plain_defines));
+	if (variant & ALIASVAR_NOFB) // qtune: no fullbright texture read (gl_shaders.h)
+		q_strlcat (gl_alias_plain_defines, "; QVR_APLAIN_NOFB 1", sizeof (gl_alias_plain_defines));
+	if ((variant & ALIASVAR_FLAT) && !(mask & 512)) // qtune: the dynamic lights' loop compiled out (vr_glsl_alias.h), not only skipped
+		q_strlcat (gl_alias_plain_defines, gl_alias_plain_names[9], sizeof (gl_alias_plain_defines));
 	return gl_alias_plain_defines;
+}
+
+static const char *GL_AliasPlainDefines (int keep)
+{
+	return GL_AliasPlainDefinesV (keep, 0);
+}
+
+/*
+=============
+GL_AliasFormVariants -- QVR (qtune)
+
+The plain, gore and skin forms' variants made (ALIASVAR_*): bit 29 of the lite bits no fullbright read
+(vr_gl_alias_nofb), bit 30 no dynamic lights' loop (vr_gl_alias_flat with the models' lights added flat: VR_GLESWorldLite).
+=============
+*/
+int GL_AliasFormVariants (void)
+{
+	return ((gl_world_lite >> 29) & 1 ? ALIASVAR_NOFB : 0) | ((gl_world_lite >> 30) & 1 ? ALIASVAR_FLAT : 0);
 }
 
 /*
@@ -1531,7 +1553,12 @@ static void GL_CreateShadersAll (void)
 		for (mode = 0; mode < 3; mode++)
 			for (poseverttype = 0; poseverttype < 3; poseverttype++)
 				if (GL_AliasFormAvailable (form) && GL_ShadersLazyStart (0, 0, mode) && (VR_GLESForm (VR_GLES_FORM_GLSL) || (form != ALIASFORM_OPAQUE && form != ALIASFORM_BODY))) // (the PC's: plain, gore, skin; the others when asked for)
-					GL_AliasFormProgram (form, mode, poseverttype);
+				{
+					int variant;
+					for (variant = 0; variant < 4; variant++) // qtune: the variants made here (GL_AliasFormVariants)
+						if ((variant & ~GL_AliasFormVariants ()) == 0 && (variant == 0 || (form >= ALIASFORM_PLAIN && form <= ALIASFORM_SKIN)))
+							GL_AliasFormProgramV (form, variant, mode, poseverttype);
+				}
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR; MODE 0 (standard) in these: an undefined name in #if is an error in GLSL (strict drivers)
 		glprogs.alias_depth[poseverttype] = GL_CreateProgram (alias_vertex_shader, NULL, "alias depth|MODE 0; POSEVERTTYPE %d", poseverttype);
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR: into all their faces at once (vr/vr_lighting.cpp)
@@ -1626,9 +1653,15 @@ qboolean GL_AliasFormAvailable (int form)
 
 GLuint GL_AliasFormProgram (int form, int mode, int poseverttype)
 {
+	return GL_AliasFormProgramV (form, 0, mode, poseverttype);
+}
+
+GLuint GL_AliasFormProgramV (int form, int variant, int mode, int poseverttype)
+{
 	GLuint *program;
 	if (!GL_AliasFormAvailable (form))
 		return 0;
+	variant = form == ALIASFORM_PLAIN || form == ALIASFORM_GORE || form == ALIASFORM_SKIN ? variant & GL_AliasFormVariants () : 0;
 	switch (form)
 	{
 	case ALIASFORM_OPAQUE:
@@ -1637,19 +1670,19 @@ GLuint GL_AliasFormProgram (int form, int mode, int poseverttype)
 			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias opaque|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s", mode, poseverttype, GL_AliasLiteDefines ());
 		return *program;
 	case ALIASFORM_PLAIN:
-		program = &glprogs.alias_plain[mode][poseverttype];
+		program = &glprogs.alias_plain[variant][mode][poseverttype];
 		if (!*program)
-			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias plain|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (0));
+			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias plain|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefinesV (0, variant));
 		return *program;
 	case ALIASFORM_GORE:
-		program = &glprogs.alias_gore[mode][poseverttype];
+		program = &glprogs.alias_gore[variant][mode][poseverttype];
 		if (!*program)
-			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias gore|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (VR_ALIAS_GORE_NEEDS));
+			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias gore|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefinesV (VR_ALIAS_GORE_NEEDS, variant));
 		return *program;
 	case ALIASFORM_SKIN:
-		program = &glprogs.alias_skin[mode][poseverttype];
+		program = &glprogs.alias_skin[variant][mode][poseverttype];
 		if (!*program)
-			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias skin|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (VR_ALIAS_SKIN_NEEDS));
+			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias skin|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefinesV (VR_ALIAS_SKIN_NEEDS, variant));
 		return *program;
 	case ALIASFORM_BODY: // (C5e: the skin form lit at its vertices, whatever vr_gl_alias_vlight says: VR_AliasBodyLight;
 		// vr_gl_alias_body 1 only since C5h: 2 draws your body by its usual form, the loop skipped: r_alias.c BatchDlightsFlat)

@@ -48,6 +48,7 @@
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -448,9 +449,42 @@ extern "C" int VR_AliasBodyLight(const entity_t* e)
 // CPU as Quake did (vr_gl_alias_body 2; the shader's loop over them was ~1.85 ms of its ~5 with the torso in view, 6zo).
 // C5h (6zs): drawn by the form it takes anyway, the loop skipped for its batch (BatchDlightsFlat); C5f's own form for it
 // cost ~3.3 ms more running the same code. A batch mixing it with others gets the light without them back.
+// qtune (vr_gl_alias_flat; shaderreview finding 2): gibs, heads and limbs (their models' names: progs/gib*, progs/h_*,
+// a monster's #limb) lit as your body under vr_gl_alias_body 2: their dynamic lights added flat on the CPU (small
+// chunks: the light's angle and sheen on them hard to see), so their batches take the forms' variant without the
+// lights' loop (r_alias.c ALIASVAR_FLAT). Only where the vertex light leaves nothing out, as the body.
+[[nodiscard]] static bool goreFlat(const entity_t* e)
+{
+    if(vr_gl_alias_flat.value == 0.f || vr_gl_alias_plain.value == 0.f || !e || !e->model || VR_IsViewEntity(e))
+    {
+        return false;
+    }
+    const char* name = e->model->name;
+    const char* base = COM_SkipPath(name);
+    if(q_strncasecmp(base, "gib", 3) != 0 && q_strncasecmp(base, "h_", 2) != 0 && !ZA_STRSTR(name, "#limb"))
+    {
+        return false;
+    }
+    const bool occlusion = vr_ao_dynamic.value > 0.f || vr_ao_brush.value > 0.f;
+    const bool shadows = vr_shadow_dlights.value > 0.f || vr_shadow_maplights.value > 0.f;
+    return !occlusion && !shadows;
+}
+
 extern "C" int VR_AliasBodyFlat(const entity_t* e)
 {
-    return dlightmap::aliasBodyMode() >= 2.f && VR_AliasBodyLight(e) && VR_AliasOpaqueForm(e) ? 1 : 0;
+    return dlightmap::aliasBodyMode() >= 2.f && (VR_AliasBodyLight(e) || goreFlat(e)) && VR_AliasOpaqueForm(e) ? 1 : 0;
+}
+
+// Your own rig's models: your hands, body, held, holstered and worn things (not the mirror's image, gear lying about).
+[[nodiscard]] static bool rigModel(const entity_t* e)
+{
+    if(!VR_IsViewEntity(e))
+    {
+        return false;
+    }
+    const int group = VR_ViewEntityGroup(e);
+    return group == VR_DRAW_HANDS || group == VR_DRAW_BODY || group == VR_DRAW_HELD || group == VR_DRAW_HOLSTERED ||
+           group == VR_DRAW_WORN;
 }
 
 extern "C" int VR_AliasPlayerFirst(const entity_t* e)
@@ -458,13 +492,7 @@ extern "C" int VR_AliasPlayerFirst(const entity_t* e)
     // Your own models stand nearest the eye: drawn (opaque) before the world, the world's depth pre-pass and shading skip
     // the pixels they cover (at 4x sample shading the world's shader is the frame's largest cost). Not the mirror's
     // image, gear lying about or the rest: they stand among the world's surfaces like any model.
-    if(vr_alias_player_first.value == 0.f || !VR_IsViewEntity(e))
-    {
-        return 0;
-    }
-    const int group = VR_ViewEntityGroup(e);
-    return group == VR_DRAW_HANDS || group == VR_DRAW_BODY || group == VR_DRAW_HELD || group == VR_DRAW_HOLSTERED ||
-           group == VR_DRAW_WORN;
+    return vr_alias_player_first.value != 0.f && rigModel(e) ? 1 : 0;
 }
 
 // Flatscreen play's model FOV (flatplay::modelFov): the player's own models, what moves with him. Not what lies in the
@@ -721,6 +749,15 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
     }
     VR_AliasAO(e, out->ao); // dynamic ambient occlusion (vr_ao.cpp)
     out->ao[2] = VR_ModelNormalMapScale(authored); // how much its normal map bends the normal (authored ones their own strength)
+    if(vr_rig_plain.value != 0.f && out->glow[0] == 0.f && rigModel(e))
+    {
+        // qtune (vr_rig_plain, Standalone): your own body, hands, held guns and gear (~2.5 ms of the Quest 3's gib fight,
+        // always large in the eyes) without their normal maps, parallax, reflections and rim light, so the plain form
+        // (the skin form: your skin and gloves) draws them, not the whole shader. A glowing one keeps its look.
+        ZA_MEMSET(out->surface, 0, sizeof(out->surface));
+        out->ao[2] = 0.f;
+        out->glow[3] = 0.f;
+    }
     if(standard) // wounds painted on it (vr_wounds.cpp), and its wet coat
     {
         VR_AliasWound(e, out->wound, out->woundside);

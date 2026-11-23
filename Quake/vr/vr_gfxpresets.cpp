@@ -156,6 +156,8 @@ constexpr presetcore::Row standaloneRows[] = {
     {&vr_heat_haze,                   {"0",      "0",      "0"}},
     {&vr_water_reflections,           {"0",      "0",      "0"}},     // (the envmap)
     {&vr_rim_light,                   {"0",      "0",      "0"}},     // (the envmap)
+    // qtune: your own models (~2.5 ms of the gib fight) by the plain / skin form: no normal maps, reflections, rim light
+    {&vr_rig_plain,                   {"1",      "1",      "1"}},
     // Lights from things (each one a cluster entry every pixel near it walks)
     {&vr_torch_lights,                {"2",      "2",      "1"}},
     {&vr_lavanail_lights,             {"2",      "2",      "1"}},

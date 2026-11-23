@@ -3839,6 +3839,9 @@ QVR_TOGGLE_BYNAME(vr_anim_smooth_rebuild, "Rebuild From Skeleton",
     "A monster with a ragdoll rig is drawn from its skeleton every frame, with any Model Animation: each point keeps one place on its bone and moves with it, so the wobble left by the file's rounding is gone; points the skeleton fits less well (round the joints) keep the frames' places. Off: the frames' points as stored (steadied: each one's smoothest path within the file's rounding).")
 QVR_SLIDER_BYNAME(vr_rim_light, "Rim Light", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A faint light round the edges of monsters and things, in the light around them, so they stand out from dark backgrounds (0 off).")
+QVR_TOGGLE(vr_rig_plain, "Plain Own Models",
+    "Your own body, hands, held weapons and gear drawn without their surface bumps, reflections and rim light, by "
+    "the cheaper model shader (on in the Standalone preset: they cover much of the view).")
 QVR_SLIDER_BYNAME(vr_viewmodel_minlight, "Hands' Least Light", 0.f, 32.f, 1.f, "%.0f", ext(),
     "How lit your hands and weapons stay in the dark (Quake: 24).")
 QVR_TOGGLE_BYNAME(vr_weapon_reflections, "Weapon Reflections",
