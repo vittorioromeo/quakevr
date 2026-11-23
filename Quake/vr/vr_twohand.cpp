@@ -182,8 +182,6 @@ struct FreeGrip
     float alongMin = 0.f, alongMax = 0.f;
 };
 
-// seat-shared: the grip clicks' random pitch (no player's state)
-
 // Per holding hand: its own slide along its pole weapon (the main hand slides too: poleShift). Kept while it holds the
 // same weapon (resetHolding clears it), the other hand on the pole or not.
 struct PoleSlide
@@ -192,6 +190,8 @@ struct PoleSlide
     glm::vec3 axis{1.f, 0.f, 0.f}; // the pole's way in the hand's frame
     bool sliding = false;         // this frame (vr_debug_2h_grip prints)
 };
+
+// seat-shared: the grip clicks' random pitch (no player's state)
 za::FastNonCryptoRng gripRng{static_cast<za::U64>(za::Clock::nowNanoseconds())};
 
 [[nodiscard]] RelPose relativeTo(const glm::vec3& basePos, const glm::vec3& baseRot, const glm::vec3& pos,
