@@ -54,7 +54,6 @@ Heavy revolver: swing the cylinder out, take a shell in the off hand, then flick
 Heavy revolver: a quick wrist roll towards the cylinder's side opens it; a melee swing never does. Too strict or loose: tune Weapons > Reloading > Heavy Revolver > Flick Open Arm Share (0.45; lower is stricter). {test:revolver_swing}
 Flat-screen or VR: fire the super nailgun and let go: its barrels slow and stop where they are instead of snapping back, and spin up from rest when you fire. {test:sng_spin}
 Flat-screen or VR: kill a grunt with a thrown axe, sword or dagger: its body flies about half as far as before (Debug > Tunables, "Thrown Blade Kill Push"); other killing blows are unchanged. {test:embed_throw}
-Flat-screen or VR: a hard axe throw at a far wall (6 m and more) sticks like a near one. {test:embed_throw}
 
 [5. Ropes and chains]
 Flat-screen or VR: in a two-player game in the ropes hall both climb the same upright pole (from opposite sides, and one after the other; also on vrropes): both get on, neither is pushed off or stuck, and each sees the other's hands on the pole and legs round it. {test:ropes}
