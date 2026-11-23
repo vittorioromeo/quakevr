@@ -60,6 +60,16 @@ namespace qvr::mpavatar
 namespace
 {
 
+// The calibration's holster fields (holstersync; calFields): "hk", then the places (3 a holster, body::Holster's order),
+// then the plates of the four on the body (7 each: LeftHip on).
+constexpr int calHolsterKnown = 37, calHolsterAt = 38, calHolsterPlate = calHolsterAt + 3 * body::HolsterCount;
+constexpr int holsterCalCount = numCalFields - calHolsterAt;
+constexpr int holsterPlates = body::HolsterCount - body::LeftHip;
+static_assert(calHolsterPlate + 7 * holsterPlates == numCalFields);
+void fillOwnHolsters(Calibration& c);
+[[nodiscard]] const int* holsterFieldsOf(int e, bool bot);
+void holstersFromCal(const int* v, body::StandingHolsters& out);
+
 Avatar avatars[MAX_SCOREBOARD + 1]; // by player entity (0 unused)
 // The one before each (its msgTime: the last message it held at): drawn between the two in step with his entity's lerp
 // (vr_mp_avatar_lerp, blendedOf; MP_PLAN.md, B7).
@@ -836,9 +846,23 @@ void gearcheck_f()
             }
         }
         // (as yours: within 7 cm and 20 degrees -- the same build and holster on the same parts; a flat viewer's own sit a
-        // few cm off a VR player's, his crouched flat body's)
+        // few cm off a VR player's, his crouched flat body's) (holstersync) Only when his copy wears the places yours have
+        // (`sameprefs`: his holster settings sent as yours, or a bot's, the shipped ones, yours at them); else his own
+        // differ from yours by design (vr_mp_gearcheck's pieces against his own client's: mp_test.py holstersync).
+        const bool bot = ((avatars[e].hands[0].flags | avatars[e].hands[1].flags) & VrDrawnHand::solveBit) != 0;
+        bool samePrefs = false;
+        {
+            Calibration mine;
+            fillOwnHolsters(mine);
+            const int* his = holsterFieldsOf(e, bot);
+            samePrefs = mine.v[calHolsterKnown] != 0;
+            for(int i = 0; i < holsterCalCount; i++)
+            {
+                samePrefs = samePrefs && his[i] == mine.v[calHolsterAt + i];
+            }
+        }
         constexpr float placeMost = 0.07f, axisMost = 20.f;
-        const bool asOwn = place <= placeMost && axis <= axisMost;
+        const bool asOwn = !samePrefs || (place <= placeMost && axis <= axisMost);
         // (on the body: within half a metre of the trunk's line -- a hip holster stands ~0.2 m out, a held hand's
         // model origin a few units from the wrist its arm reached for; a sheath at most 70 degrees off the trunk's up --
         // the chest's lean back 20 and the uppers' turn 40 (vr_upper_holster_pitch), a player's copy ~50 -- and facing
@@ -847,14 +871,13 @@ void gearcheck_f()
         constexpr float tiltMost = 70.f, facingMost = 60.f;
         const bool turned = finite && tilt <= tiltMost && facing <= facingMost && hang <= hangMost;
         const bool ok = hands == 2 && trunk <= trunkMost && wrist <= wristMost && turned && asOwn;
-        const bool bot = ((avatars[e].hands[0].flags | avatars[e].hands[1].flags) & VrDrawnHand::solveBit) != 0;
         Con_Printf("mp_gear: ent=%d bot=%d hands=%d holsters=%d sheaths=%d trunk=%.1f trunkmost=%.1f wrist=%.1f wristmost=%.1f "
                    "finite=%d tilt=%.1f facing=%.1f hang=%.1f hangmost=%.1f turned=%d vsown=%d place=%.3f axis=%.1f "
-                   "asown=%d ok=%d\n",
+                   "sameprefs=%d asown=%d ok=%d\n",
             e, bot ? 1 : 0, hands, holsters, sheaths, static_cast<double>(trunk), static_cast<double>(trunkMost),
             static_cast<double>(wrist), static_cast<double>(wristMost), finite ? 1 : 0, static_cast<double>(tilt),
             static_cast<double>(facing), static_cast<double>(hang), static_cast<double>(hangMost), turned ? 1 : 0, vsOwn,
-            static_cast<double>(place), static_cast<double>(axis), asOwn ? 1 : 0, ok ? 1 : 0);
+            static_cast<double>(place), static_cast<double>(axis), samePrefs ? 1 : 0, asOwn ? 1 : 0, ok ? 1 : 0);
         players++;
         bad += ok ? 0 : 1;
     }
@@ -876,20 +899,23 @@ void drawPowerups(int slot, int powerups);
 // holsters of other players and bots ... so that I can see what they're actually carrying"): no client drew them, so they
 // go on its body as last drawn (its skeleton), posed as yours are (view::holsterOnOther). None until its body is first
 // posed. (fbmisc1123) Every other player's too, on his drawn body (setupHands). False: none placed (no body posed).
-bool solveBotGear(const Drawn& d, float yaw, VrDrawnHolsters& hs, view::GearDraw gear[VrDrawnGear::count])
+bool solveBotGear(const Drawn& d, float yaw, bool bot, VrDrawnHolsters& hs, view::GearDraw gear[VrDrawnGear::count])
 {
     // (fbmisc1123; his report 2026-11-23, after vrnotes1122a's rings: a copy's guns floating off its hips and chest,
-    // turned wrong, its chest sheaths out on the shoulders) Each where yours sits on your standing body, in the frame of
-    // the part that carries it (body::standingHolsters: your own placement's code, your Hotspots offsets, before your
-    // lean and crouch), put on that part of its body as posed (the pelvis, the chest: it leans and crouches with them),
-    // at its size; its plate turned so; then posed as yours (holsterOnOther). The ring at 45 and 35 degrees round from
-    // the front put the guns 6-14 cm from yours and turned 70-87 degrees (vr_mp_gearcheck's vsown).
-    body::StandingHolsters ref;
-    if(!d.bodyPosed || !body::standingHolsters(hands::current(), ref))
+    // turned wrong, its chest sheaths out on the shoulders) Each where his own placement puts it on his standing body, in
+    // the frame of the part that carries it (body::standingHolsters: the placement's code, his Hotspots offsets, before
+    // his lean and crouch), put on that part of its body as posed (the pelvis, the chest: it leans and crouches with
+    // them), at its size; its plate turned so; then posed as yours (holsterOnOther). The ring at 45 and 35 degrees round
+    // from the front put the guns 6-14 cm from yours and turned 70-87 degrees (vr_mp_gearcheck's vsown). (holstersync)
+    // His own settings' places, as his client sent them in his calibration; a bot's the shipped settings' (before, every
+    // copy wore the viewer's own).
+    if(!d.bodyPosed)
     {
         hs.weapons = 0;
         return false;
     }
+    body::StandingHolsters ref;
+    holstersFromCal(holsterFieldsOf(d.owner, bot), ref);
     const avatar::Skeleton& k = d.skeleton;
     const float bodyYaw = trunkYaw(k, yaw);
     for(int h = 0; h < VrDrawnHolsters::count; h++)
@@ -936,7 +962,7 @@ void wearHolsters(int slot, const Avatar& a)
     const bool bot = (a.gear.shown & VrDrawnGear::solveBit) != 0;
     VrDrawnHolsters hs = a.holsters;
     view::GearDraw sheaths[VrDrawnGear::count];
-    const bool placed = solveBotGear(d, a.body.yaw, hs, sheaths);
+    const bool placed = solveBotGear(d, a.body.yaw, bot, hs, sheaths);
     for(int i = 0; i < VrDrawnHolsters::count; i++)
     {
         const int model = placed && hs.valid && (hs.weapons & (1 << i)) ? hs.model[i] : 0;
@@ -1354,8 +1380,33 @@ const CalField calFields[numCalFields] = {
     {"pfwd", &vr_body_pauldron_forward, 1000.f, -500, 500}, // thousandths
     {"pout", &vr_body_pauldron_out, 1000.f, -500, 500},
     {"pup", &vr_body_pauldron_up, 1000.f, -500, 500},
+    // (holstersync; his words 2026-11-23: "Other players' holster placement should be synced in multiplayer, they should
+    // not all share the host's preferences") His holsters where his own placement puts them on his standing body
+    // (body::standingHolsters: his offsets, Hotspots trims, body, build, height and seated layout all in it), filled by
+    // fillOwnHolsters: "hk" 1 known (0: none yet, his copy wears the defaults), each holster's place in the frame of the
+    // part that carries it (mm of the body), then the four on the body's plates (out, up: thousandths; clearance mm).
+    {"hk", nullptr, 1.f, 0, 1},
+#define QVR_CAL_AT(h) {"at" #h "x", nullptr, 1000.f, -2000, 2000}, {"at" #h "y", nullptr, 1000.f, -2000, 2000}, \
+                      {"at" #h "z", nullptr, 1000.f, -2000, 2000}
+#define QVR_CAL_PLATE(h) {"po" #h "x", nullptr, 1000.f, -1000, 1000}, {"po" #h "y", nullptr, 1000.f, -1000, 1000}, \
+                         {"po" #h "z", nullptr, 1000.f, -1000, 1000}, {"pu" #h "x", nullptr, 1000.f, -1000, 1000}, \
+                         {"pu" #h "y", nullptr, 1000.f, -1000, 1000}, {"pu" #h "z", nullptr, 1000.f, -1000, 1000}, \
+                         {"pc" #h, nullptr, 1000.f, -1000, 1000}
+    QVR_CAL_AT(0), QVR_CAL_AT(1), QVR_CAL_AT(2), QVR_CAL_AT(3), QVR_CAL_AT(4), QVR_CAL_AT(5),
+    QVR_CAL_PLATE(2), QVR_CAL_PLATE(3), QVR_CAL_PLATE(4), QVR_CAL_PLATE(5),
+#undef QVR_CAL_AT
+#undef QVR_CAL_PLATE
 };
-constexpr int calCommandVersion = 4; // "vr_avatarcal <version> <the fields>": another version's is ignored
+constexpr int calCommandVersion = 5; // "vr_avatarcal <version> <the fields>": another version's is ignored (5: holstersync)
+
+// The shipped settings' holsters as fillOwnHolsters gives them (a bot's, and anyone's who sent none: never the viewer's
+// own). vr_mp_holster_defaults compares yours with them (0 differ at the defaults) and prints them anew (its 1).
+constexpr int defaultHolsterCal[holsterCalCount] = {
+    356, -135, 98, 356, 135, 98, -137, -388, 153, -137, 388, 153, -23, -253, 166, -23, 253, 166, // the places
+    1, -737, 676, 1000, 0, -1, 264,                                                             // the hips' plates
+    1, 737, 676, 1000, 0, -1, 264,
+    344, -524, 779, 939, 191, -286, 134,                                                        // the uppers'
+    344, 524, 779, 939, -191, -286, 134};
 
 struct CalState
 {
@@ -1562,15 +1613,111 @@ void setupBody(int slot, int e, const Avatar& a, const glm::vec3& origin, const 
     return za::clamp(v, calFields[field].lo, calFields[field].hi);
 }
 
+[[nodiscard]] int calValue(int field, float value)
+{
+    return calClamp(field, static_cast<int>(za::lround(value * calFields[field].scale)));
+}
+
+// Your holsters into `c` (holstersync): where your own placement puts them on your standing body (none: "hk" 0).
+void fillOwnHolsters(Calibration& c)
+{
+    body::StandingHolsters s;
+    const bool known = body::standingHolsters(hands::current(), s);
+    c.v[calHolsterKnown] = known ? 1 : 0;
+    for(int h = 0; h < body::HolsterCount; h++)
+    {
+        for(int k = 0; k < 3; k++)
+        {
+            c.v[calHolsterAt + 3 * h + k] = known ? calValue(calHolsterAt + 3 * h + k, s.at[h][k]) : 0;
+        }
+    }
+    for(int p = 0; p < holsterPlates; p++)
+    {
+        const body::HolsterPlate& plate = s.plate[body::LeftHip + p];
+        const int f = calHolsterPlate + 7 * p;
+        for(int k = 0; k < 3; k++)
+        {
+            c.v[f + k] = known ? calValue(f + k, plate.out[k]) : 0;
+            c.v[f + 3 + k] = known ? calValue(f + 3 + k, plate.up[k]) : 0;
+        }
+        c.v[f + 6] = known ? calValue(f + 6, plate.clearance) : 0;
+    }
+}
+
 [[nodiscard]] Calibration ownCalibration()
 {
     Calibration c;
     for(int i = 0; i < numCalFields; i++)
     {
-        const float value = calFields[i].var ? calFields[i].var->value : calFields[i].get();
-        c.v[i] = calClamp(i, static_cast<int>(za::lround(value * calFields[i].scale)));
+        const float value = calFields[i].var ? calFields[i].var->value : calFields[i].get ? calFields[i].get() : 0.f;
+        c.v[i] = calValue(i, value);
     }
+    fillOwnHolsters(c);
     return c;
+}
+
+// The holsters from their fields (`v`: calHolsterAt's on, as fillOwnHolsters wrote them).
+void holstersFromCal(const int* v, body::StandingHolsters& out)
+{
+    out = body::StandingHolsters{};
+    const auto vec = [](const int* q) {
+        return glm::vec3{static_cast<float>(q[0]), static_cast<float>(q[1]), static_cast<float>(q[2])} / 1000.f;
+    };
+    const auto unit = [](const glm::vec3& d, const glm::vec3& fallback) {
+        return glm::length(d) > 1e-3f ? glm::normalize(d) : fallback;
+    };
+    for(int h = 0; h < body::HolsterCount; h++)
+    {
+        out.at[h] = vec(v + 3 * h);
+    }
+    for(int p = 0; p < holsterPlates; p++)
+    {
+        const int* q = v + (calHolsterPlate - calHolsterAt) + 7 * p;
+        body::HolsterPlate& plate = out.plate[body::LeftHip + p];
+        plate.out = unit(vec(q), glm::vec3{0.f});
+        plate.up = unit(vec(q + 3), glm::vec3{0.f, 0.f, 1.f});
+        plate.clearance = static_cast<float>(q[6]) / 1000.f;
+    }
+}
+
+// Player entity `e`'s holsters as his copy wears them (holstersync): his own as he sent them (yours your own); a bot's,
+// and anyone's not yet sent (no calibration, an older client's "hk" 0), the shipped settings' (defaultHolsterCal), never
+// the viewer's own. -> their fields (calHolsterAt's on).
+[[nodiscard]] const int* holsterFieldsOf(int e, bool bot)
+{
+    const Calibration* c = bot ? nullptr : calOf(e);
+    return c && c->v[calHolsterKnown] ? c->v + calHolsterAt : defaultHolsterCal;
+}
+
+// vr_mp_holster_defaults [1] (holstersync; Debug > Reports > Network: Holsters vs the Defaults): your holsters' fields
+// against the shipped ones (defaultHolsterCal: what a bot's copy wears) -- "mp_holster_defaults: N of M differ (most D)";
+// at the shipped settings 0 differ. 1: the table anew ("mp_holster_defaults_table:"), for defaultHolsterCal.
+void holsterDefaults_f()
+{
+    Calibration own;
+    fillOwnHolsters(own);
+    if(!own.v[calHolsterKnown])
+    {
+        Con_Printf("mp_holster_defaults: no hands yet\n");
+        return;
+    }
+    int differ = 0, most = 0;
+    for(int i = 0; i < holsterCalCount; i++)
+    {
+        const int d = za::abs(own.v[calHolsterAt + i] - defaultHolsterCal[i]);
+        differ += d ? 1 : 0;
+        most = za::max(most, d);
+    }
+    Con_Printf("mp_holster_defaults: %d of %d differ (most %d)\n", differ, holsterCalCount, most);
+    if(Cmd_Argc() > 1 && Q_atoi(Cmd_Argv(1)) != 0)
+    {
+        Con_Printf("mp_holster_defaults_table:");
+        for(int i = 0; i < holsterCalCount; i++)
+        {
+            Con_Printf(" %d,", own.v[calHolsterAt + i]);
+        }
+        Con_Printf("\n");
+    }
 }
 
 void printCal(const char* what, int ent, const Calibration& c)
@@ -1818,7 +1965,7 @@ void sendCalibration()
     {
         return;
     }
-    char text[256];
+    char text[1024]; // (holstersync: 84 fields)
     int n = q_snprintf(text, sizeof(text), "vr_avatarcal %d", calCommandVersion);
     for(int i = 0; i < numCalFields && n > 0 && n < static_cast<int>(sizeof(text)); i++)
     {
@@ -2748,6 +2895,7 @@ void init()
 {
     Cmd_AddCommand("vr_mp_avatars", avatars_f);
     Cmd_AddCommand("vr_mp_gearcheck", gearcheck_f); // (mpbothands)
+    Cmd_AddCommand("vr_mp_holster_defaults", holsterDefaults_f); // (holstersync)
     Cmd_AddCommand_ClientCommand("vr_avatarcal", avatarcal_f);
 }
 

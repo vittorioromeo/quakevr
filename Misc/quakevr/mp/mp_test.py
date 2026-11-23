@@ -107,6 +107,9 @@ Tests:
              link; --listen: A hosts.
     dm       (B11) a dedicated deathmatch server on dm4 (fraglimit 3): A and B join at deathmatch starts; two FrikBot bots
              added (impulse 100): four players listed at both, the bots move; A killed by a bot (vr_hurt) and respawned by his trigger, then A frags the bots (vr_hurt) to the fraglimit; the fraglimit ends the match: the intermission at both, their scoreboards the same.
+    holstersync  (holstersync) A (VR) and B (flat) with holster settings of their own, each held before the other
+             (vr_dm_test 23): each draws the other's holsters where the other's own client has them (within 7 cm), not
+             where his own sit; a bot's wear the shipped settings (A's own only once A is back at the defaults).
     botrevolver  (vrnotes1122a) a dedicated deathmatch server: A adds a bot; the server's vr_dm_test 14: the bot draws
              and fires a revolver of its own at A (slugs, not trigger pulls), and one it took loaded (his, by a
              disarm) in either hand, without shells of its own.
@@ -7885,6 +7888,124 @@ def botgear(s):
     srv.cmd("vr_dm_test 0")
 
 
+GEARPIECE_RE = re.compile(r"mp_gearpiece: ent=\d+ holster=(\d+) (gun|sheath) at=\(([-\d.]+) ([-\d.]+) ([-\d.]+)\) "
+                          r"own=\(([-\d.]+) ([-\d.]+) ([-\d.]+)\)")
+# (A: hips 4.5 units further out, chest holsters 4.5 up; B: hips 4 down, chest 3.5 in: each pair a hand's width or so
+# from the other's and from the defaults)
+HOLSTERSYNC_PREFS = {"A": "vr_hip_offset_y 16; vr_upper_holster_offset_z 13",
+                     "B": "vr_hip_offset_z -4; vr_upper_holster_offset_y 4"}
+HOLSTERSYNC_DEFAULTS = "vr_hip_offset_y 11.5; vr_upper_holster_offset_z 8.5; vr_hip_offset_z 0; vr_upper_holster_offset_y 7.5"
+
+
+def gear_pieces(g, which):
+    """mp_gearpiece lines of a gear_until result -> {(holster, gun|sheath): (x, y, z)}: `which` "at" the copy's own
+    piece in its body's frame, "own" the viewer's own in his."""
+    out = {}
+    for p in g["pieces"] if g else []:
+        m = GEARPIECE_RE.match(p)
+        if m:
+            v = [float(x) for x in m.groups()[2:]]
+            out[(int(m.group(1)), m.group(2))] = tuple(v[:3] if which == "at" else v[3:])
+    return out
+
+
+def holstersync_pair(s, viewer, owner, ev, eo, tries=20):
+    """`viewer` draws `owner`'s copy with `owner`'s own holster places (his settings, sent in his calibration), not his
+    own: each piece within 7 cm of where `owner`'s client has it on his own body (both in their bodies' frames:
+    vr_mp_gearcheck's pieces), and farther than that from the viewer's own (his differ by design)."""
+    label = "%s's copy at %s" % (owner.name, viewer.name)
+    worst, common, gv = None, 0, None
+    for _ in range(tries):  # (a definite end: at most `tries` report pairs, his calibration in by then)
+        gv = gear_until(s, viewer, eo, "%s: drawn" % label)
+        go = gear_until(s, owner, ev, "%s: the owner's own pieces" % label)
+        if gv is None or go is None:
+            return
+        copy, own = gear_pieces(gv, "at"), gear_pieces(go, "own")
+        keys = sorted(set(copy) & set(own))
+        common = len(keys)
+        worst = max((math.dist(copy[k], own[k]) for k in keys), default=None)
+        if common >= 4 and worst is not None and worst <= 0.07:
+            break
+    s.check("%s: its holstered guns and sheaths where %s's own client has them on his body (within 7 cm)" % (
+        label, owner.name), common >= 4 and worst is not None and worst <= 0.07,
+            "%d pieces compared, farthest %s m" % (common, "none" if worst is None else "%.3f" % worst))
+    s.check("%s: not where %s's own sit (his settings differ; before, every copy wore the viewer's): sameprefs 0, "
+            "farthest from his own over 7 cm" % (label, viewer.name),
+            gv["sameprefs"][0] == 0 and gv["place"][0] > 0.07,
+            "sameprefs %d, farthest from the viewer's own %.3f m" % (gv["sameprefs"][0], gv["place"][0]))
+    s.check("%s: on its body, turned with its trunk, two hands (vr_mp_gearcheck ok)" % label, gv["ok"][0] == 1,
+            "hands %d trunk %.1f wrist %.1f tilt %.1f facing %.1f hang %.1f" % (
+                gv["hands"][0], gv["trunk"][0], gv["wrist"][0], gv["tilt"][0], gv["facing"][0], gv["hang"][0]))
+    s.metric("holstersync_%s_at_%s" % (owner.name, viewer.name), {"farthest_m": worst, "pieces": common,
+                                                                   "vs_viewer_m": gv["place"][0]})
+
+
+def holstersync(s):
+    """(holstersync; his words 2026-11-23: "Other players' holster placement should be synced in multiplayer, they should
+    not all share the host's preferences") A (VR) and B (flat) each with holster settings of their own, on a dedicated
+    deathmatch server, B held in front of A (vr_dm_test 23: every holster filled, the same gun in the same holster): each
+    draws the other's copy with the other's own placement (his client's own pieces, within 7 cm), not his own. Then a bot
+    held there: with A's own settings changed it wears the shipped ones, not A's (sameprefs 0, far from A's own); with A
+    back at the defaults (vr_mp_holster_defaults: 0 differ) A's own (sameprefs 1, within 7 cm and 20 degrees)."""
+    srv = s.server(dedicated=True)
+    srv.start()
+    srv.cmd("coop 0; deathmatch 1; noexit 1; fraglimit 0; timelimit %d; skill 1; map %s; vr_mp_status" % (
+        DM_TIMELIMIT, DM_MAP))
+    srv.wait(r"mp_server: map=%s" % DM_MAP, 120, what="the server on %s" % DM_MAP)
+    a = s.client("A").start()
+    b = s.client("B", flat=True).start()
+    a.cmd(s.connect_cmd(a))
+    _, ja = a.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="A joined %s" % DM_MAP)
+    b.cmd(s.connect_cmd(b))
+    _, jb = b.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="B joined %s" % DM_MAP)
+    ea, eb = int(fields(ja)["self"]), int(fields(jb)["self"])
+    a.cmd("name A; " + HOLSTERSYNC_PREFS["A"])
+    b.cmd("name B; " + HOLSTERSYNC_PREFS["B"])
+    since_a = a.mark()
+    srv.cmd("vr_dm_test_who 1; vr_dm_test 23")
+    _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "player B held in front of A")
+    s.check("player B held in front of A (vr_dm_test 23)", "FAIL" not in ready, ready.strip())
+    holstersync_pair(s, a, b, ea, eb)
+    holstersync_pair(s, b, a, eb, ea)
+    if os.environ.get("MP_BOTGEAR_SHOTS"):
+        s.note("screenshot (B sees A's holsters): %s" % b.screenshot("holstersync_A"))
+    srv.cmd("vr_dm_test 0")
+    since_a = a.mark()
+    a.cmd("impulse 100")
+    a.wait(r"mp_frags: .*named=1", 10, since_a, "the bot named at A")
+    bots = []
+    for _ in range(10):
+        bots = sorted(slot for slot in frag_table(a) if slot not in (ea - 1, eb - 1))
+        if bots:
+            break
+        since_c = a.mark()
+        wait_quietly(a, r"mp_frags: ", 5, since_c, "the bot listed at A")
+    s.check("A lists the bot", len(bots) == 1, "%s" % frag_table(a))
+    if not bots:
+        return
+    since_a = a.mark()
+    srv.cmd("vr_dm_test_who 0; vr_dm_test 23")
+    _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "the bot held in front of A")
+    s.check("the bot held in front of A (vr_dm_test 23)", "FAIL" not in ready, ready.strip())
+    g = gear_until(s, a, bots[0] + 1, "the bot: A draws it")
+    if g is not None:
+        s.check("the bot's holsters wear the shipped settings, not A's own (sameprefs 0, farthest from A's over 7 cm)",
+                g["sameprefs"][0] == 0 and g["place"][0] > 0.07 and g["ok"][0] == 1,
+                "sameprefs %d, farthest from A's own %.3f m, ok %d" % (g["sameprefs"][0], g["place"][0], g["ok"][0]))
+    since_a = a.mark()
+    a.cmd(HOLSTERSYNC_DEFAULTS + "; vr_mp_holster_defaults")
+    _, line = a.wait(r"mp_holster_defaults: ", 10, since_a, "A's holsters against the shipped table")
+    s.check("A at the shipped settings: his holsters as the shipped table (vr_mp_holster_defaults: 0 differ)",
+            line.strip().startswith("mp_holster_defaults: 0 of"), line.strip())
+    g = gear_until(s, a, bots[0] + 1, "the bot: A at the defaults draws it")
+    if g is not None:
+        s.check("A at the shipped settings: the bot's holsters as his own (sameprefs 1, within 7 cm and 20 degrees)",
+                g["sameprefs"][0] == 1 and g["asown"][0] == 1 and g["vsown"][0] >= 4 and g["ok"][0] == 1,
+                "sameprefs %d, %d compared, farthest %.3f m, most turned %.1f" % (
+                    g["sameprefs"][0], g["vsown"][0], g["place"][0], g["axis"][0]))
+    srv.cmd("vr_dm_test 0")
+
+
 def botrevolver(s):
     """(vrnotes1122a; his voice note 2026-11-22: a bot wielding the heavy revolver aimed at him and never shot) On a
     dedicated deathmatch server A adds a bot; the server's QC test vr_dm_test 14 arms it: a revolver of its own and shells,
@@ -10388,6 +10509,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             deathmatch(s)
         elif test == "mp_botgear":
             botgear(s)
+        elif test == "mp_holstersync":
+            holstersync(s)
         elif test == "mp_botrevolver":
             botrevolver(s)
         elif test == "mp_deathlook":
@@ -10487,6 +10610,7 @@ SUITE = [
     ("mp_coopbots", ()),
     ("mp_botgrab", ()),
     ("mp_botgear", ()),
+    ("mp_holstersync", ()),
     ("mp_botrevolver", ()),
     ("mp_debugviz", ()),
     ("mp_debugviz_listen", ()),
@@ -10519,7 +10643,7 @@ def in_profile(name, profile):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"])
     tree_base = default_base(REPO)
     ap.add_argument("--base", required=tree_base is None, default=tree_base,
                     help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")
@@ -10588,7 +10712,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"):
+                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

@@ -155,6 +155,7 @@ Flat-screen or VR: choose Dissolution of Eternity in Select Campaign, then join 
 Flat-screen or VR: join a server running a campaign you don't have (e.g. Quoth or Dwell): you are refused with a message naming it, not an error; joining a Quoth server with Quoth installed reconnects once by itself and plays. {test:mp_coop_passive}
 Join a server without Arcane Dimensions after playing an AD map locally: the wrist gadget offers no AD page. {test:mp_coop_bot}
 Dwell's Crystal Lance in a game with another player: he sees the gathering sparks, light and hum at its tip as you charge, and his bolt when he fires. {test:mp_coop_bot}
+In multiplayer with a friend, each of you moves your holsters (VR Settings > Holster Calibration): his copy of you wears your holsters where you put them, yours of him where he put his, never your own places; a bot's holstered guns and sheaths stay at the shipped places whatever your settings. {test:mp_dm_passive}
 
 [12. Recording and dev tools]
 Takes: with OBS running, press TAKE on the wrist gadget, act, press STOP: a small blinking red light in the headset only, then the rating prompt; KEEP renames OBS's file to <date>_<scene>_t01_keep, REJECT moves it to rejected/. Left grip + X then Y marks in and out (vr_take_list shows them); SET UP, knock props about, RETAKE: the scene comes back and a new take starts. {test:takes}
