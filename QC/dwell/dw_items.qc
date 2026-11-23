@@ -347,10 +347,12 @@ void(entity p, float xPacked) DW_UnpackWeaponVariants =
 // sparks (vr_dw_lance_hit_sparks), smoke (vr_dw_lance_hit_smoke) and the bolt's lasting burn (VR_Lightning_Burn).
 float dw_lance_pushes; // (the tests: the props and ragdolls its beams pushed)
 float dw_lance_impacts; // (the tests: its beams' ends drawn on a surface)
+float dw_lance_aim_test; // (the tests: the beam from dw_lance_aim_src along dw_lance_aim_dir, not the hand's: test 225)
+vector dw_lance_aim_src, dw_lance_aim_dir;
 void(float xHand) dw_fire_lance =
 {
-    vector src = VRGetMuzzlePos(xHand);
-    vector dir = VRGetWeaponFireRotFwd(xHand);
+    vector src = dw_lance_aim_test ? dw_lance_aim_src : VRGetMuzzlePos(xHand);
+    vector dir = dw_lance_aim_test ? normalize(dw_lance_aim_dir) : VRGetWeaponFireRotFwd(xHand);
     vector start = src;
     entity ignore = self;
     float push = max(0, cvar_hget(cvarh_vr_dw_lance_push)) * 5; // (a player's bolt pushes 30 / 30: the Lance's 150 / 30)

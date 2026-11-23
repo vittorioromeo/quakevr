@@ -246,6 +246,7 @@ void(float request, entity p) AD_RulesTest =
     if(request == 215) { DW_KamiTest(p); return; } // the Kamikaze chases, bursts near, its explosion drawn: dwell/dw_test.qc
     if(request == 217) { DW_LanceTest(p); return; } // the Crystal Lance as a lance, and as the pistol: dwell/dw_test.qc
     if(request == 224) { DW_ChargeTest(p); return; } // the Crystal Lance's charged shot: dwell/dw_test.qc
+    if(request == 225) { DW_PushTest(p); return; } // the Crystal Lance's beam moves a crate and a ragdoll: dwell/dw_test.qc
     if(request == 218) { DW_RotaryTest(p); return; } // the Rotary Shotgun as a gauntlet, its shell port: dwell/dw_test.qc
     if(request == 216) { DW_StuckTest(p); return; } // d2end: the Sculptor puts a player out of its box: dwell/dw_test.qc
     if(request == 214) { DW_GateTest(p); return; } // Dwell's start: runes placed open walkable gates: dwell/dw_test.qc

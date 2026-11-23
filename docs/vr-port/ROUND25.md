@@ -11591,5 +11591,10 @@ Lance Bolt Linger): `vr_dw_lance_push` 1, `_hit_sparks` 24, `_hit_smoke` 6, `_em
   174.5 before; upright 3.4). Sections 1-8 pass unchanged (the bolt 0.40 from the charge as it fired). Section 6's thrust
   (the head, 1.00 of the line, 5 m/s) printed no embed verdict with vr_debug_embed 1: whether the Lance's stab now stays
   in is not shown by a test (open).
+- **Follow-up**: dwell_lance_test.sh 49/0 (section 6 now checks the tip stab stays in: 1.5 units, vr_debug_axestick's
+  "embedhold: Thunderbolt held by hand 1, N units in"; vr_debug_embed's verdicts go to the screen, not the console).
+  `vr_dw_lance_push` default 4 (120 N s; 1 moved a crate 0.3 units). New vr_ad_test 225 (dwpush: a crate and a ragdoll,
+  their places before and after a test-aimed beam, `dw_lance_aim_test`) is NOT in the suite: unreliable so far (the
+  crate's spot varied between runs, the ragdoll's root bone read 552 units moved, likely through the floor); open.
 - Not verified here: the twist and the glow by eye in a headset; an actual ragdoll or prop pushed by the beam (the push
   path runs: "shot push: kind 4"); a thrown Lance's flight by eye.

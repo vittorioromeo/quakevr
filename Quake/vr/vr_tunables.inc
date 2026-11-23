@@ -1612,7 +1612,7 @@ QVR_TUNABLE(vr_dw_lance_head, "0.55")  // ... where its head starts: the share o
 QVR_TUNABLE(vr_dw_lance_charge, "1")   // ... its shot charged: s the trigger is held before it fires as it is let go (QC dw_items.qc DW_LanceChargeFrame; 0: fires on the pull)
 QVR_TUNABLE(vr_dw_lance_charge_fade, "0.25") // ... a charge let go short: s its sparks, light and hum fade out over (vr_lancecharge.cpp)
 QVR_TUNABLE(vr_dw_lance_bolt, "0.35")  // ... s its fired bolt lingers (vr_lancecharge.cpp beamLife; Quake's beam 0.2)
-QVR_TUNABLE(vr_dw_lance_push, "1")     // ... its beam's push on the props and ragdolls it hits or goes through, times a bolt's for its 150 damage (QC dw_fire_lance, lance3)
+QVR_TUNABLE(vr_dw_lance_push, "4")     // ... its beam's push on the props and ragdolls it hits or goes through, times a bolt's for its 150 damage (QC dw_fire_lance, lance3)
 QVR_TUNABLE(vr_dw_lance_hit_sparks, "24") // ... sparks thrown back off where its beam stops (a wall, a prop, a body; 0 none)
 QVR_TUNABLE(vr_dw_lance_hit_smoke, "6") // ... puffs of smoke there (0 none; its lasting burn on a surface is the lightning gun's)
 QVR_TUNABLE(vr_dw_lance_embed_length, "5") // ... held as a lance, a stab by its head's pointed top stays in: units of it that count as its blade (the swords' depth shares of it: shallow; vr_axestick.cpp)

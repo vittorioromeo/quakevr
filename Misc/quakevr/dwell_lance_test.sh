@@ -106,11 +106,14 @@ check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "main slide: the r
 #    head (vr_dw_lance_head 0.55), its damage times vr_dw_lance_thrust (1.5).
 MOT=C:/OHWorkspace/qvr-agents/$AGENT/scratch; mkdir -p "$MOT"
 printf '0.000 main 0.20 1.10 0.10 -22 0 0\n0.300 main 0.20 1.10 0.10 -22 0 0\n0.450 main 0.20 1.10 -0.60 -22 0 0\n1.200 main 0.20 1.10 -0.60 -22 0 0\n2.000 main 0.20 1.10 0.10 -22 0 0\n' > "$MOT/dwlance_thrust.txt"
-log=$(bash $KIT/run.sh $AGENT -Script "sv_random_seed 7;map vrmelee-recording;wait60;god;notarget;developer 1;vr_debug_embed 1;vr_melee_push 0;vr_dummy_attacks 0;setpos 3.3 -31.2 24 0 90 0;wait30;vr_mock_hand main 0.20 1.10 0.10 -22 0 0;vr_ad_test 207;wait30;vr_mock_fingers main 0 1;vr_mock_play $MOT/dwlance_thrust.txt;wait200;echo dwlance-test: done" \
-    -QuitOn "dwlance-test: done" -Timeout 300 -Filter "dwlance: a thrust|melee event|may stay in|NOT STUCK|rror|exit=" 2>&1 | tr -d '\r')
-echo "$log" | grep -E "dwlance: a thrust|melee event|may stay in|NOT STUCK" | cut -c1-200 | head -5
+log=$(bash $KIT/run.sh $AGENT -Script "sv_random_seed 7;map vrmelee-recording;wait60;god;notarget;developer 1;vr_debug_axestick 1;vr_melee_push 0;vr_dummy_attacks 0;setpos 3.3 -31.2 24 0 90 0;wait30;vr_mock_hand main 0.20 1.10 0.10 -22 0 0;vr_ad_test 207;wait30;vr_mock_fingers main 0 1;vr_mock_play $MOT/dwlance_thrust.txt;wait200;echo dwlance-test: done" \
+    -QuitOn "dwlance-test: done" -Timeout 300 -Filter "dwlance: a thrust|melee event|embedhold: Thunderbolt held|rror|exit=" 2>&1 | tr -d '\r')
+echo "$log" | grep -E "dwlance: a thrust|melee event|embedhold: Thunderbolt held" | cut -c1-200 | head -3
 check $(grep -q "melee event: gun, hand 1, jab" <<<"$log" && echo 1 || echo 0) "thrust: read as a jab (a stab along the pole)"
 check $(grep -qE "dwlance: a thrust, the head \(" <<<"$log" && echo 1 || echo 0) "thrust: landed with the crystal head"
+# (lance3: the thrust by its very tip stays in, shallow: vr_dw_lance_embed_length 5 units, a sword's depth shares of it.)
+din=$(grep -m1 -oE "embedhold: Thunderbolt held by hand 1, [0-9.]+ units in" <<<"$log" | awk '{ print $(NF-2) }')
+check $(awk -v d="$din" 'BEGIN { print (d != "" && d + 0 > 0 && d + 0 <= 5) ? 1 : 0 }') "thrust: the tip stab stayed in, shallow ($din units in)"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "thrust: the run ended on its last line"
 # 7. lancecharge: vr_ad_test 224 (dw_test.qc DW_ChargeTest): let go at half charge (no shot, no cells), the charge time
 #    (vr_dw_lance_charge 1, then 0.5), held charged without a shot, fired as let go (150 to a grunt, 6 cells), no charge
