@@ -840,6 +840,7 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         row(opt::vr_xr_unfocused).advanced(),
         row(opt::vr_xr_unfocused_pause).advanced(),
         row(opt::vr_xr_unfocused_volume).advanced(),
+        row(opt::vr_xr_user_presence).advanced(),
         row(opt::vr_xr_exit_quits).advanced(),
         row(opt::vr_xr_vendor_profiles).advanced(),
         row(opt::vr_xr_log_timing).advanced(),

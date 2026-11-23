@@ -30,6 +30,8 @@ Quest (Standalone preset): cut a group of grunts apart up close: the walls and f
 Quest: after a fight, gibs and limbs far from you thin out after a few seconds; near ones stay. {test:rag_gib}
 Quest: VR Settings > Scaling lists Quest Foveation and Quest Foveation: Dynamic (Foveated Rendering is dimmed on the Quest; on PC the other way round). {test:hub_start}
 Quest (Standalone, Foveation Low by default): in a close fight look for blurry or blocky view edges; the frame rate holds; Foveation Off looks the same in the centre. Change levels and switch Off, Low and Medium mid-game: no crash, no black or stretched eye. {test:quest_gibfight}
+Take the headset off during a single player game for a few seconds, then put it back on: the view freezes and the game pauses while it is off and resumes once it is back on (SteamVR or any runtime with a wear sensor; nothing changes on one without). {test:headset_off}
+On a Steam Frame (or streaming to one), the controllers get their own buttons: A and B on the right, the left d-pad's down and up as X and Y, the left view button or the right menu button opens the menu. {test:hub_start}
 
 [2. Flat screen]
 Flat-screen: stand against a wall with the shotgun in hipfire and look about 25 degrees down: the gun tilts up out of the wall and holds still. {test:flat_wall_settle}

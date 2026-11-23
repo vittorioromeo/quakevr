@@ -583,6 +583,15 @@ void heightFrame(double now, za::String& text)
     text += "\n";
     text += seated() ? "Sit up straight and look ahead.\nHold still." : "Stand up straight and look ahead.\nHold still.";
     text += "\n\n";
+    // The headset off (vr_xr_user_presence): no height read from a headset on a desk; the count starts again once it
+    // is back on (from PR #75, by Kasper Olesen).
+    if(const Backend* b = backend(); b && !b->userPresent() && !flow.got)
+    {
+        text += "Put on your headset to calibrate.";
+        flow.start = flow.anchorAt = now;
+        flow.counted = false;
+        return;
+    }
     if(flow.got)
     {
         text += "got it";

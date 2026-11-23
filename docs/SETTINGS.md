@@ -381,9 +381,11 @@ Handed* on, nothing needs rebinding.
   the left Y opens the menu; under Virtual Desktop's VDXR they are Touch controllers and the left menu button opens
   it. **Vive wands** use the trackpads as
   sticks and their clicks as A/X, and the right menu button as B. **Windows Mixed Reality** controllers use the
-  trackpad clicks as A/X and the right menu button as B. **Pico, Vive Cosmos and Focus 3, HP Reverb G2 and Samsung
-  Odyssey** controllers get their own bindings when the runtime offers their profile (`vr_xr_vendor_profiles 1`,
-  the default), each with its left menu button as the menu.
+  trackpad clicks as A/X and the right menu button as B. **Pico, Vive Cosmos and Focus 3, HP Reverb G2, Samsung
+  Odyssey and Steam Frame** controllers get their own bindings when the runtime offers their profile
+  (`vr_xr_vendor_profiles 1`, the default), each with its left menu button as the menu (the Steam Frame's: the left
+  view button or the right menu button; its left d-pad's down and up are A/X and B/Y there, its bindings by Kasper
+  Olesen, tested on the headset).
 - **Controls that act as a gamepad's** (the left trigger jumps, the grips change weapons, A does nothing): another
   config's gamepad bindings over the VR ones. At each start, after every config (`autoexec.cfg` too), a controller
   with no grab on any of its keys gets the VR bindings again, said in the console (`vr_bindings_guard 1`, the

@@ -43,6 +43,15 @@ articles, talks and other engines' source are credited with where they came from
 | **doomgeneric** (commit `dcb7a8db`, [ozkl/doomgeneric](https://github.com/ozkl/doomgeneric)): Doom with a few platform functions, the wrist gadget's Doom (docs/vr-port/DOOM.md) | ozkl; built on **Chocolate Doom** (Simon Howard and contributors) and the **Doom** source release (id Software, 1997) | GPL-2.0 | `Quake/vr/external/doomgeneric` (upstream's files with small `QVR_DOOM` patches listed in its `README.QVR.md`; `LICENSE`), built into `qvr_doom.dll` with `Quake/vr/doom/qvr_doom_dll.c` |
 | **TrenchBroom** 2026.2's `Quake.fgd` and Quake game configuration ([TrenchBroom](https://github.com/TrenchBroom/TrenchBroom); the FGD by autolycus, CZG and later authors) | the TrenchBroom authors | GPL-3.0 | `Misc/trenchbroom/vendor/Quake.fgd` (unchanged), the base of `Misc/trenchbroom/QuakeVR/GameConfig.cfg` and `quakevr.fgd` (docs/vr-port/MAPPING.md) |
 
+## Contributors
+
+- **Kasper Olesen (kblood)**: the Steam Frame port (PR #75, a native Linux ARM64 + OpenXR build first run on the
+  headset in October 2026). From it: the Steam Frame controller profile (`XR_VALVE_frame_controller_interaction`, its
+  bindings tested on the headset), `-vr-hide-mirror` (no desktop window on a standalone headset) and the pause when
+  the headset is taken off (`XR_EXT_user_presence`, `vr_xr_user_presence`); also the Turnip findings
+  (`TU_DEBUG=sysmem`). His commits keep his authorship, or carry a `Co-authored-by` line where we re-did them on our
+  code.
+
 ## Quake VR (the original port)
 
 - The original Quake VR by Vittorio Romeo. It was built on these ports:
