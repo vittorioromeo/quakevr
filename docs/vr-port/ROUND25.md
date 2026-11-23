@@ -9979,6 +9979,33 @@ His flat feedback 2026-11-23 (the AD lectern hid Quake's; Quoth ladders).
   fallback index 7, VR-hand holds moved to the near sides (-666/-662 catwalk, -1346 pillar): 10/0; flatladder_test.sh
   2/0; hub_start_test 7/0. Scene `quoth_kellbase_ladder`.
 
+## ropes8b: monkey-rope hands, holsters while climbing, quiet chains (agent/ropes8b, 2026-11-23)
+
+His flat notes 2026-11-23, items 9, 10, 12 (11, MP and the rest open, below). ROPES.md "Strung ropes", "Known limits"
+(sounds), "Tests".
+- **Monkey hands (9):** on a level/slanted (monkey) rope or pole the hands were turned as on an upright rope (out
+  sideways: the rope beside the palm, the forearm level, the body's arm stretched off the shoulder). `climb::ropePalm`
+  now puts the palm out from it downwards (square to it), `monkeyRopeUp` picks the rope's way so the palm faces forward
+  and in (overhand: knuckles up, back of the hand to him). Shared: VR, flat, and another player's copy (his hand places
+  from ropePalm; turns from his snapshot, which his own game drew this way). Flat strung test: knuckles up 0.97, palms
+  0.8 under the axis, arm gap 0.0 cm; VR `monkeygrip` in monkey_drop / pole_monkey 7/0. Shots kit scratch
+  ropes8b_monkey1c.png (third person, under the level rope).
+- **Holsters (12):** the hip holsters turned and moved with the thighs (vr_holster_leg_follow), and wrapped round a rope
+  the thighs go up: the guns stood out ahead of the hips (ropes8b_rope1d.png). Climbing (any: `climbHang`, kept in
+  `Posed::climb`) the gear stays on the hips as lying does (Follower::thigh). 42.4 -> 35.4 cm from the hip joints
+  (standing 35.5), guns 6 degrees off the trunk (standing 7). ropes8b_holsters_climb.png.
+- **Chains (10):** clinks came from the fastest point's speed (60 u/s), which a rider's chain keeps over (its free end
+  whipping round with his swing): 4 clinks in 2 s held still. Now `Rope::jostle` (links against their neighbours, a
+  hold taken along it capped at 90, kicks; ridden, the free end left out) over `vr_physsound_chain_knock` 30: still 0,
+  climbing 1-2, a shove 1. A pumped swing on a chain is quiet now (his "only perturbed or climbing" read literally).
+- Tests: rope_flat_test.sh rope 7/0, pole 6/0, strungpole 5/0, chain 5/0 (new), strung 5/0; rope_hands_test 6/0;
+  rope_sound_test 6/0 (the shove after the grips' gap); rope_climb_test monkey_drop 7/0, pole_monkey 7/0, rope_climb
+  11/0. Not run: MP suites.
+- **Open (not done, budget):** 11 chains solid for bullets/nails/melee with sparks (plan: a point-trace clip against
+  the chains' segments in SV_Move for point-size traces from shots and missiles, the chain entity as trace_ent with
+  takedamage and T_DamageImpl's pole return, VR_MaterialOf metal; melee's own traces likewise; careful not to block
+  monsters' sight traces); the MP scenarios (another player on a strung rope / a pole); rope_pump 238 vs 250; ropes8a's
+  open list (flat fingertips 0.44 into a pole, MP clients' pole prediction, one climber passing a pole, props vs poles).
 ## flatmelee: flat bash from the parry's guard; the sword's free hand on its blade in the guard (agent/flatmelee, 2026-11-23)
 
 His feedback 2026-11-23, items 15 and 16. FLATPLAY.md, "Parry guard" (Bash from the guard; Blade grip in the guard).
@@ -10055,6 +10082,44 @@ the damage came in pulses (a shot each 1.4 s). Now:
   Screenshot `qvr-kit/scratch/lancecharge_glow_bolt.png` (charging, then the bolt).
 - Not tested live: another player's charge in a real two-client game (the same message and draw path as yours, the
   copy's weapon from mpavatar).
+
+## capcolour: made weapon models' dark caps drew near-white (agent/capcolour, 2026-11-23)
+
+- **Finding (ROUND25 "dwellrotary"):** the caps that close a made model's holes (`vr_adweapons.cpp` `seal`, the cap
+  rows: Quake's palette index 2, (31,31,31)) and its made parts' dark texels drew nearly white in a bright room. Only
+  `vr_adweapons.cpp` makes such caps: AD's Shadow Axe, Widowmaker and Plasma Gun, Dwell's Rotary (both models), Lance
+  and Rifle (the lance-as-pole keeps its faces open: no caps).
+- **Cause:** not the texel (not fullbright, not the skin bake) but the weapon reflections (`vr_envmap.cpp`, alias
+  shader `ModelRimReflect`): `MetalMask` counts a flat dark grey as fully metal, and the fresnel's floor (f0 0.25 or
+  more, whatever the texel's darkness) mirrors the room over it. Big smooth made faces in a few flat texels show it as
+  one bright mirror. The made models fell to the expansions' default (metal 0.7, lod 3); the Rotary's barrels on
+  Dwell's own metal texels drew just as white, and `vr_weapon_reflections 0` drew them all dark.
+- **Fix:** `weaponMetal` gives every made model (`adweapons::isMade`: "<model>#vr") the Widowmaker's numbers (0.2, lod
+  3.5: his note 2026-10-29 for the same look): `madeMetal`, `madeLod`. Vanilla weapons, the shader and the skins are
+  unchanged; the Rotary's black hole and port (dwellrotary) kept.
+- **Tests:** release build 0 warnings; dwell_vrmodels 13/0, dwell_rotary 3/0; check_mdl_holes on the seven capped made
+  models ok (0 open loops); shots kit `scratch/capcolour_before.png`, `capcolour_before_ad.png` (axe) and
+  `capcolour_after.png` (side and front: axe, Rotary, Lance, Rifle, Rotary setting 0). The Plasma Gun was not caught
+  held by the mock camera (same rule).
+## mpcampaign: a joining client plays the server's campaign (agent/mpcampaign, 2026-11-23)
+
+flatgreen3's open item (a client kept its own campaign: rogue's start.bsp on a Quake server, "Model *43 not found"; its
+Load Autosave list hid the server's coop saves).
+- **Wire:** `QVR_SVC_CAMPAIGN` 57 (the server's active campaign folder), before `QVR_SVC_PACKAGE` and each
+  svc_serverinfo (connect and every changelevel), read whatever protocol the last server had. `QVR_NET_VERSION` 45.
+- **Client** (vr_mpdownload.cpp parseCampaign, the map package's machinery shared: leave, switch, join again, one rejoin
+  per campaign): Quake and its mission packs switch in place (only which start.bsp is read: VR_CheckSpawnCampaignMap's
+  bookkeeping, the hub's choice untouched); a campaign with folders of its own (dopa, mg1, mg3, AD, Dwell, Quoth) leaves,
+  is selected the selector's way (no map, no prompt; the server's gates are its own) and joins again. A campaign whose
+  data is missing, incomplete or another version, or whose language data is incomplete: refused, console and centre
+  print naming it (Host_EndGame, no Host_Error). Disconnected with no rejoin pending: the client's own campaign back (in
+  place or rebuilt; a game started here meanwhile keeps its own). vr_gamedir.cpp: VR_JoinCampaign, VR_LeaveJoinedCampaign.
+- **Coop saves (2):** listed by the server's campaign while joined (the Load Autosave filter reads the active campaign).
+- **Test aid:** `-campaignmissing <folder>` (that campaign taken for one this game lacks, for joins only).
+- **Tests:** `mp_test.py campfollow` (in the suite) 15/0: a rogue client on Quake's start, Quake's on hipnotic's start,
+  Quoth (rejoin), its own campaign back after each leave, a client lacking Quoth refused. mp_harness's
+  `+vr_campaign_select id1` workaround dropped (the games start as a player's would).
+- Release notes not touched: the beta 2 text says network version 44 (now 45).
 ## tutflat: the tutorial's messages in flat-screen play, with the player's own keys (agent/tutflat, 2026-11-23)
 
 His request 2026-11-23 (14): tutorial messages detect flat-screen mode and use flat wording, and show the player's

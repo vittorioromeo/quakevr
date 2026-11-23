@@ -256,13 +256,9 @@ class Instance:
         a += ["+vr_backend", "mock", "+sv_autosave", "0", "+vr_log_flush_frames", "1", "+vr_fixed_frames", "0",
               "+vr_mock_eye_size", "256", "+vr_mp_watch", "1", "+vr_mock_hand_to_absolute", "1", "+vr_mp_room", "0",
               "+vr_mp_clientkey", self.clientkey]
-        # (flatgreen3: without the hub a game keeps the campaign its -game list starts it in, rogue (GAMES' last): the hub
-        # (vrstart) selected Quake's. A client never takes the server's campaign, so on the server's `changelevel start`
-        # it read rogue's start.bsp ("Host_Error: Model *43 not found": mp_predict, mp_predictclimb) and its Load
-        # Autosave list hid the server's Quake coop autosave as another game's (mp_flow). Quake's selected here, as the
-        # hub did, without its map load.)
-        if not self.dedicated and os.environ.get("QVR_MP_STARTMAP") != "1":
-            a += ["+vr_campaign_select", "id1"]
+        # (flatgreen3 selected Quake's campaign here, +vr_campaign_select id1: without the hub a game keeps the one its
+        # -game list starts it in, rogue, and a client kept its own whatever the server ran. mpcampaign: a client takes
+        # the server's (QVR_SVC_CAMPAIGN), so the games start as a player's would; mp_campfollow covers it.)
         a = a + self.extra
         # (B24: the engine's fence, last so nothing in `extra` can take it out)
         return a[:1] + ["-loopbackonly"] + a[1:]
