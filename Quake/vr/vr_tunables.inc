@@ -2188,17 +2188,18 @@ QVR_TUNABLE(vr_flat_parry_cone, "120") // flatscreen: in the guard, any melee bl
 // Flatscreen > Guard Bash and Blade Grip (his notes 2026-11-23: the fire button in the guard bashes, as the headset's bash;
 // a sword's free hand takes its blade near the tip in the guard; vr_flatplay.cpp startBash, bashPose, bladePin; QC VR_FlatBash)
 QVR_TUNABLE(vr_flat_bash, "1") // flatscreen: the fire button pressed in the parry's guard with a melee weapon bashes with it (the headset's bash: knockback, stagger, its damage); 0: it swings out of the guard, as before
-QVR_TUNABLE(vr_flat_bash_wind_time, "0.06") // the bash: seconds the guard is drawn back first
+QVR_TUNABLE(vr_flat_bash_wind_time, "0.15") // the bash: seconds the guard is drawn back first
 QVR_TUNABLE(vr_flat_bash_push_time, "0.07") // seconds the push out takes (0.02..0.5)
 QVR_TUNABLE(vr_flat_bash_hold_time, "0.06") // seconds held out; the bash lands at its end (the smoothed hand all the way out)
 QVR_TUNABLE(vr_flat_bash_recover_time, "0.2") // seconds back to the guard (0.05..1)
 QVR_TUNABLE(vr_flat_bash_anim_speed, "1") // the bash's parts all played this many times faster (0.25..4)
 QVR_TUNABLE(vr_flat_bash_reach, "12") // the guard pushed this far out ahead at the push's end (units; the arm's reach still holds)
-QVR_TUNABLE(vr_flat_bash_wind_back, "4") // and drawn this far back in the windup (units)
+QVR_TUNABLE(vr_flat_bash_wind_back, "8") // and drawn this far back in the windup (units)
 QVR_TUNABLE(vr_flat_bash_cooldown, "0.5") // seconds from one bash (or shove) to the next (at least the whole bash; the game's own bash cooldown holds too)
 QVR_TUNABLE(vr_flat_parry_blade, "1") // flatscreen: in the guard with a weapon held as a sword (a Blade hotspot: swords, the crowbar), the free hand takes the blade near its tip at that hotspot, and lets go as the guard ends (0: it stays where it was)
 QVR_TUNABLE(vr_flat_parry_blade_in_time, "0.12") // seconds the free hand takes to reach the blade (0: at once)
 QVR_TUNABLE(vr_flat_parry_blade_out_time, "0.15") // seconds back to where it was once it lets go (0: at once)
+QVR_TUNABLE(vr_flat_parry_blade_palm, "1") // the free hand on the blade palm down, over it (0: turned the least from how it was: palm up under it)
 
 // Flatscreen > Two-Handed Melee Stance (his notes 2026-11-12: a melee weapon with a two-handed grip is always held in both
 // hands while the other hand is empty; vr_flatplay.cpp twoHandPose, vr_flatsight.cpp carries the free hand onto the grip)
@@ -2377,6 +2378,9 @@ QVR_TUNABLE(vr_flat_swim_takeover_time, "0.12") // seconds a hand's stroke takes
 QVR_TUNABLE(vr_flat_swim_return_time, "0.4") // seconds it takes to come back after
 QVR_TUNABLE(vr_flat_swim_fire_hold, "0.5") // seconds after the trigger is let go before the hand's stroke comes back
 QVR_TUNABLE(vr_flat_swim_turn_time, "0.35") // seconds the stroke takes to change with the way he moves and his speed
+QVR_TUNABLE(vr_flat_swim_cup, "0.15") // a swimming free hand's fingers' curl: open, together, the palm cupped (0 flat open .. 1 a fist)
+QVR_TUNABLE(vr_flat_swim_sound, "0.5") // each stroke's water sound at its power's start (a whoosh under water, a stroke at the surface): its volume (0: none)
+QVR_TUNABLE(vr_flat_swim_bubbles, "1") // the bubbles off the hands through each stroke's power under water: how many (1 as made, 0: none)
 
 // Combat > Embedded Blades: held stabs and swung axes (QC/vr_embedhold.qc; ROUND23.md, "Embedded blades, stage 2")
 // Embedded Blades: Thrown
@@ -2612,3 +2616,5 @@ QVR_TUNABLE(vr_revgrip_pivot_shift, "0.35") // ... units: that pivot this far fr
 QVR_TUNABLE(vr_revgrip_2h_gate, "1") // ... 1: a sword or dagger held in two hands flips (its eject button, the flat FLIP GRIP) only with the other hand on its two-handed grip hotspot (the handle), not anywhere on it or on its blade (his note 2026-11-15; ROUND25.md "flipgate"); 0: always (before)
 QVR_TUNABLE(vr_revgrip_blocked_pulse, "0.25") // ... a refused flip's pulse in the pressing hand (0..1; 0 none)
 QVR_TUNABLE(vr_revgrip_2h_mirror, "1") // ... held reversed, the other hand on its grip hotspot: 1 holds it as it did upright, turned as the holding hand (knuckles out), its place mirrored along the handle (above the hand, blade down; ROUND25.md "flipgrip2"); 0: turned half round with the blade (before)
+QVR_TUNABLE(vr_rope_hand_pitch, "10") // ropes10 (his flat note 2026-11-23): a hand gripping a climbable rope or pole is drawn with its knuckles pitched up this far off square to the rope (degrees, 0..45; the turn towards the world's up, so a monkey traverse's overhand knuckles, already up, are unchanged): VR, flat and other players' copies (vr_climb.cpp ropeTurn)
+QVR_TUNABLE(vr_rope_elbow_out, "1") // ropes10 (his flat note 2026-11-23): on a climbable rope or pole the arms' elbows are posed out to the sides and a little down and back (this share, 0..1, of the elbow's pole; the wrist's swing in eased off as much), not swung in across the face: yours (flat and VR) and other players' copies (vr_avatar.cpp solveArm, ropeHang)

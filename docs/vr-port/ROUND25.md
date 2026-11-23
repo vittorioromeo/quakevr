@@ -10460,3 +10460,72 @@ Follows "flatthrow". Traced with `vr_debug_axestick 3` (a new level-3 line says 
   timed); `vr_msgtokens_test` flat 12/0 (new: the two tips and boards name 'J'), headset 3/0; `flathands_test.sh` 76/0;
   `vr_embed_test 1` 61/0, once 60/1 ("a sword side on bounces off the wall" stuck: its 80-unit flight is inside the grace,
   so not this change; flaky?).
+## flatpolish: hub lecterns in Select Campaign's order; flat swimming's open hands, sounds, bubbles; the parry's palm down (agent/flatpolish, 2026-11-23)
+
+His flat feedback 2026-11-23, items 1, 7, 8. FLATPLAY.md, "Swimming strokes", "Blade grip in the guard".
+- **Hub** (`vrstart_gen.py` CAMPAIGNS): the lecterns west to east in Select Campaign's order (vr_menu.cpp `pageCampaigns`:
+  vr_gamedir.cpp `campaigns[]` by index, then Arena Mode): Quake, Scourge, Dissolution, DotP, DotM, Dawn, AD, Dwell, Quoth,
+  Arena. The "MODS", "MOD AND ARENA" and "Every campaign, and what its data needs" boards removed; the campaign tip's target
+  is Quake's lectern. Rebuilt (final, 592 s; id WAD made locally). hub_start_test 7/0; kit scratch flatpolish_hub.png.
+- **Swimming** (`vr_flatswim.cpp`; `vr_view.cpp`'s finger curls): a free swimming hand open, fingers together, palm a little
+  cupped (`vr_flat_swim_cup` 0.15, by its share of the stroke: `flatswim::openShare`); each stroke's sound as its power
+  starts (`vr_flat_swim_sound` 0.5: the headset's swim_soft / swim_hard whoosh under water, a stroke recording at the
+  surface; client-side, heard in the head); bubbles off the hands through the power under water (`vr_flat_swim_bubbles` 1,
+  `particles::swimBubbles`: additive drops rising, carried mostly with the swimmer: left in the water he passed them
+  unseen). The report's "water:" line. flatswim_test 40/0 (new: hands open 1.00 / 1.00, a sound under water, 14 bubbles in
+  the forward probe, the gun hand closed). flatpolish_swim.png (bubbles as white specks). Not done: surface splash particles.
+- **Parry palm** (`twohand::bladeGripHand`, flat only; `vr_flat_parry_blade_palm` 1): the free hand rolled about the blade to
+  palm down (drawn palm z 0.88 -> -0.98). `steadyOther`'s blend keeps each end's quaternion on last frame's side
+  (`bladeBlend`): the shortest-way slerp flipped near the half turn (148 degrees in a frame at the let-go). VR unchanged (the
+  tracked hand's least turn; no fixed hotspot pose). flatbash_test 16/0 (new palm check; turns 11 in, 20 out). Shared:
+  `flatplay::handFacing` / `palmOf` (the strokes' own handAngles moved there). flatpolish_parry.png.
+## ropes10: pole jumps, no retake in the air, monkey hands keep their sides, elbows out, knuckles up (agent/ropes10, 2026-11-23)
+
+His flat notes 2026-11-23, items 2-6. ROPES.md "Climbing (VR)", "Strung ropes", "Climbing (flat-screen)", "Known
+limits", "Tests".
+- **Pole jump (2):** `vr_pole_jump` 270 (a normal jump) and `vr_pole_jump_push` 200 (rules) for a jump off a pole
+  (`poleJumpPush` in vr_climb.cpp fallFlung, shared by VR and flat): square out from its axis to the body, level (off a
+  slanted pole's upper side that is down its slope); under a level pole the view's way across it. Ropes keep
+  `vr_rope_jump` and their swing.
+- **The slow slide (6):** not the pole boxes nor the ground: flat play took the pole again a second into the fall
+  (`flatRopeRetake` ran out while he still fell beside it), then held him there or, with back or a look down, climbed
+  him down at the keys' speed. Now the rope let go of is not taken again in the air until he has stood on the ground
+  (`flatRopeLeftAir`; water counts). Reproduced with the old jump from 300 up: "TAKEN AGAIN" at 1.00 s; fixed: a free
+  fall, 0 frames held back. VR: held grips don't take it again (a press does); checked (`pole_jump`, grips held).
+- **Monkey hands (3):** facing across a level rope/pole (`flatMonkeyAcross`, within ~37 degrees of square) the hands
+  shuffle and keep their sides (right hand on his right; the lead hand a step on, then the trail up to a step behind);
+  crossed hands swap holds; the take puts the right hand on his right. Facing along it, hand over hand as before.
+  strungside: 0 frames crossed (48 frames, 12 units without it).
+- **Elbows (4):** solveArm on a rope (`ropeHang`, the climbing pose's weight; your body and another player's copy, flat
+  and VR) mixes the elbow's pole towards out at its side, a little down and back, by `vr_rope_elbow_out` (1, tunable),
+  and eases the wrist's swing off by the same share. Flat on a pole: elbows bowed 10.0 cm in off the arm's line -> 0.1
+  out. A straight arm reaching in to the pole still has its elbow inside the shoulder's line (7 cm; 18 before).
+- **Knuckles (5):** `ropeTurn` pitches the fist up `vr_rope_hand_pitch` (10, tunable) towards the world's up (0 on a
+  monkey rope, whose knuckles already point up); VR, flat, and another player's copy through his snapshot's hand turn.
+  Measured 10.0 degrees (0.0 before).
+- Tests: rope_flat_test polejump 7/0, slantjump 6/0, strungside 6/0, pole 7/0 (arms), rope 8/0, strung 5/0, strungpole 5/0;
+  rope_climb_test pole_jump 6/0 (new), rope_climb 11/0, rope_jump 6/0, monkey_jump 7/0, monkey_drop 7/0, pole_monkey 7/0,
+  pole_wood 10/0, pole_metal 10/0 (sink 0.3 with the pitched fist); rope_hands_test 6/0; vr_pole_solid_test 14/0.
+  Not run: MP suites (the copies share the code). Screenshots kit scratch ropes10_pole_before/after.png (low-res mock).
+- Commits: items 2, 3, 6 together (one test file and the take/let-go code); 4 and 5 together (shared tunables, test).
+## promote1123: 51 ticked lines retired, the checklist sorted, his tuning promoted (branch agent/promote1123, 2026-11-23)
+
+- **Checklist:** his 51 ticked lines retired (no voice note against them: his notes since 2026-11-22 all predate the
+  lines, which answer them), with the 11 scenes only they used; the [New] section sorted, near-duplicates merged:
+  194 -> 114 lines (CHECKLIST_REORG.md, "Checklist sort (2026-11-23)"). checklist_tests_check 83 passed, 0 failed.
+- **Promoted** (his proposed_defaults/2026-11-23_11-27-54.cfg, ironwail.cfg and tunables.cfg, read only; 135 settings
+  off the defaults): tunables `vr_flat_bash_wind_time` 0.06 -> 0.15 and `vr_flat_bash_wind_back` 4 -> 8
+  (tune_promote.py; --check now 0); cvars `vr_flat_speed_fov_from` 340 -> 350, `vr_flat_speed_fov_ease` and
+  `_ease_out` 0.15 -> 0.3 (flat speed FOV feel, as 803c3406fc's flat tunables; added after the 217 configs, so no
+  FullConfigChange row; configs are sparse, no configVersion bump); `pose_defaults.py --write`: the death knight's
+  sprayer Idle / Carry (319000, new) and Run (319020) keys; `weapons_data.py promote`: slot 24 bl_near 0.4951 -> 0.495
+  (the other 23 vr_wofs lines differ only by the config's 6-digit rounding). FLATPLAY.md's values updated.
+- **Skipped as personal or state** (as the 11-16 and 11-12 promotions): handedness, height and body calibration,
+  comfort preset, volume, cl_alwaysrun, sensitivity, fov, gamma/contrast, HUD/console/menu scales and the flat menu
+  panel's size and place (his window), crosshair, host_maxfps, vr_xr_runtime, window view and spectator, vr_flat_taa,
+  vr_flat_tp_fov, vr_gore_dents, vr_notes, vr_autosave_list_all, vr_takes_keys, vr_motion_button, toolgun and its rope
+  spawn settings, rig studio, Armour/Texture Studio and Grip Editor sliders (editor state, not archived), run picks and
+  run state, skill, map-set vr_gameplayfix_*, vr_pickup_scale, vr_prop_id_72-77 (no tuning on them), versions, menu
+  positions, tallies, vr_mp_* keys and room, debug aids (scr_showfps, Spawn With a Toolgun, controller preview).
+- **Tests:** flatspeedfov 7/0, flatbash 15/0, tunables_test 13/0, vr_agrunt_test 83 PASS; a default-config run prints
+  each promoted value as its default.

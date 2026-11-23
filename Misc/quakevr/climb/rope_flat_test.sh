@@ -18,6 +18,11 @@
 # `vr_rope_flat_test <mode> shots` (in the console) screenshots the body from outside while hanging.
 # rope_flat_test.sh <agent> wall (ropes8e): vr_flat_rope 0, walked into an upright pole: stopped by its boxes, not taken.
 # rope_flat_test.sh <agent> wallvr (ropes8e): the same with the mock headset (VR play: forward along the view).
+# rope_flat_test.sh <agent> polejump (ropes10): up a pole 300 units, jump: a normal jump up and pushed off it
+#   (vr_pole_jump, vr_pole_jump_push), a free fall to the floor (no frame held back), not taken again in the air.
+# rope_flat_test.sh <agent> slantjump (ropes10): the same off the upper side of a pole slanted 27 degrees.
+# rope_flat_test.sh <agent> strungside (ropes10): the level pole faced across, the strafe keys along it: the hands keep
+#   their sides (the right palm never left of the left one), shuffling.
 AGENT=${1:-posebake}
 MODE=${2:-}
 QT_NAME=rope_flat${MODE:+_$MODE}

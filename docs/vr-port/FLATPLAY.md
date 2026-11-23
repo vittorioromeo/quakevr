@@ -459,8 +459,13 @@ swap and the ironsight take the hand over: its stroke eases out over `vr_flat_sw
 The headset's swimming reads tracked strokes and makes none, so no pose is shared with it; the strokes are flatplay's pose
 framework (`poseHands`, the shoulders, the arm's reach, the hands' angles and their blend). `Misc/quakevr/flatswim_test.sh`
 (vrtesthall's pool: each direction's path and palm, the nail gun's grip in and out of the water, the shot's take-over);
-`flatswim_shots.sh` for screenshots. Not done: the hands stay closed (the flat hands' gripping pose), and the strokes make
-no sound (the headset's stroke sounds are the server's, from tracked hand speed).
+`flatswim_shots.sh` for screenshots. A free swimming hand is drawn open, fingers together and the palm a little cupped
+(`vr_flat_swim_cup` 0.15: the curl of every finger and the thumb, its share of the stroke; `vr_view.cpp`'s finger curls,
+`flatswim::openShare`). Each stroke sounds as its power starts (the cycle at 0.04; `vr_flat_swim_sound` 0.5, louder with
+speed): under water the headset's soft or brisk whoosh (`vr/swim_soft*`, `swim_hard*`), at the surface a stroke's recording
+(`vr/stroke*`), heard in the head (client-side, `audio::playLocal`). Through the power the hands shed bubbles under water
+(`particles::swimBubbles`: small additive drops rising, carried mostly with the swimmer; 16 a second a hand at full speed
+times `vr_flat_swim_bubbles` 1 and the hand's stroke share; a gun hand by its gun share). The report's "water:" line counts both.
 
 **Ladders** (**Ladders**, `vr_flat_ladder`, 1; his request 2026-11-16). A ladder made of individual ledges (the tutorial's
 rungs, any stack of graspable ledges) climbs as a headset's hands climb it, on the same code (`vr_climb.cpp` `flatLadder`,
@@ -961,10 +966,10 @@ pose: the hand leaves the rest for it and comes back after. Debug > Reports: Fla
 ## The speed FOV
 
 `vr_flat_speed_fov 1` (Locomotion > Desktop Screen Play; `vr_flatspeedfov.cpp`): faster than a run along the floor the
-view widens. The multiplier is 1 up to `vr_flat_speed_fov_from` (320, the run), rises on a smoothstep to
-`vr_flat_speed_fov_max` (1.1) at `vr_flat_speed_fov_top` (400: a slide's start, the run plus its boost) and stays
-there above it; `vr_flat_slide_fov_bonus` (0) adds to it while sliding. It eases towards the speed's value with time
-constant `vr_flat_speed_fov_ease` (0.15 s) widening and `vr_flat_speed_fov_ease_out` (0.6 s) narrowing, so landing,
+view widens. The multiplier is 1 up to `vr_flat_speed_fov_from` (350, a little over the run), rises on a smoothstep to
+`vr_flat_speed_fov_max` (1.2) at `vr_flat_speed_fov_top` (420) and stays
+there above it; `vr_flat_slide_fov_bonus` (0.15) adds to it while sliding. It eases towards the speed's value with time
+constant `vr_flat_speed_fov_ease` (0.3 s) widening and `vr_flat_speed_fov_ease_out` (0.3 s) narrowing (his values, 2026-11-23), so landing,
 stopping or hitting a wall never pops it. The speed is the client's (`cl.velocity`), so a slide and a bunny hop chain
 both get it, hosting or joined.
 
@@ -1250,8 +1255,8 @@ E). 0: the old way (the hand hanging while held, off at once). Test: `Misc/quake
 **Bash from the guard** (his notes 2026-11-23, item 15: "pressing fire while holding the parry button with a melee weapon
 performs a bash"; `vr_flat_bash` 1): the weapon hand's fire button pressed in the guard (asked for) bashes instead of
 swinging out of it (`flatplay::startBash`, from `pollKeys`). It runs on the shove's clock (one or the other at a time, the
-shove's `shoveFrame` and smoothing), with its own parts: drawn back `vr_flat_bash_wind_back` (4 units) over `_wind_time`
-(0.06 s), pushed straight out `_reach` (12 units, within the arm's reach) over `_push_time` (0.07), held `_hold_time` (0.06)
+shove's `shoveFrame` and smoothing), with its own parts: drawn back `vr_flat_bash_wind_back` (8 units) over `_wind_time`
+(0.15 s; his values, 2026-11-23), pushed straight out `_reach` (12 units, within the arm's reach) over `_push_time` (0.07), held `_hold_time` (0.06)
 and back to the guard over `_recover_time` (0.2), all `_anim_speed` (1) times faster; next one after `_cooldown` (0.5 s, at
 least the whole bash). The guard stays up through it (`parryAsked`), and the push is drawn over the guard (`bashPose`).
 At the hold's end (the smoothed hand all the way out) the engine sends `impulse 58` (off hand) / `59` (main), and QC
@@ -1270,7 +1275,10 @@ before `vr_twohand`) over `vr_flat_parry_blade_in_time` (0.12 s, eased) and back
 `applySword` takes the half-sword grip there (the headset's: the drawn hand slid onto the blade, the game's two-handed hold
 and its bits) only while the guard asks for it, switching off the stance's grip if held there, and lets go as it ends
 ("the flat guard ended"). The drawn hand is turned onto the blade over the grip's blend on the flat screen
-(`steadyOther`; at once it turned 73 degrees in a frame, now 7 in and 12 out). Weapons without a Blade hotspot (axes,
+(`steadyOther`; at once it turned 73 degrees in a frame, now 7 in and 12 out). Palm down over the blade
+(`vr_flat_parry_blade_palm` 1; his note 2026-11-23: it was palm up under it): `twohand::bladeGripHand` rolls the hand about
+the blade (its grip staying along it) to the palm down, flat screen only (a headset's keeps the tracked hand's roll); the
+blend's quaternions kept on last frame's side (`steadyOther`'s `bladeBlend`) so the near half turn never flips (11 in, 20 out). Weapons without a Blade hotspot (axes,
 Mjolnir, the chainsaw) leave the free hand where it was. Debug > Tunables > Flatscreen > Guard Bash and Blade Grip;
 `vr_flatplay_status` prints "guard bash:" and two "blade grip:" lines (the free hand off the hotspot, posed and drawn);
 `vr_flatplay_debug 1` the bash's start and the blade's take. Test: `Misc/quakevr/flatbash_test.sh <agent>`; scene `flat_parry`.

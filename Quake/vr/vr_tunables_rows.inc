@@ -2185,6 +2185,7 @@ QVR_TUNABLE_SLIDER(vr_flat_bash_cooldown, "Bash Cooldown", 0.f, 3.f, 0.05f, "%.2
 QVR_TUNABLE_SLIDER(vr_flat_parry_blade, "Guard Takes The Blade", 0.f, 1.f, 1.f, "%.0f", 0.f, 1.f, "Flatscreen: in the guard with a weapon held as a sword (swords, the crowbar), the free hand takes the blade near its tip at its Blade hotspot, and lets go as the guard ends (vr_flat_parry_blade).")
 QVR_TUNABLE_SLIDER(vr_flat_parry_blade_in_time, "Blade Grip In Time", 0.f, 1.f, 0.01f, "%.2f s", 0.f, 1.f, "Flatscreen: seconds the free hand takes to reach the blade; 0 at once (vr_flat_parry_blade_in_time).")
 QVR_TUNABLE_SLIDER(vr_flat_parry_blade_out_time, "Blade Grip Out Time", 0.f, 1.f, 0.01f, "%.2f s", 0.f, 1.f, "Flatscreen: seconds back to where it was once it lets go; 0 at once (vr_flat_parry_blade_out_time).")
+QVR_TUNABLE_SLIDER(vr_flat_parry_blade_palm, "Blade Grip Palm Down", 0.f, 1.f, 1.f, "%.0f", 0.f, 1.f, "Flatscreen: the free hand on the blade palm down, over it; 0 turned the least from how it was (vr_flat_parry_blade_palm).")
 QVR_TUNABLE_GROUP("Flatscreen > Two-Handed Melee Stance")
 QVR_TUNABLE_SLIDER(vr_flat_melee_2h, "Two-Handed Melee Stance", 0.f, 1.f, 1.f, "%.0f", 0.f, 1.f, "Flatscreen: a melee weapon swung by a handle (axe, swords, crowbar, Mjolnir, super axe) is held in both hands, the free hand on its grip, while the other hand is empty; dual wielding or holding a prop, the one-handed hold. 0: one hand, as before (vr_flat_melee_2h).")
 QVR_TUNABLE_SLIDER(vr_flat_melee_2h_time, "Stance Blend Time", 0.f, 2.f, 0.01f, "%.2f s", 0.f, 2.f, "Flatscreen: seconds from the one-handed hold into the two-handed stance and back; 0 at once (vr_flat_melee_2h_time).")
@@ -2354,6 +2355,9 @@ QVR_TUNABLE_SLIDER(vr_flat_swim_takeover_time, "Swim: Take-Over Time", 0.01f, 1.
 QVR_TUNABLE_SLIDER(vr_flat_swim_return_time, "Swim: Blend Back Time", 0.01f, 2.f, 0.01f, "%.2f s", 0.01f, 4.f, "Seconds the stroke takes to come back after (vr_flat_swim_return_time).")
 QVR_TUNABLE_SLIDER(vr_flat_swim_fire_hold, "Swim: After a Shot", 0.f, 2.f, 0.05f, "%.2f s", 0.f, 3.f, "Seconds after the trigger is let go before the gun hand's stroke comes back (vr_flat_swim_fire_hold).")
 QVR_TUNABLE_SLIDER(vr_flat_swim_turn_time, "Swim: Stroke Change Time", 0.02f, 2.f, 0.02f, "%.2f s", 0.02f, 4.f, "Seconds the stroke takes to change with the way you move and your speed (vr_flat_swim_turn_time).")
+QVR_TUNABLE_SLIDER(vr_flat_swim_cup, "Swim: Hand Cup", 0.f, 1.f, 0.02f, "%.2f", 0.f, 1.f, "A swimming free hand's fingers' curl: open and together, the palm cupped; 0 flat open, 1 a fist (vr_flat_swim_cup).")
+QVR_TUNABLE_SLIDER(vr_flat_swim_sound, "Swim: Stroke Sound", 0.f, 1.f, 0.05f, "%.2f", 0.f, 1.f, "Each stroke's water sound as its power starts (a whoosh under water, a stroke at the surface): its volume; 0 none (vr_flat_swim_sound).")
+QVR_TUNABLE_SLIDER(vr_flat_swim_bubbles, "Swim: Bubbles", 0.f, 3.f, 0.1f, "%.1f", 0.f, 5.f, "Bubbles off the hands through each stroke's power under water: how many; 1 as made, 0 none (vr_flat_swim_bubbles).")
 
 QVR_TUNABLE_GROUP("Combat > Embedded Blades > Thrown")
 QVR_TUNABLE_SLIDER(vr_embed_sword_speed, "Thrown Sword: Least Speed", 0.5f, 10.f, 0.25f, "%.2f m/s", 0.f, 30.f, "How fast a thrown sword's tip must go into what it meets to stick. Slower: it bounces.")
@@ -2590,3 +2594,7 @@ QVR_TUNABLE_SLIDER(vr_revgrip_pivot_shift, "Flip Pivot Shift", -2.0f, 2.0f, 0.05
 QVR_TUNABLE_CYCLE(vr_revgrip_2h_gate, "Two-Handed Flip", "Held in two hands, a sword or dagger flips its grip (the eject button) only when your other hand is on its handle too (its two-handed grip): Handle Only refuses the flip while the other hand holds it anywhere else or by its blade (a short, light pulse says so). Always: it flips however it is held (before).", {0.0f, "Always"}, {1.0f, "Handle Only"})
 QVR_TUNABLE_SLIDER(vr_revgrip_blocked_pulse, "Refused Flip Pulse", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "A refused flip's pulse in the hand pressing the button (0: none).")
 QVR_TUNABLE_CYCLE(vr_revgrip_2h_mirror,"Reversed Two-Handed Hand", "Held blade down, your other hand on its two-handed grip: As the Holding Hand holds it as it did upright (knuckles away from you, thumb up), on top of the holding hand (the grip's place mirrored along the handle). Turned with the Blade: the hand turned half round with the blade (before: knuckles towards you).", {0.0f, "Turned with the Blade"}, {1.0f, "As the Holding Hand"})
+
+QVR_TUNABLE_GROUP("Movement > Other")
+QVR_TUNABLE_SLIDER(vr_rope_hand_pitch, "Rope Grip Knuckles Up", 0.f, 45.f, 1.f, "%.0f deg", 0.f, 45.f, "Climbable ropes and poles: a hand gripping one is drawn with its knuckles pitched up this far off square to the rope (VR, flatscreen and other players; vr_rope_hand_pitch).")
+QVR_TUNABLE_SLIDER(vr_rope_elbow_out, "Rope Climb Elbows Out", 0.f, 1.f, 0.05f, "%.2f", 0.f, 1.f, "Climbable ropes and poles: how much the elbows are posed out to the sides (a little down and back) instead of swinging in across the face (yours and other players; vr_rope_elbow_out).")

@@ -120,7 +120,32 @@ for case, want in EXPECT.items():
         check(abs(off["out"][0] - main["out"][0]) < 0.03 and abs(off["out"][1] - main["out"][1]) < 0.03,
               f"dirs {case}: the hands mirrored (out off {off['out']} main {main['out']})")
 
+def water(lines):
+    """The report's water line: (stroke sounds, last kind, bubbles, open main, open off), or None."""
+    for l in lines:
+        m = re.match(r"^flatswim: water: (\d+) stroke sounds \(last ([a-z ]+);.*?, (\d+) bubbles .*?hands open main "
+                     r"([\d.]+) off ([\d.]+)", l)
+        if m:
+            return int(m[1]), m[2], int(m[3]), float(m[4]), float(m[5])
+    return None
+
+
+# The water's sounds and bubbles (vr_flat_swim_sound, vr_flat_swim_bubbles; his note 2026-11-23), the open hands
+# (vr_flat_swim_cup): the counts are the run's, so each case's against the one before it.
+w0, w1 = water(dirs.get("still", [])), water(dirs.get("forward", []))
+check(w0 is not None and w0[3] > 0.95 and w0[4] > 0.95,
+      "dirs still: both free hands drawn open for the stroke (open main %.2f off %.2f)" % ((w0[3], w0[4]) if w0 else (0, 0)))
+check(w0 is not None and w1 is not None and w1[0] - w0[0] >= 1 and w1[1] == "under water",
+      "dirs forward: a stroke's sound under water as its power starts (%s sounds, last %s)" %
+      ((w1[0] - w0[0], w1[1]) if w0 and w1 else ("?", "?")))
+check(w0 is not None and w1 is not None and w1[2] - w0[2] >= 4,
+      "dirs forward: bubbles off the hands through the strokes' power (%s)" % ((w1[2] - w0[2]) if w0 and w1 else "?"))
+
 two = cases("twohand")
+ww = water(two.get("water", []))
+check(ww is not None and ww[3] == 0.0 and ww[4] > 0.95,
+      "twohand water: the gun hand stays closed on its gun, the free hand open (open main %.2f off %.2f)" %
+      ((ww[3], ww[4]) if ww else (0, 0)))
 
 
 def stance(lines):

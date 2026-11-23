@@ -1505,6 +1505,27 @@ bool bladeGripHand(const hands::State& s, int hand, const glm::vec3& holderPos, 
         return false;
     }
     bladeGripOn(slot, holding, s.muzzle[holding], s.visualRot[holding], holderPos, holderRot, pos, rot);
+    // Flatscreen play's guard (vr_flat_parry_blade_palm; his note 2026-11-23: the palm was up, under the blade): rolled
+    // about the blade, its grip staying along it, to the palm down, the hand over it. A headset's hand keeps the tracked
+    // hand's roll (the least turn above).
+    if(flatplay::active() && vr_flat_parry_blade_palm.value != 0.f)
+    {
+        const glm::vec3 d = bladeDirection(slot, holding, s.visualRot[holding]);
+        glm::vec3 f, r, u;
+        hands::angleVectors(rot, f, r, u);
+        const glm::vec3 palm = hand == HAND_OFF ? r : -r;
+        const glm::vec3 down{0.f, 0.f, -1.f};
+        const glm::vec3 p = palm - d * glm::dot(palm, d), want = down - d * glm::dot(down, d);
+        if(glm::length(p) > 1e-3f && glm::length(want) > 1e-3f)
+        {
+            const glm::vec3 pn = glm::normalize(p), wn = glm::normalize(want);
+            const float c = za::clamp(glm::dot(pn, wn), -1.f, 1.f), sn = glm::dot(glm::cross(pn, wn), d);
+            const auto roll = [&](const glm::vec3& v) { return v * c + glm::cross(d, v) * sn + d * glm::dot(d, v) * (1.f - c); };
+            const glm::vec3 onAxis = s.muzzle[holding] + d * glm::dot(pos - s.muzzle[holding], d);
+            pos = onAxis + roll(pos - onAxis);
+            rot = hands::anglesFromVectors(roll(f), roll(u));
+        }
+    }
     return true;
 }
 
