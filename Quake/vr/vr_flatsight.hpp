@@ -39,6 +39,9 @@ void init();
 // flatplay::frame: the mouse wheel's button edge (K_MOUSE3), once a frame.
 void frame();
 
+// vr_test_reset (a batched test case's start): the ironsight's toggle off and every travel undone, as at start-up.
+void testReset();
+
 // flatplay::poseHands: the grip (the empty hand onto the held weapon's hotspot), the two-handed machinery over it, and
 // the centring of the held weapon on the crosshair. `reach` is flatplay's E reach for the empty hand
 // (its own view-frame offset), so a force grab still reaches out. Safe to call with nothing held: it says so and

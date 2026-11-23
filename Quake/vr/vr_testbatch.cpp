@@ -25,6 +25,8 @@
 //                              localcmd, run meanwhile, as after a lone run's script) until a line since
 //                              vr_test_quiton matched, at most <ticks> server ticks (running out is silent: the run's
 //                              own waitN ran out)
+//   vr_waitquiton <ticks> wait a closing waitN followed by the run's quit: waits as <ticks> "wait"s (what QC queues
+//                              meanwhile runs after it, as in the lone run), ended early by the match
 
 #include "vr_testbatch.hpp"
 #include "vr_seat.hpp"
@@ -33,6 +35,7 @@
 #include "vr_cvars.hpp"
 #include "vr_cvars_util.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatsight.hpp"
 
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -659,6 +662,7 @@ void reset_f()
     }
     releaseButtons();
     resetMockState();
+    flatsight::testReset(); // (the ironsight's toggle, vr_flat_aim's: a button that is not a +command)
     srand(1); // (the client's effects' rand(): as a new game's, which never seeds it)
     quitOnDisarm();
 }
@@ -833,12 +837,27 @@ void waitPrint_f()
 // vr_waitquiton holds the rest of the batch's commands aside (not a "wait": the game's own commands, QC's localcmd,
 // must still run meanwhile, as after the end of a script run alone) and puts them back at the server tick
 // (VR_TestTick) after the pattern matched or <ticks> ticks.
+// "vr_waitquiton <ticks> wait" is a run's closing waitN instead: a wait (at the head of the buffer, so what QC queues
+// meanwhile runs after it, as behind a lone run's waits) that ends at once when the pattern matched.
 void waitQuitOn_f()
 {
-    if(Cmd_Argc() != 2)
+    const bool waitMode = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "wait");
+    if(Cmd_Argc() != 2 && !waitMode)
     {
-        Con_Printf("vr_waitquiton <ticks>: holds the commands after it until a console line since vr_test_quiton matched "
-                   "its pattern, at most <ticks> server ticks (as \"wait\" counts)\n");
+        Con_Printf("vr_waitquiton <ticks> [wait]: holds the commands after it until a console line since vr_test_quiton "
+                   "matched its pattern, at most <ticks> server ticks (as \"wait\" counts); \"wait\": waits as <ticks> "
+                   "\"wait\"s would, ended early by the match\n");
+        return;
+    }
+    if(waitMode)
+    {
+        const int left = Q_atoi(Cmd_Argv(1));
+        if(quitOn.matched || left <= 0)
+        {
+            return;
+        }
+        Cbuf_InsertText(va("vr_waitquiton %d wait", left - 1));
+        cmd_wait = true;
         return;
     }
     if(!quitOn.armed || quitOn.matched || quitOn.holding)

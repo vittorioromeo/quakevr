@@ -4,6 +4,7 @@ using QuakeVR.Installer.Core.Detection;
 using QuakeVR.Installer.Core.Packaging;
 using QuakeVR.Installer.Core.Platform;
 using QuakeVR.Installer.Core.Prerequisites;
+using QuakeVR.Installer.Core.Quest;
 using QuakeVR.Installer.Core.Shortcuts;
 
 // qvr-setup <command> [options]. Never writes the real desktop or Start menu: shortcuts go only into --shortcuts-dir.
@@ -55,6 +56,14 @@ const string Usage = """
     qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]
     qvr-setup verify --target <dir>
     qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--file <vc_redist.x64.exe>] [--assume-missing]] [--downloads <dir>]
+    qvr-setup quest (--target <install dir> | --sandbox <dir>) [--apk <QuakeVR.apk>] [--quake <dir>] [--serial <adb serial>]
+                    [--adb <adb.exe> | --no-fetch] [--downloads <dir>] [--no-stores] [--dry-run]
+                      (the Quest target, from an install: the APK (install -r, skipped when the same), then the game's
+                       files, id1, the expansions and mods the PC game reads, copied where the headset lacks them or holds
+                       another version; nothing on the headset is deleted. adb: --adb, the downloads folder's
+                       platform-tools, PATH, the Android SDK, else Google's platform-tools fetched from dl.google.com.
+                       --dry-run: the file list only, no adb. Exit 2: the headset is not ready (the message says why))
+    qvr-setup quest-devices [--adb <adb.exe> | --no-fetch] [--serial <s>]   (what adb sees; exit 0 when one Quest is ready)
     qvr-setup download --url <url> [--url <mirror>...] --out <file> [--size <bytes>] [--sha256 <hex>]
     qvr-setup feed [--url <latest.json url>]                  (default: QVR_SETUP_FEED, else the release hosts' feeds)
     qvr-setup feed --file <latest.json> [--assets <folder with its files>] [--hosted <component>]...
@@ -136,6 +145,24 @@ InstallDetection FindInstall(Sandbox? sandbox, string? chosen) => InstallDetecti
 
 string DownloadsDir(Sandbox? sandbox) => Opt("downloads") ?? sandbox?.Downloads
     ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "QuakeVR-Installer", "downloads");
+
+// adb for the Quest target: --adb, the downloads folder's platform-tools, PATH, the Android SDK; else Google's
+// platform-tools fetched into the downloads folder (--no-fetch: never).
+async Task<string> FindOrFetchAdb(Sandbox? sandbox)
+{
+    var cache = DownloadsDir(sandbox);
+    if (AdbLocator.Find(Opt("adb"), cache) is { } found)
+    {
+        return found;
+    }
+    if (Opt("adb") is not null || Flag("no-fetch"))
+    {
+        throw new InstallException(Opt("adb") is { } a ? $"no adb at {a}" : "no adb found (--no-fetch)");
+    }
+    using var http = Downloader.CreateClient();
+    return await AdbLocator.FetchAsync(http, cache, new SyncProgress<InstallProgress>(p => { if (p.Log is not null) { Console.WriteLine(p.Log); } }),
+        CancellationToken.None, verifier: new AuthenticodeVerifier());
+}
 
 // The window's download path: the file the feed (or the built-in HD textures) names, with Range resume, size, SHA-256.
 async Task<string> Fetch(HttpClient http, string downloads, string what, FeedFile file)
@@ -646,6 +673,70 @@ try
             }, log, CancellationToken.None);
             Console.WriteLine($"{result.Outcome}: {result.Message}");
             return result.RuntimeReady || result.Outcome == VcRedistOutcome.DryRun ? 0 : 1;
+        }
+        case "quest-devices":
+        {
+            var adbPath = await FindOrFetchAdb(null);
+            var status = new QuestInstaller(new ProcessAdb(adbPath)).Detect(Opt("serial"));
+            Console.WriteLine($"adb: {adbPath}");
+            foreach (var d in status.All)
+            {
+                Console.WriteLine($"  {d.Serial}  {d.State}  {d.Model}");
+            }
+            Console.WriteLine($"{status.State}: {status.Message}");
+            return status.Ready ? 0 : 2;
+        }
+        case "quest":
+        {
+            // The Quest target: from an install (the PC's, or a Quest-only staging folder made by qvr-setup install).
+            var sandbox = Opt("sandbox") is { } qsb ? new Sandbox(qsb) : null;
+            var dir = Opt("target") ?? sandbox?.Target ?? throw new ArgumentException("--target (or --sandbox) is required");
+            var record = InstallRecord.Load(dir) ?? throw new InstallException($"no Quake VR install in {dir}");
+            var quake = Opt("quake") ?? record.QuakeDir;
+            var files = QuestFiles.Plan(dir, quake, Flag("no-stores") ? [] : ExpansionDetector.StoreRoots(new QuakeDetector(new WindowsSystemProbe())));
+            Console.WriteLine($"{files.Count} files for the Quest ({PathUtil.FormatSize(files.Sum(f => f.Size))}) from {dir} and {quake}:");
+            foreach (var g in files.GroupBy(f => f.What).OrderBy(g => g.Key, StringComparer.Ordinal))
+            {
+                Console.WriteLine($"  {g.Key,-12} {g.Count(),5} files  {PathUtil.FormatSize(g.Sum(f => f.Size))}");
+            }
+            var apk = Opt("apk") ?? QuestTarget.LocalApk(Environment.ProcessPath) ?? throw new ArgumentException("--apk <QuakeVR.apk> is required");
+            if (Flag("dry-run"))
+            {
+                Console.WriteLine($"dry run: {apk} and these files would go to {QuestFiles.DeviceRoot}");
+                return 0;
+            }
+            var adbPath = await FindOrFetchAdb(sandbox);
+            Console.WriteLine($"adb: {adbPath}");
+            var installer = new QuestInstaller(new ProcessAdb(adbPath));
+            try
+            {
+                var lastStatus = "";
+                var result = installer.Install(new QuestPlan { ApkPath = apk, Files = files, Serial = Opt("serial") },
+                    new SyncProgress<InstallProgress>(p =>
+                    {
+                        if (p.Log is not null)
+                        {
+                            Console.WriteLine($"\r{p.Log}");
+                        }
+                        else if (p.Status != lastStatus || p.Fraction >= 1)
+                        {
+                            lastStatus = p.Status;
+                            Console.Write($"\r{p.Fraction * 100,5:0.0}%  {p.Status}".PadRight(100));
+                        }
+                    }), CancellationToken.None);
+                Console.WriteLine($"\nquest: {result.Device}: app {(result.ApkInstalled ? "installed" : "unchanged")}, {result.Pushed} files copied " +
+                                  $"({PathUtil.FormatSize(result.PushedBytes)}), {result.Skipped} unchanged");
+                return 0;
+            }
+            catch (QuestDeviceException e)
+            {
+                Console.Error.WriteLine($"quest: {e.Message}");
+                foreach (var (step, i) in QuestTarget.SetupSteps.Select((s, i) => (s, i)))
+                {
+                    Console.Error.WriteLine($"  {i + 1}. {step}");
+                }
+                return 2;
+            }
         }
         case "download":
         {

@@ -268,7 +268,7 @@ at the end rather than one a case (mapflameburn_test.sh, throw_spin_test.sh).
 ### Batching a suite, -QuitOn and -NoDraw (testbatch2, 2026-11-22)
 
 - **-QuitOn is batched.** A case's `-QuitOn <regex>` no longer makes it a game of its own: testbatch.py arms the pattern
-  at the case's start (`vr_test_quiton "<regex>"`, engine) and turns the case's closing `waitN` into `vr_waitquiton N`,
+  at the case's start (`vr_test_quiton "<regex>"`, engine) and turns the case's closing `waitN` into `vr_waitquiton N wait`,
   which ends at the first console line since then that matches (a script with no closing quit, the agrunt cases' shape,
   waits until its `-Timeout`). The case's header reads `exit=quit-on (the log matched '...')` as run.sh's does. The
   engine matches run.ps1's (.NET, case-insensitive) patterns as far as the tests use them: literals, `. ^ $`, `[..]`
@@ -277,9 +277,12 @@ at the end rather than one a case (mapflameburn_test.sh, throw_spin_test.sh).
 - **The clock:** a run alone (kit fast mode, since 2026-10-25) plays `vr_fixed_frames 1` at its default rate, 72 (a
   tick a frame); the batches' default `TB_RATE` is still 250 (the old real-time runs'). A suite converted since sets
   `export TB_RATE=${TB_RATE-72}` so its batch plays what `TB_SLOW=1` plays (and 3.5 times fewer frames).
-- **vr_waitquiton holds, it doesn't wait:** the commands after it are taken out of the buffer and put back at the tick
-  after the match, so what QC queues meanwhile (localcmd) runs at once, as after a lone run's script (with a plain
-  `wait` loop it queued behind the rest of the batch: flatitems' cases all timed out).
+- **Two forms, as the lone run behaves** (testbatch3): a closing `waitN` becomes `vr_waitquiton N wait`, a wait at the
+  head of the buffer that the match ends early (what QC queues meanwhile runs after it, as behind the lone run's
+  waits); a script with no closing quit then gets `vr_waitquiton <forever>`, which holds: the commands after it are taken
+  out of the buffer and put back at the tick after the match, so what QC queues meanwhile (localcmd) runs at once, as
+  after a lone run's script (with a plain `wait` loop there it queued behind the rest of the batch: flatitems' cases all
+  timed out). `vr_test_reset` also turns flatscreen's ironsight toggle off (`vr_flat_aim`: not a +command).
 - **-Low** is ignored in a batch (the copies run below normal priority anyway), so a `-Low` run batches.
 - **Converting a bash suite:** `source "$(dirname "$0")/testbatch/testbatch.sh"` after qvrtest.sh; the part from the
   first run to `verdict` into `tb_body() { ... }`; `bash $KIT/run.sh $AGENT` -> `tb_run_sh`; then

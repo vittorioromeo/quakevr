@@ -44,9 +44,8 @@ source "$(dirname "$0")/testbatch/testbatch.sh"
 # (the batch at run.sh's own clock: vr_fixed_frames_rate 72, a tick a frame, as each run alone; and the collect
 # pass without its awk/grep checks)
 export TB_RATE=${TB_RATE-72} TB_COLLECT_STUBS=${TB_COLLECT_STUBS-2}
-# (a game for each case: a case's "tune vr_flat_gun_near 999" after an earlier case's tune_reset in the same game read
-# 24, not its 60 clamp; testbatch2, 2026-11-22, open)
-export TB_ISOLATE=${TB_ISOLATE-1}
+#  (Many cases a game since testbatch3: vr_test_reset turns the ironsight toggle off. An earlier case's "vr_flat_aim 1"
+#  left it on, and the pose case's "within 60 of his head" read 24, vr_flat_ads_near, the ironsight's distance.)
 HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
 tb_body() {
 for MODE in locked feel; do

@@ -1,7 +1,7 @@
 #!/bin/bash
 # voreshove_test.sh <agent>: a vore spawned touching the player (vrtesthall, god, the author's shove settings), the
 # player walking into it for ~35 s of game time (margin: at Body Inset 4 the vores stand closer and die to their own splash, 3-4 shoves in 20 s): it must shove him again and again (ROUND22.md, "The vore never
-# shoves"), not only throw balls. Fails below 4 shoves (before the fix: 2, one at the start and one 16 s later).
+# shoves"), not only throw balls. Ends on "voreshove: N passed, M failed". Fails below 4 shoves (before the fix: 2, one at the start and one 16 s later).
 AGENT=${1:?worktree name}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 TREE=C:/OHWorkspace/qvr-agents/$AGENT
@@ -25,9 +25,11 @@ OFFPEAK=$(grep "shoves the player" "$OUT" | grep -vc "(frame 40)" || true)
 echo "blows off the peak frame (40): $OFFPEAK"
 if [ "$SHOVES" -lt 4 ] || [ "$OFFPEAK" -gt 0 ]; then
     echo "VORE SHOVE FAILED"
+    echo "voreshove: 0 passed, 1 failed"
     exit 1
 fi
 echo "VORE SHOVE PASSED"
+echo "voreshove: 1 passed, 0 failed"
 }
 source "$(dirname "$0")/testbatch/testbatch.sh"
 tb_main "$AGENT" tb_body "$@"
