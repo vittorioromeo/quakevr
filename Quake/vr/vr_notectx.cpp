@@ -75,8 +75,7 @@ struct ModelName
 constexpr ModelName variantNames[] = {{"progs/v_shadaxe3.mdl#vr", "Shadow Axe"}, {"progs/v_shot3.mdl#vr", "Widowmaker"},
     {"progs/v_plasma.mdl#vr", "Plasma Gun"}, {"progs/dw_shot3.mdl#vr", "Rotary Shotgun"},
     {"progs/dw_rotary.mdl#vr", "Rotary Shotgun"},
-    {"progs/dw_rail.mdl#vr", "Crystal Lance"}, {"progs/dw_lance.mdl#vr", "Crystal Lance"},
-    {"progs/dw_rifle.mdl#vr", "Rifle"}};
+    {"progs/dw_rail.mdl#vr", "Crystal Lance"}, {"progs/dw_lance.mdl#vr", "Crystal Lance"}};
 
 [[nodiscard]] const char* weaponName(int wid, int flags, const char* model)
 {

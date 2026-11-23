@@ -92,7 +92,7 @@ Counts are over Dwell's 24 playable maps (`start`, `d1m1`-`d1m9`, `d1end`, `d2m1
 | Monster (unplaced) | `monster_boss_egypt`, `monster_morph` | | 0 | In the code, in no map. `monster_morph` **clashes with Rogue's** (`rogue_morph.qc`) |
 | Weapon | `weapon_quad_shotgun` | Rotary Shotgun | 30 (18) | `v_shot3`/`g_shot3`; shares the SSG key (impulse 33) |
 | Weapon | `weapon_railgun` | Crystal Lance | 21 (12) | `v_rail`/`g_rail`, `proj_crystal.mdl`; shares the LG key (impulse 38) |
-| Weapon (unplaced) | `weapon_rifle` | Rifle | 0 | `v_rifle`/`g_rifle`; a cheat impulse only |
+| Weapon (unplaced) | `weapon_rifle` | Rifle | 0 | `v_rifle`/`g_rifle`; a cheat impulse only. **Removed from Quake VR 2026-11-23** (see "The Rifle removed") |
 | Powerup | `item_artifact_haste` | Haste | 32 (11) | `progs/e2/item_haste.mdl` |
 | Powerup | `item_artifact_berserk` | Berserk | 27 (15) | 50% damage reduction while active (patch 2.1) |
 | Powerup | `item_artifact_wetsuit` | Wetsuit | 31 (7) | **Clashes with Hipnotic's wetsuit** (`hip_items.qc`) and AD's (`adOwnedClashes`) |
@@ -631,6 +631,15 @@ frame sequences; reading aids only, nothing pasted). Files `QC/dwell/` (GPL-2, h
   HUD and toolgun row, so a variant gets all of that for free, and a new WID would need a weapon-table row, models,
   offsets, holster rules, a wheel slot and a toolgun_weapons change for each. So the Rotary Shotgun stays a super
   shotgun, the Crystal Lance a lightning gun, the Rifle a shotgun, each with Dwell's shot (`DW_FireVariant`).
+- **The Rifle removed (2026-11-23, his note; branch `agent/dwrifle`)**: none of Dwell's 43 BSPs (24 maps, 11 brush
+  models, the rest) places `weapon_rifle` or uses `v_rifle.mdl`/`g_rifle.mdl` (Dwell's progs: only `Cheat_Rifle`; its
+  `g_rifle.mdl` is not even shipped), no pool or drop gives it, so it is gone: its spawn function, `toolgun_dw_rifle`
+  and the toolgun row, `DW_VAR_RIFLE` (3, retired: a record still holding it, from an older save, is a plain shotgun:
+  `DW_FireVariant`, `DW_WeaponModel` and the armed grunts' names check it), the made model `progs/dw_rifle.mdl#vr`
+  (`vr_adweapons.cpp` recipe, housing; `vr_screenstyle.cpp`, `vr_gunfx.cpp`, `vr_notectx.cpp` entries) and
+  weapons.txt slot 54 (left empty: slots 55 and 56 keep their numbers and his `vr_wofs_*_56/57`). `weapon_rifle` stays a
+  Copper/Dwell detection signal (`vr_rules.cpp`). Test: `vr_ad_test 208` (dwell_weapons_test.sh). The Rifle notes
+  below are history.
 - **Kept with the weapon**: `.wi_dwvar` is now a weapon-record field beside `wi_adup` (`vr_weaponinst.qc`), copied by
   `WeaponInst_Clone`, saved with the record; across a level change and a coop rejoin through **parm76** (new:
   `DW_PackWeaponVariants`, 2 bits a record, the hands' then the holsters'; `vr_progs.hpp` `lastExtSpawnParm` 76). An AD
