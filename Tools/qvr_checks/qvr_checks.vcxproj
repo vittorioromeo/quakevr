@@ -31,18 +31,25 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <!-- C++23, as the engine's Zancle (zancle.vcxproj: clang-cl's /std:c++latest leaves _MSVC_LANG below 202302L,
+           which Zancle's Config.hpp rejects). -->
+      <AdditionalOptions>/clang:-std=c++23 %(AdditionalOptions)</AdditionalOptions>
       <Optimization>MaxSpeed</Optimization>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>false</TreatWarningAsError>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <PreprocessorDefinitions>NDEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- Zancle (docs/vr-port/ZANCLE.md) for the strings, vectors, maps and algorithms; its few compiled sources below,
+           without its asserts (NDEBUG), as the engine's Release. -->
+      <AdditionalIncludeDirectories>..\..\Quake\vr\external\zancle\include;..\..\Quake\vr\external\zancle\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;_CRT_SECURE_NO_WARNINGS;ZA_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>None</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>false</GenerateDebugInformation>
+      <!-- Zancle's clock and sleeps (timeBeginPeriod). -->
+      <AdditionalDependencies>winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -55,9 +62,15 @@
     <ClCompile Include="canonical.cpp" />
     <ClCompile Include="qc_compiles.cpp" />
     <ClCompile Include="std_uses.cpp" />
+    <ClCompile Include="..\..\Quake\vr\external\zancle\src\Zancle\Base\Abort.cpp" />
+    <ClCompile Include="..\..\Quake\vr\external\zancle\src\Zancle\Base\Assert.cpp" />
+    <ClCompile Include="..\..\Quake\vr\external\zancle\src\Zancle\Chrono\Clock.cpp" />
+    <ClCompile Include="..\..\Quake\vr\external\zancle\src\Zancle\Concurrency\Thread.cpp" />
+    <ClCompile Include="..\..\Quake\vr\external\zancle\src\Zancle\String\String.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.hpp" />
+    <ClInclude Include="maps.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

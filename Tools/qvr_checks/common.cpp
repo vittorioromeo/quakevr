@@ -1,12 +1,15 @@
 // qvr_checks: shared helpers (files, text, processes, progs.dat).
 #include "common.hpp"
 
-#include <algorithm>
+#include "Zancle/Algorithm/StableSort.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Concurrency/Thread.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
+
+#include <cstdio>
 #include <cstdlib>
-#include <cstring>
-#include <fstream>
 #include <regex>
-#include <thread>
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -15,9 +18,9 @@
 namespace qvrc
 {
 
-std::string readRaw(const fs::path& p, bool* ok)
+za::String readRaw(const fs::path& p, bool* ok)
 {
-    std::ifstream f(p, std::ios::binary);
+    FILE* f = _wfopen(p.c_str(), L"rb");
     if(!f)
     {
         if(ok)
@@ -26,12 +29,16 @@ std::string readRaw(const fs::path& p, bool* ok)
         }
         return {};
     }
-    std::string s;
-    f.seekg(0, std::ios::end);
-    const auto size = f.tellg();
-    f.seekg(0, std::ios::beg);
-    s.resize(static_cast<size_t>(size));
-    f.read(s.data(), size);
+    za::String s;
+    _fseeki64(f, 0, SEEK_END);
+    const long long size = _ftelli64(f);
+    _fseeki64(f, 0, SEEK_SET);
+    if(size > 0)
+    {
+        s.resize(static_cast<za::SizeT>(size));
+        s.resize(fread(s.data(), 1, s.size(), f));
+    }
+    fclose(f);
     if(ok)
     {
         *ok = true;
@@ -39,16 +46,16 @@ std::string readRaw(const fs::path& p, bool* ok)
     return s;
 }
 
-std::string readText(const fs::path& p, bool* ok)
+za::String readText(const fs::path& p, bool* ok)
 {
-    std::string s = readRaw(p, ok);
-    if(s.find('\r') == std::string::npos)
+    za::String s = readRaw(p, ok);
+    if(s.find('\r') == npos)
     {
         return s;
     }
-    std::string o;
+    za::String o;
     o.reserve(s.size());
-    for(size_t i = 0; i < s.size(); ++i)
+    for(za::SizeT i = 0; i < s.size(); ++i)
     {
         if(s[i] == '\r')
         {
@@ -66,20 +73,20 @@ std::string readText(const fs::path& p, bool* ok)
     return o;
 }
 
-bool writeRaw(const fs::path& p, std::string_view data)
+bool writeRaw(const fs::path& p, za::StringView data)
 {
-    std::ofstream f(p, std::ios::binary | std::ios::trunc);
+    FILE* f = _wfopen(p.c_str(), L"wb");
     if(!f)
     {
         return false;
     }
-    f.write(data.data(), static_cast<std::streamsize>(data.size()));
-    return static_cast<bool>(f);
+    const bool wrote = fwrite(data.data(), 1, data.size(), f) == data.size();
+    return fclose(f) == 0 && wrote;
 }
 
-std::vector<fs::path> listFiles(const fs::path& dir, const std::vector<std::string>& exts, bool recursive)
+za::Vector<fs::path> listFiles(const fs::path& dir, const za::Vector<za::StringView>& exts, bool recursive)
 {
-    std::vector<fs::path> out;
+    za::Vector<fs::path> out;
     std::error_code ec;
     auto want = [&](const fs::directory_entry& e) {
         if(!e.is_regular_file(ec))
@@ -90,8 +97,7 @@ std::vector<fs::path> listFiles(const fs::path& dir, const std::vector<std::stri
         {
             return true;
         }
-        const std::string ext = e.path().extension().string();
-        return std::find(exts.begin(), exts.end(), ext) != exts.end();
+        return has(exts, za::StringView{pathStr(e.path().extension())});
     };
     if(recursive)
     {
@@ -99,7 +105,7 @@ std::vector<fs::path> listFiles(const fs::path& dir, const std::vector<std::stri
         {
             if(want(*it))
             {
-                out.push_back(it->path());
+                out.pushBack(it->path());
             }
         }
     }
@@ -109,27 +115,27 @@ std::vector<fs::path> listFiles(const fs::path& dir, const std::vector<std::stri
         {
             if(want(*it))
             {
-                out.push_back(it->path());
+                out.pushBack(it->path());
             }
         }
     }
     return out;
 }
 
-std::string relPosix(const fs::path& p, const fs::path& base)
+za::String relPosix(const fs::path& p, const fs::path& base)
 {
-    return p.lexically_normal().lexically_relative(base.lexically_normal()).generic_string();
+    return genericStr(p.lexically_normal().lexically_relative(base.lexically_normal()));
 }
 
 namespace
 {
 
-std::vector<std::string> lowerParts(const fs::path& p)
+za::Vector<za::String> lowerParts(const fs::path& p)
 {
-    std::vector<std::string> parts;
+    za::Vector<za::String> parts;
     for(const auto& part : p)
     {
-        std::string s = part.string();
+        za::String s = pathStr(part);
         if(s == "\\" || s == "/")
         {
             continue;
@@ -141,38 +147,68 @@ std::vector<std::string> lowerParts(const fs::path& p)
                 c = static_cast<char>(c - 'A' + 'a');
             }
         }
-        parts.push_back(std::move(s));
+        parts.pushBack(ZA_MOVE(s));
     }
     return parts;
 }
 
 } // namespace
 
-void sortPaths(std::vector<fs::path>& v)
+void sortPaths(za::Vector<fs::path>& v)
 {
-    std::vector<std::pair<std::vector<std::string>, fs::path>> keyed;
+    za::Vector<za::Pair<za::Vector<za::String>, fs::path>> keyed;
     keyed.reserve(v.size());
     for(auto& p : v)
     {
-        keyed.emplace_back(lowerParts(p), std::move(p));
+        keyed.emplaceBack(lowerParts(p), ZA_MOVE(p));
     }
-    std::sort(keyed.begin(), keyed.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+    za::stableSort(keyed.begin(), keyed.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
     v.clear();
     for(auto& k : keyed)
     {
-        v.push_back(std::move(k.second));
+        v.pushBack(ZA_MOVE(k.second));
     }
 }
 
-void sortStrings(std::vector<std::string>& v)
+void sortStrings(za::Vector<za::String>& v)
 {
-    std::sort(v.begin(), v.end());
+    za::stableSort(v.begin(), v.end(), [](const za::String& a, const za::String& b) { return a < b; });
 }
 
-std::string_view trim(std::string_view s)
+bool allDigits(za::StringView s)
 {
-    size_t a = 0;
-    size_t b = s.size();
+    if(s.empty())
+    {
+        return false;
+    }
+    for(const char c : s)
+    {
+        if(!isDigit(c))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+long long toInt(za::StringView digits)
+{
+    long long v = 0;
+    for(const char c : digits)
+    {
+        if(!isDigit(c))
+        {
+            break;
+        }
+        v = v * 10 + (c - '0');
+    }
+    return v;
+}
+
+za::StringView trim(za::StringView s)
+{
+    za::SizeT a = 0;
+    za::SizeT b = s.size();
     while(a < b && isSpace(s[a]))
     {
         ++a;
@@ -181,53 +217,53 @@ std::string_view trim(std::string_view s)
     {
         --b;
     }
-    return s.substr(a, b - a);
+    return s.substrByPosLen(a, b - a);
 }
 
-std::vector<std::string_view> splitLines(std::string_view s)
+za::Vector<za::StringView> splitLines(za::StringView s)
 {
-    std::vector<std::string_view> out;
-    size_t a = 0;
+    za::Vector<za::StringView> out;
+    za::SizeT a = 0;
     while(a < s.size())
     {
-        const size_t e = s.find('\n', a);
-        if(e == std::string_view::npos)
+        const za::SizeT e = s.find('\n', a);
+        if(e == npos)
         {
-            out.push_back(s.substr(a));
+            out.pushBack(s.substrByPosLen(a));
             break;
         }
-        out.push_back(s.substr(a, e - a));
+        out.pushBack(s.substrByPosLen(a, e - a));
         a = e + 1;
     }
     return out;
 }
 
-std::vector<std::string_view> splitWords(std::string_view s)
+za::Vector<za::StringView> splitWords(za::StringView s)
 {
-    std::vector<std::string_view> out;
-    size_t i = 0;
+    za::Vector<za::StringView> out;
+    za::SizeT i = 0;
     while(i < s.size())
     {
         while(i < s.size() && isSpace(s[i]))
         {
             ++i;
         }
-        const size_t a = i;
+        const za::SizeT a = i;
         while(i < s.size() && !isSpace(s[i]))
         {
             ++i;
         }
         if(i > a)
         {
-            out.push_back(s.substr(a, i - a));
+            out.pushBack(s.substrByPosLen(a, i - a));
         }
     }
     return out;
 }
 
-std::string blankKeepNewlines(std::string_view s)
+za::String blankKeepNewlines(za::StringView s)
 {
-    std::string o(s);
+    za::String o{s};
     for(char& c : o)
     {
         if(c != '\n')
@@ -238,22 +274,27 @@ std::string blankKeepNewlines(std::string_view s)
     return o;
 }
 
-int lineAt(std::string_view text, size_t pos)
+int lineAt(za::StringView text, za::SizeT pos)
 {
-    return 1 + static_cast<int>(std::count(text.begin(), text.begin() + static_cast<std::ptrdiff_t>(pos), '\n'));
+    int n = 1;
+    for(za::SizeT i = 0; i < pos; ++i)
+    {
+        n += text[i] == '\n';
+    }
+    return n;
 }
 
-bool startsWith(std::string_view s, std::string_view p)
+bool startsWith(za::StringView s, za::StringView p)
 {
-    return s.substr(0, p.size()) == p;
+    return s.startsWith(p);
 }
 
-bool endsWith(std::string_view s, std::string_view p)
+bool endsWith(za::StringView s, za::StringView p)
 {
-    return s.size() >= p.size() && s.substr(s.size() - p.size()) == p;
+    return s.endsWith(p);
 }
 
-size_t skipSpace(std::string_view s, size_t pos)
+za::SizeT skipSpace(za::StringView s, za::SizeT pos)
 {
     while(pos < s.size() && isSpace(s[pos]))
     {
@@ -262,13 +303,13 @@ size_t skipSpace(std::string_view s, size_t pos)
     return pos;
 }
 
-size_t identAt(std::string_view s, size_t pos)
+za::SizeT identAt(za::StringView s, za::SizeT pos)
 {
     if(pos >= s.size() || isDigit(s[pos]) || !isWord(s[pos]))
     {
         return 0;
     }
-    size_t e = pos + 1;
+    za::SizeT e = pos + 1;
     while(e < s.size() && isWord(s[e]))
     {
         ++e;
@@ -276,10 +317,10 @@ size_t identAt(std::string_view s, size_t pos)
     return e - pos;
 }
 
-size_t matchClose(std::string_view s, size_t i, char open, char close)
+za::SizeT matchClose(za::StringView s, za::SizeT i, char open, char close)
 {
     int depth = 0;
-    for(size_t j = i; j < s.size(); ++j)
+    for(za::SizeT j = i; j < s.size(); ++j)
     {
         if(s[j] == open)
         {
@@ -293,32 +334,57 @@ size_t matchClose(std::string_view s, size_t i, char open, char close)
             }
         }
     }
-    return std::string_view::npos;
+    return npos;
 }
 
-std::vector<std::string> lineStartGroups(const std::string& text, const std::string& pattern, char first)
+za::String withoutCr(za::StringView s)
 {
-    std::vector<std::string> out;
-    const std::regex re(pattern);
-    size_t next = 0; // (finditer: no match starts inside the last one)
-    for(size_t ls = 0; ls < text.size();)
+    za::String o;
+    o.reserve(s.size());
+    for(const char c : s)
+    {
+        if(c != '\r')
+        {
+            o += c;
+        }
+    }
+    return o;
+}
+
+void replaceChar(za::String& s, char from, char to)
+{
+    for(char& c : s)
+    {
+        if(c == from)
+        {
+            c = to;
+        }
+    }
+}
+
+za::Vector<za::String> lineStartGroups(za::StringView text, za::StringView pattern, char first)
+{
+    za::Vector<za::String> out;
+    const std::regex re(pattern.data(), pattern.size());
+    za::SizeT next = 0; // (finditer: no match starts inside the last one)
+    for(za::SizeT ls = 0; ls < text.size();)
     {
         if(ls >= next)
         {
-            const size_t p = skipSpace(text, ls);
+            const za::SizeT p = skipSpace(text, ls);
             if(p < text.size() && text[p] == first)
             {
-                std::smatch m;
-                if(std::regex_search(text.begin() + static_cast<std::ptrdiff_t>(ls), text.end(), m, re,
+                std::cmatch m;
+                if(std::regex_search(text.data() + ls, text.data() + text.size(), m, re,
                                      std::regex_constants::match_continuous))
                 {
-                    out.push_back(m[1].str());
-                    next = ls + std::max<size_t>(1, static_cast<size_t>(m.length(0)));
+                    out.emplaceBack(m[1].first, static_cast<za::SizeT>(m[1].length()));
+                    next = ls + za::max<za::SizeT>(1, static_cast<za::SizeT>(m.length(0)));
                 }
             }
         }
-        const size_t nl = text.find('\n', ls);
-        if(nl == std::string::npos)
+        const za::SizeT nl = text.find('\n', ls);
+        if(nl == npos)
         {
             break;
         }
@@ -332,30 +398,48 @@ std::vector<std::string> lineStartGroups(const std::string& text, const std::str
 namespace
 {
 
-std::wstring widen(const std::string& s)
+// UTF-8 to UTF-16 (no terminator).
+za::Vector<wchar_t> widen(za::StringView s)
 {
+    za::Vector<wchar_t> w;
     if(s.empty())
     {
-        return {};
+        return w;
     }
     const int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), nullptr, 0);
-    std::wstring w(static_cast<size_t>(n), L'\0');
+    w.resize(static_cast<za::SizeT>(n));
     MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), w.data(), n);
     return w;
 }
 
-// CommandLineToArgvW's quoting.
-void appendQuoted(std::wstring& cmd, const std::wstring& arg)
+void appendRepeated(za::Vector<wchar_t>& cmd, za::SizeT count, wchar_t c)
 {
-    if(!arg.empty() && arg.find_first_of(L" \t\n\v\"") == std::wstring::npos)
+    for(za::SizeT k = 0; k < count; ++k)
     {
-        cmd += arg;
+        cmd.pushBack(c);
+    }
+}
+
+// CommandLineToArgvW's quoting.
+void appendQuoted(za::Vector<wchar_t>& cmd, const za::Vector<wchar_t>& arg)
+{
+    bool plain = !arg.empty();
+    for(const wchar_t c : arg)
+    {
+        plain = plain && c != L' ' && c != L'\t' && c != L'\n' && c != L'\v' && c != L'"';
+    }
+    if(plain)
+    {
+        for(const wchar_t c : arg)
+        {
+            cmd.pushBack(c);
+        }
         return;
     }
-    cmd += L'"';
-    for(size_t i = 0;; ++i)
+    cmd.pushBack(L'"');
+    for(za::SizeT i = 0;; ++i)
     {
-        size_t backslashes = 0;
+        za::SizeT backslashes = 0;
         while(i < arg.size() && arg[i] == L'\\')
         {
             ++i;
@@ -363,23 +447,23 @@ void appendQuoted(std::wstring& cmd, const std::wstring& arg)
         }
         if(i == arg.size())
         {
-            cmd.append(backslashes * 2, L'\\');
+            appendRepeated(cmd, backslashes * 2, L'\\');
             break;
         }
         if(arg[i] == L'"')
         {
-            cmd.append(backslashes * 2 + 1, L'\\');
+            appendRepeated(cmd, backslashes * 2 + 1, L'\\');
         }
         else
         {
-            cmd.append(backslashes, L'\\');
+            appendRepeated(cmd, backslashes, L'\\');
         }
-        cmd += arg[i];
+        cmd.pushBack(arg[i]);
     }
-    cmd += L'"';
+    cmd.pushBack(L'"');
 }
 
-void drain(HANDLE h, std::string& into)
+void drain(HANDLE h, za::String& into)
 {
     char buf[1 << 16];
     DWORD got = 0;
@@ -391,7 +475,7 @@ void drain(HANDLE h, std::string& into)
 
 } // namespace
 
-ProcResult runProcess(const std::vector<std::string>& args, const fs::path& cwd, bool mergeStderr)
+ProcResult runProcess(const za::Vector<za::String>& args, const fs::path& cwd, bool mergeStderr)
 {
     ProcResult r;
     SECURITY_ATTRIBUTES sa{sizeof(sa), nullptr, TRUE};
@@ -416,7 +500,8 @@ ProcResult runProcess(const std::vector<std::string>& args, const fs::path& cwd,
     const DWORD inheritCount = mergeStderr ? 2 : 3;
     SIZE_T attrSize = 0;
     InitializeProcThreadAttributeList(nullptr, 1, 0, &attrSize);
-    std::vector<char> attrBuf(attrSize);
+    za::Vector<char> attrBuf;
+    attrBuf.resize(attrSize);
     auto* attrs = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrBuf.data());
     InitializeProcThreadAttributeList(attrs, 1, 0, &attrSize);
     UpdateProcThreadAttribute(attrs, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, inherit, inheritCount * sizeof(HANDLE),
@@ -430,20 +515,20 @@ ProcResult runProcess(const std::vector<std::string>& args, const fs::path& cwd,
     si.StartupInfo.hStdError = mergeStderr ? outWrite : errWrite;
     si.lpAttributeList = attrs;
 
-    std::wstring cmd;
-    for(size_t i = 0; i < args.size(); ++i)
+    za::Vector<wchar_t> cmd;
+    for(za::SizeT i = 0; i < args.size(); ++i)
     {
         if(i)
         {
-            cmd += L' ';
+            cmd.pushBack(L' ');
         }
         appendQuoted(cmd, widen(args[i]));
     }
+    cmd.pushBack(L'\0');
     PROCESS_INFORMATION pi{};
-    const std::wstring dir = cwd.wstring();
     const BOOL ok = CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, TRUE,
                                    EXTENDED_STARTUPINFO_PRESENT | CREATE_NO_WINDOW, nullptr,
-                                   dir.empty() ? nullptr : dir.c_str(), &si.StartupInfo, &pi);
+                                   cwd.empty() ? nullptr : cwd.c_str(), &si.StartupInfo, &pi);
     DeleteProcThreadAttributeList(attrs);
     CloseHandle(outWrite);
     if(errWrite)
@@ -461,10 +546,10 @@ ProcResult runProcess(const std::vector<std::string>& args, const fs::path& cwd,
         return r;
     }
     r.started = true;
-    std::thread errThread;
+    za::Thread errThread;
     if(errRead)
     {
-        errThread = std::thread([&] { drain(errRead, r.err); });
+        errThread = za::Thread([&] { drain(errRead, r.err); });
     }
     drain(outRead, r.out);
     if(errThread.joinable())
@@ -485,13 +570,14 @@ ProcResult runProcess(const std::vector<std::string>& args, const fs::path& cwd,
     return r;
 }
 
-fs::path which(const std::string& name)
+fs::path which(za::StringView name)
 {
     wchar_t buf[MAX_PATH * 4];
-    const std::wstring w = widen(name);
+    za::Vector<wchar_t> w = widen(name);
+    w.pushBack(L'\0');
     for(const wchar_t* ext : {L".exe", L".com", L".bat", L".cmd", L""})
     {
-        if(SearchPathW(nullptr, w.c_str(), ext, static_cast<DWORD>(std::size(buf)), buf, nullptr))
+        if(SearchPathW(nullptr, w.data(), ext, static_cast<DWORD>(sizeof(buf) / sizeof(buf[0])), buf, nullptr))
         {
             return fs::path(buf);
         }
@@ -499,29 +585,30 @@ fs::path which(const std::string& name)
     return {};
 }
 
-fs::path findFteqcc(const Ctx& ctx, const std::vector<fs::path>& fallbacks)
+fs::path findFteqcc(const Ctx& ctx, const za::Vector<fs::path>& fallbacks)
 {
-    std::vector<std::string> cands;
+    za::Vector<za::String> cands;
     if(!ctx.fteqcc.empty())
     {
-        cands.push_back(ctx.fteqcc.string());
+        cands.pushBack(pathStr(ctx.fteqcc));
     }
-    if(const char* e = std::getenv("FTEQCC"); e && *e)
+    if(const char* e = getenv("FTEQCC"); e && *e)
     {
-        cands.emplace_back(e);
+        cands.emplaceBack(e);
     }
     for(const auto& f : fallbacks)
     {
-        cands.push_back(f.string());
+        cands.pushBack(pathStr(f));
     }
-    cands.emplace_back("fteqcc64");
-    cands.emplace_back("fteqcc");
+    cands.emplaceBack("fteqcc64");
+    cands.emplaceBack("fteqcc");
     for(const auto& c : cands)
     {
         std::error_code ec;
-        if(fs::is_regular_file(c, ec))
+        const fs::path cp = toPath(c);
+        if(fs::is_regular_file(cp, ec))
         {
-            return fs::absolute(c, ec);
+            return fs::absolute(cp, ec);
         }
         if(auto w = which(c); !w.empty())
         {
@@ -531,8 +618,8 @@ fs::path findFteqcc(const Ctx& ctx, const std::vector<fs::path>& fallbacks)
     return {};
 }
 
-const std::vector<std::string> qcFlags = {"-O3", "-Fautoproto", "-Olo", "-Fiffloat", "-Fifvector", "-Fvectorlogic",
-                                          "-Flo", "-Fsubscope", "-Wall", "-Wextra", "-Wno-F209", "-Wno-F208"};
+const za::Vector<za::String> qcFlags = {"-O3", "-Fautoproto", "-Olo", "-Fiffloat", "-Fifvector", "-Fvectorlogic",
+                                        "-Flo", "-Fsubscope", "-Wall", "-Wextra", "-Wno-F209", "-Wno-F208"};
 
 bool writeWorkProgsSrc(const Ctx& ctx, const fs::path& work)
 {
@@ -540,26 +627,26 @@ bool writeWorkProgsSrc(const Ctx& ctx, const fs::path& work)
     fs::create_directories(work, ec);
     const fs::path qc = ctx.tree / "QC";
     bool ok = false;
-    const std::string src = readText(qc / "progs.src", &ok);
+    const za::String src = readText(qc / "progs.src", &ok);
     if(!ok)
     {
         return false;
     }
-    std::vector<std::string> entries;
+    za::Vector<za::StringView> entries;
     for(auto l : splitLines(src))
     {
         const auto cut = l.find("//");
-        const auto e = trim(cut == std::string_view::npos ? l : l.substr(0, cut));
+        const auto e = trim(cut == npos ? l : l.substrByPosLen(0, cut));
         if(!e.empty())
         {
-            entries.emplace_back(e);
+            entries.pushBack(e);
         }
     }
     // Relative paths: fteqcc's progs.src reader stops at a drive's "C:". (The first entry is the output file.)
-    std::string out = "progs.dat\n";
-    for(size_t i = 1; i < entries.size(); ++i)
+    za::String out = "progs.dat\n";
+    for(za::SizeT i = 1; i < entries.size(); ++i)
     {
-        out += relPosix(fs::absolute(qc / entries[i]), fs::absolute(work));
+        out += relPosix(fs::absolute(qc / toPath(entries[i])), fs::absolute(work));
         out += '\n';
     }
     if(!writeRaw(work / "progs.src", out))
@@ -578,27 +665,27 @@ bool writeWorkProgsSrc(const Ctx& ctx, const fs::path& work)
 namespace
 {
 
-constexpr uint32_t fourcc(const char* s)
+constexpr za::U32 fourcc(const char* s)
 {
-    return static_cast<uint32_t>(static_cast<unsigned char>(s[0])) |
-           static_cast<uint32_t>(static_cast<unsigned char>(s[1])) << 8 |
-           static_cast<uint32_t>(static_cast<unsigned char>(s[2])) << 16 |
-           static_cast<uint32_t>(static_cast<unsigned char>(s[3])) << 24;
+    return static_cast<za::U32>(static_cast<unsigned char>(s[0])) |
+           static_cast<za::U32>(static_cast<unsigned char>(s[1])) << 8 |
+           static_cast<za::U32>(static_cast<unsigned char>(s[2])) << 16 |
+           static_cast<za::U32>(static_cast<unsigned char>(s[3])) << 24;
 }
 
-constexpr uint32_t secondary16 = fourcc("1FTE") ^ fourcc("PROG");
-constexpr uint32_t secondary32 = fourcc("1FTE") ^ fourcc("32B ");
+constexpr za::U32 secondary16 = fourcc("1FTE") ^ fourcc("PROG");
+constexpr za::U32 secondary32 = fourcc("1FTE") ^ fourcc("32B ");
 
 } // namespace
 
-std::string progsFormat(std::string_view data, ProgsHeader& hdr, bool& ok)
+za::String progsFormat(za::StringView data, ProgsHeader& hdr, bool& ok)
 {
     ok = false;
     if(data.size() < 60)
     {
         return "not a progs.dat (too short)";
     }
-    std::memcpy(hdr.h, data.data(), 60);
+    ZA_MEMCPY(hdr.h, data.data(), 60);
     ok = true;
     if(hdr.h[0] == 6)
     {
@@ -606,15 +693,19 @@ std::string progsFormat(std::string_view data, ProgsHeader& hdr, bool& ok)
     }
     if(hdr.h[0] == 7 && data.size() >= 92)
     {
-        int32_t ext[8];
-        std::memcpy(ext, data.data() + 60, 32);
-        const auto secondary = static_cast<uint32_t>(ext[7]);
-        std::string kind = secondary == secondary16   ? "fte16"
-                           : secondary == secondary32 ? "fte32"
-                                                      : std::format("version 7 kind {:08x}", secondary);
-        return kind + (ext[6] ? " compressed" : "");
+        za::I32 ext[8];
+        ZA_MEMCPY(ext, data.data() + 60, 32);
+        const auto secondary = static_cast<za::U32>(ext[7]);
+        za::String kind = secondary == secondary16   ? za::String{"fte16"}
+                          : secondary == secondary32 ? za::String{"fte32"}
+                                                     : fmt("version 7 kind {:08x}", secondary);
+        if(ext[6])
+        {
+            kind += " compressed";
+        }
+        return kind;
     }
-    return std::format("version {}", hdr.h[0]);
+    return fmt("version {}", hdr.h[0]);
 }
 
 } // namespace qvrc

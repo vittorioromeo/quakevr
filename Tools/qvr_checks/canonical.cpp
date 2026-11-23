@@ -14,12 +14,15 @@
 // A new site that really is meant (a different rule, a test of the engine itself): add or raise its allowlist line by
 // hand, with the reason after `#`. Never raise a count just to pass the build.
 #include "common.hpp"
+#include "maps.hpp"
 
-#include <algorithm>
-#include <map>
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Concurrency/Thread.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/ToString.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
+
 #include <regex>
-#include <set>
-#include <thread>
 
 namespace qvrc
 {
@@ -32,16 +35,16 @@ constexpr const char* allowlistPath = "Misc/quakevr/canonical_allowlist.txt";
 // `first`: the characters a match can start with (the others are skipped; empty: any).
 struct Pattern
 {
-    std::string re;
+    za::String re;
     bool lineStart = false;
-    std::string first;
+    za::String first;
 };
 
 // A cheap test before the family's patterns: a file without any of these has no site. A literal, optionally a whole
 // word at its start, and optionally followed by spaces and `then`.
 struct Needle
 {
-    std::vector<std::string> lits;
+    za::Vector<za::String> lits;
     bool wordStartOnly = false;
     bool wordEndOnly = false;
     char then = 0;
@@ -49,28 +52,32 @@ struct Needle
 
 struct Family
 {
-    std::string id;
-    std::string lang;
-    std::vector<Pattern> patterns;
+    za::String id;
+    za::String lang;
+    za::Vector<Pattern> patterns;
     Needle needle;
-    std::string use;
+    za::String use;
 };
 
-std::string alt(const std::vector<std::string>& names)
+za::String alt(const za::Vector<za::String>& names)
 {
-    std::string s;
+    za::String s;
     for(const auto& n : names)
     {
-        s += (s.empty() ? "" : "|") + n;
+        if(!s.empty())
+        {
+            s += '|';
+        }
+        s += n;
     }
     return s;
 }
 
 // A C++ definition (or declaration) of NAME: a return type then the name and `(`, not a call after return/else/...;
 // and the same as a lambda: `auto NAME = [...](`.
-std::vector<Pattern> cppDef(const std::vector<std::string>& names, const std::string& params = "")
+za::Vector<Pattern> cppDef(const za::Vector<za::String>& names, const za::String& params = "")
 {
-    const std::string a = "(?:" + alt(names) + ")";
+    const za::String a = "(?:" + alt(names) + ")";
     return {
         {R"([ \t]*(?:\[\[\w+\]\][ \t]*)*(?:(?:static|inline|constexpr|const|extern|friend)\s+)*)"
          R"((?!return\b|else\b|case\b|new\b|delete\b|throw\b|co_return\b|goto\b)\w[\w:<>]*[ \t*&]+(?:)" +
@@ -80,17 +87,17 @@ std::vector<Pattern> cppDef(const std::vector<std::string>& names, const std::st
     };
 }
 
-std::vector<Family> families()
+za::Vector<Family> families()
 {
-    const std::vector<std::string> geomMath = {"safeNormalize", "wrap180", "wrapYaw", "wrapDegrees", "wrapAngle",
-                                               "smooth01", "smoothstep", "smoothStep", "approachExp", "yawDelta",
-                                               "yawOf", "closestOnSegment", "segmentDistance", "closestOnTriangle",
-                                               "nearestOnTri", "quakeFromTracking", "angleBetween"};
-    const std::vector<std::string> rnd = {"rnd", "rnd01", "random01", "randomFloat", "frand", "randf", "rand01"};
-    const std::vector<std::string> strs = {"startsWith", "endsWith", "lower", "toLower", "trim", "appendf",
-                                           "nearestNormal", "quantile", "percentile", "quantileSorted"};
-    const std::vector<std::string> mathCopy = {"Cross", "Wrap180", "Wrap", "AngleNorm", "SegDist", "SegmentDist",
-                                               "Lerp", "Nlerp", "Clamp", "Smooth", "Ease", "clamp"};
+    const za::Vector<za::String> geomMath = {"safeNormalize", "wrap180", "wrapYaw", "wrapDegrees", "wrapAngle",
+                                             "smooth01", "smoothstep", "smoothStep", "approachExp", "yawDelta",
+                                             "yawOf", "closestOnSegment", "segmentDistance", "closestOnTriangle",
+                                             "nearestOnTri", "quakeFromTracking", "angleBetween"};
+    const za::Vector<za::String> rnd = {"rnd", "rnd01", "random01", "randomFloat", "frand", "randf", "rand01"};
+    const za::Vector<za::String> strs = {"startsWith", "endsWith", "lower", "toLower", "trim", "appendf",
+                                         "nearestNormal", "quantile", "percentile", "quantileSorted"};
+    const za::Vector<za::String> mathCopy = {"Cross", "Wrap180", "Wrap", "AngleNorm", "SegDist", "SegmentDist",
+                                             "Lerp", "Nlerp", "Clamp", "Smooth", "Ease", "clamp"};
     return {
         {"geom-vec", "cpp", cppDef({"vec", "toGlm", "toVec"}, R"(\s*const\s+(?:float\s*\*|vec3_t))"),
          {{"vec", "toGlm", "toVec"}, true, true}, "geom::vec / geom::store (vr_geom.hpp)"},
@@ -173,11 +180,11 @@ std::vector<Family> families()
     };
 }
 
-bool needleHit(const Needle& nd, std::string_view text)
+bool needleHit(const Needle& nd, za::StringView text)
 {
     for(const auto& lit : nd.lits)
     {
-        for(size_t i = 0; (i = text.find(lit, i)) != std::string_view::npos; ++i)
+        for(za::SizeT i = 0; (i = text.find(lit, i)) != npos; ++i)
         {
             if(nd.wordStartOnly && !wordStart(text, i))
             {
@@ -189,7 +196,7 @@ bool needleHit(const Needle& nd, std::string_view text)
             }
             if(nd.then)
             {
-                const size_t p = skipSpace(text, i + lit.size());
+                const za::SizeT p = skipSpace(text, i + lit.size());
                 if(p >= text.size() || text[p] != nd.then)
                 {
                     continue;
@@ -202,17 +209,17 @@ bool needleHit(const Needle& nd, std::string_view text)
 }
 
 // Comments become spaces (newlines kept, so line numbers hold); string and char literals stay.
-std::string stripComments(std::string_view t)
+za::String stripComments(za::StringView t)
 {
-    std::string o(t);
-    size_t i = 0;
-    const size_t n = t.size();
+    za::String o{t};
+    za::SizeT i = 0;
+    const za::SizeT n = t.size();
     while(i < n)
     {
         const char c = t[i];
         if(c == '"' || c == '\'')
         {
-            size_t j = i + 1;
+            za::SizeT j = i + 1;
             bool closed = false;
             while(j < n && t[j] != '\n')
             {
@@ -243,13 +250,13 @@ std::string stripComments(std::string_view t)
         }
         else if(c == '/' && i + 1 < n && t[i + 1] == '*')
         {
-            const size_t e = t.find("*/", i + 2);
-            if(e == std::string_view::npos)
+            const za::SizeT e = t.find("*/", i + 2);
+            if(e == npos)
             {
                 ++i;
                 continue;
             }
-            for(size_t k = i; k < e + 2; ++k)
+            for(za::SizeT k = i; k < e + 2; ++k)
             {
                 if(o[k] != '\n')
                 {
@@ -266,39 +273,40 @@ std::string stripComments(std::string_view t)
     return o;
 }
 
-// The start of every match of a family's patterns (Python's finditer per pattern, the starts merged).
-std::set<size_t> matches(const std::vector<std::regex>& res, const std::vector<Pattern>& pats, const std::string& text)
+// The start of every match of a family's patterns, in order and once each (Python's finditer per pattern, the starts
+// merged).
+za::Vector<za::SizeT> matches(const za::Vector<std::regex>& res, const za::Vector<Pattern>& pats, za::StringView text)
 {
-    std::set<size_t> hits;
-    for(size_t p = 0; p < pats.size(); ++p)
+    za::Vector<za::SizeT> hits;
+    for(za::SizeT p = 0; p < pats.size(); ++p)
     {
         const auto& pat = pats[p];
-        size_t next = 0; // finditer: the next match starts at or after the last one's end
-        auto tryAt = [&](size_t i) {
-            std::smatch m;
+        za::SizeT next = 0; // finditer: the next match starts at or after the last one's end
+        auto tryAt = [&](za::SizeT i) {
+            std::cmatch m;
             auto flags = std::regex_constants::match_continuous;
             if(i > 0)
             {
                 flags |= std::regex_constants::match_prev_avail;
             }
-            if(std::regex_search(text.begin() + static_cast<std::ptrdiff_t>(i), text.end(), m, res[p], flags))
+            if(std::regex_search(text.data() + i, text.data() + text.size(), m, res[p], flags))
             {
-                hits.insert(i);
-                next = i + std::max<size_t>(1, static_cast<size_t>(m.length(0)));
+                hits.pushBack(i);
+                next = i + za::max<za::SizeT>(1, static_cast<za::SizeT>(m.length(0)));
                 return true;
             }
             return false;
         };
         if(pat.lineStart)
         {
-            for(size_t i = 0; i < text.size();)
+            for(za::SizeT i = 0; i < text.size();)
             {
                 if(i >= next)
                 {
                     tryAt(i);
                 }
-                const size_t nl = text.find('\n', i);
-                if(nl == std::string::npos)
+                const za::SizeT nl = text.find('\n', i);
+                if(nl == npos)
                 {
                     break;
                 }
@@ -307,12 +315,12 @@ std::set<size_t> matches(const std::vector<std::regex>& res, const std::vector<P
         }
         else
         {
-            for(size_t i = 0; i < text.size();)
+            for(za::SizeT i = 0; i < text.size();)
             {
                 if(!pat.first.empty())
                 {
-                    i = text.find_first_of(pat.first, i);
-                    if(i == std::string::npos)
+                    i = text.findFirstOf(pat.first, i);
+                    if(i == npos)
                     {
                         break;
                     }
@@ -325,90 +333,100 @@ std::set<size_t> matches(const std::vector<std::regex>& res, const std::vector<P
             }
         }
     }
-    return hits;
+    za::quickSort(hits.begin(), hits.end(), [](za::SizeT a, za::SizeT b) { return a < b; });
+    za::Vector<za::SizeT> unique;
+    for(const za::SizeT h : hits)
+    {
+        if(unique.empty() || unique.back() != h)
+        {
+            unique.pushBack(h);
+        }
+    }
+    return unique;
 }
 
 struct Site
 {
     int line;
-    std::string text;
+    za::String text;
 };
 
-using Found = std::map<std::string, std::map<std::string, std::vector<Site>>>; // family -> path -> sites
+using Sites = Map<za::String, za::Vector<Site>>; // path -> sites
+using Found = Map<za::String, Sites>;            // family -> its sites
 
-std::vector<std::string> globPosix(const Ctx& ctx, const char* dir, const std::vector<std::string>& exts, bool recursive)
+za::Vector<za::String> globPosix(const Ctx& ctx, const char* dir, const za::Vector<za::StringView>& exts, bool recursive)
 {
-    std::vector<std::string> out;
+    za::Vector<za::String> out;
     for(const auto& p : listFiles(ctx.tree / dir, exts, recursive))
     {
-        out.push_back(relPosix(p, ctx.tree));
+        out.pushBack(relPosix(p, ctx.tree));
     }
     return out;
 }
 
-Found scan(const Ctx& ctx, const std::vector<Family>& fams)
+Found scan(const Ctx& ctx, const za::Vector<Family>& fams)
 {
-    std::map<std::string, std::vector<std::string>> files;
+    Map<za::String, za::Vector<za::String>> files;
     {
-        std::vector<std::string> cpp;
+        za::Vector<za::String> cpp;
         for(auto& p : globPosix(ctx, "Quake/vr", {".cpp", ".hpp", ".h", ".inc", ".c"}, true))
         {
-            if(p.find("/external/") == std::string::npos)
+            if(p.find("/external/") == npos)
             {
-                cpp.push_back(std::move(p));
+                cpp.pushBack(ZA_MOVE(p));
             }
         }
         sortStrings(cpp);
-        std::vector<std::string> qc;
+        za::Vector<za::String> qc;
         for(auto& p : globPosix(ctx, "QC", {".qc"}, false))
         {
             if(p != "QC/vr_cvars_gen.qc") // (generated: qvr_checks cvars_qc)
             {
-                qc.push_back(std::move(p));
+                qc.pushBack(ZA_MOVE(p));
             }
         }
         sortStrings(qc);
         auto misc = [&](const char* ext) {
-            std::vector<std::string> v;
+            za::Vector<za::String> v;
             for(auto& p : globPosix(ctx, "Misc/quakevr", {ext}, true))
             {
                 if(!endsWith(p, "/qvrtest.py") && !endsWith(p, "/qvrtest.sh"))
                 {
-                    v.push_back(std::move(p));
+                    v.pushBack(ZA_MOVE(p));
                 }
             }
             sortStrings(v);
             return v;
         };
-        files["cpp"] = std::move(cpp);
-        files["qc"] = std::move(qc);
+        files["cpp"] = ZA_MOVE(cpp);
+        files["qc"] = ZA_MOVE(qc);
         files["py"] = misc(".py");
         files["sh"] = misc(".sh");
     }
     // Every file's text and comment-stripped text, once (read in parallel by the families).
-    std::map<std::string, std::pair<std::string, std::string>> texts;
+    Map<za::String, za::Pair<za::String, za::String>> texts;
     for(const auto& [lang, list] : files)
     {
         for(const auto& p : list)
         {
-            texts[p];
+            (void)texts[p];
         }
     }
     {
-        std::vector<std::string*> raws;
-        std::vector<std::pair<const std::string*, std::pair<std::string, std::string>*>> jobs;
+        // (the map is complete: its values stay where they are while the threads fill them)
+        za::Vector<za::Pair<const za::String*, za::Pair<za::String, za::String>*>> jobs;
         for(auto& [p, t] : texts)
         {
-            jobs.emplace_back(&p, &t);
+            jobs.pushBack({&p, &t});
         }
-        const unsigned nThreads = std::max(1u, std::min(16u, std::thread::hardware_concurrency()));
-        std::vector<std::thread> pool;
+        const unsigned nThreads = za::max(1u, za::min(16u, za::Thread::hardwareConcurrency()));
+        za::Vector<za::Thread> pool;
         for(unsigned w = 0; w < nThreads; ++w)
         {
-            pool.emplace_back([&, w] {
-                for(size_t k = w; k < jobs.size(); k += nThreads)
+            pool.emplaceBack([&, w] {
+                for(za::SizeT k = w; k < jobs.size(); k += nThreads)
                 {
-                    jobs[k].second->first = readText(ctx.tree / *jobs[k].first);
+                    jobs[k].second->first = readText(ctx.tree / toPath(*jobs[k].first));
                     jobs[k].second->second = stripComments(jobs[k].second->first);
                 }
             });
@@ -419,16 +437,17 @@ Found scan(const Ctx& ctx, const std::vector<Family>& fams)
         }
     }
     Found found;
-    std::vector<std::map<std::string, std::vector<Site>>> perFamily(fams.size());
-    std::vector<std::thread> pool;
-    for(size_t f = 0; f < fams.size(); ++f)
+    za::Vector<Sites> perFamily;
+    perFamily.resize(fams.size());
+    za::Vector<za::Thread> pool;
+    for(za::SizeT f = 0; f < fams.size(); ++f)
     {
-        pool.emplace_back([&, f] {
+        pool.emplaceBack([&, f] {
             const auto& fam = fams[f];
-            std::vector<std::regex> res;
+            za::Vector<std::regex> res;
             for(const auto& p : fam.patterns)
             {
-                res.emplace_back(p.re, std::regex::ECMAScript | std::regex::optimize);
+                res.emplaceBack(p.re.data(), p.re.size(), std::regex::ECMAScript | std::regex::optimize);
             }
             for(const auto& path : files.at(fam.lang))
             {
@@ -437,15 +456,13 @@ Found scan(const Ctx& ctx, const std::vector<Family>& fams)
                 {
                     continue;
                 }
-                for(const size_t pos : matches(res, fam.patterns, text))
+                for(const za::SizeT pos : matches(res, fam.patterns, text))
                 {
-                    const size_t ls = pos == 0 ? 0 : (text.rfind('\n', pos - 1) == std::string::npos
-                                                          ? 0
-                                                          : text.rfind('\n', pos - 1) + 1);
-                    const size_t le = text.find('\n', pos);
-                    const auto lineText = std::string_view(text).substr(
-                        ls, le == std::string::npos ? std::string::npos : le - ls);
-                    perFamily[f][path].push_back({lineAt(text, pos), std::string(trim(lineText))});
+                    const za::SizeT before = pos == 0 ? npos : text.rfind('\n', pos - 1);
+                    const za::SizeT ls = before == npos ? 0 : before + 1;
+                    const za::SizeT le = text.find('\n', pos);
+                    const auto lineText = text.substrByPosLen(ls, le == npos ? npos : le - ls);
+                    perFamily[f][path].pushBack({lineAt(text, pos), za::String{trim(lineText)}});
                 }
             }
         });
@@ -454,11 +471,20 @@ Found scan(const Ctx& ctx, const std::vector<Family>& fams)
     {
         t.join();
     }
-    for(size_t f = 0; f < fams.size(); ++f)
+    for(za::SizeT f = 0; f < fams.size(); ++f)
     {
-        found[fams[f].id] = std::move(perFamily[f]);
+        found[fams[f].id] = ZA_MOVE(perFamily[f]);
     }
     return found;
+}
+
+// An allowlist line's key: the family and the path (neither has a space).
+za::String allowKey(za::StringView fam, za::StringView path)
+{
+    za::String k{fam};
+    k += ' ';
+    k += path;
+    return k;
 }
 
 } // namespace
@@ -467,30 +493,24 @@ int checkCanonical(const Ctx& ctx, const Args& args, Out& out)
 {
     const auto fams = families();
     const Found found = scan(ctx, fams);
-    std::map<std::pair<std::string, std::string>, int> allowed;
-    std::vector<std::pair<std::pair<std::string, std::string>, int>> allowedOrder;
-    std::vector<std::string> lines;
+    Map<za::String, int> allowed; // allowKey -> count
+    za::Vector<za::String> lines;
     bool have = false;
-    const std::string allow = readText(ctx.tree / allowlistPath, &have);
+    const za::String allow = readText(ctx.tree / allowlistPath, &have);
     if(have)
     {
         for(auto raw : splitLines(allow))
         {
-            lines.emplace_back(raw);
+            lines.emplaceBack(raw);
             const auto cut = raw.find('#');
-            const auto body = splitWords(cut == std::string_view::npos ? raw : raw.substr(0, cut));
-            if(body.size() == 3 && !body[2].empty() && std::all_of(body[2].begin(), body[2].end(), isDigit))
+            const auto body = splitWords(cut == npos ? raw : raw.substrByPosLen(0, cut));
+            if(body.size() == 3 && allDigits(body[2]))
             {
-                const auto key = std::pair{std::string(body[0]), std::string(body[1])};
-                if(!allowed.contains(key))
-                {
-                    allowedOrder.emplace_back(key, 0);
-                }
-                allowed[key] = std::stoi(std::string(body[2]));
+                allowed[allowKey(body[0], body[1])] = static_cast<int>(toInt(body[2]));
             }
         }
     }
-    const auto count = [&](const std::string& fam, const std::string& path) -> size_t {
+    const auto count = [&](const za::String& fam, const za::String& path) -> za::SizeT {
         const auto f = found.find(fam);
         if(f == found.end())
         {
@@ -504,37 +524,40 @@ int checkCanonical(const Ctx& ctx, const Args& args, Out& out)
         const auto f = found.find(args[1]);
         if(f == found.end())
         {
-            std::string names;
+            za::String names;
             for(const auto& fam : fams)
             {
-                names += (names.empty() ? "" : ", ") + fam.id;
+                if(!names.empty())
+                {
+                    names += ", ";
+                }
+                names += fam.id;
             }
             out.line("check_canonical: no family {} ({})", args[1], names);
             return 1;
         }
-        for(const auto& [path, hits] : f->second)
+        for(const auto* e : qza::sortedByKey(f->second))
         {
-            for(const auto& h : hits)
+            for(const auto& h : e->second)
             {
-                out.line("{}:{}: {}", path, h.line, h.text.substr(0, 140));
+                out.line("{}:{}: {}", e->first, h.line, h.text.substrByPosLen(0, 140));
             }
         }
         return 0;
     }
     if(!args.empty() && args[0] == "--tighten")
     {
-        std::string o;
+        za::String o;
         int changed = 0;
         for(auto raw : lines)
         {
             const auto cut = raw.find('#');
-            const auto body = splitWords(cut == std::string::npos ? std::string_view(raw)
-                                                                  : std::string_view(raw).substr(0, cut));
-            if(body.size() == 3 && !body[2].empty() && std::all_of(body[2].begin(), body[2].end(), isDigit))
+            const auto body = splitWords(cut == npos ? za::StringView(raw) : raw.substrByPosLen(0, cut));
+            if(body.size() == 3 && allDigits(body[2]))
             {
-                const std::string fam(body[0]);
-                const std::string path(body[1]);
-                const int n = std::stoi(std::string(body[2]));
+                const za::String fam{body[0]};
+                const za::String path{body[1]};
+                const int n = static_cast<int>(toInt(body[2]));
                 const int now = static_cast<int>(count(fam, path));
                 if(now < n)
                 {
@@ -543,45 +566,53 @@ int checkCanonical(const Ctx& ctx, const Args& args, Out& out)
                     {
                         continue;
                     }
-                    const std::string from = std::format("{} {} {}", fam, path, n);
+                    const za::String from = fmt("{} {} {}", fam, path, n);
                     const auto at = raw.find(from);
-                    if(at != std::string::npos)
+                    if(at != npos)
                     {
-                        raw.replace(at, from.size(), std::format("{} {} {}", fam, path, now));
+                        raw.replace(at, from.size(), fmt("{} {} {}", fam, path, now));
                     }
                 }
             }
-            o += raw + "\n";
+            o += raw;
+            o += '\n';
         }
         writeRaw(ctx.tree / allowlistPath, o);
         out.line("check_canonical: {} allowlist line(s) lowered or dropped", changed);
         return 0;
     }
-    std::vector<std::string> problems;
-    size_t total = 0;
+    za::Vector<za::String> problems;
+    za::SizeT total = 0;
     for(const auto& fam : fams)
     {
-        for(const auto& [path, hits] : found.at(fam.id))
+        for(const auto* e : qza::sortedByKey(found.at(fam.id)))
         {
+            const auto& [path, hits] = *e;
             total += hits.size();
-            const auto a = allowed.find({fam.id, path});
+            const auto a = allowed.find(allowKey(fam.id, path));
             const int n = a == allowed.end() ? 0 : a->second;
             if(static_cast<int>(hits.size()) > n)
             {
-                std::string where;
+                za::String where;
                 for(const auto& h : hits)
                 {
-                    where += (where.empty() ? "" : ", ") + std::to_string(h.line);
+                    if(!where.empty())
+                    {
+                        where += ", ";
+                    }
+                    where += za::toString(h.line);
                 }
-                problems.push_back(std::format("{}: {} {} site(s), {} allowed (lines {}): use {}", path, hits.size(),
-                                               fam.id, n, where, fam.use));
+                problems.pushBack(fmt("{}: {} {} site(s), {} allowed (lines {}): use {}", path, hits.size(), fam.id, n,
+                                      where, fam.use));
             }
         }
     }
     int stale = 0;
     for(const auto& [key, n] : allowed)
     {
-        if(static_cast<int>(count(key.first, key.second)) < n)
+        const za::SizeT space = key.find(' ');
+        if(static_cast<int>(count(za::String{key.substrByPosLen(0, space)}, za::String{key.substrByPosLen(space + 1)})) <
+           n)
         {
             ++stale;
         }
@@ -597,8 +628,7 @@ int checkCanonical(const Ctx& ctx, const Args& args, Out& out)
                  problems.size(), allowlistPath);
         return 1;
     }
-    const std::string note =
-        stale ? std::format("; {} allowlist line(s) above today's count: run --tighten", stale) : std::string();
+    const za::String note = stale ? fmt("; {} allowlist line(s) above today's count: run --tighten", stale) : za::String();
     out.line("check_canonical: {} families, {} allowed sites, no new copies{}", fams.size(), total, note);
     return 0;
 }
