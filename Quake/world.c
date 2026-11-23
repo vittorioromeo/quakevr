@@ -1602,6 +1602,9 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 			trace = SV_ClipMoveToBoxEntityQVR (touch, clip->mins, clip->maxs, clip);
 		else
 			trace = SV_ClipMoveToEntityQVR (touch, clip->start, clip->mins, clip->maxs, clip->end, clip); // QVR
+		if (touch->v.solid == SOLID_BBOX && trace.fraction < 1 && clip->passedict &&
+			VR_PoleSolidLedge (touch, clip->passedict, &trace))
+			continue;	// QVR (ropes11): a steep pole's boxes' ledges are passed (a body falls on beside it)
 		// QVR: a player already inside a solid prop (toppled onto him) isn't held by it: he walks out. (Not with his
 		// feet a little into its top: he is on it, and SV_CheckStuck puts him back on top.)
 		if (trace.startsolid && clip->passedict &&

@@ -1257,10 +1257,11 @@ void printPasses()
                "triangles each)\n",
         static_cast<int>(glPasses.batches.size()));
     static constexpr const char* forms[] = {"depth", "full", "opaque", "plain", "gore", "skin", "body", "?"};
+    static constexpr const char* variants[] = {"", "_nofb", "_flat", "_nofb_flat"}; // (r_alias.c: ALIASVAR_* << 3)
     for(const AliasBatch& a : glPasses.batches)
     {
-        Con_Printf("  alias %-28s %3d inst %2d draws %s ent %d skin %d %s needs %d tris %d\n", a.model, a.instances,
-            a.draws, a.depth ? "depth" : "shade", a.ent, a.skin, forms[a.form & 7], a.needs, a.tris);
+        Con_Printf("  alias %-28s %3d inst %2d draws %s ent %d skin %d %s%s needs %d tris %d\n", a.model, a.instances,
+            a.draws, a.depth ? "depth" : "shade", a.ent, a.skin, forms[a.form & 7], variants[(a.form >> 3) & 3], a.needs, a.tris);
     }
     Con_Printf("vr_gl_passes: %d draw framebuffer binds in the frame (fbo, draws into it, the scope at the bind)\n",
         static_cast<int>(glPasses.binds.size()));

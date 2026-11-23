@@ -89,6 +89,27 @@ void PF_bladewoundage()
     G_FLOAT(OFS_RETURN) = bloodstream::bladeWoundAge(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)));
 }
 
+// vector(entity blade, vector spin, float least, float most) bladespinto: the spin (rad/s) a blade just thrown with `spin`
+// arrives with its edge or point first at what its arc meets, within least..most times its own (axestick::timeSpin); not a
+// blade, or nothing met: `spin` as it was. developer 1 prints the flight.
+void PF_bladespinto()
+{
+    edict_t* ent = G_EDICT(OFS_PARM0);
+    const float* in = G_VECTOR(OFS_PARM1);
+    glm::vec3 spin{in[0], in[1], in[2]};
+    const glm::vec3 was = spin;
+    float flight = 0.f;
+    glm::vec3 at{0.f};
+    if(axestick::timeSpin(ent, G_FLOAT(OFS_PARM2), G_FLOAT(OFS_PARM3), spin, flight, at))
+    {
+        Con_DPrintf("bladespinto: %s meets something %.2f s on at %.0f %.0f %.0f: spin %.1f -> %.1f rad/s\n",
+            PR_GetString(ent->v.classname), flight, at.x, at.y, at.z, glm::length(was), glm::length(spin));
+    }
+    G_FLOAT(OFS_RETURN + 0) = spin.x;
+    G_FLOAT(OFS_RETURN + 1) = spin.y;
+    G_FLOAT(OFS_RETURN + 2) = spin.z;
+}
+
 // A gore sound (vr_goresound.cpp): float(float kind, entity e, vector at, float strength) goresound. `kind` QVR_GORESND_*,
 // `e` its entity (a choke's: the monster, whose cry is dropped for a moment), `strength` 0..1. Unreliable, to every
 // client. 1: sent; 0: not (vr_gore 0, vr_gore_sound 0, a choke too soon).

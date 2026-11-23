@@ -1603,6 +1603,10 @@ za::Vector<Item> pageDebugTests()
             .help("vr_pole_solid_test (map vrropes): each pole's collision boxes on it, a player's box and a shot stopped by them, "
                   "their material (wood, metal), walking under the level pole, the navmesh's obstacles; the chains stopping "
                   "shots, blows and a nail (sparks) while bodies pass them. Prints PASS/FAIL lines."),
+        command("Test Falling Beside a Pole", "vr_climb_stamina 0; vr_pole_fall_test upright")
+            .help("vr_pole_fall_test upright (map vrropes; flat-screen play for the jump cases; 'slant' in the console for a slanted pole): "
+                  "jumped off a pole with keys held and set beside it in the air; every frame he falls at gravity's pace (no slow slide "
+                  "against its boxes), and after the jump the same pole is taken again. Prints PASS/FAIL lines."),
         command("Test the Rope and Chain Sounds", "vr_rope_sound_test")
             .help("vr_rope_sound_test: a rope and a chain made ahead; gripped (the chain's metal grip, the rope's slap; a rope is silent "
                   "to a headset's grip), then pushed swinging (the chain's links clink, rate-limited; the rope stays quiet). Prints PASS/FAIL lines."),

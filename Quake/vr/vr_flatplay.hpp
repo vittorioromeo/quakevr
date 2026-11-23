@@ -90,6 +90,10 @@ struct FireRoute
 [[nodiscard]] float fistShare(int h);
 // Hand angles `k` of the way from `a` to `b` (degrees; 0 `a`, 1 `b`): the shortest turn between them.
 [[nodiscard]] glm::vec3 blendHandAngles(const glm::vec3& a, const glm::vec3& b, float k);
+// Hand `h`'s angles with its fingers along `fingers` and its palm facing `palm` (world; flatplay's convention: at roll 0
+// the palm faces in), and the palm's way for hand angles `angles`. Shared by the swimming strokes and the blade grip.
+[[nodiscard]] glm::vec3 handFacing(int h, const glm::vec3& fingers, const glm::vec3& palm);
+[[nodiscard]] glm::vec3 palmOf(int h, const glm::vec3& angles);
 
 // Whether this hand holds a melee weapon (the axe, mjolnir, a sword, the chainsaw, the crowbar, the super axe; AD's melee
 // weapons are these ids too): at a wall it only goes back, never turns muzzle up (vr_flatsight.cpp).

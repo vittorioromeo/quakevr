@@ -1298,7 +1298,12 @@ void R_PrewarmSelectedPrograms (void)
 	}
 	for (form = 0; form < ALIASFORM_COUNT; form++)
 		for (poseverttype = 0; poseverttype < 3; poseverttype++)
-			GL_AliasFormProgram (form, amode, poseverttype);
+		{
+			int variant;
+			for (variant = 0; variant < 4; variant++) // QVR (qtune): the plain, gore and skin forms' variants made here
+				if ((variant & ~GL_AliasFormVariants ()) == 0 && (variant == 0 || (form >= ALIASFORM_PLAIN && form <= ALIASFORM_SKIN)))
+					GL_AliasFormProgramV (form, variant, amode, poseverttype);
+		}
 }
 
 static GLuint r_world_solid_program; // QVR: qworld, the opaque world's last program (R_WorldSolidProgramName: vr_gles_report)

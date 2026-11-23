@@ -55,8 +55,22 @@ struct State
     int printFrames = 0;
     double frameAt = 0.0;   // nowSeconds of the last beginFrame
     unsigned long long settledSerial = 0; // frames before this one are not read: VR's start, a load, a hitch
+    bool fight = false;     // the fight floor open (vr_dynres_min_fight): the scale may go below vr_dynres_min
+    int overAtFloor = 0;    // frames over the budget at vr_dynres_min (leaky: one under takes overLeak back)
 };
 State st;
+
+constexpr int overLeak = 4; // a frame under the budget at the floor takes this many off the fight count
+
+// The fight statistics (dynres::fightStats: tests, the e1m1 walk's measure): frames drawn below vr_dynres_min, all
+// frames drawn while on, the fight floor's openings.
+struct FightStats
+{
+    unsigned long long below = 0;
+    unsigned long long frames = 0;
+    int opened = 0;
+};
+FightStats fightStats;
 
 GLuint loadProgram = 0;
 bool loadFailed = false;
@@ -96,9 +110,28 @@ void main()
     return za::clamp(vr_dynres_max.value < 0.f ? vr_render_scale.value : vr_dynres_max.value, 0.25f, 2.f);
 }
 
-[[nodiscard]] float floorScale()
+// The floor outside fights (vr_dynres_min).
+[[nodiscard]] float normalFloorScale()
 {
     return za::clamp(vr_dynres_min.value, 0.25f, ceilingScale());
+}
+
+// The fight floor (vr_dynres_min_fight), when below the normal one; else the normal one.
+[[nodiscard]] float fightFloorScale()
+{
+    const float f = vr_dynres_min_fight.value;
+    return f > 0.f ? za::clamp(f, 0.25f, normalFloorScale()) : normalFloorScale();
+}
+
+[[nodiscard]] float floorScale()
+{
+    return st.fight ? fightFloorScale() : normalFloorScale();
+}
+
+// The lowest bucket outside fights.
+[[nodiscard]] int normalLowestBucket()
+{
+    return static_cast<int>(za::ceil((ceilingScale() - normalFloorScale()) / bucketStep - 1e-3f));
 }
 
 [[nodiscard]] int lowestBucket()
@@ -123,6 +156,15 @@ void change(int bucket, unsigned long long serial, double ms, float drawn)
 {
     const float from = bucketScale(st.bucket);
     ++changeCount;
+    if(st.fight && bucket < st.bucket && bucket <= normalLowestBucket())
+    {
+        st.fight = false; // risen back to vr_dynres_min: the fight floor shut until the next fight
+        st.overAtFloor = 0;
+        if(vr_dynres_log.value != 0.f)
+        {
+            Con_Printf("dynres: fight floor shut\n");
+        }
+    }
     st.lastWasDrop = bucket > st.bucket;
     st.bucket = bucket;
     st.changedAt = profile::nowSeconds();
@@ -202,6 +244,8 @@ void beginFrame()
     st.on = true;
     st.frameAt = now;
     st.drawnScale[serial % ringSize] = bucketScale(st.bucket);
+    ++fightStats.frames;
+    fightStats.below += bucketScale(st.bucket) < normalFloorScale() - 1e-4f ? 1 : 0;
     st.drawnSerial[serial % ringSize] = menuFloor() > bucketScale(st.bucket) ? 0 : serial; // (a menu's floor: not measured)
     if(st.changeSerial > serial)
     {
@@ -249,6 +293,30 @@ void gpuFrame(unsigned long long serial, double eyesMs)
 
     const float current = bucketScale(st.bucket);
     const bool atCurrent = serial >= st.changeSerial; // drawn at the current bucket (else in flight before the change)
+    // The fight floor (vr_dynres_min_fight): opened once the eyes stayed over the budget at vr_dynres_min for
+    // vr_dynres_fight_frames (a fight, not a spike: frames under it take overLeak each back); shut by change() when the
+    // scale has risen back to vr_dynres_min by the usual slow rise.
+    if(!st.fight && atCurrent && fightFloorScale() < normalFloorScale() && st.bucket >= normalLowestBucket())
+    {
+        if(attack * current * current > st.budgetMs)
+        {
+            ++st.overAtFloor;
+        }
+        else
+        {
+            st.overAtFloor = za::max(0, st.overAtFloor - overLeak);
+        }
+        if(st.overAtFloor >= za::max(1, static_cast<int>(vr_dynres_fight_frames.value)))
+        {
+            st.fight = true;
+            ++fightStats.opened;
+            if(vr_dynres_log.value != 0.f)
+            {
+                Con_Printf("dynres: fight floor open (%.2f, eyes' GPU %.2f ms at %.2f, budget %.2f ms)\n",
+                    static_cast<double>(fightFloorScale()), eyesMs, static_cast<double>(drawn), st.budgetMs);
+            }
+        }
+    }
     const int lowest = lowestBucket();
     if(atCurrent && attack * current * current > st.budgetMs && st.bucket < lowest)
     {
@@ -277,7 +345,13 @@ bool statusLine(char* out, int size)
     {
         return false;
     }
-    if(st.lastMs > 0.0)
+    if(st.lastMs > 0.0 && fightFloorScale() < normalFloorScale())
+    {
+        q_snprintf(out, size, "Dynamic res x%.2f of %.2f, GPU %.1f of %.1f ms, fight floor %d, %.1f%% below", static_cast<double>(scale()),
+            static_cast<double>(ceilingScale()), st.lastMs, st.budgetMs, fightStats.opened,
+            fightStats.frames ? 100.0 * static_cast<double>(fightStats.below) / static_cast<double>(fightStats.frames) : 0.0);
+    }
+    else if(st.lastMs > 0.0)
     {
         q_snprintf(out, size, "Dynamic res x%.2f of %.2f, GPU %.1f of %.1f ms", static_cast<double>(scale()),
             static_cast<double>(ceilingScale()), st.lastMs, st.budgetMs);

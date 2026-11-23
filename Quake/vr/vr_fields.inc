@@ -321,6 +321,7 @@ QVR_FIELD(vr_gib_made) // when it was made a gib (QC VR_MakeGibGrabbable): its g
 QVR_FIELD(vr_gib_bornin) // what it was made in, met in its grace (QC VR_Prop_Flung): ...
 QVR_FIELD(vr_gib_bornin_t) // ... and when last met
 QVR_FIELD(carry_letgo) // the player whose hand last let go of it (QC vr_carry.qc): ...
+QVR_FIELD(vr_throw_self) // 2: a hard throw past vr_throw_self_grace, its owner given up (QC VR_Throw_SelfFrame): still its thrower's (vr_axestick.cpp)
 QVR_FIELD(vr_headless) // its head cut off (QC vr_decap.qc): its ragdoll is made headless, a saved game's too (vr_box3d.cpp)
 QVR_FIELD(vr_necksnapped) // its ragdoll's neck snapped (vr_box3d_knockdown.cpp ragdollNeckSnapped): a saved game's made loose again
 QVR_FIELD(vr_limbcut) // the ragdoll bones cut off (bits; QC vr_limbs.qc, ROUND21.md "Limb gore"): made so again in a saved game (vr_box3d.cpp)

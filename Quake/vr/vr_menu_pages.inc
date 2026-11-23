@@ -1957,6 +1957,7 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
         row(opt::vr_anim_smooth_rig),
         row(opt::vr_anim_smooth_rebuild),
         row(opt::vr_rim_light),
+        row(opt::vr_rig_plain),
         row(opt::vr_viewmodel_minlight),
         row(opt::vr_weapon_reflections),
         row(opt::vr_weapon_reflections_strength),

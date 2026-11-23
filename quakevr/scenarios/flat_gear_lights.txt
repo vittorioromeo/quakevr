@@ -1,6 +1,0 @@
-# flat_gear_lights: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title Flat-screen: 9 dims and lights the gear (the visor, the guns' ammo screens)
-map vrtesthall
-god
-give "Rocket Launcher" main
-hint Flat-screen: press 9 (Gear lights, Options > Controls): the visor's panels and the rocket launcher's ammo screen dim; 9 again lights them.
