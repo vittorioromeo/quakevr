@@ -38,7 +38,7 @@ ls = lines("axe")
 done(ls, "axe")
 t = find(ls, THROWN)
 check(bool(t) and t[0].group(1) == "thrown_weapon", "axe: J held, let go: the axe is thrown (%s)" % (t[0].group(0) if t else "none"))
-check(bool(find(ls, r'button: .*\(target "r12b_open"\) pressed by thrown_weapon')), "axe: it presses lesson 12's high target (r12b_open)")
+check(bool(find(ls, r'button: .*\(target "r12b_open"\) pressed by (player: )?thrown_weapon')), "axe: it presses lesson 12's high target (r12b_open)")
 landed = find(ls, r"flat throw: landed: thrown_weapon (\d+) units level from where it left, (-?\d+) down, (.*)")
 check(bool(landed) and landed[0].group(3) == "stuck", "axe: it sticks (%s)" % (landed[0].group(0) if landed else "no landing"))
 
@@ -59,7 +59,7 @@ if len(t) >= 2 and len(v) >= 2:
 else:
     check(False, "rock: a tap and a charge (missing throws)")
     check(False, "rock: the charged throw leaves faster (missing throws)")
-check(bool(find(ls, r'button: .*\(target "r10_open"\) pressed by vr_(rock|brick|debris_piece)')), "rock: it presses lesson 10's button behind the bars (r10_open: the gate)")
+check(bool(find(ls, r'button: .*\(target "r10_open"\) pressed by (player: )?vr_(rock|brick|debris_piece)')), "rock: it presses lesson 10's button behind the bars (r10_open: the gate)")
 
 ls = lines("gren")
 done(ls, "gren")
