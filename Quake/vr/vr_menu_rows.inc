@@ -6621,10 +6621,20 @@ QVR_SLIDER(vr_flat_holster_menu_cursor_speed, "Holster Menu Cursor Speed", 0.2f,
 QVR_SLIDER(vr_flat_holster_menu_crt, "Holster Menu Screen Look", 0.f, 2.f, 0.1f, "%.1f", noExt,
     "The holster menu's screen as a small CRT, as the visor's panels: scanlines and flicker (0 none) "
     "(vr_flat_holster_menu_crt).")
+QVR_TOGGLE(vr_flat_wheel, "Weapon Wheel on 1 / 2",
+    "On (the default): a tap of 1 or 2 still cycles the left or right hand; hold the key and the headset's weapon wheel "
+    "opens where that hand is on the screen, time slowed. Point with the mouse (the view stays) and let go on a slot: "
+    "that hand takes its weapon, DROPs what it holds or UNLOADs its gun; let go off the wheel: nothing. Off: 1 and 2 only "
+    "cycle (vr_flat_wheel).")
+QVR_SLIDER(vr_flat_wheel_hold, "Weapon Wheel Hold Time", 0.1f, 1.f, 0.05f, "%.2f s", noExt,
+    "How long 1 or 2 is held before the weapon wheel opens; a shorter press cycles the hand (vr_flat_wheel_hold).")
+QVR_SLIDER(vr_flat_wheel_size, "Weapon Wheel Size", 0.3f, 1.f, 0.02f, "%.2f", noExt,
+    "The weapon wheel's height on the screen, a share of the screen's (vr_flat_wheel_size).")
 QVR_TOGGLE(vr_weaponwheel, "Weapon Wheel",
     "Hold the wheel's button on either hand: a wheel of your holsters opens round that hand and time slows a little. Move "
     "the hand to a slot and let go: that hand takes its weapon, as reaching for the holster would (what it held goes back "
-    "to its holster; EMPTY HAND puts it away). Let go in the middle or off the wheel: nothing (vr_weaponwheel).")
+    "to its holster; EMPTY HAND puts it away; DROP drops what the hand holds; UNLOAD empties its gun's magazine into your "
+    "ammo). Let go in the middle or off the wheel: nothing (vr_weaponwheel).")
 QVR_CYCLE(vr_weaponwheel_button, "Weapon Wheel Button",
     "The button you hold for the weapon wheel, on either hand (that hand picks): the upper face button (B or Y, the "
     "default: free in the game unless weapon cycling is on; the grappling hook's hand keeps its reel), the stick's click, "

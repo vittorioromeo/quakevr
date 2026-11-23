@@ -10452,3 +10452,36 @@ has the table.
   positions, tallies, vr_mp_* keys and room, debug aids (scr_showfps, Spawn With a Toolgun, controller preview).
 - **Tests:** flatspeedfov 7/0, flatbash 15/0, tunables_test 13/0, vr_agrunt_test 83 PASS; a default-config run prints
   each promoted value as its default.
+## flatwheel: the weapon wheel on flat keys 1 / 2; DROP and UNLOAD on the wheel (agent/flatwheel, 2026-11-23)
+
+His ask 2026-11-23. Follows "weaponwheel" and "flatnumkeys"; FLATPLAY.md's keys table.
+- **Flat input** (`vr_flatplay.cpp` wheelKey, `vr_flat_wheel` 1 default, holsters on): 1 / 2 held `vr_flat_wheel_hold`
+  (0.35) open the headset's wheel for the left / right hand; a shorter press cycles the hand **when let go** (before: on
+  the press; `vr_flat_wheel 0` keeps exactly that). A press while the wheel is open (the other key) does nothing. Letting
+  go is `weaponwheel::release` (the lit slot, or nothing); Esc closes it (`VR_FlatToolgunEscape`).
+- **One wheel** (note_reuse): `vr_weaponwheel.cpp`'s provider, layout, image (`gadget::renderHolsterMenu`), pick (the
+  client command `vr_wheel_pick`, QC `VR_Wheel_Pick`) and test are shared; flat adds `ws.flat`: the cursor is the mouse
+  (`flatMouse` from `VR_FlatToolgunMouse`, the holster menu's `vr_flat_holster_menu_cursor_speed`, up to 60 image pixels
+  past its edge: off the wheel), the view stays, nothing fires (`routeFire`), the crosshair fades
+  (`vr_flat_holster_menu_xhair_fade`), time at `vr_weaponwheel_timescale` (the same as VR's). Placement: the hand's
+  point through `r_matviewproj` as it opens (off the view: low on its side), `vr_flat_wheel_size` (0.5) of the window's
+  height, kept on the window. Drawn on the window by the holster menu's own window composite, now shared:
+  `flatholster::drawOnWindow` (glow, face, CRT screen, frame) and `drawCursorOnWindow` (its arrow). The holster menu
+  and the wheel never show together (each refuses while the other is up; they share the render target).
+- **DROP and UNLOAD** (both modes): two more Choices of the holsters' provider (`keyDrop` -2, `keyUnload` -3), at the
+  bottom between the hips (nine slots: the layout is now 280 x 282 image pixels, ring 106, slots 68 x 46, so the
+  steep pairs clear). A pick is `vr_wheel_pick <hand> -2|-3`: QC `VR_Wheel_Pick` runs `VR_Forcegrab_FlatDropHand` (6 / 7's
+  and the menu's DROP) or `VR_FlatHolster_Unload` (the menu's UNLOAD). Greyed by the menu's own tests
+  (`flatholster::canDrop` / `canUnload`); UNLOAD's is now the server's: `STAT_QVR_FLATUNLOADFULL` bits 4, 5 (rounds to take
+  out, some fit, not reloading), which the menu's UNLOAD reads too. `VR_FlatReload_Unloadable` no longer requires flat
+  play, so a headset's UNLOAD empties the gun's clip into the reserve (a magazine taken out is not in the clip).
+- **Settings:** Flat-screen settings after the holster menu's rows: Weapon Wheel on 1 / 2 (`vr_flat_wheel`), Hold Time,
+  Size. Options > Controls keeps 1 / 2 as "Cycle left/right hand" (the rows are keys only). Debug menu: Flat Weapon
+  Wheel Test (`vr_weaponwheel_test flat`); `vr_weaponwheel_dump` also prints the hands' clips and those bits.
+- **Tests:** `weaponwheel_test.sh <agent>` 17/0 (nine slots; the right hand's UNLOAD: the shotgun's 8 shells back, 17 ->
+  25; the left hand's UNLOAD greyed, its DROP). `weaponwheel_test.sh <agent> flat` 17/0 (2 tapped twice cycles with no
+  wheel, held 27 frames opens it on the window, time x0.50, the mouse lights and picks LEFT HIP's axe, 1 off the wheel
+  nothing, UNLOAD 24 nails back, DROP, 1 onto an empty holster, `vr_flat_wheel 0`: 1 cycles on the press (2 frames) and a
+  long hold opens nothing). flatholster_test 54/0, flatkeybind_test 16/0. Scenario `flat_weapon_wheel`.
+- Noticed, not chased: in the headset test the nailgun put into a holster by the wheel came back out with an empty clip
+  (24 rounds, not into the reserve); the shotgun drawn from its holster kept its 8.
