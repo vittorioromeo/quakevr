@@ -13,6 +13,7 @@ using QuakeVR.Installer.Core.Assets;
 using QuakeVR.Installer.Core.Audio;
 using QuakeVR.Installer.Core.Packaging;
 using QuakeVR.Installer.Core.Platform;
+using QuakeVR.Installer.Core.Quest;
 using QuakeVR.Installer.Skin;
 using QuakeVR.Installer.ViewModels;
 using QuakeVR.Installer.Views;
@@ -188,6 +189,13 @@ static class ScreenshotHarness
             report.AppendLine($"play mute check FAILED: {muteFailed}");
             await File.WriteAllTextAsync(Path.Combine(dir, "report.txt"), report.ToString());
             Console.Error.WriteLine($"play mute check FAILED: {muteFailed}");
+            return 1;
+        }
+        if (await QuestDoneCheck(vm, view, record, dir, report) is { } questFailed)
+        {
+            report.AppendLine($"quest done check FAILED: {questFailed}");
+            await File.WriteAllTextAsync(Path.Combine(dir, "report.txt"), report.ToString());
+            Console.Error.WriteLine($"quest done check FAILED: {questFailed}");
             return 1;
         }
         vm.GoTo(Page.Support);
@@ -680,6 +688,59 @@ static class ScreenshotHarness
             return "files outside the reliefs folder changed";
         }
         return null;
+    }
+
+    /// <summary>The Done page after the Quest: Quest only (installed, then skipped: no PC Play buttons nor Steam card, the
+    /// Quest's card with the files copied and where to start it) and both targets (the Play buttons and the Quest's card).
+    /// The window is left as it was (PC only).</summary>
+    static async Task<string?> QuestDoneCheck(MainViewModel vm, ShellView view, InstallRecord record, string dir, StringBuilder report)
+    {
+        // (IsVisible needs a window: the harness renders without one, so the element's and its parents' Visibility)
+        static bool Shown(DependencyObject? e)
+        {
+            for (; e is not null; e = VisualTreeHelper.GetParent(e))
+            {
+                if (e is UIElement { Visibility: not Visibility.Visible })
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        bool PlayShown() => FindAll<System.Windows.Controls.Button>(view).Any(b => ReferenceEquals(b.Command, vm.LaunchVrCommand) && Shown(b));
+        bool QuestCardShown() => FindAll<System.Windows.Controls.TextBlock>(view).Any(t => t.Text == vm.QuestDoneText && Shown(t));
+        var installed = new QuestResult("Quest 3", true, 1234, 0, 2_345_678_901);
+        string? failed = null;
+
+        vm.SimulateDone(record);
+        vm.ShowQuestDone(pc: false, installed, "");
+        await Save(view, Path.Combine(dir, "5-done-quest-only.png"));
+        report.AppendLine($"done, Quest only: {vm.DoneTitle} / {vm.QuestDoneTitle}: {vm.QuestDoneText} / play {PlayShown()}, card {QuestCardShown()}");
+        if (PlayShown() || !QuestCardShown() || !vm.QuestDoneOk || !vm.QuestDoneText.Contains("1234 files copied") ||
+            !vm.QuestDoneText.Contains("Unknown Sources") || vm.DoneNotes.Any(n => n.Title is "Relit maps" or "Virtual Desktop"))
+        {
+            failed = "a Quest-only Done page must hide the PC's Play buttons and PC notes and show the Quest's result";
+        }
+
+        vm.ShowQuestDone(pc: false, null, "No headset found: connect the Quest with a USB data cable.");
+        await Save(view, Path.Combine(dir, "5-done-quest-skipped.png"));
+        report.AppendLine($"done, Quest skipped: {vm.DoneTitle} / {vm.QuestDoneTitle}: {vm.QuestDoneText}");
+        if (failed is null && (PlayShown() || !QuestCardShown() || vm.QuestDoneOk || !vm.QuestDoneText.Contains("No headset found")))
+        {
+            failed = "a skipped Quest-only run must say why, without Play buttons";
+        }
+
+        vm.ShowQuestDone(pc: true, installed with { ApkInstalled = false, Pushed = 3, Skipped = 1231, PushedBytes = 4096 }, "");
+        await Save(view, Path.Combine(dir, "5-done-pc-and-quest.png"));
+        report.AppendLine($"done, PC and Quest: {vm.DoneTitle} / {vm.QuestDoneTitle}: {vm.QuestDoneText} / play {PlayShown()}, card {QuestCardShown()}");
+        if (failed is null && (!PlayShown() || !QuestCardShown() || !vm.QuestDoneText.Contains("1231 already there")))
+        {
+            failed = "a PC and Quest Done page must show both the Play buttons and the Quest's result";
+        }
+
+        vm.TargetQuest = false;
+        vm.SimulateDone(record);
+        return failed;
     }
 
     static async Task<string?> PlayMuteCheck(MainViewModel vm, ShellView view, StringBuilder report)

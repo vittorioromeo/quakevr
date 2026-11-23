@@ -24,6 +24,30 @@
                     </StackPanel>
                 </DockPanel>
             </Border>
+            <!-- The Quest target, after the PC steps: the headset's state, the steps to get it ready, Check again. -->
+            <Border Style="{StaticResource CardBorder}" BorderBrush="{StaticResource Accent}" Margin="0,18,0,0"
+                    Visibility="{Binding QuestActive, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
+                    <TextBlock Text="META QUEST" Style="{StaticResource SectionTitle}" />
+                    <TextBlock Text="{Binding QuestStatus}" Style="{StaticResource Body}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                    <ItemsControl ItemsSource="{Binding QuestSteps}" Margin="0,10,0,0"
+                                  Visibility="{Binding QuestShowSteps, Converter={StaticResource BoolToVis}}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" Style="{StaticResource Small}" TextWrapping="Wrap" Margin="0,0,0,6" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Content="Check again" Style="{StaticResource AccentButton}" Command="{Binding QuestCheckCommand}" Margin="0,0,10,0"
+                                Visibility="{Binding QuestShowSteps, Converter={StaticResource BoolToVis}}" />
+                        <Button Content="Continue" Style="{StaticResource AccentButton}" Command="{Binding QuestContinueCommand}" Margin="0,0,10,0"
+                                Visibility="{Binding QuestFinished, Converter={StaticResource BoolToVis}}" />
+                        <Button Content="Skip the Quest" Style="{StaticResource GhostButton}" Command="{Binding QuestContinueCommand}"
+                                Visibility="{Binding QuestShowSteps, Converter={StaticResource BoolToVis}}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
             <TextBlock Text="DETAILS" Style="{StaticResource SectionTitle}" Margin="2,24,0,8" />
         </StackPanel>
         <Border Style="{StaticResource CardBorder}" Padding="12,10" Margin="0,0,0,10">

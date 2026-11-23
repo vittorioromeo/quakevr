@@ -44,6 +44,10 @@ public sealed class StartupOptions
 {
     public string? Package { get; set; }
     public string? Textures { get; set; }
+    /// <summary>--apk: the Quest APK (else QuakeVR.apk beside Setup, else the release list's quest component).</summary>
+    public string? Apk { get; set; }
+    /// <summary>--adb: adb.exe for the Quest target (else found or fetched: AdbLocator).</summary>
+    public string? Adb { get; set; }
     public string? Target { get; set; }
     /// <summary>Shortcuts go into &lt;dir&gt;\Desktop and &lt;dir&gt;\Programs instead of the real ones (tests).</summary>
     public string? ShortcutsDir { get; set; }
@@ -104,6 +108,8 @@ public sealed class StartupOptions
             {
                 case "--package": o.Package = Next(); break;
                 case "--textures": o.Textures = Next(); break;
+                case "--apk": o.Apk = Next(); break;
+                case "--adb": o.Adb = Next(); break;
                 case "--target": o.Target = Next(); break;
                 case "--shortcuts-dir": o.ShortcutsDir = Next(); break;
                 case "--feed": if (Next() is { } f) { o.Feeds.Add(f); } break;
@@ -152,7 +158,7 @@ public sealed class StartupOptions
 }
 
 /// <summary>The whole wizard's state. Pages bind to it; the work is done by QuakeVR.Installer.Core.</summary>
-public sealed class MainViewModel : ObservableObject
+public sealed partial class MainViewModel : ObservableObject
 {
     readonly ISystemProbe _probe;
     readonly StartupOptions _options;
@@ -402,7 +408,7 @@ public sealed class MainViewModel : ObservableObject
     bool CanNext() => Page switch
     {
         // The Update screen: Update/Repair needs the package (local, or the release list read).
-        Page.Welcome => _existing is null || ReinstallChosen || !QuickUpdate || PackageReady,
+        Page.Welcome => (TargetPc || TargetQuest) && (_existing is null || ReinstallChosen || !QuickUpdate || PackageReady),
         Page.Statement => Statement.AllYes,
         Page.Detect => !Detecting && SelectedQuake is { Playable: true },
         Page.Options => InstallDirError is null && SelectedQuake is not null && PackageReady,
@@ -778,8 +784,8 @@ public sealed class MainViewModel : ObservableObject
                 HdTexturesZip = textures,
                 HdTexturesSha256 = textures is not null && textures != _options.Textures ? hdTarget!.File.Sha256 : null,
                 OwnedPacks = owned,
-                SetupFiles = OwnSetupFiles(),
-                Registry = RegistryFor(_options),
+                SetupFiles = TargetPc ? OwnSetupFiles() : [], // (Quest only: the staging folder needs no Setup)
+                Registry = TargetPc ? RegistryFor(_options) : null,
                 Shortcuts = new ShortcutOptions
                 {
                     Desktop = existing.Choices.DesktopShortcut,
@@ -801,16 +807,26 @@ public sealed class MainViewModel : ObservableObject
                 }
             });
             Record = await new InstallEngine().InstallAsync(plan, progress, ct);
-            await EnsureVcRuntimeAsync(http, ct);
-            await PrepareGameAsync(ct);
+            if (TargetPc)
+            {
+                await EnsureVcRuntimeAsync(http, ct);
+            }
+            if (TargetPc)
+            {
+                await PrepareGameAsync(ct);
+            }
             await AddArcaneDimensionsAsync(http, ct);
             await AddDwellAsync(http, ct);
             await AddQuothAsync(http, ct);
             await MakeReliefsAsync(ct);
             LoadExisting();
             BuildDoneNotes();
-            GoToSettingsOrDone();
-            UiSounds.Play(Sfx.InstallDone);
+            _questPending = TargetQuest; // the Quest after this run (QuestRunAsync), else on as before
+            if (!TargetQuest)
+            {
+                GoToSettingsOrDone();
+                UiSounds.Play(Sfx.InstallDone);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -828,6 +844,11 @@ public sealed class MainViewModel : ObservableObject
             Installing = false;
             Raise(nameof(ShowNext));
             CommandManager.InvalidateRequerySuggested();
+        }
+        if (_questPending)
+        {
+            _questPending = false;
+            await QuestRunAsync();
         }
     }
 
@@ -1622,30 +1643,40 @@ public sealed class MainViewModel : ObservableObject
                 HdTexturesZip = textures,
                 VisPatchArchives = visPatch,
                 OwnedPacks = owned,
-                SetupFiles = OwnSetupFiles(),
-                Registry = RegistryFor(_options),
+                SetupFiles = TargetPc ? OwnSetupFiles() : [], // (Quest only: the staging folder needs no Setup)
+                Registry = TargetPc ? RegistryFor(_options) : null,
                 Shortcuts = new ShortcutOptions
                 {
-                    Desktop = DesktopShortcut,
-                    StartMenu = StartMenuShortcuts,
-                    Flat = FlatShortcut,
-                    DesktopFlat = DesktopFlatShortcut,
-                    Log = LogShortcut,
+                    Desktop = TargetPc && DesktopShortcut,
+                    StartMenu = TargetPc && StartMenuShortcuts,
+                    Flat = TargetPc && FlatShortcut,
+                    DesktopFlat = TargetPc && DesktopFlatShortcut,
+                    Log = TargetPc && LogShortcut,
                     DesktopDir = _options.ShortcutsDir is { } sd ? Path.Combine(sd, "Desktop") : _probe.GetFolder(KnownFolder.Desktop),
                     StartMenuDir = _options.ShortcutsDir is { } sm ? Path.Combine(sm, "Programs") : _probe.GetFolder(KnownFolder.StartMenuPrograms),
                 },
             };
             Record = await new InstallEngine().InstallAsync(plan, progress, ct);
-            await EnsureVcRuntimeAsync(http, ct);
-            await PrepareGameAsync(ct);
+            if (TargetPc)
+            {
+                await EnsureVcRuntimeAsync(http, ct);
+            }
+            if (TargetPc)
+            {
+                await PrepareGameAsync(ct);
+            }
             await AddArcaneDimensionsAsync(http, ct);
             await AddDwellAsync(http, ct);
             await AddQuothAsync(http, ct);
             await MakeReliefsAsync(ct);
             LoadExisting();
             BuildDoneNotes();
-            GoToSettingsOrDone();
-            UiSounds.Play(Sfx.InstallDone);
+            _questPending = TargetQuest; // the Quest after this run (QuestRunAsync), else on as before
+            if (!TargetQuest)
+            {
+                GoToSettingsOrDone();
+                UiSounds.Play(Sfx.InstallDone);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -1663,6 +1694,11 @@ public sealed class MainViewModel : ObservableObject
             Installing = false;
             Raise(nameof(ShowNext));
             CommandManager.InvalidateRequerySuggested();
+        }
+        if (_questPending)
+        {
+            _questPending = false;
+            await QuestRunAsync();
         }
     }
 
@@ -2010,9 +2046,12 @@ public sealed class MainViewModel : ObservableObject
         : "";
 
     /// <summary>The Done page's title and subtitle: a reliefs-only run says what it did.</summary>
-    public string DoneTitle => _reliefsOnlyRun ? "Reliefs for Dwell and Quoth are ready" : $"{ProductName} is ready";
+    public string DoneTitle => _reliefsOnlyRun ? "Reliefs for Dwell and Quoth are ready"
+        : !TargetPc ? (_questResult is not null ? $"{ProductName} is on your Quest" : $"{ProductName} is not on your Quest yet")
+        : $"{ProductName} is ready";
     public string DoneSubtitle => _reliefsOnlyRun
         ? "Only the reliefs folder was written. The game uses them at its next start."
+        : !TargetPc ? (_questResult is not null ? "Put on your headset and start it from Library > Unknown Sources." : "Connect the headset and run Setup again.")
         : "Start your VR software, put on your headset, and press Play.";
 
     /// <summary>"Make reliefs only": the reliefs step on <see cref="ReliefsOnlyTarget"/>, nothing else (no statement, no
@@ -2149,7 +2188,7 @@ public sealed class MainViewModel : ObservableObject
                 ? $"The game's first maps are ready to load at once, and every map is relit with the HD textures ({prepared.Relit} relit now{(prepared.RelightSkipped > 0 ? $", {prepared.RelightSkipped} kept from before" : "")}): the first start relights nothing. Later: Graphics > Relighting."
                 : "The game's first maps are ready to load at once (the hub's first load was about 10 seconds without it)."));
         }
-        if (Record?.RelightPending == true)
+        if (TargetPc && Record?.RelightPending == true)
         {
             // The installer relights nothing itself: the game does, once, and skips what it relit before (an update).
             var before = FirstStartRelight.RelitCopies(InstallDir);
@@ -2208,7 +2247,7 @@ public sealed class MainViewModel : ObservableObject
                 },
             });
         }
-        if (_report?.Vr.SuggestVdxr == true)
+        if (TargetPc && _report?.Vr.SuggestVdxr == true)
         {
             DoneNotes.Add(new CheckItem(CheckStatus.Info, "Virtual Desktop",
                 "The game picks Virtual Desktop's runtime (VDXR), the developer's setup, by itself while the Streamer is running (or SteamVR, when that's the OpenXR runtime chosen in the Streamer; VR Settings > OpenXR Runtime: Auto)."));
