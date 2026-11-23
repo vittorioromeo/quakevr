@@ -10665,3 +10665,30 @@ issue rather than regrabbing"). ROPES.md "Climbing (flat-screen)", "Poles", "Tes
   upright 11/0, slant 11/0; rope_flat_test rope 8/0, pole 7/0, polejump 7/0, slantjump 6/0, wall 1/0, wallvr 1/0,
   strungpole 5/0; rope_climb_test pole_jump 6/0, rope_jump 6/0, pole_wood 10/0, monkey_jump 7/0; vr_pole_solid_test
   14/0; mp_test.py pole 15/0. Not run: an MP free-fall scenario (prediction shares solidInside/solidLedge).
+
+## holsterammo: the weapon wheel's hold no longer ejects the magazine (agent/holsterammo, 2026-11-23)
+
+Follows "flatwheel"'s noticed item (the nailgun put into a holster by the wheel came back with an empty clip).
+- **Cause: not the holsters.** B/Y is both the wheel's button (`vr_weaponwheel_button` 0) and the magazine's eject
+  (`vr_reload_eject_button`, Immersive reloading). The wheel lets its button's press reach the game at once, so the
+  hold's press edge reached the server: the nailgun's magazine (24 rounds) fell out on the floor a frame later, before
+  the wheel even opened (diagnosed: 24 before the press, 0 at the open, 0 nails in the reserve). The same edge breaks
+  open the super shotgun (`vr_reload_ssg_break` by button) and swings out the revolver's cylinder. The shotgun kept its 8:
+  no magazine.
+- **Every holster path keeps its rounds** (checked, nothing to fix): let go at a holster and drawn by a grip there, 5 and
+  2 (flat keys), the wheel's EMPTY HAND / slot / trade, the holster menu's swap, in reloading modes 1, 2, 3, headset and
+  flat: the record (`.weaponinst`, its clip, `QVR_WPNFLAG_NOMAG`) travels with the gun. The holsters' reload (modes 1,
+  2) takes from the reserve, clip + reserve conserved; Immersive never reloads the nailgun at a holster; flat never at
+  a holster. Quick Slots has no clips (`VRIsWeaponReloadingEnabled` needs Immersive holsters): the reserve untouched.
+- **Fix** (`vr_input.cpp` WheelHold, `wheelMoveBit`): the wheel's button's bit sent with the move
+  (`QVR_BUTTON_*HANDSECONDARY`, or PRIMARY for `vr_weaponwheel_button` 2) is held back while the hold may still open the
+  wheel and that hand holds a weapon (`weaponwheel::holdsButtonBack`: canOpen and not the fist); let go before the wheel
+  opens (a tap), the bit goes for 0.1 s (`wheelTapPulse`: a press edge a server at any frame rate sees). The game's key
+  event is unchanged (still at once). Not held back: the wheel off, an empty hand (the pouch's multi-grenade wants B/Y
+  held: `VR_HandGrenade_WantsMulti`), the grappling hook in that hand (its reel: canOpen refuses), a menu up, flat play.
+  So a tap ejects on the let-go (a tap's length later) instead of the press. Client-side, so MP clients the same.
+- **Tests:** weaponwheel_test.sh 20/0 (new: the hold kept the magazine in, 24 -> 24; holstered and drawn, 24; Y tapped
+  2 frames: no wheel, the magazine out; before the fix the first two failed); flat 17/0. New `vr_reload_test 49`
+  (QC vr_holsterammo_test.qc, holsterammo_test.sh [flat]): 28/0 headset, 28/0 flat. flatholster_test 54/0,
+  reload/eject_test 28/0, mp_test.py weaponwheel (now with the nailgun in his hand: the hold keeps its magazine).
+- Noticed, not chased (as before): the multi-grenade's B/Y held longer than `vr_weaponwheel_hold` opens the wheel.
