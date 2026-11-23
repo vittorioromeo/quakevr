@@ -1558,7 +1558,8 @@ extern "C" int VR_RenderView()
     // grades and dithers (tonemap::drawInTile): only while that is all the post-process would do (tonemap::postInScene;
     // no bloom, no OIT, not under water) and the eye fits in its image (at its size, or its lower left part:
     // vr_eye_subimage, dynamic resolution's buckets).
-    const int directWanted = vr_xr_direct.value != 0.f ? (vr_xr_direct.value >= 2.f ? 2 : 1) : xrFoveation ? 2 : 0;
+    const int directWanted = vr_xr_direct.value < 0.f ? 0 // (-1: never, foveation or not: the post-process path's A/B)
+                             : vr_xr_direct.value != 0.f ? (vr_xr_direct.value >= 2.f ? 2 : 1) : xrFoveation ? 1 : 0; // (form 2 + foveation: the runtime crashed, qfov)
     const glm::vec3 wobble = water::viewWobble(); // (the last frame's liquid: the eye's own is known in its view)
     const char* const notDirect = directWanted <= 0                       ? ""
                                   : !VR_GLESForm(VR_GLES_FORM_GLSL)       ? "not OpenGL ES"

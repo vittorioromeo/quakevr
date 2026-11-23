@@ -210,6 +210,7 @@ warming), and parts of one setting within a launch by +-1.5 ms (draws 183-244 fr
 | render scale 0.58 (fourth launch, base 18.08) | 16.66 | 27.9% | 231 | -1.4 ms |
 | anisotropy 1 or 4 (round 2) | 17.85 / 17.40 | 36.5% / 29.7% | 221 / 217 | nothing seen (the world's arrays took the value of the part before: not clean) |
 | no world depth pre-pass (`vr_world_prepass 0`, new) | 15.78 vs 18.03, then 17.39 vs 17.28, 18.61 vs 17.22 | - | - | **no gain** over three launches (first launch's -2.2 was the gibs' random cuts): not in the preset |
+| straight into the headset's images with fixed foveation high, form 1 (qfov: `+vr_xr_foveation 3 -xrfoveation` at launch, `vr_retro 0; vr_retrolight 0`; tone curve in the shaders, in-tile grade) | 14.62 vs 15.01 (P90 14.96 vs 16.30) | 12.1% vs 21.4% | 206 vs 210 | -0.4 ms: the post-process's cost, not foveation's (6w's form 1 the same); form 2 (own depth renderbuffer) with foveated images **crashed the runtime in xrEndFrame at once** (SIGSEGV 0x30 in libGLESv2_adreno under libvrapiimpl), with or without the in-tile pass; without foveation it runs. No default changed |
 
 Counts (PC mock, `-glescompat +vr_standalone_preset 0`, `vr_gl_passes`): 240 draws a frame, 88 of them alias (48
 batches, 290 instances, 72k alias triangles both eyes); the Quest's own frame 192-244 draws. Gibs 76 + 76 + 12
