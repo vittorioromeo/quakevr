@@ -184,6 +184,8 @@ constexpr presetcore::Row standaloneRows[] = {
     {&vr_ragdoll_max,                 {"4",      "3",      "3"}},
     {&vr_smallgibs_max,               {"32",     "24",     "16"}},
     {&vr_limbs_max,                   {"12",     "8",      "8"}},
+    // qtune: gibs, heads and limbs settled 5 s after a fight past this many: the farthest from you go (none within 160)
+    {&vr_gore_trim_max,               {"24",     "20",     "16"}},
     {&vr_explosion_debris_max,        {"32",     "24",     "16"}},
     {&vr_gore_dents_max,              {"6",      "4",      "4"}},
     // Close-up blood thinned (pcopt E): a limb popped 4-30 units off the eye made 413 particles within 48 units, 64 at

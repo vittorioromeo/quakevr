@@ -1994,6 +1994,9 @@ QVR_SLIDER(vr_limbs_body_speed, "Body's Speed After", 0.f, 1.f, 0.05f, "%.2fx", 
     "stood; 1: flung as a kill) (vr_limbs_body_speed).")
 QVR_SLIDER(vr_limbs_max, "Most Limbs Lying About", 1.f, 64.f, 1.f, "%.0f", ext(1.f, 256.f),
     "Past it, the oldest go first (not one in your hand) (vr_limbs_max).")
+QVR_SLIDER(vr_gore_trim_max, "Most Settled Gore", 0.f, 128.f, 1.f, "%.0f", ext(0.f, 1024.f),
+    "Gibs, heads and limbs lying about after a fight: past this many, the farthest from you go first; none close to "
+    "you (0: no limit; on in the Standalone preset).")
 QVR_CYCLE_BYNAME(vr_limbs_prebuild, "Make Limbs as the Map Loads",
     "The Map's: the limbs of every kind of monster the map has (those waiting to appear too) are made as it "
     "loads (about 5 ms each: a tenth of a second or so more), not at their first cut (a dropped frame). And the "
