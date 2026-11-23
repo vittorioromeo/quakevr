@@ -34,6 +34,10 @@ struct ViewSize
 [[nodiscard]] glm::vec4 viewUvMap(int drawnWidth, int drawnHeight, int allocatedWidth, int allocatedHeight);
 
 [[nodiscard]] bool isRenderingEye();
+// The eye being drawn straight into its swapchain image (vr_xr_direct, or the Quest's fixed foveation: no post-process,
+// the tone curve in the scene's shaders): 0 no, 1 with the composite's depth texture, 2 with a depth renderbuffer of its
+// own (no depth texture to read: the soft and half-size particles and the liquids' distances go without).
+[[nodiscard]] int directEye();
 [[nodiscard]] int eye(); // 0 left, 1 right; valid while rendering an eye
 [[nodiscard]] bool isFirstEye(); // the first eye rendered this frame; valid while rendering an eye
 // Rendering the desktop window's spectator camera (vr_window.cpp): a third view after the eyes, as an eye (0: its
