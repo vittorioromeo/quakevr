@@ -24,6 +24,7 @@ import argparse
 import math
 import os
 import random
+import re
 import shutil
 import struct
 import subprocess
@@ -464,7 +465,12 @@ def light(x, y, z, value=220, color=WHITE, **kw):
 
 def banner(text, x, y, z, angle, scale="0.3", speed=None):
     """A text board (func_worldtext_banner) facing `angle`; lines split with N, pages with $."""
-    k = {"worldtext": text, "worldtext_halign": "1", "worldtext_scale": scale, "angle": angle}
+    title = text.split(N)[0]
+    flat = FLAT_BANNERS.get(title)
+    if flat is not None:
+        _flat_used.add(title)
+    k = {"worldtext": with_flat(text, N.join(flat) if flat is not None else None), "worldtext_halign": "1",
+         "worldtext_scale": scale, "angle": angle}
     if speed:
         k["speed"] = speed
     return ent("func_worldtext_banner", x, y, z, **k)
@@ -474,11 +480,150 @@ def banner(text, x, y, z, angle, scale="0.3", speed=None):
 # increased range (maybe 15%)" (with vr_tips_delay 0.5 -> 0.35 s, vr_cvars.inc).
 TIP_REACH = 1.15
 
+# The flat screen's wording (no headset: the author, 2026-11-23, "detect flat-screen mode and use flat wording; show the
+# player's actual binds"). A tip's or a board's text is its headset wording, "{flat}", then this; "{key:<cvar or
+# command>}" is the player's key for it as the message shows (Quake/vr/vr_msgtokens.hpp: 'G', or "[...: not bound]",
+# following a rebind). A tip or board not here reads the same in both. FLAT_TIPS by tipname, FLAT_BANNERS by the
+# board's first line.
+def K(what):
+    return "{key:%s}" % what
+
+
+GRAB, DROP, PUNCH, FIRE = K("vr_flat_key_grab"), K("vr_flat_key_drop"), K("vr_flat_key_punch"), K("+attack")
+JUMP, AIMKEY = K("+jump"), K("+offhandattack")
+
+FLAT_TIPS = {
+    "t2_move": "Walk with " + K("+forward") + " " + K("+moveleft") + " " + K("+back") + " " + K("+moveright") + ";" + N +
+               "turn with the mouse.",
+    "t2_turn": "The hall bends: turn with the mouse" + N + "to follow it.",
+    "t2_button": "Walk into the button" + N + "to press it.",
+    "t2_settings": "Optional: these change how you move" + N + "and turn in a headset.",
+    "t2_teleport": "Teleport is a headset option:" + N + "on a flat screen you walk.",
+    "t2_jump": "Press " + JUMP + " to jump." + N + "Jump over the yellow barriers.",
+    "t2_climb": "Walk into the rungs to climb them;" + N + "back (or look down) climbs down.",
+    "t2_catch": "Jump, hold " + JUMP + " and look up at the" + N + "edge: you pull yourself up onto it.",
+    "t2_swim": "Swim where you look with the move" + N + "keys; hold " + JUMP + " to rise.",
+    "t2_out": "Climb out: swim at the edge" + N + "and jump, or swim to the steps.",
+    "t2_health": "You are hurt. Walk over a health" + N + "kit to use it.",
+    "t2_forcegrab": "Point at the kit on the shelf and" + N + "press " + GRAB + ": it flies to you.",
+    "t2_wrist": "The fall hurt. Your health is" + N + "at the top left of the screen.",
+    "t2_punch": "Press " + PUNCH + " (or " + FIRE + ") to punch;" + N + "break the crate.",
+    "t2_key": "A keycard! Walk over it" + N + "to keep it.",
+    "t2_key_held": "Don't carry it in your hand: " + DROP + N + "lets go; walk over it to keep it.",
+    "t2_parry": "PARRY: a melee weapon in one hand," + N + "hold " + AIMKEY + " to guard: a blocked" + N +
+                "blow staggers the enemy.",
+    "t2_rifle": "Take its rifle: walk over it or press" + N + GRAB + " at it; " + FIRE + " fires. Its magazine" + N +
+                "is all it has: it can't be reloaded.",
+    "t2_disarm": "Its rifle drops when it dies:" + N + "take it then.",
+    "t2_shotgun": "Press " + GRAB + " at the shotgun" + N + "to take it.",
+    "t2_shells": "Shells: walk over the box (or press" + N + GRAB + " at it): they go to your ammo.",
+    "t2_reload": "To load: press " + K("vr_flat_key_reload") + ".",
+    "t2_range": "Each target needs a good hit. The gun" + N + "holds 8 shells: " + K("vr_flat_key_reload") +
+                " reloads.",
+    "t2_torch": "It's dark: press " + K("vr_flat_key_flashlight") + N + "to switch on your flashlight.",
+    "t2_flip": K("vr_flat_key_flashlight") + " switches your flashlight" + N + "on and off.",
+    "t2_clipgun": "Your flashlight lights where you" + N + "look: aim where you shoot.",
+    "t2_cliphead": "Your flashlight is at your temple:" + N + "both hands stay free.",
+    "t2_throw": "Hit the button with a thrown rock:" + N + "a headset's move (not in flat play yet).",
+    "t2_grenade": "Take the rockets (walk over the box)." + N + "Then press " + K("vr_flat_key_grenade") +
+                  ": a grenade in a free" + N + "hand. " + FIRE + " arms it; let go to throw.",
+    "t2_torch_take": "Press " + GRAB + " at a torch" + N + "to take it off the wall.",
+    "t2_burn": "Touch the crates with the flame" + N + "or hit them with the torch (" + FIRE + ").",
+    "t3_blades": "Take a blade (" + GRAB + " at it), then" + N + FIRE + " swings it through the dummy.",
+    "t3_stab": "A point that sticks in stays there:" + N + "force-grab it (" + GRAB + ") to pull it out.",
+    "t3_reverse": K("vr_flat_key_ammo") + " turns the dagger point down," + N + "for stabbing down.",
+    "t3_axe": "Throw the axe at the target:" + N + "a headset's move (not in flat play yet).",
+    "t3_bash": "Press " + K("vr_flat_key_shove") + " to shove:" + N + "push it off the bridge!",
+    "t3_disarm": "It holds an axe: shove it off" + N + "the bridge, or beat it.",
+    "t3_bat": "Swing your weapon (" + FIRE + ") or punch" + N + "(" + PUNCH + ") as the spike comes: it flies back.",
+    "t3_catch": "A grenade! Get clear" + N + "before it bursts.",
+    "t3_rope": "Jump into the rope, swing it with" + N + K("+moveleft") + " " + K("+moveright") + ", then " + JUMP +
+               " to let go.",
+    "t3_armor": "Walk over the armour" + N + "to put it on.",
+    "t3_bullettime": "Too many at once? Press" + N + K("vr_flat_key_bullettime") + ": bullet time.",
+    "t1_menu": "The menu: press " + K("togglemenu") + ".",
+}
+
+FLAT_BANNERS = {
+    "LESSON 1: MOVING": ["LESSON 1: MOVING", "", "MOVE: " + K("+forward") + " " + K("+moveleft") + " " + K("+back") +
+                         " " + K("+moveright") + ".", "TURN: the mouse.", "", "Follow the yellow arrows.", "",
+                         "To run, hold " + K("+speed") + "."],
+    "LESSON 2: BUTTONS": ["LESSON 2: BUTTONS", "", "Push the button beside the door.", "Walk into it, or touch it",
+                          "with what you hold."],
+    "LESSON 3: JUMPING AND CLIMBING": ["LESSON 3: JUMPING AND CLIMBING", "", "JUMP: press " + JUMP + ".",
+                                       "Jump the low barriers."],
+    "CLIMB: grip a rung or a ledge with an empty hand": ["CLIMB: walk into the rungs: forward", "climbs, back climbs down.",
+                                                         "At the top you climb onto it."],
+    "TOO HIGH TO REACH?": ["TOO HIGH TO REACH?", "Jump, hold " + JUMP + " and look", "up: you pull yourself up."],
+    "LESSON 4: SWIMMING": ["LESSON 4: SWIMMING", "", "Dive in, swim down into the passage,",
+                           "round the corner and up into the next room.", "", "Swim where you look;",
+                           JUMP + " held swims up."],
+    "LESSON 5: HEALING": ["LESSON 5: HEALING", "", "Health kits mend you:", "walk over one to use it."],
+    "GRAB: close your hand round it.": ["FORCE GRAB: point at something far", "and press " + GRAB + ": it flies to you.",
+                                        "A kit or a box is taken at once.", "",
+                                        "DROP: " + DROP + " lets go of what you hold."],
+    "LESSON 6: MELEE": ["LESSON 6: MELEE", "", "Punch the crate until it breaks:", PUNCH + ", or " + FIRE +
+                        " with empty hands."],
+    "LESSON 7: FIGHT": ["LESSON 7: FIGHT", "", "WARNING: AN ENEMY IS COMING!", "Fight it with your fists:",
+                        PUNCH + " or " + FIRE + " punches.", "", "Once it is dead, take its rifle",
+                        "and shoot the three targets to go on."],
+    "LESSON 8: WEAPONS": ["LESSON 8: WEAPONS", "", "Take the shotgun from the bench:", "press " + GRAB + " at it.",
+                          "Reload with " + K("vr_flat_key_reload") + ".", "Destroy every target to go on."],
+    "HOLSTERS: let go of a gun at your hip": ["HOLSTERS: " + K("vr_flat_key_holster_right") + " puts the gun away,",
+                                              K("vr_flat_key_cycle_right") + " draws the next one;",
+                                              K("vr_flat_key_holster_menu") + " held: the holster menu."],
+    "TWO HANDS: grip the gun's front with": ["TWO HANDS: your free hand steadies", "the gun by itself.",
+                                             "AIM: hold " + AIMKEY + " for the sights."],
+    "LESSON 9: DARKNESS": ["LESSON 9: DARKNESS", "", "Your flashlight is at your temple:",
+                           K("vr_flat_key_flashlight") + " switches it on or off."],
+    "LESSON 10: THROWING": ["LESSON 10: THROWING", "", "The button is out of reach behind the bars.",
+                            "Hit it with a thrown rock or brick.", "(Throwing is not in flat play yet.)"],
+    "GRENADES": ["GRENADES", "With rockets in your pack, press " + K("vr_flat_key_grenade") + ":",
+                 "a grenade in a free hand. " + FIRE + " arms it;", "hold to wind up, let go to throw."],
+    "LESSON 11: FIRE": ["LESSON 11: FIRE", "", "Take a torch off the wall:", "press " + GRAB + " at it.",
+                        "Set the crates alight and watch it spread.", "Enemies burn too. So do you: careful!"],
+    "LESSON 12: BLADES": ["LESSON 12: BLADES", "", "Take a blade: " + GRAB + " at it.", FIRE + " swings: the edge cuts,",
+                          "the point sticks in.", "", K("vr_flat_key_ammo") + ": the dagger point down.", "",
+                          "Throw an axe into the target to go on."],
+    "LESSON 13: BASH AND BAT": ["LESSON 13: BASH AND BAT", "", "SHOVE: " + K("vr_flat_key_shove") +
+                                " pushes an open hand out.", "Shove the enemy off the bridge!", "",
+                                "BAT: press for a spike, swing through it.", "Press for a grenade: get clear!"],
+    "LESSON 14: ROPES": ["LESSON 14: ROPES", "", "Walk or jump into the rope: you hang on.",
+                         "Forward climbs, back slides down.", "The strafe keys swing it higher;",
+                         JUMP + " lets go: you fly across.", "", "Fall in? The ladder brings you back up."],
+    "ARMOUR": ["ARMOUR", "", "Walk over it to put it on.", "(Only if it beats what you wear.)"],
+    "BULLET TIME": ["BULLET TIME", "", "Press " + K("vr_flat_key_bullettime") + ": time slows down.",
+                    "Press it again to stop it.", "It runs down, then recharges."],
+}
+_flat_used = set()
+
+# An entity's value is at most 1023 characters to the engine (com_token): both wordings together stay under it.
+MAX_TEXT = 1000
+
+
+def with_flat(text, flat):
+    """`text` with its flat wording (vr_msgtokens.hpp's "{flat}")."""
+    if flat is None:
+        return text
+    out = text + "{flat}" + flat
+    assert len(out) <= MAX_TEXT, "too long for an entity's value (%d): %s" % (len(out), text[:40])
+    return out
+
+
+def check_flat_wording():
+    """Every flat wording used (a renamed tip or a retitled board would leave its wording behind)."""
+    unused = (set(FLAT_TIPS) | set(FLAT_BANNERS)) - _flat_used
+    assert not unused, "flat wording for no tip or board: %s" % sorted(unused)
+
+
 
 def tip(name, message, x, y, z, distance=200, target=None, size=None, flags=0, delay=None, trig=None):
     """A map tip (func_vr_tip), shown within `distance` (times TIP_REACH). `trig`: shown only once that targetname is
     fired (QC: its TRIGGERED flag, 8)."""
-    k = {"tipname": name, "message": message, "distance": int(distance * TIP_REACH + 0.5)}
+    if name in FLAT_TIPS:
+        _flat_used.add(name)
+    k = {"tipname": name, "message": with_flat(message, FLAT_TIPS.get(name)),
+         "distance": int(distance * TIP_REACH + 0.5)}
     if trig:
         k["targetname"] = trig
         flags |= 8
@@ -1821,7 +1966,9 @@ def banner_bounds(k):
     """A func_worldtext_banner's board as a flat box (vr_text3d.cpp's boards: 8 units a character at scale 1, 1.2
     characters of margin and bezel round the text; its longest page)."""
     sc = float(k.get("worldtext_scale", "1"))
-    pages = [pg.split(N) for pg in k["worldtext"].split("$")]
+    # (both wordings as pages, a key as long as most: 'Left Click')
+    text = re.sub(r"\{key:[^}]*\}", "'Left Click'", k["worldtext"].replace("{flat}", "$"))
+    pages = [pg.split(N) for pg in text.split("$")]
     cols = max(len(line) for pg in pages for line in pg)
     rows = max(len(pg) for pg in pages)
     hw, hh = 8 * sc * (cols / 2 + 1.2), 8 * sc * (rows / 2 + 1.2)
@@ -1874,6 +2021,7 @@ def write_map():
     room_trims()
     check_layout()
     check_fixtures()
+    check_flat_wording()
     mw = MapWriter()
     for lo, hi in carve():
         mw.world.append(mapgeom.box(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2], world_tex))
