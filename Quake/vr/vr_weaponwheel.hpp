@@ -28,6 +28,11 @@
 
 #include "vr_hands.hpp"
 
+namespace qvr::gadget
+{
+enum class MenuIcon : int; // (vr_gadget.hpp)
+}
+
 namespace qvr::weaponwheel
 {
 
@@ -39,6 +44,9 @@ struct Choice
     char name[40]{};   // what is there ("shotgun"; "" nothing: "- EMPTY -")
     char model[64]{};  // its model's file (the thumbnail; "" none)
     bool usable{true}; // a pick would do something now (else greyed, and a pick does nothing)
+    // An action (the holsters': EMPTY HAND, DROP, UNLOAD; his words 2026-11-23): drawn smaller, as the holster menu's
+    // buttons, this icon above its title (name and model unused). None (the default): a slot.
+    gadget::MenuIcon icon{};
 };
 constexpr int maxChoices = 16;
 // The holsters' provider's actions (QC VR_Wheel_Pick's VR_WHEEL_DROP, VR_WHEEL_UNLOAD).
@@ -90,6 +98,9 @@ void release(int hand);
 // Flatscreen play: the crosshair's opacity share (vr_flatxhair.cpp): faded out as the wheel fades in
 // (vr_flat_holster_menu_xhair_fade, the holster menu's).
 [[nodiscard]] float crosshairAlpha();
+// Flatscreen play: the view's blur behind it now (pixels at 1080p; vr_flat_holster_menu_blur, the holster menu's, by its
+// fade; vr_visor.cpp menuBlur): 0 closed, or in a headset's game.
+[[nodiscard]] float blurRadius();
 // Flatscreen play: VR_End2D's window pass: its image on the window where the hand was, its cursor on it.
 void drawFlat();
 // The time scale it asks for (timescale::wanted): vr_weaponwheel_timescale while open, else 1.

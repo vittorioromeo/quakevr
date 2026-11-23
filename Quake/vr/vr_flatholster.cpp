@@ -744,7 +744,7 @@ void draw()
         case Act::HandDrop: g.icon = gadget::MenuIcon::Drop; g.label = "DROP"; break;
         case Act::DropBoth: g.icon = gadget::MenuIcon::Drop; g.label = "DROP BOTH"; break;
         case Act::Swap: g.icon = gadget::MenuIcon::Swap; break;
-        case Act::Unload: g.icon = gadget::MenuIcon::None; g.label = "UNLOAD"; break;
+        case Act::Unload: g.icon = gadget::MenuIcon::Unload; g.label = "UNLOAD"; break;
         case Act::FlipGrip: g.icon = gadget::MenuIcon::None; g.label = "FLIP GRIP"; break;
         }
     }

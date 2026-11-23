@@ -10695,6 +10695,75 @@ issue rather than regrabbing"). ROPES.md "Climbing (flat-screen)", "Poles", "Tes
   strungpole 5/0; rope_climb_test pole_jump 6/0, rope_jump 6/0, pole_wood 10/0, monkey_jump 7/0; vr_pole_solid_test
   14/0; mp_test.py pole 15/0. Not run: an MP free-fall scenario (prediction shares solidInside/solidLedge).
 
+## ropes12: thumbs wrap round ropes and poles (agent/ropes12, 2026-11-23)
+
+His ask 2026-11-23: the grip looked like a fist with the thumb over the fingers; the thumb should go round the other
+way from the fingers, meeting them, sized to the thickness. ROPES.md "Poles" (the hands round it).
+- **Why:** ropeHeld asked for Thumb on Top; and at every usual turn the open thumb is in the bar (a long cylinder in
+  the grip channel runs through the thumb's web), so the solve closed it from the fist: over the fingers. The rig's thumb
+  bends about an axis mostly along the palm's normal; opposed ~53 degrees that axis lies along the bar, and lifted off
+  the palm (a new third turn about the axis across it) the thumb clears the bar's near side and bends round it.
+- **Change:** `Held::thumbAround` -> `grasp::Settings::thumbAround` -> ThumbStyle Around: the usual turns plus 21
+  lifted ones (opposition 45/55/65 x lift 10-90); the turn reaching furthest round the bar the other way from the middle
+  finger wins (`aroundWraps`, in the shape's space: the bar along its z), a fist's thumb (from closed) only if none
+  closes from open; a kept turn gone bad is re-tried afresh. The thumb's controller curl is full on a rope (VR, as flat).
+  Shared: one grasp path for VR, flat and (through his snapshot's curls and thumb turn) another player's hands.
+- **Check:** `vr_rope_climb_check thumb <deg>` / flat `flatThumbCheck` (`ropeWraps`, `view::drawnFingerPoints`): each
+  drawn thumb's joints followed round the axis from the palm's middle. Before -79 (VR rope), -63 (VR pole), -49 (flat
+  pole); now 89 / 72 / 72, flat rope 90, chain 84 (bound 60). The meet (360 less thumb and middle finger): rope 126,
+  pole 172 short: the thumb's full curl is the limit; on a thinner rope it closes further.
+- **Cost:** an afresh Around solve 76 us median, 475 most (38 solves in the flat pole run, low-impact mode).
+- **Tests:** rope_climb_test 10 plays pass (rope_climb 12/0 with sink 0.3 and thumb, pole_wood/metal 11/0), rope_pump
+  5/1 (238 vs 250: known, the same on the base); rope_hands_test 6/0; rope_flat_test rope 9/0, pole 8/0, strung 5/0,
+  strungpole 5/0, chain 6/0. `vr_rope_flat_test <mode> shots` now also takes two close-ups of the hands.
+## weaponfx: thrown blades' kills thrown half as far; the super nailgun's barrels coast; the Lance charged at its middle crystal (agent/weaponfx, 2026-11-23)
+
+His feedback 2026-11-23, items 7-9.
+- **Thrown blade kills (7):** the kill push (QC combat.qc, `vr_kill_push`) times `VR_KillPush_Mult(inflictor)`: a thrown
+  weapon with an embed (weapons.txt: an axe, sword, dagger; VR and flat throws make the same `thrown_weapon`) gives
+  `vr_throw_kill_push` (tunable, 0.5; Debug > Tunables, "Thrown Blade Kill Push"); anything else 1. vr_debug_shots prints
+  "kill push: ... xN". Test `vr_embed_test 41` (vr_throwgib_test.qc) case 5: 20 damage on a fresh grunt's last point:
+  the player's blow 197.4 u/s, a thrown sword and axe 98.7 (0.50), a thrown shotgun 197.4; 23/0.
+- **Super nailgun spin (8):** vr_adweapons.cpp `spinFrame` drives v_nail2.mdl (and the lava variant, via
+  gunvariants::resolve) by the Widowmaker's and Rotary's `advance`: its firing frames 1..8 are an eighth of a turn each
+  (kick taken out in memory, vr_kickcancel), so the pose pair and blend come from the spin's phase (`SpinModel::ownFrames`,
+  45 degrees a step, 0.1 s a step at the top: Quake's own rate), coasting after the release to the nearest frame (frame 0
+  only at rest on a whole turn; frame 8 while turning so vr_gunfx's firing barrel is known). Spin-up/-down are the
+  Widowmaker's tunables. No motor whine (Quake's gun keeps its own sounds). vr_ad_widowmaker_spin_info prints its "own
+  frames". Test `Misc/quakevr/sng_spin_test.sh` (VR and flat) 10/0: turning while held, no jump or backward step over 100
+  frames after the release (215.6 deg at the release, at rest on 90.0), at rest on a frame. dwell_vrmodels 13/0 (the
+  Rotary's spin unchanged). Scenario `sng_spin`.
+- **Lance charge origin (9):** the spear model's (dw_lance, slot 55) muzzle_av "31.02 5.3 84.96" is the midpoint of its two
+  outer prongs' tips, a point in the air; an anchor binds to the surface nearest it, a prong's tip (vertex 273, 6.5 model
+  units off the pole's line): the charge was drawn there. vr_lancecharge.cpp now draws it at `tipVertex`: the vertex
+  furthest along the line from hand_av to muzzle_av (the anchors' own points) within 1 model unit of it, found once per
+  model: the spear's middle crystal (vertex 0, 28.16 5.27 77.41, on the pole's line; 3.96 world units from the old
+  place), the gun's (dw_rail) vertex 37 (14.45 0.13 5.64, its muzzle's own: 0.01 off). The beam's start (the muzzle) is
+  unchanged. vr_debug_gunfx prints "lancecharge: origin at the middle crystal's tip (...)". dwell_lance_test.sh 36/0 (new
+  check in section 3). Screenshot kit `scratch/weaponfx_lance_charge.png` (the head at the frame's edge),
+  `weaponfx_sng_coast.png` (coasting, then at rest).
+- Open: the spear's muzzle (the beam's start, the aim) is still the prongs' midpoint bound to a prong; moving muzzle_av to
+  the middle crystal's tip would start the bolt there too (his call: Weapon Offsets).
+
+## wheelpolish: the wheel's actions as buttons with icons; the view blurred behind the flat wheel (agent/wheelpolish, 2026-11-23)
+
+His flat feedback 2026-11-23. Follows "weaponwheel" and "flatwheel".
+- **Actions (both modes):** a `Choice` has an `icon` (`gadget::MenuIcon`, None for a slot); the holsters' provider gives
+  EMPTY HAND the wheel hand's hand icon, DROP the drop arrow and UNLOAD a new `MenuIcon::Unload` (a magazine, an arrow out
+  of its side). `render()` draws those as the holster menu's buttons (`holsterButton`, 56 x 32 against the slots' 68 x 46),
+  not as slots: a button 24 pixels tall or more stacks its icon above its label (sized to fit) and is lit with the drop
+  target's second ring, as a lit slot; greyed when unusable. The MMB menu's buttons are 12-14 tall: unchanged, except
+  UNLOAD now shows the new icon before its label (the same action, the same icon). The pick, hit test (by sector) and
+  provider are as before.
+- **Blur (flat):** `weaponwheel::blurRadius()` (the fade times `vr_flat_holster_menu_blur`, 0 in a headset's game);
+  `visor::menuBlur` takes the larger of the holster menu's and the wheel's (one path; the two never show together). The
+  Holster Menu Blur row's help and the cvar's comment mention the wheel. No new cvar.
+- **Tests:** weaponwheel_test 17/0 (VR mock), flat 17/0, flatholster_test 54/0; screenshots: the flat wheel over the
+  blurred view, the VR mock's wheel.
+## cltidy3: 51 ticked lines retired, the [New] section sorted (agent/cltidy3, 2026-11-23)
+
+Checklist 160 -> 114 lines; five scenes only the retired lines used moved out; details in CHECKLIST_REORG.md, "Checklist
+tidy, third pass". checklist_tests_check 86 passed, 0 failed. Nothing else touched.
 ## holsterammo: the weapon wheel's hold no longer ejects the magazine (agent/holsterammo, 2026-11-23)
 
 Follows "flatwheel"'s noticed item (the nailgun put into a holster by the wheel came back with an empty clip).
