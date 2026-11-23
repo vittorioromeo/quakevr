@@ -17,6 +17,7 @@
 #include "vr_rig2.hpp"
 
 #include "Zancle/Base/Limits.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -204,7 +205,7 @@ int arenaUsed = 0; // slots given out in this b3CreateHullWith call
 // dropped at the next call (the hull is valid until then).
 za::Vector<za::Vector<char>> arenaOverflow;
 
-void* arenaAlloc(size_t size, int32_t alignment)
+void* arenaAlloc(za::SizeT size, int32_t alignment)
 {
     const za::SizeT need = static_cast<za::SizeT>(size) + static_cast<za::SizeT>(alignment);
     if(arenaUsed >= arenaSlots)
@@ -221,7 +222,7 @@ void* arenaAlloc(size_t size, int32_t alignment)
     return reinterpret_cast<void*>((at + mask) & ~mask);
 }
 
-void arenaFree(void*, size_t) {} // (the slots are given out afresh at the next call)
+void arenaFree(void*, za::SizeT) {} // (the slots are given out afresh at the next call)
 
 // b3CreateHull's hull in the arena (valid until the next call; never b3DestroyHull).
 [[nodiscard]] b3HullData* arenaHull(const b3Vec3* points, int count, int budget)

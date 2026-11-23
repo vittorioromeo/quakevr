@@ -1,5 +1,5 @@
-// vr_zancle.cpp -- Zancle's assertion failures (ZA_ASSERT) as a Quake error; and vr_zancle_math_test, Zancle's math
-// against the standard library's.
+// vr_zancle.cpp -- Zancle's assertion failures (ZA_ASSERT) as a Quake error. (Zancle's math against the standard
+// library's, once vr_zancle_math_test here, is Zancle's own unit test now: test/Base/MathAgainstStd.test.cpp.)
 //
 // Zancle (external/zancle/README.md) turns its asserts on where NDEBUG is not defined (ZA_DEBUG, Config.hpp): the
 // engine's Debug builds, in any file that includes a Zancle header, and the library's own sources when they are built

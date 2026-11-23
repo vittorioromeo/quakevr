@@ -4,6 +4,7 @@
 #include "vr_engine.hpp"
 #include "vr_progs.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -41,7 +42,7 @@ constexpr const char* medievalWords[] = {"wizmet", "wbrick", "city", "wood", "ww
 constexpr const char* runicWords[] = {"rune", "wizard", "skill", "metal"};
 constexpr const char* baseWords[] = {"tech", "comp", "plat", "base", "slip", "twall", "tlight"};
 
-template <size_t N>
+template <za::SizeT N>
 [[nodiscard]] bool hasAny(const char* s, const char* const (&words)[N])
 {
     for(const char* w : words)
@@ -264,7 +265,7 @@ void dump_f()
 Style ofTexture(const char* texture)
 {
     char s[32];
-    size_t n = 0;
+    za::SizeT n = 0;
     for(const char* c = texture; c && *c && n + 1 < sizeof(s); c++)
     {
         s[n++] = static_cast<char>(tolower(static_cast<unsigned char>(*c)));

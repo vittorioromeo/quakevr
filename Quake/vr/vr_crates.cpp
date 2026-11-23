@@ -19,6 +19,7 @@
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Base/Swap.hpp"
@@ -252,14 +253,14 @@ void planCrowbars(uint64_t seed)
     {
         if(p.below >= 0)
         {
-            covered[static_cast<size_t>(p.below)] = true;
+            covered[static_cast<za::SizeT>(p.below)] = true;
         }
     }
-    for(size_t i = 0; i < placements.size() && static_cast<int>(crowbars.size()) < most; i++)
+    for(za::SizeT i = 0; i < placements.size() && static_cast<int>(crowbars.size()) < most; i++)
     {
         // (Not on a barrel's round top, nor on a crate standing on a barrel: its weight off the middle tipped the crate.)
         const int under = placements[i].below;
-        if(covered[i] || placements[i].model == barrelModel || (under >= 0 && placements[static_cast<size_t>(under)].model == barrelModel) ||
+        if(covered[i] || placements[i].model == barrelModel || (under >= 0 && placements[static_cast<za::SizeT>(under)].model == barrelModel) ||
            rng.uniform() >= chance)
         {
             continue;
@@ -288,16 +289,16 @@ void planFlareGuns(uint64_t seed)
     {
         if(p.below >= 0)
         {
-            covered[static_cast<size_t>(p.below)] = true;
+            covered[static_cast<za::SizeT>(p.below)] = true;
         }
     }
-    for(size_t i = 0; i < placements.size() && static_cast<int>(flareGuns.size()) < most; i++)
+    for(za::SizeT i = 0; i < placements.size() && static_cast<int>(flareGuns.size()) < most; i++)
     {
         // (A barrel's flat head: an upright one's, not a lying one's round side. Not on anything standing on a barrel: as
         // the crowbars, its weight off the middle tipped it.)
         const Placement& p = placements[i];
         const bool lying = p.model == barrelModel && za::abs(p.o.axes[2].z) < 0.5f;
-        if(covered[i] || lying || (p.below >= 0 && placements[static_cast<size_t>(p.below)].model == barrelModel) || rng.uniform() >= chance)
+        if(covered[i] || lying || (p.below >= 0 && placements[static_cast<za::SizeT>(p.below)].model == barrelModel) || rng.uniform() >= chance)
         {
             continue;
         }
@@ -608,9 +609,9 @@ void list_f()
         { boxes.pushBack(Box{i, vec(e->v.origin), held::axesFromAngles(e->v.angles, false), models[model].half * sizeOf(model)}); }
     }
     int overlaps = 0;
-    for(size_t a = 0; a < boxes.size(); a++)
+    for(za::SizeT a = 0; a < boxes.size(); a++)
     {
-        for(size_t b = a + 1; b < boxes.size(); b++)
+        for(za::SizeT b = a + 1; b < boxes.size(); b++)
         {
             const Box& A = boxes[a];
             const Box& B = boxes[b];
@@ -665,8 +666,8 @@ void goto_f()
         }
         // Above it and 64 units out (setpos: noclip, floating), looking down at it.
         const int k = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : gotoCrowbar++;
-        const CrowbarOn& c = crowbars[static_cast<size_t>(za::max(k, 0)) % crowbars.size()];
-        const Placement& p = placements[static_cast<size_t>(c.crate)];
+        const CrowbarOn& c = crowbars[static_cast<za::SizeT>(za::max(k, 0)) % crowbars.size()];
+        const Placement& p = placements[static_cast<za::SizeT>(c.crate)];
         const glm::vec2 out = p.out;
         const glm::vec2 at = glm::vec2{p.centre} + out * 64.f;
         const float yaw = glm::degrees(za::atan2(-out.y, -out.x));
@@ -679,7 +680,7 @@ void goto_f()
         Con_Printf("vr_crates_goto <0..%d>: crate i of this map's plan\n", static_cast<int>(placements.size()) - 1);
         return;
     }
-    const Placement& p = placements[static_cast<size_t>(i)];
+    const Placement& p = placements[static_cast<za::SizeT>(i)];
     const glm::vec2 at = glm::vec2{p.centre} + p.out * 110.f;
     const float yaw = glm::degrees(za::atan2(-p.out.y, -p.out.x));
     Cbuf_InsertText(va("setpos %.1f %.1f %.1f 12 %.1f 0\n", at.x, at.y, p.floorZ + 30.f, yaw));
@@ -834,7 +835,7 @@ int plan()
         }
     }
     // In a random order (the same each load), so that the limits leave no part of the map favoured.
-    for(size_t i = spots.size(); i > 1; i--)
+    for(za::SizeT i = spots.size(); i > 1; i--)
     {
         za::genericSwap(spots[i - 1], spots[pl.rng.next() % i]);
     }
@@ -1005,7 +1006,7 @@ int plan()
             large += p.model == 1;
             barrels += p.model == barrelModel;
             lying += p.model == barrelModel && p.o.axes[2].z < 0.5f && p.o.axes[2].z > -0.5f;
-            mixed += p.below >= 0 && (p.model == barrelModel) != (placements[static_cast<size_t>(p.below)].model == barrelModel);
+            mixed += p.below >= 0 && (p.model == barrelModel) != (placements[static_cast<za::SizeT>(p.below)].model == barrelModel);
             corners += p.below < 0 && p.corner;
             leastClear = za::min(leastClear, p.clearance);
         }
@@ -1034,12 +1035,12 @@ int plan()
             for(const CrowbarOn& c : flareGuns)
             {
                 Con_Printf("crates: a flare gun on %s %d (yaw %.0f, place %.2f %.2f)\n",
-                    placements[static_cast<size_t>(c.crate)].model == barrelModel ? "barrel" : "crate", c.crate, c.yaw, c.u, c.v);
+                    placements[static_cast<za::SizeT>(c.crate)].model == barrelModel ? "barrel" : "crate", c.crate, c.yaw, c.u, c.v);
             }
         }
         if(vr_debug_crates.value >= 2)
         {
-            for(size_t i = 0; i < placements.size(); i++)
+            for(za::SizeT i = 0; i < placements.size(); i++)
             {
                 const Placement& p = placements[i];
                 // The nearest entity's box (before its margin) from the crate's footprint.
@@ -1065,7 +1066,7 @@ bool hasFlareGun(int i)
 
 const char* modelOf(int i)
 {
-    return i >= 0 && i < static_cast<int>(placements.size()) ? models[placements[static_cast<size_t>(i)].model].name() : "";
+    return i >= 0 && i < static_cast<int>(placements.size()) ? models[placements[static_cast<za::SizeT>(i)].model].name() : "";
 }
 
 namespace
@@ -1115,7 +1116,7 @@ int put(edict_t* e, int i)
     {
         return 0;
     }
-    const Placement& p = placements[static_cast<size_t>(i)];
+    const Placement& p = placements[static_cast<za::SizeT>(i)];
     e->v.skin = static_cast<float>(p.skin);
     e->v.frame = 0.f;
     const glm::vec3 up = p.centre + glm::vec3{0.f, 0.f, 0.02f};
@@ -1134,7 +1135,7 @@ bool putCrowbar(edict_t* e, int i, TopItem what)
         return false;
     }
     const CrowbarOn& c = *it;
-    const Placement& p = placements[static_cast<size_t>(c.crate)];
+    const Placement& p = placements[static_cast<za::SizeT>(c.crate)];
     // A crate with both: the two square to the top, apart along one of its axes; the crowbar at one end of it (below), the
     // flare gun in what the crowbar left at the other.
     const bool both = hasCrowbar(i) && hasFlareGun(i);

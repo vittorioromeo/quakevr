@@ -174,7 +174,7 @@ MapsText mapsText;
 }
 
 // `field` as one line, in the menu's letters, cut to `out`'s size.
-void mapsQuake(const mapindex::Text& field, char* out, size_t size, const char* sep = ", ")
+void mapsQuake(const mapindex::Text& field, char* out, za::SizeT size, const char* sep = ", ")
 {
     const za::String joined = mapsJoined(field, sep);
     UTF8_ToQuake(out, size, joined.cStr());

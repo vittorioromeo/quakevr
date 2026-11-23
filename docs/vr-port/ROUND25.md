@@ -10927,6 +10927,41 @@ details: QUEST_OPTIMISATIONS.md "Standalone status, 2026-11-23".
 - Next (by size): the world's shading at 0.55 (~8 ms of ~14); the server's CPU in big fights (monster physics);
   dynres drawing into right-sized images; the hub's fight floor opening outside fights (his call).
 
+## zancle3: the last std:: in our code, vr_zancle_math_test retired (agent/zancle3, 2026-11-23)
+
+His list of 2026-11-23 (ZANCLE.md has the mapping rows). Zancle changes on its branch `qvr/zancle3` (worktree
+`C:\OHWorkspace\SFML-qvr`, off `2f8a1ca5`, not pushed), vendored (external/zancle/README.md names the commits):
+- **`<new>`**: `Zancle/Base/FwdStdNew.hpp` (db1a6af6) forward-declares `std::nothrow_t`, `std::nothrow` and the nothrow
+  allocation functions (`std::align_val_t` from FwdStdAlignedNewDelete.hpp) in plain `namespace std`, as MSVC's
+  vcruntime_new.h, libstdc++'s `<new>` and libc++'s (its "purposefully not using versioning namespace", NDK 27 checked)
+  all do: so replacement `operator new`/`delete` written with them still replace the library's, and `<new>` may come
+  before or after. `za::AlignValT`/`za::NothrowT` aliases. Zancle tests: the header alone (nothrow and aligned
+  allocations, `std::nothrow` the library's object), and with `<new>` in both orders. vr_alloccount/vr_allocsites use it.
+- **Wall clock**: `za::Clock::nowUnixNanoseconds()` (99163ba2; GetSystemTimePreciseAsFileTime / clock_gettime
+  REALTIME, tested against system_clock): `wallMs` in vr_mptest/vr_voicechat (the mp_ lines' `t=` still epoch ms).
+- **vr_zancle_math_test** retired: what Zancle's tests lacked (bit-for-bit against std on edge values, min/max folds
+  against std's, clamp, fmod/remainder and the angle wrap, stableSort/nthElement against std) is Zancle's
+  `test/Base/MathAgainstStd.test.cpp` (e1737e7a). The file, its registration, Debug menu row (menu_paths.txt
+  regenerated) and allowlist row went.
+- Zancle's tests were built and run without CMake (its CPM fetches dependencies): kit-less script
+  `scratch/zancle3_ztest.sh <test files>` (clang-cl, the Tst runner and the core sources): 7 cases, 10,059 assertions,
+  0 failed (FwdStdNew x3, MathAgainstStd, Clock, SourceLocation, ChunkedVector).
+- **Our code**: `.inc` std math -> za (the std_uses check scans `.inc` now: Tools/qvr_checks/std_uses.cpp, one line);
+  `za::InitializerList` (vr_imgprefetch); `za::SourceLocation` (vr_jobs, Tracy builds); `za::ChunkedVector` for
+  vr_tracy's QC zone names/locations (stable addresses); vr_motion_review's three `std::map`s -> ankerl maps with
+  `qza::sortedByKey` where written (eval_status.csv, reviewed.csv: the names' order, as before) and for the stamp
+  lookup (of two verdicts with one stamp the later name's, as before); not vectors of pairs (hundreds to thousands of
+  takes, a lookup per take each scan); the takes' pointers into them are set again by the scan every change is
+  followed by (`changed()`).
+- **size_t**: every `size_t`/`std::size_t` in our C++ (Quake/vr .cpp/.hpp/.inc, not external/ or doom/) -> `za::SizeT`
+  (2,094 uses in 215 files, code only: comments and strings untouched; `Zancle/Base/SizeT.hpp` added to 172 files);
+  `<stdlib.h>`/`<stddef.h>` dropped in 6 files using nothing else of theirs. C files and the C headers they share keep
+  `size_t` (the same type). vr_playerhit.cpp: `Zancle/Base/Memset.hpp` (a no-PCH failure already on origin/next).
+- **Counts** (`qvr_checks std_uses --list`): std:: 95 -> 0 (40 outside vr_zancle_diag.cpp), standard headers 10 -> 0;
+  the allowlist has no rows left.
+- **Tests**: Release build 0 warnings each phase; check_nopch.sh ok; Android native build compiles; Release-Tracy
+  compile of vr_jobs, vr_tracy, vr_imgprefetch, vr_alloccount (MSBuild ClCompile into scratch); smoke e1m1:
+  vr_alloc_test PASS, vr_heap test PASS, vr_voicechat_selftest 24/0; mp_test mp_prefs 12/0 (`t=` epoch ms checked).
 ## qvrcheckszancle: Tools/qvr_checks on Zancle (agent/qvrcheckszancle, 2026-11-23)
 
 - The build's source checker uses Zancle as the engine does: `za::String`/`za::StringView`/`za::Vector`, ankerl dense

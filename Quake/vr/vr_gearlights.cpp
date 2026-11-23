@@ -16,6 +16,7 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -479,7 +480,7 @@ void debugDraw(const hands::State& s)
         za::Vector<glm::vec4>& pts = scratch.volume;
         za::Vector<unsigned char>& parts = scratch.parts;
         bullettime::strikingVolume(s, presser, pts, &parts);
-        for(size_t i = 0; i < pts.size(); i++)
+        for(za::SizeT i = 0; i < pts.size(); i++)
         {
             const glm::vec3 p{pts[i]};
             const glm::vec3 rel = p - sc.centre;

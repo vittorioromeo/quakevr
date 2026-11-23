@@ -29,6 +29,7 @@
 #include "vr_toolpanel.hpp"
 
 #include "Zancle/Base/Exchange.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -343,7 +344,7 @@ void paragraphCentred(float cx, float y, float width, float dim, const char* s, 
             }
         }
         char line[96];
-        q_strlcpy(line, s, static_cast<size_t>(za::min(static_cast<int>(sizeof(line)), n + 1)));
+        q_strlcpy(line, s, static_cast<za::SizeT>(za::min(static_cast<int>(sizeof(line)), n + 1)));
         const float len = static_cast<float>(ZA_STRLEN(line));
         text(cx - len * dim * 0.5f, y + lines * (dim + 2.f), dim, line, false);
         lines++;

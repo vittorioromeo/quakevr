@@ -44,6 +44,7 @@
 #include "vr_view.hpp"
 #include "vr_weapon_ids.h"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -413,7 +414,7 @@ void probe()
             // (Where, off the eye along the view: forward, right, up; the weapon's model origin.)
             const glm::vec3 org{wf.modelToWorld[3]};
             const glm::vec3 hp = viewLocal(pos), wp = viewLocal(org), wa = viewLocal(org + glm::vec3{wf.modelToWorld[0]}) - wp;
-            len += snprintf(line + len, sizeof(line) - static_cast<size_t>(len),
+            len += snprintf(line + len, sizeof(line) - static_cast<za::SizeT>(len),
                 " %s %s, %.1f past, at %.0f %.0f %.0f turn %.0f %.0f %.0f, weapon %s %.0f %.0f %.0f along %.1f %.1f %.1f;",
                 handName(h), drawn ? "drawn" : "NOT DRAWN", past, hp.x, hp.y, hp.z, rot.x, rot.y, rot.z,
                 wf.model ? (wSeen ? "seen" : "OFF SCREEN") : "-", wp.x, wp.y, wp.z, wa.x, wa.y, wa.z);

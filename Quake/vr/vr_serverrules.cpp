@@ -11,6 +11,7 @@
 #include "vr_presets.hpp"
 #include "vr_protocol.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -71,7 +72,7 @@ State state;
 {
     for(const char* p : rulePages)
     {
-        const size_t n = ZA_STRLEN(p);
+        const za::SizeT n = ZA_STRLEN(p);
         if(!ZA_STRNCMP(path, p, n) && (path[n] == '\0' || path[n] == ' '))
         {
             return true;
@@ -169,10 +170,10 @@ void build()
     {
         return -1;
     }
-    size_t lo = 0, hi = state.list.size();
+    za::SizeT lo = 0, hi = state.list.size();
     while(lo < hi)
     {
-        const size_t mid = (lo + hi) / 2;
+        const za::SizeT mid = (lo + hi) / 2;
         if(state.list[mid] == var)
         {
             return static_cast<int>(mid);
@@ -248,7 +249,7 @@ void shadow()
     {
         return;
     }
-    for(size_t i = 0; i < state.list.size(); i++)
+    for(za::SizeT i = 0; i < state.list.size(); i++)
     {
         state.own[i] = state.list[i]->string;
     }
@@ -281,7 +282,7 @@ void list_f()
         }
         return;
     }
-    for(size_t i = 0; i < state.list.size(); i++)
+    for(za::SizeT i = 0; i < state.list.size(); i++)
     {
         const cvar_t* var = state.list[i];
         const bool mine = state.shadowed && ZA_STRCMP(state.own[i].cStr(), var->string);
@@ -336,7 +337,7 @@ void serverWriteAll(sizebuf_t* msg)
     }
     build();
     za::Vector<int> which;
-    for(size_t i = 0; i < state.list.size(); i++)
+    for(za::SizeT i = 0; i < state.list.size(); i++)
     {
         if(state.list[i]->value != defaultOf(state.list[i]))
         {
@@ -354,7 +355,7 @@ void serverFrame()
     }
     za::Vector<int>& which = state.changed;
     which.clear();
-    for(size_t i = 0; i < state.list.size(); i++)
+    for(za::SizeT i = 0; i < state.list.size(); i++)
     {
         if(state.list[i]->value != state.sent[i])
         {
@@ -375,7 +376,7 @@ void serverReset()
         return; // (single player: nothing to send, nothing gathered)
     }
     build();
-    for(size_t i = 0; i < state.list.size(); i++)
+    for(za::SizeT i = 0; i < state.list.size(); i++)
     {
         state.sent[i] = state.list[i]->value;
     }
@@ -423,7 +424,7 @@ void clientLeft()
         return;
     }
     state.shadowed = false;
-    for(size_t i = 0; i < state.list.size(); i++)
+    for(za::SizeT i = 0; i < state.list.size(); i++)
     {
         if(ZA_STRCMP(state.list[i]->string, state.own[i].cStr()))
         {
@@ -448,7 +449,7 @@ extern "C" void VR_ServerRulesConfigWrite(int begin)
     {
         return;
     }
-    for(size_t i = 0; i < state.list.size(); i++)
+    for(za::SizeT i = 0; i < state.list.size(); i++)
     {
         if(begin)
         {

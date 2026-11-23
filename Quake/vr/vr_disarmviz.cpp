@@ -15,6 +15,7 @@
 #include "vr_units.hpp"
 
 #include "Zancle/Base/Limits.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -601,7 +602,7 @@ void draw(const glm::vec3& eye)
                 const Hover& hv = viz.hover[h];
                 if(hv.weapon == l.num && n > 0 && n < static_cast<int>(sizeof(text)))
                 {
-                    n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), "\n%s: %s %.1f cm (%.1f)%s",
+                    n += q_snprintf(text + n, sizeof(text) - static_cast<za::SizeT>(n), "\n%s: %s %.1f cm (%.1f)%s",
                         h == 0 ? "off" : "main", hv.takes ? "GRIP TAKES" : "fist", static_cast<double>(hv.gap * cm),
                         static_cast<double>(hv.allowed * cm), hv.swept ? " swept" : "");
                 }

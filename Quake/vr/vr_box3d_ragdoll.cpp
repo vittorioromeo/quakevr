@@ -12,6 +12,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -387,7 +388,7 @@ void commitGunPrep(za::Vector<GunPrepWork>& work, int most, const char* list, do
             for(const convex::Piece& piece : w.pieces)
             {
                 const auto* bytes = reinterpret_cast<const unsigned char*>(piece.points.data());
-                for(size_t k = 0; k < piece.points.size() * sizeof(glm::vec3); k++)
+                for(za::SizeT k = 0; k < piece.points.size() * sizeof(glm::vec3); k++)
                 {
                     hash = (hash ^ bytes[k]) * 0x100000001b3ull;
                 }
@@ -446,13 +447,13 @@ void prepareHeldGuns()
         QcCallGuard guard;
         PR_ExecuteProgram(collect);
         const int count = static_cast<int>(G_FLOAT(OFS_RETURN));
-        size_t used = 0;
+        za::SizeT used = 0;
         for(int k = 0; k < count * 2 && k < 64; k++)
         {
             G_FLOAT(OFS_PARM0) = static_cast<float>(k);
             PR_ExecuteProgram(modelOf);
             const char* name = PR_GetString(G_INT(OFS_RETURN));
-            const size_t length = ZA_STRLEN(name);
+            const za::SizeT length = ZA_STRLEN(name);
             if(length && used + length + 2 < sizeof(list))
             {
                 list[used++] = ' ';
@@ -478,7 +479,7 @@ void prepareHeldGuns()
             end++;
         }
         char name[MAX_QPATH];
-        const size_t n = za::min(static_cast<size_t>(end - p), sizeof(name) - 1);
+        const za::SizeT n = za::min(static_cast<za::SizeT>(end - p), sizeof(name) - 1);
         ZA_MEMCPY(name, p, n);
         name[n] = 0;
         p = end;

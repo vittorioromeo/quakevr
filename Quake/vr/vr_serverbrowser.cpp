@@ -17,6 +17,7 @@
 #include "vr_api.h"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 
 #include <string.h>
@@ -93,7 +94,7 @@ void parse(const char* text, AddressList& out, int max)
         const char* end = strchr(text, ';');
         const int len = end ? static_cast<int>(end - text) : static_cast<int>(ZA_STRLEN(text));
         char raw[addressLength];
-        q_strlcpy(raw, text, static_cast<size_t>(q_min(len + 1, addressLength)));
+        q_strlcpy(raw, text, static_cast<za::SizeT>(q_min(len + 1, addressLength)));
         clean(raw, item);
         if(item[0] && find(out, item) < 0)
         {

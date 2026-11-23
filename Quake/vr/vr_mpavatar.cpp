@@ -10,6 +10,7 @@
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -1715,7 +1716,7 @@ void sendCalibration()
     int n = q_snprintf(text, sizeof(text), "vr_avatarcal %d", calCommandVersion);
     for(int i = 0; i < numCalFields && n > 0 && n < static_cast<int>(sizeof(text)); i++)
     {
-        n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), " %d", c.v[i]);
+        n += q_snprintf(text + n, sizeof(text) - static_cast<za::SizeT>(n), " %d", c.v[i]);
     }
     if(n <= 0 || n >= static_cast<int>(sizeof(text)) || !qvr::client::roomForCommand(n))
     {

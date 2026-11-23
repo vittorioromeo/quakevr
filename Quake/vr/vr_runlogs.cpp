@@ -25,6 +25,7 @@
 #include "vr_xr_runtime.hpp"
 
 #include "Zancle/Base/Memmove.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -127,7 +128,7 @@ void systemLine(const char* line)
     runlogs::append("system.txt", line);
 }
 
-void stampOf(time_t t, char* out, size_t size)
+void stampOf(time_t t, char* out, za::SizeT size)
 {
     const tm* local = localtime(&t);
     if(!local || !strftime(out, size, "%Y-%m-%d_%H-%M-%S", local))
@@ -190,10 +191,10 @@ constexpr CrcTable makeCrcTable()
 
 constexpr CrcTable crcTable = makeCrcTable();
 
-uint32_t crc32Of(const char* data, size_t size)
+uint32_t crc32Of(const char* data, za::SizeT size)
 {
     uint32_t c = 0xFFFFFFFFu;
-    for(size_t i = 0; i < size; i++)
+    for(za::SizeT i = 0; i < size; i++)
     {
         c = crcTable.v[(c ^ static_cast<unsigned char>(data[i])) & 0xFFu] ^ (c >> 8);
     }
@@ -215,7 +216,7 @@ void makeDir(const char* path)
 }
 
 // A file read whole while others may write it (a runtime's open log): its last fileCap bytes; malloc'd (null: none).
-char* readShared(const char* path, size_t* size, time_t* written)
+char* readShared(const char* path, za::SizeT* size, time_t* written)
 {
     *size = 0;
     HANDLE f = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
@@ -240,8 +241,8 @@ char* readShared(const char* path, size_t* size, time_t* written)
         at.QuadPart = static_cast<LONGLONG>(total - take);
         SetFilePointerEx(f, at, nullptr, FILE_BEGIN);
     }
-    char* data = static_cast<char*>(malloc(static_cast<size_t>(take) + 1));
-    size_t done = 0;
+    char* data = static_cast<char*>(malloc(static_cast<za::SizeT>(take) + 1));
+    za::SizeT done = 0;
     DWORD got = 0;
     while(data && done < take &&
           ReadFile(f, data + done, static_cast<DWORD>(take - done > (1u << 24) ? (1u << 24) : take - done), &got, nullptr) && got)
@@ -275,7 +276,7 @@ void removeDir(const char* path)
 }
 
 // A path made full (the working directory's), or as it is.
-const char* fullPathOf(const char* path, char* full, size_t size)
+const char* fullPathOf(const char* path, char* full, za::SizeT size)
 {
     return GetFullPathNameA(path, static_cast<DWORD>(size), full, nullptr) ? full : path;
 }
@@ -291,7 +292,7 @@ void makeDir(const char* path)
 }
 
 // A file read whole while others may write it (a runtime's open log): its last fileCap bytes; malloc'd (null: none).
-char* readShared(const char* path, size_t* size, time_t* written)
+char* readShared(const char* path, za::SizeT* size, time_t* written)
 {
     *size = 0;
     FILE* f = fopen(path, "rb");
@@ -311,8 +312,8 @@ char* readShared(const char* path, size_t* size, time_t* written)
     {
         fseeko(f, static_cast<off_t>(total - take), SEEK_SET);
     }
-    char* data = static_cast<char*>(malloc(static_cast<size_t>(take) + 1));
-    const size_t done = data ? fread(data, 1, static_cast<size_t>(take), f) : 0;
+    char* data = static_cast<char*>(malloc(static_cast<za::SizeT>(take) + 1));
+    const za::SizeT done = data ? fread(data, 1, static_cast<za::SizeT>(take), f) : 0;
     fclose(f);
     *size = done;
     return data;
@@ -339,7 +340,7 @@ void removeDir(const char* path)
     rmdir(path);
 }
 
-const char* fullPathOf(const char* path, char* full, size_t size)
+const char* fullPathOf(const char* path, char* full, za::SizeT size)
 {
     char resolved[PATH_MAX];
     if(realpath(path, resolved))
@@ -356,7 +357,7 @@ const char* commandLine()
 }
 #endif
 
-bool writeWhole(const char* path, const char* data, size_t size)
+bool writeWhole(const char* path, const char* data, za::SizeT size)
 {
     FILE* f = fopen(path, "wb");
     if(!f)
@@ -421,7 +422,7 @@ void listNames(const char* dir, bool folders, Names& out)
     } while(FindNextFileA(h, &fd));
     FindClose(h);
 #endif
-    qsort(out.name, static_cast<size_t>(out.count), nameSize, compareNames);
+    qsort(out.name, static_cast<za::SizeT>(out.count), nameSize, compareNames);
 }
 
 // The run folders in logs/, oldest first.
@@ -539,7 +540,7 @@ void copyIn(const Source& s, const char* dir, time_t since, runlogs::LineFn line
         }
         return;
     }
-    size_t size = 0;
+    za::SizeT size = 0;
     char* data = readShared(s.path, &size, nullptr);
     char dst[1200];
     q_snprintf(dst, sizeof(dst), "%s/%s", dir, s.name);
@@ -688,9 +689,9 @@ void dosTime(time_t t, uint16_t& time, uint16_t& date)
     date = static_cast<uint16_t>(((l->tm_year - 80) << 9) | ((l->tm_mon + 1) << 5) | l->tm_mday);
 }
 
-void zipAdd(Zip& z, const char* name, const char* data, size_t size, time_t when)
+void zipAdd(Zip& z, const char* name, const char* data, za::SizeT size, time_t when)
 {
-    const size_t nameLength = ZA_STRLEN(name);
+    const za::SizeT nameLength = ZA_STRLEN(name);
     if(!z.f || z.failed || nameLength >= sizeof(ZipEntry::name) || z.offset + size + 512 > 0xF0000000ull)
     {
         return;
@@ -730,7 +731,7 @@ bool zipFinish(Zip& z)
     const uint64_t start = z.offset;
     for(const ZipEntry& e : z.entries)
     {
-        const size_t nameLength = ZA_STRLEN(e.name);
+        const za::SizeT nameLength = ZA_STRLEN(e.name);
         unsigned char header[46];
         unsigned char* p = header;
         put32(p, 0x02014b50u);
@@ -772,7 +773,7 @@ bool zipFinish(Zip& z)
 
 void zipAddFile(Zip& z, const char* name, const char* path)
 {
-    size_t size = 0;
+    za::SizeT size = 0;
     time_t written = 0;
     char* data = readShared(path, &size, &written);
     if(data)
@@ -810,7 +811,7 @@ void zipAddDir(Zip& z, const char* dir, const char* prefixText, int depth)
 }
 
 // The bug report: out gets the zip's path, or why there is none.
-bool makeReport(bool lastRun, char* out, size_t outSize)
+bool makeReport(bool lastRun, char* out, za::SizeT outSize)
 {
     LOG_Flush();
     lock();
@@ -872,7 +873,7 @@ bool makeReport(bool lastRun, char* out, size_t outSize)
         if(i == runs.count - 1)
         {
             // The newest run's system lines (the GPU, the runtime) in the summary too.
-            size_t size = 0;
+            za::SizeT size = 0;
             char* text = readShared(va("%s/system.txt", path), &size, nullptr);
             if(text)
             {

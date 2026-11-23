@@ -8,6 +8,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -971,7 +972,7 @@ void syncEntities(float dt)
     const FieldOffsets& f = fields();
     za::Vector<uint8_t>& carried = scratch.carried;
     carried.clear();
-    carried.resize(static_cast<size_t>(qcvm->num_edicts), 0);
+    carried.resize(static_cast<za::SizeT>(qcvm->num_edicts), 0);
     for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
         edict_t* player = EDICT_NUM(i);
@@ -1139,7 +1140,7 @@ void syncEntities(float dt)
         }
     }
     world->roomWanted.clear();
-    for(size_t num = static_cast<size_t>(qcvm->num_edicts); num < world->slots.size(); num++)
+    for(za::SizeT num = static_cast<za::SizeT>(qcvm->num_edicts); num < world->slots.size(); num++)
     {
         if(world->slots[num].kind != Kind::None)
         {

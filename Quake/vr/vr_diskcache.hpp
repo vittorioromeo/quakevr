@@ -15,10 +15,9 @@
 #pragma once
 
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
-
-#include <stddef.h>
 
 namespace qvr::diskcache
 {
@@ -55,7 +54,7 @@ enum class Product : int
 struct Part
 {
     const void* data;
-    size_t size;
+    za::SizeT size;
 };
 
 // `parts` (in order) written beside `path` and renamed into place; false: not written (nothing left behind).
@@ -65,9 +64,9 @@ bool writeAtomic(const za::String& path, const Part* parts, int count);
 [[nodiscard]] int modeOf(Product p);
 
 // Counts (any thread). `what`: a name for the miss's line (a model's), or null.
-void noteHit(Product p, size_t bytes, double seconds);
+void noteHit(Product p, za::SizeT bytes, double seconds);
 void noteMiss(Product p, const char* what);
-void noteWrite(Product p, size_t bytes);
+void noteWrite(Product p, za::SizeT bytes);
 void noteRejected(Product p); // a file there but amiss (made again and written over)
 void noteChecked(Product p, bool same, const char* what);
 
@@ -82,27 +81,27 @@ void setInPlay(bool inPlay);
 [[nodiscard]] bool read(Product p, const char* build, unsigned long long key, const char* ext, const char (&magic)[5],
     unsigned& a, unsigned& b, za::Vector<char>& data, const char* what = nullptr);
 void write(Product p, const char* build, unsigned long long key, const char* ext, const char (&magic)[5], unsigned a,
-    unsigned b, const void* data, size_t length);
+    unsigned b, const void* data, za::SizeT length);
 // Any thread (a skin's normal map job, vr_normalmaps.cpp VR_SkinNormalsPost): the RGBA file of `key` in `folder`
 // (folderOf's, taken on the main thread) read into `rgba` (width x height x 4): 1 read, 2 none, 3 there but amiss.
 // Counts nothing and reads no cvar: the main thread notes what it found (noteRgbaRead) at the job's join.
 [[nodiscard]] int readRgbaAt(const za::String& folder, unsigned long long key, unsigned char* rgba, int width, int height,
     double& seconds);
-void noteRgbaRead(Product p, int status, size_t bytes, double seconds, const char* what); // main thread
+void noteRgbaRead(Product p, int status, za::SizeT bytes, double seconds, const char* what); // main thread
 // Whether that file is there (no read; the warm-up's and the loads' look-ahead).
 [[nodiscard]] bool has(Product p, const char* build, unsigned long long key, const char* ext);
 
 // A build folder's name from a product's version numbers (FNV-1a of them, 16 hex digits).
-[[nodiscard]] za::String buildOf(const unsigned* parts, size_t count);
+[[nodiscard]] za::String buildOf(const unsigned* parts, za::SizeT count);
 
 // vr_cache_info: each product's build, setting, this session's counts and its files on disk.
 void info_f();
 
 // FNV-1a, 64 bits (the keys' and the builds' hash): `h` 14695981039346656037 to start.
-[[nodiscard]] inline unsigned long long fnv(unsigned long long h, const void* p, size_t n)
+[[nodiscard]] inline unsigned long long fnv(unsigned long long h, const void* p, za::SizeT n)
 {
     const unsigned char* bytes = static_cast<const unsigned char*>(p);
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         h = (h ^ bytes[i]) * 1099511628211ull;
     }
@@ -114,12 +113,12 @@ constexpr unsigned long long fnvStart = 14695981039346656037ull;
 // A key's hash of a large buffer (a skin's texels: FNV-1a's one multiply a byte took 38 ms of vrtesthall's load for
 // its 345 skins' normal maps): four lanes of xxHash64's round over 8-byte words, ~10x faster, then FNV-1a of the lanes,
 // the tail and the length. Another hash than fnv's: a key moved to it is a new key (its product's build bumped).
-[[nodiscard]] inline unsigned long long wideHash(unsigned long long h, const void* p, size_t n)
+[[nodiscard]] inline unsigned long long wideHash(unsigned long long h, const void* p, za::SizeT n)
 {
     constexpr unsigned long long p1 = 0x9E3779B185EBCA87ull, p2 = 0xC2B2AE3D27D4EB4Full;
     const unsigned char* bytes = static_cast<const unsigned char*>(p);
     unsigned long long lanes[4] = {h + p1 + p2, h + p2, h, h - p1};
-    size_t i = 0;
+    za::SizeT i = 0;
     for(; i + 32 <= n; i += 32)
     {
         for(int k = 0; k < 4; k++)

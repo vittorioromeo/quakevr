@@ -7,6 +7,7 @@
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Ceil.hpp"
@@ -95,7 +96,7 @@ void Window::add(double time, const glm::vec3* v, double keep)
     }
     times.pushBack(time);
     values.emplaceBackRange(v, spec.size());
-    size_t drop = 0;
+    za::SizeT drop = 0;
     while(drop < times.size() && time - times[drop] > keep)
     {
         drop++;
@@ -109,12 +110,12 @@ void Window::add(double time, const glm::vec3* v, double keep)
 
 glm::vec3 Window::last(int c) const
 {
-    return times.empty() ? glm::vec3{0.f} : values[(times.size() - 1) * spec.size() + static_cast<size_t>(c)];
+    return times.empty() ? glm::vec3{0.f} : values[(times.size() - 1) * spec.size() + static_cast<za::SizeT>(c)];
 }
 
 bool Window::still(double now, double seconds, za::Vector<glm::vec3>& mean, int minSamples)
 {
-    const size_t nc = spec.size();
+    const za::SizeT nc = spec.size();
     za::fill(devs, 0.f);
     if(times.empty() || now - times.front() < seconds - 1e-3)
     {
@@ -122,11 +123,11 @@ bool Window::still(double now, double seconds, za::Vector<glm::vec3>& mean, int 
     }
     za::Vector<glm::vec3> m(nc, glm::vec3{0.f});
     int n = 0;
-    for(size_t i = 0; i < times.size(); i++)
+    for(za::SizeT i = 0; i < times.size(); i++)
     {
         if(now - times[i] <= seconds + 1e-3)
         {
-            for(size_t c = 0; c < nc; c++)
+            for(za::SizeT c = 0; c < nc; c++)
             {
                 m[c] += values[i * nc + c];
             }
@@ -138,19 +139,19 @@ bool Window::still(double now, double seconds, za::Vector<glm::vec3>& mean, int 
         return false;
     }
     const float k = 1.f / static_cast<float>(n);
-    for(size_t c = 0; c < nc; c++)
+    for(za::SizeT c = 0; c < nc; c++)
     {
         const bool dir = spec[c].kind == Kind::Direction || spec[c].kind == Kind::AveragedDirection;
         m[c] = dir ? (glm::length(m[c]) > 1e-6f ? glm::normalize(m[c]) : m[c]) : m[c] * k;
     }
     bool ok = true;
-    for(size_t i = 0; i < times.size(); i++)
+    for(za::SizeT i = 0; i < times.size(); i++)
     {
         if(now - times[i] > seconds + 1e-3)
         {
             continue;
         }
-        for(size_t c = 0; c < nc; c++)
+        for(za::SizeT c = 0; c < nc; c++)
         {
             const Channel& ch = spec[c];
             if(ch.kind == Kind::Averaged || ch.kind == Kind::AveragedDirection)

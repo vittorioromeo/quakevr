@@ -28,6 +28,7 @@
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/SmallVector.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -297,7 +298,7 @@ void addSurface(const msurface_t* s)
     }
     if(s->numedges < 3) { return; }
     // One capacity check per polygon, keeping the same triangle fan and surface order.
-    uint32_t*& out = indices.reserveMore(static_cast<size_t>(s->numedges - 2) * 3);
+    uint32_t*& out = indices.reserveMore(static_cast<za::SizeT>(s->numedges - 2) * 3);
     for(int k = 2; k < s->numedges; k++)
     {
         *out++ = static_cast<uint32_t>(s->vbo_firstvert);
@@ -341,7 +342,7 @@ void collectWorld(const mnode_t* node, const glm::vec3& p, float radius)
 struct BrushCaster
 {
     entity_t* e;
-    size_t first, count; // in `indices`
+    za::SizeT first, count; // in `indices`
 };
 za::Vector<BrushCaster> brushCasters;
 za::Vector<entity_t*> aliasCasters;
@@ -437,7 +438,7 @@ void collectBrushes(const BrushCandidates& candidates, const glm::vec3& light, f
         {
             continue;
         }
-        const size_t first = indices.size();
+        const za::SizeT first = indices.size();
         const msurface_t* s = e.model->surfaces + e.model->firstmodelsurface;
         for(int k = 0; k < e.model->nummodelsurfaces; k++, s++)
         {
@@ -457,7 +458,7 @@ void collectBrushes(const BrushCandidates& candidates, const glm::vec3& light, f
         {
             continue;
         }
-        const size_t first = indices.size();
+        const za::SizeT first = indices.size();
         const msurface_t* s = e->model->surfaces + e->model->firstmodelsurface;
         for(int k = 0; k < e->model->nummodelsurfaces; k++, s++)
         {
@@ -537,7 +538,7 @@ float cpuMs = 0.f;
 
 glm::vec4 aliasShadowClip{0.f, 0.f, 0.f, 1.f};
 
-void drawIndices(const glm::mat4& mvp, size_t first, size_t count, const glm::vec4& clip)
+void drawIndices(const glm::mat4& mvp, za::SizeT first, za::SizeT count, const glm::vec4& clip)
 {
     if(!count)
     {
@@ -578,7 +579,7 @@ bool viewHasCasters(const glm::vec3& light, const ShadowView& view, float size, 
     }
     mplane_t planes[4];
     viewFrustum(light, view, size, planes);
-    for(size_t i = 0; i < aliasCasters.size(); i++)
+    for(za::SizeT i = 0; i < aliasCasters.size(); i++)
     {
         const entity_t* e = aliasCasters[i];
         const glm::vec3 lo{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
@@ -626,7 +627,7 @@ bool layeredShadows()
 // reaches by the same tests a face at a time makes (R_CullModelForEntity on the face's frustum, the view entities'
 // wider sphere, the posed ones in every face), set up once (lerp, matrices, bones); the holey-skinned ones (their
 // fragment shader's alpha test) a face at a time after.
-void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, int numViews, float size, size_t worldCount,
+void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, int numViews, float size, za::SizeT worldCount,
     bool brushes, bool aliases, unsigned* faceMask, const glm::vec4& plane, GLuint ibuf, GLbyte* iofs)
 {
     CasterScratch& cs = casterScratch;
@@ -665,8 +666,8 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
         cs.draws.clear();
         cs.entries.clear();
         cs.commands.clear();
-        const size_t base = reinterpret_cast<uintptr_t>(iofs) / sizeof(uint32_t);
-        const auto add = [&](size_t first, size_t count, const glm::mat4* model, const glm::vec4& clip)
+        const za::SizeT base = reinterpret_cast<uintptr_t>(iofs) / sizeof(uint32_t);
+        const auto add = [&](za::SizeT first, za::SizeT count, const glm::mat4* model, const glm::vec4& clip)
         {
             if(!count)
             {
@@ -688,7 +689,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
             cs.commands.pushBack({static_cast<GLuint>(count), numVisible, static_cast<GLuint>(base + first), 0, baseInstance});
         };
         add(0, worldCount, nullptr, plane);
-        for(size_t i = 0; brushes && i < cs.brushModels.size(); i++)
+        for(za::SizeT i = 0; brushes && i < cs.brushModels.size(); i++)
         {
             add(brushCasters[i].first, brushCasters[i].count, &cs.brushModels[i], glm::transpose(cs.brushModels[i]) * plane);
         }
@@ -696,7 +697,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
         {
             GLuint drawBuf = 0, entryBuf = 0, commandBuf = 0;
             GLbyte *drawOfs = nullptr, *entryOfs = nullptr, *commandOfs = nullptr;
-            const size_t drawBytes = cs.draws.size() * sizeof(LayeredDraw);
+            const za::SizeT drawBytes = cs.draws.size() * sizeof(LayeredDraw);
             GL_Upload(GL_SHADER_STORAGE_BUFFER, cs.draws.data(), drawBytes, &drawBuf, &drawOfs);
             GL_Upload(GL_ARRAY_BUFFER, cs.entries.data(), cs.entries.size() * sizeof(uint32_t), &entryBuf, &entryOfs);
             GL_Upload(GL_DRAW_INDIRECT_BUFFER, cs.commands.data(), cs.commands.size() * sizeof(IndirectCommand), &commandBuf,
@@ -725,7 +726,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
         cs.layered.clear();
         cs.holey.clear();
         cs.holeyBits.clear();
-        for(size_t i = 0; i < aliasCasters.size(); i++)
+        for(za::SizeT i = 0; i < aliasCasters.size(); i++)
         {
             entity_t* e = aliasCasters[i];
             const bool view = VR_IsViewEntity(e);
@@ -792,7 +793,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
         for(int face = 0; face < numViews && !cs.holey.empty(); face++)
         {
             cs.faceCasters.clear();
-            for(size_t i = 0; i < cs.holey.size(); i++)
+            for(za::SizeT i = 0; i < cs.holey.size(); i++)
             {
                 if(cs.holeyBits[i] & (1u << face))
                 {
@@ -821,7 +822,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
 // (from 0), the brush casters, and the alias casters. faceMask: the views drawn with moving casters
 // in them (viewHasCasters), for the world shader to skip the others' lookups (MapLightShadow).
 void renderLight(DepthTarget& target, const glm::vec3& light, float radius, const ShadowView* views, int numViews, float size,
-    size_t worldCount, bool brushes, bool aliases, unsigned* faceMask = nullptr, const glm::vec4* clip = nullptr)
+    za::SizeT worldCount, bool brushes, bool aliases, unsigned* faceMask = nullptr, const glm::vec4* clip = nullptr)
 {
     const glm::vec4 plane = clip ? *clip : glm::vec4{0.f, 0.f, 0.f, 1.f};
     aliasShadowClip = plane;
@@ -856,7 +857,7 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
     za::Vector<entity_t*>& faceCasters = casterScratch.faceCasters;
     za::Vector<unsigned char>& posed = casterScratch.posed;
     posed.resize(aliasCasters.size());
-    for(size_t i = 0; aliases && i < aliasCasters.size(); i++)
+    for(za::SizeT i = 0; aliases && i < aliasCasters.size(); i++)
     {
         posed[i] = VR_AliasBonePoses(aliasCasters[i], nullptr) != 0;
     }
@@ -890,9 +891,9 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
             GL_BindBuffer(GL_ARRAY_BUFFER, gl_bmodel_vbo);
             GL_VertexAttribPointerFunc(0, 3, GL_FLOAT, GL_FALSE, sizeof(glvert_t), nullptr);
             GL_BindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibuf);
-            const size_t base = reinterpret_cast<uintptr_t>(iofs) / sizeof(uint32_t);
+            const za::SizeT base = reinterpret_cast<uintptr_t>(iofs) / sizeof(uint32_t);
             drawIndices(vp, base, worldCount, plane);
-            for(size_t i = 0; i < brushModels.size(); i++)
+            for(za::SizeT i = 0; i < brushModels.size(); i++)
             {
                 drawIndices(vp * brushModels[i], base + brushCasters[i].first, brushCasters[i].count,
                     glm::transpose(brushModels[i]) * plane);
@@ -910,7 +911,7 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
             // it has set the model up) would leave out the rest.
             // The view entities (the hands, the guns) by a wider sphere (viewEntityReach).
             faceCasters.clear();
-            for(size_t i = 0; i < aliasCasters.size(); i++)
+            for(za::SizeT i = 0; i < aliasCasters.size(); i++)
             {
                 entity_t* e = aliasCasters[i];
                 if(posed[i] || (VR_IsViewEntity(e) ? sphereInView(frustum, e->origin, viewEntityReach(e)) : !R_CullModelForEntity(e)))
@@ -1208,7 +1209,7 @@ void selectDlights(const glm::vec3& eye, float dt)
     za::quickSort(candidates.begin(), candidates.end(), [](auto& a, auto& b) { return a.score > b.score; });
 
     // The rest fade out, the brightest few keeping their tiles until faded.
-    for(size_t c = static_cast<size_t>(za::max(maxShadowed, 0)); c < candidates.size(); c++)
+    for(za::SizeT c = static_cast<za::SizeT>(za::max(maxShadowed, 0)); c < candidates.size(); c++)
     {
         DlightSlot& slot = dlightSlots[candidates[c].index];
         slot.wanted = false;
@@ -1223,16 +1224,16 @@ void selectDlights(const glm::vec3& eye, float dt)
             slot.strength = 0.f;
         }
     }
-    if(candidates.size() > static_cast<size_t>(za::max(maxShadowed, 0)))
+    if(candidates.size() > static_cast<za::SizeT>(za::max(maxShadowed, 0)))
     {
-        candidates.resize(static_cast<size_t>(za::max(maxShadowed, 0)));
+        candidates.resize(static_cast<za::SizeT>(za::max(maxShadowed, 0)));
     }
     za::quickSort(fading.begin(), fading.end(), [](auto& a, auto& b) { return a.score > b.score; });
     const float step = dt / shadowFadeTime;
-    for(size_t f = 0; f < fading.size(); f++)
+    for(za::SizeT f = 0; f < fading.size(); f++)
     {
         DlightSlot& slot = dlightSlots[fading[f].index];
-        slot.strength = f < static_cast<size_t>(shadowFadeExtra) ? za::max(0.f, slot.strength - step) : 0.f;
+        slot.strength = f < static_cast<za::SizeT>(shadowFadeExtra) ? za::max(0.f, slot.strength - step) : 0.f;
         slot.selected = slot.strength > 0.f;
     }
 
@@ -1281,7 +1282,7 @@ void selectMapLights(const glm::vec3& eye, float dt)
     if(cl.worldmodel != slotsWorld || worldGeneration() != slotsGeneration || size != mapSlotSize || static_cast<int>(mapSlots.size()) != wanted)
     {
         mapSlots.clear();
-        mapSlots.resize(static_cast<size_t>(wanted), MapSlot{});
+        mapSlots.resize(static_cast<za::SizeT>(wanted), MapSlot{});
         mapSlotSize = size;
         slotsWorld = cl.worldmodel;
         slotsGeneration = worldGeneration();
@@ -1330,7 +1331,7 @@ void selectMapLights(const glm::vec3& eye, float dt)
     za::quickSort(candidates.begin(), candidates.end(), [](auto& a, auto& b) { return a.score > b.score; });
     if(static_cast<int>(candidates.size()) > wanted)
     {
-        candidates.resize(static_cast<size_t>(wanted));
+        candidates.resize(static_cast<za::SizeT>(wanted));
     }
 
     for(MapSlot& s : mapSlots)
@@ -1484,7 +1485,7 @@ AtlasGrowth atlasGrowth;
 {
     za::Vector<Request>& requests = shadowScratch.estimate;
     requests.clear();
-    for(size_t i = 0; i < mapSlots.size(); i++)
+    for(za::SizeT i = 0; i < mapSlots.size(); i++)
     {
         requests.pushBack({mapSlotSize, nullptr, nullptr});
     }
@@ -1647,7 +1648,7 @@ void renderPortalLight(PortalLight& l, const BrushCandidates& candidates)
     ShadowView views[6];
     indices.clear();
     collectWorld(cl.worldmodel->nodes, origin, source.radius);
-    size_t worldCount = indices.size();
+    za::SizeT worldCount = indices.size();
     collectBrushes(candidates, origin, source.radius, false);
     collectAliases(origin, source.radius, own, source.key != cl.viewentity, true);
     renderLight(atlas, origin, source.radius, views, cubeViews(l.sourceTile, l.size, views), l.size,
@@ -1738,7 +1739,7 @@ void casterStats_f()
 // An atlas' depth, read back.
 void readDepth(const DepthTarget& t, za::Vector<float>& out)
 {
-    out.resize(static_cast<size_t>(t.width) * static_cast<size_t>(t.height));
+    out.resize(static_cast<za::SizeT>(t.width) * static_cast<za::SizeT>(t.height));
     if(out.empty())
     {
         return;
@@ -1752,7 +1753,7 @@ void readDepth(const DepthTarget& t, za::Vector<float>& out)
 // positive floats, so their bits order as they do), and each one's FNV-1a hash.
 struct DepthDiff
 {
-    size_t differ = 0;
+    za::SizeT differ = 0;
     float most = 0.f;
     uint32_t mostUlp = 0u;
     uint32_t hash[2] = {2166136261u, 2166136261u};
@@ -1761,11 +1762,11 @@ struct DepthDiff
 DepthDiff compareDepth(const za::Vector<float>& a, const za::Vector<float>& b)
 {
     DepthDiff r;
-    size_t& differ = r.differ;
+    za::SizeT& differ = r.differ;
     float& most = r.most;
     uint32_t& mostUlp = r.mostUlp;
     uint32_t* hash = r.hash;
-    for(size_t i = 0; i < a.size() && i < b.size(); i++)
+    for(za::SizeT i = 0; i < a.size() && i < b.size(); i++)
     {
         uint32_t ua = 0u, ub = 0u;
         ZA_MEMCPY(&ua, &a[i], sizeof(ua));
@@ -1947,7 +1948,7 @@ extern "C" void VR_RenderShadowMaps(void)
     // for their drawing below.
     const auto& lights = modellight::mapLights();
     slotCasters.resize(mapSlots.size());
-    for(size_t i = 0; i < mapSlots.size(); i++)
+    for(za::SizeT i = 0; i < mapSlots.size(); i++)
     {
         MapSlot& s = mapSlots[i];
         s.hasCasters = false;
@@ -2167,7 +2168,7 @@ extern "C" void VR_RenderShadowMaps(void)
             profile::begin("dlight world casters", false);
             collectWorldCached(i, center, reach);
             profile::end();
-            const size_t worldCount = indices.size();
+            const za::SizeT worldCount = indices.size();
             profile::begin("dlight brush casters", false);
             collectBrushes(candidates, center, reach, false);
             profile::end();
@@ -2186,7 +2187,7 @@ extern "C" void VR_RenderShadowMaps(void)
 
         profile::begin("map light shadows", true);
         // Map lights: the moving things only.
-        for(size_t i = 0; i < mapSlots.size(); i++)
+        for(za::SizeT i = 0; i < mapSlots.size(); i++)
         {
             MapSlot& s = mapSlots[i];
             if(s.light < 0 || !s.hasCasters || s.light >= static_cast<int>(lights.size()))
@@ -2877,7 +2878,7 @@ extern "C" int VR_WorldLitSpheres(float spheres[][4], int* bmodels)
     *bmodels = worldLitBModels ? 1 : 0;
     if(worldLitCount > 0)
     {
-        ZA_MEMCPY(spheres, worldLitSpheres, sizeof(worldLitSpheres[0]) * static_cast<size_t>(worldLitCount));
+        ZA_MEMCPY(spheres, worldLitSpheres, sizeof(worldLitSpheres[0]) * static_cast<za::SizeT>(worldLitCount));
     }
     if(worldLitCount >= 0)
     {

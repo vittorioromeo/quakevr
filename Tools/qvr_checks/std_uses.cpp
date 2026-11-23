@@ -1,4 +1,4 @@
-// std_uses: our C++ in Quake/vr and Tools/qvr_checks uses Zancle, not the standard library (docs/vr-port/ZANCLE.md):
+// std_uses: our C++ in Quake/vr (.cpp, .hpp and the .inc pieces of a .cpp) and Tools/qvr_checks uses Zancle, not the standard library (docs/vr-port/ZANCLE.md):
 // fails when a file has more `std::` uses of a name, or includes a heavy standard header, than
 // Misc/quakevr/std_uses_allowlist.txt allows.
 //
@@ -126,7 +126,7 @@ int checkStdUses(const Ctx& ctx, const Args& args, Out& out)
     };
     za::Vector<Source> sources;
     const fs::path vr = ctx.tree / "Quake/vr";
-    for(auto& p : listFiles(vr, {".cpp", ".hpp"}, true))
+    for(auto& p : listFiles(vr, {".cpp", ".hpp", ".inc"}, true)) // (.inc: the pieces of a .cpp)
     {
         za::String rel = relPosix(p, vr);
         if(!startsWith(rel, "external/"))

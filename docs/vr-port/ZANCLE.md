@@ -50,6 +50,9 @@ uses (the no-PCH build checks it: `Misc/quakevr/check_nopch.sh`).
 | `std::is_trivially_copyable_v<T>` .. (any trait) | `ZA_IS_TRIVIALLY_COPYABLE(T)` .. (`za::isTriviallyCopyable<T>` where a template is needed) | `Trait/<Name>.hpp` |
 | `std::decay_t`, `remove_cvref_t`, `underlying_type_t`, `conditional_t`, `declval` | `ZA_DECAY`, `ZA_REMOVE_CVREF`, `ZA_UNDERLYING_TYPE`, `za::Conditional`, `za::declVal` | `Trait/...` |
 | `std::initializer_list<T>` | `za::InitializerList<T>` (an alias: the compiler needs std's name) | `Base/InitializerList.hpp` |
+| `std::source_location` | `za::SourceLocation` (`current()`, `fileName()`, `line()`; by value: one pointer) | `Base/SourceLocation.hpp` |
+| `<new>`'s `std::align_val_t`, `std::nothrow_t`, `std::nothrow` | `za::AlignValT`, `za::NothrowT` (aliases of the standard's own types, forward-declared), `std::nothrow` | `Base/FwdStdNew.hpp` |
+| placement `new (p) T(...)` | `ZA_PLACEMENT_NEW(p) T(...)` | `Base/PlacementNew.hpp` |
 | `std::move` / `std::forward` | `ZA_MOVE` / `ZA_FORWARD` | `Base/Macros.hpp` |
 | `std::swap` / `std::exchange` | `za::genericSwap` / `za::exchange` | `Base/Swap.hpp`, `Base/Exchange.hpp` |
 | `std::size(array)` | `za::getArraySize(array)` (a container: `.size()`) | `Base/GetArraySize.hpp` |
@@ -63,7 +66,8 @@ uses (the no-PCH build checks it: `Misc/quakevr/check_nopch.sh`).
 | `std::vector` | `za::Vector`, `za::SmallVector<T, N>`, `za::InPlaceVector<T, N>` | `Container/...` | CODE_STYLE.md says which |
 | `std::bitset` | `za::Bitset<N>` | `Container/Bitset.hpp` | |
 | `std::unordered_map` / `set` | `ankerl::unordered_dense::map` / `set` | `Container/AnkerlUnorderedDense.hpp` | values move on growth: `qza::stableAt` (vr_zancle.hpp) where pointers are kept |
-| `std::map` | ankerl map + `qza::sortedByKey(map)` where the order was used | `vr_zancle.hpp` | an ordered map whose nodes stay put: none (ZANCLE-TODO) |
+| `std::map` | ankerl map + `qza::sortedByKey(map)` where the order was used; small and not looked up often: a `za::Vector`/`SmallVector`/`InPlaceVector` of pairs | `vr_zancle.hpp` | an ankerl map's values move when it changes: pointers into it must be set again after (vr_motion_review's scan) |
+| `std::deque` (for stable addresses) | `za::ChunkedVector` | `Container/ChunkedVector.hpp` | blocks of 64 KiB, never moved |
 | `std::string` / `string_view` | `za::String` / `za::StringView` | `String/...` | `za::toString` for integers |
 | `std::span` | `za::Span` | `Vocabulary/Span.hpp` | |
 | `std::optional` / `pair` / `unique_ptr` / `function` | `za::Optional` / `za::Pair` / `za::UniquePtr` / `za::FunctionRef`, `za::FixedFunction` | `Vocabulary/...` | |
@@ -95,6 +99,8 @@ uses (the no-PCH build checks it: `Misc/quakevr/check_nopch.sh`).
 | `std::thread` | `za::Thread`, `za::ThisThread` | `Concurrency/Thread.hpp` | |
 | `std::async` / futures | `jobs::` (vr_jobs.hpp, on `za::ThreadPool`) | | |
 | `std::chrono::steady_clock` | `za::Clock` (`now()`, `nowNanoseconds()`), `za::Time` | `Chrono/Clock.hpp`, `Chrono/Time.hpp` | microsecond `Time`; nanoseconds through `za::nanosecondsTo*` |
+| `std::chrono::system_clock` (epoch time) | `za::Clock::nowUnixNanoseconds()` | `Chrono/Clock.hpp` | since 1970 UTC, not monotonic: timestamps compared across processes |
+| `size_t` (`std::size_t`) | `za::SizeT` | `Base/SizeT.hpp` | in our C++ everywhere (C files and the C headers they share keep `size_t`: the same type) |
 
 ## No Zancle equivalent (kept; the allowlist names each)
 
@@ -102,19 +108,10 @@ uses (the no-PCH build checks it: `Misc/quakevr/check_nopch.sh`).
   functions, quakedef.h's headers), or the engine's `q_snprintf`/`Q_atof` where the file already uses them; never
   `std::`-qualified. Not in the check (the C headers `<cstdio>`, `<cstdarg>`, `<cstdlib>`, `<ctime>`, `<cctype>` are
   allowed).
-- **The allocator hooks** (`vr_alloccount.cpp`, `vr_allocsites.cpp`): replacement `operator new`/`delete` must name
-  `std::align_val_t`, `std::nothrow_t` and `std::bad_alloc` (the language's signatures) and include `<new>`.
 - **`std::filesystem`** (`vr_files.hpp`/`.cpp`, `vr_motion_review.cpp`): Zancle has no paths or directory walking;
   `qvr::files` wraps it in one place (CODE_STYLE.md, "Files").
-- **`std::source_location`** (`vr_jobs.hpp`/`.cpp`): the jobs' caller in profiles and crash reports; no Zancle one.
-- **`std::map` with stable nodes** (`vr_motion_review.cpp`, ZANCLE-TODO): written in order, pointers kept.
-- **Wall-clock epoch time** (`wallMs` in `vr_mptest.cpp`, `vr_voicechat.cpp`: `std::chrono::system_clock`): the
-  `mp_` lines' `t=` is compared across processes and with the test scripts; `za::Clock`'s epoch is unspecified.
-  Intervals use `za::Clock::nowNanoseconds()`.
-- **`std::deque` for stable addresses** (`vr_tracy.cpp`'s QC zone names and locations: Tracy keeps the pointers):
-  Zancle has no deque; its elements are `za::String`.
-- **`std::initializer_list`** where it is spelled in a signature: `za::InitializerList` is only an alias.
-- **`vr_zancle_diag.cpp`**: `vr_zancle_math_test` compares Zancle against the standard library on purpose.
+- (Zancle against the standard library, once `vr_zancle_math_test`, is Zancle's own unit test:
+  `test/Base/MathAgainstStd.test.cpp`.)
 - **Tools/qvr_checks** (the build's source checks): `<regex>` (Zancle has no regex: the patterns ported from the
   Python checks; matched over `const char*` ranges of `za::String`), `std::filesystem` and its `std::error_code`
   (paths and directory walking), `<format>` (Zancle's formatter isn't vendored: `common.hpp`'s `fmt`/`Out::line` wrap

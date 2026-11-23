@@ -23,6 +23,7 @@
 #endif
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -85,7 +86,7 @@ za::Vector<LevelLiquid> levelLiquids;
 const qmodel_t* builtWorld = nullptr;
 int builtGeneration = -1;
 GLuint builtVbo = 0;
-size_t builtVboSize = 0;
+za::SizeT builtVboSize = 0;
 
 // The cube: its faces done since it was made (6: usable), the next face, where the current round of faces is seen
 // from, frames since the last face.
@@ -224,7 +225,7 @@ struct AverageRead
 {
     const gltexture_t* tex;
     int level, w, h;   // w 0: none (noAverage)
-    size_t offset;     // in the pixel-pack buffer (bytes)
+    za::SizeT offset;     // in the pixel-pack buffer (bytes)
 };
 
 // The level and size of t's readback (w 0: none).
@@ -267,14 +268,14 @@ void averageColors(za::Span<const gltexture_t* const> textures,
     ankerl::unordered_dense::map<const gltexture_t*, glm::vec4>& out)
 {
     za::Vector<AverageRead> reads;
-    size_t total = 0;
+    za::SizeT total = 0;
     for(const gltexture_t* t : textures)
     {
         AverageRead r = averageReadOf(t);
         if(r.w > 0)
         {
             r.offset = total;
-            total += static_cast<size_t>(r.w) * r.h * 4 * sizeof(float);
+            total += static_cast<za::SizeT>(r.w) * r.h * 4 * sizeof(float);
         }
         reads.pushBack(r);
     }
@@ -318,9 +319,9 @@ void averageColors(za::Span<const gltexture_t* const> textures,
             continue;
         }
         const float* p = px + r.offset / sizeof(float);
-        const size_t n = static_cast<size_t>(r.w) * r.h * 4;
+        const za::SizeT n = static_cast<za::SizeT>(r.w) * r.h * 4;
         glm::vec4 sum{0.f};
-        for(size_t i = 0; i < n; i += 4)
+        for(za::SizeT i = 0; i < n; i += 4)
         {
             sum += glm::vec4{p[i], p[i + 1], p[i + 2], p[i + 3]};
         }
@@ -367,7 +368,7 @@ void buildWorld()
     destroyWorld();
     const double start = Sys_DoubleTime();
     qmodel_t* m = cl.worldmodel;
-    const size_t numVerts = gl_bmodel_vbo_size / sizeof(glvert_t);
+    const za::SizeT numVerts = gl_bmodel_vbo_size / sizeof(glvert_t);
     if(!m || !gl_bmodel_vbo || !numVerts)
     {
         return;
@@ -385,7 +386,7 @@ void buildWorld()
     const auto faceTexture = [&](const msurface_t* s) -> texture_t*
     {
         if((s->flags & SURF_DRAWSKY) || s->numedges < 3 || s->vbo_firstvert < 0 ||
-            static_cast<size_t>(s->vbo_firstvert + s->numedges) > numVerts)
+            static_cast<za::SizeT>(s->vbo_firstvert + s->numedges) > numVerts)
         {
             return nullptr;
         }

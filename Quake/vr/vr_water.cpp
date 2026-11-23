@@ -59,7 +59,7 @@
 #endif
 
 
-extern "C" size_t gl_bmodel_vbo_size; // r_brush.c
+extern "C" za::SizeT gl_bmodel_vbo_size; // r_brush.c
 
 namespace qvr::water
 {

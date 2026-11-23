@@ -5,6 +5,7 @@
 
 #include "vr_engine.hpp"
 #include "vr_tonemap.h"
+#include "Zancle/Base/SizeT.hpp"
 
 namespace qvr::tonemap
 {
@@ -52,9 +53,9 @@ void glProbeDraw(bool after);
 // through the frame's ViewProj alone, 5 through the first world instance's matrix too.
 void glProbeWorld(unsigned vbo, unsigned ibo, int stride, int indices);
 // vr_gl_probe: an upload (`size` bytes of `data` at `offset` in `buffer`) read back and compared.
-void probeUpload(const char* what, unsigned buffer, size_t offset, const void* data, size_t size);
+void probeUpload(const char* what, unsigned buffer, za::SizeT offset, const void* data, za::SizeT size);
 // vr_gl_probe: a GPU-written buffer's words read back (how many are not zero, the largest, the first eight).
-void probeBuffer(const char* what, unsigned buffer, size_t offset, size_t size);
+void probeBuffer(const char* what, unsigned buffer, za::SizeT offset, za::SizeT size);
 // vr_gl_probe: the GL state at a draw (`where`; the first three of the probe's eye scene) and its program's validation.
 void probeState(const char* where);
 // vr_gl_probe 1 (Debug > Startup; once, then 0): at an eye's `stage` (0 scene drawn, 1 post-processed, 2 with the UI),

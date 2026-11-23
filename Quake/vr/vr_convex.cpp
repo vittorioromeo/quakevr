@@ -5,6 +5,7 @@
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -47,8 +48,8 @@ struct Grid
 void voxelise(const za::Vector<glm::vec3>& corners, Grid& g)
 {
     QVR_TRACY_SCOPE(tracyScope, "convex voxelise");
-    const size_t count = g.state.size();
-    for(size_t t = 0; t + 2 < corners.size(); t += 3)
+    const za::SizeT count = g.state.size();
+    for(za::SizeT t = 0; t + 2 < corners.size(); t += 3)
     {
         const glm::vec3 a = corners[t], b = corners[t + 1], c = corners[t + 2];
         const float longest = za::max(glm::distance(a, b), za::max(glm::distance(a, c), glm::distance(b, c)));
@@ -58,18 +59,18 @@ void voxelise(const za::Vector<glm::vec3>& corners, Grid& g)
         za::Array<float, 1025> fractions;
         for(int i = 0; i <= steps; i++)
         {
-            fractions[static_cast<size_t>(i)] = static_cast<float>(i) / steps;
+            fractions[static_cast<za::SizeT>(i)] = static_cast<float>(i) / steps;
         }
         for(int i = 0; i <= steps; i++)
         {
-            const glm::vec3 row = a + ba * fractions[static_cast<size_t>(i)];
+            const glm::vec3 row = a + ba * fractions[static_cast<za::SizeT>(i)];
             for(int j = 0; j <= steps - i; j++)
             {
-                const glm::vec3 p = row + ca * fractions[static_cast<size_t>(j)];
+                const glm::vec3 p = row + ca * fractions[static_cast<za::SizeT>(j)];
                 const int k = g.cellOf(p);
-                if(static_cast<size_t>(k) < count)
+                if(static_cast<za::SizeT>(k) < count)
                 {
-                    g.state[static_cast<size_t>(k)] = surface;
+                    g.state[static_cast<za::SizeT>(k)] = surface;
                 }
             }
         }
@@ -78,9 +79,9 @@ void voxelise(const za::Vector<glm::vec3>& corners, Grid& g)
     za::Vector<int> stack;
     const auto reach = [&](int x, int y, int z) {
         const int k = g.index(x, y, z);
-        if(g.state[static_cast<size_t>(k)] == inside)
+        if(g.state[static_cast<za::SizeT>(k)] == inside)
         {
-            g.state[static_cast<size_t>(k)] = outside;
+            g.state[static_cast<za::SizeT>(k)] = outside;
             stack.pushBack(k);
         }
     };
@@ -113,7 +114,7 @@ void voxelise(const za::Vector<glm::vec3>& corners, Grid& g)
     // Each outside cell's distance from the solid: a two-pass chamfer over the 26 neighbours (1, sqrt 2, sqrt 3).
     constexpr float unreached = 1e9f;
     g.dist.resize(count);
-    for(size_t k = 0; k < count; k++)
+    for(za::SizeT k = 0; k < count; k++)
     {
         g.dist[k] = g.state[k] == outside ? unreached : 0.f;
     }
@@ -130,7 +131,7 @@ void voxelise(const za::Vector<glm::vec3>& corners, Grid& g)
         {-1, -1, 0, 1.41421f}, {0, -1, 0, 1.f}, {1, -1, 0, 1.41421f}, {-1, 0, 0, 1.f}};
     const auto pass = [&](int dir) {
         za::Array<int, 13> offsets;
-        for(size_t i = 0; i < offsets.size(); i++)
+        for(za::SizeT i = 0; i < offsets.size(); i++)
         {
             const Neighbour& n = neighbours[i];
             offsets[i] = dir * (n.dx + g.n[0] * n.dy + layer * n.dz);
@@ -143,27 +144,27 @@ void voxelise(const za::Vector<glm::vec3>& corners, Grid& g)
                 for(int x = x0; x >= 0 && x < g.n[0]; x += dir)
                 {
                     const int k = g.index(x, y, z);
-                    float& d = g.dist[static_cast<size_t>(k)];
+                    float& d = g.dist[static_cast<za::SizeT>(k)];
                     if(d == 0.f)
                     {
                         continue;
                     }
                     if(x > 0 && x < g.n[0] - 1 && y > 0 && y < g.n[1] - 1 && z > 0 && z < g.n[2] - 1)
                     {
-                        for(size_t i = 0; i < offsets.size(); i++)
+                        for(za::SizeT i = 0; i < offsets.size(); i++)
                         {
-                            d = za::min(d, g.dist[static_cast<size_t>(k + offsets[i])] + neighbours[i].weight);
+                            d = za::min(d, g.dist[static_cast<za::SizeT>(k + offsets[i])] + neighbours[i].weight);
                         }
                     }
                     else
                     {
-                        for(size_t i = 0; i < offsets.size(); i++)
+                        for(za::SizeT i = 0; i < offsets.size(); i++)
                         {
                             const Neighbour& n = neighbours[i];
                             const int nx = x + n.dx * dir, ny = y + n.dy * dir, nz = z + n.dz * dir;
                             if(nx >= 0 && ny >= 0 && nz >= 0 && nx < g.n[0] && ny < g.n[1] && nz < g.n[2])
                             {
-                                d = za::min(d, g.dist[static_cast<size_t>(k + offsets[i])] + n.weight);
+                                d = za::min(d, g.dist[static_cast<za::SizeT>(k + offsets[i])] + n.weight);
                             }
                         }
                     }
@@ -200,19 +201,19 @@ void clipTriangle(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, co
             int n = 0;
             for(int i = 0; i < count && n < 15; i++)
             {
-                const glm::vec3& p = poly[static_cast<size_t>(i)];
-                const glm::vec3& q = poly[static_cast<size_t>((i + 1) % count)];
+                const glm::vec3& p = poly[static_cast<za::SizeT>(i)];
+                const glm::vec3& q = poly[static_cast<za::SizeT>((i + 1) % count)];
                 const bool pin = in(p), qin = in(q);
                 if(pin)
                 {
-                    next[static_cast<size_t>(n++)] = p;
+                    next[static_cast<za::SizeT>(n++)] = p;
                 }
                 if(pin != qin && n < 15)
                 {
                     const float t = (bound - p[axis]) / (q[axis] - p[axis]);
                     glm::vec3 s = p + (q - p) * t;
                     s[axis] = bound;
-                    next[static_cast<size_t>(n++)] = s;
+                    next[static_cast<za::SizeT>(n++)] = s;
                 }
             }
             poly = next;
@@ -221,7 +222,7 @@ void clipTriangle(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, co
     }
     for(int i = 0; i < count; i++)
     {
-        const glm::vec3& p = poly[static_cast<size_t>(i)];
+        const glm::vec3& p = poly[static_cast<za::SizeT>(i)];
         out.pushBack(b3Vec3{p.x, p.y, p.z});
     }
 }
@@ -232,7 +233,7 @@ void regionPoints(const za::Vector<glm::vec3>& corners, const Grid& g, const Reg
 {
     QVR_TRACY_SCOPE(tracyScope, "convex region points");
     out.clear();
-    for(size_t t = 0; t + 2 < corners.size(); t += 3)
+    for(za::SizeT t = 0; t + 2 < corners.size(); t += 3)
     {
         const glm::vec3 a = corners[t], b = corners[t + 1], c = corners[t + 2];
         const glm::vec3 lo = glm::min(a, glm::min(b, c)), hi = glm::max(a, glm::max(b, c));
@@ -270,7 +271,7 @@ void regionPoints(const za::Vector<glm::vec3>& corners, const Grid& g, const Reg
                 c[axis] = ca;
                 c[u] = cu;
                 c[v] = cv;
-                return g.state[static_cast<size_t>(g.index(c[0], c[1], c[2]))] == inside;
+                return g.state[static_cast<za::SizeT>(g.index(c[0], c[1], c[2]))] == inside;
             };
             const auto add = [&](int cu, int cv) {
                 glm::vec3 p;
@@ -309,8 +310,8 @@ void regionPoints(const za::Vector<glm::vec3>& corners, const Grid& g, const Reg
     za::quickSort(out.begin(), out.end(), [](const b3Vec3& p, const b3Vec3& q) {
         return p.x != q.x ? p.x < q.x : p.y != q.y ? p.y < q.y : p.z < q.z;
     });
-    size_t kept = 0;
-    for(size_t i = 0; i < out.size(); i++)
+    za::SizeT kept = 0;
+    for(za::SizeT i = 0; i < out.size(); i++)
     {
         if(kept == 0 || out[i].x != out[kept - 1].x || out[i].y != out[kept - 1].y || out[i].z != out[kept - 1].z)
         {
@@ -385,12 +386,12 @@ constexpr int maxBudget = 44; // (a hull of triangles of more has more than Box3
         do
         {
             const b3Vec3 p = points[edges[e].origin];
-            poly[static_cast<size_t>(count++)] = glm::vec3{p.x, p.y, p.z};
+            poly[static_cast<za::SizeT>(count++)] = glm::vec3{p.x, p.y, p.z};
             e = edges[e].next;
         } while(e != start && count < 64);
         for(int t = 1; t + 1 < count; t++)
         {
-            const glm::vec3 a = poly[0], b = poly[static_cast<size_t>(t)], c = poly[static_cast<size_t>(t + 1)];
+            const glm::vec3 a = poly[0], b = poly[static_cast<za::SizeT>(t)], c = poly[static_cast<za::SizeT>(t + 1)];
             const float longest = za::max(glm::distance(a, b), za::max(glm::distance(a, c), glm::distance(b, c)));
             const int steps = CLAMP(1, static_cast<int>(ceilf(longest / g.cell)), 256);
             for(int i = 0; i <= steps; i++)
@@ -399,7 +400,7 @@ constexpr int maxBudget = 44; // (a hull of triangles of more has more than Box3
                 {
                     const glm::vec3 p =
                         a + (b - a) * (static_cast<float>(i) / steps) + (c - a) * (static_cast<float>(j) / steps);
-                    most = za::max(most, g.dist[static_cast<size_t>(g.cellOf(p))]);
+                    most = za::max(most, g.dist[static_cast<za::SizeT>(g.cellOf(p))]);
                 }
             }
         }
@@ -464,7 +465,7 @@ void shortlist(const Grid& g, const Region& r, za::Array<Candidate, 3 * shortlis
     za::Vector<Box> slices[3];
     for(int axis = 0; axis < 3; axis++)
     {
-        slices[axis].resize(static_cast<size_t>(za::max(hi[axis] - lo[axis], 0)));
+        slices[axis].resize(static_cast<za::SizeT>(za::max(hi[axis] - lo[axis], 0)));
     }
     for(int z = lo[2]; z < hi[2]; z++)
     {
@@ -472,14 +473,14 @@ void shortlist(const Grid& g, const Region& r, za::Array<Candidate, 3 * shortlis
         {
             for(int x = lo[0]; x < hi[0]; x++)
             {
-                if(g.state[static_cast<size_t>(g.index(x, y, z))] == outside)
+                if(g.state[static_cast<za::SizeT>(g.index(x, y, z))] == outside)
                 {
                     continue;
                 }
                 const int c[3]{x, y, z};
                 for(int axis = 0; axis < 3; axis++)
                 {
-                    slices[axis][static_cast<size_t>(c[axis] - lo[axis])].add(c);
+                    slices[axis][static_cast<za::SizeT>(c[axis] - lo[axis])].add(c);
                 }
             }
         }
@@ -488,24 +489,24 @@ void shortlist(const Grid& g, const Region& r, za::Array<Candidate, 3 * shortlis
     for(int axis = 0; axis < 3; axis++)
     {
         const int n = hi[axis] - lo[axis];
-        below.resize(static_cast<size_t>(n));
+        below.resize(static_cast<za::SizeT>(n));
         Box sum;
         for(int k = 0; k < n; k++)
         {
-            sum.add(slices[axis][static_cast<size_t>(k)]);
-            below[static_cast<size_t>(k)] = sum; // slices 0..k
+            sum.add(slices[axis][static_cast<za::SizeT>(k)]);
+            below[static_cast<za::SizeT>(k)] = sum; // slices 0..k
         }
         Candidate best[shortlisted];
         int kept = 0;
         Box above;
         for(int k = n - 1; k >= 3; k--) // the cut between slices k - 1 and k: at least three slices below it, two from k up
         {
-            above.add(slices[axis][static_cast<size_t>(k)]);
+            above.add(slices[axis][static_cast<za::SizeT>(k)]);
             if(n - k < 2)
             {
                 continue;
             }
-            const Box& rest = below[static_cast<size_t>(k - 1)];
+            const Box& rest = below[static_cast<za::SizeT>(k - 1)];
             if(rest.hi[0] < rest.lo[0] || above.hi[0] < above.lo[0])
             {
                 continue; // (no solid on one side)
@@ -529,7 +530,7 @@ void shortlist(const Grid& g, const Region& r, za::Array<Candidate, 3 * shortlis
         }
         for(int i = 0; i < kept; i++)
         {
-            out[static_cast<size_t>(count++)] = best[i];
+            out[static_cast<za::SizeT>(count++)] = best[i];
         }
     }
 }
@@ -622,7 +623,7 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
         g.n[i] = static_cast<int>(ceilf(size[i] / g.cell)) + 2 * pad;
     }
     g.origin = lo - glm::vec3{static_cast<float>(pad) * g.cell};
-    const size_t count = static_cast<size_t>(g.n[0]) * static_cast<size_t>(g.n[1]) * static_cast<size_t>(g.n[2]);
+    const za::SizeT count = static_cast<za::SizeT>(g.n[0]) * static_cast<za::SizeT>(g.n[1]) * static_cast<za::SizeT>(g.n[2]);
     rep.cell = g.cell;
     rep.cells = static_cast<int>(count);
     if(longest <= 0.f || count > 4'000'000)
@@ -630,14 +631,14 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
         return false;
     }
     g.state.resize(count);
-    for(size_t k = 0; k < count; k++)
+    for(za::SizeT k = 0; k < count; k++)
     {
         g.state[k] = inside;
     }
     voxelise(corners, g);
     const double voxelised = Sys_DoubleTime();
-    size_t solidCells = 0;
-    for(size_t k = 0; k < count; k++)
+    za::SizeT solidCells = 0;
+    for(za::SizeT k = 0; k < count; k++)
     {
         solidCells += g.state[k] != outside;
     }
@@ -663,9 +664,9 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
     while(static_cast<int>(work.size()) < settings.maxPieces)
     {
         int worst = -1;
-        for(size_t i = 0; i < work.size(); i++)
+        for(za::SizeT i = 0; i < work.size(); i++)
         {
-            if(!work[i].done && work[i].gap > settings.tolerance && (worst < 0 || work[i].gap > work[static_cast<size_t>(worst)].gap))
+            if(!work[i].done && work[i].gap > settings.tolerance && (worst < 0 || work[i].gap > work[static_cast<za::SizeT>(worst)].gap))
             {
                 worst = static_cast<int>(i);
             }
@@ -674,7 +675,7 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
         {
             break;
         }
-        Work& w = work[static_cast<size_t>(worst)];
+        Work& w = work[static_cast<za::SizeT>(worst)];
         // The cut along the model's axes, on a cell's border, at least two cells in from the piece's ends, where the
         // two halves' hulls hold the least: the few cuts each way whose halves' solid's boxes hold the least
         // (shortlist), then those halves' hulls.
@@ -717,12 +718,12 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
             });
         for(int c = 0; c < foundCount; c++)
         {
-            if(oks[static_cast<size_t>(c)] && scores[static_cast<size_t>(c)] < bestScore)
+            if(oks[static_cast<za::SizeT>(c)] && scores[static_cast<za::SizeT>(c)] < bestScore)
             {
-                bestScore = scores[static_cast<size_t>(c)];
+                bestScore = scores[static_cast<za::SizeT>(c)];
                 bestCut = c;
-                bestAxis = found[static_cast<size_t>(c)].axis;
-                bestPlane = found[static_cast<size_t>(c)].plane;
+                bestAxis = found[static_cast<za::SizeT>(c)].axis;
+                bestPlane = found[static_cast<za::SizeT>(c)].plane;
             }
         }
         if(bestAxis < 0)
@@ -736,7 +737,7 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
         a.region.cut[bestAxis][1] = true;
         b.region.lo[bestAxis] = bestPlane;
         b.region.cut[bestAxis][0] = true;
-        ScoredCut& winner = geometry[static_cast<size_t>(bestCut)];
+        ScoredCut& winner = geometry[static_cast<za::SizeT>(bestCut)];
         const auto& pointsA = winner.points[0];
         const auto& pointsB = winner.points[1];
         a.hull = refineHull(pointsA, g.cell, winner.takeHull(0));

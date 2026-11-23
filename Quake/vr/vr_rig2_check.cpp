@@ -20,6 +20,7 @@
 #include "vr_rigpose.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -630,7 +631,7 @@ void envelope(const Rig& rig, const Pose& rest)
                 clean = a;
             }
             const char* names[3] = {"x", "y", "tw"};
-            n += q_snprintf(line + n, sizeof(line) - static_cast<size_t>(n), " %s%c %4.0f/%-4.0f%s", bone.joint == Joint::Hinge ? "bend" : names[axis],
+            n += q_snprintf(line + n, sizeof(line) - static_cast<za::SizeT>(n), " %s%c %4.0f/%-4.0f%s", bone.joint == Joint::Hinge ? "bend" : names[axis],
                 sgn > 0.f ? '+' : '-', clean, limit, (sgn > 0.f ? clean < limit : clean > limit) ? "!" : " ");
         }
         Con_Printf("%s\n", line);

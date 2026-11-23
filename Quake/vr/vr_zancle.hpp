@@ -13,9 +13,6 @@
 namespace qza
 {
 
-// vr_zancle_math_test and its registration (vr_zancle_diag.cpp): Zancle's math against the standard library's.
-void registerDiagCommands();
-
 // ZANCLE-TODO: no map whose values stay where they are (std::unordered_map's nodes): a dense map's values move when it
 // grows. Where a value's address is kept past the next insertion (a cache returning pointers into itself), the map
 // holds za::UniquePtr<T>: the value at `key`, made (T{}) on first use.

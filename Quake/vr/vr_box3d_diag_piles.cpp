@@ -12,6 +12,7 @@
 #include "vr_hands.hpp"
 #include "vr_units.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -71,11 +72,11 @@ void stack_f()
     }
     const progs::ServerVm vm;
     za::Vector<edict_t*> list = entitiesNamed(Cmd_Argv(1));
-    const size_t count = za::min(list.size(), static_cast<size_t>(za::max(0, Q_atoi(Cmd_Argv(2)))));
+    const za::SizeT count = za::min(list.size(), static_cast<za::SizeT>(za::max(0, Q_atoi(Cmd_Argv(2)))));
     glm::vec3 at{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5))};
     const float yaw = Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 0.f;
     const float gap = Cmd_Argc() > 7 ? Q_atof(Cmd_Argv(7)) : 0.5f;
-    for(size_t i = 0; i < count; i++)
+    for(za::SizeT i = 0; i < count; i++)
     {
         edict_t* e = list[i];
         glm::vec3 lo, hi;
@@ -102,7 +103,7 @@ void pyramid_f()
     const glm::vec3 centre{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5))};
     const float yaw = Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 0.f;
     const glm::vec3 side{za::cos(glm::radians(yaw + 90.f)), za::sin(glm::radians(yaw + 90.f)), 0.f};
-    size_t next = 0;
+    za::SizeT next = 0;
     float z = centre.z;
     for(int row = 0; row < rows && next < list.size(); row++)
     {
@@ -135,11 +136,11 @@ void pile_f()
     }
     const progs::ServerVm vm;
     const za::Vector<edict_t*> list = entitiesNamed(Cmd_Argv(1));
-    const size_t per = static_cast<size_t>(za::max(1, Q_atoi(Cmd_Argv(2))));
+    const za::SizeT per = static_cast<za::SizeT>(za::max(1, Q_atoi(Cmd_Argv(2))));
     const glm::vec3 base{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5))};
     const float spacing = Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 24.f;
     glm::vec3 at = base;
-    for(size_t i = 0; i < list.size(); i++)
+    for(za::SizeT i = 0; i < list.size(); i++)
     {
         if(i % per == 0)
         {

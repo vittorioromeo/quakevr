@@ -5,6 +5,7 @@
 
 #include "vr_box3d_internal.hpp"
 #include "vr_progs.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -108,7 +109,7 @@ void pressTest_f()
     float bestDist = 1e30f;
     for(int num = svs.maxclients + 1; num < qcvm->num_edicts && num < static_cast<int>(world->slots.size()); num++)
     {
-        const Slot& s = world->slots[static_cast<size_t>(num)];
+        const Slot& s = world->slots[static_cast<za::SizeT>(num)];
         edict_t* e = EDICT_NUM(num);
         if(e->free || s.kind != Kind::Prop || !isSolidProp(e) || B3_IS_NULL(s.body) || !b3Body_IsValid(s.body))
         {
@@ -126,7 +127,7 @@ void pressTest_f()
         Con_Printf("presstest: no solid prop\n");
         return;
     }
-    const b3AABB box = b3Body_ComputeAABB(world->slots[static_cast<size_t>(best)].body);
+    const b3AABB box = b3Body_ComputeAABB(world->slots[static_cast<za::SizeT>(best)].body);
     const glm::vec3 lo = world->toU(box.lowerBound), hi = world->toU(box.upperBound);
     press = PressTest{};
     press.on = true;
@@ -148,7 +149,7 @@ void pressTest_f()
         vec3_t from{(lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f, (lo.z + hi.z) * 0.5f}, to{from[0], from[1], lo.z - 64.f};
         const trace_t tr = SV_Move(from, vec3_origin, vec3_origin, to, MOVE_NOMONSTERS, ent);
         press.lowStart = tr.fraction < 1.f ? tr.endpos[2] : lo.z;
-        const b3BodyId body = world->slots[static_cast<size_t>(best)].body;
+        const b3BodyId body = world->slots[static_cast<za::SizeT>(best)].body;
         const float gap = lowestPoint(body) - press.lowStart;
         Con_Printf("presstest: its lowest point %.2f units over the floor\n", gap);
         if(gap > 0.25f)
@@ -167,14 +168,14 @@ void pressTest_f()
     press.which = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "off") ? 0 : 1;
     if(world->hands.size() > 1)
     {
-        const World::HandBody& hb = world->hands[1][static_cast<size_t>(press.which)];
+        const World::HandBody& hb = world->hands[1][static_cast<za::SizeT>(press.which)];
         Con_Printf("presstest: the %s hand: fist %s, reach body %d (0 none, 1 open, 2 fist, 3 weapon), holding %d\n",
             press.which ? "main" : "off", hb.armed ? "armed" : "off", static_cast<int>(hb.key.what), hb.held);
     }
     press.startAbove = 80.f;
     press.hand = press.startAbove;
     Con_Printf("presstest: %d %s (%.1f kg), top at %.1f %.1f %.1f, %.0f units across; down at %.1f units/s, %.1f units past the touch\n",
-        best, PR_GetString(EDICT_NUM(best)->v.classname), b3Body_GetMass(world->slots[static_cast<size_t>(best)].body),
+        best, PR_GetString(EDICT_NUM(best)->v.classname), b3Body_GetMass(world->slots[static_cast<za::SizeT>(best)].body),
         press.over.x, press.over.y, press.over.z, hi.x - lo.x, press.speed, press.past);
 }
 
@@ -186,7 +187,7 @@ void pressTestFrame()
         return;
     }
     const float dt = static_cast<float>(host_frametime);
-    const Slot* s = press.prop < static_cast<int>(world->slots.size()) ? &world->slots[static_cast<size_t>(press.prop)] : nullptr;
+    const Slot* s = press.prop < static_cast<int>(world->slots.size()) ? &world->slots[static_cast<za::SizeT>(press.prop)] : nullptr;
     if(!s || s->kind != Kind::Prop || B3_IS_NULL(s->body) || !b3Body_IsValid(s->body) || EDICT_NUM(press.prop)->free)
     {
         press.gone = true;
@@ -203,7 +204,7 @@ void pressTestFrame()
     float held = 0.f;
     if(world->hands.size() > 1)
     {
-        held = glm::length(world->hands[1][static_cast<size_t>(press.which)].press);
+        held = glm::length(world->hands[1][static_cast<za::SizeT>(press.which)].press);
     }
     press.pressMost = za::max(press.pressMost, held);
     if(!press.touched && (touchesHand(s->body) || held > 0.f))

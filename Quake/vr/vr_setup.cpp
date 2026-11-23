@@ -20,6 +20,7 @@
 #include "vr_units.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -210,7 +211,7 @@ void drawOptionScreens()
         PR_SwitchQCVM(&sv.qcvm);
     }
     constexpr const char* prefix = "vr_setup_option ";
-    const size_t prefixLength = ZA_STRLEN(prefix);
+    const za::SizeT prefixLength = ZA_STRLEN(prefix);
     // The button's label board's top over its top (QC buttons.qc), when it has one: a screen goes above it, 2 clear of
     // it (its half height: 0.3's characters, vr_text3d.cpp's screens), or at least `least` over the button's top.
     const int labelTopField = qvr::progs::fields().vr_button_label_top;
@@ -245,7 +246,7 @@ void drawOptionScreens()
         // A hub's campaign buttons ("vr_activestartpaknameidx <n>; ..."): "SELECTED" over the one chosen (the portal
         // takes you to its start)
         constexpr const char* campaignPrefix = "vr_activestartpaknameidx ";
-        const size_t campaignLength = ZA_STRLEN(campaignPrefix);
+        const za::SizeT campaignLength = ZA_STRLEN(campaignPrefix);
         if(!q_strncasecmp(target, campaignPrefix, campaignLength))
         {
             if(Q_atoi(target + campaignLength) == static_cast<int>(qvr::vr_activestartpaknameidx.value))
@@ -874,16 +875,16 @@ namespace
 // ahead with World Scale 1.2) and its longest line (about 37 degrees across; a longer one is broken at its last space
 // before that). The author, 2026-10-10: "increase the size ... by roughly 15-20%" (0.045 before: 18% larger now).
 constexpr float viewTextScale = 0.053f;
-constexpr size_t viewTextColumns = 44;
-constexpr size_t noSpace = ~size_t{0}; // (wrapLines: no space in the line yet)
+constexpr za::SizeT viewTextColumns = 44;
+constexpr za::SizeT noSpace = ~za::SizeT{0}; // (wrapLines: no space in the line yet)
 
 // `text` into `out`, each line longer than `columns` broken at its last space (a plain or a gold one) at or before
 // it (a word longer than that: where it reaches it).
-void wrapLines(za::StringView text, size_t columns, za::String& out)
+void wrapLines(za::StringView text, za::SizeT columns, za::String& out)
 {
     out.clear();
-    size_t lineStart = 0; // in out
-    size_t lastSpace = noSpace;
+    za::SizeT lineStart = 0; // in out
+    za::SizeT lastSpace = noSpace;
     for(const char c : text)
     {
         if(c == '\n')

@@ -19,6 +19,7 @@
 #include "vr_mem.hpp"
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -30,7 +31,6 @@
 #include "Zancle/String/StringView.hpp"
 #include <math.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 namespace qvr::relight::detail
 {
@@ -377,8 +377,8 @@ void appendNumber(za::String& out, double v);
 [[nodiscard]] double recessDepth(const Face& face, const World& world);
 [[nodiscard]] za::Vector<V3> fixtureSpots(const za::Vector<const Face*>& faces, const World& world);
 [[nodiscard]] za::Vector<V3> liquidSpots(const za::Vector<Face>& faces, const World& world);
-[[nodiscard]] bool imageFile(const char* stem, char* where, size_t size);
-[[nodiscard]] bool extmapsFile(const char* stem, char* where, size_t size);
+[[nodiscard]] bool imageFile(const char* stem, char* where, za::SizeT size);
+[[nodiscard]] bool extmapsFile(const char* stem, char* where, za::SizeT size);
 [[nodiscard]] Measured measure(const char* load, const char* where);
 [[nodiscard]] Measured glowImage(const char* map, const char* name);
 void lightEntity(za::String& out, const V3& origin, double value, double wait, const char* colour, const char* extra);

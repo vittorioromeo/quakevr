@@ -20,6 +20,7 @@
 #include "vr_engine.hpp"
 #include "vr_strings.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -42,11 +43,11 @@ using qvr::rules::Id;
 struct Names
 {
     const char* const* items = nullptr;
-    size_t count = 0;
+    za::SizeT count = 0;
 
     [[nodiscard]] bool has(const char* s) const
     {
-        for(size_t i = 0; i < count; ++i)
+        for(za::SizeT i = 0; i < count; ++i)
         {
             if(!ZA_STRCMP(items[i], s)) { return true; }
         }
@@ -55,7 +56,7 @@ struct Names
 
     [[nodiscard]] bool prefixes(const char* s) const
     {
-        for(size_t i = 0; i < count; ++i)
+        for(za::SizeT i = 0; i < count; ++i)
         {
             if(qvr::strings::startsWith(s, items[i])) { return true; }
         }
@@ -63,7 +64,7 @@ struct Names
     }
 };
 
-template <size_t N>
+template <za::SizeT N>
 [[nodiscard]] constexpr Names names(const char* const (&list)[N])
 {
     return Names{list, N};
@@ -249,7 +250,7 @@ void countSignals(const char* data)
                 }
                 if(counting[r.id] && world && r.worldValue.key && !ZA_STRCMP(key, r.worldValue.key))
                 {
-                    for(size_t i = 0; i < r.worldValue.values.count; ++i)
+                    for(za::SizeT i = 0; i < r.worldValue.values.count; ++i)
                     {
                         if(!q_strcasestr(com_token, r.worldValue.values.items[i])) { continue; }
                         addSignal(mapRules.found[r.id], key);
@@ -317,7 +318,7 @@ void beforeLoad()
             const za::String mod = qvr::mapinstall::madeFor(*e);
             for(const Ruleset& r : rulesets)
             {
-                for(size_t i = 0; i < r.madeFor.count && own == ID; ++i)
+                for(za::SizeT i = 0; i < r.madeFor.count && own == ID; ++i)
                 {
                     if(!q_strcasecmp(mod.cStr(), r.madeFor.items[i])) { own = r.id; }
                 }
@@ -427,7 +428,7 @@ extern "C" int VR_Rules_ToolgunPrefixed(const char* classname, const char** plai
 {
     for(const Ruleset& r : rulesets)
     {
-        const size_t n = r.prefix ? ZA_STRLEN(r.prefix) : 0;
+        const za::SizeT n = r.prefix ? ZA_STRLEN(r.prefix) : 0;
         if(!n || ZA_STRNCMP(classname, r.prefix, n)) { continue; }
         *plain = classname + n;
         return mapRules.id == r.id || (r.toolgunOutside && r.toolgunOutside(classname + n)) ? 1 : -1;

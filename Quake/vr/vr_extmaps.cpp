@@ -9,6 +9,7 @@
 #include "vr_mem.hpp"
 
 #include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -93,7 +94,7 @@ struct SessionResults
 mem::Cache<SessionResults> results{"extmaps session results", mem::GameDirChange};
 za::ThreadId resultsOwner; // the main thread (the first VR_ExtMapsPrepare's): VR_ExtMapsOpen's others ask the disk
 
-[[nodiscard]] za::U64 bytesHash(const void* data, size_t size, za::U64 seed)
+[[nodiscard]] za::U64 bytesHash(const void* data, za::SizeT size, za::U64 seed)
 {
     return ankerl::unordered_dense::detail::wyhash::hash(data, size) ^ (seed * 0x9E3779B97F4A7C15ull + 0x632BE59BD9B4E019ull);
 }
@@ -126,7 +127,7 @@ void checkContext()
     const int dims[3] = {static_cast<int>(fmt), w, h};
     za::U64 k = bytesHash(name, ZA_STRLEN(name), 2);
     k = bytesHash(dims, sizeof(dims), k);
-    return bytesHash(data, static_cast<size_t>(w) * h * (fmt == SRC_RGBA ? 4 : 1), k);
+    return bytesHash(data, static_cast<za::SizeT>(w) * h * (fmt == SRC_RGBA ? 4 : 1), k);
 }
 
 // What each texture of the last map got (vr_extmaps_stats).
@@ -143,7 +144,7 @@ za::Vector<Record> records;
 char recordsWorld[MAX_QPATH] = {};
 
 // The pack's name for a Quake texture: lower case, a liquid's '*' dropped, an animation's +<frame> moved to the end.
-void packName(const char* tex, char* out, size_t size)
+void packName(const char* tex, char* out, za::SizeT size)
 {
     char t[17];
     int i;
@@ -195,7 +196,7 @@ void readMat(const char* base, Material& mat)
         q_snprintf(path, sizeof(path), "%s%s.mat", prefix, base);
         if(FILE* f = VR_ExtMapsOpen(path))
         {
-            const size_t n = fread(text, 1, za::clamp(static_cast<size_t>(com_filesize), size_t{0}, sizeof(text) - 1), f);
+            const za::SizeT n = fread(text, 1, za::clamp(static_cast<za::SizeT>(com_filesize), za::SizeT{0}, sizeof(text) - 1), f);
             fclose(f);
             text[n] = 0;
         }
@@ -267,7 +268,7 @@ bool imageExists(const char* name)
 }
 
 // The pack's normal map for `base` (its .mat's, else <base>_norm) into `file` ("vrext/..."): whether it has it.
-bool normalFile(const char* base, const Material& mat, char* file, size_t size)
+bool normalFile(const char* base, const Material& mat, char* file, za::SizeT size)
 {
     if(mat.normalmap[0])
     {
@@ -303,7 +304,7 @@ void signature(const byte* data, enum srcformat fmt, int w, int h, float* out, f
                     }
                     else
                     {
-                        p = data + (static_cast<size_t>(y) * w + x) * 4;
+                        p = data + (static_cast<za::SizeT>(y) * w + x) * 4;
                     }
                     sum += 0.299f * p[0] + 0.587f * p[1] + 0.114f * p[2];
                 }
@@ -492,7 +493,7 @@ float frameMatch(const texture_t* a, const texture_t* b, float* moved = nullptr)
         return frameMatchRun(a, b, moved);
     }
     checkContext();
-    const size_t size = static_cast<size_t>(a->width) * a->height;
+    const za::SizeT size = static_cast<za::SizeT>(a->width) * a->height;
     const int asked = moved ? 1 : 0;
     za::U64 key = bytesHash(&asked, sizeof(asked), size);
     key = bytesHash(a + 1, size, key);
@@ -703,7 +704,7 @@ bool completePending()
     const byte* image = Image_LoadImage(pending.normal, &w, &h, &fmt);
     bool complete = false;
     if(image && fmt == SRC_RGBA)
-        for(size_t i = 0, n = static_cast<size_t>(w) * h; i < n; ++i)
+        for(za::SizeT i = 0, n = static_cast<za::SizeT>(w) * h; i < n; ++i)
             if(image[i * 4 + 3] != 255)
             {
                 complete = true;
@@ -732,7 +733,7 @@ void prefetchNames(const char* texname, za::Vector<za::Vector<za::String>>& grou
     if(const char* frame = strchr(base, '+'); frame && !mat.diffusemap[0]) // (prepare: the animation's one picture)
     {
         char lead[MAX_QPATH];
-        q_strlcpy(lead, base, za::min(sizeof(lead), static_cast<size_t>(frame - base) + 1));
+        q_strlcpy(lead, base, za::min(sizeof(lead), static_cast<za::SizeT>(frame - base) + 1));
         Material leadMat;
         readMat(lead, leadMat);
         q_snprintf(file, sizeof(file), "%s%s", prefix, leadMat.diffusemap[0] ? fileOf(leadMat.diffusemap) : lead);
@@ -864,7 +865,7 @@ bool siblingNormal(extmaps::Pending& p, const char* anim, Signatures& sigs, floa
         return false;
     }
     const char own = plus[1];
-    const size_t stemLen = static_cast<size_t>(plus - anim);
+    const za::SizeT stemLen = static_cast<za::SizeT>(plus - anim);
     for(const char* c = own >= 'a' ? framesAlt : framesMain; *c; c++)
     {
         if(*c == own)
@@ -1249,9 +1250,9 @@ extern "C" void VR_ExtMapsGreen(byte* data, int width, int height, const char* n
         double gs = 0, ss = 0, gg = 0;
         for(int y = 0; y < height; y++)
         {
-            const byte* up = data + static_cast<size_t>((y + height - 1) % height) * width * 4;
-            const byte* down = data + static_cast<size_t>((y + 1) % height) * width * 4;
-            const byte* row = data + static_cast<size_t>(y) * width * 4;
+            const byte* up = data + static_cast<za::SizeT>((y + height - 1) % height) * width * 4;
+            const byte* down = data + static_cast<za::SizeT>((y + 1) % height) * width * 4;
+            const byte* row = data + static_cast<za::SizeT>(y) * width * 4;
             for(int x = 0; x < width; x++)
             {
                 const double slope = down[x * 4 + 3] - up[x * 4 + 3]; // the height's rise down the rows
@@ -1270,8 +1271,8 @@ extern "C" void VR_ExtMapsGreen(byte* data, int width, int height, const char* n
     {
         return;
     }
-    const size_t n = static_cast<size_t>(width) * height;
-    for(size_t i = 0; i < n; i++)
+    const za::SizeT n = static_cast<za::SizeT>(width) * height;
+    for(za::SizeT i = 0; i < n; i++)
     {
         data[i * 4 + 1] = static_cast<byte>(255 - data[i * 4 + 1]);
     }

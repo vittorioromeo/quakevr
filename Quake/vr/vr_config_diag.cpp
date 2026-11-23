@@ -22,6 +22,7 @@
 #include "vr_testkit.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -129,9 +130,9 @@ void checkFile(const char* name)
     bool sawVr = false;
     int unchangedVr = 0, wrongValue = 0, vrLines = 0, slotLines = 0;
     const za::StringView all{text.cStr()};
-    for(size_t start = 0; start < all.size();)
+    for(za::SizeT start = 0; start < all.size();)
     {
-        size_t end = all.find('\n', start);
+        za::SizeT end = all.find('\n', start);
         end = end == za::StringView::nPos ? all.size() : end;
         za::StringView line = all.substrByPosLen(start, end - start);
         start = end + 1;
@@ -140,7 +141,7 @@ void checkFile(const char* name)
             resetFirst = !sawVr;
             continue;
         }
-        const size_t space = line.find(' ');
+        const za::SizeT space = line.find(' ');
         if(space == za::StringView::nPos || line.size() < space + 3 || line[space + 1] != '"' || line[line.size() - 1] != '"')
         {
             continue; // (a bind, vid_restart...)
@@ -316,9 +317,9 @@ void otherCopy()
     const za::String gone{va("%s \"", m[0].var->name)};
     za::String edited;
     const za::StringView all{text.cStr()};
-    for(size_t start = 0; start < all.size();)
+    for(za::SizeT start = 0; start < all.size();)
     {
-        size_t end = all.find('\n', start);
+        za::SizeT end = all.find('\n', start);
         end = end == za::StringView::nPos ? all.size() : end + 1;
         const za::StringView line = all.substrByPosLen(start, end - start);
         start = end;

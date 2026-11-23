@@ -151,7 +151,7 @@ void detail::Job::note(const char* file, unsigned line) noexcept
     tracyLine = line;
 }
 
-void Task::post(Pool& pool, void (*fn)(void*), void* context, const std::source_location& where)
+void Task::post(Pool& pool, void (*fn)(void*), void* context, const za::SourceLocation where)
 #else
 void Task::post(Pool& pool, void (*fn)(void*), void* context)
 #endif

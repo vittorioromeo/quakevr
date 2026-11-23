@@ -13,6 +13,7 @@
 #include "vr_hands.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -33,7 +34,7 @@ namespace qvr::adweapons
 namespace
 {
 
-constexpr size_t headerSize = 84;
+constexpr za::SizeT headerSize = 84;
 constexpr int frameCount = 9;  // the Quake VR weapons' (their animations' frame numbers stay in range)
 constexpr byte capColour = 2;  // the holes' fans: Quake's palette's dark grey (as the guns' dark metal)
 constexpr int capRows = 4;     // its texels, under everything else in the skin
@@ -259,7 +260,7 @@ struct Mesh
 [[nodiscard]] bool parse(const za::Vector<byte>& bytes, const Source& src, const char* frame, Mesh& m)
 {
     const byte* b = bytes.data();
-    const size_t size = bytes.size();
+    const za::SizeT size = bytes.size();
     if(size < headerSize || qvr::bytes::le32(b, 0) != IDPOLYHEADER || qvr::bytes::le32(b, 4) != ALIAS_VERSION || qvr::bytes::le32(b, 48) < 1)
     {
         return false;
@@ -278,8 +279,8 @@ struct Mesh
     }
     const int numSkins = qvr::bytes::le32(b, 48), numFrames = qvr::bytes::le32(b, 68);
     const glm::vec3 scale{qvr::bytes::lef32(b, 8), qvr::bytes::lef32(b, 12), qvr::bytes::lef32(b, 16)}, origin{qvr::bytes::lef32(b, 20), qvr::bytes::lef32(b, 24), qvr::bytes::lef32(b, 28)};
-    const size_t skinBytes = static_cast<size_t>(skinW) * static_cast<size_t>(skinH);
-    size_t at = headerSize;
+    const za::SizeT skinBytes = static_cast<za::SizeT>(skinW) * static_cast<za::SizeT>(skinH);
+    za::SizeT at = headerSize;
     m.skin.clear();
     for(int s = 0; s < numSkins; s++)
     {
@@ -296,8 +297,8 @@ struct Mesh
         else
         {
             const int n = za::max(qvr::bytes::le32(b, at + 4), 1);
-            picture = b + at + 8 + static_cast<size_t>(n) * 4;
-            at += 8 + static_cast<size_t>(n) * 4 + static_cast<size_t>(n) * skinBytes;
+            picture = b + at + 8 + static_cast<za::SizeT>(n) * 4;
+            at += 8 + static_cast<za::SizeT>(n) * 4 + static_cast<za::SizeT>(n) * skinBytes;
         }
         if(s == 0)
         {
@@ -308,7 +309,7 @@ struct Mesh
             m.skin.emplaceBackRange(picture, skinBytes);
         }
     }
-    if(at + static_cast<size_t>(nv) * 12 + static_cast<size_t>(nt) * 16 > size)
+    if(at + static_cast<za::SizeT>(nv) * 12 + static_cast<za::SizeT>(nt) * 16 > size)
     {
         return false;
     }
@@ -317,21 +318,21 @@ struct Mesh
     m.st.clear();
     for(int i = 0; i < nv * 3; i++)
     {
-        m.st.pushBack(qvr::bytes::le32(b, at + static_cast<size_t>(i) * 4));
+        m.st.pushBack(qvr::bytes::le32(b, at + static_cast<za::SizeT>(i) * 4));
     }
-    at += static_cast<size_t>(nv) * 12;
+    at += static_cast<za::SizeT>(nv) * 12;
     m.tris.clear();
     for(int i = 0; i < nt * 4; i++)
     {
-        const int v = qvr::bytes::le32(b, at + static_cast<size_t>(i) * 4);
+        const int v = qvr::bytes::le32(b, at + static_cast<za::SizeT>(i) * 4);
         if(i % 4 && (v < 0 || v >= nv))
         {
             return false;
         }
         m.tris.pushBack(v);
     }
-    at += static_cast<size_t>(nt) * 16;
-    size_t poseAt = 0;
+    at += static_cast<za::SizeT>(nt) * 16;
+    za::SizeT poseAt = 0;
     for(int f = 0; f < numFrames && !poseAt; f++)
     {
         if(at + 4 > size)
@@ -344,12 +345,12 @@ struct Mesh
         if(type != 0)
         {
             members = za::max(qvr::bytes::le32(b, at), 1);
-            at += 4 + 8 + static_cast<size_t>(members) * 4;
+            at += 4 + 8 + static_cast<za::SizeT>(members) * 4;
         }
         for(int k = 0; k < members && !poseAt; k++)
         {
-            const size_t nameAt = at + 8, vertsAt = at + 24;
-            at = vertsAt + static_cast<size_t>(nv) * 4;
+            const za::SizeT nameAt = at + 8, vertsAt = at + 24;
+            at = vertsAt + static_cast<za::SizeT>(nv) * 4;
             if(at > size)
             {
                 return false;
@@ -369,7 +370,7 @@ struct Mesh
     m.pos.clear();
     for(int v = 0; v < nv; v++)
     {
-        const byte* p = b + poseAt + static_cast<size_t>(v) * 4;
+        const byte* p = b + poseAt + static_cast<za::SizeT>(v) * 4;
         m.pos.pushBack(glm::vec3{p[0] * scale.x + origin.x, p[1] * scale.y + origin.y, p[2] * scale.z + origin.z});
     }
     return true;
@@ -1874,7 +1875,7 @@ void lanceParts(Parts& p)
     za::Vector<byte> skin(static_cast<za::SizeT>(skinW) * static_cast<za::SizeT>(skinH), capColour);
     for(int y = 0; y < src.skinH; y++)
     {
-        ZA_MEMCPY(skin.data() + static_cast<size_t>(y) * skinW, src.skin.data() + static_cast<size_t>(y) * src.skinW, static_cast<size_t>(src.skinW));
+        ZA_MEMCPY(skin.data() + static_cast<za::SizeT>(y) * skinW, src.skin.data() + static_cast<za::SizeT>(y) * src.skinW, static_cast<za::SizeT>(src.skinW));
     }
     if(const SkinPatch* sp = r.skinPatch)
     {
@@ -1890,8 +1891,8 @@ void lanceParts(Parts& p)
     }
     for(int y = 0; y < gh; y++)
     {
-        ZA_MEMCPY(skin.data() + static_cast<size_t>(src.skinH + y) * skinW, graft.skin.data() + static_cast<size_t>(ry0 + y) * graft.skinW + rx0,
-            static_cast<size_t>(gw));
+        ZA_MEMCPY(skin.data() + static_cast<za::SizeT>(src.skinH + y) * skinW, graft.skin.data() + static_cast<za::SizeT>(ry0 + y) * graft.skinW + rx0,
+            static_cast<za::SizeT>(gw));
     }
 
     // AD's pieces kept, laid into the weapon's frame; cut; the grip put on; the holes closed.
@@ -2257,7 +2258,7 @@ void lanceParts(Parts& p)
     return true;
 }
 
-void setf(byte* f, size_t at, float v)
+void setf(byte* f, za::SizeT at, float v)
 {
     const float le = LittleFloat(v);
     ZA_MEMCPY(f + at, &le, 4);
@@ -2275,7 +2276,7 @@ void setf(byte* f, size_t at, float v)
     {
         return nullptr;
     }
-    const size_t size = static_cast<size_t>(com_filesize);
+    const za::SizeT size = static_cast<za::SizeT>(com_filesize);
     if(size < headerSize || qvr::bytes::le32(f, 0) != IDPOLYHEADER || qvr::bytes::le32(f, 4) != ALIAS_VERSION)
     {
         VR_HeapFree(f);
@@ -2290,20 +2291,20 @@ void setf(byte* f, size_t at, float v)
     const glm::vec3 origin2{origin.x - p.x + s.x, s.y + p.z - origin.z - 255.f * scale.z, origin.y - p.y + s.z};
     for(int i = 0; i < 3; i++)
     {
-        setf(f, 8 + static_cast<size_t>(i) * 4, scale2[i]);
-        setf(f, 20 + static_cast<size_t>(i) * 4, origin2[i]);
+        setf(f, 8 + static_cast<za::SizeT>(i) * 4, scale2[i]);
+        setf(f, 20 + static_cast<za::SizeT>(i) * 4, origin2[i]);
     }
     setf(f, 36, eye.x - p.x + s.x);
     setf(f, 40, s.y - (eye.z - p.z));
     setf(f, 44, s.z + (eye.y - p.y));
-    const size_t skinBytes = static_cast<size_t>(za::max(skinW, 0)) * static_cast<size_t>(za::max(skinH, 0));
-    size_t at = headerSize;
+    const za::SizeT skinBytes = static_cast<za::SizeT>(za::max(skinW, 0)) * static_cast<za::SizeT>(za::max(skinH, 0));
+    za::SizeT at = headerSize;
     for(int k = 0; k < numSkins && at + 8 <= size; k++)
     {
-        at += qvr::bytes::le32(f, at) == 0 ? 4 + skinBytes : 8 + static_cast<size_t>(za::max(qvr::bytes::le32(f, at + 4), 1)) * (4 + skinBytes);
+        at += qvr::bytes::le32(f, at) == 0 ? 4 + skinBytes : 8 + static_cast<za::SizeT>(za::max(qvr::bytes::le32(f, at + 4), 1)) * (4 + skinBytes);
     }
-    at += static_cast<size_t>(numVerts) * 12 + static_cast<size_t>(numTris) * 16;
-    const auto turnBox = [&](size_t boxAt) {
+    at += static_cast<za::SizeT>(numVerts) * 12 + static_cast<za::SizeT>(numTris) * 16;
+    const auto turnBox = [&](za::SizeT boxAt) {
         byte* lo = f + boxAt;
         byte* hi = f + boxAt + 4;
         const byte loY = lo[1], loZ = lo[2], hiY = hi[1], hiZ = hi[2];
@@ -2322,12 +2323,12 @@ void setf(byte* f, size_t at, float v)
         {
             members = za::max(qvr::bytes::le32(f, at), 1);
             turnBox(at + 4);
-            at += 4 + 8 + static_cast<size_t>(members) * 4;
+            at += 4 + 8 + static_cast<za::SizeT>(members) * 4;
         }
         for(int m = 0; m < members; m++)
         {
-            const size_t vertsAt = at + 24;
-            if(vertsAt + static_cast<size_t>(numVerts) * 4 > size)
+            const za::SizeT vertsAt = at + 24;
+            if(vertsAt + static_cast<za::SizeT>(numVerts) * 4 > size)
             {
                 VR_HeapFree(f);
                 return nullptr;
@@ -2335,7 +2336,7 @@ void setf(byte* f, size_t at, float v)
             turnBox(at);
             for(int v = 0; v < numVerts; v++)
             {
-                byte* b = f + vertsAt + static_cast<size_t>(v) * 4;
+                byte* b = f + vertsAt + static_cast<za::SizeT>(v) * 4;
                 const byte y = b[1], z = b[2];
                 b[1] = static_cast<byte>(255 - z);
                 b[2] = y;
@@ -2344,7 +2345,7 @@ void setf(byte* f, size_t at, float v)
                 const glm::vec3 q{b[0] * scale2.x + origin2.x, b[1] * scale2.y + origin2.y, b[2] * scale2.z + origin2.z};
                 radius = za::max(radius, glm::length(q));
             }
-            at = vertsAt + static_cast<size_t>(numVerts) * 4;
+            at = vertsAt + static_cast<za::SizeT>(numVerts) * 4;
         }
     }
     setf(f, 32, radius);

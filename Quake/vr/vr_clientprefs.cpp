@@ -16,6 +16,7 @@
 #include "vr_mem.hpp"
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -407,7 +408,7 @@ void sendFrame()
         int n = q_snprintf(text, sizeof(text), "vr_rigframe %d %d", rigFrameCommandVersion, hand);
         for(int i = 0; i < rigFrameValueCount && n > 0 && n < static_cast<int>(sizeof(text)); i++)
         {
-            n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), za::abs(v[i]) < 5e-4f ? " 0" : " %.3f", v[i]);
+            n += q_snprintf(text + n, sizeof(text) - static_cast<za::SizeT>(n), za::abs(v[i]) < 5e-4f ? " 0" : " %.3f", v[i]);
         }
         if(n <= 0 || n >= static_cast<int>(sizeof(text)) || !qvr::client::roomForCommand(n))
         {
@@ -499,7 +500,7 @@ void sendRig()
         }
         for(int i = first * 4; i < last * 4; i++)
         {
-            n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), "%04x", static_cast<unsigned short>(now.v[i]));
+            n += q_snprintf(text + n, sizeof(text) - static_cast<za::SizeT>(n), "%04x", static_cast<unsigned short>(now.v[i]));
         }
         text[n] = 0;
         if(!qvr::client::roomForCommand(n))
@@ -694,7 +695,7 @@ void send()
     int n = q_snprintf(text, sizeof(text), "vr_prefs %d %d", prefsCommandVersion, prefCount);
     for(int i = 0; i < prefCount && n > 0 && n < static_cast<int>(sizeof(text)); i++)
     {
-        n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), " %g", now[i]);
+        n += q_snprintf(text + n, sizeof(text) - static_cast<za::SizeT>(n), " %g", now[i]);
     }
     if(!qvr::client::roomForCommand(n))
     {

@@ -17,6 +17,7 @@
 #include "vr_server.hpp"
 #include "vr_text3d.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
@@ -100,7 +101,7 @@ ProfileScope profileScope;
         {
             list++;
         }
-        size_t n = 0;
+        za::SizeT n = 0;
         while(list[n] && list[n] != ' ')
         {
             n++;

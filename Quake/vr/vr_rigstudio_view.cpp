@@ -15,6 +15,7 @@
 
 #include "thirdparty/imgui/imgui.h"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -2357,7 +2358,7 @@ void viewport()
             int n = q_snprintf(text, sizeof(text), "vertex %d:", hv);
             for(int i = 0; i < w.n && n < static_cast<int>(sizeof(text)) - 24; i++)
             {
-                n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), " %s %.2f", st.rig->bones[w.bone[i]].name, w.w[i]);
+                n += q_snprintf(text + n, sizeof(text) - static_cast<za::SizeT>(n), " %s %.2f", st.rig->bones[w.bone[i]].name, w.w[i]);
             }
             ImGui::SetTooltip("%s", text);
         }

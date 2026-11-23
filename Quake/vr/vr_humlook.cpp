@@ -13,6 +13,7 @@
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -435,7 +436,7 @@ void ensureLoaded()
                 s.h = h;
                 s.texels.clear();
                 s.texels.resize(static_cast<za::SizeT>(w * h), 0);
-                ZA_MEMCPY(s.texels.data(), data + p, static_cast<size_t>(w * h));
+                ZA_MEMCPY(s.texels.data(), data + p, static_cast<za::SizeT>(w * h));
                 if(s.paint.empty())
                 {
                     s.paint.resize(static_cast<za::SizeT>(w * h), 0);

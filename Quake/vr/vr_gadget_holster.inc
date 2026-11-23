@@ -152,7 +152,7 @@ void holsterSlot(const HolsterMenuSlot& s, const Palette& pal)
     }
     // The name as large as fits (6 pixels a character at most).
     const char* name = empty ? "- EMPTY -" : s.name;
-    const float size = za::min(6.f, (r.z - 4.f) / static_cast<float>(za::max<size_t>(strlen(name), 1)));
+    const float size = za::min(6.f, (r.z - 4.f) / static_cast<float>(za::max<za::SizeT>(strlen(name), 1)));
     holsterTextMid(r.x + r.z * 0.5f, r.y + r.w - 3.f - size, size, name, empty || invalid || source ? pal.dim : pal.value, pal);
 }
 
@@ -196,7 +196,7 @@ void holsterButton(const HolsterMenuButton& b, const Palette& pal)
             holsterOutline({r.x - 1.f, r.y - 1.f, r.z + 2.f, r.w + 2.f}, pal.value * 0.6f);
         }
         holsterIcon(b.icon, r.x + r.z * 0.5f, r.y + r.w * 0.5f - 4.f, ink);
-        const float size = za::min(6.f, (r.z - 4.f) / static_cast<float>(za::max<size_t>(strlen(b.label), 1)));
+        const float size = za::min(6.f, (r.z - 4.f) / static_cast<float>(za::max<za::SizeT>(strlen(b.label), 1)));
         holsterTextMid(r.x + r.z * 0.5f, r.y + r.w * 0.5f + 4.f, size, b.label, ink, pal);
         return;
     }

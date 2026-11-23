@@ -13,6 +13,7 @@
 #include "vr_units.hpp"
 #include "vr_cvars.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -118,7 +119,7 @@ void inLevel_f()
         {
             continue;
         }
-        const Slot& s = world->slots[static_cast<size_t>(num)];
+        const Slot& s = world->slots[static_cast<za::SizeT>(num)];
         glm::vec3 lo, hi;
         qvr::box3d::ownBox(s, lo, hi);
         if(B3_IS_NULL(s.body) || hi.x <= lo.x)
@@ -265,7 +266,7 @@ void shotBench_f()
         trace_t tr;
         ZA_MEMSET(&tr, 0, sizeof(tr));
         tr.fraction = 1.f;
-        const ShotShape p = shotShape(prop, world->slots[static_cast<size_t>(g)], zero, zero);
+        const ShotShape p = shotShape(prop, world->slots[static_cast<za::SizeT>(g)], zero, zero);
         hits += traceProp(p, glm::dvec3{a[0], a[1], a[2]}, glm::dvec3{b[0], b[1], b[2]}, tr) ? 1 : 0;
     }
     const double clip = (Sys_DoubleTime() - t0) * 1e9 / count;
@@ -328,7 +329,7 @@ void fire_f()
                 continue;
             }
             const float zero[3]{0.f, 0.f, 0.f};
-            const glm::vec3 c{shotShape(EDICT_NUM(i), world->slots[static_cast<size_t>(i)], zero, zero).centre};
+            const glm::vec3 c{shotShape(EDICT_NUM(i), world->slots[static_cast<za::SizeT>(i)], zero, zero).centre};
             const float d = glm::distance(c, vec(player->v.origin));
             if(d < best)
             {
