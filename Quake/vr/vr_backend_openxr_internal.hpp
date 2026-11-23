@@ -695,6 +695,7 @@ private:
     // vr_xr_eye_scale: smaller than recommended (each side; within 64 and the largest), at the start only.
     bool createEyeSwapchains();
     unsigned eyeSwapchainsMade{0}; // eyeImagesSerial: counts createEyeSwapchains' calls
+    float eyeScaleMade{1.f}; // the vr_xr_eye_scale the eye swapchains were made at (the Quest's: new ones when it changes)
 
     void beginSession();
 
