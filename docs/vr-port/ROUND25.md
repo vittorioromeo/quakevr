@@ -10270,6 +10270,46 @@ ropes8d's open bug and ropes8c's leftovers. ROPES.md "Poles".
   in the pole at every turn (0.52); the grasp's cylinder 0.3 fatter than the pole (0.69: not monotonic; next, the
   solve's stops per finger with vr_debug_grasp 2 against the drawn tips). rope_climb_test pole_metal (VR) 10/0.
 - **Not done (budget):** 3 (rope_pump still 238 vs 250, unchanged here), 4 (props vs poles).
+## apkrelease: the Quest's release APK, the release key's setup (agent/apkrelease, 2026-11-23)
+
+His ask: could the debug-type APK cost performance; a release build for the next release; a fixed release key.
+- **What "debug-type" was:** native code already `-O3 -DNDEBUG` (the NDK's Release; vr_menu.cpp `-Os`), no Tracy,
+  stripped in the APK. What differed from the PC's release: no `QVR_RELEASE` (live tunables; every sound channel read a
+  checked call, `S_MixCheckAt`; "-dev" version), no LTO, `android:debuggable="true"` (ART debuggable, CheckJNI), the debug
+  key; and the APK said version 1.1.0 code 1 whatever VERSION was (aapt2 kept the manifest's). QC: not in the APK
+  (Setup installs the package's release-flavour progs.dat). ANDROID_RELEASE.md has the table.
+- **Release build:** `QVR_ANDROID_RELEASE=1` for build_native.sh (CMake `QVR_RELEASE=ON` (vr.cmake option, new: the
+  define and qvr_buildinfo.cmake's release version, `QVR_VERSION_DEV 0`), `QVR_ANDROID_LTO=ON` (android.cmake: ThinLTO
+  with a link cache; vr_menu.cpp `-fno-lto`), folder `build-android-release`) and package_apk.sh (debuggable false,
+  versionName = VERSION, code from VERSION (1.2.0 = 1020099, -betaN = 10200NN), the release key from
+  `QVR_ANDROID_RELEASE_KEYSTORE/STOREPASS[/KEYPASS/ALIAS]` or `~/.quakevr/android-release.env`, refused inside the repo,
+  passwords via `env:`; `QVR_ANDROID_SIGN=debug` for a test APK). `Android/release_apk.sh build|check`.
+  check_apk.sh 3rd argument `release|release-testkey`: not debuggable, code from VERSION, lib stripped, no "-dev build",
+  no `tune_reset`, signer not CN=Android Debug and = `Android/release-cert.sha256` once it exists. make_release.ps1
+  `-Apk build` (after the version commit; precondition: the key variables or file; the unstripped .so into symbols\),
+  `-Apk <file>` checked as release unless `-ApkDev` (never with -Final). Release build from scratch 358 s; dev APK
+  23.1 MB, release 24.6 MB. Checks: dev 20/0; release-testkey 24/0; `release` on the test APK fails exactly on the
+  debug signer and code 1; package_apk.sh without the key stops naming both variables.
+- **vr_perf_mark summaries (vr_perfrec.cpp):** each mark prints the frames since the last one (CPU busy med/p90, period,
+  GPU med/p90, late %) on the console: a non-debuggable APK's CSV can't be pulled (`run-as`). The engine's own session
+  marks ("xr session ...") split segments too.
+- **Headset A/B** (Quest 3, same commit and test progs, the frozen e1m1 gib fight at 0.65, dynres off, fixed seeds;
+  parts P2-P4 of one launch each, P1 and the tails cut by the unworn headset's pauses):
+
+| launch | CPU busy med (P2 P3 P4) | GPU med | late |
+|---|---|---|---|
+| A1 development | 11.39 11.54 11.55 | 16.19 16.41 16.13 | 29% 30% 24% |
+| B1 release (debug key) | 10.63 10.68 11.22 | 18.28 17.11 17.90 | 40% 35% 38% |
+
+  CPU about -0.6 ms (-5%) in every part; GPU +1.5 ms in the later launch, within questperf's launch-to-launch warming
+  (15.4 -> 18.1 over a session): not the build (nothing in it touches the GPU). Only one launch each: after every
+  force-stop the system's Quick Actions panel came to the front, which the scripts treat as "in use" and stop (twice).
+  So: the release build saves some CPU; the gib fight stays GPU-bound either way.
+- **Saves backup** for beta players (doc): the game's files are 0660 app-owned (adb lists, can't read); `run-as` is
+  refused in the external folder (checked); the doc's route is beta2's `vr_android_export` into the internal folder,
+  then `run-as tar` (not run end to end).
+- Headset left on beta2 (questperf's qp_restore: re-signed beta2 APK, versionName 1.1.0, shipped progs.dat md5
+  8a409520). Left there: `ar_gore.cfg` in files/quakevr and /data/local/tmp, perf CSVs in the app's files/perf.
 
 ## questperf: where the close-up gib fight's Quest frame goes (agent/questperf, 2026-11-23)
 

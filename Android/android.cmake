@@ -18,6 +18,16 @@ endif()
 # determinism). Every target, SDL2's too (QUEST_PLAN.md section 2.2).
 add_compile_options(-ffp-contract=off)
 
+# The release APK (Android/build_native.sh with QVR_ANDROID_RELEASE=1; docs/vr-port/ANDROID_RELEASE.md): ThinLTO across
+# the engine, its libraries and SDL2, as the PC's release (ReleaseLTO); the link's cache in the build folder makes a
+# relink after a one-file change quick. vr_menu.cpp stays out (qvr_android_target: -Os, the menus' giant file).
+option(QVR_ANDROID_LTO "ThinLTO (the release APK)" OFF)
+if (QVR_ANDROID_LTO)
+	add_compile_options(-flto=thin)
+	add_link_options(-flto=thin "-Wl,--thinlto-cache-dir=${CMAKE_BINARY_DIR}/lto-cache")
+	message(STATUS "Quake VR (Android): ThinLTO on")
+endif()
+
 set(QVR_SDL2_DIR "$ENV{QVR_SDL2_DIR}" CACHE PATH "SDL2's source folder (2.30.x): built here as libSDL2.so")
 if (NOT EXISTS "${QVR_SDL2_DIR}/CMakeLists.txt")
 	message(FATAL_ERROR "Quake VR (Android): QVR_SDL2_DIR must name SDL2's source folder (got '${QVR_SDL2_DIR}')")
@@ -52,7 +62,12 @@ macro(qvr_android_target)
 	target_link_options(ironwail PRIVATE "-Wl,--no-undefined")
 	# The menus' giant file at -Os (C5g, QUEST_PLAN.md 6zr): the NDK's clang 18 took ~18 minutes on it at -O3 and more
 	# than 10 at -O1, 17 seconds at -Os; menu code, nothing a frame waits on.
-	set_source_files_properties("${CMAKE_SOURCE_DIR}/Quake/vr/vr_menu.cpp" PROPERTIES COMPILE_OPTIONS "-Os")
+	# Not in ThinLTO either (QVR_ANDROID_LTO): its link-time optimisation would be the same slow pass.
+	if (QVR_ANDROID_LTO)
+		set_source_files_properties("${CMAKE_SOURCE_DIR}/Quake/vr/vr_menu.cpp" PROPERTIES COMPILE_OPTIONS "-Os;-fno-lto")
+	else()
+		set_source_files_properties("${CMAKE_SOURCE_DIR}/Quake/vr/vr_menu.cpp" PROPERTIES COMPILE_OPTIONS "-Os")
+	endif()
 	if (QVR_OPENXR_ANDROID_DIR AND EXISTS "${QVR_OPENXR_ANDROID_LOADER}")
 		add_library(qvr_openxr_loader SHARED IMPORTED)
 		set_target_properties(qvr_openxr_loader PROPERTIES IMPORTED_LOCATION "${QVR_OPENXR_ANDROID_LOADER}")
