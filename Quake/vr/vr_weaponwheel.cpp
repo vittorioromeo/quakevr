@@ -1037,8 +1037,7 @@ void release(int hand)
         const Choice& c = ws.choices[ws.hovered];
         Con_DPrintf("weapon wheel: the %s hand takes %s (%s)\n", hand == HAND_MAIN ? "right" : "left", c.title,
             c.name[0] ? c.name : "empty");
-        provider().pick(hand, c);
-        menuui::uiSound(menuui::UiSound::Select);
+        provider().pick(hand, c); // (no menu click: the pick's own sounds, a holster's, are the feedback; his ask 2026-11-23)
         close(true);
         return;
     }

@@ -4440,6 +4440,16 @@ vr_flat_throw_wind_fwd|2|Tunables|Throw: Wind-Up Forward|Advanced VR Options > D
 vr_flat_throw_wind_out|2|Tunables|Throw: Wind-Up Out|Advanced VR Options > Debug > Tunables > Throw: Wind-Up Out
 vr_flat_throw_wind_up|2|Tunables|Throw: Wind-Up Up|Advanced VR Options > Debug > Tunables > Throw: Wind-Up Up
 vr_flat_throw_wind_pitch|2|Tunables|Throw: Wind-Up Pitch|Advanced VR Options > Debug > Tunables > Throw: Wind-Up Pitch
+vr_flat_throw_wind_yaw|2|Tunables|Throw: Wind-Up Yaw|Advanced VR Options > Debug > Tunables > Throw: Wind-Up Yaw
+vr_flat_throw_wind_roll|2|Tunables|Throw: Wind-Up Roll|Advanced VR Options > Debug > Tunables > Throw: Wind-Up Roll
+vr_flat_throw_guide|2|Tunables|Throw: Free Hand Guides|Advanced VR Options > Debug > Tunables > Throw: Free Hand Guides
+vr_flat_throw_guide_fwd|2|Tunables|Throw: Guide Forward|Advanced VR Options > Debug > Tunables > Throw: Guide Forward
+vr_flat_throw_guide_out|2|Tunables|Throw: Guide Out|Advanced VR Options > Debug > Tunables > Throw: Guide Out
+vr_flat_throw_guide_up|2|Tunables|Throw: Guide Up|Advanced VR Options > Debug > Tunables > Throw: Guide Up
+vr_flat_throw_guide_pitch|2|Tunables|Throw: Guide Pitch|Advanced VR Options > Debug > Tunables > Throw: Guide Pitch
+vr_flat_throw_guide_yaw|2|Tunables|Throw: Guide Yaw|Advanced VR Options > Debug > Tunables > Throw: Guide Yaw
+vr_flat_throw_guide_roll|2|Tunables|Throw: Guide Roll|Advanced VR Options > Debug > Tunables > Throw: Guide Roll
+vr_flat_throw_guide_open|2|Tunables|Throw: Guide Fingers Open|Advanced VR Options > Debug > Tunables > Throw: Guide Fingers Open
 vr_flat_throw_charge_back|2|Tunables|Throw: Charge Pulls Back|Advanced VR Options > Debug > Tunables > Throw: Charge Pulls Back
 vr_flat_throw_follow_time|2|Tunables|Throw: Follow-Through Time|Advanced VR Options > Debug > Tunables > Throw: Follow-Through Time
 vr_flat_throw_follow_fwd|2|Tunables|Throw: Follow Forward|Advanced VR Options > Debug > Tunables > Throw: Follow Forward

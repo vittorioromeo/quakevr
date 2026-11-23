@@ -2502,7 +2502,8 @@ FireRoute routeFire(bool lmb, bool rmb)
     for(int h = 0; h < HAND_COUNT; h++)
     {
         // (Nor a gun on its way to the hip and back to reload: vr_flatreload.cpp; the game stops it too.)
-        if(r.fire[h] && !punchesWith(h) && (flatsight::wallBlocksFire(h) || flatreload::busy(h)))
+        // (Nor what the throw key winds up to throw: vr_flatgrenade.cpp throwsWith; the game refuses it too.)
+        if(r.fire[h] && (flatgrenade::throwsWith(h) || (!punchesWith(h) && (flatsight::wallBlocksFire(h) || flatreload::busy(h)))))
         {
             r.fire[h] = false;
         }

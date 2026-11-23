@@ -33,6 +33,7 @@
 #include "vr_seated.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_crosshair.hpp"
+#include "vr_flatgrenade.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flathit.hpp"
 #include "vr_flatsight.hpp"
@@ -180,6 +181,10 @@ void updateFingerFrames()
         // along the index: vr_flat_swim_cup's curl, its share of the stroke; vr_flatswim.cpp.)
         const float swimOpen = flatplay::active() && !holder && !flatGrips ? flatswim::openShare(hand) : 0.f;
         const float cup = za::clamp(vr_flat_swim_cup.value, 0.f, 1.f);
+        // (A free hand guiding the other hand's flat throw: its fingers open by vr_flat_throw_guide_open, its share of the
+        // guide; vr_flatgrenade.cpp.)
+        const float guide = flatplay::active() && !holder && !flatGrips ? flatgrenade::guideShare(hand) : 0.f;
+        const float guideCurl = 1.f - za::clamp(vr_flat_throw_guide_open.value, 0.f, 1.f);
         // (ropes12, his ask 2026-11-23) On a climbable rope or pole the thumb closes round it whatever the controller's
         // thumb rest says (VR; flat play's thumb is always closed): it wraps it, stopped on its surface (ropeHeld).
         glm::vec3 ropeAt, ropeUp;
@@ -188,8 +193,12 @@ void updateFingerFrames()
         for(int finger = 0; finger < FingerCount; finger++)
         {
             const float curl = finger == FingerThumb && onRope ? 1.f : targetCurl(in, finger, holdsOther);
-            approach(fingerFrames[hand][finger],
-                (finger == FingerBase || swimOpen <= 0.f ? curl : curl + (cup - curl) * swimOpen) * 5.f);
+            float shaped = finger == FingerBase || swimOpen <= 0.f ? curl : curl + (cup - curl) * swimOpen;
+            if(finger != FingerBase && guide > 0.f)
+            {
+                shaped += (za::fmin(shaped, guideCurl) - shaped) * guide; // (opened, never closed further)
+            }
+            approach(fingerFrames[hand][finger], shaped * 5.f);
             approach(fingerBias[hand][finger], biasFor(hand, finger));
         }
     }

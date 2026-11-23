@@ -2019,11 +2019,21 @@ QVR_TUNABLE(vr_flat_grenade_speed_scale, "0.75") // the throw's speed (speed_min
 // drawn motion, shared by the throw key and the quick grenade (places off the hand's shoulder as shares of the arm's
 // reach), and the throw key's throw.
 QVR_TUNABLE(vr_flat_throw_wind_time, "0.2") // seconds the hand takes back into the wind-up (the throw key held, the quick grenade's fire button held)
-QVR_TUNABLE(vr_flat_throw_wind_fwd, "-0.2") // the wind-up: in front of the shoulder (negative: behind), level with the body
-QVR_TUNABLE(vr_flat_throw_wind_out, "0.4") // out at its side
-QVR_TUNABLE(vr_flat_throw_wind_up, "0.85") // above the shoulder
-QVR_TUNABLE(vr_flat_throw_wind_pitch, "-50") // the hand's pitch there (negative: tipped back)
-QVR_TUNABLE(vr_flat_throw_charge_back, "0.2") // fully charged, the wind-up this much further back (a share of the reach; the charge: vr_flat_throw_charge_time, the grenade's vr_flat_grenade_wind_full)
+QVR_TUNABLE(vr_flat_throw_wind_fwd, "0.6") // the wind-up: in front of the shoulder along the look (negative: behind; in view at the screen's upper corner, his ask 2026-11-23)
+QVR_TUNABLE(vr_flat_throw_wind_out, "0.25") // out at its side
+QVR_TUNABLE(vr_flat_throw_wind_up, "0.45") // above the shoulder
+QVR_TUNABLE(vr_flat_throw_wind_pitch, "-40") // the hand's pitch there against the look's (negative: tipped back)
+QVR_TUNABLE(vr_flat_throw_wind_yaw, "0") // its yaw against the look's (positive: the fingers turned out to its side)
+QVR_TUNABLE(vr_flat_throw_wind_roll, "0") // its roll (mirrored for the left hand)
+QVR_TUNABLE(vr_flat_throw_guide, "1") // 1: the other hand, if free, guides the throw (forward, its palm away, fingers open) while the throwing hand winds up
+QVR_TUNABLE(vr_flat_throw_guide_fwd, "0.6") // the guiding hand's place: forward along the look, a share of the arm's reach
+QVR_TUNABLE(vr_flat_throw_guide_out, "0") // out at its side (negative: towards the middle)
+QVR_TUNABLE(vr_flat_throw_guide_up, "0.3") // above its shoulder
+QVR_TUNABLE(vr_flat_throw_guide_pitch, "55") // its fingers raised from the look (degrees): the palm turns from down to away from him as they rise
+QVR_TUNABLE(vr_flat_throw_guide_yaw, "15") // its fingers turned in towards the middle (degrees)
+QVR_TUNABLE(vr_flat_throw_guide_roll, "0") // the palm turned about the fingers (degrees; positive: out)
+QVR_TUNABLE(vr_flat_throw_guide_open, "1") // how open its fingers are (0 as they were, 1 wide open)
+QVR_TUNABLE(vr_flat_throw_charge_back, "0.1") // fully charged, the wind-up this much further back (a share of the reach; the charge: vr_flat_throw_charge_time, the grenade's vr_flat_grenade_wind_full)
 QVR_TUNABLE(vr_flat_throw_follow_time, "0.12") // seconds of the throw's follow-through (the arm out along the look)
 QVR_TUNABLE(vr_flat_throw_follow_fwd, "0.9") // the follow-through's place: forward along the look
 QVR_TUNABLE(vr_flat_throw_follow_out, "0.05") // out at its side

@@ -11318,3 +11318,29 @@ block (18:40-18:56; Standalone, 0.65, High straight in; beta2 and the shipped pr
   the controllers lying by the headset; qlrz's "left eye filled" looks the same): not the switch.
 - PC: unaffected (`VR_Android()` only); stereo_targets_test 12/0, e1m1 smoke. APK 0 warnings, check_apk 20/0. Beta2's
   APK and the shipped progs.dat put back. Scripts (not committed): `scratch/qfc_*`.
+## flatthrow3: the flat throw from the hand, its wind-up in view, the free hand guiding; no wheel click (agent/flatthrow3, 2026-11-23)
+
+His flat feedback 2026-11-23. FLATPLAY.md, "The throw key".
+- **Wheel**: picking a slot (a weapon, DROP, UNLOAD, EMPTY HAND) no longer plays the menu Select click, flat and VR
+  (`weaponwheel::release`); the pick's own sounds (the holster's) are the feedback. The open's Move click stays.
+- **No shooting the gun being thrown**: while J winds up a weapon, its hand neither fires (`flatplay::routeFire` via
+  `flatgrenade::throwsWith`; the game too: weapons.qc refuses it, `VR_FlatThrow_WindsUpWeapon`) nor sights
+  (`flatsight::adsApplies`). The other hand's gun still fires.
+- **From the hand** (one helper for the throw key and the quick grenade, `VR_FlatThrow_From`): the thing leaves from the
+  throwing hand where it is drawn (the server's hand is the drawn one; a wall between the eyes and the hand: where the line
+  meets it), aimed from there at what the crosshair points at (a trace up to 2048; at or behind the hand: along the aim),
+  `vr_flat_throw_up` / the grenade's up above that line. The headset's back-projection (`VR_Throw_BackProject`) keeps
+  the thing's own offset from the hand. Measured: the axe leaves 11 fwd, 12 right, 5 up of the eye (was the middle).
+- **Wind-up in view**: `vr_flat_throw_wind_*` now along the look (was the level body frame, behind the shoulder): fwd 0.6,
+  out 0.25, up 0.45, pitch -40 against the look's, new `_yaw` / `_roll` 0; `vr_flat_throw_charge_back` 0.2 -> 0.1. The
+  hand sits at the screen's upper corner (12.6 fwd, 12.3 out, 5.2 up of the eye: was 4.5 fwd, 17.7 out, out of view).
+- **The guiding hand**: while either throw winds up, the other hand, if `flatsight::handEmpty` (new public wrapper of the
+  ironsight's own test) and not busy, eases forward (`vr_flat_throw_guide_fwd` 0.6, `_out` 0, `_up` 0.3), fingers raised
+  `_pitch` 55 and turned in `_yaw` 15 (the palm down at 0, away from him as they rise; `_roll` 0 about the fingers),
+  `flatplay::handFacing` (the swim strokes' helper); fingers open by `_open` 1 in `vr_view.cpp`'s curls
+  (`flatgrenade::guideShare`, only ever opening). Off: `vr_flat_throw_guide 0`. Debug > Tunables > Flatscreen > Throw.
+- **Tests**: `flatthrow_test.sh` 28/0 (new `nofire` run: the nail gun's fire held through the wind-up shoots nothing,
+  221 -> 221 rounds with the clip, held before J it shoots; the axe and the charged rock leave from their hand's side);
+  weaponwheel_test VR 20/0, flat 17/0; flathands 76/0; flatkeys 37/0. Screenshots: kit `scratch/flatthrow3_windup.png`
+  (axe with the free hand guiding; rock with the axe in the other hand, no guide; quick grenade guided).
+  The game's own fire refusal is behind the client's (a client that sends the button anyway); not separately exercised.
