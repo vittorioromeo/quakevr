@@ -9,11 +9,14 @@
 //   there), held on until vr_dm_test changes.
 // - 17: the human's empty main hand closes at the point (vr_dm_test_x, _y, _z: world) and is pulled away hard: the victim's
 //   weapon is taken (its hold, its weapon in his hand). 18: the same point, where nothing must be taken hold of.
+// - 23: the hold of 16 with every holster of the human and the victim filled, the same gun in the same holster
+//   (fbmisc1123, mp_test.py botgear: the copies' holstered guns against the human's own).
 // Each grab ends with `dmtest: N passed, M failed` (the victim still held there until then).
 
 float vr_bg_on;      // the running test's number
 float vr_bg_n;       // frames it has run
 float vr_bg_ready;   // 16: ready printed
+float vr_bg_filled;  // 23: the holsters filled
 entity vr_bg_victim; // the victim (a bot or a player)
 float VR_BG_GIVEUP = 360; // frames the hold may wait for its victim
 
@@ -135,6 +138,7 @@ void(float ask) VR_BG_Run =
         vr_bg_on = ask;
         vr_bg_n = 0;
         vr_bg_ready = FALSE;
+        vr_bg_filled = FALSE;
         VR_Test_BeginFlags("dmtest", VR_TEST_LOUD | VR_TEST_ECHO); // (16's hold line too: to every client)
     }
     vr_bg_n++;
@@ -153,7 +157,17 @@ void(float ask) VR_BG_Run =
         return;
     }
     VR_BG_Hold();
-    if(ask == 16)
+    if(ask == 23 && !vr_bg_filled)
+    {
+        // (fbmisc1123) every holster of both filled, the same gun in the same holster: the copies' holstered guns are
+        // compared with the human's own (vr_mp_gearcheck's vsown)
+        vr_bg_filled = TRUE;
+        VR_FNK_SetHolsters(vr_dmt_human, WID_NAILPISTOL, WID_REVOLVER, WID_SHOTGUN, WID_NAILGUN, WID_SUPER_SHOTGUN,
+            WID_GRENADE_LAUNCHER);
+        VR_FNK_SetHolsters(vr_bg_victim, WID_NAILPISTOL, WID_REVOLVER, WID_SHOTGUN, WID_NAILGUN, WID_SUPER_SHOTGUN,
+            WID_GRENADE_LAUNCHER);
+    }
+    if(ask == 16 || ask == 23)
     {
         if(!vr_bg_ready && vr_bg_n >= VR_DMT_HOLD)
         {
@@ -172,7 +186,7 @@ void(float ask) VR_BG_Run =
 void() VR_BotGrabTest_Frame =
 {
     float ask = cvar_hget(cvarh_vr_dm_test);
-    if(ask >= 16 && ask <= 18) { VR_BG_Run(ask); }
+    if((ask >= 16 && ask <= 18) || ask == 23) { VR_BG_Run(ask); }
     else if(vr_bg_on) { VR_BG_End(); }
 };
 #endif

@@ -256,6 +256,7 @@ struct Skeleton
     glm::vec3 headJoint{0.f};  // the head bone as posed (the skull's base)
     glm::vec3 headEye{0.f};    // the drawn head's eyes, seen from outside (the head bone turned: vr_body_eye_forward / _up)
     glm::vec3 pelvis{0.f};     // the pelvis as posed
+    Frame pelvisFrame, chestFrame; // the pelvis's and the chest's bones as posed (Torso's: what carries the holsters)
 };
 [[nodiscard]] bool skeleton(Skeleton& out);
 

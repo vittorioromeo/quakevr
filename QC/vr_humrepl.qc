@@ -31,7 +31,7 @@ float VR_HUM_CAT_POISON = 4;    // the fumigator's sprayer
 float VR_HUM_CAT_SHELLS = 5;
 float VR_HUM_CAT_NAILS = 6;
 float VR_HUM_CAT_MELEE = 7;
-float VR_HUM_CAT_OWN = 8;       // the monster's own gun (the grunt's rifle, the enforcer's laser rifle, a knight's sword)
+float VR_HUM_CAT_OWN = 8;       // the monster's own gun (the grunt's rifle, a knight's sword; the enforcer's laser rifle is energy)
 
 float vr_hum_made; // variants replaced so far (the tests)
 
@@ -128,6 +128,14 @@ float(entity e, float wid, float fl) VR_HUM_Category =
     {
         return 0;
     }
+    // (fbmisc1123; his note 2026-11-23: an enforcer with its own laser rifle stayed undyed "although the weapon uses
+    // cells") Energy first: a cell weapon is blue on anyone, the enforcer's own rifle too; only the other own guns (the
+    // grunt's rifle, a knight's sword) keep their look.
+    if(wid == WID_LIGHTNING || wid == WID_LASER_CANNON || wid == WID_MJOLNIR || wid == WID_ADPLASMA ||
+       wid == WID_ADCENTURION || wid == WID_ADELIMINATOR || wid == WID_ENFRIFLE)
+    {
+        return VR_HUM_CAT_ENERGY;
+    }
     if(VR_AKN_IsKnight(e.vr_ag_kind) ? wid == WID_SWORD && VR_ADMelee_Kind(fl) == 0 : wid == VR_AGR_NativeOf(e.vr_ag_kind))
     {
         return VR_HUM_CAT_OWN;
@@ -136,11 +144,6 @@ float(entity e, float wid, float fl) VR_HUM_Category =
        wid == WID_ADGRENADE)
     {
         return VR_HUM_CAT_EXPLOSIVE;
-    }
-    if(wid == WID_LIGHTNING || wid == WID_LASER_CANNON || wid == WID_MJOLNIR || wid == WID_ADPLASMA ||
-       wid == WID_ADCENTURION || wid == WID_ADELIMINATOR || wid == WID_ENFRIFLE)
-    {
-        return VR_HUM_CAT_ENERGY;
     }
     if(wid == WID_ADPYRO || wid == WID_FLAREGUN)
     {

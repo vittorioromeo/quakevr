@@ -308,4 +308,62 @@ void() VR_MjolnirModelTest_Run =
     p.weapon = WID_FIST;
     VR_Test_Verdict();
 };
+
+// vr_pickup_test 24 (vr_itemrules_test.qc; fbmisc1123, his note 2026-11-23: ad_crucial's lift at -640 -189 -296 "is
+// raised and can't be brought down"): the map's own design. Its lift (func_plat "lift1", AD's ad_func_plat: with a
+// targetname it starts raised and locked, ad_STATE_DISABLED) comes down once, when the super shotgun in the hall east of
+// it (-320 80 -328, target lift1; three enforcers spawn too) is taken; then it is an ordinary lift. Neither a monster
+// nor vr_nav's call moves a locked lift (AD's trigger answers clients only; VR_NAV_CallLift calls one at its bottom). Here: the lift raised and waiting, the map's gun taken
+// through itemTouch by the main hand, the lift at its bottom (by the lift's own state, its travel 256 at speed 80:
+// ~3.2 s; a give-up at 10 s). Verdict "crucial_lift: N passed, M failed". On ad_crucial only.
+void() VR_CLTest_Wait =
+{
+    entity lift = self.enemy;
+    if(lift.state != STATE_BOTTOM && time < self.ltime)
+    {
+        self.nextthink = time;
+        return;
+    }
+    VR_Test_Check(lift.state == STATE_BOTTOM, sprintf("the lift came down: state %g (%g: its bottom), its top at z %g%s",
+        lift.state, STATE_BOTTOM, lift.absmax_z, lift.state == STATE_BOTTOM ? "" : " (timed out)"));
+    remove(self);
+    VR_Test_Verdict();
+};
+
+void() VR_CrucialLiftTest_Run =
+{
+    VR_Test_BeginFlags("crucial_lift", VR_TEST_LOUD);
+    entity p = self;
+    entity lift = find(world, targetname, "lift1");
+    while(lift && lift.classname != "func_plat")
+    {
+        lift = find(lift, targetname, "lift1");
+    }
+    entity gun = find(world, target, "lift1");
+    while(gun && gun.classname != "weapon_supershotgun")
+    {
+        gun = find(gun, target, "lift1");
+    }
+    if(mapname != "ad_crucial" || !lift || !gun)
+    {
+        VR_Test_Check(FALSE, sprintf("ad_crucial's lift1 and its super shotgun (map %s)", mapname));
+        VR_Test_Verdict();
+        return;
+    }
+    // (AD's plat, ad_func_plats.qc: raised and locked, ad_STATE_DISABLED, until used; its trigger answers clients only)
+    VR_Test_Check(lift.state == ad_STATE_DISABLED, sprintf("the lift waits raised and locked for its target (state %g, top z %g)",
+        lift.state, lift.absmax_z));
+    VRSetMainHandGrabbingBit(p, TRUE);
+    VR_ITT_Touch(p, gun);
+    VRSetMainHandGrabbingBit(p, FALSE);
+    VR_Test_Check(gun.model == string_null && VR_WeaponUtil_EntHasWeapon(p, WID_SUPER_SHOTGUN),
+        "the map's super shotgun taken");
+    VR_Test_Check(lift.state == STATE_DOWN, sprintf("its pickup sent the lift down (state %g)", lift.state));
+    entity w = spawn();
+    w.classname = "vr_cltest_wait";
+    w.enemy = lift;
+    w.ltime = time + 10;
+    w.think = VR_CLTest_Wait;
+    w.nextthink = time;
+};
 #endif

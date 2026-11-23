@@ -11319,6 +11319,53 @@ block (18:40-18:56; Standalone, 0.65, High straight in; beta2 and the shipped pr
 - PC: unaffected (`VR_Android()` only); stereo_targets_test 12/0, e1m1 smoke. APK 0 warnings, check_apk 20/0. Beta2's
   APK and the shipped progs.dat put back. Scripts (not committed): `scratch/qfc_*`.
 
+## fbmisc1123: holsters on bots and other players (agent/fbmisc1123, 2026-11-23)
+
+His report (fb1123_holsters): a remote copy's holstered guns floating off its hips and chest, turned wrong, the chest
+sheaths out on the shoulders.
+- **Cause 1, every bot (and since this change every copy): the wrong turns.** `view::holsterOnOther` passed the
+  body::Holster index to `holsterTurnStanding`, which switches on the drawn order (`bodyHolster`: hips 0-1, uppers 2-3,
+  shoulders 4-5; body::Holster has the shoulders first): the hips took the uppers' turns (pitch 40, yaw 20, roll -60),
+  the uppers the shoulders', the shoulders the hips'. Now mapped through `bodyHolster`.
+- **Cause 2: the places.** Bots used vrnotes1122a's fixed rings (45/35 degrees round, from a guessed chest point);
+  players' copies drew what their clients sent, placed on their own calibrated bodies, not the copy posed here.
+  Now one path for every other copy (`solveBotGear`, called from `wearHolsters` after `setupBody`, so on the body as
+  posed this frame, no frame behind): `body::standingHolsters` runs your own placement's code (legacy offsets, fitToBody,
+  onTheBody, plateOnTheBody, your Hotspots offsets) on your standing body and expresses each holster and plate in the
+  frame of the part that carries it (pelvis for the hips, chest for the rest); the copy wears them on its own posed
+  pelvis/chest (`avatar::Skeleton` gained `pelvisFrame`/`chestFrame`), scaled by its m2w, with the plate's clearance.
+  A player's weapons, frames, skins and which sheaths he shows stay his; `vr_mp_holsters_on_body` 1 (Debug > Network:
+  Holsters On Their Bodies; 0: as their clients drew them). `body::frontRingPlate` retired. Not carried: your thighs'
+  swing (onTheThigh) and crouch turns.
+- **Check:** `vr_mp_gearcheck [ent] [1]` adds `vsown`/`place`/`axis`/`asown`: each gun and sheath against yours in the
+  same holster (the same gun only), both in their bodies' frames from the skeleton point the holster belongs to (pelvis,
+  shoulders' middle, shoulder joint), at most 7 cm and 20 degrees; 1 prints `mp_gearpiece` per piece. New `vr_dm_test 23`
+  (16's hold with every holster of the human and the victim filled, same gun per holster); `mp_test.py botgear` uses it.
+  Before: bot 0.139 m / 87.4 degrees (FAIL), players as sent 0.063 / 12.0 and 0.058 / 12.0; after: bot 0.002 m /
+  0.2 degrees, B seen by A 0.047 / 8.4, A seen by B 0.059 / 11.6 (B is flat: his own sit a few cm off); botgear 17/0.
+  mp_body 13/0, mp_deathbody 40/0. Shots (`MP_BOTGEAR_SHOTS=1`, low detail): `scratch/fbmh_holsters_before_after.png`.
+
+## fbmisc1123: the SSG's open muzzle, the enforcer's rifle dyed blue, ad_crucial's lift, the gap mark gone (agent/fbmisc1123, 2026-11-23)
+
+- **SSG muzzle (his "looks like a solid block"):** the nail pistol's barrel is a modelled bore (an annulus round a tube
+  r ~0.57 running ~1.4 back, dark inside). The SSG's front was a flat 7-triangle cap. `Misc/quakevr/make_ssg_muzzle.py`
+  (run headless on `v_shot2.blend`, as the housing scripts: idempotent, refuses on other faces' UV changes, then the
+  export: v_shot2.mdl, the open halves by make_ssg_open, the normal maps) opens two octagonal bores (r 0.75, 2.04 deep,
+  at the barrels' outline middles y -1.383 / 1.342, z 6.387): a bright chamfer ring one x step deep, walls darkening to
+  black, a black floor; make_ssg_open's bridge/ear_clip/octagon and palette reused. 1121 triangles (103 new, marked in
+  the barrel mask: 470). check_mdl_holes as before, ssg_checks ring 2/0. MODELS_IN_BLENDER.md "Opening the super
+  shotgun's muzzle".
+- **Enforcer's laser rifle undyed:** intended then (humrepl: a monster's own gun, `VR_HUM_CAT_OWN`, kept its look), but
+  inconsistent with every other cell weapon. `VR_HUM_Category` now tests energy first: the enforcer's rifle is blue on
+  anyone; the grunt's rifle and a knight's sword stay their own. humrepl_test 48/0 (new check: look 18).
+- **ad_crucial's lift at -640 -189 -296:** the map's design, not ours. `lift1` is AD's func_plat with a targetname: it
+  starts raised and locked (`ad_STATE_DISABLED`) until used, and the only thing using it is the super shotgun in the
+  lower hall (-320 80 -328, target lift1; three enforcers spawn by the lift). AD's plat trigger answers clients only and
+  `VR_NAV_CallLift` calls only a lift resting at its bottom, so no monster or navmesh path can hold or raise it.
+  `vr_pickup_test 24` (on ad_crucial): raised and locked, the map's gun taken through itemTouch, the lift at its bottom:
+  4/0; `vr_pickup_test 19` there 16/0. Scene `ad_crucial_lift`.
+- **`vr_hull_holes_mark` removed** (his verdict: not meaningful): the command, its two menu rows; Debug's row is now
+  Print My Position (`viewpos`). `quakevr/hull_holes_marks.txt` stays as the record (his uncommitted marks untouched).
 ## flatmelee2: long blades' guard grip within reach; the Lance: no other ammo, its flat grip, a spear thrust (agent/flatmelee2, 2026-11-23)
 
 His flatscreen feedback 2026-11-23 (four items).

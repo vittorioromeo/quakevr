@@ -56,12 +56,19 @@ struct HolsterPlate
     float clearance{0.f};
 };
 using HolsterPlates = za::Array<HolsterPlate, HolsterCount>;
-// A hip or upper holster on the front of a standing body of the default build (a bot's, which no client of its own
-// placed: vr_mpavatar.cpp solveBotGear), placed as yours are at their default offsets: the plate its holster faces, the
-// body turned (fwd, right, up), m2w its world units per metre; `at` its place, forward of the spine and to its right.
-[[nodiscard]] HolsterPlate frontRingPlate(const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up, Holster holster,
-    float m2w, glm::vec2& at);
 [[nodiscard]] HolsterPositions holsterPositions(const hands::State& s, HolsterPlates* plates = nullptr);
+
+// Your holsters as they sit on your standing body (fbmisc1123; holsterPositions' placement before the body's lean, crouch
+// and thighs carry them), in the frame of the part that carries each (the hips' the pelvis, the others' the chest:
+// avatar::Torso's frames as `s` stands, avatar::standing): its place in metres of the body, its plate's out and up
+// (`out` zero for the shoulders) and clearance (metres). Another player's copy wears them so on its own posed parts
+// (vr_mpavatar.cpp solveBotGear: a bot's, and every player's on his drawn body). False when `s` is not valid.
+struct StandingHolsters
+{
+    za::Array<glm::vec3, HolsterCount> at{};
+    HolsterPlates plate{};
+};
+[[nodiscard]] bool standingHolsters(const hands::State& s, StandingHolsters& out);
 
 // The grenade pouch (vr_handgrenade, vr_grenade_pouch_*; ROUND21.md, "Hand grenades from the back pouch"): on the belt
 // at the small of the back, where a hand reaches for it, and (`plate`) the body's surface there (its `out` behind the

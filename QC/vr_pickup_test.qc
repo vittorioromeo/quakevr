@@ -1253,6 +1253,10 @@ void() VR_PickupTest_Frame =
     {
         VR_MjolnirModelTest_Run(); // (a player holding Mjolnir is player.mdl: vr_itemrules_test.qc)
     }
+    else if(ask == 24)
+    {
+        VR_CrucialLiftTest_Run(); // (ad_crucial's raised lift lowered by its super shotgun's pickup: vr_itemrules_test.qc)
+    }
     self = oself;
 };
 #endif

@@ -89,6 +89,7 @@ struct Drawn
     view::ViewEntity body;
     bool bodyPosed{false};
     avatar::Skeleton skeleton;
+    bool gearOnBody{false}; // his holsters placed on his body as posed (wearHolsters), not as his client drew them
     glm::vec3 handWrist[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float eyeHeight{0.f};
     float eyeUnits{0.f}; // ... in world units, its feet to its eyes (eyeHeight at its world scale: a bot's, the default player's)
@@ -687,6 +688,28 @@ void avatars_f()
     return glm::degrees(za::atan2(across.x, -across.y)); // (forward: right turned a quarter left, up the z axis)
 }
 
+// A holster's piece in its body's frame (fbmisc1123, vr_mp_gearcheck's vsown): its place from the skeleton's point the
+// holster belongs to (the hips' the pelvis, the uppers' the shoulders' middle, the shoulders' its own shoulder joint) in
+// metres of the body, x forward along the trunk's yaw (trunkYaw), y to its right, z up; and its model's forward and up so.
+struct InBody
+{
+    glm::vec3 at{0.f}, fwd{0.f}, up{0.f};
+};
+
+[[nodiscard]] InBody inBody(const avatar::Skeleton& k, int h, const glm::vec3& p, const glm::vec3& angles)
+{
+    glm::vec3 f, r, u;
+    hands::angleVectors(glm::vec3{0.f, trunkYaw(k, 0.f), 0.f}, f, r, u);
+    const bool hip = h == body::LeftHip || h == body::RightHip, upper = h == body::LeftUpper || h == body::RightUpper;
+    const glm::vec3 anchor = hip     ? k.pelvis
+                             : upper ? 0.5f * (k.shoulder[0] + k.shoulder[1])
+                                     : k.shoulder[h == body::LeftShoulder ? 0 : 1];
+    glm::vec3 mf, mr, mu;
+    hands::angleVectors({-angles.x, angles.y, angles.z}, mf, mr, mu); // (alias models' pitch is the other way)
+    const auto local = [&](const glm::vec3& v) { return glm::vec3{glm::dot(v, f), glm::dot(v, r), glm::dot(v, u)}; };
+    return {local(p - anchor) / za::max(k.m2w, 1e-3f), local(mf), local(mu)};
+}
+
 // vr_mp_gearcheck [ent] (mpbothands; his report 2026-11-22: bots drawn with an extra pair of fists, a gun and a shovel
 // floating beside the body; Debug > Reports > Network: Other Players' Gear): each other player's copy as drawn last frame
 // (or `ent`'s): how many hand models it draws (its two hands, nothing else: an empty holster -- the fists' -- draws none),
@@ -696,6 +719,7 @@ void avatars_f()
 void gearcheck_f()
 {
     const int only = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 0;
+    const bool verbose = Cmd_Argc() > 2 && Q_atoi(Cmd_Argv(2)) != 0;
     int players = 0, bad = 0;
     for(int e = 1; cls.state == ca_connected && e <= MAX_SCOREBOARD; e++)
     {
@@ -763,6 +787,58 @@ void gearcheck_f()
                 }
             }
         }
+        // (fbmisc1123; his report 2026-11-23: a copy's holstered guns floating off its hips and chest, turned wrong, its
+        // chest sheaths out on the shoulders, though every limit above held) Each piece against yours in the same
+        // holster (`vsown`: how many compared; a gun only against the same gun), both in their bodies' frames from the
+        // skeleton's point the holster belongs to (InBody): `place` the farthest apart (metres of the body), `axis` the
+        // most turned (degrees, the model's forward or up).
+        float place = 0.f, axis = 0.f;
+        int vsOwn = 0;
+        avatar::Skeleton own;
+        VrDrawnHolsters ownHolsters;
+        VrDrawnGear ownGear;
+        view::netHolsters(ownHolsters);
+        view::netGear(ownGear);
+        if(avatar::skeleton(own))
+        {
+            const auto turnedBy = [](const glm::vec3& a, const glm::vec3& b) {
+                return glm::degrees(za::acos(CLAMP(-1.f, glm::dot(a, b), 1.f)));
+            };
+            const auto compare = [&](int i, const view::ViewEntity& ve, const glm::vec3& ownAt, const glm::vec3& ownAngles) {
+                const InBody x = inBody(k, i, at(ve), glm::vec3{ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]});
+                const InBody y = inBody(own, i, ownAt, ownAngles);
+                const float apart = glm::distance(x.at, y.at), turn = za::max(turnedBy(x.fwd, y.fwd), turnedBy(x.up, y.up));
+                place = za::max(place, apart);
+                axis = za::max(axis, turn);
+                vsOwn++;
+                if(verbose) // (vr_mp_gearcheck <ent> 1: each piece)
+                {
+                    Con_Printf("mp_gearpiece: ent=%d holster=%d %s at=(%.3f %.3f %.3f) own=(%.3f %.3f %.3f) apart=%.3f "
+                               "turned=%.1f\n",
+                        e, i, &ve == &d.holster[i] ? "gun" : "sheath", static_cast<double>(x.at.x),
+                        static_cast<double>(x.at.y), static_cast<double>(x.at.z), static_cast<double>(y.at.x),
+                        static_cast<double>(y.at.y), static_cast<double>(y.at.z), static_cast<double>(apart),
+                        static_cast<double>(turn));
+                }
+            };
+            for(int i = 0; i < VrDrawnHolsters::count; i++)
+            {
+                const int m = ownHolsters.model[i];
+                if(shown(d.holster[i]) && (ownHolsters.weapons & (1 << i)) && m > 0 && m < MAX_MODELS &&
+                    cl.model_precache[m] == d.holster[i].ent.model)
+                {
+                    compare(i, d.holster[i], ownHolsters.origin[i], ownHolsters.angles[i]);
+                }
+                if(shown(d.gear[i]) && (ownGear.shown & (1 << i)))
+                {
+                    compare(i, d.gear[i], ownGear.origin[i], ownGear.angles[i]);
+                }
+            }
+        }
+        // (as yours: within 7 cm and 20 degrees -- the same build and holster on the same parts; a flat viewer's own sit a
+        // few cm off a VR player's, his crouched flat body's)
+        constexpr float placeMost = 0.07f, axisMost = 20.f;
+        const bool asOwn = place <= placeMost && axis <= axisMost;
         // (on the body: within half a metre of the trunk's line -- a hip holster stands ~0.2 m out, a held hand's
         // model origin a few units from the wrist its arm reached for; a sheath at most 70 degrees off the trunk's up --
         // the chest's lean back 20 and the uppers' turn 40 (vr_upper_holster_pitch), a player's copy ~50 -- and facing
@@ -770,13 +846,15 @@ void gearcheck_f()
         const float trunkMost = 0.5f * k.m2w, wristMost = 0.15f * k.m2w, hangMost = 0.25f * k.m2w;
         constexpr float tiltMost = 70.f, facingMost = 60.f;
         const bool turned = finite && tilt <= tiltMost && facing <= facingMost && hang <= hangMost;
-        const bool ok = hands == 2 && trunk <= trunkMost && wrist <= wristMost && turned;
+        const bool ok = hands == 2 && trunk <= trunkMost && wrist <= wristMost && turned && asOwn;
         const bool bot = ((avatars[e].hands[0].flags | avatars[e].hands[1].flags) & VrDrawnHand::solveBit) != 0;
         Con_Printf("mp_gear: ent=%d bot=%d hands=%d holsters=%d sheaths=%d trunk=%.1f trunkmost=%.1f wrist=%.1f wristmost=%.1f "
-                   "finite=%d tilt=%.1f facing=%.1f hang=%.1f hangmost=%.1f turned=%d ok=%d\n",
+                   "finite=%d tilt=%.1f facing=%.1f hang=%.1f hangmost=%.1f turned=%d vsown=%d place=%.3f axis=%.1f "
+                   "asown=%d ok=%d\n",
             e, bot ? 1 : 0, hands, holsters, sheaths, static_cast<double>(trunk), static_cast<double>(trunkMost),
             static_cast<double>(wrist), static_cast<double>(wristMost), finite ? 1 : 0, static_cast<double>(tilt),
-            static_cast<double>(facing), static_cast<double>(hang), static_cast<double>(hangMost), turned ? 1 : 0, ok ? 1 : 0);
+            static_cast<double>(facing), static_cast<double>(hang), static_cast<double>(hangMost), turned ? 1 : 0, vsOwn,
+            static_cast<double>(place), static_cast<double>(axis), asOwn ? 1 : 0, ok ? 1 : 0);
         players++;
         bad += ok ? 0 : 1;
     }
@@ -796,52 +874,88 @@ void drawPowerups(int slot, int powerups);
 
 // A bot's holstered weapons and their sheaths (syncfix; his voice note 2026-11-21: "it should be possible to see the
 // holsters of other players and bots ... so that I can see what they're actually carrying"): no client drew them, so they
-// go on its body as last drawn (its skeleton), posed as yours are (view::holsterOnOther): the hips' outside the hip
-// joints, the uppers' on the chest, the shoulders' behind them. None until its body is first posed.
-void solveBotGear(const Drawn& d, float yaw, VrDrawnHolsters& hs, view::GearDraw gear[VrDrawnGear::count])
+// go on its body as last drawn (its skeleton), posed as yours are (view::holsterOnOther). None until its body is first
+// posed. (fbmisc1123) Every other player's too, on his drawn body (setupHands). False: none placed (no body posed).
+bool solveBotGear(const Drawn& d, float yaw, VrDrawnHolsters& hs, view::GearDraw gear[VrDrawnGear::count])
 {
-    if(!d.bodyPosed)
+    // (fbmisc1123; his report 2026-11-23, after vrnotes1122a's rings: a copy's guns floating off its hips and chest,
+    // turned wrong, its chest sheaths out on the shoulders) Each where yours sits on your standing body, in the frame of
+    // the part that carries it (body::standingHolsters: your own placement's code, your Hotspots offsets, before your
+    // lean and crouch), put on that part of its body as posed (the pelvis, the chest: it leans and crouches with them),
+    // at its size; its plate turned so; then posed as yours (holsterOnOther). The ring at 45 and 35 degrees round from
+    // the front put the guns 6-14 cm from yours and turned 70-87 degrees (vr_mp_gearcheck's vsown).
+    body::StandingHolsters ref;
+    if(!d.bodyPosed || !body::standingHolsters(hands::current(), ref))
     {
         hs.weapons = 0;
-        return;
+        return false;
     }
     const avatar::Skeleton& k = d.skeleton;
-    // (vrnotes1122a; his voice note 2026-11-22: a bot's holsters "not properly rotated on its body") Turned with its
-    // trunk as drawn (trunkYaw: its shoulders' line), the hips' and uppers' on the front of its belly and chest, each
-    // facing the ring's surface there, as yours at their defaults (body::frontRingPlate). The hips stood beside the hip
-    // joints facing straight out, the side the holster's frame takes for its outwards: no frame (NaN), the guns lost.
     const float bodyYaw = trunkYaw(k, yaw);
-    glm::vec3 fwd, right, up;
-    hands::angleVectors(glm::vec3{0.f, bodyYaw, 0.f}, fwd, right, up);
-    const float m = k.m2w;
-    const glm::vec3 neck = 0.5f * (k.shoulder[0] + k.shoulder[1]);
-    const glm::vec3 chest = glm::mix(k.pelvis, neck, 0.55f);
-    const glm::vec3 hips = (k.legs ? 0.5f * (k.hip[0] + k.hip[1]) : k.pelvis) - up * (0.04f * m);
     for(int h = 0; h < VrDrawnHolsters::count; h++)
     {
-        const int side = h == body::LeftShoulder || h == body::LeftHip || h == body::LeftUpper ? 0 : 1;
-        glm::vec3 pos, out = -fwd, surfaceUp = up;
-        if(h == body::LeftShoulder || h == body::RightShoulder)
-        {
-            pos = k.shoulder[side] - fwd * (0.08f * m) - up * (0.1f * m);
-        }
-        else
-        {
-            const bool hip = h == body::LeftHip || h == body::RightHip;
-            glm::vec2 at;
-            const body::HolsterPlate plate = body::frontRingPlate(fwd, right, up, static_cast<body::Holster>(h), m, at);
-            pos = (hip ? hips : chest) + fwd * at.x + right * at.y;
-            out = plate.out;
-            surfaceUp = plate.up;
-        }
+        const bool hip = h == body::LeftHip || h == body::RightHip;
+        const avatar::Frame& part = hip ? k.pelvisFrame : k.chestFrame;
+        const glm::vec3 pos = part.pos + part.rot * (ref.at[h] * k.m2w);
+        const body::HolsterPlate& plate = ref.plate[h];
         view::GearDraw gun;
         const int model = (hs.weapons & (1 << h)) ? hs.model[h] : 0;
-        view::holsterOnOther(h, pos, out, surfaceUp, bodyYaw, model > 0 && model < MAX_MODELS ? cl.model_precache[model] : nullptr,
-            gear[h], gun);
+        view::holsterOnOther(h, pos, part.rot * plate.out, part.rot * plate.up, plate.clearance * k.m2w, bodyYaw,
+            model > 0 && model < MAX_MODELS ? cl.model_precache[model] : nullptr, gear[h], gun);
         hs.origin[h] = gun.origin - glm::vec3{d.placedAt}; // (offsets from his entity's origin, as received)
         hs.angles[h] = gun.angles;
         hs.mirrored = static_cast<za::U8>((hs.mirrored & ~(1 << h)) | (gun.mirrored ? 1 << h : 0));
     }
+    return true;
+}
+
+// His holstered guns' parts (wpnsync: his reload mode's bits, either hand's look carries them), where they are drawn.
+void drawHolsteredParts(Drawn& d, const Avatar& a)
+{
+    constexpr za::U8 modeBits = VrGunLook::magsShownBit | VrGunLook::clipFullBit | VrGunLook::ssgBreaksBit;
+    for(int i = 0; i < VrDrawnHolsters::count; i++)
+    {
+        VrGunLook l;
+        l.bits = static_cast<za::U8>(VrGunLook::gunBit | (a.look[1].bits & modeBits));
+        l.flags = a.holsterFlags[i];
+        l.clip = a.holsterClip[i];
+        view::drawGunParts(d.holster[i], l, d.holsterGun[i], false, false);
+    }
+}
+
+// (fbmisc1123) After his body is posed this frame (setupBody): a bot's holstered guns and sheaths, and a player's (the
+// sheaths he shows), on it (solveBotGear; setupHands drew none of them), drawn as drawHands draws his others. With no
+// body posed, none this frame.
+void wearHolsters(int slot, const Avatar& a)
+{
+    Drawn& d = drawn.of[slot];
+    if(!d.gearOnBody)
+    {
+        return;
+    }
+    const bool bot = (a.gear.shown & VrDrawnGear::solveBit) != 0;
+    VrDrawnHolsters hs = a.holsters;
+    view::GearDraw sheaths[VrDrawnGear::count];
+    const bool placed = solveBotGear(d, a.body.yaw, hs, sheaths);
+    for(int i = 0; i < VrDrawnHolsters::count; i++)
+    {
+        const int model = placed && hs.valid && (hs.weapons & (1 << i)) ? hs.model[i] : 0;
+        view::GearDraw g;
+        g.model = model > 0 && model < MAX_MODELS && !view::handModel(cl.model_precache[model]) ? cl.model_precache[model] : nullptr;
+        g.origin = glm::vec3{d.placedAt} + hs.origin[i];
+        g.angles = hs.angles[i];
+        g.frame = hs.frame[i];
+        g.skin = hs.skin[i];
+        g.mirrored = (hs.mirrored & (1 << i)) != 0;
+        view::drawGear(g, d.holster[i]);
+        if(!placed || (!bot && !(a.gear.shown & (1 << i))))
+        {
+            sheaths[i] = view::GearDraw{}; // (none he shows: none)
+        }
+        view::drawGear(sheaths[i], d.gear[i]);
+        d.gear[i].scale = glm::vec3{1.f};
+    }
+    drawHolsteredParts(d, a);
 }
 
 // setup's hands, weapons, gear and torch (his body after, once his held hands are pinned: ropePinHands).
@@ -882,33 +996,31 @@ void setupHands(int slot, int e, const Avatar& a, const glm::vec3& origin, const
     }
     in.holsters = &a.holsters;
     // His worn gear as he drew it; a bot's holstered weapons and sheaths placed on its body as drawn (syncfix).
-    VrDrawnHolsters botHolsters;
+    // (fbmisc1123; his report 2026-11-23) A player's holstered guns and the sheaths he shows too, as a bot's: his client
+    // placed them on his own body, which his copy here (posed from his head and hands at his calibration) is not quite:
+    // they floated off its hips and chest. vr_mp_holsters_on_body 0, or no body posed last frame: as his client drew them.
+    // Placed on the body as posed this frame, after it (wearHolsters): none here.
+    const bool bot = (a.gear.shown & VrDrawnGear::solveBit) != 0;
+    d.gearOnBody = bot || (!doll && vr_mp_holsters_on_body.value != 0.f && a.holsters.valid && d.bodyPosed);
+    const VrDrawnHolsters none{};
+    in.holsters = d.gearOnBody ? &none : &a.holsters;
     view::GearDraw gear[VrDrawnGear::count];
-    if(a.gear.shown & VrDrawnGear::solveBit)
+    for(int i = bot ? VrDrawnGear::count : 0; i < VrDrawnGear::count; i++)
     {
-        botHolsters = a.holsters;
-        solveBotGear(d, a.body.yaw, botHolsters, gear);
-        in.holsters = &botHolsters;
-    }
-    else
-    {
-        for(int i = 0; i < VrDrawnGear::count; i++)
+        if((a.gear.shown & (1 << i)) && !(d.gearOnBody && i < VrDrawnHolsters::count))
         {
-            if(a.gear.shown & (1 << i))
-            {
-                gear[i].model = view::gearModel(a.gear.model[i]);
-                gear[i].origin = origin + a.gear.origin[i];
-                gear[i].angles = a.gear.angles[i];
-                gear[i].frame = a.gear.frame[i];
-                gear[i].skin = a.gear.skin[i];
-                gear[i].mirrored = (a.gear.mirrored & (1 << i)) != 0;
-            }
+            gear[i].model = view::gearModel(a.gear.model[i]);
+            gear[i].origin = origin + a.gear.origin[i];
+            gear[i].angles = a.gear.angles[i];
+            gear[i].frame = a.gear.frame[i];
+            gear[i].skin = a.gear.skin[i];
+            gear[i].mirrored = (a.gear.mirrored & (1 << i)) != 0;
         }
     }
     for(int i = 0; i < VrDrawnGear::count; i++)
     {
         view::drawGear(gear[i], d.gear[i]);
-        const bool scaled = !(a.gear.shown & VrDrawnGear::solveBit) && a.gear.scale[i] > 0;
+        const bool scaled = !bot && a.gear.scale[i] > 0;
         d.gear[i].scale = glm::vec3{scaled ? static_cast<float>(a.gear.scale[i]) / 32.f : 1.f};
     }
     // The rounds in his ammo pouch (what the server says it holds) and his wrist gadget's screen glow, by your pouch's and
@@ -938,15 +1050,7 @@ void setupHands(int slot, int e, const Avatar& a, const glm::vec3& origin, const
         const bool near = glm::distance(glm::vec3{w.ent.origin[0], w.ent.origin[1], w.ent.origin[2]}, eye) <= reach;
         view::drawGunParts(w, a.look[side], d.gun[side], true, near, doll ? 0 : e, side);
     }
-    constexpr za::U8 modeBits = VrGunLook::magsShownBit | VrGunLook::clipFullBit | VrGunLook::ssgBreaksBit;
-    for(int i = 0; i < VrDrawnHolsters::count; i++)
-    {
-        VrGunLook l;
-        l.bits = static_cast<za::U8>(VrGunLook::gunBit | (a.look[1].bits & modeBits));
-        l.flags = a.holsterFlags[i];
-        l.clip = a.holsterClip[i];
-        view::drawGunParts(d.holster[i], l, d.holsterGun[i], false, false);
-    }
+    drawHolsteredParts(d, a);
     if(doll)
     {
         d.lamp.visible = false; // (a dead body's torch: none; its lights are keyed by player, his living copy's)
@@ -1070,6 +1174,7 @@ void setup(int slot, int e, const Avatar& a, const glm::vec3& origin, const avat
         setupHands(slot, e, a, origin, doll);
         ropePinHands(d, a, origin, shift, dt);
         setupBody(slot, e, a, origin, doll);
+        wearHolsters(slot, a);
     }
     else
     {
@@ -1082,6 +1187,7 @@ void setup(int slot, int e, const Avatar& a, const glm::vec3& origin, const avat
         setupHands(slot, e, moved, origin + shift, doll);
         ropePinHands(d, a, origin, shift, dt);
         setupBody(slot, e, moved, origin + shift, doll);
+        wearHolsters(slot, moved);
     }
     drawPowerups(slot, doll ? 0 : a.powerups);
 }

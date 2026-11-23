@@ -688,11 +688,9 @@ input don't have them.
   brush models never past 32), `vr_hull_holes_min` 8, `vr_hull_holes_wide` 48, `vr_hull_holes_diag`, `_models`,
   `_vert` 1 (Movement > Player Hitbox); `vr_hull_holes_cells` 64 (tests a slanted pair), `vr_hull_holes_cell` 2,
   `vr_hull_holes_reach` 2 (Debug, beside Show Gap Blockers). `holesKey` has them all; `buildVersion` 4.
-- **Report a miss:** Debug > Mark a Gap I Got Through (`vr_hull_holes_mark [radius] [note]`, 96): the map, where you
-  are, the settings (now and as built), where Quake's box fits round you, the world's solids within the radius and up
-  to 256 above (a slanted one's turned planes), the gaps on the lines through you along x, y and both diagonals at
-  your feet, your middle and each nearby thin solid's height (with the limit), and the blockers and dropped boxes
-  near. Printed and added to `quakevr/hull_holes_marks.txt`.
+- **Report a miss:** Debug > Print My Position (`viewpos`) gives the place. (The old `vr_hull_holes_mark`, which also
+  dumped the solids and gaps round you into `quakevr/hull_holes_marks.txt`, is gone since fbmisc1123: his verdict, the
+  mark "isn't meaningful"; the file stays as the record of past marks.)
 - **Aids.** On Debug > Tests > Player Hitbox:
   - `vr_hull_holes_census`: counts, time, and whether Quake's box reaches into any of the world's own blockers on a
     17-point-a-side lattice. Its `HOLECENSUS|...` line has the same numbers.

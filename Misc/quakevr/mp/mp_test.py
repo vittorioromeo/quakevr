@@ -7789,10 +7789,11 @@ def gear_until(s, inst, ent, what, tries=40):
     "mp_gear:" fields, or None (a failed check)."""
     for _ in range(tries):
         since = inst.mark()
-        inst.cmd("vr_mp_gearcheck %d" % ent)
+        inst.cmd("vr_mp_gearcheck %d 1" % ent)  # (1: each piece against the viewer's own, mp_gearpiece lines)
         n, _ = inst.wait(r"mp_gearcheck: \d+ players", 10, since, what)
         got = [avatar_fields(l) for l in inst.lines[since:n + 1] if l.startswith("mp_gear: ent=%d " % ent)]
         if got:
+            got[-1]["pieces"] = [l.strip() for l in inst.lines[since:n + 1] if l.startswith("mp_gearpiece: ent=%d " % ent)]
             return got[-1]
     s.check(what, False, "not listed in %d reports" % tries)
     return None
@@ -7814,6 +7815,13 @@ def botgear_case(s, viewer, ent, label):
             "numbers)" % (label, viewer.name), g["turned"][0] == 1,
             "finite %d, tilt %.1f (at most 70), facing %.1f (at most 60), guns %.1f from their sheaths (at most %.1f)" % (
                 g["finite"][0], g["tilt"][0], g["facing"][0], g["hang"][0], g["hangmost"][0]))
+    # (fbmisc1123; his report 2026-11-23: guns floating off a copy's hips and chest, turned wrong, its chest sheaths out on
+    # the shoulders) each holstered gun and sheath where the viewer's own sits on his body, the same gun in the same holster
+    s.check("%s: %s draws its holstered guns and sheaths as its own sit on its body (within 7 cm and 20 degrees)" % (
+        label, viewer.name), g["vsown"][0] >= 4 and g["asown"][0] == 1,
+            "%d compared, farthest %.3f m, most turned %.1f degrees" % (g["vsown"][0], g["place"][0], g["axis"][0]))
+    for p in g["pieces"]:
+        s.note(p)
     return g
 
 
@@ -7838,11 +7846,14 @@ def botgear(s):
     a.cmd("name A")
     b.cmd("name B")
     since_a = a.mark()
-    srv.cmd("vr_dm_test_who 1; vr_dm_test 16")
+    # (23: 16's hold, every holster of both filled, the same gun in the same holster: fbmisc1123)
+    srv.cmd("vr_dm_test_who 1; vr_dm_test 23")
     _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "player B held in front of A")
-    s.check("player B held in front of A (vr_dm_test 16)", "FAIL" not in ready, ready.strip())
+    s.check("player B held in front of A (vr_dm_test 23)", "FAIL" not in ready, ready.strip())
     gb = botgear_case(s, a, eb, "the flat player B")
     botgear_case(s, b, ea, "the VR player A")
+    if os.environ.get("MP_BOTGEAR_SHOTS"):
+        s.note("screenshot (B sees A's holsters): %s" % b.screenshot("botgear_A"))
     srv.cmd("vr_dm_test 0")
     # a bot (FrikBot: impulse 100 on the server through A), held in front of A by the test
     since_a = a.mark()
@@ -7859,9 +7870,9 @@ def botgear(s):
     if not bots:
         return
     since_a = a.mark()
-    srv.cmd("vr_dm_test_who 0; vr_dm_test 16")
+    srv.cmd("vr_dm_test_who 0; vr_dm_test 23")
     _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "the bot held in front of A")
-    s.check("the bot held in front of A (vr_dm_test 16)", "FAIL" not in ready, ready.strip())
+    s.check("the bot held in front of A (vr_dm_test 23)", "FAIL" not in ready, ready.strip())
     gbot = botgear_case(s, a, bots[0] + 1, "the bot")
     if gb is not None and gbot is not None:
         # (B's copy as his own client drew his holsters: what a bot's, placed by A's client, must look like)

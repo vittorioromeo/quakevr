@@ -291,7 +291,7 @@ constexpr float SURFACE_CLEARANCE = 1.5f; // units the holster (a hand's reach t
 }
 
 // The plate on a ring `depth` deep and `width` to the side round the spine (fwd, right, up: the body's), at x forward of
-// it and y to its right, sloped back `slope` radians (plateOnTheRing; frontRingPlate: a bot's).
+// it and y to its right, sloped back `slope` radians (plateOnTheRing).
 [[nodiscard]] HolsterPlate ringPlate(const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up, float x, float y,
     float depth, float width, float slope)
 {
@@ -879,17 +879,32 @@ void updateHotspots(hands::State& s)
     }
 }
 
-HolsterPlate frontRingPlate(const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up, Holster holster, float m2w,
-    glm::vec2& at)
+bool standingHolsters(const hands::State& s, StandingHolsters& out)
 {
-    // (on the default build's rings, round from the front as yours sit drawn by their clients: the hips' 45 degrees, the
-    // uppers' 35; vrnotes1122a's mp_botgear: every piece of a player's within ~10 units of his trunk's line)
-    const bool hip = holster == LeftHip || holster == RightHip;
-    const bool left = holster == LeftHip || holster == LeftUpper;
-    const float depth = (hip ? 0.115f : 0.13f) * m2w, width = (hip ? 0.17f : 0.19f) * m2w;
-    const float round = glm::radians(hip ? 45.f : 35.f);
-    at = {(depth + SURFACE_CLEARANCE) * za::cos(round), (left ? -1.f : 1.f) * (width + SURFACE_CLEARANCE) * za::sin(round)};
-    return ringPlate(fwd, right, up, at.x, at.y, depth, width, glm::radians(hip ? 0.f : 20.f));
+    out = StandingHolsters{};
+    if(!s.valid)
+    {
+        return false;
+    }
+    // (followingHolsterPosition's standing place and plate, without the Follower: in the standing parts' frames instead)
+    const hands::State standing = avatar::standing(s);
+    const avatar::Torso ref = avatar::torso(standing, false);
+    const float m2w = za::max(torsoShape().m2w, 1e-3f);
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        const auto holster = static_cast<Holster>(h);
+        const bool hip = holster == LeftHip || holster == RightHip;
+        const glm::vec3 pos = onTheBody(standing, holster, fitToBody(standing, legacyHolsterPosition(standing, holster), hip));
+        const avatar::Frame& f = hip ? ref.pelvis : ref.chest;
+        const glm::mat3 toPart = glm::transpose(f.rot);
+        out.at[h] = toPart * (pos - f.pos) / m2w;
+        if(isOnTheBody(holster))
+        {
+            const HolsterPlate p = plateOnTheBody(standing, holster, pos);
+            out.plate[h] = {toPart * p.out, toPart * p.up, p.clearance / m2w};
+        }
+    }
+    return true;
 }
 
 } // namespace qvr::body

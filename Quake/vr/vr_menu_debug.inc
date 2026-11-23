@@ -293,10 +293,9 @@ za::Vector<Item> pageDebugViews()
         row(opt::vr_nav_debug_range),
         row(opt::vr_hull_holes_show),
         row(opt::vr_hull_holes_show_range),
-        command("Mark a Gap I Got Through", "vr_hull_holes_mark")
-            .help("Stand by (or under) a gap you slipped or fell through that you shouldn't have: prints where you are, "
-                  "the solids, the gaps on the lines through you and the blockers near, and adds them to "
-                  "quakevr/hull_holes_marks.txt for a fix (vr_hull_holes_mark [radius] [note])."),
+        command("Print My Position", "viewpos")
+            .help("Prints where you stand (your eyes' place and angles), to give a worker the place of a gap "
+                  "you got through or anything else to look at."),
         command("Rebuild Gap Blockers Now", "vr_hull_holes_rebuild")
             .help("Finds the gap blockers again with the Close Gaps settings as they are now: saves the game "
                   "(holes_rebuild) and loads it (vr_hull_holes_rebuild)."),
@@ -1383,6 +1382,9 @@ za::Vector<Item> pageDebugReports()
             .help("vr_mp_body: the other players' bodies drawn under their heads and hands, posed by the same code as your "
                   "own from what their games send, at their height, arm length and build, with their bracers and pauldrons; "
                   "off: their player models."),
+        toggle("Network: Holsters On Their Bodies", vr_mp_holsters_on_body)
+            .help("vr_mp_holsters_on_body: the other players' holstered guns and sheaths placed on their bodies as drawn "
+                  "here, where yours sit on yours (as a bot's); off: as their games drew them on their own bodies."),
         slider("Network: Avatar Keyframe", vr_net_avatar_keyframe, 1.f, 72.f, 1.f, "%.0f frames")
             .help("vr_net_avatar_keyframe: hosting, a player's hands unchanged since they were last sent go again only every "
                   "this many frames (1: every frame). What a lost packet or a player just come into sight waits at most."),

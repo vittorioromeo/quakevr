@@ -305,6 +305,7 @@ vr_pickup_test   20       vr_itemrules_test.qc             the ammo boxes' weapo
 vr_pickup_test   21       vr_itemrules_test.qc             CTF's level change (SetChangeParms, teamplay 4): the weapons' flags, magazines and ids a new game's, the team and the next weapon id kept (VR_CtfParmsTest_Run)
 vr_pickup_test   22       vr_itemrules_test.qc             each player's readiness after his spawn is his own (.vr_readytime): another's spawn doesn't hold his trigger, his own does (VR_ReadyTest_Start)
 vr_pickup_test   23       vr_itemrules_test.qc             a player holding Mjolnir is player.mdl (model index not 0), at rest and in pain, with or without Hipnotic (VR_MjolnirModelTest_Run)
+vr_pickup_test   24       vr_itemrules_test.qc             ad_crucial's lift1 waits raised (the map's design) and comes down to its bottom once its super shotgun is taken (VR_CrucialLiftTest_Run)
 
 vr_reload_test   1        vr_reload_test.qc                (VRIsHandEmpty)
 vr_reload_test   2        vr_reload_test.qc                (VR_Reload_IsRound)
@@ -803,6 +804,7 @@ vr_dm_test       19       vr_botnav_test.qc                botnav (vr_bot_navmes
 vr_dm_test       20       vr_botnav_test.qc                botnav: the human never seen, a rocket launcher at the end of a waypoint chain: the bot takes it by its waypoints (target1 a waypoint, the navmesh never used), vr_bot_navmesh 1
 vr_dm_test       21       vr_deathdrop_test.qc             mpbugs3: a dying bot's and player's weapons (daggers in both hands and five holsters, a knight's sword in the last) dropped as themselves: kind, reverse grip, their own records (maxplayers 2, deathmatch 1)
 vr_dm_test       22       vr_spawnloop_test.qc             mpbugs3: Dwell's start (no deathmatch start) from vr_campaign_native in a multiplayer game: two players in and alive (a bot connected if alone), SelectSpawnPoint returns: coop's starts under deathmatch, no telefrag (it looped for ever: runaway loop error)
+vr_dm_test       23       vr_botgrab_test.qc               fbmisc1123 (mp_test.py botgear): the hold of 16 with every holster of the human and the victim filled, the same gun in the same holster (the copies' holstered guns against the human's own)
 
 vr_projinherit_test 1     vr_projinherit_test.qc           projectiles keep your motion: strafing, nails and rockets on the aim, grenades their share; a hand swing in grenades only
 vr_grenfuse_test 1        vr_grenfuse_test.qc              one fuse for every grenade: hand, launcher and ogre grenades go off together after arming, each lit with its countdown (none with vr_grenade_countdown 0)

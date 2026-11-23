@@ -4738,8 +4738,8 @@ qmodel_t* gearModel(int index)
     return index >= 1 && index <= gearModelCount ? viewModel(gearModelNames[index - 1]) : nullptr;
 }
 
-qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, const glm::vec3& surfaceUp, float yaw,
-    const qmodel_t* weapon, GearDraw& sheath, GearDraw& gun)
+qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, const glm::vec3& surfaceUp, float clearance,
+    float yaw, const qmodel_t* weapon, GearDraw& sheath, GearDraw& gun)
 {
     const bool shoulder = holster == body::LeftShoulder || holster == body::RightShoulder;
     const bool mirrored = holster == body::LeftHip || holster == body::LeftUpper || holster == body::LeftShoulder;
@@ -4748,6 +4748,7 @@ qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out
     body::HolsterPlate plate;
     plate.out = out;
     plate.up = surfaceUp;
+    plate.clearance = clearance; // (fbmisc1123: as yours, the sheath's back on the surface)
     HolsterPose pose = shoulder ? holsterOnBack(pos, yaw, mirrored) : holsterOnBody(pos, plate, mirrored, upper, slotModel);
     // (mpbothands) The weapon in it by its own Holstered pose, as yours (poseHolstered, in the holster's frame: off the
     // body, up, outwards); turned as yours stand (holsterTurnStanding). (vrnotes1122a) The frame as yours
@@ -4755,7 +4756,15 @@ qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out
     glm::vec3 fwd, right, up;
     hands::angleVectors({0.f, yaw, 0.f}, fwd, right, up);
     HolsterFrame frame = holsterFrame(shoulder ? -fwd : out, shoulder ? up : surfaceUp, mirrored ? -right : right);
-    turnHolster(pose, pos, frame, holsterTurnStanding(holster)); // (the turns yours take standing, as a player drew his)
+    // (the turns yours take standing, as a player drew his) (fbmisc1123) holsterTurnStanding takes a drawn holster's index
+    // (bodyHolster's order), not body::Holster's: given this, the hips took the uppers' turns (pitch 40, yaw 20, roll -60),
+    // the uppers the shoulders' and the shoulders the hips': every copy's guns and sheaths turned 65-85 degrees off yours.
+    int drawnIndex = 0;
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        drawnIndex = static_cast<int>(bodyHolster[h]) == holster ? h : drawnIndex;
+    }
+    turnHolster(pose, pos, frame, holsterTurnStanding(drawnIndex));
     const weapons::HolsterKind kind = shoulder ? weapons::HolsterKind::Shoulder
                                       : upper  ? weapons::HolsterKind::Upper
                                                : weapons::HolsterKind::Hip;
