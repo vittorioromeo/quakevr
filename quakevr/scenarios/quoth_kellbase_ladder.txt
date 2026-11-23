@@ -1,0 +1,11 @@
+# quoth_kellbase_ladder: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Quoth's kellbase1
+# pillar ladder (a trigger_ladder over a func_illusionary's drawn bars): the hands on each bar's near side, the body kept
+# out of the bars as far as there is room and, flat-screen, centred on the ladder (Quake/vr/vr_climb.cpp ladderHold,
+# ladderKeep); modladder_test.sh. Needs Quoth 2.2 installed and its campaign selected (Official Campaigns, or
+# vr_campaign_native quoth).
+title Quoth's kellbase1: the pillar ladder, hands on the bars
+map kellbase1
+start -40 -1346 281 270
+god
+notarget
+hint The ladder ahead is a little to your right. Walk forward and right into it (flat: Ladders on; headset: grip a bar) and climb: you stop sliding sideways when you take it, flat you drift to its middle, and the hands close on each bar's front, not through it. Its catwalk ladder (by the arena) has a clip in front of it, so there you stay in its bars.

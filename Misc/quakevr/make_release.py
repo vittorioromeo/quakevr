@@ -143,6 +143,7 @@ def main():
     ap.add_argument("--no-textures", action="store_true", help="no hdtextures component in the feed")
     ap.add_argument("--support-assets", default=SUPPORT_ASSETS, help="the support-files list (default Misc/release/support_assets.json)")
     ap.add_argument("--setup", help="QuakeVR-Setup.exe (dotnet publish's single file): a release asset")
+    ap.add_argument("--apk", help="the Quest APK (build-android/apk/QuakeVR.apk): a release asset, latest.json's quest component")
     ap.add_argument("--asset", action="append", default=[], help="another release asset (repeatable)")
     ap.add_argument("--tag", help="the release's git tag (default: v + the package's version)")
     ap.add_argument("--notes", help="a line for latest.json's notes")
@@ -180,6 +181,13 @@ def main():
         if any(LOOPBACK.match(b) for b in bases):
             print("note: a local release's hdtextures still points at GitHub: ticking HD textures downloads the real "
                   f"{int(sa['files']['hdtextures']['size']) / 1e6:.0f} MB (--textures <zip> serves a copy locally)")
+    if a.apk:
+        # The Quest APK (Android/package_apk.sh): a release asset, latest.json's "quest" component; the installer's
+        # Quest target downloads it (Installer/README.md, "Quest").
+        apk = os.path.join(out, "QuakeVR.apk")
+        shutil.copyfile(a.apk, apk)
+        feed["components"]["quest"] = feed_file(apk, tag, bases)
+        assets.append(apk)
     for extra in ([a.setup] if a.setup else []) + a.asset:
         dest = os.path.join(out, os.path.basename(extra))
         shutil.copyfile(extra, dest)

@@ -8970,6 +8970,54 @@ ROPES.md "Tests", "Known limits".
   the server's holds; ropeHips pulling towards the rope itself instead of the holds' way in. Not fixed: needs the
   copy's trunk nearer the rope (the neck), or the bound at ~22 for the swing check.
 
+
+## questinstall: the installer installs to a Quest (2026-11-22)
+
+- The Welcome page's **Install on**: This PC / Meta Quest (standalone) / both. Quest is another target of the same
+  install: the PC steps run as before (Quest only: into `%LOCALAPPDATA%\QuakeVR-Installer\quest-files`, no
+  shortcuts, Apps & Features, VC++ or preparation), then the Install page's Quest card finds or fetches adb (Google's
+  platform-tools, dl.google.com only), checks the headset (none / unauthorized / offline / several: the message, the
+  steps, Check again, Skip), installs the APK (`install -r`, skipped when the same MD5) and copies the files as one tar
+  stream into `exec-in tar -x`, skipping files of the same size and MD5. Nothing sent removes anything.
+- Code: `Installer/src/QuakeVR.Installer.Core/Quest/` (Adb.cs, QuestDevice.cs, QuestFiles.cs, QuestInstaller.cs,
+  QuestTarget.cs); window: `ViewModels/MainViewModel.Quest.cs`, WelcomePage/InstallPage cards; CLI `qvr-setup quest`,
+  `qvr-setup quest-devices`; `make_release.py --apk` (latest.json's `quest` component). Installer/README.md "Quest",
+  docs/INSTALL.md "Installing to a Meta Quest".
+- APK: a release asset, not bundled (22 MB more in Setup for every PC player otherwise; same feed, same version).
+- Tests: 9 `quest:` self-tests with a fake adb (FakeAdb.cs). Not yet run on the real headset (scheduled by the
+  coordinator): `qvr-setup install --package <zip> --sandbox <dir> --quake <Quake> --accept-statement`, then
+  `qvr-setup quest --sandbox <dir> --apk <apk>`.
+- Not covered: the Done page after a Quest-only run still shows the PC's Play buttons (they start the staging copy on
+  the PC, which works); the reliefs and VisPatch data are copied when recorded in the install, untested on the headset.
+
+## questinstall2: the Quest's Done page, the Welcome page fits, music and relit maps where the Quest reads them (2026-11-22)
+
+- Done page, Quest ticked: a META QUEST card (`QuestTarget.Outcome`, shared with the Install page's card): "Installed
+  on your <device>", the app installed or up to date, N files copied (size), M already there, "Library > Unknown
+  Sources"; or "Not installed on the Quest", the last problem (or skipped) and "run Setup again". Quest alone: no Play
+  buttons, Steam card, relight or Virtual Desktop notes; the title says "is on your Quest" / "is not on your Quest yet".
+  Both targets: the Play buttons and the card. The screenshot harness renders the three (`5-done-quest-only`,
+  `-quest-skipped`, `-pc-and-quest`) and fails unless the Play buttons and the card show exactly so.
+- Welcome page: the four features two by two; it fits at the default size again (was +56 px; 1366x768 now +110,
+  was +186).
+- Checked against agent/quest (bc26eff34): the files go under `files/` (main_sdl.c's basedir, `-game quakevr`), lower
+  case where the engine asks so. **Music**: the path was right (`id1/music/trackNN`, bgmusic.c through the search path)
+  but Android/android.cmake builds no codec but WAV, so the Ogg soundtracks could never play: only
+  `QuestFiles.MusicFormats` (WAV) are copied now (add Ogg there when the Quest build gets its codec); the source is
+  now the detection's (the rerelease's music first, as the PC plays it). **Relight**: VisPatch data is the relight's
+  input (`quakevr/tools/`, PC only, rightly not copied); the relit maps themselves (`quakevr/relit_custom/<game>/maps/`,
+  the preparation run's and Graphics > Relighting's) were not copied at all: now they are (copies with their
+  `.relight` note, games the headset gets, `<game>` as the headset spells it); the Quest has no light tool, and
+  `VR_ModelFile`/`customCurrent` load them there while the note's source hash matches the same paks. A Quest-only run
+  has none (it skips the preparation). `FirstStartRelight.RelitGames` is the one listing (RelitCopies uses it).
+- Tests: `quest:` self-tests extended (the plan: track03.wav in, track02.ogg out, e1m1's relit copy from `ID1` as `id1`,
+  half-made/rogue/_stale copies out; the whole procedure: the relit files on the fake headset, the Done text; again:
+  "already up to date; 0 files copied"; no device/unauthorized/several: the Done text says why). 9/9, plus the 3
+  relight tests; screenshot harness exit 0.
+- The real-headset test, ready, not run: `bash C:/OHWorkspace/qvr-kit/scratch/questinstall_realtest.sh` (make_release
+  -Local package, quest-devices, the headset's saves and small files pulled first, sandbox install, quest, quest again
+  expecting 0 copied, every earlier file still there; logs and exit codes in `scratch/qi_realtest/<time>/logs`;
+  `PREPARE=1` also relights in the sandbox so relit maps go too).
 ## Quest C5k: the shader compile's loading panel in the headset on a first start (questc5k, 2026-11-22; branch agent/quest)
 
 QUEST_PLAN 6zv has the details.
@@ -9482,6 +9530,35 @@ His standing rule restated: our C++ uses Zancle wherever it has an equivalent an
   builtins, so not this branch's; not chased); phase 2: smoke e1m1, mp_test ragsync 11/0, active_test no fail,
   NaN or crash line.
 
+## questreal: the Quest installer on the real headset (agent/questinstall, 2026-11-22; Quest 3 over USB)
+
+- origin/next merged (Standalone preset); Release build; `quest:` self-tests 9/9 throughout.
+- **Real-headset test: not finished.** Steps 1-4 pass (package, quest-devices, backup, sandbox install); step 5 (the
+  copy) found two installer bugs, both fixed; the re-run with both fixes ended "566 did not arrive" while the headset
+  dropped off USB (adb `offline`, then gone for 25+ min, 23:37-00:20): not yet known to pass. Next: plug it in and
+  `SKIP_BUILD=1 bash C:/OHWorkspace/qvr-kit/scratch/questinstall_realtest.sh` (steps 5-7).
+- **Bug 1, mod copies' paths** (`QuestFiles.ModCopyFiles`): a Dwell/Quoth/AD copy found on the PC was sent as
+  `C:\Program Files (x86)\...\Quake\dwellv2p2/gfx/...` (`ModCopy.Folder` is the copy's whole PC path); now its folder's
+  name, lower case. `Plan` refuses any device path with `:`, `\` or a leading `/` (one refused name stopped the stream).
+- **Bug 2, nothing arrived at all**: .NET 9's `TarWriter` GNU entries carry access/change times where ustar keeps its
+  prefix; the Quest's toybox tar answers "tar: Not tar" and takes nothing, and `adb exec-in` exits 0 with no output
+  (2.97 GB "sent" in 13 s, free space unchanged). .NET 9's pax: "tar: bad header". Now ustar entries
+  (`QuestInstaller.TarEntryFor`: long paths split into ustar's prefix; one ustar cannot hold is refused before
+  sending; the longest the install sends is ~62 bytes). Checked by hand on the headset: a ustar stream from .NET 9
+  extracted (into `files/qr_mkdirtest/`). FakeAdb now takes ustar entries only, as the headset does.
+- `make_release.ps1 -Local`: an existing tag on another commit (v1.2.0-beta1) is a warning there (-Local never tags).
+- The kit's `questinstall_realtest.sh` fixed: steps ran shell functions under `timeout` (exit 127), the zip is under
+  `assets/`, `MSYS_NO_PATHCONV` (Git Bash rewrote `/sdcard/...`), the backup is one tar stream (6,653 small files at
+  ~1 s a pull timed out). **The game's own files (saves, ironwail.cfg, My Settings) are `rw-rw---- u0_a207`: neither
+  adb's shell nor run-as can read them**, so they cannot be copied off; the installer (shell too) cannot write them
+  either. Their size/time/owner go to `stats-before.txt` and step 7 fails if any changed. The readable files (4,312)
+  are in the run's `backup/`. His files were untouched by every run (nothing arrived; listings after match).
+- Two adb versions (the SDK's 37.0.1, the installer's downloaded 37.0.3) restart each other's server: use one.
+- Gib-fight GPU measurement (vr_blood_near 96 / 0.3 vs 0): **not run** (headset gone). Ready: `scratch/qr_mkgore.py`
+  (six grunts 56-90 units ahead gibbed by `vr_limb_test 10` with `vr_gore_test_crowd 120`, frozen 8 frames later, ABBA
+  parts), `scratch/qr_run.sh` (launch with `-noconfigwrite`, pull the perf CSV), `scratch/qr_ab.py` (GPU median/p90,
+  frames over 15.3 ms). `vr_limb_test` is a QC test: the shipped progs.dat has none, so a test progs.dat must be on the
+  headset for it (restore the shipped one after by running `qvr-setup quest` again).
 ## testbatch2: -QuitOn batched, the six biggest flat suites batched, run.sh -NoDraw (agent/testbatch2, 2026-11-22)
 
 testaudit #3 and #7 (kit `F:\QVR-Parked\2026-11-22\testspeed\kit\testaudit_report.md`); TESTING.md "Batching a suite,
@@ -9674,6 +9751,63 @@ Runs on origin/next 2de8233f1 (Release no-LTO, the shipped-defaults baseline). M
   rerelease's track02.ogg identically (132300 frames, 44100 Hz stereo, peak 21126 both), the rewind ok, start's track 4
   plays through stb_vorbis, no error: 12/0. music_test 7/0; vr_menu_path_check 0 missing; Android native build compiles.
 - Installer (`QuestFiles.MusicFormats`, on agent/questinstall, not on next): add `.ogg` there when both are merged.
+
+## questreal2: the Quest installer passes on the real headset; adb push, folder groups, the game's own folders (agent/questinstall, 2026-11-23)
+
+Follows "questreal" above. origin/next merged again (Ogg on the Quest): `QuestFiles.MusicFormats` = WAV + Ogg (MP3 stays);
+the test fixture has track02.ogg copied, track04.mp3 left behind. Release build 0 warnings; `quest:` self-tests 9/9.
+- **Real-headset test: ALL 7 STEPS PASS** (run `scratch/qi_realtest/20261123-012908`): 4,605 files planned, 101 copied
+  (222 MB) over 4,498 unchanged, the again-run "app unchanged, 0 files copied", every earlier file still there, the
+  game's own 18 files (saves, configs) unchanged in size and time. The Ogg soundtrack is in `id1/music/` (track02-11).
+- **The copy is `adb push` now, not one tar stream into `adb exec-in`.** With ustar headers the stream extracted, but
+  adb's server took 2.8 GB in ~3 s, the headset's tar got ~400 MB (pak0 whole, pak1 cut at 142 MB) and an 830 MB test
+  killed the server ("daemon not running"): the cause of the earlier "offline". `adb shell -T` with stdin: "tar: EOF:
+  Illegal seek" after 21 KB. `QuestInstaller.PushBatches`: files of one headset folder under their PC names in one push
+  (256 MB, 16,000 characters a push), any renamed file (PAK1.PAK -> id1/pak1.pak) alone; ~150-300 MB/s.
+- **Folders before pushing: the storage's group, set-group-ID** (`chgrp ext_data_rw`, `chmod 2777`). adb push into a
+  folder of the shell's group failed "remote fchown failed"; a folder push makes itself "secure_mkdirs failed". The
+  installer's own old `chmod 0777` cleared the bit (id1), so folders made in it got the shell's group; now 2777.
+- **Folders the game made itself** (u0_a207, 770: his `quakevr/doom` and `doom/wads`, made by `vr_doom.cpp
+  doomFolder()` when Doom was opened before its WADs came): adb cannot write there, so their 6 files (the Freedoom WADs)
+  are reported (`QuestResult.NotWritable`, a warning, the Done card says which folder), the rest copied, not a failed
+  install. Only the game (or uninstalling) can clear it. Open: `doomFolder()` could avoid making the folder on the Quest
+  when the WADs are missing.
+- A push adb's server lost under it ("cannot connect to daemon": another adb version on the PC took the server) is
+  retried 4 times. The SDK's adb (37.0.1) and the installer's (37.0.3) restart each other's server: use one.
+- **Gib-fight measurement: no result.** The only APK (`qvr-agents/quest/build-android/apk`, 2026-11-22 15:26) predates
+  `vr_blood_near` and `vr_standalone_preset` ("Unknown command"), so both parts ran the same settings. What it does
+  show for that APK: the frozen gib fight (six grunts gibbed 56-90 units ahead, `vr_limb_test 10`) at GPU median
+  14.8-15.5 ms, frame period median 15.8-16.9 ms, 64-80% of frames over 15.3 ms: 72 Hz does not hold. Needs a current
+  APK build, then `scratch/qr_run.sh gore1 600 qr_gore.cfg +vr_standalone_preset 0` with the test progs.dat pushed
+  (then `qvr-setup quest` puts the shipped one back, as done here: "1 files copied").
+## flatjitter: the gun at a wall looking down settles; the level forward probe (agent/flatjitter, 2026-11-23)
+
+Built on origin/next with agent/flatgreen2 merged in (its test fixes are what flatsweep and flatlagbob are judged by).
+
+- **flatsweep's `settled wall/long/stand/hip` at 25 down** (0.947 units a frame for 500 frames): a limit cycle of the
+  muzzle-up tilt (`vr_flat_wall_tilt`, fixed: all 40 degrees or none). Its trigger, the level gun 0.25 units deep at the
+  most the way back takes it, read 0.24-0.27 there, and the reading moved with the tilt's own ease: the tilt went on
+  and off every three frames. Two paths fed the drawn (tilted) gun back into the pose's level gun:
+  - modelcollide's recorded weapon (`weaponShape`, handpose's gun depth): `toHand` is the drawn model in the drawn hand's
+    frame, and tilted it stood up to 0.3 units elsewhere (18 degrees: the model doesn't turn exactly round `s.pos`). Now
+    `shapeToHand`, kept while flatplay's `drawnWallTurn` turns or shifts the gun (same model and frame); the drawn
+    points (`drawnWeaponPoints`) still use the drawn one. VR: the turn is always identity there, so unchanged.
+  - flatsight's hotspot in the gun's frame (`spotLocal`, the stance's keepSpot holds it in the free arm's reach, which
+    moved the hand 0.04 units with the tilt): kept the same way while the wall tilt or slide is on.
+  With both, the 25-degree row settles (wall run: 140 rows, 0 unsettled; it was 1). A hysteresis on the trigger alone
+  (0.1 units) didn't help: the hand then crept to the lower edge. The check is flatsweep_check's own unsettled-row
+  failure. Tests: flatsweep 383 passed, 27 known, 0 failed (was 382/1); flatwall 17/0. flatxhair 27/4 (flatgreen2 had
+  28/3; the new one, "pixels open: drawn on the centre (4 px, centroid 479.5 vs 480.0)", came in the low-impact mode with
+  his game running: low-res mock eyes; not re-run). flatsight could not run (its runs wait for his game to close).
+- **flatlagbob's level case** (fwd 0 range 1.01, fwd 2 1.94; wants +1.0): **not the sway**. At a run the level fwd-0
+  range is 0.94 with `vr_flat_sway 1` and 1.05 with 0 (walking 0.67); the sway's forward part peaks at 0.15 on the run
+  (its kicks are the start and e1m1's stairs down, mostly up and down). Per frame, the main hand *and its shoulder* move
+  together along the view by about +-0.45 at the stride's rate (period ~31 frames, 2.3 Hz) while the run goes down
+  e1m1's stairs: the body rides something at the step rate with `vr_flat_bob_fwd 0` (looking 40 down the shoulder's range
+  is 0.00, so it is level-forward and up together, not along the view). Since that motion and the forward bob aren't in
+  phase, the ranges don't add: 1.01 + 1.2 gives 1.94. Open: which commit put a stride-rate forward ride on the body (a
+  bisect from 97446fada of the shoulder's range, not done: budget), or the check measures the bob's own amplitude
+  (fwd 2 minus fwd 0 per frame) instead of the ranges' difference.
 ## testbatch3: testbatch2's open items (agent/testbatch3, 2026-11-23)
 
 TESTING.md "Batching a suite, -QuitOn and -NoDraw". Times under other agents' load (run to run +-30%).
@@ -9767,3 +9901,25 @@ at its weapon hurt it; Show Hit Zones drew nothing).
 - **Not covered:** crouched and moving poses (the shape follows the sent head, so a crouch lowers the trunk and bends the
   legs, but no test poses one); a VR human's hands (his controller as the arm's end, as a bot's); melee against players
   (still the box).
+## hubladder: the hub's lecterns in one row; mod ladders' hands, sideways run, overlap (agent/hubladder, 2026-11-23)
+
+His flat feedback 2026-11-23 (the AD lectern hid Quake's; Quoth ladders).
+- **Hub** (`vrstart_gen.py`): all ten lecterns one row facing south (the stairs), 30 wide under a 36 cap (the Continue
+  lectern too), 44 apart, five either side of the way to the gate (`LECTERNS_X` +-44..220, `LECTERN_Y` -100): Arcane
+  Dimensions, Quoth, Quake, Scourge, Dissolution | Dimension of the Past, of the Machine, Dawn, Dwell, Arena Mode. The
+  terrace is an ellipse (`TERRACE` rx 280, r 232: its zone, curb, braziers; its east edge stops short of the bridge's
+  deck), the west/east braziers at 195/345 degrees (south of the row's ends); "MODS" and "MOD AND ARENA" boards over the
+  end pairs, the Official Campaigns board over the dais's left front. Rebuilt (`--compile`, final; id WAD made locally).
+- **Hands on drawn bars** (`vr_climb.cpp` `drawnRung`, `ladderHold`): the whole bar's faces (`barLo/barHi`: its model's
+  faces wholly within 12 under its top, along its ridge); the hold on its near side, 2 in from the face (or its middle if
+  thinner than 4), the way out square to the bar. The drawn hand (out 10 cm, down 10.5 cm) was inside a deep bar (the
+  pillar's are 20 deep: its palm 6.7 units in); now 1.3 out. Shared: a headset's hands and the flat ladder's (one hold).
+- **Sideways run, overlap** (`ladderKeep`): getting on a ladder volume zeroes the horizontal speed (VR; flat already
+  did); holding one, the body is eased out of its drawn bars (box front 1 off their face, 160 u/s; VR's hang too) and,
+  flat, to the ladder's middle (64 u/s). A volume with no bars drawn keeps the flat ladder's ladderInBox. The flat mount
+  off a ladder's top tries out of the bars first, then nearer. kellbase1 can't show the push-out: its catwalk ladder has
+  a clip 22 units in front (the box stays in its bars) and its pillar ladder a func_train's path (2 units of room).
+- **Tests**: `vr_flatladder_test` gains kellbase1 case 6 (the pillar, run at from 24 off its middle with forward and right:
+  centred to 0.0, pushed out as far as there is room); Down cases may end on a mover (the pillar's train). modladder:
+  fallback index 7, VR-hand holds moved to the near sides (-666/-662 catwalk, -1346 pillar): 10/0; flatladder_test.sh
+  2/0; hub_start_test 7/0. Scene `quoth_kellbase_ladder`.

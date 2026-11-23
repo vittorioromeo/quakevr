@@ -586,6 +586,7 @@ $reuseTag = $false
 if ($tagLocal.Code -eq 0 -and $bumpPending) { Problem "tag $tag already exists ($($tagLocal.Text.Substring(0, 8))) and -BumpVersion would make a new commit for it" }
 elseif ($tagLocal.Code -eq 0) {
     if ($tagLocal.Text -eq $commit) { $reuseTag = $true; Warn "tag $tag already exists here on ${short}: it is reused" }
+    elseif ($Local) { Warn "tag $tag already exists on another commit ($($tagLocal.Text.Substring(0, 8))): -Local never tags, so not a problem here" }
     else { Problem "tag $tag already exists on another commit ($($tagLocal.Text.Substring(0, 8)))" }
 }
 $tagRemote = ""
