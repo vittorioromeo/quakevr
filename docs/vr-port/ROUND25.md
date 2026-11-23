@@ -10452,3 +10452,58 @@ has the table.
   positions, tallies, vr_mp_* keys and room, debug aids (scr_showfps, Spawn With a Toolgun, controller preview).
 - **Tests:** flatspeedfov 7/0, flatbash 15/0, tunables_test 13/0, vr_agrunt_test 83 PASS; a default-config run prints
   each promoted value as its default.
+
+## qtune: a fight-only resolution floor, your rig and the gore on cheaper forms, settled gore trimmed (agent/qtune, 2026-11-23)
+
+Follows "questperf" and the shader review (its model items 2 and 5). Built and checked on the PC mock (`-glescompat`,
+`vr_standalone_preset 0`), then on the Quest 3 over USB (his OK; one block, 4 launches, home shell in front before
+each; this branch's APK with the quest tree's key and test progs.dat; beta2's re-signed APK and the shipped progs.dat,
+md5 8a409520..., put back). All headset parts with `vr_retro 0; vr_retrolight 0` (qworld's new Standalone baseline)
+and fixed seeds. QUEST_OPTIMISATIONS.md "Quest gib fight" has the rows.
+- **Fight floor** (`vr_dynres_min_fight`, default 0, Standalone Q3 72 Hz 0.55, the other two 0;
+  `vr_dynres_fight_frames` 36; VR Settings > Graphics, Advanced: Dynamic Lowest in Fights): dynres keeps
+  `vr_dynres_min` (0.65) until the eyes have been over the budget at that floor for 36 frames (a frame under takes 4
+  back: a spike does not open it); then the floor is 0.55 and the usual fast drop goes there; the usual slow rise
+  (85% fit, 1 s after a drop, 0.5 s between rises) brings it back, and reaching 0.65 shuts the fight floor until the
+  next fight. The status line adds the openings and the share of frames below `vr_dynres_min`; `vr_dynres_log 1` prints
+  "fight floor open/shut". Mock (`vr_dynres 2`, `vr_dynres_test_load 300`, budget 0.3): 1.00 -> 0.65, open, -> 0.55;
+  load off: 0.55 -> 0.60, shut, -> 0.65 (ended on the shut line).
+- **Your rig** (`vr_rig_plain`, default 0, Standalone 1; VR Settings > Graphics: Plain Own Models): your hands, body,
+  held, holstered and worn models lose their normal maps, parallax, reflections and rim light (a glowing one keeps
+  them), so they take the plain form (the body, with skin tone, the skin form) instead of the whole opaque shader.
+  The gib fight's batches (vr_gl_passes): hand_rig, v_shot held, legholster, strap, mag `opaque` (needs 160 / 32) ->
+  `plain_nofb` (0). The body is an alias model (vrbody_bare.mdl, 6k triangles, one instance, 4 draws: its surfaces);
+  the gear pieces are separate models, one batch each (legholster's two are two batches: posed apart).
+- **No fullbright read** (`vr_gl_alias_nofb` tunable 1): the plain, gore and skin forms have a variant without the
+  fullbright texture's fetch (`QVR_APLAIN_NOFB`), taken by a batch none of whose skins has fullbrights (r_alias.c looks at
+  the surfaces' `fbtextures`). Picture: the same (two eyeshots of one frozen frame differ by 10 levels from the torches'
+  flicker; nofb on/off by 4).
+- **No lights' loop** (`vr_gl_alias_flat` tunable 1; with Quake's lights, `vr_gl_quake_dlights` 1 in Standalone): gibs,
+  heads and limbs (progs/gib*, progs/h_*, #limb) get their dynamic lights added flat on the CPU as your body already did
+  (VR_AliasBodyFlat), and a batch all flat-lit takes the forms' variant with `QVR_APLAIN_NODLIGHTS` (compiled out, not the
+  run-time `BatchDlightsFlat` skip: C5h measured -3.2 vs -1.0 ms). Mock fight: gibs and limbs `plain_nofb_flat`, heads
+  `gore_nofb_flat`, the body `skin_flat`. Variants are lite bits 29 / 30 (the programs remade when they change); up to
+  36 plain/gore/skin programs instead of 9 are prewarmed at the map load (the program cache keeps them after the first).
+- **Settled gore** (`vr_gore_trim_max`, default 0, Standalone 24 / 20 / 16; `vr_gore_trim_age` 5 s, `vr_gore_trim_near`
+  160; Gore > Limb Gore: Most Settled Gore; QC vr_dmloose.qc, not in deathmatch): twice a second, while more gibs, heads
+  and limbs lie about than the most, those lying 5 s or more go farthest first, never one within 160 units of a player,
+  one held, skewered or pulled. Mock (six grunts gibbed close, max 6): none while fresh, none with near 1000; near 0:
+  the two farthest limbs (406, 351 units) went, 6 left. By design it leaves the close-up fight alone.
+- **Batching:** the gore was already instanced (gib1 76 instances in 2 batches, both eyes), so no batching work; the
+  CPU side of the trim is a findflags walk twice a second.
+- **Quest 3** (frozen gib fight, 0.65 fixed, ABBAABBA, 240 frames a part, GPU median both eyes; xr missed share):
+  all three model changes (rig plain + no fullbright + no lights' loop) vs none: launch 1 **14.77 vs 15.84 ms, missed
+  15.2% vs 28.2%**; launch 4 **15.36 vs 16.17, 21.6% vs 23.7%** (the headset warmer); the shader variants alone (rig
+  plain in both): 15.11 vs 15.59, 18.3% vs 21.4%, so the rig's plain form ~0.3-0.5 and the variants ~0.5. Draws the same
+  (211-216). Dynres on (ceiling 0.9, floor 0.65, the fight 480 frames a part): **fight floor 0.55: GPU 13.36, missed
+  4.7% (the clean part; 20% in the part with the load's hitch) vs none: 15.5-18.1, 19-37%**; the fight launch spent 26%
+  of its frames at 0.55. e1m1 without a fight (turning round at four spots, 1834 frames, dynres on): **0% below 0.65**,
+  every frame at the 0.9 ceiling (GPU 7.9 ms median), so the fight floor never opened.
+- **Not checked: the look on the headset.** The parts' `screenshot` came out black (it grabs the Quest's empty window;
+  `vr_eyeshot` is the one to use): the rig without its normal maps and the flat-lit gore at 0.55 still want an eyes'
+  check (the PC mock's eyeshots: the no-fullbright variant matches; the rig was out of the mock's view).
+- **Scripts** (scratch, not committed): qt_apk.sh, qt_install.sh / qt_run.sh / qt_restore.sh (questperf's, this tree),
+  qt_mk.sh (the A/B cfgs), qt_mkwalk.py, qt_scale.py (frames per dynres scale), qt_pcfight.sh (vr_gl_passes on the
+  mock), qt_trim.sh, qt_diff.py (pure-Python PNG diff).
+- **Shared:** the forms' variants are one code path for ES and the PC's `vr_gl_pc_forms 1`; the rig test reuses the
+  "your own models" group list (rigModel, now also VR_AliasPlayerFirst's).
