@@ -1,3 +1,68 @@
+**Quake VR: UNLEASHED 1.2.0 beta 2**: the second preview of the next update, and the first with **Quake VR on the Meta Quest itself**, no PC needed to play. This is a **beta**: expect rough edges. Beta 2 also brings ropes, poles and monkey ropes to climb, three new tutorial lessons, Dwell's Crystal Lance and Rotary Shotgun finished, fixes for Quoth's kellbase, number keys for hands and holsters on the flat screen, and many fixes. What came in beta 1 (multiplayer, Dwell, Quoth and much more) is below. Please report bugs: Options > Create Bug Report makes a zip you can attach.
+
+**The full patch notes** (every change since 1.1.0, by area): [PATCH_NOTES_1.1.1.md](https://github.com/vittorioromeo/quakevr/blob/next/docs/vr-port/PATCH_NOTES_1.1.1.md) (they become the 1.2 notes at the final release).
+
+# New in beta 2
+
+## Quake VR on the Quest (standalone, experimental)
+
+- **Play on the headset itself**, untethered. Made and tested on the Quest 3 (the Quest 3S should behave the same; the Quest 2 is not tested yet). This is the first public build: treat it as **experimental**.
+- **Install it with Setup on your PC**: on Setup's first page, under **Install on**, tick **Meta Quest (standalone)** (with or without This PC). Setup installs the app and copies your Quake files, the expansions you own, the HD textures, the music and the mods it installed (Dwell, Quoth, Arcane Dimensions) to the headset. Running it again copies only what changed; it never deletes anything on the headset, so your saves and settings there stay.
+- **Before you install**, turn on USB debugging (Setup shows these steps too, with a **Check again** button):
+  1. In the Meta Horizon app on your phone: Devices > your Quest > Headset settings > **Developer mode**, on (the first time, Meta asks you to register as a developer, free). Restart the headset.
+  2. Connect the Quest to your PC with a USB cable that carries data (the one that came with it does).
+  3. Put the headset on: it asks "Allow USB debugging?". Tick "Always allow from this computer" and press **Allow**.
+  4. Press Check again in Setup. Setup fetches Google's adb tool itself if your PC has none.
+- **Start it** from the headset's Library > **Unknown Sources**.
+- **Standalone graphics preset**: the Quest starts with it, made for a steady 72 frames a second (a smaller image with dynamic resolution, no MSAA, shadows or bloom, Quake's own dynamic lights, fewer particles, marks and gibs). On a PC it is the lightest preset with Quake VR's look (VR Settings > Graphics Presets). Thinner Blood Nearer (off by default) thins out blood right in front of your eyes.
+- **Music on the Quest**: the Ogg soundtracks of the store versions now play there too.
+- Known limits: big close-up fights with lots of gibs can dip below 72 frames a second; the Quest cannot relight maps itself (Setup copies the maps your PC relit).
+
+## Climbing: ropes, chains, poles and monkey ropes
+
+- **Ropes and chains** hang in maps and swing, and you can climb them in VR: grip with either hand and go hand over hand; your weight swings the rope, your legs wrap round it, and jumping off mid-swing keeps the speed. Pump the swing with the stick. On the flat screen, walk or jump into one to grab it, look up or down and hold forward to climb.
+- **Poles** (wood or metal) climb the same way, and **ropes strung between two points** become a **monkey traverse** when they are near level: hang under it and go hand over hand (flat screen: the move keys).
+- Spawn them with the toolgun (Spawn > Props > Ropes); try them all in the new test map `vrropes`. Everyone in multiplayer sees the same rope and the climber on it.
+
+## Tutorial
+
+- **Three new lessons** before the arena: **12 Blades** (cut, stab and pull out, reverse grip, throw an axe), **13 Bash and Bat** (shove or disarm an armed grunt on a bridge, bat a spike back, catch a grenade and throw it back) and **14 Ropes** (swing across a pit; and putting on armour). The arena is now lesson 15, and the game is saved at its door: dying there brings you back to the door with what you had.
+- Tips on disarming enemies and on bullet time.
+
+## Dwell, Quoth and Arcane Dimensions
+
+- **Dwell's Crystal Lance** is a two-handed lance: hold the pole like a spear, slide your hands along it, swing or thrust its crystal head, fire the beam from the tip. A cord runs from its butt to a cell in your pouch. Its beam now lasts as long as you fire (it used to stop at once), with violet sparks and glow.
+- **Dwell's Rotary Shotgun** is worn as a gauntlet, as the super nailgun is, with a remade model (four round barrels, a shell port on the side to fill with a handful of shells).
+- **Quoth's kellbase**: its energy field is visible now (pale blue sparks), monsters no longer keep walking into it and hurting themselves, and its ladders climb like ours (VR and flat screen).
+- **Arcane Dimensions' and Quoth's soldiers fight as armed humanoids** (rocket, grenade and plasma soldiers, defenders, eliminators, pyros, fumigators, crossbow knights), dressed in the colour of their weapon, and the backpacks they drop match.
+- Shotgun shells flying as projectiles (AD's and Quoth's rules) fly 30% faster; a heavy revolver headshot pops heads there too.
+
+## Flat-screen play
+
+- **Number keys for hands and holsters** (with holsters on): 1 and 2 cycle each hand through its holsters, 3 swaps hands, 4 and 5 holster, 6 and 7 drop. 9 dims the gear lights.
+- The flat-screen keys moved into Options > Controls, in a "Quake VR (flat screen)" group, rebound like any other key; a key used twice is marked with "!".
+- Mods' ladders climb as the tutorial's ladder; a blade stuck in an enemy keeps its hand on it; noclip flies where you look.
+
+## Other changes and fixes
+
+- **No more slipping through grates, bars, pillar rows or beside lifts**: invisible blockers close the gaps Quake's own box never fit (Movement > Player Hitbox > Close Gaps Quake's Box Never Fit).
+- **Centre messages in the headset** (keys needed, secrets, map texts) use the flat visor's message look, smaller than before; the wrist hologram is back.
+- **Being disarmed is predictable** (still off by default): two jolts on one hand within three seconds, and the first one warns you.
+- **Haste speeds every gun**; the nail pistol, heavy revolver and flare gun fire full auto while it lasts. The heavy revolver's cylinder stays shut in a melee swing but a wrist flick still opens it.
+- **Your body draws lighter** (62% fewer triangles, about a quarter less GPU time), looking the same.
+- Multiplayer: other players bleed as you do; bots fire the revolver and no longer show floating hands; corpses keep their armour; deathmatch drops vanish after 20 seconds; ragdolls and tipped props no longer jump or spin at joining players. **Network version 44**: everyone needs beta 2.
+- Fixed: a crash when a map loaded in VR while a centre message was up; grunts frozen at low doorways (e1m1's); a shove making an earlier-hurt enemy bleed from every limb.
+
+## Known issues (beta 2)
+
+- **The Quest version is experimental**: close-up fights with many gibs can dip below 72 frames a second; tested on the Quest 3 only.
+- **Splitscreen is not included yet.**
+- The rest of beta 1's known issues below still apply (multiplayer is a beta; single player only features; Dwell and Quoth experimental; no code signing).
+
+# Beta 1 (2026-11-22)
+
+(The first beta's notes, unchanged. Where they say the standalone Quest version is not included: beta 2 includes it.)
+
 **Quake VR: UNLEASHED 1.2.0 beta 1**: a preview of the next update. This is a **beta**: expect rough edges. Multiplayer is back, rebuilt for VR: coop and deathmatch for up to 16 players with your real hands, weapons and bodies, room codes instead of port forwarding, proximity voice chat and bots that fight with their hands. Dwell and Quoth join the campaigns, and there is a long list of comfort, movement and performance improvements. Please report bugs: Options > Create Bug Report makes a zip you can attach.
 
 **The full patch notes** (every change since 1.1.0, by area): [PATCH_NOTES_1.1.1.md](https://github.com/vittorioromeo/quakevr/blob/next/docs/vr-port/PATCH_NOTES_1.1.1.md) (they become the 1.2 notes at the final release).

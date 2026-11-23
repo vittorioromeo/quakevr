@@ -6,4 +6,4 @@ start 632 -648 88 0
 god
 cvar vr_debug_hitzones 1
 give "Shotgun" main
-bot passive 128 0
+bot passive 128 0 "Shotgun" main

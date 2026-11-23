@@ -24,6 +24,7 @@
 #include "vr_gfx.hpp"
 #include "vr_mem.hpp"
 #include "vr_move.hpp"
+#include "vr_nav.hpp"
 #include "vr_physsound.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
@@ -33,6 +34,7 @@
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
 #include "vr_verlet.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
@@ -130,6 +132,9 @@ struct Rope
     float speed{0.f};    // the fastest point's speed over the last frame (units/s)
     bool monkey{false};  // (ropes7) traversed hanging under it: pinned at both ends, slanted past vr_rope_monkey_angle
     Rider rider;
+    za::Vector<int> solids;  // (ropes8a) a pole's boxes (QC vr_pole_solid: placeSolids)
+    int solidOwner{0};       // the player let through them (passSolids), 0 none
+    glm::vec3 solidsAt{0.f}; // the pole's top where they were placed
 };
 
 ankerl::unordered_dense::map<int, Rope> ropes;
@@ -185,6 +190,146 @@ const glm::vec3 keyLight = glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}); // (the m
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The server's ropes.
+
+// ---------------------------------------------------------------------------------------------------------------------
+// (ropes8a) A pole's solid: boxes along it (QC vr_pole_solid: SOLID_BBOX, takedamage, never dealt any), each the bounds
+// of its piece of the pole grown by half its thickness, as many as keep a slanted pole's boxes within its thickness of
+// it (at most maxSolids). Bodies meet them (players, monsters), shots, nails and blows hit them (sparks off metal,
+// splinters off wood: QC VR_MaterialOf), the navmesh cuts them out (vr_nav.cpp). The climber on it passes through: their
+// owner (passSolids). "goalentity" its pole (a save's are found again and made afresh), "rope_style" 1 metal.
+
+constexpr int maxSolids = 32;
+constexpr const char* solidClass = "vr_pole_solid";
+constexpr float solidNear = 24.f;   // units round a pole a climber holding a rope is let through it from (he takes it)
+constexpr float solidInside = 0.5f; // units a body must be in its box to be let out of it (stuck: made over him)
+
+[[nodiscard]] bool isSolidOf(const edict_t* s, int pole)
+{
+    return !s->free && !ZA_STRCMP(PR_GetString(s->v.classname), solidClass) && s->v.goalentity == EDICT_TO_PROG(EDICT_NUM(pole));
+}
+
+// Every box of pole `pole` freed (its own, and any a save brought back).
+void freeSolids(Rope& r, int pole)
+{
+    for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; i++)
+    {
+        if(edict_t* s = EDICT_NUM(i); isSolidOf(s, pole))
+        {
+            ED_Free(s);
+        }
+    }
+    r.solids.clear();
+    r.solidOwner = 0;
+}
+
+// Pole `pole`'s boxes placed along it (made, or made again where one went).
+void placeSolids(Rope& r, int pole)
+{
+    if(r.p.size() < 2)
+    {
+        return;
+    }
+    const glm::vec3 a = r.p.front(), d = r.p.back() - a;
+    const float len = glm::length(d), half = r.params.thickness * 0.5f;
+    const glm::vec3 u = len > 1e-3f ? glm::abs(d / len) : glm::vec3{0.f, 0.f, 1.f};
+    const float across = u.x >= u.y && u.x >= u.z ? za::max(u.y, u.z) : u.y >= u.z ? za::max(u.x, u.z) : za::max(u.x, u.y);
+    const int n = za::clamp(static_cast<int>(za::ceil(len * across / za::max(r.params.thickness, 1.f))), 1, maxSolids);
+    bool whole = static_cast<int>(r.solids.size()) == n;
+    for(const int s : r.solids)
+    {
+        whole = whole && s > 0 && s < sv.qcvm.num_edicts && isSolidOf(EDICT_NUM(s), pole);
+    }
+    if(whole && a == r.solidsAt)
+    {
+        return; // (where they were)
+    }
+    if(!whole)
+    {
+        freeSolids(r, pole);
+        for(int k = 0; k < n; k++)
+        {
+            edict_t* s = box3d::spawnClass(solidClass, a, glm::vec3{0.f});
+            if(!s)
+            {
+                break;
+            }
+            s->v.goalentity = EDICT_TO_PROG(EDICT_NUM(pole));
+            if(const progs::FieldOffsets& f = progs::fields(); f.rope_style >= 0)
+            {
+                progs::fieldFloat(s, f.rope_style) = r.params.metal ? 1.f : 0.f;
+            }
+            r.solids.pushBack(NUM_FOR_EDICT(s));
+        }
+    }
+    const int made = static_cast<int>(r.solids.size());
+    for(int k = 0; k < made; k++)
+    {
+        const glm::vec3 p0 = a + d * (static_cast<float>(k) / static_cast<float>(made));
+        const glm::vec3 p1 = a + d * (static_cast<float>(k + 1) / static_cast<float>(made));
+        const glm::vec3 lo = glm::min(p0, p1) - glm::vec3{half}, hi = glm::max(p0, p1) + glm::vec3{half};
+        const glm::vec3 mid = (lo + hi) * 0.5f;
+        edict_t* s = EDICT_NUM(r.solids[static_cast<za::SizeT>(k)]);
+        for(int c = 0; c < 3; c++)
+        {
+            s->v.origin[c] = mid[c];
+            s->v.mins[c] = lo[c] - mid[c];
+            s->v.maxs[c] = hi[c] - mid[c];
+            s->v.size[c] = hi[c] - lo[c];
+        }
+        SV_LinkEdict(s, false);
+    }
+    r.solidsAt = a;
+}
+
+// Whether `p`'s box is in box (`lo`, `hi`) by more than `by` units every way.
+[[nodiscard]] bool boxIn(const edict_t* p, const glm::vec3& lo, const glm::vec3& hi, float by)
+{
+    for(int c = 0; c < 3; c++)
+    {
+        if(p->v.absmin[c] > hi[c] - by || p->v.absmax[c] < lo[c] + by)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The player let through pole `r`'s boxes (their owner: Quake's moves skip what the mover owns): one holding a climbable
+// rope (hanging) within solidNear of it (he took it: the climb holds his body round it), or one in a box (made over him,
+// or let go of it, still in it), until he is out; the one let through before first. None: everyone meets it.
+void passSolids(Rope& r)
+{
+    if(r.solids.empty())
+    {
+        return;
+    }
+    const float half = r.params.thickness * 0.5f;
+    const glm::vec3 lo = glm::min(r.p.front(), r.p.back()) - glm::vec3{half}, hi = glm::max(r.p.front(), r.p.back()) + glm::vec3{half};
+    int owner = 0;
+    for(int i = 1; i <= svs.maxclients; i++)
+    {
+        edict_t* pl = EDICT_NUM(i);
+        if(!svs.clients[i - 1].active || pl->free)
+        {
+            continue;
+        }
+        bool pass = climb::ropeHands(pl) > 0 && boxIn(pl, lo - glm::vec3{solidNear}, hi + glm::vec3{solidNear}, 0.f);
+        for(za::SizeT k = 0; k < r.solids.size() && !pass; k++)
+        {
+            const edict_t* s = EDICT_NUM(r.solids[k]);
+            pass = boxIn(pl, geom::vec(s->v.absmin), geom::vec(s->v.absmax), solidInside);
+        }
+        if(pass && (owner == 0 || i == r.solidOwner))
+        {
+            owner = i;
+        }
+    }
+    r.solidOwner = owner;
+    for(const int s : r.solids)
+    {
+        EDICT_NUM(s)->v.owner = owner ? EDICT_TO_PROG(EDICT_NUM(owner)) : 0;
+    }
+}
 
 [[nodiscard]] Params readParams(edict_t* e)
 {
@@ -306,6 +451,11 @@ void make(edict_t* e, int num)
     }
     r.prev = r.p;
     r.from = r.p;
+    if(pr.pole)
+    {
+        freeSolids(r, num); // (ropes8a: a save's, or the last make's)
+        placeSolids(r, num);
+    }
     if(vr_rope_debug.value > 0.f)
     {
         Con_Printf("rope: %d made (%s, %.0f long, %d pieces, %.1f thick, %.1f kg%s)\n", num,
@@ -1012,13 +1162,13 @@ void testFrame()
                 count++;
                 chains += kv.second.params.chain ? 1 : 0;
                 targeted += kv.second.params.pinned ? 1 : 0;
-                poles += kv.second.params.pole ? 1 : 0;      // (ropes7: the wood and metal poles)
-                monkeys += monkeyOf(kv.second) ? 1 : 0;       // (ropes7: the level and the diagonal rope)
+                poles += kv.second.params.pole ? 1 : 0;      // (ropes7: the wood and metal poles; ropes8a: the level and slanted)
+                monkeys += monkeyOf(kv.second) ? 1 : 0;       // (ropes7: the level and the diagonal rope; ropes8a: the level pole)
             }
             char what[128];
             q_snprintf(what, sizeof(what), "vrropes' own ropes made (%d, %d chains, %d pinned, %d poles, %d monkey traverses)", count,
                 chains, targeted, poles, monkeys);
-            testCheck(count >= 11 && chains >= 3 && targeted >= 5 && poles == 2 && monkeys == 2, what);
+            testCheck(count >= 13 && chains >= 3 && targeted >= 7 && poles == 4 && monkeys == 3, what);
         }
         next(3);
         break;
@@ -1345,7 +1495,7 @@ struct ClimbTest
 ClimbTest climbTest;
 constexpr float climbTestStrungHeight = 2.0f; // m over the feet: a strung rope's (the play's hands reach it there)
 constexpr float climbTestSlack = 0.003f;      // a strung rope's slack: hung from him it sags about as much as settled (12 units)
-constexpr const char* climbTestKinds[] = {"rope", "wood", "metal", "strung"};
+constexpr const char* climbTestKinds[] = {"rope", "wood", "metal", "strung", "strungpole"}; // (ropes8a: 4 a level pole)
 constexpr const char* climbTestName = "vr_rope_climb_test";
 constexpr int climbTestGiveUp = 72 * 60;
 
@@ -1354,6 +1504,45 @@ constexpr int climbTestGiveUp = 72 * 60;
 {
     edict_t* p = progs::localPlayer();
     return p && p->v.health > 0.f ? p : nullptr;
+}
+
+za::Vector<glm::vec4> sinkVerts; // (ropes8a: handsSink's drawn hand vertices, their parts)
+za::Vector<view::HandPart> sinkParts;
+
+// (ropes8a) How deep the drawn hands on ropes are in them: each hand drawn fully on one, its mesh's vertices as drawn
+// within a hand's length of its hold along the rope, the deepest's depth under the rope's surface (units; 0 none in it).
+// `held`: hands measured; `part`: the deepest vertex's part of the hand (view::handPartName).
+[[nodiscard]] float handsSink(int& held, const char*& part, float& gap)
+{
+    held = 0;
+    part = "-";
+    gap = 1e9f;
+    float worst = 0.f;
+    za::Vector<glm::vec4>& verts = sinkVerts;
+    za::Vector<view::HandPart>& parts = sinkParts;
+    for(int h = 0; h < 2; h++)
+    {
+        glm::vec3 at, up;
+        float thick = 0.f, w = 0.f;
+        if(!climb::ropeLine(h, at, up, thick, w) || w < 0.99f || !view::drawnHandSurface(h, verts, &parts))
+        {
+            continue;
+        }
+        held++;
+        for(za::SizeT i = 0; i < verts.size(); i++)
+        {
+            const glm::vec3 d = glm::vec3{verts[i]} - at;
+            const float along = glm::dot(d, up);
+            const float in = thick * 0.5f - glm::length(d - up * along);
+            gap = za::abs(along) < 6.f ? za::min(gap, -in) : gap; // (its nearest to the surface, out of it)
+            if(za::abs(along) < 6.f && in > worst)
+            {
+                worst = in;
+                part = i < parts.size() ? view::handPartName(parts[i]) : "-";
+            }
+        }
+    }
+    return worst;
 }
 
 void climbTestFrame()
@@ -1379,13 +1568,13 @@ void climbTestFrame()
         const float yaw = glm::radians(player->v.angles[1]);
         const glm::vec3 at = vecOf(player->v.origin) + glm::vec3{za::cos(yaw), za::sin(yaw), 0.f} * (0.5f * units::metresToUnits()) +
                              glm::vec3{0.f, 0.f, player->v.mins[2]};
-        if(t.kind == 3)
+        if(t.kind == 3 || t.kind == 4)
         {
             // (ropes7) Strung level overhead (climbTestStrungHeight over the feet), half a metre ahead, across him (his
             // left to his right), taut (the mock hands meet it where the play reaches).
             const glm::vec3 right{za::sin(yaw), -za::cos(yaw), 0.f};
             const glm::vec3 mid = at + glm::vec3{za::cos(yaw), za::sin(yaw), climbTestStrungHeight} * glm::vec3{0.15f, 0.15f, 1.f} * units::metresToUnits(); // (0.65 m ahead: clear of his box)
-            edict_t* e = box3d::spawnClass("vr_rope", mid - right * 160.f, glm::vec3{0.f});
+            edict_t* e = box3d::spawnClass(t.kind == 4 ? "vr_pole" : "vr_rope", mid - right * 160.f, glm::vec3{0.f}); // (ropes8a: or a pole)
             if(!e)
             {
                 t.tally.check(false, climbTestName, "the rope made");
@@ -1393,7 +1582,7 @@ void climbTestFrame()
                 t.stage = 0;
                 return;
             }
-            stringBetween(e, mid - right * 160.f, mid + right * 160.f, climbTestSlack);
+            stringBetween(e, mid - right * 160.f, mid + right * 160.f, t.kind == 4 ? 0.f : climbTestSlack);
             if(progs::fields().rope_damping >= 0)
             {
                 progs::fieldFloat(e, progs::fields().rope_damping) = 4.f; // (it settles soon)
@@ -1496,7 +1685,7 @@ void climbTest_f()
     {
         climbTest.length = za::clamp(static_cast<float>(Q_atof(Cmd_Argv(2))), 32.f, 2048.f);
     }
-    for(int k = 0; k < 4 && Cmd_Argc() > 3; k++)
+    for(int k = 0; k < 5 && Cmd_Argc() > 3; k++)
     {
         climbTest.kind = !ZA_STRCMP(Cmd_Argv(3), climbTestKinds[k]) ? k : climbTest.kind;
     }
@@ -1620,6 +1809,17 @@ void climbCheck_f()
         check(on >= static_cast<int>(n) && worst >= 0.7f,
             va("%d hands drawn gripping it (%d), the knuckles outwards (worst %.2f of 1)", static_cast<int>(n), on, worst));
     }
+    else if(!ZA_STRCMP(what, "sink"))
+    {
+        // (ropes8a) The drawn hands on the rope round it, not through it: one or both drawn fully on it, the deepest
+        // vertex at most n units under its surface.
+        int held = 0;
+        const char* part = "-";
+        float gap = 0.f;
+        const float sink = handsSink(held, part, gap);
+        check(held >= 1 && sink <= n && gap <= 0.5f, va("the hands round it, not in it: %d drawn on it, the deepest %.2f units in (%s; at most %.2f), on it (%.2f off at the nearest)",
+                                          held, sink, part, n, za::max(gap, 0.f)));
+    }
     else if(!ZA_STRCMP(what, "where"))
     {
         // (ropes7) A test writer's aid: the hands and the feet now.
@@ -1637,9 +1837,11 @@ void climbCheck_f()
     {
         // (ropes7) Hanging under a strung rope: ridden as a monkey traverse, the feet off the floor by n units at least.
         const Rope* r = riddenBy(NUM_FOR_EDICT(player) - 1);
+        const Rope* pole = t.kind == 4 && hands > 0 ? ropeOf(t.rope) : nullptr; // (ropes8a: a pole has no rider)
+        const bool hung = (r && r->rider.monkey) || (pole && pole->monkey);
         const float off = o.z + player->v.mins[2] - t.floorZ;
-        check(r && r->rider.monkey && off >= n, va("hanging under it, a monkey traverse (%s), the feet up %.1f (at least %.0f)",
-                                                   r && r->rider.monkey ? "yes" : "no", off, n));
+        check(hung && off >= n, va("hanging under it, a monkey traverse (%s), the feet up %.1f (at least %.0f)",
+                                                   hung ? "yes" : "no", off, n));
     }
     else if(!ZA_STRCMP(what, "along"))
     {
@@ -1715,6 +1917,7 @@ constexpr const char* flatTestName = "vr_rope_flat_test";
 constexpr glm::vec3 flatTestRope{200.f, -400.f, 0.f}; // (vrropes: open floor south-east of the row)
 constexpr glm::vec3 flatTestRow[2] = {{-288.f, 0.f, 0.f}, {-96.f, 0.f, 0.f}};
 constexpr float flatStrungHeight = 110.f; // (ropes7) units over the floor: the strung rope (a jump up to it)
+constexpr float flatPoleHeight = 85.f;    // (ropes8a) a level pole's (as high as the strung rope settles: no sag)
 
 void flatTestNext(FlatTest& t, int stage)
 {
@@ -1739,7 +1942,7 @@ void flatTestEnd(FlatTest& t, bool timedOut, const char* what)
     {
         t.tally.check(false, flatTestName, va("timed out: %s", what));
     }
-    Cbuf_AddText("-forward\n-back\n-jump\n");
+    Cbuf_AddText("-forward\n-back\n-moveright\n-jump\n");
     t.tally.verdict(flatTestName);
     t.stage = 0;
 }
@@ -1808,7 +2011,7 @@ void flatTestFrame()
             t.serials = 0;
             t.lastSerial = -1;
             t.handBits = 0;
-            t.pitch = -50.f; // (looking up, forward held: up)
+            t.pitch = 0.f; // (ropes8a: looking level, forward held: up, whatever the pitch)
             flatTestNext(t, 4);
         }
         else if(t.frames > 72 * 4)
@@ -1820,14 +2023,46 @@ void flatTestFrame()
         if(!climbing || feet >= t.feet0 + 80.f || t.frames > 72 * 6)
         {
             const bool ok = climbing && feet >= t.feet0 + 80.f && t.serials >= 4 && t.handBits == 3;
-            t.tally.check(ok, flatTestName, va("climbed up looking up: the feet from %.1f to %.1f, %d hand changes, hands drawn off %d main %d",
+            t.tally.check(ok, flatTestName, va("climbed up looking level: the feet from %.1f to %.1f, %d hand changes, hands drawn off %d main %d",
                                               t.feet0, feet, t.serials, t.handBits & 1, (t.handBits >> 1) & 1));
             if(ok)
             {
-                Con_Printf("%s: PASS climbed up looking up: the feet from %.1f to %.1f, %d hand changes, both hands drawn\n", flatTestName,
+                Con_Printf("%s: PASS climbed up looking level: the feet from %.1f to %.1f, %d hand changes, both hands drawn\n", flatTestName,
                     t.feet0, feet, t.serials);
             }
-            t.pitch = 50.f; // (looking down, forward held: down)
+            if(t.pole)
+            {
+                Cbuf_AddText("-forward\n"); // (ropes8a: hanging still, the hands looked at)
+                flatTestNext(t, 40);
+                return;
+            }
+            t.pitch = -50.f; // (ropes8a: looking up, back held: down, whatever the pitch)
+            Cbuf_AddText("-forward\n+back\n");
+            t.serials = 0;
+            t.lastSerial = -1;
+            flatTestNext(t, 5);
+        }
+        return;
+    case 40: // (ropes8a, his note 2026-11-23) hanging still on the pole (half a second): both hands round it, not through it
+        if(t.frames == 36)
+        {
+            int held = 0;
+            const char* part = "-";
+            float gap = 0.f;
+            const float sink = handsSink(held, part, gap);
+            const bool round = held == 2 && sink <= 0.5f && gap <= 0.5f; // (flat play's fingertips 0.44 in: ropes8a)
+            t.tally.check(round, flatTestName, va("the hands round the pole: %d drawn on it, the deepest %.2f in (%s), %.2f off at the nearest",
+                                                held, sink, part, za::max(gap, 0.f)));
+            if(round)
+            {
+                Con_Printf("%s: PASS the hands round the pole: both on it, the deepest %.2f units in, %.2f off at the nearest\n",
+                    flatTestName, sink, za::max(gap, 0.f));
+            }
+        }
+        else if(t.frames >= 60)
+        {
+            t.pitch = -50.f; // (looking up, back held: down, whatever the pitch)
+            Cbuf_AddText("+back\n");
             t.serials = 0;
             t.lastSerial = -1;
             flatTestNext(t, 5);
@@ -1837,13 +2072,13 @@ void flatTestFrame()
         if(!climbing && ground)
         {
             const bool ok = za::abs(feet) < 2.f && t.serials >= 2;
-            t.tally.check(ok, flatTestName, va("climbed down looking down: off it standing, the feet at %.1f, %d hand changes", feet, t.serials));
+            t.tally.check(ok, flatTestName, va("climbed down looking up (back held): off it standing, the feet at %.1f, %d hand changes", feet, t.serials));
             if(ok)
             {
-                Con_Printf("%s: PASS climbed down looking down: off it standing, the feet at %.1f, %d hand changes\n", flatTestName, feet,
+                Con_Printf("%s: PASS climbed down looking up (back held): off it standing, the feet at %.1f, %d hand changes\n", flatTestName, feet,
                     t.serials);
             }
-            Cbuf_AddText("-forward\n");
+            Cbuf_AddText("-back\n");
             t.pitch = 0.f;
             if(t.pole)
             {
@@ -1880,7 +2115,7 @@ void flatTestFrame()
             return;
         }
         t.ropesBefore = taken;
-        flatTestPlace(player, flatTestRow[0] + glm::vec3{-12.f, 0.f, 170.f}, 0.f);
+        flatTestPlace(player, flatTestRow[0] + glm::vec3{0.f, -12.f, 170.f}, 90.f); // (ropes8a: facing across the row, the strafe keys pump along it)
         flatTestNext(t, 7);
         return;
     case 7: // taken in the air
@@ -1893,7 +2128,7 @@ void flatTestFrame()
             Con_Printf("%s: PASS set in the air by a rope: taken (rope %d, the hands at %.1f)\n", flatTestName, ent, player->v.origin[2]);
             t.fastest = 0.f;
             t.lastVx = 0.f;
-            Cbuf_AddText("+forward\n"); // (looking level: the pump)
+            Cbuf_AddText("+moveright\n"); // (ropes8a: the strafe key pumps, facing across the row: along it)
             flatTestNext(t, 8);
         }
         else if(t.frames > 72 * 2)
@@ -1913,14 +2148,15 @@ void flatTestFrame()
             return;
         }
         t.fastest = za::max(t.fastest, glm::length(glm::vec2{v.x, v.y}));
-        const bool peak = t.lastVx > 0.f && v.x <= 0.f && player->v.origin[0] > flatTestRow[0].x + 60.f;
+        // (ropes8a: let go flying out past the next rope's reach line, still swinging its way: caught as it is passed)
+        const bool peak = v.x > 0.f && player->v.origin[0] >= flatTestRow[1].x - 40.f;
         t.lastVx = v.x;
         if(peak && t.fastest >= 0.85f * za::max(vr_rope_swing_cap.value, 0.f))
         {
             t.tally.check(true, flatTestName, "pumped the swing");
-            Con_Printf("%s: PASS pumped the swing to %.0f units/s at the hands (cap %.0f) in %.1f s; let go at its peak, %.0f on\n",
+            Con_Printf("%s: PASS pumped the swing to %.0f units/s at the hands (cap %.0f) in %.1f s; let go flying past the next, %.0f on\n",
                 flatTestName, t.fastest, vr_rope_swing_cap.value, t.frames / 72.f, player->v.origin[0] - flatTestRow[0].x);
-            Cbuf_AddText("-forward\n+jump\n");
+            Cbuf_AddText("-moveright\n+jump\n");
             flatTestNext(t, 9);
         }
         else if(t.frames > 72 * 40)
@@ -1960,15 +2196,16 @@ void flatTestFrame()
     // a monkey traverse, sagging under him), along it with forward, back with back, dropped from with the move-down key.
     case 20:
     {
-        const glm::vec3 a = flatTestRope + glm::vec3{-200.f, 0.f, flatStrungHeight}, b = flatTestRope + glm::vec3{200.f, 0.f, flatStrungHeight};
-        edict_t* e = box3d::spawnClass("vr_rope", a, glm::vec3{0.f});
+        const float high = t.pole ? flatPoleHeight : flatStrungHeight;
+        const glm::vec3 a = flatTestRope + glm::vec3{-200.f, 0.f, high}, b = flatTestRope + glm::vec3{200.f, 0.f, high};
+        edict_t* e = box3d::spawnClass(t.pole ? "vr_pole" : "vr_rope", a, glm::vec3{0.f});
         if(!e)
         {
             t.tally.check(false, flatTestName, "the rope made");
             flatTestEnd(t, false, "");
             return;
         }
-        stringBetween(e, a, b, 0.01f);
+        stringBetween(e, a, b, t.pole ? 0.f : 0.01f);
         if(progs::fields().rope_damping >= 0)
         {
             progs::fieldFloat(e, progs::fields().rope_damping) = 4.f; // (it settles soon)
@@ -1984,7 +2221,7 @@ void flatTestFrame()
         {
             const Rope* r = ropeOf(t.rope);
             climbrope::Grab g;
-            t.feet0 = r && climbrope::findGrab(glm::vec3{player->v.origin[0], flatTestRope.y, flatStrungHeight}, 96.f, g) ? g.at.z : 0.f;
+            t.feet0 = r && climbrope::findGrab(glm::vec3{player->v.origin[0], flatTestRope.y, t.pole ? flatPoleHeight : flatStrungHeight}, 96.f, g) ? g.at.z : 0.f;
             t.ropesBefore = taken;
             Cbuf_AddText("+jump\n");
             flatTestNext(t, 22);
@@ -1993,7 +2230,8 @@ void flatTestFrame()
     case 22: // taken in the air: a monkey traverse
     {
         const Rope* r = ropeOf(t.rope);
-        if(taken > t.ropesBefore && climbing && r && r->rider.monkey && r->rider.started)
+        const bool monkeyHang = r && (t.pole ? r->monkey : r->rider.monkey && r->rider.started); // (a pole: no rider)
+        if(taken > t.ropesBefore && climbing && monkeyHang)
         {
             Cbuf_AddText("-jump\n");
             t.lastVx = player->v.origin[0];
@@ -2012,14 +2250,16 @@ void flatTestFrame()
         if(t.frames == 72)
         {
             climbrope::Grab g;
-            const float now = climbrope::findGrab(glm::vec3{player->v.origin[0], flatTestRope.y, flatStrungHeight}, 96.f, g) ? g.at.z : 0.f;
-            const bool ok = climbing && now <= t.feet0 - 2.f;
-            t.tally.check(ok, flatTestName, va("jumped up to the strung rope: taken, a monkey traverse, sagging under him from %.1f to %.1f",
-                                              t.feet0, now));
+            const float now = climbrope::findGrab(glm::vec3{player->v.origin[0], flatTestRope.y, t.pole ? flatPoleHeight : flatStrungHeight}, 96.f, g) ? g.at.z : 0.f;
+            // (ropes8a: a level pole doesn't sag)
+            const bool ok = climbing && (t.pole ? za::abs(now - t.feet0) < 0.5f : now <= t.feet0 - 2.f);
+            const char* how = t.pole ? "the pole level" : "sagging under him";
+            t.tally.check(ok, flatTestName, va("jumped up to the strung %s: taken, a monkey traverse, %s from %.1f to %.1f",
+                                              t.pole ? "pole" : "rope", how, t.feet0, now));
             if(ok)
             {
-                Con_Printf("%s: PASS jumped up to the strung rope: taken, a monkey traverse, sagging under him from %.1f to %.1f\n",
-                    flatTestName, t.feet0, now);
+                Con_Printf("%s: PASS jumped up to the strung %s: taken, a monkey traverse, %s from %.1f to %.1f\n", flatTestName,
+                    t.pole ? "pole" : "rope", how, t.feet0, now);
             }
             t.lastVx = player->v.origin[0];
             t.serials = 0;
@@ -2078,8 +2318,10 @@ void flatTest_f()
         return;
     }
     flatTest = FlatTest{};
-    flatTest.pole = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "pole");
-    flatTest.stage = Cmd_Argc() > 1 && !ZA_STRCMP(Cmd_Argv(1), "strung") ? 20 : 1;
+    // (ropes8a) `strungpole`: the strung run on a level pole (no sag).
+    const char* mode = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    flatTest.pole = !ZA_STRCMP(mode, "pole") || !ZA_STRCMP(mode, "strungpole");
+    flatTest.stage = !ZA_STRCMP(mode, "strung") || !ZA_STRCMP(mode, "strungpole") ? 20 : 1;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -2221,7 +2463,7 @@ void handsTestEnd(HandsTest& t, bool timedOut, const char* what)
     {
         t.tally.check(false, handsTestName, va("timed out: %s", what));
     }
-    Cbuf_AddText("-forward\n-jump\n");
+    Cbuf_AddText("-forward\n-moveright\n-jump\n");
     handSampler.on = false;
     t.tally.verdict(handsTestName);
     t.stage = 0;
@@ -2282,7 +2524,7 @@ void handsTestFrame()
             t.pitch = 0.f; // (level: the move keys pump)
             handsTestReport(t, what, "hanging", false);
             handSamplerStart();
-            Cbuf_AddText("+forward\n"); // (looking level: the pump)
+            Cbuf_AddText("+moveright\n"); // (ropes8a: the strafe key pumps)
             t.stage = 4;
             t.frames = 0;
         }
@@ -2296,7 +2538,7 @@ void handsTestFrame()
         else if(t.frames >= 216)
         {
             handsTestReport(t, what, va("swinging (%.0f units/s at the hands)", glm::length(glm::vec2{v.x, v.y})), true);
-            Cbuf_AddText("-forward\n+jump\n");
+            Cbuf_AddText("-moveright\n+jump\n");
             t.stage = 5;
             t.frames = 0;
         }
@@ -2630,9 +2872,155 @@ void soundTest_f()
     soundTest.stage = 1;
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// vr_pole_solid_test (ropes8a, ROPES.md "Tests"; in vrropes: its four poles): each pole's boxes made, on it (each box's
+// middle within half a unit of its surface), the slanted one in several; a player's box swept across each pole is
+// stopped by them, and a shot's line meets them, their material (QC VR_MaterialOf) the pole's: metal 3 (sparks), wood 4
+// (splinters); walking under the level pole meets nothing; then (counted frames: the navmesh's rebuilds done) the
+// navmesh's obstacles count every box. 7 checks.
+struct SolidTest
+{
+    int stage{0};
+    int frames{0};
+    int boxes{0};
+    testkit::Tally tally;
+};
+SolidTest solidTest;
+constexpr const char* solidTestName = "vr_pole_solid_test";
+constexpr int solidTestGiveUp = 72 * 40;
+
+void solidCheck(bool ok, const char* what)
+{
+    solidTest.tally.check(ok, solidTestName, what);
+    if(ok)
+    {
+        Con_Printf("%s: PASS %s\n", solidTestName, what);
+    }
+}
+
+[[nodiscard]] bool isPoleSolid(int num)
+{
+    glm::vec3 lo, hi;
+    return num > 0 && climbrope::solidBox(num, lo, hi);
+}
+
+// A player's box (or a point: a shot) swept from `a` to `b` (MOVE_NORMAL, no pass entity): the entity it met (0 nothing
+// or the world).
+[[nodiscard]] int sweepHits(const glm::vec3& a, const glm::vec3& b, bool point)
+{
+    float s[3], mn[3], mx[3], e[3];
+    for(int c = 0; c < 3; c++)
+    {
+        s[c] = a[c];
+        e[c] = b[c];
+        mn[c] = point ? 0.f : c < 2 ? -16.f : -24.f;
+        mx[c] = point ? 0.f : c < 2 ? 16.f : 32.f;
+    }
+    const trace_t tr = SV_Move(s, mn, mx, e, MOVE_NORMAL, nullptr);
+    return tr.fraction < 1.f && tr.ent && tr.ent != sv.qcvm.edicts ? NUM_FOR_EDICT(tr.ent) : 0;
+}
+
+// QC VR_MaterialOf(e) (-1: no such function).
+[[nodiscard]] float materialOfQc(edict_t* e)
+{
+    const func_t fn = progs::findFunction("VR_MaterialOf");
+    if(!fn)
+    {
+        return -1.f;
+    }
+    G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
+    PR_ExecuteProgram(fn);
+    return G_FLOAT(OFS_RETURN);
+}
+
+void solidTestFrame()
+{
+    SolidTest& t = solidTest;
+    t.frames++;
+    if(t.stage == 1)
+    {
+        int poles = 0, slanted = 0, stopped = 0, shot = 0, rightStuff = 0, under = -1;
+        float worstOff = 0.f;
+        for(auto& kv : ropes)
+        {
+            const Rope& r = kv.second;
+            if(!r.params.pole || r.p.size() < 2)
+            {
+                continue;
+            }
+            poles++;
+            t.boxes += static_cast<int>(r.solids.size());
+            const glm::vec3 a = r.p.front(), b = r.p.back(), d = glm::normalize(b - a);
+            const bool level = za::abs(d.z) < 0.1f, upright = za::abs(d.z) > 0.99f;
+            slanted = !level && !upright ? static_cast<int>(r.solids.size()) : slanted;
+            for(const int s : r.solids)
+            {
+                const edict_t* e = EDICT_NUM(s);
+                const glm::vec3 mid = (geom::vec(e->v.absmin) + geom::vec(e->v.absmax)) * 0.5f;
+                const glm::vec3 off = (mid - a) - d * glm::dot(mid - a, d);
+                worstOff = za::max(worstOff, glm::length(off) - r.params.thickness * 0.5f);
+            }
+            // Across its middle, level: a player's box and a shot's line from 40 to one side to 40 to the other (the level
+            // pole's at his chest).
+            const glm::vec3 m = (a + b) * 0.5f;
+            const glm::vec3 side = upright ? glm::vec3{1.f, 0.f, 0.f} : glm::normalize(glm::cross(d, glm::vec3{0.f, 0.f, 1.f}));
+            const glm::vec3 at = level ? m - glm::vec3{0.f, 0.f, 10.f} : m;
+            stopped += isPoleSolid(sweepHits(at - side * 40.f, at + side * 40.f, false)) ? 1 : 0;
+            if(const int line = sweepHits(m - side * 40.f, m + side * 40.f, true); isPoleSolid(line))
+            {
+                shot++;
+                rightStuff += materialOfQc(EDICT_NUM(line)) == (r.params.metal ? 3.f : 4.f) ? 1 : 0;
+            }
+            if(level)
+            {
+                // Walked under it: his box on the floor under its middle, across.
+                const trace_t down = worldtrace::serverLine(m, m - glm::vec3{0.f, 0.f, 1000.f}, nullptr);
+                const glm::vec3 feet = vecOf(down.endpos) + glm::vec3{0.f, 0.f, 25.f};
+                under = sweepHits(feet - side * 40.f, feet + side * 40.f, false);
+            }
+        }
+        solidCheck(poles >= 4 && slanted >= 2, va("%d poles made solid: %d boxes, the slanted one in %d", poles, t.boxes, slanted));
+        solidCheck(worstOff <= 0.5f, va("each box's middle on its pole (at most %.2f units off its surface)", worstOff));
+        solidCheck(stopped == poles, va("a player's box swept across each pole stopped by it (%d of %d)", stopped, poles));
+        solidCheck(shot == poles, va("a shot's line across each pole meets it (%d of %d)", shot, poles));
+        solidCheck(rightStuff == poles, va("its material the pole's: metal sparks, wood splinters (%d of %d)", rightStuff, poles));
+        solidCheck(under == 0, va("walking under the level pole meets nothing (met %d)", under));
+        t.stage = 2;
+        t.frames = 0;
+        return;
+    }
+    // The navmesh: every box an obstacle, its tiles rebuilt.
+    const float pending = nav::obstacles(0), marked = nav::obstacles(1);
+    if(pending == 0.f && marked >= static_cast<float>(t.boxes) && t.boxes > 0)
+    {
+        solidCheck(true, va("the navmesh's obstacles: %.0f marked (%d boxes), rebuilt after %.1f s", marked, t.boxes, t.frames / 72.f));
+        t.tally.verdict(solidTestName);
+        t.stage = 0;
+    }
+    else if(t.frames > solidTestGiveUp)
+    {
+        t.tally.check(false, solidTestName, va("timed out: the navmesh's obstacles (%.0f marked of %d boxes, %.0f pending)", marked, t.boxes, pending));
+        t.tally.verdict(solidTestName);
+        t.stage = 0;
+    }
+}
+
+void solidTest_f()
+{
+    if(!sv.active || !progs::bindings().isVrProgs || progs::fields().rope_length < 0)
+    {
+        Con_Printf("%s: FAIL usage: vr_pole_solid_test in single player, map vrropes\n", solidTestName);
+        testkit::verdict(solidTestName, 0, 1);
+        return;
+    }
+    solidTest = SolidTest{};
+    solidTest.stage = 1;
+}
+
 void serverReset()
 {
     ropes.clear();
+    solidTest = SolidTest{};
     soundTest = SoundTest{};
     climbTest = ClimbTest{};
     flatTest = FlatTest{};
@@ -2745,6 +3133,7 @@ void init()
     Cmd_AddCommand("vr_rope_hands_test", handsTest_f);
     Cmd_AddCommand("vr_rope_pause_test", pauseTest_f);
     Cmd_AddCommand("vr_rope_sound_test", soundTest_f);
+    Cmd_AddCommand("vr_pole_solid_test", solidTest_f);
 }
 
 void clientFrame()
@@ -2754,6 +3143,19 @@ void clientFrame()
     {
         pauseTestFrame();
     }
+}
+
+bool solidBox(int num, glm::vec3& lo, glm::vec3& hi)
+{
+    const edict_t* s = num > svs.maxclients && num < sv.qcvm.num_edicts ? EDICT_NUM(num) : nullptr;
+    if(!s || s->free || s->v.modelindex != 0.f || static_cast<int>(s->v.solid) != SOLID_BBOX ||
+        ZA_STRCMP(PR_GetString(s->v.classname), solidClass))
+    {
+        return false;
+    }
+    lo = geom::vec(s->v.absmin);
+    hi = geom::vec(s->v.absmax);
+    return true;
 }
 
 bool isRopeClass(const char* classname)
@@ -2802,6 +3204,10 @@ void serverFrame(bool worldRan)
     {
         soundTestFrame();
     }
+    if(solidTest.stage && worldRan)
+    {
+        solidTestFrame();
+    }
     // New ropes (a map's, the toolgun's): rope entities with no rope yet.
     for(int num = svs.maxclients + 1; num < sv.qcvm.num_edicts; num++)
     {
@@ -2833,6 +3239,11 @@ void serverFrame(bool worldRan)
         }
         r.monkey = monkeyOf(r);
         step(r, dt);
+        if(r.params.pole)
+        {
+            placeSolids(r, kv.first); // (ropes8a: made again where one went; moved with the pole)
+            passSolids(r);
+        }
         if(r.params.chain)
         {
             physsound::chainMoves(kv.first, r.p[r.p.size() / 2], r.speed); // its links' clink (ropes5)
@@ -2859,6 +3270,10 @@ void serverWriteAll(sizebuf_t* msg)
 
 void forget(int num)
 {
+    if(auto it = ropes.find(num); it != ropes.end() && it->second.params.pole && sv.active)
+    {
+        freeSolids(it->second, num); // (ropes8a: its boxes go with it)
+    }
     if(ropes.erase(num) && sv.active && sv.reliable_datagram.cursize + 16 < sv.reliable_datagram.maxsize)
     {
         write(&sv.reliable_datagram, num, nullptr);
@@ -3133,15 +3548,17 @@ void toolgunPlaced(edict_t* e, const glm::vec3& at, float yaw)
     const progs::FieldOffsets& f = progs::fields();
     const glm::vec3 start = at + glm::vec3{0.f, 0.f, 1.f};
     glm::vec3 top{0.f}, end{0.f};
-    if(pole)
+    if(pole && f.rope_style >= 0)
+    {
+        progs::fieldFloat(e, f.rope_style) = vr_rope_spawn_metal.value != 0.f ? 1.f : 0.f;
+    }
+    // (ropes8a) With a Span a pole is strung as a rope is (level or slanted: past vr_rope_monkey_angle a monkey traverse,
+    // else climbed), taut; without, it stands from the floor.
+    if(pole && !(vr_rope_spawn_span.value > 0.f && f.rope_end >= 0))
     {
         // (ropes7) A pole: from the floor up to the ceiling, or its length (it stands on the floor: make()).
         const trace_t tr = worldtrace::serverLine(start, start + glm::vec3{0.f, 0.f, length}, e);
         top = vecOf(tr.endpos) - glm::vec3{0.f, 0.f, tr.fraction < 1.f ? 1.f : 0.f};
-        if(f.rope_style >= 0)
-        {
-            progs::fieldFloat(e, f.rope_style) = vr_rope_spawn_metal.value != 0.f ? 1.f : 0.f;
-        }
         if(f.rope_length >= 0)
         {
             progs::fieldFloat(e, f.rope_length) = za::max(16.f, top.z - at.z);
@@ -3377,7 +3794,8 @@ void drawOpaque()
         if(c.batch.count)
         {
             QVR_GPU_PROFILE("climbable ropes draw");
-            gfx::drawTube(c.batch, c.sides, c.cord.albedo(), keyLight, c.cord.rust(), c.cord.flat());
+            gfx::drawTube(c.batch, c.sides, c.cord.albedo(), keyLight, c.cord.rust(), c.cord.flat(), 1.f,
+                c.pole ? (c.metal ? 2 : 1) : 0); // (ropes8a: a pole's wood or metal surface)
         }
     }
 }

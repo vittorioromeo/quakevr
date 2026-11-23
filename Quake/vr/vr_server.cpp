@@ -33,6 +33,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
+#include "vr_playerhit.hpp"
 #include "vr_server.hpp"
 #include "vr_serverrules.hpp"
 #include "vr_tracy.h"
@@ -2448,6 +2449,13 @@ void writeGunLooks(sizebuf_t* msg, edict_t* ent, const VrDrawnHolsters& holsters
     }
 }
 
+// A bot's head as its avatar sends it, from its origin: its eyes raised to the default player's height (units::botEyeRaise).
+[[nodiscard]] glm::vec3 botHead(const edict_t* ent)
+{
+    return glm::vec3{ent->v.view_ofs[0], ent->v.view_ofs[1],
+        ent->v.view_ofs[2] + units::botEyeRaise(static_cast<float>(DEFAULT_VIEWHEIGHT) - ent->v.mins[2])};
+}
+
 // A bot's holstered weapons (syncfix; the voice note 2026-11-21: "so that I can see what they're actually carrying"): its
 // QC holsters' models, frames 0, places left to each client (VrDrawnGear::solveBit: on its body as drawn).
 [[nodiscard]] VrDrawnHolsters botHolstered(edict_t* ent)
@@ -2534,10 +2542,7 @@ void writeAvatars()
         MSG_WriteShort(&tmp, i + 1);
         MSG_WriteByte(&tmp, mpavatar::movesByte(ent, m && (m->move.vrBits0 & protocol::moveFlatplayBit) != 0));
         // (rebaseHands moves the head and its base along together)
-        // (a bot's head: its eyes raised to the default player's height, units::botEyeRaise)
-        writeEighths(&tmp, m ? m->move.headPos - m->base
-                             : v3(ent->v.view_ofs) + glm::vec3{0.f, 0.f,
-                                   units::botEyeRaise(static_cast<float>(DEFAULT_VIEWHEIGHT) - ent->v.mins[2])});
+        writeEighths(&tmp, m ? m->move.headPos - m->base : botHead(ent));
         writeAngles16(&tmp, m ? m->move.headAngles : v3(ent->v.v_angle));
         writeBodyPose(&tmp, m ? m->move.body : body); // (his body's yaw, crouch and lean, as his client poses it: B2d)
         const VrDrawnHand* const hands = m ? m->move.drawn : drawn;
@@ -2709,6 +2714,38 @@ bool botHeld(edict_t* bot, int hand, view::HeldPlace& out)
         return false;
     }
     return view::placeHeld(model, hand, fieldVec(bot, hf.pos), fieldVec(bot, hf.rot), out);
+}
+
+bool avatarPose(int slot, playerhit::Pose& out)
+{
+    if(!sv.active || slot < 0 || slot >= svs.maxclients)
+    {
+        return false;
+    }
+    const client_t& c = svs.clients[slot];
+    const ClientMove* const m = slot < static_cast<int>(clientMoves.size()) && clientMoves[slot].valid ? &clientMoves[slot] : nullptr;
+    const bool bot = isBot(slot);
+    edict_t* const ent = c.active ? c.edict : EDICT_NUM(slot + 1);
+    int build = 0;
+    float scale = 1.f;
+    if((!bot && (!c.active || !c.spawned || !c.edict || !m)) || !mpavatar::serverBody(slot, build, scale))
+    {
+        return false;
+    }
+    const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+    // (writeAvatars' head, body yaw and hands: what every client poses his body from)
+    out.head = m ? m->move.headPos - m->base : botHead(ent);
+    out.yaw = m ? (m->move.body.valid ? m->move.body.yaw : m->move.headAngles[YAW]) : ent->v.v_angle[YAW];
+    for(int h = 0; h < 2; h++)
+    {
+        const progs::HandFields& hf = progs::handFields(h);
+        const glm::vec3 field = hf.pos >= 0 ? fieldVec(ent, hf.pos) : glm::vec3{0.f};
+        out.hasHand[h] = m ? m->move.drawn[h].flags != 0 : field != glm::vec3{0.f};
+        out.hand[h] = m ? m->move.drawn[h].handOrigin - m->move.origin : field - origin;
+    }
+    out.m2w = units::perMetre * scale;
+    out.floor = ent->v.mins[2];
+    return true;
 }
 
 // vr_dumpplayer: prints the local player's VR fields as the server sees them.

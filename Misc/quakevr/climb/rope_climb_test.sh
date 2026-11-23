@@ -14,9 +14,10 @@
 #   monkey_drop, monkey_jump  (ropes7) a rope strung level overhead across him: taken with both hands and pulled down
 #               (a monkey traverse, the feet up 10 and hanging), hand over hand along it (15), then let go (dropped 5)
 #               or jump off (as off a rope)
+#   pole_monkey  (ropes8a) monkey_drop on a level pole strung across him (no sag)
 # Each ends on its verdict line ("vr_rope_climb_test: N passed, M failed").
 AGENT=${1:?agent}; shift
-PLAYS=${*:-rope_climb rope_jump rope_pump rope_calm rope_short pole_wood pole_metal monkey_drop monkey_jump}
+PLAYS=${*:-rope_climb rope_jump rope_pump rope_calm rope_short pole_wood pole_metal monkey_drop monkey_jump pole_monkey}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 HERE=$(cd "$(dirname "$0")" && pwd -W 2>/dev/null || pwd)
 D=C:/OHWorkspace/qvr-agents/$AGENT/scratch/climb
@@ -28,6 +29,7 @@ for play in $PLAYS; do
     [ "$play" = pole_wood ] && length="0 wood"
     [ "$play" = pole_metal ] && length="0 metal"
     case $play in monkey_*) length="0 strung" ;; esac
+    [ "$play" = pole_monkey ] && length="0 strungpole"
     bash "$KIT/run.sh" "$AGENT" -Script "map vrropes; vr_rope_climb_test \"$D/$play.txt\" $length" -Filter "vr_rope_climb_test" \
         -QuitOn "vr_rope_climb_test: [0-9]+ passed" -Timeout 120 | grep "vr_rope_climb_test: \(FAIL\|[0-9]* passed\)"
 done

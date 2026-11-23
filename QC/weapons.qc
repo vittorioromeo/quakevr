@@ -519,6 +519,17 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
         return PositionalPointRegion(xTarget, rest, hitmodel_part(xTarget, xEndpos));
     }
 
+    // (hitzones) Another player (a human, a bot): the part of his body as drawn that the shot met (vr_playerhit.cpp: his
+    // head, torso, arms, legs; what shots meet instead of his box). None (no such shape, or a point on his box): his box.
+    if(xTarget.flags & FL_CLIENT)
+    {
+        float part = playerhitzone(xTarget, xEndpos, d);
+        if(part != VR_REGION_NONE)
+        {
+            return part;
+        }
+    }
+
     // The ray's closest approach to the head, not behind where it entered.
     float inHead = VR_HeadOnRay(xTarget, xEndpos, d);
 

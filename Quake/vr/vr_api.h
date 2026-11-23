@@ -760,6 +760,8 @@ int VR_HitModelMoveFlags (struct edict_s *ent);		// SV_PushEntity: the flags a p
 #define VR_SHOT_TARGET_REACH 16	// units: the most a shot target's cube reaches from its middle (.vr_shot_radius; SV_Move grows a shot's box by it)
 int VR_ShotTargetClip (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
 	const float *end, int type, trace_t *trace);	// SV_ClipToLinks: a shot or missile (type: SV_Move's, with its flags) against a grenade shots set off (.vr_shot_radius): -1 not one (Quake's rules), 0 passes it, 1 met (trace filled)
+int VR_PlayerShotClip (struct edict_s *touch, const float *start, const float *mins, const float *maxs, const float *end,
+	int hittype, float hitmodel, int hitgibs, trace_t *trace);	// SV_ClipToLinks: a shot, missile or thrown thing against another player's body as drawn (vr_playerhit.cpp): -1 his box decides, 0 missed, 1 met (trace filled)
 
 // Client effects (r_part.c): Quake VR's particles in place of Quake's (nonzero if they took it).
 int VR_RunParticleEffect (const float *org, const float *dir, int color, int count);	// impacts, blood (svc_particle)
@@ -1005,6 +1007,7 @@ const char *VR_CampaignFolder(int index);
 const char *VR_CampaignStartMap(int index);
 int VR_CampaignFolderOnlyWhenActive(int index);	// its folder searched only while it is the active campaign (dopa, mg1, mg3)
 int VR_SelectCampaignNoMap(int index);			// made the active one, no map started (0: it cannot be played; nothing changed)
+int VR_SelectCampaignNoMapNative(int index);	// the same, an experimental one (AD, Dwell, Quoth) too, as vr_campaign_native (tests)
 void VR_GameFolderName(const char *path, char *out, size_t size); // a search path's game folder ("C:/Quake/hipnotic/pak0.pak": hipnotic)
 int VR_SaveCampaign(const char *text);			// a save's campaign (vr_save_campaign), -1 if VR_CanLoadCampaignSave would refuse it (quiet)
 const char *VR_CampaignTitle(int index);		// "Quake", "Scourge of Armagon", ...

@@ -18,6 +18,10 @@ namespace qvr::ragdoll
 {
 struct Rig;
 }
+namespace qvr::avatar
+{
+struct Skeleton;
+}
 
 namespace qvr::mpavatar
 {
@@ -122,6 +126,8 @@ void addEntities();
 
 // (bots4) Player entity `ent`'s copy was drawn last frame or this one (a client's Show Hit Zones: vr_hitmodel.cpp).
 [[nodiscard]] bool drawnNow(int ent);
+// (hitzones) His body as drawn now (its size: m2w; its joints). False: his body not posed (none drawn, or id's ranger).
+[[nodiscard]] bool drawnSkeleton(int ent, avatar::Skeleton& out);
 
 // (syncfix5) The models player entity `ent`'s copy is drawn with that his wounds are painted on (vr_wounds.cpp): `out` his
 // body and his two jointed hands ([1] off, [2] main; each null when not drawn), drawn last frame or this one; `doll` whether
