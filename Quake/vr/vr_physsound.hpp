@@ -68,8 +68,16 @@ void grab(edict_t* player, const glm::vec3& at, edict_t* holdEnt);
 
 // A climbing hand of `player` took climbable rope entity `rope` at `at` (vr_climbrope.cpp): a chain's grip is a metal
 // one (grab's metal set, vr_physsound_chain loud); a rope's the slap a hold of no texture makes (grab's, as before).
-// Rate-limited per rope (ropeGap): hand over hand plays every other take at most.
-void ropeGrab(edict_t* player, const glm::vec3& at, int rope, bool chain);
+// Rate-limited per rope (ropeGap): hand over hand plays every other take at most. (ropes7) A climbing pole's: a metal
+// pole the metal grip, a wooden one the wooden hold's grip (grab's wood set), vr_physsound_grab loud.
+enum class RopeMaterial
+{
+    Rope,
+    Chain,
+    MetalPole,
+    WoodPole,
+};
+void ropeGrab(edict_t* player, const glm::vec3& at, int rope, RopeMaterial material);
 
 // Chain `rope` this frame (vr_climbrope.cpp serverFrame): its fastest link moving `speed` units/s at `at`. Swung,
 // climbed or pushed fast enough (vr_physsound_chain_speed) its links clink (the light metal knocks), quiet

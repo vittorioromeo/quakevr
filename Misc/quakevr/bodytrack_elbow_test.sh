@@ -6,11 +6,13 @@
 #      step the right arm's fit weight 1 and its elbow within 1 cm of the tracked one;
 #   2. with a capture (a vr_bodytrack_dump CSV in the game folder, e.g. his bodytrack_dump_real.csv): replayed
 #      (vr_bodytrack_replay) once through; the arms' tracking on throughout and the elbows within 1 cm on average.
-# Prints PASS or FAIL per check; exits 1 on any failure.
+# Prints PASS or FAIL per check, then "bodytrack_elbow: N passed, M failed"; exits 1 on any failure.
 AGENT="$1"
 CAPTURE="$2"
 KIT=C:/OHWorkspace/qvr-kit
 FAIL=0
+PASSED=0
+FAILED=0
 
 S="map e1m1;wait60;vr_bodytrack_synth 1;vr_bodytrack_arms 1;vr_bodytrack_arm_fit 1;vr_bodytrack_synth_elbows 1"
 S="$S;vr_mock_hand main 0.04 1.62 -0.24 0 70 0;vr_mock_hand off -0.22 1.0 -0.15 70 0 0;wait60"
@@ -25,7 +27,7 @@ OUT=$(bash "$KIT/run.sh" "$AGENT" -Filter "btstats|replay|rror" -Script "$S" | t
 
 check() {
     # $1 label, $2 condition result (0 pass), $3 detail
-    if [ "$2" = 0 ]; then echo "PASS $1: $3"; else echo "FAIL $1: $3"; FAIL=1; fi
+    if [ "$2" = 0 ]; then echo "PASS $1: $3"; PASSED=$((PASSED + 1)); else echo "FAIL $1: $3"; FAIL=1; FAILED=$((FAILED + 1)); fi
 }
 for up in -0.6 -0.3 0 0.3 0.6 1.0 1.5; do
     OFF=$(echo "$OUT" | grep "btstats up$up: elbow off" | sed 's/.* R \([0-9.]*\) .*/\1/')
@@ -41,4 +43,5 @@ if [ -n "$CAPTURE" ]; then
     awk -v l="$L" -v r="$R" -v g="$G" 'BEGIN { exit !(l != "" && l + 0 <= 1.0 && r + 0 <= 1.0 && g == 2) }'
     check "replay $CAPTURE" $? "elbows off L ${L:-?} R ${R:-?} cm, arms on throughout: $G of 2"
 fi
+echo "bodytrack_elbow: $PASSED passed, $FAILED failed"
 exit $FAIL

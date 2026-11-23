@@ -5,7 +5,8 @@
 #   wall075, wall14  from 10 standing places off vrtesthall's wall (y 640: 612 to 626), the swing at the wall with
 #                    vr_flat_swing_strike 0.075 (his) and 0.14 (the old default): exactly one wall blow from each. (Before
 #                    the stop on the swing's own path, vr_flat_swing_path_stop: 4 and 2 places with none.)
-#   pathoff          the control: vr_flat_swing_path_stop 0 at 0.075 misses at some place (the test sees the bug).
+#                    (Its control, vr_flat_swing_path_stop 0 missing somewhere, is retired (his decision 2026-11-23):
+#                    the current swing lands one blow from every place without the path stop too; ROUND25 "flatgreen3".)
 #   knight           the swing raised behind the head (vr_flat_swing_raise_fwd -12, strike 0.075) at a fresh knight 20 to
 #                    28 units ahead, 8 times, and the default swing 3 times: never two blows on the knight in a swing,
 #                    and at least 9 of the 11 land (random: a knight now and then is not where it spawned, or past the default swing's reach at 28); damage printed. (Its windup landed a weak blow, x0.5, that knocked the knight out of the strike's way: 11
@@ -31,8 +32,6 @@ wallrun wall075 0.075
 check $([ "$(ones wall075)" = 10 ] && echo 1 || echo 0) "wall075: strike 0.075, one wall blow from each of 10 places ($(cat $S/wall075.txt))"
 wallrun wall14 0.14
 check $([ "$(ones wall14)" = 10 ] && echo 1 || echo 0) "wall14: strike 0.14, one wall blow from each of 10 places ($(cat $S/wall14.txt))"
-wallrun pathoff 0.075 "tune vr_flat_swing_path_stop 0;"
-check $([ "$(ones pathoff)" -lt 10 ] && echo 1 || echo 0) "pathoff: the control, the old stop towards the shoulder misses somewhere ($(cat $S/pathoff.txt))"
 
 # The knight (vr_test_spawn 5) on vrtesthall's open floor, which has no monsters of its own: one knight at a time, fresh
 # each swing; vr_test_hurt 1 reads it after (1 damage of its own; nothing when the swing gibbed it), vr_test_kill 1 then

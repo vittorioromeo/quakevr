@@ -174,9 +174,90 @@ def short():
     return p
 
 
+def pole(material):
+    # (ropes7; rope_climb_test.sh stands a pole for it, `vr_rope_climb_test <play> 0 wood|metal`) up hand over hand as on
+    # a rope, the feet round it, the grips its material's sound; then down; it never moved
+    p = Play()
+    up_two(p)
+    p.check(3.5, "held 1")
+    p.check(3.5, "wrapped 14")
+    p.check(3.5, f"sound {material}")
+    p.check(3.5, "fixed")
+    p.rope(3.7, "main", 1.0)
+    p.cmd(3.8, "+grabmain")
+    p.check(3.85, "mark")
+    p.cmd(3.9, "-graboff")
+    p.rope(3.9, "main", 1.0)
+    p.rope(3.9, "off", 1.25)
+    p.rope(4.6, "main", 1.6)
+    p.check(4.7, "lowered 15")
+    p.check(4.7, "fixed")
+    p.check(4.8, "done")
+    return p
+
+
+def monkey(end):
+    # (ropes7; rope_climb_test.sh strings a rope level overhead across him, `vr_rope_climb_test <play> 0 strung`) both
+    # hands take it overhead (2.0 m), pull down to 1.6 (hanging under it, a monkey traverse, the feet up and hanging),
+    # then hand over hand to his right twice (the free hand a step on, both hands drawn back: the body goes along), then
+    # `end`: "drop" lets go of both (a fall), "jump" jumps off
+    p = Play()
+    y0, y1, z = 2.0, 1.6, FWD - 0.15  # (the rope 0.65 m ahead: clear of his box)
+    p.key(0.5, "off", (-0.15, y0, z))
+    p.key(0.5, "main", (0.15, y0, z))
+    p.cmd(0.6, "+graboff")
+    p.cmd(0.7, "+grabmain")
+    p.check(0.9, "where")
+    p.check(0.9, "held 2")
+    p.check(0.9, "mark")
+    p.key(1.0, "off", (-0.15, y0, z))
+    p.key(1.0, "main", (0.15, y0, z))
+    p.key(1.8, "off", (-0.15, y1, z))
+    p.key(1.8, "main", (0.15, y1, z))
+    p.check(1.9, "monkey 10")
+    p.check(1.9, "legs 10")
+    p.check(1.92, "mark")
+    t = 2.0
+    hands = [("off", "-graboff", "+graboff", -0.15), ("main", "-grabmain", "+grabmain", 0.15)]
+    xs = {"off": -0.15, "main": 0.15}
+    for k in range(2):
+        hand, drop, grab, _ = hands[k]
+        other = hands[1 - k][0]
+        p.cmd(t, drop)
+        p.key(t, hand, (xs[hand], y1, z))
+        p.key(t + 0.2, hand, (xs[hand], y1 - 0.1, z))
+        xs[hand] = xs[other] + 0.2
+        p.key(t + 0.4, hand, (xs[hand], y1, z))
+        p.cmd(t + 0.5, grab)
+        p.key(t + 0.6, hand, (xs[hand], y1, z))
+        p.key(t + 0.6, other, (xs[other], y1, z))
+        for h in ("off", "main"):
+            xs[h] -= 0.3
+        p.key(t + 1.3, "off", (xs["off"], y1, z))
+        p.key(t + 1.3, "main", (xs["main"], y1, z))
+        t += 1.4
+    p.check(t, "held 2")
+    p.check(t, "along 15")
+    p.check(t + 0.02, "mark")
+    if end == "drop":
+        p.cmd(t + 0.1, "-graboff")
+        p.cmd(t + 0.1, "-grabmain")
+        p.check(t + 0.45, "dropped 5")
+    else:
+        p.cmd(t + 0.1, "+jump")
+        p.check(t + 0.15, "jumped")
+        p.cmd(t + 0.2, "-jump")
+    p.check(t + 0.5, "done")
+    return p
+
+
 if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else "."
     os.makedirs(out, exist_ok=True)
+    monkey("drop").write(os.path.join(out, "monkey_drop.txt"))
+    monkey("jump").write(os.path.join(out, "monkey_jump.txt"))
+    pole("wood").write(os.path.join(out, "pole_wood.txt"))
+    pole("metal").write(os.path.join(out, "pole_metal.txt"))
     climb().write(os.path.join(out, "rope_climb.txt"))
     jump().write(os.path.join(out, "rope_jump.txt"))
     pump().write(os.path.join(out, "rope_pump.txt"))

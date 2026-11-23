@@ -67,12 +67,20 @@ void(entity p) VR_FGT_Walk =
         }
         vector at = VR_FGT_From(vr_fgt_case);
         vector look = VR_FGT_Look(vr_fgt_case);
-        localcmd(sprintf("setpos %g %g %g %g %g 0\n", at_x, at_y, at_z, look_x, look_y));
-        VR_FGT_To(1, 70); // (the view set, landed, the hands settled, the lag gone: counted)
+        // (setpos turns noclip on, the engine's own: the `noclip` after it turns it off again, so he walks the gate, not
+        // flies through the floor along his pitch (flatgreen3: in noclip he never crossed, or crossed by timing))
+        localcmd(sprintf("setpos %g %g %g %g %g 0; noclip\n", at_x, at_y, at_z, look_x, look_y));
+        VR_FGT_To(1, 70); // (the hands settled, the lag gone: counted)
         return;
     }
     if(vr_fgt_s == 1)
     {
+        // (and on the ground, walking, the setpos's view reached the server: else on, until the give-up)
+        vector lk = VR_FGT_Look(vr_fgt_case);
+        if(p.movetype != MOVETYPE_WALK || !(p.flags & FL_ONGROUND) || fabs(p.v_angle_x - lk_x) > 0.5)
+        {
+            return;
+        }
         vr_fgt_last = p.origin;
         vr_fgt_look = p.v_angle;
         localcmd("+forward\n");

@@ -359,9 +359,10 @@ namespace
     const float leg = legLength(side) * b.legM2w;
     glm::vec3 lowest{0.f};
     float bottom = 0.f;
-    if(!climbrope::clientRopeAt(climbing.holdMid, CLIMB_ROPE_NEAR, hip.z, lowest, &bottom))
+    if(climbrope::clientRopeMonkey(climbing.holdMid, CLIMB_ROPE_NEAR) ||
+        !climbrope::clientRopeAt(climbing.holdMid, CLIMB_ROPE_NEAR, hip.z, lowest, &bottom))
     {
-        return hanging;
+        return hanging; // (ropes7: a monkey traverse's legs hang under him)
     }
     const float under = (hip.z - bottom) / za::max(leg, 1e-3f); // (how far under the hip it reaches, in legs)
     const float wrap = smooth01(
@@ -417,9 +418,10 @@ bool ropeHips(const glm::vec3& pelvis, glm::vec3& in)
     const Climbing& c = climbing;
     const float w = ropeHang();
     glm::vec3 at{0.f};
-    if(w <= 0.f || !climbrope::clientRopeAt(c.holdMid, CLIMB_ROPE_NEAR, pelvis.z, at))
+    if(w <= 0.f || climbrope::clientRopeMonkey(c.holdMid, CLIMB_ROPE_NEAR) ||
+        !climbrope::clientRopeAt(c.holdMid, CLIMB_ROPE_NEAR, pelvis.z, at))
     {
-        return false;
+        return false; // (ropes7: under a monkey traverse's rope the trunk hangs as it is)
     }
     const glm::vec3 dir = safeNormalize(glm::vec3{c.in.x, c.in.y, 0.f}, glm::vec3{0.f});
     const float gap = glm::dot(glm::vec3{at.x - pelvis.x, at.y - pelvis.y, 0.f}, dir) - CLIMB_ROPE_BELLY * metresToUnits();

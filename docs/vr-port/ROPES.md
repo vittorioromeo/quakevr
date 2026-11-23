@@ -99,6 +99,44 @@ grip, pulled down), down (a lower grip, pushed up); stamina drains as on any hol
 - Multiplayer: the holds move, so a remote client's hang runs in the server's frame, as on a prop's or a lift's holds
   (no move-by-move prediction while he hangs on a rope; the server's position is sent each frame).
 
+## Poles (ropes7)
+
+`vr_pole` (map; toolgun Spawn > Props > Ropes > Pole): a rope whose every point is held. It stands from its origin (its
+top) down to the floor, or `rope_length` down, or to its `target` / `rope_end`; `rope_thickness` (3), `rope_style` 1
+metal (else wood). It never moves but with its entity (a mover, the physgun). Climbed as a rope (the same holds, hand
+over hand, the legs round it, flat play's walk-in climb); `climbrope::ride` refuses it, so the holds sit on its fixed
+points (no swing). Drawn as a straight pole (dark wood or steel, flags `flagPole` / `flagMetal` in QVR_SVC_CLIMBROPE).
+Its grip: the wood or metal grab sound (`physsound::RopeMaterial`), a metal one's haptic short and hard (0.04 s, 160 Hz),
+a wooden one's duller (0.07 s, 60 Hz); ropes and chains keep theirs. Toolgun: Rope and Pole Settings > More: Pole
+Thickness (`vr_rope_spawn_pole_thickness` 3), Metal Pole (`vr_rope_spawn_metal` 0); it stands from the ghost up to the
+ceiling or its Length.
+
+**Plan: any thin brush as a pole (not built).** A pole is only a record of two end points, a thickness and a material:
+`make()` could take them from a brush entity (func_ or world) whose bounds are long on one axis and under a thickness
+limit (say 8 units) across the other two, its axis through the middle of its two short faces, its material from its
+texture (debris::materialOf: wood, metal). A map flag (`_qvr_poles 1`) or a key on the brush entity would opt in; world
+brushes would need a pass over the BSP's brushes at map load (their hull 0 planes) and an entity-less record (a negative
+id, never sent as gone). Nothing else changes: the holds, the legs and the flat climb already work on any pinned line.
+
+## Strung ropes and the monkey traverse (ropes7)
+
+A rope between two points: `vr_rope` with `target` or `rope_end` ("x y z"), `rope_slack` its length over the line
+between (0.1: 10% longer; with neither slack nor `rope_length`: taut). Toolgun: Rope and Pole Settings > More: Span
+(`vr_rope_spawn_span` 0: hung as before), End Rise (`_rise` 0), Slack (`_slack` 0.02): strung from 80 units over the
+ghost to Span away from you, its end that much higher.
+
+Mostly upright (the line between its ends within `vr_rope_monkey_angle` 45 degrees of vertical): the rope climb as
+before, untouched. Past it (and a pole likewise): a **monkey traverse**. Grabbed, the climber's weight is a bob at his
+hands' middle along it (`sMid`, eased to the hands' middle at 60 units/s), the rope laid taut from its top through the
+bob to its bottom (`layMonkey`); the bob falls, sways round the line between the ends (gravity, the stick's pump, the
+swing's drag) and is held within the rope's reach of both ends (it pulls, never pushes), so a slack rope sags under him
+and swings sideways. Its length is as it lay when taken (the Verlet steps stretch it a little), so a grab doesn't
+jump. VR: the ledge rules (a hand pulled along it moves the body along: hand over hand), letting go drops, jump jumps
+off (`vr_rope_jump`), the legs hang (`ropeFoot` and `ropeHips` skip a monkey rope: `clientRopeMonkey`, flag
+`flagMonkey`; another player's copy alike, the same code). Flat play: met overhead in the air (a jump up to it), both
+hands a step apart, the main hand the view's way; the move keys' part along it goes along at `vr_flat_ladder_speed`,
+hand over hand (`flatMonkeyFrame`); the move-down key drops, jump jumps off; no pump.
+
 ## Climbing (flat-screen)
 
 Flat-screen play (`vr_flat_rope` 1, Options > Flat-Screen; needs `vr_climb` and `vr_rope_climb`; `vr_climb.cpp`
@@ -176,7 +214,9 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
 - Hooks: `vr_server.cpp` (frame end, spawn state), `vr_client.cpp` (parse), `vr_text3d.cpp` (drawn), `vr_builtins.cpp`
   (an edict freed), `vr_builtins_melee.inc` (physicsblast), `vr_builtins_ragdoll.inc` (physicsshot).
 - The test map: `quakevr/maps/vrropes` from `Misc/quakevr/make_vrropes_map.py` (`--compile`): four swinging ropes 192
-  apart (rope, chain, rope, chain) and a ledge to jump from, a pinned rope, a heavy chain, a rope longer than the drop.
+  apart (rope, chain, rope, chain) and a ledge to jump from, a pinned rope, a heavy chain, a rope longer than the drop;
+  (ropes7) a wooden and a metal pole (south-west, ceiling to floor), a rope strung level 100 high (far north, 2% slack)
+  and a diagonal one (east, 230 down to 90): monkey traverses.
 
 ## Commands and settings
 
@@ -194,8 +234,8 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
 
 - `vr_rope_test` (Debug > Tests > Climbable Ropes > Test the Climbable Ropes; best in vrropes:
   `map vrropes; wait60; vr_rope_test`, `-QuitOn "vr_rope_test: [0-9]+ passed"`): a rope from map keys (10 pieces) and a
-  chain placed as the toolgun places one (6 pieces, pinned, 2 thick) made 128 units ahead; vrropes' own counted (7, 3
-  chains, 1 pinned); settled (counted frames): the rope hangs straight its length, the chain's ends held; the client's
+  chain placed as the toolgun places one (6 pieces, pinned, 2 thick) made 128 units ahead; vrropes' own counted (ropes7:
+  11, 3 chains, 5 pinned, 2 poles, 2 monkey traverses); settled (counted frames): the rope hangs straight its length, the chain's ends held; the client's
   copy within half a unit of the server's, the chain drawn as a chain; an explosion throws it, a shot through it pushes
   it, a crate set down on its end and a dog standing in it push it aside; removed, it is gone from the server and the
   client; the toolgun's aim meets the chain (Remove, the physgun); Clear Props removes a rope made later and keeps the
@@ -209,6 +249,14 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
   up close to the rope: the swing at the hands 2.5 units/s (bound 25; was 61), its free end 8.3 (bound 30), 4 grunts;
   `rope_short` a 425-long rope (its end near the legs; `vr_rope_climb_test <play> [length]`) taken overhead and pulled up:
   the higher ankle 28 units under the pelvis (bound 10; was 13 over it).
+- (ropes7) `rope_climb_test.sh`'s `pole_wood` / `pole_metal` (`vr_rope_climb_test <play> 0 wood|metal`: a pole standing
+  ahead): up 37.8, the further ankle 2.3 units from it (bound 14), the grip `grab_metal3` / wood, down 18.9, never moved
+  (0.000): 9 passed each. `monkey_drop` / `monkey_jump` (`... 0 strung`: a rope strung across him 2 m up, 0.3% slack,
+  strung again higher by its settled sag): both hands take it, pulled down (a monkey traverse, the feet 12.1 up, the
+  higher ankle 27 under the pelvis), hand over hand to his right (18.7 units), let go (dropped 11.7) or jump off: 6
+  passed each. `rope_flat_test.sh <agent> pole`: walked into, up 80.6, down, never moved: 4 passed.
+  `rope_flat_test.sh <agent> strung` (a rope strung 110 up along his way, 1% slack): jumped up to (a monkey traverse,
+  sagging under him), forward along it 80 units, back 40, dropped with the move-down key.
 - `mp_test.py ropes` (`Misc/quakevr/mp`; dedicated server, A, and B through the proxy): the server hangs a rope and a
   chain (`vr_rope_spawn`); B has both with the server's points and style (bottom within a unit); pushed
   (`vr_rope_push`), B sees both swing (over 20 units); B's copies within a unit of the server's after. 9 passed.

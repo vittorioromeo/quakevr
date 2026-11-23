@@ -9608,6 +9608,28 @@ recipe; nothing of Dwell's shipped). Items 1, 4, 5 on both Rotary models; 2, 3, 
   `qvr_checks std_uses` 95 uses counting the `*` files). Tests: smoke e1m1, vr_android_test 16/0,
   vr_voicechat_selftest 24/0, startuplog 3/0, mp_test coop 12/0; Android native build compiles.
 
+## ropes7: climbing poles, strung ropes and the monkey traverse (agent/ropes7, 2026-11-23)
+
+His notes vrropes_2026-11-22_15-47-23, 16-09-28. ROPES.md "Poles", "Strung ropes and the monkey traverse", "Tests".
+- **Poles (1):** `vr_pole` is a rope with every point held (one system: holds, legs, flat climb, MP all shared); wood or
+  metal look, grab sound (`physsound::RopeMaterial`) and haptic; toolgun Spawn > Props > Ropes > Pole, its settings on
+  the Rope and Pole Settings page's second page (More). The thin-brush-as-pole plan is in ROPES.md (not built).
+- **Strung ropes (2):** `rope_end` / `rope_slack` keys (new QC fields), toolgun Span / End Rise / Slack. Past
+  `vr_rope_monkey_angle` (45, rule) a pinned rope (or pole) is a monkey traverse: a rider bob at the hands' middle, the
+  rope taut through it (sags and sways under him), VR hand over hand by the ledge rules, flat play's keys along it
+  (`flatMonkeyFrame`), legs hanging (`clientRopeMonkey`, flag 16 in QVR_SVC_CLIMBROPE; another player's copy alike).
+  Vertical ropes untouched: their rider, pump, jump and legs code paths are unchanged.
+- Tests: rope_climb_test.sh pole_wood 9/0, pole_metal 9/0, monkey_drop 6/0, monkey_jump 6/0; rope_climb 10/0,
+  rope_jump 6/0, rope_calm 4/0, rope_short 3/0; rope_flat_test.sh pole 4/0, strung 4/0 (sagged 82.1 to 77.7 under
+  him, forward 80.6, back 40.3). **rope_pump 5/1** (238 units/s, bound 250): the same 238 on the branch's base
+  (53b869dc7, built and run in this tree): not this branch's; open (the play or the bound, not the pumping, which he likes).
+- **The hall (3):** vrropes gains a wooden and a metal pole (south-west, ceiling to floor), a rope strung level 100 high
+  (far north, 2% slack) and a diagonal one (east, 230 down to 90), posts under the strung ends; recompiled.
+  vr_rope_test counts them (11, 3 chains, 5 pinned, 2 poles, 2 monkey traverses): 16/0. A pole with no `rope_length`
+  now stands to the floor (it stopped 256 down). mp_test.py ropeclimb 12/0 (pelvis 13.4 vs A's own 13.2). Not built: an
+  MP check on a strung rope (another player's hanging legs share `ropeFoot`'s monkey skip; untested in MP). Screenshots:
+  kit scratch ropes7_poles.png, ropes7_hall.png (the level and the diagonal rope), ropes7_monkey.png (eye view hanging
+  under the strung rope).
 ## flatgreen2: the rest of the suites failing on origin/next (agent/flatgreen2, 2026-11-23)
 
 Runs on origin/next 2de8233f1 (Release no-LTO, the shipped-defaults baseline). Most of it is the baseline's walk:
@@ -9681,3 +9703,60 @@ Built on origin/next with agent/flatgreen2 merged in (its test fixes are what fl
   phase, the ranges don't add: 1.01 + 1.2 gives 1.94. Open: which commit put a stride-rate forward ride on the body (a
   bisect from 97446fada of the shoulder's range, not done: budget), or the check measures the bob's own amplitude
   (fwd 2 minus fwd 0 per frame) instead of the ranges' difference.
+## testbatch3: testbatch2's open items (agent/testbatch3, 2026-11-23)
+
+TESTING.md "Batching a suite, -QuitOn and -NoDraw". Times under other agents' load (run to run +-30%).
+- **Agrunt batch, proven: not the same.** Kit `scratch/refactor/run_baseline.py --groups agrunt`: alone 11.1 min,
+  batched 3.7 min, 213 of 217 cases the same; agrunt_16 and 74 pass batched and fail alone, 65 fails batched, 203's
+  counts differ, and each does so again on a rerun of the four both ways (so not flaky: a case comes out of a batch
+  game differently, even a 4-case batch). The default is back to alone (kit script: `--agrunt-batch` opts in).
+- **`vr_waitquiton N wait`** (vr_testbatch.cpp): a batched -QuitOn case's closing `waitN` is now a wait at the head of
+  the buffer that the match ends early (what QC queues meanwhile runs after it, as behind the lone run's waits);
+  testbatch.py writes it for every closing waitN, and the hold (`vr_waitquiton N`) only after a script with no closing
+  quit. selftest.sh 5/0; reload_test.sh's -QuitOn case (`reload magnails lying: 9 magazines, 0 wrong`) batched 2/0.
+- **flatplay's "tune_reset leak" was the ironsight:** the status line's "within N of his head" is keepNear(), eased to
+  vr_flat_ads_near (24) by the ironsight's share, and an earlier case's `vr_flat_aim 1` (a toggle, not a +command)
+  stayed on across vr_test_reset and the next map. `vr_test_reset` now calls `flatsight::testReset()` (the state
+  frame() clears outside flatscreen play). flatplay plays many cases a game again (TB_ISOLATE dropped): 31/0.
+- **-NoDraw on** flatmove, flatitems, flatladder (`TB_NODRAW` default 1) and flatslide's 10 runs that read no drawing
+  (`N`; its sights, lean pose, slide pose and prone-dual runs stay drawn): every check the same drawn and undrawn
+  (flatslide's drawn slide pose on e1m1 failed once in the drawn run, a drawn case either way: the known flaky one).
+- **Batched:** melee_space (32 cases, a monster and setting each, undrawn): the table identical, digit for digit, to
+  the old two one-game runs. Verdict lines added: melee_space, voreshove (already batched, ends on its 4th shove),
+  bodytrack_elbow (one run that quits; its waits are measurement windows). slots.log's other most-run unbatched
+  families are single runs (arenapath, load_models) or the per-case agtest/arena runs agents make by hand.
+
+  | suite | before s | after s | what |
+  |---|---|---|---|
+  | flatplay | 136 (isolated, testbatch2) | ~90 (collect 21, batch 27, replay 33) | many cases a game |
+  | flatmove | 94 drawn | 63 undrawn | -NoDraw |
+  | flatitems | 107 drawn (batch 69) | 52 undrawn (batch 31) | -NoDraw |
+  | flatladder | 20-23 drawn | 34-35 undrawn | (2 short cases: shell-bound, noise) |
+  | flatslide | 162 drawn | 111 partly undrawn | -NoDraw on 10 of 14 runs |
+  | melee_space | 97 (two games) | 38 | batched, undrawn |
+  | voreshove / bodytrack_elbow | 20 / 28 | same | verdict lines |
+  | agrunt (run_baseline) | 11.1 min alone | (3.7 min batched, not used) | default back to alone |
+
+## flatgreen3: the MP suites and the last open flat tests (agent/flatgreen3, 2026-11-23)
+
+Runs on origin/next 27fce84a7 (Release no-LTO, the shipped-defaults baseline). MP and flat never run at once.
+
+| suite | before | after | cause | fix |
+|---|---|---|---|---|
+| mp_melee | 28/2 | 30/0 | test drift (the baseline: `vr_gunangle` 70 shipped, the old baseline's 39.5): the defender's "upright" crowbar (`UPRIGHT`, hand pitch 90) came out 50-52 deg off square to the sword's blade and way, score 0.47-0.50: no directional parry | `UPRIGHT` hand pitch 59.5 (90 - 30.5): 25-27 deg off square, score 1.00 both ways (120.5, the other sign: 79 off) |
+| mp_slide_vr | 6/2 | 8/0 | test drift (6d47923de's baseline: `cl_alwaysrun` 0 shipped): VR B's full stick walks at 200, under `vr_flat_slide_min` 220: no slide at all (A heard footsteps only) | VR B `cl_alwaysrun 1`, as flat B had |
+| mp_predictslide | 12/2 | 14/0 | the same: 0 states sliding | B `cl_alwaysrun 1` |
+| mp_flow, mp_predict, mp_predictclimb without the hub | 16/1, 6/1 (`--part waterjump`), - | 17/0, 31/0, 29/0 | the harness's games start with `-game hipnotic -game rogue -game quakevr`: the active campaign is rogue (2) until a map is loaded; the hub (vrstart) selected Quake's (0). The server selects Quake's at `map e1m1`, a client never (it takes no campaign from the server it joins). So on `changelevel start` the client read rogue's start.bsp: `Host_Error: Model *43 not found` in CL_ParseServerInfo ("A on start" timed out); and A's Load Autosave list ("this game: campaign 2") passed over the server's coop~e1m2 save as another game's | mp_harness: a client started without the hub gets `+vr_campaign_select id1` (what the hub did, without its map load); `STARTMAP_SCENARIOS` gone, all scenarios without the hub; `QVR_MP_STARTMAP=0` also accepted |
+| flatgate | 3/2 | 5/0 (seamless 20/0) | `setpos` turns noclip on (Host_SetPos_f, upstream): the walk flew along the view's pitch through the floor (y +181, z -84 a second, case 0's 25 down) and never met the gate; a turned or level view crossed or not by timing | the QC's setpos and the turning case's are followed by `noclip` (off again); the walk starts once he is walking, on the ground, the setpos's pitch read back (a condition, the give-up as before) |
+| flatswing | 4/1 | 4/0 (2 runs less) | the pathoff control could no longer see the old bug | retired (his decision 2026-11-23); the wall and knight checks unchanged |
+| flatxhair | 28/3 (23/8, 27/4 seen: wall/dual pellet spread and `pixels open` vary run to run) | 28/3 | flush: no wall state at all at its place: wall share 0.00, gun way 0.0 deg, the barrel's hit 102-107 px off the crosshair | open, not the slide: the same with `vr_flat_wall_slide 0`, facing the wall (yaw 90, its own setpos kept the turn test's yaw), `vr_flat_wall_tilt_fixed 1`, noclip off, 10 units further off, looking 20 down, and alone right after the start (no dual, no turn test). The gun at the wall 2 units off his box neither pushes back nor tilts: the case needs a new place (flatwall's vrtesthall wall) or the wall pose a look (the flatwall suite passes). Test unchanged |
+
+- **Design question (flatxhair, his call)**: `wallShotShare` is the drawn turn's angle (`tiltAngle`: the slide's level
+  turn and the tilt), so a slid gun's shot should already follow its barrel; the flush case could not show it (no
+  turn there at all).
+- **Player-visible, not fixed (engine)**: a client keeps its own active campaign whatever the server runs. A player
+  who chose Dissolution (rogue) in the hub and joins a Quake coop server on `start` would read rogue's start.bsp and
+  drop with "Model *N not found"; his Load Autosave list hides the server's coop autosaves. The client should take the
+  server's campaign at its serverinfo (`VR_CheckSpawnCampaignMap`'s client side); BACKLOG candidate.
+- Smoke: `mp_test.py suite --only` the six touched scenarios and mp_coop: mp_suite passed (netsafe 14/0, coop 12/0,
+  flow 17/0, melee 30/0, slide_vr 8/0, predict 31/0, predictclimb 29/0, predictslide 14/0). flatswing 4/0.

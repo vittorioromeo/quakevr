@@ -22,6 +22,9 @@ source "$(dirname "$0")/testbatch/testbatch.sh"
 # (the batch at run.sh's own clock: vr_fixed_frames_rate 72, a tick a frame, as each run alone; and the collect
 # pass without its awk/grep checks)
 export TB_RATE=${TB_RATE-72} TB_COLLECT_STUBS=${TB_COLLECT_STUBS-2}
+# (the batch's frames undrawn, vr_mock_fast 2: its checks are QC-measured, none reads the drawing; the same verdicts
+# drawn and undrawn, testbatch3. TB_NODRAW=0: drawn)
+export TB_NODRAW=${TB_NODRAW-1}
 S=$TREE/scratch; mkdir -p "$S"
 QT_NAME=flatitems_sh
 F="^flatitems:|^flatplates:|^flatfgrab: (off|main) (hand: idle|prop:)|Assertion|ENGINE CRASH|Host_Error|^ff_done"

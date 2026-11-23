@@ -18,6 +18,10 @@ Dwell's Crystal Lance in both hands: close your off hand on the pole, loosen you
 Dwell's Crystal Lance in both hands: slide your off hand along the pole: it stays on the pole all the way (before, its place drifted off the pole). {test:dwell_lance_pole}
 Dwell's Crystal Lance: thrust it straight forward into a monster, head first: a heavier hit than a swing; a thrust landing on the shaft short of the crystal head is only a weak poke. {test:dwell_lance_pole}
 On the Quest, music from Ogg files plays: the start map's and each episode's soundtrack (the rerelease's Ogg tracks copied by Setup), looping at the end of the track. {test:hub_start}
+Flat-screen or VR: in the ropes hall climb the wooden and the metal pole (south-west) hand over hand: the legs wrap them, they never move, the wooden one knocks and the metal one rings on each grip (and the haptic differs). {test:ropes}
+Flat-screen or VR: hang under the level rope in the ropes hall (far north) and go hand over hand along it both ways (flat: jump up to it, forward/back keys): the legs hang, it sags and sways under you, letting go (flat: crouch) drops you, jump jumps off. {test:ropes}
+Flat-screen or VR: the diagonal rope in the ropes hall (east) is traversed hanging under it as the level one; a rope steeper than 45 degrees from upright still climbs as before (swing, legs round it). {test:ropes}
+Flat-screen or VR: the toolgun's Pole (Spawn > Props > Ropes; Rope and Pole Settings > More for its thickness and metal) stands from the floor to the ceiling; Span 256 there strings the next Rope level overhead away from you (End Rise tilts it, Slack sags it). {test:ropes}
 
 [1. Dwell]
 Dwell's Crystal Lance fired: a violet lightning beam from the crystal tip through every monster on its line, violet sparks where it enters and leaves each and where it stops, a firm kick back and up, and the crystal head glowing violet for a moment after each shot. {test:dwell_lance_pole}
