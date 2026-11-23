@@ -615,6 +615,53 @@ bool countsTo(const char* name, int& dx, int& dy)
     return false;
 }
 
+HolsterSlot holsterSlot(int i)
+{
+    HolsterSlot out;
+    if(i < 0 || i >= holsterCount)
+    {
+        return out;
+    }
+    const Contents c = contents();
+    out.title = places[i].title;
+    out.name = holsterSlotName(c, i);
+    out.model = c.holster[i] != WID_FIST ? modelName(c.holsterModel[i]) : "";
+    return out;
+}
+
+HolsterSlot handSlot(int hand)
+{
+    HolsterSlot out;
+    const int h = hand == 0 ? 0 : 1;
+    out.title = h == 0 ? "LEFT HAND" : "RIGHT HAND";
+    const Contents c = contents();
+    if(c.hand[h] != WID_FIST)
+    {
+        out.model = modelName(c.handModel[h]);
+        out.name = notectx::weaponName(c.hand[h], c.flags[h], out.model);
+    }
+    return out;
+}
+
+void drawImage(unsigned texture, const glm::vec2& size, const glm::vec3 (&corner)[4], const glm::mat4& mvp, float alpha)
+{
+    const gadget::VisorColors colors = gadget::visorColors();
+    const glm::vec4 face{colors.face, 0.86f * alpha};
+    const gfx::Vertex f4[4] = {{corner[0], {0.f, 0.f}, face}, {corner[1], {1.f, 0.f}, face}, {corner[2], {1.f, 1.f}, face},
+        {corner[3], {0.f, 1.f}, face}};
+    const gfx::Vertex fq[6] = {f4[0], f4[1], f4[2], f4[0], f4[2], f4[3]};
+    gfx::draw(fq, mvp, {.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false});
+    const glm::vec4 white{gadget::visorPhosphor().x, gadget::visorPhosphor().y, gadget::visorPhosphor().z, 0.f};
+    const gfx::Vertex c4[4] = {{corner[0], {0.f, 0.f}, white}, {corner[1], {1.f, 0.f}, white}, {corner[2], {1.f, 1.f}, white},
+        {corner[3], {0.f, 1.f}, white}};
+    const gfx::Vertex q[6] = {c4[0], c4[1], c4[2], c4[0], c4[2], c4[3]};
+    gfx::draw(q, mvp,
+        {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false,
+            .params = {static_cast<float>(realtime), za::clamp(vr_flat_holster_menu_crt.value, 0.f, 2.f), 0.f, gadget::textGlow()},
+            .screen = {size.x, size.y, 0.5f}, .trueColor = true, .inkAlpha = alpha},
+        texture);
+}
+
 void draw()
 {
     if(!shown() || !flatplay::active() || vid.width <= 0 || vid.height <= 0)
@@ -639,10 +686,11 @@ void draw()
         const bool left = p.x < 128.f;
         lines[nl++] = {left ? p.x + slotW : p.x, p.y + slotH * 0.5f, p.anchorX, p.anchorY};
         gadget::HolsterMenuSlot& s = slots[i];
+        const HolsterSlot held = holsterSlot(i); // (the weapon wheel's model too)
         s.rect = {p.x, p.y, slotW, slotH};
-        s.title = p.title;
-        s.name = holsterSlotName(c, i);
-        s.model = c.holster[i] != WID_FIST ? modelName(c.holsterModel[i]) : "";
+        s.title = held.title;
+        s.name = held.name;
+        s.model = held.model;
         s.hovered = inside(s.rect, st.cursor);
     }
     lines[nl++] = {252.f, 20.f, 252.f, panelH - 16.f}; // (the holsters' half, the hands')
@@ -744,18 +792,8 @@ void draw()
         quad(x0 - o, y0, o, h, g, gfx::Blend::Additive);
         quad(x0 + w, y0, o, h, g, gfx::Blend::Additive);
     }
-    quad(x0, y0, w, h, {colors.face, 0.86f * a}, gfx::Blend::Alpha);
-    {
-        const glm::vec4 white{gadget::visorPhosphor().x, gadget::visorPhosphor().y, gadget::visorPhosphor().z, 0.f};
-        const gfx::Vertex c4[4] = {{ndc(x0, y0 + h), {0.f, 0.f}, white}, {ndc(x0 + w, y0 + h), {1.f, 0.f}, white},
-            {ndc(x0 + w, y0), {1.f, 1.f}, white}, {ndc(x0, y0), {0.f, 1.f}, white}};
-        const gfx::Vertex q[6] = {c4[0], c4[1], c4[2], c4[0], c4[2], c4[3]};
-        gfx::draw(q, glm::mat4{1.f},
-            {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false,
-                .params = {static_cast<float>(realtime), za::clamp(vr_flat_holster_menu_crt.value, 0.f, 2.f), 0.f, gadget::textGlow()},
-                .screen = {panelW, panelH, 0.5f}, .trueColor = true, .inkAlpha = a},
-            img.texture);
-    }
+    const glm::vec3 corner[4] = {ndc(x0, y0 + h), ndc(x0 + w, y0 + h), ndc(x0 + w, y0), ndc(x0, y0)};
+    drawImage(img.texture, {panelW, panelH}, corner, glm::mat4{1.f}, a);
     const float t = za::max(1.f, 2.f * px);
     const glm::vec4 line{colors.line, a};
     quad(x0, y0, w, t, line, gfx::Blend::Alpha);

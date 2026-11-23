@@ -2227,7 +2227,7 @@ weapon 23
 // slot 24: owned/mg3/progs/v_hammer.mdl (vr_wofs_*_25)
 weapon 24
 {
-    bl_near "0.4951"
+    bl_near "0.495"
     bl_from "0.05"
     bl_org_x "-1.9727"
     bl_org_y "-0.2963"

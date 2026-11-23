@@ -316,6 +316,8 @@ float(float xHand) VR_FlatHolster_KeyHandOk =
     return TRUE;
 };
 
+float(float xHand, float next) VR_FlatHolster_DrawInto;
+
 // 1 / 2: the next holstered weapon after the one the hand holds (the holsters' order, 0 .. 5, the menu's) into `xHand`;
 // what it held back into a holster (the one it came from, else a free one: VR_FlatHolster_FreeFor, the drawn one's too:
 // a trade); after the last, the hand empty. A holstered weapon is never in the other hand, so the other hand's is skipped
@@ -342,6 +344,25 @@ void(float xHand) VR_FlatHolster_Cycle =
         dprint(sprintf("flat holsters: cycle hand %g: nothing holstered\n", xHand));
         return;
     }
+    if(VR_FlatHolster_DrawInto(xHand, next))
+    {
+        vr_flatholster_cycles++;
+    }
+};
+
+// Holster `next`'s weapon (0 .. 5; -1 none: the hand left empty) drawn into `xHand`, and what the hand held back into a
+// holster (the one it came from, else a free one: VR_FlatHolster_FreeFor, `next`'s own counting as free: a trade), each
+// weapon with its record by the headset's own steps (VRDrawHolsterWeapon, VRPutWeaponInHolster). The number keys' cycle
+// and the headset's weapon wheel (VR_Wheel_Pick) share it. A weapon too big for a holster, or no holster free: nothing
+// moves (a short word why). TRUE when it moved.
+float(float xHand, float next) VR_FlatHolster_DrawInto =
+{
+    float empty = VRIsHandWeaponless(self, xHand);
+    if(empty && next < 0)
+    {
+        return FALSE;
+    }
+    float from = VR_FlatHolster_From(xHand);
     float wid = VRGetEntWeapon(self, xHand);
     float wfl = VRGetEntWeaponFlags(self, xHand);
     float to = -1;
@@ -350,14 +371,14 @@ void(float xHand) VR_FlatHolster_Cycle =
         if(!WeaponIdToHolsterable(wid, wfl))
         {
             VRHolsterRefused(self, xHand, VR_FlatHolster_Hotspot(max(0, next)), wid, wfl);
-            return;
+            return FALSE;
         }
         to = VR_FlatHolster_FreeFor(xHand, from, next);
         if(to < 0)
         {
             sprint(self, sprintf("No free holster for the %s.\n", WeaponNameOf(wid, wfl)));
             dprint(sprintf("flat holsters: cycle hand %g: no free holster for weapon %g\n", xHand, wid));
-            return;
+            return FALSE;
         }
     }
     entity inst = VRGetEntWeaponInst(self, xHand);
@@ -376,9 +397,9 @@ void(float xHand) VR_FlatHolster_Cycle =
     }
     W_SetCurrentAmmoFor(xHand);
     VR_FlatHolster_Remember(xHand, next);
-    vr_flatholster_cycles++;
     dprint(sprintf("flat holsters: cycle hand %g: holster %g drawn, weapon %g into holster %g: hand now %g\n", xHand, next,
         wid, to, VRGetEntWeapon(self, xHand)));
+    return TRUE;
 };
 
 // 4 / 5: `xHand`'s weapon into a free holster (VR_FlatHolster_FreeFor: the one it came from first), the hand empty, as a
@@ -413,6 +434,80 @@ void(float xHand) VR_FlatHolster_Put =
     VR_FlatHolster_Remember(xHand, -1);
     vr_flatholster_puts++;
     dprint(sprintf("flat holsters: holster hand %g: weapon %g into holster %g\n", xHand, wid, to));
+};
+
+// The headset's weapon wheel (Quake/vr/vr_weaponwheel.cpp; the client's "vr_wheel_pick <hand> <slot>", run with `self`
+// the player who let go of it): `xHand` takes holster `slot`'s weapon (0 .. 5, the holster menu's order) as reaching
+// there would, by the holster menu's own steps. Immersive: holster `slot`'s weapon drawn (VR_FlatHolster_DrawInto: what
+// the hand held back to its own holster, else a free one, `slot`'s counting); an empty holster takes the hand's weapon
+// (as a hand letting go there: too big refused, VRHolsterRefused); `slot` -1 ("empty hand"): the hand's weapon put away
+// (VR_FlatHolster_Put). Quick Slots: the holster's copy drawn (its weapon stays in the holster, the hand's own let go: it
+// is still in what was collected), an empty holster given a copy of the hand's (VRLetGoAtHolster's), -1 the hand empty.
+// A weapon drawn stays in the hand until its grip is pressed (VR_Scene_HoldGiven: a wheel needs no grip held), then the
+// grip holds it as ever. A holstered weapon is never in the other hand (immersive), so the wheel never offers that one.
+void(float xHand, float slot) VR_Wheel_Pick =
+{
+    if(self.health <= 0 || !VR_FlatHolster_KeyHandOk(xHand))
+    {
+        return;
+    }
+    float was = VRGetEntWeapon(self, xHand);
+    float hs = VR_FlatHolster_Hotspot(max(0, slot));
+    float held = getHolsterWeapon(hs);
+    float empty = VRIsHandWeaponless(self, xHand);
+    if(getWeaponMode() != QVR_WEAPONMODE_IMMERSIVE)
+    {
+        VRHandStopFiring(self, xHand);
+        if(slot >= 0 && held == WID_FIST)
+        {
+            if(!empty)
+            {
+                VRLetGoAtHolster(self, xHand, hs, VRGetEntWeapon(self, xHand), VRGetEntWeaponFlags(self, xHand), FALSE);
+            }
+        }
+        else
+        {
+            if(!empty)
+            {
+                VRSetHandEmpty(self, xHand);
+            }
+            if(slot >= 0)
+            {
+                VRDrawHolsterWeapon(self, xHand, hs);
+            }
+            W_SetCurrentAmmoFor(xHand);
+        }
+    }
+    else if(slot < 0)
+    {
+        VR_FlatHolster_Put(xHand);
+    }
+    else if(held == WID_FIST)
+    {
+        if(!empty)
+        {
+            float wid = VRGetEntWeapon(self, xHand);
+            float wfl = VRGetEntWeaponFlags(self, xHand);
+            if(!WeaponIdToHolsterable(wid, wfl))
+            {
+                VRHolsterRefused(self, xHand, hs, wid, wfl);
+                return;
+            }
+            VRHandStopFiring(self, xHand);
+            VRHolsterHandWeapon(self, xHand, hs);
+            VR_FlatHolster_Remember(xHand, -1);
+        }
+    }
+    else
+    {
+        VR_FlatHolster_DrawInto(xHand, slot);
+    }
+    if(!VRIsHandWeaponless(self, xHand))
+    {
+        VR_Scene_HoldGiven(self, xHand);
+    }
+    dprint(sprintf("weapon wheel: hand %g, holster %g: weapon %g -> %g, the holster %g -> %g\n", xHand, slot, was,
+        VRGetEntWeapon(self, xHand), held, getHolsterWeapon(hs)));
 };
 
 // ImpulseCommands, first: the menu's impulses (24 .. 38, 60 .. 79, 81 .. 85) and the number keys' (86 .. 89, the holsters on) whenever he plays on the screen, and while the holsters are
