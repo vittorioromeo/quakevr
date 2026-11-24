@@ -177,12 +177,31 @@ void(float xWid, float xVar) DW_WeaponProp =
 void() toolgun_dw_rotary = { DW_WeaponProp(WID_SUPER_SHOTGUN, DW_VAR_ROTARY); };
 void() toolgun_dw_lance = { DW_WeaponProp(WID_LIGHTNING, DW_VAR_LANCE); };
 
-// weapon_touch: the pickup's variant on the weapon it gave (none: a plain one; one or the other: no AD upgrade on it).
+// weapon_touch, before the weapon is given: the pickup's variant (Dwell's weapon) owned by `p` from now on (variantowned,
+// vr_weaponinst.qc WeaponInst_Owned), so every weapon of its kind he has is it.
+void(entity xPickup, entity p) DW_PickupOwned =
+{
+    float v = xPickup.vr_dw_var;
+    if(!v || !(p.flags & FL_CLIENT)) { return; }
+    p.vr_owned_vars = p.vr_owned_vars | (v == 1 ? 1 : 2);
+    dprint(sprintf("owned variant: %s owns the %s (its pickup)\n", p.netname, DW_VariantName(v)));
+};
+
+// Whether the pickup's variant is one `p` doesn't own yet (coop leaves a weapon he has: not a variant new to him).
+float(entity xPickup, entity p) DW_PickupNewVariant =
+{
+    float v = xPickup.vr_dw_var;
+    return v && (p.flags & FL_CLIENT) && !(p.vr_owned_vars & (v == 1 ? 1 : 2));
+};
+
+// weapon_touch: the weapon it gave as `p` owns its kind (DW_PickupOwned before: a Dwell pickup's variant; a plain one of
+// a kind he owns a variant of: that variant; one or the other: no AD upgrade on it).
 void(entity xPickup, entity p, float xHand) DW_VariantGiven =
 {
     entity inst = VRGetEntWeaponInst(p, xHand);
     if(inst == world) { return; }
-    inst.wi_dwvar = xPickup.vr_dw_var;
+    if(!(p.flags & FL_CLIENT)) { inst.wi_dwvar = xPickup.vr_dw_var; } // (not a player's: the pickup's, as before)
+    WeaponInst_Owned(p, VRGetEntWeapon(p, xHand), inst);
     if(inst.wi_dwvar) { inst.wi_adup = 0; }
     // The Rotary Shotgun comes with its tube full, as the Widowmaker it handles as (AD_UpgradeGiven; AD_Widowmaker).
     if(inst.wi_dwvar == DW_VAR_ROTARY && p.ishuman && VRIsWeaponReloadingEnabledForInst(p, WID_SUPER_SHOTGUN, inst))
@@ -319,7 +338,7 @@ float(entity p) DW_PackWeaponVariants =
         if(inst != world) { packed = packed + (inst.wi_dwvar & 3) * k; }
         k = k * 4;
     }
-    return packed;
+    return packed + (p.vr_owned_vars & 3) * k; // (the variants he owns, bits 16-17: vr_weaponinst.qc WeaponInst_Owned)
 };
 
 // DecodeLevelParms, the records carried: their variants back (a weapon of another kind: none).
@@ -337,6 +356,9 @@ void(entity p, float xPacked) DW_UnpackWeaponVariants =
         inst.wi_dwvar = code == DW_VariantFor(wids[i]) ? code : 0;
         if(inst.wi_dwvar) { inst.wi_adup = 0; }
     }
+    // The variants he owns (bits 16-17; a coop respawn keeps those he had: the same edict), then on his weapons.
+    p.vr_owned_vars = p.vr_owned_vars | (xPacked & 3);
+    WeaponInst_OwnedSync(p, FALSE);
 };
 
 // The Crystal Lance's beam: through every body on its line (8 at most), 150 to each, thrown back.

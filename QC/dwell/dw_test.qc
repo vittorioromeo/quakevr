@@ -1310,4 +1310,268 @@ void(entity p) DW_RingHitTest =
     remove(e);
     VR_Test_Verdict();
 };
+
+// ---------------------------------------------------------------------------------------------------------------------
+// vr_ad_test 231-234 (variantowned, his decision 2026-11-24): Dwell's weapon variants owned per player per base weapon
+// (vr_weaponinst.qc WeaponInst_Owned): with the Crystal Lance and the Rotary Shotgun owned and their records gone, every
+// path that makes or restores a weapon of their kinds hands back the variant, never the plain gun. 231 (single player,
+// flat or the VR mock): owned through their pickups, then the weapon key (impulse 8: ImpulseCommands flat, W_ChangeWeapon
+// in VR), next weapon (cycling through the super shotgun to the lightning gun), a plain lightning gun's pickup, the cheat
+// impulse (158), a holster's draw (immersive and quick slot), the weapon wheel's pick, a plain lightning gun prop taken,
+// his own death drop; each checked as the path returns (before PlayerPostThink's sync), then 4 frames on: no path left
+// one to the sync, and a record put in a hand bypassing every path made the Lance by it. Left for 232: both owned, the
+// hands empty, a plain super shotgun record in holster 0. 232 (after a level change or a save and load: owned_test.sh):
+// both still owned, the holster's super shotgun the Rotary, the weapon key's lightning gun the Lance.
+// 233-234 (MP, mp_test.py variantowned): 233 every player owns the Lance, his hands empty ("dwowned_mp: ready"); the
+// client B presses 8; 234 waits for a player's main hand to hold the lightning gun (B's impulse), checks it the Lance,
+// then every player respawned as coop does (respawn: the level's parms) still owns it, the weapon key's gun the Lance.
+// "dwowned: N passed, M failed" / "dwowned_mp: N passed, M failed" (echoed: a dedicated server's console).
+float dw_ot_frames, dw_ot_late0;
+
+void(entity p, float xHand, float xWid, float xVar, string xWhat) DW_OwnedCheck =
+{
+    entity r = VRGetEntWeaponInst(p, xHand);
+    VR_Test_Check(VRGetEntWeapon(p, xHand) == xWid && r != world && r.wi_dwvar == xVar,
+        sprintf("%s: weapon %g (want %g), its variant %g (want %g)", xWhat, VRGetEntWeapon(p, xHand), xWid, r.wi_dwvar, xVar));
+};
+
+// A plain record of `xWid` straight into holster `hs` (WID_FIST: emptied), as an older path or a save might have left it.
+void(entity p, float hs, float xWid) DW_OwnedHolster =
+{
+    entity os = self;
+    self = p;
+    setHolsterWeapon(hs, xWid);
+    setHolsterWeaponFlags(hs, 0);
+    setHolsterWeaponModel(hs, WeaponIdToModel(xWid, 0));
+    VRSetEntHolsterWeaponInst(p, hs, xWid == WID_FIST ? world : WeaponInst_New(WeaponIdToBaseClipSize(xWid)));
+    self = os;
+};
+
+// `p` owns the variant `xVar` of `xWid` through its pickup's steps (weapon_touch's), the weapon in `xHand`, checked.
+void(entity p, float xHand, float xWid, float xVar) DW_OwnedPickup =
+{
+    entity pk = spawn();
+    pk.vr_dw_var = xVar;
+    pk.netname = DW_VariantName(xVar);
+    VR_WeaponUtil_EntAddWeapon(p, xWid);
+    DW_PickupOwned(pk, p);
+    VRGiveEntWeapon(p, xHand, xWid, 0, WeaponIdToBaseClipSize(xWid));
+    DW_VariantGiven(pk, p, xHand);
+    remove(pk);
+    DW_OwnedCheck(p, xHand, xWid, xVar, sprintf("the %s's pickup", DW_VariantName(xVar)));
+    VR_Test_Check(p.vr_owned_vars & (xVar == 1 ? 1 : 2), sprintf("the %s owned (bits %g)", DW_VariantName(xVar), p.vr_owned_vars));
+};
+
+void() DW_OwnedTest_Think =
+{
+    entity p = VR_Player();
+    dw_ot_frames++;
+    if(dw_ot_frames < 4)
+    {
+        self.nextthink = time + 0.001; // (the next frame)
+        return;
+    }
+    VR_Test_Check(wi_owned_late == dw_ot_late0 + 1, sprintf("no path left a record to PlayerPostThink's sync, the one "
+        "put in bypassing every path made by it: %g late (want 1)", wi_owned_late - dw_ot_late0));
+    DW_OwnedCheck(p, cVR_OffHand, WID_LIGHTNING, DW_VAR_LANCE, "a plain record put in the off hand, 4 frames on");
+    VRGiveEntWeapon(p, cVR_OffHand, WID_FIST, 0, 0);
+    DW_OwnedHolster(p, VR_FlatHolster_Hotspot(0), WID_SUPER_SHOTGUN); // (for 232: plain, made the Rotary by the sync)
+    remove(self);
+    VR_Test_Verdict();
+};
+
+void(entity p) DW_OwnedTest =
+{
+    VR_Test_BeginFlags("dwowned", VR_TEST_LOUD);
+    entity os = self;
+    self = p;
+    float flat = VR_FlatPlay(p);
+    float hs = VR_FlatHolster_Hotspot(0);
+    float mode = cvar_hget(cvarh_vr_holster_mode);
+    cvar_set("vr_holster_mode", ftos(QVR_WEAPONMODE_IMMERSIVE));
+    p.vr_owned_vars = 0;
+    VR_WeaponUtil_EntAddWeapon(p, WID_SHOTGUN);
+    p.ammo_shells = 100;
+    p.ammo_cells = 100;
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    VRGiveEntWeapon(p, cVR_OffHand, WID_FIST, 0, 0);
+    DW_OwnedHolster(p, hs, WID_FIST);
+    // Owned through their pickups; then gone (stuck in a body, dropped: the hand empty).
+    DW_OwnedPickup(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE);
+    DW_OwnedPickup(p, cVR_OffHand, WID_SUPER_SHOTGUN, DW_VAR_ROTARY);
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    VRGiveEntWeapon(p, cVR_OffHand, WID_FIST, 0, 0);
+    // The weapon key.
+    self.impulse = 8;
+    if(flat) { ImpulseCommands(); } else { W_ChangeWeapon(); }
+    self.impulse = 0;
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, flat ? "the weapon key (8, flat)" : "the weapon key (8, W_ChangeWeapon)");
+    // Next weapon from the shotgun: the super shotgun on the way, then the lightning gun.
+    VRGiveEntWeapon(p, cVR_MainHand, WID_SHOTGUN, 0, WeaponIdToBaseClipSize(WID_SHOTGUN));
+    float n, ssg = FALSE;
+    for(n = 0; n < 12 && p.weapon != WID_LIGHTNING; n++)
+    {
+        CycleWeaponCommand(cVR_MainHand, p.weapon, VRGetEntWeaponPtr(p, cVR_MainHand), p.weaponflags,
+            VRGetEntWeaponFlagsPtr(p, cVR_MainHand));
+        if(p.weapon == WID_SUPER_SHOTGUN && !ssg)
+        {
+            ssg = TRUE;
+            DW_OwnedCheck(p, cVR_MainHand, WID_SUPER_SHOTGUN, DW_VAR_ROTARY, "next weapon: the super shotgun");
+        }
+    }
+    VR_Test_Check(ssg, "next weapon went through the super shotgun");
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "next weapon: the lightning gun");
+    // A plain lightning gun's pickup.
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    entity pk = spawn();
+    pk.netname = "Thunderbolt";
+    DW_PickupOwned(pk, p);
+    VRGiveEntWeapon(p, cVR_MainHand, WID_LIGHTNING, 0, WeaponIdToBaseClipSize(WID_LIGHTNING));
+    DW_VariantGiven(pk, p, cVR_MainHand);
+    remove(pk);
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "a plain lightning gun's pickup");
+    // The cheat impulse (150 + the weapon's id).
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    self.impulse = 150 + WID_LIGHTNING;
+    ImpulseCommands();
+    self.impulse = 0;
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "the cheat impulse 150 + id");
+    // A plain record in a holster, drawn: immersive (the record), quick slot (a copy).
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    DW_OwnedHolster(p, hs, WID_LIGHTNING);
+    VRDrawHolsterWeapon(p, cVR_MainHand, hs);
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "a holster's draw (immersive)");
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    cvar_set("vr_holster_mode", ftos(QVR_WEAPONMODE_CYCLEQUICKSLOT));
+    DW_OwnedHolster(p, hs, WID_LIGHTNING);
+    VRDrawHolsterWeapon(p, cVR_MainHand, hs);
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "a holster's draw (quick slot: its copy)");
+    cvar_set("vr_holster_mode", ftos(QVR_WEAPONMODE_IMMERSIVE));
+    // The weapon wheel's pick of holster 0's.
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    DW_OwnedHolster(p, hs, WID_LIGHTNING);
+    VR_Wheel_Pick(cVR_MainHand, 0);
+    self = p;
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "the weapon wheel's pick");
+    DW_OwnedHolster(p, hs, WID_FIST);
+    // A plain lightning gun lying about (dropped by no player: its record plain), taken.
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    entity d = spawn();
+    setorigin(d, p.origin);
+    entity prop = VR_DeathDropOf(d, WID_LIGHTNING, 0, world, cVR_MainHand);
+    remove(d);
+    VR_Test_Check(prop != world && prop.weaponinst.wi_dwvar == 0, "a plain lightning gun prop made (its record plain)");
+    wpnthrow_handtouch_impl(cVR_MainHand, prop, p, VRGetEntWeaponPtr(p, cVR_MainHand), VRGetEntWeaponFlagsPtr(p, cVR_MainHand));
+    self = p;
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "a plain lightning gun prop taken");
+    // His own death drop of a lightning gun with no record: the Lance.
+    prop = VR_DeathDropOf(p, WID_LIGHTNING, 0, world, cVR_MainHand);
+    VR_Test_Check(prop != world && prop.weaponinst.wi_dwvar == DW_VAR_LANCE, sprintf("his own drop of a lightning gun: "
+        "its record's variant %g", prop.weaponinst.wi_dwvar));
+    if(prop) { remove(prop); }
+    // Left: the hands empty; then a plain record put in the off hand bypassing every path (PlayerPostThink's sync).
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    W_SetCurrentAmmoFor(cVR_MainHand);
+    dw_ot_late0 = wi_owned_late;
+    p.weapon2 = WID_LIGHTNING;
+    p.weaponinst2 = WeaponInst_New(WeaponIdToBaseClipSize(WID_LIGHTNING));
+    cvar_set("vr_holster_mode", ftos(mode));
+    self = os;
+    dw_ot_frames = 0;
+    entity t = spawn();
+    t.think = DW_OwnedTest_Think;
+    t.nextthink = time + 0.001;
+};
+
+// 232: after the level change or the load.
+void(entity p) DW_OwnedTest2 =
+{
+    VR_Test_BeginFlags("dwowned2", VR_TEST_LOUD | VR_TEST_ECHO);
+    entity os = self;
+    self = p;
+    VR_Test_Check(p.vr_owned_vars == 3, sprintf("both still owned (bits %g, want 3)", p.vr_owned_vars));
+    float hs = VR_FlatHolster_Hotspot(0);
+    entity r = VRGetEntHolsterWeaponInst(p, hs);
+    VR_Test_Check(getHolsterWeapon(hs) == WID_SUPER_SHOTGUN && r.wi_dwvar == DW_VAR_ROTARY,
+        sprintf("holster 0's super shotgun the Rotary (weapon %g, variant %g)", getHolsterWeapon(hs), r.wi_dwvar));
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    self.impulse = 8;
+    if(VR_FlatPlay(p)) { ImpulseCommands(); } else { W_ChangeWeapon(); }
+    self.impulse = 0;
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "the weapon key's lightning gun");
+    self = os;
+    VR_Test_Verdict();
+};
+
+// 233 (MP): every player owns the Lance (its pickup's steps), his hands empty, cells.
+void() DW_OwnedMP_Setup =
+{
+    VR_Test_BeginFlags("dwowned_mp", VR_TEST_LOUD | VR_TEST_ECHO);
+    entity os = self;
+    float n = 0;
+    for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
+    {
+        self = p;
+        p.ammo_cells = 100;
+        DW_OwnedPickup(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE);
+        VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        n++;
+    }
+    self = os;
+    localcmd(sprintf("echo \"dwowned_mp: ready, %g players own the Crystal Lance\"\n", n));
+};
+
+// 234 (MP): each frame until a player's main hand holds the lightning gun (B's own weapon key); then the checks.
+void() DW_OwnedMP_Think =
+{
+    entity os = self;
+    entity got = world;
+    for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
+    {
+        if(p.weapon == WID_LIGHTNING) { got = p; }
+    }
+    dw_ot_frames++;
+    if(got == world && dw_ot_frames < 720)
+    {
+        self.nextthink = time + 0.001;
+        return;
+    }
+    VR_Test_Check(got != world, "a client's weapon key (8) reached the server (timed out after 720 frames otherwise)");
+    if(got)
+    {
+        DW_OwnedCheck(got, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, sprintf("%s's weapon key, from his client", got.netname));
+    }
+    for(entity q = VR_Player(); q; q = VR_NextPlayer(q))
+    {
+        self = q;
+        respawn(); // (coop: the level's parms, his edict kept)
+        self = q;
+        VR_Test_Check(q.vr_owned_vars & 2, sprintf("%s respawned still owns the Lance (bits %g)", q.netname, q.vr_owned_vars));
+        VR_WeaponUtil_EntAddWeapon(q, WID_LIGHTNING);
+        q.ammo_cells = 100;
+        VRGiveEntWeapon(q, cVR_MainHand, WID_FIST, 0, 0);
+        self.impulse = 8;
+        W_ChangeWeapon();
+        self.impulse = 0;
+        DW_OwnedCheck(q, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, sprintf("%s respawned: the weapon key's lightning gun", q.netname));
+    }
+    self = os;
+    remove(self);
+    VR_Test_Verdict();
+};
+
+void(entity p, float xRequest) DW_OwnedTests =
+{
+    if(xRequest == 231) { DW_OwnedTest(p); }
+    if(xRequest == 232) { DW_OwnedTest2(p); }
+    if(xRequest == 233) { DW_OwnedMP_Setup(); }
+    if(xRequest == 234)
+    {
+        dw_ot_frames = 0;
+        entity t = spawn();
+        t.think = DW_OwnedMP_Think;
+        t.nextthink = time + 0.001;
+    }
+};
 #endif

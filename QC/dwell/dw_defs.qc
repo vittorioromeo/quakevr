@@ -40,6 +40,8 @@ nosave float vr_grab_dwvar; // VR_WeaponGrabbable_Make: the variant the placed w
 
 float(entity targ, entity attacker, float damage, float isVRMelee) DW_DamageScale; // T_DamageImpl: berserk
 void(entity xPickup, entity p, float xHand) DW_VariantGiven;                      // weapon_touch
+void(entity xPickup, entity p) DW_PickupOwned;                                    // ...: its variant owned
+float(entity xPickup, entity p) DW_PickupNewVariant;                              // ...: coop's "has it" skip
 float(float xHand, float* xOutAttackFinished) DW_FireVariant;                     // W_Fire_*: TRUE fired
 float(float xHand) DW_LanceInHand;                                                // FrameDrawLightningTrail: no stream
 float(float xHand) DW_LanceCharged;                                               // W_WeaponFrameImpl: charged shots

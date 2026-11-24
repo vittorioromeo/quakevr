@@ -213,6 +213,7 @@ void() OnLoadGame =
         // game; the hands' model fields name them, which the load's model rebinding doesn't cover: SV_ModelIndex fails)
         VR_ADGun_EnsureCarried(p);
         VR_ADMelee_EnsureCarried(p);
+        WeaponInst_OwnedSync(p, FALSE); // the variants his weapons are his (an older save's: owned from them)
         p = VR_NextPlayer(p);
     }
 }
@@ -2535,6 +2536,7 @@ void() PlayerPostThink =
         self.jump_flag = self.velocity_z;
 
     CheckPowerups();
+    WeaponInst_OwnedSync(self, TRUE); // his weapons as the variants he owns (every path does it: one missed, counted)
     AD_PlayerPostThink(); // AD support: AD's first frame, spawn targets and debuffs in an AD map (vr_ad_bridge.qc)
     VR_RN_PlayerFrame(); // the ruleset's one megahealth rot a player (Copper's: vr_rules_numbers.qc)
     VR_Grapple_GunFrames(); // QVR: a grappling gun whose hook is out drawn empty (vr_grapple.qc)

@@ -110,6 +110,8 @@ Tests:
     holstersync  (holstersync) A (VR) and B (flat) with holster settings of their own, each held before the other
              (vr_dm_test 23): each draws the other's holsters where the other's own client has them (within 7 cm), not
              where his own sit; a bot's wear the shipped settings (A's own only once A is back at the defaults).
+    variantowned  (variantowned) a dedicated coop server, A (VR) and B (flat) owning the Crystal Lance with empty hands
+             (vr_ad_test 233-234): B's weapon key 8 gives the Lance, not a plain lightning gun; a coop respawn keeps it owned.
     botrevolver  (vrnotes1122a) a dedicated deathmatch server: A adds a bot; the server's vr_dm_test 14: the bot draws
              and fires a revolver of its own at A (slugs, not trigger pulls), and one it took loaded (his, by a
              disarm) in either hand, without shells of its own.
@@ -7940,6 +7942,23 @@ def holstersync_pair(s, viewer, owner, ev, eo, tries=20):
                                                                    "vs_viewer_m": gv["place"][0]})
 
 
+def variantowned(s):
+    """(variantowned; his decision 2026-11-24) Dwell's weapon variants owned per player: on a dedicated coop server with
+    A (VR) and B (flat), every player owns the Crystal Lance with his hands empty (vr_ad_test 233); B presses the weapon
+    key 8 on his own client and the lightning gun the server gives him is the Lance, not a plain one; then each player
+    respawned as coop does still owns it, the weapon key's gun the Lance (vr_ad_test 234, dwell/dw_test.qc)."""
+    srv, a, b, ea, eb = join(s, flat="B", b_first="vr_flat_holsters 0")  # (B's weapon keys: off with his flat holsters on)
+    since = srv.mark()
+    srv.cmd("vr_ad_test 233")
+    _, ready = srv.wait(r"dwowned_mp: ready", 20, since, "every player owning the Crystal Lance")
+    s.check("every player owns the Crystal Lance, his hands empty", "2 players" in ready, ready.strip())
+    since = srv.mark()
+    b.cmd("impulse 8")
+    srv.cmd("vr_ad_test 234")
+    _, v = srv.wait(r"dwowned_mp: \d+ passed, \d+ failed", 60, since, "the variant checks' verdict")
+    s.check("B's weapon key gives the Lance; a coop respawn keeps it owned", v.strip().endswith(", 0 failed"), v.strip())
+
+
 def holstersync(s):
     """(holstersync; his words 2026-11-23: "Other players' holster placement should be synced in multiplayer, they should
     not all share the host's preferences") A (VR) and B (flat) each with holster settings of their own, on a dedicated
@@ -10509,6 +10528,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             deathmatch(s)
         elif test == "mp_botgear":
             botgear(s)
+        elif test == "mp_variantowned":
+            variantowned(s)
         elif test == "mp_holstersync":
             holstersync(s)
         elif test == "mp_botrevolver":
@@ -10611,6 +10632,7 @@ SUITE = [
     ("mp_botgrab", ()),
     ("mp_botgear", ()),
     ("mp_holstersync", ()),
+    ("mp_variantowned", ()),
     ("mp_botrevolver", ()),
     ("mp_debugviz", ()),
     ("mp_debugviz_listen", ()),
@@ -10643,7 +10665,7 @@ def in_profile(name, profile):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"])
     tree_base = default_base(REPO)
     ap.add_argument("--base", required=tree_base is None, default=tree_base,
                     help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")
@@ -10712,7 +10734,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"):
+                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

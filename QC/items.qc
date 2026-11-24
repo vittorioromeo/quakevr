@@ -1104,9 +1104,9 @@ void() weapon_touch =
     }
     if(VR_Run_RefusesPickup(weaponId)) return; // the run's mutators: Melee Only leaves guns (vr_run.qc)
 
-    if(leave && VR_WeaponUtil_EntHasWeapon(other, weaponId))
+    if(leave && VR_WeaponUtil_EntHasWeapon(other, weaponId) && !DW_PickupNewVariant(self, other))
     {
-        return;
+        return; // (a variant he doesn't own yet, as Dwell's Crystal Lance with a lightning gun: taken)
     }
 
     float ammoId;
@@ -1143,6 +1143,7 @@ void() weapon_touch =
     }
 
     VR_WeaponUtil_EntAddWeapon(other, weaponId);
+    DW_PickupOwned(self, other); // a mod weapon's variant his from now on, with or without a hand for it (a bot's too)
 
     stemp = self;
     self = other;

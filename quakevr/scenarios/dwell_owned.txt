@@ -1,0 +1,9 @@
+# dwell_owned: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Dwell's weapon variants owned per
+# player (variantowned, vr_weaponinst.qc WeaponInst_Owned; vr_ad_test 231-232, dwell_owned_test.sh). Needs Dwell
+# installed (the Lance's own model; without it the lightning gun's, the variant still owned).
+title Dwell's Crystal Lance stays yours: drop it, lose it in an ogre, then get the lightning gun back any way
+map vrtesthall
+god
+give "Crystal Lance" main
+spawn "Ogre" 120 0
+hint Throw or drop the Crystal Lance (or stab it into the ogre and let go), then get a lightning gun back every way you can: the weapon key 8 or next weapon (flat), the weapon wheel or a holster, the cheat impulse 158. Each time it is the Crystal Lance (its crystal head, its violet beam), never a plain Thunderbolt with an empty magazine.

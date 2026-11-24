@@ -4719,7 +4719,7 @@ void() VR_FlatToolgun_Toggle =
     {
         VRPassEntWeapon(self, cVR_MainHand, self.vr_flattg_wid); // (the weapon kept meanwhile: back as it was)
         VRSetEntWeaponFlags(self, cVR_MainHand, self.vr_flattg_flags);
-        VRSetEntWeaponInst(self, cVR_MainHand, self.vr_flattg_inst);
+        VRSetEntWeaponInst(self, cVR_MainHand, WeaponInst_Owned(self, self.vr_flattg_wid, self.vr_flattg_inst));
         self.vr_flattg_on = FALSE;
         self.vr_flattg_inst = world;
         W_SetCurrentAmmo();
