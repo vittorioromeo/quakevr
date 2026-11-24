@@ -567,6 +567,7 @@ int VR_FlatHudHand (int left, int *count, int *ammoPic);	// that layout's counte
 int VR_FlatHudTime (float *level, int *state);			// its bullet time bar: 0 while bullet time is off (vr_bullettime_enabled); the meter 0..1 and its state (0 filling, 1 ready, 2 running, 3 cooling)
 void VR_WriteDemoState (struct sizebuf_s *msg);			// CL_Record_f, recording mid-game
 void VR_AdjustMove (float *forwardmove, float *sidemove, float *upmove); // CL_SendCmd: thumbstick locomotion
+int VR_ButtonSwapKey (int key);						// Key_KeynumToFriendlyString: with VR on and vr_button_swap 1, a face button's or stick click's key as the button it comes from (ABUTTON: X...); else `key`
 void VR_SpeedPressed (void);						// IN_SpeedDown, on the speed button's going down (not a second key's, not a repeat): vr_sprint_toggle's switch
 int VR_SpeedButton (int held);						// every run-or-walk choice (cl_input.c, in_sdl.c, VR_AdjustMove): the speed button's state, held (in_speed's) in, vr_sprint_toggle's switch out while it is on
 void VR_ReadMoveExtras (struct client_s *client);		// end of SV_ReadClientMove

@@ -4700,6 +4700,10 @@ QVR_CYCLE(vr_menu_move_towards, "Move Towards",
     {1.f, "Head"}, {2.f, "Left Hand"}, {3.f, "Right Hand"}, {4.f, "Torso"})
 QVR_TOGGLE(vr_stick_swap, "Swap Stick Functions",
     "Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns.")
+QVR_TOGGLE(vr_button_swap, "Swap Face Buttons",
+    "Mirrors the face buttons and stick clicks between the controllers: A and X, B and Y, the two stick clicks trade "
+    "places, so jump (A by default) is on the left hand, off the hand that moves when the sticks are swapped. Your "
+    "own bindings keep working, mirrored, and button names show the swapped button.")
 
 // vr_menu_settings.inc: pageVrsComfort
 QVR_CYCLE(vr_comfort_vignette, "Vignette",
@@ -4962,8 +4966,9 @@ QVR_TOGGLE(vr_ghost_hands_ignore_climb, "No Ghost Climbing",
 
 // vr_menu_settings.inc: pageBodyDisplay
 QVR_CYCLE(vr_handedness, "Handedness",
-    "Sets which stick moves you, the wrist gadget's arm and the flashlight's side together. Left-handed: the right "
-    "stick moves, the gadget on the right arm, the torch on the right (Custom: set apart, below).",
+    "Sets which stick moves you, the wrist gadget's arm, the flashlight's side and the face buttons together. "
+    "Left-handed: the right stick moves, the gadget on the right arm, the torch on the right, the face buttons "
+    "swapped (jump on X) (Custom: set apart, below).",
     {0.f, "Custom"}, {1.f, "Right-handed"}, {2.f, "Left-handed"})
 QVR_TOGGLE(vr_leg_holster_model_enabled, "Holster Models",
     "Draws the holsters on your body, with a gun in each one that holds one.")
