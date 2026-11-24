@@ -62,6 +62,21 @@ struct ShowHand
 // The two hands' (main 0, off 1), as QC last sent them.
 ShowHand meleeShows[2];
 
+// Show Melee Arcs: the armed humanoids' swinging weapons (addFoe), a slot each by its edict number; a new one takes the
+// slot swung longest ago.
+constexpr int foeMost = 8;
+struct FoeShow
+{
+    int ent = 0; // its weapon's edict number (0: free)
+    ShowHand h;
+};
+struct FoeShows
+{
+    FoeShow slots[foeMost];
+    int drawnFrames = 0; // the frames draw drew any (foeDrawnFrames)
+};
+FoeShows foeShows;
+
 [[nodiscard]] float showNow()
 {
     return static_cast<float>(sv.qcvm.time);
@@ -104,15 +119,8 @@ void headBox(const ShowFrame& f, const glm::vec4& colour)
     }
 }
 
-} // namespace
-
-void qvr::meleeshow::add(int hand, int what, const glm::vec3& a, const glm::vec3& b, float v)
+void addTo(ShowHand& h, int what, const glm::vec3& a, const glm::vec3& b, float v)
 {
-    if(vr_debug_melee_blades.value == 0.f || hand < 0 || hand > 1)
-    {
-        return;
-    }
-    ShowHand& h = meleeShows[hand];
     const float now = showNow();
     if(what == 0)
     {
@@ -187,6 +195,69 @@ void qvr::meleeshow::add(int hand, int what, const glm::vec3& a, const glm::vec3
     }
 }
 
+} // namespace
+
+void qvr::meleeshow::add(int hand, int what, const glm::vec3& a, const glm::vec3& b, float v)
+{
+    if(vr_debug_melee_blades.value == 0.f || hand < 0 || hand > 1)
+    {
+        return;
+    }
+    addTo(meleeShows[hand], what, a, b, v);
+}
+
+void qvr::meleeshow::addFoe(int ent, int what, const glm::vec3& a, const glm::vec3& b, float v)
+{
+    if(vr_enemy_melee_arc_show.value == 0.f || ent <= 0)
+    {
+        return;
+    }
+    FoeShow* slot = nullptr;
+    for(FoeShow& s : foeShows.slots)
+    {
+        if(s.ent == ent)
+        {
+            slot = &s;
+            break;
+        }
+    }
+    if(!slot)
+    {
+        if(what != 0)
+        {
+            return; // (no frame begun for it)
+        }
+        // (a free slot, else the one swung longest ago: its frames cleared)
+        const auto newest = [](const FoeShow& s)
+        { return s.ent == 0 || s.h.last < 0 ? -1.f : s.h.frames[s.h.last].time; };
+        slot = &foeShows.slots[0];
+        for(FoeShow& s : foeShows.slots)
+        {
+            if(newest(s) < newest(*slot))
+            {
+                slot = &s;
+            }
+        }
+        slot->ent = ent;
+        slot->h.last = -1;
+        slot->h.lastHit = -1;
+        for(ShowFrame& f : slot->h.frames)
+        {
+            f.time = -1.f;
+        }
+        for(ShowHit& hit : slot->h.hits)
+        {
+            hit.time = -1.f;
+        }
+    }
+    addTo(slot->h, what, a, b, v);
+}
+
+int qvr::meleeshow::foeDrawnFrames()
+{
+    return foeShows.drawnFrames;
+}
+
 bool qvr::meleeshow::lastLine(int hand, glm::vec3& nearEnd, glm::vec3& grip, glm::vec3& tip)
 {
     if(hand < 0 || hand > 1 || meleeShows[hand].last < 0)
@@ -215,91 +286,125 @@ bool qvr::meleeshow::lastStrikeFrom(int hand, glm::vec3& at)
     return at != glm::vec3{0.f};
 }
 
-void qvr::meleeshow::draw(const glm::vec3& eye)
+namespace
 {
-    if(vr_debug_melee_blades.value == 0.f || !sv.active)
-    {
-        return;
-    }
+
+// One hand's (or an armed humanoid's weapon's) last frames; TRUE if it drew any.
+bool drawHand(const ShowHand& h, const glm::vec3& eye, float now)
+{
     const glm::vec4 white{1.f, 1.f, 1.f, 0.85f};
     const glm::vec4 yellow{1.f, 0.9f, 0.1f, 0.95f};
     const glm::vec4 red{1.f, 0.15f, 0.15f, 0.95f};
-    const float now = showNow();
-    for(ShowHand& h : meleeShows)
+    bool drew = false;
+    if(h.last < 0)
     {
-        if(h.last < 0)
+        return false;
+    }
+    float lastHitTime = -1.f;
+    for(const ShowHit& hit : h.hits)
+    {
+        lastHitTime = za::max(lastHitTime, hit.time);
+    }
+    // The sweeps, newest first, fading out: the lines the sweep tested, and the blade's surface between two poses.
+    for(int k = 0; k < frameMost; ++k)
+    {
+        const ShowFrame& f = h.frames[(h.last - k + frameMost) % frameMost];
+        const float age = now - f.time;
+        if(f.time < 0.f || age < 0.f || age > sweepFade)
+        {
+            break;
+        }
+        drew = true;
+        const float fade = 1.f - age / sweepFade;
+        const glm::vec4 c = f.hit ? red : (f.fast ? yellow : white);
+        for(int i = 0; i < f.ribs; ++i)
+        {
+            lines::line(f.ribFrom[i], f.ribTo[i], 0.2f, faded(c, fade * 0.8f), faded(c, fade * 0.8f));
+        }
+        lines::line(f.grip, f.tip, 0.25f, faded(c, fade * 0.6f), faded(c, fade * 0.6f));
+        const ShowFrame& o = h.frames[(h.last - k - 1 + frameMost) % frameMost];
+        if(k + 1 < frameMost && o.time >= 0.f && f.time - o.time > 0.f && f.time - o.time <= joinGap)
+        {
+            const glm::vec4 s = faded(c, fade * 0.22f);
+            lines::triangle(o.grip, o.tip, f.tip, s, true);
+            lines::triangle(o.grip, f.tip, f.grip, s, true);
+        }
+    }
+    // The blow line now: the hand to the tip bold, the near end behind the hand thinner; the head's box.
+    const ShowFrame& f = h.frames[h.last];
+    if(f.time >= 0.f && now >= f.time && now - f.time <= lineKeep)
+    {
+        drew = true;
+        const glm::vec4 c = (lastHitTime >= 0.f && now - lastHitTime <= hitRed) ? red : (f.fast ? yellow : white);
+        lines::line(f.grip, f.tip, 0.6f, c, c);
+        lines::line(f.nearEnd, f.grip, 0.25f, faded(c, 0.4f), faded(c, 0.4f));
+        lines::point(f.grip, 1.2f, c);
+        lines::point(f.tip, 1.2f, c);
+        if(f.head)
+        {
+            headBox(f, c);
+        }
+    }
+    // The blows landed: a red dot where each struck, its damage above it.
+    for(const ShowHit& hit : h.hits)
+    {
+        const float age = now - hit.time;
+        if(hit.time < 0.f || age < 0.f || age > hitKeep)
         {
             continue;
         }
-        float lastHitTime = -1.f;
-        for(const ShowHit& hit : h.hits)
+        drew = true;
+        const float fade = 1.f - age / hitKeep;
+        // (A white cross round the red dot: it stands out of the blood the blow sprays there.)
+        const glm::vec4 w = faded(white, za::max(0.3f, fade));
+        for(int axis = 0; axis < 3; ++axis)
         {
-            lastHitTime = za::max(lastHitTime, hit.time);
+            glm::vec3 d{0.f};
+            d[axis] = 3.f;
+            lines::line(hit.at - d, hit.at + d, 0.3f, w, w);
         }
-        // The sweeps, newest first, fading out: the lines the sweep tested, and the blade's surface between two poses.
-        for(int k = 0; k < frameMost; ++k)
+        lines::point(hit.at, 2.f, faded(red, za::max(0.3f, fade)));
+        if(hit.damage >= 0.f)
         {
-            const ShowFrame& f = h.frames[(h.last - k + frameMost) % frameMost];
-            const float age = now - f.time;
-            if(f.time < 0.f || age < 0.f || age > sweepFade)
-            {
-                break;
-            }
-            const float fade = 1.f - age / sweepFade;
-            const glm::vec4 c = f.hit ? red : (f.fast ? yellow : white);
-            for(int i = 0; i < f.ribs; ++i)
-            {
-                lines::line(f.ribFrom[i], f.ribTo[i], 0.2f, faded(c, fade * 0.8f), faded(c, fade * 0.8f));
-            }
-            lines::line(f.grip, f.tip, 0.25f, faded(c, fade * 0.6f), faded(c, fade * 0.6f));
-            const ShowFrame& o = h.frames[(h.last - k - 1 + frameMost) % frameMost];
-            if(k + 1 < frameMost && o.time >= 0.f && f.time - o.time > 0.f && f.time - o.time <= joinGap)
-            {
-                const glm::vec4 s = faded(c, fade * 0.22f);
-                lines::triangle(o.grip, o.tip, f.tip, s, true);
-                lines::triangle(o.grip, f.tip, f.grip, s, true);
-            }
+            char text[16];
+            q_snprintf(text, sizeof(text), "%.1f", static_cast<double>(hit.damage));
+            const glm::vec3 at = hit.at + glm::vec3{0.f, 0.f, 6.f};
+            const glm::vec3 toText = at - eye;
+            text3d::queueOverlay(text, at, glm::vec3{0.f, glm::degrees(za::atan2(toText.y, toText.x)), 0.f}, 0.1f);
         }
-        // The blow line now: the hand to the tip bold, the near end behind the hand thinner; the head's box.
-        const ShowFrame& f = h.frames[h.last];
-        if(f.time >= 0.f && now - f.time <= lineKeep)
+    }
+    return drew;
+}
+
+} // namespace
+
+void qvr::meleeshow::draw(const glm::vec3& eye)
+{
+    const bool blades = vr_debug_melee_blades.value != 0.f;
+    const bool foes = vr_enemy_melee_arc_show.value != 0.f;
+    if((!blades && !foes) || !sv.active)
+    {
+        return;
+    }
+    const float now = showNow();
+    if(blades)
+    {
+        for(const ShowHand& h : meleeShows)
         {
-            const glm::vec4 c = (lastHitTime >= 0.f && now - lastHitTime <= hitRed) ? red : (f.fast ? yellow : white);
-            lines::line(f.grip, f.tip, 0.6f, c, c);
-            lines::line(f.nearEnd, f.grip, 0.25f, faded(c, 0.4f), faded(c, 0.4f));
-            lines::point(f.grip, 1.2f, c);
-            lines::point(f.tip, 1.2f, c);
-            if(f.head)
-            {
-                headBox(f, c);
-            }
+            drawHand(h, eye, now);
         }
-        // The blows landed: a red dot where each struck, its damage above it.
-        for(const ShowHit& hit : h.hits)
+    }
+    if(foes)
+    {
+        // (Show Melee Arcs: the armed humanoids' swings, as the hands' are drawn)
+        bool any = false;
+        for(const FoeShow& s : foeShows.slots)
         {
-            const float age = now - hit.time;
-            if(hit.time < 0.f || age < 0.f || age > hitKeep)
+            if(s.ent > 0 && drawHand(s.h, eye, now))
             {
-                continue;
-            }
-            const float fade = 1.f - age / hitKeep;
-            // (A white cross round the red dot: it stands out of the blood the blow sprays there.)
-            const glm::vec4 w = faded(white, za::max(0.3f, fade));
-            for(int axis = 0; axis < 3; ++axis)
-            {
-                glm::vec3 d{0.f};
-                d[axis] = 3.f;
-                lines::line(hit.at - d, hit.at + d, 0.3f, w, w);
-            }
-            lines::point(hit.at, 2.f, faded(red, za::max(0.3f, fade)));
-            if(hit.damage >= 0.f)
-            {
-                char text[16];
-                q_snprintf(text, sizeof(text), "%.1f", static_cast<double>(hit.damage));
-                const glm::vec3 at = hit.at + glm::vec3{0.f, 0.f, 6.f};
-                const glm::vec3 toText = at - eye;
-                text3d::queueOverlay(text, at, glm::vec3{0.f, glm::degrees(za::atan2(toText.y, toText.x)), 0.f}, 0.1f);
+                any = true;
             }
         }
+        foeShows.drawnFrames += any ? 1 : 0;
     }
 }

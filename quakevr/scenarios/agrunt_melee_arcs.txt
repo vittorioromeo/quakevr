@@ -1,0 +1,8 @@
+# agrunt_melee_arcs: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Show Melee Arcs with armed humanoids: each one's floor arc and reach, and its swinging blade's trail as Show Melee Blades draws yours.
+title Show Melee Arcs: a sword grunt and an axe grunt coming at you (god)
+map vrtesthall
+god
+cvar vr_enemy_melee_arc_show 1
+spawn "Armed Grunt: Sword" 320 60
+spawn "Armed Grunt: Axe" 320 -60
+hint Show Melee Arcs is on: each armed grunt draws its arc and reach on the floor (red with you inside), and as it swings its sword or axe leaves a fading trail like your own Show Melee Blades sweeps (white winding up, yellow in the swing, red when the blow lands).
