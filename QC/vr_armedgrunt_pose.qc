@@ -200,6 +200,11 @@ float(entity g, entity p) VR_AGH_Hands =
     return h_x;
 };
 
+// A pole weapon (the spear; vr_poleweapon.qc VR_PoleWeapon: its slot's data): held in both hands on its shaft, its head
+// at the target, thrust (VR_AGP_Melee).
+float(float xWid, float xFlags) VR_PoleWeapon;
+float(entity p) VR_AGP_Pole = { return p && VR_PoleWeapon(p.weapon, p.weaponflags); };
+
 // Melee weapons held in both hands (the left hand on the weapon's second grip): the Weapon Holds' (Auto: the axe in one
 // hand, the heavy ones in two), else the heavy ones; the others are swung in the right hand.
 float(entity p) VR_AGP_TwoHanded =
@@ -209,6 +214,10 @@ float(entity p) VR_AGP_TwoHanded =
         return FALSE; // (two held: one in each hand)
     }
     float h = VR_AGH_Hands(p.owner, p);
+    if(VR_AGP_Pole(p))
+    {
+        return vr_agh_set != 1; // (a pole weapon in both hands unless its Weapon Holds row says One-Handed)
+    }
     return h ? (h == 2) : VR_AGP_Heavy(p);
 };
 
@@ -559,7 +568,22 @@ float(entity g) VR_AGP_RightSwings = { return !g.vr_ag_prop2 || g.vr_ag_act_hand
 float(entity g, entity p) VR_AGP_SwingOneHand =
 {
     return g.vr_ag_act == VR_AGP_SWING && p && p.weapon != WID_CHAINSAW &&
-           !g.vr_ag_prop2;
+           !g.vr_ag_prop2 && !VR_AGP_Pole(p); // (a pole weapon's thrust: both hands stay on the shaft)
+};
+
+// A pole weapon (VR_AGP_Pole) ready: its right hand's grip low at its right hip (its body's space), the head at the target;
+// its thrust drawn back and driven out along the line (units).
+vector VR_AGP_POLE_READY = '3 -5 5';
+float VR_AGP_POLE_DRAW = 4;
+float VR_AGP_POLE_SPAN = 11; // its off hand this far along the line ahead of the right (within its reach from its left shoulder)
+float VR_AGP_POLE_REACH = 8;
+
+// Its line from the grip at the target `tl` (its body's space), never back past its side.
+vector(vector tl) VR_AGP_PoleAim =
+{
+    vector d = tl - VR_AGP_POLE_READY;
+    d_x = max(d_x, 8);
+    return normalize(d);
 };
 
 vector vr_agp_sawat; // (VR_AGP_SawHold's out: the grip, VR_AGP_Melee's space; the bar's way, its body's)
@@ -572,6 +596,7 @@ vector(entity p, vector at, vector fw) VR_AGP_SawReach;
 void(entity g, entity p) VR_AGP_Melee =
 {
     float saw = p.weapon == WID_CHAINSAW;
+    float pole = !saw && VR_AGP_Pole(p);
     g.vr_ag_readyw = VR_AGP_Ease(g.vr_ag_readyw, 0.7, 3);
     vector ready = saw ? VR_AGP_SAW_READY : VR_AGP_READY;
     vector readyFw = normalize(saw ? VR_AGP_SAW_FW : VR_AGP_READY_FW);
@@ -590,6 +615,14 @@ void(entity g, entity p) VR_AGP_Melee =
         ready = VR_Lerp(sawCarry, vr_agp_sawat, rk);
         readyFw = VR_AGP_Nlerp(sawCarryFw, vr_agp_sawfw, rk);
     }
+    else if(pole)
+    {
+        // (a pole weapon: carried at port arms as other two-handed ones; ready, low and level at its right hip in both
+        // hands, its head at the target)
+        VR_AGP_Body(g);
+        ready = VR_Lerp(VR_AGP_PORT, VR_AGP_POLE_READY, rk);
+        readyFw = VR_AGP_Nlerp(normalize(VR_AGP_PORT_FW), VR_AGP_PoleAim(VR_AGP_TargetLocal(g)), rk);
+    }
     else
     {
         ready = VR_Lerp(two ? VR_AGP_PORT : VR_AGP_CARRY_R, ready, rk);
@@ -599,7 +632,44 @@ void(entity g, entity p) VR_AGP_Melee =
     vector fw = readyFw;
     vector edge = '1 0 0';
     float s = time - g.vr_ag_act_at;
-    if((g.vr_ag_act == VR_AGP_SWING || g.vr_ag_act == VR_AGP_SAW) && VR_AGP_RightSwings(g))
+    if(pole && g.vr_ag_act == VR_AGP_SWING && VR_AGP_RightSwings(g))
+    {
+        // A pole weapon's thrust: drawn back along its line, driven out along it at the target, the blow struck on the way
+        // out; both hands stay on the shaft (VR_AGP_SwingOneHand).
+        VR_AGP_Times(g);
+        VR_AGP_Body(g);
+        vector pfw = VR_AGP_PoleAim(VR_AGP_TargetLocal(g));
+        vector pback = VR_AGP_POLE_READY - pfw * VR_AGP_POLE_DRAW;
+        vector pout = VR_AGP_POLE_READY + pfw * VR_AGP_POLE_REACH;
+        float pts = vr_agp_tw + vr_agp_ts;
+        if(s < vr_agp_tw)
+        {
+            float pu = VR_Smooth(s / vr_agp_tw);
+            pos = VR_Lerp(ready, pback, pu);
+            fw = VR_AGP_Nlerp(readyFw, pfw, pu);
+        }
+        else if(s < pts)
+        {
+            float pu1 = VR_Smooth((s - vr_agp_tw) / vr_agp_ts);
+            pos = VR_Lerp(pback, pout, pu1);
+            fw = pfw;
+            if(!g.vr_ag_act_hit && pu1 >= 0.55)
+            {
+                g.vr_ag_act_hit = 1;
+                VR_AGP_Body(g);
+                VR_AGP_Strike(g, p, g.origin + VR_AGP_ToWorld(pos), normalize(VR_AGP_ToWorld(pfw)));
+                VR_AGP_Body(g);
+            }
+        }
+        else
+        {
+            float pu2 = VR_Smooth(min(1, (s - pts) / max(vr_agp_tr, 0.01)));
+            pos = VR_Lerp(pout, ready, pu2);
+            fw = VR_AGP_Nlerp(pfw, readyFw, pu2);
+        }
+        edge = '0 0 1';
+    }
+    else if((g.vr_ag_act == VR_AGP_SWING || g.vr_ag_act == VR_AGP_SAW) && VR_AGP_RightSwings(g))
     {
         VR_AGP_Times(g);
         vector tl = VR_AGP_TargetLocal(g);
@@ -678,7 +748,20 @@ void(entity g, entity p) VR_AGP_Melee =
     vr_agp_fw = VR_AGP_ToWorld(fw);
     vr_agp_up = VR_AGP_ToWorld(edge);
     vr_agp_wo = 0;
-    if(!two || VR_AGP_SwingOneHand(g, p))
+    if(pole && two)
+    {
+        // (its off hand on the shaft ahead of the right, VR_AGP_POLE_SPAN along its line: the slot's grip hotspot is the
+        // player's, off the shaft; in a thrust it keeps its place and the shaft slides through it)
+        float span = VR_AGP_POLE_SPAN;
+        if(g.vr_ag_act == VR_AGP_SWING)
+        {
+            span = max(5, min(VR_AGP_POLE_SPAN + VR_AGP_POLE_DRAW, (VR_AGP_POLE_READY + fw * VR_AGP_POLE_SPAN - pos) * fw));
+        }
+        vr_agp_flags = VR_AGP_LEFT;
+        vr_agp_wl = 1;
+        vr_agp_vl = VR_AM_Fit(g, pos + fw * span) - vr_am_anchor_at;
+    }
+    else if(!two || VR_AGP_SwingOneHand(g, p))
     {
         vr_agp_flags = VR_AGP_LEFT;
         vr_agp_wl = 1;
@@ -1607,6 +1690,10 @@ void(entity g, entity p) VR_AGK_Keys =
     float base = g.vr_ag_kind * VR_AGK_KIND + cls * VR_AGK_CLASS;
     vector st = weapondrawnpose(world, g.vr_ag_kind * 100 + cls, 28);
     vr_agk_stretch = st_x * VR_AGK_TugStretch(g);
+    if(VR_AGP_Pole(p) && g.vr_ag_took_at <= 0)
+    {
+        return; // (a pole weapon: no keys, none authored for its hold; VR_AGP_Melee's own pole pose)
+    }
     float wc = 0; // (the cast's: its Cast key, his off hand's palm at you; VR_AGP_CAST)
     if(g.vr_ag_act == VR_AGP_CAST)
     {

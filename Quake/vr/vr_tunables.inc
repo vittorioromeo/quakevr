@@ -2470,6 +2470,7 @@ QVR_TUNABLE(vr_embed_sword_speed, "2.5") // m/s a thrown sword's tip must go at 
 QVR_TUNABLE(vr_embed_sword_tip, "12") // % of the way from the hand to the tip that counts as its point when it goes in first
 QVR_TUNABLE(vr_embed_sword_angle, "35") // degrees at most between the way the tip goes and the blade's line (more: side on, it bounces)
 QVR_TUNABLE(vr_embed_sword_incidence, "65") // degrees at most between the way the tip goes and straight into the surface
+QVR_TUNABLE(vr_embed_pole_incidence, "70") // a thrown pole weapon (the spear) in a body: degrees at most off straight in (the lesser of the surface's and the body's middle's)
 QVR_TUNABLE(vr_embed_sword_wall, "0.4") // times that depth in walls, doors and props
 QVR_TUNABLE(vr_embed_sag_stiffness, "170") // 1/s^2: how hard a wall holds a stuck sword's blade up (its gravity's pull 1.5 g / length: less, it sags further)
 QVR_TUNABLE(vr_embed_sag_damping, "5") // 1/s: how fast its swing dies
