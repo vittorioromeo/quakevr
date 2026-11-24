@@ -6,7 +6,9 @@
 //   `vr_embed_test 58`: the knight's sword, the dagger, the spear, then the dagger in a flipped grip (a stab down), each at a
 //     grunt ahead: V hurts it, the blade stuck by its point, fire presses pull it out, back in the hand; then the axe: V
 //     still its swing (the script checks the engine's "overhead swing" line).
-//   `vr_embed_test 59`: the same with what the main hand already holds (Dwell's Crystal Lance: vr_ad_test 207 first).
+//   `vr_embed_test 59`: the same with what the main hand already holds (Dwell's Crystal Lance: vr_ad_test 207 first);
+//     then (lancepull) H with it stuck: the hand lets go, it stays in the grunt (flatembed: VR_Forcegrab_FlatDropHand).
+//     The grunt held still, so neither the stick nor the stay is the chance of its moving off (flatlance_test.sh's ogres).
 // Each case prints "flatthrust: case <name>" before its V, so the script can pair it with the engine's punch line.
 // With `scratch1 1`, 58 takes screenshots: the sword at rest, then the sword's and the daggers' windup and strike.
 // Ends `flatthrust: N passed, M failed`.
@@ -17,7 +19,22 @@ float vr_ft_wid;    // the case's weapon (0: what the hand holds)
 float vr_ft_flags;  // and its flags
 float vr_ft_ahead;  // the grunt this far ahead
 float vr_ft_stuck;  // the blade stuck in the case
+entity vr_ft_held;  // the H case's stuck blade, let go of
 string vr_ft_name;
+
+// The H case (test 59's second): H with the Lance stuck, not the fire presses.
+float() VR_FT_DropCase = { return vr_et_on == 59 && vr_et_case == 1; };
+
+// The next case: test 59's H case keeps the Lance the hand has back (VR_EH_NextCase empties the hand).
+void() VR_FT_Next =
+{
+    if(vr_et_on == 59 && vr_et_case == 0)
+    {
+        VR_ET_NextCase();
+        return;
+    }
+    VR_EH_NextCase();
+};
 
 void() VR_FT_Case =
 {
@@ -25,7 +42,7 @@ void() VR_FT_Case =
     vr_ft_wid = WID_SWORD;
     vr_ft_flags = 0;
     vr_ft_ahead = 40;
-    if(vr_et_on == 59) { vr_ft_wid = 0; vr_ft_ahead = 42; vr_ft_name = "held (the Lance)"; return; }
+    if(vr_et_on == 59) { vr_ft_wid = 0; vr_ft_ahead = 42; vr_ft_name = c == 1 ? "held (the Lance), H" : "held (the Lance)"; return; }
     if(c == 0) { vr_ft_name = "sword"; return; }
     if(c == 1) { vr_ft_flags = VR_ADMelee_Flags(VR_SWORDKIND_DAGGER); vr_ft_ahead = 32; vr_ft_name = "dagger"; return; }
     if(c == 2) { vr_ft_flags = VR_ADMelee_Flags(VR_SWORDKIND_SPEAR); vr_ft_ahead = 42; vr_ft_name = "spear"; return; }
@@ -43,7 +60,7 @@ void() VR_FT_Case =
 float vr_ft_shot;   // screenshots taken in this thrust (scratch1 1: VR_FT_Shots)
 float() VR_FT_Shots = { return (cvar_hget(cvarh_scratch1) == 1) && (vr_et_on == 58) && (vr_et_case != 2) && (vr_et_case != 4); };
 
-float() VR_FT_Last = { return vr_et_on == 59 ? 0 : 4; };
+float() VR_FT_Last = { return vr_et_on == 59 ? 1 : 4; };
 
 void(float xOn) VR_FT_Begin =
 {
@@ -72,7 +89,7 @@ void() VR_FT_Frame =
     if(t > VR_ET_GIVEUP)
     {
         VR_Test_Check(FALSE, sprintf("timed out: case %s state %g", vr_ft_name, vr_et_s));
-        VR_EH_NextCase();
+        VR_FT_Next();
         return;
     }
     if(vr_et_case > VR_FT_Last())
@@ -131,13 +148,27 @@ void() VR_FT_Frame =
         if(vr_ft_wid == WID_AXE)
         {
             dprint(sprintf("flatthrust: the axe's V did %g damage\n", dmg));
-            VR_EH_NextCase();
+            VR_FT_Next();
             return;
         }
         VR_Test_Check(dmg > 0, sprintf("%s: V's thrust hurts a grunt %g ahead (%g damage)", vr_ft_name, vr_ft_ahead, dmg));
         vr_ft_stuck = ((w != world) && (w.vr_stick_embed == AXESTICK_POINT));
         VR_Test_Check(vr_ft_stuck, sprintf("%s: stuck in it by its point (depth %.1f units)", vr_ft_name, (w != world) ? w.vr_stick_depth : 0));
         VR_ET_To(3);
+    }
+    else if(vr_et_s == 3 && VR_FT_DropCase() && w != world && t > 0.75)
+    {
+        vr_ft_held = w;
+        localcmd("impulse 47\n"); // (H: flat play's drop key, VR_Forcegrab_FlatDropHand)
+        VR_ET_To(5);
+    }
+    else if(vr_et_s == 5 && t > 1) // (H taken, and a second for anything carrying it out)
+    {
+        float still = vr_ft_held != world && VR_AxeStick_IsStuck(vr_ft_held);
+        VR_Test_Check(w == world && VRIsHandWeaponless(p, h), sprintf("%s: H lets go of the stuck Lance, the hand empty", vr_ft_name));
+        VR_Test_Check(still, sprintf("%s: it stays in the grunt (depth %.1f units)", vr_ft_name, still ? vr_ft_held.vr_stick_depth : 0));
+        vr_ft_held = world;
+        VR_FT_Next();
     }
     else if(vr_et_s == 3 && w != world && t > 0.75 && vr_ft_n < 8) // (the last pull's 0.65 s over)
     {
@@ -157,7 +188,7 @@ void() VR_FT_Frame =
             VR_Test_Check(w == world && VRGetEntWeapon(p, h) != WID_FIST,
                 sprintf("%s: fire pulls it out (%g presses), back in the hand", vr_ft_name, vr_ft_n));
         }
-        VR_EH_NextCase();
+        VR_FT_Next();
     }
 };
 #endif
