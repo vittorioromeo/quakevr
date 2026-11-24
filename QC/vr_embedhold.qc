@@ -1240,6 +1240,14 @@ void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, flo
 // helps hold it): 1 it is; 0 it won't; -1 not yet: the blade as drawn is `vr_embed_gap` units off its drawn model.
 float(float xHand, entity m, float xModel, vector xAt, vector xVel) VR_Embed_Try =
 {
+    // Flatscreen play's hands can neither hold a weapon stuck in a body nor pull it out: one left in was let go at once
+    // ("out of the arm's reach"), the hand empty. (lance4, his flat note 2026-11-24: the Crystal Lance's thrust left it in
+    // an ogre; the next weapon key gave a plain lightning gun, empty, which dropped its magazine.) It stays in the hand.
+    if(VR_FlatPlay(self))
+    {
+        VR_Embed_Say("NOT STUCK: flatscreen play (the weapon stays in the hand)");
+        return 0;
+    }
     if(m.vr_gib || m.modelindex != xModel || m.model == string_null || VRIsHandWeaponless(self, xHand))
     {
         VR_Embed_Say(sprintf("NOT STUCK: %s", VRIsHandWeaponless(self, xHand) ? "the hand holds nothing now" : "the blow gibbed it or took its model"));
