@@ -12092,3 +12092,33 @@ His flatscreen feedback 2026-11-24 (two items), and the coordinator's: his tunab
 - **make_release** (beta3's command, -Version 1.2.0-beta4) on 66a6be17: beta profile 12 passed, 0 failed (4.3 min);
   installer self-tests 60/60; check_apk 28/0; smoke launch; published as a prerelease with QuakeVR.zip,
   QuakeVR-Setup.exe, QuakeVR.apk, latest.json, SHA256SUMS.txt; online check passed; Latest still v1.1.0.
+
+## sighthue: the front sight post in its own hue (agent/sighthue, 2026-11-24)
+
+His ask: on the guns with coloured iron sights (two rear notches, one front post) the front post a different hue
+from the rear, on by default, the difference a cvar.
+
+- **`vr_sight_front_hue_shift`** (archived, default **240**; 0 = one colour, as before): degrees the front post's hue
+  is turned from the rear notches' (which keep `vr_sight_hue`, -1 following `vr_player_hue`; saturation unchanged).
+  VR Settings > Colours, under Weapon Sight Saturation (the page flat play uses too). With the default player hue 100
+  the rear reads yellow-green and the front pink; 120 gave a pale lavender that read close to white in the eyeshots,
+  300 orange, 260 salmon.
+- **How:** the sights are palette entries (224..239, 252, 253) in each skin, so the front post can't be told apart by
+  colour. `vr_sights.cpp` `frontPosts`: per model, the skin rectangle of the front post's sight patch (each skin maps
+  both rear ears onto one patch, the front post onto another), with the skin's size (another size, e.g. a repaint or
+  a mod's model, keeps one colour). `VR_SightPalette` also makes the front palette; `VR_SightFront` (gl_texmgr.c,
+  right after the 8-to-32 conversion) sets the sight texels inside that rectangle (2 texels of margin for the edge
+  fill) from it. The cvar's callback reloads the skins as the other sight cvars do.
+- **Guns:** shotgun (+ the auto pump's body and fore-end), double shotgun (+ the broken-open frame and barrels),
+  lightning gun and plasma gun, nail pistol. Not the shotgun's pickup (its fire texels are one big patch, never aimed
+  down) nor the nail pistol's preview (no sight texels).
+- **The table** comes from `Misc/quakevr/sight_front_posts.py` (from quakevr/progs: `python
+  ../../Misc/quakevr/sight_front_posts.py v_shot.mdl ...`): each skin's sight patches placed by the frame-0 triangles
+  mapping them; the patch furthest forward (+x) is the front post; a part model mapping none takes its gun's. Rerun it
+  after repainting a sighted skin.
+- **Test:** `vr_sight_front_test` (no map needed): per table entry, the model's skin size, sight texels in the front
+  patch and outside it, and the upload's colours with the current settings (front texels at the rear's hue + shift,
+  the rest at the rear's, within 8 degrees). 9 passed, 0 failed at the default and at `vr_sight_hue 200;
+  vr_sight_front_hue_shift 0`. Eyeshots (flat ironsight, shift 0 | 240): shotgun, double shotgun, lightning gun.
+- Scene `sight_front_hue` (vrtesthall: the shotgun in hand, the double shotgun, the lightning gun and the nail pistol
+  beside you).

@@ -2332,6 +2332,7 @@ vr_gadget_tint|1|Colours|Casing Tint|Advanced VR Options > HUD and Menus > Colou
 vr_gadget_tint_hue|1|Colours|Casing Tint Hue|Advanced VR Options > HUD and Menus > Colours > Casing Tint Hue
 vr_sight_hue|1|Colours|Weapon Sight Hue|Advanced VR Options > HUD and Menus > Colours > Weapon Sight Hue
 vr_sight_saturation|1|Colours|Weapon Sight Saturation|Advanced VR Options > HUD and Menus > Colours > Weapon Sight Saturation
+vr_sight_front_hue_shift|1|Colours|Front Sight Hue Shift|Advanced VR Options > HUD and Menus > Colours > Front Sight Hue Shift
 vr_forcegrab_hue|1|Colours|Force Grab Hue|Advanced VR Options > HUD and Menus > Colours > Force Grab Hue
 vr_forcegrab_saturation|1|Colours|Force Grab Saturation|Advanced VR Options > HUD and Menus > Colours > Force Grab Saturation
 vr_teleport_hue|1|Colours|Teleport Arc Hue|Advanced VR Options > HUD and Menus > Colours > Teleport Arc Hue

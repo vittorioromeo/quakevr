@@ -870,6 +870,7 @@ int doomPageGeneration = -1; // the WAD search the Doom page's rows were built f
         hueSlider("Weapon Sight Hue", vr_sight_hue)
             .help("The glowing iron sights of the shotgun and double shotgun: 30 their own orange, 0 red, 120 green, 240 blue. Player's: the Player Effects Hue."),
         row(opt::vr_sight_saturation),
+        row(opt::vr_sight_front_hue_shift),
         hueSlider("Force Grab Hue", vr_forcegrab_hue)
             .help("The force grab's beam, energy tendril, glow and sparkles: 215 its old blue. Player's: the Player Effects Hue."),
         row(opt::vr_forcegrab_saturation),

@@ -422,6 +422,10 @@ float VR_BrushAOSelf (const struct entity_s *e);
 // Quake would use) or, for a sighted weapon's skin with a hue other than the sights' own, a copy of
 // it with the sight colours recoloured (valid until the next call).
 unsigned int* VR_SightPalette(const char* texname, unsigned int* palette);
+// TexMgr_LoadImage8, after the conversion with VR_SightPalette's palette: a sighted weapon's front post set apart
+// (vr_sight_front_hue_shift): its sight texels in `data32` given the front sight's colour. `data8` the indices
+// converted, `width` x `height` both images' size (padded), `srcw` x `srch` the skin's own size.
+void VR_SightFront(const char* texname, const unsigned char* data8, unsigned int* data32, int width, int height, unsigned int srcw, unsigned int srch);
 
 // Clean weapon skins (vr_cleanskins.cpp; see vr_cleanskins.hpp). TexMgr_LoadImage8 and TexMgr_LoadImage32: the pixels
 // the texture `name` (width x height, bpp 1 or 4 bytes a pixel) is uploaded with: `data`, or a copy (in the hunk, above
