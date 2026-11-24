@@ -64,6 +64,10 @@ SC="$SC; vr_flat_pole_track 1; wait36; echo flt: pstill; $PR; +forward; wait36; 
 SC="$SC; +back; wait36; -back; wait20; echo flt: pback; $PR; +moveright; wait24; -moveright; +moveleft; wait24; -moveleft; wait20; echo flt: pstrafe; $PR"
 SC="$SC; +right; wait72; -right; wait20; echo flt: pturn; $PR; +right; +forward; wait36; -forward; +back; wait36; -right; -back; wait20; echo flt: pwalkturn; $PR"
 SC="$SC; vr_flat_punch main v; wait50; echo flt: pthrust; $PR; vr_flat_pole_track 0"
+# (polewall: at a wall, head-on (vr_flat_wall_slide 0: the along-the-wall share kept hold anyway), vrtesthall's wall north
+# of 0 560: walked 22 frames into it, held 72 (the tilt's ease), the Lance tilted up and the other hand still pinned on it.)
+SC="$SC; map vrtesthall; wait60; god; notarget; vr_ad_test 207; wait60; tune vr_flat_wall_slide 0; setpos 0 560 25 0 90 0; wait20"
+SC="$SC; vr_flat_pole_track 1; +forward; wait22; -forward; wait72; echo flt: pwall; $PR; vr_flat_pole_track 0; tune_reset vr_flat_wall_slide"
 SC="$SC; vr_flat_melee_probe done; wait2; echo flatlance: done; toggleconsole; quit"
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$SC" -QuitOn "^flatlance: done" -Timeout 400 \
   -Filter '^flt:|^flatlance|^flathud: right|^ammo|flatreload: b|revgrip: hand|spear:|spear hands:|spear places:|spear thrust|^poletrack: report|^flatmelee: main|dwlance: a thrust|2h grip|test hurt:|embedhold:|flat reload:|flat drop:|ERROR|CRASH' > "$L" 2>&1
@@ -164,5 +168,10 @@ for b in pfwd pback pstrafe pturn pwalkturn pthrust; do
 done
 alo=$(pr pthrust 4); ahi=$(pr pthrust 5); ar=$(pr pthrust 8)
 check $(ok "\"$alo\" != \"\" && $alo > $sp - 10 && $alo < $sp - 6 && $ahi > $sp + 14") "the thrust: drawn back the hand stays (along to ${ahi:-?}: the 16 drawn back), thrust out it slides back 8 along the pole (along to ${alo:-?}); the other arm stretched x${ar:-?}"
+# polewall: at the wall the other hand stays pinned on the tilted pole (before: let go, 18 off). Off the pole by at most 3.5
+# more than standing (4.4 held at the wall, 5.2 in the tilt's ease, against 2.3: the hand's drawn turn on the tilted pole, open), along within 2.
+wlo=$(pr pwall 2); whi=$(pr pwall 3); wplo=$(pr pwall 6); wphi=$(pr pwall 7)
+check $(ok "\"$whi\" != \"\" && $whi <= $so + 3.5 && $wplo >= $sp - 2 && $wphi <= $sp + 2") \
+  "pwall: the Lance tilted at a wall, the other hand on it: off ${wlo:-?} .. ${whi:-?} (standing $so), along ${wplo:-?} .. ${wphi:-?} (standing $sp)"
 verdict
 exit $fail
