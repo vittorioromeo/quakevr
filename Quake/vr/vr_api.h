@@ -1018,7 +1018,7 @@ const char *VR_CampaignTag(int index);   // its status in a word or two ("missin
 const char *VR_CampaignHelp(int index);
 void VR_SelectCampaign(int index);
 int VR_CampaignUnavailable(int index);
-int VR_CampaignInstalled(int index); // data complete (the experimental rows are offered on this alone)
+int VR_CampaignInstalled(int index); // data complete, and any campaign's it needs (Quoth: AD's) (the experimental rows are offered on this alone)
 int VR_CampaignExperimental(int index); // AD's, Dwell's: a notice first, then their developer launch
 // Setup's preparation's walk through the campaigns (vr_prepare.cpp).
 int VR_CampaignCount(void);
