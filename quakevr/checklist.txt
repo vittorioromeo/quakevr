@@ -51,6 +51,9 @@ Flat-screen: swing the axe into a grunt with the mouse button: nearly every swin
 Flat-screen: V with a sword, a dagger or the spear thrusts it like the Crystal Lance (drawn back, stabbed out along the blade at the crosshair, back); into a grunt it sticks by the point and the fire button pulls it out; a flipped dagger (B) stabs down; the fire button still swings, and the axe's V is still its swing. {test:flat_thrust_blades}
 Throw the spear point first at the grunt, standing and as it runs about: it stays in the body nearly every time instead of skidding off. {test:spear}
 An armed grunt with the spear holds it low and level in both hands with the head pointed at you, and its attack is a forward thrust that hurts, not a sword swing. {test:agrunt_spear}
+Flat-screen: hold the Crystal Lance as a spear and walk straight into a wall: the Lance tilts up and the other hand stays on the pole, riding up with it, and back on it as you back off. {test:flat_lance}
+Flat-screen: climb a pole, hold crouch to slide down: the arms straighten smoothly as you drop, no elbow snapping out or straight in one frame. {test:ropes}
+Flat-screen or VR: reach with an arm fully straight (hanging from a pole, or in VR your own arm at full stretch): the drawn elbow eases straight in the last bit instead of snapping, and the arm looks no longer than before (Tunables > Body: Arm Soft Reach, 0 = the old arms). {test:ropes}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
