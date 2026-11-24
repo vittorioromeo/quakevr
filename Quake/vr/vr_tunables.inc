@@ -2284,6 +2284,15 @@ QVR_TUNABLE(vr_flat_thrust_dwell_time, "0.08") // seconds held out
 QVR_TUNABLE(vr_flat_thrust_back_time, "0.25") // seconds back to the spear pose
 QVR_TUNABLE(vr_flat_thrust_off_slide, "8") // thrust out, the other hand rides with the pole, sliding back along it this far at the full reach (units; 0 carried all the way, the thrust's reach: stays put)
 QVR_TUNABLE(vr_flat_thrust_arm_stretch, "1.3") // the arms' IK may stretch to this (times their length; vr_body_arm_stretch when not thrusting) as the thrust goes out, so the other hand keeps on the pole
+// The one-handed thrust (flatthrust, his decision 2026-11-24): V with a blade stuck in by its point (weapons.txt embed 1).
+QVR_TUNABLE(vr_flat_thrust_blades, "1") // flatscreen: V with a stabbing blade (a sword, a dagger) thrusts it as the spear does (0: V swings it as its fire button does)
+QVR_TUNABLE(vr_flat_thrust_1h_reach, "14") // a one-handed blade's thrust ends this far out along the blade (units; within the arm's reach)
+QVR_TUNABLE(vr_flat_thrust_1h_wind_back, "8") // its windup draws the fist this far back along the blade
+QVR_TUNABLE(vr_flat_thrust_1h_wind_up, "2") // and up (units; negative down)
+QVR_TUNABLE(vr_flat_thrust_1h_in, "3") // the fist comes this far in towards the middle as the blade turns onto the crosshair (units; negative out)
+QVR_TUNABLE(vr_flat_thrust_1h_near, "48") // the blade points at what the crosshair is on, but never nearer than this along its ray (units)
+QVR_TUNABLE(vr_flat_thrust_1h_rev_down, "40") // a flipped grip stabs down: the blade this far under the crosshair's line (degrees)
+QVR_TUNABLE(vr_flat_thrust_1h_rev_up, "6") // and the fist raised this far (units)
 QVR_TUNABLE(vr_flat_embed_pull, "12") // flatscreen: a blade stuck in a body, its hand's fire button pulls the hand back this far along the blade (units; QC vr_embedhold.qc VR_Embed_FlatHand)
 QVR_TUNABLE(vr_flat_embed_pull_time, "0.2") // seconds of that pull back (and of the hand's way back onto the grip)
 QVR_TUNABLE(vr_flat_embed_pull_hold, "0.25") // seconds held pulled back, the blade following it out by the hold's rules

@@ -4551,6 +4551,14 @@ void() VR_Embed_TestFrame =
         {
             VR_SP_Begin(); // (the spear: vr_spear_test.qc)
         }
+        if(ask == 58)
+        {
+            VR_FT_Begin(58); // (flat V thrusts with the stabbing blades: vr_flatthrust_test.qc)
+        }
+        if(ask == 59)
+        {
+            VR_FT_Begin(59); // (flat V thrusts with what the hand holds: vr_flatthrust_test.qc)
+        }
         if(ask == 42)
         {
             vr_rg_scene = FALSE;
@@ -4807,6 +4815,10 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     else if(vr_et_on == 53)
     {
         VR_SP_Frame(); // (the spear: vr_spear_test.qc)
+    }
+    else if(vr_et_on == 58 || vr_et_on == 59)
+    {
+        VR_FT_Frame(); // (flat V thrusts: vr_flatthrust_test.qc)
     }
     else if(vr_et_on == 42)
     {
