@@ -12597,3 +12597,16 @@ A left-hander's saved config (stick swap etc. on, the new setting off) now shows
 Tests: `vr_button_swap_test` (13 cases + names: 17 passed, 0 failed): A/X jump off/on, the reloads follow the hand
 pressed, B/Y and stick clicks, trigger unchanged, flips while held leave no key or reload stuck. `settings_page_test.py` (23/0): the installer's Left-handed sets it,
 the saved config keeps it, Right-handed clears it. Installer manifest (help text) and menu_paths.txt refreshed.
+
+## split15 (2026-11-24): splitscreen brought up to date with next (agent/split)
+
+- Merged origin/next (420 commits) into agent/split: 41 conflict hunks in 13 files, both sides kept (next's features
+  through the seats' accessors); qvr_checks' seat_state scanner ported onto next's Zancle statics.cpp.
+- next's new per-player state moved into the seat: `seat::Part::FlatSwim`, `LanceCharge` (hum and model tips shared),
+  `WeaponWheel` (drawn in each seat's pass), `ClimbRope` (the let-go pass); twohand's blade fingers/down into `TwoHand`;
+  view_hands' blade blend and rope grasp key into `ViewHands`; new `keydown`/`keybindings`/`in_jump` reads go through the
+  seat (button swap, message tokens, throw key). Headset/game-folder/scratch state marked seat-shared; next's renderer,
+  diagnostic and test globals accepted into the allowlist. Details: SPLITSCREEN.md section 24.
+- Tests: seat_render_test.sh 255/0, seat_play_test.sh 63/0, vr_seat_test 70/0, split_join_test.sh 113/0 (all as
+  split13), flat smoke on e1m1 clean, mp_coop 12/0, checklist_tests_check 90/0, checklist_fold_check 33/0,
+  scenario_check 179/181 (the 2 Quoth kellbase scenes: the kit base has no kellbase1.bsp; not the merge's).

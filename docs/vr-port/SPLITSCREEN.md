@@ -974,3 +974,28 @@ cause of most: client state that must be each seat's was shared, so each seat's 
 - **Not finished: the animation / ragdoll test** (`vr_seat_render_test 2 anim`, steps AnimFind..AnimOneNear, a pose probe
   per seat pass in VR_DebugAliasPose: `seat::poseProbe`): its grunt (`vr_test_spawn 0`, `seat 1 impulse 241`) is never
   found in seat 1's client (times out in AnimFind); not in seat_render_test.sh yet.
+
+## 24. Split15 (2026-11-24): next merged again (420 commits)
+
+### How to try it (for him)
+
+1. As before (`qvr-kit/scratch/play_splitscreen.ps1`), Multiplayer > Splitscreen, A on the controller, Start.
+2. Tonight's features in two seats at once: hold 1 or 2 in seat 1 and the pad's weapon wheel in seat 2 (each tile shows
+   only its own wheel); swim side by side (each seat's strokes and bubbles its own); charge the Crystal Lance in both
+   seats (each charge's sparks and hum on its own player); the flat guard's blade grip and the spear thrust in each seat;
+   a rope or pole each, letting go in turn.
+
+### What changed
+
+- **The merge**: 41 conflict hunks in 13 files, each kept both sides (next's features through the seats' accessors).
+  qvr_checks' statics.cpp went to Zancle on next: the seat_state scanner was ported onto it (`Set`, `sortedItems`).
+- **next's new per-player state is each seat's**: `seat::Part::FlatSwim` (vr_flatswim.cpp `sw()`), `LanceCharge`
+  (vr_lancecharge.cpp `st()`: the charges, their sparks' seed, bolt logs; the hum's sound and the models' tips stay one
+  shared set), `WeaponWheel` (vr_weaponwheel.cpp `ws()`; drawn in each seat's pass with the holster menu,
+  `VR_FlatSeatPanels`), `ClimbRope` (vr_climbrope.cpp `seatRope()`: the let-go pass); vr_twohand.cpp's blade fingers and
+  down into `TwoHand`; vr_view_hands.cpp's blade blend and the rope grasp's key into `ViewHands`. New code reading
+  `keydown`/`keybindings`/`in_jump` (button swap, message tokens, the throw key) reads the seat's (`Key_Seat()`,
+  `CL_SeatInput()`).
+- **Marked seat-shared**: the headset controllers' button swap latches and wheel hold (one headset), the joined
+  campaign (one game folder), scratch buffers filled and read in one call, tests. **Allowlisted** (`--accept`): next's
+  renderer (bmodel batching, stereo, tonemap), diagnostics and test globals, the Pose Studio's builtins (server).
