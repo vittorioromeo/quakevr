@@ -1548,6 +1548,7 @@ void() VR_AGDD_Frame; // (vr_armedgrunt_dualdisarm_test.qc)
 void() VR_MRT_Frame; // (vr_meleerules_test.qc)
 void() VR_MRT_ParryFrame;
 void() VR_MRT_SwingFrame;
+void() VR_AGSP_Frame; // (vr_armedgrunt_spear_test.qc)
 void() VR_AGXT_Frame; // (vr_armedgrunt_extent_test.qc)
 void() VR_AGCD_Frame; // (vr_armedgrunt_coopdisarm_test.qc)
 void() VR_OGFT_Frame; // (vr_ogre_friends_test.qc)
@@ -1661,6 +1662,7 @@ void() VR_AGTest_Frame =
     else if(t == 202) { VR_AGIT_Frame(); } // (the impact rule: vr_armedgrunt_impact_test.qc)
     else if(t == 226 || t == 227) { VR_AGLOD_Frame(t); } // (the armed grunts' cost by state: vr_armedgrunt_lod_test.qc)
     else if(t == 228) { VR_AGLOD_WakeFrame(); } // (a far, unseen one wakes and fights as before: vr_armedgrunt_lod_test.qc)
+    else if(t == 230) { VR_AGSP_Frame(); } // (an armed grunt with the spear: vr_armedgrunt_spear_test.qc)
     else if(t == 229) { VR_AGLOD_PackFrame(); } // (a worn pack's LOD as its wearer leaves his PVS: vr_armedgrunt_lod_test.qc)
     else if(t == 210) { VR_LST_Frame(); } // (humanoids shoved off a ledge: vr_ledgeshove_test.qc)
     else if(t == 225) { VR_RTH_Frame(); } // (living ragdolls' thuds: vr_ragthud_test.qc)

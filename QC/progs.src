@@ -636,6 +636,7 @@ vr_ragsmash_test.qc // a ragdoll smashed into a wall: its sound and blood (vr_ra
 vr_armedgrunt_glitch_test.qc
 vr_armedgrunt_play_test.qc
 vr_meleerules_test.qc // the shared melee rules' tests (vr_agrunt_test 212, 213)
+vr_armedgrunt_spear_test.qc // an armed grunt with the spear: its hold and thrust (vr_agrunt_test 230)
 vr_armedgrunt_shot_test.qc
 vr_armedgrunt_coopdisarm_test.qc // test 215: a grunt disarmed by shots still dies (single player, coop with a bot)
 vr_armedgrunt_twohand_test.qc

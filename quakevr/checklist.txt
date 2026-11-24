@@ -49,6 +49,8 @@ Flat-screen or VR: take the spear (toolgun Weapons > Spear, or the firing range'
 Flat-screen or VR: throw the spear: it flies point first and sticks in a wall; no ammo shows on any HUD and B / the eject button flips its grip. {test:spear}
 Flat-screen: swing the axe into a grunt with the mouse button: nearly every swing that lands sticks and stays held (it was about 1 in 3). {test:flat_embed_axe}
 Flat-screen: V with a sword, a dagger or the spear thrusts it like the Crystal Lance (drawn back, stabbed out along the blade at the crosshair, back); into a grunt it sticks by the point and the fire button pulls it out; a flipped dagger (B) stabs down; the fire button still swings, and the axe's V is still its swing. {test:flat_thrust_blades}
+Throw the spear point first at the grunt, standing and as it runs about: it stays in the body nearly every time instead of skidding off. {test:spear}
+An armed grunt with the spear holds it low and level in both hands with the head pointed at you, and its attack is a forward thrust that hurts, not a sword swing. {test:agrunt_spear}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
