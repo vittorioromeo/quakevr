@@ -37,6 +37,7 @@ Flat-screen: hold the Crystal Lance with a fresh config: both hands and the spea
 Flat-screen: hold 1 or 2 and the weapon wheel now opens after 0.15 s (was 0.35 s); Weapon Wheel Hold Time still changes it. {test:flat_weapon_wheel}
 Flat-screen or VR: shove a grunt and then a dog hard into the wall behind it (every shove knocks it down here): it hits the wall and slumps or slides down it at once, lies against its foot like on the open floor and gets up as usual, never held up stuck on the wall for a second or two. {test:wall_shove}
 Body and Display > Handedness: Left-handed turns on Swap Face Buttons (next to Swap Stick Functions): walk forward on the right stick and press X: you jump, and A, B, Y and the two stick clicks do what the other controller's did; Right-handed turns it off, and changing it alone shows Handedness: Custom. {test:hub_start}
+Flat-screen or VR: aim down the sights of the shotgun, double shotgun, lightning gun and nail pistol: the front post glows in a different colour (pink with the default player colour) from the two rear notches; Colours > Front Sight Hue Shift turns it, 0 makes them one colour again. {test:sight_front_hue}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the 1.2.0-beta2 pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names 1.2.0-beta2; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
