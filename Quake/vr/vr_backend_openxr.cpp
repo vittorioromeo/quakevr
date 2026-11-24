@@ -216,6 +216,7 @@ void OpenXrBackend::stop()
             *sc = Swapchain{};
         }
     }
+    destroyRetired(true); // (before the session they belong to)
     panelPending = panelShown = false;
     haveLastViews = holding = false;
     timing = Timing{};
