@@ -66,6 +66,14 @@ void() VR_ED_Step =
         vr_et_on = 0;
         return;
     }
+    if(vr_et_s == 0 && !VR_FlatPlay(p))
+    {
+        // (a flat-screen test: VR play has no mouse button's swing, so the axe never goes in; one clear failure, not 4 swings a case)
+        VR_Test_Check(FALSE, "flat play off: run with -flatscreenmode (Misc/quakevr/embeddual_test.sh)");
+        VR_Test_Verdict();
+        vr_et_on = 0;
+        return;
+    }
     if(vr_et_s == 0)
     {
         vr_ed_hand = vr_et_case == 0 ? cVR_MainHand : cVR_OffHand;
