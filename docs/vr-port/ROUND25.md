@@ -11842,3 +11842,23 @@ His VR notes 2026-11-23 (vrtesthall 23:19:33, 23:02:20, 22:58:27, 23:17:34, 23:1
   down: lower friction against walls, or a push off it; a next test variant with `tune vr_ragdoll_friction 0.2`).
   `wallglue: 24 passed, 0 failed` (checks: each trial up again within 10 s, never propped over 7 s at a time).
   Scene `wall_shove` (vrtesthall's south wall: a grunt and a dog with their backs to it, every shove a knockdown).
+
+## questmods (2026-11-24): Quoth's start on the Quest, every campaign checked
+
+- **Cause**: not case. Four mod folders on his Quest 3 (`hipnotic`, `ad`, `dopa`, `dwellv2p2`) were mode 2770; the game
+  could not read them ("VR: hipnotic missing", AD's paks never opened). Quoth plays by AD's rules, so its start died on
+  `Host_Error: Mod_LoadModel: progs/s_exp_small.spr not found` (AD's sprite). Quest Setup chmodded (2777/0666) only the
+  folders of the files it copied; unchanged files are skipped, so a folder an older copy left 2770 stayed shut.
+- **Installer fix** (`QuestInstaller.MakeReadable`): every planned folder and file made readable on every run, also when
+  nothing is copied. Self-test: the reinstall case checks the chmods with 0 files pushed.
+- **Second finding, dopa/mg1/mg3**: refused on the headset as "language data incomplete" (his id1 there is the
+  original's; the PC borrows the rerelease's id1 table from Steam, which the headset lacks). `QuestFiles.Plan` now copies
+  the rerelease's `id1/pak*.pak` to `<files>/rerelease/id1` when one of those episodes comes from it: an owned root the
+  engine already reads only for language tables and music (`ownedRoots`, never mounted). Self-test in the plan case.
+  221 MB on his headset.
+- **Engine**: Quoth refused with a reason while AD's data is missing (`missingRequirement`, vr_gamedir.cpp): the selector
+  says so, its row is tagged "needs AD", `VR_CampaignInstalled`/`VR_CampaignUnavailable` and the MP join reason agree. PC
+  check: AD's folder hidden, `vr_campaign_native quoth` prints the reason instead of a Host_Error; with AD it starts.
+- **Headset** (the installed next build, not replaced): the four folders chmodded as the fixed Setup does, the rerelease
+  pak pushed; then all 9 campaigns started the menu's way (`vr_campaign_select` / `vr_campaign_native`), each reaching
+  its start map from its own folder (id1, hipnotic, rogue: start; dopa: e5start; mg1, mg3, ad, dwell, quoth: start).
