@@ -870,6 +870,7 @@ int doomPageGeneration = -1; // the WAD search the Doom page's rows were built f
         hueSlider("Weapon Sight Hue", vr_sight_hue)
             .help("The glowing iron sights of the shotgun and double shotgun: 30 their own orange, 0 red, 120 green, 240 blue. Player's: the Player Effects Hue."),
         row(opt::vr_sight_saturation),
+        row(opt::vr_sight_front_hue_shift),
         hueSlider("Force Grab Hue", vr_forcegrab_hue)
             .help("The force grab's beam, energy tendril, glow and sparkles: 215 its old blue. Player's: the Player Effects Hue."),
         row(opt::vr_forcegrab_saturation),
@@ -3424,7 +3425,7 @@ constexpr const char* vrOnlyCvars[] = {"vr_render_scale", "vr_dynres*", "vr_upsc
     "vr_gamma", "vr_contrast", "vr_bloom", "vr_tonemap", "vr_exposure", "vr_grade*", "vr_water_underwater",
     "vr_water_wobble"};
 constexpr const char* flatOnlyCvars[] = {"vr_flat_tonemap", "vr_flat_bloom", "vr_flat_grade*", "vr_flat_vignette*",
-    "vr_flat_visor*", "vr_flat_taa", "vr_flat_aim_sens*"};
+    "vr_flat_visor*", "vr_flat_taa", "vr_flat_aim_sens*", "vr_flat_zoom_*"};
 
 [[nodiscard]] bool cvarNamed(const cvar_t* cvar, const char* pattern)
 {

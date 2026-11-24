@@ -12,7 +12,8 @@
 // degrees off the plain flatscreen FOV, through VR_FlatAdsFov in gl_screen.c), and the holding hand is moved so that the
 // gun's sight line lies on the crosshair's ray, its rear sight vr_flat_ads_relief from the eye (docs/vr-port/FLATPLAY.md,
 // "The ironsight's solve"), then by the gun's own placing (weapons.txt fsight_fwd / _right / _up / _pitch), reached over
-// the same seconds. A gun with fsight_mode 1 zooms instead: the same narrowing, the gun left in its pose, the crosshair kept.
+// the same seconds. A gun with fsight_mode 1 zooms instead: the same narrowing, the crosshair kept, the gun brought part of
+// the way to the middle of the screen (vr_flat_zoom_centre, _up, _fwd, _time) and a visor look over the view (vr_flat_zoom_visor).
 //
 // The aim, ironsight or not: every gun points from its muzzle at what the ray through the middle of the screen hits (far
 // along the ray if nothing), recomputed every frame from wherever the pose put the muzzle, so the shots go through the
@@ -81,6 +82,10 @@ void noteDrawn(const hands::State& s);
 [[nodiscard]] float poseShare();
 // Whether the held weapon's aim is zoom alone (fsight_mode 1); false outside the mode or with nothing held one-handed.
 [[nodiscard]] bool zoomAim();
+// The zoom-only aim's visor look (vr_flat_zoom_visor; vr_flatlook.cpp draws it): its strength this frame, the cvar's eased
+// in with the zoom's travel (0: none: off, not zooming, outside the mode), and `shimmer`, 1 falling to 0 over a moment after
+// the zoom engages (the look's chromatic shimmer and scan).
+[[nodiscard]] float zoomVisor(float& shimmer);
 
 // How far hand `h`'s weapon is on its sights this frame, 0 outside the mode: the view's own looks are spent out with it.
 [[nodiscard]] float drawnShare(int h);

@@ -11,3 +11,16 @@
 #pragma once
 
 // VR_SightPalette (gl_texmgr.c calls it) is declared in vr_api_render.h, TexMgr_ReloadImagesNamed in vr_engine.hpp.
+//
+// The front post (vr_sight_front_hue_shift, by default on): its sight texels (each skin's patch the front post's
+// triangles map, found from the models' geometry: Misc/quakevr/sight_front_posts.py) take a palette turned that much
+// further round the hue circle, set by VR_SightFront after the skin's conversion, so the front post reads apart from
+// the rear notches. Shotgun (and its pump parts), double shotgun (and its break-open parts), lightning gun and plasma
+// gun, nail pistol.
+
+namespace qvr::sights
+{
+
+void init(); // vr_sight_front_test: the front post table against the models' skins and the colours they upload with
+
+} // namespace qvr::sights

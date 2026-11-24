@@ -1,0 +1,13 @@
+# flat_zoom_aim: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): the
+# zoom-only aim of the guns with no sights to look down (weapons.txt fsight_mode 1): the gun brought towards the middle of the
+# screen (vr_flat_zoom_centre, Tunables vr_flat_zoom_up / _fwd / _time) and the visor's zoom look (vr_flat_zoom_visor);
+# vr_flatsight.cpp zoomCentre, vr_flatlook.cpp; flatads_test.sh section f.
+title Flat-screen: zoom aim with a launcher, the gun to the middle and the visor look
+hint Play with -flatscreenmode. Hold the right mouse button with the grenade launcher: the view narrows, the launcher comes part of the way to the middle of the screen and the visor's zoom look (tinted, lined lens edge, four thin corner brackets, a shimmer as it engages) fades in; fire at the grunts and the grenades still go where the crosshair is. Try Zoom Aim Gun To Centre and Zoom Aim Visor Look in Locomotion > Desktop Screen Play, and compare with the shotgun's ironsight.
+map vrtesthall
+god
+notarget
+give "Grenade Launcher" main
+cmd give r 30
+spawn "Grunt" 600 0
+spawn "Grunt" 700 120

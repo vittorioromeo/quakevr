@@ -315,6 +315,8 @@
             .help("Every flat key (Options > Controls, the Quake VR (flat screen) group) back to its default."),
         row(opt::vr_flat_aim_mode),
         row(opt::vr_flat_aim_zoom),
+        row(opt::vr_flat_zoom_centre),
+        row(opt::vr_flat_zoom_visor),
         row(opt::vr_flat_aim_sens),
         row(opt::vr_flat_aim_sens_match),
         row(opt::vr_flat_wall_shot),

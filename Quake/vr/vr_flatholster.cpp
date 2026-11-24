@@ -646,6 +646,12 @@ bool canUnload(int hand)
     return enabled(b, contents());
 }
 
+bool canFlip(int hand)
+{
+    const Button b{Act::FlipGrip, hand == 0 ? 0 : 1, {}, {}};
+    return enabled(b, contents());
+}
+
 HolsterSlot handSlot(int hand)
 {
     HolsterSlot out;
@@ -745,7 +751,7 @@ void draw()
         case Act::DropBoth: g.icon = gadget::MenuIcon::Drop; g.label = "DROP BOTH"; break;
         case Act::Swap: g.icon = gadget::MenuIcon::Swap; break;
         case Act::Unload: g.icon = gadget::MenuIcon::Unload; g.label = "UNLOAD"; break;
-        case Act::FlipGrip: g.icon = gadget::MenuIcon::None; g.label = "FLIP GRIP"; break;
+        case Act::FlipGrip: g.icon = gadget::MenuIcon::FlipGrip; g.label = "FLIP GRIP"; break;
         }
     }
     gadget::HolsterMenuView v;

@@ -2,7 +2,8 @@
 # flatlance_test.sh <agent> -- flat-screen play with Dwell's Crystal Lance (flatmelee2; his notes 2026-11-23; ROUND25.md,
 # "flatmelee2"). Needs Dwell v2.2 in the base dir. One headless run in fast mode on e1m1, the Lance in the main
 # hand (vr_ad_test 207):
-#   1. B (Next Ammo Type, impulse 43): refused ("ammo switch: refused, the Crystal Lance"), no ammo change, still the Lance
+#   1. B (Next Ammo Type, impulse 43): no other ammo, so its grip flips (flipgrip 2026-11-24: "revgrip: hand 1 flips its
+#      grip: reversed", drawn head forward: vr_flat_revgrip_pole_pitch), no ammo change, still the Lance; B again: upright
 #      (vr_flatplay_status's "spear:" line: a pole weapon; the lightning gun is none);
 #   2. the spear pose's tunables, as drawn (vr_flatplay_status "spear:"): vr_flat_pole_along 6 brings the tip 6 nearer the
 #      fist; vr_flat_pole_pitch 20 lifts the pole 20 degrees and _yaw 15 turns it 15 left; vr_flat_pole_off_up 3 moves the
@@ -26,7 +27,7 @@ ST="vr_flatplay_status"
 KEY() { echo "vr_mock_key $1 down; wait3; vr_mock_key $1 up; wait10"; }
 SC="map e1m1; wait60; god; notarget; developer 1; vr_flatplay_debug 1; vr_flat_reload_debug 1; vr_flat_melee_probe 1; vr_debug_axestick 1; vr_debug_2h_grip 1${FLT_EXTRA:+; $FLT_EXTRA}"
 SC="$SC; vr_ad_test 207; wait60; echo flt: base; $ST"
-SC="$SC; echo flt: b; $(KEY b); $ST"
+SC="$SC; echo flt: b; $(KEY b); wait30; $ST; echo flt: b2; $(KEY b); wait30; $ST"
 # (flatfb1124b: his Lance pose is the default since 2026-11-24 (along -2.5, pitch 8, yaw 5, off_up 3.5, off_pitch -67; lanceoffhand: off_along 12, off_up 5, off_pitch -60),
 # hand_fwd 1): each tunable set to its default plus the step the checks measure: along +6, pitch +20, yaw +15,
 # off_pitch +30, hand_fwd +3.)
@@ -56,7 +57,7 @@ SC="$SC; +right; wait72; -right; wait20; echo flt: pturn; $PR; +right; +forward;
 SC="$SC; vr_flat_punch main v; wait50; echo flt: pthrust; $PR; vr_flat_pole_track 0"
 SC="$SC; vr_flat_melee_probe done; wait2; echo flatlance: done; toggleconsole; quit"
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$SC" -QuitOn "^flatlance: done" -Timeout 240 \
-  -Filter '^flt:|^flatlance|^flathud: right|^ammo|flatreload: b|spear:|spear hands:|spear places:|spear thrust|^poletrack: report|^flatmelee: main|dwlance: a thrust|2h grip|test hurt:|embedhold:|flat reload:|ERROR|CRASH' > "$L" 2>&1
+  -Filter '^flt:|^flatlance|^flathud: right|^ammo|flatreload: b|revgrip: hand|spear:|spear hands:|spear places:|spear thrust|^poletrack: report|^flatmelee: main|dwlance: a thrust|2h grip|test hurt:|embedhold:|flat reload:|ERROR|CRASH' > "$L" 2>&1
 block() { awk -v m="flt: $1" '$0==m || $0==m" "{on=1;next} /^flt:|^flatlance: done/{on=0} on' "$L"; }
 # A number after a word on the block's "spear: main" line.
 num() { block "$1" | grep -a "spear: main" | head -1 | grep -ao " $2 -\?[0-9.]*" | head -1 | grep -ao -- '-\?[0-9.]*$'; }
@@ -65,7 +66,8 @@ check $(grep -aq "^flatlance: done" "$L" && echo 1 || echo 0) "the run reached i
 
 # 1. B with the Lance.
 b=$(block b)
-check $(grep -aq "flatreload: b: next ammo type" <<<"$b" && grep -aq "ammo switch: refused, the Crystal Lance" <<<"$b" && ! grep -aq "^ammo: hand" <<<"$b" && echo 1 || echo 0) "B with the Lance: sent, refused, no ammo change"
+check $(grep -aq "flatreload: b: next ammo type" <<<"$b" && grep -aq "revgrip: hand 1 flips its grip: reversed" <<<"$b" && ! grep -aq "^ammo: hand" <<<"$b" && echo 1 || echo 0) "B with the Lance: sent, its grip flipped, no ammo change"
+check $(block b2 | grep -aq "revgrip: hand 1 flips its grip: upright" && echo 1 || echo 0) "B again: the Lance upright"
 check $(grep -aq "spear: main" <<<"$b" && echo 1 || echo 0) "B with the Lance: still the Lance (a pole weapon), not the lightning gun"
 
 # 2. The spear pose's tunables.

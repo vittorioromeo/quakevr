@@ -1380,6 +1380,30 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
     return poleTurn(handAxes * local, pitch, yaw, h == HAND_OFF ? -1.f : 1.f);
 }
 
+// A flipped grip's own drawn turn of hand `h`'s drawn axes `handAxes` (flipgrip, his words 2026-11-24): the weapon held
+// reversed (QVR_WPNFLAG_REVGRIP: B, the wheel's or the holster menu's FLIP GRIP) points back and down out of a flat hand,
+// off the screen; the fist turned about its own side by vr_flat_revgrip_pitch (a blade: its point forward and down, held
+// for a stab) or vr_flat_revgrip_pole_pitch (a pole weapon: the Crystal Lance's head forward and down), by the flip's drawn
+// share (view::heldWeaponAxes: it turns over as the flip does). Drawn only: the beam keeps to the crosshair.
+[[nodiscard]] glm::mat3 revGripDrawnTurn(int h, const glm::mat3& handAxes)
+{
+    glm::vec3 f, u;
+    float flip = 0.f;
+    if(bot != nullptr || !view::heldWeaponAxes(h, f, u, flip) || flip <= 0.f)
+    {
+        return glm::mat3{1.f};
+    }
+    const float pitch = twohand::poleWeapon(heldIn(h)) ? vr_flat_revgrip_pole_pitch.value : vr_flat_revgrip_pitch.value;
+    const glm::vec3 across = glm::cross(handAxes[0], handAxes[2]);
+    if(glm::length(across) < 1e-3f)
+    {
+        return glm::mat3{1.f};
+    }
+    // (About cross(forward, up) a positive turn lifts what is ahead: what points back and down comes down and forward.)
+    const float a = za::clamp(pitch, -180.f, 180.f) * za::clamp(flip, 0.f, 1.f);
+    return glm::mat3_cast(glm::angleAxis(glm::radians(a), glm::normalize(across)));
+}
+
 // The parry's guard held in two hands (vr_flat_melee_2h_parry_*): over the guard's pose, by both shares (only in the stance).
 void twoHandParryPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up)
 {
@@ -4453,6 +4477,8 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     glm::mat3 handAxes = wallTurn * drawnAxes * glm::mat3_cast(drawnTurn) * dualTurn;
     // The spear pose's own turn about the fist (vr_flat_pole_pitch / _yaw): drawn only.
     handAxes = poleDrawnTurn(s, h, handAxes) * handAxes;
+    // A flipped grip's turn about the fist (vr_flat_revgrip_pitch / _pole_pitch): drawn only.
+    handAxes = revGripDrawnTurn(h, handAxes) * handAxes;
     const glm::vec3 drawnRot = hands::anglesFromVectors(handAxes[0], handAxes[2]);
     for(int i = 0; i < 3; i++)
     {
