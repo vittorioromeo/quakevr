@@ -447,9 +447,11 @@ void(float xHand) VR_FlatHolster_Put =
 // grip holds it as ever. A holstered weapon is never in the other hand (immersive), so the wheel never offers that one.
 // The wheel's two actions (his words 2026-11-23), either mode: `slot` -2 DROP, what the hand holds dropped (6 and 7's,
 // the holster menu's DROP: VR_Forcegrab_FlatDropHand, a carried prop too); -3 UNLOAD, the hand's gun's live rounds back
-// into the reserve (the holster menu's UNLOAD: VR_FlatHolster_Unload).
+// into the reserve (the holster menu's UNLOAD: VR_FlatHolster_Unload); -4 FLIP GRIP (his words 2026-11-24), the hand's
+// sword's, dagger's or Crystal Lance's grip turned over (the eject button's and the holster menu's: VR_RevGrip_Flip).
 float VR_WHEEL_DROP = -2;
 float VR_WHEEL_UNLOAD = -3;
+float VR_WHEEL_FLIP = -4;
 void(float xHand, float slot) VR_Wheel_Pick =
 {
     if(self.health <= 0)
@@ -466,6 +468,12 @@ void(float xHand, float slot) VR_Wheel_Pick =
     if(slot == VR_WHEEL_UNLOAD)
     {
         VR_FlatHolster_Unload(xHand);
+        return;
+    }
+    if(slot == VR_WHEEL_FLIP)
+    {
+        dprint(sprintf("weapon wheel: hand %g, FLIP GRIP\n", xHand));
+        VR_RevGrip_Flip(xHand);
         return;
     }
     if(!VR_FlatHolster_KeyHandOk(xHand))

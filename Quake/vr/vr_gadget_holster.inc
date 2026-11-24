@@ -98,6 +98,26 @@ void holsterIcon(MenuIcon icon, float cx, float cy, const glm::vec3& c)
         }
         break;
     }
+    case MenuIcon::FlipGrip:
+    {
+        // Two blades side by side, the left point up and the right point down (a blade, its guard, its grip), an arc over
+        // them from one to the other: the grip turned over.
+        const float l = cx - 4.f, r = cx + 3.f;
+        fill(l, cy - 5.f, 1.f, 1.f, c * 0.7f); // the left: its point,
+        fill(l - 0.5f, cy - 4.f, 2.f, 4.f, c); // its blade,
+        fill(l - 1.5f, cy, 4.f, 1.f, c);       // its guard,
+        fill(l, cy + 1.f, 1.f, 3.f, c);        // its grip
+        fill(r, cy - 4.f, 1.f, 3.f, c);        // the right, mirrored: its grip,
+        fill(r - 1.5f, cy - 1.f, 4.f, 1.f, c); // its guard,
+        fill(r - 0.5f, cy, 2.f, 4.f, c);       // its blade,
+        fill(r, cy + 4.f, 1.f, 1.f, c * 0.7f); // its point
+        // The arc from over the left to over the right, its arrowhead pointing down onto the right.
+        holsterStroke({l, cy - 6.f, l + 1.5f, cy - 7.5f}, c);
+        holsterStroke({l + 1.5f, cy - 7.5f, r - 1.f, cy - 7.5f}, c);
+        holsterStroke({r - 1.f, cy - 7.5f, r + 0.5f, cy - 6.f}, c);
+        fill(r - 1.f, cy - 6.f, 3.f, 1.f, c);
+        break;
+    }
     default: break;
     }
 }
