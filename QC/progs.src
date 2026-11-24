@@ -213,6 +213,7 @@ vr_embed_prop_test.qc
 vr_embeddual_test.qc // flat dual wielding: an embedded blade keeps its hand (vr_embed_test 52)
 vr_dagger_test.qc
 vr_spear_test.qc // the spear (vr_embed_test 53)
+vr_flatthrust_test.qc // flat V thrusts with the stabbing blades (vr_embed_test 58-59)
 vr_revgrip_test.qc
 vr_flipgrip_test.qc
 vr_flipgate_test.qc

@@ -1286,21 +1286,33 @@ void polePose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& rig
     return hands::anglesFromVectors(glm::normalize(turn * f), glm::normalize(turn * u));
 }
 
-// Where a pole weapon's spear thrust (vr_flat_thrust) is at its clock: drawn back along the pole and turned (windup),
-// held, thrust out along it (the strike: the blow), held, and back to the spear pose.
+// Whether V thrusts the weapon in slot `slot` (flatthrust, his decision 2026-11-24: "flatscreen V thrusts with any stabbing
+// blade"): a pole weapon (the Crystal Lance, the spear: its fire button too), or a blade stuck in by its point (weapons.txt
+// embed 1: the swords, the daggers), the same thrust with a one-handed variant of its pose (vr_flat_thrust_1h_*).
+[[nodiscard]] bool thrustsWith(int slot)
+{
+    return slot >= 0 && vr_flat_thrust.value != 0.f &&
+           (twohand::poleWeapon(slot) ||
+               (vr_flat_thrust_blades.value != 0.f && static_cast<int>(weapons::value(slot, weapons::Key::Embed)) == 1));
+}
+
+// Where a spear thrust (vr_flat_thrust) is at its clock: drawn back along the pole (a one-handed blade: along the blade)
+// and turned (windup), held, thrust out along it (the strike: the blow), held, and back to the pose it started from.
 struct ThrustPart
 {
     float along, up, pitch, yaw; // units along the pole (negative back), units up, degrees (poleTurn's)
 };
 
-[[nodiscard]] ThrustPart thrustAt(double t)
+[[nodiscard]] ThrustPart thrustAt(double t, bool pole)
 {
     const auto units = [](const Tunable& c) { return za::clamp(c.value, -30.f, 30.f); };
     const auto degrees = [](const Tunable& c) { return za::clamp(c.value, -60.f, 60.f); };
     const ThrustPart rest{0.f, 0.f, 0.f, 0.f};
-    const ThrustPart wound{-units(vr_flat_thrust_wind_back), units(vr_flat_thrust_wind_up), degrees(vr_flat_thrust_wind_pitch),
-        degrees(vr_flat_thrust_wind_yaw)};
-    const ThrustPart out{units(vr_flat_thrust_reach), units(vr_flat_thrust_up), degrees(vr_flat_thrust_pitch), degrees(vr_flat_thrust_yaw)};
+    // (A one-handed blade's own reach and draw back: its fist goes out, not a pole sliding through the other hand.)
+    const ThrustPart wound{-units(pole ? vr_flat_thrust_wind_back : vr_flat_thrust_1h_wind_back),
+        units(pole ? vr_flat_thrust_wind_up : vr_flat_thrust_1h_wind_up), degrees(vr_flat_thrust_wind_pitch), degrees(vr_flat_thrust_wind_yaw)};
+    const ThrustPart out{units(pole ? vr_flat_thrust_reach : vr_flat_thrust_1h_reach), units(vr_flat_thrust_up),
+        degrees(vr_flat_thrust_pitch), degrees(vr_flat_thrust_yaw)};
     const auto mix = [](const ThrustPart& a, const ThrustPart& b, float u) {
         return ThrustPart{a.along + (b.along - a.along) * u, a.up + (b.up - a.up) * u, a.pitch + (b.pitch - a.pitch) * u, a.yaw + (b.yaw - a.yaw) * u};
     };
@@ -1337,30 +1349,109 @@ struct ThrustPart
     return fs.punchThrust[h] && t >= w.wind + w.hold && t <= w.wind + w.hold + w.strike + w.dwell;
 }
 
+// How far a one-handed blade's thrust has turned it onto the crosshair (0..1): in over the windup, held through the
+// strike and its hold, out over the way back. 0 for a pole weapon (its spear pose already points it there) or no thrust.
+[[nodiscard]] float thrustAimShare(int h)
+{
+    if(!fs.punchThrust[h] || !punching(h) || twohand::poleWeapon(heldIn(h)))
+    {
+        return 0.f;
+    }
+    const ThrustTimes w = thrustTimes();
+    const double t = vr_gametime - fs.punchAt[h];
+    const double out = static_cast<double>(w.wind + w.hold + w.strike + w.dwell);
+    return t < w.wind ? slide(t, 0.0, w.wind) : t < out ? 1.f : 1.f - slide(t, out, w.back);
+}
+
+// The blade in hand `h` as drawn last, in the hand's frame (forward, left, up): the way from its model's origin (its grip)
+// to its tip (the muzzle point: the stab's line, axestick's pointBlade). False: nothing drawn lately.
+[[nodiscard]] bool bladeInHand(int h, glm::vec3& local)
+{
+    const view::DrawnWeapon& d = view::drawnWeapon(h);
+    glm::vec3 muzzle{0.f}, butt{0.f}, second{0.f};
+    int secondType = 0;
+    if(!d.model || d.when < 0.0 || vr_gametime - d.when > 0.5 ||
+       !view::weaponLocalGeometry(const_cast<qmodel_t*>(d.model), muzzle, butt, second, secondType))
+    {
+        return false;
+    }
+    muzzle.y = d.mirrored ? -muzzle.y : muzzle.y;
+    const glm::vec3 way = glm::vec3{d.inHand * glm::vec4{muzzle, 1.f}} - glm::vec3{d.inHand[3]};
+    if(glm::length(way) < 1.f)
+    {
+        return false;
+    }
+    local = glm::normalize(way);
+    return true;
+}
+
 // The spear thrust (vr_flat_thrust; his notes 2026-11-23: "a spear-like thrust with a windup"): V with a pole weapon (the
-// Crystal Lance) in hand `h`, over the spear pose, along the pole (the crosshair's way); the other hand on the pole goes
-// with it (its grip is on the pole, vr_view_weapon.cpp). The hand's motion is the game's to judge, as the swing's: the
-// strike forward along the pole is a stab (QC DW_LanceMelee: the head's thrust). Held within what the arm reaches from
+// Crystal Lance, the spear) in hand `h`, over the spear pose, along the pole (the crosshair's way); the other hand on the
+// pole goes with it (its grip is on the pole, vr_view_weapon.cpp). The hand's motion is the game's to judge, as the swing's:
+// the strike forward along the pole is a stab (QC VR_PoleMelee: the head's thrust). Held within what the arm reaches from
 // `root` (the shoulder), as the swing is.
-void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& up)
+// A one-handed stabbing blade (flatthrust: a sword, a dagger; thrustsWith) does the same thrust from its own pose: over the
+// windup its blade turns onto the crosshair's point (`aim`: the view's angles; not nearer than vr_flat_thrust_1h_near) and
+// the fist comes vr_flat_thrust_1h_in in towards the middle, then out along the blade (vr_flat_thrust_1h_reach), the QC's
+// stab by its point (VR_Embed_StabWhy) as a headset's. A flipped grip (the blade out of the fist's bottom) stabs down: the
+// fist raised vr_flat_thrust_1h_rev_up and the blade pointed vr_flat_thrust_1h_rev_down under the crosshair's line.
+void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& right, const glm::vec3& up, const glm::vec3& aim)
 {
     const int slot = heldIn(h);
     const double t = vr_gametime - fs.punchAt[h];
-    if(bot != nullptr || !fs.punchThrust[h] || !punching(h) || !twohand::poleWeapon(slot) || t < 0.0)
+    if(bot != nullptr || !fs.punchThrust[h] || !punching(h) || !thrustsWith(slot) || t < 0.0)
     {
         return;
     }
-    const ThrustPart p = thrustAt(t);
+    const bool pole = twohand::poleWeapon(slot);
+    const ThrustPart p = thrustAt(t, pole);
     const float side = h == HAND_OFF ? -1.f : 1.f;
-    const glm::vec3 pole = hands::forward(weapons::shotAngles(s.rot[h], slot, h == HAND_OFF));
-    glm::vec3 at = s.pos[h] + pole * p.along + up * p.up;
+    glm::vec3 way = hands::forward(weapons::shotAngles(s.rot[h], slot, h == HAND_OFF));
+    if(!pole)
+    {
+        const float k = thrustAimShare(h);
+        glm::vec3 local{1.f, 0.f, 0.f};
+        (void)bladeInHand(h, local); // (none drawn yet: the hand's forward)
+        const glm::vec3 blade = held::axesFromAngles(&s.rot[h][0], true) * local;
+        glm::vec3 org, dir;
+        crosshairRay(s, aim, org, dir);
+        const float closest = za::clamp(vr_flat_thrust_1h_near.value, 8.f, 256.f);
+        const float dist = za::clamp(glm::dot(flatsight::crosshairHit(s, aim) - org, dir), closest, 4096.f);
+        glm::vec3 want = glm::normalize(org + dir * dist - s.pos[h]);
+        glm::vec3 wf, wu;
+        float flip = 0.f;
+        if(view::heldWeaponAxes(h, wf, wu, flip) && flip >= 0.5f)
+        {
+            want = poleTurn(want, -za::clamp(vr_flat_thrust_1h_rev_down.value, 0.f, 80.f), 0.f, side) * want;
+            s.pos[h] += up * (za::clamp(vr_flat_thrust_1h_rev_up.value, -20.f, 20.f) * k);
+        }
+        s.pos[h] -= right * (side * za::clamp(vr_flat_thrust_1h_in.value, -20.f, 20.f) * k);
+        // (The shortest turn taking the blade onto `want`, by the share.)
+        glm::vec3 axis = glm::cross(blade, want);
+        const float c = za::clamp(glm::dot(blade, want), -1.f, 1.f);
+        if(glm::length(axis) < 1e-4f)
+        {
+            axis = c > 0.f ? up : glm::cross(blade, up); // (straight back: over the top)
+        }
+        if(glm::length(axis) > 1e-4f)
+        {
+            const glm::quat turn = glm::angleAxis(za::acos(c) * k, glm::normalize(axis));
+            s.rot[h] = turnedBy(glm::mat3_cast(turn), s.rot[h]);
+            way = glm::normalize(turn * blade);
+        }
+        else
+        {
+            way = blade;
+        }
+    }
+    glm::vec3 at = s.pos[h] + way * p.along + up * p.up;
     const float most = za::max(4.f, armSpan()) * 0.98f;
     if(const glm::vec3 d = at - root; glm::length(d) > most && glm::length(s.pos[h] - root) < most)
     {
         at = root + d * (most / glm::length(d));
     }
     s.pos[h] = at;
-    s.rot[h] = turnedBy(poleTurn(pole, p.pitch, p.yaw, side), s.rot[h]);
+    s.rot[h] = turnedBy(poleTurn(way, p.pitch, p.yaw, side), s.rot[h]);
 }
 
 // The spear pose's own drawn turn (vr_flat_pole_pitch / _yaw) of hand `h`'s drawn axes `handAxes` (drawnOffset): about the
@@ -1400,7 +1491,8 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
         return glm::mat3{1.f};
     }
     // (About cross(forward, up) a positive turn lifts what is ahead: what points back and down comes down and forward.)
-    const float a = za::clamp(pitch, -180.f, 180.f) * za::clamp(flip, 0.f, 1.f);
+    // (A one-handed blade's thrust turns the game's hand to stab down with it: the drawn turn gives way to it.)
+    const float a = za::clamp(pitch, -180.f, 180.f) * za::clamp(flip, 0.f, 1.f) * (1.f - thrustAimShare(h));
     return glm::mat3_cast(glm::angleAxis(glm::radians(a), glm::normalize(across)));
 }
 
@@ -1593,8 +1685,9 @@ void twoHandReport_f()
 // A hand's punch, from V, from its fire button, or from vr_flat_punch. Each hand has its own clock. One hand at a time
 // (his notes 2026-11-10: no punching with both at once): the other punches only once this one draws back
 // (vr_flat_punch_both 1: as before, a hand that started one this very frame keeps it, and the other joins in only when
-// both hold a weapon a swing strikes with). With a weapon in the hand it is the overhead swing (vr_flat_swing).
-void startPunch(int h, const char* from)
+// both hold a weapon a swing strikes with). With a weapon in the hand it is the overhead swing (vr_flat_swing); `vKey`
+// (V's press): a stabbing blade's thrust (thrustsWith; a pole weapon thrusts from its fire button too).
+void startPunch(int h, const char* from, bool vKey = false)
 {
     if(punching(h))
     {
@@ -1628,8 +1721,9 @@ void startPunch(int h, const char* from)
     fs.punchFrame[h] = host_framecount;
     // (A prop in the fist: the overhead swing as a weapon's, vr_flat_prop_melee; 0 the fist's punch.)
     fs.punchOverhead[h] = heldIn(h) >= 0 ? vr_flat_swing.value != 0.f : propInFist(h) && vr_flat_prop_melee.value != 0.f;
-    // (A pole weapon, the Crystal Lance: the spear's thrust instead, vr_flat_thrust.)
-    fs.punchThrust[h] = heldIn(h) >= 0 && vr_flat_thrust.value != 0.f && twohand::poleWeapon(heldIn(h));
+    // (A pole weapon, the Crystal Lance or the spear: the spear's thrust instead, vr_flat_thrust; V with a blade stuck in by
+    // its point, a sword or a dagger, the same thrust: flatthrust, his decision 2026-11-24. Its fire button keeps the swing.)
+    fs.punchThrust[h] = thrustsWith(heldIn(h)) && (vKey || twohand::poleWeapon(heldIn(h)));
     if(fs.punchThrust[h])
     {
         fs.punchOverhead[h] = false;
@@ -1962,7 +2056,7 @@ void pollKeys()
     const int vHand = vKeyHand();
     if(v && !fs.keyV && !flatgrenade::busy(vHand))
     {
-        startPunch(vHand, "V");
+        startPunch(vHand, "V", true);
     }
     for(int h = 0; h < HAND_COUNT; h++)
     {
@@ -2888,12 +2982,13 @@ float thrustAlong(int h)
     {
         return 0.f;
     }
-    return thrustAt(vr_gametime - fs.punchAt[h]).along;
+    return thrustAt(vr_gametime - fs.punchAt[h], twohand::poleWeapon(heldIn(h))).along;
 }
 
 float thrustOutShare(int h)
 {
-    return za::clamp(thrustAlong(h) / za::max(za::clamp(vr_flat_thrust_reach.value, -30.f, 30.f), 1.f), 0.f, 1.f);
+    const Tunable& reach = twohand::poleWeapon(heldIn(h)) ? vr_flat_thrust_reach : vr_flat_thrust_1h_reach;
+    return za::clamp(thrustAlong(h) / za::max(za::clamp(reach.value, -30.f, 30.f), 1.f), 0.f, 1.f);
 }
 
 float thrustOffSlide(int h)
@@ -4168,8 +4263,8 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         {
             swingOverhead();
         }
-        // A pole weapon's spear thrust (vr_flat_thrust): along its pole from the spear pose.
-        thrustPose(s, h, shoulder(s, h) + nudge, up);
+        // A spear thrust (vr_flat_thrust): a pole weapon's along its pole from the spear pose, a stabbing blade's from its own.
+        thrustPose(s, h, shoulder(s, h) + nudge, right, up, aim);
 
         // An empty hand at rest hangs from its shoulder whatever the look: level with the body, its fingers down, not out
         // in front of him pointing where he looks. Not while it does anything: a punch, E's reach, a grip it is going to.
@@ -4725,7 +4820,8 @@ void status_f()
                "keyboard, not from bindings; each hand's punch starts from V, from its fire button with a weapon a swing "
                "strikes with (LMB / +attack the main hand, RMB / +offhandattack the off hand), or from vr_flat_punch.\n",
         fs.grabs, fs.punches[HAND_MAIN], fs.punches[HAND_OFF]);
-    Con_Printf("  spear thrusts (V with a pole weapon, vr_flat_thrust %g): %d\n", vr_flat_thrust.value, fs.thrusts);
+    Con_Printf("  spear thrusts (V with a pole weapon or a stabbing blade, vr_flat_thrust %g, blades %g): %d\n", vr_flat_thrust.value,
+        vr_flat_thrust_blades.value, fs.thrusts);
     for(int h = 0; h < HAND_COUNT; h++)
     {
         // The spear pose (vr_flat_pole_*), as drawn: the fist's distance to the tip and the pole's turn off the aim (the
@@ -4920,7 +5016,7 @@ void punch_f()
         // (`vr_flat_punch v`: the V key's press, its hand as V picks it: vKeyHand.)
         if(!flatgrenade::busy(vKeyHand()))
         {
-            startPunch(vKeyHand(), "V (vr_flat_punch v)");
+            startPunch(vKeyHand(), "V (vr_flat_punch v)", true);
         }
         return;
     }
@@ -4940,7 +5036,7 @@ void punch_f()
             h == HAND_MAIN ? "main" : "off", heldWid(h));
         return;
     }
-    startPunch(h, "vr_flat_punch");
+    startPunch(h, asV ? "vr_flat_punch (V)" : "vr_flat_punch", asV);
 }
 
 void noteModelFovBatch()
