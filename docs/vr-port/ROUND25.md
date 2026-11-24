@@ -11961,3 +11961,10 @@ weapon. lance4's report: with the Lance's record gone (stuck in an ogre), a weap
   -SkipOnlineInstall -Notes docs/vr-port/RELEASE_NOTES_1.2.md -Apk build-android-release/apk/QuakeVR.apk`, from the
   quest tree; its -DryRun clean (assets QuakeVR.zip, QuakeVR-Setup.exe, latest.json, SHA256SUMS.txt, QuakeVR.apk;
   --prerelease; Latest v1.1.0).
+- **Not published: the beta profile failed once.** make_release's tests on b8d2f9967: 11 passed, **1 failed:
+  scenario_check** (186 run, 1 failed: `bench_crowd_ad` "line 35: what it placed is gone after 3.0 s", SCNKEPT 39 of
+  40: one of the 40 AD monsters of the crowd bench, the Death Guard's line, gone within the 3 s hold). make_release
+  stopped before building: nothing built, tagged or published (no tag on origin; Latest v1.1.0). scenario_check rerun
+  alone on the same tree: **PASS** (186 run, 0 failed): a flake of the crowd scene (40 mixed AD monsters awake in one
+  hall), not seen in beta3fix's or animfix2's full runs. As beta2, the release waits for the coordinator: the same
+  make_release command above, from the quest tree on b8d2f9967 (or this notes commit), APK already built and checked.
