@@ -12363,3 +12363,36 @@ code and poses so improvements to either reach the other.
 - **Open:** a spear thrown at a grunt stays in it about 1 run in 3 (the rest meet the moving model 44 degrees off
   straight in and skid: the sword's incidence rule); the test prints it as a note. Armed grunts holding it use the
   sword's pose (not checked).
+
+## spearblunt: a pole weapon's shaft hits as a staff (agent/spearblunt, 2026-11-24)
+
+His ask (2026-11-24): "Can you ensure that hitting an enemy with the spear's body counts as a blunt hit and e.g. allows
+leg sweeps?"
+- **Before:** the spear's melee points were its sword layout's (`VR_Melee_Layout` SWORD squeezed to its Blade Start
+  0.728): the pommel, the hilt and the guard (the guard at 0.44 of the line strikes nothing) and six edge points on the
+  head, so its shaft mostly passed through bodies, and what it struck was a blade's. The Crystal Lance's were a gun's:
+  its whole barrel an edge, every blow dealt by `VR_PoleMelee` as a blade (cut sounds). The leg sweep (engine,
+  `vr_legsweep.cpp`) took the spear as a staff end to end: its head swept legs too.
+- **One pole path (QC):** the blow's state keeps `mh_pole` (the head's share, `VR_PoleHeadFrom`: the slot's Blade Start,
+  else `vr_dw_lance_head`), and `VR_Melee_LayoutOf` lays a pole weapon's points by `VR_Melee_PoleLayout`: the butt
+  (near end), the grip, three shaft points (0.3, 0.6, 0.85 of the head's start) of kind `VR_MPT_BLUNT`, four head points
+  (edges) to the tip; carried off its handle, the free layout's points short of the head turn blunt. A blunt point lands
+  as the pommel kind (`VR_Melee_Decide`; for a pole at full weight, not a pommel's 0.6), so `VR_Melee_Deal` sets
+  `vr_melee_blunt` and every blunt rule follows: the hit's class (`VR_SmallGib_Kind` / `VR_Hit_Class` BLUNT: round
+  wounds and dents, no blade bleeding, the knockdown rules' blunt blow `VR_KdTrig_Blunt`), the pommel knock
+  (`VR_Melee_HitSound`), a round wall dent (`mh_c_blunt`), never a stab, so never an embed. `VR_PoleMelee` deals a
+  shaft blow as a club: `vr_dmg_gun_bash` (12) instead of the axe's 20, the blunt layer (`VR_Blunt_HitLayer`), a
+  developer print "spear: the shaft, a blunt blow (...)". The head is as before: the spear's point stabs and sticks, its
+  edges cut; the Lance's head its thrust. As ever the outermost point that meets a body decides: a swing that takes
+  it with both lands with the head.
+- **Leg sweeps (engine):** `vr_legsweep.cpp` `edgeShare` gives a pole weapon (`twohand::poleWeapon`) its head from the
+  same place (its slot's `bl_from`, else `vr_dw_lance_head`; cached per model): the shaft sweeps, the head is a cut.
+- **Flat play:** a pole weapon's fire button is the spear thrust (`vr_flat_thrust` 1): it lands with the head, and with
+  the shaft only on a body nearer than the head (then blunt). With `vr_flat_thrust` 0 the overhead swing comes down
+  with the head or, close in, the shaft (blunt). No flat attack sweeps legs (flat play has no low or sideways swing
+  for any weapon; it comes down vertically, "not level" to the sweep): not built, a question for him.
+- **Tests:** `spear_test.sh` 4/0 (VR 23/0: new case 1 check "with its head: a cut", new cases 6 and 7: the spear's and
+  the Lance's shaft swung across a grunt: the pommel kind "the shaft", 13 and 11 damage, nothing stuck, the wound kind
+  3.5 (+0.5 blunt); flat 6/0). `foegrab/legsweep_test.py` new cases `spear_shaft` (down), `spear_head` (not: "the
+  blade (sharp from 0.7x): a cut"), `lance_shaft` (down): 3/0. The embed tests' swing takes `vr_eh_along` (the share of
+  the line that meets the body). `dwell_lance_test.sh` 51/0, `flatlance_test.sh` 32/0.

@@ -262,6 +262,7 @@ float(float xHand, entity b) VR_Melee_Track =
     b.mh_free_gw = vr_mline_gw;
     b.mh_free_back = vr_mline_back;
     b.mh_bfrom = vr_mline_from_x; // (its own also when carried off its handle: its parts there, VR_Melee_FreeLayout)
+    b.mh_pole = VR_PoleHeld(xHand) ? VR_PoleHeadFrom(xHand) : 0; // (a pole weapon: its shaft blunt, VR_Melee_PoleLayout)
 
     // The points: kept from the last pose, laid out now.
     VR_Melee_LayoutOf(b);
@@ -576,7 +577,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
             {
                 kind = VR_MKIND_POMMEL;
                 way = vp;
-                weight = VR_Melee_PommelWeight(b.mh_thing);
+                weight = b.mh_pole > 0 ? 1 : VR_Melee_PommelWeight(b.mh_thing); // (a pole's shaft: a staff's whole blow)
             }
         }
     }

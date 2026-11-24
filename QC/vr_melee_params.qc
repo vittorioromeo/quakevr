@@ -253,6 +253,9 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .float mh_fast;        // the part's fastest (m/s): the far end, or the grip if faster
 .float mh_bwidth;      // the blade's width: its swept points' radius's multiplier (the weapon's Blade Width; 0 taken as 1)
 .float mh_bfrom;       // its blade start of its own (the weapon's Blade From: VR_Melee_LayoutFrom; 0 or below: the kind's)
+.float mh_pole;        // a pole weapon's (the spear, the Crystal Lance): where its head begins on the line (VR_PoleHeadFrom); 0 none
+float(float xHand) VR_PoleHeld;     // (vr_poleweapon.qc)
+float(float xHand) VR_PoleHeadFrom;
 .float mh_lenient;     // heavy leniency: its speed thresholds' factor, from what the hand holds (VR_Weight_Leniency)
 .float mh_heavy2h;     // heavy handling: the weapon's weight class held two-handed (VR_Heavy_TwoHanded; 0: not)
 .float mh_curve;       // its strength's rise over the speed needed, times this (VR_Weight_MeleeCurve)
@@ -1306,6 +1309,39 @@ void(float xFrom) VR_Melee_LayoutFrom =
     vr_mpt_n = 9;
 };
 
+// A pole weapon's points (spearblunt, his ask 2026-11-24: "hitting an enemy with the spear's body counts as a blunt hit
+// and e.g. allows leg sweeps"; docs/vr-port/POLEWEAPONS.md "The shaft"): its head from `xHead` of the line to the tip
+// strikes as its kind's blade does (the spear's point and edges, the Lance's crystal head), the shaft from the hand to
+// the head and the butt behind the hand blunt (VR_MPT_BLUNT: a staff's blow, VR_Melee_Decide's pommel kind, so blunt
+// everywhere: VR_Melee_Deal's vr_melee_blunt, its knock, a round dent, no stab, no embed). Before, the spear's shaft
+// was its sword layout's guard and hilt (they strike nothing) and the Lance's a gun's barrel (an edge). Carried off its
+// handle (`xFree`: VR_Melee_FreeLayout's even points) its points short of the head turn blunt.
+void(float xHead, float xFree) VR_Melee_PoleLayout =
+{
+    if(xFree)
+    {
+        float i;
+        for(i = 0; i < vr_mpt_n; ++i)
+        {
+            if(vr_mpt_kind[i] != VR_MPT_GRIP && vr_mpt_f[i] < xHead)
+            {
+                vr_mpt_kind[i] = VR_MPT_BLUNT;
+                vr_mpt_name[i] = vr_mpt_f[i] < 0 ? "the butt" : "the shaft";
+            }
+        }
+        return;
+    }
+    VR_MPT(0, -1, VR_MPT_NEAR, "the butt");
+    VR_MPT(1, 0, VR_MPT_GRIP, "the grip");
+    VR_MPT(2, (xHead * 0.3), VR_MPT_BLUNT, "the shaft");
+    VR_MPT(3, (xHead * 0.6), VR_MPT_BLUNT, "the shaft");
+    VR_MPT(4, (xHead * 0.85), VR_MPT_BLUNT, "the shaft");
+    VR_MPT(5, xHead, VR_MPT_EDGE, "the head");
+    VR_MPT(6, (xHead + (1 - xHead) * 0.4), VR_MPT_EDGE, "the head");
+    VR_MPT(7, (xHead + (1 - xHead) * 0.75), VR_MPT_EDGE, "the head");
+    VR_MPT(8, 1, VR_MPT_EDGE, "the tip");
+};
+
 // The points of what `b`'s hand holds (as it was last tracked).
 void(entity b) VR_Melee_LayoutOf =
 {
@@ -1317,6 +1353,10 @@ void(entity b) VR_Melee_LayoutOf =
     {
         VR_Melee_Layout(b.mh_thing);
         VR_Melee_LayoutFrom(b.mh_bfrom);
+    }
+    if(b.mh_pole > 0 && b.mh_pole < 1)
+    {
+        VR_Melee_PoleLayout(b.mh_pole, b.mh_free);
     }
 };
 

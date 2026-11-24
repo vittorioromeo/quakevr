@@ -8,12 +8,16 @@
 //   1 a swing across a grunt: it hurts it;
 //   2 thrown point first at the wall: it sticks by its point;
 //   3 thrown at a live grunt's chest: it hurts it (whether it stays in is printed: a note);
-//   4 the flip grip (VR_RevGrip_Flip: reversed, then upright again) and no ammo (no other ammo, none to show).
+//   4 the flip grip (VR_RevGrip_Flip: reversed, then upright again) and no ammo (no other ammo, none to show);
+//   6 a swing across a grunt with the shaft (spearblunt: VR_Melee_PoleLayout): a blunt blow (the pommel kind, "the
+//     shaft"), it hurts it, nothing stuck, its wound a blunt blow's; 7 the same with Dwell's Crystal Lance.
 // With -flatscreenmode (flat-screen play) case 5 alone: the spear held, the mouse button's punch is the spear's thrust
 // (vr_flat_punch main) at a grunt ahead: it hurts it; stuck, fire presses pull it out (VR_Embed_FlatPull) back into the
 // hand; B (impulse 43: no other ammo) flips its grip and back. Ends `embedspear: N passed, M failed`.
 
 float(float xHand) VR_PoleHeld; // (vr_poleweapon.qc)
+float(float xHand) DW_LanceHeld; // (dwell/dw_items.qc)
+float(float xWid) DW_VariantFor;
 float vr_sp_hp;    // the grunt's health before the blow
 float vr_sp_n;     // presses so far (the flat pull)
 
@@ -102,6 +106,8 @@ void() VR_SP_Frame =
         if(VR_EH_Blow(WID_SWORD, 6, 0, TRUE, t))
         {
             VR_Test_Check(vr_et_m.health < vr_sp_hp, sprintf("a spear's swing at 6 m/s hurts a grunt (%g damage)", vr_sp_hp - vr_et_m.health));
+            VR_Test_Check(VR_Blow(h).mh_kind == VR_MKIND_SLASH, sprintf("with its head: a cut, not the shaft's blunt blow (kind %g, %s)",
+                VR_Blow(h).mh_kind, VR_Blow(h).mh_part));
             VR_EH_NextCase();
         }
         return;
@@ -251,6 +257,49 @@ void() VR_SP_Frame =
     if(vr_et_case == 5 && !VR_FlatPlay(p))
     {
         VR_ET_NextCase();
+        return;
+    }
+    // ---- 6, 7: a swing across a grunt with the shaft (spearblunt): the spear's, then the Crystal Lance's (VR alone)
+    if(vr_et_case == 6 || vr_et_case == 7)
+    {
+        if(VR_FlatPlay(p))
+        {
+            VR_ET_NextCase();
+            return;
+        }
+        float lance = vr_et_case == 7;
+        string what = lance ? "the Lance" : "the spear";
+        vr_eh_along = 0.3; // (the body meets the line 0.3 of the way out: its head, from 0.55 or 0.73, passes it by)
+        if(lance)
+        {
+            vr_eh_flags = 0;
+            entity inst = VRGetEntWeaponInst(p, h);
+            if(vr_et_s == 2 && inst != world && VRGetEntWeapon(p, h) == WID_LIGHTNING && !DW_LanceHeld(h))
+            {
+                inst.wi_dwvar = DW_VariantFor(WID_LIGHTNING); // (the lightning gun's record as the Lance: vr_ad_test 207's)
+            }
+        }
+        if(vr_et_s == 0)
+        {
+            vr_sp_hp = 0;
+            vr_wound_lastkind = 0;
+        }
+        if(vr_et_s == 2 && vr_sp_hp == 0) { vr_sp_hp = vr_et_m.health; }
+        // (Nearer than case 1's 54: the hand reaches 50 units from you, and the swing's start, its line's 0.3 short of the chest
+        // and 44 across, was pulled in short of it, the move half along the line: the spear's head went in first, a stab.)
+        vr_eh_ahead = 34;
+        if(VR_EH_Blow(lance ? WID_LIGHTNING : WID_SWORD, 6, 0, TRUE, t))
+        {
+            entity b = VR_Blow(h);
+            VR_Test_Check(lance ? DW_LanceHeld(h) : VR_SP_InHand(p, h), sprintf("%s in the hand (a pole weapon: %g)", what, VR_PoleHeld(h)));
+            VR_Test_Check(b.mh_kind == VR_MKIND_POMMEL && b.mh_part == "the shaft", sprintf("%s's swing landed with its shaft, a blunt blow (kind %g, %s, %.2f of the line)",
+                what, b.mh_kind, b.mh_part, b.mh_c_f));
+            VR_Test_Check(vr_et_m.health < vr_sp_hp, sprintf("its shaft hurts a grunt (%g damage)", vr_sp_hp - vr_et_m.health));
+            VR_Test_Check(w == world, "the shaft's blow leaves nothing stuck in it (no embed)");
+            VR_Test_Check(vr_wound_lastkind - floor(vr_wound_lastkind) == 0.5, sprintf("its wound a blunt blow's (wound kind %g: + 0.5 blunt)", vr_wound_lastkind));
+            vr_eh_ahead = 0;
+            VR_EH_NextCase();
+        }
         return;
     }
     VR_Test_Verdict();
