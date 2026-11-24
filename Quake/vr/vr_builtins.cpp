@@ -950,6 +950,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"admeleebend", PF_admeleebend},
     {"admeleehead", PF_admeleehead},
     {"meleeshow", PF_meleeshow},
+    {"meleeshowfoe", PF_meleeshowfoe},
     {"embedsay", PF_embedsay},
     {"bladewound", PF_bladewound},
     {"bladewoundage", PF_bladewoundage},

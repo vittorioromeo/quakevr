@@ -12,11 +12,12 @@
 // does. Today's is the holsters' (holsterProvider(): flatholster::holsterSlot, the holster menu's own model; a pick is
 // the client command "vr_wheel_pick <hand> <slot>", QC VR_Wheel_Pick, by the holster menu's steps). Another provider (say
 // every weapon the player may take) is a list and a pick of its own given to setProvider(): the wheel's layout, look,
-// input and tests take any count up to maxChoices, in its order, clockwise from the top (the layout spaces nine).
+// input and tests take any count up to maxChoices, in its order, clockwise from the top (the layout spaces ten).
 //
-// The holsters' provider also offers two actions for the hand (his words 2026-11-23): DROP (what it holds dropped, as 6 / 7
-// and the holster menu's DROP) and UNLOAD (its gun's live rounds back into the reserve, the holster menu's UNLOAD), greyed
-// when they would do nothing (flatholster::canDrop / canUnload, the holster menu's own tests).
+// The holsters' provider also offers three actions for the hand (his words 2026-11-23, -24): DROP (what it holds dropped,
+// as 6 / 7 and the holster menu's DROP), FLIP GRIP (its sword's, dagger's or Crystal Lance's grip turned over, as the eject
+// button and the holster menu's FLIP GRIP) and UNLOAD (its gun's live rounds back into the reserve, the holster menu's
+// UNLOAD), greyed when they would do nothing (flatholster::canDrop / canFlip / canUnload, the holster menu's own tests).
 //
 // Flatscreen play (vr_flat_wheel, his words 2026-11-23): the same wheel, its image and provider; only the input, the
 // cursor and the placement are flat's. Holding 1 / 2 (vr_flat_key_cycle_left / _right) vr_flat_wheel_hold seconds opens it
@@ -39,19 +40,20 @@ namespace qvr::weaponwheel
 // One slot of the wheel.
 struct Choice
 {
-    int key{-1};       // the provider's own (the holsters': the holster 0 .. 5, -1 the empty hand, keyDrop, keyUnload)
+    int key{-1};       // the provider's own (the holsters': the holster 0 .. 5, -1 the empty hand, keyDrop, keyUnload, keyFlip)
     char title[20]{};  // its slot's title ("L SHOULDER")
     char name[40]{};   // what is there ("shotgun"; "" nothing: "- EMPTY -")
     char model[64]{};  // its model's file (the thumbnail; "" none)
     bool usable{true}; // a pick would do something now (else greyed, and a pick does nothing)
-    // An action (the holsters': EMPTY HAND, DROP, UNLOAD; his words 2026-11-23): drawn smaller, as the holster menu's
+    // An action (the holsters': EMPTY HAND, DROP, FLIP GRIP, UNLOAD; his words 2026-11-23): drawn smaller, as the holster menu's
     // buttons, this icon above its title (name and model unused). None (the default): a slot.
     gadget::MenuIcon icon{};
 };
 constexpr int maxChoices = 16;
-// The holsters' provider's actions (QC VR_Wheel_Pick's VR_WHEEL_DROP, VR_WHEEL_UNLOAD).
+// The holsters' provider's actions (QC VR_Wheel_Pick's VR_WHEEL_DROP, VR_WHEEL_UNLOAD, VR_WHEEL_FLIP).
 constexpr int keyDrop = -2;
 constexpr int keyUnload = -3;
+constexpr int keyFlip = -4;
 
 struct Provider
 {

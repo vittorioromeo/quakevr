@@ -38,6 +38,9 @@ Flat-screen: hold 1 or 2 and the weapon wheel now opens after 0.15 s (was 0.35 s
 Flat-screen or VR: shove a grunt and then a dog hard into the wall behind it (every shove knocks it down here): it hits the wall and slumps or slides down it at once, lies against its foot like on the open floor and gets up as usual, never held up stuck on the wall for a second or two. {test:wall_shove}
 Body and Display > Handedness: Left-handed turns on Swap Face Buttons (next to Swap Stick Functions): walk forward on the right stick and press X: you jump, and A, B, Y and the two stick clicks do what the other controller's did; Right-handed turns it off, and changing it alone shows Handedness: Custom. {test:hub_start}
 Flat-screen or VR: aim down the sights of the shotgun, double shotgun, lightning gun and nail pistol: the front post glows in a different colour (pink with the default player colour) from the two rear notches; Colours > Front Sight Hue Shift turns it, 0 makes them one colour again. {test:sight_front_hue}
+Flat-screen or VR: hold the weapon wheel's button with a dagger, sword or the Crystal Lance in that hand: a FLIP GRIP button sits between DROP and UNLOAD; let go on it and the grip turns over (greyed with a gun). {test:flat_holster_dagger}
+Flat-screen: press B with a dagger or the Crystal Lance: its grip flips (B again flips it back), the flipped blade or Lance head turned forward into view; B with the rocket launcher still switches its ammo. {test:flat_holster_dagger}
+Show Melee Arcs with a sword grunt and an axe grunt coming at you: each draws its arc and reach on the floor, and its swinging blade leaves a fading trail like your Show Melee Blades sweeps (white winding up, yellow in the swing, red when it lands). {test:agrunt_melee_arcs}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
@@ -102,6 +105,7 @@ Arcane Dimensions' rocket, grenade and plasma soldiers, defenders, eliminators, 
 AD maps (ad_azad, ad_tears): grates, bars and pillar rows stop you without blocking any path you could walk before. {test:ad_azad_grates}
 In ad_crucial, save and load where the armed enforcer with a nail pistol and an axe comes for you: every armed grunt's and enforcer's arms follow its weapons after the load, never stuck in one pose with the weapons moving or floating ahead of them (Debug > Armed Humanoids: Arm Pose Slots says 0 found none). {test:agrunt_saveload}
 Run the frozen enforcers' Weapon Holds test, open the Pose Studio there, then run ad_crucial's lift test: the enforcers by the lift move and hold their guns animated, none left frozen from the test before. {test:ad_crucial_lift}
+Hold the trigger on AD's Plasma Gun: it fires plasma bolts only, with no lightning bolt drawn from its muzzle; a plain lightning gun still draws its stream. {test:ad_plasmabolt}
 
 [10. Survival Arena (Select Campaign > Arena Mode)]
 Play the arena a while: it feels good and each new wave starts without a hitch; note anything to improve. {test:arena_run}

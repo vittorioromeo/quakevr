@@ -23,6 +23,15 @@ namespace qvr::meleeshow
 // model +y (a); 6 a blow landed (a where; v its damage, -1 not known: a wall, or the contact before the damage).
 void add(int hand, int what, const glm::vec3& a, const glm::vec3& b, float v);
 
+// Show Melee Arcs (vr_enemy_melee_arc_show): an armed humanoid's swinging weapon (edict number `ent`) this server frame,
+// from QC's builtin meleeshowfoe (vr_meleerules.qc VR_MeleeArc_ShowSwings): the same `what` as add's (0 begins its
+// frame: a the grip, b the tip, v 1 in its blow's swing-through; 1 the butt; 6 its blow landed at a). Drawn as the
+// player's sweeps are (draw), for as long. Off: nothing kept.
+void addFoe(int ent, int what, const glm::vec3& a, const glm::vec3& b, float v);
+
+// The frames draw drew any armed humanoid's swing (the tests: meleeshowfoe's return; vr_enemy_melee_arc_status).
+[[nodiscard]] int foeDrawnFrames();
+
 // Hand `hand`'s (QC's: 1 main, 0 off) blow line as QC last sent it (within half a second): its near end, grip and tip. The
 // blade shape editor's (vr_bladeedit.cpp) near end where the weapon has none of its own (the kind's).
 [[nodiscard]] bool lastLine(int hand, glm::vec3& nearEnd, glm::vec3& grip, glm::vec3& tip);
@@ -31,7 +40,8 @@ void add(int hand, int what, const glm::vec3& a, const glm::vec3& b, float v);
 // the editor's Blade Start where the weapon has none of its own. False if not sent.
 [[nodiscard]] bool lastStrikeFrom(int hand, glm::vec3& at);
 
-// Draws the hands' last frames (the view's, facing `eye`); nothing when vr_debug_melee_blades is off.
+// Draws the hands' last frames (the view's, facing `eye`) while vr_debug_melee_blades is on, and the armed humanoids'
+// swings while vr_enemy_melee_arc_show is on; nothing when both are off.
 void draw(const glm::vec3& eye);
 
 } // namespace qvr::meleeshow

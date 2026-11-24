@@ -415,7 +415,9 @@ QVR_TOGGLE(vr_enemy_melee_arc, "Melee Arc",
 QVR_TOGGLE(vr_enemy_melee_arc_show, "Show Melee Arcs",
     "Debug: each melee monster after you (within 600 units) draws on the floor its arc and reach as they "
     "are now (a fan; its sweeping blows' wider fan once it has swung one), red with you inside it (its blow "
-    "would land), orange inside only a sweeping blow's, green outside. Its kind, arc and reach above it.")
+    "would land), orange inside only a sweeping blow's, green outside. Its kind, arc and reach above it. An armed "
+    "one's swinging blade also leaves its swept trail, as Show Melee Blades draws yours (yellow in its swing, red "
+    "when it lands).")
 QVR_TOGGLE(vr_enemy_aim_show, "Show Aim Cones",
     "Debug: each ranged monster after you (within 1000 units) draws its aim cone ahead of it, red with you "
     "inside (its shot comes straight at you), green outside, and its fire cone past it, orange with you "

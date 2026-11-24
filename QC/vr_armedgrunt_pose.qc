@@ -380,6 +380,8 @@ void(entity g, vector org, vector grip, float by) VR_AGP_CastVolley =
     VR_AG_Log(sprintf("agp: cast its fireballs from its palm at %v, %.0f from its shoulder", org, vlen(org - grip)));
 };
 
+void(entity p) VR_MeleeArc_ShowLanded; // (vr_meleerules.qc)
+
 // A blow from `from` along `dir` (world), with its weapon `p` (world: a punch): that weapon's own melee, `g` striking.
 void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
 {
@@ -391,6 +393,10 @@ void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
         VR_AG_Log(sprintf("agp: %s blow at %s: outside its arc or reach, missed", p ? p.netname : "a fist's",
             g.enemy.classname));
         return;
+    }
+    if(p && cvar_hget(cvarh_vr_enemy_melee_arc_show))
+    {
+        VR_MeleeArc_ShowLanded(p); // QVR: Show Melee Arcs: its swing red, a dot at its tip (vr_meleerules.qc)
     }
     if(vr_agk_on)
     {
@@ -2171,11 +2177,16 @@ void(entity g) VR_AGP_ShoveLands =
 // `g`'s pose this server frame, its weapon `p` (world: its fists) placed by it and the pose sent (QVR_SVC_ARMPOSE): by
 // the engine (agpose: the same results, vr_builtins_agpose.inc), else by QuakeC.
 void(entity g, entity p) VR_AGP_PoseQC;
+void(entity g) VR_MeleeArc_ShowSwings; // (Show Melee Arcs: its swing drawn, vr_meleerules.qc)
 void(entity g, entity p) VR_AGP_Pose =
 {
     if(!agpose(g, p))
     {
         VR_AGP_PoseQC(g, p);
+    }
+    if(cvar_hget(cvarh_vr_enemy_melee_arc_show))
+    {
+        VR_MeleeArc_ShowSwings(g);
     }
 };
 

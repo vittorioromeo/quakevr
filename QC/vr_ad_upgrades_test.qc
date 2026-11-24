@@ -172,6 +172,56 @@ void() AD_ShadowAxeTestRun =
     remove(self);
 };
 
+// 106 (plasmabolt; his report 2026-11-24: the Plasma Gun drew the lightning gun's stream while its trigger was held): the
+// Plasma Gun in the main hand, the trigger held (the run's +attack): 72 frames held (1 s) fire its plasma bolts and draw no
+// stream (FrameDrawLightningTrail's draws, vr_lg_trail_draws); then the same record a plain lightning gun (its upgrade
+// off), 72 more frames held: the stream drawn every frame. Verdict "adplasmabolt: N passed, M failed".
+float vr_adpb_phase, vr_adpb_frames, vr_adpb_draws, vr_adpb_shots, vr_adpb_waited;
+void() AD_PlasmaBoltTestRun =
+{
+    entity p = self.owner;
+    entity os = self;
+    self = p;
+    float held = VRGetFireButtonPressed(cVR_MainHand);
+    self = os;
+    self.nextthink = time + 0.001; // (every frame)
+    if(!held)
+    {
+        vr_adpb_waited++;
+        if(vr_adpb_waited > 360)
+        {
+            AD_PlasmaCheck("the trigger held", FALSE, "timed out: never held");
+            VR_Test_Verdict();
+            remove(self);
+        }
+        return;
+    }
+    vr_adpb_frames++;
+    if(vr_adpb_frames < 72)
+    {
+        return;
+    }
+    float draws = vr_lg_trail_draws - vr_adpb_draws, shots = ad_plasma_shots - vr_adpb_shots;
+    if(vr_adpb_phase == 0)
+    {
+        AD_PlasmaCheck("the Plasma Gun held firing draws no lightning stream", draws == 0, sprintf("%g drawn", draws));
+        AD_PlasmaCheck("it fires its plasma bolts", shots >= 3, sprintf("%g bolts in 72 frames", shots));
+        p.weaponinst.wi_adup = 0; // (the same record, a plain lightning gun)
+        p.weaponmodel = WeaponIdToModel(WID_LIGHTNING, 0);
+        p.ammo_cells = 100;
+        AD_SyncWeaponModels(p);
+        vr_adpb_phase = 1;
+        vr_adpb_frames = 0;
+        vr_adpb_draws = vr_lg_trail_draws;
+        vr_adpb_shots = ad_plasma_shots;
+        return;
+    }
+    AD_PlasmaCheck("the lightning gun held firing draws its stream", draws >= 60, sprintf("%g drawn in 72 frames", draws));
+    AD_PlasmaCheck("it fires no plasma bolts", shots == 0, sprintf("%g bolts", shots));
+    VR_Test_Verdict();
+    remove(self);
+};
+
 // 141, two steps (the engine reports the drawn gun's well a frame on): the Plasma Gun in the off hand, the main hand free.
 // Its cell's well (the engine's load point and the attached cell's box: vr_view.cpp magMounts, loadPorts: AdVrPlasma) is
 // found; the way the cell leaves is out of the gun's inner side (the left hand's right: the model mirrored), not down; the
@@ -455,6 +505,32 @@ void(float request, entity p) AD_UpgradesTest =
         AD_SyncWeaponModels(p);
         self = os5;
         bprint(sprintf("adplasmahit: the Plasma Gun in the main hand, model %s\n", p.weaponmodel));
+        return;
+    }
+    if(request == 106)
+    {
+        entity os6 = self;
+        self = p;
+        VR_WeaponUtil_EntAddWeapon(p, WID_LIGHTNING);
+        VRGiveEntWeapon(p, cVR_MainHand, WID_LIGHTNING, 0, WeaponIdToBaseClipSize(WID_LIGHTNING));
+        p.weaponinst.wi_adup = ad_IT_UPGRADE_LG;
+        p.weaponmodel = WeaponIdToModel(WID_LIGHTNING, 0); // (AD_SyncWeaponModels: the upgraded one)
+        p.ammo_cells = 100;
+        AD_SyncWeaponModels(p);
+        VR_Scene_HoldGiven(p, cVR_MainHand);
+        self = os6;
+        VR_Test_BeginFlags("adplasmabolt", VR_TEST_LOUD);
+        vr_adpb_phase = 0;
+        vr_adpb_frames = 0;
+        vr_adpb_waited = 0;
+        vr_adpb_draws = vr_lg_trail_draws;
+        vr_adpb_shots = ad_plasma_shots;
+        entity t6 = spawn();
+        t6.classname = "vr_adsa_timer";
+        t6.owner = p;
+        t6.think = AD_PlasmaBoltTestRun;
+        t6.nextthink = time + 0.001;
+        bprint(sprintf("adplasmabolt: the Plasma Gun in the main hand (model %s); hold the trigger\n", p.weaponmodel));
         return;
     }
     if(request == 105)
