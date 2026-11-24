@@ -2465,6 +2465,15 @@ struct FlatTest
     float slideOff{-1e9f};   // (flatfb1124) `slide` / `poleslide`: the feet where he was first off it (none yet)
     bool slideLanded{false}; // and the slide's own check made (on the floor)
     int slides0{0}, sounds0{0}; // (ropes13) the slides begun and the rope's sounds as the slide began
+    // (flatfb1124b) `slide` / `poleslide`: the drawn arms against the body while sliding: each hand's palm and elbow last
+    // frame (from the body) and their last move; the most and the sum of their moves a frame (palm, elbow), and the most a
+    // move changed from the last (the shake: a smooth move, as the crouch lowering the shoulders, changes little), over
+    // `jumpFrames` frames (the first flatSlideSettle not counted: the grip locking).
+    glm::vec3 jumpPrev[2][2]{};
+    glm::vec3 movePrev[2][2]{};
+    int jumpPrevOk{0}; // frames in a row with a pose (2: a last move known)
+    float jumpMost[2]{0.f, 0.f}, jumpSum[2]{0.f, 0.f}, shakeMost[2]{0.f, 0.f};
+    int jumpFrames{0};
 };
 FlatTest flatTest;
 constexpr const char* flatTestName = "vr_rope_flat_test";
@@ -2472,6 +2481,75 @@ constexpr glm::vec3 flatTestRope{200.f, -400.f, 0.f}; // (vrropes: open floor so
 constexpr glm::vec3 flatTestRow[2] = {{-288.f, 0.f, 0.f}, {-96.f, 0.f, 0.f}};
 constexpr float flatStrungHeight = 110.f; // (ropes7) units over the floor: the strung rope (a jump up to it)
 constexpr float flatPoleHeight = 85.f;    // (ropes8a) a level pole's (as high as the strung rope settles: no sag)
+
+// (flatfb1124b, his flat note 2026-11-24: "the arms/IK jitter visually" sliding down) A frame of a slide: each drawn hand's
+// palm and elbow from the drawn body (the player's entity as drawn: its origin), against last frame's (a hand locked on
+// the rope sliding with him: no move; not from the view, which flat crouch eases down as the slide begins).
+constexpr float flatSlideJumpMost = 1.f; // units a frame a drawn palm may move from the body while sliding (0.49 on the rope)
+constexpr float flatSlideShakeMost = 1.f;  // units a palm's move a frame may change from the last (0.54 on the rope)
+constexpr float flatSlideElbowShake = 3.f; // and an elbow's (2.4-2.6: one snap as the crouch lowers the shoulders; 14.7 unlocked)
+constexpr int flatSlideSettle = 2;         // the slide's first frames not counted (the grip locking as it begins)
+
+void flatSlideJumps(FlatTest& t, bool on)
+{
+    avatar::Skeleton k;
+    glm::vec3 now[2][2];
+    bool ok = on && avatar::skeleton(k);
+    const glm::vec3 body = vecOf(cl_entities[cl.viewentity].origin);
+    for(int h = 0; h < 2 && ok; h++)
+    {
+        glm::vec3 palm{0.f};
+        ok = climb::drawnShare(h) >= 0.999f && climb::drawnPalm(h, palm);
+        now[h][0] = palm - body;
+        now[h][1] = k.elbow[h] - body;
+    }
+    if(ok && t.jumpPrevOk > 0)
+    {
+        glm::vec3 move[2][2];
+        float shake[2][2]{};
+        for(int h = 0; h < 2; h++)
+        {
+            for(int j = 0; j < 2; j++)
+            {
+                move[h][j] = now[h][j] - t.jumpPrev[h][j];
+                shake[h][j] = t.jumpPrevOk > 1 ? glm::distance(move[h][j], t.movePrev[h][j]) : 0.f;
+            }
+        }
+        if(++t.jumpFrames > flatSlideSettle)
+        {
+            for(int h = 0; h < 2; h++)
+            {
+                for(int j = 0; j < 2; j++)
+                {
+                    const float d = glm::length(move[h][j]);
+                    t.jumpMost[j] = za::max(t.jumpMost[j], d);
+                    t.jumpSum[j] += d;
+                    t.shakeMost[j] = za::max(t.shakeMost[j], shake[h][j]);
+                }
+            }
+        }
+        if(vr_climb_debug.value != 0.f)
+        {
+            Con_Printf("%s: slide frame %d: palms %.2f %.2f elbows %.2f %.2f units from last frame's (from the body); shake %.2f %.2f, %.2f %.2f\n",
+                flatTestName, t.jumpFrames, glm::length(move[0][0]), glm::length(move[1][0]), glm::length(move[0][1]),
+                glm::length(move[1][1]), shake[0][0], shake[1][0], shake[0][1], shake[1][1]);
+        }
+        for(int h = 0; h < 2; h++)
+        {
+            t.movePrev[h][0] = move[h][0];
+            t.movePrev[h][1] = move[h][1];
+        }
+    }
+    t.jumpPrevOk = ok ? za::min(t.jumpPrevOk + 1, 2) : 0;
+    if(ok)
+    {
+        for(int h = 0; h < 2; h++)
+        {
+            t.jumpPrev[h][0] = now[h][0];
+            t.jumpPrev[h][1] = now[h][1];
+        }
+    }
+}
 
 void flatTestNext(FlatTest& t, int stage)
 {
@@ -2806,6 +2884,9 @@ void flatTestFrame()
             t.feet0 = feet;
             t.serials = 0;
             t.lastSerial = -1;
+            t.jumpPrevOk = 0;
+            t.jumpMost[0] = t.jumpMost[1] = t.jumpSum[0] = t.jumpSum[1] = t.shakeMost[0] = t.shakeMost[1] = 0.f;
+            t.jumpFrames = 0;
             Cbuf_AddText("+flatcrouch\n");
             flatTestNext(t, 60);
         }
@@ -3201,6 +3282,7 @@ void flatTestFrame()
         {
             t.slideOff = feet;
         }
+        flatSlideJumps(t, climbing && sliding && !t.slideLanded);
         if(t.slideLanded)
         {
             if(t.frames >= 72 * 2)
@@ -3238,6 +3320,20 @@ void flatTestFrame()
             if(ok)
             {
                 Con_Printf("%s: PASS %s\n", flatTestName, what);
+            }
+            // (flatfb1124b) The drawn arms while sliding: the hands locked on the rope, sliding with him.
+            const float n = static_cast<float>(za::max(1, (t.jumpFrames - flatSlideSettle) * 2));
+            const char* arms = va("the arms while sliding: the palms moved at most %.2f units a frame from the body (mean %.3f; a move's "
+                                  "change from the last, the shake, at most %.2f), the elbows %.2f (mean %.3f; shake %.2f: the crouch "
+                                  "lowers the shoulders), over %d frames",
+                t.jumpMost[0], t.jumpSum[0] / n, t.shakeMost[0], t.jumpMost[1], t.jumpSum[1] / n, t.shakeMost[1],
+                t.jumpFrames - flatSlideSettle);
+            const bool smooth = t.jumpFrames >= 20 && t.jumpMost[0] <= flatSlideJumpMost && t.shakeMost[0] <= flatSlideShakeMost &&
+                                t.shakeMost[1] <= flatSlideElbowShake;
+            t.tally.check(smooth, flatTestName, arms);
+            if(smooth)
+            {
+                Con_Printf("%s: PASS %s\n", flatTestName, arms);
             }
             t.slideLanded = true; // (crouch still held: on to 2 s)
         }

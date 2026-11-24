@@ -11968,3 +11968,29 @@ weapon. lance4's report: with the Lance's record gone (stuck in an ogre), a weap
   alone on the same tree: **PASS** (186 run, 0 failed): a flake of the crowd scene (40 mixed AD monsters awake in one
   hall), not seen in beta3fix's or animfix2's full runs. As beta2, the release waits for the coordinator: the same
   make_release command above, from the quest tree on b8d2f9967 (or this notes commit), APK already built and checked.
+
+## flatfb1124b: flat rope slides with the grips locked, the Lance's HUD without a magazine, his Lance pose the default (agent/flatfb1124b, 2026-11-24)
+
+His flatscreen feedback 2026-11-24 (two items), and the coordinator's: his tunables.cfg's Lance pose made the default.
+- **Slide (1, "the arms/IK jitter"):** measured by a new rope_flat_test check (`slide` / `poleslide`: each drawn palm and
+  elbow from the drawn body a frame, and its shake, a move's change from the last; vr_climb_debug 1 prints each frame).
+  The cause on a rope: each frame the drawn hand was put on the server's hold (moved down by `flatSlideHolds`) and then
+  on the rope as drawn, which sways a few units a frame under the sliding holds; some frames the hold was off the drawn
+  rope and the hand fell back to the stat's place. Now (vr_climb.cpp `drawnHand`; STAT_QVR_CLIMB bit 31, `slideStatBit`:
+  the server's `flatSliding`) a sliding hand keeps the grip it had: its place from the body (hands::State::playerOrigin)
+  and its turn, kept on the rope as drawn only through an eased offset (`slideRopeEase` 0.15 s; not followed further
+  than `slideRopeFar` 6: the free end swinging out below); let go of the slide, it glides back onto its hold.
+  `vr_flat_rope_slide_lock` 1 (Debug > Tunables > Rope Slide: Hands Locked; 0: as before).
+  Rope: palms at most 18.15 units a frame (mean 2.38, shake 30.1) -> 0.49 (mean 0.12, shake 0.54); elbows 8.14 (shake
+  14.7) -> 1.49 (shake 2.38). Pole: palms 0.06 -> 0.00; the elbows' shake 2.3-2.6 either way: one snap of the off elbow
+  about 10 frames in, as the flat crouch lowers the shoulders. Open: that snap is the elbow IK during the crouch's ease,
+  not the grip.
+- **Lance HUD (2):** the HUD read "36/total": the hand's clip size (`.weaponclipsize`, STAT_QVR_WEAPONCLIPSIZE) was the
+  lightning gun's 36 though the Lance held as a lance never reloads. QC `updateAmmoCounter` now gives 0 for a record
+  that is `DW_LanceFedFromPouch` (the held record's variant: variantowned). The flat HUD (`VR_FlatHudClip`), the VR
+  gun's screen and idle text and other players' copies all read that stat: the cells alone.
+- **Lance pose defaults:** `tune_promote.py` from his tunables.cfg: vr_flat_pole_fwd -10, _up -8.5, _pitch 8, _yaw 5,
+  _along -2.5, _off_up 3.5, _off_pitch -67, _off_yaw 34, _hand_fwd 1, _hand_out -0.25 (`--check`: nothing left).
+  flatlance_test sets each to its default plus the step it measures.
+- **Tests:** rope_flat_test slide 9/0, poleslide 10/0, slideend 2/0, rope 9/0, pole 8/0; flatlance_test with a new HUD
+  check (after the axe and the Lance again by their keys: `big <cells> small -1`, clip size 0).

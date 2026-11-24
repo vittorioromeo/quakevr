@@ -94,7 +94,11 @@ void(float xHand, float xAid) updateAmmoCounter =
     else
     {
         VRSetAmmoCounter(xHand, VR_AmmoUtil_GetAmmoCountByAmmoId(self, xAid));
-        VRSetWeaponClipSize(xHand, VR_ClipSizeIn(self, xHand)); // (AD support: the Widowmaker's tube)
+        // (AD support: the Widowmaker's tube.) Dwell's Crystal Lance held as a lance has no magazine (DW_LanceFedFromPouch,
+        // the held record's variant: variantowned): size 0, so every display (the flat HUD's VR_FlatHudClip, the VR gun's
+        // screen and its idle text, other players' copies) shows its cells alone, as a gun without a clip (his flat note
+        // 2026-11-24: "36/XXX").
+        VRSetWeaponClipSize(xHand, DW_LanceFedFromPouch(VRGetEntWeaponInst(self, xHand)) ? 0 : VR_ClipSizeIn(self, xHand));
     }
 }
 
