@@ -39,21 +39,23 @@ SC="$SC; tune vr_flat_pole_off_pitch -30; tune vr_flat_pole_hand_roll 30; wait10
 SC="$SC; echo flt: hbase; $ST; tune vr_flat_pole_hand_fwd 4; tune vr_flat_pole_hand_up 2; wait10; echo flt: hmove; $ST; tune_reset vr_flat_pole_hand_fwd; tune_reset vr_flat_pole_hand_up; wait10"
 # (flatembed: a press of the fire button pulls a stuck Lance: back 0.2 s, held 0.25 s, onto the grip 0.2 s: 47 frames.)
 PULL="+attack; wait3; -attack; wait50"
-SC="$SC; vr_test_spawn 1; vr_test_spawn_dist 52; impulse 241; wait20; echo flt: thrust; vr_flat_punch main v; wait50; vr_test_hurt -1; wait5; $PULL; $PULL"
+# (lancepull: the blows' push off (vr_melee_push, back after section 5): its 38 units a blow sent the first ogre ~100 off
+# and out of reach, some runs not one thrust of section 5 landing; staggers and the ogres' pain frames still move them.)
+SC="$SC; vr_melee_push 0; vr_test_spawn 1; vr_test_spawn_dist 52; impulse 241; wait20; echo flt: thrust; vr_flat_punch main v; wait50; vr_test_hurt -1; wait5; $PULL; $PULL"
 # (lance4, flatembed: thrust after thrust into it, each pulled out by fire presses if it stuck, then a second one; the
 # Lance never let go of in a body, never a plain lightning gun.)
 SC="$SC; echo flt: many"
 for i in 1 2 3 4 5; do SC="$SC; vr_flat_punch main v; wait50; $PULL; $PULL"; done
 SC="$SC; vr_test_spawn 1; vr_test_spawn_dist 52; impulse 241; wait20"
 for i in 1 2 3 4 5; do SC="$SC; vr_flat_punch main v; wait50; $PULL; $PULL"; done
-SC="$SC; impulse 8; wait10; echo flt: manyend; $ST"
+SC="$SC; impulse 8; wait10; echo flt: manyend; $ST; vr_melee_push 0.5"
 # (flatfb1124b: the axe and the Lance again by their keys. lanceoffhand: with the flat holsters on (the default) these keys
 # draw nothing; vr_ad_test 207 now sets the hand's ammo as a draw does, W_SetCurrentAmmoFor.)
 SC="$SC; impulse 1; wait40; impulse 8; wait40; echo flt: hud; $ST; vr_flathud_report"
 # (lancepull: the Lance stuck and pulled out by a press, and H with it stuck (it stays in), are counted in
-# flatthrust_test.sh (vr_embed_test 59): its grunt held still. Here the ogres move off a stuck Lance (each blow's push,
-# vr_melee_push: 38 units in a third of a second; staggers; the ogre's own pain frames stepping back 23 units), carrying
-# it out into the hand before a press or an H as often as not: chance, not a check.)
+# flatthrust_test.sh (vr_embed_test 59): its grunt held still. Here the ogres move off a stuck Lance (staggers, the
+# ogre's own pain frames stepping back 23 units; in play also each blow's push, vr_melee_push: 38 units in a third of a
+# second), carrying it out into the hand before a press or an H as often as not: chance, not a check.)
 # (lanceoffhand: last, from e1m1's start again, the moves clear of its walls (at a wall the Lance tilts up and the hand
 # lets go).)
 PR="vr_flat_pole_track report"
@@ -64,7 +66,7 @@ SC="$SC; +right; wait72; -right; wait20; echo flt: pturn; $PR; +right; +forward;
 SC="$SC; vr_flat_punch main v; wait50; echo flt: pthrust; $PR; vr_flat_pole_track 0"
 SC="$SC; vr_flat_melee_probe done; wait2; echo flatlance: done; toggleconsole; quit"
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$SC" -QuitOn "^flatlance: done" -Timeout 400 \
-  -Filter '^flt:|^flatlance|^flathud: right|^ammo|flatreload: b|revgrip: hand|spear:|spear hands:|spear places:|spear thrust|^poletrack: report|^flatmelee: main|dwlance: a thrust|2h grip|test hurt:|embedhold:|flat reload:|flat drop:|ERROR|CRASH' > "$L" 2>&1
+  -Filter '^flt:|^flatlance|^flathud: right|^ammo|flatreload: b|revgrip: hand|spear:|spear hands:|spear places:|spear thrust|^poletrack: report|^flatmelee: main|dwlance: a thrust|2h grip|test hurt:|embedhold:|flat reload:|flat drop:|^thrown: |lets go|let go of|knocked out|dropped|ERROR|CRASH' > "$L" 2>&1
 block() { awk -v m="flt: $1" '$0==m || $0==m" "{on=1;next} /^flt:|^flatlance: done/{on=0} on' "$L"; }
 # A number after a word on the block's "spear: main" line.
 num() { block "$1" | grep -a "spear: main" | head -1 | grep -ao " $2 -\?[0-9.]*" | head -1 | grep -ao -- '-\?[0-9.]*$'; }
@@ -131,7 +133,7 @@ na=$(grep -ac "embedhold: .* comes free" <<<"$mn") # (any way into the hand: pul
 no=$(grep -ac "embedhold: hand 1 off" <<<"$mn")
 echo "  many thrusts: $nt landed, $ns stuck, $np pulls, $nf pulled out, $na into the hand, $no hands off"
 check $(ok "$nt >= 1") "many thrusts: $nt landed"
-# (lancepull: how many stick, and whether a press or the ogre moving off (a blow's push, a stagger, its pain frames'
+# (lancepull: how many stick, and whether a press or the ogre moving off (a stagger, its pain frames'
 # step back: the blade carried past the hold's reach or slid out, into the hand) gets each out, is chance here; the
 # counted stick, pull-out and H are flatthrust_test.sh's (vr_embed_test 59, the grunt held still).)
 check $(ok "$na == $ns") "many thrusts: every stuck Lance back in the hand ($na of $ns: $nf pulled out by $np presses, the rest carried out by the ogre)"

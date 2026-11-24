@@ -11,7 +11,7 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
 ## 1. Open bugs and failing tests
 
 Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md sections until then):
-- **Lance pull-out flake**: `flatlance_test` section 5 fails ~1 run in 6 ("Lance gone after a pull-out"; the H case found
+- **Lance pull-out flake**: the test's chance checks moved to flatthrust 59 (ROUND26 "lancepull"); one real loss seen once (the hand empty after a shaft hit on a touching ogre, cause unknown). Was: `flatlance_test` section 5 fails ~1 run in 6 ("Lance gone after a pull-out"; the H case found
   no Lance stuck). ROUND25.md "lance4", "flatembed".
 - **VR embed test 24 and test 33 case 46 still fail** (ROUND25.md "embedregress"): 24's mock axe swing is aimed by the old
   pitch 0 (the axe ships 15.5); 33 case 46: a dead grunt held by the handle doesn't come to the hand (the ragdoll
