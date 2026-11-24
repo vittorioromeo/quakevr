@@ -396,6 +396,7 @@ void resetBodyEquipment()
         toggle("Walk Into Run", vr_move_autorun)
             .help("Walking, pushing the moving stick all the way eases you into a run; a smaller push walks."),
         row(opt::vr_stick_swap),
+        row(opt::vr_button_swap),
         cycle("Swimming", vr_swim, {{1.f, "Immersive"}, {0.f, "Vanilla"}})
             .help("Immersive: in water the stick slows and strokes of your hands move you. Vanilla: the stick swims as in "
                   "Quake."),
@@ -781,6 +782,7 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         header("Sides"),
         row(opt::vr_handedness),
         row(opt::vr_stick_swap),
+        row(opt::vr_button_swap),
         cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}}).help("The arm the wrist gadget (the HUD) is on."),
         cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}}).help("The side of your belt the torch hangs on (Chest Flashlight; Always on Head: the temple it is worn at)."),
 

@@ -12092,3 +12092,24 @@ His flatscreen feedback 2026-11-24 (two items), and the coordinator's: his tunab
 - **make_release** (beta3's command, -Version 1.2.0-beta4) on 66a6be17: beta profile 12 passed, 0 failed (4.3 min);
   installer self-tests 60/60; check_apk 28/0; smoke launch; published as a prerelease with QuakeVR.zip,
   QuakeVR-Setup.exe, QuakeVR.apk, latest.json, SHA256SUMS.txt; online check passed; Latest still v1.1.0.
+
+## Swap Face Buttons for left-handed play (branch agent/lefthandbuttons, 2026-11-24)
+
+A left-handed player with the sticks swapped had jump (A) on the moving hand. New archived `vr_button_swap` (default
+0), "Swap Face Buttons", a row after Swap Stick Functions on Body and Display (Sides) and on Locomotion and Controls.
+On, the face buttons and stick clicks send the other controller's keys (X sends ABUTTON, A XBUTTON, Y BBUTTON, B
+YBUTTON, the left stick's click RTHUMB, the right's LTHUMB) in `vr_input.cpp` (`swappedKeys`), so every bind (the
+user's own too, and the key capture) works mirrored; triggers and grips are untouched. The swap is latched per press, so
+a button held while the setting changes lets go of the key it pressed. Key names follow (`VR_ButtonSwapKey` in
+`Key_KeynumToFriendlyString`, VR only: messages that name a bound key say X for ABUTTON). Handedness: Left-handed sets
+it, Right-handed clears it (the preset's settings grew to 4), and it alone makes Handedness Custom.
+Deliberately left on the physical hand: whatever reads a hand's own button (the weapon wheel opening round the hand
+holding its button, the grappling hook's reel/unreel and the reload bits for the gun in that hand, the flashlight, voice
+notes and push-to-talk at the mouth, the toolgun and posing modes), and the settings that name a button or side
+themselves (vr_menu_button's Y/B holds, vr_bullettime_trigger's and vr_seated_crouch_button's left/right stick).
+Menus get the swapped keys too (X confirms, Y/B go back as before). Open: the default reload binds cross hands when
+swapped (A sends XBUTTON `+reloadoff`, the left gun's reload; the left stick sends RTHUMB `+reloadmain`).
+A left-hander's saved config (stick swap etc. on, the new setting off) now shows Handedness: Custom until re-picked.
+Tests: `vr_button_swap_test` (11 cases + names: 14 passed, 0 failed): A/X jump off/on, B/Y and stick clicks, trigger
+unchanged, flips while held leave no key stuck. `settings_page_test.py` (23/0): the installer's Left-handed sets it,
+the saved config keeps it, Right-handed clears it. Installer manifest (help text) and menu_paths.txt refreshed.

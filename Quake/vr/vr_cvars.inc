@@ -862,6 +862,7 @@ QVR_CVAR(vr_enabled, "0", CVAR_NONE)
 // No main hand setting (ROUND21.md, "Handedness: separate options"): the hands are the physical ones, and each thing
 // that has a side has its own setting: vr_stick_swap (which stick moves), vr_gadget_arm, vr_flashlight_side.
 QVR_CVAR(vr_stick_swap, "0", CVAR_ARCHIVE) // 0: the left stick moves (and, Move Towards: Hand, the left hand steers), the right turns; 1: the other way round (hands::moveHand)
+QVR_CVAR(vr_button_swap, "0", CVAR_ARCHIVE) // 1: the controllers' face buttons and stick clicks swapped as keys (A<->X, B<->Y, RTHUMB<->LTHUMB: whatever is bound to A acts from X), for left-handed play with the sticks swapped (jump off the moving hand); key names shown mirrored. Per-hand gestures stay on their hand (vr_input.cpp swappedKeys)
 QVR_CVAR(vr_fakevr_handroll, "0", CVAR_NONE)
 QVR_CVAR(vr_crosshair, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_crosshair_depth, "0", CVAR_ARCHIVE)
