@@ -11969,6 +11969,9 @@ weapon. lance4's report: with the Lance's record gone (stuck in an ogre), a weap
   and a failed link's message.
 - **Tests**: -glfakevendor Intel on the RTX 4090: "vendor workarounds (Intel ...): vertex-only depth programs off", every
   program linked, e1m1's eyes the same as without (14 pixels by at most 2 of 259,200; two default runs differ by 60
-  pixels, at most 7: the run-to-run noise). -glsafe: linked, drew. gles_render_test.sh: see the report.
+  pixels, at most 7: the run-to-run noise). -glsafe: linked, drew. gles_render_test.sh: 18 passed, 3 failed: every program compiled under -glescompat and
+  -glesnoext, PC vs ES within limits; the 3 failures are its arrays section (ES with the textures in arrays vs ES
+  without: 0.44% of pixels, 1 of 3606 textures differ), two ES runs that take the same programs before and after this
+  change (ES already had the empty fragment shader): not this change; a low-impact run (his game was running).
 - **Ask the player**: run 1.2 (or the next beta) as usual; if it still fails, send the crash report (now with "GL
   limits:") and the run's system.txt; `-glsafe` also takes the empty fragment shader.
