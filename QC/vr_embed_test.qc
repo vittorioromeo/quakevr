@@ -3710,7 +3710,7 @@ void() VR_EF_Step =
                 vr_ef_max = 0;
                 cvar_set("vr_embed_probe", "reset");
                 vr_ef_hand = VRGetHandPos(cVR_MainHand);
-                vr_ef_at = vr_ef_hand - w.vr_stick_dir * (w.vr_stick_depth + cvar_hget(cvarh_vr_embed_hold_axe_stick) * cm + 30 * cm);
+                vr_ef_at = vr_ef_hand - w.vr_stick_dir * (w.vr_stick_depth + cvar_hget(cvarh_vr_embed_hold_axe_stick) * cm + 30 * cm + max(0, w.vr_hold_err)); // (the hand may have run on past the blade: that gap first)
                 localcmd("vr_mock_hand_glide 0\n");
                 VR_ET_To(10);
             }
