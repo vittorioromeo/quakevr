@@ -11878,5 +11878,11 @@ weapon. lance4's report: with the Lance's record gone (stuck in an ogre), a weap
   - MP remote players: all of it is the server's; the client's own impulse reaches W_ChangeWeapon (tested).
   - Safety net: `WeaponInst_OwnedSync(p, TRUE)` in PlayerPostThink, the 8 records each frame; one it has to change is a
     path that missed it: counted (`wi_owned_late`) and printed ("owned variant: ... made N late", developer 1).
-- **Tests**: `dwell_owned_test.sh` (vr_ad_test 231-232): RESULTS. MP: `mp_test.py variantowned` (vr_ad_test 233-234, in
-  the suite): RESULTS. Scene `dwell_owned`.
+- **Tests**: `dwell_owned_test.sh` (vr_ad_test 231-232) 6/0: the VR mock with a level change, flat play (its holsters
+  off: with them on, flat's weapon keys do nothing) with a save and load; 231 18/0 each (every path above checked as it
+  returns, before the sync; 1 late, the record the test put in bypassing every path), 232 3/0 (both owned, a plain
+  super shotgun carried came back the Rotary, the weapon key's gun the Lance). MP: `mp_test.py variantowned` 8/0 (in the
+  suite; A VR, B flat with his holsters off): B's own key 8 gave the Lance; both respawned (coop) still own it.
+  dwell_weapons_test.sh 13/0, flatlance_test.sh 14/0 unchanged. Scene `dwell_owned`.
+- Not shown by a test: bots' own picks (they go through VRGiveEntWeapon, as the cheat checked), the magnetic holster's
+  pull, a deathmatch respawn (the same edict as coop's); the headset's grips by hand.

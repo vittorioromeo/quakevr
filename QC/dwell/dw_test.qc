@@ -1545,6 +1545,8 @@ void() DW_OwnedMP_Think =
     for(entity q = VR_Player(); q; q = VR_NextPlayer(q))
     {
         self = q;
+        q.movetype = MOVETYPE_TOSS; // (as a dead player is: his body's copy must not walk, SV_Physics' "bad movetype 3")
+        q.deadflag = DEAD_DEAD;
         respawn(); // (coop: the level's parms, his edict kept)
         self = q;
         VR_Test_Check(q.vr_owned_vars & 2, sprintf("%s respawned still owns the Lance (bits %g)", q.netname, q.vr_owned_vars));
