@@ -4541,6 +4541,7 @@ vr_flat_rope_keys|2|Tunables|Rope Keys By Look|Advanced VR Options > Debug > Tun
 vr_flat_rope_climb_pitch|2|Tunables|Rope Climb Pitch|Advanced VR Options > Debug > Tunables > Rope Climb Pitch
 vr_flat_rope_retake|2|Tunables|Rope Retake Time|Advanced VR Options > Debug > Tunables > Rope Retake Time
 vr_flat_rope_slide_speed|2|Tunables|Rope Slide Speed|Advanced VR Options > Debug > Tunables > Rope Slide Speed
+vr_flat_rope_slide_lock|2|Tunables|Rope Slide: Hands Locked|Advanced VR Options > Debug > Tunables > Rope Slide: Hands Locked
 vr_flat_ladder_reach|2|Tunables|Ladder Reach|Advanced VR Options > Debug > Tunables > Ladder Reach
 vr_flat_hand_collide|2|Tunables|Wall: Empty Hands And Swings|Advanced VR Options > Debug > Tunables > Wall: Empty Hands And Swings
 vr_flat_swing_wind_strikes|2|Tunables|Swing Windup Strikes|Advanced VR Options > Debug > Tunables > Swing Windup Strikes
