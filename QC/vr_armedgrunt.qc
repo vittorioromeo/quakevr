@@ -1017,8 +1017,13 @@ void() VR_AG_PropThink =
 // A weapon one hand swings (dual wielding pairs these: VR_AG_ArmLeft): a sword (not AD's hammer and mace), the crowbar,
 // the axe (two-handed alone: vr_armedgrunt_pose.qc VR_AGP_TwoHanded). No gun: they are long guns its animations hold in
 // both hands (the grunt's and the enforcer's rifle lines).
+float(float xWid, float xFlags) VR_PoleWeapon; // (vr_poleweapon.qc)
 float(float wid, float flags) VR_AG_OneHanded =
 {
+    if(VR_PoleWeapon(wid, flags))
+    {
+        return FALSE; // (a pole weapon, the spear: both hands on its shaft, never paired)
+    }
     if(wid == WID_SWORD)
     {
         return !VR_ADMelee_Heavy(VR_ADMelee_Kind(flags));

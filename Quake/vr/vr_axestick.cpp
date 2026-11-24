@@ -43,6 +43,7 @@
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
+#include "vr_twohand.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
@@ -94,6 +95,7 @@ struct Blade
     glm::vec3 tip{0.f};    // a point's: its tip (the Muzzle anchor and offset),
     glm::vec3 hand{0.f};   // where the hand holds it (the line to its tip: the blade's axis),
     glm::vec3 from{0.f};   // and where the blade proper starts on that line (BladeFrom)
+    bool pole{false};      // a pole weapon's (twohand::poleWeapon: the spear): thrown, it flies point first (stickByPoint)
 };
 
 // The kinds of thing it is in (.vr_stick_kind).
@@ -301,6 +303,7 @@ constexpr za::SizeT maxSamples = 256;
     b.hand = own(glm::vec3{0.f});
     b.handle = own(butt);
     b.from = glm::mix(b.hand, b.tip, from > 0.f ? za::min(from, 0.9f) : blade::swordKindFrom);
+    b.pole = twohand::poleWeapon(slot);
     return b;
 }
 
@@ -1124,6 +1127,19 @@ void freeHandle(edict_t* ent, const Blade& blade, edict_t* host, const glm::vec3
     return true;
 }
 
+// Degrees between the level part of the way `dir` and the level way from `point` to the upright line through the middle of
+// the body `host`'s box (0 when it goes straight at that line, or the point is on it).
+[[nodiscard]] float bodyGlance(const edict_t* host, const glm::vec3& point, const glm::vec3& dir)
+{
+    const glm::vec3 mid = (vec(host->v.absmin) + vec(host->v.absmax)) * 0.5f;
+    const glm::vec2 in{mid.x - point.x, mid.y - point.y}, go{dir.x, dir.y};
+    if(glm::length(in) < 1.f || glm::length(go) < 1e-3f)
+    {
+        return 0.f;
+    }
+    return glm::degrees(za::acos(za::clamp(glm::dot(glm::normalize(in), glm::normalize(go)), -1.f, 1.f)));
+}
+
 // A sword's point going in (its checks and its depth; what went in first: `best`): true if it stuck.
 [[nodiscard]] bool stickByPoint(edict_t* ent, const Blade& blade, const Strike& best, const glm::vec3& com, const glm::vec3& vel,
     const glm::vec3& spin, float dt, float minSpeed, func_t stuckFn)
@@ -1144,9 +1160,15 @@ void freeHandle(edict_t* ent, const Blade& blade, edict_t* host, const glm::vec3
     const glm::vec3 along = axesAt * glm::normalize(line);
     const glm::vec3 relDir = speed > 1e-3f ? rel / speed : along;
     const float sideOn = degrees(relDir, along);
-    const float incidence = degrees(relDir, -best.normal);
     const char* hostName = host == qcvm->edicts ? "the level" : PR_GetString(host->v.classname);
     const bool inBody = best.kind == Model || best.kind == MonsterBox;
+    // A thrown pole weapon (the spear) flies point first along its flight: in a body its glance is the lesser of the
+    // surface's and the body's (its flight against the way to the body's upright middle, level), up to
+    // vr_embed_pole_incidence; a moving model's limbs and folds met it far off straight in (spearfix: 1 throw in 3 stuck).
+    const bool poleIn = blade.pole && inBody;
+    const float incidence = poleIn ? za::min(degrees(relDir, -best.normal), bodyGlance(host, best.point, relDir))
+                                   : degrees(relDir, -best.normal);
+    const float incidenceMax = poleIn ? vr_embed_pole_incidence.value : vr_embed_sword_incidence.value;
 
     const char* why = best.why;
     if(!why && speed < minSpeed)
@@ -1161,9 +1183,9 @@ void freeHandle(edict_t* ent, const Blade& blade, edict_t* host, const glm::vec3
     {
         why = "side on";
     }
-    else if(!why && incidence > vr_embed_sword_incidence.value)
+    else if(!why && incidence > incidenceMax)
     {
-        why = "too glancing";
+        why = poleIn ? "too glancing (a pole weapon's: vr_embed_pole_incidence)" : "too glancing";
     }
 
     // How deep, by its speed: a share of the blade, less in the level and props; along its line from where it struck.
