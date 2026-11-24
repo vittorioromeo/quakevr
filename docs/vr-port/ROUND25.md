@@ -11942,3 +11942,29 @@ weapon. lance4's report: with the Lance's record gone (stuck in an ogre), a weap
   was set from the start): printed as info, not counted.
 - **Screenshots**: C:/OHWorkspace/qvr-kit/scratch/lance4_shots.png (the beam and the lit head as it fires and 12 frames
   on; the off-hand-on-the-pole frames missed the Lance, the mock hands' framing; the impact is far down the corridor).
+## beta3: 1.2.0-beta3, the first release-signed Quest APK (agent/beta3, 2026-11-24)
+
+- **Notes:** RELEASE_NOTES_1.2.md "New in beta 3" completed with what shipped after beta3fix: the Quest hub crash fixed
+  (hubcrash, hubcrash2; "the Quest 3S is untested / being looked at" replaced by "fixed; 3S and Quest 2 untested by us"),
+  Quest Setup making mod folders readable and copying the rerelease's language data (questmods), Quoth needing AD, the
+  Lance/Rotary owned per player (variantowned), and the 1124 fixes (animfix1123, lance3, lance4, ropes14, tutfix1123,
+  animfix2, weapons1123: the VR wheel now off by default, flatfb1124). The one-time uninstall + manual save backup and
+  network version 46 kept. PATCH_NOTES_1.1.1.md: the same by area (Weapons, Movement, Menus, Monsters, Quest, Installer).
+- **Release key read fix** (`Android/package_apk.sh`): his `~/.quakevr/android-release.env` has no newline after its
+  last line (2 lines, 1 newline), and `while IFS='=' read` drops such a line: the store password was never read
+  ("the release key is not set: QVR_ANDROID_RELEASE_STOREPASS"). The loop now also takes a last line without its
+  newline (`|| [ -n "$name" ]`). The file itself untouched and never printed.
+- **APK:** `Android/release_apk.sh build` after the version commit: package "release, 1.2.0-beta3, version code
+  1020003", check_apk (vr release) 28/0; the signer `CN=Quake VR`, SHA-256 504ff939...9119c0 = Android/release-cert.sha256
+  (apksigner, checked apart from check_apk too). 24.7 MB.
+- **make_release:** `make_release.ps1 -Version 1.2.0-beta3 -Publish -NoDraft -NoBranchPush -RunTests -AllowFlaky
+  -SkipOnlineInstall -Notes docs/vr-port/RELEASE_NOTES_1.2.md -Apk build-android-release/apk/QuakeVR.apk`, from the
+  quest tree; its -DryRun clean (assets QuakeVR.zip, QuakeVR-Setup.exe, latest.json, SHA256SUMS.txt, QuakeVR.apk;
+  --prerelease; Latest v1.1.0).
+- **Not published: the beta profile failed once.** make_release's tests on b8d2f9967: 11 passed, **1 failed:
+  scenario_check** (186 run, 1 failed: `bench_crowd_ad` "line 35: what it placed is gone after 3.0 s", SCNKEPT 39 of
+  40: one of the 40 AD monsters of the crowd bench, the Death Guard's line, gone within the 3 s hold). make_release
+  stopped before building: nothing built, tagged or published (no tag on origin; Latest v1.1.0). scenario_check rerun
+  alone on the same tree: **PASS** (186 run, 0 failed): a flake of the crowd scene (40 mixed AD monsters awake in one
+  hall), not seen in beta3fix's or animfix2's full runs. As beta2, the release waits for the coordinator: the same
+  make_release command above, from the quest tree on b8d2f9967 (or this notes commit), APK already built and checked.
