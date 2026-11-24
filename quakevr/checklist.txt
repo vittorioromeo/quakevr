@@ -76,6 +76,8 @@ On the Quest, close the game from the headset menu while the first start is stil
 Quest standalone: from Select Campaign start each campaign in turn (Quake, the mission packs, Arcane Dimensions, Dwell, Quoth): each reaches its own start map (Quoth's and AD's, not Quake's), none is tagged missing or language data; run Setup's Quest install again with nothing new to copy: it finishes normally and every campaign stays playable. {test:hub_start}
 
 [2. Flat screen]
+Flat-screen: with the Crystal Lance, walk forward and back, strafe, turn and walk while turning: the other hand stays on the pole the whole time, no lagging behind or ahead. {test:flat_lance}
+Flat-screen: thrust the Crystal Lance (V): drawn back the other hand stays put as the pole slides through it, thrust out it rides forward with the pole sliding back a little, the arm stretching to keep it on, and it comes back to rest after (Tunables: Thrust Other Hand Slide, Thrust Arm Stretch). {test:flat_lance}
 
 [3. Tutorial and VR interface]
 

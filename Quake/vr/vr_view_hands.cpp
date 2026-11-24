@@ -3602,6 +3602,16 @@ void setupHand(const hands::State& s, int hand)
     glm::vec3 controllerPos = s.pos[hand], controllerRot = s.rot[hand];
     const bool own = !otherSubject; // (another player's, a bot's: his hand on his weapon, none of your own holds)
     const bool freeHelp = own && placeController(s, hand, mirrored, fist, controllerPos, controllerRot);
+    // Flatscreen play, the free hand pinned on the other hand's pole weapon held as a spear (any: twohand::poleWeapon):
+    // solved on the pole as drawn this frame, its grip as the view placed it now (chooseGrip, just before), by the pin's
+    // share. flatsight pinned it to last frame's grip carried with the holding hand, which trailed or led the pole as he
+    // turned; a thrust's slide (flatplay::thrustOffSlide) is in the grip. (lanceoffhand, his flat note 2026-11-24; its
+    // turn moves with the holding hand's: vr_view.cpp, the hands' drawn offsets.)
+    if(const float pin = own && flatplay::active() ? flatsight::pinShare(hand) : 0.f;
+        pin > 0.f && twohand::poleWeapon(weapons::slotForModel(entities.weapon[1 - hand].ent.model)))
+    {
+        controllerPos = glm::mix(controllerPos, s.grip2H[1 - hand], pin);
+    }
 
     // The hand turned from the controller by the fist's angle offsets, rigidly (round 21, second pass: added as Euler
     // angles, the hand slid round what it held as the wrist turned, and its grasp was solved again and again).

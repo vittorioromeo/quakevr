@@ -2086,9 +2086,13 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // axe's up its handle, a sword's below the hand), the free hand put on it by the pose rather than found there by a
     // swing's end; the stance's pose is what makes the hands' line, so no line is asked of it (nor by vr_twohand.cpp).
     const bool meleeStance = st.holding >= 0 && flatplay::melee2HShare(st.holding) > 0.f;
+    // A pole weapon held as a spear: its grip is on the pole wherever the pose and a thrust put it (vr_view_weapon.cpp
+    // chooseGrip), so no line is asked of it either: thrust out, the grip came near the fist (off the pole by Other Hand
+    // Up) and the hand let go for the strike (lanceoffhand, his flat note 2026-11-24).
+    const bool poleGrip = st.holding >= 0 && twohand::poleWeapon(flatplay::heldIn(st.holding));
     const bool carryToGrip = st.holding >= 0 && st.helping >= 0 && s.grip2HValid[st.holding] &&
                              (!s.grip2HCup[st.holding] || meleeCup) && !s.grip2HPalm[st.holding] &&
-                             (st.gripFwd > vr_2h_angle_threshold.value * st.gripReach || meleeStance);
+                             (st.gripFwd > vr_2h_angle_threshold.value * st.gripReach || meleeStance || poleGrip);
     // A punch of the free hand takes it off the grip, as fast as it came (gripEase: done before the throw), and it goes back
     // when the punch is over; twohand lets go of the hold for as long (flatplay::punching there).
     // The gun's reload trip takes it off the grip the same way (vr_flatreload.cpp), and it goes back when the gun is back.

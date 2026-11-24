@@ -12205,6 +12205,34 @@ to try to pull it out.
   embed tests 33 (embedgrip) 11/4 and 24 (embedfeel) 16/3: the same 11/4 on origin/next's QC (checked): not this change
   (VR paths are unchanged: every change is behind VR_FlatPlay). New scene `flat_embed_axe`.
 
+## lanceoffhand: the flat spear's other hand on the pole every frame; its slide and the arms' stretch in a thrust (agent/lanceoffhand, 2026-11-24)
+
+His flat feedback 2026-11-24 (the Lance's off hand lags and leaves the pole as he moves; detaches in the thrust). Any pole
+weapon (twohand::poleWeapon): a spear will share it.
+- **Measured** (new `vr_flat_pole_track [1|2|0|report]`, Debug-free console probe in vr_flatplay.cpp: the drawn other hand
+  against the drawn pole each frame: off its line, along it from the fist, its place with the thrust's slide put back, the
+  other arm's stretch). Before (old defaults): standing off 2.6-2.7; walking off 1.8-4.2; strafing 0.8-9.9 and along
+  -9.2..6.6 (behind the fist); turning 2.6-10.3; the thrust off up to 25, along to 35.
+- **Causes**: (1) the view's per-hand drawn offsets (flatplay::drawnOffset's sway, bob, turn lag; a kick, a knock) moved
+  the pinned hand by its own, not the pole's: vr_view.cpp now moves a hand pinned on a flat pole with the holding hand's
+  offsets (one rigid piece, folded into shakePos/shakeAngles so the restore is unchanged). (2) flatsight's pin used last
+  frame's grip carried by translation: vr_view_hands.cpp setupHand puts the pinned hand on this frame's grip (chooseGrip,
+  placed just before). (3) In the strike the grip came near the fist and flatsight's "grip ahead" test (vr_2h_angle_threshold)
+  dropped the pin: a pole grip is exempt (`poleGrip`).
+- **Thrust**: drawn back, the other hand stays put (as before); thrust out it rides with the pole, sliding back along it by
+  `vr_flat_thrust_off_slide` 8 at the full reach (flatplay::thrustOffSlide; 16 = the old "stays put"); the arms' IK stretch
+  eases to `vr_flat_thrust_arm_stretch` 1.3 by the thrust's out share (vr_avatar.cpp armStretchNow, beside the blade's).
+  Tunables > Spear thrust rows "Thrust Other Hand Slide", "Thrust Arm Stretch". New `avatar::armStretched`.
+- **Defaults**: his tunables.cfg promoted (`tune_promote.py --check`: nothing left): `vr_flat_pole_off_pitch` -60, and his
+  newer `_off_along` 12, `_off_up` 5.
+- **After** (flatlance_test section 7, from e1m1's start, clear of walls): standing off 2.30 / along 9.14; forward and back
+  2.30 / 9.13-9.14; strafe 2.10-2.41 / 8.96-9.15; turn 2.21-2.37 / 8.12-9.14; walk+turn 2.02-2.58 / 7.70-9.45; thrust
+  1.70-2.31 / place 8.39-9.51 (along 24.7 drawn back, 1.5 out), the other arm at x1.30. Not covered: at a wall the Lance
+  tilts up (flatsight's wall tilt) and the hand still sits ~10 off the tilted pole, and the wall state lets go of it.
+- **flatlance_test's HUD check** (failing on next): with the flat holsters on (the default since 2026-11-10) `impulse 1` /
+  `8` draw nothing (VR_FlatHolster_Impulses), and vr_ad_test 207's give never set the hand's `.currentammo`: ammo type 0,
+  nothing shown. It passed only when something else (a pickup) ran updateAmmoCounters. The give (dw_test.qc 206-207) now
+  calls W_SetCurrentAmmoFor, as a draw does. flatlance_test 27/0.
 ## flatads: the zoom aim brings the gun to the middle, and a visor zoom look (branch agent/flatads, 2026-11-24)
 
 His ask: for the guns with no sights (weapons.txt `fsight_mode` 1, or `vr_flat_aim_zoom 1`) the right button's zoom also moves

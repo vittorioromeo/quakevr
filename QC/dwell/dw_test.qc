@@ -474,6 +474,10 @@ void(entity p, float xRequest) DW_ModelsTest =
     p.weaponmodel = WeaponIdToModel(wid, 0); // (as a hand's draw sets it: swapped for Dwell's by AD_SyncWeaponModels)
     p.ammo_shells = 100;
     p.ammo_cells = 100;
+    // (Its ammo and counters as a draw sets them: the HUD's count, the Lance's clip size 0. Since the flat holsters
+    // (vr_flat_holsters 1) the number keys draw nothing, so nothing else set them: flatlance_test's HUD check read
+    // ammo type 0, nothing shown; lanceoffhand.)
+    W_SetCurrentAmmoFor(cVR_MainHand);
     self = os;
     bprint(sprintf("dwmodels: %s in the main hand\n", DW_VariantName(DW_VariantFor(wid))));
 };
