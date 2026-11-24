@@ -1516,9 +1516,9 @@ void chooseGrip(const WeaponFrame& wf)
             // (From the holding fist: its place on the pole, the weapon drawn moved along it by vr_flat_pole_along.)
             const glm::vec3 way = glm::normalize(s.muzzle[hand] - held.pos);
             const glm::vec3 fist = held.pos + way * glm::dot(s.pos[hand] - held.pos, way);
-            // (In a spear thrust the other hand stays put, a guide the pole slides through: flatplay::thrustAlong. Carried with
-            // the thrusting hand, its fist struck the target first and the head's stab was lost.)
-            s.grip2H[hand] = fist + way * (za::clamp(vr_flat_pole_off_along.value, -40.f, 60.f) - flatplay::thrustAlong(hand));
+            // (In a spear thrust's draw the other hand stays put, the pole sliding back through it; thrust out, it rides with
+            // the pole, sliding back along it: flatplay::thrustOffSlide.)
+            s.grip2H[hand] = fist + way * (za::clamp(vr_flat_pole_off_along.value, -40.f, 60.f) - flatplay::thrustOffSlide(hand));
             // (Moved off the pole by vr_flat_pole_off_up / _off_out: up, and out to that hand's own side, level across it.)
             if(const glm::vec3 across = glm::cross(way, glm::vec3{0.f, 0.f, 1.f}); glm::length(across) > 1e-3f)
             {

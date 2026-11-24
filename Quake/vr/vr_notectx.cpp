@@ -47,11 +47,11 @@ static_assert(za::getArraySize(weaponNames) == WID_LAST + 1, "a name for each we
     return wid >= 0 && wid < static_cast<int>(za::getArraySize(weaponNames)) ? weaponNames[wid] : "?";
 }
 
-// A WID_SWORD's kind (flags bits 8-11, QC QVR_WPNFLAG_SWORD_KIND / VR_ADMELEE_*; 0 the sword, 12 the dagger), named as QC
+// A WID_SWORD's kind (flags bits 8-11, QC QVR_WPNFLAG_SWORD_KIND / VR_ADMELEE_*; 0 the sword, 12 the dagger, 13 the spear), named as QC
 // VR_ADMelee_Name does (the sword the plain one's: "sword").
 constexpr const char* swordKindNames[] = {"sword", "Death Fury's sword", "Death Knight's sword", "Zombie Knight's sword",
     "Death Guard's sword", "Hunter Ogre's hammer", "Hunter Ogre's mace", "Phantom sword", "Dark Prince's sword",
-    "Justice Knight's sword", "Judicator's sword", "Death Sergeant's flail", "dagger"};
+    "Justice Knight's sword", "Judicator's sword", "Death Sergeant's flail", "dagger", "spear"};
 
 [[nodiscard]] const char* weaponName(int wid, int flags)
 {

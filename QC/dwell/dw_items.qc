@@ -232,7 +232,7 @@ string(float xWid) DW_VRModelOf =
 
 // The Crystal Lance held as a lance (dwellwpn2; vr_dw_lance_pole, 1 by default): its model made from Dwell's world model
 // (a staff with the crystal head, the lightning gun's grip under its pole; slot 55), the other hand anywhere on its pole
-// (the engine's pole grip), its crystal head's blow a blade's (DW_LanceMelee); 0: the pistol from Dwell's view model.
+// (the engine's pole grip), its crystal head's blow a blade's (VR_PoleMelee); 0: the pistol from Dwell's view model.
 float() DW_LancePole = { return cvar_hget(cvarh_vr_dw_lance_pole) != 0; };
 
 // The Rotary Shotgun held as a gauntlet (dwellwpn3; vr_dw_rotary_gauntlet, 1 by default): its model laid round the super
@@ -240,48 +240,7 @@ float() DW_LancePole = { return cvar_hget(cvarh_vr_dw_lance_pole) != 0; };
 // point: the Widowmaker's tube, a handful a touch); 0: the super shotgun's grip under it (slot 52).
 float() DW_RotaryGauntlet = { return cvar_hget(cvarh_vr_dw_rotary_gauntlet) != 0; };
 
-// The Crystal Lance's blow held as a lance (VR_Melee_Deal; the melee sweep along its blow line to its crystal head, slot
-// 55's bl_*): the axe's damage (vr_dmg_axe, before the swing's speed and weight: VRMeleeDmg), a blade's sounds, blood
-// and wall chop (W_FireAxe's), where W_GunMelee clubs.
-// A thrust (dwellweap2; docs/vr-port/POLEWEAPONS.md "Thrust"): the blow read as a stab (VR_Melee_Decide: driven along
-// its line, far end first) lands with the crystal head alone (the point that struck at or past vr_dw_lance_head of the
-// line from the hand to the tip): its damage times vr_dw_lance_thrust (the stab's damage already grows with the speed
-// along the line, VRMeleeDmg); a stab on the shaft short of the head is a poke, vr_dw_lance_poke of it.
-void(float xHand) DW_LanceMelee =
-{
-    float xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_axe));
-    entity b = VR_Blow(xHand);
-    if(b.mh_kind == VR_MKIND_STAB)
-    {
-        float head = (b.mh_c_f >= cvar_hget(cvarh_vr_dw_lance_head));
-        xdmg = xdmg * (head ? cvar_hget(cvarh_vr_dw_lance_thrust) : cvar_hget(cvarh_vr_dw_lance_poke));
-        dprint(sprintf("dwlance: a thrust, %s (%.2f of the line, %.1f m/s): %.0f damage\n",
-            head ? "the head" : "the shaft, a poke", b.mh_c_f, b.mh_speed, xdmg));
-    }
-    if(!VRDoMeleeAttackTracelineFor(xHand, 22, 13)) { return; }
-    vector org = trace_endpos - v_forward * 4;
-    if(trace_ent.takedamage)
-    {
-        trace_ent.axhitme = 1;
-        entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
-        if(T_Damage_VRMelee(trace_ent, self, self, xdmg)) { VR_HitBloodSplash(victim, org, xdmg); }
-        if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
-        {
-            VRMeleeHapticByHand(xHand);
-            VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
-            VRSetMeleeHitSoundPlayed(xHand, TRUE);
-        }
-        return;
-    }
-    VR_Melee_WallMark(xHand, xdmg, FALSE); // its head's chop (vr_decal_melee)
-    if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
-    {
-        VRMeleeHapticByHand(xHand);
-        VR_SoundVaried(self, VRGetHandChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
-        VRSetMeleeHitSoundPlayed(xHand, TRUE);
-    }
-    BroadcastGunshotEffect(org);
-};
+// The Crystal Lance's blow held as a lance: VR_PoleMelee (vr_poleweapon.qc), every pole weapon's (the spear's too).
 
 // The weapon record `xInst` is the Crystal Lance held as a lance: no magazine (dwellweap; his note
 // vrtesthall_2026-11-22_15-38-38: "it shouldn't have a magazine like the laser cannon"): every shot's 6 cells taken from

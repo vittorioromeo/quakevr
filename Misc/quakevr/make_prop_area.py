@@ -97,6 +97,7 @@ CROWBAR = (-176, -784, FLOOR + 8)    # north of the chainsaw
 SUPERAXE = (-456, -872, FLOOR + 16)  # between the axe's pad (x -488) and Mjolnir's (x -424), on the aisle's floor north of them
 TOOLGUN = (-176, -740, FLOOR + 8)    # north of the crowbar
 DAGGER = (216, -868, FLOOR + 16)     # the swords' row (their origins at z 33), past the hell knight's sword
+SPEAR = (264, -868, FLOOR + 16)      # the swords' row, past the dagger
 
 ROCKS = ["progs/vr_rock%d.mdl" % i for i in range(1, 6)]
 BRICKS = ["progs/vr_brick%d.mdl" % i for i in range(1, 5)]
@@ -155,6 +156,9 @@ def entities():
     # last pads (the knight's sword at x 120, the hell knight's at 168: the .ent's own), 48 past them; last again. It drops
     # and settles as they do.
     out.append([("classname", "weapon_dagger"), ("origin", "%g %g %g" % DAGGER)])
+    # The spear (weapon_spear: the knight's sword of its kind, QC VR_SWORDKIND_SPEAR; a pole weapon), 48 past the dagger;
+    # last again.
+    out.append([("classname", "weapon_spear"), ("origin", "%g %g %g" % SPEAR)])
     return out
 
 

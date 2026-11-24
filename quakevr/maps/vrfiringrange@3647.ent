@@ -1173,3 +1173,8 @@
 "origin" "216 -868 33"
 "_proparea" "1"
 }
+{
+"classname" "weapon_spear"
+"origin" "264 -868 33"
+"_proparea" "1"
+}

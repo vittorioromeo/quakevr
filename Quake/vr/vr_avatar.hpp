@@ -190,6 +190,9 @@ struct ForearmFrame
 // vr_embed_arm_stretch_ease); how far (cm) the drawn wrist is past that, as last solved (0: within it, or no blade). QC lets go past
 // vr_embed_arm_letgo (.vr_embed_armgap).
 [[nodiscard]] float embedArmGapCm(int hand);
+// The stretch the arm of `hand` took to reach its drawn wrist, as last solved: 1 none, up to vr_body_arm_stretch (or the
+// blade's, or a flat spear thrust's vr_flat_thrust_arm_stretch).
+[[nodiscard]] float armStretched(int hand);
 
 // A body build's proportions (vr_body_build: 0 lean, 1 athletic, 2 brawny, 3 feminine; make_vrbody.py's BUILDS), for
 // what is fitted to the body: the factors are 1 for the athletic build, and multiply the engine's athletic numbers.

@@ -4545,6 +4545,10 @@ void() VR_Embed_TestFrame =
         {
             VR_DG_Begin(); // (the dagger: vr_dagger_test.qc)
         }
+        if(ask == 53)
+        {
+            VR_SP_Begin(); // (the spear: vr_spear_test.qc)
+        }
         if(ask == 42)
         {
             vr_rg_scene = FALSE;
@@ -4797,6 +4801,10 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     else if(vr_et_on == 40)
     {
         VR_DG_Frame(); // (the dagger: vr_dagger_test.qc)
+    }
+    else if(vr_et_on == 53)
+    {
+        VR_SP_Frame(); // (the spear: vr_spear_test.qc)
     }
     else if(vr_et_on == 42)
     {

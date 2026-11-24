@@ -255,6 +255,7 @@ void() VR_World_Precache =
     precache_model("progs/v_ksword.mdl");
     precache_model("progs/v_hksword.mdl");
     precache_model("progs/v_dagger.mdl"); // (the dagger: a kind of the knight's sword, VR_SWORDKIND_DAGGER)
+    precache_model("progs/v_spear.mdl"); // (the spear: a kind of the knight's sword, VR_SWORDKIND_SPEAR)
     VR_Chainsaw_Precache(); // VR: the ogres' chainsaw (vr_chainsaw.qc)
     VR_Crowbar_Precache(); // VR: the crowbar (vr_crowbar.qc)
     VR_Toolgun_Precache(); // VR: the toolgun (vr_toolgun.qc)

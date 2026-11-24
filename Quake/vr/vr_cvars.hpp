@@ -38,7 +38,7 @@ extern cvar_t vr_backend;
 
 // The weapon table's slots (vr_weapons.hpp numSlots; vr_weaponvalues.hpp's table). Here, not there:
 // gen_vr_cvars_qc reads it from this file.
-inline constexpr int weaponSlotCount = 57;
+inline constexpr int weaponSlotCount = 58;
 
 namespace obs
 {

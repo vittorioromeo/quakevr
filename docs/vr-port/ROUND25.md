@@ -12205,6 +12205,34 @@ to try to pull it out.
   embed tests 33 (embedgrip) 11/4 and 24 (embedfeel) 16/3: the same 11/4 on origin/next's QC (checked): not this change
   (VR paths are unchanged: every change is behind VR_FlatPlay). New scene `flat_embed_axe`.
 
+## lanceoffhand: the flat spear's other hand on the pole every frame; its slide and the arms' stretch in a thrust (agent/lanceoffhand, 2026-11-24)
+
+His flat feedback 2026-11-24 (the Lance's off hand lags and leaves the pole as he moves; detaches in the thrust). Any pole
+weapon (twohand::poleWeapon): a spear will share it.
+- **Measured** (new `vr_flat_pole_track [1|2|0|report]`, Debug-free console probe in vr_flatplay.cpp: the drawn other hand
+  against the drawn pole each frame: off its line, along it from the fist, its place with the thrust's slide put back, the
+  other arm's stretch). Before (old defaults): standing off 2.6-2.7; walking off 1.8-4.2; strafing 0.8-9.9 and along
+  -9.2..6.6 (behind the fist); turning 2.6-10.3; the thrust off up to 25, along to 35.
+- **Causes**: (1) the view's per-hand drawn offsets (flatplay::drawnOffset's sway, bob, turn lag; a kick, a knock) moved
+  the pinned hand by its own, not the pole's: vr_view.cpp now moves a hand pinned on a flat pole with the holding hand's
+  offsets (one rigid piece, folded into shakePos/shakeAngles so the restore is unchanged). (2) flatsight's pin used last
+  frame's grip carried by translation: vr_view_hands.cpp setupHand puts the pinned hand on this frame's grip (chooseGrip,
+  placed just before). (3) In the strike the grip came near the fist and flatsight's "grip ahead" test (vr_2h_angle_threshold)
+  dropped the pin: a pole grip is exempt (`poleGrip`).
+- **Thrust**: drawn back, the other hand stays put (as before); thrust out it rides with the pole, sliding back along it by
+  `vr_flat_thrust_off_slide` 8 at the full reach (flatplay::thrustOffSlide; 16 = the old "stays put"); the arms' IK stretch
+  eases to `vr_flat_thrust_arm_stretch` 1.3 by the thrust's out share (vr_avatar.cpp armStretchNow, beside the blade's).
+  Tunables > Spear thrust rows "Thrust Other Hand Slide", "Thrust Arm Stretch". New `avatar::armStretched`.
+- **Defaults**: his tunables.cfg promoted (`tune_promote.py --check`: nothing left): `vr_flat_pole_off_pitch` -60, and his
+  newer `_off_along` 12, `_off_up` 5.
+- **After** (flatlance_test section 7, from e1m1's start, clear of walls): standing off 2.30 / along 9.14; forward and back
+  2.30 / 9.13-9.14; strafe 2.10-2.41 / 8.96-9.15; turn 2.21-2.37 / 8.12-9.14; walk+turn 2.02-2.58 / 7.70-9.45; thrust
+  1.70-2.31 / place 8.39-9.51 (along 24.7 drawn back, 1.5 out), the other arm at x1.30. Not covered: at a wall the Lance
+  tilts up (flatsight's wall tilt) and the hand still sits ~10 off the tilted pole, and the wall state lets go of it.
+- **flatlance_test's HUD check** (failing on next): with the flat holsters on (the default since 2026-11-10) `impulse 1` /
+  `8` draw nothing (VR_FlatHolster_Impulses), and vr_ad_test 207's give never set the hand's `.currentammo`: ammo type 0,
+  nothing shown. It passed only when something else (a pickup) ran updateAmmoCounters. The give (dw_test.qc 206-207) now
+  calls W_SetCurrentAmmoFor, as a draw does. flatlance_test 27/0.
 ## flatads: the zoom aim brings the gun to the middle, and a visor zoom look (branch agent/flatads, 2026-11-24)
 
 His ask: for the guns with no sights (weapons.txt `fsight_mode` 1, or `vr_flat_aim_zoom 1`) the right button's zoom also moves
@@ -12297,3 +12325,41 @@ His report: "I am struggling to embed bladed weapons into enemies in flatscreen,
 - **Open:** test 24 cases 2/3: aim the mock axe swing by the axe's edge as held (or set the axe pose the test was laid out
   on); test 33 case 46: why a dead grunt held by the handle no longer comes to the hand on this machine (fails on 11-22's
   code too: data or physics, look at the ragdoll hold's motor joint).
+
+## spear: a plain spear on the Crystal Lance's systems (agent/spear, 2026-11-24)
+
+His ask (2026-11-24): a normal spear with a metal point that embeds, no ammo, no special attack, reusing the Lance's
+code and poses so improvements to either reach the other.
+- **Design: one pole-weapon path, the differences as data.** A pole weapon is a weapons.txt slot with Other Hand
+  Anywhere 3 (`twohand::poleWeapon`): every engine path was already keyed on that (VR pole grip and slide, flat spear
+  pose `vr_flat_pole_*`, flat thrust `vr_flat_thrust_*`, the off hand pinned on the pole, the pole track, the arms'
+  stretch, the flip pitch): the spear gets all of it by its slot. The QC blow was the Lance's alone (`DW_LanceMelee`):
+  it moved to `QC/vr_poleweapon.qc` as `VR_PoleMelee` (unchanged for the Lance), dispatched first in client.qc by
+  `VR_PoleHeld` (the Lance or the spear). Its head's place on the line: the slot's Blade Start (`bl_from`), else
+  `vr_dw_lance_head` (the Lance: none set); the thrust and poke multipliers (`vr_dw_lance_thrust`, `_poke`) are every
+  pole weapon's. What stays the Lance's own (a gun): the charge, bolt, cord, cells, its tip-only embed cvars.
+- **The spear** = the knight's sword of kind 13 (`VR_SWORDKIND_SPEAR`, weapon flags 3328), as the dagger is kind 12:
+  so no ammo (a sword's; `VR_HasOtherAmmo` false, B flips the grip), holsters, throws point first, sticks in by its
+  point (embed 1: the sword's stab rules, its blade the head alone by `bl_from` 0.728, so a stab goes in a share of the
+  head, 1.3 of 7.3 units), the flip grip (`rev 1`), the toolgun's armed grunts (code 106). Dwell's Lance untouched (its
+  own record and variant).
+- **Model** `progs/v_spear.mdl` (`Misc/quakevr/make_spear.py`, from scratch: ash shaft, leather wrap at the fist, iron
+  ferrule and socket with a collar, a leaf steel head with a midrib; 360 vertices, 314 triangles; full-colour skin
+  2048x512 plus the 8-bit one). It is laid exactly where the Lance's pole is (the dw_lance recipe's frame, then the
+  recipe's keepScale move about the axe's corner, written with that origin), so **slot 57** copies slot 55's hold
+  (hand, offsets, 2H, hotspots, holsters, Scale, Shot Pitch 92.5: flat aims the pole by it) with its anchors moved by
+  the packing (+0.1455 -5.18 +0.0836); lighter (w_mass 2.4, w_com 28), no shot effects, pickup_tier -1. Not made: its
+  .blend (blend_build.py runs Blender: left to a human) and its normal map.
+- **How to get it:** `weapon_spear` (FGD), the toolgun (Weapons > Spear; Monsters > Armed Grunts > Armed Grunt: Spear,
+  appended), the firing range's swords row (x 264, past the dagger). Not in the armed grunts' random pool, not a
+  randomized pickup: nothing in the shipped game changes until he asks.
+- **Engine:** numSlots/weaponSlotCount 58, model id `VSpear`, always phases as a melee weapon, no sights, note names.
+- **Tests:** `Misc/quakevr/spear_test.sh` (vr_embed_test 53, `QC/vr_spear_test.qc`): 4 passed, 0 failed (VR mock 12/0:
+  pole blow, thrust 50 damage stuck by its point 1.3 in, its blade 7.3 (the head), drawn back out into the hand, a
+  swing 14, thrown into a wall point first, thrown at a grunt hurts it, no ammo, flip and back; flat 6/0: posed as a
+  spear (tip 27.6 from the fist, as the Lance's), the fire button's punch the spear thrust, 23 damage, stuck, one
+  fire press pulls it out, B flips and back). The Lance unchanged: `dwell_lance_test.sh` 51/0, `flatlance_test.sh`
+  32/0. Screenshots `qvr-kit/scratch/spear_flat.png`, `spear_range.png`. Scene `spear`.
+- **Open:** a spear thrown at a grunt stays in it about 1 run in 3 (the rest meet the moving model 44 degrees off
+  straight in and skid: the sword's incidence rule); the test prints it as a note. Armed grunts holding it use the
+  sword's pose (not checked).

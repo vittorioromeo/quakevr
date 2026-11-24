@@ -117,8 +117,17 @@ struct FireRoute
 // width, the crowbar's hotspot; a long sword's hotspot is brought in to it); 0 no limit.
 [[nodiscard]] float bladeReach();
 // How far hand `h`'s spear thrust (vr_flat_thrust) has moved it along its pole now (units; negative drawn back), 0 outside
-// one. The other hand on the pole stays where it was, the pole sliding through it (vr_view_weapon.cpp chooseGrip).
-[[nodiscard]] float thrustAlong(int h);// The free hand carried that share of the way to the blade's hotspot of the weapon in the guard (vr_flatsight.cpp apply,
+// one.
+[[nodiscard]] float thrustAlong(int h);
+// How far out it is now, 0 (the pose, or drawn back) .. 1 (vr_flat_thrust_reach): the arms' IK stretch eases in by it
+// (vr_flat_thrust_arm_stretch, vr_avatar.cpp armStretchNow).
+[[nodiscard]] float thrustOutShare(int h);
+// How far the other hand on the pole is moved back along it from its place by hand `h`'s thrust now (units; negative
+// forward): drawn back, by the whole draw (it stays put, the pole sliding back through it); thrust out, by
+// vr_flat_thrust_off_slide times thrustOutShare (it rides with the pole, sliding back along it). Any pole weapon held as a
+// spear (vr_view_weapon.cpp chooseGrip).
+[[nodiscard]] float thrustOffSlide(int h);
+// The free hand carried that share of the way to the blade's hotspot of the weapon in the guard (vr_flatsight.cpp apply,
 // over its grip's pin and before vr_twohand takes the hold).
 void bladePin(hands::State& s);
 

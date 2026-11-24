@@ -5694,6 +5694,36 @@ extern "C" void VR_SetupViewEntities()
         s.rot[hand] += knockAngles[hand] + shakeAngles[hand];
         s.visualRot[hand] += knockAngles[hand] + shakeAngles[hand];
     }
+    // Flatscreen play, the free hand pinned on the other hand's pole weapon held as a spear (any pole weapon): drawn moved
+    // with the holding hand by its offsets above (the looks' sway, bob and turn's lag, a kick, a knock), the two hands and
+    // the pole one piece, rather than by its own, which put it off the pole as he walked, strafed and turned (lanceoffhand,
+    // his flat note 2026-11-24). Its own share of the pin; restored with the rest below.
+    for(int hand = 0; hand < 2 && flatplay::active() && !posingNow; hand++)
+    {
+        const int holder = 1 - hand;
+        const float share = flatsight::pinShare(hand);
+        if(share <= 0.f || !twohand::poleWeapon(flatplay::heldIn(holder)))
+        {
+            continue;
+        }
+        const glm::vec3 holderPos = s.pos[holder] - knockPos[holder] - shakePos[holder];
+        const glm::mat3 moved = anglesBasis(s.rot[holder]) * glm::transpose(anglesBasis(s.rot[holder] - knockAngles[holder] - shakeAngles[holder]));
+        const glm::vec3 ownPos = s.pos[hand] - knockPos[hand] - shakePos[hand];
+        const glm::vec3 ownRot = s.rot[hand] - knockAngles[hand] - shakeAngles[hand];
+        const glm::vec3 pos = glm::mix(s.pos[hand], s.pos[holder] + moved * (ownPos - holderPos), share);
+        const glm::quat drawnTurn = glm::quat_cast(anglesBasis(s.rot[hand]));
+        const glm::vec3 rot = basisAngles(glm::mat3_cast(glm::slerp(drawnTurn, glm::quat_cast(moved * anglesBasis(ownRot)), share)));
+        glm::vec3 turned;
+        for(int i = 0; i < 3; i++)
+        {
+            turned[i] = za::remainder(rot[i] - s.rot[hand][i], 360.f);
+        }
+        shakePos[hand] += pos - s.pos[hand];
+        shakeAngles[hand] += turned;
+        s.pos[hand] = pos;
+        s.rot[hand] += turned;
+        s.visualRot[hand] += turned;
+    }
     // Flatscreen play: a prop held in one hand drawn in that hand as drawn here (made again from this view, its sway, bob
     // and turn's lag in it), not where the frame's start placed it (vr_held.cpp followDrawnHands; vr_flat_carry_drawn).
     if(flatplay::active() && !stereo::isRenderingEye() && !posingNow && vr_flat_carry_drawn.value != 0.f)

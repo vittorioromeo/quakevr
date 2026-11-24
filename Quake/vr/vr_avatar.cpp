@@ -1122,6 +1122,7 @@ struct ArmEase
     float embed[2]{0.f, 0.f};          // 0..1: the hand on a blade in a body, its arm's stretch eased in (vr_embed_arm_stretch)
     double embedTime[2]{-1.0, -1.0};   // when it was last eased
     float embedGapCm[2]{0.f, 0.f};     // cm the wrist was past that stretch, last solved
+    float stretched[2]{1.f, 1.f};      // the arm's stretch taken, last solved (1: none; up to armStretchNow)
 };
 ArmEase armEase;
 
@@ -1138,7 +1139,15 @@ ArmEase armEase;
     w = onBlade ? za::min(1.f, w + dt / ease) : za::max(0.f, w - dt / ease);
     const float normal = za::max(1.f, vr_body_arm_stretch.value);
     const float smooth = w * w * (3.f - 2.f * w);
-    return glm::mix(normal, za::max(normal, vr_embed_arm_stretch.value), smooth);
+    const float stretch = glm::mix(normal, za::max(normal, vr_embed_arm_stretch.value), smooth);
+    // (Flatscreen play's spear thrust: both arms towards vr_flat_thrust_arm_stretch as it goes out, so the other hand keeps
+    // on the pole; lanceoffhand, his flat note 2026-11-24. The thrust's own ease is the ease.)
+    if(posingOther() || !localFlat())
+    {
+        return stretch;
+    }
+    const float out = za::max(flatplay::thrustOutShare(HAND_MAIN), flatplay::thrustOutShare(HAND_OFF));
+    return out > 0.f ? glm::mix(stretch, za::max(stretch, za::clamp(vr_flat_thrust_arm_stretch.value, 1.f, 2.f)), out) : stretch;
 }
 
 // Body tracking's fit of the arm (vr_bodytrack_arm_fit): the clavicle turns at most this far (degrees) towards the
@@ -1279,6 +1288,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         reachOut();
     }
     const float stretch = CLAMP(1.f, d / (a + l), maxStretch);
+    armEase.stretched[side] = stretch;
     a *= stretch;
     l *= stretch;
     if(!lengths.calibrated)
@@ -2518,6 +2528,11 @@ bool forearm(int hand, glm::vec3& wrist, glm::vec3& direction)
 float embedArmGapCm(int hand)
 {
     return hand == 0 || hand == 1 ? armEase.embedGapCm[hand] : 0.f;
+}
+
+float armStretched(int hand)
+{
+    return hand == 0 || hand == 1 ? armEase.stretched[hand] : 1.f;
 }
 
 bool forearmFrame(int hand, float along, ForearmFrame& out)

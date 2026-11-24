@@ -2249,7 +2249,7 @@ QVR_TUNABLE(vr_flat_pole_fwd, "-10") // the spear pose: the holding hand this fa
 QVR_TUNABLE(vr_flat_pole_up, "-8.5") // and this far higher (units; negative lower)
 QVR_TUNABLE(vr_flat_pole_out, "3") // and this far further out at its own side (units; negative in towards the middle)
 QVR_TUNABLE(vr_flat_pole_roll, "0") // and rolled this far about its pole (degrees)
-QVR_TUNABLE(vr_flat_pole_off_along, "10") // the other hand on the pole this far ahead of the holding hand (units; negative behind it)
+QVR_TUNABLE(vr_flat_pole_off_along, "12") // the other hand on the pole this far ahead of the holding hand (units; negative behind it)
 QVR_TUNABLE(vr_flat_pole_off_roll, "0") // and rolled this far about its own forward, along the pole, about its palm (degrees; mirrored for the off hand; drawn only)
 // (flatmelee2, his notes 2026-11-23: each hand's place and turn, where they lie along the shaft.)
 QVR_TUNABLE(vr_flat_pole_pitch, "8") // the spear turned about the holding fist, its tip up (degrees; drawn only: the beam keeps to the crosshair)
@@ -2257,9 +2257,9 @@ QVR_TUNABLE(vr_flat_pole_yaw, "5") // and its tip in towards the middle (degrees
 QVR_TUNABLE(vr_flat_revgrip_pitch, "90") // a blade held reversed (flipped grip) turned about the fist, its point forward and down (degrees; drawn only)
 QVR_TUNABLE(vr_flat_revgrip_pole_pitch, "165") // a pole weapon held reversed (the Crystal Lance flipped) the same, its head forward and down (degrees; drawn only)
 QVR_TUNABLE(vr_flat_pole_along, "-2.5") // the holding hand this far up the pole towards its tip (units; negative towards the butt: the pole slid through the fist)
-QVR_TUNABLE(vr_flat_pole_off_up, "3.5") // the other hand this far up off the pole (units; negative down)
+QVR_TUNABLE(vr_flat_pole_off_up, "5") // the other hand this far up off the pole (units; negative down)
 QVR_TUNABLE(vr_flat_pole_off_out, "0") // and this far out to its own side (units; negative in)
-QVR_TUNABLE(vr_flat_pole_off_pitch, "-67") // the other hand on the pole pitched up this far in its own frame, about its palm (degrees; drawn only)
+QVR_TUNABLE(vr_flat_pole_off_pitch, "-60") // the other hand on the pole pitched up this far in its own frame, about its palm (degrees; drawn only)
 QVR_TUNABLE(vr_flat_pole_off_yaw, "34") // and yawed left this far (degrees; mirrored for the off hand; drawn only)
 QVR_TUNABLE(vr_flat_pole_hand_pitch, "30") // the holding hand alone pitched up this far on the pole, the spear unturned (degrees; drawn only)
 QVR_TUNABLE(vr_flat_pole_hand_yaw, "0") // and yawed left this far (degrees; mirrored for the off hand; drawn only)
@@ -2282,6 +2282,8 @@ QVR_TUNABLE(vr_flat_thrust_pitch, "-3") // the tip turned up at its end (degrees
 QVR_TUNABLE(vr_flat_thrust_yaw, "0") // and in towards the middle (degrees; negative out)
 QVR_TUNABLE(vr_flat_thrust_dwell_time, "0.08") // seconds held out
 QVR_TUNABLE(vr_flat_thrust_back_time, "0.25") // seconds back to the spear pose
+QVR_TUNABLE(vr_flat_thrust_off_slide, "8") // thrust out, the other hand rides with the pole, sliding back along it this far at the full reach (units; 0 carried all the way, the thrust's reach: stays put)
+QVR_TUNABLE(vr_flat_thrust_arm_stretch, "1.3") // the arms' IK may stretch to this (times their length; vr_body_arm_stretch when not thrusting) as the thrust goes out, so the other hand keeps on the pole
 QVR_TUNABLE(vr_flat_embed_pull, "12") // flatscreen: a blade stuck in a body, its hand's fire button pulls the hand back this far along the blade (units; QC vr_embedhold.qc VR_Embed_FlatHand)
 QVR_TUNABLE(vr_flat_embed_pull_time, "0.2") // seconds of that pull back (and of the hand's way back onto the grip)
 QVR_TUNABLE(vr_flat_embed_pull_hold, "0.25") // seconds held pulled back, the blade following it out by the hold's rules

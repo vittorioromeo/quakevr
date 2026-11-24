@@ -1445,6 +1445,92 @@ void probeTwoHand()
     p.frames++;
 }
 
+// The pole track (vr_flat_pole_track; lanceoffhand, flatlance_test.sh): a pole weapon held as a spear, its other hand
+// against its pole, both as last drawn, each frame: how far the hand is off the pole's line (the weapon's hold to its tip)
+// and how far along it from the fist; their least and most since the track began (`every`: a line a frame too).
+struct PoleTrack
+{
+    bool on{false};
+    bool every{false};
+    int frames{0};
+    float offLo{1e9f}, offHi{-1e9f}, alongLo{1e9f}, alongHi{-1e9f};
+    float placeLo{1e9f}, placeHi{-1e9f}; // the along with the thrust's slide put back (thrustOffSlide): its place on the pole
+    float gapHi{0.f}; // cm the other hand's wrist was past its arm's stretch (avatar::embedArmGapCm), at most
+    float stretchHi{1.f}; // the other arm's stretch taken (avatar::armStretched), at most
+    float slide[2]{0.f, 0.f}; // each hand's thrustOffSlide as this frame draws it (measured next frame)
+};
+PoleTrack poleTrack;
+
+void probePole()
+{
+    PoleTrack& p = poleTrack;
+    if(!p.on)
+    {
+        return;
+    }
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        view::WeaponMount m;
+        glm::vec3 fist, fistRot, other, otherRot;
+        if(!twohand::poleWeapon(heldIn(h)) || !view::weaponMount(h, m) || !view::drawnHandPose(h, fist, fistRot) ||
+            !view::drawnHandPose(1 - h, other, otherRot) || glm::distance(m.muzzle, m.pos) < 1.f)
+        {
+            continue;
+        }
+        const glm::vec3 way = glm::normalize(m.muzzle - m.pos);
+        const float otherAt = glm::dot(other - m.pos, way);
+        const float off = glm::length(other - m.pos - way * otherAt);
+        const float along = otherAt - glm::dot(fist - m.pos, way);
+        // (Its place: the along with the thrust's slide put back, the slide it was drawn with, last frame's.)
+        const float place = along + p.slide[h];
+        p.frames++;
+        p.offLo = za::min(p.offLo, off);
+        p.offHi = za::max(p.offHi, off);
+        p.alongLo = za::min(p.alongLo, along);
+        p.alongHi = za::max(p.alongHi, along);
+        p.placeLo = za::min(p.placeLo, place);
+        p.placeHi = za::max(p.placeHi, place);
+        const float gap = avatar::embedArmGapCm(1 - h); // (the other hand's wrist past its arm's stretch, last solved)
+        p.gapHi = za::max(p.gapHi, gap);
+        const float stretch = avatar::armStretched(1 - h);
+        p.stretchHi = za::max(p.stretchHi, stretch);
+        if(p.every)
+        {
+            Con_Printf("poletrack: %s f %d off %.2f along %.2f place %.2f slide %.1f pin %.2f arm x%.3f gap %.1f\n",
+                h == HAND_MAIN ? "main" : "off", p.frames, off, along, place, p.slide[h], flatsight::pinShare(1 - h), stretch, gap);
+        }
+    }
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        p.slide[h] = thrustOffSlide(h); // (this frame's, drawn with it)
+    }
+}
+
+// vr_flat_pole_track [1|2|0|report]: the pole track on (2: a line a frame too), off, or its range so far (and begun anew).
+void poleTrack_f()
+{
+    const char* a = Cmd_Argc() > 1 ? Cmd_Argv(1) : "1";
+    PoleTrack& p = poleTrack;
+    if(!q_strcasecmp(a, "report"))
+    {
+        const bool any = p.frames > 0;
+        Con_Printf("poletrack: report %d frames, off %.2f .. %.2f, along %.2f .. %.2f, place %.2f .. %.2f, arm x%.3f, arm gap %.1f cm\n",
+            p.frames, any ? p.offLo : 0.f, any ? p.offHi : 0.f, any ? p.alongLo : 0.f, any ? p.alongHi : 0.f, any ? p.placeLo : 0.f,
+            any ? p.placeHi : 0.f, p.stretchHi, p.gapHi);
+        const PoleTrack was = p;
+        p = PoleTrack{};
+        p.on = was.on;
+        p.every = was.every;
+        p.slide[0] = was.slide[0];
+        p.slide[1] = was.slide[1];
+        return;
+    }
+    p = PoleTrack{};
+    p.on = Q_atoi(a) != 0;
+    p.every = Q_atoi(a) >= 2;
+    Con_Printf("poletrack: %s\n", p.on ? "on" : "off");
+}
+
 void twoHandReport_f()
 {
     auto& p = fs.twoHProbe;
@@ -2805,6 +2891,19 @@ float thrustAlong(int h)
     return thrustAt(vr_gametime - fs.punchAt[h]).along;
 }
 
+float thrustOutShare(int h)
+{
+    return za::clamp(thrustAlong(h) / za::max(za::clamp(vr_flat_thrust_reach.value, -30.f, 30.f), 1.f), 0.f, 1.f);
+}
+
+float thrustOffSlide(int h)
+{
+    // (Drawn back, the other hand stays put, the pole sliding back through it; thrust out, it rides with the pole, sliding
+    // back along it by vr_flat_thrust_off_slide at the full reach: lanceoffhand, his flat note 2026-11-24.)
+    const float along = thrustAlong(h);
+    return along < 0.f ? along : thrustOutShare(h) * za::clamp(vr_flat_thrust_off_slide.value, 0.f, 30.f);
+}
+
 float bladeReach()
 {
     return za::clamp(vr_flat_parry_blade_reach.value, 0.f, 60.f);
@@ -3003,6 +3102,7 @@ void init()
     fs.flag = COM_CheckParm("-flatscreenmode") != 0 || ragtool::flagGiven(); // (-ragtool: the ragdoll tool, flat)
     Cmd_AddCommand("vr_flatplay_status", status_f);
     Cmd_AddCommand("vr_flat_melee_2h_report", twoHandReport_f); // the two-handed stance's probe (tests)
+    Cmd_AddCommand("vr_flat_pole_track", poleTrack_f); // the spear's other hand against its pole (flatlance_test.sh)
     flatmove::init(); // the slide and the lean (vr_flatmove.cpp)
     slide::init(); // the shared slide's headset test (vr_slide.cpp)
     Cmd_AddCommand("+flatcrouch", crouchHold_f); // Left Ctrl's hold, the console's way (a bind or a script can hold it)
@@ -3055,6 +3155,7 @@ void frame()
     if(on && !frozen)
     {
         probeTwoHand(); // the two-handed stance's probe: the hands as last drawn (vr_flat_melee_2h_report)
+        probePole();    // the spear's other hand against its pole, as last drawn (vr_flat_pole_track)
         flatswap::probe(); // the swap's watch: the hands and the weapon as last drawn (vr_flatswap_vis_report)
     }
 
