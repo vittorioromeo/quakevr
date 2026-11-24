@@ -6,5 +6,6 @@ docs/vr-port/ROUND22.md merge=union
 docs/vr-port/ROUND23.md merge=union
 docs/vr-port/ROUND24.md merge=union
 docs/vr-port/ROUND25.md merge=union
+docs/vr-port/ROUND26.md merge=union
 # The installer's reliefs models (Misc/quakevr/pbr_export_onnx.py): binary.
 *.onnx binary
