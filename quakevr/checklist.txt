@@ -40,6 +40,7 @@ Body and Display > Handedness: Left-handed turns on Swap Face Buttons (next to S
 Flat-screen or VR: aim down the sights of the shotgun, double shotgun, lightning gun and nail pistol: the front post glows in a different colour (pink with the default player colour) from the two rear notches; Colours > Front Sight Hue Shift turns it, 0 makes them one colour again. {test:sight_front_hue}
 Flat-screen or VR: hold the weapon wheel's button with a dagger, sword or the Crystal Lance in that hand: a FLIP GRIP button sits between DROP and UNLOAD; let go on it and the grip turns over (greyed with a gun). {test:flat_holster_dagger}
 Flat-screen: press B with a dagger or the Crystal Lance: its grip flips (B again flips it back), the flipped blade or Lance head turned forward into view; B with the rocket launcher still switches its ammo. {test:flat_holster_dagger}
+Show Melee Arcs with a sword grunt and an axe grunt coming at you: each draws its arc and reach on the floor, and its swinging blade leaves a fading trail like your Show Melee Blades sweeps (white winding up, yellow in the swing, red when it lands). {test:agrunt_melee_arcs}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}

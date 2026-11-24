@@ -12167,3 +12167,20 @@ A left-hander's saved config (stick swap etc. on, the new setting off) now shows
 Tests: `vr_button_swap_test` (13 cases + names: 17 passed, 0 failed): A/X jump off/on, the reloads follow the hand
 pressed, B/Y and stick clicks, trigger unchanged, flips while held leave no key or reload stuck. `settings_page_test.py` (23/0): the installer's Left-handed sets it,
 the saved config keeps it, Right-handed clears it. Installer manifest (help text) and menu_paths.txt refreshed.
+
+## Show Melee Arcs: armed humanoids' swings drawn (branch agent/meleearcs, 2026-11-24)
+
+His report: Show Melee Arcs "still displays nothing for armed humanoids" (ROUND24, "Melee rules": the cause was never
+found). The floor fan (fight.qc `VR_MeleeArc_ShowFrame`, vr_bodycontact.cpp `meleeArcDraw`) does draw for them headless
+(test 212, the agrunt_melee_spacing and agrunt_repl_gunaxe scenes: `meleearcviz: drawn arc 2`, an eyeshot), so no
+filtering bug was found; what was missing is the swing itself. Now, while the option is on, an armed humanoid swinging a
+melee weapon at a player (a swing or a saw) leaves the same trail Show Melee Blades draws for your hands (vr_meleeshow.cpp:
+its look and 0.3 s fade shared, `drawHand`): its blade's line as drawn (`VR_AG_WeaponLine`, butt to tip) each frame it is
+posed, white winding up, yellow in the swing-through, red with a dot at the tip when its blow lands.
+- QC: vr_meleerules.qc `VR_MeleeArc_ShowSwings` (from `VR_AGP_Pose`: the native and the QC pose) and
+  `VR_MeleeArc_ShowLanded` (`VR_AGP_Strike`). New builtin `meleeshowfoe(weapon, what, a, b, v)` (8 slots by edict; returns
+  the frames drawn, for the test). Off: QC skips it on one cvar read, the engine keeps nothing.
+- Punches and gun butts: the floor fan only. Drawn by the host's view (SP, a listen server's host), as the floor fan is.
+- `vr_enemy_melee_arc_status` adds "armed swings drawn N frames".
+- Tests: `vr_agrunt_test 216` 2/0 (on: 28 frames sent, 7 in the swing-through, 28 drawn; off: 0 and 0); 212 still 6/0.
+  Scene `agrunt_melee_arcs`.
