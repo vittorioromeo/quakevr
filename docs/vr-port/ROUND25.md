@@ -11968,3 +11968,39 @@ weapon. lance4's report: with the Lance's record gone (stuck in an ogre), a weap
   alone on the same tree: **PASS** (186 run, 0 failed): a flake of the crowd scene (40 mixed AD monsters awake in one
   hall), not seen in beta3fix's or animfix2's full runs. As beta2, the release waits for the coordinator: the same
   make_release command above, from the quest tree on b8d2f9967 (or this notes commit), APK already built and checked.
+
+## wallglue: shoved into a wall, held up on it by the shove's own drive (agent/wallglue, 2026-11-24)
+
+His flat note (2026-11-24): shoved hard into a wall, ragdolls stay stuck to it 1-2 s; the env tunables (catch, lean,
+ledges) make no difference; ragdolls off, it is gone.
+- **Measured** with a new trace, `vr_debug_ragdoll_wall` (Debug menu, Logs: Knocked-Down Ragdolls' Contacts; 1 the
+  body, 2 each part): every frame of a living knockdown, its shove drive and phase, its active drive and strength, the
+  pelvis and head over the floor, its speed, its contacts with the level split into walls and floors (N, the friction's
+  too; the level is the world and the movers: vrfiringrange's walls are brush entities), other contacts, joints to
+  foreign bodies, awake parts, the entity's origin ("wglue" lines).
+- **Cause:** the knockdown's drives went on carrying the body along the shove after a wall stopped it. The plain shove
+  (`driveShove`, ragdollShove's travel and quarter turn about the feet): its travel's catch-up (`4 * off`, the planned
+  way not gone) grows while the wall holds it back, and its turn's target speeds hold every part's fall to the turn's,
+  eased in 21% a frame: a grunt with its back to the wall was pressed into it at **27-31 kN** (about 40 times its
+  weight), no floor contact at all, its feet 7 units up, motionless, for 1.7 s (the turn's 0.85 s, then the travel
+  until `duration + 1 s`, its `off` never closing), then dropped. The active stagger the same way, milder: its pelvis
+  pin's anchor (`stagger.travel` along the shove) went on through the wall, the pin pressing it at its cap (3 kN) while
+  standing. Not friction, restitution, sleep, a pin of the throw's, the entity coupling or the env lean (all traced).
+- **Fix** (`vr_knockdown_wall_stop` 1, a plain cvar for A/B): the level pushing back on its parts against the shove (faces
+  turned more than 60 degrees against it) more than its weight ends the shove's drive (both kinds, the ledge's too); in a
+  stagger, its pin's carry stops where its pelvis got to (`Stagger::stopShare`, `staggerCarry`). The body then falls as a
+  ragdoll: down the wall, its middle at a lying height in 0.3 s (grunt, active off: the drive ended 0.14 s in, at 631 N).
+  Shared code: one per-body helper (`levelPushOn`) for both, handed to the active drive in its Context (`levelPush`).
+- **Numbers** (`vr_ragsmash_test 2`, vrfiringrange, seed 1, same build; before = `vr_knockdown_wall_stop 0`): propped s
+  (longest run), its middle's mean height while a ragdoll:
+  grunt all on 5.02 (3.81), 22.3 -> 2.63 (1.50), 17.6; active off 1.91 (1.91), 23.5 -> 0.64 (0.38), 16.9; wiggle off
+  4.00 (2.54), 20.1 -> 2.82 (1.52), 18.0; open floor 0, 10.1 -> 0, 9.5.
+  dog all on 2.33 (2.33), 23.2 -> 0.44 (0.44), 10.9; active off 2.41, 26.6 -> 1.55, 15.7; wiggle off 2.25, 25.2 -> 2.67,
+  22.6; open floor 0, 10.8 -> 0, 10.6. 24 passed. (The grunt's remaining "propped" is its standing stagger and its
+  get-up beside the wall, by design.)
+- **Left:** a dog with the wiggle off (not the default) can stay standing wedged on its legs against the wall (its tail
+  and pelvis on it, ~1.3 kN held by its joints' friction and limits): its topple was cut short by the wall and nothing
+  tips it over. With the wiggle (default) it falls (0.44 s). `vr_ragsmash_test 3`: the dogs only (trials 12-23).
+- Checks: `vr_rag1108_test 4` 4 passed; `vr_agrunt_test 210` 6 passed, 2 failed with the stop on and off alike (zones
+  66/72 both: pre-existing; over the edge 42 vs 45 of 54).
+- Noticed: a lying ragdoll's own parts press on each other at ~10 kN in all (self contacts, "other" in the trace).
