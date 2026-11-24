@@ -1049,6 +1049,10 @@ za::Vector<Item> pageDebugTests()
             .help("A grunt ahead killed 48 units off the nearest wall, its corpse flung at the wall hard (it thuds and "
                   "bloodies the wall), then softly (nothing): Impact Sound and Blood (vr_ragsmash_test 1; ends on "
                   "\"ragsmash: N passed, M failed\")."),
+        command("Shoved into a Wall: Glue A/B", "god; developer 1; vr_ragsmash_test 2")
+            .help("A grunt and a dog shoved into the nearest wall (every shove a knockdown), the active ragdoll on and "
+                  "off, the wiggle off, and onto the open floor: the seconds each lies propped against the wall and its "
+                  "middle's height (vr_ragsmash_test 2, best on vrfiringrange; ends on \"wallglue: N passed, M failed\")."),
         header("Enemy Shoves"),
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "
@@ -1219,11 +1223,16 @@ za::Vector<Item> pageDebugTests()
         header("Tutorial (vrtutorial)"),
         command("The Tutorial", "skill 0; map vrtutorial")
             .help("skill 0; map vrtutorial: the tutorial (a military base by day, 12 lessons and an arena; "
-                  "Misc/quakevr/maps/vrtutorial_gen.py), on Easy as the start flow and the hub's button start it."),
+                  "Misc/quakevr/maps/vrtutorial_gen.py), on Easy as the start flow and the hub's button start it. Always a "
+                  "single-player game of Quake's campaign, however started (VR_TutorialSinglePlayer)."),
         command("First Start Again", "vr_tutorial_started 0")
             .help("vr_tutorial_started 0: the next start of the game goes to the tutorial, as a new install's first start "
                   "does (the tutorial sets it back to 1 as it loads)."),
         row(opt::vr_tutorial_goto),
+        command("Lesson 13: Shooters And Pit", "vr_pickup_test 25")
+            .help("vr_pickup_test 25 (in the tutorial): a single-player game; lesson 13's SPIKE and GRENADE buttons' "
+                  "shots fired at you (the spike batted back by a swing, the grenade caught), then you are dropped into "
+                  "its pit: dead within 1 s. Misc/quakevr/tutorial_start_test.sh runs it after a multiplayer test scene."),
         header("Trailer Scene (vrtrailer)"),
         command("The Trailer Scene", "map vrtrailer")
             .help("map vrtrailer: a bridge across a lake at night, the Super Axe on a pedestal half way (Dawn of the "

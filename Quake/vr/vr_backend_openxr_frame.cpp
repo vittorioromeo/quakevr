@@ -428,6 +428,7 @@ void OpenXrBackend::endFrame(bool rendered)
     {
         lostBy(ended, "xrEndFrame");
     }
+    destroyRetired(false);
     if(traceFramesLeft > 0)
     {
         // The last traced frame says so: a later crash's "last OpenXR step" isn't this frame's.
@@ -444,6 +445,49 @@ void OpenXrBackend::endFrame(bool rendered)
     xrstall::frame(frameWaitMs, endMs, static_cast<double>(frameState.predictedDisplayPeriod) * 1e-6,
         stateName(sessionState));
     frameWaitMs = 0.0;
+}
+
+void OpenXrBackend::retireSwapchain(Swapchain& sc)
+{
+    if(sc.handle == XR_NULL_HANDLE)
+    {
+        return;
+    }
+    Retired* slot = nullptr;
+    for(Retired& r : retired)
+    {
+        if(r.handle == XR_NULL_HANDLE)
+        {
+            slot = &r;
+            break;
+        }
+    }
+    if(!slot) // (all taken: the longest retired goes now)
+    {
+        slot = &retired[0];
+        for(Retired& r : retired)
+        {
+            slot = r.frames > slot->frames ? &r : slot;
+        }
+        const XrSwapchain old = slot->handle;
+        guarded("xrDestroySwapchain", [old] { return xrDestroySwapchain(old); });
+    }
+    slot->handle = sc.handle;
+    slot->frames = 0;
+    sc = Swapchain{};
+}
+
+void OpenXrBackend::destroyRetired(bool all)
+{
+    for(Retired& r : retired)
+    {
+        if(r.handle != XR_NULL_HANDLE && (all || ++r.frames > retireFrames))
+        {
+            const XrSwapchain handle = r.handle;
+            guarded("xrDestroySwapchain", [handle] { return xrDestroySwapchain(handle); });
+            r = Retired{};
+        }
+    }
 }
 
 double OpenXrBackend::timeCall(Call call, double since)
@@ -947,12 +991,7 @@ bool OpenXrBackend::createEyeSwapchains()
     {
         for(Swapchain& sc : swapchains)
         {
-            if(sc.handle != XR_NULL_HANDLE)
-            {
-                const XrSwapchain handle = sc.handle;
-                guarded("xrDestroySwapchain", [handle] { return xrDestroySwapchain(handle); });
-                sc = Swapchain{};
-            }
+            retireSwapchain(sc); // (destroyed a few frames on: the last frames may still show them)
         }
     };
     const auto createBoth = [this, w, h, &destroyBoth]

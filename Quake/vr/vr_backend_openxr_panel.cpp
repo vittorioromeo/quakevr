@@ -59,12 +59,7 @@ bool OpenXrBackend::ensurePanelSwapchain(int width, int height)
     {
         return true;
     }
-    if(panel.handle != XR_NULL_HANDLE)
-    {
-        const XrSwapchain handle = panel.handle;
-        guarded("xrDestroySwapchain", [handle] { return xrDestroySwapchain(handle); });
-        panel = Swapchain{};
-    }
+    retireSwapchain(panel); // (destroyed a few frames on: the last frames may still show it)
     panelFailedWidth = width; // (until it is made)
     panelFailedHeight = height;
     if(!createSwapchain(panel, width, height,
