@@ -356,6 +356,10 @@ void relinkSkinnedEnd(SkinWork& w)
         seen->seenLeft = t.second ? 1 : t.cup ? 2 : t.goal[1] == agarms::Goal::Frame ? 4 : t.goal[1] == agarms::Goal::Point ? 3 : 0;
         seen->seenHeld2 = placed.held2;
         seen->seenSecond = secondPoint;
+        ArmSeen& as = armSeen[seen - armPoses.slots];
+        as.hand[0] = placed.hand[0].pos;
+        as.hand[1] = placed.hand[1].pos;
+        as.weapon = placed.weapon[0];
     }
     if(posestudio::active() || rigstudio::wantsNotes() || weaponstudio::wantsNotes())
     {

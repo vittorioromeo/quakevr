@@ -2487,7 +2487,9 @@ constexpr float flatPoleHeight = 85.f;    // (ropes8a) a level pole's (as high a
 // the rope sliding with him: no move; not from the view, which flat crouch eases down as the slide begins).
 constexpr float flatSlideJumpMost = 1.f; // units a frame a drawn palm may move from the body while sliding (0.49 on the rope)
 constexpr float flatSlideShakeMost = 1.f;  // units a palm's move a frame may change from the last (0.54 on the rope)
-constexpr float flatSlideElbowShake = 3.f; // and an elbow's (2.4-2.6: one snap as the crouch lowers the shoulders; 14.7 unlocked)
+constexpr float flatSlideElbowShake = 1.5f; // and an elbow's (polewall: 1.09 on the pole with vr_body_arm_soft's soft reach; 2.56
+                                             // without: the arm snapping straight as the crouch lowers the shoulders; 14.7 unlocked)
+constexpr float flatSlideRopeElbowShake = 3.f; // on a rope (2.38-2.52: the swaying rope's wrist targets at its end, not the IK)
 constexpr int flatSlideSettle = 2;         // the slide's first frames not counted (the grip locking as it begins)
 
 void flatSlideJumps(FlatTest& t, bool on)
@@ -2530,8 +2532,8 @@ void flatSlideJumps(FlatTest& t, bool on)
         }
         if(vr_climb_debug.value != 0.f)
         {
-            Con_Printf("%s: slide frame %d: palms %.2f %.2f elbows %.2f %.2f units from last frame's (from the body); shake %.2f %.2f, %.2f %.2f\n",
-                flatTestName, t.jumpFrames, glm::length(move[0][0]), glm::length(move[1][0]), glm::length(move[0][1]),
+            Con_Printf("%s: slide frame %d t %.3f: palms %.2f %.2f elbows %.2f %.2f shake %.2f %.2f, %.2f %.2f\n",
+                flatTestName, t.jumpFrames, cl.time, glm::length(move[0][0]), glm::length(move[1][0]), glm::length(move[0][1]),
                 glm::length(move[1][1]), shake[0][0], shake[1][0], shake[0][1], shake[1][1]);
         }
         for(int h = 0; h < 2; h++)
@@ -3329,7 +3331,7 @@ void flatTestFrame()
                 t.jumpMost[0], t.jumpSum[0] / n, t.shakeMost[0], t.jumpMost[1], t.jumpSum[1] / n, t.shakeMost[1],
                 t.jumpFrames - flatSlideSettle);
             const bool smooth = t.jumpFrames >= 20 && t.jumpMost[0] <= flatSlideJumpMost && t.shakeMost[0] <= flatSlideShakeMost &&
-                                t.shakeMost[1] <= flatSlideElbowShake;
+                                t.shakeMost[1] <= (t.pole ? flatSlideElbowShake : flatSlideRopeElbowShake);
             t.tally.check(smooth, flatTestName, arms);
             if(smooth)
             {

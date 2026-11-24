@@ -1298,6 +1298,28 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     // (Always: QC measures from what it was as the hand took hold, the stretch not yet eased in.)
     armEase.embedGapCm[side] = za::max(0.f, d - (a + l)) / b.m2w * 100.f;
 
+    // A soft reach (vr_body_arm_soft; polewall, his flat note 2026-11-24): over the last share `s` of the arm's length the
+    // elbow eases straight (the solved reach goes on towards the arm's length, never quite to it) and the bones lengthen by
+    // as little as keeps the wrist where it is: 1 / (1 - 0.37 s) at the full length, on top of the stretch and the
+    // shoulder's reach. A two-bone elbow swings ever faster as its arm comes straight: the shoulders lowered under a hand
+    // locked on a pole snapped it 9 cm in a frame (the flat pole slide). Past all of it (the hand off the arm) the arm
+    // goes on easing straight towards the wrist, solved for the soft reach's point on the way to it (`ikWrist`), not
+    // straight at once (which snapped the other arm 8 cm as its shoulder's reach ran out).
+    glm::vec3 ikWrist = wrist;
+    if(const float s = CLAMP(0.f, vr_body_arm_soft.value, 0.5f); s > 0.f && d > (a + l) * (1.f - s))
+    {
+        const float reach = a + l, from = reach * (1.f - s), band = reach * s;
+        const auto soft = [&](float at) { return from + band * (1.f - za::exp(-(at - from) / band)); };
+        const float at = za::min(d, reach);
+        const float k = at / soft(at);
+        a *= k;
+        l *= k;
+        if(d > reach)
+        {
+            ikWrist = u.pos + (wrist - u.pos) * (soft(d) * k / d);
+        }
+    }
+
     // The hand turns the elbow by its roll about the forearm only (vr_body_elbow_hand): the side of the thumb across
     // the forearm that the rest of the pole gives. Bending the wrist (the hand tilted along the forearm: deviation, or
     // Hand Calibration's pitch) doesn't move the elbow; a real one stays put.
@@ -1305,7 +1327,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     const glm::vec3 bodyPole = -cUp + lateral * (vr_body_elbow_out.value + vr_body_crouch_elbow_out.value * crouched) -
                                cFwd * (vr_body_elbow_back.value + vr_body_crouch_elbow_back.value * crouched);
     glm::vec3 bend;
-    const glm::vec3 foreGuess = safeNormalize(wrist - twoBone(u.pos, wrist, a, l, bodyPole, lateral, bend), cFwd);
+    const glm::vec3 foreGuess = safeNormalize(wrist - twoBone(u.pos, ikWrist, a, l, bodyPole, lateral, bend), cFwd);
     const glm::vec3 thumbAcross = safeNormalize(handUp - foreGuess * glm::dot(handUp, foreGuess), handUp);
     glm::vec3 pole = bodyPole - thumbAcross * vr_body_elbow_hand.value;
     float spreadBy = 0.f; // (easeWrist)
@@ -1393,7 +1415,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         pole = glm::mix(pole, way * glm::length(pole), share);
         flatElbow = za::max(flatElbow, share);
     }
-    glm::vec3 elbow = twoBone(u.pos, wrist, a, l, pole, lateral, bend);
+    glm::vec3 elbow = twoBone(u.pos, ikWrist, a, l, pole, lateral, bend);
 
     // The hand bone's axes: the drawn hand's (or, without one, the wrist's roll only).
     const glm::mat3 handRot = glm::length(handPose.forward) > 0.5f

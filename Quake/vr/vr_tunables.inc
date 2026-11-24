@@ -231,6 +231,7 @@ QVR_TUNABLE(vr_torso_side_angle, "45") // a hand further off to the torso's side
 QVR_TUNABLE(vr_torso_deadzone, "8") // degrees the estimate must be off before the torso turns (then it turns all the way)
 QVR_TUNABLE(vr_torso_speed, "12") // how quickly it turns then (1/s; 0: at once)
 QVR_TUNABLE(vr_torso_neck_max, "70") // degrees the head turns from the torso at most: past it the torso turns with the head at once
+QVR_TUNABLE(vr_body_arm_soft, "0.05") // polewall (his flat note 2026-11-24: the elbow snapped in a flat pole slide): the drawn arms reach softly: over the last share of the arm's length (0..0.5) the elbow eases straight and the bones lengthen a little to keep the wrist, so the elbow never swings round fast as the arm comes straight (vr_avatar.cpp solveArm); 0: the old hard reach
 QVR_TUNABLE(vr_bodytrack_torso, "1") // the torso's share: its lean (the spine's tilt), the chest's twist, the hips' facing, and the lean detection (0 .. 1)
 QVR_TUNABLE(vr_bodytrack_arm_fit_stretch, "1.5") // how far that fit may lengthen the collarbone and the arm's bones (and 1 / it shorten them) to put the shoulder and the elbow on the tracked ones (1 .. 3; was 1.25)
 QVR_TUNABLE(vr_bodytrack_legs, "1") // the legs' share: the feet and knees towards the generated legs (Quest 3 guesses them) (0 .. 1; climbing and swimming feet keep theirs)
@@ -2469,6 +2470,7 @@ QVR_TUNABLE(vr_embed_sword_speed, "2.5") // m/s a thrown sword's tip must go at 
 QVR_TUNABLE(vr_embed_sword_tip, "12") // % of the way from the hand to the tip that counts as its point when it goes in first
 QVR_TUNABLE(vr_embed_sword_angle, "35") // degrees at most between the way the tip goes and the blade's line (more: side on, it bounces)
 QVR_TUNABLE(vr_embed_sword_incidence, "65") // degrees at most between the way the tip goes and straight into the surface
+QVR_TUNABLE(vr_embed_pole_incidence, "70") // a thrown pole weapon (the spear) in a body: degrees at most off straight in (the lesser of the surface's and the body's middle's)
 QVR_TUNABLE(vr_embed_sword_wall, "0.4") // times that depth in walls, doors and props
 QVR_TUNABLE(vr_embed_sag_stiffness, "170") // 1/s^2: how hard a wall holds a stuck sword's blade up (its gravity's pull 1.5 g / length: less, it sags further)
 QVR_TUNABLE(vr_embed_sag_damping, "5") // 1/s: how fast its swing dies

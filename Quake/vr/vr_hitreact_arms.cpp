@@ -12,6 +12,7 @@ namespace hitreact_detail
 {
 
 ArmPoses armPoses;
+ArmSeen armSeen[maxArmPoses];
 
 } // namespace hitreact_detail
 

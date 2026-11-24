@@ -2540,6 +2540,13 @@ float wallLetGo(int h)
     // (Tried staying on, turned up with the gun, 2026-11-07: twohand's hold then took the gun and its hand back into the
     // wall, rifle head-on 4 and 5 cm, the free hand's gun 18: it lets go.)
     // (Along a wall it keeps hold: the wall state's share is off the slide's, vr_flat_wall_slide.)
+    // (A pole weapon held as a spear keeps hold too (polewall, lanceoffhand's open end): its other hand is pinned on the
+    // pole as drawn, the wall's tilt in it (vr_view.cpp moves it with the holding hand's drawn offsets, setupHand puts it on
+    // this frame's grip), so it rides up with the pole; let go, it was left some 10 units off the tilted pole.)
+    if(h >= 0 && h < HAND_COUNT && twohand::poleWeapon(flatplay::heldIn(h)))
+    {
+        return 0.f;
+    }
     return flatplay::active() && h >= 0 && h < HAND_COUNT ? geom::smooth01(st.wallOn[h]) * (1.f - st.slide[h]) : 0.f;
 }
 

@@ -13,6 +13,13 @@ float(float xHand) VR_SpearHeld =
     return VRGetEntWeapon(self, xHand) == WID_SWORD && VR_ADMelee_Kind(VRGetEntWeaponFlags(self, xHand)) == VR_SWORDKIND_SPEAR;
 };
 
+// Weapon `xWid` (its flags `xFlags`) is a pole weapon by its data: its weapons.txt slot's Other Hand Anywhere 3 (the
+// engine's twohand::poleWeapon). Armed humanoids hold one in both hands and thrust it (vr_armedgrunt_pose.qc VR_AGP_Melee).
+float(float xWid, float xFlags) VR_PoleWeapon =
+{
+    return weaponvalue(WeaponIdToModel(xWid, xFlags), "anygrip_mode") == 3;
+};
+
 // The weapon in `xHand` is a pole weapon whose blow is VR_PoleMelee (client.qc's melee dispatch).
 float(float xHand) VR_PoleHeld =
 {
