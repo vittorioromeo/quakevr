@@ -87,6 +87,7 @@ Flat-screen: thrust the Crystal Lance (V): drawn back the other hand stays put a
 [4. Weapons and holsters]
 Hook an explosive box, a zombie and a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun. {test:grapple_reel}
 Turn the Weapon Wheel on (VR Settings), open it and walk and turn with the stick: the wheel comes along smoothly and your hand stays on its slot; tap B/Y to eject a nailgun magazine or switch a dagger's grip: it feels responsive (Wheel Hold / Quick Tap Time sets how long a press opens the wheel instead). {test:weapon_wheel}
+Swing the spear (and the Crystal Lance) so its shaft, not the head, hits a grunt: a wooden knock and a dent, nothing stuck in it, less damage than the head; swing the shaft low and level across its shins and it is swept off its feet, while a sweep with the spear's head cuts instead; the head still stabs and sticks. {test:spear}
 
 [5. Ropes and chains]
 Flat-screen or VR: in a two-player game in the ropes hall both climb the same upright pole (from opposite sides, and one after the other; also on vrropes): both get on, neither is pushed off or stuck, and each sees the other's hands on the pole and legs round it. {test:ropes}

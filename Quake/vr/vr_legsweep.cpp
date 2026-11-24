@@ -180,9 +180,17 @@ using geom::vec;
 
 // The sharp part of a weapon (the QC melee layout's edge: vr_melee.qc VR_Melee_PartAt; the hot blades' too,
 // vr_hotblade.cpp bladeShare): from this share of the grip-to-tip way; -1 for none (a gun, the crowbar's bar, Mjolnir).
-[[nodiscard]] float edgeShare(const qmodel_t* model)
+// A pole weapon (the spear, Dwell's Crystal Lance; spearblunt, docs/vr-port/POLEWEAPONS.md "The shaft"): its head from
+// where the QC has it (vr_poleweapon.qc VR_PoleHeadFrom: its slot's Blade Start, else vr_dw_lance_head): its shaft sweeps
+// as a staff's, its head cuts.
+[[nodiscard]] float edgeShare(const qmodel_t* model, int slot)
 {
     using modelmeta::Id;
+    if(twohand::poleWeapon(slot))
+    {
+        const float from = weapons::value(slot, weapons::Key::BladeFrom);
+        return from > 0.f ? from : vr_dw_lance_head.value;
+    }
     if(modelmeta::is(model, Id::VAxe) || modelmeta::is(model, Id::Mg3SuperAxe) || modelmeta::is(model, Id::AdVrAxe)) // (AD support)
     {
         return 0.6f; // the head
@@ -305,7 +313,7 @@ using geom::vec;
             out.cross = n % 2 ? sorted[n / 2] : 0.5f * (sorted[n / 2 - 1] + sorted[n / 2]);
         }
     }
-    const float edge = edgeShare(model);
+    const float edge = edgeShare(model, slot);
     out.edge = edge < 0.f || out.length < 1e-3f ? -1.f : za::clamp((edge * reach - lo.x) / out.length, 0.f, 1.f);
     out.ok = out.length > 1e-3f && out.cross > 1e-3f;
     return out;
