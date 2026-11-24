@@ -37,6 +37,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_held.hpp"
+#include "vr_heldpose.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
@@ -1814,9 +1815,28 @@ int stickHeld(edict_t* ent, edict_t* host, const glm::vec3& at, const glm::vec3&
     {
         return 0;
     }
-    // Where the hand's weapon is drawn (the local player's; the hand's own place, QC's, is off it by its settings' angles).
+    // Where the hand's weapon is: as drawn in the hand (the local player's), placed on the hand of the move the server runs,
+    // as the melee's line is (QC VR_Melee_FreeLine): the blow's way (`vel`) is that hand's. Not the drawn weapon's own place:
+    // it lags the hand by a frame, and flat play draws its swing on a pose of its own, the drawn axe up to 90 degrees off the
+    // game's hand mid-swing (an edge-first blow read as driven along the handle: flat axes stuck 1 in 3; embedregress
+    // 2026-11-24). Else the drawn place; else QC's (the hand's own place, off it by its settings' angles).
+    edict_t* player = PROG_TO_EDICT(ent->v.owner);
+    const view::DrawnWeapon* dw = hand == 0 || hand == 1 ? &view::drawnWeapon(hand) : nullptr;
     glm::vec3 drawnAt, drawnAngles;
-    if(hand >= 0 && view::drawnWeaponPlace(hand, modelOf(ent), drawnAt, drawnAngles))
+    if(dw && dw->model && dw->model == modelOf(ent) && dw->when >= 0.0 && vr_gametime - dw->when <= 0.5 && player != qcvm->edicts &&
+       !player->free)
+    {
+        glm::vec3 handAt;
+        glm::mat3 handAxes;
+        heldpose::handPose(player, hand, handAt, handAxes);
+        glm::mat4 handMat{handAxes};
+        handMat[3] = glm::vec4{handAt, 1.f};
+        const glm::mat4 m = handMat * dw->inHand;
+        const glm::mat3 turn{glm::normalize(glm::vec3{m[0]}), glm::normalize(glm::vec3{m[1]}), glm::normalize(glm::vec3{m[2]})};
+        store(glm::vec3{m[3]}, ent->v.origin);
+        held::anglesFromAxes(turn, ent->v.angles, false);
+    }
+    else if(hand >= 0 && view::drawnWeaponPlace(hand, modelOf(ent), drawnAt, drawnAngles))
     {
         store(drawnAt, ent->v.origin);
         store(drawnAngles, ent->v.angles);
