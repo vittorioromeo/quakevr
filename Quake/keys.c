@@ -721,6 +721,7 @@ Returns a user-facing string for the given keynum.
 */
 const char *Key_KeynumToFriendlyString (int keynum)
 {
+	keynum = VR_ButtonSwapKey (keynum); // QVR: vr_button_swap, a key named by the button that sends it
 	if (keynum >= K_GAMEPAD_BEGIN && keynum < K_GAMEPAD_END)
 	{
 		const char *str = NULL;

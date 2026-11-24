@@ -165,28 +165,38 @@ bool moveLmb = false;              // this move's +attack as cl_input.c read it 
     return handButtons(hand).grab || flatplay::active();
 }
 
-#define QVR_BUTTON_COMMANDS(name, expr)          \
-    void name##Down_f()                          \
-    {                                            \
-        expr = true;                             \
-    }                                            \
-    void name##Up_f()                            \
-    {                                            \
-        expr = false;                            \
+// The hand a hand's button command acts on: its own, or with Swap Face Buttons (vr_button_swap) the other one when the
+// key that ran it came from the other controller's button (A sends XBUTTON's +reloadoff: the right hand's reload, the
+// hand pressed; his words 2026-11-24 "Yes, follow the hand"). The key is the command's argument (Key_Event adds it to a
+// +command and its -command); typed without one, its own hand.
+[[nodiscard]] int commandHand(int hand)
+{
+    const int key = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 0;
+    return input::mirroredKey(key) ? 1 - hand : hand;
+}
+
+#define QVR_BUTTON_COMMANDS(name, hand, member)            \
+    void name##Down_f()                                    \
+    {                                                      \
+        handButtons(commandHand(hand)).member = true;      \
+    }                                                      \
+    void name##Up_f()                                      \
+    {                                                      \
+        handButtons(commandHand(hand)).member = false;     \
     }
 
-QVR_BUTTON_COMMANDS(GrabLeft, leftButtons.grab)
-QVR_BUTTON_COMMANDS(GrabRight, rightButtons.grab)
-QVR_BUTTON_COMMANDS(ReloadLeft, leftButtons.reload)
-QVR_BUTTON_COMMANDS(ReloadRight, rightButtons.reload)
-QVR_BUTTON_COMMANDS(FlickReloadLeft, leftButtons.flickReload)
-QVR_BUTTON_COMMANDS(FlickReloadRight, rightButtons.flickReload)
+QVR_BUTTON_COMMANDS(GrabLeft, HAND_OFF, grab)
+QVR_BUTTON_COMMANDS(GrabRight, HAND_MAIN, grab)
+QVR_BUTTON_COMMANDS(ReloadLeft, HAND_OFF, reload)
+QVR_BUTTON_COMMANDS(ReloadRight, HAND_MAIN, reload)
+QVR_BUTTON_COMMANDS(FlickReloadLeft, HAND_OFF, flickReload)
+QVR_BUTTON_COMMANDS(FlickReloadRight, HAND_MAIN, flickReload)
 
 // By role rather than side: what the controller keys are bound to (quakevr/default.cfg).
-QVR_BUTTON_COMMANDS(GrabMain, handButtons(HAND_MAIN).grab)
-QVR_BUTTON_COMMANDS(GrabOff, handButtons(HAND_OFF).grab)
-QVR_BUTTON_COMMANDS(ReloadMain, handButtons(HAND_MAIN).reload)
-QVR_BUTTON_COMMANDS(ReloadOff, handButtons(HAND_OFF).reload)
+QVR_BUTTON_COMMANDS(GrabMain, HAND_MAIN, grab)
+QVR_BUTTON_COMMANDS(GrabOff, HAND_OFF, grab)
+QVR_BUTTON_COMMANDS(ReloadMain, HAND_MAIN, reload)
+QVR_BUTTON_COMMANDS(ReloadOff, HAND_OFF, reload)
 
 #undef QVR_BUTTON_COMMANDS
 
@@ -921,6 +931,11 @@ bool grabbing(int hand)
 bool offhandButton()
 {
     return offhandAttack;
+}
+
+bool reloadHeld(int hand)
+{
+    return hand >= 0 && hand < HAND_COUNT && handButtons(hand).reload;
 }
 
 bool attacking(int hand)

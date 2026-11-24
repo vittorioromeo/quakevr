@@ -4700,6 +4700,10 @@ QVR_CYCLE(vr_menu_move_towards, "Move Towards",
     {1.f, "Head"}, {2.f, "Left Hand"}, {3.f, "Right Hand"}, {4.f, "Torso"})
 QVR_TOGGLE(vr_stick_swap, "Swap Stick Functions",
     "Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns.")
+QVR_TOGGLE(vr_button_swap, "Swap Face Buttons",
+    "Mirrors the face buttons and stick clicks between the controllers: A and X, B and Y, the two stick clicks trade "
+    "places, so jump (A by default) is on the left hand, off the hand that moves when the sticks are swapped. Your "
+    "own bindings keep working, mirrored, and button names show the swapped button.")
 
 // vr_menu_settings.inc: pageVrsComfort
 QVR_CYCLE(vr_comfort_vignette, "Vignette",
@@ -4962,8 +4966,9 @@ QVR_TOGGLE(vr_ghost_hands_ignore_climb, "No Ghost Climbing",
 
 // vr_menu_settings.inc: pageBodyDisplay
 QVR_CYCLE(vr_handedness, "Handedness",
-    "Sets which stick moves you, the wrist gadget's arm and the flashlight's side together. Left-handed: the right "
-    "stick moves, the gadget on the right arm, the torch on the right (Custom: set apart, below).",
+    "Sets which stick moves you, the wrist gadget's arm, the flashlight's side and the face buttons together. "
+    "Left-handed: the right stick moves, the gadget on the right arm, the torch on the right, the face buttons "
+    "swapped (jump on X) (Custom: set apart, below).",
     {0.f, "Custom"}, {1.f, "Right-handed"}, {2.f, "Left-handed"})
 QVR_TOGGLE(vr_leg_holster_model_enabled, "Holster Models",
     "Draws the holsters on your body, with a gun in each one that holds one.")
@@ -5533,6 +5538,8 @@ QVR_SLIDER(vr_gadget_screen_text_white, "Screen Text Whiteness", 0.f, 1.f, 0.05f
 QVR_SLIDER(vr_gadget_tint, "Casing Tint", 0.f, 1.f, 0.05f, "%.2f", noExt, "0 keeps the casing's own olive drab.")
 QVR_SLIDER(vr_gadget_tint_hue, "Casing Tint Hue", 0.f, 355.f, 5.f, "%.0f", noExt, nullptr)
 QVR_SLIDER(vr_sight_saturation, "Weapon Sight Saturation", 0.f, 2.f, 0.05f, "%.2f", noExt, "1 their own, 0 white.")
+QVR_SLIDER(vr_sight_front_hue_shift, "Front Sight Hue Shift", 0.f, 355.f, 5.f, "%.0f", noExt,
+    "The front post's colour, turned this far round the hue circle from the rear notches' so the two read apart. 0: the same colour.")
 QVR_SLIDER(vr_forcegrab_saturation, "Force Grab Saturation", 0.f, 2.f, 0.05f, "%.2f", noExt,
     "How colourful they are: 1 as made, 0 white, 0.7 like the wrist gadget's screen. Times the Player Effects Saturation.")
 

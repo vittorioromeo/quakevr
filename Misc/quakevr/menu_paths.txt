@@ -64,6 +64,7 @@ vr_deadzone|0|VR Settings - Locomotion and Controls|Stick Deadzone|VR Settings >
 vr_move_curve|0|VR Settings - Locomotion and Controls|Stick Response Curve|VR Settings > Locomotion and Controls > Stick Response Curve
 vr_move_autorun|0|VR Settings - Locomotion and Controls|Walk Into Run|VR Settings > Locomotion and Controls > Walk Into Run
 vr_stick_swap|0|VR Settings - Locomotion and Controls|Swap Stick Functions|VR Settings > Locomotion and Controls > Swap Stick Functions
+vr_button_swap|0|VR Settings - Locomotion and Controls|Swap Face Buttons|VR Settings > Locomotion and Controls > Swap Face Buttons
 vr_swim|0|VR Settings - Locomotion and Controls|Swimming|VR Settings > Locomotion and Controls > Swimming
 vr_water_jump|0|VR Settings - Locomotion and Controls|Jump Out of Water|VR Settings > Locomotion and Controls > Jump Out of Water
 vr_menu_button|0|VR Settings - Locomotion and Controls|Menu Button|VR Settings > Locomotion and Controls > Menu Button
@@ -234,6 +235,7 @@ vr_parallax|0|VR Settings - Display and Graphics|Parallax Mapping|VR Settings > 
 @page|1|Body and Display||Advanced VR Options > Body and Display
 vr_handedness|1|Body and Display|Handedness|Advanced VR Options > Body and Display > Handedness
 vr_stick_swap|1|Body and Display|Swap Stick Functions|Advanced VR Options > Body and Display > Swap Stick Functions
+vr_button_swap|1|Body and Display|Swap Face Buttons|Advanced VR Options > Body and Display > Swap Face Buttons
 vr_gadget_arm|1|Body and Display|Wrist Gadget Arm|Advanced VR Options > Body and Display > Wrist Gadget Arm
 vr_flashlight_side|1|Body and Display|Flashlight Side|Advanced VR Options > Body and Display > Flashlight Side
 vr_world_scale|1|Body and Display|World Scale|Advanced VR Options > Body and Display > World Scale
@@ -2332,6 +2334,7 @@ vr_gadget_tint|1|Colours|Casing Tint|Advanced VR Options > HUD and Menus > Colou
 vr_gadget_tint_hue|1|Colours|Casing Tint Hue|Advanced VR Options > HUD and Menus > Colours > Casing Tint Hue
 vr_sight_hue|1|Colours|Weapon Sight Hue|Advanced VR Options > HUD and Menus > Colours > Weapon Sight Hue
 vr_sight_saturation|1|Colours|Weapon Sight Saturation|Advanced VR Options > HUD and Menus > Colours > Weapon Sight Saturation
+vr_sight_front_hue_shift|1|Colours|Front Sight Hue Shift|Advanced VR Options > HUD and Menus > Colours > Front Sight Hue Shift
 vr_forcegrab_hue|1|Colours|Force Grab Hue|Advanced VR Options > HUD and Menus > Colours > Force Grab Hue
 vr_forcegrab_saturation|1|Colours|Force Grab Saturation|Advanced VR Options > HUD and Menus > Colours > Force Grab Saturation
 vr_teleport_hue|1|Colours|Teleport Arc Hue|Advanced VR Options > HUD and Menus > Colours > Teleport Arc Hue

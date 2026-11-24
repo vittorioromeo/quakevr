@@ -34,6 +34,9 @@ void roomscaleJump(const hands::State& s);
 // The same for the lower face button (A on the main hand, X on the off hand): the grappling hook's unreel
 // (QVR_BUTTON_*HANDPRIMARY). Its key (jump, reload) is pressed as ever.
 [[nodiscard]] bool primaryHeld(int hand);
+// Whether `key`'s last press came from the other controller's button (vr_button_swap: X sent ABUTTON): its hand's
+// commands (+reloadoff, +grabmain...) then act on the other hand, the one pressed (vr_client.cpp commandHand).
+[[nodiscard]] bool mirroredKey(int key);
 
 // What opens the menu, for the boards and hints: "menu button", or "menu button or both sticks" with vr_menu_button's
 // stick chord on (vr_input.cpp).

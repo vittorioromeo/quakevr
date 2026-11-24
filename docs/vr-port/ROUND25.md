@@ -12115,3 +12115,55 @@ His ask 2026-11-24. Follows "flatwheel", "wheelpolish", "revgrip", "dwellweap".
   nothing; let go: reversed), flat 21/0 (the same by the mouse, a screenshot of it lit); flat_ammo_key_test 7/0 (rocket
   launcher cycles; the dagger's B reversed then upright; the shotgun's nothing); flatlance_test 19/1 (B flips the Lance
   and back; the failing check is the HUD one after impulse 1 / 8, not looked into: it may predate this branch).
+## sighthue: the front sight post in its own hue (agent/sighthue, 2026-11-24)
+
+His ask: on the guns with coloured iron sights (two rear notches, one front post) the front post a different hue
+from the rear, on by default, the difference a cvar.
+
+- **`vr_sight_front_hue_shift`** (archived, default **240**; 0 = one colour, as before): degrees the front post's hue
+  is turned from the rear notches' (which keep `vr_sight_hue`, -1 following `vr_player_hue`; saturation unchanged).
+  VR Settings > Colours, under Weapon Sight Saturation (the page flat play uses too). With the default player hue 100
+  the rear reads yellow-green and the front pink; 120 gave a pale lavender that read close to white in the eyeshots,
+  300 orange, 260 salmon.
+- **How:** the sights are palette entries (224..239, 252, 253) in each skin, so the front post can't be told apart by
+  colour. `vr_sights.cpp` `frontPosts`: per model, the skin rectangle of the front post's sight patch (each skin maps
+  both rear ears onto one patch, the front post onto another), with the skin's size (another size, e.g. a repaint or
+  a mod's model, keeps one colour). `VR_SightPalette` also makes the front palette; `VR_SightFront` (gl_texmgr.c,
+  right after the 8-to-32 conversion) sets the sight texels inside that rectangle (2 texels of margin for the edge
+  fill) from it. The cvar's callback reloads the skins as the other sight cvars do.
+- **Guns:** shotgun (+ the auto pump's body and fore-end), double shotgun (+ the broken-open frame and barrels),
+  lightning gun and plasma gun, nail pistol. Not the shotgun's pickup (its fire texels are one big patch, never aimed
+  down) nor the nail pistol's preview (no sight texels).
+- **The table** comes from `Misc/quakevr/sight_front_posts.py` (from quakevr/progs: `python
+  ../../Misc/quakevr/sight_front_posts.py v_shot.mdl ...`): each skin's sight patches placed by the frame-0 triangles
+  mapping them; the patch furthest forward (+x) is the front post; a part model mapping none takes its gun's. Rerun it
+  after repainting a sighted skin.
+- **Test:** `vr_sight_front_test` (no map needed): per table entry, the model's skin size, sight texels in the front
+  patch and outside it, and the upload's colours with the current settings (front texels at the rear's hue + shift,
+  the rest at the rear's, within 8 degrees). 9 passed, 0 failed at the default and at `vr_sight_hue 200;
+  vr_sight_front_hue_shift 0`. Eyeshots (flat ironsight, shift 0 | 240): shotgun, double shotgun, lightning gun.
+- Scene `sight_front_hue` (vrtesthall: the shotgun in hand, the double shotgun, the lightning gun and the nail pistol
+  beside you).
+## Swap Face Buttons for left-handed play (branch agent/lefthandbuttons, 2026-11-24)
+
+A left-handed player with the sticks swapped had jump (A) on the moving hand. New archived `vr_button_swap` (default
+0), "Swap Face Buttons", a row after Swap Stick Functions on Body and Display (Sides) and on Locomotion and Controls.
+On, the face buttons and stick clicks send the other controller's keys (X sends ABUTTON, A XBUTTON, Y BBUTTON, B
+YBUTTON, the left stick's click RTHUMB, the right's LTHUMB) in `vr_input.cpp` (`swappedKeys`), so every bind (the
+user's own too, and the key capture) works mirrored; triggers and grips are untouched. The swap is latched per press, so
+a button held while the setting changes lets go of the key it pressed. Key names follow (`VR_ButtonSwapKey` in
+`Key_KeynumToFriendlyString`, VR only: messages that name a bound key say X for ABUTTON). Handedness: Left-handed sets
+it, Right-handed clears it (the preset's settings grew to 4), and it alone makes Handedness Custom.
+Deliberately left on the physical hand: whatever reads a hand's own button (the weapon wheel opening round the hand
+holding its button, the grappling hook's reel/unreel and the reload bits for the gun in that hand, the flashlight, voice
+notes and push-to-talk at the mouth, the toolgun and posing modes), and the settings that name a button or side
+themselves (vr_menu_button's Y/B holds, vr_bullettime_trigger's and vr_seated_crouch_button's left/right stick).
+Menus get the swapped keys too (X confirms, Y/B go back as before). Follow-up (his words: "Yes, follow the hand"): a
+hand's own command run by a swapped key acts on the hand pressed, the binds untouched: the key's press is marked
+mirrored (`input::mirroredKey`) and `+reloadmain/off/left/right`, `+grab*`, `+flickreload*` flip their hand for it
+(vr_client.cpp `commandHand`, the key being the +command's argument): A (XBUTTON `+reloadoff`) reloads the right gun,
+the left stick's click (RTHUMB `+reloadmain`) the left one. Not mirrored: `+attack`/`+offhandattack` (trigger binds).
+A left-hander's saved config (stick swap etc. on, the new setting off) now shows Handedness: Custom until re-picked.
+Tests: `vr_button_swap_test` (13 cases + names: 17 passed, 0 failed): A/X jump off/on, the reloads follow the hand
+pressed, B/Y and stick clicks, trigger unchanged, flips while held leave no key or reload stuck. `settings_page_test.py` (23/0): the installer's Left-handed sets it,
+the saved config keeps it, Right-handed clears it. Installer manifest (help text) and menu_paths.txt refreshed.
