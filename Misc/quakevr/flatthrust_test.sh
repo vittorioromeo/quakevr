@@ -25,6 +25,6 @@ check $(grep -qx "axe=swing" <<<"$pairs" && echo 1 || echo 0) "axe: V still its 
 two=$(bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode -loopbackonly" -Timeout 240 -Script "$START; vr_ad_test 207; vr_embed_test 59" \
     -QuitOn "^flatthrust: [0-9]+ passed" -Filter "$F")
 echo "$two"
-expect_verdict "$two" flatthrust "the Lance: V hurts, sticks by the point, fire pulls out"
+expect_verdict "$two" flatthrust "the Lance: V hurts, sticks by the point, fire pulls out; H with it stuck lets go, it stays in"
 verdict
 exit $fail
