@@ -35,6 +35,7 @@ Flat-screen: climb a rope and then a pole, hold crouch to slide down: the hands 
 Flat-screen or VR: hold the Crystal Lance: the HUD (and in VR the gun's screen) shows just its total cells, no "36/total" magazine count; other guns with magazines still show clip/total. {test:flat_lance}
 Flat-screen: hold the Crystal Lance with a fresh config: both hands and the spear sit where you tuned them (your ten Spear pose tunables are now the defaults); check it looks as you set it, also during a thrust. {test:flat_lance}
 Flat-screen: hold 1 or 2 and the weapon wheel now opens after 0.15 s (was 0.35 s); Weapon Wheel Hold Time still changes it. {test:flat_weapon_wheel}
+Flat-screen or VR: shove a grunt and then a dog hard into the wall behind it (every shove knocks it down here): it hits the wall and slumps or slides down it at once, lies against its foot like on the open floor and gets up as usual, never held up stuck on the wall for a second or two. {test:wall_shove}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the 1.2.0-beta2 pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names 1.2.0-beta2; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
