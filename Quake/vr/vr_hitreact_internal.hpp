@@ -250,6 +250,14 @@ struct ArmPose
     glm::vec3 seenSecond{0.f};
 };
 
+// vr_agholds_report's agpole lines (outside ArmPose: the Live tape keeps it whole): per arm pose slot, as its arms were
+// last solved, each hand's grip and the right weapon as placed (model space).
+struct ArmSeen
+{
+    glm::vec3 hand[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    rigpose::Rigid weapon;
+};
+
 struct ArmPoses
 {
     ArmPose slots[maxArmPoses];
@@ -257,6 +265,7 @@ struct ArmPoses
     int evicted{0}; // ... slots taken from a humanoid not drawn now for one that is
 };
 extern ArmPoses armPoses; // (vr_hitreact_arms.cpp)
+extern ArmSeen armSeen[maxArmPoses]; // (vr_hitreact_arms.cpp; armPoses.slots' by index)
 
 // vr_agrunt_ik_err's ragdoll numbers (ragdollProps): the server's placing of a ragdoll's weapons against its drawn hand.
 struct RagErr

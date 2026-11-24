@@ -24,6 +24,7 @@
 #include "vr_view.hpp"
 #include "vr_render.hpp"
 #include "vr_weapons.hpp"
+#include "vr_twohand.hpp"
 #include "vr_geom.hpp"
 #include "vr_region_shared.h"
 #include "vr_tracy.h"
@@ -1844,11 +1845,14 @@ void info_f()
     }
 }
 
+constexpr float poleHandOff = 3.5f; // units a hand's grip may be off a pole weapon's shaft (agpole: on it)
+
 // vr_agholds_report (Debug > Armed Humanoids: Weapon Holds Report; ROUND22.md, "Armed humanoids' weapon holds"): each
 // armed humanoid whose arms were solved in the last half second: `aghold <ent> <gru|enf> <weapon model> s<slot>: <hands:
 // 1, 2; 0 dual> off <grip (held) | grip-unreached | cup | point | weapon | free> [ask1 | ask2: the Weapon Holds asked]
 // at <its second grip's point, the weapon's frame>`, then `agholds: <n> armed humanoids, <one> one-handed, <two>
-// two-handed, <dual> dual`.
+// two-handed, <dual> dual`. A pole weapon's holder also `agpole <ent>: right hand <units> off its shaft (<share> along),
+// left ...: both on the shaft | off the shaft` (spearfix).
 void holdsReport_f()
 {
     int n = 0, counts[3] = {0, 0, 0};
@@ -1876,6 +1880,23 @@ void holdsReport_f()
             s.seenSecond.z);
         glm::vec3 muzzle, butt, second;
         int type = 0;
+        if(p && twohand::poleWeapon(s.seenSlot) && view::weaponLocalGeometry(p->model, muzzle, butt, second, type))
+        {
+            // A pole weapon (the spear): each hand's grip off its shaft (the butt-to-tip line, model space) and where along it.
+            const ArmSeen& as = armSeen[&s - armPoses.slots];
+            const glm::vec3 a = rigpose::apply(as.weapon, butt), b = rigpose::apply(as.weapon, muzzle);
+            const glm::vec3 ab = b - a;
+            const float len2 = za::max(glm::dot(ab, ab), 1e-4f);
+            float off[2], along[2];
+            for(int h = 0; h < 2; h++)
+            {
+                along[h] = glm::dot(as.hand[h] - a, ab) / len2;
+                off[h] = glm::distance(as.hand[h], a + ab * za::clamp(along[h], 0.f, 1.f));
+            }
+            const bool on = off[0] <= poleHandOff && off[1] <= poleHandOff && za::abs(along[0] - along[1]) > 0.05f;
+            Con_Printf("agpole %d: right hand %.1f off its shaft (%.2f along), left %.1f (%.2f along): %s\n", s.ent, off[0],
+                along[0], off[1], along[1], on ? "both on the shaft" : "off the shaft");
+        }
         if(vr_agrunt_ik_debug.value >= 1.f && p && view::weaponLocalGeometry(p->model, muzzle, butt, second, type))
         {
             entity_t at{};

@@ -7,10 +7,11 @@
 //     head (its blade: the head alone, bl_from); then the hand drawn back: it comes out, back in the hand;
 //   1 a swing across a grunt: it hurts it;
 //   2 thrown point first at the wall: it sticks by its point;
-//   3 thrown at a live grunt's chest: it hurts it (whether it stays in is printed: a note);
+//   3 thrown at a live grunt's chest: it hurts it and stays in it by its point;
 //   4 the flip grip (VR_RevGrip_Flip: reversed, then upright again) and no ammo (no other ammo, none to show);
 //   6 a swing across a grunt with the shaft (spearblunt: VR_Melee_PoleLayout): a blunt blow (the pommel kind, "the
-//     shaft"), it hurts it, nothing stuck, its wound a blunt blow's; 7 the same with Dwell's Crystal Lance.
+//     shaft"), it hurts it, nothing stuck, its wound a blunt blow's; 7 the same with Dwell's Crystal Lance;
+//   8 ten straight throws at a grunt's chest, posed in each run frame and two standing ones: every one stays in it (spearfix).
 // With -flatscreenmode (flat-screen play) case 5 alone: the spear held, the mouse button's punch is the spear's thrust
 // (vr_flat_punch main) at a grunt ahead: it hurts it; stuck, fire presses pull it out (VR_Embed_FlatPull) back into the
 // hand; B (impulse 43: no other ammo) flips its grip and back. Ends `embedspear: N passed, M failed`.
@@ -20,6 +21,10 @@ float(float xHand) DW_LanceHeld; // (dwell/dw_items.qc)
 float(float xWid) DW_VariantFor;
 float vr_sp_hp;    // the grunt's health before the blow
 float vr_sp_n;     // presses so far (the flat pull)
+float vr_sp_k;     // case 8: throws so far
+float vr_sp_stuck; // case 8: throws that stayed in the grunt
+float VR_SP_THROWS = 10; // case 8's throws
+float VR_SP_RUN1 = 73;   // the grunt's $run1 frame (ad_mon_soldier.qc: stand 8, death 10, deathc 11, load 11, pain 6, painb 14, painc 13)
 
 float() VR_SP_Flags = { return VR_ADMelee_Flags(VR_SWORDKIND_SPEAR); };
 
@@ -139,6 +144,7 @@ void() VR_SP_Frame =
     {
         if(vr_et_s == 0)
         {
+            setorigin(p, vr_eh_home); // (case 2 left you facing the wall from 220 units: the grunt was against it, the throw began in it)
             vr_et_m = VR_ET_Grunt(110);
             vr_et_m.health = vr_et_m.max_health = 400; // (a thrown spear's blow, a sword's, kills a grunt outright: gibbed, no body to stay in)
             vr_sp_hp = vr_et_m.health;
@@ -149,11 +155,9 @@ void() VR_SP_Frame =
         }
         else if(VR_ET_Resolved(vr_et_w))
         {
-            // (Whether it stays in depends on how square the point meets the grunt's moving model: 1 run in 3 here, a
-            // glancing 44 degrees off straight in skids. Reported, not checked: ROUND25.md "spear", open.)
-            dprint(sprintf("embedspear: note: a spear thrown at a grunt %s (kind %g, how %g, depth %.1f)\n",
-                VR_AxeStick_InMonster(vr_et_w) ? "sticks in it" : "did not stay in it", vr_et_w.vr_stick_kind,
-                vr_et_w.vr_stick_embed, vr_et_w.vr_stick_depth));
+            // (spearfix: it once stayed in 1 run in 3; a thrown pole weapon's stick is now judged by its flight.)
+            VR_Test_Check(VR_AxeStick_InMonster(vr_et_w) && vr_et_w.vr_stick_embed == AXESTICK_POINT, sprintf("a spear thrown at a grunt stays in it by its point (kind %g, how %g, depth %.1f)",
+                vr_et_w.vr_stick_kind, vr_et_w.vr_stick_embed, vr_et_w.vr_stick_depth));
             VR_Test_Check(vr_et_m.health < vr_sp_hp, sprintf("the throw hurt it (%g damage)", vr_sp_hp - vr_et_m.health));
             VR_ET_NextCase();
         }
@@ -299,6 +303,52 @@ void() VR_SP_Frame =
             VR_Test_Check(vr_wound_lastkind - floor(vr_wound_lastkind) == 0.5, sprintf("its wound a blunt blow's (wound kind %g: + 0.5 blunt)", vr_wound_lastkind));
             vr_eh_ahead = 0;
             VR_EH_NextCase();
+        }
+        return;
+    }
+    // ---- 8: VR_SP_THROWS straight throws at a grunt's chest, posed in each of its run frames then two standing ones (spearfix):
+    // every one stays in it by its point (a thrown pole weapon's stick judged by its flight: vr_embed_pole_incidence)
+    if(vr_et_case == 8)
+    {
+        if(VR_FlatPlay(p))
+        {
+            VR_ET_NextCase();
+            return;
+        }
+        if(vr_et_s == 0)
+        {
+            setorigin(p, vr_eh_home);
+            vr_et_m = VR_ET_Grunt(110);
+            vr_et_m.health = vr_et_m.max_health = 400; // (as case 3: a body to stay in)
+            vr_et_m.frame = vr_sp_k < 8 ? VR_SP_RUN1 + vr_sp_k : (vr_sp_k - 8) * 4; // (run1 .. run8, stand1, stand5)
+            vr_et_m.think = SUB_Null; // (no AI step of its own: its spawn's start would set its frame, at a random time)
+            vr_et_m.nextthink = time + 1;
+            // (Running past you, not only at you: turned -35, 0, 35 degrees; struck up to 5 units either side of its chest.)
+            vr_et_m.angles_y = vr_et_m.angles_y + (vr_sp_k - 3 * floor(vr_sp_k / 3) - 1) * 35;
+            makevectors('0 1 0' * p.angles_y);
+            vector aim = VR_ET_Chest(vr_et_m) + v_right * ((vr_sp_k - 5 * floor(vr_sp_k / 5)) - 2) * 2.5;
+            vr_et_flags = VR_SP_Flags();
+            vr_et_w = VR_ET_SwordAt(aim, 80, TRUE);
+            vr_et_flags = 0;
+            VR_ET_To(1);
+        }
+        else if(vr_et_s == 1 && VR_ET_Resolved(vr_et_w))
+        {
+            float inIt = VR_AxeStick_InMonster(vr_et_w) && vr_et_w.vr_stick_embed == AXESTICK_POINT;
+            vr_sp_stuck = vr_sp_stuck + inIt;
+            dprint(sprintf("embedspear: throw %g (frame %g): %s (kind %g, how %g, depth %.1f)\n", vr_sp_k + 1, vr_et_m.frame,
+                inIt ? "stuck in the grunt" : "did not stay in it", vr_et_w.vr_stick_kind, vr_et_w.vr_stick_embed, vr_et_w.vr_stick_depth));
+            vr_sp_k = vr_sp_k + 1;
+            VR_ET_Clean();
+            if(vr_sp_k < VR_SP_THROWS)
+            {
+                VR_ET_To(0);
+                return;
+            }
+            VR_Test_Check(vr_sp_stuck == VR_SP_THROWS, sprintf("%g of %g straight throws at a grunt (run and stand poses) stay in it by the point",
+                vr_sp_stuck, VR_SP_THROWS));
+            vr_sp_k = vr_sp_stuck = 0;
+            VR_ET_NextCase();
         }
         return;
     }
