@@ -1617,7 +1617,7 @@ QVR_TUNABLE(vr_dw_lance_head, "0.55")  // ... where its head starts: the share o
 QVR_TUNABLE(vr_dw_lance_charge, "1")   // ... its shot charged: s the trigger is held before it fires as it is let go (QC dw_items.qc DW_LanceChargeFrame; 0: fires on the pull)
 QVR_TUNABLE(vr_dw_lance_charge_fade, "0.25") // ... a charge let go short: s its sparks, light and hum fade out over (vr_lancecharge.cpp)
 QVR_TUNABLE(vr_dw_lance_bolt, "0.35")  // ... s its fired bolt lingers (vr_lancecharge.cpp beamLife; Quake's beam 0.2)
-QVR_TUNABLE(vr_dw_lance_push, "4")     // ... its beam's push on the props and ragdolls it hits or goes through, times a bolt's for its 150 damage (QC dw_fire_lance, lance3)
+QVR_TUNABLE(vr_dw_lance_push, "8")     // ... its beam's push on the props and ragdolls it hits or goes through, times a bolt's for its 150 damage (QC dw_fire_lance, lance3)
 QVR_TUNABLE(vr_dw_lance_hit_sparks, "24") // ... sparks thrown back off where its beam stops (a wall, a prop, a body; 0 none)
 QVR_TUNABLE(vr_dw_lance_hit_smoke, "6") // ... puffs of smoke there (0 none; its lasting burn on a surface is the lightning gun's)
 QVR_TUNABLE(vr_dw_lance_embed_length, "5") // ... held as a lance, a stab by its head's pointed top stays in: units of it that count as its blade (the swords' depth shares of it: shallow; vr_axestick.cpp)
@@ -2036,9 +2036,9 @@ QVR_TUNABLE(vr_flat_grenade_speed_scale, "0.75") // the throw's speed (speed_min
 // drawn motion, shared by the throw key and the quick grenade (places off the hand's shoulder as shares of the arm's
 // reach), and the throw key's throw.
 QVR_TUNABLE(vr_flat_throw_wind_time, "0.2") // seconds the hand takes back into the wind-up (the throw key held, the quick grenade's fire button held)
-QVR_TUNABLE(vr_flat_throw_wind_fwd, "0.6") // the wind-up: in front of the shoulder along the look (negative: behind; in view at the screen's upper corner, his ask 2026-11-23)
+QVR_TUNABLE(vr_flat_throw_wind_fwd, "0.4") // the wind-up: in front of the shoulder along the look (negative: behind; in view at the screen's upper corner, his ask 2026-11-23)
 QVR_TUNABLE(vr_flat_throw_wind_out, "0.25") // out at its side
-QVR_TUNABLE(vr_flat_throw_wind_up, "0.45") // above the shoulder
+QVR_TUNABLE(vr_flat_throw_wind_up, "0.6") // above the shoulder
 QVR_TUNABLE(vr_flat_throw_wind_pitch, "-40") // the hand's pitch there against the look's (negative: tipped back)
 QVR_TUNABLE(vr_flat_throw_wind_yaw, "0") // its yaw against the look's (positive: the fingers turned out to its side)
 QVR_TUNABLE(vr_flat_throw_wind_roll, "0") // its roll (mirrored for the left hand)
@@ -2244,11 +2244,11 @@ QVR_TUNABLE(vr_flat_melee_2h_yaw, "-10") // and this far out to its own side (de
 QVR_TUNABLE(vr_flat_melee_2h_roll, "-15") // and rolled this far, its top out to its own side (degrees; negative: the top leans in across the body)
 // The spear pose (lancespear: a pole weapon, its own Other Hand Anywhere 3, the Crystal Lance): the holding hand over the
 // gun's hold (its pole already along the crosshair's way: its Shot Pitch), the other hand on the pole ahead of it.
-QVR_TUNABLE(vr_flat_pole_fwd, "2") // the spear pose: the holding hand this far further ahead than a gun's hold (units)
+QVR_TUNABLE(vr_flat_pole_fwd, "8") // the spear pose: the holding hand this far further ahead than a gun's hold (units)
 QVR_TUNABLE(vr_flat_pole_up, "-2") // and this far higher (units; negative lower)
 QVR_TUNABLE(vr_flat_pole_out, "3") // and this far further out at its own side (units; negative in towards the middle)
 QVR_TUNABLE(vr_flat_pole_roll, "0") // and rolled this far about its pole (degrees)
-QVR_TUNABLE(vr_flat_pole_off_along, "16") // the other hand on the pole this far ahead of the holding hand (units; negative behind it)
+QVR_TUNABLE(vr_flat_pole_off_along, "10") // the other hand on the pole this far ahead of the holding hand (units; negative behind it)
 QVR_TUNABLE(vr_flat_pole_off_roll, "0") // and rolled this far about its own forward, along the pole, about its palm (degrees; mirrored for the off hand; drawn only)
 // (flatmelee2, his notes 2026-11-23: each hand's place and turn, where they lie along the shaft.)
 QVR_TUNABLE(vr_flat_pole_pitch, "0") // the spear turned about the holding fist, its tip up (degrees; drawn only: the beam keeps to the crosshair)
@@ -2258,19 +2258,22 @@ QVR_TUNABLE(vr_flat_pole_off_up, "0") // the other hand this far up off the pole
 QVR_TUNABLE(vr_flat_pole_off_out, "0") // and this far out to its own side (units; negative in)
 QVR_TUNABLE(vr_flat_pole_off_pitch, "0") // the other hand on the pole pitched up this far in its own frame, about its palm (degrees; drawn only)
 QVR_TUNABLE(vr_flat_pole_off_yaw, "0") // and yawed left this far (degrees; mirrored for the off hand; drawn only)
-QVR_TUNABLE(vr_flat_pole_hand_pitch, "0") // the holding hand alone pitched up this far on the pole, the spear unturned (degrees; drawn only)
+QVR_TUNABLE(vr_flat_pole_hand_pitch, "30") // the holding hand alone pitched up this far on the pole, the spear unturned (degrees; drawn only)
 QVR_TUNABLE(vr_flat_pole_hand_yaw, "0") // and yawed left this far (degrees; mirrored for the off hand; drawn only)
 QVR_TUNABLE(vr_flat_pole_hand_roll, "0") // and rolled this far about its own forward (degrees; mirrored for the off hand; drawn only)
+QVR_TUNABLE(vr_flat_pole_hand_fwd, "0") // the holding hand alone moved this far forward in its own frame, the spear unmoved (units; drawn only; lance4)
+QVR_TUNABLE(vr_flat_pole_hand_up, "0") // and up (units; negative down; drawn only)
+QVR_TUNABLE(vr_flat_pole_hand_out, "0") // and out to its own side (units; negative in; mirrored for the off hand; drawn only)
 // The spear thrust (flatmelee2, his notes 2026-11-23): V with a pole weapon; vr_flatplay.cpp thrustPose.
 QVR_TUNABLE(vr_flat_thrust, "1") // flatscreen: V with a pole weapon (the Crystal Lance) thrusts it as a spear (0: the overhead swing)
 QVR_TUNABLE(vr_flat_thrust_wind_time, "0.16") // seconds of its windup, drawn back along the pole
-QVR_TUNABLE(vr_flat_thrust_wind_back, "8") // units drawn back along the pole
+QVR_TUNABLE(vr_flat_thrust_wind_back, "16") // units drawn back along the pole
 QVR_TUNABLE(vr_flat_thrust_wind_up, "1") // and up (units; negative down)
 QVR_TUNABLE(vr_flat_thrust_wind_pitch, "6") // the tip turned up (degrees; negative down)
 QVR_TUNABLE(vr_flat_thrust_wind_yaw, "0") // and in towards the middle (degrees; negative out)
 QVR_TUNABLE(vr_flat_thrust_hold_time, "0.05") // seconds held drawn back
 QVR_TUNABLE(vr_flat_thrust_strike_time, "0.1") // seconds of the thrust out (the blow)
-QVR_TUNABLE(vr_flat_thrust_reach, "14") // its end this far ahead of the spear pose along the pole (units; within the arm's reach)
+QVR_TUNABLE(vr_flat_thrust_reach, "16") // its end this far ahead of the spear pose along the pole (units; within the arm's reach)
 QVR_TUNABLE(vr_flat_thrust_up, "0") // and up (units; negative down)
 QVR_TUNABLE(vr_flat_thrust_pitch, "-3") // the tip turned up at its end (degrees; negative down)
 QVR_TUNABLE(vr_flat_thrust_yaw, "0") // and in towards the middle (degrees; negative out)

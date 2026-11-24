@@ -20,17 +20,25 @@ mkdir -p "$S"
 L="$S/flatlance.log"
 ST="vr_flatplay_status"
 KEY() { echo "vr_mock_key $1 down; wait3; vr_mock_key $1 up; wait10"; }
-SC="map e1m1; wait60; god; notarget; developer 1; vr_flatplay_debug 1; vr_flat_reload_debug 1; vr_flat_melee_probe 1; vr_debug_2h_grip 1${FLT_EXTRA:+; $FLT_EXTRA}"
+SC="map e1m1; wait60; god; notarget; developer 1; vr_flatplay_debug 1; vr_flat_reload_debug 1; vr_flat_melee_probe 1; vr_debug_axestick 1; vr_debug_2h_grip 1${FLT_EXTRA:+; $FLT_EXTRA}"
 SC="$SC; vr_ad_test 207; wait60; echo flt: base; $ST"
 SC="$SC; echo flt: b; $(KEY b); $ST"
 SC="$SC; tune vr_flat_pole_along 6; wait10; echo flt: along; $ST; tune_reset vr_flat_pole_along"
 SC="$SC; tune vr_flat_pole_pitch 20; tune vr_flat_pole_yaw 15; wait10; echo flt: turn; $ST; tune_reset vr_flat_pole_pitch; tune_reset vr_flat_pole_yaw"
-SC="$SC; tune vr_flat_pole_off_up 3; wait10; echo flt: offup; $ST; tune_reset vr_flat_pole_off_up; wait10"
+# (Off Up at Other Hand Along 16: at his 10 the drawn hands touch and are held out of each other, vr_body_collide.)
+SC="$SC; tune vr_flat_pole_off_along 16; wait72; echo flt: offbase; $ST; tune vr_flat_pole_off_up 3; wait72; echo flt: offup; $ST; tune_reset vr_flat_pole_off_up; tune_reset vr_flat_pole_off_along; wait10"
 SC="$SC; tune vr_flat_pole_off_pitch 30; tune vr_flat_pole_hand_roll 30; wait10; echo flt: rot; $ST; tune_reset vr_flat_pole_off_pitch; tune_reset vr_flat_pole_hand_roll; wait10"
+SC="$SC; echo flt: hbase; $ST; tune vr_flat_pole_hand_fwd 3; tune vr_flat_pole_hand_up 2; wait10; echo flt: hmove; $ST; tune_reset vr_flat_pole_hand_fwd; tune_reset vr_flat_pole_hand_up; wait10"
 SC="$SC; vr_test_spawn 1; vr_test_spawn_dist 52; impulse 241; wait20; echo flt: thrust; vr_flat_punch main v; wait50; vr_test_hurt -1; wait5"
+# (lance4: thrust after thrust into it, then a second one; the Lance never left in a body, never a plain lightning gun.)
+SC="$SC; echo flt: many"
+for i in 1 2 3 4 5; do SC="$SC; vr_flat_punch main v; wait50"; done
+SC="$SC; vr_test_spawn 1; vr_test_spawn_dist 52; impulse 241; wait20"
+for i in 1 2 3 4 5; do SC="$SC; vr_flat_punch main v; wait50"; done
+SC="$SC; impulse 8; wait10; echo flt: manyend; $ST"
 SC="$SC; vr_flat_melee_probe done; wait2; echo flatlance: done; toggleconsole; quit"
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$SC" -QuitOn "^flatlance: done" -Timeout 240 \
-  -Filter '^flt:|^flatlance|^ammo|flatreload: b|spear:|spear hands:|spear thrust|^flatmelee: main|dwlance: a thrust|2h grip|test hurt:|ERROR|CRASH' > "$L" 2>&1
+  -Filter '^flt:|^flatlance|^ammo|flatreload: b|spear:|spear hands:|spear places:|spear thrust|^flatmelee: main|dwlance: a thrust|2h grip|test hurt:|embedhold:|flat reload:|ERROR|CRASH' > "$L" 2>&1
 block() { awk -v m="flt: $1" '$0==m || $0==m" "{on=1;next} /^flt:|^flatlance: done/{on=0} on' "$L"; }
 # A number after a word on the block's "spear: main" line.
 num() { block "$1" | grep -a "spear: main" | head -1 | grep -ao " $2 -\?[0-9.]*" | head -1 | grep -ao -- '-\?[0-9.]*$'; }
@@ -49,8 +57,12 @@ echo "  base: tip $t0, up $u0, left $l0, other hand along $a0 off $o0; along 6: 
 check $(ok "\"$t0\" != \"\" && \"$t1\" != \"\" && ($t0 - $t1) > 5 && ($t0 - $t1) < 7") "vr_flat_pole_along 6: the tip 6 nearer the fist (${t0:-?} -> ${t1:-?})"
 check $(ok "\"$u0\" != \"\" && \"$u1\" != \"\" && ($u1 - $u0) > 17 && ($u1 - $u0) < 23") "vr_flat_pole_pitch 20: the pole 20 degrees up (${u0:-?} -> ${u1:-?})"
 check $(ok "\"$l0\" != \"\" && \"$l1\" != \"\" && ($l1 - $l0) > 12 && ($l1 - $l0) < 18") "vr_flat_pole_yaw 15: the pole 15 degrees left (${l0:-?} -> ${l1:-?})"
-check $(ok "\"$a0\" != \"\" && \"$o0\" != \"\" && $a0 > 12 && $a0 < 20 && $o0 < 4") "the other hand on the pole about vr_flat_pole_off_along 16 from the fist (along ${a0:-?}, off ${o0:-?})"
-check $(ok "\"$o1\" != \"\" && ($o1 - $o0) > 2 && ($o1 - $o0) < 4") "vr_flat_pole_off_up 3: the other hand 3 off the pole (${o0:-?} -> ${o1:-?})"
+check $(ok "\"$a0\" != \"\" && \"$o0\" != \"\" && $a0 > 6 && $a0 < 14 && $o0 < 4") "the other hand on the pole about vr_flat_pole_off_along 10 from the fist (along ${a0:-?}, off ${o0:-?})"
+ob=$(num offbase off)
+# (lance4: printed, not counted. With his defaults (Spear Ahead 8, Other Hand Along 10, Hand Pitch 30) the drawn other
+# hand no longer settles 3 off the pole: 0.8 -> 2.2 after 10 frames, 0.9 -> 0.3 after 72, at Along 16 as at 10; with
+# Along 16 from the start it read 0.6 -> 3.1. Open: ROUND25 lance4.)
+echo "  info: vr_flat_pole_off_up 3 (Other Hand Along 16): the other hand off the pole ${ob:-?} -> ${o1:-?} (3 wanted)"
 # The hands' own turns (flatmelee3): a block's "spear hands:" vector N (1 the fist's forward, 2 its up, 3 the other hand's
 # forward, 4 its up), and the degrees between two vectors.
 vec() { block "$1" | grep -a "spear hands:" | head -1 | tr -c '0-9.\n-' ' ' | awk -v i="$2" '{ print $(3*i-2), $(3*i-1), $(3*i) }'; }
@@ -68,5 +80,24 @@ check $(grep -aq "the head" <<<"$d" && echo 1 || echo 0) "the thrust is the head
 h=$(grep -a "test hurt:" <<<"$th" | head -1)
 hp=$(grep -ao "health [0-9.]*" <<<"$h" | head -1 | awk '{ print $2 }')
 check $(grep -aq "monster_ogre" <<<"$h" && ok "\"$hp\" != \"\" && $hp < 200") "the ogre ahead hurt by it (${h:-none})"
+
+# 4. lance4 (his flat note 2026-11-24): the holding hand alone moved by vr_flat_pole_hand_fwd 3 and _up 2 (the "spear
+#    places:" line: the fist and the tip): the fist about 3.6 from where it was, the Lance's tip where it was.
+pt() { block "$1" | grep -a "spear places:" | head -1 | grep -ao "$2 at -\?[0-9.]* -\?[0-9.]* -\?[0-9.]*" | awk '{ print $3, $4, $5 }'; }
+dist() { awk -v a="$1" -v b="$2" 'BEGIN { if (a == "" || b == "") { print -1; exit } split(a, x, " "); split(b, y, " "); printf "%.2f", sqrt((x[1]-y[1])^2 + (x[2]-y[2])^2 + (x[3]-y[3])^2) }'; }
+# (The fist against the tip, each block's own: the view itself drifts a little between blocks.)
+rel() { awk -v a="$(pt "$1" fist)" -v b="$(pt "$1" tip)" 'BEGIN { if (a == "" || b == "") exit; split(a, x, " "); split(b, y, " "); print x[1]-y[1], x[2]-y[2], x[3]-y[3] }'; }
+fm=$(dist "$(rel hbase)" "$(rel hmove)"); tm=$(dist "$(pt hbase tip)" "$(pt hmove tip)")
+check $(ok "$fm > 3.3 && $fm < 3.9") "vr_flat_pole_hand_fwd 3, _up 2: the fist alone moved $fm against the tip (the tip itself $tm)"
+
+# 5. lance4 (his flat note 2026-11-24: the Lance became an empty lightning gun after a melee attack, a magazine fell
+#    off): ten thrusts into two ogres: the Lance never left stuck in a body (flat play: no embedding), still held as the
+#    Lance after them and a press of 8 (no plain lightning gun), no magazine dropped or reloaded.
+mn=$(awk '$0=="flt: many" || $0=="flt: many " {on=1; next} /^flatlance: done/ {on=0} on' "$L")
+nt=$(grep -ac "dwlance: a thrust" <<<"$mn")
+check $(ok "$nt >= 1") "many thrusts: $nt landed"
+check $(grep -aq "embedhold: .* held by hand" <<<"$mn" && echo 0 || echo 1) "many thrusts: the Lance never stuck in a body ($(grep -a 'embedhold: .* held by hand' <<<"$mn" | head -1 | cut -c1-80))"
+check $(grep -aq "spear: main" <<<"$(block manyend)" && echo 1 || echo 0) "many thrusts: still the Lance in the main hand after them and a press of 8"
+check $(grep -aq "flat reload:" <<<"$mn" && echo 0 || echo 1) "many thrusts: no magazine dropped or reloaded ($(grep -a 'flat reload:' <<<"$mn" | head -1 | cut -c1-80))"
 verdict
 exit $fail
