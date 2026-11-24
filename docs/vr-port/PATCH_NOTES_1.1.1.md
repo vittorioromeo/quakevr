@@ -79,6 +79,11 @@ that ships in 1.1.1.
   start; on a PC it is the lightest preset with Quake VR's look. Picking another preset or My Settings afterwards
   puts back the image size, MSAA and the rest it changed. Blood near your eyes can be thinned out with Thinner Blood
   Nearer (`vr_blood_near`, off by default).
+- **Fixed: no start on some Intel integrated graphics.** On an Intel HD Graphics 630 (and likely similar Intel GPUs)
+  the game stopped at start-up with "Error linking world depth ... Out of resource". The depth-only shaders are now
+  built with an empty pixel stage on Intel graphics, in safe mode (`-glsafe`) and on OpenGL ES, which these drivers
+  accept; NVIDIA and AMD cards are unchanged. The start-up log, the run's system information and crash reports now
+  list the graphics card's limits, as does a shader that fails to link.
 
 ## Multiplayer beta
 
@@ -244,6 +249,10 @@ aren't Map Library packages aren't sent to joining players.
   enemy (it left you with an empty lightning gun). New Spear Hand Forward / Up / Out settings place the holding hand
   alone; the default flat spear, throw and thrust positions are retuned. Flat throws made while running carry your
   speed; parrying with the other hand faces the right way.
+- **The Crystal Lance's ammo counter** shows just your cells (it read "36/" as if the Lance had a magazine), on the
+  flat-screen HUD, the gun's screen in VR and other players' copies; its default flat-screen spear pose is retuned.
+- **The flat-screen weapon wheel opens sooner**: holding 1 or 2 opens it after about a sixth of a second (0.15 s, was
+  0.35 s); a quicker tap still cycles weapons.
 - **The super nailgun's muzzle flash** comes only from the barrel that fires and never from an empty gun (the flash and
   the band baked into the old model are gone); its barrels spin up quickly, with a motor whirr. The dark specks in the
   super shotgun's and nailgun's barrels are gone.
@@ -347,7 +356,7 @@ aren't Map Library packages aren't sent to joining players.
   is back to the normal grip; letting go behaves the same in VR, on the flat screen and in multiplayer.
 - **Ropes and poles on the flat screen**: W and S climb when you look up or down and swing when you look level;
   crouch slides down (all the way to the floor) or lets go; jumping off a pole pushes you away from it. Your hands sit
-  on a ladder's rungs.
+  on a ladder's rungs. Sliding down, your hands stay steady on the rope or pole instead of jittering.
 - **Flat-screen swimming**: your hands make the strokes, with water sounds and bubbles.
 
 ## Menus
@@ -432,6 +441,9 @@ aren't Map Library packages aren't sent to joining players.
 - **Fixed: stuck arms and floating guns on big maps.** With more than 64 armed humanoids on a map (Arcane Dimensions'
   largest), the rest were drawn unposed: their arms stuck and their guns floating beside them. Now every one is posed.
 - **Other players' and bots' left holsters** are no longer drawn turned round.
+- **Fixed: monsters stuck to walls.** A monster shoved hard into a wall (a knockdown or a stagger) was pressed into it
+  by the shove for a second or two, held up on the wall; the shove now ends where the wall stops the body, so it
+  slumps down the wall.
 
 ## Performance
 

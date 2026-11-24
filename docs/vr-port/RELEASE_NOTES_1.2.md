@@ -1,8 +1,30 @@
-**Quake VR: UNLEASHED 1.2.0 beta 3**: the third preview of the next update. This is a **beta**: expect rough edges, and the standalone Quest version is still **experimental**. Beta 3 brings a weapon wheel, your own holster places in multiplayer, joining a server's campaign, flat-screen throwing, melee and swimming, a charged Crystal Lance, a faster Quest version and a fix for the Quest's crash entering the hub. **On the Quest, beta 1 and beta 2 players must uninstall the old app once before updating, and back up their saves first** (steps below). What came in betas 1 and 2 is further below. Please report bugs: Options > Create Bug Report makes a zip you can attach.
+**Quake VR: UNLEASHED 1.2.0 beta 4**: the fourth preview of the next update. This is a **beta**: expect rough edges, and the standalone Quest version is still **experimental**. Beta 4 fixes the game failing to start on some Intel integrated graphics (HD Graphics 630 and similar), plus a few flat-screen and ragdoll fixes. Beta 3 players simply update. **On the Quest, players coming from beta 1 or beta 2 must uninstall the old app once before updating, and back up their saves first** (steps under beta 3 below). What came in betas 1 to 3 is further below. Please report bugs: Options > Create Bug Report makes a zip you can attach.
 
 **The full patch notes** (every change since 1.1.0, by area): [PATCH_NOTES_1.1.1.md](https://github.com/vittorioromeo/quakevr/blob/next/docs/vr-port/PATCH_NOTES_1.1.1.md) (they become the 1.2 notes at the final release).
 
-# New in beta 3
+# New in beta 4
+
+## Intel integrated graphics: the start-up error fixed
+
+- On some Intel integrated graphics (reported on an **Intel HD Graphics 630**) the game stopped at start-up with "Error linking world depth ... Out of resource". The few shaders behind it are now built in a way these drivers accept, on Intel graphics and in safe mode (`-glsafe`); NVIDIA and AMD cards are unchanged.
+- If the game still fails to start on your PC, its crash report now lists your graphics card's limits: please send it to us (the Start menu's Create Bug Report shortcut zips it with your logs).
+
+## Flat-screen play
+
+- Sliding down a rope or pole (crouch): your hands now stay steady on it instead of jittering.
+- The Crystal Lance's ammo counter shows just your cells (it read "36/" as if the Lance had a magazine), and its default spear pose is retuned.
+- Holding 1 or 2 opens the weapon wheel sooner (after about a sixth of a second); a quicker tap still cycles weapons.
+
+## Monsters
+
+- A monster shoved hard into a wall now slumps down it instead of staying stuck to the wall for a second or two.
+
+## Multiplayer and known issues
+
+- Beta 3 and beta 4 players can play together (network version 46, unchanged).
+- Beta 3's known issues below still apply.
+
+# Beta 3 (2026-11-24)
 
 ## Before you update on the Quest: uninstall once (back up your saves first)
 
