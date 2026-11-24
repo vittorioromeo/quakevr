@@ -11843,6 +11843,49 @@ His VR notes 2026-11-23 (vrtesthall 23:19:33, 23:02:20, 22:58:27, 23:17:34, 23:1
   `wallglue: 24 passed, 0 failed` (checks: each trial up again within 10 s, never propped over 7 s at a time).
   Scene `wall_shove` (vrtesthall's south wall: a grunt and a dog with their backs to it, every shove a knockdown).
 
+## variantowned: mod weapon variants owned per player, never lost to the vanilla gun (agent/variantowned, 2026-11-24)
+
+His decision (2026-11-24): keep a mod weapon as a base WID plus a variant, but the variant is the player's, per base
+weapon. lance4's report: with the Lance's record gone (stuck in an ogre), a weapon key gave a plain lightning gun, clip 0.
+- **Owned** (`vr_weaponinst.qc`): `.vr_owned_vars` on the player, a bit per variant (2^(DW_VAR - 1): Rotary 1, Lance 2).
+  One helper, `WeaponInst_Owned(p, wid, inst)`: a record a player now holds or holsters gets the variant he owns of
+  its kind; a record carrying a variant makes it his; a kind with no variant has none (a record cloned from the Lance's
+  as a shotgun no longer says "Lance": DW_LanceFedFromPouch read it without the kind). Players only (bots too: they
+  are clients); armed humanoids keep their records' own. Set by a Dwell pickup (`DW_PickupOwned` in weapon_touch, with
+  or without a hand for it; coop's "you have it" skip lets a pickup of a variant new to you through), a prop taken (the
+  toolgun's Lance/Rotary props), a carried record (level change, load: an older save's records make it his).
+  Kept: saves (the field), level changes (parm76 bits 16-17, after the 8 records' 2 bits each), respawns (coop: the
+  level's parms ORed with the edict's own; deathmatch: the edict's). Cleared by a new game (fresh edicts, SetNewParms'
+  parm76 0). Not sent to clients: they draw the hands' and holsters' model strings, which the server picks from the record.
+  AD's upgrades stay the weapon's (decision 38); an AD upgrade picked up for a kind takes back the owned variant of that
+  kind (`WeaponInst_Disown`: the newest wins). impulse 9 grants no variant (Dwell's data present doesn't mean a Dwell map).
+- **Every path** (what each did before -> now through the helper):
+  - Weapon keys / impulses 1-8 (W_ChangeWeapon) and next/prev weapon (CycleWeaponCommandImpl), both through
+    `VRCycleEntWeaponInst`: a clone of the hand's old record, so the variant of whatever was held before (the Lance's
+    only if the Lance had been held; a plain gun once its record was gone) -> the owned variant.
+  - Pickups, cheats (impulse 149/150+/170+), bots' picks (bot_fight), vr_motion, through `VRGiveEntWeapon`: a new plain
+    record, the pickup's own variant set after (a plain pickup cleared it to 0) -> owned; DW_VariantGiven keeps it.
+  - Backpacks and ammo-only pickups: give no record (items and ammo only); the gun comes later by a key: covered there.
+  - Holster draw (`VRDrawHolsterWeapon`: immersive `WeaponInst_Ensure`, quick slot `WeaponInst_Clone`), so the VR and flat
+    weapon wheels (`VR_Wheel_Pick`) and the flat holster keys: the holster's record as it was -> owned.
+  - A prop taken (drop/regrab, a throw caught or returned, a force grab: `wpnthrow_handtouch_impl`): the prop's record as
+    it was -> owned. The magnetic holster's pull (`vr_magholster.qc`): the same.
+  - Drops (`CreateWeaponDrop`, `CreateAmmoBoxWeaponDrop`, `VR_DeathDropOf`): a new plain record -> the dropper's owned
+    variant (players only).
+  - `VRSetEntWeaponClip` on a hand without a record, the flat toolgun put away (its kept record): plain -> owned.
+  - Level change (`DW_UnpackWeaponVariants`): the records' own variants -> those plus the owned bits, then the sync. Load
+    (`OnLoadGame`): -> the sync (an older save: owned from its records). Respawn/coop: as above.
+  - MP remote players: all of it is the server's; the client's own impulse reaches W_ChangeWeapon (tested).
+  - Safety net: `WeaponInst_OwnedSync(p, TRUE)` in PlayerPostThink, the 8 records each frame; one it has to change is a
+    path that missed it: counted (`wi_owned_late`) and printed ("owned variant: ... made N late", developer 1).
+- **Tests**: `dwell_owned_test.sh` (vr_ad_test 231-232) 6/0: the VR mock with a level change, flat play (its holsters
+  off: with them on, flat's weapon keys do nothing) with a save and load; 231 18/0 each (every path above checked as it
+  returns, before the sync; 1 late, the record the test put in bypassing every path), 232 3/0 (both owned, a plain
+  super shotgun carried came back the Rotary, the weapon key's gun the Lance). MP: `mp_test.py variantowned` 8/0 (in the
+  suite; A VR, B flat with his holsters off): B's own key 8 gave the Lance; both respawned (coop) still own it.
+  dwell_weapons_test.sh 13/0, flatlance_test.sh 14/0 unchanged. Scene `dwell_owned`.
+- Not shown by a test: bots' own picks (they go through VRGiveEntWeapon, as the cheat checked), the magnetic holster's
+  pull, a deathmatch respawn (the same edict as coop's); the headset's grips by hand.
 ## questmods (2026-11-24): Quoth's start on the Quest, every campaign checked
 
 - **Cause**: not case. Four mod folders on his Quest 3 (`hipnotic`, `ad`, `dopa`, `dwellv2p2`) were mode 2770; the game

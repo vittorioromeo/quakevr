@@ -348,7 +348,7 @@ void(float xHand, entity ent, entity entPlayer,
     flags = VR_RevGrip_OnTake(ent, entPlayer, xHand, flags, forcegrabCatching);
     *xOutEntWeapon = ent.weapon;
     *xOutEntWeaponFlags = flags;
-    VRSetEntWeaponInst(entPlayer, xHand, ent.weaponinst ? ent.weaponinst : WeaponInst_New(0)); // (its magazine, its id)
+    VRSetEntWeaponInst(entPlayer, xHand, WeaponInst_Owned(entPlayer, ent.weapon, ent.weaponinst ? ent.weaponinst : WeaponInst_New(0))); // (its magazine, its id; a player's owned variant)
     if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("weapon: %s hand takes %s\n", xHand == cVR_MainHand ? "main" : "off", VRWeaponInstDesc(entPlayer, xHand)));
@@ -806,7 +806,7 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateWeaponDrop =
     throwVel_z = 1.1 + random() * 1.1;
 
     CreateThrownWeapon(thrower, xWeapon, 0 /* weaponflags */,
-        WeaponInst_New(WeaponIdToBaseClipSize(xWeapon)) /* a new one, loaded */,
+        WeaponInst_Owned(thrower, xWeapon, WeaponInst_New(WeaponIdToBaseClipSize(xWeapon))) /* a new one, loaded (a player's: his variant) */,
         xOrigin, randomVec(180),
         LegacyThrowVelocity(xWeapon, throwVel), LegacyThrowSpin(throwVel, randomVec(20)),
         FALSE /* disappear on hit */,
@@ -830,7 +830,7 @@ entity(entity thrower, float xWeapon, float xFlags, entity xInst, float xHand) V
         xFlags = xFlags - (xFlags & QVR_WPNFLAG_FOREGRIP_CARRIED); // a hand's state, not the weapon's (as a hand's throw)
         xFlags = xFlags - (xFlags & QVR_WPNFLAG_SAW_STATE);
     }
-    xInst = WeaponInst_Ensure(xInst, xWeapon, WeaponIdToBaseClipSize(xWeapon));
+    xInst = WeaponInst_Ensure(thrower, xInst, xWeapon, WeaponIdToBaseClipSize(xWeapon));
     vector throwVel = randomVec(0.9);
     throwVel_z = 1.1 + random() * 1.1;
     return CreateThrownWeapon(thrower, xWeapon, xFlags, xInst, thrower.origin, randomVec(180),
@@ -870,7 +870,7 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateAmmoBoxWeaponDrop =
     throwVel_z = 0.2 + random() * 0.1;
 
     CreateThrownWeapon(thrower, xWeapon, 0 /* weaponflags */,
-        WeaponInst_New(WeaponIdToBaseClipSize(xWeapon)) /* a new one, loaded */,
+        WeaponInst_Owned(thrower, xWeapon, WeaponInst_New(WeaponIdToBaseClipSize(xWeapon))) /* a new one, loaded (a player's: his variant) */,
         xOrigin, randomVec(180),
         LegacyThrowVelocity(xWeapon, throwVel), LegacyThrowSpin(throwVel, randomVec(20)),
         FALSE /* disappear on hit */,
@@ -1696,7 +1696,7 @@ void(entity ent, float xHand, float xHotspot) VRDrawHolsterWeapon =
     VRSetEntWeaponFlags(ent, xHand, getHolsterWeaponFlags(xHotspot));
     if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
     {
-        VRSetEntWeaponInst(ent, xHand, WeaponInst_Ensure(holstered, wid, 0));
+        VRSetEntWeaponInst(ent, xHand, WeaponInst_Ensure(ent, holstered, wid, 0));
         setHolsterWeapon(xHotspot, WID_FIST);
         setHolsterWeaponModel(xHotspot, WeaponIdToModel(WID_FIST, 0 /* weaponflags */));
         setHolsterWeaponFlags(xHotspot, 0);
@@ -1704,7 +1704,7 @@ void(entity ent, float xHand, float xHotspot) VRDrawHolsterWeapon =
     }
     else
     {
-        VRSetEntWeaponInst(ent, xHand, WeaponInst_Clone(holstered));
+        VRSetEntWeaponInst(ent, xHand, WeaponInst_Owned(ent, wid, WeaponInst_Clone(holstered)));
     }
     W_SetCurrentAmmoFor(xHand);
 };
