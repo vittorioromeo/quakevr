@@ -11747,3 +11747,68 @@ Lance Bolt Linger): `vr_dw_lance_push` 1, `_hit_sparks` 24, `_hit_smoke` 6, `_em
   srgbencode,centroid`, 5 panel swapchains made), the last two while he wore the headset: no crash, eyes straight in
   (form 2), `HC DONE` each. PC Release build fine; APK 0 warnings, check_apk 20/0. prox_close automation turned off
   (`automation_disable`). The fixed build is left installed. Scripts (not committed): `scratch/hc2/`.
+## weapons1123: the super nailgun's flash, spin-up, band and whirr; the SSG's bore dots; the VR wheel follows, quicker taps, off by default; smaller centre messages (agent/weapons1123, 2026-11-24)
+
+His VR notes 2026-11-23 (vrtesthall 23:19:33, 23:02:20, 22:58:27, 23:17:34, 23:18:17; e1m1 23:15:34) and his flat note.
+- **Super nailgun model:** `Misc/quakevr/make_sng_clean.py` (headless Blender on `v_nail2.blend`, as the housing scripts:
+  --dry, then export and save; idempotent) takes out Quake's own flash (64 triangles collapsed at the four barrels' mouths
+  in frame 0, opening in the firing frames, which the spin plays: the flame stood on the coasting gun) and the band round
+  the barrels (156 triangles, x 36-37). 934 triangles left; anchors and the barrel mask carried by the export;
+  `make_gun_variants.py build` gives v_lava2.mdl the same. The flash is now the weapon effects' (weapons.txt slot 4
+  `fx_flash 1`, `fx_flash_size 0.5`, the lava slot inherits): only on a shot (QVR_SVC_FIRED), out of the barrel that fires
+  (vr_weaponfx.cpp asks `gunfx::firingBarrelOf`, the sparks' own barrel table), so never on an empty gun.
+- **Spin-up and whirr:** `vr_sng_spinup` 0.12 s (Tunables > Weapons > Super Nailgun; the Widowmaker's 0.75 s before: full
+  speed 10 frames into the hold), the coast still the Widowmaker's Spin Down. Its motor is the Widowmaker's whirr at
+  `vr_sng_motor` 0.7 of Motor Volume. vr_ad_widowmaker_spin_info prints the motor's wanted volume (heard or not).
+  `sng_spin_test.sh` 14/0 (new: full speed after 10 frames, the motor wanted 0.28).
+- **The SSG's two dots (and every folded flash):** the dequantiser (vr_mdldequant.cpp) solved each vertex on its own, so a
+  flash's triangles collapsed into one point in a stored pose got offsets up to half a step apart and opened into specks
+  of the flame's bright texels in the dark bores. `keepCollapsed` now drops the offsets of a triangle collapsed in a pose
+  (dequantVersion 2: the disk cache made again). `vr_mdl_dequant_check` prints "points kept: N opened, M alone, of K
+  collapsed": v_shot2 0 / 665 / 1092, v_nail 0 / 80 / 80 (the nailgun had them too). The flash itself is unchanged.
+- **VR wheel follows the play space:** at opening it keeps its place in the room (`roomCentre` and axes: spaceOrigin,
+  turnYaw), put in the world again every frame (`follow`): the stick's walk and turn carry it as they carry the hands.
+  weaponwheel_test (VR) step 3 walks the left stick 36 frames with it open: carried 34.1 units, the cursor moved 0.0 px;
+  21/0; flat 17/0. vr_weaponwheel_dump prints the place and how far it was carried.
+- **Quick tap:** `vr_weaponwheel_hold` 0.35 -> 0.22 s, the row now "Wheel Hold / Quick Tap Time" (0.01 s steps, help says a
+  shorter press is the button's own: eject, dagger grip, done on release).
+- **Defaults:** `vr_weaponwheel` 0 (his cfg has no line: it reaches him); flat keeps `vr_flat_wheel` 1. The VR test turns
+  it on for itself and back; scene `weapon_wheel` sets it.
+- **No menu sound on opening** the wheel, flat or VR (his flat note; the pick's click went earlier).
+- **Centre messages:** `vr_center_panel_scale` 1.4 -> 1.12 (20% smaller), now a row: HUD > Screens > Messages, "Centre
+  Message Size".
+- Not done: screenshots of the SNG in the mock (the mock hand without its grip dropped the gun; low-impact mode's images
+  too small for the bore dots): his look in VR is the check.
+## animfix2: copies' left sheaths mirrored, the wall glue measured (branch agent/animfix2, 2026-11-24)
+
+- **scenario_check.sh in full** (after animfix1123's SCNLEAK exclusions): 181 scenes, 0 failed, 0 leaks, 0 errors.
+- **A copy's left holsters (his note dm3 23:05:16).** Placement and turns were the exact mirror image all along (the new
+  check: 0.000 m, 0.0 degrees, left against right, the copy's and yours), but the copy's sheaths were drawn wrong: the
+  alias renderer asks `mpavatar::find` whether a copy's piece is mirrored (VR_AliasMirrored: the y flip and the winding),
+  and `find` covered his hands, weapons, holstered guns, parts and plates but not his worn gear (`Drawn::gear`). His
+  left sheaths (hip and chest) were drawn with their mirrored angles unmirrored: the right sheath turned round, its
+  belt loop out on the wrong side. `find` now covers `gear`. Your own were right (view::find covers every view entity).
+- **Check:** `vr_mp_gearcheck` adds `mirror`/`mplace`/`maxis`/`mflags` (each pair's left piece against its right one,
+  reflected across the carrying part's middle plane: the pelvis's for the hips, the chest's for the rest; the guns only
+  when the pair holds the same gun; `mflags`: the left drawn mirrored and the right not, as the renderer finds them) and
+  `ownmirror`... for yours (printed only: your hips ride your thighs, posed unevenly in a stride); `mirrored` (the
+  copy's: at most 0.02 m, 3 degrees, flags right) is part of `ok`. New `vr_dm_test 24`
+  (16's hold, each pair one gun twice: shoulders revolvers, hips nailguns, uppers shotguns). Before the fix, mp_dm_passive
+  with `vr_dm_test 24`: mirror=5 mplace 0.000 maxis 0.0 **mflags=0**, ok=0; after: mflags=1, ok=1 (own 4 pairs, 0.000/0.0).
+  Eyeshots (`vr_mock_camera 0 0.95 -1.05 25 0`): the bot's left sheath's loop stood out beside its gun, now tucked as the
+  right's.
+- **Wall glue (his note vrtutorial 23:14:32): measured, not changed.** `vr_ragsmash_test 2` (Debug > Tests: Shoved into
+  a Wall: Glue A/B; vrfiringrange, `sv_random_seed 1`): a grunt and a dog shoved (two hands, aware, every shove a
+  knockdown) into the nearest wall from 8 units off it, 3 times each under: all on / the active ragdoll off
+  (vr_ragdoll_active, _stagger, _getup, _env 0) / the wiggle off; and a control, all on, shoved away from the wall onto
+  the open floor. Means (ragdoll s, propped against the wall s, its middle's height over the floor while a ragdoll):
+  grunt all on 5.50, 4.07, 19.1; active off 3.09, 2.16, 23.1; wiggle off 5.62, 4.03, 19.3; open floor 5.56, 0, 9.3.
+  Dog all on 2.86, 2.59, 26.4; active off 2.43, 2.38, 27.2; wiggle off 2.76, 2.53, 24.4; open floor 2.33, 0, 10.8.
+  So: knocked down against a wall, both kinds lie propped up on it (their middle at about standing height, against
+  9-11 lying) for nearly their whole knockdown, then get up (every trial up within 10 s; the longest single propped run
+  2.6 s on average, under 4 s). The active ragdoll and its wall lean (env Lean is for deaths only) and the wiggle make no
+  difference: it is the plain knockdown ragdoll leaning on the wall (ragdoll friction `vr_ragdoll_friction` 0.8 with the
+  wall's 0.6 holds it rather than letting it slide down). Not a clear bug: his call (a slide down the wall while knocked
+  down: lower friction against walls, or a push off it; a next test variant with `tune vr_ragdoll_friction 0.2`).
+  `wallglue: 24 passed, 0 failed` (checks: each trial up again within 10 s, never propped over 7 s at a time).
+  Scene `wall_shove` (vrtesthall's south wall: a grunt and a dog with their backs to it, every shove a knockdown).

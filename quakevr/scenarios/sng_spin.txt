@@ -5,4 +5,4 @@ map vrtesthall
 god
 notarget
 cmd impulse 9; impulse 157
-hint The super nailgun is in your right hand. Fire a burst and let go: the barrels slow down and stop where they are, never snapping back. Fire again from rest: they speed up over a moment.
+hint The super nailgun is in your right hand. Fire a burst and let go: the barrels slow down and stop where they are, never snapping back. Fire again from rest: they are at full speed almost at once, with a quiet motor whirr. A flash only at the barrel that fires, gone the moment you let go; none with the gun empty. No band round the barrels.

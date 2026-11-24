@@ -21,7 +21,6 @@
 #include "vr_gadget.hpp"
 #include "vr_gfx.hpp"
 #include "vr_main.hpp"
-#include "vr_menuui.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_renderdoc.hpp"
@@ -78,6 +77,9 @@ struct WheelState
     glm::vec2 screenAt{0.f};           // flatscreen play: where the hand was on the window as it opened (pixels, y down)
     float scale{1.f};                  // flatscreen play: window pixels an image pixel, as last drawn
     glm::vec3 centre{0.f}, right{0.f, -1.f, 0.f}, up{0.f, 0.f, 1.f}, normal{-1.f, 0.f, 0.f}; // the ring's middle; towards the eyes
+    // ... the same in the play space (as it opened; follow: the world's each frame from the space's origin and turn)
+    glm::vec3 roomCentre{0.f}, roomRight{0.f, -1.f, 0.f}, roomUp{0.f, 0.f, 1.f}, roomNormal{-1.f, 0.f, 0.f};
+    float followed{0.f}; // how far the play space carried it since it opened (units; vr_weaponwheel_dump, the test)
     Choice choices[maxChoices];
     int count{0};
     int hovered{-1};      // the lit choice (-1 none)
@@ -214,6 +216,18 @@ const Provider holsters{"holsters", listHolsters, pickHolster};
     return ringMid + glm::vec2{glm::dot(d, ws.right), -glm::dot(d, ws.up)} / k;
 }
 
+// The headset's wheel carried by the play space (the stick's walk and turn, a push, the stairs), as the hands are: its
+// place in the room as it opened, put in the world again from the space's origin and turn.
+void follow(const hands::State& s)
+{
+    const glm::vec3 was = ws.centre;
+    ws.centre = s.spaceOrigin + hands::rotateYaw(ws.roomCentre, s.turnYaw);
+    ws.normal = hands::rotateYaw(ws.roomNormal, s.turnYaw);
+    ws.right = hands::rotateYaw(ws.roomRight, s.turnYaw);
+    ws.up = hands::rotateYaw(ws.roomUp, s.turnYaw);
+    ws.followed += glm::length(ws.centre - was);
+}
+
 void tick(int hand)
 {
     ws.ticks++;
@@ -276,9 +290,13 @@ struct Test
     int firstWid{0};      // flat: the weapon 2's first tap drew (the first holstered)
     int pickAt{-1};       // flat: its holster, the wheel's pick
     int opens{0};         // flat: the wheel's opens before a step
+    int walk{0};          // the left stick's walk with the wheel open: frames walked
+    glm::vec2 cursor0{0.f}; // ... the cursor before it
+    float wheelWas{-1.f}; // vr_weaponwheel before the test (set on for it: off by default; back at the end)
     testkit::Tally t;
 };
 Test test;
+constexpr int walkFrames = 36; // the walk's length (counted frames: about 0.5 s of slowed time)
 
 void result(bool ok, const char* what)
 {
@@ -291,7 +309,11 @@ void finish()
     test.on = false;
     Cbuf_AddText(test.flat ? va("vr_mock_key %s up; vr_mock_key %s up; vr_flat_wheel 1\n", vr_flat_key_cycle_left.string,
                                  vr_flat_key_cycle_right.string)
-                           : "vr_mock_button main secondary 0; vr_mock_button off secondary 0\n");
+                           : "vr_mock_button main secondary 0; vr_mock_button off secondary 0; vr_mock_stick off 0 0\n");
+    if(test.wheelWas >= 0.f)
+    {
+        Cvar_SetValueQuick(&vr_weaponwheel, test.wheelWas);
+    }
     test.t.verdict("weaponwheel_test");
 }
 
@@ -651,14 +673,33 @@ void testStep()
         break;
     }
     case 3:
+    {
         // (single player only: a server keeps its own time)
-        if(waitFor(test.mp || timescale::current() <= za::clamp(vr_weaponwheel_timescale.value, 0.05f, 1.f) + 0.02f,
-               "time slowed") &&
-            !test.mp)
+        const bool slowed = timescale::current() <= za::clamp(vr_weaponwheel_timescale.value, 0.05f, 1.f) + 0.02f;
+        // Then the left stick walks forward a while (his note 2026-11-23: he could walk away from it): the wheel comes
+        // along, the hand still on the same place on it.
+        if(!test.mp && slowed && test.walk < walkFrames)
+        {
+            if(test.walk == 0)
+            {
+                test.cursor0 = ws.cursor;
+                Cbuf_AddText("vr_mock_stick off 0 1\n");
+            }
+            if(++test.walk == walkFrames)
+            {
+                Cbuf_AddText("vr_mock_stick off 0 0\n");
+                const float moved = glm::distance(ws.cursor, test.cursor0);
+                result(ws.hand == main && ws.followed > 8.f && moved < 2.f,
+                    va("walked with it open: the wheel carried %.1f units, the hand's cursor moved %.1f pixels", ws.followed, moved));
+            }
+            break;
+        }
+        if(waitFor(test.mp || (slowed && test.walk >= walkFrames), "time slowed") && !test.mp)
         {
             result(true, va("time slowed while open (x%.2f)", timescale::current()));
         }
         break;
+    }
     case 4:
     {
         const int want = choiceOfKey(1);
@@ -910,6 +951,8 @@ void dump_f()
     Con_Printf("  hands: left weapon %d clip %d, right weapon %d clip %d; unload/drop bits %d (STAT_QVR_FLATUNLOADFULL)\n",
         handWeapon(HAND_OFF), cl.stats[protocol::STAT_QVR_WEAPONCLIP2], handWeapon(HAND_MAIN), cl.stats[protocol::STAT_QVR_WEAPONCLIP],
         cl.stats[protocol::STAT_QVR_FLATUNLOADFULL]);
+    Con_Printf("  placed: centre %.1f %.1f %.1f, carried %.1f units since it opened (the play space's walk and turn)\n",
+        ws.centre.x, ws.centre.y, ws.centre.z, ws.followed);
     for(int i = 0; i < ws.count; i++)
     {
         const Choice& c = ws.choices[i];
@@ -923,6 +966,11 @@ void test_f()
     test.on = true;
     test.mp = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "mp");
     test.flat = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "flat");
+    if(!test.flat)
+    {
+        test.wheelWas = vr_weaponwheel.value; // (off by default since 2026-11-24: on for the test)
+        Cvar_SetValueQuick(&vr_weaponwheel, 1.f);
+    }
     Con_Printf("weaponwheel_test: start%s\n", test.mp ? " (mp)" : test.flat ? " (flat)" : "");
 }
 
@@ -1002,12 +1050,12 @@ void open(int hand)
     ws.outside = false;
     ws.cursor = ringMid;
     ws.opens++;
+    ws.followed = 0.f;
     if(flat)
     {
         // Where that hand is on the screen; the mouse starts in the middle (drawFlat keeps it all on the window).
         ws.screenAt = flatHandOnWindow(hand, s);
-        menuui::uiSound(menuui::UiSound::Move);
-        tick(hand);
+        tick(hand); // (no menu sound on opening, flat or VR: his ask 2026-11-23, as the pick's click)
         Con_DPrintf("weapon wheel: opens at the %s hand on the screen (%.0f %.0f, %d choices)\n",
             hand == HAND_MAIN ? "right" : "left", ws.screenAt.x, ws.screenAt.y, ws.count);
         return;
@@ -1021,8 +1069,13 @@ void open(int hand)
     const glm::vec3 side = glm::cross(glm::vec3{0.f, 0.f, 1.f}, ws.normal);
     ws.right = glm::length(side) > 0.01f ? glm::normalize(side) : glm::vec3{0.f, -1.f, 0.f};
     ws.up = glm::cross(ws.normal, ws.right);
-    menuui::uiSound(menuui::UiSound::Move);
-    tick(hand);
+    // Kept in the play space (his note 2026-11-23: walking with the stick left it behind): the stick's walk and turn carry
+    // it as they carry the hands (follow), so the hand stays on its slot.
+    ws.roomCentre = hands::rotateYaw(ws.centre - s.spaceOrigin, -s.turnYaw);
+    ws.roomNormal = hands::rotateYaw(ws.normal, -s.turnYaw);
+    ws.roomRight = hands::rotateYaw(ws.right, -s.turnYaw);
+    ws.roomUp = hands::rotateYaw(ws.up, -s.turnYaw);
+    tick(hand); // (the haptic tick only: no menu sound on opening)
     Con_DPrintf("weapon wheel: opens round the %s hand (%d choices)\n", hand == HAND_MAIN ? "right" : "left", ws.count);
 }
 
@@ -1111,6 +1164,7 @@ void frame(const hands::State& s)
         ws.count = provider().list(ws.hand, ws.choices, maxChoices); // (what the holsters hold now)
         if(!ws.flat)
         {
+            follow(s);
             ws.cursor = cursorOf(s.pos[ws.hand]); // (flatscreen play: the mouse's, flatMouse)
         }
         const int was = ws.hovered;
