@@ -4586,24 +4586,34 @@ ImpulseCommands
 
 ============
 */
+// The weapon in `xHand` has another ammo its button (ToggleSecondaryAmmo) switches to.
+float(float xHand) VR_HasOtherAmmo =
+{
+    float weapon = VRGetWeapon(xHand);
+    if(!WeaponSupportsSecondaryAmmoFlag(weapon) ||
+       (weapon != WID_SWORD && !VR_Pack_WeaponFlags(weapon, QVR_WPNFLAG_USE_SECONDARY_AMMO))) // (its secondary's projectile not here)
+    {
+        return FALSE;
+    }
+    if(weapon == WID_LIGHTNING && AD_PlasmaGun(xHand, VRGetWeaponFlags(xHand)))
+    {
+        return FALSE; // AD support: AD's Plasma Gun fires cells only (AD's W_FirePlasma), no button (vr_weapons.inc slot 35)
+    }
+    // Dwell's Crystal Lance (the lightning gun's record with its variant): no other ammo, flat or headset (his note
+    // 2026-11-23: B made it the lightning gun). (One left on the other ammo by an older game still switches back.)
+    return !DW_LanceInHand(xHand);
+};
+
 void(float xHand) ToggleSecondaryAmmo =
 {
     float weapon = VRGetWeapon(xHand);
 
-    if(!WeaponSupportsSecondaryAmmoFlag(weapon) ||
-       (weapon != WID_SWORD && !VR_Pack_WeaponFlags(weapon, QVR_WPNFLAG_USE_SECONDARY_AMMO))) // (its secondary's projectile not here)
+    if(!VR_HasOtherAmmo(xHand))
     {
-        return;
-    }
-    if(weapon == WID_LIGHTNING && AD_PlasmaGun(xHand, VRGetWeaponFlags(xHand)))
-    {
-        return; // AD support: AD's Plasma Gun fires cells only (AD's W_FirePlasma), no button (vr_weapons.inc slot 35)
-    }
-    if(DW_LanceInHand(xHand))
-    {
-        // Dwell's Crystal Lance (the lightning gun's record with its variant): no other ammo, flat or headset (his note
-        // 2026-11-23: B made it the lightning gun). (One left on the other ammo by an older game still switches back.)
-        dprint("ammo switch: refused, the Crystal Lance has no other ammo\n"); // (flat_ammo_key_test.sh)
+        if(DW_LanceInHand(xHand))
+        {
+            dprint("ammo switch: refused, the Crystal Lance has no other ammo\n"); // (flatlance_test.sh)
+        }
         return;
     }
 
@@ -4697,11 +4707,20 @@ void(float xHand, float xReverse) VR_Impulse_CycleHand =
     }
 };
 
-// The button of the weapon in `xHand` pressed: a grappling hook's detach, else its secondary ammo.
+// The button of the weapon in `xHand` pressed: a grappling hook's detach, else its secondary ammo. Flatscreen play's
+// Next Ammo Type key (B, vr_flat_key_ammo; his words 2026-11-24): a weapon with no other ammo whose grip may be flipped (a
+// sword, a dagger, the Crystal Lance) has its grip turned over instead (VR_RevGrip_Flip: the headset's eject button's and
+// the weapon wheel's FLIP GRIP); a weapon with neither: nothing.
+void(float xHand) VR_RevGrip_Flip; // (vr_revgrip.qc)
 void(float xHand) VR_Impulse_WeaponButton =
 {
     if(VRGetWeapon(xHand) == WID_GRAPPLE) { VR_Grapple_Detach(xHand); }
-    else                                  { ToggleSecondaryAmmo(xHand); }
+    else if(VR_FlatPlay(self) && !VR_HasOtherAmmo(xHand) && !VRIsHandWeaponless(self, xHand))
+    {
+        dprint(sprintf("ammo switch: no other ammo, hand %g's grip flipped (if it may be)\n", xHand)); // (flat_ammo_key_test.sh)
+        VR_RevGrip_Flip(xHand);
+    }
+    else { ToggleSecondaryAmmo(xHand); }
 };
 void(entity ent) VR_FlatSwapHands; // (vr_wpnholster.qc: flatscreen play's Q)
 float() VR_FlatHolster_Impulses; // (vr_flatholster.qc: flatscreen play's holster menu, the weapon keys swallowed)

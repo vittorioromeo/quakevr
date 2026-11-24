@@ -12093,6 +12093,28 @@ His flatscreen feedback 2026-11-24 (two items), and the coordinator's: his tunab
   installer self-tests 60/60; check_apk 28/0; smoke launch; published as a prerelease with QuakeVR.zip,
   QuakeVR-Setup.exe, QuakeVR.apk, latest.json, SHA256SUMS.txt; online check passed; Latest still v1.1.0.
 
+## flipgrip: FLIP GRIP on the weapon wheel; flat B flips a grip with no other ammo (agent/flipgrip, 2026-11-24)
+
+His ask 2026-11-24. Follows "flatwheel", "wheelpolish", "revgrip", "dwellweap".
+- **Wheel (both modes, one path):** a third action, FLIP GRIP (`keyFlip` -4; QC `VR_WHEEL_FLIP`: `VR_Wheel_Pick` runs
+  `VR_RevGrip_Flip`, the eject button's and the MMB menu's flip, with its sound, pulse, two-hand gate and MP per-slot
+  checks), at the bottom between DROP and UNLOAD: ten slots 36 degrees apart, the ring 106 -> 109 (EMPTY HAND clears the
+  shoulders' slots by 2 pixels). Lit by `flatholster::canFlip` (the MMB menu's FLIP GRIP test: `view::heldGripFlippable`,
+  not foregrip-carried), greyed for guns. New `MenuIcon::FlipGrip` (two blades, one point up and one down, an arc over
+  them), also on the MMB menu's FLIP GRIP button. Footer "Let go: flip its grip". The headset's B hold that opens the wheel
+  never flips (holsterammo's held-back bit; checked).
+- **Flat B** (`VR_Impulse_WeaponButton`, flat play only): a weapon without other ammo (`VR_HasOtherAmmo`: the old
+  ToggleSecondaryAmmo early returns, no secondary, AD's plasma gun, the Lance) flips its grip instead; weapons with other
+  ammo cycle as before; neither: nothing. The Lance (no other ammo since flatmelee2) flips on B.
+- **Flat pose flipped:** a reversed weapon pointed back and down out of the flat hand, off the screen. A drawn-only turn
+  about the fist (vr_flatplay.cpp `revGripDrawnTurn`, by the flip's drawn share): `vr_flat_revgrip_pitch` 90 (blades),
+  `vr_flat_revgrip_pole_pitch` 165 (the Lance: head forward, 10.7 degrees down); Tunables > Flatscreen, "Flipped Blade
+  Pitch" / "Flipped Spear Pitch". `view::heldShotAngles` keeps a flat Lance's beam to the crosshair (no flip turn in flat
+  play; the headset's unchanged: the shot from the head the way it points).
+- **Tests:** weaponwheel_test VR 25/0 (ten slots; FLIP GRIP greyed for the shotgun, lit for the dagger; the hold flips
+  nothing; let go: reversed), flat 21/0 (the same by the mouse, a screenshot of it lit); flat_ammo_key_test 7/0 (rocket
+  launcher cycles; the dagger's B reversed then upright; the shotgun's nothing); flatlance_test 19/1 (B flips the Lance
+  and back; the failing check is the HUD one after impulse 1 / 8, not looked into: it may predate this branch).
 ## sighthue: the front sight post in its own hue (agent/sighthue, 2026-11-24)
 
 His ask: on the guns with coloured iron sights (two rear notches, one front post) the front post a different hue
@@ -12167,3 +12189,19 @@ His report: holding the trigger on AD's Plasma Gun drew a continuous lightning b
   2 failed: 72 drawn). Run: `vr_ad_upgrades 2;map e1m1;vr_ad_test 106;wait5;+attack`, `-QuitOn "adplasmabolt: [0-9]+
   passed"`. Scene `ad_plasmabolt`. `dwell_lance_test.sh` could not run here (Dwell's data not in this base dir:
   "Dwell's data found: FAIL"); the Lance's path is untouched.
+## Show Melee Arcs: armed humanoids' swings drawn (branch agent/meleearcs, 2026-11-24)
+
+His report: Show Melee Arcs "still displays nothing for armed humanoids" (ROUND24, "Melee rules": the cause was never
+found). The floor fan (fight.qc `VR_MeleeArc_ShowFrame`, vr_bodycontact.cpp `meleeArcDraw`) does draw for them headless
+(test 212, the agrunt_melee_spacing and agrunt_repl_gunaxe scenes: `meleearcviz: drawn arc 2`, an eyeshot), so no
+filtering bug was found; what was missing is the swing itself. Now, while the option is on, an armed humanoid swinging a
+melee weapon at a player (a swing or a saw) leaves the same trail Show Melee Blades draws for your hands (vr_meleeshow.cpp:
+its look and 0.3 s fade shared, `drawHand`): its blade's line as drawn (`VR_AG_WeaponLine`, butt to tip) each frame it is
+posed, white winding up, yellow in the swing-through, red with a dot at the tip when its blow lands.
+- QC: vr_meleerules.qc `VR_MeleeArc_ShowSwings` (from `VR_AGP_Pose`: the native and the QC pose) and
+  `VR_MeleeArc_ShowLanded` (`VR_AGP_Strike`). New builtin `meleeshowfoe(weapon, what, a, b, v)` (8 slots by edict; returns
+  the frames drawn, for the test). Off: QC skips it on one cvar read, the engine keeps nothing.
+- Punches and gun butts: the floor fan only. Drawn by the host's view (SP, a listen server's host), as the floor fan is.
+- `vr_enemy_melee_arc_status` adds "armed swings drawn N frames".
+- Tests: `vr_agrunt_test 216` 2/0 (on: 28 frames sent, 7 in the swing-through, 28 drawn; off: 0 and 0); 212 still 6/0.
+  Scene `agrunt_melee_arcs`.

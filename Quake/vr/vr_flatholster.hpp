@@ -36,6 +36,9 @@ struct HolsterSlot
 // (the server's test: STAT_QVR_FLATUNLOADFULL bits 4, 5): this menu's buttons lit, and the weapon wheel's DROP / UNLOAD.
 [[nodiscard]] bool canDrop(int hand);
 [[nodiscard]] bool canUnload(int hand);
+// Hand `hand`'s FLIP GRIP would turn its weapon's grip over (a sword, a dagger, the Crystal Lance: view::heldGripFlippable,
+// the eject button's flip; not a weapon carried by its foregrip): this menu's button lit, and the weapon wheel's FLIP GRIP.
+[[nodiscard]] bool canFlip(int hand);
 
 // The menu's image (gadget::renderHolsterMenu's texture, `size` its virtual pixels) on its face, as the visor's screens
 // (Shade::Screen: phosphor, scanlines, flicker at vr_flat_holster_menu_crt): the quad `corner` (low left, low right, up

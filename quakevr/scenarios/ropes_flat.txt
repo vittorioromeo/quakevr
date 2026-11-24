@@ -1,9 +1,0 @@
-# ropes_flat: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (ROPES.md, "Climbing (flat-screen)").
-# vrropes' climbing poles (south-west, wood and metal), facing the wooden one; the ropes in a row to the north, the
-# level rope and the level metal pole (monkey traverses) further on.
-title Flat-screen ropes and poles: the climbing poles ahead, the ropes and monkey traverses behind
-map vrropes
-god
-notarget
-start -560 -330 25 -90
-hint Walk into the pole and climb it (forward, looking up). Hold crouch: you slide down quickly with a scrape. Climb up again and jump off: you fall clear, not caught again in the air; walk into it again: taken. On a rope the thumbs wrap round it; on a pole they rest along its side. Jump up to a level rope or pole and press crouch: you drop.

@@ -145,7 +145,8 @@ enum class MenuIcon : int
     HandRight,
     Drop,
     Swap,
-    Unload // a magazine, an arrow out of it (the rounds back into the reserve)
+    Unload,  // a magazine, an arrow out of it (the rounds back into the reserve)
+    FlipGrip // a blade point up and one point down, a turn between them (the held weapon's grip turned over)
 };
 struct HolsterMenuSlot
 {

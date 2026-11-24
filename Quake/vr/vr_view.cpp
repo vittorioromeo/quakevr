@@ -913,7 +913,9 @@ glm::vec3 view::heldShotAngles(const glm::vec3& rot, int hand)
 {
     const int slot = weapons::heldSlot(hand);
     const glm::vec3 shot = weapons::shotAngles(rot, slot, hand == HAND_OFF);
-    if(!twohand::poleWeapon(slot))
+    // (Flatscreen play: the flipped pole weapon drawn turned about the fist into view (vr_flatplay.cpp revGripDrawnTurn),
+    // its beam still to the crosshair, from its head as drawn: flipgrip, 2026-11-24.)
+    if(!twohand::poleWeapon(slot) || flatplay::active())
     {
         return shot;
     }

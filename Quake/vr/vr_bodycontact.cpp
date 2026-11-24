@@ -7,6 +7,7 @@
 #include "vr_foegrab.hpp"
 #include "vr_hull.hpp"
 #include "vr_lines.hpp"
+#include "vr_meleeshow.hpp"
 #include "vr_progs.hpp"
 #include "vr_text3d.hpp"
 #include "vr_geom.hpp"
@@ -684,8 +685,9 @@ ArcDrawn arcDrawn;
 
 void meleeArcStatus_f()
 {
-    Con_Printf("meleearcviz: drawn arc %d leap %d round %d shove %d (frames %d)\n", arcDrawn.byRule[0],
-        arcDrawn.byRule[1], arcDrawn.byRule[2], arcDrawn.byRule[3], arcDrawn.frames);
+    Con_Printf("meleearcviz: drawn arc %d leap %d round %d shove %d (frames %d); armed swings drawn %d frames\n",
+        arcDrawn.byRule[0], arcDrawn.byRule[1], arcDrawn.byRule[2], arcDrawn.byRule[3], arcDrawn.frames,
+        meleeshow::foeDrawnFrames());
     for(int i = 0; i < arcShows.count; ++i)
     {
         const ArcShow& r = arcShows.rows[i];
