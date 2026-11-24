@@ -1452,6 +1452,8 @@ vr_slide_camera_time|1|Locomotion|Slide View Time|Advanced VR Options > Movement
 |1|Locomotion|Reset Flat Keys|Advanced VR Options > Movement > Locomotion > Reset Flat Keys
 vr_flat_aim_mode|1|Locomotion|Right Click Ironsight|Advanced VR Options > Movement > Locomotion > Right Click Ironsight
 vr_flat_aim_zoom|1|Locomotion|Right Click Aim|Advanced VR Options > Movement > Locomotion > Right Click Aim
+vr_flat_zoom_centre|1|Locomotion|Zoom Aim Gun To Centre|Advanced VR Options > Movement > Locomotion > Zoom Aim Gun To Centre
+vr_flat_zoom_visor|1|Locomotion|Zoom Aim Visor Look|Advanced VR Options > Movement > Locomotion > Zoom Aim Visor Look
 vr_flat_aim_sens|1|Locomotion|Aim Sensitivity|Advanced VR Options > Movement > Locomotion > Aim Sensitivity
 vr_flat_aim_sens_match|1|Locomotion|Aim Sensitivity Match|Advanced VR Options > Movement > Locomotion > Aim Sensitivity Match
 vr_flat_wall_shot|1|Locomotion|Shots Follow Gun At Walls|Advanced VR Options > Movement > Locomotion > Shots Follow Gun At Walls
