@@ -1262,6 +1262,13 @@ void test_f()
 
 } // namespace
 
+int firingBarrelOf(const view::ViewEntity& w, glm::vec3& at)
+{
+    Muzzle m;
+    m.view = &w;
+    return firingBarrel(m, at);
+}
+
 int weaponIdOf(const qmodel_t* model)
 {
     if(!model)

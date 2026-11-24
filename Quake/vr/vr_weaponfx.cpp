@@ -1038,8 +1038,20 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
             h.flashAt = -1.0;
             continue;
         }
-        const glm::vec3 muzzle = view::anchorPosition(w, weapons::anchor(slot, Key::MuzzleAnchor),
+        glm::vec3 muzzle = view::anchorPosition(w, weapons::anchor(slot, Key::MuzzleAnchor),
             weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
+        // (a spinning nailgun's: out of the barrel that fires, as its sparks: vr_gunfx.cpp firingBarrels)
+        glm::vec3 bore{0.f};
+        const int barrel = gunfx::firingBarrelOf(w, bore);
+        if(barrel >= 0)
+        {
+            muzzle = bore;
+        }
+        if(vr_debug_weaponfx.value && age == 0.f)
+        {
+            Con_Printf("weaponfx flash hand %d slot %d frame %d barrel %d at %.1f %.1f %.1f\n", hand, slot, w.ent.frame, barrel,
+                muzzle.x, muzzle.y, muzzle.z);
+        }
         const glm::vec3 o = view::modelPoint(w, glm::vec3{0.f});
         const glm::vec3 ax = view::modelPoint(w, glm::vec3{1.f, 0.f, 0.f}) - o;
         const glm::vec3 az = view::modelPoint(w, glm::vec3{0.f, 0.f, 1.f}) - o;

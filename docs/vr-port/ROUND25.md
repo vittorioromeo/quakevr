@@ -11729,6 +11729,86 @@ Lance Bolt Linger): `vr_dw_lance_push` 1, `_hit_sparks` 24, `_hit_smoke` 6, `_em
 - **Wall glue (his note vrtutorial 23:14:32): not started** (out of budget): an A/B test with the active ragdoll's lean
   off is left.
 
+## flatfb1124: flat rope crouch slides all the way, running throws clean, the parry's free hand fixed on the blade (agent/flatfb1124, 2026-11-24)
+
+His flatscreen feedback 2026-11-24 (three items).
+- **Crouch on an upright or slanted rope/pole (1):** it let go almost at once (`climb: flat rope: at its end, lets go` 20
+  units into a 300-unit slide; he then fell to the floor, so ropes13's test passed). Hanging, the body is already an arm
+  under the lowest hand (`lowest`), and the holds slid only after the body moved: its first step down met that bound and
+  the rope-end let-go. Now (vr_climb.cpp `flatRopeFrame`) while the holds have more rope under them (`flatSlideRoom`),
+  the body slides unbounded and the holds follow (a step's allowance instead held him to half the speed: the holds
+  lagged a frame). Crouch never drops him: at its end over a drop he hangs there; a floor within `flatSlideFloorDrop` (48)
+  under his feet at its end lets him down onto it. Horizontal ones keep the crouch drop. `vr_climb_debug` prints
+  `climb: flat slide:` a frame.
+- **Running throws (2):** the health box was knocked up and aside by his own capsule: box3d's throw grace
+  (`noteThrows`) judges a throw by the hand's estimate, which QC's flat throw sets only for the release and puts back
+  (0.39 m/s: "a slow release, it meets the hands"), so his body running on into it hit it. Flat throwers now also count
+  the thing's own speed away from his body (`hull::isFlat`; headsets unchanged: a gib let go on the palm read 1.2 m/s
+  that way and stopped resting on it). Measured: 6.5 m/s, passes through; its path clean until it lands. His motion is
+  kept as before (`vr_throw_inherit` 0.9: 288 of 320 u/s added).
+- **Parry guard's free hand (3):** the holding hand's guard pose rolls the blade with the look's pitch, while the free
+  hand's palm-down (`vr_flat_parry_blade_palm`) was the world's: in the holding hand's frame its fingers swung 40-50
+  degrees between pitch -45 and 45. Down is now the holding hand's side nearest the look's down
+  (`twohand::bladeGripHand`, followed while the guard asks for the blade, kept as it lets go: followed then, the easing
+  hand turned 35 degrees a frame). Identical numbers at -45 / 0 / 45; palm down (z -1.00) and fingers away looking level.
+  vr_flatplay_status prints the free hand in the holding hand's frame.
+- **Tests:** rope_flat_test slide 8/0 (new: first off it only at the floor, crouch held 2 s on the floor; 331 u/s),
+  poleslide 9/0 (350 u/s), new `slideend` 2/0 (the row's rope: still holding at its end, feet 79 over the floor), rope
+  9/0, pole 8/0, strungcrouch 5/0; flatthrow_test 38/0 (new `move`: stand / run / strafe, each passes through him, clean,
+  motion kept); flatbash_test 20/0 (new: pitch -45 and 45, the free hand's turn unchanged, 0.000); throw_grace_test (VR)
+  as before. New scene `flat_throw_run`.
+- Not checked: throw_grace_test's `palm` gib comes to rest at z 19.6, not on the palm (77.6 in its notes): the VR path is
+  untouched by this branch, so not investigated.
+## hubcrash2: replaced swapchains destroyed a few frames later (agent/hubcrash2, 2026-11-24)
+
+- **What was seen**: the hub crash (SIGSEGV 0x30 in libGLESv2_adreno under xrEndFrame) happens on next too, worn
+  (his launch 00:41:11 -> 00:41:31, build eb808daa9); unworn runs never showed it. On a cold start the runtime panel's
+  swapchain is made again at every size switch: 768x192 (the shader compile's loading panel) <-> 4128x2208 (the window's
+  canvas: the console, the loading plaque), up to 9 times in a start, the last one right as the compile ends and the hub's
+  first frames come (the 3S report's last OpenXR step: `xrCreateSwapchain (panel)`). Each switch destroyed the old
+  swapchain at once, though the frame before had submitted it (a quad layer the worn compositor still shows).
+- **Change** (vr_backend_openxr*.cpp): a replaced swapchain (the panel at a new size, the eyes' new images for Quest
+  Foveation or vr_xr_eye_scale) is retired, and destroyed only after 4 more frames ended without it (`retireSwapchain`,
+  `destroyRetired` after each xrEndFrame; all of them before the session ends; 8 slots, the oldest destroyed at once
+  if full). **The cause is not proven**: the crash wasn't reproduced unattended (prox_close brought the Guardian dialog
+  and the session stayed IDLE; worn-simulated runs had the session stopping and restarting), so this is the likely
+  cause's fix, not a confirmed one.
+- **Headset** (the fixed APK, next's progs.dat): 3 hub entries, the first a cold compile (`-glesdebug
+  srgbencode,centroid`, 5 panel swapchains made), the last two while he wore the headset: no crash, eyes straight in
+  (form 2), `HC DONE` each. PC Release build fine; APK 0 warnings, check_apk 20/0. prox_close automation turned off
+  (`automation_disable`). The fixed build is left installed. Scripts (not committed): `scratch/hc2/`.
+## weapons1123: the super nailgun's flash, spin-up, band and whirr; the SSG's bore dots; the VR wheel follows, quicker taps, off by default; smaller centre messages (agent/weapons1123, 2026-11-24)
+
+His VR notes 2026-11-23 (vrtesthall 23:19:33, 23:02:20, 22:58:27, 23:17:34, 23:18:17; e1m1 23:15:34) and his flat note.
+- **Super nailgun model:** `Misc/quakevr/make_sng_clean.py` (headless Blender on `v_nail2.blend`, as the housing scripts:
+  --dry, then export and save; idempotent) takes out Quake's own flash (64 triangles collapsed at the four barrels' mouths
+  in frame 0, opening in the firing frames, which the spin plays: the flame stood on the coasting gun) and the band round
+  the barrels (156 triangles, x 36-37). 934 triangles left; anchors and the barrel mask carried by the export;
+  `make_gun_variants.py build` gives v_lava2.mdl the same. The flash is now the weapon effects' (weapons.txt slot 4
+  `fx_flash 1`, `fx_flash_size 0.5`, the lava slot inherits): only on a shot (QVR_SVC_FIRED), out of the barrel that fires
+  (vr_weaponfx.cpp asks `gunfx::firingBarrelOf`, the sparks' own barrel table), so never on an empty gun.
+- **Spin-up and whirr:** `vr_sng_spinup` 0.12 s (Tunables > Weapons > Super Nailgun; the Widowmaker's 0.75 s before: full
+  speed 10 frames into the hold), the coast still the Widowmaker's Spin Down. Its motor is the Widowmaker's whirr at
+  `vr_sng_motor` 0.7 of Motor Volume. vr_ad_widowmaker_spin_info prints the motor's wanted volume (heard or not).
+  `sng_spin_test.sh` 14/0 (new: full speed after 10 frames, the motor wanted 0.28).
+- **The SSG's two dots (and every folded flash):** the dequantiser (vr_mdldequant.cpp) solved each vertex on its own, so a
+  flash's triangles collapsed into one point in a stored pose got offsets up to half a step apart and opened into specks
+  of the flame's bright texels in the dark bores. `keepCollapsed` now drops the offsets of a triangle collapsed in a pose
+  (dequantVersion 2: the disk cache made again). `vr_mdl_dequant_check` prints "points kept: N opened, M alone, of K
+  collapsed": v_shot2 0 / 665 / 1092, v_nail 0 / 80 / 80 (the nailgun had them too). The flash itself is unchanged.
+- **VR wheel follows the play space:** at opening it keeps its place in the room (`roomCentre` and axes: spaceOrigin,
+  turnYaw), put in the world again every frame (`follow`): the stick's walk and turn carry it as they carry the hands.
+  weaponwheel_test (VR) step 3 walks the left stick 36 frames with it open: carried 34.1 units, the cursor moved 0.0 px;
+  21/0; flat 17/0. vr_weaponwheel_dump prints the place and how far it was carried.
+- **Quick tap:** `vr_weaponwheel_hold` 0.35 -> 0.22 s, the row now "Wheel Hold / Quick Tap Time" (0.01 s steps, help says a
+  shorter press is the button's own: eject, dagger grip, done on release).
+- **Defaults:** `vr_weaponwheel` 0 (his cfg has no line: it reaches him); flat keeps `vr_flat_wheel` 1. The VR test turns
+  it on for itself and back; scene `weapon_wheel` sets it.
+- **No menu sound on opening** the wheel, flat or VR (his flat note; the pick's click went earlier).
+- **Centre messages:** `vr_center_panel_scale` 1.4 -> 1.12 (20% smaller), now a row: HUD > Screens > Messages, "Centre
+  Message Size".
+- Not done: screenshots of the SNG in the mock (the mock hand without its grip dropped the gun; low-impact mode's images
+  too small for the bore dots): his look in VR is the check.
 ## animfix2: copies' left sheaths mirrored, the wall glue measured (branch agent/animfix2, 2026-11-24)
 
 - **scenario_check.sh in full** (after animfix1123's SCNLEAK exclusions): 181 scenes, 0 failed, 0 leaks, 0 errors.

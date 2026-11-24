@@ -793,6 +793,11 @@ QVR_TUNABLE(vr_ad_widowmaker_spin, "1")
 QVR_TUNABLE(vr_ad_widowmaker_spinup, "0.75") // (also the wait before the first shot: the barrels must reach firing speed; QC AD_WidowmakerSpinFrame)
 QVR_TUNABLE(vr_ad_widowmaker_spindown, "0.9")
 
+// Weapons > Super Nailgun (his note 2026-11-23: it fires at once, so its barrels come up to speed at once; the coast down
+// is the Widowmaker's Spin Down)
+QVR_TUNABLE(vr_sng_spinup, "0.12") // s its barrels take to reach full speed with the trigger held (vr_adweapons.cpp advance)
+QVR_TUNABLE(vr_sng_motor, "0.7") // its motor whirr's volume, a share of the Widowmaker's Motor Volume (vr_ad_widowmaker_motor)
+
 // Weapons > Reloading - Plasma Gun
 QVR_TUNABLE(vr_ad_plasmagun_cell, "16") // the cells its cell holds (the thunderbolt's holds 36; his 16, 2026-10-31; QC VR_ClipSizeOf)
 

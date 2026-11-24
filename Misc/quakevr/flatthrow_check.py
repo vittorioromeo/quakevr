@@ -113,5 +113,49 @@ check(len(landed) >= 1 and landed[0].group(3) == "stuck" and int(landed[0].group
 check(len(landed) >= 2 and landed[1].group(3) == "stuck",
       "wall: the sword from 150 units sticks, point first (%s)" % (landed[1].group(0) if len(landed) > 1 else "no landing"))
 
+# (flatfb1124) move: a health box tapped standing, running forward, strafing.
+ls = lines("move")
+done(ls, "move")
+PATH = r"flat throw: path ([-\d.e]+) ([-\d.e]+) ([-\d.e]+) at ([-\d.e]+) ([-\d.e]+) ([-\d.e]+),"
+seg = {}
+cur = None
+for l in ls:
+    m = re.search(r"flatthrow_test: move (\w+)", l)
+    if m:
+        cur = m.group(1)
+        seg[cur] = []
+    elif cur:
+        seg[cur].append(l)
+dist = {}
+for k in ("stand", "run", "side"):
+    s = seg.get(k, [])
+    g = find(s, r"box3d: \d+ item_health thrown by 1 at ([\d.]+) m/s .*: (.*)")
+    check(bool(g) and g[0].group(2) == "passes through the hands",
+          "move %s: the box passes through him as it leaves (%s)" % (k, g[0].group(0) if g else "no box3d throw line"))
+    # Clean until it comes down: its level velocity unchanged (within 20 u/s a frame) while it is over the floor (z > 8).
+    knock = None
+    prev = None
+    for m in find(s, PATH):
+        z = float(m.group(3))
+        v = (float(m.group(4)), float(m.group(5)))
+        if prev is not None and z > 8 and ((v[0] - prev[0]) ** 2 + (v[1] - prev[1]) ** 2) ** 0.5 > 20:
+            knock = "at z %.1f: %.0f %.0f from %.0f %.0f" % (z, v[0], v[1], prev[0], prev[1])
+            break
+        prev = v
+    check(prev is not None and knock is None, "move %s: it flies clean until it comes down (%s)" % (k, knock or ("clean" if prev else "no path")))
+    ld = find(s, r"flat throw: landed: item_health (\d+) units level")
+    dist[k] = int(ld[0].group(1)) if ld else -1
+    if k != "stand":
+        # His motion kept (vr_throw_inherit 0.9): its velocity less the throw's at least 0.8 of his speed.
+        w = find(s, r"carry: with your motion \((\d+) u/s\): ([-\d.e]+) ([-\d.e]+) ([-\d.e]+) ")
+        t = find(s, r"carry: thrown at '\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)'")
+        got = -1.0
+        if w and t:
+            got = sum((float(w[0].group(i + 2)) - float(t[0].group(i + 1))) ** 2 for i in range(3)) ** 0.5
+        ok = bool(w) and got >= 0.8 * float(w[0].group(1))
+        check(ok, "move %s: it keeps his motion (%.0f u/s of his %s added)" % (k, got, w[0].group(1) if w else "?"))
+check(dist.get("run", -1) > dist.get("stand", -1) and dist.get("stand", -1) > 100,
+      "move: thrown running it lands further (%d vs %d units standing)" % (dist.get("run", -1), dist.get("stand", -1)))
+
 print("flatthrow: %d passed, %d failed" % (passed, failed))
 sys.exit(1 if failed else 0)
