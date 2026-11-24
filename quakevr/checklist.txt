@@ -45,6 +45,8 @@ Flat-screen: hold the right mouse button with the grenade launcher (or any gun t
 Flat-screen: thrust the Crystal Lance (V) into the ogre until its tip stays in: your hand stays on the Lance (not let go), and each press of fire pulls the hand back to work it out; after one or a few presses it comes back into your hand as the Lance, never an empty lightning gun. {test:flat_lance}
 Flat-screen: with the Lance stuck in the ogre, press H: the hand lets go and the Lance stays in the body, to be taken back with a grab or the force grab. {test:flat_lance}
 Flat-screen: swing the axe into the ogre until it stays in (it may take a few swings), then press fire: the hand pulls back along the axe and tugs it out, perhaps after a few presses; switching weapons instead leaves it in the body. {test:flat_embed_axe}
+Flat-screen or VR: take the spear (toolgun Weapons > Spear, or the firing range's swords row): it sits in the hands exactly as the Crystal Lance does, the other hand anywhere on its shaft; thrust it into a grunt: the steel head sticks in shallow, pull back (flat: fire) and it comes out. {test:spear}
+Flat-screen or VR: throw the spear: it flies point first and sticks in a wall; no ammo shows on any HUD and B / the eject button flips its grip. {test:spear}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
