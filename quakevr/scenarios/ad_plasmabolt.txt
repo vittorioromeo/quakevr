@@ -1,0 +1,10 @@
+# ad_plasmabolt: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". AD's Plasma Gun fired with the
+# trigger held: plasma bolts only, never the lightning gun's stream (plasmabolt; vr_ad_test 104 puts it in the main hand,
+# needs AD's data).
+title AD Plasma Gun: held fire shoots plasma bolts, no lightning
+map vrtesthall
+god
+notarget
+cvar vr_ad_upgrades 2
+cmd impulse 9; vr_ad_test 104
+hint The Plasma Gun is in your main hand: hold the trigger at a wall. It fires a plasma bolt every fifth of a second and no lightning bolt is drawn from its muzzle. A plain lightning gun still draws its stream while held.
