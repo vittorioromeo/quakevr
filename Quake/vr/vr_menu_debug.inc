@@ -478,6 +478,7 @@ za::Vector<Item> pageDebugLogging()
             .help("vr_ragdoll_draw_info: each ragdoll drawn, the renderer's data for its skinned copy beside its .mdl's "
                   "(light, occlusion group, wounds, retro textures): the values that differ."),
         row(opt::vr_debug_ragdoll_gun),
+        row(opt::vr_debug_ragdoll_wall),
         row(opt::vr_debug_deadanim),
         row(opt::vr_hit_react_debug),
         row(opt::vr_ragdoll_active_debug),
