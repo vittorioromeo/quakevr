@@ -1,7 +1,0 @@
-# flat_throw_run: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (FLATPLAY.md, "The throw key"; flatfb1124: a thing thrown on the move passes through your body and keeps your motion)
-title Flat-screen throw on the move: a health box before you on vrtesthall's open floor
-map vrtesthall
-god
-notarget
-cmd vr_physics_spawn item_health 64
-hint Take the health box (E), then throw it with J standing, again running forward, again strafing: each time it leaves your hand cleanly along the crosshair (no knock up or aside off your own body) and, on the move, carries your motion with it.

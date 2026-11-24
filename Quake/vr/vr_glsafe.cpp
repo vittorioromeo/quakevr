@@ -18,7 +18,8 @@
 //     build; a dev build tries the full renderer again next time) until "vr_glsafe_retry" (Debug > Startup). Never in
 //     automated test runs (QVR_NO_ERROR_DIALOG, QVR_TEST_HIDDEN); "-noglsafe" turns it off.
 //   - vendor workarounds (vr_gl_workarounds 1, default): on AMD/ATI, bindless textures off without safe mode
-//     (amdDefaults: what crashed 1.0.0 there).
+//     (amdDefaults: what crashed 1.0.0 there); on Intel, vertex-only programs (intelDefaults: an empty fragment shader
+//     added, the HD 630's "world depth" link).
 // A start ends well at the first map's 30th drawn frame, or at a quit or an error (Sys_Error: not a crash).
 
 #include "vr_cvars.hpp"
@@ -294,6 +295,7 @@ const char* featureName(int feature)
         case VR_GLSAFE_DEBUG_OUTPUT: return "GL debug output";
         case VR_GLSAFE_MSAA: return "MSAA";
         case VR_GLSAFE_SHADOW_ATLAS: return "the 8192 shadow atlas (4096)";
+        case VR_GLSAFE_VERTEX_ONLY: return "vertex-only depth programs (an empty fragment shader instead)";
         default: return "?";
     }
 }
@@ -305,13 +307,20 @@ const char* featureName(int feature)
 // without the GPU. The layered shadow casters (gl_ViewportIndex from a vertex shader) compiled there: kept.
 constexpr unsigned amdDefaults = VR_GLSAFE_BINDLESS;
 
+// The features off on Intel without safe mode. Vertex-only programs: an HD Graphics 630 (Windows, drivers 27.20.100.9664
+// and 31.0.101.2114) failed the world's depth pre-pass ("world depth", the world vertex shader without a fragment
+// shader) with "Out of resource error" while the same vertex shader linked with each fragment shader, and the sky
+// stencil (vertex-only, no outputs) linked: an empty fragment shader leaves none of its outputs live (gl_shaders.c,
+// GL_VertexOnlyEmptyFrag).
+constexpr unsigned intelDefaults = VR_GLSAFE_VERTEX_ONLY;
+
 // -glescompat (QUEST_PLAN.md, C2): the PC renderer limited to what OpenGL ES 3.2 on the Quest's Adreno has, to run and
 // measure the Quest's paths on the PC before an Android build exists. Off: the optional features ES has no form of
 // (bindless textures, multi-bind, gl_ViewportIndex from a vertex shader) and clip control (EXT_clip_control: not known
 // on the Quest's driver; checked on the device in C4), and NVIDIA's shading-rate image (vr_foveated.cpp). Kept:
 // persistent mapped buffers (EXT_buffer_storage), MSAA, debug output (core in ES 3.2). vr_gles_report lists the rest.
 constexpr unsigned esCompatOff =
-    VR_GLSAFE_BINDLESS | VR_GLSAFE_MULTI_BIND | VR_GLSAFE_CLIP_CONTROL | VR_GLSAFE_VIEWPORT_LAYER;
+    VR_GLSAFE_BINDLESS | VR_GLSAFE_MULTI_BIND | VR_GLSAFE_CLIP_CONTROL | VR_GLSAFE_VIEWPORT_LAYER | VR_GLSAFE_VERTEX_ONLY;
 
 // -glesdebug keep:<name>,... (QVR_GLES_DEBUG): under -glescompat, these switches keep their PC form, one run each, to
 // measure what each ES form costs (QUEST_PLAN.md section 6b). The safe-mode features (the PC feature kept on) and
@@ -565,10 +574,13 @@ extern "C" void VR_GLStartupVendor(const char* vendor, const char* renderer, con
         version ? version : "?");
     const bool amd = (vendor && (ZA_STRSTR(vendor, "ATI") || ZA_STRSTR(vendor, "AMD"))) ||
                      (renderer && (ZA_STRSTR(renderer, "Radeon") || ZA_STRSTR(renderer, "AMD")));
-    glsafe.vendorOff = amd && vr_gl_workarounds.value != 0.f ? amdDefaults : 0u;
+    const bool intel = (vendor && (ZA_STRSTR(vendor, "Intel") || ZA_STRSTR(vendor, "INTEL"))) ||
+                       (renderer && ZA_STRSTR(renderer, "Intel"));
+    glsafe.vendorOff = vr_gl_workarounds.value == 0.f ? 0u : amd ? amdDefaults : intel ? intelDefaults : 0u;
     if(glsafe.vendorOff)
     {
-        VR_GLStep("vendor workarounds (AMD; vr_gl_workarounds 1): %s off", featureName(VR_GLSAFE_BINDLESS));
+        VR_GLStep("vendor workarounds (%s; vr_gl_workarounds 1): %s off", amd ? "AMD" : "Intel",
+            featureName(amd ? VR_GLSAFE_BINDLESS : VR_GLSAFE_VERTEX_ONLY));
     }
 #ifdef __ANDROID__
     constexpr bool esContext = true; // (Android: always an OpenGL ES 3.2 context, gl_vidsdl.c)
@@ -1549,7 +1561,7 @@ void retry_f()
 void status_f()
 {
     Con_Printf("GL safe mode: %s\n", VR_GLSafeDescribe());
-    for(int bit = 1; bit <= VR_GLSAFE_SHADOW_ATLAS; bit <<= 1)
+    for(int bit = 1; bit <= VR_GLSAFE_VERTEX_ONLY; bit <<= 1)
     {
         const bool bySafe = glsafe.safe && !safeKeeps(bit);
         const bool off = bySafe || (glsafe.vendorOff & static_cast<unsigned>(bit));
