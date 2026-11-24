@@ -70,7 +70,8 @@ if [ "$sign" = "release" ]; then
 		case "$(cd "$(dirname "$envFile")" && pwd)/" in "$repo"/*)
 			echo "QVR_ANDROID_RELEASE_ENV ($envFile) is inside the repository: keep it outside (ANDROID_RELEASE.md)" >&2; exit 1;;
 		esac
-		while IFS='=' read -r name value; do
+		# (|| [ -n "$name" ]: a last line without its newline, as Notepad saves one, is read too.)
+		while IFS='=' read -r name value || [ -n "$name" ]; do
 			case "$name" in
 				QVR_ANDROID_RELEASE_KEYSTORE|QVR_ANDROID_RELEASE_STOREPASS|QVR_ANDROID_RELEASE_KEYPASS|QVR_ANDROID_RELEASE_ALIAS)
 					[ -n "${!name:-}" ] || export "$name=${value%$'\r'}";;

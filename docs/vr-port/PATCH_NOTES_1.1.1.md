@@ -226,12 +226,27 @@ aren't Map Library packages aren't sent to joining players.
   hand slides along the pole too, a thrust hits harder with the head (1.5x) than with the shaft, and B flips the grip.
 - **Dwell's Rotary Shotgun remade** as a gauntlet: four round barrels with gaps and dark bores, a hollow housing with a
   handle inside (as the super nailgun's), a bigger dark shell port, and the ammo screen in a wedge on top.
-- **The weapon wheel.** Hold B or Y (a third of a second) to open a wheel around that hand: empty hand, your
-  holsters, drop and unload. Time slows while it is open; point at a slot and let go to take it, or let go off the
-  wheel to cancel (its settings in VR Settings). On the flat screen hold 1 or 2 for the same wheel (the mouse picks,
-  Esc cancels); a tap still cycles as before. Holding the button for the wheel no longer ejects your magazine (a tap
-  still does), and weapons put away through the wheel keep their rounds.
-- **Dwell's Crystal Lance fires a charged shot**: hold to charge (sparks, light and a hum), let go when it is full.
+- **The weapon wheel.** Hold B or Y to open a wheel around that hand: empty hand, your holsters, drop and unload.
+  Time slows while it is open; point at a slot and let go to take it, or let go off the wheel to cancel. In VR it is
+  off by default (VR Settings > Weapons > Immersion > Weapon Wheel); it stays where you opened it as you walk and turn,
+  and a quick press (under about a fifth of a second) still does the button's own job. On the flat screen hold 1 or 2
+  for the same wheel (the mouse picks, Esc cancels); a tap still cycles as before. Holding the button for the wheel no
+  longer ejects your magazine (a tap still does), weapons put away through the wheel keep their rounds, and opening it
+  makes no menu sound.
+- **Dwell's Crystal Lance fires a charged shot**: hold to charge (sparks, light, a hum, a shake and a buzz in your
+  hand), let go when it is full. Its beam hits like the lightning gun (it gibs, knocks objects and bodies about) with
+  sparks and smoke, and pushes crates harder; no empty click; only its tip sticks in what it stabs; thrown, it flies
+  point first; held the other way round it fires from the crystal along the shaft.
+- **Dwell's Crystal Lance and Rotary Shotgun stay yours**: once you have one, every way of getting that weapon back
+  (weapon keys and the wheel, picking it up again, holsters, throws, saves and level changes, multiplayer) gives the
+  Lance or the Rotary, never a plain lightning gun or super shotgun.
+- **Fixed: the flat-screen Crystal Lance lost after a thrust.** A flat-screen stab never leaves a weapon stuck in the
+  enemy (it left you with an empty lightning gun). New Spear Hand Forward / Up / Out settings place the holding hand
+  alone; the default flat spear, throw and thrust positions are retuned. Flat throws made while running carry your
+  speed; parrying with the other hand faces the right way.
+- **The super nailgun's muzzle flash** comes only from the barrel that fires and never from an empty gun (the flash and
+  the band baked into the old model are gone); its barrels spin up quickly, with a motor whirr. The dark specks in the
+  super shotgun's and nailgun's barrels are gone.
 - **Flat-screen throwing** (J by default): tap for a toss, hold to wind up; blades stick, the throw leaves your hand
   towards the crosshair, and the tutorial's throwing lessons can be passed.
 - **Flat-screen melee**: guard + fire bashes; the Crystal Lance thrusts like a spear (V); long blades and the Lance
@@ -327,9 +342,12 @@ aren't Map Library packages aren't sent to joining players.
   drawn, on the front and the back of your belt.
 - **Climbing**: poles stop players and objects (crates rest on them); two climbers can share a pole; chains stop
   shots, nails and blows (with sparks) and still swing. Your hands hang under the rope on a monkey traverse, thumbs
-  wrapped round ropes and thin poles, elbows out, and your holsters stay on your hips while you climb.
+  wrapped round ropes and thin poles, elbows out, and your holsters stay on your hips while you climb. A level pole
+  keeps the grip you took it with (it no longer follows your aim); legs swing more smoothly; the thumb on thick poles
+  is back to the normal grip; letting go behaves the same in VR, on the flat screen and in multiplayer.
 - **Ropes and poles on the flat screen**: W and S climb when you look up or down and swing when you look level;
-  crouch slides down or lets go; jumping off a pole pushes you away from it. Your hands sit on a ladder's rungs.
+  crouch slides down (all the way to the floor) or lets go; jumping off a pole pushes you away from it. Your hands sit
+  on a ladder's rungs.
 - **Flat-screen swimming**: your hands make the strokes, with water sounds and bubbles.
 
 ## Menus
@@ -365,8 +383,13 @@ aren't Map Library packages aren't sent to joining players.
 - **`-window` makes a normal window** with its title bar, to drag and resize, even with Borderless Window on (the
   setting is kept for the next launch without it). **`-windowpos <x> <y>`** places it (its inside's top-left, in
   desktop pixels) instead of centring it.
-- **The tutorial on the flat screen** uses flat-screen wording and shows your own keys.
+- **The tutorial on the flat screen** uses flat-screen wording and shows your own keys. The tutorial always starts as
+  a single player Quake game (also right after a multiplayer game); its spikes can be batted away; some surfaces that
+  showed black are textured again.
 - The hub's lecterns stand in one row, in Select Campaign's order.
+- **Centre messages are 20% smaller**, with their own row: HUD > Screens > Messages > Centre Message Size.
+- **Quoth needs Arcane Dimensions**: without AD installed, Select Campaign marks Quoth "needs AD" and says why, instead
+  of the game stopping with an error when Quoth starts.
 - **The Steam Frame's controllers are supported** (thanks to Kasper Olesen).
 - **Launch options renamed**: `-vr-hide-mirror` is now `-hidemirror`, `-vr-unattended` is `-unattended`, and `-vrmock`
   is `+vr_backend mock`. The old names still work until 1.3 and print a note.
@@ -406,6 +429,9 @@ aren't Map Library packages aren't sent to joining players.
   and turned like a turntable.
 - **Recoloured armed monsters repainted.** The weapon recolours of the grunts, enforcers, knights and death knights (and
   their backpacks) dye new parts of the skins, and the grunts' and death knights' backpack colours are retuned.
+- **Fixed: stuck arms and floating guns on big maps.** With more than 64 armed humanoids on a map (Arcane Dimensions'
+  largest), the rest were drawn unposed: their arms stuck and their guns floating beside them. Now every one is posed.
+- **Other players' and bots' left holsters** are no longer drawn turned round.
 
 ## Performance
 
@@ -435,8 +461,11 @@ aren't Map Library packages aren't sent to joining players.
   big fights.
 - **Fixed: changing Quest Foveation during a game crashed.**
 - **Taking the headset off pauses a single player game** (Advanced > Headset > Headset Taken Off).
-- **The Quest 3S is untested**: a player reported a crash entering the hub on one, being looked at. Tested on the
-  Quest 3; the Quest 2 not yet.
+- **Fixed: a crash entering the hub** with the headset on (reported on a Quest 3S; beta 2 crashed the same way on the
+  Quest 3). A start closed while the game prepares its shaders no longer turns safe mode on at the next start.
+- **Dimension of the Past and Dimension of the Machine start on the Quest**: Setup copies the rerelease's language
+  data they need (Installer, below).
+- Tested on the Quest 3; the Quest 3S and the Quest 2 are not tested by us yet.
 - The first start after installing or updating spends about 30 seconds on the loading panel while the game prepares
   its shaders (later starts take a few seconds).
 
@@ -448,6 +477,10 @@ aren't Map Library packages aren't sent to joining players.
   copies your Quake files, the expansions you own, the HD textures and the mods it installed (Dwell, Quoth, Arcane
   Dimensions) to the headset. Running it again only copies what changed; nothing on the headset is ever deleted, and
   your saves and settings there are left alone. Start it from Library > Unknown Sources.
+- **Quest Setup makes every mod folder readable** by the game each time it runs, also when nothing new is copied (a
+  folder an older copy left unreadable kept expansions and mods such as Arcane Dimensions and Quoth from starting), and
+  it copies the rerelease's language data (`id1`'s paks, to a folder the game only reads for its text and music) when
+  Dimension of the Past or Dimension of the Machine comes from the rerelease.
 - **One-time uninstall on the Quest for 1.2.0-beta3.** From beta 3 the Quest app is signed with Quake VR's own
   release key, and a Quest cannot update an app signed with another key: beta 1 and beta 2 players uninstall the old
   app once (Library > Unknown Sources > Quake VR > Uninstall), which deletes its saves and settings on the headset.

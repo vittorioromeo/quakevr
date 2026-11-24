@@ -1,4 +1,4 @@
-**Quake VR: UNLEASHED 1.2.0 beta 3**: the third preview of the next update. This is a **beta**: expect rough edges, and the standalone Quest version is still **experimental**. Beta 3 brings a weapon wheel, your own holster places in multiplayer, joining a server's campaign, flat-screen throwing, melee and swimming, a charged Crystal Lance and a faster Quest version. **On the Quest, beta 1 and beta 2 players must uninstall the old app once before updating, and back up their saves first** (steps below). What came in betas 1 and 2 is further below. Please report bugs: Options > Create Bug Report makes a zip you can attach.
+**Quake VR: UNLEASHED 1.2.0 beta 3**: the third preview of the next update. This is a **beta**: expect rough edges, and the standalone Quest version is still **experimental**. Beta 3 brings a weapon wheel, your own holster places in multiplayer, joining a server's campaign, flat-screen throwing, melee and swimming, a charged Crystal Lance, a faster Quest version and a fix for the Quest's crash entering the hub. **On the Quest, beta 1 and beta 2 players must uninstall the old app once before updating, and back up their saves first** (steps below). What came in betas 1 and 2 is further below. Please report bugs: Options > Create Bug Report makes a zip you can attach.
 
 **The full patch notes** (every change since 1.1.0, by area): [PATCH_NOTES_1.1.1.md](https://github.com/vittorioromeo/quakevr/blob/next/docs/vr-port/PATCH_NOTES_1.1.1.md) (they become the 1.2 notes at the final release).
 
@@ -24,9 +24,9 @@
 
 ## Weapon wheel
 
-- **Hold B or Y** (a third of a second) to open a wheel around that hand: empty hand, your holsters, drop and unload. Time slows while it is open; point at a slot and let go to take it, or let go off the wheel to cancel. Its settings are in VR Settings.
+- **Hold B or Y** to open a wheel around that hand: empty hand, your holsters, drop and unload. Time slows while it is open; point at a slot and let go to take it, or let go off the wheel to cancel. In VR the wheel is **off by default**: turn it on in VR Settings > Weapons > Immersion > Weapon Wheel. It stays where you opened it as you walk and turn, and a quick press (under about a fifth of a second) still does the button's own job.
 - On the flat screen: hold 1 or 2 for the same wheel (the mouse picks, Esc cancels); a tap still cycles as before.
-- Holding the button for the wheel no longer ejects your magazine (a tap still does), and weapons put away through the wheel keep their rounds.
+- Holding the button for the wheel no longer ejects your magazine (a tap still does), and weapons put away through the wheel keep their rounds. Opening the wheel makes no menu sound.
 
 ## Flat-screen play
 
@@ -36,32 +36,44 @@
 - The tutorial's messages use flat-screen wording and show **your own keys**.
 - Ropes and poles: W and S climb when you look up or down and swing when you look level; crouch slides down or lets go; jumping off a pole pushes you away from it.
 - Smaller fixes: the gun no longer jitters at a wall when you look down; the hub's lecterns stand in one row, in Select Campaign's order; your hands sit on a ladder's rungs.
+- **The Crystal Lance is no longer lost after a thrust**: a flat-screen stab never leaves a weapon stuck in the enemy (it used to leave you with an empty lightning gun). New Spear Hand Forward / Up / Out settings place the holding hand alone, and the default spear, throw and thrust positions are retuned.
+- Crouching on a rope slides you all the way down to the floor instead of letting go early; throws made while running carry your speed; parrying with the other hand faces the right way.
 
 ## Climbing
 
 - Poles stop players and objects (crates rest on them); two climbers can share a pole; chains stop shots, nails and blows (with sparks) and still swing.
 - Hands: under the rope on a monkey traverse, thumbs wrapped round ropes and thin poles, elbows out; your holsters stay on your hips while you climb.
+- A level pole keeps the grip you took it with (it no longer follows your aim); legs swing more smoothly; the thumb on thick poles is back to the normal grip; letting go behaves the same in VR, on the flat screen and in multiplayer.
 
 ## Weapons
 
-- **Dwell's Crystal Lance** is now a charged shot: hold to charge (sparks, light and a hum), and let go when it is full to fire.
-- The super nailgun's barrels spin up and coast down; thrown blades' kills push the body less; Quake VR's own weapon models' caps no longer look white; Dwell's unused Rifle is gone (an old save holding it gets a shotgun instead).
+- **Dwell's Crystal Lance** is now a charged shot: hold to charge (sparks, light, a hum, a shake and a buzz in your hand), and let go when it is full to fire. Its beam hits like the lightning gun (it gibs, knocks objects and bodies about) with sparks and smoke, and pushes crates harder; no empty click; only its tip sticks in what it stabs; thrown, it flies point first; held the other way round it fires from the crystal along the shaft.
+- **Dwell's Crystal Lance and Rotary Shotgun stay yours**: once you have one, every way of getting that weapon back (weapon keys and the wheel, picking it up again, holsters, throws, saves and level changes, multiplayer) gives the Lance or the Rotary, never a plain lightning gun or super shotgun.
+- The super nailgun's barrels spin up quickly and coast down, with a motor whirr; its muzzle flash comes only from the barrel that fires, and never from an empty gun (the flash and the band baked into the old model are gone). The dark specks in the super shotgun's and nailgun's barrels are gone.
+- Thrown blades' kills push the body less; Quake VR's own weapon models' caps no longer look white; Dwell's unused Rifle is gone (an old save holding it gets a shotgun instead).
+- Armed grunts on big maps (Arcane Dimensions' largest) no longer stand with stuck arms and floating guns.
+- Other players' and bots' left holsters are no longer drawn turned round.
 
 ## Quest (standalone, experimental)
 
 - **Faster in fights**: **Quest Foveation** (VR Settings > Graphics; High by default on the Quest 3) draws the edges of the view in less detail; each eye is drawn in one pass; the image is allowed to get smaller only during big fights; your own body and gore draw more cheaply; the Standalone preset turns retro (pixelated) lighting off, the most expensive way to draw the world there. Armed grunts' weapon poses are worked out by the engine now: less CPU in big fights.
 - Changing Quest Foveation during a game no longer crashes.
 - Taking the headset off pauses a single player game (Advanced > Headset > Headset Taken Off).
-- **The Quest 3S is untested**: a player reported a crash entering the hub on one, and we are looking at it. Beta 3 is tested on the Quest 3; the Quest 2 is not tested yet.
+- **Fixed: a crash entering the hub** with the headset on (reported on a Quest 3S; beta 2 crashed the same way on the Quest 3). A start closed while the game prepares its shaders no longer turns safe mode on at the next start.
+- **Mods and the rerelease's add-ons on the Quest**: Setup now makes every mod folder it copies readable by the game, each time it runs (a folder left unreadable by an older copy kept expansions and mods such as Arcane Dimensions and Quoth from starting), and it copies the rerelease's language data, so **Dimension of the Past** and **Dimension of the Machine** start on the Quest.
+- Beta 3 is tested on the Quest 3; the Quest 3S and the Quest 2 are not tested by us yet.
 
 ## Other
 
 - The Steam Frame's controllers are supported (thanks to Kasper Olesen).
 - **Launch options renamed**: `-vr-hide-mirror` is now `-hidemirror`, `-vr-unattended` is `-unattended`, and `-vrmock` is `+vr_backend mock`. The old names still work until 1.3 and print a note.
+- **Quoth needs Arcane Dimensions** installed: without it, Select Campaign marks Quoth "needs AD" and says why instead of stopping with an error when it starts.
+- The tutorial always starts as a single player Quake game (also right after a multiplayer game); its spikes can be batted away; some surfaces that showed black are textured again.
+- Centre messages are 20% smaller (HUD > Screens > Messages > Centre Message Size).
 
 ## Known issues (beta 3)
 
-- **The Quest version is experimental**: close-up fights with many gibs and very large battles can dip below 72 frames a second; tested on the Quest 3 only (the Quest 3S is untested, see above).
+- **The Quest version is experimental**: close-up fights with many gibs and very large battles can dip below 72 frames a second; tested on the Quest 3 only (the Quest 3S is untested by us).
 - Quest: the first start after installing or updating spends about 30 seconds on the loading panel while the game prepares its shaders (later starts take a few seconds).
 - **Splitscreen is not included yet.**
 - The rest of beta 1's known issues below still apply (multiplayer is a beta; single player only features; Dwell and Quoth experimental; no code signing).
