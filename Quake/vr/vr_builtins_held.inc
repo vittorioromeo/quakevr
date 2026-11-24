@@ -982,6 +982,20 @@ void PF_meleeshow()
         geom::vec(a), geom::vec(b), G_FLOAT(OFS_PARM4));
 }
 
+// float(entity weapon, float what, vector a, vector b, float v) meleeshowfoe: Show Melee Arcs' armed humanoid swings
+// (vr_meleeshow.hpp addFoe; QC vr_meleerules.qc VR_MeleeArc_ShowSwings, sent only while vr_enemy_melee_arc_show is on);
+// world records nothing. Returns the frames the view drew any (meleeshow::foeDrawnFrames: the tests).
+void PF_meleeshowfoe()
+{
+    edict_t* w = G_EDICT(OFS_PARM0);
+    if(w != qcvm->edicts)
+    {
+        meleeshow::addFoe(NUM_FOR_EDICT(w), static_cast<int>(G_FLOAT(OFS_PARM1)), geom::vec(G_VECTOR(OFS_PARM2)),
+            geom::vec(G_VECTOR(OFS_PARM3)), G_FLOAT(OFS_PARM4));
+    }
+    G_FLOAT(OFS_RETURN) = static_cast<float>(meleeshow::foeDrawnFrames());
+}
+
 // Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp). float(entity player) magholsterpoll: what the player asked
 // since the last call, taken (1 the off hand's bind button at a holster, 2 the main hand's, 4 every bound weapon home at
 // once: vr_magholster_return; another player's as his client sent them: heldpose::magPoll, B3f). vector(entity player,

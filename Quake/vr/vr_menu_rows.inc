@@ -415,7 +415,9 @@ QVR_TOGGLE(vr_enemy_melee_arc, "Melee Arc",
 QVR_TOGGLE(vr_enemy_melee_arc_show, "Show Melee Arcs",
     "Debug: each melee monster after you (within 600 units) draws on the floor its arc and reach as they "
     "are now (a fan; its sweeping blows' wider fan once it has swung one), red with you inside it (its blow "
-    "would land), orange inside only a sweeping blow's, green outside. Its kind, arc and reach above it.")
+    "would land), orange inside only a sweeping blow's, green outside. Its kind, arc and reach above it. An armed "
+    "one's swinging blade also leaves its swept trail, as Show Melee Blades draws yours (yellow in its swing, red "
+    "when it lands).")
 QVR_TOGGLE(vr_enemy_aim_show, "Show Aim Cones",
     "Debug: each ranged monster after you (within 1000 units) draws its aim cone ahead of it, red with you "
     "inside (its shot comes straight at you), green outside, and its fire cone past it, orange with you "
@@ -5538,6 +5540,8 @@ QVR_SLIDER(vr_gadget_screen_text_white, "Screen Text Whiteness", 0.f, 1.f, 0.05f
 QVR_SLIDER(vr_gadget_tint, "Casing Tint", 0.f, 1.f, 0.05f, "%.2f", noExt, "0 keeps the casing's own olive drab.")
 QVR_SLIDER(vr_gadget_tint_hue, "Casing Tint Hue", 0.f, 355.f, 5.f, "%.0f", noExt, nullptr)
 QVR_SLIDER(vr_sight_saturation, "Weapon Sight Saturation", 0.f, 2.f, 0.05f, "%.2f", noExt, "1 their own, 0 white.")
+QVR_SLIDER(vr_sight_front_hue_shift, "Front Sight Hue Shift", 0.f, 355.f, 5.f, "%.0f", noExt,
+    "The front post's colour, turned this far round the hue circle from the rear notches' so the two read apart. 0: the same colour.")
 QVR_SLIDER(vr_forcegrab_saturation, "Force Grab Saturation", 0.f, 2.f, 0.05f, "%.2f", noExt,
     "How colourful they are: 1 as made, 0 white, 0.7 like the wrist gadget's screen. Times the Player Effects Saturation.")
 

@@ -12093,6 +12093,57 @@ His flatscreen feedback 2026-11-24 (two items), and the coordinator's: his tunab
   installer self-tests 60/60; check_apk 28/0; smoke launch; published as a prerelease with QuakeVR.zip,
   QuakeVR-Setup.exe, QuakeVR.apk, latest.json, SHA256SUMS.txt; online check passed; Latest still v1.1.0.
 
+## flipgrip: FLIP GRIP on the weapon wheel; flat B flips a grip with no other ammo (agent/flipgrip, 2026-11-24)
+
+His ask 2026-11-24. Follows "flatwheel", "wheelpolish", "revgrip", "dwellweap".
+- **Wheel (both modes, one path):** a third action, FLIP GRIP (`keyFlip` -4; QC `VR_WHEEL_FLIP`: `VR_Wheel_Pick` runs
+  `VR_RevGrip_Flip`, the eject button's and the MMB menu's flip, with its sound, pulse, two-hand gate and MP per-slot
+  checks), at the bottom between DROP and UNLOAD: ten slots 36 degrees apart, the ring 106 -> 109 (EMPTY HAND clears the
+  shoulders' slots by 2 pixels). Lit by `flatholster::canFlip` (the MMB menu's FLIP GRIP test: `view::heldGripFlippable`,
+  not foregrip-carried), greyed for guns. New `MenuIcon::FlipGrip` (two blades, one point up and one down, an arc over
+  them), also on the MMB menu's FLIP GRIP button. Footer "Let go: flip its grip". The headset's B hold that opens the wheel
+  never flips (holsterammo's held-back bit; checked).
+- **Flat B** (`VR_Impulse_WeaponButton`, flat play only): a weapon without other ammo (`VR_HasOtherAmmo`: the old
+  ToggleSecondaryAmmo early returns, no secondary, AD's plasma gun, the Lance) flips its grip instead; weapons with other
+  ammo cycle as before; neither: nothing. The Lance (no other ammo since flatmelee2) flips on B.
+- **Flat pose flipped:** a reversed weapon pointed back and down out of the flat hand, off the screen. A drawn-only turn
+  about the fist (vr_flatplay.cpp `revGripDrawnTurn`, by the flip's drawn share): `vr_flat_revgrip_pitch` 90 (blades),
+  `vr_flat_revgrip_pole_pitch` 165 (the Lance: head forward, 10.7 degrees down); Tunables > Flatscreen, "Flipped Blade
+  Pitch" / "Flipped Spear Pitch". `view::heldShotAngles` keeps a flat Lance's beam to the crosshair (no flip turn in flat
+  play; the headset's unchanged: the shot from the head the way it points).
+- **Tests:** weaponwheel_test VR 25/0 (ten slots; FLIP GRIP greyed for the shotgun, lit for the dagger; the hold flips
+  nothing; let go: reversed), flat 21/0 (the same by the mouse, a screenshot of it lit); flat_ammo_key_test 7/0 (rocket
+  launcher cycles; the dagger's B reversed then upright; the shotgun's nothing); flatlance_test 19/1 (B flips the Lance
+  and back; the failing check is the HUD one after impulse 1 / 8, not looked into: it may predate this branch).
+## sighthue: the front sight post in its own hue (agent/sighthue, 2026-11-24)
+
+His ask: on the guns with coloured iron sights (two rear notches, one front post) the front post a different hue
+from the rear, on by default, the difference a cvar.
+
+- **`vr_sight_front_hue_shift`** (archived, default **240**; 0 = one colour, as before): degrees the front post's hue
+  is turned from the rear notches' (which keep `vr_sight_hue`, -1 following `vr_player_hue`; saturation unchanged).
+  VR Settings > Colours, under Weapon Sight Saturation (the page flat play uses too). With the default player hue 100
+  the rear reads yellow-green and the front pink; 120 gave a pale lavender that read close to white in the eyeshots,
+  300 orange, 260 salmon.
+- **How:** the sights are palette entries (224..239, 252, 253) in each skin, so the front post can't be told apart by
+  colour. `vr_sights.cpp` `frontPosts`: per model, the skin rectangle of the front post's sight patch (each skin maps
+  both rear ears onto one patch, the front post onto another), with the skin's size (another size, e.g. a repaint or
+  a mod's model, keeps one colour). `VR_SightPalette` also makes the front palette; `VR_SightFront` (gl_texmgr.c,
+  right after the 8-to-32 conversion) sets the sight texels inside that rectangle (2 texels of margin for the edge
+  fill) from it. The cvar's callback reloads the skins as the other sight cvars do.
+- **Guns:** shotgun (+ the auto pump's body and fore-end), double shotgun (+ the broken-open frame and barrels),
+  lightning gun and plasma gun, nail pistol. Not the shotgun's pickup (its fire texels are one big patch, never aimed
+  down) nor the nail pistol's preview (no sight texels).
+- **The table** comes from `Misc/quakevr/sight_front_posts.py` (from quakevr/progs: `python
+  ../../Misc/quakevr/sight_front_posts.py v_shot.mdl ...`): each skin's sight patches placed by the frame-0 triangles
+  mapping them; the patch furthest forward (+x) is the front post; a part model mapping none takes its gun's. Rerun it
+  after repainting a sighted skin.
+- **Test:** `vr_sight_front_test` (no map needed): per table entry, the model's skin size, sight texels in the front
+  patch and outside it, and the upload's colours with the current settings (front texels at the rear's hue + shift,
+  the rest at the rear's, within 8 degrees). 9 passed, 0 failed at the default and at `vr_sight_hue 200;
+  vr_sight_front_hue_shift 0`. Eyeshots (flat ironsight, shift 0 | 240): shotgun, double shotgun, lightning gun.
+- Scene `sight_front_hue` (vrtesthall: the shotgun in hand, the double shotgun, the lightning gun and the nail pistol
+  beside you).
 ## Swap Face Buttons for left-handed play (branch agent/lefthandbuttons, 2026-11-24)
 
 A left-handed player with the sticks swapped had jump (A) on the moving hand. New archived `vr_button_swap` (default
@@ -12153,3 +12204,20 @@ to try to pull it out.
   (its stagger off, the reach long) lets go, it stays in. The first thrust's: 2 pulls, out ("pulled out: slid"). VR
   embed tests 33 (embedgrip) 11/4 and 24 (embedfeel) 16/3: the same 11/4 on origin/next's QC (checked): not this change
   (VR paths are unchanged: every change is behind VR_FlatPlay). New scene `flat_embed_axe`.
+
+## Show Melee Arcs: armed humanoids' swings drawn (branch agent/meleearcs, 2026-11-24)
+
+His report: Show Melee Arcs "still displays nothing for armed humanoids" (ROUND24, "Melee rules": the cause was never
+found). The floor fan (fight.qc `VR_MeleeArc_ShowFrame`, vr_bodycontact.cpp `meleeArcDraw`) does draw for them headless
+(test 212, the agrunt_melee_spacing and agrunt_repl_gunaxe scenes: `meleearcviz: drawn arc 2`, an eyeshot), so no
+filtering bug was found; what was missing is the swing itself. Now, while the option is on, an armed humanoid swinging a
+melee weapon at a player (a swing or a saw) leaves the same trail Show Melee Blades draws for your hands (vr_meleeshow.cpp:
+its look and 0.3 s fade shared, `drawHand`): its blade's line as drawn (`VR_AG_WeaponLine`, butt to tip) each frame it is
+posed, white winding up, yellow in the swing-through, red with a dot at the tip when its blow lands.
+- QC: vr_meleerules.qc `VR_MeleeArc_ShowSwings` (from `VR_AGP_Pose`: the native and the QC pose) and
+  `VR_MeleeArc_ShowLanded` (`VR_AGP_Strike`). New builtin `meleeshowfoe(weapon, what, a, b, v)` (8 slots by edict; returns
+  the frames drawn, for the test). Off: QC skips it on one cvar read, the engine keeps nothing.
+- Punches and gun butts: the floor fan only. Drawn by the host's view (SP, a listen server's host), as the floor fan is.
+- `vr_enemy_melee_arc_status` adds "armed swings drawn N frames".
+- Tests: `vr_agrunt_test 216` 2/0 (on: 28 frames sent, 7 in the swing-through, 28 drawn; off: 0 and 0); 212 still 6/0.
+  Scene `agrunt_melee_arcs`.

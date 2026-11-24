@@ -241,3 +241,11 @@ quakevr/checklist.txt: 223 lines down to 157. His ticks file and notes read from
 - **[New] sorted (47 lines left):** into Installer, Flat screen, Weapons and holsters, Ropes and chains, Dwell, Multiplayer; the Quest lines (Standalone, foveation, music) joined Installer, start-up and platforms. [New] is empty.
 - **Merged:** the Quest install and Quest rendering duplicates, the Lance charge, slide and thrust lines, the three parry-palm lines, the wheel DROP/UNLOAD/icon lines, the foveation lines, the ropes two-player lines.
 - **Sections reordered:** Installer, Flat screen, Tutorial and VR interface, Weapons and holsters, Ropes and chains, Armed humanoids, Dwell, Quoth, AD, Survival Arena, Multiplayer and bots, Recording and dev tools. No scene retired (unused ones left). checklist_tests_check: 99 passed, 0 failed.
+
+## Checklist tidy, fifth pass (2026-11-24, cltidy5)
+
+quakevr/checklist.txt: 168 lines down to 143 (110 test lines). His ticks file and notes were read from his checkout (nothing written).
+- **Retired (19):** every ticked line except the flat Lance pose line ("hold the Crystal Lance with a fresh config", kept: he reported the flat Lance off hand on the pole and thrust IK broken today). 12 of the 19 had a 2026-11-23 voice note (rope thumbs, wheel click, Lance B and empty click, SSG muzzle, ad_crucial, holsters, centre message, revolver, super nailgun, Lance weight and thrust); all were addressed by a later fix and then ticked. Kept unticked: "Show Melee Arcs" (failed), the Lance pole and flipped-grip lines. No line for flat blade embedding exists.
+- **Merged:** five Quest foveation lines into one, the two Quest hub lines, the Quest campaigns + install-again lines, the wheel follow + quick-tap lines. Stale text fixed ("1.2.0-beta2" now "the latest pre-release", Foveation "Low by default").
+- **[New] sorted (all):** Installer (Quest lines), Flat screen (flat Lance pose), Tutorial and VR interface (tutorial in MP, centre message, Swap Face Buttons), Weapons and holsters (wheel), Dwell (Lance HUD). [New] is empty.
+- **Scenes removed (5, nothing else uses them):** ropes_flat, flat_weapon_wheel, revolver_swing, sng_spin, ssg_muzzle. checklist_tests_check: 76 passed, 0 failed.
