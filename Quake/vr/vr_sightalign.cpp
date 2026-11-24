@@ -94,7 +94,7 @@ constexpr const char* melee[] = {
     "progs/v_axe.mdl", "progs/v_hammer.mdl", "progs/v_ksword.mdl", "progs/v_hksword.mdl", "progs/v_chainsaw.mdl",
     "progs/hand.mdl", "progs/v_crowbar.mdl", "owned/mg3/progs/v_hammer.mdl", "owned/mg3/progs/v_hammer_glow.mdl",
     "progs/v_shadaxe3.mdl#vr", // AD support: the Shadow Axe (vr_adweapons.cpp)
-    "progs/v_dagger.mdl",
+    "progs/v_dagger.mdl", "progs/v_spear.mdl",
 };
 
 [[nodiscard]] bool isSightIndex(int i)

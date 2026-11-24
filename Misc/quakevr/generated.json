@@ -639,6 +639,14 @@
   "by": "v_shot2.blend",
   "source": "Misc/quakevr/src_models/blend/v_shot2/v_shot2.blend"
  },
+ "quakevr/progs/v_spear.mdl": {
+  "sha256": "de8965cd741514ca5f14e1305e071db17f15393b15378d2b73c8c0677c7b74cc",
+  "by": "make_spear.py"
+ },
+ "quakevr/progs/v_spear.mdl_0.png": {
+  "sha256": "4b52fdbe7c0c87d270b6f8b5db166df310bbf645cfe5ed41890ac018db12c4bb",
+  "by": "make_spear.py"
+ },
  "quakevr/progs/v_spike.mdl": {
   "by": "v_spike.blend",
   "source": "Misc/quakevr/src_models/blend/v_spike/v_spike.blend"

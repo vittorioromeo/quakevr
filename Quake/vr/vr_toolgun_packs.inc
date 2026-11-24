@@ -214,4 +214,10 @@ QVR_PACK("Props", "Ropes", "Rope", "vr_rope", "progs/beam.mdl", 0.f, nullptr, 0.
 QVR_PACK("Props", "Ropes", "Chain", "vr_chain", "progs/beam.mdl", 0.f, nullptr, 0.f, 0, 0, nullptr, 0)
 QVR_PACK("Props", "Ropes", "Pole", "vr_pole", "progs/beam.mdl", 0.f, nullptr, 0.f, 0, 0, nullptr, 0)
 
+// The spear (QC VR_SWORDKIND_SPEAR: the knight's sword, 13, of its kind, weapon flags 3328; weapon_spear: a pole weapon on
+// the Crystal Lance's systems) and an armed grunt holding one (its "weapon" key 106: QC VR_AG_CODE_SPEAR; not in the
+// armed grunts' random pool), appended so the entries' numbers stay.
+    {"Weapons", "Spear", "weapon_spear", "progs/v_spear.mdl", 8.f, nullptr, 0.f, 0, false},
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Spear", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 106.f, 0, 0, nullptr, 0)
+
 #undef QVR_PACK

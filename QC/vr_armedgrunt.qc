@@ -665,6 +665,7 @@ float VR_AG_CODE_WIDOWMAKER = 102;
 float VR_AG_CODE_PLASMAGUN = 103;
 float VR_AG_CODE_HKSWORD = 104;  // the death knight's (hell knight's) sword: the knight's sword with its secondary flag
 float VR_AG_CODE_DAGGER = 105;   // the dagger: the knight's sword of its kind (VR_SWORDKIND_DAGGER; every campaign)
+float VR_AG_CODE_SPEAR = 106;    // the spear: the knight's sword of its kind (VR_SWORDKIND_SPEAR; the toolgun's, not the pool's)
 float VR_AG_CODE_ADMELEE = 110; // 111..120: kind 1..10 (VR_ADMELEE_*; not the flail, 11: its head on its chain is only
                                 // a player's hand's, vr_box3d_flail.cpp: a grunt would swing a bare handle)
 
@@ -694,6 +695,12 @@ float(float code) VR_AG_Decode =
     {
         vr_ag_dec_wid = WID_SWORD;
         vr_ag_dec_flags = VR_ADMelee_Flags(VR_SWORDKIND_DAGGER); // (weapon_dagger's)
+        return TRUE;
+    }
+    if(code == VR_AG_CODE_SPEAR)
+    {
+        vr_ag_dec_wid = WID_SWORD;
+        vr_ag_dec_flags = VR_ADMelee_Flags(VR_SWORDKIND_SPEAR); // (weapon_spear's)
         return TRUE;
     }
     if(code > VR_AG_CODE_ADMELEE && code <= VR_AG_CODE_ADMELEE + VR_ADMELEE_JUDGE) // (the flail, 11: not a grunt's)

@@ -212,6 +212,7 @@ vr_skewerlist_test.qc // the skewered gibs' list the shots walk (vr_embed_test 4
 vr_embed_prop_test.qc
 vr_embeddual_test.qc // flat dual wielding: an embedded blade keeps its hand (vr_embed_test 52)
 vr_dagger_test.qc
+vr_spear_test.qc // the spear (vr_embed_test 53)
 vr_revgrip_test.qc
 vr_flipgrip_test.qc
 vr_flipgate_test.qc
@@ -757,6 +758,7 @@ copper/cu_m_oldone.qc
 vr_copper_bridge.qc
 // Dwell's own entities, rebuilt on Copper and Quake VR (DWELL.md P2a): dw_<classname>, spawned by the engine's DWELL row.
 dwell/dw_common.qc
+vr_poleweapon.qc // pole weapons' shared blow: the Crystal Lance, the spear (before dw_items.qc's callers)
 dwell/dw_items.qc
 dwell/dw_monsters.qc
 dwell/dw_bosses.qc
