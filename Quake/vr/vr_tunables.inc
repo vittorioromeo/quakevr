@@ -2254,6 +2254,8 @@ QVR_TUNABLE(vr_flat_pole_off_roll, "0") // and rolled this far about its own for
 // (flatmelee2, his notes 2026-11-23: each hand's place and turn, where they lie along the shaft.)
 QVR_TUNABLE(vr_flat_pole_pitch, "8") // the spear turned about the holding fist, its tip up (degrees; drawn only: the beam keeps to the crosshair)
 QVR_TUNABLE(vr_flat_pole_yaw, "5") // and its tip in towards the middle (degrees; negative out; drawn only)
+QVR_TUNABLE(vr_flat_revgrip_pitch, "90") // a blade held reversed (flipped grip) turned about the fist, its point forward and down (degrees; drawn only)
+QVR_TUNABLE(vr_flat_revgrip_pole_pitch, "165") // a pole weapon held reversed (the Crystal Lance flipped) the same, its head forward and down (degrees; drawn only)
 QVR_TUNABLE(vr_flat_pole_along, "-2.5") // the holding hand this far up the pole towards its tip (units; negative towards the butt: the pole slid through the fist)
 QVR_TUNABLE(vr_flat_pole_off_up, "3.5") // the other hand this far up off the pole (units; negative down)
 QVR_TUNABLE(vr_flat_pole_off_out, "0") // and this far out to its own side (units; negative in)
