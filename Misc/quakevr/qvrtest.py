@@ -44,6 +44,7 @@ def find_bash():
     if env and os.path.isfile(env):
         return env
     w = shutil.which("bash")
+    w = os.path.abspath(w) if w else w  # (which() can return a relative bash.EXE found in the cwd, e.g. System32's)
     if w and "system32" not in w.lower():
         return w
     for p in (r"C:\Program Files\Git\bin\bash.exe", r"C:\Program Files\Git\usr\bin\bash.exe"):
