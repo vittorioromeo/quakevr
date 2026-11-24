@@ -12290,3 +12290,41 @@ posed, white winding up, yellow in the swing-through, red with a dot at the tip 
 - `vr_enemy_melee_arc_status` adds "armed swings drawn N frames".
 - Tests: `vr_agrunt_test 216` 2/0 (on: 28 frames sent, 7 in the swing-through, 28 drawn; off: 0 and 0); 212 still 6/0.
   Scene `agrunt_melee_arcs`.
+
+## spear: a plain spear on the Crystal Lance's systems (agent/spear, 2026-11-24)
+
+His ask (2026-11-24): a normal spear with a metal point that embeds, no ammo, no special attack, reusing the Lance's
+code and poses so improvements to either reach the other.
+- **Design: one pole-weapon path, the differences as data.** A pole weapon is a weapons.txt slot with Other Hand
+  Anywhere 3 (`twohand::poleWeapon`): every engine path was already keyed on that (VR pole grip and slide, flat spear
+  pose `vr_flat_pole_*`, flat thrust `vr_flat_thrust_*`, the off hand pinned on the pole, the pole track, the arms'
+  stretch, the flip pitch): the spear gets all of it by its slot. The QC blow was the Lance's alone (`DW_LanceMelee`):
+  it moved to `QC/vr_poleweapon.qc` as `VR_PoleMelee` (unchanged for the Lance), dispatched first in client.qc by
+  `VR_PoleHeld` (the Lance or the spear). Its head's place on the line: the slot's Blade Start (`bl_from`), else
+  `vr_dw_lance_head` (the Lance: none set); the thrust and poke multipliers (`vr_dw_lance_thrust`, `_poke`) are every
+  pole weapon's. What stays the Lance's own (a gun): the charge, bolt, cord, cells, its tip-only embed cvars.
+- **The spear** = the knight's sword of kind 13 (`VR_SWORDKIND_SPEAR`, weapon flags 3328), as the dagger is kind 12:
+  so no ammo (a sword's; `VR_HasOtherAmmo` false, B flips the grip), holsters, throws point first, sticks in by its
+  point (embed 1: the sword's stab rules, its blade the head alone by `bl_from` 0.728, so a stab goes in a share of the
+  head, 1.3 of 7.3 units), the flip grip (`rev 1`), the toolgun's armed grunts (code 106). Dwell's Lance untouched (its
+  own record and variant).
+- **Model** `progs/v_spear.mdl` (`Misc/quakevr/make_spear.py`, from scratch: ash shaft, leather wrap at the fist, iron
+  ferrule and socket with a collar, a leaf steel head with a midrib; 360 vertices, 314 triangles; full-colour skin
+  2048x512 plus the 8-bit one). It is laid exactly where the Lance's pole is (the dw_lance recipe's frame, then the
+  recipe's keepScale move about the axe's corner, written with that origin), so **slot 57** copies slot 55's hold
+  (hand, offsets, 2H, hotspots, holsters, Scale, Shot Pitch 92.5: flat aims the pole by it) with its anchors moved by
+  the packing (+0.1455 -5.18 +0.0836); lighter (w_mass 2.4, w_com 28), no shot effects, pickup_tier -1. Not made: its
+  .blend (blend_build.py runs Blender: left to a human) and its normal map.
+- **How to get it:** `weapon_spear` (FGD), the toolgun (Weapons > Spear; Monsters > Armed Grunts > Armed Grunt: Spear,
+  appended), the firing range's swords row (x 264, past the dagger). Not in the armed grunts' random pool, not a
+  randomized pickup: nothing in the shipped game changes until he asks.
+- **Engine:** numSlots/weaponSlotCount 58, model id `VSpear`, always phases as a melee weapon, no sights, note names.
+- **Tests:** `Misc/quakevr/spear_test.sh` (vr_embed_test 53, `QC/vr_spear_test.qc`): 4 passed, 0 failed (VR mock 12/0:
+  pole blow, thrust 50 damage stuck by its point 1.3 in, its blade 7.3 (the head), drawn back out into the hand, a
+  swing 14, thrown into a wall point first, thrown at a grunt hurts it, no ammo, flip and back; flat 6/0: posed as a
+  spear (tip 27.6 from the fist, as the Lance's), the fire button's punch the spear thrust, 23 damage, stuck, one
+  fire press pulls it out, B flips and back). The Lance unchanged: `dwell_lance_test.sh` 51/0, `flatlance_test.sh`
+  32/0. Screenshots `qvr-kit/scratch/spear_flat.png`, `spear_range.png`. Scene `spear`.
+- **Open:** a spear thrown at a grunt stays in it about 1 run in 3 (the rest meet the moving model 44 degrees off
+  straight in and skid: the sword's incidence rule); the test prints it as a note. Armed grunts holding it use the
+  sword's pose (not checked).

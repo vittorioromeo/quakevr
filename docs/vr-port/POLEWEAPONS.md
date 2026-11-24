@@ -67,3 +67,10 @@ tip (a gun), a spear a pole with a blade tip (melee only), a staff a pole with t
   cells). The clients draw the charge at the crystal tip (`vr_lancecharge.cpp`: sparks gathering in, a violet light
   growing, a rising hum) for the player and every other player's copy (`QVR_SVC_LANCECHARGE`), and keep its bolt
   `vr_dw_lance_bolt` s (0.35). ROUND25.md "lancecharge" has the detail.
+
+## Built in spear (2026-11-24)
+
+- **The plain spear** (part 3 above): `progs/v_spear.mdl` (make_spear.py), the knight's sword of kind 13
+  (`VR_SWORDKIND_SPEAR`), weapons.txt slot 57 (the Lance's hold: its model lies where the Lance's pole does). The blow is
+  shared: `VR_PoleMelee` (QC/vr_poleweapon.qc, the Lance's former `DW_LanceMelee`), its head from the slot's `bl_from`.
+  Impale (part 1) is the sword's point embed with the head as the blade. ROUND25.md "spear".

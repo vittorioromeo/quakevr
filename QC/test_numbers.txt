@@ -48,6 +48,7 @@ vr_embed_test    1        vr_embed_test.qc                 embedded blades: thro
 vr_embed_test    2        vr_embed_test.qc                 the pictures' scene: a sword in the wall, one in a corpse
 vr_embed_test    3        vr_embed_test.qc                 the save's scene: the same plus one in a live grunt
 vr_embed_test    4        vr_embed_test.qc                 after the load: each still stuck where it was
+vr_embed_test    53       vr_spear_test.qc                 the spear (a pole weapon on the Crystal Lance's systems): a thrust sticks by its point no deeper than its head, drawn back it comes out; a swing; thrown at a wall and a grunt point first; the flip grip, no ammo; flat: the thrust, fire pulls it out, B flips
 vr_embed_test    40       vr_dagger_test.qc                the dagger: a swing, a stab (less deep than the sword's), thrown at a wall and a grunt
 vr_embed_test    47       vr_throwpoint_test.qc            his 2026-11-15: thrown swords and daggers settle point first in the air (good and VR-style overhand throws point first, spun swords stay a spin, extremes steady all; axes unchanged; daggers let go any way as often as swords); then vr_throwdmg_test.qc: thrown blades at max speed at grunts, knights, ogres never gib, point first stay in the body, else blunt; no blade left floating off a body
 vr_embed_test    48       vr_airskewer_test.qc             his 2026-11-15: a gib tossed up skewered in the air by a fast thrust (not a slow push, not a swing across; a hanging one the same)

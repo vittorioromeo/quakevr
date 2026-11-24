@@ -92,7 +92,7 @@ float(float wid) VR_ADGun_ClipSize =
 // handle in the hand strikes nothing; its spiked head, on a chain, is a body of its own in the physics (the engine's
 // vr_box3d_flail.cpp) and strikes by its own speed and mass (VR_Flail_Hit, vr_ad_melee.qc).
 float QVR_WPNFLAG_SWORD_KIND_UNIT = 256;
-float QVR_WPNFLAG_SWORD_KIND = 3840; // (bits 8-11: 256 .. 3840; bit 11 since the four monster swords, swords4; 12 the dagger)
+float QVR_WPNFLAG_SWORD_KIND = 3840; // (bits 8-11: 256 .. 3840; bit 11 since the four monster swords, swords4; 12 the dagger, 13 the spear)
 float VR_ADMELEE_FURY = 1;     // the death fury's sword (it drops two: progs/w_dfurysword1.mdl)
 float VR_ADMELEE_DKNIGHT = 2;  // the death knight's (progs/w_dknightsword.mdl)
 float VR_ADMELEE_ZKNIGHT = 3;  // the zombie knight's (progs/w_zombiesword.mdl)
@@ -109,6 +109,10 @@ float VR_ADMELEE_LAST = 11;
 // smaller guard and grip, no blood): a kind of the knight's sword past AD's (not AD's: any campaign, its own model; its
 // slot's data, weapons.txt slot 51, makes it short; vr_dagger_damage its blows). weapon_dagger.
 float VR_SWORDKIND_DAGGER = 12;
+// Quake VR's spear (progs/v_spear.mdl, Misc/quakevr/make_spear.py: an ash shaft, a leaf-shaped steel head): a kind of the
+// knight's sword (holsters, throws, sticks in, the flip grip, no ammo: a sword's), held as a pole weapon (weapons.txt slot
+// 57: the Crystal Lance's hold, Other Hand Anywhere 3), its blow the Lance's (VR_PoleMelee, vr_poleweapon.qc). weapon_spear.
+float VR_SWORDKIND_SPEAR = 13;
 
 // A sword's blow's damage over the knight's sword's by its kind (the dagger's vr_dagger_damage; 1 for the others: their
 // own multipliers are W_SwordMelee's).
@@ -167,6 +171,10 @@ string(float xKind) VR_ADMelee_Model =
     {
         return "progs/v_dagger.mdl"; // (Quake VR's own: every campaign)
     }
+    if(xKind == VR_SWORDKIND_SPEAR)
+    {
+        return "progs/v_spear.mdl"; // (Quake VR's own: every campaign)
+    }
     if(xKind == VR_ADMELEE_PHANTOM)
     {
         return VR_Has("progs/sword.mdl") ? "progs/sword.mdl#melee" : "progs/v_ksword.mdl";
@@ -190,6 +198,7 @@ string(float xKind) VR_ADMelee_Model =
 string(float xKind) VR_ADMelee_Name =
 {
     if(xKind == VR_SWORDKIND_DAGGER) { return "Dagger"; }
+    if(xKind == VR_SWORDKIND_SPEAR)  { return "Spear"; }
     if(xKind == VR_ADMELEE_FURY)     { return "Death Fury's Sword"; }
     if(xKind == VR_ADMELEE_DKNIGHT)  { return "Death Knight's Sword"; }
     if(xKind == VR_ADMELEE_ZKNIGHT)  { return "Zombie Knight's Sword"; }

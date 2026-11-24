@@ -1,0 +1,6 @@
+title The spear: a pole weapon on the Crystal Lance's systems, a grunt to thrust at
+map vrtesthall
+start 0 -288 25 90
+spawn weapon_spear 60 0
+spawn monster_army 160 0
+hint Take the spear (both hands on its shaft), thrust it into the grunt, pull it out, throw it; B / the eject button flips its grip.
