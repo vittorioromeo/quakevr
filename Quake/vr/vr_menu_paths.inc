@@ -184,9 +184,15 @@ void qvr::menu::dump_f()
     levelOverride = was;
 }
 
+// The weapon whose rows stand for the Held Weapon pages in the dump (Weapon Offsets, Weights: built for a weapon in the
+// hand, so with none held they are only a "hold a weapon" line): the 17th slot, its cvars end _17.
+static constexpr int dumpPathsWeaponSlot = 16;
+
 void qvr::menu::dumpPaths_f()
 {
+    pinSlotPages(dumpPathsWeaponSlot); // (so a full regeneration lists the Held Weapon pages whatever the hands hold)
     buildSearchIndex();
+    pinSlotPages(-1); // (the pages built for the hands again)
     for(const SearchEntry& e : search.index)
     {
         const za::String full = e.path.empty() ? e.label : e.path + " > " + e.label;
