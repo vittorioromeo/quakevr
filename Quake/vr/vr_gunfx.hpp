@@ -49,12 +49,19 @@ struct Muzzle
 
 // The weapon id a gun model is drawn with (our weapons' models by name, an AD gun variant's), else -1.
 [[nodiscard]] int weaponIdOf(const qmodel_t* model);
+// Gun `w` (drawn with weapon settings `slot`): its muzzle as drawn, the way it points and its up (the shots' particles'
+// own: vr_lancecharge.cpp's crystal tip). False: not placed.
+[[nodiscard]] bool drawnMuzzle(const view::ViewEntity& w, int slot, Muzzle& m);
 
 // A shot by weapon `wid` out of `m`. `shooter`: 0, 1 your hands, else the monster's entity (its fire rate's key).
 // `adBurst`: an AD gun's own sparks and backblast made already (vr_weaponfx.cpp adGunBurst): not again. `ports`: the
 // gun throws casings out of its port itself (vr_shells.cpp: its port's puff then), else a shotgun's puff now. `slot`: the
 // weapon settings' slot whose Gunfire multipliers apply (Weapon Offsets > Effects; -1: the weapon id's, if any).
 void shot(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports, int slot = -1);
+
+// The barrel drawn weapon `w` fires out of on its drawn frame (the nailguns: their firing frames 1..8): its number, its
+// bore end in `at`; -1 none (another gun, at rest on frame 0). The sparks' and the programmatic muzzle flash's place.
+int firingBarrelOf(const view::ViewEntity& w, glm::vec3& at);
 
 // Your hand `hand` fired (vr_weaponfx.cpp): its particles at its drawn muzzle at the next handFrame.
 void playerFired(int hand);

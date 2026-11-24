@@ -4,6 +4,9 @@
 // client's, parsePackage (the message) and poll (the steps after it left). Mounting a package rebuilds the game folders
 // and ends any connection (COM_ReloadVRGame), so the client leaves first and joins again at the address it connected to
 // (VR_MpNoteConnect: CL_EstablishConnection's).
+// (mpcampaign) The server's campaign comes first (QVR_SVC_CAMPAIGN, parseCampaign): taken in place among Quake and its
+// mission packs, else the same way (leave, switch, join again); refused when this game lacks its data. The client's own
+// campaign comes back once it is disconnected (poll; vr_gamedir.cpp VR_JoinCampaign, VR_LeaveJoinedCampaign).
 
 #include "vr_mpdownload.hpp"
 
@@ -31,11 +34,13 @@ enum class Step
     Mount,   // the package to mount, installed first if it is not (the next frame)
     Index,   // waiting for the map index the client fetched (it had none listing the package)
     Install, // the map installer's job for it is running
+    Campaign, // the server's campaign to make the active one (its game folders rebuilt), then join again (mpcampaign)
 };
 
 struct Pending
 {
     Step step{Step::Idle};
+    int campaign{-1};      // Campaign: the server's
     za::String sha;        // the server's package ("" : the stock game's)
     za::String address;    // where to join again
     za::U32 generation{0}; // Index: the map index's generation() when the fetch was asked
@@ -55,6 +60,9 @@ za::String rejoinedFor;
 // or the stock game, is still mounted and joined again (rejoinedFor: not in a loop).
 int autoInstalls = 0;
 bool joiningAgain = false;
+// (mpcampaign) The campaign the client last left a server for and switched to (rejoinedFor's: not followed round in a
+// loop).
+int campaignRejoinedFor = -1; // seat-shared: the one game folder
 
 // Index: the fetch's answer waited for this long at most (a real network fetch: the wall clock).
 constexpr double indexWaitSeconds = 120.0;
@@ -75,20 +83,19 @@ void stop()
     pending = Pending{};
 }
 
-void joinAgain()
+// `tag` and `done`: the console line's ("mp_package", "<title> mounted").
+void joinAgain(const char* tag, const char* done)
 {
-    const za::String title = titleOf(pending.sha);
     if(pending.address.empty())
     {
-        Con_Printf("mp_package: %s mounted; connect to the server again.\n", title.cStr());
+        Con_Printf("%s: %s; connect to the server again.\n", tag, done);
     }
     else
     {
-        Con_Printf("mp_package: %s mounted; joining again (%s)\n", title.cStr(), pending.address.cStr());
+        Con_Printf("%s: %s; joining again (%s)\n", tag, done, pending.address.cStr());
         joiningAgain = true;
         Cbuf_AddText((za::String{"connect "} + pending.address + "\n").cStr());
     }
-    rejoinedFor = pending.sha;
     stop();
 }
 
@@ -100,7 +107,23 @@ void mount()
         stop();
         return;
     }
-    joinAgain();
+    rejoinedFor = pending.sha;
+    joinAgain("mp_package", (titleOf(pending.sha) + " mounted").cStr());
+}
+
+// Campaign: the server's campaign the active one (the selector's switch, the game folders rebuilt), then joined again.
+void switchCampaign()
+{
+    const int c = pending.campaign;
+    if(!VR_JoinCampaign(c, 1))
+    {
+        Con_Printf("mp_campaign: %s could not be made this game's campaign (see above): not joining.\n",
+            VR_CampaignTitle(c));
+        stop();
+        return;
+    }
+    campaignRejoinedFor = c;
+    joinAgain("mp_campaign", va("%s is this game's campaign now", VR_CampaignTitle(c)));
 }
 
 // Mount: installed (or the stock game's) -> mounted and joined again; else its install begun, or why not.
@@ -198,11 +221,72 @@ void parsePackage()
     Host_EndGame("the server's map package differs from this game's mounted one");
 }
 
+void parseCampaign()
+{
+    const za::String folder{MSG_ReadString()};
+    if(sv.active || folder.empty() || !VR_QuakeVRMounted())
+    {
+        return; // hosting (the server's own campaign), or a game outside Quake VR's campaigns
+    }
+    const int c = VR_CampaignIndexOf(folder.cStr());
+    if(c >= 0 && c == VR_ActiveCampaign())
+    {
+        campaignRejoinedFor = -1;
+        return;
+    }
+    const char* missing = VR_CampaignMissingForJoin(c);
+    const char* title = c >= 0 ? VR_CampaignTitle(c) : folder.cStr();
+    if(missing[0])
+    {
+        Con_Printf("mp_campaign: the server plays %s (%s): this game can't join: %s.\n", title, folder.cStr(), missing);
+        SCR_CenterPrint(va("Can't join: the server plays\n%s,\nwhich isn't installed here\n(see the console)", title));
+        Host_EndGame("the server's campaign is missing here");
+    }
+    if(VR_JoinCampaign(c, 0))
+    {
+        Con_Printf("mp_campaign: the server plays %s: this game's campaign while joined\n", title);
+        return; // (in place: the svc_serverinfo after this message loads the map from its folders)
+    }
+    if(cls.demoplayback)
+    {
+        Con_Printf("mp_campaign: the demo was recorded in %s: not switched (choose it in Official Campaigns)\n", title);
+        return;
+    }
+    if(campaignRejoinedFor == c)
+    {
+        Host_EndGame("mp_campaign: %s was made this game's campaign, and the server named it again as another", title);
+    }
+    Con_Printf("mp_campaign: the server plays %s: switching this game to it, then joining again\n", title);
+    pending = Pending{};
+    pending.step = Step::Campaign;
+    pending.campaign = c;
+    pending.address = lastAddress;
+    // Leave now (the serverinfo after this message would load the map from the wrong folders); poll() goes on.
+    Host_EndGame("the server's campaign differs from this game's");
+}
+
 void poll()
 {
+    // (mpcampaign) Left the server whose campaign this game took: its own back (a game started here meanwhile: kept).
+    if(VR_JoinedCampaignHeld() && pending.step == Step::Idle && !joiningAgain)
+    {
+        if(sv.active)
+        {
+            VR_ForgetJoinedCampaign();
+        }
+        else if(cls.state == ca_disconnected)
+        {
+            const int own = VR_LeaveJoinedCampaign();
+            if(own >= 0)
+            {
+                Con_Printf("mp_campaign: left the server: %s is this game's campaign again\n", VR_CampaignTitle(own));
+            }
+        }
+    }
     switch(pending.step)
     {
         case Step::Idle: return;
+        case Step::Campaign: switchCampaign(); return;
         case Step::Mount: mountOrInstall(); return;
         case Step::Index:
             if(mapindex::generation() != pending.generation)
@@ -266,6 +350,10 @@ extern "C" void VR_MpWritePackage(struct sizebuf_s* msg)
     {
         return;
     }
+    // (mpcampaign) the campaign first: a client switching to it may mount the package after
+    MSG_WriteByte(msg, protocol::svc_quakevr);
+    MSG_WriteByte(msg, protocol::QVR_SVC_CAMPAIGN);
+    MSG_WriteString(msg, VR_QuakeVRMounted() ? VR_CampaignFolder(VR_ActiveCampaign()) : "");
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_PACKAGE);
     MSG_WriteString(msg, mapinstall::active().cStr());

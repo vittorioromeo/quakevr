@@ -1803,7 +1803,11 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 	}
 
 	// convert to 32bit
-	data = (byte *)TexMgr_8to32(data, glt->width * glt->height * glt->depth, usepal);
+	{
+		byte *data8 = data; // (8to32 copies into the hunk: the indices stay readable)
+		data = (byte *)TexMgr_8to32(data, glt->width * glt->height * glt->depth, usepal);
+		VR_SightFront (glt->name, data8, (unsigned *)data, glt->width, glt->height, glt->source_width, glt->source_height); // QVR: its front post in its own colour (vr_sight_front_hue_shift)
+	}
 
 	// fix edges
 	if (glt->flags & TEXPREF_ALPHA)

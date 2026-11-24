@@ -15,8 +15,13 @@ void(float chain) VR_Rope_Setup =
     self.solid = SOLID_NOT;
     self.movetype = MOVETYPE_NONE;
     self.modelindex = 0;
+    // (ropes8c) A chain's links stop shots, nails and blows (the engine's SV_Move: vr_climbrope.cpp chainClip, the chain
+    // the trace's entity): it takes damage so that they hit it (sparks off its metal: VR_MaterialOf), never dealt any
+    // (T_DamageImpl). Ropes and poles too (the toolgun styles a rope after this; a pole's own boxes are what is met).
+    self.takedamage = DAMAGE_YES;
     setorigin(self, self.origin);
 };
+// (VR_Rope_IsChain, VR_Rope_Is: vr_util.qc, before combat.qc's and vr_crates.qc's calls.)
 
 /*QUAKED vr_rope (0.55 0.4 0.2) (-4 -4 -4) (4 4 4) PINNED
 Quake VR: a climbable rope, hanging from its origin (put it just under a ceiling or a beam). A physical rope: it swings,
@@ -52,4 +57,18 @@ round it. "rope_thickness": units across (3); "rope_style": 1 metal (else wood: 
 void() vr_pole =
 {
     VR_Rope_Setup(0);
+};
+
+// (ropes8a) A climbing pole's collision box: the engine (vr_climbrope.cpp placeSolids) makes one or more along each pole,
+// sizes them, keeps them with it and frees them with it; "goalentity" its pole, "rope_style" 1 metal. Solid to bodies
+// (players, monsters; the climber on it passes: its owner), met by shots, nails and blows (takedamage, never dealt any:
+// T_DamageImpl), which throw sparks off metal and splinters off wood (VR_MaterialOf). The navmesh cuts it out
+// (vr_nav.cpp, its props' obstacles).
+void() vr_pole_solid =
+{
+    self.solid = SOLID_BBOX;
+    self.movetype = MOVETYPE_NONE;
+    self.takedamage = DAMAGE_YES; // (not DAMAGE_AIM: nothing aims at it)
+    self.modelindex = 0;
+    setorigin(self, self.origin);
 };

@@ -162,7 +162,7 @@ void buildGreys()
         greys.ok[i] = false;
         lumpinfo_t* info = nullptr;
         const qpic_t* p = nullptr;
-        size_t bytes = 0;
+        za::SizeT bytes = 0;
         za::Vector<byte> file; // (a picture's own file: AD's icons)
         if(!ZA_STRNCMP(picNames[i], "gfx/", 4)) // AD support: Arcane Dimensions' icons, while its data is mounted
         {
@@ -178,10 +178,10 @@ void buildGreys()
         else
         {
             p = static_cast<const qpic_t*>(W_GetLumpName(picNames[i], &info));
-            bytes = p && info && info->type == TYP_QPIC ? static_cast<size_t>(info->size) : 0;
+            bytes = p && info && info->type == TYP_QPIC ? static_cast<za::SizeT>(info->size) : 0;
         }
         if(!p || bytes < sizeof(int) * 2 || p->width <= 0 || p->height <= 0 || p->width > 64 || p->height > 64 ||
-            bytes < sizeof(int) * 2 + static_cast<size_t>(p->width * p->height))
+            bytes < sizeof(int) * 2 + static_cast<za::SizeT>(p->width * p->height))
         {
             continue;
         }
@@ -281,7 +281,7 @@ namespace
     }
     constexpr int size = 16 * 10, whiteRows = 8 * 10; // characters 0..127: the white half
     brightFont.data.resize(static_cast<za::SizeT>(size) * size);
-    ZA_MEMCPY(brightFont.data.data(), char_texture_data, static_cast<size_t>(size) * size);
+    ZA_MEMCPY(brightFont.data.data(), char_texture_data, static_cast<za::SizeT>(size) * size);
     const int top = fontstyle::consoleGreyTop(); // (the restyled font's bright copy stretches the same greys)
     if(top > 0 && top < 15)
     {
@@ -1093,10 +1093,10 @@ void wrap(za::StringView text, Lines& out, int columns = logColumns)
     }
     while(!text.empty())
     {
-        size_t cut = za::min(text.size(), static_cast<size_t>(columns));
+        za::SizeT cut = za::min(text.size(), static_cast<za::SizeT>(columns));
         if(cut < text.size())
         {
-            const size_t space = text.substrByPosLen(0, cut + 1).rfind(' ');
+            const za::SizeT space = text.substrByPosLen(0, cut + 1).rfind(' ');
             if(space != za::StringView::nPos && space > 0)
             {
                 cut = space;
@@ -1908,7 +1908,7 @@ void messageTest_f()
     {
         text += (i > 2 ? " " : "") + za::String{Cmd_Argv(i)};
     }
-    for(size_t at; (at = text.find("\\n")) != za::StringView::nPos;)
+    for(za::SizeT at; (at = text.find("\\n")) != za::StringView::nPos;)
     {
         text.replace(at, 2, "\n");
     }

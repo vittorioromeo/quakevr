@@ -4,6 +4,7 @@
 
 #include "vr_hitreact_internal.hpp"
 #include "vr_tunables.hpp"
+#include "vr_cvars.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -20,8 +21,12 @@ namespace hitreact_detail
 [[nodiscard]] ArmPose* armPoseOf(int ent, bool make)
 {
     ArmPose* free = nullptr;
-    for(ArmPose& s : armPoses.slots)
+    // (vr_agrunt_armpose_slots: the test's cap on the slots used, 0 all)
+    const int cap = static_cast<int>(vr_agrunt_armpose_slots.value);
+    const int n = cap > 0 && cap < maxArmPoses ? cap : maxArmPoses;
+    for(int i = 0; i < n; i++)
     {
+        ArmPose& s = armPoses.slots[i];
         if(s.ent == ent)
         {
             return &s;
@@ -30,6 +35,28 @@ namespace hitreact_detail
         {
             free = &s;
         }
+    }
+    // Every slot taken (a map with more armed humanoids than slots, all posed every few frames: ad_crucial's ~100, none
+    // ever stale): one drawn now (sent in this message's packet: the entities come before the broadcast datagram) takes
+    // the slot of one not drawn, the longest posed ago; never one drawn now. (Before, the first 64 in the server's order
+    // kept the slots and the rest were drawn with their arms as the frames have them, their weapons placed without
+    // them: his notes of 2026-11-23, an enforcer's arms stuck in one pose after a load.)
+    const auto drawn = [](int n) { return n > 0 && n < cl.num_entities && cl_entities[n].msgtime == cl.mtime[0]; };
+    if(make && !free && drawn(ent))
+    {
+        for(int i = 0; i < n; i++)
+        {
+            ArmPose& s = armPoses.slots[i];
+            if(!drawn(s.ent) && (!free || s.cur.t < free->cur.t))
+            {
+                free = &s;
+            }
+        }
+        armPoses.evicted += free ? 1 : 0;
+    }
+    if(make && !free && drawn(ent))
+    {
+        armPoses.dropped++; // (a drawn one unposed: vr_agrunt_armpose_check fails on it)
     }
     if(!make || !free)
     {

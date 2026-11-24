@@ -59,7 +59,7 @@
 #endif
 
 
-extern "C" size_t gl_bmodel_vbo_size; // r_brush.c
+extern "C" za::SizeT gl_bmodel_vbo_size; // r_brush.c
 
 namespace qvr::water
 {
@@ -2333,7 +2333,7 @@ unsigned opaqueSceneDistances()
         source = framebufs.scene.depth_stencil_tex;
         multisampled = framebufs.scene.samples > 1;
     }
-    else if(GL_NeedsPostprocess())
+    else if(GL_NeedsPostprocess() && stereo::directEye() < 2) // (2: an eye's own depth renderbuffer, no texture)
     {
         source = framebufs.composite.depth_stencil_tex;
     }

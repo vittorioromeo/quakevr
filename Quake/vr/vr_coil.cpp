@@ -8,6 +8,7 @@
 #include "vr_geom.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -109,19 +110,19 @@ void lineAt(float s, glm::vec3& p, glm::vec3& t, glm::vec3& n)
 {
     const za::Vector<glm::vec3>& line = scratch.line;
     const za::Vector<float>& along = scratch.along;
-    const size_t last = line.size() - 1;
+    const za::SizeT last = line.size() - 1;
     if(s <= 0.f || s >= along[last])
     {
-        const size_t i = s <= 0.f ? 0 : last;
+        const za::SizeT i = s <= 0.f ? 0 : last;
         t = scratch.tangent[i];
         n = scratch.normal[i];
         p = line[i] + t * (s - along[i]);
         return;
     }
-    size_t lo = 0, hi = last; // the sample before s, and one at or after it
+    za::SizeT lo = 0, hi = last; // the sample before s, and one at or after it
     while(hi - lo > 1)
     {
-        const size_t m = (lo + hi) / 2;
+        const za::SizeT m = (lo + hi) / 2;
         if(along[m] <= s)
         {
             lo = m;
@@ -204,9 +205,9 @@ void buildChain(const Style& style, float length, float upTo, const glm::vec3 (&
                                                    : za::clamp(static_cast<int>(za::ceil((length - upTo) / pitch - 0.5f)), 0, total);
     links = za::min(total - skip, maxLinks);
     lineFrom = skip == 0 ? length : links > 0 ? za::max(0.f, length - (static_cast<float>(skip) + 0.5f) * pitch) : 0.f;
-    out.resize(static_cast<size_t>(links) * static_cast<size_t>(loop + 3));
+    out.resize(static_cast<za::SizeT>(links) * static_cast<za::SizeT>(loop + 3));
     glm::vec3 mid[2 * (bend + 1)];
-    size_t at = 0;
+    za::SizeT at = 0;
     for(int q = 0; q < links; q++)
     {
         const int k = skip + q;
@@ -338,7 +339,7 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
     const float m2u = units::metresToUnits();
     const float dt = static_cast<float>(vr_gametime - time_);
     // Afresh: first drawn, a long pause, or an end jumping away from the other (a teleport of one, a respawn).
-    if(!valid_ || pos_.size() != static_cast<size_t>(segments + 1) || dt > 0.25f ||
+    if(!valid_ || pos_.size() != static_cast<za::SizeT>(segments + 1) || dt > 0.25f ||
         glm::distance(b - lastB_, body - lastA_) > 1.f * m2u || !ZA_ISFINITE(pos_[segments / 2].x))
     {
         reset(a, b);
@@ -454,12 +455,12 @@ float Cord::springError() const
     {
         return 0.f;
     }
-    if(pos_.size() != static_cast<size_t>(segments + 1))
+    if(pos_.size() != static_cast<za::SizeT>(segments + 1))
     {
         // (Shaped: its pieces each the relaxed length's share.)
         const float even = relaxedLength(style_) * units::metresToUnits() / static_cast<float>(pos_.size() - 1);
         float worst = 0.f;
-        for(size_t i = 0; i + 1 < pos_.size(); i++)
+        for(za::SizeT i = 0; i + 1 < pos_.size(); i++)
         {
             worst = za::max(worst, za::fabs(glm::distance(pos_[i], pos_[i + 1]) - even) / even);
         }
@@ -510,7 +511,7 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
     line.pushBack(pos_[segs]);
     along.resize(line.size());
     along[0] = 0.f;
-    for(size_t i = 1; i < line.size(); i++)
+    for(za::SizeT i = 1; i < line.size(); i++)
     {
         along[i] = along[i - 1] + glm::distance(line[i - 1], line[i]);
     }
@@ -527,13 +528,13 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
     za::Vector<glm::vec3>& normal = scratch.normal;
     tangent.resize(line.size());
     normal.resize(line.size());
-    for(size_t i = 0; i < line.size(); i++)
+    for(za::SizeT i = 0; i < line.size(); i++)
     {
         const glm::vec3 d = line[za::min(i + 1, line.size() - 1)] - line[i > 0 ? i - 1 : 0];
         tangent[i] = glm::length(d) > 1e-6f ? glm::normalize(d) : (i > 0 ? tangent[i - 1] : glm::vec3{0.f, 0.f, -1.f});
     }
     normal[0] = anyPerpendicular(tangent[0]);
-    for(size_t i = 1; i < line.size(); i++)
+    for(za::SizeT i = 1; i < line.size(); i++)
     {
         const glm::vec3 n = normal[i - 1] - tangent[i] * glm::dot(normal[i - 1], tangent[i]);
         normal[i] = glm::length(n) > 1e-6f ? glm::normalize(n) : anyPerpendicular(tangent[i]);
@@ -613,7 +614,7 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
             glm::vec3 p, t, n;
             lineAt(lineFrom, p, t, n);
             ring(p, t, n, lineFrom);
-            for(size_t i = 2; i + 1 < line.size(); i += 2)
+            for(za::SizeT i = 2; i + 1 < line.size(); i += 2)
             {
                 if(along[i] > lineFrom + 0.25f)
                 {
@@ -634,7 +635,7 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
     mid.resize(rings + 1);
     radial.resize(rings + 1);
     out.resize(rings + 1);
-    size_t seg = 0;
+    za::SizeT seg = 0;
     for(int r = 0; r <= rings; r++)
     {
         const float u = static_cast<float>(r) / rings;

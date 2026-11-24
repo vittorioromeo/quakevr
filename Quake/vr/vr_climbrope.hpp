@@ -12,6 +12,7 @@
 
 #include "vr_engine.hpp"
 #include "vr_physsound.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 
 namespace qvr::climbrope
@@ -41,12 +42,37 @@ void blast(const glm::vec3& at, float damage);
 // through pushed where it crosses them.
 void shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity, float mass);
 
+// Server (ropes8c, ROPES.md "Chains"): a shot's, a nail's or a blow's line from `start` to `end` (a missile's box as a
+// sphere of `radius`) against the chains' links (ropes are passed through): the nearest chain it meets before `fraction`
+// (the move's hit so far) -> its entity, `fraction` and `normal` there; 0 none. `shooter` (or null): one climbing a rope
+// passes the chains round him (his own in his hands).
+[[nodiscard]] int chainClip(const glm::vec3& start, const glm::vec3& end, float radius, const edict_t* shooter,
+    float& fraction, glm::vec3& normal);
+
+// Server (ropes8a): whether edict `num` is a climbing pole's collision box (QC vr_pole_solid) -> true and its bounds
+// (the navmesh's obstacles, vr_nav.cpp).
+[[nodiscard]] bool solidBox(int num, glm::vec3& lo, glm::vec3& hi);
+
 // Whether `classname` is a rope's (vr_rope, vr_chain) or a climbing pole's (vr_pole, ropes7: a static rope).
 [[nodiscard]] bool isRopeClass(const char* classname);
 
 // Server (ropes7): whether rope entity `ent` is traversed hanging under it, hand over hand along it (a monkey traverse:
 // pinned at both ends, slanted past vr_rope_monkey_angle from upright), not climbed.
 [[nodiscard]] bool monkey(int ent);
+
+// Server (ropes9): whether rope entity `ent` is a climbing pole (rigid: climbed, never swung).
+[[nodiscard]] bool pole(int ent);
+
+// Server (ropes9): a climbing pole as the physics props meet it (vr_box3d_props.cpp syncPoles): its entity, its two
+// ends and its radius (half its thickness), units.
+struct PoleLine
+{
+    int ent{0};
+    glm::vec3 a{0.f}, b{0.f};
+    float radius{0.f};
+};
+// Every pole now -> `out` (cleared first).
+void poleLines(za::Vector<PoleLine>& out);
 
 // Server: what rope entity `ent` is made of (its grip's sound and haptics): a rope, a chain, a metal or wooden pole.
 [[nodiscard]] physsound::RopeMaterial material(int ent);
@@ -76,7 +102,8 @@ struct Grab
     bool chain{false};
 };
 // Server: the rope piece nearest `hand` within `reach` units of its surface (not at its top) -> true and the hold there.
-[[nodiscard]] bool findGrab(const glm::vec3& hand, float reach, Grab& out);
+// (ropes13) `only` > 0: that rope entity's only.
+[[nodiscard]] bool findGrab(const glm::vec3& hand, float reach, Grab& out, int only = 0);
 // Server: the hold `s` units along rope `ent` from its top (kept off its top and its free end) as client `client` would
 // have it now: on his rider's line (his own), or on its points. False: the rope is gone. (Flat play's hand over hand,
 // vr_climb.cpp flatRopeFrame.)
@@ -106,6 +133,11 @@ void setPump(int client, const glm::vec3& accel);
 // Client (ropes7): whether the rope passing nearest `near` (within `within` units) is traversed hanging under it (a
 // monkey traverse: the legs hang, the trunk isn't turned to it).
 [[nodiscard]] bool clientRopeMonkey(const glm::vec3& near, float within);
+// Client (ropes8d): his predicted move (vr_predict.cpp), his box (`mins`, `maxs`) from `start` to `end`, against the
+// poles' boxes as the server places them (placeSolids, from each pole as sent) -> true if one was nearer than `best` (or
+// he starts in one), `best` then that trace (ent null). Passed as passSolids does: a pole within reach while one of his
+// drawn hands holds a rope, or one he is already in. A remote client only (a server here: false).
+[[nodiscard]] bool clientSolidTrace(const float* start, const float* mins, const float* maxs, const float* end, trace_t& best);
 // Client: how far `p` is from the nearest rope's pieces (units; 1e9: none). (vr_mp_avatars' mp_ropepose.)
 [[nodiscard]] float clientRopeDistance(const glm::vec3& p);
 

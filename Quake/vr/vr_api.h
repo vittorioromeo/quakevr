@@ -51,7 +51,7 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 // Quake VR's network version, sent after NetQuake's in the connect request ("QVR", then this long; net_dgrm.c): a
 // server whose protocol is the VR one rejects a client without it or with another, with the reason (MP_PLAN.md, B2).
 // Raise it with any change to what client and server send each other.
-#define QVR_NET_VERSION				44 // (44: the room-scale budget left in QVR_SVC_PREDICT, onecopy (review B6); 43: QVR_SVC_BOTPATH 53, flakehunt; QVR_SVC_HUMLOOK 54, humrepl; and 42 was two wires: syncfix4 coarsened the worn gear in the move and added QVR_SVC_EJECTOTHER 52 after ragsync had shipped 42, mpopen; 42: the ragdolls' parts in the snapshot, QVR_SVC_RAGPOSE, ragsync; a bot's weapons placed by the server in its avatar, bots3; the players' worn gear in the move and the avatar, their power-ups in its gear byte, a bot's holstered weapons, syncfix; 41: the players' guns' looks and torches in the avatar, their torch in the move, wpnsync; 40: a connect request gets a slot only with the server's cookie for its address, CCREP_CHALLENGE, mpfix A1; 39: the channels' first sequences drawn at random by each side, in the connect request and the accept, review 2026-11-18 finding 2; 38: what a remote client's hands hold, and where (QVR_SVC_HELDPLACE), B27; 37: the movers' exact places and the server's tick in the predict state, B24; 36: one server socket for every client, B23; 35: bots' hands solved by the clients, B11 part 3; 34: B13's selective acks, the version in the accept reply)
+#define QVR_NET_VERSION				46 // (46: each player's holsters' places in his avatar calibration, vr_avatarcal 5 and QVR_SVC_AVATARCAL's 84 fields, holstersync; 45: QVR_SVC_CAMPAIGN 57, the server's campaign to a joining client, mpcampaign; 44: the room-scale budget left in QVR_SVC_PREDICT, onecopy (review B6); 43: QVR_SVC_BOTPATH 53, flakehunt; QVR_SVC_HUMLOOK 54, humrepl; and 42 was two wires: syncfix4 coarsened the worn gear in the move and added QVR_SVC_EJECTOTHER 52 after ragsync had shipped 42, mpopen; 42: the ragdolls' parts in the snapshot, QVR_SVC_RAGPOSE, ragsync; a bot's weapons placed by the server in its avatar, bots3; the players' worn gear in the move and the avatar, their power-ups in its gear byte, a bot's holstered weapons, syncfix; 41: the players' guns' looks and torches in the avatar, their torch in the move, wpnsync; 40: a connect request gets a slot only with the server's cookie for its address, CCREP_CHALLENGE, mpfix A1; 39: the channels' first sequences drawn at random by each side, in the connect request and the accept, review 2026-11-18 finding 2; 38: what a remote client's hands hold, and where (QVR_SVC_HELDPLACE), B27; 37: the movers' exact places and the server's tick in the predict state, B24; 36: one server socket for every client, B23; 35: bots' hands solved by the clients, B11 part 3; 34: B13's selective acks, the version in the accept reply)
 // A remote client's moves (vr/vr_netmove.hpp: quantized deltas with repeats; the loopback's stay clc_move; MP_PLAN.md, B7).
 #define QVR_CLC_MOVES				16
 // A client's voice frames (vr/vr_voicechat.hpp: Opus, 20 ms each; MP_PLAN.md, B10v), after his move.
@@ -328,6 +328,7 @@ void VR_AddonOnSave (const char *savepath);	// Host_Savegame_f: the active map p
 void VR_NoteMapSpawn (const char *map);	// SV_SpawnServer: the map and the map package mounted, the crash report's context line
 void VR_SetCrashContext (const char *what);	// vr_crash.cpp: that line (qvr_crash.txt's second)
 void VR_SetCrashGpu (const char *line);	// vr_crash.cpp: GL_Init: the GPU, its driver's GL version and the safe mode, the report's "GPU:" line
+void VR_SetCrashGlLimits (const char *line);	// vr_crash.cpp: GL_Init: the driver's limits (GL_DescribeLimits), the report's "GL limits:" line
 void VR_SetCrashVr (const char *line);	// vr_crash.cpp: the OpenXR backend: the runtime, its version, the headset, the API layers, the step; the report's "VR:" line
 // The GL start-up's breadcrumbs and safe mode (vr_glsafe.cpp; ROUND21.md "AMD start-up crash").
 enum
@@ -339,9 +340,10 @@ enum
 	VR_GLSAFE_VIEWPORT_LAYER = 1 << 4,	// the shadow casters' layered draws (gl_ViewportIndex in vertex shaders)
 	VR_GLSAFE_DEBUG_OUTPUT = 1 << 5,	// -gldebug's callback
 	VR_GLSAFE_MSAA = 1 << 6,		// multisampled scene targets
-	VR_GLSAFE_SHADOW_ATLAS = 1 << 7		// the shadow atlas at most 4096
+	VR_GLSAFE_SHADOW_ATLAS = 1 << 7,	// the shadow atlas at most 4096
+	VR_GLSAFE_VERTEX_ONLY = 1 << 8		// vertex-only programs (the depth passes); off: with an empty fragment shader (gl_shaders.c)
 };
-// -glescompat's own ES forms (VR_GLESForm); -gleskeep (QVR_GLES_KEEP) keeps the PC form of some, to measure each
+// -glescompat's own ES forms (VR_GLESForm); -glesdebug keep:<name> (QVR_GLES_DEBUG) keeps the PC form of some, to measure each
 enum
 {
 	VR_GLES_FORM_GLSL = 1 << 0,		// every program as ES 3.2 GLSL, the image formats ES 3.1 has (VR_GLShaderSource, VR_GLESImageFormat)
@@ -349,6 +351,17 @@ enum
 	VR_GLES_FORM_VIEWS = 1 << 2		// no texture views (single-pass stereo's eye targets, the envmap's mipmaps)
 };
 int VR_GLESForm (int form);	// nonzero: -glescompat takes the ES form of `form` (VR_GLES_FORM_*) this run
+// -glesdebug a,b,... (QVR_GLES_DEBUG=a,b,...): the ES profile's bring-up switches (vr_glsafe.cpp esDebugNames; docs/vr-port/LAUNCH_FLAGS.md)
+enum
+{
+	VR_GLES_DEBUG_NOCLIPCONTROL = 1 << 0,	// noclipcontrol: Android's EXT_clip_control not used (shadows, reflections, portals off)
+	VR_GLES_DEBUG_SHADERSET = 1 << 1,	// shaderset: the ES shader-set step in a test run too (the lite world's first set, the program check)
+	VR_GLES_DEBUG_SRGBENCODE = 1 << 2,	// srgbencode: the driver's sRGB write encoding kept (EXT_sRGB_write_control not used)
+	VR_GLES_DEBUG_STRUCTCOPY = 1 << 3,	// structcopy: the shaders' struct copies left whole, as the PC's (a driver workaround's A/B)
+	VR_GLES_DEBUG_CENTROID = 1 << 4,	// centroid: the shaders' centroid qualifiers kept, as the PC's (a driver workaround's A/B)
+	VR_GLES_DEBUG_VERBOSE = 1 << 5		// verbose: each ES compile error with its source line (the compile waited for)
+};
+int VR_GLESDebug (unsigned bit);	// nonzero: -glesdebug names that switch (VR_GLES_DEBUG_*); its keep:<name> entries: VR_GLESForm, the safe-mode features
 enum // pcopt: the ES profile's program forms the PC takes too (vr_gl_pc_forms' bits; VR_GLLiteForms)
 {
 	VR_GL_PCFORM_MODELS = 1 << 0,		// the models' plain, gore and skin forms (vr_gl_alias_plain/gore/skin)
@@ -399,7 +412,9 @@ const char *VR_AndroidStart (int argc, char **argv);	// main, first: on Android 
 int VR_Android (void);	// nonzero: an Android build, or the PC's fake-Android mode (-fakeandroid, QVR_FAKE_ANDROID)
 void VR_AndroidLog (const char *text);	// Sys_Printf on Android: the console's text into logcat, a line a message (vr_android.cpp)
 int VR_AndroidFirstRun (void);	// Host_Init's end: nonzero on Android's first run (no config in the game folder yet): vr_standalone_preset 0 follows quake.rc
-int VR_ChildProcesses (void);	// nonzero: processes of our own may start (relighting's light, the motion review's evaluation copy); 0 on Android and with -nochildprocesses
+int VR_HideMirror (void);	// nonzero: -hidemirror (old name -vr-hide-mirror): no desktop window, always "focused" (a standalone headset's, the Steam Frame's; vr_main.cpp)
+int VR_Unattended (void);	// nonzero: -unattended (old name -vr-unattended): nobody wears the headset (its presence sensor ignored; the Quest's unmanned runs)
+int VR_ChildProcesses (void);	// nonzero: processes of our own may start (relighting's light, the motion review's evaluation copy); 0 on Android (and -fakeandroid)
 void VR_AndroidInit (void);	// VR_Init: vr_android_test
 int VR_GLESCompat (void);	// nonzero: -glescompat, the renderer kept to what OpenGL ES 3.2 has (vr_glsafe.cpp; QUEST_PLAN.md)
 void VR_GLShaderSource (unsigned int shader, int count, const char *const *strings);	// glShaderSource for every program: -glescompat: as "#version 320 es" with precisions
@@ -552,6 +567,7 @@ int VR_FlatHudHand (int left, int *count, int *ammoPic);	// that layout's counte
 int VR_FlatHudTime (float *level, int *state);			// its bullet time bar: 0 while bullet time is off (vr_bullettime_enabled); the meter 0..1 and its state (0 filling, 1 ready, 2 running, 3 cooling)
 void VR_WriteDemoState (struct sizebuf_s *msg);			// CL_Record_f, recording mid-game
 void VR_AdjustMove (float *forwardmove, float *sidemove, float *upmove); // CL_SendCmd: thumbstick locomotion
+int VR_ButtonSwapKey (int key);						// Key_KeynumToFriendlyString: with VR on and vr_button_swap 1, a face button's or stick click's key as the button it comes from (ABUTTON: X...); else `key`
 void VR_SpeedPressed (void);						// IN_SpeedDown, on the speed button's going down (not a second key's, not a repeat): vr_sprint_toggle's switch
 int VR_SpeedButton (int held);						// every run-or-walk choice (cl_input.c, in_sdl.c, VR_AdjustMove): the speed button's state, held (in_speed's) in, vr_sprint_toggle's switch out while it is on
 void VR_ReadMoveExtras (struct client_s *client);		// end of SV_ReadClientMove
@@ -614,6 +630,7 @@ void VR_RelinkHeld (void);								// end of CL_RelinkEntities: the local player'
 float VR_BeamScale (struct qmodel_s *model);				// CL_UpdateTEnts: scale of a beam's segments
 int VR_UpdateBeam (int ent, float *start, float *end);	// CL_UpdateTEnts: moves the player's own beams with the gun; nonzero: a rope (no random roll)
 int VR_BeamGone (int ent);								// CL_UpdateTEnts: nonzero if a hand's lightning outlived its gun there (thrown, dropped, holstered): ended at once
+float VR_BeamLife (int ent);							// CL_ParseBeam: seconds a new beam keyed `ent` is drawn (Quake's 0.2; Dwell's Crystal Lance's bolt lingers: vr_lancecharge.cpp)
 int VR_DrawRope (int ent, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a grappling hook's rope, drawn in one piece along its curve (vr_rope.cpp); zero if the beam is not one (drawn as any beam)
 void VR_ForgetEndedRopes (void); // CL_UpdateTEnts, before the beams: the ropes whose beams ended forgotten, the frame's ropes put anew
 void VR_BeamLights (int index, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a lightning beam lights the room along its length (vr_beam_lights)
@@ -759,6 +776,12 @@ int VR_HitModelMoveFlags (struct edict_s *ent);		// SV_PushEntity: the flags a p
 #define VR_SHOT_TARGET_REACH 16	// units: the most a shot target's cube reaches from its middle (.vr_shot_radius; SV_Move grows a shot's box by it)
 int VR_ShotTargetClip (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
 	const float *end, int type, trace_t *trace);	// SV_ClipToLinks: a shot or missile (type: SV_Move's, with its flags) against a grenade shots set off (.vr_shot_radius): -1 not one (Quake's rules), 0 passes it, 1 met (trace filled)
+int VR_PlayerShotClip (struct edict_s *touch, const float *start, const float *mins, const float *maxs, const float *end,
+	int hittype, float hitmodel, int hitgibs, trace_t *trace);	// SV_ClipToLinks: a shot, missile or thrown thing against another player's body as drawn (vr_playerhit.cpp): -1 his box decides, 0 missed, 1 met (trace filled)
+int VR_ChainShotClip (const float *start, const float *mins, const float *maxs, const float *end, struct edict_s *pass,
+	trace_t *trace);	// SV_Move (ropes8c): a gun's shot, a melee blow or a missile against the chains' links (vr_climbrope.cpp): 1 met before trace's fraction (trace filled, its ent the chain), 0 not
+int VR_PoleSolidLedge (struct edict_s *touch, struct edict_s *mover, const trace_t *trace);	// SV_ClipToLinks (ropes11): nonzero if player mover's move met pole box `touch` on a ledge of a steep pole's box staircase: passed (vr_climbrope.cpp solidLedge)
+int VR_PoleSolidPasses (struct edict_s *touch, struct edict_s *mover);	// SV_ClipToLinks (ropes8d): nonzero if player `mover` is let through pole box `touch` (a climber on it: vr_climbrope.cpp passSolids)
 
 // Client effects (r_part.c): Quake VR's particles in place of Quake's (nonzero if they took it).
 int VR_RunParticleEffect (const float *org, const float *dir, int color, int count);	// impacts, blood (svc_particle)
@@ -784,6 +807,7 @@ int VR_ConsoleLogLine (const char *text, int length, int server);	// Con_DrawNot
 void VR_NotifyLogInfo (void);						// vr_notify_info: prints the wrist gadget's log lines
 
 // Screen (gl_screen.c).
+const char *VR_ExpandMessageTokens (const char *text);	// SCR_CenterPrint: the text with its {flat} wording and {key:} binds resolved (vr_msgtokens.cpp); `text` itself when it has none, else valid until the next call
 void VR_GameCenterPrint (const char *str);				// SCR_CenterPrint: a centre print, for the wrist gadget's hologram (vr_gadget.cpp)
 int VR_CenterPrintOnWrist (void);						// SCR_CheckDrawCenterString: nonzero while that hologram shows it (not in view)
 int VR_CenterPrintInView (const char *text, float alpha);	// SCR_CheckDrawCenterString: nonzero when the headset shows it on its head-following panel in the visor popup's style (vr_panel.cpp, vr_center_panel), not on the 2D canvas
@@ -972,6 +996,7 @@ int VR_PortalReachMove(struct edict_s* player, const float* start, const float* 
 
 void VR_RegisterPackStatus(void);
 int VR_CanLoadCampaignMap(const char *map);
+void VR_TutorialSinglePlayer(const char *map); // Host_Map_f, no server running: vrtutorial always a single-player game
 int VR_IsVrMap(const char *map);			// vrstart, vrtutorial, vrfiringrange: Quake VR's own maps, run in Quake's campaign
 const char *VR_HubMap(void);				// the hub the game starts in and returns to: vrstart
 int VR_CanChangeCampaignMap(const char *map);
@@ -996,7 +1021,7 @@ const char *VR_CampaignTag(int index);   // its status in a word or two ("missin
 const char *VR_CampaignHelp(int index);
 void VR_SelectCampaign(int index);
 int VR_CampaignUnavailable(int index);
-int VR_CampaignInstalled(int index); // data complete (the experimental rows are offered on this alone)
+int VR_CampaignInstalled(int index); // data complete, and any campaign's it needs (Quoth: AD's) (the experimental rows are offered on this alone)
 int VR_CampaignExperimental(int index); // AD's, Dwell's: a notice first, then their developer launch
 // Setup's preparation's walk through the campaigns (vr_prepare.cpp).
 int VR_CampaignCount(void);
@@ -1004,6 +1029,14 @@ const char *VR_CampaignFolder(int index);
 const char *VR_CampaignStartMap(int index);
 int VR_CampaignFolderOnlyWhenActive(int index);	// its folder searched only while it is the active campaign (dopa, mg1, mg3)
 int VR_SelectCampaignNoMap(int index);			// made the active one, no map started (0: it cannot be played; nothing changed)
+int VR_SelectCampaignNoMapNative(int index);	// the same, an experimental one (AD, Dwell, Quoth) too, as vr_campaign_native (tests)
+// A remote client plays the server's campaign (vr_mpdownload.cpp; vr_gamedir.cpp, mpcampaign).
+int VR_CampaignIndexOf(const char *folder);		// a campaign's index by its folder ("rogue": 2), -1 none
+const char *VR_CampaignMissingForJoin(int index); // why this game can't play it for a server ("" it can)
+int VR_JoinCampaign(int index, int rebuild);	// made the active one (1); 0: it needs the folders rebuilt and !rebuild, or failed
+int VR_LeaveJoinedCampaign(void);				// the client's own campaign back: its index, -1 nothing changed
+int VR_JoinedCampaignHeld(void);				// a server's campaign is active in place of the client's own
+void VR_ForgetJoinedCampaign(void);				// the client's own no longer brought back (he started a game here)
 void VR_GameFolderName(const char *path, char *out, size_t size); // a search path's game folder ("C:/Quake/hipnotic/pak0.pak": hipnotic)
 int VR_SaveCampaign(const char *text);			// a save's campaign (vr_save_campaign), -1 if VR_CanLoadCampaignSave would refuse it (quiet)
 const char *VR_CampaignTitle(int index);		// "Quake", "Scourge of Armagon", ...

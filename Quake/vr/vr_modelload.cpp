@@ -11,6 +11,7 @@
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 
 #include <float.h>
@@ -234,7 +235,7 @@ static void Mod_SkinIslandsInto (byte *mask, const float *corners, int numtris, 
 // memory (made without islands)
 static byte *Mod_SkinIslandsMalloc (const float *corners, int numtris, int w, int h)
 {
-	byte	*mask = (byte *) VR_HeapCalloc ((size_t) w * h, 1);
+	byte	*mask = (byte *) VR_HeapCalloc ((za::SizeT) w * h, 1);
 	if (mask)
 		Mod_SkinIslandsInto (mask, corners, numtris, w, h);
 	return mask;
@@ -450,7 +451,7 @@ static gltexture_t *Mod_LoadExternalSkin (qmodel_t *loadmodel, const char *name,
 	enum srcformat	fmt;
 	byte			*data, *copy;
 	gltexture_t		*glt, *glow;
-	size_t			size;
+	za::SizeT			size;
 	char			fbname[MAX_QPATH];
 
 	if (isDedicated || !Mod_ExternalSkinFits (loadmodel, name))
@@ -461,7 +462,7 @@ static gltexture_t *Mod_LoadExternalSkin (qmodel_t *loadmodel, const char *name,
 		Hunk_FreeToLowMark (mark);
 		return NULL;
 	}
-	size = (size_t) fwidth * fheight * (fmt == SRC_INDEXED ? 1 : 4);
+	size = (za::SizeT) fwidth * fheight * (fmt == SRC_INDEXED ? 1 : 4);
 	copy = (byte *) VR_HeapMalloc (size);
 	if (copy)
 		ZA_MEMCPY(copy, data, size);
@@ -594,7 +595,7 @@ if it has none of its own: the nearest one before it that has one (the body's: s
 all the armours' 12), else skin 0's name (its made map then).
 ===============
 */
-static void Mod_MD5SharedNormalMap (const char *shader, int skin, char *out, size_t size)
+static void Mod_MD5SharedNormalMap (const char *shader, int skin, char *out, za::SizeT size)
 {
 	static constexpr const char *const suffixes[] = {"_norm.png", "_norm.tga", "_bump.png", "_bump.tga"};
 	char	path[MAX_QPATH];

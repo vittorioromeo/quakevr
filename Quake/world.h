@@ -97,6 +97,8 @@ trace_t SV_MovePortalTurned (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end,
 	edict_t *passedict, const float plane[4], const float turned[12]);
 
 qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace);
+void SV_InitBoxHull (void);						// QVR (ropes8d): the box hull, also on a remote client (vr_climbrope.cpp clientSolidTrace)
+hull_t *SV_HullForBox (vec3_t mins, vec3_t maxs);	// ... a box as a hull
 
 #endif	/* _QUAKE_WORLD_H */
 

@@ -22,6 +22,7 @@
 #include "Zancle/Algorithm/Iota.hpp"
 #include "Zancle/Algorithm/MaxElement.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -368,7 +369,7 @@ void superAxePoses(const char* name, aliashdr_t* hdr, const dtriangle_t* tris, t
     }
     for(int p = 0; p < hdr->numposes; p++)
     {
-        ZA_MEMCPY(poses[p], pose.data(), sizeof(trivertx_t) * static_cast<size_t>(n));
+        ZA_MEMCPY(poses[p], pose.data(), sizeof(trivertx_t) * static_cast<za::SizeT>(n));
     }
     trivertx_t boxLo{}, boxHi{};
     for(int k = 0; k < 3; k++)

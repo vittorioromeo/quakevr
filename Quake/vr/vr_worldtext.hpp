@@ -24,7 +24,8 @@ enum class HAlign : int
 
 struct WorldText
 {
-    za::String text;
+    za::String text; // (the client's: as shown, its tokens resolved: vr_msgtokens.hpp)
+    za::String raw;  // the client's: the text as sent when it has tokens (resolved again as the binds change), else ""
     glm::vec3 pos{0.f};
     glm::vec3 angles{0.f};
     HAlign hAlign{HAlign::Left};

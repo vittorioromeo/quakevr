@@ -19,6 +19,7 @@
 
 #include "thirdparty/imgui/imgui.h"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -150,7 +151,7 @@ Editor ed;
 
 // ---- The data --------------------------------------------------------------------------------------------------------
 
-template <size_t N>
+template <za::SizeT N>
 void setText(char (&dst)[N], const char* src)
 {
     q_strlcpy(dst, src, N);
@@ -319,7 +320,7 @@ void refreshCatalogue()
 }
 
 // One line on what an entry holds.
-void describe(char* out, size_t size, const aw::Entry& e)
+void describe(char* out, za::SizeT size, const aw::Entry& e)
 {
     const int row = rowOf(e.kind);
     char hands[96] = "";
@@ -511,7 +512,7 @@ void noteSpot(const char* name)
 }
 
 // The label's visible part: what's before ##.
-void cleanLabel(char* out, size_t size, const char* label)
+void cleanLabel(char* out, za::SizeT size, const char* label)
 {
     q_strlcpy(out, label, size);
     if(char* hash = ZA_STRSTR(out, "##"))
@@ -570,7 +571,7 @@ void cleanLabel(char* out, size_t size, const char* label)
 }
 
 // A combo over a word list; true when the word changed.
-template <size_t N, size_t M>
+template <za::SizeT N, za::SizeT M>
 bool pickWord(const char* label, char (&value)[N], const char* const (&words)[M], bool enabled = true)
 {
     bool changed = false;
@@ -1130,7 +1131,7 @@ void popups()
                 }
                 if(ImGui::Button(key, ImVec2{36.f, 36.f}))
                 {
-                    const size_t n = ZA_STRLEN(ed.saveName);
+                    const za::SizeT n = ZA_STRLEN(ed.saveName);
                     if(n + 1 < sizeof(ed.saveName))
                     {
                         ed.saveName[n] = keyRows[i];
@@ -1143,7 +1144,7 @@ void popups()
             }
             if(btn("Backspace"))
             {
-                const size_t n = ZA_STRLEN(ed.saveName);
+                const za::SizeT n = ZA_STRLEN(ed.saveName);
                 if(n > 0)
                 {
                     ed.saveName[n - 1] = '\0';

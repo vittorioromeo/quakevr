@@ -4,6 +4,7 @@
 
 #include "vr_box3d.hpp"
 #include "vr_brushes.hpp"
+#include "vr_climbrope.hpp"
 #include "vr_cvars.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_geom.hpp"
@@ -1612,7 +1613,7 @@ bool deserialise(const za::Vector<char>& in, unsigned count, NavClass& c)
             freeTiles(c.built);
             return false;
         }
-        auto* data = static_cast<unsigned char*>(dtAlloc(static_cast<size_t>(head[2]), DT_ALLOC_PERM));
+        auto* data = static_cast<unsigned char*>(dtAlloc(static_cast<za::SizeT>(head[2]), DT_ALLOC_PERM));
         ZA_MEMCPY(data, in.data() + at, static_cast<za::SizeT>(head[2]));
         at += static_cast<za::SizeT>(head[2]);
         c.built.pushBack(Tile{head[0], head[1], data, head[2]});
@@ -2167,6 +2168,8 @@ void unmark(PropTrack& t)
     }
 }
 
+constexpr float poleObstacle = 8.f; // (ropes8a) units across a climbing pole's obstacle at least
+
 // The props looked at (the movers' tick): each loose solid prop's rest, its mark made or taken off.
 void refreshProps(double now)
 {
@@ -2182,6 +2185,38 @@ void refreshProps(double now)
     {
         PropTrack& t = state.props[n];
         const int num = static_cast<int>(n);
+        // (ropes8a) A climbing pole's box (vr_climbrope.cpp): an obstacle where it stands, at once, whatever its size (a
+        // thin pole grown to at least poleObstacle across: a cell or two, eroded round by each class's clearance).
+        if(glm::vec3 lo, hi; climbrope::solidBox(num, lo, hi))
+        {
+            const glm::vec3 mid = (lo + hi) * 0.5f;
+            if(!on || (t.marked && (t.markOrigin != mid || t.mark.zhi != hi.z)))
+            {
+                unmark(t);
+            }
+            if(on && !t.marked)
+            {
+                const glm::vec2 h = glm::max(glm::vec2{hi.x - lo.x, hi.y - lo.y} * 0.5f, glm::vec2{poleObstacle * 0.5f});
+                Obstacle o;
+                o.lo = glm::vec2{mid.x, mid.y} - h;
+                o.hi = glm::vec2{mid.x, mid.y} + h;
+                const float xy[8] = {o.lo.x, o.lo.y, o.hi.x, o.lo.y, o.hi.x, o.hi.y, o.lo.x, o.hi.y}; // (counter-clockwise)
+                for(int k = 0; k < 8; ++k)
+                {
+                    o.xy[k] = xy[k];
+                }
+                o.count = 4;
+                o.zlo = lo.z;
+                o.zhi = hi.z;
+                t.marked = true;
+                t.mark = o;
+                t.markOrigin = mid;
+                dirtyFor(o);
+                ++state.obs.marks;
+            }
+            t.live = true;
+            continue;
+        }
         box3d::ClimbBody body;
         const bool loose = on && progs::edictAt(num) && box3d::isBox3DProp(num) && box3d::climbBody(num, body);
         if(!loose)
@@ -2572,7 +2607,7 @@ void hash_f()
                 continue;
             }
             mesh = diskcache::fnv(mesh, &i, sizeof(i));
-            mesh = diskcache::fnv(mesh, tile->data, static_cast<size_t>(tile->dataSize));
+            mesh = diskcache::fnv(mesh, tile->data, static_cast<za::SizeT>(tile->dataSize));
             tiles++;
         }
     }
@@ -2590,7 +2625,7 @@ void hash_f()
         paths = diskcache::fnv(paths, &n, sizeof(n));
         paths = diskcache::fnv(paths, &a.goal, sizeof(a.goal));
         paths = diskcache::fnv(paths, a.path.data(), a.path.size() * sizeof(dtPolyRef));
-        paths = diskcache::fnv(paths, a.corners, sizeof(float) * 3 * static_cast<size_t>(a.cornerCount));
+        paths = diskcache::fnv(paths, a.corners, sizeof(float) * 3 * static_cast<za::SizeT>(a.cornerCount));
         paths = diskcache::fnv(paths, &a.next, sizeof(a.next));
         paths = diskcache::fnv(paths, &a.link, sizeof(a.link));
         paths = diskcache::fnv(paths, &a.phase, sizeof(a.phase));
@@ -3456,7 +3491,7 @@ void dumpPolys()
                 for(int v = 0; v < poly.vertCount && len < 440; ++v)
                 {
                     const glm::vec3 q = fromRc(&tile->verts[poly.verts[v] * 3]);
-                    len += q_snprintf(line + len, sizeof(line) - static_cast<size_t>(len), "|%.0f %.0f %.0f", static_cast<double>(q.x),
+                    len += q_snprintf(line + len, sizeof(line) - static_cast<za::SizeT>(len), "|%.0f %.0f %.0f", static_cast<double>(q.x),
                         static_cast<double>(q.y), static_cast<double>(q.z));
                 }
                 Con_Printf("%s\n", line);

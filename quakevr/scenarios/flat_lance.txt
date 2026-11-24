@@ -1,0 +1,6 @@
+# flat_lance: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Flat-screen: the Crystal Lance held as a spear (B, the grip, V's thrust)
+map vrtesthall
+god
+give "Crystal Lance" main
+spawn "Ogre" 120 0

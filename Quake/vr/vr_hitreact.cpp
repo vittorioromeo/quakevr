@@ -30,6 +30,7 @@
 
 #include "Zancle/Base/GetArraySize.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -565,19 +566,19 @@ void traceLine(const entity_t* e, Reaction& r, const ragdoll::Rig* rig, const gl
                 mostBone = b;
             }
         }
-        n += snprintf(line + n, sizeof(line) - static_cast<size_t>(n), " most %.2f deg %s", most, mostBone >= 0 ? rig->bones[mostBone].name : "-");
+        n += snprintf(line + n, sizeof(line) - static_cast<za::SizeT>(n), " most %.2f deg %s", most, mostBone >= 0 ? rig->bones[mostBone].name : "-");
         for(int b = 0; b < rig->numBones && n < static_cast<int>(sizeof(line)) - 24; b++)
         {
             const float a = za::sqrt(glm::dot(total[b], total[b])) * (180.f / 3.14159265f);
             if(a > 0.05f)
             {
-                n += snprintf(line + n, sizeof(line) - static_cast<size_t>(n), " %s=%.2f", rig->bones[b].name, a);
+                n += snprintf(line + n, sizeof(line) - static_cast<za::SizeT>(n), " %s=%.2f", rig->bones[b].name, a);
             }
         }
     }
     else
     {
-        n += snprintf(line + n, sizeof(line) - static_cast<size_t>(n), " tilt %.2f deg", tiltDeg);
+        n += snprintf(line + n, sizeof(line) - static_cast<za::SizeT>(n), " tilt %.2f deg", tiltDeg);
     }
     Con_Printf("%s\n", line);
 }
@@ -1890,6 +1891,55 @@ void holdsReport_f()
     Con_Printf("agholds: %d armed humanoids, %d one-handed, %d two-handed, %d dual\n", n, counts[0], counts[1], counts[2]);
 }
 
+// vr_agrunt_armpose_check (and vr_agrunt_ik_err's agslots line): the armed humanoids drawn now (sent this frame, not a
+// ragdoll) and those posed (their arm pose placed this frame or the last), the slots live, the drawn ones' messages that
+// found no slot since the last check (their arms left as the frames have them, the weapons placed without them: his
+// notes of 2026-11-23) and the slots taken from undrawn ones. `label`: a test's case, passed with none found and some
+// posed; "done": the cases' verdict.
+testkit::Tally armPoseCheck;
+
+void armPoseSlots(const char* label)
+{
+    int used = 0, drawn = 0, posed = 0;
+    for(const ArmPose& s : armPoses.slots)
+    {
+        used += (s.ent > 0 && s.cur.t >= cl.mtime[0] - armPoseStale) ? 1 : 0;
+    }
+    for(int n = 1; n < cl.num_entities; n++)
+    {
+        const entity_t* e = &cl_entities[n];
+        if(!e->model || e->model->type != mod_alias || e->msgtime != cl.mtime[0] || !armedRigOf(e->model) ||
+            ragdoll::sourceModel(e))
+        {
+            continue;
+        }
+        drawn++;
+        const ArmPose* s = armPoseOf(n, false);
+        posed += (s && s->frame >= host_framecount - 1) ? 1 : 0;
+    }
+    Con_Printf("agslots: %d armed humanoids drawn, %d posed; %d of %d arm pose slots live, %d drawn ones' messages found "
+               "none, %d slots taken from undrawn ones\n",
+        drawn, posed, used, maxArmPoses, armPoses.dropped, armPoses.evicted);
+    if(label[0])
+    {
+        const bool ok = armPoseCheck.check(armPoses.dropped == 0 && posed > 0, "armposecheck", label);
+        Con_Printf("armposecheck %s: %s\n", label, ok ? "ok" : "failed");
+    }
+    armPoses.dropped = armPoses.evicted = 0;
+}
+
+void armPoseCheck_f()
+{
+    const char* a = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!q_strcasecmp(a, "done"))
+    {
+        armPoseCheck.verdict("armposecheck");
+        armPoseCheck.reset();
+        return;
+    }
+    armPoseSlots(a);
+}
+
 // vr_agrunt_ik_err: the arms' numbers since the last time (vr_agarms.cpp printErr: counted afresh after), how far the held
 // weapons were drawn from their holders, and the ragdolls' weapons against their drawn hands.
 void armErr_f()
@@ -1898,6 +1948,7 @@ void armErr_f()
     agarms::clearErr();
     Con_Printf("agprop: held weapons drawn at most %.1f units from their holders\n", ragErr.propFar);
     ragErr.propFar = 0.f;
+    armPoseSlots("");
     if(ragErr.n > 0)
     {
         Con_Printf("agrag: %d ragdoll frames: the server's weapon off its drawn hand's grip max %.2f mean %.2f units, turned "
@@ -1950,6 +2001,7 @@ void registerCommands()
     Cmd_AddCommand("vr_agrunt_ragweapon_err", ragWeaponErr_f);
     Cmd_AddCommand("vr_hit_react_info", info_f);
     Cmd_AddCommand("vr_agrunt_ik_err", armErr_f);
+    Cmd_AddCommand("vr_agrunt_armpose_check", armPoseCheck_f);
     Cmd_AddCommand("vr_agholds_report", holdsReport_f);
     aggrip::registerCommands();
     agarms::registerCommands();

@@ -34,14 +34,17 @@
 #include "vr_seated.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_crosshair.hpp"
+#include "vr_flatgrenade.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_flathit.hpp"
 #include "vr_flatsight.hpp"
+#include "vr_flatswim.hpp"
 #include "vr_flattp.hpp"
 #include "vr_geom.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "vr_weaponvalues.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -179,9 +182,28 @@ void updateFingerFrames()
         const bool holdsOther = posingHotspot ? !holder
                                               : twohand::drawnHelping(hand) || held::heldEntity(hand) != 0 || flashlight::holds(hand) ||
                                                     holdsBody(hand);
+        // (Flatscreen swimming, an empty hand: open for the stroke, its fingers together and the palm cupped, the thumb
+        // along the index: vr_flat_swim_cup's curl, its share of the stroke; vr_flatswim.cpp.)
+        const float swimOpen = flatplay::active() && !holder && !flatGrips ? flatswim::openShare(hand) : 0.f;
+        const float cup = za::clamp(vr_flat_swim_cup.value, 0.f, 1.f);
+        // (A free hand guiding the other hand's flat throw: its fingers open by vr_flat_throw_guide_open, its share of the
+        // guide; vr_flatgrenade.cpp.)
+        const float guide = flatplay::active() && !holder && !flatGrips ? flatgrenade::guideShare(hand) : 0.f;
+        const float guideCurl = 1.f - za::clamp(vr_flat_throw_guide_open.value, 0.f, 1.f);
+        // (ropes12, his ask 2026-11-23) On a climbable rope or pole the thumb closes round it whatever the controller's
+        // thumb rest says (VR; flat play's thumb is always closed): it wraps it, stopped on its surface (ropeHeld).
+        glm::vec3 ropeAt, ropeUp;
+        float ropeThick = 0.f, ropeWeight = 0.f;
+        const bool onRope = climb::ropeLine(hand, ropeAt, ropeUp, ropeThick, ropeWeight) && ropeWeight >= 0.5f;
         for(int finger = 0; finger < FingerCount; finger++)
         {
-            approach(fingerFrames()[hand][finger], targetCurl(in, finger, holdsOther) * 5.f);
+            const float curl = finger == FingerThumb && onRope ? 1.f : targetCurl(in, finger, holdsOther);
+            float shaped = finger == FingerBase || swimOpen <= 0.f ? curl : curl + (cup - curl) * swimOpen;
+            if(finger != FingerBase && guide > 0.f)
+            {
+                shaped += (za::fmin(shaped, guideCurl) - shaped) * guide; // (opened, never closed further)
+            }
+            approach(fingerFrames()[hand][finger], shaped * 5.f);
             approach(fingerBias()[hand][finger], biasFor(hand, finger));
         }
     }
@@ -886,6 +908,24 @@ bool view::heldWeaponAxes(int hand, glm::vec3& forward, glm::vec3& up, float& fl
 glm::mat3 view::heldReverseTurn(int slot, int hand)
 {
     return hand >= 0 && hand <= 1 ? reverseTurn(slot, hand == HAND_OFF, drawnFlip(hand)) : glm::mat3{1.f};
+}
+
+glm::vec3 view::heldShotAngles(const glm::vec3& rot, int hand)
+{
+    const int slot = weapons::heldSlot(hand);
+    const glm::vec3 shot = weapons::shotAngles(rot, slot, hand == HAND_OFF);
+    if(!twohand::poleWeapon(slot))
+    {
+        return shot;
+    }
+    const glm::mat3 g = heldReverseTurn(slot, hand);
+    if(g == glm::mat3{1.f})
+    {
+        return shot;
+    }
+    const glm::mat3 b = hands::basisOf(rot);
+    const glm::mat3 t = b * g * glm::transpose(b) * hands::basisOf(shot);
+    return hands::anglesFromVectors(glm::normalize(t[0]), glm::normalize(t[2]));
 }
 
 glm::mat3 view::twoHandTurn(int slot, int hand)
@@ -4085,7 +4125,7 @@ int drawGroup(const entity_t* e)
     }
     struct Range
     {
-        size_t first, count;
+        za::SizeT first, count;
         int group;
     };
 #define QVR_DRAW_RANGE(member, group) \
@@ -4110,7 +4150,7 @@ int drawGroup(const entity_t* e)
     // Every member in a range (the heavy revolver's parts were not: drawn as OTHER, flatscreen play's model FOV missed them).
     static_assert(
         [] {
-            size_t total = 0;
+            za::SizeT total = 0;
             for(const Range& r : ranges)
             {
                 total += r.count;
@@ -4118,7 +4158,7 @@ int drawGroup(const entity_t* e)
             return total;
         }() == sizeof(Entities) / sizeof(ViewEntity),
         "drawGroup: a member of Entities has no draw group");
-    const size_t index = static_cast<size_t>(p - first) / sizeof(ViewEntity);
+    const za::SizeT index = static_cast<za::SizeT>(p - first) / sizeof(ViewEntity);
     for(const Range& r : ranges)
     {
         if(index >= r.first && index < r.first + r.count)
@@ -4772,8 +4812,8 @@ qmodel_t* gearModel(int index)
     return index >= 1 && index <= gearModelCount ? viewModel(gearModelNames[index - 1]) : nullptr;
 }
 
-qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, const glm::vec3& surfaceUp, float yaw,
-    const qmodel_t* weapon, GearDraw& sheath, GearDraw& gun)
+qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, const glm::vec3& surfaceUp, float clearance,
+    float yaw, const qmodel_t* weapon, GearDraw& sheath, GearDraw& gun)
 {
     const bool shoulder = holster == body::LeftShoulder || holster == body::RightShoulder;
     const bool mirrored = holster == body::LeftHip || holster == body::LeftUpper || holster == body::LeftShoulder;
@@ -4782,6 +4822,7 @@ qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out
     body::HolsterPlate plate;
     plate.out = out;
     plate.up = surfaceUp;
+    plate.clearance = clearance; // (fbmisc1123: as yours, the sheath's back on the surface)
     HolsterPose pose = shoulder ? holsterOnBack(pos, yaw, mirrored) : holsterOnBody(pos, plate, mirrored, upper, slotModel);
     // (mpbothands) The weapon in it by its own Holstered pose, as yours (poseHolstered, in the holster's frame: off the
     // body, up, outwards); turned as yours stand (holsterTurnStanding). (vrnotes1122a) The frame as yours
@@ -4789,7 +4830,15 @@ qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out
     glm::vec3 fwd, right, up;
     hands::angleVectors({0.f, yaw, 0.f}, fwd, right, up);
     HolsterFrame frame = holsterFrame(shoulder ? -fwd : out, shoulder ? up : surfaceUp, mirrored ? -right : right);
-    turnHolster(pose, pos, frame, holsterTurnStanding(holster)); // (the turns yours take standing, as a player drew his)
+    // (the turns yours take standing, as a player drew his) (fbmisc1123) holsterTurnStanding takes a drawn holster's index
+    // (bodyHolster's order), not body::Holster's: given this, the hips took the uppers' turns (pitch 40, yaw 20, roll -60),
+    // the uppers the shoulders' and the shoulders the hips': every copy's guns and sheaths turned 65-85 degrees off yours.
+    int drawnIndex = 0;
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        drawnIndex = static_cast<int>(bodyHolster[h]) == holster ? h : drawnIndex;
+    }
+    turnHolster(pose, pos, frame, holsterTurnStanding(drawnIndex));
     const weapons::HolsterKind kind = shoulder ? weapons::HolsterKind::Shoulder
                                       : upper  ? weapons::HolsterKind::Upper
                                                : weapons::HolsterKind::Hip;

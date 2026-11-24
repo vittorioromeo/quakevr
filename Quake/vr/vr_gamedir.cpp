@@ -34,6 +34,7 @@
 #include "vr_ad.hpp"
 #include "vr_dwell.hpp"
 #include "vr_quoth.hpp"
+#include "vr_scenario.hpp"
 
 #include "Zancle/Base/Memchr.hpp"
 #include "Zancle/Base/Memcmp.hpp"
@@ -112,17 +113,17 @@ bool validResource(FILE* file, long offset, long length, const char* name)
     bytes.clear();
     bytes.resize(static_cast<za::SizeT>(walked ? length : (length < 124 ? length : 124l)));
     if(fread(bytes.data(), 1, bytes.size(), file) != bytes.size()) { return false; }
-    const auto integer = [&](size_t pos) -> int32_t
+    const auto integer = [&](za::SizeT pos) -> int32_t
     {
         int32_t value = 0;
         if(pos <= bytes.size() && bytes.size() - pos >= 4) { ZA_MEMCPY(&value, bytes.data() + pos, 4); }
         return LittleLong(value);
     };
-    size_t cursor = 0;
+    za::SizeT cursor = 0;
     const auto advance = [&](int64_t count) -> bool
     {
         if(count < 0 || static_cast<uint64_t>(count) > bytes.size() - cursor) { return false; }
-        cursor += static_cast<size_t>(count);
+        cursor += static_cast<za::SizeT>(count);
         return true;
     };
     if(!q_strcasecmp(ext, "mdl"))
@@ -195,12 +196,12 @@ bool validResource(FILE* file, long offset, long length, const char* name)
             integer(4) < 36 || int64_t(integer(4)) + 8 > length) { return false; }
         bool format = false, samples = false;
         cursor = 12;
-        const size_t end = static_cast<size_t>(integer(4)) + 8;
+        const za::SizeT end = static_cast<za::SizeT>(integer(4)) + 8;
         while(cursor < end)
         {
             if(end - cursor < 8) { return false; }
             const int size = integer(cursor + 4);
-            if(size < 0 || static_cast<size_t>(size) > end - cursor - 8) { return false; }
+            if(size < 0 || static_cast<za::SizeT>(size) > end - cursor - 8) { return false; }
             if(!ZA_MEMCMP(bytes.data() + cursor, "fmt ", 4)) { format = size >= 16; }
             if(!ZA_MEMCMP(bytes.data() + cursor, "data", 4)) { samples = size > 0; }
             // Original pack WAVs can contain junk LIST metadata or omit the final pad byte.
@@ -220,7 +221,7 @@ bool validResource(FILE* file, long offset, long length, const char* name)
     return integer(120) >= 64; // at least the world model
 }
 
-int inspectPack(const char* game, const char* const* resources, size_t count, const char* onlyRoot = nullptr)
+int inspectPack(const char* game, const char* const* resources, za::SizeT count, const char* onlyRoot = nullptr)
 {
     za::Vector<unsigned char>& found = packScratch.found;
     found.assign(count, 0);
@@ -255,7 +256,7 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
             if(valid)
             {
                 entries.resize(length / sizeof(PackEntry));
-                valid = !fseek(file, offset, SEEK_SET) && fread(entries.data(), 1, length, file) == size_t(length);
+                valid = !fseek(file, offset, SEEK_SET) && fread(entries.data(), 1, length, file) == za::SizeT(length);
             }
             for(const PackEntry& entry : entries)
             {
@@ -265,7 +266,7 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
                     valid = false;
                     break;
                 }
-                for(size_t i = 0; i < count; ++i)
+                for(za::SizeT i = 0; i < count; ++i)
                 {
                     if(!ZA_STRCMP(entry.name, resources[i]))
                     {
@@ -286,7 +287,7 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
             }
         }
         // An extracted installation is also supported, but every required file must exist.
-        for(size_t i = 0; i < count; ++i)
+        for(za::SizeT i = 0; i < count; ++i)
         {
             char path[MAX_OSPATH];
             q_snprintf(path, sizeof(path), "%s/%s", folder, resources[i]);
@@ -302,7 +303,7 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
             }
         }
     }
-    for(size_t i = 0; i < count; ++i)
+    for(za::SizeT i = 0; i < count; ++i)
     {
         if(!found[i])
         {
@@ -321,7 +322,7 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
 // What a pack's files are now, without reading them: each pak's and each listed loose file's size and time, in every
 // base dir. The same signature: the same answer (inspectPack reads every listed model, sound and map whole, which is
 // worth doing once, not at every rebuild of the game folders: a campaign or a map package switched).
-za::U64 packSignature(const char* game, const char* const* resources, size_t count)
+za::U64 packSignature(const char* game, const char* const* resources, za::SizeT count)
 {
     za::U64 h = 1469598103934665603ull;
     const auto mix = [&](za::U64 v) { h = (h ^ v) * 1099511628211ull; };
@@ -343,7 +344,7 @@ za::U64 packSignature(const char* game, const char* const* resources, size_t cou
             if(Sys_FileType(path) != FS_ENT_FILE) { break; }
             file(path);
         }
-        for(size_t i = 0; i < count; ++i)
+        for(za::SizeT i = 0; i < count; ++i)
         {
             q_snprintf(path, sizeof(path), "%s/%s", folder, resources[i]);
             file(path);
@@ -353,7 +354,7 @@ za::U64 packSignature(const char* game, const char* const* resources, size_t cou
 }
 
 // inspectPack, again only when the pack's files changed since it was last read.
-int inspectPackCached(int which, const char* game, const char* const* resources, size_t count)
+int inspectPackCached(int which, const char* game, const char* const* resources, za::SizeT count)
 {
     const za::U64 now = packSignature(game, resources, count);
     if(!packMemoValid[which] || packSignatureMemo[which] != now)
@@ -402,7 +403,7 @@ struct Campaign
     int schema;
     bool nativeReady;
     const char* const* resources;
-    size_t resourceCount;
+    za::SizeT resourceCount;
     int status;
     char root[MAX_OSPATH];
     CampaignChecks checks;
@@ -459,27 +460,19 @@ int campaignIndex(const char* name)
 }
 
 // The Epic Games Store's Quake (the 2021 release): the launcher's install manifests (<ProgramData>/Epic/
-// EpicGamesLauncher/Data/Manifests/*.item, JSON; or the folder after -epicmanifests, for tests), each with its
+// EpicGamesLauncher/Data/Manifests/*.item, JSON; Windows only), each with its
 // DisplayName and InstallLocation. A manifest counts when its name says Quake and its folder holds the rerelease's
 // id1/pak0.pak, in rerelease/ (Steam's layout) or at its root (GOG's): that folder is the root. -noepic: none.
 void addEpicRoots(za::Vector<za::String>& roots)
 {
     za::String dir;
-    if(const int arg = COM_CheckParm("-epicmanifests"); arg && arg + 1 < com_argc)
-    {
-        dir = com_argv[arg + 1];
-    }
-    else
-    {
 #ifdef _WIN32
-        const char* programData = getenv("PROGRAMDATA");
-        if(!programData || !*programData) { return; }
+    if(const char* programData = getenv("PROGRAMDATA"); programData && *programData)
+    {
         dir = za::String{programData} + "/Epic/EpicGamesLauncher/Data/Manifests";
-#else
-        return;
-#endif
     }
-    if(!qvr::files::isDirectory(dir.cStr())) { return; }
+#endif
+    if(!dir.cStr()[0] || !qvr::files::isDirectory(dir.cStr())) { return; }
     qvr::files::forEachEntry(dir.cStr(), [&](const char* name, bool isDirectory)
     {
         const za::SizeT n = ZA_STRLEN(name);
@@ -625,9 +618,9 @@ int missingLanguage(int index, const char** first = nullptr)
 {
     if(index < 3 || index > 5) { return 0; } // (AD support: Arcane Dimensions has no rerelease language table)
     const char* const* keys = index == 3 ? dopaLanguageKeys : index == 4 ? mg1LanguageKeys : mg3LanguageKeys;
-    const size_t count = index == 3 ? countof(dopaLanguageKeys) : index == 4 ? countof(mg1LanguageKeys) : countof(mg3LanguageKeys);
+    const za::SizeT count = index == 3 ? countof(dopaLanguageKeys) : index == 4 ? countof(mg1LanguageKeys) : countof(mg3LanguageKeys);
     int missing = 0;
-    for(size_t i = 0; i < count; ++i)
+    for(za::SizeT i = 0; i < count; ++i)
     {
         const char* text = LOC_GetRawString(keys[i]);
         if(!text || !*text || !ZA_STRCMP(text, keys[i]))
@@ -642,6 +635,15 @@ const char* campaignStatus(int i)
         campaigns[i].status == 3 ? va("another version: only %s is played", campaigns[i].checks.release) :
         campaigns[i].nativeReady ? (i >= 3 && Cvar_FindVar("language") && missingLanguage(i) ? "installed; language data incomplete" : "ready") :
         campaigns[i].checks.experimental ? "ready (experimental)" : "installed; native support in progress";
+}
+
+// Another campaign's data a campaign needs to start (null: none, or there): Quoth plays by Arcane Dimensions' rules
+// (QUOTH.md), whose QuakeC precaches AD's own files. Without AD's data its start failed "Mod_LoadModel:
+// progs/s_exp_small.spr not found" (questmods, 2026-11-24: AD's folder unreadable on his Quest), now refused as missing AD.
+const char* missingRequirement(int index)
+{
+    return index == qvr::quoth::campaignIndex && campaigns[qvr::ad::campaignIndex].status != 1 ?
+        campaigns[qvr::ad::campaignIndex].title : nullptr;
 }
 
 void reportCampaigns()
@@ -702,7 +704,7 @@ char* lastSeparator(char* s)
 }
 
 // The game folder's name of a search path: its last component, or the folder a pak is in.
-void gameFolderName(const char* path, char* out, size_t size)
+void gameFolderName(const char* path, char* out, za::SizeT size)
 {
     char dir[MAX_OSPATH];
     q_strlcpy(dir, path, sizeof(dir));
@@ -745,22 +747,22 @@ extern "C" char* VR_LoadOwnedLocalization(const char* name)
         }
     }
     char* result = nullptr;
-    size_t used = 0;
+    za::SizeT used = 0;
     const auto append = [&](FILE* file, long offset, long length, const char* source)
     {
         constexpr long maxTable = 8 * 1024 * 1024;
         if(length <= 0 || length > maxTable || fseek(file, offset, SEEK_SET)) { return; }
-        char* buffer = static_cast<char*>(VR_HeapMalloc(static_cast<size_t>(length) + 1));
-        if(fread(buffer, 1, static_cast<size_t>(length), file) != static_cast<size_t>(length))
+        char* buffer = static_cast<char*>(VR_HeapMalloc(static_cast<za::SizeT>(length) + 1));
+        if(fread(buffer, 1, static_cast<za::SizeT>(length), file) != static_cast<za::SizeT>(length))
         { VR_HeapFree(buffer); return; }
         // A separate line between tables preserves the final entry of files without a newline.
         char marker[MAX_OSPATH + 32];
-        const size_t markerLength = q_snprintf(marker, sizeof(marker), "// vr-language-source %s\n", source);
-        result = static_cast<char*>(VR_HeapRealloc(result, used + markerLength + static_cast<size_t>(length) + 2));
+        const za::SizeT markerLength = q_snprintf(marker, sizeof(marker), "// vr-language-source %s\n", source);
+        result = static_cast<char*>(VR_HeapRealloc(result, used + markerLength + static_cast<za::SizeT>(length) + 2));
         ZA_MEMCPY(result + used, marker, markerLength);
         used += markerLength;
-        ZA_MEMCPY(result + used, buffer, static_cast<size_t>(length));
-        used += static_cast<size_t>(length);
+        ZA_MEMCPY(result + used, buffer, static_cast<za::SizeT>(length));
+        used += static_cast<za::SizeT>(length);
         result[used++] = '\n';
         result[used] = 0;
         VR_HeapFree(buffer);
@@ -908,6 +910,12 @@ bool selectCampaign(int selected, bool developer, bool start, bool syncHub = tru
             c.folder, campaignStatus(selected), c.folder, c.root[0] ? c.root : "none");
         return false;
     }
+    if(const char* need = missingRequirement(selected))
+    {
+        Con_Printf("VR: %s needs %s too (it plays by its rules): %s is %s here (<basedir>/%s).\n", c.title, need, need,
+            campaignStatus(qvr::ad::campaignIndex), campaigns[qvr::ad::campaignIndex].folder);
+        return false;
+    }
     if(soloOnly(selected) && campaignMultiplayerRequested())
     {
         Con_Printf("VR: %s native readiness covers single-player. Multiplayer context/join/respawn behavior is not accepted; set coop 0, deathmatch 0 and maxplayers 1 before starting.\n", c.title);
@@ -995,6 +1003,7 @@ extern "C" const char* VR_CampaignTag(int index)
     if(c.status == 0) { return "missing"; }
     if(c.status == 2) { return "incomplete"; }
     if(c.status == 3) { return "old version"; }
+    if(missingRequirement(index)) { return "needs AD"; }
     if(!c.nativeReady) { return c.checks.experimental ? "experimental" : "in progress"; }
     if(index >= 3 && missingLanguage(index)) { return "language data"; }
     if(soloOnly(index) && campaignMultiplayerRequested()) { return "single-player"; }
@@ -1008,6 +1017,7 @@ extern "C" const char* VR_CampaignHelp(int index)
     return va("%s%s%s. Data: %s. %s", c.title, tagged ? ": " : "", tagged ? campaignStatus(index) : "",
         c.root[0] ? c.root : "configured basedirs",
         c.status != 1 ? "Supply complete owned campaign files to play." :
+        missingRequirement(index) ? va("It plays by %s's rules: install %s too.", missingRequirement(index), missingRequirement(index)) :
         soloOnly(index) && campaignMultiplayerRequested() ? "Accepted for single-player: set coop 0, deathmatch 0, maxplayers 1; multiplayer context/join/respawn is not accepted." :
         index >= 3 && missingLanguage(index) ? "Language data incomplete: supply updated owned rerelease id1 tables, or enable store discovery." :
         c.nativeReady ? "Starts a new single-player campaign and resets level progress." :
@@ -1021,9 +1031,9 @@ extern "C" void VR_SelectCampaign(int index)
 extern "C" int VR_CampaignExperimental(int index)
 { return index >= 0 && index < int(countof(campaigns)) && campaigns[index].checks.experimental; }
 extern "C" int VR_CampaignInstalled(int index)
-{ return index >= 0 && index < int(countof(campaigns)) && campaigns[index].status == 1; }
+{ return index >= 0 && index < int(countof(campaigns)) && campaigns[index].status == 1 && !missingRequirement(index); }
 extern "C" int VR_CampaignUnavailable(int index)
-{ return index < 0 || index >= int(countof(campaigns)) || campaigns[index].status != 1 || !campaigns[index].nativeReady || (index >= 3 && missingLanguage(index)) ||
+{ return index < 0 || index >= int(countof(campaigns)) || campaigns[index].status != 1 || missingRequirement(index) || !campaigns[index].nativeReady || (index >= 3 && missingLanguage(index)) ||
     (soloOnly(index) && campaignMultiplayerRequested()); }
 
 // Setup's preparation (vr_prepare.cpp) goes through the campaigns: each one's folder, start map, whether its folder is
@@ -1038,7 +1048,88 @@ extern "C" const char* VR_CampaignStartMap(int index)
 extern "C" int VR_CampaignFolderOnlyWhenActive(int index) { return index >= 3 && index < int(countof(campaigns)); }
 extern "C" int VR_SelectCampaignNoMap(int index)
 { return !VR_CampaignUnavailable(index) && selectCampaign(index, false, false, false) ? 1 : 0; }
-extern "C" void VR_GameFolderName(const char* path, char* out, size_t size) { gameFolderName(path, out, size); }
+// (vr_scenario's add-on maps: an experimental campaign is selected the developer's way, as `vr_campaign_native` and a
+// -game start do; VR_SelectCampaignNoMap refuses it, so once another campaign was selected AD's maps were never found.)
+extern "C" int VR_SelectCampaignNoMapNative(int index)
+{
+    return VR_CampaignInstalled(index) && selectCampaign(index, index >= 3 && !campaigns[index].nativeReady, false, false) ? 1 : 0;
+}
+extern "C" void VR_GameFolderName(const char* path, char* out, za::SizeT size) { gameFolderName(path, out, size); }
+
+// Multiplayer (mpcampaign; vr_mpdownload.cpp): a remote client plays the campaign of the server it joins (QVR_SVC_CAMPAIGN,
+// before each svc_serverinfo), made the active one as the selector makes it (no map started), and its own campaign
+// comes back once it left. Before, a client kept its own: one on Dissolution joining a Quake coop server read rogue's
+// start.bsp ("Model *43 not found") and its Load Autosave list hid the server's coop saves as another game's.
+namespace
+{
+// seat-shared: the one game folder (every seat's client plays the same server)
+int joinedOwnCampaign = -1;     // the client's own campaign while it plays a server's (-1: its own is the active one)
+bool joinedOwnDeveloper = false; // seat-shared: and its developerNative then
+} // namespace
+
+extern "C" int VR_CampaignIndexOf(const char* folder) { return folder && *folder ? campaignIndex(folder) : -1; }
+
+// Why this game can't play campaign `index` a server runs ("" when it can): data missing, incomplete or another
+// version, language data incomplete. The server checked its own gates (single-player only, native in progress): a
+// client follows it. vr_mp_test_campaign_missing <folder> (tests): that campaign taken for one this game lacks.
+extern "C" const char* VR_CampaignMissingForJoin(int index)
+{
+    if(index < 0 || index >= int(countof(campaigns))) { return "it is not a campaign this version of Quake VR knows"; }
+    const Campaign& c = campaigns[index];
+    if(qvr::vr_mp_test_campaign_missing.string[0] && campaignIndex(qvr::vr_mp_test_campaign_missing.string) == index)
+    { return va("its data is missing here (<basedir>/%s; vr_mp_test_campaign_missing)", c.folder); }
+    if(c.status != 1) { return va("its data is %s here (<basedir>/%s)", campaignStatus(index), c.folder); }
+    if(const char* need = missingRequirement(index)) { return va("it needs %s, missing here", need); }
+    if(index >= 3 && missingLanguage(index))
+    { return "its language data is incomplete here (supply updated owned rerelease id1 tables)"; }
+    return "";
+}
+
+// The server's campaign made the active one: in place among Quake and its mission packs (their folders are all
+// mounted: only which start.bsp is read changes, VR_CheckSpawnCampaignMap's way), returning 1; another one needs the
+// game folders rebuilt, which ends any connection: 0 unless `rebuild` (the client left first), then the selector's
+// switch. The client's own campaign is kept for VR_LeaveJoinedCampaign.
+extern "C" int VR_JoinCampaign(int index, int rebuild)
+{
+    if(!gameDirAlreadyAdded(vrGameDir) || index < 0 || index >= int(countof(campaigns)) || campaigns[index].status != 1)
+    { return 0; }
+    if(index == activeCampaign) { return 1; }
+    const bool inPlace = index <= 2 && activeCampaign <= 2;
+    if(!inPlace && !rebuild) { return 0; }
+    const int own = activeCampaign;
+    const bool ownDeveloper = developerNative;
+    if(inPlace)
+    {
+        activeCampaign = index;
+        publishCampaign(false); // (never the hub's choice: the player's own)
+    }
+    else if(!selectCampaign(index, index >= 3, false, false)) { return 0; } // (the server's gates are its own)
+    if(joinedOwnCampaign < 0)
+    {
+        joinedOwnCampaign = own;
+        joinedOwnDeveloper = ownDeveloper;
+    }
+    return 1;
+}
+
+// After leaving the server (vr_mpdownload.cpp's poll: disconnected, no joining again pending): the client's own
+// campaign the active one again. Returns its index, -1 when it was already (nothing changed).
+extern "C" int VR_LeaveJoinedCampaign(void)
+{
+    const int own = joinedOwnCampaign;
+    joinedOwnCampaign = -1;
+    if(own < 0 || own == activeCampaign || !gameDirAlreadyAdded(vrGameDir)) { return -1; }
+    if(own <= 2 && activeCampaign <= 2)
+    {
+        activeCampaign = own;
+        publishCampaign(false);
+    }
+    else if(!selectCampaign(own, joinedOwnDeveloper, false, false)) { return -1; }
+    developerNative = joinedOwnDeveloper;
+    return own;
+}
+extern "C" int VR_JoinedCampaignHeld(void) { return joinedOwnCampaign >= 0; }
+extern "C" void VR_ForgetJoinedCampaign(void) { joinedOwnCampaign = -1; }
 
 extern "C" void VR_BeforeAddGameDirectory(const char* dir)
 {
@@ -1153,7 +1244,7 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
         if(!ZA_STRCMP(map, "maps/start") ||
             (sharedOthers && (!ZA_STRCMP(map, "maps/hub") || !ZA_STRCMP(map, "maps/end") || !ZA_STRCMP(map, "maps/dm1")))) { return 1; }
         const Campaign& c = campaigns[activeCampaign];
-        for(size_t r = 0; r < c.resourceCount; ++r)
+        for(za::SizeT r = 0; r < c.resourceCount; ++r)
         {
             if(ZA_STRNCMP(c.resources[r], "maps/", 5)) { continue; }
             char owned[MAX_QPATH];
@@ -1205,7 +1296,7 @@ extern "C" const char* VR_ModelFile(const char* name)
 
 // The game folder a file comes from, as relit/ names it ("maps/e1m1.bsp": id1; a map package's folder name): false
 // if there is no such file (vr_relight.cpp).
-extern "C" int VR_MapGameFolder(const char* name, char* out, size_t size)
+extern "C" int VR_MapGameFolder(const char* name, char* out, za::SizeT size)
 {
     if(!COM_FileExists(name, nullptr) || !com_filesource[0])
     {
@@ -1325,6 +1416,37 @@ extern "C" int VR_CanLoadCampaignMap(const char* map)
     { gameFolderName(com_filesource, source, sizeof(source)); }
     Cvar_SetROM("vr_honey_context", !q_strcasecmp(source, "honey") ? "1" : "0");
     return 1;
+}
+
+// Host_Map_f, the old server shut down (no game runs): the tutorial is always a single-player game of Quake's campaign,
+// however it is started (the start flow, the menus, the hub's button, the console). The author, 2026-11-23: after a
+// multiplayer test scene it kept the scene's client slots (maxplayers 4), and it behaved oddly. One player (the network
+// closed: MaxPlayers_f's way), no deathmatch, coop or teamplay, FrikBot's coop bots not brought back (scratch1), an mp
+// scene's slots not put back later, Quake the hub's chosen campaign (vr_activestartpaknameidx; the game folders are
+// Quake's already: VR_CanLoadCampaignMap).
+extern "C" void VR_TutorialSinglePlayer(const char* map)
+{
+    if(q_strcasecmp(map, "vrtutorial") && q_strcasecmp(map, "vrtutorial.bsp")) { return; }
+    qvr::scenario::dropSlots();
+    cvar_t* const teamplayVar = Cvar_FindVar("teamplay");
+    cvar_t* const bots = Cvar_FindVar("scratch1");
+    const bool multi = svs.maxclients > 1 || deathmatch.value != 0.f || coop.value != 0.f ||
+        (teamplayVar && teamplayVar->value != 0.f) || (bots && bots->value != 0.f);
+    if(multi)
+    {
+        Con_Printf("VR: the tutorial: a single-player game (was %d players, deathmatch %g, coop %g, teamplay %g)\n",
+            svs.maxclients, deathmatch.value, coop.value, teamplayVar ? teamplayVar->value : 0.f);
+    }
+    if(svs.maxclients > 1)
+    {
+        svs.maxclients = 1;
+        Cbuf_AddText("listen 0\n"); // (as `maxplayers 1` does; a no-op while nothing listens)
+    }
+    Cvar_SetQuick(&deathmatch, "0");
+    Cvar_SetQuick(&coop, "0");
+    if(teamplayVar && teamplayVar->value != 0.f) { Cvar_SetQuick(teamplayVar, "0"); }
+    if(bots && bots->value != 0.f) { Cvar_SetQuick(bots, "0"); }
+    if(qvr::vr_activestartpaknameidx.value != 0.f) { Cvar_SetValueQuick(&qvr::vr_activestartpaknameidx, 0); }
 }
 
 namespace
@@ -1554,7 +1676,7 @@ extern "C" int VR_CanChangeCampaignMap(const char* map)
 
 extern "C" int VR_HasNativeCampaignDirectory(const char* paths)
 {
-    const size_t length = ZA_STRLEN(vrGameDir);
+    const za::SizeT length = ZA_STRLEN(vrGameDir);
     for(const char* p = paths; p && *p;)
     {
         if(!q_strncasecmp(p, vrGameDir, length) && (p[length] == ';' || !p[length])) { return 1; }
@@ -1645,7 +1767,7 @@ void readOwnedIndex(OwnedIndex& index, const char* folder)
                 dirOffset <= fileSize && dirLength <= fileSize - dirOffset && !fseek(f, dirOffset, SEEK_SET))
             {
                 entries.resize(static_cast<za::SizeT>(count));
-                if(count > 0 && fread(entries.data(), sizeof(PackEntry), static_cast<size_t>(count), f) == static_cast<size_t>(count))
+                if(count > 0 && fread(entries.data(), sizeof(PackEntry), static_cast<za::SizeT>(count), f) == static_cast<za::SizeT>(count))
                 {
                     seen.clear();
                     for(const PackEntry& e : entries)
@@ -1682,7 +1804,7 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
     if(!slash || slash == folderStart || !slash[1] || ZA_STRSTR(name, "..") || strchr(name, ':') || strchr(name, '\\'))
     { return -1; }
     char folder[MAX_QPATH];
-    const size_t folderLength = static_cast<size_t>(slash - folderStart);
+    const za::SizeT folderLength = static_cast<za::SizeT>(slash - folderStart);
     if(folderLength >= sizeof(folder)) { return -1; }
     q_strlcpy(folder, folderStart, folderLength + 1);
     const int c = campaignIndex(folder);
@@ -1765,7 +1887,7 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
                 dirOffset <= fileSize && dirLength <= fileSize - dirOffset && !fseek(f, dirOffset, SEEK_SET))
             {
                 entries.resize(static_cast<za::SizeT>(count));
-                if(count > 0 && fread(entries.data(), sizeof(PackEntry), static_cast<size_t>(count), f) == static_cast<size_t>(count))
+                if(count > 0 && fread(entries.data(), sizeof(PackEntry), static_cast<za::SizeT>(count), f) == static_cast<za::SizeT>(count))
                 {
                     for(const PackEntry& e : entries)
                     {

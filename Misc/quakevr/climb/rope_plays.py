@@ -22,8 +22,11 @@ class Play:
         for h, p in REST.items():
             self.key(0.0, h, p)
 
-    def key(self, t, hand, p):
-        self.lines.append(f"{t:.3f} {hand} {p[0]:.3f} {p[1]:.3f} {p[2]:.3f} 0 0 0")
+    def key(self, t, hand, p, roll=0.0, yaw=0.0):
+        self.lines.append(f"{t:.3f} {hand} {p[0]:.3f} {p[1]:.3f} {p[2]:.3f} 0 {yaw:.1f} {roll:.1f}")
+
+    def head(self, t, p, yaw=0.0):
+        self.lines.append(f"{t:.3f} head {p[0]:.3f} {p[1]:.3f} {p[2]:.3f} 0 {yaw:.1f} 0")
 
     def rope(self, t, hand, y):
         self.key(t, hand, (AT[hand], y, FWD))
@@ -83,10 +86,13 @@ def climb():
     p.cmd(5.1, "+graboff")
     p.check(5.3, "held 2")
     p.check(5.3, "grip 2")
+    p.check(5.3, "sink 0.3")  # (ropes8a: round the rope, not through it)
+    p.check(5.3, "thumb 60")  # (ropes12: the thumbs wrap it the other way round from the fingers)
     p.check(5.3, "grunts 0 0")
     p.check(5.3, "mark")
     p.check(5.3, "nudge 150")
     p.check(5.6, "moved 15")
+    p.check(5.6, "legjerk 2.5")  # (ropes14: the feet eased as the swing moves the rope, vr_rope_leg_smooth; 4.0 without)
     p.cmd(5.65, "-graboff")
     p.cmd(5.65, "-grabmain")
     p.check(5.72, "flung 60")
@@ -182,7 +188,14 @@ def pole(material):
     p.check(3.5, "held 1")
     p.check(3.5, "wrapped 14")
     p.check(3.5, f"sound {material}")
+    p.check(3.5, "sink 0.3")  # (ropes8a: the drawn hand round it, not through it)
+    p.check(3.5, "thumb 60")  # (ropes12: the thumb wraps it the other way round from the fingers)
     p.check(3.5, "fixed")
+    p.check(3.5, "legjerk 2.5")  # (ropes14: the feet eased as he climbs it, vr_rope_leg_smooth)
+    p.check(3.5, "thumbmark")  # (ropes14: the thumb's tweaks turn it, by the thickness)
+    p.cmd(3.5, "tune vr_rope_thumb_lift 60")
+    p.check(3.65, "thumbmoved 6")
+    p.cmd(3.65, "tune vr_rope_thumb_lift 0")
     p.rope(3.7, "main", 1.0)
     p.cmd(3.8, "+grabmain")
     p.check(3.85, "mark")
@@ -193,6 +206,25 @@ def pole(material):
     p.check(4.7, "lowered 15")
     p.check(4.7, "fixed")
     p.check(4.8, "done")
+    return p
+
+
+def pole_jump():
+    # (ropes10, his notes 2026-11-23 2 and 6; a wooden pole) up hand over hand, both hands on it, jump with the grips
+    # still held (as a hand does): a normal jump's speed up and pushed off it, then a free fall to the floor, the held
+    # grips never taking it again; let go of them on the floor
+    p = Play()
+    up_two(p)
+    p.rope(3.6, "main", 1.75)
+    p.cmd(3.7, "+grabmain")
+    p.check(3.9, "held 2")
+    p.cmd(4.2, "+jump")
+    p.check(4.22, "polejumped")
+    p.cmd(4.3, "-jump")
+    p.check(5.6, "fellfree")
+    p.cmd(5.7, "-graboff")
+    p.cmd(5.7, "-grabmain")
+    p.check(5.8, "done")
     return p
 
 
@@ -216,6 +248,7 @@ def monkey(end):
     p.key(1.8, "main", (0.15, y1, z))
     p.check(1.9, "monkey 10")
     p.check(1.9, "legs 10")
+    p.check(1.9, "monkeygrip 2")  # (ropes8b: overhand under it, the knuckles up, the body's arms reaching the hands)
     p.check(1.92, "mark")
     t = 2.0
     hands = [("off", "-graboff", "+graboff", -0.15), ("main", "-grabmain", "+grabmain", 0.15)]
@@ -251,13 +284,113 @@ def monkey(end):
     return p
 
 
+def pole_through():
+    # (ropes14, his VR note 2026-11-23: no collision with it a moment after letting go) up a wooden pole, jump off it with
+    # the grips held, then straight back through it at 320 units/s (a jump where he looks, the pole in the way): let
+    # through (vr_rope_letgo_pass), on its far side
+    p = Play()
+    up_two(p)
+    p.rope(3.6, "main", 1.75)
+    p.cmd(3.7, "+grabmain")
+    p.check(3.9, "held 2")
+    p.cmd(4.2, "+jump")
+    p.check(4.22, "polejumped")
+    p.check(4.24, "aimthrough 320")
+    p.cmd(4.3, "-jump")
+    p.check(4.5, "passedthrough 8")
+    p.cmd(4.6, "-graboff")
+    p.cmd(4.6, "-grabmain")
+    p.check(4.7, "done")
+    return p
+
+
+MONKEY_Y0, MONKEY_Y1, MONKEY_Z = 2.0, 1.6, FWD - 0.15
+ROLL = {"off": -90.0, "main": 90.0}  # (the controllers' palms turned the same way along the view: one grip)
+
+
+def monkey_take(p, roll):
+    # both hands take a level pole overhead (rolled: `roll` times ROLL), pulled down to hang under it
+    for h, x in (("off", -0.15), ("main", 0.15)):
+        p.key(0.5, h, (x, MONKEY_Y0, MONKEY_Z), roll * ROLL[h])
+    p.cmd(0.6, "+graboff")
+    p.cmd(0.7, "+grabmain")
+    p.check(0.9, "held 2")
+    for h, x in (("off", -0.15), ("main", 0.15)):
+        p.key(1.0, h, (x, MONKEY_Y0, MONKEY_Z), roll * ROLL[h])
+        p.key(1.8, h, (x, MONKEY_Y1, MONKEY_Z), roll * ROLL[h])
+
+
+def monkey_keep():
+    # (ropes14, his VR notes 2026-11-23 vrropes 22-52-01, 22-52-59) a level pole across him taken with the controllers
+    # turned (the grip marked); his head turned round and moved across under it (as he looks back at his hands): each hand
+    # keeps the grip it took; the main hand let go and taken again turned the other way: that grip; then pulled down with
+    # the two grips: up he goes (either grip climbs)
+    p = Play()
+    monkey_take(p, 1.0)
+    p.check(1.9, "monkey 10")
+    p.check(1.9, "gripmark")
+    p.head(2.0, (0.0, 1.646, 0.0))
+    p.head(2.6, (0.0, 1.646, -0.5), 170.0)
+    for h, x in (("off", -0.15), ("main", 0.15)):  # (the controllers turned round on it too: the aim's way)
+        p.key(2.0, h, (x, MONKEY_Y1, MONKEY_Z), ROLL[h])
+        p.key(2.6, h, (x, MONKEY_Y1, MONKEY_Z), ROLL[h], 170.0)
+        p.key(3.0, h, (x, MONKEY_Y1, MONKEY_Z), ROLL[h])
+    p.check(1.9, "where")
+    p.check(2.8, "where")
+    p.check(2.8, "held 2")
+    p.check(2.8, "gripkept 0.95")
+    p.head(3.0, (0.0, 1.646, 0.0))
+    p.cmd(3.2, "-grabmain")
+    p.key(3.2, "main", (0.15, MONKEY_Y1, MONKEY_Z), ROLL["main"])
+    p.key(3.5, "main", (0.15, MONKEY_Y1 - 0.1, MONKEY_Z), -ROLL["main"])
+    p.key(3.8, "main", (0.15, MONKEY_Y1, MONKEY_Z), -ROLL["main"])
+    p.cmd(3.9, "+grabmain")
+    p.check(4.1, "held 2")
+    p.check(4.1, "gripflipped 0.9")
+    p.check(4.1, "mark")
+    p.key(4.2, "off", (-0.15, MONKEY_Y1, MONKEY_Z), ROLL["off"])
+    p.key(4.2, "main", (0.15, MONKEY_Y1, MONKEY_Z), -ROLL["main"])
+    p.key(4.9, "off", (-0.15, MONKEY_Y1 - 0.25, MONKEY_Z), ROLL["off"])
+    p.key(4.9, "main", (0.15, MONKEY_Y1 - 0.25, MONKEY_Z), -ROLL["main"])
+    p.check(5.0, "rose 5")
+    p.cmd(5.1, "-graboff")
+    p.cmd(5.1, "-grabmain")
+    p.check(5.3, "done")
+    return p
+
+
+def monkey_support():
+    # (ropes14, his VR note vrropes 22-54-18) hanging under a level pole, both hands pushed down (the body lifted over it):
+    # the wrists turn over it (the palms on top, the knuckles down); the hands back up (under it again): turned back
+    p = Play()
+    monkey_take(p, 0.0)
+    p.check(1.9, "monkeygrip 2")
+    for h, x in (("off", -0.15), ("main", 0.15)):
+        p.key(2.0, h, (x, MONKEY_Y1, MONKEY_Z))
+        p.key(2.8, h, (x, 0.85, MONKEY_Z))
+        p.key(3.2, h, (x, 0.85, MONKEY_Z))
+        p.key(4.0, h, (x, MONKEY_Y1, MONKEY_Z))
+    p.check(3.1, "where")
+    p.check(3.2, "support 2")
+    p.check(4.4, "monkeygrip 2")
+    p.cmd(4.5, "-graboff")
+    p.cmd(4.5, "-grabmain")
+    p.check(4.7, "done")
+    return p
+
+
 if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else "."
     os.makedirs(out, exist_ok=True)
     monkey("drop").write(os.path.join(out, "monkey_drop.txt"))
     monkey("jump").write(os.path.join(out, "monkey_jump.txt"))
+    monkey("drop").write(os.path.join(out, "pole_monkey.txt"))  # (ropes8a: on a level pole, `... 0 strungpole`)
     pole("wood").write(os.path.join(out, "pole_wood.txt"))
     pole("metal").write(os.path.join(out, "pole_metal.txt"))
+    pole_jump().write(os.path.join(out, "pole_jump.txt"))
+    pole_through().write(os.path.join(out, "pole_through.txt"))
+    monkey_keep().write(os.path.join(out, "monkey_keep.txt"))
+    monkey_support().write(os.path.join(out, "monkey_support.txt"))
     climb().write(os.path.join(out, "rope_climb.txt"))
     jump().write(os.path.join(out, "rope_jump.txt"))
     pump().write(os.path.join(out, "rope_pump.txt"))

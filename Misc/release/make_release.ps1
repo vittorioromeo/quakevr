@@ -117,6 +117,14 @@ param(
     [string]$EricwSource = "",
     # Other files to attach to the release.
     [string[]]$Assets = @(),
+    # The Quest APK: attached as QuakeVR.apk and latest.json's "quest" component (make_release.py --apk), what Setup's
+    # Meta Quest target downloads (Installer/README.md, "Quest"). "build": the release APK built from this commit after
+    # the version commit (Android/release_apk.sh build: Release, QVR_RELEASE, ThinLTO, not debuggable, signed with the
+    # release key from QVR_ANDROID_RELEASE_*; docs/vr-port/ANDROID_RELEASE.md). A file: an APK built before, checked as a
+    # release APK (release_apk.sh check) unless -ApkDev.
+    [string]$Apk = "",
+    # -Apk <file> may be a development APK (debuggable, the debug key: beta 1 and 2's kind); not with -Final.
+    [switch]$ApkDev,
     # Download address templates for latest.json ({tag}, {file}), in order. Default: the GitHub release's own assets.
     [string[]]$UrlBase = @(),
     # fteqcc64.exe. Default: $env:FTEQCC, the repo's Tools\fteqcc\fteqcc64.exe, then PATH.
@@ -709,6 +717,20 @@ if ($Textures -and -not (Test-Path -LiteralPath $Textures -PathType Leaf)) { Pro
 if ($hostedTextures) { Say "HD textures: hosted $((SupportFile 'hdtextures').file) ($(Size (SupportFile 'hdtextures').size), $(SupportTag 'hdtextures')): latest.json points at it, nothing uploaded" }
 elseif ($NoTextures) { Say "HD textures: none (-NoTextures): latest.json has no hdtextures component" }
 foreach ($a in $Assets) { if (-not (Test-Path -LiteralPath $a -PathType Leaf)) { Problem "-Assets: no file $a" } }
+# The Quest APK: built (-Apk build) or checked (-Apk <file>) by Android/release_apk.sh, in Git's bash (not WSL's).
+$apkBuild = $Apk -eq "build"
+$apkBash = @("$env:ProgramFiles\Git\bin\bash.exe", "${env:ProgramFiles(x86)}\Git\bin\bash.exe") | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if ($Apk -and -not $apkBuild -and -not (Test-Path -LiteralPath $Apk -PathType Leaf)) { Problem "-Apk: no file $Apk (or -Apk build)" }
+if ($Apk -and -not $apkBash) { Problem "-Apk: Git's bash.exe not found (Android/release_apk.sh runs in it)" }
+if ($ApkDev -and ($apkBuild -or -not $Apk)) { Problem "-ApkDev: only with -Apk <file>" }
+if ($ApkDev -and $Final) { Problem "-ApkDev: a final release ships the release APK (-Apk build)" }
+if ($apkBuild) {
+    $keyFile = if ($env:QVR_ANDROID_RELEASE_ENV) { $env:QVR_ANDROID_RELEASE_ENV } else { Join-Path $HOME ".quakevr\android-release.env" }
+    $keyVars = $env:QVR_ANDROID_RELEASE_KEYSTORE -and $env:QVR_ANDROID_RELEASE_STOREPASS
+    if (-not $keyVars -and -not (Test-Path -LiteralPath $keyFile -PathType Leaf)) {
+        Problem "-Apk build: the release key is not set (QVR_ANDROID_RELEASE_KEYSTORE and QVR_ANDROID_RELEASE_STOREPASS, or $keyFile; docs\vr-port\ANDROID_RELEASE.md)"
+    } else { Say "Quest APK: the release build, signed with the release key ($(if ($keyVars) { 'QVR_ANDROID_RELEASE_*' } else { $keyFile }))" }
+} elseif ($Apk) { Say "Quest APK: $Apk$(if ($ApkDev) { ' (a development APK: -ApkDev)' } else { ' (checked as a release APK)' })" }
 $ericwTools = if ($env:QVR_ERICW_TOOLS) { $env:QVR_ERICW_TOOLS } else { Join-Path $root "Tools\ericw-tools" } # (Quake VR's fork, committed)
 $shipsEricw = Test-Path (Join-Path $ericwTools "light.exe")
 if (-not $shipsEricw) { Warn "ericw-tools not found in $ericwTools (QVR_ERICW_TOOLS): the package will have no light.exe" }
@@ -769,7 +791,7 @@ if ($DryRun) {
     Say "engine         MSBuild ironwail.sln Release|x64 $(if ($Rebuild) { '(rebuild) ' })/p:QvrReleaseVersion=$Version"
     Say "installer      dotnet publish QuakeVR.Installer -c Release -r win-x64 single-file, /p:Version=$Version"
     Say "checks         statics, QC precedence, FGD, installer self-tests, latest.json, packaged installer (install harness), smoke launch$(if ((-not $quakeOk -and -not $detectAfterBuild) -or $SkipSmoke) { ' (skipped)' })"
-    Say "assets         QuakeVR.zip, QuakeVR-Setup.exe, latest.json, SHA256SUMS.txt$(if ($Textures) { ', ' + (Split-Path -Leaf $Textures) })$(if ($EricwSource) { ', ' + (Split-Path -Leaf $EricwSource) })$(foreach ($a in $Assets) { ', ' + (Split-Path -Leaf $a) })"
+    Say "assets         QuakeVR.zip, QuakeVR-Setup.exe, latest.json, SHA256SUMS.txt$(if ($Textures) { ', ' + (Split-Path -Leaf $Textures) })$(if ($EricwSource) { ', ' + (Split-Path -Leaf $EricwSource) })$(if ($Apk) { ', QuakeVR.apk (the Quest)' })$(foreach ($a in $Assets) { ', ' + (Split-Path -Leaf $a) })"
     Say "hdtextures     $(if ($hostedTextures) { "hosted: $(SupportUrl 'hdtextures') (not uploaded; checked online when building, not with -DryRun)" } elseif ($Textures) { 'uploaded with this release (-Textures)' } else { 'none (-NoTextures)' })"
     if ($shipsEricw) { Say "ericw source   $(if ($EricwSource) { 'uploaded with this release (-EricwSource)' } else { "linked from the notes: $(SupportUrl 'ericw_source')" })" }
     Say "tag            $tag on $short$(if ($online) { ", pushed to $remote" } else { ' (only with -Publish or -PushTag)' })"
@@ -788,6 +810,8 @@ if ($DryRun) {
     if ($RunTests) { $seq.Add("tests: python Misc\release\run_test_suite.py $TestAgent --build --log-dir $outDir\tests $($testArgs -join ' ')   (kit build.sh $TestAgent, then $testCount ($TestProfile profile, parallel lanes); a failure stops here)") }
     if ($bumpPending) { $seq.Add("write VERSION = $Version; git commit -m ""Version $Version"" -- VERSION   (local)") }
     $seq.Add("build: out\release\$Version moved aside if there; qvr_checks (Tools/qvr_checks: statics, qc_precedence, release_qc), fgdgen.py --check; MSBuild ironwail.sln ReleaseLTO|x64 /p:QvrReleaseVersion=$Version; package-quakevr.ps1 (recompiles the QC without the tests: fteqcc -DQVR_NO_TESTS; the checkout gets its development progs.dat back); dotnet publish QuakeVR.Installer; dotnet build QuakeVR.Installer.sln; the installer self-tests")
+    if ($apkBuild) { $seq.Add("Quest APK: bash Android/release_apk.sh build (QVR_ANDROID_RELEASE=1 build_native.sh: Release, QVR_RELEASE, ThinLTO, into build-android-release; package_apk.sh: not debuggable, the release key; check_apk.sh vr release); its unstripped libquakevr.so kept in symbols\") }
+    elseif ($Apk -and -not $ApkDev) { $seq.Add("Quest APK: bash Android/release_apk.sh check $Apk (check_apk.sh vr release)") }
     $seq.Add("assets: make_release.py (QuakeVR.zip, QuakeVR-Setup.exe, latest.json); checks: the zip = the allowlist, qvr-setup feed --file latest.json --assets, QuakeVR-Setup.exe's install harness + qvr-setup verify$(if ($quakeOk -and -not $SkipSmoke) { ", the smoke launch with $QuakeDir" } elseif ($detectAfterBuild) { ', the smoke launch with the Quake qvr-setup detect finds after the build' } else { ' (no smoke launch)' })")
     $seq.Add("notes: $(if ($notesSource) { $notesSource } else { "draft_release_notes.py -> $notesDraftPath" }) -> $outDir\release-body.md (+ the files' table, SHA256SUMS.txt)")
     if ($online) {
@@ -951,6 +975,22 @@ else {
 }
 
 # ------------------------------------------------------------------------------------------------------------------
+if ($Apk -and ($apkBuild -or -not $ApkDev)) {
+    Step "Quest APK ($(if ($apkBuild) { 'the release build: Android/release_apk.sh build' } else { "Android/release_apk.sh check $Apk" }))"
+    if ($apkBuild) {
+        # (After the version commit: the CMake build reads VERSION when it configures, vr.cmake.)
+        Invoke-Logged $apkBash @("Android/release_apk.sh", "build") (Join-Path $logs "apk_release.log") | Out-Null
+        $Apk = Join-Path $root "build-android-release\apk\QuakeVR.apk"
+        # The unstripped engine library beside the release's symbols: a Quest crash report's addresses resolve with it.
+        $symbolsDir = Join-Path $outDir "symbols"
+        New-Item -ItemType Directory -Force $symbolsDir | Out-Null
+        Copy-Item (Join-Path $root "build-android-release\libquakevr.so") $symbolsDir -Force
+    } else {
+        Invoke-Logged $apkBash @("Android/release_apk.sh", "check", ((Resolve-Path $Apk).Path -replace '\\', '/')) (Join-Path $logs "apk_check.log") | Out-Null
+    }
+    Get-Content (Join-Path $logs $(if ($apkBuild) { "apk_release.log" } else { "apk_check.log" })) | Select-String "check_apk: \d+ passed" | ForEach-Object { Say "  $_" }
+}
+
 Step "Release assets and latest.json (Misc\quakevr\make_release.py)"
 $mrArgs = @("Misc\quakevr\make_release.py", "--package", $packageDir, "--setup", $setup, "--tag", $tag, "--out", $assetsDir)
 $mrArgs += @("--support-assets", $supportPath)
@@ -958,6 +998,7 @@ if ($Textures) { $mrArgs += @("--textures", (Resolve-Path $Textures).Path) }
 elseif ($NoTextures) { $mrArgs += "--no-textures" }
 if ($EricwSource) { $mrArgs += @("--asset", (Resolve-Path $EricwSource).Path) }
 foreach ($a in $Assets) { $mrArgs += @("--asset", (Resolve-Path $a).Path) }
+if ($Apk) { $mrArgs += @("--apk", (Resolve-Path $Apk).Path) }
 foreach ($u in $UrlBase) { $mrArgs += @("--url-base", $u) }
 Invoke-Logged $python $mrArgs (Join-Path $logs "make_release.log") | Out-Null
 # Its PUBLISH.txt describes the manual route; this script's own instructions replace it, and assets\ is exactly the upload.

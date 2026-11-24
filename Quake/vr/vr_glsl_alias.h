@@ -520,13 +520,14 @@ LIGHT_BUFFER \
 "	if (inst.Ambient[2].w != 0.0) // QVR: a skeletal model morphing (your armour's plates): its rest pose, so the noise rides it\n" \
 "		out_morphpos.xyz = bind_pos;\n" \
 "#endif\n" \
-"	if (inst.Barrel.x > 0.5) // QVR: a hot gun barrel's glow ramp (vr/vr_hotblade.cpp barrelInstance) along its rest pose: the firing frames move the metal, the glow stays on it\n" \
+"	if (inst.Barrel.x > 0.5) // QVR: a hot gun barrel's glow ramp (vr/vr_hotblade.cpp barrelInstance) along its rest pose: the firing frames move the metal, the glow stays on it; along the pose's x, or (HotBlade xyz not zero: a barrel's fragment reads it not) along its grip-to-muzzle line\n" \
 "	{\n" \
 "#if POSEVERTTYPE == 0\n" \
-"		out_morphpos.w = GetPoseVertex(0u).pos.x * inst.Barrel.y + inst.Barrel.z;\n" \
+"		vec3 bpos = vec3(GetPoseVertex(0u).pos);\n" \
 "#else\n" \
-"		out_morphpos.w = lerpedPos.x * inst.Barrel.y + inst.Barrel.z;\n" \
+"		vec3 bpos = lerpedPos;\n" \
 "#endif\n" \
+"		out_morphpos.w = (inst.HotBlade.xyz != vec3(0.0) ? dot(bpos, inst.HotBlade.xyz) : bpos.x * inst.Barrel.y) + inst.Barrel.z;\n" \
 "	}\n" \
 "	float dirkeep = inst.Ambient[1].w; // QVR: the share of the directional shading the ambient cube leaves (1 without it)\n" \
 "	out_bumplight = vec4(lightdir, (abs(inst.Glow.y) - 1.0) * dirkeep); // QVR: Glow.y: +-(1 + the bumps' strength), + on a par with the world\n" \
@@ -1397,7 +1398,7 @@ QVR_DENT_FUNCTIONS \
 // The ES lite form (GL_AliasLiteDefines, C4j; QUEST_PLAN.md 6q): retro lighting (vr_retrolight 0: its frame data all
 // 0, so RetroLight[5].z 0) taken out of main() as constants, as the world's QVR_WORLD_FS_LITE; after every function.
 #define QVR_ALIAS_FS_LITE \
-"#ifdef QVR_ALITE_NORETRO\n" /* -glesdefine's probe (C4l): the models' retro textures' code out (vr_retro 0; C4m: no safe cut, QUEST_PLAN.md 6t) */ \
+"#ifdef QVR_ALITE_NORETRO\n" /* vr_gles_define's probe (C4l): the models' retro textures' code out (vr_retro 0; C4m: no safe cut, QUEST_PLAN.md 6t) */ \
 "#define RetroBegin(a, b, c, d, e, f, g) Retro = 0\n" \
 "#endif\n" \
 "#ifdef QVR_LITE_NORETROLIGHT\n" \
@@ -1662,30 +1663,30 @@ QVR_ALIAS_FS_PLAIN
 "#else\n" \
 "	SpecularAA(Parallax.w > 0. ? NormalSpread(bumped) : 0.0); // QVR: the sheen's lobe widened by the bumps and curves under the pixel (vr_specular_aa)\n" \
 "#endif\n" \
-"	vec3 skin = result.rgb; // QVR: for the rim light and reflections\n" \
-"	vec3 spec; // QVR\n" \
+"	QVR_MP vec3 skin = result.rgb; // QVR: for the rim light and reflections\n" \
+"	QVR_MP vec3 spec; // QVR\n" \
 "	// QVR: ambient occlusion (vr/vr_ao.cpp): the model's own and that of what moves near it darken its own light;\n" \
 "	// dynamic lights get half of its own (in the log: its square root), shadows stand for the rest\n" \
 "	// (in_vao clamped: under foveated rendering's coarse shading a fragment's inputs are interpolated at its block's\n" \
 "	// centre, which can be past the triangle's edge, where in_vao runs on below 0: sqrt gave NaN, drawn white)\n" \
 "	float vao = clamp(in_vao, 0.0, 1.0);\n" \
 "#ifdef QVR_APLAIN_VLIGHT\n" /* C4y: the plain forms' light worked out at the vertices (QVR_ALIAS_VS_VLIGHT) */ \
-"	vec3 own_light = in_vlight;\n" \
+"	QVR_MP vec3 own_light = in_vlight;\n" \
 "#else\n" \
 "	float occlusion = vao * DynamicAO(in_pos + EyePos, AONormal(n, in_bumplight.xyz), instances[in_instance].AO.x, in_coord, in_depth);\n" \
 "#ifdef QVR_PROBE_AAMB\n" /* vr_gles_define's probe (C4m): the model's own light the vertex light alone */ \
-"	vec3 own_light = in_color.rgb;\n" \
+"	QVR_MP vec3 own_light = in_color.rgb;\n" \
 "#else\n" \
-"	vec3 own_light = in_color.rgb * ModelBumpShade(n, bumped) * ModelAmbient(n, bumped) * occlusion; // QVR\n" \
+"	QVR_MP vec3 own_light = in_color.rgb * ModelBumpShade(n, bumped) * ModelAmbient(n, bumped) * occlusion; // QVR\n" \
 "#endif\n" \
 "#endif\n" \
 "	if (dent.depth > 0.0) // QVR: a dent's bowl shaded by the model's light whatever the bumps' share of it: its far wall lit, its near one dark\n" \
 "		own_light *= max(1.0 + 1.2 * dot(bumped - n * dot(bumped, n), in_bumplight.xyz * inversesqrt(max(dot(in_bumplight.xyz, in_bumplight.xyz), 1e-6))), 0.3);\n" \
 "#if defined(QVR_APLAIN_VLIGHT)\n" \
-"	vec3 dyn_light = in_vdyn; // (C4y: no sheen from them)\n" \
+"	QVR_MP vec3 dyn_light = in_vdyn; // (C4y: no sheen from them)\n" \
 "	spec = vec3(0.0);\n" \
 "#else\n" \
-"	vec3 dyn_light = ModelDynamicLights(n, bumped, spec) * sqrt(vao); // QVR\n" \
+"	QVR_MP vec3 dyn_light = ModelDynamicLights(n, bumped, spec) * sqrt(vao); // QVR\n" \
 "#endif\n" \
 "	if (RetroLight[5].z > 0.) // QVR: retro lighting's levels (vr_retrolight.h; no derivatives after the discard)\n" \
 "	{\n" \
@@ -1695,7 +1696,7 @@ QVR_ALIAS_FS_PLAIN
 "		RetroLightModel(own_light, dyn_light, true);\n" \
 "#endif\n" \
 "	}\n" \
-"	vec3 light = own_light + dyn_light; // QVR\n"
+"	QVR_MP vec3 light = own_light + dyn_light; // QVR\n"
 
 // fullbrights, wounds' glow, force grab's glow, morphs
 #define QVR_ALIAS_FS_GLOW \

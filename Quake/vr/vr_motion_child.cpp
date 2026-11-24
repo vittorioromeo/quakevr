@@ -62,7 +62,7 @@ void append(Wide& w, za::SizeT count, wchar_t c)
 void appendQuoted(Wide& line, const Wide& arg)
 {
     line.pushBack(L'"');
-    size_t slashes = 0;
+    za::SizeT slashes = 0;
     for(const wchar_t c : arg)
     {
         if(c == L'\\')

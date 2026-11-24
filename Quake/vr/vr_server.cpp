@@ -33,6 +33,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
+#include "vr_playerhit.hpp"
 #include "vr_server.hpp"
 #include "vr_serverrules.hpp"
 #include "vr_tracy.h"
@@ -49,6 +50,7 @@
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
@@ -972,7 +974,7 @@ extern "C" void VR_SnapEnd(sizebuf_t* msg)
                 if(j >= i && r.kinds[j] == qvr::server::scopedOther && r.ents[j] == e &&
                     len + jlen <= static_cast<int>(sizeof(w.poseJoin)))
                 {
-                    ZA_MEMCPY(w.poseJoin + len, r.roomBuf + jat, static_cast<size_t>(jlen));
+                    ZA_MEMCPY(w.poseJoin + len, r.roomBuf + jat, static_cast<za::SizeT>(jlen));
                     len += jlen;
                 }
             }
@@ -1001,7 +1003,7 @@ void qvr::server::queueBroadcast(const byte* data, int len)
     {
         return; // (unreliable, as the datagram is: none when full)
     }
-    ZA_MEMCPY(b.queued + used, data, static_cast<size_t>(len));
+    ZA_MEMCPY(b.queued + used, data, static_cast<za::SizeT>(len));
     b.queuedEnds[b.numQueued++] = used + len;
 }
 
@@ -1332,7 +1334,7 @@ extern "C" void VR_NoteClientSight(const edict_t* clent, const byte* pvs, const 
     s.eye = {eye[0], eye[1], eye[2]};
     const int bytes = (sv.worldmodel->numleafs + 7) >> 3;
     s.pvs.resize(static_cast<za::SizeT>(bytes));
-    ZA_MEMCPY(s.pvs.data(), pvs, static_cast<size_t>(bytes));
+    ZA_MEMCPY(s.pvs.data(), pvs, static_cast<za::SizeT>(bytes));
 }
 
 // SV_SendClientDatagram: the broadcast into this client's datagram (`local`: the loopback client's, all of it).
@@ -2448,6 +2450,13 @@ void writeGunLooks(sizebuf_t* msg, edict_t* ent, const VrDrawnHolsters& holsters
     }
 }
 
+// A bot's head as its avatar sends it, from its origin: its eyes raised to the default player's height (units::botEyeRaise).
+[[nodiscard]] glm::vec3 botHead(const edict_t* ent)
+{
+    return glm::vec3{ent->v.view_ofs[0], ent->v.view_ofs[1],
+        ent->v.view_ofs[2] + units::botEyeRaise(static_cast<float>(DEFAULT_VIEWHEIGHT) - ent->v.mins[2])};
+}
+
 // A bot's holstered weapons (syncfix; the voice note 2026-11-21: "so that I can see what they're actually carrying"): its
 // QC holsters' models, frames 0, places left to each client (VrDrawnGear::solveBit: on its body as drawn).
 [[nodiscard]] VrDrawnHolsters botHolstered(edict_t* ent)
@@ -2534,10 +2543,7 @@ void writeAvatars()
         MSG_WriteShort(&tmp, i + 1);
         MSG_WriteByte(&tmp, mpavatar::movesByte(ent, m && (m->move.vrBits0 & protocol::moveFlatplayBit) != 0));
         // (rebaseHands moves the head and its base along together)
-        // (a bot's head: its eyes raised to the default player's height, units::botEyeRaise)
-        writeEighths(&tmp, m ? m->move.headPos - m->base
-                             : v3(ent->v.view_ofs) + glm::vec3{0.f, 0.f,
-                                   units::botEyeRaise(static_cast<float>(DEFAULT_VIEWHEIGHT) - ent->v.mins[2])});
+        writeEighths(&tmp, m ? m->move.headPos - m->base : botHead(ent));
         writeAngles16(&tmp, m ? m->move.headAngles : v3(ent->v.v_angle));
         writeBodyPose(&tmp, m ? m->move.body : body); // (his body's yaw, crouch and lean, as his client poses it: B2d)
         const VrDrawnHand* const hands = m ? m->move.drawn : drawn;
@@ -2576,7 +2582,7 @@ void writeAvatars()
         }
         AvatarSent& last = avatarsSent[i];
         const int keyframe = za::max(static_cast<int>(vr_net_avatar_keyframe.value), 1);
-        const bool same = last.size == tmp.cursize && ZA_MEMCMP(last.bytes, data, static_cast<size_t>(tmp.cursize)) == 0;
+        const bool same = last.size == tmp.cursize && ZA_MEMCMP(last.bytes, data, static_cast<za::SizeT>(tmp.cursize)) == 0;
         const bool waits = same && ++last.unsent < keyframe;
         // (queued either way: a snapshot client's snapshot has it every frame, B7b; to the others a waiting one goes not)
         sizebuf_t* msg = qvr::server::scopedBegin(i + 1, true);
@@ -2591,7 +2597,7 @@ void writeAvatars()
             avatarStats.skipped++;
             continue;
         }
-        ZA_MEMCPY(last.bytes, data, static_cast<size_t>(tmp.cursize));
+        ZA_MEMCPY(last.bytes, data, static_cast<za::SizeT>(tmp.cursize));
         last.size = tmp.cursize;
         last.unsent = 0;
         avatarStats.sent++;
@@ -2657,7 +2663,7 @@ extern "C" void VR_ServerFrameEnd(int worldRan)
     // his client (a dedicated server's frame between two of his moves, bunched moves) keeps it as it was, and an edge
     // (a grip pressed or let go) was seen again every such frame (a let-go noted twice: QC's grip times moved on).
     const int vrbitsOfs = fields().vrbits0;
-    for(size_t i = 0; i < clientBits.size(); i++)
+    for(za::SizeT i = 0; i < clientBits.size(); i++)
     {
         ClientBits& bits = clientBits[i];
         bits.previousFrame = bits.received;
@@ -2709,6 +2715,38 @@ bool botHeld(edict_t* bot, int hand, view::HeldPlace& out)
         return false;
     }
     return view::placeHeld(model, hand, fieldVec(bot, hf.pos), fieldVec(bot, hf.rot), out);
+}
+
+bool avatarPose(int slot, playerhit::Pose& out)
+{
+    if(!sv.active || slot < 0 || slot >= svs.maxclients)
+    {
+        return false;
+    }
+    const client_t& c = svs.clients[slot];
+    const ClientMove* const m = slot < static_cast<int>(clientMoves.size()) && clientMoves[slot].valid ? &clientMoves[slot] : nullptr;
+    const bool bot = isBot(slot);
+    edict_t* const ent = c.active ? c.edict : EDICT_NUM(slot + 1);
+    int build = 0;
+    float scale = 1.f;
+    if((!bot && (!c.active || !c.spawned || !c.edict || !m)) || !mpavatar::serverBody(slot, build, scale))
+    {
+        return false;
+    }
+    const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+    // (writeAvatars' head, body yaw and hands: what every client poses his body from)
+    out.head = m ? m->move.headPos - m->base : botHead(ent);
+    out.yaw = m ? (m->move.body.valid ? m->move.body.yaw : m->move.headAngles[YAW]) : ent->v.v_angle[YAW];
+    for(int h = 0; h < 2; h++)
+    {
+        const progs::HandFields& hf = progs::handFields(h);
+        const glm::vec3 field = hf.pos >= 0 ? fieldVec(ent, hf.pos) : glm::vec3{0.f};
+        out.hasHand[h] = m ? m->move.drawn[h].flags != 0 : field != glm::vec3{0.f};
+        out.hand[h] = m ? m->move.drawn[h].handOrigin - m->move.origin : field - origin;
+    }
+    out.m2w = units::perMetre * scale;
+    out.floor = ent->v.mins[2];
+    return true;
 }
 
 // vr_dumpplayer: prints the local player's VR fields as the server sees them.

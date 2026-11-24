@@ -13,6 +13,7 @@
 #include "vr_testkit.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -319,7 +320,7 @@ void readAnims(const qmodel_t* m)
     {
         char name[16];
         q_strlcpy(name, named && i < named->numframes ? named->frames[i].name : hdr->frames[i].name, sizeof(name));
-        size_t n = ZA_STRLEN(name);
+        za::SizeT n = ZA_STRLEN(name);
         while(n > 0 && ((name[n - 1] >= '0' && name[n - 1] <= '9') || name[n - 1] == '_'))
         {
             name[--n] = '\0';
@@ -394,7 +395,12 @@ void keepSubject()
         st.running = false; // (a new map: the studio closed)
         st.subject = 0;
         agarmor::studioView(0, 1.f, 0, false);
-        Cvar_SetValueQuick(&vr_agrunt_freeze, st.freezeWas);
+        // (only while still frozen: a scene that set it and put it back, or a map change that ended the scene, unfroze them
+        // first: putting the studio's value back then froze the next scene's humanoids; his note of 2026-11-23 23:03:39)
+        if(vr_agrunt_freeze.value != 0.f)
+        {
+            Cvar_SetValueQuick(&vr_agrunt_freeze, st.freezeWas);
+        }
         return;
     }
     // (a new kind put there once you are in the level: a script's `map x; vr_armourstudio` asks before)
@@ -450,7 +456,12 @@ void closeStudio(const char* why)
 {
     if(st.running)
     {
-        Cvar_SetValueQuick(&vr_agrunt_freeze, st.freezeWas);
+        // (only while still frozen: a scene that set it and put it back, or a map change that ended the scene, unfroze them
+        // first: putting the studio's value back then froze the next scene's humanoids; his note of 2026-11-23 23:03:39)
+        if(vr_agrunt_freeze.value != 0.f)
+        {
+            Cvar_SetValueQuick(&vr_agrunt_freeze, st.freezeWas);
+        }
     }
     st.running = false;
     st.menuSeen = false;

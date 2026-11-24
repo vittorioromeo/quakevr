@@ -12,6 +12,7 @@
 #include "vr_testkit.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -59,7 +60,7 @@ void log(const char* text, bool)
 } // namespace os
 
 constexpr int maxPath = 1024;
-constexpr size_t logLineSize = 1024; // logcat cuts a message at about 4 KB; a console line is far shorter
+constexpr za::SizeT logLineSize = 1024; // logcat cuts a message at about 4 KB; a console line is far shorter
 
 // The layer's state (set once at start-up, main thread).
 struct Android
@@ -82,7 +83,7 @@ struct LogLines
 {
     SDL_SpinLock lock = 0;
     char line[logLineSize]{};
-    size_t len = 0;
+    za::SizeT len = 0;
     void (*sink)(const char*) = nullptr; // (vr_android_test's capture; null: os::log)
 } logLines;
 
@@ -185,15 +186,15 @@ bool fakeRequested(int argc, char** argv)
 struct LogCapture
 {
     int lines = 0;
-    size_t chars = 0;
-    size_t longest = 0;
+    za::SizeT chars = 0;
+    za::SizeT longest = 0;
     char first[64]{};
     char second[64]{};
 } logCapture;
 
 void captureLine(const char* line)
 {
-    const size_t n = ZA_STRLEN(line);
+    const za::SizeT n = ZA_STRLEN(line);
     if(logCapture.lines == 0)
     {
         q_strlcpy(logCapture.first, line, sizeof logCapture.first);
@@ -237,7 +238,7 @@ void test_f()
 
     // The console's text into logcat: pieces joined into lines, a newline a message, an overlong line in pieces.
     SDL_AtomicLock(&logLines.lock);
-    const size_t pending = logLines.len; // (text of the game's own, waiting for its newline: kept aside)
+    const za::SizeT pending = logLines.len; // (text of the game's own, waiting for its newline: kept aside)
     char kept[logLineSize];
     ZA_MEMCPY(kept, logLines.line, pending);
     logLines.len = 0;
@@ -339,10 +340,10 @@ void export_f()
         q_snprintf(dst, sizeof dst, "%s/%s", to, name);
         FILE* in = fopen(src, "rb");
         FILE* out = in ? fopen(dst, "wb") : nullptr;
-        size_t bytes = 0;
+        za::SizeT bytes = 0;
         bool written = out != nullptr;
         char buf[16384];
-        for(size_t n = 0; out && (n = fread(buf, 1, sizeof buf, in)) > 0; bytes += n)
+        for(za::SizeT n = 0; out && (n = fread(buf, 1, sizeof buf, in)) > 0; bytes += n)
         {
             written = written && fwrite(buf, 1, n, out) == n;
         }
@@ -443,10 +444,10 @@ extern "C" int VR_AndroidFirstRun(void)
 }
 
 // Child processes of our own (the relighting's light runs, the motion review's evaluation copy): none on Android
-// (the app may not start its own executable) nor with -nochildprocesses.
+// (the app may not start its own executable; -fakeandroid gives the same on the PC).
 extern "C" int VR_ChildProcesses(void)
 {
-    return !android.on && !COM_CheckParm("-nochildprocesses");
+    return !android.on;
 }
 
 extern "C" void VR_AndroidInit(void)

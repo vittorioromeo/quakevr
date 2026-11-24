@@ -8,6 +8,7 @@
 #include "vr_gadget.hpp"
 #include "vr_hands.hpp"
 #include "vr_mem.hpp"
+#include "vr_msgtokens.hpp"
 #include "vr_protocol.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
@@ -19,6 +20,7 @@
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -102,13 +104,37 @@ bool centerHeld = false; // new tips held back by a centre print (frame(); for i
 
 [[nodiscard]] MapTip* mapTipOf(int t)
 {
-    return t >= tipCount && t < tipTotal() ? &mapTips[static_cast<size_t>(t - tipCount)] : nullptr;
+    return t >= tipCount && t < tipTotal() ? &mapTips[static_cast<za::SizeT>(t - tipCount)] : nullptr;
 }
+
+// A tip's text as shown (vr_msgtokens.hpp: the mode's wording, the player's keys), kept until its tip, text or the
+// binds change (the panel draws it every frame; the text queued for it points into this).
+struct ShownText
+{
+    int tip{-1};
+    unsigned signature{0};
+    za::String from;
+    za::String text;
+};
+ShownText shownText;
 
 [[nodiscard]] const char* tipText(int t)
 {
     const MapTip* mt = mapTipOf(t);
-    return mt ? mt->text.cStr() : tips[t].text;
+    const char* raw = mt ? mt->text.cStr() : tips[t].text;
+    if(!msgtokens::has(raw))
+    {
+        return raw;
+    }
+    const unsigned sig = msgtokens::signature();
+    if(shownText.tip != t || shownText.signature != sig || shownText.from != za::String{raw})
+    {
+        shownText.tip = t;
+        shownText.signature = sig;
+        shownText.from = raw;
+        shownText.text = msgtokens::expand(raw);
+    }
+    return shownText.text.cStr();
 }
 
 [[nodiscard]] const char* tipName(int t)
@@ -192,13 +218,13 @@ bool addKey(za::StringView key)
 [[nodiscard]] int addKeys(za::StringView list)
 {
     int added = 0;
-    for(size_t i = 0; i < list.size();)
+    for(za::SizeT i = 0; i < list.size();)
     {
         while(i < list.size() && static_cast<unsigned char>(list[i]) <= ' ')
         {
             i++;
         }
-        size_t j = i;
+        za::SizeT j = i;
         while(j < list.size() && static_cast<unsigned char>(list[j]) > ' ')
         {
             j++;
@@ -573,7 +599,7 @@ void drawShowing()
         PR_RunError("invalid tip handle %d", handle);
     }
 
-    return serverTips[static_cast<size_t>(handle)];
+    return serverTips[static_cast<za::SizeT>(handle)];
 }
 
 // Changes made while the map is loading are not broadcast: spawning clients get the full list from serverWriteAll.
@@ -618,7 +644,7 @@ void writeAll(sizebuf_t* msg, const za::Vector<MapTip>& list, unsigned int proto
     for(int handle = 0; handle < static_cast<int>(list.size()); handle++)
     {
         beginMessage(msg, QVR_SVC_TIP_MAKE, handle);
-        writeTip(msg, handle, list[static_cast<size_t>(handle)], protocolflags);
+        writeTip(msg, handle, list[static_cast<za::SizeT>(handle)], protocolflags);
     }
 }
 
@@ -631,10 +657,10 @@ void writeAll(sizebuf_t* msg, const za::Vector<MapTip>& list, unsigned int proto
 
     if(handle >= static_cast<int>(mapTips.size()))
     {
-        mapTips.resize(static_cast<size_t>(handle) + 1);
+        mapTips.resize(static_cast<za::SizeT>(handle) + 1);
     }
 
-    return mapTips[static_cast<size_t>(handle)];
+    return mapTips[static_cast<za::SizeT>(handle)];
 }
 
 // The map's worldspawn "_vr_tips_repeat": every tip in it repeats (a tutorial map). Read here, as QC never sees a key
@@ -805,7 +831,7 @@ void serverFrame()
 {
     for(int handle = 0; handle < static_cast<int>(serverTips.size()); handle++)
     {
-        const MapTip& mt = serverTips[static_cast<size_t>(handle)];
+        const MapTip& mt = serverTips[static_cast<za::SizeT>(handle)];
         if(mt.ent < 0)
         {
             continue;
@@ -852,7 +878,7 @@ mem::Reset clientStateReset{"tips", mem::ResetEvent::ClientState, mem::ResetPhas
 void fired(int handle)
 {
     const int t = tipCount + handle;
-    const MapTip& mt = mapTips[static_cast<size_t>(handle)];
+    const MapTip& mt = mapTips[static_cast<za::SizeT>(handle)];
     if((mt.flags & Repeat) == 0 && seen(seenKeyOf(t)))
     {
         return;
@@ -1122,7 +1148,7 @@ void test_f()
     }
     za::stableSort(nearby.begin(), nearby.end(), [](const Near& a, const Near& b) { return a.d < b.d; });
     const float limit = rangeOf(mapTipOf(t) ? mapTipOf(t)->distance : 0.f);
-    for(size_t i = 0; i < nearby.size() && i < 3; i++)
+    for(za::SizeT i = 0; i < nearby.size() && i < 3; i++)
     {
         const entity_t* e = nearby[i].ent ? liveEntity(nearby[i].ent) : nullptr;
         const glm::vec3 to = glm::normalize(nearby[i].point - head.head);
@@ -1135,6 +1161,18 @@ void test_f()
     }
     pendingTest = t; // (as the menu or the console closes)
     showing.tip = -1;
+}
+
+za::String shownTextOf(const char* name)
+{
+    for(int t = tipCount; t < tipTotal(); t++)
+    {
+        if(!q_strcasecmp(tipName(t), name))
+        {
+            return za::String{tipText(t)};
+        }
+    }
+    return za::String{};
 }
 
 } // namespace qvr::tips

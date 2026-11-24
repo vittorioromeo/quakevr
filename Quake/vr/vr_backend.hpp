@@ -251,8 +251,9 @@ public:
 
     // The part of the eye's image (from its lower left corner, GL's) the layer shows this frame, scaled to the view by
     // the compositor (vr_eye_subimage: eyes drawn smaller than the image, no resample of ours); 0 x 0: the whole image.
+    // x, y: the part's lower left corner in the image (GL's: vr_eye_rect_place, the part centred on the foveation's bins).
     // False if the backend can't show a part (the eye then fills its image).
-    virtual bool setEyeImageRect(int /* eye */, int /* width */, int /* height */)
+    virtual bool setEyeImageRect(int /* eye */, int /* width */, int /* height */, int /* x */ = 0, int /* y */ = 0)
     {
         return false;
     }
@@ -260,6 +261,19 @@ public:
     // GL texture to render an eye into, between acquire and release.
     [[nodiscard]] virtual unsigned acquireEyeImage(int eye) = 0;
     virtual void releaseEyeImage(int eye) = 0;
+    // Changes whenever the eye images are new (new swapchains: a GL name acquireEyeImage gave before may now be another
+    // image): framebuffers kept per image (vr_xr_direct 2) are made again.
+    [[nodiscard]] virtual unsigned eyeImagesSerial() const
+    {
+        return 0;
+    }
+    // True while this frame's eye images carry the runtime's fixed foveation (the Quest's vr_xr_foveation, a level over
+    // 0). Settled when the frame begins: a level changed later in the frame (the menu, the console) reaches the images
+    // only with the next frame's new swapchains, so the eyes' path follows this, not the cvar (qfovcrash).
+    [[nodiscard]] virtual bool eyeImagesFoveated() const
+    {
+        return false;
+    }
 
     // Finishes the frame begun by beginFrame; `rendered` if the eye images were rendered (or, FrameState::hold, the last
     // rendered ones are to be shown again).
@@ -293,6 +307,14 @@ public:
     [[nodiscard]] virtual bool runtimeMenuOpen() const
     {
         return false;
+    }
+
+    // The player wears the headset: false only when the runtime's sensor says it was taken off (OpenXR's
+    // XR_EXT_user_presence, vr_xr_user_presence 1; from PR #75, by Kasper Olesen). Off, the game acts as with the
+    // runtime's menu open (the frame held, a single player game paused) and the controllers press nothing.
+    [[nodiscard]] virtual bool userPresent() const
+    {
+        return true;
     }
 
     // The headset's name as the runtime gives it (OpenXR's systemName; "" if none): its panel looked up by it for the

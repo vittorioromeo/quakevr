@@ -596,6 +596,7 @@ void() VR_DeadAnim_Frame; // (vr_deadanim.qc, after AD's files)
 void() VR_DeadAnim_TestFrame;
 void() VR_DV_Frame; // (vr_disarmviz.qc, after the armed grunts' files)
 void() VR_DMLoose_Frame; // (vr_dmloose.qc, after vr_wpnholster.qc)
+void() VR_GoreTrim_Frame; // (vr_dmloose.qc)
 
 void() StartFrame =
 {
@@ -614,6 +615,7 @@ void() StartFrame =
     MG_WorldFrame();
     VR_AGR_Frame(); // QVR: armed humanoid replacements' loadouts, once a player is in (vr_armedrepl.qc)
     VR_ARENA_Frame(); // QVR: Survival Arena: the players down to their fists, once its clients are in (vr_arena.qc)
+    VR_GoreTrim_Frame(); // QVR: settled gibs, heads and limbs past Most Settled Gore, the farthest first (vr_dmloose.qc, qtune)
     VR_DMLoose_Frame(); // QVR: deathmatch's loose gibs and dropped weapons capped, the oldest first (vr_dmloose.qc, B13b)
     MGH_PowerupFrame();
     MG3_Frame();
@@ -640,6 +642,7 @@ void() StartFrame =
     VR_Burn_LavaNailsWater(); // VR: lava nails going into water are put out (vr_burning.qc)
     VR_Grapple_WorldFrame(); // VR: the grappling hooks whose guns lie about (vr_grapple.qc)
     VR_Throw_SelfFrame(); // VR: things you threw hurt you once vr_throw_self_grace is over (vr_carry.qc)
+    VR_Decap_DebugFrame(); // VR: Debug > Show Hit Zones (vr_decap.qc; hitzones: was only in the tests' frame, never shipped)
 #ifdef QVR_TESTS
     VR_TestsFrame(); // the tests' frames, once each (vr_testutil.qc)
 #endif

@@ -297,7 +297,8 @@ what they're fighting against ... run-time conditional hue/tint recolors on thei
 backpacks". Every armed humanoid, however armed (a variant, a replacement's roll, the toolgun, a wave, a map's
 `weapon`), gets a look from the weapon it holds as it is armed (`VR_HUM_Look`, called by `VR_AM_Spawn` and
 `VR_AGR_Resolve`): `.vr_hum_look` = its row x 16 + the weapon's category (`VR_HUM_CAT_*`: 1 explosive, 2 energy, 3 flame,
-4 poison, 5 shells, 6 nails, 7 melee, 8 its own gun; a gun beside a blade: the gun's). It keeps it (a disarmed rocket
+4 poison, 5 shells, 6 nails, 7 melee, 8 its own gun; a gun beside a blade: the gun's; the enforcer's own laser
+rifle is energy, fbmisc1123). It keeps it (a disarmed rocket
 grunt stays red). Its worn pack takes its wearer's (the engine: `.vr_wp_wearer`, plus 4096).
 
 - The engine (`Quake/vr/vr_humlook.cpp`): each entity's look sent where it changes (`QVR_SVC_HUMLOOK`, reliable; with the

@@ -1124,6 +1124,10 @@ the start and the frozen fight), `c4k_lights.sh` (cvar A/B of the room's lights)
 (the frozen fight captured from the compositor). **Every test launch now passes `-noconfigwrite`** (`c4e_run.sh`,
 `c4i_cap.sh`): closing the console at the map's start saved the launch's `+vr_body_mode 0` into his config
 (`configFrame`), which is how it came back after C4i; `c4k_cfgcheck`/`c4k_q.cfg` read his settings without writing.
+**Since 2026-11-23 every unmanned launch also passes `-unattended`** (`--es args "'-noconfigwrite -unattended
++map e1m1 +exec x.cfg'"`): the Quest's runtime offers `XR_EXT_user_presence`, and a headset lying on the desk may be
+reported unworn, which pauses the game (`vr_xr_user_presence` 1); the flag makes the run ignore it, logged as "VR: the
+headset was taken off, ignored (-unattended, an unmanned run)" (timedemos and `vr_fixed_frames` 1 runs ignore it too).
 - **His config**: `vr_body_mode` was 0 again and `vr_xr_unfocused` 0 (test leftovers); both set back to their defaults
   (3, 1) with one `writeconfig`. The preset's rows (his `vr_quest_preset 0`) left as they are.
 - **The models' plain form** (`vr_gl_alias_plain`, -1: the ES profile only; `glprogs.alias_plain`): an opaque,

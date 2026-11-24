@@ -1160,6 +1160,8 @@ string(entity b, vector xAt, vector xDir, float xSpeed, float xLeast, float xKin
     return string_null;
 };
 
+float(float xHand) DW_LanceHeld; // (dwell/dw_items.qc)
+
 // A blow of `xHand` being dealt on `m` at `xAt` going along `xDir` (self is the player; xSpeed m/s, the hand's, as the blow's own;
 // xKind its VR_MKIND_*, -1 on a corpse whose blow has none: its line says): whether it may leave the blade in. For VR_Embed_BlowsDone.
 void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, float xKind) VR_Embed_Blow =
@@ -1175,7 +1177,8 @@ void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, flo
     {
         return;
     }
-    float how = weaponvalue(WeaponIdToModel(wid, flags), "embed");
+    // (Dwell's Crystal Lance is drawn with its own model, not the lightning gun's: its slot's keys.)
+    float how = weaponvalue(DW_LanceHeld(xHand) ? "progs/dw_lance.mdl#vr" : WeaponIdToModel(wid, flags), "embed");
     if(how != AXESTICK_POINT && how != AXESTICK_EDGE)
     {
         return;
@@ -1185,7 +1188,20 @@ void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, flo
     vector axis = len > 0.01 ? line * (1 / len) : '0 0 0';
     float along = normalize(xDir) * axis;
     string why = string_null;
-    if(how == AXESTICK_POINT)
+    if(how == AXESTICK_POINT && DW_LanceHeld(xHand))
+    {
+        // Dwell's Crystal Lance (lance3; his note vrtesthall_2026-11-23_23-00-45): a very shallow stab by the pointed bits
+        // at the very top of its head only: its own least speed and its own share of the line at the tip (the engine
+        // keeps it shallow: vr_dw_lance_embed_length, vr_axestick.cpp).
+        float lanceSpeed = cvar_hget(cvarh_vr_dw_lance_embed_speed);
+        why = VR_Embed_StabWhy(b, xAt, xDir, xSpeed, lanceSpeed > 0 ? lanceSpeed : cvar_hget(cvarh_vr_embed_stab_speed), xKind);
+        float lanceTip = xKind >= 0 ? 1 - b.mh_c_f : 1;
+        if(why == string_null && lanceTip > cvar_hget(cvarh_vr_dw_lance_embed_tip) * 0.01)
+        {
+            why = sprintf("the Lance not by its very tip: %.0f, most %.0f%% of the line", lanceTip * 100, cvar_hget(cvarh_vr_dw_lance_embed_tip));
+        }
+    }
+    else if(how == AXESTICK_POINT)
     {
         why = VR_Embed_StabWhy(b, xAt, xDir, xSpeed, cvar_hget(cvarh_vr_embed_stab_speed), xKind);
     }
@@ -1224,6 +1240,14 @@ void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, flo
 // helps hold it): 1 it is; 0 it won't; -1 not yet: the blade as drawn is `vr_embed_gap` units off its drawn model.
 float(float xHand, entity m, float xModel, vector xAt, vector xVel) VR_Embed_Try =
 {
+    // Flatscreen play's hands can neither hold a weapon stuck in a body nor pull it out: one left in was let go at once
+    // ("out of the arm's reach"), the hand empty. (lance4, his flat note 2026-11-24: the Crystal Lance's thrust left it in
+    // an ogre; the next weapon key gave a plain lightning gun, empty, which dropped its magazine.) It stays in the hand.
+    if(VR_FlatPlay(self))
+    {
+        VR_Embed_Say("NOT STUCK: flatscreen play (the weapon stays in the hand)");
+        return 0;
+    }
     if(m.vr_gib || m.modelindex != xModel || m.model == string_null || VRIsHandWeaponless(self, xHand))
     {
         VR_Embed_Say(sprintf("NOT STUCK: %s", VRIsHandWeaponless(self, xHand) ? "the hand holds nothing now" : "the blow gibbed it or took its model"));

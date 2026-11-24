@@ -20,6 +20,7 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -371,7 +372,7 @@ void strikers(const hands::State& s, int hand, za::Vector<Striker>& out)
     TapScratch& sc = scratch;
     if(view::drawnHandSurface(hand, sc.surface, &sc.parts))
     {
-        for(size_t i = 0; i < sc.surface.size(); i++)
+        for(za::SizeT i = 0; i < sc.surface.size(); i++)
         {
             add(glm::vec3{sc.surface[i]}, sc.surface[i].w, static_cast<unsigned char>(sc.parts[i]));
         }
@@ -461,7 +462,7 @@ constexpr float calmTime = 0.3f; // s
         state.bothHeld = both;
         if(both)
         {
-            q_snprintf(why, static_cast<size_t>(whyLen), "both hands hold an enemy or a body");
+            q_snprintf(why, static_cast<za::SizeT>(whyLen), "both hands hold an enemy or a body");
             return false;
         }
     }
@@ -486,12 +487,12 @@ constexpr float calmTime = 0.3f; // s
     const float quiet = za::max(0.f, vr_bullettime_tap_blow_quiet.value);
     if(now - state.blowAt < static_cast<double>(quiet))
     {
-        q_snprintf(why, static_cast<size_t>(whyLen), "%.2f s after a blow, shove or bash", now - state.blowAt);
+        q_snprintf(why, static_cast<za::SizeT>(whyLen), "%.2f s after a blow, shove or bash", now - state.blowAt);
         return false;
     }
     if(limit > 0.f && now - state.fastAt < static_cast<double>(calmTime))
     {
-        q_snprintf(why, static_cast<size_t>(whyLen), "the %s hand at %.1f m/s %.2f s ago", state.fastHand == hands::gadgetHand() ? "gadget's" : "tapping",
+        q_snprintf(why, static_cast<za::SizeT>(whyLen), "the %s hand at %.1f m/s %.2f s ago", state.fastHand == hands::gadgetHand() ? "gadget's" : "tapping",
             state.fastSpeed, now - state.fastAt);
         return false;
     }
@@ -1016,7 +1017,7 @@ bool tapHandTarget(int hand, float cm, float sideCm, const char* part, glm::vec3
             return false;
         }
         float best = 1e30f;
-        for(size_t i = 0; i < pts.size(); i++)
+        for(za::SizeT i = 0; i < pts.size(); i++)
         {
             const float h = glm::dot(glm::vec3{pts[i]}, z.normal) - pts[i].w;
             if(parts[i] == key->part && h < best)

@@ -17,6 +17,7 @@
 #include "vr_tunables.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -391,7 +392,7 @@ void printPose(const char* tag, const edict_t* pl)
         for(int side = 0; side < 2; side++)
         {
             const glm::vec3 d = joints[j][side] - k.head;
-            n += q_snprintf(line + n, sizeof(line) - static_cast<size_t>(n), " %.1f %.1f %.1f", glm::dot(glm::vec2{d}, fwd),
+            n += q_snprintf(line + n, sizeof(line) - static_cast<za::SizeT>(n), " %.1f %.1f %.1f", glm::dot(glm::vec2{d}, fwd),
                 glm::dot(glm::vec2{d}, left), joints[j][side].z - floorZ);
         }
     }

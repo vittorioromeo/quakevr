@@ -576,6 +576,20 @@ unless the table's `opening`, `radius` and `offset` match what the snapped walls
 A change that splits a quad the other way re-makes those triangles (the old file vertices stay, unused). Reload the
 map to see the new model in the game.
 
+### Opening the super shotgun's muzzle
+
+The super shotgun's muzzle is not a flat cap (the author, 2026-11-23: "looks like a solid block"): its two bores are
+modelled by `Misc/quakevr/make_ssg_muzzle.py`, run on `src_models/blend/v_shot2/v_shot2.blend` as the housing scripts
+are (the same command with this script's name; `-- --dry` builds and checks only). Per barrel: a bright chamfer ring on
+the face (`CHAMFER_W` outside the bore, one x step down), an octagonal tube (`BORE_R` 0.75, `BORE_SIDES` 8) `DEPTH_STEPS`
+x steps deep in all (9: 2.04 units), its walls dark to black, a black floor; the face round them keeps the old cap's
+texels, the rest maps into a patch of free skin (texels 276-323 x 0-15 from the top, painted on every run). The export
+it runs writes the open halves (make_ssg_open.py) and the normal maps; the script then marks the bores' triangles in
+the barrel mask (`fx_gfx_mask`) as the cap was. Its vertices carry `qvr_muzzle`, its faces `qvr_muzzle_face`: run again
+with the same shape it moves them in place (the file keeps its vertices and triangles; an unchanged run writes the
+same files and doesn't save the .blend). It refuses if any of the gun's other faces' UVs change. The housing script
+and this one leave each other's vertices alone; either can run after the other.
+
 ## 7. When the export says no
 
 | Message | What to do |

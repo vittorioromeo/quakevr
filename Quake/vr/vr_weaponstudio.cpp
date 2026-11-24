@@ -23,6 +23,7 @@
 
 #include "thirdparty/imgui/imgui.h"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -259,7 +260,7 @@ void rangeOf(const Kind kind, const char* name, float& lo, float& hi, float& ste
 // The page's label: the data name spaced out, shorted of what the page already says.
 void makeLabel(Entry& e, const int skip)
 {
-    const char* n = e.name + static_cast<int>(za::min(static_cast<size_t>(skip), ZA_STRLEN(e.name)));
+    const char* n = e.name + static_cast<int>(za::min(static_cast<za::SizeT>(skip), ZA_STRLEN(e.name)));
     int i = 0;
     for(; i < static_cast<int>(sizeof(e.label)) - 1 && n[i]; i++)
         e.label[i] = n[i] == '_' ? ' ' : n[i];
@@ -369,10 +370,10 @@ bool matches(const Entry& e, const char* filter)
 {
     if(!filter || !filter[0])
         return true;
-    const size_t fl = ZA_STRLEN(filter);
-    for(size_t at = 0; at + fl <= ZA_STRLEN(e.name); at++)
+    const za::SizeT fl = ZA_STRLEN(filter);
+    for(za::SizeT at = 0; at + fl <= ZA_STRLEN(e.name); at++)
     {
-        size_t i = 0;
+        za::SizeT i = 0;
         for(; i < fl; i++)
         {
             const char a = static_cast<char>(filter[i] >= 'A' && filter[i] <= 'Z' ? filter[i] - 'A' + 'a' : filter[i]);

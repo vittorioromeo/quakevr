@@ -579,7 +579,7 @@ extern "C" void VR_OnProgsLoaded()
         constexpr const char* agkParts[] = {"vr_agk_k_rp", "vr_agk_k_rr", "vr_agk_k_lp", "vr_agk_k_lr", "vr_agk_k_er",
             "vr_agk_k_el", "vr_agk_k_t", "vr_agk_k_gp", "vr_agk_k_gr"};
         static_assert(sizeof(agkParts) / sizeof(agkParts[0]) == sizeof(Bindings::agkPart) / sizeof(float*));
-        for(size_t i = 0; i < sizeof(agkParts) / sizeof(agkParts[0]); i++)
+        for(za::SizeT i = 0; i < sizeof(agkParts) / sizeof(agkParts[0]); i++)
         {
             b.agkPart[i] = globalVector(agkParts[i]);
         }
@@ -1025,7 +1025,7 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
     for(p = ZA_STRSTR(line, "\n// qvr_sound "); p && !ZA_STRNCMP(p + 1, "// qvr_sound ", 13); p = strchr(p + 1, '\n'))
     {
         const char* at = p + 1 + 13;
-        const size_t length = strcspn(at, "\r\n");
+        const za::SizeT length = strcspn(at, "\r\n");
         if(length > 0 && length < MAX_QPATH)
         {
             saveInfo.sounds.pushBack(za::String{at, length});
@@ -1195,7 +1195,7 @@ namespace
         return false;
     }
     const char* name = PR_GetString(d.s_name);
-    const size_t len = ZA_STRLEN(name);
+    const za::SizeT len = ZA_STRLEN(name);
     return !ZA_STRCMP(name, "modelindex") || !ZA_STRNCMP(name, "modelindex_", 11) ||
            (len > 6 && !ZA_STRCMP(name + len - 6, "_model"));
 }

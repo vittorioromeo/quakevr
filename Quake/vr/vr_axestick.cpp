@@ -47,6 +47,7 @@
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -300,6 +301,15 @@ constexpr za::SizeT maxSamples = 256;
     b.handle = own(butt);
     b.from = glm::mix(b.hand, b.tip, from > 0.f ? za::min(from, 0.9f) : blade::swordKindFrom);
     return b;
+}
+
+// A pointed blade's length for its stab's depth shares (its tip to its Blade Start, `drawn`): Dwell's Crystal Lance
+// (lance3; his note vrtesthall_2026-11-23_23-00-45: a very shallow stab by the pointed bits at the top of its head)
+// counts only vr_dw_lance_embed_length units of it, so it goes in a sword's share of those (held or thrown).
+[[nodiscard]] float pointLength(edict_t* ent, float drawn)
+{
+    const qmodel_t* m = modelOf(ent);
+    return m && ZA_STRSTR(m->name, "dw_lance") ? za::min(drawn, za::max(0.5f, vr_dw_lance_embed_length.value)) : drawn;
 }
 
 // The blade of the model `ent` is drawn with, as its weapons.txt keys say.
@@ -1156,7 +1166,7 @@ void freeHandle(edict_t* ent, const Blade& blade, edict_t* host, const glm::vec3
     }
 
     // How deep, by its speed: a share of the blade, less in the level and props; along its line from where it struck.
-    const float bladeLength = glm::distance(tip, held::drawnModelPoint(ent, blade.from));
+    const float bladeLength = pointLength(ent, glm::distance(tip, held::drawnModelPoint(ent, blade.from)));
     const float least = za::max(0.f, vr_embed_sword_depth_min.value), full = za::max(least, vr_embed_sword_depth_max.value);
     const float share = za::clamp((speed - minSpeed) / za::max(1.f, vr_embed_sword_depth_speed.value * m2u - minSpeed), 0.f, 1.f);
     const float depth = glm::mix(least, full, share) * 0.01f * bladeLength * (inBody ? 1.f : za::max(0.f, vr_embed_sword_wall.value));
@@ -1232,18 +1242,158 @@ float pointLeniency(edict_t* ent)
     return k > 0.f ? k : 1.f;
 }
 
+bool timeSpin(edict_t* ent, float least, float most, glm::vec3& spin, float& flight, glm::vec3& at)
+{
+    qmodel_t* model = modelOf(ent);
+    const float spun = glm::length(spin);
+    if(!model || model->type != mod_alias || spun < 0.1f)
+    {
+        return false;
+    }
+    const Blade& blade = shapeOf(ent, model).blade;
+    if(blade.how != howPoint && blade.how != howEdge)
+    {
+        return false;
+    }
+
+    // Its flight, Quake's arc (Box3D's free flight: gravity alone, times its .gravity as Box3D's: a throw's lighter fall),
+    // a frame at a time to what it meets (3 s at most).
+    constexpr float step = 1.f / 72.f;
+    constexpr int mostSteps = 216;
+    const eval_t* gravity = GetEdictFieldValue(ent, qcvm->extfields.gravity);
+    const glm::vec3 down{0.f, 0.f, -sv_gravity.value * (gravity && gravity->_float ? gravity->_float : 1.f)};
+    glm::vec3 p = vec(ent->v.origin), v = vec(ent->v.velocity);
+    vec3_t a, b, zero{0.f, 0.f, 0.f};
+    glm::vec3 normal{0.f};
+    bool met = false;
+    for(int n = 0; n < mostSteps && !met; n++)
+    {
+        const glm::vec3 next = p + v * step + down * (0.5f * step * step);
+        store(p, a);
+        store(next, b);
+        const trace_t tr = SV_Move(a, zero, zero, b, MOVE_NORMAL, ent);
+        if(tr.startsolid || tr.allsolid)
+        {
+            return false;
+        }
+        met = tr.fraction < 1.f;
+        const float share = met ? tr.fraction : 1.f;
+        p = met ? vec(tr.endpos) : next;
+        normal = vec(tr.plane.normal);
+        v += down * (step * share);
+        flight = (static_cast<float>(n) + share) * step;
+    }
+    if(!met || flight < 1e-3f || glm::length(v) < 1.f)
+    {
+        return false;
+    }
+    at = p;
+
+    // The turn about its spin's axis that brings what cuts (an edge's facing, the point's line) round to lead there: halfway
+    // between its way and straight into the surface (a long throw meets the floor glancing: its way alone left the handle's
+    // end lower, first on the floor); the spin nearest its own that makes that turn (whole turns more or less), within
+    // least..most of it.
+    const glm::vec3 k = spin / spun;
+    const glm::mat3 axes = held::axesFromAngles(ent->v.angles, false);
+    const auto across = [&](const glm::vec3& d) { return d - k * glm::dot(k, d); };
+    const glm::vec3 way = across(glm::normalize(v) - normal);
+    if(glm::length(way) < 1e-3f)
+    {
+        return false;
+    }
+    // (Best: no turn left over at the end, then nearest its own spin; a point's the slowest, from a tenth of it: its spin
+    // swings the point across its way, 9.7 rad/s on a sword's 30 units side on at 12 m/s. Too short a flight for any within
+    // the range, e.g. a throw from a metre off: the end of it that leaves the least turn.)
+    constexpr float twoPi = 6.2831853f;
+    const bool point = blade.how == howPoint;
+    const float lo = spun * (point ? za::min(least, 0.1f) : least), hi = spun * za::max(least, most);
+    const float aim = point ? 0.f : spun;
+    float best = -1.f, bestLeft = 0.f;
+    const auto offer = [&](float w, float left) {
+        if(best < 0.f || left < bestLeft - 1e-4f || (left <= bestLeft + 1e-4f && za::abs(w - aim) < za::abs(best - aim)))
+        {
+            best = w;
+            bestLeft = left;
+        }
+    };
+    const auto consider = [&](const glm::vec3& lead) {
+        const glm::vec3 l = across(lead);
+        if(glm::length(l) < 1e-3f)
+        {
+            return;
+        }
+        float turn = za::atan2(glm::dot(k, glm::cross(l, way)), glm::dot(l, way));
+        if(turn < 0.f)
+        {
+            turn += twoPi;
+        }
+        for(int whole = 0; whole < 64; whole++)
+        {
+            const float w = (turn + twoPi * static_cast<float>(whole)) / flight;
+            if(w > hi)
+            {
+                break;
+            }
+            if(w >= lo)
+            {
+                offer(w, 0.f);
+            }
+        }
+        for(const float w : {lo, hi})
+        {
+            const float over = glm::mod(w * flight - turn, twoPi); // (0..2pi: turned past it by this much)
+            offer(w, za::min(over, twoPi - over));
+        }
+    };
+    if(blade.how == howPoint)
+    {
+        consider(axes * (held::drawnModelPoint(ent, blade.tip) - held::drawnModelPoint(ent, blade.hand)));
+    }
+    else
+    {
+        for(int e = 0; e < 2; e++)
+        {
+            if(glm::length(blade.edges[static_cast<za::SizeT>(e)].out) > 1e-3f)
+            {
+                consider(axes * drawnEdge(ent, blade, e).out);
+            }
+        }
+    }
+    if(best < 0.f)
+    {
+        return false;
+    }
+    spin = k * best;
+    return true;
+}
+
 bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const glm::vec3& spin, float dt)
 {
     const FieldOffsets& f = fields();
     if((!vr_axestick.value && !vr_embed.value) || f.vr_stick_kind < 0 || f.vr_stick_ent < 0 ||
         fieldFloat(ent, f.vr_stick_kind) != 0.f || dt <= 0.f)
     {
+        if(vr_debug_axestick.value >= 3 && f.vr_stick_kind >= 0 && fieldFloat(ent, f.vr_stick_kind) == 0.f)
+        {
+            report(ent, "not looked at: dt %.4f", dt);
+        }
         return false;
     }
-    // Thrown by a player (not a weapon dropped or knocked off a rack: those fall as before).
-    const int owner = NUM_FOR_EDICT(PROG_TO_EDICT(ent->v.owner));
+    // Thrown by a player (not a weapon dropped or knocked off a rack: those fall as before). A hard throw gives its owner up
+    // vr_throw_self_grace (0.35 s) after it leaves the hand (QC VR_Throw_SelfFrame: .vr_throw_self 2, it may hurt him now)
+    // and is still his throw: its thrower is then the hand that let go (QC VR_Throw_Thrower). (A throw at a wall over 6 m
+    // off, the flat throw's lesson 12 target, flew past the grace and was never looked at: it bounced off.)
+    int owner = NUM_FOR_EDICT(PROG_TO_EDICT(ent->v.owner));
+    if(owner == 0 && f.vr_throw_self >= 0 && f.carry_letgo >= 0 && fieldFloat(ent, f.vr_throw_self) == 2.f)
+    {
+        owner = NUM_FOR_EDICT(PROG_TO_EDICT(fieldInt(ent, f.carry_letgo)));
+    }
     if(owner < 1 || owner > svs.maxclients)
     {
+        if(vr_debug_axestick.value >= 3 && !strcmp(PR_GetString(ent->v.classname), "thrown_weapon"))
+        {
+            report(ent, "not looked at: its owner is %d, not a player", owner);
+        }
         return false;
     }
     const Blade* blade = bladeOf(ent);
@@ -1747,7 +1897,7 @@ int stickHeld(edict_t* ent, edict_t* host, const glm::vec3& at, const glm::vec3&
     {
         const glm::vec3 tip = held::drawnModelPoint(ent, blade->tip);
         const glm::vec3 along = axes * glm::normalize(tip - held::drawnModelPoint(ent, blade->hand));
-        bladeLength = glm::distance(tip, held::drawnModelPoint(ent, blade->from));
+        bladeLength = pointLength(ent, glm::distance(tip, held::drawnModelPoint(ent, blade->from)));
         // How deep it goes on to, by the blow's speed; as it is struck it is in as far as it is, the hand's own motion
         // and QC's ease take it on (a hand must not be flung there).
         const float least = vr_embed_stab_speed.value * m2u;

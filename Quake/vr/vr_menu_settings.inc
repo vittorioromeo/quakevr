@@ -396,6 +396,7 @@ void resetBodyEquipment()
         toggle("Walk Into Run", vr_move_autorun)
             .help("Walking, pushing the moving stick all the way eases you into a run; a smaller push walks."),
         row(opt::vr_stick_swap),
+        row(opt::vr_button_swap),
         cycle("Swimming", vr_swim, {{1.f, "Immersive"}, {0.f, "Vanilla"}})
             .help("Immersive: in water the stick slows and strokes of your hands move you. Vanilla: the stick swims as in "
                   "Quake."),
@@ -573,12 +574,16 @@ void resetBodyEquipment()
         row(opt::vr_dynres),
         row(opt::vr_dynres_target).advanced(),
         row(opt::vr_dynres_min),
+        row(opt::vr_dynres_min_fight).advanced(),
         dynresMaxSlider().advanced(),
         row(opt::vr_upscale),
         row(opt::vr_upscale_sharpness),
-        row(opt::vr_foveated),
+        row(opt::vr_foveated).unavailableBecause(VR_Android() ? "NVIDIA graphics cards only: on the Quest, Quest Foveation." : nullptr),
         row(opt::vr_foveated_gaze).advanced(),
         info(foveated::gazeStatus).advanced(),
+        // (qfov: the runtime's fixed foveation, the eyes drawn straight into its images; the PC's runtimes have none)
+        row(opt::vr_xr_foveation).unavailableBecause(VR_Android() ? nullptr : "Quest standalone only: on a PC, Foveated Rendering."),
+        row(opt::vr_xr_foveation_dynamic).advanced().unavailableBecause(VR_Android() ? nullptr : "Quest standalone only."),
     };
 }
 
@@ -777,6 +782,7 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         header("Sides"),
         row(opt::vr_handedness),
         row(opt::vr_stick_swap),
+        row(opt::vr_button_swap),
         cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}}).help("The arm the wrist gadget (the HUD) is on."),
         cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}}).help("The side of your belt the torch hangs on (Chest Flashlight; Always on Head: the temple it is worn at)."),
 
@@ -836,6 +842,7 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         row(opt::vr_xr_unfocused).advanced(),
         row(opt::vr_xr_unfocused_pause).advanced(),
         row(opt::vr_xr_unfocused_volume).advanced(),
+        row(opt::vr_xr_user_presence).advanced(),
         row(opt::vr_xr_exit_quits).advanced(),
         row(opt::vr_xr_vendor_profiles).advanced(),
         row(opt::vr_xr_log_timing).advanced(),

@@ -660,6 +660,8 @@ nextmsg:
 					ret = 1; // QVR: Debug > Cheats and Recording's (vr_cheats.cpp: not in deathmatch)
 				else if (q_strncasecmp(s, "vr_nav_follow_ask ", 18) == 0)
 					ret = 1; // QVR: vr_nav_follow, the debug autopilot after another player (vr_navfollow.cpp: not in deathmatch)
+				else if (q_strncasecmp(s, "vr_wheel_pick ", 14) == 0)
+					ret = 1; // QVR: the headset's weapon wheel's pick: a holster's weapon into a hand (vr_weaponwheel.cpp, QC VR_Wheel_Pick)
 				else if (q_strncasecmp(s, "vr_nav_botpaths ", 16) == 0)
 					ret = 1; // QVR: the bots' navmesh paths sent him for his vr_nav_debug (vr_navfollow.cpp)
 				else if (q_strncasecmp(s, "vr_avatarcal ", 13) == 0)

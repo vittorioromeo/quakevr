@@ -8,6 +8,7 @@
 #include "vr_progs.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -845,7 +846,7 @@ void graspDump_f()
                 fprintf(f, "v %f %f %f\n", q.x, q.y, q.z);
             }
         }
-        for(size_t i = 0; i < tris.size(); i++)
+        for(za::SizeT i = 0; i < tris.size(); i++)
         {
             fprintf(f, "f %d %d %d\n", base + static_cast<int>(3 * i), base + static_cast<int>(3 * i + 1), base + static_cast<int>(3 * i + 2));
         }
@@ -895,6 +896,23 @@ bool drawnIndexTip(int hand, glm::vec3& local)
         return false;
     }
     local = t.local;
+    return true;
+}
+
+bool drawnFingerPoints(int hand, int finger, glm::vec3 out[4], glm::vec3& palm)
+{
+    if((hand != 0 && hand != 1) || finger < 0 || finger >= handrig::FingerCount || !rigHands()[hand].drawn)
+    {
+        return false;
+    }
+    const RigHand& rh = rigHands()[hand];
+    glm::vec3 points[4];
+    grasp::fingerPoints(rh.pose, finger, rh.pose.curl[finger], points);
+    for(int i = 0; i < 4; i++)
+    {
+        out[i] = glm::vec3{rh.rigToWorld * glm::vec4{drawnInRig(rh, points[i]), 1.f}};
+    }
+    palm = glm::vec3{rh.rigToWorld * glm::vec4{drawnInRig(rh, grasp::palmCentre()), 1.f}};
     return true;
 }
 
@@ -1051,7 +1069,7 @@ bool drawnHandSurface(int hand, za::Vector<glm::vec4>& out, za::Vector<HandPart>
                 }
                 sphereMid /= static_cast<float>(za::max(static_cast<int>(rig.palmSpheres.size()), 1));
                 const glm::vec3 palmWay = sphereMid - palmMid;
-                for(size_t i = 0; i < posed.size(); i++)
+                for(za::SizeT i = 0; i < posed.size(); i++)
                 {
                     c.parts.pushBack(i < rig.vertices.size() ? restPart(rig.vertices[i], palmMid, palmWay) : HandPart::Hand);
                 }

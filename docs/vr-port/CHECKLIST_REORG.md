@@ -176,3 +176,68 @@ failed ship's duplicate were folded into the header (the newer wording kept).
   vrnotes1122b's flick-open arm share (the "quick wrist roll... a melee swing never opens it" line).
 
 Known: checklist_tests_check fails on quoth_kellbase_field (from kellbase): the check doesn't know Quoth maps.
+
+# Checklist sort (2026-11-23, agent/promote1123)
+
+194 lines down to 114. The 17-line [New] section is sorted and dropped: the Crystal Lance lines into Dwell, the
+two-player pole and rope lines, the pole's collision and the flat rope keys into Ropes and chains, the Quest, Setup
+and beta2 lines into Installer, start-up and platforms. His voice notes since 2026-11-22 all predate these lines (the
+lines answer them), so no ticked line has a note against it.
+
+## Retired (51 ticked, no voice note)
+
+- [New] (23): the hub's Run Setup start and its four new lecterns, the ten-lectern row, Quoth kellbase1 ladders in
+  flat (catwalk and pillars, side approach, middle entry), the Standalone preset's PC pick and point-blank blood, the
+  ropes hall's poles (climb, traverse, diagonal rope, toolgun Pole, hand wrap, collision and sparks, wood and metal
+  looks, third-person holsters, legs), chain clinks and shots, flat shotgun wall tilt.
+- Flat screen (16): Options > Controls' Quake VR keys, mouse 4 binding, Flat Keys link, axe-in-grunt dual wield,
+  key 9 dimming, flat corpse height, two-hand swap, number-key holsters (1, 4/5, 6/7, the six new keys, the rocket
+  launcher), swimming, two-handed gun under water, the right-button guard and parry.
+- Ropes and chains (9): fists through the rope, the climb grunt, regrab steadiness, legs under a short rope, flat
+  climbing, pumping, closed fists, wrapped feet, the second player's view.
+- Weapons and holsters (3): Haste's faster automatic guns and full-auto semi-automatics, Only Hands holsters.
+- Scenes no remaining line or test uses, removed: flat_blood_pointblank, flat_embed_dual, flat_force_grab,
+  flat_gear_lights, flat_holster_numkeys, flat_melee2h, flat_swim, flat_wall_settle, haste_guns, hub_start_test,
+  quoth_kellbase_ladder. flat_parry is kept (flatparry_test.sh and armourstudio_close_test.sh load it).
+
+## Merged (29 fewer lines: Dwell 16 to 11, Multiplayer and bots 53 to 36, Ropes and chains 8 to 6, Installer 22 to 17)
+
+- Dwell: the Lance's two charge lines, its two pole-slide lines, the Rotary Shotgun's four model lines into two, the
+  two dark-metal lines.
+- Multiplayer and bots: revolver + shotgun break + magazine seen by the other player; the other player's shotgun
+  effects + a bot's pump; gear drawn + pouch shells; three bot holster lines; passive bot respawn + its blood; coop
+  client bodies (grunt fall + player tumble; crate/sword + smooth throw); three own-body corpse lines; bot skill +
+  bot revolver fire; the melee bot duel + its parry; dagger drop + 20 s drops; the two Show Hit Zones lines; bot
+  navmesh + its path drawing; slide lean + slide/mantle sounds.
+- Ropes and chains: the two two-player pole lines, the two watched-rope-swing lines.
+- Installer: Quest install + install again; beta1 + beta2 (beta2 kept, the stable-notice check moved onto it);
+  relight timing + relight scope; reliefs Update + existing-folder run; Dwell + Quoth relief depth.
+
+## Moved
+
+The enforcer backpack colours (from Quoth), unaware monsters and the lift riders (from Multiplayer and bots) into
+Armed humanoids, ragdolls and physics. Every line keeps a {test:}; checklist_tests_check 83 passed, 0 failed.
+
+## Checklist tidy, third pass (2026-11-23, cltidy3)
+
+`quakevr/checklist.txt`: 160 lines down to 114 (his `checklist_ticks.txt` and `notes/NOTES.md` read from his checkout; nothing
+there was written).
+- **Retired (51):** every ticked line; none had a voice note against it (no note's "checklist:" line names one). They were
+  the ropes/poles flat-and-VR lines, the weapon-wheel and flat-throw lines, the hub lectern lines, the Quoth ladder
+  lines, Standalone blood, the Dwell Rotary Shotgun looks and the tutorial lessons 12-14 lines.
+- **Scenes retired with them:** dwell_rotary, embed_throw, flat_weapon_wheel, tutorial_arena_save, tutorial_lessons (no
+  other line or test loads them; moved out of the tree). The five scenes already missing (flat_blood_pointblank,
+  flat_swim, flat_wall_settle, hub_start_test, quoth_kellbase_ladder) no longer have a line, so the checker is green.
+- **[New] sorted (25 lines):** the Lance lines into Dwell (4 merged into 1 and 1), Quest install, music and Standalone
+  rendering lines into Installer, start-up and platforms (the Doom WADs line joined them; duplicates of lines already
+  there dropped), the weapon wheel lines (and its coop line) into Weapons and holsters and Multiplayer, the ropes
+  two-player lines folded into Ropes and chains, the parry palm line into Flat screen. The [New] section is empty.
+- Wordy lines cut to what to do and what to see; every line keeps its {test:<id>}. checklist_tests_check: 86 passed, 0 failed.
+
+## Checklist tidy, fourth pass (2026-11-23, cltidy4)
+
+quakevr/checklist.txt: 223 lines down to 157. His ticks file and notes read from his checkout (nothing written there).
+- **Retired (42):** every ticked line (all in [New]: hub lecterns, ropes/poles, weapon-wheel and flat-throw lines, Standalone blood, tutorial lesson 10 and 12 lines, flat swim hands); none had a voice note.
+- **[New] sorted (47 lines left):** into Installer, Flat screen, Weapons and holsters, Ropes and chains, Dwell, Multiplayer; the Quest lines (Standalone, foveation, music) joined Installer, start-up and platforms. [New] is empty.
+- **Merged:** the Quest install and Quest rendering duplicates, the Lance charge, slide and thrust lines, the three parry-palm lines, the wheel DROP/UNLOAD/icon lines, the foveation lines, the ropes two-player lines.
+- **Sections reordered:** Installer, Flat screen, Tutorial and VR interface, Weapons and holsters, Ropes and chains, Armed humanoids, Dwell, Quoth, AD, Survival Arena, Multiplayer and bots, Recording and dev tools. No scene retired (unused ones left). checklist_tests_check: 99 passed, 0 failed.

@@ -54,6 +54,9 @@ void VR_GLProbeUpload (const char *what, unsigned buffer, size_t offset, const v
 void VR_GLProbeBuffer (const char *what, unsigned buffer, size_t offset, size_t size); // vr_gl_probe: a GPU-written buffer read back
 void VR_GLProbeState (const char *where);				// vr_gl_probe: the GL state at a draw, its program validated
 void VR_GLProbeSceneEnd (unsigned vbo, unsigned ibo, int stride, int indices); // R_RenderScene, its last draws: vr_gl_probe 3's red where nothing drew, 4/5's world in green
+int VR_GLOpaqueNoBlend (void);						// GL_SetState: an opaque state disables GL_BLEND (vr_gl_opaque_noblend 1; -1: under OpenGL ES)
+int VR_GLSampleShading (void);						// GL_SampleShading: GL_SAMPLE_SHADING may be on (vr_gl_sample_shading)
+void VR_LrzProbe (int point);						// R_RenderScene: vr_debug_lrz_probe's quads at this point of an eye's scene (Debug > Profiling)
 void VR_DrawHiddenArea (void);						// R_RenderScene, after R_Clear: the lenses' hidden area at the near plane (vr_visibility_mask)
 // Single-pass stereo (vr_stereo_single.cpp, docs/vr-port/STEREO.md).
 int VR_StereoSinglePhase (void);						// 1 the multiview pass (both eyes), 2 an eye's own view after it, 0 neither
@@ -258,6 +261,7 @@ void VR_PushPortalLights (void);
 void VR_AliasShadowClip (void); // the alias depth program has just been bound
 void VR_PushMapLights (void);							// R_PushDlights, after the dynamic lights
 void VR_WorldLightsCheck (void);						// R_PushDlights, after every light: whether one reaches the world's surfaces (C4t)
+int VR_WorldUnlitDecalTwin (void);						// qworld: retro decals keep the unlit form (vr_gl_world_unlit not 0)
 int VR_WorldUnlit (void);								// R_ChooseBModelProgram: nonzero: none reaches them, the world's program without the lights' loop (vr_gl_world_unlit)
 int VR_WorldLitSpheres (float spheres[][4], int *bmodels); // R_MarkVisSurfaces: -1 no split by surface; else the lights the cull sends the lit surfaces by (vr_gl_world_unlit 2, C4v)
 int VR_AliasBonePoses (const struct entity_s *e, const float **matrices); // bone count of an IK-posed skeletal entity (0: none), its 3x4 skinning matrices
@@ -270,6 +274,9 @@ int VR_AliasSolidGhost (const struct entity_s *e); // r_alias.c: e is a Ghost Ha
 int VR_AliasBatchPosed (void); // r_alias.c: the world's posed models batched, their bones one buffer (vr_alias_batch_posed)
 int VR_AliasDepthPrepass (const struct entity_s *e); // r_alias.c: e drawn into the eye's depth before it is shaded (your body and its mirror image, the world's models)
 int VR_WorldLitSkip (void); // r_world.c: the split by surface draws only the lit commands a reaching light can fill (vr_gl_world_lit_skip, C4w)
+int VR_WorldPrepass (void); // r_world.c: the opaque world and brush models' depth drawn before their shading (vr_world_prepass)
+int VR_GLOnePass (void); // r_world.c: OpenGL ES's brush models drawn without the gather's compute (vr_gl_one_pass, qfov3)
+int VR_AliasDebugHidden (const struct entity_s *e); // r_alias.c: e is left out of the eyes' views (vr_debug_hide_models, Debug > Profiling)
 int VR_AliasOpaqueForm (const struct entity_s *e); // r_alias.c: e's opaque draw may use glprogs.alias_opaque (vr_gl_alias_opaque on, e not morphing)
 int VR_AliasPlayerFirst (const struct entity_s *e); // gl_rmain.c: e (opaque) is your own (hands, body, held, holstered, worn), drawn before the world (vr_alias_player_first)
 void VR_AliasWound (const struct entity_s *e, float out[4], float side[4]);	// instance: its wound mask (vr_wounds.cpp): layer + 1 (0 none; negative: -(layer + 1) in the fine masks), size in texels, time; side: vraliasinstance_t's woundside
@@ -416,6 +423,10 @@ float VR_BrushAOSelf (const struct entity_s *e);
 // Quake would use) or, for a sighted weapon's skin with a hue other than the sights' own, a copy of
 // it with the sight colours recoloured (valid until the next call).
 unsigned int* VR_SightPalette(const char* texname, unsigned int* palette);
+// TexMgr_LoadImage8, after the conversion with VR_SightPalette's palette: a sighted weapon's front post set apart
+// (vr_sight_front_hue_shift): its sight texels in `data32` given the front sight's colour. `data8` the indices
+// converted, `width` x `height` both images' size (padded), `srcw` x `srch` the skin's own size.
+void VR_SightFront(const char* texname, const unsigned char* data8, unsigned int* data32, int width, int height, unsigned int srcw, unsigned int srch);
 
 // Clean weapon skins (vr_cleanskins.cpp; see vr_cleanskins.hpp). TexMgr_LoadImage8 and TexMgr_LoadImage32: the pixels
 // the texture `name` (width x height, bpp 1 or 4 bytes a pixel) is uploaded with: `data`, or a copy (in the hunk, above
@@ -445,6 +456,7 @@ float VR_FlatNearPlane (void);	// flatscreen play's near plane, on the window's 
 int VR_SceneSamples (int samples);	// GL_CreateFrameBuffers: the scene's MSAA samples (the spectator camera's: vr_spectator_aa)
 float VR_SceneTone (void);						// R_SetupView: the brightest the world and models write (1: Quake's clamp)
 float VR_SceneDither (float dither);			// R_SetupView: the scene's screen dither (0 in the eyes with vr_dither: the post-process dithers last)
+const char *VR_InTileFragmentGLSL (void);	// gl_shaders.c: vr/vr_tonemap.cpp's in-tile pass (the post-process's grade and dither, read in the tile)
 void VR_PostProcessTone (void);					// GL_PostProcess, the non-palettized program in use: the tone curve, grade (unit 3) and dither
 
 // Split alias models at an active teleporter, using the same animation pose in both rooms.

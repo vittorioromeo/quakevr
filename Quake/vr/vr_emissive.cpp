@@ -24,6 +24,7 @@
 #include "Zancle/Algorithm/MaxElement.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Ceil.hpp"
@@ -1162,7 +1163,7 @@ extern "C" void VR_TorchLights(void)
             }
         }
     }
-    const size_t chosenCount = za::min(candidates.size(), static_cast<size_t>(cap));
+    const za::SizeT chosenCount = za::min(candidates.size(), static_cast<za::SizeT>(cap));
     // (All sorted: the first chosenCount are std::partial_sort's, but for the order of equal scores.)
     za::quickSort(candidates.begin(), candidates.end(), [](const TorchCandidate& a, const TorchCandidate& b) { return a.score < b.score; });
 
@@ -1171,7 +1172,7 @@ extern "C" void VR_TorchLights(void)
         st.chosen = false;
         st.rank = -1;
     }
-    for(size_t c = 0; c < chosenCount; c++)
+    for(za::SizeT c = 0; c < chosenCount; c++)
     {
         TorchState& st = torches[candidates[c].id];
         st.chosen = true;
@@ -1183,7 +1184,7 @@ extern "C" void VR_TorchLights(void)
     const int shadowed = za::clamp(static_cast<int>(vr_torch_light_shadows.value), 0, cap);
     za::Vector<TorchCandidate>& shadowCandidates = scratch.shadowCandidates;
     shadowCandidates.clear();
-    for(size_t c = 0; c < chosenCount; c++)
+    for(za::SizeT c = 0; c < chosenCount; c++)
     {
         const TorchState& st = torches[candidates[c].id];
         const float radius = st.kind ? st.kind->radius * st.scale : 1.f;
@@ -1204,7 +1205,7 @@ extern "C" void VR_TorchLights(void)
     {
         const bool was = st.shadowed;
         st.shadowed = false;
-        for(size_t c = 0; c < shadowCandidates.size() && static_cast<int>(c) < shadowed; c++)
+        for(za::SizeT c = 0; c < shadowCandidates.size() && static_cast<int>(c) < shadowed; c++)
         {
             st.shadowed = st.shadowed || shadowCandidates[c].id == id;
         }
@@ -1230,7 +1231,7 @@ extern "C" void VR_TorchLights(void)
     if(fading.size() > 4)
     {
         za::quickSort(fading.begin(), fading.end(), [](const auto& a, const auto& b) { return a.weight > b.weight; });
-        for(size_t f = 4; f < fading.size(); f++)
+        for(za::SizeT f = 4; f < fading.size(); f++)
         {
             torches[fading[f].id].weight = 0.f;
         }
@@ -1297,6 +1298,15 @@ void emissive::otherHotBarrelLight(int player, int hand, const glm::vec3& pos, c
     if(player >= 1 && player <= MAX_SCOREBOARD && hand >= 0 && hand <= 1 && strength > 0.f && radius > 0.f)
     {
         hotLight(otherHotLightKey - (player - 1) * 2 - hand, pos, color, strength, radius);
+    }
+}
+
+void emissive::lanceChargeLight(int player, int hand, const glm::vec3& pos, const glm::vec3& color, float strength, float radius)
+{
+    constexpr int lanceLightKey = -0x5A40; // - (player - 1) * 2 - hand (lancecharge): to -0x5A5F
+    if(player >= 1 && player <= MAX_SCOREBOARD && hand >= 0 && hand <= 1 && strength > 0.f && radius > 0.f)
+    {
+        hotLight(lanceLightKey - (player - 1) * 2 - hand, pos, color, strength, radius);
     }
 }
 

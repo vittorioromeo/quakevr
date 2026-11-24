@@ -30,16 +30,26 @@ float dw_variant_shots; // Dwell's shots fired, anyone's (vr_ad_test 204)
 .float vr_dw_tinted; // Haste's or Berserk's screen tint set (AD's tint, VR_AD_Tint): cleared when they end
 
 // Dwell's weapons (DWELL.md P3): a variant of one of our weapons, on its weapon instance (.wi_dwvar, vr_weaponinst.qc:
-// the Rotary Shotgun a super shotgun, the Crystal Lance a lightning gun, the Rifle a shotgun), set by its pickup.
+// the Rotary Shotgun a super shotgun, the Crystal Lance a lightning gun), set by its pickup. 3 was Dwell's Rifle
+// (removed 2026-11-23, his note: no Dwell map places weapon_rifle, a cheat impulse only); a record still holding 3 (an
+// older save) is a plain shotgun: every reader asks DW_VariantFor(its weapon) first.
 .float vr_dw_var;  // a pickup's: the variant it gives
 const float DW_VAR_ROTARY = 1;
 const float DW_VAR_LANCE = 2;
-const float DW_VAR_RIFLE = 3;
 nosave float vr_grab_dwvar; // VR_WeaponGrabbable_Make: the variant the placed weapon's record gets (the toolgun's props)
 
 float(entity targ, entity attacker, float damage, float isVRMelee) DW_DamageScale; // T_DamageImpl: berserk
 void(entity xPickup, entity p, float xHand) DW_VariantGiven;                      // weapon_touch
+void(entity xPickup, entity p) DW_PickupOwned;                                    // ...: its variant owned
+float(entity xPickup, entity p) DW_PickupNewVariant;                              // ...: coop's "has it" skip
 float(float xHand, float* xOutAttackFinished) DW_FireVariant;                     // W_Fire_*: TRUE fired
+float(float xHand) DW_LanceInHand;                                                // FrameDrawLightningTrail: no stream
+float(float xHand) DW_LanceCharged;                                               // W_WeaponFrameImpl: charged shots
+float(float xHand, float xPressed) DW_LanceChargeFrame;                           // ...: TRUE fire now
+// The Crystal Lance's charge (lancecharge, dw_items.qc): vr_ad_test 224 holds the trigger itself (dw_lc_test: its
+// press in dw_lc_test_press, every hand); the charges begun, let go short and fired (the tests).
+float dw_lc_test, dw_lc_test_press;
+float dw_lc_starts, dw_lc_cancels, dw_lc_fires;
 float(float xWid) DW_VariantFor;                                                  // VR_AG_ShootProp
 string(float xVar) DW_VariantName;                                                // VR_AG_NameOf
 string(float xWid, entity xInst) DW_WeaponModel;                                  // AD_WeaponModel: its VR model or ""

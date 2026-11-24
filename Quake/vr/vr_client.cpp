@@ -48,6 +48,7 @@
 #include "vr_handpose.hpp"
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
+#include "vr_lancecharge.hpp"
 #include "vr_lighting.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
@@ -172,28 +173,38 @@ SeatClientButtons& seatButtons()
     return handButtons(hand).grab || flatplay::active();
 }
 
-#define QVR_BUTTON_COMMANDS(name, expr)          \
-    void name##Down_f()                          \
-    {                                            \
-        expr = true;                             \
-    }                                            \
-    void name##Up_f()                            \
-    {                                            \
-        expr = false;                            \
+// The hand a hand's button command acts on: its own, or with Swap Face Buttons (vr_button_swap) the other one when the
+// key that ran it came from the other controller's button (A sends XBUTTON's +reloadoff: the right hand's reload, the
+// hand pressed; his words 2026-11-24 "Yes, follow the hand"). The key is the command's argument (Key_Event adds it to a
+// +command and its -command); typed without one, its own hand.
+[[nodiscard]] int commandHand(int hand)
+{
+    const int key = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 0;
+    return input::mirroredKey(key) ? 1 - hand : hand;
+}
+
+#define QVR_BUTTON_COMMANDS(name, hand, member)            \
+    void name##Down_f()                                    \
+    {                                                      \
+        handButtons(commandHand(hand)).member = true;      \
+    }                                                      \
+    void name##Up_f()                                      \
+    {                                                      \
+        handButtons(commandHand(hand)).member = false;     \
     }
 
-QVR_BUTTON_COMMANDS(GrabLeft, seatButtons().leftButtons.grab)
-QVR_BUTTON_COMMANDS(GrabRight, seatButtons().rightButtons.grab)
-QVR_BUTTON_COMMANDS(ReloadLeft, seatButtons().leftButtons.reload)
-QVR_BUTTON_COMMANDS(ReloadRight, seatButtons().rightButtons.reload)
-QVR_BUTTON_COMMANDS(FlickReloadLeft, seatButtons().leftButtons.flickReload)
-QVR_BUTTON_COMMANDS(FlickReloadRight, seatButtons().rightButtons.flickReload)
+QVR_BUTTON_COMMANDS(GrabLeft, HAND_OFF, grab)
+QVR_BUTTON_COMMANDS(GrabRight, HAND_MAIN, grab)
+QVR_BUTTON_COMMANDS(ReloadLeft, HAND_OFF, reload)
+QVR_BUTTON_COMMANDS(ReloadRight, HAND_MAIN, reload)
+QVR_BUTTON_COMMANDS(FlickReloadLeft, HAND_OFF, flickReload)
+QVR_BUTTON_COMMANDS(FlickReloadRight, HAND_MAIN, flickReload)
 
 // By role rather than side: what the controller keys are bound to (quakevr/default.cfg).
-QVR_BUTTON_COMMANDS(GrabMain, handButtons(HAND_MAIN).grab)
-QVR_BUTTON_COMMANDS(GrabOff, handButtons(HAND_OFF).grab)
-QVR_BUTTON_COMMANDS(ReloadMain, handButtons(HAND_MAIN).reload)
-QVR_BUTTON_COMMANDS(ReloadOff, handButtons(HAND_OFF).reload)
+QVR_BUTTON_COMMANDS(GrabMain, HAND_MAIN, grab)
+QVR_BUTTON_COMMANDS(GrabOff, HAND_OFF, grab)
+QVR_BUTTON_COMMANDS(ReloadMain, HAND_MAIN, reload)
+QVR_BUTTON_COMMANDS(ReloadOff, HAND_OFF, reload)
 
 #undef QVR_BUTTON_COMMANDS
 
@@ -383,6 +394,13 @@ void handMove(VrMove& move, const hands::State& hs, int h)
     // Muzzles come from the weapon models (vr_view.cpp), as of the last rendered frame, moved with the hand since;
     // a carried gun's from where it is drawn (handMuzzle). The loading port as the muzzle.
     move.muzzlePos[h] = handMuzzle(hs, h);
+    // The Crystal Lance shoots from its middle crystal's tip as drawn (lance3; the bolt is drawn from there: lancebolt),
+    // whichever way it is held.
+    glm::vec3 tip;
+    if(hs.muzzleValid[h] && lancecharge::boltStart(cl.viewentity, h, hs.muzzle[h], tip))
+    {
+        move.muzzlePos[h] += tip - hs.muzzle[h];
+    }
     move.loadPort[h] = hs.loadPortValid[h] ? hs.loadPort[h] + (hs.pos[h] - hs.placedFrom[h]) : hs.pos[h];
     move.loadPortAxis[h] = hs.loadPortValid[h] ? hs.loadPortAxis[h] : glm::vec3{0.f};
     move.loadPortFace[h] = hs.loadPortValid[h] ? hs.loadPortFace[h] : glm::vec3{0.f};
@@ -398,7 +416,7 @@ void handMove(VrMove& move, const hands::State& hs, int h)
     }
 
     // Where its shots go: the aim turned by the weapon's Shot Pitch and Yaw (the drawn weapon doesn't move).
-    move.shotRot[h] = weapons::shotAngles(hs.rot[h], weapons::heldSlot(h), h == HAND_OFF);
+    move.shotRot[h] = view::heldShotAngles(hs.rot[h], h); // (a flipped pole weapon: the way it is drawn, lance3)
     // Flatscreen play: a gun a wall turned shoots the way its muzzle points (vr_flat_wall_shot; its muzzle is the drawn one:
     // flatsight's keepMuzzle).
     move.shotRot[h] = flatsight::wallShotAngles(h, move.shotRot[h]);
@@ -947,6 +965,11 @@ bool offhandButton()
     return seatButtons().offhandAttack;
 }
 
+bool reloadHeld(int hand)
+{
+    return hand >= 0 && hand < HAND_COUNT && handButtons(hand).reload;
+}
+
 bool attacking(int hand)
 {
     if(flycam::on())
@@ -1174,9 +1197,10 @@ extern "C" int VR_ParseServerMessage(int cmd)
     {
         return 0;
     }
-    // The server's map package comes before its svc_serverinfo (vr_mpdownload.cpp): read whatever protocol the last
-    // server had (a Quake VR server takes Quake VR clients of its own network version only: net_dgrm.c).
-    const bool package = msg_readcount < net_message.cursize && net_message.data[msg_readcount] == QVR_SVC_PACKAGE;
+    // The server's campaign and map package come before its svc_serverinfo (vr_mpdownload.cpp): read whatever protocol
+    // the last server had (a Quake VR server takes Quake VR clients of its own network version only: net_dgrm.c).
+    const bool package = msg_readcount < net_message.cursize &&
+        (net_message.data[msg_readcount] == QVR_SVC_PACKAGE || net_message.data[msg_readcount] == QVR_SVC_CAMPAIGN);
     if(!vrProtocol() && !package)
     {
         return 0;
@@ -1215,6 +1239,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_HELDPLACE: held::parsePlaces(); break; // where the server has what our hands hold (vr_held.cpp, B27)
         case QVR_SVC_SNAPSHOT: netsnap::parse(); break; // our state, the entities and avatars, delta-coded (vr_netsnap.cpp)
         case QVR_SVC_PACKAGE: mpdownload::parsePackage(); break; // the server's map package (vr_mpdownload.cpp)
+        case QVR_SVC_CAMPAIGN: mpdownload::parseCampaign(); break; // the server's campaign (vr_mpdownload.cpp, mpcampaign)
         case QVR_SVC_AVATARCAL: mpavatar::parseCalibration(); break; // a player's height, arms, gloves, body (vr_mpavatar.cpp)
         case QVR_SVC_VOICE: voicechat::parse(); break; // another player's voice frames (vr_voicechat.cpp, B10v)
         case QVR_SVC_TIP_MAKE:
@@ -1245,6 +1270,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_XRAY: arenaxray::parseEvent(); break;
         case QVR_SVC_HUMLOOK: humlook::parseEvent(); break;
         case QVR_SVC_CLIMBROPE: climbrope::parse(); break;
+        case QVR_SVC_LANCECHARGE: lancecharge::parse(); break; // Dwell's Crystal Lance's charge (vr_lancecharge.cpp)
         case QVR_SVC_GORESOUND: goresound::parseEvent(); break;
         case QVR_SVC_WEAPONGONE: wounds::parseWeaponGone(); break;
         case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;
@@ -1538,6 +1564,11 @@ extern "C" int VR_BeamGone(int ent)
     return 1;
 }
 
+extern "C" float VR_BeamLife(int ent)
+{
+    return lancecharge::beamLife(ent);
+}
+
 // The player's own beams follow the gun as drawn, every frame, rather than where the server last
 // saw it (a few frames late, and stepping at the server's rate). Beam ids 0 and 1 (the off and
 // main hands' lightning) start at that hand's muzzle and aim along the hand, keeping their length;
@@ -1552,9 +1583,14 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
     }
     if((ent & 0xFFFF) != cl.viewentity)
     {
+        glm::vec3 tip;
         if(id == 2)
         {
             thrownGunRopeStart(ent, start);
+        }
+        else if(id < 2 && lancecharge::boltStart(ent & 0xFFFF, id, geom::vec(start), tip))
+        {
+            geom::store(tip, start); // (another player's Crystal Lance: its bolt from its middle crystal's tip as drawn)
         }
         return 0;
     }
@@ -1567,7 +1603,7 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
         if(id < 2)
         {
             const float len = glm::distance(geom::vec(start), geom::vec(end));
-            const glm::vec3 e = muzzle + hands::forward(weapons::shotAngles(s.rot[hand], weapons::heldSlot(hand), hand == HAND_OFF)) * len;
+            const glm::vec3 e = muzzle + hands::forward(view::heldShotAngles(s.rot[hand], hand)) * len;
             end[0] = e.x;
             end[1] = e.y;
             end[2] = e.z;
@@ -1578,6 +1614,11 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
             // The rope: a little inside the barrel (it comes out of the gun, not off its end).
             from -= hands::forward(weapons::shotAngles(s.rot[hand], weapons::heldSlot(hand), hand == HAND_OFF)) *
                     za::max(0.f, vr_grapple_rope_depth.value);
+        }
+        glm::vec3 tip;
+        if(id < 2 && lancecharge::boltStart(cl.viewentity, hand, from, tip))
+        {
+            from = tip; // (the Crystal Lance: its bolt from its middle crystal's tip as drawn; its end kept on the aim)
         }
         start[0] = from.x;
         start[1] = from.y;

@@ -23,7 +23,68 @@
 // Dwell support: the Dwell weapon this one is (DW_VAR_*, dwell/dw_defs.qc: the Rotary Shotgun a super shotgun, the
 // Crystal Lance a lightning gun, the Rifle a shotgun; 0 our own), set by its pickup (DW_VariantGiven). As wi_adup: it
 // goes with the weapon (hands, holsters, drops, saves; a level change and a coop rejoin: parm76). One or the other.
+// A player's weapons follow the variants he owns (WeaponInst_Owned below).
 .float wi_dwvar;
+
+// Mod weapon variants owned (his decision 2026-11-24, variantowned): a mod's weapon is one of ours (a base WID) and a
+// variant (Dwell's Rotary Shotgun a super shotgun, its Crystal Lance a lightning gun: .wi_dwvar), and the variant is the
+// player's, per base weapon: once he has it (a pickup, a prop taken, the toolgun's, carried from the last level or a
+// save), every weapon of that kind in his hands and holsters is it, however it came to him (a weapon key, the wheel,
+// cycling, a holster, a pickup, a cheat, a respawn), even when the one he had is gone (dropped, stuck in a body, thrown).
+// Bits 2^(variant - 1). Kept in saves (this field), across level changes (parm76's high bits) and respawns; cleared by a
+// new game (the server's edicts start empty, SetNewParms' parm76 0). Players only (bots too); armed humanoids keep
+// their records' own. AD's upgrades stay the weapon's (decision 38; an upgrade picked up takes its kind's variant back).
+.float vr_owned_vars;
+float wi_owned_late; // (the tests: records PlayerPostThink found without their owned variant: a path that missed it)
+float(float xWid) DW_VariantFor; // (dwell/dw_items.qc)
+
+// The record `xInst` of a weapon of kind `xWid` that player `p` now holds or holsters (world: none, returned as is): its
+// variant his from now on, else the one he owns of that kind on it (none: none, a record cloned from another kind's
+// cleared too). Every path that puts a record in a player's hand or holster calls it; returns `xInst`.
+entity(entity p, float xWid, entity xInst) WeaponInst_Owned =
+{
+    if(xInst == world || !(p.flags & FL_CLIENT)) { return xInst; }
+    float v = DW_VariantFor(xWid);
+    if(!v) { xInst.wi_dwvar = 0; return xInst; }
+    float bit = v == 1 ? 1 : 2;
+    if(xInst.wi_dwvar == v) { p.vr_owned_vars = p.vr_owned_vars | bit; return xInst; }
+    if(p.vr_owned_vars & bit) { xInst.wi_dwvar = v; xInst.wi_adup = 0; return xInst; } // (one or the other)
+    xInst.wi_dwvar = 0;
+    return xInst;
+};
+
+// Player `p` no longer owns the variant of kind `xWid` (an AD upgrade picked up for that kind: the newest wins).
+void(entity p, float xWid) WeaponInst_Disown =
+{
+    float v = DW_VariantFor(xWid);
+    if(v) { p.vr_owned_vars = p.vr_owned_vars - (p.vr_owned_vars & (v == 1 ? 1 : 2)); }
+};
+
+// Player `p`'s eight records (hands, holsters) as WeaponInst_Owned leaves them: a level change, a load, a spawn, and every
+// frame (PlayerPostThink, `xLate`: one found changed is a path that missed it, counted and printed).
+void(entity p, float xLate) WeaponInst_OwnedSync =
+{
+    float wids[8];
+    entity insts[8];
+    wids[0] = p.weapon; wids[1] = p.weapon2; wids[2] = p.holsterweapon0; wids[3] = p.holsterweapon1;
+    wids[4] = p.holsterweapon2; wids[5] = p.holsterweapon3; wids[6] = p.holsterweapon4; wids[7] = p.holsterweapon5;
+    insts[0] = p.weaponinst; insts[1] = p.weaponinst2; insts[2] = p.holsterweaponinst0; insts[3] = p.holsterweaponinst1;
+    insts[4] = p.holsterweaponinst2; insts[5] = p.holsterweaponinst3; insts[6] = p.holsterweaponinst4;
+    insts[7] = p.holsterweaponinst5;
+    for(float i = 0; i < 8; i++)
+    {
+        entity r = insts[i];
+        if(r == world) { continue; }
+        float was = r.wi_dwvar;
+        WeaponInst_Owned(p, wids[i], r);
+        if(xLate && was != r.wi_dwvar && r.wi_dwvar)
+        {
+            wi_owned_late++;
+            dprint(sprintf("owned variant: %s's slot %g (weapon %g #%g) was %g, made %g late\n", p.netname, i, wids[i],
+                r.wi_uid, was, r.wi_dwvar));
+        }
+    }
+};
 
 // Incandescent blades (vr_hotblade.qc): a melee weapon held in a flame or lava glows and burns what it strikes. The heat
 // is the weapon's (its record's), so it goes with it held, holstered, dropped and saved, and cools on its own clock.
@@ -169,7 +230,7 @@ void(entity e, float xHand, float xClip) VRSetEntWeaponClip =
         {
             return;
         }
-        r = WeaponInst_New(0);
+        r = WeaponInst_Owned(e, xHand == cVR_OffHand ? e.weapon2 : e.weapon, WeaponInst_New(0));
         VRSetEntWeaponInst(e, xHand, r);
     }
     r.wi_clip = xClip;
@@ -192,14 +253,14 @@ void(entity e, float xHand, float xWid, float xFlags, float xClip) VRGiveEntWeap
     VR_ADGun_Placed(xWid); // (an AD soldier's gun: its model made and precached first, the hands' models are sent by index)
     if(xHand == cVR_OffHand) { e.weapon2 = xWid; e.weaponflags2 = xFlags; }
     else                     { e.weapon = xWid; e.weaponflags = xFlags; }
-    VRSetEntWeaponInst(e, xHand, xWid == WID_FIST ? world : WeaponInst_New(xClip));
+    VRSetEntWeaponInst(e, xHand, xWid == WID_FIST ? world : WeaponInst_Owned(e, xWid, WeaponInst_New(xClip)));
 };
 
 // The hand's weapon cycled to another, `xWid` (weapon cycling, W_ChangeWeapon: the weapons as an inventory): a weapon of
 // its own (its own blood), its magazine the hand's as ever.
 void(entity e, float xHand, float xWid) VRCycleEntWeaponInst =
 {
-    VRSetEntWeaponInst(e, xHand, xWid == WID_FIST ? world : WeaponInst_Clone(VRGetEntWeaponInst(e, xHand)));
+    VRSetEntWeaponInst(e, xHand, xWid == WID_FIST ? world : WeaponInst_Owned(e, xWid, WeaponInst_Clone(VRGetEntWeaponInst(e, xHand))));
 };
 
 // The weapon a hand holds moved to the other hand (its record with it): the other hand's weapon and flags set here.
@@ -232,14 +293,14 @@ void(entity e, float xHolster, entity xInst) VRSetEntHolsterWeaponInst =
     bprint(sprintf("`VRSetEntHolsterWeaponInst`: invalid holster ID: %g\n", xHolster));
 };
 
-// A record for a weapon `xWid` that has none: magazine `xClip`.
-entity(entity xInst, float xWid, float xClip) WeaponInst_Ensure =
+// A record for a weapon `xWid` of `p` (a player's: his owned variant on it; else as it is) that has none: magazine `xClip`.
+entity(entity p, entity xInst, float xWid, float xClip) WeaponInst_Ensure =
 {
-    if(xInst || xWid == WID_FIST)
+    if(xWid == WID_FIST)
     {
         return xInst;
     }
-    return WeaponInst_New(xClip);
+    return WeaponInst_Owned(p, xWid, xInst ? xInst : WeaponInst_New(xClip));
 };
 
 // A weapon carried from the last level (DecodeLevelParms): its record again, magazine `xClip`, id `xUid` if free.

@@ -39,6 +39,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -280,7 +281,7 @@ struct Pipe
         }
     }
 
-    long transfer(void* data, size_t size, bool write, int ms)
+    long transfer(void* data, za::SizeT size, bool write, int ms)
     {
         const za::I64 end = nowMs() + ms;
         for(;;)
@@ -328,7 +329,7 @@ struct Pipe
     }
 #endif
 
-    bool all(void* data, size_t size, bool write, int ms)
+    bool all(void* data, za::SizeT size, bool write, int ms)
     {
         auto* p = static_cast<char*>(data);
         while(size > 0)
@@ -339,7 +340,7 @@ struct Pipe
                 return false;
             }
             p += n;
-            size -= static_cast<size_t>(n);
+            size -= static_cast<za::SizeT>(n);
         }
         return true;
     }

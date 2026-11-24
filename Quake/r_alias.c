@@ -791,11 +791,14 @@ void R_FlushAliasInstances (qboolean showtris)
 	GLbyte		*vrboneofs;	// QVR
 	GLuint		shadeprog;	// QVR: the shading program (glprogs.alias, or its opaque form without discard)
 	qboolean	dlightsflat;	// QVR (C5h): the batch's dynamic lights added flat on the CPU (BatchDlightsFlat)
+	int			formid;		// QVR: the program's form for vr_gl_passes (1 full, 2 opaque, 3 plain, 4 gore, 5 skin, 6 body; ALIASVAR_* << 3)
 	int			draws0;		// QVR: the draw count before the batch (vr_gl_passes)
+	int			lrzflags;	// QVR: VR_LRZ_* states drawn with (vr_gl_passes; qlrz2)
 
 	if (!ibuf.count)
 		return;
 	draws0 = vr_profcounts.drawcalls; // QVR: vr_gl_passes' alias batches
+	lrzflags = 0; // QVR
 
 	model = ibuf.ent->model;
 	mainhdr = (aliashdr_t*)Mod_Extradata (model);
@@ -829,21 +832,9 @@ void R_FlushAliasInstances (qboolean showtris)
 	mode = R_AliasShaderMode ();
 	depthonly = aliasdepth && !alphatest && !translucent; // QVR: a shadow map's opaque casters: no fragment shader (holey skins keep theirs)
 	shadeprog = GL_AliasProgram (oit, mode, alphatest, poseverttype); // QVR: made when first asked for under ES (GL_ShadersLazyStart)
-	if (!translucent && !alphatest && !aliasdepth && !aliasxray && !showtris && GL_AliasFormAvailable (ALIASFORM_OPAQUE) && VR_AliasOpaqueForm (ibuf.ent))
-	{
-		if (VR_GLESForm (VR_GLES_FORM_GLSL)) // (the PC's plain forms, vr_gl_pc_forms 1, only where one fits: no bare opaque form)
-			shadeprog = GL_AliasFormProgram (ALIASFORM_OPAQUE, mode, poseverttype); // QVR: no discard: hidden pixels rejected before shading on a tiler (vr_gl_alias_opaque)
-		if (GL_AliasFormAvailable (ALIASFORM_PLAIN) && VR_AliasPlainUse (aliasneeds))
-			shadeprog = GL_AliasFormProgram (ALIASFORM_PLAIN, mode, poseverttype); // QVR: ... nor the features none of its instances has (vr_gl_alias_plain)
-		else if (GL_AliasFormAvailable (ALIASFORM_GORE) && VR_AliasGoreUse (aliasneeds))
-			shadeprog = GL_AliasFormProgram (ALIASFORM_GORE, mode, poseverttype); // QVR: ... or all but the wounds and dents (vr_gl_alias_gore)
-		else if (GL_AliasFormAvailable (ALIASFORM_SKIN) && VR_AliasSkinUse (aliasneeds))
-			shadeprog = GL_AliasFormProgram (ALIASFORM_SKIN, mode, poseverttype); // QVR: ... or all but those and the skin tone (vr_gl_alias_skin)
-		if (shadeprog != glprogs.alias_opaque[mode][poseverttype] && shadeprog != glprogs.alias[0][mode][0][poseverttype] && VR_AliasBodyLight (ibuf.ent) && !VR_AliasBodyFlat (ibuf.ent))
-			shadeprog = GL_AliasFormProgram (ALIASFORM_BODY, mode, poseverttype); // QVR: your body in those forms lit at its vertices (vr_gl_alias_body 1)
-	}
-	// QVR (C5h, QUEST_PLAN.md 6zs): your body under vr_gl_alias_body 2: its dynamic lights added flat on the CPU, drawn by
-	// the form it would take anyway with the shader's loop over them skipped for the batch (BatchDlightsFlat). Its own
+	// QVR (C5h, QUEST_PLAN.md 6zs): your body under vr_gl_alias_body 2 (qtune: and the gore, vr_gl_alias_flat): its dynamic
+	// lights added flat on the CPU, drawn by the form it would take anyway with the shader's loop over them skipped for the
+	// batch (BatchDlightsFlat), compiled out in the plain, gore and skin forms' flat variant (ALIASVAR_FLAT). Its own
 	// program (C5f) cost the Quest 3 ~3.3 ms more than that form running the same code. A batch mixing it with others: the
 	// light without them, the loop adding them.
 	dlightsflat = ibuf.count > 0;
@@ -853,6 +844,48 @@ void R_FlushAliasInstances (qboolean showtris)
 		for (i = 0; i < ibuf.count; i++)
 			if (aliasinstflat[i])
 				VectorCopy (aliasinstperpixel[i], ibuf.inst[i].lightcolor);
+	formid = 1;
+	if (!translucent && !alphatest && !aliasdepth && !aliasxray && !showtris && GL_AliasFormAvailable (ALIASFORM_OPAQUE) && VR_AliasOpaqueForm (ibuf.ent))
+	{
+		// qtune: the forms' variant: no fullbright read when none of the batch's skins has fullbrights (each pixel read
+		// the 1x1 black texture: -1.05 ms of the Quest 3's posed head, C5h), no lights' loop when they are all added flat
+		int variant = dlightsflat ? ALIASVAR_FLAT : 0;
+		if (gl_fullbrights.value && !r_lightmap_cheatsafe)
+		{
+			qboolean fb = false;
+			for (hdr = VR_AliasSurfaceFirst (ibuf.ent, mainhdr); hdr && !fb; hdr = VR_AliasSurfaceNext (ibuf.ent, mainhdr, hdr))
+			{
+				skinnum = ibuf.ent->skinnum;
+				if ((skinnum >= hdr->numskins) || (skinnum < 0)) skinnum = 0;
+				fb = hdr->fbtextures[skinnum][anim] != NULL;
+			}
+			variant |= fb ? 0 : ALIASVAR_NOFB;
+		}
+		else
+			variant |= ALIASVAR_NOFB;
+		formid = 2;
+		if (VR_GLESForm (VR_GLES_FORM_GLSL)) // (the PC's plain forms, vr_gl_pc_forms 1, only where one fits: no bare opaque form)
+			shadeprog = GL_AliasFormProgram (ALIASFORM_OPAQUE, mode, poseverttype); // QVR: no discard: hidden pixels rejected before shading on a tiler (vr_gl_alias_opaque)
+		else
+			formid = 1;
+		if (GL_AliasFormAvailable (ALIASFORM_PLAIN) && VR_AliasPlainUse (aliasneeds))
+			formid = 3; // QVR: ... nor the features none of its instances has (vr_gl_alias_plain)
+		else if (GL_AliasFormAvailable (ALIASFORM_GORE) && VR_AliasGoreUse (aliasneeds))
+			formid = 4; // QVR: ... or all but the wounds and dents (vr_gl_alias_gore)
+		else if (GL_AliasFormAvailable (ALIASFORM_SKIN) && VR_AliasSkinUse (aliasneeds))
+			formid = 5; // QVR: ... or all but those and the skin tone (vr_gl_alias_skin)
+		if (formid >= 3)
+		{
+			variant &= GL_AliasFormVariants ();
+			shadeprog = GL_AliasFormProgramV (formid == 3 ? ALIASFORM_PLAIN : formid == 4 ? ALIASFORM_GORE : ALIASFORM_SKIN, variant, mode, poseverttype);
+			formid |= variant << 3;
+			if (VR_AliasBodyLight (ibuf.ent) && !VR_AliasBodyFlat (ibuf.ent))
+			{
+				shadeprog = GL_AliasFormProgram (ALIASFORM_BODY, mode, poseverttype); // QVR: your body in those forms lit at its vertices (vr_gl_alias_body 1)
+				formid = 6;
+			}
+		}
+	}
 	if (depthonly)
 		GL_UseProgram (layered ? glprogs.alias_depth_layered[poseverttype] : glprogs.alias_depth[poseverttype]);
 	else
@@ -882,6 +915,9 @@ void R_FlushAliasInstances (qboolean showtris)
 		state = (state & ~GLS_MASK_CULL) | GLS_CULL_NONE;
 	if (aliasnear & 1) // QVR: a held item nearer than the near plane is drawn at it, not cut (vr_nearclip_held)
 		glEnable (GL_DEPTH_CLAMP);
+	if (vr_glpass_trace) // QVR (qlrz2)
+		lrzflags |= ((aliasnear & 1) ? VR_LRZ_CLAMP : 0) | ((state & GLS_MASK_CULL) == GLS_CULL_NONE ? VR_LRZ_TWOSIDED : 0)
+			| (!depthonly && (formid == 1 || alphatest) ? VR_LRZ_DISCARD : 0);
 
 	opaque_state = (state | GLS_BLEND_OPAQUE) & ~(GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE);
 	transparent_state = (state | GLS_BLEND_ALPHA) & ~(GLS_BLEND_OPAQUE | GLS_CULL_BACK);
@@ -1007,6 +1043,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	{ // QVR: your body's depth first (the world's models too): its opaque skins with no fragment shader, the same instances and
 	  // the same invariant gl_Position, so that the shading below runs once a pixel (it passes the depth equal, no writes)
 		VR_GPUZoneBegin ("body depth prepass");
+		lrzflags |= VR_LRZ_PREPASS; // QVR (qlrz2)
 		GL_UseProgram (glprogs.alias_depth[poseverttype]);
 		VR_AliasShadowClip (); // (its own program's plane, the same as the shading's)
 		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
@@ -1119,6 +1156,7 @@ void R_FlushAliasInstances (qboolean showtris)
 				continue;
 			}
 			VR_TemporalMotionWrites (0); // QVR: (not blended into the motion target)
+			lrzflags |= (transparent_state & GLS_NO_ZWRITE) ? 0 : VR_LRZ_BLENDZ; // QVR (qlrz2): blended, writing depth
 			if (notex) // QVR: (no fragment shader to read them)
 			{
 				GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount);
@@ -1156,7 +1194,7 @@ void R_FlushAliasInstances (qboolean showtris)
 		for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
 			tris += hdr->numindexes / 3;
 		VR_GLAliasBatch (model->name, ibuf.count, draws0, aliasdepth, ibuf.ent >= cl_entities && ibuf.ent < cl_entities + cl_max_edicts ? (int)(ibuf.ent - cl_entities) : -1, ibuf.ent->skinnum,
-			depthonly ? 0 : shadeprog == glprogs.alias_plain[mode][poseverttype] ? 3 : shadeprog == glprogs.alias_gore[mode][poseverttype] ? 4 : shadeprog == glprogs.alias_skin[mode][poseverttype] ? 5 : shadeprog == glprogs.alias_body[mode][poseverttype] ? 6 : shadeprog == glprogs.alias_opaque[mode][poseverttype] ? 2 : 1, aliasneeds, tris);
+			depthonly ? 0 : formid, aliasneeds, tris, lrzflags);
 	}
 	ibuf.count = 0;
 	GL_EndGroup ();
@@ -2246,7 +2284,8 @@ void R_DrawAliasModels (entity_t **ents, int count)
 {
 	int i;
 	for (i = 0; i < count; i++)
-		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias model", R_DrawAliasModel_Real (ents[i], ALIAS_STANDARD)); // QVR: (vr_tracy_render_detail)
+		if (!VR_AliasDebugHidden (ents[i])) // QVR: (vr_debug_hide_models)
+			VR_TRACY_DETAIL (vr_tracy_render_zones, "alias model", R_DrawAliasModel_Real (ents[i], ALIAS_STANDARD)); // QVR: (vr_tracy_render_detail)
 	R_FlushAliasInstances (false);
 	VR_TemporalMotionWrites (0); // QVR: on through the models' batches (switching the draw buffers a batch cost GPU time)
 }

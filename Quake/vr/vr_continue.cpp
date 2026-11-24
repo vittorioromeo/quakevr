@@ -40,6 +40,7 @@
 #include "vr_mapinstall.hpp"
 #include "vr_runsetup.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strstr.hpp"
@@ -151,7 +152,7 @@ bool readSave(const char* path, za::Vector<char>& text, long limit = 0, bool* wh
     if(size <= 0 || size > 64L * 1024 * 1024) { fclose(f); return false; }
     const long want = limit > 0 && limit < size ? limit : size;
     text.resize(static_cast<za::SizeT>(want) + 1);
-    const size_t got = fread(text.data(), 1, static_cast<size_t>(want), f);
+    const za::SizeT got = fread(text.data(), 1, static_cast<za::SizeT>(want), f);
     fclose(f);
     text[got] = 0;
     if(whole) { *whole = want == size; }
@@ -181,7 +182,7 @@ bool readSaveHead(const char* path, za::Vector<char>& text)
 }
 
 // Line `n` (0: the version) of a save, into `out`.
-void saveLine(const char* text, int n, char* out, size_t size)
+void saveLine(const char* text, int n, char* out, za::SizeT size)
 {
     const char* p = text;
     for(int i = 0; i < n && p; ++i)
@@ -191,24 +192,24 @@ void saveLine(const char* text, int n, char* out, size_t size)
     }
     out[0] = 0;
     if(!p) { return; }
-    const size_t len = strcspn(p, "\r\n");
+    const za::SizeT len = strcspn(p, "\r\n");
     q_strlcpy(out, p, za::min(size, len + 1));
 }
 
 // A context line's value ("// <key> <value>": "" when nothing follows the key); false when the save has no such line.
-bool contextLine(const char* text, const char* key, char* out, size_t size)
+bool contextLine(const char* text, const char* key, char* out, za::SizeT size)
 {
     char needle[64];
     q_snprintf(needle, sizeof(needle), "\n// %s", key);
-    const size_t n = ZA_STRLEN(needle);
+    const za::SizeT n = ZA_STRLEN(needle);
     for(const char* p = ZA_STRSTR(text, needle); p; p = ZA_STRSTR(p + 1, needle))
     {
         const char* v = p + n;
         if(*v != ' ' && *v != '\r' && *v != '\n' && *v != 0) { continue; } // (another key that starts the same)
         if(*v == ' ') { ++v; }
-        const size_t len = strcspn(v, "\r\n");
+        const za::SizeT len = strcspn(v, "\r\n");
         q_strlcpy(out, v, za::min(size, len + 1));
-        for(size_t e = ZA_STRLEN(out); e > 0 && out[e - 1] == ' '; --e) { out[e - 1] = 0; }
+        for(za::SizeT e = ZA_STRLEN(out); e > 0 && out[e - 1] == ' '; --e) { out[e - 1] = 0; }
         return true;
     }
     out[0] = 0;
@@ -216,7 +217,7 @@ bool contextLine(const char* text, const char* key, char* out, size_t size)
 }
 
 // A map package's title as the map index has it now ("" when the index doesn't know it).
-void packageTitleNow(const char* sha, char* out, size_t size)
+void packageTitleNow(const char* sha, char* out, za::SizeT size)
 {
     out[0] = 0;
     if(!sha[0]) { return; }
@@ -259,9 +260,9 @@ void readContext(const char* text, const char* path, SaveContext& ctx)
     {
         // The comment's first 22 characters ('_' for ' ': Host_SavegameComment), the level's title cut short.
         saveLine(text, 1, line, sizeof(line));
-        line[za::min<size_t>(22, sizeof(line) - 1)] = 0;
+        line[za::min<za::SizeT>(22, sizeof(line) - 1)] = 0;
         for(char* p = line; *p; ++p) { if(*p == '_') { *p = ' '; } }
-        for(size_t n = ZA_STRLEN(line); n > 0 && line[n - 1] == ' '; --n) { line[n - 1] = 0; }
+        for(za::SizeT n = ZA_STRLEN(line); n > 0 && line[n - 1] == ' '; --n) { line[n - 1] = 0; }
         q_strlcpy(ctx.mapTitle, line[0] ? line : ctx.map, sizeof(ctx.mapTitle));
     }
 }
@@ -274,9 +275,9 @@ const char* contextTitle(const SaveContext& ctx)
 }
 
 // A map's name as part of a file name: letters, digits, '_', '-' and '.' kept, anything else '_'.
-void safeName(const char* in, char* out, size_t size)
+void safeName(const char* in, char* out, za::SizeT size)
 {
-    size_t i = 0;
+    za::SizeT i = 0;
     for(; in[i] && i + 1 < size; ++i)
     {
         const char c = in[i];
@@ -288,7 +289,7 @@ void safeName(const char* in, char* out, size_t size)
 }
 
 // The autosave of `map` played in `campaign`, from the map package `sha` ("": none).
-void autosaveName(const char* map, int campaign, const char* sha, char* out, size_t size)
+void autosaveName(const char* map, int campaign, const char* sha, char* out, za::SizeT size)
 {
     char safe[MAX_QPATH];
     safeName(map, safe, sizeof(safe));
@@ -594,7 +595,7 @@ void refreshAutosaves(bool verbose = false)
 }
 
 // How long ago a save was made: "just now", "12 min ago", "3 h ago", "4 days ago".
-void describeAge(time_t made, char* out, size_t size)
+void describeAge(time_t made, char* out, za::SizeT size)
 {
     time_t now;
     time(&now);
@@ -606,7 +607,7 @@ void describeAge(time_t made, char* out, size_t size)
 }
 
 // An autosave's two lines: "e1m3: The Necropolis" and "Health 65 Armor 50, 3:12 in, 5 min ago".
-void describeAutosave(const ContinueSave& s, char* line1, size_t size1, char* line2, size_t size2)
+void describeAutosave(const ContinueSave& s, char* line1, za::SizeT size1, char* line2, za::SizeT size2)
 {
     if(s.context[0] && !ofThisGame(s)) { q_snprintf(line1, size1, "%s: %s (%s)", s.map, s.title, s.context); }
     else { q_snprintf(line1, size1, "%s: %s", s.map, s.title); }
@@ -895,7 +896,7 @@ extern "C" int VR_AutosaveListRefresh(void)
 
 extern "C" int VR_AutosaveListHidden(void) { return autosaveHidden; }
 
-extern "C" void VR_AutosaveListScope(char* out, size_t size)
+extern "C" void VR_AutosaveListScope(char* out, za::SizeT size)
 {
     if(qvr::vr_autosave_list_all.value != 0.f)
     {
@@ -920,7 +921,7 @@ extern "C" int VR_AutosaveListToggleAll(void)
     return autosaveCount;
 }
 
-extern "C" void VR_AutosaveDescribe(int i, char* line1, size_t size1, char* line2, size_t size2)
+extern "C" void VR_AutosaveDescribe(int i, char* line1, za::SizeT size1, char* line2, za::SizeT size2)
 {
     line1[0] = 0;
     line2[0] = 0;
@@ -935,7 +936,7 @@ extern "C" void VR_AutosaveLoad(int i)
     Cbuf_InsertText(va("load \"%s\"\n", autosaves[i].relname)); // (next, before any command queued)
 }
 
-extern "C" void VR_AutosaveName(const char* map, char* out, size_t size)
+extern "C" void VR_AutosaveName(const char* map, char* out, za::SizeT size)
 {
     autosaveName(map, VR_ActiveCampaign(), qvr::mapinstall::active().cStr(), out, size);
 }
@@ -947,7 +948,7 @@ extern "C" int VR_AutosaveAllowed(const char* map)
     return q_strncasecmp(map, "vr", 2) != 0;
 }
 
-extern "C" void VR_SaveContext(char* out, size_t size)
+extern "C" void VR_SaveContext(char* out, za::SizeT size)
 {
     const za::String& sha = qvr::mapinstall::active();
     char packageTitle[64];
@@ -966,7 +967,7 @@ extern "C" void VR_SaveContext(char* out, size_t size)
     q_strlcat(out, qvr::runsetup::saveLine(), size); // the run's choices (// qvr_run: vr_runsetup.cpp, read on its load)
 }
 
-extern "C" int VR_SavePackage(const char* text, const char* savepath, char* sha, size_t size)
+extern "C" int VR_SavePackage(const char* text, const char* savepath, char* sha, za::SizeT size)
 {
     SaveContext ctx;
     readContext(text, savepath, ctx);
@@ -988,7 +989,7 @@ extern "C" int VR_SavePackageReady(const char* text, const char* savepath)
     return 0;
 }
 
-extern "C" int VR_SaveMenuLabel(const char* path, char* out, size_t size)
+extern "C" int VR_SaveMenuLabel(const char* path, char* out, za::SizeT size)
 {
     za::Vector<char> text;
     bool whole = false;
@@ -1015,7 +1016,7 @@ extern "C" int VR_ContinueAvailable()
     return continueSave.found ? 1 : 0;
 }
 
-extern "C" void VR_ContinueDescribe(char* title, size_t titlesize, char* detail, size_t detailsize)
+extern "C" void VR_ContinueDescribe(char* title, za::SizeT titlesize, char* detail, za::SizeT detailsize)
 {
     if(!continueSave.found)
     {

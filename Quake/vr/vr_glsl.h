@@ -48,7 +48,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "layout(location=10) uniform vec3 SlowTint; // QVR: ... its tint\n" \
 "layout(binding=7) uniform sampler2D VisorMask; // QVR: the flat-screen visor's layer (vr/vr_visor.cpp): its alpha left out of bullet time's look\n" \
 "layout(location=11) uniform vec4 VisorRect; // QVR: ... the view's rectangle it covers (x, y, w, h; w 0: none)\n" \
-"layout(location=12) uniform vec4 PostView; // QVR: the view's drawn size (xy, pixels: its targets may be larger, dynamic resolution's ceiling: vr/vr_stereo.hpp ViewSize), zw unused\n" \
+"layout(location=12) uniform vec4 PostView; // QVR: the view's drawn size (xy, pixels: its targets may be larger, dynamic resolution's ceiling: vr/vr_stereo.hpp ViewSize), zw its lower left corner in the target (0 but the in-tile pass's part of an image: vr_eye_rect_place)\n" \
 "layout(location=13) uniform vec4 BloomMap; // QVR: QvrViewUV's map of the glow (vr/vr_bloom.cpp)\n" \
 "layout(location=14) uniform vec4 SceneMap; // QVR: ... of the scene's colours (WaterScene)\n" \
 "\n" \
@@ -80,7 +80,7 @@ QVR_VIEW_UV_GLSL
 #define QVR_POSTPROCESS_GRADE_DITHER \
 "	if (SlowLook.x > 0.0) // QVR: bullet time's look: the colour drained towards grey, tinted, the edges darkened\n" \
 "	{\n" \
-"		vec2 sv = gl_FragCoord.xy / pp_size * 2.0 - 1.0;\n" \
+"		vec2 sv = (gl_FragCoord.xy - PostView.zw) / pp_size * 2.0 - 1.0;\n" \
 "		float luma = dot(out_fragcolor.rgb, vec3(0.299, 0.587, 0.114));\n" \
 "		vec3 c = mix(out_fragcolor.rgb, vec3(luma), SlowLook.x * SlowLook.y);\n" \
 "		c *= mix(vec3(1.0), SlowTint, SlowLook.x);\n" \
@@ -95,7 +95,7 @@ QVR_VIEW_UV_GLSL
 "	}\n" \
 "	if (SlowLook.w > 0.0) // QVR: the comfort vignette (vr_comfort_vignette): the edges darkened while the sticks move or\n" \
 "	{ // turn you, the clear middle narrower the stronger it is\n" \
-"		vec2 cv = gl_FragCoord.xy / pp_size * 2.0 - 1.0;\n" \
+"		vec2 cv = (gl_FragCoord.xy - PostView.zw) / pp_size * 2.0 - 1.0;\n" \
 "		float r0 = mix(2.0, 0.1, SlowLook.w);\n" \
 "		out_fragcolor.rgb *= 1.0 - smoothstep(r0, r0 + 0.6, dot(cv, cv));\n" \
 "	}\n" \
@@ -108,6 +108,25 @@ QVR_VIEW_UV_GLSL
 "		float m = max(out_fragcolor.r, max(out_fragcolor.g, out_fragcolor.b));\n" \
 "		out_fragcolor.rgb += n * Dither.x * clamp(m * 255.0, 0.0, 1.0);\n" \
 "	}\n"
+
+// The colour the world, the liquids and the models write (after the frame data, which holds SceneTone): clamped at
+// SceneTone.x (1, or the float scene's top), or, negative, drawn straight into the eye's 8-bit image (vr_xr_direct,
+// the Quest's fixed foveation): times the exposure (-SceneTone.x), rolled off with the post-process's tone curve
+// (QvrTonemap, vr_tonemap.h, with vr_tonemap.hpp's knee 0.8 and white point 4: w = 16) instead of clipping at 1.
+#define QVR_SCENE_TONE_GLSL \
+"vec3 QvrSceneTone(vec3 c)\n" \
+"{\n" \
+"	if (SceneTone.x >= 0.0)\n" \
+"		return clamp(c, 0.0, SceneTone.x);\n" \
+"	c = max(c, 0.0) * -SceneTone.x;\n" \
+"	float m = max(c.r, max(c.g, c.b));\n" \
+"	if (m <= 0.8)\n" \
+"		return c;\n" \
+"	float t = (m - 0.8) / 0.2;\n" \
+"	float top = 0.8 + 0.2 * min(t * (1.0 + t / 256.0) / (1.0 + t), 1.0);\n" \
+"	float over = clamp((m - 1.0) / 3.0, 0.0, 1.0);\n" \
+"	return mix(c * (top / m), vec3(top), over * 0.8);\n" \
+"}\n"
 
 // the frame data's Quake VR fields (lights, liquids, detail, tone)
 #define QVR_FRAMEDATA_FIELDS \
@@ -215,6 +234,7 @@ QVR_STEREO_VIEWS \
 "	vec4	FramePortalMax[8];\n"\
 "};\n"\
 "\n"\
+QVR_SCENE_TONE_GLSL \
 
 // The shaders' pieces by family, in their old order (the head above and the tail below stay here).
 #include "vr_glsl_lighting.h"

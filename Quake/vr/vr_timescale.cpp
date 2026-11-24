@@ -2,6 +2,7 @@
 
 #include "vr_timescale.hpp"
 #include "vr_flatholster.hpp"
+#include "vr_weaponwheel.hpp"
 #include "vr_backend.hpp"
 #include "vr_box3d.hpp"
 #include "vr_bullettime.hpp"
@@ -95,8 +96,9 @@ PlayerTime playerTime;
     {
         s = za::clamp(vr_timescale.value, minScale, 4.f);
     }
-    // Bullet time's, or flatscreen play's holster menu's (vr_flatholster.cpp: vr_flat_holster_menu_timescale while open).
-    const float bullet = za::min(bullettime::scale(), flatholster::timeScale());
+    // Bullet time's, or flatscreen play's holster menu's (vr_flatholster.cpp: vr_flat_holster_menu_timescale while open),
+    // or the headset's weapon wheel's (vr_weaponwheel.cpp: vr_weaponwheel_timescale while open).
+    const float bullet = za::min(za::min(bullettime::scale(), flatholster::timeScale()), weaponwheel::timeScale());
     return bullet < s ? za::max(bullet, minScale) : s;
 }
 
@@ -326,7 +328,8 @@ void filterHands(TrackingState& t)
         }
     }
 
-    const bool inGame = key_dest == key_game && cls.state == ca_connected;
+    // (The weapon wheel open: the hands are the controllers', as in a menu: the hand is its cursor, in real time.)
+    const bool inGame = key_dest == key_game && cls.state == ca_connected && !weaponwheel::openInHeadset();
     bool following = false;
     for(const Follow& f : slowHands.hand)
     {

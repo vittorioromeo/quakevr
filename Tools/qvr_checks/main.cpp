@@ -8,11 +8,13 @@
 // last lines and a "... FAILED" line. Exit 1 when a check fails (the FGD check only warns, as before).
 #include "common.hpp"
 
-#include <chrono>
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Chrono/Clock.hpp"
+#include "Zancle/Concurrency/Thread.hpp"
+
 #include <cstdio>
 #include <cstdlib>
-#include <functional>
-#include <thread>
+#include <exception>
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -70,7 +72,7 @@ constexpr AllEntry allEntries[] = {
     {"std_uses", 12, "STD USES CHECK FAILED (see docs/vr-port/ZANCLE.md)", true},
 };
 
-const Check* findCheck(std::string_view name)
+const Check* findCheck(za::StringView name)
 {
     for(const auto& c : checks)
     {
@@ -82,7 +84,7 @@ const Check* findCheck(std::string_view name)
     return nullptr;
 }
 
-// A check run, an exception from it (std::stoll's out_of_range, a std::regex error, ...) reported as its failure
+// A check run, an exception from it (a std::regex error, a std::filesystem one, an allocation failure, ...) reported as its failure
 // instead of ending the tool with no output (exit 3: build.sh's "BUILD FAILED" with an empty log).
 int runCheck(const Check& c, const Ctx& ctx, const Args& args, Out& out)
 {
@@ -97,21 +99,21 @@ int runCheck(const Check& c, const Ctx& ctx, const Args& args, Out& out)
     }
 }
 
-void print(std::string_view s)
+void print(za::StringView s)
 {
-    std::fwrite(s.data(), 1, s.size(), stdout);
+    fwrite(s.data(), 1, s.size(), stdout);
 }
 
-std::string lastLines(std::string_view s, int n)
+za::String lastLines(za::StringView s, int n)
 {
     // (as `echo "$(cmd)" | tail -n`: the trailing newlines dropped, then the last n lines)
     while(!s.empty() && s.back() == '\n')
     {
-        s.remove_suffix(1);
+        s.removeSuffix(1);
     }
     const auto lines = splitLines(s);
-    std::string o;
-    for(size_t k = lines.size() > static_cast<size_t>(n) ? lines.size() - n : 0; k < lines.size(); ++k)
+    za::String o;
+    for(za::SizeT k = lines.size() > static_cast<za::SizeT>(n) ? lines.size() - n : 0; k < lines.size(); ++k)
     {
         o += lines[k];
         o += '\n';
@@ -121,9 +123,9 @@ std::string lastLines(std::string_view s, int n)
 
 int runAll(const Ctx& ctx, const Args& args)
 {
-    std::string qchash;
+    za::String qchash;
     bool times = false;
-    for(size_t i = 0; i < args.size(); ++i)
+    for(za::SizeT i = 0; i < args.size(); ++i)
     {
         if(args[i] == "--qchash" && i + 1 < args.size())
         {
@@ -135,17 +137,17 @@ int runAll(const Ctx& ctx, const Args& args)
         }
     }
     const fs::path stamp = ctx.tree / "scratch" / ".qc_precedence_pass";
-    const auto trimmed = [](std::string s) {
+    const auto trimmed = [](za::StringView s) {
         while(!s.empty() && isSpace(s.back()))
         {
-            s.pop_back();
+            s.removeSuffix(1);
         }
         return s;
     };
     // The precedence check compiles the QC twice: skipped when the QC hasn't changed since its last pass.
     const bool skipPrecedence = !qchash.empty() && trimmed(readRaw(stamp)) == qchash;
 
-    constexpr size_t count = std::size(allEntries);
+    constexpr za::SizeT count = za::getArraySize(allEntries);
     struct Result
     {
         Out out;
@@ -154,24 +156,24 @@ int runAll(const Ctx& ctx, const Args& args)
         bool ran = false;
     };
     Result results[count];
-    std::vector<std::thread> threads;
-    for(size_t i = 0; i < count; ++i)
+    za::Vector<za::Thread> threads;
+    for(za::SizeT i = 0; i < count; ++i)
     {
-        if(skipPrecedence && std::string_view(allEntries[i].name) == "qc_precedence")
+        if(skipPrecedence && za::StringView(allEntries[i].name) == "qc_precedence")
         {
             continue;
         }
-        threads.emplace_back([&, i] {
-            const auto t0 = std::chrono::steady_clock::now();
+        threads.emplaceBack([&, i] {
+            const za::I64 t0 = za::Clock::nowNanoseconds();
             const Check* c = findCheck(allEntries[i].name);
             Args a;
-            if(std::string_view(c->name) == "fgd" || std::string_view(c->name) == "cvars_qc")
+            if(za::StringView(c->name) == "fgd" || za::StringView(c->name) == "cvars_qc")
             {
-                a.emplace_back("--check");
+                a.emplaceBack("--check");
             }
             results[i].rc = runCheck(*c, ctx, a, results[i].out);
             results[i].ran = true;
-            results[i].seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+            results[i].seconds = za::nanosecondsToSeconds(za::Clock::nowNanoseconds() - t0);
         });
     }
     for(auto& t : threads)
@@ -179,8 +181,8 @@ int runAll(const Ctx& ctx, const Args& args)
         t.join();
     }
     int rc = 0;
-    std::string timing;
-    for(size_t i = 0; i < count; ++i)
+    za::String timing;
+    for(za::SizeT i = 0; i < count; ++i)
     {
         const auto& e = allEntries[i];
         const auto& r = results[i];
@@ -188,7 +190,7 @@ int runAll(const Ctx& ctx, const Args& args)
         {
             continue;
         }
-        timing += std::format(" {} {:.2f}", e.name, r.seconds);
+        appendFmt(timing, " {} {:.2f}", e.name, r.seconds);
         if(e.tail == 0)
         {
             print(r.out.text);
@@ -206,7 +208,7 @@ int runAll(const Ctx& ctx, const Args& args)
                 rc = 1;
             }
         }
-        else if(std::string_view(e.name) == "qc_precedence" && !qchash.empty())
+        else if(za::StringView(e.name) == "qc_precedence" && !qchash.empty())
         {
             std::error_code ec;
             fs::create_directories(stamp.parent_path(), ec);
@@ -215,19 +217,19 @@ int runAll(const Ctx& ctx, const Args& args)
     }
     if(times)
     {
-        std::fprintf(stderr, "qvr_checks: seconds:%s\n", timing.c_str());
+        fprintf(stderr, "qvr_checks: seconds:%s\n", timing.cStr());
     }
-    std::fflush(stdout);
+    fflush(stdout);
     return rc;
 }
 
 int usage()
 {
-    std::string s = "usage: qvr_checks [--tree DIR] [--fteqcc PATH] <check> [arguments]\n"
-                    "  all [--qchash HASH] [--times]   every check at once (the kit's build.sh)\n";
+    za::String s = "usage: qvr_checks [--tree DIR] [--fteqcc PATH] <check> [arguments]\n"
+                   "  all [--qchash HASH] [--times]   every check at once (the kit's build.sh)\n";
     for(const auto& c : checks)
     {
-        s += std::format("  {:<14} {}\n", c.name, c.help);
+        appendFmt(s, "  {:<14} {}\n", c.name, c.help);
     }
     print(s);
     return 2;
@@ -245,11 +247,11 @@ int main(int argc, char** argv)
 
     Ctx ctx;
     ctx.tree = fs::current_path();
-    std::string cmd;
+    za::String cmd;
     Args args;
     for(int i = 1; i < argc; ++i)
     {
-        const std::string a = argv[i];
+        const za::StringView a = argv[i];
         if(a == "--tree" && i + 1 < argc)
         {
             ctx.tree = argv[++i];
@@ -258,13 +260,13 @@ int main(int argc, char** argv)
         {
             ctx.fteqcc = argv[++i];
         }
-        else if(cmd.empty() && !a.starts_with("-"))
+        else if(cmd.empty() && !a.startsWith('-'))
         {
             cmd = a;
         }
         else
         {
-            args.push_back(a);
+            args.emplaceBack(a);
         }
     }
     std::error_code ec;
@@ -285,6 +287,6 @@ int main(int argc, char** argv)
     Out out;
     const int rc = runCheck(*c, ctx, args, out);
     print(out.text);
-    std::fflush(stdout);
+    fflush(stdout);
     return rc;
 }

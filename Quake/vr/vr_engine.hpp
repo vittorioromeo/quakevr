@@ -18,6 +18,7 @@
 
 extern "C" {
 #include "quakedef.h"
+#include "Zancle/Base/SizeT.hpp"
 
 // Engine symbols that no engine header declares.
 extern cvar_t r_particles; // r_part.c: particle effects enabled
@@ -57,7 +58,7 @@ extern cvar_t gl_farclip;							// gl_rmain.c
 extern cvar_t vid_fsaa;								// gl_vidsdl.c
 extern cvar_t r_oit;								// gl_rmain.c
 extern GLuint gl_bmodel_vbo;						// r_brush.c
-extern size_t gl_bmodel_vbo_size;					// r_brush.c: its size in bytes (glvert_t each)
+extern za::SizeT gl_bmodel_vbo_size;					// r_brush.c: its size in bytes (glvert_t each)
 extern int gl_bmodel_litcmd_first;					// r_brush.c: the world's lit commands (C4v; -1 none)
 extern gltexture_t* lightmap_texture;				// r_brush.c: the map's lightmaps
 extern vec3_t lightcolor;							// gl_rlight.c: R_LightPoint's light (vr_coil.cpp)
@@ -87,7 +88,7 @@ void Char_Console (int key);						// keys.c: a letter typed into it
 extern char *con_text;								// console.c: the console's text (the VR Console page)
 extern int con_current, con_linewidth;				// console.c
 extern char key_tabpartial[MAXCMDLINE];				// console.c: Tab completion's partial word
-size_t Draw_PicBytes (void);						// gl_draw.c: the bytes a pic made by Draw_ReplacePic takes
+za::SizeT Draw_PicBytes (void);						// gl_draw.c: the bytes a pic made by Draw_ReplacePic takes
 void Draw_ReplacePic (qpic_t *pic, const char *name, int width, int height, byte *data); // gl_draw.c: a lasting pic of 8-bit data
 void Draw_ReplacePicRGBA (qpic_t *pic, const char *name, int width, int height, int texwidth, int texheight,
 	const unsigned *data, qboolean smooth); // gl_draw.c: the same of RGBA texels (texwidth x texheight drawn width x height)
@@ -134,8 +135,8 @@ void SV_AreaEdicts (const float *mins, const float *maxs, edict_t **list, int *l
 void SV_AreaEdictsUnordered (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace); // world.c: the same, in no order
 void SV_AreaRadiusCandidates (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace); // world.c: the same by the boxes as linked (findradius)
 int SV_HullPointContents (hull_t *hull, int num, vec3_t p); // world.c: the ledge map (vr_ledges.cpp)
-void Z_Usage (size_t *used, size_t *peak, size_t *count);	// zone.c: the zone's bytes in use (headers included), most ever, blocks in use (vr_limits)
+void Z_Usage (za::SizeT *used, za::SizeT *peak, za::SizeT *count);	// zone.c: the zone's bytes in use (headers included), most ever, blocks in use (vr_limits)
 void Hunk_Usage (int *used, int *peak, int *blocks); // zone.c: the hunk's bytes (headers included), most ever, blocks (vr_limits)
-void Cache_Usage (size_t *used, size_t *peak, int *entries); // zone.c: the cache's bytes, most ever, entries (vr_limits)
+void Cache_Usage (za::SizeT *used, za::SizeT *peak, int *entries); // zone.c: the cache's bytes, most ever, entries (vr_limits)
 }
 

@@ -75,7 +75,7 @@ enum SvcQuakeVr : int
     QVR_SVC_BLADEWOUND = 40,      // [short blade][short body][coord3 at][char3 dir*127][byte strength * 100, 0 stopped]: the blood stream of the wound a blade is in runs on (a word every so often, unreliable) or stops (reliable): bloodstream::onBladeWound
     QVR_SVC_ARENAMESSAGE = 41,    // QVR_SVC_VIEWMESSAGE's, from the Survival Arena (QC viewmessage's kind 1): on the wrist gadget's hologram with vr_arena_wrist (vr_worldtext.cpp), else as a view message
     QVR_SVC_AVATAR = 42,          // [short player entity][byte flags: 1 flat][short3 head - origin, eighths][angle16 x3 head][off hand, main hand: vr_move.cpp writeDrawnHand, from the origin his client drew them at][long weapon][long weapon2]: another player's head, and his hands and weapons as his client drew them (vr_server.cpp writeAvatars, to the clients that see him, an unchanged one every vr_net_avatar_keyframe frames; vr_mpavatar.cpp draws them), unreliable, multiplayer only
-    QVR_SVC_AVATARCAL = 43,       // [byte client slot][byte 1 has one, 0 none][has one: short x mpavatar::numCalFields]: a player's avatar calibration (height, arm length, handedness, gloves, body; vr_mpavatar.cpp calFields), reliable: to every client when it changes (from his "vr_avatarcal" client command), all of them to a spawning one; multiplayer only
+    QVR_SVC_AVATARCAL = 43,       // [byte client slot][byte 1 has one, 0 none][has one: short x mpavatar::numCalFields]: a player's avatar calibration (height, arm length, handedness, gloves, body, his holsters' places: holstersync; vr_mpavatar.cpp calFields), reliable: to every client when it changes (from his "vr_avatarcal" client command), all of them to a spawning one; multiplayer only
     QVR_SVC_PACKAGE = 44,         // [string sha256, "" none]: the Map Library package the server's map is played from (mapinstall::active()), before its svc_serverinfo, to each remote client (vr_mpdownload.cpp: a client mounts or installs it, then joins again); read whatever protocol the last server had, reliable
     QVR_SVC_MOVEACK = 45,         // [long seq]: the newest of this client's QVR_CLC_MOVES the server read (vr_netmove.cpp: the base of its next deltas), in each datagram
     QVR_SVC_SNAPSHOT = 46,        // [varint seq][varint seq - base, 0 none][varint body bytes][body]: a remote client's player state, entities and the others' avatars this frame, delta-coded against the snapshot it acknowledged in QVR_CLC_MOVES (vr_netsnap.hpp: the body's records), in place of svc_clientdata, the entities' updates and QVR_SVC_AVATAR; unreliable, multiplayer only
@@ -88,7 +88,9 @@ enum SvcQuakeVr : int
     QVR_SVC_BOTPATH = 53,         // [byte bot's client slot][byte next corner][byte count, 0 none] x ([byte link][coord3 corner]): a bot's navmesh path (vr_bot_navmesh), sent when it changes to the clients drawing it (their vr_nav_debug on: the "vr_nav_botpaths 1" client command; vr_navfollow.cpp), reliable
     QVR_SVC_HUMLOOK = 54,         // [short entity, -1 all cleared][short look: its row * 16 + its weapon category, + 4096 its worn pack; 0 none]: an armed humanoid's recolour by the weapon it spawned with (QC .vr_hum_look; vr_humlook.cpp serverFrame on a change, serverWriteAll with the spawn state), reliable
     QVR_SVC_CLIMBROPE = 55,       // [short entity][byte flags: 1 a chain, 2 gone][byte thickness * 16][byte count] then the first point [coord3] and each next [short3 from the one before * 8]: a climbable rope's points (vr_climbrope.cpp; where it moved, every 0.5 s at rest: unreliable; gone: reliable)
-    QVR_SVC_RIGSEQ = 37,      // [short entity][byte 1 start, 0 stop][start: string name][float server time]: a Rig Studio sequence started on a monster by QC, or stopped (vr_rigseq.cpp), reliable
+    QVR_SVC_LANCECHARGE = 56,     // [short player entity][byte hand][byte 1 charging, 0 let go short, 2 fired][byte charge seconds * 50]: Dwell's Crystal Lance's charge (QC dw_items.qc DW_LanceChargeSend, MSG_ALL; vr_lancecharge.cpp draws it at his Lance's crystal tip)
+    QVR_SVC_CAMPAIGN = 57,        // [string campaign folder, "" none]: the campaign the server's map is played in (VR_ActiveCampaign's folder: "id1", "rogue", "ad"...), before QVR_SVC_PACKAGE and its svc_serverinfo, to each remote client (vr_mpdownload.cpp: a client makes it its active one, in place or leaving and joining again, or is refused when it lacks its data; its own campaign back after it left); read whatever protocol the last server had, reliable
+    QVR_SVC_RIGSEQ = 37,     // [short entity][byte 1 start, 0 stop][start: string name][float server time]: a Rig Studio sequence started on a monster by QC, or stopped (vr_rigseq.cpp), reliable
 };
 inline constexpr int ADHUD_DATA = 1 << 13; // STAT_QVR_ADHUD: AD's data in play on the server (vr_ad.cpp clientDataInPlay)
 inline constexpr int ropeEnded = 255; // QVR_SVC_ROPE's count: the beam's rope ended (no corners follow)
@@ -222,7 +224,8 @@ enum Stat : int
     STAT_QVR_FLATGREN,
     // Flat-screen play's holster menu (QC vr_flatreload.qc .vr_flatrl_full; vr_flatholster.cpp): the hands whose UNLOAD is
     // greyed, their gun's rounds having no room in the reserve (that ammo full up), bit 0 the off hand, 1 the main; bits 2
-    // and 3: that hand's weapon too big for a holster (QC WeaponIdToHolsterable: the menu's drag greys the holsters).
+    // and 3: that hand's weapon too big for a holster (QC WeaponIdToHolsterable: the menu's drag greys the holsters); bits 4
+    // and 5: that hand's UNLOAD would move rounds now (the menu's and the weapon wheel's UNLOAD lit; either mode).
     STAT_QVR_FLATUNLOADFULL,
     // Dwell support: Dwell's powerups on the player (QC dwell/dw_items.qc DW_PowerupFrame, .vr_dw_hud): the seconds left
     // of Haste (bits 0-7), Berserk (8-15) and the Wetsuit (16-23), 0 not held; the wrist gadget's row and the flat

@@ -115,6 +115,20 @@ public static class QuestFiles
                 Add($"{e.Folder}/{r.ToLowerInvariant()}", Path.Combine(dir, r.Replace('/', '\\')), e.Folder);
             }
             folders.Add(e.Folder);
+            // Dimension of the Past, of the Machine, Dawn of the Machine: their text is in the rerelease's language table
+            // (its id1/pak0.pak), which the PC game borrows from the store's rerelease in place. The headset has no store:
+            // with the original's id1 above, it said "dopa language data incomplete" and refused them (questmods,
+            // 2026-11-24). The rerelease's id1 paks go to <files>/rerelease/id1, a root the engine reads only for its
+            // language tables and music (vr_gamedir.cpp ownedRoots, VR_LoadOwnedLocalization), never mounted.
+            var rereleaseId1 = Path.Combine(e.Root, "id1");
+            if (e.Folder is "dopa" or "mg1" or "mg3" && Directory.Exists(rereleaseId1) &&
+                !string.Equals(Path.GetFullPath(rereleaseId1).TrimEnd('\\'), Path.GetFullPath(id1).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var pak in Directory.EnumerateFiles(rereleaseId1, "pak*.pak").Order(StringComparer.OrdinalIgnoreCase))
+                {
+                    Add("rerelease/id1/" + Path.GetFileName(pak).ToLowerInvariant(), pak, "language");
+                }
+            }
         }
 
         // Arcane Dimensions, Dwell, Quoth: a copy already on this PC that the PC game plays where it is (when Setup did

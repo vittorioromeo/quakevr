@@ -1994,6 +1994,9 @@ QVR_SLIDER(vr_limbs_body_speed, "Body's Speed After", 0.f, 1.f, 0.05f, "%.2fx", 
     "stood; 1: flung as a kill) (vr_limbs_body_speed).")
 QVR_SLIDER(vr_limbs_max, "Most Limbs Lying About", 1.f, 64.f, 1.f, "%.0f", ext(1.f, 256.f),
     "Past it, the oldest go first (not one in your hand) (vr_limbs_max).")
+QVR_SLIDER(vr_gore_trim_max, "Most Settled Gore", 0.f, 128.f, 1.f, "%.0f", ext(0.f, 1024.f),
+    "Gibs, heads and limbs lying about after a fight: past this many, the farthest from you go first; none close to "
+    "you (0: no limit; on in the Standalone preset).")
 QVR_CYCLE_BYNAME(vr_limbs_prebuild, "Make Limbs as the Map Loads",
     "The Map's: the limbs of every kind of monster the map has (those waiting to appear too) are made as it "
     "loads (about 5 ms each: a tenth of a second or so more), not at their first cut (a dropped frame). And the "
@@ -3839,6 +3842,9 @@ QVR_TOGGLE_BYNAME(vr_anim_smooth_rebuild, "Rebuild From Skeleton",
     "A monster with a ragdoll rig is drawn from its skeleton every frame, with any Model Animation: each point keeps one place on its bone and moves with it, so the wobble left by the file's rounding is gone; points the skeleton fits less well (round the joints) keep the frames' places. Off: the frames' points as stored (steadied: each one's smoothest path within the file's rounding).")
 QVR_SLIDER_BYNAME(vr_rim_light, "Rim Light", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A faint light round the edges of monsters and things, in the light around them, so they stand out from dark backgrounds (0 off).")
+QVR_TOGGLE(vr_rig_plain, "Plain Own Models",
+    "Your own body, hands, held weapons and gear drawn without their surface bumps, reflections and rim light, by "
+    "the cheaper model shader (on in the Standalone preset: they cover much of the view).")
 QVR_SLIDER_BYNAME(vr_viewmodel_minlight, "Hands' Least Light", 0.f, 32.f, 1.f, "%.0f", ext(),
     "How lit your hands and weapons stay in the dark (Quake: 24).")
 QVR_TOGGLE_BYNAME(vr_weapon_reflections, "Weapon Reflections",
@@ -4694,6 +4700,10 @@ QVR_CYCLE(vr_menu_move_towards, "Move Towards",
     {1.f, "Head"}, {2.f, "Left Hand"}, {3.f, "Right Hand"}, {4.f, "Torso"})
 QVR_TOGGLE(vr_stick_swap, "Swap Stick Functions",
     "Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns.")
+QVR_TOGGLE(vr_button_swap, "Swap Face Buttons",
+    "Mirrors the face buttons and stick clicks between the controllers: A and X, B and Y, the two stick clicks trade "
+    "places, so jump (A by default) is on the left hand, off the hand that moves when the sticks are swapped. Your "
+    "own bindings keep working, mirrored, and button names show the swapped button.")
 
 // vr_menu_settings.inc: pageVrsComfort
 QVR_CYCLE(vr_comfort_vignette, "Vignette",
@@ -4782,6 +4792,10 @@ QVR_SLIDER(vr_dynres_target, "Dynamic GPU Budget", 0.5f, 1.f, 0.05f, "%.2f", noE
     "rest is left for the headset's runtime and the window). Lower: drops sooner, steadier.")
 QVR_SLIDER(vr_dynres_min, "Dynamic Lowest Scale", 0.4f, 1.f, 0.05f, "%.2f", ext(0.25f, 2.f),
     "The lowest scale Dynamic Resolution goes to under load (times the headset's resolution).")
+QVR_SLIDER(vr_dynres_min_fight, "Dynamic Lowest in Fights", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 2.f),
+    "Lower still, only in a fight: once the eyes stay over the budget at Dynamic Lowest Scale for a moment, the "
+    "scale may go down to this; back at Dynamic Lowest Scale it needs a fight again. 0: never below Dynamic "
+    "Lowest Scale.")
 QVR_CYCLE(vr_upscale, "Upscaling",
     "Below Render Scale 1: how the image is enlarged to the headset's size. FSR (AMD) and NIS (NVIDIA) "
     "keep it sharper than Bilinear.",
@@ -4792,6 +4806,14 @@ QVR_CYCLE(vr_foveated, "Foveated Rendering",
     "Draws the edges of the view, which the lenses blur anyway, in less detail: faster. NVIDIA graphics "
     "cards only.",
     {0.f, "Off"}, {1.f, "Conservative"}, {2.f, "Balanced"}, {3.f, "Aggressive"})
+QVR_CYCLE(vr_xr_foveation, "Quest Foveation",
+    "Quest standalone: the headset draws the edges of each eye's view, which the lenses blur anyway, at a lower "
+    "resolution (fixed foveated rendering): faster, near-invisible through the lenses. Higher levels blur more of "
+    "the edges.",
+    {0.f, "Off"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"})
+QVR_TOGGLE(vr_xr_foveation_dynamic, "Quest Foveation: Dynamic",
+    "On: the headset uses less foveation than Quest Foveation's level while the graphics have room to spare, and "
+    "up to that level when they are busy.")
 QVR_TOGGLE(vr_foveated_gaze, "Eye-Tracked Foveation",
     "On: with an eye-tracking headset (Quest Pro via Virtual Desktop with eye tracking shared to the PC, Varjo...) "
     "the sharp middle of Foveated Rendering follows your eyes; without one (or while your eyes are not tracked) it "
@@ -4944,8 +4966,9 @@ QVR_TOGGLE(vr_ghost_hands_ignore_climb, "No Ghost Climbing",
 
 // vr_menu_settings.inc: pageBodyDisplay
 QVR_CYCLE(vr_handedness, "Handedness",
-    "Sets which stick moves you, the wrist gadget's arm and the flashlight's side together. Left-handed: the right "
-    "stick moves, the gadget on the right arm, the torch on the right (Custom: set apart, below).",
+    "Sets which stick moves you, the wrist gadget's arm, the flashlight's side and the face buttons together. "
+    "Left-handed: the right stick moves, the gadget on the right arm, the torch on the right, the face buttons "
+    "swapped (jump on X) (Custom: set apart, below).",
     {0.f, "Custom"}, {1.f, "Right-handed"}, {2.f, "Left-handed"})
 QVR_TOGGLE(vr_leg_holster_model_enabled, "Holster Models",
     "Draws the holsters on your body, with a gun in each one that holds one.")
@@ -4982,6 +5005,11 @@ QVR_CYCLE(vr_xr_unfocused_pause, "Runtime Menu Pauses",
     {1.f, "Pause the Game"}, {0.f, "Keep Running"})
 QVR_SLIDER(vr_xr_unfocused_volume, "Runtime Menu Volume", 0.f, 1.f, 0.1f, "%.1f", noExt,
     "The game's sounds while the runtime's menu pauses it: 0 silent, 1 unchanged. The music pauses.")
+QVR_CYCLE(vr_xr_user_presence, "Headset Taken Off",
+    "Where the headset can tell it is worn (the Steam Frame, SteamVR): taking it off acts as the runtime's menu does "
+    "(the view frozen, a single player game paused as Runtime Menu Pauses says) and the controllers press nothing until "
+    "it is back on; or the game plays on. From Kasper Olesen's Steam Frame port.",
+    {1.f, "Pause as the Runtime Menu"}, {0.f, "Keep Playing"})
 QVR_CYCLE(vr_xr_exit_quits, "Exit From Runtime Menu",
     "Exiting the game from the runtime's own menu (SteamVR's dashboard, Virtual Desktop's or Meta's): the game "
     "quits, your settings saved; or it keeps running flat on the desktop (Restart VR brings the headset back).",
@@ -4989,7 +5017,7 @@ QVR_CYCLE(vr_xr_exit_quits, "Exit From Runtime Menu",
 QVR_TOGGLE(vr_xr_late_acquire, "Late Image Acquire",
     "Each eye's headset image is taken from the runtime only once its scene is drawn, so the runtime's wait for it (SteamVR copying the last one out) overlaps the drawing. Off: before the scene, the old way, to compare.")
 QVR_TOGGLE(vr_xr_vendor_profiles, "Vendor Controller Profiles",
-    "Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2 and Samsung Odyssey controllers get their own buttons, "
+    "Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2, Samsung Odyssey and Steam Frame controllers get their own buttons, "
     "menu button included, when the runtime offers them. Off: they go as the runtime emulates them (the "
     "1.0.0 way, if your hands' angle changed). From the next VR start.")
 QVR_TOGGLE(vr_alias_prepass_world, "World Models Pre-pass",
@@ -5445,6 +5473,9 @@ QVR_SLIDER(vr_messages_hologram_size, "Hologram Text Size", 0.5f, 2.f, 0.05f, "%
 QVR_SLIDER(vr_messages_hologram_height, "Hologram Height", 0.f, 15.f, 0.5f, "%.1f cm", ext(0.f, 50.f), "How high over the gadget it floats.")
 QVR_SLIDER(vr_messages_hologram_effect, "Hologram Effect", 0.f, 2.f, 0.1f, "%.1fx", ext(),
     "The beam of light from the screen, scanlines, flicker, glitches and the projection as it appears (0: plain glowing text).")
+QVR_SLIDER(vr_center_panel_scale, "Centre Message Size", 0.5f, 3.f, 0.04f, "%.2fx", ext(0.25f, 8.f),
+    "The size of the game's centred messages in front of you (the visor-style panel), a multiple of the HUD's own text "
+    "size (vr_center_panel_scale).")
 QVR_TOGGLE(vr_messages_hologram_only, "Messages Only on the Gadget",
     "The game's messages never show in front of you: they wait in the hologram until you look at the gadget. A new one (a key needed, a secret, the map's text; not pickups) chimes from the gadget on your wrist and buzzes it.")
 QVR_SLIDER(vr_view_text_smooth, "Messages in View: Follow Smoothing", 0.f, 0.5f, 0.02f, "%.2f s", ext(0.f, 2.f),
@@ -5507,6 +5538,8 @@ QVR_SLIDER(vr_gadget_screen_text_white, "Screen Text Whiteness", 0.f, 1.f, 0.05f
 QVR_SLIDER(vr_gadget_tint, "Casing Tint", 0.f, 1.f, 0.05f, "%.2f", noExt, "0 keeps the casing's own olive drab.")
 QVR_SLIDER(vr_gadget_tint_hue, "Casing Tint Hue", 0.f, 355.f, 5.f, "%.0f", noExt, nullptr)
 QVR_SLIDER(vr_sight_saturation, "Weapon Sight Saturation", 0.f, 2.f, 0.05f, "%.2f", noExt, "1 their own, 0 white.")
+QVR_SLIDER(vr_sight_front_hue_shift, "Front Sight Hue Shift", 0.f, 355.f, 5.f, "%.0f", noExt,
+    "The front post's colour, turned this far round the hue circle from the rear notches' so the two read apart. 0: the same colour.")
 QVR_SLIDER(vr_forcegrab_saturation, "Force Grab Saturation", 0.f, 2.f, 0.05f, "%.2f", noExt,
     "How colourful they are: 1 as made, 0 white, 0.7 like the wrist gadget's screen. Times the Player Effects Saturation.")
 
@@ -6120,6 +6153,11 @@ QVR_TOGGLE(vr_debug_ragdoll_gun, "Ragdolls' Weapons in Hand",
     "vr_debug_ragdoll_gun: every 0.25 s, each ragdoll's held weapon (an enforcer's rifle, a grunt's shotgun, "
     "a knight's sword, an ogre's chainsaw) as drawn: how far from the part holding it, beside the rest "
     "pose's (\"gun:\"; the same: in his hand).")
+QVR_CYCLE(vr_debug_ragdoll_wall, "Knocked-Down Ragdolls' Contacts",
+    "vr_debug_ragdoll_wall: each knocked-down ragdoll printed every frame (\"wglue\"): its shove's drive and its "
+    "phase, its active drive, its pelvis and head over the floor, its speed, its contacts with walls and floors "
+    "(forces, N), its parts awake, its entity's origin. Each Part also prints every part's.",
+    {0.f, "Off"}, {1.f, "Whole Body"}, {2.f, "Each Part"})
 QVR_TOGGLE(vr_debug_deadanim, "Dead Monsters Animating",
     "vr_debug_deadanim: each dead monster that animates again printed (its think its AI's stand, walk, run or "
     "attack again, or its frame changing 3 s after its death: a corpse that gets up or runs in place). Needs "
@@ -6436,7 +6474,7 @@ QVR_TOGGLE(vr_hitmodel_cachestress, "Evict Models at Map Start",
     "thread pool. They must come out the same (developer 1: the hash in the console). For testing.")
 QVR_CYCLE(vr_jobs_threads, "Worker Threads",
     "The thread pool's workers besides the main thread (Auto: the CPU's threads less one). Changed, the pool is "
-    "made again. -jobs <n> on the command line sets it from the start.",
+    "made again. +vr_jobs_threads <n> on the command line sets it from the start.",
     {0.f, "Auto"}, {1.f, "1"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {8.f, "8"}, {16.f, "16"})
 QVR_TOGGLE(vr_box3d_threads, "Physics on Threads",
     "Box3D's step (the props' physics) shared between the thread pool and the main thread. Off: the main "
@@ -6609,7 +6647,8 @@ QVR_SLIDER(vr_flat_holster_menu_timescale, "Holster Menu Time Speed", 0.05f, 1.f
     "How fast time runs while the holster menu is held open: 0.3 (the default) slows it as bullet time does; 1 not at all "
     "(vr_flat_holster_menu_timescale).")
 QVR_SLIDER(vr_flat_holster_menu_blur, "Holster Menu Blur", 0.f, 20.f, 1.f, "%.0f px", noExt,
-    "How much the view blurs behind the holster menu (pixels at 1080p; 0 none) (vr_flat_holster_menu_blur).")
+    "How much the view blurs behind the holster menu and the weapon wheel (pixels at 1080p; 0 none) "
+    "(vr_flat_holster_menu_blur).")
 QVR_SLIDER(vr_flat_holster_menu_xhair_fade, "Holster Menu Crosshair Fade", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "How far the crosshair fades out while the holster menu is open: 1 gone, 0 kept (vr_flat_holster_menu_xhair_fade).")
 QVR_SLIDER(vr_flat_holster_menu_size, "Holster Menu Size", 0.3f, 1.f, 0.02f, "%.2f", noExt,
@@ -6621,6 +6660,37 @@ QVR_SLIDER(vr_flat_holster_menu_cursor_speed, "Holster Menu Cursor Speed", 0.2f,
 QVR_SLIDER(vr_flat_holster_menu_crt, "Holster Menu Screen Look", 0.f, 2.f, 0.1f, "%.1f", noExt,
     "The holster menu's screen as a small CRT, as the visor's panels: scanlines and flicker (0 none) "
     "(vr_flat_holster_menu_crt).")
+QVR_TOGGLE(vr_flat_wheel, "Weapon Wheel on 1 / 2",
+    "On (the default): a tap of 1 or 2 still cycles the left or right hand; hold the key and the headset's weapon wheel "
+    "opens where that hand is on the screen, time slowed. Point with the mouse (the view stays) and let go on a slot: "
+    "that hand takes its weapon, DROPs what it holds or UNLOADs its gun; let go off the wheel: nothing. Off: 1 and 2 only "
+    "cycle (vr_flat_wheel).")
+QVR_SLIDER(vr_flat_wheel_hold, "Weapon Wheel Hold Time", 0.1f, 1.f, 0.05f, "%.2f s", noExt,
+    "How long 1 or 2 is held before the weapon wheel opens; a shorter press cycles the hand (vr_flat_wheel_hold).")
+QVR_SLIDER(vr_flat_wheel_size, "Weapon Wheel Size", 0.3f, 1.f, 0.02f, "%.2f", noExt,
+    "The weapon wheel's height on the screen, a share of the screen's (vr_flat_wheel_size).")
+QVR_TOGGLE(vr_weaponwheel, "Weapon Wheel",
+    "Hold the wheel's button on either hand: a wheel of your holsters opens round that hand and time slows a little. Move "
+    "the hand to a slot and let go: that hand takes its weapon, as reaching for the holster would (what it held goes back "
+    "to its holster; EMPTY HAND puts it away; DROP drops what the hand holds; UNLOAD empties its gun's magazine into your "
+    "ammo). Let go in the middle or off the wheel: nothing. Off by default (flatscreen play has its own: Weapon Wheel on "
+    "1 / 2) (vr_weaponwheel).")
+QVR_CYCLE(vr_weaponwheel_button, "Weapon Wheel Button",
+    "The button you hold for the weapon wheel, on either hand (that hand picks): the upper face button (B or Y, the "
+    "default: free in the game unless weapon cycling is on; the grappling hook's hand keeps its reel), the stick's click, "
+    "or the lower face button (A or X). A short press still does what the button is bound to (vr_weaponwheel_button).",
+    {0.f, "B / Y"}, {1.f, "Stick Click"}, {2.f, "A / X"})
+QVR_SLIDER(vr_weaponwheel_hold, "Wheel Hold / Quick Tap Time", 0.1f, 1.f, 0.01f, "%.2f s", noExt,
+    "How long the button is held before the weapon wheel opens. A shorter press is a quick tap: the button's own action "
+    "(eject a magazine, switch a dagger's grip), done as you let go. Lower: snappier taps, but a slow press may open the "
+    "wheel (vr_weaponwheel_hold).")
+QVR_SLIDER(vr_weaponwheel_timescale, "Weapon Wheel Time Speed", 0.05f, 1.f, 0.05f, "x%.2f", noExt,
+    "How fast time runs while the weapon wheel is open (single player): 0.5 (the default) slows it as bullet time does; 1 "
+    "not at all (vr_weaponwheel_timescale).")
+QVR_SLIDER(vr_weaponwheel_size, "Weapon Wheel Size", 6.f, 40.f, 1.f, "%.0f", noExt,
+    "The weapon wheel's width (units, about 26 a metre): how far the hand moves to reach a slot (vr_weaponwheel_size).")
+QVR_SLIDER(vr_weaponwheel_distance, "Weapon Wheel Distance", 0.f, 16.f, 0.5f, "%.1f", noExt,
+    "How far beyond the hand (units, away from your eyes) the weapon wheel's middle opens (vr_weaponwheel_distance).")
 QVR_SLIDER(vr_flat_holster_drop_ahead, "Holster Drop Distance", 0.f, 48.f, 2.f, "%.0f", noExt,
     "How far ahead of you (units) a holster's DROP in the holster menu lays its weapon (vr_flat_holster_drop_ahead).")
 QVR_SLIDER(vr_flat_unload_volume, "Unload Volume", 0.f, 1.f, 0.05f, "%.2f", noExt,

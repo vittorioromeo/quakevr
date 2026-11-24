@@ -13,6 +13,7 @@
 #include "vr_retro.h"
 #include "vr_retro.hpp"
 #include "vr_foveated.hpp"
+#include "vr_stereo.hpp"
 #include "vr_particles.hpp"
 #include "vr_units.hpp"
 
@@ -182,6 +183,53 @@ void RetroBeginParticle(vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy)
 #endif
 // The mipmap level the hardware would pick at uv (textureQueryLod's .y). OpenGL ES has no textureQueryLod (desktop
 // GL 4.0): there the same from the derivatives of uv in texels (the Quest's Adreno refuses it; C4b).
+#ifdef TUBE_PATTERN
+// (ropes8a) A tube's surface pattern (drawTube's `pattern`): 0 plain, 1 wood, 2 metal. `q` the surface point: x, y round
+// the tube's axis, z along it (units; the tube vertex shader's worldPos). Value noise, seamless round the tube (3D).
+layout(location = 12) uniform int Pattern;
+float tubeHash(vec3 p)
+{
+    p = fract(p * 0.3183099 + 0.1);
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float tubeNoise(vec3 x)
+{
+    vec3 i = floor(x);
+    vec3 f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(tubeHash(i), tubeHash(i + vec3(1.0, 0.0, 0.0)), f.x),
+                   mix(tubeHash(i + vec3(0.0, 1.0, 0.0)), tubeHash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+               mix(mix(tubeHash(i + vec3(0.0, 0.0, 1.0)), tubeHash(i + vec3(1.0, 0.0, 1.0)), f.x),
+                   mix(tubeHash(i + vec3(0.0, 1.0, 1.0)), tubeHash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+}
+vec3 tubePattern(vec3 q)
+{
+    if(Pattern == 1)
+    {
+        // Wood: a trunk's rings (their middle off the pole's) cut lengthwise, wavering along it: long grain streaks, the
+        // late wood's bands darker and redder; fine fibres; a broad blotchiness.
+        float warp = tubeNoise(q * vec3(0.5, 0.5, 0.025)) * 1.6 + tubeNoise(q * vec3(1.3, 1.3, 0.08)) * 0.5;
+        float ring = fract(length(q.xy + vec2(6.0, 2.5)) * 1.4 + warp);
+        float band = smoothstep(0.55, 0.9, ring) * (1.0 - smoothstep(0.9, 1.0, ring));
+        float fibre = tubeNoise(vec3(q.xy * 7.0, q.z * 0.12));
+        float blotch = tubeNoise(q * 0.06);
+        vec3 c = mix(vec3(1.18, 1.1, 1.0), vec3(0.62, 0.48, 0.38), band);
+        return c * (0.86 + 0.24 * fibre) * (0.9 + 0.2 * blotch);
+    }
+    if(Pattern == 2)
+    {
+        // Metal: brushed along it (fine lines), mottled, a joint every 48 units (a dark groove), a few duller scratches.
+        float brush = tubeNoise(vec3(q.xy * 9.0, q.z * 0.04));
+        float mottle = tubeNoise(q * 0.05);
+        float dz = abs(fract(q.z / 48.0 + 0.5) - 0.5) * 48.0;
+        float groove = mix(0.45, 1.0, smoothstep(0.25, 0.9, dz));
+        float scratch = smoothstep(0.82, 0.9, tubeNoise(vec3(q.xy * 2.0 + q.z * 0.35, q.z * 0.6)));
+        return vec3((0.9 + 0.18 * brush) * (0.88 + 0.24 * mottle) * groove * (1.0 - 0.18 * scratch));
+    }
+    return vec3(1.0);
+}
+#endif
 float queryLod()
 {
 #ifdef GL_ES
@@ -547,6 +595,10 @@ void main()
     result = hologram();
 #else
     result = color;
+#ifdef TUBE_PATTERN
+    if(Pattern != 0)
+        result.rgb = clamp(result.rgb * tubePattern(worldPos), 0.0, 1.0);
+#endif
 #endif
 #if BLENDED && !defined(PARTICLE_WASTE)
     if(result == vec4(0.0))
@@ -1007,6 +1059,7 @@ layout(location = 8) uniform int Sides;
 layout(location = 9) uniform vec3 Rust;
 layout(location = 10) uniform int Flat; // faceted: the sides turned half a side, each quad lit by its face's normal
 layout(location = 11) uniform float Alpha; // (below 1: blended, drawTube's `alpha`)
+layout(location = 12) uniform int Pattern; // (ropes8a) its surface: 0 plain, 1 wood, 2 metal (the fragment's tubePattern)
 struct Ring
 {
     vec4 mid;
@@ -1024,6 +1077,7 @@ out vec2 uv;
 out vec4 color;
 out float soft;
 out float viewDepth;
+out vec3 worldPos; // (ropes8a) Pattern: the surface point round the axis (x, y) and along it (z), units
 // The six corners (two triangles) of a quad: (ring, side) steps.
 const ivec2 corners[6] = ivec2[6](ivec2(0, 0), ivec2(1, 0), ivec2(1, 1), ivec2(0, 0), ivec2(1, 1), ivec2(0, 1));
 void main()
@@ -1054,6 +1108,8 @@ void main()
     color = vec4(clamp(albedo * light + vec3(sheen), 0.0, 1.0), Alpha);
     uv = vec2(0.0);
     soft = 0.0;
+    float t = 6.2831853 * (float(quad % Sides + c.y) + turn) / float(Sides); // (the vertex's own angle, not a flat face's)
+    worldPos = vec3(cos(t) * g.mid.w, sin(t) * g.mid.w, dot(pos, g.along.xyz));
     gl_Position = MVP * vec4(FlatFovDrawn(pos), 1.0);
     viewDepth = gl_Position.w;
 }
@@ -1071,7 +1127,7 @@ bool ensureTubeProgram()
     {
         const double start = Sys_DoubleTime();
         const za::String fragment = "#version 430\n#define MODE " + za::toString(static_cast<int>(Shade::Color)) +
-                                     "\n#define BLENDED 0\n#define RETRO 0\n" + fragmentShader;
+                                     "\n#define BLENDED 0\n#define RETRO 0\n#define TUBE_PATTERN 1\n" + fragmentShader;
         tubeProgram = glProgram(tubeVertexShader, fragment.cStr(), "vr tube");
         tubeProgramFailed = !tubeProgram;
         gfx::ownDeferred(tubeProgram, &tubeProgramFailed);
@@ -1795,7 +1851,7 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     const unsigned stateMask = GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | (depthTest ? 0 : GLS_NO_ZTEST) | GLS_NO_ZWRITE;
     GL_SetState(stateMask);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // premultiplied
-    glDisable(GL_SAMPLE_SHADING);
+    GL_SampleShading(false);
     const glm::mat4 mvp = sceneViewProjection();
     glm::vec3 eye, right, up;
     sceneCamera(eye, right, up);
@@ -1899,7 +1955,7 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     {
         GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, savedBuffer, savedOffset, savedSize);
     }
-    glEnable(GL_SAMPLE_SHADING);
+    GL_SampleShading(true);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // what GLS_BLEND_ALPHA expects
 }
 
@@ -2079,7 +2135,7 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
     }
     GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | GLS_NO_ZTEST | GLS_NO_ZWRITE);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_SAMPLE_SHADING);
+    GL_SampleShading(false);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, target->tex);
     // The half of the scene's viewport drawn into it (its texels from the corner): the whole target but under dynamic
     // resolution (made at its ceiling, a part of it drawn: stereo::ViewSize); its edge read as clamp-to-edge read the whole.
@@ -2097,7 +2153,7 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
         GL_Uniform4fFunc(1, 0.5f / w, 0.5f / h, (static_cast<float>(drawnW) - 0.5f) / w, (static_cast<float>(drawnH) - 0.5f) / h);
     }
     glDrawArrays(GL_TRIANGLES, 0, 3);
-    glEnable(GL_SAMPLE_SHADING);
+    GL_SampleShading(true);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     if(depthAware)
     {
@@ -2119,7 +2175,7 @@ TubeBatch uploadTube(za::Span<const TubeRing> rings)
 }
 
 void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key, const glm::vec3& rust, bool flat,
-    float alpha)
+    float alpha, int pattern)
 {
     if(batch.count < 2 || !batch.buffer || sides < 3)
     {
@@ -2147,6 +2203,7 @@ void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const 
     GL_Uniform1iFunc(8, sides);
     GL_Uniform3fFunc(9, rust.x, rust.y, rust.z);
     GL_Uniform1iFunc(10, flat ? 1 : 0);
+    GL_Uniform1iFunc(12, pattern);
     // Binding 0 borrowed (the scene's lights, R_UploadFrameData): put back for what the view draws after.
     GLuint savedBuffer = 0;
     GLintptr savedOffset = 0;
@@ -2362,7 +2419,7 @@ bool signing()
     return signature.on;
 }
 
-void sign(const void* bytes, size_t size)
+void sign(const void* bytes, za::SizeT size)
 {
     signature.hash = diskcache::fnv(signature.hash, bytes, size);
 }
@@ -2514,8 +2571,8 @@ void ensurePicture(Picture& p, int width, int height, const char* name)
     }
     p.width = width;
     p.height = height;
-    p.pixels = static_cast<unsigned char*>(VR_HeapMalloc(static_cast<size_t>(width) * height * 4));
-    ZA_MEMSET(p.pixels, 0, static_cast<size_t>(width) * height * 4);
+    p.pixels = static_cast<unsigned char*>(VR_HeapMalloc(static_cast<za::SizeT>(width) * height * 4));
+    ZA_MEMSET(p.pixels, 0, static_cast<za::SizeT>(width) * height * 4);
     p.texture = TexMgr_LoadImage(nullptr, name, width, height, SRC_RGBA, p.pixels, "", reinterpret_cast<src_offset_t>(p.pixels),
         TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_UNCOMPRESSED);
 }
@@ -2526,7 +2583,7 @@ void updatePicture(Picture& p, const void* rgba)
     {
         return;
     }
-    ZA_MEMCPY(p.pixels, rgba, static_cast<size_t>(p.width) * p.height * 4);
+    ZA_MEMCPY(p.pixels, rgba, static_cast<za::SizeT>(p.width) * p.height * 4);
     glBindTexture(GL_TEXTURE_2D, static_cast<gltexture_t*>(p.texture)->texnum);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, p.width, p.height, GL_RGBA, GL_UNSIGNED_BYTE, p.pixels);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -2757,8 +2814,11 @@ extern "C" unsigned VR_SceneTarget(unsigned* color, unsigned* depth, int* sample
         *color = *depth = 0;
         return 0;
     }
-    *color = framebufs.composite.color_tex;
-    *depth = framebufs.composite.depth_stencil_tex;
+    // An eye drawn straight into its swapchain image (stereo::directEye): no colour texture of ours to read (the image
+    // is the framebuffer's), and with a depth renderbuffer of its own (2) no depth texture either.
+    const int direct = qvr::stereo::directEye();
+    *color = direct ? 0u : framebufs.composite.color_tex;
+    *depth = direct >= 2 ? 0u : framebufs.composite.depth_stencil_tex;
     return framebufs.composite.fbo;
 }
 

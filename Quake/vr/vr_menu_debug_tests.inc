@@ -892,6 +892,11 @@ za::Vector<Item> pageDebugTests()
                   "what your hands hold."),
         command("Flat Lean / Slide Status", "vr_flatmove_status")
             .help("vr_flatmove_status: the lean's share, the eye's move and the roll, whether you slide and its pose."),
+        command("Tutorial Messages: Keys And Wording", "map vrtutorial; vr_msgtokens_test")
+            .help("vr_msgtokens_test: the tutorial's tips and boards as they show (vr_msgtokens.hpp): no {flat} or {key:} "
+                  "left; flat screen: the grenade tip names vr_flat_key_grenade's key and follows a rebind (J, then none: "
+                  "\"not bound\"), its board too, the jump tip follows +jump moved from SPACE to U (all put back after); a "
+                  "headset: the headset's wording. Ends on \"msgtokens: N passed, M failed\"."),
         command("Flat Keys", "vr_flatkeys_test 1")
             .help("vr_flatkeys_test 1 (-flatscreenmode only, Player > Flat Play): whether Left Ctrl has him crouched, how "
                    "upright the game sees him (.vr_stand), the height of your eyes over your feet, what each hand holds and "
@@ -1044,6 +1049,10 @@ za::Vector<Item> pageDebugTests()
             .help("A grunt ahead killed 48 units off the nearest wall, its corpse flung at the wall hard (it thuds and "
                   "bloodies the wall), then softly (nothing): Impact Sound and Blood (vr_ragsmash_test 1; ends on "
                   "\"ragsmash: N passed, M failed\")."),
+        command("Shoved into a Wall: Glue A/B", "god; developer 1; vr_ragsmash_test 2")
+            .help("A grunt and a dog shoved into the nearest wall (every shove a knockdown), the active ragdoll on and "
+                  "off, the wiggle off, and onto the open floor: the seconds each lies propped against the wall and its "
+                  "middle's height (vr_ragsmash_test 2, best on vrfiringrange; ends on \"wallglue: N passed, M failed\")."),
         header("Enemy Shoves"),
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "
@@ -1214,11 +1223,16 @@ za::Vector<Item> pageDebugTests()
         header("Tutorial (vrtutorial)"),
         command("The Tutorial", "skill 0; map vrtutorial")
             .help("skill 0; map vrtutorial: the tutorial (a military base by day, 12 lessons and an arena; "
-                  "Misc/quakevr/maps/vrtutorial_gen.py), on Easy as the start flow and the hub's button start it."),
+                  "Misc/quakevr/maps/vrtutorial_gen.py), on Easy as the start flow and the hub's button start it. Always a "
+                  "single-player game of Quake's campaign, however started (VR_TutorialSinglePlayer)."),
         command("First Start Again", "vr_tutorial_started 0")
             .help("vr_tutorial_started 0: the next start of the game goes to the tutorial, as a new install's first start "
                   "does (the tutorial sets it back to 1 as it loads)."),
         row(opt::vr_tutorial_goto),
+        command("Lesson 13: Shooters And Pit", "vr_pickup_test 25")
+            .help("vr_pickup_test 25 (in the tutorial): a single-player game; lesson 13's SPIKE and GRENADE buttons' "
+                  "shots fired at you (the spike batted back by a swing, the grenade caught), then you are dropped into "
+                  "its pit: dead within 1 s. Misc/quakevr/tutorial_start_test.sh runs it after a multiplayer test scene."),
         header("Trailer Scene (vrtrailer)"),
         command("The Trailer Scene", "map vrtrailer")
             .help("map vrtrailer: a bridge across a lake at night, the Super Axe on a pedestal half way (Dawn of the "
@@ -1594,6 +1608,14 @@ za::Vector<Item> pageDebugTests()
         command("Test the Flat-Screen Rope Climb", "vr_climb_stamina 0; vr_rope_flat_test")
             .help("vr_rope_flat_test (flat-screen play, map vrropes; climbing stamina turned off): a rope walked into, climbed up and down, "
                   "then rope to rope on the swinging row (pumped, let go at the peak, the next caught). Prints PASS/FAIL lines."),
+        command("Test the Poles' Solidity", "vr_pole_solid_test")
+            .help("vr_pole_solid_test (map vrropes): each pole's collision boxes on it, a player's box and a shot stopped by them, "
+                  "their material (wood, metal), walking under the level pole, the navmesh's obstacles; the chains stopping "
+                  "shots, blows and a nail (sparks) while bodies pass them. Prints PASS/FAIL lines."),
+        command("Test Falling Beside a Pole", "vr_climb_stamina 0; vr_pole_fall_test upright")
+            .help("vr_pole_fall_test upright (map vrropes; flat-screen play for the jump cases; 'slant' in the console for a slanted pole): "
+                  "jumped off a pole with keys held and set beside it in the air; every frame he falls at gravity's pace (no slow slide "
+                  "against its boxes), and after the jump the same pole is taken again. Prints PASS/FAIL lines."),
         command("Test the Rope and Chain Sounds", "vr_rope_sound_test")
             .help("vr_rope_sound_test: a rope and a chain made ahead; gripped (the chain's metal grip, the rope's slap; a rope is silent "
                   "to a headset's grip), then pushed swinging (the chain's links clink, rate-limited; the rope stays quiet). Prints PASS/FAIL lines."),

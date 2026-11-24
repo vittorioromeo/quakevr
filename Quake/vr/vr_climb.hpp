@@ -66,6 +66,10 @@ bool serverHold(edict_t* ent, int hand, glm::vec3& at, glm::vec3& out);
 [[nodiscard]] int ropeHands(edict_t* ent);
 // Server: the exertion grunts `ent`'s pulls up ropes have made so far (vr_rope_grunt; ropes6, the tests').
 [[nodiscard]] int ropePullGrunts(edict_t* ent);
+// Server: (ropes14, NOTES.md vrtutorial_2026-11-23_23-12-23) whether `ent` let go of rope or pole `rope` (its edict
+// number; any hand, VR or flat: a drop, a jump) under vr_rope_letgo_pass seconds ago: its boxes let him through and his
+// body doesn't push it (vr_climbrope.cpp passSolids, disturb), so he jumps where he looks without meeting it.
+[[nodiscard]] bool ropeLetGoPass(edict_t* ent, int rope);
 
 // Server: the flatscreen mantles `ent` started since the map loaded (vr_flat_mantle: after a jump, the jump key held,
 // looking up at a ledge in reach; vr_climb.cpp flatMantle), and whether it mantles now (any mantle).
@@ -77,6 +81,8 @@ bool serverHold(edict_t* ent, int hand, glm::vec3& at, glm::vec3& out);
 // Server: the flatscreen rope climbs `ent` started since the map loaded (vr_flat_rope: walking or jumping into a
 // climbable rope; vr_climb.cpp flatRope), and whether it is on one now.
 [[nodiscard]] int flatRopes(edict_t* ent, bool& climbing);
+// Server (ropes13, the tests): the slides down a rope `ent` began (crouch held on one), and whether he slides now.
+[[nodiscard]] int flatRopeSlides(edict_t* ent, bool& sliding);
 
 // Server: every player's holds and mantle forgotten (a map loaded, a saved game loaded: their entity numbers and ledge
 // maps are another world's).
@@ -159,7 +165,12 @@ float drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm:
 // way out `out` (towards the climber) -> true: its palm's middle on the rope as drawn this frame (the drawn curve's
 // point nearest the hold, out from it by ropeHandOffset's or, a thick chain, its surface a little in) and the rope's way
 // up there (`up`, if given). False: no rope drawn near it. Yours (drawnHand) and another player's (vr_mpavatar.cpp).
-[[nodiscard]] bool ropePalm(const glm::vec3& hold, const glm::vec3& out, glm::vec3& palm, glm::vec3* up);
+[[nodiscard]] bool ropePalm(const glm::vec3& hold, const glm::vec3& out, glm::vec3& palm, glm::vec3* up, glm::vec3* axis = nullptr,
+    float* thick = nullptr, glm::vec3* usedOut = nullptr); // (ropes8a: `axis` the rope's point there, `thick` its
+    // thickness; ropes8b: `usedOut` the way out the palm went: under a monkey traverse's rope, down square to it)
+// Client (ropes8a): the drawn `hand` on a rope or a pole: its axis as drawn at the hand (`at`, its way up `up`), its
+// thickness, how far the hand is drawn on it (`weight`, 0..1). False: not on one. (vr_view_hands.cpp: the grip round it.)
+[[nodiscard]] bool ropeLine(int hand, glm::vec3& at, glm::vec3& up, float& thickness, float& weight);
 
 // Client: how far the drawn `hand` is on its hold, as drawnHand last made it (0..1): a flat mantle's free hand leaves the
 // other hand's gun for it (vr_view_hands.cpp).
@@ -169,6 +180,6 @@ float drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm:
 [[nodiscard]] bool drawnPalm(int hand, glm::vec3& palm);
 // Client: the way the back of the drawn `hand` faces in its hold's turn (world; the rope grip's or a ledge's) -> true;
 // false: not on a hold. (vr_rope_climb_check grip: ropes6.)
-[[nodiscard]] bool drawnBack(int hand, glm::vec3& back);
+[[nodiscard]] bool drawnBack(int hand, glm::vec3& back, glm::vec3* front = nullptr); // (ropes8b: `front` the fist's front, the knuckles' way)
 
 } // namespace qvr::climb

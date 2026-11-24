@@ -7,6 +7,7 @@
 #include "vr_arenawaves.hpp"
 #include "vr_progs.hpp"
 #include "vr_playersteps.hpp"
+#include "vr_playerhit.hpp"
 #include "vr_predict.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_brushes.hpp"
@@ -14,6 +15,11 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/Unique.hpp"
 #include "vr_melee_shared.h"
+#include "vr_weapon_ids.h"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "vr_srvrandom.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "vr_agarmor.hpp"
 #include "vr_agarms.hpp"
 #include "vr_axestick.hpp"
@@ -896,6 +902,7 @@ void PF_WriteVec3()
 #include "vr_builtins_nav.inc"
 #include "vr_builtins_held.inc"
 #include "vr_builtins_hitmodel.inc"
+#include "vr_builtins_agpose.inc"
 
 // ----------------------------------------------------------------------------
 // The console
@@ -934,6 +941,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"arenadirname", arenadirector::pfName},
     {"arenadirsupply", arenadirector::pfSupply},
     {"agposekey", PF_agposekey},
+    {"agpose", PF_agpose},
     {"agstrikeblend", PF_agstrikeblend},
     {"agkeytime", PF_agkeytime},
     {"agdrawnframe", PF_agdrawnframe},
@@ -945,6 +953,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"embedsay", PF_embedsay},
     {"bladewound", PF_bladewound},
     {"bladewoundage", PF_bladewoundage},
+    {"bladespinto", PF_bladespinto},
     {"magholsterpoll", PF_magholsterpoll},
     {"holsterpos", PF_holsterpos},
     {"modelbounds", PF_modelbounds},
@@ -1137,6 +1146,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"selfhit_info", selfshot::PF_selfhit_info},
     {"selfhit_point", selfshot::PF_selfhit_point},
     {"debughitzone", PF_debughitzone},
+    {"playerhitzone", PF_playerhitzone},
     {"debugdisarm", disarmviz::PF_debugdisarm},
     {"debugdisarmnote", disarmviz::PF_debugdisarmnote},
     {"blowline", blowline::PF_blowline},
@@ -1181,6 +1191,18 @@ void sendWound(int num, const float* org, const float* dir, int kind, int amount
 void sendParticle2(const float* org, const float* dir, int preset, int count)
 {
     particle2Message(org, dir, preset, count);
+}
+
+// vr_agpose_compare: vr_agpose_native 2's differences since the last (vr_builtins_agpose.inc).
+void agposeCompare_f()
+{
+    if(!sv.active)
+    {
+        Con_Printf("vr_agpose_compare: enter a map first\n");
+        return;
+    }
+    ServerVm vm;
+    agposeCompareReport();
 }
 
 // vr_forcegrab_grid_stats: the force grab's searches since the last (and resets them).

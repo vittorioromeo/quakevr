@@ -293,10 +293,9 @@ za::Vector<Item> pageDebugViews()
         row(opt::vr_nav_debug_range),
         row(opt::vr_hull_holes_show),
         row(opt::vr_hull_holes_show_range),
-        command("Mark a Gap I Got Through", "vr_hull_holes_mark")
-            .help("Stand by (or under) a gap you slipped or fell through that you shouldn't have: prints where you are, "
-                  "the solids, the gaps on the lines through you and the blockers near, and adds them to "
-                  "quakevr/hull_holes_marks.txt for a fix (vr_hull_holes_mark [radius] [note])."),
+        command("Print My Position", "viewpos")
+            .help("Prints where you stand (your eyes' place and angles), to give a worker the place of a gap "
+                  "you got through or anything else to look at."),
         command("Rebuild Gap Blockers Now", "vr_hull_holes_rebuild")
             .help("Finds the gap blockers again with the Close Gaps settings as they are now: saves the game "
                   "(holes_rebuild) and loads it (vr_hull_holes_rebuild)."),
@@ -479,6 +478,7 @@ za::Vector<Item> pageDebugLogging()
             .help("vr_ragdoll_draw_info: each ragdoll drawn, the renderer's data for its skinned copy beside its .mdl's "
                   "(light, occlusion group, wounds, retro textures): the values that differ."),
         row(opt::vr_debug_ragdoll_gun),
+        row(opt::vr_debug_ragdoll_wall),
         row(opt::vr_debug_deadanim),
         row(opt::vr_hit_react_debug),
         row(opt::vr_ragdoll_active_debug),
@@ -515,7 +515,35 @@ za::Vector<Item> pageDebugProfiling()
                   "your eyes and colour."),
         command("List the Frame's Render Passes", "vr_gl_passes 1")
             .help("vr_gl_passes 1: the next frame's framebuffer binds in the console, in order, each with the draws made "
-                  "into it (and the profiler's scope at the bind with vr_profile on), and its alias batches."),
+                  "into it (and the profiler's scope at the bind with vr_profile on), the calls a tiler may end its render "
+                  "pass at (compute, blits, buffer and texture updates) with their GL group, and its alias batches."),
+        command("Brush Models Gathered Between Draws (Quest)", "vr_gl_one_pass 0")
+            .help("vr_gl_one_pass 0 (OpenGL ES only, an A/B): the brush models' draws gathered and the arrays merged by "
+                  "compute between the eye's draws, as before qfov3 (each dispatch ends the Quest's render pass: reloads, "
+                  "no foveation past it). 1 (One Render Pass an Eye) the default."),
+        command("One Render Pass an Eye (Quest)", "vr_gl_one_pass 1")
+            .help("vr_gl_one_pass 1: the brush models drawn from the cull's commands, the arrays' merges dispatched before "
+                  "the eye's clear (the default); 2 the same, never merged (twice the draws)."),
+        command("Opaque Draws Blended (Default)", "vr_gl_opaque_noblend 0")
+            .help("vr_gl_opaque_noblend 0: GL_BLEND left on for opaque draws, as Ironwail has it. On the Quest the first "
+                  "such draw ends the low-resolution depth (LRZ) for the pass: hidden pixels are not rejected early."),
+        command("Opaque Draws Unblended (Quest LRZ)", "vr_gl_opaque_noblend 1")
+            .help("vr_gl_opaque_noblend 1 (an A/B): opaque draws with GL_BLEND off (-1: under OpenGL ES only). The same "
+                  "pixels; on the Quest LRZ then lives until some models end it."),
+        command("LRZ Probe: After the Clear", "vr_debug_lrz_probe 1")
+            .help("vr_debug_lrz_probe n: at point n of each eye's scene (1 after the clear, 2 after the lenses' hidden "
+                  "area, 3 after the opaque world and models, 4 after the sky, 5 at the end) a near magenta quad, then a "
+                  "green one behind it that a tiler's early depth rejection kills whole (ovrgpuprofiler -t: LRZ Pixels "
+                  "Killed). It covers the middle of the view while on."),
+        command("LRZ Probe: Behind the Scene", "vr_debug_lrz_probe -5")
+            .help("vr_debug_lrz_probe -n: at point n one quad far behind the scene (the picture kept): killed where the "
+                  "scene's own draws wrote the low-resolution depth."),
+        command("LRZ Probe: Off", "vr_debug_lrz_probe 0").help("vr_debug_lrz_probe 0: no probe quads."),
+        command("Hide Gibs, Heads and Limbs", "vr_debug_hide_models \"gib,h_,#limb\"")
+            .help("vr_debug_hide_models <parts>: alias models whose name holds any of the comma-separated parts are not "
+                  "drawn in the eyes (gib, h_ and #limb: the gore). A cost found by leaving things out (the Quest's GPU "
+                  "times one render pass as a whole)."),
+        command("Show Every Model", "vr_debug_hide_models \"\"").help("vr_debug_hide_models \"\": every model drawn again."),
         row(opt::vr_profile_overlay),
         row(opt::vr_profile_csv),
         row(opt::vr_profile_hitch),
@@ -834,6 +862,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_agholds_report: each armed humanoid drawn lately, its weapon and its hands on it (one-handed, two: the "
                   "off hand on its second grip or cupping the other), what the Weapon Holds asked; vr_agholds_info the "
                   "settings' table."),
+        command("Armed Humanoids: Arm Pose Slots", "vr_agrunt_armpose_check")
+            .help("vr_agrunt_armpose_check: the armed humanoids drawn now and posed (their arms on their weapons), the "
+                  "arm pose slots live, the drawn ones' messages that found no slot since the last check (their arms "
+                  "stuck as the frames have them: should be 0) and the slots taken from undrawn ones."),
         toggle("Armed Humanoids: Arms' Warm Start", vr_agarms_warm)
             .help("vr_agarms_warm: a free hand's or fist's refinement started from last frame's forearm turn (1 or 2 solves, "
                   "not up to 4), settled fully: its hand's turn differs from the full search's (which stops short) by up to ~25 "
@@ -841,6 +873,10 @@ za::Vector<Item> pageDebugProfiling()
         toggle("Armed Humanoids: Arms' Grip Slide Bisected", vr_agarms_fast)
             .help("vr_agarms_fast: the off hand's slide along a two-handed gun to its reach found by bisection, last frame's "
                   "answer checked first (2-5 arm solves, not up to 19); off: the whole-unit steps, as before."),
+        toggle("Armed Humanoids: Pose in the Engine", vr_agpose_native)
+            .help("vr_agpose_native: an armed humanoid's weapon pose (QC VR_AGP_Pose and its helpers) worked out by the "
+                  "engine, the same results; off: by QuakeC, as before. 2 (console): both, compared; vr_agpose_compare "
+                  "prints the differences."),
         toggle("Armed Humanoids: Pose Message in One Builtin", vr_agposesend)
             .help("vr_agposesend: an armed humanoid's pose message written by one builtin (agposesend), the same bytes as "
                   "QuakeC's ~50 Write calls (vr_agarms_hash); off: QuakeC writes it, as before."),
@@ -1014,6 +1050,12 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Reload Report", "vr_flatreload_report")
             .help("vr_flatreload_report: each hand's reload trip as drawn (the server's bit, the share of the way to the hip, "
                   "which hip, the hand's distance from it, its pitch and hotspot) and R's presses."),
+        command("Flatscreen Swim Report", "vr_flatswim_report")
+            .help("vr_flatswim_report: the swimming strokes as drawn (swimming, the stroke's cycle, speed and mix of kinds), each "
+                  "hand's share and take-over, and what vr_flatswim_probe measured since: each hand's path and palm."),
+        command("Flatscreen Swim Probe", "vr_flatswim_probe")
+            .help("vr_flatswim_probe: starts measuring each hand's swimming path, palm and where it is seen; the next Swim Report "
+                  "prints it."),
         command("Flatscreen Force Grab Report", "vr_flat_fg_report")
             .help("vr_flat_fg_report: each hand's force grab as drawn (turning its palm out, pulling, back), its pose's share, how "
                   "open the hand is, the carry pose's share, the palm's angle off its object, what the server says it pulls, and E's "
@@ -1031,6 +1073,18 @@ za::Vector<Item> pageDebugReports()
             .help("vr_flatholster_test: the holster menu driven by the mouse (needs the shotgun in the right hand and the "
                   "nailgun in the left: Misc/quakevr/flatholster_test.sh sets it up): DROP, L, R, SWAP, the weapon keys, "
                   "a hand's DROP, the time scale; ends \"flatholster_test: N passed, M failed\"."),
+        command("Weapon Wheel Dump", "vr_weaponwheel_dump")
+            .help("vr_weaponwheel_dump: the headset's weapon wheel (open, its hand, the lit slot, the cursor, the time scale, "
+                  "its counts) and each slot's choice (its holster, its weapon, greyed or not)."),
+        command("Weapon Wheel Test", "vr_weaponwheel_test")
+            .help("vr_weaponwheel_test: the weapon wheel driven by the mock's buttons and hands (a nailgun and a shotgun given): "
+                  "hold, a slot, let go, off the wheel, the other hand, EMPTY HAND, UNLOAD, DROP, the time scale; ends "
+                  "\"weaponwheel_test: N passed, M failed\" (Misc/quakevr/weaponwheel_test.sh)."),
+        command("Flat Weapon Wheel Test", "vr_weaponwheel_test flat")
+            .help("vr_weaponwheel_test flat: flatscreen play's weapon wheel on 1 / 2 (vr_flat_wheel; the holsters on, the shotgun "
+                  "in the right hand, the nailgun in the left): taps cycle, a hold opens it, the mouse picks, off the wheel, "
+                  "UNLOAD, DROP, vr_flat_wheel 0; ends \"weaponwheel_test: N passed, M failed\" "
+                  "(Misc/quakevr/weaponwheel_test.sh <agent> flat)."),
         command("Flatscreen Grenade Report", "vr_flatgrenade_report")
             .help("vr_flatgrenade_report: the quick grenade's phase and hand as the game sends them, each hand's shares of "
                   "the pouch trip, the held place, the wind-up and the follow-through, and G's presses."),
@@ -1288,6 +1342,10 @@ za::Vector<Item> pageDebugReports()
             .help("vr_mp_gearcheck [ent]: each other player's or bot's copy as drawn: its hand models (two: no extra fists "
                   "in empty holsters), holstered weapons and sheaths, how far they are from its trunk and wrists, and the "
                   "sheaths' turn against its trunk (tilt, facing; mp_test.py botgear)."),
+        command("Network: Holsters vs the Defaults", "vr_mp_holster_defaults")
+            .help("vr_mp_holster_defaults [1]: your holsters' places as the other players get them (each player's copy "
+                  "wears his own; a bot's the shipped settings') against the shipped ones: how many differ (0 at the "
+                  "defaults). 1 also prints them, the table a bot's copy wears (mp_test.py holstersync)."),
         command("Network: Log Physics Bodies (5 s)", "vr_mp_bodylog 5 700")
             .help("vr_mp_bodylog <seconds> [radius]: logs each tick the physics things within the radius (props, gibs, "
                   "dropped weapons, every ragdoll part): a listen host the server's truth, a remote client what it draws "
@@ -1354,6 +1412,9 @@ za::Vector<Item> pageDebugReports()
             .help("vr_mp_body: the other players' bodies drawn under their heads and hands, posed by the same code as your "
                   "own from what their games send, at their height, arm length and build, with their bracers and pauldrons; "
                   "off: their player models."),
+        toggle("Network: Holsters On Their Bodies", vr_mp_holsters_on_body)
+            .help("vr_mp_holsters_on_body: the other players' holstered guns and sheaths placed on their bodies as drawn "
+                  "here, where yours sit on yours (as a bot's); off: as their games drew them on their own bodies."),
         slider("Network: Avatar Keyframe", vr_net_avatar_keyframe, 1.f, 72.f, 1.f, "%.0f frames")
             .help("vr_net_avatar_keyframe: hosting, a player's hands unchanged since they were last sent go again only every "
                   "this many frames (1: every frame). What a lost packet or a player just come into sight waits at most."),

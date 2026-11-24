@@ -104,6 +104,7 @@ moved by `fullConfigChanges`, a sparse config never held it); `""` none |
 | Mouse 3 (the wheel's button) | held: the holster menu, let go over a button to use it (or a press opens it and the next closes it: `vr_flat_holster_menu_mode` 1; Holsters, below; `vr_flat_holsters`) |
 | `1` | holsters on (the default; his words 2026-11-22): cycles the **left** hand through the holstered weapons in holster order (the menu's: L/R shoulder, L/R hip, L/R chest), each press the next one drawn and the one it held back into the holster it came from (else a free one: a trade when all are full), after the last the empty hand (`vr_flat_key_cycle_left`, `impulse 86` → QC `VR_FlatHolster_Cycle`). A weapon too big for a holster, or none free, and nothing moves (a short message). With `vr_flat_holsters 0`: cycles the left hand through the weapons collected, as before |
 | `2` | the same for the **right** hand (`vr_flat_key_cycle_right`, `impulse 87`) |
+| `1` / `2` held | the weapon wheel (`vr_flat_wheel` 1, the default, holsters on; his words 2026-11-23): held `vr_flat_wheel_hold` (0.15 s), the headset's weapon wheel opens for that hand where the hand is on the screen (`vr_flat_wheel_size` 0.5 of its height), time slowed (`vr_weaponwheel_timescale`, 0.5), the crosshair faded. The mouse is its cursor (the view stays; `vr_flat_holster_menu_cursor_speed`); let go of the key on a slot: that hand takes the holster's weapon (what it held back to its own holster), EMPTY HAND puts it away, DROP drops what it holds (6 / 7's), UNLOAD empties its gun's clip into the reserve (the holster menu's UNLOAD); greyed slots do nothing; let go off the wheel (or Esc): nothing. With the wheel on a tap cycles when the key is let go; `vr_flat_wheel 0`: 1 / 2 cycle on the press, as before. One wheel with the headset's (`vr_weaponwheel.cpp`: its provider, image and QC `VR_Wheel_Pick`); flat adds only the keys, the mouse cursor and the placement. Settings: Flat-screen settings, after the holster menu's rows. Test: `Misc/quakevr/weaponwheel_test.sh <agent> flat` |
 | `4`, `5` | holsters on: the left / right hand's weapon into a free holster: the one it was cycled out of, else its side's hip, chest, shoulder, then the other side's (`vr_flat_key_holster_left` / `_right`, `impulse 88` / `89` → `VR_FlatHolster_Put`, the headset's `VRHolsterHandWeapon`); none free: nothing, "No free holster for the ..." |
 | `6`, `7` | holsters on: the left / right hand drops what it holds (`vr_flat_key_drop_left` / `_right`: the holster menu's DROPs, `impulse 78` / `79`) |
 | `V` | a punch with the right hand: a real motion of the hand (wound up, thrown, drawn back), so the game's own melee rules decide whether it lands. `vr_flat_punch [main\|off]` drives either hand's punch from the console. A weapon that no swing strikes with never punches from its fire button â€” the chainsaw's trigger runs its chain, a gun's fires (the mode's own weapon set: `punchesWith`, `vr_flatplay.cpp`); `V` is the hand's punch whatever it holds, as it was (`vr_flat_punch main v` from the console). With a weapon in the hand the punch is the **overhead swing** (`vr_flat_swing`, `overheadSwing`; 2026-11-10): the hand winds up over the head with the weapon turned up 90 degrees, waits a moment, and comes down round the shoulder to the crosshair, the wrist turning all the way until the weapon points down; the fist keeps its straight throw. Its poses are tunables: the top `vr_flat_swing_raise_{fwd,up,out,pitch,yaw,roll}`, the end `vr_flat_swing_end_{fwd,down,out,pitch,yaw,roll}` and a melee weapon's follow-through `_end_{pitch,yaw,roll}_melee`; a melee weapon is always held turned by `vr_flat_melee_hold_yaw` / `_hold_roll`. The punch and the swing go for what the crosshair's ray hits, as the guns aim, no further than the arm reaches along it (`vr_flat_melee_aim_hit`), so the blow ends on the ray. A button's blow is deliberate to the melee rules (.handsynth 4/8, QC `VR_HandMotionAction`): no run-up, wrist or wiggle is asked of it, so any windup lands. The windup itself strikes nothing (`vr_flat_swing_wind_strikes 0`: the hand's motion is the game's until the top; it knocked a near knight out of the strike's way), and a swing that meets a wall stops where its own path from the frame before met it (`vr_flat_swing_path_stop 1`), so a short strike still lands its wall blow (test `Misc/quakevr/flatswing_test.sh`). One hand at a time (`vr_flat_punch_both 0`): the other hand punches only once the first draws back. A punch tips the view down into it and rolls it toward its side, and turns and leans the chest (`vr_flat_punch_cam_*`, `_torso_*`); the swing tips the view and chest back with the windup and forward with the strike (`vr_flat_swing_cam_*`, `_torso_*`). The view's tilt is the drawn view's only (`VR_FlatViewLean`): the aim and the shots stay. A press while that hand's punch runs is no new punch. An empty hand on the held weapon's grip lets go of it for its punch and takes it again after. Every number: Debug > Tunables > Flatscreen > Shove And Melee; `vr_flat_melee_probe` prints each blow's; test `Misc/quakevr/flatmelee_test.sh` |
@@ -113,6 +114,7 @@ moved by `fullConfigChanges`, a sparse config never held it); `""` none |
 | `9` | dims and lights the gear: the wrist gadget's side button in VR (`vr_gear_lights_toggle`, `vr_gearlights.cpp`: the visor's panels and the guns' ammo screens dimmed to `vr_gear_lights_screen_dim`, their light with them; kept in the config). The key is `vr_flat_key_gearlights` (default `9`, bound to nothing by `default.cfg`; `""` none). Since 2026-11-22 (Hotkeys, below) |
 | `H` | lets go of what a hand holds, the off hand first and the main hand after (his words 2026-11-10: "drops the object held in the non-dominant hand first"; the main hand first until then) (`impulse 47` -> `VR_Forcegrab_FlatDrop`, `QC/vr_wpnforcegrab.qc`): a weapon out of the hand the way the game drops one -- never handed to the other hand on its grip (his words 2026-11-10: the grip hand caught a dropped Enforcer's rifle as a prop) -- a box or a prop carried in it let go at his feet (physics again, free to take again); carried in both hands, one press frees both. The key is `vr_flat_key_drop` (default `h`; `G` until 2026-11-10, then hard-coded: no saved bind to move) |
 | `G` | the quick grenade (The quick grenade, below): `vr_flat_key_grenade` (default `g`; `""` none) |
+| `J` | the throw key (The throw key, below): held winds up, let go throws what a hand holds along the crosshair: `vr_flat_key_throw` (default `j`, bound to nothing by `default.cfg`; `""` none) |
 
 `1` and `2` go through the existing weapon cycling (`CycleWeaponCommand`, the controller's B and Y); `getWeaponCycleMode`
 In this mode the cycle (1, 2 and the mouse wheel) also stops at the empty hand (the fist), both directions; VR cycling is unchanged.
@@ -440,6 +442,32 @@ out with). Before, looking 60 degrees up he rose 23 units in half a second (78 n
 `Misc/quakevr/flatmove_test.sh` (swim: e1m4's deep water; ledge: the start map's pool), measured by `vr_flatmove_test`
 (Debug > Tests > Flat Move: Speed, Flat Ledges; 8 and 9 find deep water and water-jump ledges near him).
 
+**Swimming strokes** (`Quake/vr/vr_flatswim.cpp`; his words 2026-11-23). While he swims (the water at his waist off the
+bottom, or over his head; `vr_flat_swim` 1) the hands stroke by the way he moves: forward the breaststroke (out wide and back,
+palms back, in under the chin and forward), back pushing the water ahead (palms forward), sideways sweeping it away from
+where he goes, up (jump) pressing it down, down pulling it up, and still treading water. The way is his velocity in the
+view's frame (its forward along the look, its up the world's: a dive is the breaststroke, jump the press down); his speed
+against `vr_flat_swim_full_speed` (200) sets the stroke's rate (`vr_flat_swim_tread_rate` 0.5 .. `vr_flat_swim_rate` 0.9 a
+second) and size (`vr_flat_swim_size`, `vr_flat_swim_tread_size`), and the mix changes over `vr_flat_swim_turn_time`. The
+strokes sit `vr_flat_swim_fwd` / `vr_flat_swim_up` of the arm's reach ahead and up, and tip with `vr_flat_swim_pitch` of the
+look's pitch, so they are seen. A free hand takes the stroke (over `vr_flat_swim_enter_time`); a hand holding a weapon or a
+prop only follows its motion by `vr_flat_swim_gun_share` (0.3), its aim kept (the ironsight's pose aims it after). Any
+two-handed grip or stance lets go so the free hand can swim (`vr_flat_swim_one_hand`: twohand's `flatLetsGo`, flatsight's
+`gripWanted` and stance, flatplay's two-handed melee stance) and comes back on leaving the water. A shot (the trigger held,
+then `vr_flat_swim_fire_hold`), a punch, a swing, the shove, the parry, the reload, the force grab, the quick grenade, the
+swap and the ironsight take the hand over: its stroke eases out over `vr_flat_swim_takeover_time` and back over
+`vr_flat_swim_return_time`. Debug > Tunables > Flatscreen > Swimming; Debug > Reports: Flatscreen Swim Report / Probe.
+The headset's swimming reads tracked strokes and makes none, so no pose is shared with it; the strokes are flatplay's pose
+framework (`poseHands`, the shoulders, the arm's reach, the hands' angles and their blend). `Misc/quakevr/flatswim_test.sh`
+(vrtesthall's pool: each direction's path and palm, the nail gun's grip in and out of the water, the shot's take-over);
+`flatswim_shots.sh` for screenshots. A free swimming hand is drawn open, fingers together and the palm a little cupped
+(`vr_flat_swim_cup` 0.15: the curl of every finger and the thumb, its share of the stroke; `vr_view.cpp`'s finger curls,
+`flatswim::openShare`). Each stroke sounds as its power starts (the cycle at 0.04; `vr_flat_swim_sound` 0.5, louder with
+speed): under water the headset's soft or brisk whoosh (`vr/swim_soft*`, `swim_hard*`), at the surface a stroke's recording
+(`vr/stroke*`), heard in the head (client-side, `audio::playLocal`). Through the power the hands shed bubbles under water
+(`particles::swimBubbles`: small additive drops rising, carried mostly with the swimmer; 16 a second a hand at full speed
+times `vr_flat_swim_bubbles` 1 and the hand's stroke share; a gun hand by its gun share). The report's "water:" line counts both.
+
 **Ladders** (**Ladders**, `vr_flat_ladder`, 1; his request 2026-11-16). A ladder made of individual ledges (the tutorial's
 rungs, any stack of graspable ledges) climbs as a headset's hands climb it, on the same code (`vr_climb.cpp` `flatLadder`,
 `flatLadderFrame`, `flatLadderMount`): walking forward into one (in the air, back too) finds the ledges facing him in a
@@ -460,7 +488,10 @@ off a ladder's top (on it, facing away from the drop, back held at its lip) lowe
 non-solid model's bars over it, `drawnRung`, the same rungs a headset's hands take), else its own 16 apart; drawn bars may
 stand farther apart than the window over the feet (kellbase1's 24 and 32), so once the window sees one, drawn rungs up to
 40 under it count too (`findRungs`' `drawnBelow`: getting on, going down, lowered off the top), the lower hand then under
-Lowest Ledge. Test: `Misc/quakevr/flatladder_test.sh` (`vr_flatladder_test`, Debug >
+Lowest Ledge. A drawn bar is held on its near side (2 units in from its face, as a ledge behind its lip; a headset's hands
+too), the body is eased out of the drawn bars (its box's front 1 unit off their face, 160 u/s, as far as there is room:
+kellbase1's catwalk ladder has a clip in front of it, its pillar ladder a func_train's path) and to the middle of the
+ladder's width (64 u/s); getting on stops the run's sideways speed (`ladderKeep`, hubladder). Test: `Misc/quakevr/flatladder_test.sh` (`vr_flatladder_test`, Debug >
 Tests > Flat Ladder; scene `flat_ladder`).
 
 **Left Ctrl's firing bind, taken and given back.** In the plain game Left Ctrl is the fire key: `bind CTRL +attack` is in
@@ -805,7 +836,10 @@ stood. So nothing changes at a level look, whatever the yaw: no height, no move,
 `camShiftWorld` as the nudges, so the view (`VR_FlatViewDrop`), the crosshair's ray, the drawn hands, the pose's hands (they carry it,
 so the gun stays where it is on the screen and the muzzle where the ray is read) and `vr_flat_gun_near`'s measure (the eye's own moves
 are put back first) all read one eye. The body doesn't move: `solveTorso` stands the neck under a level look's eye. His box is 16 from
-its middle to its side: the eye's most is 5.5 at the defaults, and 15.3 at the 8 and 8 `eyeOffMax` allows. `vr_flat_eye_pivot 0` is the eye
+its middle to its side: the eye's most is 5.5 at the defaults, and 15.3 at the 8 and 8 `eyeOffMax` allows. With the trunk pitched
+forward (swimming's tilt, lying down: `avatar::ownPitchAngle`) a look up's neck turn and chest lean fade, gone at
+`vr_flat_eye_pitched_body` (30) degrees of it (his note 2026-11-23: looking up under water the eye stood among his own
+shoulders and saw them from below). `vr_flat_eye_pivot 0` is the eye
 turning about itself, measured the same to the last digit (`flatsweep_test.sh`, ROUND24.md). The numbers were chosen on the sweep's
 rows: see ROUND24.md, "Flat pose, phase 1".
 
@@ -936,10 +970,10 @@ pose: the hand leaves the rest for it and comes back after. Debug > Reports: Fla
 ## The speed FOV
 
 `vr_flat_speed_fov 1` (Locomotion > Desktop Screen Play; `vr_flatspeedfov.cpp`): faster than a run along the floor the
-view widens. The multiplier is 1 up to `vr_flat_speed_fov_from` (320, the run), rises on a smoothstep to
-`vr_flat_speed_fov_max` (1.1) at `vr_flat_speed_fov_top` (400: a slide's start, the run plus its boost) and stays
-there above it; `vr_flat_slide_fov_bonus` (0) adds to it while sliding. It eases towards the speed's value with time
-constant `vr_flat_speed_fov_ease` (0.15 s) widening and `vr_flat_speed_fov_ease_out` (0.6 s) narrowing, so landing,
+view widens. The multiplier is 1 up to `vr_flat_speed_fov_from` (350, a little over the run), rises on a smoothstep to
+`vr_flat_speed_fov_max` (1.2) at `vr_flat_speed_fov_top` (420) and stays
+there above it; `vr_flat_slide_fov_bonus` (0.15) adds to it while sliding. It eases towards the speed's value with time
+constant `vr_flat_speed_fov_ease` (0.3 s) widening and `vr_flat_speed_fov_ease_out` (0.3 s) narrowing (his values, 2026-11-23), so landing,
 stopping or hitting a wall never pops it. The speed is the client's (`cl.velocity`), so a slide and a bunny hop chain
 both get it, hosting or joined.
 
@@ -1073,8 +1107,8 @@ go throws it.
   own pouch grenade is taken (`VR_HandGrenade_Take`: a rocket leaves the reserve; the proximity launcher's round if the
   other hand holds it), carried in the hand. The fire button arms it with the headset's arming (`VR_HandGrenade_Arm`: the
   pin, `vr_grenade_fuse`, the cues); `vr_flat_grenade_arm_mode` 1 (default): the next press, held, winds up; 0: the
-  arming press itself winds up. Let go, it leaves just ahead of the eyes along the crosshair, `vr_flat_grenade_throw_up`
-  above it, at `vr_flat_grenade_speed_min` .. `_max` by the wind-up's share of `vr_flat_grenade_wind_full`, with his own
+  arming press itself winds up. Let go, it leaves from the wound-up hand towards what the crosshair points at
+  (`VR_FlatThrow_From`, the throw key's too), `vr_flat_grenade_throw_up` above that line, at `vr_flat_grenade_speed_min` .. `_max` by the wind-up's share of `vr_flat_grenade_wind_full`, with his own
   motion; the carry's own throw (`VR_Carry_Throw`) and release (`VR_Grenade_Released`). G again with it unarmed puts it
   back (the rocket back). No rockets: "No rockets for a grenade." `VR_HandGrenade_Trigger` doesn't arm for a flat-screen
   player (the quick grenade's frame does, whatever `vr_handgrenade_arm` says).
@@ -1096,6 +1130,42 @@ go throws it.
 - Toggle: `vr_flat_grenade` (Locomotion > Desktop Screen Play: Quick Grenade (G), Quick Grenade Fire Button).
   `vr_flat_grenade_debug 1` prints the drawn places (`flatgren:`), developer 1 the game's steps (`flat grenade:`);
   `vr_flatgrenade_report`. Test: `Misc/quakevr/flathands_test.sh` (gren2h, grenempty, grendual).
+
+## The throw key
+
+His ask (2026-11-23): a flat-screen throw, reusing and improving the grenade's throw motion.
+
+- **The key**: J (`vr_flat_key_throw`, Controls' flat keys: the "!" clash mark, Reset Flat Keys; the client sends
+  `impulse 39` as it goes down and `40` as it comes up, 40 again every 8 frames while the server still winds up with it up).
+  The hand: a carried thing (a rock, a prop, a crate, a gib, a head) before a weapon, the off hand before the main (H's
+  order); the quick grenade's hand winds up its own throw (J's release throws it as the fire button's does; unarmed, a dud).
+- **The throw is the headset's** (QC `vr_flatgrenade.qc`, "The throw key"): the hand's throw estimate (`handthrowvel`,
+  `handavel`, `handthrowpos`, `handrot`; put back after) is set to the throw's and the hand lets go as a headset's does
+  (`DropWeaponInHand`, `VR_Carry_Release`): weight, gain, assist, spin by mass, damage, sticking, gib bursts are theirs.
+  From the wound-up hand where it is drawn (his words 2026-11-23: things seemed to come from the middle of the eyes;
+  `VR_FlatThrow_From`: the hand, or where the line to it from the eyes meets a wall) towards what the crosshair points at
+  (a trace up to 2048 units; at the hand or behind it, along the aim), `vr_flat_throw_up` above that line, the hand at `vr_flat_throw_speed_min` (a tap) .. `_max` m/s over
+  `vr_flat_throw_charge_time`, spun end over end `vr_flat_throw_spin` rad/s, the hand turned `vr_flat_throw_release_pitch`.
+- **Held in both hands** (a long gun with the other hand on its grip or its stance's hotspot, a crate; his call
+  2026-11-23): thrown one-handed. The other hand lets go as the wind-up begins (`flatgrenade::letsGo`: a throw of either
+  hand, J's or the quick grenade's, in flatsight's stance and grip lists and twohand's `flatLetsGo`) and doesn't follow
+  the throwing hand; it takes a gun's grip again after, as after the other let-go moves. A crate's off hand lets go at
+  the press (`VR_Carry_EndTwoHands`, no second hand while it winds up); the headset's two-handed window isn't counted.
+- **As drawn** (`vr_flatgrenade.cpp`, STAT_QVR_FLATGREN's bits 16/32 the phase, 64 the main hand, 128 both): the throw's
+  motion is shared with the quick grenade (Debug > Tunables > Flatscreen > Throw, replacing the grenade's wind/follow/back
+  tunables): wound up above and beside the shoulder along the look, in view at the screen's upper corner (his words
+  2026-11-23: it went too far back; `vr_flat_throw_wind_fwd/_out/_up/_pitch/_yaw/_roll`), a little further back as it
+  charges (`_charge_back`), the follow-through along the look (`_follow_*`), back over `_back_time`.
+- **The guiding hand** (his words 2026-11-23): while one hand winds up (a prop, a gun, a grenade), the other, if it holds
+  nothing (`flatsight::handEmpty`, and not busy), goes forward off its shoulder (`vr_flat_throw_guide_fwd/_out/_up`), its
+  fingers raised `_pitch` and turned in `_yaw` with the palm away from him (`_roll` about the fingers), its fingers open
+  by `_open` (`vr_view.cpp`'s finger curls, `flatgrenade::guideShare`); it eases back over `_back_time` as the throw
+  follows through. A hand that holds something stays as it is. `vr_flat_throw_guide 0` turns it off.
+- **No shooting the thrown gun** (his words 2026-11-23): while J winds a weapon up, its hand neither fires
+  (`flatplay::routeFire`, and the game: `VR_FlatThrow_WindsUpWeapon` in weapons.qc) nor takes the ironsight
+  (`flatsight::adsApplies`; `flatgrenade::throwsWith`).
+- `vr_flat_grenade_debug 1` prints the client's steps (`flatthrow:`), developer 1 the game's (`flat throw: ...`, and where
+  it landed); `vr_flat_grenade_debug 2` the thrown thing's path a frame. Test: `Misc/quakevr/flatthrow_test.sh`.
 
 ## The hand swap
 
@@ -1188,7 +1258,8 @@ The two-handed grip (the same notes: "The two-handed melee holding spot seems to
 hotspot lowest on the handle (least far along the line from the holding hand to the tip: the axe's, Mjolnir's and the
 super axe's hs1 just above the holding hand, not hs2 up by the head; a sword's and the crowbar's hs1 below it), never the
 one the hanging hand happens to be nearest (`chooseGrip`, `vr_view_weapon.cpp`), and `vr_twohand`'s sword grips never take
-the blade (the half-sword grip, hs2) on the flat screen. A headset's hand chooses as before. `vr_flatplay_status` prints
+the blade (the half-sword grip, hs2) on the flat screen but in the guard (Blade grip in the guard, below). A headset's hand
+chooses as before. `vr_flatplay_status` prints
 "melee grip: hs1 (type 1), the free hand on that grip". Scene `flat_melee_grip`.
 
 A melee weapon held in both hands lets go as a gun does (his note 2026-11-10: "the off hand doesn't seem to detach
@@ -1197,6 +1268,40 @@ carries the free hand to, taken only at a swing's end; held, the pose is now pin
 grab, the shove, G, 3 and a punch take it off the grip over the gun's own ease (`gripEase`, then `vr_flat_fg_detach_time` for
 E). 0: the old way (the hand hanging while held, off at once). Test: `Misc/quakevr/flatfg2h_test.sh <agent> [letgo]`
 (`vr_flatitems_test 9`; the drawn off hand's most a frame, `vr_flat_fg_report`'s "drawn off hand" line); scene `flat_fg_melee2h`.
+
+**Bash from the guard** (his notes 2026-11-23, item 15: "pressing fire while holding the parry button with a melee weapon
+performs a bash"; `vr_flat_bash` 1): the weapon hand's fire button pressed in the guard (asked for) bashes instead of
+swinging out of it (`flatplay::startBash`, from `pollKeys`). It runs on the shove's clock (one or the other at a time, the
+shove's `shoveFrame` and smoothing), with its own parts: drawn back `vr_flat_bash_wind_back` (8 units) over `_wind_time`
+(0.15 s; his values, 2026-11-23), pushed straight out `_reach` (12 units, within the arm's reach) over `_push_time` (0.07), held `_hold_time` (0.06)
+and back to the guard over `_recover_time` (0.2), all `_anim_speed` (1) times faster; next one after `_cooldown` (0.5 s, at
+least the whole bash). The guard stays up through it (`parryAsked`), and the push is drawn over the guard (`bashPose`).
+At the hold's end (the smoothed hand all the way out) the engine sends `impulse 58` (off hand) / `59` (main), and QC
+`VR_FlatBash` (`vr_melee_bash.qc`) bashes as the headset's bash: the weapon's line as the guard holds it
+(`VR_Melee_Line`: a flatscreen hand's motion keeps no lines) swept forward by `VR_Bash_Find` (`VR_BASH_REACH`), landed by
+`VR_Bash_Land` (damage, knockback, stagger, stamina, a counter's window, its sound: the headset's numbers), with the
+headset's batting window (`VR_Bash_DeflectStart`, the push straight ahead at `vr_bash_speed`). Held in two hands (the blade
+grip below, or the two-handed stance) it is the headset's two-handed bash. Its whoosh is the shove's (`vr_flat_shove_swish`).
+
+**Blade grip in the guard** (the same notes, item 16: "the off hand smoothly but quickly grab the blade near its tip at the
+sword-grip hotspot; it lets go when the parry ends"; `vr_flat_parry_blade` 1): in the guard with a weapon held as a sword
+(Two-Handed: Sword with a Blade hotspot, `twohand::swordBlade`: the knight's sword, the crowbar; any weapon whose offsets give it one) and the other
+hand empty and not busy (a punch, the shove, E, G, the swap), the free hand goes to the blade hotspot's point (its share of
+the way from the hand to the tip, on the weapon's line as the guard holds it: `flatplay::bladePin`, from `flatsight::apply`
+before `vr_twohand`) over `vr_flat_parry_blade_in_time` (0.12 s, eased) and back over `_out_time` (0.15). `vr_twohand`'s
+`applySword` takes the half-sword grip there (the headset's: the drawn hand slid onto the blade, the game's two-handed hold
+and its bits) only while the guard asks for it, switching off the stance's grip if held there, and lets go as it ends
+("the flat guard ended"). The drawn hand is turned onto the blade over the grip's blend on the flat screen
+(`steadyOther`; at once it turned 73 degrees in a frame, now 7 in and 12 out). Palm down over the blade
+(`vr_flat_parry_blade_palm` 1; his note 2026-11-23: it was palm up under it): `twohand::bladeGripHand` rolls the hand about
+the blade (its grip staying along it) to the palm down, flat screen only (a headset's keeps the tracked hand's roll); the
+blend's quaternions kept on last frame's side (`steadyOther`'s `bladeBlend`) so the near half turn never flips (11 in, 20 out).
+Its fingers point away from him over the blade (his second note 2026-11-23: they pointed back): else the hand is turned
+end for end about its palm's normal, decided while the guard asks for the grip and kept as it lets go (8 in, 15 out;
+fingers out 0.64 in the report's blade grip line). Weapons without a Blade hotspot (axes,
+Mjolnir, the chainsaw) leave the free hand where it was. Debug > Tunables > Flatscreen > Guard Bash and Blade Grip;
+`vr_flatplay_status` prints "guard bash:" and two "blade grip:" lines (the free hand off the hotspot, posed and drawn);
+`vr_flatplay_debug 1` the bash's start and the blade's take. Test: `Misc/quakevr/flatbash_test.sh <agent>`; scene `flat_parry`.
 ## Two-handed melee stance
 
 His notes 2026-11-12: a melee weapon that can be held in two hands, held in one with the other hand free, took the
@@ -1318,7 +1423,7 @@ binds for the headset's grips and reloads; a flat grab could reuse K/L).
 |---|---|---|---|
 | Parry | a melee weapon held into the blow | RMB with one melee weapon (Parry guard) | dual melee, a gun's block: none (his call: RMB is the left hand's blow there) |
 | Ammo switch | the gun's weapon button (impulse 42/43) | B (main hand); 7 and 8 (`default.cfg`: impulse 42/43, off and main hand) | done |
-| Throw | let go of the grip while swinging: a weapon, a prop, a dagger, a body | G throws the quick grenade; H drops at the feet; nothing else is thrown | **his call**: a throw that swings the hand and opens it at speed, so the headset's own throw (hand speed, spin) does the rest; on H held (tap still drops: H changes) or its own key (J, free) |
+| Throw | let go of the grip while swinging: a weapon, a prop, a dagger, a body | J throws what a hand holds (The throw key); G the quick grenade; H drops at the feet | done (2026-11-23): J, the headset's own throw fed the hand's estimate |
 | Shove | an open hand pushed out | mouse 5 | done |
 | Punch, overhead swing | the hand's own motion | V, the fire buttons | done |
 | Climb | either empty hand on a ledge or rung (`vr_climb`): hang, hand over hand, shimmy | automatic: the mantle (`vr_flat_mantle`), ladders (`vr_flat_ladder`), ropes (`vr_flat_rope`) | hanging, shimmy: VR only (two tracked hands; the mantle takes the ledges in reach) |

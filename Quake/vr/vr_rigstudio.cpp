@@ -28,6 +28,7 @@
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -121,7 +122,12 @@ void restoreSettings()
     {
         return;
     }
-    Cvar_SetValueQuick(&vr_agrunt_freeze, st.keepFreeze);
+    // (only while still frozen: a scene that set it and put it back, or a map change that ended the scene, unfroze them
+    // first: putting the studio's value back then froze the next scene's humanoids; his note of 2026-11-23 23:03:39)
+    if(vr_agrunt_freeze.value != 0.f)
+    {
+        Cvar_SetValueQuick(&vr_agrunt_freeze, st.keepFreeze);
+    }
     Cvar_SetValue("viewsize", st.keepViewsize);
     Cvar_SetValue("crosshair", st.keepCrosshair);
     Cvar_SetValue("r_drawviewmodel", st.keepViewmodel);
@@ -3399,7 +3405,7 @@ int mirrorBone(int b)
     }
     char name[16];
     q_strlcpy(name, st.rig->bones[b].name, sizeof(name));
-    const size_t n = ZA_STRLEN(name);
+    const za::SizeT n = ZA_STRLEN(name);
     if(n > 2 && name[n - 2] == '_' && (name[n - 1] == 'l' || name[n - 1] == 'r'))
     {
         name[n - 1] = name[n - 1] == 'l' ? 'r' : 'l';

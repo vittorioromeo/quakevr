@@ -115,6 +115,8 @@ float(entity e) VR_Crate_Wooden =
 float(entity e) VR_Hit_Metal =
 {
     if(e == world) { return FALSE; }
+    if(e.classname == "vr_pole_solid") { return e.rope_style >= 1; } // (ropes8a: a metal pole)
+    if(VR_Rope_IsChain(e)) { return TRUE; } // (ropes8c: a chain's links)
     if(VR_Prop_Metal(e)) { return TRUE; }
     if(VR_Crate_Wooden(e)) { return FALSE; }
     return e.solid == SOLID_BSP || substring(e.model, 0, 1) == "*" ||
@@ -148,6 +150,8 @@ float(entity e) VR_Hit_Armoured =
 float(entity e) VR_MaterialOf =
 {
     if(VR_WallTorch_IsTorch(e)) { return VR_MAT_TORCH; } // (the identity survives being knocked off by the hit)
+    if(e.classname == "vr_pole_solid") { return e.rope_style >= 1 ? VR_MAT_METAL : VR_MAT_WOOD; } // (ropes8a: a pole)
+    if(VR_Rope_IsChain(e)) { return VR_MAT_METAL; } // (ropes8c: a chain's links)
     if(e.vr_shootnade) { return VR_MAT_GRENADE; }
     if(VR_Hit_Metal(e)) { return VR_MAT_METAL; }
     if(VR_Crate_Wooden(e)) { return VR_MAT_WOOD; }

@@ -11,6 +11,7 @@
 #include "vr_hands.hpp"
 #include "vr_units.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -361,9 +362,9 @@ void mtbench_f()
             awake += static_cast<za::U64>(b3World_GetAwakeBodyCount(id));
         }
         za::U64 h = 1469598103934665603ull;
-        const auto mix = [&h](const void* p, size_t n)
+        const auto mix = [&h](const void* p, za::SizeT n)
         {
-            for(size_t k = 0; k < n; k++)
+            for(za::SizeT k = 0; k < n; k++)
             {
                 h = (h ^ static_cast<const unsigned char*>(p)[k]) * 1099511628211ull;
             }

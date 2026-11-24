@@ -145,7 +145,7 @@ QVR_BAYER4_GLSL \
 "{\n" \
 "	uint DecalGrid[];\n" \
 "};\n" \
-"layout(binding=14) uniform sampler2D DecalAtlas;\n" \
+"layout(binding=14) uniform QVR_MP sampler2D DecalAtlas;\n" \
 "\n" \
 "// How far along the surface the parallax mapping moved this pixel's texture coordinates (by duv), in the world.\n" \
 "vec3 ParallaxShiftWorld(vec2 duv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy)\n" \
@@ -359,7 +359,7 @@ QVR_BAYER4_GLSL \
 "// its normal, dpdx and dpdy its derivatives across the screen).\n" \
 "vec3 DecalsAt(vec3 p, vec3 q, vec3 facing, vec3 dpdx, vec3 dpdy)\n" \
 "{\n" \
-"	vec3 m = vec3(1.0);\n" \
+"	QVR_MP vec3 m = vec3(1.0);\n" \
 "	ivec3 c = ivec3(floor(p * (1.0 / 32.0)));\n" \
 "	uint h = (uint(c.x) * 73856093u) ^ (uint(c.y) * 19349663u) ^ (uint(c.z) * 83492791u);\n" \
 "	uint mask = DecalGrid[0];\n" \
@@ -370,13 +370,27 @@ QVR_BAYER4_GLSL \
 "	const vec2 span = cellsize - 2.0 * inset;\n" \
 "	for (uint k = 0u; k < count; k++)\n" \
 "	{\n" \
-"		Decal d = Decals[DecalGrid[first + k]];\n" \
+"		// read member by member, each test as soon as its members are in (qworld: most listed decals are rejected after\n" \
+"		// 2 of the 6 vec4 loads, not after all of them; the carve member never read)\n" \
+"		uint di = DecalGrid[first + k];\n" \
+"#ifdef QVR_PROBE_OLDDECAL\n" /* qworld, vr_gles_define's probe: the whole record first, as before */ \
+"		Decal d = Decals[di];\n" \
+"#else\n" \
+"		Decal d;\n" \
+"		d.n = Decals[di].n;\n" \
+"		d.centre = Decals[di].centre;\n" \
+"#endif\n" \
 "		if (dot(facing, d.n.xyz) < 0.5 || abs(dot(d.centre.xyz - q, facing)) > d.n.w) // its middle within n.w of this face's plane\n" \
 "			continue;\n" \
 "		// outside its rectangle at its full size (it only spreads to it; a little larger, for rounding): no more worked out\n" \
 "		vec3 off = p - d.centre.xyz;\n" \
-"		if (abs(dot(off, d.u.xyz)) > d.u.w * 1.001 + 0.01 || abs(dot(off, d.v.xyz)) > d.v.w * 1.001 + 0.01)\n" \
+"		d.u = Decals[di].u;\n" \
+"		if (abs(dot(off, d.u.xyz)) > d.u.w * 1.001 + 0.01)\n" \
 "			continue;\n" \
+"		d.v = Decals[di].v;\n" \
+"		if (abs(dot(off, d.v.xyz)) > d.v.w * 1.001 + 0.01)\n" \
+"			continue;\n" \
+"		d.time = Decals[di].time;\n" \
 "		float age = DecalClock.x - d.time.x;\n" \
 "		float a = clamp((DecalClock.y - age) / 5.0, 0.0, 1.0);\n" \
 "		if (age < 0.0 || a <= 0.0)\n" \
@@ -440,7 +454,7 @@ QVR_BAYER4_GLSL \
 "		float lmajor = sqrt(max(lx, ly)), lminor = sqrt(min(lx, ly));\n" \
 "		float reads = clamp(ceil(lmajor / max(lminor, 1e-4)), 1.0, 4.0);\n" \
 "		float lod = log2(max(max(lminor, lmajor / reads), 1e-4));\n" \
-"		vec4 texel = vec4(0.0);\n" \
+"		QVR_MP vec4 texel = vec4(0.0);\n" \
 "		for (float r = 0.0; r < reads; r += 1.0)\n" \
 "			texel += textureLod(DecalAtlas, at + major * ((r + 0.5) / reads - 0.5), lod);\n" \
 "		texel /= reads;\n" \
@@ -488,6 +502,9 @@ QVR_BAYER4_GLSL \
 "	vec4 here = PermDecalsAt(g, pages, dgdx, dgdy);\n" \
 "	if (here.w < 0.5) // no page here (most of the world): nothing to snap (a page's marks reach a texel into the next)\n" \
 "		return here;\n" \
+"#ifdef QVR_PROBE_PERMONE\n" /* qworld, vr_gles_define's probe: the smooth read alone (no blocky edges' 4 more) */ \
+"	return here;\n" \
+"#endif\n" \
 "	vec2 grid = vec2(0.0);\n" \
 "	float soft = 0.0, far = 0.0;\n" \
 "	if (Retro > 0)\n" \
@@ -564,13 +581,13 @@ QVR_BAYER4_GLSL \
 // texture to)
 #define QVR_WORLD_FS_DECALS \
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n" \
-"	vec3 decal_mod = vec3(carve_dark); // (1: not carved here, QVR_WORLD_FS_CARVE)\n" \
+"	QVR_MP vec3 decal_mod = vec3(carve_dark); // (1: not carved here, QVR_WORLD_FS_CARVE)\n" \
 "	result.rgb *= carve_dark;\n" \
 "	fullbright *= carve_dark;\n" \
 "	if (DecalClock.z > 0.0 && in_retro.w > 0.5)\n" \
 "	{\n" \
 "		vec3 decal_pos = parallax ? in_pos + ParallaxShiftWorld(puv - uv, duvdx, duvdy, dpdx, dpdy) : in_pos;\n" \
-"		vec3 marks = DecalsAt(decal_pos, in_pos, facing, dpdx, dpdy);\n" \
+"		QVR_MP vec3 marks = DecalsAt(decal_pos, in_pos, facing, dpdx, dpdy);\n" \
 "		result.rgb *= marks;\n" \
 "		fullbright *= marks;\n" \
 "		decal_mod *= marks;\n" \
@@ -702,7 +719,7 @@ QVR_PERMDECAL_FUNCTIONS \
 // that only main()'s calls are replaced.
 #define QVR_WORLD_FS_LITE \
 "#ifdef QVR_LITE_NORETRO\n" \
-"#if defined(QVR_PROBE_WANCHOR) && defined(QVR_WORLD_ARRAYS)\n" /* -glesdefine's probe (C4k): the derivatives consumed where RetroBegin took them, under a uniform's branch */ \
+"#if defined(QVR_PROBE_WANCHOR) && defined(QVR_WORLD_ARRAYS)\n" /* vr_gles_define's probe (C4k): the derivatives consumed where RetroBegin took them, under a uniform's branch */ \
 "#define RetroBegin(a, b, c, d, e, f, g) Retro = 0; if (RetroInfo.w > 1e30) WLayer += (c).x + (d).y\n" \
 "#else\n" \
 "#define RetroBegin(a, b, c, d, e, f, g) Retro = 0\n" /* (set in main, not left to its global initializer: C4k, QUEST_PLAN.md 6r) */ \
@@ -732,7 +749,14 @@ QVR_PERMDECAL_FUNCTIONS \
 // light contrast, normal maps in the baked light, specular
 #define QVR_WORLD_FS_LIGHT \
 "	if (LightTweak.x != 1. || AmbientLight.x > 0.) // QVR: the room's own fill light first (vr_ambient_light: a share of Quake's full light added to the lightmap), then the contrast about Quake's full light (vr_light_contrast): darker shade, lamps as bright\n" \
-"		total_light = 0.5 * pow(max(total_light, vec3(0.)) * 2.0 + AmbientLight.x, vec3(LightTweak.x));\n" \
+"	{\n" \
+"		QVR_MP vec3 lt_x = max(total_light, vec3(0.)) * 2.0 + AmbientLight.x;\n" \
+"#ifdef QVR_PROBE_OLDPOW\n" /* qworld, vr_gles_define's probe: the pow as before */ \
+"		total_light = 0.5 * pow(lt_x, vec3(LightTweak.x));\n" \
+"#else\n" \
+"		total_light = 0.5 * (LightTweak.x == 2.5 ? lt_x * lt_x * sqrt(lt_x) : pow(lt_x, vec3(LightTweak.x))); // qworld: the default contrast without the three pow (6 transcendentals a pixel)\n" \
+"#endif\n" \
+"	}\n" \
 "\n" \
 "	// QVR: the normal bent by the normal map (vr_normalmaps), for the baked light and the dynamic lights\n" \
 "	vec3 bumped = facing;\n" \

@@ -94,13 +94,21 @@ void(float xHand, float xAid) updateAmmoCounter =
     else
     {
         VRSetAmmoCounter(xHand, VR_AmmoUtil_GetAmmoCountByAmmoId(self, xAid));
-        VRSetWeaponClipSize(xHand, VR_ClipSizeIn(self, xHand)); // (AD support: the Widowmaker's tube)
+        // (AD support: the Widowmaker's tube.) Dwell's Crystal Lance held as a lance has no magazine (DW_LanceFedFromPouch,
+        // the held record's variant: variantowned): size 0, so every display (the flat HUD's VR_FlatHudClip, the VR gun's
+        // screen and its idle text, other players' copies) shows its cells alone, as a gun without a clip (his flat note
+        // 2026-11-24: "36/XXX").
+        VRSetWeaponClipSize(xHand, DW_LanceFedFromPouch(VRGetEntWeaponInst(self, xHand)) ? 0 : VR_ClipSizeIn(self, xHand));
     }
 }
 
 float(entity p, float xHand) VR_FlatReload_Busy; // (vr_flatreload.qc)
+float(entity p, float xHand) VR_FlatThrow_WindsUpWeapon; // (vr_flatgrenade.qc)
+float vr_flatthrow_refused; // (vr_flatgrenade.qc: frames of the fire button refused while the weapon was wound up)
 void() VR_FlatReload_Key;
 void() VR_FlatGrenade_Key; // (vr_flatgrenade.qc)
+void() VR_FlatThrow_Press; // (vr_flatgrenade.qc: the throw key)
+void() VR_FlatThrow_Release;
 void(float xHand, float xWeapon, float xWeaponFlags) VR_FlatReload_CycleOut;
 void(float xHand) VR_FlatReload_CycleIn;
 
@@ -517,6 +525,17 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
     {
         vector rest = hitmodel_rest(xTarget, xEndpos);
         return PositionalPointRegion(xTarget, rest, hitmodel_part(xTarget, xEndpos));
+    }
+
+    // (hitzones) Another player (a human, a bot): the part of his body as drawn that the shot met (vr_playerhit.cpp: his
+    // head, torso, arms, legs; what shots meet instead of his box). None (no such shape, or a point on his box): his box.
+    if(xTarget.flags & FL_CLIENT)
+    {
+        float part = playerhitzone(xTarget, xEndpos, d);
+        if(part != VR_REGION_NONE)
+        {
+            return part;
+        }
     }
 
     // The ray's closest approach to the head, not behind where it entered.
@@ -3639,7 +3658,7 @@ void() spike_touch =
     {
         adjDmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_nail, 9) * vr_proj_factor; // (its part: VR_Proj_Begin)
 
-        if(T_Damage(other, self, self.owner, adjDmg))
+        if(T_Damage(other, self, self.owner, adjDmg) || VR_Rope_Is(other)) // (ropes8c: a chain's or a pole's sparks or splinters)
         {
             spawn_touchblood (adjDmg);
             bleed = TRUE;
@@ -3698,9 +3717,10 @@ void() superspike_touch =
     {
         adjDmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_super_nail, 18) * vr_proj_factor; // (its part: VR_Proj_Begin)
 
-        if(T_Damage(other, self, self.owner, adjDmg))
+        if(T_Damage(other, self, self.owner, adjDmg) || VR_Rope_Is(other)) // (ropes8c: a chain's or a pole's sparks or splinters)
         {
             spawn_touchblood (adjDmg);
+            bleed = VR_Rope_Is(other);
         }
         AD_NailPierce(other); // AD support: AD's Nail Piercer (vr_ad_items.qc)
     }
@@ -4030,6 +4050,12 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     // So is the Super Axe without its cells (they are only its burst's: vr_mg3_weapons.qc): held by the whole hand, the
     // trigger closed round its haft, silent (the author's note, vrfiringrange_2026-10-08_14-14-01); untracked, it swings.
     float emptyHammer = (xWeapon == WID_MJOLNIR || xWeapon == WID_SUPERAXE) && !W_CheckNoAmmo(xHand);
+    // And Dwell's Crystal Lance without its cells (lance3; his note vrtesthall_2026-11-23_22-59-42: held as a melee weapon
+    // the trigger is often closed): silent, no empty click (its charge: DW_LanceChargeFrame).
+    if(xWeapon == WID_LIGHTNING && !W_CheckNoAmmo(xHand) && DW_LanceInHand(xHand))
+    {
+        return;
+    }
     if(emptyHammer && VRHandsTracked(self) && self.ishuman)
     {
         return;
@@ -4573,6 +4599,13 @@ void(float xHand) ToggleSecondaryAmmo =
     {
         return; // AD support: AD's Plasma Gun fires cells only (AD's W_FirePlasma), no button (vr_weapons.inc slot 35)
     }
+    if(DW_LanceInHand(xHand))
+    {
+        // Dwell's Crystal Lance (the lightning gun's record with its variant): no other ammo, flat or headset (his note
+        // 2026-11-23: B made it the lightning gun). (One left on the other ammo by an older game still switches back.)
+        dprint("ammo switch: refused, the Crystal Lance has no other ammo\n"); // (flat_ammo_key_test.sh)
+        return;
+    }
 
     // vr_ammo_switch_empty_hand: pressable only with the other hand empty (nothing held at all): not akimbo.
     if(cvar_hget(cvarh_vr_ammo_switch_empty_hand) && !VRIsHandEmpty(self, VRGetOtherHand(xHand)))
@@ -4690,7 +4723,7 @@ void() VR_FlatToolgun_Toggle =
     {
         VRPassEntWeapon(self, cVR_MainHand, self.vr_flattg_wid); // (the weapon kept meanwhile: back as it was)
         VRSetEntWeaponFlags(self, cVR_MainHand, self.vr_flattg_flags);
-        VRSetEntWeaponInst(self, cVR_MainHand, self.vr_flattg_inst);
+        VRSetEntWeaponInst(self, cVR_MainHand, WeaponInst_Owned(self, self.vr_flattg_wid, self.vr_flattg_inst));
         self.vr_flattg_on = FALSE;
         self.vr_flattg_inst = world;
         W_SetCurrentAmmo();
@@ -4838,6 +4871,14 @@ void() ImpulseCommands =
         self.impulse = 0;
         return;
     }
+    // Flatscreen play: the fire button in the parry's guard with a melee weapon bashes (vr_flatplay.cpp startBash,
+    // vr_flat_bash: 58 the off hand, 59 the main, as the drawn push reaches out; vr_melee_bash.qc VR_FlatBash).
+    if((self.impulse == 58 || self.impulse == 59) && VR_FlatPlay(self))
+    {
+        VR_FlatBash(self.impulse == 58 ? cVR_OffHand : cVR_MainHand);
+        self.impulse = 0;
+        return;
+    }
 
     // Flatscreen play: R reloads (vr_flatplay.cpp reads the key, vr_flat_key_reload; vr_flatreload.qc).
     if(self.impulse == 55 && VR_FlatPlay(self))
@@ -4853,6 +4894,23 @@ void() ImpulseCommands =
     {
         self.impulse = 0;
         VR_FlatGrenade_Key();
+        return;
+    }
+
+    // Flatscreen play: J throws what a hand holds (vr_flatgrenade.cpp reads the key, vr_flat_key_throw: 39 as it goes
+    // down, the wind-up; 40 as it comes up, the throw; vr_flatgrenade.qc "The throw key"). Nobody else's impulses.
+    if((self.impulse == 39 || self.impulse == 40) && VR_FlatPlay(self))
+    {
+        float throwUp = self.impulse == 40;
+        self.impulse = 0;
+        if(throwUp)
+        {
+            VR_FlatThrow_Release();
+        }
+        else
+        {
+            VR_FlatThrow_Press();
+        }
         return;
     }
 
@@ -5074,11 +5132,12 @@ float(entity ent, float xHand) VRWeaponLeavingHand;
 
 void(float xHand, float xButton) FrameDrawLightningTrail =
 {
-    // Lightning effect (per-frame)
+    // Lightning effect (per-frame). Not Dwell's Crystal Lance's: its shots are single (dw_items.qc DW_LanceChargeFrame;
+    // the stream drawn while its trigger was held, its damage in pulses: his note 2026-11-23).
     if(xButton &&
        VRGetWeapon(xHand) == WID_LIGHTNING &&
        (!(VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)) &&
-       getCurrentAmmoOrClip(xHand) > 0)
+       getCurrentAmmoOrClip(xHand) > 0 && !DW_LanceInHand(xHand))
     {
         PlayerLightningGunEffect(VRGetMuzzlePos(xHand), xHand);
     }
@@ -5124,8 +5183,24 @@ void(float xHand) W_WeaponFrameImpl =
     }
 
     // check for attack
-    // (Flat-screen play: not while the gun is on its reload trip to the hip, vr_flatreload.qc.)
-    if(VRGetFireButtonPressed(xHand) && !VR_Forcegrab_IsHandBusy(self, xHand) && !VR_FlatReload_Busy(self, xHand))
+    // (Flat-screen play: not while the gun is on its reload trip to the hip, vr_flatreload.qc, nor while the throw key winds
+    // it up to throw it, vr_flatgrenade.qc.)
+    float pressed = VRGetFireButtonPressed(xHand) && !VR_Forcegrab_IsHandBusy(self, xHand) && !VR_FlatReload_Busy(self, xHand);
+    if(pressed && VR_FlatThrow_WindsUpWeapon(self, xHand))
+    {
+        pressed = FALSE;
+        vr_flatthrow_refused++; // (printed with the throw: the tests)
+    }
+    // Dwell's Crystal Lance: charged while the trigger is held, fired as it is let go fully charged (dw_items.qc).
+    if(DW_LanceCharged(xHand))
+    {
+        if(!DW_LanceChargeFrame(xHand, dw_lc_test ? dw_lc_test_press : pressed))
+        {
+            return;
+        }
+        pressed = TRUE;
+    }
+    if(pressed)
     {
         // Quad's sound: not here (the trigger), but where damage is dealt: each gun's shot, a blow landing
         // (VR_QuadSound, combat.qc).

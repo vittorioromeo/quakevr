@@ -328,6 +328,7 @@ Quake/gl_vidsdl.c|draw_context
 Quake/gl_vidsdl.c|fsaa
 Quake/gl_vidsdl.c|gl_anisotropy_able
 Quake/gl_vidsdl.c|gl_bindless_able
+Quake/gl_vidsdl.c|gl_blend_off
 Quake/gl_vidsdl.c|gl_buffer_storage_able
 Quake/gl_vidsdl.c|gl_clipcontrol_able
 Quake/gl_vidsdl.c|gl_context
@@ -336,6 +337,7 @@ Quake/gl_vidsdl.c|gl_debug_callers_count
 Quake/gl_vidsdl.c|gl_max_anisotropy
 Quake/gl_vidsdl.c|gl_multi_bind_able
 Quake/gl_vidsdl.c|gl_num_extensions
+Quake/gl_vidsdl.c|gl_opaque_blend_keep
 Quake/gl_vidsdl.c|gl_parallel_compile_able
 Quake/gl_vidsdl.c|gl_readframebuffer
 Quake/gl_vidsdl.c|gl_renderer
@@ -412,6 +414,7 @@ Quake/keys.c|chat_bufferlen
 Quake/keys.c|chat_team
 Quake/keys.c|edit_line
 Quake/keys.c|history_line
+Quake/keys.c|key_bindgeneration
 Quake/keys.c|key_blinktime
 Quake/keys.c|key_dest
 Quake/keys.c|key_inputgrab
@@ -661,7 +664,10 @@ Quake/r_alias.c|playertextures
 Quake/r_brush.c|brush_reserve
 Quake/r_brush.c|brush_reserve_lmblock
 Quake/r_brush.c|brush_reserve_lmxy
+Quake/r_brush.c|gl_bmodel_buildserial
 Quake/r_brush.c|gl_bmodel_cmdcap
+Quake/r_brush.c|gl_bmodel_cmds
+Quake/r_brush.c|gl_bmodel_cmds_count
 Quake/r_brush.c|gl_bmodel_ibo
 Quake/r_brush.c|gl_bmodel_ibo_size
 Quake/r_brush.c|gl_bmodel_indirect_buffer
@@ -719,6 +725,8 @@ Quake/r_sprite.c|softpass
 Quake/r_sprite.c|softsprites
 Quake/r_world.c|bmodel_arrays_on
 Quake/r_world.c|bmodel_batch_program
+Quake/r_world.c|bmodel_call_cmdbuf
+Quake/r_world.c|bmodel_call_cmdofs
 Quake/r_world.c|bmodel_call_merged
 Quake/r_world.c|bmodel_call_remap
 Quake/r_world.c|bmodel_calls
@@ -735,7 +743,13 @@ Quake/r_world.c|bmodel_instances
 Quake/r_world.c|bmodel_lit_mode
 Quake/r_world.c|bmodel_merge
 Quake/r_world.c|bmodel_merge_items
+Quake/r_world.c|bmodel_onepass_cmds
 Quake/r_world.c|bmodel_portal_counts
+Quake/r_world.c|bmodel_premerge
+Quake/r_world.c|bmodel_premerge_count
+Quake/r_world.c|bmodel_premerge_flush
+Quake/r_world.c|bmodel_premerge_frame
+Quake/r_world.c|bmodel_premerge_scene
 Quake/r_world.c|bmodel_relief_filter
 Quake/r_world.c|bmodel_seg_first
 Quake/r_world.c|bmodel_seg_program
@@ -755,6 +769,7 @@ Quake/r_world.c|r_world_litskip
 Quake/r_world.c|r_world_litsplit
 Quake/r_world.c|r_world_littex
 Quake/r_world.c|r_world_littexcap
+Quake/r_world.c|r_world_solid_program
 Quake/r_world.c|worldfragments
 Quake/sbar.c|sb_lines
 Quake/snd_codec.c|codecs
@@ -1278,7 +1293,7 @@ Quake/vr/vr_bodytrack_xr.cpp|permissionState
 Quake/vr/vr_bodytrack_xr.cpp|tracker
 Quake/vr/vr_box3d_api.cpp|serverWorldReset
 Quake/vr/vr_box3d_climb.cpp|climbShapes
-Quake/vr/vr_box3d_diag.cpp|commandsRegistered
+Quake/vr/vr_box3d_diag.cpp|versionPrinted
 Quake/vr/vr_box3d_diag_player.cpp|wiggleCheck
 Quake/vr/vr_box3d_flail.cpp|flails
 Quake/vr/vr_box3d_hands.cpp|sweepScratch
@@ -1304,6 +1319,7 @@ Quake/vr/vr_box3d_mesh.cpp|meshSite
 Quake/vr/vr_box3d_portaltest.cpp|gunTest
 Quake/vr/vr_box3d_portaltest.cpp|portalTest
 Quake/vr/vr_box3d_presstest.cpp|press
+Quake/vr/vr_box3d_props.cpp|poleLinesNow
 Quake/vr/vr_box3d_props.cpp|shapeInputs
 Quake/vr/vr_box3d_ragdoll.cpp|gunPrepPending
 Quake/vr/vr_box3d_ragdoll.cpp|gunPrepSite
@@ -1346,6 +1362,11 @@ Quake/vr/vr_builtins.cpp|cvarPrefs
 Quake/vr/vr_builtins.cpp|forcegrabGridStats
 Quake/vr/vr_builtins.cpp|pullSearch
 Quake/vr/vr_builtins.cpp|serverWorldReset
+Quake/vr/vr_builtins_agpose.inc|agp
+Quake/vr/vr_builtins_agpose.inc|agpCompareScratch
+Quake/vr/vr_builtins_agpose.inc|agpCov
+Quake/vr/vr_builtins_agpose.inc|agpStats
+Quake/vr/vr_builtins_held.inc|agpsCapture
 Quake/vr/vr_builtins_held.inc|agpsScoped
 Quake/vr/vr_builtins_held.inc|unseenScratch
 Quake/vr/vr_builtins_melee.inc|woundsSent
@@ -1424,6 +1445,7 @@ Quake/vr/vr_coopsave.cpp|rejoining
 Quake/vr/vr_coopsave.cpp|saveText
 Quake/vr/vr_crash.cpp|crashContext
 Quake/vr/vr_crash.cpp|crashDir
+Quake/vr/vr_crash.cpp|crashGlLimits
 Quake/vr/vr_crash.cpp|crashGpu
 Quake/vr/vr_crash.cpp|crashHandlerInstalled
 Quake/vr/vr_crash.cpp|crashVr
@@ -1656,6 +1678,7 @@ Quake/vr/vr_drips.cpp|testRate
 Quake/vr/vr_drips.cpp|wets
 Quake/vr/vr_dwell.cpp|versionWarned
 Quake/vr/vr_dynres.cpp|changeCount
+Quake/vr/vr_dynres.cpp|fightStats
 Quake/vr/vr_dynres.cpp|loadFailed
 Quake/vr/vr_dynres.cpp|loadProgram
 Quake/vr/vr_dynres.cpp|st
@@ -1922,6 +1945,7 @@ Quake/vr/vr_gfxpresets.cpp|menuStateText
 Quake/vr/vr_gfxpresets.cpp|presetKind
 Quake/vr/vr_gfxpresets.cpp|standaloneKind
 Quake/vr/vr_gfxpresets.cpp|standaloneStateText
+Quake/vr/vr_glsafe.cpp|esDebug
 Quake/vr/vr_glsafe.cpp|esDrawElementsIndirect
 Quake/vr/vr_glsafe.cpp|glSyncs
 Quake/vr/vr_glsafe.cpp|glsafe
@@ -2034,6 +2058,7 @@ Quake/vr/vr_hitmodel_internal.hpp|zoneSamples
 Quake/vr/vr_hitmodel_internal.hpp|zoneSampling
 Quake/vr/vr_hitmodel_internal.hpp|zones
 Quake/vr/vr_hitmodel_internal.hpp|zonesTime
+Quake/vr/vr_hitreact.cpp|armPoseCheck
 Quake/vr/vr_hitreact.cpp|cost
 Quake/vr/vr_hitreact.cpp|drawnTurns
 Quake/vr/vr_hitreact.cpp|liveHeld
@@ -2518,11 +2543,14 @@ Quake/vr/vr_motion_child.cpp|exitCode
 Quake/vr/vr_motion_child.cpp|pid
 Quake/vr/vr_motion_child.cpp|status
 Quake/vr/vr_moveguard.cpp|slots
+Quake/vr/vr_mpavatar.cpp|holsterCheckSaved
 Quake/vr/vr_mpdownload.cpp|autoInstalls
 Quake/vr/vr_mpdownload.cpp|joiningAgain
 Quake/vr/vr_mpdownload.cpp|lastAddress
 Quake/vr/vr_mpdownload.cpp|pending
 Quake/vr/vr_mpdownload.cpp|rejoinedFor
+Quake/vr/vr_msgtokens.cpp|expandedForC
+Quake/vr/vr_msgtokens.cpp|testRun
 Quake/vr/vr_music.cpp|gogOriginalKnown
 Quake/vr/vr_music.cpp|gogOriginalRoot
 Quake/vr/vr_music.cpp|missingSaid
@@ -2669,6 +2697,7 @@ Quake/vr/vr_pbr.cpp|strengths
 Quake/vr/vr_pbr.cpp|uses
 Quake/vr/vr_perfrec.cpp|on
 Quake/vr/vr_perfrec.cpp|rec
+Quake/vr/vr_perfrec.cpp|segment
 Quake/vr/vr_perfrec.cpp|vr_perf_recording
 Quake/vr/vr_permdecals.cpp|atlas
 Quake/vr/vr_permdecals.cpp|counts
@@ -2713,6 +2742,7 @@ Quake/vr/vr_playergore.cpp|testChance
 Quake/vr/vr_playergore.cpp|woundCount
 Quake/vr/vr_playergore.cpp|woundNext
 Quake/vr/vr_playergore.cpp|wounds
+Quake/vr/vr_playerhit.cpp|aimTally
 Quake/vr/vr_playersteps.cpp|state
 Quake/vr/vr_portals.cpp|builds
 Quake/vr/vr_portals.cpp|builtFor
@@ -3131,6 +3161,7 @@ Quake/vr/vr_sightalign.cpp|versionCounter
 Quake/vr/vr_sightalign.cpp|waitDebugFrames
 Quake/vr/vr_sights.cpp|appliedHue
 Quake/vr/vr_sights.cpp|appliedSaturation
+Quake/vr/vr_sights.cpp|appliedShift
 Quake/vr/vr_sights.cpp|sightPalette
 Quake/vr/vr_skinedge.cpp|cache
 Quake/vr/vr_skinedge.cpp|edgeSite
@@ -3234,7 +3265,9 @@ Quake/vr/vr_stereo.cpp|creatingFoveatedParts
 Quake/vr/vr_stereo.cpp|creatingFsaa
 Quake/vr/vr_stereo.cpp|creatingSceneTargets
 Quake/vr/vr_stereo.cpp|currentEye
-Quake/vr/vr_stereo.cpp|directTarget
+Quake/vr/vr_stereo.cpp|directForm
+Quake/vr/vr_stereo.cpp|directNoted
+Quake/vr/vr_stereo.cpp|directTargets
 Quake/vr/vr_stereo.cpp|eyeTargets
 Quake/vr/vr_stereo.cpp|firstEye
 Quake/vr/vr_stereo.cpp|flatFloatDepth
@@ -3246,8 +3279,12 @@ Quake/vr/vr_stereo.cpp|foveationRefused
 Quake/vr/vr_stereo.cpp|hiddenMeshes
 Quake/vr/vr_stereo.cpp|hiddenTriangles
 Quake/vr/vr_stereo.cpp|linearSampler
+Quake/vr/vr_stereo.cpp|lrzProbeMadeFor
+Quake/vr/vr_stereo.cpp|lrzProbeQuads
+Quake/vr/vr_stereo.cpp|lrzProbeVertices
 Quake/vr/vr_stereo.cpp|mirrorFailed
 Quake/vr/vr_stereo.cpp|mirrorProgram
+Quake/vr/vr_stereo.cpp|partNoted
 Quake/vr/vr_stereo.cpp|previewState
 Quake/vr/vr_stereo.cpp|renderingEye
 Quake/vr/vr_stereo.cpp|resample
@@ -3342,8 +3379,13 @@ Quake/vr/vr_tips.cpp|seenList
 Quake/vr/vr_tips.cpp|serverTips
 Quake/vr/vr_tips.cpp|serverWorldReset
 Quake/vr/vr_tips.cpp|showing
+Quake/vr/vr_tips.cpp|shownText
 Quake/vr/vr_tonemap.cpp|eyeshotCount
 Quake/vr/vr_tonemap.cpp|grades
+Quake/vr/vr_tonemap.cpp|inTileAble
+Quake/vr/vr_tonemap.cpp|inTileFailed
+Quake/vr/vr_tonemap.cpp|inTileNoted
+Quake/vr/vr_tonemap.cpp|inTileProgram
 Quake/vr/vr_tonemap.cpp|probeDrawProgram
 Quake/vr/vr_tonemap.cpp|probeGetIndexed
 Quake/vr/vr_tonemap.cpp|probeGetIndexed64
@@ -3354,6 +3396,7 @@ Quake/vr/vr_tonemap.cpp|probeResourceName
 Quake/vr/vr_tonemap.cpp|probeStates
 Quake/vr/vr_tonemap.cpp|probeValidate
 Quake/vr/vr_tonemap.cpp|probeWorldProgram
+Quake/vr/vr_tonemap.hpp|sceneDithered
 Quake/vr/vr_torso.cpp|est
 Quake/vr/vr_touch.cpp|state
 Quake/vr/vr_trace.cpp|brushList
@@ -3575,6 +3618,7 @@ Quake/vr/vr_worldtext.cpp|clientFloatTextList
 Quake/vr/vr_worldtext.cpp|clientListGeneration
 Quake/vr/vr_worldtext.cpp|clientStateReset
 Quake/vr/vr_worldtext.cpp|clientTextList
+Quake/vr/vr_worldtext.cpp|clientTokenSignature
 Quake/vr/vr_worldtext.cpp|serverTexts
 Quake/vr/vr_worldtext.cpp|serverWorldReset
 Quake/vr/vr_worldtext.cpp|viewMessage

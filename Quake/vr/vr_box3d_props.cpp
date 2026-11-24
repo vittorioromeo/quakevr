@@ -4,9 +4,11 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_climbrope.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -868,13 +870,109 @@ void keepPendingHulls()
     world->pendingHulls.clear();
 }
 
+namespace
+{
+za::Vector<climbrope::PoleLine> poleLinesNow; // (syncPoles: the poles this frame)
+constexpr double poleStillToStatic = 1.0;     // s: a moving pole's kinematic body still this long is made static again
+
+void makePoleBody(World::PoleBody& p, const climbrope::PoleLine& l, bool moving)
+{
+    b3BodyDef def = b3DefaultBodyDef();
+    def.userData = userOf(0);
+    def.position = world->toM(l.a);
+    def.rotation = b3Quat_identity;
+    def.type = moving ? b3_kinematicBody : b3_staticBody; // (static: a fast prop's continuous collision meets it)
+    p.body = b3CreateBody(world->id, &def);
+    const b3ShapeDef shape = shapeDef(0, catWorld, catProp | catCorpse); // (as the world's: the props and corpses only)
+    b3Capsule capsule{};
+    capsule.center1 = b3Vec3_zero;
+    capsule.center2 = world->toM(l.b - l.a);
+    capsule.radius = za::max(l.radius, 0.25f) / world->m2u;
+    p.shape = b3CreateCapsuleShape(p.body, &shape, &capsule);
+    p.a = l.a;
+    p.b = l.b;
+    p.radius = l.radius;
+}
+} // namespace
+
+// (ropes9) The climbing poles meet the physics props (and corpses) as the world does: a capsule each along the drawn
+// pole, static; a pole that moves (its entity on a mover, the physgun) kinematic, carried to it, until still a second.
+// Players, monsters and shots keep the poles' Quake boxes (QC vr_pole_solid): Box3D's player and monster bodies are
+// kinematic and never meet a static or kinematic body.
+void syncPoles(float dt)
+{
+    climbrope::poleLines(poleLinesNow);
+    for(World::PoleBody& p : world->poles)
+    {
+        p.seen = false;
+    }
+    for(const climbrope::PoleLine& l : poleLinesNow)
+    {
+        World::PoleBody* found = nullptr;
+        for(World::PoleBody& p : world->poles)
+        {
+            found = p.ent == l.ent ? &p : found;
+        }
+        if(!found)
+        {
+            world->poles.pushBack(World::PoleBody{});
+            found = &world->poles.back();
+            found->ent = l.ent;
+            makePoleBody(*found, l, false);
+            if(vr_debug_box3d.value)
+            {
+                Con_Printf("box3d: pole %d's body: %.1f %.1f %.1f to %.1f %.1f %.1f, radius %.1f\n", l.ent, l.a.x, l.a.y, l.a.z, l.b.x,
+                    l.b.y, l.b.z, l.radius);
+            }
+        }
+        World::PoleBody& p = *found;
+        p.seen = true;
+        const bool same = glm::distance(l.b - l.a, p.b - p.a) < 0.05f && za::abs(l.radius - p.radius) < 0.01f;
+        const bool moved = glm::distance(l.a, p.a) >= 0.01f;
+        const bool kinematic = b3Body_GetType(p.body) == b3_kinematicBody;
+        if(!same || (moved && !kinematic))
+        {
+            b3DestroyBody(p.body);
+            makePoleBody(p, l, moved || kinematic);
+            p.stillSince = qcvm->time;
+            continue;
+        }
+        if(kinematic)
+        {
+            b3Body_SetTargetTransform(p.body, b3WorldTransform{world->toM(l.a), b3Quat_identity}, dt, true);
+            p.a = l.a;
+            p.b = l.b;
+            if(moved)
+            {
+                p.stillSince = qcvm->time;
+            }
+            else if(qcvm->time - p.stillSince >= poleStillToStatic)
+            {
+                b3DestroyBody(p.body);
+                makePoleBody(p, l, false);
+            }
+        }
+    }
+    for(za::SizeT i = 0; i < world->poles.size();)
+    {
+        if(world->poles[i].seen)
+        {
+            i++;
+            continue;
+        }
+        b3DestroyBody(world->poles[i].body);
+        world->poles[i] = world->poles.back();
+        world->poles.popBack();
+    }
+}
+
 // The entities, every server frame in edict order: each one's body made, moved, fed or destroyed.
 void syncEntities(float dt)
 {
     const FieldOffsets& f = fields();
     za::Vector<uint8_t>& carried = scratch.carried;
     carried.clear();
-    carried.resize(static_cast<size_t>(qcvm->num_edicts), 0);
+    carried.resize(static_cast<za::SizeT>(qcvm->num_edicts), 0);
     for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
         edict_t* player = EDICT_NUM(i);
@@ -1003,6 +1101,7 @@ void syncEntities(float dt)
         case Kind::Corpse:
             if(s.ragdoll >= 0)
             {
+                traceWallGlue(ent, world->ragdolls[static_cast<za::SizeT>(s.ragdoll)], dt);
                 feedRagdoll(ent, s);
                 driveShove(world->ragdolls[static_cast<za::SizeT>(s.ragdoll)], dt);
                 shockRagdoll(ent, s, dt);
@@ -1021,6 +1120,7 @@ void syncEntities(float dt)
         }
     }
     world->syncingEntities = false;
+    syncPoles(dt);
     keepPendingHulls();
     // The corpses that found the ragdoll pool full: QC makes room for each, now that the loop is done (a refusal is not
     // asked again); their ragdolls are made next frame (stale: a corpse that wants one).
@@ -1041,7 +1141,7 @@ void syncEntities(float dt)
         }
     }
     world->roomWanted.clear();
-    for(size_t num = static_cast<size_t>(qcvm->num_edicts); num < world->slots.size(); num++)
+    for(za::SizeT num = static_cast<za::SizeT>(qcvm->num_edicts); num < world->slots.size(); num++)
     {
         if(world->slots[num].kind != Kind::None)
         {

@@ -36,6 +36,16 @@ that ships in 1.1.1.
 - **Heavy revolver headshots pop heads in Arcane Dimensions and Quoth too.** Where shells fly as projectiles (AD's and
   Quoth's maps, or Projectile Rules set to AD's), a heavy revolver's headshot kill never popped the head, and its slug
   did a big monster no extra damage. Its slug now follows the same head pop and big-body rules as everywhere else.
+- **Quoth's kellbase: its energy field is visible, and monsters keep out of it.** The field never drew anything (in
+  any port running it under Arcane Dimensions' rules); it now shows as pale blue sparks while it is on. Monsters no
+  longer step into hurting fields (it, and AD's and Hipnotic's), where an enforcer used to stand hurting itself. The
+  backpacks armed humanoids drop take their recolour (an energy enforcer's is blue).
+- **Tutorial: three new lessons.** Between the lava room and the arena: **12 Blades** (a sword, a dagger and an axe:
+  cut and stab a dummy, pull a stuck blade out, reverse grip, throw the axe into a target to open the door), **13 Bash
+  and Bat** (an armed grunt crosses a bridge over a pit: shove it off or disarm it; bat a spike back, catch a grenade
+  and throw it back) and **14 Ropes** (swing across a pit on a rope, a ladder back out; let go of armour over your
+  chest to put it on). The arena is now lesson 15, and its checkpoint saves the game at its door: dying in the arena
+  loads that save instead of bringing you back mid-wave, unarmed. New tips on disarming and on bullet time.
 
 ## Graphics
 
@@ -69,6 +79,11 @@ that ships in 1.1.1.
   start; on a PC it is the lightest preset with Quake VR's look. Picking another preset or My Settings afterwards
   puts back the image size, MSAA and the rest it changed. Blood near your eyes can be thinned out with Thinner Blood
   Nearer (`vr_blood_near`, off by default).
+- **Fixed: no start on some Intel integrated graphics.** On an Intel HD Graphics 630 (and likely similar Intel GPUs)
+  the game stopped at start-up with "Error linking world depth ... Out of resource". The depth-only shaders are now
+  built with an empty pixel stage on Intel graphics, in safe mode (`-glsafe`) and on OpenGL ES, which these drivers
+  accept; NVIDIA and AMD cards are unchanged. The start-up log, the run's system information and crash reports now
+  list the graphics card's limits, as does a shader that fails to link.
 
 ## Multiplayer beta
 
@@ -118,7 +133,13 @@ The guide: [MULTIPLAYER.md](MULTIPLAYER.md).
   and caught up over half a second): each ragdoll's poses now reach back as far as the smoothing does.
 - **Fixed: a prop tipped up on end spinning at the other players** (a crate standing on its side): its turn is now
   smoothed as it is drawn.
-- **Network version 43**: games of this version and older ones refuse each other with the reason.
+- **Network version 46**: games of this version and older ones refuse each other with the reason.
+- **Your own holster places reach the other players**: they see your holsters where you put them; bots wear the
+  default ones. Holsters now show on bots and other players.
+- **Joining plays the server's campaign** (Quake, an expansion or a mod): the joining player's game switches to it if
+  they have it, with a clear message if they don't.
+- **Shots meet players' bodies as they are drawn** (head, arms, held weapon) instead of a plain box; Debug > Show Hit
+  Zones shows them.
 - **Test runs stay off the internet**: with `-loopbackonly` (every test run) the map index, Slipseer, the update check
   and the add-on list are never fetched; asked for, each prints its "NET SAFETY" refusal.
 - **Everything you can do alone works together**: grabbing, throwing, melee and parries, climbing and mantling, the
@@ -204,6 +225,44 @@ aren't Map Library packages aren't sent to joining players.
   on your gun too. A knight's sword can disarm you now; parried blows, bites and light claws never do. The jolts,
   how long they last and what counts as heavy are new settings beside it. Other players' hits in multiplayer are
   unchanged.
+- **Dwell's Crystal Lance finished.** Its beam lasted a single frame; it now lasts as long as you fire, with violet
+  sparks, a heavy kick and a violet glow on the crystal. A coiled cord runs from the pole's butt into a cell in your
+  pouch (as the laser cannon's: Weapons > Reloading > Cell Cords), it is fed 6 cells a shot from the pouch, the weapon
+  hand slides along the pole too, a thrust hits harder with the head (1.5x) than with the shaft, and B flips the grip.
+- **Dwell's Rotary Shotgun remade** as a gauntlet: four round barrels with gaps and dark bores, a hollow housing with a
+  handle inside (as the super nailgun's), a bigger dark shell port, and the ammo screen in a wedge on top.
+- **The weapon wheel.** Hold B or Y to open a wheel around that hand: empty hand, your holsters, drop and unload.
+  Time slows while it is open; point at a slot and let go to take it, or let go off the wheel to cancel. In VR it is
+  off by default (VR Settings > Weapons > Immersion > Weapon Wheel); it stays where you opened it as you walk and turn,
+  and a quick press (under about a fifth of a second) still does the button's own job. On the flat screen hold 1 or 2
+  for the same wheel (the mouse picks, Esc cancels); a tap still cycles as before. Holding the button for the wheel no
+  longer ejects your magazine (a tap still does), weapons put away through the wheel keep their rounds, and opening it
+  makes no menu sound.
+- **Dwell's Crystal Lance fires a charged shot**: hold to charge (sparks, light, a hum, a shake and a buzz in your
+  hand), let go when it is full. Its beam hits like the lightning gun (it gibs, knocks objects and bodies about) with
+  sparks and smoke, and pushes crates harder; no empty click; only its tip sticks in what it stabs; thrown, it flies
+  point first; held the other way round it fires from the crystal along the shaft.
+- **Dwell's Crystal Lance and Rotary Shotgun stay yours**: once you have one, every way of getting that weapon back
+  (weapon keys and the wheel, picking it up again, holsters, throws, saves and level changes, multiplayer) gives the
+  Lance or the Rotary, never a plain lightning gun or super shotgun.
+- **Fixed: the flat-screen Crystal Lance lost after a thrust.** A flat-screen stab never leaves a weapon stuck in the
+  enemy (it left you with an empty lightning gun). New Spear Hand Forward / Up / Out settings place the holding hand
+  alone; the default flat spear, throw and thrust positions are retuned. Flat throws made while running carry your
+  speed; parrying with the other hand faces the right way.
+- **The Crystal Lance's ammo counter** shows just your cells (it read "36/" as if the Lance had a magazine), on the
+  flat-screen HUD, the gun's screen in VR and other players' copies; its default flat-screen spear pose is retuned.
+- **The flat-screen weapon wheel opens sooner**: holding 1 or 2 opens it after about a sixth of a second (0.15 s, was
+  0.35 s); a quicker tap still cycles weapons.
+- **The super nailgun's muzzle flash** comes only from the barrel that fires and never from an empty gun (the flash and
+  the band baked into the old model are gone); its barrels spin up quickly, with a motor whirr. The dark specks in the
+  super shotgun's and nailgun's barrels are gone.
+- **Flat-screen throwing** (J by default): tap for a toss, hold to wind up; blades stick, the throw leaves your hand
+  towards the crosshair, and the tutorial's throwing lessons can be passed.
+- **Flat-screen melee**: guard + fire bashes; the Crystal Lance thrusts like a spear (V); long blades and the Lance
+  are held properly.
+- The super nailgun's barrels spin up and coast down; thrown blades' kills push the body less; Quake VR's own weapon
+  models' caps no longer look white; the flat-screen gun no longer jitters at a wall when you look down.
+- **Dwell's unused Rifle removed**: an old save holding it gets a shotgun instead.
 
 ## Movement
 
@@ -217,6 +276,12 @@ aren't Map Library packages aren't sent to joining players.
   grab it: look up or down and hold forward to climb, look ahead and use the move keys to swing it, and jump off at the
   top of a swing to catch the next rope. In multiplayer, other players on a rope are drawn gripping it, their hips in
   close and their legs wrapped round it, even while it swings. Try them in the new test map `vrropes`.
+- **Climbing poles and monkey ropes.** Poles (`vr_pole`, wood or metal, with their own grip sounds) climb exactly as
+  ropes do. A rope can be strung between two points (mappers: `rope_end`, `rope_slack`; the toolgun's Span, End Rise
+  and Slack): steeper than 45 degrees it climbs as a rope, flatter it is a monkey traverse: hang under it, sagging and
+  swaying it, and go hand over hand (flat screen: the move keys), legs hanging. Spawn both with the toolgun (Spawn >
+  Props > Ropes > Pole; Rope and Pole Settings); the `vrropes` hall has two poles, a level rope and a diagonal one.
+  Ropes pause with the menu and the console, your knuckles face out on the rope, and gripping one thuds softly.
 - **Noclip flies where you look.** Moving forward in noclip now goes the way the camera points, so looking up or down
   flies up or down; strafing stays level and jump and crouch still go straight up and down. Flat and in the headset
   (there, what steers your walking steers the flight: the head, or the moving hand with hand-relative movement).
@@ -284,6 +349,15 @@ aren't Map Library packages aren't sent to joining players.
 - **Fixed: the pouches with Body Type Only Hands.** With the body hidden (`vr_body_mode 0`) the ammo pouch and the
   grenade pouch sat inside your own belly and back, out of your hand's reach. They are now where they are with the body
   drawn, on the front and the back of your belt.
+- **Climbing**: poles stop players and objects (crates rest on them); two climbers can share a pole; chains stop
+  shots, nails and blows (with sparks) and still swing. Your hands hang under the rope on a monkey traverse, thumbs
+  wrapped round ropes and thin poles, elbows out, and your holsters stay on your hips while you climb. A level pole
+  keeps the grip you took it with (it no longer follows your aim); legs swing more smoothly; the thumb on thick poles
+  is back to the normal grip; letting go behaves the same in VR, on the flat screen and in multiplayer.
+- **Ropes and poles on the flat screen**: W and S climb when you look up or down and swing when you look level;
+  crouch slides down (all the way to the floor) or lets go; jumping off a pole pushes you away from it. Your hands sit
+  on a ladder's rungs. Sliding down, your hands stay steady on the rope or pole instead of jittering.
+- **Flat-screen swimming**: your hands make the strokes, with water sounds and bubbles.
 
 ## Menus
 
@@ -296,6 +370,11 @@ aren't Map Library packages aren't sent to joining players.
   Grab, not your binding, until you clear Force Grab). The `vr_flat_key_*` settings work in configs as before.
 - **Flat screen: 9 dims the gear lights**, as the wrist gadget's side button does in the headset: the visor's panels
   and the guns' ammo screens dim, and 9 again lights them. Rebind it in Controls ("Gear lights").
+- **Flat screen: number keys for hands and holsters.** With holsters on (the default), 1 and 2 cycle the off hand and
+  the main hand through their holsters (empty hand included), 3 swaps hands as before, 4 and 5 put each hand's weapon
+  in a holster, 6 and 7 drop it; other players see the same holster moves. They are flat keys in Controls' "Quake VR
+  (flat screen)" group; with holsters off, the number keys pick weapons as in Quake.
+- **Fixed: a crash in the headset when a map loaded with a centre message showing.**
 - **Centre messages in the headset look like the flat screen's.** The game's centre prints in front of your head (a key needed, a secret found, a map's text) and the maps' own view messages now appear in the flat visor's own message popup, drawn by the same code: its dark glass pill with cut corners, glowing bevelled frame, font, wrapping, scanlines, pop-in and fade, in a size that reads at the menu's distance. (`vr_center_panel 0` brings back the old look; `vr_center_panel_scale` sizes it.)
 - **Search filter (development builds).** The Search page has a "Show: Both / Cvars / Tunables" row over its text
   box: the menus' settings alone, the Tunables pages' constants alone, or both (the default). The results update
@@ -313,6 +392,16 @@ aren't Map Library packages aren't sent to joining players.
 - **`-window` makes a normal window** with its title bar, to drag and resize, even with Borderless Window on (the
   setting is kept for the next launch without it). **`-windowpos <x> <y>`** places it (its inside's top-left, in
   desktop pixels) instead of centring it.
+- **The tutorial on the flat screen** uses flat-screen wording and shows your own keys. The tutorial always starts as
+  a single player Quake game (also right after a multiplayer game); its spikes can be batted away; some surfaces that
+  showed black are textured again.
+- The hub's lecterns stand in one row, in Select Campaign's order.
+- **Centre messages are 20% smaller**, with their own row: HUD > Screens > Messages > Centre Message Size.
+- **Quoth needs Arcane Dimensions**: without AD installed, Select Campaign marks Quoth "needs AD" and says why, instead
+  of the game stopping with an error when Quoth starts.
+- **The Steam Frame's controllers are supported** (thanks to Kasper Olesen).
+- **Launch options renamed**: `-vr-hide-mirror` is now `-hidemirror`, `-vr-unattended` is `-unattended`, and `-vrmock`
+  is `+vr_backend mock`. The old names still work until 1.3 and print a note.
 
 
 ## Monsters
@@ -349,6 +438,12 @@ aren't Map Library packages aren't sent to joining players.
   and turned like a turntable.
 - **Recoloured armed monsters repainted.** The weapon recolours of the grunts, enforcers, knights and death knights (and
   their backpacks) dye new parts of the skins, and the grunts' and death knights' backpack colours are retuned.
+- **Fixed: stuck arms and floating guns on big maps.** With more than 64 armed humanoids on a map (Arcane Dimensions'
+  largest), the rest were drawn unposed: their arms stuck and their guns floating beside them. Now every one is posed.
+- **Other players' and bots' left holsters** are no longer drawn turned round.
+- **Fixed: monsters stuck to walls.** A monster shoved hard into a wall (a knockdown or a stagger) was pressed into it
+  by the shove for a second or two, held up on the wall; the shove now ends where the wall stops the body, so it
+  slumps down the wall.
 
 ## Performance
 
@@ -363,6 +458,29 @@ aren't Map Library packages aren't sent to joining players.
   blow strikes their weapons far more cheaply (about a tenth less game-code work with six around you); what a blow
   strikes is exactly as before.
 
+## Quest standalone (experimental)
+
+- **Quake VR runs on the Meta Quest itself.** The first public standalone build: an app installed on the headset by
+  Setup (Installer, below), started from Library > Unknown Sources. Made and tested on the Quest 3; the Quest 2 is not
+  tested yet. Experimental: close-up fights with many gibs can dip below 72 frames a second.
+- **It starts with the Standalone graphics preset** (Graphics, above).
+- **Ogg music plays on the Quest** (the store versions' soundtracks), as WAV music did; Setup copies it with the game.
+- The Quest cannot relight maps: Setup copies the maps your PC relit.
+- **Faster in fights.** Quest Foveation (VR Settings > Graphics; High by default on the Quest 3) draws the edges
+  of the view in less detail; each eye is drawn in one pass; the image is allowed to get smaller only during big
+  fights; your own body and gore draw more cheaply; the Standalone preset turns retro (pixelated) lighting off, the
+  most expensive way to draw the world there. Armed grunts' weapon poses are worked out by the engine: less CPU in
+  big fights.
+- **Fixed: changing Quest Foveation during a game crashed.**
+- **Taking the headset off pauses a single player game** (Advanced > Headset > Headset Taken Off).
+- **Fixed: a crash entering the hub** with the headset on (reported on a Quest 3S; beta 2 crashed the same way on the
+  Quest 3). A start closed while the game prepares its shaders no longer turns safe mode on at the next start.
+- **Dimension of the Past and Dimension of the Machine start on the Quest**: Setup copies the rerelease's language
+  data they need (Installer, below).
+- Tested on the Quest 3; the Quest 3S and the Quest 2 are not tested by us yet.
+- The first start after installing or updating spends about 30 seconds on the loading panel while the game prepares
+  its shaders (later starts take a few seconds).
+
 ## Installer
 
 - **Install to a Meta Quest from your PC.** The installer's first page now asks where to install: this PC (PC VR and
@@ -371,3 +489,14 @@ aren't Map Library packages aren't sent to joining players.
   copies your Quake files, the expansions you own, the HD textures and the mods it installed (Dwell, Quoth, Arcane
   Dimensions) to the headset. Running it again only copies what changed; nothing on the headset is ever deleted, and
   your saves and settings there are left alone. Start it from Library > Unknown Sources.
+- **Quest Setup makes every mod folder readable** by the game each time it runs, also when nothing new is copied (a
+  folder an older copy left unreadable kept expansions and mods such as Arcane Dimensions and Quoth from starting), and
+  it copies the rerelease's language data (`id1`'s paks, to a folder the game only reads for its text and music) when
+  Dimension of the Past or Dimension of the Machine comes from the rerelease.
+- **One-time uninstall on the Quest for 1.2.0-beta3.** From beta 3 the Quest app is signed with Quake VR's own
+  release key, and a Quest cannot update an app signed with another key: beta 1 and beta 2 players uninstall the old
+  app once (Library > Unknown Sources > Quake VR > Uninstall), which deletes its saves and settings on the headset.
+  Setup does not back them up (it stops with a message about a differently signed build): copy them first from
+  `Android/data/com.vittorioromeo.quakevr/files` (the `quakevr` folder's `*.sav` and `ironwail.cfg`, and any mod
+  folder's saves) with File Explorer, then uninstall, run Setup again and copy them back. Later updates install over
+  the app again.

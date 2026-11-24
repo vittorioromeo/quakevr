@@ -211,6 +211,7 @@ void SCR_CenterPrint (const char *str) //update centerprint data
 	seathud_t *hud = SCR_SeatHud (); // QVR: splitscreen: the current seat's
 	int cols;
 
+	str = VR_ExpandMessageTokens (str); // QVR: its flat-screen wording and the player's keys (vr_msgtokens.cpp)
 	VR_GameCenterPrint (str); // QVR: the wrist gadget's hologram shows the game's
 
 	cols = scr_usekfont.value ? SCR_GetCenterPrintWrapLimit () : 0;

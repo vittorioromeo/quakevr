@@ -27,9 +27,12 @@ Tests:
              lost (the server reads his overtaken datagrams), the move buffer deepened with his jitter, the lift's
              predicted place under a unit. soak --soak-minutes N: the soak kept going N minutes, sampled each minute
              (memory, edicts, pace, B's link and moves); QVR_MP_LOW_IMPACT=1: idle priority.
-    version a client of another Quake VR network version (-mpnetversion 1) is rejected with the reason; one of the
+    version a client of another Quake VR network version (vr_net_test_version 1) is rejected with the reason; one of the
              same version joins.
-    avatar   B has A's avatar (QVR_SVC_AVATAR): head and drawn hands within 2 units of the server's, the main hand's
+    campfollow (mpcampaign) a joining client plays the server's campaign (QVR_SVC_CAMPAIGN): rogue's client on a Quake
+             start, Quake's on a Scourge of Armagon start (in place), Quoth's (left, switched, joined again), its own
+             campaign back after each leave; a client lacking the campaign's data refused with what is missing.
+    avatar  B has A's avatar (QVR_SVC_AVATAR): head and drawn hands within 2 units of the server's, the main hand's
              angles within 3 degrees, his weapon; none of himself; A closes his off hand: its finger curls at B within a
              step of the server's, closed; B draws A's jointed hands (and his weapon's model) where A drew them; the
              bytes it costs and the avatars the server sent and skipped as unchanged.
@@ -53,6 +56,8 @@ Tests:
     cmdguard (review 2026-11-18 finding 9) client string commands: the test shot and punch refused by a server without
              vr_mp_watch (the harness's), taken with it; each client's commands under a budget: both players' own
              (spawn's vr_rig chunks...) far under it, B's flood of 150 in a frame cut to it and the rest dropped.
+    weaponwheel  the headset's weapon wheel: B holds his B, his right hand onto his shoulder holster's slot, lets go: the
+             server and A have the shotgun in his right hand (QC VR_Wheel_Pick through "vr_wheel_pick").
     teleport client-side traces: B (a remote client) traces his own map down to his floor; he aims a teleport with his off
              hand (his own trace: valid) and lets go: the server moves him there, A sees him there.
     held     the held weapon's drawn pose up: B holds a shotgun still; the server places its hotspots where B's view
@@ -102,6 +107,11 @@ Tests:
              link; --listen: A hosts.
     dm       (B11) a dedicated deathmatch server on dm4 (fraglimit 3): A and B join at deathmatch starts; two FrikBot bots
              added (impulse 100): four players listed at both, the bots move; A killed by a bot (vr_hurt) and respawned by his trigger, then A frags the bots (vr_hurt) to the fraglimit; the fraglimit ends the match: the intermission at both, their scoreboards the same.
+    holstersync  (holstersync) A (VR) and B (flat) with holster settings of their own, each held before the other
+             (vr_dm_test 23): each draws the other's holsters where the other's own client has them (within 7 cm), not
+             where his own sit; a bot's wear the shipped settings (A's own only once A is back at the defaults).
+    variantowned  (variantowned) a dedicated coop server, A (VR) and B (flat) owning the Crystal Lance with empty hands
+             (vr_ad_test 233-234): B's weapon key 8 gives the Lance, not a plain lightning gun; a coop respawn keeps it owned.
     botrevolver  (vrnotes1122a) a dedicated deathmatch server: A adds a bot; the server's vr_dm_test 14: the bot draws
              and fires a revolver of its own at A (slugs, not trigger pulls), and one it took loaded (his, by a
              disarm) in either hand, without shells of its own.
@@ -139,8 +149,8 @@ Tests:
              and the message after it arrives once the acks come back; the server's vr_net_rate_max over B's
              vr_net_rate (his 0: the server's; under it: his own; the server's 0: no ceiling).
     lookup   (review 2026-11-18, finding 6) host names looked up on a worker: the room service's name looked up for 3 s
-             (-netlookupdelay) while the dedicated server answers its console within 0.5 s, then registered with;
-             every lookup failing (-netlookupfail): one "not found" line, the tries 2 s, 4 s, 8 s apart (net_lookups),
+             (vr_net_test_lookup_delay) while the dedicated server answers its console within 0.5 s, then registered with;
+             every lookup failing (vr_net_test_lookup_fail): one "not found" line, the tries 2 s, 4 s, 8 s apart (net_lookups),
              none while a remote client is in, one again once he left; a favourite by name (localhost) in the
              server browser is asked once looked up.
     navfollow  (2026-11-20, not in the suite) vr_nav_follow: B (a remote client, flat) follows A along the server's
@@ -155,7 +165,7 @@ Tests:
              his nonce has him register again at once with it, then REGISTERED gives his code; a REFUSED with his
              nonce is taken.
     suite    coop, coop with B at 150 ms each way and 2% loss, bandwidth, armed, retransmit, version, avatar, avatarcal, body, prefs, grab, guard,
-             teleport, held, ground, campaign, campaign_listen, flow, rejoin, rejoin_keep, download, pickup, forcegrab, melee, moves, climb,
+             teleport, held, ground, campaign, campaign_listen, campfollow, flow, rejoin, rejoin_keep, download, pickup, forcegrab, melee, moves, climb,
              rules, cosmetics, flatbody, loss, predict, predictclimb, lagcomp, cmdguard, disarm, voice, voice with B 50 ms (30 ms
              jitter, 5% loss) away, dm, lockstep, lockstep_throw, nat (B23: room codes through simulated routers).
              The network layer's review checks (2026-11-18): emptyflood, spoof, backoff, lookup, roomnonce.
@@ -675,13 +685,13 @@ def armed(s):
 
 
 def version(s):
-    """A client of another Quake VR network version (-mpnetversion) is rejected with the reason, and a right one
+    """A client of another Quake VR network version (vr_net_test_version) is rejected with the reason, and a right one
     still joins after it."""
     srv = s.server(dedicated=True)
     srv.start()
     srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
     srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
-    c = s.client("C", extra=["-mpnetversion", "1"]).start()
+    c = s.client("C", extra=["+vr_net_test_version", "1"]).start()
     c.cmd(s.connect_cmd(c))
     _, why = c.wait(r"network version \d+, your game 1", 60, what="C's reject")
     s.check("a client of another network version is told why", True, why.strip())
@@ -691,6 +701,102 @@ def version(s):
     a.cmd(s.connect_cmd(a))
     a.wait(r"mp_event: .*joined map=e1m1", 120, what="A joined e1m1")
     s.check("a client of the same network version joins", True)
+
+
+def campfollow(s):
+    """(mpcampaign) A joining client plays the server's campaign (QVR_SVC_CAMPAIGN, before each svc_serverinfo), and its
+    own comes back once it left. A dedicated coop server, A a fresh game (Dissolution's campaign, rogue: the -game
+    list's last, as a player who last chose it):
+    1. the server on Quake's start: A joins it (in place: Quake's start.bsp, not rogue's "Model *43 not found"), his
+       Load Autosave list this campaign's (the server's coop saves listed); after leaving, rogue again;
+    2. A on Quake's (his own start map) joins the server on Scourge of Armagon's start: hipnotic's start.bsp;
+    3. the server on Quoth's start (a campaign with folders of its own): A leaves, switches and joins again; after
+       leaving, Quake's again (his own);
+    4. C, whose game lacks Quoth (vr_mp_test_campaign_missing quoth), is refused, told what is missing; no Host_Error."""
+    srv = s.server(dedicated=True)
+    srv.start()
+
+    def serve(cmd, label):
+        since = srv.mark()
+        srv.cmd("coop 1; deathmatch 0; skill 1; %s; vr_mp_status" % cmd)
+        srv.wait(r"mp_server: map=start", 180, since, label)
+
+    def campaign_of(g):
+        since = g.mark()
+        g.cmd("vr_campaign_probe maps/start.bsp")
+        _, line = g.wait(r"VR campaign source: maps/start\.bsp -> .*; campaign \w+", 30, since, "%s's probe" % g.name)
+        return re.search(r"campaign (\w+)\s*$", line).group(1), line.strip()
+
+    def join_server(g, label):
+        since = g.mark()
+        g.cmd(s.connect_cmd(g))
+        g.wait(r"mp_event: .*joined map=start", 180, since, label)
+        return since
+
+    def leave(g):
+        since = g.mark()
+        g.cmd("disconnect")
+        got = wait_quietly(g, r"mp_campaign: left the server: .* is this game's campaign again", 60, since,
+                           "%s's own campaign back" % g.name)
+        return got[1].strip() if got else None
+
+    # 1. rogue's client, Quake's server on start
+    serve("vr_campaign_select id1", "the server on Quake's start")
+    a = s.client("A").start()
+    first, _ = campaign_of(a)
+    s.check("A starts in Dissolution's campaign (rogue), as a player who last chose it", first == "rogue", first)
+    since0 = join_server(a, "A on the server's Quake start")
+    said = a.find(r"mp_campaign: the server plays Quake: this game's campaign while joined", since0)
+    now, line = campaign_of(a)
+    s.check("1. A (rogue) joins the server on Quake's start: Quake's campaign while joined, its start.bsp read",
+            said is not None and now == "id1", "%s; %s" % (said and said[1].strip(), line))
+    since = a.mark()
+    a.cmd("vr_autosave_list cold")
+    _, listed = a.wait(r"vr_autosave_list: \d+ autosaves.*this game: campaign \d+", 30, since, "A's Load Autosave list")
+    s.check("1. A's Load Autosave list is the server's campaign's (this game: campaign 0)",
+            "this game: campaign 0" in listed, listed.strip())
+    back = leave(a)
+    now, line = campaign_of(a)
+    s.check("1. A leaves: Dissolution's campaign again", back is not None and now == "rogue", "%s; %s" % (back, line))
+
+    # 2. A on Quake's own start map joins Scourge of Armagon's server
+    since = a.mark()
+    a.cmd("vr_campaign_select id1")
+    a.wait(r"mp_event: .*joined map=start", 180, since, "A on his own Quake start")
+    serve("vr_campaign_select hipnotic", "the server on Scourge of Armagon's start")
+    since = join_server(a, "A on the server's Scourge of Armagon start")
+    said = a.find(r"mp_campaign: the server plays Scourge of Armagon: this game's campaign while joined", since)
+    now, line = campaign_of(a)
+    s.check("2. A (Quake's) joins the server on Scourge of Armagon's start: hipnotic's start.bsp",
+            said is not None and now == "hipnotic", "%s; %s" % (said and said[1].strip(), line))
+    back = leave(a)
+    now, _ = campaign_of(a)
+    s.check("2. A leaves: Quake's campaign again", back is not None and now == "id1", "%s; %s" % (back, now))
+
+    # 3. a campaign with folders of its own: leave, switch, join again
+    serve("vr_campaign_native quoth", "the server on Quoth's start")
+    since = join_server(a, "A on the server's Quoth start (joined again)")
+    switched = a.find(r"mp_campaign: the server plays Quoth: switching this game to it, then joining again", since)
+    again = a.find(r"mp_campaign: .* is this game's campaign now; joining again", since)
+    now, line = campaign_of(a)
+    s.check("3. A joins the server on Quoth: left, switched to it, joined again (Quoth's start.bsp)",
+            switched is not None and again is not None and now == "quoth",
+            "%s; %s; %s" % (switched and switched[1].strip(), again and again[1].strip(), line))
+    back = leave(a)
+    now, _ = campaign_of(a)
+    s.check("3. A leaves: Quake's campaign again (the folders rebuilt back)", back is not None and now == "id1",
+            "%s; %s" % (back, now))
+    s.check("A never hit a Host_Error", a.find(r"Host_Error", since0) is None,
+            (a.find(r"Host_Error", since0) or (0, ""))[1].strip())
+
+    # 4. a game lacking the server's campaign is refused, told why
+    c = s.client("C", extra=["+vr_mp_test_campaign_missing", "quoth"]).start()
+    since = c.mark()
+    c.cmd(s.connect_cmd(c))
+    _, why = c.wait(r"mp_campaign: the server plays Quoth .*can't join: .*missing", 60, since, "C's refusal")
+    s.check("4. C, lacking Quoth, is refused with what is missing", True, why.strip())
+    s.check("4. C never joined the map and hit no Host_Error",
+            c.find(r"mp_event: .*joined map=", since) is None and c.find(r"Host_Error", since) is None, "")
 
 
 RENDEZVOUS = os.path.join(REPO, "Misc", "rendezvous")
@@ -1368,6 +1474,138 @@ def ropeclimb(s):
                          "B's copy of A off the rope")
     a.cmd("-jump")
     s.check("A jumps off: B's copy holds the rope no more", True, "after %d reports" % n)
+
+
+POLE_A_AT = (-440.0, -490.0, 24.0)   # mp_pole (vrropes): A south of the metal pole (-440 -450, upright), facing north
+POLE_B_AT = (-440.0, -410.0, 24.0)   # ... B north of it facing south (flat: the second climber), or watching from further
+POLE_WATCH_AT = (-440.0, -640.0, 24.0)
+POLE_IN_AT = (-432.0, -450.0, 24.0)  # (ropes8e) B standing in the pole's box (his box against it 1.5 into it from the east)
+MONKEY_A_AT = (-60.0, 600.0, 24.0)   # mp_monkey (vrropes): A under the level rope (y 600, z 100, x -300..300), facing east
+MONKEY_WATCH_AT = (0.0, 420.0, 24.0)
+
+
+def rope_climber(s, srv, inst, ent, what, keys):
+    """`inst` (flat) holds `keys` until the server has him 48 units up (or along) from where he was -> his place then,
+    once he is still."""
+    def at():
+        return org_of(status(srv), "mp_client", "slot", ent - 1)
+    start = at()
+    inst.cmd(" ".join("+%s;" % k for k in keys))
+    moved = None
+    for _ in range(120):
+        p = at()
+        if p and start and max(abs(p[i] - start[i]) for i in range(3)) >= 48:
+            moved = p
+            break
+    inst.cmd(" ".join("-%s;" % k for k in keys))
+    s.check("%s (the server has him from %s to %s)" % (what, start, moved), moved is not None, "the server's at %s" % (at(),))
+    if not moved:
+        raise StepFailed(what)
+    prev = moved
+    for _ in range(60):
+        p = at()
+        if p and prev and max(abs(p[i] - prev[i]) for i in range(3)) < 1.0:
+            return p
+        prev = p
+    return prev
+
+
+def rope_copy_check(s, viewer, other, ent, what, feet):
+    """`viewer`'s copy of player `ent` on a rope or pole: climbing, its held wrists within ROPE_HANDS_NEAR of it as the
+    viewer has it, (`feet`) the ankles within ROPE_FEET_NEAR (a monkey traverse's legs hang: not judged)."""
+    def pose(ls):
+        return by_ent(ls[0], "mp_ropepose").get(ent)
+    lines, n = reports_until(s, [viewer, other], lambda ls: (pose(ls) or {}).get("climb", [0.0])[0] >= 0.9, what)
+    p = pose(lines) or {}
+    s.note("%s: " % viewer.name + " ".join("%s=%.1f" % (k, v[0]) for k, v in sorted(p.items()) if k != "ent"))
+    if not p:
+        s.check(what, False, "no mp_ropepose after %d reports" % n)
+        return
+    hands = max([p[k][0] for k in ("wrist0", "wrist1") if p[k][0] >= 0.0] or [99.0])
+    ankles = max(p["ankle0"][0], p["ankle1"][0])
+    s.check("%s: climbing %.2f, the wrists %.1f from it at most (%.0f)%s" % (
+        what, p["climb"][0], hands, ROPE_HANDS_NEAR, (", the ankles %.1f (%.0f)" % (ankles, ROPE_FEET_NEAR)) if feet else ""),
+        hands <= ROPE_HANDS_NEAR and (not feet or ankles <= ROPE_FEET_NEAR))
+
+
+def pole(s, vr_viewer=False):
+    """(ropes8d) Another player on a pole (ROPES.md "Poles", "Multiplayer"), vrropes' upright metal pole: flat A walks into
+    it and climbs (forward); flat B (mp_pole) walks into it from the other side and climbs it too (two climbers pass one
+    pole's boxes: passSolids' solidPass), each seeing the other's copy on it: climbing, the hands on it, the legs round it.
+    mp_pole_vr: B (VR, watching) sees A's copy so."""
+    srv, a, b, ea, eb = join(s, flat="A" if vr_viewer else "AB", level="vrropes",
+                             first=lambda srv, a, ea: put_at(srv, a, ea, POLE_A_AT, 90))
+    put_at(srv, b, eb, POLE_WATCH_AT if vr_viewer else POLE_B_AT, 90 if vr_viewer else 270)
+    srv.cmd("vr_climb_stamina 0")
+    if not vr_viewer:
+        # B's walk into the pole's box (not taking it: vr_flat_rope 0) predicted against it: his corrections few and small
+        srv.cmd("vr_flat_rope 0")
+        b.cmd("vr_flat_rope 0; centerview")
+        def pred():
+            since = b.mark()
+            b.cmd("vr_mp_predict_report")
+            _, l = b.wait(r"mp_predict: ", 10, since, "B's prediction report")
+            return fields(l)
+        was = pred()
+        b.cmd("+forward")
+        pushed = 0
+        for _ in range(120):  # (until he has pushed against it for 10 reads: his box stops 8.5 units off the pole)
+            bat = org_of(status(srv), "mp_client", "slot", eb - 1)
+            pushed += 1 if bat and bat[1] < -438.0 else 0
+            if pushed >= 10:
+                break
+        b.cmd("-forward")
+        now = pred()
+        bat = org_of(status(srv), "mp_client", "slot", eb - 1)
+        dn = int(now["corr_n"]) - int(was["corr_n"])
+        # (ropes8e) stopped by its box on the server: his box against entities (8 half) off its face (1.5), not through
+        # (ropes8d had him at y -474: passSolids took his touching box as in one, ROUND25 ropes8e)
+        s.check("B walking into the pole (not taking it) is stopped by its box: the server has him at %s (the pole at y "
+                "-450, his box's face 9.5 off it)" % (bat,), bool(bat) and -444.0 <= bat[1] <= -438.0)
+        s.check("B's walk at the pole predicted as the server ran it: prediction on=%s, %d corrections more (2 at most), "
+                "the most %s" % (now["on"], dn, now["corr_max"]), now["on"] == "1" and dn <= 2)
+        srv.cmd("vr_flat_rope 1")
+        b.cmd("vr_flat_rope 1")
+        put_at(srv, b, eb, POLE_B_AT, 270)
+    a.cmd("centerview")
+    rope_climber(s, srv, a, ea, "A walks into the pole and climbs it", ["forward"])
+    if not vr_viewer:
+        # (ropes8e) Two passing it at once, a box really in its box: A climbs on over B's head; B set standing in the
+        # pole's box (his box 1.5 into it from the east) is let through as A is (pass: both; in: B), and takes it from
+        # there and climbs it too (not held by it). (Walking out of it is vr_flat_rope 0's, which would drop A.)
+        rope_climber(s, srv, a, ea, "A climbs on up the pole", ["forward"])
+        put_at(srv, b, eb, POLE_IN_AT, 180)
+        b.cmd("centerview")
+        solid = [fields(l) for l in rope_reports([srv])[0] if l.startswith("rope_solid")]
+        both = (1 << (ea - 1)) | (1 << (eb - 1))
+        s.check("A on the pole and B standing in its box both let through it (B's box in it)",
+                any(int(f["pass"]) & both == both and int(f.get("in", 0)) & (1 << (eb - 1)) for f in solid),
+                "rope_solid %s" % solid)
+        rope_climber(s, srv, b, eb, "B, standing in its box, takes the pole A is on and climbs it too", ["forward"])
+        # the server lets both through its boxes (vr_rope_info's rope_solid: pass, a bit a client), not only its owner
+        solid = [fields(l) for l in rope_reports([srv])[0] if l.startswith("rope_solid")]
+        both = (1 << (ea - 1)) | (1 << (eb - 1))
+        s.check("the server lets both climbers through the pole's boxes", any(int(f["pass"]) & both == both for f in solid),
+                "rope_solid %s" % solid)
+    rope_copy_check(s, b, a, ea, "%s B's copy of A on the pole" % ("VR" if vr_viewer else "flat"), True)
+    if not vr_viewer:
+        rope_copy_check(s, a, b, eb, "flat A's copy of B on the pole", True)
+
+
+def monkey(s, vr_viewer=True):
+    """(ropes8d) Another player on a strung rope (ROPES.md "Strung ropes"), vrropes' level rope: flat A jumps up to it
+    (taken overhead), goes along it hand over hand (forward, facing along it); B's copy of him (mp_monkey: VR B;
+    mp_monkey_flat: flat B) hangs under it: climbing, the hands on it (the legs hang: not judged), as he goes too."""
+    srv, a, b, ea, eb = join(s, flat="A" if vr_viewer else "AB", level="vrropes",
+                             first=lambda srv, a, ea: put_at(srv, a, ea, MONKEY_A_AT, 0))
+    put_at(srv, b, eb, MONKEY_WATCH_AT, 90)
+    srv.cmd("vr_climb_stamina 0")
+    a.cmd("centerview; +jump")
+    view = "VR" if vr_viewer else "flat"
+    rope_copy_check(s, b, a, ea, "%s B's copy of A hanging under the strung rope" % view, False)
+    a.cmd("-jump")
+    rope_climber(s, srv, a, ea, "A goes along the strung rope hand over hand", ["forward"])
+    rope_copy_check(s, b, a, ea, "%s B's copy of A still under the rope where he went" % view, False)
 
 
 def avatarcal(s):
@@ -4717,6 +4955,39 @@ def forcegrab(s):
     srv.cmd("developer 0")
 
 
+def weaponwheel(s):
+    """The headset's weapon wheel in coop (Quake/vr/vr_weaponwheel.cpp; QC VR_Wheel_Pick): B (a remote client) runs
+    vr_weaponwheel_test mp: a shotgun given into his right shoulder holster (impulse 91), his B held opens the wheel round
+    his right hand, the hand onto the shoulder's slot, let go: his client sends "vr_wheel_pick 1 1". His own client has the
+    shotgun in his main hand (the test's verdict), the server has it there, and A sees it (B's avatar's weapon at A)."""
+    srv, a, b, ea, eb = join(s)
+    a.cmd("name A")
+    b.cmd("name B")
+    srv.cmd("developer 1")
+    since, sv_since = b.mark(), srv.mark()
+    b.cmd("developer 1; vr_weaponwheel_test mp")
+    _, verdict = b.wait(r"weaponwheel_test: \d+ passed, \d+ failed", 60, since, "B's weapon wheel test")
+    for l in b.lines[since:]:
+        if l.startswith("weaponwheel_test:") or l.startswith("weapon wheel:"):
+            s.note("B: " + l.strip())
+    for l in srv.lines[sv_since:]:
+        if l.startswith("weapon wheel:"):
+            s.note("server: " + l.strip())
+    s.check("B's wheel: the shotgun drawn into his right hand by his own client's account", " 0 failed" in verdict,
+            verdict.strip())
+    seen = weapon_until(s, srv, eb, 4)
+    s.check("the server: B's main hand holds the shotgun from his holster", seen[-1] == 4, "by report: %s" % seen)
+    got = {}
+    for _ in range(30):  # (a definite end: at most 30 reports)
+        (lines_a,) = reports(s, [a])
+        got = by_ent(lines_a, "mp_avatar")
+        if eb in got and int(got[eb]["wpn"][0]) == 4:
+            break
+    s.check("A sees B's shotgun drawn (B's avatar's weapon at A)", eb in got and int(got[eb]["wpn"][0]) == 4,
+            "A has B's weapon %s" % (got[eb].get("wpn") if eb in got else None))
+    srv.cmd("developer 0")
+
+
 HOLD_OUT = "vr_mock_hand main 0.15 1.2 -0.45 0 0 0"  # mp_disarm: a gun held out in front at the chest
 B10_GAP = 48.0  # mp_disarm: units between the two players, face to face (a hand reaches the other's held gun)
 VIEW_GAP = 0.5  # (B27) mp_disarm: B's drawn round and port against the server's, still (were 0.5-2.9 and 0.6-1.3)
@@ -7523,10 +7794,11 @@ def gear_until(s, inst, ent, what, tries=40):
     "mp_gear:" fields, or None (a failed check)."""
     for _ in range(tries):
         since = inst.mark()
-        inst.cmd("vr_mp_gearcheck %d" % ent)
+        inst.cmd("vr_mp_gearcheck %d 1" % ent)  # (1: each piece against the viewer's own, mp_gearpiece lines)
         n, _ = inst.wait(r"mp_gearcheck: \d+ players", 10, since, what)
         got = [avatar_fields(l) for l in inst.lines[since:n + 1] if l.startswith("mp_gear: ent=%d " % ent)]
         if got:
+            got[-1]["pieces"] = [l.strip() for l in inst.lines[since:n + 1] if l.startswith("mp_gearpiece: ent=%d " % ent)]
             return got[-1]
     s.check(what, False, "not listed in %d reports" % tries)
     return None
@@ -7548,6 +7820,13 @@ def botgear_case(s, viewer, ent, label):
             "numbers)" % (label, viewer.name), g["turned"][0] == 1,
             "finite %d, tilt %.1f (at most 70), facing %.1f (at most 60), guns %.1f from their sheaths (at most %.1f)" % (
                 g["finite"][0], g["tilt"][0], g["facing"][0], g["hang"][0], g["hangmost"][0]))
+    # (fbmisc1123; his report 2026-11-23: guns floating off a copy's hips and chest, turned wrong, its chest sheaths out on
+    # the shoulders) each holstered gun and sheath where the viewer's own sits on his body, the same gun in the same holster
+    s.check("%s: %s draws its holstered guns and sheaths as its own sit on its body (within 7 cm and 20 degrees)" % (
+        label, viewer.name), g["vsown"][0] >= 4 and g["asown"][0] == 1,
+            "%d compared, farthest %.3f m, most turned %.1f degrees" % (g["vsown"][0], g["place"][0], g["axis"][0]))
+    for p in g["pieces"]:
+        s.note(p)
     return g
 
 
@@ -7572,11 +7851,14 @@ def botgear(s):
     a.cmd("name A")
     b.cmd("name B")
     since_a = a.mark()
-    srv.cmd("vr_dm_test_who 1; vr_dm_test 16")
+    # (23: 16's hold, every holster of both filled, the same gun in the same holster: fbmisc1123)
+    srv.cmd("vr_dm_test_who 1; vr_dm_test 23")
     _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "player B held in front of A")
-    s.check("player B held in front of A (vr_dm_test 16)", "FAIL" not in ready, ready.strip())
+    s.check("player B held in front of A (vr_dm_test 23)", "FAIL" not in ready, ready.strip())
     gb = botgear_case(s, a, eb, "the flat player B")
     botgear_case(s, b, ea, "the VR player A")
+    if os.environ.get("MP_BOTGEAR_SHOTS"):
+        s.note("screenshot (B sees A's holsters): %s" % b.screenshot("botgear_A"))
     srv.cmd("vr_dm_test 0")
     # a bot (FrikBot: impulse 100 on the server through A), held in front of A by the test
     since_a = a.mark()
@@ -7593,9 +7875,9 @@ def botgear(s):
     if not bots:
         return
     since_a = a.mark()
-    srv.cmd("vr_dm_test_who 0; vr_dm_test 16")
+    srv.cmd("vr_dm_test_who 0; vr_dm_test 23")
     _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "the bot held in front of A")
-    s.check("the bot held in front of A (vr_dm_test 16)", "FAIL" not in ready, ready.strip())
+    s.check("the bot held in front of A (vr_dm_test 23)", "FAIL" not in ready, ready.strip())
     gbot = botgear_case(s, a, bots[0] + 1, "the bot")
     if gb is not None and gbot is not None:
         # (B's copy as his own client drew his holsters: what a bot's, placed by A's client, must look like)
@@ -7605,6 +7887,141 @@ def botgear(s):
                     gbot["tilt"][0], gbot["facing"][0], gb["tilt"][0], gb["facing"][0]))
     if os.environ.get("MP_BOTGEAR_SHOTS"):
         s.note("screenshot (A sees the bot's holsters): %s" % a.screenshot("botgear_bot"))
+    srv.cmd("vr_dm_test 0")
+
+
+GEARPIECE_RE = re.compile(r"mp_gearpiece: ent=\d+ holster=(\d+) (gun|sheath) at=\(([-\d.]+) ([-\d.]+) ([-\d.]+)\) "
+                          r"own=\(([-\d.]+) ([-\d.]+) ([-\d.]+)\)")
+# (A: hips 4.5 units further out, chest holsters 4.5 up; B: hips 4 down, chest 3.5 in: each pair a hand's width or so
+# from the other's and from the defaults)
+HOLSTERSYNC_PREFS = {"A": "vr_hip_offset_y 16; vr_upper_holster_offset_z 13",
+                     "B": "vr_hip_offset_z -4; vr_upper_holster_offset_y 4"}
+HOLSTERSYNC_DEFAULTS = "vr_hip_offset_y 11.5; vr_upper_holster_offset_z 8.5; vr_hip_offset_z 0; vr_upper_holster_offset_y 7.5"
+
+
+def gear_pieces(g, which):
+    """mp_gearpiece lines of a gear_until result -> {(holster, gun|sheath): (x, y, z)}: `which` "at" the copy's own
+    piece in its body's frame, "own" the viewer's own in his."""
+    out = {}
+    for p in g["pieces"] if g else []:
+        m = GEARPIECE_RE.match(p)
+        if m:
+            v = [float(x) for x in m.groups()[2:]]
+            out[(int(m.group(1)), m.group(2))] = tuple(v[:3] if which == "at" else v[3:])
+    return out
+
+
+def holstersync_pair(s, viewer, owner, ev, eo, tries=20):
+    """`viewer` draws `owner`'s copy with `owner`'s own holster places (his settings, sent in his calibration), not his
+    own: each piece within 7 cm of where `owner`'s client has it on his own body (both in their bodies' frames:
+    vr_mp_gearcheck's pieces), and farther than that from the viewer's own (his differ by design)."""
+    label = "%s's copy at %s" % (owner.name, viewer.name)
+    worst, common, gv = None, 0, None
+    for _ in range(tries):  # (a definite end: at most `tries` report pairs, his calibration in by then)
+        gv = gear_until(s, viewer, eo, "%s: drawn" % label)
+        go = gear_until(s, owner, ev, "%s: the owner's own pieces" % label)
+        if gv is None or go is None:
+            return
+        copy, own = gear_pieces(gv, "at"), gear_pieces(go, "own")
+        keys = sorted(set(copy) & set(own))
+        common = len(keys)
+        worst = max((math.dist(copy[k], own[k]) for k in keys), default=None)
+        if common >= 4 and worst is not None and worst <= 0.07:
+            break
+    s.check("%s: its holstered guns and sheaths where %s's own client has them on his body (within 7 cm)" % (
+        label, owner.name), common >= 4 and worst is not None and worst <= 0.07,
+            "%d pieces compared, farthest %s m" % (common, "none" if worst is None else "%.3f" % worst))
+    s.check("%s: not where %s's own sit (his settings differ; before, every copy wore the viewer's): sameprefs 0, "
+            "farthest from his own over 7 cm" % (label, viewer.name),
+            gv["sameprefs"][0] == 0 and gv["place"][0] > 0.07,
+            "sameprefs %d, farthest from the viewer's own %.3f m" % (gv["sameprefs"][0], gv["place"][0]))
+    s.check("%s: on its body, turned with its trunk, two hands (vr_mp_gearcheck ok)" % label, gv["ok"][0] == 1,
+            "hands %d trunk %.1f wrist %.1f tilt %.1f facing %.1f hang %.1f" % (
+                gv["hands"][0], gv["trunk"][0], gv["wrist"][0], gv["tilt"][0], gv["facing"][0], gv["hang"][0]))
+    s.metric("holstersync_%s_at_%s" % (owner.name, viewer.name), {"farthest_m": worst, "pieces": common,
+                                                                   "vs_viewer_m": gv["place"][0]})
+
+
+def variantowned(s):
+    """(variantowned; his decision 2026-11-24) Dwell's weapon variants owned per player: on a dedicated coop server with
+    A (VR) and B (flat), every player owns the Crystal Lance with his hands empty (vr_ad_test 233); B presses the weapon
+    key 8 on his own client and the lightning gun the server gives him is the Lance, not a plain one; then each player
+    respawned as coop does still owns it, the weapon key's gun the Lance (vr_ad_test 234, dwell/dw_test.qc)."""
+    srv, a, b, ea, eb = join(s, flat="B", b_first="vr_flat_holsters 0")  # (B's weapon keys: off with his flat holsters on)
+    since = srv.mark()
+    srv.cmd("vr_ad_test 233")
+    _, ready = srv.wait(r"dwowned_mp: ready", 20, since, "every player owning the Crystal Lance")
+    s.check("every player owns the Crystal Lance, his hands empty", "2 players" in ready, ready.strip())
+    since = srv.mark()
+    b.cmd("impulse 8")
+    srv.cmd("vr_ad_test 234")
+    _, v = srv.wait(r"dwowned_mp: \d+ passed, \d+ failed", 60, since, "the variant checks' verdict")
+    s.check("B's weapon key gives the Lance; a coop respawn keeps it owned", v.strip().endswith(", 0 failed"), v.strip())
+
+
+def holstersync(s):
+    """(holstersync; his words 2026-11-23: "Other players' holster placement should be synced in multiplayer, they should
+    not all share the host's preferences") A (VR) and B (flat) each with holster settings of their own, on a dedicated
+    deathmatch server, B held in front of A (vr_dm_test 23: every holster filled, the same gun in the same holster): each
+    draws the other's copy with the other's own placement (his client's own pieces, within 7 cm), not his own. Then a bot
+    held there: with A's own settings changed it wears the shipped ones, not A's (sameprefs 0, far from A's own); with A
+    back at the defaults (vr_mp_holster_defaults: 0 differ) A's own (sameprefs 1, within 7 cm and 20 degrees)."""
+    srv = s.server(dedicated=True)
+    srv.start()
+    srv.cmd("coop 0; deathmatch 1; noexit 1; fraglimit 0; timelimit %d; skill 1; map %s; vr_mp_status" % (
+        DM_TIMELIMIT, DM_MAP))
+    srv.wait(r"mp_server: map=%s" % DM_MAP, 120, what="the server on %s" % DM_MAP)
+    a = s.client("A").start()
+    b = s.client("B", flat=True).start()
+    a.cmd(s.connect_cmd(a))
+    _, ja = a.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="A joined %s" % DM_MAP)
+    b.cmd(s.connect_cmd(b))
+    _, jb = b.wait(r"mp_event: .*joined map=%s" % DM_MAP, 120, what="B joined %s" % DM_MAP)
+    ea, eb = int(fields(ja)["self"]), int(fields(jb)["self"])
+    a.cmd("name A; " + HOLSTERSYNC_PREFS["A"])
+    b.cmd("name B; " + HOLSTERSYNC_PREFS["B"])
+    since_a = a.mark()
+    srv.cmd("vr_dm_test_who 1; vr_dm_test 23")
+    _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "player B held in front of A")
+    s.check("player B held in front of A (vr_dm_test 23)", "FAIL" not in ready, ready.strip())
+    holstersync_pair(s, a, b, ea, eb)
+    holstersync_pair(s, b, a, eb, ea)
+    if os.environ.get("MP_BOTGEAR_SHOTS"):
+        s.note("screenshot (B sees A's holsters): %s" % b.screenshot("holstersync_A"))
+    srv.cmd("vr_dm_test 0")
+    since_a = a.mark()
+    a.cmd("impulse 100")
+    a.wait(r"mp_frags: .*named=1", 10, since_a, "the bot named at A")
+    bots = []
+    for _ in range(10):
+        bots = sorted(slot for slot in frag_table(a) if slot not in (ea - 1, eb - 1))
+        if bots:
+            break
+        since_c = a.mark()
+        wait_quietly(a, r"mp_frags: ", 5, since_c, "the bot listed at A")
+    s.check("A lists the bot", len(bots) == 1, "%s" % frag_table(a))
+    if not bots:
+        return
+    since_a = a.mark()
+    srv.cmd("vr_dm_test_who 0; vr_dm_test 23")
+    _, ready = a.wait(r"dmtest: hold: .*(ready|FAIL)", 30, since_a, "the bot held in front of A")
+    s.check("the bot held in front of A (vr_dm_test 23)", "FAIL" not in ready, ready.strip())
+    g = gear_until(s, a, bots[0] + 1, "the bot: A draws it")
+    if g is not None:
+        s.check("the bot's holsters wear the shipped settings, not A's own (sameprefs 0, farthest from A's over 7 cm)",
+                g["sameprefs"][0] == 0 and g["place"][0] > 0.07 and g["ok"][0] == 1,
+                "sameprefs %d, farthest from A's own %.3f m, ok %d" % (g["sameprefs"][0], g["place"][0], g["ok"][0]))
+    since_a = a.mark()
+    a.cmd(HOLSTERSYNC_DEFAULTS + "; vr_mp_holster_defaults")
+    _, line = a.wait(r"mp_holster_defaults: ", 10, since_a, "A's holsters against the shipped table")
+    s.check("A at the shipped settings: his holsters as the shipped table (vr_mp_holster_defaults: 0 differ)",
+            line.strip().startswith("mp_holster_defaults: 0 of"), line.strip())
+    g = gear_until(s, a, bots[0] + 1, "the bot: A at the defaults draws it")
+    if g is not None:
+        s.check("A at the shipped settings: the bot's holsters as his own (sameprefs 1, within 7 cm and 20 degrees)",
+                g["sameprefs"][0] == 1 and g["asown"][0] == 1 and g["vsown"][0] >= 4 and g["ok"][0] == 1,
+                "sameprefs %d, %d compared, farthest %.3f m, most turned %.1f" % (
+                    g["sameprefs"][0], g["vsown"][0], g["place"][0], g["axis"][0]))
     srv.cmd("vr_dm_test 0")
 
 
@@ -7682,14 +8099,15 @@ def debugviz_case(s, srv, a, who, ent, label, host):
             "volumes %d, grab line %s..%s, drawn %s..%s, %.1f units off (at most %g)" % (
                 v["volumes"][0], v["grab0"], v["grab1"], w["butt"], w["muzzle"], off, most))
     head_off = math.dist(v["head"], av["head"])
-    s.check("%s: A draws his five hit zones, the head's at his drawn head" % label,
-            v["zones"][0] == 5 and head_off <= DEBUGVIZ_HEAD_OFF,
+    # (hitzones) His body's shape as shots meet it (vr_playerhit.cpp): the head, the torso, two capsules an arm and a leg
+    s.check("%s: A draws his ten hit zones, the head's at his drawn head" % label,
+            v["zones"][0] == 10 and head_off <= DEBUGVIZ_HEAD_OFF,
             "zones %d, head zone %s, drawn head %s, %.1f units apart (at most %g)" % (
                 v["zones"][0], v["head"], av["head"], head_off, DEBUGVIZ_HEAD_OFF))
 
 
 DEBUGVIZ_HOST_OFF = 4.0  # mp_debugviz: units the host's grab line (the server's) may be off the weapon A draws
-DEBUGVIZ_HEAD_OFF = 16.0  # ... units the head zone (his box's fixed head) may be off the head drawn
+DEBUGVIZ_HEAD_OFF = 4.5  # ... units the head zone's middle may be off his drawn eyes (the skull's middle: 2.5 behind, 1 up)
 
 
 def debugviz(s, listen):
@@ -9507,7 +9925,7 @@ def lookups_of(inst):
     return {fields(l)["name"]: fields(l) for l in inst.lines[since:] if l.startswith("net_lookup: ")}
 
 
-LOOKUP_DELAY = 3.0  # s each lookup waits on its worker (-netlookupdelay: a slow resolver)
+LOOKUP_DELAY = 3.0  # s each lookup waits on its worker (vr_net_test_lookup_delay: a slow resolver)
 LOOKUP_FRAME = 0.5  # s the server answers its console within meanwhile
 
 
@@ -9516,13 +9934,13 @@ def lookup(s):
     thread: with no working DNS each gethostbyname held a host's frame for the resolver's timeout, seconds.
     1. The room service named "localhost" (a name: the lookup's path), each lookup slowed to LOOKUP_DELAY s: while it
        runs, the dedicated server answers its console within LOOKUP_FRAME s; then it registers with the service.
-    2. Every lookup failing (-netlookupfail): "not found" said once, the tries 2 s then 4 s apart (doubling); a remote
+    2. Every lookup failing (vr_net_test_lookup_fail): "not found" said once, the tries 2 s then 4 s apart (doubling); a remote
        client in: no try however overdue; he leaves: the next try at once.
     3. A server browser favourite by name (localhost:port) is asked once looked up (a search or two)."""
     rport = s.take_port()
     fake = FakeRoomService(rport).start()
     try:
-        srv = s.server(dedicated=True, extra=["-netlookupdelay", str(LOOKUP_DELAY)])
+        srv = s.server(dedicated=True, extra=["+vr_net_test_lookup_delay", str(LOOKUP_DELAY)])
         srv.start()
         srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
         srv.wait(r"mp_server: map=e1m1", 120, what="the server on e1m1")
@@ -9551,7 +9969,7 @@ def lookup(s):
         s.check("the first server quits cleanly", code == 0, "exit %s" % code)
 
         # 2. failing lookups: the back-off, and none while a remote client is in
-        srv = s.server(dedicated=True, extra=["-netlookupfail"], name="server2")  # (a log of its own)
+        srv = s.server(dedicated=True, extra=["+vr_net_test_lookup_fail", "1"], name="server2")  # (a log of its own)
         srv.start()
         srv.cmd("coop 1; deathmatch 0; skill 1; map e1m1; vr_mp_status")
         srv.wait(r"mp_server: map=e1m1", 120, what="the failing server on e1m1")
@@ -9970,6 +10388,10 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             retransmit(s)
         elif test == "mp_version":
             version(s)
+        elif test in ("mp_pole", "mp_pole_vr"):
+            pole(s, vr_viewer=test == "mp_pole_vr")
+        elif test in ("mp_monkey", "mp_monkey_flat"):
+            monkey(s, vr_viewer=test == "mp_monkey")
         elif test == "mp_avatarcal":
             avatarcal(s)
         elif test == "mp_ropes":
@@ -9988,6 +10410,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             cmdguard(s)
         elif test == "mp_grab":
             grab(s)
+        elif test == "mp_campfollow":
+            campfollow(s)
         elif test == "mp_navfollow":
             navfollow(s)
         elif test == "mp_navfollow_listen":
@@ -10032,6 +10456,8 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             climb(s)
         elif test == "mp_forcegrab":
             forcegrab(s)
+        elif test == "mp_weaponwheel":
+            weaponwheel(s)
         elif test == "mp_rules":
             rules(s)
         elif test == "mp_cosmetics":
@@ -10102,6 +10528,10 @@ def run(args, test, lag=0.0, jitter=0.0, loss=0.0):
             deathmatch(s)
         elif test == "mp_botgear":
             botgear(s)
+        elif test == "mp_variantowned":
+            variantowned(s)
+        elif test == "mp_holstersync":
+            holstersync(s)
         elif test == "mp_botrevolver":
             botrevolver(s)
         elif test == "mp_deathlook":
@@ -10156,6 +10586,8 @@ SUITE = [
     ("mp_avatarcal", ()),
     ("mp_ropes", ()),
     ("mp_ropeclimb", ()),
+    ("mp_pole", ()),
+    ("mp_monkey", ()),
     ("mp_body", ()),
     ("mp_prefs", ()),
     ("mp_grab", ()),
@@ -10167,12 +10599,14 @@ SUITE = [
     ("mp_ground", ()),
     ("mp_campaign", ()),
     ("mp_campaign_listen", ()),
+    ("mp_campfollow", ()),
     ("mp_flow", ()),
     ("mp_rejoin", ()),
     ("mp_rejoin_keep", ()),
     ("mp_download", ()),
     ("mp_pickup", ()),
     ("mp_forcegrab", ()),
+    ("mp_weaponwheel", ()),
     ("mp_melee", ()),
     ("mp_moves", ()),
     ("mp_climb", ()),
@@ -10197,6 +10631,8 @@ SUITE = [
     ("mp_coopbots", ()),
     ("mp_botgrab", ()),
     ("mp_botgear", ()),
+    ("mp_holstersync", ()),
+    ("mp_variantowned", ()),
     ("mp_botrevolver", ()),
     ("mp_debugviz", ()),
     ("mp_debugviz_listen", ()),
@@ -10229,7 +10665,7 @@ def in_profile(name, profile):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"])
+    ap.add_argument("test", choices=["coop", "bandwidth", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground", "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "weaponwheel", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "voice", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "suite", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "wpnsync", "wpnsync_flat", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"])
     tree_base = default_base(REPO)
     ap.add_argument("--base", required=tree_base is None, default=tree_base,
                     help="the game folder (id1, quakevr...; default: this checkout's own, the kit's bases/<checkout>/qbase)")
@@ -10298,7 +10734,7 @@ def main_run(args):
     if args.test == "coop":
         ok = run(args, "mp_coop", args.lag, args.jitter, args.loss)
     elif args.test in ("bandwidth", "wpnsync", "wpnsync_flat", "armed", "retransmit", "version", "avatar", "avatarcal", "body", "prefs", "grab", "guard", "teleport", "held", "ground",
-                       "campaign", "campaign_listen", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb"):
+                       "campaign", "campaign_listen", "campfollow", "flow", "rejoin", "download", "pickup", "forcegrab", "melee", "blade", "moves", "climb", "rules", "cosmetics", "flatbody", "slide", "slide_vr", "adspose", "deathbody", "deathlook", "loss", "predict", "predictclimb", "predictslide", "lagcomp", "cmdguard", "disarm", "dm", "lockstep", "lockstep_dm", "lockstep_throw", "browser", "nethud", "vanish", "fuzz", "guests", "dedicated", "soak", "jitter", "nat", "netsafe", "roomui", "emptyflood", "spoof", "backoff", "lookup", "roomnonce", "rejoin_keep", "coopbots", "botgrab", "botgear", "holstersync", "variantowned", "botrevolver", "debugviz", "debugviz_listen", "wristscore", "navfollow", "navfollow_listen", "navfollow_vr", "botnavdebug", "botnavdebug_listen", "syncaudit", "ragsync", "ropes", "ropeclimb", "pole", "pole_vr", "monkey", "monkey_flat"):
         ok = run(args, "mp_" + args.test)
     elif args.test == "voice":
         ok = run(args, "mp_voice", args.lag, args.jitter, args.loss)

@@ -19,6 +19,7 @@
 #include "vr_view.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -303,7 +304,7 @@ void hang(coil::Cord& cord, const glm::vec3& at, float length, const glm::vec3& 
     {
         return false;
     }
-    const size_t n = ZA_STRLEN(chosen->name);
+    const za::SizeT n = ZA_STRLEN(chosen->name);
     return n > 2 && chosen->name[n - 2] == '_' &&
            (chosen->name[n - 1] == 'x' || chosen->name[n - 1] == 'y' || chosen->name[n - 1] == 'z');
 }
@@ -567,7 +568,7 @@ double chainLogTime = -1.0; // (the log's last frame's vr_gametime: only frames 
 void logChain(int slot, int k, const coil::Cord& cord, float dtMs)
 {
     ChainLog& l = chainLogs[slot][k];
-    if(!cord.visible() || cord.nodes().size() > static_cast<size_t>(logNodes))
+    if(!cord.visible() || cord.nodes().size() > static_cast<za::SizeT>(logNodes))
     {
         l.frames = 0;
         return;
@@ -581,7 +582,7 @@ void logChain(int slot, int k, const coil::Cord& cord, float dtMs)
     {
         // (Off its anchor: a tether's off the line between its ends, a hanging one's off its second end.)
         const float t = static_cast<float>(i) / static_cast<float>(n - 1);
-        rel[i] = p[i] - (k == Tether ? glm::mix(p[0], p[static_cast<size_t>(n - 1)], t) : p[static_cast<size_t>(n - 1)]);
+        rel[i] = p[i] - (k == Tether ? glm::mix(p[0], p[static_cast<za::SizeT>(n - 1)], t) : p[static_cast<za::SizeT>(n - 1)]);
         if(l.frames >= 1)
         {
             move = za::max(move, glm::distance(rel[i], l.rel[0][i]) * mm);

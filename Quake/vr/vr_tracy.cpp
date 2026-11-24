@@ -13,6 +13,7 @@
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -20,11 +21,11 @@
 #include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Concurrency/LockGuard.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/ChunkedVector.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
-#include <deque>
 #include "external/box3d/include/box3d/base.h"
 #include "vr_mem.hpp"
 #include "vr_jobs.hpp"
@@ -48,7 +49,7 @@ struct ProcessMemoryCounters
 {
     unsigned long cb;
     unsigned long pageFaultCount;
-    size_t peakWorkingSetSize, workingSetSize, quotaPeakPagedPoolUsage, quotaPagedPoolUsage, quotaPeakNonPagedPoolUsage,
+    za::SizeT peakWorkingSetSize, workingSetSize, quotaPeakPagedPoolUsage, quotaPagedPoolUsage, quotaPeakNonPagedPoolUsage,
         quotaNonPagedPoolUsage, pagefileUsage, peakPagefileUsage, privateUsage;
 };
 }
@@ -125,12 +126,12 @@ void boxSync()
     if(session == boxSession) return;
     boxSession = session;
     if(session)
-        for(const auto& [ptr, bytes] : boxLive) ___tracy_emit_memory_alloc(ptr, static_cast<size_t>(bytes));
+        for(const auto& [ptr, bytes] : boxLive) ___tracy_emit_memory_alloc(ptr, static_cast<za::SizeT>(bytes));
 }
 void boxCheckpoint()
 {
     bool pass;
-    size_t live;
+    za::SizeT live;
     unsigned long long captured, actual;
     {
         const za::LockGuard lock{boxLock};
@@ -414,7 +415,7 @@ extern "C" void VR_TracyText(const char* text)
         const auto ctx = thread.stack[thread.depth - 1].cpu;
         if(ctx.active)
         {
-            const size_t length = ZA_STRLEN(text);
+            const za::SizeT length = ZA_STRLEN(text);
             ___tracy_emit_zone_text(ctx, text, length < 65535 ? length : 65534);
         }
     }
@@ -434,7 +435,7 @@ extern "C" void VR_TracyJobText(const char* from, const char* file, unsigned lin
         if(*c == '/' || *c == '\\') base = c + 1;
     char text[256];
     const int length = q_snprintf(text, sizeof(text), "%s @ %s:%u", from ? from : "(no zone)", base, line);
-    ___tracy_emit_zone_text(thread.stack[thread.depth - 1].cpu, text, length < 0 ? 0 : za::min<size_t>(static_cast<size_t>(length), sizeof(text) - 1));
+    ___tracy_emit_zone_text(thread.stack[thread.depth - 1].cpu, text, length < 0 ? 0 : za::min<za::SizeT>(static_cast<za::SizeT>(length), sizeof(text) - 1));
 }
 extern "C" void VR_TracyBegin(const char* name, int gpu)
 {
@@ -631,7 +632,7 @@ extern "C" void VR_TracyBoxAlloc(const void* ptr, unsigned long long bytes)
     {
         boxBytes += bytes;
         if(boxSession && TracyCIsConnected && boxSession == tracy::GetProfiler().ConnectionId())
-            ___tracy_emit_memory_alloc(ptr, static_cast<size_t>(bytes));
+            ___tracy_emit_memory_alloc(ptr, static_cast<za::SizeT>(bytes));
     }
 }
 extern "C" void VR_TracyBoxFree(const void* ptr)
@@ -727,14 +728,14 @@ struct QCTable
     za::Vector<QCEntry> entries;
 };
 QCTable qcTables[3]; // one per VM (server, client); a spare slot
-std::deque<za::String> qcStrings; // backing store of the locations' names and files (stable addresses: no Zancle deque)
-std::deque<___tracy_source_location_data> qcLocations;
+za::ChunkedVector<za::String> qcStrings; // the locations' names and files (stable addresses: Tracy keeps them)
+za::ChunkedVector<___tracy_source_location_data> qcLocations; // (stable addresses, the same)
 ankerl::unordered_dense::map<za::String, const ___tracy_source_location_data*> qcInterned;
 za::String qcKey;
 
 const char* qcString(const char* text)
 {
-    return qcStrings.emplace_back(text).cStr();
+    return qcStrings.emplaceBack(text).cStr();
 }
 const ___tracy_source_location_data* qcLocation(const char* name, const char* kind, const char* file)
 {
@@ -744,7 +745,7 @@ const ___tracy_source_location_data* qcLocation(const char* name, const char* ki
     qcKey += '\x1f';
     qcKey += file;
     if(const auto it = qcInterned.find(qcKey); it != qcInterned.end()) return it->second;
-    const auto* loc = &qcLocations.emplace_back(___tracy_source_location_data{qcString(name), kind, qcString(file), 0, 0});
+    const auto* loc = &qcLocations.emplaceBack(___tracy_source_location_data{qcString(name), kind, qcString(file), 0, 0});
     qcInterned.emplace(qcKey, loc);
     return loc;
 }
@@ -773,7 +774,7 @@ extern "C" void VR_TracyQCProgs()
     table->vm = qcvm;
     table->functions = qcvm->functions;
     table->count = qcvm->progs ? qcvm->progs->numfunctions : 0;
-    table->entries.assign(static_cast<size_t>(table->count), {});
+    table->entries.assign(static_cast<za::SizeT>(table->count), {});
     for(int i = 0; i < table->count; i++)
     {
         const dfunction_t& f = qcvm->functions[i];
@@ -819,7 +820,7 @@ extern "C" void VR_TracyAlloc(const void* ptr, unsigned long long bytes, int poo
     const auto [it, inserted] = allocations.emplace(ptr, Allocation{bytes, pool, end});
     if(inserted)
     {
-        ___tracy_emit_memory_alloc_named(ptr, static_cast<size_t>(bytes), poolNames[pool]);
+        ___tracy_emit_memory_alloc_named(ptr, static_cast<za::SizeT>(bytes), poolNames[pool]);
         poolAnnounced[pool] = true;
     }
 }

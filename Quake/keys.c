@@ -729,6 +729,7 @@ Returns a user-facing string for the given keynum.
 */
 const char *Key_KeynumToFriendlyString (int keynum)
 {
+	keynum = VR_ButtonSwapKey (keynum); // QVR: vr_button_swap, a key named by the button that sends it
 	if (keynum >= K_GAMEPAD_BEGIN && keynum < K_GAMEPAD_END)
 	{
 		const char *str = NULL;
@@ -754,10 +755,14 @@ const char *Key_KeynumToFriendlyString (int keynum)
 Key_SetBinding
 ===================
 */
+int key_bindgeneration; // QVR: counts the changes (a message naming a bound key resolves again: vr_msgtokens.cpp)
+
 void Key_SetBinding (int keynum, const char *binding)
 {
 	if (keynum == -1)
 		return;
+
+	key_bindgeneration++;
 
 // free old bindings
 	if (Key_Seat ()->bindings[keynum])

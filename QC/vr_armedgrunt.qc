@@ -714,7 +714,7 @@ float(float code) VR_AG_Decode =
 string(float wid, float flags, entity inst) VR_AG_NameOf =
 {
     if(wid < 0) { return "fists"; }
-    if(inst && inst.wi_dwvar) { return DW_VariantName(inst.wi_dwvar); } // (Dwell's weapons: dw_items.qc)
+    if(inst && inst.wi_dwvar && DW_VariantFor(wid) == inst.wi_dwvar) { return DW_VariantName(inst.wi_dwvar); } // (Dwell's weapons: dw_items.qc)
     if(inst && inst.wi_adup && vr_ad_data)
     {
         if(wid == WID_AXE) { return "Shadow Axe"; }

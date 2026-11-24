@@ -5,6 +5,7 @@
 
 #include "vr_engine.hpp"
 #include "vr_tonemap.h"
+#include "Zancle/Base/SizeT.hpp"
 
 namespace qvr::tonemap
 {
@@ -28,9 +29,27 @@ inline constexpr float sceneMax = 8.f;
 // binds the grade chosen to texture unit `unit`.
 [[nodiscard]] glm::vec4 bind(unsigned unit);
 
-// vr_eyeshot: after an eye's post-process, saves its image (`imageFbo`, width x height) and with vr_eyeshot 2 its
-// float scene (`sceneFbo`) to <gamedir>/eyeshots; clears vr_eyeshot after the right eye.
-void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int height);
+// An eye can be drawn straight into its swapchain image (vr_xr_direct, the Quest's fixed foveation) with its look
+// kept: the scene's shaders roll their colours off with the tone curve themselves (exposure 1; VR_SceneTone), no
+// headset gamma or contrast, and the grade, dither, bullet time's look and comfort vignette, when wanted, by the
+// in-tile pass (drawInTile: GL_EXT_shader_framebuffer_fetch). The bloom and the underwater wobble: the caller's.
+[[nodiscard]] bool postInScene();
+
+// After such an eye's scene, its framebuffer `fbo` (its image) still bound on the tiler: the post-process's steps after
+// the tone curve (QVR_POSTPROCESS_GRADE_DITHER), each pixel read where it is (in the tile, before it is written out),
+// over its width x height from x, y (the eye's part of its image: vr_eye_rect_place). Nothing when none is wanted: the
+// dither not when the scene's shaders added it (vr_dither_in_scene: VR_SceneDither, sceneDithered).
+void drawInTile(unsigned fbo, int x, int y, int width, int height);
+
+// This eye's scene shaders dithered into its image themselves (VR_SceneDither; false before each eye: vr_stereo.cpp).
+inline bool sceneDithered = false;
+
+// The eyes' dither noise's seed (vr_dither): x the right eye's own noise (1), y the frame's offset (0: fixed).
+[[nodiscard]] glm::vec2 ditherSeed();
+
+// vr_eyeshot: after an eye's post-process, saves its image (`imageFbo`, width x height from x, y: the eye's part) and with
+// vr_eyeshot 2 its float scene (`sceneFbo`, from its corner) to <gamedir>/eyeshots; clears vr_eyeshot after the right eye.
+void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int height, int x = 0, int y = 0);
 // vr_gl_probe: queries around an eye's scene (begin, then end: prints its primitives and whether samples passed).
 void glProbeScene(bool begin);
 // vr_gl_probe 2 and 3, the bisection's draws (a full-screen triangle of one colour): 2 blue under the scene (`after`
@@ -41,9 +60,9 @@ void glProbeDraw(bool after);
 // through the frame's ViewProj alone, 5 through the first world instance's matrix too.
 void glProbeWorld(unsigned vbo, unsigned ibo, int stride, int indices);
 // vr_gl_probe: an upload (`size` bytes of `data` at `offset` in `buffer`) read back and compared.
-void probeUpload(const char* what, unsigned buffer, size_t offset, const void* data, size_t size);
+void probeUpload(const char* what, unsigned buffer, za::SizeT offset, const void* data, za::SizeT size);
 // vr_gl_probe: a GPU-written buffer's words read back (how many are not zero, the largest, the first eight).
-void probeBuffer(const char* what, unsigned buffer, size_t offset, size_t size);
+void probeBuffer(const char* what, unsigned buffer, za::SizeT offset, za::SizeT size);
 // vr_gl_probe: the GL state at a draw (`where`; the first three of the probe's eye scene) and its program's validation.
 void probeState(const char* where);
 // vr_gl_probe 1 (Debug > Startup; once, then 0): at an eye's `stage` (0 scene drawn, 1 post-processed, 2 with the UI),

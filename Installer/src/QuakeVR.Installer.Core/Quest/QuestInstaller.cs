@@ -127,18 +127,8 @@ public sealed class QuestInstaller(IAdb adb)
                                            $"{PathUtil.FormatSize(fb)} free (and {PathUtil.FormatSize(SpaceMargin)} kept free). Free some space in the headset, then try again.");
             }
             refused = Push(serial, toPush, bytes, (f, s) => Report(0.2 + 0.75 * f, s), ct);
-
-            // Readable by the game (what adb's shell writes is the shell's: Android/README.md).
             Report(0.96, "Finishing on the Quest");
-            var dirs = toPush.SelectMany(f => Ancestors(f.DevicePath)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
-            foreach (var cmd in Batches($"cd {Quote(QuestFiles.DeviceRoot)} && chmod 2777", dirs)) // (set-group-ID kept: Push)
-            {
-                Shell(serial, cmd + " 2>/dev/null", ct);
-            }
-            foreach (var cmd in Batches($"cd {Quote(QuestFiles.DeviceRoot)} && chmod 0666", toPush.Select(f => f.DevicePath)))
-            {
-                Shell(serial, cmd + " 2>/dev/null", ct);
-            }
+            MakeReadable(serial, plan.Files, ct);
 
             // Checked: every copied file there, at its size.
             var after = ListSizes(serial, roots, ct);
@@ -154,6 +144,10 @@ public sealed class QuestInstaller(IAdb adb)
             {
                 Report(0.99, "Finishing on the Quest", NotWritableText(refused), LogLevel.Warning);
             }
+        }
+        else
+        {
+            MakeReadable(serial, plan.Files, ct); // (nothing new, but an older copy's folders may still be unreadable)
         }
         Report(1, "Done", "Quake VR is on the Quest: start it from Library > Unknown Sources (the app list's filter, top right).", LogLevel.Success);
         return new QuestResult(status.Device.Model ?? serial, !apkSame, toPush.Count - refused.Count, skipped, bytes - refused.Sum(f => f.Size))
@@ -174,6 +168,24 @@ public sealed class QuestInstaller(IAdb adb)
             "INSTALL_FAILED_VERSION_DOWNGRADE" => "The Quest has a newer Quake VR app than this one: nothing was changed.",
             _ => $"The Quake VR app could not be installed on the Quest: {(output.Length > 0 ? output : "adb said nothing")}",
         };
+    }
+
+    /// <summary>Every planned file and every folder on its way readable by the game (what adb's shell writes is the shell's:
+    /// Android/README.md), on every run, the files already there and skipped too. Only the copied files' folders before
+    /// (2026-11-24, questmods): a folder a push or an older Setup had left 2770 (hipnotic, ad, dopa, dwellv2p2 on his Quest 3)
+    /// kept its files, unchanged and so skipped, out of the game's reach: "hipnotic missing", and Quoth's start failed
+    /// "Mod_LoadModel: progs/s_exp_small.spr not found" (Arcane Dimensions' sprite: Quoth plays by AD's rules).</summary>
+    void MakeReadable(string serial, IReadOnlyList<QuestFile> files, CancellationToken ct)
+    {
+        var dirs = files.SelectMany(f => Ancestors(f.DevicePath)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
+        foreach (var cmd in Batches($"cd {Quote(QuestFiles.DeviceRoot)} && chmod 2777", dirs)) // (set-group-ID kept: Push)
+        {
+            Shell(serial, cmd + " 2>/dev/null", ct);
+        }
+        foreach (var cmd in Batches($"cd {Quote(QuestFiles.DeviceRoot)} && chmod 0666", files.Select(f => f.DevicePath)))
+        {
+            Shell(serial, cmd + " 2>/dev/null", ct);
+        }
     }
 
     static IEnumerable<string> Ancestors(string devicePath)

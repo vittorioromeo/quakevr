@@ -8,6 +8,7 @@
 #include "vr_geom.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -19,7 +20,6 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_api.h"
 
-#include <stdlib.h>
 #include <string.h>
 
 namespace qvr::adguns
@@ -27,7 +27,7 @@ namespace qvr::adguns
 namespace
 {
 
-constexpr size_t headerSize = 84;
+constexpr za::SizeT headerSize = 84;
 
 // A gun of AD's: whose model, its vertices there, the frame it is taken from (the gun pointing ahead, as fired: its
 // barrel along the model's x), its length as a weapon (model units), the hand's place (source units along the barrel
@@ -101,14 +101,14 @@ void putf(za::Vector<byte>& out, float v)
 }
 
 // "<base>#gun<skin>" taken apart; false if it isn't one.
-[[nodiscard]] bool parse(const char* name, char* base, size_t baseSize, int& skin)
+[[nodiscard]] bool parse(const char* name, char* base, za::SizeT baseSize, int& skin)
 {
     const char* at = ZA_STRSTR(name, suffix);
-    if(!at || at == name || static_cast<size_t>(at - name) >= baseSize)
+    if(!at || at == name || static_cast<za::SizeT>(at - name) >= baseSize)
     {
         return false;
     }
-    ZA_MEMCPY(base, name, static_cast<size_t>(at - name));
+    ZA_MEMCPY(base, name, static_cast<za::SizeT>(at - name));
     base[at - name] = 0;
     const char* digits = at + ZA_STRLEN(suffix);
     skin = 0;
@@ -150,7 +150,7 @@ void putf(za::Vector<byte>& out, float v)
 
 } // namespace
 
-bool build(const char* base, int skin, const byte* src, size_t size, Built& out, const char*& why)
+bool build(const char* base, int skin, const byte* src, za::SizeT size, Built& out, const char*& why)
 {
     const Gun* gun = gunOf(base);
     if(!gun)
@@ -172,10 +172,10 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
     }
     const glm::vec3 scale{qvr::bytes::lef32(src, 8), qvr::bytes::lef32(src, 12), qvr::bytes::lef32(src, 16)};
     const glm::vec3 origin{qvr::bytes::lef32(src, 20), qvr::bytes::lef32(src, 24), qvr::bytes::lef32(src, 28)};
-    const size_t skinBytes = static_cast<size_t>(skinW) * static_cast<size_t>(skinH);
+    const za::SizeT skinBytes = static_cast<za::SizeT>(skinW) * static_cast<za::SizeT>(skinH);
 
     // The skins: the one asked for (a group's first picture), else the first.
-    size_t at = headerSize;
+    za::SizeT at = headerSize;
     const byte* chosen = nullptr;
     for(int s = 0; s < numSkins; s++)
     {
@@ -193,17 +193,17 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
         else
         {
             const int n = za::max(qvr::bytes::le32(src, at + 4), 1);
-            picture = src + at + 8 + static_cast<size_t>(n) * 4;
-            at += 8 + static_cast<size_t>(n) * 4 + static_cast<size_t>(n) * skinBytes;
+            picture = src + at + 8 + static_cast<za::SizeT>(n) * 4;
+            at += 8 + static_cast<za::SizeT>(n) * 4 + static_cast<za::SizeT>(n) * skinBytes;
         }
         if(s == 0 || s == skin)
         {
             chosen = picture;
         }
     }
-    const size_t stAt = at;
-    const size_t triAt = stAt + static_cast<size_t>(numVerts) * 12;
-    at = triAt + static_cast<size_t>(numTris) * 16;
+    const za::SizeT stAt = at;
+    const za::SizeT triAt = stAt + static_cast<za::SizeT>(numVerts) * 12;
+    at = triAt + static_cast<za::SizeT>(numTris) * 16;
     if(at > size || !chosen || chosen + skinBytes > src + size)
     {
         why = "truncated (vertices)";
@@ -211,7 +211,7 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
     }
 
     // The frame it is taken from (singles and groups' members by name).
-    size_t poseAt = 0;
+    za::SizeT poseAt = 0;
     for(int f = 0; f < numFrames && !poseAt; f++)
     {
         if(at + 4 > size)
@@ -224,13 +224,13 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
         if(type != 0)
         {
             members = za::max(qvr::bytes::le32(src, at), 1);
-            at += 4 + 8 + static_cast<size_t>(members) * 4;
+            at += 4 + 8 + static_cast<za::SizeT>(members) * 4;
         }
         for(int m = 0; m < members; m++)
         {
-            const size_t nameAt = at + 8;
-            const size_t vertsAt = at + 24;
-            at = vertsAt + static_cast<size_t>(numVerts) * 4;
+            const za::SizeT nameAt = at + 8;
+            const za::SizeT vertsAt = at + 24;
+            at = vertsAt + static_cast<za::SizeT>(numVerts) * 4;
             if(at > size)
             {
                 break;
@@ -250,7 +250,7 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
         return false;
     }
     const auto posOf = [&](int v) {
-        const byte* p = src + poseAt + static_cast<size_t>(v) * 4;
+        const byte* p = src + poseAt + static_cast<za::SizeT>(v) * 4;
         return glm::vec3{p[0] * scale.x + origin.x, p[1] * scale.y + origin.y, p[2] * scale.z + origin.z};
     };
 
@@ -260,12 +260,12 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
     za::Vector<int> tris;  // facesfront, a, b, c (kept vertices)
     for(int t = 0; t < numTris; t++)
     {
-        const size_t tAt = triAt + static_cast<size_t>(t) * 16;
+        const za::SizeT tAt = triAt + static_cast<za::SizeT>(t) * 16;
         int v[3];
         bool all = true;
         for(int c = 0; c < 3; c++)
         {
-            v[c] = qvr::bytes::le32(src, tAt + 4 + static_cast<size_t>(c) * 4);
+            v[c] = qvr::bytes::le32(src, tAt + 4 + static_cast<za::SizeT>(c) * 4);
             all = all && v[c] >= 0 && v[c] < numVerts && isGunVertex(*gun, v[c]);
         }
         if(!all)
@@ -411,7 +411,7 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
     f.emplaceBackRange(chosen, skinBytes);
     for(const int v : verts)
     {
-        const size_t vAt = stAt + static_cast<size_t>(v) * 12;
+        const za::SizeT vAt = stAt + static_cast<za::SizeT>(v) * 12;
         put(f, qvr::bytes::le32(src, vAt));
         put(f, qvr::bytes::le32(src, vAt + 4));
         put(f, qvr::bytes::le32(src, vAt + 8));
@@ -437,7 +437,7 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
             bmax[c] = za::max(bmax[c], b[c]);
         }
         // Its normal turned with it.
-        const byte n = src[poseAt + static_cast<size_t>(verts[i]) * 4 + 3];
+        const byte n = src[poseAt + static_cast<za::SizeT>(verts[i]) * 4 + 3];
         const glm::vec3 nv = n < NUMVERTEXNORMALS ? geom::vec(r_avertexnormals[n])
                                                   : glm::vec3{0.f, 0.f, 1.f};
         b[3] = qvr::mdlbuild::nearestNormal(glm::vec3{glm::dot(nv, axis), glm::dot(nv, left), glm::dot(nv, up)});
@@ -458,7 +458,7 @@ namespace
 
 // A model of turnedModels turned (its file copied; the header's scale, corner, radius and eye, and each frame's box and
 // vertices rewritten: x' = pivot.y - y, y' = x - pivot.x, z' = z - pivot.z).
-[[nodiscard]] bool turn(const Turned& t, const byte* src, size_t size, Built& out, const char*& why)
+[[nodiscard]] bool turn(const Turned& t, const byte* src, za::SizeT size, Built& out, const char*& why)
 {
     if(size < headerSize || qvr::bytes::le32(src, 0) != IDPOLYHEADER || qvr::bytes::le32(src, 4) != ALIAS_VERSION)
     {
@@ -482,21 +482,21 @@ namespace
     out.file.clear();
     out.file.emplaceBackRange(src, size);
     byte* f = out.file.data();
-    const auto setf = [&](size_t at, float v) {
+    const auto setf = [&](za::SizeT at, float v) {
         const float le = LittleFloat(v);
         ZA_MEMCPY(f + at, &le, 4);
     };
     for(int i = 0; i < 3; i++)
     {
-        setf(8 + static_cast<size_t>(i) * 4, scale2[i]);
-        setf(20 + static_cast<size_t>(i) * 4, origin2[i]);
+        setf(8 + static_cast<za::SizeT>(i) * 4, scale2[i]);
+        setf(20 + static_cast<za::SizeT>(i) * 4, origin2[i]);
     }
     setf(36, c.y - eye.y);
     setf(40, eye.x - c.x);
     setf(44, eye.z - c.z);
 
-    const size_t skinBytes = static_cast<size_t>(skinW) * static_cast<size_t>(skinH);
-    size_t at = headerSize;
+    const za::SizeT skinBytes = static_cast<za::SizeT>(skinW) * static_cast<za::SizeT>(skinH);
+    za::SizeT at = headerSize;
     for(int s = 0; s < numSkins; s++)
     {
         if(at + 8 > size)
@@ -511,12 +511,12 @@ namespace
         else
         {
             const int n = za::max(qvr::bytes::le32(src, at + 4), 1);
-            at += 8 + static_cast<size_t>(n) * 4 + static_cast<size_t>(n) * skinBytes;
+            at += 8 + static_cast<za::SizeT>(n) * 4 + static_cast<za::SizeT>(n) * skinBytes;
         }
     }
-    at += static_cast<size_t>(numVerts) * 12 + static_cast<size_t>(numTris) * 16;
+    at += static_cast<za::SizeT>(numVerts) * 12 + static_cast<za::SizeT>(numTris) * 16;
 
-    const auto turnBox = [&](size_t minAt) { // a box's bboxmin and bboxmax
+    const auto turnBox = [&](za::SizeT minAt) { // a box's bboxmin and bboxmax
         byte* lo = f + minAt;
         byte* hi = f + minAt + 4;
         const byte loX = lo[0], loY = lo[1], hiX = hi[0], hiY = hi[1];
@@ -528,7 +528,7 @@ namespace
     float radius = 0.f;
     out.lo = glm::vec3{1e30f};
     out.hi = glm::vec3{-1e30f};
-    size_t firstPose = 0;
+    za::SizeT firstPose = 0;
     for(int fr = 0; fr < numFrames; fr++)
     {
         if(at + 4 > size)
@@ -548,12 +548,12 @@ namespace
             }
             members = za::max(qvr::bytes::le32(src, at), 1);
             turnBox(at + 4);
-            at += 4 + 8 + static_cast<size_t>(members) * 4;
+            at += 4 + 8 + static_cast<za::SizeT>(members) * 4;
         }
         for(int m = 0; m < members; m++)
         {
-            const size_t vertsAt = at + 24;
-            if(vertsAt + static_cast<size_t>(numVerts) * 4 > size)
+            const za::SizeT vertsAt = at + 24;
+            if(vertsAt + static_cast<za::SizeT>(numVerts) * 4 > size)
             {
                 why = "truncated (frame)";
                 return false;
@@ -562,7 +562,7 @@ namespace
             firstPose = firstPose ? firstPose : vertsAt;
             for(int v = 0; v < numVerts; v++)
             {
-                byte* b = f + vertsAt + static_cast<size_t>(v) * 4;
+                byte* b = f + vertsAt + static_cast<za::SizeT>(v) * 4;
                 const byte x = b[0], y = b[1], n = b[3];
                 b[0] = static_cast<byte>(255 - y);
                 b[1] = x;
@@ -575,7 +575,7 @@ namespace
                 out.lo = glm::min(out.lo, p);
                 out.hi = glm::max(out.hi, p);
             }
-            at = vertsAt + static_cast<size_t>(numVerts) * 4;
+            at = vertsAt + static_cast<za::SizeT>(numVerts) * 4;
         }
     }
     setf(32, radius);
@@ -585,7 +585,7 @@ namespace
     int tip = 0;
     for(int v = 0; v < numVerts; v++)
     {
-        const byte* b = f + firstPose + static_cast<size_t>(v) * 4;
+        const byte* b = f + firstPose + static_cast<za::SizeT>(v) * 4;
         const glm::vec3 p = glm::vec3{b[0], b[1], b[2]} * scale2 + origin2;
         if(p.x > out.hi.x - 1.f)
         {
@@ -600,14 +600,14 @@ namespace
     if(t.bow && numFrames == 1 && at == size && adcrossbow::knownModel(numVerts, numTris))
     {
         za::Vector<byte> pose;
-        pose.emplaceBackRange(f + firstPose, static_cast<size_t>(numVerts) * 4);
+        pose.emplaceBackRange(f + firstPose, static_cast<za::SizeT>(numVerts) * 4);
         for(int k = 1; k <= adcrossbow::addedFrames; k++)
         {
             byte lo[4] = {255, 255, 255, 0}, hi[4] = {0, 0, 0, 0};
             za::Vector<byte> verts;
             for(int v = 0; v < numVerts; v++)
             {
-                const byte* b = pose.data() + static_cast<size_t>(v) * 4;
+                const byte* b = pose.data() + static_cast<za::SizeT>(v) * 4;
                 const glm::vec3 p = adcrossbow::framePoint(k, v, glm::vec3{b[0], b[1], b[2]} * scale2 + origin2);
                 byte q[4] = {0, 0, 0, b[3]};
                 for(int i = 0; i < 3; i++)
@@ -664,7 +664,7 @@ namespace
         why = "its model's file not found";
         return false;
     }
-    const size_t size = static_cast<size_t>(com_filesize);
+    const za::SizeT size = static_cast<za::SizeT>(com_filesize);
     const bool ok = turned ? turn(*turned, src, size, out, why) : build(base, skin, src, size, out, why);
     VR_HeapFree(src);
     if(path_id)
@@ -721,8 +721,8 @@ bool slotNames(const char* id, const char* name)
     if(const char* v = ZA_STRSTR(name, variantSuffix))
     {
         const char* own = ZA_STRSTR(id, variantSuffix);
-        const size_t n = static_cast<size_t>(v - name) + ZA_STRLEN(variantSuffix);
-        if(!own || static_cast<size_t>(own - id) + ZA_STRLEN(variantSuffix) != n || ZA_STRNCMP(id, name, n) != 0)
+        const za::SizeT n = static_cast<za::SizeT>(v - name) + ZA_STRLEN(variantSuffix);
+        if(!own || static_cast<za::SizeT>(own - id) + ZA_STRLEN(variantSuffix) != n || ZA_STRNCMP(id, name, n) != 0)
         {
             return false;
         }
@@ -735,7 +735,7 @@ bool slotNames(const char* id, const char* name)
     {
         return false;
     }
-    const size_t n = static_cast<size_t>(gun - name) + ZA_STRLEN(suffix);
+    const za::SizeT n = static_cast<za::SizeT>(gun - name) + ZA_STRLEN(suffix);
     return ZA_STRLEN(id) == n && !ZA_STRNCMP(id, name, n);
 }
 

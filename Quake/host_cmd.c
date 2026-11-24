@@ -2219,6 +2219,7 @@ static void Host_Map_f (void)
 
 	CL_Disconnect ();
 	Host_ShutdownServer(false);
+	VR_TutorialSinglePlayer (Cmd_Argv(1)); // QVR: the tutorial always a single-player game (vr_gamedir.cpp)
 	VR_TimeMark ("map: disconnect, old server shut down"); // QVR
 
 	if (cls.state != ca_dedicated)

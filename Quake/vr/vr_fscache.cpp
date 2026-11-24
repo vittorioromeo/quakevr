@@ -27,6 +27,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
@@ -244,17 +245,17 @@ void fold(za::String& s)
 // "/"): false if too long.
 [[nodiscard]] bool parentOf(const char* path, char (&out)[MAX_OSPATH])
 {
-    const size_t length = ZA_STRLEN(path);
+    const za::SizeT length = ZA_STRLEN(path);
     if(length >= sizeof(out))
     {
         return false;
     }
-    size_t name = length; // where the name after the last separator starts
+    za::SizeT name = length; // where the name after the last separator starts
     while(name > 0 && path[name - 1] != '/' && path[name - 1] != '\\')
     {
         name--;
     }
-    size_t end = name > 0 ? name - 1 : 0; // the separator dropped...
+    za::SizeT end = name > 0 ? name - 1 : 0; // the separator dropped...
     if(name > 0 && (end == 0 || path[end - 1] == ':'))
     {
         end = name; // ... but a root's kept
@@ -730,7 +731,7 @@ namespace
     }
     // (folded in a buffer on the stack: a lookup makes no string; a longer path is the file system's to answer)
     char full[MAX_OSPATH];
-    const size_t length = ZA_STRLEN(path);
+    const za::SizeT length = ZA_STRLEN(path);
     if(length >= sizeof(full))
     {
         return -1;
@@ -738,7 +739,7 @@ namespace
     ZA_MEMCPY(full, path, length + 1);
     fold(full, length);
     const za::StringView view{full, length};
-    const size_t slash = view.findLastOf("/\\");
+    const za::SizeT slash = view.findLastOf("/\\");
     if(slash == za::StringView::nPos || slash + 1 == length)
     {
         return -1;

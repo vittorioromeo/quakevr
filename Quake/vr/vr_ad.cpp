@@ -25,6 +25,7 @@
 
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -36,7 +37,7 @@
 
 extern "C" {
 int VR_ActiveCampaign(void);
-void VR_GameFolderName(const char* path, char* out, size_t size);
+void VR_GameFolderName(const char* path, char* out, za::SizeT size);
 }
 
 bool qvr::ad::precisePellet(const edict_s* ent)
@@ -87,7 +88,7 @@ struct MapState
 
 int versionWarned = 0; // (said once per start)
 
-template <size_t N>
+template <za::SizeT N>
 [[nodiscard]] bool listed(const char* const (&list)[N], const char* s)
 {
     for(const char* e : list)
@@ -139,7 +140,7 @@ int versionStatus(const char* folder)
                 za::Vector<unsigned char> bytes;
                 bytes.resize(static_cast<za::SizeT>(length) + sizeof(header));
                 ZA_MEMCPY(bytes.data(), &header, sizeof(header));
-                if(!fseek(f, offset, SEEK_SET) && fread(bytes.data() + sizeof(header), 1, length, f) == size_t(length) &&
+                if(!fseek(f, offset, SEEK_SET) && fread(bytes.data() + sizeof(header), 1, length, f) == za::SizeT(length) &&
                     qvr::sha256::matches(qvr::sha256::of(bytes.data(), bytes.size()), VR_AD_PAK2_DIRSHA))
                 {
                     status = 1;

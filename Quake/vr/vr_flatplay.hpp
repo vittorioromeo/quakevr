@@ -90,6 +90,10 @@ struct FireRoute
 [[nodiscard]] float fistShare(int h);
 // Hand angles `k` of the way from `a` to `b` (degrees; 0 `a`, 1 `b`): the shortest turn between them.
 [[nodiscard]] glm::vec3 blendHandAngles(const glm::vec3& a, const glm::vec3& b, float k);
+// Hand `h`'s angles with its fingers along `fingers` and its palm facing `palm` (world; flatplay's convention: at roll 0
+// the palm faces in), and the palm's way for hand angles `angles`. Shared by the swimming strokes and the blade grip.
+[[nodiscard]] glm::vec3 handFacing(int h, const glm::vec3& fingers, const glm::vec3& palm);
+[[nodiscard]] glm::vec3 palmOf(int h, const glm::vec3& angles);
 
 // Whether this hand holds a melee weapon (the axe, mjolnir, a sword, the chainsaw, the crowbar, the super axe; AD's melee
 // weapons are these ids too): at a wall it only goes back, never turns muzzle up (vr_flatsight.cpp).
@@ -102,6 +106,21 @@ struct FireRoute
 // The parry's guard (vr_flat_parry_*: the right mouse button held with one melee weapon, meleeIn): its share for hand
 // `h` (0 at rest .. 1 in the guard), eased in and out over vr_flat_parry_in_time / _out_time.
 [[nodiscard]] float parryShare(int h);
+
+// The guard's blade grip (vr_flat_parry_blade; his notes 2026-11-23): whether the free hand is asked onto the blade of the
+// weapon hand `holding` holds as a sword (twohand::swordBlade), in the guard. vr_twohand.cpp takes the half-sword grip
+// only while it is, and lets go as it ends. False outside flatscreen play.
+[[nodiscard]] bool bladeAsked(int holding);
+// Its share (0 .. 1, eased over vr_flat_parry_blade_in_time / _out_time): how far the free hand has gone to the blade.
+[[nodiscard]] float bladeShare(int holding);
+// The most the free hand on the blade is ever from the holding hand (units, vr_flat_parry_blade_reach: about shoulder
+// width, the crowbar's hotspot; a long sword's hotspot is brought in to it); 0 no limit.
+[[nodiscard]] float bladeReach();
+// How far hand `h`'s spear thrust (vr_flat_thrust) has moved it along its pole now (units; negative drawn back), 0 outside
+// one. The other hand on the pole stays where it was, the pole sliding through it (vr_view_weapon.cpp chooseGrip).
+[[nodiscard]] float thrustAlong(int h);// The free hand carried that share of the way to the blade's hotspot of the weapon in the guard (vr_flatsight.cpp apply,
+// over its grip's pin and before vr_twohand takes the hold).
+void bladePin(hands::State& s);
 
 // The two-handed melee stance (vr_flat_melee_2h_*: a melee weapon swung by a handle, the other hand empty): its share for
 // hand `h`, the one holding the weapon (0 the one-handed hold .. 1 the stance), eased in and out over

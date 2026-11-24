@@ -9,6 +9,7 @@
 #include "vr_handpose.hpp"
 #include "vr_hands.hpp"
 #include "vr_cvars.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -75,7 +76,7 @@ void strikeTest_f()
     float bestDist = 1e30f;
     for(int num = svs.maxclients + 1; num < qcvm->num_edicts && num < static_cast<int>(world->slots.size()); num++)
     {
-        const Slot& s = world->slots[static_cast<size_t>(num)];
+        const Slot& s = world->slots[static_cast<za::SizeT>(num)];
         edict_t* e = EDICT_NUM(num);
         if(e->free || s.kind != Kind::Prop || !isSolidProp(e) || B3_IS_NULL(s.body) || !b3Body_IsValid(s.body))
         {
@@ -113,7 +114,7 @@ void strikeTestFrame()
         return;
     }
     const edict_t* e = EDICT_NUM(strike.prop);
-    const Slot* s = strike.prop < static_cast<int>(world->slots.size()) ? &world->slots[static_cast<size_t>(strike.prop)] : nullptr;
+    const Slot* s = strike.prop < static_cast<int>(world->slots.size()) ? &world->slots[static_cast<za::SizeT>(strike.prop)] : nullptr;
     if(e->free || e->v.health <= 0.f || !s || s->kind != Kind::Prop || B3_IS_NULL(s->body) || !b3Body_IsValid(s->body))
     {
         if(strike.phase >= 2)

@@ -36,6 +36,7 @@
 #include "vr_update.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Cbrt.hpp"
@@ -381,7 +382,7 @@ struct UpdateNotice
 UpdateNotice updateNotice;
 
 // "v" and the version: MAJOR.MINOR while PATCH is 0 ("v0.9"), else the whole ("v0.9.1", "v1.0.0-beta.1").
-void versionShown(char* out, size_t size)
+void versionShown(char* out, za::SizeT size)
 {
     const char* v = VR_Version();
     int major = 0, minor = 0, patch = 0, end = 0;
@@ -440,7 +441,7 @@ struct VersionBox
     float titleWidth, authorWidth;
     bool dev;
 };
-[[nodiscard]] VersionBox versionBox(char* title, size_t titleSize)
+[[nodiscard]] VersionBox versionBox(char* title, za::SizeT titleSize)
 {
     drawtransform_t t;
     Draw_GetCanvasTransform(CANVAS_MENU, &t);
@@ -492,9 +493,9 @@ struct NoticeBox
 };
 [[nodiscard]] NoticeBox noticeBox(const VersionBox& b, const char* version, int lines)
 {
-    const size_t name = ZA_STRLEN(noticeName) + ZA_STRLEN(version);
-    const size_t prefix = ZA_STRLEN(noticePrefix);
-    const size_t chars = lines == 1 ? prefix + name : (prefix - 1 > name ? prefix - 1 : name);
+    const za::SizeT name = ZA_STRLEN(noticeName) + ZA_STRLEN(version);
+    const za::SizeT prefix = ZA_STRLEN(noticePrefix);
+    const za::SizeT chars = lines == 1 ? prefix + name : (prefix - 1 > name ? prefix - 1 : name);
     const float width = b.size * za::fmax(static_cast<float>(chars), static_cast<float>(ZA_STRLEN("Opened on your desktop")));
     NoticeBox n;
     n.lines = lines;
@@ -512,7 +513,7 @@ struct NoticeBox
 }
 
 // The notice's version, cut to fit its buffer (false: no notice).
-[[nodiscard]] bool noticeVersion(char* out, size_t size)
+[[nodiscard]] bool noticeVersion(char* out, za::SizeT size)
 {
     const qvr::update::Notice* n = qvr::update::notice();
     if(!n)

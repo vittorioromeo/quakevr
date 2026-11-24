@@ -50,6 +50,7 @@
 
 #include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -216,7 +217,7 @@ constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spaw
     const char* tag = strchr(model, '#');
     if(!tag) { return COM_FileExists(model, nullptr); }
     char file[MAX_QPATH];
-    const size_t n = static_cast<size_t>(tag - model);
+    const za::SizeT n = static_cast<za::SizeT>(tag - model);
     if(n >= sizeof(file)) { return false; }
     ZA_MEMCPY(file, model, n);
     file[n] = '\0';
@@ -461,7 +462,7 @@ Readouts readouts;
     return sv.active && svs.maxclients == 1 && cls.state == ca_connected;
 }
 
-void copyText(char* dst, size_t size, const char* src)
+void copyText(char* dst, za::SizeT size, const char* src)
 {
     q_strlcpy(dst, src ? src : "", size);
 }
@@ -1430,7 +1431,7 @@ void tempEntities()
                 break;
             }
         }
-        const size_t n = ZA_STRLEN(name);
+        const za::SizeT n = ZA_STRLEN(name);
         const bool derivedGun = ZA_STRSTR(name, ".mdl#") != nullptr; // AD support: an AD soldier's gun (vr_adguns.cpp)
         if(!model && ((n > 4 && !q_strcasecmp(name + n - 4, ".mdl")) || derivedGun))
         {
@@ -2277,7 +2278,7 @@ void armedPairTest_f()
         const int wid = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ag_wid)) : -9;
         const int wid2 = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ag_wid2)) : -9;
         const bool gunAxe = e && progs::fieldFloat(e, f.vr_ag_gunaxe) != 0.f;
-        const size_t n = ZA_STRLEN(what);
+        const za::SizeT n = ZA_STRLEN(what);
         q_snprintf(what + n, sizeof(what) - n, ", spawned %s holding %d and %d, gun and axe %d", e ? "one" : "none", wid, wid2,
             gunAxe);
         verdict(e && wid > 0 && wid2 > 0 && wid != wid2 && gunAxe == c.gunAxe && tg().sel.value2 == static_cast<float>(c.code2), what);

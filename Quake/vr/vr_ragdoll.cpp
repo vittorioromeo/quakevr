@@ -29,6 +29,7 @@
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -1606,10 +1607,10 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
                 table.seeds[b].name, t.members[static_cast<za::SizeT>(b)]);
             for(int c = 0; c < table.count; c++)
             {
-                const size_t len = ZA_STRLEN(log.text);
+                const za::SizeT len = ZA_STRLEN(log.text);
                 q_snprintf(log.text + len, sizeof(log.text) - len, " %d", t.members[static_cast<za::SizeT>(c)]);
             }
-            const size_t len = ZA_STRLEN(log.text);
+            const za::SizeT len = ZA_STRLEN(log.text);
             q_snprintf(log.text + len, sizeof(log.text) - len, ")\n");
             return false;
         }
@@ -1944,7 +1945,7 @@ struct RigFile
     h = fnv(h, hdr->scale, sizeof(hdr->scale));
     h = fnv(h, hdr->scale_origin, sizeof(hdr->scale_origin));
     h = fnv(h, reinterpret_cast<const byte*>(hdr) + hdr->vertexes,
-        static_cast<size_t>(hdr->numposes) * hdr->numverts * sizeof(trivertx_t));
+        static_cast<za::SizeT>(hdr->numposes) * hdr->numverts * sizeof(trivertx_t));
     const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
     const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
     for(int i = 0; i < hdr->numindexes; i++)
@@ -1988,7 +1989,7 @@ struct RigIn
     template <typename T>
     void pod(T& v)
     {
-        if(!ok || static_cast<size_t>(end - p) < sizeof(T))
+        if(!ok || static_cast<za::SizeT>(end - p) < sizeof(T))
         {
             ok = false;
             return;
@@ -2001,7 +2002,7 @@ struct RigIn
     {
         za::U32 n = 0;
         pod(n);
-        if(!ok || n > static_cast<size_t>(end - p) / sizeof(T))
+        if(!ok || n > static_cast<za::SizeT>(end - p) / sizeof(T))
         {
             ok = false;
             return;
@@ -2717,7 +2718,7 @@ void rigSpans_f()
             for(int k = 0; k < 3; k++)
             {
                 const trivertx_t& t = rest[v[k]];
-                const size_t n = ZA_STRLEN(line);
+                const za::SizeT n = ZA_STRLEN(line);
                 q_snprintf(line + n, sizeof(line) - n, " %d %s (%.1f %.1f %.1f)", v[k], rig->bones[b[k]].name,
                     hdr->scale_origin[0] + hdr->scale[0] * t.v[0], hdr->scale_origin[1] + hdr->scale[1] * t.v[1],
                     hdr->scale_origin[2] + hdr->scale[2] * t.v[2]);
@@ -3559,7 +3560,7 @@ namespace
         return rig2::skinnedFor(p.rig->model); // "<model>#rig2": its blended skin (made again after a rig file's edit)
     }
     const char* base = p.rig->model->name;
-    const size_t len = ZA_STRLEN(base);
+    const za::SizeT len = ZA_STRLEN(base);
     qmodel_t* m = p.skinned;
     if(m && !m->needload && m->type == mod_alias && Cache_Check(&m->cache) && !ZA_STRNCMP(m->name, base, len) &&
        !ZA_STRCMP(m->name + len, skinnedSuffix))
@@ -4367,7 +4368,7 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
     {
         return true; // "<model>#armor": its armour shells (vr_agarmor.cpp)
     }
-    const size_t len = ZA_STRLEN(mod->name), suffix = ZA_STRLEN(skinnedSuffix);
+    const za::SizeT len = ZA_STRLEN(mod->name), suffix = ZA_STRLEN(skinnedSuffix);
     if(len <= suffix || !modelmeta::has(mod, modelmeta::Trait::Ragdoll))
     {
         return false;
@@ -4384,7 +4385,7 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
     const int numVerts = sh->numverts_vbo, numIndexes = sh->numindexes, numBones = rig->numBones, numFrames = za::max(sh->numframes, 1);
 
     const int start = Hunk_LowMark();
-    const size_t hdrSize = sizeof(aliashdr_t) + sizeof(maliasframedesc_t) * static_cast<size_t>(numFrames - 1);
+    const za::SizeT hdrSize = sizeof(aliashdr_t) + sizeof(maliasframedesc_t) * static_cast<za::SizeT>(numFrames - 1);
     auto* hdr = static_cast<aliashdr_t*>(Hunk_Alloc(static_cast<int>(hdrSize)));
     auto* bones = static_cast<boneinfo_t*>(Hunk_Alloc(static_cast<int>(sizeof(boneinfo_t)) * numBones));
     auto* bind = static_cast<bonepose_t*>(Hunk_Alloc(static_cast<int>(sizeof(bonepose_t)) * numBones));
@@ -4454,7 +4455,7 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
         o.idx[1] = o.idx[2] = o.idx[3] = 0;
     }
     (void)fillAO(*rig, verts, numVerts); // (else later: catchUpAO)
-    ZA_MEMCPY(indexes, reinterpret_cast<const byte*>(sh) + sh->indexes, sizeof(unsigned short) * static_cast<size_t>(numIndexes));
+    ZA_MEMCPY(indexes, reinterpret_cast<const byte*>(sh) + sh->indexes, sizeof(unsigned short) * static_cast<za::SizeT>(numIndexes));
     hdr->boneinfo = reinterpret_cast<byte*>(bones) - reinterpret_cast<byte*>(hdr);
     hdr->bindpose = reinterpret_cast<byte*>(bind) - reinterpret_cast<byte*>(hdr);
     hdr->boneposedata = reinterpret_cast<byte*>(poses) - reinterpret_cast<byte*>(hdr);

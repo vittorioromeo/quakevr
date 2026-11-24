@@ -1118,6 +1118,7 @@ void(entity xPickup, entity p, float xHand) AD_UpgradeGiven =
     }
     inst.wi_adup = inst.wi_adup | xPickup.vr_ad_upgrade;
     inst.wi_dwvar = 0; // (an AD upgrade, no longer Dwell's weapon: one or the other)
+    WeaponInst_Disown(p, VRGetEntWeapon(p, xHand)); // (nor the variant he owned of its kind: the newest wins)
     // The Widowmaker comes with its tube full (his notes 2026-10-19: 16 of 16, not the super shotgun's 2): what the pickup
     // moved from the reserve into it stays, the rest comes with it. (Reloading off, or its mode none: from the reserve.)
     if(VRGetEntWeapon(p, xHand) == WID_SUPER_SHOTGUN && AD_Widowmaker(inst) && p.ishuman &&

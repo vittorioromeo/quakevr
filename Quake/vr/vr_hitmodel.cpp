@@ -16,6 +16,8 @@
 #include "vr_lines.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_mpavatar.hpp"
+#include "vr_playerhit.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_props.hpp"
@@ -1964,12 +1966,12 @@ za::Array<PlayerZonesShown, MAX_SCOREBOARD + 1> playerZonesShown{};
 
 // (bots4) A client's rebuild: each other player drawn here, his zones on his entity as drawn (the box path below turns
 // them with its yaw), as the QC lays them out from his box.
-void playerZones(za::Vector<Zone>& out)
+void playerZones(za::Vector<Zone>& out, const za::Array<bool, MAX_SCOREBOARD + 1>& shaped)
 {
     const float w = playerMaxs.x - playerMins.x, side = w * 0.35f, outer = w * 0.75f;
     for(int e = 1; isPlayerNum(e); e++)
     {
-        if(e == cl.viewentity || !mpavatar::drawnNow(e))
+        if(e == cl.viewentity || !mpavatar::drawnNow(e) || shaped[static_cast<za::SizeT>(e)])
         {
             continue;
         }
@@ -1978,6 +1980,53 @@ void playerZones(za::Vector<Zone>& out)
         out.pushBack(Zone{e, 2, {playerMins.x, side, playerMins.z}, {playerMaxs.x, outer, playerMaxs.z}, 0.f});
         out.pushBack(Zone{e, 2, {playerMins.x, -outer, playerMins.z}, {playerMaxs.x, -side, playerMaxs.z}, 0.f});
         out.pushBack(Zone{e, 1, playerHead, playerHead, playerHeadRadius});
+    }
+}
+
+// (hitzones) Each other player's shape (vr_playerhit.cpp) as zones on his entity as drawn: a host the server's shape (at
+// the server's origin), a client its rebuild; the zones in his entity's frame (the drawing below turns them back with his
+// drawn yaw and place). `shaped`: who has one.
+void playerShapeZones(bool client, za::Vector<Zone>& out, za::Array<bool, MAX_SCOREBOARD + 1>& shaped)
+{
+    for(int e = 1; isPlayerNum(e) && e < cl.num_entities; e++)
+    {
+        if(e == cl.viewentity)
+        {
+            continue;
+        }
+        playerhit::Shape s;
+        glm::vec3 origin{0.f};
+        if(client)
+        {
+            if(!playerhit::clientShape(e, s))
+            {
+                continue;
+            }
+            origin = glm::vec3{cl_entities[e].origin[0], cl_entities[e].origin[1], cl_entities[e].origin[2]};
+        }
+        else
+        {
+            const progs::ServerVm vm; // (the view draws in no VM of its own: the server's edicts)
+            edict_t* ent = sv.active && e <= svs.maxclients ? EDICT_NUM(e) : nullptr;
+            if(!ent || !playerhit::serverShape(ent, s))
+            {
+                continue;
+            }
+            origin = glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+        }
+        shaped[static_cast<za::SizeT>(e)] = true;
+        const float yaw = cl_entities[e].angles[1] * (3.14159265f / 180.f);
+        const glm::vec3 f{za::cos(yaw), za::sin(yaw), 0.f}, l{-f.y, f.x, 0.f};
+        const auto local = [&](const glm::vec3& p)
+        {
+            const glm::vec3 d = p - origin;
+            return glm::vec3{glm::dot(d, f), glm::dot(d, l), d.z};
+        };
+        for(int i = 0; i < s.n; i++)
+        {
+            const playerhit::Capsule& c = s.c[i];
+            out.pushBack(Zone{e, c.zone, local(c.a), local(c.b), c.r});
+        }
     }
 }
 } // namespace
@@ -2004,16 +2053,33 @@ void zonesDraw()
     // need the server's QC: the host's alone).
     const bool client = !sv.active && cls.state == ca_connected && !cls.demoplayback;
     za::Vector<Zone> rebuilt;
+    // (hitzones) The players' shapes (vr_playerhit.cpp: what shots meet of them), the host's the server's, a client's its
+    // rebuild from the same avatars; a player with none keeps his box's zones (the QC's, a client's playerZones).
+    za::Array<bool, MAX_SCOREBOARD + 1> shaped{};
+    if(static_cast<int>(vr_debug_hitzones.value) != 2 && cls.state == ca_connected && !cls.demoplayback)
+    {
+        playerShapeZones(client, rebuilt, shaped);
+    }
     if(client && static_cast<int>(vr_debug_hitzones.value) != 2)
     {
-        playerZones(rebuilt);
+        playerZones(rebuilt, shaped);
     }
     // (Stale: the option just turned off, a map change, the QC sending none; a frame's zones last a 0.25 s at most.)
-    else if(!sv.active || zones.empty() || sv.qcvm.time < zonesTime || sv.qcvm.time - zonesTime > 0.25)
+    else if(sv.active && !(zones.empty() || sv.qcvm.time < zonesTime || sv.qcvm.time - zonesTime > 0.25))
+    {
+        for(const Zone& z : zones)
+        {
+            if(!isPlayerNum(z.num) || !shaped[static_cast<za::SizeT>(z.num)])
+            {
+                rebuilt.pushBack(z);
+            }
+        }
+    }
+    if(rebuilt.empty())
     {
         return;
     }
-    const za::Vector<Zone>& list = client ? rebuilt : zones;
+    const za::Vector<Zone>& list = rebuilt;
     static constexpr int ringSteps = 24;
     constexpr float width = 0.2f;
     // One colored animated surface per entity. The QC supplies its actual head centre/radius and body side threshold.
@@ -2115,16 +2181,25 @@ void zonesDraw()
             }
         };
         using geom::pi;
-        ring(top, f, l, 0.f, 2.f * pi);
-        ring(top, f, u, 0.f, pi);
-        ring(top, l, u, 0.f, pi);
-        ring(bottom, f, l, 0.f, 2.f * pi);
-        ring(bottom, f, u, pi, 2.f * pi);
-        ring(bottom, l, u, pi, 2.f * pi);
+        // (hitzones: along its own axis, a limb's slanted; upright: the entity's frame as before)
+        glm::vec3 ax = u, s1 = f, s2 = l;
         if(glm::distance(top, bottom) > 0.01f)
         {
-            ring((top + bottom) * 0.5f, f, l, 0.f, 2.f * pi);
-            for(const glm::vec3& side : {f, -f, l, -l})
+            ax = glm::normalize(top - bottom);
+            s1 = glm::cross(ax, za::abs(ax.z) < 0.9f ? u : f);
+            s1 = glm::normalize(s1);
+            s2 = glm::cross(ax, s1);
+        }
+        ring(top, s1, s2, 0.f, 2.f * pi);
+        ring(top, s1, ax, 0.f, pi);
+        ring(top, s2, ax, 0.f, pi);
+        ring(bottom, s1, s2, 0.f, 2.f * pi);
+        ring(bottom, s1, ax, pi, 2.f * pi);
+        ring(bottom, s2, ax, pi, 2.f * pi);
+        if(glm::distance(top, bottom) > 0.01f)
+        {
+            ring((top + bottom) * 0.5f, s1, s2, 0.f, 2.f * pi);
+            for(const glm::vec3& side : {s1, -s1, s2, -s2})
             {
                 lines::line(top + side * r, bottom + side * r, width, c, c);
             }

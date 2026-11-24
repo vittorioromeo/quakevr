@@ -16,6 +16,7 @@
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
@@ -1400,7 +1401,7 @@ bool retiredTwoHandLine(const char* name, const char* value)
     }
     // vr_wofs_fx_recoil_2h_NN: the slot's own.
     constexpr const char* prefix = "vr_wofs_fx_recoil_2h_";
-    const size_t len = ZA_STRLEN(name), prefixLen = ZA_STRLEN(prefix);
+    const za::SizeT len = ZA_STRLEN(name), prefixLen = ZA_STRLEN(prefix);
     if(len != prefixLen + 2 || q_strncasecmp(name, prefix, prefixLen) != 0)
     {
         return false;
@@ -1428,8 +1429,8 @@ bool retiredRecoilLine(const char* name, const char* value)
         return true;
     }
     // vr_wofs_<name>_NN
-    constexpr size_t prefix = 8; // "vr_wofs_"
-    const size_t len = ZA_STRLEN(name);
+    constexpr za::SizeT prefix = 8; // "vr_wofs_"
+    const za::SizeT len = ZA_STRLEN(name);
     if(len < prefix + 4 || q_strncasecmp(name, "vr_wofs_fx_recoil", 17) != 0 || name[len - 3] != '_')
     {
         return false;
@@ -1661,14 +1662,14 @@ bool removedKeyLine(const char* name)
         "fgr_z", "length", "2h_dispmd", "2h_fxd_ox", "2h_fxd_oy", "2h_fxd_oz", "gunoff_x", "gunoff_y", "gunoff_z",
         // 2026-11-05: the flatscreen ironsight is solved from the sight line (vr_flatsight.cpp).
         "flat_ads_fwd", "flat_ads_up", "flat_ads_out"};
-    constexpr size_t prefix = 8; // "vr_wofs_"
-    const size_t len = ZA_STRLEN(name);
+    constexpr za::SizeT prefix = 8; // "vr_wofs_"
+    const za::SizeT len = ZA_STRLEN(name);
     if(len < prefix + 4 || q_strncasecmp(name, "vr_wofs_", prefix) != 0 || name[len - 3] != '_' ||
        name[len - 2] < '0' || name[len - 2] > '9' || name[len - 1] < '0' || name[len - 1] > '9')
     {
         return false;
     }
-    const size_t keyLen = len - prefix - 3;
+    const za::SizeT keyLen = len - prefix - 3;
     for(const char* key : removed)
     {
         if(ZA_STRLEN(key) == keyLen && !q_strncasecmp(name + prefix, key, keyLen))
@@ -1755,7 +1756,7 @@ int slotForPart(const qmodel_t* model)
     for(const char* prefix : {"progs/vr_mag_on_", "progs/vr_magwell_on_", "progs/vr_pump_on_", "progs/vr_pumpbody_on_",
              "progs/vr_ssg_frame_on_", "progs/vr_ssg_barrels_on_"})
     {
-        const size_t length = ZA_STRLEN(prefix);
+        const za::SizeT length = ZA_STRLEN(prefix);
         if(!ZA_STRNCMP(model->name, prefix, length))
         {
             char gun[MAX_QPATH];

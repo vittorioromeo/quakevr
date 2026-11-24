@@ -2,6 +2,7 @@
 
 #include "vr_drips.hpp"
 #include "vr_playergore.hpp"
+#include "vr_playerhit.hpp"
 #include "vr_animrec.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_dynres.hpp"
@@ -22,6 +23,8 @@
 #include "vr_adguns.hpp"
 #include "vr_adweapons.hpp"
 #include "vr_slidesound.hpp"
+#include "vr_flatswim.hpp"
+#include "vr_lancecharge.hpp"
 #include "vr_render.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_bench.hpp"
@@ -101,6 +104,7 @@
 #include "vr_stealth.hpp"
 #include "vr_stereo.hpp"
 #include "vr_stereo_single.hpp"
+#include "vr_msgtokens.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tips.hpp"
 #include "vr_timescale.hpp"
@@ -199,12 +203,14 @@
 #include "vr_dents.hpp"
 #include "vr_wounds.hpp"
 #include "vr_cleanskins.hpp"
+#include "vr_sights.hpp"
 #include "vr_skinedge.hpp"
 #include "vr_rangerhead.hpp"
 #include "vr_voice.hpp"
 #include "vr_closequarters.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_arenacards.hpp"
+#include "vr_weaponwheel.hpp"
 #include "vr_brushes.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
@@ -302,14 +308,56 @@ void stopBackend()
     stereo::releaseTargets(); // the eye-sized GL objects (made again when the eyes are next drawn)
 }
 
+// The renamed launch flags' old names, kept as deprecated aliases until 1.3 (docs/vr-port/LAUNCH_FLAGS.md): each said
+// once at start-up (VR_Init, noteDeprecatedFlags).
+struct DeprecatedFlag
+{
+    const char* old;
+    const char* now;
+};
+constexpr DeprecatedFlag deprecatedFlags[] = {
+    {"-vrmock", "+vr_backend mock"},
+    {"-vr-hide-mirror", "-hidemirror"},
+    {"-vr-unattended", "-unattended"},
+};
+
+void noteDeprecatedFlags()
+{
+    for(const DeprecatedFlag& f : deprecatedFlags)
+    {
+        if(COM_CheckParm(f.old))
+        {
+            Con_Printf("note: %s is deprecated (removed in 1.3): use %s\n", f.old, f.now);
+        }
+    }
+}
+
+// A launch flag given by its name or by its deprecated old one (deprecatedFlags).
+[[nodiscard]] bool flagOrOldName(const char* flag, const char* old)
+{
+    return COM_CheckParm(flag) != 0 || COM_CheckParm(old) != 0;
+}
+
+// The backend the command line names, read before the `+` commands apply (VR_BeforeVideoInit, earlyBackend):
+// `+vr_backend <name>`; -vrmock, its deprecated alias (until 1.3: "mock", whatever vr_backend says). Null: none named.
+[[nodiscard]] const char* commandLineBackend()
+{
+    if(COM_CheckParm("-vrmock"))
+    {
+        return "mock";
+    }
+    const int named = COM_CheckParm("+vr_backend");
+    return named && named + 1 < com_argc ? com_argv[named + 1] : nullptr;
+}
+
 // The backend startBackend makes.
 [[nodiscard]] const char* requestedBackend()
 {
     return COM_CheckParm("-vrmock") ? "mock" : vr_backend.string;
 }
 
-// The backend the configs will ask for, guessed before they run (startForLoading): -vrmock, the command line's
-// `+vr_backend <name>`, else vr_backend's own (not saved: its default, openxr) on Android only. Null: none expected
+// The backend the configs will ask for, guessed before they run (startForLoading): the command line's (`+vr_backend
+// <name>`, commandLineBackend), else vr_backend's own (not saved: its default, openxr) on Android only. Null: none expected
 // (`+vr_enabled 0` on the command line), or a PC run that names none (its configs or a test's may name the mock: the
 // real runtime is never started early there).
 [[nodiscard]] const char* earlyBackend()
@@ -319,14 +367,9 @@ void stopBackend()
     {
         return nullptr;
     }
-    if(COM_CheckParm("-vrmock"))
+    if(const char* named = commandLineBackend())
     {
-        return "mock";
-    }
-    const int named = COM_CheckParm("+vr_backend");
-    if(named && named + 1 < com_argc)
-    {
-        return com_argv[named + 1];
+        return named;
     }
 #ifdef __ANDROID__
     return vr_backend.string;
@@ -347,8 +390,8 @@ void startBackend(const char* name)
         return;
     }
 
-    // -vrmock: the mock headset whatever vr_backend says (the review's re-evaluation runs a second copy of the game
-    // beside the one in the headset: it must never open the runtime's session).
+    // (`+vr_backend mock`: the mock headset; the review's re-evaluation runs a second copy of the game beside the one in
+    // the headset with it: it must never open the runtime's session.)
     za::UniquePtr<qvr::Backend> backend = createBackend(name);
     if(!backend)
     {
@@ -603,7 +646,7 @@ void VR_Status_f()
             const int slot = weapons::heldSlot(h);
             if(slot >= 0 && hs.muzzleValid[h] && glm::distance(hs.muzzle[h], hs.pos[h]) > 1.f)
             {
-                const glm::vec3 shot = hands::forward(weapons::shotAngles(hs.rot[h], slot, h == qvr::HAND_OFF));
+                const glm::vec3 shot = hands::forward(view::heldShotAngles(hs.rot[h], h)); // (flipped: as drawn, lance3)
                 const glm::vec3 line = glm::normalize(hs.muzzle[h] - hs.pos[h]);
                 Con_Printf("  %-5s the shot %.1f deg off the line from the hand to the muzzle (%.1f deg above it)\n",
                     h == qvr::HAND_MAIN ? "main" : "off", glm::degrees(za::acos(za::clamp(glm::dot(shot, line), -1.f, 1.f))),
@@ -1568,7 +1611,8 @@ void haptics::meet()
 // Multiplayer runs on (the server isn't one player's to pause): only the frame held (vr_xr_unfocused).
 struct RuntimeMenuState
 {
-    bool open{false};      // the runtime's menu has the focus (or vr_debug_runtime_menu)
+    bool open{false};      // the runtime's menu has the focus (or vr_debug_runtime_menu), or the headset is off
+    bool absent{false};    // that by the headset off (vr_xr_user_presence), not the menu
     bool paused{false};    // the game paused for it
     bool music{false};     // the music paused by it, resumed with the game
     double since{0.0};     // realtime it paused
@@ -1593,14 +1637,21 @@ void runtimeMenuFrame()
 {
     RuntimeMenuState& m = runtimeMenu;
     const Backend* b = backend();
-    const bool open = (b && b->runtimeMenuOpen()) || vr_debug_runtime_menu.value != 0.f;
+    const bool menu = (b && b->runtimeMenuOpen()) || vr_debug_runtime_menu.value != 0.f;
+    // The headset taken off (XR_EXT_user_presence, vr_xr_user_presence; from PR #75, by Kasper Olesen): as the menu.
+    const bool absent = !menu && b && !b->userPresent();
+    const bool open = menu || absent;
     const bool single = sv.active && svs.maxclients == 1 && !cls.demoplayback;
     const bool pause = open && single && vr_xr_unfocused_pause.value != 0.f;
-    if(open != m.open)
+    if(open != m.open || (open && absent != m.absent))
     {
-        Con_Printf("VR: the runtime's menu %s%s\n", open ? "has the focus" : "gave the focus back",
+        const bool byHeadset = open ? absent : m.absent;
+        Con_Printf("VR: %s%s\n",
+            byHeadset ? (open ? "the headset was taken off" : "the headset is back on")
+                      : (open ? "the runtime's menu has the focus" : "the runtime's menu gave the focus back"),
             !open || pause ? "" : !single ? " (not a single player game: it runs on)" : " (vr_xr_unfocused_pause 0: the game runs on)");
     }
+    m.absent = open && absent;
     if(pause && !m.paused)
     {
         m.since = realtime;
@@ -2071,6 +2122,8 @@ constexpr PrewarmStep prewarmSteps[] = {
     {"AD crossbow", adcrossbow::prepare}, // AD support: its next bolt's sound
     {"Widowmaker", adweapons::prepare},   // AD support: its barrels' motor
     {"slide sound", slidesound::prepare}, // flat-screen play's slide scrape (vr_slidesound.cpp)
+    {"swim sounds", flatswim::prepare},   // flat-screen swimming's stroke sounds (vr_flatswim.cpp)
+    {"Crystal Lance hum", lancecharge::prepare}, // Dwell support: its charge's hum (vr_lancecharge.cpp)
     {"model light grid", ambient::prepareGrid},
     {"explosion debris", explosiondebris::prepare},
     {"muzzle flash", weaponfx::prepare},
@@ -2305,7 +2358,9 @@ extern "C" void VR_Init()
     Cmd_AddCommand("menu_vr", menu::command_f);
     toolgun::registerCommands();
     arenacards::registerCommands(); // (the Survival Arena's perk cards)
+    weaponwheel::registerCommands(); // (the weapon wheel: vr_wheel_pick, vr_weaponwheel_dump, vr_weaponwheel_test)
     brushes::registerCommands();
+    box3d::init(); // (the physics' commands: vr_physics_spawn ... known before any map, for vr_scenario validate)
     Cmd_AddCommand("vr_menu_search", menu::search_f);
     Cmd_AddCommand("vr_menu_slider_step", menu::sliderStep_f);
     Cmd_AddCommand("vr_appearance_random", menu::randomAppearance_f);
@@ -2321,6 +2376,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_menu_stop_test", menu::stopTest_f);
     Cmd_AddCommand("vr_tips_reset", tips::reset_f);
     Cmd_AddCommand("vr_tips_test", tips::test_f);
+    Cmd_AddCommand("vr_msgtokens_test", msgtokens::test_f);
     Cmd_AddCommand("vr_mock_laser", menuui::mockLaser_f);
     Cmd_AddCommand("vr_menu_panel", menuui::panelPlace_f);
     Cmd_AddCommand("vr_menu_zoom", menuui::zoom_f);
@@ -2348,6 +2404,7 @@ extern "C" void VR_Init()
     proposedefaults::init();
     cleanskins::init();
     skinedge::init();
+    sights::init();
     voice::init();
     closequarters::init();
     rangerhead::init();
@@ -2399,14 +2456,15 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_prop_query_test", progs::propQueriesTest_f);
     Cmd_AddCommand("vr_gamecode", progs::gameCode_f);
     Cmd_AddCommand("vr_forcegrab_grid_stats", progs::forcegrabGridStats_f);
+    Cmd_AddCommand("vr_agpose_compare", progs::agposeCompare_f);
     Cmd_AddCommand("vr_modelmetadata_test", modelmeta::test_f);
     Cmd_AddCommand("vr_prop_touch_stats", physics::propTouchStats_f);
     Cmd_AddCommand("vr_test_handcontact", physics::testHandContact_f);
     Cmd_AddCommand("vr_agrunt_grab_bench", physics::grabBench_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
     Cmd_AddCommand("vr_gun_wall_depth", handpose::gunWallDepth_f);
+    playerhit::init(); // vr_hitzones_aim (vr_playerhit.cpp)
     hitmodel::registerDiagCommands(); // vr_hitmodel_bench, _stats, _check, vr_hitzones_check (vr_hitmodel_diag.cpp)
-    qza::registerDiagCommands(); // vr_zancle_math_test (vr_zancle_diag.cpp)
     mem::registerDiagCommands(); // vr_resets: the registered resets listed, traced, checked (vr_mem_diag.cpp)
     Cmd_AddCommand("vr_body_collide_bench", selfcollide::bench_f);
     wounds::registerDiagCommands(); // vr_wounds_test, _info, _dump, vr_gore_hands_*, vr_gore_wash_test... (vr_wounds_diag.cpp)
@@ -2500,14 +2558,17 @@ extern "C" void VR_Init()
     relight::registerCommands(); // vr_relight, vr_relight_cancel, vr_relight_revert... (vr_relight.cpp)
     loading::registerCommands(); // vr_loading_wait (vr_loading.cpp)
     cheats::registerCommands(); // vr_scene_clean, vr_scene_count (vr_cheats.cpp)
+    noteDeprecatedFlags(); // -vrmock, -vr-hide-mirror, -vr-unattended: their new names said
 
     state->restartRequested = true;
 }
 
 extern "C" void VR_BeforeVideoInit()
 {
-    // Only when the OpenXR backend will start (not -flatscreenmode, -vrmock or another vr_backend).
-    if(!flatplay::flagGiven() && !COM_CheckParm("-vrmock") && !q_strcasecmp(vr_backend.string, "openxr"))
+    // Only when the OpenXR backend will start (not -flatscreenmode, `+vr_backend mock` or another vr_backend; the `+`
+    // commands apply after this: the command line's read here).
+    const char* named = commandLineBackend();
+    if(!flatplay::flagGiven() && !q_strcasecmp(named ? named : vr_backend.string, "openxr"))
     {
         xrruntime::beforeVideoInit();
     }
@@ -2657,6 +2718,7 @@ extern "C" void VR_BeginFrame()
             QVR_TRACY_SCOPE(zoneNotesTips, "texts: notes, tips, highlights");
             voicenotes::frame(); // after the clear: its indicator is queued anew each frame
             voicechat::frame();  // (multiplayer: capture, play-out, the talking indicators, B10v)
+            msgtokens::frame();  // vr_msgtokens_test's run (before the tips queue their texts)
             tips::frame();       // a tip due, the one showing (vr_tips)
             highlights::frame(); // the game's clock against realtime, a multi-kill's end
         }
@@ -2727,6 +2789,7 @@ extern "C" void VR_BeginFrame()
         input::roomscaleJump(hands::current());
         toolgun::frame(hands::current()); // the toolgun's tools, with the hands of this frame
         arenacards::frame(hands::current()); // the Survival Arena's perk cards: the offer, the panel, the lasers
+        weaponwheel::frame(hands::current()); // the weapon wheel: its cursor, the lit slot (vr_weaponwheel.cpp)
         waveeditor::frame(hands::current()); // the Arena Wave Editor's panel and lasers, in a headset
         brushes::frame(); // the boxes made in the game: their slots written (vr_brushes.cpp)
     }
@@ -2762,14 +2825,25 @@ extern "C" int VR_SkipScreen()
 
 namespace
 {
-// QVR_TEST_BACKGROUND and QVR_TEST_HIDDEN, read once (windowUnfocused, windowNotVisible: every frame).
+// QVR_TEST_BACKGROUND, QVR_TEST_HIDDEN and -hidemirror, read once (windowUnfocused, windowNotVisible: every frame).
 struct WindowFocusCache
 {
     bool testBackground = getenv("QVR_TEST_BACKGROUND") != nullptr;
     bool testHidden = getenv("QVR_TEST_HIDDEN") != nullptr;
+    int hiddenMirror = -1; // VR_HideMirror (1 given, 0 not, -1 not read yet: the command line comes after this)
 };
 WindowFocusCache windowFocusCache;
 } // namespace
+
+extern "C" int VR_HideMirror()
+{
+    return flagOrOldName("-hidemirror", "-vr-hide-mirror") ? 1 : 0;
+}
+
+extern "C" int VR_Unattended()
+{
+    return flagOrOldName("-unattended", "-vr-unattended") ? 1 : 0;
+}
 
 extern "C" void VR_FrameDrawn()
 {
@@ -2789,8 +2863,13 @@ bool qvr::windowUnfocused()
     {
         return true;
     }
-    // (A test run's window is hidden, never focused: as if it were, unless the debug cvar says otherwise.)
-    return !windowFocusCache.testBackground && !VID_HasInputFocus();
+    // (A test run's window is hidden, never focused: as if it were, unless the debug cvar says otherwise. So is a
+    // standalone headset's, -hidemirror: no desktop to focus, every present made, no menu warning.)
+    if(windowFocusCache.hiddenMirror < 0)
+    {
+        windowFocusCache.hiddenMirror = VR_HideMirror();
+    }
+    return !windowFocusCache.testBackground && windowFocusCache.hiddenMirror == 0 && !VID_HasInputFocus();
 }
 
 bool qvr::windowNotVisible()
@@ -2805,7 +2884,8 @@ bool qvr::windowNotVisible()
         return false;
     }
     const Uint32 flags = SDL_GetWindowFlags(w);
-    // (SDL keeps SHOWN on a minimized window.)
+    // (SDL keeps SHOWN on a minimized window. -hidemirror's window, never shown, counts as not visible: nobody sees
+    // the mirror, so its spectator camera is skipped, vr_spectator_skip_hidden.)
     return (flags & SDL_WINDOW_MINIMIZED) != 0 || ((flags & SDL_WINDOW_SHOWN) == 0 && !windowFocusCache.testHidden);
 }
 

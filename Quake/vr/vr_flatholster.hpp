@@ -13,8 +13,39 @@
 
 #pragma once
 
+#include <glm/glm.hpp>
+
 namespace qvr::flatholster
 {
+
+// What the holsters hold this frame (the server's stats: STAT_QVR_HOLSTERWEAPON0 + i, QC holsterweapon i), one model
+// for every picker of them: this menu's slots and the headset's weapon wheel (vr_weaponwheel.cpp's holster provider).
+// Holster i (0 .. holsterSlots - 1) by its title ("L SHOULDER"), its weapon's name ("" none: AD's and Dwell's variants by
+// their model, a sword's dagger by its kind: notectx::weaponName) and its model's file (its thumbnail; "" none).
+constexpr int holsterSlots = 6;
+struct HolsterSlot
+{
+    const char* title{""};
+    const char* name{""};
+    const char* model{""};
+};
+[[nodiscard]] HolsterSlot holsterSlot(int i);
+// The weapon (and model's file) in hand `hand` (0 the left, the off hand; 1 the right), "" none.
+[[nodiscard]] HolsterSlot handSlot(int hand);
+// Hand `hand`'s DROP would drop something (a weapon, a carried prop), its UNLOAD would move rounds back into the reserve
+// (the server's test: STAT_QVR_FLATUNLOADFULL bits 4, 5): this menu's buttons lit, and the weapon wheel's DROP / UNLOAD.
+[[nodiscard]] bool canDrop(int hand);
+[[nodiscard]] bool canUnload(int hand);
+
+// The menu's image (gadget::renderHolsterMenu's texture, `size` its virtual pixels) on its face, as the visor's screens
+// (Shade::Screen: phosphor, scanlines, flicker at vr_flat_holster_menu_crt): the quad `corner` (low left, low right, up
+// right, up left) through `mvp`, faded by `alpha`. This menu's on the window, the weapon wheel's in the world.
+void drawImage(unsigned texture, const glm::vec2& size, const glm::vec3 (&corner)[4], const glm::mat4& mvp, float alpha);
+// That image on the window in `rect` (x, y, w, h: window pixels, y down) with this menu's mount: its glow, the face and
+// screen (drawImage), its frame; and this menu's mouse arrow, its tip at `at`. This menu's, and flatscreen play's weapon
+// wheel (vr_weaponwheel.cpp drawFlat).
+void drawOnWindow(unsigned texture, const glm::vec2& size, const glm::vec4& rect, float alpha);
+void drawCursorOnWindow(const glm::vec2& at, float alpha);
 
 // flatplay's frame (pollKeysFlat): the key, the open state and its fade, a click; `on`: flatscreen play runs.
 void frame(bool on);

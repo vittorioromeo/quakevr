@@ -170,6 +170,23 @@ is off. (Without it the twins were compiled at every start: the arrays' at each 
 Quest.)
 =============
 */
+/*
+=============
+GL_VertexOnlyEmptyFrag -- QVR
+
+A vertex-only program (the depth passes: the world's pre-pass, the models' and shadow casters' depth, the sky
+stencil) is linked with an empty fragment shader instead: on OpenGL ES (which links no graphics program without one:
+the Quest's Adreno refuses it) and where VR_GLSAFE_VERTEX_ONLY is off (-glsafe; Intel's, vr_gl_workarounds 1: its
+Windows driver, an HD Graphics 630's, failed "world depth" with "Out of resource error" while every program with a
+fragment shader linked; without a consumer the world vertex shader's ~21 outputs, to location 29, stay live, with
+one none of them are). The same depths (the vertex shader's gl_Position is invariant); the colour is masked there.
+=============
+*/
+static qboolean GL_VertexOnlyEmptyFrag (void)
+{
+	return VR_GLESForm (VR_GLES_FORM_GLSL) || VR_GLSafeOff (VR_GLSAFE_VERTEX_ONLY);
+}
+
 static unsigned long long GL_TwinProgramKey (const GLchar *const *sources, const char *macros, qboolean emptyfrag)
 {
 	unsigned long long key = 0;
@@ -186,20 +203,61 @@ static unsigned long long GL_TwinProgramKey (const GLchar *const *sources, const
 
 /*
 =============
+GL_DescribeLimits -- QVR
+
+The driver's limits a program can run out of (a link's "Out of resource error" names none): storage blocks per stage
+and in all, the interface between the stages, uniforms, attributes, clip distances, images, atomic counters and
+texture units. GL_Init's "GL limits:" line, the crash report's (VR_SetCrashGlLimits) and a failed link's message.
+=============
+*/
+#define GL_LIMIT_COUNT 18
+static const GLenum gl_limit_names[GL_LIMIT_COUNT] =
+{
+	GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS, GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS,
+	GL_MAX_COMBINED_SHADER_STORAGE_BLOCKS, GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS,
+	GL_MAX_VERTEX_OUTPUT_COMPONENTS, GL_MAX_FRAGMENT_INPUT_COMPONENTS, GL_MAX_VARYING_VECTORS,
+	GL_MAX_VERTEX_UNIFORM_COMPONENTS, GL_MAX_VERTEX_UNIFORM_BLOCKS, GL_MAX_FRAGMENT_UNIFORM_BLOCKS, GL_MAX_UNIFORM_BLOCK_SIZE,
+	GL_MAX_VERTEX_ATTRIBS, GL_MAX_VERTEX_IMAGE_UNIFORMS, GL_MAX_VERTEX_ATOMIC_COUNTERS,
+	GL_MAX_TEXTURE_IMAGE_UNITS, GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, GL_MAX_FRAGMENT_IMAGE_UNIFORMS,
+};
+
+void GL_DescribeLimits (char *buf, size_t size)
+{
+	GLint v[GL_LIMIT_COUNT + 1];
+	int i;
+	for (i = 0; i < GL_LIMIT_COUNT; i++)
+	{
+		v[i] = 0;
+		glGetIntegerv (gl_limit_names[i], &v[i]);
+	}
+	v[GL_LIMIT_COUNT] = 0;
+#ifndef __ANDROID__
+	glGetIntegerv (GL_MAX_CLIP_DISTANCES, &v[GL_LIMIT_COUNT]); // (ES: only with EXT_clip_cull_distance)
+#endif
+	q_snprintf (buf, size,
+		"storage blocks vertex %d, fragment %d, compute %d, combined %d, bindings %d; "
+		"vertex output components %d, fragment input components %d, varying vectors %d; "
+		"vertex uniform components %d, uniform blocks vertex %d, fragment %d, block size %d; "
+		"vertex attributes %d; vertex images %d, vertex atomic counters %d; "
+		"texture units fragment %d, combined %d; fragment images %d; clip distances %d",
+		v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15], v[16], v[17],
+		v[GL_LIMIT_COUNT]);
+}
+
+/*
+=============
 GL_StorageBlockLimits -- QVR
 
-The driver's storage-block limits per stage, for a failed link's message: a link that fails on them (OpenGL ES may
-offer few or none to the vertex and fragment stages; the scene's programs read several) says so, not only the
-driver's log.
+The driver's limits (GL_DescribeLimits), for a failed link's message: a link that fails on them (OpenGL ES may offer
+few or no storage blocks to the vertex and fragment stages; Intel's Windows driver says "Out of resource error") says
+which they are, not only the driver's log.
 =============
 */
 static const char *GL_StorageBlockLimits (void)
 {
-	GLint vs = 0, fs = 0, cs = 0;
-	glGetIntegerv (GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &vs);
-	glGetIntegerv (GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS, &fs);
-	glGetIntegerv (GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &cs);
-	return va ("the driver's storage blocks per stage: vertex %d, fragment %d, compute %d", vs, fs, cs);
+	char limits[640];
+	GL_DescribeLimits (limits, sizeof (limits));
+	return va ("the driver's limits: %s", limits);
 }
 
 /*
@@ -284,10 +342,12 @@ static int GL_ShaderStrings (GLenum type, const char *source, const char *extrad
 		"\n"
 		"#define BINDLESS %d\n"
 		"#define REVERSED_Z %d\n"
-		"#define QVR_SHADER_AB %d\n", // QVR: tests (vr_shader_reload)
+		"#define QVR_SHADER_AB %d\n" // QVR: tests (vr_shader_reload)
+		"#define QVR_MP %s\n", // QVR: qworld, the ES profile's medium precision for colours and light terms (vr_gl_mediump: lite bit 29); nothing elsewhere
 		gl_bindless_able,
 		gl_clipcontrol_able,
-		gl_shader_ab
+		gl_shader_ab,
+		(gl_world_lite & (1 << 29)) ? "mediump" : ""
 	);
 	strings[numstrings++] = header;
 	if (gl_multiview_compile) // QVR: a multiview twin (single-pass stereo): both eyes from each draw
@@ -643,7 +703,7 @@ static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, co
 	{ // QVR: a graphics program's sources kept for its multiview twin (GL_MultiviewProgram)
 		// QVR: OpenGL ES links no graphics program without a fragment shader (the depth-only ones: the sky stencil, the
 		// world's depth pre-pass): an empty one there (the Quest's Adreno refuses the link; QUEST_PLAN.md, C4b)
-		const qboolean emptyfrag = count == 2 && types[0] == GL_VERTEX_SHADER && sources[0] && !sources[1] && VR_GLESForm (VR_GLES_FORM_GLSL);
+		const qboolean emptyfrag = count == 2 && types[0] == GL_VERTEX_SHADER && sources[0] && !sources[1] && GL_VertexOnlyEmptyFrag ();
 		const char *emptysource = "void main() {}\n";
 		unsigned long long key = 0;
 		GLuint program = 0;
@@ -731,7 +791,7 @@ GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly)
 	q_snprintf (macros, sizeof (macros), "%s#define QVR_WORLD_ARRAYS 1\n", src->macros);
 	gl_arrays_compile = 1;
 	{
-		const qboolean emptyfrag = !src->sources[1] && VR_GLESForm (VR_GLES_FORM_GLSL);
+		const qboolean emptyfrag = !src->sources[1] && GL_VertexOnlyEmptyFrag ();
 		const unsigned long long key = GL_TwinProgramKey (src->sources, macros, emptyfrag);
 		if (key && (src->arraytwin = GL_ProgramFromCache (key, src->name)) != 0) // (the program cache)
 		{
@@ -743,7 +803,7 @@ GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly)
 	for (i = 0, realcount = 0; i < 2; i++)
 		if (src->sources[i])
 			shaders[realcount++] = GL_CreateShader (types[i], src->sources[i], macros, src->name);
-	if (realcount == 1 && VR_GLESForm (VR_GLES_FORM_GLSL)) // (the depth pre-pass's twin: an empty fragment shader, as above)
+	if (realcount == 1 && GL_VertexOnlyEmptyFrag ()) // (the depth pre-pass's twin: an empty fragment shader, as above)
 		shaders[realcount++] = GL_CreateShader (GL_FRAGMENT_SHADER, "void main() {}\n", macros, src->name);
 	if (gl_arrays_compile == 1)
 		src->arraytwin = GL_CreateProgramFromShaders (shaders, realcount, src->name);
@@ -798,7 +858,7 @@ static void GL_MultiviewMake (glprogsource_t *src, qboolean async)
 	GLenum types[2] = {GL_VERTEX_SHADER, GL_FRAGMENT_SHADER};
 	GLuint shaders[2];
 	int j, realcount;
-	const qboolean emptyfrag = !src->sources[1] && VR_GLESForm (VR_GLES_FORM_GLSL);
+	const qboolean emptyfrag = !src->sources[1] && GL_VertexOnlyEmptyFrag ();
 	unsigned long long key;
 	src->tried = true;
 	gl_multiview_compile = 1;
@@ -816,7 +876,7 @@ static void GL_MultiviewMake (glprogsource_t *src, qboolean async)
 	for (j = 0, realcount = 0; j < 2; j++)
 		if (src->sources[j])
 			shaders[realcount++] = GL_CreateShader (types[j], src->sources[j], src->macros, src->name);
-	if (realcount == 1 && VR_GLESForm (VR_GLES_FORM_GLSL)) // (a vertex-only program: an empty fragment shader, as above)
+	if (realcount == 1 && GL_VertexOnlyEmptyFrag ()) // (a vertex-only program: an empty fragment shader, as above)
 		shaders[realcount++] = GL_CreateShader (GL_FRAGMENT_SHADER, "void main() {}\n", src->macros, src->name);
 	if (gl_multiview_compile == 1)
 		src->twin = GL_CreateProgramFromShaders (shaders, realcount, src->name);
@@ -1422,7 +1482,7 @@ The models' plain form (glprogs.alias_plain, C4k; QUEST_PLAN.md 6r): the feature
 from 9 up: VR_GLESWorldLite, vr_gl_alias_plain_mask), but those of `keep` (the gore form's: VR_ALIAS_GORE_NEEDS).
 =============
 */
-static const char *GL_AliasPlainDefines (int keep)
+static const char *GL_AliasPlainDefinesV (int keep, int variant)
 {
 	int i, mask = (gl_world_lite >> 9) & ~keep;
 	gl_alias_plain_defines[0] = 0;
@@ -1431,7 +1491,29 @@ static const char *GL_AliasPlainDefines (int keep)
 			q_strlcat (gl_alias_plain_defines, gl_alias_plain_names[i], sizeof (gl_alias_plain_defines));
 	if (gl_world_lite & (1 << 28)) // C4y: lit at their vertices (vr_gl_alias_vlight; vr_glsl_alias.h QVR_ALIAS_VS_VLIGHT)
 		q_strlcat (gl_alias_plain_defines, "; QVR_APLAIN_VLIGHT 1", sizeof (gl_alias_plain_defines));
+	if (variant & ALIASVAR_NOFB) // qtune: no fullbright texture read (gl_shaders.h)
+		q_strlcat (gl_alias_plain_defines, "; QVR_APLAIN_NOFB 1", sizeof (gl_alias_plain_defines));
+	if ((variant & ALIASVAR_FLAT) && !(mask & 512)) // qtune: the dynamic lights' loop compiled out (vr_glsl_alias.h), not only skipped
+		q_strlcat (gl_alias_plain_defines, gl_alias_plain_names[9], sizeof (gl_alias_plain_defines));
 	return gl_alias_plain_defines;
+}
+
+static const char *GL_AliasPlainDefines (int keep)
+{
+	return GL_AliasPlainDefinesV (keep, 0);
+}
+
+/*
+=============
+GL_AliasFormVariants -- QVR (qtune)
+
+The plain, gore and skin forms' variants made (ALIASVAR_*): bit 29 of the lite bits no fullbright read
+(vr_gl_alias_nofb), bit 30 no dynamic lights' loop (vr_gl_alias_flat with the models' lights added flat: VR_GLESWorldLite).
+=============
+*/
+int GL_AliasFormVariants (void)
+{
+	return ((gl_world_lite >> 29) & 1 ? ALIASVAR_NOFB : 0) | ((gl_world_lite >> 30) & 1 ? ALIASVAR_FLAT : 0);
 }
 
 /*
@@ -1531,7 +1613,12 @@ static void GL_CreateShadersAll (void)
 		for (mode = 0; mode < 3; mode++)
 			for (poseverttype = 0; poseverttype < 3; poseverttype++)
 				if (GL_AliasFormAvailable (form) && GL_ShadersLazyStart (0, 0, mode) && (VR_GLESForm (VR_GLES_FORM_GLSL) || (form != ALIASFORM_OPAQUE && form != ALIASFORM_BODY))) // (the PC's: plain, gore, skin; the others when asked for)
-					GL_AliasFormProgram (form, mode, poseverttype);
+				{
+					int variant;
+					for (variant = 0; variant < 4; variant++) // qtune: the variants made here (GL_AliasFormVariants)
+						if ((variant & ~GL_AliasFormVariants ()) == 0 && (variant == 0 || (form >= ALIASFORM_PLAIN && form <= ALIASFORM_SKIN)))
+							GL_AliasFormProgramV (form, variant, mode, poseverttype);
+				}
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR; MODE 0 (standard) in these: an undefined name in #if is an error in GLSL (strict drivers)
 		glprogs.alias_depth[poseverttype] = GL_CreateProgram (alias_vertex_shader, NULL, "alias depth|MODE 0; POSEVERTTYPE %d", poseverttype);
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR: into all their faces at once (vr/vr_lighting.cpp)
@@ -1575,6 +1662,25 @@ GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo)
 		else
 			*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world decal retro|OIT %d; DITHER %d; MODE %d%s", oit, dither, WORLDSHADER_SOLID, GL_WorldLiteDefines ());
 	}
+	return *program;
+}
+
+/*
+=============
+GL_WorldUnlitDecalRetroProgram -- QVR
+
+qworld (the shader review's finding 1): the unlit world's solid program (glprogs.world_unlit: no lights' loop, the
+dynamic lights from vr_gl_world_dlmap's texture) with the decals' retro textures' code. Without it the first retro
+blood mark sent the whole solid world to GL_WorldDecalRetroProgram's lit program, the lights' loop compiled in and run
+per pixel (the form the unlit world exists to avoid: QUEST_PLAN.md 6z), in every fight. Made with the decals' others
+(R_PrewarmDecalPrograms); 0 where the unlit forms are not made (the PC).
+=============
+*/
+GLuint GL_WorldUnlitDecalRetroProgram (int dither)
+{
+	GLuint *program = &glprogs.world_unlit_decal_retro[dither];
+	if (!*program && GL_WorldUnlitForms ())
+		*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world unlit decal retro|OIT 0; DITHER %d; MODE %d; QVR_NOLIGHTS 1%s", dither, WORLDSHADER_SOLID, GL_WorldLiteDefines ());
 	return *program;
 }
 
@@ -1626,9 +1732,15 @@ qboolean GL_AliasFormAvailable (int form)
 
 GLuint GL_AliasFormProgram (int form, int mode, int poseverttype)
 {
+	return GL_AliasFormProgramV (form, 0, mode, poseverttype);
+}
+
+GLuint GL_AliasFormProgramV (int form, int variant, int mode, int poseverttype)
+{
 	GLuint *program;
 	if (!GL_AliasFormAvailable (form))
 		return 0;
+	variant = form == ALIASFORM_PLAIN || form == ALIASFORM_GORE || form == ALIASFORM_SKIN ? variant & GL_AliasFormVariants () : 0;
 	switch (form)
 	{
 	case ALIASFORM_OPAQUE:
@@ -1637,19 +1749,19 @@ GLuint GL_AliasFormProgram (int form, int mode, int poseverttype)
 			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias opaque|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s", mode, poseverttype, GL_AliasLiteDefines ());
 		return *program;
 	case ALIASFORM_PLAIN:
-		program = &glprogs.alias_plain[mode][poseverttype];
+		program = &glprogs.alias_plain[variant][mode][poseverttype];
 		if (!*program)
-			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias plain|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (0));
+			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias plain|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefinesV (0, variant));
 		return *program;
 	case ALIASFORM_GORE:
-		program = &glprogs.alias_gore[mode][poseverttype];
+		program = &glprogs.alias_gore[variant][mode][poseverttype];
 		if (!*program)
-			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias gore|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (VR_ALIAS_GORE_NEEDS));
+			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias gore|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefinesV (VR_ALIAS_GORE_NEEDS, variant));
 		return *program;
 	case ALIASFORM_SKIN:
-		program = &glprogs.alias_skin[mode][poseverttype];
+		program = &glprogs.alias_skin[variant][mode][poseverttype];
 		if (!*program)
-			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias skin|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefines (VR_ALIAS_SKIN_NEEDS));
+			*program = GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias skin|OIT 0; MODE %d; ALPHATEST 0; POSEVERTTYPE %d; QVR_ALIAS_OPAQUE 1%s%s", mode, poseverttype, GL_AliasLiteDefines (), GL_AliasPlainDefinesV (VR_ALIAS_SKIN_NEEDS, variant));
 		return *program;
 	case ALIASFORM_BODY: // (C5e: the skin form lit at its vertices, whatever vr_gl_alias_vlight says: VR_AliasBodyLight;
 		// vr_gl_alias_body 1 only since C5h: 2 draws your body by its usual form, the loop skipped: r_alias.c BatchDlightsFlat)
@@ -1738,4 +1850,31 @@ void GL_ReloadShadersQueued_f (void)
 	gl_shaders_why = "vr_shader_reload_queued";
 	GL_DeleteShaders ();
 	GL_CreateShadersAsync (false);
+}
+
+/*
+=============
+VR_InTileFragmentGLSL -- QVR
+
+The in-tile pass's fragment shader (vr/vr_tonemap.cpp drawInTile): over an eye drawn straight into its swapchain
+image, the post-process's steps after the tone curve (bullet time's look, the comfort vignette, the grade, the dither),
+each pixel read where the scene left it (GL_EXT_shader_framebuffer_fetch: in the tile, on a tiler). The post-process's
+own uniforms and snippets (vr/vr_glsl.h), so both look the same.
+=============
+*/
+const char *VR_InTileFragmentGLSL (void)
+{
+	return
+		"#version 430\n"
+		"#extension GL_EXT_shader_framebuffer_fetch : require\n"
+		NOISE_FUNCTIONS
+		QVR_POSTPROCESS_UNIFORMS
+		"layout(location=0) inout vec4 out_fragcolor; // (the pixel as the scene left it)\n"
+		"\n"
+		"void main()\n"
+		"{\n"
+		"	vec2 pp_size = PostView.xy;\n"
+		QVR_POSTPROCESS_GRADE_DITHER
+		"	out_fragcolor.a = 1.0;\n"
+		"}\n";
 }

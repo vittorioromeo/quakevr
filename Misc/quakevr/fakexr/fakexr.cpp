@@ -43,6 +43,9 @@
 //                         by an XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED
 //   FAKEXR_D3D11          copies that load d3d11.dll at xrCreateInstance and free it at xrDestroyInstance (as VDXR
 //                         does), logging whether it is still loaded after (the game keeps it: vr_backend_openxr.cpp)
+//   FAKEXR_UNWORN         a-b, with XR_EXT_user_presence in FAKEXR_EXTENSIONS (its system then has the sensor:
+//                         XrSystemUserPresencePropertiesEXT): the headset taken off at xrWaitFrame a, back on at b
+//                         (XrEventDataUserPresenceChangedEXT; the session stays FOCUSED, as SteamVR's on the Frame)
 //
 // Built by Misc/quakevr/fakexr/build.sh into <worktree>/scratch/fakexr (docs/vr-port/TESTING.md, "OpenXR runtime
 // choice"): a DLL on Windows, a shared object on Linux (fakexr_<copy>.so; its GL calls go to the game's current GLX or
@@ -345,6 +348,7 @@ struct Headset
     XrSession session{XR_NULL_HANDLE};
     int frame{0}; // xrWaitFrame calls
     int unfocusFrom{-1}, unfocusTo{-1};
+    int unwornFrom{-1}, unwornTo{-1}; // FAKEXR_UNWORN
     int endAt{-1};      // FAKEXR_END's frame
     char endKind[16]{}; // and kind
     bool exitAfterStop{false}, readyAfterStop{false};
@@ -426,6 +430,16 @@ XRAPI_ATTR XrResult XRAPI_CALL getSystemProperties(XrInstance, XrSystemId, XrSys
     properties->graphicsProperties.maxSwapchainImageHeight = 8192;
     properties->trackingProperties.orientationTracking = XR_TRUE;
     properties->trackingProperties.positionTracking = XR_TRUE;
+    // XR_EXT_user_presence offered (FAKEXR_EXTENSIONS): the system has the sensor.
+    char extra[1024];
+    const bool presence = envText("FAKEXR_EXTENSIONS", extra, sizeof(extra)) && strstr(extra, "XR_EXT_user_presence");
+    for(auto* p = static_cast<XrBaseOutStructure*>(properties->next); p; p = p->next)
+    {
+        if(p->type == XR_TYPE_SYSTEM_USER_PRESENCE_PROPERTIES_EXT)
+        {
+            reinterpret_cast<XrSystemUserPresencePropertiesEXT*>(p)->supportsUserPresence = presence ? XR_TRUE : XR_FALSE;
+        }
+    }
     return XR_SUCCESS;
 }
 
@@ -447,6 +461,10 @@ XRAPI_ATTR XrResult XRAPI_CALL createSession(XrInstance, const XrSessionCreateIn
     if(envText("FAKEXR_UNFOCUS", text, sizeof(text)))
     {
         sscanf(text, "%d-%d", &hs.unfocusFrom, &hs.unfocusTo);
+    }
+    if(envText("FAKEXR_UNWORN", text, sizeof(text)))
+    {
+        sscanf(text, "%d-%d", &hs.unwornFrom, &hs.unwornTo);
     }
     if(envText("FAKEXR_END", text, sizeof(text)))
     {
@@ -540,9 +558,12 @@ XRAPI_ATTR XrResult XRAPI_CALL endSession(XrSession)
 }
 
 // In the state queue: an XrEventDataInstanceLossPending rather than a state (FAKEXR_END instanceloss); an
-// XrEventDataInteractionProfileChanged (xrAttachSessionActionSets).
+// XrEventDataInteractionProfileChanged (xrAttachSessionActionSets); an XrEventDataUserPresenceChangedEXT, the user
+// gone or back (FAKEXR_UNWORN).
 constexpr XrSessionState instanceLossEvent = XR_SESSION_STATE_MAX_ENUM;
 constexpr XrSessionState profileChangedEvent = static_cast<XrSessionState>(XR_SESSION_STATE_MAX_ENUM - 1);
+constexpr XrSessionState userAbsentEvent = static_cast<XrSessionState>(XR_SESSION_STATE_MAX_ENUM - 2);
+constexpr XrSessionState userPresentEvent = static_cast<XrSessionState>(XR_SESSION_STATE_MAX_ENUM - 3);
 
 // FAKEXR_LOST: whether `call` answers lost now (counted).
 [[nodiscard]] bool lostNow(const char* call)
@@ -592,6 +613,16 @@ XRAPI_ATTR XrResult XRAPI_CALL pollEvent(XrInstance, XrEventDataBuffer* buffer)
         profile->type = XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED;
         profile->next = nullptr;
         profile->session = hs.session;
+        return XR_SUCCESS;
+    }
+    if(hs.queue[hs.queueHead] == userAbsentEvent || hs.queue[hs.queueHead] == userPresentEvent)
+    {
+        auto* presence = reinterpret_cast<XrEventDataUserPresenceChangedEXT*>(buffer);
+        presence->type = XR_TYPE_EVENT_DATA_USER_PRESENCE_CHANGED_EXT;
+        presence->next = nullptr;
+        presence->session = hs.session;
+        presence->isUserPresent = hs.queue[hs.queueHead] == userPresentEvent ? XR_TRUE : XR_FALSE;
+        hs.queueHead = (hs.queueHead + 1) % 32;
         return XR_SUCCESS;
     }
     auto* changed = reinterpret_cast<XrEventDataSessionStateChanged*>(buffer);
@@ -789,6 +820,16 @@ XRAPI_ATTR XrResult XRAPI_CALL waitFrame(XrSession, const XrFrameWaitInfo*, XrFr
     {
         pushState(XR_SESSION_STATE_FOCUSED);
         log("the focus back");
+    }
+    if(hs.frame == hs.unwornFrom)
+    {
+        pushState(userAbsentEvent);
+        log("the headset taken off (FAKEXR_UNWORN)");
+    }
+    if(hs.frame == hs.unwornTo)
+    {
+        pushState(userPresentEvent);
+        log("the headset back on");
     }
     if(hs.frame == hs.endAt)
     {

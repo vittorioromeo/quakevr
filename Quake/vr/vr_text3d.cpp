@@ -498,9 +498,9 @@ void layoutLog(const gadget::Log& log, const glm::vec3& eye, const glm::vec3& ri
         return;
     }
 
-    size_t longest = 0;
+    za::SizeT longest = 0;
     float alpha = 0.f;
-    for(size_t i = 0; i < log.lines.size(); i++)
+    for(za::SizeT i = 0; i < log.lines.size(); i++)
     {
         longest = za::max(longest, log.lines[i].size());
         alpha = za::max(alpha, log.alpha[i] * shown);
@@ -524,7 +524,7 @@ void layoutLog(const gadget::Log& log, const glm::vec3& eye, const glm::vec3& ri
 
     const glm::vec3 hInc = right * charSize;
     const glm::vec3 vInc = -up * charSize;
-    for(size_t i = 0; i < log.lines.size(); i++)
+    for(za::SizeT i = 0; i < log.lines.size(); i++)
     {
         const glm::vec4 color{log.color, log.alpha[i] * shown};
         glm::vec3 p = topLeft - up * (lineStep * static_cast<float>(i) + (lineStep - charSize) * 0.5f);
@@ -593,23 +593,23 @@ void box(const glm::vec3& c, const glm::vec3& right, const glm::vec3& up, const 
 }
 
 // Characters a line of `length` is moved in by, of the longest `longest`.
-[[nodiscard]] float indent(Align align, size_t longest, size_t length)
+[[nodiscard]] float indent(Align align, za::SizeT longest, za::SizeT length)
 {
     const float slack = static_cast<float>(longest - length);
     return align == Align::Left ? 0.f : align == Align::Centre ? slack * 0.5f : slack;
 }
 
 // `text`'s lines into textLines; the longest's length.
-size_t splitLines(za::StringView text)
+za::SizeT splitLines(za::StringView text)
 {
     textLines.clear();
-    for(size_t start = 0; start <= text.size();)
+    for(za::SizeT start = 0; start <= text.size();)
     {
-        const size_t end = za::min(text.find('\n', start), text.size());
+        const za::SizeT end = za::min(text.find('\n', start), text.size());
         textLines.pushBack(text.substrByPosLen(start, end - start));
         start = end + 1;
     }
-    size_t longest = 0;
+    za::SizeT longest = 0;
     for(za::StringView l : textLines)
     {
         longest = za::max(longest, l.size());
@@ -618,7 +618,7 @@ size_t splitLines(za::StringView text)
 }
 
 // textLines' line `i` size, times the first's (queue's `glyphs`: the lines after the first restSize).
-[[nodiscard]] float lineSize(const Glyphs& g, size_t i)
+[[nodiscard]] float lineSize(const Glyphs& g, za::SizeT i)
 {
     return i == 0 ? 1.f : g.restSize;
 }
@@ -628,7 +628,7 @@ size_t splitLines(za::StringView text)
 [[nodiscard]] glm::vec2 textBlock(const Glyphs& g)
 {
     glm::vec2 block{0.f};
-    for(size_t i = 0; i < textLines.size(); i++)
+    for(za::SizeT i = 0; i < textLines.size(); i++)
     {
         const float s = lineSize(g, i);
         block.x = za::max(block.x, 8.f * s * static_cast<float>(textLines[i].size()));
@@ -638,7 +638,7 @@ size_t splitLines(za::StringView text)
 }
 
 // Line `i`'s left edge in the block, in font pixels at the font's size (as indent: aligned in the block's width).
-[[nodiscard]] float lineLeft(Align align, const glm::vec2& block, const Glyphs& g, size_t i)
+[[nodiscard]] float lineLeft(Align align, const glm::vec2& block, const Glyphs& g, za::SizeT i)
 {
     const float slack = block.x - 8.f * lineSize(g, i) * static_cast<float>(textLines[i].size());
     return align == Align::Left ? 0.f : align == Align::Centre ? slack * 0.5f : slack;
@@ -666,7 +666,7 @@ struct ScreenFit
 void layoutOverlay(const Queued& q)
 {
     const fontstyle::Use font{fontstyle::Surface::World}; // (Screens > World Text Font)
-    const size_t longest = splitLines(q.text);
+    const za::SizeT longest = splitLines(q.text);
     if(longest == 0)
     {
         return;
@@ -696,7 +696,7 @@ void layoutOverlay(const Queued& q)
             backings);
         quad(top + down, top + fill + down, top + fill, top, bar.color, backings);
     }
-    for(size_t i = 0; i < textLines.size(); i++)
+    for(za::SizeT i = 0; i < textLines.size(); i++)
     {
         const za::StringView line = textLines[i];
         glm::vec3 p = topLeft + vInc * static_cast<float>(i) + hInc * (static_cast<float>(longest - line.size()) * 0.5f);
@@ -749,7 +749,7 @@ struct ScreenLook
     const glm::vec3 rest{glyphs.restSize, glyphs.restBright, fill};
     for(int i = 0; i < maxScreenImages; i++)
     {
-        const ScreenImage& image = screenImages[static_cast<size_t>(i)];
+        const ScreenImage& image = screenImages[static_cast<za::SizeT>(i)];
         if(image.width == fit.width && image.height == fit.height && image.target.tex && image.drawnAlign == align &&
             image.drawnFace == look.face && image.drawnText == look.text && image.drawnFont == look.font &&
             image.drawnGlyphs == key && image.drawnRest == rest && image.drawn == text)
@@ -773,7 +773,7 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
         scale *= style.size;
     }
     const fontstyle::Use font{screen ? fontstyle::Surface::Ammo : fontstyle::Surface::World}; // (Screens' font pages)
-    const size_t longest = splitLines(text);
+    const za::SizeT longest = splitLines(text);
     if(longest == 0)
     {
         return;
@@ -862,13 +862,13 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
         int slot = findScreenImage(text, static_cast<int>(align), screenLook(tint), fit, glyphSize, fill);
         if(slot < 0 && index < maxScreenImages)
         {
-            slot = screenSlots.byOrder[static_cast<size_t>(index)]; // (its text changed: last frame's, stretched)
-            if(slot >= 0 && screenImages[static_cast<size_t>(slot)].frame < host_framecount - 2)
+            slot = screenSlots.byOrder[static_cast<za::SizeT>(index)]; // (its text changed: last frame's, stretched)
+            if(slot >= 0 && screenImages[static_cast<za::SizeT>(slot)].frame < host_framecount - 2)
             {
                 slot = -1; // not left over from before a pause of the 2D pass
             }
         }
-        const ScreenImage* image = slot >= 0 ? &screenImages[static_cast<size_t>(slot)] : nullptr;
+        const ScreenImage* image = slot >= 0 ? &screenImages[static_cast<za::SizeT>(slot)] : nullptr;
         imaged = crt > 0.f && image && image->width > 0 && image->target.tex;
         if(imaged)
         {
@@ -906,7 +906,7 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
 
     const glm::vec3 topLeft = textCentre - (hInc * (block.x / 8.f) + vInc * (block.y / 8.f)) * 0.5f;
     float rowsAbove = 0.f; // (in lines of the font's size)
-    for(size_t i = 0; i < textLines.size() && !imaged; i++)
+    for(za::SizeT i = 0; i < textLines.size() && !imaged; i++)
     {
         const float s = lineSize(lines, i);
         const glm::vec3 h = hInc * s, v = vInc * s;
@@ -932,7 +932,7 @@ void layout(za::StringView text, const glm::vec3& posIn, const glm::vec3& angles
 // largest page's), the face its image through the CRT shader (the plain face until the image is
 // drawn: a frame), a soft glow round it (vr_screen_glow). Read from behind, it turns round, as the
 // plain text does.
-void layoutBoard(size_t index, const worldtext::WorldText& wt)
+void layoutBoard(za::SizeT index, const worldtext::WorldText& wt)
 {
     if(index >= boards.size())
     {
@@ -947,7 +947,7 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
         b.generation = worldtext::clientGeneration();
     }
 
-    const size_t longest = splitLines(wt.text);
+    const za::SizeT longest = splitLines(wt.text);
     b.panel = worldtext::isPanel(wt.text.cStr());
     if(wt.text != b.text)
     {
@@ -1060,11 +1060,11 @@ void drawBoardImage(gfx::RenderTarget& target, za::StringView boardText, int col
     gfx::draw2D::color(glm::vec4{text, 1.f});
     splitLines(boardText);
     const int top = boardPad + (rows - static_cast<int>(textLines.size())) * 4; // the page centred
-    for(size_t i = 0; i < textLines.size(); i++)
+    for(za::SizeT i = 0; i < textLines.size(); i++)
     {
         za::String& line = lineText;
         line = textLines[i];
-        const float x = static_cast<float>(boardPad) + 8.f * indent(align, static_cast<size_t>(columns), line.size());
+        const float x = static_cast<float>(boardPad) + 8.f * indent(align, static_cast<za::SizeT>(columns), line.size());
         gfx::draw2D::text(x, static_cast<float>(top + 8 * static_cast<int>(i)), 8.f, line.cStr());
     }
     gfx::draw2D::color(glm::vec4{1.f});
@@ -1103,7 +1103,7 @@ void renderTipImages()
         {
             continue;
         }
-        const size_t columns = splitLines(t.text);
+        const za::SizeT columns = splitLines(t.text);
         const int rows = static_cast<int>(textLines.size());
         drawBoardImage(image->target, t.text, static_cast<int>(columns), rows, Align::Centre, text, face, "tip screen");
         image->text = t.text;
@@ -1120,7 +1120,7 @@ void renderTipImages()
 void layoutTipScreen(const TipScreen& t)
 {
     const glm::vec3& eye = t.eye;
-    const size_t columns = splitLines(t.text);
+    const za::SizeT columns = splitLines(t.text);
     if(columns == 0 || t.alpha <= 0.f)
     {
         return;
@@ -1501,8 +1501,8 @@ void renderScreens()
             break;
         }
         const int at = count++;
-        byOrder[static_cast<size_t>(at)] = -1;
-        const size_t columns = splitLines(q.text);
+        byOrder[static_cast<za::SizeT>(at)] = -1;
+        const za::SizeT columns = splitLines(q.text);
         if(columns == 0)
         {
             continue;
@@ -1512,17 +1512,17 @@ void renderScreens()
         const int slot = findScreenImage(q.text, static_cast<int>(q.align), look, sf.fit, q.glyphs, sf.fill);
         if(slot >= 0)
         {
-            if(screenImages[static_cast<size_t>(slot)].frame == host_framecount)
+            if(screenImages[static_cast<za::SizeT>(slot)].frame == host_framecount)
             {
                 screenSlots.shared++;
             }
-            screenImages[static_cast<size_t>(slot)].frame = host_framecount;
-            byOrder[static_cast<size_t>(at)] = slot;
+            screenImages[static_cast<za::SizeT>(slot)].frame = host_framecount;
+            byOrder[static_cast<za::SizeT>(at)] = slot;
         }
     }
     for(int i = count; i < maxScreenImages; i++)
     {
-        byOrder[static_cast<size_t>(i)] = -1;
+        byOrder[static_cast<za::SizeT>(i)] = -1;
     }
 
     int index = 0;
@@ -1537,11 +1537,11 @@ void renderScreens()
             break;
         }
         const int at = index++;
-        if(byOrder[static_cast<size_t>(at)] >= 0)
+        if(byOrder[static_cast<za::SizeT>(at)] >= 0)
         {
             continue; // (shown already)
         }
-        const size_t longest = splitLines(q.text);
+        const za::SizeT longest = splitLines(q.text);
         if(longest == 0)
         {
             continue;
@@ -1561,24 +1561,24 @@ void renderScreens()
         if(slot >= 0)
         {
             screenSlots.shared++;
-            byOrder[static_cast<size_t>(at)] = slot;
+            byOrder[static_cast<za::SizeT>(at)] = slot;
             continue;
         }
         // The image unused the longest: one of this size first (drawn again, not made again), else any.
         int sameSize = -1, oldest = -1;
         for(int i = 0; i < maxScreenImages; i++)
         {
-            const ScreenImage& image = screenImages[static_cast<size_t>(i)];
+            const ScreenImage& image = screenImages[static_cast<za::SizeT>(i)];
             if(image.frame == host_framecount)
             {
                 continue;
             }
             if(image.target.tex && image.target.width == width * screenScale && image.target.height == height * screenScale &&
-                (sameSize < 0 || image.frame < screenImages[static_cast<size_t>(sameSize)].frame))
+                (sameSize < 0 || image.frame < screenImages[static_cast<za::SizeT>(sameSize)].frame))
             {
                 sameSize = i;
             }
-            if(oldest < 0 || image.frame < screenImages[static_cast<size_t>(oldest)].frame)
+            if(oldest < 0 || image.frame < screenImages[static_cast<za::SizeT>(oldest)].frame)
             {
                 oldest = i;
             }
@@ -1588,8 +1588,8 @@ void renderScreens()
         {
             continue;
         }
-        byOrder[static_cast<size_t>(at)] = slot;
-        ScreenImage& image = screenImages[static_cast<size_t>(slot)];
+        byOrder[static_cast<za::SizeT>(at)] = slot;
+        ScreenImage& image = screenImages[static_cast<za::SizeT>(slot)];
         image.width = width;
         image.height = height;
         image.frame = host_framecount;
@@ -1639,7 +1639,7 @@ void renderScreens()
         const float top = static_cast<float>(textTop) + 0.5f * (ceilf(sf.block.y) - block.y * g) -
                           q.glyphs.shift.y * static_cast<float>(height);
         float y = top;
-        for(size_t i = 0; i < textLines.size(); i++)
+        for(za::SizeT i = 0; i < textLines.size(); i++)
         {
             za::String& line = lineText;
             line = textLines[i];
@@ -1876,7 +1876,7 @@ extern "C" void VR_DrawSceneOpaque()
             b.wanted = false;
         }
         const za::Vector<worldtext::WorldText>& worldTexts = worldtext::clientTexts();
-        for(size_t i = 0; i < worldTexts.size(); i++)
+        for(za::SizeT i = 0; i < worldTexts.size(); i++)
         {
             const worldtext::WorldText& wt = worldTexts[i];
             if(boardCrt() > 0.f || worldtext::isPanel(wt.text.cStr()))

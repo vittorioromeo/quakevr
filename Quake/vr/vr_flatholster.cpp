@@ -17,6 +17,7 @@
 #include "vr_toolgun.hpp"
 #include "vr_view.hpp"
 #include "vr_weapon_ids.h"
+#include "vr_weaponwheel.hpp"
 
 #include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
@@ -144,7 +145,8 @@ struct Contents
     int flags[2]{};         // each hand's weapon's flags (a sword's kind: the dagger)
     int holsterFlags[holsterCount]{};
     bool flippable[2]{};    // that hand holds a weapon whose grip can be flipped (view::heldGripFlippable: the eject flip's)
-    bool unloadFull[2]{}; // that gun's ammo full up in the reserve: no round would go back (UNLOAD greyed)
+    bool unloadFull[2]{}; // that gun's ammo full up in the reserve: no round would go back
+    bool unloadable[2]{}; // UNLOAD would move rounds now (some fit, not reloading): lit (the weapon wheel's UNLOAD too)
     bool tooBig[2]{};     // that hand's weapon too big for a holster (QC WeaponIdToHolsterable: a drag greys the holsters)
 };
 
@@ -190,6 +192,8 @@ struct Contents
     c.unloadFull[1] = (full & 2) != 0;
     c.tooBig[0] = (full & 4) != 0; // (the same stat's bits 2 and 3)
     c.tooBig[1] = (full & 8) != 0;
+    c.unloadable[0] = (full & 16) != 0; // (bits 4 and 5: the server's own test, either mode)
+    c.unloadable[1] = (full & 32) != 0;
     return c;
 }
 
@@ -258,7 +262,7 @@ void layOut()
     case Act::HandDrop: return handHas(b.index);
     case Act::DropBoth: return handHas(0) || handHas(1);
     case Act::Swap: return (c.hand[0] != WID_FIST || c.hand[1] != WID_FIST) && !c.carry[0] && !c.carry[1];
-    case Act::Unload: return c.clip[b.index] > 0 && !c.unloadFull[b.index];
+    case Act::Unload: return c.unloadable[b.index];
     case Act::FlipGrip: return c.flippable[b.index];
     }
     return false;
@@ -492,7 +496,8 @@ void frame(bool on)
         st().escLatch = false;
     }
     const bool can = on && vr_flat_holsters.value != 0.f && key_dest == key_game && cls.signon == SIGNONS &&
-                     cl.stats[STAT_HEALTH] > 0 && !cl.intermission && toolgun::heldHand() != HAND_MAIN;
+                     cl.stats[STAT_HEALTH] > 0 && !cl.intermission && toolgun::heldHand() != HAND_MAIN &&
+                     !weaponwheel::isOpen(); // (the weapon wheel on 1 / 2 held: one at a time, they share the image)
     // vr_flat_holster_menu_mode (his words 2026-11-10): 0 open while held, and letting go clicks the button under the
     // cursor ("so that I can quickly hover what I want and release the mouse wheel"; over nothing, or after a left click
     // in this hold, it only closes); 1 a press opens it, the left button clicks as often as wanted, the next press closes.
@@ -627,6 +632,65 @@ bool countsTo(const char* name, int& dx, int& dy)
     return false;
 }
 
+HolsterSlot holsterSlot(int i)
+{
+    HolsterSlot out;
+    if(i < 0 || i >= holsterCount)
+    {
+        return out;
+    }
+    const Contents c = contents();
+    out.title = places[i].title;
+    out.name = holsterSlotName(c, i);
+    out.model = c.holster[i] != WID_FIST ? modelName(c.holsterModel[i]) : "";
+    return out;
+}
+
+bool canDrop(int hand)
+{
+    const Button b{Act::HandDrop, hand == 0 ? 0 : 1, {}, {}};
+    return enabled(b, contents());
+}
+
+bool canUnload(int hand)
+{
+    const Button b{Act::Unload, hand == 0 ? 0 : 1, {}, {}};
+    return enabled(b, contents());
+}
+
+HolsterSlot handSlot(int hand)
+{
+    HolsterSlot out;
+    const int h = hand == 0 ? 0 : 1;
+    out.title = h == 0 ? "LEFT HAND" : "RIGHT HAND";
+    const Contents c = contents();
+    if(c.hand[h] != WID_FIST)
+    {
+        out.model = modelName(c.handModel[h]);
+        out.name = notectx::weaponName(c.hand[h], c.flags[h], out.model);
+    }
+    return out;
+}
+
+void drawImage(unsigned texture, const glm::vec2& size, const glm::vec3 (&corner)[4], const glm::mat4& mvp, float alpha)
+{
+    const gadget::VisorColors colors = gadget::visorColors();
+    const glm::vec4 face{colors.face, 0.86f * alpha};
+    const gfx::Vertex f4[4] = {{corner[0], {0.f, 0.f}, face}, {corner[1], {1.f, 0.f}, face}, {corner[2], {1.f, 1.f}, face},
+        {corner[3], {0.f, 1.f}, face}};
+    const gfx::Vertex fq[6] = {f4[0], f4[1], f4[2], f4[0], f4[2], f4[3]};
+    gfx::draw(fq, mvp, {.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false});
+    const glm::vec4 white{gadget::visorPhosphor().x, gadget::visorPhosphor().y, gadget::visorPhosphor().z, 0.f};
+    const gfx::Vertex c4[4] = {{corner[0], {0.f, 0.f}, white}, {corner[1], {1.f, 0.f}, white}, {corner[2], {1.f, 1.f}, white},
+        {corner[3], {0.f, 1.f}, white}};
+    const gfx::Vertex q[6] = {c4[0], c4[1], c4[2], c4[0], c4[2], c4[3]};
+    gfx::draw(q, mvp,
+        {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false,
+            .params = {static_cast<float>(realtime), za::clamp(vr_flat_holster_menu_crt.value, 0.f, 2.f), 0.f, gadget::textGlow()},
+            .screen = {size.x, size.y, 0.5f}, .trueColor = true, .inkAlpha = alpha},
+        texture);
+}
+
 void draw()
 {
     if(!shown() || !flatplay::active() || vid.width <= 0 || vid.height <= 0)
@@ -651,10 +715,11 @@ void draw()
         const bool left = p.x < 128.f;
         lines[nl++] = {left ? p.x + slotW : p.x, p.y + slotH * 0.5f, p.anchorX, p.anchorY};
         gadget::HolsterMenuSlot& s = slots[i];
+        const HolsterSlot held = holsterSlot(i); // (the weapon wheel's model too)
         s.rect = {p.x, p.y, slotW, slotH};
-        s.title = p.title;
-        s.name = holsterSlotName(c, i);
-        s.model = c.holster[i] != WID_FIST ? modelName(c.holsterModel[i]) : "";
+        s.title = held.title;
+        s.name = held.name;
+        s.model = held.model;
         s.hovered = inside(s.rect, st().cursor);
     }
     lines[nl++] = {252.f, 20.f, 252.f, panelH - 16.f}; // (the holsters' half, the hands')
@@ -691,7 +756,7 @@ void draw()
         case Act::HandDrop: g.icon = gadget::MenuIcon::Drop; g.label = "DROP"; break;
         case Act::DropBoth: g.icon = gadget::MenuIcon::Drop; g.label = "DROP BOTH"; break;
         case Act::Swap: g.icon = gadget::MenuIcon::Swap; break;
-        case Act::Unload: g.icon = gadget::MenuIcon::None; g.label = "UNLOAD"; break;
+        case Act::Unload: g.icon = gadget::MenuIcon::Unload; g.label = "UNLOAD"; break;
         case Act::FlipGrip: g.icon = gadget::MenuIcon::None; g.label = "FLIP GRIP"; break;
         }
     }
@@ -736,57 +801,69 @@ void draw()
     st().scale = h / panelH;
     const float x0 = (W - w) * 0.5f, y0 = (H - h) * 0.5f;
     st().screen = {x0, y0, w, h};
-    const float a = st().fade;
-    const auto ndc = [W, H](float x, float y) { return glm::vec3{x / W * 2.f - 1.f, 1.f - y / H * 2.f, 0.f}; };
-    const auto quad = [&](float qx, float qy, float qw, float qh, const glm::vec4& col, gfx::Blend blend) {
-        const gfx::Vertex q[6] = {{ndc(qx, qy + qh), {0.f, 0.f}, col}, {ndc(qx + qw, qy + qh), {1.f, 0.f}, col},
-            {ndc(qx + qw, qy), {1.f, 1.f}, col}, {ndc(qx, qy + qh), {0.f, 0.f}, col}, {ndc(qx + qw, qy), {1.f, 1.f}, col},
-            {ndc(qx, qy), {0.f, 1.f}, col}};
-        gfx::draw(q, glm::mat4{1.f}, {.shade = gfx::Shade::Color, .blend = blend, .depthTest = false, .depthWrite = false});
-    };
+    drawOnWindow(img.texture, {panelW, panelH}, st().screen, st().fade);
+    if(st().open)
+    {
+        drawCursorOnWindow({x0 + st().cursor.x * st().scale, y0 + st().cursor.y * st().scale}, st().fade);
+    }
+}
+
+namespace
+{
+[[nodiscard]] glm::vec3 windowNdc(float x, float y)
+{
+    const float W = static_cast<float>(za::max(vid.width, 1)), H = static_cast<float>(za::max(vid.height, 1));
+    return glm::vec3{x / W * 2.f - 1.f, 1.f - y / H * 2.f, 0.f};
+}
+
+void windowQuad(float qx, float qy, float qw, float qh, const glm::vec4& col, gfx::Blend blend)
+{
+    const gfx::Vertex q[6] = {{windowNdc(qx, qy + qh), {0.f, 0.f}, col}, {windowNdc(qx + qw, qy + qh), {1.f, 0.f}, col},
+        {windowNdc(qx + qw, qy), {1.f, 1.f}, col}, {windowNdc(qx, qy + qh), {0.f, 0.f}, col},
+        {windowNdc(qx + qw, qy), {1.f, 1.f}, col}, {windowNdc(qx, qy), {0.f, 1.f}, col}};
+    gfx::draw(q, glm::mat4{1.f}, {.shade = gfx::Shade::Color, .blend = blend, .depthTest = false, .depthWrite = false});
+}
+} // namespace
+
+void drawOnWindow(unsigned texture, const glm::vec2& size, const glm::vec4& rect, float alpha)
+{
+    const float x0 = rect.x, y0 = rect.y, w = rect.z, h = rect.w, a = alpha;
     const gadget::VisorColors colors = gadget::visorColors();
-    const float px = H / 1080.f;
+    const float px = static_cast<float>(vid.height) / 1080.f;
     // The mount's glow round it (the visor's), then its face and the screen on it, then its frame.
     for(int r = 4; r >= 1; r--)
     {
         const float o = static_cast<float>(r) * 3.f * px;
         const glm::vec4 g{colors.line, 0.05f * a * static_cast<float>(5 - r)};
-        quad(x0 - o, y0 - o, w + 2.f * o, o, g, gfx::Blend::Additive);
-        quad(x0 - o, y0 + h, w + 2.f * o, o, g, gfx::Blend::Additive);
-        quad(x0 - o, y0, o, h, g, gfx::Blend::Additive);
-        quad(x0 + w, y0, o, h, g, gfx::Blend::Additive);
+        windowQuad(x0 - o, y0 - o, w + 2.f * o, o, g, gfx::Blend::Additive);
+        windowQuad(x0 - o, y0 + h, w + 2.f * o, o, g, gfx::Blend::Additive);
+        windowQuad(x0 - o, y0, o, h, g, gfx::Blend::Additive);
+        windowQuad(x0 + w, y0, o, h, g, gfx::Blend::Additive);
     }
-    quad(x0, y0, w, h, {colors.face, 0.86f * a}, gfx::Blend::Alpha);
-    {
-        const glm::vec4 white{gadget::visorPhosphor().x, gadget::visorPhosphor().y, gadget::visorPhosphor().z, 0.f};
-        const gfx::Vertex c4[4] = {{ndc(x0, y0 + h), {0.f, 0.f}, white}, {ndc(x0 + w, y0 + h), {1.f, 0.f}, white},
-            {ndc(x0 + w, y0), {1.f, 1.f}, white}, {ndc(x0, y0), {0.f, 1.f}, white}};
-        const gfx::Vertex q[6] = {c4[0], c4[1], c4[2], c4[0], c4[2], c4[3]};
-        gfx::draw(q, glm::mat4{1.f},
-            {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false,
-                .params = {static_cast<float>(realtime), za::clamp(vr_flat_holster_menu_crt.value, 0.f, 2.f), 0.f, gadget::textGlow()},
-                .screen = {panelW, panelH, 0.5f}, .trueColor = true, .inkAlpha = a},
-            img.texture);
-    }
+    const glm::vec3 corner[4] = {windowNdc(x0, y0 + h), windowNdc(x0 + w, y0 + h), windowNdc(x0 + w, y0), windowNdc(x0, y0)};
+    drawImage(texture, size, corner, glm::mat4{1.f}, a);
     const float t = za::max(1.f, 2.f * px);
     const glm::vec4 line{colors.line, a};
-    quad(x0, y0, w, t, line, gfx::Blend::Alpha);
-    quad(x0, y0 + h - t, w, t, line, gfx::Blend::Alpha);
-    quad(x0, y0, t, h, line, gfx::Blend::Alpha);
-    quad(x0 + w - t, y0, t, h, line, gfx::Blend::Alpha);
+    windowQuad(x0, y0, w, t, line, gfx::Blend::Alpha);
+    windowQuad(x0, y0 + h - t, w, t, line, gfx::Blend::Alpha);
+    windowQuad(x0, y0, t, h, line, gfx::Blend::Alpha);
+    windowQuad(x0 + w - t, y0, t, h, line, gfx::Blend::Alpha);
+}
 
-    // The cursor: an arrow, its tip where it points, dark round its light.
-    if(st().open)
-    {
-        const float cx = x0 + st().cursor.x * st().scale, cy = y0 + st().cursor.y * st().scale, s = 22.f * px;
-        const auto arrow = [&](float grow, const glm::vec4& col) {
-            const gfx::Vertex tri[3] = {{ndc(cx - grow * 0.5f, cy - grow), {0.f, 0.f}, col},
-                {ndc(cx - grow * 0.5f, cy + s + grow), {0.f, 0.f}, col}, {ndc(cx + s * 0.7f + grow, cy + s * 0.68f + grow * 0.5f), {0.f, 0.f}, col}};
-            gfx::draw(tri, glm::mat4{1.f}, {.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false});
-        };
-        arrow(2.5f * px, {0.f, 0.f, 0.f, 0.85f * a});
-        arrow(0.f, {glm::min(colors.value * 1.4f, glm::vec3{1.f}), a});
-    }
+void drawCursorOnWindow(const glm::vec2& at, float alpha)
+{
+    // An arrow, its tip where it points, dark round its light.
+    const gadget::VisorColors colors = gadget::visorColors();
+    const float px = static_cast<float>(vid.height) / 1080.f;
+    const float cx = at.x, cy = at.y, s = 22.f * px;
+    const auto arrow = [&](float grow, const glm::vec4& col) {
+        const gfx::Vertex tri[3] = {{windowNdc(cx - grow * 0.5f, cy - grow), {0.f, 0.f}, col},
+            {windowNdc(cx - grow * 0.5f, cy + s + grow), {0.f, 0.f}, col},
+            {windowNdc(cx + s * 0.7f + grow, cy + s * 0.68f + grow * 0.5f), {0.f, 0.f}, col}};
+        gfx::draw(tri, glm::mat4{1.f}, {.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false});
+    };
+    arrow(2.5f * px, {0.f, 0.f, 0.f, 0.85f * alpha});
+    arrow(0.f, {glm::min(colors.value * 1.4f, glm::vec3{1.f}), alpha});
 }
 
 namespace

@@ -50,6 +50,7 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -163,7 +164,7 @@ void splitName(const char* name, char* prefix, int& number)
     {
         digits--;
     }
-    ZA_MEMCPY(prefix, name, static_cast<size_t>(digits));
+    ZA_MEMCPY(prefix, name, static_cast<za::SizeT>(digits));
     prefix[digits] = '\0';
     number = digits < n ? atoi(name + digits) : -1;
 }
@@ -724,7 +725,7 @@ bool swings(const SmoothModel& m, const int poses[4], const rigpose::Spline& s, 
     rigpose::alongSlots(rig, keys, s, still, now); // (the keys made above: not looked up again per bone)
     if(nowOut)
     {
-        ZA_MEMCPY(static_cast<void*>(nowOut), now, sizeof(rigpose::Rigid) * static_cast<size_t>(rig.numBones));
+        ZA_MEMCPY(static_cast<void*>(nowOut), now, sizeof(rigpose::Rigid) * static_cast<za::SizeT>(rig.numBones));
     }
     if(none)
     {
@@ -965,7 +966,7 @@ void keysOf(const entity_t* e, const aliashdr_t* hdr, SmoothModel& m, Memo& memo
         za::Vector<glm::vec4>& rowsOut = swingsOf(channel);
         const za::SizeT at = rowsOut.size();
         rowsOut.resize(at + static_cast<za::SizeT>(memo.numRows));
-        ZA_MEMCPY(static_cast<void*>(rowsOut.data() + at), memo.rows, sizeof(glm::vec4) * static_cast<size_t>(memo.numRows));
+        ZA_MEMCPY(static_cast<void*>(rowsOut.data() + at), memo.rows, sizeof(glm::vec4) * static_cast<za::SizeT>(memo.numRows));
         smooth[2] = -1 - static_cast<int>(at);
         return 1;
     }
@@ -1013,7 +1014,7 @@ void keysOf(const entity_t* e, const aliashdr_t* hdr, SmoothModel& m, Memo& memo
         // B: the limbs' swings
         const za::SizeT at = swing.size();
         swing.resize(at + static_cast<za::SizeT>(memo.numRows));
-        ZA_MEMCPY(swing.data() + at, memo.rows, sizeof(glm::vec4) * static_cast<size_t>(memo.numRows));
+        ZA_MEMCPY(swing.data() + at, memo.rows, sizeof(glm::vec4) * static_cast<za::SizeT>(memo.numRows));
         smooth[2] = rebuild ? -1 - static_cast<int>(at) : 1 + static_cast<int>(at);
     }
     return 1;
@@ -1298,7 +1299,7 @@ extern "C" int VR_AnimSmoothKeep(int channel, int first, int count)
     kept.resize(at + static_cast<za::SizeT>(count));
     if(count)
     {
-        ZA_MEMCPY(static_cast<void*>(kept.data() + at), swing.data() + first, sizeof(glm::vec4) * static_cast<size_t>(count));
+        ZA_MEMCPY(static_cast<void*>(kept.data() + at), swing.data() + first, sizeof(glm::vec4) * static_cast<za::SizeT>(count));
     }
     return static_cast<int>(at);
 }
@@ -1314,7 +1315,7 @@ extern "C" int VR_AnimSmoothReplay(int channel, int kept, int count, int newbatc
     if(count > 0)
     {
         swing.resize(at + static_cast<za::SizeT>(count));
-        ZA_MEMCPY(static_cast<void*>(swing.data() + at), batches.kept.data() + kept, sizeof(glm::vec4) * static_cast<size_t>(count));
+        ZA_MEMCPY(static_cast<void*>(swing.data() + at), batches.kept.data() + kept, sizeof(glm::vec4) * static_cast<za::SizeT>(count));
     }
     return static_cast<int>(at);
 }
@@ -1326,7 +1327,7 @@ extern "C" int VR_AnimSmoothRowsEqual(int channel, int first, int kept, int coun
     {
         return 1;
     }
-    return ZA_MEMCMP(swing.data() + first, batches.kept.data() + kept, sizeof(glm::vec4) * static_cast<size_t>(count)) == 0;
+    return ZA_MEMCMP(swing.data() + first, batches.kept.data() + kept, sizeof(glm::vec4) * static_cast<za::SizeT>(count)) == 0;
 }
 
 extern "C" int VR_AnimSmooth(const entity_t* e, const void* aliashdr, int pose1, int pose2, float blend, int zeroblend,
@@ -1365,7 +1366,7 @@ extern "C" void VR_AnimSmoothBind(const entity_t* e, int channel)
         {
             GL_DeleteBuffer(rest.buf);
         }
-        rest.buf = GL_CreateBuffer(GL_SHADER_STORAGE_BUFFER, GL_STATIC_DRAW, "vr anim smooth rest", static_cast<size_t>(restSize),
+        rest.buf = GL_CreateBuffer(GL_SHADER_STORAGE_BUFFER, GL_STATIC_DRAW, "vr anim smooth rest", static_cast<za::SizeT>(restSize),
             m.rest.data());
         rest.size = restSize;
         m.restUploaded = true;
@@ -1373,7 +1374,7 @@ extern "C" void VR_AnimSmoothBind(const entity_t* e, int channel)
     GLuint swingBuf;
     GLbyte* swingOfs;
     const GLsizeiptr swingSize = static_cast<GLsizeiptr>(swing.size() * sizeof(glm::vec4));
-    GL_Upload(GL_SHADER_STORAGE_BUFFER, swing.data(), static_cast<size_t>(swingSize), &swingBuf, &swingOfs);
+    GL_Upload(GL_SHADER_STORAGE_BUFFER, swing.data(), static_cast<za::SizeT>(swingSize), &swingBuf, &swingOfs);
     GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 8, rest.buf, 0, restSize);
     GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 9, swingBuf, reinterpret_cast<GLintptr>(swingOfs), swingSize);
 }

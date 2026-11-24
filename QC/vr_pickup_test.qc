@@ -798,6 +798,88 @@ void() VR_KeyTipTest_Frame =
     }
 };
 
+// vr_pickup_test 25 (map vrtutorial): lesson 13 (bash and bat) in a single-player game (the author, 2026-11-23: after
+// a multiplayer test scene the tutorial kept its client slots, and its pit took 10 to 15 s to kill him). Single player
+// (deathmatch, coop, teamplay 0); the SPIKE shooter's spike is an enemy's shot a swing bats back
+// (VR_Deflect_IsProjectile), as the GRENADE's grenade is caught or batted; then he is dropped into the pit: dead within
+// 1 s. Ends on "tutpit test:".
+float tutpit_step;   // 0 idle; 1 falling into the pit
+float tutpit_frames; // frames since the drop
+
+void() VR_TutPitTest_Start =
+{
+    VR_Test_BeginFlags("tutpit test", VR_TEST_LOUD);
+    VR_Test_Check(!deathmatch && !coop && !cvar_hget(cvarh_teamplay), sprintf("a single-player game (deathmatch %g, "
+        "coop %g, teamplay %g)", deathmatch, coop, cvar_hget(cvarh_teamplay)));
+    entity spiker = find(world, targetname, "r13_spike");
+    entity lobber = find(world, targetname, "r13_grenade");
+    if(mapname != "vrtutorial" || spiker == world || lobber == world)
+    {
+        VR_Test_Check(FALSE, "lesson 13's shooters r13_spike and r13_grenade (map vrtutorial)");
+        VR_Test_Verdict();
+        return;
+    }
+    setorigin(self, '2304 -560 -120'); // (west of the pit, in the shooters' line)
+    entity oself = self;
+    activator = self;
+    self = spiker;
+    self.use();
+    self = lobber;
+    self.use();
+    self = oself;
+    entity spike = world;
+    entity nade = world;
+    entity e = nextent(world);
+    while(e != world)
+    {
+        if(e.owner == spiker && e.classname == "spike")
+        {
+            spike = e;
+        }
+        if(e.owner == lobber && e.classname == "ogre_grenade")
+        {
+            nade = e;
+        }
+        e = nextent(e);
+    }
+    VR_Test_Check(spike != world && VR_Deflect_IsProjectile(spike), "the SPIKE shooter's spike can be batted back "
+        "(an enemy's shot: VR_Deflect_IsProjectile)");
+    VR_Test_Check(nade != world && nade.vr_grenade, "the GRENADE shooter's grenade can be caught or batted (a VR grenade)");
+    if(spike != world)
+    {
+        remove(spike);
+    }
+    if(nade != world)
+    {
+        remove(nade);
+    }
+    // into the south pit, over its deadly floor (vrtutorial_gen.py R13_PIT, R13_BRIDGE: its trigger_hurt 1000)
+    setorigin(self, '2544 -780 -200');
+    self.velocity = '0 0 0';
+    tutpit_step = 1;
+    tutpit_frames = 0;
+};
+
+// Every server frame while it runs (self is the player).
+void() VR_TutPitTest_Frame =
+{
+    tutpit_frames++;
+    if(self.health <= 0 || self.deadflag != DEAD_NO)
+    {
+        VR_Test_Check(tutpit_frames <= 72, sprintf("dead %g frames (%.2f s) after the drop into the pit (at most 72)",
+            tutpit_frames, tutpit_frames / 72));
+        VR_Test_Verdict();
+        tutpit_step = 0;
+        return;
+    }
+    if(tutpit_frames > 72 * 20)
+    {
+        VR_Test_Check(FALSE, sprintf("timed out: alive 20 s in the pit (health %g, at %v)", self.health, self.origin));
+        VR_Test_Verdict();
+        tutpit_step = 0;
+    }
+};
+
 // vr_pickup_test 18 (MP_PLAN B3c: in multiplayer a gun let go of from a remote player's still, open hand was seen resting
 // on his palm, 3-5 cm over the closing fist, and not taken back): single player's case. The mock's main hand still in
 // front of him, palm up, gripping; the shotgun given (impulse 154) once the grip is held; held 0.5 s, let go; after 1 s
@@ -1144,6 +1226,13 @@ void() VR_PickupTest_Frame =
     {
         VR_ReadyTest_Frame();
     }
+    if(tutpit_step && VR_Player() != world)
+    {
+        entity tself = self;
+        self = VR_Player();
+        VR_TutPitTest_Frame();
+        self = tself;
+    }
     float ask = cvar_hget(cvarh_vr_pickup_test);
     if(!ask)
     {
@@ -1155,6 +1244,19 @@ void() VR_PickupTest_Frame =
     }
     cvar_set("vr_pickup_test", "0");
     entity p = VR_Player();
+    if(ask == 25)
+    {
+        // (before the single-player gate below: a multiplayer game is its FAIL, not silence)
+        if(p == world)
+        {
+            return;
+        }
+        entity tpself = self;
+        self = p;
+        VR_TutPitTest_Start();
+        self = tpself;
+        return;
+    }
     if(p == world || deathmatch || coop)
     {
         return;
@@ -1252,6 +1354,10 @@ void() VR_PickupTest_Frame =
     else if(ask == 23)
     {
         VR_MjolnirModelTest_Run(); // (a player holding Mjolnir is player.mdl: vr_itemrules_test.qc)
+    }
+    else if(ask == 24)
+    {
+        VR_CrucialLiftTest_Run(); // (ad_crucial's raised lift lowered by its super shotgun's pickup: vr_itemrules_test.qc)
     }
     self = oself;
 };

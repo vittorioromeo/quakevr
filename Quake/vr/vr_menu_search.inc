@@ -125,7 +125,7 @@ void searchLoadRecent()
         {
             // Saved when the Advanced VR Options were under the VR Settings (a link there before): their own tree now.
             const za::StringView under{"VR Settings > Advanced VR Options"};
-            const size_t bar = line.find('|');
+            const za::SizeT bar = line.find('|');
             if(bar != za::StringView::nPos && line.substrByPosLen(bar + 1).startsWith(under))
             {
                 search.recent.emplaceBack(za::String{line.substrByPosLen(0, bar + 1)} +
@@ -254,14 +254,14 @@ void searchNoteRecent(int entry)
     float best = 0.f;
     const za::StringView t{text};
     const za::StringView w{word};
-    for(size_t i = 0; i < t.size();)
+    for(za::SizeT i = 0; i < t.size();)
     {
         if(!alnum(t[i]))
         {
             i++;
             continue;
         }
-        size_t j = i;
+        za::SizeT j = i;
         while(j < t.size() && alnum(t[j]))
         {
             j++;
@@ -291,7 +291,7 @@ void searchNoteRecent(int entry)
     }
     if(best < 0.3f && fuzzy && w.size() >= 3)
     {
-        size_t first = za::StringView::nPos, at = 0, k = 0;
+        za::SizeT first = za::StringView::nPos, at = 0, k = 0;
         for(; at < t.size() && k < w.size(); at++)
         {
             if(t[at] == w[k])
@@ -541,14 +541,14 @@ void runSearch()
     za::Vector<za::String> words;
     za::Vector<za::String> tokens; // (split at spaces and punctuation, but not at underscores: cvars' names)
     const za::String phrase = lowered(search.query.cStr());
-    for(size_t i = 0; i < phrase.size();)
+    for(za::SizeT i = 0; i < phrase.size();)
     {
         const auto inName = [&](char c) { return alnum(c) || c == '_'; };
         while(i < phrase.size() && !inName(phrase[i]))
         {
             i++;
         }
-        size_t j = i;
+        za::SizeT j = i;
         while(j < phrase.size() && inName(phrase[j]))
         {
             j++;
@@ -559,13 +559,13 @@ void runSearch()
         }
         i = j;
     }
-    for(size_t i = 0; i < phrase.size();)
+    for(za::SizeT i = 0; i < phrase.size();)
     {
         while(i < phrase.size() && !alnum(phrase[i]))
         {
             i++;
         }
-        size_t j = i;
+        za::SizeT j = i;
         while(j < phrase.size() && alnum(phrase[j]))
         {
             j++;
@@ -999,7 +999,7 @@ void drawSearch()
                 p.rounded(s.left - 1.f, s.split - 5.f, y + 3.5f, 6.f * s.k, 2.f, colors::listHover);
             }
             za::StringView where{e.path};
-            const size_t cut = where.rfind('>');
+            const za::SizeT cut = where.rfind('>');
             if(cut != za::StringView::nPos && cut + 2 <= where.size())
             {
                 where.removePrefix(cut + 2); // the page it is on (a page: the one linking it)
@@ -1063,7 +1063,7 @@ void drawSearch()
         const char* shown = where.cStr();
         if(static_cast<int>(where.size()) > fit)
         {
-            shown += where.size() - static_cast<size_t>(fit) + 2; // its end: the pages nearest the result
+            shown += where.size() - static_cast<za::SizeT>(fit) + 2; // its end: the pages nearest the result
             searchText(x0, y + 9.f, 5.f, 10.f, "..", false);
             searchText(x0 + 10.f, y + 9.f, 5.f, width - 10.f, shown, false);
         }

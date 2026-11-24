@@ -2159,7 +2159,7 @@ public:
     }
 
     // (as OpenXR's projection layer would show the part: nothing here reads the images after the frame)
-    bool setEyeImageRect(int /* eye */, int /* width */, int /* height */) override
+    bool setEyeImageRect(int /* eye */, int /* width */, int /* height */, int /* x */ = 0, int /* y */ = 0) override
     {
         return true;
     }

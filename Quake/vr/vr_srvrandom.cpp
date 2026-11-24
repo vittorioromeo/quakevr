@@ -140,6 +140,9 @@ void seedNow(za::U64 seed)
 
 float draw01(Stream s) { return streams[static_cast<int>(s)].getF(0.f, 1.f); }
 
+za::FastNonCryptoRng streamState() { return rng; }
+void setStreamState(const za::FastNonCryptoRng& s) { rng = s; }
+
 void seedNextMap(za::U64 seed)
 {
     nextMapArmed = true;

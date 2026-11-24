@@ -17,7 +17,7 @@
 // of those (and the corners between those blockers: crossCorners). Since holes2 (2026-11-22) also along
 // the diagonals (slanted bars), seen from above (bars at two heights) and in the wide band (thin gaps up to
 // vr_hull_holes_wide), each kept only where hull 1 shows Quake's box can't reach into it (the last two: standing, over a
-// fall). The limits are settings (vr_hull_holes_*: Settings); vr_hull_holes_mark reports a miss.
+// fall). The limits are settings (vr_hull_holes_*: Settings); `viewpos` prints where a miss is.
 
 #include "vr_hull_internal.hpp"
 #include "vr_cvars.hpp"
@@ -1728,7 +1728,7 @@ void census_f()
     const Tree& pt = tree; // (the player's: its compile, for the blockers' share of it)
     Con_Printf("holes: phases %.1f %.1f %.1f %.1f ms\n", holePhases[0], holePhases[1], holePhases[2], holePhases[3]);
     Con_Printf("HOLECENSUS|%s|%u|%u|%d|%d|%d|%.1f|%d|%.0f|%.1f|%zu|%d|%d|%u|%d|%d\n", world->name, own, w.crossHoles, modelHoles,
-        models, b.holePairs, b.holeMs, reach, area, pt.ms, static_cast<size_t>(pt.nodes.size()), pt.fromDisk ? 1 : 0,
+        models, b.holePairs, b.holeMs, reach, area, pt.ms, static_cast<za::SizeT>(pt.nodes.size()), pt.fromDisk ? 1 : 0,
         tilted, w.standHoles, reachTilt, reachStand);
 }
 
@@ -1948,195 +1948,6 @@ void holeTest_f()
     t.verdict(name);
 }
 
-// A line of vr_hull_holes_mark's report: to the console and the marks file (when it opened).
-void markLine(FILE* f, const char* fmt, ...)
-{
-    char text[640];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(text, sizeof(text), fmt, args);
-    va_end(args);
-    Con_Printf("%s\n", text);
-    if(f)
-    {
-        fprintf(f, "%s\n", text);
-    }
-}
-
-// vr_hull_holes_mark [radius] [note...]: a gap you got (or fell) through that you shouldn't have, reported for a worker
-// to see why it stayed open: the map, where you are, the settings (now and as built), where Quake's box fits round you,
-// the world's solids near you (and up to 256 above: the grate you fell through), the gaps on the lines through you
-// along x, y and the diagonals, and the blockers and dropped boxes near. Printed, and added to
-// quakevr/hull_holes_marks.txt (HULLS.md, "Holes").
-void mark_f()
-{
-    qmodel_t* world = sv.worldmodel;
-    const Brushes* bp = sv.active ? worldBrushes(world) : nullptr;
-    const edict_t* player = progs::localPlayer();
-    if(!bp || !player || bp->subs.empty())
-    {
-        Con_Printf("vr_hull_holes_mark: needs a map\n");
-        return;
-    }
-    const Brushes& b = *bp;
-    const progs::ServerVm vm; // (the server's time)
-    const double radius = Cmd_Argc() > 1 ? za::clamp(static_cast<double>(Q_atof(Cmd_Argv(1))), 16.0, 1024.0) : 96.0;
-    char note[256] = "";
-    for(int i = 2; i < Cmd_Argc(); ++i)
-    {
-        q_strlcat(note, Cmd_Argv(i), sizeof(note));
-        q_strlcat(note, " ", sizeof(note));
-    }
-    const glm::dvec3 at{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
-    const char* path = va("%s/hull_holes_marks.txt", com_gamedir);
-    char file[MAX_OSPATH];
-    q_strlcpy(file, path, sizeof(file));
-    FILE* f = fopen(file, "a");
-    markLine(f, "mark: %s at %.1f %.1f %.1f (feet %.1f), angles %.0f %.0f, time %.1f; your width %.0f%s%s", world->name,
-        at.x, at.y, at.z, at.z + player->v.mins[2], player->v.angles[0], player->v.angles[1], qcvm->time, vr_hull_width.value,
-        note[0] ? "; note: " : "", note);
-    const Settings now = readSettings();
-    markLine(f, "mark: settings now: on %d max %g min %g wide %g diag %d models %d vert %d cells %d cell %g reach %g; "
-                "as built: max %g min %g wide %g diag %d models %d vert %d cells %d cell %g reach %g",
-        vr_hull_holes.value != 0.f ? 1 : 0, now.maxGap, now.minGap, now.wide, now.diag, now.models, now.vert, now.maxCells,
-        now.minCell, now.reach, cfg.maxGap, cfg.minGap, cfg.wide, cfg.diag, cfg.models, cfg.vert, cfg.maxCells, cfg.minCell,
-        cfg.reach);
-    const hull_t& h1 = world->hulls[1];
-    char fits[160] = "";
-    for(int k = 0; k < 6; ++k)
-    {
-        const double dz = -32.0 + 32.0 * k;
-        const int c = h1.clipnodes ? pointContents(h1, h1.firstclipnode, at + glm::dvec3{0.0, 0.0, dz}) : CONTENTS_SOLID;
-        q_strlcat(fits, va(" %+.0f:%s", dz, c == CONTENTS_SOLID || c == CONTENTS_SKY ? "no" : "yes"), sizeof(fits));
-    }
-    markLine(f, "mark: Quake's box fits with its centre here (by height off yours):%s", fits);
-
-    // The world's solids near (their planes when slanted), and the heights to look along.
-    za::Vector<Solid> all, nearby;
-    glm::dvec3 lo, hi;
-    addSolids(b, 0, 0, all, lo, hi);
-    const glm::dvec3 qlo{at.x - radius, at.y - radius, at.z - radius}, qhi{at.x + radius, at.y + radius, at.z + 256.0};
-    for(const Solid& s : all)
-    {
-        if(s.hi.x >= qlo.x && s.lo.x <= qhi.x && s.hi.y >= qlo.y && s.lo.y <= qhi.y && s.hi.z >= qlo.z && s.lo.z <= qhi.z)
-        {
-            nearby.pushBack(s);
-        }
-    }
-    za::Vector<double> heights;
-    heights.pushBack(at.z + player->v.mins[2] + 1.0);
-    heights.pushBack(at.z);
-    for(za::SizeT i = 0; i < nearby.size(); ++i)
-    {
-        const Solid& s = nearby[i];
-        if(i < 48)
-        {
-            markLine(f, "mark: solid %d: %.1f %.1f %.1f .. %.1f %.1f %.1f, %u planes%s", static_cast<int>(i), s.lo.x, s.lo.y,
-                s.lo.z, s.hi.x, s.hi.y, s.hi.z, s.count, s.slanted ? ", slanted:" : "");
-            for(za::U32 k = 0; k < s.count && s.slanted; ++k)
-            {
-                const Plane& p = b.planes[s.first + k];
-                if(za::abs(p.normal.x) > 0.001f && za::abs(p.normal.x) < 0.999f)
-                {
-                    markLine(f, "mark:   plane %.4f %.4f %.4f dist %.2f", p.normal.x, p.normal.y, p.normal.z, p.dist);
-                }
-            }
-        }
-        const double mid = (s.lo.z + s.hi.z) * 0.5;
-        bool have = false;
-        for(const double z : heights)
-        {
-            have = have || za::abs(z - mid) < 4.0;
-        }
-        if(!have && heights.size() < 10 && s.hi.z - s.lo.z <= 64.0)
-        {
-            heights.pushBack(mid);
-        }
-    }
-    markLine(f, "mark: %d solids within %.0f (and 256 above)%s", static_cast<int>(nearby.size()), radius,
-        nearby.size() > 48 ? " (the first 48 listed)" : "");
-
-    // The gaps on the lines through you at those heights: the nearest solid behind and ahead along x, y, the diagonals.
-    static constexpr const char* lineNames[4] = {"x", "y", "diagonal x+y", "diagonal x-y"};
-    for(const double z : heights)
-    {
-        const glm::dvec3 p{at.x, at.y, z};
-        for(int l = 0; l < 4; ++l)
-        {
-            const double t = l < 2 ? p[l] : glm::dot(p, tiltA[l - 2]);
-            double behind = -1e300, ahead = 1e300;
-            bool inside = false;
-            for(const Solid& s : nearby)
-            {
-                double sl = 0.0, sh = 0.0;
-                const bool meets = l == 0   ? extentOnLine(b, s, 0, 1, 2, p.y, p.z, sl, sh)
-                                   : l == 1 ? extentOnLine(b, s, 1, 2, 0, p.z, p.x, sl, sh)
-                                            : extentTilted(b, s, l - 2, glm::dot(p, tiltU[l - 2]), p.z, sl, sh);
-                if(!meets)
-                {
-                    continue;
-                }
-                inside = inside || (sl < t && sh > t);
-                if(sh <= t)
-                {
-                    behind = za::max(behind, sh);
-                }
-                if(sl >= t)
-                {
-                    ahead = za::min(ahead, sl);
-                }
-            }
-            if(!inside && behind > -1e299 && ahead < 1e299 && ahead - behind < 128.0)
-            {
-                markLine(f, "mark: line at z %.1f along %s: gap %.2f (%.2f .. %.2f; limit %.2f)", z, lineNames[l],
-                    ahead - behind, behind, ahead, l < 2 ? cfg.maxGap : cfg.maxGap / rootHalf);
-            }
-        }
-    }
-
-    // The blockers near (the world's by kind, the brush models' in their own space), and the ones left out.
-    const SubModel& w = b.subs[0];
-    const za::U32 crossFrom = w.numHoles - w.crossHoles, standFrom = crossFrom - w.standHoles;
-    int shown = 0;
-    for(za::SizeT s = 0; s < b.subs.size(); ++s)
-    {
-        const SubModel& sm = b.subs[s];
-        for(za::U32 i = 0; i < sm.numHoles; ++i)
-        {
-            const Brush& br = b.brushes[sm.firstHole + i];
-            const glm::dvec3 blo{br.mins}, bhi{br.maxs};
-            if(glm::length(glm::clamp(at, blo, bhi) - at) > radius)
-            {
-                continue; // (a brush model's: in its own space, where it is in the map when it hasn't moved)
-            }
-            const char* kind = s != 0 ? "a brush model's own" : i >= crossFrom ? "with a brush model" :
-                               i >= standFrom ? "over a fall" : br.count == 10u ? "diagonal" : "the world's own";
-            if(shown++ < 24)
-            {
-                markLine(f, "mark: blocker (model %d, %s): %.1f %.1f %.1f .. %.1f %.1f %.1f", static_cast<int>(s), kind,
-                    blo.x, blo.y, blo.z, bhi.x, bhi.y, bhi.z);
-            }
-        }
-    }
-    int dropped = 0;
-    for(za::SizeT i = 0; i + 1 < b.holeDropped.size(); i += 2)
-    {
-        const glm::dvec3 dlo{b.holeDropped[i]}, dhi{b.holeDropped[i + 1]};
-        if(glm::length(glm::clamp(at, dlo, dhi) - at) <= radius && dropped++ < 16)
-        {
-            markLine(f, "mark: left out (Quake's box reaches it): %.1f %.1f %.1f .. %.1f %.1f %.1f", dlo.x, dlo.y, dlo.z,
-                dhi.x, dhi.y, dhi.z);
-        }
-    }
-    markLine(f, "mark: %d blockers and %d left out within %.0f; %s %s", shown, dropped, radius,
-        f ? "added to" : "could not open", file);
-    if(f)
-    {
-        fprintf(f, "\n");
-        fclose(f);
-    }
-}
-
 // vr_hull_holes_rebuild: the gap blockers found again with the settings as they are now, without leaving the map: the
 // game saved and loaded (holes_rebuild.sav; the map's brushes and trees are built again as their key has the
 // settings). One player only; with others, the next map load.
@@ -2311,7 +2122,6 @@ void registerHoleCommands()
     Cmd_AddCommand("vr_hull_holes_census", census_f);
     Cmd_AddCommand("vr_hull_holes_near", near_f);
     Cmd_AddCommand("vr_hull_holes_test", holeTest_f);
-    Cmd_AddCommand("vr_hull_holes_mark", mark_f);
     Cmd_AddCommand("vr_hull_holes_rebuild", rebuild_f);
 }
 

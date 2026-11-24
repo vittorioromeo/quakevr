@@ -30,10 +30,11 @@
 // its first writing, and after a merge brings other branches' new state, each one judged; --tighten drops entries
 // that are gone; a plain run says how many are gone)
 #include "common.hpp"
+#include "maps.hpp"
 
-#include <algorithm>
-#include <array>
-#include <set>
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 
 namespace qvrc
 {
@@ -41,15 +42,15 @@ namespace
 {
 
 // The source with comments, strings and character literals blanked (newlines kept, so line numbers hold).
-std::string strip(std::string_view text)
+za::String strip(za::StringView text)
 {
-    std::string out;
+    za::String out;
     out.reserve(text.size());
-    const size_t n = text.size();
-    size_t i = 0;
-    size_t lineStart = 0; // where the current line starts (for a preprocessor line's `#`)
-    auto blank = [&](size_t a, size_t b) {
-        for(size_t k = a; k < b; ++k)
+    const za::SizeT n = text.size();
+    za::SizeT i = 0;
+    za::SizeT lineStart = 0; // where the current line starts (for a preprocessor line's `#`)
+    auto blank = [&](za::SizeT a, za::SizeT b) {
+        for(za::SizeT k = a; k < b; ++k)
         {
             out += text[k] == '\n' ? '\n' : ' ';
         }
@@ -63,17 +64,17 @@ std::string strip(std::string_view text)
         }
         if(c == '/' && i + 1 < n && text[i + 1] == '/')
         {
-            size_t j = text.find('\n', i);
-            j = j == std::string_view::npos ? n : j;
+            za::SizeT j = text.find('\n', i);
+            j = j == npos ? n : j;
             out.append(j - i, ' ');
             i = j;
         }
         else if(c == '/' && i + 1 < n && text[i + 1] == '*')
         {
-            size_t j = text.find("*/", i + 2);
-            j = j == std::string_view::npos ? n : j + 2;
+            za::SizeT j = text.find("*/", i + 2);
+            j = j == npos ? n : j + 2;
             blank(i, j);
-            for(size_t k = i; k < j; ++k)
+            for(za::SizeT k = i; k < j; ++k)
             {
                 if(text[k] == '\n')
                 {
@@ -85,8 +86,8 @@ std::string strip(std::string_view text)
         else if(c == 'R' && i + 1 < n && text[i + 1] == '"' && (i == 0 || !(isAlnum(text[i - 1]) || text[i - 1] == '_')))
         {
             // R"delim( ... )delim": the delimiter is up to 16 characters, none of ` ()\` tab newline.
-            size_t d = i + 2;
-            while(d < n && d - (i + 2) < 16 && std::string_view(" ()\\\t\n").find(text[d]) == std::string_view::npos)
+            za::SizeT d = i + 2;
+            while(d < n && d - (i + 2) < 16 && za::StringView(" ()\\\t\n").find(text[d]) == npos)
             {
                 ++d;
             }
@@ -96,12 +97,14 @@ std::string strip(std::string_view text)
                 ++i;
                 continue;
             }
-            const std::string close = ")" + std::string(text.substr(i + 2, d - (i + 2))) + "\"";
-            const size_t end = text.find(close, i);
-            const size_t j = end == std::string_view::npos ? n : end + close.size();
+            za::String close = ")";
+            close += text.substrByPosLen(i + 2, d - (i + 2));
+            close += '"';
+            const za::SizeT end = text.find(close, i);
+            const za::SizeT j = end == npos ? n : end + close.size();
             out += "\"\"";
             blank(i + 2, j);
-            for(size_t k = i; k < j; ++k)
+            for(za::SizeT k = i; k < j; ++k)
             {
                 if(text[k] == '\n')
                 {
@@ -118,12 +121,12 @@ std::string strip(std::string_view text)
                 ++i;
                 continue;
             }
-            size_t j = i + 1;
+            za::SizeT j = i + 1;
             while(j < n && text[j] != c && text[j] != '\n')
             {
                 j += text[j] == '\\' ? 2 : 1;
             }
-            j = std::min(j + 1, n);
+            j = za::min(j + 1, n);
             if(j - i >= 2)
             {
                 out += c;
@@ -134,7 +137,7 @@ std::string strip(std::string_view text)
             {
                 out += c;
             }
-            for(size_t k = i; k < j; ++k)
+            for(za::SizeT k = i; k < j; ++k)
             {
                 if(text[k] == '\n')
                 {
@@ -143,15 +146,15 @@ std::string strip(std::string_view text)
             }
             i = j;
         }
-        else if(c == '#' && trim(text.substr(lineStart, i - lineStart)).empty())
+        else if(c == '#' && trim(text.substrByPosLen(lineStart, i - lineStart)).empty())
         {
             // a preprocessor line (and its continuations): not code for this purpose
-            size_t j = i;
-            size_t k;
+            za::SizeT j = i;
+            za::SizeT k;
             while(true)
             {
                 k = text.find('\n', j);
-                if(k == std::string_view::npos)
+                if(k == npos)
                 {
                     k = n;
                     break;
@@ -176,17 +179,17 @@ std::string strip(std::string_view text)
 
 struct Tok
 {
-    std::string_view t;
+    za::StringView t;
     int line;
 };
 
 // [A-Za-z_]\w* | \d[\w.]* | :: | -> | && | \S
-std::vector<Tok> tokenize(std::string_view code)
+za::Vector<Tok> tokenize(za::StringView code)
 {
-    std::vector<Tok> toks;
+    za::Vector<Tok> toks;
     int line = 1;
-    size_t i = 0;
-    const size_t n = code.size();
+    za::SizeT i = 0;
+    const za::SizeT n = code.size();
     while(i < n)
     {
         const char c = code[i];
@@ -201,7 +204,7 @@ std::vector<Tok> tokenize(std::string_view code)
             ++i;
             continue;
         }
-        size_t e = i + 1;
+        za::SizeT e = i + 1;
         if(isWord(c) && !isDigit(c))
         {
             while(e < n && isWord(code[e]))
@@ -221,7 +224,7 @@ std::vector<Tok> tokenize(std::string_view code)
         {
             e = i + 2;
         }
-        toks.push_back({code.substr(i, e - i), line});
+        toks.pushBack({code.substrByPosLen(i, e - i), line});
         i = e;
     }
     return toks;
@@ -235,31 +238,32 @@ enum class Kind
     init
 };
 
-template <size_t N>
-bool oneOf(std::string_view t, const std::array<std::string_view, N>& set)
-{
-    return std::find(set.begin(), set.end(), t) != set.end();
-}
+constexpr za::Array<za::StringView, 8> fnTail = {"const", "noexcept", "override", "final",
+                                                 "mutable", "volatile", "&", "&&"};
+constexpr za::Array<za::StringView, 4> classKeys = {"class", "struct", "union", "enum"};
+constexpr za::Array<za::StringView, 9> specifiers = {"static", "thread_local", "constexpr", "constinit", "const",
+                                                     "inline", "volatile", "mutable", "extern"};
 
-constexpr std::array<std::string_view, 8> fnTail = {"const", "noexcept", "override", "final",
-                                                    "mutable", "volatile", "&", "&&"};
-constexpr std::array<std::string_view, 4> classKeys = {"class", "struct", "union", "enum"};
-constexpr std::array<std::string_view, 9> specifiers = {"static", "thread_local", "constexpr", "constinit", "const",
-                                                        "inline", "volatile", "mutable", "extern"};
-
-bool contains(const std::vector<std::string_view>& v, std::string_view t, size_t from = 0)
+bool contains(const za::Vector<za::StringView>& v, za::StringView t, za::SizeT from = 0)
 {
-    return std::find(v.begin() + static_cast<std::ptrdiff_t>(std::min(from, v.size())), v.end(), t) != v.end();
+    for(za::SizeT k = from; k < v.size(); ++k)
+    {
+        if(v[k] == t)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 // What a `{` opens, from the tokens of its statement before it: (kind, is it inside an expression).
-std::pair<Kind, bool> classify(const std::vector<std::string_view>& head, Kind parent)
+za::Pair<Kind, bool> classify(const za::Vector<za::StringView>& head, Kind parent)
 {
     if(head.empty())
     {
         return {parent == Kind::init ? Kind::init : parent, false}; // a block (in a function) or a nested initialiser
     }
-    const std::string_view prev = head.back();
+    const za::StringView prev = head.back();
     if((head.size() == 3 && head[0] == "extern" && head[1] == "\"" && head[2] == "\"") ||
        (contains(head, "namespace") && !contains(head, "(")))
     {
@@ -267,7 +271,7 @@ std::pair<Kind, bool> classify(const std::vector<std::string_view>& head, Kind p
     }
     // a class definition: `struct X {`, `class X : public Y<T> {`, `enum class E : int {`, `static const struct {`
     int depth = 0;
-    for(size_t k = 0; k < head.size(); ++k)
+    for(za::SizeT k = 0; k < head.size(); ++k)
     {
         const auto x = head[k];
         if(x == "(" || x == "[" || x == "<")
@@ -278,7 +282,7 @@ std::pair<Kind, bool> classify(const std::vector<std::string_view>& head, Kind p
         {
             --depth;
         }
-        else if(oneOf(x, classKeys) && depth == 0 && !contains(head, "=", k + 1) && !contains(head, "(", k + 1))
+        else if(has(classKeys, x) && depth == 0 && !contains(head, "=", k + 1) && !contains(head, "(", k + 1))
         {
             return {Kind::cls, false};
         }
@@ -288,39 +292,48 @@ std::pair<Kind, bool> classify(const std::vector<std::string_view>& head, Kind p
         return {Kind::init, false};
     }
     // a function's body: `) {`, `) const noexcept {`, `-> T {`, `] {` (a lambda without parameters)
-    std::ptrdiff_t j = static_cast<std::ptrdiff_t>(head.size()) - 1;
-    const auto arrow = std::find(head.begin(), head.end(), "->");
-    if(arrow != head.end())
+    const auto size = static_cast<za::PtrDiffT>(head.size());
+    za::PtrDiffT j = size - 1;
+    za::PtrDiffT arrow = size;
+    for(za::PtrDiffT k = 0; k < size; ++k)
     {
-        std::ptrdiff_t lastClose = -1;
-        for(std::ptrdiff_t k = static_cast<std::ptrdiff_t>(head.size()) - 1; k >= 0; --k)
+        if(head[static_cast<za::SizeT>(k)] == "->")
         {
-            if(head[static_cast<size_t>(k)] == ")")
+            arrow = k;
+            break;
+        }
+    }
+    if(arrow != size)
+    {
+        za::PtrDiffT lastClose = -1;
+        for(za::PtrDiffT k = size - 1; k >= 0; --k)
+        {
+            if(head[static_cast<za::SizeT>(k)] == ")")
             {
                 lastClose = k;
                 break;
             }
         }
-        if(arrow - head.begin() > lastClose)
+        if(arrow > lastClose)
         {
-            j = (arrow - head.begin()) - 1;
+            j = arrow - 1;
         }
     }
-    while(j >= 0 && oneOf(head[static_cast<size_t>(j)], fnTail))
+    while(j >= 0 && has(fnTail, head[static_cast<za::SizeT>(j)]))
     {
         --j;
     }
-    if(j >= 0 && head[static_cast<size_t>(j)] == "]")
+    if(j >= 0 && head[static_cast<za::SizeT>(j)] == "]")
     {
         return {Kind::fn, true};
     }
-    if(j >= 0 && head[static_cast<size_t>(j)] == ")")
+    if(j >= 0 && head[static_cast<za::SizeT>(j)] == ")")
     {
         int d = 0;
-        std::ptrdiff_t k = j;
+        za::PtrDiffT k = j;
         while(k >= 0)
         {
-            const auto x = head[static_cast<size_t>(k)];
+            const auto x = head[static_cast<za::SizeT>(k)];
             d += x == ")" ? 1 : x == "(" ? -1 : 0;
             if(d == 0)
             {
@@ -328,7 +341,7 @@ std::pair<Kind, bool> classify(const std::vector<std::string_view>& head, Kind p
             }
             --k;
         }
-        const bool lam = k > 0 && head[static_cast<size_t>(k - 1)] == "]";
+        const bool lam = k > 0 && head[static_cast<za::SizeT>(k - 1)] == "]";
         return {Kind::fn, lam};
     }
     if(prev == "else" || prev == "do" || prev == "try" || prev == "}")
@@ -341,18 +354,18 @@ std::pair<Kind, bool> classify(const std::vector<std::string_view>& head, Kind p
 struct Frame
 {
     Kind kind;
-    size_t start;
+    za::SizeT start;
     int paren;
     bool expr;
 };
 
-bool inFunction(const std::vector<Frame>& stack)
+bool inFunction(const za::Vector<Frame>& stack)
 {
-    for(auto it = stack.rbegin(); it != stack.rend(); ++it)
+    for(za::SizeT k = stack.size(); k-- > 0;)
     {
-        if(it->kind != Kind::init)
+        if(stack[k].kind != Kind::init)
         {
-            return it->kind == Kind::fn;
+            return stack[k].kind == Kind::fn;
         }
     }
     return false;
@@ -361,44 +374,44 @@ bool inFunction(const std::vector<Frame>& stack)
 struct Found
 {
     int line;
-    std::string text;
+    za::String text;
 };
 
 // A file-scope variable's declaration: its tokens (after a class body: the class's head, then the declarators).
 struct FileScopeDecl
 {
-    std::vector<std::string_view> toks;
+    za::Vector<za::StringView> toks;
     int firstLine = 0;
     int nameLine = 0;
-    bool marked = false;            // `seat-shared: <why>` on it
-    std::vector<std::string> names; // the mutable variables it defines (mutableNames)
+    bool marked = false;          // `seat-shared: <why>` on it
+    za::Vector<za::String> names; // the mutable variables it defines (mutableNames)
 };
 
 struct Scan
 {
-    std::vector<Found> statics;          // function-local static/thread_local, not constexpr
-    std::vector<FileScopeDecl> fileScope; // every namespace-scope statement ending in `;` (judged by mutableNames)
+    za::Vector<Found> statics;          // function-local static/thread_local, not constexpr
+    za::Vector<FileScopeDecl> fileScope; // every namespace-scope statement ending in `;` (judged by mutableNames)
 };
 
-bool isIdent(std::string_view t)
+bool isIdent(za::StringView t)
 {
     return !t.empty() && (isWord(t[0]) && !isDigit(t[0]));
 }
 
-constexpr std::array<std::string_view, 12> notVariables = {"typedef", "using", "template", "friend", "static_assert",
-                                                           "namespace", "extern", "return", "operator", "export",
-                                                           "import", "module"};
+constexpr za::Array<za::StringView, 12> notVariables = {"typedef", "using", "template", "friend", "static_assert",
+                                                        "namespace", "extern", "return", "operator", "export",
+                                                        "import", "module"};
 
 // The names a namespace-scope statement defines as mutable variables (none for a function, a declaration, a constant,
 // a cvar).
-std::vector<std::string_view> mutableNames(const std::vector<std::string_view>& t)
+za::Vector<za::StringView> mutableNames(const za::Vector<za::StringView>& t)
 {
-    std::vector<std::string_view> names;
-    if(t.empty() || !isIdent(t[0]) || oneOf(t[0], notVariables) || contains(t, "operator") || contains(t, "cvar_t"))
+    za::Vector<za::StringView> names;
+    if(t.empty() || !isIdent(t[0]) || has(notVariables, t[0]) || contains(t, "operator") || contains(t, "cvar_t"))
     {
         return names;
     }
-    if(oneOf(t[0], classKeys) && (t.size() <= 2 || contains(t, ":")) && !contains(t, "@body"))
+    if(has(classKeys, t[0]) && (t.size() <= 2 || contains(t, ":")) && !contains(t, "@body"))
     {
         return names; // a forward declaration: `struct X;`, `enum class E : int;`
     }
@@ -410,9 +423,9 @@ std::vector<std::string_view> mutableNames(const std::vector<std::string_view>& 
     bool sawConst = false;
     bool constAfterStar = false;
     bool sawStar = false;
-    std::string_view last;
-    size_t declarator = 0;
-    for(size_t k = 0; k < t.size(); ++k)
+    za::StringView last;
+    za::SizeT declarator = 0;
+    for(za::SizeT k = 0; k < t.size(); ++k)
     {
         const auto x = t[k];
         const bool open = x == "(" || x == "[" || x == "{" || (!init && x == "<");
@@ -427,7 +440,7 @@ std::vector<std::string_view> mutableNames(const std::vector<std::string_view>& 
             {
                 if(isIdent(last))
                 {
-                    names.push_back(last);
+                    names.pushBack(last);
                 }
                 named = true;
                 init = x == "=";
@@ -459,7 +472,7 @@ std::vector<std::string_view> mutableNames(const std::vector<std::string_view>& 
         {
             if(!named && isIdent(last))
             {
-                names.push_back(last);
+                names.pushBack(last);
             }
             ++declarator;
             named = false;
@@ -472,39 +485,46 @@ std::vector<std::string_view> mutableNames(const std::vector<std::string_view>& 
     }
     if(!named && isIdent(last) && last != t[0])
     {
-        names.push_back(last); // `int x;`, `struct X {...} x;` (not `QVR_MACRO;` alone, nor `struct X {...};`)
+        names.pushBack(last); // `int x;`, `struct X {...} x;` (not `QVR_MACRO;` alone, nor `struct X {...};`)
     }
     const bool isConst = sawConst && (!sawStar || constAfterStar);
     if(isConst)
     {
         names.clear();
     }
-    std::sort(names.begin(), names.end());
-    names.erase(std::unique(names.begin(), names.end()), names.end());
-    return names;
+    za::Vector<za::StringView> unique;
+    for(const auto n : names)
+    {
+        if(!has(unique, n))
+        {
+            unique.pushBack(n);
+        }
+    }
+    return unique;
 }
 
 Scan scan(const fs::path& path)
 {
-    const std::string raw = readText(path);
+    const za::String raw = readText(path);
     const auto lines = splitLines(raw);
-    const std::string code = strip(raw);
+    const za::String code = strip(raw);
     const auto toks = tokenize(code);
     // The scope stack: ns (namespace or file), cls, fn (a function's or lambda's body, and every block in one), init
     // (a braced initialiser: holds no declarations; a lambda in it is fn). Each entry keeps the statement and the
     // parenthesis depth it interrupted: an initialiser or a lambda is part of its enclosing statement.
-    std::vector<Frame> stack{{Kind::ns, 0, 0, false}};
+    za::Vector<Frame> stack;
+    stack.pushBack({Kind::ns, 0, 0, false});
     Scan result;
-    std::vector<Found>& found = result.statics;
-    size_t start = 0; // the first token of the current statement or declaration
+    za::Vector<Found>& found = result.statics;
+    za::SizeT start = 0; // the first token of the current statement or declaration
     int paren = 0;
-    std::vector<std::string_view> head;
+    za::Vector<za::StringView> head;
     // A class body just closed at namespace scope: its head (`static struct Foo`) and where the body ended, so that
     // `struct Foo {...} name;` is judged as one statement.
-    std::vector<std::string_view> clsHead;
+    za::Vector<za::StringView> clsHead;
     int clsLine = 0;
-    size_t clsEnd = static_cast<size_t>(-1);
-    for(size_t i = 0; i < toks.size(); ++i)
+    za::SizeT clsEnd = static_cast<za::SizeT>(-1);
+    for(za::SizeT i = 0; i < toks.size(); ++i)
     {
         const auto t = toks[i].t;
         if(t == "(" || t == "[")
@@ -518,12 +538,12 @@ Scan scan(const fs::path& path)
         else if(t == "{")
         {
             head.clear();
-            for(size_t k = start; k < i; ++k)
+            for(za::SizeT k = start; k < i; ++k)
             {
-                head.push_back(toks[k].t);
+                head.pushBack(toks[k].t);
             }
             const auto [kind, expr] = classify(head, stack.back().kind);
-            stack.push_back({kind, start, paren, expr});
+            stack.pushBack({kind, start, paren, expr});
             start = i + 1;
             paren = 0;
         }
@@ -532,17 +552,17 @@ Scan scan(const fs::path& path)
             if(stack.size() > 1)
             {
                 const Frame f = stack.back();
-                stack.pop_back();
+                stack.popBack();
                 if(f.kind == Kind::cls && stack.back().kind == Kind::ns)
                 {
                     clsHead.clear();
-                    size_t k = f.start;
+                    za::SizeT k = f.start;
                     while(k < toks.size() && toks[k].t != "{")
                     {
-                        clsHead.push_back(toks[k].t);
+                        clsHead.pushBack(toks[k].t);
                         ++k;
                     }
-                    clsHead.push_back("@body");
+                    clsHead.pushBack("@body");
                     clsLine = f.start < toks.size() ? toks[f.start].line : 0;
                     clsEnd = i;
                 }
@@ -563,7 +583,7 @@ Scan scan(const fs::path& path)
             if(stack.back().kind == Kind::ns)
             {
                 FileScopeDecl d;
-                const bool afterClass = clsEnd != static_cast<size_t>(-1) && start == clsEnd + 1;
+                const bool afterClass = clsEnd != static_cast<za::SizeT>(-1) && start == clsEnd + 1;
                 if(afterClass)
                 {
                     d.toks = clsHead;
@@ -575,24 +595,24 @@ Scan scan(const fs::path& path)
                 }
                 d.nameLine = toks[i].line;
                 bool beforeInit = true;
-                for(size_t k = start; k < i; ++k)
+                for(za::SizeT k = start; k < i; ++k)
                 {
-                    d.toks.push_back(toks[k].t);
+                    d.toks.pushBack(toks[k].t);
                     beforeInit &= toks[k].t != "=" && toks[k].t != "[" && toks[k].t != "{";
                     d.nameLine = beforeInit ? toks[k].line : d.nameLine; // the name's line: before its initialiser
                 }
                 // `seat-shared: <why>` on the declaration's first line, the name's, or the line above the first
                 for(const int ln : {d.firstLine - 1, d.firstLine, d.nameLine})
                 {
-                    d.marked |= ln >= 1 && static_cast<size_t>(ln) <= lines.size() &&
-                                lines[static_cast<size_t>(ln) - 1].find("seat-shared") != std::string_view::npos;
+                    d.marked |= ln >= 1 && static_cast<za::SizeT>(ln) <= lines.size() &&
+                                lines[static_cast<za::SizeT>(ln) - 1].find("seat-shared") != npos;
                 }
                 for(const auto n : mutableNames(d.toks))
                 {
-                    d.names.emplace_back(n); // judged here: the tokens view this function's text
+                    d.names.pushBack(za::String{n}); // judged here: the tokens view this function's text
                 }
                 d.toks.clear();
-                result.fileScope.push_back(std::move(d));
+                result.fileScope.pushBack(ZA_MOVE(d));
             }
             start = i + 1;
         }
@@ -606,13 +626,13 @@ Scan scan(const fs::path& path)
         {
             // Anywhere in a function's body, parentheses included: `if(static bool once = false; !once)`. The
             // declaration's specifiers are the run of them around this one (counted once, at its first).
-            size_t j = i;
-            while(j > start && oneOf(toks[j - 1].t, specifiers))
+            za::SizeT j = i;
+            while(j > start && has(specifiers, toks[j - 1].t))
             {
                 --j;
             }
             bool second = false;
-            for(size_t k = j; k < i; ++k)
+            for(za::SizeT k = j; k < i; ++k)
             {
                 second |= toks[k].t == "static" || toks[k].t == "thread_local";
             }
@@ -622,7 +642,7 @@ Scan scan(const fs::path& path)
             }
             bool isConstexpr = false;
             bool isThreadLocal = false;
-            while(j < toks.size() && oneOf(toks[j].t, specifiers))
+            while(j < toks.size() && has(specifiers, toks[j].t))
             {
                 isConstexpr |= toks[j].t == "constexpr";
                 isThreadLocal |= toks[j].t == "thread_local";
@@ -633,20 +653,20 @@ Scan scan(const fs::path& path)
                 continue;
             }
             const int ln = toks[i].line;
-            const std::string_view text = static_cast<size_t>(ln - 1) < lines.size() ? lines[ln - 1] : "";
-            if(text.find("statics-ok") != std::string_view::npos)
+            const za::StringView text = static_cast<za::SizeT>(ln - 1) < lines.size() ? lines[ln - 1] : "";
+            if(text.find("statics-ok") != npos)
             {
                 continue;
             }
-            found.push_back({ln, std::string(trim(text))});
+            found.pushBack({ln, za::String{trim(text)}});
         }
     }
     return result;
 }
 
-std::vector<fs::path> treeFiles(const fs::path& root)
+za::Vector<fs::path> treeFiles(const fs::path& root)
 {
-    std::vector<fs::path> out;
+    za::Vector<fs::path> out;
     for(auto& p : listFiles(root, {".cpp", ".hpp", ".h", ".inc", ".c"}, true))
     {
         bool external = false;
@@ -656,7 +676,7 @@ std::vector<fs::path> treeFiles(const fs::path& root)
         }
         if(!external)
         {
-            out.push_back(std::move(p));
+            out.pushBack(ZA_MOVE(p));
         }
     }
     sortPaths(out);
@@ -665,7 +685,7 @@ std::vector<fs::path> treeFiles(const fs::path& root)
 
 } // namespace
 
-std::string stripCode(std::string_view text)
+za::String stripCode(za::StringView text)
 {
     return strip(text);
 }
@@ -673,7 +693,7 @@ std::string stripCode(std::string_view text)
 int checkStatics(const Ctx& ctx, const Args& args, Out& out)
 {
     const fs::path root = ctx.tree / "Quake" / "vr";
-    std::vector<fs::path> files;
+    za::Vector<fs::path> files;
     if(args.empty())
     {
         files = treeFiles(root);
@@ -681,27 +701,27 @@ int checkStatics(const Ctx& ctx, const Args& args, Out& out)
     for(const auto& a : args)
     {
         std::error_code ec;
-        const fs::path p = fs::absolute(a, ec).lexically_normal();
+        const fs::path p = fs::absolute(toPath(a), ec).lexically_normal();
         if(fs::is_directory(p, ec))
         {
             for(auto& f : treeFiles(p))
             {
-                files.push_back(std::move(f));
+                files.pushBack(ZA_MOVE(f));
             }
         }
         else
         {
-            files.push_back(p);
+            files.pushBack(p);
         }
     }
-    std::vector<std::string> found;
+    za::Vector<za::String> found;
     for(const auto& path : files)
     {
         const auto rel = path.lexically_relative(ctx.tree);
-        const std::string name = rel.empty() || *rel.begin() == ".." ? path.generic_string() : rel.generic_string();
+        const za::String name = rel.empty() || *rel.begin() == ".." ? genericStr(path) : genericStr(rel);
         for(const auto& f : scan(path).statics)
         {
-            found.push_back(std::format("{}:{}: {}", name, f.line, f.text));
+            found.pushBack(fmt("{}:{}: {}", name, f.line, f.text));
         }
     }
     for(const auto& f : found)
@@ -720,67 +740,68 @@ int checkStatics(const Ctx& ctx, const Args& args, Out& out)
 
 int checkSeatState(const Ctx& ctx, const Args& args, Out& out)
 {
-    const bool accept = std::find(args.begin(), args.end(), "--accept") != args.end();
-    const bool tighten = std::find(args.begin(), args.end(), "--tighten") != args.end();
+    const bool accept = has(args, za::StringView{"--accept"});
+    const bool tighten = has(args, za::StringView{"--tighten"});
     // The client-side code: Quake/vr (its external/ left out) and the engine's own top-level sources (the vendored
     // ones left out).
-    std::vector<fs::path> files = treeFiles(ctx.tree / "Quake" / "vr");
-    constexpr std::array<std::string_view, 4> vendored = {"lodepng.c", "miniz.c", "strlcat.c", "strlcpy.c"};
+    za::Vector<fs::path> files = treeFiles(ctx.tree / "Quake" / "vr");
+    constexpr za::Array<za::StringView, 4> vendored = {"lodepng.c", "miniz.c", "strlcat.c", "strlcpy.c"};
     for(auto& p : listFiles(ctx.tree / "Quake", {".c", ".h", ".cpp"}, false))
     {
-        if(!oneOf(p.filename().string(), vendored))
+        const za::String file = genericStr(p.filename());
+        if(!has(vendored, za::StringView{file}))
         {
-            files.push_back(std::move(p));
+            files.pushBack(ZA_MOVE(p));
         }
     }
     const fs::path listPath = ctx.tree / "Misc" / "quakevr" / "seat_state_allowlist.txt";
-    std::set<std::string> listed;
-    std::vector<std::string> header; // the allowlist's comment lines, kept as they are
-    const std::string listText = readText(listPath);
+    Set<za::String> listed;
+    za::Vector<za::String> header; // the allowlist's comment lines, kept as they are
+    const za::String listText = readText(listPath);
     for(const auto line : splitLines(listText))
     {
         const auto l = trim(line);
-        if(l.starts_with("#"))
+        if(startsWith(l, "#"))
         {
-            header.emplace_back(l);
+            header.pushBack(za::String{l});
         }
         else if(!l.empty())
         {
-            listed.emplace(l);
+            listed.insert(za::String{l});
         }
     }
-    std::set<std::string> seen;
-    std::vector<std::string> fresh;
+    Set<za::String> seen;
+    za::Vector<za::String> fresh;
     int marked = 0;
     for(const auto& path : files)
     {
-        const std::string rel = relPosix(path, ctx.tree);
+        const za::String rel = relPosix(path, ctx.tree);
         for(const auto& d : scan(path).fileScope)
         {
             for(const auto& name : d.names)
             {
-                const std::string key = std::format("{}|{}", rel, name);
+                za::String key = fmt("{}|{}", rel, name);
                 if(d.marked)
                 {
                     ++marked;
                     continue;
                 }
-                seen.insert(key);
                 if(!listed.contains(key))
                 {
-                    fresh.push_back(std::format("{}:{}: {}", rel, d.nameLine, name));
+                    fresh.pushBack(fmt("{}:{}: {}", rel, d.nameLine, name));
                 }
+                seen.insert(ZA_MOVE(key));
             }
         }
     }
-    size_t gone = 0;
+    za::SizeT gone = 0;
     for(const auto& k : listed)
     {
         gone += seen.contains(k) ? 0 : 1;
     }
     if(accept || tighten)
     {
-        std::set<std::string> keep;
+        Set<za::String> keep;
         for(const auto& k : listed)
         {
             if(!tighten || seen.contains(k))
@@ -790,16 +811,21 @@ int checkSeatState(const Ctx& ctx, const Args& args, Out& out)
         }
         if(accept)
         {
-            keep.insert(seen.begin(), seen.end());
+            for(const auto& k : seen)
+            {
+                keep.insert(k);
+            }
         }
-        std::string text;
+        za::String text;
         for(const auto& h : header)
         {
-            text += h + "\n";
+            text += h;
+            text += "\n";
         }
-        for(const auto& k : keep)
+        for(const auto& k : sortedItems(keep))
         {
-            text += k + "\n";
+            text += k;
+            text += "\n";
         }
         writeRaw(listPath, text);
         out.line("seat_state: {} allowlisted ({} added, {} dropped), {} marked seat-shared", keep.size(),

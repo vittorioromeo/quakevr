@@ -560,6 +560,7 @@ void subtract(int layer, const glm::vec4& amount, bool ownOnly = false)
         }
         glViewport(0, 0, amount == glm::vec4{1.f} ? sideOf(layer) : m.w, amount == glm::vec4{1.f} ? sideOf(layer) : m.h);
         GL_UseProgram(glprogs.viewblend);
+        GL_OpaqueBlendKeep(true); // (blended: vr_gl_opaque_noblend)
         GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
         glBlendFunc(GL_ONE, GL_ONE);
         GL_BlendEquationFunc(GL_FUNC_REVERSE_SUBTRACT);
@@ -570,6 +571,7 @@ void subtract(int layer, const glm::vec4& amount, bool ownOnly = false)
         GL_Uniform4fFunc(4, 0.f, 0.f, 0.f, 0.f);
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glBlendFunc(GL_ONE, GL_ZERO);
+        GL_OpaqueBlendKeep(false);
     }
 }
 
@@ -695,12 +697,14 @@ void paint(int layer, entity_t* e, const za::Vector<Splat>& splats)
             for(za::SizeT i = 0; i < splats.size(); i += maxSplats)
             {
                 const int n = static_cast<int>(za::min<za::SizeT>(maxSplats, splats.size() - i));
+                GL_OpaqueBlendKeep(true); // (blended, the largest kept: vr_gl_opaque_noblend)
                 GL_BlendEquationFunc(GL_MAX);
                 paintModel(as[d], n, &splats[i].v[0].x, side[k]);
             }
         }
     }
     GL_BlendEquationFunc(GL_FUNC_ADD);
+    GL_OpaqueBlendKeep(false);
     masks[static_cast<za::SizeT>(layer)].painted = vr_gametime;
     for(const Splat& s : splats)
     {
@@ -1890,6 +1894,7 @@ void washUnder(int layer, entity_t* e, float surface, float amount)
             glClear(GL_STENCIL_BUFFER_BIT);
         }
         // (the state's blending set first: R_PaintAliasWounds sets the same, leaving the function as it is)
+        GL_OpaqueBlendKeep(true); // (blended: vr_gl_opaque_noblend)
         GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
         glBlendFunc(GL_ONE, GL_ONE);
         GL_BlendEquationFunc(GL_FUNC_REVERSE_SUBTRACT);
@@ -1902,6 +1907,7 @@ void washUnder(int layer, entity_t* e, float surface, float amount)
         }
         GL_BlendEquationFunc(GL_FUNC_ADD);
         glBlendFunc(GL_ONE, GL_ZERO);
+        GL_OpaqueBlendKeep(false);
     }
     if(once)
     {

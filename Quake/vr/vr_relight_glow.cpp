@@ -5,6 +5,7 @@
 #include "vr_relight_internal.hpp"
 #include "vr_cvars.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -15,7 +16,7 @@ extern "C" {
 void VR_HeapFree(void* pointer);                                       // vr_alloccount.cpp
 void VR_FileCacheEnable(int on);                                       // vr_fscache.cpp
 void VR_FileCacheForget();                                             // vr_fscache.cpp
-int VR_MapGameFolder(const char* name, char* out, size_t size);        // vr_gamedir.cpp
+int VR_MapGameFolder(const char* name, char* out, za::SizeT size);        // vr_gamedir.cpp
 }
 
 namespace qvr::relight
@@ -476,7 +477,7 @@ namespace detail
 }
 
 // The first of <stem>.png, .tga, .jpg in the search path (Image_LoadImage's order): its file (where) or false.
-[[nodiscard]] bool imageFile(const char* stem, char* where, size_t size)
+[[nodiscard]] bool imageFile(const char* stem, char* where, za::SizeT size)
 {
     for(const char* ext : {"png", "tga", "jpg"})
     {
@@ -492,7 +493,7 @@ namespace detail
 }
 
 // The material maps' image <stem> (vr_extmaps_dir: in the game folders, or a full path): its file, or false.
-[[nodiscard]] bool extmapsFile(const char* stem, char* where, size_t size)
+[[nodiscard]] bool extmapsFile(const char* stem, char* where, za::SizeT size)
 {
     const char* dir = vr_extmaps_dir.string;
     const bool absolute = dir[0] == '/' || dir[0] == '\\' || (dir[0] && dir[1] == ':');

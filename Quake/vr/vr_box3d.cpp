@@ -62,6 +62,7 @@
 #include "vr_trace.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -449,7 +450,7 @@ namespace
 {
     if(num >= static_cast<int>(world->slots.size()))
     {
-        world->slots.resize(static_cast<size_t>(num) + 64);
+        world->slots.resize(static_cast<za::SizeT>(num) + 64);
     }
     return world->slots[num];
 }
@@ -661,7 +662,7 @@ void buildWorld()
         b3ShapeDef shape = shapeDef(0, catWorld, catProp | catCorpse);
         world->worldShape = b3CreateMeshShape(id, &shape, world->mesh, b3Vec3_one);
     }
-    world->slots.resize(static_cast<size_t>(qcvm->num_edicts) + 64);
+    world->slots.resize(static_cast<za::SizeT>(qcvm->num_edicts) + 64);
     if(vr_debug_box3d.value)
     {
         Con_Printf("box3d: world for %s, %d triangles, %.1f units a metre\n", sv.worldmodel->name,

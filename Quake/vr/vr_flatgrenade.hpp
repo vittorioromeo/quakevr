@@ -27,4 +27,17 @@ void apply(hands::State& s);
 // punches nor takes a weapon's grip (vr_flatsight.cpp, vr_twohand.cpp).
 [[nodiscard]] bool busy(int h);
 
+// Whether the free hand `helping` lets go of a two-handed grip of the weapon `holding` holds: either hand busy (above).
+// The throwing hand's own throw too (his call 2026-11-23): a throw is one-handed, the other hand lets go and takes the
+// grip again after, as after the other let-go moves.
+[[nodiscard]] bool letsGo(int holding, int helping);
+
+// Whether hand `h` is on the throw key's throw (wound up or following through): what it holds neither fires nor sights
+// (his words 2026-11-23; the game refuses the fire too: QC VR_FlatThrow_WindsUpWeapon).
+[[nodiscard]] bool throwsWith(int h);
+
+// How far hand `h` guides the other hand's throw (0..1, eased): free, it goes forward, its palm away, its fingers open
+// by vr_flat_throw_guide_open (vr_view.cpp's finger curls).
+[[nodiscard]] float guideShare(int h);
+
 } // namespace qvr::flatgrenade

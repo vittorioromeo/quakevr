@@ -48,6 +48,7 @@
 #include "vr_toolgun.hpp"
 #include "vr_visor.hpp"
 #include "vr_arenacards.hpp"
+#include "vr_weaponwheel.hpp"
 #include "vr_waveeditor.hpp"
 #include "vr_api_render.h"
 
@@ -504,6 +505,7 @@ void drawInEye(const hands::State& s, bool headText)
         }
         toolgun::panel::drawInEye(s); // (the toolgun's panel over the gun, and the laser at it: open in the game)
         arenacards::drawInEye(s);     // (the Survival Arena's perk cards in front of you, and the lasers at them)
+        weaponwheel::drawInEye(s);    // (the weapon wheel round the hand that holds its button)
         waveeditor::drawInEye(s);     // (the Arena Wave Editor's panel in front of you, and the lasers at it)
         return;
     }
@@ -807,6 +809,7 @@ extern "C" void VR_FlatSeatPanels(void)
 {
     toolgun::panel::drawFlat(); // (the toolgun's panel, its cursor on it)
     flatholster::draw();        // (the holster menu, its cursor on it: vr_flatholster.cpp)
+    weaponwheel::drawFlat();    // (the weapon wheel on 1 / 2 held, where that hand is: vr_weaponwheel.cpp)
 }
 
 extern "C" void VR_End2D(void (*windowHud)())
@@ -817,7 +820,7 @@ extern "C" void VR_End2D(void (*windowHud)())
         if(SCR_SeatsDrawn() <= 1) // (seats in tiles: each seat's in its pass, VR_VisorSeatPanels and VR_FlatSeatPanels)
         {
             visor::renderPanels(); // (flatscreen play's visor HUD: its panels' images, shown in the next frame's view)
-            VR_FlatSeatPanels();
+            VR_FlatSeatPanels();   // (the toolgun's panel, the holster menu, the weapon wheel)
         }
         return;
     }
@@ -834,6 +837,7 @@ extern "C" void VR_End2D(void (*windowHud)())
     }
     toolgun::panel::render(); // (the toolgun's panel, likewise)
     arenacards::render();     // (the perk cards' panel, likewise)
+    weaponwheel::render();    // (the weapon wheel's image, likewise)
     // The flat HUD over the window's view of the eyes (NOTES.md vrfiringrange_2026-09-30_11-20-33): the mirror's
     // (vr_window_hud_mirror, on) and the spectator camera's (vr_window_hud_spectator, off: a recording shows the
     // game as the headset does, with the wrist gadget).

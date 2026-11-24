@@ -21,6 +21,7 @@
 
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -634,7 +635,7 @@ int bridgeBones(const Shell& s, int pieces, const float* bones, int have, float*
         glm::vec3 P[bridgeMostRings * ringVerts], N[bridgeMostRings * ringVerts];
         if(!bones || (!upperWorn && !lowerWorn) || !evalBridge(s, j, bones, have, upperWorn, lowerWorn, P, N, nullptr))
         {
-            ZA_MEMSET(o, 0, sizeof(float) * 12u * static_cast<size_t>(n)); // (not drawn: collapsed)
+            ZA_MEMSET(o, 0, sizeof(float) * 12u * static_cast<za::SizeT>(n)); // (not drawn: collapsed)
             continue;
         }
         joints++;
@@ -880,7 +881,7 @@ void bridgeTrace(const Shell& s, int ent, const char* model, int pieces, const f
                 static_cast<double>(d.keep), static_cast<double>(d.m0), static_cast<double>(d.m1), static_cast<double>(d.pushMost));
         }
         tb->had[j] = true;
-        ZA_MEMCPY(tb->P[j], P, sizeof(glm::vec3) * static_cast<size_t>(n));
+        ZA_MEMCPY(tb->P[j], P, sizeof(glm::vec3) * static_cast<za::SizeT>(n));
         for(int i = 0; i < d.rings; i++)
         {
             tb->X[j][i] = d.ringX[i];
@@ -1091,7 +1092,7 @@ void restCheck(const char* model, const Shell& s, const rig2::Rig& rig, const Ch
             for(int c = 0; c < bridgeCols && at0 < static_cast<int>(sizeof(line)) - 24; c++)
             {
                 const glm::vec3 q = P[i * ringVerts + c] - C[i];
-                at0 += q_snprintf(line + at0, sizeof(line) - static_cast<size_t>(at0), " %4.0f/%.2f/%.2f", static_cast<double>(za::atan2(glm::dot(q, y), glm::dot(q, x)) * (180.f / pi)),
+                at0 += q_snprintf(line + at0, sizeof(line) - static_cast<za::SizeT>(at0), " %4.0f/%.2f/%.2f", static_cast<double>(za::atan2(glm::dot(q, y), glm::dot(q, x)) * (180.f / pi)),
                     static_cast<double>(glm::length(q - z * glm::dot(q, z))), static_cast<double>(glm::dot(P[i * ringVerts + c] - C[0], z)));
             }
             Con_Printf("agarmor bridge rest: %s %s %s\n", model, pieceNames[br.lower], line);
@@ -1354,7 +1355,7 @@ void sweepCheck(const char* model, const Shell& s, const rig2::Rig& rig, const C
                 }
             }
             had = true;
-            ZA_MEMCPY(was, P, sizeof(glm::vec3) * static_cast<size_t>(br.rings * ringVerts));
+            ZA_MEMCPY(was, P, sizeof(glm::vec3) * static_cast<za::SizeT>(br.rings * ringVerts));
             dWas = d;
         }
         Con_DPrintf("agarmor bridge check:   %s %s sweep's worst step at %.0f deg, ring %d: most pushed %.2f -> %.2f, crease gave up %.2f -> %.2f\n", model,
@@ -1449,7 +1450,7 @@ void continuityCheck(qmodel_t* src, const Shell& s, const rig2::Rig& rig, const 
                         worstTurnPose[j] = p;
                     }
                 }
-                ZA_MEMCPY(was[j], P, sizeof(glm::vec3) * static_cast<size_t>(n));
+                ZA_MEMCPY(was[j], P, sizeof(glm::vec3) * static_cast<za::SizeT>(n));
                 dWas[j] = d;
             }
         }

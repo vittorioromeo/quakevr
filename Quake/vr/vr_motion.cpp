@@ -173,7 +173,7 @@ za::Vector<int> categoryOrder()
     za::Vector<int> out;
     for(const char* name : order)
     {
-        for(size_t i = 0; i < list.size(); i++)
+        for(za::SizeT i = 0; i < list.size(); i++)
         {
             if(!ZA_STRCMP(list[i].choice.name, name))
             {
@@ -181,7 +181,7 @@ za::Vector<int> categoryOrder()
             }
         }
     }
-    for(size_t i = 0; i < list.size(); i++) // (any not in the order)
+    for(za::SizeT i = 0; i < list.size(); i++) // (any not in the order)
     {
         if(za::find(out.begin(), out.end(), static_cast<int>(i)) == out.end())
         {
@@ -842,7 +842,7 @@ void fillSettings(za::String& header, const SettingsSnap& s)
 {
     za::Vector<int> slots{weapons::fistSlot(), weapons::heldSlot(HAND_MAIN), weapons::heldSlot(HAND_OFF)};
     za::String out;
-    for(size_t i = 0; i < slots.size(); i++)
+    for(za::SizeT i = 0; i < slots.size(); i++)
     {
         const int slot = slots[i];
         if(slot < 0 || za::find(slots.begin(), slots.begin() + static_cast<long>(i), slot) != slots.begin() + static_cast<long>(i))

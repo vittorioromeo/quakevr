@@ -2399,7 +2399,12 @@ void finish(bool keep)
     ses.active = false;
     ses.undo.clear();
     ses.undoPoses.clear();
-    Cvar_SetValueQuick(&vr_agrunt_freeze, ses.freezeWas);
+    // (only while still frozen: a scene that set it and put it back, or a map change that ended the scene, unfroze them
+    // first: putting the studio's value back then froze the next scene's humanoids; his note of 2026-11-23 23:03:39)
+    if(vr_agrunt_freeze.value != 0.f)
+    {
+        Cvar_SetValueQuick(&vr_agrunt_freeze, ses.freezeWas);
+    }
     Con_Printf("Pose Studio: %s\n", keep ? (changed ? "done" : "done (nothing changed)") : "cancelled, the grips and poses put back");
     if(keep && changed)
     {

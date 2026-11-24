@@ -176,7 +176,7 @@ void(entity e, float s) VR_MagHolster_Arrive =
     setHolsterWeapon(hs, e.weapon);
     setHolsterWeaponModel(hs, WeaponIdToModel(e.weapon, flags));
     setHolsterWeaponFlags(hs, flags);
-    VRSetEntHolsterWeaponInst(self, hs, e.weaponinst ? e.weaponinst : WeaponInst_New(0));
+    VRSetEntHolsterWeaponInst(self, hs, WeaponInst_Owned(self, e.weapon, e.weaponinst ? e.weaponinst : WeaponInst_New(0)));
     VR_SoundVaried(self, CHAN_AUTO, "weapons/holster1.wav", 1, ATTN_NORM);
     dprint(sprintf("magholster: weapon %g (%s) home in holster %g after %.2f s of flight\n", e.weaponinst.wi_uid, e.netname, s,
         e.vr_mag_fly ? time - e.vr_mag_fly : 0));
@@ -284,12 +284,12 @@ void(float xHand) VR_MagHolster_Press =
             VRHolsterHapticBuzz(self, xHand, hs);
             return;
         }
-        inst = WeaponInst_Ensure(VRGetEntWeaponInst(self, xHand), held, 0);
+        inst = WeaponInst_Ensure(self, VRGetEntWeaponInst(self, xHand), held, 0);
         VRSetEntWeaponInst(self, xHand, inst);
     }
     else
     {
-        inst = WeaponInst_Ensure(VRGetEntHolsterWeaponInst(self, hs), getHolsterWeapon(hs), 0);
+        inst = WeaponInst_Ensure(self, VRGetEntHolsterWeaponInst(self, hs), getHolsterWeapon(hs), 0);
         VRSetEntHolsterWeaponInst(self, hs, inst);
     }
     for(float k = 0; k < 6; k++)

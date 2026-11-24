@@ -3907,7 +3907,7 @@ bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
         diskcache::noteMiss(diskcache::Product::Hulls, "(the world's tree, rejected)");
         return false;
     }
-    diskcache::noteHit(diskcache::Product::Hulls, static_cast<size_t>(size), Sys_DoubleTime() - t0);
+    diskcache::noteHit(diskcache::Product::Hulls, static_cast<za::SizeT>(size), Sys_DoubleTime() - t0);
     t.nodes = ZA_MOVE(nodes);
     t.planes = ZA_MOVE(planes);
     t.index.clear(); // (made again by the next build that needs it: TreeBuilder)

@@ -184,11 +184,13 @@ void(entity p) DW_BossTest =
 
 // ---------------------------------------------------------------------------------------------------------------------
 // vr_ad_test 201-202 (DWELL.md P3): Dwell's weapons as ours. 201: the Rotary Shotgun in the main hand, the Crystal Lance
-// in the off hand, the Rifle in holster 0 (with ammo). Then a level change, or a save and load (Misc/quakevr/
-// dwell_weapons_test.sh). 202: each still Dwell's (its record's variant: parm76, or the save), then each fired once at
-// grunts held on its line (health 1000, frozen): the Rifle 50 to one, the Rotary Shotgun some of its 20 pellets of 2 to
-// one, the Crystal Lance 150 to each of two in a row (its pierce). The script levels the mock's hands (they point at
-// the floor) and turns positional damage off (the numbers exact). 203: 202's checks of the three kept, no shots. "dwweapons: N passed, M failed".
+// in the off hand, a plain shotgun in holster 0 holding the retired Rifle's variant 3 (an older save's record), with
+// ammo. Then a level change, or a save and load (Misc/quakevr/dwell_weapons_test.sh). 202: the two still Dwell's (its
+// record's variant: parm76, or the save), the holstered shotgun no Dwell weapon (its name and model ours, its shot
+// not Dwell's), then each fired once at grunts held on its line (health 1000, frozen): the Rotary Shotgun some of its 20
+// pellets of 2 to one, the Crystal Lance 150 to each of two in a row (its pierce). The script levels the mock's hands
+// (they point at the floor) and turns positional damage off (the numbers exact). 203: 202's checks of the three kept,
+// no shots. "dwweapons: N passed, M failed".
 
 entity dw_wt_a, dw_wt_b;
 float dw_wt_frames, dw_wt_step;
@@ -207,7 +209,7 @@ void(entity p) DW_WeaponsTest_Give =
     VR_Scene_HoldGiven(p, cVR_MainHand);
     VR_Scene_HoldGiven(p, cVR_OffHand);
     entity inst = WeaponInst_New(WeaponIdToBaseClipSize(WID_SHOTGUN));
-    inst.wi_dwvar = DW_VAR_RIFLE;
+    inst.wi_dwvar = 3; // (the retired Rifle's: dw_defs.qc)
     p.holsterweapon0 = WID_SHOTGUN; p.holsterweaponflags0 = 0; p.holsterweaponinst0 = inst;
     p.holsterweaponmodel0 = WeaponIdToModel(WID_SHOTGUN, 0);
     p.ammo_shells = 100;
@@ -275,8 +277,8 @@ void(entity p) DW_WeaponsTest_Targets =
     dw_wt_b = VR_Test_Spawn(world, 0, p.origin + v_forward * 260 + '0 0 64', p.angles_y + 180);
 };
 
-// Frames (each once the targets can be hurt): 0 the Rifle drawn, placed; 1 fired; 2 checked, new targets; 3 the
-// Rotary Shotgun drawn back, placed; 4 fired; 5 checked, new targets; 6 the Lance's line placed; 7 fired; 8 checked.
+// Frames (each once the targets can be hurt): 0 the holstered shotgun drawn, its shot not Dwell's, put back; the
+// Rotary Shotgun's line placed; 1 fired; 2 checked, new targets; 3 the Lance's line placed; 4 fired; 5 checked.
 void() DW_WeaponsTest_Think =
 {
     entity p = self.owner;
@@ -291,26 +293,33 @@ void() DW_WeaponsTest_Think =
     }
     if(!dw_wt_a.takedamage || !dw_wt_b.takedamage) { return; } // (their monster start: a frame or two)
     float da = 1000 - dw_wt_a.health, db = 1000 - dw_wt_b.health;
-    if(dw_wt_step == 0 || dw_wt_step == 3) { DW_WeaponsTest_SwapHolster(p); DW_WeaponsTest_Place(p, cVR_MainHand); }
-    else if(dw_wt_step == 1 || dw_wt_step == 4) { DW_WeaponsTest_Shoot(p, cVR_MainHand); }
-    else if(dw_wt_step == 2)
+    if(dw_wt_step == 0)
     {
-        // (50 through our damage: an unaware target's bonus makes it 63)
-        VR_Test_Check(da >= 50 && da <= 75 && db == 0, sprintf("the Rifle: one 50 bullet to the first (%g), none past it (%g)", da, db));
-        DW_WeaponsTest_Targets(p);
+        DW_WeaponsTest_SwapHolster(p);
+        entity os = self;
+        self = p;
+        float before = dw_variant_shots;
+        float fired = DW_FireVariant(cVR_MainHand, &self.attack_finished);
+        self = os;
+        VR_Test_Check(!fired && dw_variant_shots == before,
+            sprintf("the holstered shotgun (the retired Rifle's variant %g): its shot ours, not Dwell's", p.weaponinst.wi_dwvar));
+        DW_WeaponsTest_SwapHolster(p);
+        DW_WeaponsTest_Place(p, cVR_MainHand);
     }
-    else if(dw_wt_step == 5)
+    else if(dw_wt_step == 1) { DW_WeaponsTest_Shoot(p, cVR_MainHand); }
+    else if(dw_wt_step == 2)
     {
         // (20 pellets of 2 at most: 40, 50 into an unaware target)
         VR_Test_Check(da >= 2 && da <= 50 && db <= 50, sprintf("the Rotary Shotgun: pellets of 2, 20 at most (%g, %g)", da, db));
         DW_WeaponsTest_Targets(p);
     }
-    else if(dw_wt_step == 6) { VRSetEntWeaponClip(p, cVR_OffHand, 6); DW_WeaponsTest_Place(p, cVR_OffHand); }
-    else if(dw_wt_step == 7) { DW_WeaponsTest_Shoot(p, cVR_OffHand); }
+    else if(dw_wt_step == 3) { VRSetEntWeaponClip(p, cVR_OffHand, 6); DW_WeaponsTest_Place(p, cVR_OffHand); }
+    else if(dw_wt_step == 4) { DW_WeaponsTest_Shoot(p, cVR_OffHand); }
     else
     {
-        // (150 each through our damage: 188 to an unaware target, as the Rifle's 63)
-        VR_Test_Check(da >= 150 && da <= 188 && db == da, sprintf("the Crystal Lance: 150 to each, through the first (%g, %g)", da, db));
+        // (150 each through our damage: 188 to an unaware target, each on its own: the first may have seen the player
+        // already, one frame sooner now that the Rifle's three steps are gone)
+        VR_Test_Check(da >= 150 && da <= 188 && db >= 150 && db <= 188, sprintf("the Crystal Lance: 150 to each, through the first (%g, %g)", da, db));
         VR_Test_Verdict();
         remove(dw_wt_a);
         remove(dw_wt_b);
@@ -402,8 +411,9 @@ void(entity p) DW_GruntTest =
 
 // vr_ad_test 205 (DWELL.md 9.6): Dwell's weapons drawn as themselves: 201's three given, then (a frame later: the models
 // synced in PostThink) each hand's and the holster's model Dwell's VR model (with Dwell's data; without it ours), and the
-// Rotary's model, moved to the off hand, still its own. "dwmodels: N passed, M failed". 206-208: the Rotary Shotgun, the
-// Crystal Lance, the Rifle alone in the main hand (the screenshot harness: Misc/quakevr/dwell_vrmodels_test.sh).
+// Rotary's model, moved to the off hand, still its own. "dwmodels: N passed, M failed". 206-207: the Rotary Shotgun, the
+// Crystal Lance alone in the main hand (the screenshot harness: Misc/quakevr/dwell_vrmodels_test.sh; 208, the Rifle's,
+// retired).
 float dw_mt_frames;
 void() DW_ModelsTest_Think =
 {
@@ -423,8 +433,8 @@ void() DW_ModelsTest_Think =
     string lance = DW_LancePole() ? "progs/dw_lance.mdl#vr" : "progs/dw_rail.mdl#vr"; // (vr_dw_lance_pole)
     VR_Test_Check(p.weaponmodel2 == (data ? lance : WeaponIdToModel(WID_LIGHTNING, 0)),
         sprintf("the Crystal Lance drawn as itself (%s)", p.weaponmodel2));
-    VR_Test_Check(p.holsterweaponmodel0 == (data ? "progs/dw_rifle.mdl#vr" : WeaponIdToModel(WID_SHOTGUN, 0)),
-        sprintf("the Rifle holstered drawn as itself (%s)", p.holsterweaponmodel0));
+    VR_Test_Check(p.holsterweaponmodel0 == WeaponIdToModel(WID_SHOTGUN, 0),
+        sprintf("the holstered shotgun (the retired Rifle's variant) drawn as ours (%s)", p.holsterweaponmodel0));
     VR_Test_Check(AD_WeaponModel(WID_SUPER_SHOTGUN, 0, world) == WeaponIdToModel(WID_SUPER_SHOTGUN, 0),
         "a plain super shotgun drawn as ours");
     entity widow = WeaponInst_New(WeaponIdToBaseClipSize(WID_SUPER_SHOTGUN));
@@ -453,8 +463,8 @@ void(entity p, float xRequest) DW_ModelsTest =
         t.nextthink = time;
         return;
     }
-    // 206-208: one of them alone in the main hand (the off hand empty).
-    float wid = xRequest == 206 ? WID_SUPER_SHOTGUN : xRequest == 207 ? WID_LIGHTNING : WID_SHOTGUN;
+    // 206-207: one of them alone in the main hand (the off hand empty).
+    float wid = xRequest == 206 ? WID_SUPER_SHOTGUN : WID_LIGHTNING;
     entity os = self;
     self = p;
     VR_WeaponUtil_EntAddWeapon(p, wid);
@@ -466,6 +476,53 @@ void(entity p, float xRequest) DW_ModelsTest =
     p.ammo_cells = 100;
     self = os;
     bprint(sprintf("dwmodels: %s in the main hand\n", DW_VariantName(DW_VariantFor(wid))));
+};
+
+// vr_ad_test 208 (his note 2026-11-23, dwrifle): Dwell's Rifle gone. 4000 picks of the armed humanoids' random pool
+// (VR_AG_PickWeapon, the weights as set) and 48 armed humanoids armed from it (VR_AM_Spawn's pooled path, the kind of
+// vr_agrunt_test_kind): none a Dwell weapon (no record with a variant, none named or drawn as the Rifle); a shotgun's
+// variant none and its model ours. (The toolgun's rows: dwell_weapons_test.sh asks vr_toolgun_select for the Rifle.)
+// "dwrifle: N passed, M failed".
+void(entity p) DW_RifleGoneTest =
+{
+    VR_Test_BeginFlags("dwrifle", VR_TEST_LOUD);
+    float n, picks = 0, shotguns = 0, undecodable = 0;
+    for(n = 0; n < 4000; n++)
+    {
+        float c = VR_AG_PickWeapon();
+        if(c <= 0) { continue; }
+        picks++;
+        if(!VR_AG_Decode(c)) { undecodable++; continue; }
+        if(vr_ag_dec_wid == WID_SHOTGUN) { shotguns++; }
+    }
+    VR_Test_Check(picks > 0 && undecodable == 0, sprintf("the pool: %g weapons in 4000 picks (%g shotguns), every one decoded (%g not)",
+        picks, shotguns, undecodable));
+    vr_agt_player = p;
+    float armed = 0, dwell = 0, rifle = 0;
+    for(n = 0; n < 48; n++)
+    {
+        entity g = VR_AGT_Spawn(0, 200);
+        entity pr;
+        for(float h = 0; h < 2; h++)
+        {
+            pr = h ? g.vr_ag_prop2 : g.vr_ag_prop;
+            if(!pr) { continue; }
+            armed++;
+            if(pr.weaponinst && pr.weaponinst.wi_dwvar) { dwell++; }
+            if(pr.netname == "Rifle" || strstrofs(pr.model, "dw_rifle", 0) >= 0) { rifle++; }
+        }
+        VR_AGT_Remove(g);
+    }
+    VR_Test_Check(armed > 0 && dwell == 0 && rifle == 0,
+        sprintf("48 armed from the pool: %g weapons, %g with a Dwell variant, %g the Rifle", armed, dwell, rifle));
+    VR_Test_Check(DW_VariantFor(WID_SHOTGUN) == 0 && DW_VRModelOf(WID_SHOTGUN) == "",
+        sprintf("a shotgun has no Dwell variant (%g) nor Dwell model (\"%s\")", DW_VariantFor(WID_SHOTGUN), DW_VRModelOf(WID_SHOTGUN)));
+    entity inst = WeaponInst_New(0);
+    inst.wi_dwvar = 3; // (an older save's Rifle record)
+    VR_Test_Check(DW_WeaponModel(WID_SHOTGUN, inst) == "" && VR_AG_NameOf(WID_SHOTGUN, 0, inst) == WeaponNameOf(WID_SHOTGUN, 0),
+        sprintf("an older save's Rifle record is a plain shotgun: %s", VR_AG_NameOf(WID_SHOTGUN, 0, inst)));
+    remove(inst);
+    VR_Test_Verdict();
 };
 
 // vr_ad_test 213 (his notes 2026-11-21): Dwell's map pickups taken by the body's touch (weapon_touch: they asserted on
@@ -496,10 +553,10 @@ void(entity p) DW_PickupTest =
     self = os;
     float touching = p.touchinghand;
     p.touchinghand = cVR_FakeHand; // (the body's touch: the first free hand)
-    entity pk = DW_PickupTest_Make(p, "weapon_rifle", dw_weapon_rifle);
+    entity pk = DW_PickupTest_Make(p, "weapon_quad_shotgun", dw_weapon_quad_shotgun);
     self = pk; other = p; weapon_touch(); self = os;
-    VR_Test_Check(pk.model == "" && p.weapon == WID_SHOTGUN && p.weaponinst.wi_dwvar == DW_VAR_RIFLE,
-        sprintf("the map's Rifle taken: weapon %g variant %g, pickup %s", p.weapon, p.weaponinst.wi_dwvar,
+    VR_Test_Check(pk.model == "" && p.weapon == WID_SUPER_SHOTGUN && p.weaponinst.wi_dwvar == DW_VAR_ROTARY,
+        sprintf("the map's Rotary Shotgun taken: weapon %g variant %g, pickup %s", p.weapon, p.weaponinst.wi_dwvar,
         pk.model == "" ? "gone" : "still there"));
     pk = DW_PickupTest_Make(p, "weapon_railgun", dw_weapon_railgun);
     self = pk; other = p; weapon_touch(); self = os;
@@ -508,11 +565,11 @@ void(entity p) DW_PickupTest =
     p.touchinghand = touching;
 
     float k;
-    for(k = 0; k < 3; k++)
+    for(k = 0; k < 2; k++)
     {
-        float wid = k == 0 ? WID_SUPER_SHOTGUN : k == 1 ? WID_LIGHTNING : WID_SHOTGUN;
-        float vr = k == 0 ? DW_VAR_ROTARY : k == 1 ? DW_VAR_LANCE : DW_VAR_RIFLE;
-        DW_PickupTest_Make(p, "toolgun", k == 0 ? toolgun_dw_rotary : k == 1 ? toolgun_dw_lance : toolgun_dw_rifle);
+        float wid = k == 0 ? WID_SUPER_SHOTGUN : WID_LIGHTNING;
+        float vr = k == 0 ? DW_VAR_ROTARY : DW_VAR_LANCE;
+        DW_PickupTest_Make(p, "toolgun", k == 0 ? toolgun_dw_rotary : toolgun_dw_lance);
         entity w = vr_grab_made;
         VR_Test_Check(w != world && w.classname == "thrown_weapon" && w.weapon == wid && w.weaponinst.wi_dwvar == vr &&
             w.model == DW_VRModelOf(wid), sprintf("the toolgun's %s laid as a prop: %s, weapon %g variant %g, model %s",
@@ -795,6 +852,349 @@ void(entity p) DW_LanceTest =
     t.nextthink = time;
 };
 
+// vr_ad_test 224 (lancecharge): the Crystal Lance's charged shot (dw_items.qc DW_LanceChargeFrame), in the main hand
+// (207's), a grunt held 64 units ahead on its line, the trigger held by the test (dw_lc_test: through W_WeaponFrameImpl
+// as the real one). With vr_dw_lance_charge 1: held to half charge (in 0.5 s), let go: no shot, no damage, no cells, a
+// charge let go short; nothing later either. With 0.5: full in 0.5 s, held on charged 30 frames without a shot, let go:
+// the shot (150 to the grunt, 6 cells). Without its 6 cells (4): no charge begins, its cells kept. The setting (a
+// tunable: `tune`, taken the next frame) put back.
+// "dwcharge: N passed, M failed".
+float dw_ct_step, dw_ct_frames, dw_ct_wait, dw_ct_was;
+float dw_ct_cells, dw_ct_shots, dw_ct_starts, dw_ct_cancels, dw_ct_fires;
+entity dw_ct_a;
+
+void(entity p) DW_ChargeTest_Place =
+{
+    entity os = self;
+    self = p;
+    vector src = VRGetMuzzlePos(cVR_MainHand);
+    vector dir = VRGetWeaponFireRotFwd(cVR_MainHand);
+    self = os;
+    DW_WeaponsTest_Hold(dw_ct_a, src + dir * 64);
+};
+
+void(entity p) DW_ChargeTest_End =
+{
+    dw_lc_test = dw_lc_test_press = 0;
+    localcmd(sprintf("tune vr_dw_lance_charge %g\n", dw_ct_was)); // (a tunable: set by `tune`)
+    cvar_set("vr_dw_lance_pole", ftos(dw_lt_was));
+    VR_Test_Verdict();
+    remove(dw_ct_a);
+    remove(self);
+};
+
+void() DW_ChargeTest_Think =
+{
+    entity p = self.owner;
+    self.nextthink = time;
+    dw_ct_frames++;
+    if(dw_ct_frames > 1500)
+    {
+        VR_Test_Check(FALSE, sprintf("timed out (step %g)", dw_ct_step));
+        DW_ChargeTest_End(p);
+        return;
+    }
+    if(!dw_ct_a.takedamage) { return; } // (its monster start: a frame or two)
+    float dmg = 1000 - dw_ct_a.health;
+    float shots = dw_variant_shots - dw_ct_shots;
+    if(dw_ct_step == 0)
+    {
+        VR_Test_BeginFlags("dwcharge", VR_TEST_LOUD);
+        entity os = self;
+        self = p;
+        VR_Test_Check(DW_LanceCharged(cVR_MainHand), "the Lance in the main hand charges its shots");
+        self = os;
+        localcmd("tune vr_dw_lance_charge 1\n");
+        dw_lc_test = 1;
+        dw_lc_test_press = 0;
+        DW_ChargeTest_Place(p);
+        dw_ct_cells = p.ammo_cells;
+        dw_ct_shots = dw_variant_shots;
+        dw_ct_starts = dw_lc_starts;
+        dw_ct_cancels = dw_lc_cancels;
+        dw_ct_fires = dw_lc_fires;
+        dw_ct_step = 1;
+    }
+    else if(dw_ct_step == 1) // (its refire over: it may attack)
+    {
+        if(time < p.attack_finished || cvar_hget(cvarh_vr_dw_lance_charge) != 1) { return; }
+        dw_lc_test_press = 1;
+        dw_ct_step = 2;
+    }
+    else if(dw_ct_step == 2)
+    {
+        if(p.dw_lc1 < 0.5) { return; }
+        VR_Test_Check(dw_lc_starts == dw_ct_starts + 1 && fabs(time - p.dw_lc_s1 - 0.5) <= 0.03,
+            sprintf("charge time 1: half charged %.3f s after it began (0.5; charges begun %g)", time - p.dw_lc_s1,
+            dw_lc_starts - dw_ct_starts));
+        dw_lc_test_press = 0;
+        dw_ct_step = 3;
+    }
+    else if(dw_ct_step == 3)
+    {
+        if(p.dw_lc1 > 0) { return; }
+        VR_Test_Check(dw_lc_cancels == dw_ct_cancels + 1 && dw_lc_fires == dw_ct_fires,
+            sprintf("let go at half charge: a charge let go short (%g), none fired (%g)", dw_lc_cancels - dw_ct_cancels,
+            dw_lc_fires - dw_ct_fires));
+        VR_Test_Check(dmg == 0 && shots == 0 && p.ammo_cells == dw_ct_cells,
+            sprintf("let go at half charge: no shot (%g), no damage (%g), no cells (%g of %g)", shots, dmg, p.ammo_cells, dw_ct_cells));
+        dw_ct_wait = 0;
+        dw_ct_step = 4;
+    }
+    else if(dw_ct_step == 4)
+    {
+        if(++dw_ct_wait < 20) { return; }
+        VR_Test_Check(dmg == 0 && shots == 0, sprintf("no shot later (%g frames on: %g shots, %g damage)", dw_ct_wait, shots, dmg));
+        localcmd("tune vr_dw_lance_charge 0.5\n");
+        DW_ChargeTest_Place(p);
+        dw_ct_step = 10;
+    }
+    else if(dw_ct_step == 10) // (the setting taken: the next frame's commands)
+    {
+        if(cvar_hget(cvarh_vr_dw_lance_charge) != 0.5) { return; }
+        dw_lc_test_press = 1;
+        dw_ct_step = 5;
+    }
+    else if(dw_ct_step == 5)
+    {
+        if(p.dw_lc1 < 1) { return; }
+        VR_Test_Check(fabs(time - p.dw_lc_s1 - 0.5) <= 0.03, sprintf("charge time 0.5: full %.3f s after it began", time - p.dw_lc_s1));
+        dw_ct_wait = 0;
+        dw_ct_step = 6;
+    }
+    else if(dw_ct_step == 6)
+    {
+        if(++dw_ct_wait < 30) { return; }
+        VR_Test_Check(dmg == 0 && shots == 0 && p.ammo_cells == dw_ct_cells && p.dw_lc1 >= 1,
+            sprintf("held charged 30 frames: no shot yet (%g), no cells (%g), still charged (%.2f)", shots, p.ammo_cells, p.dw_lc1));
+        dw_lc_test_press = 0;
+        dw_ct_wait = 0;
+        dw_ct_step = 7;
+    }
+    else if(dw_ct_step == 7)
+    {
+        if(!shots && ++dw_ct_wait < 20) { return; }
+        VR_Test_Check(shots == 1 && dw_lc_fires == dw_ct_fires + 1, sprintf("let go charged: the shot (%g, a charge fired %g)",
+            shots, dw_lc_fires - dw_ct_fires));
+        // (150 through our damage: 188 to an unaware target, as test 202's)
+        VR_Test_Check(dmg >= 150 && dmg <= 188 && p.ammo_cells == dw_ct_cells - 6,
+            sprintf("let go charged: 150 to the grunt (%g), 6 cells (%g of %g)", dmg, p.ammo_cells, dw_ct_cells));
+        dw_ct_step = 8;
+    }
+    else if(dw_ct_step == 8) // (its refire over)
+    {
+        if(time < p.attack_finished) { return; }
+        p.ammo_cells = 4;
+        dw_ct_starts = dw_lc_starts;
+        dw_ct_shots = dw_variant_shots;
+        dw_lc_test_press = 1;
+        dw_ct_wait = 0;
+        dw_ct_step = 9;
+    }
+    else if(dw_ct_step == 9)
+    {
+        if(++dw_ct_wait < 40) { return; }
+        VR_Test_Check(dw_lc_starts == dw_ct_starts && p.dw_lc1 == 0 && shots == 0 && p.ammo_cells == 4,
+            sprintf("4 cells: no charge begun (%g), no shot (%g), the cells kept (%g)", dw_lc_starts - dw_ct_starts, shots,
+            p.ammo_cells));
+        DW_ChargeTest_End(p);
+    }
+};
+
+void(entity p) DW_ChargeTest =
+{
+    dw_ct_was = cvar_hget(cvarh_vr_dw_lance_charge);
+    dw_lt_was = cvar("vr_dw_lance_pole");
+    cvar_set("vr_dw_lance_pole", "1");
+    DW_ModelsTest(p, 207);
+    dw_ct_step = dw_ct_frames = 0;
+    makevectors('0 1 0' * p.angles_y);
+    dw_ct_a = VR_Test_Spawn(world, 0, p.origin + v_forward * 200 + '0 0 64', p.angles_y + 180);
+    entity t = spawn();
+    t.classname = "dw_chargetest";
+    t.owner = p;
+    t.think = DW_ChargeTest_Think;
+    t.nextthink = time;
+};
+
+// vr_ad_test 225 (lance3, lance4): the Crystal Lance's beam moves what it meets, measured against the guns. On the same
+// spot 120 ahead, one small crate after another (each settled 40 frames, takedamage off: the push alone, never broken),
+// struck once each along the same line (from 64 behind and 24 above its middle; VR_ShotPush as each weapon does): the
+// Lance's beam (dw_fire_lance, at vr_dw_lance_push), a shotgun blast (6 pellets) and a super shotgun's (14), all on it,
+// and the lightning gun's beam held a second (10 bolts, 7 frames apart); each crate's middle 90 frames after its last
+// shot against before. Then a grunt killed 200 ahead (a ragdoll, settled) struck by the beam at its root bone, damage
+// and all, Corpse Gib Overkill and Hit Min out of reach for that shot (lance3's 552 units was the ragdoll gibbed whole by
+// the beam's 150, over the overkill's 50, its head thrown: not a fall; in play the beam gibs a corpse). Passes: the
+// Lance's crate moved further than the super shotgun blast's and under 64 (shoved, not flung); the ragdoll moved (the
+// push goes into its nearest part: its root moves about a unit), under 96; neither sank under where it lay (2 units, 8
+// for the ragdoll's root); still a ragdoll. lance4, sv_random_seed 1, e1m1: the crate 3.7 units at push 4, 10.2 at 8,
+// 20.2 at 16; a shotgun blast 0.5, a super shotgun's 2.4, the lightning gun held 1 s 0.2. "dwpush: N passed, M failed".
+float dw_pt_step, dw_pt_frames, dw_pt_trial, dw_pt_shots;
+float dw_pt_overkill, dw_pt_hitmin, dw_pt_restore; // Corpse Gib Overkill and Hit Min as they were (dw_pt_restore: to put back)
+float dw_pt_low;   // the lowest the struck point went since the first shot
+float dw_pt_moved[5]; // each trial's distance: the Lance, shotgun, super shotgun, lightning gun (crates), the ragdoll
+vector dw_pt_was;
+entity dw_pt_crate, dw_pt_body;
+
+// Where `t` is: a ragdoll's root bone (its body, not its box), a crate's middle.
+vector(entity t) DW_PushTest_At =
+{
+    return isragdoll(t) ? ragdollpoint(t, 0, '0 0 0', 1) : (t.absmin + t.absmax) * 0.5;
+};
+
+string(float xTrial) DW_PushTest_Name =
+{
+    if(xTrial == 0) { return "the Lance's beam"; }
+    if(xTrial == 1) { return "a shotgun blast"; }
+    if(xTrial == 2) { return "a super shotgun blast"; }
+    if(xTrial == 3) { return "the lightning gun held 1 s"; }
+    return "the Lance's beam on the ragdoll";
+};
+
+// One shot of the trial's at `t` (the Lance's beam itself; the guns' pushes as their shots make them, all on it).
+void(entity p, entity t, float xTrial) DW_PushTest_Fire =
+{
+    makevectors('0 1 0' * p.angles_y);
+    vector at = DW_PushTest_At(t);
+    dw_lance_aim_src = at - v_forward * 64 + '0 0 24';
+    dw_lance_aim_dir = at - dw_lance_aim_src;
+    if(xTrial == 0 || xTrial == 4)
+    {
+        dw_lance_aim_test = 1;
+        entity os = self;
+        self = p;
+        dw_fire_lance(cVR_MainHand);
+        self = os;
+        dw_lance_aim_test = 0;
+        return;
+    }
+    float kind = xTrial == 3 ? QVR_SHOTPUSH_LIGHTNING : QVR_SHOTPUSH_PELLET;
+    float n = xTrial == 1 ? 6 : (xTrial == 2 ? 14 : 1);
+    vector dir = normalize(dw_lance_aim_dir);
+    float i;
+    for(i = 0; i < n; i++)
+    {
+        traceline(dw_lance_aim_src, at + dir * 64, MOVE_HITGIBS, p);
+        VR_ShotPush(trace_ent, dw_lance_aim_src, trace_endpos, dir, kind, 1);
+    }
+};
+
+void() DW_PushTest_Think =
+{
+    entity p = self.owner;
+    self.nextthink = time;
+    dw_pt_frames++;
+    if(dw_pt_frames > 900)
+    {
+        VR_Test_Check(FALSE, sprintf("timed out (trial %g, step %g)", dw_pt_trial, dw_pt_step));
+        VR_Test_Verdict();
+        remove(self);
+        return;
+    }
+    entity t = dw_pt_trial < 4 ? dw_pt_crate : dw_pt_body;
+    if(dw_pt_step == 0) // a crate on the spot (the ragdoll's trial: the body killed at the start, settled since)
+    {
+        if(dw_pt_trial == 0 && dw_pt_frames == 3)
+        {
+            T_Damage(dw_pt_body, p, p, dw_pt_body.health + 10); // (a kill short of a gib: a ragdoll)
+        }
+        if(dw_pt_trial < 4 && !dw_pt_crate)
+        {
+            makevectors('0 1 0' * p.angles_y);
+            dw_pt_crate = VR_Crate_TestSpawn(p.origin + v_forward * 120 + '0 0 -8', 1, 0, FALSE);
+            dw_pt_frames = 0;
+            return;
+        }
+        if(dw_pt_frames < 40) { return; }
+        if(dw_pt_trial == 4)
+        {
+            VR_Test_Check(isragdoll(dw_pt_body), sprintf("the grunt killed is a ragdoll (%g)", isragdoll(dw_pt_body)));
+        }
+        t = dw_pt_trial < 4 ? dw_pt_crate : dw_pt_body;
+        if(dw_pt_trial < 4)
+        {
+            t.takedamage = DAMAGE_NO;
+        }
+        else
+        {
+            // (struck as in play, damage and all, only never gibbed whole: Corpse Gib Overkill out of reach for the shot)
+            dw_pt_overkill = cvar("vr_corpse_gib_overkill");
+            dw_pt_hitmin = cvar("vr_corpse_gib_hit_min");
+            dw_pt_restore = 1;
+            cvar_set("vr_corpse_gib_overkill", "100000");
+            cvar_set("vr_corpse_gib_hit_min", "100000");
+        }
+        dw_pt_was = DW_PushTest_At(t);
+        dw_pt_low = dw_pt_was_z;
+        DW_PushTest_Fire(p, t, dw_pt_trial);
+        if(dw_pt_restore)
+        {
+            cvar_set("vr_corpse_gib_overkill", ftos(dw_pt_overkill));
+            cvar_set("vr_corpse_gib_hit_min", ftos(dw_pt_hitmin));
+            dw_pt_restore = 0;
+        }
+        dw_pt_shots = 1;
+        dw_pt_frames = 0;
+        dw_pt_step = 1;
+        return;
+    }
+    // Struck: the lightning gun's bolts until 10, then 90 frames; the lowest the point went.
+    vector now = DW_PushTest_At(t);
+    dw_pt_low = min(dw_pt_low, now_z);
+    if(dw_pt_trial == 3 && dw_pt_shots < 10)
+    {
+        if(dw_pt_frames >= 7)
+        {
+            DW_PushTest_Fire(p, t, dw_pt_trial);
+            dw_pt_shots++;
+            dw_pt_frames = 0;
+        }
+        return;
+    }
+    if(dw_pt_frames < 90) { return; }
+    float d = vlen(now - dw_pt_was);
+    dw_pt_moved[dw_pt_trial] = d;
+    dprint(sprintf("dwpush: %s moved %s %.1f units (from %v to %v, %.1f lowest under where it lay)\n",
+        DW_PushTest_Name(dw_pt_trial), dw_pt_trial < 4 ? "the crate" : "the ragdoll's root", d, dw_pt_was, now,
+        dw_pt_was_z - dw_pt_low));
+    if(dw_pt_trial == 0)
+    {
+        VR_Test_Check(d < 64, sprintf("the beam shoved the crate, not flung it: %.1f units", d));
+        VR_Test_Check(dw_pt_was_z - dw_pt_low < 2, sprintf("the crate stayed on the floor (%.1f under)", dw_pt_was_z - dw_pt_low));
+    }
+    if(dw_pt_trial < 4)
+    {
+        remove(dw_pt_crate);
+        dw_pt_crate = world;
+        dw_pt_trial++;
+        dw_pt_step = 0;
+        dw_pt_frames = 0;
+        return;
+    }
+    VR_Test_Check(dw_pt_moved[0] > dw_pt_moved[2], sprintf("the Lance's beam shoves a crate further than a super shotgun blast (%.1f; shotgun %.1f, super shotgun %.1f, lightning gun 1 s %.1f)",
+        dw_pt_moved[0], dw_pt_moved[1], dw_pt_moved[2], dw_pt_moved[3]));
+    VR_Test_Check(d > 0.5 && d < 96, sprintf("the ragdoll moved by the beam: %.1f units", d));
+    VR_Test_Check(dw_pt_was_z - dw_pt_low < 8, sprintf("the ragdoll stayed on the floor (its root %.1f under where it lay)", dw_pt_was_z - dw_pt_low));
+    VR_Test_Check(isragdoll(dw_pt_body), "still a ragdoll after the beam (not gibbed)");
+    VR_Test_Verdict();
+    remove(self);
+};
+
+void(entity p) DW_PushTest =
+{
+    VR_Test_BeginFlags("dwpush", VR_TEST_LOUD);
+    DW_ModelsTest(p, 207);
+    dw_pt_step = dw_pt_frames = dw_pt_trial = dw_pt_shots = 0;
+    dw_pt_crate = world;
+    makevectors('0 1 0' * p.angles_y);
+    dw_pt_body = VR_Test_Spawn(world, 0, p.origin + v_forward * 200 + '0 0 8', p.angles_y + 180);
+    entity t = spawn();
+    t.classname = "dw_pushtest";
+    t.owner = p;
+    t.think = DW_PushTest_Think;
+    t.nextthink = time;
+};
+
 // vr_ad_test 218 (dwellwpn3): the Rotary Shotgun as a gauntlet (vr_dw_rotary_gauntlet), its reload found. In the off
 // hand, its tube empty, the main hand free: drawn with its gauntlet model (slot 56, the super nailgun's hold); its shell
 // port found (the engine's load point for it: vr_view_internal.hpp loadPorts, DwVrRotary; waited for a frame at a time,
@@ -891,9 +1291,14 @@ void(entity p) DW_RotaryTest =
 
 void(entity p, float xRequest) DW_WeaponsTest =
 {
-    if(xRequest >= 205 && xRequest <= 208)
+    if(xRequest >= 205 && xRequest <= 207)
     {
         DW_ModelsTest(p, xRequest);
+        return;
+    }
+    if(xRequest == 208)
+    {
+        DW_RifleGoneTest(p);
         return;
     }
     if(xRequest == 204)
@@ -911,8 +1316,10 @@ void(entity p, float xRequest) DW_WeaponsTest =
         sprintf("the Rotary Shotgun still in the main hand (weapon %g, variant %g)", p.weapon, p.weaponinst.wi_dwvar));
     VR_Test_Check(p.weapon2 == WID_LIGHTNING && p.weaponinst2.wi_dwvar == DW_VAR_LANCE,
         sprintf("the Crystal Lance still in the off hand (weapon %g, variant %g)", p.weapon2, p.weaponinst2.wi_dwvar));
-    VR_Test_Check(p.holsterweapon0 == WID_SHOTGUN && p.holsterweaponinst0.wi_dwvar == DW_VAR_RIFLE,
-        sprintf("the Rifle still in holster 0 (weapon %g, variant %g)", p.holsterweapon0, p.holsterweaponinst0.wi_dwvar));
+    VR_Test_Check(p.holsterweapon0 == WID_SHOTGUN && DW_WeaponModel(WID_SHOTGUN, p.holsterweaponinst0) == "" &&
+        VR_AG_NameOf(WID_SHOTGUN, 0, p.holsterweaponinst0) == WeaponNameOf(WID_SHOTGUN, 0),
+        sprintf("holster 0's shotgun (the retired Rifle's variant: %g) a plain one: %s", p.holsterweaponinst0.wi_dwvar,
+        VR_AG_NameOf(WID_SHOTGUN, 0, p.holsterweaponinst0)));
     if(xRequest == 203)
     {
         VR_Test_Verdict(); // (kept only: e1m2's start has no room for the shots)
@@ -990,5 +1397,271 @@ void(entity p) DW_RingHitTest =
     }
     remove(e);
     VR_Test_Verdict();
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+// vr_ad_test 231-234 (variantowned, his decision 2026-11-24): Dwell's weapon variants owned per player per base weapon
+// (vr_weaponinst.qc WeaponInst_Owned): with the Crystal Lance and the Rotary Shotgun owned and their records gone, every
+// path that makes or restores a weapon of their kinds hands back the variant, never the plain gun. 231 (single player,
+// flat or the VR mock): owned through their pickups, then the weapon key (impulse 8: ImpulseCommands flat, W_ChangeWeapon
+// in VR), next weapon (cycling through the super shotgun to the lightning gun), a plain lightning gun's pickup, the cheat
+// impulse (158), a holster's draw (immersive and quick slot), the weapon wheel's pick, a plain lightning gun prop taken,
+// his own death drop; each checked as the path returns (before PlayerPostThink's sync), then 4 frames on: no path left
+// one to the sync, and a record put in a hand bypassing every path made the Lance by it. Left for 232: both owned, the
+// hands empty, a plain super shotgun record in holster 0. 232 (after a level change or a save and load: owned_test.sh):
+// both still owned, the holster's super shotgun the Rotary, the weapon key's lightning gun the Lance.
+// 233-234 (MP, mp_test.py variantowned): 233 every player owns the Lance, his hands empty ("dwowned_mp: ready"); the
+// client B presses 8; 234 waits for a player's main hand to hold the lightning gun (B's impulse), checks it the Lance,
+// then every player respawned as coop does (respawn: the level's parms) still owns it, the weapon key's gun the Lance.
+// "dwowned: N passed, M failed" / "dwowned_mp: N passed, M failed" (echoed: a dedicated server's console).
+float dw_ot_frames, dw_ot_late0;
+
+void(entity p, float xHand, float xWid, float xVar, string xWhat) DW_OwnedCheck =
+{
+    entity r = VRGetEntWeaponInst(p, xHand);
+    VR_Test_Check(VRGetEntWeapon(p, xHand) == xWid && r != world && r.wi_dwvar == xVar,
+        sprintf("%s: weapon %g (want %g), its variant %g (want %g)", xWhat, VRGetEntWeapon(p, xHand), xWid, r.wi_dwvar, xVar));
+};
+
+// A plain record of `xWid` straight into holster `hs` (WID_FIST: emptied), as an older path or a save might have left it.
+void(entity p, float hs, float xWid) DW_OwnedHolster =
+{
+    entity os = self;
+    self = p;
+    setHolsterWeapon(hs, xWid);
+    setHolsterWeaponFlags(hs, 0);
+    setHolsterWeaponModel(hs, WeaponIdToModel(xWid, 0));
+    VRSetEntHolsterWeaponInst(p, hs, xWid == WID_FIST ? world : WeaponInst_New(WeaponIdToBaseClipSize(xWid)));
+    self = os;
+};
+
+// `p` owns the variant `xVar` of `xWid` through its pickup's steps (weapon_touch's), the weapon in `xHand`, checked.
+void(entity p, float xHand, float xWid, float xVar) DW_OwnedPickup =
+{
+    entity pk = spawn();
+    pk.vr_dw_var = xVar;
+    pk.netname = DW_VariantName(xVar);
+    VR_WeaponUtil_EntAddWeapon(p, xWid);
+    DW_PickupOwned(pk, p);
+    VRGiveEntWeapon(p, xHand, xWid, 0, WeaponIdToBaseClipSize(xWid));
+    DW_VariantGiven(pk, p, xHand);
+    remove(pk);
+    DW_OwnedCheck(p, xHand, xWid, xVar, sprintf("the %s's pickup", DW_VariantName(xVar)));
+    VR_Test_Check(p.vr_owned_vars & (xVar == 1 ? 1 : 2), sprintf("the %s owned (bits %g)", DW_VariantName(xVar), p.vr_owned_vars));
+};
+
+void() DW_OwnedTest_Think =
+{
+    entity p = VR_Player();
+    dw_ot_frames++;
+    if(dw_ot_frames < 4)
+    {
+        self.nextthink = time + 0.001; // (the next frame)
+        return;
+    }
+    VR_Test_Check(wi_owned_late == dw_ot_late0 + 1, sprintf("no path left a record to PlayerPostThink's sync, the one "
+        "put in bypassing every path made by it: %g late (want 1)", wi_owned_late - dw_ot_late0));
+    DW_OwnedCheck(p, cVR_OffHand, WID_LIGHTNING, DW_VAR_LANCE, "a plain record put in the off hand, 4 frames on");
+    VRGiveEntWeapon(p, cVR_OffHand, WID_FIST, 0, 0);
+    DW_OwnedHolster(p, VR_FlatHolster_Hotspot(0), WID_SUPER_SHOTGUN); // (for 232: plain, made the Rotary by the sync)
+    remove(self);
+    VR_Test_Verdict();
+};
+
+void(entity p) DW_OwnedTest =
+{
+    VR_Test_BeginFlags("dwowned", VR_TEST_LOUD);
+    entity os = self;
+    self = p;
+    float flat = VR_FlatPlay(p);
+    float hs = VR_FlatHolster_Hotspot(0);
+    float mode = cvar_hget(cvarh_vr_holster_mode);
+    cvar_set("vr_holster_mode", ftos(QVR_WEAPONMODE_IMMERSIVE));
+    p.vr_owned_vars = 0;
+    VR_WeaponUtil_EntAddWeapon(p, WID_SHOTGUN);
+    p.ammo_shells = 100;
+    p.ammo_cells = 100;
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    VRGiveEntWeapon(p, cVR_OffHand, WID_FIST, 0, 0);
+    DW_OwnedHolster(p, hs, WID_FIST);
+    // Owned through their pickups; then gone (stuck in a body, dropped: the hand empty).
+    DW_OwnedPickup(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE);
+    DW_OwnedPickup(p, cVR_OffHand, WID_SUPER_SHOTGUN, DW_VAR_ROTARY);
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    VRGiveEntWeapon(p, cVR_OffHand, WID_FIST, 0, 0);
+    // The weapon key.
+    self.impulse = 8;
+    if(flat) { ImpulseCommands(); } else { W_ChangeWeapon(); }
+    self.impulse = 0;
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, flat ? "the weapon key (8, flat)" : "the weapon key (8, W_ChangeWeapon)");
+    // Next weapon from the shotgun: the super shotgun on the way, then the lightning gun.
+    VRGiveEntWeapon(p, cVR_MainHand, WID_SHOTGUN, 0, WeaponIdToBaseClipSize(WID_SHOTGUN));
+    float n, ssg = FALSE;
+    for(n = 0; n < 12 && p.weapon != WID_LIGHTNING; n++)
+    {
+        CycleWeaponCommand(cVR_MainHand, p.weapon, VRGetEntWeaponPtr(p, cVR_MainHand), p.weaponflags,
+            VRGetEntWeaponFlagsPtr(p, cVR_MainHand));
+        if(p.weapon == WID_SUPER_SHOTGUN && !ssg)
+        {
+            ssg = TRUE;
+            DW_OwnedCheck(p, cVR_MainHand, WID_SUPER_SHOTGUN, DW_VAR_ROTARY, "next weapon: the super shotgun");
+        }
+    }
+    VR_Test_Check(ssg, "next weapon went through the super shotgun");
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "next weapon: the lightning gun");
+    // A plain lightning gun's pickup.
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    entity pk = spawn();
+    pk.netname = "Thunderbolt";
+    DW_PickupOwned(pk, p);
+    VRGiveEntWeapon(p, cVR_MainHand, WID_LIGHTNING, 0, WeaponIdToBaseClipSize(WID_LIGHTNING));
+    DW_VariantGiven(pk, p, cVR_MainHand);
+    remove(pk);
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "a plain lightning gun's pickup");
+    // The cheat impulse (150 + the weapon's id).
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    self.impulse = 150 + WID_LIGHTNING;
+    ImpulseCommands();
+    self.impulse = 0;
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "the cheat impulse 150 + id");
+    // A plain record in a holster, drawn: immersive (the record), quick slot (a copy).
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    DW_OwnedHolster(p, hs, WID_LIGHTNING);
+    VRDrawHolsterWeapon(p, cVR_MainHand, hs);
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "a holster's draw (immersive)");
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    cvar_set("vr_holster_mode", ftos(QVR_WEAPONMODE_CYCLEQUICKSLOT));
+    DW_OwnedHolster(p, hs, WID_LIGHTNING);
+    VRDrawHolsterWeapon(p, cVR_MainHand, hs);
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "a holster's draw (quick slot: its copy)");
+    cvar_set("vr_holster_mode", ftos(QVR_WEAPONMODE_IMMERSIVE));
+    // The weapon wheel's pick of holster 0's.
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    DW_OwnedHolster(p, hs, WID_LIGHTNING);
+    VR_Wheel_Pick(cVR_MainHand, 0);
+    self = p;
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "the weapon wheel's pick");
+    DW_OwnedHolster(p, hs, WID_FIST);
+    // A plain lightning gun lying about (dropped by no player: its record plain), taken.
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    entity d = spawn();
+    setorigin(d, p.origin);
+    entity prop = VR_DeathDropOf(d, WID_LIGHTNING, 0, world, cVR_MainHand);
+    remove(d);
+    VR_Test_Check(prop != world && prop.weaponinst.wi_dwvar == 0, "a plain lightning gun prop made (its record plain)");
+    wpnthrow_handtouch_impl(cVR_MainHand, prop, p, VRGetEntWeaponPtr(p, cVR_MainHand), VRGetEntWeaponFlagsPtr(p, cVR_MainHand));
+    self = p;
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "a plain lightning gun prop taken");
+    // His own death drop of a lightning gun with no record: the Lance.
+    prop = VR_DeathDropOf(p, WID_LIGHTNING, 0, world, cVR_MainHand);
+    VR_Test_Check(prop != world && prop.weaponinst.wi_dwvar == DW_VAR_LANCE, sprintf("his own drop of a lightning gun: "
+        "its record's variant %g", prop.weaponinst.wi_dwvar));
+    if(prop) { remove(prop); }
+    // Left: the hands empty; then a plain record put in the off hand bypassing every path (PlayerPostThink's sync).
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    W_SetCurrentAmmoFor(cVR_MainHand);
+    dw_ot_late0 = wi_owned_late;
+    p.weapon2 = WID_LIGHTNING;
+    p.weaponinst2 = WeaponInst_New(WeaponIdToBaseClipSize(WID_LIGHTNING));
+    cvar_set("vr_holster_mode", ftos(mode));
+    self = os;
+    dw_ot_frames = 0;
+    entity t = spawn();
+    t.think = DW_OwnedTest_Think;
+    t.nextthink = time + 0.001;
+};
+
+// 232: after the level change or the load.
+void(entity p) DW_OwnedTest2 =
+{
+    VR_Test_BeginFlags("dwowned2", VR_TEST_LOUD | VR_TEST_ECHO);
+    entity os = self;
+    self = p;
+    VR_Test_Check(p.vr_owned_vars == 3, sprintf("both still owned (bits %g, want 3)", p.vr_owned_vars));
+    float hs = VR_FlatHolster_Hotspot(0);
+    entity r = VRGetEntHolsterWeaponInst(p, hs);
+    VR_Test_Check(getHolsterWeapon(hs) == WID_SUPER_SHOTGUN && r.wi_dwvar == DW_VAR_ROTARY,
+        sprintf("holster 0's super shotgun the Rotary (weapon %g, variant %g)", getHolsterWeapon(hs), r.wi_dwvar));
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    self.impulse = 8;
+    if(VR_FlatPlay(p)) { ImpulseCommands(); } else { W_ChangeWeapon(); }
+    self.impulse = 0;
+    DW_OwnedCheck(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, "the weapon key's lightning gun");
+    self = os;
+    VR_Test_Verdict();
+};
+
+// 233 (MP): every player owns the Lance (its pickup's steps), his hands empty, cells.
+void() DW_OwnedMP_Setup =
+{
+    VR_Test_BeginFlags("dwowned_mp", VR_TEST_LOUD | VR_TEST_ECHO);
+    entity os = self;
+    float n = 0;
+    for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
+    {
+        self = p;
+        p.ammo_cells = 100;
+        DW_OwnedPickup(p, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE);
+        VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        n++;
+    }
+    self = os;
+    localcmd(sprintf("echo \"dwowned_mp: ready, %g players own the Crystal Lance\"\n", n));
+};
+
+// 234 (MP): each frame until a player's main hand holds the lightning gun (B's own weapon key); then the checks.
+void() DW_OwnedMP_Think =
+{
+    entity os = self;
+    entity got = world;
+    for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
+    {
+        if(p.weapon == WID_LIGHTNING) { got = p; }
+    }
+    dw_ot_frames++;
+    if(got == world && dw_ot_frames < 720)
+    {
+        self.nextthink = time + 0.001;
+        return;
+    }
+    VR_Test_Check(got != world, "a client's weapon key (8) reached the server (timed out after 720 frames otherwise)");
+    if(got)
+    {
+        DW_OwnedCheck(got, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, sprintf("%s's weapon key, from his client", got.netname));
+    }
+    for(entity q = VR_Player(); q; q = VR_NextPlayer(q))
+    {
+        self = q;
+        q.movetype = MOVETYPE_TOSS; // (as a dead player is: his body's copy must not walk, SV_Physics' "bad movetype 3")
+        q.deadflag = DEAD_DEAD;
+        respawn(); // (coop: the level's parms, his edict kept)
+        self = q;
+        VR_Test_Check(q.vr_owned_vars & 2, sprintf("%s respawned still owns the Lance (bits %g)", q.netname, q.vr_owned_vars));
+        VR_WeaponUtil_EntAddWeapon(q, WID_LIGHTNING);
+        q.ammo_cells = 100;
+        VRGiveEntWeapon(q, cVR_MainHand, WID_FIST, 0, 0);
+        self.impulse = 8;
+        W_ChangeWeapon();
+        self.impulse = 0;
+        DW_OwnedCheck(q, cVR_MainHand, WID_LIGHTNING, DW_VAR_LANCE, sprintf("%s respawned: the weapon key's lightning gun", q.netname));
+    }
+    self = os;
+    remove(self);
+    VR_Test_Verdict();
+};
+
+void(entity p, float xRequest) DW_OwnedTests =
+{
+    if(xRequest == 231) { DW_OwnedTest(p); }
+    if(xRequest == 232) { DW_OwnedTest2(p); }
+    if(xRequest == 233) { DW_OwnedMP_Setup(); }
+    if(xRequest == 234)
+    {
+        dw_ot_frames = 0;
+        entity t = spawn();
+        t.think = DW_OwnedMP_Think;
+        t.nextthink = time + 0.001;
+    }
 };
 #endif

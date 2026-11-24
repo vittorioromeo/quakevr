@@ -99,6 +99,11 @@ enum class Part
     SeatMenu,      // vr_seatmenu.cpp: a seat 2-4's own menu (open, cursor, its look sensitivity and invert)
     // split13: the first-person view's drawn state.
     View,          // vr_view_internal.hpp SeatView: the view entities, the rigged hands, the eases, the ammo screens' guards
+    // split15: next's new per-player state (2026-11-24 merge).
+    FlatSwim,      // vr_flatswim.cpp: flat play's swimming strokes, their sounds and bubbles
+    LanceCharge,   // vr_lancecharge.cpp: the Lance's charges as this seat's client read them, their sparks and hums
+    WeaponWheel,   // vr_weaponwheel.cpp: the weapon wheel (open, its hand, cursor, choices, fade)
+    ClimbRope,     // vr_climbrope.cpp: the client's rope hold's let-go pass
     Count
 };
 

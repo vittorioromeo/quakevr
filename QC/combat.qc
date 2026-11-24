@@ -1738,6 +1738,18 @@ float vr_throw_bladein; // set by the thrown weapon's touch for the length of it
 float vr_throw_bladestuck; // the engine found its blade going in (VR_AxeStick_Stuck's blow, for its length)
 float vr_throw_bladein_count; // (how many blows so far counted blade first: the test's, vr_throwgib_test.qc)
 .float vr_throw_kill;   // on a thrown weapon: when its blow killed what it struck (VR_AxeStick_Stuck: deep in it)
+
+// A killing blow's push (vr_kill_push) for what dealt it: a thrown blade's (an axe, sword or dagger, weapons.txt embed;
+// a headset's throw or a flat one, whichever way it struck) times vr_throw_kill_push (his note 2026-11-23: its kills flew
+// too far); any other 1.
+float(entity inflictor) VR_KillPush_Mult =
+{
+    if(inflictor.classname == "thrown_weapon" && weaponvalue(inflictor.model, "embed") > 0)
+    {
+        return cvar_hget(cvarh_vr_throw_kill_push);
+    }
+    return 1;
+};
 void(entity targ, entity inflictor, entity attacker, float isVRMelee) VR_Gib_Overkill =
 {
     if(!(targ.flags & FL_MONSTER) || targ.health >= -1)
@@ -2321,6 +2333,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     if(VR_WallTorch_OnWall(targ))
     {
         return VR_WallTorch_Shot(targ, inflictor, attacker, damage, isVRMelee); // (its coming off is what the damage does)
+    }
+    if(VR_Rope_Is(targ))
+    {
+        return FALSE; // (ropes8a: a climbing pole takes no damage, ropes8c: nor a chain; its hit's sparks or splinters are the hit's own)
     }
     float oldGibSpeed = vr_gib_speed;
     vr_gib_speed = VR_GibSpeedScale(inflictor, attacker, isVRMelee);
@@ -3378,7 +3394,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
         float hitPush = cvar_hget(cvarh_vr_hit_push);
         if(targ.health <= 0)
         {
-            float killPush = cvar_hget(cvarh_vr_kill_push);
+            float killPush = cvar_hget(cvarh_vr_kill_push) * VR_KillPush_Mult(inflictor);
+            if(cvar_hget(cvarh_vr_debug_shots))
+            {
+                dprint(sprintf("kill push: %s by %s (%g damage): x%.2f\n", targ.classname, inflictor.classname, damage, killPush));
+            }
             VR_Push(targ, targ.origin - from, min(700, damage * 14) * killPush, min(260, damage * 5) * killPush);
         }
         else if(damage >= 15)

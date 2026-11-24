@@ -7,11 +7,13 @@
 #include "vr_backend.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_gunvariants.hpp"
 #include "vr_mem.hpp"
 #include "vr_tunables.hpp"
 #include "vr_hands.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -32,7 +34,7 @@ namespace qvr::adweapons
 namespace
 {
 
-constexpr size_t headerSize = 84;
+constexpr za::SizeT headerSize = 84;
 constexpr int frameCount = 9;  // the Quake VR weapons' (their animations' frame numbers stay in range)
 constexpr byte capColour = 2;  // the holes' fans: Quake's palette's dark grey (as the guns' dark metal)
 constexpr int capRows = 4;     // its texels, under everything else in the skin
@@ -73,7 +75,6 @@ void plasmaParts(Parts& p);
 void rotaryParts(Parts& p);
 void rotaryGauntletParts(Parts& p);
 void lanceParts(Parts& p);
-void rifleParts(Parts& p);
 
 // One weapon: AD's view model in one pose (`frame`), its pieces holding `drop` taken off, laid into the Quake VR weapon's
 // frame (src axis/up -> dst axis/up, scaled by k, srcPivot onto dstPivot), cut to dot(clipN, p) >= clipD, the Quake VR
@@ -175,9 +176,8 @@ const Recipe recipes[] = {
     //   lightning gun's corner), its wooden handle's back middle (11.94 -0.17 -18.17) over the lightning gun's grip
     //   (-4 0 5.8: the grip's top inside the handle). Its trigger guard and trigger 0.4 up (dwellgun: they hung 0.37
     //   under the blades' underside, 4.31 over them; vr_adweapon_models prints the least gaps).
-    // - The Rifle (v_rifle.mdl, shot1: tilted 6.25 degrees down): level, 0.7 (35.7 long, the shotgun 33; its shroud's 10.8
-    //   inside the corner), its back middle (-0.88 -0.04 -10.86) on the shotgun's barrel line over its grip (0.6 0 2.7).
-    // Each an ammo screen housing on its rear face (rotaryParts, lanceParts, rifleParts).
+    // Each an ammo screen housing on its rear face (rotaryParts, lanceParts). (Dwell's Rifle, v_rifle.mdl, is not made: no
+    // Dwell map places it; removed 2026-11-23.)
     {"progs/dw_shot3.mdl#vr", {"progs/v_shot3.mdl", 260, 286, 256, 256, "dwell"}, "frame1", {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f},
         {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.8f, {-2.88f, -0.11f, -20.71f}, {0.6f, 0.f, 2.6f}, {4, -1, -1}, false, {0.f, 0.f, 0.f},
         0.f, {"progs/v_shot2.mdl", 0, 0, 0, 0}, {151, 241, 281}, {-15.5775f, -4.6938f, -4.2402f}, false, {0.f, 0.f, 0.f},
@@ -188,10 +188,6 @@ const Recipe recipes[] = {
         false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_light.mdl", 0, 0, 0, 0}, {234, 403, 493}, {-5.6211f, -9.3429f, -6.0018f}, false,
         {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_light.mdl", true, noRect, lanceParts, 403, {0.f, 0.f, 0.8f}, 0, 0.f,
         {0.f, 0.f, 0.f}, 493},
-    {"progs/dw_rifle.mdl#vr", {"progs/v_rifle.mdl", 117, 121, 256, 128, "dwell"}, "shot1", {45.7f, 0.f, -5.f},
-        {5.f, 0.f, 45.7f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 0.7f, {-0.88f, -0.04f, -10.86f}, {0.6f, 0.f, 2.7f}, {76, -1, -1},
-        false, {0.f, 0.f, 0.f}, 0.f, {"progs/v_shot.mdl", 0, 0, 0, 0}, {219, 309, 349}, {-6.301f, -3.7943f, -6.5165f}, false,
-        {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_shot.mdl", true, noRect, rifleParts, -1, {0.f, 0.f, 0.f}},
     // - The Crystal Lance as a lance held like a spear (lancespear; Dwell's world model g_rail.mdl, fr_0: a staff standing
     //   tilted 22.6 degrees off upright, 67.5 long, its pole 2.2 thick about the line through (-10.49 -0.15 9.78) along
     //   (0.3843 0 0.9231), its crystal head from 43 along it): a plain pole and its head, nothing put on (no handle, no
@@ -264,7 +260,7 @@ struct Mesh
 [[nodiscard]] bool parse(const za::Vector<byte>& bytes, const Source& src, const char* frame, Mesh& m)
 {
     const byte* b = bytes.data();
-    const size_t size = bytes.size();
+    const za::SizeT size = bytes.size();
     if(size < headerSize || qvr::bytes::le32(b, 0) != IDPOLYHEADER || qvr::bytes::le32(b, 4) != ALIAS_VERSION || qvr::bytes::le32(b, 48) < 1)
     {
         return false;
@@ -283,8 +279,8 @@ struct Mesh
     }
     const int numSkins = qvr::bytes::le32(b, 48), numFrames = qvr::bytes::le32(b, 68);
     const glm::vec3 scale{qvr::bytes::lef32(b, 8), qvr::bytes::lef32(b, 12), qvr::bytes::lef32(b, 16)}, origin{qvr::bytes::lef32(b, 20), qvr::bytes::lef32(b, 24), qvr::bytes::lef32(b, 28)};
-    const size_t skinBytes = static_cast<size_t>(skinW) * static_cast<size_t>(skinH);
-    size_t at = headerSize;
+    const za::SizeT skinBytes = static_cast<za::SizeT>(skinW) * static_cast<za::SizeT>(skinH);
+    za::SizeT at = headerSize;
     m.skin.clear();
     for(int s = 0; s < numSkins; s++)
     {
@@ -301,8 +297,8 @@ struct Mesh
         else
         {
             const int n = za::max(qvr::bytes::le32(b, at + 4), 1);
-            picture = b + at + 8 + static_cast<size_t>(n) * 4;
-            at += 8 + static_cast<size_t>(n) * 4 + static_cast<size_t>(n) * skinBytes;
+            picture = b + at + 8 + static_cast<za::SizeT>(n) * 4;
+            at += 8 + static_cast<za::SizeT>(n) * 4 + static_cast<za::SizeT>(n) * skinBytes;
         }
         if(s == 0)
         {
@@ -313,7 +309,7 @@ struct Mesh
             m.skin.emplaceBackRange(picture, skinBytes);
         }
     }
-    if(at + static_cast<size_t>(nv) * 12 + static_cast<size_t>(nt) * 16 > size)
+    if(at + static_cast<za::SizeT>(nv) * 12 + static_cast<za::SizeT>(nt) * 16 > size)
     {
         return false;
     }
@@ -322,21 +318,21 @@ struct Mesh
     m.st.clear();
     for(int i = 0; i < nv * 3; i++)
     {
-        m.st.pushBack(qvr::bytes::le32(b, at + static_cast<size_t>(i) * 4));
+        m.st.pushBack(qvr::bytes::le32(b, at + static_cast<za::SizeT>(i) * 4));
     }
-    at += static_cast<size_t>(nv) * 12;
+    at += static_cast<za::SizeT>(nv) * 12;
     m.tris.clear();
     for(int i = 0; i < nt * 4; i++)
     {
-        const int v = qvr::bytes::le32(b, at + static_cast<size_t>(i) * 4);
+        const int v = qvr::bytes::le32(b, at + static_cast<za::SizeT>(i) * 4);
         if(i % 4 && (v < 0 || v >= nv))
         {
             return false;
         }
         m.tris.pushBack(v);
     }
-    at += static_cast<size_t>(nt) * 16;
-    size_t poseAt = 0;
+    at += static_cast<za::SizeT>(nt) * 16;
+    za::SizeT poseAt = 0;
     for(int f = 0; f < numFrames && !poseAt; f++)
     {
         if(at + 4 > size)
@@ -349,12 +345,12 @@ struct Mesh
         if(type != 0)
         {
             members = za::max(qvr::bytes::le32(b, at), 1);
-            at += 4 + 8 + static_cast<size_t>(members) * 4;
+            at += 4 + 8 + static_cast<za::SizeT>(members) * 4;
         }
         for(int k = 0; k < members && !poseAt; k++)
         {
-            const size_t nameAt = at + 8, vertsAt = at + 24;
-            at = vertsAt + static_cast<size_t>(nv) * 4;
+            const za::SizeT nameAt = at + 8, vertsAt = at + 24;
+            at = vertsAt + static_cast<za::SizeT>(nv) * 4;
             if(at > size)
             {
                 return false;
@@ -374,7 +370,7 @@ struct Mesh
     m.pos.clear();
     for(int v = 0; v < nv; v++)
     {
-        const byte* p = b + poseAt + static_cast<size_t>(v) * 4;
+        const byte* p = b + poseAt + static_cast<za::SizeT>(v) * 4;
         m.pos.pushBack(glm::vec3{p[0] * scale.x + origin.x, p[1] * scale.y + origin.y, p[2] * scale.z + origin.z});
     }
     return true;
@@ -1231,7 +1227,7 @@ struct Housing
                                           // darkS0 below 0: the caps' dark grey (Parts::capS, capT)
     // The rivets' octagon's Z offsets (steps) at the middle rows and the top/bottom, its middle this far above the
     // window's (the Plasma Gun's: half steps either side of the window's middle, between two rows). No two of its corners
-    // nearer than capWeld (the holes' search welds them: the Rifle's Z step is 0.048).
+    // nearer than capWeld (the holes' search welds them: a Z step can be under 0.05).
     float rivetZIn{0.5f}, rivetZOut{1.5f}, rivetZAt{0.f};
 };
 // The Plasma Gun's: on the corner's third byte; AD's bronze plate (33..64 x 1..12, 7 texels a unit) on the bezel, a
@@ -1476,12 +1472,12 @@ void plasmaParts(Parts& p)
     housing(p, plasmaHousingSpec);
 }
 
-// Dwell support (DWELL.md 9.6, "dwellgun"): the Plasma Gun's housing on Dwell's three weapons' rear faces (measured on
+// Dwell support (DWELL.md 9.6, "dwellgun"): the Plasma Gun's housing on Dwell's two weapons' rear faces (measured on
 // the made models, Dwell v2.2), upright as the Plasma Gun's, read from behind along the gun. Each window the glass the
 // screen has without a housing (the Plasma Gun's 22.5 x 20.4 font pixels at the slot's wpntxt_scale: the digits at the
 // font's size, fillMax 1), to the grid's steps; the bezel's bands, cut corners and rivets about the Plasma Gun's in h
 // where the grid allows; the window's walls and the back the caps' dark grey. vr_adweapon_models prints each glass's
-// place (vr_screenstyle.cpp's entries, weapons.txt slots 52-54's wpntxt_av). Their faces are holes closed after the
+// place (vr_screenstyle.cpp's entries, weapons.txt slots 52-53's wpntxt_av). Their faces are holes closed after the
 // housing is made, so its "corners on the gun's face" count says 0 (the shots show them on it).
 // - The Rotary Shotgun: on its housing's flat octagonal back (x 0.51, y -4.44..4.48, z 2.62..11.37), in its middle (the
 //   barrels' axis); window 2x13 Y by 17 Z steps (1.08 x 1.04 at wpntxt_scale 0.25), bands 6 Y / 2 Z, rivets 16 Y out;
@@ -1490,16 +1486,10 @@ void plasmaParts(Parts& p)
 //   on its foot's byte, the face leaning away above it; y -1.32..1.29, z 4.97..7.30), in its middle; window 2x10 Y by
 //   25 Z steps (1.45 x 1.31 at 0.25), bands 5 Y / 2 Z, the rivets between two Y steps (12.5 out, 3 steps across: the Y
 //   step is 0.072); the frame's dark metal (60 140) on the bezel, a crystal's violet (22 45) on the rivets.
-// - The Rifle: on its butt (x 0.74 at its foot to 1.07 at its top, leaning; y -1.69..1.71, z 0.73..4.76), in its
-//   middle; window 2x27 Y by 31 Z steps (1.60 x 1.49 at 0.35), bands 12 Y / 3 Z, corners cut 4 Y / 2 Z, rivets 33 out
-//   (8 Y steps across, 4 Z rows tall, their middles on a row: the Z step is under capWeld); the brass ring's texels
-//   (232 60) on the bezel, the shotgun's brass nut (325 216: the grip's graft) on the rivets.
 constexpr Housing rotaryHousingSpec{{0.f, 7.f}, -1, 0.51f, 13, 17, 6, 2, 2, 1, 16.f, 2.f, 1.f, 0.04f, {192.f, 150.f}, 8.f,
     {8.f, 188.f}, -1.f, 0.f, 0.f, 0.f};
 constexpr Housing lanceHousingSpec{{0.f, 6.14f}, -1, -3.93f, 10, 25, 5, 2, 2, 1, 12.5f, 1.5f, 0.5f, 0.04f, {60.f, 140.f},
     6.f, {22.f, 45.f}, -1.f, 0.f, 0.f, 0.f};
-constexpr Housing rifleHousingSpec{{0.f, 2.745f}, -1, 0.905f, 27, 31, 12, 3, 4, 2, 33.f, 4.f, 2.f, 0.04f, {232.f, 60.f},
-    8.f, {325.f, 216.f}, -1.f, 0.f, 0.f, 0.f, 1.f, 2.f, 0.5f};
 
 // The Rotary Shotgun's four barrels (dwellrotary; his notes 2026-11-22: "make the geometry in between the barrels a little
 // bit deeper, so that it looks like there's actually separate barrels", and "the muzzle is completely solid. It should
@@ -1525,8 +1515,8 @@ void dwBarrels(Parts& p)
     const Rect breech{12.f, 37.f, 54.f, 37.f, false};
     const Rect core{54.f, 162.f, 65.f, 37.f, false};
     const glm::vec2 c{axis.y, axis.z};
-    // (Their fronts' rings on Dwell's barrel metal, not the caps' dark grey: that draws pale, nearly white, in the game's
-    // light.)
+    // (Their fronts' rings on Dwell's barrel metal, not the caps' dark grey. Both drew nearly white in a bright room: the
+    // weapon reflections' mirror, not the texels; made models reflect less since capcolour: vr_envmap.cpp madeMetal.)
     const int capS = p.capS, capT = p.capT;
     p.capS = 40;
     p.capT = 20;
@@ -1720,7 +1710,7 @@ void rotaryHousingShell(Parts& p)
     // upper diagonal (y+ z+): Dwell's octagon unrolled.
     constexpr float band[8][2] = {{254.f, 219.f}, {219.f, 197.f}, {197.f, 161.f}, {161.f, 138.f}, {138.f, 102.f},
         {102.f, 80.f}, {80.f, 43.f}, {34.f, 11.f}};
-    const int cs = p.boreS, ct = p.boreT; // (the hole black: the caps' dark grey draws pale in the game's light)
+    const int cs = p.boreS, ct = p.boreT; // (the hole black, so it reads as going in)
     // The faces from ring (xa, size sa) to ring (xb, sb): outside in the bands, or (inside) dark facing the axis.
     const auto ringToRing = [&](float xa, float sa, float xb, float sb, bool inside) {
         const za::Vector<glm::vec2> a = rotaryOctagon(sa), b = rotaryOctagon(sb);
@@ -1776,8 +1766,8 @@ void rotaryHousingShell(Parts& p)
 // His notes 2026-11-22 ("the place where you put the shells in should be a little bit bigger, maybe 10% bigger, and its
 // internal color should be black and look a little bit more inset. At the moment, it looks a bit too shiny"): the
 // opening 10% bigger each way (3.96 x 1.21, was 3.6 x 1.1), a pocket 0.6 deep into the block, its walls and floor black
-// (the bores' texels: it was a dark box standing out of the face in the caps' dark grey, which draws pale); the block
-// reaches into the housing's wall (rotaryHousingShell: the side is 5.46 out at most).
+// (the bores' texels: it was a box standing out of the face in the caps' dark grey, mirrored pale: vr_envmap.cpp
+// madeMetal); the block reaches into the housing's wall (rotaryHousingShell: the side is 5.46 out at most).
 void rotaryGauntletParts(Parts& p)
 {
     rotaryHousingShell(p);
@@ -1813,11 +1803,6 @@ void rotaryGauntletParts(Parts& p)
 void lanceParts(Parts& p)
 {
     housing(p, lanceHousingSpec);
-}
-
-void rifleParts(Parts& p)
-{
-    housing(p, rifleHousingSpec);
 }
 
 // The vertices' welding for their normals: at one place (to a 0.001 grid) and in one smoothing group (Out::group).
@@ -1890,7 +1875,7 @@ void rifleParts(Parts& p)
     za::Vector<byte> skin(static_cast<za::SizeT>(skinW) * static_cast<za::SizeT>(skinH), capColour);
     for(int y = 0; y < src.skinH; y++)
     {
-        ZA_MEMCPY(skin.data() + static_cast<size_t>(y) * skinW, src.skin.data() + static_cast<size_t>(y) * src.skinW, static_cast<size_t>(src.skinW));
+        ZA_MEMCPY(skin.data() + static_cast<za::SizeT>(y) * skinW, src.skin.data() + static_cast<za::SizeT>(y) * src.skinW, static_cast<za::SizeT>(src.skinW));
     }
     if(const SkinPatch* sp = r.skinPatch)
     {
@@ -1906,8 +1891,8 @@ void rifleParts(Parts& p)
     }
     for(int y = 0; y < gh; y++)
     {
-        ZA_MEMCPY(skin.data() + static_cast<size_t>(src.skinH + y) * skinW, graft.skin.data() + static_cast<size_t>(ry0 + y) * graft.skinW + rx0,
-            static_cast<size_t>(gw));
+        ZA_MEMCPY(skin.data() + static_cast<za::SizeT>(src.skinH + y) * skinW, graft.skin.data() + static_cast<za::SizeT>(ry0 + y) * graft.skinW + rx0,
+            static_cast<za::SizeT>(gw));
     }
 
     // AD's pieces kept, laid into the weapon's frame; cut; the grip put on; the holes closed.
@@ -2273,7 +2258,7 @@ void rifleParts(Parts& p)
     return true;
 }
 
-void setf(byte* f, size_t at, float v)
+void setf(byte* f, za::SizeT at, float v)
 {
     const float le = LittleFloat(v);
     ZA_MEMCPY(f + at, &le, 4);
@@ -2291,7 +2276,7 @@ void setf(byte* f, size_t at, float v)
     {
         return nullptr;
     }
-    const size_t size = static_cast<size_t>(com_filesize);
+    const za::SizeT size = static_cast<za::SizeT>(com_filesize);
     if(size < headerSize || qvr::bytes::le32(f, 0) != IDPOLYHEADER || qvr::bytes::le32(f, 4) != ALIAS_VERSION)
     {
         VR_HeapFree(f);
@@ -2306,20 +2291,20 @@ void setf(byte* f, size_t at, float v)
     const glm::vec3 origin2{origin.x - p.x + s.x, s.y + p.z - origin.z - 255.f * scale.z, origin.y - p.y + s.z};
     for(int i = 0; i < 3; i++)
     {
-        setf(f, 8 + static_cast<size_t>(i) * 4, scale2[i]);
-        setf(f, 20 + static_cast<size_t>(i) * 4, origin2[i]);
+        setf(f, 8 + static_cast<za::SizeT>(i) * 4, scale2[i]);
+        setf(f, 20 + static_cast<za::SizeT>(i) * 4, origin2[i]);
     }
     setf(f, 36, eye.x - p.x + s.x);
     setf(f, 40, s.y - (eye.z - p.z));
     setf(f, 44, s.z + (eye.y - p.y));
-    const size_t skinBytes = static_cast<size_t>(za::max(skinW, 0)) * static_cast<size_t>(za::max(skinH, 0));
-    size_t at = headerSize;
+    const za::SizeT skinBytes = static_cast<za::SizeT>(za::max(skinW, 0)) * static_cast<za::SizeT>(za::max(skinH, 0));
+    za::SizeT at = headerSize;
     for(int k = 0; k < numSkins && at + 8 <= size; k++)
     {
-        at += qvr::bytes::le32(f, at) == 0 ? 4 + skinBytes : 8 + static_cast<size_t>(za::max(qvr::bytes::le32(f, at + 4), 1)) * (4 + skinBytes);
+        at += qvr::bytes::le32(f, at) == 0 ? 4 + skinBytes : 8 + static_cast<za::SizeT>(za::max(qvr::bytes::le32(f, at + 4), 1)) * (4 + skinBytes);
     }
-    at += static_cast<size_t>(numVerts) * 12 + static_cast<size_t>(numTris) * 16;
-    const auto turnBox = [&](size_t boxAt) {
+    at += static_cast<za::SizeT>(numVerts) * 12 + static_cast<za::SizeT>(numTris) * 16;
+    const auto turnBox = [&](za::SizeT boxAt) {
         byte* lo = f + boxAt;
         byte* hi = f + boxAt + 4;
         const byte loY = lo[1], loZ = lo[2], hiY = hi[1], hiZ = hi[2];
@@ -2338,12 +2323,12 @@ void setf(byte* f, size_t at, float v)
         {
             members = za::max(qvr::bytes::le32(f, at), 1);
             turnBox(at + 4);
-            at += 4 + 8 + static_cast<size_t>(members) * 4;
+            at += 4 + 8 + static_cast<za::SizeT>(members) * 4;
         }
         for(int m = 0; m < members; m++)
         {
-            const size_t vertsAt = at + 24;
-            if(vertsAt + static_cast<size_t>(numVerts) * 4 > size)
+            const za::SizeT vertsAt = at + 24;
+            if(vertsAt + static_cast<za::SizeT>(numVerts) * 4 > size)
             {
                 VR_HeapFree(f);
                 return nullptr;
@@ -2351,7 +2336,7 @@ void setf(byte* f, size_t at, float v)
             turnBox(at);
             for(int v = 0; v < numVerts; v++)
             {
-                byte* b = f + vertsAt + static_cast<size_t>(v) * 4;
+                byte* b = f + vertsAt + static_cast<za::SizeT>(v) * 4;
                 const byte y = b[1], z = b[2];
                 b[1] = static_cast<byte>(255 - z);
                 b[2] = y;
@@ -2360,7 +2345,7 @@ void setf(byte* f, size_t at, float v)
                 const glm::vec3 q{b[0] * scale2.x + origin2.x, b[1] * scale2.y + origin2.y, b[2] * scale2.z + origin2.z};
                 radius = za::max(radius, glm::length(q));
             }
-            at = vertsAt + static_cast<size_t>(numVerts) * 4;
+            at = vertsAt + static_cast<za::SizeT>(numVerts) * 4;
         }
     }
     setf(f, 32, radius);
@@ -2402,6 +2387,8 @@ struct SpinModel
     bool spins{false};
     int barrels{3};
     bool dwell{false}; // Dwell's Rotary Shotgun (its own rate of fire: dwRotaryRefire)
+    bool ownFrames{false}; // the super nailgun: its own firing frames are the turn (ownFramesStep a frame), its own spin-up
+                           // (vr_sng_spinup), the motor at vr_sng_motor's share
 };
 SpinModel spinModel;
 
@@ -2412,20 +2399,46 @@ constexpr const char* widowmakerArtName = "progs/v_widowmaker.mdl"; // the hand-
 constexpr const char* rotaryName = "progs/dw_shot3.mdl#vr";
 constexpr const char* rotaryGauntletName = "progs/dw_rotary.mdl#vr"; // (dwellwpn3: held as a gauntlet)
 constexpr float dwRotaryRefire = 0.2f;
+// The super nailgun (his note 2026-11-23: its barrels snapped back to their start when the trigger was let go): Quake's
+// firing frames 1..8 turn its barrels an eighth of a turn each (their baked kick taken out in memory: vr_kickcancel.hpp;
+// frame 8 the rest pose's turn), a frame each 0.1 s (QC player_nail_BaseImpl). Driven by the Widowmaker's spin: up while
+// the trigger is held, coasting down after to the nearest frame, never back to frame 0 (spinFrame).
+constexpr const char* superNailgunName = "progs/v_nail2.mdl"; // (and its variants: the lava one, gunvariants::resolve)
+constexpr int ownFramesTurn = 8;                              // frames 1..8: a whole turn
+constexpr float ownFramesStep = 360.f / static_cast<float>(ownFramesTurn);
+constexpr float superNailgunRefire = 0.1f; // s a frame (QC: a frame each think)
 
 // (Each hand's weapon is asked about just before its spin is advanced: spinFrame; the last asked is the one cached.)
 [[nodiscard]] bool spinsBarrels(const qmodel_t* m)
 {
-    if(!m || m->type != mod_alias
-        || (q_strcasecmp(m->name, widowmakerName) && q_strcasecmp(m->name, rotaryName) && q_strcasecmp(m->name, rotaryGauntletName)))
+    if(!m || m->type != mod_alias)
+    {
+        return false;
+    }
+    const bool sng = !q_strcasecmp(gunvariants::resolve(m->name), superNailgunName);
+    if(!sng && q_strcasecmp(m->name, widowmakerName) && q_strcasecmp(m->name, rotaryName) && q_strcasecmp(m->name, rotaryGauntletName))
     {
         return false;
     }
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(m)));
+    if(sng)
+    {
+        if(m != spinModel.model || hdr != spinModel.hdr)
+        {
+            spinModel = SpinModel{};
+            spinModel.model = m;
+            spinModel.hdr = hdr;
+            spinModel.spins = hdr && hdr->numframes > ownFramesTurn;
+            spinModel.barrels = ownFramesTurn;
+            spinModel.ownFrames = true;
+        }
+        return spinModel.spins;
+    }
     if(m != spinModel.model || hdr != spinModel.hdr)
     {
         spinModel.model = m;
         spinModel.hdr = hdr;
+        spinModel.ownFrames = false;
         const bool framesOk = hdr && hdr->numframes == frameCount + spinPoses;
         const bool three = framesOk && !ZA_STRCMP(hdr->frames[frameCount].name, "spin0");
         const bool two = framesOk && !ZA_STRCMP(hdr->frames[frameCount].name, "twin0");
@@ -2446,7 +2459,9 @@ constexpr float dwRotaryRefire = 0.2f;
 // Seconds between its shots (the Widowmaker's vr_ad_widowmaker_refire; Dwell's Rotary Shotgun's own).
 [[nodiscard]] float spinRefire()
 {
-    return spinModel.dwell ? dwRotaryRefire : za::max(vr_ad_widowmaker_refire.value, 0.05f);
+    return spinModel.ownFrames ? superNailgunRefire
+           : spinModel.dwell   ? dwRotaryRefire
+                               : za::max(vr_ad_widowmaker_refire.value, 0.05f);
 }
 
 // The barrels' fastest: a barrel a shot.
@@ -2463,7 +2478,9 @@ void advance(Spin& s, int hand, float dt)
     if(driven)
     {
         s.coasting = false;
-        s.speed = za::min(top, s.speed + top / za::max(vr_ad_widowmaker_spinup.value, 0.01f) * dt);
+        // (the super nailgun fires at once: its own, quicker spin-up, vr_sng_spinup)
+        const float spinup = spinModel.ownFrames ? vr_sng_spinup.value : vr_ad_widowmaker_spinup.value;
+        s.speed = za::min(top, s.speed + top / za::max(spinup, 0.01f) * dt);
         s.phase += s.speed * dt;
     }
     else if(s.speed > 0.f || s.coasting)
@@ -2520,6 +2537,7 @@ struct Motor
     sfx_t* sfx{nullptr};
     channel_t* ch[2]{nullptr, nullptr};
     float volume[2]{0.f, 0.f}, pitch[2]{1.f, 1.f}; // as last set
+    float wanted[2]{0.f, 0.f}; // the volume the spin asked for last (heard or not: the tests run without sound)
     double lastTime[2]{-1.0, -1.0};
 };
 Motor motor;
@@ -2552,19 +2570,21 @@ void motorStop(int hand)
     motor.volume[hand] = 0.f;
 }
 
-// Every frame: `hand`'s motor as its barrels spin (`s`; not held: at rest).
-void motorFrame(int hand, const Spin& s)
+// Every frame: `hand`'s motor as its barrels spin (`s`; not held: at rest), at `share` of Motor Volume (the super
+// nailgun's vr_sng_motor).
+void motorFrame(int hand, const Spin& s, float share = 1.f)
 {
     const float dt = motor.lastTime[hand] >= 0.0 ? za::clamp(static_cast<float>(cl.time - motor.lastTime[hand]), 0.f, 0.1f) : 0.f;
     motor.lastTime[hand] = cl.time;
     const float top = spinTop();
     const float u = s.held && top > 0.f ? za::clamp(s.speed / top, 0.f, 1.f) : 0.f;
-    const float full = za::clamp(vr_ad_widowmaker_motor.value, 0.f, 1.f);
+    const float full = za::clamp(vr_ad_widowmaker_motor.value * za::max(share, 0.f), 0.f, 1.f);
     float volume = cl.paused ? 0.f : full * za::min(1.f, u * 1.25f);
     if(volume < motor.volume[hand] && !s.held) // (gone at once: a short fade, not a cut)
     {
         volume = za::max(volume, motor.volume[hand] - full * dt / motorRelease);
     }
+    motor.wanted[hand] = volume;
     if(!motor.sfx || volume < motorRest || cl.viewentity <= 0)
     {
         motorStop(hand);
@@ -2632,9 +2652,29 @@ void spinFrame(view::ViewEntity (&weapons)[2])
         s.held = true;
         s.lastTime = cl.time;
         advance(s, hand, dt);
-        motorFrame(hand, s);
         float at = vr_ad_widowmaker_spin_at.value >= 0.f ? vr_ad_widowmaker_spin_at.value : s.phase;
         at -= 360.f * static_cast<float>(static_cast<int>(at / 360.f));
+        if(spinModel.ownFrames)
+        {
+            motorFrame(hand, s, vr_sng_motor.value); // (the Widowmaker's whirr, quieter: his note 2026-11-23)
+            // The turn's two frames (k eighths of a turn: frame k; a whole turn frame 8 while turning, so the gun's firing
+            // barrel is known, vr_gunfx.cpp firingBarrel; frame 0 at rest), its drawn frame the nearer.
+            const float k = at / ownFramesStep;
+            const int i = static_cast<int>(k);
+            const bool still = s.speed <= 0.f && !s.coasting;
+            const auto frameOf = [still](int j)
+            {
+                j %= ownFramesTurn;
+                return j == 0 ? (still ? 0 : ownFramesTurn) : j;
+            };
+            w.poseFrame[0] = frameOf(i);
+            w.poseFrame[1] = frameOf(i + 1);
+            w.poseBlend = k - static_cast<float>(i);
+            w.ent.frame = w.poseBlend < 0.5f ? w.poseFrame[0] : w.poseFrame[1];
+            w.zeroBlend = 0.f;
+            continue;
+        }
+        motorFrame(hand, s);
         const float k = at / spinStep;
         const int i = static_cast<int>(k);
         w.poseFrame[0] = frameCount + i % spinPoses;
@@ -2692,6 +2732,20 @@ void spinInfo_f()
             continue;
         }
         (void)spinsBarrels(drawn[hand].model); // (this hand's model the one asked about: its barrels, its rate)
+        if(spinModel.ownFrames)
+        {
+            const float k = s.phase / ownFramesStep;
+            Con_Printf("widowmaker spin hand %d: turn %.1f deg, speed %.0f deg/s (top %.0f)%s, own frames %d %d blend %.2f, "
+                       "trigger %d\n",
+                hand, s.phase, s.speed, spinTop(), s.coasting ? ", coasting" : "", static_cast<int>(k) % ownFramesTurn,
+                (static_cast<int>(k) + 1) % ownFramesTurn, k - static_cast<float>(static_cast<int>(k)), client::attacking(hand) ? 1 : 0);
+            Con_Printf("  motor: %s, volume %.2f (wanted %.2f), pitch %.2f\n",
+                !motor.sfx ? "no sound" : motor.ch[hand] ? "playing" : "stopped", motor.volume[hand], motor.wanted[hand],
+                motor.pitch[hand]);
+            Con_Printf("  model: the super nailgun (its own firing frames), %d barrels (%.0f deg a shot), at rest %s\n",
+                spinModel.barrels, barrelStep(), !s.coasting && s.speed <= 0.f && fmodf(s.phase, barrelStep()) < 0.01f ? "yes" : "no");
+            continue;
+        }
         const float k = s.phase / spinStep;
         Con_Printf("widowmaker spin hand %d: turn %.1f deg, speed %.0f deg/s (top %.0f)%s, frames %d %d blend %.2f, trigger %d, "
                    "last shot %.2f s ago\n",

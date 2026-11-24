@@ -13,6 +13,7 @@
 #include "vr_rigpose.hpp"
 #include "vr_geom.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -159,12 +160,12 @@ bool groupTime(const aliashdr_t* hdr, int pose1, int pose2, float blend, char* g
     }
     if(h1 && h2 && !ZA_STRCMP(g1.name, g2.name) && i2 == i1 + 1)
     {
-        q_strlcpy(group, g1.name, static_cast<size_t>(size));
+        q_strlcpy(group, g1.name, static_cast<za::SizeT>(size));
         t = static_cast<float>(i1) + blend;
         return true;
     }
     const bool second = !h1 || (h2 && blend >= 0.5f);
-    q_strlcpy(group, second ? g2.name : g1.name, static_cast<size_t>(size));
+    q_strlcpy(group, second ? g2.name : g1.name, static_cast<za::SizeT>(size));
     t = static_cast<float>(second ? i2 : i1);
     return true;
 }

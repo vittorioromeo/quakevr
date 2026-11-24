@@ -3,6 +3,7 @@
 #include "vr_screenstyle.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gunvariants.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 
 
@@ -249,10 +250,10 @@ constexpr Entry table[] = {
             .housing = true,
             .opening = {11.23f, 10.21f},
             .fillMax = 1.f}},
-    // Dwell support (DWELL.md 9.6, "dwellgun"): Dwell's Rotary Shotgun, Crystal Lance and Rifle (made from Dwell's models as
-    // they load: "progs/dw_shot3.mdl#vr", "dw_rail", "dw_rifle"; the stems exact) take the Plasma Gun's housing on their
-    // rear faces (vr_adweapons.cpp rotaryHousingSpec, lanceHousingSpec, rifleHousingSpec): the Plasma Gun's look, each
-    // window the glass the screen has without a housing (fillMax 1), its corners' cut; weapons.txt slots 52-54 put the
+    // Dwell support (DWELL.md 9.6, "dwellgun"): Dwell's Rotary Shotgun and Crystal Lance (made from Dwell's models as
+    // they load: "progs/dw_shot3.mdl#vr", "dw_rail"; the stems exact) take the Plasma Gun's housing on their
+    // rear faces (vr_adweapons.cpp rotaryHousingSpec, lanceHousingSpec): the Plasma Gun's look, each
+    // window the glass the screen has without a housing (fillMax 1), its corners' cut; weapons.txt slots 52-53 put the
     // glass on the window's middle as made (wpntxt_av, upright), the offset sinks it 0.04h behind the bezel's front.
     {"dw_shot3.mdl#vr",
         {.radius = -1.79f,
@@ -284,21 +285,6 @@ constexpr Entry table[] = {
             .housing = true,
             .opening = {11.34f, 10.23f},
             .fillMax = 1.f}},
-    {"dw_rifle.mdl#vr",
-        {.radius = -1.67f,
-            .bevel = 1.6f,
-            .vignette = 0.35f,
-            .sheen = 0.6f,
-            .soft = 0.5f,
-            .glass = 0.13f,
-            .tint = {1.f, 1.f, 1.f},
-            .crt = 0.4f,
-            .size = 1.f,
-            .offset = {0.f, 0.0043f, 0.0517f},
-            .box = 0.f,
-            .housing = true,
-            .opening = {11.25f, 10.47f},
-            .fillMax = 1.f}},
 };
 
 [[nodiscard]] bool stemIs(const char* model, const char* stem)
@@ -328,7 +314,7 @@ constexpr Entry table[] = {
 // along the glass's right, which a mirrored model does not turn (the screen reads the same in either hand), while the
 // housing it seats the glass in is mirrored with the model: unturned, the glass sat 2 * offset.x to the side in the left
 // hand (the grenade launcher's 0.054 the most of any: his report, 2026-11-11). The default's offset is 0.
-constexpr size_t tableSize = sizeof(table) / sizeof(table[0]);
+constexpr za::SizeT tableSize = sizeof(table) / sizeof(table[0]);
 
 struct MirroredTable
 {
@@ -338,7 +324,7 @@ struct MirroredTable
 [[nodiscard]] MirroredTable makeMirroredTable()
 {
     MirroredTable t{};
-    for(size_t i = 0; i < tableSize; i++)
+    for(za::SizeT i = 0; i < tableSize; i++)
     {
         t.styles[i] = table[i].style;
         t.styles[i].offset.x = -t.styles[i].offset.x;
@@ -383,7 +369,7 @@ const Style& forModel(const char* model, bool mirrored)
                 break;
             }
         }
-        for(size_t i = 0; i < tableSize; i++)
+        for(za::SizeT i = 0; i < tableSize; i++)
         {
             if(as ? !ZA_STRCMP(table[i].stem, as) : stemIs(model, table[i].stem))
             {

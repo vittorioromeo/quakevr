@@ -1513,6 +1513,29 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		if (clip->type == MOVE_NOMONSTERS && touch->v.solid != SOLID_BSP)
 			continue;
 
+		// QVR: a shot, missile or thrown thing meets another player's body as drawn (vr/vr_playerhit.cpp), not his box
+		// (his drawn head reaches over it: its own bounds, not his box's)
+		if (!corpse && touch->v.solid != SOLID_BSP && ((int)touch->v.flags & FL_CLIENT)
+			&& !(clip->passedict && PROG_TO_EDICT(clip->passedict->v.owner) == touch && !clip->hitowner))
+		{
+			shot = VR_PlayerShotClip (touch, clip->start, clip->mins, clip->maxs, clip->end, clip->hittype, clip->hitmodel,
+				clip->hitgibs, &trace);
+			if (shot == 0)
+				continue;
+			if (shot > 0)
+			{
+				if (clip->trace.allsolid)
+					return;
+				if (trace.fraction < clip->trace.fraction)
+				{
+					qboolean wasStartSolid = clip->trace.startsolid;
+					clip->trace = trace;
+					clip->trace.startsolid = wasStartSolid;
+				}
+				continue;
+			}
+		}
+
 		if (clip->boxmins[0] > touch->v.absmax[0]
 		|| clip->boxmins[1] > touch->v.absmax[1]
 		|| clip->boxmins[2] > touch->v.absmax[2]
@@ -1534,6 +1557,8 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 				continue;	// don't clip against own missiles
 			if (PROG_TO_EDICT(clip->passedict->v.owner) == touch && !clip->hitowner)
 				continue;	// don't clip against owner (QVR: but a missile come through a teleporter meets it: VR_PortalHitsOwner)
+			if (touch->v.solid == SOLID_BBOX && VR_PoleSolidPasses (touch, clip->passedict))
+				continue;	// QVR (ropes8d): a pole's box every climber on it passes, not only its owner
 		}
 
 		// QVR: precise hits (vr/vr_hitmodel.cpp): a monster's box (grown by the
@@ -1577,6 +1602,9 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 			trace = SV_ClipMoveToBoxEntityQVR (touch, clip->mins, clip->maxs, clip);
 		else
 			trace = SV_ClipMoveToEntityQVR (touch, clip->start, clip->mins, clip->maxs, clip->end, clip); // QVR
+		if (touch->v.solid == SOLID_BBOX && trace.fraction < 1 && clip->passedict &&
+			VR_PoleSolidLedge (touch, clip->passedict, &trace))
+			continue;	// QVR (ropes11): a steep pole's boxes' ledges are passed (a body falls on beside it)
 		// QVR: a player already inside a solid prop (toppled onto him) isn't held by it: he walks out. (Not with his
 		// feet a little into its top: he is on it, and SV_CheckStuck puts him back on top.)
 		if (trace.startsolid && clip->passedict &&
@@ -1798,6 +1826,15 @@ static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, i
 	SV_ClipToLinks ( sv_areanodes, &clip );
 	if (!clip.bodymove && type != MOVE_NOMONSTERS && !clip.trace.allsolid)
 		SV_ClipToLeanBoxes (&clip); // QVR: a flat-screen player's leant upper body (vr/vr_flatmove.cpp)
+	// QVR (ropes8c): a gun's shot, a melee blow or a missile meets the chains' links (vr/vr_climbrope.cpp; not the
+	// grappling hook's, a thrown thing's or a body's move, nor sight lines: those pass, as through a rope)
+	if (type != MOVE_NOMONSTERS && !clip.trace.allsolid && !clip.trace.startsolid &&
+		(type == MOVE_MISSILE || ((clip.hittype & MOVE_HITMODEL) && ((clip.hittype & MOVE_HITMODEL_CLASS) >> MOVE_HITMODEL_CLASS_SHIFT) % 2 == 0)))
+	{
+		trace_t chain = clip.trace;
+		if (VR_ChainShotClip (start, mins, maxs, end, passedict, &chain))
+			clip.trace = chain;
+	}
 
 	return clip.trace;
 }

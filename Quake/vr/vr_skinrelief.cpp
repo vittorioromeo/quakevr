@@ -21,6 +21,7 @@
 #include "vr_api.h"
 #include "vr_api_render.h"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 
@@ -76,12 +77,12 @@ void forRows(int count, int texels, F&& f)
 struct Floats
 {
     float* p;
-    explicit Floats(size_t n) : p(static_cast<float*>(VR_HeapMalloc(n * sizeof(float)))) {}
+    explicit Floats(za::SizeT n) : p(static_cast<float*>(VR_HeapMalloc(n * sizeof(float)))) {}
     ~Floats() { VR_HeapFree(p); }
     Floats(const Floats&) = delete;
     Floats& operator=(const Floats&) = delete;
-    float& operator[](size_t i) { return p[i]; }
-    float operator[](size_t i) const { return p[i]; }
+    float& operator[](za::SizeT i) { return p[i]; }
+    float operator[](za::SizeT i) const { return p[i]; }
 };
 
 using qvr::geom::smooth01;
@@ -94,25 +95,25 @@ float clampf(float x, float lo, float hi)
 // A Gaussian blur (separable, the edges clamped), normalised within `cov` (nothing outside bleeds in): normalbake.blur.
 void blur(const float* in, float* out, const float* cov, int w, int h, float sigma)
 {
-    const size_t n = (size_t)w * h;
+    const za::SizeT n = (za::SizeT)w * h;
     if(sigma <= 0.f)
     {
         ZA_MEMCPY(out, in, n * sizeof(float));
         return;
     }
     const int r = (int)ceilf(sigma * 3.f);
-    Floats k((size_t)(2 * r + 1)), a(n * 2), b(n * 2);
+    Floats k((za::SizeT)(2 * r + 1)), a(n * 2), b(n * 2);
     float sum = 0.f;
     for(int i = -r; i <= r; i++)
     {
-        k[(size_t)(i + r)] = expf(-0.5f * (i / sigma) * (i / sigma));
-        sum += k[(size_t)(i + r)];
+        k[(za::SizeT)(i + r)] = expf(-0.5f * (i / sigma) * (i / sigma));
+        sum += k[(za::SizeT)(i + r)];
     }
     for(int i = 0; i <= 2 * r; i++)
     {
-        k[(size_t)i] /= sum;
+        k[(za::SizeT)i] /= sum;
     }
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         a[i] = in[i] * cov[i];
         a[n + i] = cov[i];
@@ -129,9 +130,9 @@ void blur(const float* in, float* out, const float* cov, int w, int h, float sig
                 for(int i = -r; i <= r; i++)
                 {
                     const int xx = x + i < 0 ? 0 : (x + i >= w ? w - 1 : x + i);
-                    s += kk[i + r] * src[(size_t)y * w + xx];
+                    s += kk[i + r] * src[(za::SizeT)y * w + xx];
                 }
-                mid[(size_t)y * w + x] = s;
+                mid[(za::SizeT)y * w + x] = s;
             }
         });
         float* dst = a.p + c * n;
@@ -142,13 +143,13 @@ void blur(const float* in, float* out, const float* cov, int w, int h, float sig
                 for(int i = -r; i <= r; i++)
                 {
                     const int yy = y + i < 0 ? 0 : (y + i >= h ? h - 1 : y + i);
-                    s += kk[i + r] * mid[(size_t)yy * w + x];
+                    s += kk[i + r] * mid[(za::SizeT)yy * w + x];
                 }
-                dst[(size_t)y * w + x] = s;
+                dst[(za::SizeT)y * w + x] = s;
             }
         });
     }
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         out[i] = a[i] / (a[n + i] > 1e-6f ? a[n + i] : 1e-6f);
     }
@@ -158,7 +159,7 @@ float at(const float* img, int w, int h, int x, int y)
 {
     x = x < 0 ? 0 : (x >= w ? w - 1 : x);
     y = y < 0 ? 0 : (y >= h ? h - 1 : y);
-    return img[(size_t)y * w + x];
+    return img[(za::SizeT)y * w + x];
 }
 
 // Bilinear, at texel coordinates (x, y: a texel's middle at its index), the edges clamped.
@@ -189,7 +190,7 @@ void curvatures(const float* L, int w, int h, int x, int y, float& l1, float& l2
 template <typename Keep>
 void keepPieces(float* v, int w, int h, Keep&& keep)
 {
-    const size_t n = (size_t)w * h;
+    const za::SizeT n = (za::SizeT)w * h;
     int* parent = static_cast<int*>(VR_HeapMalloc(n * sizeof(int)));
     int* box = static_cast<int*>(VR_HeapMalloc(n * 4 * sizeof(int)));
     auto find = [&](int i) {
@@ -200,7 +201,7 @@ void keepPieces(float* v, int w, int h, Keep&& keep)
         }
         return i;
     };
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         parent[i] = v[i] > 0.05f ? (int)i : -1;
     }
@@ -233,31 +234,31 @@ void keepPieces(float* v, int w, int h, Keep&& keep)
             }
         }
     }
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         box[i * 4 + 0] = INT_MAX;
         box[i * 4 + 1] = INT_MAX;
         box[i * 4 + 2] = INT_MIN;
         box[i * 4 + 3] = INT_MIN;
     }
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         if(parent[i] < 0)
         {
             continue;
         }
         const int r = find((int)i), x = (int)(i % w), y = (int)(i / w);
-        int* b = box + (size_t)r * 4;
+        int* b = box + (za::SizeT)r * 4;
         b[0] = x < b[0] ? x : b[0];
         b[1] = y < b[1] ? y : b[1];
         b[2] = x > b[2] ? x : b[2];
         b[3] = y > b[3] ? y : b[3];
     }
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         if(parent[i] >= 0)
         {
-            const int* b = box + (size_t)find((int)i) * 4;
+            const int* b = box + (za::SizeT)find((int)i) * 4;
             v[i] *= keep(b[2] - b[0], b[3] - b[1]);
         }
         else
@@ -273,9 +274,9 @@ void keepPieces(float* v, int w, int h, Keep&& keep)
 // painted rivets, the grain on its wood and leather; spread 6 texels out of the islands (normalbake.dilate).
 void paintHeights(const byte* rgba, const float* cov, int w, int h, float* out)
 {
-    const size_t n = (size_t)w * h;
+    const za::SizeT n = (za::SizeT)w * h;
     Floats lum(n), lum2(n), mu(n), sd(n), L(n), tmp(n), lines(n), dots(n), wood(n);
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         lum[i] = (rgba[i * 4] * 0.3f + rgba[i * 4 + 1] * 0.59f + rgba[i * 4 + 2] * 0.11f) / 255.f;
         lum2[i] = lum[i] * lum[i];
@@ -283,14 +284,14 @@ void paintHeights(const byte* rgba, const float* cov, int w, int h, float* out)
     // the local speckle: the brightness's spread over about 3 texels
     blur(lum.p, mu.p, cov, w, h, 3.f);
     blur(lum2.p, sd.p, cov, w, h, 3.f);
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         sd[i] = sqrtf(fmaxf(sd[i] - mu[i] * mu[i], 1e-6f));
     }
 
     // seams (normalbake.painted_lines, lo 0.12, hi 0.4, 6 to 16 texels long): narrow valleys of the brightness, longer
     // than wide, deep against the speckle
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         tmp[i] = 0.f;
     }
@@ -305,12 +306,12 @@ void paintHeights(const byte* rgba, const float* cov, int w, int h, float* out)
                 curvatures(L.p, w, h, x, y, l1, l2);
                 const float valley = fmaxf(l1, 0.f) * s * s;
                 const float elong = clampf((l1 - fabsf(l2)) / fmaxf(l1, 1e-9f), 0.f, 1.f);
-                const size_t i = (size_t)y * w + x;
+                const za::SizeT i = (za::SizeT)y * w + x;
                 tmp[i] = fmaxf(tmp[i], valley * elong / (sd[i] + 0.02f));
             }
         }
     }
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         tmp[i] = smooth01((tmp[i] - 0.12f) / 0.28f) * cov[i];
     }
@@ -325,7 +326,7 @@ void paintHeights(const byte* rgba, const float* cov, int w, int h, float* out)
         {
             float l1, l2;
             curvatures(L.p, w, h, x, y, l1, l2);
-            const size_t i = (size_t)y * w + x;
+            const za::SizeT i = (za::SizeT)y * w + x;
             const float peak = l1 < 0.f ? -l1 : 0.f;
             tmp[i] = smooth01((peak / (sd[i] + 0.02f) - 0.25f) / 0.35f) * cov[i];
         }
@@ -334,7 +335,7 @@ void paintHeights(const byte* rgba, const float* cov, int w, int h, float* out)
     blur(tmp.p, dots.p, cov, w, h, 0.6f);
 
     // wood and leather (normaldetail.wood_mask): warm browns, saturated enough
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         const float r = rgba[i * 4] / 255.f, g = rgba[i * 4 + 1] / 255.f, b = rgba[i * 4 + 2] / 255.f;
         const float mx = fmaxf(r, fmaxf(g, b)), mn = fminf(r, fminf(g, b)), d = mx - mn;
@@ -354,7 +355,7 @@ void paintHeights(const byte* rgba, const float* cov, int w, int h, float* out)
     Floats hp(n), gx(n), gy(n), jxx(n), jxy(n), jyy(n), streak(n);
     blur(lum.p, hp.p, cov, w, h, 0.7f);
     blur(lum.p, tmp.p, cov, w, h, 2.5f);
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         hp[i] -= tmp[i];
     }
@@ -363,22 +364,22 @@ void paintHeights(const byte* rgba, const float* cov, int w, int h, float* out)
     {
         for(int x = 0; x < w; x++)
         {
-            const size_t i = (size_t)y * w + x;
+            const za::SizeT i = (za::SizeT)y * w + x;
             gx[i] = (at(L.p, w, h, x + 1, y) - at(L.p, w, h, x - 1, y)) * 0.5f;
             gy[i] = (at(L.p, w, h, x, y + 1) - at(L.p, w, h, x, y - 1)) * 0.5f;
         }
     }
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         tmp[i] = gx[i] * gx[i];
     }
     blur(tmp.p, jxx.p, cov, w, h, 3.f);
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         tmp[i] = gx[i] * gy[i];
     }
     blur(tmp.p, jxy.p, cov, w, h, 3.f);
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         tmp[i] = gy[i] * gy[i];
     }
@@ -387,7 +388,7 @@ void paintHeights(const byte* rgba, const float* cov, int w, int h, float* out)
     {
         for(int x = 0; x < w; x++)
         {
-            const size_t i = (size_t)y * w + x;
+            const za::SizeT i = (za::SizeT)y * w + x;
             if(wood[i] < 1e-3f)
             {
                 streak[i] = 0.f;
@@ -403,12 +404,12 @@ void paintHeights(const byte* rgba, const float* cov, int w, int h, float* out)
             streak[i] = acc / 9.f;
         }
     }
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         tmp[i] = streak[i] * streak[i];
     }
     blur(tmp.p, L.p, cov, w, h, 4.f);
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         const float tr = jxx[i] + jyy[i];
         const float coh = sqrtf((jxx[i] - jyy[i]) * (jxx[i] - jyy[i]) + 4.f * jxy[i] * jxy[i]) / fmaxf(tr, 1e-9f);
@@ -419,7 +420,7 @@ void paintHeights(const byte* rgba, const float* cov, int w, int h, float* out)
     }
 
     // out of the islands, ring by ring: the mean of the covered neighbours (the map's bilinear taps at a seam)
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         tmp[i] = cov[i] > 0.5f ? 1.f : 0.f;
     }
@@ -430,7 +431,7 @@ void paintHeights(const byte* rgba, const float* cov, int w, int h, float* out)
         {
             for(int x = 0; x < w; x++)
             {
-                const size_t i = (size_t)y * w + x;
+                const za::SizeT i = (za::SizeT)y * w + x;
                 if(tmp[i] > 0.f)
                 {
                     continue;
@@ -441,9 +442,9 @@ void paintHeights(const byte* rgba, const float* cov, int w, int h, float* out)
                     for(int dx = -1; dx <= 1; dx++)
                     {
                         const int xx = x + dx, yy = y + dy;
-                        if((dx || dy) && xx >= 0 && xx < w && yy >= 0 && yy < h && tmp[(size_t)yy * w + xx] == 1.f)
+                        if((dx || dy) && xx >= 0 && xx < w && yy >= 0 && yy < h && tmp[(za::SizeT)yy * w + xx] == 1.f)
                         {
-                            acc += out[(size_t)yy * w + xx];
+                            acc += out[(za::SizeT)yy * w + xx];
                             cnt += 1.f;
                         }
                     }
@@ -456,7 +457,7 @@ void paintHeights(const byte* rgba, const float* cov, int w, int h, float* out)
                 }
             }
         }
-        for(size_t i = 0; i < n; i++)
+        for(za::SizeT i = 0; i < n; i++)
         {
             tmp[i] = tmp[i] > 0.f ? 1.f : 0.f;
         }
@@ -471,7 +472,7 @@ void paintHeights(const byte* rgba, const float* cov, int w, int h, float* out)
 // per skin texel.
 void makeMap(const byte* rgba, const float* cov, int w, int h, int scale, float units, byte* map)
 {
-    const size_t n = (size_t)w * h;
+    const za::SizeT n = (za::SizeT)w * h;
     Floats ht(n), hu(n), broad(n);
     paintHeights(rgba, cov, w, h, ht.p);
 
@@ -480,14 +481,14 @@ void makeMap(const byte* rgba, const float* cov, int w, int h, int scale, float 
     // as deep in texels as our view models' (0.1 to 0.3 units a texel), not 4 times deeper: its every texel would
     // reach HEIGHT_CAP, the whole surface pitted, its paint swimming.
     const float hunits = fminf(units, maxHeightUnits);
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         hu[i] = ht[i] * hunits;
     }
     blur(hu.p, broad.p, cov, w, h, heightBroad / hunits);
     int histogram[1024] = {}, counted = 0;
     constexpr float lo = -1.f, hi = 1.f; // model units: the relief's range (a few tenths)
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         hu[i] -= broad[i];
         if(cov[i] > 0.5f)
@@ -503,7 +504,7 @@ void makeMap(const byte* rgba, const float* cov, int w, int h, int scale, float 
     }
     const float top = lo + (b + 0.5f) / 1023.f * (hi - lo);
     bool relief = false;
-    for(size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         const float d = fmaxf(top - hu[i], 0.f);
         hu[i] = cov[i] > 0.5f ? clampf(1.f - heightCap * tanhf(d / heightCap) / authoredDepth, 0.f, 1.f) : 1.f;
@@ -520,7 +521,7 @@ void makeMap(const byte* rgba, const float* cov, int w, int h, int scale, float 
             const float ddx = (bilinear(ht.p, w, h, sx + step, sy) - bilinear(ht.p, w, h, sx - step, sy)) / (2.f * step);
             const float ddy = (bilinear(ht.p, w, h, sx, sy + step) - bilinear(ht.p, w, h, sx, sy - step)) / (2.f * step);
             const float nx = -ddx, ny = ddy, len = 1.f / sqrtf(nx * nx + ny * ny + 1.f);
-            byte* o = map + ((size_t)Y * W + X) * 4;
+            byte* o = map + ((za::SizeT)Y * W + X) * 4;
             o[0] = (byte)clampf((nx * len * 0.5f + 0.5f) * 255.f + 0.5f, 0.f, 255.f);
             o[1] = (byte)clampf((ny * len * 0.5f + 0.5f) * 255.f + 0.5f, 0.f, 255.f);
             o[2] = (byte)clampf((len * 0.5f + 0.5f) * 255.f + 0.5f, 0.f, 255.f);
@@ -539,11 +540,11 @@ void reliefStats(const byte* map, int W, int H, const byte* mask, int mw, int mh
     {
         for(int X = 0; X < W; X++)
         {
-            if(mask && !mask[(size_t)(Y * mh / H) * mw + X * mw / W])
+            if(mask && !mask[(za::SizeT)(Y * mh / H) * mw + X * mw / W])
             {
                 continue;
             }
-            const byte* o = map + ((size_t)Y * W + X) * 4;
+            const byte* o = map + ((za::SizeT)Y * W + X) * 4;
             const float z = clampf(o[2] / 127.5f - 1.f, -1.f, 1.f), t = acosf(z) * 57.29578f;
             tilt += t;
             over += t > 5.f;
@@ -582,7 +583,7 @@ void rifleRows(byte* map, int W, int H)
     byte* img = Image_LoadImage(rifleMap, &fw, &fh, &fmt);
     if(img && fmt == SRC_RGBA && fw == W && fh <= H)
     {
-        ZA_MEMCPY(map, img, (size_t)fw * fh * 4);
+        ZA_MEMCPY(map, img, (za::SizeT)fw * fh * 4);
     }
     Hunk_FreeToLowMark(mark);
 }
@@ -629,11 +630,11 @@ extern "C" void VR_SkinReliefBegin(const void* hdr, const void* stverts, const v
     {
         int count;
         ZA_MEMCPY(&count, p, 4);
-        p += sizeof(daliasgroup_t) + (size_t)LittleLong(count) * sizeof(daliasinterval_t);
+        p += sizeof(daliasgroup_t) + (za::SizeT)LittleLong(count) * sizeof(daliasinterval_t);
     }
     const trivertx_t* v = reinterpret_cast<const trivertx_t*>(p + sizeof(daliasframe_t));
     const int numtris = pheader->numtris, w = pheader->skinwidth;
-    float* units = static_cast<float*>(VR_HeapMalloc((size_t)(numtris > 0 ? numtris : 1) * 2 * sizeof(float)));
+    float* units = static_cast<float*>(VR_HeapMalloc((za::SizeT)(numtris > 0 ? numtris : 1) * 2 * sizeof(float)));
     int count = 0;
     float total = 0.f;
     for(int i = 0; i < numtris; i++)
@@ -679,7 +680,7 @@ extern "C" void VR_SkinReliefBegin(const void* hdr, const void* stverts, const v
     }
     if(count)
     {
-        qsort(units, (size_t)count, 2 * sizeof(float), [](const void* a, const void* b) {
+        qsort(units, (za::SizeT)count, 2 * sizeof(float), [](const void* a, const void* b) {
             const float x = *static_cast<const float*>(a), y = *static_cast<const float*>(b);
             return (x > y) - (x < y);
         });
@@ -709,7 +710,7 @@ extern "C" byte* VR_SkinRelief(gltexture_t* glt, byte* data)
 {
     const double t0 = Sys_DoubleTime();
     const int w = (int)glt->width, h = (int)glt->height, scale = scaleOf(w), W = w * scale, H = h * scale;
-    const size_t n = (size_t)w * h;
+    const za::SizeT n = (za::SizeT)w * h;
 
     // its model's units per texel: the model being loaded's, else as made before (a reload), else a weapon's typical
     float units = pendingUnits;
@@ -732,7 +733,7 @@ extern "C" byte* VR_SkinRelief(gltexture_t* glt, byte* data)
 
     int mw = 0, mh = 0;
     const byte* mask = VR_SkinIslands(&mw, &mh);
-    byte* map = static_cast<byte*>(Hunk_Alloc((size_t)W * H * 4));
+    byte* map = static_cast<byte*>(Hunk_Alloc((za::SizeT)W * H * 4));
     unsigned long long key = qvr::diskcache::fnvStart;
     const int cache = VR_NormalCacheMode();
     {
@@ -743,7 +744,7 @@ extern "C" byte* VR_SkinRelief(gltexture_t* glt, byte* data)
         key = qvr::diskcache::fnv(key, data, n * 4);
         if(mask)
         {
-            key = qvr::diskcache::fnv(key, mask, (size_t)mw * mh);
+            key = qvr::diskcache::fnv(key, mask, (za::SizeT)mw * mh);
         }
     }
     const bool hit = cache == 1 && VR_ReliefCacheLoad(cacheBuild, key, map, W, H);
@@ -754,7 +755,7 @@ extern "C" byte* VR_SkinRelief(gltexture_t* glt, byte* data)
         {
             for(int x = 0; x < w; x++)
             {
-                cov[(size_t)y * w + x] = !mask || mask[(size_t)(y * mh / h) * mw + x * mw / w] ? 1.f : 0.f;
+                cov[(za::SizeT)y * w + x] = !mask || mask[(za::SizeT)(y * mh / h) * mw + x * mw / w] ? 1.f : 0.f;
             }
         }
         makeMap(data, cov.p, w, h, scale, units, map);

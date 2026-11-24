@@ -138,7 +138,7 @@ void() DW_PowerupFrame =
 // Weapons (placeholders, DWELL.md P3): the pickup gives one of our weapons with Dwell's variant on its instance; the
 // variant fires with Dwell's numbers. Rotary Shotgun: a super shotgun firing 20 pellets of 2 ('0.1 0.02' spread), a
 // shell a shot, 5 a second. Crystal Lance: a lightning gun firing a piercing crystal beam, 150 to each body it passes,
-// 6 cells, every 1.4 s. Rifle: a shotgun firing one 50 bullet, a shell, every 1.4 s. (Haste: 0.6 of each.)
+// 6 cells, every 1.4 s. (Haste: 0.6 of each.) Dwell's Rifle (weapon_rifle) is not made: no Dwell map places it.
 
 void(string mdl, float wid, float xVar, string nm) dw_weapon =
 {
@@ -160,10 +160,6 @@ void() dw_weapon_quad_shotgun = { dw_weapon("progs/g_shot3.mdl", WID_SUPER_SHOTG
 Dwell's Crystal Lance (for now a lightning gun firing Dwell's piercing beam: 150 each, 6 cells).
 */
 void() dw_weapon_railgun = { dw_weapon("progs/g_rail.mdl", WID_LIGHTNING, DW_VAR_LANCE, "Crystal Lance"); };
-/*dw:QUAKED weapon_rifle (0 .5 .8) (-16 -16 0) (16 16 32)
-Dwell's Rifle (for now a shotgun firing one 50 bullet).
-*/
-void() dw_weapon_rifle = { dw_weapon("progs/v_rifle.mdl", WID_SHOTGUN, DW_VAR_RIFLE, "Rifle"); };
 
 // The toolgun's Dwell weapons: the weapon laid as a prop (func_weapon_grabbable: a rigid body like every other weapon
 // there) with its variant on its record, not the floating pickup (his note 2026-11-21; AD_UpgradeProp, the same).
@@ -180,14 +176,32 @@ void(float xWid, float xVar) DW_WeaponProp =
 // (the toolgun's entries: Quake VR/vr_toolgun_packs.inc, by these names)
 void() toolgun_dw_rotary = { DW_WeaponProp(WID_SUPER_SHOTGUN, DW_VAR_ROTARY); };
 void() toolgun_dw_lance = { DW_WeaponProp(WID_LIGHTNING, DW_VAR_LANCE); };
-void() toolgun_dw_rifle = { DW_WeaponProp(WID_SHOTGUN, DW_VAR_RIFLE); };
 
-// weapon_touch: the pickup's variant on the weapon it gave (none: a plain one; one or the other: no AD upgrade on it).
+// weapon_touch, before the weapon is given: the pickup's variant (Dwell's weapon) owned by `p` from now on (variantowned,
+// vr_weaponinst.qc WeaponInst_Owned), so every weapon of its kind he has is it.
+void(entity xPickup, entity p) DW_PickupOwned =
+{
+    float v = xPickup.vr_dw_var;
+    if(!v || !(p.flags & FL_CLIENT)) { return; }
+    p.vr_owned_vars = p.vr_owned_vars | (v == 1 ? 1 : 2);
+    dprint(sprintf("owned variant: %s owns the %s (its pickup)\n", p.netname, DW_VariantName(v)));
+};
+
+// Whether the pickup's variant is one `p` doesn't own yet (coop leaves a weapon he has: not a variant new to him).
+float(entity xPickup, entity p) DW_PickupNewVariant =
+{
+    float v = xPickup.vr_dw_var;
+    return v && (p.flags & FL_CLIENT) && !(p.vr_owned_vars & (v == 1 ? 1 : 2));
+};
+
+// weapon_touch: the weapon it gave as `p` owns its kind (DW_PickupOwned before: a Dwell pickup's variant; a plain one of
+// a kind he owns a variant of: that variant; one or the other: no AD upgrade on it).
 void(entity xPickup, entity p, float xHand) DW_VariantGiven =
 {
     entity inst = VRGetEntWeaponInst(p, xHand);
     if(inst == world) { return; }
-    inst.wi_dwvar = xPickup.vr_dw_var;
+    if(!(p.flags & FL_CLIENT)) { inst.wi_dwvar = xPickup.vr_dw_var; } // (not a player's: the pickup's, as before)
+    WeaponInst_Owned(p, VRGetEntWeapon(p, xHand), inst);
     if(inst.wi_dwvar) { inst.wi_adup = 0; }
     // The Rotary Shotgun comes with its tube full, as the Widowmaker it handles as (AD_UpgradeGiven; AD_Widowmaker).
     if(inst.wi_dwvar == DW_VAR_ROTARY && p.ishuman && VRIsWeaponReloadingEnabledForInst(p, WID_SUPER_SHOTGUN, inst))
@@ -201,19 +215,18 @@ string(float xVar) DW_VariantName =
 {
     if(xVar == DW_VAR_ROTARY) { return "Rotary Shotgun"; }
     if(xVar == DW_VAR_LANCE) { return "Crystal Lance"; }
-    return "Rifle";
+    return "";
 };
 
 // Dwell's weapons drawn as themselves (DWELL.md 9.6): their VR models, made from Dwell's own view models as they load
-// (engine vr_adweapons.cpp: Dwell's v_shot3.mdl, v_rail.mdl, v_rifle.mdl read in place from its folder, laid as the
-// weapon they are a variant of; weapons.txt slots 52-54), never written anywhere. Without Dwell's data: ours.
+// (engine vr_adweapons.cpp: Dwell's v_shot3.mdl, v_rail.mdl read in place from its folder, laid as the weapon they are
+// a variant of; weapons.txt slots 52-53), never written anywhere. Without Dwell's data: ours.
 float() DW_LancePole;
 float() DW_RotaryGauntlet;
 string(float xWid) DW_VRModelOf =
 {
     if(xWid == WID_SUPER_SHOTGUN) { return DW_RotaryGauntlet() ? "progs/dw_rotary.mdl#vr" : "progs/dw_shot3.mdl#vr"; }
     if(xWid == WID_LIGHTNING) { return DW_LancePole() ? "progs/dw_lance.mdl#vr" : "progs/dw_rail.mdl#vr"; }
-    if(xWid == WID_SHOTGUN) { return "progs/dw_rifle.mdl#vr"; }
     return "";
 };
 
@@ -312,7 +325,6 @@ float(float xWid) DW_VariantFor =
 {
     if(xWid == WID_SUPER_SHOTGUN) { return DW_VAR_ROTARY; }
     if(xWid == WID_LIGHTNING) { return DW_VAR_LANCE; }
-    if(xWid == WID_SHOTGUN) { return DW_VAR_RIFLE; }
     return 0;
 };
 
@@ -326,7 +338,7 @@ float(entity p) DW_PackWeaponVariants =
         if(inst != world) { packed = packed + (inst.wi_dwvar & 3) * k; }
         k = k * 4;
     }
-    return packed;
+    return packed + (p.vr_owned_vars & 3) * k; // (the variants he owns, bits 16-17: vr_weaponinst.qc WeaponInst_Owned)
 };
 
 // DecodeLevelParms, the records carried: their variants back (a weapon of another kind: none).
@@ -344,32 +356,64 @@ void(entity p, float xPacked) DW_UnpackWeaponVariants =
         inst.wi_dwvar = code == DW_VariantFor(wids[i]) ? code : 0;
         if(inst.wi_dwvar) { inst.wi_adup = 0; }
     }
+    // The variants he owns (bits 16-17; a coop respawn keeps those he had: the same edict), then on his weapons.
+    p.vr_owned_vars = p.vr_owned_vars | (xPacked & 3);
+    WeaponInst_OwnedSync(p, FALSE);
 };
 
 // The Crystal Lance's beam: through every body on its line (8 at most), 150 to each, thrown back.
+// lance3 (his notes vrtesthall_2026-11-23_23-26-31, 23-26-51): it strikes as the lightning gun's bolt does
+// (LightningDamage's way): gibs, heads and monsters' models (MOVE_HITGIBS | MOVE_HITMODEL), the prop or ragdoll it hits
+// or goes through pushed (VR_ShotPush, a bolt's push times vr_dw_lance_push), a head or a limb popped (VR_LightningHit:
+// VR_Decap_BoltArm with vr_decap_weapon a bolt's), the body shocked, blood; where it stops, a wall's or a prop's:
+// sparks (vr_dw_lance_hit_sparks), smoke (vr_dw_lance_hit_smoke) and the bolt's lasting burn (VR_Lightning_Burn).
+float dw_lance_pushes; // (the tests: the props and ragdolls its beams pushed)
+float dw_lance_impacts; // (the tests: its beams' ends drawn on a surface)
+float dw_lance_aim_test; // (the tests: the beam from dw_lance_aim_src along dw_lance_aim_dir, not the hand's: test 225)
+vector dw_lance_aim_src, dw_lance_aim_dir;
 void(float xHand) dw_fire_lance =
 {
-    vector src = VRGetMuzzlePos(xHand);
-    vector dir = VRGetWeaponFireRotFwd(xHand);
+    vector src = dw_lance_aim_test ? dw_lance_aim_src : VRGetMuzzlePos(xHand);
+    vector dir = dw_lance_aim_test ? normalize(dw_lance_aim_dir) : VRGetWeaponFireRotFwd(xHand);
     vector start = src;
     entity ignore = self;
+    float push = max(0, cvar_hget(cvarh_vr_dw_lance_push)) * 5; // (a player's bolt pushes 30 / 30: the Lance's 150 / 30)
+    float wasDecap = vr_decap_weapon;
+    if(self.flags & FL_CLIENT) { vr_decap_weapon = QVR_DECAP_LIGHTNING; } // (its heads and limbs pop as a bolt's)
+    VR_Stealth_Graze(src, src + dir * 8192, self, world);
+    float lc = lagcompbegin(self);
     float n;
     for(n = 0; n < 8; n++)
     {
-        traceline(src, src + dir * 8192, FALSE, ignore);
+        traceline(src, src + dir * 8192, MOVE_HITGIBS | MOVE_HITMODEL, ignore);
+        if(VR_ShotPush(trace_ent, src, trace_endpos, dir, QVR_SHOTPUSH_LIGHTNING, push) != world) { dw_lance_pushes++; }
         if(!trace_ent.takedamage || trace_ent == world) { break; }
         entity hit = trace_ent;
         vector end = trace_endpos;
-        T_Damage(hit, self, self, 150);
-        if(hit.health <= 0) { hit.velocity = hit.velocity + dir * 400 + '0 0 175'; }
+        if(VR_LightningHit(hit, self, 150, dir)) { VR_HitBloodSplash(hit, end, 150); }
+        if(hit.health <= 0 && !hit.vr_corpse) { hit.velocity = hit.velocity + dir * 400 + '0 0 175'; }
         // (dwellweap: the bolt crackling through it, violet crystal sparks where it enters and leaves)
         particle(end, dir * 30, 148 + rint(random() * 6), 40);
         particle(end + dir * 24, dir * 60, 148 + rint(random() * 6), 24);
         ignore = hit;
         src = end + dir * 4;
+        trace_endpos = end; // (the damage's death code may trace)
     }
-    particle(trace_endpos - dir * 2, dir * -40, 148 + rint(random() * 6), 32); // (and where it stops)
-    dprint(sprintf("dwlance: the beam through %g bodies, %.0f long\n", n, vlen(trace_endpos - start)));
+    if(lc) { lagcompend(); }
+    vr_decap_weapon = wasDecap;
+    vector stop = trace_endpos;
+    particle(stop - dir * 2, dir * -40, 148 + rint(random() * 6), 32); // (and where it stops)
+    if(vlen(stop - start) < 8190)
+    {
+        // Its impact (lance3): sparks thrown back off it, smoke, the bolt's burn on a surface.
+        dw_lance_impacts++;
+        float sparks = cvar_hget(cvarh_vr_dw_lance_hit_sparks), smoke = cvar_hget(cvarh_vr_dw_lance_hit_smoke);
+        if(sparks > 0) { particle2(stop - dir * 2, dir * -1, QVR_PARTICLE_PRESET_SPARKS, rint(sparks)); }
+        if(smoke > 0) { particle2(stop - dir * 3, dir * -1, QVR_PARTICLE_PRESET_SMOKE, rint(smoke)); }
+        VR_Lightning_Burn(start, stop);
+    }
+    dprint(sprintf("dwlance: the beam through %g bodies, %.0f long\n", n, vlen(stop - start)));
+    trace_endpos = stop;
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
     WriteEntity(MSG_BROADCAST, dw_beam_prop ? dw_beam_prop : self); // (an armed grunt's: from its gun, as its lightning)
@@ -384,13 +428,13 @@ float(float xHand, float* xOutAttackFinished) DW_FireVariant =
 {
     entity inst = VRGetEntWeaponInst(self, xHand);
     float v = inst != world ? inst.wi_dwvar : 0;
-    if(!v) { return FALSE; }
+    if(v != DW_VAR_ROTARY && v != DW_VAR_LANCE) { return FALSE; } // (an older save's retired Rifle, 3: a plain shotgun)
     vector dir = VRGetWeaponFireRotFwd(xHand);
     if(v == DW_VAR_LANCE)
     {
         if(!delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 6))
         {
-            sound(self, VRGetHandChannel(xHand), "gunclick.wav", 1, ATTN_NORM);
+            // (Silent: no empty click, lance3. An armed grunt's Lance never comes here empty.)
             *xOutAttackFinished = time + 0.3;
             return TRUE;
         }
@@ -409,24 +453,13 @@ float(float xHand, float* xOutAttackFinished) DW_FireVariant =
         *xOutAttackFinished = time + 0.3;
         return TRUE;
     }
-    if(v == DW_VAR_ROTARY)
-    {
-        sound(self, VRGetGunChannel(xHand), "weapons/shotgn2.wav", 1, ATTN_NORM);
-        self.punchangle_x = -2;
-        vr_pellet_damage = 2;
-        vr_decap_weapon = QVR_DECAP_SSG;
-        FireBullets(xHand, 20, dir, '0.1 0.02 0');
-        *xOutAttackFinished = time + RuneApplyHell(0.2, self);
-    }
-    else
-    {
-        sound(self, VRGetGunChannel(xHand), "weapons/guncock.wav", 1, ATTN_NORM);
-        self.punchangle_x = -4;
-        vr_pellet_damage = 50;
-        vr_decap_weapon = QVR_DECAP_SHOTGUN;
-        FireBullets(xHand, 1, dir, '0.001 0.001 0');
-        *xOutAttackFinished = time + RuneApplyHell(1.4, self);
-    }
+    // The Rotary Shotgun.
+    sound(self, VRGetGunChannel(xHand), "weapons/shotgn2.wav", 1, ATTN_NORM);
+    self.punchangle_x = -2;
+    vr_pellet_damage = 2;
+    vr_decap_weapon = QVR_DECAP_SSG;
+    FireBullets(xHand, 20, dir, '0.1 0.02 0');
+    *xOutAttackFinished = time + RuneApplyHell(0.2, self);
     vr_decap_weapon = 0;
     vr_pellet_damage = 0;
     dw_variant_shots++;
@@ -434,6 +467,108 @@ float(float xHand, float* xOutAttackFinished) DW_FireVariant =
     VRGunHaptic(xHand, 0.4, 70, 0.8);
     ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, 1, 0.3, 0);
     return TRUE;
+};
+
+// The Crystal Lance as a charged shot (lancecharge; his note 2026-11-23: the trigger held repeated the beam's look while
+// its damage came in pulses). The trigger held charges it over vr_dw_lance_charge s (the client gathers violet sparks
+// and a growing light at its crystal tip, with a rising hum: vr_lancecharge.cpp); let go short of full, the charge
+// fades out (no shot, no cells); let go full, it fires (DW_FireVariant through W_Attack: 6 cells, the beam, which the
+// clients leave lingering vr_dw_lance_bolt s). Every client hears of each charge begun, let go short or fired
+// (QVR_SVC_LANCECHARGE: [short player][byte hand][byte 1 charging, 0 let go short, 2 fired][byte its seconds * 50]),
+// so the others see it on his copy's Lance. vr_dw_lance_charge 0: it fires as the trigger is pulled (each 1.4 s held).
+// An armed grunt's Lance fires at once (VR_AG_ShootProp calls DW_FireVariant itself).
+.float dw_lc0, dw_lc1;     // each hand's charge (0 .. 1)
+.float dw_lc_t0, dw_lc_t1; // when it was last advanced (a frame skipped longer: forgotten)
+.float dw_lc_s0, dw_lc_s1; // when it began (the developer print's time to full)
+
+// The weapon in `xHand` is the Crystal Lance (its gun's shot: the primary ammo).
+float(float xHand) DW_LanceInHand =
+{
+    if(VRGetWeapon(xHand) != WID_LIGHTNING || (VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)) { return FALSE; }
+    entity inst = VRGetEntWeaponInst(self, xHand);
+    return inst != world && inst.wi_dwvar == DW_VAR_LANCE;
+};
+
+float(float xHand) DW_LanceCharged =
+{
+    return cvar_hget(cvarh_vr_dw_lance_charge) > 0 && DW_LanceInHand(xHand);
+};
+
+// Its 6 cells are there (as delAmmoOrClipAndUpdateCounter pays them: the clip, else the pouch).
+float(float xHand) DW_LanceCanPay =
+{
+    float have = VRIsWeaponReloadingEnabledFor(self, xHand) ? VRGetWeaponClip(xHand) : VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_CELLS);
+    return have >= 6;
+};
+
+void(float xHand, float xState) DW_LanceChargeSend =
+{
+    WriteByte(MSG_ALL, 39); // svc_quakevr
+    WriteByte(MSG_ALL, 56); // QVR_SVC_LANCECHARGE
+    WriteEntity(MSG_ALL, self);
+    WriteByte(MSG_ALL, xHand);
+    WriteByte(MSG_ALL, xState);
+    WriteByte(MSG_ALL, rint(min(255, max(1, cvar_hget(cvarh_vr_dw_lance_charge) * 50))));
+};
+
+// W_WeaponFrameImpl, each frame the hand may attack (its refire over), the Lance in `xHand` (DW_LanceCharged), its
+// trigger `xPressed`: the charge advanced, begun or let go. TRUE: attack now (let go fully charged). The trigger held
+// without its 6 cells: no charge, the empty click.
+float(float xHand, float xPressed) DW_LanceChargeFrame =
+{
+    float off = xHand == cVR_OffHand;
+    float charge = off ? self.dw_lc0 : self.dw_lc1;
+    float last = off ? self.dw_lc_t0 : self.dw_lc_t1;
+    float began = off ? self.dw_lc_s0 : self.dw_lc_s1;
+    float dt = time - last;
+    if(dt > 0.25 || dt < 0) { charge = 0; } // (not advanced since: the refire, the weapon away, a load)
+    float full = charge >= 1;
+    float fire = FALSE;
+    if(xPressed && !DW_LanceCanPay(xHand))
+    {
+        if(charge > 0) { DW_LanceChargeSend(xHand, 0); dw_lc_cancels++; }
+        charge = 0;
+        // No empty click (lance3; his note vrtesthall_2026-11-23_22-59-42: held as a melee weapon, the trigger is often
+        // closed): silent, as Mjolnir's (W_AttackImpl).
+        VRSetAttackFinished(xHand, time + 0.5);
+    }
+    else if(xPressed)
+    {
+        if(charge <= 0)
+        {
+            DW_LanceChargeSend(xHand, 1);
+            dw_lc_starts++;
+            began = time;
+            dprint(sprintf("dwlance: charging (hand %g, %.2f s)\n", xHand, cvar_hget(cvarh_vr_dw_lance_charge)));
+        }
+        // (full vr_dw_lance_charge s after it began; above 0 from its first frame: begun)
+        charge = min(1, max(0.001, (time - began) / max(0.05, cvar_hget(cvarh_vr_dw_lance_charge))));
+        if(charge >= 1 && !full)
+        {
+            VRGunHaptic(xHand, 0.12, 120, 0.5); // (charged: a tick in the hand)
+            dprint(sprintf("dwlance: charged (hand %g) after %.3f s\n", xHand, time - began));
+        }
+    }
+    else if(charge > 0)
+    {
+        if(full)
+        {
+            DW_LanceChargeSend(xHand, 2);
+            dw_lc_fires++;
+            fire = TRUE;
+            dprint(sprintf("dwlance: let go charged (hand %g): the shot\n", xHand));
+        }
+        else
+        {
+            DW_LanceChargeSend(xHand, 0);
+            dw_lc_cancels++;
+            dprint(sprintf("dwlance: let go at %.2f (hand %g): no shot\n", charge, xHand));
+        }
+        charge = 0;
+    }
+    if(off) { self.dw_lc0 = charge; self.dw_lc_t0 = time; self.dw_lc_s0 = began; }
+    else    { self.dw_lc1 = charge; self.dw_lc_t1 = time; self.dw_lc_s1 = began; }
+    return fire;
 };
 
 // ---------------------------------------------------------------------------------------------------------------------

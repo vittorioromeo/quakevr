@@ -396,6 +396,7 @@ QVR_TUNABLE(vr_gib_health, "12") // the damage that destroys a gib (a head takes
 QVR_TUNABLE(vr_gib_overkill_melee, "0.5") // the share of a hand's blow's overkill (damage past its health) that counts towards gibbing a monster; Quad's all of it (QC combat.qc VR_Gib_Overkill; 1 before his note 2026-11-02)
 QVR_TUNABLE(vr_gib_overkill_prop, "0.1") // and of a thrown, flung or fallen prop's (a limb or head it hit still pops; 1 before his note 2026-11-02)
 QVR_TUNABLE(vr_gib_overkill_blade, "0") // and of a blade thrown blade first (point or edge in: it kills whole, the blade left in the body; 1 before his note 2026-11-12), and of a thrown sword or dagger any way (his note 2026-11-15)
+QVR_TUNABLE(vr_throw_kill_push, "0.5") // times vr_kill_push for a kill by a thrown blade (an axe, sword or dagger: weapons.txt embed; VR and flat throws): how far its body is thrown (QC combat.qc VR_KillPush_Mult; 1 before his note 2026-11-23: "they fly too far")
 QVR_TUNABLE(vr_gib_splat_speed, "250") // units/s a thrown gib or head must hit a wall or a monster at to burst
 QVR_TUNABLE(vr_gib_splat_throw, "7") // m/s of the throwing hand from which a thrown gib or head bursts on a wall instead of sticking, however heavy; 0 off
 QVR_TUNABLE(vr_gib_burst_speed, "5") // m/s: a hand's or weapon's hit on a gib, or one held and smashed into something, this fast (relative) bursts it; from half as fast it wears it (and bounces off the hand)
@@ -791,6 +792,11 @@ QVR_TUNABLE(vr_ad_widowmaker_handful, "2") // the shells the pouch gives a hand 
 QVR_TUNABLE(vr_ad_widowmaker_spin, "1")
 QVR_TUNABLE(vr_ad_widowmaker_spinup, "0.75") // (also the wait before the first shot: the barrels must reach firing speed; QC AD_WidowmakerSpinFrame)
 QVR_TUNABLE(vr_ad_widowmaker_spindown, "0.9")
+
+// Weapons > Super Nailgun (his note 2026-11-23: it fires at once, so its barrels come up to speed at once; the coast down
+// is the Widowmaker's Spin Down)
+QVR_TUNABLE(vr_sng_spinup, "0.12") // s its barrels take to reach full speed with the trigger held (vr_adweapons.cpp advance)
+QVR_TUNABLE(vr_sng_motor, "0.7") // its motor whirr's volume, a share of the Widowmaker's Motor Volume (vr_ad_widowmaker_motor)
 
 // Weapons > Reloading - Plasma Gun
 QVR_TUNABLE(vr_ad_plasmagun_cell, "16") // the cells its cell holds (the thunderbolt's holds 36; his 16, 2026-10-31; QC VR_ClipSizeOf)
@@ -1608,6 +1614,21 @@ QVR_TUNABLE(vr_dmg_axe, "20") // the axe's blow
 QVR_TUNABLE(vr_dw_lance_thrust, "1.5") // Dwell's Crystal Lance held as a lance: a thrust (a stab) landing with its crystal head, times its blow's damage (QC dw_items.qc DW_LanceMelee)
 QVR_TUNABLE(vr_dw_lance_poke, "0.4")   // ... a stab landing on its shaft short of the head: a poke, times its blow's damage
 QVR_TUNABLE(vr_dw_lance_head, "0.55")  // ... where its head starts: the share of the line from the hand to the tip
+QVR_TUNABLE(vr_dw_lance_charge, "1")   // ... its shot charged: s the trigger is held before it fires as it is let go (QC dw_items.qc DW_LanceChargeFrame; 0: fires on the pull)
+QVR_TUNABLE(vr_dw_lance_charge_fade, "0.25") // ... a charge let go short: s its sparks, light and hum fade out over (vr_lancecharge.cpp)
+QVR_TUNABLE(vr_dw_lance_bolt, "0.35")  // ... s its fired bolt lingers (vr_lancecharge.cpp beamLife; Quake's beam 0.2)
+QVR_TUNABLE(vr_dw_lance_push, "8")     // ... its beam's push on the props and ragdolls it hits or goes through, times a bolt's for its 150 damage (QC dw_fire_lance, lance3)
+QVR_TUNABLE(vr_dw_lance_hit_sparks, "24") // ... sparks thrown back off where its beam stops (a wall, a prop, a body; 0 none)
+QVR_TUNABLE(vr_dw_lance_hit_smoke, "6") // ... puffs of smoke there (0 none; its lasting burn on a surface is the lightning gun's)
+QVR_TUNABLE(vr_dw_lance_embed_length, "5") // ... held as a lance, a stab by its head's pointed top stays in: units of it that count as its blade (the swords' depth shares of it: shallow; vr_axestick.cpp)
+QVR_TUNABLE(vr_dw_lance_embed_tip, "15") // ... % of its blow line from the tip that may strike first for a stab to stay in (QC VR_Embed_Blow)
+QVR_TUNABLE(vr_dw_lance_embed_speed, "0") // ... m/s the hand must drive it at for a stab to stay in (0: vr_embed_stab_speed's)
+QVR_TUNABLE(vr_dw_lance_shake_charge, "0.05") // ... its tremble in the hand while charging at full charge, in its kicks (drawn: vr_weaponfx.cpp recoilOffset; 0 none)
+QVR_TUNABLE(vr_dw_lance_shake_fire, "0.3") // ... its shake as the charged shot fires, in its kicks, on top of the shot's kick (0 none)
+QVR_TUNABLE(vr_dw_lance_shake_time, "0.35") // ... s that shake dies away over
+QVR_TUNABLE(vr_dw_lance_haptic_charge, "0.15") // ... the controller's buzz while charging at full charge, 0..1 (0 none; vr_lancecharge.cpp)
+QVR_TUNABLE(vr_dw_lance_haptic_fire, "0.9") // ... its buzz as the charged shot fires, 0..1, over vr_dw_lance_shake_time (0 none)
+QVR_TUNABLE(vr_pole_grip_turn, "1")    // a pole weapon's other hand (the Crystal Lance's; any FREE_POLE grip, VR): the share of its own turn about the pole drawn (vr_twohand.cpp freeHand; 0: its turn fixed as it took hold)
 QVR_TUNABLE(vr_dmg_gun_bash, "12") // a gun swung as a club
 QVR_TUNABLE(vr_dmg_chainsaw_swing, "26") // an ogre's chainsaw swung (its running chain: vr_chainsaw_damage)
 QVR_TUNABLE(vr_dmg_mjolnir, "25") // Mjolnir's blow
@@ -2004,23 +2025,45 @@ QVR_TUNABLE(vr_flat_grenade_hold_fwd, "0.75") // the held grenade's place: forwa
 QVR_TUNABLE(vr_flat_grenade_hold_out, "0.1") // out at its side
 QVR_TUNABLE(vr_flat_grenade_hold_down, "-0.2") // below the shoulder (negative: above; in view at the screen's lower corner)
 QVR_TUNABLE(vr_flat_grenade_hold_pitch, "-20") // its pitch against the look's
-QVR_TUNABLE(vr_flat_grenade_wind_time, "0.25") // seconds the hand takes up into the overhead throw pose once the fire button winds up
-QVR_TUNABLE(vr_flat_grenade_wind_fwd, "0.5") // the overhead pose: forward of the shoulder (negative: behind; 0.7 keeps the raised hand in view at the top corner), level with the body
-QVR_TUNABLE(vr_flat_grenade_wind_out, "0.4") // out at its side
-QVR_TUNABLE(vr_flat_grenade_wind_up, "0.85") // above the shoulder
-QVR_TUNABLE(vr_flat_grenade_wind_pitch, "-45") // the hand's pitch there (negative: tipped back)
 QVR_TUNABLE(vr_flat_grenade_wind_full, "1.5") // seconds of wind-up for the hardest throw (0.1..5)
 QVR_TUNABLE(vr_flat_grenade_speed_min, "350") // the throw's speed let go at once (units/s)
 QVR_TUNABLE(vr_flat_grenade_speed_max, "900") // and wound up fully (units/s)
 QVR_TUNABLE(vr_flat_grenade_throw_up, "6") // degrees above the crosshair the throw leaves at (-30..60)
 QVR_TUNABLE(vr_flat_grenade_throw_pitch, "5") // degrees more upward on top of vr_flat_grenade_throw_up, for a higher arc (-30..60; the two add, the launch at most 80 above the crosshair)
 QVR_TUNABLE(vr_flat_grenade_speed_scale, "0.75") // the throw's speed (speed_min .. speed_max by the wind-up) times this (0.1..3)
-QVR_TUNABLE(vr_flat_grenade_follow_time, "0.1") // seconds of the throw's follow-through (the arm out along the look)
-QVR_TUNABLE(vr_flat_grenade_follow_fwd, "0.9") // the follow-through's place: forward along the look
-QVR_TUNABLE(vr_flat_grenade_follow_out, "0.05") // out at its side
-QVR_TUNABLE(vr_flat_grenade_follow_down, "0.25") // below the shoulder
-QVR_TUNABLE(vr_flat_grenade_follow_pitch, "25") // its pitch against the look's
-QVR_TUNABLE(vr_flat_grenade_back_time, "0.3") // seconds the hand takes from the follow-through back to its pose (an empty hand's rest, a weapon's grip)
+
+// Flatscreen > Throw (vr_flatgrenade.cpp, QC vr_flatgrenade.qc "The throw key"; vr_flat_key_throw). The throw's
+// drawn motion, shared by the throw key and the quick grenade (places off the hand's shoulder as shares of the arm's
+// reach), and the throw key's throw.
+QVR_TUNABLE(vr_flat_throw_wind_time, "0.2") // seconds the hand takes back into the wind-up (the throw key held, the quick grenade's fire button held)
+QVR_TUNABLE(vr_flat_throw_wind_fwd, "0.4") // the wind-up: in front of the shoulder along the look (negative: behind; in view at the screen's upper corner, his ask 2026-11-23)
+QVR_TUNABLE(vr_flat_throw_wind_out, "0.25") // out at its side
+QVR_TUNABLE(vr_flat_throw_wind_up, "0.6") // above the shoulder
+QVR_TUNABLE(vr_flat_throw_wind_pitch, "-40") // the hand's pitch there against the look's (negative: tipped back)
+QVR_TUNABLE(vr_flat_throw_wind_yaw, "0") // its yaw against the look's (positive: the fingers turned out to its side)
+QVR_TUNABLE(vr_flat_throw_wind_roll, "0") // its roll (mirrored for the left hand)
+QVR_TUNABLE(vr_flat_throw_guide, "1") // 1: the other hand, if free, guides the throw (forward, its palm away, fingers open) while the throwing hand winds up
+QVR_TUNABLE(vr_flat_throw_guide_fwd, "0.6") // the guiding hand's place: forward along the look, a share of the arm's reach
+QVR_TUNABLE(vr_flat_throw_guide_out, "0") // out at its side (negative: towards the middle)
+QVR_TUNABLE(vr_flat_throw_guide_up, "0.3") // above its shoulder
+QVR_TUNABLE(vr_flat_throw_guide_pitch, "55") // its fingers raised from the look (degrees): the palm turns from down to away from him as they rise
+QVR_TUNABLE(vr_flat_throw_guide_yaw, "15") // its fingers turned in towards the middle (degrees)
+QVR_TUNABLE(vr_flat_throw_guide_roll, "0") // the palm turned about the fingers (degrees; positive: out)
+QVR_TUNABLE(vr_flat_throw_guide_open, "1") // how open its fingers are (0 as they were, 1 wide open)
+QVR_TUNABLE(vr_flat_throw_charge_back, "0.1") // fully charged, the wind-up this much further back (a share of the reach; the charge: vr_flat_throw_charge_time, the grenade's vr_flat_grenade_wind_full)
+QVR_TUNABLE(vr_flat_throw_follow_time, "0.12") // seconds of the throw's follow-through (the arm out along the look)
+QVR_TUNABLE(vr_flat_throw_follow_fwd, "0.9") // the follow-through's place: forward along the look
+QVR_TUNABLE(vr_flat_throw_follow_out, "0.05") // out at its side
+QVR_TUNABLE(vr_flat_throw_follow_down, "0.25") // below the shoulder
+QVR_TUNABLE(vr_flat_throw_follow_pitch, "25") // its pitch against the look's
+QVR_TUNABLE(vr_flat_throw_back_time, "0.3") // seconds the hand takes from the follow-through back to its pose (an empty hand's rest, a weapon's grip)
+QVR_TUNABLE(vr_flat_throw_charge_time, "1") // seconds the throw key is held for the hardest throw (0.05..5)
+QVR_TUNABLE(vr_flat_throw_speed_min, "5") // the hand's speed (m/s) of a tap: a quick toss (the headset's throw rules make the rest: weight, gain, assist)
+QVR_TUNABLE(vr_flat_throw_speed_max, "11") // the hand's speed (m/s) fully charged
+QVR_TUNABLE(vr_flat_throw_up, "4") // degrees above the crosshair the throw leaves at (-30..60)
+QVR_TUNABLE(vr_flat_throw_spin, "8") // the throw's spin end over end (rad/s, as a wrist's flick; limited by the thing's mass and vr_throw_spin_max)
+QVR_TUNABLE(vr_flat_throw_spin_time, "1") // 1: a thrown blade's spin timed so that its edge or point leads where its arc meets something (bladespinto)
+QVR_TUNABLE(vr_flat_throw_release_pitch, "-30") // the hand's pitch against the throw as it lets go (negative: tipped back; a thrown weapon's angles)
 
 // Flatscreen > Free Hands
 QVR_TUNABLE(vr_flat_empty_fwd, "7.5") // an empty hand: how far in front of its shoulder it hangs (-30..30; 5 off the old anchor)
@@ -2083,7 +2126,12 @@ QVR_TUNABLE(vr_flat_mantle_hand_spread, "14") // flatscreen mantle: the hands on
 QVR_TUNABLE(vr_flat_ladder_speed, "100") // flatscreen ledge ladder (vr_flat_ladder): how fast he climbs up or down it (units/s, 20..400)
 QVR_TUNABLE(vr_flat_ladder_look_down, "35") // flatscreen ledge ladder: looking down further than this (degrees, 0..90), forward climbs down
 QVR_TUNABLE(vr_flat_ladder_push, "120") // flatscreen ledge ladder: jump pushes off it at this speed away from it (units/s, 0..600; and half that up)
-QVR_TUNABLE(vr_flat_rope_look, "25") // flatscreen ropes (vr_flat_rope): looking up (down) further than this (degrees, 5..80), forward climbs up (down) the rope; within it the move keys pump its swing
+QVR_TUNABLE(vr_flat_rope_look, "25") // flatscreen ropes (vr_flat_rope): walking into a rope takes it looking no further down than this (degrees, 5..80); with vr_flat_rope_keys 1, looking up (down) further than this, forward climbs up (down) the rope, within it the move keys pump its swing
+QVR_TUNABLE(vr_flat_rope_keys, "0") // flatscreen ropes and poles (ropes9, his note 2026-11-23): 0 looking up or down past vr_flat_rope_climb_pitch forward climbs up and back down, nearer level forward / back pump the swing along the view, the strafe keys always pump, a pole is only climbed; 1 as before ropes8a: looking up or down past vr_flat_rope_look forward climbs up or down, nearer level the move keys pump; 2 as ropes8a: forward always climbs up and back down, whatever the pitch, the strafe keys pump
+QVR_TUNABLE(vr_flat_rope_climb_pitch, "30") // flatscreen ropes (vr_flat_rope_keys 0, ropes9): looking up or down further than this (degrees, 5..85) forward / back climb the rope; nearer level they pump its swing (eased over 5 degrees each side)
+QVR_TUNABLE(vr_flat_rope_retake, "0.3") // flatscreen ropes and poles (ropes11, his note 2026-11-23: grab the same pole again after jumping off it): the rope or pole let go of (a jump, a drop) is not taken again for this long (seconds, 0..2: so the jump itself is not taken back), nor (ropes13, his note 2026-11-23: jumping off was hard) before he has been out of its reach or on the ground once since; after both, met in the air or walked into, it is taken as any other (ropes10 had kept it until he stood on the ground)
+QVR_TUNABLE(vr_flat_rope_slide_speed, "350") // flatscreen ropes and poles (ropes13, his note 2026-11-23): holding crouch on an upright (or slanted) one slides down it this fast (units/s, 20..800; the climb is vr_flat_ladder_speed), the hands sliding with him, its material's scrape playing
+QVR_TUNABLE(vr_flat_rope_slide_lock, "1") // flatscreen ropes and poles (flatfb1124b, his note 2026-11-24: the arms jittered sliding): while sliding the drawn hands keep the grip they had, sliding down with him (0: on the server's holds each frame, as before)
 QVR_TUNABLE(vr_flat_ladder_reach, "16") // flatscreen ledge ladder: how far ahead of his box's front its rungs are looked for (units, 4..48)
 QVR_TUNABLE(vr_flat_hand_collide, "1") // flatscreen: empty hands (the guard, at rest) go back off walls and props as a held weapon does, and a punch or a weapon's swing stops at the surface (vr_flatplay.cpp handOffWall, vr_flatsight.cpp pushBack; 0: they go through, as before)
 QVR_TUNABLE(vr_flat_swing_wind_strikes, "0") // 1: the overhead swing's windup (the raise) may land a blow on what it passes (it knocked a near knight out of the strike's way); 0: only from its top on
@@ -2168,6 +2216,23 @@ QVR_TUNABLE(vr_flat_parry_in_time, "0.05") // seconds into the guard from the ho
 QVR_TUNABLE(vr_flat_parry_out_time, "0.1") // seconds back to the hold when the button is let go (0: at once)
 QVR_TUNABLE(vr_flat_parry_cone, "120") // flatscreen: in the guard, any melee blow from within this many degrees of where you look (all of the cone, centred on the view) is parried, whatever its way (QC VR_Parry_FlatGuard; the headset keeps the directional parry); 0: the headset's rules
 
+// Flatscreen > Guard Bash and Blade Grip (his notes 2026-11-23: the fire button in the guard bashes, as the headset's bash;
+// a sword's free hand takes its blade near the tip in the guard; vr_flatplay.cpp startBash, bashPose, bladePin; QC VR_FlatBash)
+QVR_TUNABLE(vr_flat_bash, "1") // flatscreen: the fire button pressed in the parry's guard with a melee weapon bashes with it (the headset's bash: knockback, stagger, its damage); 0: it swings out of the guard, as before
+QVR_TUNABLE(vr_flat_bash_wind_time, "0.15") // the bash: seconds the guard is drawn back first
+QVR_TUNABLE(vr_flat_bash_push_time, "0.07") // seconds the push out takes (0.02..0.5)
+QVR_TUNABLE(vr_flat_bash_hold_time, "0.06") // seconds held out; the bash lands at its end (the smoothed hand all the way out)
+QVR_TUNABLE(vr_flat_bash_recover_time, "0.2") // seconds back to the guard (0.05..1)
+QVR_TUNABLE(vr_flat_bash_anim_speed, "1") // the bash's parts all played this many times faster (0.25..4)
+QVR_TUNABLE(vr_flat_bash_reach, "12") // the guard pushed this far out ahead at the push's end (units; the arm's reach still holds)
+QVR_TUNABLE(vr_flat_bash_wind_back, "8") // and drawn this far back in the windup (units)
+QVR_TUNABLE(vr_flat_bash_cooldown, "0.5") // seconds from one bash (or shove) to the next (at least the whole bash; the game's own bash cooldown holds too)
+QVR_TUNABLE(vr_flat_parry_blade, "1") // flatscreen: in the guard with a weapon held as a sword (a Blade hotspot: swords, the crowbar), the free hand takes the blade near its tip at that hotspot, and lets go as the guard ends (0: it stays where it was)
+QVR_TUNABLE(vr_flat_parry_blade_in_time, "0.12") // seconds the free hand takes to reach the blade (0: at once)
+QVR_TUNABLE(vr_flat_parry_blade_out_time, "0.15") // seconds back to where it was once it lets go (0: at once)
+QVR_TUNABLE(vr_flat_parry_blade_palm, "1") // the free hand on the blade palm down, over it (0: turned the least from how it was: palm up under it)
+QVR_TUNABLE(vr_flat_parry_blade_reach, "14") // the free hand on the blade at most this far from the holding hand (units, about shoulder width: the crowbar's hotspot; a long blade's hotspot is brought in; 0 no limit)
+
 // Flatscreen > Two-Handed Melee Stance (his notes 2026-11-12: a melee weapon with a two-handed grip is always held in both
 // hands while the other hand is empty; vr_flatplay.cpp twoHandPose, vr_flatsight.cpp carries the free hand onto the grip)
 QVR_TUNABLE(vr_flat_melee_2h, "0") // flatscreen: a melee weapon swung by a handle (axe, swords, crowbar, Mjolnir, super axe) is held in both hands, the free hand on its grip, while the other hand is empty (0: one hand, the free hand takes the grip only by chance, as before 2026-11-12)
@@ -2180,12 +2245,41 @@ QVR_TUNABLE(vr_flat_melee_2h_yaw, "-10") // and this far out to its own side (de
 QVR_TUNABLE(vr_flat_melee_2h_roll, "-15") // and rolled this far, its top out to its own side (degrees; negative: the top leans in across the body)
 // The spear pose (lancespear: a pole weapon, its own Other Hand Anywhere 3, the Crystal Lance): the holding hand over the
 // gun's hold (its pole already along the crosshair's way: its Shot Pitch), the other hand on the pole ahead of it.
-QVR_TUNABLE(vr_flat_pole_fwd, "2") // the spear pose: the holding hand this far further ahead than a gun's hold (units)
-QVR_TUNABLE(vr_flat_pole_up, "-2") // and this far higher (units; negative lower)
+QVR_TUNABLE(vr_flat_pole_fwd, "-10") // the spear pose: the holding hand this far further ahead than a gun's hold (units)
+QVR_TUNABLE(vr_flat_pole_up, "-8.5") // and this far higher (units; negative lower)
 QVR_TUNABLE(vr_flat_pole_out, "3") // and this far further out at its own side (units; negative in towards the middle)
 QVR_TUNABLE(vr_flat_pole_roll, "0") // and rolled this far about its pole (degrees)
-QVR_TUNABLE(vr_flat_pole_off_along, "16") // the other hand on the pole this far ahead of the holding hand (units; negative behind it)
-QVR_TUNABLE(vr_flat_pole_off_roll, "0") // and rolled this far about the pole from where it closes on it (degrees)
+QVR_TUNABLE(vr_flat_pole_off_along, "10") // the other hand on the pole this far ahead of the holding hand (units; negative behind it)
+QVR_TUNABLE(vr_flat_pole_off_roll, "0") // and rolled this far about its own forward, along the pole, about its palm (degrees; mirrored for the off hand; drawn only)
+// (flatmelee2, his notes 2026-11-23: each hand's place and turn, where they lie along the shaft.)
+QVR_TUNABLE(vr_flat_pole_pitch, "8") // the spear turned about the holding fist, its tip up (degrees; drawn only: the beam keeps to the crosshair)
+QVR_TUNABLE(vr_flat_pole_yaw, "5") // and its tip in towards the middle (degrees; negative out; drawn only)
+QVR_TUNABLE(vr_flat_pole_along, "-2.5") // the holding hand this far up the pole towards its tip (units; negative towards the butt: the pole slid through the fist)
+QVR_TUNABLE(vr_flat_pole_off_up, "3.5") // the other hand this far up off the pole (units; negative down)
+QVR_TUNABLE(vr_flat_pole_off_out, "0") // and this far out to its own side (units; negative in)
+QVR_TUNABLE(vr_flat_pole_off_pitch, "-67") // the other hand on the pole pitched up this far in its own frame, about its palm (degrees; drawn only)
+QVR_TUNABLE(vr_flat_pole_off_yaw, "34") // and yawed left this far (degrees; mirrored for the off hand; drawn only)
+QVR_TUNABLE(vr_flat_pole_hand_pitch, "30") // the holding hand alone pitched up this far on the pole, the spear unturned (degrees; drawn only)
+QVR_TUNABLE(vr_flat_pole_hand_yaw, "0") // and yawed left this far (degrees; mirrored for the off hand; drawn only)
+QVR_TUNABLE(vr_flat_pole_hand_roll, "0") // and rolled this far about its own forward (degrees; mirrored for the off hand; drawn only)
+QVR_TUNABLE(vr_flat_pole_hand_fwd, "1") // the holding hand alone moved this far forward in its own frame, the spear unmoved (units; drawn only; lance4)
+QVR_TUNABLE(vr_flat_pole_hand_up, "0") // and up (units; negative down; drawn only)
+QVR_TUNABLE(vr_flat_pole_hand_out, "-0.25") // and out to its own side (units; negative in; mirrored for the off hand; drawn only)
+// The spear thrust (flatmelee2, his notes 2026-11-23): V with a pole weapon; vr_flatplay.cpp thrustPose.
+QVR_TUNABLE(vr_flat_thrust, "1") // flatscreen: V with a pole weapon (the Crystal Lance) thrusts it as a spear (0: the overhead swing)
+QVR_TUNABLE(vr_flat_thrust_wind_time, "0.16") // seconds of its windup, drawn back along the pole
+QVR_TUNABLE(vr_flat_thrust_wind_back, "16") // units drawn back along the pole
+QVR_TUNABLE(vr_flat_thrust_wind_up, "1") // and up (units; negative down)
+QVR_TUNABLE(vr_flat_thrust_wind_pitch, "6") // the tip turned up (degrees; negative down)
+QVR_TUNABLE(vr_flat_thrust_wind_yaw, "0") // and in towards the middle (degrees; negative out)
+QVR_TUNABLE(vr_flat_thrust_hold_time, "0.05") // seconds held drawn back
+QVR_TUNABLE(vr_flat_thrust_strike_time, "0.1") // seconds of the thrust out (the blow)
+QVR_TUNABLE(vr_flat_thrust_reach, "16") // its end this far ahead of the spear pose along the pole (units; within the arm's reach)
+QVR_TUNABLE(vr_flat_thrust_up, "0") // and up (units; negative down)
+QVR_TUNABLE(vr_flat_thrust_pitch, "-3") // the tip turned up at its end (degrees; negative down)
+QVR_TUNABLE(vr_flat_thrust_yaw, "0") // and in towards the middle (degrees; negative out)
+QVR_TUNABLE(vr_flat_thrust_dwell_time, "0.08") // seconds held out
+QVR_TUNABLE(vr_flat_thrust_back_time, "0.25") // seconds back to the spear pose
 QVR_TUNABLE(vr_flat_melee_2h_parry_fwd, "0") // the parry's guard held in two hands: the hand this far further ahead than the one-handed guard (units)
 QVR_TUNABLE(vr_flat_melee_2h_parry_up, "0") // and this far higher (units; negative lower)
 QVR_TUNABLE(vr_flat_melee_2h_parry_out, "0") // and this far further out at its own side (units; negative inwards)
@@ -2214,6 +2308,7 @@ QVR_TUNABLE(vr_flat_eye_pivot, "1") // 1: the flatscreen look's pitch turns the 
 QVR_TUNABLE(vr_flat_eye_fwd, "1") // the eye off that point, forward at a level look (0..8 units)
 QVR_TUNABLE(vr_flat_eye_up, "4") // the same, up (0..8 units)
 QVR_TUNABLE(vr_flat_eye_lean, "12") // the chest's share of a look carries the head with it, about a point in the spine this far under the neck (0..30 units; with vr_flat_body_pose)
+QVR_TUNABLE(vr_flat_eye_pitched_body, "30") // the body pitched forward this many degrees (swimming, lying down) or more, a look up no longer carries the eye back nor leans the chest (0..90; 0: always does)
 QVR_TUNABLE(vr_flat_cam_fwd, "0") // how far the flatscreen eye is nudged forward, in the view's frame (-20..20 units; + is forward, towards what he looks at)
 QVR_TUNABLE(vr_flat_cam_up, "0") // the same, up (-20..20; + is higher; the crouch's own drop (vr_flat_crouch_drop) is added to it, not replaced by it)
 QVR_TUNABLE(vr_flat_cam_side, "0") // the same, sideways (-20..20; + is the view's own right, which is his left when he looks at it on the screen)
@@ -2327,6 +2422,27 @@ QVR_TUNABLE(vr_flat_hitdir_arc, "40") // a mark's length round the crosshair (5.
 QVR_TUNABLE(vr_flat_blood_health_size, "0.5") // low on health, how far in the screen's blood reaches (0..1; vr_blood_health_size in a headset)
 QVR_TUNABLE(vr_flat_blood_health_opacity, "0.35") // and its strongest opacity at a beat (0..0.8; vr_blood_health_intensity in a headset)
 QVR_TUNABLE(vr_flat_cutoff_fling_mult, "1.25") // flat screen: a cut-off head's or limb's fling (vr_decap_head_speed's share of the blade, vr_decap_head_lift) times this (his note 2026-11-10)
+
+// Flatscreen > Swimming (vr_flatswim.cpp; FLATPLAY.md, "Swimming"; his words 2026-11-23)
+QVR_TUNABLE(vr_flat_swim, "1") // flat-screen play under water: the hands swim, their strokes by the way he moves (0: the hands as on land)
+QVR_TUNABLE(vr_flat_swim_one_hand, "1") // swimming, a two-handed grip or stance lets go so the free hand can swim; it comes back on leaving the water
+QVR_TUNABLE(vr_flat_swim_rate, "0.9") // strokes a second at vr_flat_swim_full_speed (0..4; slower moves slower, down to the treading's)
+QVR_TUNABLE(vr_flat_swim_tread_rate, "0.5") // treading water still, its sweeps a second (0..4)
+QVR_TUNABLE(vr_flat_swim_size, "1") // the strokes' size, times their own (0..2; slower moves a little smaller)
+QVR_TUNABLE(vr_flat_swim_tread_size, "0.6") // treading water's sweeps' size (0..2)
+QVR_TUNABLE(vr_flat_swim_fwd, "0.2") // the strokes moved ahead as a whole, a share of the arm's reach (-0.5..0.5: into sight)
+QVR_TUNABLE(vr_flat_swim_up, "0.18") // and up (-0.5..0.5)
+QVR_TUNABLE(vr_flat_swim_full_speed, "200") // units a second at which the strokes are at their full rate and size (Quake swims at 224)
+QVR_TUNABLE(vr_flat_swim_pitch, "0.5") // the strokes' frame tips with this share of the look's pitch, at most 45 degrees (0..1: looking down they stay in sight)
+QVR_TUNABLE(vr_flat_swim_gun_share, "0.3") // a hand holding a weapon or a prop moves with this share of the stroke's motion, its aim kept (0..1)
+QVR_TUNABLE(vr_flat_swim_enter_time, "0.4") // seconds the hands take into the strokes in the water, and back out of them leaving it
+QVR_TUNABLE(vr_flat_swim_takeover_time, "0.12") // seconds a hand's stroke takes to give way to a shot, a punch, a swing, a reload, a grab, the sight
+QVR_TUNABLE(vr_flat_swim_return_time, "0.4") // seconds it takes to come back after
+QVR_TUNABLE(vr_flat_swim_fire_hold, "0.5") // seconds after the trigger is let go before the hand's stroke comes back
+QVR_TUNABLE(vr_flat_swim_turn_time, "0.35") // seconds the stroke takes to change with the way he moves and his speed
+QVR_TUNABLE(vr_flat_swim_cup, "0.15") // a swimming free hand's fingers' curl: open, together, the palm cupped (0 flat open .. 1 a fist)
+QVR_TUNABLE(vr_flat_swim_sound, "0.5") // each stroke's water sound at its power's start (a whoosh under water, a stroke at the surface): its volume (0: none)
+QVR_TUNABLE(vr_flat_swim_bubbles, "1") // the bubbles off the hands through each stroke's power under water: how many (1 as made, 0: none)
 
 // Combat > Embedded Blades: held stabs and swung axes (QC/vr_embedhold.qc; ROUND23.md, "Embedded blades, stage 2")
 // Embedded Blades: Thrown
@@ -2539,14 +2655,17 @@ QVR_TUNABLE(vr_revgrip_forcegrab, "0") // ... 0: a force grab's catch takes a sw
 QVR_TUNABLE(vr_revgrip_volume, "0.7") // ... the flip's sound's volume (0..1: the hand closing on a handle, vr/phys/grab_metal*.wav; 0 silent)
 QVR_TUNABLE(vr_world_texarrays, "1") // the bound path (no bindless textures: the Quest) draws the world's textures from arrays, a draw a set of textures alike (vr_worldarrays.cpp; QUEST_PLAN.md C2f): 0 off (a draw a texture), 1 under the ES profile (-glescompat, Android), 2 on any bound path
 QVR_TUNABLE(vr_eye_subimage, "1") // the eyes drawn smaller than the runtime's images (vr_render_scale, dynamic resolution) and resampled bilinearly (vr_upscale 0): the post-process writes into a part of the image and the compositor scales it, no resample pass (vr_stereo.cpp; QUEST_PLAN.md C2g): 0 off, 1 under the ES profile (-glescompat, Android), 2 always
+QVR_TUNABLE(vr_eye_rect_place, "0") // ... an eye drawn straight into a part of its image (vr_xr_direct, the Quest's foveation): where the part sits, 0 the image's lower left corner, 1 its middle, 2 its upper right; between, in between (vr_stereo.cpp). qeye on the Quest 3 at High: the middle 1-2.8 ms slower at 0.65-0.9 (the runtime's full bins then straddle the bin grid's middle lines: 4 full bins an eye at 0.65, not 2), so 0
+QVR_TUNABLE(vr_dither_in_scene, "1") // ... an eye drawn straight into its image (vr_xr_direct): the scene's shaders add vr_dither's noise themselves (QvrScreenDither), so the in-tile pass (tonemap::drawInTile) runs only for the grade, bullet time's look or the comfort vignette (qeye: 0.15-0.5 ms on the Quest 3); 0: the in-tile pass dithers
 QVR_TUNABLE(vr_eye_targets_split, "0") // the right eye drawn into its own scene targets, not the left's (vr_stereo.cpp; QUEST_PLAN.md 6o): a tiler's driver then never waits for (or copies) the left eye's targets still read by its post-process when the right eye clears them (no gain measured on the Quest 3: the ~10 ms it was made for was the avatar, so off): -1 under the ES profile (-glescompat, Android), 0 off, 1 on; not with single-pass stereo or TAA (their own targets); one more set of eye targets in memory
 QVR_TUNABLE(vr_gl_invalidate, "-1") // a tiler's stores and loads cut (glInvalidateFramebuffer; vr_stereo.cpp; QUEST_PLAN.md 6o): the eye's depth and stencil dropped after its scene (never written out to memory), the eye image's old colours before its post-process (never read in): -1 under the ES profile (-glescompat, Android), 0 off, 1 on
 QVR_TUNABLE(vr_gl_alias_opaque, "-1") // opaque models (not translucent, not holey, not morphing) drawn with a form of the models' program without discard (glprogs.alias_opaque; r_alias.c; QUEST_PLAN.md 6p): Adreno then rejects their hidden pixels before shading them (with a discard anywhere in the program it shades them all: the body inside the eye cost 10 ms). -1 under the ES profile (its programs made there only), 0 off, 1 on where made
-QVR_TUNABLE(vr_gl_world_lite, "2") // the ES profile's lite world programs (vr_glsafe.cpp VR_GLESWorldLite; QUEST_PLAN.md 6n, 6p): what the settings turn off compiled out of the world's shader: 0 nothing (the whole shader, as -glesfull), 1 parallax and carved decals (C4g), 2 also normal maps, dynamic AO, caustics, retro lighting and detail textures (C4i; retro textures never: Adreno then read the world's textures at their smallest mip, C4j, QUEST_PLAN.md 6q). The PC's own shaders never
+QVR_TUNABLE(vr_gl_world_lite, "2") // the ES profile's lite world programs (vr_glsafe.cpp VR_GLESWorldLite; QUEST_PLAN.md 6n, 6p): what the settings turn off compiled out of the world's shader: 0 nothing (the whole shader, as the PC's), 1 parallax and carved decals (C4g), 2 also normal maps, dynamic AO, caustics, retro lighting and detail textures (C4i; retro textures never: Adreno then read the world's textures at their smallest mip, C4j, QUEST_PLAN.md 6q). The PC's own shaders never
 QVR_TUNABLE(vr_gl_alias_lite, "1") // the ES profile's models' programs without the code of what the settings turn off for every model: parallax mapping (vr_parallax or vr_normalmaps 0) and, with vr_gl_world_lite 2, retro lighting (vr_retrolight 0) (gl_shaders.c GL_AliasLiteDefines; QUEST_PLAN.md 6q). The PC's own shaders never.
-QVR_TUNABLE(vr_gles_define, "") // the ES profile's shader probes in a session (C4m, QUEST_PLAN.md 6t): "A,B,..." adds "#define A 1" (and B ...) to every ES shader, as -glesdefine at launch, and a change makes the shaders again: a probe's A/B in one launch (a Quest 3's launches differ by up to 3 ms). Empty: none. The PC's own shaders never take it
+QVR_TUNABLE(vr_gles_define, "") // the ES profile's shader probes in a session (C4m, QUEST_PLAN.md 6t): "A,B,..." adds "#define A 1" (and B ...) to every ES shader (at launch: +vr_gles_define A,B), and a change makes the shaders again: a probe's A/B in one launch (a Quest 3's launches differ by up to 3 ms). Empty: none. The PC's own shaders never take it
 QVR_TUNABLE(vr_gl_lights_lite, "0") // off: on the Quest 3 it cost 0.6 ms of a fight's GPU, not the -5 its parts' separate launches promised (C4m, QUEST_PLAN.md 6t: measured in one launch). 1: with vr_gl_world_lite 2, the dynamic lights' loops (world, and models with vr_gl_alias_lite) without the code the settings leave unused: map lights' shadows (vr_shadow_maplights 0), DarkPlaces' falloff (vr_dlight_falloff 0), the shadow filter's other kernels (vr_shadow_filter; retro lighting off), portal lights (vr_portals 0); and a spot's and a point light's shadow read by one filter's code (vr_glsafe.cpp VR_GLESWorldLite; QUEST_PLAN.md 6s). The PC's own shaders never.
 QVR_TUNABLE(vr_gl_lights_plain, "1") // 1: under the ES profile (the Quest), with vr_gl_world_lite 2, when every light is plain (vr_shadow_dlights 0, vr_shadow_maplights 0, no portal lights; either falloff) the world's lights' loop without their code: a big light (an explosion) cost the Quest 3 ~3.5 ms of world shading with it compiled in, ~0.3 without (C4p, QUEST_PLAN.md 6w); the models' loop too (C4q, 6x). The PC's own shaders never.
+QVR_TUNABLE(vr_gl_mediump, "0") // qworld (QUEST_OPTIMISATIONS.md "Quest gib fight"): 1: under the ES profile (the Quest), the world's and the models' colours and light terms (texture colours, the lightmap's, the light sums, fullbrights, the sheen) at medium precision (GLSL mediump: Adreno's 16-bit registers and ALU); positions, texture coordinates and depth stay highp. A change makes the shaders again. The PC's own shaders never.
 QVR_TUNABLE(vr_gl_world_unlit, "2") // 2 (C4v, QUEST_PLAN.md 6zb): as 1, and where lights do reach the world, only the surfaces a light's sphere touches drawn with the loop (the GPU's cull sends them to commands of their own; the brush entities lit if a light touches one, unlit if none): e1m2's torches no longer put every wall on the loop. 1: under the ES profile (the Quest), a view in which no light reaches the world's surfaces (each light's sphere tested against the world's BSP and the brush entities; any shadowed or portal light counts as reaching) draws the world with its programs without the lights' loop (glprogs.world_unlit): the Quest 3 paid ~4 ms of the world's shading at 0.9 for the loop merely compiled in, run or not (C4t, QUEST_PLAN.md 6z). The picture the same. 0: never. The PC's own shaders never.
 QVR_TUNABLE(vr_gl_pc_forms, "0") // pcopt (QUEST_OPTIMISATIONS.md "PC results"): the ES profile's program forms the PC's own GLSL takes too, bits: 1 the models' plain, gore and skin forms (vr_gl_alias_plain/gore/skin), 2 the plain lights' loop while no light is shadowed (vr_gl_lights_plain, vr_gl_world_lite 2), 4 the unlit world and its split by surface (vr_gl_world_unlit; the split from the next map load), 8 the lite world (vr_gl_world_lite: what the settings turn off compiled out). A change makes the shaders again. The ES profile takes them all whatever this says
 QVR_TUNABLE(vr_gl_alias_plain, "-1") // the models' plain form (glprogs.alias_plain; r_alias.c, vr_render.cpp VR_AliasPlainNeeds; QUEST_PLAN.md 6r): an opaque batch none of whose instances has skin tone, gloves, nails, glows, wounds, dents, stumps, a normal map, a morph or rim light/reflections drawn by a program without their code (Adreno pays for an untaken branch's registers). -1 under the ES profile (made there only), 0 off, 1 on, 2 every opaque batch (a probe: the picture wrong where a feature shows)
@@ -2554,6 +2673,8 @@ QVR_TUNABLE(vr_gl_alias_plain_mask, "255") // the features the models' plain for
 QVR_TUNABLE(vr_gl_alias_gore, "1") // C4x (QUEST_PLAN.md 6zd): with the plain form on, an opaque batch whose instances need only wounds (or the wet coat) and dents among the plain form's features drawn by its gore form (glprogs.alias_gore: the plain form keeping those; r_alias.c, vr_render.cpp VR_AliasGoreUse), not the whole shader: bloodied monsters, their gear and your hands in a fight (e1m1's live fight -0.7 ms on the Quest 3). 0: the whole shader for them, as before
 QVR_TUNABLE(vr_gl_alias_body, "0") // C5e (QUEST_PLAN.md 6zp), a probe: measured SLOWER on the Quest 3 (posed head, 0.7: pitch 35 8.09 -> 11.24 ms span, pitch 70 13.31 -> 16.80; the vertex shader's loop over every light, run per bin), so 0. With the plain form on, your body's batches (drawn by the plain, gore or skin form) drawn by its body form instead (glprogs.alias_body: the skin form lit at its vertices, QVR_APLAIN_VLIGHT: the own light's ambient cube and the dynamic lights per vertex, no sheen from them; r_alias.c, vr_render.cpp VR_AliasBodyLight), only with no dynamic occlusion and no shadowed lights. Its light was ~4 of its ~5 ms with the torso in view (6zo). 0: lit per pixel, as before. 2 (C5f, 6zq; C5h, 6zs): your body drawn by its usual form with the light loop skipped for its batch (BatchDlightsFlat; C5f's own form ran the same code ~3.3 ms slower on the Quest 3) and the dynamic lights added flat to its light on the CPU, Quake's way, each as its per-pixel loop gives the body's origin facing it (r_alias.c R_AliasLightFinishBody, vr_lighting.cpp VR_DlightFlatLit); a batch another form draws gets the light without them. PC -glescompat looking down with the flashlight: mean 4.4 levels, 16% of pixels over 8 (the forearms a little warmer)
 QVR_TUNABLE(vr_gl_alias_skin, "1") // C4y (QUEST_PLAN.md 6ze): with the plain form on, an opaque batch the gore form can't draw whose instances need only skin tone (gloves, nails) besides wounds and dents drawn by its skin form (glprogs.alias_skin: the plain form keeping those; r_alias.c, vr_render.cpp VR_AliasSkinUse): your body. 0: the whole shader for it, as before
+QVR_TUNABLE(vr_gl_alias_nofb, "1") // qtune (shaderreview finding 5): the plain, gore and skin forms' variant without the fullbright texture's read, for a batch none of whose skins has fullbrights (r_alias.c ALIASVAR_NOFB; each model pixel read the 1x1 black texture: QVR_PROBE_ANOFB -1.05 ms on the Quest 3, C5h); the same picture. 0: every batch reads it, as before
+QVR_TUNABLE(vr_gl_alias_flat, "1") // qtune (shaderreview finding 2): with Quake's lights (vr_gl_quake_dlights or vr_gl_alias_body 2), gibs, heads and limbs get their dynamic lights added flat on the CPU as your body does (vr_render.cpp VR_AliasGoreFlat), and a batch whose instances are all flat-lit is drawn by the plain, gore or skin form's variant with the lights' loop compiled out (ALIASVAR_FLAT; the loop compiled out of every model: -3.2 ms, C5h). 0: the gore lit per pixel, the body's loop skipped at run time, as before
 QVR_TUNABLE(vr_gl_alias_vlight, "0") // C4y (QUEST_PLAN.md 6ze), a probe: the models' plain, gore and skin forms lit at their vertices (vr_glsl_alias.h QVR_ALIAS_VS_VLIGHT: the own light's ambient cube, occlusion and the dynamic lights, no sheen from them), as Quake lit its models, not per pixel; only with every light plain and no dynamic occlusion (the Quest preset; retro lighting keeps its levels, not its blocks). Measured on the Quest 3: no gain (e1m1's frozen live fight, every solid model plain: 8.37 ms either way), so 0: per pixel
 QVR_TUNABLE(vr_menu_render_scale, "-1") // while a menu is open, the eyes drawn at least at this render scale (vr_dynres.cpp menuFloor; QUEST_PLAN.md 6p): its panel, drawn into the eyes, as sharp as the headset shows it; dynamic resolution waits meanwhile. 0 no floor; -1 1 under the ES profile (the Quest), none on the PC
 QVR_TUNABLE(vr_gl_foveation, "0") // fixed foveated rendering of the eyes' scene on the Quest (GL_QCOM_texture_foveated on our own scene targets; vr_stereo.cpp foveateEye; QUEST_PLAN.md 6o): the tiles away from each eye's centre drawn at a lower resolution: 0 off, 1 low, 2 medium, 3 high; nothing without the extension (the PC). Experimental: no effect measured on the Quest 3 yet (ovrgpuprofiler shows the bins unscaled)
@@ -2562,3 +2683,23 @@ QVR_TUNABLE(vr_revgrip_pivot_shift, "0.35") // ... units: that pivot this far fr
 QVR_TUNABLE(vr_revgrip_2h_gate, "1") // ... 1: a sword or dagger held in two hands flips (its eject button, the flat FLIP GRIP) only with the other hand on its two-handed grip hotspot (the handle), not anywhere on it or on its blade (his note 2026-11-15; ROUND25.md "flipgate"); 0: always (before)
 QVR_TUNABLE(vr_revgrip_blocked_pulse, "0.25") // ... a refused flip's pulse in the pressing hand (0..1; 0 none)
 QVR_TUNABLE(vr_revgrip_2h_mirror, "1") // ... held reversed, the other hand on its grip hotspot: 1 holds it as it did upright, turned as the holding hand (knuckles out), its place mirrored along the handle (above the hand, blade down; ROUND25.md "flipgrip2"); 0: turned half round with the blade (before)
+QVR_TUNABLE(vr_rope_thumb_wrap, "2.5") // ropes13 (his flat note 2026-11-23: the thumb wrapped round a pole looked unnatural, too thick): a rope, chain or pole this thick or thinner (units across) has the gripping thumbs wrapped round it the other way from the fingers (ropes12); a thicker one (a pole, 3) as vr_rope_thumb_thick says (ropes14: the normal grip); 0: never wrapped
+QVR_TUNABLE(vr_rope_hand_pitch, "10") // ropes10 (his flat note 2026-11-23): a hand gripping a climbable rope or pole is drawn with its knuckles pitched up this far off square to the rope (degrees, 0..45; the turn towards the world's up, so a monkey traverse's overhand knuckles, already up, are unchanged): VR, flat and other players' copies (vr_climb.cpp ropeTurn)
+QVR_TUNABLE(vr_rope_elbow_out, "1") // ropes10 (his flat note 2026-11-23): on a climbable rope or pole the arms' elbows are posed out to the sides and a little down and back (this share, 0..1, of the elbow's pole; the wrist's swing in eased off as much), not swung in across the face: yours (flat and VR) and other players' copies (vr_avatar.cpp solveArm, ropeHang)
+QVR_TUNABLE(vr_pole_grunt, "0") // ropes14 (his VR note 2026-11-23: "too much ... just disable it"): volume (0..1) of the exertion grunt a headset's pull up a climbable pole makes (ropes keep vr_rope_grunt); 0 none (vr_climb.cpp ropePullGrunt)
+QVR_TUNABLE(vr_rope_letgo_pass, "0.4") // ropes14 (his VR note 2026-11-23): seconds after letting go of a climbable rope or pole (a drop or a jump; VR and flat) it doesn't meet him: a pole's boxes let him through, his body doesn't push a rope aside (0..3; climb::ropeLetGoPass, the clients' prediction alike)
+QVR_TUNABLE(vr_rope_leg_smooth, "0.25") // ropes14 (his VR note 2026-11-23: the legs' IK changed too abruptly): seconds (about; an exponential approach, a third of it the time constant) the feet round a climbed rope or pole take to follow it to their new place (0: at once; vr_avatar_climb.cpp)
+QVR_TUNABLE(vr_rope_grip_keep, "1") // ropes14 (his VR notes 2026-11-23): VR only: 1 a hand on a level rope or pole keeps the grip it took (overhand or underhand, as the controller was turned as it gripped) until it lets go; 0 chosen from the view's way each frame (as flatscreen play does; vr_climb.cpp drawnHand)
+QVR_TUNABLE(vr_rope_support_rise, "0.3") // ropes14 (his VR note 2026-11-23): metres the eyes are over a level rope or pole the hands hold before the wrists turn over it (the palms on top, the fingers under it: holding himself up on it); back under it 0.05 lower (vr_climb.cpp drawnHand)
+QVR_TUNABLE(vr_rope_support_time, "0.15") // ropes14: seconds the wrists take to turn over a level rope or pole and back (0: at once)
+QVR_TUNABLE(vr_rope_support_turn, "180") // ropes14: degrees the hand turns round the rope's axis over it (180: the palm's middle straight over the axis), by the side the body is on
+QVR_TUNABLE(vr_rope_thumb_thick, "0") // ropes14 (his VR note 2026-11-23: the thumb along a thick pole looked unnatural): the thumbs round a rope or pole thicker than vr_rope_thumb_wrap: 0 the normal grip (the grasp's own wrap), 1 resting along its side (ropes13), 2 wrapped round it the other way from the fingers (ropes12)
+QVR_TUNABLE(vr_rope_thumb_from, "2") // ropes14: the gripping thumbs' tweaks below (vr_rope_thumb_curl ...) take effect from this thickness (units: none on a thinner one) ...
+QVR_TUNABLE(vr_rope_thumb_to, "3") // ... fully from this thickness (a pole is 3), eased between
+QVR_TUNABLE(vr_rope_thumb_curl, "0") // ropes14: curl frames (-4..4) added to a gripping thumb's joints (negative: opened)
+QVR_TUNABLE(vr_rope_thumb_opposition, "0") // ropes14: degrees a gripping thumb is turned more across the palm (opposition) at its base
+QVR_TUNABLE(vr_rope_thumb_swing, "0") // ropes14: degrees a gripping thumb is swung in the palm's plane (positive towards the little finger, negative up and away)
+QVR_TUNABLE(vr_rope_thumb_lift, "0") // ropes14: degrees a gripping thumb is lifted off the palm (over the bar's near side)
+QVR_TUNABLE(vr_rope_thumb_shift_x, "0") // ropes14: hand-rig units a gripping thumb's base is moved (x: along the hand's long axis)
+QVR_TUNABLE(vr_rope_thumb_shift_y, "0") // ropes14: ... (y: along the palm's normal)
+QVR_TUNABLE(vr_rope_thumb_shift_z, "0") // ropes14: ... (z: across the palm)

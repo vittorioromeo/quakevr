@@ -43,10 +43,10 @@ the PC default where the docs state it. **ES only?** says whether the code path 
 | Lite world (parallax, carved decals) | Parallax mapping and decal carving compiled out while their settings are off | e1m1 start world GPU 21.0 / 21.1 / 21.5 -> 18.6 / 18.4 / 17.7 ms (6n) | `vr_gl_world_lite` 2 (bits; 1 = C4g's first form); QVR_LITE_NOPARALLAX / NOCARVE | yes | Maybe: Adreno register pressure; a desktop GPU shades the dead code for free |
 | Lite world, every dead feature | Bump, AO, caustics, retro light, detail, contrast code the Low/Quest settings turn off becomes constants (retro texture bit never set) | world+brush 12.9 -> 8.2 ms at e1m1's start (6p); their code alone cost ~4.6 ms | `vr_gl_world_lite` 2 default; QVR_LITE_NOBUMP/NOAO/NOCAUSTICS/NORETROLIGHT/NODETAIL | yes | Maybe: Low-preset PC users on weak GPUs; code specialisation rebuilds shaders per setting |
 | NORETRO compiled out | Retro texture code left out | -0.8 ms in the fight, -0.4 at the start, but walls flat on Adreno (driver derivative bug): bit 64 never set (6t) | `QVR_LITE_NORETRO` (probe only) | yes | No: only a driver bug blocks it; on PC it would be a plain specialisation, measured on Adreno only |
-| ES struct copy unrolled | Struct copies out of an SSBO and `gateinverse[3]` rewritten member by member (Adreno copied whole 240-byte `Light` to scratch) | frame 383 -> 140 ms (6l) | `vr_glsafe.cpp expandStructCopies / appendMemberCopies`; `-glesstructcopy` undoes | yes | No: a driver bug workaround, not a PC cost |
-| No `centroid` | Dropped from the ES shader text (Adreno interpolated other inputs wrong) | a correctness fix, no timing | `-glescentroid` keeps it | yes | No: PC driver fine |
+| ES struct copy unrolled | Struct copies out of an SSBO and `gateinverse[3]` rewritten member by member (Adreno copied whole 240-byte `Light` to scratch) | frame 383 -> 140 ms (6l) | `vr_glsafe.cpp expandStructCopies / appendMemberCopies`; `-glesdebug structcopy` undoes | yes | No: a driver bug workaround, not a PC cost |
+| No `centroid` | Dropped from the ES shader text (Adreno interpolated other inputs wrong) | a correctness fix, no timing | `-glesdebug centroid` keeps it | yes | No: PC driver fine |
 | World textures in arrays | World textures grouped by size in `sampler2DArray`s, one bind per group | world draws per eye 118 -> 25 (idle e1m1, mock on PC; GPU/CPU no change on PC); Quest CPU gain "not measured" (6e) | `vr_world_texarrays` 1 on ES, 0 PC (2 = any bound path) | yes (default) | No: the PC has bindless; useful only where draws are costly |
-| Bindless off (side result) | The bound path in place of bindless | -0.1 to -0.37 ms where many textures draw, on the PC under ES (6b) | `-gleskeep bindless` to undo | yes | No: it is the fallback, not a gain |
+| Bindless off (side result) | The bound path in place of bindless | -0.1 to -0.37 ms where many textures draw, on the PC under ES (6b) | `-glesdebug keep:bindless` to undo | yes | No: it is the fallback, not a gain |
 | Textures, culling and PVS audited | PVS per eye, per-eye frustum and backface culling, visibility mask (lenses) checked | `r_novis 1` +0.6 to +2.0 ms; `vr_visibility_mask 0` +0.3 to +1.0 ms: already in place (6zl); no cut made | existing | no | No: nothing to take, shared with PC already |
 | Menu sharpness | Eyes drawn at least at a given scale while a menu is open | not a gain (quality) | `vr_menu_render_scale` -1 = 1 on ES | yes | No: quality, not cost |
 
@@ -97,7 +97,7 @@ the PC default where the docs state it. **ES only?** says whether the code path 
 |---|---|---|---|---|---|
 | Refresh rate choice | `XR_FB_display_refresh_rate`: 72 Hz default, 90 Hz as a harder level | 72 Hz held at e1m1's start with a 13.89 ms frame (6o); 90 Hz level lowers scale to 0.75 | `vr_xr_refresh_rate` 0 = 72 (`vid_refreshrate` is ignored on the Quest) | yes | No: PC runtimes set their own rate |
 | CPU / GPU performance levels | `XR_EXT_performance_settings` levels | `vr_xr_gpu_level 4` + `vr_xr_cpu_level 4`: 11.21 against 11.40 ms, noise (6zl); not in the preset | `vr_xr_cpu_level`, `vr_xr_gpu_level` | yes | No: Quest runtime concept |
-| Fixed foveation (runtime) | `XR_FB_foveation` on the eye swapchains | no gain through the post-process path (world 9.1 ms at 0.9, 6y; 9.7 ms at launch, 6x); crash guarded behind `-xrfoveation`; "direct" path: no effect before the crash (6w) | `vr_xr_foveation` 0 (needs `-xrfoveation`) | yes | No: the PC's own foveation (`vr_foveated`) already exists; not applicable here |
+| Fixed foveation (runtime) | `XR_FB_foveation` on the eye swapchains, the eyes drawn straight into them (form 2), one render pass an eye (`vr_gl_one_pass`, qfov3) | the gib fight at 0.65: Low 13.6-14.1 ms vs 15.9-17.3 through the post-process (3 launches); qfov4, clean: High 12.9-14.1, Medium 14.4-14.9, Low 14.2-15.2, none 16.6-18.2; at 0.9 High 14.6-15.2, Low 23.9-25.0; no crash at launch, level changes or mid-game changes (qfov2/qfov3) | `vr_xr_foveation` 3 in Standalone on the Quest 3, 1 on the Quest 2 (0 elsewhere; no `-xrfoveation` guard since qfov3) | yes | No: the PC's own foveation (`vr_foveated`) already exists; not applicable here |
 | Hidden-area (visibility) mask | The lenses' hidden area is not drawn | `vr_visibility_mask 0` costs +0.3 to +1.0 ms at 3 of 4 places, so it helps (6zl) | `vr_visibility_mask` (existing) | no | Likely: already on; keep it enabled for PC VR |
 | Perf recorder | Per-frame CSV of phases, events and hitch causes | not an optimisation (6u) | `vr_perf_record` 0 | no | Likely: a tool that would find PC hitches too |
 
@@ -184,3 +184,120 @@ rounds (rounds spread +-0.3 to 1.0 ms at 2048: this GPU runs these scenes in 1.2
 Headline: on this desktop GPU none of the Quest's GPU optimisations wins clearly at the same look: the scenes cost
 1.2-3.4 ms a frame and the differences sit inside the rounds' spread. The one exception is the 32-bit float scene (`vr_tonemap 2`): -0.33 ms (-13%) in both GPU-bound 3072 scenes, the same picture, so it is now the PC default (a saved config keeps its 1). Nothing else is turned on for PC;
 `vr_gl_pc_forms` stays as the A/B switch for a weaker GPU.
+
+## Quest gib fight (questperf, 2026-11-23)
+
+The frozen e1m1 gib fight up close (questgore's scene: six grunts 56-90 units ahead, `vr_limb_test 10`, frozen), on
+the Quest 3 under the Standalone preset (72 Hz) at a fixed 0.65, the dynres floor where questgore's frames sat; this
+branch's APK (the quest tree's key) and test progs. GPU ms a frame, both eyes, medians of 2 interleaved parts of 240
+frames each (one launch); "missed" is the share of frames the runtime reports late (`xr_missed`). Leaving things out
+uses `vr_debug_hide_models` (new, Debug > Profiling: the Quest's GPU timer scopes inside one render pass mean nothing,
+so a cost is found by its absence). Launch-to-launch the base moved 15.4 -> 18.1 ms over the session (the headset
+warming), and parts of one setting within a launch by +-1.5 ms (draws 183-244 from the gibs' random cuts; fixed seeds,
+`sv_random_seed 7; vr_particle_seed 7; vr_map_seed 7`, from the third A/B on): only gaps of ~2 ms or more read.
+
+| Left out / changed | GPU (base) | Missed (base) | Draws | Reading |
+|---|---|---|---|---|
+| nothing (base) | 15.77 | 21.4% | 215 | 72 Hz misses one frame in five |
+| every entity (`r_drawentities 0`) | 10.60 | 0.2% | 114 | the models ~5.2 ms |
+| the world (`r_drawworld 0`) | 7.83 | 1.6% | 188 | **the world ~8 ms**: the top cost |
+| your rig (body, hands, held guns, gear) | 13.27 | 2.1% | 168 | **your own models ~2.5 ms**: the second |
+| the gore (gibs, heads, limbs) | 13.87 | 6.6% | 198 | **~1.9 ms** (round 2 split: gibs alone, limbs+heads alone each within the noise) |
+| dropped guns, packs, the grunts' rig and armour | 15.22 | 15.8% | 213 | ~0.55 ms |
+| particles (`r_particles 0`) | 16.13 | 22.0% | 217 | nothing (questgore: blood ~1 ms at most) |
+| render scale 0.55 (round 2, base 15.38) | 12.04 | 1.1% | 219 | **holds 72 Hz** (both parts 12.0) |
+| render scale 0.6 (third launch, base 17.22) | 17.46 | 31.4% | 233 | nothing: as 0.65 |
+| render scale 0.58 (fourth launch, base 18.08) | 16.66 | 27.9% | 231 | -1.4 ms |
+| anisotropy 1 or 4 (round 2) | 17.85 / 17.40 | 36.5% / 29.7% | 221 / 217 | nothing seen (the world's arrays took the value of the part before: not clean) |
+| no world depth pre-pass (`vr_world_prepass 0`, new) | 15.78 vs 18.03, then 17.39 vs 17.28, 18.61 vs 17.22 | - | - | **no gain** over three launches (first launch's -2.2 was the gibs' random cuts): not in the preset |
+| straight into the headset's images with fixed foveation high, form 1 (qfov: `+vr_xr_foveation 3 -xrfoveation` at launch, `vr_retro 0; vr_retrolight 0`; tone curve in the shaders, in-tile grade) | 14.62 vs 15.01 (P90 14.96 vs 16.30) | 12.1% vs 21.4% | 206 vs 210 | -0.4 ms: the post-process's cost, not foveation's (6w's form 1 the same); form 2 (own depth renderbuffer) with foveated images **crashed the runtime in xrEndFrame at once** (SIGSEGV 0x30 in libGLESv2_adreno under libvrapiimpl), with or without the in-tile pass; without foveation it runs. No default changed |
+| (qworld) retro textures + retro lighting on (`vr_retro 1; vr_retrolight 1`, a fresh install's defaults), the world's unlit decal-retro twin (new) | 28.91 vs his config's (both 0) 13.28 | 98.7% vs 2.6% | 296 vs 189 | **retro costs ~15 ms here**: Standalone now sets `vr_retro 0`, `vr_retrolight 0` (his own Quest config's) |
+| (qworld) the same, the old lit "world decal retro" program (`vr_gl_world_unlit 0` restores it) | 39.07 vs 28.91 | 98.9% | 211 | **-10.2 ms**: a retro blood mark no longer sends the world to the lights' loop (`GL_WorldUnlitDecalRetroProgram`) |
+| (qworld) light contrast 2.5 as `x*x*sqrt(x)`, decals read member by member (old: probes `QVR_PROBE_OLDPOW,OLDDECAL`) | retro off 14.11 vs 14.22; retro on 28.91 vs 29.69 | 9.9% vs 10.0% | 213 | -0.1 / -0.8 ms: kept (exact) |
+| (qworld) colours and light terms at mediump (`vr_gl_mediump 1`; world alone: probe `QVR_PROBE_MPNOALIAS`) | 17.20 (world alone 17.09) vs 14.11; launch 1: 17.11 vs 15.61 | 31.9% | 215 | **+3 ms worse** on Adreno (two launches): default 0 |
+| qtune (retro off in both): your rig plain (`vr_rig_plain` 1), no fullbright read (`vr_gl_alias_nofb`), gore flat-lit and no lights' loop (`vr_gl_alias_flat`), vs none | 14.77 vs 15.84; 15.36 vs 16.17 | 15.2% vs 28.2%; 21.6% vs 23.7% | 215 / 214 | **-0.8 to -1.1 ms**: in the preset (the look on the headset not yet checked) |
+| qtune: the no-fullbright and no-loop variants alone (rig plain in both) | 15.11 vs 15.59 | 18.3% vs 21.4% | 211 / 214 | ~-0.5 ms (so the rig's plain form ~-0.3 to -0.5) |
+| qtune: dynres on (0.9 ceiling, 0.65 floor), the fight floor 0.55 (`vr_dynres_min_fight`) vs none | 13.36 vs 15.5-18.1 | 4.7% (20% with a load hitch) vs 19-37% | - | **near 72 Hz in the fight**; the e1m1 walk never left the 0.9 ceiling (0% of frames below 0.65) |
+| qtune: settled gore trimmed (`vr_gore_trim_max` 24, 5 s, none within 160) | not measured: by design it leaves the close-up fight alone | - | - | far gore after a fight; the gore was already instanced (gib1 76 instances in 2 batches) |
+| qfov2: form 2 rebuilt as Meta's samples (a framebuffer per eye image, the image attached for good, depth at the image's size), one launch, 2 parts each interleaved, level changed mid-game (new swapchains): P post-process, D straight in no foveation, L/M/H levels 1-3, R level 3 refocused | P 16.34, D 17.00, L 17.31, M 17.98, H 17.43, R 17.87 | 95-99% (a warm headset) | 208-213 | **no crash** (form 2 + foveation at launch and every mid-game change), **no gain**: the trace shows each eye as 6 render passes (the brush models' compute gathers between draws end the pass); only the first (the clear, hidden area) has scaled bins, the main pass (6-9 ms) loads colour and depth and runs every bin at 1/1. Form 2 also bins the whole 1680x1760 image while 0.65 of it is drawn. No default changed |
+| qfov3: one render pass an eye (`vr_gl_one_pass` 1: ES's brush models drawn from the cull's own commands, no gather; the arrays' merges dispatched before the eye's clear from the last frame's plans), 3 launches x 2 interleaved parts each: Pg post-process + gather (today), Po post-process one pass, Dg/Do straight in, no foveation, gather / one pass; L/M/H levels 1-3 one pass; R H refocused; Y H + dynamic; E H with eye images at 0.65 (`vr_xr_eye_scale`, now live on the Quest) drawn whole | Pg 17.33/15.86/16.31, Po 15.98/15.98/16.29, Dg 17.00/17.19/17.11, Do 16.90/16.89/16.61, **L 13.61/13.78/14.06**, M 14.33/14.24/14.05, H 15.39/15.47/15.53, R 15.98/17.30/15.49, Y 13.74/14.06/13.48, E 15.45/15.58/15.56 | Pg 95-98%, L 67-76%, Y 63-73% | 205-213 (all) | the trace: each eye one render pass (no LoadColor/LoadDepth, no depth store), its bins foveated (was 6 passes, the main one unfoveated); only the drawn part's bins rendered (5 of 8), so no scissored clear was needed. One pass alone: -0.0 to -1.4 ms. Never merging (`vr_gl_one_pass 2`) doubled the draws (192 -> 429) and cost 1.2-3 ms. **Standalone now sets `vr_xr_foveation` 1** (Low: the fastest and the mildest; High slower than Low in all three launches). Eyeshots: the periphery's floor at L and M shows no visible blocks; CPU (busy) unchanged ~9.7-10.3 ms |
+| qfov4: the levels measured clean (every part on new swapchains; 3 launches x 2 interleaved parts): D straight in, no foveation; L/M/H; Y H + dynamic; LR/MR/HR refocused by the game (removed after); then H and L at 0.9, H at 0.78, H without the in-tile pass (G), H without particles (Q) | D 18.15/16.64/17.54, L 14.87/15.19/14.21, M 14.37/14.70/14.94, **H 14.10/12.90/13.33**, Y 14.47/13.89/13.58, LR 18.16/17.84/17.07, MR 17.25/16.59/16.34, HR 17.16/16.01/16.33; block 2: L 14.09/14.12/13.78, H 13.26/13.21/13.13, **H at 0.78 13.00/13.14/12.76**, H at 0.9 14.58/15.16/14.68, **L at 0.9 25.04/24.74/23.91**, G 12.75/12.88/12.98, Q 12.99/13.10/13.23 | L 75-82%, H 60-74%; block 2: L 63-72%, H 57-60%, H at 0.78 53-57%, H at 0.9 80-89%, L at 0.9 99% | 186-213 (all) | qfov3's "High slower" was High measured on images still carrying the refocus part's focal points. The driver foveates by whole 864 x 448 bins (1/1, 2/1, 2/2); the runtime centres them on the rect submitted. At 0.65 Low = Medium (the same bins), High two bins more of the left eye; at 0.78-0.9 High reduces the bottom bin row and Low next to nothing. `vr_xr_foveation_refocus` removed. **Standalone now sets `vr_xr_foveation` 3 on the Quest 3** (the Quest 2's column stays 1). LRZ kills nothing in any path (open) |
+| qlrz: LRZ ("LRZ Pixels Killed" 0 in every pass): a depth-writing draw with GL_BLEND on ends it for the pass, and Ironwail never disables GL_BLEND (opaque = ONE, ZERO). `vr_gl_opaque_noblend` 1: opaque draws unblended (the same pixels on the PC). 3 launches x 2 interleaved parts: A blended, B unblended, C unblended without the world pre-pass; fixed 0.65, then dynres as shipped | A 13.84/13.49/13.34, B 13.63/14.69/13.21, C 13.29/13.61/13.52; dynres A 12.58/12.72/12.60, B 12.78/12.44/12.39, C 12.06/12.22/12.34 | - | 200-206 | **no gain yet**: with it LRZ lives through the hidden area and the world (the probe's quad killed: 693k / 846k pixels an eye) but some id model other than a grunt ends it again in the opaque entity pass (open: the discarding forms suspected), and the world's own draws write none. Default 0; neither clip control, the pre-passes, the hidden area, particles, the in-tile pass, the invalidate, the depth format nor sample shading is a cause |
+| qeye 1: the eye's part placed in the middle of its image (`vr_eye_rect_place` 1) vs the corner (0), High, his look (grade 0, dither 1); 3 launches x 2 interleaved parts: B/C 0.65 corner/middle, D/E 0.78, F/G 0.9 | B 12.72/13.04/12.96, **C 13.99/15.88/13.99**, D 12.66/12.91/13.15, **E 15.94/15.19/15.39**, F 14.75/14.51/14.37, **G 17.21/16.55/16.86** | B 54-57%, C 71-88%; D 53-57%, E 90-95%; F 79-86%, G 97-98% | 199-204 | **the middle is slower everywhere (+1.0..2.8 ms)**: the trace shows the runtime's full bins round the rect's centre, which then sits on the grid's middle lines (x 864, y 896): 4 full bins an eye at 0.65 (2 in the corner) and 2.8-3.3 M fragments vs 2.3-2.7 M. The bins (864 x 448, 2 x 4) are too coarse for a placement to help; the corner stays (default 0; the cvar kept for another runtime) |
+| qeye 2: the scene's shaders dither straight-in eyes (`vr_dither_in_scene` 1: the post-process's noise in QvrScreenDither), the in-tile pass skipped, vs the in-tile pass dithering (A), High, 0.65, corner | A 13.15/13.00/12.74 (one valid part a launch: each launch's first part is its warm-up), B 12.72/13.04/12.96 | A 51-58%, B 54-57% | 199-205 | **no measurable change** (within the launches' noise; qfov4's no-in-tile G was 0.15-0.5 ms under H): the hash in every scene fragment (~4 a pixel) costs about what the pass saved. Kept on (one pass fewer; the look the same: PC eyeshots mean 0.076/255 from the post-process's dither). The pass still runs for bullet time's look (checked on the headset), the comfort vignette and the grade (`vr_grade` 1, a new player's) |
+| qlrz2: what ends LRZ in the opaque entity pass (blending off; traces, not timings): depth clamp off, your rig, the body, gibs, heads or guns hidden alone, the clamped models drawn last, no motion-vector store; only every alias model hidden keeps it | - | - | - | **not found**: LRZ pixels killed 0 in each (2.7-3.3M with every model hidden); the world feeds LRZ through its pre-pass only (1.05M vs 34). No timing run, no default changed |
+
+Counts (PC mock, `-glescompat +vr_standalone_preset 0`, `vr_gl_passes`): 240 draws a frame, 88 of them alias (48
+batches, 290 instances, 72k alias triangles both eyes); the Quest's own frame 192-244 draws. Gibs 76 + 76 + 12
+instances, limbs 4 x 12, heads 12 (both eyes; 28-110 triangles each): the gore is many tiny draws, not triangles. The
+render stage trace (`ovrgpuprofiler -t`, 0.65): each eye's scene is 4 bins of 576x576 (colour 32-bit, D24S8); the
+left eye's main pass 5.2 ms, the right's 6.7 (0.45 of it the compositor's preemption, ~0.5 ms three times a frame);
+fragments shaded ~1.8 a pixel in the main pass, which includes the world's depth pre-pass (so no overdraw problem left
+to take). Verdict: the scene is fill-bound at the preset's floor (0.55 holds 72 Hz, 0.6 and 0.58 do not reliably); no
+look-keeping cut found that reaches 72 Hz. No default changed.
+
+## CPU in fights (qcpu, 2026-11-23)
+
+Where a big fight's CPU goes and what was cut, keeping gameplay identical. Scenes (qcombined's): **C** 48 mixed
+monsters on vrfiringrange (grunts, ogres, knights, scrags; god mode), **E** the live e1m1 fight (two waves of six
+grunts, gibbed). PC: Release (no LTO), mock headset (eyes 2048) or `-flatscreenmode`, the Standalone preset, unpaced
+fixed frames, `vr_profile` trees and `vr_qcprofile` (600 frames), a Release-Tracy capture of C. Quest 3: Standalone as
+a new player gets it, the perf recorder (`c_` phases), this branch's APK with a temporary A/B switch, the two orders
+interleaved in each of 2 launches (a third skipped: another app was in front).
+
+Top CPU costs, ms a frame (main thread unless said):
+
+| # | PC VR, C (busy 5.4) | PC flat, C (busy 5.2) | PC VR, E (busy 3.5) | Quest, C (busy 25-27; qcombined's CSV) |
+|---|---|---|---|---|
+| 1 | QuakeC 1.70 (armed humanoids' weapon props 1.12: pose 0.59, the shot/throw scans 0.30, parry 0.16) | QuakeC 1.38 | QuakeC 1.15 (props 0.96) | SV_Physics 8.6 (QuakeC most of it, by the PC's share ~75%) |
+| 2 | alias set-up 1.07 (eye L 0.87, R 0.20) | SV_Physics' own 1.10 (monster moves, traces) | Box3D 0.40 | alias set-up 4.0 |
+| 3 | view entities 0.46 (holsters, ground spots, blood streams) | alias 0.62 | alias 0.33 | eye L's rest ~2 (world, lights, particles) |
+| 4 | relink: armed arms 0.45 (the solves on jobs: 0.62 a frame over the threads) | view entities 0.58 | relink: armed arms 0.23 | view entities 2.2 |
+| 5 | Box3D 0.29 | relink: armed arms 0.38 | view entities 0.28 | eye R 2.2 |
+| 6 | findradius 0.24 (108 calls) | hands 0.35 | particle light 0.14 | sound 1.45 |
+| 7 | vr particles 0.15 | Box3D 0.20 | box3d water and hits 0.12 | client read (relink) 1.36 |
+| 8 | SV_Physics' own 0.15 | vr particles 0.16 | gib trail 0.03 | vr particles 0.66 |
+| 9 | setup view (decals) 0.06 | send 0.09 | send 0.06 | lights 0.57 |
+| 10 | send 0.10 | client send 0.07 | client send 0.04 | xr submit 0.59 |
+
+QuakeC's builtins, C: findradiusmoving 0.19 (the props' two scans, 90 calls), traceline 0.04, findradius 0.04,
+modelanchorpoint 0.03, movetogoal 0.02; no other QuakeC function over 0.13 ms self. The Quest runs the same QuakeC ~4x
+slower (SV_Physics 8.6-10.5 vs 2.2) and the client ~5x (screen 11.3 vs 2.1).
+
+| Change | PC (C, 600 frames) | Quest C: old / new (2 launches) | Quest E: old / new | Same gameplay? |
+|---|---|---|---|---|
+| findradiusmoving's mover test in the search, before the grid's sort (the props' scans found ~52 a call, nearly all standing monsters and props, sorted only to be dropped) | findradius 2.20 -> 1.15 us a call, 0.238 -> 0.124 ms a frame | findradius 5.21, 5.36 -> 3.46, 3.31 us a call; 0.585 -> 0.358 ms a frame; SV_Physics 10.50 -> 9.82, CPU busy 27.36 -> 26.30 (the launches' spread ~2 ms) | 3.05, 3.01 -> 2.24, 2.24 us; 0.445 -> 0.326 ms; busy 17.66 -> 17.20 | yes: the same entities in the same order (a subset of a sorted set); vr_agrunt_test 50-60, 93 pass |
+| (qcpu2) the armed humanoids' weapon pose (VR_AGP_Pose and its ~45 helpers) in the engine: `agpose`, vr_builtins_agpose.inc, the same float steps on QC's globals and fields, its gameplay hooks (blows, parries, the chainsaw's engine) still QuakeC's; `vr_agpose_native` 1 (0: QuakeC, 2: both compared) | the pose (incl. its QC hooks) 0.559 -> 0.103 ms; QuakeC 1.575 -> 1.019 ms; SV_Physics 1.55 -> 1.17; CPU busy 3.72 -> 3.29 (VR mock). Flat: pose 0.544 -> 0.120, QuakeC 1.537 -> 1.153, busy 4.62 -> 4.08. E (VR): pose 0.378 -> 0.071, QuakeC 1.392 -> 1.039, busy 3.16 -> 3.04 | 3 launches, interleaved (means; per launch in ROUND25): c_server 11.09 -> 9.67 ms, CPU busy (median) 25.20 -> 23.35, period median 26.52 -> 24.73, late ~100% both (still CPU-bound), GPU 19.0 -> 18.0 | c_server 6.54 -> 5.75, busy 15.95 -> 15.11, period 17.96 -> 16.87, late 80% -> 75%, GPU 12.0 -> 12.0 | yes, bit for bit: vr_agpose_native 2 over C, E, C flat and 8 extra grunt waves (100,318 poses: guns, melee, two weapons, gun and blade, pickups, reloads, kicks, parries met, shoves) and the vr_agrunt_test group (213 cases): every vr_*/v_*/trace_* global, the humanoid's and its weapons' fields and the message equal; MP armed/disarm compared on the server too |
+
+Left (by size, for the next CPU job): alias set-up on the Quest (4 ms: per-model state and uploads), the view entities
+(2.2 ms Quest), sound (1.45 ms Quest); the props' other QuakeC (the shot and throw scans VR_AGS_Projectiles and
+VR_AG_WeaponStruck ~0.3 ms PC, the parry's frame VR_AGPar_Frame 0.16).
+## Standalone status, 2026-11-23 (qcombined)
+
+`next` at 7df6f7ec8 (retro off, the unlit decal twin, rig plain, models without fullbright reads or a lights' loop,
+the fight floor 0.55, settled gore trimmed, dynres) on the Quest 3, as a new player gets it: `resetcfg` then
+`vr_standalone_preset 0` (Android's first run), only the test's seeds and freeze set by hand (and the fixed scale where
+named). This tree's APK (the quest tree's key) and test progs; 3 launches with the scenes in changed orders (1, 2, 4),
+a 4th his config vs the new player's, a 5th leaving things out between base parts. GPU span ms (both eyes), CPU = the
+main thread's busy ms, period ms (13.9 a frame at 72 Hz); "missed" = frames the runtime reports late (`xr_missed`);
+">15.3" = periods past 1.1 frames (">13.9" reads ~55% even where nothing is missed: the period's jitter around 13.9).
+
+| scene | GPU med / p90 | CPU | period med / p90 | missed | >15.3 | dynres scale (share of frames) | 72 Hz? |
+|---|---|---|---|---|---|---|---|
+| e1m1 gib fight, frozen, 0.65 fixed | 17.85 / 18.62 | 11.9 | 18.70 / 21.03 | 35% | 96% | 0.65 fixed | no: GPU |
+| the same, dynres as shipped | 14.77 / 15.42 | 10.8 | 15.69 / 17.82 | 13.5% | 62% | 0.55 96%, 0.65 4% | no: GPU |
+| the same, 3 big lights (`vr_test_dlights 3`) | 14.77 / 15.52 | 10.7 | 15.78 / 18.06 | 14% | 63% | 0.55 93%, 0.65 7% | no: GPU (the lights cost ~0) |
+| live e1m1 fight (6 + 6 grunts, gibbed live) | 11.62 / 13.96 | 16.2 | 17.46 / 26.95 | 31% | 66% | 0.55 56%, 0.65 28%, 0.7-0.85 16% | no: CPU (server 5.4) |
+| firing range, 48 mixed monsters (combat_48) | 14.72 / 20.12 | 25.1 | 26.15 / 36.51 | 76% | 99.6% | 0.55 93%, 0.65 7% | no: CPU (SV_Physics 9.8) |
+| e2m2, every monster awake (48) | 10.54 / 11.49 | 9.3 | 14.12 / 16.74 | 0.2% | 28% | 0.65-0.8 43%, 0.85 34%, 0.9 23% | yes |
+| the hub (vrstart's campaign terrace) | 11.41 / 11.61 | 7.8 | 14.07 / 16.00 | 0.2% | 23% | 0.55 100% | yes, at the fight floor |
+
+What dominates the gib fight (0.55 fixed, each part between two base parts, launch 5; base 13.5-14.3): the world
+**~8 ms** (`r_drawworld 0`: 5.65-5.81), the gore ~1.0-1.4 (gibs, heads, limbs hidden: 12.87-12.97), your rig ~1.0
+(12.52-12.76), the grunts' bodies ~0 (13.48). Dynres's floor costs more than the same scale fixed: 14.8 vs 13.8 ms
+side by side (the eye drawn into the lower part of 0.9-sized images). Anisotropy (`gl_texture_anisotropy`, 16 from
+vr_defaults.cfg; the preset leaves it): 1 / 4 / 16 = 16.90 / 17.18 / 17.85 at 0.65 (2 launches; 1 vs 16 ~0.5-0.9 ms,
+near the noise). His config vs the new player's, same launch, 0.65 fixed, 3 pairs: 17.01 vs 16.96 GPU (CPU 10.4 vs
+11.6; 210 vs 222 draws). The 0.65 base is 2-3 ms above qtune's 14.8-15.4 of the morning (same scene and settings): the
+headset's warmth or something merged since; not split (no older build in the same launch). Scripts: posebake
+`scratch/qc/qc_*` (not committed).

@@ -51,7 +51,7 @@ vr_embed_test    4        vr_embed_test.qc                 after the load: each 
 vr_embed_test    40       vr_dagger_test.qc                the dagger: a swing, a stab (less deep than the sword's), thrown at a wall and a grunt
 vr_embed_test    47       vr_throwpoint_test.qc            his 2026-11-15: thrown swords and daggers settle point first in the air (good and VR-style overhand throws point first, spun swords stay a spin, extremes steady all; axes unchanged; daggers let go any way as often as swords); then vr_throwdmg_test.qc: thrown blades at max speed at grunts, knights, ogres never gib, point first stay in the body, else blunt; no blade left floating off a body
 vr_embed_test    48       vr_airskewer_test.qc             his 2026-11-15: a gib tossed up skewered in the air by a fast thrust (not a slow push, not a swing across; a hanging one the same)
-vr_embed_test    41       vr_throwgib_test.qc              his 2026-11-12: a running throw blade first (sword, dagger) kills a grunt whole, the blade deep in the body; Quad gibs; handle first unchanged
+vr_embed_test    41       vr_throwgib_test.qc              his 2026-11-12: a running throw blade first (sword, dagger) kills a grunt whole, the blade deep in the body; Quad gibs; handle first unchanged; 2026-11-23: a thrown blade's kill push vr_throw_kill_push of a blow's
 vr_embed_test    42       vr_revgrip_test.qc               the reverse grip (his 2026-11-13): caught blade down reversed, blade up upright, force grab upright, the eject button's flip over frames, holstered and drawn kept, a reversed downward stab sticks, the hand on its handle as held
 vr_embed_test    43       vr_revgrip_test.qc               the pictures' scene: the dagger before your eyes upright, then reversed
 vr_embed_test    44       vr_flipgrip_test.qc              the flip grip (his 2026-11-14): reversed, its 2H hotspot there and held; handed off upright, taken back reversed; let go of reversed, lying as held; off a table reversed and upright by the handle; stuck upright, taken reversed, the hand on the handle as the real hand; flipgrip2: reversed 2H (dagger and knight's sword), the hotspot on the pommel's side above the hand, the off hand turned as upright (knuckles out)
@@ -143,7 +143,7 @@ vr_ad_test       191-197  vr_ad_test.qc                    (AD_GunTest)
 vr_ad_test       198      vr_ad_test.qc                    armed humanoids in AD (vr_agrunt_repl_ad): plain ones replaced, AD's variants skipped
 vr_ad_test       199      vr_rules_test.qc                 our monster on AD's and Copper's path_corners follows them as ours (think never NULL); the th_* guard names a NULL th_die (any map)
 vr_ad_test       200      dwell/dw_test.qc                 the map's Dwell boss (d1end, d2end) woken as its map does and fought through every phase to its death
-vr_ad_test       201-203  dwell/dw_test.qc                 Dwell's weapons (Rotary Shotgun, Crystal Lance, Rifle) kept through a level change or a save and load (parm76), then fired: the Rifle's 50, the Rotary's pellets of 2, the Lance's 150 through two (dwell_weapons_test.sh)
+vr_ad_test       201-203  dwell/dw_test.qc                 Dwell's weapons (Rotary Shotgun, Crystal Lance) kept through a level change or a save and load (parm76), a holstered shotgun with the retired Rifle's variant plain, then fired: the Rotary's pellets of 2, the Lance's 150 through two (dwell_weapons_test.sh)
 vr_ad_test       204      dwell/dw_test.qc                 an armed grunt arming a Dwell weapon's record: its name, the variant kept, Dwell's shot fired (Rotary, Lance)
 vr_ad_test       209      vr_rules_test.qc                 the ruleset's numbers (vr_rules_numbers.qc) through our touches: armour rule and protection, key stacks, monsters' health, the laser, the megahealth rot (Copper's in a Dwell map, Quake's in e1m1)
 vr_ad_test       211      vr_quoth_test.qc                 Quoth's keys: an entity used by its targetname2 (the alias), the map's spawner (kellbase1's, else a made one) named from spawnfunction spawns `count` monsters
@@ -158,8 +158,13 @@ vr_ad_test       216      dwell/dw_test.qc                 d2end: the player put
 vr_ad_test       214      dwell/dw_test.qc                Dwell's start: the spawn point's targets fired (Copper's), both runes placed, each episode's corridor walkable to its teleporter and the teleporter taking the player (dwell_maps.sh)
 vr_ad_test       213      dwell/dw_test.qc                Dwell's map pickups taken by the body (weapon_touch, no assertion), the toolgun's Dwell weapons and MG3 bloody shotguns laid as props with their variant or bit, a bloody prop taken by the hand (dwell_weapons_test.sh)
 vr_ad_test       210      dwell/dw_test.qc                the Sculptor's ring (d2end): shots hit it past its old 96-unit box and fly through its hole (DW_D2_FightBox, precise hits)
-vr_ad_test       205-208  dwell/dw_test.qc               Dwell's weapons drawn as their own VR models (made from Dwell's view models) in the hands and a holster, AD's Widowmaker still its own; 206-208 one alone in the main hand (dwell_vrmodels_test.sh's screenshots)
+vr_ad_test       205-207  dwell/dw_test.qc               Dwell's weapons drawn as their own VR models (made from Dwell's view models) in the hands, a plain shotgun in a holster, AD's Widowmaker still its own; 206-207 one alone in the main hand (dwell_vrmodels_test.sh's screenshots)
+vr_ad_test       208      dwell/dw_test.qc               Dwell's Rifle gone: the armed humanoids' random pool (4000 picks, 48 armed) never a Dwell variant nor the Rifle, a shotgun no Dwell variant, an older save's Rifle record a plain shotgun (dwell_weapons_test.sh; the toolgun has no Rifle row)
 vr_ad_test       217      dwell/dw_test.qc               the Crystal Lance as a lance (vr_dw_lance_pole): its lance model and crystal head blow, the pistol and the club with the setting off (dwell_lance_test.sh)
+vr_ad_test       224      dwell/dw_test.qc               the Crystal Lance's charged shot (vr_dw_lance_charge): let go at half charge no shot, no cells; full in the set time, fired as let go, 150 and 6 cells; no charge without its cells (dwell_lance_test.sh)
+vr_ad_test       231-232  dwell/dw_test.qc               Dwell's variants owned per player: with the Lance and Rotary owned and their records gone, the weapon key, next weapon, pickups, the cheat, holster draws, the wheel, a prop taken, his drop give the variant; 232 after a level change or a load (owned_test.sh)
+vr_ad_test       233-234  dwell/dw_test.qc               (MP) every player owns the Lance; a client's weapon key gives it; a coop respawn keeps it (mp_test.py variantowned)
+vr_ad_test       225      dwell/dw_test.qc               the Crystal Lance's beam shoves a crate further than a super shotgun blast, moves a ragdoll (dwell_lance_test.sh 10; ROUND25 lance4)
 vr_ad_test       218      dwell/dw_test.qc               the Rotary Shotgun as a gauntlet (vr_dw_rotary_gauntlet): its gauntlet model, its shell port found and its tube filled there a handful at a time, the super shotgun's grip with the setting off (dwell_rotary_test.sh)
 
 vr_agrunt_test   1        vr_armedgrunt_test.qc            every weapon in turn ahead of you
@@ -303,6 +308,8 @@ vr_pickup_test   20       vr_itemrules_test.qc             the ammo boxes' weapo
 vr_pickup_test   21       vr_itemrules_test.qc             CTF's level change (SetChangeParms, teamplay 4): the weapons' flags, magazines and ids a new game's, the team and the next weapon id kept (VR_CtfParmsTest_Run)
 vr_pickup_test   22       vr_itemrules_test.qc             each player's readiness after his spawn is his own (.vr_readytime): another's spawn doesn't hold his trigger, his own does (VR_ReadyTest_Start)
 vr_pickup_test   23       vr_itemrules_test.qc             a player holding Mjolnir is player.mdl (model index not 0), at rest and in pain, with or without Hipnotic (VR_MjolnirModelTest_Run)
+vr_pickup_test   24       vr_itemrules_test.qc             ad_crucial's lift1 waits raised (the map's design) and comes down to its bottom once its super shotgun is taken (VR_CrucialLiftTest_Run)
+vr_pickup_test   25       vr_pickup_test.qc                vrtutorial's lesson 13 after a multiplayer scene: a single-player game, the SPIKE shooter's spike battable (VR_Deflect_IsProjectile), the GRENADE's a VR grenade, the pit deadly within 1 s (VR_TutPitTest_Start; Misc/quakevr/tutorial_start_test.sh)
 
 vr_reload_test   1        vr_reload_test.qc                (VRIsHandEmpty)
 vr_reload_test   2        vr_reload_test.qc                (VR_Reload_IsRound)
@@ -330,6 +337,7 @@ vr_reload_test   42       vr_reload_test.qc                (VR_Reload_TestMagNai
 vr_reload_test   43       vr_reload_test.qc                (VR_Reload_TestMagForceGrab)
 vr_reload_test   44       vr_reload_test.qc                (VR_Reload_TestPouchCatch)
 vr_reload_test   45-48    vr_reload_test.qc                (VR_Reload_TestStartGun)
+vr_reload_test   49       vr_reload_test.qc                a holstered gun keeps its rounds, every path and reload mode (VR_HolsterAmmo_Test, vr_holsterammo_test.qc)
 
 vr_rv_test       1*       vr_revolver_test.qc              (the self-test (its fall-through))
 vr_rv_test       2-4      vr_revolver_test.qc              (VR_WeaponUtil_EntAddWeapon)
@@ -390,6 +398,8 @@ vr_wornpack_test 22       vr_wornpack_test.qc              (test 2 on death knig
 vr_wornpack_test 23       vr_wornpack_test.qc              (test 3 on death knights: lifted by the pack)
 vr_wornpack_test 33       vr_wornpack_test.qc              (test 3 on enforcers: lifted by the zone on their model's pack)
 vr_ragsmash_test 1        vr_ragsmash_test.qc              (a corpse smashed into a wall: its sound and blood there; a slow touch: none)
+vr_ragsmash_test 2        vr_ragsmash_test.qc              (animfix2: wall glue: a grunt and a dog shoved into a wall, the active ragdoll on/off, the wiggle off: seconds a ragdoll, at the wall, propped against it)
+vr_ragsmash_test 3        vr_ragsmash_test.qc              (wallglue: the wall glue test's dogs only, trials 12-23)
 
 vr_agarmor_test  1*       vr_agarmor_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
 vr_agtune_test   1*       vr_agtune_test.qc                the armed humanoids' tuning: fire interval, reload, speed sliders, swing steady, the death knight's sweep
@@ -800,6 +810,8 @@ vr_dm_test       19       vr_botnav_test.qc                botnav (vr_bot_navmes
 vr_dm_test       20       vr_botnav_test.qc                botnav: the human never seen, a rocket launcher at the end of a waypoint chain: the bot takes it by its waypoints (target1 a waypoint, the navmesh never used), vr_bot_navmesh 1
 vr_dm_test       21       vr_deathdrop_test.qc             mpbugs3: a dying bot's and player's weapons (daggers in both hands and five holsters, a knight's sword in the last) dropped as themselves: kind, reverse grip, their own records (maxplayers 2, deathmatch 1)
 vr_dm_test       22       vr_spawnloop_test.qc             mpbugs3: Dwell's start (no deathmatch start) from vr_campaign_native in a multiplayer game: two players in and alive (a bot connected if alone), SelectSpawnPoint returns: coop's starts under deathmatch, no telefrag (it looped for ever: runaway loop error)
+vr_dm_test       23       vr_botgrab_test.qc               fbmisc1123 (mp_test.py botgear): the hold of 16 with every holster of the human and the victim filled, the same gun in the same holster (the copies' holstered guns against the human's own)
+vr_dm_test       24       vr_botgrab_test.qc               animfix2: the hold of 16 with one gun twice in each pair of holsters, on both (vr_mp_gearcheck's mirror: each left piece against its right one)
 
 vr_projinherit_test 1     vr_projinherit_test.qc           projectiles keep your motion: strafing, nails and rockets on the aim, grenades their share; a hand swing in grenades only
 vr_grenfuse_test 1        vr_grenfuse_test.qc              one fuse for every grenade: hand, launcher and ogre grenades go off together after arming, each lit with its countdown (none with vr_grenade_countdown 0)

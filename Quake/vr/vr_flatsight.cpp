@@ -57,6 +57,7 @@
 #include "vr_flatgrenade.hpp"
 #include "vr_flatreload.hpp"
 #include "vr_flatswap.hpp"
+#include "vr_flatswim.hpp"
 #include "vr_flatspeedfov.hpp"
 #include "vr_flattp.hpp"
 
@@ -769,7 +770,7 @@ bool adsApplies()
     // (Nor with the other hand busy, from the console too: a prop in it, or a blade it holds stuck in a body, flatplay::holdsThing;
     // his words 2026-11-21: "ADS also becomes possible in that state". The sight comes back once it is free.)
     return flatplay::active() && st().ads && st().holding >= 0 && sightalign::alignable(st().holding) && !tilted &&
-           !flatreload::busy(st().holding) && emptyHand(st().helping);
+           !flatreload::busy(st().holding) && !flatgrenade::throwsWith(st().holding) && emptyHand(st().helping);
 }
 
 // The weapon's way back from a wall, a unit vector in the view's frame: towards the hand's shoulder in hipfire, along the
@@ -1728,7 +1729,8 @@ void stanceAndLook(const hands::State& s, const glm::vec3& aim, const glm::vec3&
     // (A gun on its reload trip to the hip has no stance: the free hand hangs relaxed until it is back; vr_flatreload.cpp.)
     // (Nor while the free hand is away with the quick grenade, vr_flatgrenade.cpp: the gun is held one-handed till it is back.)
     const bool twoHandGun = st().holding >= 0 && st().helping >= 0 && aimsAtPoint(s, st().holding) && emptyHand(st().helping) &&
-                            st().spot[st().holding] >= 0 && !flatreload::busy(st().holding) && !flatgrenade::busy(st().helping);
+                            st().spot[st().holding] >= 0 && !flatreload::busy(st().holding) && !flatgrenade::letsGo(st().holding, st().helping) &&
+                            !flatswim::freesHand(); // (nor swimming: the free hand swims, vr_flatswim.cpp)
     const bool pistol = twoHandGun && glm::length(st().muzzleLocal[st().holding]) < longGunMuzzle;
     const bool longGun = twoHandGun && (!pistol || vr_flat_stance_pistol.value != 0.f);
     st().armHip = st().armSight = 0.f;
@@ -1843,6 +1845,11 @@ void recoilProbe_f()
 }
 
 } // namespace
+
+bool handEmpty(int h)
+{
+    return h >= 0 && h < 2 && emptyHand(h);
+}
 
 glm::vec3 crosshairHit(const hands::State& s, const glm::vec3& aim)
 {
@@ -2027,7 +2034,10 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
         hands::angleVectors(s.rot[st().holding], fwd, right, up);
         const glm::vec3 d = placedGrip - s.placedFrom[st().holding];
         st().gripReach = glm::length(d);
-        st().gripFwd = glm::dot(d, fwd);
+        // (A pole weapon's spear grip is ahead along its pole, the way its shot goes: its hand's own forward lies some 90
+        // degrees off the Lance's pole, Shot Pitch 92.5, and the free hand was never carried onto it; flatmelee2.)
+        const int heldSlot = flatplay::heldIn(st().holding);
+        st().gripFwd = glm::dot(d, twohand::poleWeapon(heldSlot) ? hands::forward(weapons::shotAngles(s.rot[st().holding], heldSlot, st().holding == HAND_OFF)) : fwd);
         st().gripRight = glm::dot(d, right);
         st().gripUp = glm::dot(d, up);
     }
@@ -2056,8 +2066,10 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // the pull). The same list as twohand's canGrab. A free hand holding anything (a prop, an item, a torch: his note
     // 2026-11-10) never goes to the grip: the gun is held one-handed (emptyHand: no stance either), as dual wielding.
     st().gripWanted = carryToGrip && !flatplay::punching(st().helping) && !flatplay::shoving(st().helping) &&
-                    !flatreload::busy(st().holding) && !flatgrenade::busy(st().helping) && !flatswap::gripBlocked() &&
-                    !flatfgrab::busy(st().helping) && !flatplay::holdsThing(st().helping);
+                    !flatreload::busy(st().holding) && !flatgrenade::letsGo(st().holding, st().helping) && !flatswap::gripBlocked() &&
+                    !flatfgrab::busy(st().helping) && !flatplay::holdsThing(st().helping) &&
+                    flatplay::bladeShare(st().holding) <= 0.f && // (the guard's blade grip takes it: flatplay::bladePin)
+                    !flatswim::freesHand(); // (swimming: the free hand swims, vr_flatswim.cpp)
     // A grip no pose carries the free hand to (a melee weapon's hs1 up the handle: the axe's, Mjolnir's, the super axe's;
     // carryToGrip false) that vr_twohand holds anyway, taken at a swing's end: held, the pose is pinned on it as a gun's
     // free hand is (before 2026-11-10 it was left hanging, the hand not drawn on the handle). When it lets go -- E's force
@@ -2067,7 +2079,8 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // force grab's palm turn (vr_flat_fg_detach_time), the shove's, the grenade's and the swap's poses start from the grip.
     // (vr_flat_melee_letgo 0: as before, the hand off the grip at once.)
     const bool heldOffPose = vr_flat_melee_letgo.value != 0.f && st().holding >= 0 && st().helping >= 0 && !carryToGrip && s.grip2HValid[st().holding] &&
-                             flatplay::meleeIn(st().holding) && twohand::helping(st().helping) && emptyHand(st().helping);
+                             flatplay::meleeIn(st().holding) && twohand::helping(st().helping) && emptyHand(st().helping) &&
+                             !twohand::bladeGrip(st().holding) && flatplay::bladeShare(st().holding) <= 0.f;
     if(freshFrame)
     {
         const bool same = st().holding == st().lastHolding && st().helping == st().lastHelping;
@@ -2079,6 +2092,9 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     QVR_TRACY_CALL("flatsight: centre on sight", centreOnSight(s, aim));
     QVR_TRACY_CALL("flatsight: push back", pushBack(s, aim));
     QVR_TRACY_CALL("flatsight: free off wall", freeOffWall(s));
+    // The guard's blade grip (vr_flat_parry_blade): the free hand onto a sword's blade near its tip, over the grip's pin,
+    // before vr_twohand takes the half-sword hold there (it lets go as the guard ends).
+    QVR_TRACY_CALL("flatsight: blade pin", flatplay::bladePin(s));
 
     // The grip's press, and only its press: true on the frame the empty hand arrives on the hotspot, false the frame it
     // leaves it or the weapon changes. applyHotspots' goodDistance, goodDot, the stickiness and the weapon's own
@@ -2384,6 +2400,11 @@ float drawnShare(int h)
 float lookShare(int h)
 {
     return flatplay::active() && h == st().lookHand ? geom::smooth01(st().lookT) : 0.f;
+}
+
+float pinShare(int h)
+{
+    return flatplay::active() && st().pinned && h == st().helping ? za::clamp(st().pinShare, 0.f, 1.f) : 0.f;
 }
 
 float lookSlide(int h)

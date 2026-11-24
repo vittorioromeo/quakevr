@@ -5,6 +5,7 @@
 #include "vr_foveated.hpp"
 #include "vr_menu_internal.hpp"
 #include "vr_cvars.hpp"
+#include "vr_api.h" // (VR_Android: the Scaling page's foveation rows)
 
 namespace menu_detail
 {

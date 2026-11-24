@@ -21,6 +21,7 @@
 
 #include "Zancle/Base/InitializerList.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
@@ -121,7 +122,11 @@ struct QuestExtensions
     // C4p: vr_xr_foveation changed while the eye swapchains are in use: the runtime crashed in xrEndFrame after the
     // update (QUEST_PLAN.md 6v), so the backend makes new swapchains first and the level goes on them before their use.
     bool wantNewEyes{false};
-    bool foveationRefusedNoted{false}; // the console told vr_xr_foveation is not applied without -xrfoveation
+    // These eye swapchains carry a level over 0 (applied: the frame's own; vr_xr_foveation may have changed since).
+    [[nodiscard]] bool foveates(XrSwapchain left, XrSwapchain right) const
+    {
+        return foveationApplied >= 1.f && left != XR_NULL_HANDLE && foveated[0] == left && foveated[1] == right;
+    }
 
     // Requests `offered` when it is one of these (Android): appended to `enabled`. Off Android, nothing.
     void want(const char* offered, za::Vector<const char*>& enabled);
@@ -166,7 +171,7 @@ XrResult guardedCall(Call& call, Fault&)
     return call();
 }
 
-inline void describeFault(const Fault& fault, char* out, size_t size)
+inline void describeFault(const Fault& fault, char* out, za::SizeT size)
 {
     q_snprintf(out, size, "fault %u", fault.code);
 }
@@ -218,7 +223,7 @@ XrResult guardedCall(Call& call, Fault& fault)
 }
 
 // "an access violation reading 0x0 in virtualdesktop-openxr.dll+0x9a668"
-inline void describeFault(const Fault& fault, char* out, size_t size)
+inline void describeFault(const Fault& fault, char* out, za::SizeT size)
 {
     char module[MAX_PATH] = "an unknown module";
     uintptr_t offset = reinterpret_cast<uintptr_t>(fault.address);
@@ -277,6 +282,7 @@ public:
     [[nodiscard]] const HiddenArea* hiddenArea(int eye) const override;
 
     [[nodiscard]] bool runtimeMenuOpen() const override;
+    [[nodiscard]] bool userPresent() const override;
 
     [[nodiscard]] const char* systemName() const override;
     [[nodiscard]] EyeTracking eyeTracking() const override
@@ -287,13 +293,22 @@ public:
                                 : EyeTracking::NotOffered;
     }
 
-    bool setEyeImageRect(int eye, int width, int height) override
+    bool setEyeImageRect(int eye, int width, int height, int x = 0, int y = 0) override
     {
         eyeRects[eye] = {width, height};
+        eyeRectOrigins[eye] = width > 0 && height > 0 ? XrOffset2Di{x, y} : XrOffset2Di{0, 0};
         return true;
     }
 
     [[nodiscard]] unsigned acquireEyeImage(int eye) override;
+    [[nodiscard]] unsigned eyeImagesSerial() const override
+    {
+        return eyeSwapchainsMade;
+    }
+    [[nodiscard]] bool eyeImagesFoveated() const override
+    {
+        return quest.foveates(swapchains[0].handle, swapchains[1].handle);
+    }
 
     void releaseEyeImage(int eye) override;
 
@@ -345,9 +360,24 @@ private:
     XrSpace handSpaces[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
     Swapchain swapchains[2];
     XrExtent2Di eyeRects[2]{}; // setEyeImageRect: the part of each eye's image shown this frame (0 x 0: all of it)
+    XrOffset2Di eyeRectOrigins[2]{}; // ... and its lower left corner (GL's origin, as the OpenGL (ES) bindings take it)
     Swapchain panel;
     int32_t panelFailedWidth{0}; // the size its swapchain failed at in this session, or is being made at (ensurePanelSwapchain)
     int32_t panelFailedHeight{0};
+    // Swapchains replaced mid-session (the panel at a new size, the eyes' new images) are destroyed only after
+    // retireFrames more frames ended without them (retireSwapchain, destroyRetired): the Quest's runtime, worn, still
+    // composites the last frames that showed them, and destroying the loading panel's swapchain at once as the hub's
+    // first frames came crashed it in xrEndFrame (SIGSEGV 0x30 in libGLESv2_adreno: hubcrash2).
+    struct Retired
+    {
+        XrSwapchain handle{XR_NULL_HANDLE};
+        int frames{0}; // frames ended since it was retired
+    };
+    static constexpr int retiredMax = 8;
+    static constexpr int retireFrames = 4;
+    Retired retired[retiredMax];
+    void retireSwapchain(Swapchain& sc);
+    void destroyRetired(bool all); // after each frame (those retired long enough), or all of them (the session's end)
     int64_t colorFormat{GL_RGBA8};
     bool panelPending{false}; // an image was released for the frame being finished
     bool panelShown{false};   // the panel was in the last submitted frame (keeps its place)
@@ -373,6 +403,16 @@ private:
     XrView views[2]{{XR_TYPE_VIEW}, {XR_TYPE_VIEW}};
     XrViewConfigurationView configViews[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
     bool visibilityMaskExtension{false}; // XR_KHR_visibility_mask enabled
+    // XR_EXT_user_presence (vr_xr_user_presence; from PR #75, by Kasper Olesen): enabled when offered; the system's
+    // sensor (supportsUserPresence); the headset off by the runtime's last XrEventDataUserPresenceChangedEXT (on until
+    // one says otherwise, and again at each session start).
+    bool userPresenceExtension{false};
+    bool userPresenceSensor{false};
+    bool userAbsent{false};
+    int absentHeld{0}; // the frames held while it was off (logged when it is back on)
+    // Why the headset's sensor is ignored now (nullptr: it isn't): vr_xr_user_presence 0, vr_debug_head_pose 1, or an
+    // automated run (-unattended, a timedemo, a scripted test's vr_fixed_frames 1) that nobody wears it for.
+    [[nodiscard]] const char* presenceIgnored() const;
     // Eye tracking (vr_foveated_gaze): XR_EXT_eye_gaze_interaction offered, enabled (asked for, and the system has it),
     // its pose action and space (FrameState::gaze).
     bool eyeGazeOffered{false};
@@ -390,11 +430,13 @@ private:
         VendorFocus3,  // HTC Vive Focus 3 (and XR Elite)
         VendorHp,      // HP Reverb G2
         VendorOdyssey, // Samsung Odyssey (a WMR controller)
+        VendorFrame,   // Valve Steam Frame (from PR #75, by Kasper Olesen)
         VendorCount
     };
     static constexpr const char* vendorExtensions[VendorCount] = {"XR_BD_controller_interaction",
         "XR_HTC_vive_cosmos_controller_interaction", "XR_HTC_vive_focus3_controller_interaction",
-        "XR_EXT_hp_mixed_reality_controller", "XR_EXT_samsung_odyssey_controller"};
+        "XR_EXT_hp_mixed_reality_controller", "XR_EXT_samsung_odyssey_controller",
+        "XR_VALVE_frame_controller_interaction"};
     bool vendorProfile[VendorCount]{};
     char runtime[XR_MAX_RUNTIME_NAME_SIZE + 32]{}; // its name and version
     char system[XR_MAX_SYSTEM_NAME_SIZE]{};        // the headset's name (systemName)
@@ -598,7 +640,8 @@ private:
         "/interaction_profiles/htc/vive_controller", "/interaction_profiles/microsoft/motion_controller",
         "/interaction_profiles/bytedance/pico_neo3_controller", "/interaction_profiles/bytedance/pico4_controller",
         "/interaction_profiles/htc/vive_cosmos_controller", "/interaction_profiles/htc/vive_focus3_controller",
-        "/interaction_profiles/hp/mixed_reality_controller", "/interaction_profiles/samsung/odyssey_controller"};
+        "/interaction_profiles/hp/mixed_reality_controller", "/interaction_profiles/samsung/odyssey_controller",
+        "/interaction_profiles/valve/frame_controller_valve"};
 
     [[nodiscard]] static const char* shortProfile(const char* name);
 
@@ -690,6 +733,8 @@ private:
     // projection) and smaller ones not at all (a GL_INVALID_VALUE copy).
     // vr_xr_eye_scale: smaller than recommended (each side; within 64 and the largest), at the start only.
     bool createEyeSwapchains();
+    unsigned eyeSwapchainsMade{0}; // eyeImagesSerial: counts createEyeSwapchains' calls
+    float eyeScaleMade{1.f}; // the vr_xr_eye_scale the eye swapchains were made at (the Quest's: new ones when it changes)
 
     void beginSession();
 

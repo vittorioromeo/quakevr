@@ -24,6 +24,7 @@ import argparse
 import math
 import os
 import random
+import re
 import shutil
 import struct
 import subprocess
@@ -187,16 +188,19 @@ def bands(panel, upper=None, floor=None, ceiling=None, sky=False, rail=None):
 
 class Air:
     """A box of air (lo, hi): a room, a hall, a doorway through a wall, a pool, a shaft. `shell`: walls round it
-    (T thick; `open` names the sides left without: '+x', '-y'...); `floor`: its bands' base height."""
+    (T thick; `open` names the sides left without: '+x', '-y'...); `floor`: its bands' base height; `align`: ((x0, y0),
+    (x1, y1)), another room's floor whose walls' texture alignment its walls take (a wall that runs on into that
+    room's)."""
 
     PRIORITY = {"door": 0, "pool": 1, "shaft": 2, "room": 3}
 
-    def __init__(self, name, lo, hi, kind="room", style=None, shell=True, open=(), floor=None):
+    def __init__(self, name, lo, hi, kind="room", style=None, shell=True, open=(), floor=None, align=None):
         self.name, self.lo, self.hi, self.kind = name, tuple(lo), tuple(hi), kind
         self.style = style or Style()
         self.shell = shell and kind != "door"
         self.open = set(open)
         self.floor = lo[2] if floor is None else floor
+        self.align = align
 
     def contains(self, p):
         return all(self.lo[i] < p[i] < self.hi[i] for i in range(3))
@@ -226,7 +230,8 @@ class Air:
                 return spec(TX["sky"], X, MY, (0.0, 0.0, 0.0))
             return flat_spec(st.ceiling, lo[0], hi[1])
         u = right_of(n)
-        left = min(lo[0] * u[0] + lo[1] * u[1], hi[0] * u[0] + hi[1] * u[1])
+        alo, ahi = self.align or (lo, hi)
+        left = min(alo[0] * u[0] + alo[1] * u[1], ahi[0] * u[0] + ahi[1] * u[1])
         if self.kind == "pool":
             return wall_spec(TX["pool"], n, left, self.hi[2])
         z = c[2] - self.floor
@@ -295,6 +300,31 @@ def world_tex(n, c):
     if a is None:
         return mapgeom.Tex(TX["black"]).spec(n, c)
     return a.face_spec(n, c)
+
+
+def piece_tex(lo, hi):
+    """world_tex for the faces of the structural box lo..hi. A face whose centre is behind another box but part of
+    which is in front of air (a floor slab's side across a pit and its bridge, a wall along two rooms) takes the style
+    of the air in front of most of it, not black (the author, 2026-11-23: black stripes round lesson 13's pits)."""
+    def tex(n, c):
+        if air_at(add(c, mul(n, 0.5))) is not None:
+            return world_tex(n, c)
+        axis = max(range(3), key=lambda i: abs(n[i]))
+        i, j = [k for k in range(3) if k != axis]
+        seen = {}
+        for a in range(8):
+            for b in range(8):
+                p = list(c)
+                p[axis] = c[axis] + n[axis] * 0.5
+                p[i] = lo[i] + (hi[i] - lo[i]) * (a + 0.5) / 8
+                p[j] = lo[j] + (hi[j] - lo[j]) * (b + 0.5) / 8
+                air_here = air_at(p)
+                if air_here is not None:
+                    seen.setdefault(air_here.name, [air_here, 0])[1] += 1
+        if not seen:
+            return world_tex(n, c)
+        return max(seen.values(), key=lambda s: s[1])[0].face_spec(n, c)   # (the face lies in one band: carve)
+    return tex
 
 
 def carve():
@@ -464,7 +494,12 @@ def light(x, y, z, value=220, color=WHITE, **kw):
 
 def banner(text, x, y, z, angle, scale="0.3", speed=None):
     """A text board (func_worldtext_banner) facing `angle`; lines split with N, pages with $."""
-    k = {"worldtext": text, "worldtext_halign": "1", "worldtext_scale": scale, "angle": angle}
+    title = text.split(N)[0]
+    flat = FLAT_BANNERS.get(title)
+    if flat is not None:
+        _flat_used.add(title)
+    k = {"worldtext": with_flat(text, N.join(flat) if flat is not None else None), "worldtext_halign": "1",
+         "worldtext_scale": scale, "angle": angle}
     if speed:
         k["speed"] = speed
     return ent("func_worldtext_banner", x, y, z, **k)
@@ -474,11 +509,151 @@ def banner(text, x, y, z, angle, scale="0.3", speed=None):
 # increased range (maybe 15%)" (with vr_tips_delay 0.5 -> 0.35 s, vr_cvars.inc).
 TIP_REACH = 1.15
 
+# The flat screen's wording (no headset: the author, 2026-11-23, "detect flat-screen mode and use flat wording; show the
+# player's actual binds"). A tip's or a board's text is its headset wording, "{flat}", then this; "{key:<cvar or
+# command>}" is the player's key for it as the message shows (Quake/vr/vr_msgtokens.hpp: 'G', or "[...: not bound]",
+# following a rebind). A tip or board not here reads the same in both. FLAT_TIPS by tipname, FLAT_BANNERS by the
+# board's first line.
+def K(what):
+    return "{key:%s}" % what
+
+
+GRAB, DROP, PUNCH, FIRE = K("vr_flat_key_grab"), K("vr_flat_key_drop"), K("vr_flat_key_punch"), K("+attack")
+THROW = K("vr_flat_key_throw")  # (held winds up, let go throws: FLATPLAY.md, "The throw key")
+JUMP, AIMKEY = K("+jump"), K("+offhandattack")
+
+FLAT_TIPS = {
+    "t2_move": "Walk with " + K("+forward") + " " + K("+moveleft") + " " + K("+back") + " " + K("+moveright") + ";" + N +
+               "turn with the mouse.",
+    "t2_turn": "The hall bends: turn with the mouse" + N + "to follow it.",
+    "t2_button": "Walk into the button" + N + "to press it.",
+    "t2_settings": "Optional: these change how you move" + N + "and turn in a headset.",
+    "t2_teleport": "Teleport is a headset option:" + N + "on a flat screen you walk.",
+    "t2_jump": "Press " + JUMP + " to jump." + N + "Jump over the yellow barriers.",
+    "t2_climb": "Walk into the rungs to climb them;" + N + "back (or look down) climbs down.",
+    "t2_catch": "Jump, hold " + JUMP + " and look up at the" + N + "edge: you pull yourself up onto it.",
+    "t2_swim": "Swim where you look with the move" + N + "keys; hold " + JUMP + " to rise.",
+    "t2_out": "Climb out: swim at the edge" + N + "and jump, or swim to the steps.",
+    "t2_health": "You are hurt. Walk over a health" + N + "kit to use it.",
+    "t2_forcegrab": "Point at the kit on the shelf and" + N + "press " + GRAB + ": it flies to you.",
+    "t2_wrist": "The fall hurt. Your health is" + N + "at the top left of the screen.",
+    "t2_punch": "Press " + PUNCH + " (or " + FIRE + ") to punch;" + N + "break the crate.",
+    "t2_key": "A keycard! Walk over it" + N + "to keep it.",
+    "t2_key_held": "Don't carry it in your hand: " + DROP + N + "lets go; walk over it to keep it.",
+    "t2_parry": "PARRY: a melee weapon in one hand," + N + "hold " + AIMKEY + " to guard: a blocked" + N +
+                "blow staggers the enemy.",
+    "t2_rifle": "Take its rifle: walk over it or press" + N + GRAB + " at it; " + FIRE + " fires. Its magazine" + N +
+                "is all it has: it can't be reloaded.",
+    "t2_disarm": "Its rifle drops when it dies:" + N + "take it then.",
+    "t2_shotgun": "Press " + GRAB + " at the shotgun" + N + "to take it.",
+    "t2_shells": "Shells: walk over the box (or press" + N + GRAB + " at it): they go to your ammo.",
+    "t2_reload": "To load: press " + K("vr_flat_key_reload") + ".",
+    "t2_range": "Each target needs a good hit. The gun" + N + "holds 8 shells: " + K("vr_flat_key_reload") +
+                " reloads.",
+    "t2_torch": "It's dark: press " + K("vr_flat_key_flashlight") + N + "to switch on your flashlight.",
+    "t2_flip": K("vr_flat_key_flashlight") + " switches your flashlight" + N + "on and off.",
+    "t2_clipgun": "Your flashlight lights where you" + N + "look: aim where you shoot.",
+    "t2_cliphead": "Your flashlight is at your temple:" + N + "both hands stay free.",
+    "t2_throw": "Take a rock (" + GRAB + " at it). Hold " + THROW + N + "and let go to throw: hit the button.",
+    "t2_grenade": "Take the rockets (walk over the box)." + N + "Then press " + K("vr_flat_key_grenade") +
+                  ": a grenade in a free" + N + "hand. " + FIRE + " arms it; let go to throw.",
+    "t2_torch_take": "Press " + GRAB + " at a torch" + N + "to take it off the wall.",
+    "t2_burn": "Touch the crates with the flame" + N + "or hit them with the torch (" + FIRE + ").",
+    "t3_blades": "Take a blade (" + GRAB + " at it), then" + N + FIRE + " swings it through the dummy.",
+    "t3_stab": "A point that sticks in stays there:" + N + "force-grab it (" + GRAB + ") to pull it out.",
+    "t3_reverse": K("vr_flat_key_ammo") + " turns the dagger point down," + N + "for stabbing down.",
+    "t3_axe": "Throw the axe at the target: hold " + THROW + N + "and let go. " + GRAB + " pulls it back out.",
+    "t3_bash": "Press " + K("vr_flat_key_shove") + " to shove:" + N + "push it off the bridge!",
+    "t3_disarm": "It holds an axe: shove it off" + N + "the bridge, or beat it.",
+    "t3_bat": "Swing your weapon (" + FIRE + ") or punch" + N + "(" + PUNCH + ") as the spike comes: it flies back.",
+    "t3_catch": "A grenade! Get clear" + N + "before it bursts.",
+    "t3_rope": "Jump into the rope, swing it with" + N + K("+moveleft") + " " + K("+moveright") + ", then " + JUMP +
+               " to let go.",
+    "t3_armor": "Walk over the armour" + N + "to put it on.",
+    "t3_bullettime": "Too many at once? Press" + N + K("vr_flat_key_bullettime") + ": bullet time.",
+    "t1_menu": "The menu: press " + K("togglemenu") + ".",
+}
+
+FLAT_BANNERS = {
+    "LESSON 1: MOVING": ["LESSON 1: MOVING", "", "MOVE: " + K("+forward") + " " + K("+moveleft") + " " + K("+back") +
+                         " " + K("+moveright") + ".", "TURN: the mouse.", "", "Follow the yellow arrows.", "",
+                         "To run, hold " + K("+speed") + "."],
+    "LESSON 2: BUTTONS": ["LESSON 2: BUTTONS", "", "Push the button beside the door.", "Walk into it, or touch it",
+                          "with what you hold."],
+    "LESSON 3: JUMPING AND CLIMBING": ["LESSON 3: JUMPING AND CLIMBING", "", "JUMP: press " + JUMP + ".",
+                                       "Jump the low barriers."],
+    "CLIMB: grip a rung or a ledge with an empty hand": ["CLIMB: walk into the rungs: forward", "climbs, back climbs down.",
+                                                         "At the top you climb onto it."],
+    "TOO HIGH TO REACH?": ["TOO HIGH TO REACH?", "Jump, hold " + JUMP + " and look", "up: you pull yourself up."],
+    "LESSON 4: SWIMMING": ["LESSON 4: SWIMMING", "", "Dive in, swim down into the passage,",
+                           "round the corner and up into the next room.", "", "Swim where you look;",
+                           JUMP + " held swims up."],
+    "LESSON 5: HEALING": ["LESSON 5: HEALING", "", "Health kits mend you:", "walk over one to use it."],
+    "GRAB: close your hand round it.": ["FORCE GRAB: point at something far", "and press " + GRAB + ": it flies to you.",
+                                        "A kit or a box is taken at once.", "",
+                                        "DROP: " + DROP + " lets go of what you hold."],
+    "LESSON 6: MELEE": ["LESSON 6: MELEE", "", "Punch the crate until it breaks:", PUNCH + ", or " + FIRE +
+                        " with empty hands."],
+    "LESSON 7: FIGHT": ["LESSON 7: FIGHT", "", "WARNING: AN ENEMY IS COMING!", "Fight it with your fists:",
+                        PUNCH + " or " + FIRE + " punches.", "", "Once it is dead, take its rifle",
+                        "and shoot the three targets to go on."],
+    "LESSON 8: WEAPONS": ["LESSON 8: WEAPONS", "", "Take the shotgun from the bench:", "press " + GRAB + " at it.",
+                          "Reload with " + K("vr_flat_key_reload") + ".", "Destroy every target to go on."],
+    "HOLSTERS: let go of a gun at your hip": ["HOLSTERS: " + K("vr_flat_key_holster_right") + " puts the gun away,",
+                                              K("vr_flat_key_cycle_right") + " draws the next one;",
+                                              K("vr_flat_key_holster_menu") + " held: the holster menu."],
+    "TWO HANDS: grip the gun's front with": ["TWO HANDS: your free hand steadies", "the gun by itself.",
+                                             "AIM: hold " + AIMKEY + " for the sights."],
+    "LESSON 9: DARKNESS": ["LESSON 9: DARKNESS", "", "Your flashlight is at your temple:",
+                           K("vr_flat_key_flashlight") + " switches it on or off."],
+    "LESSON 10: THROWING": ["LESSON 10: THROWING", "", "The button is out of reach behind the bars.",
+                            "Throw a rock or a brick at it:", GRAB + " to take one, hold " + THROW + ", let go."],
+    "GRENADES": ["GRENADES", "With rockets in your pack, press " + K("vr_flat_key_grenade") + ":",
+                 "a grenade in a free hand. " + FIRE + " arms it;", "hold to wind up, let go to throw."],
+    "LESSON 11: FIRE": ["LESSON 11: FIRE", "", "Take a torch off the wall:", "press " + GRAB + " at it.",
+                        "Set the crates alight and watch it spread.", "Enemies burn too. So do you: careful!"],
+    "LESSON 12: BLADES": ["LESSON 12: BLADES", "", "Take a blade: " + GRAB + " at it.", FIRE + " swings: the edge cuts,",
+                          "the point sticks in.", "", K("vr_flat_key_ammo") + ": the dagger point down.", "",
+                          "THROW: hold " + THROW + ", let go.", "Throw an axe into the target to go on."],
+    "LESSON 13: BASH AND BAT": ["LESSON 13: BASH AND BAT", "", "SHOVE: " + K("vr_flat_key_shove") +
+                                " pushes an open hand out.", "Shove the enemy off the bridge!", "",
+                                "BAT: press for a spike, swing through it.", "Press for a grenade: get clear!"],
+    "LESSON 14: ROPES": ["LESSON 14: ROPES", "", "Walk or jump into the rope: you hang on.",
+                         "Forward climbs, back slides down.", "The strafe keys swing it higher;",
+                         JUMP + " lets go: you fly across.", "", "Fall in? The ladder brings you back up."],
+    "ARMOUR": ["ARMOUR", "", "Walk over it to put it on.", "(Only if it beats what you wear.)"],
+    "BULLET TIME": ["BULLET TIME", "", "Press " + K("vr_flat_key_bullettime") + ": time slows down.",
+                    "Press it again to stop it.", "It runs down, then recharges."],
+}
+_flat_used = set()
+
+# An entity's value is at most 1023 characters to the engine (com_token): both wordings together stay under it.
+MAX_TEXT = 1000
+
+
+def with_flat(text, flat):
+    """`text` with its flat wording (vr_msgtokens.hpp's "{flat}")."""
+    if flat is None:
+        return text
+    out = text + "{flat}" + flat
+    assert len(out) <= MAX_TEXT, "too long for an entity's value (%d): %s" % (len(out), text[:40])
+    return out
+
+
+def check_flat_wording():
+    """Every flat wording used (a renamed tip or a retitled board would leave its wording behind)."""
+    unused = (set(FLAT_TIPS) | set(FLAT_BANNERS)) - _flat_used
+    assert not unused, "flat wording for no tip or board: %s" % sorted(unused)
+
+
 
 def tip(name, message, x, y, z, distance=200, target=None, size=None, flags=0, delay=None, trig=None):
     """A map tip (func_vr_tip), shown within `distance` (times TIP_REACH). `trig`: shown only once that targetname is
     fired (QC: its TRIGGERED flag, 8)."""
-    k = {"tipname": name, "message": message, "distance": int(distance * TIP_REACH + 0.5)}
+    if name in FLAT_TIPS:
+        _flat_used.add(name)
+    k = {"tipname": name, "message": with_flat(message, FLAT_TIPS.get(name)),
+         "distance": int(distance * TIP_REACH + 0.5)}
     if trig:
         k["targetname"] = trig
         flags |= 8
@@ -1227,6 +1402,8 @@ def build_room7():
     air("r7_alcove", (r["x1"], 608, LOW), (r["x1"] + 64, 736, LOW + 128), style=bands(TX["panel5"]))
     door_frame(out, door_air("r7_alcove_mouth", (r["x1"], 608, LOW), (r["x1"] + 1, 736, LOW + 128)))
     wall_lamp(out, "+x", r["x1"] + 64, 672, LOW + 100, 120, "1 0.5 0.4")
+    # a lamp over where the enemy comes from (the author, 2026-11-23: the alcove was too dark to see it in)
+    ceiling_lamp(out, r["x1"] + 32, 672, LOW + 128, w=32, d=64, value=260)
     ent("func_vr_spawner", r["x1"] + 32, 672, LOW + 32, weapon=0, angle=180, spawnflags=3, targetname="r7_spawn",
         target="r7_dead", message="Finish this one first.")
     trigger("r7_start", (5152, 800, LOW), (5280, 928, LOW + 96), target="r7_spawn", delay=2)
@@ -1483,7 +1660,10 @@ def build_room12():
     out = group("room12")
     # the hall from lesson 14's room (its north-west doorway) up to the arena's door (tutorial5: lessons 12-14 now
     # come between room 11b and here; were hall_12a down from room 11b's door and hall_12b west to this door)
-    air("hall_15", (HALL15[0], HALL15[1], LOW), (HALL15[2], HALL15[3], LOW + 160), style=bands(TX["panel3"]))
+    # room 14's walls and their texture alignment: its west wall runs on into the hall's (the author, 2026-11-23: two
+    # wall textures that did not match there)
+    air("hall_15", (HALL15[0], HALL15[1], LOW), (HALL15[2], HALL15[3], LOW + 160), style=bands(TX["panel"]),
+        align=((R14["x0"], R14["y0"]), (R14["x1"], R14["y1"])))
     r = R12
     room("room12", r["x0"], r["y0"], r["x1"], r["y1"], LOW, 400, COURT).windows = (272, 416)
     d = doorway("room12_in", r["x1"], -656, r["x1"] + 16, -528, LOW, out)
@@ -1821,7 +2001,9 @@ def banner_bounds(k):
     """A func_worldtext_banner's board as a flat box (vr_text3d.cpp's boards: 8 units a character at scale 1, 1.2
     characters of margin and bezel round the text; its longest page)."""
     sc = float(k.get("worldtext_scale", "1"))
-    pages = [pg.split(N) for pg in k["worldtext"].split("$")]
+    # (both wordings as pages, a key as long as most: 'Left Click')
+    text = re.sub(r"\{key:[^}]*\}", "'Left Click'", k["worldtext"].replace("{flat}", "$"))
+    pages = [pg.split(N) for pg in text.split("$")]
     cols = max(len(line) for pg in pages for line in pg)
     rows = max(len(pg) for pg in pages)
     hw, hh = 8 * sc * (cols / 2 + 1.2), 8 * sc * (rows / 2 + 1.2)
@@ -1874,9 +2056,10 @@ def write_map():
     room_trims()
     check_layout()
     check_fixtures()
+    check_flat_wording()
     mw = MapWriter()
     for lo, hi in carve():
-        mw.world.append(mapgeom.box(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2], world_tex))
+        mw.world.append(mapgeom.box(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2], piece_tex(lo, hi)))
     mw.world.extend(CURVED)
     for lo, hi in WATER:
         mw.world.append(mapgeom.box(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2], mapgeom.Tex(TX["water"])))

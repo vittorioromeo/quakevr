@@ -138,6 +138,7 @@
         row(opt::vr_limbs_zombies),
         row(opt::vr_limbs_body_speed),
         row(opt::vr_limbs_max),
+        row(opt::vr_gore_trim_max),
         row(opt::vr_limbs_prebuild),
         row(opt::vr_limbs_mass_scale),
         slider("Cut End Fountain", vr_limbs_end_fountain, 0.f, 4.f, 0.25f, "%.2f s").extend(0.f, 20.f)

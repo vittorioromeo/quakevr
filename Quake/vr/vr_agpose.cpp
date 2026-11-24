@@ -750,10 +750,12 @@ constexpr ShippedRow shipped[] = {
     {318201, {5.82f, -0.7f, 1.66f, 33.f, -30.3f, 81.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.1f, 21.8f, 0.2f, 0.f, 0.f, 0.23f, 0.f, -0.3f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // death knight, a shoulder launcher, Shove, recover
     {318202, {-0.72f, -0.78f, -2.68f, 24.f, -34.f, 97.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 0.f, -5.31f, 1.31f, -0.86f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // death knight, a sprayer, Idle / Carry
+    {319000, {18.79f, -0.9f, 1.36f, -16.4f, 26.7f, 68.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, 0.f, 0.f, 0.f}},
     // death knight, a sprayer, Aim
     {319010, {12.37f, 8.56f, 2.66f, 0.8f, 0.9f, -2.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 1.15f, -2.2f, 1.68f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // death knight, a sprayer, Run
-    {319020, {12.11f, 2.59f, 3.98f, 2.2f, 21.1f, 101.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.4f, 0.08f, -0.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {319020, {2.42f, 5.85f, 5.87f, 13.7f, 12.6f, 19.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.4f, 0.08f, -0.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // death knight, a sprayer, Shove, wind-up
     {319200, {-3.78f, 10.61f, 4.13f, 0.f, 0.f, 80.f, -0.96f, -7.92f, 6.36f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 0.8f, -0.15f, -2.1f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // death knight, a sprayer, Shove, push

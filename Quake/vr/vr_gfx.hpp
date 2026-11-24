@@ -231,8 +231,10 @@ struct TubeBatch
 // `flat`: faceted (the low-poly chain's square bar): the sides turned half a side (a face, not a corner, along `across`)
 // and each quad lit by its own face's normal. `alpha` below 1: blended over the scene, not writing depth (the magnetic
 // holsters' chains: vr_magholster_chain_alpha).
+// `pattern` (ropes8a): its surface, per pixel: 0 plain, 1 wood (grain along it), 2 metal (brushed, a joint every 48
+// units): the climbing poles'.
 void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key,
-    const glm::vec3& rust = glm::vec3{0.f}, bool flat = false, float alpha = 1.f);
+    const glm::vec3& rust = glm::vec3{0.f}, bool flat = false, float alpha = 1.f, int pattern = 0);
 // In a map's load (VR_NewMap): the tube's program made and drawn once, not at a cord's first frame in play.
 void prepareTube();
 
@@ -336,7 +338,7 @@ void picture(const Picture& picture, float x, float y, float w, float h); // who
 void beginSignature();
 [[nodiscard]] unsigned long long endSignature();
 [[nodiscard]] bool signing();
-void sign(const void* bytes, size_t size);
+void sign(const void* bytes, za::SizeT size);
 } // namespace draw2D
 
 // The engine's 2D pass (menus, console, HUD) redirected into `canvas` (made for the size), cleared to transparent

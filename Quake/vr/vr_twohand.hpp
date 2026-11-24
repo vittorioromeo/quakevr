@@ -43,6 +43,10 @@ void apply(hands::State& s);
 // Whether the weapon in `hand` is held two-handed by its blade (a sword's half-sword grip: the other
 // hand towards the tip), rather than by its foregrip or grip.
 [[nodiscard]] bool bladeGrip(int hand);
+// Whether the weapon of `slot` may be held by its blade (Two-Handed: Sword, with a Blade hotspot: the knights' swords, the
+// crowbar...), and where that hotspot holds it (`at`: its share of the way from the hand to the tip). The half-sword
+// grip's (applySword) and the flat guard's (flatplay's blade pin).
+[[nodiscard]] bool swordBlade(int slot, float& at);
 // Whether the other hand holds the weapon in `holding` away from its handle: anywhere on it (a free grip) or by its blade
 // (bladeGrip). The flip grip's gate (ROUND25.md "flipgate"; view::gripFlipBlocked): a sword or dagger held in two hands flips
 // only with both hands on its handle (the other on its two-handed grip hotspot).

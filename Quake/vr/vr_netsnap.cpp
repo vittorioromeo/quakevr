@@ -22,6 +22,7 @@
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -335,7 +336,7 @@ struct EntFields
     {
         return -1;
     }
-    ZA_MEMCPY(out + at, e.tail, static_cast<size_t>(e.tailLen));
+    ZA_MEMCPY(out + at, e.tail, static_cast<za::SizeT>(e.tailLen));
     return at + e.tailLen;
 }
 
@@ -464,7 +465,7 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
             ZA_MEMCPY(zig, kz, sizeof(zig));
         }
     }
-    const bool tailSame = b.tailLen == c.tailLen && ZA_MEMCMP(b.tail, c.tail, static_cast<size_t>(c.tailLen)) == 0;
+    const bool tailSame = b.tailLen == c.tailLen && ZA_MEMCMP(b.tail, c.tail, static_cast<za::SizeT>(c.tailLen)) == 0;
     mask |= tailSame ? 0u : maskTail;
     mask |= b.bits != c.bits ? maskBits : 0u;
     int at = putVarint(out, mask);
@@ -494,7 +495,7 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
             {
                 return -1;
             }
-            ZA_MEMCPY(out + at, tmp, static_cast<size_t>(sb.cursize));
+            ZA_MEMCPY(out + at, tmp, static_cast<za::SizeT>(sb.cursize));
             at += sb.cursize;
         }
         else
@@ -503,7 +504,7 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
             {
                 return -1;
             }
-            ZA_MEMCPY(out + at, c.tail, static_cast<size_t>(c.tailLen));
+            ZA_MEMCPY(out + at, c.tail, static_cast<za::SizeT>(c.tailLen));
             at += c.tailLen;
         }
     }
@@ -570,7 +571,7 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
             {
                 return -1;
             }
-            ZA_MEMCPY(tail, e.tail, static_cast<size_t>(tl));
+            ZA_MEMCPY(tail, e.tail, static_cast<za::SizeT>(tl));
             // (bytesDelta's layout, read from `d`)
             const int groups = (tl + 7) / 8, tops = (groups + 7) / 8;
             if(at + tops > len)
@@ -610,7 +611,7 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
             {
                 return -1;
             }
-            ZA_MEMCPY(tail, d + at, static_cast<size_t>(tl));
+            ZA_MEMCPY(tail, d + at, static_cast<za::SizeT>(tl));
             at += tl;
         }
         e.tail = tail;
@@ -626,7 +627,7 @@ za::U8 fieldsCheck[fieldsMost]; // (... its decoding: fieldsVerify's, decode's)
 {
     int used = 0;
     const int n = fieldsDecode(base, baseLen, fieldsBuf, size, pflags, fieldsCheck, used, trend, older, olderLen);
-    return n == curLen && used == size && ZA_MEMCMP(fieldsCheck, cur, static_cast<size_t>(n)) == 0;
+    return n == curLen && used == size && ZA_MEMCMP(fieldsCheck, cur, static_cast<za::SizeT>(n)) == 0;
 }
 
 } // namespace
@@ -731,7 +732,7 @@ int encode(const Snapshot* base, const Snapshot& cur, sizebuf_t* body, int budge
         {
             bi++;
             ci++;
-            if(b->len == c->len && ZA_MEMCMP(base->data(*b), cur.data(*c), static_cast<size_t>(c->len)) == 0)
+            if(b->len == c->len && ZA_MEMCMP(base->data(*b), cur.data(*c), static_cast<za::SizeT>(c->len)) == 0)
             {
                 continue;
             }
@@ -1190,7 +1191,7 @@ int holdRagdolls(const Snapshot* base)
             used += r.len;
             continue;
         }
-        if(b->len == r.len && ZA_MEMCMP(bl.cur.data(r), base->data(*b), static_cast<size_t>(r.len)) == 0)
+        if(b->len == r.len && ZA_MEMCMP(bl.cur.data(r), base->data(*b), static_cast<za::SizeT>(r.len)) == 0)
         {
             continue;
         }
@@ -2293,7 +2294,7 @@ void fillSnapshot(Snapshot& s, int n, int len, int seed)
     {
         const Record& x = a.records[i];
         const Record& y = b.records[i];
-        if(x.key != y.key || x.len != y.len || ZA_MEMCMP(a.data(x), b.data(y), static_cast<size_t>(x.len)) != 0)
+        if(x.key != y.key || x.len != y.len || ZA_MEMCMP(a.data(x), b.data(y), static_cast<za::SizeT>(x.len)) != 0)
         {
             return false;
         }

@@ -133,8 +133,62 @@ static void APIENTRY GL_ShadowBindFramebuffer (GLenum target, GLuint framebuffer
 	gl_driverbindframebuffer (target, framebuffer);
 }
 
+// QVR: vr_gl_passes' render pass breakers (qfov3): the calls a tiler may end its render pass at (compute between draws,
+// blits, buffer and texture updates, invalidations), noted in the frame's order with the binds while it traces.
+static void (APIENTRYP gl_driverdispatchcompute) (GLuint x, GLuint y, GLuint z);
+static void (APIENTRYP gl_driverblitframebuffer) (GLint sx0, GLint sy0, GLint sx1, GLint sy1, GLint dx0, GLint dy0, GLint dx1, GLint dy1, GLbitfield mask, GLenum filter);
+static void (APIENTRYP gl_driverbuffersubdata) (GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid *data);
+static void (APIENTRYP gl_drivertexsubimage3d) (GLenum target, GLint level, GLint x, GLint y, GLint z, GLsizei w, GLsizei h, GLsizei d, GLenum format, GLenum type, const GLvoid *pixels);
+static void (APIENTRYP gl_drivergeneratemipmap) (GLenum target);
+
+static void APIENTRY GL_ShadowDispatchCompute (GLuint x, GLuint y, GLuint z)
+{
+	if (vr_glpass_trace)
+		VR_GLPassBreak ("compute");
+	gl_driverdispatchcompute (x, y, z);
+}
+
+static void APIENTRY GL_ShadowBlitFramebuffer (GLint sx0, GLint sy0, GLint sx1, GLint sy1, GLint dx0, GLint dy0, GLint dx1, GLint dy1, GLbitfield mask, GLenum filter)
+{
+	if (vr_glpass_trace)
+		VR_GLPassBreak ("blit");
+	gl_driverblitframebuffer (sx0, sy0, sx1, sy1, dx0, dy0, dx1, dy1, mask, filter);
+}
+
+static void APIENTRY GL_ShadowBufferSubData (GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid *data)
+{
+	if (vr_glpass_trace)
+		VR_GLPassBreak ("buffer update");
+	gl_driverbuffersubdata (target, offset, size, data);
+}
+
+static void APIENTRY GL_ShadowTexSubImage3D (GLenum target, GLint level, GLint x, GLint y, GLint z, GLsizei w, GLsizei h, GLsizei d, GLenum format, GLenum type, const GLvoid *pixels)
+{
+	if (vr_glpass_trace)
+		VR_GLPassBreak ("texture update (3D)");
+	gl_drivertexsubimage3d (target, level, x, y, z, w, h, d, format, type, pixels);
+}
+
+static void APIENTRY GL_ShadowGenerateMipmap (GLenum target)
+{
+	if (vr_glpass_trace)
+		VR_GLPassBreak ("mipmaps");
+	gl_drivergeneratemipmap (target);
+}
+
+#define GL_INSTALL_SHADOW(name, driver) \
+	if (GL_##name##Func && GL_##name##Func != GL_Shadow##name) /* (loaded anew by a vid_restart's GL_CheckExtensions) */ \
+		driver = GL_##name##Func; \
+	if (driver) \
+		GL_##name##Func = GL_Shadow##name;
+
 static void GL_InstallFramebufferShadow (void)
 {
+	GL_INSTALL_SHADOW (DispatchCompute, gl_driverdispatchcompute) // QVR: vr_gl_passes' breakers (qfov3)
+	GL_INSTALL_SHADOW (BlitFramebuffer, gl_driverblitframebuffer)
+	GL_INSTALL_SHADOW (BufferSubData, gl_driverbuffersubdata)
+	GL_INSTALL_SHADOW (TexSubImage3D, gl_drivertexsubimage3d)
+	GL_INSTALL_SHADOW (GenerateMipmap, gl_drivergeneratemipmap)
 	if (GL_BindFramebufferFunc != GL_ShadowBindFramebuffer) // (loaded anew by a vid_restart's GL_CheckExtensions)
 		gl_driverbindframebuffer = GL_BindFramebufferFunc;
 	GL_BindFramebufferFunc = GL_ShadowBindFramebuffer;
@@ -594,7 +648,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 			Sys_Error ("Couldn't set fullscreen state mode");
 	}
 
-	if (getenv ("QVR_TEST_HIDDEN") || COM_PrepareRun ()) // QVR: automated test runs can stay hidden (never shown on the desktop); the installer's preparation run too (vr_prepare.cpp)
+	if (getenv ("QVR_TEST_HIDDEN") || COM_PrepareRun () || VR_HideMirror ()) // QVR: automated test runs can stay hidden (never shown on the desktop); the installer's preparation run too (vr_prepare.cpp); a standalone headset's (-hidemirror: the Steam Frame, its GL context without a desktop window; vr_main.cpp, windowUnfocused)
 	{
 	}
 	else if (getenv ("QVR_TEST_BACKGROUND")) // QVR: automated test runs open without taking the focus
@@ -1277,9 +1331,28 @@ static void GL_CheckExtensions (void)
 GL_SetStateEx
 =============
 */
+static qboolean gl_blend_off; // QVR: GL_BLEND is disabled (an opaque state under vr_gl_opaque_noblend)
+static qboolean gl_opaque_blend_keep; // QVR: GL_OpaqueBlendKeep
+
 static void GL_SetStateEx (unsigned mask, unsigned force)
 {
 	unsigned diff = (mask ^ glstate) | force;
+
+	// QVR: opaque draws with GL_BLEND off (vr_gl_opaque_noblend; qlrz). Ironwail leaves GL_BLEND on throughout, its opaque
+	// state being glBlendFunc (GL_ONE, GL_ZERO): the same pixels, but Adreno's driver takes a depth-writing draw with
+	// blending on as one that must not write its low-resolution depth (LRZ), so no draw ever did and no hidden pixel
+	// was rejected early (the Quest's ovrgpuprofiler: LRZ Pixels Killed 0 in every pass)
+	{
+		qboolean off = (mask & GLS_MASK_BLEND) == GLS_BLEND_OPAQUE && !gl_opaque_blend_keep && VR_GLOpaqueNoBlend ();
+		if (off != gl_blend_off)
+		{
+			if (off)
+				glDisable (GL_BLEND);
+			else
+				glEnable (GL_BLEND);
+			gl_blend_off = off;
+		}
+	}
 
 	if (diff & GLS_MASK_BLEND)
 	{
@@ -1403,6 +1476,36 @@ void GL_ResetState (void)
 }
 
 /*
+=============
+GL_OpaqueBlendKeep -- QVR
+
+While kept, GLS_BLEND_OPAQUE leaves GL_BLEND on: for the draws that set their own blend function or equation after
+an opaque GL_SetState (the wounds' bakes, vr/vr_wounds.cpp), which vr_gl_opaque_noblend would otherwise draw unblended.
+=============
+*/
+void GL_OpaqueBlendKeep (qboolean keep)
+{
+	gl_opaque_blend_keep = keep;
+	GL_SetStateEx (glstate, 0);
+}
+
+/*
+=============
+GL_SampleShading -- QVR
+
+GL_SAMPLE_SHADING as Ironwail has it (on; its rate is vid_fsaamode's glMinSampleShading), unless vr_gl_sample_shading
+is 0 (a probe, qlrz); off for the draws that ask (the particles, vr/vr_gfx_gl.cpp).
+=============
+*/
+void GL_SampleShading (qboolean on)
+{
+	if (on && VR_GLSampleShading ())
+		glEnable (GL_SAMPLE_SHADING);
+	else
+		glDisable (GL_SAMPLE_SHADING);
+}
+
+/*
 ===============
 GL_SetupState -- johnfitz
 
@@ -1427,9 +1530,10 @@ static void GL_SetupState (void)
 	VR_GLPolygonMode (GL_FILL); // QVR: none on ES
 	GL_DepthRange (ZRANGE_FULL); //johnfitz -- moved here becuase gl_ztrick is gone.
 	glEnable (GL_BLEND);
+	gl_blend_off = false; // QVR: (GL_SetStateEx's)
 	if (!VR_GLESCompat ()) // QVR: always on in ES 3.x (no such switch there)
 		glEnable (GL_TEXTURE_CUBE_MAP_SEAMLESS);
-	glEnable (GL_SAMPLE_SHADING);
+	GL_SampleShading (true); // QVR: (vr_gl_sample_shading)
 
 	GL_ResetState ();
 }
@@ -1449,13 +1553,14 @@ static void GL_Init (void)
 	Con_SafePrintf ("GL_VENDOR:   %s\n", gl_vendor);
 	Con_SafePrintf ("GL_RENDERER: %s\n", gl_renderer);
 	Con_SafePrintf ("GL_VERSION:  %s\n", gl_version);
-	{ // QVR: the storage-block limits per stage (OpenGL ES may offer few or none to the vertex and fragment shaders,
-	  // which the scene's programs read several from; a failed link names them too: gl_shaders.c)
-		GLint vs = 0, fs = 0, cs = 0;
-		glGetIntegerv (GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &vs);
-		glGetIntegerv (GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS, &fs);
-		glGetIntegerv (GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &cs);
-		Con_SafePrintf ("GL storage blocks per stage: vertex %d, fragment %d, compute %d\n", vs, fs, cs);
+	{ // QVR: the driver's limits a program can run out of (OpenGL ES may offer few or no storage blocks to the vertex
+	  // and fragment shaders; Intel's "Out of resource error" names none): here, in the run's system.txt and in the
+	  // crash report; a failed link names them too (gl_shaders.c)
+		char limits[640];
+		GL_DescribeLimits (limits, sizeof (limits));
+		Con_SafePrintf ("GL limits: %s\n", limits);
+		VR_SetCrashGlLimits (limits);
+		VR_LogsSystemLine (va ("GL limits: %s\n", limits));
 	}
 	VR_GLStartupVendor (gl_vendor, gl_renderer, gl_version); // QVR: breadcrumbs, AMD's workarounds (vr/vr_glsafe.cpp)
 	{

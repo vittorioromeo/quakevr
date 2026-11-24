@@ -11,6 +11,7 @@
 #include "vr_nailslide.hpp"
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -343,9 +344,9 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
         char seen[96];
         q_snprintf(seen, sizeof(seen), "%d %d %d %.2f %.2f %.2f", warning, loaded, clipSize, warning ? tint.x : -1.f,
             warning ? tint.y : -1.f, warning ? tint.z : -1.f);
-        if(ammoWarnPrinted[static_cast<size_t>(hand)] != seen)
+        if(ammoWarnPrinted[static_cast<za::SizeT>(hand)] != seen)
         {
-            ammoWarnPrinted[static_cast<size_t>(hand)] = seen;
+            ammoWarnPrinted[static_cast<za::SizeT>(hand)] = seen;
             char text[64], rgb[48];
             q_strlcpy(text, buf, sizeof(text));
             for(char& c : text)
@@ -1524,9 +1525,23 @@ void chooseGrip(const WeaponFrame& wf)
         s.grip2HSticky[hand] = weapons::hotspot(slot, chosen).sticky;
         // Flatscreen play, a pole weapon held as a spear (lancespear; twohand::poleWeapon): the other hand on its pole,
         // vr_flat_pole_off_along ahead of the holding hand on the line to its tip, whatever grip was chosen.
-        if(flatplay::active() && twohand::poleWeapon(slot) && s.muzzleValid[hand] && glm::distance(s.muzzle[hand], held.pos) > 1.f)
+        const bool flatPole = flatplay::active() && twohand::poleWeapon(slot) && s.muzzleValid[hand] && glm::distance(s.muzzle[hand], held.pos) > 1.f;
+        if(flatPole)
         {
-            s.grip2H[hand] = held.pos + glm::normalize(s.muzzle[hand] - held.pos) * za::clamp(vr_flat_pole_off_along.value, -40.f, 60.f);
+            // (From the holding fist: its place on the pole, the weapon drawn moved along it by vr_flat_pole_along.)
+            const glm::vec3 way = glm::normalize(s.muzzle[hand] - held.pos);
+            const glm::vec3 fist = held.pos + way * glm::dot(s.pos[hand] - held.pos, way);
+            // (In a spear thrust the other hand stays put, a guide the pole slides through: flatplay::thrustAlong. Carried with
+            // the thrusting hand, its fist struck the target first and the head's stab was lost.)
+            s.grip2H[hand] = fist + way * (za::clamp(vr_flat_pole_off_along.value, -40.f, 60.f) - flatplay::thrustAlong(hand));
+            // (Moved off the pole by vr_flat_pole_off_up / _off_out: up, and out to that hand's own side, level across it.)
+            if(const glm::vec3 across = glm::cross(way, glm::vec3{0.f, 0.f, 1.f}); glm::length(across) > 1e-3f)
+            {
+                const glm::vec3 right = glm::normalize(across); // (the pole's right, looking along it)
+                const glm::vec3 poleUp = glm::cross(right, way);
+                const float out = za::clamp(vr_flat_pole_off_out.value, -10.f, 10.f) * (hand == HAND_MAIN ? -1.f : 1.f);
+                s.grip2H[hand] += poleUp * za::clamp(vr_flat_pole_off_up.value, -10.f, 10.f) + right * out;
+            }
         }
         if(chosen == magSpot()[hand])
         {
@@ -1551,6 +1566,14 @@ void chooseGrip(const WeaponFrame& wf)
         s.grip2HCup[hand] = (cupHotspot && !weapons::hotspot(slot, chosen).cupAim) || along < 5.f ||
                             along < za::cos(glm::radians(35.f)) * glm::length(toGrip);
         s.grip2HPalm[hand] = cupHotspot;
+        // (The spear's pole: a grip the pose carries the free hand to, whatever the hotspot. Measured along the holding hand's
+        // forward, the Lance's pole lies some 90 degrees off it, Shot Pitch 92.5, so its place read as a cup and the free hand
+        // was never carried there: his note 2026-11-23, the grip looked wrong.)
+        if(flatPole)
+        {
+            s.grip2HCup[hand] = false;
+            s.grip2HPalm[hand] = false;
+        }
     }
 }
 
@@ -1639,6 +1662,14 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         if(glm::vec3 axis{0.f}; twohand::poleShift(hand, along, axis))
         {
             held.pos -= hands::redirect(axis, held.rot) * along;
+            drawnAs()[hand] = held;
+        }
+        // Flatscreen play's spear pose: the hand vr_flat_pole_along up the pole (his notes 2026-11-23: where the hands lie
+        // along the shaft), the same move as a headset hand's slide.
+        else if(flatplay::active() && twohand::poleWeapon(slot))
+        {
+            along = za::clamp(vr_flat_pole_along.value, -30.f, 30.f);
+            held.pos -= hands::forward(weapons::shotAngles(held.rot, slot, hand == HAND_OFF)) * along;
             drawnAs()[hand] = held;
         }
     }

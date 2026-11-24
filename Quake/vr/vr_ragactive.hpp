@@ -421,6 +421,7 @@ struct Stagger
     float recoverAt{-1.f};  // s: recovered then, however it stands (a parry's stagger: its time); -1 by its own steadiness
     bool sure{false};       // never goes over by itself (a parry's on level ground): only no room to stand takes it down
     bool ledge{false};      // a backpedal over a ledge (ragdollBackpedal): gone over, it is carried on past the lip
+    float stopShare{-1.f};  // a wall stopped its carry: its pin's anchor goes no further than this share of travel (-1 none)
     // A tug-of-war over its weapon (box3d ragdollTug; QC vr_armedgrunt_play.qc): standing its ground, the arm `tugArm`
     // (Limb; -1 none) pulling its hand (a player's hand holds its weapon) in before its chest at `tugStrength` (a reach's
     // strength, 0..3), the other hand reaching for it too.
@@ -689,6 +690,9 @@ struct Context
     // The world (and the movers) along `from` -> `to` (world, metres): the share of the way to the first hit (1 none),
     // where it hit and its normal.
     float (*rayHit)(const glm::vec3& from, const glm::vec3& to, glm::vec3& at, glm::vec3& normal){nullptr};
+    // The level (the world, its doors and walls) pushing back on `body` against level `dir` in the last step of `dt` s
+    // (N; its faces turned more than 60 degrees against it); null: not looked at (a stagger carried into a wall).
+    float (*levelPush)(b3BodyId body, const glm::vec3& dir, float dt){nullptr};
     int num{0};       // its entity (the traces)
     double born{0.0}; // when its ragdoll was made (the traces' time)
     bool trace{false}; // a `ragtrace` line (driven or not: vr_ragdoll_active_trace)

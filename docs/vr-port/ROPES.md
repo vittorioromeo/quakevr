@@ -34,6 +34,14 @@ sized from its thickness). Both through a Catmull-Rom curve over the points (fou
 - **Shots:** the shot push (`physicsshot`, weapons.qc VR_ShotPush) kicks the first piece each rope's shot line crosses
   (within its thickness / 2 + 2 units): the shot's velocity times its mass over the piece's points' mass, 400 units/s at
   most.
+- **Chains stop shots (ropes8c):** a gun's shot (MOVE_HITMODEL), a melee blow's line (MOVE_HITMODEL_MELEE) and a missile
+  (MOVE_MISSILE: nails, rockets) meet a chain's links (world.c SV_Move after the entities: `VR_ChainShotClip`,
+  `climbrope::chainClip`, each link a cylinder of thickness / 2 + 1 unit, a missile's box as a sphere): the trace ends
+  there with the chain entity as its `trace_ent`. The chain takes damage (QC `VR_Rope_Setup`: DAMAGE_YES, never dealt any:
+  `T_DamageImpl`, `VR_Rope_Is`) and is metal (`VR_MaterialOf`, `VR_Rope_IsChain`): bullets and blows spark and tink off
+  it, nails spark (spike_touch's `spawn_touchblood` for a rope or a pole: poles' nails now splinter or spark too). It
+  still swings (the shot push kicks it). Ropes, bodies, sight lines, the grappling hook and thrown things pass chains;
+  so does anything of a player climbing a rope within 24 units of the chain (his own chain in his hands).
 
 ## Placing one
 
@@ -82,7 +90,9 @@ grip, pulled down), down (a lower grip, pushed up); stamina drains as on any hol
   view's yaw), `vr_rope_pump` (300) units/s/s at full move, only while it swings that way (not back: held, each swing
   out builds on the last, as a swing pumped), up to `vr_rope_swing_cap` (350) units/s at the hands: rope to rope.
 - **Letting go** of everything keeps the rope's speed at the hands, plus the hands' fling (`vr_climb_fling`); up to 1000
-  units/s. **A jump** (the jump button) while holding one lets go and adds `vr_rope_jump` (200) up.
+  units/s. **A jump** (the jump button) while holding one lets go and adds `vr_rope_jump` (200) up. (ropes10) Off a
+  **pole** a jump is a normal jump: `vr_pole_jump` (270) up and `vr_pole_jump_push` (200) level away from it (square out
+  from its axis to the body; under a level pole the view's way across it), VR and flat alike (`poleJumpPush`).
 - **The legs:** the feet go round the rope under the hands (the left instep 0.75 of the leg under its hip, the right a
   little lower: the rope pinched between them), easing on as the hands take it and off as they let go
   (`vr_avatar_climb.cpp` ropeFoot); no footholds are looked for on a rope. (ropes6) A rope too short for it (its lowest
@@ -118,6 +128,56 @@ texture (debris::materialOf: wood, metal). A map flag (`_qvr_poles 1`) or a key 
 brushes would need a pass over the BSP's brushes at map load (their hull 0 planes) and an entity-less record (a negative
 id, never sent as gone). Nothing else changes: the holds, the legs and the flat climb already work on any pinned line.
 
+**ropes8a (his flat notes 2026-11-23):** a pole is strung as a rope is (`target` / `rope_end`; the toolgun's Span with
+Pole: taut, level or slanted): past `vr_rope_monkey_angle` a monkey traverse, else climbed (vrropes: a level metal pole
+88 high, south, and a slanted wooden one 27 degrees off upright, south-east). **Solid:** boxes along it (QC
+`vr_pole_solid`, `placeSolids`: one upright or level, up to 32 slanted, within its thickness of it): players and
+monsters stop at it, the climber on it passes (their owner, `passSolids`: holding a rope within 24 units, or inside a
+box until out: ropes11, any overlap, `solidInside` 0; it was 0.5, and a body in a box by less was neither let through
+nor free and crept down it a gravity's step a frame, the slow slide off a pole he saw; a steep pole's boxes' staircase
+ledges, the tops and bottoms but its ends', are passed by players, `solidLedge`, so a body landing on a slanted pole
+falls on beside it instead of standing on a ledge; the side faces still stop him; the clients' prediction the same), shots, nails and blows hit it (takedamage, never dealt any: `T_DamageImpl`) and `VR_MaterialOf` makes
+it metal (sparks) or wood (splinters); the navmesh cuts each box out (vr_nav.cpp, 8 units across at least). (ropes9)
+**The physics props** (crates, barrels, thrown things) and corpses meet it as the world: a Box3D capsule along it, its
+thickness across (vr_box3d_props.cpp `syncPoles`, from `climbrope::poleLines`; the world's category and mask), static
+(fast props' continuous collision), kinematic while its entity moves it (a mover, the physgun) until still a second;
+Box3D's player and monster bodies are kinematic and never meet it (they keep the Quake boxes). Chains: not (they swing).
+**Drawn**
+with a per-pixel surface (the tube shader's `Pattern`): wood grain along it, or brushed steel with a joint every 48.
+**The hands round it** (VR and flat, `vr_view_hands.cpp` ropeGrip / ropeHeld; ropes too): the hand's grip channel laid
+on the rope's axis, out along the palm's normal by the radius less the channel's, then by what of the palm and thumb is
+still in it; the fingers wrap a cylinder of its thickness (the grasp's solve, a kept shape per quarter unit).
+(ropes12) **The thumb wraps it the other way** (`Held::thumbAround`, the grasp's `Settings::thumbAround`, ThumbStyle
+Around in vr_grasp.cpp): besides the usual turns, the thumb's metacarpal is tried opposed 45-65 degrees (its bend then
+round an axis along the bar) and lifted off the palm 10-90 degrees (a third turn, `ThumbTurn::lift`, about the axis
+across the palm: over the bar's near side; a 1.5 rope takes about 20-30, a 3 pole 60-75); of those whose thumb closes
+from open, the one reaching furthest round the bar from the palm's middle, the other way from the middle finger, wins
+(`aroundWraps`); a kept turn no longer closing from open is tried afresh. A usual turn's thumb (closed from the fist:
+over the fingers) only if none does. On a rope its controller curl is full (VR too: `updateFingerFrames`). Measured
+(`vr_rope_climb_check thumb`): the rope's thumb 89 degrees round (the middle finger 145 the other way), the pole's 72;
+before, the thumb lay over the fingers (-50 to -80). Another player's hands take his drawn curls and thumb turn.
+(ropes13, his flat note 2026-11-23: round a pole it looked unnatural, too thick) Only a rope, chain or pole at most
+`vr_rope_thumb_wrap` thick (2.5 units: a rope 1.5, a chain 2) is wrapped; round a thicker one (a pole, 3) the thumb
+rests along its side (`Held::thumbAlong`, ThumbStyle Along: the usual and wide turns, the one whose thumb, closed to
+its stop, points most along the bar, one resting on it preferred: `alongValues`). Measured: the pole's thumb 0.91 along
+it (the check: at least 0.6, the tip on its surface).
+(ropes14, his VR note 2026-11-23: along a pole it "stays vertical") Round a thicker one the thumb is the **normal grip**
+again by default (`vr_rope_thumb_thick` 0: the grasp's own wrap; 1 Along, 2 Around), and tunables tweak it by thickness
+(`ropeThumbShare`: none under `vr_rope_thumb_from` 2, fully from `vr_rope_thumb_to` 3): `vr_rope_thumb_curl` (frames
+added), `_opposition` / `_swing` / `_lift` (degrees at its base, the grasp's own axes: `grasp::thumbTurn`), `_shift_x/y/z`
+(its base moved, rig units, before the solve). VR, flat and other players' copies (their drawn pose).
+(ropes14) **The grip under a level one, VR** (`vr_rope_grip_keep` 1): overhand or underhand as the controller was turned
+as the hand gripped (`monkeyGrip`: of the two, the one whose palm faces the controller's palm's way; the view's if it can't
+tell), kept until that hand lets go; it followed the view's (aim's) way each frame, so the hand jumped round the pole as
+he looked back at it. Flat play keeps the view's way. **Over it** (`monkeySupport`): the eyes `vr_rope_support_rise`
+(0.3 m) over it, the hands turn round its axis by `vr_rope_support_turn` (180) over `vr_rope_support_time` (0.15 s),
+by the side the body hung on: the palms on top, the knuckles down; back under it 5 cm lower. VR and flat (your drawn
+hands); another player's copy takes the turn (his snapshot) but its palm's place is ropePalm's, under it.
+(ropes14) **The legs** round a rope ease to their place from the hip (`vr_rope_leg_smooth` 0.25 s). **The pole's pull
+grunt** is off (`vr_pole_grunt` 0; ropes keep `vr_rope_grunt`). **Let go** (a drop or a jump, VR and flat), the rope or
+pole doesn't meet him for `vr_rope_letgo_pass` (0.4 s: `climb::ropeLetGoPass`; its boxes pass him, his body doesn't push
+a rope; a remote client's prediction passes the poles by him as long after its hands were last on one).
+
 ## Strung ropes and the monkey traverse (ropes7)
 
 A rope between two points: `vr_rope` with `target` or `rope_end` ("x y z"), `rope_slack` its length over the line
@@ -131,11 +191,16 @@ hands' middle along it (`sMid`, eased to the hands' middle at 60 units/s), the r
 bob to its bottom (`layMonkey`); the bob falls, sways round the line between the ends (gravity, the stick's pump, the
 swing's drag) and is held within the rope's reach of both ends (it pulls, never pushes), so a slack rope sags under him
 and swings sideways. Its length is as it lay when taken (the Verlet steps stretch it a little), so a grab doesn't
-jump. VR: the ledge rules (a hand pulled along it moves the body along: hand over hand), letting go drops, jump jumps
+jump. (ropes8b) The hands under it overhand (`climb::ropePalm`: out from it downwards, square to it; `monkeyRopeUp`:
+the knuckles up over it, the palm forward and in, the back of the hand towards him), yours (VR, flat) and another
+player's copy (his hands' places from `ropePalm`, their turn from his snapshot). VR: the ledge rules (a hand pulled along it moves the body along: hand over hand), letting go drops, jump jumps
 off (`vr_rope_jump`), the legs hang (`ropeFoot` and `ropeHips` skip a monkey rope: `clientRopeMonkey`, flag
 `flagMonkey`; another player's copy alike, the same code). Flat play: met overhead in the air (a jump up to it), both
 hands a step apart, the main hand the view's way; the move keys' part along it goes along at `vr_flat_ladder_speed`,
-hand over hand (`flatMonkeyFrame`); the move-down key drops, jump jumps off; no pump.
+hand over hand (`flatMonkeyFrame`); the move-down key drops, jump jumps off; no pump. (ropes10) Faced across it (the view
+within about 37 degrees of square to it, `flatMonkeyAcross`) the hands keep their sides, the right hand on his right: they
+shuffle (the hand on the way's side a step on, then the other up to a step behind it), and hands found crossed (taken
+facing along it, then turned) change holds.
 
 ## Climbing (flat-screen)
 
@@ -147,16 +212,31 @@ flatRope, flatRopeFrame), the flat ladder's way (`flatLadder`) on a rope:
   shoulders, at least `vr_climb_min_height` over the feet, at most an arm over the shoulders. Both hands take it: the
   main hand half an arm over the shoulders, the off hand 12 units under it. The hang is the headset's rope hang (his
   weight rides it, `climbrope::ride`; the swing he brings to it swings it: walking in at full speed swings it well).
-- **The keys:** looking up past `vr_flat_rope_look` (25 degrees), forward climbs up at `vr_flat_ladder_speed` (100;
+- **(ropes9, his correction 2026-11-23) The keys:** looking up or down past `vr_flat_rope_climb_pitch` (30 degrees),
+  forward climbs up and back down; nearer level forward and back pump the swing along the view (eased over 5 degrees
+  either side of it: `flatRopeKeys`); the strafe keys always pump it (sideways to the view). A pole (rigid) is only
+  climbed, at any pitch. `vr_flat_rope_keys 2` is ropes8a's (forward always climbs, whatever the pitch);
+  `vr_flat_rope_keys 1` brings back the old keys:
+- **The old keys:** looking up past `vr_flat_rope_look` (25 degrees), forward climbs up at `vr_flat_ladder_speed` (100;
   looking down, down; back the other way; the move up / down keys too); the hands go hand over hand along it (the lower
   one, once under the shoulders, 12 units over the other; going down the higher, once half an arm over them, 12 under).
   Looking nearer level the move keys pump its swing (the pump's rules above, the view's yaw). Jump lets go keeping the
   swing and `vr_rope_jump` up; down at the floor he lets go standing; at the rope's end over a drop he lets go (falling,
-  the swing kept). The rope the body leaves isn't taken again for a second (so a swing off one catches the next).
+  the swing kept). The rope the body leaves isn't taken again for a second (so a swing off one catches the next), nor
+  (ropes10) in the air until he has stood on the ground (`flatRopeLeftAir`: a fall off a tall pole took it again a second
+  in, held there or climbed down at the keys' speed: the slow slide he saw).
 - **The body:** under the hands, the rope 10 units ahead of its middle the view's way (turning goes round the rope, at
   most 120 units/s), carried by the holds' motion; the shoulders no higher than the top hand, no lower than an arm under
   the lowest. A body that can't follow the swing (a wall) stops it (`climbrope::riderBlocked`). Hands holding a weapon
   keep it, as on the flat ladder (the other hand is drawn on the rope).
+- **(ropes13, his notes 2026-11-23) Off it and down it:** the rope let go of (a jump, a drop) isn't taken again for
+  `vr_flat_rope_retake` (0.3 s), nor before he has been out of its reach or on the ground once since (`flatRopeClear`):
+  a jump off a rope goes straight up (only a pole pushes him off), so the time alone let him take it again at the
+  jump's top. Off a pole (pushed out of reach) he takes it again once steered back to it (ropes11). Holding crouch on an
+  upright or slanted one slides him down it at `vr_flat_rope_slide_speed` (350 units/s), the hands sliding with him (no
+  hand over hand), its material's scrape playing (physsound `ropeSlideGrain`: the props' scrape grains, soft for a rope,
+  wood or metal for a pole or chain, on the player's channel 5, cut off as the slide ends); at the floor he stands, at
+  its end over a drop he lets go. On a level one (a monkey traverse) a press of crouch drops him, as the move-down key.
 
 ## Multiplayer
 
@@ -226,7 +306,8 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
 - `vr_rope_push <x> <y> <z>`: every rope's free points given that speed (units/s).
 - `vr_rope_climb_test <play>` / `vr_rope_climb_check <what> [<n>]`: the climbing test (below). Debug > Tests > Climbable
   Ropes > Hang a Rope Ahead / Hang a Chain Ahead (`vr_rope_spawn`): one to climb anywhere.
-- `vr_rope_climb` 1, `vr_rope_swing_drag` 0.15, `vr_rope_jump` 200 (rules).
+- `vr_rope_climb` 1, `vr_rope_swing_drag` 0.15, `vr_rope_jump` 200, (ropes10) `vr_pole_jump` 270, `vr_pole_jump_push`
+  200 (rules); tunables `vr_rope_hand_pitch` 10, `vr_rope_elbow_out` 1 (Tunables > Movement > Other).
 - `vr_rope_iterations` 16 (rule), `vr_rope_hands` 1 (rule), `vr_rope_debug` 0 (prints each rope made),
   `vr_rope_spawn_length` 256, `_thickness` 1.5, `_segments` 0, `_mass` 0, `_stiffness` 1, `_damping` 0.5, `_pinned` 0.
 
@@ -257,6 +338,32 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
   passed each. `rope_flat_test.sh <agent> pole`: walked into, up 80.6, down, never moved: 4 passed.
   `rope_flat_test.sh <agent> strung` (a rope strung 110 up along his way, 1% slack): jumped up to (a monkey traverse,
   sagging under him), forward along it 80 units, back 40, dropped with the move-down key.
+- (ropes11) `pole_fall_test.sh <agent> [upright|slant] [vr]` (`vr_pole_fall_test <upright|slant> [log [case]]`, vrropes):
+  21 cases flat (11 with the mock headset: no jumps): jumped off from four sides with no key, forward, back or strafe
+  held, or set in the air beside it (touching, 0.3 or 1 unit into its boxes) with a key held; each airborne frame the
+  speed down grows by gravity's step and he goes down by as much, landing on the floor (or taken again, a key held
+  towards it); the regrab case is set back within reach in the air past `vr_flat_rope_retake`: taken again. A held frame
+  prints his speed, ground entity and the nearest pole box's gap. Before: upright 3 failed (in a box by 0.3-0.45: 0.15
+  units down a frame), slanted 6 (stood on its ledges), the regrab case both.
+- (ropes9) `vr_pole_solid_test` then the physics props (2 more, 14 in all): a crate dropped 30 units over the level
+  pole's middle rests on it (its bottom at the pole's top), one thrown level at 400 units/s at an upright pole bounces
+  back off it (its middle 14 short of the axis, back at 55 units/s).
+- (ropes8c) `vr_pole_solid_test` also checks the chains (5 more, 12 in all): a shot's, a blow's and a nail's line across
+  each of vrropes' three chains meet it within a unit of its links, metal, taking damage; a player's box, a sight line
+  and a plain trace pass; a nail (QC launch_spike) fired at one stops at it with a metal hit.
+- (ropes8a) `vr_pole_solid_test` (vrropes; Debug > Tests > Climbable Ropes > Test the Poles' Solidity): 4 poles, 35
+  boxes (the slanted one 32), on their poles, a player's box and a shot's line stopped by each, wood 4 / metal 3, walking
+  under the level pole free, the navmesh's obstacles rebuilt: 7 passed. `rope_climb_test.sh` `pole_monkey` (a level pole
+  across him): 6 passed; `vr_rope_climb_check sink <n>` (rope_climb, pole_wood, pole_metal at 0.3): the drawn hands'
+  deepest vertex 0.00 units in (was 1.42 on a pole), on it. `rope_flat_test.sh <agent> strungpole`: 4 passed; the flat
+  rope test climbs with forward looking level, down with back looking up, and pumps with the strafe key facing across
+  the row (let go passing the next rope); `pole` also checks the hands hanging still (fingertips 0.44 in, bound 0.5).
+- (ropes10) `rope_flat_test.sh <agent> polejump`: up a pole 300 units, jump: 259 up, 200 level away from it, a free fall
+  (0 frames held back, 1.25 s), not taken again (with the old jump it was taken again 1.00 s in); `slantjump` the same off
+  a pole slanted 27 degrees (its upper side); `strungside`: the level pole faced across, strafed right 80 and left 40: 0
+  frames with the hands crossed (48 frames, 12 units, the old way); `pole` also checks the arms: the knuckles up 10.0
+  degrees, the elbows bowed out of the arms' lines. `rope_climb_test.sh pole_jump` (VR, the grips held through the jump):
+  259 up, 200 away, 55 airborne frames, 0 held back, not taken again.
 - `mp_test.py ropes` (`Misc/quakevr/mp`; dedicated server, A, and B through the proxy): the server hangs a rope and a
   chain (`vr_rope_spawn`); B has both with the server's points and style (bottom within a unit); pushed
   (`vr_rope_push`), B sees both swing (over 20 units); B's copies within a unit of the server's after. 9 passed.
@@ -286,6 +393,12 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
   quiet; a grip on each (the rope's soft_m thud, the chain's grab_metal; ropes6: a headset's and flat play's alike),
   again (a second at once on the chain held back); both pushed swinging (the chain's metal_l clinks: 5 in 2 s; the rope
   quiet). 6 passed.
+- (ropes8b) `rope_flat_test.sh` hanging still also checks the hip holsters stay on the hips (35.4 cm from the hip
+  joints, standing 35.5; were 42.4, the guns turned out with the thighs); `strung` / `strungpole` the hands overhand
+  under it (knuckles up 0.97, palms 0.8 under the axis, the body's arms reaching them: 0.0 cm past); `chain` a chain
+  climbed (1 clink) and held still 2 s (0; were 4). `vr_rope_climb_check monkeygrip <n>` the same hands check in VR
+  (`monkey_drop`, `pole_monkey`: 7 passed). `vr_rope_flat_test <mode> shots`: outside screenshots while hanging.
+  `vr_rope_sound_test`'s chain is shoved after the grips' gap and clinks as knocked (1 to 9), no longer on and on.
 - Checklist scene `ropes` (vrropes, the toolgun given).
 
 ## Known limits (P1)
@@ -300,13 +413,23 @@ His copy's pelvis now hangs within half a unit of where his own game has his (`m
   from its top as the server's hold, out by 2.5 cm or 0.4 of a thick chain's thickness), yours and another player's;
   gripping it (`vr_rope_hand_grip` 2, the default since ropes6: the rope through the fist, the knuckles outwards, the
   right hand's to the right, the left's to the left, in VR and flat-screen play; 1 flat-screen play only; 0 as on a
-  ledge, whose `vr_climb_hand_pitch` 60 points them up).
+  ledge, whose `vr_climb_hand_pitch` 60 points them up). (ropes10) The fist pitched up `vr_rope_hand_pitch` (10
+  degrees, tunable) off square to the rope, towards the world's up (`ropeTurn`; a monkey traverse's knuckles, already
+  up, stay): yours and, through his snapshot, another player's. The arms on a rope or pole (`ropeHang`) have their
+  elbows out at the sides, a little down and back (`vr_rope_elbow_out` 1, tunable: that share of the elbow's pole, the
+  wrist's swing in eased off as much; vr_avatar.cpp solveArm), yours and another player's copy: on a pole, flat,
+  bowed in 10 cm off the arm's line before, 0.1 out now.
   The drawn rope is made again whenever the client's time moves (it was once a host frame, sometimes before the time
   moved: a client faster than the server drew it a tick at a time, the hands' jitter).
 - Pumped hard on the heavy chain, a hand change can still jump a hand for a frame (the test reports its maxima).
 - Sounds (ropes5b, `vr_physsound.cpp` ropeGrab, chainMoves): a hand taking a chain makes the metal hold's grip
   (`vr_physsound_chain` 0.4 loud), and a chain swung, climbed or pushed (its fastest point from `vr_physsound_chain_speed`
   60 u/s) clinks with the light metal knocks, quieter and every 0.6 s near it, louder and every 0.25 s at four times it.
+  (ropes8b, his note: it clinked on and on held still) Now only as its links knock (`Rope::jostle`, step): a point's
+  move against its neighbours' mean (a swing moves them alike), a hold taken along it (climbing: 90 u/s at most), a
+  kick (shot, explosion); ridden, the free end under his hands is left out (it trails his swing). From
+  `vr_physsound_chain_knock` (30 u/s), louder and more often to four times it; `vr_physsound_chain_speed` still gates.
+  A swing pumped on a chain is quiet (only climbing and knocks clink). `vr_rope_debug 2` prints `chainjostle` lines.
   A rope's grip (ropes6): the soft material's thud (`vr_physsound_grab`), a headset's or flat play's (it was the stone
   slap, silent to a headset). All are Quake VR's
   own recordings (make_physics_sounds.py). A grip's sound plays once in 0.15 s per rope (both hands at once: one).

@@ -18,6 +18,7 @@
 #include "vr_cvars.hpp"
 #include "vr_tunables.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -1319,7 +1320,7 @@ void callBodyHits(float dt)
     int count = 0;
     const int mark = Temp_Mark(); // (the temporary stack: zone.h; one query's finds, each edict once)
     const int space = qcvm->num_edicts;
-    edict_t** list = static_cast<edict_t**>(Temp_Alloc(static_cast<size_t>(space) * sizeof(edict_t*)));
+    edict_t** list = static_cast<edict_t**>(Temp_Alloc(static_cast<za::SizeT>(space) * sizeof(edict_t*)));
     for(RagdollBodies& r : world->ragdolls)
     {
         if(r.num <= 0 || !r.rig || r.num >= qcvm->num_edicts || count >= bodyHitsMost)
@@ -1494,7 +1495,7 @@ extern "C" int VR_PushSkips(edict_t* ent)
 
 extern "C" void VR_PhysicsFrameEnd(void)
 {
-    registerCommands();
+    printVersion();
     if(host_frametime > 0.0)
     {
         nav::countFrame(); // (the navmesh's pool jobs land on a fixed server frame: counted here, rigid bodies or not)
@@ -1684,7 +1685,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     {
         QVR_TRACY_SCOPE(tracyScope, "box3d after callbacks");
         // Then what they touched, in the step's order, each pair once.
-        for(size_t i = 0; i < impacts.size(); i++)
+        for(za::SizeT i = 0; i < impacts.size(); i++)
         {
             const auto [a, b] = impacts[i];
             if(za::find(impacts.begin(), impacts.begin() + static_cast<za::PtrDiffT>(i), impacts[i]) != impacts.begin() + static_cast<za::PtrDiffT>(i))

@@ -22,6 +22,7 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -775,7 +776,7 @@ void send()
         int n = q_snprintf(text, sizeof(text), "vr_heldpose %d %d", commandVersion, hand);
         for(int i = 0; i < valueCount && n > 0 && n < static_cast<int>(sizeof(text)); i++)
         {
-            n += q_snprintf(text + n, sizeof(text) - static_cast<size_t>(n), za::abs(v[i]) < 5e-4f ? " 0" : " %.3f", v[i]);
+            n += q_snprintf(text + n, sizeof(text) - static_cast<za::SizeT>(n), za::abs(v[i]) < 5e-4f ? " 0" : " %.3f", v[i]);
         }
         if(n <= 0 || n >= static_cast<int>(sizeof(text)) || !qvr::client::roomForCommand(n))
         {

@@ -7,6 +7,7 @@
 #include "vr_engine.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -74,7 +75,7 @@ bool readWhole(const char* path, const char* mode, Vector& out)
     bool ok = true;
     for(;;)
     {
-        const size_t n = fread(chunk, 1, sizeof(chunk), f);
+        const za::SizeT n = fread(chunk, 1, sizeof(chunk), f);
         if(n > 0)
         {
             const za::SizeT at = out.size();

@@ -1,6 +1,6 @@
 # qvr_checks: the build's source checks
 
-One C++20 tool (no dependencies) for the checks the kit's `build.sh`, the Visual Studio build, `QC/build.sh`,
+One C++23 tool (Zancle, as the engine: `docs/vr-port/ZANCLE.md`; its few sources compiled in) for the checks the kit's `build.sh`, the Visual Studio build, `QC/build.sh`,
 `QC/build.bat` and the release script run. It replaced the Python scripts (`check_statics.py`,
 `check_test_numbers.py`, `check_builtins.py`, `gen_vr_cvars_qc.py`, `check_canonical.py`, `check_release_qc.py`,
 `check_qc_precedence.py`, `check_progs_format.py`) with the same rules, verdicts and messages; each file's header

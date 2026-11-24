@@ -22,6 +22,7 @@
 #include "vr_hands.hpp"
 #include "vr_gunsfx.hpp"
 #include "vr_input.hpp"
+#include "vr_client.hpp"
 #include "vr_doom.hpp"
 #include "vr_main.hpp"
 #include "vr_menuui.hpp"
@@ -37,6 +38,7 @@
 #include "vr_teleport.hpp"
 #include "vr_voicenotes.hpp"
 #include "vr_voicechat.hpp"
+#include "vr_weaponwheel.hpp"
 #include "vr_takes.hpp"
 #include "vr_seated.hpp"
 #include "vr_timescale.hpp"
@@ -54,6 +56,7 @@
 #include "vr_mem.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -118,6 +121,48 @@ constexpr ButtonKeys buttonKeys[] = {
     {&HandInput::secondary, {K_YBUTTON, K_BBUTTON}},
     {&HandInput::stickClick, {K_LTHUMB, K_RTHUMB}},
 };
+constexpr int buttonKindCount = static_cast<int>(sizeof(buttonKeys) / sizeof(buttonKeys[0]));
+
+// Swap Face Buttons (vr_button_swap; left-handed play, the brief of 2026-11-24): the face buttons and stick clicks send
+// the other controller's keys (X sends ABUTTON, A sends XBUTTON, Y BBUTTON, LTHUMB's click RTHUMB...), so whatever is
+// bound to A acts from X without a bind rewritten, menus and the key capture included (a key bound while swapped works
+// swapped). A hand's own command run by a swapped key acts on the hand pressed (his words 2026-11-24 "Yes, follow the
+// hand": A sends XBUTTON's +reloadoff, the right gun reloads; `keyMirrored`, vr_client.cpp commandHand: the grab,
+// reload and flick-reload commands). Only the keys: what reads a hand's own button (the weapon wheel opening round the hand that held its
+// button, the grappling hook's and the reload's bits for the gun in that hand, the flashlight, a voice note at the
+// mouth, the toolgun, the posing modes) keeps the physical hand, and the settings that name a button or a side
+// themselves (vr_menu_button's Y and B, vr_bullettime_trigger's and vr_seated_crouch_button's left and right stick) are
+// the physical ones, as their own rows say. The swap is latched at each press (`buttonSwapLatch`), so a button held
+// while the setting changes lets go of the key it pressed (no key stuck down).
+bool buttonSwapLatch[HAND_COUNT][buttonKindCount]{}; // seat-shared: the headset's controllers (one headset, one VR player)
+bool keyMirrored[MAX_KEYS]{}; // seat-shared: the headset's controllers; the key's last press came from the other controller's button (input::mirroredKey)
+
+[[nodiscard]] bool swappable(const ButtonKeys& b)
+{
+    return b.button == &HandInput::primary || b.button == &HandInput::secondary || b.button == &HandInput::stickClick;
+}
+
+// `b` with its keys as hand `h`'s button sends them now: swapped when it was pressed with vr_button_swap on (`down`: a
+// press, latched now).
+[[nodiscard]] ButtonKeys swappedKeys(const ButtonKeys& b, int h, bool down)
+{
+    const int kind = static_cast<int>(&b - buttonKeys);
+    if(down)
+    {
+        buttonSwapLatch[h][kind] = vr_button_swap.value != 0.f && swappable(b);
+    }
+    ButtonKeys out = b;
+    if(buttonSwapLatch[h][kind])
+    {
+        out.key[0] = b.key[1];
+        out.key[1] = b.key[0];
+    }
+    if(down && swappable(b))
+    {
+        keyMirrored[out.key[h]] = buttonSwapLatch[h][kind]; // (kept till its next press: its release's command reads it)
+    }
+    return out;
+}
 
 // vr_debug_buttons: a controller button pressed or let go (the hand, the button, its key and what the key is bound to),
 // and what took it before the game got its key (`takenBy`; nullptr: the game got it). The face buttons also drive the
@@ -1955,6 +2000,165 @@ void noclipFlyTick(float* forwardmove, float* sidemove, float* upmove)
     t.frames = 0;
 }
 
+// vr_button_swap_test (Swap Face Buttons, vr_button_swap; run with a map loaded): presses the controllers' buttons as
+// the headset would (into the frame's input, before anything reads it) and checks the keys the game gets: ABUTTON's
+// +jump from A unswapped and from X swapped, never from the other; the triggers never swapped; a button held while the
+// setting flips lets go of the key it pressed (none stuck); the key names follow (Key_KeynumToFriendlyString). Ends on
+// "button swap test: N passed, M failed". The setting and ABUTTON's binding are put back.
+// (+jump: the current seat's, CL_SeatInput()->jump: cl_input.c)
+
+struct ButtonSwapCase
+{
+    float swap;
+    int hand;
+    bool HandInput::*button;
+    int key;    // the key the game must hold (the only one of the face buttons' and stick clicks')
+    bool jumps; // in_jump held (ABUTTON +jump)
+    int reload; // the hand whose reload is held (XBUTTON +reloadoff, RTHUMB +reloadmain: the hand pressed), -1 none
+    bool flip;  // the setting flipped while held
+    const char* what;
+};
+
+constexpr ButtonSwapCase buttonSwapCases[] = {
+    {0.f, HAND_MAIN, &HandInput::primary, K_ABUTTON, true, -1, false, "off: A sends ABUTTON (jumps)"},
+    {0.f, HAND_OFF, &HandInput::primary, K_XBUTTON, false, HAND_OFF, false, "off: X sends XBUTTON (the left reload)"},
+    {0.f, HAND_MAIN, &HandInput::stickClick, K_RTHUMB, false, HAND_MAIN, false, "off: the right stick's click (the right reload)"},
+    {1.f, HAND_OFF, &HandInput::primary, K_ABUTTON, true, -1, false, "on: X sends ABUTTON (jumps)"},
+    {1.f, HAND_MAIN, &HandInput::primary, K_XBUTTON, false, HAND_MAIN, false, "on: A sends XBUTTON (+reloadoff: the right reload)"},
+    {1.f, HAND_OFF, &HandInput::secondary, K_BBUTTON, false, -1, false, "on: Y sends BBUTTON"},
+    {1.f, HAND_MAIN, &HandInput::secondary, K_YBUTTON, false, -1, false, "on: B sends YBUTTON"},
+    {1.f, HAND_MAIN, &HandInput::stickClick, K_LTHUMB, false, -1, false, "on: the right stick's click sends LTHUMB"},
+    {1.f, HAND_OFF, &HandInput::stickClick, K_RTHUMB, false, HAND_OFF, false, "on: the left stick's click sends RTHUMB (+reloadmain: the left reload)"},
+    {1.f, HAND_MAIN, &HandInput::trigger, K_RTRIGGER, false, -1, false, "on: the right trigger stays RTRIGGER"},
+    {0.f, HAND_MAIN, &HandInput::primary, K_ABUTTON, true, -1, true, "turned on while A is held: ABUTTON let go after"},
+    {1.f, HAND_OFF, &HandInput::primary, K_ABUTTON, true, -1, true, "turned off while X is held: ABUTTON let go after"},
+    {1.f, HAND_MAIN, &HandInput::primary, K_XBUTTON, false, HAND_MAIN, true, "turned off while A is held: the right reload let go after"},
+};
+constexpr int buttonSwapCaseCount = static_cast<int>(sizeof(buttonSwapCases) / sizeof(buttonSwapCases[0]));
+constexpr int buttonSwapHold = 4;   // frames a press is held before it is checked (its +jump runs from the command buffer)
+constexpr int buttonSwapLetGo = 4;  // frames after the release before the next case
+constexpr int buttonSwapKeys[] = {K_ABUTTON, K_BBUTTON, K_XBUTTON, K_YBUTTON, K_LTHUMB, K_RTHUMB, K_RTRIGGER};
+constexpr int buttonSwapBound[3] = {K_ABUTTON, K_XBUTTON, K_RTHUMB};
+constexpr const char* buttonSwapBinds[3] = {"+jump", "+reloadoff", "+reloadmain"};
+
+struct ButtonSwapTest
+{
+    bool active{false};
+    int index{0};
+    int frames{0};
+    bool pressed{false};
+    za::String swapWas;
+    za::String bindsWas[3]; // ABUTTON's, XBUTTON's, RTHUMB's (set to the shipped +jump, +reloadoff, +reloadmain)
+    testkit::Tally tally;
+};
+ButtonSwapTest buttonSwapTest; // seat-shared: the test's own
+
+void buttonSwapTest_f()
+{
+    ButtonSwapTest& t = buttonSwapTest;
+    if(t.active || !vrActive() || cls.state != ca_connected || key_dest != key_game)
+    {
+        Con_Printf("button swap test: needs VR (the mock headset) and a map loaded, in the game; none running\n");
+        return;
+    }
+    t = ButtonSwapTest{};
+    t.active = true;
+    t.swapWas = vr_button_swap.string;
+    for(int i = 0; i < 3; i++)
+    {
+        t.bindsWas[i] = Key_Seat()->bindings[buttonSwapBound[i]] ? Key_Seat()->bindings[buttonSwapBound[i]] : "";
+        Key_SetBinding(buttonSwapBound[i], buttonSwapBinds[i]);
+    }
+    Con_Printf("button swap test: %d cases\n", buttonSwapCaseCount);
+}
+
+// The test's press, into this frame's input (update, before anything reads it).
+void buttonSwapTestInject(InputState& in)
+{
+    const ButtonSwapTest& t = buttonSwapTest;
+    if(t.active && t.pressed)
+    {
+        const ButtonSwapCase& c = buttonSwapCases[t.index];
+        in.hands[c.hand].*c.button = true;
+    }
+}
+
+void buttonSwapTestTick()
+{
+    ButtonSwapTest& t = buttonSwapTest;
+    if(!t.active)
+    {
+        return;
+    }
+    constexpr const char* name = "button swap test";
+    if(t.index >= buttonSwapCaseCount)
+    {
+        // The names: swapped, ABUTTON is named as X is unswapped (and back).
+        Cvar_SetValueQuick(&vr_button_swap, 0.f);
+        const za::String a = Key_KeynumToFriendlyString(K_ABUTTON), x = Key_KeynumToFriendlyString(K_XBUTTON);
+        const za::String rs = Key_KeynumToFriendlyString(K_RTHUMB), ls = Key_KeynumToFriendlyString(K_LTHUMB);
+        const za::String rt = Key_KeynumToFriendlyString(K_RTRIGGER);
+        Cvar_SetValueQuick(&vr_button_swap, 1.f);
+        const bool named = a == Key_KeynumToFriendlyString(K_XBUTTON) && x == Key_KeynumToFriendlyString(K_ABUTTON) &&
+                           rs == Key_KeynumToFriendlyString(K_LTHUMB) && ls == Key_KeynumToFriendlyString(K_RTHUMB) &&
+                           rt == Key_KeynumToFriendlyString(K_RTRIGGER) && a != x;
+        Con_Printf("%s: %s swapped, ABUTTON is named \"%s\" (\"%s\" unswapped)\n", name, named ? "PASS" : "FAIL",
+            Key_KeynumToFriendlyString(K_ABUTTON), a.cStr());
+        t.tally.check(named);
+        t.active = false;
+        Cvar_Set("vr_button_swap", t.swapWas.cStr());
+        for(int i = 0; i < 3; i++)
+        {
+            Key_SetBinding(buttonSwapBound[i], t.bindsWas[i].cStr());
+        }
+        t.tally.verdict(name);
+        return;
+    }
+    const ButtonSwapCase& c = buttonSwapCases[t.index];
+    if(t.frames == 0)
+    {
+        Cvar_SetValueQuick(&vr_button_swap, c.swap);
+        t.pressed = true;
+    }
+    else if(t.frames == buttonSwapHold)
+    {
+        bool only = true;
+        for(const int k : buttonSwapKeys)
+        {
+            only = only && (Key_Seat()->down[k] != 0) == (k == c.key);
+        }
+        const bool jumps = (CL_SeatInput()->jump.state & 1) != 0;
+        const bool reloads[HAND_COUNT] = {client::reloadHeld(HAND_OFF), client::reloadHeld(HAND_MAIN)};
+        const bool ok = only && jumps == c.jumps && reloads[HAND_OFF] == (c.reload == HAND_OFF) &&
+                        reloads[HAND_MAIN] == (c.reload == HAND_MAIN);
+        Con_Printf("%s: %s %s (held: key %s, jump %d, reload left %d right %d)\n", name, ok ? "PASS" : "FAIL", c.what,
+            only ? Key_KeynumToString(c.key) : "another", jumps ? 1 : 0, reloads[HAND_OFF] ? 1 : 0, reloads[HAND_MAIN] ? 1 : 0);
+        t.tally.check(ok);
+        if(c.flip)
+        {
+            Cvar_SetValueQuick(&vr_button_swap, c.swap != 0.f ? 0.f : 1.f);
+        }
+        t.pressed = false;
+    }
+    else if(t.frames == buttonSwapHold + buttonSwapLetGo)
+    {
+        bool none = (CL_SeatInput()->jump.state & 1) == 0 && !client::reloadHeld(HAND_OFF) && !client::reloadHeld(HAND_MAIN);
+        for(const int k : buttonSwapKeys)
+        {
+            none = none && !Key_Seat()->down[k];
+        }
+        if(!none || c.flip)
+        {
+            Con_Printf("%s: %s %s (let go: no key held, no jump, no reload)\n", name, none ? "PASS" : "FAIL", c.what);
+            t.tally.check(none);
+        }
+        ++t.index;
+        t.frames = 0;
+        return;
+    }
+    ++t.frames;
+}
+
 } // namespace
 
 namespace qvr::input
@@ -1972,6 +2176,7 @@ void init()
     Cmd_AddCommand("vr_bindings_check", guardBindings); // what vr_startgame runs (tests)
     Cmd_AddCommand("vr_stick_curve_test", stickTest_f);
     Cmd_AddCommand("vr_stick_run_test", stickRun_f);
+    Cmd_AddCommand("vr_button_swap_test", buttonSwapTest_f);
     Cmd_AddCommand("vr_stick_line_test", stickLine_f);
     Cmd_AddCommand("vr_noclip_fly_test", noclipFly_f);
     Cmd_AddCommand("vr_move_report", moveReport_f);
@@ -2027,7 +2232,7 @@ void guardBindings()
     Cbuf_InsertText("exec vr_bindings.cfg\n");
 }
 
-void describeBindings(char* out, size_t size)
+void describeBindings(char* out, za::SizeT size)
 {
     const auto bound = [](int key) { return Key_Seat()->bindings[key] ? Key_Seat()->bindings[key] : ""; };
     q_snprintf(out, size,
@@ -2040,9 +2245,76 @@ void describeBindings(char* out, size_t size)
 namespace
 {
 const InputState released; // (update: without VR, everything is released)
+
+// The weapon wheel's button (vr_weaponwheel_button; vr_weaponwheel.cpp) held as the game got it (after every tool and
+// mode that takes it: the flashlight's, a voice note's, the toolgun's...): vr_weaponwheel_hold seconds on, the wheel
+// opens round that hand and the game's key is let go (its press reached the game at once: a tap must not wait; B and Y
+// do nothing by default, vr_weapon_cycle_mode 0). Its letting go is then the wheel's (the pick), never the game's.
+// The button's bit sent with the move (secondaryHeld, primaryHeld: the QC's QVR_VRBITS0_*HAND_SECONDARY) is held back
+// while the hold may still open the wheel: on its press edge the server ejects a magazine (vr_reload_eject_button),
+// breaks open the super shotgun, swings out the revolver's cylinder, so a hold that opened the wheel emptied the gun
+// first (ROUND25 "holsterammo": the nailgun's 24 rounds fell out on the floor). Let go before the wheel opens (a tap),
+// the bit goes for wheelTapPulse seconds then (a press edge the server sees, whatever its frame rate).
+struct WheelHold
+{
+    bool down[HAND_COUNT]{};     // held, as the game got it
+    double since[HAND_COUNT]{};  // pressed at (realtime)
+    bool taken[HAND_COUNT]{};    // the wheel opened on this hold
+    bool withheld[HAND_COUNT]{}; // its bit held back from the move (the wheel could open on it)
+    double pulseUntil[HAND_COUNT]{}; // a tap's bit sent until (realtime)
+};
+WheelHold wheelHold; // seat-shared: the headset's controllers (one headset, one VR player)
+constexpr double wheelTapPulse = 0.1;
+
+[[nodiscard]] const ButtonKeys& wheelButtonKeys()
+{
+    const int kind = weaponwheel::buttonKind();
+    return buttonKeys[kind == 1 ? 4 : kind == 2 ? 2 : 3]; // (stickClick, primary, secondary)
+}
+
+// The bit sent with the move for `button` of hand `h`, held (`down`) as the game got it: the wheel's button's held back
+// while its hold may open the wheel, and a tap's sent for wheelTapPulse (WheelHold).
+[[nodiscard]] bool wheelMoveBit(int h, bool HandInput::*button, bool down)
+{
+    if(button != wheelButtonKeys().button)
+    {
+        return down;
+    }
+    return realtime < wheelHold.pulseUntil[h] || (down && !wheelHold.withheld[h]);
+}
+
+// Once a frame, before the buttons: a hold long enough opens the wheel.
+void wheelHoldFrame()
+{
+    WheelHold& w = wheelHold;
+    const ButtonKeys& b = wheelButtonKeys();
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        if(!w.down[h] || w.taken[h] || realtime - w.since[h] < weaponwheel::holdSeconds() || !weaponwheel::canOpen(h))
+        {
+            continue;
+        }
+        w.taken[h] = true;
+        const int key = swappedKeys(b, h, false).key[h]; // (the key its press sent: vr_button_swap)
+        keyEvent(key, false); // (the game's key let go: the hook's reel, a held +speed)
+        secondaryDown[h] = b.button == &HandInput::secondary ? false : secondaryDown[h];
+        primaryDown[h] = b.button == &HandInput::primary ? false : primaryDown[h];
+        logButton(h, b, false, key, "the weapon wheel (held: it opens)");
+        weaponwheel::open(h);
+    }
+}
+
 // update's phases: a hand's button changed: whatever takes it first (a menu gesture, a tool, a mode), else its key.
 void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
 {
+    // The weapon wheel's button let go after it opened the wheel: the wheel's pick (wheelHoldFrame let the key go).
+    if(!now && b.button == wheelButtonKeys().button && wheelHold.taken[h])
+    {
+        wheelHold.down[h] = wheelHold.taken[h] = wheelHold.withheld[h] = false;
+        logButton(h, b, now, b.key[h], "the weapon wheel (let go: its pick)");
+        weaponwheel::release(h);
+        return;
+    }
     // A menu gesture's button is the menu's alone (vr_menu_button: both stick clicks, Y).
     if(menuGestureButton(in, h, b.button, now))
     {
@@ -2199,6 +2471,17 @@ void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
     const int key = b.button == &HandInput::trigger ? menuui::triggerKey(h, now, b.key[h]) : b.key[h];
     logButton(h, b, now, key, nullptr);
     keyEvent(key, now);
+    if(b.button == wheelButtonKeys().button)
+    {
+        if(!now && wheelHold.down[h] && wheelHold.withheld[h])
+        {
+            wheelHold.pulseUntil[h] = realtime + wheelTapPulse; // (a tap: its bit now, as a press the server sees)
+        }
+        wheelHold.down[h] = now;
+        wheelHold.since[h] = now ? realtime : wheelHold.since[h];
+        wheelHold.taken[h] = false;
+        wheelHold.withheld[h] = now && key_dest == key_game && weaponwheel::holdsButtonBack(h);
+    }
     if(b.button == &HandInput::secondary)
     {
         secondaryDown[h] = now;
@@ -2434,6 +2717,7 @@ void update(const InputState& tracked)
     // Without VR, everything is released (keys held when the session ends must come up).
     const bool active = vrActive();
     InputState raw = active ? tracked : released;
+    buttonSwapTestInject(raw); // (vr_button_swap_test's press)
     debounceStickClicks(raw);
     // Doom on the wrist gadget with the focus takes the gadget hand's stick and buttons (its menu button stays Quake's):
     // Quake sees them let go meanwhile (vr_doom.hpp).
@@ -2462,6 +2746,7 @@ void update(const InputState& tracked)
         menuGestures.press[h] = false;
     }
     menuHold(secondaryDown);
+    wheelHoldFrame(); // (the weapon wheel's button held: it opens)
 
     for(int h = 0; h < HAND_COUNT; h++)
     {
@@ -2470,7 +2755,7 @@ void update(const InputState& tracked)
             const bool now = in.hands[h].*b.button;
             if(now != previous.hands[h].*b.button)
             {
-                buttonChanged(in, h, b, now);
+                buttonChanged(in, h, swappedKeys(b, h, now), now);
             }
         }
 
@@ -2504,6 +2789,7 @@ void update(const InputState& tracked)
 
     updateComfort();
     stickTestTick();
+    buttonSwapTestTick();
     previous = in;
     if(!playbackCommands.empty())
     {
@@ -2521,7 +2807,8 @@ float comfortVignette()
 
 bool secondaryHeld(int hand)
 {
-    return hand >= 0 && hand < HAND_COUNT && secondaryDown[hand] && key_dest == key_game;
+    return hand >= 0 && hand < HAND_COUNT && wheelMoveBit(hand, &HandInput::secondary, secondaryDown[hand]) &&
+           key_dest == key_game;
 }
 
 bool secondaryPressed(int hand)
@@ -2529,12 +2816,38 @@ bool secondaryPressed(int hand)
     return hand >= 0 && hand < HAND_COUNT && previous.hands[hand].secondary;
 }
 
+bool mirroredKey(int key)
+{
+    return key > 0 && key < MAX_KEYS && keyMirrored[key];
+}
+
 bool primaryHeld(int hand)
 {
-    return hand >= 0 && hand < HAND_COUNT && primaryDown[hand] && key_dest == key_game;
+    return hand >= 0 && hand < HAND_COUNT && wheelMoveBit(hand, &HandInput::primary, primaryDown[hand]) &&
+           key_dest == key_game;
 }
 
 } // namespace qvr::input
+
+// A key as the player finds it (Key_KeynumToFriendlyString: the binding pages, messages naming a key): swapped, a face
+// button's or stick click's key comes from the other controller's button (ABUTTON from X), so it is named by that one.
+// The VR controllers only (an SDL gamepad's keys are its own: VR off). The six keys swap in pairs, so this is its own
+// inverse.
+extern "C" int VR_ButtonSwapKey(int key)
+{
+    if(vr_enabled.value == 0.f || vr_button_swap.value == 0.f)
+    {
+        return key;
+    }
+    for(const ButtonKeys& b : buttonKeys)
+    {
+        if(swappable(b) && (key == b.key[0] || key == b.key[1]))
+        {
+            return key == b.key[0] ? b.key[1] : b.key[0];
+        }
+    }
+    return key;
+}
 
 // The speed button's going down (IN_SpeedDown): with vr_sprint_toggle, a switch to the other speed, or back.
 extern "C" void VR_SpeedPressed()

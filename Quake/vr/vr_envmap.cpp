@@ -1,6 +1,7 @@
 // vr_envmap.cpp -- see vr_envmap.hpp.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_adweapons.hpp"
 #include "vr_envmap.hpp"
 #include "vr_geom.hpp"
 #include "vr_main.hpp"
@@ -22,6 +23,7 @@
 #endif
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -84,7 +86,7 @@ za::Vector<LevelLiquid> levelLiquids;
 const qmodel_t* builtWorld = nullptr;
 int builtGeneration = -1;
 GLuint builtVbo = 0;
-size_t builtVboSize = 0;
+za::SizeT builtVboSize = 0;
 
 // The cube: its faces done since it was made (6: usable), the next face, where the current round of faces is seen
 // from, frames since the last face.
@@ -223,7 +225,7 @@ struct AverageRead
 {
     const gltexture_t* tex;
     int level, w, h;   // w 0: none (noAverage)
-    size_t offset;     // in the pixel-pack buffer (bytes)
+    za::SizeT offset;     // in the pixel-pack buffer (bytes)
 };
 
 // The level and size of t's readback (w 0: none).
@@ -266,14 +268,14 @@ void averageColors(za::Span<const gltexture_t* const> textures,
     ankerl::unordered_dense::map<const gltexture_t*, glm::vec4>& out)
 {
     za::Vector<AverageRead> reads;
-    size_t total = 0;
+    za::SizeT total = 0;
     for(const gltexture_t* t : textures)
     {
         AverageRead r = averageReadOf(t);
         if(r.w > 0)
         {
             r.offset = total;
-            total += static_cast<size_t>(r.w) * r.h * 4 * sizeof(float);
+            total += static_cast<za::SizeT>(r.w) * r.h * 4 * sizeof(float);
         }
         reads.pushBack(r);
     }
@@ -317,9 +319,9 @@ void averageColors(za::Span<const gltexture_t* const> textures,
             continue;
         }
         const float* p = px + r.offset / sizeof(float);
-        const size_t n = static_cast<size_t>(r.w) * r.h * 4;
+        const za::SizeT n = static_cast<za::SizeT>(r.w) * r.h * 4;
         glm::vec4 sum{0.f};
-        for(size_t i = 0; i < n; i += 4)
+        for(za::SizeT i = 0; i < n; i += 4)
         {
             sum += glm::vec4{p[i], p[i + 1], p[i + 2], p[i + 3]};
         }
@@ -366,7 +368,7 @@ void buildWorld()
     destroyWorld();
     const double start = Sys_DoubleTime();
     qmodel_t* m = cl.worldmodel;
-    const size_t numVerts = gl_bmodel_vbo_size / sizeof(glvert_t);
+    const za::SizeT numVerts = gl_bmodel_vbo_size / sizeof(glvert_t);
     if(!m || !gl_bmodel_vbo || !numVerts)
     {
         return;
@@ -384,7 +386,7 @@ void buildWorld()
     const auto faceTexture = [&](const msurface_t* s) -> texture_t*
     {
         if((s->flags & SURF_DRAWSKY) || s->numedges < 3 || s->vbo_firstvert < 0 ||
-            static_cast<size_t>(s->vbo_firstvert + s->numedges) > numVerts)
+            static_cast<za::SizeT>(s->vbo_firstvert + s->numedges) > numVerts)
         {
             return nullptr;
         }
@@ -1116,7 +1118,13 @@ using namespace qvr;
 
 // How metal a model is (0 none .. 1): the share of its grey and blue-grey texels (the alias shader's mask) that
 // reflect. Held weapons by their model; the rest none.
-[[nodiscard]] float weaponMetal(modelmeta::Id id, float& lod)
+// A made weapon model's (vr_adweapons.cpp: "<view model>#vr", AD's upgrades and Dwell's weapons): the Widowmaker's
+// numbers below. Their made parts and the caps closing their holes are a few flat texels (the caps Quake's palette's
+// dark grey, index 2) over big smooth faces: MetalMask counts that grey whole metal and the reflection's fresnel floor
+// (f0 0.25 whatever the texel's darkness) mirrored a bright room near-white over them (capcolour, ROUND25.md).
+constexpr float madeMetal = 0.2f, madeLod = 3.5f;
+
+[[nodiscard]] float weaponMetal(modelmeta::Id id, float& lod, bool made)
 {
     struct Entry
     {
@@ -1133,7 +1141,7 @@ using namespace qvr;
         {modelmeta::Id::Mg3SuperAxe, 0.8f, 2.5f}, {modelmeta::Id::Mg3SuperAxeGlow, 0.8f, 2.5f}, // (MG3's, as Mjolnir)
         // (AD's Widowmaker, its hand-made art: painted, rusted panels. At the others' 0.7 its grey panels mirrored a bright
         // room near-white in the hand, far lighter than the pickup's dark look: his note 2026-10-29.)
-        {modelmeta::Id::AdVrWidowmaker, 0.2f, 3.5f},
+        {modelmeta::Id::AdVrWidowmaker, madeMetal, madeLod},
     };
     for(const Entry& e : table)
     {
@@ -1142,6 +1150,11 @@ using namespace qvr;
             lod = e.lod;
             return e.metal;
         }
+    }
+    if(made)
+    {
+        lod = madeLod;
+        return madeMetal;
     }
     lod = 3.f;
     return 0.7f; // other weapons (the expansions')
@@ -1195,11 +1208,11 @@ extern "C" void VR_AliasSurface(const entity_t* e, float out[4])
     float metal = 0.f;
     if(weapon)
     {
-        metal = weaponMetal(modelmeta::get(e->model).id, lod);
+        metal = weaponMetal(info.id, lod, adweapons::isMade(e->model->name));
     }
     else if(!view && (info.has(modelmeta::Trait::WorldWeapon) || info.has(modelmeta::Trait::ViewWeapon)))
     {
-        metal = weaponMetal(modelmeta::get(e->model).id, lod) * 0.8f;
+        metal = weaponMetal(info.id, lod, adweapons::isMade(e->model->name)) * 0.8f;
         const glm::vec3 o{e->origin[0], e->origin[1], e->origin[2]};
         metal *= 1.f - glm::smoothstep(96.f, 256.f, glm::distance(o, envmap::place()));
         lod += 0.5f;

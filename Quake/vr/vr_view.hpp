@@ -180,10 +180,10 @@ int posePouchItems(const ViewEntity& pouch, bool placed, int kind, int count, Vi
 [[nodiscard]] qmodel_t* gearModel(int index);
 // A holster's sheath and gun on another player's body (a bot's: no client drew them; syncfix), posed as yours are
 // (holsterOnBody, holsterOnBack): holster `holster` (body::Holster) at `pos`, the body's surface facing `out` there with
-// `surfaceUp` up along it (body::HolsterPlate's; the shoulders' unused), the body turned `yaw`, `weapon` in it (its own
-// Holstered pose, as yours). Returns the sheath's model (none for the shoulders, or with vr_leg_holster_model_enabled 0).
-qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, const glm::vec3& surfaceUp, float yaw,
-    const qmodel_t* weapon, struct GearDraw& sheath, struct GearDraw& gun);
+// `surfaceUp` up along it, `pos` standing `clearance` out of it (body::HolsterPlate's; the shoulders' unused), the body
+// turned `yaw`, `weapon` in it (its own Holstered pose, as yours). Returns the sheath's model (none for the shoulders, or with vr_leg_holster_model_enabled 0).
+qmodel_t* holsterOnOther(int holster, const glm::vec3& pos, const glm::vec3& out, const glm::vec3& surfaceUp, float clearance,
+    float yaw, const qmodel_t* weapon, struct GearDraw& sheath, struct GearDraw& gun);
 
 // A player's power-ups as drawn on him (syncfix: yours from cl.items, another player's copy from his avatar's gear byte,
 // one code for both): the glow taking turns (its shader code and strength), its light from the hands, the quad's arcs,
@@ -474,6 +474,11 @@ bool weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& butt, gl
 // The reverse grip's turn in `hand`'s frame for its weapon of `slot` as drawn now (the identity upright or carried): the two-handed
 // hold's blade line (vr_twohand.cpp bladeDirection) turns with it.
 [[nodiscard]] glm::mat3 heldReverseTurn(int slot, int hand);
+// Where `hand`'s shots go from its aim `rot`: turned by its weapon's Shot Pitch and Yaw; a pole weapon held reversed (the
+// Crystal Lance's grip flipped; lance3, his note vrtesthall_2026-11-23_23-23-39: it shot backwards) the way it is drawn,
+// that aim turned by heldReverseTurn too (as vr_twohand's blade line): along its crystal head. The move's shots, your beam
+// as drawn, vr_status.
+[[nodiscard]] glm::vec3 heldShotAngles(const glm::vec3& rot, int hand);
 // The two-handed hold by the grip below the hand (ROUND25.md "flipgrip2"): held reversed and mirrored (vr_revgrip_2h_mirror), the
 // other hand's grip is not where the half turn takes it but mirrored along the handle; the turn Q in `hand`'s frame that takes the
 // upright hold's line to it (the least turn after the half turn): the hold worked out for the hand turned by Q holds the weapon by
@@ -581,6 +586,9 @@ struct DrawnWeapon
 // tracked place (hands::State::pos) along its tracked turn's forward, right and up (units): the gadget's side button
 // (vr_gearlights.cpp). False without the jointed hand drawn in the last two frames.
 [[nodiscard]] bool drawnIndexTip(int hand, glm::vec3& local);
+// (ropes12) The jointed hand `hand` as drawn: finger `finger`'s (handrig::Finger) joints, the knuckle first, and its tip's
+// end (world), and the middle of its palm's side (`palm`). False when it isn't drawn.
+[[nodiscard]] bool drawnFingerPoints(int hand, int finger, glm::vec3 out[4], glm::vec3& palm);
 // The magazine model attached to the magazine gun `gun` (vr_mag_on_<gun>.mdl, made in its model space), nullptr for
 // another gun (the server's guns lying about: their bodies in Box3D).
 [[nodiscard]] qmodel_t* magazineModelOf(const qmodel_t* gun);

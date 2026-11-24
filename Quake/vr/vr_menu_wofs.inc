@@ -1205,7 +1205,7 @@ void listSlotChanges(za::Vector<Item>& list, za::Vector<const cvar_t*>& seen)
     texts.clear();
     za::Vector<SlotRow> rows;
     za::Vector<int> headers; // rows' index where a weapon's or prop's header goes, its text's index after
-    const auto headed = [&](za::String text, size_t before) {
+    const auto headed = [&](za::String text, za::SizeT before) {
         if(rows.size() > before)
         {
             texts.pushBack(ZA_MOVE(text));
@@ -1223,7 +1223,7 @@ void listSlotChanges(za::Vector<Item>& list, za::Vector<const cvar_t*>& seen)
         slotListing = {};
         slotListing.weapon = slot;
         slotListing.listing = true;
-        const size_t before = rows.size();
+        const za::SizeT before = rows.size();
         const cvar_t* inherit = weapons::cvar(slot, weapons::Key::InheritFrom); // (its choices: the page's own texts)
         takeSlotRows(rows, texts, seen, pageWeaponOffsets, "Weapon Offsets", nullptr, nullptr, 0, inherit);
         for(const WeaponOffsetsPartPage& part : weaponOffsetsPartPages)
@@ -1275,7 +1275,7 @@ void listSlotChanges(za::Vector<Item>& list, za::Vector<const cvar_t*>& seen)
         slotListing = {};
         slotListing.prop = slot;
         slotListing.listing = true;
-        const size_t before = rows.size();
+        const za::SizeT before = rows.size();
         takeSlotRows(rows, texts, seen, pageHeldObjectOffsets, "Offsets", nullptr, nullptr, 0, nullptr);
         takeSlotRows(rows, texts, seen, pageHeldObjectWeights, "Weight", nullptr, nullptr, 0, nullptr);
         headed(slotHeader("Prop", props::cvar(slot, props::Key::ID)->string, slot), before);
@@ -1283,14 +1283,14 @@ void listSlotChanges(za::Vector<Item>& list, za::Vector<const cvar_t*>& seen)
     slotListing = pinned;
 
     // The rows, each weapon's or prop's under its header (the texts all made: their addresses kept from here).
-    size_t h = 0;
-    for(size_t r = 0; r < rows.size(); r++)
+    za::SizeT h = 0;
+    for(za::SizeT r = 0; r < rows.size(); r++)
     {
         for(; h < headers.size() && headers[h] == static_cast<int>(r); h += 2)
         {
-            list.pushBack(header(texts[static_cast<size_t>(headers[h + 1])].cStr()));
+            list.pushBack(header(texts[static_cast<za::SizeT>(headers[h + 1])].cStr()));
         }
-        rows[r].item.label = texts[static_cast<size_t>(rows[r].text)].cStr();
+        rows[r].item.label = texts[static_cast<za::SizeT>(rows[r].text)].cStr();
         list.pushBack(ZA_MOVE(rows[r].item));
     }
 

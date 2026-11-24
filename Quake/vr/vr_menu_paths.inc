@@ -10,10 +10,10 @@ za::String qvr::menu::expandPaths(za::StringView text, int width, int* missing)
 {
     constexpr za::StringView open = "{menu:";
     za::String out;
-    size_t at = 0;
-    for(size_t start; (start = text.find(open, at)) != za::StringView::nPos;)
+    za::SizeT at = 0;
+    for(za::SizeT start; (start = text.find(open, at)) != za::StringView::nPos;)
     {
-        const size_t end = text.find('}', start);
+        const za::SizeT end = text.find('}', start);
         if(end == za::StringView::nPos)
         {
             break;
@@ -36,12 +36,12 @@ za::String qvr::menu::expandPaths(za::StringView text, int width, int* missing)
             continue;
         }
         // Broken into lines at its " > "s, each about `width` characters from the start of its line.
-        const size_t lineStart = out.rfind('\n');
+        const za::SizeT lineStart = out.rfind('\n');
         int column = static_cast<int>(out.size() - (lineStart == za::StringView::nPos ? 0 : lineStart + 1));
         za::StringView rest = path;
         for(bool first = true; !rest.empty(); first = false)
         {
-            const size_t sep = rest.find(" > ");
+            const za::SizeT sep = rest.find(" > ");
             const za::StringView part = rest.substrByPosLen(0, sep);
             rest = sep == za::StringView::nPos ? za::StringView{} : rest.substrByPosLen(sep + 3);
             const int need = static_cast<int>(part.size()) + (first ? 0 : 3);
@@ -108,9 +108,9 @@ void qvr::menu::pathCheck_f()
     }
     int found = 0, missing = 0;
     const za::StringView text{data};
-    for(size_t at = 0; (at = text.find("{menu:", at)) != za::StringView::nPos;)
+    for(za::SizeT at = 0; (at = text.find("{menu:", at)) != za::StringView::nPos;)
     {
-        const size_t end = text.find('}', at);
+        const za::SizeT end = text.find('}', at);
         if(end == za::StringView::nPos)
         {
             break;

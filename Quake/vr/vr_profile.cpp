@@ -64,6 +64,7 @@ struct GlMarkerStack
     int lastGroups = 0; // the last whole frame's (vr_gl_markers_report)
     int lastDeepest = 0;
     int lastLeftOpen = 0; // scopes still open at the frame's start (a modal dialog's frames): closed then
+    const char* names[64] = {}; // each depth's scope or group (vr_gl_passes' breakers: where they are)
 };
 GlMarkerStack glMarkerStack;
 int glMarkerTool = -1; // a graphics debugger or a debugger in the process (vr_gl_markers 2), checked once with the GL
@@ -75,6 +76,7 @@ void glMarkerPush(const char* name, bool gpu)
     {
         return;
     }
+    glMarkerStack.names[d] = name;
     const za::U64 bit = za::U64{1} << d;
     if(gpu && vr_gl_markers_on)
     {
@@ -1232,6 +1234,7 @@ struct PassBind
     unsigned fbo;
     int draws0;
     const char* scope;
+    const char* breaker; // not a bind: a call a tiler may end its render pass at (VR_GLPassBreak), in `scope`
 };
 struct AliasBatch
 {
@@ -1244,6 +1247,7 @@ struct AliasBatch
     int form; // the program (the Quest's lite forms)
     int needs;
     int tris;
+    int lrz; // VR_LRZ_* (qlrz2)
 };
 struct GlPasses
 {
@@ -1254,20 +1258,42 @@ struct GlPasses
 void printPasses()
 {
     Con_Printf("vr_gl_passes: %d alias batches (model, instances, draws, pass, first entity, skin, program, needs, "
-               "triangles each)\n",
+               "triangles each; lrz: B blended depth writes, C depth clamp, P depth pre-pass, D a program that may discard, "
+               "T no culling)\n",
         static_cast<int>(glPasses.batches.size()));
     static constexpr const char* forms[] = {"depth", "full", "opaque", "plain", "gore", "skin", "body", "?"};
+    static constexpr const char* variants[] = {"", "_nofb", "_flat", "_nofb_flat"}; // (r_alias.c: ALIASVAR_* << 3)
     for(const AliasBatch& a : glPasses.batches)
     {
-        Con_Printf("  alias %-28s %3d inst %2d draws %s ent %d skin %d %s needs %d tris %d\n", a.model, a.instances,
-            a.draws, a.depth ? "depth" : "shade", a.ent, a.skin, forms[a.form & 7], a.needs, a.tris);
+        char lrz[8] = {};
+        int n = 0;
+        static constexpr char letters[] = "BCPDT";
+        for(int b = 0; b < 5; b++)
+        {
+            if(a.lrz & (1 << b))
+            {
+                lrz[n++] = letters[b];
+            }
+        }
+        Con_Printf("  alias %-28s %3d inst %2d draws %s ent %d skin %d %s%s needs %d tris %d lrz %s\n", a.model,
+            a.instances, a.draws, a.depth ? "depth" : "shade", a.ent, a.skin, forms[a.form & 7], variants[(a.form >> 3) & 3],
+            a.needs, a.tris, n ? lrz : "-");
     }
-    Con_Printf("vr_gl_passes: %d draw framebuffer binds in the frame (fbo, draws into it, the scope at the bind)\n",
+    Con_Printf("vr_gl_passes: %d draw framebuffer binds and render pass breakers in the frame (fbo, draws after it, the "
+               "scope there; a breaker: what, in the bound fbo, and the GL group or scope it is in)\n",
         static_cast<int>(glPasses.binds.size()));
+    unsigned bound = 0;
     for(za::SizeT i = 0; i < glPasses.binds.size(); i++)
     {
         const PassBind& b = glPasses.binds[i];
         const int end = i + 1 < glPasses.binds.size() ? glPasses.binds[i + 1].draws0 : vr_profcounts.drawcalls;
+        if(b.breaker)
+        {
+            Con_Printf("  %3d  break %-20s in fbo %3u %5d draws  %s\n", static_cast<int>(i), b.breaker, bound,
+                end - b.draws0, b.scope ? b.scope : "-");
+            continue;
+        }
+        bound = b.fbo;
         Con_Printf("  %3d fbo %3u %5d draws  %s\n", static_cast<int>(i), b.fbo, end - b.draws0, b.scope ? b.scope : "-");
     }
 }
@@ -1278,13 +1304,19 @@ extern "C" int vr_glpass_trace = 0;
 extern "C" void VR_GLPassBind(unsigned fbo)
 {
     using namespace qvr::profile;
-    glPasses.binds.pushBack({fbo, vr_profcounts.drawcalls, stack.empty() ? nullptr : nodes[stack.back().node].name});
+    glPasses.binds.pushBack({fbo, vr_profcounts.drawcalls, stack.empty() ? nullptr : nodes[stack.back().node].name, nullptr});
+}
+
+extern "C" void VR_GLPassBreak(const char* what)
+{
+    const int d = za::min(glMarkerStack.depth, 64);
+    glPasses.binds.pushBack({0u, vr_profcounts.drawcalls, d > 0 ? glMarkerStack.names[d - 1] : nullptr, what});
 }
 
 extern "C" void VR_GLAliasBatch(
-    const char* model, int instances, int draws0, int depth, int ent, int skin, int form, int needs, int tris)
+    const char* model, int instances, int draws0, int depth, int ent, int skin, int form, int needs, int tris, int lrz)
 {
-    glPasses.batches.pushBack({model, instances, vr_profcounts.drawcalls - draws0, depth, ent, skin, form, needs, tris});
+    glPasses.batches.pushBack({model, instances, vr_profcounts.drawcalls - draws0, depth, ent, skin, form, needs, tris, lrz});
 }
 
 extern "C" void VR_ProfileFrame()

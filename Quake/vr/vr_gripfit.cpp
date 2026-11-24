@@ -13,6 +13,7 @@
 #include "vr_view.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -125,19 +126,19 @@ void farthest(const za::Vector<int>& from, int most, za::Vector<int>& out)
     glm::vec3 mid{0.f};
     for(const int i : from)
     {
-        mid += vs[static_cast<size_t>(i)].pos;
+        mid += vs[static_cast<za::SizeT>(i)].pos;
     }
     mid /= static_cast<float>(from.size());
     za::Vector<float> dist; // (squared: from the middle, then from the nearest chosen)
     for(const int i : from)
     {
-        const glm::vec3 d = vs[static_cast<size_t>(i)].pos - mid;
+        const glm::vec3 d = vs[static_cast<za::SizeT>(i)].pos - mid;
         dist.pushBack(glm::dot(d, d));
     }
     for(int n = 0; n < most && n < static_cast<int>(from.size()); n++)
     {
-        size_t pick = 0;
-        for(size_t k = 1; k < dist.size(); k++)
+        za::SizeT pick = 0;
+        for(za::SizeT k = 1; k < dist.size(); k++)
         {
             pick = dist[k] > dist[pick] ? k : pick;
         }
@@ -145,11 +146,11 @@ void farthest(const za::Vector<int>& from, int most, za::Vector<int>& out)
         {
             break; // (every vertex already chosen)
         }
-        const glm::vec3 c = vs[static_cast<size_t>(from[pick])].pos;
+        const glm::vec3 c = vs[static_cast<za::SizeT>(from[pick])].pos;
         out.pushBack(from[pick]);
-        for(size_t k = 0; k < dist.size(); k++)
+        for(za::SizeT k = 0; k < dist.size(); k++)
         {
-            const glm::vec3 d = vs[static_cast<size_t>(from[k])].pos - c;
+            const glm::vec3 d = vs[static_cast<za::SizeT>(from[k])].pos - c;
             dist[k] = n == 0 ? glm::dot(d, d) : za::fmin(dist[k], glm::dot(d, d));
         }
     }
@@ -167,7 +168,7 @@ const RigPoints& rigPointsNow()
     const handrig::Rig& rig = handrig::rig();
     za::Vector<int> groups[1 + fingers];
     float lo = none, hi = -none;
-    for(size_t i = 0; i < rig.vertices.size(); i++)
+    for(za::SizeT i = 0; i < rig.vertices.size(); i++)
     {
         const handrig::Vertex& v = rig.vertices[i];
         int best = 0;
@@ -406,8 +407,8 @@ bool makeShape(int num, const glm::vec3& lo, const glm::vec3& hi, const za::Vect
         return true;
     }
     const float margin = drawnReachCm * 0.01f * units::metresToUnits();
-    const size_t count = drawn->size();
-    const size_t stride = za::max(static_cast<size_t>(1), (count + drawnMost - 1) / drawnMost);
+    const za::SizeT count = drawn->size();
+    const za::SizeT stride = za::max(static_cast<za::SizeT>(1), (count + drawnMost - 1) / drawnMost);
     if(in.hulls == 1)
     {
         // One hull (most props): each face out to the drawn model's furthest point along it (no further than the margin).
@@ -415,7 +416,7 @@ bool makeShape(int num, const glm::vec3& lo, const glm::vec3& hi, const za::Vect
         {
             glm::vec4& pl = in.planes[j];
             float most = pl.w;
-            for(size_t i = 0; i < count; i += stride)
+            for(za::SizeT i = 0; i < count; i += stride)
             {
                 const glm::vec3& v = (*drawn)[i];
                 most = za::fmax(most, pl.x * v.x + pl.y * v.y + pl.z * v.z);
@@ -426,7 +427,7 @@ bool makeShape(int num, const glm::vec3& lo, const glm::vec3& hi, const za::Vect
         }
         return true;
     }
-    for(size_t i = 0; i < count; i += stride)
+    for(za::SizeT i = 0; i < count; i += stride)
     {
         const glm::vec3& v = (*drawn)[i];
         int begin = 0;
@@ -601,7 +602,7 @@ bool fit(int num, int hand, int player, bool twoHand, const glm::mat3& handToPro
         {
             for(int i = 0; i < in.groups[0].count; i++)
             {
-                in.points[i] = glm::vec4{place(blend(posed, vs[static_cast<size_t>(r.body[static_cast<size_t>(i)])])), bodyAllowed};
+                in.points[i] = glm::vec4{place(blend(posed, vs[static_cast<za::SizeT>(r.body[static_cast<za::SizeT>(i)])])), bodyAllowed};
             }
         }
         for(int f = 0; f < fingers; f++)
@@ -610,7 +611,7 @@ bool fit(int num, int hand, int player, bool twoHand, const glm::mat3& handToPro
             for(int k = 0; k < g.count; k++)
             {
                 in.points[g.first + s * g.count + k] =
-                    glm::vec4{place(blend(posed, vs[static_cast<size_t>(r.finger[f][static_cast<size_t>(k)])])), fingerAllowed};
+                    glm::vec4{place(blend(posed, vs[static_cast<za::SizeT>(r.finger[f][static_cast<za::SizeT>(k)])])), fingerAllowed};
             }
         }
     }
@@ -721,7 +722,7 @@ bool drawnOverlap(int hand, DrawnOverlap& out)
     const glm::vec3 origin{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
     const float cm = 0.01f * units::metresToUnits();
     out.num = num;
-    for(size_t i = 0; i < d.hand.size(); i++)
+    for(za::SizeT i = 0; i < d.hand.size(); i++)
     {
         const float depth = handfit::sunk(d.shape.shape(), toProp * (glm::vec3{d.hand[i]} - origin), 0.f) / cm;
         const view::HandPart part = i < d.parts.size() ? d.parts[i] : view::HandPart::Hand;

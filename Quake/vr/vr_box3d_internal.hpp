@@ -825,6 +825,19 @@ struct World
     za::Vector<int> roomWanted, roomRefused;
     // The corpses waiting for their ragdoll (vr_ragdoll_per_frame: the most made a frame), oldest death first.
     za::Vector<int> ragdollQueue;
+    // (ropes9) The climbing poles' bodies (syncPoles): a kinematic capsule each, the props' and corpses' only (as the
+    // world's), from its top `a` to its bottom; made again when it changes length or turns, else moved to it.
+    struct PoleBody
+    {
+        int ent{0};
+        b3BodyId body{};
+        b3ShapeId shape{};
+        glm::vec3 a{0.f}, b{0.f};
+        float radius{0.f};
+        bool seen{false};
+        double stillSince{0.0}; // a kinematic one's: when it last moved
+    };
+    za::Vector<PoleBody> poles;
     bool syncingEntities{false};
     za::Vector<Recovery> recoveries;    // knocked-down monsters getting up (Knockdowns)
     // Hands holding a ragdoll's limb (vr_ragdoll_grab; "Ragdolls"): a kinematic body at the hand and a motor joint to
@@ -1143,9 +1156,9 @@ template <typename Corners>
         for(int i = made->firstPiece; i < made->firstPiece + made->pieces; i++)
         {
             points.clear();
-            for(int k = i > 0 ? gunShapes.pieceEnds[static_cast<size_t>(i - 1)] : 0; k < gunShapes.pieceEnds[static_cast<size_t>(i)]; k++)
+            for(int k = i > 0 ? gunShapes.pieceEnds[static_cast<za::SizeT>(i - 1)] : 0; k < gunShapes.pieceEnds[static_cast<za::SizeT>(i)]; k++)
             {
-                points.pushBack(world->toM(gunShapes.points[static_cast<size_t>(k)]));
+                points.pushBack(world->toM(gunShapes.points[static_cast<za::SizeT>(k)]));
             }
             if(b3HullData* hull = convex::hull(points.data(), static_cast<int>(points.size()), static_cast<int>(points.size())))
             {
@@ -1382,6 +1395,7 @@ bool makeRagdollRoom(edict_t* ent);
 inline int cutDeathJoint = -1;
 bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false);
 void driveShove(RagdollBodies& r, float dt);
+void traceWallGlue(edict_t* ent, const RagdollBodies& r, float dt); // (vr_debug_ragdoll_wall)
 void feedRagdoll(edict_t* ent, Slot& s);
 float activeFloorBelow(const glm::vec3& at, float depth);
 bool activeOnFloor(b3BodyId body);
@@ -1480,7 +1494,8 @@ void addProfile(b3Profile& a, const b3Profile& b);
 // entity's box (the first of them), still, noclip off; with near, on the floor beside it (see below).
 void playerOverProp(edict_t* p); // (below, with the players' shape against props)
 void watchInside();
-void registerCommands();
+void printVersion(); // Box3D's version line: once, at the first reset/toss/physics frame (the configs read by then)
+void startup();      // at startup (box3d::init): Box3D's allocator, the vr_physics_* commands (vr_scenario validate)
 void noteBraces(float dt);                      // before each step: what the props near the hands rest against
 // preSolve: a hand's body `hand` meeting `prop` (`n` from it to the prop) pressing it into what holds it: noted, no push.
 [[nodiscard]] bool pressHit(b3ShapeId hand, b3ShapeId prop, const glm::vec3& n, float separation);
@@ -1565,7 +1580,7 @@ template <typename Shape>
     double dist = 0.0;
     for(int k = 0; k < p.count; k++)
     {
-        const glm::dvec3& n = p.normals[static_cast<size_t>(k)];
+        const glm::dvec3& n = p.normals[static_cast<za::SizeT>(k)];
         const double h = propSupport(p, n);
         const double d1 = glm::dot(n, start) - h, d2 = glm::dot(n, end) - h;
         getOut = getOut || d2 > 0.0;

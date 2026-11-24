@@ -514,9 +514,6 @@ za::Vector<Item> pageDebugAutomation()
             .help("On vrbrushholes: your box and a narrow monster's at its grate, bar gate, lift edge, pillars, "
                   "diagonal grate, louvred grate and two func_walls (stopped with the blockers on, through with them "
                   "off); prints brushholes: N passed, M failed."),
-        command("Mark a Gap I Got Through", "vr_hull_holes_mark")
-            .help("Prints and logs (quakevr/hull_holes_marks.txt) where you are and the gap geometry round you, for a "
-                  "gap you got through that you shouldn't have (vr_hull_holes_mark [radius] [note])."),
         command("Shots Hit Test", "vr_hull_hittest")
             .help("Prints how many of 1600 grunt-like shots from 300 units round you hit your box at Width Shots Hit "
                   "(vr_hull_hittest [distance] [spread])."),
@@ -988,9 +985,6 @@ za::Vector<Item> pageDebugAutomation()
         command("Physics Threads Determinism", "vr_physics_mtbench 300 300 chains")
             .help("vr_physics_mtbench 300 300 chains: a physics world of its own (boxes and ragdoll-like jointed "
                   "chains) stepped from the same start with 1, 2, 3, 4 ... threads: the same hash with every count."),
-        command("Zancle Math Self-Test", "vr_zancle_math_test")
-            .help("vr_zancle_math_test: Zancle's math (and the angle wrap) against the standard library's on edge values "
-                  "(signed zeros, halves, wrap angles, infinities, NaN), to the last bit; one line."),
         command("SHA-256 Self-Test", "vr_sha256_test")
             .help("vr_sha256_test: the SHA-256 that checks each Map Library download against its index, on the standard "
                   "test vectors (FIPS 180-2's, a million a's, the padding's edges); one line."),

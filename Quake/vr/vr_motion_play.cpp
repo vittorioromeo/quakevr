@@ -40,6 +40,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/ReverseIterator.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strstr.hpp"
 #include "Zancle/Chrono/Time.hpp"
@@ -171,7 +172,7 @@ namespace
         }
         if(line[0] == '#')
         {
-            const size_t colon = line.find(':');
+            const za::SizeT colon = line.find(':');
             if(colon != za::StringView::nPos)
             {
                 take.header[qvr::strings::trim(line.substrByPosLen(1, colon - 1))] = qvr::strings::trim(line.substrByPosLen(colon + 1));
@@ -181,7 +182,7 @@ namespace
         if(names.empty())
         {
             names = split(line, ',');
-            for(size_t i = 0; i < names.size(); i++)
+            for(za::SizeT i = 0; i < names.size(); i++)
             {
                 col[qvr::strings::trim(names[i])] = static_cast<int>(i);
             }
@@ -340,7 +341,7 @@ namespace
         take.category = categoryOf(take.label);
     }
     take.firstRec = 0;
-    for(size_t i = 0; i < take.frames.size(); i++)
+    for(za::SizeT i = 0; i < take.frames.size(); i++)
     {
         if(take.frames[i].phase == PhaseRec)
         {
@@ -444,7 +445,7 @@ void collectSettings(const za::String& value, bool pairs, za::Vector<za::Pair<za
     }
     while(words >> w)
     {
-        const size_t eq = w.find('=');
+        const za::SizeT eq = w.find('=');
         if(eq != za::StringView::nPos)
         {
             out.pushBack({za::String{w.substrByPosLen(0, eq)}, za::String{w.substrByPosLen(eq + 1)}});
@@ -713,8 +714,8 @@ void resample(Take& take, float hz, float jitter, int stutter)
     const double dt = 1.0 / hz;
     const double tStart = in.front().t;
     const double tEnd = in.back().t;
-    size_t j = 0;
-    size_t nextEvents = 0;
+    za::SizeT j = 0;
+    za::SizeT nextEvents = 0;
     double prevT = tStart;
     for(za::U64 k = 0;; k++)
     {
@@ -765,7 +766,7 @@ void resample(Take& take, float hz, float jitter, int stutter)
     take.hasTicks = false;
     take.hasXrTime = false; // (the frames at their resampled times: realtime is theirs)
     take.firstRec = 0;
-    for(size_t i = 0; i < take.frames.size(); i++)
+    for(za::SizeT i = 0; i < take.frames.size(); i++)
     {
         if(take.frames[i].phase == PhaseRec)
         {
@@ -798,9 +799,9 @@ double setupTime = 0.0;
 // seat-shared: the motion recorder's playback (drives the one mock headset)
 double postElapsed = 0.0;
 // seat-shared: the motion recorder's playback (drives the one mock headset)
-size_t nextFrame = 0;
+za::SizeT nextFrame = 0;
 // seat-shared: the motion recorder's playback (drives the one mock headset)
-size_t cur = 0;        // the frame this host frame plays
+za::SizeT cur = 0;        // the frame this host frame plays
 // seat-shared: the motion recorder's playback (drives the one mock headset)
 int targetEnt = 0;     // the target's entity number (0: none)
 // seat-shared: the motion recorder's playback (drives the one mock headset)
@@ -1024,11 +1025,11 @@ void equip(edict_t* player)
 // event's frame, after the player's, as when it was recorded. The dummy's own attacks (vr_dummy_attacks) are off
 // meanwhile (startPlayback): the same blows at the same moments, whatever its timer would do.
 // seat-shared: the motion recorder's playback (drives the one mock headset)
-size_t strikeNext = 0; // the next frame whose strikes are to be done
+za::SizeT strikeNext = 0; // the next frame whose strikes are to be done
 // seat-shared: the motion recorder's playback (drives the one mock headset)
 int strikesDone = 0;
 
-void doStrikes(size_t upTo)
+void doStrikes(za::SizeT upTo)
 {
     for(; strikeNext <= upTo && strikeNext < take.frames.size(); strikeNext++)
     {
@@ -1122,11 +1123,11 @@ bool isHit(const Event& e)
 {
     Match m;
     za::Vector<bool> used(r.replayed.size(), false);
-    for(size_t j = 0; j < r.replayed.size(); j++)
+    for(za::SizeT j = 0; j < r.replayed.size(); j++)
     {
         m.replayedHits += isHit(r.replayed[j]);
     }
-    for(size_t i = 0; i < r.recorded.size(); i++)
+    for(za::SizeT i = 0; i < r.recorded.size(); i++)
     {
         const Event& a = r.recorded[i];
         if(!isHit(a))
@@ -1134,7 +1135,7 @@ bool isHit(const Event& e)
             continue;
         }
         m.recordedHits++;
-        for(size_t j = 0; j < r.replayed.size(); j++)
+        for(za::SizeT j = 0; j < r.replayed.size(); j++)
         {
             const Event& b = r.replayed[j];
             if(used[j] || !isHit(b) || a.kind != b.kind || a.sub != b.sub || a.hand != b.hand || a.target != b.target ||
@@ -1156,7 +1157,7 @@ bool isHit(const Event& e)
 [[nodiscard]] za::String eventsText(const za::Vector<Event>& events, const za::Vector<double>& times, bool hitsAndPushes)
 {
     za::String s;
-    for(size_t i = 0; i < events.size(); i++)
+    for(za::SizeT i = 0; i < events.size(); i++)
     {
         const Event& e = events[i];
         if(hitsAndPushes && !isHit(e) && e.kind != "push" && e.kind != "parry" && e.kind != "deflect" && e.kind != "strike" &&
@@ -1305,10 +1306,10 @@ void stopPlayback(const char* why)
     // first frame's server frame), so it starts where the player stood still for a few frames in its lead-in.
     if(t.frames.front().hasVel && glm::length(t.frames.front().velPF) > 0.f)
     {
-        for(size_t i = 3; i < t.firstRec; i++)
+        for(za::SizeT i = 3; i < t.firstRec; i++)
         {
             bool still = true;
-            for(size_t j = i - 3; j <= i; j++)
+            for(za::SizeT j = i - 3; j <= i; j++)
             {
                 still = still && t.frames[j].hasVel && glm::length(t.frames[j].velPF) == 0.f;
             }

@@ -146,7 +146,7 @@ char statusBuf[MAX_OSPATH + 160];
     return SDL_AtomicGet(&quitting) ? "cancelled (the game quit)" : "cancelled";
 }
 
-size_t writeChunk(void* buffer, size_t size, size_t nmemb, void* stream)
+za::SizeT writeChunk(void* buffer, za::SizeT size, za::SizeT nmemb, void* stream)
 {
     if(cancelled())
     {
@@ -165,7 +165,7 @@ size_t writeChunk(void* buffer, size_t size, size_t nmemb, void* stream)
     return nmemb;
 }
 
-size_t readFromMemory(void* opaque, mz_uint64 ofs, void* buf, size_t n)
+za::SizeT readFromMemory(void* opaque, mz_uint64 ofs, void* buf, za::SizeT n)
 {
     const za::Vector<char>& body = *static_cast<const za::Vector<char>*>(opaque);
     if(ofs + n > body.size())
@@ -338,7 +338,7 @@ void setUrls()
             ok = false;
             break;
         }
-        size_t got = 0;
+        za::SizeT got = 0;
         void* data = mz_zip_reader_extract_to_heap(&z, static_cast<mz_uint>(index[w]), &got, 0);
         if(!data)
         {

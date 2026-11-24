@@ -24,6 +24,7 @@
 #include "vr_gfx.hpp"
 #include "vr_gunsfx.hpp"
 #include "vr_hands.hpp"
+#include "vr_lancecharge.hpp"
 #include "vr_mem.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
@@ -34,6 +35,7 @@
 #include "vr_weight.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -225,7 +227,7 @@ constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share o
     const auto middle = [&](za::Span<const char* const> anchors, za::Span<const float> twins) {
         glm::vec3 sum{0.f};
         float count = 0.f;
-        for(size_t i = 0; i < anchors.size(); i++)
+        for(za::SizeT i = 0; i < anchors.size(); i++)
         {
             const float w = twins.empty() ? 1.f : twins[i];
             sum += anchor::posedAnchor(e, anchors[i], 0.f) * w;
@@ -796,6 +798,13 @@ void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::ve
     pos = glm::vec3{0.f};
     angles = glm::vec3{0.f};
     HandFx& h = handFx[hand];
+    float lanceKick = 0.f, lanceSideways = 0.f;
+    lancecharge::shake(hand, lanceKick, lanceSideways); // (the Crystal Lance charging, and as it fires: lance3)
+    if(lanceKick > 0.f && weapons::heldSlot(hand) >= 0 && h.slot != weapons::heldSlot(hand))
+    {
+        forget(hand); // (charging before its first shot: its kicks' weapon now)
+        h.slot = weapons::heldSlot(hand);
+    }
     if(h.slot < 0)
     {
         return;
@@ -823,6 +832,8 @@ void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::ve
     }
     float shake = 0.f, shakeSideways = 0.f;
     streamShake(h, shake, shakeSideways); // (a stream weapon firing: vr_weapons.inc StreamShake)
+    shake += lanceKick;
+    shakeSideways += lanceSideways;
     back += shake;
     rise += shake;
     sideways += shakeSideways;
@@ -1034,8 +1045,20 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
             h.flashAt = -1.0;
             continue;
         }
-        const glm::vec3 muzzle = view::anchorPosition(w, weapons::anchor(slot, Key::MuzzleAnchor),
+        glm::vec3 muzzle = view::anchorPosition(w, weapons::anchor(slot, Key::MuzzleAnchor),
             weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
+        // (a spinning nailgun's: out of the barrel that fires, as its sparks: vr_gunfx.cpp firingBarrels)
+        glm::vec3 bore{0.f};
+        const int barrel = gunfx::firingBarrelOf(w, bore);
+        if(barrel >= 0)
+        {
+            muzzle = bore;
+        }
+        if(vr_debug_weaponfx.value && age == 0.f)
+        {
+            Con_Printf("weaponfx flash hand %d slot %d frame %d barrel %d at %.1f %.1f %.1f\n", hand, slot, w.ent.frame, barrel,
+                muzzle.x, muzzle.y, muzzle.z);
+        }
         const glm::vec3 o = view::modelPoint(w, glm::vec3{0.f});
         const glm::vec3 ax = view::modelPoint(w, glm::vec3{1.f, 0.f, 0.f}) - o;
         const glm::vec3 az = view::modelPoint(w, glm::vec3{0.f, 0.f, 1.f}) - o;
@@ -1052,6 +1075,7 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
             perUnit / weaponScale * za::max(weapons::value(slot, Key::FlashSize), 0.f) * feel.flash * h.flashJitter);
     }
     gunfx::looseFrame(); // (guns that left a hand smoking: their wisps on the prop or in the holster)
+    lancecharge::frame(weapons); // (Dwell's Crystal Lance charging: yours and the other players')
     model = view::viewModel(flashModelName);
 
     // The grunts'.

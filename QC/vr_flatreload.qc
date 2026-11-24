@@ -36,7 +36,7 @@
 .float vr_flatrl_unl1;   // the main hand's (VR_FlatReload_HandFrame; 0 none)
 .float vr_flatrl_full;   // the hands whose UNLOAD is greyed, its rounds having no room in the reserve (1 off, 2 main:
                          // STAT_QVR_FLATUNLOADFULL; VR_FlatReload_HandFrame); + 4 off, 8 main: that hand's weapon too
-                         // big for a holster (the holster menu's drag)
+                         // big for a holster (the holster menu's drag); + 16 off, 32 main: UNLOAD would move rounds now
 .float vr_flatrl_due0;   // the off hand's gun fired empty: when it breaks open or drops its magazine (0 nothing due),
 .float vr_flatrl_due1;   // the main hand's
 .entity vr_flatrl_duei0; // and the gun's record it is for
@@ -461,10 +461,11 @@ void(float xHand, float xWeapon, float xWeaponFlags) VR_FlatReload_CycleOut =
 // What the holster menu's UNLOAD (impulses 82, 83; vr_flatholster.qc) can take out of the gun in `xHand` of self: the live
 // rounds in its clip (the magazine, the barrels' live shells, the cylinder's: its clip, the revolver's chambers follow it,
 // VR_Revolver_Sync), 0 for a gun with no clip of a real ammo kind (a single-use gun, the chainsaw's fuel, a melee weapon).
-// Spent shells are not in the clip.
+// Spent shells are not in the clip. Either mode: the weapon wheel's UNLOAD (vr_weaponwheel.cpp, VR_Wheel_Pick) is the
+// headset's too (a magazine taken out of the gun is not in its clip: nothing).
 float(float xHand) VR_FlatReload_Unloadable =
 {
-    if(!VR_FlatPlay(self) || VRIsHandWeaponless(self, xHand) || !VRIsWeaponReloadingEnabledFor(self, xHand) ||
+    if(VRIsHandWeaponless(self, xHand) || !VRIsWeaponReloadingEnabledFor(self, xHand) ||
        VR_ClipSizeIn(self, xHand) <= 0 || WeaponIdToAmmoId(VRGetEntWeapon(self, xHand), VRGetEntWeaponFlags(self, xHand)) == AID_NONE)
     {
         return 0;
@@ -540,6 +541,17 @@ void(float xHand) VR_FlatReload_HandFrame =
     else
     {
         self.vr_flatrl_full = self.vr_flatrl_full - (self.vr_flatrl_full & fbit);
+    }
+    // UNLOAD would move rounds now (some fit, the hand not reloading): bits 4 and 5, the holster menu's UNLOAD and the
+    // weapon wheel's (vr_flatholster.cpp, vr_weaponwheel.cpp: lit, else greyed).
+    float ubit = fbit * 16;
+    if(VR_FlatReload_UnloadFits(xHand) > 0 && !VR_FlatReload_Busy(self, xHand))
+    {
+        self.vr_flatrl_full = self.vr_flatrl_full | ubit;
+    }
+    else
+    {
+        self.vr_flatrl_full = self.vr_flatrl_full - (self.vr_flatrl_full & ubit);
     }
     // The holster menu's drag (vr_flatholster.cpp): the holsters greyed under a hand's weapon too big for a holster
     // (WeaponIdToHolsterable: AD's hammer, mace, ...): bits 2 and 3.

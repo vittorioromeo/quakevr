@@ -139,9 +139,9 @@ void command_f()
 
     Con_Printf("\x02" "Memory\n");
     {
-        size_t zoneUsed = 0;
-        size_t zonePeak = 0;
-        size_t zoneBlocks = 0;
+        za::SizeT zoneUsed = 0;
+        za::SizeT zonePeak = 0;
+        za::SizeT zoneBlocks = 0;
         Z_Usage(&zoneUsed, &zonePeak, &zoneBlocks);
         rowPeak("zone, KiB", static_cast<int>(zoneUsed / 1024), static_cast<int>(zonePeak / 1024), 0,
             "the heap: no maximum (was 32 MiB, -zone)");
@@ -152,8 +152,8 @@ void command_f()
         Hunk_Usage(&used, &peak, &blocks);
         rowPeak("hunk, KiB", used >> 10, peak >> 10, 0, "the heap: no maximum (was 384 MiB, -heapsize)");
         row("hunk blocks", blocks, 0, "Hunk_Alloc'd blocks in use (the level's data, loaders' buffers)");
-        size_t cacheUsed = 0;
-        size_t cachePeak = 0;
+        za::SizeT cacheUsed = 0;
+        za::SizeT cachePeak = 0;
         int cacheEntries = 0;
         Cache_Usage(&cacheUsed, &cachePeak, &cacheEntries);
         rowPeak("cache, KiB", static_cast<int>(cacheUsed / 1024), static_cast<int>(cachePeak / 1024), 0,

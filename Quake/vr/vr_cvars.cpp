@@ -20,6 +20,7 @@
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -702,9 +703,9 @@ template <typename Fn>
             line += static_cast<char>(c);
             continue;
         }
-        const size_t space = line.find(' ');
-        const size_t open = space == za::StringView::nPos ? space : line.find('"', space);
-        const size_t close = line.rfind('"');
+        const za::SizeT space = line.find(' ');
+        const za::SizeT open = space == za::StringView::nPos ? space : line.find('"', space);
+        const za::SizeT close = line.rfind('"');
         if(open != za::StringView::nPos && close > open && line.findFirstNotOf(' ', space) == open)
         {
             const za::String name{line.substrByPosLen(0, space)};
@@ -1244,11 +1245,11 @@ void installerSettings_f()
     }
     const za::StringView text{reinterpret_cast<const char*>(file)};
     constexpr za::StringView stampTag = "// stamp ";
-    const size_t at = text.find(stampTag);
+    const za::SizeT at = text.find(stampTag);
     za::String stamp;
     if(at != za::StringView::nPos)
     {
-        size_t end = at + stampTag.size();
+        za::SizeT end = at + stampTag.size();
         while(end < text.size() && text[end] != '\n' && text[end] != '\r' && text[end] != ' ')
         {
             end++;

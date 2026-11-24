@@ -25,6 +25,7 @@
 #include "vr_findradius.hpp"
 #include "vr_mem.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -136,7 +137,7 @@ Watch watch;
 
 [[nodiscard]] edict_t* edictAt(int e)
 {
-    return reinterpret_cast<edict_t*>(reinterpret_cast<byte*>(sv.qcvm.edicts) + static_cast<size_t>(e) * sv.qcvm.edict_size);
+    return reinterpret_cast<edict_t*>(reinterpret_cast<byte*>(sv.qcvm.edicts) + static_cast<za::SizeT>(e) * sv.qcvm.edict_size);
 }
 
 [[nodiscard]] float fieldFloat(const edict_t* ed, int field)
@@ -423,7 +424,7 @@ extern "C" void VR_EdictIndex_Touch(edict_t* ed)
     }
     const byte* p = reinterpret_cast<const byte*>(ed);
     const byte* base = reinterpret_cast<const byte*>(sv.qcvm.edicts);
-    if(p < base || p >= base + static_cast<size_t>(sv.qcvm.max_edicts) * sv.qcvm.edict_size)
+    if(p < base || p >= base + static_cast<za::SizeT>(sv.qcvm.max_edicts) * sv.qcvm.edict_size)
     {
         return; // (the client VM's)
     }
@@ -684,7 +685,7 @@ void fieldStored(edict_t* ed, int field)
     }
     const byte* p = reinterpret_cast<const byte*>(ed);
     const byte* base = reinterpret_cast<const byte*>(sv.qcvm.edicts);
-    if(watched == 0 || p < base || p >= base + static_cast<size_t>(sv.qcvm.max_edicts) * sv.qcvm.edict_size)
+    if(watched == 0 || p < base || p >= base + static_cast<za::SizeT>(sv.qcvm.max_edicts) * sv.qcvm.edict_size)
     {
         return;
     }

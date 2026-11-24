@@ -18,6 +18,10 @@ namespace qvr::ragdoll
 {
 struct Rig;
 }
+namespace qvr::avatar
+{
+struct Skeleton;
+}
 
 namespace qvr::mpavatar
 {
@@ -122,6 +126,8 @@ void addEntities();
 
 // (bots4) Player entity `ent`'s copy was drawn last frame or this one (a client's Show Hit Zones: vr_hitmodel.cpp).
 [[nodiscard]] bool drawnNow(int ent);
+// (hitzones) His body as drawn now (its size: m2w; its joints). False: his body not posed (none drawn, or id's ranger).
+[[nodiscard]] bool drawnSkeleton(int ent, avatar::Skeleton& out);
 
 // (syncfix5) The models player entity `ent`'s copy is drawn with that his wounds are painted on (vr_wounds.cpp): `out` his
 // body and his two jointed hands ([1] off, [2] main; each null when not drawn), drawn last frame or this one; `doll` whether
@@ -137,12 +143,13 @@ void clear();
 
 // The avatar calibration (MP_PLAN.md, B2c): what others need of a player's body and see of it, from his own settings --
 // height, seated height, arm length, world scale, handedness and the gadget's arm, gloves (kind, colour), nails (and colour: B6), skin
-// tone, body (mode, build, bracers, pauldrons; their style, size and place, seated play, a flat-screen body height: B6b), his arms (Body Calibration's measurements, tweaks and shoulders: B3c). Each as an integer (calFields in vr_mpavatar.cpp: metres in mm, shares
+// tone, body (mode, build, bracers, pauldrons; their style, size and place, seated play, a flat-screen body height: B6b), his arms (Body Calibration's measurements, tweaks and shoulders: B3c),
+// his holsters' places on his standing body (body::standingHolsters: every holster setting of his, holstersync). Each as an integer (calFields in vr_mpavatar.cpp: metres in mm, shares
 // in thousandths...), so what is sent, kept and compared is exact. The client sends his up when it changes (a
 // "vr_avatarcal" client command, reliable, at most every vr_net_avatarcal_interval); the server keeps one per client
 // slot and passes it on to every client (QVR_SVC_AVATARCAL, reliable), and all of them to a joining client.
 // Multiplayer only.
-inline constexpr int numCalFields = 37;
+inline constexpr int numCalFields = 84;
 struct Calibration
 {
     int v[numCalFields]{};

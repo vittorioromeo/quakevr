@@ -534,10 +534,10 @@ struct Received
     za::I64 retryAfter{-1};
 };
 
-size_t headerLine(char* buffer, size_t size, size_t nitems, void* userdata)
+za::SizeT headerLine(char* buffer, za::SizeT size, za::SizeT nitems, void* userdata)
 {
     Received& r = *static_cast<Received*>(userdata);
-    const size_t n = size * nitems;
+    const za::SizeT n = size * nitems;
     za::String line{buffer, static_cast<za::SizeT>(n)};
     while(line.size() && (line.cStr()[line.size() - 1] == '\r' || line.cStr()[line.size() - 1] == '\n'))
     {
@@ -579,7 +579,7 @@ size_t headerLine(char* buffer, size_t size, size_t nitems, void* userdata)
     return n;
 }
 
-size_t writeBody(void* buffer, size_t size, size_t nmemb, void* stream)
+za::SizeT writeBody(void* buffer, za::SizeT size, za::SizeT nmemb, void* stream)
 {
     if(SDL_AtomicGet(&cancel))
     {
@@ -1047,7 +1047,7 @@ void appendDecoded(za::String& out, const char* s, za::SizeT n)
     {
         if(*p == '<')
         {
-            const char* close = static_cast<const char*>(ZA_MEMCHR(p, '>', static_cast<size_t>(e - p)));
+            const char* close = static_cast<const char*>(ZA_MEMCHR(p, '>', static_cast<za::SizeT>(e - p)));
             if(!close)
             {
                 break;
@@ -1063,7 +1063,7 @@ void appendDecoded(za::String& out, const char* s, za::SizeT n)
             p = close + 1;
             continue;
         }
-        const char* next = static_cast<const char*>(ZA_MEMCHR(p, '<', static_cast<size_t>(e - p)));
+        const char* next = static_cast<const char*>(ZA_MEMCHR(p, '<', static_cast<za::SizeT>(e - p)));
         const char* stop = next ? next : e;
         appendDecoded(raw, p, static_cast<za::SizeT>(stop - p));
         p = stop;
@@ -1142,7 +1142,7 @@ bool innerRange(const char* tag, const char*& s, const char*& e)
         }
         const bool closing = p[1] == '/';
         const char* q = p + (closing ? 2 : 1);
-        if(q_strncasecmp(q, name, static_cast<size_t>(n)) || isalnum(static_cast<unsigned char>(q[n])))
+        if(q_strncasecmp(q, name, static_cast<za::SizeT>(n)) || isalnum(static_cast<unsigned char>(q[n])))
         {
             continue;
         }
