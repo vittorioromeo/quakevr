@@ -6146,6 +6146,11 @@ QVR_TOGGLE(vr_debug_ragdoll_gun, "Ragdolls' Weapons in Hand",
     "vr_debug_ragdoll_gun: every 0.25 s, each ragdoll's held weapon (an enforcer's rifle, a grunt's shotgun, "
     "a knight's sword, an ogre's chainsaw) as drawn: how far from the part holding it, beside the rest "
     "pose's (\"gun:\"; the same: in his hand).")
+QVR_CYCLE(vr_debug_ragdoll_wall, "Knocked-Down Ragdolls' Contacts",
+    "vr_debug_ragdoll_wall: each knocked-down ragdoll printed every frame (\"wglue\"): its shove's drive and its "
+    "phase, its active drive, its pelvis and head over the floor, its speed, its contacts with walls and floors "
+    "(forces, N), its parts awake, its entity's origin. Each Part also prints every part's.",
+    {0.f, "Off"}, {1.f, "Whole Body"}, {2.f, "Each Part"})
 QVR_TOGGLE(vr_debug_deadanim, "Dead Monsters Animating",
     "vr_debug_deadanim: each dead monster that animates again printed (its think its AI's stand, walk, run or "
     "attack again, or its frame changing 3 s after its death: a corpse that gets up or runs in place). Needs "

@@ -1395,6 +1395,7 @@ bool makeRagdollRoom(edict_t* ent);
 inline int cutDeathJoint = -1;
 bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false);
 void driveShove(RagdollBodies& r, float dt);
+void traceWallGlue(edict_t* ent, const RagdollBodies& r, float dt); // (vr_debug_ragdoll_wall)
 void feedRagdoll(edict_t* ent, Slot& s);
 float activeFloorBelow(const glm::vec3& at, float depth);
 bool activeOnFloor(b3BodyId body);

@@ -117,6 +117,8 @@ void(entity p) VR_RST_Begin =
 // (2026-11-24, vrfiringrange, sv_random_seed 1: against the wall every kind and variant lay propped on it for nearly its
 // whole knockdown, its middle 19-27 units up against 9-11 on the open floor, the active ragdoll off and the wiggle off
 // alike: the plain knockdown ragdoll leaning on the wall, not the active ragdoll's lean; ROUND25.md, "animfix2".)
+// (wallglue, 2026-11-24: the cause was the shove's drives pushing it on into the wall, held up by that much friction;
+// they now end where a wall stops it, vr_knockdown_wall_stop; ROUND25.md, "wallglue". `vr_ragsmash_test 3`: the dogs only.)
 float vr_rwg_state;    // 0 idle, 1 spawned, 2 placed, 3 shoved (watching)
 float vr_rwg_trial;    // trial index: kind * 12 + variant * 3 + rep
 float vr_rwg_hsum;     // its middle's height over the floor, summed over its ragdoll frames
@@ -159,7 +161,7 @@ void(entity p) VR_RWG_Spawn =
     vr_rwg_frames = 0;
 };
 
-void(entity p) VR_RWG_Begin =
+void(entity p, float xFirst) VR_RWG_Begin =
 {
     VR_Test_Begin("wallglue");
     vr_rwg_keep_active = cvar_hget(cvarh_vr_ragdoll_active);
@@ -183,7 +185,7 @@ void(entity p) VR_RWG_Begin =
     vector fw = v_forward;
     fw_z = 0;
     vr_rwg_spot = p.origin + normalize(fw) * 128;
-    vr_rwg_trial = 0;
+    vr_rwg_trial = xFirst; // (vr_ragsmash_test 3: the dogs only, from trial 12)
     VR_RWG_Spawn(p);
 };
 
@@ -346,7 +348,11 @@ void() VR_RagSmash_TestFrame =
         }
         if(request == 2)
         {
-            VR_RWG_Begin(p);
+            VR_RWG_Begin(p, 0);
+        }
+        if(request == 3)
+        {
+            VR_RWG_Begin(p, 12);
         }
         return;
     }

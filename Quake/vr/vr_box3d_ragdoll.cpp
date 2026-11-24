@@ -1388,12 +1388,83 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
 //   gone `reach` or dropped below where it stood, and its turn (its parts' about its middle, as one) eased towards
 //   `rate` until its torso leans `angle`, then held there, never faster than maxSpin (tipping over the lip flipped it).
 // Each part eased a share 1 - e^(-dt / 0.06 s) of the way a frame: driven, not set (its joints still give).
+namespace
+{
+// The level (the world, its doors and walls) pushing back on `body` against `dir` (its faces turned more than 60 degrees
+// against it) in the last step (`dt` s): N, the sum of its contacts' normal forces. (Also the active drive's,
+// ragactive::Context::levelPush: a stagger's carry stopped by a wall.)
+[[nodiscard]] float levelPushOn(b3BodyId body, const glm::vec3& dir, float dt)
+{
+    float force = 0.f;
+    za::Array<b3ContactData, 8> contacts;
+    const int count = dt > 0.f ? b3Body_GetContactData(body, contacts.data(), static_cast<int>(contacts.size())) : 0;
+    for(int i = 0; i < count; i++)
+    {
+        const b3ContactData& c = contacts[static_cast<za::SizeT>(i)];
+        const bool isA = B3_ID_EQUALS(b3Shape_GetBody(c.shapeIdA), body);
+        if((b3Shape_GetFilter(isA ? c.shapeIdB : c.shapeIdA).categoryBits & (catWorld | catMover)) == 0u)
+        {
+            continue;
+        }
+        for(int k = 0; k < c.manifoldCount; k++)
+        {
+            const b3Manifold& mf = c.manifolds[k];
+            const glm::vec3 out = isA ? -glmv(mf.normal) : glmv(mf.normal); // (the level's face, out of it)
+            if(glm::dot(out, dir) > -0.5f)
+            {
+                continue;
+            }
+            for(int q = 0; q < mf.pointCount; q++)
+            {
+                force += mf.points[q].totalNormalImpulse / dt;
+            }
+        }
+    }
+    return force;
+}
+
+// ... on all of `r`'s parts.
+[[nodiscard]] float levelPushBack(const RagdollBodies& r, const glm::vec3& dir, float dt)
+{
+    float force = 0.f;
+    for(int b = 0; b < r.count; b++)
+    {
+        force += partCut(r, b) ? 0.f : levelPushOn(r.body[static_cast<za::SizeT>(b)], dir, dt);
+    }
+    return force;
+}
+} // namespace
+
 void driveShove(RagdollBodies& r, float dt)
 {
     RagdollBodies::ShoveDrive& d = r.shove;
     if(!d.on || dt <= 0.f)
     {
         return;
+    }
+    // Stopped by a wall (wallglue; his note 2026-11-24: "shoved hard into a wall, they get stuck to it for 1-2 s"): the
+    // drive went on driving it along the shove, into the wall, every frame (its travel's catch-up growing the more the
+    // wall held it back; its turn about its feet, blocked, held its parts' fall to the turn's), tens of kN against the
+    // wall: that much friction held it up off the floor, glued, until the drive gave up (its time and a second more).
+    // Once the level pushes back against the shove more than its weight, the drive ends: a ragdoll, it slumps down.
+    {
+        float weight = 0.f;
+        for(int b = 0; b < r.count; b++)
+        {
+            weight += partCut(r, b) ? 0.f : b3Body_GetMass(r.body[static_cast<za::SizeT>(b)]);
+        }
+        weight *= world->gravity / world->m2u;
+        const float back = levelPushBack(r, d.dir, dt);
+        if(vr_knockdown_wall_stop.value != 0.f && weight > 0.f && back > weight)
+        {
+            d.on = false;
+            if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
+            {
+                Con_Printf("ragdoll: shoved into a wall %.2f s in (it pushed back %.0f N, its weight %.0f N): its drive ended\n",
+                    qcvm->time - d.start, back, weight);
+            }
+            return;
+        }
     }
     const float t = static_cast<float>(qcvm->time - d.start);
     const auto counted = [&](int b) { return !partCut(r, b) && r.rig->bones[b].joint != ragdoll::Joint::Loose; };
@@ -1558,6 +1629,138 @@ void driveShove(RagdollBodies& r, float dt)
         b3Body_SetLinearVelocity(body, b3v(lin + (target - lin) * g));
         b3Body_SetAngularVelocity(body, b3v(ang + (axis * spin - ang) * g));
         b3Body_SetAwake(body, true);
+    }
+}
+
+// vr_debug_ragdoll_wall (wallglue, ROUND25.md): each living knocked-down ragdoll, each frame before its drives: what
+// holds it (its shove's drive and phase, its active drive, the throw's pinned feet), its pelvis and head, its middle's
+// velocity, its contacts with the level as walls and floors (the force, N, and the friction's), its parts awake, and the
+// entity's origin. 2: each part's too.
+void traceWallGlue(edict_t* ent, const RagdollBodies& r, float dt)
+{
+    const float level = vr_debug_ragdoll_wall.value;
+    if(level <= 0.f || !knockedDown(ent) || ent->v.health <= 0.f || dt <= 0.f)
+    {
+        return;
+    }
+    float mass = 0.f;
+    glm::vec3 vcom{0.f};
+    int awake = 0, parts = 0, nWall = 0, nFloor = 0;
+    float wallForce = 0.f, wallFriction = 0.f, floorForce = 0.f, otherForce = 0.f;
+    uint64_t otherCats = 0u;
+    int foreign = 0, nonDynamic = 0; // (joints to a body not its own; parts not dynamic)
+    za::Array<float, ragdoll::maxBones> partWall{}, partFloor{};
+    for(int b = 0; b < r.count; b++)
+    {
+        if(partCut(r, b))
+        {
+            continue;
+        }
+        const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+        parts++;
+        awake += b3Body_IsAwake(body) ? 1 : 0;
+        nonDynamic += b3Body_GetType(body) != b3_dynamicBody ? 1 : 0;
+        za::Array<b3JointId, 16> joints;
+        const int nj = b3Body_GetJoints(body, joints.data(), static_cast<int>(joints.size()));
+        for(int j = 0; j < nj; j++)
+        {
+            const b3JointId jid = joints[static_cast<za::SizeT>(j)];
+            const b3BodyId a = b3Joint_GetBodyA(jid), bb = b3Joint_GetBodyB(jid);
+            const b3BodyId other = B3_ID_EQUALS(a, body) ? bb : a;
+            bool own = false;
+            for(int o = 0; o < r.count && !own; o++)
+            {
+                own = !partCut(r, o) && B3_ID_EQUALS(r.body[static_cast<za::SizeT>(o)], other);
+            }
+            foreign += own ? 0 : 1;
+        }
+        const float m = b3Body_GetMass(body);
+        mass += m;
+        vcom += glmv(b3Body_GetLinearVelocity(body)) * m;
+        za::Array<b3ContactData, 8> contacts;
+        const int count = b3Body_GetContactData(body, contacts.data(), static_cast<int>(contacts.size()));
+        for(int i = 0; i < count; i++)
+        {
+            const b3ContactData& c = contacts[static_cast<za::SizeT>(i)];
+            const bool isA = B3_ID_EQUALS(b3Shape_GetBody(c.shapeIdA), body);
+            const uint64_t cat = b3Shape_GetFilter(isA ? c.shapeIdB : c.shapeIdA).categoryBits;
+            if((cat & (catWorld | catMover)) == 0u) // (the level: the world, its doors and walls)
+            {
+                for(int k = 0; k < c.manifoldCount; k++)
+                {
+                    for(int q = 0; q < c.manifolds[k].pointCount; q++)
+                    {
+                        otherForce += c.manifolds[k].points[q].totalNormalImpulse / dt;
+                    }
+                }
+                otherCats |= cat;
+                continue;
+            }
+            for(int k = 0; k < c.manifoldCount; k++)
+            {
+                const b3Manifold& mf = c.manifolds[k];
+                float impulse = 0.f;
+                for(int q = 0; q < mf.pointCount; q++)
+                {
+                    impulse += mf.points[q].totalNormalImpulse;
+                }
+                if(impulse <= 0.f)
+                {
+                    continue;
+                }
+                const float up = isA ? -mf.normal.z : mf.normal.z; // (the level's face, pointing out of it)
+                const float force = impulse / dt;
+                if(up > 0.7f)
+                {
+                    nFloor++;
+                    floorForce += force;
+                    partFloor[static_cast<za::SizeT>(b)] += force;
+                }
+                else
+                {
+                    nWall++;
+                    wallForce += force;
+                    wallFriction += glm::length(glmv(mf.frictionImpulse)) / dt;
+                    partWall[static_cast<za::SizeT>(b)] += force;
+                }
+            }
+        }
+    }
+    vcom = mass > 0.f ? vcom / mass * world->m2u : vcom;
+    const glm::vec3 pelvis = world->toU(b3Body_GetWorldCenter(r.body[0]));
+    const glm::vec3 head = r.rig->head >= 0 && r.rig->head < r.count && !partCut(r, r.rig->head)
+                               ? world->toU(b3Body_GetWorldCenter(r.body[static_cast<za::SizeT>(r.rig->head)]))
+                               : pelvis;
+    const float floor = ent->v.absmin[2];
+    const float t = static_cast<float>(qcvm->time - r.born);
+    const RagdollBodies::ShoveDrive& d = r.shove;
+    const float st = static_cast<float>(qcvm->time - d.start);
+    const char* phase = !d.on ? "off" : d.ledge ? "ledge" : (d.time > 0.f && st < d.time + 0.25f) ? "turn" : "travel";
+    float strength = 0.f;
+    for(int b = 0; b < r.count && r.active.on; b++)
+    {
+        strength = za::max(strength, r.active.strength[static_cast<za::SizeT>(b)]);
+    }
+    Con_Printf("wglue %d t%.3f kd%g shove %s %.2f act %d %s fall%d rise%d stg%d str%.2f pin%x | pelvis %.1f head %.1f up | "
+               "v %.0f %.0f %.0f | wall %d %.0f N fric %.0f N | floor %d %.0f N | awake %d/%d | org %.0f %.0f %.0f | other %.0f N "
+               "cats %llx joints out %d static %d pelvis at %.1f %.1f %.1f\n",
+        NUM_FOR_EDICT(ent), t, fieldFloatOr(ent, fields().vr_knockdown, 0.f), phase, d.on ? st : 0.f, r.active.on ? 1 : 0,
+        r.active.on ? ragactive::modeName(r.active.mode) : "-", r.active.fall.on ? 1 : 0, r.active.rise.on ? 1 : 0,
+        r.active.stagger.on ? 1 : 0, strength, r.pinned, pelvis.z - floor, head.z - floor, vcom.x, vcom.y, vcom.z, nWall,
+        wallForce, wallFriction, nFloor, floorForce, awake, parts, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2],
+        otherForce, static_cast<unsigned long long>(otherCats), foreign, nonDynamic, pelvis.x, pelvis.y, pelvis.z);
+    for(int b = 0; b < r.count && level >= 2.f; b++)
+    {
+        if(partCut(r, b))
+        {
+            continue;
+        }
+        const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+        const glm::vec3 p = world->toU(b3Body_GetWorldCenter(body));
+        const glm::vec3 v = glmv(b3Body_GetLinearVelocity(body)) * world->m2u;
+        Con_Printf("wglue %d   %-10s %.1f up, v %.0f %.0f %.0f, wall %.0f N, floor %.0f N%s\n", NUM_FOR_EDICT(ent),
+            r.rig->bones[b].name, p.z - floor, v.x, v.y, v.z, partWall[static_cast<za::SizeT>(b)],
+            partFloor[static_cast<za::SizeT>(b)], b3Body_IsAwake(body) ? "" : ", asleep");
     }
 }
 // ---- Concussed stirring (vr_knockdown_stir; his notes 2026-11-13: shoved down they lie almost static, read as dead; then
@@ -2299,6 +2502,7 @@ void livingClimb(RagdollBodies& r, float dt)
     c.floorBelow = activeFloorBelow;
     c.onFloor = activeOnFloor;
     c.rayHit = activeRayHit;
+    c.levelPush = levelPushOn;
     c.num = r.num;
     c.born = r.born;
     c.envMask = catWorld | catMover | catProp | catSolid | catFixture;
@@ -2392,6 +2596,7 @@ void driveActive(Slot& s, float dt)
     c.onFloor = activeOnFloor;
     c.liquidAt = liquidFor(r.num); // (a test's swim on dry land: that liquid everywhere for its drive)
     c.rayHit = activeRayHit;
+    c.levelPush = levelPushOn;
     c.num = r.num;
     c.born = r.born;
     c.trace = trace;

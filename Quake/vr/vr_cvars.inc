@@ -3410,6 +3410,7 @@ QVR_CVAR(vr_knockdown_shove_topple_angle, "90", CVAR_ARCHIVE | QVR_RULE) // degr
 QVR_CVAR(vr_knockdown_shove_topple_time, "0.6", CVAR_ARCHIVE | QVR_RULE) // s it takes to turn that far (slow to start, fastest past halfway, landing)
 QVR_CVAR(vr_knockdown_shove_feet_lag, "0.3", CVAR_ARCHIVE | QVR_RULE) // share of the travel its feet lag behind as it turns (its top as far ahead); 0: all of it goes alike
 QVR_CVAR(vr_knockdown_shove_max_spin, "300", CVAR_ARCHIVE | QVR_RULE) // deg/s: it never turns faster than this while the shove drives it (no cartwheels)
+QVR_CVAR(vr_knockdown_wall_stop, "1", CVAR_NONE) // a shove's drive (its carry and topple, an active stagger's carry) ends where a wall stops the body (pushing back more than its weight): it slumps down the wall, not held up against it (wallglue); 0 the old way, for A/B
 QVR_CVAR(vr_legsweep, "1", CVAR_ARCHIVE | QVR_RULE)                // a staff-like thing in a hand (a long gun, a crowbar, a sword's hilt, a plank) swept level and fast through a humanoid's lower legs knocks it down, its feet sliding along the sweep, its body toppling over the other way (vr_legsweep.cpp)
 QVR_CVAR(vr_legsweep_debug, "0", CVAR_NONE)            // each leg contact's measure and verdict printed (legsweep:), and a sweep's fall traced for a second (legsweep trace:, legsweep fell:); 2: also each hand's thing every frame (its ends)
 QVR_CVAR(vr_knockdown_shove_ledge_topple, "100", CVAR_ARCHIVE | QVR_RULE) // deg/s (times the shove's strength): shoved over a ledge, pushed whole (it goes over) and turned over its feet as it falls this fast, up to vr_knockdown_shove_topple_angle (never faster than vr_knockdown_shove_max_spin); 0: it goes over upright
@@ -3424,6 +3425,7 @@ QVR_CVAR(vr_ragdoll_inherit, "1", CVAR_ARCHIVE | QVR_RULE)       // share of the
 QVR_CVAR(vr_debug_ragdoll, "0", CVAR_NONE)            // print each ragdoll made, its pushes and blasts
 QVR_CVAR(vr_debug_ragdoll_look, "0", CVAR_NONE)       // each ragdoll drawn in its .mdl's rest pose where the entity stands, to compare its look with the .mdl's: 1 its skinned copy ("#rag"), 2 the .mdl itself (pose 0), 3 neither (hidden); vr_ragdoll_draw_info
 QVR_CVAR(vr_debug_ragdoll_gun, "0", CVAR_NONE)      // every 0.25 s, each ragdoll's held weapon (its loose piece) as drawn: how far from the part of it that holds it ("gun:"), beside the rest pose's
+QVR_CVAR(vr_debug_ragdoll_wall, "0", CVAR_NONE)     // each knocked-down ragdoll every frame: its drives, its pelvis and head, its contacts with walls and floors (N), awake parts, its origin ("wglue"); 2 each part too
 // The ragdoll tool (vr_ragtool.cpp, RAGTOOL.md; `-ragtool` or `vr_ragtool`): its choices, shown on its menu page. Not saved.
 QVR_CVAR(vr_ragtool_map, "vrragtriggers", CVAR_NONE)  // the room vr_ragtool loads
 QVR_CVAR(vr_ragtool_model, "0", CVAR_NONE)            // the subject: its row in vr_ragtool_models (the toolgun's monsters with a rig)

@@ -1101,6 +1101,7 @@ void syncEntities(float dt)
         case Kind::Corpse:
             if(s.ragdoll >= 0)
             {
+                traceWallGlue(ent, world->ragdolls[static_cast<za::SizeT>(s.ragdoll)], dt);
                 feedRagdoll(ent, s);
                 driveShove(world->ragdolls[static_cast<za::SizeT>(s.ragdoll)], dt);
                 shockRagdoll(ent, s, dt);

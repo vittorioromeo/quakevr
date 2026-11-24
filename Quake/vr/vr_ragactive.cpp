@@ -816,6 +816,13 @@ constexpr float tugFlailHz = 1.1f;       // Hz: ... its pace (noise: three sines
     return 1.f - (1.f - u) * (1.f - u);
 }
 
+// How far its pin's anchor has carried it along its way at `t` (metres): no further than a wall stopped it (stopShare).
+[[nodiscard]] float staggerCarry(const Stagger& g, float t)
+{
+    const float share = staggerShare(g, t);
+    return g.travel * (g.stopShare >= 0.f ? za::min(share, g.stopShare) : share);
+}
+
 // Its pin let down at `t` (metres): its knees bent for its backpedal (vr_ragdoll_active_stagger_crouch), eased in at
 // once and out as its carry ends.
 [[nodiscard]] float staggerDip(const Stagger& g, float t)
@@ -987,7 +994,7 @@ bool staggerOutcome(StaggerWork& w, State& s, const Parts& p, const Context& c, 
     g.sag = za::min(g.sag, (pelvis.z - floor) / g.overFloor);
     if(vr_debug_ragdoll.value >= 2.f)
     {
-        const glm::vec3 anchor = g.pelvis0 + g.dir * (g.travel * staggerShare(g, t));
+        const glm::vec3 anchor = g.pelvis0 + g.dir * staggerCarry(g, t);
         const glm::vec3 po = (pelvis - anchor) * p.m2u, co = (com - support) * p.m2u;
         const glm::vec3 torso = glmv(b3Body_GetWorldCenter(p.body[chestOf(p)])) - pelvis, legs = pelvis - support;
         const auto tilt = [](const glm::vec3& v) {
@@ -3756,7 +3763,30 @@ void drivePin(DriveWork& w, State& s, const Parts& p, const Context& c)
                 }
             }
             led.ledGive = 0.f;
-            offset = s.stagger.lift + s.stagger.dir * (s.stagger.travel * staggerShare(s.stagger, t)) + led.led -
+            // Carried into a wall (wallglue; his note 2026-11-24: "shoved hard into a wall, they get stuck to it"): its
+            // anchor went on through the wall, its pin pressing it against it at its most (body weights; the friction
+            // of that held it up). Once the level pushes back against its way more than its weight, the anchor stops
+            // where its pelvis has got to.
+            if(led.stopShare < 0.f && c.levelPush && led.travel > 1e-3f && vr_knockdown_wall_stop.value != 0.f)
+            {
+                float back = 0.f;
+                for(int b = 0; b < p.count; b++)
+                {
+                    back += cut(p, b) ? 0.f : c.levelPush(p.body[b], led.dir, c.dt);
+                }
+                if(back > s.totalMass * c.gravity)
+                {
+                    const float gone = glm::dot(glmv(b3Body_GetPosition(p.body[0])) - led.pelvis0, led.dir);
+                    led.stopShare = za::clamp(gone / led.travel, 0.f, staggerShare(led, t));
+                    if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+                    {
+                        Con_Printf("stagger: %d carried into a wall %.2f s in (it pushed back %.0f N): its carry stopped at %.0f of "
+                                   "%.0f units\n",
+                            c.num, t, back, led.stopShare * led.travel * p.m2u, led.travel * p.m2u);
+                    }
+                }
+            }
+            offset = s.stagger.lift + s.stagger.dir * staggerCarry(s.stagger, t) + led.led -
                      glm::vec3{0.f, 0.f, staggerDip(s.stagger, t)};
         }
         glm::vec3 at = s.origin + s.turn * (pose.pos[0] * p.k) + offset;
