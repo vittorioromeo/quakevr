@@ -170,6 +170,23 @@ is off. (Without it the twins were compiled at every start: the arrays' at each 
 Quest.)
 =============
 */
+/*
+=============
+GL_VertexOnlyEmptyFrag -- QVR
+
+A vertex-only program (the depth passes: the world's pre-pass, the models' and shadow casters' depth, the sky
+stencil) is linked with an empty fragment shader instead: on OpenGL ES (which links no graphics program without one:
+the Quest's Adreno refuses it) and where VR_GLSAFE_VERTEX_ONLY is off (-glsafe; Intel's, vr_gl_workarounds 1: its
+Windows driver, an HD Graphics 630's, failed "world depth" with "Out of resource error" while every program with a
+fragment shader linked; without a consumer the world vertex shader's ~21 outputs, to location 29, stay live, with
+one none of them are). The same depths (the vertex shader's gl_Position is invariant); the colour is masked there.
+=============
+*/
+static qboolean GL_VertexOnlyEmptyFrag (void)
+{
+	return VR_GLESForm (VR_GLES_FORM_GLSL) || VR_GLSafeOff (VR_GLSAFE_VERTEX_ONLY);
+}
+
 static unsigned long long GL_TwinProgramKey (const GLchar *const *sources, const char *macros, qboolean emptyfrag)
 {
 	unsigned long long key = 0;
@@ -186,20 +203,61 @@ static unsigned long long GL_TwinProgramKey (const GLchar *const *sources, const
 
 /*
 =============
+GL_DescribeLimits -- QVR
+
+The driver's limits a program can run out of (a link's "Out of resource error" names none): storage blocks per stage
+and in all, the interface between the stages, uniforms, attributes, clip distances, images, atomic counters and
+texture units. GL_Init's "GL limits:" line, the crash report's (VR_SetCrashGlLimits) and a failed link's message.
+=============
+*/
+#define GL_LIMIT_COUNT 18
+static const GLenum gl_limit_names[GL_LIMIT_COUNT] =
+{
+	GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS, GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS,
+	GL_MAX_COMBINED_SHADER_STORAGE_BLOCKS, GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS,
+	GL_MAX_VERTEX_OUTPUT_COMPONENTS, GL_MAX_FRAGMENT_INPUT_COMPONENTS, GL_MAX_VARYING_VECTORS,
+	GL_MAX_VERTEX_UNIFORM_COMPONENTS, GL_MAX_VERTEX_UNIFORM_BLOCKS, GL_MAX_FRAGMENT_UNIFORM_BLOCKS, GL_MAX_UNIFORM_BLOCK_SIZE,
+	GL_MAX_VERTEX_ATTRIBS, GL_MAX_VERTEX_IMAGE_UNIFORMS, GL_MAX_VERTEX_ATOMIC_COUNTERS,
+	GL_MAX_TEXTURE_IMAGE_UNITS, GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, GL_MAX_FRAGMENT_IMAGE_UNIFORMS,
+};
+
+void GL_DescribeLimits (char *buf, size_t size)
+{
+	GLint v[GL_LIMIT_COUNT + 1];
+	int i;
+	for (i = 0; i < GL_LIMIT_COUNT; i++)
+	{
+		v[i] = 0;
+		glGetIntegerv (gl_limit_names[i], &v[i]);
+	}
+	v[GL_LIMIT_COUNT] = 0;
+#ifndef __ANDROID__
+	glGetIntegerv (GL_MAX_CLIP_DISTANCES, &v[GL_LIMIT_COUNT]); // (ES: only with EXT_clip_cull_distance)
+#endif
+	q_snprintf (buf, size,
+		"storage blocks vertex %d, fragment %d, compute %d, combined %d, bindings %d; "
+		"vertex output components %d, fragment input components %d, varying vectors %d; "
+		"vertex uniform components %d, uniform blocks vertex %d, fragment %d, block size %d; "
+		"vertex attributes %d; vertex images %d, vertex atomic counters %d; "
+		"texture units fragment %d, combined %d; fragment images %d; clip distances %d",
+		v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15], v[16], v[17],
+		v[GL_LIMIT_COUNT]);
+}
+
+/*
+=============
 GL_StorageBlockLimits -- QVR
 
-The driver's storage-block limits per stage, for a failed link's message: a link that fails on them (OpenGL ES may
-offer few or none to the vertex and fragment stages; the scene's programs read several) says so, not only the
-driver's log.
+The driver's limits (GL_DescribeLimits), for a failed link's message: a link that fails on them (OpenGL ES may offer
+few or no storage blocks to the vertex and fragment stages; Intel's Windows driver says "Out of resource error") says
+which they are, not only the driver's log.
 =============
 */
 static const char *GL_StorageBlockLimits (void)
 {
-	GLint vs = 0, fs = 0, cs = 0;
-	glGetIntegerv (GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &vs);
-	glGetIntegerv (GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS, &fs);
-	glGetIntegerv (GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &cs);
-	return va ("the driver's storage blocks per stage: vertex %d, fragment %d, compute %d", vs, fs, cs);
+	char limits[640];
+	GL_DescribeLimits (limits, sizeof (limits));
+	return va ("the driver's limits: %s", limits);
 }
 
 /*
@@ -645,7 +703,7 @@ static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, co
 	{ // QVR: a graphics program's sources kept for its multiview twin (GL_MultiviewProgram)
 		// QVR: OpenGL ES links no graphics program without a fragment shader (the depth-only ones: the sky stencil, the
 		// world's depth pre-pass): an empty one there (the Quest's Adreno refuses the link; QUEST_PLAN.md, C4b)
-		const qboolean emptyfrag = count == 2 && types[0] == GL_VERTEX_SHADER && sources[0] && !sources[1] && VR_GLESForm (VR_GLES_FORM_GLSL);
+		const qboolean emptyfrag = count == 2 && types[0] == GL_VERTEX_SHADER && sources[0] && !sources[1] && GL_VertexOnlyEmptyFrag ();
 		const char *emptysource = "void main() {}\n";
 		unsigned long long key = 0;
 		GLuint program = 0;
@@ -733,7 +791,7 @@ GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly)
 	q_snprintf (macros, sizeof (macros), "%s#define QVR_WORLD_ARRAYS 1\n", src->macros);
 	gl_arrays_compile = 1;
 	{
-		const qboolean emptyfrag = !src->sources[1] && VR_GLESForm (VR_GLES_FORM_GLSL);
+		const qboolean emptyfrag = !src->sources[1] && GL_VertexOnlyEmptyFrag ();
 		const unsigned long long key = GL_TwinProgramKey (src->sources, macros, emptyfrag);
 		if (key && (src->arraytwin = GL_ProgramFromCache (key, src->name)) != 0) // (the program cache)
 		{
@@ -745,7 +803,7 @@ GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly)
 	for (i = 0, realcount = 0; i < 2; i++)
 		if (src->sources[i])
 			shaders[realcount++] = GL_CreateShader (types[i], src->sources[i], macros, src->name);
-	if (realcount == 1 && VR_GLESForm (VR_GLES_FORM_GLSL)) // (the depth pre-pass's twin: an empty fragment shader, as above)
+	if (realcount == 1 && GL_VertexOnlyEmptyFrag ()) // (the depth pre-pass's twin: an empty fragment shader, as above)
 		shaders[realcount++] = GL_CreateShader (GL_FRAGMENT_SHADER, "void main() {}\n", macros, src->name);
 	if (gl_arrays_compile == 1)
 		src->arraytwin = GL_CreateProgramFromShaders (shaders, realcount, src->name);
@@ -800,7 +858,7 @@ static void GL_MultiviewMake (glprogsource_t *src, qboolean async)
 	GLenum types[2] = {GL_VERTEX_SHADER, GL_FRAGMENT_SHADER};
 	GLuint shaders[2];
 	int j, realcount;
-	const qboolean emptyfrag = !src->sources[1] && VR_GLESForm (VR_GLES_FORM_GLSL);
+	const qboolean emptyfrag = !src->sources[1] && GL_VertexOnlyEmptyFrag ();
 	unsigned long long key;
 	src->tried = true;
 	gl_multiview_compile = 1;
@@ -818,7 +876,7 @@ static void GL_MultiviewMake (glprogsource_t *src, qboolean async)
 	for (j = 0, realcount = 0; j < 2; j++)
 		if (src->sources[j])
 			shaders[realcount++] = GL_CreateShader (types[j], src->sources[j], src->macros, src->name);
-	if (realcount == 1 && VR_GLESForm (VR_GLES_FORM_GLSL)) // (a vertex-only program: an empty fragment shader, as above)
+	if (realcount == 1 && GL_VertexOnlyEmptyFrag ()) // (a vertex-only program: an empty fragment shader, as above)
 		shaders[realcount++] = GL_CreateShader (GL_FRAGMENT_SHADER, "void main() {}\n", src->macros, src->name);
 	if (gl_multiview_compile == 1)
 		src->twin = GL_CreateProgramFromShaders (shaders, realcount, src->name);

@@ -210,6 +210,7 @@ int reportHeadLen = 0; // the report's head (what, where, the stack): what stder
 char dialogText[4096];
 char frameText[1024];
 char crashGpu[512]; // VR_SetCrashGpu: the report's "GPU:" line
+char crashGlLimits[640]; // VR_SetCrashGlLimits: the report's "GL limits:" line
 char crashVr[1024]; // VR_SetCrashVr: the report's "VR:" line (the OpenXR runtime, its version, the headset, the layers)
 char glSteps[6144]; // the last GL breadcrumbs (VR_GLRecentSteps, vr_glsafe.cpp)
 // The main thread's context and stack, copied the moment another thread crashed (requestReport; a GL driver's own
@@ -634,6 +635,8 @@ void appendHeader (const CrashRequest &req)
 	appendf ("When: %04u-%02u-%02u %02u:%02u:%02u, %.1f s after start\n", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond,
 		(double)(GetTickCount64 () - startTick) / 1000.0);
 	appendf ("GPU: %s; GL safe mode %s\n", crashGpu[0] ? crashGpu : "no GL context yet", VR_GLSafeDescribe ());
+	if (crashGlLimits[0])
+		appendf ("GL limits: %s\n", crashGlLimits);
 	if (crashVr[0])
 		appendf ("VR: %s\n", crashVr);
 	appendf ("Map: %s; game folder %s\n", crashContext[0] ? crashContext : "no map spawned yet", com_gamedir[0] ? com_gamedir : "not set yet");
@@ -1099,6 +1102,11 @@ extern "C" void VR_SetCrashGpu (const char *line)
 	snprintf (crashGpu, sizeof (crashGpu), "%s", line ? line : "");
 }
 
+extern "C" void VR_SetCrashGlLimits (const char *line)
+{
+	snprintf (crashGlLimits, sizeof (crashGlLimits), "%s", line ? line : "");
+}
+
 extern "C" void VR_SetCrashVr (const char *line)
 {
 	snprintf (crashVr, sizeof (crashVr), "%s", line ? line : "");
@@ -1313,6 +1321,7 @@ pthread_t mainThread;
 char crashDir[PATH_MAX] = "quakevr/crash"; // VR_SetCrashDir: where the reports go (relative: the working directory)
 char crashContext[512];                    // VR_SetCrashContext: the map and map package (the report's "Map:")
 char crashGpu[512];                        // VR_SetCrashGpu: the GL renderer and driver
+char crashGlLimits[640];                   // VR_SetCrashGlLimits: the driver's limits
 char crashVr[512];                         // VR_SetCrashVr: the VR backend and runtime
 char reportPath[PATH_MAX + 64];            // the last report written ("": none; VR_LastCrashReport)
 int reporting = 0;                         // a fatal report under way (one per process)
@@ -1420,6 +1429,8 @@ void writeReport (const char *what, void *const *frames, int count, int skip)
 	appendf ("GPU: %s\n", crashGpu[0] ? crashGpu : "not known yet");
 	appendf ("VR: %s\n", crashVr[0] ? crashVr : "not started");
 	appendf ("GL safe mode: %s\n", VR_GLSafeDescribe ());
+	if (crashGlLimits[0])
+		appendf ("GL limits: %s\n", crashGlLimits);
 	char steps[1024];
 	VR_GLStartupCrashed ();
 	if (VR_GLRecentSteps (steps, sizeof (steps), 8) > 0)
@@ -1700,6 +1711,11 @@ extern "C" void VR_SetCrashContext (const char *what)
 extern "C" void VR_SetCrashGpu (const char *line)
 {
 	snprintf (crashGpu, sizeof (crashGpu), "%s", line ? line : "");
+}
+
+extern "C" void VR_SetCrashGlLimits (const char *line)
+{
+	snprintf (crashGlLimits, sizeof (crashGlLimits), "%s", line ? line : "");
 }
 
 extern "C" void VR_SetCrashVr (const char *line)

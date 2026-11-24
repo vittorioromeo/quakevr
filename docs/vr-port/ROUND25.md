@@ -11942,3 +11942,33 @@ weapon. lance4's report: with the Lance's record gone (stuck in an ogre), a weap
   was set from the start): printed as info, not counted.
 - **Screenshots**: C:/OHWorkspace/qvr-kit/scratch/lance4_shots.png (the beam and the lit head as it fires and 12 frames
   on; the off-hand-on-the-pole frames missed the Lance, the mock hands' framing; the impact is far down the corridor).
+
+## intelhd: "world depth" fails to link on Intel HD Graphics 630 (agent/intelhd, 2026-11-24)
+
+- **Report**: Windows, HD Graphics 630, drivers 27.20.100.9664 and 31.0.101.2114, GL 4.3 core, 1.1.0-rc.2: the link of
+  "world depth|OIT 0; DITHER 0; MODE 0" fails with "Out of resource error." (the vertex shader compiled), with and
+  without -glsafe. The program is the same in rc.2, 1.1.0 and next (the world vertex shader's outputs unchanged since).
+- **What it is**: the world's depth pre-pass (QVR's; upstream Ironwail has none) is the world vertex shader with no
+  fragment shader. Everything before it in GL_CreateShadersAll linked on that driver: every "world|" and "world pdo|"
+  program (the same vertex shader, the same buffers: FrameData UBO, LightBuffer, CallBuffer, InstanceBuffer; with a
+  fragment shader) and the sky stencil (vertex-only, the same buffers, no outputs). So not the storage blocks, uniforms
+  or attributes: what only "world depth" has is a vertex-only link with outputs. The world vertex shader writes ~21
+  outputs (51 components) at locations 0-8, 10, 12-19, 21, 22 and 29 (out_prevclip), plus gl_ClipDistance[1..2];
+  linked with a fragment shader the driver packs or drops them, without one they all stay live (and by location they
+  take 30 slots, the VUE's header, position and clip distances on top: over Gen9's 32). Not pinned on hardware.
+- **Fix**: a vertex-only program is linked with the empty fragment shader the ES profile already adds
+  (GL_VertexOnlyEmptyFrag, gl_shaders.c: the world pre-pass, the models' depth and layered depth, the sky stencil; the
+  arrays' and multiview twins too): none of the outputs is then live. When: OpenGL ES (as before), and where the new
+  safe-mode feature **VR_GLSAFE_VERTEX_ONLY** is off: -glsafe (and automatic safe mode), Intel's vendor workaround
+  (GL_VENDOR/GL_RENDERER "Intel", vr_gl_workarounds 1; vr_glsafe_status lists it), -glescompat. NVIDIA/AMD keep the
+  vertex-only programs. The same depths (gl_Position invariant; the colour masked in the pre-pass).
+- **Limits logged**: GL_DescribeLimits (gl_shaders.c): storage blocks per stage, combined and bindings, vertex output /
+  fragment input components, varying vectors, vertex uniform components, uniform blocks, block size, attributes,
+  images, atomic counters, texture units, clip distances. In GL_Init's "GL limits:" line (replacing "GL storage blocks
+  per stage"), the run's system.txt, the crash report's "GL limits:" line (VR_SetCrashGlLimits, both report writers)
+  and a failed link's message.
+- **Tests**: -glfakevendor Intel on the RTX 4090: "vendor workarounds (Intel ...): vertex-only depth programs off", every
+  program linked, e1m1's eyes the same as without (14 pixels by at most 2 of 259,200; two default runs differ by 60
+  pixels, at most 7: the run-to-run noise). -glsafe: linked, drew. gles_render_test.sh: see the report.
+- **Ask the player**: run 1.2 (or the next beta) as usual; if it still fails, send the crash report (now with "GL
+  limits:") and the run's system.txt; `-glsafe` also takes the empty fragment shader.

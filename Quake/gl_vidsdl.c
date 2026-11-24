@@ -1553,13 +1553,14 @@ static void GL_Init (void)
 	Con_SafePrintf ("GL_VENDOR:   %s\n", gl_vendor);
 	Con_SafePrintf ("GL_RENDERER: %s\n", gl_renderer);
 	Con_SafePrintf ("GL_VERSION:  %s\n", gl_version);
-	{ // QVR: the storage-block limits per stage (OpenGL ES may offer few or none to the vertex and fragment shaders,
-	  // which the scene's programs read several from; a failed link names them too: gl_shaders.c)
-		GLint vs = 0, fs = 0, cs = 0;
-		glGetIntegerv (GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &vs);
-		glGetIntegerv (GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS, &fs);
-		glGetIntegerv (GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &cs);
-		Con_SafePrintf ("GL storage blocks per stage: vertex %d, fragment %d, compute %d\n", vs, fs, cs);
+	{ // QVR: the driver's limits a program can run out of (OpenGL ES may offer few or no storage blocks to the vertex
+	  // and fragment shaders; Intel's "Out of resource error" names none): here, in the run's system.txt and in the
+	  // crash report; a failed link names them too (gl_shaders.c)
+		char limits[640];
+		GL_DescribeLimits (limits, sizeof (limits));
+		Con_SafePrintf ("GL limits: %s\n", limits);
+		VR_SetCrashGlLimits (limits);
+		VR_LogsSystemLine (va ("GL limits: %s\n", limits));
 	}
 	VR_GLStartupVendor (gl_vendor, gl_renderer, gl_version); // QVR: breadcrumbs, AMD's workarounds (vr/vr_glsafe.cpp)
 	{
