@@ -1439,6 +1439,7 @@ string() AD_PlasmaFireSound =
 };
 
 // The Plasma Gun's shot (W_Attack, every 0.2 s): a plasma bolt from the muzzle, a cell; under water it misfires.
+float ad_plasma_shots; // (the tests: its bolts fired; vr_ad_test 106)
 void(float xHand) AD_FirePlasma =
 {
     if(getCurrentAmmoOrClip(xHand) < 1)
@@ -1461,6 +1462,7 @@ void(float xHand) AD_FirePlasma =
     }
     ad_launch_plasma(VRGetMuzzlePos(xHand), VRGetWeaponFireRotFwd(xHand), ad_CT_PLAYER, max(100, cvar_hget(cvarh_vr_ad_plasmagun_speed)));
     VR_DamageCredit_FromHand(ad_newmis, self, xHand);
+    ad_plasma_shots++;
     // At the muzzle: blue-white sparks and a wisp (its kick and flash: weaponfired, slot 35's Effects in vr_weapons.inc).
     particle2(VRGetMuzzlePos(xHand), VRGetWeaponFireRotFwd(xHand) * 40, QVR_PARTICLE_PRESET_CONTACTSPARKS, 5);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);

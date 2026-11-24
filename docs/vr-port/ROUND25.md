@@ -12205,6 +12205,47 @@ to try to pull it out.
   embed tests 33 (embedgrip) 11/4 and 24 (embedfeel) 16/3: the same 11/4 on origin/next's QC (checked): not this change
   (VR paths are unchanged: every change is behind VR_FlatPlay). New scene `flat_embed_axe`.
 
+## flatads: the zoom aim brings the gun to the middle, and a visor zoom look (branch agent/flatads, 2026-11-24)
+
+His ask: for the guns with no sights (weapons.txt `fsight_mode` 1, or `vr_flat_aim_zoom 1`) the right button's zoom also moves
+the gun towards the middle of the screen, and a subtle visor effect while zoomed. Guns with sights are unchanged.
+- **The move** (vr_flatsight.cpp `zoomCentre`, called from `centreOnSight` where a zoom gun used to return): the holding hand,
+  in the view's frame from the crosshair ray's origin, goes `vr_flat_zoom_centre` (0.5) of its sideways offset to the middle,
+  `vr_flat_zoom_up` (tunable, 2 units) up and `vr_flat_zoom_fwd` (tunable, 0) out, over `st.zoomT` smoothstepped; `st.zoomT`
+  runs over `vr_flat_zoom_time` (tunable, -1 = `vr_flat_aim_time`, the zoom's own travel). A pinned free hand and its grip go
+  with it. It is a pose move (the game's hand too), so `aimAtPoint` turns the gun from the moved muzzle at the crosshair point:
+  the shot is unchanged, the drawn gun follows through `flatplay::drawnOffset`. `poseShare` stays 0 for zoom guns (the walk bob,
+  keepNear, recoil as before).
+- **The visor look** (`vr_flat_zoom_visor`, 0.5; 0 off): in the flat look's one pass (vr_flatlook.cpp, uniform `Visor`), eased
+  in with the zoom's travel (`flatsight::zoomVisor`): a red/blue fringe at the lens edge (1.5 px, more as it engages), the edge
+  darkened towards a cool tint and lined every 4 pixels, four thin corner brackets round the middle, and for 0.4 s after it
+  engages a scan line down the view and a shimmer of lines. The pass also runs for it alone (`flatlook::active`). Flat only.
+- Menu: Locomotion > Desktop Screen Play, Zoom Aim Gun To Centre and Zoom Aim Visor Look (flat-only rows, `vr_flat_zoom_*`);
+  Tunables Zoom Aim Gun Up / Forward / Time. `vr_flat_sight_check` prints `flatzoomcentre: t, move, visor, shimmer`.
+- Test: flatads_test.sh section f (grenade launcher): hand right 4.97 -> 2.46 and up -5.01 -> -3.00 zoomed, back on release, the
+  shot 0.0 px off the centre hipfire and zoomed, visor 0.15 / shimmer 0.90 four frames in, 0.50 / 0 zoomed, 0 released.
+  Scene `flat_zoom_aim`. Screenshots (hipfire, zoom as before, zoom now): qvr-kit/scratch/flatads_zoom.png.
+## plasmabolt: AD's Plasma Gun draws no lightning stream (agent/plasmabolt, 2026-11-24)
+
+His report: holding the trigger on AD's Plasma Gun drew a continuous lightning bolt, as the lightning gun's.
+
+- **Cause:** `FrameDrawLightningTrail` (weapons.qc) draws the lightning gun's per-frame stream (TE_LIGHTNING2) for any
+  held `WID_LIGHTNING` on its primary ammo with the trigger held. AD's Plasma Gun is that record upgraded (`wi_adup`
+  `ad_IT_UPGRADE_LG`, `AD_PlasmaGun`), so it drew the stream on top of its plasma bolts. Not tonight's Lance work:
+  the condition is the import's, unchanged until lancecharge added `!DW_LanceInHand`; the Plasma Gun has fired through
+  that record since AD P1b (6267ce7d2c, 2026-10-11). Confirmed by running the new test on 2e6565fb4 (before every
+  Crystal Lance charge/lance3/lance4/variantowned commit): 72 stream draws in 72 held frames.
+- **Fix:** the stream skips `AD_PlasmaGun(hand, flags)` as it skips the Lance. Other variants checked: the Lance's
+  beam (`DW_FireVariant`) gates on the record's `wi_dwvar`, and `WeaponInst_Owned` keeps a record one or the other
+  (an owned Lance clears `wi_adup`; an AD upgrade picked up disowns the variant), so the Plasma Gun never takes the
+  Lance's shot; the Widowmaker's spin and the Rotary gate on their own record; Rogue's plasma (secondary ammo) was
+  already excluded. The stream is the only per-frame LG draw (`PlayerLightningGunEffect` has one caller).
+- **Test:** `vr_ad_test 106` (vr_ad_upgrades_test.qc; counters `vr_lg_trail_draws`, `ad_plasma_shots`): the Plasma
+  Gun in the main hand, the run's `+attack` held 72 frames: 0 stream draws, 4 plasma bolts; then the same record a
+  plain lightning gun 72 more frames: 72 draws, 0 bolts. Verdict `adplasmabolt: 4 passed, 0 failed` (before the fix
+  2 failed: 72 drawn). Run: `vr_ad_upgrades 2;map e1m1;vr_ad_test 106;wait5;+attack`, `-QuitOn "adplasmabolt: [0-9]+
+  passed"`. Scene `ad_plasmabolt`. `dwell_lance_test.sh` could not run here (Dwell's data not in this base dir:
+  "Dwell's data found: FAIL"); the Lance's path is untouched.
 ## Show Melee Arcs: armed humanoids' swings drawn (branch agent/meleearcs, 2026-11-24)
 
 His report: Show Melee Arcs "still displays nothing for armed humanoids" (ROUND24, "Melee rules": the cause was never

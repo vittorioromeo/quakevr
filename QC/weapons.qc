@@ -5149,16 +5149,19 @@ void(vector xOrigin, float xHand) PlayerLightningGunEffect =
 
 float(entity ent, float xHand) VRWeaponLeavingHand;
 
+float vr_lg_trail_draws; // (the tests: the lightning gun's stream drawn, a hand's frame each; vr_ad_test 106)
 void(float xHand, float xButton) FrameDrawLightningTrail =
 {
     // Lightning effect (per-frame). Not Dwell's Crystal Lance's: its shots are single (dw_items.qc DW_LanceChargeFrame;
-    // the stream drawn while its trigger was held, its damage in pulses: his note 2026-11-23).
+    // the stream drawn while its trigger was held, its damage in pulses: his note 2026-11-23). Nor AD's Plasma Gun's (the
+    // lightning gun's record upgraded: its shots are plasma bolts, AD_FirePlasma; plasmabolt, his report 2026-11-24).
     if(xButton &&
        VRGetWeapon(xHand) == WID_LIGHTNING &&
        (!(VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)) &&
-       getCurrentAmmoOrClip(xHand) > 0 && !DW_LanceInHand(xHand))
+       getCurrentAmmoOrClip(xHand) > 0 && !DW_LanceInHand(xHand) && !AD_PlasmaGun(xHand, VRGetWeaponFlags(xHand)))
     {
         PlayerLightningGunEffect(VRGetMuzzlePos(xHand), xHand);
+        vr_lg_trail_draws++;
     }
 }
 
