@@ -1,5 +1,0 @@
-# tut_lesson14: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title The tutorial's lesson 14 (ropes): facing the hall to the arena in its north-west corner
-map vrtutorial
-start 1632 -1086 -120 142
-hint The room's west wall runs on into the hall with the same panels, lined up.

@@ -1,5 +1,0 @@
-# tut_lesson7: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title The tutorial's lesson 7 (the first fight): facing the alcove the enemy comes from
-map vrtutorial
-start 5333 729 -120 -22
-hint The alcove ahead is lit by a ceiling lamp: walk to the door's trigger and the enemy that comes out is easy to see.
