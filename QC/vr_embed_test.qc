@@ -1009,6 +1009,15 @@ float(float xWid, float xSpeed, float xOff, float xSwing, float t) VR_EH_Blow =
         {
             // (Across you: as the mock hand holds it, its edges face that way.)
             vector across = VR_AxeStick_Turn(vr_eh_fw, '0 0 1', 90);
+            // (The axe's edge faces as the hand holds it: its Weapon Offset pitch tips the head, so the way across is the hand's
+            // forward turned square to the blade's line, not the level side of the way. Level: as the mock hand laid it out.)
+            makevectors(VRGetHandRot(cVR_MainHand));
+            vector ln = normalize(line);
+            vector facing = v_forward - ln * (v_forward * ln);
+            if(xWid == WID_AXE && vlen(facing) > 0.2)
+            {
+                across = normalize(facing) * -1; // (the edge leads the way it is swung: the hand's forward turned back)
+            }
             vr_eh_end = chest2 - line * (vr_eh_along > 0 ? vr_eh_along : 1) + across * (vr_eh_ahead > 0 ? 14 : 8);
             vr_eh_start = vr_eh_end - across * dist;
             VR_EH_HandTo(vr_eh_start, 0);
@@ -3691,7 +3700,7 @@ void() VR_EF_Step =
         {
             if(VR_EH_Blow(WID_AXE, 7, 0, TRUE, t))
             {
-                VR_Test_Check(w != world, sprintf("case %g: the axe stays in", vr_et_case));
+                VR_Test_Check(w != world, sprintf("case %g: the axe stays in (hand kind %g, hold %g)", vr_et_case, VR_Hand_Kind(self, cVR_MainHand), VR_HOLD_EMBED));
                 if(w == world)
                 {
                     VR_EH_NextCase();
