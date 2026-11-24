@@ -48,6 +48,9 @@ With the Weapon Wheel on, tap B/Y to eject a nailgun magazine or switch a dagger
 A fresh setup has the VR Weapon Wheel off; flat-screen's Weapon Wheel on 1 / 2 is a setting of its own and on. {test:hub_start}
 Flat-screen or VR: open the weapon wheel: no menu sound plays as it opens (the controller tick in VR stays). {test:flat_weapon_wheel}
 Look away from the wrist gadget and get a centre message: the visor-style panel is about 20% smaller than before and still easy to read; Centre Message Size (HUD > Screens) tunes it. {test:vr_center_message}
+Flat-screen: climb a wooden pole and a rope a good way up, then hold crouch: you slide all the way down to the floor and stand there, never dropping off part-way; on a rope that ends over a drop you stop and hang at its end. {test:ropes_flat}
+Flat-screen: take the health box and throw it with J standing, then running forward, then strafing: it leaves your hand cleanly along the crosshair each time (no knock up or aside off your own body) and carries your motion when you move. {test:flat_throw_run}
+Flat-screen: hold the knight's sword's parry guard (right mouse button) and look up and down: your left hand keeps the same grip on the blade, turning with the sword instead of on its own. {test:flat_parry}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the 1.2.0-beta2 pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names 1.2.0-beta2; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
