@@ -12076,3 +12076,19 @@ His flatscreen feedback 2026-11-24 (two items), and the coordinator's: his tunab
   flatlance_test sets each to its default plus the step it measures.
 - **Tests:** rope_flat_test slide 9/0, poleslide 10/0, slideend 2/0, rope 9/0, pole 8/0; flatlance_test with a new HUD
   check (after the axe and the Lance again by their keys: `big <cells> small -1`, clip size 0).
+
+## beta4: 1.2.0-beta4 published (agent/beta4, 2026-11-24)
+
+- **Why:** an Intel HD Graphics 630 player could not start 1.1 ("Error linking world depth ... Out of resource");
+  intelhd is unconfirmed on Intel hardware, so a beta for him to try, with everything shipped since beta3.
+- **Notes:** RELEASE_NOTES_1.2.md "New in beta 4" (intro rewritten for beta 4; beta 3's section now "Beta 3
+  (2026-11-24)", its one-time Quest uninstall pointed at players coming from beta 1/2 only): the Intel start-up fix
+  (intelhd; crash reports list the GPU limits), flat rope/pole slide hands steady (flatfb1124b), the Lance HUD cells
+  only and its pose, the flat wheel hold 0.15 s (promote1124), wall-stuck shoved monsters (wallglue). Network version
+  46 unchanged: the new STAT_QVR_CLIMB bit 31 is ignored by beta 3 clients (they test the bits one by one).
+  PATCH_NOTES_1.1.1.md the same by area (Graphics, Weapons, Movement, Monsters).
+- **APK:** `Android/release_apk.sh build`: release, 1.2.0-beta4, version code 1020004; check_apk 28/0; apksigner:
+  CN=Quake VR, SHA-256 504ff939...9119c0 = Android/release-cert.sha256.
+- **make_release** (beta3's command, -Version 1.2.0-beta4) on 66a6be17: beta profile 12 passed, 0 failed (4.3 min);
+  installer self-tests 60/60; check_apk 28/0; smoke launch; published as a prerelease with QuakeVR.zip,
+  QuakeVR-Setup.exe, QuakeVR.apk, latest.json, SHA256SUMS.txt; online check passed; Latest still v1.1.0.
