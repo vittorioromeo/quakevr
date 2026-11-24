@@ -12363,3 +12363,33 @@ code and poses so improvements to either reach the other.
 - **Open:** a spear thrown at a grunt stays in it about 1 run in 3 (the rest meet the moving model 44 degrees off
   straight in and skid: the sword's incidence rule); the test prints it as a note. Armed grunts holding it use the
   sword's pose (not checked).
+
+## flatthrust: flatscreen V thrusts with every stabbing blade (agent/flatthrust, 2026-11-24)
+
+His decision (2026-11-24): flatscreen V thrusts with any stabbing blade (V was already the Lance's thrust key).
+- **Before:** V (`startPunch` from pollKeys / `vr_flat_punch v` / `vr_flat_punch main v`) was the same punch as the fire
+  button: a held weapon's overhead swing (`vr_flat_swing`), a pole weapon's spear thrust (`vr_flat_thrust`); never a pommel
+  bash, so nothing is displaced: a sword's swing stays on its fire button.
+- **Now** (vr_flatplay.cpp `thrustsWith`): V with a pole weapon or a blade stuck in by its point (weapons.txt `embed 1`:
+  the knight's sword and AD's swords of that kind, the dagger) is the spear's thrust, through the same clock, times and
+  tunables (`thrustTimes`, `thrustAt`, `thrustPose`, the handsource strike window, the arms' stretch); the fire button
+  keeps the swing for blades (a pole weapon thrusts from both, as before). Axes, clubs, guns: unchanged (V their swing).
+  `vr_flat_thrust_blades` 1 (0: V swings blades again). One-handed variant (`thrustPose`, `!pole`): over the windup the
+  blade (`bladeInHand`: the drawn weapon's grip-to-tip line in the hand's frame, view::DrawnWeapon `inHand`, so the game
+  hand's blade line is QC's VR_Melee_FreeLine one) turns by the shortest turn onto what the crosshair is on (never nearer
+  than `vr_flat_thrust_1h_near` 48 along its ray), the fist comes `_1h_in` 3 in towards the middle, then the thrust along
+  the blade: `_1h_wind_back` 8, `_1h_wind_up` 2, `_1h_reach` 14 (the pole's `vr_flat_thrust_wind_back` / `_wind_up` /
+  `_reach` stay the pole's; pitch / yaw / times shared); back over the recover time. Tunables > Flatscreen after Thrust
+  Arm Stretch ("Blade Thrust ...").
+- **Flipped grip** (QVR_WPNFLAG_REVGRIP: the blade out of the fist's bottom): a stab down: the blade aimed
+  `vr_flat_thrust_1h_rev_down` 40 degrees under the crosshair's line, the fist raised `_1h_rev_up` 6; the flip's drawn-only
+  turn (`revGripDrawnTurn`) fades out by the thrust's aim share so the drawn blade is the game's. QC reads it "stab
+  (diagonal, down) with the tip" and it sticks.
+- **Sticking:** VR's rules unchanged (QC VR_Embed_StabWhy: a stab by the tip); flatembed's hold and fire-to-pull-out
+  as they were. Shared, not copied: the one thrust path for poles and blades (only the aim/turn step is one-hand only).
+- **Tests:** new `Misc/quakevr/flatthrust_test.sh` 7/0 (`vr_embed_test 58-59`, QC/vr_flatthrust_test.qc): sword 48
+  damage, stuck 3.9 deep, out in 2 presses; dagger 38, 1.6, 1 press; spear 21, 1.0, 1; flipped dagger 28 (a stab down),
+  1.1, 1; the axe's V "overhead swing"; the Lance (vr_ad_test 207) 73, 1.0, 1 press. flatkeys 37/0, spear 4/0,
+  flatmelee 12/0, flatlance 32/0 (a first run 31/1: its H case found no Lance stuck: the known stick-chance flake; the pole
+  path's logic is unchanged). `scratch1 1` with test 58 takes the pose screenshots.
+  Scene `flat_thrust_blades`. Screenshots `qvr-kit/scratch/flatthrust_poses.png`.

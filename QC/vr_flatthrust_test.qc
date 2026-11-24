@@ -8,6 +8,7 @@
 //     still its swing (the script checks the engine's "overhead swing" line).
 //   `vr_embed_test 59`: the same with what the main hand already holds (Dwell's Crystal Lance: vr_ad_test 207 first).
 // Each case prints "flatthrust: case <name>" before its V, so the script can pair it with the engine's punch line.
+// With `scratch1 1`, 58 takes screenshots: the sword at rest, then the sword's and the daggers' windup and strike.
 // Ends `flatthrust: N passed, M failed`.
 
 float vr_ft_hp;     // the grunt's health before the blow
@@ -38,6 +39,9 @@ void() VR_FT_Case =
     vr_ft_wid = WID_AXE;
     vr_ft_name = "axe";
 };
+
+float vr_ft_shot;   // screenshots taken in this thrust (scratch1 1: VR_FT_Shots)
+float() VR_FT_Shots = { return (cvar_hget(cvarh_scratch1) == 1) && (vr_et_on == 58) && (vr_et_case != 2) && (vr_et_case != 4); };
 
 float() VR_FT_Last = { return vr_et_on == 59 ? 0 : 4; };
 
@@ -82,6 +86,17 @@ void() VR_FT_Frame =
         vr_et_m.nextthink = time + 0.5; // (the body stands where it is, its blow's anger put off)
         vr_et_m.velocity = '0 0 0';
     }
+    // (Screenshots, with scratch1 1: the sword's and the daggers' windup and strike; the sword's rest just before V.)
+    if(vr_et_s == 2 && VR_FT_Shots() && vr_ft_shot == 0 && t >= 0.18) // (the windup's end: 0.16 s, a frame on)
+    {
+        vr_ft_shot = 1;
+        localcmd("screenshot\n");
+    }
+    if(vr_et_s == 2 && VR_FT_Shots() && vr_ft_shot == 1 && ((t >= 0.3) || (w != world))) // (the strike's end, 0.31 s)
+    {
+        vr_ft_shot = 2;
+        localcmd("screenshot\n");
+    }
     if(vr_et_s == 0)
     {
         VR_FT_Case();
@@ -101,6 +116,11 @@ void() VR_FT_Frame =
     else if(vr_et_s == 1 && t > 0.3 && VRGetEntWeapon(p, h) != WID_FIST) // (drawn, a flip turned over)
     {
         vr_ft_hp = vr_et_m.health;
+        if(VR_FT_Shots() && (vr_et_case == 0))
+        {
+            localcmd("screenshot\n"); // (the sword at rest)
+        }
+        vr_ft_shot = 0;
         dprint(sprintf("flatthrust: case %s\n", vr_ft_name));
         localcmd("vr_flat_punch v\n");
         VR_ET_To(2);
