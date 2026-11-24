@@ -4619,6 +4619,9 @@ void status_f()
             hands::angleVectors(otherRot, f[1], r[1], u[1]);
             Con_Printf("  spear hands: fist fwd %.3f %.3f %.3f up %.3f %.3f %.3f, other fwd %.3f %.3f %.3f up %.3f %.3f %.3f\n",
                 f[0].x, f[0].y, f[0].z, u[0].x, u[0].y, u[0].z, f[1].x, f[1].y, f[1].z, u[1].x, u[1].y, u[1].z);
+            // (Where the fist and the tip are drawn: vr_flat_pole_hand_fwd / _up / _out move the fist alone.)
+            Con_Printf("  spear places: fist at %.2f %.2f %.2f, tip at %.2f %.2f %.2f\n", fist.x, fist.y, fist.z, m.muzzle.x,
+                m.muzzle.y, m.muzzle.z);
         }
         // The melee parry's guard (vr_flat_parry_*): RMB held with one melee weapon.
         if(meleeIn(h) || fs.parry[h] > 0.f)

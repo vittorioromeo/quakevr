@@ -154,5 +154,14 @@ fis=$(grep -oE "lancecharge: charging ent 1 hand 1 .*shake most [0-9.]+, buzzes 
 check $(awk -v c="$chs" -v f="$fis" 'BEGIN { split(f, q, " "); print (c + 0 >= 0.02 && q[1] + 0 >= 0.1 && q[2] + 0 >= 1) ? 1 : 0 }') "shake: charging $chs kicks, firing (shake, buzzes) $fis"
 check $(grep -q "empty click: hand 1" <<<"$log" && echo 0 || echo 1) "empty: no click with the trigger held"
 check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "lance3: the run ended on its last line"
+# 10. lance4: vr_ad_test 225 (dw_test.qc DW_PushTest): on one spot, a crate after another struck once each by the
+#     Lance's beam, a shotgun blast, a super shotgun's and the lightning gun held a second (their crates' moves printed);
+#     the Lance's shoved further than the super shotgun's, not flung, none through the floor; a ragdoll struck (never
+#     gibbed for the shot) moved and on the floor. sv_random_seed 1: the same every run.
+log=$(bash $KIT/run.sh $AGENT -Script "sv_random_seed 1;map e1m1;wait10;god;notarget;developer 1;vr_ad_test 225" \
+    -QuitOn "dwpush: [0-9]+ passed" -Timeout 300 -Filter "dwpush|rror|exit=" 2>&1 | tr -d '\r')
+echo "$log" | grep -E "dwpush: .* moved|FAIL" | cut -c1-120 | head -8
+expect_verdict "$log" dwpush "the beam's push: a crate shoved further than by a super shotgun, a ragdoll moved"
+check $(grep -q "exit=quit-on" <<<"$log" && echo 1 || echo 0) "push: the run ended on its verdict"
 verdict
 exit $fail

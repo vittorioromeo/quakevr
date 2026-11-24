@@ -11842,3 +11842,41 @@ His VR notes 2026-11-23 (vrtesthall 23:19:33, 23:02:20, 22:58:27, 23:17:34, 23:1
   down: lower friction against walls, or a push off it; a next test variant with `tune vr_ragdoll_friction 0.2`).
   `wallglue: 24 passed, 0 failed` (checks: each trial up again within 10 s, never propped over 7 s at a time).
   Scene `wall_shove` (vrtesthall's south wall: a grunt and a dog with their backs to it, every shove a knockdown).
+
+## lance4: the Crystal Lance's push measured, its flat hand tunables, never lost in flat play (agent/lance4, 2026-11-24)
+
+- **The beam's push (vr_ad_test 225, now deterministic, in dwell_lance_test.sh as section 10).** One spot 120 ahead
+  (e1m1, `sv_random_seed 1`), a fresh small crate (40 kg) for each weapon, struck once along the same line: the crate's
+  move 90 frames on. Lance `vr_dw_lance_push` 1: 0.3 units, 4: 3.7, 8: 10.2, 16: 20.2; a shotgun blast (6 pellets all
+  on it) 0.5, a super shotgun's (14) 2.4, the lightning gun held 1 s 0.2. Every run the same. **Default 8** (was 4):
+  about 25 cm, four times a point-blank super shotgun blast, never flung (the push's top speed, 10 m/s, caps it); the
+  slider now goes to 20. Checks: the Lance's crate further than the super shotgun's, under 64, not under the floor.
+- **lance3's 552-unit ragdoll was not a fall-through:** the beam's 150 damage is over Corpse Gib Overkill (50), so it gibs
+  any corpse whole; the test's ragdoll was gibbed and its head thrown (the "ragdoll" point then the head's box). In play
+  the Lance's beam gibs every corpse it hits, so its push on ragdolls only shows with gibbing tuned off. The test now
+  puts the overkill out of reach for its one shot (and back); the push goes into the nearest part: the root moves about
+  1.3 units at any push (a limb moves), on the floor, still a ragdoll.
+- **Flat Lance lost (his flat note 2026-11-24: "an empty lightning gun after a melee attack, a magazine fell off").**
+  Reproduced: the flat thrust (V) is a stab by its tip, which lance3 lets stay in a body (`embed "1"`); flat play's hands
+  can't hold a stuck weapon, so it was let go at once ("out of the arm's reach"), the Lance left in the ogre, the hand
+  empty. The Lance is the lightning gun's slot (WID_LIGHTNING, its record's `wi_dwvar` the Lance); a weapon key then
+  gives a plain lightning gun record (no variant), clip 0, and flat play's empty-magazine drop (vr_flat_mag_eject:
+  VR_Reload_UsesMag is true for WID_LIGHTNING; the Lance itself is exempt only through its record, DW_LanceFedFromPouch)
+  threw its "magazine" out. No code knocks a magazine off a weapon by a blow. Fix: QC VR_Embed_Try never embeds in flat
+  play (any held weapon: a flat sword stab had the same hole). flatlance_test.sh section 5: ten thrusts into two ogres,
+  then 8: before the fix the Lance was gone after the first thrust; after: 1+ thrusts land, never stuck, still the Lance,
+  no flat reload line.
+- **Flat spear tunables (his flat note: "hard to get right").** What there was: Spear Ahead / Up / Out (`vr_flat_pole_fwd
+  _up _out`: the holding hand and the Lance together on screen), Spear Pitch / Yaw / Roll (`_pitch _yaw _roll`: the
+  Lance turned about the fist), Spear Along (`_along`: the pole slid through the fist), the other hand's Along / Up /
+  Out (`_off_along _off_up _off_out`) and Pitch / Yaw / Roll (`_off_*`), the holding hand's Pitch / Yaw / Roll
+  (`_hand_*`). Added: **Spear Hand Forward / Up / Out** (`vr_flat_pole_hand_fwd _up _out`, 0; drawn only: the holding hand
+  alone moved in its own frame, the Lance unmoved; vr_view_hands.cpp beside the hand's turn). vr_flatplay_status prints
+  "spear places: fist at, tip at"; flatlance_test.sh section 4: fwd 3, up 2 move the fist 3.6 against the tip.
+- **His tweaks promoted** (the ship's list): `vr_flat_throw_wind_fwd` 0.4, `_wind_up` 0.6, `vr_flat_pole_fwd` 8,
+  `_off_along` 10, `_hand_pitch` 30, `vr_flat_thrust_wind_back` 16, `vr_flat_thrust_reach` 16. flatlance_test.sh's
+  other-hand check now expects about 10 along. Open: with these defaults `vr_flat_pole_off_up 3` no longer holds the drawn
+  other hand 3 off the pole (0.8 -> 2.2 after 10 frames, 0.9 -> 0.3 after 72, even at Along 16; 0.6 -> 3.1 when Along 16
+  was set from the start): printed as info, not counted.
+- **Screenshots**: C:/OHWorkspace/qvr-kit/scratch/lance4_shots.png (the beam and the lit head as it fires and 12 frames
+  on; the off-hand-on-the-pole frames missed the Lance, the mock hands' framing; the impact is far down the corridor).
