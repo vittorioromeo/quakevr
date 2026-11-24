@@ -1017,12 +1017,22 @@ void(entity p) DW_ChargeTest =
     t.nextthink = time;
 };
 
-// vr_ad_test 225 (lance3): the Crystal Lance's beam moves what it meets. A small crate 120 ahead and a grunt killed 200
-// ahead (a ragdoll, settled 90 frames): the crate kept from breaking (takedamage off: the beam's push alone,
-// VR_ShotPush), the body from gibbing (the script tunes Corpse Gib Overkill and Hit Min out of reach); the beam
-// (dw_fire_lance, aimed by the test from 64 behind and 24 above each: a ragdoll's root bone, a crate's middle) moves
-// each: those points 30 frames on against before. "dwpush: N passed, M failed".
-float dw_pt_step, dw_pt_frames;
+// vr_ad_test 225 (lance3, lance4): the Crystal Lance's beam moves what it meets, measured against the guns. On the same
+// spot 120 ahead, one small crate after another (each settled 40 frames, takedamage off: the push alone, never broken),
+// struck once each along the same line (from 64 behind and 24 above its middle; VR_ShotPush as each weapon does): the
+// Lance's beam (dw_fire_lance, at vr_dw_lance_push), a shotgun blast (6 pellets) and a super shotgun's (14), all on it,
+// and the lightning gun's beam held a second (10 bolts, 7 frames apart); each crate's middle 90 frames after its last
+// shot against before. Then a grunt killed 200 ahead (a ragdoll, settled) struck by the beam at its root bone, damage
+// and all, Corpse Gib Overkill and Hit Min out of reach for that shot (lance3's 552 units was the ragdoll gibbed whole by
+// the beam's 150, over the overkill's 50, its head thrown: not a fall; in play the beam gibs a corpse). Passes: the
+// Lance's crate moved further than the super shotgun blast's and under 64 (shoved, not flung); the ragdoll moved (the
+// push goes into its nearest part: its root moves about a unit), under 96; neither sank under where it lay (2 units, 8
+// for the ragdoll's root); still a ragdoll. lance4, sv_random_seed 1, e1m1: the crate 3.7 units at push 4, 10.2 at 8,
+// 20.2 at 16; a shotgun blast 0.5, a super shotgun's 2.4, the lightning gun held 1 s 0.2. "dwpush: N passed, M failed".
+float dw_pt_step, dw_pt_frames, dw_pt_trial, dw_pt_shots;
+float dw_pt_overkill, dw_pt_hitmin, dw_pt_restore; // Corpse Gib Overkill and Hit Min as they were (dw_pt_restore: to put back)
+float dw_pt_low;   // the lowest the struck point went since the first shot
+float dw_pt_moved[5]; // each trial's distance: the Lance, shotgun, super shotgun, lightning gun (crates), the ragdoll
 vector dw_pt_was;
 entity dw_pt_crate, dw_pt_body;
 
@@ -1032,19 +1042,41 @@ vector(entity t) DW_PushTest_At =
     return isragdoll(t) ? ragdollpoint(t, 0, '0 0 0', 1) : (t.absmin + t.absmax) * 0.5;
 };
 
-void(entity p, entity t) DW_PushTest_Fire =
+string(float xTrial) DW_PushTest_Name =
+{
+    if(xTrial == 0) { return "the Lance's beam"; }
+    if(xTrial == 1) { return "a shotgun blast"; }
+    if(xTrial == 2) { return "a super shotgun blast"; }
+    if(xTrial == 3) { return "the lightning gun held 1 s"; }
+    return "the Lance's beam on the ragdoll";
+};
+
+// One shot of the trial's at `t` (the Lance's beam itself; the guns' pushes as their shots make them, all on it).
+void(entity p, entity t, float xTrial) DW_PushTest_Fire =
 {
     makevectors('0 1 0' * p.angles_y);
     vector at = DW_PushTest_At(t);
-    dw_lance_aim_test = 1;
     dw_lance_aim_src = at - v_forward * 64 + '0 0 24';
     dw_lance_aim_dir = at - dw_lance_aim_src;
-    entity os = self;
-    self = p;
-    dw_fire_lance(cVR_MainHand);
-    self = os;
-    dw_lance_aim_test = 0;
-    dw_pt_was = DW_PushTest_At(t);
+    if(xTrial == 0 || xTrial == 4)
+    {
+        dw_lance_aim_test = 1;
+        entity os = self;
+        self = p;
+        dw_fire_lance(cVR_MainHand);
+        self = os;
+        dw_lance_aim_test = 0;
+        return;
+    }
+    float kind = xTrial == 3 ? QVR_SHOTPUSH_LIGHTNING : QVR_SHOTPUSH_PELLET;
+    float n = xTrial == 1 ? 6 : (xTrial == 2 ? 14 : 1);
+    vector dir = normalize(dw_lance_aim_dir);
+    float i;
+    for(i = 0; i < n; i++)
+    {
+        traceline(dw_lance_aim_src, at + dir * 64, MOVE_HITGIBS, p);
+        VR_ShotPush(trace_ent, dw_lance_aim_src, trace_endpos, dir, kind, 1);
+    }
 };
 
 void() DW_PushTest_Think =
@@ -1052,53 +1084,109 @@ void() DW_PushTest_Think =
     entity p = self.owner;
     self.nextthink = time;
     dw_pt_frames++;
-    if(dw_pt_frames > 600)
+    if(dw_pt_frames > 900)
     {
-        VR_Test_Check(FALSE, sprintf("timed out (step %g)", dw_pt_step));
+        VR_Test_Check(FALSE, sprintf("timed out (trial %g, step %g)", dw_pt_trial, dw_pt_step));
         VR_Test_Verdict();
         remove(self);
         return;
     }
-    if(dw_pt_step == 0)
+    entity t = dw_pt_trial < 4 ? dw_pt_crate : dw_pt_body;
+    if(dw_pt_step == 0) // a crate on the spot (the ragdoll's trial: the body killed at the start, settled since)
     {
-        if(dw_pt_frames < 3) { return; }
-        T_Damage(dw_pt_body, p, p, dw_pt_body.health + 10); // (a kill short of a gib: a ragdoll)
+        if(dw_pt_trial == 0 && dw_pt_frames == 3)
+        {
+            T_Damage(dw_pt_body, p, p, dw_pt_body.health + 10); // (a kill short of a gib: a ragdoll)
+        }
+        if(dw_pt_trial < 4 && !dw_pt_crate)
+        {
+            makevectors('0 1 0' * p.angles_y);
+            dw_pt_crate = VR_Crate_TestSpawn(p.origin + v_forward * 120 + '0 0 -8', 1, 0, FALSE);
+            dw_pt_frames = 0;
+            return;
+        }
+        if(dw_pt_frames < 40) { return; }
+        if(dw_pt_trial == 4)
+        {
+            VR_Test_Check(isragdoll(dw_pt_body), sprintf("the grunt killed is a ragdoll (%g)", isragdoll(dw_pt_body)));
+        }
+        t = dw_pt_trial < 4 ? dw_pt_crate : dw_pt_body;
+        if(dw_pt_trial < 4)
+        {
+            t.takedamage = DAMAGE_NO;
+        }
+        else
+        {
+            // (struck as in play, damage and all, only never gibbed whole: Corpse Gib Overkill out of reach for the shot)
+            dw_pt_overkill = cvar("vr_corpse_gib_overkill");
+            dw_pt_hitmin = cvar("vr_corpse_gib_hit_min");
+            dw_pt_restore = 1;
+            cvar_set("vr_corpse_gib_overkill", "100000");
+            cvar_set("vr_corpse_gib_hit_min", "100000");
+        }
+        dw_pt_was = DW_PushTest_At(t);
+        dw_pt_low = dw_pt_was_z;
+        DW_PushTest_Fire(p, t, dw_pt_trial);
+        if(dw_pt_restore)
+        {
+            cvar_set("vr_corpse_gib_overkill", ftos(dw_pt_overkill));
+            cvar_set("vr_corpse_gib_hit_min", ftos(dw_pt_hitmin));
+            dw_pt_restore = 0;
+        }
+        dw_pt_shots = 1;
+        dw_pt_frames = 0;
         dw_pt_step = 1;
+        return;
     }
-    else if(dw_pt_step == 1)
+    // Struck: the lightning gun's bolts until 10, then 90 frames; the lowest the point went.
+    vector now = DW_PushTest_At(t);
+    dw_pt_low = min(dw_pt_low, now_z);
+    if(dw_pt_trial == 3 && dw_pt_shots < 10)
     {
-        if(dw_pt_frames < 95) { return; }
-        dw_pt_crate.takedamage = DAMAGE_NO;
-        DW_PushTest_Fire(p, dw_pt_crate);
-        dw_pt_frames = 100;
-        dw_pt_step = 2;
+        if(dw_pt_frames >= 7)
+        {
+            DW_PushTest_Fire(p, t, dw_pt_trial);
+            dw_pt_shots++;
+            dw_pt_frames = 0;
+        }
+        return;
     }
-    else if(dw_pt_step == 2)
+    if(dw_pt_frames < 90) { return; }
+    float d = vlen(now - dw_pt_was);
+    dw_pt_moved[dw_pt_trial] = d;
+    dprint(sprintf("dwpush: %s moved %s %.1f units (from %v to %v, %.1f lowest under where it lay)\n",
+        DW_PushTest_Name(dw_pt_trial), dw_pt_trial < 4 ? "the crate" : "the ragdoll's root", d, dw_pt_was, now,
+        dw_pt_was_z - dw_pt_low));
+    if(dw_pt_trial == 0)
     {
-        if(dw_pt_frames < 130) { return; }
-        float d = vlen(DW_PushTest_At(dw_pt_crate) - dw_pt_was);
-        VR_Test_Check(d > 2, sprintf("the crate moved by the beam: %.1f units", d));
-        VR_Test_Check(isragdoll(dw_pt_body), sprintf("the grunt killed is a ragdoll (%g)", isragdoll(dw_pt_body)));
-        DW_PushTest_Fire(p, dw_pt_body);
-        dw_pt_step = 3;
+        VR_Test_Check(d < 64, sprintf("the beam shoved the crate, not flung it: %.1f units", d));
+        VR_Test_Check(dw_pt_was_z - dw_pt_low < 2, sprintf("the crate stayed on the floor (%.1f under)", dw_pt_was_z - dw_pt_low));
     }
-    else if(dw_pt_step == 3)
+    if(dw_pt_trial < 4)
     {
-        if(dw_pt_frames < 160) { return; }
-        float r = vlen(DW_PushTest_At(dw_pt_body) - dw_pt_was);
-        VR_Test_Check(r > 2, sprintf("the ragdoll moved by the beam: %.1f units", r));
-        VR_Test_Verdict();
-        remove(self);
+        remove(dw_pt_crate);
+        dw_pt_crate = world;
+        dw_pt_trial++;
+        dw_pt_step = 0;
+        dw_pt_frames = 0;
+        return;
     }
+    VR_Test_Check(dw_pt_moved[0] > dw_pt_moved[2], sprintf("the Lance's beam shoves a crate further than a super shotgun blast (%.1f; shotgun %.1f, super shotgun %.1f, lightning gun 1 s %.1f)",
+        dw_pt_moved[0], dw_pt_moved[1], dw_pt_moved[2], dw_pt_moved[3]));
+    VR_Test_Check(d > 0.5 && d < 96, sprintf("the ragdoll moved by the beam: %.1f units", d));
+    VR_Test_Check(dw_pt_was_z - dw_pt_low < 8, sprintf("the ragdoll stayed on the floor (its root %.1f under where it lay)", dw_pt_was_z - dw_pt_low));
+    VR_Test_Check(isragdoll(dw_pt_body), "still a ragdoll after the beam (not gibbed)");
+    VR_Test_Verdict();
+    remove(self);
 };
 
 void(entity p) DW_PushTest =
 {
     VR_Test_BeginFlags("dwpush", VR_TEST_LOUD);
     DW_ModelsTest(p, 207);
-    dw_pt_step = dw_pt_frames = 0;
+    dw_pt_step = dw_pt_frames = dw_pt_trial = dw_pt_shots = 0;
+    dw_pt_crate = world;
     makevectors('0 1 0' * p.angles_y);
-    dw_pt_crate = VR_Crate_TestSpawn(p.origin + v_forward * 120 + '0 0 -8', 1, 0, FALSE);
     dw_pt_body = VR_Test_Spawn(world, 0, p.origin + v_forward * 200 + '0 0 8', p.angles_y + 180);
     entity t = spawn();
     t.classname = "dw_pushtest";

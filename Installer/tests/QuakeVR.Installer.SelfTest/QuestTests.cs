@@ -201,6 +201,16 @@ static class QuestTests
                                 f.DevicePath.EndsWith("/" + Path.GetFileName(f.Source), StringComparison.Ordinal)), "a push: one folder, the PC's names");
             }
             True(batches.Single(b => b.Any(f => f.DevicePath == "id1/pak1.pak")).Count == 1, "PAK1.PAK pushed alone, to its lower-case name");
+            // Dimension of the Past from the store's rerelease, id1 the original's: the rerelease's id1 paks (its language
+            // tables) go to rerelease/id1 (questmods, 2026-11-24: the headset refused dopa, "language data incomplete").
+            var store = dir("quest-plan-rerelease");
+            Fixtures.MakeRerelease(store);
+            Fixtures.MakePack(store, "dopa");
+            var withDopa = QuestFiles.Plan(s.Install, s.Quake, [store]);
+            True(withDopa.Any(f => f.DevicePath == "dopa/pak0.pak"), "dopa from the store's rerelease");
+            Eq(Path.Combine(store, "id1", "pak0.pak"), withDopa.SingleOrDefault(f => f.DevicePath == "rerelease/id1/pak0.pak")?.Source,
+                "the rerelease's id1 pak as rerelease/id1/pak0.pak");
+            True(!s.Files.Any(f => f.DevicePath.StartsWith("rerelease/", StringComparison.Ordinal)), "no rerelease pak without its episodes");
         }),
 
         ("quest: the whole procedure on a fake headset (PC install, then the Quest from it; the PC install unchanged, the player's files kept)", () =>
@@ -261,8 +271,12 @@ static class QuestTests
             var adb = new FakeAdb(dir("quest-again-device"));
             var installer = new QuestInstaller(adb);
             installer.Install(new QuestPlan { ApkPath = s.Apk, Files = s.Files }, null, CancellationToken.None);
+            adb.Chmodded.Clear();
             var again = installer.Install(new QuestPlan { ApkPath = s.Apk, Files = s.Files }, null, CancellationToken.None);
             Eq(0, again.Pushed, "nothing copied again");
+            // (questmods, 2026-11-24: a folder an older copy left unreadable, 2770, kept its skipped files from the game)
+            True(adb.Chmodded.Contains("quakevr/maps") && adb.Chmodded.Contains("quakevr/progs.dat"),
+                "nothing copied, every folder and file still made readable by the game");
             Eq(s.Files.Count, again.Skipped, "everything skipped");
             True(!again.ApkInstalled, "the same APK: not installed again");
             var againText = QuestTarget.Outcome(again, null).Text;

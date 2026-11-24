@@ -637,6 +637,15 @@ const char* campaignStatus(int i)
         campaigns[i].checks.experimental ? "ready (experimental)" : "installed; native support in progress";
 }
 
+// Another campaign's data a campaign needs to start (null: none, or there): Quoth plays by Arcane Dimensions' rules
+// (QUOTH.md), whose QuakeC precaches AD's own files. Without AD's data its start failed "Mod_LoadModel:
+// progs/s_exp_small.spr not found" (questmods, 2026-11-24: AD's folder unreadable on his Quest), now refused as missing AD.
+const char* missingRequirement(int index)
+{
+    return index == qvr::quoth::campaignIndex && campaigns[qvr::ad::campaignIndex].status != 1 ?
+        campaigns[qvr::ad::campaignIndex].title : nullptr;
+}
+
 void reportCampaigns()
 {
     for(int i = 0; i < int(countof(campaigns)); ++i)
@@ -901,6 +910,12 @@ bool selectCampaign(int selected, bool developer, bool start, bool syncHub = tru
             c.folder, campaignStatus(selected), c.folder, c.root[0] ? c.root : "none");
         return false;
     }
+    if(const char* need = missingRequirement(selected))
+    {
+        Con_Printf("VR: %s needs %s too (it plays by its rules): %s is %s here (<basedir>/%s).\n", c.title, need, need,
+            campaignStatus(qvr::ad::campaignIndex), campaigns[qvr::ad::campaignIndex].folder);
+        return false;
+    }
     if(soloOnly(selected) && campaignMultiplayerRequested())
     {
         Con_Printf("VR: %s native readiness covers single-player. Multiplayer context/join/respawn behavior is not accepted; set coop 0, deathmatch 0 and maxplayers 1 before starting.\n", c.title);
@@ -988,6 +1003,7 @@ extern "C" const char* VR_CampaignTag(int index)
     if(c.status == 0) { return "missing"; }
     if(c.status == 2) { return "incomplete"; }
     if(c.status == 3) { return "old version"; }
+    if(missingRequirement(index)) { return "needs AD"; }
     if(!c.nativeReady) { return c.checks.experimental ? "experimental" : "in progress"; }
     if(index >= 3 && missingLanguage(index)) { return "language data"; }
     if(soloOnly(index) && campaignMultiplayerRequested()) { return "single-player"; }
@@ -1001,6 +1017,7 @@ extern "C" const char* VR_CampaignHelp(int index)
     return va("%s%s%s. Data: %s. %s", c.title, tagged ? ": " : "", tagged ? campaignStatus(index) : "",
         c.root[0] ? c.root : "configured basedirs",
         c.status != 1 ? "Supply complete owned campaign files to play." :
+        missingRequirement(index) ? va("It plays by %s's rules: install %s too.", missingRequirement(index), missingRequirement(index)) :
         soloOnly(index) && campaignMultiplayerRequested() ? "Accepted for single-player: set coop 0, deathmatch 0, maxplayers 1; multiplayer context/join/respawn is not accepted." :
         index >= 3 && missingLanguage(index) ? "Language data incomplete: supply updated owned rerelease id1 tables, or enable store discovery." :
         c.nativeReady ? "Starts a new single-player campaign and resets level progress." :
@@ -1014,9 +1031,9 @@ extern "C" void VR_SelectCampaign(int index)
 extern "C" int VR_CampaignExperimental(int index)
 { return index >= 0 && index < int(countof(campaigns)) && campaigns[index].checks.experimental; }
 extern "C" int VR_CampaignInstalled(int index)
-{ return index >= 0 && index < int(countof(campaigns)) && campaigns[index].status == 1; }
+{ return index >= 0 && index < int(countof(campaigns)) && campaigns[index].status == 1 && !missingRequirement(index); }
 extern "C" int VR_CampaignUnavailable(int index)
-{ return index < 0 || index >= int(countof(campaigns)) || campaigns[index].status != 1 || !campaigns[index].nativeReady || (index >= 3 && missingLanguage(index)) ||
+{ return index < 0 || index >= int(countof(campaigns)) || campaigns[index].status != 1 || missingRequirement(index) || !campaigns[index].nativeReady || (index >= 3 && missingLanguage(index)) ||
     (soloOnly(index) && campaignMultiplayerRequested()); }
 
 // Setup's preparation (vr_prepare.cpp) goes through the campaigns: each one's folder, start map, whether its folder is
@@ -1061,6 +1078,7 @@ extern "C" const char* VR_CampaignMissingForJoin(int index)
     if(qvr::vr_mp_test_campaign_missing.string[0] && campaignIndex(qvr::vr_mp_test_campaign_missing.string) == index)
     { return va("its data is missing here (<basedir>/%s; vr_mp_test_campaign_missing)", c.folder); }
     if(c.status != 1) { return va("its data is %s here (<basedir>/%s)", campaignStatus(index), c.folder); }
+    if(const char* need = missingRequirement(index)) { return va("it needs %s, missing here", need); }
     if(index >= 3 && missingLanguage(index))
     { return "its language data is incomplete here (supply updated owned rerelease id1 tables)"; }
     return "";

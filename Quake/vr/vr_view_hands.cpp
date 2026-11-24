@@ -3742,7 +3742,7 @@ void setupHand(const hands::State& s, int hand)
     // the off hand. Drawn only.
     if(own && flatplay::active())
     {
-        glm::vec3 turn{0.f};
+        glm::vec3 turn{0.f}, move{0.f};
         const float onPole = za::max(gripBlend, flatsight::pinShare(hand));
         if(onPole > 0.f && otherSlot >= 0 && twohand::poleWeapon(otherSlot))
         {
@@ -3753,8 +3753,12 @@ void setupHand(const hands::State& s, int hand)
         {
             turn = glm::vec3{za::clamp(vr_flat_pole_hand_pitch.value, -90.f, 90.f), za::clamp(vr_flat_pole_hand_yaw.value, -90.f, 90.f),
                 za::clamp(vr_flat_pole_hand_roll.value, -180.f, 180.f)};
+            // (lance4, his flat notes 2026-11-24: and moved in its own frame by _hand_fwd / _up / _out: x forward, y left,
+            // so out, the main hand's right, is -y; mirrored for the off hand.)
+            move = glm::vec3{za::clamp(vr_flat_pole_hand_fwd.value, -10.f, 10.f), -za::clamp(vr_flat_pole_hand_out.value, -10.f, 10.f),
+                za::clamp(vr_flat_pole_hand_up.value, -10.f, 10.f)};
         }
-        moveDrawnHand(hand, mirrored, handRot, glm::vec3{0.f}, turn, hand == HAND_OFF, pos, handRot);
+        moveDrawnHand(hand, mirrored, handRot, move, turn, hand == HAND_OFF, pos, handRot);
     }
 
     // What the fingers wrap (vr_hand_fit): the gun in the hand, the other hand's gun it helps hold (its foregrip, a
