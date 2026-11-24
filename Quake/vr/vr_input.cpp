@@ -22,6 +22,7 @@
 #include "vr_hands.hpp"
 #include "vr_gunsfx.hpp"
 #include "vr_input.hpp"
+#include "vr_client.hpp"
 #include "vr_doom.hpp"
 #include "vr_main.hpp"
 #include "vr_menuui.hpp"
@@ -127,13 +128,16 @@ constexpr int buttonKindCount = static_cast<int>(sizeof(buttonKeys) / sizeof(but
 // Swap Face Buttons (vr_button_swap; left-handed play, the brief of 2026-11-24): the face buttons and stick clicks send
 // the other controller's keys (X sends ABUTTON, A sends XBUTTON, Y BBUTTON, LTHUMB's click RTHUMB...), so whatever is
 // bound to A acts from X without a bind rewritten, menus and the key capture included (a key bound while swapped works
-// swapped). Only the keys: what reads a hand's own button (the weapon wheel opening round the hand that held its
+// swapped). A hand's own command run by a swapped key acts on the hand pressed (his words 2026-11-24 "Yes, follow the
+// hand": A sends XBUTTON's +reloadoff, the right gun reloads; `keyMirrored`, vr_client.cpp commandHand: the grab,
+// reload and flick-reload commands). Only the keys: what reads a hand's own button (the weapon wheel opening round the hand that held its
 // button, the grappling hook's and the reload's bits for the gun in that hand, the flashlight, a voice note at the
 // mouth, the toolgun, the posing modes) keeps the physical hand, and the settings that name a button or a side
 // themselves (vr_menu_button's Y and B, vr_bullettime_trigger's and vr_seated_crouch_button's left and right stick) are
 // the physical ones, as their own rows say. The swap is latched at each press (`buttonSwapLatch`), so a button held
 // while the setting changes lets go of the key it pressed (no key stuck down).
 bool buttonSwapLatch[HAND_COUNT][buttonKindCount]{};
+bool keyMirrored[MAX_KEYS]{}; // the key's last press came from the other controller's button (input::mirroredKey)
 
 [[nodiscard]] bool swappable(const ButtonKeys& b)
 {
@@ -154,6 +158,10 @@ bool buttonSwapLatch[HAND_COUNT][buttonKindCount]{};
     {
         out.key[0] = b.key[1];
         out.key[1] = b.key[0];
+    }
+    if(down && swappable(b))
+    {
+        keyMirrored[out.key[h]] = buttonSwapLatch[h][kind]; // (kept till its next press: its release's command reads it)
     }
     return out;
 }
@@ -2007,27 +2015,32 @@ struct ButtonSwapCase
     bool HandInput::*button;
     int key;    // the key the game must hold (the only one of the face buttons' and stick clicks')
     bool jumps; // in_jump held (ABUTTON +jump)
+    int reload; // the hand whose reload is held (XBUTTON +reloadoff, RTHUMB +reloadmain: the hand pressed), -1 none
     bool flip;  // the setting flipped while held
     const char* what;
 };
 
 constexpr ButtonSwapCase buttonSwapCases[] = {
-    {0.f, HAND_MAIN, &HandInput::primary, K_ABUTTON, true, false, "off: A sends ABUTTON (jumps)"},
-    {0.f, HAND_OFF, &HandInput::primary, K_XBUTTON, false, false, "off: X sends XBUTTON (no jump)"},
-    {1.f, HAND_OFF, &HandInput::primary, K_ABUTTON, true, false, "on: X sends ABUTTON (jumps)"},
-    {1.f, HAND_MAIN, &HandInput::primary, K_XBUTTON, false, false, "on: A sends XBUTTON (no jump)"},
-    {1.f, HAND_OFF, &HandInput::secondary, K_BBUTTON, false, false, "on: Y sends BBUTTON"},
-    {1.f, HAND_MAIN, &HandInput::secondary, K_YBUTTON, false, false, "on: B sends YBUTTON"},
-    {1.f, HAND_MAIN, &HandInput::stickClick, K_LTHUMB, false, false, "on: the right stick's click sends LTHUMB"},
-    {1.f, HAND_OFF, &HandInput::stickClick, K_RTHUMB, false, false, "on: the left stick's click sends RTHUMB"},
-    {1.f, HAND_MAIN, &HandInput::trigger, K_RTRIGGER, false, false, "on: the right trigger stays RTRIGGER"},
-    {0.f, HAND_MAIN, &HandInput::primary, K_ABUTTON, true, true, "turned on while A is held: ABUTTON let go after"},
-    {1.f, HAND_OFF, &HandInput::primary, K_ABUTTON, true, true, "turned off while X is held: ABUTTON let go after"},
+    {0.f, HAND_MAIN, &HandInput::primary, K_ABUTTON, true, -1, false, "off: A sends ABUTTON (jumps)"},
+    {0.f, HAND_OFF, &HandInput::primary, K_XBUTTON, false, HAND_OFF, false, "off: X sends XBUTTON (the left reload)"},
+    {0.f, HAND_MAIN, &HandInput::stickClick, K_RTHUMB, false, HAND_MAIN, false, "off: the right stick's click (the right reload)"},
+    {1.f, HAND_OFF, &HandInput::primary, K_ABUTTON, true, -1, false, "on: X sends ABUTTON (jumps)"},
+    {1.f, HAND_MAIN, &HandInput::primary, K_XBUTTON, false, HAND_MAIN, false, "on: A sends XBUTTON (+reloadoff: the right reload)"},
+    {1.f, HAND_OFF, &HandInput::secondary, K_BBUTTON, false, -1, false, "on: Y sends BBUTTON"},
+    {1.f, HAND_MAIN, &HandInput::secondary, K_YBUTTON, false, -1, false, "on: B sends YBUTTON"},
+    {1.f, HAND_MAIN, &HandInput::stickClick, K_LTHUMB, false, -1, false, "on: the right stick's click sends LTHUMB"},
+    {1.f, HAND_OFF, &HandInput::stickClick, K_RTHUMB, false, HAND_OFF, false, "on: the left stick's click sends RTHUMB (+reloadmain: the left reload)"},
+    {1.f, HAND_MAIN, &HandInput::trigger, K_RTRIGGER, false, -1, false, "on: the right trigger stays RTRIGGER"},
+    {0.f, HAND_MAIN, &HandInput::primary, K_ABUTTON, true, -1, true, "turned on while A is held: ABUTTON let go after"},
+    {1.f, HAND_OFF, &HandInput::primary, K_ABUTTON, true, -1, true, "turned off while X is held: ABUTTON let go after"},
+    {1.f, HAND_MAIN, &HandInput::primary, K_XBUTTON, false, HAND_MAIN, true, "turned off while A is held: the right reload let go after"},
 };
 constexpr int buttonSwapCaseCount = static_cast<int>(sizeof(buttonSwapCases) / sizeof(buttonSwapCases[0]));
 constexpr int buttonSwapHold = 4;   // frames a press is held before it is checked (its +jump runs from the command buffer)
 constexpr int buttonSwapLetGo = 4;  // frames after the release before the next case
 constexpr int buttonSwapKeys[] = {K_ABUTTON, K_BBUTTON, K_XBUTTON, K_YBUTTON, K_LTHUMB, K_RTHUMB, K_RTRIGGER};
+constexpr int buttonSwapBound[3] = {K_ABUTTON, K_XBUTTON, K_RTHUMB};
+constexpr const char* buttonSwapBinds[3] = {"+jump", "+reloadoff", "+reloadmain"};
 
 struct ButtonSwapTest
 {
@@ -2036,7 +2049,7 @@ struct ButtonSwapTest
     int frames{0};
     bool pressed{false};
     za::String swapWas;
-    za::String jumpBindWas;
+    za::String bindsWas[3]; // ABUTTON's, XBUTTON's, RTHUMB's (set to the shipped +jump, +reloadoff, +reloadmain)
     testkit::Tally tally;
 };
 ButtonSwapTest buttonSwapTest;
@@ -2052,8 +2065,11 @@ void buttonSwapTest_f()
     t = ButtonSwapTest{};
     t.active = true;
     t.swapWas = vr_button_swap.string;
-    t.jumpBindWas = keybindings[K_ABUTTON] ? keybindings[K_ABUTTON] : "";
-    Key_SetBinding(K_ABUTTON, "+jump");
+    for(int i = 0; i < 3; i++)
+    {
+        t.bindsWas[i] = keybindings[buttonSwapBound[i]] ? keybindings[buttonSwapBound[i]] : "";
+        Key_SetBinding(buttonSwapBound[i], buttonSwapBinds[i]);
+    }
     Con_Printf("button swap test: %d cases\n", buttonSwapCaseCount);
 }
 
@@ -2092,7 +2108,10 @@ void buttonSwapTestTick()
         t.tally.check(named);
         t.active = false;
         Cvar_Set("vr_button_swap", t.swapWas.cStr());
-        Key_SetBinding(K_ABUTTON, t.jumpBindWas.cStr());
+        for(int i = 0; i < 3; i++)
+        {
+            Key_SetBinding(buttonSwapBound[i], t.bindsWas[i].cStr());
+        }
         t.tally.verdict(name);
         return;
     }
@@ -2110,9 +2129,11 @@ void buttonSwapTestTick()
             only = only && (keydown[k] != 0) == (k == c.key);
         }
         const bool jumps = (in_jump.state & 1) != 0;
-        const bool ok = only && jumps == c.jumps;
-        Con_Printf("%s: %s %s (held: key %s, jump %d)\n", name, ok ? "PASS" : "FAIL", c.what,
-            only ? Key_KeynumToString(c.key) : "another", jumps ? 1 : 0);
+        const bool reloads[HAND_COUNT] = {client::reloadHeld(HAND_OFF), client::reloadHeld(HAND_MAIN)};
+        const bool ok = only && jumps == c.jumps && reloads[HAND_OFF] == (c.reload == HAND_OFF) &&
+                        reloads[HAND_MAIN] == (c.reload == HAND_MAIN);
+        Con_Printf("%s: %s %s (held: key %s, jump %d, reload left %d right %d)\n", name, ok ? "PASS" : "FAIL", c.what,
+            only ? Key_KeynumToString(c.key) : "another", jumps ? 1 : 0, reloads[HAND_OFF] ? 1 : 0, reloads[HAND_MAIN] ? 1 : 0);
         t.tally.check(ok);
         if(c.flip)
         {
@@ -2122,14 +2143,14 @@ void buttonSwapTestTick()
     }
     else if(t.frames == buttonSwapHold + buttonSwapLetGo)
     {
-        bool none = (in_jump.state & 1) == 0;
+        bool none = (in_jump.state & 1) == 0 && !client::reloadHeld(HAND_OFF) && !client::reloadHeld(HAND_MAIN);
         for(const int k : buttonSwapKeys)
         {
             none = none && !keydown[k];
         }
         if(!none || c.flip)
         {
-            Con_Printf("%s: %s %s (let go: no key held, no jump)\n", name, none ? "PASS" : "FAIL", c.what);
+            Con_Printf("%s: %s %s (let go: no key held, no jump, no reload)\n", name, none ? "PASS" : "FAIL", c.what);
             t.tally.check(none);
         }
         ++t.index;
@@ -2794,6 +2815,11 @@ bool secondaryHeld(int hand)
 bool secondaryPressed(int hand)
 {
     return hand >= 0 && hand < HAND_COUNT && previous.hands[hand].secondary;
+}
+
+bool mirroredKey(int key)
+{
+    return key > 0 && key < MAX_KEYS && keyMirrored[key];
 }
 
 bool primaryHeld(int hand)

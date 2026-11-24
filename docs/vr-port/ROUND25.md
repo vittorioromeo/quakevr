@@ -12107,9 +12107,12 @@ Deliberately left on the physical hand: whatever reads a hand's own button (the 
 holding its button, the grappling hook's reel/unreel and the reload bits for the gun in that hand, the flashlight, voice
 notes and push-to-talk at the mouth, the toolgun and posing modes), and the settings that name a button or side
 themselves (vr_menu_button's Y/B holds, vr_bullettime_trigger's and vr_seated_crouch_button's left/right stick).
-Menus get the swapped keys too (X confirms, Y/B go back as before). Open: the default reload binds cross hands when
-swapped (A sends XBUTTON `+reloadoff`, the left gun's reload; the left stick sends RTHUMB `+reloadmain`).
+Menus get the swapped keys too (X confirms, Y/B go back as before). Follow-up (his words: "Yes, follow the hand"): a
+hand's own command run by a swapped key acts on the hand pressed, the binds untouched: the key's press is marked
+mirrored (`input::mirroredKey`) and `+reloadmain/off/left/right`, `+grab*`, `+flickreload*` flip their hand for it
+(vr_client.cpp `commandHand`, the key being the +command's argument): A (XBUTTON `+reloadoff`) reloads the right gun,
+the left stick's click (RTHUMB `+reloadmain`) the left one. Not mirrored: `+attack`/`+offhandattack` (trigger binds).
 A left-hander's saved config (stick swap etc. on, the new setting off) now shows Handedness: Custom until re-picked.
-Tests: `vr_button_swap_test` (11 cases + names: 14 passed, 0 failed): A/X jump off/on, B/Y and stick clicks, trigger
-unchanged, flips while held leave no key stuck. `settings_page_test.py` (23/0): the installer's Left-handed sets it,
+Tests: `vr_button_swap_test` (13 cases + names: 17 passed, 0 failed): A/X jump off/on, the reloads follow the hand
+pressed, B/Y and stick clicks, trigger unchanged, flips while held leave no key or reload stuck. `settings_page_test.py` (23/0): the installer's Left-handed sets it,
 the saved config keeps it, Right-handed clears it. Installer manifest (help text) and menu_paths.txt refreshed.
