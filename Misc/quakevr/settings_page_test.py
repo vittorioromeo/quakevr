@@ -134,13 +134,14 @@ def main():
         saved_cfg = f.read()
     try:
         stage(cfg, "installer_settings.cfg")
-        show = "vr_snap_turn; vr_gore; vr_stick_swap; vr_gadget_arm; vr_turn_speed; vr_installer_applied; vr_graphics_preset_status"
+        show = "vr_snap_turn; vr_gore; vr_stick_swap; vr_gadget_arm; vr_button_swap; vr_turn_speed; vr_installer_applied; vr_graphics_preset_status"
         log = game("%s; vr_snap_turn 90; writeconfig sp_cfg1; echo SP done; toggleconsole; quit" % show, "SP done")
         check("game 1: applied once", "installer settings applied" in log)
         check("game 1: vr_snap_turn 45", same(cvar(log, "vr_snap_turn"), "45"), cvar(log, "vr_snap_turn"))
         check("game 1: vr_gore 1", same(cvar(log, "vr_gore"), "1"))
-        check("game 1: left-handed (vr_stick_swap, vr_gadget_arm 1)",
-              same(cvar(log, "vr_stick_swap"), "1") and same(cvar(log, "vr_gadget_arm"), "1"))
+        check("game 1: left-handed (vr_stick_swap, vr_gadget_arm, vr_button_swap 1)",
+              same(cvar(log, "vr_stick_swap"), "1") and same(cvar(log, "vr_gadget_arm"), "1")
+              and same(cvar(log, "vr_button_swap"), "1"), cvar(log, "vr_button_swap"))
         state = re.findall(r"graphics preset: ([^(\n]*)", log)
         check("game 1: graphics Medium", bool(state) and state[-1].strip().startswith("Medium"), state)
 
@@ -161,11 +162,16 @@ def main():
         check("game 2: applied", "installer settings applied" in log)
         check("game 2: the in-game change kept (vr_snap_turn 90)", same(cvar(log, "vr_snap_turn"), "90"), cvar(log, "vr_snap_turn"))
         check("game 2: vr_turn_speed 5", same(cvar(log, "vr_turn_speed"), "5"))
+        check("game 2: vr_button_swap 1 kept in the saved config", same(cvar(log, "vr_button_swap"), "1"),
+              cvar(log, "vr_button_swap"))
 
         stage(os.path.join(GAME, "sp_cfg2.cfg"), "ironwail.cfg")
-        log = game("vr_turn_speed 2; vr_turn_speed; echo SP done; toggleconsole; quit", "SP done")
+        log = game("vr_turn_speed 2; vr_turn_speed; vr_handedness 1; vr_button_swap; echo SP done; toggleconsole; quit",
+                   "SP done")
         check("game 3: not run again", "installer settings applied" not in log)
         check("game 3: the game's own change stands", same(cvar(log, "vr_turn_speed"), "2"))
+        check("game 3: Right-handed clears vr_button_swap", same(cvar(log, "vr_button_swap"), "0"),
+              cvar(log, "vr_button_swap"))
     finally:
         with open(cfg_path, "wb") as f:
             f.write(saved_cfg)

@@ -100,7 +100,7 @@
    "subcategory": "Hands",
    "kind": "apply",
    "label": "Handedness",
-   "help": "Sets which stick moves you, the wrist gadget's arm and the flashlight's side together. Left-handed: the right stick moves, the gadget on the right arm, the torch on the right (Custom: set apart, below).",
+   "help": "Sets which stick moves you, the wrist gadget's arm, the flashlight's side and the face buttons together. Left-handed: the right stick moves, the gadget on the right arm, the torch on the right, the face buttons swapped (jump on X) (Custom: set apart, below).",
    "path": "Advanced VR Options > Body and Display > Handedness",
    "default": "1",
    "choices": [

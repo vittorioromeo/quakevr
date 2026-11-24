@@ -1211,7 +1211,7 @@ struct PresetSetting
 struct PresetChoice
 {
     float value;
-    PresetSetting settings[3];
+    PresetSetting settings[4]; // (a choice with fewer: the rest {nullptr}, skipped)
 };
 
 struct Preset
@@ -1228,8 +1228,8 @@ constexpr PresetChoice comfortChoices[] = {
 };
 
 constexpr PresetChoice handednessChoices[] = {
-    {1.f, {{"vr_stick_swap", 0.f}, {"vr_gadget_arm", 0.f}, {"vr_flashlight_side", 0.f}}}, // right-handed
-    {2.f, {{"vr_stick_swap", 1.f}, {"vr_gadget_arm", 1.f}, {"vr_flashlight_side", 1.f}}}, // left-handed
+    {1.f, {{"vr_stick_swap", 0.f}, {"vr_gadget_arm", 0.f}, {"vr_flashlight_side", 0.f}, {"vr_button_swap", 0.f}}}, // right-handed
+    {2.f, {{"vr_stick_swap", 1.f}, {"vr_gadget_arm", 1.f}, {"vr_flashlight_side", 1.f}, {"vr_button_swap", 1.f}}}, // left-handed
 };
 
 const Preset presets[] = {
@@ -1243,8 +1243,8 @@ bool presetBusy = false; // a preset's own changes (its settings set, its choice
 {
     for(const PresetSetting& s : c.settings)
     {
-        const cvar_t* var = Cvar_FindVar(s.cvar);
-        if(!var || var->value != s.value)
+        const cvar_t* var = s.cvar ? Cvar_FindVar(s.cvar) : nullptr;
+        if(s.cvar && (!var || var->value != s.value))
         {
             return false;
         }
@@ -1289,7 +1289,10 @@ void onPresetChosen(cvar_t* var)
                 presetBusy = true;
                 for(const PresetSetting& s : p.choices[i].settings)
                 {
-                    Cvar_SetValue(s.cvar, s.value);
+                    if(s.cvar)
+                    {
+                        Cvar_SetValue(s.cvar, s.value);
+                    }
                 }
                 presetBusy = false;
             }
