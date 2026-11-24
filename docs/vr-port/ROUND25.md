@@ -12262,3 +12262,38 @@ posed, white winding up, yellow in the swing-through, red with a dot at the tip 
 - `vr_enemy_melee_arc_status` adds "armed swings drawn N frames".
 - Tests: `vr_agrunt_test 216` 2/0 (on: 28 frames sent, 7 in the swing-through, 28 drawn; off: 0 and 0); 212 still 6/0.
   Scene `agrunt_melee_arcs`.
+## embedregress: flat axes stick again; why VR embed tests 24 and 33 fail (agent/embedregress, 2026-11-24)
+
+His report: "I am struggling to embed bladed weapons into enemies in flatscreen, it used to happen quite frequently before."
+- **Bisect:** tests 24 and 33 fail the same way at every merge from 57c316399 (embeddual, 11-22, where they read 22/0 and
+  15/0) to origin/next, and at 57c316399 itself: no commit since 11-22 broke them. What changed is the tests' config:
+  baselinecfg (6d47923dec, 2026-11-22 09:44) made every test start from the shipped defaults (`test_baseline.cfg`) instead
+  of the 14k-line config agents had (his settings of about 11-10). With that old config execed: 57c316399 24 = 22/0, head
+  24 = 21/1 (the known flaky "out into the hand eased", ROUND24.md). Narrowed to the axe's Weapon Offsets: his old config
+  had the axe at pitch 0, weapons.txt ships 15.5 (since c646caa734, 11-06, "his weapon offsets as the shipped defaults");
+  head + `vr_wofs_pitch_01 0` alone: 24 = 20/1 (case 3 back, case 2 still off with x/y). The test's mock swing goes "across"
+  by an assumed edge facing; pitched 15.5 the edge leads by 0.14 (least 0.25: "side on 82, edge first 0.14"). A test
+  assumption, not the game: a real swing follows the axe as drawn. Test 33 case 46 (a dead grunt's handle comes to the
+  hand) fails 11/4 with the old config too, also at 57c316399: not code since 11-22; the ragdoll is held by the handle
+  ("hand 1 holds it by the blade's handle, 11.6 units from the wound, 14.2 from the hand") but the body does not come
+  (strain 1.0, the wound 0.3 of 20 units). Both open (below).
+- **The flat cause (fixed):** `axestick::stickHeld` (vr_axestick.cpp) judged a held blow's edge / along-the-handle /
+  point by the weapon's *drawn* place (`view::drawnWeaponPlace`), while the blow's way, the melee's line and contact are
+  the game hand's (QC VR_Melee_FreeLine: the drawn weapon in the hand placed on the server's hand). In VR the two nearly
+  agree; flat play draws its swing on a pose of its own, the drawn axe up to 90 degrees off the game's hand mid-swing
+  (`vr_debug_axestick 2` diagnostic: QC angles -43 114 14, drawn 63 78 21: the blow's way 0.96 along the edge with the
+  hand's pose, 0.81 along the handle with the drawn one). So edge-first flat swings read "along the handle 0.97 (most
+  0.80)" and missed. Now the weapon is the drawn one in the hand (`view::DrawnWeapon::inHand`) placed on the server's
+  hand (`heldpose::handPose`), the melee's own way, in both modes (one path; the drawn place stays the fallback). Not the
+  flat swing's poses nor lance3: lance3's tip rules are the Lance's only (`pointLength`, QC `DW_LanceHeld`).
+- **Numbers (flat, vr_embed_test 52 swings, vr_debug_axestick 1):** before 5 of 14 swings stuck over 4 runs (the rest
+  "along the handle 0.82-0.99", or 15-22 cm off the model as the drawn blade lagged); after 6 of 6 over 3 runs, each case
+  on its first swing; embeddual 16/0 each run. flatlance_test 24/0 (section 5's flake not seen). VR tests 24 (17/2) and
+  33 (11/4): the same counts and failures before and after.
+- **Flat swords:** VR's rules never let a sword slash stay in: swords, daggers and the Lance are `embed 1` (weapons.txt:
+  by the point), only a stab sticks (QC VR_Embed_StabWhy: kind STAB, speed, within vr_embed_stab_angle of the line, by the
+  tip); axes are `embed 2` (edge). Flat swords have no stab (the swing is a slash), so they never stick, as in VR. Proposal
+  for him: a flat sword thrust like the Lance's (`vr_flat_thrust` for every `embed 1` blade, V or a held-fire variant).
+- **Open:** test 24 cases 2/3: aim the mock axe swing by the axe's edge as held (or set the axe pose the test was laid out
+  on); test 33 case 46: why a dead grunt held by the handle no longer comes to the hand on this machine (fails on 11-22's
+  code too: data or physics, look at the ragdoll hold's motor joint).
