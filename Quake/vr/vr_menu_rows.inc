@@ -5468,6 +5468,9 @@ QVR_SLIDER(vr_messages_hologram_size, "Hologram Text Size", 0.5f, 2.f, 0.05f, "%
 QVR_SLIDER(vr_messages_hologram_height, "Hologram Height", 0.f, 15.f, 0.5f, "%.1f cm", ext(0.f, 50.f), "How high over the gadget it floats.")
 QVR_SLIDER(vr_messages_hologram_effect, "Hologram Effect", 0.f, 2.f, 0.1f, "%.1fx", ext(),
     "The beam of light from the screen, scanlines, flicker, glitches and the projection as it appears (0: plain glowing text).")
+QVR_SLIDER(vr_center_panel_scale, "Centre Message Size", 0.5f, 3.f, 0.04f, "%.2fx", ext(0.25f, 8.f),
+    "The size of the game's centred messages in front of you (the visor-style panel), a multiple of the HUD's own text "
+    "size (vr_center_panel_scale).")
 QVR_TOGGLE(vr_messages_hologram_only, "Messages Only on the Gadget",
     "The game's messages never show in front of you: they wait in the hologram until you look at the gadget. A new one (a key needed, a secret, the map's text; not pickups) chimes from the gadget on your wrist and buzzes it.")
 QVR_SLIDER(vr_view_text_smooth, "Messages in View: Follow Smoothing", 0.f, 0.5f, 0.02f, "%.2f s", ext(0.f, 2.f),
@@ -6658,14 +6661,17 @@ QVR_TOGGLE(vr_weaponwheel, "Weapon Wheel",
     "Hold the wheel's button on either hand: a wheel of your holsters opens round that hand and time slows a little. Move "
     "the hand to a slot and let go: that hand takes its weapon, as reaching for the holster would (what it held goes back "
     "to its holster; EMPTY HAND puts it away; DROP drops what the hand holds; UNLOAD empties its gun's magazine into your "
-    "ammo). Let go in the middle or off the wheel: nothing (vr_weaponwheel).")
+    "ammo). Let go in the middle or off the wheel: nothing. Off by default (flatscreen play has its own: Weapon Wheel on "
+    "1 / 2) (vr_weaponwheel).")
 QVR_CYCLE(vr_weaponwheel_button, "Weapon Wheel Button",
     "The button you hold for the weapon wheel, on either hand (that hand picks): the upper face button (B or Y, the "
     "default: free in the game unless weapon cycling is on; the grappling hook's hand keeps its reel), the stick's click, "
     "or the lower face button (A or X). A short press still does what the button is bound to (vr_weaponwheel_button).",
     {0.f, "B / Y"}, {1.f, "Stick Click"}, {2.f, "A / X"})
-QVR_SLIDER(vr_weaponwheel_hold, "Weapon Wheel Hold Time", 0.1f, 1.f, 0.05f, "%.2f s", noExt,
-    "How long the button is held before the weapon wheel opens (vr_weaponwheel_hold).")
+QVR_SLIDER(vr_weaponwheel_hold, "Wheel Hold / Quick Tap Time", 0.1f, 1.f, 0.01f, "%.2f s", noExt,
+    "How long the button is held before the weapon wheel opens. A shorter press is a quick tap: the button's own action "
+    "(eject a magazine, switch a dagger's grip), done as you let go. Lower: snappier taps, but a slow press may open the "
+    "wheel (vr_weaponwheel_hold).")
 QVR_SLIDER(vr_weaponwheel_timescale, "Weapon Wheel Time Speed", 0.05f, 1.f, 0.05f, "x%.2f", noExt,
     "How fast time runs while the weapon wheel is open (single player): 0.5 (the default) slows it as bullet time does; 1 "
     "not at all (vr_weaponwheel_timescale).")

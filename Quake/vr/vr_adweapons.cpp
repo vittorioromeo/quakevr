@@ -2387,7 +2387,8 @@ struct SpinModel
     bool spins{false};
     int barrels{3};
     bool dwell{false}; // Dwell's Rotary Shotgun (its own rate of fire: dwRotaryRefire)
-    bool ownFrames{false}; // the super nailgun: its own firing frames are the turn (ownFramesStep a frame), no motor
+    bool ownFrames{false}; // the super nailgun: its own firing frames are the turn (ownFramesStep a frame), its own spin-up
+                           // (vr_sng_spinup), the motor at vr_sng_motor's share
 };
 SpinModel spinModel;
 
@@ -2477,7 +2478,9 @@ void advance(Spin& s, int hand, float dt)
     if(driven)
     {
         s.coasting = false;
-        s.speed = za::min(top, s.speed + top / za::max(vr_ad_widowmaker_spinup.value, 0.01f) * dt);
+        // (the super nailgun fires at once: its own, quicker spin-up, vr_sng_spinup)
+        const float spinup = spinModel.ownFrames ? vr_sng_spinup.value : vr_ad_widowmaker_spinup.value;
+        s.speed = za::min(top, s.speed + top / za::max(spinup, 0.01f) * dt);
         s.phase += s.speed * dt;
     }
     else if(s.speed > 0.f || s.coasting)
@@ -2534,6 +2537,7 @@ struct Motor
     sfx_t* sfx{nullptr};
     channel_t* ch[2]{nullptr, nullptr};
     float volume[2]{0.f, 0.f}, pitch[2]{1.f, 1.f}; // as last set
+    float wanted[2]{0.f, 0.f}; // the volume the spin asked for last (heard or not: the tests run without sound)
     double lastTime[2]{-1.0, -1.0};
 };
 Motor motor;
@@ -2566,19 +2570,21 @@ void motorStop(int hand)
     motor.volume[hand] = 0.f;
 }
 
-// Every frame: `hand`'s motor as its barrels spin (`s`; not held: at rest).
-void motorFrame(int hand, const Spin& s)
+// Every frame: `hand`'s motor as its barrels spin (`s`; not held: at rest), at `share` of Motor Volume (the super
+// nailgun's vr_sng_motor).
+void motorFrame(int hand, const Spin& s, float share = 1.f)
 {
     const float dt = motor.lastTime[hand] >= 0.0 ? za::clamp(static_cast<float>(cl.time - motor.lastTime[hand]), 0.f, 0.1f) : 0.f;
     motor.lastTime[hand] = cl.time;
     const float top = spinTop();
     const float u = s.held && top > 0.f ? za::clamp(s.speed / top, 0.f, 1.f) : 0.f;
-    const float full = za::clamp(vr_ad_widowmaker_motor.value, 0.f, 1.f);
+    const float full = za::clamp(vr_ad_widowmaker_motor.value * za::max(share, 0.f), 0.f, 1.f);
     float volume = cl.paused ? 0.f : full * za::min(1.f, u * 1.25f);
     if(volume < motor.volume[hand] && !s.held) // (gone at once: a short fade, not a cut)
     {
         volume = za::max(volume, motor.volume[hand] - full * dt / motorRelease);
     }
+    motor.wanted[hand] = volume;
     if(!motor.sfx || volume < motorRest || cl.viewentity <= 0)
     {
         motorStop(hand);
@@ -2650,7 +2656,7 @@ void spinFrame(view::ViewEntity (&weapons)[2])
         at -= 360.f * static_cast<float>(static_cast<int>(at / 360.f));
         if(spinModel.ownFrames)
         {
-            motorFrame(hand, Spin{}); // (no motor: Quake's gun, its own sounds)
+            motorFrame(hand, s, vr_sng_motor.value); // (the Widowmaker's whirr, quieter: his note 2026-11-23)
             // The turn's two frames (k eighths of a turn: frame k; a whole turn frame 8 while turning, so the gun's firing
             // barrel is known, vr_gunfx.cpp firingBarrel; frame 0 at rest), its drawn frame the nearer.
             const float k = at / ownFramesStep;
@@ -2733,6 +2739,9 @@ void spinInfo_f()
                        "trigger %d\n",
                 hand, s.phase, s.speed, spinTop(), s.coasting ? ", coasting" : "", static_cast<int>(k) % ownFramesTurn,
                 (static_cast<int>(k) + 1) % ownFramesTurn, k - static_cast<float>(static_cast<int>(k)), client::attacking(hand) ? 1 : 0);
+            Con_Printf("  motor: %s, volume %.2f (wanted %.2f), pitch %.2f\n",
+                !motor.sfx ? "no sound" : motor.ch[hand] ? "playing" : "stopped", motor.volume[hand], motor.wanted[hand],
+                motor.pitch[hand]);
             Con_Printf("  model: the super nailgun (its own firing frames), %d barrels (%.0f deg a shot), at rest %s\n",
                 spinModel.barrels, barrelStep(), !s.coasting && s.speed <= 0.f && fmodf(s.phase, barrelStep()) < 0.01f ? "yes" : "no");
             continue;

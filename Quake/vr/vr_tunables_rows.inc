@@ -794,6 +794,10 @@ QVR_TUNABLE_SLIDER(vr_ad_widowmaker_spin, "Barrel Spin", 0.0f, 2.0f, 0.1f, "%.1f
 QVR_TUNABLE_SLIDER(vr_ad_widowmaker_spinup, "Spin Up (Before the First Shot)", 0.0f, 1.0f, 0.05f, "%.2f s", 0.0f, 3.0f, "Seconds the barrels take to come up to speed with the trigger held. It fires only once they are at speed: the first shot waits this long from rest, less if they still spin.")
 QVR_TUNABLE_SLIDER(vr_ad_widowmaker_spindown, "Spin Down", 0.1f, 3.0f, 0.1f, "%.1f s", 0.1f, 10.0f, "About how long they coast after the trigger is let go, stopping with a barrel on top.")
 
+QVR_TUNABLE_GROUP("Weapons > Super Nailgun")
+QVR_TUNABLE_SLIDER(vr_sng_spinup, "Spin Up", 0.0f, 1.0f, 0.01f, "%.2f s", 0.0f, 3.0f, "Seconds the super nailgun's barrels take to come up to full speed with the trigger held (it fires at once; the coast down is the Widowmaker's Spin Down).")
+QVR_TUNABLE_SLIDER(vr_sng_motor, "Motor Volume", 0.0f, 1.0f, 0.05f, "%.2fx", 0.0f, 2.0f, "Its barrels' motor whirr, a share of the Widowmaker's Motor Volume (Weapons > Reloading > Widowmaker). 0: silent.")
+
 QVR_TUNABLE_GROUP("Weapons > Reloading - Plasma Gun")
 QVR_TUNABLE_SLIDER(vr_ad_plasmagun_cell, "Cell Size", 4.0f, 36.0f, 1.0f, "%.0f cells", 1.0f, 100.0f, "The cells the Plasma Gun's cell holds (the thunderbolt's holds 36). A cell drawn for it holds this many; a fuller one seated in it gives it this many and the rest back to the pouch. A new size counts from its next load.")
 

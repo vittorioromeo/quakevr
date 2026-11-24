@@ -39,6 +39,15 @@ On the Quest, close the game from the headset's menu while the first start is st
 On the Quest, enter the hub three times (also once with GL safe mode on: Debug > Startup), and open and close the system menu in the hub: no crash. {test:hub_start}
 Flat-screen or VR: A bot's and another player's left hip and chest sheaths are the mirror images of the right ones, as yours are (not the right sheath turned round), and so are the guns in them. {test:mp_dm_passive}
 Flat-screen or VR: Shove the grunt and the dog into the wall behind them: knocked down against it, each slumps on it and gets up as on the open floor; say whether it looks stuck upright on the wall (it stays propped 2-4 s, with the active ragdoll on or off alike). {test:wall_shove}
+Super nailgun: fire a burst and let go: a flash only at the barrel that fires and only while it shoots, no flame left standing on the gun as the barrels coast; dry fire with no nails shows no flash. {test:sng_spin}
+Super nailgun: fire from rest: the barrels are at full speed almost at once, with the Widowmaker's motor whirr a little quieter (Tunables > Weapons > Super Nailgun: Spin Up, Motor Volume). {test:sng_spin}
+Super nailgun: the band round the barrels near the muzzle is gone; the barrels still look right spinning and at rest. {test:sng_spin}
+Look into the super shotgun's bores up close: no small bright dots in their centres, and its muzzle flash still shows when it fires. {test:ssg_muzzle}
+Turn the Weapon Wheel on (VR Settings), open it and walk and turn with the stick: the wheel comes along smoothly and your hand stays on its slot. {test:weapon_wheel}
+With the Weapon Wheel on, tap B/Y to eject a nailgun magazine or switch a dagger's grip: it feels responsive; Wheel Hold / Quick Tap Time tunes how long a press opens the wheel instead. {test:weapon_wheel}
+A fresh setup has the VR Weapon Wheel off; flat-screen's Weapon Wheel on 1 / 2 is a setting of its own and on. {test:hub_start}
+Flat-screen or VR: open the weapon wheel: no menu sound plays as it opens (the controller tick in VR stays). {test:flat_weapon_wheel}
+Look away from the wrist gadget and get a centre message: the visor-style panel is about 20% smaller than before and still easy to read; Centre Message Size (HUD > Screens) tunes it. {test:vr_center_message}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the 1.2.0-beta2 pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names 1.2.0-beta2; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}

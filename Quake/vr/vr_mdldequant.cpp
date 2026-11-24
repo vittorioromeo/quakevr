@@ -92,6 +92,46 @@ LoadTotals loadTotals;
     return reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
 }
 
+// Triangles collapsed into one point in a stored pose (a muzzle flash folded away at rest: VR_AliasFlameRefs, the
+// shotguns' generated flames) stay one point there: each corner solved on its own would take its own offset (up to half
+// a step apart) and open the triangle into a speck of the flash's bright texels (his note 2026-11-23: two dots in the
+// super shotgun's bores). Their corners' offsets in that pose are dropped (the stored point). With `keep` false nothing
+// is changed: the triangles the offsets open are only counted. Returns the collapsed triangles' poses (all, or opened).
+int keepCollapsed(const aliashdr_t* hdr, unsigned* out, bool keep)
+{
+    const trivertx_t* verts = posesOf(hdr);
+    const auto* base = reinterpret_cast<const byte*>(hdr);
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
+    const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
+    const auto same = [](const trivertx_t& a, const trivertx_t& b) {
+        return a.v[0] == b.v[0] && a.v[1] == b.v[1] && a.v[2] == b.v[2];
+    };
+    int count = 0;
+    for(int pose = 0; pose < hdr->numposes; pose++)
+    {
+        const trivertx_t* p = verts + static_cast<za::SizeT>(pose) * hdr->numverts;
+        unsigned* o = out + static_cast<za::SizeT>(pose) * hdr->numverts;
+        for(int t = 0; t + 2 < hdr->numindexes; t += 3)
+        {
+            const int a = desc[indexes[t]].vertindex, b = desc[indexes[t + 1]].vertindex, c = desc[indexes[t + 2]].vertindex;
+            if(!same(p[a], p[b]) || !same(p[a], p[c]))
+            {
+                continue;
+            }
+            if(keep)
+            {
+                o[a] = o[b] = o[c] = 0u;
+                count++;
+            }
+            else if(o[a] != o[b] || o[a] != o[c])
+            {
+                count++;
+            }
+        }
+    }
+    return count;
+}
+
 // A frame's name less its trailing digits.
 void stemOf(const char* name, char out[17])
 {
@@ -782,8 +822,9 @@ void solveVertex(const aliashdr_t* hdr, const trivertx_t* verts, const za::Vecto
 
 jobs::Site computeSite{"mdl dequant"}; // (its parallelFor: vr_jobs_sites)
 
-void compute(const aliashdr_t* hdr, const char* model, unsigned* out, long* sweeps = nullptr, long* solves = nullptr)
-// (sweeps, solves: positions' [0] and normals' [1] counted)
+void compute(const aliashdr_t* hdr, const char* model, unsigned* out, long* sweeps = nullptr, long* solves = nullptr,
+    bool keepPoints = true)
+// (sweeps, solves: positions' [0] and normals' [1] counted; keepPoints false: collapsed triangles not kept, a check's)
 {
     const trivertx_t* verts = posesOf(hdr);
     const za::SizeT total = static_cast<za::SizeT>(hdr->numposes) * hdr->numverts;
@@ -815,6 +856,10 @@ void compute(const aliashdr_t* hdr, const char* model, unsigned* out, long* swee
             solveVertex(hdr, verts, runs, vert, s, out, normals, sweeps, solves);
         }
     }, sweeps == nullptr);
+    if(keepPoints)
+    {
+        (void)keepCollapsed(hdr, out, true);
+    }
 }
 
 // compute's work for one vertex: its positions' and normals' paths along each run, in the runs' order.
@@ -982,6 +1027,9 @@ struct Check
     double turnMaxAfter{0.0};
     long turnPoints{0};
     double normalOff{0.0}; // the furthest a normal is from its stored direction (degrees)
+    int collapsed{0};       // triangles collapsed into a point in a stored pose (poses counted: keepCollapsed)
+    int openedBefore{0};    // ... opened by the offsets without keepCollapsed
+    int openedNow{0};       // ... and now (0)
 };
 
 [[nodiscard]] Check checkModel(const aliashdr_t* hdr, const char* model)
@@ -1002,6 +1050,13 @@ struct Check
     else
     {
         c.same = false;
+    }
+    {
+        za::Vector<unsigned> open(2 * total);
+        compute(hdr, model, open.data(), nullptr, nullptr, false);
+        c.openedBefore = keepCollapsed(hdr, open.data(), false);
+        c.collapsed = keepCollapsed(hdr, open.data(), true);
+        c.openedNow = keepCollapsed(hdr, fresh.data(), false);
     }
     const trivertx_t* verts = posesOf(hdr);
     for(za::SizeT i = 0; i < total; i++)
@@ -1197,6 +1252,9 @@ void checkOne(const char* name, bool listRuns)
         c.solves[0] ? static_cast<double>(c.sweeps[0]) / static_cast<double>(c.solves[0]) : 0.0,
         c.solves[1] ? static_cast<double>(c.sweeps[1]) / static_cast<double>(c.solves[1]) : 0.0, hdr->numposes * hdr->numverts * 8,
         c.same ? "same" : "DIFFERENT");
+    Con_Printf("mdldequant: check %s: points kept: %d opened, %d alone, of %d collapsed triangles over the poses (a folded "
+               "flash)\n",
+        name, c.openedNow, c.openedBefore, c.collapsed);
     const auto printSeams = [&](const char* what, const Seams& s) {
         Con_Printf("mdldequant: check %s: %s: seam second difference rms %.3f stored, %.3f without the progs' loops -> "
                    "%.3f steps (max %.2f, %.2f -> %.2f), inside %.3f, %.3f -> %.3f (max %.2f, %.2f -> %.2f; %ld seam and "
@@ -1277,7 +1335,7 @@ namespace
 // The disk cache's (vr_mdl_dequant_cache; vr_diskcache.hpp, cache/dequant): BUMP dequantVersion whenever a change here
 // could give other offsets or normals for the same model and loops (the solver, its constants, the runs' rules, the
 // normals' packing, Quake's normal table). vr_mdl_dequant_cache 2 computes anyway and compares.
-constexpr unsigned dequantVersion = 1;
+constexpr unsigned dequantVersion = 2; // (2: collapsed triangles kept as points, keepCollapsed)
 const za::String dequantBuild = [] {
     const unsigned parts[] = {dequantVersion, static_cast<unsigned>(sizeof(trivertx_t)), static_cast<unsigned>(NUMVERTEXNORMALS)};
     return qvr::diskcache::buildOf(parts, sizeof(parts) / sizeof(parts[0]));
