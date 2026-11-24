@@ -9,6 +9,7 @@
 #include "vr_weapon_ids.h"
 #include "vr_cvars.hpp"
 #include "vr_heldpose.hpp"
+#include "vr_hull.hpp"
 #include "vr_tunables.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -340,6 +341,16 @@ void noteThrows()
         if(thrower == 0)
         {
             continue;
+        }
+        // (flatfb1124, his flat note 2026-11-24: a health box thrown running forward took a weird path.) Or its own speed
+        // away from its thrower's body as it leaves (m/s): flat play's throw sets the hand's estimate only for the throw
+        // (QC VR_FlatThrow_Throw puts the engine's back), so this saw a 0.4 m/s "slow release" of a 5 m/s throw, and the
+        // body running on into it knocked it up and aside. (Flat play only: a headset's estimate is the hand's own, and a
+        // gib let go of still on the palm, 1.2 m/s by this, must rest on it: throw_grace_test palm.)
+        if(hull::isFlat(EDICT_NUM(thrower)))
+        {
+            const glm::vec3 away = glmv(b3Body_GetLinearVelocity(s.body)) - vec(EDICT_NUM(thrower)->v.velocity) / world->m2u;
+            speed = za::max(speed, glm::length(away));
         }
         world->slots[num].flight = true; // (its spin aligns in the air: spinAlign; a point steadies: pointAlign)
         world->slots[num].flightAge = 0.f;

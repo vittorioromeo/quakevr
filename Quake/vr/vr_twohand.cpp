@@ -1542,6 +1542,9 @@ namespace
 // while the guard asks for the grip, kept while it lets go: the way away from him turns as the blade swings back, and
 // deciding each frame flipped the easing hand a half turn in a frame.)
 bool bladeFingersTurned[2]{false, false};
+// (The same for its palm's down, flatfb1124: the holding hand's side, followed while the guard asks for the grip and kept
+// while it lets go -- followed as the holding hand left the guard, the easing hand turned 35 degrees in a frame.)
+glm::vec3 bladeDown[2]{{0.f, 0.f, -1.f}, {0.f, 0.f, -1.f}};
 } // namespace
 
 bool bladeGripHand(const hands::State& s, int hand, const glm::vec3& holderPos, const glm::vec3& holderRot, glm::vec3& pos,
@@ -1564,7 +1567,18 @@ bool bladeGripHand(const hands::State& s, int hand, const glm::vec3& holderPos, 
         glm::vec3 f, r, u;
         hands::angleVectors(rot, f, r, u);
         const glm::vec3 palm = hand == HAND_OFF ? r : -r;
-        const glm::vec3 down{0.f, 0.f, -1.f};
+        // (flatfb1124, his note 2026-11-24: the free hand turned against the sword as he looked up or down: the holding
+        // hand's pose rolls the blade with the look's pitch, while "down" was the world's.) Down is the holding hand's own
+        // side nearest the look's down (its right, either way; the world's down looking level), so the free hand keeps its
+        // turn on the blade whatever the pitch.
+        if(flatplay::bladeAsked(holding))
+        {
+            glm::vec3 hf, hr, hu, vf, vr, vu;
+            hands::angleVectors(holderRot, hf, hr, hu);
+            hands::angleVectors({cl.viewangles[0], cl.viewangles[1], 0.f}, vf, vr, vu);
+            bladeDown[hand] = glm::dot(hr, vu) > 0.f ? -hr : hr;
+        }
+        const glm::vec3 down = bladeDown[hand];
         const glm::vec3 p = palm - d * glm::dot(palm, d), want = down - d * glm::dot(down, d);
         if(glm::length(p) > 1e-3f && glm::length(want) > 1e-3f)
         {

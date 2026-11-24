@@ -11729,6 +11729,36 @@ Lance Bolt Linger): `vr_dw_lance_push` 1, `_hit_sparks` 24, `_hit_smoke` 6, `_em
 - **Wall glue (his note vrtutorial 23:14:32): not started** (out of budget): an A/B test with the active ragdoll's lean
   off is left.
 
+## flatfb1124: flat rope crouch slides all the way, running throws clean, the parry's free hand fixed on the blade (agent/flatfb1124, 2026-11-24)
+
+His flatscreen feedback 2026-11-24 (three items).
+- **Crouch on an upright or slanted rope/pole (1):** it let go almost at once (`climb: flat rope: at its end, lets go` 20
+  units into a 300-unit slide; he then fell to the floor, so ropes13's test passed). Hanging, the body is already an arm
+  under the lowest hand (`lowest`), and the holds slid only after the body moved: its first step down met that bound and
+  the rope-end let-go. Now (vr_climb.cpp `flatRopeFrame`) while the holds have more rope under them (`flatSlideRoom`),
+  the body slides unbounded and the holds follow (a step's allowance instead held him to half the speed: the holds
+  lagged a frame). Crouch never drops him: at its end over a drop he hangs there; a floor within `flatSlideFloorDrop` (48)
+  under his feet at its end lets him down onto it. Horizontal ones keep the crouch drop. `vr_climb_debug` prints
+  `climb: flat slide:` a frame.
+- **Running throws (2):** the health box was knocked up and aside by his own capsule: box3d's throw grace
+  (`noteThrows`) judges a throw by the hand's estimate, which QC's flat throw sets only for the release and puts back
+  (0.39 m/s: "a slow release, it meets the hands"), so his body running on into it hit it. Flat throwers now also count
+  the thing's own speed away from his body (`hull::isFlat`; headsets unchanged: a gib let go on the palm read 1.2 m/s
+  that way and stopped resting on it). Measured: 6.5 m/s, passes through; its path clean until it lands. His motion is
+  kept as before (`vr_throw_inherit` 0.9: 288 of 320 u/s added).
+- **Parry guard's free hand (3):** the holding hand's guard pose rolls the blade with the look's pitch, while the free
+  hand's palm-down (`vr_flat_parry_blade_palm`) was the world's: in the holding hand's frame its fingers swung 40-50
+  degrees between pitch -45 and 45. Down is now the holding hand's side nearest the look's down
+  (`twohand::bladeGripHand`, followed while the guard asks for the blade, kept as it lets go: followed then, the easing
+  hand turned 35 degrees a frame). Identical numbers at -45 / 0 / 45; palm down (z -1.00) and fingers away looking level.
+  vr_flatplay_status prints the free hand in the holding hand's frame.
+- **Tests:** rope_flat_test slide 8/0 (new: first off it only at the floor, crouch held 2 s on the floor; 331 u/s),
+  poleslide 9/0 (350 u/s), new `slideend` 2/0 (the row's rope: still holding at its end, feet 79 over the floor), rope
+  9/0, pole 8/0, strungcrouch 5/0; flatthrow_test 38/0 (new `move`: stand / run / strafe, each passes through him, clean,
+  motion kept); flatbash_test 20/0 (new: pitch -45 and 45, the free hand's turn unchanged, 0.000); throw_grace_test (VR)
+  as before. New scene `flat_throw_run`.
+- Not checked: throw_grace_test's `palm` gib comes to rest at z 19.6, not on the palm (77.6 in its notes): the VR path is
+  untouched by this branch, so not investigated.
 ## hubcrash2: replaced swapchains destroyed a few frames later (agent/hubcrash2, 2026-11-24)
 
 - **What was seen**: the hub crash (SIGSEGV 0x30 in libGLESv2_adreno under xrEndFrame) happens on next too, worn

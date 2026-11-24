@@ -23,7 +23,10 @@ for w in "sword 163" "axe 152"; do
   SCRIPT="$SCRIPT;setpos 0 300 25 0 90 0;impulse $2;wait40;impulse 244;wait5;setpos 0 320 25 0 90 0;wait15"
   # (vr_flat_melee_2h_report: the drawn hands' most move and turn a frame since the last report, through the take and let-go.)
   R="vr_flat_melee_2h_report"
-  SCRIPT="$SCRIPT;echo fbt: $1 guard;$R;+offhandattack;wait40;$R;$ST;echo fbt: $1 bash;+attack;wait3;-attack;wait40;$ST"
+  SCRIPT="$SCRIPT;echo fbt: $1 guard;$R;+offhandattack;wait40;$R;$ST"
+  # (flatfb1124) The guard looking up and down 45 degrees (back level for the bash).
+  for p in -45 45; do SCRIPT="$SCRIPT;setpos 0 320 25 $p 90 0;wait30;echo fbt: $1 pitch $p;$ST"; done
+  SCRIPT="$SCRIPT;setpos 0 320 25 0 90 0;wait30;echo fbt: $1 bash;+attack;wait3;-attack;wait40;$ST"
   SCRIPT="$SCRIPT;echo fbt: $1 let go;$R;-offhandattack;wait30;$R;$ST;wait70"
 done
 SCRIPT="$SCRIPT;echo flatbash done;toggleconsole;quit"
@@ -58,6 +61,15 @@ check $([ -n "$fo" ] && awk -v f="$fo" 'BEGIN{exit !(f >= 0.5)}' && echo 1 || ec
 ap=$(block "sword guard" | grep -a "blade grip: point" | head -1)
 pt=$(grep -ao 'point [0-9.]*' <<<"$ap" | grep -ao '[0-9.]*$'); dh=$(grep -ao 'drawn hands [0-9.]*' <<<"$ap" | grep -ao '[0-9.]*$')
 check $([ -n "$pt" ] && [ -n "$dh" ] && awk -v p="$pt" -v d="$dh" 'BEGIN{exit !(p <= 14.05 && d <= 16)}' && echo 1 || echo 0) "sword: the blade's point within the reach of the hand (${ap# *})"
+# (flatfb1124, his note 2026-11-24: the free hand turned against the sword as he looked up or down.) Its turn in the
+# holding hand's frame (fingers and up, six numbers) the same at pitch -45, 0 and 45: within 0.05 of level's.
+fr() { block "$1" | grep -a "free hand in the holding hand's frame" | head -1 | grep -ao -- '-\?[0-9]\+\.[0-9]\+' | tr '\n' ' '; }
+f0=$(fr "sword guard")
+for k in "sword pitch -45" "sword pitch 45"; do
+  fk=$(fr "$k")
+  dv=$(awk -v a="$f0" -v b="$fk" 'BEGIN{n=split(a,x," ");m=split(b,y," ");if(n!=6||m!=6){print -1;exit};d=0;for(i=1;i<=6;i++){e=x[i]-y[i];if(e<0)e=-e;if(e>d)d=e};print d}')
+  check $(awk -v d="$dv" 'BEGIN{exit !(d >= 0 && d <= 0.05)}' && echo 1 || echo 0) "$k: the free hand keeps its turn on the blade (most change ${dv} from level's, 0.05; ${fk:-none})"
+done
 p=$(posed "sword guard"); d=$(drawn "sword guard")
 check $([ -n "$p" ] && awk -v p="$p" 'BEGIN{exit !(p >= 0 && p <= 1)}' && echo 1 || echo 0) "sword: the posed free hand on the hotspot (${p:-?} u)"
 check $([ -n "$d" ] && awk -v d="$d" 'BEGIN{exit !(d >= 0 && d <= 6)}' && echo 1 || echo 0) "sword: the drawn free hand on the blade at the hotspot (${d:-?} u, the half-sword grip's slide along the blade)"

@@ -27,6 +27,9 @@
 #   leaves its reach: the retake time alone took it again at the jump's top); landed, walked into again: taken.
 # rope_flat_test.sh <agent> slide|poleslide (ropes13): up the rope / pole 300 units, crouch held: down to the floor at
 #   vr_flat_rope_slide_speed (80% at least), no hand over hand, its scrape played and stopped.
+#   (flatfb1124) First off it only at the floor (it let go at once and dropped him), crouch held 2 s: on the floor.
+# rope_flat_test.sh <agent> slideend (flatfb1124): set in the air on the swinging row's first rope, crouch held 2 s: still
+#   holding it at its end over the drop, or on the floor; never let go in the air (crouch only slides, never drops).
 # rope_flat_test.sh <agent> strungcrouch (ropes13): strungpole dropped from with crouch instead of the move-down key.
 # (ropes13) The thumbs: round a rope or chain (vr_rope_thumb_wrap), along a pole's side.
 AGENT=${1:-posebake}
