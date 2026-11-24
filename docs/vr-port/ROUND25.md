@@ -12168,6 +12168,27 @@ Tests: `vr_button_swap_test` (13 cases + names: 17 passed, 0 failed): A/X jump o
 pressed, B/Y and stick clicks, trigger unchanged, flips while held leave no key or reload stuck. `settings_page_test.py` (23/0): the installer's Left-handed sets it,
 the saved config keeps it, Right-handed clears it. Installer manifest (help text) and menu_paths.txt refreshed.
 
+## plasmabolt: AD's Plasma Gun draws no lightning stream (agent/plasmabolt, 2026-11-24)
+
+His report: holding the trigger on AD's Plasma Gun drew a continuous lightning bolt, as the lightning gun's.
+
+- **Cause:** `FrameDrawLightningTrail` (weapons.qc) draws the lightning gun's per-frame stream (TE_LIGHTNING2) for any
+  held `WID_LIGHTNING` on its primary ammo with the trigger held. AD's Plasma Gun is that record upgraded (`wi_adup`
+  `ad_IT_UPGRADE_LG`, `AD_PlasmaGun`), so it drew the stream on top of its plasma bolts. Not tonight's Lance work:
+  the condition is the import's, unchanged until lancecharge added `!DW_LanceInHand`; the Plasma Gun has fired through
+  that record since AD P1b (6267ce7d2c, 2026-10-11). Confirmed by running the new test on 2e6565fb4 (before every
+  Crystal Lance charge/lance3/lance4/variantowned commit): 72 stream draws in 72 held frames.
+- **Fix:** the stream skips `AD_PlasmaGun(hand, flags)` as it skips the Lance. Other variants checked: the Lance's
+  beam (`DW_FireVariant`) gates on the record's `wi_dwvar`, and `WeaponInst_Owned` keeps a record one or the other
+  (an owned Lance clears `wi_adup`; an AD upgrade picked up disowns the variant), so the Plasma Gun never takes the
+  Lance's shot; the Widowmaker's spin and the Rotary gate on their own record; Rogue's plasma (secondary ammo) was
+  already excluded. The stream is the only per-frame LG draw (`PlayerLightningGunEffect` has one caller).
+- **Test:** `vr_ad_test 106` (vr_ad_upgrades_test.qc; counters `vr_lg_trail_draws`, `ad_plasma_shots`): the Plasma
+  Gun in the main hand, the run's `+attack` held 72 frames: 0 stream draws, 4 plasma bolts; then the same record a
+  plain lightning gun 72 more frames: 72 draws, 0 bolts. Verdict `adplasmabolt: 4 passed, 0 failed` (before the fix
+  2 failed: 72 drawn). Run: `vr_ad_upgrades 2;map e1m1;vr_ad_test 106;wait5;+attack`, `-QuitOn "adplasmabolt: [0-9]+
+  passed"`. Scene `ad_plasmabolt`. `dwell_lance_test.sh` could not run here (Dwell's data not in this base dir:
+  "Dwell's data found: FAIL"); the Lance's path is untouched.
 ## Show Melee Arcs: armed humanoids' swings drawn (branch agent/meleearcs, 2026-11-24)
 
 His report: Show Melee Arcs "still displays nothing for armed humanoids" (ROUND24, "Melee rules": the cause was never
