@@ -708,6 +708,7 @@ int R_AliasShaderMode (void); // QVR: r_alias.c: the models' ALIASSHADER_* for t
 void R_PrewarmSelectedPrograms (void); // QVR: r_world.c: the ES profile's variants the settings draw with, at a map's load
 GLuint GL_WorldArraysProgram (GLuint program, qboolean *depthonly); // QVR: the world's textures in arrays (vr/vr_worldarrays.cpp)
 GLuint GL_WorldArraysMergeProgram (void); // QVR
+void GL_DescribeLimits (char *buf, size_t size); // QVR: the driver's limits a program can run out of, in one line (GL_Init, a failed link)
 int GL_WorldRigLightsOff (void); // QVR: the world's programs skip the rig's small lights (C4v; vr_rig_lights_world 0)
 void R_BModelCallTextures (texture_t *t, gltexture_t *out[4]); // QVR: a world call's four maps as the bound path binds them (r_world.c)
 void R_PrewarmDecalPrograms (qboolean pdo); // QVR: those made in the map's load (vr/vr_decals.cpp prepare)

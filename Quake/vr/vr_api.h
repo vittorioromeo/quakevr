@@ -328,6 +328,7 @@ void VR_AddonOnSave (const char *savepath);	// Host_Savegame_f: the active map p
 void VR_NoteMapSpawn (const char *map);	// SV_SpawnServer: the map and the map package mounted, the crash report's context line
 void VR_SetCrashContext (const char *what);	// vr_crash.cpp: that line (qvr_crash.txt's second)
 void VR_SetCrashGpu (const char *line);	// vr_crash.cpp: GL_Init: the GPU, its driver's GL version and the safe mode, the report's "GPU:" line
+void VR_SetCrashGlLimits (const char *line);	// vr_crash.cpp: GL_Init: the driver's limits (GL_DescribeLimits), the report's "GL limits:" line
 void VR_SetCrashVr (const char *line);	// vr_crash.cpp: the OpenXR backend: the runtime, its version, the headset, the API layers, the step; the report's "VR:" line
 // The GL start-up's breadcrumbs and safe mode (vr_glsafe.cpp; ROUND21.md "AMD start-up crash").
 enum
@@ -339,7 +340,8 @@ enum
 	VR_GLSAFE_VIEWPORT_LAYER = 1 << 4,	// the shadow casters' layered draws (gl_ViewportIndex in vertex shaders)
 	VR_GLSAFE_DEBUG_OUTPUT = 1 << 5,	// -gldebug's callback
 	VR_GLSAFE_MSAA = 1 << 6,		// multisampled scene targets
-	VR_GLSAFE_SHADOW_ATLAS = 1 << 7		// the shadow atlas at most 4096
+	VR_GLSAFE_SHADOW_ATLAS = 1 << 7,	// the shadow atlas at most 4096
+	VR_GLSAFE_VERTEX_ONLY = 1 << 8		// vertex-only programs (the depth passes); off: with an empty fragment shader (gl_shaders.c)
 };
 // -glescompat's own ES forms (VR_GLESForm); -glesdebug keep:<name> (QVR_GLES_DEBUG) keeps the PC form of some, to measure each
 enum
