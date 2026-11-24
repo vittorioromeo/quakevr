@@ -39,10 +39,21 @@ float(float xHand) VR_PoleHeadFrom =
 // the hand to the tip): its damage times vr_dw_lance_thrust (the stab's damage already grows with the speed along the
 // line, VRMeleeDmg); a stab on the shaft short of the head is a poke, vr_dw_lance_poke of it. (The two multipliers are
 // every pole weapon's: tuning the Lance's thrust tunes the spear's.)
+// The shaft (spearblunt; POLEWEAPONS.md "The shaft"): a blow landing with it, short of the head, or with the butt behind the
+// hand (VR_Melee_PoleLayout's blunt points: the blow's pommel kind) is a staff's: blunt (VR_Melee_Deal's vr_melee_blunt:
+// the hit's class, wounds, knockdowns, the knock's sound, a round dent; no stab, no embed), a gun's club damage
+// (vr_dmg_gun_bash) and its blunt layer; its leg sweeps are the engine's (vr_legsweep.cpp: the head a cut, the shaft
+// sweeps).
 void(float xHand) VR_PoleMelee =
 {
-    float xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_axe));
     entity b = VR_Blow(xHand);
+    float shaft = b.mh_kind == VR_MKIND_POMMEL;
+    float xdmg = VRMeleeDmg(xHand, cvar_hget(shaft ? cvarh_vr_dmg_gun_bash : cvarh_vr_dmg_axe));
+    if(shaft)
+    {
+        dprint(sprintf("%s: %s, a blunt blow (%.2f of the line, %.1f m/s): %.0f damage\n", VR_SpearHeld(xHand) ? "spear" : "dwlance",
+            b.mh_part, b.mh_c_f, b.mh_speed, xdmg));
+    }
     if(b.mh_kind == VR_MKIND_STAB)
     {
         float head = (b.mh_c_f >= VR_PoleHeadFrom(xHand));
@@ -60,12 +71,16 @@ void(float xHand) VR_PoleMelee =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", !shaft), 1.0, ATTN_NORM);
+            if(shaft)
+            {
+                VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), victim); // (a gun's butt's, a club's: of what it struck)
+            }
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
         return;
     }
-    VR_Melee_WallMark(xHand, xdmg, FALSE); // its head's chop (vr_decal_melee)
+    VR_Melee_WallMark(xHand, xdmg, shaft); // its head's chop, its shaft's round dent (vr_decal_melee)
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         VRMeleeHapticByHand(xHand);

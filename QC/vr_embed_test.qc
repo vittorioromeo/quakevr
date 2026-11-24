@@ -903,6 +903,7 @@ vector vr_eh_start;          // where the blow starts from
 vector vr_eh_home;           // where you stood as the test began
 float vr_eh_ahead;           // how far ahead the body stands (0: as these cases have it)
 float vr_eh_down;            // the blow goes down so steeply (0: level; a body lying)
+float vr_eh_along;           // a swing meets the body this share of the line out (0: with its far end; a spear's shaft)
 entity vr_ee_target;         // the body the blow is at (world: a grunt spawned; vr_embed_edge_test.qc)
 
 void(float xWid, float xFlags) VR_EH_Give =
@@ -1008,7 +1009,7 @@ float(float xWid, float xSpeed, float xOff, float xSwing, float t) VR_EH_Blow =
         {
             // (Across you: as the mock hand holds it, its edges face that way.)
             vector across = VR_AxeStick_Turn(vr_eh_fw, '0 0 1', 90);
-            vr_eh_end = chest2 - line + across * (vr_eh_ahead > 0 ? 14 : 8);
+            vr_eh_end = chest2 - line * (vr_eh_along > 0 ? vr_eh_along : 1) + across * (vr_eh_ahead > 0 ? 14 : 8);
             vr_eh_start = vr_eh_end - across * dist;
             VR_EH_HandTo(vr_eh_start, 0);
         }
@@ -1061,6 +1062,7 @@ void() VR_EH_NextCase =
     }
     VRSetHandEmpty(self, cVR_MainHand);
     vr_eh_flags = 0;
+    vr_eh_along = 0;
     VR_EH_ClearGibs();
     VR_ET_NextCase();
 };
