@@ -427,6 +427,8 @@ void(float xHand) VR_Forcegrab_FlatPreview =
 // hand: let go of as VR_Carry_HandFrame lets go of what it lost (VR_Hand_Release, VR_Carry_Loose) — physics again at his
 // feet, free to take again; held in both hands, one press lets go of both hands (it is too heavy for one). An empty hand
 // drops nothing.
+void(entity e, float xHand, string xWhy) VR_Embed_DropHand; // (vr_embedhold.qc)
+
 float(float xHand) VR_Forcegrab_FlatDropHand =
 {
     if(!VRIsHandWeaponless(self, xHand))
@@ -436,6 +438,14 @@ float(float xHand) VR_Forcegrab_FlatDropHand =
         DropWeaponInHand(self, xHand, wid, flags);
         VRHandStopFiring(self, xHand);
         dprint(sprintf("flat drop: weapon %g out of hand %g\n", wid, xHand));
+        return TRUE;
+    }
+
+    // A blade stuck in a body that the hand holds (flatembed): let go of, it stays in (taken again by a grab, a force grab).
+    if(VR_Hand_Kind(self, xHand) == VR_HOLD_EMBED)
+    {
+        VR_Embed_DropHand(VR_Hand_BusyEnt(self, xHand), xHand, "flat drop");
+        dprint(sprintf("flat drop: hand %g let go of its stuck blade\n", xHand));
         return TRUE;
     }
 
