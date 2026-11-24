@@ -12145,3 +12145,24 @@ A left-hander's saved config (stick swap etc. on, the new setting off) now shows
 Tests: `vr_button_swap_test` (13 cases + names: 17 passed, 0 failed): A/X jump off/on, the reloads follow the hand
 pressed, B/Y and stick clicks, trigger unchanged, flips while held leave no key or reload stuck. `settings_page_test.py` (23/0): the installer's Left-handed sets it,
 the saved config keeps it, Right-handed clears it. Installer manifest (help text) and menu_paths.txt refreshed.
+
+## flatads: the zoom aim brings the gun to the middle, and a visor zoom look (branch agent/flatads, 2026-11-24)
+
+His ask: for the guns with no sights (weapons.txt `fsight_mode` 1, or `vr_flat_aim_zoom 1`) the right button's zoom also moves
+the gun towards the middle of the screen, and a subtle visor effect while zoomed. Guns with sights are unchanged.
+- **The move** (vr_flatsight.cpp `zoomCentre`, called from `centreOnSight` where a zoom gun used to return): the holding hand,
+  in the view's frame from the crosshair ray's origin, goes `vr_flat_zoom_centre` (0.5) of its sideways offset to the middle,
+  `vr_flat_zoom_up` (tunable, 2 units) up and `vr_flat_zoom_fwd` (tunable, 0) out, over `st.zoomT` smoothstepped; `st.zoomT`
+  runs over `vr_flat_zoom_time` (tunable, -1 = `vr_flat_aim_time`, the zoom's own travel). A pinned free hand and its grip go
+  with it. It is a pose move (the game's hand too), so `aimAtPoint` turns the gun from the moved muzzle at the crosshair point:
+  the shot is unchanged, the drawn gun follows through `flatplay::drawnOffset`. `poseShare` stays 0 for zoom guns (the walk bob,
+  keepNear, recoil as before).
+- **The visor look** (`vr_flat_zoom_visor`, 0.5; 0 off): in the flat look's one pass (vr_flatlook.cpp, uniform `Visor`), eased
+  in with the zoom's travel (`flatsight::zoomVisor`): a red/blue fringe at the lens edge (1.5 px, more as it engages), the edge
+  darkened towards a cool tint and lined every 4 pixels, four thin corner brackets round the middle, and for 0.4 s after it
+  engages a scan line down the view and a shimmer of lines. The pass also runs for it alone (`flatlook::active`). Flat only.
+- Menu: Locomotion > Desktop Screen Play, Zoom Aim Gun To Centre and Zoom Aim Visor Look (flat-only rows, `vr_flat_zoom_*`);
+  Tunables Zoom Aim Gun Up / Forward / Time. `vr_flat_sight_check` prints `flatzoomcentre: t, move, visor, shimmer`.
+- Test: flatads_test.sh section f (grenade launcher): hand right 4.97 -> 2.46 and up -5.01 -> -3.00 zoomed, back on release, the
+  shot 0.0 px off the centre hipfire and zoomed, visor 0.15 / shimmer 0.90 four frames in, 0.50 / 0 zoomed, 0 released.
+  Scene `flat_zoom_aim`. Screenshots (hipfire, zoom as before, zoom now): qvr-kit/scratch/flatads_zoom.png.

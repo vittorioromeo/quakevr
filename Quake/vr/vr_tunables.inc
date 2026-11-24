@@ -2301,6 +2301,9 @@ QVR_TUNABLE(vr_flat_ads_near, "24") // vr_flat_gun_near with the ironsight on, e
 QVR_TUNABLE(vr_flat_aim_fov, "45") // the flatscreen ironsight (vr_flat_aim, the right mouse button with one weapon held and the other hand empty; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, at fov vr_flat_aim_fov_ref (0..75; 0: the view stays wide); at any other fov the same magnification (tangents), so a fov change keeps the zoom. The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
 QVR_TUNABLE(vr_flat_aim_fov_ref, "95") // the fov vr_flat_aim_fov's degrees and vr_flat_ads_relief's units are counted at (60..130; 95: his; at fov 90 vr_flat_aim_fov 12/30/45 take 11.9/29.5/43.7 off)
 QVR_TUNABLE(vr_flat_aim_time, "0.15") // the same ironsight: how long its whole travel takes, in seconds -- onto the crosshair, and back off it (0.05..1.00; 0: at once). The field of view is narrowed by vr_flat_aim_fov's degrees times how far that travel has gone, so the view closes and opens with the weapon instead of at the press
+QVR_TUNABLE(vr_flat_zoom_up, "2") // the zoom-only aim's move of the gun (vr_flat_zoom_centre): raised this far towards the middle of the screen (units in the view's frame, -8..8; negative: lowered), eased in with it
+QVR_TUNABLE(vr_flat_zoom_fwd, "0") // and pushed out this far along the view (units, -8..8; negative: drawn in)
+QVR_TUNABLE(vr_flat_zoom_time, "-1") // how long that move takes, in seconds, onto the middle and back (0..1; 0 at once; -1: vr_flat_aim_time, the zoom's own travel, so it moves as the view narrows)
 QVR_TUNABLE(vr_flat_aim_point, "1") // 1: a gun points from its muzzle at what the ray through the screen's centre hits, every frame, hipfire and ironsight (the shot goes through the crosshair at any range); 0: along the view, beside the crosshair by the muzzle's distance off the ray
 
 // Flatscreen > Eye

@@ -120,6 +120,10 @@ struct Sight
     bool heldOffPose{false};    // last frame: vr_twohand held the free hand on a grip no pose carries it to (keptGrip)
     bool keptGrip{false};       // ... it did, or did until its let-go, and gripT is still easing the hand off that grip
     float adsT{0.f};            // how far the held weapon has come onto the crosshair
+    float zoomT{0.f};           // how far a zoom-only gun has come towards the middle of the screen (vr_flat_zoom_centre)
+    bool zoomWas{false};        // last frame: the zoom-only aim was asked for (its engaging edge: the visor's shimmer)
+    double zoomEngageAt{-1e9};  // when it was last engaged (vr_gametime)
+    glm::vec3 zoomShift{0.f};   // how far zoomCentre moved the holding hand this pose (world, units)
 
     int holding{-1};            // this frame: the hand that holds a weapon while the other is empty (-1: neither)
     int helping{-1};            // ... and the empty hand that holds on to it
@@ -259,6 +263,7 @@ constexpr float stanceEase = 2.5f;    // and how fast the torso turns, the same
 constexpr float longGunMuzzle = 9.5f; // a gun's muzzle this far from the hand holding it (units) makes it a long gun.
                                       // Measured: revolver 8.4, nail pistol 3.9; nail gun 10.8, super shotgun 11.4, shotgun 14.0
 constexpr float lookBack = 0.03f;     // the free hand goes back on the hotspot under lookKeep less this share of the arm
+constexpr float visorShimmerSeconds = 0.4f; // the zoom visor's shimmer and scan as it engages (zoomVisor)
 constexpr float aimTimeMin = 0.05f;  // vr_flat_aim_time's shortest travel, and what a smaller nonzero setting reads as
 constexpr float aimTimeMax = 1.f;    // and its longest
 constexpr float aimFar = 4096.f;     // nothing on the crosshair's ray: the gun points this far along it
@@ -1638,9 +1643,36 @@ void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
 
 // The held weapon brought to the sight's place, over the travel: the hand where the solve has it (sighted), in the frame
 // of the crosshair's ray, and the muzzle the shots go from where that gun's muzzle is.
+// The zoom-only aim (his ask 2026-11-24: "make the weapon move a bit closer to the center of the screen"): no sights to put on
+// the ray, so the holding hand is brought vr_flat_zoom_centre of the way sideways to the middle of the screen from the eye
+// `org`, raised by vr_flat_zoom_up and pushed out by vr_flat_zoom_fwd (the view's frame), over st.zoomT eased. A pinned free
+// hand and its grip go with it, as centreOnSight's do. The hand's turn is aimAtPoint's afterwards, from the moved muzzle, so the
+// shots still go through the crosshair; the drawn hand follows the pose (flatplay::drawnOffset).
+void zoomCentre(hands::State& s, const glm::vec3& aim, const glm::vec3& org)
+{
+    st.zoomShift = glm::vec3{0.f};
+    const float t = geom::smooth01(za::clamp(st.zoomT, 0.f, 1.f));
+    if(t <= 0.f || st.holding < 0 || !zoomOnly(st.holding))
+    {
+        return;
+    }
+    const glm::mat3 view = axesOf(aim);
+    const glm::vec3 local = glm::transpose(view) * (s.pos[st.holding] - org);
+    const glm::vec3 move{za::clamp(vr_flat_zoom_fwd.value, -8.f, 8.f), -local.y * za::clamp(vr_flat_zoom_centre.value, 0.f, 1.f),
+        za::clamp(vr_flat_zoom_up.value, -8.f, 8.f)};
+    st.zoomShift = view * move * t;
+    s.pos[st.holding] += st.zoomShift;
+    if(st.pinned)
+    {
+        s.grip2H[st.holding] += st.zoomShift;
+        s.pos[st.helping] += st.zoomShift;
+    }
+}
+
 void centreOnSight(hands::State& s, const glm::vec3& aim)
 {
     st.shift = glm::vec3{0.f};
+    st.zoomShift = glm::vec3{0.f};
     st.offBefore = st.offAfter = st.offAsked = st.sightAngle = 0.f;
     if(st.holding < 0)
     {
@@ -1658,6 +1690,7 @@ void centreOnSight(hands::State& s, const glm::vec3& aim)
     if(!sightPosed(st.holding))
     {
         st.relief = 0.f;
+        zoomCentre(s, aim, org);
         return;
     }
     const glm::mat3 view = axesOf(aim);
@@ -1856,7 +1889,10 @@ void forget()
     {
         st.ads = st.keyWas = false;
         st.gripWanted = st.adsWanted = false;
-        st.gripT = st.adsT = 0.f;
+        st.gripT = st.adsT = st.zoomT = 0.f;
+        st.zoomWas = false;
+        st.zoomEngageAt = -1e9;
+        st.zoomShift = glm::vec3{0.f};
         st.heldOffPose = st.keptGrip = false;
         st.lastTime = -1e9;
         st.holding = st.helping = st.lastHolding = st.lastHelping = -1;
@@ -1919,6 +1955,18 @@ void frame()
     const float aim = aimSeconds();
     st.adsT = aim <= 0.f ? (st.adsWanted ? 1.f : 0.f)
                          : za::clamp(st.adsT + (st.adsWanted ? 1.f : -1.f) * dt / aim, 0.f, 1.f);
+    // The zoom-only aim's move of the gun to the middle (zoomCentre), over vr_flat_zoom_time (-1: the zoom's own travel), and
+    // the moment it engages (the visor's shimmer, zoomVisor).
+    {
+        const bool zoomOn = st.adsWanted && st.holding >= 0 && zoomOnly(st.holding);
+        const float zs = vr_flat_zoom_time.value < 0.f ? aim : za::clamp(vr_flat_zoom_time.value, 0.f, aimTimeMax);
+        st.zoomT = zs <= 0.f ? (zoomOn ? 1.f : 0.f) : za::clamp(st.zoomT + (zoomOn ? 1.f : -1.f) * dt / zs, 0.f, 1.f);
+        if(zoomOn && !st.zoomWas)
+        {
+            st.zoomEngageAt = t;
+        }
+        st.zoomWas = zoomOn;
+    }
     st.probesLast = st.probes;
     st.probes = 0;
     // A wall met: back at once, nearly; cleared: out again over a moment, whichever way the view or the player moved.
@@ -2514,6 +2562,19 @@ bool zoomAim()
     return flatplay::active() && st.holding >= 0 && zoomOnly(st.holding);
 }
 
+float zoomVisor(float& shimmer)
+{
+    shimmer = 0.f;
+    const float strength = za::clamp(vr_flat_zoom_visor.value, 0.f, 1.f);
+    if(strength <= 0.f || !zoomAim() || st.adsT <= 0.f)
+    {
+        return 0.f;
+    }
+    const float since = static_cast<float>(vr_gametime - st.zoomEngageAt);
+    shimmer = since >= 0.f && since < visorShimmerSeconds ? 1.f - since / visorShimmerSeconds : 0.f;
+    return strength * geom::smooth01(za::clamp(st.adsT, 0.f, 1.f));
+}
+
 float fov(float basefov)
 {
     // The eased share, not the toggle (fovNarrowNow): the view closes and opens with the weapon. A base field of view
@@ -2725,8 +2786,12 @@ static void check_f()
     const bool zoom = h == st.holding && zoomOnly(h);
     if(zoom)
     {
+        float shimmer = 0.f;
+        const float visor = zoomVisor(shimmer);
         Con_Printf("flatsightcheck: %s zoom t %.2f fov %.2f hip %.2f shift %.3f xhair %.2f\n",
             wf.model->name, st.adsT, r_refdef.fov_x, st.baseFov, glm::length(st.shift), crosshairFade());
+        Con_Printf("flatzoomcentre: t %.2f move %.2f visor %.2f shimmer %.2f\n", st.zoomT, glm::length(st.zoomShift), visor,
+            shimmer);
     }
     {
         // Where the weapon is drawn in the camera's frame (forward, right, up; and its pitch on the screen, degrees, up

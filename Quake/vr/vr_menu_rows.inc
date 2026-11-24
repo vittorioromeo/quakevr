@@ -6576,6 +6576,13 @@ QVR_CYCLE(vr_flat_aim_zoom, "Right Click Aim",
     "crosshair stays. Per Weapon: each gun's own (Weapon Offsets > Sights, Flat-Screen Aim: zoom for the guns with no "
     "sights to look down: the nailguns, the grenade, rocket and proximity launchers, the laser cannon) (vr_flat_aim_zoom).",
     {-1.f, "Per Weapon"}, {0.f, "Ironsight"}, {1.f, "Zoom"})
+QVR_SLIDER(vr_flat_zoom_centre, "Zoom Aim Gun To Centre", 0.f, 1.f, 0.05f, "%.2f", ext(),
+    "Playing on the desktop screen, aiming by zoom (a gun with no sights to look down): the gun comes this share of the way "
+    "sideways to the middle of the screen as the view narrows (0: it stays in its pose; 1: under the crosshair). The shots "
+    "still go through the crosshair. Its height, distance and time: Tunables, Zoom Aim Gun Up / Forward / Time (vr_flat_zoom_centre).")
+QVR_SLIDER(vr_flat_zoom_visor, "Zoom Aim Visor Look", 0.f, 1.f, 0.05f, "%.2f", ext(),
+    "Playing on the desktop screen, aiming by zoom: the helmet visor's zoom look over the view (the lens edge tinted and "
+    "lined, a thin frame round the middle, a shimmer as it engages). 0: off (vr_flat_zoom_visor).")
 QVR_SLIDER(vr_flat_aim_sens,"Aim Sensitivity", 0.1f, 2.f, 0.05f, "%.2fx", ext(0.05f, 5.f),
     "Playing on the desktop screen: the mouse's, gyro's and stick's look speed while aiming down the sights, times this, "
     "on top of the slowing the narrower view brings (Aim Sensitivity Match). It comes in with the sights (vr_flat_aim_sens).")
