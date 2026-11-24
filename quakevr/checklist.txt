@@ -115,6 +115,7 @@ Hold Dwell's Crystal Lance's pole with the other hand and turn that wrist round 
 Charge Dwell's Crystal Lance: it trembles slightly in the hand with a light buzz growing with the charge; as it fires it shakes harder and buzzes strongly for a moment (Debug > Tunables > Crystal Lance Charge Shake, Fire Shake, Charge Buzz, Fire Buzz). {test:dwell_lance_pole}
 Fire Dwell's Crystal Lance a few times and look at its head: the violet heat glow covers the whole tip, every crystal and the metal all round, not one side. {test:dwell_lance_pole}
 Fire Dwell's Crystal Lance at a ragdoll, a crate and a grunt: the ragdoll and props are pushed, a kill can pop a head or limb, and where the bolt stops there are sparks, smoke and a burn mark. {test:dwell_lance_pole}
+Flat-screen or VR: drop the Crystal Lance or leave it stuck in an ogre, then take a lightning gun back by the weapon key, next weapon, the wheel, a holster or impulse 158: it is always the Crystal Lance (its head and violet beam), never a plain Thunderbolt with an empty magazine; the same after a save and load or a level change. {test:dwell_owned}
 
 [8. Quoth]
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open. {test:hub_start}
