@@ -1514,6 +1514,15 @@ void startPunch(int h, const char* from)
     {
         return; // a press while it runs is not a new punch: restarted, the hand snaps back to the rest pose
     }
+    if(axestick::handOnBlade(h))
+    {
+        // (A hand on a blade stuck in a body: its fire button pulls it, the game's (QC VR_Embed_FlatPull); no punch.)
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: %s punch (%s): on a stuck blade, pulls it\n", h == HAND_MAIN ? "main" : "off", from);
+        }
+        return;
+    }
     if(vr_flat_punch_both.value != 0.f)
     {
         if(fs.punchFrame[1 - h] == host_framecount && !(punchesWith(HAND_OFF) && punchesWith(HAND_MAIN)))

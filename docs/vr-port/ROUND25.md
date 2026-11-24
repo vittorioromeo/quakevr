@@ -12167,6 +12167,43 @@ A left-hander's saved config (stick swap etc. on, the new setting off) now shows
 Tests: `vr_button_swap_test` (13 cases + names: 17 passed, 0 failed): A/X jump off/on, the reloads follow the hand
 pressed, B/Y and stick clicks, trigger unchanged, flips while held leave no key or reload stuck. `settings_page_test.py` (23/0): the installer's Left-handed sets it,
 the saved config keeps it, Right-handed clears it. Installer manifest (help text) and menu_paths.txt refreshed.
+## flatembed: flat blades stick again, the hand stays on the grip, fire pulls it out (agent/flatembed, 2026-11-24)
+
+His decision (2026-11-24): bring back flatscreen embedding; attack with a blade stuck and the hand on it retracts the hand
+to try to pull it out.
+- **lance4's blanket "no embedding in flat play" removed** (QC VR_Embed_Try). What lost the Lance then: the hold let flat
+  play's hand go at once ("out of the arm's reach": flat play's posed arm is no measure). Now in flat play nothing lets go
+  of a stuck blade but H or another weapon put in the hand: no arm-gap let-go, no grip-open let-go (VR_Embed_HandOpen),
+  a too-slow corpse pull or too-gentle axe tug keeps the hand on it for another press.
+- **The hold's hand in flat play** (`VR_Embed_HandPos`, vr_embedhold.qc): not the posed controller but a headset hand held
+  still: the handle's place as it took hold (the other hand's own place), carried by his walking (`p.origin`). Everything
+  else is VR's hold (VR_Embed_HoldThink): the slide's stick / rate / depth, the axe's tug and its speed, a dead body's tug,
+  a body moving off past `vr_embed_hold_reach` (the blade then comes back into the hand), the drag of a light standing
+  body as he walks. The engine already draws the hand on the blade (embedDrawnHand).
+- **The pull** (`VR_Embed_FlatPull`): a fresh press of a fire button of a hand on it (a button still held from the blow
+  is no press) moves the hold's hand back along the blade `vr_flat_embed_pull` 12 units over `vr_flat_embed_pull_time`
+  0.2 s, holds it `vr_flat_embed_pull_hold` 0.25 s (the blade following by its rules), then back onto the grip where the
+  blade has come to (the hand's place moved out by what slid, so coming back pushes nothing in). Out: the hand has it
+  back (VR_Embed_Free, the record's Lance variant kept). Not out: still held, press again. Tunables > Flatscreen, after
+  Thrust Recover Time ("Stuck Blade Pull", "... Pull Time", "... Pull Hold"). `vr_debug_axestick 1` prints
+  "embedhold: flat pull N on <blade>, X units in".
+- **Other keys:** the engine starts no punch (V or fire) with a hand on a stuck blade (vr_flatplay.cpp startPunch; the
+  fire button is the game's pull). H (`VR_Forcegrab_FlatDropHand`, off hand first as ever): lets go, the blade stays in
+  the body (taken again with a grab or the force grab). Switching weapons / the wheel / the holster keys: as VR, the new
+  weapon in the hand lets go of the blade (VR_Embed_HandFrame), which stays in the body; the owned variant
+  (variantowned) means the Lance's key gives the Lance.
+- **What sticks in flat play by default:** the Lance's thrust (its tip's stab) reliably; axes now and then (the flat
+  overhead swing drives the axe head first along its handle at contact, "along the handle 0.97 (most 0.80)" in
+  vr_embed_test 52's runs: embeddual's swings stick 1 or 2 times in 3 runs, not 16/0 as on 11-22: the flat swing's poses
+  since, not this change); swords and daggers never: flat play has no stab with them (the overhead swing is a slash, a
+  pointed blade sticks only by a stab; `vr_flat_swing 0`'s straight punch reads "no stab", the blade 60-70 degrees off
+  the thrust). Open: a sword thrust like the Lance's (`vr_flat_thrust` for swords) if he wants flat swords to stick.
+- **Tests:** flatlance_test.sh section 5 reworked: ten thrusts into two ogres, two fire presses after each: 23 passed, 0
+  failed (3 stuck, 3 pulls, back in the hand each time: 1 pulled out by a press, 2 by the staggering ogre going past
+  the hold's reach; the hand never let go; still the Lance after a press of 8; no magazine). New: H with the Lance stuck
+  (its stagger off, the reach long) lets go, it stays in. The first thrust's: 2 pulls, out ("pulled out: slid"). VR
+  embed tests 33 (embedgrip) 11/4 and 24 (embedfeel) 16/3: the same 11/4 on origin/next's QC (checked): not this change
+  (VR paths are unchanged: every change is behind VR_FlatPlay). New scene `flat_embed_axe`.
 
 ## flatads: the zoom aim brings the gun to the middle, and a visor zoom look (branch agent/flatads, 2026-11-24)
 
