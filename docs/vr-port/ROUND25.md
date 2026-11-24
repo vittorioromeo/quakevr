@@ -11942,6 +11942,39 @@ weapon. lance4's report: with the Lance's record gone (stuck in an ogre), a weap
   was set from the start): printed as info, not counted.
 - **Screenshots**: C:/OHWorkspace/qvr-kit/scratch/lance4_shots.png (the beam and the lit head as it fires and 12 frames
   on; the off-hand-on-the-pole frames missed the Lance, the mock hands' framing; the impact is far down the corridor).
+
+## intelhd: "world depth" fails to link on Intel HD Graphics 630 (agent/intelhd, 2026-11-24)
+
+- **Report**: Windows, HD Graphics 630, drivers 27.20.100.9664 and 31.0.101.2114, GL 4.3 core, 1.1.0-rc.2: the link of
+  "world depth|OIT 0; DITHER 0; MODE 0" fails with "Out of resource error." (the vertex shader compiled), with and
+  without -glsafe. The program is the same in rc.2, 1.1.0 and next (the world vertex shader's outputs unchanged since).
+- **What it is**: the world's depth pre-pass (QVR's; upstream Ironwail has none) is the world vertex shader with no
+  fragment shader. Everything before it in GL_CreateShadersAll linked on that driver: every "world|" and "world pdo|"
+  program (the same vertex shader, the same buffers: FrameData UBO, LightBuffer, CallBuffer, InstanceBuffer; with a
+  fragment shader) and the sky stencil (vertex-only, the same buffers, no outputs). So not the storage blocks, uniforms
+  or attributes: what only "world depth" has is a vertex-only link with outputs. The world vertex shader writes ~21
+  outputs (51 components) at locations 0-8, 10, 12-19, 21, 22 and 29 (out_prevclip), plus gl_ClipDistance[1..2];
+  linked with a fragment shader the driver packs or drops them, without one they all stay live (and by location they
+  take 30 slots, the VUE's header, position and clip distances on top: over Gen9's 32). Not pinned on hardware.
+- **Fix**: a vertex-only program is linked with the empty fragment shader the ES profile already adds
+  (GL_VertexOnlyEmptyFrag, gl_shaders.c: the world pre-pass, the models' depth and layered depth, the sky stencil; the
+  arrays' and multiview twins too): none of the outputs is then live. When: OpenGL ES (as before), and where the new
+  safe-mode feature **VR_GLSAFE_VERTEX_ONLY** is off: -glsafe (and automatic safe mode), Intel's vendor workaround
+  (GL_VENDOR/GL_RENDERER "Intel", vr_gl_workarounds 1; vr_glsafe_status lists it), -glescompat. NVIDIA/AMD keep the
+  vertex-only programs. The same depths (gl_Position invariant; the colour masked in the pre-pass).
+- **Limits logged**: GL_DescribeLimits (gl_shaders.c): storage blocks per stage, combined and bindings, vertex output /
+  fragment input components, varying vectors, vertex uniform components, uniform blocks, block size, attributes,
+  images, atomic counters, texture units, clip distances. In GL_Init's "GL limits:" line (replacing "GL storage blocks
+  per stage"), the run's system.txt, the crash report's "GL limits:" line (VR_SetCrashGlLimits, both report writers)
+  and a failed link's message.
+- **Tests**: -glfakevendor Intel on the RTX 4090: "vendor workarounds (Intel ...): vertex-only depth programs off", every
+  program linked, e1m1's eyes the same as without (14 pixels by at most 2 of 259,200; two default runs differ by 60
+  pixels, at most 7: the run-to-run noise). -glsafe: linked, drew. gles_render_test.sh: 18 passed, 3 failed: every program compiled under -glescompat and
+  -glesnoext, PC vs ES within limits; the 3 failures are its arrays section (ES with the textures in arrays vs ES
+  without: 0.44% of pixels, 1 of 3606 textures differ), two ES runs that take the same programs before and after this
+  change (ES already had the empty fragment shader): not this change; a low-impact run (his game was running).
+- **Ask the player**: run 1.2 (or the next beta) as usual; if it still fails, send the crash report (now with "GL
+  limits:") and the run's system.txt; `-glsafe` also takes the empty fragment shader.
 ## beta3: 1.2.0-beta3, the first release-signed Quest APK (agent/beta3, 2026-11-24)
 
 - **Notes:** RELEASE_NOTES_1.2.md "New in beta 3" completed with what shipped after beta3fix: the Quest hub crash fixed
@@ -12004,3 +12037,42 @@ ledges) make no difference; ragdolls off, it is gone.
 - Checks: `vr_rag1108_test 4` 4 passed; `vr_agrunt_test 210` 6 passed, 2 failed with the stop on and off alike (zones
   66/72 both: pre-existing; over the edge 42 vs 45 of 54).
 - Noticed: a lying ragdoll's own parts press on each other at ~10 kN in all (self contacts, "other" in the trace).
+## promote1124: his changed settings promoted again (branch agent/promote1124, 2026-11-24)
+
+- Source: his proposed_defaults/2026-11-24_10-11-51.cfg and ironwail.cfg (read only), against the 11-23 promotion.
+  pose_defaults.py (0 new or changed keys, grips, stretch) and tune_promote.py --check (only the 10 vr_flat_pole_*,
+  another worker's) have nothing more.
+- Promoted: vr_flat_wheel_hold 0.35 -> 0.15 (flat 1 / 2 weapon-wheel hold; FLATPLAY.md updated). weaponwheel_test flat 17/0.
+- Unsure, not promoted: vr_knockdown_chance 100 (default 0.6; looks like a test aid, gone from his config), vr_prop_id_72-78
+  (held-object ids, no tuning lines on them; 78 is the lance).
+- Skipped as personal or state: vr_snap_turn, vr_world_scale (both gone from his config since), handedness, comfort
+  preset, volume, cl_alwaysrun, fov, sensitivity, gamma, contrast, crosshair, scales, hudstyle, host_maxfps,
+  vr_spectator_*, vr_window_view, vr_flat_taa, vr_flat_tp_fov, vr_gore_dents, vr_notes, vr_autosave_list_all, rig studio,
+  toolgun, rope spawn, run picks, vr_maps_skill, vr_mp_*, vr_takes_keys, menu positions, tallies, seeds; about 30
+  vr_wofs lines differ from the defaults only by the config's 6-digit rounding.
+
+## flatfb1124b: flat rope slides with the grips locked, the Lance's HUD without a magazine, his Lance pose the default (agent/flatfb1124b, 2026-11-24)
+
+His flatscreen feedback 2026-11-24 (two items), and the coordinator's: his tunables.cfg's Lance pose made the default.
+- **Slide (1, "the arms/IK jitter"):** measured by a new rope_flat_test check (`slide` / `poleslide`: each drawn palm and
+  elbow from the drawn body a frame, and its shake, a move's change from the last; vr_climb_debug 1 prints each frame).
+  The cause on a rope: each frame the drawn hand was put on the server's hold (moved down by `flatSlideHolds`) and then
+  on the rope as drawn, which sways a few units a frame under the sliding holds; some frames the hold was off the drawn
+  rope and the hand fell back to the stat's place. Now (vr_climb.cpp `drawnHand`; STAT_QVR_CLIMB bit 31, `slideStatBit`:
+  the server's `flatSliding`) a sliding hand keeps the grip it had: its place from the body (hands::State::playerOrigin)
+  and its turn, kept on the rope as drawn only through an eased offset (`slideRopeEase` 0.15 s; not followed further
+  than `slideRopeFar` 6: the free end swinging out below); let go of the slide, it glides back onto its hold.
+  `vr_flat_rope_slide_lock` 1 (Debug > Tunables > Rope Slide: Hands Locked; 0: as before).
+  Rope: palms at most 18.15 units a frame (mean 2.38, shake 30.1) -> 0.49 (mean 0.12, shake 0.54); elbows 8.14 (shake
+  14.7) -> 1.49 (shake 2.38). Pole: palms 0.06 -> 0.00; the elbows' shake 2.3-2.6 either way: one snap of the off elbow
+  about 10 frames in, as the flat crouch lowers the shoulders. Open: that snap is the elbow IK during the crouch's ease,
+  not the grip.
+- **Lance HUD (2):** the HUD read "36/total": the hand's clip size (`.weaponclipsize`, STAT_QVR_WEAPONCLIPSIZE) was the
+  lightning gun's 36 though the Lance held as a lance never reloads. QC `updateAmmoCounter` now gives 0 for a record
+  that is `DW_LanceFedFromPouch` (the held record's variant: variantowned). The flat HUD (`VR_FlatHudClip`), the VR
+  gun's screen and idle text and other players' copies all read that stat: the cells alone.
+- **Lance pose defaults:** `tune_promote.py` from his tunables.cfg: vr_flat_pole_fwd -10, _up -8.5, _pitch 8, _yaw 5,
+  _along -2.5, _off_up 3.5, _off_pitch -67, _off_yaw 34, _hand_fwd 1, _hand_out -0.25 (`--check`: nothing left).
+  flatlance_test sets each to its default plus the step it measures.
+- **Tests:** rope_flat_test slide 9/0, poleslide 10/0, slideend 2/0, rope 9/0, pole 8/0; flatlance_test with a new HUD
+  check (after the axe and the Lance again by their keys: `big <cells> small -1`, clip size 0).

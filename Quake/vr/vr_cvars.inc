@@ -4658,7 +4658,7 @@ QVR_CVAR(vr_weaponwheel_timescale, "0.5", CVAR_ARCHIVE) // the weapon wheel: tim
 QVR_CVAR(vr_weaponwheel_size, "16", CVAR_ARCHIVE)      // the weapon wheel's width (units; about 26 a metre): how far the hand moves to a slot
 QVR_CVAR(vr_weaponwheel_distance, "3", CVAR_ARCHIVE)   // the weapon wheel: its middle this many units beyond the hand as it opens (away from the eyes), facing them
 QVR_CVAR(vr_flat_wheel, "1", CVAR_ARCHIVE)             // flatscreen play (holsters on): holding 1 / 2 (vr_flat_key_cycle_left / _right) opens the weapon wheel where that hand is on the screen, time slowed, the mouse its cursor; let go on a slot: that hand takes it (a tap still cycles); 0: 1 / 2 only cycle, on the press, as before (his words 2026-11-23)
-QVR_CVAR(vr_flat_wheel_hold, "0.35", CVAR_ARCHIVE)     // flatscreen play: seconds 1 / 2 are held before the weapon wheel opens (a shorter press cycles the hand when let go)
+QVR_CVAR(vr_flat_wheel_hold, "0.15", CVAR_ARCHIVE)     // flatscreen play: seconds 1 / 2 are held before the weapon wheel opens (a shorter press cycles the hand when let go)
 QVR_CVAR(vr_flat_wheel_size, "0.5", CVAR_ARCHIVE)      // flatscreen play: the weapon wheel's height, a share of the window's
 QVR_CVAR(vr_flat_holster_drop_ahead, "20", CVAR_ARCHIVE | QVR_PREF) // flatscreen play: how far ahead of him (units) a holster's DROP lays its weapon
 QVR_CVAR(vr_flat_unload_volume, "0.8", CVAR_ARCHIVE) // flatscreen play: the holster menu's UNLOAD sound's volume (its rounds back into the pouch); 0 silent

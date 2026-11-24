@@ -5272,6 +5272,11 @@ struct Pin
     float support{0.f};
     bool supportOn{false};
     float supportSign{1.f};
+    // (flatfb1124b) Sliding down a rope or pole (slideStatBit): the grip locked as it was when the slide began, its hold
+    // from the body (hands::State::playerOrigin) and its turn (out, up), the hold put on the rope as drawn each frame.
+    bool slideLocked{false};
+    glm::vec3 slideFrom{0.f}, slideOut{1.f, 0.f, 0.f}, slideUp{0.f, 0.f, 1.f};
+    glm::vec3 slideRope{0.f}; // the rope as drawn from the locked hold, eased (slideRopeEase)
     [[nodiscard]] float eased() const
     {
         return along * along * (3.f - 2.f * along);
@@ -5289,6 +5294,9 @@ constexpr float pinInSpeed = 2.f;   // m/s allows (a lenient grab's far hold: no
 constexpr float pinOutTime = 0.12f; // and to go back to the tracked hand after letting go
 constexpr float yawSteps = 256.f;   // the holds' ways out in the stats: a byte of yaw each
 constexpr int mantleStatBit = 1 << 30; // STAT_QVR_CLIMB: mantling now (bits 0-29 the holds')
+constexpr int slideStatBit = static_cast<int>(1u << 31); // (flatfb1124b) and sliding down a rope or pole (flatSliding)
+constexpr float slideRopeEase = 0.15f; // (flatfb1124b) seconds a sliding hand takes to follow the rope's sway
+constexpr float slideRopeFar = 6.f;    // (flatfb1124b) units: the rope further than this from a sliding hand is not followed
 constexpr float ropeHoldNear = 12.f;   // units: a hold this near a drawn rope is on it (a frame's swing between them and more: ropeHold)
 constexpr float ropeHandOut = 0.025f;  // m: a hand on a rope, its palm's middle from the rope towards the climber (ropeHandOffset)
 constexpr float ropeHandSurface = 0.4f; // of its thickness: at least this far (a thick chain's surface, a little in: ropePalm)
@@ -5769,6 +5777,10 @@ void qvr::climb::calcStats(edict_t* ent, int* statsi)
     {
         bits |= mantleStatBit; // (the client's mantling(): flat play's mantle FOV, vr_flatspeedfov.cpp)
     }
+    if(c && c->flatSliding && c->hanging())
+    {
+        bits |= slideStatBit; // (the client's drawnHand: the grips locked while sliding)
+    }
     statsi[STAT_QVR_CLIMB] = bits;
 }
 
@@ -5880,6 +5892,64 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
             pin.thickness = 0.f;
             pin.offset = handOffset(out, hand);
             hold = at + pin.offset;
+        }
+        // (flatfb1124b, his flat note 2026-11-24: "the arms/IK jitter" sliding down) Sliding: the grip kept as it was when
+        // the slide began, sliding down with him (its place from the body, its turn), not the server's hold, a tick's step
+        // a frame against the body's smooth fall, put each frame on the rope as drawn (the nearest point of it there): the
+        // rope sways a few units a frame under the sliding holds, so the hand only follows its sway eased (slideRopeEase),
+        // never shaking with it. Let go of the slide, the hand glides back onto its hold (as onto a new one).
+        // (Begun on a hold on an upright or slanted rope; kept while the slide lasts on the same hold, wherever the server's
+        // hold is meanwhile: a frame it is off the drawn rope (ropeHoldNear) must not let go of the lock.)
+        const bool lockSlide = vr_flat_rope_slide_lock.value != 0.f && (bits & slideStatBit) != 0 && pin.weight >= 1.f &&
+                               holdSerial == pin.serial && (pin.slideLocked || (pin.thickness > 0.f && palmOut.z >= -0.5f));
+        if(vr_climb_debug.value >= 2.f && pin.slideLocked && !lockSlide)
+        {
+            Con_Printf("climb: slide lock %s let go: slide %d, weight %.2f, serial %d (was %d)\n", handName(hand),
+                (bits & slideStatBit) != 0 ? 1 : 0, pin.weight, holdSerial, pin.serial);
+        }
+        if(lockSlide)
+        {
+            if(!pin.slideLocked)
+            {
+                pin.slideLocked = true;
+                pin.slideFrom = pin.hold() - s.playerOrigin;
+                pin.slideOut = pin.toOut;
+                pin.slideUp = pin.toUp;
+                pin.slideRope = glm::vec3{0.f};
+            }
+            const glm::vec3 locked = s.playerOrigin + pin.slideFrom;
+            glm::vec3 onRope{0.f};
+            glm::vec3 ropeAxis{0.f};
+            float ropeThick = 0.f;
+            // (Far from the rope there, as by its free end swinging out below the holds: the hand stays where it was on it.)
+            if(ropePalm(locked, pin.slideOut, onRope, nullptr, &ropeAxis, &ropeThick, nullptr) &&
+                glm::distance(onRope, locked + pin.slideRope) <= slideRopeFar)
+            {
+                pin.slideRope += (onRope - locked - pin.slideRope) * za::min(1.f, dt / slideRopeEase);
+                hold = locked + pin.slideRope;
+                pin.axis = ropeAxis - onRope; // (the rope's axis from the palm, as it is drawn there)
+                pin.thickness = ropeThick;
+            }
+            else
+            {
+                hold = locked + pin.slideRope;
+            }
+            pin.offset = hold - at;
+            palmOut = pin.slideOut;
+            ropeUp = pin.slideUp;
+            if(vr_climb_debug.value >= 2.f)
+            {
+                const glm::vec3 l = locked - s.playerOrigin, r = onRope - s.playerOrigin, d = hold - s.playerOrigin;
+                Con_Printf("climb: slide lock %s: locked %.2f %.2f %.2f, the rope there %.2f %.2f %.2f, drawn %.2f %.2f %.2f (from the body)\n",
+                    handName(hand), l.x, l.y, l.z, r.x, r.y, r.z, d.x, d.y, d.z);
+            }
+        }
+        else if(pin.slideLocked)
+        {
+            pin.slideLocked = false;
+            pin.from = pin.hold();
+            pin.along = 0.f;
+            pin.inTime = easeTime(glm::distance(hold, pin.from));
         }
         const int serial = holdSerial;
         if(pin.weight <= 0.f)
