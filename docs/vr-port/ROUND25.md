@@ -12001,6 +12001,19 @@ weapon. lance4's report: with the Lance's record gone (stuck in an ogre), a weap
   alone on the same tree: **PASS** (186 run, 0 failed): a flake of the crowd scene (40 mixed AD monsters awake in one
   hall), not seen in beta3fix's or animfix2's full runs. As beta2, the release waits for the coordinator: the same
   make_release command above, from the quest tree on b8d2f9967 (or this notes commit), APK already built and checked.
+## promote1124: his changed settings promoted again (branch agent/promote1124, 2026-11-24)
+
+- Source: his proposed_defaults/2026-11-24_10-11-51.cfg and ironwail.cfg (read only), against the 11-23 promotion.
+  pose_defaults.py (0 new or changed keys, grips, stretch) and tune_promote.py --check (only the 10 vr_flat_pole_*,
+  another worker's) have nothing more.
+- Promoted: vr_flat_wheel_hold 0.35 -> 0.15 (flat 1 / 2 weapon-wheel hold; FLATPLAY.md updated). weaponwheel_test flat 17/0.
+- Unsure, not promoted: vr_knockdown_chance 100 (default 0.6; looks like a test aid, gone from his config), vr_prop_id_72-78
+  (held-object ids, no tuning lines on them; 78 is the lance).
+- Skipped as personal or state: vr_snap_turn, vr_world_scale (both gone from his config since), handedness, comfort
+  preset, volume, cl_alwaysrun, fov, sensitivity, gamma, contrast, crosshair, scales, hudstyle, host_maxfps,
+  vr_spectator_*, vr_window_view, vr_flat_taa, vr_flat_tp_fov, vr_gore_dents, vr_notes, vr_autosave_list_all, rig studio,
+  toolgun, rope spawn, run picks, vr_maps_skill, vr_mp_*, vr_takes_keys, menu positions, tallies, seeds; about 30
+  vr_wofs lines differ from the defaults only by the config's 6-digit rounding.
 
 ## flatfb1124b: flat rope slides with the grips locked, the Lance's HUD without a magazine, his Lance pose the default (agent/flatfb1124b, 2026-11-24)
 
