@@ -60,6 +60,8 @@ On the Quest, after running only part of an update (a new app with the old game 
 Flat-screen or VR: start the game twice and enter the hub both times: the second time the hub should load in a few seconds (on the Quest about 2-3 s instead of about 12 s once its files exist); walking, crouching and lying down against walls, grates and gaps work as before. {test:hub_start}
 On the Quest, after installing a new version (Setup's Quest step), start the game and go to the hub: it should load in about 20 s, not over a minute, and the collision must feel the same as before (walls, the firing range's monsters). {test:hub_start}
 Right after the hub (or any map seen for the first time) finishes loading, crouch and lie down at once and crawl under something low: you may get a short loading panel the first time, but you must never pass through a wall or floor, and monsters near walls must not get stuck. {test:hub_start}
+Flat-screen or VR: Ride e1m1's first lift up with a grunt chasing you: it waits beside the shaft while the lift is up (never under it), boards once the lift comes down and rides up after you; the lift never bounces back. {test:nav_shaft}
+Flat-screen or VR: Make a noise under e1m1's first lift while it is up, then ride it down from the top: the grunts that come to look stop at the shaft's edge and the lift comes all the way down. {test:nav_shaft}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
