@@ -10,6 +10,9 @@
 //   case 3 "ogre":    the sword in an ogre held still (heavy, anchored), walk away: the same.
 //   case 4 "spear":   the spear (two-handed, the off hand on the pole) stuck: the off hand holds it too, for a second.
 //   case 5 "sword+off": the sword stuck, the off hand empty: it stays off (a metre from the handle), walks away with it.
+//   case 6 "axe":     the axe, whose flat V is the engine's overhead swing: it went in BY ITS EDGE, not its point, and the arm's rules
+//                     (vr_flat_embed_arm 1) leave a swing alone: walking away never draws it back out into the hand (the point pull is a
+//                     point embed's), the hand stays on its wrist. The same with the rule off (its checks print identically both ways).
 // Every case: after the stab he stands still half a second (state 6) before walking: the engine's .vr_embed_armpast (cm the drawn
 // wrist is past the most its arm reaches, signed) stays under VR_FW_PASTTOL there, the hold is still on, and the blade came back out of
 // the body by at most VR_FW_CREEPTOL units on its own (state 6, the body settled: the stab's own half second is checked the same way
@@ -27,6 +30,7 @@ float vr_fw_pastmain; // the most cm the main hand's drawn wrist was past its ar
 float vr_fw_pastoff;  // and the off hand's
 float vr_fw_stillin;  // standing still after the stab: the blade is still stuck (state 6)
 float vr_fw_dmax;     // the deepest the blade went in during the stab (units: vr_stick_depth + vr_stick_slide)
+float vr_fw_hp;       // the body's health before the V (case 6 prints what the axe's swing did)
 float vr_fw_dmax6;    // and during the standing still (from there nothing may push it out)
 float vr_fw_dcut;     // the most it came back out by itself while he stood still, state 6 (units)
 float vr_fw_dcut3;    // the same in the stab's own half second (printed: a ragdoll flops with the blade in it)
@@ -34,7 +38,7 @@ vector vr_fw_from;    // where the walk began
 string vr_fw_name;
 entity vr_fw_w;       // the stuck blade
 
-float VR_FW_LAST = 5;
+float VR_FW_LAST = 6;
 float VR_FW_TOL = 3; // cm a hand may be off its arm (a frame's walk at the let-go, the ease's first frame)
 float VR_FW_PASTTOL = 3; // cm past the most its arm reaches while standing still (the engine keeps the hand on the arm: view::keepOnArm)
 float VR_FW_CREEPTOL = 2; // units the stuck blade may come back out of the body by itself while he stands still
@@ -59,7 +63,7 @@ void() VR_FW_Next =
 };
 
 // What the case's blade is in and what holds it: 0 a crate, 1 a grunt killed, 2 a live grunt, 3 an ogre, 4 a grunt (the spear),
-// 5 a grunt (the sword, the off hand free).
+// 5 a grunt (the sword, the off hand free); 6 a grunt with the axe (its V is a swing, an edge embed).
 void() VR_FW_Setup =
 {
     entity p = self;
@@ -72,7 +76,11 @@ void() VR_FW_Setup =
         flags = VR_ADMelee_Flags(VR_SWORDKIND_SPEAR);
         ahead = 42;
     }
-    VR_EH_Give(WID_SWORD, flags);
+    if(c == 6)
+    {
+        ahead = 28; // (the axe's swing reaches shorter than a thrust: at 40 its V meets nothing, flat play's punch line included)
+    }
+    VR_EH_Give(c == 6 ? WID_AXE : WID_SWORD, flags);
     makevectors('0 1 0' * p.v_viewangle_y);
     if(c == 0)
     {
@@ -80,7 +88,7 @@ void() VR_FW_Setup =
         vr_et_m = VR_EP_Crate(2, 44);
         return;
     }
-    vr_fw_name = c == 1 ? "ragdoll" : (c == 2 ? "grunt" : (c == 3 ? "ogre" : (c == 4 ? "spear" : "sword+off")));
+    vr_fw_name = c == 1 ? "ragdoll" : (c == 2 ? "grunt" : (c == 3 ? "ogre" : (c == 4 ? "spear" : (c == 5 ? "sword+off" : "axe"))));
     if(c == 3)
     {
         self = spawn();
@@ -198,6 +206,7 @@ void() VR_FW_Frame =
     else if(vr_et_s == 1 && t > 0.4 && VRGetEntWeapon(p, cVR_MainHand) != WID_FIST && (vr_et_case == 0 || vr_et_m.takedamage))
     {
         dprint(sprintf("flatembedwalk: case %s\n", vr_fw_name));
+        vr_fw_hp = vr_et_m.health;
         localcmd("vr_flat_punch v\n");
         VR_ET_To(2);
     }
@@ -214,6 +223,11 @@ void() VR_FW_Frame =
         // stab deeper than its hand's arm reaches (VR_Embed_FlatArm). Printed, both ways: what the rule costs the thrust.)
         VR_Test_Print(sprintf("%s: the blade is %s in (%.1f units of the %.1f it was going to)\n", vr_test_tag, w.vr_stick_embed == AXESTICK_POINT ? "point first" : "by its edge",
             w.vr_stick_depth + w.vr_stick_slide, w.vr_stick_goal));
+        if(vr_et_case == 6)
+        {
+            VR_Test_Print(sprintf("%s: its swing did %g damage\n", vr_test_tag, vr_fw_hp - vr_et_m.health));
+            VR_Test_Check(w.vr_stick_embed == AXESTICK_EDGE, sprintf("%s: its V went in by its edge, not its point (how %g)", vr_fw_name, w.vr_stick_embed));
+        }
         if(vr_et_case == 1)
         {
             vr_et_m.health = 1;
@@ -293,8 +307,18 @@ void() VR_FW_Frame =
             vr_test_tag, walked, vr_fw_frames, how, vr_fw_gapmain, vr_fw_gapoff));
         VR_Test_Check(vr_fw_gapmain <= VR_FW_TOL && vr_fw_gapoff <= VR_FW_TOL,
             sprintf("%s: walking away, the hand stays on the wrist (main %.1f, off %.1f cm off its arm at most, %g allowed)", vr_fw_name, vr_fw_gapmain, vr_fw_gapoff, VR_FW_TOL));
-        VR_Test_Check(vr_fw_end == 1 || vr_fw_end == 2 || (vr_fw_end == 3 && walked < 40),
-            sprintf("%s: the hold ends as he walks (%s, %.0f units walked)", vr_fw_name, how, walked));
+        if(vr_et_case == 6)
+        {
+            // (An axe's V is a swing: its edge is wedged in the cut, so the arm's rule neither draws it back along its axis nor runs out
+            // on it. Walking away never brings a swung axe back into the hand (his flat note 2026-11-25 item 4); its hold ends, if it
+            // ends, by the rules it had before vr_flat_embed_arm.)
+            VR_Test_Check(vr_fw_end != 1, sprintf("%s: walking away never draws the swung axe into the hand (%s, %.0f units walked)", vr_fw_name, how, walked));
+        }
+        else
+        {
+            VR_Test_Check(vr_fw_end == 1 || vr_fw_end == 2 || (vr_fw_end == 3 && walked < 40),
+                sprintf("%s: the hold ends as he walks (%s, %.0f units walked)", vr_fw_name, how, walked));
+        }
         VR_FW_Next();
     }
 };

@@ -918,6 +918,16 @@ float vr_embed_fgmain; // (the main hand's)
 float vr_embed_fgper;  // (the handle's hand's more, cm, a unit further in)
 float VR_FLATARM_STEP = 0.5; // units this think's holder's own step, off the blade, that is him walking away (not the blade's origin jittering, not his eye easing in)
 
+// Which blades the flat arm's rules are for: a point-first embed, and only with Flat: Arm Holds Its Blade (vr_flat_embed_arm) on.
+// An axe's V is a SWING: its edge is wedged in the body's cut, not a point in a hole. Nothing here changes it -- not the arm drawing it
+// back along its axis, not the arm running out and the hand letting go, not the depth a going-in stops at: a swung blade's hold ends as it
+// did before these rules (H, another weapon, the hold's own reach and yank). His flat note 2026-11-25 item 4 is a thrust's ("the blade
+// comes out about 0.1 s after the stab"); vr_embed_test 64's "axe" case checks the swing is left alone, the same with the rule on and off.
+float(entity e) VR_Embed_FlatArmBlade =
+{
+    return cvar_hget(cvarh_vr_flat_embed_arm) != 0 && e.vr_stick_embed == AXESTICK_POINT;
+};
+
 // Flat play, each hold think first: the gaps the next frame will have (the body going on as it went), and what the next think's go from.
 void(entity e, entity p) VR_Embed_FlatArmGaps =
 {
@@ -938,7 +948,7 @@ void(entity e, entity p) VR_Embed_FlatArmGaps =
 // crate's, as it went last frame.)
 float(entity e, entity p, entity h, vector xHostWas) VR_Embed_FlatArm =
 {
-    if(!cvar_hget(cvarh_vr_flat_embed_arm))
+    if(!VR_Embed_FlatArmBlade(e))
     {
         return FALSE;
     }
@@ -962,7 +972,7 @@ float(entity e, entity p, entity h, vector xHostWas) VR_Embed_FlatArm =
     vector stepAway = p.origin + p.view_ofs - vr_embed_fgroot;
     float away = (vr_embed_fgarmed && stepAway * (e.origin - p.origin) < -VR_FLATARM_STEP);
     float slip = max(0, cvar_hget(cvarh_vr_flat_embed_arm_slip));
-    if(handleGap > letgo && away && e.vr_stick_embed == AXESTICK_POINT && per > 1)
+    if(handleGap > letgo && away && per > 1)
     {
         float u = (handleGap - letgo * 0.5) / per;
         if(u >= e.vr_stick_depth + e.vr_stick_slide)
@@ -1089,7 +1099,7 @@ float() VR_Embed_HoldThink =
         float toGo = e.vr_stick_goal - (e.vr_stick_depth + e.vr_stick_slide);
         float step = e.vr_stick_goal / max(0.01, cvar_hget(cvarh_vr_embed_enter_time)) * dt;
         float reached = FALSE;
-        if(flat && cvar_hget(cvarh_vr_flat_embed_arm))
+        if(flat && VR_Embed_FlatArmBlade(e))
         {
             // (Flat play: no deeper than the hand on its handle can follow on its arm, VR_Embed_FlatArm's reach: it stops there.)
             float handGap = e.vr_hold_handle == 1 ? vr_embed_fgoff : vr_embed_fgmain;
