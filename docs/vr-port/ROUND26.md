@@ -148,3 +148,20 @@ patched it per build and stashed the patch (two `agfix bisect patch` stashes).
 ## testfix1125
 
 Test/tooling only. vr_recoil_test: the "his 27 slots" expectation is 31 now (4 more slots' shipped recoil left their old defaults since); named constant in vr_weaponfx.cpp. Kit run_baseline.py agrunt_script: 228/229 run on vrarena (seed 7, skill 1, god; 229 with vr_worn_backpack_lod_near 128, others 1500); both PASS. qvrtest.py (and the kit copy qvrtest_fallback.py) find_bash: abspath before the system32 guard.
+
+## agfix2: armed-grunt tests 35 / 203 / 74 (branch agent/agfix2, 2026-11-25)
+
+- **35 (parry Axe 0 parried), cause found, test fixed:** not a parry regression. In b9967a243 (findings-qc) the culprit is
+  2842f3805e (the ammo boxes' weapon roll moved to the first PutClientInServer, against the player): in vrtesthall it drops
+  nothing, it only changes how many random numbers are drawn before the test (reverting it alone, or
+  vr_ammobox_drops_chance_mult 0, gives 6/0; seeds 2..5 parried the axe on its first blow). Seed 1's axe grunt now swings
+  kinds 3 then 0 (neither meets the crowbar held across); each landed blow's knockback put you further off (30 → 44 units),
+  so the blade's way fell short of your weapon for good. Test: after a landed blow you stand your ground (origin back,
+  velocity 0); each landed kind's way is kept (the parry's own nearest points, vr_drp_ne/np, in the grunt's frame) and a
+  swing of that kind moves your weapon there as it begins; up to 6 landed blows each give the next its time.
+  Seeds 1..7: 6/0 each.
+- **203 case 12 (undrawn swords), open:** reproduced (79/2). The undrawn reading is hitreact::drawnWeapon: the props
+  were not placed by the arms (no noteDrawnTurn: placeProp from relinkSkinnedEnd) for the rest of the case. Lead not
+  followed for lack of budget: the arm-pose table (armPoses, vr_hitreact_arms.cpp: evicted/dropped; the
+  vr_agrunt_armpose_check command reports them) filling over the earlier cases, or a stale per-entity arms state.
+- **74 downtug, not started** (budget).
