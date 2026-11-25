@@ -598,8 +598,20 @@ struct Sighted
 {
     // (Not while it swings or shoves: the swing turns the weapon over the head and down, the shove palms out; aimed at
     // the point, a gun swung with V stayed level all the way, 2026-11-10.)
+    // (polepose: nor in the parry guard, which lays the weapon across: the Crystal Lance's guard.)
     return flatplay::heldIn(h) >= 0 && s.muzzleValid[h] && st.muzzleKnown[h] && sightalign::alignable(h) &&
-           !flatplay::punching(h) && !flatplay::shoving(h);
+           !flatplay::punching(h) && !flatplay::shoving(h) && flatplay::parryShare(h) <= 0.f;
+}
+
+// (polepose, his flat note 2026-11-25) A pole weapon with no sight line (the spear) aimed as a sighted one is: its tip's line
+// on what the crosshair is on (vr_flat_pole_aim_point), last, after the pose's other moves of the hand (the two hands' grip
+// brings the holding hand in), as the Crystal Lance's is; through a thrust too (the thrust's own tip turn after it:
+// flatplay::poleThrustTurn), the Lance's as the spear's. Its shot's start (shotMuzzle, keepMuzzle) is untouched: no shot.
+[[nodiscard]] bool poleAimsAtPoint(const hands::State& s, int h)
+{
+    return vr_flat_pole_aim_point.value != 0.f && flatplay::heldIn(h) >= 0 && s.muzzleValid[h] && st.muzzleKnown[h] &&
+           twohand::poleWeapon(flatplay::heldIn(h)) && (!flatplay::punching(h) || flatplay::poleThrusts(h)) && !flatplay::shoving(h) &&
+           flatplay::parryShare(h) <= 0.f;
 }
 
 // The muzzle the shot is handed (shotFrom).
@@ -658,7 +670,8 @@ void aimAtPoint(hands::State& s, const glm::vec3& aim)
     const glm::vec3 point = crosshairPoint(s, aim);
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        if(!aimsAtPoint(s, h))
+        const bool poleAim = poleAimsAtPoint(s, h);
+        if(!aimsAtPoint(s, h) && !poleAim)
         {
             continue;
         }
@@ -686,6 +699,10 @@ void aimAtPoint(hands::State& s, const glm::vec3& aim)
                     s.pos[st.helping] += back;
                 }
             }
+        }
+        if(poleAim)
+        {
+            s.rot[h] = flatplay::poleThrustTurn(h, s.rot[h]); // (a thrust's own tip turn, over the aimed line)
         }
     }
 }
@@ -758,7 +775,8 @@ bool adsApplies()
     // (Nor with the other hand busy, from the console too: a prop in it, or a blade it holds stuck in a body, flatplay::holdsThing;
     // his words 2026-11-21: "ADS also becomes possible in that state". The sight comes back once it is free.)
     return flatplay::active() && st.ads && st.holding >= 0 && sightalign::alignable(st.holding) && !tilted &&
-           !flatreload::busy(st.holding) && !flatgrenade::throwsWith(st.holding) && emptyHand(st.helping);
+           !flatreload::busy(st.holding) && !flatgrenade::throwsWith(st.holding) && emptyHand(st.helping) &&
+           !flatplay::poleParries(st.holding); // (polepose: the Lance's right button is its parry)
 }
 
 // The weapon's way back from a wall, a unit vector in the view's frame: towards the hand's shoulder in hipfire, along the

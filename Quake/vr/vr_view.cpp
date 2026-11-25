@@ -163,8 +163,10 @@ void updateFingerFrames()
         // two-handed hotspot (the stance's and the ironsight's look hand), grips as a headset's does with its grip
         // pressed and the index finger resting on the trigger (on the fore-end, the helper's index closes with the grip).
         const int flatSlot = flatplay::active() ? weapons::heldSlot(hand) : -1;
-        const bool flatGrips =
-            flatplay::active() && ((flatSlot >= 0 && flatSlot != weapons::fistSlot()) || twohand::drawnHelping(hand));
+        // (polepose, his flat note 2026-11-25: and a hand pinned on the other hand's pole weapon, held as a spear: closed round
+        // its shaft, not open.)
+        const bool flatGrips = flatplay::active() && ((flatSlot >= 0 && flatSlot != weapons::fistSlot()) || twohand::drawnHelping(hand) ||
+                                                         view::onFlatPole(hand));
         // (An empty hand in flatscreen play closes into a fist by its share of the guard, and while it punches:
         // flatplay::fistShare.)
         HandInput fist = input.hands[hand];

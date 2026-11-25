@@ -91,7 +91,7 @@ float() OrbCheckAttack =
     vector spot1 = self.origin + self.view_ofs;
     vector spot2 = VR_AI_Origin(targ) + targ.view_ofs;
     traceline(spot1, spot2, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
-    if(trace_ent != targ)
+    if(trace_ent != targ && !VR_Lean_Clear(targ)) // (QVR: or seen leaning from cover: vr_leanaim.qc)
     {
         if(self.attack_state != AS_STRAIGHT)
         {

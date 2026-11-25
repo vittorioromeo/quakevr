@@ -486,6 +486,82 @@ bindings. Crouch/slide should be bound to both C and left ctrl by default."
   `vr_flat_debug_lines_probe`. Test `flatdebuglines_test.sh` 4/0: scene agrunt_melee_arcs flat, 450 frames: lines drawn 447,
   a swing drawn 179; vr_agrunt_test 216 2/0 and 212 6/0 in -flatscreenmode. Screenshot qvr-kit/scratch/flatmisc1125_arcs.png.
 
+## polepose: flat pole weapons: a closed other hand, the tip line on the crosshair, the Lance's parry (agent/polepose, 2026-11-25)
+
+His flat notes 6-9 (2026-11-25). One path for every pole weapon (twohand::poleWeapon), no Lance or spear copies.
+- **Closed grip** (6, 8): flat play's hand pinned on the other hand's pole (flatsight's pin) took no grip: its fingers were the
+  idle controller's (open; drawn curl 0.00). Now `view::onFlatPole` makes it grip as a holding hand does (vr_view.cpp
+  updateFingerFrames) and wrap the shaft where it is (vr_view_hands.cpp heldBy, the held-anywhere grasp): the four fingers'
+  drawn curl 0.64-0.76 held, in the thrust and in the guard (was 0.00). Probe: `vr_flat_pole_track report`'s two new lines
+  (`view::drawnGripCurl`; the tip line's miss at the crosshair's point and at 200, the drawn line off the ray).
+- **Aim** (7): the Lance has a sight line (sightalign's table), so flatsight's aimAtPoint turned it onto the crosshair's point;
+  the spear is in sightalign's melee list, so it kept the hold's turn, its pole along the crosshair's way from the hand's side
+  (his "offset towards the hand"). Neither was aimed in a thrust (aimsAtPoint skips a punch). Now flatsight
+  `poleAimsAtPoint`: every pole weapon's tip line (the tip as placed in the hand, along the shot's way) is aimed at the
+  crosshair's point by aimAtPoint, held and through the thrust; the thrust's own tip turns (vr_flat_thrust_wind_pitch / _pitch)
+  go on after it (`flatplay::poleThrustTurn`), and in a thrust polePose aims the line first (`poleAim`, never nearer than
+  `vr_flat_pole_aim_near`) so the thrust travels along it. Not in the guard (aimsAtPoint now skips parryShare > 0). Tunables
+  (Debug > Tunables, the spear pose's rows): Spear Aims At Crosshair `vr_flat_pole_aim_point` 1, Spear Aim Nearest
+  `vr_flat_pole_aim_near` 64. The drawn turns vr_flat_pole_pitch 8 / _yaw 5 stay his (drawn only: the drawn line crosses the
+  crosshair's ray, the screen's middle, a few units off, as the Lance's always did).
+  Measured, the tip line off the crosshair's point: before (280 away) the spear 44 held (the hand's line), 47 in the thrust;
+  the Lance 3.6 held, 25.6 in the thrust. After (polepose_test, 200 away, the thrust's own turns 0): both 0.00 held,
+  0.00-0.04 in the thrust.
+- **Parry pose** (8): the spear's guard already put the other hand on the shaft (1.9-2.5 off its line, as held: 2.4); it was
+  the open hand. Now closed round it (above). Shot qvr-kit/scratch/polepose_spear1.png.
+- **The Lance's right button** (9): `flatplay::poleParries` (a pole gun; `vr_flat_pole_rmb_parry` 1, Tunables row "Pole Gun
+  Right Button Parries", 0 its ironsight back): the spear's parry guard (parryAsked, handsource::guarding: QC's flat guard
+  parries) and no ironsight (flatsight adsApplies). Its pose is the spear's (pole left 94.7 against 94.4, the other hand along
+  3.2 against 3.1). The Lance's other buttons are unchanged: LMB its charge and shot, V the thrust, N (next ammo: none, so) flips the grip (B throws since flatkeys2).
+  Shot qvr-kit/scratch/polepose_lance_parry.png.
+- Tests: new `polepose_test.sh` 19/0 (both weapons: the grip closed held, in the thrust and the guard; the tip's miss < 1 at
+  200 held and in the thrust; the guard across, the other hand on the shaft; QC's parry probe PARRIES; no ironsight in the
+  Lance's guard); new scene flat_spear. flatlance_test 30/0 (three checks brought to cltidy7's promoted defaults: off_along 8,
+  off_pitch -40, thrust slide 2; and the flip on N, flatkeys2), spear_test 4/0, flatthrust 12/0 + 7/0, flatparry 43/0. Aiming in polePose while held too
+  moved the other hand up to 0.2 further off the pole walking and turning (flatlance pwalkturn 3.50 against 3.27), so polePose
+  aims only in the thrust.
+- **Flipped** (after flatmelee4's per-family flipped poses, vr_flat_revgrip_pole_*): the other hand pinned on a reversed
+  pole was carried with the pole's half turn and its own pose turns, and ended off the drawn shaft (spear: 8.5 off its line,
+  10.6 along, a fist in the air). Now, by the flip's share, its grip channel goes onto the drawn pole, the least turn and
+  move (vr_view_hands.cpp, alignChannel on view::weaponMount's line, after the pose's own turns): off 1.28 (2.4 held upright).
+  The flipped Lance's hand at the upright's place (8 along) met its head's housing and stayed open (curl 0.32): a flipped
+  pole's other hand sits `vr_flat_revgrip_pole_off_along` 4 along from the fist (Tunables row "Flipped Spear Other Hand
+  Along", beside flatmelee4's flipped rows; vr_view_weapon.cpp chooseGrip, by the flip's share): curl 0.72 (spear 0.64).
+  polepose_test 21/0 (new: both weapons flipped by N, the other hand within 1 of its held distance off the drawn line and
+  closed); flatlance 30/0, spear 4/0.
+## flatmelee4: flat V's blade thrust windup, the empty-handed overhand, flipped-grip poses per family (branch agent/flatmelee4, 2026-11-25)
+
+His items 3, 5, 12 (2026-11-25).
+- **Blade thrust windup** (item 3): the one-handed thrust's tunables existed (`vr_flat_thrust_1h_wind_back` 8, `_wind_up`) but
+  sat in Tunables > Flatscreen > *Two-Handed Melee Stance* (the group never said thrust), and its turn and times were the
+  pole's. Now a group **Flatscreen > Thrust (V): Spear and Blade** (spear and blade rows), and the blade's own windup
+  `vr_flat_thrust_1h_wind_back` 16 (8 before: 8 units further back), `_wind_up` 3, `_wind_out` 0, `_wind_pitch` 8,
+  `_wind_yaw` 0, `_wind_roll` 0, strike `_1h_up` 0 / `_1h_pitch` -3 / `_1h_yaw` 0, times `_1h_wind_time` 0.2,
+  `_hold_time` 0.05, `_strike_time` 0.1, `_dwell_time` 0.08, `_back_time` 0.25 (vr_flatplay.cpp thrustAt / thrustTimes(pole)).
+- **Empty-handed V overhand** (item 5): V with an empty hand (no prop) is an overhand blow by the overhead swing's path
+  (`overheadSwing`, one function: a `SwingSet` of tunables, the weapon's or the fist's), the fist turned off the aim's
+  angles (eased in from the hanging hand's). `vr_flat_overhand` 1 and `vr_flat_overhand_<wind|top|strike|dwell|back>`,
+  `_raise_<up|fwd|out|pitch|yaw|roll>`, `_end_<pitch|down|fwd|out|yaw|roll>` (group Flatscreen > Empty-Hand Overhand (V)).
+  Its windup is Synthesized, the strike the punch's Action: QC reads "punch (overhead) with the knuckles", 8.2 m/s on a
+  grunt 16 ahead. The fire button's straight punch unchanged.
+- **Flipped grips per family** (item 12; QVR_WPNFLAG_REVGRIP; sword / dagger (WID_SWORD kind 12) / pole):
+  `vr_flat_revgrip_<sword|dagger|pole>_<fwd|up|out|pitch|yaw|roll|down>` (group Flatscreen > Flipped Grip): the hand moved
+  by the flip's drawn share (`revGripPose`: sword 4/12/0, dagger 5/12/0, pole 8/18/0: held a bit overhead), the drawn turn
+  about the fist (pitch 90 / 90 / 165, yaw, roll; `revGripDrawnTurn`), the thrust's stab down (25 / 25 / 15 degrees; the
+  pole's turned down by the thrust's share). Retired: `vr_flat_revgrip_pitch`, `vr_flat_thrust_1h_rev_down` / `_rev_up`
+  (he had not set them). **Not done:** the off hand on a flipped pole: it is placed on the game's pole line
+  (vr_view_weapon.cpp `flatPole`), which for a flipped pole runs back out of the fist, so it floats open across the view;
+  the fix belongs in the shared pole off-hand solve (polepose's), taking the drawn flipped line: not copied here.
+- **Probe:** `vr_flat_melee_probe` prints `flatwindup: <hand> <thrust|overhand|swing>: back up out tip` (the windup's top
+  off where it began, the thrust's line at the strike's end).
+- **Tests:** new `Misc/quakevr/flatmelee4_test.sh` 9/0 (overhand: over the eye 4.1, a blow, an action; fire still the
+  punch; sword windup back 16.0, wind_back 26 -> 26.0, wind_out 6 -> +6.0 out; thrust line: upright -1.6, flipped sword
+  -28.5, dagger -28.5, spear -18). flatmelee 12/0. flatthrust 6/1 and spear 3/1 fail on **next's promoted pole values**
+  (cltidy7: `vr_flat_thrust_off_slide` 2, `vr_flat_pole_off_*`): the spear's stick (depth 0) and flat B's flip of the
+  spear; with the old values tuned (off_along 12, off_out 0, off_pitch -60, off_slide 8, arm_stretch 1.3) flatthrust 12/0,
+  spear flat 6/0. The flipped dagger missed with the hand raised and 40 down: down 25 lands (38 damage, stuck 1.8).
+  Scene `flat_melee_v`. Shots: kit scratch flatmelee4_before.png, flatmelee4_after2.png (empty V, flipped sword,
+  dagger, spear: rest, windup, strike), flatmelee4_spearvar.png (the flipped spear's off hand).
 ## climbfix: vrtesthall's brush ladder climbable flat; rope/pole elbows wider; hands kept on the wrists in a slide (branch agent/climbfix, 2026-11-25)
 
 - **Brush ladder (his 10):** vrtesthall's rungs (8 deep, flush on the platform's face: no gap behind, unlike the
@@ -548,3 +624,20 @@ bindings. Crouch/slide should be bound to both C and left ctrl by default."
 - Checklist: two lines in qvr-kit/scratch/cl_lines_agspearpose.txt; new scene `pose_grunt_pole` (a frozen spear grunt, a
   frozen sword grunt beside it, the Pose Studio opened on it with `cmd vr_posestudio`): `vr_scenario validate` 183 files,
   0 with errors, 128 tags 0 missing; the scene 2 of 2 spawned, 0 problems.
+## sphit: monster fire meets the player's drawn body in single player (agent/sphit)
+
+- `vr_playerhit.cpp` serverShape no longer returns early for `svs.maxclients <= 1`: the local player's body (server::avatarPose slot 0, from his clientMoves; the box when none) is what monsters' bullets, missiles and thrown things meet. Splash stays by distance.
+- New tunable `vr_hit_player_fatten` (vr_tunables.inc, default 5.5; Debug > Tunables > Combat > Other, Body Hit Fattening): added to every part's radius, SP and MP.
+- Measured with `vr_sphit_test 1` (a grunt 280 units ahead, 289 aimed bullets over a 48x64 grid, vrteleporters): standing in the open the 24 box takes 153 hits; the shape 99 at fatten 0, 132 at 3, 136 at 5, 164 at 6, 173 at 8: 5.5 matches the box. Crouched: 117 at 0, 185 at 6 (box 153). Behind the 32-high cover crouched: 0 hits (crouch_test.sh cover cases: 0 damage crouched, 48 standing; tunables_test 13/0).
+- vr_hitzones_aim (MP scene) takes the fattening into its beside-the-forearm gap; not re-run (no runner found).
+- sphitlean (agent/sphitlean): vr_sphit_test 2 (QC/vr_crouch_test.qc) puts a wall of six door models 60 ahead, edge swept -16..16 right of the player, grunt 280 ahead; prints sphitlean lines. At edge 16 (body hidden): not leaning 0 hits, leaning 30 cm (8 units) with fatten 5.5 7 of 289, fatten 0 0. The grunt AI sees and aims at origin + view_ofs, never the head (visible() is 0 at edge >= 8 even when leaning).
+
+## leanaim: monsters see and aim at a leaning player's visible parts, with a cover advantage (branch agent/sphitlean, 2026-11-25)
+
+- **Why:** monsters saw a player by one point (origin + view_ofs) and aimed at his origin: leaning out from cover he was never seen nor shot at. His decision: they aim at what shows, but leaning gives lower received DPS than standing in the open.
+- **Sight** (`QC/vr_leanaim.qc`, called from `visible()` in ai.qc only when the eyes' point is hidden, for a monster's own enemy, within 2000 units): 7 points of his drawn body from the new builtin `playerbodypoint(e, i)` (vr_playerhit.cpp, the shape shots meet: head, neck, torso middle, both shoulders, both hands; one trace each, monsters don't block). Any showing: seen, but only after `vr_monster_lean_react` (0.4 s) of a new exposure (none seen that way for over 1 s).
+- **Clear shot:** the CheckAttack family's `trace_ent != targ` (fight.qc's CheckAttack, Soldier/Sham/OgreCheckAttack, wizard, scourge, Honey, MG3 orb, Armagon, armed grunts' VR_AG_CheckAttack and VR_AM_SpellTry) also accept `VR_Lean_Clear`: seen by a lean this think. Not done: Copper's, rogue eel/lavaman, AD's own checkattack.
+- **Aim:** `VR_Lean_Aim` at the start of `VR_AimCone_Bend` (every ranged monster's shot: grunts' EnemyFireBullets, enforcers, scrags, ogres, gremlins, AD's launchers...): his eyes' point still hidden and a part showing, the shot goes at the biggest part showing (torso 6, head/neck 3, shoulders 2, hands 1) plus extra spread `vr_monster_lean_spread` (0.2) x (1 - 0.5 x fraction showing); lobbed shots (VR_AIM_WIDE) only turned level. Armed grunts with a player's gun (vr_agrunt_aim_exposed): their exposure points' head/chest/shoulders now follow the drawn head off the origin (VR_AG_XPoint), and VR_AG_AimDir adds the same extra spread (in degrees).
+- **Tunables** (Debug > Tunables > Combat > Other): `vr_monster_lean` (1; 0 is the old behaviour), `vr_monster_lean_spread` (0.2), `vr_monster_lean_react` (0.4).
+- **Test:** `vr_sphit_test 2` (QC/vr_crouch_test.qc) now ends with a live grunt's received DPS, 90 s per case, grunt 280 ahead held on its spot, a wall 20 ahead with its edge 9 right of him (16 shows his drawn body from straight ahead never: the body is +-8 of the head). Run: `run.sh <tree> -Script "map vrteleporters;wait30;vr_lean_recenter 0;vr_mock_look 0 90;vr_sphit_test 2" -QuitOn "sphitlean: [0-9]+ passed"` (vr_lean_recenter 0: the untilted mock lean is not detected as a lean, the body would slide under the head). Result: open 3.17, lean 1.09, hidden 0.00 DPS (lean 34% of open), 3 passed 0 failed. Spread 0.1 gave 52%, 0.14 57-61% (40 s cases: about +-15% noise).
+- **Open:** the drawn body is posed entirely under the head, so a 30 cm lean shows all 7 points (fraction 1): the spread's lower half applies. Real leans (vr_lean_detect) keep the origin; not checked in a headset.
