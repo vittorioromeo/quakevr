@@ -69,6 +69,9 @@ Flat-screen or VR: in a two-player game in the ropes hall both climb the same up
 Flat-screen or VR: in multiplayer watch another player climb a rope, hang on it and swing it hard: his hands grip it and move up hand over hand, his body hangs close under his hands, his feet stay wrapped round it. {test:ropes}
 Flat-screen or VR: in a two-player game one goes along the level strung rope hand over hand while the other watches: the hands stay on the rope, the legs hang. {test:ropes}
 Flat-screen or VR: reach with an arm fully straight (hanging from a pole, or in VR your own arm at full stretch): the drawn elbow eases straight in the last bit instead of snapping, and the arm looks no longer than before (Tunables > Body: Arm Soft Reach, 0 = the old arms). {test:ropes}
+Flat-screen: in vrtesthall walk into the platform's rung ladder holding forward: the hands take the rungs, you climb hand over hand and mantle onto the top; backing off the top's edge lowers you onto it and you climb down. {test:vrtesthall_ladder}
+Flat-screen or VR: climb a rope and a pole hand over hand and watch the body from outside (flat: vr_flat_orbit; VR: a mirror or another player): the elbows stay out at the sides, never folded in front of the chest; Debug > Tunables "Rope Climb Elbows Wide" sets how far. {test:ropes}
+Flat-screen: up a rope or a pole, hold crouch to slide down quickly: the hands stay on the wrists the whole slide, a little lower on it than before; Debug > Tunables "Rope Slide: Hands In" sets how much. {test:ropes}
 
 [7. Armed humanoids, ragdolls and physics]
 Ragdoll climbs: an ogre knocked off a ledge and caught straddling its lip (a leg still on top) pulls itself up instead of falling. {test:ogre_hall}
