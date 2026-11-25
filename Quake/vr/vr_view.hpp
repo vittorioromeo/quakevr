@@ -566,6 +566,12 @@ enum class HandPart : unsigned char
 // Where `hand` was drawn this or last frame, and how turned; false: it wasn't.
 [[nodiscard]] bool drawnHandPose(int hand, glm::vec3& pos, glm::vec3& rot);
 
+// A hand going onto a blade stuck in a body (embedDrawnHand, easing in): how far it has still to go to be on it, as last drawn
+// (world units; 0 on it or off it). The avatar's embedArmPastCm measures the arm from where it will be (embedhold2).
+[[nodiscard]] glm::vec3 embedPinLead(int hand);
+// The blade it is on as that frame drew it (its origin; the client draws entities a frame or more behind the server).
+[[nodiscard]] glm::vec3 embedPinSeen(int hand);
+
 // The weapon in `hand` as drawn last (the local player's): its model, whether mirrored (the off hand's), and its
 // entity's place and turn relative to the hand's pose (hands::State pos and rot: held::axesFromAngles' forward, left,
 // up) -- rigid; the model's vertices go in it as the view draws them (mirrored, then weapons::ModelTransform). For the

@@ -1034,6 +1034,16 @@ int chosenGripSpot(int hand, int& type)
     return chosenGrip[hand];
 }
 
+glm::vec3 embedPinSeen(int hand)
+{
+    return embedPinSeenOf(hand);
+}
+
+glm::vec3 embedPinLead(int hand)
+{
+    return embedPinLeadOf(hand);
+}
+
 bool drawnHandPose(int hand, glm::vec3& pos, glm::vec3& rot)
 {
     const GhostDrawn& d = ghostDrawn[hand];

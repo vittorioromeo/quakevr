@@ -2032,6 +2032,19 @@ void calcStats(edict_t* player, int* statsi)
     {
         setFieldVec(player, f.vr_embed_armgap, glm::vec3{avatar::embedArmGapCm(HAND_OFF), avatar::embedArmGapCm(HAND_MAIN), 0.f});
     }
+    if(f.vr_embed_armpast >= 0 && player == progs::localPlayer())
+    {
+        setFieldVec(player, f.vr_embed_armpast, glm::vec3{avatar::embedArmPastCm(HAND_OFF), avatar::embedArmPastCm(HAND_MAIN), 0.f});
+        glm::vec3 seenOff, seenMain, eye;
+        avatar::embedArmPastFrom(HAND_OFF, seenOff, eye);
+        avatar::embedArmPastFrom(HAND_MAIN, seenMain, eye);
+        if(f.vr_embed_armseenoff >= 0 && f.vr_embed_armseenmain >= 0 && f.vr_embed_armeye >= 0)
+        {
+            setFieldVec(player, f.vr_embed_armseenoff, seenOff);
+            setFieldVec(player, f.vr_embed_armseenmain, seenMain);
+            setFieldVec(player, f.vr_embed_armeye, eye);
+        }
+    }
 }
 
 void serverFrame(bool worldRan)

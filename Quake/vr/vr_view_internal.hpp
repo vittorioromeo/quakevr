@@ -962,6 +962,12 @@ inline LimbEase limbEase[2];
 // (vr_embed_free_ease) the drawn hand and the weapon in it share: turned by `turn` about the controller, then moved by `offset`.
 void embedPinStep(const hands::State& s, int hand);
 [[nodiscard]] bool embedEase(int hand, glm::vec3& offset, glm::quat& turn);
+// Flat play's (embedhold2): the ease's move instead, from the hand as placed `pos` towards where it left the blade carried by his body
+// (not its controller), turned about `pos`: the hand stays on its arm. False: VR's (embedEase's offset about the controller).
+[[nodiscard]] bool embedEaseBody(int hand, const glm::vec3& pos, glm::vec3& offset);
+// (view::embedPinLead's.)
+[[nodiscard]] glm::vec3 embedPinLeadOf(int hand);
+[[nodiscard]] glm::vec3 embedPinSeenOf(int hand);
 // (vr_embed_probe: the weapon as it would be placed without the ease, and as drawn.)
 void embedEaseWeapon(int hand, const glm::vec3& pre, const glm::mat3& preTurn, const glm::vec3& drawn, const glm::mat3& drawnTurn);
 void setupHand(const hands::State& s, int hand);

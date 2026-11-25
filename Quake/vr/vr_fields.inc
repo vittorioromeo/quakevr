@@ -166,6 +166,10 @@ QVR_FIELD(vr_hold_stick)  // QC's: cm the hand moves before it does, now
 QVR_FIELD(vr_embed_off)    // on a player: the blade its off hand holds in a body (VR_HOLD_EMBED: QC, world none)
 QVR_FIELD(vr_embed_main)   // the main hand's
 QVR_FIELD(vr_embed_armgap) // on a player, the engine's: cm each hand drawn on a blade is past its stretched arm (x the off hand, y the main)
+QVR_FIELD(vr_embed_armpast) // on a player, the engine's: cm each hand's drawn wrist is past the most its arm reaches, signed (x the off hand, y the main; QC flat play's VR_Embed_FlatGap)
+QVR_FIELD(vr_embed_armseenoff) // on a player, the engine's: the blade the off hand was on as the frame of .vr_embed_armpast drew it (its origin)
+QVR_FIELD(vr_embed_armseenmain) // the main hand's
+QVR_FIELD(vr_embed_armeye) // and the eye in that frame
 QVR_FIELD(vr_embed_handle) // bits, 1 the off hand, 2 the main: that hand holds it by its handle (else where it took hold)
 
 // Model transforms (networked as entity update extras).

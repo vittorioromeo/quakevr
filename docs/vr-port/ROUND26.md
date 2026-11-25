@@ -456,6 +456,35 @@ bindings. Crouch/slide should be bound to both C and left ctrl by default."
   +attack); flatinput 19/0; flat_ammo_key 7/0, flatthrow 38/0, flattoolgun 11/0 (keys N, B, N); vr_msgtokens_test
   12/0; vr_menu_path_check 0 missing; menu_paths.txt (the two rows).
 
+## embedhold2: flat stuck blades: the hand kept on its arm, the other hand on the blade (branch agent/embedhold2, 2026-11-25; partial, opt-in)
+
+His flat notes 2026-11-25, items 4 (walking away from a stuck blade took the drawn hand off the wrist) and 11 (the other hand leaves a
+stuck spear/sword). **Not finished: both new rules ship off** (tunables below); what is on by default is engine-side only.
+- **Measured** (new `vr_embed_test 64`, QC/vr_flatembedwalk_test.qc, -flatscreenmode; `scratch1 2` per-frame lines, `scratch2 N` first
+  case): the main hand's most cm past its stretched arm (.vr_embed_armgap) from the stick to 0.5 s after the hold ends. origin/next:
+  ragdoll 31.6 (the body falling off the blade, before any walk), live grunt 31-99, ogre 99, spear 162 (its off hand never joined),
+  sword with a free off hand 48.6/45.6. Causes: (1) the stab going on to its depth (stick_goal, to 14-16 units) carries the drawn hand
+  past the arm; (2) walking: the flat hold's hand is carried by his walk, `far` frees only at 90 cm; (3) the release ease is about the
+  controller, whose flat pose jumps as the weapon comes back (48 cm the frame after); (4) the thrust's arm stretch (1.5 in tests) falls
+  away under a stuck hand (8 cm in a frame).
+- **On by default (engine):** (3) flat release ease from where the hand left the blade carried by the player's origin/yaw
+  (view_hands embedEaseBody); (4) flat `armStretchNow` keeps the most stretch it had while the hand is on a blade (`flatHeld`, eased
+  back off it); new field `.vr_embed_armpast` (signed cm past the most the arm reaches, measured where the pin is going:
+  `view::embedPinLead`); `vr_debug_axestick 4` prints `embedarm:` per frame.
+- **Off by default:** `vr_flat_embed_arm` 0 (Tunables > Flatscreen "Stuck Blade: Hand On Arm"): QC VR_Embed_FlatArm predicts the
+  gap two frames on (armpast + his walk + the body's way; the engine's value is a frame late and the blade is drawn a frame behind),
+  stops a stab's travel at the arm's reach, and past Hold: Let Go Past the handle hand pulls a light body's blade out (VR_Embed_Light,
+  a skewerable ragdoll, a crate whose pull isn't at its most) or lets go of a heavy one; a second hand lets go. Its numbers: ogre 1.3 cm
+  (let go, it stays), ragdoll 0.0 (out as it falls); but on the grunt/spear/sword cases the blade still comes out 0.1 s after the stab,
+  standing (the predicted gap 1.6-3.6 cm: something still moves the drawn hand after the stab; next: `vr_debug_axestick 4` on case 2).
+  `vr_flat_embed_other_hand` 0 ("Stuck Blade: Other Hand", cm; 30 tried): a free other hand within it of the blade's line takes it
+  too (VR_Embed_Try; the engine draws it on the nearest grip hotspot). Works (spear 20.7 cm off the line, joined) but without the arm
+  rule the joined hand is drawn 83 cm off its arm when walking, so it stays off until the arm rule is done.
+- **Seen:** the flat V thrust never hit the large crate in case 0 at 44 units, and walking away from a crate the sword was stuck in hung
+  the game (both seen with the rules off; not chased: case 0 is skipped with `scratch2 1`).
+- **Tests:** vr_embed_test 64 12/7 with the defaults (the gaps above), 14/5 with `vr_flat_embed_arm 1; vr_flat_embed_other_hand 30`.
+  flatthrust_test.sh: blades 7/0 checks passed; the Lance run 0/4 (no Lance in the hand: Dwell likely missing in this worktree's base;
+  not checked against origin/next). VR embed 24/33, flatlance, embeddual not run (budget).
 ## flatmisc1125: aim sway reduction, VR-only map buttons in flat play, melee arcs in flat play (branch agent/flatmisc1125, 2026-11-25)
 
 - **Aim sway** (his item 15): the flat view-model's sway (the step's spring, `Feel::sway`, stepped in vr_flatplay.cpp
@@ -596,6 +625,36 @@ His items 3, 5, 12 (2026-11-25).
   poleslide 10/0, polejump 8/0, strung 5/0, slideend 2/0; rope_climb_test rope_climb, pole_wood 13/0; rope_hands_test
   6/0. Scene vrtesthall_ladder. Ladder shot qvr-kit/scratch/climbfix_ladder.png.
 
+## embedhold2b: a stuck blade's hand stays on its arm and nothing comes out on its own; the other hand joins the shaft (branch agent/embedhold2, 2026-11-25/26; the continuation of the section above)
+
+- **What the rules do now** (QC `VR_Embed_FlatArm`/`VR_Embed_FlatGap`, `view::keepOnArm`, engine
+  `avatar::embedReachNow`/`embedArmPastFrom`): the engine measures its own arm - the last solve's shoulder from the eye, the most the
+  drawn hand may be from it, and what it measured the gap against (`.vr_embed_armseenoff/main`, `.vr_embed_armeye`). QC's gap adds only
+  what the blade moved since the frame it was drawn, so the client's frame lag is no longer counted twice (that was much of the
+  "0.1 s after the stab"). `view::keepOnArm` slides a hand drawn on a blade back along its way from its own controller place, so it is
+  never drawn past its wrist. **Standing still nothing ends the hold and nothing draws the blade out**: the arm's decisions (draw a
+  pointed blade back out of a light body, let go of a heavy one) and the pull-out slide only run once the holder's own step this think
+  is `VR_FLATARM_STEP` (0.5 units) *off the blade* - his walking away, the body going with the blade in it - not on the blade's drawn
+  place jittering by tens of units or a body staggering under the stab. Between those, the hand slips on its handle up to
+  `vr_flat_embed_arm_slip` past Hold: Let Go Past.
+- **Defaults shipped** (his items 4 and 11): `vr_flat_embed_arm` 1 (row "Stuck Blade: Hand On Arm"), `vr_flat_embed_arm_slip` 10 cm
+  ("Stuck Blade: Hand Slip"), `vr_flat_embed_other_hand` 30 cm ("Stuck Blade: Other Hand": the free empty other hand takes a stuck blade
+  within that far of its line - the spear's shaft does, a one-handed sword stuck in a body at arm's length does not: its handle is a
+  metre off the hand idle at his side, and nothing reaches over for it).
+- `vr_embed_test 64` (QC/vr_flatembedwalk_test.qc) now checks the standing-still half second in every case: the drawn wrist within its
+  arm (`.vr_embed_armpast` <= 3 cm), the hold still on, and the blade come back out by at most 2 units on its own (state 6 from where it
+  stood; the stab's own half second is checked the same way except for the ragdoll, which flops with the blade in it). Case 5 is a sword
+  with the off hand free (it walks away with it; the joining check is the spear's).
+- Before/after, `vr_flat_embed_arm 1`: 32 passed / 3 failed -> **45 passed / 0 failed**; off: 32/2 -> **45/0**. The standing-still numbers
+  (cm past the most the arm reaches, and units the blade crept out): ragdoll the hold ended and 8.0 out, ogre 7.3 out, grunt 2.1-2.5 out
+  -> all six cases 0.0 out, the hold on, the blade 13.4-14.7 units in and the hand -52 to -0 cm past its reach.
+- New committed test `Misc/quakevr/embedhold_test.sh` (two runs, the defaults and the rule off, ends `embedhold: N passed, M failed`):
+  **90 passed, 0 failed**; found by `Misc/quakevr/tests_for.py` on its own. embeddual_test.sh 16/0, embed1108b (vr_embed_test 29) 10/0.
+  Still red around this branch (not flat play, and the same with the two rules off): embed_blood_test.sh `embed1108: 20-21 passed,
+  3-4 failed` (the axe/sword "stays in" cases), embededge (vr_embed_test 13) 64/4, embeddagger (40) 23/1 ("the dagger's blade ... a
+  third of the sword's: 9.2 units of 20.3"), flatthrust 58 and the spear (53) as handed to polepose.
+- Debug: `vr_debug_axestick 4` prints the flat gap's breakdown (measured, more, the blade's way, the eye's); `scratch1 3` in test 64
+  prints the standing-still frames. Scene `flat_stuck_blade`; checklist lines in qvr-kit/scratch/cl_lines_embedhold2.txt.
 ## agspearpose: the Pose Studio's pole weapon class; the flatads zoom test follows vr_flat_zoom_up (branch agent/agspearpose, 2026-11-25)
 
 - **Pole Weapon (Spear), a class of its own (the cut-off run's item 1, verified here by tests):** `VR_AGK_POLE` 22
@@ -641,3 +700,30 @@ His items 3, 5, 12 (2026-11-25).
 - **Tunables** (Debug > Tunables > Combat > Other): `vr_monster_lean` (1; 0 is the old behaviour), `vr_monster_lean_spread` (0.2), `vr_monster_lean_react` (0.4).
 - **Test:** `vr_sphit_test 2` (QC/vr_crouch_test.qc) now ends with a live grunt's received DPS, 90 s per case, grunt 280 ahead held on its spot, a wall 20 ahead with its edge 9 right of him (16 shows his drawn body from straight ahead never: the body is +-8 of the head). Run: `run.sh <tree> -Script "map vrteleporters;wait30;vr_lean_recenter 0;vr_mock_look 0 90;vr_sphit_test 2" -QuitOn "sphitlean: [0-9]+ passed"` (vr_lean_recenter 0: the untilted mock lean is not detected as a lean, the body would slide under the head). Result: open 3.17, lean 1.09, hidden 0.00 DPS (lean 34% of open), 3 passed 0 failed. Spread 0.1 gave 52%, 0.14 57-61% (40 s cases: about +-15% noise).
 - **Open:** the drawn body is posed entirely under the head, so a 30 cm lean shows all 7 points (fraction 1): the spread's lower half applies. Real leans (vr_lean_detect) keep the origin; not checked in a headset.
+
+## embedhold2 after the second merge: the flat arm's rules leave a swung blade alone (branch agent/embedhold2, 2026-11-26)
+
+- Merged `origin/next` (merge commit 842b5aac6, next at b25b90edd: polepose, leanaim, flat V work). No conflicts. The `spear`
+  and `flatthrust` sections that were red in the previous round's report were the pre-polepose ones: with next in the tree
+  `flatthrust` 58 is 12/0 and the flat spear section is 6/0.
+- **The rule** (`QC/vr_embedhold.qc`): the flat arm's rules are for a blade that went in **by its point**. New predicate
+  `VR_Embed_FlatArmBlade(e)` = `vr_flat_embed_arm != 0 && e.vr_stick_embed == AXESTICK_POINT`, used at the top of
+  `VR_Embed_FlatArm` (its draw-out slide, its "the arm ran out: free it or let go", its two hands' let-go) and at the flat
+  going-in clamp in `VR_Embed_HoldThink` (the depth a stab stops at). An axe's flat V is the engine's overhead swing and its
+  edge is wedged in the body's cut (`weapons.txt embed "2"`), so the arm neither draws it back along its axis nor runs out on
+  it: walking away never brings a swung axe into the hand; its hold ends, if it ends, by the rules it had before
+  (H, another weapon, the hold's own reach and yank). His item 4 ("the blade comes out about 0.1 s after the stab") is a thrust's.
+- **Test**: `vr_embed_test 64` (`QC/vr_flatembedwalk_test.qc`) gained case 6 "axe": the axe V'd at a grunt 28 ahead (its swing
+  reaches shorter than a thrust: at 40 flat play's axe V meets nothing, in `vr_embed_test 58` too), it goes in by its edge
+  (2.8 units), standing still nothing moves it, walking away 601 units in 217 frames leaves it **still held**, with
+  `vr_flat_embed_arm` 1 and 0 alike (9 passed 0 failed, six runs, both arms). `Misc/quakevr/embedhold_test.sh` runs all seven
+  cases both ways.
+- **Not ours, closed**: `embed1108` is 21 passed 3 failed with the promoted defaults, the same three FAIL lines (all three the
+  axe's: "the axe stays in it held", "case 7 an axe swung stays in the dummy", "case 9 an axe swung stays in the grunt") as
+  with `vr_flat_embed_arm 0; vr_flat_embed_other_hand 0`, and as plain next. Both cvars are read only inside `VR_FlatPlay`, so a
+  mock-headset run cannot change: the earlier 20/4 was the flaky "case 10: the sword's stab stays in the grunt".
+- **Tree-local, open**: built in this tree, plain next (b25b90edd, no branch commits) gives `vr_embed_test 59`'s Crystal Lance
+  0/4 ("0 damage", "stuck by its point depth 0.0", the punch line printed "not a swinging weapon, overhead swing") and the VR
+  spear mock `embedspear` 23/2 twice ("the Lance's swing landed with its shaft... the butt, 0.17 of the line", "8 of 10 straight
+  throws"), where the same commit in the mp tree gives 7/0 and 25/0. Something in this tree's game folder differs (the AD/Dwell
+  side): don't trust this tree's numbers for those two sections until someone looks.

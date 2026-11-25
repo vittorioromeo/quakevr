@@ -368,6 +368,10 @@
 .entity vr_embed_main;   // the main hand's
 .float  vr_embed_handle; // the hands on theirs by the handle (bits)
 .vector vr_embed_armgap; // on a player: cm each hand drawn on a blade is past its stretched arm (x off, y main; the engine's)
+.vector vr_embed_armpast; // on a player: cm each hand's drawn wrist is past the most its arm reaches, negative within it (x off, y main; the engine's)
+.vector vr_embed_armseenoff;  // on a player: the blade the off hand was on as the frame of .vr_embed_armpast drew it (the engine's)
+.vector vr_embed_armseenmain; // the main hand's
+.vector vr_embed_armeye;      // and the eye in that frame
 .vector vr_stick_base;   // its angles before the hand's leeway and the tug's shake (the engine's)
 .vector vr_stick_lean;   // the leeway's turn now (the engine's)
 .float  vr_stick_shake;  // how near the tug is to tugging it out, 0..1 (vr_embedhold.qc; the engine shakes it)
