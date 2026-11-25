@@ -64,9 +64,11 @@ loading Quake VR's own first maps, read where the player's cache has no file (or
   (`-prepare <file> -preparemaps <map>`: the installer's preparation run limited to those maps, then quit;
   `+vr_setup_pending 0`, or a first start's calibration room replaces the map) with an empty `vr_cache_dir` and
   `vr_cache_shipped 0`, and copies the products' files of that run.
-- **What ships** (2026-11-25): vrstart's 8 hull trees (130.6 MB, 61 MB deflated: the player's and the monsters' boxes)
-  and light grid (47.7 MB, 21 MB), vrtutorial's light grid (4.7 MB). vrcalibration's and vrtutorial's trees compile
-  under 250 ms and are never cached; no default map builds a navmesh (`navmesh` is in the product list: one made
+- **What ships** (2026-11-25, loadprof2): vrstart's 8 hull trees (130.6 MB, 61 MB deflated: the player's and the
+  monsters' boxes) and light grid (47.7 MB, 21 MB), vrtutorial's light grid (4.7 MB) and 2 small trees (0.4 MB), and the
+  three maps' brushes (`.hbr`, the hull's walk, clip brushes and holes: vrstart 15.0 MB, 4.8 MB deflated; vrtutorial
+  0.9 MB; vrcalibration 0.1 MB; ~10 s of the Quest 3's hub load): 15 files, 199.4 MB, 84.8 MB deflated. The generator's
+  summary lists the brushes apart; no default map builds a navmesh (`navmesh` is in the product list: one made
   would ship, ~240 KB). Only products of our maps' geometry, lightmaps and entities: nothing keyed by a model, skin or
   texture (occlusion, normal maps, poses, rigs, gun pieces), which may be id Software's, and no id map's.
 - **Platforms:** the files are the same bytes on the PC (x64) and the Quest (arm64): little-endian both; the layouts

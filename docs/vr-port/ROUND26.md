@@ -353,3 +353,49 @@ chased him there. Details: NAVMESH.md section 24.
 - **Open:** FrikBot bots on waypoints and the soft wall (players' moves aren't `SV_movestep`): a bot can still stand
   under a lift (its navmesh walks get the costs). Mods' own blocked functions (hipnotic, rogue, AD plats) don't call
   the safety net; their movers are still shafts (pos1/pos2). An e2m4 scene was not made (its two shafts are found).
+## loadprof2: cold loads: the shipped cache carries the hull brushes; crouch, lying and monster trees made after the load (branch agent/loadprof2, 2026-11-25)
+
+His ask: much faster loading on the Quest. loadprof measured the Quest 3's cold hub at ~90 s, 85 of them collision trees.
+- **The brushes shipped**: make_shipped_cache.py already copied loadprof's `hulls/<build>/<key>.hbr` with the trees (the
+  game reads them from `cache_shipped` after the player's cache); its summary now lists them as "brushes". Added: vrstart
+  15.0 MB (4.8 MB deflated), vrtutorial 0.9, vrcalibration 0.1. The whole shipped cache: 15 files, 199.4 MB (84.8 MB
+  deflated; vrstart 8 trees 130.6 MB, light grids 52.4 MB, vrtutorial's 2 small trees 0.4 MB). The files made by two
+  builds were the same bytes but for the new trees.
+- **Trees after the load** (`vr_hull_defer` 1, new; Debug > Tests "Crouch and Monster Hitboxes"; vr_hull.cpp): the load
+  waits for the brushes and the standing player's tree only. At afterLoad (`prepare(true)`) the crouched boxes' trees
+  (tallest first: 52, 44, 36), the lying box's and the monsters' sizes (those the spawned map asked for, `pending.later`:
+  the hub's firing-range monsters too) go to one job on the pool, made one after another (disk, else compiled, then their
+  brush models), each usable at once (`JobProgress`: a count stored with release). The in-play monster path
+  ("Trees compiled in play") is the same job type with one tree. Correctness: a monster's move uses Quake's hull until its
+  tree is ready (as vr_hull_async did; also during the load's 2 physics frames, but for a tree kept from the last load);
+  a crouched or lying box's trace waits for its own tree in `treeFor` (`joinBackgroundTree`, the loading panel after 1 s,
+  `developer 1`: "hull: a 16x36 trace waited N ms"); a tree being made is never read (`treeRunning`, also in
+  `claimTrees` and `worldTreeReady`, which before could read a tree's heads while its job wrote them). One job runs at a
+  time, so the build gate never queues a compile behind another job. 0: all waited for by the load, as before.
+- **Quest 3** (this tree's dev APK, debug key, unworn, `-unattended -nostartmap`, a fresh `vr_cache_dir` per launch: every
+  product cold, the GL programs warm; the data synced as Setup does, 4 files differed, then the shipped cache pushed).
+  Map load, command to first frame:
+
+| load (cold player cache) | before (no shipped cache, all trees waited) | defer only | shipped cache + defer |
+|---|---|---|---|
+| vrstart (the hub) | 92.1, 90.6 s (trees 66-67 s waited, brushes 5.1 s) | 26.3 s (0 waited) | **19.2, 20.5 s** (9 shipped reads, brushes 70-81 ms) |
+| ad_sepulcher (not shipped) | 35.8 s (25.1 s waited) | 16.1 s (5.4 s: the standing tree) | - |
+
+  The rest of the hub's 20 s is the cold model loads (entities spawned 11-12 s; 17-18 s when the trees compile beside
+  them). Without the shipped cache the deferred trees were all ready 76-78 s after the load (vrstart), 17.5 s
+  (ad_sepulcher). An unworn headset lies on the desk, so its player is "crouched" at once: the first crouched trace waited
+  28.4 s (vrstart, nothing shipped) and 8.6 s (ad_sepulcher) for its tree, after the first frame: the worst case of the
+  "pause on first use".
+- **PC** (Release no-LTO, kit runs, a loaded machine: the light grid took 45 s in every vrstart run): vrstart cold 58.9 s
+  (trees 7.6 s waited) -> defer 51.1 s (0 waited; deferred ready 7.5 s on) -> shipped + defer 6.1 s; ad_sepulcher 5.8 ->
+  3.6 s (2.4 s -> 0 waited).
+- **Checked**: `vr_hull_keeptest` vrstart PASS (8 trees, deferred, cold and read); `vr_hull_cache 2` over the deferred
+  trees "checked 9 same 0 differed" (8 trees + brushes); `vr_hull_holes_test` vrbrushholes 29/0 cold and read (it needs
+  the player spawned: `wait60` after the map, one `wait` gives 17/12 with or without the change); a mock VR and a flat
+  run crouching, lying and crawling right after a cold vrstart load (the trees not ready yet: waited 5.3 s and 2.0 s on
+  the PC) end at the same positions as a run whose trees were ready; e1m2 `vr_mhull_walktest 30` right after a cold load:
+  in solid 0, embedded 0 (stuck 16 against 8 with defer 0: a random walk's paths differ). tests_for: prone_eye 6/0,
+  lowceil 16/0, crouch_speed 4/0, crouch_test as expected; prone_test (flat 6 fails), crawl_test (1 fail) and vrslide
+  (2 fails) fail the same with `vr_hull_defer 0`: not this change.
+- Open: the deferred compiles take the pool's free workers while the game runs (a cold load only); the shipped files
+  are keyed by the trees' version, not the exe: one generator run serves PC and Quest.
