@@ -1057,7 +1057,7 @@ constexpr float dualProneTurnMost = 45.f;
 // a trip of its own (a reload, the hands' swap).
 [[nodiscard]] bool parryAsked(int h)
 {
-    return vr_flat_parry.value != 0.f && meleeIn(h) && loneWeaponHand() == h && key_dest == key_game &&
+    return vr_flat_parry.value != 0.f && (meleeIn(h) || poleParries(h)) && loneWeaponHand() == h && key_dest == key_game &&
            client::offhandButton() && routeFire(false, false).rmbAims && !punching(h) && (!shoving(h) || fs.shoveBash) &&
            !flatreload::busy(h) && !flatswap::busy();
 }
@@ -1258,7 +1258,44 @@ void twoHandPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& 
 // pole points there), moved by vr_flat_pole_fwd/_up/_out (`fwd`, `right`, `up`: the frame the hands are placed in) and
 // rolled about the pole by _roll (no other turn: the beam goes along the pole to the crosshair). The other hand goes on
 // the pole (vr_view_weapon.cpp chooseGrip, vr_flat_pole_off_along; vr_view_hands.cpp, before drawHand: _off_pitch / _yaw / _roll).
-void polePose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up)
+// (polepose, his flat notes 2026-11-25: the spear pointed beside the crosshair, towards its hand, where the Lance pointed at
+// it: the Lance has a sight line, so flatsight's aimAtPoint turned it onto the crosshair's point; the spear, a melee weapon,
+// kept the hold's turn, along the crosshair's way from the hand's side.) Every pole weapon now: its tip's line (the shot's
+// way from the tip, as the view placed it: flatsight::muzzleInHand) turned about the fist through what the crosshair is on,
+// never nearer than vr_flat_pole_aim_near along the ray (vr_flat_pole_aim_point; a few passes, as aimAtPoint's: the turn
+// moves the tip). The thrust goes along that line (thrustPose), so it stays on the point too.
+[[nodiscard]] glm::vec3 turnedBy(const glm::mat3& turn, const glm::vec3& rot);
+
+void poleAim(hands::State& s, int h, int slot, const glm::vec3& aim)
+{
+    glm::vec3 tip;
+    if(bot != nullptr || vr_flat_pole_aim_point.value == 0.f || !flatsight::muzzleInHand(h, tip))
+    {
+        return;
+    }
+    glm::vec3 org, dir;
+    crosshairRay(s, aim, org, dir);
+    const float nearest = za::clamp(vr_flat_pole_aim_near.value, 16.f, 512.f);
+    const float dist = za::clamp(glm::dot(flatsight::crosshairHit(s, aim) - org, dir), nearest, 8192.f);
+    const glm::vec3 point = org + dir * dist;
+    for(int i = 0; i < 4; i++)
+    {
+        glm::vec3 f, r, u;
+        hands::angleVectors(s.rot[h], f, r, u);
+        const glm::vec3 at = s.pos[h] + f * tip.x + r * tip.y + u * tip.z;
+        const glm::vec3 shot = hands::forward(weapons::shotAngles(s.rot[h], slot, h == HAND_OFF));
+        const glm::vec3 want = glm::normalize(point - at);
+        const glm::vec3 axis = glm::cross(shot, want);
+        if(glm::length(axis) < 1e-6f)
+        {
+            return;
+        }
+        const float c = za::clamp(glm::dot(shot, want), -1.f, 1.f);
+        s.rot[h] = turnedBy(glm::mat3_cast(glm::angleAxis(za::acos(c), glm::normalize(axis))), s.rot[h]);
+    }
+}
+
+void polePose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up, const glm::vec3& aim)
 {
     const int slot = heldIn(h);
     if(!twohand::poleWeapon(slot))
@@ -1273,6 +1310,12 @@ void polePose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& rig
     glm::vec3 f, r, u;
     hands::angleVectors(s.rot[h], f, r, u);
     s.rot[h] = hands::anglesFromVectors(glm::normalize(turn * f), glm::normalize(turn * u));
+    // (In a thrust, so it travels along the aimed line; held, flatsight's aim at the point is the last word, after the two
+    // hands' grip moves the holding hand: aimed here too, the other hand rode up to 0.2 further off the pole walking and turning.)
+    if(poleThrusts(h))
+    {
+        poleAim(s, h, slot, aim);
+    }
 }
 
 // A turn of a pole weapon about the fist holding it (world): its tip up by `pitch` (degrees; about the level line across
@@ -1563,7 +1606,27 @@ struct PoleTrack
     float gapHi{0.f}; // cm the other hand's wrist was past its arm's stretch (avatar::embedArmGapCm), at most
     float stretchHi{1.f}; // the other arm's stretch taken (avatar::armStretched), at most
     float slide[2]{0.f, 0.f}; // each hand's thrustOffSlide as this frame draws it (measured next frame)
+    // (polepose, his flat notes 2026-11-25) the other hand's fingers closed round the pole (view::drawnGripCurl, 0..1),
+    // least and most; and the pole's aim: the game's line (the hand along its shot way) and the drawn tip line (the hold to
+    // the tip) off the point 200 units down the crosshair's ray, at most (units); the drawn line's nearest to the ray.
+    float curlLo{1e9f}, curlHi{-1e9f};
+    float aimHi{0.f}, tipHi{0.f}, rayHi{0.f};
+    float pointAt{0.f}; // how far down the ray the crosshair point last was
 };
+
+// How far the line through `from` along unit `way` passes from the point `p`.
+[[nodiscard]] float lineMiss(const glm::vec3& from, const glm::vec3& way, const glm::vec3& p)
+{
+    const glm::vec3 d = p - from;
+    return glm::length(d - way * glm::dot(d, way));
+}
+
+// How near the line through `a` along unit `u` comes to the line through `b` along unit `v`.
+[[nodiscard]] float linesApart(const glm::vec3& a, const glm::vec3& u, const glm::vec3& b, const glm::vec3& v)
+{
+    const glm::vec3 n = glm::cross(u, v);
+    return glm::length(n) > 1e-5f ? za::fabs(glm::dot(b - a, glm::normalize(n))) : lineMiss(a, u, b);
+}
 PoleTrack poleTrack;
 
 void probePole()
@@ -1599,6 +1662,27 @@ void probePole()
         p.gapHi = za::max(p.gapHi, gap);
         const float stretch = avatar::armStretched(1 - h);
         p.stretchHi = za::max(p.stretchHi, stretch);
+        if(const float curl = view::drawnGripCurl(1 - h); curl >= 0.f)
+        {
+            p.curlLo = za::min(p.curlLo, curl);
+            p.curlHi = za::max(p.curlHi, curl);
+        }
+        {
+            const hands::State& hs = hands::current();
+            glm::vec3 org, dir;
+            crosshairRay(hs, geom::vec(cl.viewangles), org, dir);
+            const glm::vec3 point = flatsight::crosshairHit(hs, geom::vec(cl.viewangles));
+            p.pointAt = glm::dot(point - org, dir);
+            const glm::vec3 at200 = org + dir * 200.f;
+            const glm::vec3 shot = hands::forward(weapons::shotAngles(hs.rot[h], heldIn(h), h == HAND_OFF));
+            // (the game's tip line: from the tip as placed in the hand, along the shot's way: poleAim's line, at the point)
+            glm::vec3 tip{0.f}, f, r, u;
+            hands::angleVectors(hs.rot[h], f, r, u);
+            const glm::vec3 from = flatsight::muzzleInHand(h, tip) ? hs.pos[h] + f * tip.x + r * tip.y + u * tip.z : hs.pos[h];
+            p.aimHi = za::max(p.aimHi, lineMiss(from, shot, point));
+            p.tipHi = za::max(p.tipHi, lineMiss(m.muzzle, way, at200));
+            p.rayHi = za::max(p.rayHi, linesApart(m.muzzle, way, org, dir));
+        }
         if(p.every)
         {
             Con_Printf("poletrack: %s f %d off %.2f along %.2f place %.2f slide %.1f pin %.2f arm x%.3f gap %.1f\n",
@@ -1622,6 +1706,9 @@ void poleTrack_f()
         Con_Printf("poletrack: report %d frames, off %.2f .. %.2f, along %.2f .. %.2f, place %.2f .. %.2f, arm x%.3f, arm gap %.1f cm\n",
             p.frames, any ? p.offLo : 0.f, any ? p.offHi : 0.f, any ? p.alongLo : 0.f, any ? p.alongHi : 0.f, any ? p.placeLo : 0.f,
             any ? p.placeHi : 0.f, p.stretchHi, p.gapHi);
+        Con_Printf("poletrack: grip curl %.2f .. %.2f, aim miss at the point %.2f (%.0f away)\n",
+            p.curlHi >= 0.f ? p.curlLo : -1.f, p.curlHi, p.aimHi, p.pointAt);
+        Con_Printf("poletrack: drawn tip line miss at 200 %.2f, off the ray %.2f\n", p.tipHi, p.rayHi);
         const PoleTrack was = p;
         p = PoleTrack{};
         p.on = was.on;
@@ -2963,6 +3050,31 @@ float poseNum(const Tunable& c)
     return za::clamp(c.value, -30.f, 30.f);
 }
 
+// (polepose, his flat note 2026-11-25: "Right mouse button on the crystal lance should go in a parry state instead of ADS,
+// with the same pose as the spear") A pole gun (the Crystal Lance: a pole weapon that is no melee weapon) in hand h
+// parries on the right mouse button as the spear does, its ironsight off (vr_flat_pole_rmb_parry).
+bool poleThrusts(int h)
+{
+    return bot == nullptr && h >= 0 && h < HAND_COUNT && fs.punchThrust[h] && punching(h) && twohand::poleWeapon(heldIn(h)) &&
+           vr_gametime >= fs.punchAt[h];
+}
+
+glm::vec3 poleThrustTurn(int h, const glm::vec3& rot)
+{
+    if(!poleThrusts(h))
+    {
+        return rot;
+    }
+    const ThrustPart p = thrustAt(vr_gametime - fs.punchAt[h], true);
+    const glm::vec3 way = hands::forward(weapons::shotAngles(rot, heldIn(h), h == HAND_OFF));
+    return turnedBy(poleTurn(way, p.pitch, p.yaw, h == HAND_OFF ? -1.f : 1.f), rot);
+}
+
+bool poleParries(int h)
+{
+    return vr_flat_pole_rmb_parry.value != 0.f && h >= 0 && h < HAND_COUNT && !meleeIn(h) && twohand::poleWeapon(heldIn(h));
+}
+
 bool meleeIn(int h)
 {
     switch(heldWid(h))
@@ -4247,7 +4359,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             stepTwoHand(s, h, static_cast<float>(dt));
         }
         twoHandPose(s, h, fwd, right, up);
-        polePose(s, h, fwd, right, up);
+        polePose(s, h, fwd, right, up, aim);
 
         // The melee parry's guard (vr_flat_parry_*: the right mouse button held), over the hold; a swing goes from it.
         // (Held in two hands: vr_flat_melee_2h_parry_* over it.)
@@ -4266,7 +4378,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         }
         // Up (half way in and still asked for): the server parries any melee blow from in front with it, whatever its way
         // (QC VR_Parry_FlatGuard, vr_flat_parry_cone; his notes 2026-11-10: the directional parry is the headset's).
-        if(fs.parryWant[h] && meleeIn(h) && parryShare(h) >= 0.5f)
+        if(fs.parryWant[h] && (meleeIn(h) || poleParries(h)) && parryShare(h) >= 0.5f)
         {
             handsource::guarding(h);
         }

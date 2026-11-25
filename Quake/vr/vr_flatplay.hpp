@@ -98,6 +98,14 @@ struct FireRoute
 // Whether this hand holds a melee weapon (the axe, mjolnir, a sword, the chainsaw, the crowbar, the super axe; AD's melee
 // weapons are these ids too): at a wall it only goes back, never turns muzzle up (vr_flatsight.cpp).
 [[nodiscard]] bool meleeIn(int h);
+// Whether hand `h` holds a pole gun (the Crystal Lance) whose right mouse button parries as the spear's (vr_flat_pole_rmb_parry):
+// no ironsight then (vr_flatsight.cpp adsApplies).
+[[nodiscard]] bool poleParries(int h);
+// Whether hand `h` is in a pole weapon's thrust (V; vr_flat_thrust), and `rot` turned by the thrust's own tip turn at this
+// moment (vr_flat_thrust_wind_pitch .. _yaw, about the fist): flatsight aims the pole's line at the crosshair's point through
+// the thrust too, then turns it so (polepose).
+[[nodiscard]] bool poleThrusts(int h);
+[[nodiscard]] glm::vec3 poleThrustTurn(int h, const glm::vec3& rot);
 
 // meleeIn less the chainsaw: a melee weapon swung by a handle (the axe, mjolnir, a sword, the crowbar, the super axe, AD's
 // blades): its two-handed grip is the lowest on that handle (vr_view_weapon.cpp's chooseGrip).

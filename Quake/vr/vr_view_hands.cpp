@@ -3471,9 +3471,10 @@ void ropeHeld(int hand, Held& held)
             }
         }
     }
-    else if(freeHelp && entities.weapon[other].ent.model)
+    else if((freeHelp || (!otherSubject && view::onFlatPole(hand))) && entities.weapon[other].ent.model)
     {
-        // The other hand's weapon, held anywhere: wrapped where the hand is on it.
+        // The other hand's weapon, held anywhere: wrapped where the hand is on it. (polepose: so is flat play's hand pinned on
+        // a pole weapon held as a spear, its shaft, closed round it.)
         held = {&entities.weapon[other].ent, entities.weapon[other].mirrored, 0, true};
         held.overlap = otherSlot >= 0 ? CLAMP(0.f, weapons::value(otherSlot, Key::GripOverlap), 1.f) * weapons::maxOverlapCm : -1.f;
     }

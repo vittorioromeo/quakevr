@@ -35,7 +35,7 @@ SC="$SC; tune vr_flat_pole_along 3.5; wait10; echo flt: along; $ST; tune_reset v
 SC="$SC; tune vr_flat_pole_pitch 28; tune vr_flat_pole_yaw 20; wait10; echo flt: turn; $ST; tune_reset vr_flat_pole_pitch; tune_reset vr_flat_pole_yaw"
 # (Off Up at Other Hand Along 16: at his 10 the drawn hands touch and are held out of each other, vr_body_collide.)
 SC="$SC; tune vr_flat_pole_off_along 16; wait72; echo flt: offbase; $ST; tune vr_flat_pole_off_up 8; wait72; echo flt: offup; $ST; tune_reset vr_flat_pole_off_up; tune_reset vr_flat_pole_off_along; wait10"
-SC="$SC; tune vr_flat_pole_off_pitch -30; tune vr_flat_pole_hand_roll 30; wait10; echo flt: rot; $ST; tune_reset vr_flat_pole_off_pitch; tune_reset vr_flat_pole_hand_roll; wait10"
+SC="$SC; tune vr_flat_pole_off_pitch -10; tune vr_flat_pole_hand_roll 30; wait10; echo flt: rot; $ST; tune_reset vr_flat_pole_off_pitch; tune_reset vr_flat_pole_hand_roll; wait10"
 SC="$SC; echo flt: hbase; $ST; tune vr_flat_pole_hand_fwd 4; tune vr_flat_pole_hand_up 2; wait10; echo flt: hmove; $ST; tune_reset vr_flat_pole_hand_fwd; tune_reset vr_flat_pole_hand_up; wait10"
 # (flatembed: a press of the fire button pulls a stuck Lance: back 0.2 s, held 0.25 s, onto the grip 0.2 s: 47 frames.)
 PULL="+attack; wait3; -attack; wait50"
@@ -90,7 +90,7 @@ echo "  base: tip $t0, up $u0, left $l0, other hand along $a0 off $o0; along 6: 
 check $(ok "\"$t0\" != \"\" && \"$t1\" != \"\" && ($t0 - $t1) > 5 && ($t0 - $t1) < 7") "vr_flat_pole_along 6: the tip 6 nearer the fist (${t0:-?} -> ${t1:-?})"
 check $(ok "\"$u0\" != \"\" && \"$u1\" != \"\" && ($u1 - $u0) > 17 && ($u1 - $u0) < 23") "vr_flat_pole_pitch 20: the pole 20 degrees up (${u0:-?} -> ${u1:-?})"
 check $(ok "\"$l0\" != \"\" && \"$l1\" != \"\" && ($l1 - $l0) > 12 && ($l1 - $l0) < 18") "vr_flat_pole_yaw 15: the pole 15 degrees left (${l0:-?} -> ${l1:-?})"
-check $(ok "\"$a0\" != \"\" && \"$o0\" != \"\" && $a0 > 6 && $a0 < 14 && $o0 < 6") "the other hand on the pole about vr_flat_pole_off_along 12 from the fist, off it by about vr_flat_pole_off_up 5 at most (along ${a0:-?}, off ${o0:-?})"
+check $(ok "\"$a0\" != \"\" && \"$o0\" != \"\" && $a0 > 3 && $a0 < 10 && $o0 < 6") "the other hand on the pole about vr_flat_pole_off_along 8 from the fist, off it by about vr_flat_pole_off_up 5 at most (along ${a0:-?}, off ${o0:-?})"
 ob=$(num offbase off)
 # (lance4: printed, not counted. With his defaults (Spear Ahead 8, Other Hand Along 10, Hand Pitch 30) the drawn other
 # hand no longer settles 3 off the pole: 0.8 -> 2.2 after 10 frames, 0.9 -> 0.3 after 72, at Along 16 as at 10; with
@@ -164,7 +164,7 @@ for b in pfwd pback pstrafe pturn pwalkturn pthrust; do
     "$b: the other hand on the pole every frame: off ${lo:-?} .. ${hi:-?} (standing $so), along ${plo:-?} .. ${phi:-?} (standing $sp; thrust: the slide put back)"
 done
 alo=$(pr pthrust 4); ahi=$(pr pthrust 5); ar=$(pr pthrust 8)
-check $(ok "\"$alo\" != \"\" && $alo > $sp - 10 && $alo < $sp - 6 && $ahi > $sp + 14") "the thrust: drawn back the hand stays (along to ${ahi:-?}: the 16 drawn back), thrust out it slides back 8 along the pole (along to ${alo:-?}); the other arm stretched x${ar:-?}"
+check $(ok "\"$alo\" != \"\" && $alo > $sp - 4 && $alo < $sp - 1 && $ahi > $sp + 14") "the thrust: drawn back the hand stays (along to ${ahi:-?}: the 16 drawn back), thrust out it slides back 2 along the pole (along to ${alo:-?}); the other arm stretched x${ar:-?}"
 # polewall: at the wall the other hand stays pinned on the tilted pole (before: let go, 18 off). Off the pole by at most 3.5
 # more than standing (4.4 held at the wall, 5.2 in the tilt's ease, against 2.3: the hand's drawn turn on the tilted pole, open), along within 2.
 wlo=$(pr pwall 2); whi=$(pr pwall 3); wplo=$(pr pwall 6); wphi=$(pr pwall 7)
