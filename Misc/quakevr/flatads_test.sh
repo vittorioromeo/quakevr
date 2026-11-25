@@ -80,17 +80,24 @@ fi
 
 if [[ $SECTIONS == *f* ]]; then
   # f. the zoom-only aim (fsight_mode 1: the grenade launcher, wid 8; his ask 2026-11-24): the gun comes vr_flat_zoom_centre (0.5) of
-  #    the way sideways to the middle of the screen and vr_flat_zoom_up (2) higher as the view narrows, its shot still through the
+  #    the way sideways to the middle of the screen and vr_flat_zoom_up (the tunable's value this run, read from the console: it was 2,
+  #    his promoted default is 0, so the test follows the cvar and also checks the pose follows a tune vr_flat_zoom_up 3 of its own) higher as the view narrows, its shot still through the
   #    crosshair; the visor look (vr_flat_zoom_visor 0.5) shimmers as it engages (4 frames in), is full zoomed, gone released, and the
   #    gun is back in its pose. Screenshots (-Out): hipfire, zoomed with the move and the look off (as before), zoomed with them.
   log=$HERE/scratch/flatads_f.log
   CHK="vr_flat_sight_check; vr_flat_xhair_probe;"
-  bash $KIT/run.sh $AGENT -Clean -ExtraArgs "-flatscreenmode" -Out "${FLATADS_OUT:-flatads_f.png}" -Script "$P; vr_flat_bob 0; wait30; vr_test_give_wid 8; impulse 149; wait50; $CHK screenshot; vr_flat_zoom_centre 0; vr_flat_zoom_visor 0; vr_flat_aim 1; wait40; screenshot; vr_flat_aim 0; wait40; vr_flat_zoom_centre 0.5; vr_flat_zoom_visor 0.5; vr_flat_aim 1; wait4; vr_flat_sight_check; wait40; $CHK screenshot; vr_flat_aim 0; wait40; vr_flat_sight_check; toggleconsole; quit" -Filter "^flatgunview|^flatzoomcentre|^flatxhair: main raw" -Timeout 90 > "$log" 2>&1
+  # (a bare vr_flat_zoom_up echoes a tunable as `name = "value" (default "...")` plus its description, vr_tunables.cpp:228)
+  bash $KIT/run.sh $AGENT -Clean -ExtraArgs "-flatscreenmode" -Out "${FLATADS_OUT:-flatads_f.png}" -Script "$P; vr_flat_zoom_up; vr_flat_bob 0; wait30; vr_test_give_wid 8; impulse 149; wait50; $CHK screenshot; vr_flat_zoom_centre 0; vr_flat_zoom_visor 0; vr_flat_aim 1; wait40; screenshot; vr_flat_aim 0; wait40; vr_flat_zoom_centre 0.5; vr_flat_zoom_visor 0.5; vr_flat_aim 1; wait4; vr_flat_sight_check; wait40; $CHK screenshot; vr_flat_aim 0; wait40; vr_flat_sight_check; tune vr_flat_zoom_up 3; vr_flat_aim 1; wait40; vr_flat_sight_check; vr_flat_aim 0; wait40; tune_reset; wait20; vr_flat_sight_check; toggleconsole; quit" -Filter "^flatgunview|^flatzoomcentre|^flatxhair: main raw|^vr_flat_zoom_up = |^\"vr_flat_zoom_up\" is" -Timeout 90 > "$log" 2>&1
+  # (the rise expected: the tunable vr_flat_zoom_up as this run has it, clamped -8..8 as vr_flatsight.cpp zoomCentre does)
+  up=$(grep -a '^"vr_flat_zoom_up" is' "$log" | head -1 | sed 's/^"vr_flat_zoom_up" is "\([-0-9.]*\)".*/\1/')
+  [ -z "$up" ] && up=$(grep -a '^vr_flat_zoom_up = ' "$log" | head -1 | sed 's/^vr_flat_zoom_up = "\([-0-9.]*\)".*/\1/')
+  up=$(awk -v u="$up" 'BEGIN { if (u == "") { print "nan" } else { print (u < -8 ? -8 : (u > 8 ? 8 : u)) } }')
   grep -a "^flatgunview" "$log" | awk '{ printf "  t %s: hand %s %s %s\n", $4, $6, $7, $8 }'
   grep -a "^flatzoomcentre" "$log" | awk '{ printf "  centre t %s move %s visor %s shimmer %s\n", $3, $5, $7, $9 }'
   grep -a "^flatxhair: main raw" "$log" | awk '{ printf "  shot off the centre %s px\n", $7 }'
-  hip=$(grep -a "^flatgunview" "$log" | sed -n 1p); zm=$(grep -a "^flatgunview" "$log" | sed -n 3p); back=$(grep -a "^flatgunview" "$log" | tail -1)
-  check $(awk -v a="$hip" -v b="$zm" 'BEGIN { split(a, h, " "); split(b, z, " "); exit !(h[7] > 1 && z[7] > h[7] * 0.35 && z[7] < h[7] * 0.65 && z[8] - h[8] > 1.5 && z[8] - h[8] < 2.5) }' && echo 1 || echo 0) "zoom: the gun comes half way sideways to the middle and 2 up ($(awk '{ print $7, $8 }' <<<"$hip") -> $(awk '{ print $7, $8 }' <<<"$zm"))"
+  # (the flatgunview lines in order: hipfire, the zoom part way, zoomed, released, zoomed again with tune vr_flat_zoom_up 3, released)
+  hip=$(grep -a "^flatgunview" "$log" | sed -n 1p); zm=$(grep -a "^flatgunview" "$log" | sed -n 3p); up3=$(grep -a "^flatgunview" "$log" | sed -n 5p); back=$(grep -a "^flatgunview" "$log" | tail -1)
+  check $(awk -v a="$hip" -v b="$zm" -v c="$up3" -v up="$up" 'BEGIN { split(a, h, " "); split(b, z, " "); split(c, u3, " "); exit !(h[7] > 1 && z[7] > h[7] * 0.35 && z[7] < h[7] * 0.65 && up != "nan" && z[8] - h[8] > up - 0.5 && z[8] - h[8] < up + 0.5 && u3[7] > h[7] * 0.35 && u3[7] < h[7] * 0.65 && u3[8] - z[8] > 2.5 && u3[8] - z[8] < 3.5) }' && echo 1 || echo 0) "zoom: the gun comes half way sideways to the middle and vr_flat_zoom_up ($up) up, and follows tune vr_flat_zoom_up 3 ($(awk '{ print $7, $8 }' <<<"$hip") -> $(awk '{ print $7, $8 }' <<<"$zm") -> $(awk '{ print $7, $8 }' <<<"$up3"))"
   check $(awk -v a="$hip" -v b="$back" 'BEGIN { split(a, h, " "); split(b, z, " "); d = z[7] - h[7]; e = z[8] - h[8]; exit !(b != "" && d * d + e * e < 0.25) }' && echo 1 || echo 0) "zoom: released, the gun back in its pose"
   offs=$(grep -a "^flatxhair: main raw" "$log" | awk '{ printf "%s ", $7 }')
   check $(awk -v o="$offs" 'BEGIN { n = split(o, a, " "); exit !(n == 2 && a[1] < 3 && a[2] < 3) }' && echo 1 || echo 0) "zoom: the shot through the crosshair hipfire and zoomed ($offs px)"
