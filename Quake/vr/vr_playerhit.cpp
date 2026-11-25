@@ -11,6 +11,7 @@
 #include "vr_progs.hpp"
 #include "vr_server.hpp"
 #include "vr_testkit.hpp"
+#include "vr_tunables.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -148,7 +149,7 @@ void build(const Pose& p, const glm::vec3& origin, Shape& out)
 
 bool serverShape(edict_t* ent, Shape& out)
 {
-    if(vr_hit_player_shape.value == 0.f || !sv.active || svs.maxclients <= 1 || !ent || ent->free || ent->v.health <= 0.f ||
+    if(vr_hit_player_shape.value == 0.f || !sv.active || !ent || ent->free || ent->v.health <= 0.f ||
        static_cast<int>(ent->v.solid) == SOLID_NOT)
     {
         return false;
@@ -161,6 +162,12 @@ bool serverShape(edict_t* ent, Shape& out)
         return false;
     }
     build(p, glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]}, out);
+    // (the leniency, vr_hit_player_fatten: every part a little thicker for what shoots at him)
+    const float fatten = za::max(0.f, vr_hit_player_fatten.value);
+    for(int i = 0; i < out.n; i++)
+    {
+        out.c[i].r += fatten;
+    }
     return true;
 }
 
@@ -397,7 +404,7 @@ void aim_f()
         const glm::vec3 axis = glm::normalize(k.wrist[HAND_MAIN] - k.elbow[HAND_MAIN]);
         glm::vec3 out = glm::cross(glm::normalize(forearm - from), axis);
         out = glm::normalize(out) * (glm::dot(out, -l) >= 0.f ? 1.f : -1.f);
-        const float gap = armRadius * m + hitmodel::tolerance(hitmodel::Class::Guns) + 3.f;
+        const float gap = armRadius * m + hitmodel::tolerance(hitmodel::Class::Guns) + vr_hit_player_fatten.value + 3.f;
         const bool hit = shoot(deg, forearm + out * gap, zone, true);
         // (from its front nothing is behind it; from across its corner the shot goes on into the thigh drawn behind the
         // hanging hand: a leg hit, not the arm's)

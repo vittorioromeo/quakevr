@@ -70,4 +70,71 @@ void() VR_CrouchTest_Frame =
     VR_CrouchTest_Run();
     cvar_set("vr_crouch_test", "0");
 };
+// vr_sphit_test 1: a grunt 280 units ahead fires a grid of aimed bullets (17 sideways, -24..24 in 3s, by 17 up, -24..40
+// in 4s; 289 shots) at the player and counts the hits: `sphit: hits N of M` (the body-shape hit, vr_hit_player_shape /
+// vr_hit_player_fatten; the box when the shape is 0). Run it standing in the open (about as many hits with the default
+// fattening as with the box), or crouched behind cover (none).
+void() VR_SphitTest_Run =
+{
+    entity player = VR_Player();
+    if(player == world)
+    {
+        return;
+    }
+    float yaw = player.v_viewangle_y;
+    makevectors('0 1 0' * yaw);
+    vector fwd = v_forward;
+    vector from = player.origin + '0 0 16';
+    traceline(from, from + fwd * 280, TRUE, player);
+    vector at = trace_endpos - fwd * 32 - '0 0 16';
+    entity oldself = self;
+    entity grunt = VR_Test_Spawn(player, 0, at, -1);
+    self = oldself;
+    if(!grunt)
+    {
+        bprint("sphit: no grunt\n");
+        return;
+    }
+    grunt.angles_y = yaw + 180;
+    float health0 = player.health, armor0 = player.armorvalue;
+    float hits = 0, shots = 0;
+    self = grunt;
+    self.enemy = player;
+    makevectors(self.angles);
+    vector side = v_right;
+    for(float dy = -24; dy <= 24; dy = dy + 3)
+    {
+        for(float dz = -24; dz <= 40; dz = dz + 4)
+        {
+            player.health = 10000;
+            player.armorvalue = 0;
+            makevectors(self.angles);
+            vector src = self.origin + v_forward * 10;
+            src_z = self.absmin_z + self.size_z * 0.7;
+            vector aimat = player.origin + side * dy;
+            aimat_z = aimat_z + dz;
+            EnemyFireBullets(1, normalize(aimat - src), '0 0 0');
+            if(player.health < 10000)
+            {
+                hits = hits + 1;
+            }
+            shots = shots + 1;
+        }
+    }
+    self = oldself;
+    player.health = health0;
+    player.armorvalue = armor0;
+    remove(grunt);
+    bprint(sprintf("sphit: hits %g of %g\n", hits, shots));
+};
+
+void() VR_SphitTest_Frame =
+{
+    if(!cvar_hget(cvarh_vr_sphit_test))
+    {
+        return;
+    }
+    VR_SphitTest_Run();
+    cvar_set("vr_sphit_test", "0");
+};
 #endif

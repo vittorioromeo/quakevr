@@ -1964,6 +1964,7 @@ float cvarh_vr_smallgibs_up_thrown;
 float cvarh_vr_snap_turn;
 float cvarh_vr_snd_hit_layer;
 float cvarh_vr_snd_pitch_jitter;
+float cvarh_vr_sphit_test;
 float cvarh_vr_ssg_fire_anim_speed;
 float cvarh_vr_stamina_exhausted_damage;
 float cvarh_vr_stamina_exhausted_push;
@@ -4146,6 +4147,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_snap_turn = VR_CVar_Make("vr_snap_turn");
     cvarh_vr_snd_hit_layer = VR_CVar_Make("vr_snd_hit_layer");
     cvarh_vr_snd_pitch_jitter = VR_CVar_Make("vr_snd_pitch_jitter");
+    cvarh_vr_sphit_test = VR_CVar_Make("vr_sphit_test");
     cvarh_vr_ssg_fire_anim_speed = VR_CVar_Make("vr_ssg_fire_anim_speed");
     cvarh_vr_stamina_exhausted_damage = VR_CVar_Make("vr_stamina_exhausted_damage");
     cvarh_vr_stamina_exhausted_push = VR_CVar_Make("vr_stamina_exhausted_push");

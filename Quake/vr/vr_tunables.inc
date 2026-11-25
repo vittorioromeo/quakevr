@@ -2791,3 +2791,6 @@ QVR_TUNABLE(vr_rope_thumb_lift, "0") // ropes14: degrees a gripping thumb is lif
 QVR_TUNABLE(vr_rope_thumb_shift_x, "0") // ropes14: hand-rig units a gripping thumb's base is moved (x: along the hand's long axis)
 QVR_TUNABLE(vr_rope_thumb_shift_y, "0") // ropes14: ... (y: along the palm's normal)
 QVR_TUNABLE(vr_rope_thumb_shift_z, "0") // ropes14: ... (z: across the palm)
+
+// Combat > Other
+QVR_TUNABLE(vr_hit_player_fatten, "5.5") // units added to the radius of every part of a player's drawn body that shots and missiles meet (vr_hit_player_shape; single player too: a monster's shots meet his body, not the 24-wide box): 0 the exact body
