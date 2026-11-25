@@ -2033,8 +2033,41 @@ vr_flashlight_head_zone_radius|2|Flashlight - On a Gun or Head|Head Zone Radius|
 |2|Flashlight - On a Gun or Head|Reset This Page|Advanced VR Options > Flashlight > On a Gun or Head > Reset This Page
 @page|2|Weapon Offsets||Advanced VR Options > Weapons > Weapon Offsets (Held Weapon)
 |2|Weapon Offsets|Edit the Other Hand's Weapon|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > Edit the Other Hand's Weapon
+|2|Weapon Offsets|Edit Blade Shape|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > Edit Blade Shape
+|2|Weapon Offsets|Print Changes to Console|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > Print Changes to Console
+|2|Weapon Offsets|Reset This Weapon|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > Reset This Weapon
 @page|2|Weapon Weights||Advanced VR Options > Weapons > Weapon Weights (Held Weapon)
 |2|Weapon Weights|Edit the Other Hand's Weapon|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Edit the Other Hand's Weapon
+vr_wofs_w_mass_17|2|Weapon Weights|Mass|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Mass
+vr_wofs_w_com_17|2|Weapon Weights|Balance|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Balance
+vr_wofs_w_len_17|2|Weapon Weights|Length|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Length
+vr_wofs_w_stiff_17|2|Weapon Weights|Stiffness|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Stiffness
+vr_wofs_w_damp_17|2|Weapon Weights|Damping|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Damping
+vr_wofs_w_strength_17|2|Weapon Weights|Arm Strength|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Arm Strength
+vr_wofs_w_sag_17|2|Weapon Weights|Sag|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Sag
+vr_wofs_w_swing_17|2|Weapon Weights|Swing|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Swing
+vr_wofs_w_roll_17|2|Weapon Weights|Roll Weight|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Roll Weight
+vr_wofs_w_2h_17|2|Weapon Weights|Two-Handed Help|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Two-Handed Help
+vr_wofs_w_snap_17|2|Weapon Weights|Snap Back Beyond|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Snap Back Beyond
+vr_wofs_w_meleedmg_17|2|Weapon Weights|Melee Damage|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Melee Damage
+vr_wofs_w_throwdmg_17|2|Weapon Weights|Throw Damage|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Throw Damage
+vr_wofs_w_throwmin_17|2|Weapon Weights|Throw Speed Needed|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Throw Speed Needed
+vr_wofs_w_throwcurve_17|2|Weapon Weights|Throw Damage Curve|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Throw Damage Curve
+vr_wofs_w_meleemin_17|2|Weapon Weights|Melee Speed Needed|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Melee Speed Needed
+vr_wofs_w_meleecurve_17|2|Weapon Weights|Melee Damage Curve|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Melee Damage Curve
+vr_wofs_w_spinalign_17|2|Weapon Weights|Spin in the Air|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Spin in the Air
+vr_wofs_w_heft_17|2|Weapon Weights|Heft|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Heft
+vr_wofs_w_droop_17|2|Weapon Weights|Droop|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Droop
+vr_wofs_w_hrecoil_17|2|Weapon Weights|One-Handed Kick|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > One-Handed Kick
+vr_heavy_damping_min|2|Weapon Weights|Settle (Least Damping)|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Settle (Least Damping)
+vr_weight_drop|2|Weapon Weights|Heavy Weapons Wrenched Out|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Heavy Weapons Wrenched Out
+vr_weight_drop_from|2|Weapon Weights|Heavier Than|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Heavier Than
+vr_weight_drop_speed|2|Weapon Weights|Fastest Turn|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Fastest Turn
+vr_weight_drop_curve|2|Weapon Weights|Weight Curve|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Weight Curve
+vr_weight_drop_velocity|2|Weapon Weights|Falls At|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Falls At
+|2|Weapon Weights|Print Changes to Console|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Print Changes to Console
+|2|Weapon Weights|Reset This Weapon|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Reset This Weapon
+|2|Weapon Weights|Reset This Page|Advanced VR Options > Weapons > Weapon Weights (Held Weapon) > Reset This Page
 @page|1|Hand/Gun Calibration||Advanced VR Options > Weapons > Hand/Gun Calibration
 vr_show_controller|1|Hand/Gun Calibration|Show Controller|Advanced VR Options > Weapons > Hand/Gun Calibration > Show Controller
 vr_handcal_x|1|Hand/Gun Calibration|Main Hand X (forward)|Advanced VR Options > Weapons > Hand/Gun Calibration > Main Hand X (forward)
@@ -4594,6 +4627,24 @@ vr_flat_swing_torso_up|2|Tunables|Swing Chest Back|Advanced VR Options > Debug >
 vr_flat_swing_torso_down|2|Tunables|Swing Chest Forward|Advanced VR Options > Debug > Tunables > Swing Chest Forward
 vr_flat_melee_grip|2|Tunables|Two-Handed Melee On The Grip|Advanced VR Options > Debug > Tunables > Two-Handed Melee On The Grip
 vr_flat_melee_letgo|2|Tunables|Two-Handed Melee Eased Off The Grip|Advanced VR Options > Debug > Tunables > Two-Handed Melee Eased Off The Grip
+vr_flat_overhand|2|Tunables|Empty-Hand V Overhand|Advanced VR Options > Debug > Tunables > Empty-Hand V Overhand
+vr_flat_overhand_wind|2|Tunables|Overhand Windup Time|Advanced VR Options > Debug > Tunables > Overhand Windup Time
+vr_flat_overhand_top|2|Tunables|Overhand Top Hold|Advanced VR Options > Debug > Tunables > Overhand Top Hold
+vr_flat_overhand_strike|2|Tunables|Overhand Strike Time|Advanced VR Options > Debug > Tunables > Overhand Strike Time
+vr_flat_overhand_dwell|2|Tunables|Overhand End Hold|Advanced VR Options > Debug > Tunables > Overhand End Hold
+vr_flat_overhand_back|2|Tunables|Overhand Recover Time|Advanced VR Options > Debug > Tunables > Overhand Recover Time
+vr_flat_overhand_raise_up|2|Tunables|Overhand Top Up|Advanced VR Options > Debug > Tunables > Overhand Top Up
+vr_flat_overhand_raise_fwd|2|Tunables|Overhand Top Ahead|Advanced VR Options > Debug > Tunables > Overhand Top Ahead
+vr_flat_overhand_raise_out|2|Tunables|Overhand Top Out|Advanced VR Options > Debug > Tunables > Overhand Top Out
+vr_flat_overhand_raise_pitch|2|Tunables|Overhand Top Pitch|Advanced VR Options > Debug > Tunables > Overhand Top Pitch
+vr_flat_overhand_raise_yaw|2|Tunables|Overhand Top Yaw|Advanced VR Options > Debug > Tunables > Overhand Top Yaw
+vr_flat_overhand_raise_roll|2|Tunables|Overhand Top Roll|Advanced VR Options > Debug > Tunables > Overhand Top Roll
+vr_flat_overhand_end_pitch|2|Tunables|Overhand End Pitch|Advanced VR Options > Debug > Tunables > Overhand End Pitch
+vr_flat_overhand_end_down|2|Tunables|Overhand End Down|Advanced VR Options > Debug > Tunables > Overhand End Down
+vr_flat_overhand_end_fwd|2|Tunables|Overhand End Ahead|Advanced VR Options > Debug > Tunables > Overhand End Ahead
+vr_flat_overhand_end_out|2|Tunables|Overhand End Out|Advanced VR Options > Debug > Tunables > Overhand End Out
+vr_flat_overhand_end_yaw|2|Tunables|Overhand End Yaw|Advanced VR Options > Debug > Tunables > Overhand End Yaw
+vr_flat_overhand_end_roll|2|Tunables|Overhand End Roll|Advanced VR Options > Debug > Tunables > Overhand End Roll
 vr_flat_parry|2|Tunables|Right Mouse Parries|Advanced VR Options > Debug > Tunables > Right Mouse Parries
 vr_flat_parry_fwd|2|Tunables|Guard Ahead|Advanced VR Options > Debug > Tunables > Guard Ahead
 vr_flat_parry_up|2|Tunables|Guard Up|Advanced VR Options > Debug > Tunables > Guard Up
@@ -4634,8 +4685,6 @@ vr_flat_pole_off_along|2|Tunables|Spear Other Hand Along|Advanced VR Options > D
 vr_flat_pole_off_roll|2|Tunables|Spear Other Hand Roll|Advanced VR Options > Debug > Tunables > Spear Other Hand Roll
 vr_flat_pole_pitch|2|Tunables|Spear Pitch|Advanced VR Options > Debug > Tunables > Spear Pitch
 vr_flat_pole_yaw|2|Tunables|Spear Yaw|Advanced VR Options > Debug > Tunables > Spear Yaw
-vr_flat_revgrip_pitch|2|Tunables|Flipped Blade Pitch|Advanced VR Options > Debug > Tunables > Flipped Blade Pitch
-vr_flat_revgrip_pole_pitch|2|Tunables|Flipped Spear Pitch|Advanced VR Options > Debug > Tunables > Flipped Spear Pitch
 vr_flat_pole_along|2|Tunables|Spear Hand Along|Advanced VR Options > Debug > Tunables > Spear Hand Along
 vr_flat_pole_off_up|2|Tunables|Spear Other Hand Up|Advanced VR Options > Debug > Tunables > Spear Other Hand Up
 vr_flat_pole_off_out|2|Tunables|Spear Other Hand Out|Advanced VR Options > Debug > Tunables > Spear Other Hand Out
@@ -4667,10 +4716,41 @@ vr_flat_thrust_blades|2|Tunables|Blade Thrust|Advanced VR Options > Debug > Tuna
 vr_flat_thrust_1h_reach|2|Tunables|Blade Thrust Reach|Advanced VR Options > Debug > Tunables > Blade Thrust Reach
 vr_flat_thrust_1h_wind_back|2|Tunables|Blade Thrust Windup Back|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Back
 vr_flat_thrust_1h_wind_up|2|Tunables|Blade Thrust Windup Up|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Up
+vr_flat_thrust_1h_wind_out|2|Tunables|Blade Thrust Windup Out|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Out
+vr_flat_thrust_1h_wind_pitch|2|Tunables|Blade Thrust Windup Pitch|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Pitch
+vr_flat_thrust_1h_wind_yaw|2|Tunables|Blade Thrust Windup Yaw|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Yaw
+vr_flat_thrust_1h_wind_roll|2|Tunables|Blade Thrust Windup Roll|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Roll
+vr_flat_thrust_1h_up|2|Tunables|Blade Thrust Up|Advanced VR Options > Debug > Tunables > Blade Thrust Up
+vr_flat_thrust_1h_pitch|2|Tunables|Blade Thrust Pitch|Advanced VR Options > Debug > Tunables > Blade Thrust Pitch
+vr_flat_thrust_1h_yaw|2|Tunables|Blade Thrust Yaw|Advanced VR Options > Debug > Tunables > Blade Thrust Yaw
+vr_flat_thrust_1h_wind_time|2|Tunables|Blade Thrust Windup Time|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Time
+vr_flat_thrust_1h_hold_time|2|Tunables|Blade Thrust Windup Hold|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Hold
+vr_flat_thrust_1h_strike_time|2|Tunables|Blade Thrust Time|Advanced VR Options > Debug > Tunables > Blade Thrust Time
+vr_flat_thrust_1h_dwell_time|2|Tunables|Blade Thrust Hold|Advanced VR Options > Debug > Tunables > Blade Thrust Hold
+vr_flat_thrust_1h_back_time|2|Tunables|Blade Thrust Recover Time|Advanced VR Options > Debug > Tunables > Blade Thrust Recover Time
 vr_flat_thrust_1h_in|2|Tunables|Blade Thrust In|Advanced VR Options > Debug > Tunables > Blade Thrust In
 vr_flat_thrust_1h_near|2|Tunables|Blade Thrust Aim Nearest|Advanced VR Options > Debug > Tunables > Blade Thrust Aim Nearest
-vr_flat_thrust_1h_rev_down|2|Tunables|Blade Thrust Flipped Down|Advanced VR Options > Debug > Tunables > Blade Thrust Flipped Down
-vr_flat_thrust_1h_rev_up|2|Tunables|Blade Thrust Flipped Raise|Advanced VR Options > Debug > Tunables > Blade Thrust Flipped Raise
+vr_flat_revgrip_sword_fwd|2|Tunables|Flipped Sword Ahead|Advanced VR Options > Debug > Tunables > Flipped Sword Ahead
+vr_flat_revgrip_sword_up|2|Tunables|Flipped Sword Up|Advanced VR Options > Debug > Tunables > Flipped Sword Up
+vr_flat_revgrip_sword_out|2|Tunables|Flipped Sword Out|Advanced VR Options > Debug > Tunables > Flipped Sword Out
+vr_flat_revgrip_sword_pitch|2|Tunables|Flipped Sword Pitch|Advanced VR Options > Debug > Tunables > Flipped Sword Pitch
+vr_flat_revgrip_sword_yaw|2|Tunables|Flipped Sword Yaw|Advanced VR Options > Debug > Tunables > Flipped Sword Yaw
+vr_flat_revgrip_sword_roll|2|Tunables|Flipped Sword Roll|Advanced VR Options > Debug > Tunables > Flipped Sword Roll
+vr_flat_revgrip_sword_down|2|Tunables|Flipped Sword Stab Down|Advanced VR Options > Debug > Tunables > Flipped Sword Stab Down
+vr_flat_revgrip_dagger_fwd|2|Tunables|Flipped Dagger Ahead|Advanced VR Options > Debug > Tunables > Flipped Dagger Ahead
+vr_flat_revgrip_dagger_up|2|Tunables|Flipped Dagger Up|Advanced VR Options > Debug > Tunables > Flipped Dagger Up
+vr_flat_revgrip_dagger_out|2|Tunables|Flipped Dagger Out|Advanced VR Options > Debug > Tunables > Flipped Dagger Out
+vr_flat_revgrip_dagger_pitch|2|Tunables|Flipped Dagger Pitch|Advanced VR Options > Debug > Tunables > Flipped Dagger Pitch
+vr_flat_revgrip_dagger_yaw|2|Tunables|Flipped Dagger Yaw|Advanced VR Options > Debug > Tunables > Flipped Dagger Yaw
+vr_flat_revgrip_dagger_roll|2|Tunables|Flipped Dagger Roll|Advanced VR Options > Debug > Tunables > Flipped Dagger Roll
+vr_flat_revgrip_dagger_down|2|Tunables|Flipped Dagger Stab Down|Advanced VR Options > Debug > Tunables > Flipped Dagger Stab Down
+vr_flat_revgrip_pole_fwd|2|Tunables|Flipped Spear Ahead|Advanced VR Options > Debug > Tunables > Flipped Spear Ahead
+vr_flat_revgrip_pole_up|2|Tunables|Flipped Spear Up|Advanced VR Options > Debug > Tunables > Flipped Spear Up
+vr_flat_revgrip_pole_out|2|Tunables|Flipped Spear Out|Advanced VR Options > Debug > Tunables > Flipped Spear Out
+vr_flat_revgrip_pole_pitch|2|Tunables|Flipped Spear Pitch|Advanced VR Options > Debug > Tunables > Flipped Spear Pitch
+vr_flat_revgrip_pole_yaw|2|Tunables|Flipped Spear Yaw|Advanced VR Options > Debug > Tunables > Flipped Spear Yaw
+vr_flat_revgrip_pole_roll|2|Tunables|Flipped Spear Roll|Advanced VR Options > Debug > Tunables > Flipped Spear Roll
+vr_flat_revgrip_pole_down|2|Tunables|Flipped Spear Stab Down|Advanced VR Options > Debug > Tunables > Flipped Spear Stab Down
 vr_flat_embed_pull|2|Tunables|Stuck Blade Pull|Advanced VR Options > Debug > Tunables > Stuck Blade Pull
 vr_flat_embed_pull_time|2|Tunables|Stuck Blade Pull Time|Advanced VR Options > Debug > Tunables > Stuck Blade Pull Time
 vr_flat_embed_pull_hold|2|Tunables|Stuck Blade Pull Hold|Advanced VR Options > Debug > Tunables > Stuck Blade Pull Hold
@@ -4830,6 +4910,7 @@ vr_embed_sword_speed|2|Tunables|Thrown Sword: Least Speed|Advanced VR Options > 
 vr_embed_sword_tip|2|Tunables|Thrown Sword: Point Length|Advanced VR Options > Debug > Tunables > Thrown Sword: Point Length
 vr_embed_sword_angle|2|Tunables|Thrown Sword: Most Off Its Line|Advanced VR Options > Debug > Tunables > Thrown Sword: Most Off Its Line
 vr_embed_sword_incidence|2|Tunables|Thrown Sword: Most Glancing|Advanced VR Options > Debug > Tunables > Thrown Sword: Most Glancing
+vr_embed_pole_incidence|2|Tunables|Thrown Spear: Most Glancing|Advanced VR Options > Debug > Tunables > Thrown Spear: Most Glancing
 vr_embed_sword_wall|2|Tunables|Depth in Walls|Advanced VR Options > Debug > Tunables > Depth in Walls
 vr_embed_sag_stiffness|2|Tunables|Sag: Stiffness|Advanced VR Options > Debug > Tunables > Sag: Stiffness
 vr_embed_sag_damping|2|Tunables|Sag: Damping|Advanced VR Options > Debug > Tunables > Sag: Damping
@@ -4991,6 +5072,9 @@ vr_nav_drop_push|2|Tunables|Navmesh: Drop Push|Advanced VR Options > Debug > Tun
 vr_nav_drop_time|2|Tunables|Navmesh: Drop Give-Up Time|Advanced VR Options > Debug > Tunables > Navmesh: Drop Give-Up Time
 vr_nav_lifts|2|Tunables|Navmesh: Lift Links|Advanced VR Options > Debug > Tunables > Navmesh: Lift Links
 vr_nav_lift_cost|2|Tunables|Navmesh: Lift Cost|Advanced VR Options > Debug > Tunables > Navmesh: Lift Cost
+vr_shaft|2|Tunables|Lift Shafts Kept Clear|Advanced VR Options > Debug > Tunables > Lift Shafts Kept Clear
+vr_shaft_margin|2|Tunables|Lift Shaft Margin|Advanced VR Options > Debug > Tunables > Lift Shaft Margin
+vr_shaft_cost|2|Tunables|Navmesh: Raised Shaft Cost|Advanced VR Options > Debug > Tunables > Navmesh: Raised Shaft Cost
 vr_nav_lift_wait|2|Tunables|Navmesh: Lift Give-Up Time|Advanced VR Options > Debug > Tunables > Navmesh: Lift Give-Up Time
 vr_nav_teleports|2|Tunables|Navmesh: Teleporter Links|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Links
 vr_nav_tele_cost|2|Tunables|Navmesh: Teleporter Cost|Advanced VR Options > Debug > Tunables > Navmesh: Teleporter Cost
@@ -5408,6 +5492,7 @@ vr_stereo_single|2|Debug - Profiling and Memory|Single-Pass Stereo (Experimental
 |2|Debug - Profiling and Memory|Multiview Shader Check|Advanced VR Options > Debug > Profiling and Memory > Multiview Shader Check
 |2|Debug - Profiling and Memory|Load Times|Advanced VR Options > Debug > Profiling and Memory > Load Times
 vr_cache_warmup|2|Debug - Profiling and Memory|Cache Warm-up|Advanced VR Options > Debug > Profiling and Memory > Cache Warm-up
+vr_cache_shipped|2|Debug - Profiling and Memory|Read the Shipped Cache|Advanced VR Options > Debug > Profiling and Memory > Read the Shipped Cache
 |2|Debug - Profiling and Memory|Cache Info|Advanced VR Options > Debug > Profiling and Memory > Cache Info
 vr_probe_kinds|2|Debug - Profiling and Memory|Ready What Can Appear|Advanced VR Options > Debug > Profiling and Memory > Ready What Can Appear
 vr_probe_test_spawn|2|Debug - Profiling and Memory|Ready the Debug Spawner's|Advanced VR Options > Debug > Profiling and Memory > Ready the Debug Spawner's
@@ -6382,6 +6467,7 @@ vr_hull_keep|2|Debug - Tests|Keep Hitboxes for Reloads|Advanced VR Options > Deb
 vr_hull_cache|2|Debug - Tests|Hitboxes on Disk|Advanced VR Options > Debug > Tests > Hitboxes on Disk
 vr_nav_cache|2|Debug - Tests|Navmeshes on Disk|Advanced VR Options > Debug > Tests > Navmeshes on Disk
 vr_hull_async|2|Debug - Tests|New Monster Sizes in Play|Advanced VR Options > Debug > Tests > New Monster Sizes in Play
+vr_hull_defer|2|Debug - Tests|Crouch and Monster Hitboxes|Advanced VR Options > Debug > Tests > Crouch and Monster Hitboxes
 |2|Debug - Tests|The Gates In This Map|Advanced VR Options > Debug > Tests > The Gates In This Map
 |2|Debug - Tests|Teleporter Test Map|Advanced VR Options > Debug > Tests > Teleporter Test Map
 |2|Debug - Tests|To the Flush Gates|Advanced VR Options > Debug > Tests > To the Flush Gates
@@ -9015,6 +9101,17 @@ vr_smallgibs_brains_mult_eel|2|Small Gibs - Per Enemy|Eel (Rogue)|Advanced VR Op
 vr_smallgibs_brains_mult_zombie|2|Small Gibs - Per Enemy|Zombie (Beheaded)|Advanced VR Options > Gore > Small Gibs > Per Enemy > Zombie (Beheaded)
 vr_smallgibs_brains_mult_mummy|2|Small Gibs - Per Enemy|Mummy (Rogue, Beheaded)|Advanced VR Options > Gore > Small Gibs > Per Enemy > Mummy (Rogue, Beheaded)
 |2|Small Gibs - Per Enemy|Reset This Page|Advanced VR Options > Gore > Small Gibs > Per Enemy > Reset This Page
+@page|2|Weapon Offsets - Hand and Grip||Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand
+|2|Weapon Offsets - Hand and Grip|Edit the Other Hand's Weapon|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Edit the Other Hand's Weapon
+vr_wofs_x_17|2|Weapon Offsets - Hand and Grip|Offset X (forward)|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Offset X (forward)
+vr_wofs_y_17|2|Weapon Offsets - Hand and Grip|Offset Y (left)|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Offset Y (left)
+vr_wofs_z_17|2|Weapon Offsets - Hand and Grip|Offset Z (up)|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Offset Z (up)
+vr_wofs_pitch_17|2|Weapon Offsets - Hand and Grip|Pitch|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Pitch
+vr_wofs_yaw_17|2|Weapon Offsets - Hand and Grip|Yaw|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Yaw
+vr_wofs_roll_17|2|Weapon Offsets - Hand and Grip|Roll|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Roll
+vr_wofs_scale_17|2|Weapon Offsets - Hand and Grip|Scale|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Scale
+vr_wofs_hide_hand_17|2|Weapon Offsets - Hand and Grip|Hide Hand|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Hide Hand
+|2|Weapon Offsets - Hand and Grip|Reset This Page|Advanced VR Options > Weapons > Weapon Offsets (Held Weapon) > The Hand > Reset This Page
 @page|1|Holster Zones||Advanced VR Options > Weapons > Immersion > Holster Zones
 vr_holster_zones|1|Holster Zones|Zones|Advanced VR Options > Weapons > Immersion > Holster Zones > Zones
 vr_holster_zones_show|1|Holster Zones|Show Zones|Advanced VR Options > Weapons > Immersion > Holster Zones > Show Zones
