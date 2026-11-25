@@ -17,7 +17,7 @@
 // Prints `shafttest: <case>_<what> PASS|FAIL ...`, then `shafttest: N passed, M failed`. Each case's give-up is a
 // FAIL "timed out" line (a safety net, never the end of a passing run).
 
-float stt7_case;    // 0 investigate, 1 fight, 2 ride, 3 bot (134)
+float stt7_case;    // 0 investigate, 1 fight, 2 ride, 3 bot (134), 4 under (133)
 float stt7_last;    // the last case the test plays (each lift)
 float stt7_out;     // (bot) out of the shaft since its goal was set (its spot may be within the margin: a cramped room)
 float stt7_lift;    // 133: which of the map's shafts (plats moving farther than their height and a step)
@@ -38,6 +38,7 @@ string() VR_STT7_Name =
     if(stt7_case == 0) { return "investigate"; }
     if(stt7_case == 1) { return "fight"; }
     if(stt7_case == 3) { return "bot"; }
+    if(stt7_case == 4) { return sprintf("under%g", stt7_lift); }
     if(stt2_step == 133) { return sprintf("ride%g", stt7_lift); }
     return "ride";
 };
@@ -145,7 +146,7 @@ void() VR_STT7_Next =
     if(stt7_case > stt7_last && stt2_step == 133 && VR_STT7_Shaft(stt7_lift + 1) != world)
     {
         stt7_lift = stt7_lift + 1;
-        stt7_case = 0;
+        stt7_case = 4;
     }
     if(stt7_case > stt7_last)
     {
@@ -252,7 +253,14 @@ void() VR_STT7_Frame =
             VR_STT7_Stage(2);
             return;
         }
-        if(stt7_case == 0)
+        if(stt7_case == 4)
+        {
+            // (a grunt put on the floor under the raised lift; he rides the lift from the top, unseen)
+            stt7_m = VR_STT2_Spawn(stt7_mid, 0, 0);
+            setorigin(p, [(stt7_plat.absmin_x + stt7_plat.absmax_x) * 0.5, (stt7_plat.absmin_y + stt7_plat.absmax_y) * 0.5,
+                stt7_plat.absmax_z + 25]);
+        }
+        else if(stt7_case == 0)
         {
             stt7_m = VR_STT2_Spawn(spot, vectoyaw(stt7_mid - spot), 0);
             // (he rides the lift from the top, unseen)
@@ -291,7 +299,13 @@ void() VR_STT7_Frame =
         {
             return;
         }
-        if(stt7_case == 0)
+        if(stt7_case == 4)
+        {
+            // (a noise right there: it would search under the lift)
+            VR_STT2_Calm(stt7_m, stt7_m.angles_y);
+            VR_Stealth_Alert(stt7_m, stt7_mid, STL_N_PROP, 1, FALSE);
+        }
+        else if(stt7_case == 0)
         {
             VR_STT2_Calm(stt7_m, stt7_m.angles_y);
             // (past the middle: its walk ends 64 short of the noise, under the lift)
@@ -339,7 +353,16 @@ void() VR_STT7_Frame =
             stt7_stage = 6;
             return;
         }
-        if(stt7_case == 0)
+        if(stt7_case == 4)
+        {
+            // (3 s with the lift held up, then let go: it comes down, as when he rides it down from the top)
+            if(t < 3) { return; }
+            // (out from under the lift itself; e2m4's lifts come down into pits a little bigger than them: the margin's band
+            // is as far as a monster can go, a lift's width beside it)
+            VR_Test_Check(!VR_STT7_InLiveBy(stt7_m, 0 - cvar_hget(cvarh_vr_shaft_margin)), sprintf("%s_%s", VR_STT7_Name(),
+                sprintf("out from under the lift (%v; the lift %v - %v)", stt7_m.origin, stt7_plat.absmin, stt7_plat.absmax)));
+        }
+        else if(stt7_case == 0)
         {
             // (its walk to the noise over and 2 s of its search: it would stand there)
             if(stt7_m.stl_state == STL_ALERT && stt7_m.stl_phase == STL_SEARCH) { stt7_wait = stt7_wait + 1; }
@@ -424,7 +447,7 @@ void() VR_STT7_Frame =
             }
             stt7_wait = 1;
             VR_Test_Check(stt7_bounces == 0, sprintf("%s_%s", VR_STT7_Name(), sprintf("down with no bounce (%g, %.1f s)", stt7_bounces, t)));
-            if(stt7_case < 2)
+            if(stt7_case < 2 || stt7_case == 4)
             {
                 VR_STT7_Next();
             }
@@ -451,6 +474,10 @@ void() VR_STT7_Start =
     if(stt2_step == 134)
     {
         stt7_case = stt7_last = 3;
+    }
+    if(stt2_step == 133)
+    {
+        stt7_case = stt7_last = 4; // (e2m4: a grunt under each lift; e1m1's cases need e1m1's room)
     }
     stt7_plat = world;
     stt7_m = world;
