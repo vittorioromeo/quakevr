@@ -2794,3 +2794,6 @@ QVR_TUNABLE(vr_rope_thumb_shift_z, "0") // ropes14: ... (z: across the palm)
 
 // Combat > Other
 QVR_TUNABLE(vr_hit_player_fatten, "5.5") // units added to the radius of every part of a player's drawn body that shots and missiles meet (vr_hit_player_shape; single player too: a monster's shots meet his body, not the 24-wide box): 0 the exact body
+QVR_TUNABLE(vr_monster_lean, "1") // 1: a monster sees and shoots at the parts of a player's drawn body showing (head, shoulders, hands, torso: leaning out from cover), not only his eyes' point (QC vr_leanaim.qc); 0: as before
+QVR_TUNABLE(vr_monster_lean_spread, "0.05") // a monster's extra spread (Quake's spread units, about radians) at a player only partly showing, times how much of his body is hidden (leaning from cover takes fewer hits than standing in the open)
+QVR_TUNABLE(vr_monster_lean_react, "0.4") // seconds before a monster sees (and shoots at) a player newly leaning out from cover

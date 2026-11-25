@@ -38,7 +38,7 @@ float() OgreMarksmanCheckAttack =
     if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
 
-    if(trace_ent != targ)
+    if(trace_ent != targ && !VR_Lean_Clear(targ)) // (QVR: or seen leaning from cover: vr_leanaim.qc)
     {
         return FALSE;    // don't have a clear shot
     }

@@ -476,6 +476,35 @@ extern "C" int VR_PlayerShotClip(edict_t* touch, const float* start, const float
     return 1;
 }
 
+void PF_playerbodypoint()
+{
+    edict_t* e = G_EDICT(OFS_PARM0);
+    const int i = static_cast<int>(G_FLOAT(OFS_PARM1));
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = out[1] = out[2] = 0.f;
+    playerhit::Shape s;
+    if(!playerhit::serverShape(e, s) || s.n < 8)
+    {
+        return;
+    }
+    // (build's order: 0 the head, 1 the torso neck..pelvis, then each side h its upper arm 2+4h, forearm 3+4h, legs)
+    glm::vec3 p;
+    switch(i)
+    {
+        case 0: p = s.c[0].a; break;
+        case 1: p = s.c[1].a; break;
+        case 2: p = (s.c[1].a + s.c[1].b) * 0.5f; break;
+        case 3: p = s.c[2].a; break;
+        case 4: p = s.c[6].a; break;
+        case 5: p = s.c[3].b; break;
+        case 6: p = s.c[7].b; break;
+        default: return;
+    }
+    out[0] = p.x;
+    out[1] = p.y;
+    out[2] = p.z;
+}
+
 void PF_playerhitzone()
 {
     edict_t* e = G_EDICT(OFS_PARM0);

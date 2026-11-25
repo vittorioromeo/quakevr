@@ -328,6 +328,7 @@ float (entity client) visible =
     if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK))) { res = bbox_visible(self, spot2); }
     else                                   { res = point_visible(spot1, spot2); }
     if(res && VR_Crate_HidesFrom(self, client, spot1)) { res = FALSE; }
+    else if(!res && track && VR_Lean_Sight(client, spot1)) { res = TRUE; } // QVR: his body's points (leaning: vr_leanaim.qc)
     // Through a gate: not across a water surface either (point_visible's rule: one end in a liquid, the other not).
     // Ranged monsters through every gate; under the stealth rules every monster through paired ones (vr_stealth_gates:
     // a melee one walks through to him, VR_Stealth_ChaseGate).
