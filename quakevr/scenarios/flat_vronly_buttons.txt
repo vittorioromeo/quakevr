@@ -1,0 +1,8 @@
+# flat_vronly_buttons: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode):
+# the test hall's setting buttons (vr_setup_option, vr_setup.cpp): the headset-only ones read "VR only", greyed, and change
+# nothing; the others step as in VR. flatvronly_test.sh.
+title Flat-screen: the test hall's setting buttons, the VR-only ones greyed
+map vrtesthall
+god
+notarget
+hint Play with -flatscreenmode. The setting buttons on the west wall: Turning, Turn Speed, Move Towards, Swap Sticks, Teleport, Gadget Arm, Flashlight Side, World Scale, HUD and Weapon Grip (and Position by the calibration button) read "VR only" in grey and pressing them changes nothing (the console says so); Run, Climbing, Body and Crosshair still step and show their value.
