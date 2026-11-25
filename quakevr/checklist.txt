@@ -25,6 +25,7 @@ Flat-screen: with the spear and with the Crystal Lance, the shaft's line points 
 Flat-screen: hold the right mouse button with the spear: the parry guard lays the shaft across the view with both hands closed round it. {test:flat_spear}
 Flat-screen: give yourself the Crystal Lance and hold the right mouse button: the same parry guard as the spear (no ironsight zoom); blows from the front are parried; left click still charges and fires. {test:flat_lance_parry}
 Flat-screen: with the spear or the Crystal Lance, press N to flip the grip: your other hand stays on the reversed shaft, closed round it (not floating off it), for both weapons. {test:flat_spear}
+In single player, let grunts shoot at you and lean, duck and hold your arms out: their bullets and missiles hit the body you see (head, torso, arms, legs, a little forgiving), not the 24-wide box; a shot passing just beside you misses. Debug > Tunables > Combat > Other > Body Hit Fattening tunes the leniency (default 5.5). {test:sphit_body}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}

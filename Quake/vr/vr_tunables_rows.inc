@@ -2762,3 +2762,6 @@ QVR_TUNABLE_SLIDER(vr_rope_thumb_lift, "Rope Thumb Lift", -90.f, 90.f, 5.f, "%+.
 QVR_TUNABLE_SLIDER(vr_rope_thumb_shift_x, "Rope Thumb Shift X", -2.f, 2.f, 0.05f, "%+.2f", -5.f, 5.f, "A gripping thumb's base moved along the hand's long axis (hand-rig units; vr_rope_thumb_shift_x).")
 QVR_TUNABLE_SLIDER(vr_rope_thumb_shift_y, "Rope Thumb Shift Y", -2.f, 2.f, 0.05f, "%+.2f", -5.f, 5.f, "A gripping thumb's base moved along the palm's normal (hand-rig units; vr_rope_thumb_shift_y).")
 QVR_TUNABLE_SLIDER(vr_rope_thumb_shift_z, "Rope Thumb Shift Z", -2.f, 2.f, 0.05f, "%+.2f", -5.f, 5.f, "A gripping thumb's base moved across the palm (hand-rig units; vr_rope_thumb_shift_z).")
+
+QVR_TUNABLE_GROUP("Combat > Other")
+QVR_TUNABLE_SLIDER(vr_hit_player_fatten, "Body Hit Fattening", 0.0f, 12.0f, 0.5f, "%.1f u", 0.0f, 32.0f, "Units added to the radius of every part of your drawn body (head, torso, arms, legs) that shots and missiles meet, in single player and multiplayer. 0 is the exact body; more is more forgiving (vr_hit_player_fatten).")
