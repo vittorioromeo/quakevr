@@ -420,3 +420,33 @@ Follow-up to liftshaft (his goal: nothing leaves a monster or bot standing under
   with a print); r1m1 and hip1m1 load and play 28 s clean (r1m1: 1 shaft).
 - **Open:** an AD map not smoke-run (the bridge line only); AD's idle (standing) monsters under a lift wait for the
   bounce's flee (nothing walks them, AD's stand never moves); Honey's own door_blocked not hooked.
+
+## embedhold2: flat stuck blades: the hand kept on its arm, the other hand on the blade (branch agent/embedhold2, 2026-11-25; partial, opt-in)
+
+His flat notes 2026-11-25, items 4 (walking away from a stuck blade took the drawn hand off the wrist) and 11 (the other hand leaves a
+stuck spear/sword). **Not finished: both new rules ship off** (tunables below); what is on by default is engine-side only.
+- **Measured** (new `vr_embed_test 64`, QC/vr_flatembedwalk_test.qc, -flatscreenmode; `scratch1 2` per-frame lines, `scratch2 N` first
+  case): the main hand's most cm past its stretched arm (.vr_embed_armgap) from the stick to 0.5 s after the hold ends. origin/next:
+  ragdoll 31.6 (the body falling off the blade, before any walk), live grunt 31-99, ogre 99, spear 162 (its off hand never joined),
+  sword with a free off hand 48.6/45.6. Causes: (1) the stab going on to its depth (stick_goal, to 14-16 units) carries the drawn hand
+  past the arm; (2) walking: the flat hold's hand is carried by his walk, `far` frees only at 90 cm; (3) the release ease is about the
+  controller, whose flat pose jumps as the weapon comes back (48 cm the frame after); (4) the thrust's arm stretch (1.5 in tests) falls
+  away under a stuck hand (8 cm in a frame).
+- **On by default (engine):** (3) flat release ease from where the hand left the blade carried by the player's origin/yaw
+  (view_hands embedEaseBody); (4) flat `armStretchNow` keeps the most stretch it had while the hand is on a blade (`flatHeld`, eased
+  back off it); new field `.vr_embed_armpast` (signed cm past the most the arm reaches, measured where the pin is going:
+  `view::embedPinLead`); `vr_debug_axestick 4` prints `embedarm:` per frame.
+- **Off by default:** `vr_flat_embed_arm` 0 (Tunables > Flatscreen "Stuck Blade: Hand On Arm"): QC VR_Embed_FlatArm predicts the
+  gap two frames on (armpast + his walk + the body's way; the engine's value is a frame late and the blade is drawn a frame behind),
+  stops a stab's travel at the arm's reach, and past Hold: Let Go Past the handle hand pulls a light body's blade out (VR_Embed_Light,
+  a skewerable ragdoll, a crate whose pull isn't at its most) or lets go of a heavy one; a second hand lets go. Its numbers: ogre 1.3 cm
+  (let go, it stays), ragdoll 0.0 (out as it falls); but on the grunt/spear/sword cases the blade still comes out 0.1 s after the stab,
+  standing (the predicted gap 1.6-3.6 cm: something still moves the drawn hand after the stab; next: `vr_debug_axestick 4` on case 2).
+  `vr_flat_embed_other_hand` 0 ("Stuck Blade: Other Hand", cm; 30 tried): a free other hand within it of the blade's line takes it
+  too (VR_Embed_Try; the engine draws it on the nearest grip hotspot). Works (spear 20.7 cm off the line, joined) but without the arm
+  rule the joined hand is drawn 83 cm off its arm when walking, so it stays off until the arm rule is done.
+- **Seen:** the flat V thrust never hit the large crate in case 0 at 44 units, and walking away from a crate the sword was stuck in hung
+  the game (both seen with the rules off; not chased: case 0 is skipped with `scratch2 1`).
+- **Tests:** vr_embed_test 64 12/7 with the defaults (the gaps above), 14/5 with `vr_flat_embed_arm 1; vr_flat_embed_other_hand 30`.
+  flatthrust_test.sh: blades 7/0 checks passed; the Lance run 0/4 (no Lance in the hand: Dwell likely missing in this worktree's base;
+  not checked against origin/next). VR embed 24/33, flatlance, embeddual not run (budget).

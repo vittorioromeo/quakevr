@@ -2032,6 +2032,10 @@ void calcStats(edict_t* player, int* statsi)
     {
         setFieldVec(player, f.vr_embed_armgap, glm::vec3{avatar::embedArmGapCm(HAND_OFF), avatar::embedArmGapCm(HAND_MAIN), 0.f});
     }
+    if(f.vr_embed_armpast >= 0 && player == progs::localPlayer())
+    {
+        setFieldVec(player, f.vr_embed_armpast, glm::vec3{avatar::embedArmPastCm(HAND_OFF), avatar::embedArmPastCm(HAND_MAIN), 0.f});
+    }
 }
 
 void serverFrame(bool worldRan)

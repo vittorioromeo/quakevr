@@ -190,6 +190,9 @@ struct ForearmFrame
 // vr_embed_arm_stretch_ease); how far (cm) the drawn wrist is past that, as last solved (0: within it, or no blade). QC lets go past
 // vr_embed_arm_letgo (.vr_embed_armgap).
 [[nodiscard]] float embedArmGapCm(int hand);
+// The same signed (embedhold2): cm the drawn wrist is past the most its arm reaches now (the stretch it may take, the shoulder's
+// reach), negative while within it (the reach it has left). QC flat play's VR_Embed_FlatGap (.vr_embed_armpast).
+[[nodiscard]] float embedArmPastCm(int hand);
 // The stretch the arm of `hand` took to reach its drawn wrist, as last solved: 1 none, up to vr_body_arm_stretch (or the
 // blade's, or a flat spear thrust's vr_flat_thrust_arm_stretch).
 [[nodiscard]] float armStretched(int hand);

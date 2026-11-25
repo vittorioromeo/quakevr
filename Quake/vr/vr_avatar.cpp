@@ -1122,6 +1122,8 @@ struct ArmEase
     float embed[2]{0.f, 0.f};          // 0..1: the hand on a blade in a body, its arm's stretch eased in (vr_embed_arm_stretch)
     double embedTime[2]{-1.0, -1.0};   // when it was last eased
     float embedGapCm[2]{0.f, 0.f};     // cm the wrist was past that stretch, last solved
+    float embedPastCm[2]{0.f, 0.f};    // cm the wrist was past the most the arm reaches (signed: negative within it), last solved
+    float flatHeld[2]{1.f, 1.f};       // flat play: the stretch kept while the hand is on a blade (armStretchNow)
     float stretched[2]{1.f, 1.f};      // the arm's stretch taken, last solved (1: none; up to armStretchNow)
 };
 ArmEase armEase;
@@ -1147,7 +1149,12 @@ ArmEase armEase;
         return stretch;
     }
     const float out = za::max(flatplay::thrustOutShare(HAND_MAIN), flatplay::thrustOutShare(HAND_OFF));
-    return out > 0.f ? glm::mix(stretch, za::max(stretch, za::clamp(vr_flat_thrust_arm_stretch.value, 1.f, 2.f)), out) : stretch;
+    const float now = out > 0.f ? glm::mix(stretch, za::max(stretch, za::clamp(vr_flat_thrust_arm_stretch.value, 1.f, 2.f)), out) : stretch;
+    // (A thrust that stuck: the most the arm had as it went in it keeps while the hand is on the blade, not the thrust's easing out
+    // under it, which took the hand off the wrist; eased back once off it. embedhold2.)
+    float& held = armEase.flatHeld[side];
+    held = onBlade ? za::max(held, now) : za::max(now, held - dt / ease * 0.5f);
+    return za::max(now, held);
 }
 
 // Body tracking's fit of the arm (vr_bodytrack_arm_fit): the clavicle turns at most this far (degrees) towards the
@@ -1275,6 +1282,14 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     float l = lengths.fore;
     float d = glm::distance(wrist, u.pos);
     const float maxStretch = armStretchNow(side);
+    // (embedArmPastCm: from where the hand is going on a blade, view::embedPinLead, not where it is drawn on its way there.)
+    const float dOn = posingOther() ? d : glm::distance(wrist + view::embedPinLead(side), u.pos);
+    armEase.embedPastCm[side] = (dOn - (a + l) * maxStretch - za::max(0.f, vr_body_shoulder_reach.value) * b.m2w) / b.m2w * 100.f;
+    if(vr_debug_axestick.value >= 4 && !posingOther() && axestick::handOnBlade(side))
+    {
+        Con_Printf("embedarm: side %d wrist %.1f %.1f %.1f shoulder %.1f %.1f %.1f: %.1f (on it %.1f) of %.1f x%.2f, past %.1f cm\n", side, wrist.x,
+            wrist.y, wrist.z, u.pos.x, u.pos.y, u.pos.z, d, dOn, a + l, maxStretch, armEase.embedPastCm[side]);
+    }
     const auto reachOut = [&] {
         if(const float excess = d - (a + l); excess > 0.f)
         {
@@ -2550,6 +2565,11 @@ bool forearm(int hand, glm::vec3& wrist, glm::vec3& direction)
 float embedArmGapCm(int hand)
 {
     return hand == 0 || hand == 1 ? armEase.embedGapCm[hand] : 0.f;
+}
+
+float embedArmPastCm(int hand)
+{
+    return hand == 0 || hand == 1 ? armEase.embedPastCm[hand] : 0.f;
 }
 
 float armStretched(int hand)
