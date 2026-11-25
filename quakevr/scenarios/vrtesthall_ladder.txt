@@ -1,0 +1,9 @@
+# vrtesthall_ladder: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vrtesthall's brush ladder
+# (make_vrtesthall_map.py: rungs flush on the climbing platform's south face, no gap behind them): flat, walked into with
+# forward held it climbs and mantles onto the platform (Quake/vr/vr_climb.cpp findRungs, flatLadderMount; flatladder_test.sh).
+title vrtesthall: the brush ladder up the climbing platform
+map vrtesthall
+start 464 270 24 90
+god
+notarget
+hint The rungs are ahead on the platform's face. Flat-screen: hold forward into them: the hands take the rungs, you climb hand over hand and mantle onto the top; on the top, back off its edge with the back key: you are lowered onto the rungs and climb down. Headset: grip a rung with an empty hand and pull yourself up.

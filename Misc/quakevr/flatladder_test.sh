@@ -7,6 +7,7 @@
 #   it, the mantle's way backwards) and climbed down to the ground; climbed up then down looking down; climbed up then
 #   pushed off with jump. And no ladder: a plain wall, single ledges 48 and 96 high, the 100 high jump wall, the pit's
 #   stairs (walked up). Then vr_flat_ladder 0: the ladder walked into, no climb.
+#   The same in vrtesthall (its brush ladder: rungs flush on the platform's face, no gap behind them).
 AGENT=${1:-dagger}
 QT_NAME=flatladder
 source "$(dirname "$0")/qvrtest.sh"
@@ -31,6 +32,19 @@ out=$(tb_run_sh "${F[@]}" -QuitOn "^flatladder: [0-9]+ passed" -Timeout 120 -Fil
     -Script "$H; vr_flat_ladder 0; vr_flatladder_test 9; wait3000; toggleconsole; quit" 2>&1)
 echo "$out" | grep -a "^flatladder: \(PASS\|FAIL\)"
 expect_verdict "$out" "flatladder" "ledge ladder: vr_flat_ladder 0, walked into: no climb"
+
+# vrtesthall's brush ladder: rungs flush on the platform's face (no gap behind them): up and over, down from the top,
+# down looking down, push off; the face beside it no ladder; then vr_flat_ladder 0 (case 5 alone): no climb.
+HT="map vrtesthall; wait60; god; notarget"
+out=$(tb_run_sh "${F[@]}" -QuitOn "^flatladder: [0-9]+ passed" -Timeout 180 -Filter "^flatladder" \
+    -Script "$HT; vr_flatladder_test; wait9000; toggleconsole; quit" 2>&1)
+echo "$out" | grep -a "^flatladder: \(PASS\|FAIL\)"
+expect_verdict "$out" "flatladder" "vrtesthall's brush ladder: up and over, down from the top, down looking down, push off; no ladder beside it"
+
+out=$(tb_run_sh "${F[@]}" -QuitOn "^flatladder: [0-9]+ passed" -Timeout 120 -Filter "^flatladder" \
+    -Script "$HT; vr_flat_ladder 0; vr_flatladder_test 5; wait3000; toggleconsole; quit" 2>&1)
+echo "$out" | grep -a "^flatladder: \(PASS\|FAIL\)"
+expect_verdict "$out" "flatladder" "vrtesthall's brush ladder: vr_flat_ladder 0, walked into: no climb"
 verdict
 }
 tb_main "$AGENT" tb_body
