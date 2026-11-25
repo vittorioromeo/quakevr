@@ -1,0 +1,10 @@
+# nav_shaft_e2m4: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". e2m4's lifts (his report of
+# 2026-11-25): you stand on the first lift at its bottom, a grunt beside it; ride it up and down: the grunt never stands
+# under the raised lift, the lift never bounces (liftshaft2; vr_stealth_test 133; NAVMESH.md 24).
+title Lift shafts: e2m4's lifts never bounce on a monster
+map e2m4
+start 1104 2176 180 90
+god
+spawn "Grunt" -30 0
+cvar vr_nav_debug 2
+hint Ride the lift up and down a few times: the grunt keeps out from under it while it is up (the shaft's floor pink) and the lift never bounces back up.

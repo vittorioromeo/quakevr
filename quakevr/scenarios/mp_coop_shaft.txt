@@ -1,0 +1,11 @@
+# mp_coop_shaft: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A coop game on e1m1 at the floor
+# below its first lift (as nav_shaft) with a bot teammate: the bot keeps out from under the raised lift, waits at its edge
+# and boards it once it is down (liftshaft2: frikbot/bot_nav.qc BotShaft; NAVMESH.md 24).
+title Lift shafts: a bot teammate keeps out from under a raised lift
+mp coop
+map e1m1
+start 900 512 -312 180
+god
+bot active 96 0
+cvar vr_nav_debug 2
+hint Ride the lift up: the bot left below never stands under it while it is up (the shaft's floor pink); it waits by the edge and rides it when it comes down.

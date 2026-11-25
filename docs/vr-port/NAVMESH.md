@@ -771,10 +771,30 @@ stands searching there, a knight that chased him under it searches where it saw 
 - **Safety net:** `plat_crush`, `door_blocked`, `train_blocked` call QC `VR_Shaft_Blocked(other)`: a monster that
   blocked a mover walks out for 3 s (`vr_shaft_flee`), its reasons set aside, counting the whole of the mover's way (it
   may be on the lift's edge). Quake's bounce itself is unchanged (mods rely on it).
-- **Bots:** the bots' navmesh walks (`vr_bot_navmesh`, `followPath`) get the same costs; their waypoint walking and
-  the soft wall (players' moves are not `SV_movestep`) don't: a bot can still stand under a lift.
+- **Every mod's monsters** (liftshaft2): `SV_MoveToGoal` (the movetogoal builtin AD's, Copper's and the mission
+  packs' AI call) first walks a monster on the ground out of a live shaft it has no reason in, or is fleeing
+  (`VR_MonsterShaftOut`, the engine reading `.vr_shaft_flee`): the same rule as id1's QC `VR_Shaft_Leave`.
+- **Bots** (liftshaft2): FrikBot's moves are a player's, never `SV_movestep`'s, so the bots get the rule on their
+  own path: `BotShaft` (frikbot/bot_nav.qc), last in `BotAI` and every frame between its AI frames, asks builtin
+  `navshaftbot(bot, goal, wish, what)` (`navshaft::botStep`): in a live shaft with no reason there (its enemy in it,
+  or its target1 when that is a thing: an item, a player it follows; never a waypoint) it walks out (its keys set for
+  the escape yaw), also when its reason ends; when the way its keys take it (a probe of 16 units plus a quarter of its
+  speed: it slides on and may think only each 0.05 s) would take it in or deeper, it lets go of its move keys and
+  waits at the edge till the lift comes down, then goes on and boards it. FrikBot's own 5 s search time gives a goal
+  up while it waits. Swimming bots (waterlevel 3) are left alone; wading counts (e1m1's lift comes down into water).
+  The navmesh walks (`vr_bot_navmesh`) also get the costs.
+- **Mods' movers** (liftshaft2): Rogue's func_new_plat crushes (`dn_and_wait_crush`, `toggle_crush`,
+  `elvtr_crush`, `plat2_crush`), AD's `func_plat`, `func_door`, `func_train` blocked (importer patches calling
+  `VR_AD_ShaftBlocked`, vr_ad_bridge.qc) and Copper's `plat_crush`, `door_blocked`, `train_blocked` (patches calling
+  `VR_CU_ShaftBlocked`) call the safety net; Hipnotic's train and plats are id1's. A bot that blocks one flees too.
 - **Test:** `vr_stealth_test 132` (e1m1, `shafttest: N passed, M failed`): investigate (the grunt's walk ends at the
   shaft's edge; the lift comes down: 0 bounces), fight (a knight goes in after him: allowed; he is moved away out of
   sight: it walks out in 0.9 s; 0 bounces), ride (a knight after him at the top waits by the shaft, never in it while
   the lift is up, boards it once down, rides up in 5.6 s): 10 passed. With `vr_shaft 0`: 3 bounces in each of the
   first two. Scene `nav_shaft`.
+- **Tests (liftshaft2):** `vr_stealth_test 133` (e2m4): a grunt put under each raised lift with a noise right there
+  is out from under it in 3 s (the pits the lifts come down into are a little bigger than them: the margin's band is as
+  far as it goes), the lift let go comes down with 0 bounces (`vr_shaft 0`: 3 at each): 4 passed. `vr_stealth_test
+  134` (e1m1, coop, a bot: `maxplayers 2; coop 1; map e1m1; impulse 100`): put under the raised lift it walks out in
+  0.4 s; given a goal under it (a temp waypoint) it waits at the edge 2.5 s, 0 frames in the shaft; let go, 0 bounces,
+  it boards and rides up in 5.8 s: 5 passed (`vr_shaft 0`: it stays under the lift).

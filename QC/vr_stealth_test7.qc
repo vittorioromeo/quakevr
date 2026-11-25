@@ -9,7 +9,10 @@
 //     player put far away out of its sight, it walks out; the lift comes down with no bounce;
 //   ride: a knight below after the player at the top by the shaft waits beside the shaft (never in it while the lift is
 //     up), boards the lift once it is down, rides it up.
-// `vr_stealth_test 133` on e2m4: the same three cases at each of its two lifts (the 120-unit plats; liftshaft2).
+// `vr_stealth_test 133` on e2m4 (liftshaft2), each of its two lifts (the 120-unit plats) raised and held: under: a grunt
+//   put on the floor under it, a noise right there; after 3 s it is out from under the lift (the pits they come down into
+//   are a little bigger than them), then the lift is let go (as when he rides it down from the top): no bounce. With
+//   `vr_shaft 0`: 3 bounces at each.
 // `vr_stealth_test 134` on e1m1's first lift, a FrikBot bot (coop; the script adds it: `maxplayers 2; coop 1; map e1m1;
 //   impulse 100`): put under the raised lift, it walks out; given a goal under it (a temp waypoint), it comes to the
 //   shaft's edge and waits there, never in it while the lift is up; let go, the lift comes down with no bounce and the bot

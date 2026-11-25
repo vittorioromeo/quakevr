@@ -399,3 +399,24 @@ His ask: much faster loading on the Quest. loadprof measured the Quest 3's cold 
   (2 fails) fail the same with `vr_hull_defer 0`: not this change.
 - Open: the deferred compiles take the pool's free workers while the game runs (a cold load only); the shipped files
   are keyed by the trees' version, not the exe: one generator run serves PC and Quest.
+
+## liftshaft2: lift shafts for bots, every mod's monsters and movers, e2m4 (branch agent/liftshaft2, 2026-11-25)
+
+Follow-up to liftshaft (his goal: nothing leaves a monster or bot standing under a raised lift). Details: NAVMESH.md 24.
+- **Bots:** FrikBot's moves are a player's, so the soft wall never saw them. `BotShaft` (frikbot/bot_nav.qc; last in
+  `BotAI` and every frame between its AI frames) asks the new builtin `navshaftbot` (`navshaft::botStep`): in a raised
+  shaft without a reason (its enemy, or its target1 when a thing; waypoints never) it walks out; when its move would
+  take it in it waits at the edge till the lift is down, then boards. A bot that blocks a lift flees too.
+- **Every mod's monsters:** the engine's `SV_MoveToGoal` walks a monster out first (`VR_MonsterShaftOut`), so AD's,
+  Copper's and the mission packs' AI (movetogoal) leave a shaft as id1's `VR_Shaft_Leave` does.
+- **Movers' safety net:** Rogue's four new-plat crushes, AD's plat/door/train (importer patches, `VR_AD_ShaftBlocked`;
+  QC/ad edited the same way, `ad_import.py --check` still differs in the 6 files it differed in before) and Copper's
+  (importer patches, `VR_CU_ShaftBlocked`, regenerated: 0 differ) call `VR_Shaft_Blocked`; Hipnotic's are id1's.
+- **e2m4:** `vr_stealth_test 133`: a grunt under each of its two raised lifts, the lift let go: `vr_shaft 0` 3 bounces
+  each; 1: out from under the lift in 3 s (its pit is only a margin wider than the lift), 0 bounces: 4 passed.
+- **Tests:** 134 (bot, coop e1m1) 5 passed (`vr_shaft 0`: it stays under); 132 10 passed; lift_ride_test.sh 24 passed;
+  vr_dm_test 19 and 20 pass (19 failed once with and once without BotShaft acting: flaky, async nav in a low-impact run);
+  nav_lift is marginal (reached at 34-57 s of its 60, timed out in 2 of 4 runs; the new code never fired in it, checked
+  with a print); r1m1 and hip1m1 load and play 28 s clean (r1m1: 1 shaft).
+- **Open:** an AD map not smoke-run (the bridge line only); AD's idle (standing) monsters under a lift wait for the
+  bounce's flee (nothing walks them, AD's stand never moves); Honey's own door_blocked not hooked.
