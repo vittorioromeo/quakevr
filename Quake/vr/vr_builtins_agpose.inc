@@ -1322,6 +1322,10 @@ void agPhase(edict_t* g) // VR_AGP_Phase
     }
     if(c == VR_AG_CLASS_MELEE)
     {
+        if(p->v.weapon != WID_CHAINSAW && twohand::poleWeapon(weapons::slotForName(PR_GetString(p->v.model))))
+        {
+            return VR_AGK_POLE; // (QC's: a pole weapon's own keys; its holder posed by QuakeC, agPose)
+        }
         return p->v.weapon == WID_CHAINSAW ? VR_AGK_SAW : (agTwoHanded(p) ? VR_AGK_MELEE2 : VR_AGK_MELEE);
     }
     const AgV h = agWdp(agWorld(), AF(g, vr_ag_kind) * 1000.f + agHoldCode(p), 24.f);
