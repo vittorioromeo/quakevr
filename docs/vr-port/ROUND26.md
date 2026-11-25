@@ -420,6 +420,41 @@ Follow-up to liftshaft (his goal: nothing leaves a monster or bot standing under
   with a print); r1m1 and hip1m1 load and play 28 s clean (r1m1: 1 shaft).
 - **Open:** an AD map not smoke-run (the bridge line only); AD's idle (standing) monsters under a lift wait for the
   bounce's flee (nothing walks them, AD's stand never moves); Honey's own door_blocked not hooked.
+## flatkeys2: new flat default keys, and two keys per action (branch agent/flatkeys2, 2026-11-25)
+
+His words (2026-11-25): ammo switch B -> N, throw J -> B, "make it possible for the same action to have two separate
+bindings. Crouch/slide should be bound to both C and left ctrl by default."
+- **Defaults**: `vr_flat_key_ammo` "n", `vr_flat_key_throw` "b", `vr_flat_key_toolgun_adjust` "n" (it shared the ammo
+  key, the headset's X/A on the toolgun hand: it follows the ammo key to N, so B, the throw, clashes with nothing), new
+  `vr_flat_key_crouch` "c CTRL" (the crouch / slide, Left Ctrl alone and hard-wired before). Default binds on the new
+  keys: N `+reloadleft` (a VR bind: in flat play the flat key wins, Controls shows the "!"), C `+movedown` (the same; the
+  crouch keys now swim down in water instead: new `vr_flat_crouch_swim` 1), CTRL `+attack` (as before: fires nothing in
+  flat play). Nothing else of the flat keys was on N, B or Ctrl.
+- **Migration**: none needed, none added. Flat keys never were in a full (pre-218) config, and a sparse config writes a
+  flat key only when it differs from its default: a player who left B/J has no line and gets N/B; a player's own key has
+  its line and keeps it (flatkeybind_test's old-config case). A "bindings version" step would overwrite a player who
+  picks B for ammo in the new build, so no step (decision, conservative).
+- **Two keys per action** (one path for every flat key): each `vr_flat_key_*` holds up to `flatplay::keySlots` (2) bind
+  names, a space between ("c CTRL"; an old one-key value is slot 1). `flatplay::keyNum / keyIs / keyHeld / setKey`
+  (vr_flatmove.cpp, vr_flatplay.hpp) are the only readers and writer: every key poll (vr_flatplay, flatreload,
+  flatgrenade, flatholster, flycam, voicechat, the lean), `VR_FlatKeyOwned`, the clash checks, the tips' `{key:}` (the
+  first key) and the VR menu's Push-to-Talk row (its first key). setKey keeps the slots packed (clearing the first moves
+  the second up), never puts one key in both, and keeps the default's spelling (a sparse config).
+- **Options > Controls**: a flat row shows both keys ("C, CTRL"; the cursor row an empty second as "???"); Left/Right picks
+  the key (the picked one in white; never past the first empty), Enter + key sets it, Escape cancels, Backspace clears it
+  (`VR_FlatKeyGet/Set(i, slot, ...)`, `keysmenu.flatslot`); the hint line says so on flat rows; "!" per clashing key.
+- **The crouch**: a flat key now (pollKeysFlat reads `vr_flat_key_crouch`). The Ctrl bind takeover (+flatcrouch bound to
+  CTRL while the mode ran, handed back before each config write: `VR_FlatKeysForConfigWrite`) is gone: VR_FlatKeyOwned
+  already keeps a flat key's bind from running, so Ctrl fires nothing and the binds are never touched.
+  `vr_flat_crouch_fire` 1 (row renamed "Crouch Keys Keep Binds") lets the crouch keys' binds run too. `+flatcrouch` stays.
+  New `vr_flat_crouch_swim` (1, row "Crouch Keys Swim Down", Locomotion > Desktop Screen Play): in water the crouch keys
+  swim down (`VR_FlatCrouchSwim` in CL_BaseMove), as C's +movedown did.
+- Tests: flatkeybind_test 31/0 (16 old + 15 new: defaults, C and Ctrl crouch and neither bind runs, crouch_fire 1, a
+  second key added from Controls and both reload, Escape / clear per slot, the written config keeps "r t", a fresh game
+  reads it back and t reloads, an old config migrates and keeps the player's drop key, swimming down 49 vs 17 units in
+  30 frames); flatkeys_test 36/0 (the ctrl cases rewritten: the bind left alone, not run in flat play, written as
+  +attack); flatinput 19/0; flat_ammo_key 7/0, flatthrow 38/0, flattoolgun 11/0 (keys N, B, N); vr_msgtokens_test
+  12/0; vr_menu_path_check 0 missing; menu_paths.txt (the two rows).
 
 ## flatmisc1125: aim sway reduction, VR-only map buttons in flat play, melee arcs in flat play (branch agent/flatmisc1125, 2026-11-25)
 
@@ -484,3 +519,36 @@ His items 3, 5, 12 (2026-11-25).
   spear flat 6/0. The flipped dagger missed with the hand raised and 40 down: down 25 lands (38 damage, stuck 1.8).
   Scene `flat_melee_v`. Shots: kit scratch flatmelee4_before.png, flatmelee4_after2.png (empty V, flipped sword,
   dagger, spear: rest, windup, strike), flatmelee4_spearvar.png (the flipped spear's off hand).
+## climbfix: vrtesthall's brush ladder climbable flat; rope/pole elbows wider; hands kept on the wrists in a slide (branch agent/climbfix, 2026-11-25)
+
+- **Brush ladder (his 10):** vrtesthall's rungs (8 deep, flush on the platform's face: no gap behind, unlike the
+  tutorial's bars) never took in flat play. The map was fine and a headset's grip took them (`vr_climb_try` on a rung top:
+  a hold). The flat ladder's probe column (`findRungs`, vr_flat_ladder_reach ahead of the box's front) lay 4 units inside
+  the platform once his box was against it, and every hold seen from there failed findHold's `check` (the hand's point at
+  the rung's back edge, on the wall's face: "unreached"). Fixed in the detection, flat only: a probe that finds nothing
+  and sits in solid is tried again moved back out of the solid towards him (at most its radius). Lowering onto the
+  ladder from the top (`flatLadderMount`) had the same shape of problem: the hang spot off the lip's line put the box in
+  the rungs; when that spot has no room it now also tries off the lower rung's front (and 4 and 8 further). Tutorial,
+  Quoth and AD ladders unchanged (their first tries still succeed).
+- **Elbows (his 13):** measured on vrropes climbing up (`vr_rope_flat_test`, rope and pole, from the 12th frame): on the rope
+  the elbows were bowed in off the arms' lines by up to 8.7 cm and 21.9 cm inside the shoulders' line, at the hand pulled
+  in to the rope by the chest. That arm's line points across the chest, so little of ropes10's elbow pose (out, a little
+  down and back) is square to it and the down/back took the elbow in front of the chest. New tunable
+  `vr_rope_elbow_wide` (4; 1 = ropes10's; Debug > Tunables "Rope Climb Elbows Wide") weighs the side against the down and
+  back (vr_avatar.cpp solveArm; all drawn arms on a rope: yours flat and VR, other players'). Rope: bow at least -8.7 ->
+  -1.5 cm, side mean -4.5 -> -0.6 (least -21.9 -> -15.3: a hand at the chest's middle keeps its elbow near the line; the
+  rest is the hand's place, not the pose). Pole: bow least 4.9 -> 6.4, side mean 7.4 -> 9.1 cm. Wider than 3 changes
+  little. New check in rope_flat_test (rope, pole): "the elbows while climbing" (none bowed in past 2.5 cm; on the pole
+  out of the shoulders' line by 5 cm on average). Shots: qvr-kit/scratch/climbfix_rope_elbows_wide1.png / _wide4.png
+  (`vr_rope_flat_test rope shots`, the first two: climbing, from the front and behind).
+- **Slide (his 14):** the slide lock (flatfb1124b) keeps each hand where it was on the body while the crouch lowers the
+  shoulders, so the arm ran out and the drawn hand showed off its wrist. Measured with the new `avatar::armWristGap`
+  (units from the drawn wrist to its arm's end): pole slide 8.02 units most, 51 of 60 frames; rope slide 4.73, 50 of 62.
+  Now the locked hands come down the rope by `vr_flat_rope_slide_hands_in` (10 units; Debug > Tunables "Rope Slide:
+  Hands In"; 0 = as before), eased in at most 0.6 units a frame, and further by any gap the arm had last frame (up to
+  24). After: 0.00 units, 0 frames, on both; the pole slide's elbow shake 1.09 -> 0.35. rope_flat_test slide/poleslide
+  now check the gap (no frame over 0.05).
+- Tests: flatladder_test.sh 4/0 (with the new vrtesthall cases: up and over, down from the top, down looking down, push
+  off, the face beside it, vr_flat_ladder 0), modladder_test.sh 10/0; rope_flat_test rope 10/0, pole 9/0, slide 9/0,
+  poleslide 10/0, polejump 8/0, strung 5/0, slideend 2/0; rope_climb_test rope_climb, pole_wood 13/0; rope_hands_test
+  6/0. Scene vrtesthall_ladder. Ladder shot qvr-kit/scratch/climbfix_ladder.png.

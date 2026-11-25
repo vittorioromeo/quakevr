@@ -3809,11 +3809,31 @@ void findRungs(edict_t* ent, const glm::vec3& eye, const glm::vec3& fwd, float l
         for(float z = from; z <= to && out.count < maxRungs; z += step)
         {
             bool lenient = false;
-            const za::Optional<Ledge> l = findHold(seekerOf(ent), glm::vec3{column.x, column.y, z}, glm::vec3{0.f}, eye, radius, propLow,
-                lenient, nullptr, lower);
+            glm::vec3 probe{column.x, column.y, z};
+            za::Optional<Ledge> l = findHold(seekerOf(ent), probe, glm::vec3{0.f}, eye, radius, propLow, lenient, nullptr, lower);
+            if(!l)
+            {
+                // Rungs flush on a wall (vrtesthall's: no gap behind them, his note 2026-11-25): the probe deep in the wall
+                // takes them at their back edge, along the wall's face, and finds no way over them. Again from the wall's
+                // face (the probe moved back out of the solid, towards him, at most `radius`).
+                const glm::vec3 back = fwd * (behind ? 1.f : -1.f);
+                glm::vec3 p = probe;
+                vec3_t pt{p.x, p.y, p.z};
+                for(float d = 0.f; d < radius && SV_PointContents(pt) == CONTENTS_SOLID; d += 1.f)
+                {
+                    p += back;
+                    pt[0] = p.x;
+                    pt[1] = p.y;
+                }
+                if(p != probe && SV_PointContents(pt) != CONTENTS_SOLID)
+                {
+                    probe = p;
+                    l = findHold(seekerOf(ent), probe, glm::vec3{0.f}, eye, radius, propLow, lenient, nullptr, lower);
+                }
+            }
             if(vr_climb_debug.value >= 4.f)
             {
-                Con_Printf("climb: flat ladder probe (%.1f %.1f %.1f) r %.1f [%.1f..%.1f]: %s\n", column.x, column.y, z, radius, bottom,
+                Con_Printf("climb: flat ladder probe (%.1f %.1f %.1f) r %.1f [%.1f..%.1f]: %s\n", probe.x, probe.y, z, radius, bottom,
                     high, l ? va("top %.1f out %.2f %.2f hold %.1f %.1f %.1f%s", l->top, l->out.x, l->out.y, l->hold.x, l->hold.y,
                                   l->hold.z, l->drawn ? " drawn" : "")
                             : "none");
@@ -4043,6 +4063,17 @@ bool flatLadderMount(edict_t* ent, Climber& c, const VrMove& move, const glm::ve
         if(o <= offLeast)
         {
             break;
+        }
+    }
+    if(!ok && !volume)
+    {
+        // Rungs standing out of the wall under the lip (vrtesthall's, flush on its face, 8 deep; his note 2026-11-25): the
+        // box hangs off the rung under the lip's front (its hold holdInset in from it), not off the lip's.
+        const float rungFront = za::max(0.f, glm::dot(below.hold - lip.hold, lip.out)) + ledges::holdInset;
+        for(float o = ent->v.maxs[0] + 1.f + rungFront; !ok && o <= ent->v.maxs[0] + 1.f + rungFront + 8.f; o += 4.f)
+        {
+            to = glm::vec3{line.x + lip.out.x * o, line.y + lip.out.y * o, hangZ};
+            ok = tryHang(to, mid);
         }
     }
     if(!ok && volume)
@@ -5277,6 +5308,9 @@ struct Pin
     bool slideLocked{false};
     glm::vec3 slideFrom{0.f}, slideOut{1.f, 0.f, 0.f}, slideUp{0.f, 0.f, 1.f};
     glm::vec3 slideRope{0.f}; // the rope as drawn from the locked hold, eased (slideRopeEase)
+    // (climbfix) how far the locked hold has come down towards the shoulders (vr_flat_rope_slide_hands_in, eased), and the
+    // more it was taken down for the arm's reach (the wrist off its arm last frame: avatar::armWristGap)
+    float slideIn{0.f}, slideReach{0.f};
     [[nodiscard]] float eased() const
     {
         return along * along * (3.f - 2.f * along);
@@ -5297,6 +5331,10 @@ constexpr int mantleStatBit = 1 << 30; // STAT_QVR_CLIMB: mantling now (bits 0-2
 constexpr int slideStatBit = static_cast<int>(1u << 31); // (flatfb1124b) and sliding down a rope or pole (flatSliding)
 constexpr float slideRopeEase = 0.15f; // (flatfb1124b) seconds a sliding hand takes to follow the rope's sway
 constexpr float slideRopeFar = 6.f;    // (flatfb1124b) units: the rope further than this from a sliding hand is not followed
+constexpr float slideInEase = 0.1f;    // (climbfix) seconds the sliding hands take to come down to vr_flat_rope_slide_hands_in
+constexpr float slideInStep = 0.6f;    // (climbfix) units a frame at most (the palms' move from the body smooth: under 1)
+constexpr float slideGapSlack = 0.02f; // (climbfix) units: a wrist off its arm by less is on it
+constexpr float slideReachMost = 24.f; // (climbfix) units: the most the hands come down more for the arms' reach
 constexpr float ropeHoldNear = 12.f;   // units: a hold this near a drawn rope is on it (a frame's swing between them and more: ropeHold)
 constexpr float ropeHandOut = 0.025f;  // m: a hand on a rope, its palm's middle from the rope towards the climber (ropeHandOffset)
 constexpr float ropeHandSurface = 0.4f; // of its thickness: at least this far (a thick chain's surface, a little in: ropePalm)
@@ -5916,8 +5954,22 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
                 pin.slideOut = pin.toOut;
                 pin.slideUp = pin.toUp;
                 pin.slideRope = glm::vec3{0.f};
+                pin.slideIn = pin.slideReach = 0.f;
             }
-            const glm::vec3 locked = s.playerOrigin + pin.slideFrom;
+            // (climbfix, his flat note 2026-11-25: "the hand sometimes visually detaches from the wrist" in a quick slide) The
+            // crouch lowers the shoulders under the locked hands: the hands come down the rope by vr_flat_rope_slide_hands_in
+            // (eased in, slideInEase), and on by as much as the arm fell short of the wrist last frame, so it never does for
+            // long; each at most slideInStep a frame (the palm's move smooth).
+            {
+                const float want = za::clamp(vr_flat_rope_slide_hands_in.value, 0.f, 24.f);
+                const float gap = avatar::armWristGap(hand);
+                // (0: off, the hands where they were locked, as before)
+                pin.slideReach = want <= 0.f ? 0.f : za::min(pin.slideReach + (gap > slideGapSlack && dt > 0.f ? gap : 0.f), slideReachMost);
+                const float target = want + pin.slideReach;
+                const float step = (target - pin.slideIn) * za::min(1.f, dt / slideInEase);
+                pin.slideIn += za::clamp(step, -slideInStep, slideInStep);
+            }
+            const glm::vec3 locked = s.playerOrigin + pin.slideFrom - glm::vec3{0.f, 0.f, pin.slideIn};
             glm::vec3 onRope{0.f};
             glm::vec3 ropeAxis{0.f};
             float ropeThick = 0.f;

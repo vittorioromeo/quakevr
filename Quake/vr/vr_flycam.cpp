@@ -531,8 +531,7 @@ glm::vec3 eyeAngles()
 
 void frame(bool flatOn)
 {
-    const int k = vr_flat_key_flycam.string[0] ? Key_StringToKeynum(vr_flat_key_flycam.string) : -1;
-    const bool key = flatOn && key_dest == key_game && k > 0 && k < MAX_KEYS && keydown[k] != 0;
+    const bool key = flatOn && key_dest == key_game && flatplay::keyHeld(vr_flat_key_flycam);
     if(key && !cam.keyWas)
     {
         setCvar(!cam.on);
