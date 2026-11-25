@@ -315,7 +315,7 @@ Where it goes (the stages over ~400 ms):
 | ad_sepulcher | 5,760 | 4,540 | 1,590 | 1,170 |
 
 Quest vrstart: the brushes 10.8 s -> read; the hull no longer in the stages over 400 ms. PC: brushes 631 -> 56 ms,
-the hull wait 451 -> 0. (Change 2 measured on the PC only: e1m1's trees then read.)
+the hull wait 451 -> 0. Change 2 on the Quest (the final APK, warm): e1m1 1,625 ms, its trees read in 44 ms (601 compiled before), every tree of the session read (31, 0 missed).
 
 **Checked**: `vr_hull_cache 2` on vrstart and ad_sepulcher (cold, then read and rebuilt): `checked 15 same 0 differed`
 (13 trees, 2 brushes); `vr_hull_keeptest` on vrstart with the brushes read: PASS, brushes hash 8805c822 = fresh;
