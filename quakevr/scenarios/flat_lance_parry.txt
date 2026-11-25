@@ -1,0 +1,6 @@
+# flat_lance_parry: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Flat-screen: the Crystal Lance's right mouse button: the spear's parry guard (polepose)
+map vrtesthall
+god
+give "Crystal Lance" main
+spawn "Ogre" 120 0
