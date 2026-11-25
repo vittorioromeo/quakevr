@@ -700,3 +700,30 @@ His items 3, 5, 12 (2026-11-25).
 - **Tunables** (Debug > Tunables > Combat > Other): `vr_monster_lean` (1; 0 is the old behaviour), `vr_monster_lean_spread` (0.2), `vr_monster_lean_react` (0.4).
 - **Test:** `vr_sphit_test 2` (QC/vr_crouch_test.qc) now ends with a live grunt's received DPS, 90 s per case, grunt 280 ahead held on its spot, a wall 20 ahead with its edge 9 right of him (16 shows his drawn body from straight ahead never: the body is +-8 of the head). Run: `run.sh <tree> -Script "map vrteleporters;wait30;vr_lean_recenter 0;vr_mock_look 0 90;vr_sphit_test 2" -QuitOn "sphitlean: [0-9]+ passed"` (vr_lean_recenter 0: the untilted mock lean is not detected as a lean, the body would slide under the head). Result: open 3.17, lean 1.09, hidden 0.00 DPS (lean 34% of open), 3 passed 0 failed. Spread 0.1 gave 52%, 0.14 57-61% (40 s cases: about +-15% noise).
 - **Open:** the drawn body is posed entirely under the head, so a 30 cm lean shows all 7 points (fraction 1): the spread's lower half applies. Real leans (vr_lean_detect) keep the origin; not checked in a headset.
+
+## embedhold2 after the second merge: the flat arm's rules leave a swung blade alone (branch agent/embedhold2, 2026-11-26)
+
+- Merged `origin/next` (merge commit 842b5aac6, next at b25b90edd: polepose, leanaim, flat V work). No conflicts. The `spear`
+  and `flatthrust` sections that were red in the previous round's report were the pre-polepose ones: with next in the tree
+  `flatthrust` 58 is 12/0 and the flat spear section is 6/0.
+- **The rule** (`QC/vr_embedhold.qc`): the flat arm's rules are for a blade that went in **by its point**. New predicate
+  `VR_Embed_FlatArmBlade(e)` = `vr_flat_embed_arm != 0 && e.vr_stick_embed == AXESTICK_POINT`, used at the top of
+  `VR_Embed_FlatArm` (its draw-out slide, its "the arm ran out: free it or let go", its two hands' let-go) and at the flat
+  going-in clamp in `VR_Embed_HoldThink` (the depth a stab stops at). An axe's flat V is the engine's overhead swing and its
+  edge is wedged in the body's cut (`weapons.txt embed "2"`), so the arm neither draws it back along its axis nor runs out on
+  it: walking away never brings a swung axe into the hand; its hold ends, if it ends, by the rules it had before
+  (H, another weapon, the hold's own reach and yank). His item 4 ("the blade comes out about 0.1 s after the stab") is a thrust's.
+- **Test**: `vr_embed_test 64` (`QC/vr_flatembedwalk_test.qc`) gained case 6 "axe": the axe V'd at a grunt 28 ahead (its swing
+  reaches shorter than a thrust: at 40 flat play's axe V meets nothing, in `vr_embed_test 58` too), it goes in by its edge
+  (2.8 units), standing still nothing moves it, walking away 601 units in 217 frames leaves it **still held**, with
+  `vr_flat_embed_arm` 1 and 0 alike (9 passed 0 failed, six runs, both arms). `Misc/quakevr/embedhold_test.sh` runs all seven
+  cases both ways.
+- **Not ours, closed**: `embed1108` is 21 passed 3 failed with the promoted defaults, the same three FAIL lines (all three the
+  axe's: "the axe stays in it held", "case 7 an axe swung stays in the dummy", "case 9 an axe swung stays in the grunt") as
+  with `vr_flat_embed_arm 0; vr_flat_embed_other_hand 0`, and as plain next. Both cvars are read only inside `VR_FlatPlay`, so a
+  mock-headset run cannot change: the earlier 20/4 was the flaky "case 10: the sword's stab stays in the grunt".
+- **Tree-local, open**: built in this tree, plain next (b25b90edd, no branch commits) gives `vr_embed_test 59`'s Crystal Lance
+  0/4 ("0 damage", "stuck by its point depth 0.0", the punch line printed "not a swinging weapon, overhead swing") and the VR
+  spear mock `embedspear` 23/2 twice ("the Lance's swing landed with its shaft... the butt, 0.17 of the line", "8 of 10 straight
+  throws"), where the same commit in the mp tree gives 7/0 and 25/0. Something in this tree's game folder differs (the AD/Dwell
+  side): don't trust this tree's numbers for those two sections until someone looks.
