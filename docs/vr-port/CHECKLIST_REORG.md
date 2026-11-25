@@ -260,7 +260,7 @@ quakevr/checklist.txt: 162 lines down to 132 (all tagged). His ticks file read f
 
 ## Checklist tidy, seventh pass (2026-11-25, cltidy7)
 
-quakevr/checklist.txt: 132 lines down to 115 (all tagged; the file had more since). No 2026-11-25 voice notes exist (latest are the 11-24 flat-feedback files).
+quakevr/checklist.txt: 135 item lines down to 118 (all tagged). No 2026-11-25 voice notes exist (latest are the 11-24 flat-feedback files).
 - **Retired (17):** every line whose exact text is in his checklist_ticks.txt (the flat Lance pose/thrust/grip lines, flat axe stick, pole slide, flat zoom, tutorial in MP, wheel default, sights hue, wheel button with blades, spear, Dwell Lance pole/flip/HUD). The centre-message line stays: its text changed ("20% smaller") after his tick.
 - **New section "[2. Quest Standalone]" (16 lines):** the lines done on the headset itself (logcat, performance, Standalone preset looks, foveation, dynamic resolution, gib thinning, campaigns, dither and bullet time, app loading, data-version warning). The Installer and Setup's Quest step (pushing files from the PC) stay in section 1. Sections 2-12 are now 3-13; names unchanged.
 - **Scenes removed (7, nothing else uses them):** flat_lance, flat_thrust_blades, flat_holster_dagger, flat_embed_axe, flat_zoom_aim, sight_front_hue, dwell_lance_pole.
