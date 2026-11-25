@@ -2298,9 +2298,9 @@ QVR_TUNABLE(vr_flat_thrust_1h_rev_up, "6") // and the fist raised this far (unit
 QVR_TUNABLE(vr_flat_embed_pull, "12") // flatscreen: a blade stuck in a body, its hand's fire button pulls the hand back this far along the blade (units; QC vr_embedhold.qc VR_Embed_FlatHand)
 QVR_TUNABLE(vr_flat_embed_pull_time, "0.2") // seconds of that pull back (and of the hand's way back onto the grip)
 QVR_TUNABLE(vr_flat_embed_pull_hold, "0.25") // seconds held pulled back, the blade following it out by the hold's rules
-QVR_TUNABLE(vr_flat_embed_arm, "0") // flatscreen: a hand on a stuck blade stays on its arm: past Hold: Arm Stretch the hand pulls a light body's blade out or lets go of a heavy one; a stab goes no deeper than the arm follows (QC VR_Embed_FlatArm; 0: only H lets go)
-QVR_TUNABLE(vr_flat_embed_arm_slip, "10") // flatscreen: cm a hand on a stuck blade may slip off its handle, drawn on its arm, before it lets go or pulls the blade out (a body staggering off mostly comes back; vr_flat_embed_arm)
-QVR_TUNABLE(vr_flat_embed_other_hand, "0") // flatscreen: a free other hand within this many cm of a blade stuck by the hand takes it too (QC VR_Embed_Try; 0: never)
+QVR_TUNABLE(vr_flat_embed_arm, "1") // flatscreen: a hand on a stuck blade stays on its arm: standing still nothing lets go and the blade stays in; as its holder steps off it (walking away) the arm draws a pointed blade back out of a light body or lets go of a heavy one; a stab goes no deeper than the arm follows (QC VR_Embed_FlatArm; 0: only H lets go)
+QVR_TUNABLE(vr_flat_embed_arm_slip, "10") // flatscreen: cm a hand on a stuck blade may slip off its handle, drawn on its arm, before it lets go or pulls the blade out while going off it (standing still the arm holds however far; vr_flat_embed_arm)
+QVR_TUNABLE(vr_flat_embed_other_hand, "30") // flatscreen: a free other hand within this many cm of a blade stuck by the hand takes it too (the spear's shaft, a sword's two-handed grip; QC VR_Embed_Try; 0: never)
 QVR_TUNABLE(vr_flat_melee_2h_parry_fwd, "0") // the parry's guard held in two hands: the hand this far further ahead than the one-handed guard (units)
 QVR_TUNABLE(vr_flat_melee_2h_parry_up, "0") // and this far higher (units; negative lower)
 QVR_TUNABLE(vr_flat_melee_2h_parry_out, "0") // and this far further out at its own side (units; negative inwards)

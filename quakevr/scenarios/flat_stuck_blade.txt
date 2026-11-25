@@ -1,0 +1,11 @@
+# flat_stuck_blade: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen: a blade stuck in a body keeps its hands on their arms (QC/vr_embedhold.qc VR_Embed_FlatArm: vr_flat_embed_arm, vr_flat_embed_arm_slip, vr_flat_embed_other_hand).
+title Flat-screen: a stuck blade stays in, its hand stays on the arm
+hint Play with -flatscreenmode. V a sword into the grunt and touch nothing: the blade stays in and your hand stays on its handle, nothing creeping out a tenth of a second after the stab. Then walk backwards holding it: your arm reaches its most and the blade comes back out into the hand, the hand never jumping off the wrist. The ogre is too heavy to move: walking away from it the hand lets go and the sword stays in the body. A grunt staggering off with your sword in it: the hand slips along the handle and stays drawn on the arm. Reset to try again.
+map vrtesthall
+god
+notarget
+cvar vr_flat_embed_arm 1
+cvar vr_flat_embed_arm_slip 10
+give "Knight's Sword" main
+spawn "Grunt" 120 -60
+spawn "Ogre" 120 60

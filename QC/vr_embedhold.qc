@@ -907,13 +907,16 @@ void(entity e, entity p, entity h) VR_Embed_Brake =
 
 // Flat play (embedhold2, his flat note 2026-11-25 item 4): a hand drawn on the stuck blade `e` never leaves its arm. The engine draws it
 // on the handle (embedDrawnHand), the avatar's arm reaching for it stretched up to Hold: Arm Stretch (vr_embed_arm_stretch, eased in).
-// Before the next frame would take it past that by Hold: Let Go Past (vr_embed_arm_letgo), walking away or the body going: the handle's
-// hand pulls a light body's blade out (a standing monster's Light Hold, VR_Embed_Light; a ragdoll that can be skewered; a crate the
-// pull moves), else lets go of a heavy or anchored one, which keeps it; a second hand lets go. vr_flat_embed_arm 0: as before (only H or
-// another weapon lets go). TRUE: it came out (in the hand).
+// Before the next frame would take it past that by Hold: Let Go Past (vr_embed_arm_letgo) plus Hold: Hand Slip (vr_flat_embed_arm_slip),
+// walking away or the body going: the handle's hand pulls a light body's blade out (a standing monster's Light Hold, VR_Embed_Light; a
+// ragdoll that can be skewered; a crate the pull moves), else lets go of a heavy or anchored one, which keeps it; a second hand lets go.
+// (Only once he is the one stepping off the blade: `VR_FLATARM_STEP` units of his own step away from it in a think. Standing still nothing
+// here ends the hold, nothing draws the blade out: his item 4, "the blade comes out about 0.1 s after the stab"; the hand slips on its
+// handle and the engine keeps it drawn on its arm, view::keepOnArm.) vr_flat_embed_arm 0: as before (only H or another weapon lets go). TRUE: it came out (in the hand).
 float vr_embed_fgoff;  // (this think's VR_Embed_FlatGap: the off hand's)
 float vr_embed_fgmain; // (the main hand's)
 float vr_embed_fgper;  // (the handle's hand's more, cm, a unit further in)
+float VR_FLATARM_STEP = 0.5; // units this think's holder's own step, off the blade, that is him walking away (not the blade's origin jittering, not his eye easing in)
 
 // Flat play, each hold think first: the gaps the next frame will have (the body going on as it went), and what the next think's go from.
 void(entity e, entity p) VR_Embed_FlatArmGaps =
@@ -952,9 +955,12 @@ float(entity e, entity p, entity h, vector xHostWas) VR_Embed_FlatArm =
     // "the weapon should be pulled out ... as the player moves"), the hands with it: the body going off after the stab, his walking
     // away. All of it out: it is in the hand. Only what that can't mend (going off across the blade, an axe's edge) decides below.
     float per = vr_embed_fgper;
-    // (Only as he walks away: a body staggering off after the stab mostly comes back; the hand slips meanwhile, drawn on its arm.)
+    // (Only when he is the one going off the blade: his own eye stepped `VR_FLATARM_STEP` units or more away from it this think. Standing
+    // still nothing here ends the hold and nothing draws the blade out (his item 4: "the blade comes out about 0.1 s after the stab"), and
+    // a body staggering or settling under the stab, which mostly comes back and moves the blade's drawn place about by tens of units, is no
+    // pull: the hand slips on its handle while the engine keeps it drawn on its arm, view::keepOnArm.)
     vector stepAway = p.origin + p.view_ofs - vr_embed_fgroot;
-    float away = (vr_embed_fgarmed && (stepAway * (e.origin - p.origin)) < -0.01);
+    float away = (vr_embed_fgarmed && stepAway * (e.origin - p.origin) < -VR_FLATARM_STEP);
     float slip = max(0, cvar_hget(cvarh_vr_flat_embed_arm_slip));
     if(handleGap > letgo && away && e.vr_stick_embed == AXESTICK_POINT && per > 1)
     {
@@ -979,7 +985,7 @@ float(entity e, entity p, entity h, vector xHostWas) VR_Embed_FlatArm =
         gapMain = gapMain - u * per;
         handleGap = letgo * 0.5;
     }
-    if(handleGap > letgo + slip)
+    if(away && handleGap > letgo + slip)
     {
         float out = h.health > 0 ? VR_Embed_Light(h) : (VR_Embed_Skewer(h) > 0);
         if(VR_Embed_InProp(e))
@@ -999,11 +1005,11 @@ float(entity e, entity p, entity h, vector xHostWas) VR_Embed_FlatArm =
         VR_Embed_DropHands(e, sprintf("out of the arm's reach (%.1f cm past it, a heavy body)", handleGap));
         return FALSE;
     }
-    if(e.vr_hold_handle != 1 && gapOff > letgo + slip)
+    if(away && e.vr_hold_handle != 1 && gapOff > letgo + slip)
     {
         VR_Embed_DropHand(e, cVR_OffHand, sprintf("out of the arm's reach (%.1f cm past it)", gapOff));
     }
-    if(e.vr_hold_handle != 2 && gapMain > letgo + slip)
+    if(away && e.vr_hold_handle != 2 && gapMain > letgo + slip)
     {
         VR_Embed_DropHand(e, cVR_MainHand, sprintf("out of the arm's reach (%.1f cm past it)", gapMain));
     }

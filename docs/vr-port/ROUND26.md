@@ -513,3 +513,34 @@ stuck spear/sword). **Not finished: both new rules ship off** (tunables below); 
   off, the face beside it, vr_flat_ladder 0), modladder_test.sh 10/0; rope_flat_test rope 10/0, pole 9/0, slide 9/0,
   poleslide 10/0, polejump 8/0, strung 5/0, slideend 2/0; rope_climb_test rope_climb, pole_wood 13/0; rope_hands_test
   6/0. Scene vrtesthall_ladder. Ladder shot qvr-kit/scratch/climbfix_ladder.png.
+
+## embedhold2b: a stuck blade's hand stays on its arm and nothing comes out on its own; the other hand joins the shaft (branch agent/embedhold2, 2026-11-25/26; the continuation of the section above)
+
+- **What the rules do now** (QC `VR_Embed_FlatArm`/`VR_Embed_FlatGap`, `view::keepOnArm`, engine
+  `avatar::embedReachNow`/`embedArmPastFrom`): the engine measures its own arm - the last solve's shoulder from the eye, the most the
+  drawn hand may be from it, and what it measured the gap against (`.vr_embed_armseenoff/main`, `.vr_embed_armeye`). QC's gap adds only
+  what the blade moved since the frame it was drawn, so the client's frame lag is no longer counted twice (that was much of the
+  "0.1 s after the stab"). `view::keepOnArm` slides a hand drawn on a blade back along its way from its own controller place, so it is
+  never drawn past its wrist. **Standing still nothing ends the hold and nothing draws the blade out**: the arm's decisions (draw a
+  pointed blade back out of a light body, let go of a heavy one) and the pull-out slide only run once the holder's own step this think
+  is `VR_FLATARM_STEP` (0.5 units) *off the blade* - his walking away, the body going with the blade in it - not on the blade's drawn
+  place jittering by tens of units or a body staggering under the stab. Between those, the hand slips on its handle up to
+  `vr_flat_embed_arm_slip` past Hold: Let Go Past.
+- **Defaults shipped** (his items 4 and 11): `vr_flat_embed_arm` 1 (row "Stuck Blade: Hand On Arm"), `vr_flat_embed_arm_slip` 10 cm
+  ("Stuck Blade: Hand Slip"), `vr_flat_embed_other_hand` 30 cm ("Stuck Blade: Other Hand": the free empty other hand takes a stuck blade
+  within that far of its line - the spear's shaft does, a one-handed sword stuck in a body at arm's length does not: its handle is a
+  metre off the hand idle at his side, and nothing reaches over for it).
+- `vr_embed_test 64` (QC/vr_flatembedwalk_test.qc) now checks the standing-still half second in every case: the drawn wrist within its
+  arm (`.vr_embed_armpast` <= 3 cm), the hold still on, and the blade come back out by at most 2 units on its own (state 6 from where it
+  stood; the stab's own half second is checked the same way except for the ragdoll, which flops with the blade in it). Case 5 is a sword
+  with the off hand free (it walks away with it; the joining check is the spear's).
+- Before/after, `vr_flat_embed_arm 1`: 32 passed / 3 failed -> **45 passed / 0 failed**; off: 32/2 -> **45/0**. The standing-still numbers
+  (cm past the most the arm reaches, and units the blade crept out): ragdoll the hold ended and 8.0 out, ogre 7.3 out, grunt 2.1-2.5 out
+  -> all six cases 0.0 out, the hold on, the blade 13.4-14.7 units in and the hand -52 to -0 cm past its reach.
+- New committed test `Misc/quakevr/embedhold_test.sh` (two runs, the defaults and the rule off, ends `embedhold: N passed, M failed`):
+  **90 passed, 0 failed**; found by `Misc/quakevr/tests_for.py` on its own. embeddual_test.sh 16/0, embed1108b (vr_embed_test 29) 10/0.
+  Still red around this branch (not flat play, and the same with the two rules off): embed_blood_test.sh `embed1108: 20-21 passed,
+  3-4 failed` (the axe/sword "stays in" cases), embededge (vr_embed_test 13) 64/4, embeddagger (40) 23/1 ("the dagger's blade ... a
+  third of the sword's: 9.2 units of 20.3"), flatthrust 58 and the spear (53) as handed to polepose.
+- Debug: `vr_debug_axestick 4` prints the flat gap's breakdown (measured, more, the blade's way, the eye's); `scratch1 3` in test 64
+  prints the standing-still frames. Scene `flat_stuck_blade`; checklist lines in qvr-kit/scratch/cl_lines_embedhold2.txt.
