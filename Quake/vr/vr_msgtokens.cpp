@@ -85,12 +85,12 @@ void appendUnbound(za::String& out, const char* what)
     return -1;
 }
 
-// {key:<what>}: a key cvar's key, else the first key bound to the command.
+// {key:<what>}: a key cvar's key (a flat key's first), else the first key bound to the command.
 void appendKeyFor(za::String& out, const char* what)
 {
     if(const cvar_t* var = Cvar_FindVar(what))
     {
-        const int key = var->string[0] ? Key_StringToKeynum(var->string) : -1;
+        const int key = flatplay::keyNum(*var, 0);
         if(key > 0 && key < MAX_KEYS)
         {
             appendKey(out, key);
@@ -302,7 +302,7 @@ void runTest()
         check(t, contains(g, "[Quick grenade: not bound]"), "grenade unbound", g.cStr());
         Cvar_SetQuick(grenade, grenadeWas.cStr());
 
-        // The throw key (vr_flat_key_throw, default J) on lessons 10 and 12: their tips and boards.
+        // The throw key (vr_flat_key_throw, default B; set to J here) on lessons 10 and 12: their tips and boards.
         cvar_t* throwKey = Cvar_FindVar("vr_flat_key_throw");
         const za::String throwWas{throwKey->string};
         Cvar_SetQuick(throwKey, "j");

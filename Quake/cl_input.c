@@ -364,7 +364,7 @@ void CL_BaseMove (usercmd_t *cmd)
 	cmd->sidemove -= cl_sidespeed.value * CL_KeyState (&in_moveleft);
 
 	cmd->upmove += cl_upspeed.value * CL_KeyState (&in_up);
-	cmd->upmove -= cl_upspeed.value * CL_KeyState (&in_down);
+	cmd->upmove -= cl_upspeed.value * q_max (CL_KeyState (&in_down), VR_FlatCrouchSwim ()); // QVR: flat play's crouch keys swim down too
 
 	if (! (in_klook.state & 1) )
 	{

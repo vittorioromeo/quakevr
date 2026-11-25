@@ -168,6 +168,8 @@ void frame();
 // Whether the crouch key (Left Ctrl, +flatcrouch) is held now: the move's word for the server (protocol::moveFlatCrouchBit),
 // which keeps his box crouched under a low ceiling after it is let go (vr_hull.cpp updateCrouch). False outside the mode.
 [[nodiscard]] bool crouchHeld();
+// The crouch keys held in water, flat play and vr_flat_crouch_swim on: 1 (they swim down too, CL_BaseMove); else 0.
+[[nodiscard]] float crouchSwim();
 // vr_flat_crouch_trace's sample, once a frame from VR_FlatViewDrop with the drawn eye's height (world z).
 void traceCrouch(float eyeZ);
 
@@ -209,12 +211,6 @@ void traceBody(bool on);
 // vr_api.h). Outside the mode the angle comes back as it was, so plain play and a headset are bounded only by
 // cl_maxpitch / cl_minpitch, as they were.
 [[nodiscard]] float pitchClamp(float pitch);
-
-// Quake/host.c's Host_WriteConfigurationToFile, just before it writes the key bindings (VR_FlatKeysForConfigWrite,
-// vr_api.h): the config on disk is the plain game's, so while flatscreen play holds Ctrl (+flatcrouch, the crouch key
-// that must not fire: vr_flat_crouch_fire) the bind is given back for the write and taken up again on the mode's next
-// frame. Nothing to give back when the mode is not holding it.
-void keysForConfigWrite();
 
 // vr_hands.cpp's flat-screen branch: where each hand goes and how it is turned, in world space: the hands placed in the
 // body's frame off the shoulders the arms hang from (handOnBody, vr_flat_body_pose; 0: the view's frame held to vr_flat_pose_pitch), each hand's punch a swing of that arm about its shoulder (punchSwing). The
@@ -340,6 +336,14 @@ void flickTestFrame();
 // Controls' "Quake VR (flat screen)" group (menu.c, through VR_FlatKeyGet/Set: rebinding, conflicts) read this one list
 // (vr_flatmove.cpp).
 [[nodiscard]] za::Span<cvar_t* const> keyCvars();
+// Each key cvar holds up to keySlots keys ("c CTRL": bind names, a space between; his words 2026-11-25, two bindings per
+// action). One way to read and set them, for every action: keyNum (slot's key, -1 none), keyIs (one of its keys), keyHeld
+// (one of them down now), setKey (a slot set, or cleared with key <= 0: the slots stay packed, a key in one slot only).
+constexpr int keySlots = 2; // (VR_FLATKEY_SLOTS, vr_api.h)
+[[nodiscard]] int keyNum(const cvar_t& c, int slot);
+[[nodiscard]] bool keyIs(const cvar_t& c, int key);
+[[nodiscard]] bool keyHeld(const cvar_t& c);
+void setKey(cvar_t& c, int slot, int key);
 // Whether key cvar `c` is read now: the holsters' number keys (vr_flat_key_cycle_*, _holster_*, _drop_left/_right) only
 // with vr_flat_holsters on (off, the number keys pick weapons as before).
 [[nodiscard]] bool keyActive(const cvar_t& c);

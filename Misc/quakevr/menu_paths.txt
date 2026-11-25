@@ -1508,7 +1508,8 @@ vr_flat_shove_recover_time|1|Locomotion|Shove Recovery Time|Advanced VR Options 
 vr_flat_shove_anim_reach|1|Locomotion|Shove Hand Travel|Advanced VR Options > Movement > Locomotion > Shove Hand Travel
 vr_flat_hud|1|Locomotion|Desktop Status Bar|Advanced VR Options > Movement > Locomotion > Desktop Status Bar
 vr_flat_visor|1|Locomotion|Visor HUD|Advanced VR Options > Movement > Locomotion > Visor HUD
-vr_flat_crouch_fire|1|Locomotion|Left Ctrl Also Fires|Advanced VR Options > Movement > Locomotion > Left Ctrl Also Fires
+vr_flat_crouch_fire|1|Locomotion|Crouch Keys Keep Binds|Advanced VR Options > Movement > Locomotion > Crouch Keys Keep Binds
+vr_flat_crouch_swim|1|Locomotion|Crouch Keys Swim Down|Advanced VR Options > Movement > Locomotion > Crouch Keys Swim Down
 vr_flat_pitch_up|1|Locomotion|Look Up Limit|Advanced VR Options > Movement > Locomotion > Look Up Limit
 vr_flat_pitch_down|1|Locomotion|Look Down Limit|Advanced VR Options > Movement > Locomotion > Look Down Limit
 vr_flat_death_vomit|1|Locomotion|Vomit Mode on Death|Advanced VR Options > Movement > Locomotion > Vomit Mode on Death
@@ -4551,6 +4552,7 @@ vr_flat_rope_keys|2|Tunables|Rope Keys By Look|Advanced VR Options > Debug > Tun
 vr_flat_rope_climb_pitch|2|Tunables|Rope Climb Pitch|Advanced VR Options > Debug > Tunables > Rope Climb Pitch
 vr_flat_rope_retake|2|Tunables|Rope Retake Time|Advanced VR Options > Debug > Tunables > Rope Retake Time
 vr_flat_rope_slide_speed|2|Tunables|Rope Slide Speed|Advanced VR Options > Debug > Tunables > Rope Slide Speed
+vr_flat_rope_slide_hands_in|2|Tunables|Rope Slide: Hands In|Advanced VR Options > Debug > Tunables > Rope Slide: Hands In
 vr_flat_rope_slide_lock|2|Tunables|Rope Slide: Hands Locked|Advanced VR Options > Debug > Tunables > Rope Slide: Hands Locked
 vr_flat_ladder_reach|2|Tunables|Ladder Reach|Advanced VR Options > Debug > Tunables > Ladder Reach
 vr_flat_hand_collide|2|Tunables|Wall: Empty Hands And Swings|Advanced VR Options > Debug > Tunables > Wall: Empty Hands And Swings
@@ -5096,6 +5098,7 @@ vr_revgrip_blocked_pulse|2|Tunables|Refused Flip Pulse|Advanced VR Options > Deb
 vr_revgrip_2h_mirror|2|Tunables|Reversed Two-Handed Hand|Advanced VR Options > Debug > Tunables > Reversed Two-Handed Hand
 vr_rope_thumb_wrap|2|Tunables|Rope Thumb Wrap Thickness|Advanced VR Options > Debug > Tunables > Rope Thumb Wrap Thickness
 vr_rope_hand_pitch|2|Tunables|Rope Grip Knuckles Up|Advanced VR Options > Debug > Tunables > Rope Grip Knuckles Up
+vr_rope_elbow_wide|2|Tunables|Rope Climb Elbows Wide|Advanced VR Options > Debug > Tunables > Rope Climb Elbows Wide
 vr_rope_elbow_out|2|Tunables|Rope Climb Elbows Out|Advanced VR Options > Debug > Tunables > Rope Climb Elbows Out
 vr_pole_grunt|2|Tunables|Pole Pull Grunt|Advanced VR Options > Debug > Tunables > Pole Pull Grunt
 vr_rope_letgo_pass|2|Tunables|Rope Let-Go Pass Time|Advanced VR Options > Debug > Tunables > Rope Let-Go Pass Time

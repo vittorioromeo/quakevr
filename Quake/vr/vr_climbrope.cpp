@@ -1712,11 +1712,15 @@ int monkeyHands(float& up, float& under, float& gap)
 // on it has its fist's front (the knuckles' way) pitched up (`knuckles`: the least, degrees; vr_rope_hand_pitch), and
 // how far each elbow is bowed out of its arm's straight line (`elbowOut`: the least, cm of the body, along the view's
 // right for the right arm and its left for the left; < 0 bowed in, towards the view). Returns the hands measured.
-int ropeArms(float& knuckles, float& elbowOut)
+int ropeArms(float& knuckles, float& elbowOut, float* elbowSide = nullptr)
 {
     int on = 0;
     knuckles = 90.f;
     elbowOut = 1e9f;
+    if(elbowSide)
+    {
+        *elbowSide = 1e9f;
+    }
     for(int h = 0; h < 2; h++)
     {
         glm::vec3 back{0.f}, front{0.f};
@@ -1739,6 +1743,11 @@ int ropeArms(float& knuckles, float& elbowOut)
             const glm::vec3 sw = k.wrist[side] - k.shoulder[side];
             const float f = za::clamp(glm::dot(k.elbow[side] - k.shoulder[side], sw) / za::max(glm::dot(sw, sw), 1e-4f), 0.f, 1.f);
             elbowOut = za::min(elbowOut, glm::dot(k.elbow[side] - (k.shoulder[side] + sw * f), out) / k.m2w * 100.f);
+            // (climbfix) and the elbow's side of its shoulder (out of it: + cm)
+            if(elbowSide)
+            {
+                *elbowSide = za::min(*elbowSide, glm::dot(k.elbow[side] - k.shoulder[side], out) / k.m2w * 100.f);
+            }
         }
     }
     return on;
@@ -2474,6 +2483,15 @@ struct FlatTest
     int jumpPrevOk{0}; // frames in a row with a pose (2: a last move known)
     float jumpMost[2]{0.f, 0.f}, jumpSum[2]{0.f, 0.f}, shakeMost[2]{0.f, 0.f};
     int jumpFrames{0};
+    // (climbfix, his flat note 2026-11-25: the hand off the wrist in a quick slide) the most a drawn hand's wrist was off its
+    // arm's end (avatar::armWristGap, units) while sliding, and the frames it was off at all
+    float gapMost{0.f};
+    int gapFrames{0};
+    // (climbfix, his flat note 2026-11-25: elbows in while climbing a pole) climbing up (case 4): the least the elbows were
+    // bowed out off their arms' lines and out of their shoulders' side (cm), over `climbArmFrames` frames with both arms posed
+    float climbBow{1e9f}, climbSide{1e9f}, climbSideSum{0.f};
+    int climbArmFrames{0};
+    bool elbows{false}; // (climbfix) `vr_rope_flat_test` (the rope) and `pole`: the elbows checked climbing up
 };
 FlatTest flatTest;
 constexpr const char* flatTestName = "vr_rope_flat_test";
@@ -2491,6 +2509,7 @@ constexpr float flatSlideElbowShake = 1.5f; // and an elbow's (polewall: 1.09 on
                                              // without: the arm snapping straight as the crouch lowers the shoulders; 14.7 unlocked)
 constexpr float flatSlideRopeElbowShake = 3.f; // on a rope (2.38-2.52: the swaying rope's wrist targets at its end, not the IK)
 constexpr int flatSlideSettle = 2;         // the slide's first frames not counted (the grip locking as it begins)
+constexpr float flatSlideGapMost = 0.05f;  // (climbfix) units: a drawn wrist off its arm's end by more is off it
 
 void flatSlideJumps(FlatTest& t, bool on)
 {
@@ -2519,6 +2538,9 @@ void flatSlideJumps(FlatTest& t, bool on)
         }
         if(++t.jumpFrames > flatSlideSettle)
         {
+            const float gap = za::max(avatar::armWristGap(0), avatar::armWristGap(1));
+            t.gapMost = za::max(t.gapMost, gap);
+            t.gapFrames += gap > flatSlideGapMost ? 1 : 0;
             for(int h = 0; h < 2; h++)
             {
                 for(int j = 0; j < 2; j++)
@@ -2532,9 +2554,10 @@ void flatSlideJumps(FlatTest& t, bool on)
         }
         if(vr_climb_debug.value != 0.f)
         {
-            Con_Printf("%s: slide frame %d t %.3f: palms %.2f %.2f elbows %.2f %.2f shake %.2f %.2f, %.2f %.2f\n",
+            Con_Printf("%s: slide frame %d t %.3f: palms %.2f %.2f elbows %.2f %.2f shake %.2f %.2f, %.2f %.2f; wrists off the arms %.2f %.2f\n",
                 flatTestName, t.jumpFrames, cl.time, glm::length(move[0][0]), glm::length(move[1][0]), glm::length(move[0][1]),
-                glm::length(move[1][1]), shake[0][0], shake[1][0], shake[0][1], shake[1][1]);
+                glm::length(move[1][1]), shake[0][0], shake[1][0], shake[0][1], shake[1][1], avatar::armWristGap(0),
+                avatar::armWristGap(1));
         }
         for(int h = 0; h < 2; h++)
         {
@@ -2771,6 +2794,26 @@ void flatTestFrame()
     {
         // (ropes10: `polejump` from 300 up: the fall takes over the second the rope let go of isn't taken again for)
         const float rise = (t.jump && !t.slant && !t.ropeJump) || t.slide ? 300.f : 80.f; // (ropes13: a slide from 300 up)
+        if(climbing && t.frames == 24 && t.shots && t.elbows)
+        {
+            // (climbfix) climbing: the elbows seen from his front left and from behind
+            Cbuf_AddText("vr_flat_orbit 0 50 0\nwait\nwait\nscreenshot\nvr_flat_orbit 180 50 0\nwait\nwait\nscreenshot\nvr_flat_orbit\n");
+        }
+        if(climbing && t.frames >= 12)
+        {
+            float knuckles = 0.f, bow = 0.f, side = 0.f;
+            if(ropeArms(knuckles, bow, &side) >= 0 && bow < 1e8f)
+            {
+                t.climbBow = za::min(t.climbBow, bow);
+                t.climbSide = za::min(t.climbSide, side);
+                t.climbSideSum += side;
+                t.climbArmFrames++;
+                if(vr_climb_debug.value != 0.f)
+                {
+                    Con_Printf("%s: climb frame %d: elbows bowed out %.1f cm, out of the shoulders %.1f cm\n", flatTestName, t.frames, bow, side);
+                }
+            }
+        }
         if(!climbing || feet >= t.feet0 + rise || t.frames > 72 * 6)
         {
             const char* how = t.pitch >= 0.f ? "looking level (a pole: only climbed)" : "looking up";
@@ -2790,6 +2833,25 @@ void flatTestFrame()
                 const char* what = va("the chain clinks as he climbs it: %d clinks (at least 1)", clinks - t.clinks);
                 t.tally.check(clinks - t.clinks >= 1, flatTestName, what);
                 if(clinks - t.clinks >= 1)
+                {
+                    Con_Printf("%s: PASS %s\n", flatTestName, what);
+                }
+            }
+            if(t.elbows)
+            {
+                // (climbfix, his flat note 2026-11-25: the elbows came in climbing vertically) Climbing up (from the 12th
+                // frame: the climbing pose eased in), neither elbow bowed in off its arm's line (vr_rope_elbow_wide at least
+                // 3, vr_rope_elbow_out a half), and on the pole on average out of the shoulders' line.
+                const float n = static_cast<float>(za::max(1, t.climbArmFrames));
+                const bool posed = vr_rope_elbow_wide.value >= 3.f && vr_rope_elbow_out.value >= 0.5f;
+                const bool out = t.climbArmFrames >= 10 &&
+                                 (!posed || (t.climbBow >= -2.5f && (!t.pole || t.climbSideSum / n >= 5.f)));
+                const char* what = va("the elbows while climbing: bowed out off the arms' lines %.1f cm at the least (none in past 2.5), "
+                                      "out of the shoulders' line %.1f cm on average (%.1f at the least), over %d frames "
+                                      "(vr_rope_elbow_wide %.1f)",
+                    t.climbBow, t.climbSideSum / n, t.climbSide, t.climbArmFrames, vr_rope_elbow_wide.value);
+                t.tally.check(out, flatTestName, what);
+                if(out)
                 {
                     Con_Printf("%s: PASS %s\n", flatTestName, what);
                 }
@@ -2889,6 +2951,8 @@ void flatTestFrame()
             t.jumpPrevOk = 0;
             t.jumpMost[0] = t.jumpMost[1] = t.jumpSum[0] = t.jumpSum[1] = t.shakeMost[0] = t.shakeMost[1] = 0.f;
             t.jumpFrames = 0;
+            t.gapMost = 0.f;
+            t.gapFrames = 0;
             Cbuf_AddText("+flatcrouch\n");
             flatTestNext(t, 60);
         }
@@ -3327,11 +3391,13 @@ void flatTestFrame()
             const float n = static_cast<float>(za::max(1, (t.jumpFrames - flatSlideSettle) * 2));
             const char* arms = va("the arms while sliding: the palms moved at most %.2f units a frame from the body (mean %.3f; a move's "
                                   "change from the last, the shake, at most %.2f), the elbows %.2f (mean %.3f; shake %.2f: the crouch "
-                                  "lowers the shoulders), over %d frames",
+                                  "lowers the shoulders), over %d frames; the hands' wrists off their arms' ends at most %.2f units, "
+                                  "%d frames off (none; vr_flat_rope_slide_hands_in %.2f)",
                 t.jumpMost[0], t.jumpSum[0] / n, t.shakeMost[0], t.jumpMost[1], t.jumpSum[1] / n, t.shakeMost[1],
-                t.jumpFrames - flatSlideSettle);
+                t.jumpFrames - flatSlideSettle, t.gapMost, t.gapFrames, vr_flat_rope_slide_hands_in.value);
             const bool smooth = t.jumpFrames >= 20 && t.jumpMost[0] <= flatSlideJumpMost && t.shakeMost[0] <= flatSlideShakeMost &&
-                                t.shakeMost[1] <= (t.pole ? flatSlideElbowShake : flatSlideRopeElbowShake);
+                                t.shakeMost[1] <= (t.pole ? flatSlideElbowShake : flatSlideRopeElbowShake) &&
+                                t.gapFrames == 0;
             t.tally.check(smooth, flatTestName, arms);
             if(smooth)
             {
@@ -3429,6 +3495,7 @@ void flatTest_f()
     flatTest.slide = !ZA_STRCMP(mode, "slide") || !ZA_STRCMP(mode, "poleslide");
     flatTest.crouchDrop = !ZA_STRCMP(mode, "strungcrouch");
     flatTest.side = !ZA_STRCMP(mode, "strungside");
+    flatTest.elbows = !ZA_STRCMP(mode, "") || !ZA_STRCMP(mode, "rope") || !ZA_STRCMP(mode, "pole"); // ("rope": the plain rope's, `rope shots`)
     flatTest.pole = !ZA_STRCMP(mode, "pole") || !ZA_STRCMP(mode, "strungpole") || flatTest.wall || (flatTest.jump && !flatTest.ropeJump) ||
                     flatTest.side || !ZA_STRCMP(mode, "poleslide") || flatTest.crouchDrop;
     if(flatTest.wall)
