@@ -5,10 +5,12 @@
 # An eyeshot of its hold: <gamedir>/eyeshots (the first of the run). Ends `agspear: N passed, M failed`.
 AGENT=${1:?agent}
 source "$(dirname "$0")/qvrtest.sh"
-out=$(bash $KIT/run.sh $AGENT -Timeout 300 -Script "map vrtesthall; god; developer 1; wait5; setpos 0 300 25 0 0 0; wait5; vr_agrunt_test 230" \
+out=$(bash $KIT/run.sh $AGENT -Timeout 300 -Script "vr_agrunt_poses \"\"; map vrtesthall; god; developer 1; wait5; setpos 0 300 25 0 0 0; wait5; vr_agrunt_test 230" \
     -QuitOn "^agtest: test 230 over" -Filter "(^agtest|^agpole)")
 echo "$out"
 check $(grep -aq "^agtest: test 230 over: [0-9]* passed, 0 failed" <<<"$out" && echo 1 || echo 0) "the spear grunt's QC checks (vr_agrunt_test 230)"
 check $(grep -aq "^agpole .*: both on the shaft" <<<"$out" && echo 1 || echo 0) "both its hands on the spear's shaft (agpole)"
+# (agspearpose: the report again with the Pose Studio's pole class key laid on: the off hand rode the shaft)
+check $([ "$(grep -ac "^agpole .*: both on the shaft" <<<"$out")" -ge 2 ] && echo 1 || echo 0) "both hands still on the shaft with the pole class's Ready key moving it (agpole, 2nd report)"
 verdict
 exit $fail

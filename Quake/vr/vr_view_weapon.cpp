@@ -1518,7 +1518,11 @@ void chooseGrip(const WeaponFrame& wf)
             const glm::vec3 fist = held.pos + way * glm::dot(s.pos[hand] - held.pos, way);
             // (In a spear thrust's draw the other hand stays put, the pole sliding back through it; thrust out, it rides with
             // the pole, sliding back along it: flatplay::thrustOffSlide.)
-            s.grip2H[hand] = fist + way * (za::clamp(vr_flat_pole_off_along.value, -40.f, 60.f) - flatplay::thrustOffSlide(hand));
+            // (polepose: held reversed, by the flip's share, vr_flat_revgrip_pole_off_along: the flipped Crystal Lance's other hand
+            // at the upright's 8 met its head's housing and stayed open, curl 0.32; at 4, 0.72.)
+            const float offAlong = glm::mix(za::clamp(vr_flat_pole_off_along.value, -40.f, 60.f),
+                za::clamp(vr_flat_revgrip_pole_off_along.value, -40.f, 60.f), za::clamp(drawnFlip(hand), 0.f, 1.f));
+            s.grip2H[hand] = fist + way * (offAlong - flatplay::thrustOffSlide(hand));
             // (Moved off the pole by vr_flat_pole_off_up / _off_out: up, and out to that hand's own side, level across it.)
             if(const glm::vec3 across = glm::cross(way, glm::vec3{0.f, 0.f, 1.f}); glm::length(across) > 1e-3f)
             {

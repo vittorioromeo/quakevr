@@ -720,14 +720,17 @@ float VR_CrouchSpeedMax (struct edict_s *ent, float maxspeed); // SV_AirMove: cr
 int VR_SlideStepUp (struct edict_s *ent); // SV_WalkMove: nonzero while a slide is on the ground (flatscreen or vr_slide; vr_slide.cpp): a step it meets is climbed on every move (Quake's "don't stair up while jumping" took FL_ONGROUND, off every other move at a slide's speed, and the step's face stopped the slide)
 int VR_SlideMove (struct edict_s *ent, int onground, const float *wishdir, float wishspeed, float *velocity); // SV_AirMove: a slide (vr_flat_slide flatscreen, vr_slide a headset; vr_slide.cpp): nonzero when it moved him on the ground this frame (no friction, no walk)
 int VR_LeanHitBoxes (struct edict_s *touch, float (*boxes)[6]); // SV_MoveRun: a flat-screen player's leant upper body (vr_flat_lean_hit; vr_flatmove.cpp), world boxes (mins, maxs) out of his own box; their count (0: none)
+float VR_FlatCrouchSwim (void); // CL_BaseMove: flat play's crouch keys held in water swim down too (vr_flat_crouch_swim; vr_flatplay.cpp): 1, else 0
 int VR_FlatKeyOwned (int key); // Key_Event: a key flatscreen play reads itself (vr_flatmove.cpp): its bind does not run while the mode runs
 // The flat keys (vr_flat_key_*; vr_flatmove.cpp), Options > Controls' "Quake VR (flat screen)" group (menu.c): index i in the
-// menu's order. Get: the key (-1 none); Set: key -1 clears; For: the flat key on `key` other than `skip` (-1 none).
+// menu's order, each with VR_FLATKEY_SLOTS keys (slot 0, 1). Get: a slot's key (-1 none); Set: a slot's key, -1 clears it (the
+// slots stay packed); For: the flat key on `key` other than `skip` (-1 none).
+#define VR_FLATKEY_SLOTS 2 // (flatplay::keySlots)
 int VR_FlatKeyCount (void);
 const char *VR_FlatKeyLabel (int i);
 const char *VR_FlatKeyCvarName (int i);
-int VR_FlatKeyGet (int i);
-void VR_FlatKeySet (int i, int key);
+int VR_FlatKeyGet (int i, int slot);
+void VR_FlatKeySet (int i, int slot, int key);
 int VR_FlatKeyFor (int key, int skip);
 void VR_FlatKeysReset (void); // every flat key back to its default
 void M_Menu_Keys_At (const char *row); // menu.c: Options > Controls with the cursor on a row (a command, a name, a vr_flat_key_* cvar): the VR menu's Flat Keys button
@@ -896,7 +899,6 @@ int VR_MenuKey (int key, int repeat);					// M_Keydown: nonzero if the buttons t
 void VR_MenuBounds (int *left, int *top, int *width, int *height);	// M_UpdateBounds: the menus laid out from the canvas's bounds beside the corner's buttons
 void VR_MenuSavePositions (void);						// Host_WriteConfigurationToFile: each VR page's selection and scroll into vr_menu_positions
 void VR_ConfigMergeOthers (const char *path);			// Host_WriteConfigurationToFile, the game folder's config: another copy's changes in it kept (vr_cvars.cpp)
-void VR_FlatKeysForConfigWrite (void);					// Host_WriteConfigurationToFile, before Key_WriteBindings: flatscreen play's Ctrl bind (+flatcrouch, the crouch key that does not fire: vr_flat_crouch_fire) given back, so the config keeps the plain game's CTRL (vr_flatplay.cpp)
 void VR_ConfigNoteWrite (void);						// Host_WriteConfigurationToFile, the game folder's config: its settings as just written (kept for VR_ConfigWritten)
 void VR_ConfigWritten (const char *path);				// and after writing it (in place: not after a failed write)
 int VR_ConfigSaves (const struct cvar_s *var);			// Cvar_WriteVariables, an archived cvar: nonzero if the config gets its line (a vr_ one only if changed from its default)

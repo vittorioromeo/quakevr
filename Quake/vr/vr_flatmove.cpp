@@ -296,10 +296,9 @@ struct ClientState
 
 ClientState client;
 
-[[nodiscard]] bool keyHeld(const char* bindName)
+[[nodiscard]] bool keyHeld(const cvar_t& c)
 {
-    const int k = Key_StringToKeynum(bindName);
-    return key_dest == key_game && k > 0 && k < MAX_KEYS && keydown[k] != 0;
+    return key_dest == key_game && flatplay::keyHeld(c);
 }
 
 [[nodiscard]] glm::vec3 levelRight(float yawDeg)
@@ -377,8 +376,8 @@ ClientState client;
 void stepLean(bool on, float dt)
 {
     Lean& l = client.lean;
-    const bool kl = on && keyHeld(vr_flat_key_lean_left.string);
-    const bool kr = on && keyHeld(vr_flat_key_lean_right.string);
+    const bool kl = on && keyHeld(vr_flat_key_lean_left);
+    const bool kr = on && keyHeld(vr_flat_key_lean_right);
     int want = 0;
     if(vr_flat_lean_toggle.value != 0.f)
     {
@@ -2731,19 +2730,56 @@ namespace
 {
 // Every key flat play reads itself, in the menu's order (Options > Controls, its "Quake VR (flat screen)" group: menu.c
 // M_Keys_Populate): the cvars a key's bind name is kept in, and the rows' names. Key_Event leaves these keys' binds off
-// while flat play runs (VR_FlatKeyOwned: the flat key wins); Controls rebinds them (VR_FlatKeySet).
-cvar_t* const flatKeyList[] = {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_prone, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_shove, &vr_flat_key_punch,
+// while flat play runs (VR_FlatKeyOwned: the flat key wins); Controls rebinds them (VR_FlatKeySet). Each holds up to
+// flatplay::keySlots keys (his words 2026-11-25: "the same action to have two separate bindings"): their bind names, a
+// space between ("c CTRL"), read by flatplay::keyNum / keyIs / keyHeld, set by flatplay::setKey.
+cvar_t* const flatKeyList[] = {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_crouch, &vr_flat_key_prone, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_shove, &vr_flat_key_punch,
     &vr_flat_key_reload, &vr_flat_key_ammo, &vr_flat_key_drop, &vr_flat_key_cycle_left, &vr_flat_key_cycle_right,
     &vr_flat_key_holster_left, &vr_flat_key_holster_right, &vr_flat_key_drop_left, &vr_flat_key_drop_right, &vr_flat_key_grenade, &vr_flat_key_throw, &vr_flat_key_bullettime, &vr_flat_key_flashlight, &vr_flat_key_gearlights, &vr_flat_key_voicechat, &vr_flat_key_holster_menu, &vr_flat_key_flycam,
     &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu, &vr_flat_key_toolgun_adjust};
-const char* const flatKeyLabels[] = {"Lean left", "Lean right", "Lie down", "Swap hands", "Force grab", "Shove", "Punch", "Reload", "Next ammo type", "Drop",
+const char* const flatKeyLabels[] = {"Lean left", "Lean right", "Crouch / slide", "Lie down", "Swap hands", "Force grab", "Shove", "Punch", "Reload", "Next ammo type", "Drop",
     "Cycle left hand", "Cycle right hand", "Holster left hand", "Holster right hand", "Drop left hand", "Drop right hand", "Quick grenade", "Throw", "Bullet time", "Flashlight", "Gear lights", "Push-to-talk", "Holster menu", "Fly camera", "Toolgun", "Toolgun panel", "Toolgun adjust"};
 static_assert(za::getArraySize(flatKeyList) == za::getArraySize(flatKeyLabels), "a label for every flat key");
+static_assert(flatplay::keySlots == VR_FLATKEY_SLOTS, "the menu's slots are the keys'");
 
-[[nodiscard]] int flatKeyNum(const cvar_t& c)
+// The keys a key cvar names, in its order (a name Key_StringToKeynum does not know: none); out past the last: -1.
+int flatKeyNums(const cvar_t& c, int (&out)[flatplay::keySlots])
 {
-    const int key = c.string[0] ? Key_StringToKeynum(c.string) : -1;
-    return key > 0 && key < MAX_KEYS ? key : -1;
+    int n = 0;
+    const char* s = c.string;
+    while(*s && n < flatplay::keySlots)
+    {
+        while(*s == ' ')
+        {
+            s++;
+        }
+        char name[32];
+        za::SizeT len = 0;
+        while(s[len] && s[len] != ' ')
+        {
+            if(len + 1 < sizeof(name))
+            {
+                name[len] = s[len];
+            }
+            len++;
+        }
+        if(len == 0)
+        {
+            break;
+        }
+        name[za::min(len, sizeof(name) - 1)] = '\0';
+        const int key = Key_StringToKeynum(name);
+        if(key > 0 && key < MAX_KEYS)
+        {
+            out[n++] = key;
+        }
+        s += len;
+    }
+    for(int i = n; i < flatplay::keySlots; i++)
+    {
+        out[i] = -1;
+    }
+    return n;
 }
 
 [[nodiscard]] bool flatKeyIndexOk(int i)
@@ -2751,6 +2787,83 @@ static_assert(za::getArraySize(flatKeyList) == za::getArraySize(flatKeyLabels), 
     return i >= 0 && i < static_cast<int>(za::getArraySize(flatKeyList));
 }
 } // namespace
+
+int qvr::flatplay::keyNum(const cvar_t& c, int slot)
+{
+    int keys[keySlots];
+    flatKeyNums(c, keys);
+    return slot >= 0 && slot < keySlots ? keys[slot] : -1;
+}
+
+bool qvr::flatplay::keyIs(const cvar_t& c, int key)
+{
+    int keys[keySlots];
+    const int n = flatKeyNums(c, keys);
+    for(int i = 0; i < n; i++)
+    {
+        if(keys[i] == key)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool qvr::flatplay::keyHeld(const cvar_t& c)
+{
+    int keys[keySlots];
+    const int n = flatKeyNums(c, keys);
+    for(int i = 0; i < n; i++)
+    {
+        if(keydown[keys[i]])
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void qvr::flatplay::setKey(cvar_t& c, int slot, int key)
+{
+    int keys[keySlots];
+    int n = flatKeyNums(c, keys);
+    const bool valid = key > 0 && key < MAX_KEYS;
+    // (one key never in both slots: the action has it already, nothing changes)
+    for(int i = 0; valid && i < n; i++)
+    {
+        if(keys[i] == key)
+        {
+            return;
+        }
+    }
+    if(slot >= 0 && slot < n)
+    {
+        if(valid)
+        {
+            keys[slot] = key;
+        }
+        else // (cleared: the key after it moves up, the slots stay packed)
+        {
+            for(int j = slot; j + 1 < n; j++)
+            {
+                keys[j] = keys[j + 1];
+            }
+            n--;
+        }
+    }
+    else if(valid && n < keySlots)
+    {
+        keys[n++] = key;
+    }
+    char value[64] = "";
+    for(int i = 0; i < n; i++)
+    {
+        q_strlcat(value, i ? " " : "", sizeof(value));
+        q_strlcat(value, Key_KeynumToString(keys[i]), sizeof(value));
+    }
+    // The value as the default spells it where it is the default's keys (a sparse config).
+    Cvar_SetQuick(&c, c.default_string && !q_strcasecmp(c.default_string, value) ? c.default_string : value);
+}
 
 za::Span<cvar_t* const> qvr::flatplay::keyCvars()
 {
@@ -2780,21 +2893,17 @@ extern "C" const char* VR_FlatKeyCvarName(int i)
     return flatKeyIndexOk(i) ? flatKeyList[i]->name : "";
 }
 
-extern "C" int VR_FlatKeyGet(int i)
+extern "C" int VR_FlatKeyGet(int i, int slot)
 {
-    return flatKeyIndexOk(i) ? flatKeyNum(*flatKeyList[i]) : -1;
+    return flatKeyIndexOk(i) ? flatplay::keyNum(*flatKeyList[i], slot) : -1;
 }
 
-extern "C" void VR_FlatKeySet(int i, int key)
+extern "C" void VR_FlatKeySet(int i, int slot, int key)
 {
-    if(!flatKeyIndexOk(i))
+    if(flatKeyIndexOk(i))
     {
-        return;
+        flatplay::setKey(*flatKeyList[i], slot, key);
     }
-    cvar_t* const var = flatKeyList[i];
-    const char* const name = key > 0 && key < MAX_KEYS ? Key_KeynumToString(key) : "";
-    // The name as the default spells it where it is the default's key (a sparse config).
-    Cvar_SetQuick(var, var->default_string && !q_strcasecmp(var->default_string, name) ? var->default_string : name);
 }
 
 extern "C" int VR_FlatKeyFor(int key, int skip)
@@ -2805,7 +2914,7 @@ extern "C" int VR_FlatKeyFor(int key, int skip)
     }
     for(int i = 0; i < static_cast<int>(za::getArraySize(flatKeyList)); i++)
     {
-        if(i != skip && flatKeyNum(*flatKeyList[i]) == key)
+        if(i != skip && flatplay::keyIs(*flatKeyList[i], key))
         {
             return i;
         }
@@ -2829,7 +2938,9 @@ extern "C" int VR_FlatKeyOwned(int key)
     }
     for(const cvar_t* c : flatplay::keyCvars())
     {
-        if(c->string[0] && flatplay::keyActive(*c) && Key_StringToKeynum(c->string) == key)
+        // (vr_flat_crouch_fire 1: the crouch's keys keep their binds too: Left Ctrl fires as it crouches)
+        const bool keepsBind = c == &vr_flat_key_crouch && vr_flat_crouch_fire.value != 0.f;
+        if(!keepsBind && flatplay::keyActive(*c) && flatplay::keyIs(*c, key))
         {
             return 1;
         }

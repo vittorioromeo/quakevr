@@ -16,11 +16,11 @@
 //     the gun's hand goes down to the nearest hip holster and back (vr_flatreload.cpp; QC vr_flatreload.qc), the flashlight is worn on the head (F
 //     switches it off and on), and the body presses the buttons it walks into.
 //
-// The keys are read from the keyboard state, not from bindings, with one exception named below: Left Ctrl is the engine's
-// fire key by default (Quake/default_cfg.h binds CTRL +attack) and the mode's crouch key, so while the mode runs CTRL is
-// bound to +flatcrouch and nothing fires from it (vr_flat_crouch_fire 1 gives the plain game's bind back). The bind is
-// given back when the mode ends and before the engine writes its config out (VR_FlatKeysForConfigWrite, Quake/host.c), so
-// the config on disk stays the plain game's. The keys Quake already uses (1 and 2, its own weapon select) are answered by
+// The keys are read from the keyboard state, not from bindings (vr_flat_key_*, two keys each at most: flatplay::keyHeld).
+// A flat key's bind does not run while the mode runs (VR_FlatKeyOwned, Quake/keys.c), so Left Ctrl, the engine's fire key
+// by default (Quake/default_cfg.h binds CTRL +attack) and one of the crouch's keys (vr_flat_key_crouch: C, Left Ctrl),
+// fires nothing (vr_flat_crouch_fire 1 lets the crouch keys' binds run too); the binds themselves are never touched, so
+// the config on disk is the player's. The keys Quake already uses (1 and 2, its own weapon select) are answered by
 // the game code only while the flag is on.
 //
 // -flatscreenmode implies no VR backend (vr_main.cpp's startBackend): the mode runs only while no headset session is up,
@@ -121,6 +121,8 @@ struct FlatState
     double punchAt[2]{-1e9, -1e9}; // per hand: the time its punch started (vr_gametime)
     bool punchOverhead[2]{false, false}; // per hand: that punch is a weapon's overhead swing (vr_flat_swing), not the fist's throw
     bool punchThrust[2]{false, false};   // per hand: that punch is a pole weapon's spear thrust (vr_flat_thrust), not the swing
+    bool punchOverhand[2]{false, false}; // per hand: that overhead swing is V's empty-handed overhand blow (vr_flat_overhand)
+    glm::vec3 thrustWay[2]{};            // per hand: its thrust's line this frame (thrustPose; the probe's tip angle)
     int thrusts{0};                      // spear thrusts begun this session (vr_flatplay_status)
     int grabs{0};                // vr_flatplay_status's counts
     int punches[2]{0, 0};        // and the punch's, per hand
@@ -256,7 +258,7 @@ SwayProbe swayProbe;
 // mode's keys and its pose are worked on apart (FLATPLAY.md).
 struct FlatKeys
 {
-    bool keyCtrl{false};    // Left Ctrl, last frame (Right Ctrl is the same key code: in_sdl.c maps both to K_CTRL)
+    bool keyCtrl{false};    // a crouch key (vr_flat_key_crouch: C, Left Ctrl; Right Ctrl is Left's key code), last frame
     bool keyFlash{false};   // F, last frame
     bool keyGear{false};    // 9 (vr_flat_key_gearlights), last frame
     bool keyDrop{false};    // H (vr_flat_key_drop), last frame
@@ -332,21 +334,6 @@ bool traceBodyOn{false};     // the drawn body's points below wanted (vr_flatsli
 glm::vec3 traceShoulder{0.f}; // poseHands' main shoulder this frame, world (the body's chest, solveTorso's)
 glm::vec3 tracePelvis{0.f};   // the body's pelvis this frame, world (only while traceBodyOn)
 int traceArmHolds{0};         // drawn hands the arm's hold pulled in so far (drawnOffset; the slide jitter measure)
-
-// Left Ctrl, the bind the mode takes over (the crouch key must not fire the weapon). Ctrl is the engine's fire key in the
-// plain game -- Quake/default_cfg.h binds CTRL +attack -- and flatscreen play reads Ctrl itself for the crouch, so a hold
-// would crouch and fire at once. While the mode runs CTRL is bound to +flatcrouch instead, the console's way of the very
-// same hold (pollKeysFlat reads the key and the command, and both feed one eased crouch: no second crouch). What CTRL was
-// bound to is kept here and not in FlatKeys, because FlatKeys is reset the frame the mode ends and the bind outlives it:
-// it is given back when the mode ends, when vr_flat_crouch_fire asks Ctrl to keep firing, and every time the engine is
-// about to write its config out (VR_FlatKeysForConfigWrite below, called from Quake/host.c).
-struct CtrlBind
-{
-    char was[1024]{};    // what CTRL held when the mode last took it (empty: it was unbound)
-    bool taken{false};   // the mode has it (+flatcrouch)
-};
-
-CtrlBind ctrlBind;
 
 // The pose, measured from the shoulders (hands::bodyAnchor with vr_shoulder_offset, the same anchor the body's own
 // holsters are placed at): the arms stay on the body whatever the height calibration. Forward, side and down in the
@@ -585,12 +572,34 @@ struct SwingTimes
     float wind, top, strike, dwell, back;
 };
 
-// (A bot's held at its top longer, by its BotPoseIn::windup: its blow telegraphed, his voice note 2026-11-21.)
-[[nodiscard]] SwingTimes swingTimes(float extraTop = 0.f)
+// The overhead swing's numbers: a held weapon's or a prop's (vr_flat_swing_*), or V's overhand blow with an empty hand
+// (vr_flat_overhand_*; flatmelee4, his words 2026-11-25): the same path (overheadSwing), each its own tunables.
+struct SwingSet
 {
-    return {za::clamp(vr_flat_swing_wind.value, 0.05f, 1.f), za::clamp(vr_flat_swing_top.value, 0.f, 0.5f) + extraTop,
-        za::clamp(vr_flat_swing_strike.value, 0.05f, 0.5f), za::clamp(vr_flat_swing_dwell.value, 0.f, 0.5f),
-        za::clamp(vr_flat_swing_back.value, 0.05f, 1.f)};
+    const Tunable &wind, &top, &strike, &dwell, &back;
+    const Tunable &raiseUp, &raiseFwd, &raiseOut, &raisePitch, &raiseYaw, &raiseRoll;
+    const Tunable &endPitch, &endDown, &endFwd, &endOut, &endYaw, &endRoll;
+};
+const SwingSet weaponSwing{vr_flat_swing_wind, vr_flat_swing_top, vr_flat_swing_strike, vr_flat_swing_dwell, vr_flat_swing_back,
+    vr_flat_swing_raise_up, vr_flat_swing_raise_fwd, vr_flat_swing_raise_out, vr_flat_swing_raise_pitch, vr_flat_swing_raise_yaw,
+    vr_flat_swing_raise_roll, vr_flat_swing_end_pitch, vr_flat_swing_end_down, vr_flat_swing_end_fwd, vr_flat_swing_end_out,
+    vr_flat_swing_end_yaw, vr_flat_swing_end_roll};
+const SwingSet fistSwing{vr_flat_overhand_wind, vr_flat_overhand_top, vr_flat_overhand_strike, vr_flat_overhand_dwell,
+    vr_flat_overhand_back, vr_flat_overhand_raise_up, vr_flat_overhand_raise_fwd, vr_flat_overhand_raise_out,
+    vr_flat_overhand_raise_pitch, vr_flat_overhand_raise_yaw, vr_flat_overhand_raise_roll, vr_flat_overhand_end_pitch,
+    vr_flat_overhand_end_down, vr_flat_overhand_end_fwd, vr_flat_overhand_end_out, vr_flat_overhand_end_yaw, vr_flat_overhand_end_roll};
+
+// Hand `h`'s swing's numbers (a bot's always the weapon's).
+[[nodiscard]] const SwingSet& swingSet(int h)
+{
+    return bot == nullptr && h >= 0 && h < HAND_COUNT && fs.punchOverhand[h] ? fistSwing : weaponSwing;
+}
+
+// (A bot's held at its top longer, by its BotPoseIn::windup: its blow telegraphed, his voice note 2026-11-21.)
+[[nodiscard]] SwingTimes swingTimes(const SwingSet& set = weaponSwing, float extraTop = 0.f)
+{
+    return {za::clamp(set.wind.value, 0.05f, 1.f), za::clamp(set.top.value, 0.f, 0.5f) + extraTop,
+        za::clamp(set.strike.value, 0.05f, 0.5f), za::clamp(set.dwell.value, 0.f, 0.5f), za::clamp(set.back.value, 0.05f, 1.f)};
 }
 
 // A pole weapon's spear thrust (vr_flat_thrust; his notes 2026-11-23): seconds of its windup (drawn back along the pole),
@@ -601,11 +610,24 @@ struct ThrustTimes
     [[nodiscard]] float total() const { return wind + hold + strike + dwell + back; }
 };
 
-[[nodiscard]] ThrustTimes thrustTimes()
+// (A one-handed blade's thrust its own times, vr_flat_thrust_1h_*_time: flatmelee4.)
+[[nodiscard]] ThrustTimes thrustTimes(bool pole)
 {
+    if(!pole)
+    {
+        return {za::clamp(vr_flat_thrust_1h_wind_time.value, 0.02f, 1.f), za::clamp(vr_flat_thrust_1h_hold_time.value, 0.f, 0.5f),
+            za::clamp(vr_flat_thrust_1h_strike_time.value, 0.03f, 0.5f), za::clamp(vr_flat_thrust_1h_dwell_time.value, 0.f, 0.5f),
+            za::clamp(vr_flat_thrust_1h_back_time.value, 0.05f, 1.f)};
+    }
     return {za::clamp(vr_flat_thrust_wind_time.value, 0.02f, 1.f), za::clamp(vr_flat_thrust_hold_time.value, 0.f, 0.5f),
         za::clamp(vr_flat_thrust_strike_time.value, 0.03f, 0.5f), za::clamp(vr_flat_thrust_dwell_time.value, 0.f, 0.5f),
         za::clamp(vr_flat_thrust_back_time.value, 0.05f, 1.f)};
+}
+
+// Hand `h`'s thrust's times: by what it holds.
+[[nodiscard]] ThrustTimes thrustTimesOf(int h)
+{
+    return thrustTimes(twohand::poleWeapon(heldIn(h)));
 }
 
 // How long `h`'s punch lasts: the fist's throw, a weapon's overhead swing, or a pole weapon's thrust.
@@ -613,20 +635,20 @@ struct ThrustTimes
 {
     if(fs.punchThrust[h])
     {
-        return thrustTimes().total();
+        return thrustTimesOf(h).total();
     }
     if(!fs.punchOverhead[h])
     {
         return punchTotal;
     }
-    const SwingTimes w = swingTimes();
+    const SwingTimes w = swingTimes(swingSet(h));
     return w.wind + w.top + w.strike + w.dwell + w.back;
 }
 
 // And how long its last part, the arm drawn back, takes.
 [[nodiscard]] float punchBackLen(int h)
 {
-    return fs.punchThrust[h] ? thrustTimes().back : fs.punchOverhead[h] ? swingTimes().back : punchBack;
+    return fs.punchThrust[h] ? thrustTimesOf(h).back : fs.punchOverhead[h] ? swingTimes(swingSet(h)).back : punchBack;
 }
 
 [[nodiscard]] float ease(float k, float dt)
@@ -956,7 +978,9 @@ constexpr float dualProneTurnMost = 45.f;
     // (A bot's: its main hand's swing on the server's clock, poseBot. The same swing.)
     const bool botSwing = bot != nullptr && h == HAND_MAIN;
     const double t = botSwing ? bot->now - bot->swingAt : vr_gametime - fs.punchAt[h];
-    const SwingTimes w = swingTimes(botSwing ? bot->windup : 0.f);
+    // (V's empty-handed overhand blow: the same path by its own numbers, vr_flat_overhand_*.)
+    const SwingSet& set = swingSet(h);
+    const SwingTimes w = swingTimes(set, botSwing ? bot->windup : 0.f);
     const float len = botSwing ? w.wind + w.top + w.strike + w.dwell + w.back : punchLen(h);
     if((!botSwing && (bot != nullptr || !fs.punchOverhead[h])) || t < 0.0 || t > len)
     {
@@ -971,22 +995,19 @@ constexpr float dualProneTurnMost = 45.f;
     };
     const auto offset = [](const Tunable& t) { return za::clamp(t.value, -24.f, 24.f); };
     const auto angle = [](const Tunable& t, float most) { return za::clamp(t.value, -most, most); };
-    const glm::vec3 top = inReach(eye + up * offset(vr_flat_swing_raise_up) + fwd * offset(vr_flat_swing_raise_fwd) +
-                                      right * (side * offset(vr_flat_swing_raise_out)),
+    const glm::vec3 top = inReach(eye + up * offset(set.raiseUp) + fwd * offset(set.raiseFwd) + right * (side * offset(set.raiseOut)),
         span * 0.98f);
-    const glm::vec3 toAim = at - up * offset(vr_flat_swing_end_down) + fwd * offset(vr_flat_swing_end_fwd) +
-                            right * (side * offset(vr_flat_swing_end_out)) - root;
+    const glm::vec3 toAim = at - up * offset(set.endDown) + fwd * offset(set.endFwd) + right * (side * offset(set.endOut)) - root;
     const float aimLen = glm::length(toAim);
     const glm::vec3 end = root + (aimLen > 0.001f ? toAim / aimLen : fwd) * za::min(span, aimLen);
-    const glm::vec3 upTurn{za::clamp(vr_flat_swing_raise_pitch.value, 0.f, 150.f), angle(vr_flat_swing_raise_yaw, 90.f),
-        angle(vr_flat_swing_raise_roll, 90.f)};
+    const glm::vec3 upTurn{za::clamp(set.raisePitch.value, 0.f, 150.f), angle(set.raiseYaw, 90.f), angle(set.raiseRoll, 90.f)};
     // The strike turns the wrist to vr_flat_swing_end_pitch, whatever the hand holds: that is the blow. A melee
     // weapon's haft stands up the hand, not along the aim as a gun's barrel does, so at that angle its head is still
     // over the hand (seen 2026-11-10); it follows through to vr_flat_swing_end_pitch_melee over the hold after the
     // strike, turned on by _end_yaw_melee and rolled by _end_roll_melee. (Turned that far within the strike itself, the
     // axe missed a knight 24 ahead at every angle past 50: the blow is the strike's, the follow-through only a look.)
-    const float downPitch = za::clamp(vr_flat_swing_end_pitch.value, -30.f, 90.f);
-    const glm::vec3 downTurn{-downPitch, angle(vr_flat_swing_end_yaw, 90.f), angle(vr_flat_swing_end_roll, 90.f)};
+    const float downPitch = za::clamp(set.endPitch.value, -30.f, 90.f);
+    const glm::vec3 downTurn{-downPitch, angle(set.endYaw, 90.f), angle(set.endRoll, 90.f)};
     const glm::vec3 followTurn = meleeIn(h) ? glm::vec3{-za::max(downPitch, za::clamp(vr_flat_swing_end_pitch_melee.value, -30.f, 150.f)),
                                                   downTurn.y + angle(vr_flat_swing_end_yaw_melee, 90.f),
                                                   downTurn.z + angle(vr_flat_swing_end_roll_melee, 90.f)}
@@ -1049,6 +1070,32 @@ constexpr float dualProneTurnMost = 45.f;
     return hands::anglesFromVectors(f2, u1 * za::cos(z) + r2 * za::sin(z));
 }
 
+// Hand angles `a` turned towards `b` by `k` (0..1), the shortest way.
+[[nodiscard]] glm::vec3 mixedAngles(const glm::vec3& a, const glm::vec3& b, float k)
+{
+    const auto quatOf = [](const glm::vec3& rot) {
+        glm::vec3 f, r, u;
+        hands::angleVectors(rot, f, r, u);
+        return glm::quat_cast(glm::mat3{f, glm::cross(u, f), u});
+    };
+    const glm::mat3 m = glm::mat3_cast(glm::slerp(quatOf(a), quatOf(b), za::clamp(k, 0.f, 1.f)));
+    return hands::anglesFromVectors(m[0], m[2]);
+}
+
+// How far V's empty-handed overhand blow has its fist turned from the hand's rest to the aim's (0..1): in over the windup,
+// held through the top, the strike and its hold, out over the way back.
+[[nodiscard]] float overhandShare(int h)
+{
+    if(!fs.punchOverhand[h] || !punching(h))
+    {
+        return 0.f;
+    }
+    const SwingTimes w = swingTimes(fistSwing);
+    const double t = vr_gametime - fs.punchAt[h];
+    const double out = static_cast<double>(w.wind + w.top + w.strike + w.dwell);
+    return t < w.wind ? slide(t, 0.0, w.wind) : t < out ? 1.f : 1.f - slide(t, out, w.back);
+}
+
 // The melee parry's guard (vr_flat_parry; his notes 2026-11-10): the right mouse button held with one melee weapon (where a
 // gun's ironsight is) raises it almost level across the view in front of the chest and face, its edge forward, and
 // releasing it brings it back to the hold. Asked for this frame by hand `h`: the button, held in the game, routed to the
@@ -1057,7 +1104,7 @@ constexpr float dualProneTurnMost = 45.f;
 // a trip of its own (a reload, the hands' swap).
 [[nodiscard]] bool parryAsked(int h)
 {
-    return vr_flat_parry.value != 0.f && meleeIn(h) && loneWeaponHand() == h && key_dest == key_game &&
+    return vr_flat_parry.value != 0.f && (meleeIn(h) || poleParries(h)) && loneWeaponHand() == h && key_dest == key_game &&
            client::offhandButton() && routeFire(false, false).rmbAims && !punching(h) && (!shoving(h) || fs.shoveBash) &&
            !flatreload::busy(h) && !flatswap::busy();
 }
@@ -1258,7 +1305,44 @@ void twoHandPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& 
 // pole points there), moved by vr_flat_pole_fwd/_up/_out (`fwd`, `right`, `up`: the frame the hands are placed in) and
 // rolled about the pole by _roll (no other turn: the beam goes along the pole to the crosshair). The other hand goes on
 // the pole (vr_view_weapon.cpp chooseGrip, vr_flat_pole_off_along; vr_view_hands.cpp, before drawHand: _off_pitch / _yaw / _roll).
-void polePose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up)
+// (polepose, his flat notes 2026-11-25: the spear pointed beside the crosshair, towards its hand, where the Lance pointed at
+// it: the Lance has a sight line, so flatsight's aimAtPoint turned it onto the crosshair's point; the spear, a melee weapon,
+// kept the hold's turn, along the crosshair's way from the hand's side.) Every pole weapon now: its tip's line (the shot's
+// way from the tip, as the view placed it: flatsight::muzzleInHand) turned about the fist through what the crosshair is on,
+// never nearer than vr_flat_pole_aim_near along the ray (vr_flat_pole_aim_point; a few passes, as aimAtPoint's: the turn
+// moves the tip). The thrust goes along that line (thrustPose), so it stays on the point too.
+[[nodiscard]] glm::vec3 turnedBy(const glm::mat3& turn, const glm::vec3& rot);
+
+void poleAim(hands::State& s, int h, int slot, const glm::vec3& aim)
+{
+    glm::vec3 tip;
+    if(bot != nullptr || vr_flat_pole_aim_point.value == 0.f || !flatsight::muzzleInHand(h, tip))
+    {
+        return;
+    }
+    glm::vec3 org, dir;
+    crosshairRay(s, aim, org, dir);
+    const float nearest = za::clamp(vr_flat_pole_aim_near.value, 16.f, 512.f);
+    const float dist = za::clamp(glm::dot(flatsight::crosshairHit(s, aim) - org, dir), nearest, 8192.f);
+    const glm::vec3 point = org + dir * dist;
+    for(int i = 0; i < 4; i++)
+    {
+        glm::vec3 f, r, u;
+        hands::angleVectors(s.rot[h], f, r, u);
+        const glm::vec3 at = s.pos[h] + f * tip.x + r * tip.y + u * tip.z;
+        const glm::vec3 shot = hands::forward(weapons::shotAngles(s.rot[h], slot, h == HAND_OFF));
+        const glm::vec3 want = glm::normalize(point - at);
+        const glm::vec3 axis = glm::cross(shot, want);
+        if(glm::length(axis) < 1e-6f)
+        {
+            return;
+        }
+        const float c = za::clamp(glm::dot(shot, want), -1.f, 1.f);
+        s.rot[h] = turnedBy(glm::mat3_cast(glm::angleAxis(za::acos(c), glm::normalize(axis))), s.rot[h]);
+    }
+}
+
+void polePose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up, const glm::vec3& aim)
 {
     const int slot = heldIn(h);
     if(!twohand::poleWeapon(slot))
@@ -1273,6 +1357,12 @@ void polePose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& rig
     glm::vec3 f, r, u;
     hands::angleVectors(s.rot[h], f, r, u);
     s.rot[h] = hands::anglesFromVectors(glm::normalize(turn * f), glm::normalize(turn * u));
+    // (In a thrust, so it travels along the aimed line; held, flatsight's aim at the point is the last word, after the two
+    // hands' grip moves the holding hand: aimed here too, the other hand rode up to 0.2 further off the pole walking and turning.)
+    if(poleThrusts(h))
+    {
+        poleAim(s, h, slot, aim);
+    }
 }
 
 // A turn of a pole weapon about the fist holding it (world): its tip up by `pitch` (degrees; about the level line across
@@ -1314,6 +1404,7 @@ void polePose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& rig
 struct ThrustPart
 {
     float along, up, pitch, yaw; // units along the pole (negative back), units up, degrees (poleTurn's)
+    float out{0.f}, roll{0.f};   // a one-handed blade's: units out to its own side, degrees rolled about the blade
 };
 
 [[nodiscard]] ThrustPart thrustAt(double t, bool pole)
@@ -1321,15 +1412,22 @@ struct ThrustPart
     const auto units = [](const Tunable& c) { return za::clamp(c.value, -30.f, 30.f); };
     const auto degrees = [](const Tunable& c) { return za::clamp(c.value, -60.f, 60.f); };
     const ThrustPart rest{0.f, 0.f, 0.f, 0.f};
-    // (A one-handed blade's own reach and draw back: its fist goes out, not a pole sliding through the other hand.)
-    const ThrustPart wound{-units(pole ? vr_flat_thrust_wind_back : vr_flat_thrust_1h_wind_back),
-        units(pole ? vr_flat_thrust_wind_up : vr_flat_thrust_1h_wind_up), degrees(vr_flat_thrust_wind_pitch), degrees(vr_flat_thrust_wind_yaw)};
-    const ThrustPart out{units(pole ? vr_flat_thrust_reach : vr_flat_thrust_1h_reach), units(vr_flat_thrust_up),
-        degrees(vr_flat_thrust_pitch), degrees(vr_flat_thrust_yaw)};
+    // (A one-handed blade's own reach, draw back, turn and times: its fist goes out, not a pole sliding through the other
+    // hand; flatmelee4: all its own, vr_flat_thrust_1h_*.)
+    const ThrustPart wound = pole ? ThrustPart{-units(vr_flat_thrust_wind_back), units(vr_flat_thrust_wind_up),
+                                        degrees(vr_flat_thrust_wind_pitch), degrees(vr_flat_thrust_wind_yaw)}
+                                  : ThrustPart{-units(vr_flat_thrust_1h_wind_back), units(vr_flat_thrust_1h_wind_up),
+                                        degrees(vr_flat_thrust_1h_wind_pitch), degrees(vr_flat_thrust_1h_wind_yaw),
+                                        units(vr_flat_thrust_1h_wind_out), za::clamp(vr_flat_thrust_1h_wind_roll.value, -90.f, 90.f)};
+    const ThrustPart out = pole ? ThrustPart{units(vr_flat_thrust_reach), units(vr_flat_thrust_up), degrees(vr_flat_thrust_pitch),
+                                      degrees(vr_flat_thrust_yaw)}
+                                : ThrustPart{units(vr_flat_thrust_1h_reach), units(vr_flat_thrust_1h_up),
+                                      degrees(vr_flat_thrust_1h_pitch), degrees(vr_flat_thrust_1h_yaw)};
     const auto mix = [](const ThrustPart& a, const ThrustPart& b, float u) {
-        return ThrustPart{a.along + (b.along - a.along) * u, a.up + (b.up - a.up) * u, a.pitch + (b.pitch - a.pitch) * u, a.yaw + (b.yaw - a.yaw) * u};
+        return ThrustPart{a.along + (b.along - a.along) * u, a.up + (b.up - a.up) * u, a.pitch + (b.pitch - a.pitch) * u,
+            a.yaw + (b.yaw - a.yaw) * u, a.out + (b.out - a.out) * u, a.roll + (b.roll - a.roll) * u};
     };
-    const ThrustTimes w = thrustTimes();
+    const ThrustTimes w = thrustTimes(pole);
     double k = t;
     if(k < w.wind)
     {
@@ -1357,23 +1455,77 @@ struct ThrustPart
 // Whether `h`'s thrust is in its strike or the hold after it: the blow (the windup and the way back strike nothing).
 [[nodiscard]] bool thrustStrikes(int h)
 {
-    const ThrustTimes w = thrustTimes();
+    const ThrustTimes w = thrustTimesOf(h);
     const double t = vr_gametime - fs.punchAt[h];
     return fs.punchThrust[h] && t >= w.wind + w.hold && t <= w.wind + w.hold + w.strike + w.dwell;
 }
 
 // How far a one-handed blade's thrust has turned it onto the crosshair (0..1): in over the windup, held through the
 // strike and its hold, out over the way back. 0 for a pole weapon (its spear pose already points it there) or no thrust.
-[[nodiscard]] float thrustAimShare(int h)
+// (thrustShare: the same for any thrust, a pole weapon's too: a flipped one's stab down, flatmelee4.)
+[[nodiscard]] float thrustShare(int h)
 {
-    if(!fs.punchThrust[h] || !punching(h) || twohand::poleWeapon(heldIn(h)))
+    if(!fs.punchThrust[h] || !punching(h))
     {
         return 0.f;
     }
-    const ThrustTimes w = thrustTimes();
+    const ThrustTimes w = thrustTimesOf(h);
     const double t = vr_gametime - fs.punchAt[h];
     const double out = static_cast<double>(w.wind + w.hold + w.strike + w.dwell);
     return t < w.wind ? slide(t, 0.0, w.wind) : t < out ? 1.f : 1.f - slide(t, out, w.back);
+}
+
+[[nodiscard]] float thrustAimShare(int h)
+{
+    return twohand::poleWeapon(heldIn(h)) ? 0.f : thrustShare(h);
+}
+
+// A weapon held with its grip flipped (QVR_WPNFLAG_REVGRIP), by its family (flatmelee4, his words 2026-11-25): its hand's
+// place (the view's ahead / up / out), its turn about the fist (drawn only) and its thrust's stab down, per family.
+struct RevGripSet
+{
+    const Tunable &fwd, &up, &out, &pitch, &yaw, &roll, &down;
+};
+const RevGripSet revGripSword{vr_flat_revgrip_sword_fwd, vr_flat_revgrip_sword_up, vr_flat_revgrip_sword_out, vr_flat_revgrip_sword_pitch,
+    vr_flat_revgrip_sword_yaw, vr_flat_revgrip_sword_roll, vr_flat_revgrip_sword_down};
+const RevGripSet revGripDagger{vr_flat_revgrip_dagger_fwd, vr_flat_revgrip_dagger_up, vr_flat_revgrip_dagger_out,
+    vr_flat_revgrip_dagger_pitch, vr_flat_revgrip_dagger_yaw, vr_flat_revgrip_dagger_roll, vr_flat_revgrip_dagger_down};
+const RevGripSet revGripPole{vr_flat_revgrip_pole_fwd, vr_flat_revgrip_pole_up, vr_flat_revgrip_pole_out, vr_flat_revgrip_pole_pitch,
+    vr_flat_revgrip_pole_yaw, vr_flat_revgrip_pole_roll, vr_flat_revgrip_pole_down};
+constexpr int swordKindMask = 3840; // QC QVR_WPNFLAG_SWORD_KIND: bits 8-11, on WID_SWORD only (vr_notectx.cpp swordKindNames)
+constexpr int swordKindDagger = 12;
+
+// Hand `h`'s family's numbers: a pole weapon, the dagger (a WID_SWORD of kind 12), or any other blade (the swords).
+[[nodiscard]] const RevGripSet& revGripSet(int h)
+{
+    if(twohand::poleWeapon(heldIn(h)))
+    {
+        return revGripPole;
+    }
+    const int flags = cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
+    return (flags & swordKindMask) / 256 == swordKindDagger ? revGripDagger : revGripSword;
+}
+
+// Hand `h`'s flip as drawn (0..1: view::heldWeaponAxes's, turning over as the flip does); 0 for a bot's or none.
+[[nodiscard]] float revGripShare(int h)
+{
+    glm::vec3 f, u;
+    float flip = 0.f;
+    return bot == nullptr && heldIn(h) >= 0 && view::heldWeaponAxes(h, f, u, flip) ? za::clamp(flip, 0.f, 1.f) : 0.f;
+}
+
+// A flipped grip's hand place (vr_flat_revgrip_<family>_fwd / _up / _out; the view's `fwd`, `right`, `up`) by the flip's share:
+// held a bit overhead. The game's hand: the thrust and the swing start from it.
+void revGripPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up)
+{
+    const float k = revGripShare(h);
+    if(k <= 0.f)
+    {
+        return;
+    }
+    const RevGripSet& g = revGripSet(h);
+    const auto units = [](const Tunable& c) { return za::clamp(c.value, -20.f, 20.f); };
+    s.pos[h] += (fwd * units(g.fwd) + right * ((h == HAND_OFF ? -1.f : 1.f) * units(g.out)) + up * units(g.up)) * k;
 }
 
 // The blade in hand `h` as drawn last, in the hand's frame (forward, left, up): the way from its model's origin (its grip)
@@ -1407,7 +1559,8 @@ struct ThrustPart
 // windup its blade turns onto the crosshair's point (`aim`: the view's angles; not nearer than vr_flat_thrust_1h_near) and
 // the fist comes vr_flat_thrust_1h_in in towards the middle, then out along the blade (vr_flat_thrust_1h_reach), the QC's
 // stab by its point (VR_Embed_StabWhy) as a headset's. A flipped grip (the blade out of the fist's bottom) stabs down: the
-// fist raised vr_flat_thrust_1h_rev_up and the blade pointed vr_flat_thrust_1h_rev_down under the crosshair's line.
+// blade pointed vr_flat_revgrip_<sword|dagger>_down under the crosshair's line (the fist held raised by revGripPose); a
+// flipped pole weapon's thrust turned vr_flat_revgrip_pole_down down by the thrust's share (flatmelee4).
 void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& right, const glm::vec3& up, const glm::vec3& aim)
 {
     const int slot = heldIn(h);
@@ -1435,8 +1588,7 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
         float flip = 0.f;
         if(view::heldWeaponAxes(h, wf, wu, flip) && flip >= 0.5f)
         {
-            want = poleTurn(want, -za::clamp(vr_flat_thrust_1h_rev_down.value, 0.f, 80.f), 0.f, side) * want;
-            s.pos[h] += up * (za::clamp(vr_flat_thrust_1h_rev_up.value, -20.f, 20.f) * k);
+            want = poleTurn(want, -za::clamp(revGripSet(h).down.value, 0.f, 80.f), 0.f, side) * want;
         }
         s.pos[h] -= right * (side * za::clamp(vr_flat_thrust_1h_in.value, -20.f, 20.f) * k);
         // (The shortest turn taking the blade onto `want`, by the share.)
@@ -1457,14 +1609,28 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
             way = blade;
         }
     }
-    glm::vec3 at = s.pos[h] + way * p.along + up * p.up;
+    else if(revGripShare(h) >= 0.5f)
+    {
+        // (A flipped pole weapon stabs down: the pole turned under the crosshair's line, in and out with the thrust.)
+        const glm::mat3 down = poleTurn(way, -za::clamp(revGripSet(h).down.value, 0.f, 80.f) * thrustShare(h), 0.f, side);
+        s.rot[h] = turnedBy(down, s.rot[h]);
+        way = glm::normalize(down * way);
+    }
+    glm::vec3 at = s.pos[h] + way * p.along + up * p.up + right * (side * p.out);
     const float most = za::max(4.f, armSpan()) * 0.98f;
     if(const glm::vec3 d = at - root; glm::length(d) > most && glm::length(s.pos[h] - root) < most)
     {
         at = root + d * (most / glm::length(d));
     }
     s.pos[h] = at;
-    s.rot[h] = turnedBy(poleTurn(way, p.pitch, p.yaw, side), s.rot[h]);
+    const glm::mat3 turn = poleTurn(way, p.pitch, p.yaw, side);
+    s.rot[h] = turnedBy(turn, s.rot[h]);
+    fs.thrustWay[h] = glm::normalize(turn * way);
+    if(p.roll != 0.f)
+    {
+        // (A one-handed blade's windup roll, vr_flat_thrust_1h_wind_roll: about the blade, its top out to its own side.)
+        s.rot[h] = turnedBy(glm::mat3_cast(glm::angleAxis(glm::radians(p.roll * side), glm::normalize(turn * way))), s.rot[h]);
+    }
 }
 
 // The spear pose's own drawn turn (vr_flat_pole_pitch / _yaw) of hand `h`'s drawn axes `handAxes` (drawnOffset): about the
@@ -1486,8 +1652,8 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
 
 // A flipped grip's own drawn turn of hand `h`'s drawn axes `handAxes` (flipgrip, his words 2026-11-24): the weapon held
 // reversed (QVR_WPNFLAG_REVGRIP: B, the wheel's or the holster menu's FLIP GRIP) points back and down out of a flat hand,
-// off the screen; the fist turned about its own side by vr_flat_revgrip_pitch (a blade: its point forward and down, held
-// for a stab) or vr_flat_revgrip_pole_pitch (a pole weapon: the Crystal Lance's head forward and down), by the flip's drawn
+// off the screen; the fist turned about its own side by vr_flat_revgrip_sword_pitch / _dagger_pitch (a blade: its point
+// forward and down, held for a stab) or vr_flat_revgrip_pole_pitch (a pole weapon: the Crystal Lance's head forward and down), by the flip's drawn
 // share (view::heldWeaponAxes: it turns over as the flip does). Drawn only: the beam keeps to the crosshair.
 [[nodiscard]] glm::mat3 revGripDrawnTurn(int h, const glm::mat3& handAxes)
 {
@@ -1497,7 +1663,9 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
     {
         return glm::mat3{1.f};
     }
-    const float pitch = twohand::poleWeapon(heldIn(h)) ? vr_flat_revgrip_pole_pitch.value : vr_flat_revgrip_pitch.value;
+    // (Per family, flatmelee4: vr_flat_revgrip_<sword|dagger|pole>_pitch, then _yaw about the hand's up, in towards the middle,
+    // then _roll about its forward, mirrored for the off hand.)
+    const RevGripSet& g = revGripSet(h);
     const glm::vec3 across = glm::cross(handAxes[0], handAxes[2]);
     if(glm::length(across) < 1e-3f)
     {
@@ -1505,8 +1673,12 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
     }
     // (About cross(forward, up) a positive turn lifts what is ahead: what points back and down comes down and forward.)
     // (A one-handed blade's thrust turns the game's hand to stab down with it: the drawn turn gives way to it.)
-    const float a = za::clamp(pitch, -180.f, 180.f) * za::clamp(flip, 0.f, 1.f) * (1.f - thrustAimShare(h));
-    return glm::mat3_cast(glm::angleAxis(glm::radians(a), glm::normalize(across)));
+    const float k = za::clamp(flip, 0.f, 1.f) * (1.f - thrustAimShare(h));
+    const float side = h == HAND_OFF ? -1.f : 1.f;
+    const auto deg = [k](const Tunable& c) { return glm::radians(za::clamp(c.value, -180.f, 180.f) * k); };
+    const glm::quat q = glm::angleAxis(deg(g.roll) * side, glm::normalize(handAxes[0])) *
+                        glm::angleAxis(deg(g.yaw) * side, glm::normalize(handAxes[2])) * glm::angleAxis(deg(g.pitch), glm::normalize(across));
+    return glm::mat3_cast(q);
 }
 
 // The parry's guard held in two hands (vr_flat_melee_2h_parry_*): over the guard's pose, by both shares (only in the stance).
@@ -1563,7 +1735,27 @@ struct PoleTrack
     float gapHi{0.f}; // cm the other hand's wrist was past its arm's stretch (avatar::embedArmGapCm), at most
     float stretchHi{1.f}; // the other arm's stretch taken (avatar::armStretched), at most
     float slide[2]{0.f, 0.f}; // each hand's thrustOffSlide as this frame draws it (measured next frame)
+    // (polepose, his flat notes 2026-11-25) the other hand's fingers closed round the pole (view::drawnGripCurl, 0..1),
+    // least and most; and the pole's aim: the game's line (the hand along its shot way) and the drawn tip line (the hold to
+    // the tip) off the point 200 units down the crosshair's ray, at most (units); the drawn line's nearest to the ray.
+    float curlLo{1e9f}, curlHi{-1e9f};
+    float aimHi{0.f}, tipHi{0.f}, rayHi{0.f};
+    float pointAt{0.f}; // how far down the ray the crosshair point last was
 };
+
+// How far the line through `from` along unit `way` passes from the point `p`.
+[[nodiscard]] float lineMiss(const glm::vec3& from, const glm::vec3& way, const glm::vec3& p)
+{
+    const glm::vec3 d = p - from;
+    return glm::length(d - way * glm::dot(d, way));
+}
+
+// How near the line through `a` along unit `u` comes to the line through `b` along unit `v`.
+[[nodiscard]] float linesApart(const glm::vec3& a, const glm::vec3& u, const glm::vec3& b, const glm::vec3& v)
+{
+    const glm::vec3 n = glm::cross(u, v);
+    return glm::length(n) > 1e-5f ? za::fabs(glm::dot(b - a, glm::normalize(n))) : lineMiss(a, u, b);
+}
 PoleTrack poleTrack;
 
 void probePole()
@@ -1599,6 +1791,27 @@ void probePole()
         p.gapHi = za::max(p.gapHi, gap);
         const float stretch = avatar::armStretched(1 - h);
         p.stretchHi = za::max(p.stretchHi, stretch);
+        if(const float curl = view::drawnGripCurl(1 - h); curl >= 0.f)
+        {
+            p.curlLo = za::min(p.curlLo, curl);
+            p.curlHi = za::max(p.curlHi, curl);
+        }
+        {
+            const hands::State& hs = hands::current();
+            glm::vec3 org, dir;
+            crosshairRay(hs, geom::vec(cl.viewangles), org, dir);
+            const glm::vec3 point = flatsight::crosshairHit(hs, geom::vec(cl.viewangles));
+            p.pointAt = glm::dot(point - org, dir);
+            const glm::vec3 at200 = org + dir * 200.f;
+            const glm::vec3 shot = hands::forward(weapons::shotAngles(hs.rot[h], heldIn(h), h == HAND_OFF));
+            // (the game's tip line: from the tip as placed in the hand, along the shot's way: poleAim's line, at the point)
+            glm::vec3 tip{0.f}, f, r, u;
+            hands::angleVectors(hs.rot[h], f, r, u);
+            const glm::vec3 from = flatsight::muzzleInHand(h, tip) ? hs.pos[h] + f * tip.x + r * tip.y + u * tip.z : hs.pos[h];
+            p.aimHi = za::max(p.aimHi, lineMiss(from, shot, point));
+            p.tipHi = za::max(p.tipHi, lineMiss(m.muzzle, way, at200));
+            p.rayHi = za::max(p.rayHi, linesApart(m.muzzle, way, org, dir));
+        }
         if(p.every)
         {
             Con_Printf("poletrack: %s f %d off %.2f along %.2f place %.2f slide %.1f pin %.2f arm x%.3f gap %.1f\n",
@@ -1622,6 +1835,9 @@ void poleTrack_f()
         Con_Printf("poletrack: report %d frames, off %.2f .. %.2f, along %.2f .. %.2f, place %.2f .. %.2f, arm x%.3f, arm gap %.1f cm\n",
             p.frames, any ? p.offLo : 0.f, any ? p.offHi : 0.f, any ? p.alongLo : 0.f, any ? p.alongHi : 0.f, any ? p.placeLo : 0.f,
             any ? p.placeHi : 0.f, p.stretchHi, p.gapHi);
+        Con_Printf("poletrack: grip curl %.2f .. %.2f, aim miss at the point %.2f (%.0f away)\n",
+            p.curlHi >= 0.f ? p.curlLo : -1.f, p.curlHi, p.aimHi, p.pointAt);
+        Con_Printf("poletrack: drawn tip line miss at 200 %.2f, off the ray %.2f\n", p.tipHi, p.rayHi);
         const PoleTrack was = p;
         p = PoleTrack{};
         p.on = was.on;
@@ -1734,6 +1950,10 @@ void startPunch(int h, const char* from, bool vKey = false)
     fs.punchFrame[h] = host_framecount;
     // (A prop in the fist: the overhead swing as a weapon's, vr_flat_prop_melee; 0 the fist's punch.)
     fs.punchOverhead[h] = heldIn(h) >= 0 ? vr_flat_swing.value != 0.f : propInFist(h) && vr_flat_prop_melee.value != 0.f;
+    // (V with an empty hand: the overhand blow, the fist over the shoulder and down onto the crosshair, by the swing's path
+    // with its own numbers, vr_flat_overhand_*; the fire button's straight punch unchanged. flatmelee4, his words 2026-11-25.)
+    fs.punchOverhand[h] = vKey && heldIn(h) < 0 && !propInFist(h) && vr_flat_overhand.value != 0.f;
+    fs.punchOverhead[h] = fs.punchOverhead[h] || fs.punchOverhand[h];
     // (A pole weapon, the Crystal Lance or the spear: the spear's thrust instead, vr_flat_thrust; V with a blade stuck in by
     // its point, a sword or a dagger, the same thrust: flatthrust, his decision 2026-11-24. Its fire button keeps the swing.)
     fs.punchThrust[h] = thrustsWith(heldIn(h)) && (vKey || twohand::poleWeapon(heldIn(h)));
@@ -1747,7 +1967,7 @@ void startPunch(int h, const char* from, bool vKey = false)
     {
         Con_Printf("flatplay: %s punch (%s): %s%s\n", h == HAND_MAIN ? "main" : "off", from,
             punchesWith(h) ? "melee" : "not a swinging weapon",
-            fs.punchThrust[h] ? ", spear thrust" : fs.punchOverhead[h] ? ", overhead swing" : "");
+            fs.punchThrust[h] ? ", spear thrust" : fs.punchOverhand[h] ? ", overhand blow" : fs.punchOverhead[h] ? ", overhead swing" : "");
     }
 }
 
@@ -2030,16 +2250,6 @@ void shoveFrame()
     return vr_flat_prop_v.value != 0.f && !propInFist(HAND_MAIN) && propInFist(HAND_OFF) ? HAND_OFF : HAND_MAIN;
 }
 
-namespace
-{
-// A flat key (vr_flat_key_*: a key's bind name; "" none) held down now.
-[[nodiscard]] bool flatKeyHeld(const cvar_t& c)
-{
-    const int k = c.string[0] ? Key_StringToKeynum(c.string) : -1;
-    return k > 0 && k < MAX_KEYS && keydown[k] != 0;
-}
-} // namespace
-
 // The keys, read from the keyboard state (Ctrl's bind is the one exception, named at the top of the file), and E and V
 // only while the game has the keyboard (the console takes it). The hands' fire buttons come from the same source the
 // game's fire uses (vr_client.cpp's attacking: its +attack / +offhandattack state, which is what the mouse buttons drive),
@@ -2048,7 +2258,7 @@ void pollKeys()
 {
     const bool inGame = key_dest == key_game;
     // The force grab's key (vr_flat_key_grab, mouse 4: the side button the shove leaves; R reloads, vr_flatreload.cpp).
-    const auto down = [inGame](const cvar_t& c) { return inGame && flatKeyHeld(c); };
+    const auto down = [inGame](const cvar_t& c) { return inGame && keyHeld(c); };
     const bool grab = down(vr_flat_key_grab);
     const bool v = down(vr_flat_key_punch);
     bool fire[2];
@@ -2206,7 +2416,7 @@ FlatToolgunKeys flatTg;
 void toolgunKeys()
 {
     const bool inGame = key_dest == key_game;
-    const auto down = [inGame](const cvar_t& c) { return inGame && flatKeyHeld(c); };
+    const auto down = [inGame](const cvar_t& c) { return inGame && keyHeld(c); };
     const bool key = down(vr_flat_key_toolgun);
     if(key && !flatTg.key)
     {
@@ -2401,7 +2611,7 @@ void pollHandKeys(bool inGame)
     for(za::SizeT i = 0; i < za::getArraySize(handKeys); i++)
     {
         const HandKey& k = handKeys[i];
-        const bool down = inGame && keyActive(*k.key) && flatKeyHeld(*k.key);
+        const bool down = inGame && keyActive(*k.key) && keyHeld(*k.key);
         if(i < 2 && (vr_flat_wheel.value != 0.f || keyState.wheelTaken[i]))
         {
             wheelKey(i, down, inGame); // (1 / 2: a tap cycles, a hold opens the weapon wheel)
@@ -2417,20 +2627,19 @@ void pollHandKeys(bool inGame)
 void pollKeysFlat()
 {
     const bool inGame = key_dest == key_game;
-    const bool ctrl = inGame && keydown[K_CTRL] != 0;
-    const bool flash = inGame && flatKeyHeld(vr_flat_key_flashlight);
-    const bool gear = inGame && flatKeyHeld(vr_flat_key_gearlights);
+    const bool ctrl = inGame && keyHeld(vr_flat_key_crouch);
+    const bool flash = inGame && keyHeld(vr_flat_key_flashlight);
+    const bool gear = inGame && keyHeld(vr_flat_key_gearlights);
     // H (vr_flat_key_drop; G until 2026-11-10, his words: "Rebind drop to 'H' and free the 'G' key up": G is the quick
     // grenade now, vr_flatgrenade.cpp).
-    const int dropKey = vr_flat_key_drop.string[0] ? Key_StringToKeynum(vr_flat_key_drop.string) : -1;
-    const bool drop = inGame && dropKey > 0 && dropKey < MAX_KEYS && keydown[dropKey] != 0;
+    const bool drop = inGame && keyHeld(vr_flat_key_drop);
 
     if(ctrl && !keyState.keyCtrl)
     {
         keyState.crouches++;
         if(vr_flatplay_debug.value)
         {
-            Con_Printf("flatplay: Left Ctrl: crouch\n");
+            Con_Printf("flatplay: crouch key: crouch\n");
         }
     }
     if(flash && !keyState.keyFlash)
@@ -2468,11 +2677,9 @@ void pollKeysFlat()
             Con_Printf("flatplay: %s: drop\n", vr_flat_key_drop.string);
         }
     }
-    // Q and Z, each the key its cvar names (a bind name: Key_StringToKeynum), read like F and H.
-    const int swapKey = Key_StringToKeynum(vr_flat_key_swap.string);
-    const int timeKey = Key_StringToKeynum(vr_flat_key_bullettime.string);
-    const bool swap = inGame && swapKey > 0 && swapKey < MAX_KEYS && keydown[swapKey] != 0;
-    const bool slow = inGame && timeKey > 0 && timeKey < MAX_KEYS && keydown[timeKey] != 0;
+    // 3 and Z, the keys their cvars name, read like F and H.
+    const bool swap = inGame && keyHeld(vr_flat_key_swap);
+    const bool slow = inGame && keyHeld(vr_flat_key_bullettime);
     if(swap && !keyState.keySwap)
     {
         swapHands(vr_flat_key_swap.string);
@@ -2495,14 +2702,13 @@ void pollKeysFlat()
     keyState.keySwap = swap;
     keyState.keyTime = slow;
     // X (vr_flat_key_prone): lie down, get up (vr_prone_toggle's toggle).
-    const int proneKey = Key_StringToKeynum(vr_flat_key_prone.string);
-    const bool proneDown = inGame && proneKey > 0 && proneKey < MAX_KEYS && keydown[proneKey] != 0;
+    const bool proneDown = inGame && keyHeld(vr_flat_key_prone);
     if(proneDown && !keyState.keyProne)
     {
         toggleProne("flatscreen key");
     }
     keyState.keyProne = proneDown;
-    // The crouch pressed while lying down (Left Ctrl, +flatcrouch): up out of it into the crouch, the one easing out as the
+    // The crouch pressed while lying down (a crouch key, +flatcrouch): up out of it into the crouch, the one easing out as the
     // other eases in (the eyes take the deeper of the two: crouchDrop), the gun's pose from the prone one to the crouch
     // one (targetOffset). It used to keep him lying down with the crouch's gun pose on top.
     const bool crouchNow = ctrl || keyState.cmdHeld;
@@ -2517,8 +2723,7 @@ void pollKeysFlat()
         getUp("room to get up");
     }
     // Mouse 5 (vr_flat_key_shove): a shove.
-    const int shoveKey = Key_StringToKeynum(vr_flat_key_shove.string);
-    const bool shove = inGame && shoveKey > 0 && shoveKey < MAX_KEYS && keydown[shoveKey] != 0;
+    const bool shove = inGame && keyHeld(vr_flat_key_shove);
     if(shove && !fs.keyShove)
     {
         startShove(vr_flat_key_shove.string);
@@ -2586,7 +2791,7 @@ void pollKeysFlat()
     }
 }
 
-// +flatcrouch / -flatcrouch: the crouch held and let go from the console (the same hold Left Ctrl gives).
+// +flatcrouch / -flatcrouch: the crouch held and let go from the console (the same hold the crouch keys give).
 void crouchHold_f()
 {
     keyState.cmdHeld = true;
@@ -2595,47 +2800,6 @@ void crouchHold_f()
 void crouchRelease_f()
 {
     keyState.cmdHeld = false;
-}
-
-// Ctrl's bind, taken over and given back (CtrlBind above). Key_SetBinding is what the console's `bind` uses, so the mode's
-// bind is an ordinary one: bindlist shows it, Key_WriteBindings would write it out (VR_FlatKeysForConfigWrite below stops
-// that), and a `bind CTRL ...` said on the console during the mode takes it away until the mode asks for it again.
-[[nodiscard]] bool ctrlHolds()
-{
-    return ctrlBind.taken && keybindings[K_CTRL] && !q_strcasecmp(keybindings[K_CTRL], "+flatcrouch");
-}
-
-void takeCtrlBind()
-{
-    if(ctrlHolds())
-    {
-        return; // still the mode's bind
-    }
-    // Remember what Ctrl holds now, every time -- not only the first time. The mode's frames start inside VR_BeginFrame
-    // (Quake/host.c), before the frame's Cbuf_Execute runs the start-up configs, so at the very first frame Ctrl has no
-    // bind at all yet; its own line (bind "CTRL" "+attack", Quake/default_cfg.h, the saved config) lands a moment later,
-    // over the mode's, and the mode asks for the key again on the next frame. Each later ask happens for the same reason:
-    // something else has just changed Ctrl's bind -- a config, a `bind CTRL ...` said on the console, an unbindall -- and
-    // that value is the plain game's, so it is what the mode gives back before the engine writes its config out. Keeping
-    // only the first one remembered would keep the empty state of that first frame and write it out as the player's bind.
-    q_strlcpy(ctrlBind.was, keybindings[K_CTRL] ? keybindings[K_CTRL] : "", sizeof(ctrlBind.was));
-    Key_SetBinding(K_CTRL, "+flatcrouch");
-    ctrlBind.taken = true;
-    if(vr_flatplay_debug.value)
-    {
-        Con_Printf("flatplay: CTRL `%s` -> +flatcrouch (vr_flat_crouch_fire 0: the crouch key does not fire the "
-                   "weapon)\n", ctrlBind.was[0] ? ctrlBind.was : "unbound");
-    }
-}
-
-void giveCtrlBindBack()
-{
-    if(!ctrlBind.taken)
-    {
-        return;
-    }
-    ctrlBind.taken = false;
-    Key_SetBinding(K_CTRL, ctrlBind.was[0] ? ctrlBind.was : nullptr);
 }
 
 // Quake angles' axes as columns: forward, right, up.
@@ -2963,6 +3127,31 @@ float poseNum(const Tunable& c)
     return za::clamp(c.value, -30.f, 30.f);
 }
 
+// (polepose, his flat note 2026-11-25: "Right mouse button on the crystal lance should go in a parry state instead of ADS,
+// with the same pose as the spear") A pole gun (the Crystal Lance: a pole weapon that is no melee weapon) in hand h
+// parries on the right mouse button as the spear does, its ironsight off (vr_flat_pole_rmb_parry).
+bool poleThrusts(int h)
+{
+    return bot == nullptr && h >= 0 && h < HAND_COUNT && fs.punchThrust[h] && punching(h) && twohand::poleWeapon(heldIn(h)) &&
+           vr_gametime >= fs.punchAt[h];
+}
+
+glm::vec3 poleThrustTurn(int h, const glm::vec3& rot)
+{
+    if(!poleThrusts(h))
+    {
+        return rot;
+    }
+    const ThrustPart p = thrustAt(vr_gametime - fs.punchAt[h], true);
+    const glm::vec3 way = hands::forward(weapons::shotAngles(rot, heldIn(h), h == HAND_OFF));
+    return turnedBy(poleTurn(way, p.pitch, p.yaw, h == HAND_OFF ? -1.f : 1.f), rot);
+}
+
+bool poleParries(int h)
+{
+    return vr_flat_pole_rmb_parry.value != 0.f && h >= 0 && h < HAND_COUNT && !meleeIn(h) && twohand::poleWeapon(heldIn(h));
+}
+
 bool meleeIn(int h)
 {
     switch(heldWid(h))
@@ -3186,6 +3375,12 @@ bool crouchHeld()
     return active() && (keyState.keyCtrl || keyState.cmdHeld || keyState.prone);
 }
 
+float crouchSwim()
+{
+    // (in water, as C's +movedown did before C crouched; not lying down: the prone key is no crouch key)
+    return active() && vr_flat_crouch_swim.value != 0.f && cl.inwater && (keyState.keyCtrl || keyState.cmdHeld) ? 1.f : 0.f;
+}
+
 // The flatscreen look's window, in the plain game's pitch -- Quake's pitch is positive looking down, so looking up is
 // negative: the view sits between -vr_flat_pitch_up and +vr_flat_pitch_down. It is asked at the one place where the
 // frame's looking has all landed in cl.viewangles (Quake/cl_main.c CL_AccumulateCmd: the look keys, the arrow keys and the
@@ -3203,14 +3398,6 @@ bool crouchHeld()
     const float up = za::clamp(vr_flat_pitch_up.value, 0.f, 90.f);
     const float down = za::clamp(vr_flat_pitch_down.value, 0.f, 90.f);
     return za::clamp(pitch, -up, down);
-}
-
-// Quake/host.c is about to write the key bindings out: Ctrl's bind given back, so the config on disk keeps the plain
-// game's CTRL (+attack, unless the player had it bound to something else). The mode's next frame takes it up again; at a
-// quit there is no next frame, and that is the point -- a flatscreen session leaves no +flatcrouch in the config.
-void keysForConfigWrite()
-{
-    giveCtrlBindBack();
 }
 
 void init()
@@ -3281,8 +3468,8 @@ void frame()
         fs.announced = true;
         Con_Printf("Quake VR: flatscreen play (-flatscreenmode): the VR gameplay on the desktop screen. E grabs what you "
                    "look at, 1 and 2 cycle the weapons collected (and the empty hand) into the left and right hand, V punches, either "
-                   "hand's fire button punches with a weapon a swing strikes with (with a gun it fires the gun, as in VR), Left Ctrl "
-                   "crouches while you hold it and no longer fires (vr_flat_crouch_fire 1 gives Ctrl its firing bind back), F "
+                   "hand's fire button punches with a weapon a swing strikes with (with a gun it fires the gun, as in VR), C and Left Ctrl "
+                   "crouch while you hold them and no longer fire (vr_flat_crouch_fire 1 gives them their binds back), F "
                    "switches the flashlight, H drops what a hand holds, G takes a grenade, 3 swaps the hands, Z starts bullet time, R reloads. With one weapon "
                    "held the left mouse button fires it and the right one aims down its sights. vr_flatplay_status says what "
                    "the mode is doing.\n");
@@ -3292,17 +3479,6 @@ void frame()
         Con_Warning("Quake VR: a headset took the game back: flatscreen play is off.\n");
     }
     fs.wasOn = on;
-
-    // Left Ctrl, the crouch key that is also the plain game's fire key: while the mode runs it is the mode's bind
-    // (+flatcrouch) unless vr_flat_crouch_fire asks Ctrl to keep firing. Given back the frame the mode is not running.
-    if(on && vr_flat_crouch_fire.value == 0.f)
-    {
-        takeCtrlBind();
-    }
-    else
-    {
-        giveCtrlBindBack();
-    }
 
     if(!on)
     {
@@ -3381,7 +3557,7 @@ struct MeleeLean
         if(fs.punchOverhead[h])
         {
             // -1 at the windup's top, held, through 0 to 1 at the strike's end, held, back to 0.
-            const SwingTimes w = swingTimes();
+            const SwingTimes w = swingTimes(swingSet(h));
             const double a = w.wind, b = a + w.top, c = b + w.strike, d = c + w.dwell;
             const float u = t < a   ? -slide(t, 0.0, w.wind)
                             : t < b ? -1.f
@@ -3864,6 +4040,9 @@ struct MeleeProbe
     float pitchHi[2]{0.f, 0.f};
     float roll[2]{0.f, 0.f};
     float off[2]{-1.f, -1.f}; // a punch's or swing's hand at its end (its held reach): how far beside the crosshair's ray (units)
+    glm::vec3 start[2]{};     // the hand off the eye as it began
+    glm::vec3 wound[2]{};     // at the windup's held top, off where it began: the view's back, up, out to its own side (units)
+    float tip[2]{0.f, 0.f};   // a thrust's line at the strike's held end: degrees over the view's level (negative: down)
     bool overlap[2]{false, false};
     int lines{0};
 };
@@ -3895,9 +4074,27 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
             p.pitchLo[h] = p.pitchHi[h] = p.roll[h] = 0.f;
             p.overlap[h] = false;
             p.off[h] = -1.f;
+            p.start[h] = s.pos[h] - eye;
+            p.wound[h] = glm::vec3{0.f};
+            p.tip[h] = 0.f;
         }
         if(p.running[h] && acting)
         {
+            // (The windup's top, held: where the hand is off where it began, the view's back / up / out: flatmelee4's check that
+            // the windup goes as far as its tunables say.)
+            if(!p.shove[h] && punching(h) && (fs.punchThrust[h] || fs.punchOverhead[h]))
+            {
+                const double t = vr_gametime - fs.punchAt[h];
+                const SwingTimes w = swingTimes(swingSet(h));
+                const ThrustTimes tw = thrustTimesOf(h);
+                const double a = fs.punchThrust[h] ? tw.wind : w.wind, b = a + (fs.punchThrust[h] ? tw.hold : w.top);
+                if(t >= a && t <= b)
+                {
+                    const glm::vec3 d = s.pos[h] - eye - p.start[h];
+                    const glm::vec3 side = glm::normalize(glm::cross(dir, viewUp)) * (h == HAND_OFF ? -1.f : 1.f);
+                    p.wound[h] = {-glm::dot(d, dir), glm::dot(d, viewUp), glm::dot(d, side)};
+                }
+            }
             glm::vec3 f, r, u;
             hands::angleVectors(s.rot[h], f, r, u);
             const float elev = glm::degrees(za::asin(za::clamp(glm::dot(f, viewUp), -1.f, 1.f)));
@@ -3917,8 +4114,8 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
             if(!p.shove[h] && punching(h))
             {
                 const double t = vr_gametime - fs.punchAt[h];
-                const SwingTimes w = swingTimes();
-                const ThrustTimes tw = thrustTimes();
+                const SwingTimes w = swingTimes(swingSet(h));
+                const ThrustTimes tw = thrustTimesOf(h);
                 const double from = fs.punchThrust[h]     ? tw.wind + tw.hold + tw.strike
                                     : fs.punchOverhead[h] ? w.wind + w.top + w.strike
                                                           : punchWind + punchStrike;
@@ -3929,6 +4126,10 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
                     d -= dir * glm::dot(d, dir);
                     d -= viewUp * glm::dot(d, viewUp);
                     p.off[h] = za::max(p.off[h], glm::length(d));
+                    if(fs.punchThrust[h])
+                    {
+                        p.tip[h] = glm::degrees(za::asin(za::clamp(glm::dot(fs.thrustWay[h], viewUp), -1.f, 1.f)));
+                    }
                 }
             }
             p.pitchLo[h] = za::min(p.pitchLo[h], tilt.x);
@@ -3945,11 +4146,18 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
                 h == HAND_MAIN ? "main" : "off",
                 p.shove[h]            ? (fs.shoveBoth ? "shove both" : "shove")
                 : fs.punchThrust[h]   ? "thrust"
+                : fs.punchOverhand[h] ? "overhand"
                 : fs.punchOverhead[h] ? "swing"
                                       : "punch",
                 p.frames[h], static_cast<double>(p.overEye[h]), static_cast<double>(p.up[h]), static_cast<double>(p.down[h]),
                 static_cast<double>(p.palm[h]), static_cast<double>(p.fingers[h]), static_cast<double>(p.pitchLo[h]),
                 static_cast<double>(p.pitchHi[h]), static_cast<double>(p.roll[h]), p.overlap[h] ? 1 : 0, static_cast<double>(p.off[h]));
+            if(fs.punchThrust[h] || fs.punchOverhead[h])
+            {
+                Con_Printf("flatwindup: %s %s: back %.1f up %.1f out %.1f tip %.1f\n", h == HAND_MAIN ? "main" : "off",
+                    fs.punchThrust[h] ? "thrust" : fs.punchOverhand[h] ? "overhand" : "swing", static_cast<double>(p.wound[h].x),
+                    static_cast<double>(p.wound[h].y), static_cast<double>(p.wound[h].z), static_cast<double>(p.tip[h]));
+            }
         }
     }
 }
@@ -4177,7 +4385,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         // 20 to 26 units ahead and landed a weak blow there, x0.5 to x0.8, which knocked it out of the strike's way: the
         // raised-behind-the-head swing then did 11 to 24 damage, not 70, 2026-11-11.)
         if(punching(h) && fs.punchOverhead[h] && vr_flat_swing_wind_strikes.value == 0.f &&
-           vr_gametime - fs.punchAt[h] < static_cast<double>(swingTimes().wind))
+           vr_gametime - fs.punchAt[h] < static_cast<double>(swingTimes(swingSet(h)).wind))
         {
             handsource::mark(h, handsource::Source::Synthesized, "swing windup");
         }
@@ -4232,6 +4440,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         // (Leaning, the hand's turn rolled vr_flat_lean_gun_roll of the view's lean roll: aimed again from where the turn took it.)
         s.rot[h] = aimRotAtCrosshair(aim + glm::vec3{0.f, 0.f, gunRoll(h)}, h);
         s.rot[h].z += vr_fakevr_handroll.value;
+        const glm::vec3 aimRot = s.rot[h]; // (V's overhand fist turns from this, not from the hanging hand's rest)
         // A melee weapon is always held turned out (vr_flat_melee_hold_yaw) and rolled (_hold_roll; his notes 2026-11-10);
         // its swing turns from there.
         if(meleeIn(h))
@@ -4247,7 +4456,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             stepTwoHand(s, h, static_cast<float>(dt));
         }
         twoHandPose(s, h, fwd, right, up);
-        polePose(s, h, fwd, right, up);
+        polePose(s, h, fwd, right, up, aim);
 
         // The melee parry's guard (vr_flat_parry_*: the right mouse button held), over the hold; a swing goes from it.
         // (Held in two hands: vr_flat_melee_2h_parry_* over it.)
@@ -4266,7 +4475,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         }
         // Up (half way in and still asked for): the server parries any melee blow from in front with it, whatever its way
         // (QC VR_Parry_FlatGuard, vr_flat_parry_cone; his notes 2026-11-10: the directional parry is the headset's).
-        if(fs.parryWant[h] && meleeIn(h) && parryShare(h) >= 0.5f)
+        if(fs.parryWant[h] && (meleeIn(h) || poleParries(h)) && parryShare(h) >= 0.5f)
         {
             handsource::guarding(h);
         }
@@ -4279,13 +4488,17 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         const auto swingOverhead = [&] {
             glm::vec3 turn{0.f};
             s.pos[h] = overheadSwing(h, shoulder(s, h) + nudge, s.pos[h], eye, aimPoint, fwd, right, up, turn);
-            s.rot[h] = turnedHand(s.rot[h], turn, sideOf);
+            // (V's empty-handed overhand: the fist's turn off the aim's, eased in from the hanging hand's and back to it.)
+            s.rot[h] = fs.punchOverhand[h] ? mixedAngles(s.rot[h], turnedHand(aimRot, turn, sideOf), overhandShare(h))
+                                           : turnedHand(s.rot[h], turn, sideOf);
         };
         if(overhead && !propSwing)
         {
             swingOverhead();
         }
-        // A spear thrust (vr_flat_thrust): a pole weapon's along its pole from the spear pose, a stabbing blade's from its own.
+        // A flipped grip's hand held a bit overhead (vr_flat_revgrip_<family>_*), then a spear thrust (vr_flat_thrust): a pole
+        // weapon's along its pole from the spear pose, a stabbing blade's from its own.
+        revGripPose(s, h, fwd, right, up);
         thrustPose(s, h, shoulder(s, h) + nudge, right, up, aim);
 
         // An empty hand at rest hangs from its shoulder whatever the look: level with the body, its fingers down, not out
@@ -4621,7 +4834,7 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     glm::mat3 handAxes = wallTurn * drawnAxes * glm::mat3_cast(drawnTurn) * dualTurn;
     // The spear pose's own turn about the fist (vr_flat_pole_pitch / _yaw): drawn only.
     handAxes = poleDrawnTurn(s, h, handAxes) * handAxes;
-    // A flipped grip's turn about the fist (vr_flat_revgrip_pitch / _pole_pitch): drawn only.
+    // A flipped grip's turn about the fist (vr_flat_revgrip_<family>_pitch / _yaw / _roll): drawn only.
     handAxes = revGripDrawnTurn(h, handAxes) * handAxes;
     const glm::vec3 drawnRot = hands::anglesFromVectors(handAxes[0], handAxes[2]);
     for(int i = 0; i < 3; i++)
@@ -4973,14 +5186,15 @@ void status_f()
                                                                            : "LMB the left hand's weapon, RMB aims",
         vr_flat_aim_mode.value, vr_flat_aim_mode.value != 0.f ? "toggle" : "hold", vr_flat_key_swap.string, keyState.swaps,
         vr_flat_key_bullettime.string, keyState.times);
-    Con_Printf("  Left Ctrl pressed %d times (crouch), F %d (the flashlight), G %d (what the hand holds dropped), read the "
-               "same way. Crouched %g (held %d): his head %.1f units down of %g standing, eased in %g s each way. Ctrl is "
-               "bound to `%s` now (vr_flat_crouch_fire %g: 0 the mode holds +flatcrouch, so the crouch key fires nothing, "
-               "and the plain game's bind is what the config keeps; 1 Ctrl keeps its own bind and fires as it crouches).\n",
-        keyState.crouches, keyState.toggles, keyState.drops, keyState.ratio,
+    Con_Printf("  The crouch keys (vr_flat_key_crouch \"%s\") pressed %d times, F %d (the flashlight), G %d (what the hand holds "
+               "dropped), read the same way. Crouched %g (held %d): his head %.1f units down of %g standing, eased in %g s "
+               "each way. Ctrl is bound to `%s`, its bind %s now (vr_flat_crouch_fire %g: 0 the crouch keys' binds do not "
+               "run in flat play; 1 they run too, Ctrl fires as it crouches).\n",
+        vr_flat_key_crouch.string, keyState.crouches, keyState.toggles, keyState.drops, keyState.ratio,
         (keyState.cmdHeld || keyState.keyCtrl) ? 1 : 0, crouchDrop(),
         za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f), za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f),
-        keybindings[K_CTRL] ? keybindings[K_CTRL] : "nothing", vr_flat_crouch_fire.value);
+        keybindings[K_CTRL] ? keybindings[K_CTRL] : "nothing", VR_FlatKeyOwned(K_CTRL) ? "does not run" : "runs",
+        vr_flat_crouch_fire.value);
     Con_Printf("  the game code: reloading %s (R; auto %s), body interactions on, 1, 2 and the wheel cycle (empty hand "
                "included) the weapons collected into the left and right hand, an ammo or health box grabbed with E taken at once.\n",
         vr_flat_reload.value != 0.f ? "at the hip holsters" : "off", vr_flat_autoreload.value != 0.f ? "on" : "off");
@@ -5215,7 +5429,7 @@ void poseBot(const BotPoseIn& in, BotPoseOut& out)
         out.pos[h] = s.pos[h];
         out.rot[h] = s.rot[h];
     }
-    const SwingTimes w = swingTimes(in.windup);
+    const SwingTimes w = swingTimes(weaponSwing, in.windup);
     const double t = in.now - in.swingAt;
     out.swingPhase = t < 0.0 || t > w.wind + w.top + w.strike + w.dwell + w.back ? 0 : t < w.wind ? 1 : 2;
     bot = nullptr;
@@ -5309,17 +5523,15 @@ extern "C" void VR_FlatOrbitView(float* vieworg, float* viewangles)
     viewangles[2] = 0.f;
 }
 
-// Quake/host.c's Host_WriteConfigurationToFile, before Key_WriteBindings: flatscreen play's Ctrl bind given back so the
-// config on disk stays the plain game's (Ctrl +attack). Called whatever asked for the write -- quitting, the shutdown, the
-// menu closing with a setting changed, writeconfig -- and while the mode is not holding Ctrl it does nothing.
-extern "C" void VR_FlatKeysForConfigWrite(void)
-{
-    qvr::flatplay::keysForConfigWrite();
-}
-
 // Quake/cl_main.c's CL_AccumulateCmd, once the frame's looking has all landed in cl.viewangles: the flatscreen look's
 // window (vr_flat_pitch_up above, vr_flat_pitch_down below; Quake's pitch is positive looking down). Outside the mode the
 // angle comes back as it was -- plain play and a headset keep cl_maxpitch / cl_minpitch, their own setting.
+// Quake/cl_input.c's CL_BaseMove: the crouch keys held in water swim down (vr_flat_crouch_swim), 1; else 0.
+extern "C" float VR_FlatCrouchSwim(void)
+{
+    return qvr::flatplay::crouchSwim();
+}
+
 extern "C" float VR_FlatPitchClamp(float pitch)
 {
     return qvr::flatplay::pitchClamp(pitch);

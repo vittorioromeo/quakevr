@@ -782,7 +782,7 @@ void() armagon_stand_attack =
 
    traceline(spot1, spot2, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
 
-   if(trace_ent != self.enemy)
+   if(trace_ent != self.enemy && !VR_Lean_Clear(self.enemy)) // (QVR: vr_leanaim.qc)
       {
       armagon_run1();
       return;
@@ -844,7 +844,7 @@ float()  ArmagonCheckAttack =
 
     traceline(spot1, spot2, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
 
-   if((trace_ent != targ) && (!self.charmed))
+   if((trace_ent != targ) && (!self.charmed) && !VR_Lean_Clear(targ)) // (QVR: vr_leanaim.qc)
       return FALSE;     // don't have a clear shot
 
     if(trace_inopen && trace_inwater)

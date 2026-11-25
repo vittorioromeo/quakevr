@@ -29,7 +29,8 @@
 #define VR_AGK_SPRAYER 19    // a sprayer
 #define VR_AGK_LASERCANNON 20
 #define VR_AGK_WIDOWMAKER 21 // (the last category)
-#define VR_AGK_NUM_CLASSES 22
+#define VR_AGK_POLE 22       // a pole weapon (the spear: its slot's Other Hand Anywhere 3), both hands on its shaft
+#define VR_AGK_NUM_CLASSES 23
 
 // The poses (agpose::Pose); a strike's keys are its phases (0 the wind-up, 1 the blow, 2 the follow-through), a
 // stance's phase 0 only.
@@ -43,6 +44,7 @@
 #define VR_AGK_HOOK 12
 #define VR_AGK_UPPERCUT 13
 #define VR_AGK_OVERHEAD 14
+#define VR_AGK_THRUST 14 // (a pole weapon's thrust: its class's one strike, on the Overhead's number)
 #define VR_AGK_DIAGONAL 15
 #define VR_AGK_HORIZONTAL 16
 #define VR_AGK_BACKHAND 17

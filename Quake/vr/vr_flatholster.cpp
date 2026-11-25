@@ -465,9 +465,7 @@ void pressAt()
 
 [[nodiscard]] bool keyHeld()
 {
-    const char* k = vr_flat_key_holster_menu.string;
-    const int key = k[0] ? Key_StringToKeynum(k) : -1;
-    return key > 0 && key < MAX_KEYS && keydown[key] != 0;
+    return flatplay::keyHeld(vr_flat_key_holster_menu);
 }
 
 // vr_flat_holster_menu_mode 1: a press opens it, clicks, the next press closes it; 0: held, let go on a button.

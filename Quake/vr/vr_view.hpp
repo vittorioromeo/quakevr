@@ -414,6 +414,12 @@ struct WeaponFrame
 
 // How curled a drawn finger is (0 open .. 1 curled): `finger` 0 thumb, 1 index, 2 middle, 3 ring, 4 pinky.
 [[nodiscard]] float fingerCurl(int hand, int finger);
+// How closed the jointed hand's four fingers were as last drawn (0 open .. 1 the tightest fist): their joints' mean, with
+// any grasp (fingerCurl is the controller's curl alone). -1: no jointed hand drawn. (polepose: the pole track's grip check.)
+[[nodiscard]] float drawnGripCurl(int hand);
+// Flatscreen play: `hand` pinned on the other hand's pole weapon held as a spear (flatsight::pinShare, twohand::poleWeapon):
+// drawn closed round its shaft (polepose).
+[[nodiscard]] bool onFlatPole(int hand);
 
 // The weapons' hotspots (round 21): the hotspot point (the weapon's model space, weapons::Hotspot) of a world point
 // `p` on the weapon in `hand`; false when the hand holds none.

@@ -1,0 +1,6 @@
+# sphit_body: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Monsters' shots meet your drawn body (single player)
+map vrtesthall
+spawn "Armed Grunt: Shotgun" 110 30
+spawn "Grunt" 110 -40
+hint Stand in front of the grunts, then lean, duck and hold your arms out: their shots hit the body you see (head, torso, arms, legs) with a little leniency, not an invisible box. Sidestep so a shot passes just beside you: it misses. Debug > Tunables > Combat > Other > Body Hit Fattening makes it more or less forgiving.

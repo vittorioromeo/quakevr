@@ -6566,9 +6566,12 @@ QVR_TOGGLE(vr_xr_skip_incompatible_layers, "Skip Incompatible API Layers",
     "vr_xr_skip_incompatible_layers, from the next VR start: the implicit OpenXR API layers known not to "
     "work with this OpenGL game (OBS's OpenXR mirror: Direct3D only) are turned off by their own switch, "
     "each said in the console and qvr_openxr.txt. Off: allowed.")
-QVR_TOGGLE(vr_flat_crouch_fire, "Left Ctrl Also Fires",
-    "Playing on the desktop screen (-flatscreenmode), Left Ctrl crouches. Off: that is all it does. On: it keeps its own "
-    "bind too, so it fires as it crouches (vr_flat_crouch_fire).")
+QVR_TOGGLE(vr_flat_crouch_fire, "Crouch Keys Keep Binds",
+    "Playing on the desktop screen (-flatscreenmode), the crouch keys (C and Left Ctrl: Options > Controls) crouch. Off: "
+    "that is all they do. On: they keep their own binds too, so Left Ctrl fires as it crouches (vr_flat_crouch_fire).")
+QVR_TOGGLE(vr_flat_crouch_swim, "Crouch Keys Swim Down",
+    "Playing on the desktop screen (-flatscreenmode), in water: on, the crouch keys (C and Left Ctrl) also swim down, as "
+    "C did before it crouched; off, they only crouch (vr_flat_crouch_swim).")
 QVR_CYCLE(vr_flat_aim_mode, "Right Click Ironsight",
     "Playing on the desktop screen (-flatscreenmode) with one weapon held, in either hand, and the other hand empty: the "
     "left mouse button fires it and the right one aims down its sights. Hold: aimed while the button is held. Toggle: a "
