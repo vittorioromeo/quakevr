@@ -33,7 +33,7 @@ void() VR_FW_Begin =
     cvar_set("vr_melee_push", "0"); // (the blow's push would carry the body off the blade before the walk)
     vr_eh_home = VR_Player().origin;
     vr_et_on = 64;
-    vr_et_case = cvar_hget(cvarh_scratch2) < 0 ? 0 : max(1, cvar_hget(cvarh_scratch2)); // (scratch2: the first case; -1 the crate, which hangs: ROUND26.md embedhold2)
+    vr_et_case = max(0, cvar_hget(cvarh_scratch2)); // (scratch2: the first case)
     VR_ET_To(0);
 };
 
@@ -122,7 +122,7 @@ void() VR_FW_Frame =
         return;
     }
     // (Held still while the blade goes in: the ogre the whole case, a heavy body anchored where it stands.)
-    if(vr_et_m != world && vr_et_m.health > 0 && vr_et_m.takedamage && (vr_et_s < 3 || vr_et_case == 3 || vr_et_case >= 4))
+    if(vr_et_m != world && (vr_et_m.flags & FL_MONSTER) && vr_et_m.health > 0 && vr_et_m.takedamage && (vr_et_s < 3 || vr_et_case == 3 || vr_et_case >= 4))
     {
         vr_et_m.nextthink = time + 0.5;
         vr_et_m.velocity = '0 0 0';
