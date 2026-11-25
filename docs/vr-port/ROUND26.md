@@ -165,3 +165,22 @@ Test/tooling only. vr_recoil_test: the "his 27 slots" expectation is 31 now (4 m
   followed for lack of budget: the arm-pose table (armPoses, vr_hitreact_arms.cpp: evicted/dropped; the
   vr_agrunt_armpose_check command reports them) filling over the earlier cases, or a stale per-entity arms state.
 - **74 downtug, not started** (budget).
+
+## beta5: 1.2.0-beta5 published (branch agent/beta5, 2026-11-25)
+
+- **Notes:** RELEASE_NOTES_1.2.md "New in beta 5" (intro rewritten; beta 4's section now "Beta 4 (2026-11-24)"): Swap Face
+  Buttons for left-handed players first (lefthandbuttons), then flat play (flatembed/embedregress: blades stick again,
+  fire pulls out; flatthrust: V stabs with stabbing blades; flatads: zoom aim to the middle + visor; lanceoffhand/polewall),
+  weapons (spear/spearfix/spearblunt, flipgrip, sighthue, plasmabolt), monsters (meleearcs, agfix1125's unarmed-grunt fix).
+  Network version 46 unchanged. PATCH_NOTES_1.1.1.md the same by area (Weapons, Movement, Monsters); its older "a flat stab
+  never leaves a weapon stuck" line reworded (flatembed reversed it).
+- **APK:** `Android/release_apk.sh build`: release, 1.2.0-beta5, version code 1020005; check_apk 28/0; apksigner: CN=Quake
+  VR, SHA-256 504ff939...9119c0 = Android/release-cert.sha256.
+- **First make_release run stopped** (nothing built or published): scenario_check FAIL with 183 run / 0 failed but
+  "7 missing" checklist tags: lines tagged {test:ropes_flat}, {test:flat_weapon_wheel}, {test:ssg_muzzle} after cltidy5
+  (04276ae93) deleted those scenes. Fixed on agent/beta5 with the coordinator's OK: ropes_flat -> ropes, flat_weapon_wheel
+  -> weapon_wheel, ssg_muzzle.txt restored from 04276ae93^; checklist_tests_check 98/0.
+- **make_release** (beta4's command, -Version 1.2.0-beta5) on 03d582e2f: beta profile 12 passed, 0 failed (6.1 min);
+  installer self-tests 60/60; check_apk 28/0; smoke launch; published as a prerelease with QuakeVR.zip, QuakeVR-Setup.exe,
+  QuakeVR.apk, latest.json, SHA256SUMS.txt; online check passed; Latest still v1.1.0. The tag is on 03d582e2f (this
+  notes commit comes after it).
