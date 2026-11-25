@@ -1,8 +1,40 @@
-**Quake VR: UNLEASHED 1.2.0 beta 4**: the fourth preview of the next update. This is a **beta**: expect rough edges, and the standalone Quest version is still **experimental**. Beta 4 fixes the game failing to start on some Intel integrated graphics (HD Graphics 630 and similar), plus a few flat-screen and ragdoll fixes. Beta 3 players simply update. **On the Quest, players coming from beta 1 or beta 2 must uninstall the old app once before updating, and back up their saves first** (steps under beta 3 below). What came in betas 1 to 3 is further below. Please report bugs: Options > Create Bug Report makes a zip you can attach.
+**Quake VR: UNLEASHED 1.2.0 beta 5**: the fifth preview of the next update. This is a **beta**: expect rough edges, and the standalone Quest version is still **experimental**. Beta 5 adds **Swap Face Buttons** for left-handed players, brings back blades sticking into enemies on the flat screen with a new stab key, adds a plain spear, and has a round of weapon fixes. Beta 3 and beta 4 players simply update. **On the Quest, players coming from beta 1 or beta 2 must uninstall the old app once before updating, and back up their saves first** (steps under beta 3 below). What came in betas 1 to 4 is further below. Please report bugs: Options > Create Bug Report makes a zip you can attach.
 
 **The full patch notes** (every change since 1.1.0, by area): [PATCH_NOTES_1.1.1.md](https://github.com/vittorioromeo/quakevr/blob/next/docs/vr-port/PATCH_NOTES_1.1.1.md) (they become the 1.2 notes at the final release).
 
-# New in beta 4
+# New in beta 5
+
+## Left-handed players: Swap Face Buttons
+
+- New option **Swap Face Buttons** (VR Settings > Locomotion and Controls, and Advanced VR Options > Body and Display, right after Swap Stick Functions). On, each controller's face buttons and stick click do what the other controller's did: X does what A did (jump, by default), Y what B did, and the two stick clicks trade places. With the sticks swapped for the left hand, jump and the other buttons now sit on the hand that isn't moving you. Your own key bindings follow the swap; triggers and grips are unchanged.
+- **Handedness: Left-handed now turns it on** (Right-handed turns it off). If you already set up the game left-handed, Handedness shows Custom: pick Left-handed again, or turn Swap Face Buttons on yourself.
+- A button that works on its own hand still works on the hand you press it with: the reload buttons reload the gun in that hand.
+
+## Flat-screen play
+
+- **Blades stick into enemies again** (axes, swords, the dagger, the spear and the Crystal Lance). Your hand stays on the stuck weapon: press fire to pull it out (press again if it holds), or H to let go of it.
+- **V stabs** with stabbing blades (swords, the dagger) as it already did with the Lance: a straight thrust at what the crosshair is on. Fire still swings them; axes and clubs are unchanged. (Advanced VR Options > Debug > Tunables > Blade Thrust turns it off.)
+- Zoom aim (right mouse button) with a gun that has no iron sights now brings the gun towards the middle of the screen, with a subtle visor look (Advanced VR Options > Movement > Locomotion: Zoom Aim Gun To Centre, Zoom Aim Visor Look).
+- The Crystal Lance's (and the spear's) other hand stays on the pole while you walk, strafe, turn, thrust or stand at a wall, and the arm jumps less while sliding down a pole.
+
+## Weapons
+
+- **A new spear**: a plain spear with a steel head and no ammo. Its point stabs and sticks, its shaft hits like a staff (and can sweep legs), and it flies point first when thrown and sticks in enemies. For now it is only in the firing range (swords row), the toolgun's Weapons list, and for mappers as `weapon_spear`: the campaigns don't place it yet. Armed grunts can carry one (toolgun) and fight with it two-handed.
+- **FLIP GRIP on the weapon wheel** (VR and flat): turns a blade's grip round (point down / point up). On the flat screen, B now flips the grip of a weapon with no other ammo to switch to (the dagger, the Lance); weapons with other ammo cycle it as before.
+- Iron sights: the front post now has its own colour, different from the rear notches, so it's easier to line up (Advanced VR Options > HUD and Menus > Colours > Front Sight Hue Shift; 0 = one colour as before).
+- Fixed: Arcane Dimensions' Plasma Gun drew a lightning gun beam on top of its plasma bolts.
+
+## Monsters
+
+- **Show Melee Arcs** (Advanced VR Options > Combat > Enemy Melee) now also shows armed humanoids' weapon swings, not only the arc on the floor.
+- Fixed: an unarmed grunt could wait forever by a dropped weapon lying slightly in the floor.
+
+## Multiplayer and known issues
+
+- Beta 3, beta 4 and beta 5 players can play together (network version 46, unchanged); the spear needs beta 5.
+- Beta 3's known issues below still apply.
+
+# Beta 4 (2026-11-24)
 
 ## Intel integrated graphics: the start-up error fixed
 

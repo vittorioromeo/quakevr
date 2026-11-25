@@ -245,8 +245,8 @@ aren't Map Library packages aren't sent to joining players.
 - **Dwell's Crystal Lance and Rotary Shotgun stay yours**: once you have one, every way of getting that weapon back
   (weapon keys and the wheel, picking it up again, holsters, throws, saves and level changes, multiplayer) gives the
   Lance or the Rotary, never a plain lightning gun or super shotgun.
-- **Fixed: the flat-screen Crystal Lance lost after a thrust.** A flat-screen stab never leaves a weapon stuck in the
-  enemy (it left you with an empty lightning gun). New Spear Hand Forward / Up / Out settings place the holding hand
+- **Fixed: the flat-screen Crystal Lance lost after a thrust.** A Lance stuck in an enemy on the flat screen no longer
+  turns into an empty lightning gun when it comes back to your hand. New Spear Hand Forward / Up / Out settings place the holding hand
   alone; the default flat spear, throw and thrust positions are retuned. Flat throws made while running carry your
   speed; parrying with the other hand faces the right way.
 - **The Crystal Lance's ammo counter** shows just your cells (it read "36/" as if the Lance had a magazine), on the
@@ -263,6 +263,25 @@ aren't Map Library packages aren't sent to joining players.
 - The super nailgun's barrels spin up and coast down; thrown blades' kills push the body less; Quake VR's own weapon
   models' caps no longer look white; the flat-screen gun no longer jitters at a wall when you look down.
 - **Dwell's unused Rifle removed**: an old save holding it gets a shotgun instead.
+- **A new spear**: a plain spear with a steel head and no ammo, sharing the Crystal Lance's poles, poses and thrust.
+  Its point stabs and sticks, its edges cut, its shaft hits like a staff (blunt hits that can sweep legs); thrown, it
+  flies point first and sticks in enemies. For now it is in the firing range (swords row), the toolgun (Weapons >
+  Spear, and Armed Grunt: Spear, who holds it two-handed and thrusts) and for mappers as `weapon_spear`; the
+  campaigns don't place it. The Crystal Lance's shaft hits like a staff too.
+- **FLIP GRIP on the weapon wheel** (VR and flat screen) turns a blade's grip round. On the flat screen B flips the
+  grip of a weapon with no other ammo to switch to (the dagger, the Lance); weapons with other ammo cycle it as before.
+- **Flat screen: blades stick into enemies again**: axes, swords, the dagger, the spear and the Lance.
+  The hand stays on the stuck weapon: fire pulls it out (press again if it holds), H lets go. Axes swung edge first
+  stick again (their edge was judged on the drawn swing, not the real one).
+- **Flat screen: V stabs with stabbing blades** (swords, the dagger) as with the Lance: a straight thrust at what
+  the crosshair is on; fire still swings them (Advanced VR Options > Debug > Tunables > Blade Thrust, on by default).
+- **Flat screen: zoom aim with guns without iron sights** brings the gun towards the middle of the screen, with a
+  subtle visor look (Advanced VR Options > Movement > Locomotion: Zoom Aim Gun To Centre, Zoom Aim Visor Look).
+- **Flat screen: the Lance's and the spear's other hand stays on the pole** while you walk, strafe, turn, thrust or
+  stand at a wall; the arms reach softly, so an elbow jumps less while sliding down a pole.
+- **Iron sights' front post in its own colour**, different from the rear notches (Advanced VR Options > HUD and Menus >
+  Colours > Front Sight Hue Shift, 240; 0 = one colour as before).
+- **Fixed: Arcane Dimensions' Plasma Gun** drew a lightning gun beam on top of its plasma bolts.
 
 ## Movement
 
@@ -358,6 +377,12 @@ aren't Map Library packages aren't sent to joining players.
   crouch slides down (all the way to the floor) or lets go; jumping off a pole pushes you away from it. Your hands sit
   on a ladder's rungs. Sliding down, your hands stay steady on the rope or pole instead of jittering.
 - **Flat-screen swimming**: your hands make the strokes, with water sounds and bubbles.
+- **Swap Face Buttons, for left-handed players** (VR Settings > Locomotion and Controls, and Advanced VR Options > Body
+  and Display, after Swap Stick Functions). On, each controller's face buttons and stick click do what the other's
+  did (X jumps as A did, Y does what B did, the stick clicks trade places), so with the sticks swapped jump sits on the
+  hand that isn't moving you. Your own bindings follow; triggers and grips are unchanged; a button that reloads its own
+  hand's gun still reloads the hand you press it with. Handedness: Left-handed turns it on, Right-handed off (a
+  left-handed setup from before shows Custom until Left-handed is picked again).
 
 ## Menus
 
@@ -444,6 +469,8 @@ aren't Map Library packages aren't sent to joining players.
 - **Fixed: monsters stuck to walls.** A monster shoved hard into a wall (a knockdown or a stagger) was pressed into it
   by the shove for a second or two, held up on the wall; the shove now ends where the wall stops the body, so it
   slumps down the wall.
+- **Show Melee Arcs** (Advanced VR Options > Combat > Enemy Melee) also draws armed humanoids' weapon swings.
+- **Fixed: an unarmed grunt waiting forever** by a dropped weapon lying slightly in the floor.
 
 ## Performance
 
