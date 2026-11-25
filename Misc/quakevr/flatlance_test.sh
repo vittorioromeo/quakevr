@@ -27,7 +27,8 @@ ST="vr_flatplay_status"
 KEY() { echo "vr_mock_key $1 down; wait3; vr_mock_key $1 up; wait10"; }
 SC="map e1m1; wait60; god; notarget; developer 1; vr_flatplay_debug 1; vr_flat_reload_debug 1; vr_flat_melee_probe 1; vr_debug_axestick 1; vr_debug_2h_grip 1${FLT_EXTRA:+; $FLT_EXTRA}"
 SC="$SC; vr_ad_test 207; wait60; echo flt: base; $ST"
-SC="$SC; echo flt: b; $(KEY b); wait30; $ST; echo flt: b2; $(KEY b); wait30; $ST"
+# (flatkeys2, 2026-11-25: next ammo is N now, B throws.)
+SC="$SC; echo flt: b; $(KEY n); wait30; $ST; echo flt: b2; $(KEY n); wait30; $ST"
 # (flatfb1124b: his Lance pose is the default since 2026-11-24 (along -2.5, pitch 8, yaw 5, off_up 3.5, off_pitch -67; lanceoffhand: off_along 12, off_up 5, off_pitch -60),
 # hand_fwd 1): each tunable set to its default plus the step the checks measure: along +6, pitch +20, yaw +15,
 # off_pitch +30, hand_fwd +3.)
@@ -79,7 +80,7 @@ check $(grep -aq "^flatlance: done" "$L" && echo 1 || echo 0) "the run reached i
 
 # 1. B with the Lance.
 b=$(block b)
-check $(grep -aq "flatreload: b: next ammo type" <<<"$b" && grep -aq "revgrip: hand 1 flips its grip: reversed" <<<"$b" && ! grep -aq "^ammo: hand" <<<"$b" && echo 1 || echo 0) "B with the Lance: sent, its grip flipped, no ammo change"
+check $(grep -aqE "flatreload: .: next ammo type|ammo switch: no other ammo" <<<"$b" && grep -aq "revgrip: hand 1 flips its grip: reversed" <<<"$b" && ! grep -aq "^ammo: hand" <<<"$b" && echo 1 || echo 0) "N (next ammo, flatkeys2; was B) with the Lance: sent, its grip flipped, no ammo change"
 check $(block b2 | grep -aq "revgrip: hand 1 flips its grip: upright" && echo 1 || echo 0) "B again: the Lance upright"
 check $(grep -aq "spear: main" <<<"$b" && echo 1 || echo 0) "B with the Lance: still the Lance (a pole weapon), not the lightning gun"
 
