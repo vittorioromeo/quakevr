@@ -7,7 +7,7 @@
 // - Clear shot (the CheckAttack family's "trace_ent != targ"): VR_Lean_Clear, seen that way this think, counts.
 // - Aim (every ranged monster's shot through VR_AimCone_Bend; armed grunts' own aim, VR_AG_AimDir): with his eyes' point
 //   still hidden, at the biggest part showing (the torso, then the head or neck, the shoulders, the hands), with extra
-//   spread vr_monster_lean_spread times how much of him is hidden; lobbed shots only turned level (their arc kept).
+//   spread vr_monster_lean_spread, from half of it (all his points showing) to all of it (one); lobbed shots only turned level (their arc kept).
 // The advantage: the delay, the smaller target and the spread (vr_sphit_test 2's DPS lines: open > lean > hidden 0).
 
 float VR_LEAN_POINTS = 7;   // playerbodypoint's points: 0 head, 1 neck, 2 torso, 3 4 shoulders, 5 6 hands
@@ -101,7 +101,8 @@ float(entity m) VR_Lean_Spread =
     {
         return 0;
     }
-    return max(0, cvar_hget(cvarh_vr_monster_lean_spread)) * (1 - m.vr_lean_expo);
+    // (half of it with all his points showing past the edge, the whole with one: the points are his parts' middles)
+    return max(0, cvar_hget(cvarh_vr_monster_lean_spread)) * (1 - 0.5 * m.vr_lean_expo);
 };
 
 // A shot's way (a direction or a velocity) from monster m at its enemy, leaning from cover (seen by his body's points

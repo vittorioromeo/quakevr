@@ -208,11 +208,13 @@ void(float edge) VR_SphitTest_Lean =
 
 // vr_sphit_test 2, then (leanaim) the received damage per second from a live grunt (its own AI: sight, attack decisions,
 // aim; held on its spot), each case VR_SPHITDPS_SECS seconds: 1 standing in the open, 2 leaning 30 cm right (the mock
-// head, vr_mock_hand head 0.3 1.6 0) out from a wall 20 ahead whose edge is 16 to his right, 3 behind it not leaning.
-// The grunt stands 280 ahead and 150 right, so the wall hides his eyes' point (origin + view_ofs) in both wall cases, and
-// a lean shows his head and right shoulder. Prints `sphitlean: dps open X lean Y hidden Z` and the verdict
+// head, vr_mock_hand head 0.3 1.6 0) out from a wall 20 ahead whose edge is VR_SPHITDPS_EDGE to his right, 3 behind it
+// not leaning. The grunt stands 280 ahead: the wall hides his eyes' point (origin + view_ofs) in both wall cases and,
+// not leaning, his whole drawn body; leaning, his drawn body (posed under his head) shows past the edge. Run with
+// vr_lean_recenter 0 (the mock lean, untilted, is not told from a step: his body would slide under his head). Prints `sphitlean: dps open X lean Y hidden Z` and the verdict
 // `sphitlean: N passed, M failed` (open > lean > 0, hidden 0).
-float VR_SPHITDPS_SECS = 40;
+float VR_SPHITDPS_SECS = 90;
+float VR_SPHITDPS_EDGE = 9;   // the wall's edge, units right of him (his drawn body hidden from the grunt, a 30 cm lean past it)
 float VR_SPHITDPS_SETTLE = 12; // frames for the mock head to move before the grunt comes
 float vr_sphitdps_case;        // 0 idle; 1 open, 2 lean, 3 hidden
 float vr_sphitdps_frame;
@@ -264,7 +266,7 @@ void(entity player) VR_SphitDps_End =
     localcmd("vr_mock_hand head 0 1.6 0\n");
     bprint(sprintf("sphitlean: dps open %.2f lean %.2f hidden %.2f (lean %.0f%% of open)\n", vr_sphitdps_open, vr_sphitdps_lean,
         vr_sphitdps_hidden, vr_sphitdps_open > 0 ? 100 * vr_sphitdps_lean / vr_sphitdps_open : 0));
-    VR_Test_Begin("sphitlean");
+    VR_Test_BeginFlags("sphitlean", VR_TEST_LOUD);
     VR_Test_Check(vr_sphitdps_open > vr_sphitdps_lean, "leaning from cover takes less than standing in the open");
     VR_Test_Check(vr_sphitdps_lean > 0, "leaning from cover is shot at");
     VR_Test_Check(vr_sphitdps_hidden == 0, "hidden behind the wall takes nothing");
@@ -292,9 +294,9 @@ void() VR_SphitDps_Frame =
     {
         if(vr_sphitdps_case >= 2)
         {
-            VR_SphitTest_Wall(player, 16, 20);
+            VR_SphitTest_Wall(player, VR_SPHITDPS_EDGE, 20);
         }
-        vr_sphitdps_spot = player.origin + '150 280 0';
+        vr_sphitdps_spot = player.origin + '0 280 0';
         vr_sphitdps_spot_z = player.origin_z - 24;
         entity oldself = self;
         vr_sphitdps_grunt = VR_Test_Spawn(player, 0, vr_sphitdps_spot, 270);
@@ -317,7 +319,7 @@ void() VR_SphitDps_Frame =
         vr_sphitdps_t0 = time;
         vr_sphitdps_grunt.vr_lean_seen = -10;
         bprint(sprintf("sphitlean: case %g head %.1f right; points showing %g of 7\n", vr_sphitdps_case,
-            player.headpos_x - player.origin_x, 7 * VR_Lean_Scan(vr_sphitdps_grunt, player,
+            (playerbodypoint(player, 0) - player.origin) * '1 0 0', 7 * VR_Lean_Scan(vr_sphitdps_grunt, player,
             vr_sphitdps_grunt.origin + vr_sphitdps_grunt.view_ofs)));
         return;
     }
