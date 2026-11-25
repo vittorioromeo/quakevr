@@ -37,6 +37,8 @@ vr_ad_mondefs.qc
 // Armed grunts: their fields and hooks (ai.qc, combat.qc and the grunt's file call them; vr_armedgrunt.qc defines them).
 vr_armedgrunt_defs.qc
 vr_armedgrunt_shot_defs.qc
+// Monsters see and aim at a leaning player's visible parts (ai.qc's visible(), the CheckAttacks, vr_aimcone.qc).
+vr_leanaim.qc
 ai.qc
 combat.qc
 combat_test.qc

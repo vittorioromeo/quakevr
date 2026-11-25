@@ -75,3 +75,7 @@ extern "C" int VR_PlayerShotClip(edict_t* touch, const float* start, const float
 // QC float playerhitzone(entity e, vector p, vector dir): the zone (VR_REGION_*) of e's shape that a shot along `dir`
 // entering at p met; -1: e has no shape (QC then decides by his box).
 void PF_playerhitzone();
+// QC vector playerbodypoint(entity e, float i): sample point i of e's drawn body (the shape above, world): 0 the head's
+// centre, 1 the neck, 2 the torso's middle, 3 and 4 the shoulders (off, main), 5 and 6 the hands; '0 0 0': no shape or
+// no such point (monsters' sight and aim at a leaning player: QC vr_leanaim.qc).
+void PF_playerbodypoint();

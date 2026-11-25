@@ -111,6 +111,14 @@ float(entity m) VR_AimCone_Off =
 vector(vector dir, float kind) VR_AimCone_Bend =
 {
     entity m = VR_AimCone_Shooter();
+    if(m)
+    {
+        float lk = VR_AimCone_Kind(m, kind);
+        if(lk != VR_AIM_NONE)
+        {
+            dir = VR_Lean_Aim(m, dir, lk == VR_AIM_WIDE); // QVR: at a leaning player's part showing (vr_leanaim.qc)
+        }
+    }
     if(!VR_AimCone_On(m))
     {
         return dir;

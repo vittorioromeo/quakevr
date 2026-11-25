@@ -1564,7 +1564,16 @@ vector(entity t, float i, vector side, vector toward) VR_AG_XPoint =
     else if(i == 8 || i == 9) { z = -12; s = i == 8 ? -sd : sd; }
     else { z = -18; }
     z = max(t.mins_z + 2, min(z, top - 2));
-    return side * s + '0 0 1' * z;
+    // QVR (leanaim): the upper body's points where his drawn body is, leaning (his head off his origin; the chest and
+    // shoulders part way): what shots meet (vr_hit_player_shape).
+    vector lean = '0 0 0';
+    if(t.headpos != '0 0 0' && i <= 7 && i != 3)
+    {
+        lean = t.headpos - t.origin;
+        lean_z = 0;
+        lean = lean * ((i == 2 || i == 6 || i == 7) ? 1 : 0.6);
+    }
+    return lean + side * s + '0 0 1' * z;
 };
 
 // Where its line starts: its gun's muzzle (in a wall, its eyes).
@@ -1709,6 +1718,7 @@ vector(vector from) VR_AG_AimDir =
 {
     vector dir = normalize(VR_AG_AimPoint() - from);
     float err = cvar_hget(cvarh_vr_agrunt_aim_error) * (1 + vr_ag_aim_mult) / VR_AGAI_Accuracy(); // (vr_agrunt_ai_accuracy)
+    err = err + VR_Lean_Spread(self) * VR_AIMCONE_DEG; // QVR: you leaning from cover, partly hidden (vr_leanaim.qc)
     if(err > 0)
     {
         vector a = VR_AG_Angles(dir);
@@ -2977,7 +2987,7 @@ float(entity targ) VR_AM_SpellTry =
         return FALSE;
     }
     traceline(self.origin + self.view_ofs, VR_AI_Origin(targ) + targ.view_ofs, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
-    if(trace_ent != targ || (trace_inopen && trace_inwater))
+    if((trace_ent != targ && !VR_Lean_Clear(targ)) || (trace_inopen && trace_inwater)) // (QVR: vr_leanaim.qc)
     {
         return FALSE;
     }
@@ -3097,7 +3107,7 @@ float() VR_AG_CheckAttack =
             VR_AG_FriendHold(self.origin + self.view_ofs, 0); // (a friend in its sight line: a step aside)
             return FALSE;
         }
-        if(!exposed)
+        if(!exposed && !VR_Lean_Clear(targ)) // (QVR: or seen leaning from cover: vr_leanaim.qc)
         {
             return FALSE;
         }

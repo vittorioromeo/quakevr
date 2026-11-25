@@ -2765,3 +2765,6 @@ QVR_TUNABLE_SLIDER(vr_rope_thumb_shift_z, "Rope Thumb Shift Z", -2.f, 2.f, 0.05f
 
 QVR_TUNABLE_GROUP("Combat > Other")
 QVR_TUNABLE_SLIDER(vr_hit_player_fatten, "Body Hit Fattening", 0.0f, 12.0f, 0.5f, "%.1f u", 0.0f, 32.0f, "Units added to the radius of every part of your drawn body (head, torso, arms, legs) that shots and missiles meet, in single player and multiplayer. 0 is the exact body; more is more forgiving (vr_hit_player_fatten).")
+QVR_TUNABLE_CYCLE(vr_monster_lean, "Monsters See Leaning", "Monsters see and shoot at the parts of your body that show when you lean out from cover (head, shoulders, hands), less accurately than at you in the open; off, they see only your eyes' point (vr_monster_lean).", {0.0f, "Off"}, {1.0f, "On"})
+QVR_TUNABLE_SLIDER(vr_monster_lean_spread, "Lean Spread", 0.0f, 0.5f, 0.01f, "%.2f", 0.0f, 1.0f, "Monsters' extra spread at you leaning out from cover (half of it with your whole body showing past the edge, all of it with little showing): more is fewer hits while leaning (vr_monster_lean_spread).")
+QVR_TUNABLE_SLIDER(vr_monster_lean_react, "Lean Reaction", 0.0f, 2.0f, 0.1f, "%.1f s", 0.0f, 5.0f, "Seconds before a monster sees and shoots at you when you lean out from cover (vr_monster_lean_react).")

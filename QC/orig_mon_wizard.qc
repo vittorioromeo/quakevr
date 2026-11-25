@@ -113,7 +113,7 @@ float()    WizardCheckAttack =
 
     traceline(spot1, spot2, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
 
-    if(trace_ent != targ)
+    if(trace_ent != targ && !VR_Lean_Clear(targ)) // (QVR: or seen leaning from cover: vr_leanaim.qc)
     {    // don't have a clear shot, so move to a side
         if(self.attack_state != AS_STRAIGHT)
         {

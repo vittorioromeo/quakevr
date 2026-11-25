@@ -1152,6 +1152,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"selfhit_point", selfshot::PF_selfhit_point},
     {"debughitzone", PF_debughitzone},
     {"playerhitzone", PF_playerhitzone},
+    {"playerbodypoint", PF_playerbodypoint},
     {"debugdisarm", disarmviz::PF_debugdisarm},
     {"debugdisarmnote", disarmviz::PF_debugdisarmnote},
     {"blowline", blowline::PF_blowline},
