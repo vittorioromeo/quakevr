@@ -3,6 +3,7 @@
 // Split from vr_view.cpp (a pure move); what they share is in vr_view_internal.hpp.
 
 #include "vr_view_internal.hpp"
+#include "vr_avatar.hpp"
 #include "vr_axestick.hpp"
 #include "vr_edictindex.hpp"
 #include "vr_flatplay.hpp"
@@ -2533,6 +2534,7 @@ struct EmbedPin
     glm::vec3 bodyRel{0.f}; // where it left the blade, from the player in his yaw's axes
     float bodyW{0.f};       // the ease's weight this frame
     glm::vec3 lead{0.f};    // on it, easing in: from the drawn hand to where it goes (embedPinLead)
+    glm::vec3 seen{0.f};    // on it: the blade's origin as drawn this frame (embedPinSeen)
     glm::vec3 lastOnPos{0.f}, lastOnRot{0.f}, lastCtlPos{0.f}, lastCtlRot{0.f}; // the last frame on it
     float lastOffset{0.f};   // (vr_embed_probe: the drawn hand's offset from its controller last frame, units)
     // This frame (embedPinStep, before the weapons are placed): on it; off it, the ease's offset and turn about the controller,
@@ -2691,6 +2693,31 @@ void embedHandleRoll(EmbedPin& pin, const entity_t& e, const glm::vec3& ctlRot, 
     return anglesBasis(glm::vec3{0.f, cl.viewangles[YAW], 0.f});
 }
 
+// Flat play (embedhold2, his flat note 2026-11-25: "the hand can become detached from the wrist"): `pos`, a hand of `hand` drawn on a blade
+// or easing off one, brought back along its way from `from` (its own place) as far as its arm reaches, the shoulder carried by the eye
+// from the avatar's last solve (avatar::embedReachNow). VR: as it was.
+void keepOnArm(int hand, const glm::vec3& from, glm::vec3& pos)
+{
+    glm::vec3 shoulder{0.f};
+    float most = 0.f;
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    if(!flatplay::active() || !avatar::embedReachNow(hand, eye, shoulder, most) || glm::distance(pos, shoulder) <= most)
+    {
+        return;
+    }
+    float in = 0.f, out = 1.f;
+    for(int i = 0; i < 12; ++i)
+    {
+        const float t = (in + out) * 0.5f;
+        (glm::distance(glm::mix(from, pos, t), shoulder) <= most ? in : out) = t;
+    }
+    if(vr_debug_axestick.value >= 3)
+    {
+        Con_Printf("embedpin: hand %d past its arm by %.1f units: drawn %.2f of the way from its own place\n", hand, glm::distance(pos, shoulder) - most, in);
+    }
+    pos = glm::mix(from, pos, in);
+}
+
 // `pos`, `rot` (the controller's pose of `hand`) moved onto the blade it holds, as if its controller were there. The second hand on it
 // on the weapon's grip hotspot nearest it, as a two-handed hold has it (his notes 2026-11-05: not 20 cm off, not anywhere), placed from
 // the blade as drawn each frame; with none, where it took hold.
@@ -2743,6 +2770,10 @@ void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& p
     pin.lastCtlRot = rot;
     pos = glm::mix(pos, onPos, w);
     pin.lead = onPos - pos;
+    pin.seen = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
+    // (Flat play: never drawn past its arm. The blade gone out of the arm's reach, the body going off or his walking away, before the
+    // game lets go or pulls it out, QC VR_Embed_FlatArm, a frame or two on: the hand slips off it towards its own place.)
+    keepOnArm(hand, pin.lastCtlPos, pos);
     rot = basisAngles(glm::mat3_cast(glm::slerp(glm::quat_cast(anglesBasis(rot)), glm::quat_cast(anglesBasis(onRot)), w)));
     pin.lastOnPos = pos;
     pin.lastOnRot = rot;
@@ -2821,6 +2852,11 @@ void embedPinStep(const hands::State& s, int hand)
     embedProbe.step = za::fmax(embedProbe.step, za::fmax(offset - pin.lastOffset, pin.lastOffset - offset) / units::metresToUnits() * 100.f);
     pin.lastOffset = offset;
     embedProbeWrite();
+}
+
+glm::vec3 embedPinSeenOf(int hand)
+{
+    return hand == HAND_OFF || hand == HAND_MAIN ? embedPins[hand].seen : glm::vec3{0.f};
 }
 
 glm::vec3 embedPinLeadOf(int hand)
@@ -3706,6 +3742,10 @@ void setupHand(const hands::State& s, int hand)
         const glm::vec3 pre = pos;
         const glm::mat3 turn = glm::mat3_cast(easeTurn);
         pos = pivot + easeOff + turn * (pos - pivot);
+        if(body)
+        {
+            keepOnArm(hand, pre, pos); // (and on its arm all the way)
+        }
         handRot = basisAngles(turn * anglesBasis(handRot));
         if(armed)
         {

@@ -967,6 +967,7 @@ void embedPinStep(const hands::State& s, int hand);
 [[nodiscard]] bool embedEaseBody(int hand, const glm::vec3& pos, glm::vec3& offset);
 // (view::embedPinLead's.)
 [[nodiscard]] glm::vec3 embedPinLeadOf(int hand);
+[[nodiscard]] glm::vec3 embedPinSeenOf(int hand);
 // (vr_embed_probe: the weapon as it would be placed without the ease, and as drawn.)
 void embedEaseWeapon(int hand, const glm::vec3& pre, const glm::mat3& preTurn, const glm::vec3& drawn, const glm::mat3& drawnTurn);
 void setupHand(const hands::State& s, int hand);

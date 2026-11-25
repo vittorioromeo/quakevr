@@ -10,6 +10,9 @@
 //   case 3 "ogre":    the sword in an ogre held still (heavy, anchored), walk away: the same.
 //   case 4 "spear":   the spear (two-handed, the off hand on the pole) stuck: the off hand holds it too, for a second.
 //   case 5 "sword+off": the sword stuck, the off hand empty: it takes the sword's handle too, for a second; then walk away.
+// Every case: after the stab he stands still half a second (state 6) before walking: the engine's .vr_embed_armpast (cm the drawn
+// wrist is past the most its arm reaches, signed) stays under VR_FW_PASTTOL there, and the hold is still on: nothing moves the
+// drawn hand off the blade while nobody moves (his flat note 2026-11-25, item 4: "the blade comes out about 0.1 s after the stab").
 // Ends `flatembedwalk: N passed, M failed`. Per frame with scratch1 2: "flatembedwalk: f <n> gap main <cm> off <cm> far <cm>". scratch2 N starts at case N.
 
 float vr_fw_gapmain;  // the most cm the main hand was off its arm in this case
@@ -18,12 +21,16 @@ float vr_fw_frames;   // frames walked
 float vr_fw_end;      // the hold ended: 1 out into the hand, 2 let go (it stays in), 3 still held
 float vr_fw_bothmin;  // frames both hands held it (cases 4, 5)
 float vr_fw_hold;     // frames looked at
+float vr_fw_pastmain; // the most cm the main hand's drawn wrist was past its arm while standing still (the engine's .vr_embed_armpast)
+float vr_fw_pastoff;  // and the off hand's
+float vr_fw_stillin;  // standing still after the stab: the blade is still stuck (state 6)
 vector vr_fw_from;    // where the walk began
 string vr_fw_name;
 entity vr_fw_w;       // the stuck blade
 
 float VR_FW_LAST = 5;
 float VR_FW_TOL = 3; // cm a hand may be off its arm (a frame's walk at the let-go, the ease's first frame)
+float VR_FW_PASTTOL = 3; // cm past the most its arm reaches while standing still (the engine keeps the hand on the arm: view::keepOnArm)
 
 void() VR_FW_Begin =
 {
@@ -122,7 +129,7 @@ void() VR_FW_Frame =
         return;
     }
     // (Held still while the blade goes in: the ogre the whole case, a heavy body anchored where it stands.)
-    if(vr_et_m != world && (vr_et_m.flags & FL_MONSTER) && vr_et_m.health > 0 && vr_et_m.takedamage && (vr_et_s < 3 || vr_et_case == 3 || vr_et_case >= 4))
+    if(vr_et_m != world && (vr_et_m.flags & FL_MONSTER) && vr_et_m.health > 0 && vr_et_m.takedamage && (vr_et_s < 3 || vr_et_s == 6 || vr_et_case == 3 || vr_et_case >= 4))
     {
         vr_et_m.nextthink = time + 0.5;
         vr_et_m.velocity = '0 0 0';
@@ -149,6 +156,9 @@ void() VR_FW_Frame =
         vr_fw_end = 0;
         vr_fw_bothmin = 0;
         vr_fw_hold = 0;
+        vr_fw_pastmain = -1000;
+        vr_fw_pastoff = -1000;
+        vr_fw_stillin = 1;
         vr_fw_w = world;
         VR_ET_To(1);
     }
@@ -186,16 +196,35 @@ void() VR_FW_Frame =
         {
             VR_Test_Check(vr_fw_bothmin >= vr_fw_hold - 1, sprintf("%s: the other hand holds the stuck blade too (%g of %g frames)", vr_fw_name, vr_fw_bothmin, vr_fw_hold));
             VR_Test_Check(vr_fw_gapoff <= VR_FW_TOL, sprintf("%s: the other hand on its arm (at most %.1f cm off, %g allowed)", vr_fw_name, vr_fw_gapoff, VR_FW_TOL));
-            vr_fw_from = p.origin;
-            localcmd("+back\n");
-            VR_ET_To(4);
+            VR_ET_To(6);
         }
     }
     else if(vr_et_s == 3 && t > 0.5) // (the stretch eased in, the ragdoll fallen)
     {
-        vr_fw_from = p.origin;
-        localcmd("+back\n");
-        VR_ET_To(4);
+        VR_ET_To(6);
+    }
+    else if(vr_et_s == 6) // (standing still: nothing moves the drawn hand off the blade or off its arm)
+    {
+        vr_fw_pastmain = max(vr_fw_pastmain, p.vr_embed_armpast_y);
+        if(vr_et_case >= 4)
+        {
+            vr_fw_pastoff = max(vr_fw_pastoff, p.vr_embed_armpast_x);
+        }
+        if(w == world)
+        {
+            vr_fw_stillin = 0;
+        }
+        if(t > 0.5)
+        {
+            VR_Test_Print(sprintf("%s: stood still %.1f s after the stab: the main hand at most %.1f cm past its arm, the off hand %.1f; %s\n",
+                vr_test_tag, t, vr_fw_pastmain, vr_fw_pastoff, vr_fw_stillin ? "still stuck" : "the hold ended"));
+            VR_Test_Check(vr_fw_pastmain <= VR_FW_PASTTOL && vr_fw_pastoff <= VR_FW_PASTTOL,
+                sprintf("%s: standing still, the hand stays within its arm (main %.1f, off %.1f cm past the most it reaches, %g allowed)", vr_fw_name, vr_fw_pastmain, vr_fw_pastoff, VR_FW_PASTTOL));
+            VR_Test_Check(vr_fw_stillin, sprintf("%s: standing still, the blade stays in the body (nothing moves the drawn hand: %s)", vr_fw_name, vr_fw_stillin ? "" : "the hold ended"));
+            vr_fw_from = p.origin;
+            localcmd("+back\n");
+            VR_ET_To(4);
+        }
     }
     else if(vr_et_s == 4)
     {

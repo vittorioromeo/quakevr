@@ -1124,6 +1124,12 @@ struct ArmEase
     float embedGapCm[2]{0.f, 0.f};     // cm the wrist was past that stretch, last solved
     float embedPastCm[2]{0.f, 0.f};    // cm the wrist was past the most the arm reaches (signed: negative within it), last solved
     float flatHeld[2]{1.f, 1.f};       // flat play: the stretch kept while the hand is on a blade (armStretchNow)
+    glm::vec3 pastSeen[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the blade each hand was on as drawn as embedPastCm was measured
+    glm::vec3 pastEye{0.f};                                 // and the eye then
+    glm::vec3 reachShoulder[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // (embedReachNow) the shoulder from the eye, last solved
+    float reachMost[2]{0.f, 0.f};                               // the most the arm reaches then (units)
+    float reachLead[2]{0.f, 0.f};                               // the wrist further from the shoulder than the drawn hand's place
+    bool reachValid[2]{false, false};
     float stretched[2]{1.f, 1.f};      // the arm's stretch taken, last solved (1: none; up to armStretchNow)
     float wristGap[2]{0.f, 0.f};       // (climbfix) units from the drawn wrist to the arm's end, your own body last solved
 };
@@ -1286,6 +1292,17 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     // (embedArmPastCm: from where the hand is going on a blade, view::embedPinLead, not where it is drawn on its way there.)
     const float dOn = posingOther() ? d : glm::distance(wrist + view::embedPinLead(side), u.pos);
     armEase.embedPastCm[side] = (dOn - (a + l) * maxStretch - za::max(0.f, vr_body_shoulder_reach.value) * b.m2w) / b.m2w * 100.f;
+    if(!posingOther())
+    {
+        armEase.pastSeen[side] = view::embedPinSeen(side); // (what that was measured against: embedArmPastFrom)
+        armEase.pastEye = qvr::geom::vec(r_refdef.vieworg);
+        // (embedReachNow: the shoulder from the eye, the most the arm reaches, the drawn hand's place from its wrist's.)
+        glm::vec3 drawnPos, drawnRot;
+        armEase.reachShoulder[side] = u.pos - armEase.pastEye;
+        armEase.reachMost[side] = (a + l) * maxStretch + za::max(0.f, vr_body_shoulder_reach.value) * b.m2w;
+        armEase.reachLead[side] = view::drawnHandPose(side, drawnPos, drawnRot) ? d - glm::distance(drawnPos, u.pos) : 0.f;
+        armEase.reachValid[side] = true;
+    }
     if(vr_debug_axestick.value >= 4 && !posingOther() && axestick::handOnBlade(side))
     {
         Con_Printf("embedarm: side %d wrist %.1f %.1f %.1f shoulder %.1f %.1f %.1f: %.1f (on it %.1f) of %.1f x%.2f, past %.1f cm\n", side, wrist.x,
@@ -2579,6 +2596,23 @@ float embedArmGapCm(int hand)
 float embedArmPastCm(int hand)
 {
     return hand == 0 || hand == 1 ? armEase.embedPastCm[hand] : 0.f;
+}
+
+bool embedReachNow(int hand, const glm::vec3& eye, glm::vec3& shoulder, float& most)
+{
+    if((hand != 0 && hand != 1) || !armEase.reachValid[hand])
+    {
+        return false;
+    }
+    shoulder = eye + armEase.reachShoulder[hand];
+    most = armEase.reachMost[hand] - armEase.reachLead[hand];
+    return most > 0.f;
+}
+
+void embedArmPastFrom(int hand, glm::vec3& seen, glm::vec3& eye)
+{
+    seen = hand == 0 || hand == 1 ? armEase.pastSeen[hand] : glm::vec3{0.f};
+    eye = armEase.pastEye;
 }
 
 float armWristGap(int hand)

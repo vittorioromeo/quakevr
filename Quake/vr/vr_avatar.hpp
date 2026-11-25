@@ -193,6 +193,11 @@ struct ForearmFrame
 // The same signed (embedhold2): cm the drawn wrist is past the most its arm reaches now (the stretch it may take, the shoulder's
 // reach), negative while within it (the reach it has left). QC flat play's VR_Embed_FlatGap (.vr_embed_armpast).
 [[nodiscard]] float embedArmPastCm(int hand);
+// What embedArmPastCm was measured against: the blade `hand` was on as that frame drew it, and the eye (world).
+void embedArmPastFrom(int hand, glm::vec3& seen, glm::vec3& eye);
+// Flat play (embedhold2): the shoulder of `hand` now (its last solve's place from the eye, at `eye`) and the most the drawn hand's place may
+// be from it with the wrist on the arm (units); false: not solved yet. view::embedDrawnHand keeps a hand on a blade within it.
+[[nodiscard]] bool embedReachNow(int hand, const glm::vec3& eye, glm::vec3& shoulder, float& most);
 // The stretch the arm of `hand` took to reach its drawn wrist, as last solved: 1 none, up to vr_body_arm_stretch (or the
 // blade's, or a flat spear thrust's vr_flat_thrust_arm_stretch).
 [[nodiscard]] float armStretched(int hand);
