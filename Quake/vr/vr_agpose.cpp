@@ -1065,6 +1065,7 @@ constexpr QcConstant qcConstants[] = {
     {agpose::Melee2, agpose::Carry, agpose::RPos, "VR_AGP_PORT", "VR_AGP_PORT_FW"},
     {agpose::Melee, agpose::Aim, agpose::RPos, "VR_AGP_READY", "VR_AGP_READY_FW"},
     {agpose::Melee, agpose::Aim, agpose::LPos, "VR_AGP_FREE_L", ""},
+    {agpose::Pole, agpose::Aim, agpose::RPos, "VR_AGP_POLE_READY", ""},
     {agpose::Fists, agpose::Aim, agpose::RPos, "VR_AGP_GUARD_R", ""},
     {agpose::Fists, agpose::Aim, agpose::LPos, "VR_AGP_GUARD_L", ""},
 };
@@ -1099,6 +1100,7 @@ constexpr StretchRow shippedStretch[] = {
     {0, 19, 1.25f}, // grunt, a sprayer
     {0, 20, 1.20f}, // grunt, the laser cannon
     {0, 21, 1.25f}, // grunt, the Widowmaker
+    {0, 22, 1.23f}, // grunt, a pole weapon (the two-handed melee weapon's: as it was before its own class)
     {1, 0, 1.15f}, // enforcer, fists
     {1, 1, 1.25f}, // enforcer, a rifle
     {1, 2, 1.15f}, // enforcer, a one-handed melee weapon
@@ -1118,6 +1120,7 @@ constexpr StretchRow shippedStretch[] = {
     {2, 18, 1.35f}, // knight, a shoulder launcher
     {2, 20, 1.35f}, // knight, the laser cannon
     {2, 21, 1.40f}, // knight, the Widowmaker
+    {2, 22, 1.20f}, // knight, a pole weapon (the two-handed melee weapon's)
     {3, 1, 1.50f}, // death knight, a rifle
     {3, 2, 1.20f}, // death knight, a one-handed melee weapon
     {3, 6, 1.40f}, // death knight, two guns
@@ -1954,6 +1957,7 @@ const char* className(int cls)
         case Sprayer: return "a sprayer";
         case LaserCannon: return "the laser cannon";
         case Widowmaker: return "the Widowmaker";
+        case Pole: return "a pole weapon";
         default: return "?";
     }
 }
@@ -1975,6 +1979,7 @@ const char* classTitle(int cls)
         case Sprayer: return "Sprayer";
         case LaserCannon: return "Laser Cannon";
         case Widowmaker: return "Widowmaker";
+        case Pole: return "Pole Weapon (Spear)";
         default: return "?";
     }
 }
@@ -1983,7 +1988,7 @@ const char* poseName(int cls, int pose)
 {
     switch(pose)
     {
-        case Carry: return cls == Fists ? "Idle" : cls == Melee2 ? "Port Arms" : "Idle / Carry";
+        case Carry: return cls == Fists ? "Idle" : (cls == Melee2 || cls == Pole) ? "Port Arms" : "Idle / Carry";
         case Aim: return cls == Fists ? "Guard" : isGunClass(cls) ? "Aim" : "Ready";
         case Run: return "Run";
         case Pickup: return "Pickup";
@@ -1992,7 +1997,7 @@ const char* poseName(int cls, int pose)
         case Cross: return "Cross";
         case Hook: return "Hook";
         case Uppercut: return "Uppercut";
-        case Overhead: return "Overhead";
+        case Overhead: return cls == Pole ? "Thrust" : "Overhead";
         case Diagonal: return "Diagonal";
         case Horizontal: return "Horizontal";
         case Backhand: return "Backhand";
@@ -2044,6 +2049,10 @@ int posesOf(int cls, int* out, int max)
         add(Diagonal);
         add(Horizontal);
         add(Backhand);
+    }
+    if(cls == Pole)
+    {
+        add(Thrust); // (its one strike: drawn back, driven out at the target; QC VR_AGP_Melee)
     }
     if(cls == Saw)
     {

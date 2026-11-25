@@ -93,6 +93,8 @@ Ragdoll climbs: an ogre knocked off a ledge and caught straddling its lip (a leg
 Show Melee Arcs with a sword grunt, an axe grunt, a spawn, the dragon and a vore: each blow's own rule is drawn (a leap ring, a tail all round, a shove cone, the grunts' arc and reach on the floor) and an armed grunt's swinging blade leaves a fading trail (white winding up, yellow in the swing, red when it lands). {test:agrunt_melee_arcs}
 An armed grunt with the spear holds it low and level in both hands with the head pointed at you, and its attack is a forward thrust that hurts, not a sword swing. {test:agrunt_spear}
 Flat-screen or VR: Ride e1m1's first lift up with a grunt chasing you: it waits beside the shaft while the lift is up, boards once it comes down and rides up after you; make a noise under the lift while it is up, then ride it down: the grunts that come to look stop at the shaft's edge and the lift comes all the way down. {test:nav_shaft}
+Open the Pose Studio on a spear grunt (VR Settings > Armed Grunts > Grip Editor, Drag Mode): it is a class of its own now, Pole Weapon (Spear), with Port Arms, Ready, Run, Pickup, Thrust and Shove; grip one hand's box and move it and the other hand rides the shaft, the head still pointed at you. {test:pose_grunt_pole}
+Pose Studio Data on that spear grunt: pick Thrust and play its timeline (0.25x, Loop, scrub the bar): the spear is drawn back and driven out at you with both hands on the shaft, and its Ready / Port Arms keys move the whole hold, the sword grunt's hold not at all. {test:pose_grunt_pole}
 
 [8. Dwell]
 

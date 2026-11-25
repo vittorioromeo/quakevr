@@ -89,6 +89,7 @@ float vr_agp_wo;
 float vr_agp_flags;
 float vr_agp_wl;
 vector vr_agp_vl;
+float vr_agp_polel;  // the off hand on a pole weapon's shaft (VR_AGP_Melee): the pose keys move it with the shaft
 vector vr_agp_f;     // the body's flat forward and right (VR_AGP_Body)
 vector vr_agp_r;
 float vr_agp_events; // blows and cuts struck (the tests)
@@ -760,6 +761,7 @@ void(entity g, entity p) VR_AGP_Melee =
         vr_agp_flags = VR_AGP_LEFT;
         vr_agp_wl = 1;
         vr_agp_vl = VR_AM_Fit(g, pos + fw * span) - vr_am_anchor_at;
+        vr_agp_polel = 1;
     }
     else if(!two || VR_AGP_SwingOneHand(g, p))
     {
@@ -1566,6 +1568,10 @@ float(entity g, entity p) VR_AGK_Class =
     }
     if(c == VR_AG_CLASS_MELEE)
     {
+        if(p.weapon != WID_CHAINSAW && VR_AGP_Pole(p))
+        {
+            return VR_AGK_POLE; // (a pole weapon: its own keys on VR_AGP_Melee's pole pose)
+        }
         return p.weapon == WID_CHAINSAW ? VR_AGK_SAW : (VR_AGP_TwoHanded(p) ? VR_AGK_MELEE2 : VR_AGK_MELEE);
     }
     // (one gun: its pose category, the Weapon Holds' Pose Category for its kind; a gun with no row a rifle)
@@ -1690,10 +1696,6 @@ void(entity g, entity p) VR_AGK_Keys =
     float base = g.vr_ag_kind * VR_AGK_KIND + cls * VR_AGK_CLASS;
     vector st = weapondrawnpose(world, g.vr_ag_kind * 100 + cls, 28);
     vr_agk_stretch = st_x * VR_AGK_TugStretch(g);
-    if(VR_AGP_Pole(p) && g.vr_ag_took_at <= 0)
-    {
-        return; // (a pole weapon: no keys, none authored for its hold; VR_AGP_Melee's own pole pose)
-    }
     float wc = 0; // (the cast's: its Cast key, his off hand's palm at you; VR_AGP_CAST)
     if(g.vr_ag_act == VR_AGP_CAST)
     {
@@ -1784,7 +1786,7 @@ void(entity g, entity p) VR_AGK_Keys =
         }
         else if(act == VR_AGP_SWING)
         {
-            pose = VR_AGK_OVERHEAD + min(3, k);
+            pose = cls == VR_AGK_POLE ? VR_AGK_THRUST : VR_AGK_OVERHEAD + min(3, k); // (a pole weapon: its one thrust)
             if(g.vr_ag_prop2 && g.vr_ag_act_hand == 2)
             {
                 pose = VR_AGK_DUAL;
@@ -2367,6 +2369,7 @@ void(entity g, entity p) VR_AGP_PoseQC =
     vr_agpar_mw = 0; // (VR_AGPar_Pose sets it: this pose's parry)
     vr_agp_wl = 0;
     vr_agp_vl = '0 0 0';
+    vr_agp_polel = 0;
     vr_agp_fw = gx;
     vr_agp_up = gz;
     vr_agp_wo = 1;
@@ -2628,6 +2631,17 @@ void(entity g, entity p) VR_AGP_PoseQC =
         }
         if(vr_agp_flags & VR_AGP_LEFT)
         {
+            if(vr_agp_polel && g.vr_ag_took_at <= 0)
+            {
+                // (a pole weapon's off hand rides its shaft: moved with the right grip's change and turned with its turn
+                // about it, as the shaft is; then the key's own left change, its hand along or off the shaft)
+                vector shaft = VR_AGP_ToWorld(vr_agp_vl - (vr_agp_v - vr_agk_rp));
+                if(vlen(vr_agk_rr) > 0.01)
+                {
+                    shaft = VR_AG_Rotate(shaft, normalize(VR_AGP_ToWorld(vr_agk_rr)), vlen(vr_agk_rr));
+                }
+                vr_agp_vl = vr_agp_v + VR_AGP_ToLocal(shaft);
+            }
             vr_agp_vl = vr_agp_vl + vr_agk_lp;
         }
         if((vr_agp_flags & VR_AGP_LEFTWPN) && vlen(vr_agk_lr) > 0.01)
