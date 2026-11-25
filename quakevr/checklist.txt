@@ -20,6 +20,11 @@ Flat-screen: under water, hold C or Left Ctrl: you swim down (Locomotion > Deskt
 Flat-screen: with a dagger or sword in hand, press V: the thrust first draws the fist well back along the blade (about twice as far as before), then stabs; its windup, turn and timings are in Debug > Tunables > Flatscreen > Thrust (V): Spear and Blade. {test:flat_melee_v}
 Flat-screen: with both hands empty, press V: the fist rises over the shoulder and comes down onto the crosshair (an overhand blow) and hurts the grunt; the left mouse button still throws the straight punch. {test:flat_melee_v}
 Flat-screen: flip the dagger's grip with N (the ammo key): it is held a bit overhead, point down, and V stabs down into the grunt; the sword and the spear do the same, each with its own numbers in Debug > Tunables > Flatscreen > Flipped Grip. {test:flat_melee_v}
+Flat-screen: hold the spear or the Crystal Lance and look at your other hand on the shaft: it is closed round it (not an open hand), held still, in a V thrust and in the right-button guard. {test:flat_spear}
+Flat-screen: with the spear and with the Crystal Lance, the shaft's line points at the crosshair (not off towards the holding hand), held and through a V thrust; both behave the same. {test:flat_spear}
+Flat-screen: hold the right mouse button with the spear: the parry guard lays the shaft across the view with both hands closed round it. {test:flat_spear}
+Flat-screen: give yourself the Crystal Lance and hold the right mouse button: the same parry guard as the spear (no ironsight zoom); blows from the front are parried; left click still charges and fires. {test:flat_lance_parry}
+Flat-screen: with the spear or the Crystal Lance, press N to flip the grip: your other hand stays on the reversed shaft, closed round it (not floating off it), for both weapons. {test:flat_spear}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
