@@ -249,3 +249,11 @@ quakevr/checklist.txt: 168 lines down to 143 (110 test lines). His ticks file an
 - **Merged:** five Quest foveation lines into one, the two Quest hub lines, the Quest campaigns + install-again lines, the wheel follow + quick-tap lines. Stale text fixed ("1.2.0-beta2" now "the latest pre-release", Foveation "Low by default").
 - **[New] sorted (all):** Installer (Quest lines), Flat screen (flat Lance pose), Tutorial and VR interface (tutorial in MP, centre message, Swap Face Buttons), Weapons and holsters (wheel), Dwell (Lance HUD). [New] is empty.
 - **Scenes removed (5, nothing else uses them):** ropes_flat, flat_weapon_wheel, revolver_swing, sng_spin, ssg_muzzle. checklist_tests_check: 76 passed, 0 failed.
+
+## Checklist tidy, sixth pass (2026-11-25, cltidy6)
+
+quakevr/checklist.txt: 162 lines down to 132 (all tagged). His ticks file read from his checkout; there were no 2026-11-24/25 voice notes.
+- **Retired (13):** every ticked line (rope thumbs and slide, wheel pick sound, flat Lance never a lightning gun, SSG muzzle, ad_crucial lift, bots' holsters, wall shoves, rope slide hands/arms, Lance fresh-config pose, flat wheel 0.15 s). "Show Melee Arcs" (in the fail list) kept.
+- **Merged/removed (19):** the three Quest foveation lines (kept by the Installer line), the Quest campaigns / GL-safe / hub-three-times duplicates, the two wheel lines (already in Weapons), the two hub-load-time lines (superseded by the shipped-cache line), Lance stuck + H release, axe embed pair, spear take/throw/stick trio, the two lift-ride lines, the two Melee Arcs lines.
+- **[New] sorted (all):** Installer, Flat screen (now 9 lines), Tutorial and VR interface (3), Weapons, Ropes, Armed humanoids, Dwell. The [New] section is gone.
+- **Scene removed:** wall_shove (nothing else used it). ssg_muzzle kept (Misc/quakevr/make_ssg_muzzle.py and docs use it). checklist_tests_check: 93 passed, 0 failed.
