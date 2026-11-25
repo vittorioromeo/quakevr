@@ -1508,7 +1508,8 @@ vr_flat_shove_recover_time|1|Locomotion|Shove Recovery Time|Advanced VR Options 
 vr_flat_shove_anim_reach|1|Locomotion|Shove Hand Travel|Advanced VR Options > Movement > Locomotion > Shove Hand Travel
 vr_flat_hud|1|Locomotion|Desktop Status Bar|Advanced VR Options > Movement > Locomotion > Desktop Status Bar
 vr_flat_visor|1|Locomotion|Visor HUD|Advanced VR Options > Movement > Locomotion > Visor HUD
-vr_flat_crouch_fire|1|Locomotion|Left Ctrl Also Fires|Advanced VR Options > Movement > Locomotion > Left Ctrl Also Fires
+vr_flat_crouch_fire|1|Locomotion|Crouch Keys Keep Binds|Advanced VR Options > Movement > Locomotion > Crouch Keys Keep Binds
+vr_flat_crouch_swim|1|Locomotion|Crouch Keys Swim Down|Advanced VR Options > Movement > Locomotion > Crouch Keys Swim Down
 vr_flat_pitch_up|1|Locomotion|Look Up Limit|Advanced VR Options > Movement > Locomotion > Look Up Limit
 vr_flat_pitch_down|1|Locomotion|Look Down Limit|Advanced VR Options > Movement > Locomotion > Look Down Limit
 vr_flat_death_vomit|1|Locomotion|Vomit Mode on Death|Advanced VR Options > Movement > Locomotion > Vomit Mode on Death

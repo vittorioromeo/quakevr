@@ -3634,7 +3634,7 @@ cvar_t* keyCapture{nullptr};
 // A row's key where another row has it (a flat key) or a Quake binding does: its name, written to out; false: free.
 [[nodiscard]] bool keyConflict(const cvar_t& var, char* out, za::SizeT size)
 {
-    const int key = var.string[0] ? Key_StringToKeynum(var.string) : -1;
+    const int key = flatplay::keyNum(var, 0);
     if(key <= 0 || key >= MAX_KEYS)
     {
         return false;
@@ -3642,7 +3642,7 @@ cvar_t* keyCapture{nullptr};
     constexpr za::SizeT prefix = sizeof("vr_flat_key_") - 1;
     for(const cvar_t* c : flatplay::keyCvars())
     {
-        if(c != &var && c->string[0] && Key_StringToKeynum(c->string) == key)
+        if(c != &var && flatplay::keyIs(*c, key))
         {
             q_snprintf(out, size, "also %s", c->name + prefix);
             return true;
@@ -3657,9 +3657,9 @@ cvar_t* keyCapture{nullptr};
 }
 
 // A key row set to `key` ("" none), the name as the default spells it where it is the default's key (a sparse config).
-void setKeyRow(cvar_t* var, const char* name)
+void setKeyRow(cvar_t* var, int key)
 {
-    Cvar_SetQuick(var, var->default_string && !q_strcasecmp(var->default_string, name) ? var->default_string : name);
+    flatplay::setKey(*var, 0, key); // (its first key; Options > Controls sets the second)
 }
 
 void drawKeyRow(const Item& item, int y, bool selected)
@@ -6228,7 +6228,7 @@ extern "C" void VR_Menu_Key(int key, int repeat)
         qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
         if(key != K_ESCAPE && key != '`' && key > 0 && key < MAX_KEYS)
         {
-            setKeyRow(var, Key_KeynumToString(key));
+            setKeyRow(var, key);
         }
         return;
     }

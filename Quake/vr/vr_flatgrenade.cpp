@@ -134,8 +134,7 @@ void report_f()
 // with it up (an impulse lost to another in the same move).
 void throwKey(int stat)
 {
-    const int k = vr_flat_key_throw.string[0] ? Key_StringToKeynum(vr_flat_key_throw.string) : -1;
-    const bool down = key_dest == key_game && k > 0 && k < MAX_KEYS && keydown[k] != 0;
+    const bool down = key_dest == key_game && flatplay::keyHeld(vr_flat_key_throw);
     const int grenPhase = stat & 7;
     const bool serverWinds = ((stat >> 4) & 3) == throwWind || (gs.throwKeyWound && grenPhase == phaseWind);
     if(down && !gs.throwKeyDown)
@@ -212,8 +211,7 @@ void frame(bool on)
     }
 
     // G: the game picks the hand and runs it (QC VR_FlatGrenade_Key).
-    const int k = vr_flat_key_grenade.string[0] ? Key_StringToKeynum(vr_flat_key_grenade.string) : -1;
-    const bool down = key_dest == key_game && k > 0 && k < MAX_KEYS && keydown[k] != 0;
+    const bool down = key_dest == key_game && flatplay::keyHeld(vr_flat_key_grenade);
     if(down && !gs.keyDown)
     {
         gs.presses++;

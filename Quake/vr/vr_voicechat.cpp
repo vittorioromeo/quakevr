@@ -5,6 +5,7 @@
 #include "vr_voicechat.hpp"
 #include "vr_voicenotes.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_backend.hpp"
 #include "vr_input.hpp"
 #include "vr_hands.hpp"
@@ -146,8 +147,7 @@ namespace
 // play owns it, VR reads it too) in the game.
 [[nodiscard]] bool pttWanted()
 {
-    const int k = vr_flat_key_voicechat.string[0] ? Key_StringToKeynum(vr_flat_key_voicechat.string) : -1;
-    return pttHeld || (key_dest == key_game && k > 0 && k < MAX_KEYS && keydown[k]);
+    return pttHeld || (key_dest == key_game && flatplay::keyHeld(vr_flat_key_voicechat));
 }
 
 // The Voice Chat page's texts (playerLine, ownLine).

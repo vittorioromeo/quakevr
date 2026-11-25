@@ -372,6 +372,7 @@
         open("Visor HUD Look", pageIndex(pageVisorSettings))
             .help("The visor HUD's panels, mounts, glass, depth and effects."),
         row(opt::vr_flat_crouch_fire),
+        row(opt::vr_flat_crouch_swim),
         row(opt::vr_flat_pitch_up),
         row(opt::vr_flat_pitch_down),
         row(opt::vr_flat_death_vomit),

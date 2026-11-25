@@ -1,17 +1,17 @@
 #!/bin/bash
-# flatthrow_test.sh <agent> -- flat-screen play's throw key (J, vr_flat_key_throw; his ask 2026-11-23; QC vr_flatgrenade.qc
+# flatthrow_test.sh <agent> -- flat-screen play's throw key (B, vr_flat_key_throw; J until 2026-11-25; his ask 2026-11-23; QC vr_flatgrenade.qc
 # "The throw key", Quake/vr/vr_flatgrenade.cpp; docs/vr-port/FLATPLAY.md, "The throw key"). Headless, fast mode, in the
 # tutorial (vrtutorial); each run ends on its own last line (-QuitOn) and flatthrow_check.py prints the checks and
 # "flatthrow: N passed, M failed".
-#   axe    lesson 12: an axe in the main hand, J held 1.1 s at the high target: the throw presses it (r12b_open) and
+#   axe    lesson 12: an axe in the main hand, B held 1.1 s at the high target: the throw presses it (r12b_open) and
 #          the axe sticks
 #   rock   lesson 10: a rock force-grabbed off the table, tapped east (a quick toss: it flies and lands); another
-#          grabbed, J held 1.1 s at the button behind the bars: it presses it (r10_open, the gate); the charged throw
+#          grabbed, B held 1.1 s at the button behind the bars: it presses it (r10_open, the gate); the charged throw
 #          leaves much faster than the tap
-#   gren   G, then J held 0.7 s with the quick grenade: thrown as its fire button's release throws it (the shared motion)
-#   twoh   the nail gun held two-handed (the free hand on its hotspot), J: the free hand lets go (hanging) as it winds
+#   gren   G, then B held 0.7 s with the quick grenade: thrown as its fire button's release throws it (the shared motion)
+#   twoh   the nail gun held two-handed (the free hand on its hotspot), B: the free hand lets go (hanging) as it winds
 #          up and the gun is thrown one-handed (his call 2026-11-23; no two-handed throw)
-#   nofire the nail gun: the fire button held while J winds it up shoots nothing (his words 2026-11-23), held before J
+#   nofire the nail gun: the fire button held while B winds it up shoots nothing (his words 2026-11-23), held before B
 #          it shoots (the control); the axe and the charged rock leave from their hand's side of the eye (flatthrow3)
 #   wall   lesson 12's plain south wall: an axe charged from 280 units (flying past vr_throw_self_grace, once never stuck)
 #          and a sword from 150: both stick (the flat throw's timed spin, bladespinto)
@@ -28,7 +28,7 @@ run() { local tag=$1 script=$2; [ -n "$ONLY" ] && [[ " $ONLY " != *" $tag "* ]] 
         bash $KIT/run.sh $AGENT -ExtraArgs -flatscreenmode -Script "$script; echo flatthrow_test: $tag done; toggleconsole; quit" \
             -QuitOn "^flatthrow_test: $tag done" -Timeout 150 -Filter "$FILTER" > "$S/$tag.log" 2>&1; }
 BASE="map vrtutorial; god; notarget; developer 1; vr_debug_wallbuttons 1; vr_flat_grenade_debug 1; wait10"
-J="vr_mock_key j down"; JU="vr_mock_key j up"
+J="vr_mock_key b down"; JU="vr_mock_key b up"
 # (Room 12b's target: x 1920, high on the south wall (y -814, z 32); from 210 units north on the floor it is 32 deg up.
 # Room 10's button: x 2928 behind the bars (y -414, z -80), from y -200 a little above the eye. Its table's rocks at
 # y -296, z -104. 80 frames = 1.1 s: past vr_flat_throw_charge_time 1; the force grab's flight takes under 60.)

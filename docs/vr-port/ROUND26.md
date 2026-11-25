@@ -420,3 +420,38 @@ Follow-up to liftshaft (his goal: nothing leaves a monster or bot standing under
   with a print); r1m1 and hip1m1 load and play 28 s clean (r1m1: 1 shaft).
 - **Open:** an AD map not smoke-run (the bridge line only); AD's idle (standing) monsters under a lift wait for the
   bounce's flee (nothing walks them, AD's stand never moves); Honey's own door_blocked not hooked.
+## flatkeys2: new flat default keys, and two keys per action (branch agent/flatkeys2, 2026-11-25)
+
+His words (2026-11-25): ammo switch B -> N, throw J -> B, "make it possible for the same action to have two separate
+bindings. Crouch/slide should be bound to both C and left ctrl by default."
+- **Defaults**: `vr_flat_key_ammo` "n", `vr_flat_key_throw` "b", `vr_flat_key_toolgun_adjust` "n" (it shared the ammo
+  key, the headset's X/A on the toolgun hand: it follows the ammo key to N, so B, the throw, clashes with nothing), new
+  `vr_flat_key_crouch` "c CTRL" (the crouch / slide, Left Ctrl alone and hard-wired before). Default binds on the new
+  keys: N `+reloadleft` (a VR bind: in flat play the flat key wins, Controls shows the "!"), C `+movedown` (the same; the
+  crouch keys now swim down in water instead: new `vr_flat_crouch_swim` 1), CTRL `+attack` (as before: fires nothing in
+  flat play). Nothing else of the flat keys was on N, B or Ctrl.
+- **Migration**: none needed, none added. Flat keys never were in a full (pre-218) config, and a sparse config writes a
+  flat key only when it differs from its default: a player who left B/J has no line and gets N/B; a player's own key has
+  its line and keeps it (flatkeybind_test's old-config case). A "bindings version" step would overwrite a player who
+  picks B for ammo in the new build, so no step (decision, conservative).
+- **Two keys per action** (one path for every flat key): each `vr_flat_key_*` holds up to `flatplay::keySlots` (2) bind
+  names, a space between ("c CTRL"; an old one-key value is slot 1). `flatplay::keyNum / keyIs / keyHeld / setKey`
+  (vr_flatmove.cpp, vr_flatplay.hpp) are the only readers and writer: every key poll (vr_flatplay, flatreload,
+  flatgrenade, flatholster, flycam, voicechat, the lean), `VR_FlatKeyOwned`, the clash checks, the tips' `{key:}` (the
+  first key) and the VR menu's Push-to-Talk row (its first key). setKey keeps the slots packed (clearing the first moves
+  the second up), never puts one key in both, and keeps the default's spelling (a sparse config).
+- **Options > Controls**: a flat row shows both keys ("C, CTRL"; the cursor row an empty second as "???"); Left/Right picks
+  the key (the picked one in white; never past the first empty), Enter + key sets it, Escape cancels, Backspace clears it
+  (`VR_FlatKeyGet/Set(i, slot, ...)`, `keysmenu.flatslot`); the hint line says so on flat rows; "!" per clashing key.
+- **The crouch**: a flat key now (pollKeysFlat reads `vr_flat_key_crouch`). The Ctrl bind takeover (+flatcrouch bound to
+  CTRL while the mode ran, handed back before each config write: `VR_FlatKeysForConfigWrite`) is gone: VR_FlatKeyOwned
+  already keeps a flat key's bind from running, so Ctrl fires nothing and the binds are never touched.
+  `vr_flat_crouch_fire` 1 (row renamed "Crouch Keys Keep Binds") lets the crouch keys' binds run too. `+flatcrouch` stays.
+  New `vr_flat_crouch_swim` (1, row "Crouch Keys Swim Down", Locomotion > Desktop Screen Play): in water the crouch keys
+  swim down (`VR_FlatCrouchSwim` in CL_BaseMove), as C's +movedown did.
+- Tests: flatkeybind_test 31/0 (16 old + 15 new: defaults, C and Ctrl crouch and neither bind runs, crouch_fire 1, a
+  second key added from Controls and both reload, Escape / clear per slot, the written config keeps "r t", a fresh game
+  reads it back and t reloads, an old config migrates and keeps the player's drop key, swimming down 49 vs 17 units in
+  30 frames); flatkeys_test 36/0 (the ctrl cases rewritten: the bind left alone, not run in flat play, written as
+  +attack); flatinput 19/0; flat_ammo_key 7/0, flatthrow 38/0, flattoolgun 11/0 (keys N, B, N); vr_msgtokens_test
+  12/0; vr_menu_path_check 0 missing; menu_paths.txt (the two rows).
