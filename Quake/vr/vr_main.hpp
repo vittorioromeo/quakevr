@@ -50,6 +50,9 @@ struct MirrorPresents
 // loading panel instead of the runtime's dots; once a run, at the first frame, with no backend yet. True if one runs.
 // The configs then keep it (vr_enabled 1, the same backend) or restart it as usual.
 bool startForLoading();
+// A map load's long wait (vr_shaderload.cpp VR_MapLoadingFrame): a frame of the backend's for the loading panel, the one
+// the host frame began if it is still open, else a new one. False: none (no backend, the session not running).
+[[nodiscard]] bool loadingFrameBegin();
 [[nodiscard]] const FrameState& frameState();
 
 // QVR round 21: the frames' rate and cost, averaged over half a second, for the wrist gadget's FPS counter

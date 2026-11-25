@@ -1704,10 +1704,25 @@ bool startForLoading()
     }
     state->earlyStart = true;
     q_strlcpy(state->earlyName, name, sizeof(state->earlyName));
-    Con_SafePrintf("VR: %s started before the configs for the shader compile's loading panel (kept if they ask for it)\n",
+    Con_SafePrintf("VR: %s started early for the loading panel (shaders compiled, or a map load's collision; kept if "
+                   "the configs ask for it)\n",
         name);
     startBackend(name);
     return state->backend != nullptr;
+}
+
+bool loadingFrameBegin()
+{
+    if(!state || !state->backend)
+    {
+        return false;
+    }
+    if(state->backend->frameActive())
+    {
+        return true;
+    }
+    // (an ended session: no frame; the next VR_BeginFrame's beginFrame meets it again and deals with it)
+    return state->backend->beginFrame(state->tracking, state->frame) && state->backend->frameActive();
 }
 
 const FrameState& frameState()

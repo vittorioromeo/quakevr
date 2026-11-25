@@ -4269,6 +4269,33 @@ void settle()
     za::Vector<Tree*> trees = ZA_MOVE(pending.trees);
     pending.run.clear();
     pending.trees.clear();
+    // A long wait (a cold compile: vrstart's first load after it changed, ~45 s on a Quest 3) feeds the headset the
+    // loading panel (vr_load_panel; questrelaunch): polled, a panel frame each poll after the first second (the runtime
+    // paces it), else a short sleep. Without the panel (or a pool: then only get() runs them): the waits below as before.
+    if(VR_MapLoadingWanted() && jobs::workers() > 0)
+    {
+        constexpr double panelAfter = 1.0;
+        const char* map = sv.name[0] ? sv.name : "the map";
+        const int total = static_cast<int>(run.size()) + 1;
+        for(;;)
+        {
+            int done = pending.brushes.ready() ? 1 : 0;
+            for(const jobs::Future<void>& f : run)
+            {
+                done += f.ready() ? 1 : 0;
+            }
+            if(done == total)
+            {
+                break;
+            }
+            const double waited = Sys_DoubleTime() - t0;
+            if(waited < panelAfter || !VR_MapLoadingFrame(map, done, total, waited))
+            {
+                Sys_Sleep(waited < panelAfter ? 1 : 10);
+            }
+        }
+        VR_MapLoadingDone(map, Sys_DoubleTime() - t0);
+    }
     for(jobs::Future<void>& f : run)
     {
         f.get(); // (a compile queued by one ends with the job of the compile that ran it: all are done after these)

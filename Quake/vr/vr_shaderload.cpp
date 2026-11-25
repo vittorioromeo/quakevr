@@ -5,6 +5,7 @@
 // runtime dots) and in the window (a blit). Nothing else runs meanwhile (host.c _Host_Frame returns after it).
 
 #include "vr_backend.hpp"
+#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_main.hpp"
 
@@ -93,7 +94,7 @@ void text(const char* s, int y, int scale, bool alt)
     }
 }
 
-void drawImage(int done, int total, const char* last, double seconds)
+void drawPanel(const char* heading, int done, int total, const char* last, const char* footer)
 {
     const unsigned background = rgba(18, 14, 10);
     fill(0, 0, imageWidth, imageHeight, background);
@@ -104,7 +105,7 @@ void drawImage(int done, int total, const char* last, double seconds)
     fill(imageWidth - 3, 0, 3, imageHeight, edge);
 
     text("QUAKE VR", 14, 4, true);
-    text(va("Compiling shaders: %d / %d", done, total), 58, 2, false);
+    text(heading, 58, 2, false);
 
     const int barX = 48, barY = 88, barW = imageWidth - 96, barH = 22;
     fill(barX - 2, barY - 2, barW + 4, barH + 4, edge);
@@ -113,8 +114,15 @@ void drawImage(int done, int total, const char* last, double seconds)
     fill(barX, barY, filled, barH, rgba(200, 150, 60));
 
     text(last && *last ? last : "", 124, 2, false);
-    text(VR_ProgCacheOn() ? va("%.0f s - the next starts take them from the program cache", seconds) : va("%.0f s", seconds),
-        156, 2, true);
+    text(footer, 156, 2, true);
+}
+
+void drawImage(int done, int total, const char* last, double seconds)
+{
+    char heading[64];
+    q_snprintf(heading, sizeof(heading), "Compiling shaders: %d / %d", done, total);
+    drawPanel(heading, done, total, last,
+        VR_ProgCacheOn() ? va("%.0f s - the next starts take them from the program cache", seconds) : va("%.0f s", seconds));
 }
 
 void upload(GLuint texture)
@@ -234,4 +242,62 @@ extern "C" void VR_ShadersLoaded(int programs, int frames, double ms, double max
     Con_DPrintf("loading panel: %d programs, %d pumps, %.0f ms, longest frame's work %.1f ms (between frames %.1f ms)\n",
         programs, frames, ms, maxwork, maxgap);
     load.firstShown = false;
+}
+
+// A map load's long wait (vr_hull.cpp settle: the world's collision compiled on the pool; vrstart's first load after it
+// changed, i.e. after every update: ~45 s on a Quest 3, the main thread idle meanwhile). Without frames the headset showed
+// the runtime's dots that long (at a start the VR session isn't even up: it starts after the configs' frame), and a player
+// who closed the "stuck" game lost the compile (no cache written) and met it again at every start (questrelaunch). Each
+// call: one frame of the same panel (the session started for it at a start, as for the shaders), unless the frame the
+// host began is still open, which it ends. The host frame's own frame stays ended (its views skipped: frameActive).
+// Returns whether a frame reached the headset (the runtime paced it), so its caller needn't sleep.
+namespace
+{
+struct MapWait
+{
+    int frames = 0, panelFrames = 0; // this wait's frames: pumped, shown in the headset
+    bool earlyStarted = false;       // the VR session started for it
+};
+MapWait mapWait;
+} // namespace
+
+extern "C" int VR_MapLoadingWanted(void)
+{
+    return qvr::vr_load_panel.value != 0.f && cls.state != ca_dedicated && (qvr::backend() || host_framecount == 0);
+}
+
+extern "C" int VR_MapLoadingFrame(const char* map, int done, int total, double seconds)
+{
+    if(!VR_MapLoadingWanted())
+    {
+        return 0;
+    }
+    if(!qvr::backend() && qvr::startForLoading())
+    {
+        mapWait.earlyStarted = true;
+    }
+    if(!qvr::loadingFrameBegin())
+    {
+        return 0;
+    }
+    mapWait.frames++;
+    char heading[96];
+    q_snprintf(heading, sizeof(heading), "Preparing %s: %d / %d", map, done, total);
+    drawPanel(heading, done, total, "Its collision is built once for this version",
+        va("%.0f s - the next loads take it from the cache", seconds));
+    const int before = load.panelFrames;
+    toHeadset();
+    const int shown = load.panelFrames - before;
+    mapWait.panelFrames += shown;
+    return shown; // (none shown, e.g. the headset asleep or a mock backend that doesn't pace: the caller sleeps)
+}
+
+extern "C" void VR_MapLoadingDone(const char* map, double seconds)
+{
+    if(mapWait.frames)
+    {
+        Con_SafePrintf("loading panel: %s's collision, %.1f s: %d frames (%d in the headset)%s\n", map, seconds,
+            mapWait.frames, mapWait.panelFrames, mapWait.earlyStarted ? "; the VR session started early for it" : "");
+    }
+    mapWait = MapWait{};
 }

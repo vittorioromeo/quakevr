@@ -247,6 +247,10 @@ extern "C" void VR_TimeQuitMark(const char* stage)
     if(quit.open)
     {
         mark(quit, stage, Sys_DoubleTime());
+#ifdef __ANDROID__
+        // (logcat as it goes: a quit that never ends, e.g. the activity's destroy, shows the last stage done)
+        VR_AndroidLog(va("quit: %s done\n", stage));
+#endif
     }
 }
 
