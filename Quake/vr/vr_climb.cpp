@@ -3809,11 +3809,31 @@ void findRungs(edict_t* ent, const glm::vec3& eye, const glm::vec3& fwd, float l
         for(float z = from; z <= to && out.count < maxRungs; z += step)
         {
             bool lenient = false;
-            const za::Optional<Ledge> l = findHold(seekerOf(ent), glm::vec3{column.x, column.y, z}, glm::vec3{0.f}, eye, radius, propLow,
-                lenient, nullptr, lower);
+            glm::vec3 probe{column.x, column.y, z};
+            za::Optional<Ledge> l = findHold(seekerOf(ent), probe, glm::vec3{0.f}, eye, radius, propLow, lenient, nullptr, lower);
+            if(!l)
+            {
+                // Rungs flush on a wall (vrtesthall's: no gap behind them, his note 2026-11-25): the probe deep in the wall
+                // takes them at their back edge, along the wall's face, and finds no way over them. Again from the wall's
+                // face (the probe moved back out of the solid, towards him, at most `radius`).
+                const glm::vec3 back = fwd * (behind ? 1.f : -1.f);
+                glm::vec3 p = probe;
+                vec3_t pt{p.x, p.y, p.z};
+                for(float d = 0.f; d < radius && SV_PointContents(pt) == CONTENTS_SOLID; d += 1.f)
+                {
+                    p += back;
+                    pt[0] = p.x;
+                    pt[1] = p.y;
+                }
+                if(p != probe && SV_PointContents(pt) != CONTENTS_SOLID)
+                {
+                    probe = p;
+                    l = findHold(seekerOf(ent), probe, glm::vec3{0.f}, eye, radius, propLow, lenient, nullptr, lower);
+                }
+            }
             if(vr_climb_debug.value >= 4.f)
             {
-                Con_Printf("climb: flat ladder probe (%.1f %.1f %.1f) r %.1f [%.1f..%.1f]: %s\n", column.x, column.y, z, radius, bottom,
+                Con_Printf("climb: flat ladder probe (%.1f %.1f %.1f) r %.1f [%.1f..%.1f]: %s\n", probe.x, probe.y, z, radius, bottom,
                     high, l ? va("top %.1f out %.2f %.2f hold %.1f %.1f %.1f%s", l->top, l->out.x, l->out.y, l->hold.x, l->hold.y,
                                   l->hold.z, l->drawn ? " drawn" : "")
                             : "none");
@@ -4043,6 +4063,17 @@ bool flatLadderMount(edict_t* ent, Climber& c, const VrMove& move, const glm::ve
         if(o <= offLeast)
         {
             break;
+        }
+    }
+    if(!ok && !volume)
+    {
+        // Rungs standing out of the wall under the lip (vrtesthall's, flush on its face, 8 deep; his note 2026-11-25): the
+        // box hangs off the rung under the lip's front (its hold holdInset in from it), not off the lip's.
+        const float rungFront = za::max(0.f, glm::dot(below.hold - lip.hold, lip.out)) + ledges::holdInset;
+        for(float o = ent->v.maxs[0] + 1.f + rungFront; !ok && o <= ent->v.maxs[0] + 1.f + rungFront + 8.f; o += 4.f)
+        {
+            to = glm::vec3{line.x + lip.out.x * o, line.y + lip.out.y * o, hangZ};
+            ok = tryHang(to, mid);
         }
     }
     if(!ok && volume)
