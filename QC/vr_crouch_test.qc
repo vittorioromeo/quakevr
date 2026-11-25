@@ -128,10 +128,97 @@ void() VR_SphitTest_Run =
     bprint(sprintf("sphit: hits %g of %g\n", hits, shots));
 };
 
+// vr_sphit_test 2: the lean case (`sphitlean: hits N of M ...`). Face yaw 90 (vr_mock_look 0 90), the player's right is +x.
+// A wall (an inline brush model of the map, thin in y) stands 60 units ahead, its +x edge swept -16..16 to his right (one line each); the grunt is
+// 280 ahead, beyond it. The script leans the mock head sideways (vr_mock_hand head 0.3 1.6 0) per case. Prints where the
+// head is, whether the grunt's visible() (origin + view_ofs, never the head) sees him, and the hits of the same grid
+// aimed at his origin (as the AI aims: enemy.origin).
+void() VR_SphitTest_RemoveWall =
+{
+    for(entity w = find(world, classname, "sphitwall"); w; w = find(w, classname, "sphitwall"))
+    {
+        remove(w);
+    }
+};
+
+void(float edge) VR_SphitTest_Lean =
+{
+    entity player = VR_Player();
+    if(player == world)
+    {
+        return;
+    }
+    // (the wall: six copies of the map's first inline model, a 48 x 16 x 96 door, side by side to the left of its edge)
+    for(float k = 0; k < 6; k = k + 1)
+    {
+        entity wall = spawn();
+        wall.classname = "sphitwall";
+        setmodel(wall, "*1");
+        wall.solid = SOLID_BSP;
+        wall.movetype = MOVETYPE_PUSH;
+        vector o = player.origin;
+        o_x = player.origin_x + edge - wall.maxs_x - 48 * k;
+        o_y = player.origin_y + 60 - wall.mins_y;
+        o_z = player.origin_z - 24 - wall.mins_z;
+        setorigin(wall, o);
+    }
+    vector at = player.origin + '0 280 0';
+    at_z = player.origin_z - 24;
+    entity oldself = self;
+    entity grunt = VR_Test_Spawn(player, 0, at, -1);
+    self = oldself;
+    if(!grunt)
+    {
+        VR_SphitTest_RemoveWall();
+        bprint("sphitlean: no grunt\n");
+        return;
+    }
+    grunt.angles_y = 270;
+    self = grunt;
+    self.enemy = player;
+    float sees = visible(player);
+    float health0 = player.health, armor0 = player.armorvalue;
+    float hits = 0, shots = 0;
+    for(float dx = -24; dx <= 24; dx = dx + 3)
+    {
+        for(float dz = -24; dz <= 40; dz = dz + 4)
+        {
+            player.health = 10000;
+            player.armorvalue = 0;
+            vector src = self.origin + '0 -10 0';
+            src_z = self.absmin_z + self.size_z * 0.7;
+            vector aimat = player.origin + '1 0 0' * dx;
+            aimat_z = aimat_z + dz;
+            EnemyFireBullets(1, normalize(aimat - src), '0 0 0');
+            if(player.health < 10000)
+            {
+                hits = hits + 1;
+            }
+            shots = shots + 1;
+        }
+    }
+    self = oldself;
+    player.health = health0;
+    player.armorvalue = armor0;
+    remove(grunt);
+    VR_SphitTest_RemoveWall();
+    bprint(sprintf("sphitlean: edge %g hits %g of %g (head %.1f right %.1f up; grunt sees him %g)\n", edge, hits, shots,
+        player.headpos_x - player.origin_x, player.headpos_z - player.origin_z, sees));
+};
+
 void() VR_SphitTest_Frame =
 {
     if(!cvar_hget(cvarh_vr_sphit_test))
     {
+        return;
+    }
+    if(cvar_hget(cvarh_vr_sphit_test) == 2)
+    {
+        for(float e = -16; e <= 16; e = e + 8)
+        {
+            VR_SphitTest_Lean(e);
+        }
+        cvar_set("vr_sphit_test", "0");
         return;
     }
     VR_SphitTest_Run();
