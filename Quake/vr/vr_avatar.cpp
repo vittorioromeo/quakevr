@@ -1412,7 +1412,11 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     // by vr_rope_elbow_out, and the wrist's ease below swings it back in by as little of that share.
     if(const float share = za::clamp(vr_rope_elbow_out.value, 0.f, 1.f) * ropeHang(); share > 0.f)
     {
-        const glm::vec3 way = safeNormalize(lateral - cUp * 0.35f - cFwd * 0.2f, lateral);
+        // (climbfix, his flat note 2026-11-25: the elbows came in climbing vertically) Out by vr_rope_elbow_wide against the
+        // down and back: a hand pulled in to the rope by the chest points the arm's line in across it, where little of the
+        // side is left square to it and the down and back took the elbow in front of the chest.
+        const float wide = za::clamp(vr_rope_elbow_wide.value, 0.f, 10.f);
+        const glm::vec3 way = safeNormalize(lateral * wide - cUp * 0.35f - cFwd * 0.2f, lateral);
         pole = glm::mix(pole, way * glm::length(pole), share);
         flatElbow = za::max(flatElbow, share);
     }

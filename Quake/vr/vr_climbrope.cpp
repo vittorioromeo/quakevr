@@ -1712,11 +1712,15 @@ int monkeyHands(float& up, float& under, float& gap)
 // on it has its fist's front (the knuckles' way) pitched up (`knuckles`: the least, degrees; vr_rope_hand_pitch), and
 // how far each elbow is bowed out of its arm's straight line (`elbowOut`: the least, cm of the body, along the view's
 // right for the right arm and its left for the left; < 0 bowed in, towards the view). Returns the hands measured.
-int ropeArms(float& knuckles, float& elbowOut)
+int ropeArms(float& knuckles, float& elbowOut, float* elbowSide = nullptr)
 {
     int on = 0;
     knuckles = 90.f;
     elbowOut = 1e9f;
+    if(elbowSide)
+    {
+        *elbowSide = 1e9f;
+    }
     for(int h = 0; h < 2; h++)
     {
         glm::vec3 back{0.f}, front{0.f};
@@ -1739,6 +1743,11 @@ int ropeArms(float& knuckles, float& elbowOut)
             const glm::vec3 sw = k.wrist[side] - k.shoulder[side];
             const float f = za::clamp(glm::dot(k.elbow[side] - k.shoulder[side], sw) / za::max(glm::dot(sw, sw), 1e-4f), 0.f, 1.f);
             elbowOut = za::min(elbowOut, glm::dot(k.elbow[side] - (k.shoulder[side] + sw * f), out) / k.m2w * 100.f);
+            // (climbfix) and the elbow's side of its shoulder (out of it: + cm)
+            if(elbowSide)
+            {
+                *elbowSide = za::min(*elbowSide, glm::dot(k.elbow[side] - k.shoulder[side], out) / k.m2w * 100.f);
+            }
         }
     }
     return on;
@@ -2478,6 +2487,11 @@ struct FlatTest
     // arm's end (avatar::armWristGap, units) while sliding, and the frames it was off at all
     float gapMost{0.f};
     int gapFrames{0};
+    // (climbfix, his flat note 2026-11-25: elbows in while climbing a pole) climbing up (case 4): the least the elbows were
+    // bowed out off their arms' lines and out of their shoulders' side (cm), over `climbArmFrames` frames with both arms posed
+    float climbBow{1e9f}, climbSide{1e9f}, climbSideSum{0.f};
+    int climbArmFrames{0};
+    bool elbows{false}; // (climbfix) `vr_rope_flat_test` (the rope) and `pole`: the elbows checked climbing up
 };
 FlatTest flatTest;
 constexpr const char* flatTestName = "vr_rope_flat_test";
@@ -2780,6 +2794,26 @@ void flatTestFrame()
     {
         // (ropes10: `polejump` from 300 up: the fall takes over the second the rope let go of isn't taken again for)
         const float rise = (t.jump && !t.slant && !t.ropeJump) || t.slide ? 300.f : 80.f; // (ropes13: a slide from 300 up)
+        if(climbing && t.frames == 24 && t.shots && t.elbows)
+        {
+            // (climbfix) climbing: the elbows seen from his front left and from behind
+            Cbuf_AddText("vr_flat_orbit 0 50 0\nwait\nwait\nscreenshot\nvr_flat_orbit 180 50 0\nwait\nwait\nscreenshot\nvr_flat_orbit\n");
+        }
+        if(climbing && t.frames >= 12)
+        {
+            float knuckles = 0.f, bow = 0.f, side = 0.f;
+            if(ropeArms(knuckles, bow, &side) >= 0 && bow < 1e8f)
+            {
+                t.climbBow = za::min(t.climbBow, bow);
+                t.climbSide = za::min(t.climbSide, side);
+                t.climbSideSum += side;
+                t.climbArmFrames++;
+                if(vr_climb_debug.value != 0.f)
+                {
+                    Con_Printf("%s: climb frame %d: elbows bowed out %.1f cm, out of the shoulders %.1f cm\n", flatTestName, t.frames, bow, side);
+                }
+            }
+        }
         if(!climbing || feet >= t.feet0 + rise || t.frames > 72 * 6)
         {
             const char* how = t.pitch >= 0.f ? "looking level (a pole: only climbed)" : "looking up";
@@ -2799,6 +2833,25 @@ void flatTestFrame()
                 const char* what = va("the chain clinks as he climbs it: %d clinks (at least 1)", clinks - t.clinks);
                 t.tally.check(clinks - t.clinks >= 1, flatTestName, what);
                 if(clinks - t.clinks >= 1)
+                {
+                    Con_Printf("%s: PASS %s\n", flatTestName, what);
+                }
+            }
+            if(t.elbows)
+            {
+                // (climbfix, his flat note 2026-11-25: the elbows came in climbing vertically) Climbing up (from the 12th
+                // frame: the climbing pose eased in), neither elbow bowed in off its arm's line (vr_rope_elbow_wide at least
+                // 3, vr_rope_elbow_out a half), and on the pole on average out of the shoulders' line.
+                const float n = static_cast<float>(za::max(1, t.climbArmFrames));
+                const bool posed = vr_rope_elbow_wide.value >= 3.f && vr_rope_elbow_out.value >= 0.5f;
+                const bool out = t.climbArmFrames >= 10 &&
+                                 (!posed || (t.climbBow >= -2.5f && (!t.pole || t.climbSideSum / n >= 5.f)));
+                const char* what = va("the elbows while climbing: bowed out off the arms' lines %.1f cm at the least (none in past 2.5), "
+                                      "out of the shoulders' line %.1f cm on average (%.1f at the least), over %d frames "
+                                      "(vr_rope_elbow_wide %.1f)",
+                    t.climbBow, t.climbSideSum / n, t.climbSide, t.climbArmFrames, vr_rope_elbow_wide.value);
+                t.tally.check(out, flatTestName, what);
+                if(out)
                 {
                     Con_Printf("%s: PASS %s\n", flatTestName, what);
                 }
@@ -3442,6 +3495,7 @@ void flatTest_f()
     flatTest.slide = !ZA_STRCMP(mode, "slide") || !ZA_STRCMP(mode, "poleslide");
     flatTest.crouchDrop = !ZA_STRCMP(mode, "strungcrouch");
     flatTest.side = !ZA_STRCMP(mode, "strungside");
+    flatTest.elbows = !ZA_STRCMP(mode, "") || !ZA_STRCMP(mode, "pole");
     flatTest.pole = !ZA_STRCMP(mode, "pole") || !ZA_STRCMP(mode, "strungpole") || flatTest.wall || (flatTest.jump && !flatTest.ropeJump) ||
                     flatTest.side || !ZA_STRCMP(mode, "poleslide") || flatTest.crouchDrop;
     if(flatTest.wall)
