@@ -3495,7 +3495,7 @@ void flatTest_f()
     flatTest.slide = !ZA_STRCMP(mode, "slide") || !ZA_STRCMP(mode, "poleslide");
     flatTest.crouchDrop = !ZA_STRCMP(mode, "strungcrouch");
     flatTest.side = !ZA_STRCMP(mode, "strungside");
-    flatTest.elbows = !ZA_STRCMP(mode, "") || !ZA_STRCMP(mode, "pole");
+    flatTest.elbows = !ZA_STRCMP(mode, "") || !ZA_STRCMP(mode, "rope") || !ZA_STRCMP(mode, "pole"); // ("rope": the plain rope's, `rope shots`)
     flatTest.pole = !ZA_STRCMP(mode, "pole") || !ZA_STRCMP(mode, "strungpole") || flatTest.wall || (flatTest.jump && !flatTest.ropeJump) ||
                     flatTest.side || !ZA_STRCMP(mode, "poleslide") || flatTest.crouchDrop;
     if(flatTest.wall)
