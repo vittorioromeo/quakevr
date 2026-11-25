@@ -2251,7 +2251,7 @@ QVR_TUNABLE(vr_flat_pole_fwd, "-10") // the spear pose: the holding hand this fa
 QVR_TUNABLE(vr_flat_pole_up, "-8.5") // and this far higher (units; negative lower)
 QVR_TUNABLE(vr_flat_pole_out, "3") // and this far further out at its own side (units; negative in towards the middle)
 QVR_TUNABLE(vr_flat_pole_roll, "0") // and rolled this far about its pole (degrees)
-QVR_TUNABLE(vr_flat_pole_off_along, "12") // the other hand on the pole this far ahead of the holding hand (units; negative behind it)
+QVR_TUNABLE(vr_flat_pole_off_along, "8") // the other hand on the pole this far ahead of the holding hand (units; negative behind it)
 QVR_TUNABLE(vr_flat_pole_off_roll, "0") // and rolled this far about its own forward, along the pole, about its palm (degrees; mirrored for the off hand; drawn only)
 // (flatmelee2, his notes 2026-11-23: each hand's place and turn, where they lie along the shaft.)
 QVR_TUNABLE(vr_flat_pole_pitch, "8") // the spear turned about the holding fist, its tip up (degrees; drawn only: the beam keeps to the crosshair)
@@ -2260,8 +2260,8 @@ QVR_TUNABLE(vr_flat_revgrip_pitch, "90") // a blade held reversed (flipped grip)
 QVR_TUNABLE(vr_flat_revgrip_pole_pitch, "165") // a pole weapon held reversed (the Crystal Lance flipped) the same, its head forward and down (degrees; drawn only)
 QVR_TUNABLE(vr_flat_pole_along, "-2.5") // the holding hand this far up the pole towards its tip (units; negative towards the butt: the pole slid through the fist)
 QVR_TUNABLE(vr_flat_pole_off_up, "5") // the other hand this far up off the pole (units; negative down)
-QVR_TUNABLE(vr_flat_pole_off_out, "0") // and this far out to its own side (units; negative in)
-QVR_TUNABLE(vr_flat_pole_off_pitch, "-60") // the other hand on the pole pitched up this far in its own frame, about its palm (degrees; drawn only)
+QVR_TUNABLE(vr_flat_pole_off_out, "1") // and this far out to its own side (units; negative in)
+QVR_TUNABLE(vr_flat_pole_off_pitch, "-40") // the other hand on the pole pitched up this far in its own frame, about its palm (degrees; drawn only)
 QVR_TUNABLE(vr_flat_pole_off_yaw, "34") // and yawed left this far (degrees; mirrored for the off hand; drawn only)
 QVR_TUNABLE(vr_flat_pole_hand_pitch, "30") // the holding hand alone pitched up this far on the pole, the spear unturned (degrees; drawn only)
 QVR_TUNABLE(vr_flat_pole_hand_yaw, "0") // and yawed left this far (degrees; mirrored for the off hand; drawn only)
@@ -2284,8 +2284,8 @@ QVR_TUNABLE(vr_flat_thrust_pitch, "-3") // the tip turned up at its end (degrees
 QVR_TUNABLE(vr_flat_thrust_yaw, "0") // and in towards the middle (degrees; negative out)
 QVR_TUNABLE(vr_flat_thrust_dwell_time, "0.08") // seconds held out
 QVR_TUNABLE(vr_flat_thrust_back_time, "0.25") // seconds back to the spear pose
-QVR_TUNABLE(vr_flat_thrust_off_slide, "8") // thrust out, the other hand rides with the pole, sliding back along it this far at the full reach (units; 0 carried all the way, the thrust's reach: stays put)
-QVR_TUNABLE(vr_flat_thrust_arm_stretch, "1.3") // the arms' IK may stretch to this (times their length; vr_body_arm_stretch when not thrusting) as the thrust goes out, so the other hand keeps on the pole
+QVR_TUNABLE(vr_flat_thrust_off_slide, "2") // thrust out, the other hand rides with the pole, sliding back along it this far at the full reach (units; 0 carried all the way, the thrust's reach: stays put)
+QVR_TUNABLE(vr_flat_thrust_arm_stretch, "1.35") // the arms' IK may stretch to this (times their length; vr_body_arm_stretch when not thrusting) as the thrust goes out, so the other hand keeps on the pole
 // The one-handed thrust (flatthrust, his decision 2026-11-24): V with a blade stuck in by its point (weapons.txt embed 1).
 QVR_TUNABLE(vr_flat_thrust_blades, "1") // flatscreen: V with a stabbing blade (a sword, a dagger) thrusts it as the spear does (0: V swings it as its fire button does)
 QVR_TUNABLE(vr_flat_thrust_1h_reach, "14") // a one-handed blade's thrust ends this far out along the blade (units; within the arm's reach)
@@ -2319,7 +2319,7 @@ QVR_TUNABLE(vr_flat_ads_near, "24") // vr_flat_gun_near with the ironsight on, e
 QVR_TUNABLE(vr_flat_aim_fov, "45") // the flatscreen ironsight (vr_flat_aim, the right mouse button with one weapon held and the other hand empty; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, at fov vr_flat_aim_fov_ref (0..75; 0: the view stays wide); at any other fov the same magnification (tangents), so a fov change keeps the zoom. The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
 QVR_TUNABLE(vr_flat_aim_fov_ref, "95") // the fov vr_flat_aim_fov's degrees and vr_flat_ads_relief's units are counted at (60..130; 95: his; at fov 90 vr_flat_aim_fov 12/30/45 take 11.9/29.5/43.7 off)
 QVR_TUNABLE(vr_flat_aim_time, "0.15") // the same ironsight: how long its whole travel takes, in seconds -- onto the crosshair, and back off it (0.05..1.00; 0: at once). The field of view is narrowed by vr_flat_aim_fov's degrees times how far that travel has gone, so the view closes and opens with the weapon instead of at the press
-QVR_TUNABLE(vr_flat_zoom_up, "2") // the zoom-only aim's move of the gun (vr_flat_zoom_centre): raised this far towards the middle of the screen (units in the view's frame, -8..8; negative: lowered), eased in with it
+QVR_TUNABLE(vr_flat_zoom_up, "0") // the zoom-only aim's move of the gun (vr_flat_zoom_centre): raised this far towards the middle of the screen (units in the view's frame, -8..8; negative: lowered), eased in with it
 QVR_TUNABLE(vr_flat_zoom_fwd, "0") // and pushed out this far along the view (units, -8..8; negative: drawn in)
 QVR_TUNABLE(vr_flat_zoom_time, "-1") // how long that move takes, in seconds, onto the middle and back (0..1; 0 at once; -1: vr_flat_aim_time, the zoom's own travel, so it moves as the view narrows)
 QVR_TUNABLE(vr_flat_aim_point, "1") // 1: a gun points from its muzzle at what the ray through the screen's centre hits, every frame, hipfire and ironsight (the shot goes through the crosshair at any range); 0: along the view, beside the crosshair by the muzzle's distance off the ray
@@ -2418,6 +2418,8 @@ QVR_TUNABLE(vr_flat_sway, "1") // the drawn hands' sway as he starts, stops, jum
 QVR_TUNABLE(vr_flat_bob, "1") // the drawn hands' bob on a walk, with his speed, and the breathing at rest (0..3); 0 none
 QVR_TUNABLE(vr_flat_body_bob, "1") // the drawn body and hands ride this share of the view's own move (the walk's bob, a step's easing) together (0..1; 1: all, locked to the view; less: they move on the screen as one); sighted, all
 QVR_TUNABLE(vr_flat_ads_sway, "0.15") // the ironsight keeps this share of the hands' sway (0..1; 0: none, the sights exact while moving)
+QVR_TUNABLE(vr_flat_ads_sway_side, "0.3") // aiming (ironsight or a zoom gun alike, eased with the aim's travel), the hands' sideways and fore-aft sway and the turn lag's yaw keep this share (0..1; 1: as hipfire); on an ironsight on top of vr_flat_ads_sway
+QVR_TUNABLE(vr_flat_ads_sway_up, "0.3") // and their up and down sway and the turn lag's pitch (0..1)
 QVR_TUNABLE(vr_flat_ads_bob, "0.15") // and this share of the walk's bob (0..1); no breathing sighted, so at rest the sights stay exact
 QVR_TUNABLE(vr_flat_bob_fwd, "1") // the drawn body, arms and gun bob forward and back on a walk, in step with it, along the view's forward, pitch included (0..3; 1: 0.6 units each way at a run); 0 none. Separate from vr_flat_bob
 QVR_TUNABLE(vr_flat_ads_bob_fwd, "0.15") // sighted, this share of it (0..1)

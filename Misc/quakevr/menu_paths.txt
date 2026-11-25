@@ -4780,6 +4780,8 @@ vr_flat_sway|2|Tunables|Move Sway|Advanced VR Options > Debug > Tunables > Move 
 vr_flat_bob|2|Tunables|Walk Bob|Advanced VR Options > Debug > Tunables > Walk Bob
 vr_flat_body_bob|2|Tunables|Body Rides View Bob|Advanced VR Options > Debug > Tunables > Body Rides View Bob
 vr_flat_ads_sway|2|Tunables|Ironsight Sway|Advanced VR Options > Debug > Tunables > Ironsight Sway
+vr_flat_ads_sway_side|2|Tunables|Aim Sway Horizontal|Advanced VR Options > Debug > Tunables > Aim Sway Horizontal
+vr_flat_ads_sway_up|2|Tunables|Aim Sway Vertical|Advanced VR Options > Debug > Tunables > Aim Sway Vertical
 vr_flat_ads_bob|2|Tunables|Ironsight Bob|Advanced VR Options > Debug > Tunables > Ironsight Bob
 vr_flat_bob_fwd|2|Tunables|Walk Bob Forward|Advanced VR Options > Debug > Tunables > Walk Bob Forward
 vr_flat_ads_bob_fwd|2|Tunables|Ironsight Bob Forward|Advanced VR Options > Debug > Tunables > Ironsight Bob Forward

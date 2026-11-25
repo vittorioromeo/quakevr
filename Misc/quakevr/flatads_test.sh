@@ -7,7 +7,7 @@ source "$(dirname "$0")/qvrtest.sh"
 export QVR_AUTHOR_WAIT_ALWAYS=1
 HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
 P="map e1m1; god; notarget; developer 1; r_norefresh 0; setpos 480 -352 88 0 0 0"
-SECTIONS=${SECTIONS:-abcdef}  # every section (one run each); SECTIONS=a etc. for one
+SECTIONS=${SECTIONS:-abcdefg}  # every section (one run each); SECTIONS=a etc. for one
 
 if [[ $SECTIONS == *a* ]]; then
   log=$HERE/scratch/flatads_a.log
@@ -96,6 +96,23 @@ if [[ $SECTIONS == *f* ]]; then
   check $(awk -v o="$offs" 'BEGIN { n = split(o, a, " "); exit !(n == 2 && a[1] < 3 && a[2] < 3) }' && echo 1 || echo 0) "zoom: the shot through the crosshair hipfire and zoomed ($offs px)"
   vis=$(grep -a "^flatzoomcentre" "$log" | awk '{ printf "%s/%s ", $7, $9 }')
   check $(awk -v v="$vis" 'BEGIN { split(v, a, " "); split(a[2], p, "/"); split(a[3], f, "/"); split(a[4], r, "/"); exit !(p[1] > 0 && p[2] > 0.5 && f[1] > 0.49 && f[1] < 0.51 && f[2] == 0 && r[1] == 0) }' && echo 1 || echo 0) "zoom visor: shimmers as it engages, full zoomed, gone released ($vis)"
+fi
+
+if [[ $SECTIONS == *g* ]]; then
+  # g. the aim's sway reduction (vr_flat_ads_sway_side / _up, 0.3; his ask 2026-11-25): the same strafe, jump and turn, hipfire,
+  #    aimed with the reduction off (1 1) and aimed at the defaults, for the shotgun (ironsight) and the grenade launcher (zoom):
+  #    aimed, the drawn sway's sideways and up peaks and the turn lag's yaw keep 0.3 of the unreduced aim's (0.25..0.35).
+  log=$HERE/scratch/flatads_g.log
+  MOVE="vr_flat_sway_probe; +moveright; wait20; -moveright; wait30; +moveleft; wait20; -moveleft; wait30; +jump; wait3; -jump; wait70; +right; wait15; -right; wait40; +left; wait15; -left; wait40; vr_flat_sway_probe;"
+  ONE() { echo "$1 wait50; $MOVE tune vr_flat_ads_sway_side 1; tune vr_flat_ads_sway_up 1; vr_flat_aim 1; wait40; $MOVE tune vr_flat_ads_sway_side 0.3; tune vr_flat_ads_sway_up 0.3; wait5; $MOVE vr_flat_aim 0; wait40;"; }
+  bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$P; vr_flat_bob 0; wait30; $(ONE 'vr_flat_aim_zoom 0; impulse 154;') $(ONE 'vr_flat_aim_zoom -1; vr_test_give_wid 8; impulse 149;') toggleconsole; quit" -Filter "^flatsway" -Timeout 90 > "$log" 2>&1
+  # Every second line is a peak (the others reset the probe): hipfire, aimed unreduced, aimed reduced; shotgun then launcher.
+  grep -a "^flatsway" "$log" | awk 'NR % 2 == 0 { printf "  %s\n", $0 }'
+  for g in 0 1; do
+    r=$(grep -a "^flatsway" "$log" | awk -v g=$g 'NR % 2 == 0 { n++; if (n == g * 3 + 2) { s = $3; u = $5; y = $7 } if (n == g * 3 + 3) { printf "%.3f %.3f %.3f", (s > 0 ? $3 / s : -1), (u > 0 ? $5 / u : -1), (y > 0 ? $7 / y : 0.3) } }')
+    name=$([ $g = 0 ] && echo "shotgun (ironsight)" || echo "grenade launcher (zoom)")
+    check $(awk -v r="$r" 'BEGIN { n = split(r, a, " "); exit !(n == 3 && a[1] > 0.25 && a[1] < 0.35 && a[2] > 0.25 && a[2] < 0.35 && a[3] > 0.25 && a[3] < 0.35) }' && echo 1 || echo 0) "aim sway: $name keeps 0.3 of its sideways, up and turn-lag sway aimed (side up lag: $r)"
+  done
 fi
 
 verdict; exit $fail
