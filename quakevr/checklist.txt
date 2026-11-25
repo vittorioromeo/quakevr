@@ -57,6 +57,7 @@ Flat-screen or VR: reach with an arm fully straight (hanging from a pole, or in 
 On the Quest, after installing a new version, start the game and go to the hub: while its collision is built the first time (about 45 s on a Quest 3) the loading panel shows "Preparing vrstart" with a bar and seconds instead of Meta's loading dots, and the next start reaches the hub in about 15 s. {test:hub_start}
 On the Quest, close the game from the system menu (also after taking the headset off for a minute) and start it again at once: it reaches the hub every time, never stuck on the app loading screen. {test:hub_start}
 On the Quest, after running only part of an update (a new app with the old game data), the start says "The game data on the Quest is from Quake VR X; this app is Y" in the middle of the view; running Setup's Quest step again makes it go away. {test:hub_start}
+Flat-screen or VR: start the game twice and enter the hub both times: the second time the hub should load in a few seconds (on the Quest about 2-3 s instead of about 12 s once its files exist); walking, crouching and lying down against walls, grates and gaps work as before. {test:hub_start}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}

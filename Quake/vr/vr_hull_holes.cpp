@@ -1431,6 +1431,14 @@ za::U64 holesKey(const qmodel_t* world)
     return h ^ 0x401eull;
 }
 
+void latchHoleSettings()
+{
+    if(vr_hull_holes.value != 0.f)
+    {
+        cfg = readSettings();
+    }
+}
+
 void addHoles(Brushes& b, const qmodel_t* world)
 {
     b.holePairs = 0;

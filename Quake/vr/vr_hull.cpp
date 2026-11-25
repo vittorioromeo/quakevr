@@ -3773,7 +3773,7 @@ void reportTree(const Tree& t, int rebounded)
 
 constexpr char diskMagic[4] = {'Q', 'V', 'R', 'H'};
 constexpr za::U32 diskVersion = 1;
-constexpr double diskMinMs = 250.0;
+constexpr double diskMinMs = 25.0; // (was 250, the PC's: e1m1's small trees took 600 ms on a Quest 3 at every load; loadprof)
 
 // The trees' compile version: BUMP IT whenever a change to the compile (growing, the units, speculate, merging, the
 // rebounding, their constants) could change the tree compiled for the same brushes and box. The disk folder is this,
@@ -3961,6 +3961,294 @@ void diskWrite(const Tree& t, const DiskJob& d, int rebounded)
     {
         diskCounts.written.fetchAddSeqCst(1);
         diskcache::noteWrite(diskcache::Product::Hulls, parts[0].size + parts[1].size + parts[2].size);
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The map's brushes kept on disk too (loadprof, 2026-11-25): build() (the walk, the clip brushes, the holes) is the
+// whole of a warm load's hull time once the trees come from their files: vrstart's 10.8 s on a Quest 3 (holes 7.0,
+// clips 3.5; the PC 0.63 s), ad_sepulcher's 3.1 s. The same folder and setting as the trees (vr_hull_cache: 2 builds
+// anyway and compares), the file named by the world's key (keyOf: its nodes, planes, entities, the holes' settings and
+// buildVersion: everything build() reads), written for every map (brushesDiskMinMs). Its bytes are the
+// Brushes' every field build() sets but the hull 0 pointers (the world's, put back) and the timings; a file amiss is
+// built again and written over.
+
+constexpr char brushesMagic[4] = {'Q', 'V', 'H', 'B'};
+constexpr za::U32 brushesVersion = 1; // the file's layout (what build() makes: buildVersion, in the key)
+constexpr double brushesDiskMinMs = 0.0; // (every map's: a small map's file is small, and the Quest takes 10x the PC's time)
+
+struct BrushesHeader
+{
+    char magic[4];
+    za::U32 version;
+    za::U64 world;
+    za::U64 payload; // its bytes
+    za::U64 sum;     // theirs (diskSum)
+};
+
+struct BrushesWriter
+{
+    za::Vector<char> out;
+    void raw(const void* p, za::SizeT bytes)
+    {
+        const za::SizeT at = out.size();
+        out.resize(at + bytes);
+        if(bytes)
+        {
+            ZA_MEMCPY(out.data() + at, p, bytes);
+        }
+    }
+    void u64(za::U64 v) { raw(&v, sizeof(v)); }
+    template <typename T>
+    void vec(const za::Vector<T>& v)
+    {
+        u64(v.size());
+        raw(v.data(), v.size() * sizeof(T));
+    }
+};
+
+struct BrushesReader
+{
+    const char* p;
+    const char* end;
+    bool ok = true;
+    void raw(void* to, za::SizeT bytes)
+    {
+        if(!ok || static_cast<za::SizeT>(end - p) < bytes)
+        {
+            ok = false;
+            return;
+        }
+        if(bytes)
+        {
+            ZA_MEMCPY(to, p, bytes);
+        }
+        p += bytes;
+    }
+    za::U64 u64()
+    {
+        za::U64 v = 0;
+        raw(&v, sizeof(v));
+        return v;
+    }
+    template <typename T>
+    void vec(za::Vector<T>& v)
+    {
+        const za::U64 n = u64();
+        if(!ok || n > static_cast<za::U64>(end - p) / sizeof(T))
+        {
+            ok = false;
+            return;
+        }
+        v.resize(static_cast<za::SizeT>(n));
+        raw(v.data(), v.size() * sizeof(T));
+    }
+};
+
+// A brush as stored (Brush has padding after its flag).
+struct BrushRecord
+{
+    za::U32 first, count;
+    float mins[3], maxs[3];
+    za::U32 clip;
+};
+static_assert(sizeof(BrushRecord) == 36 && sizeof(Plane) == 24 && sizeof(glm::vec3) == 12);
+
+// A submodel as stored (its hull 0 pointer: the world's).
+struct SubRecord
+{
+    za::I32 head;
+    za::U32 base, firstBrush, numBrushes, firstHole, numHoles, crossHoles, standHoles;
+};
+
+// b's bytes as stored (the payload: read back by brushesFrom; equal bytes are equal brushes).
+za::Vector<char> brushesBytes(const Brushes& b)
+{
+    BrushesWriter w;
+    w.vec(b.planes);
+    za::Vector<BrushRecord> brushes(b.brushes.size());
+    for(za::SizeT i = 0; i < b.brushes.size(); ++i)
+    {
+        const Brush& s = b.brushes[i];
+        brushes[i] = BrushRecord{s.first, s.count, {s.mins.x, s.mins.y, s.mins.z}, {s.maxs.x, s.maxs.y, s.maxs.z},
+            s.clip ? 1u : 0u};
+    }
+    w.vec(brushes);
+    w.vec(b.leafBrush);
+    za::Vector<SubRecord> subs(b.subs.size());
+    for(za::SizeT i = 0; i < b.subs.size(); ++i)
+    {
+        const SubModel& s = b.subs[i];
+        subs[i] = SubRecord{s.head, s.base, s.firstBrush, s.numBrushes, s.firstHole, s.numHoles, s.crossHoles,
+            s.standHoles};
+    }
+    w.vec(subs);
+    w.vec(b.modelSub);
+    w.vec(b.clips);
+    w.vec(b.leafClipStart);
+    w.vec(b.leafClipList);
+    w.vec(b.clipStamp);
+    w.u64(b.stamp);
+    w.vec(b.hull1Clip);
+    w.vec(b.holeDropped);
+    const za::I32 ints[] = {b.bevels, b.dropped, b.hull1Leaves, b.holePairs, b.numnodes, b.worldBevels, b.worldDropped};
+    w.raw(ints, sizeof(ints));
+    const za::U64 sizes[] = {b.worldSubs, b.worldPlanes, b.worldBrushes, b.worldLeafBrush};
+    w.raw(sizes, sizeof(sizes));
+    return ZA_MOVE(w.out);
+}
+
+// b from a payload (brushesBytes'), the world's hull 0 pointers put back; false: amiss (b then built again).
+bool brushesFrom(Brushes& b, const char* data, za::SizeT size, const qmodel_t* world, za::U64 key)
+{
+    BrushesReader r{data, data + size};
+    r.vec(b.planes);
+    za::Vector<BrushRecord> brushes;
+    r.vec(brushes);
+    r.vec(b.leafBrush);
+    za::Vector<SubRecord> subs;
+    r.vec(subs);
+    r.vec(b.modelSub);
+    r.vec(b.clips);
+    r.vec(b.leafClipStart);
+    r.vec(b.leafClipList);
+    r.vec(b.clipStamp);
+    b.stamp = static_cast<za::SizeT>(r.u64());
+    r.vec(b.hull1Clip);
+    r.vec(b.holeDropped);
+    za::I32 ints[7] = {};
+    r.raw(ints, sizeof(ints));
+    za::U64 sizes[4] = {};
+    r.raw(sizes, sizeof(sizes));
+    if(!r.ok || r.p != r.end || ints[4] != world->numnodes)
+    {
+        return false;
+    }
+    b.brushes.resize(brushes.size());
+    for(za::SizeT i = 0; i < brushes.size(); ++i)
+    {
+        const BrushRecord& s = brushes[i];
+        b.brushes[i] = Brush{s.first, s.count, glm::vec3{s.mins[0], s.mins[1], s.mins[2]},
+            glm::vec3{s.maxs[0], s.maxs[1], s.maxs[2]}, s.clip != 0};
+    }
+    const mclipnode_t* clipnodes = world->hulls[0].clipnodes;
+    b.subs.clear();
+    for(const SubRecord& s : subs)
+    {
+        b.subs.pushBack(SubModel{clipnodes, s.head, s.base, s.firstBrush, s.numBrushes, s.firstHole, s.numHoles,
+            s.crossHoles, s.standHoles});
+    }
+    b.clipnodes = clipnodes;
+    b.bevels = ints[0];
+    b.dropped = ints[1];
+    b.hull1Leaves = ints[2];
+    b.holePairs = ints[3];
+    b.numnodes = ints[4];
+    b.worldBevels = ints[5];
+    b.worldDropped = ints[6];
+    b.worldSubs = static_cast<za::SizeT>(sizes[0]);
+    b.worldPlanes = static_cast<za::SizeT>(sizes[1]);
+    b.worldBrushes = static_cast<za::SizeT>(sizes[2]);
+    b.worldLeafBrush = static_cast<za::SizeT>(sizes[3]);
+    b.key = key;
+    b.clipMs = 0.0;
+    b.holeMs = 0.0;
+    return true;
+}
+
+// The brushes' file (the main thread, as diskJob): mode 0 none.
+DiskJob brushesJob(qmodel_t* world, za::U64 key)
+{
+    DiskJob d;
+    d.mode = static_cast<int>(za::clamp(vr_hull_cache.value, 0.f, 2.f));
+    if(d.mode == 0 || !world || !com_gamedir[0])
+    {
+        d.mode = 0;
+        return d;
+    }
+    d.world = key;
+    char name[48];
+    snprintf(name, sizeof(name), "/%016llx.hbr", static_cast<unsigned long long>(key));
+    d.path = diskcache::prepare(diskcache::Product::Hulls, diskBuild.cStr()) + name;
+    d.shipped = diskcache::shippedFileOf(diskcache::Product::Hulls, diskBuild.cStr(), name);
+    return d;
+}
+
+// The map's brushes read from `path` into b and checked: 1 read, 0 no file, 2 one amiss (b then built again).
+int brushesReadAt(Brushes& b, const za::String& path, const qmodel_t* world, za::U64 key, za::SizeT& bytes)
+{
+    za::Vector<char> file;
+    if(path.empty() || !qvr::files::readBytes(path.cStr(), file))
+    {
+        return 0;
+    }
+    BrushesHeader h{};
+    bool ok = file.size() >= sizeof(h);
+    if(ok)
+    {
+        ZA_MEMCPY(&h, file.data(), sizeof(h));
+        ok = ZA_MEMCMP(h.magic, brushesMagic, 4) == 0 && h.version == brushesVersion && h.world == key &&
+             h.payload == file.size() - sizeof(h) &&
+             diskSum(file.data() + sizeof(h), static_cast<za::SizeT>(h.payload), diskSeed) == h.sum;
+    }
+    Brushes got; // (b untouched by a file amiss)
+    ok = ok && brushesFrom(got, file.data() + sizeof(h), static_cast<za::SizeT>(h.payload), world, key);
+    if(!ok)
+    {
+        return 2;
+    }
+    b = ZA_MOVE(got);
+    bytes = file.size();
+    return 1;
+}
+
+// The map's brushes into b from their file (the player's cache, else the shipped one), else built (and written when
+// that took long enough); mode 2: built anyway and compared. On the pool (the load's brushes job).
+void brushesFromDiskOrBuild(Brushes& b, qmodel_t* world, za::U64 key, const DiskJob& d)
+{
+    if(d.mode != 0)
+    {
+        const double t0 = Sys_DoubleTime();
+        za::SizeT bytes = 0;
+        const int own = brushesReadAt(b, d.path, world, key, bytes);
+        const bool shipped = own != 1 && brushesReadAt(b, d.shipped, world, key, bytes) == 1;
+        if(own == 1 || shipped)
+        {
+            latchHoleSettings(); // (the holes' settings, as addHoles leaves them: the census reads them)
+            b.ms = (Sys_DoubleTime() - t0) * 1000.0;
+            diskcache::noteHit(diskcache::Product::Hulls, bytes, Sys_DoubleTime() - t0);
+            if(shipped)
+            {
+                diskcache::noteShippedHit(diskcache::Product::Hulls);
+            }
+            if(d.mode == 2)
+            {
+                Brushes fresh;
+                build(fresh, world, key);
+                const za::Vector<char> made = brushesBytes(fresh), read = brushesBytes(b);
+                const bool same = made.size() == read.size() && ZA_MEMCMP(made.data(), read.data(), made.size()) == 0;
+                diskcache::noteChecked(diskcache::Product::Hulls, same, "(the map's brushes)");
+            }
+            return;
+        }
+        (own == 2 ? diskcache::noteRejected(diskcache::Product::Hulls)
+                  : diskcache::noteMiss(diskcache::Product::Hulls, "(the map's brushes)"));
+    }
+    build(b, world, key);
+    if(d.mode != 0 && b.ms + b.holeMs >= brushesDiskMinMs)
+    {
+        const za::Vector<char> payload = brushesBytes(b);
+        BrushesHeader h{};
+        ZA_MEMCPY(h.magic, brushesMagic, 4);
+        h.version = brushesVersion;
+        h.world = key;
+        h.payload = payload.size();
+        h.sum = diskSum(payload.data(), payload.size(), diskSeed);
+        const diskcache::Part parts[] = {{&h, sizeof(h)}, {payload.data(), payload.size()}};
+        if(diskcache::writeAtomic(d.path, parts, 2))
+        {
+            diskcache::noteWrite(diskcache::Product::Hulls, sizeof(h) + payload.size());
+        }
     }
 }
 
@@ -4321,6 +4609,21 @@ void settle()
     pending.brushes.get();
     const double t1 = Sys_DoubleTime();
     VR_TimeAdd("hull: the map's brushes and compiled hulls, waited for (built on the pool)", t1 - t0);
+    if(!pending.kept && pending.brushesBegan > 0.0) // where the time went (on the pool: not part of the wait above)
+    {
+        VR_TimeAdd("  hull: the brushes' job queued, then began", pending.brushesBegan - pending.posted);
+        VR_TimeAdd("  hull: the brushes rebuilt (walk, clips, holes)", pending.brushesEnded - pending.brushesBegan);
+        VR_TimeAdd("    of which the clip brushes", built.clipMs / 1000.0);
+        VR_TimeAdd("    of which the holes", built.holeMs / 1000.0);
+        double read = 0.0, compiled = 0.0;
+        for(const Tree* t : trees)
+        {
+            (t->fromDisk ? read : compiled) += t->ms / 1000.0;
+        }
+        VR_TimeAdd("  hull: the trees read from the disk (their sum)", read);
+        VR_TimeAdd("  hull: the trees compiled (their sum)", compiled);
+        VR_TimeAdd("  hull: the wait ended, after the brushes", t1 - pending.brushesEnded);
+    }
     Con_DPrintf("hull: %s %s as %d brushes in %.1f ms (on the pool; waited %.1f ms, %.1f ms after they began)\n",
         sv.worldmodel ? sv.worldmodel->name : "?", pending.kept ? "kept from its last load" : "rebuilt",
         static_cast<int>(built.brushes.size()), built.ms, (t1 - t0) * 1000.0, (t1 - pending.posted) * 1000.0);
@@ -4620,7 +4923,12 @@ void beforeLoad()
     trimKept();
     VR_TimeAdd("hull: kept maps looked up", Sys_DoubleTime() - pending.posted);
     monsterTrees.trees.reserve(maxMonsterTrees); // (a slot taken while others are made moves none of them)
-    pending.brushes = pending.kept ? jobs::async([] {}) : jobs::async([world, key] { build(built, world, key); });
+    pending.brushesBegan = pending.brushesEnded = 0.0;
+    pending.brushes = pending.kept ? jobs::async([] {}) : jobs::async([world, key, d = brushesJob(world, key)] {
+        pending.brushesBegan = Sys_DoubleTime(); // (read by settle, after this job's get)
+        brushesFromDiskOrBuild(built, world, key, d);
+        pending.brushesEnded = Sys_DoubleTime();
+    });
     pending.playerExt = glm::vec3{0.f};
     if(vr_hull_width.value > 0.f)
     {

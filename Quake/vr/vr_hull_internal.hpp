@@ -245,6 +245,8 @@ struct Pending
     za::Vector<jobs::Future<void>> run;
     glm::vec3 playerExt{0.f};           // the player's tree's box, if it is one of them
     double posted = 0.0;                // when the builds were handed out (the load's report)
+    double brushesBegan = 0.0;          // when build() started on its worker (its wait in the queue: the load's report)
+    double brushesEnded = 0.0;          // and ended, the holes included
     bool kept = false;                  // the brushes (and the trees found) the last load's of the same map
 };
 
@@ -299,6 +301,7 @@ void build(Brushes& b, qmodel_t* world, za::U64 key);
 // Quake's 32 box (grates, bars, pillar rows, a lift's edge) for every narrower box; holesKey: what they depend on
 // beyond the world's geometry (the setting, the entities), mixed into keyOf.
 void addHoles(Brushes& b, const qmodel_t* world);
+void latchHoleSettings(); // the holes' settings read as addHoles does (the brushes read from the disk instead)
 za::U64 holesKey(const qmodel_t* world);
 void registerHoleCommands(); // vr_hull_holes_census, _test, _near
 // A model's brushes as its trees are compiled from them: its own, then its hole blockers.
