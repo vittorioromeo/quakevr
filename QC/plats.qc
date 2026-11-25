@@ -118,6 +118,7 @@ void() plat_crush =
 {
 //dprint("plat_crush\n");
 
+    VR_Shaft_Blocked(other); // QVR: a monster in the way walks out of the shaft (vr_ai_props.qc); the bounce is Quake's
     T_Damage(other, self, self, 1);
 
     if(self.state == STATE_UP)
@@ -231,6 +232,7 @@ void() train_blocked =
     if(time < self.attack_finished)
         return;
     self.attack_finished = time + 0.5;
+    VR_Shaft_Blocked(other); // QVR: a monster in the way walks out of the shaft (vr_ai_props.qc)
     T_Damage(other, self, self, self.dmg);
 };
 void() train_use =

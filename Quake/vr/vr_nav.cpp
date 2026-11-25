@@ -11,6 +11,7 @@
 #include "vr_hull.hpp"
 #include "vr_jobs.hpp"
 #include "vr_lines.hpp"
+#include "vr_navshaft.hpp"
 #include "vr_portals.hpp"
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
@@ -51,14 +52,16 @@ namespace
 
 // Bumped whenever the build could make another mesh from the same input (the steps, their constants, the areas).
 // 2: drop and lift links. 4: the narrow band (vr_nav_narrow; 3 its first try, drop links from the band). 5: teleporter
-// links (5 their first try).
-constexpr unsigned navVersion = 6;
+// links (5 their first try). 7: the lifts' shafts carved (areaShaft, NAVMESH.md 24).
+constexpr unsigned navVersion = 7;
 constexpr char navMagic[5] = "QVNM";
 
 // Detour's areas and flags. areaNarrow: the narrow band's dry floor (closer to walls and ledges than the clearance).
+// areaShaft: a lift shaft's dry floor (vr_navshaft.hpp), areaShaftLive while the lift is up over it (vr_shaft_cost).
 constexpr unsigned char areaGround = 1, areaWater = 2, areaSlime = 3, areaLava = 4, areaDrop = 5, areaLift = 6, areaNarrow = 7,
-                        areaTele = 8;
+                        areaTele = 8, areaShaft = 9, areaShaftLive = 10;
 constexpr unsigned char rcNarrowArea = 62; // (Recast's area of the band's spans, till the polygons get theirs)
+constexpr unsigned char rcShaftArea = 61;  // (... and of a shaft's floor's spans)
 constexpr unsigned short flagWalk = 1, flagBlocked = 2, flagDrop = 4, flagLift = 8, flagTele = 16;
 
 constexpr int maxPath = 256;    // polygons in a monster's path
@@ -117,6 +120,8 @@ struct Geometry
     za::Vector<glm::vec4> boxes;
     za::Vector<Ride> rides; // the lifts' and trains' rides (gatherRides)
     za::Vector<Gate> gates; // the teleporters (gatherGates)
+    za::Vector<navshaft::Shaft> shafts; // the lifts' shafts (navshaft::shafts at the gather), carved as areaShaft
+    float shaftMargin = -1.f;           // (vr_shaft_margin at the gather; -1: vr_shaft 0, none carved)
     // The world model at the gather (sv.worldmodel then): the pool's tile builds read its contents (areaAt) through it,
     // never through the server's globals, which a map load changes; it lives until VR_OnClearMemory joins them.
     qmodel_t* world = nullptr;
@@ -161,6 +166,7 @@ struct Settings
     float drops, dropMax, dropMaxBig, lifts; // (the links': vr_nav_drop, its heights, vr_nav_lifts)
     float narrow; // (vr_nav_narrow: the narrow band's clearance, times the half width; 0 none)
     float teles;  // (vr_nav_teleports)
+    float shaftMargin; // (vr_shaft_margin; -1: no shafts carved, vr_shaft 0)
 };
 
 // A prop's footprint cut out of the navmesh (props as obstacles): a convex outline (Quake's x, y) and its height's span.
@@ -602,7 +608,27 @@ Settings settingsNow()
     return Settings{za::max(vr_nav_cell.value, 0.5f), za::max(vr_nav_cell_height.value, 0.25f), za::max(vr_nav_climb.value, 0.f),
         vr_nav_slope.value, za::max(vr_nav_clearance.value, 0.f), za::max(static_cast<int>(vr_nav_tile.value), 8),
         vr_nav_drop.value != 0.f ? 1.f : 0.f, za::max(vr_nav_drop_max.value, 0.f), za::max(vr_nav_drop_max_big.value, 0.f),
-        vr_nav_lifts.value != 0.f ? 1.f : 0.f, za::max(vr_nav_narrow.value, 0.f), vr_nav_teleports.value != 0.f ? 1.f : 0.f};
+        vr_nav_lifts.value != 0.f ? 1.f : 0.f, za::max(vr_nav_narrow.value, 0.f), vr_nav_teleports.value != 0.f ? 1.f : 0.f,
+        vr_shaft.value != 0.f ? za::max(vr_shaft_margin.value, 0.f) : -1.f};
+}
+
+// The lifts' shafts' floors marked areaShaft (after the erosion: what is left walkable) so each gets polygons of its own:
+// the spans in its footprint widened by vr_shaft_margin and the class's radius (where its box would be in the shaft) whose
+// floor lies under the lift's underside at its top.
+void markShafts(rcContext& ctx, const Geometry& g, const rcConfig& cfg, rcCompactHeightfield& chf)
+{
+    if(g.shaftMargin < 0.f)
+    {
+        return;
+    }
+    const float grow = g.shaftMargin + static_cast<float>(cfg.walkableRadius) * cfg.cs;
+    const float climb = static_cast<float>(cfg.walkableClimb) * cfg.ch;
+    for(const navshaft::Shaft& sh : g.shafts)
+    {
+        const float x0 = sh.lo.x - grow, y0 = sh.lo.y - grow, x1 = sh.hi.x + grow, y1 = sh.hi.y + grow;
+        const float verts[12] = {x0, 0.f, -y0, x1, 0.f, -y0, x1, 0.f, -y1, x0, 0.f, -y1};
+        rcMarkConvexPolyArea(&ctx, verts, 4, sh.zlo - climb - 2.f, sh.ztop - 2.f, rcShaftArea, chf);
+    }
 }
 
 // (Any thread: the pool's tile builds. The gathered world's contents, never SV_PointContents' sv.worldmodel.)
@@ -784,7 +810,12 @@ bool buildTile(const Geometry& g, const za::Vector<int>& bin, const za::Vector<i
         {
             markObstacles(ctx, *obstacles, cfg, *chf);
         }
-        if(!erodeWithBand(ctx, cfg.walkableRadius, narrowRadius, *chf, band) || !rcBuildDistanceField(&ctx, *chf) ||
+        if(!erodeWithBand(ctx, cfg.walkableRadius, narrowRadius, *chf, band))
+        {
+            break;
+        }
+        markShafts(ctx, g, cfg, *chf);
+        if(!rcBuildDistanceField(&ctx, *chf) ||
             !rcBuildRegions(&ctx, *chf, cfg.borderSize, cfg.minRegionArea, cfg.mergeRegionArea) ||
             !rcBuildContours(&ctx, *chf, cfg.maxSimplificationError, cfg.maxEdgeLen, *cset) || cset->nconts == 0 ||
             !rcBuildPolyMesh(&ctx, *cset, cfg.maxVertsPerPoly, *pmesh) || pmesh->npolys == 0 ||
@@ -808,8 +839,11 @@ bool buildTile(const Geometry& g, const za::Vector<int>& bin, const za::Vector<i
             const float inv = 1.f / static_cast<float>(za::max(nv, 1));
             const float m[3]{mid[0] * inv, mid[1] * inv + 8.f, mid[2] * inv};
             const unsigned char rcArea = pmesh->areas[i];
-            const unsigned char under = rcArea == RC_WALKABLE_AREA || rcArea == rcNarrowArea ? areaAt(g, fromRc(m)) : 0;
-            pmesh->areas[i] = rcArea == rcNarrowArea && under == areaGround ? areaNarrow : under;
+            const unsigned char under =
+                rcArea == RC_WALKABLE_AREA || rcArea == rcNarrowArea || rcArea == rcShaftArea ? areaAt(g, fromRc(m)) : 0;
+            pmesh->areas[i] = rcArea == rcNarrowArea && under == areaGround  ? areaNarrow
+                              : rcArea == rcShaftArea && under == areaGround ? areaShaft
+                                                                             : under;
             pmesh->flags[i] = flagWalk;
         }
         ok = true;
@@ -1571,6 +1605,12 @@ za::U64 keyOf(const Geometry& g, const Settings& s, const NavClass& c)
             r.both ? 1.f : 0.f};
         h = diskcache::fnv(h, w, sizeof(w));
     }
+    h = diskcache::fnv(h, &s.shaftMargin, sizeof(s.shaftMargin));
+    for(const navshaft::Shaft& sh : g.shafts)
+    {
+        const float w[] = {sh.lo.x, sh.lo.y, sh.hi.x, sh.hi.y, sh.zlo, sh.ztop};
+        h = diskcache::fnv(h, w, sizeof(w));
+    }
     return h;
 }
 
@@ -2002,6 +2042,38 @@ void refreshMovers()
                     (void)c.mesh->setPolyFlags(refs[i], flagWalk | flagBlocked);
                     c.blocked.pushBack(refs[i]);
                 }
+            }
+        }
+        // The lifts' shafts (vr_navshaft.hpp): their floor's polygons costed (areaShaftLive, vr_shaft_cost) while the lift
+        // is up over them, so paths go round them, or in only for a goal there or a lift link.
+        for(const navshaft::Shaft& sh : state.geo.shafts)
+        {
+            const float top = vr_shaft.value != 0.f ? navshaft::liveTop(sh) : -1e30f;
+            const float grow = za::max(state.geo.shaftMargin, 0.f) + c.radius + 16.f;
+            const glm::vec3 mid = toRc(glm::vec3{(sh.lo + sh.hi) * 0.5f, (sh.zlo + sh.ztop) * 0.5f});
+            const float ext[3] = {(sh.hi.x - sh.lo.x) * 0.5f + grow, (sh.ztop - sh.zlo) * 0.5f + c.height, (sh.hi.y - sh.lo.y) * 0.5f + grow};
+            dtPolyRef refs[128];
+            int n = 0;
+            if(dtStatusFailed(c.query->queryPolygons(&mid.x, ext, &all, refs, &n, 128)))
+            {
+                continue;
+            }
+            for(int i = 0; i < n; ++i)
+            {
+                const dtMeshTile* tile = nullptr;
+                const dtPoly* poly = nullptr;
+                if(dtStatusFailed(c.mesh->getTileAndPolyByRef(refs[i], &tile, &poly)) ||
+                    (poly->getArea() != areaShaft && poly->getArea() != areaShaftLive))
+                {
+                    continue;
+                }
+                float zlo = 1e30f;
+                for(int k = 0; k < poly->vertCount; ++k)
+                {
+                    zlo = za::min(zlo, tile->verts[poly->verts[k] * 3 + 1]);
+                }
+                const bool live = top > sh.zlo + 2.f && zlo < top - 2.f;
+                (void)c.mesh->setPolyArea(refs[i], live ? areaShaftLive : areaShaft);
             }
         }
         // Teleporter links closed (flagBlocked) while their trigger is shut: one waiting to be fired (a targetname),
@@ -2568,6 +2640,8 @@ void setCosts()
     filter.setAreaCost(areaDrop, za::max(vr_nav_drop_cost.value, 0.1f));
     filter.setAreaCost(areaLift, za::max(vr_nav_lift_cost.value, 0.1f));
     filter.setAreaCost(areaTele, za::max(vr_nav_tele_cost.value, 0.001f));
+    filter.setAreaCost(areaShaft, 1.f);
+    filter.setAreaCost(areaShaftLive, za::max(vr_shaft_cost.value, 1.f));
     filterNoLinks = filter;
     filterNoLinks.setExcludeFlags(flagBlocked | flagDrop | flagLift | flagTele);
 }
@@ -3148,6 +3222,7 @@ void afterLoad()
         return;
     }
     const progs::ServerVm vm; // (vr_nav_rebuild runs from the console)
+    navshaft::afterLoad(); // (the lifts' shafts: carved into the mesh, and kept clear with vr_nav 0 too)
     const auto t0 = za::Clock::nowNanoseconds();
     Geometry& g = state.geo;
     g = Geometry{};
@@ -3156,6 +3231,8 @@ void afterLoad()
     gatherSolids(set, state.movers, g);
     gatherRides(state.movers, g);
     gatherGates(g);
+    g.shafts = navshaft::shafts();
+    g.shaftMargin = settingsNow().shaftMargin;
     triangulate(set, g);
     g.planes = static_cast<za::Vector<glm::vec4>&&>(set.planes);
     g.solids = static_cast<za::Vector<hull::NavBrush>&&>(set.brushes);
@@ -4407,6 +4484,14 @@ float steer(edict_t* ent, edict_t* goal)
     }
     a.why = whySteered;
     a.lastYaw = slideYaw(ent, steerToward(*c, a, pos, next, nc, flags, num));
+    // A raised lift's shaft a step ahead that it has no reason to go into (its path through it, or to a lift link that
+    // starts at its edge): it stands at the edge, outside the margin, till the lift comes down (vr_navshaft.hpp).
+    const float r = glm::radians(a.lastYaw);
+    const glm::vec3 org = geom::vec(ent->v.origin);
+    if(navshaft::blocks(ent, org + glm::vec3{glm::cos(r), glm::sin(r), 0.f} * 16.f) >= 0 && navshaft::blocks(ent, org) < 0)
+    {
+        a.action = 2;
+    }
     return a.lastYaw;
 }
 
@@ -5051,6 +5136,8 @@ void debugDraw(const glm::vec3& view)
                             : area == areaSlime ? glm::vec4{0.3f, 0.9f, 0.1f, 0.4f}
                             : area == areaLava  ? glm::vec4{1.f, 0.5f, 0.05f, 0.45f}
                             : area == areaNarrow ? glm::vec4{0.85f, 0.85f, 0.2f, 0.3f}
+                            : area == areaShaftLive ? glm::vec4{0.95f, 0.3f, 0.6f, 0.45f} // (a raised lift's shaft: pink)
+                            : area == areaShaft ? glm::vec4{0.6f, 0.4f, 0.8f, 0.3f}
                                                 : glm::vec4{0.1f, 0.75f, 0.7f, 0.3f};
             const glm::vec4 edge{col.r * 0.5f, col.g * 0.5f, col.b * 0.5f, 0.9f};
             glm::vec3 prev = fromRc(&tile->verts[poly.verts[poly.vertCount - 1] * 3]) + lift;

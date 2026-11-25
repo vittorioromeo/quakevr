@@ -126,6 +126,13 @@ void() VR_Stealth_PlayerFrame;
 void() VR_Stealth_Frame;
 float(float xVis) VR_Stealth_Lose;
 void(float dist) VR_AI_MoveToGoal;
+// Lift shafts kept clear (vr_ai_props.qc; docs/vr-port/NAVMESH.md 24): the movers' blocked functions (plats.qc, doors.qc)
+// tell the monster in the way to walk out; ai_stand and ai_walk walk one out of a raised lift's shaft.
+.float vr_shaft_flee;   // till then it walks out of the shaft it stands in, its reasons there set aside (it blocked the lift)
+.float vr_shaft_walked; // 1: put to its walk to leave a shaft from its stand (back to its stand once out)
+void(entity xBlocker) VR_Shaft_Blocked;
+float() VR_Shaft_Stand;
+float(float dist) VR_Shaft_Leave;
 float(float dist) VR_NAV_Step; // (vr_ai_props.qc; ai_run's ranged foe at a gate)
 float(entity m) VR_Stealth_TrailNav; // (vr_stealth.qc; VR_NAV_Step: its trail's marker walked by the navmesh)
 float() VR_NAV_MeleeOff; // (vr_ai_props.qc: no melee at a foe on another level with a navmesh path there) // (vr_ai_props.qc: movetogoal, round the props in the way)

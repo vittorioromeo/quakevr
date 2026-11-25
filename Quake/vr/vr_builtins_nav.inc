@@ -135,6 +135,22 @@ void PF_navreach()
     G_FLOAT(OFS_RETURN) = qvr::nav::reach(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1));
 }
 
+// float navshaft(entity m, float what): the yaw out of the raised lift's shaft m stands in (-1: in none, or it has a
+// reason there: its enemy or goal entity in it); what 1: its reasons set aside (vr_navshaft.cpp navshaft::escapeYaw).
+void PF_navshaft()
+{
+    G_FLOAT(OFS_RETURN) = qvr::navshaft::escapeYaw(G_EDICT(OFS_PARM0), G_FLOAT(OFS_PARM1) != 0.f);
+}
+
+// vector navshaftclear(entity m, vector at): a place for m to walk to, moved out of any raised lift's shaft to beyond its
+// margin (vr_navshaft.cpp navshaft::clearPoint).
+void PF_navshaftclear()
+{
+    const float* at = G_VECTOR(OFS_PARM1);
+    const glm::vec3 v = qvr::navshaft::clearPoint(G_EDICT(OFS_PARM0), glm::vec3{at[0], at[1], at[2]});
+    VectorCopy(&v.x, G_VECTOR(OFS_RETURN));
+}
+
 // vector navbot(entity bot, entity goal, float what): a FrikBot bot's walk on the navmesh (vr_bot_navmesh, QC
 // frikbot/bot_nav.qc): 0 plan and steer -> the corner to walk to; 1 that step (state, flags, path left); 2 drop its plan;
 // 3 probe (whole, length, corners) (vr_navfollow.cpp navfollow::botStep).

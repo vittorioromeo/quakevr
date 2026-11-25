@@ -2638,6 +2638,9 @@ QVR_TUNABLE(vr_nav_drop_push, "100") // a walker stepping off a ledge on a drop 
 QVR_TUNABLE(vr_nav_drop_time, "3") // a walker that has not gone over the ledge this long after reaching a drop link gives it up (seconds); its links are left alone for vr_nav_link_retry
 QVR_TUNABLE(vr_nav_lifts, "1") // 1: the navmesh has lift links (func_plat bottom to top and back, a func_train from one stop to the next): a walker waits for the lift, rides it and steps off at the other end; 0: none
 QVR_TUNABLE(vr_nav_lift_cost, "2") // a lift link's cost per unit of its length, a floor's being 1
+QVR_TUNABLE(vr_shaft, "1") // 1: monsters keep out of a raised lift's shaft (the space a func_plat, or a door or train moving straight up and down, sweeps below it) unless their enemy or goal is in it, walk out of one when that reason ends, wait beside it for the lift, and a monster that blocks a lift walks out (NAVMESH.md 24); 0: Quake's (a monster under a raised lift sends it back up)
+QVR_TUNABLE(vr_shaft_margin, "16") // ... units round a lift's footprint that count as its shaft (a monster's box within this of its edge is in it)
+QVR_TUNABLE(vr_shaft_cost, "20") // ... a raised lift's shaft floor's navmesh cost per unit (a floor's being 1): paths go round it, or in only when their goal is there or a lift link starts there
 QVR_TUNABLE(vr_nav_lift_wait, "10") // a walker waiting this long for a lift to come to its level gives up (seconds); its links are left alone for vr_nav_link_retry
 QVR_TUNABLE(vr_nav_teleports, "1") // 1: the navmesh has teleporter links (each trigger_teleport a monster may use, from inside it to its destination, one way): a walker chasing a foe on the far side walks into the teleporter; links of a trigger that is shut (waiting to be fired) are closed till it opens; 0: none
 QVR_TUNABLE(vr_nav_tele_cost, "0.05") // a teleporter link's cost per unit of its length (entry to destination), a floor's being 1
