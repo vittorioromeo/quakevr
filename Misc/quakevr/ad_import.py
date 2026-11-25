@@ -210,6 +210,12 @@ PATCHES = [
      "\t\tif (self.upgrade_ssg && !VR_AD_HasUpgrade(self.bmodel_act, IT_UPGRADE_SSG)) return;\n"
      "\t\tif (self.upgrade_lg && !VR_AD_HasUpgrade(self.bmodel_act, IT_UPGRADE_LG)) return;",
      1, B + ": a trigger's upgrade_axe/ssg/lg keys: an upgraded weapon carried (VR_AD_HasUpgrade)"),
+    ("func_plats.qc", "void() func_plat_blocked =\n{\n", "void() func_plat_blocked =\n{\n\tVR_AD_ShaftBlocked(other);\n",
+     1, B + ": a monster or bot in a blocked lift's way walks out of its shaft (VR_AD_ShaftBlocked; NAVMESH.md 24)"),
+    ("func_doors.qc", "void() func_door_blocked =\n{\n", "void() func_door_blocked =\n{\n\tVR_AD_ShaftBlocked(other);\n",
+     1, B + ": a monster or bot in a blocked lift's way walks out of its shaft (VR_AD_ShaftBlocked; NAVMESH.md 24)"),
+    ("func_trains.qc", "void() func_train_blocked =\n{\n", "void() func_train_blocked =\n{\n\tVR_AD_ShaftBlocked(other);\n",
+     1, B + ": a monster or bot in a blocked lift's way walks out of its shaft (VR_AD_ShaftBlocked; NAVMESH.md 24)"),
 ]
 # The monsters' hooks (P2, ARCANE_DIMENSIONS.md section 17): AD's monsters get Quake VR's treatment (QC/vr_ad_monsters.qc;
 # their declarations in QC/vr_ad_mondefs.qc). Applied after the bridge's (the T_Damage line is the bridge's patched one).

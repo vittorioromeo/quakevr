@@ -9,10 +9,21 @@
 //     player put far away out of its sight, it walks out; the lift comes down with no bounce;
 //   ride: a knight below after the player at the top by the shaft waits beside the shaft (never in it while the lift is
 //     up), boards the lift once it is down, rides it up.
+// `vr_stealth_test 133` on e2m4 (liftshaft2), each of its two lifts (the 120-unit plats) raised and held: under: a grunt
+//   put on the floor under it, a noise right there; after 3 s it is out from under the lift (the pits they come down into
+//   are a little bigger than them), then the lift is let go (as when he rides it down from the top): no bounce. With
+//   `vr_shaft 0`: 3 bounces at each.
+// `vr_stealth_test 134` on e1m1's first lift, a FrikBot bot (coop; the script adds it: `maxplayers 2; coop 1; map e1m1;
+//   impulse 100`): put under the raised lift, it walks out; given a goal under it (a temp waypoint), it comes to the
+//   shaft's edge and waits there, never in it while the lift is up; let go, the lift comes down with no bounce and the bot
+//   boards it and rides it up (frikbot/bot_nav.qc BotShaft).
 // Prints `shafttest: <case>_<what> PASS|FAIL ...`, then `shafttest: N passed, M failed`. Each case's give-up is a
 // FAIL "timed out" line (a safety net, never the end of a passing run).
 
-float stt7_case;    // 0 investigate, 1 fight, 2 ride
+float stt7_case;    // 0 investigate, 1 fight, 2 ride, 3 bot (134), 4 under (133)
+float stt7_last;    // the last case the test plays (each lift)
+float stt7_out;     // (bot) out of the shaft since its goal was set (its spot may be within the margin: a cramped room)
+float stt7_lift;    // 133: which of the map's shafts (plats moving farther than their height and a step)
 float stt7_stage;
 float stt7_t0;
 float stt7_held;    // the lift held at its top
@@ -26,8 +37,12 @@ vector stt7_mid;    // the shaft's middle on the floor below (a monster's origin
 
 string() VR_STT7_Name =
 {
+    if(stt2_step == 133 && stt7_case < 2) { return sprintf("%s%g", (stt7_case == 0 ? "investigate" : "fight"), stt7_lift); }
     if(stt7_case == 0) { return "investigate"; }
     if(stt7_case == 1) { return "fight"; }
+    if(stt7_case == 3) { return "bot"; }
+    if(stt7_case == 4) { return sprintf("under%g", stt7_lift); }
+    if(stt2_step == 133) { return sprintf("ride%g", stt7_lift); }
     return "ride";
 };
 
@@ -39,14 +54,19 @@ void(float xStage) VR_STT7_Stage =
 };
 
 // m's box in the shaft's live part: the lift's footprint widened by vr_shaft_margin, under the lift where it is now.
-float(entity m) VR_STT7_InLive =
+float(entity m, float xExtra) VR_STT7_InLiveBy =
 {
-    float g = cvar_hget(cvarh_vr_shaft_margin);
+    float g = cvar_hget(cvarh_vr_shaft_margin) + xExtra;
     vector lo = stt7_plat.absmin;
     vector hi = stt7_plat.absmax;
     float zlo = stt7_plat.pos2_z + stt7_plat.mins_z;
     return stt7_plat.absmin_z > zlo + 2 && m.absmin_x < hi_x + g && m.absmax_x > lo_x - g && m.absmin_y < hi_y + g &&
         m.absmax_y > lo_y - g && m.absmin_z < stt7_plat.absmin_z - 2 && m.absmax_z > zlo;
+};
+
+float(entity m) VR_STT7_InLive =
+{
+    return VR_STT7_InLiveBy(m, 0);
 };
 
 // A spot for a monster on the floor below, along the longest clear way from the shaft's middle, 260 units off at most.
@@ -88,16 +108,50 @@ void() VR_STT7_Release =
     }
 };
 
+// The n-th lift shaft's plat of the map (133: e2m4's two), or world.
+entity(float n) VR_STT7_Shaft =
+{
+    for(entity e = find(world, classname, "plat"); e; e = find(e, classname, "plat"))
+    {
+        if(fabs(e.pos1_z - e.pos2_z) > e.size_z + 18)
+        {
+            if(n == 0) { return e; }
+            n = n - 1;
+        }
+    }
+    return world;
+};
+
+void(entity b, float what, vector at) VR_STT7_BotGoal; // (vr_bots_test.qc, after FrikBot's fields)
+
+// The game's FrikBot bot (134), or world.
+entity() VR_STT7_Bot =
+{
+    for(entity b = VR_Player(); b; b = VR_NextPlayer(b))
+    {
+        if(!b.ishuman && (b.flags & FL_CLIENT) && b.health > 0) { return b; }
+    }
+    return world;
+};
+
 void() VR_STT7_Next =
 {
-    VR_STT2_Remove(stt7_m);
+    if(stt7_case != 3)
+    {
+        VR_STT2_Remove(stt7_m);
+    }
     stt7_m = world;
     VR_STT7_Release();
     stt2_p.flags = stt2_p.flags | FL_NOTARGET;
     setorigin(stt2_p, stt2_phome);
     stt2_p.velocity = '0 0 0';
     stt7_case = stt7_case + 1;
-    if(stt7_case > 2)
+    if(stt7_case > stt7_last && stt2_step == 133 && VR_STT7_Shaft(stt7_lift + 1) != world)
+    {
+        stt7_lift = stt7_lift + 1;
+        stt7_case = 4;
+    }
+    if(stt7_case > stt7_last)
     {
         VR_Test_Verdict();
         VR_STT2_End();
@@ -128,7 +182,11 @@ void() VR_STT7_Frame =
             stt7_bounces = stt7_bounces + 1;
         }
         stt7_prev = stt7_plat.state;
-        if(stt7_m != world && stt7_stage >= 2 && VR_STT7_InLive(stt7_m))
+        if(stt7_case == 3 && !VR_STT7_InLive(stt7_m))
+        {
+            stt7_out = TRUE;
+        }
+        if(stt7_m != world && stt7_stage >= 2 && VR_STT7_InLive(stt7_m) && (stt7_case != 3 || stt7_out))
         {
             stt7_entered = stt7_entered + 1;
         }
@@ -137,7 +195,11 @@ void() VR_STT7_Frame =
     if(stt7_stage == 0)
     {
         stt7_plat = world;
-        for(entity e = find(world, classname, "plat"); e; e = find(e, classname, "plat"))
+        if(stt2_step == 133)
+        {
+            stt7_plat = VR_STT7_Shaft(stt7_lift);
+        }
+        for(entity e = find(world, classname, "plat"); e && stt2_step != 133; e = find(e, classname, "plat"))
         {
             vector c = (e.absmin + e.absmax) * 0.5;
             if(fabs(c_x - 792) < 64 && fabs(c_y - 512) < 64)
@@ -176,7 +238,32 @@ void() VR_STT7_Frame =
             return;
         }
         vector spot = VR_STT7_Spot();
-        if(stt7_case == 0)
+        if(stt7_case == 3)
+        {
+            // (the bot under the raised lift with nothing to do; he far away, unseen)
+            stt7_m = VR_STT7_Bot();
+            if(stt7_m == world)
+            {
+                VR_STT7_Fail("no bot (the script: maxplayers 2; coop 1; impulse 100)");
+                return;
+            }
+            setorigin(p, stt2_phome);
+            setorigin(stt7_m, stt7_mid);
+            stt7_m.velocity = '0 0 0';
+            VR_STT7_BotGoal(stt7_m, 0, '0 0 0');
+            stt7_m.takedamage = DAMAGE_NO;
+            p.flags = p.flags | FL_NOTARGET;
+            VR_STT7_Stage(2);
+            return;
+        }
+        if(stt7_case == 4)
+        {
+            // (a grunt put on the floor under the raised lift; he rides the lift from the top, unseen)
+            stt7_m = VR_STT2_Spawn(stt7_mid, 0, 0);
+            setorigin(p, [(stt7_plat.absmin_x + stt7_plat.absmax_x) * 0.5, (stt7_plat.absmin_y + stt7_plat.absmax_y) * 0.5,
+                stt7_plat.absmax_z + 25]);
+        }
+        else if(stt7_case == 0)
         {
             stt7_m = VR_STT2_Spawn(spot, vectoyaw(stt7_mid - spot), 0);
             // (he rides the lift from the top, unseen)
@@ -215,7 +302,13 @@ void() VR_STT7_Frame =
         {
             return;
         }
-        if(stt7_case == 0)
+        if(stt7_case == 4)
+        {
+            // (a noise right there: it would search under the lift)
+            VR_STT2_Calm(stt7_m, stt7_m.angles_y);
+            VR_Stealth_Alert(stt7_m, stt7_mid, STL_N_PROP, 1, FALSE);
+        }
+        else if(stt7_case == 0)
         {
             VR_STT2_Calm(stt7_m, stt7_m.angles_y);
             // (past the middle: its walk ends 64 short of the noise, under the lift)
@@ -242,7 +335,37 @@ void() VR_STT7_Frame =
             bprint(sprintf("shafttest:   %s %.0f s: the monster at %v (state %g, phase %g), the shaft at %v\n", VR_STT7_Name(),
                 t, stt7_m.origin, stt7_m.stl_state, stt7_m.stl_phase, stt7_mid));
         }
-        if(stt7_case == 0)
+        if(stt7_case == 3)
+        {
+            // (out of the shaft, then a goal under the lift from a spot on the floor 260 units off)
+            if(VR_STT7_InLive(stt7_m))
+            {
+                if(t > 8) { VR_STT7_Fail("timed out: the bot still in the shaft"); }
+                return;
+            }
+            VR_Test_Check(TRUE, sprintf("%s_%s", VR_STT7_Name(), sprintf("walked out (%.1f s)", t)));
+            vector from = VR_STT7_Spot();
+            setorigin(stt7_m, from);
+            stt7_m.velocity = '0 0 0';
+            stt7_wait = vlen([from_x - stt7_mid_x, from_y - stt7_mid_y]);
+            VR_STT7_BotGoal(stt7_m, 1, stt7_mid);
+            stt7_entered = 0;
+            stt7_out = !VR_STT7_InLive(stt7_m);
+            bprint(sprintf("shafttest:   bot: its goal under the lift, from %v (in the margin: %g)\n", from, !stt7_out));
+            stt7_t0 = time;
+            stt7_stage = 6;
+            return;
+        }
+        if(stt7_case == 4)
+        {
+            // (3 s with the lift held up, then let go: it comes down, as when he rides it down from the top)
+            if(t < 3) { return; }
+            // (out from under the lift itself; e2m4's lifts come down into pits a little bigger than them: the margin's band
+            // is as far as a monster can go, a lift's width beside it)
+            VR_Test_Check(!VR_STT7_InLiveBy(stt7_m, 0 - cvar_hget(cvarh_vr_shaft_margin)), sprintf("%s_%s", VR_STT7_Name(),
+                sprintf("out from under the lift (%v; the lift %v - %v)", stt7_m.origin, stt7_plat.absmin, stt7_plat.absmax)));
+        }
+        else if(stt7_case == 0)
         {
             // (its walk to the noise over and 2 s of its search: it would stand there)
             if(stt7_m.stl_state == STL_ALERT && stt7_m.stl_phase == STL_SEARCH) { stt7_wait = stt7_wait + 1; }
@@ -278,6 +401,21 @@ void() VR_STT7_Frame =
         VR_STT7_Stage(4);
         return;
     }
+    // 6: (bot) its goal under the raised lift: by the shaft's edge for 2.5 s (FrikBot gives a goal up at 5 s), never in.
+    if(stt7_stage == 6)
+    {
+        if(t < 2.5)
+        {
+            return;
+        }
+        float d6 = vlen([stt7_m.origin_x - stt7_mid_x, stt7_m.origin_y - stt7_mid_y]);
+        VR_Test_Check(VR_STT7_InLiveBy(stt7_m, 64), sprintf("%s_%s", VR_STT7_Name(), sprintf("waits by the shaft's edge (%.0f units from its middle, from %.0f)", d6, stt7_wait)));
+        VR_Test_Check(stt7_entered == 0, sprintf("%s_%s", VR_STT7_Name(), sprintf("never in the raised lift's shaft (%g frames)", stt7_entered)));
+        VR_STT7_Release();
+        VR_STT7_BotGoal(stt7_m, 1, stt7_mid); // (its goal again: FrikBot's 5 s search time)
+        VR_STT7_Stage(4);
+        return;
+    }
     // 3: (fight) him gone: out of the shaft.
     if(stt7_stage == 3)
     {
@@ -291,9 +429,18 @@ void() VR_STT7_Frame =
         VR_STT7_Stage(4);
         return;
     }
-    // 4: let go: down to its bottom with no bounce; (ride) the knight boards it and rides it up.
+    // 4: let go: down to its bottom with no bounce; (ride) the knight boards it and rides it up; (bot) the bot too.
     if(stt7_stage == 4)
     {
+        if(stt7_case == 3)
+        {
+            VR_STT7_BotGoal(stt7_m, 2, stt7_mid); // (its goal kept on while the lift comes down and it walks on)
+            if(floor(t * 72) % 144 == 0)
+            {
+                bprint(sprintf("shafttest:   bot %.0f s: at %v, moving %v, the lift's state %g\n", t, stt7_m.origin, stt7_m.velocity,
+                    stt7_plat.state));
+            }
+        }
         if(stt7_wait == 0)
         {
             if(stt7_plat.state != STATE_BOTTOM)
@@ -303,12 +450,13 @@ void() VR_STT7_Frame =
             }
             stt7_wait = 1;
             VR_Test_Check(stt7_bounces == 0, sprintf("%s_%s", VR_STT7_Name(), sprintf("down with no bounce (%g, %.1f s)", stt7_bounces, t)));
-            if(stt7_case != 2)
+            if(stt7_case < 2 || stt7_case == 4)
             {
                 VR_STT7_Next();
             }
             return;
         }
+
         if(stt7_m.absmin_z < stt7_plat.pos1_z + stt7_plat.maxs_z - 4)
         {
             if(t > 40) { VR_STT7_Fail(sprintf("timed out: never rode up (%g bounces)", stt7_bounces)); }
@@ -324,6 +472,16 @@ void() VR_STT7_Frame =
 void() VR_STT7_Start =
 {
     stt7_case = 0;
+    stt7_last = 2;
+    stt7_lift = 0;
+    if(stt2_step == 134)
+    {
+        stt7_case = stt7_last = 3;
+    }
+    if(stt2_step == 133)
+    {
+        stt7_case = stt7_last = 4; // (e2m4: a grunt under each lift; e1m1's cases need e1m1's room)
+    }
     stt7_plat = world;
     stt7_m = world;
     VR_Test_BeginFlags("shafttest", VR_TEST_LOUD);

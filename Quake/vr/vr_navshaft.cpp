@@ -79,7 +79,8 @@ bool entityIn(const Shaft& s, const edict_t* e, float m)
 
 // A reason for the monster to be in the shaft: its enemy there (fighting it), or its goal entity (an item it goes to
 // pick up, a path corner of its own; not a bare point such as the stealth AI's marker).
-bool hasReason(const edict_t* ent, const Shaft& s)
+// `goal`: a bot's own goal (its QC's target1, waypoints left out by the QC); nullptr: the monster's goalentity.
+bool hasReason(const edict_t* ent, const Shaft& s, const edict_t* goal = nullptr)
 {
     const float m = margin();
     const edict_t* world = progs::edictAt(0);
@@ -89,14 +90,22 @@ bool hasReason(const edict_t* ent, const Shaft& s)
         return true;
     }
     // (a thing: an item, a path corner; a bare point the AI walks to, as the stealth AI's marker, is never a reason)
-    const edict_t* goal = PROG_TO_EDICT(ent->v.goalentity);
+    if(!goal)
+    {
+        goal = PROG_TO_EDICT(ent->v.goalentity);
+    }
     return goal != world && goal != ent && goal != enemy && static_cast<int>(goal->v.solid) != SOLID_NOT && entityIn(s, goal, m);
+}
+
+// (anyone alive: the monsters' callers check FL_MONSTER, the bots' builtin is the bots' QC's)
+bool appliesTo(const edict_t* ent)
+{
+    return vr_shaft.value != 0.f && ent && !ent->free && ent->v.health > 0.f && !mapShafts.empty();
 }
 
 bool applies(const edict_t* ent)
 {
-    return vr_shaft.value != 0.f && ent && !ent->free && (static_cast<int>(ent->v.flags) & FL_MONSTER) &&
-           ent->v.health > 0.f && !mapShafts.empty();
+    return appliesTo(ent) && (static_cast<int>(ent->v.flags) & FL_MONSTER);
 }
 
 // The sides out of the shaft (+x, -x, +y, -y) for a box at `org`, nearest first: each one's direction and the way to go.
@@ -228,17 +237,17 @@ bool boxInPart(const Shaft& s, const glm::vec3& lo, const glm::vec3& hi, float m
            hi.z > s.zlo;
 }
 
-bool stepRefused(const edict_t* ent, const glm::vec3& from, const glm::vec3& to)
+namespace
 {
-    if(!applies(ent))
-    {
-        return false;
-    }
+
+// The step from `from` to `to` takes the box into a live shaft, or deeper into one, where it has no reason to be.
+bool refusedFor(const edict_t* ent, const glm::vec3& from, const glm::vec3& to, const edict_t* goal)
+{
     const float m = margin();
     const glm::vec3 mins = geom::vec(ent->v.mins), maxs = geom::vec(ent->v.maxs);
     for(const Shaft& s : mapShafts)
     {
-        if(!boxIn(s, to + mins, to + maxs, m) || hasReason(ent, s))
+        if(!boxIn(s, to + mins, to + maxs, m) || hasReason(ent, s, goal))
         {
             continue;
         }
@@ -254,19 +263,16 @@ bool stepRefused(const edict_t* ent, const glm::vec3& from, const glm::vec3& to)
     return false;
 }
 
-float escapeYaw(const edict_t* ent, bool force)
+// The yaw out of the live shaft the box is in (-1: none, or a reason there unless `force`).
+float escapeFor(const edict_t* ent, bool force, const edict_t* goal)
 {
-    if(!applies(ent))
-    {
-        return -1.f;
-    }
     const float m = margin();
     const glm::vec3 org = geom::vec(ent->v.origin);
     const glm::vec3 lo = geom::vec(ent->v.absmin), hi = geom::vec(ent->v.absmax);
     for(const Shaft& s : mapShafts)
     {
         // (one that blocked a lift: the whole of the way it moves, it may be on the lift's edge or over it)
-        if(!boxInPart(s, lo, hi, m, force) || (!force && hasReason(ent, s)))
+        if(!boxInPart(s, lo, hi, m, force) || (!force && hasReason(ent, s, goal)))
         {
             continue;
         }
@@ -283,6 +289,51 @@ float escapeYaw(const edict_t* ent, bool force)
         return yaw < 0.f ? yaw + 360.f : yaw;
     }
     return -1.f;
+}
+
+} // namespace
+
+bool stepRefused(const edict_t* ent, const glm::vec3& from, const glm::vec3& to)
+{
+    return applies(ent) && refusedFor(ent, from, to, nullptr);
+}
+
+float escapeYaw(const edict_t* ent, bool force)
+{
+    return applies(ent) ? escapeFor(ent, force, nullptr) : -1.f;
+}
+
+float moveOutYaw(const edict_t* ent, bool force)
+{
+    if(!applies(ent) || !(static_cast<int>(ent->v.flags) & FL_ONGROUND))
+    {
+        return -1.f;
+    }
+    return escapeFor(ent, force, nullptr);
+}
+
+float botStep(const edict_t* bot, const edict_t* goal, const glm::vec3& wish, bool force)
+{
+    if(!appliesTo(bot)) // (on the ground or not: a bot wading in water is often off it)
+    {
+        return -1.f;
+    }
+    const float out = escapeFor(bot, force, goal);
+    if(out >= 0.f)
+    {
+        return out;
+    }
+    const glm::vec2 w{wish.x, wish.y};
+    if(glm::length(w) < 0.01f)
+    {
+        return -1.f;
+    }
+    // (a probe farther than a step: a running bot slides on a few frames once its keys are let go, and its AI may think
+    // only each 0.05 s: 96 units at a run)
+    const float speed = glm::length(glm::vec2{bot->v.velocity[0], bot->v.velocity[1]});
+    const glm::vec3 org = geom::vec(bot->v.origin);
+    const glm::vec3 to = org + glm::vec3{glm::normalize(w), 0.f} * (16.f + speed * 0.25f);
+    return refusedFor(bot, org, to, goal) ? -2.f : -1.f;
 }
 
 glm::vec3 clearPoint(const edict_t* ent, const glm::vec3& at)
@@ -341,4 +392,13 @@ int blocks(const edict_t* ent, const glm::vec3& to)
 extern "C" int VR_MonsterShaftStep(edict_t* ent, const float* from, const float* to)
 {
     return qvr::navshaft::stepRefused(ent, glm::vec3{from[0], from[1], from[2]}, glm::vec3{to[0], to[1], to[2]}) ? 1 : 0;
+}
+
+// SV_MoveToGoal (sv_move.c): the yaw a monster on the ground walks out of a live shaft by (no reason there, or it blocked
+// the lift a moment ago: QC .vr_shaft_flee), -1: none. Every mod's monsters that walk by movetogoal (AD's, Copper's, the
+// mission packs') leave a shaft as the QC's VR_Shaft_Leave makes id1's.
+extern "C" float VR_MonsterShaftOut(edict_t* ent)
+{
+    const bool flee = qvr::progs::fieldFloatOr(ent, qvr::progs::fields().vr_shaft_flee, 0.f) > static_cast<float>(qcvm->time);
+    return qvr::navshaft::moveOutYaw(ent, flee);
 }

@@ -257,11 +257,14 @@ float() VR_Shaft_Stand =
     return TRUE;
 };
 
-// A mover blocked by xBlocker (plat_crush, door_blocked, train_blocked; Quake's bounce itself unchanged): a monster in
-// the way walks out of the shaft for a while, its reasons there (its enemy in it) set aside.
+// A mover blocked by xBlocker (plat_crush, door_blocked, train_blocked, the mission packs', AD's and Copper's movers;
+// Quake's bounce itself unchanged): a monster (or a bot) in the way walks out of the shaft for a while, its reasons there
+// (its enemy in it) set aside.
 void(entity xBlocker) VR_Shaft_Blocked =
 {
-    if((xBlocker.flags & FL_MONSTER) && xBlocker.health > 0 && cvar_hget(cvarh_vr_shaft))
+    // (a FrikBot bot too: BotShaft)
+    if((xBlocker.flags & FL_MONSTER || (xBlocker.flags & FL_CLIENT && !xBlocker.ishuman)) && xBlocker.health > 0 &&
+        cvar_hget(cvarh_vr_shaft))
     {
         xBlocker.vr_shaft_flee = time + 3;
     }

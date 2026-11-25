@@ -290,6 +290,7 @@ float() BotNav_Step;
 float(entity g, float why, float route) BotNav_Take;
 float() BotNav_Look;
 void() BotNav_Note;
+void() BotShaft; // QVR: the raised lifts' shafts kept clear (vr_shaft, bot_nav.qc; NAVMESH.md 24)
 string(float r)            BotName;
 void() bot_chat;
 void(float tpic) bot_start_topic;

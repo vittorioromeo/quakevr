@@ -624,6 +624,7 @@ void() ad_func_door_reset =
 //----------------------------------------------------------------------
 void() ad_func_door_blocked =
 {
+	VR_AD_ShaftBlocked(other);
 	// Always reset midstart flag (its no longer needed)
 	if (self.ad_midstart) self.ad_midstart = ad_FALSE;
 	// Do the block damage

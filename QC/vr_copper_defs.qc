@@ -17,4 +17,5 @@ float(entity targ, entity inflictor, entity attacker, float damage) CU_Damage;
 float(entity targ, entity inflictor, entity attacker, float damage) VR_CU_DamageOurs;
 // Copper's target_autosave (a reviewed patch): our autosave, as our level starts make it.
 void() VR_CU_Autosave;
+void(entity xBlocker) VR_CU_ShaftBlocked; // Copper's plats, doors and trains blocked: lift shafts kept clear
 void(entity xSpot) CU_PlayerSpawnedAt; // PutClientInServer: a Copper spawn point's targets fired

@@ -142,6 +142,17 @@ void PF_navshaft()
     G_FLOAT(OFS_RETURN) = qvr::navshaft::escapeYaw(G_EDICT(OFS_PARM0), G_FLOAT(OFS_PARM1) != 0.f);
 }
 
+// float navshaftbot(entity bot, entity goal, vector wish, float what): a FrikBot bot and the raised lifts' shafts: the
+// yaw out of one it is in, -2 wait (its move along wish would take it in), -1 nothing; goal its target1 (world: none, or a
+// waypoint); what 1: it blocked a lift (vr_navshaft.cpp navshaft::botStep).
+void PF_navshaftbot()
+{
+    const float* w = G_VECTOR(OFS_PARM2);
+    edict_t* goal = G_EDICT(OFS_PARM1);
+    G_FLOAT(OFS_RETURN) = qvr::navshaft::botStep(G_EDICT(OFS_PARM0), goal == qcvm->edicts ? nullptr : goal,
+        glm::vec3{w[0], w[1], w[2]}, G_FLOAT(OFS_PARM3) != 0.f);
+}
+
 // vector navshaftclear(entity m, vector at): a place for m to walk to, moved out of any raised lift's shaft to beyond its
 // margin (vr_navshaft.cpp navshaft::clearPoint).
 void PF_navshaftclear()

@@ -15,7 +15,7 @@ Map-key fields renamed cu_<key> (no Quake VR field, or another type; in a Copper
   of them a type clash: t_length (Copper float, Quake VR float), t_width (Copper float, Quake VR float), target2 (Copper string, Quake VR entity), target3 (Copper string, Quake VR entity), target4 (Copper string, Quake VR entity)
   alpha2, exclude, fadecolor, fog_color2, fog_density2, fog_sky, include, length, notrace, rand, rmovedir, strength, svflags, switchshadstyle, t_length, t_width, target2, target3, target4, width
 Beam id bytes added (Quake VR's beam temp entities): 7
-Reviewed patches: 35
+Reviewed patches: 38
   defs.qc: mechanical: the csqc stat fields kept with NO_CSQC
   m_ogre.qc: mechanical: T_RadiusDamage's default damage type passed (fteqcc Q105: undefined otherwise)
   m_shalrath.qc: mechanical: T_RadiusDamage's default damage type passed (fteqcc Q105: undefined otherwise)
@@ -40,6 +40,9 @@ Reviewed patches: 35
   client.qc: bridge: target_autosave makes our autosave
   fog.qc: bridge: Copper's fog (worldspawn, its fog blends) by our svc_fog path, not a stuffed command
   ai.qc: bridge: our monsters follow Copper's path_corners as ours (t_movetarget), as AD's (its touch set think = th_stand, NULL on ours)
+  plats.qc: bridge: a monster or bot in a blocked lift's way walks out of its shaft (NAVMESH.md 24)
+  doors.qc: bridge: a monster or bot in a blocked lift's way walks out of its shaft (NAVMESH.md 24)
+  plats.qc: bridge: a monster or bot in a blocked lift's way walks out of its shaft (NAVMESH.md 24)
   world.qc: bridge: Copper's own model s_explo2.spr, else s_explod.spr (a Copper map package without Copper's data)
   fx.qc: bridge: Copper's own model s_explo2.spr, else s_explod.spr (a Copper map package without Copper's data)
   fx.qc: bridge: Copper's own model debris1.mdl, else vr_rock1.mdl (a Copper map package without Copper's data)

@@ -57,6 +57,13 @@ void afterLoad();
 // (what 0) it has a reason there. what 1: its reasons set aside and the whole of the mover's way counted (it blocked the
 // lift, perhaps standing on its edge: QC VR_Shaft_Blocked).
 [[nodiscard]] float escapeYaw(const edict_t* ent, bool force);
+// SV_MoveToGoal (every mod's monsters walking by movetogoal): escapeYaw for a monster on the ground, else -1.
+[[nodiscard]] float moveOutYaw(const edict_t* ent, bool force);
+// Builtin navshaftbot(bot, goal, wish, what): FrikBot bots keep out of live shafts as monsters do (their moves are
+// players', not SV_movestep): the yaw out of the live shaft the bot is in with no reason there (its enemy in it, or
+// `goal`: its target1 when that is a thing, never a waypoint); -2: its move along `wish` would take it in (or deeper)
+// with none: it waits at the edge (for the lift to come down); -1: nothing to do. `force`: it blocked a lift.
+[[nodiscard]] float botStep(const edict_t* bot, const edict_t* goal, const glm::vec3& wish, bool force);
 
 // Builtin navshaftclear(m, at): a place for m to walk to (its origin), moved out of any live shaft to beyond its margin
 // on the nearest open side (unchanged when in none, or no side is open).
