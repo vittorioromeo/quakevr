@@ -2624,6 +2624,7 @@ void() VR_AG_TakeBegin =
     if(!w || w.classname != "thrown_weapon" || vlen(w.origin - self.origin) > VR_AG_PICKUP_REACH * 1.5 ||
        !VR_AM_Takes(self, w.weapon) || (self.vr_ag_prop && (self.vr_ag_prop2 || !VR_AG_PairsFor(self, self.vr_ag_wid, self.vr_ag_wflags, w.weapon, w.weaponflags))))
     {
+        VR_AG_Log(sprintf("take of %s called off (%s, %.0f away)", w.netname, w.classname, vlen(w.origin - self.origin)));
         return;
     }
     entity inst = w.weaponinst;
@@ -2788,7 +2789,7 @@ entity() VR_AG_FindWeapon =
             }
             if(safe && d < bestDist && fabs(e.origin_z - self.origin_z) < 64 && !VR_AG_Shunned(self, e))
             {
-                traceline(self.origin + '0 0 16', e.origin, TRUE, self);
+                traceline(self.origin + '0 0 16', e.origin + '0 0 4', TRUE, self); // (+4: its origin may lie on the floor's plane)
                 if((trace_fraction == 1 || trace_ent == e) && VR_AG_Reachable(self, e)) // (walkable: vr_armedgrunt_play.qc)
                 {
                     best = e;
