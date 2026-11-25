@@ -4627,6 +4627,24 @@ vr_flat_swing_torso_up|2|Tunables|Swing Chest Back|Advanced VR Options > Debug >
 vr_flat_swing_torso_down|2|Tunables|Swing Chest Forward|Advanced VR Options > Debug > Tunables > Swing Chest Forward
 vr_flat_melee_grip|2|Tunables|Two-Handed Melee On The Grip|Advanced VR Options > Debug > Tunables > Two-Handed Melee On The Grip
 vr_flat_melee_letgo|2|Tunables|Two-Handed Melee Eased Off The Grip|Advanced VR Options > Debug > Tunables > Two-Handed Melee Eased Off The Grip
+vr_flat_overhand|2|Tunables|Empty-Hand V Overhand|Advanced VR Options > Debug > Tunables > Empty-Hand V Overhand
+vr_flat_overhand_wind|2|Tunables|Overhand Windup Time|Advanced VR Options > Debug > Tunables > Overhand Windup Time
+vr_flat_overhand_top|2|Tunables|Overhand Top Hold|Advanced VR Options > Debug > Tunables > Overhand Top Hold
+vr_flat_overhand_strike|2|Tunables|Overhand Strike Time|Advanced VR Options > Debug > Tunables > Overhand Strike Time
+vr_flat_overhand_dwell|2|Tunables|Overhand End Hold|Advanced VR Options > Debug > Tunables > Overhand End Hold
+vr_flat_overhand_back|2|Tunables|Overhand Recover Time|Advanced VR Options > Debug > Tunables > Overhand Recover Time
+vr_flat_overhand_raise_up|2|Tunables|Overhand Top Up|Advanced VR Options > Debug > Tunables > Overhand Top Up
+vr_flat_overhand_raise_fwd|2|Tunables|Overhand Top Ahead|Advanced VR Options > Debug > Tunables > Overhand Top Ahead
+vr_flat_overhand_raise_out|2|Tunables|Overhand Top Out|Advanced VR Options > Debug > Tunables > Overhand Top Out
+vr_flat_overhand_raise_pitch|2|Tunables|Overhand Top Pitch|Advanced VR Options > Debug > Tunables > Overhand Top Pitch
+vr_flat_overhand_raise_yaw|2|Tunables|Overhand Top Yaw|Advanced VR Options > Debug > Tunables > Overhand Top Yaw
+vr_flat_overhand_raise_roll|2|Tunables|Overhand Top Roll|Advanced VR Options > Debug > Tunables > Overhand Top Roll
+vr_flat_overhand_end_pitch|2|Tunables|Overhand End Pitch|Advanced VR Options > Debug > Tunables > Overhand End Pitch
+vr_flat_overhand_end_down|2|Tunables|Overhand End Down|Advanced VR Options > Debug > Tunables > Overhand End Down
+vr_flat_overhand_end_fwd|2|Tunables|Overhand End Ahead|Advanced VR Options > Debug > Tunables > Overhand End Ahead
+vr_flat_overhand_end_out|2|Tunables|Overhand End Out|Advanced VR Options > Debug > Tunables > Overhand End Out
+vr_flat_overhand_end_yaw|2|Tunables|Overhand End Yaw|Advanced VR Options > Debug > Tunables > Overhand End Yaw
+vr_flat_overhand_end_roll|2|Tunables|Overhand End Roll|Advanced VR Options > Debug > Tunables > Overhand End Roll
 vr_flat_parry|2|Tunables|Right Mouse Parries|Advanced VR Options > Debug > Tunables > Right Mouse Parries
 vr_flat_parry_fwd|2|Tunables|Guard Ahead|Advanced VR Options > Debug > Tunables > Guard Ahead
 vr_flat_parry_up|2|Tunables|Guard Up|Advanced VR Options > Debug > Tunables > Guard Up
@@ -4667,8 +4685,6 @@ vr_flat_pole_off_along|2|Tunables|Spear Other Hand Along|Advanced VR Options > D
 vr_flat_pole_off_roll|2|Tunables|Spear Other Hand Roll|Advanced VR Options > Debug > Tunables > Spear Other Hand Roll
 vr_flat_pole_pitch|2|Tunables|Spear Pitch|Advanced VR Options > Debug > Tunables > Spear Pitch
 vr_flat_pole_yaw|2|Tunables|Spear Yaw|Advanced VR Options > Debug > Tunables > Spear Yaw
-vr_flat_revgrip_pitch|2|Tunables|Flipped Blade Pitch|Advanced VR Options > Debug > Tunables > Flipped Blade Pitch
-vr_flat_revgrip_pole_pitch|2|Tunables|Flipped Spear Pitch|Advanced VR Options > Debug > Tunables > Flipped Spear Pitch
 vr_flat_pole_along|2|Tunables|Spear Hand Along|Advanced VR Options > Debug > Tunables > Spear Hand Along
 vr_flat_pole_off_up|2|Tunables|Spear Other Hand Up|Advanced VR Options > Debug > Tunables > Spear Other Hand Up
 vr_flat_pole_off_out|2|Tunables|Spear Other Hand Out|Advanced VR Options > Debug > Tunables > Spear Other Hand Out
@@ -4703,10 +4719,41 @@ vr_flat_thrust_blades|2|Tunables|Blade Thrust|Advanced VR Options > Debug > Tuna
 vr_flat_thrust_1h_reach|2|Tunables|Blade Thrust Reach|Advanced VR Options > Debug > Tunables > Blade Thrust Reach
 vr_flat_thrust_1h_wind_back|2|Tunables|Blade Thrust Windup Back|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Back
 vr_flat_thrust_1h_wind_up|2|Tunables|Blade Thrust Windup Up|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Up
+vr_flat_thrust_1h_wind_out|2|Tunables|Blade Thrust Windup Out|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Out
+vr_flat_thrust_1h_wind_pitch|2|Tunables|Blade Thrust Windup Pitch|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Pitch
+vr_flat_thrust_1h_wind_yaw|2|Tunables|Blade Thrust Windup Yaw|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Yaw
+vr_flat_thrust_1h_wind_roll|2|Tunables|Blade Thrust Windup Roll|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Roll
+vr_flat_thrust_1h_up|2|Tunables|Blade Thrust Up|Advanced VR Options > Debug > Tunables > Blade Thrust Up
+vr_flat_thrust_1h_pitch|2|Tunables|Blade Thrust Pitch|Advanced VR Options > Debug > Tunables > Blade Thrust Pitch
+vr_flat_thrust_1h_yaw|2|Tunables|Blade Thrust Yaw|Advanced VR Options > Debug > Tunables > Blade Thrust Yaw
+vr_flat_thrust_1h_wind_time|2|Tunables|Blade Thrust Windup Time|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Time
+vr_flat_thrust_1h_hold_time|2|Tunables|Blade Thrust Windup Hold|Advanced VR Options > Debug > Tunables > Blade Thrust Windup Hold
+vr_flat_thrust_1h_strike_time|2|Tunables|Blade Thrust Time|Advanced VR Options > Debug > Tunables > Blade Thrust Time
+vr_flat_thrust_1h_dwell_time|2|Tunables|Blade Thrust Hold|Advanced VR Options > Debug > Tunables > Blade Thrust Hold
+vr_flat_thrust_1h_back_time|2|Tunables|Blade Thrust Recover Time|Advanced VR Options > Debug > Tunables > Blade Thrust Recover Time
 vr_flat_thrust_1h_in|2|Tunables|Blade Thrust In|Advanced VR Options > Debug > Tunables > Blade Thrust In
 vr_flat_thrust_1h_near|2|Tunables|Blade Thrust Aim Nearest|Advanced VR Options > Debug > Tunables > Blade Thrust Aim Nearest
-vr_flat_thrust_1h_rev_down|2|Tunables|Blade Thrust Flipped Down|Advanced VR Options > Debug > Tunables > Blade Thrust Flipped Down
-vr_flat_thrust_1h_rev_up|2|Tunables|Blade Thrust Flipped Raise|Advanced VR Options > Debug > Tunables > Blade Thrust Flipped Raise
+vr_flat_revgrip_sword_fwd|2|Tunables|Flipped Sword Ahead|Advanced VR Options > Debug > Tunables > Flipped Sword Ahead
+vr_flat_revgrip_sword_up|2|Tunables|Flipped Sword Up|Advanced VR Options > Debug > Tunables > Flipped Sword Up
+vr_flat_revgrip_sword_out|2|Tunables|Flipped Sword Out|Advanced VR Options > Debug > Tunables > Flipped Sword Out
+vr_flat_revgrip_sword_pitch|2|Tunables|Flipped Sword Pitch|Advanced VR Options > Debug > Tunables > Flipped Sword Pitch
+vr_flat_revgrip_sword_yaw|2|Tunables|Flipped Sword Yaw|Advanced VR Options > Debug > Tunables > Flipped Sword Yaw
+vr_flat_revgrip_sword_roll|2|Tunables|Flipped Sword Roll|Advanced VR Options > Debug > Tunables > Flipped Sword Roll
+vr_flat_revgrip_sword_down|2|Tunables|Flipped Sword Stab Down|Advanced VR Options > Debug > Tunables > Flipped Sword Stab Down
+vr_flat_revgrip_dagger_fwd|2|Tunables|Flipped Dagger Ahead|Advanced VR Options > Debug > Tunables > Flipped Dagger Ahead
+vr_flat_revgrip_dagger_up|2|Tunables|Flipped Dagger Up|Advanced VR Options > Debug > Tunables > Flipped Dagger Up
+vr_flat_revgrip_dagger_out|2|Tunables|Flipped Dagger Out|Advanced VR Options > Debug > Tunables > Flipped Dagger Out
+vr_flat_revgrip_dagger_pitch|2|Tunables|Flipped Dagger Pitch|Advanced VR Options > Debug > Tunables > Flipped Dagger Pitch
+vr_flat_revgrip_dagger_yaw|2|Tunables|Flipped Dagger Yaw|Advanced VR Options > Debug > Tunables > Flipped Dagger Yaw
+vr_flat_revgrip_dagger_roll|2|Tunables|Flipped Dagger Roll|Advanced VR Options > Debug > Tunables > Flipped Dagger Roll
+vr_flat_revgrip_dagger_down|2|Tunables|Flipped Dagger Stab Down|Advanced VR Options > Debug > Tunables > Flipped Dagger Stab Down
+vr_flat_revgrip_pole_fwd|2|Tunables|Flipped Spear Ahead|Advanced VR Options > Debug > Tunables > Flipped Spear Ahead
+vr_flat_revgrip_pole_up|2|Tunables|Flipped Spear Up|Advanced VR Options > Debug > Tunables > Flipped Spear Up
+vr_flat_revgrip_pole_out|2|Tunables|Flipped Spear Out|Advanced VR Options > Debug > Tunables > Flipped Spear Out
+vr_flat_revgrip_pole_pitch|2|Tunables|Flipped Spear Pitch|Advanced VR Options > Debug > Tunables > Flipped Spear Pitch
+vr_flat_revgrip_pole_yaw|2|Tunables|Flipped Spear Yaw|Advanced VR Options > Debug > Tunables > Flipped Spear Yaw
+vr_flat_revgrip_pole_roll|2|Tunables|Flipped Spear Roll|Advanced VR Options > Debug > Tunables > Flipped Spear Roll
+vr_flat_revgrip_pole_down|2|Tunables|Flipped Spear Stab Down|Advanced VR Options > Debug > Tunables > Flipped Spear Stab Down
 vr_flat_embed_pull|2|Tunables|Stuck Blade Pull|Advanced VR Options > Debug > Tunables > Stuck Blade Pull
 vr_flat_embed_pull_time|2|Tunables|Stuck Blade Pull Time|Advanced VR Options > Debug > Tunables > Stuck Blade Pull Time
 vr_flat_embed_pull_hold|2|Tunables|Stuck Blade Pull Hold|Advanced VR Options > Debug > Tunables > Stuck Blade Pull Hold

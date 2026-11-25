@@ -17,6 +17,9 @@ Flat-screen: N switches the held weapon's ammo type (the rocket launcher's multi
 Flat-screen: in Options > Controls, on a "Quake VR (flat screen)" row press Right, Enter and a key: the row shows both keys and both work in play; Backspace on either clears only that one. {test:hub_start}
 Flat-screen: give an action a second key in Options > Controls, quit and start the game again: both keys are still there and both work. {test:hub_start}
 Flat-screen: under water, hold C or Left Ctrl: you swim down (Locomotion > Desktop Screen Play > Crouch Keys Swim Down turns it off). {test:flat_swim}
+Flat-screen: with a dagger or sword in hand, press V: the thrust first draws the fist well back along the blade (about twice as far as before), then stabs; its windup, turn and timings are in Debug > Tunables > Flatscreen > Thrust (V): Spear and Blade. {test:flat_melee_v}
+Flat-screen: with both hands empty, press V: the fist rises over the shoulder and comes down onto the crosshair (an overhand blow) and hurts the grunt; the left mouse button still throws the straight punch. {test:flat_melee_v}
+Flat-screen: flip the dagger's grip with N (the ammo key): it is held a bit overhead, point down, and V stabs down into the grunt; the sword and the spear do the same, each with its own numbers in Debug > Tunables > Flatscreen > Flipped Grip. {test:flat_melee_v}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
