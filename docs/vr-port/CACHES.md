@@ -1,7 +1,8 @@
 # The derived-data cache
 
 Work the loads would redo every session, kept on disk (`Quake/vr/vr_diskcache.hpp`, `.cpp`). Nothing in it is ever
-committed or shipped: everything is derived from the player's own game files.
+committed: everything is derived from the player's own game files. A release ships a read-only part made for Quake VR's
+own maps ("The shipped cache" below).
 
 ## Where
 
@@ -43,6 +44,40 @@ built ahead on the pool, `vr_box3d_hulls_ahead`).
 Gun pieces are prepared at a map's load for every weapon the map can give (lying, its monsters' drops, backpacks, the
 player's hands and holsters; `prepareHeldGuns`, QC `vr_gunprep.qc`), read from the file or cut on
 the pool on a miss, so a first pickup in play is a hit (ROUND22.md, "Held guns' convex pieces at map load").
+
+## The shipped cache
+
+A release's `quakevr/cache_shipped` (made at release time, never committed: `quakevr/.gitignore`): the products made by
+loading Quake VR's own first maps, read where the player's cache has no file (or one amiss). Never written nor pruned.
+
+- **Lookup:** `cache_shipped/index.txt`, one line a file: the player's cache's own name `<product>/<build>/<key>.<ext>`
+  (the same hash keys and builds: a shipped file is read only for exactly what it was made from), then its file in the
+  folder, named by map (`hulls/vrstart_8_8_28.hul`, `lightgrid/vrstart.mlg`) so the next release replaces it in place:
+  Setup's Quest step never deletes a file, and keyed names would pile up on the headset at every update (the PC
+  installer removes what a release no longer ships). Read once, at the first lookup (main thread). `diskcache::read`
+  looks there by itself; the hulls' own reader (`vr_hull.cpp` diskRead) takes `shippedFileOf`'s path from its job.
+- **Setting:** `vr_cache_shipped` 1 (Debug > Profiling and Memory, "Read the Shipped Cache"); 0 never read (the
+  generator's runs, a first load's timing). `vr_cache_info`: "N read (M shipped, ...)" per product and a last line
+  with the shipped folder, its files and size.
+- **Made by** `Misc/release/make_shipped_cache.py` (make_release.ps1's "Shipped cache" step, RELEASING.md): the
+  packaged game, in a copy of the package's `quakevr` (no player config: the shipped defaults), loads each map alone
+  (`-prepare <file> -preparemaps <map>`: the installer's preparation run limited to those maps, then quit;
+  `+vr_setup_pending 0`, or a first start's calibration room replaces the map) with an empty `vr_cache_dir` and
+  `vr_cache_shipped 0`, and copies the products' files of that run.
+- **What ships** (2026-11-25): vrstart's 8 hull trees (130.6 MB, 61 MB deflated: the player's and the monsters' boxes)
+  and light grid (47.7 MB, 21 MB), vrtutorial's light grid (4.7 MB). vrcalibration's and vrtutorial's trees compile
+  under 250 ms and are never cached; no default map builds a navmesh (`navmesh` is in the product list: one made
+  would ship, ~240 KB). Only products of our maps' geometry, lightmaps and entities: nothing keyed by a model, skin or
+  texture (occlusion, normal maps, poses, rigs, gun pieces), which may be id Software's, and no id map's.
+- **Platforms:** the files are the same bytes on the PC (x64) and the Quest (arm64): little-endian both; the layouts
+  are plain ints, floats and shorts (`mclipnode_t`, `mplane_t`: their sizes are in the hulls' build; `GridEntry`);
+  the keys are wyhash/FNV over the same loaded bytes; both builds compile without FP contraction
+  (`-ffp-contract=off`: quakevr.props, Android/android.cmake) and the makers use no libm transcendental. A key that
+  differs on a platform (another texture's liquid colour in the light grid's key, a setting) is only a miss.
+- **Measured (PC, cold `vr_cache_dir`, vrstart):** without (vr_cache_shipped 0) the load 17.4 s (trees 5.4 s, light
+  grid 5.8 s); with it 6.1 s (trees 0.14 s, grid 0.04 s: 8 + 1 shipped reads, 0 builds). `vr_hull_cache 2` with the
+  shipped trees: "checked 8 same" (a fresh compile gives the same bytes). A stale index (other keys: a changed map)
+  or a file amiss (counted rejected): built and written to the player's cache as before.
 
 ## Counts and gaps
 

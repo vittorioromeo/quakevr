@@ -6399,6 +6399,10 @@ QVR_TOGGLE(vr_stereo_single, "Single-Pass Stereo (Experimental)",
     "vr_stereo_single: the opaque world, brush models and the models away from the eyes drawn once for both "
     "eyes (GL_OVR_multiview2) instead of once per eye; the rest is still drawn per eye. Less CPU per frame, "
     "the same images (docs/vr-port/STEREO.md). Off with MSAA, or when the driver lacks multiview.")
+QVR_TOGGLE(vr_cache_shipped, "Read the Shipped Cache",
+    "On: the derived data shipped for Quake VR's own maps (the hub's collision trees and light grid, made at "
+    "release time: quakevr/cache_shipped) is read where your own cache has no file. Off: made as if it weren't "
+    "there (to time a first load; vr_cache_shipped).")
 QVR_TOGGLE(vr_cache_warmup, "Cache Warm-up",
     "On: the derived-data cache is filled in the background (every installed game's models' occlusion bakes) on "
     "one low-priority worker, paused while a map loads or a frame runs late; it carries on next session where "
