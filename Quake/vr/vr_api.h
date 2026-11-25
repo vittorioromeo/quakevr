@@ -764,6 +764,7 @@ int VR_HullClipBSP (struct edict_s *ent, const float *start, const float *boxmin
 int VR_HullEntBox (struct edict_s *passedict, const float *mins, const float *maxs, float *boxmins, float *boxmaxs); // SV_Move: nonzero if the player's box meets other entities' boxes narrowed (vr_hull_ent_width)
 int VR_MonsterAvoidsField (struct edict_s *ent, const float *from, const float *to); // SV_movestep: a monster's step nearer a hurting field (QC .vr_monster_avoid; vr_hull.cpp): nonzero refuses it
 int VR_MonsterShaftStep (struct edict_s *ent, const float *from, const float *to); // SV_movestep: a monster's step into (or deeper into) a raised lift's shaft with no reason there (vr_navshaft.cpp, vr_shaft): nonzero refuses it
+float VR_MonsterShaftOut (struct edict_s *ent); // SV_MoveToGoal: the yaw a monster on the ground walks out of a raised lift's shaft by (no reason there, or it blocked the lift), -1 none (vr_navshaft.cpp)
 int VR_HullFootprint (struct edict_s *ent, float *absmins, float *absmaxs); // SV_CheckBottom: a monster's corners narrowed to its width (vr_mhull_ledges): nonzero if narrowed
 int VR_HullTouchBox (struct edict_s *touch, struct edict_s *mover, float *boxmins, float *boxmaxs); // a player's box, narrowed, as a body moving into it meets it: nonzero if narrowed
 float VR_HullTouchTop (struct edict_s *ent); // SV_TouchLinks: the top triggers meet (lying down: the lying box's; else absmax)

@@ -221,6 +221,7 @@ void() cu_plat_trigger_use =
 
 void() cu_plat_crush =
 {
+	VR_CU_ShaftBlocked(other); // QVR: lift shafts kept clear (vr_copper_bridge.qc)
 //dprint ("plat_crush\n");
 	if (self.dmg)
 		cu_T_Damage (other, self, self, self.dmg, cu_DMGTYPE_CRUSH);
@@ -708,6 +709,7 @@ void() cu_func_flytrain_point =
 
 void() cu_train_blocked =
 {
+	VR_CU_ShaftBlocked(other); // QVR: lift shafts kept clear (vr_copper_bridge.qc)
 	if (time < self.cu_attack_finished)
 		return;
 	self.cu_attack_finished = time + self.cu_dmgtime;

@@ -14,7 +14,8 @@
 //   120-129 the notes of 2026-10-08: see-through walls, the hunt, props in the way (vr_stealth_test4.qc);
 //   130 the spread of an alarm on vralert: hurt, alerted, killed (vr_stealth_test5.qc);
 //   131 riders on a moving lift (e1m1's plats): the player and a grunt don't sink into it (vr_stealth_test6.qc);
-//   132 lift shafts kept clear (e1m1's first lift): investigate, fight, ride (vr_stealth_test7.qc).
+//   132 lift shafts kept clear (e1m1's first lift): investigate, fight, ride (vr_stealth_test7.qc); 133 the same at
+//   e2m4's two lifts; 134 a FrikBot bot at e1m1's (coop, the script adds the bot).
 
 float stt2_step;
 float stt2_stage;
@@ -274,7 +275,7 @@ void(float xAsk) VR_STT2_Start =
     {
         VR_STT6_Start();
     }
-    if(xAsk == 132)
+    if(xAsk >= 132 && xAsk <= 134)
     {
         VR_STT7_Start();
     }
@@ -308,7 +309,7 @@ void() VR_STT2_Frame =
         VR_STT6_Frame();
         return;
     }
-    if(stt2_step == 132)
+    if(stt2_step >= 132 && stt2_step <= 134)
     {
         VR_STT7_Frame();
         return;

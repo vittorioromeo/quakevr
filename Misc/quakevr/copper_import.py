@@ -119,6 +119,12 @@ PATCHES = [
      "(vr_rules_monsters.qc)\n", 1,
      "bridge: our monsters follow Copper's path_corners as ours (t_movetarget), as AD's (its touch set think = th_stand, "
      "NULL on ours)"),
+    ("plats.qc", "void() plat_crush =\n{\n", "void() plat_crush =\n{\n\tVR_CU_ShaftBlocked(other); // QVR: lift shafts kept clear (vr_copper_bridge.qc)\n", 1,
+     "bridge: a monster or bot in a blocked lift's way walks out of its shaft (NAVMESH.md 24)"),
+    ("doors.qc", "void() door_blocked =\n{\n", "void() door_blocked =\n{\n\tVR_CU_ShaftBlocked(other); // QVR: lift shafts kept clear (vr_copper_bridge.qc)\n", 1,
+     "bridge: a monster or bot in a blocked lift's way walks out of its shaft (NAVMESH.md 24)"),
+    ("plats.qc", "void() train_blocked =\n{\n", "void() train_blocked =\n{\n\tVR_CU_ShaftBlocked(other); // QVR: lift shafts kept clear (vr_copper_bridge.qc)\n", 1,
+     "bridge: a monster or bot in a blocked lift's way walks out of its shaft (NAVMESH.md 24)"),
 ] + [
     # Copper's own models come with Copper's release (or Dwell's folder), not with a Copper map package: each name is
     # the file when it is there, else a stock one (vr_packutil.qc VR_ModelOr), so a Copper map without them loads

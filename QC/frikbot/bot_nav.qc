@@ -270,3 +270,37 @@ float() BotNav_Step =
     }
     return TRUE;
 };
+
+// QVR: lift shafts kept clear (vr_shaft, NAVMESH.md 24). A bot keeps out of a raised lift's shaft as the monsters do (its
+// moves are a player's, never SV_movestep's soft wall): one in it with no reason there (its enemy in it, or its target1
+// when that is a thing: an item, a player it follows) walks out, also when its reason ends; one whose move would take it
+// in waits at the edge till the lift comes down, then goes on (boards it). FrikBot's search time gives a goal up after
+// 5 s of that. Last in BotAI: its keys as its AI left them (by the waypoints or the navmesh, fighting, its ai flags).
+void() BotShaft =
+{
+    if(!cvar_hget(cvarh_vr_shaft) || self.waterlevel >= 3)
+    {
+        return; // (swimming; wading counts, off the ground in it too: e1m1's lift comes down into water)
+    }
+    entity g = self.target1;
+    if(g.classname == "waypoint" || g.classname == "temp_waypoint")
+    {
+        g = world; // (a point on its route, never a reason to stand under a lift)
+    }
+    makevectors('0 1 0' * self.v_angle_y);
+    vector wish = '0 0 0';
+    if(self.keys & KEY_MOVEFORWARD) { wish = wish + v_forward; }
+    if(self.keys & KEY_MOVEBACK) { wish = wish - v_forward; }
+    if(self.keys & KEY_MOVERIGHT) { wish = wish + v_right; }
+    if(self.keys & KEY_MOVELEFT) { wish = wish - v_right; }
+    float r = navshaftbot(self, g, wish, time < self.vr_shaft_flee);
+    if(r == -2)
+    {
+        self.keys = self.keys & 960; // (all but the view keys: it waits at the edge)
+    }
+    else if(r >= 0)
+    {
+        makevectors('0 1 0' * r);
+        self.keys = (self.keys & 960) + frik_KeysForDir(v_forward);
+    }
+};

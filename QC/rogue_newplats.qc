@@ -47,6 +47,7 @@ void() dn_and_wait_go_up =
 
 void() dn_and_wait_crush =
 {
+    VR_Shaft_Blocked(other); // QVR: a monster in the way walks out of the shaft (vr_ai_props.qc); the bounce is Rogue's
     T_Damage(other, self, self, 1);
 
     if(self.state == STATE_UP)
@@ -101,6 +102,7 @@ void() toggle_go_up =
 
 void() toggle_crush =
 {
+    VR_Shaft_Blocked(other); // QVR: a monster in the way walks out of the shaft (vr_ai_props.qc); the bounce is Rogue's
     T_Damage(other, self, self, 1);
 
     if(self.state == STATE_UP)
@@ -146,6 +148,7 @@ void() elvtr_go =
 
 void() elvtr_crush =
 {
+    VR_Shaft_Blocked(other); // QVR: a monster in the way walks out of the shaft (vr_ai_props.qc); the bounce is Rogue's
 //    T_Damage(other, self, self, 1);
     self.elevatorToFloor = self.elevatorOnFloor;
 
@@ -390,6 +393,7 @@ void() plat2_center_touch =
 
 void() plat2_crush =
 {
+    VR_Shaft_Blocked(other); // QVR: a monster in the way walks out of the shaft (vr_ai_props.qc); the bounce is Rogue's
     T_Damage(other, self, self, 1);
 
     if(self.state == STATE_UP)

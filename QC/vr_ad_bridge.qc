@@ -1785,3 +1785,10 @@ void(vector xSize) AD_AmmoBoxFit =
     else if(self.ad_frame_box > 7) self.frame = 1;
     else self.frame = max(0, self.ad_frame_box);
 };
+
+// AD support: AD's func_plat, func_door and func_train blocked (the importer's patches): a monster or bot in the way walks
+// out of the lift's shaft as with id1's movers (VR_Shaft_Blocked, vr_ai_props.qc; NAVMESH.md 24); AD's bounce unchanged.
+void(entity xBlocker) VR_AD_ShaftBlocked =
+{
+    VR_Shaft_Blocked(xBlocker);
+};

@@ -340,6 +340,7 @@ QVR_FIELD(vr_shock_len) // ... the shock's length (s): the convulsions fade over
 
 // The firing range's training dummy (QC vr_dummy.qc): 1 + its enemy (vr_dummy_type) while it stands, else 0.
 QVR_FIELD(vr_dummy_kind)
+QVR_FIELD(vr_shaft_flee) // lift shafts: till then a monster walks out of one, its reasons set aside (vr_navshaft.cpp)
 
 // When the entity was made (ED_Alloc: VR_OnEdictAlloc, vr_cheats.cpp): the map's own and those placed as it loads
 // before its first second is out; vr_scene_clean props (QC VR_Scene_Clean) removes the loose props made later.

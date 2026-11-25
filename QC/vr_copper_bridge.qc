@@ -121,3 +121,10 @@ void() VR_CU_Autosave =
         localcmd("vr_autosave_now\n");
     }
 };
+
+// Copper's plat_crush, door_blocked and train_blocked (the importer's patches): a monster or bot in the way walks out of
+// the lift's shaft as with id1's movers (VR_Shaft_Blocked, vr_ai_props.qc; NAVMESH.md 24); Copper's bounce unchanged.
+void(entity xBlocker) VR_CU_ShaftBlocked =
+{
+    VR_Shaft_Blocked(xBlocker);
+};

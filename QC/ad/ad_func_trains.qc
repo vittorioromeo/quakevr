@@ -504,6 +504,7 @@ void() ad_func_train_reset =
 //----------------------------------------------------------------------
 void() ad_func_train_blocked =
 {
+	VR_AD_ShaftBlocked(other);
 	// This is constant crushing or instant death collision
 	if (time < self.ad_attack_finished) return;
 	self.ad_attack_finished = time + 0.5;
