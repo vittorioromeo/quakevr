@@ -12,7 +12,9 @@ limited to that map; the mock headset, hidden, no config read from the player's 
 vr_cache_dir and vr_cache_shipped 0, in a copy of the game folder (a package's quakevr, or with --git-root the files
 git tracks under it plus progs.dat: package-quakevr.ps1's allowlist), so every file it makes is that map's and made
 with the shipped defaults. The products copied (--products):
-  hulls     the world's compiled hull trees (vr_hull.cpp): the hub's are 42-56 s of its first load on a Quest 3
+  hulls     the world's compiled hull trees (vr_hull.cpp, .hul): the hub's are 42-56 s of its first load on a Quest 3;
+            and the map's brushes (.hbr: the walk of hull 0, the clip brushes, the holes; ~10 s of the hub's load on
+            a Quest 3, loadprof), listed as "brushes" below
   navmesh   the monsters' navmeshes (vr_nav.cpp), small
   lightgrid the big maps' model light grids (vr_ambient.cpp)
 Only Quake VR's own maps (their geometry, lightmaps and entities are the project's; no product of a model, skin or
@@ -128,8 +130,9 @@ def collect(cache, name, products, out, index, sizes):
                 shutil.copyfile(os.path.join(folder, file), os.path.join(out, rel))
                 index[cache_name] = rel
                 size = os.path.getsize(os.path.join(out, rel))
-                count, total = sizes.get((name, product), (0, 0))
-                sizes[(name, product)] = (count + 1, total + size)
+                kind = "brushes" if product == "hulls" and rest == ".hbr" else product
+                count, total = sizes.get((name, kind), (0, 0))
+                sizes[(name, kind)] = (count + 1, total + size)
 
 
 def main():
@@ -186,7 +189,7 @@ def main():
         total += size
     missing = [m for m in maps if not any(k[0] == m and k[1] == "hulls" for k in sizes)]
     if "hulls" in products and missing:
-        # (a tree compiled in under vr_hull.cpp's diskMinMs, 250 ms, is not written: nothing to ship)
+        # (a tree compiled in under vr_hull.cpp's diskMinMs, 25 ms, is not written: nothing to ship)
         print(f"  no hull trees for {', '.join(missing)} (compiled quickly enough not to be cached)", flush=True)
     if "hulls" in products and "vrstart" in maps and "vrstart" in missing:
         fail("no hull trees made for vrstart (the hub's are the ones that matter)")
