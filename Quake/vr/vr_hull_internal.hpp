@@ -252,6 +252,7 @@ struct Pending
     // the crouched, lying and monsters' trees are compiled after it, on the pool ("Trees compiled in play"), and a
     // monster moves with Quake's hull meanwhile.
     bool deferring = false;
+    za::Vector<glm::vec3> later; // the boxes the spawned map asked for (spawned: monsters by class, as the load's own)
 };
 
 inline Pending pending;

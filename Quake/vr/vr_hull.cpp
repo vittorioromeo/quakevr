@@ -5008,6 +5008,15 @@ void prepare(bool load)
     za::Vector<glm::vec3> later;
     if(defer)
     {
+        // (and the sizes the spawned map asked for, as the load without vr_hull_defer makes them: a monster's class known
+        // as it spawned, alive or not yet -- the hub's firing range)
+        for(const glm::vec3& ext : pending.later)
+        {
+            if(za::find(exts.begin(), exts.end(), ext) == exts.end())
+            {
+                exts.pushBack(ext);
+            }
+        }
         // wantedExts' order: the player's (if on), the crouched boxes lowest first, the lying box, the monsters'. Later:
         // the crouched tallest first (a crouch's eyes pass it first), then the rest as they come.
         const za::SizeT first = vr_hull_width.value > 0.f ? 1 : 0;
@@ -5071,6 +5080,7 @@ void beforeLoad()
     settle();
     joinBackground();
     pending.deferring = vr_hull_defer.value != 0.f; // (until afterLoad's prepare)
+    pending.later.clear();
     for(int i = 0; i < crouchSlots; ++i)
     {
         crouchBox[i] = 0.f; // (each map starts standing)
@@ -5153,7 +5163,8 @@ void spawned()
     }
     if(pending.deferring)
     {
-        return; // (made after the load: prepare)
+        pending.later = exts; // (made after the load: prepare)
+        return;
     }
     for(Tree* t : claimTrees(sv.worldmodel->hulls[0].clipnodes, exts))
     {
