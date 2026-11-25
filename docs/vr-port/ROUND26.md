@@ -184,3 +184,47 @@ Test/tooling only. vr_recoil_test: the "his 27 slots" expectation is 31 now (4 m
   installer self-tests 60/60; check_apk 28/0; smoke launch; published as a prerelease with QuakeVR.zip, QuakeVR-Setup.exe,
   QuakeVR.apk, latest.json, SHA256SUMS.txt; online check passed; Latest still v1.1.0. The tag is on 03d582e2f (this
   notes commit comes after it).
+## questrelaunch: the Quest's "stuck loading screen" on relaunch and entering the hub; quit bounded; data version stamp (branch agent/questrelaunch, 2026-11-25)
+
+The report (festivethunk, Quest standalone, beta3-5): no relaunch after closing it, stuck on the app loading screen; an
+"infinite load" going to the hub in-game; it ran on a fresh install, then not on re-opening.
+- **Cause (headset, Quest 3, unworn, `-unattended`)**: the hub's first load after vrstart.bsp changes (every update)
+  compiles its world collision trees (vr_hull, cache/hulls keyed by the map's content): **42-56 s** on the Quest 3, ~75-80 s
+  of load in all with the cold model loads, and **no frames** meanwhile: at a start the VR session isn't up yet (it starts
+  after the configs' frame, the hub loads inside it) and in-game the main thread blocks in vr_hull `settle()`, so the
+  headset shows Meta's loading dots (screencap). The first start goes to the tutorial; the second ("re-open") to the hub:
+  the long wait. Closed mid-compile, nothing is cached, so every relaunch waits again. Once cached the hub loads in
+  12-14 s.
+- **Fix 1, the loading panel during the wait** (`vr_load_panel` 1, new): `settle()` polls the trees' futures (with a pool;
+  the old blocking gets otherwise) and after 1 s pumps a loading-panel frame each poll (vr_shaderload.cpp
+  `VR_MapLoadingFrame`: "Preparing vrstart: n / 6", a bar, "Its collision is built once for this version", seconds; the
+  shader panel's image code shared). At a start the session is started for it (`qvr::startForLoading`, as the shader
+  compile does; settled after the configs as before); in game the host frame's open frame is ended by it
+  (`qvr::loadingFrameBegin`), the rest of that host frame draws no views (frameActive false). No frame reached the
+  headset (asleep, a mock backend): 10 ms sleeps, no busy loop. Headset: start cold 40.5-40.9 s, 1794-1873 panel frames
+  (1088-1131 in the headset; "the VR session started early for it"); in game (e1m1 then `vr_campaign_hub`) 43.8 s, 2453
+  frames (2279 shown); compile time unchanged (42.6 s before). PC: in a mock-VR game 7.5 s, 416 frames; a test run's
+  script map before the backend starts: unchanged (no pump).
+- **Fix 2, the quit bounded on Android** (vr_android.cpp `VR_AndroidQuitBound`, called in Host_Shutdown once the config
+  is written): the Quest's close (HOME/the system menu) destroys the activity; SDLActivity.onDestroy waits for the game's
+  thread. After a pause (headset asleep) the sound's close (SDL's AAudio) took 3.6 s to over 10 s, and the system killed it
+  at 10 s (destroyTimeout). A watchdog now ends the process 2.5 s on ("quit: the shutdown took too long"). The quit's
+  stages go to logcat (`quit: <stage> done`; "history, music, sound" and "input" split).
+- **Close/relaunch cycles (fixed build)**: HOME while asleep x4 (process gone at 2.5 s, relaunch 1-4 s later loads the hub),
+  task removal x3 (killed at once), force-stop + relaunch x5, a relaunch into a live backgrounded process (resumed,
+  session READY): every relaunch reached the hub. Before: the same, but HOME-closes took 4-10 s to end the process.
+- **Fix 3, the data's version stamp**: Setup already copies every file that differs (size, then MD5), but nothing tied the
+  APK to the data: Setup takes `--apk`, a QuakeVR.apk beside it, or the feed's latest, while the files come from the PC
+  install (any version); a sideloaded APK skips Setup. Seen here: new progs with old data, the hub's `Host_Error:
+  Mod_LoadModel: progs/v_spear.mdl not found` (the console in a black void). Setup's plan (QuestFiles.cs) now adds
+  `quakevr/data_version.txt` (the install record's version); the game (`VR_AndroidDataCheck`, Host_Init) compares its
+  first word, "-dev" dropped, with `VR_Version()`: a mismatch is a console warning ("The game data on the Quest is from
+  Quake VR X; this app is Y. Run Setup's Quest step again ..."), said again under any Host_Error, and centre-printed once
+  in the game (vr_progs.cpp loadNoticeFrame). No stamp: nothing said. Headset: stamp 1.2.0-beta3 with beta2's progs.dat:
+  the warning and the centre print; 1.2.0-beta5: "game data: version 1.2.0-beta5, the app's". Installer self-tests 60/60
+  (the plan test checks the stamp).
+- **His ask (a start without the hub)**: no setting starts VR without the hub: `startGameCommands` loads the calibration
+  room, the tutorial or vrstart whenever VR is on (only the PC's `-nostartmap` skips it). Not built: with the panel the
+  first hub load shows its progress, and later loads take 12-14 s.
+- Open: the first hub load after an update still takes ~45 s on a Quest 3 (shipping the compiled trees, the same bytes on
+  PC and Quest, would remove it); the model loads (~12 s cold) still show no frames.

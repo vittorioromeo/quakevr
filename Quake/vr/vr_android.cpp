@@ -24,6 +24,10 @@
 #ifdef __ANDROID__
 #include <SDL_system.h>
 #include <android/log.h>
+#include <unistd.h>
+
+#include "Zancle/Chrono/Time.hpp"
+#include "Zancle/Concurrency/Thread.hpp"
 #endif
 
 namespace
@@ -435,6 +439,108 @@ extern "C" int VR_Android(void)
 extern "C" void VR_AndroidLog(const char* text)
 {
     logText(text);
+}
+
+// A quit's shutdown bounded (Host_Shutdown, once the config is written; the activity's destroy sends SDL_QUIT, and SDLActivity.onDestroy's UI thread waits
+// for the game's thread to end). Seen on a Quest 3 (questrelaunch): closed after a pause (the headset off the head,
+// asleep), the sound's close (SDL's AAudio stream) took 3.6 s to over 10 s, and the system kills an activity whose destroy
+// takes 10 s (destroyTimeout) while a relaunch waits on it. The config and the save on quit are written in the shutdown's
+// first milliseconds (logcat's "quit: ... done" lines): past quitBoundMs the process ends where it is.
+extern "C" void VR_AndroidQuitBound(void)
+{
+#ifdef __ANDROID__
+    static constexpr int quitBoundMs = 2500;
+    za::Thread{[] {
+        za::ThisThread::sleepFor(za::milliseconds(quitBoundMs));
+        os::log("quit: the shutdown took too long (the sound's or the session's close): the process ends now", true);
+        _exit(0);
+    }}.detach();
+#endif
+}
+
+// The game data's version stamp (questrelaunch): Setup's Quest step copies quakevr/data_version.txt (the PC install's
+// version: QuestFiles.cs) with the files. An app of another version (a newer APK sideloaded, an older install's files
+// copied, a copy cut short) meets maps, models or game code that are not its own: a hub that fails to load ("progs/
+// v_spear.mdl not found": the console in a black void) or misbehaves. Said in the console at start, again under a
+// Host_Error, and centre-printed once in the game. No stamp (a developer's adb push, an older Setup): nothing said.
+namespace
+{
+struct DataVersion
+{
+    char data[64]{};        // the stamp's version (empty: no stamp)
+    bool mismatch = false;  // not the app's
+    bool noticeShown = false;
+};
+DataVersion dataVersion;
+
+// A version as compared: its first word (a development package's "1.2.0-beta5-dev (date commit)"), a development
+// build's "-dev" dropped.
+void normalVersion(const char* in, char* out, za::SizeT size)
+{
+    while(*in == ' ' || *in == '\t' || *in == '\r' || *in == '\n' || *in == '\xef' || *in == '\xbb' || *in == '\xbf')
+    {
+        ++in; // (a UTF-8 byte-order mark too)
+    }
+    q_strlcpy(out, in, size);
+    za::SizeT n = 0;
+    while(out[n] && out[n] != ' ' && out[n] != '\t' && out[n] != '\r' && out[n] != '\n')
+    {
+        ++n;
+    }
+    out[n] = '\0';
+    if(n > 4 && !ZA_STRCMP(out + n - 4, "-dev"))
+    {
+        out[n - 4] = '\0';
+    }
+}
+} // namespace
+
+extern "C" void VR_AndroidDataCheck(void)
+{
+    dataVersion = DataVersion{};
+    if(!android.on)
+    {
+        return;
+    }
+    za::String text;
+    if(!qvr::files::readText(va("%s/quakevr/data_version.txt", android.base), text))
+    {
+        Con_DPrintf("game data: no version stamp (quakevr/data_version.txt: copied by Setup's Quest step)\n");
+        return;
+    }
+    char app[64];
+    normalVersion(text.cStr(), dataVersion.data, sizeof(dataVersion.data));
+    normalVersion(VR_Version(), app, sizeof(app));
+    dataVersion.mismatch = dataVersion.data[0] && q_strcasecmp(dataVersion.data, app);
+    if(dataVersion.mismatch)
+    {
+        VR_AndroidDataNote();
+    }
+    else
+    {
+        Con_Printf("game data: version %s, the app's\n", dataVersion.data);
+    }
+}
+
+extern "C" void VR_AndroidDataNote(void)
+{
+    if(dataVersion.mismatch)
+    {
+        Con_Warning("The game data on the Quest is from Quake VR %s; this app is %s. Run Setup's Quest step again (it "
+                    "copies this version's files), or install the app of the data's version.\n",
+            dataVersion.data, VR_Version());
+    }
+}
+
+extern "C" const char* VR_AndroidDataNotice(void)
+{
+    if(!dataVersion.mismatch || dataVersion.noticeShown)
+    {
+        return nullptr;
+    }
+    dataVersion.noticeShown = true;
+    return va("The game data on the Quest is from %s\nthis app is %s: run Setup's\nQuest step again", dataVersion.data,
+        VR_Version());
 }
 
 extern "C" int VR_AndroidFirstRun(void)

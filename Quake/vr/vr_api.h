@@ -307,6 +307,9 @@ void VR_ProgCacheAdd (unsigned long long key, unsigned format, const void *data,
 void VR_ProgCacheEnd (void); // GL_CreateShaders' end: the pack written when one was added (later adds: at once)
 void VR_ProgCacheFlush (void); // GL_ShadersPump: a queued set's programs done so far written (every few seconds)
 void VR_ShadersLoaded (int programs, int frames, double ms, double maxwork, double maxgap); // GL_ShadersPump: a queued set done (vr_shaderload.cpp: its trace mark, the test's verdict)
+int VR_MapLoadingWanted (void); // vr_hull.cpp settle: the loading panel can show during the map load's wait (vr_load_panel; VR running or the start's first frame)
+int VR_MapLoadingFrame (const char *map, int done, int total, double seconds); // ... one frame of it (nonzero: shown, the runtime waited on; vr_shaderload.cpp)
+void VR_MapLoadingDone (const char *map, double seconds); // ... the wait over: its frames said (console)
 int VR_ShadersLoadingFrame (void); // host.c, SCR_UpdateScreen: while the shaders are queued, the set pumped and (still pending: nonzero) the loading panel's frame (vr_shaderload.cpp)
 void VR_ProgCacheCounts (int *hits, int *misses); // the last batch's programs given back / compiled
 unsigned long long VR_GLShaderHash (unsigned long long h, int count, const char *const *strings); // vr_glsafe.cpp: the text VR_GLShaderSource gives the driver
@@ -410,6 +413,10 @@ void VR_GLSafeInit (void);	// VR_Init: vr_glsafe_retry, vr_glsafe_status, vr_gle
 void VR_GLESInstallForms (void);	// GL_Init, the functions loaded: -glescompat: glMultiDrawElementsIndirect as a glDrawElementsIndirect loop
 const char *VR_AndroidStart (int argc, char **argv);	// main, first: on Android (or -fakeandroid on the PC) the base folder and the crash reports' folder (<base>/quakevr/crash; the handler: vr_crash.cpp's); the base folder to use, or NULL (vr_android.cpp; QUEST_PLAN.md C2c, C3)
 int VR_Android (void);	// nonzero: an Android build, or the PC's fake-Android mode (-fakeandroid, QVR_FAKE_ANDROID)
+void VR_AndroidDataCheck (void);	// Host_Init: the game data's version stamp (quakevr/data_version.txt, Setup's) against the app's, a warning if not (vr_android.cpp)
+void VR_AndroidDataNote (void);	// ... that warning again (Host_Error: missing files are its likely cause)
+const char *VR_AndroidDataNotice (void);	// ... its centre print, once (null: none; vr_progs.cpp loadNoticeFrame)
+void VR_AndroidQuitBound (void);	// Host_Shutdown on Android, once the config and the save are written: the rest bounded (a watchdog ends the process 2.5 s on: vr_android.cpp)
 void VR_AndroidLog (const char *text);	// Sys_Printf on Android: the console's text into logcat, a line a message (vr_android.cpp)
 int VR_AndroidFirstRun (void);	// Host_Init's end: nonzero on Android's first run (no config in the game folder yet): vr_standalone_preset 0 follows quake.rc
 int VR_HideMirror (void);	// nonzero: -hidemirror (old name -vr-hide-mirror): no desktop window, always "focused" (a standalone headset's, the Steam Frame's; vr_main.cpp)

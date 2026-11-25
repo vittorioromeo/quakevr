@@ -1062,8 +1062,18 @@ void qvr::progs::loadNoticeFrame()
 {
     // (the loaded game's player in it: the save's warning where it is seen; or the game code's, checkGameCode)
     za::String& notice = !saveInfo.notice.empty() ? saveInfo.notice : gameCodeNotice;
-    if(notice.empty() || svs.maxclients < 1 || !svs.clients[0].spawned)
+    if(svs.maxclients < 1 || !svs.clients[0].spawned)
     {
+        return;
+    }
+    if(notice.empty())
+    {
+        // (else the Quest's game data from another version, once: vr_android.cpp)
+        if(const char* data = VR_AndroidDataNotice())
+        {
+            MSG_WriteByte(&svs.clients[0].message, svc_centerprint);
+            MSG_WriteString(&svs.clients[0].message, data);
+        }
         return;
     }
     MSG_WriteByte(&svs.clients[0].message, svc_centerprint);
