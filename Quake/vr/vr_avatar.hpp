@@ -196,6 +196,9 @@ struct ForearmFrame
 // The stretch the arm of `hand` took to reach its drawn wrist, as last solved: 1 none, up to vr_body_arm_stretch (or the
 // blade's, or a flat spear thrust's vr_flat_thrust_arm_stretch).
 [[nodiscard]] float armStretched(int hand);
+// (climbfix) How far (world units) the drawn hand's wrist is from the end of its drawn arm, as last solved for your own body:
+// 0 while the arm reaches it; past all of the arm's reach (stretch, shoulder, soft reach) the hand shows off the wrist.
+[[nodiscard]] float armWristGap(int hand);
 
 // A body build's proportions (vr_body_build: 0 lean, 1 athletic, 2 brawny, 3 feminine; make_vrbody.py's BUILDS), for
 // what is fitted to the body: the factors are 1 for the athletic build, and multiply the engine's athletic numbers.

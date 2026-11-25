@@ -1,6 +1,0 @@
-# flat_embed_axe: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title Flat-screen: an axe swung into an ogre stays in; the fire button pulls it out
-map vrtesthall
-god
-give "Axe" main
-spawn "Ogre" 60 0

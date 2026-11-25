@@ -4518,6 +4518,7 @@ vr_flat_rope_keys|2|Tunables|Rope Keys By Look|Advanced VR Options > Debug > Tun
 vr_flat_rope_climb_pitch|2|Tunables|Rope Climb Pitch|Advanced VR Options > Debug > Tunables > Rope Climb Pitch
 vr_flat_rope_retake|2|Tunables|Rope Retake Time|Advanced VR Options > Debug > Tunables > Rope Retake Time
 vr_flat_rope_slide_speed|2|Tunables|Rope Slide Speed|Advanced VR Options > Debug > Tunables > Rope Slide Speed
+vr_flat_rope_slide_hands_in|2|Tunables|Rope Slide: Hands In|Advanced VR Options > Debug > Tunables > Rope Slide: Hands In
 vr_flat_rope_slide_lock|2|Tunables|Rope Slide: Hands Locked|Advanced VR Options > Debug > Tunables > Rope Slide: Hands Locked
 vr_flat_ladder_reach|2|Tunables|Ladder Reach|Advanced VR Options > Debug > Tunables > Ladder Reach
 vr_flat_hand_collide|2|Tunables|Wall: Empty Hands And Swings|Advanced VR Options > Debug > Tunables > Wall: Empty Hands And Swings
@@ -4780,6 +4781,8 @@ vr_flat_sway|2|Tunables|Move Sway|Advanced VR Options > Debug > Tunables > Move 
 vr_flat_bob|2|Tunables|Walk Bob|Advanced VR Options > Debug > Tunables > Walk Bob
 vr_flat_body_bob|2|Tunables|Body Rides View Bob|Advanced VR Options > Debug > Tunables > Body Rides View Bob
 vr_flat_ads_sway|2|Tunables|Ironsight Sway|Advanced VR Options > Debug > Tunables > Ironsight Sway
+vr_flat_ads_sway_side|2|Tunables|Aim Sway Horizontal|Advanced VR Options > Debug > Tunables > Aim Sway Horizontal
+vr_flat_ads_sway_up|2|Tunables|Aim Sway Vertical|Advanced VR Options > Debug > Tunables > Aim Sway Vertical
 vr_flat_ads_bob|2|Tunables|Ironsight Bob|Advanced VR Options > Debug > Tunables > Ironsight Bob
 vr_flat_bob_fwd|2|Tunables|Walk Bob Forward|Advanced VR Options > Debug > Tunables > Walk Bob Forward
 vr_flat_ads_bob_fwd|2|Tunables|Ironsight Bob Forward|Advanced VR Options > Debug > Tunables > Ironsight Bob Forward
@@ -5054,6 +5057,7 @@ vr_revgrip_blocked_pulse|2|Tunables|Refused Flip Pulse|Advanced VR Options > Deb
 vr_revgrip_2h_mirror|2|Tunables|Reversed Two-Handed Hand|Advanced VR Options > Debug > Tunables > Reversed Two-Handed Hand
 vr_rope_thumb_wrap|2|Tunables|Rope Thumb Wrap Thickness|Advanced VR Options > Debug > Tunables > Rope Thumb Wrap Thickness
 vr_rope_hand_pitch|2|Tunables|Rope Grip Knuckles Up|Advanced VR Options > Debug > Tunables > Rope Grip Knuckles Up
+vr_rope_elbow_wide|2|Tunables|Rope Climb Elbows Wide|Advanced VR Options > Debug > Tunables > Rope Climb Elbows Wide
 vr_rope_elbow_out|2|Tunables|Rope Climb Elbows Out|Advanced VR Options > Debug > Tunables > Rope Climb Elbows Out
 vr_pole_grunt|2|Tunables|Pole Pull Grunt|Advanced VR Options > Debug > Tunables > Pole Pull Grunt
 vr_rope_letgo_pass|2|Tunables|Rope Let-Go Pass Time|Advanced VR Options > Debug > Tunables > Rope Let-Go Pass Time
