@@ -2417,6 +2417,8 @@ QVR_TUNABLE(vr_flat_sway, "1") // the drawn hands' sway as he starts, stops, jum
 QVR_TUNABLE(vr_flat_bob, "1") // the drawn hands' bob on a walk, with his speed, and the breathing at rest (0..3); 0 none
 QVR_TUNABLE(vr_flat_body_bob, "1") // the drawn body and hands ride this share of the view's own move (the walk's bob, a step's easing) together (0..1; 1: all, locked to the view; less: they move on the screen as one); sighted, all
 QVR_TUNABLE(vr_flat_ads_sway, "0.15") // the ironsight keeps this share of the hands' sway (0..1; 0: none, the sights exact while moving)
+QVR_TUNABLE(vr_flat_ads_sway_side, "0.3") // aiming (ironsight or a zoom gun alike, eased with the aim's travel), the hands' sideways and fore-aft sway and the turn lag's yaw keep this share (0..1; 1: as hipfire); on an ironsight on top of vr_flat_ads_sway
+QVR_TUNABLE(vr_flat_ads_sway_up, "0.3") // and their up and down sway and the turn lag's pitch (0..1)
 QVR_TUNABLE(vr_flat_ads_bob, "0.15") // and this share of the walk's bob (0..1); no breathing sighted, so at rest the sights stay exact
 QVR_TUNABLE(vr_flat_bob_fwd, "1") // the drawn body, arms and gun bob forward and back on a walk, in step with it, along the view's forward, pitch included (0..3; 1: 0.6 units each way at a run); 0 none. Separate from vr_flat_bob
 QVR_TUNABLE(vr_flat_ads_bob_fwd, "0.15") // sighted, this share of it (0..1)
