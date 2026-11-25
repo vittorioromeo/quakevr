@@ -9,6 +9,9 @@
 [New: not yet sorted]
 Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
 On e2m4's lifts, a grunt never stands under a raised lift and the lift never bounces back up on it as you ride it up and down. {test:nav_shaft_e2m4}
+Flat-screen: hold the right mouse button with the shotgun, then with the grenade launcher, and strafe, jump and turn: the gun sways and trails the turn far less than at the hip, the zooming launcher too; tune it in Debug > Tunables > Flatscreen > Looks, Aim Sway Horizontal and Aim Sway Vertical (0.3 each; 1 as at the hip). {test:flat_aim_sway}
+Flat-screen: at the test hall's setting buttons, Turning, Swap Sticks, Teleport, Weapon Grip, Gadget Arm, Flashlight Side, World Scale and HUD show "VR only" in grey and pressing one changes nothing, while Run, Climbing, Body and Crosshair still step and show their value. {test:flat_vronly_buttons}
+Flat-screen: with Show Melee Arcs and Show Aim Cones on, let the sword and axe grunts come at you: their floor arcs, their swinging blades' fading trails and the red marks where a blow lands are drawn on the screen. {test:agrunt_melee_arcs}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
