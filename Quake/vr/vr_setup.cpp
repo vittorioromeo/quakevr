@@ -6,6 +6,7 @@
 #include "vr_config.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_gameplaypresets.hpp"
 #include "vr_hands.hpp"
 #include "vr_holstersetup.hpp"
@@ -57,22 +58,26 @@ struct Option
     const char* cvar;
     Preset presets[4];
     int count;
+    // The headset's only (the controllers' turning, sticks and grip, the wrist gadget, the worn flashlight's side, the
+    // standing or seated body, the world's scale): nothing on the flat screen reads it. In flatscreen play its button
+    // changes nothing and its screen says "VR only", greyed (option_f, drawOptionScreens; his ask 2026-11-25).
+    bool vrOnly{false};
 };
 
 constexpr Option options[] = {
-    {"turning", "Turning", "vr_snap_turn", {{0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"}}, 4},
-    {"turnspeed", "Smooth Turn Speed", "vr_turn_speed", {{2.f, "Slow"}, {3.25f, "Normal"}, {5.f, "Fast"}}, 3},
-    {"movedir", "Move Towards", "vr_movement_mode", {{1.f, "Head"}, {0.f, "Hand"}}, 2},
-    {"sticks", "Swap Stick Functions", "vr_stick_swap", {{0.f, "Left moves"}, {1.f, "Right moves"}}, 2},
+    {"turning", "Turning", "vr_snap_turn", {{0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"}}, 4, true},
+    {"turnspeed", "Smooth Turn Speed", "vr_turn_speed", {{2.f, "Slow"}, {3.25f, "Normal"}, {5.f, "Fast"}}, 3, true},
+    {"movedir", "Move Towards", "vr_movement_mode", {{1.f, "Head"}, {0.f, "Hand"}}, 2, true},
+    {"sticks", "Swap Stick Functions", "vr_stick_swap", {{0.f, "Left moves"}, {1.f, "Right moves"}}, 2, true},
     {"run", "Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}, 2},
-    {"teleport", "Teleport", "vr_teleport_enabled", {{0.f, "Off"}, {1.f, "Bound Button"}, {2.f, "Smooth + Teleport"}}, 3},
-    {"grip", "Weapon Grip", "vr_weapon_grip_mode", {{0.f, "Hold"}, {1.f, "Sticky"}}, 2},
-    {"gadget", "Wrist Gadget Arm", "vr_gadget_arm", {{0.f, "Left"}, {1.f, "Right"}}, 2},
-    {"torch", "Flashlight Side", "vr_flashlight_side", {{0.f, "Left"}, {1.f, "Right"}}, 2},
-    {"position", "Position", "vr_bodycal_seated", {{0.f, "Standing"}, {1.f, "Seated"}}, 2},
-    {"scale", "World Scale", "vr_world_scale", {{1.f, "1.00: world larger"}, {1.2f, "1.20: normal"}, {1.5f, "1.50: world smaller"}}, 3},
+    {"teleport", "Teleport", "vr_teleport_enabled", {{0.f, "Off"}, {1.f, "Bound Button"}, {2.f, "Smooth + Teleport"}}, 3, true},
+    {"grip", "Weapon Grip", "vr_weapon_grip_mode", {{0.f, "Hold"}, {1.f, "Sticky"}}, 2, true},
+    {"gadget", "Wrist Gadget Arm", "vr_gadget_arm", {{0.f, "Left"}, {1.f, "Right"}}, 2, true},
+    {"torch", "Flashlight Side", "vr_flashlight_side", {{0.f, "Left"}, {1.f, "Right"}}, 2, true},
+    {"position", "Position", "vr_bodycal_seated", {{0.f, "Standing"}, {1.f, "Seated"}}, 2, true},
+    {"scale", "World Scale", "vr_world_scale", {{1.f, "1.00: world larger"}, {1.2f, "1.20: normal"}, {1.5f, "1.50: world smaller"}}, 3, true},
     {"body", "Body", "vr_body_mode", {{0.f, "Off"}, {2.f, "Torso and Arms"}, {3.f, "Full Body"}}, 3},
-    {"hud", "HUD", "vr_hud_mode", {{1.f, "Wrist Gadget"}, {0.f, "Status Bar"}}, 2},
+    {"hud", "HUD", "vr_hud_mode", {{1.f, "Wrist Gadget"}, {0.f, "Status Bar"}}, 2, true},
     {"crosshair", "Crosshair", "vr_crosshair", {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft Laser"}}, 4},
     {"climb", "Climbing", "vr_climb", {{1.f, "On"}, {0.f, "Off"}}, 2},
     {"swim", "Swimming", "vr_swim", {{1.f, "Immersive"}, {0.f, "Vanilla"}}, 2},
@@ -85,6 +90,9 @@ constexpr Option options[] = {
     // presets' My Settings back. vr_classic_quake shows whether the settings match it (syncOption, before each read).
     {"classic", "Classic Quake", "vr_classic_quake", {{1.f, "On"}, {0.f, "Off: your settings"}}, 2},
 };
+
+// The headset-only settings' screens drawn greyed last frame (flatscreen play: drawOptionScreens), for vr_setup_option list.
+int greyedScreensDrawn = 0;
 
 // The option's cvar as the settings are now (Classic Quake's is a state of three presets, not a saved setting).
 void syncOption(const Option& o)
@@ -131,9 +139,11 @@ void option_f()
             syncOption(o);
             const cvar_t* var = Cvar_FindVar(o.cvar);
             const int at = var ? currentPreset(o, *var) : -1;
-            Con_Printf("  %-10s %s (%s %s): %s\n", o.key, o.label, o.cvar, var ? var->string : "?",
-                at >= 0 ? o.presets[at].name : "custom");
+            Con_Printf("  %-10s %s (%s %s): %s%s\n", o.key, o.label, o.cvar, var ? var->string : "?",
+                at >= 0 ? o.presets[at].name : "custom", o.vrOnly ? " [VR only]" : "");
         }
+        Con_Printf("vr_setup_option: flatscreen play %d, VR-only screens greyed last frame %d\n", flatplay::active() ? 1 : 0,
+            greyedScreensDrawn);
         return;
     }
     const Option* o = findOption(Cmd_Argv(1));
@@ -141,6 +151,11 @@ void option_f()
     if(!o || !var)
     {
         Con_Printf("vr_setup_option: no setting \"%s\" (vr_setup_option list)\n", Cmd_Argv(1));
+        return;
+    }
+    if(o->vrOnly && flatplay::active())
+    {
+        Con_Printf("%s: VR only, no effect on the flat screen (unchanged: %s)\n", o->label, var->string);
         return;
     }
     syncOption(*o);
@@ -197,10 +212,13 @@ void listOptionScreens()
 // The value screen above each of the map's setting buttons (the server's edicts: a local game).
 void drawOptionScreens()
 {
-    if(!sv.active || !sv.worldmodel || cls.state != ca_connected || !vrActive())
+    greyedScreensDrawn = 0;
+    if(!sv.active || !sv.worldmodel || cls.state != ca_connected || (!vrActive() && !flatplay::active()))
     {
         return;
     }
+    const bool flat = flatplay::active();
+    int greyedScreens = 0;
     qcvm_t* const old = qcvm;
     if(old != &sv.qcvm)
     {
@@ -291,7 +309,9 @@ void drawOptionScreens()
         }
         syncOption(*o);
         const int at = currentPreset(*o, *var);
-        const char* text = at >= 0 ? o->presets[at].name : va("custom: %s", var->string);
+        // (A headset-only setting in flatscreen play: greyed, its button does nothing: option_f.)
+        const bool greyed = flat && o->vrOnly;
+        const char* text = greyed ? "VR only" : at >= 0 ? o->presets[at].name : va("custom: %s", var->string);
         // Above the button at rest, just off the panel it is set in (it is pushed along movedir, into the panel): still
         // while it is pressed.
         glm::vec3 lo, hi;
@@ -300,8 +320,11 @@ void drawOptionScreens()
         const glm::vec3 centre = 0.5f * (lo + hi);
         const glm::vec3 at3 = centre + glm::vec3{0.f, 0.f, 0.5f * (hi.z - lo.z) + overTop(e, 9.f)} + dir * 2.f;
         const float yaw = glm::degrees(za::atan2(dir.y, dir.x));
-        text3d::queue(text, at3, glm::vec3{0.f, yaw, 0.f}, text3d::Align::Centre, 0.3f, true);
+        constexpr glm::vec3 grey{0.4f, 0.4f, 0.4f};
+        text3d::queue(text, at3, glm::vec3{0.f, yaw, 0.f}, text3d::Align::Centre, 0.3f, true, greyed ? &grey : nullptr);
+        greyedScreens += greyed ? 1 : 0;
     }
+    greyedScreensDrawn = greyedScreens;
     if(old != &sv.qcvm)
     {
         PR_SwitchQCVM(nullptr);
