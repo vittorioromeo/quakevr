@@ -1842,6 +1842,8 @@ float cvarh_vr_selfshot;
 float cvarh_vr_selfshot_damage;
 float cvarh_vr_selfshot_debug;
 float cvarh_vr_selfshot_test;
+float cvarh_vr_shaft;
+float cvarh_vr_shaft_margin;
 float cvarh_vr_shock_burns;
 float cvarh_vr_shock_death;
 float cvarh_vr_shock_death_time;
@@ -4022,6 +4024,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_selfshot_damage = VR_CVar_Make("vr_selfshot_damage");
     cvarh_vr_selfshot_debug = VR_CVar_Make("vr_selfshot_debug");
     cvarh_vr_selfshot_test = VR_CVar_Make("vr_selfshot_test");
+    cvarh_vr_shaft = VR_CVar_Make("vr_shaft");
+    cvarh_vr_shaft_margin = VR_CVar_Make("vr_shaft_margin");
     cvarh_vr_shock_burns = VR_CVar_Make("vr_shock_burns");
     cvarh_vr_shock_death = VR_CVar_Make("vr_shock_death");
     cvarh_vr_shock_death_time = VR_CVar_Make("vr_shock_death_time");

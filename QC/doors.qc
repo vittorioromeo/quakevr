@@ -30,6 +30,7 @@ THINK FUNCTIONS
 
 void() door_blocked =
 {
+    VR_Shaft_Blocked(other); // QVR: a monster in the way walks out of a lift door's shaft (vr_ai_props.qc); the bounce is Quake's
     T_Damage(other, self, self, self.dmg);
     if(MG_WorldCampaign() && (self.spawnflags & 64)) return; // Authored crusher, not Honey trigger-on-end.
 

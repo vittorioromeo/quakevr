@@ -858,6 +858,18 @@ void(float dist) ai_walk =
     if(self.vr_ag && VR_AG_Idle()) // QVR: an unarmed armed grunt off to a weapon lying near, first (vr_armedgrunt.qc)
         return;
 
+    if(VR_Shaft_Leave(dist)) // QVR: out of a raised lift's shaft it has no reason to be in (vr_ai_props.qc)
+        return;
+    if(self.vr_shaft_walked) // QVR: put to its walk to leave a shaft from its stand: out, back to its stand
+    {
+        self.vr_shaft_walked = 0;
+        if(self.stl_state != STL_ALERT)
+        {
+            self.th_stand();
+            return;
+        }
+    }
+
     if(VR_Stealth_Walk(dist)) // QVR: Alert: walking to what it noticed, or back to its post (vr_stealth.qc)
         return;
 
@@ -887,6 +899,9 @@ void() ai_stand =
 
    if(FindTarget ())
       return;
+
+    if(VR_Shaft_Stand()) // QVR: standing in a raised lift's shaft for no reason: to its walk, out (vr_ai_props.qc)
+        return;
 
     if(self.vr_ag && VR_AG_Idle()) // QVR: an unarmed armed grunt off to a weapon lying near, first (vr_armedgrunt.qc)
         return;

@@ -216,8 +216,60 @@ float(float dist) VR_NAV_Step =
     return walkmove(yaw - side, dist);
 };
 
+// Lift shafts kept clear (vr_shaft, the engine's vr_navshaft.cpp; docs/vr-port/NAVMESH.md 24). A monster in a raised
+// lift's shaft with no reason there (its enemy or goal entity in it), or one that blocked a lift a moment ago, walks out
+// by the nearest open side (navshaft); TRUE: this step was that.
+float(float dist) VR_Shaft_Leave =
+{
+    if(dist <= 0 || !(self.flags & FL_MONSTER) || !(self.flags & FL_ONGROUND))
+    {
+        return FALSE;
+    }
+    float yaw = navshaft(self, time < self.vr_shaft_flee);
+    if(yaw < 0)
+    {
+        return FALSE;
+    }
+    self.ideal_yaw = yaw;
+    ChangeYaw();
+    if(walkmove(yaw, dist)) { return TRUE; }
+    if(walkmove(yaw + 45, dist)) { return TRUE; }
+    if(walkmove(yaw - 45, dist)) { return TRUE; }
+    if(walkmove(yaw + 90, dist)) { return TRUE; }
+    walkmove(yaw - 90, dist);
+    return TRUE;
+};
+
+// ai_stand: a monster standing in a raised lift's shaft with no reason there goes to its walk (ai_walk walks it out,
+// then puts it back to its stand). TRUE: it did.
+float() VR_Shaft_Stand =
+{
+    if(!(self.flags & FL_MONSTER) || !(self.flags & FL_ONGROUND) || !self.th_walk)
+    {
+        return FALSE;
+    }
+    if(navshaft(self, time < self.vr_shaft_flee) < 0)
+    {
+        return FALSE;
+    }
+    self.vr_shaft_walked = 1;
+    self.th_walk();
+    return TRUE;
+};
+
+// A mover blocked by xBlocker (plat_crush, door_blocked, train_blocked; Quake's bounce itself unchanged): a monster in
+// the way walks out of the shaft for a while, its reasons there (its enemy in it) set aside.
+void(entity xBlocker) VR_Shaft_Blocked =
+{
+    if((xBlocker.flags & FL_MONSTER) && xBlocker.health > 0 && cvar_hget(cvarh_vr_shaft))
+    {
+        xBlocker.vr_shaft_flee = time + 3;
+    }
+};
+
 void(float dist) VR_AI_MoveToGoal =
 {
+    if(VR_Shaft_Leave(dist)) { return; }
     if(VR_NAV_Step(dist)) { return; }
     if(self.stl_trail_gate != world && self.goalentity == self.stl_marker && self.stl_marker != world)
     {

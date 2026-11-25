@@ -398,7 +398,7 @@ entity(entity m, vector at) VR_Stealth_MarkerAt =
         m.stl_marker.think = VR_Stealth_MarkerThink;
         m.stl_marker.nextthink = time + 5;
     }
-    setorigin(m.stl_marker, at);
+    setorigin(m.stl_marker, navshaftclear(m, at)); // (never in a raised lift's shaft: at its edge, vr_navshaft.cpp)
     return m.stl_marker;
 };
 
@@ -1260,6 +1260,7 @@ float(float dist) VR_Stealth_WalkNow =
     // (a point beyond a teleporter: into the gate first, VR_Stealth_WayTo)
     float via = self.stl_phase == STL_WALK ? self.stl_via : self.stl_post_via;
     vector goal = VR_Stealth_WayTo(self.stl_phase == STL_WALK ? self.stl_point : self.stl_post, via);
+    goal = navshaftclear(self, goal); // (a point in a raised lift's shaft: walked to its edge, NAVMESH.md 24)
     vector to = goal - self.origin;
     to_z = 0;
     if(self.stl_phase == STL_RETURN && !via && self.stl_post_walk && (!cvar_hget(cvarh_vr_nav_alert) || vlen(to) < 64))

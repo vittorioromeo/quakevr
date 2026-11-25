@@ -56,6 +56,7 @@
 #include "vr_portals.hpp"
 #include "vr_nav.hpp"
 #include "vr_navfollow.hpp"
+#include "vr_navshaft.hpp"
 #include "vr_props.hpp"
 #include "vr_propthink.hpp"
 #include "vr_protocol.hpp"
@@ -1104,6 +1105,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"navobstacles", PF_navobstacles},
     {"navbot", PF_navbot},
     {"navreach", PF_navreach},
+    {"navshaft", PF_navshaft},
+    {"navshaftclear", PF_navshaftclear},
     {"bodyshock", PF_bodyshock},
     {"bodyshockdeath", PF_bodyshockdeath},
     {"collectfx", PF_collectfx},

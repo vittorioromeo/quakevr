@@ -13,7 +13,8 @@
 //   110-113 through seamless teleporters (vr_stealth_test3.qc);
 //   120-129 the notes of 2026-10-08: see-through walls, the hunt, props in the way (vr_stealth_test4.qc);
 //   130 the spread of an alarm on vralert: hurt, alerted, killed (vr_stealth_test5.qc);
-//   131 riders on a moving lift (e1m1's plats): the player and a grunt don't sink into it (vr_stealth_test6.qc).
+//   131 riders on a moving lift (e1m1's plats): the player and a grunt don't sink into it (vr_stealth_test6.qc);
+//   132 lift shafts kept clear (e1m1's first lift): investigate, fight, ride (vr_stealth_test7.qc).
 
 float stt2_step;
 float stt2_stage;
@@ -258,6 +259,7 @@ float(float i) VR_STT2_Kind =
 };
 
 void() VR_STT6_Start; // (vr_stealth_test6.qc)
+void() VR_STT7_Start; // (vr_stealth_test7.qc)
 
 void(float xAsk) VR_STT2_Start =
 {
@@ -272,12 +274,17 @@ void(float xAsk) VR_STT2_Start =
     {
         VR_STT6_Start();
     }
+    if(xAsk == 132)
+    {
+        VR_STT7_Start();
+    }
 };
 
 void() VR_STT3_Frame; // (vr_stealth_test3.qc: 110-113, through teleporters)
 void() VR_STT4_Frame; // (vr_stealth_test4.qc: 120-129, the notes of 2026-10-08)
 void() VR_STT5_Frame; // (vr_stealth_test5.qc: 130, the spread of an alarm on vralert)
 void() VR_STT6_Frame; // (vr_stealth_test6.qc: 131, riders on a moving lift, e1m1)
+void() VR_STT7_Frame; // (vr_stealth_test7.qc: 132, lift shafts kept clear, e1m1)
 
 void() VR_STT2_Frame =
 {
@@ -299,6 +306,11 @@ void() VR_STT2_Frame =
     if(stt2_step == 131)
     {
         VR_STT6_Frame();
+        return;
+    }
+    if(stt2_step == 132)
+    {
+        VR_STT7_Frame();
         return;
     }
     entity p = stt2_p;
