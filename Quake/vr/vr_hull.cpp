@@ -3833,7 +3833,8 @@ za::U64 diskSumOf(const za::Vector<mclipnode_t>& nodes, const za::Vector<mplane_
 struct DiskJob
 {
     int mode = 0;    // vr_hull_cache: 0 off, 1 read and write, 2 read, then compiled anyway and compared
-    za::String path; // its file
+    za::String path;    // its file
+    za::String shipped; // the shipped cache's file of the same name (read where `path` has none or one amiss), or ""
     za::U64 world = 0;
 };
 
@@ -3853,18 +3854,18 @@ DiskJob diskJob(const Tree& t, qmodel_t* world, za::U64 key = 0)
         static_cast<double>(t.ext.x), static_cast<double>(t.ext.y), static_cast<double>(t.ext.z));
     // (the folder made, the other builds' and the oldest files past the budget removed: once a session, vr_diskcache.cpp)
     d.path = diskcache::prepare(diskcache::Product::Hulls, diskBuild.cStr()) + name;
+    d.shipped = diskcache::shippedFileOf(diskcache::Product::Hulls, diskBuild.cStr(), name);
     return d;
 }
 
-// The world's tree read into t (a fresh tree, its heads sized) and checked; false: no file, or one amiss (t untouched).
-bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
+// The world's tree read from `path` into t (a fresh tree, its heads sized) and checked: 1 read, 0 no file, 2 one amiss
+// (t untouched).
+int diskReadAt(Tree& t, const DiskJob& d, const za::String& path, int& rebounded, double t0)
 {
-    const double t0 = Sys_DoubleTime();
-    FILE* in = Sys_fopen(d.path.cStr(), "rb");
+    FILE* in = Sys_fopen(path.cStr(), "rb");
     if(!in)
     {
-        diskcache::noteMiss(diskcache::Product::Hulls, "(the world's tree)");
-        return false;
+        return 0;
     }
     Sys_fseek(in, 0, SEEK_END);
     const qfileofs_t size = Sys_ftell(in);
@@ -3904,8 +3905,7 @@ bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
     {
         diskCounts.rejected.fetchAddSeqCst(1);
         diskcache::noteRejected(diskcache::Product::Hulls);
-        diskcache::noteMiss(diskcache::Product::Hulls, "(the world's tree, rejected)");
-        return false;
+        return 2;
     }
     diskcache::noteHit(diskcache::Product::Hulls, static_cast<za::SizeT>(size), Sys_DoubleTime() - t0);
     t.nodes = ZA_MOVE(nodes);
@@ -3917,7 +3917,25 @@ bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
     t.emptyLeaves = h.empty;
     rebounded = h.rebounded;
     checkpoint(t); // (as buildTree does for the world)
-    return true;
+    return 1;
+}
+
+// The world's tree read into t from the player's cache, else the shipped cache's file; false: neither (t untouched).
+bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
+{
+    const double t0 = Sys_DoubleTime();
+    const int own = diskReadAt(t, d, d.path, rebounded, t0);
+    if(own == 1)
+    {
+        return true;
+    }
+    if(!d.shipped.empty() && diskReadAt(t, d, d.shipped, rebounded, t0) == 1)
+    {
+        diskcache::noteShippedHit(diskcache::Product::Hulls);
+        return true;
+    }
+    diskcache::noteMiss(diskcache::Product::Hulls, own == 2 ? "(the world's tree, rejected)" : "(the world's tree)");
+    return false;
 }
 
 // The world's tree just compiled into t written (all its nodes and planes: the world's, nothing else built yet).
