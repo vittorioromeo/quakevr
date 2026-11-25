@@ -1034,7 +1034,9 @@ void() VR_AGTest_DualGuns =
         VR_AGT_PairCheck(WID_SHOTGUN, WID_ROCKET_LAUNCHER, FALSE);
         VR_AGT_PairCheck(WID_ROCKET_LAUNCHER, WID_SHOTGUN, FALSE);
         VR_AGT_PairCheck(WID_SHOTGUN, WID_CHAINSAW, FALSE);
-        VR_AGT_PairCheck(WID_SHOTGUN, WID_AXE, FALSE);
+        // (a gun and then a one-handed blade: both held since flat1116, fought as the replacements' gun and axe:
+        // VR_AM_ArmAll's vr_ag_gunaxe, the toolgun's gun+blade pairs; a blade and then a gun still not)
+        VR_AGT_PairCheck(WID_SHOTGUN, WID_AXE, TRUE);
         VR_AGT_PairCheck(WID_AXE, WID_SHOTGUN, FALSE);
         VR_AGT_PairCheck(WID_AXE, WID_SWORD, TRUE);
         // (the big weapons' flag itself: the packs' Mjolnir and Laser Cannon whether or not their data is here)

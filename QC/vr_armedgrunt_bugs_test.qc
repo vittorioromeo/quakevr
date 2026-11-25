@@ -94,8 +94,11 @@ void(float c) VR_AGBT_PickupBegin =
         else
         {
             VR_AG_Decode(wid); // (a code: the dagger's)
+            // (A low, flat toss that lands lying: a sword or a dagger tossed up in an arc came down point first and stuck
+            // in the floor (flatthrow2: a player's throw is his past vr_throw_self_grace; throwfix: point-first settling),
+            // and a blade stuck in the level is not one to take (VR_AG_FindWeapon: VR_AxeStick_Kept).)
             vr_agbt_src = CreateThrownWeapon(p, vr_ag_dec_wid, vr_ag_dec_flags, WeaponInst_New(VR_AG_ClipSize(vr_ag_dec_wid)),
-                p.origin + fw * 60 + '0 0 20', p.angles, fw * 160 + '0 0 120', '0 0 0', FALSE, FALSE,
+                p.origin + fw * 60 + '0 0 -16', p.angles, fw * 120, '0 0 0', FALSE, FALSE,
                 WeaponIdToThrowDamage(vr_ag_dec_wid));
         }
     }
@@ -155,13 +158,23 @@ void() VR_AGBT_Pickup =
         string want = fresh.vr_ag_prop.model;
         VR_AGT_Remove(fresh);
         float d = pr ? vlen(pr.origin - g.origin) : -1;
+        if(g.vr_ag_pickups <= vr_agbt_val && !kept)
+        {
+            entity s = vr_agbt_src;
+            string why = sprintf("pickup case %g: not taken: its source %s, fading %g, spared %g, shunned %g, %.0f off, ",
+                vr_agbt_case, s ? s.classname : "gone", s.vr_drop_fade, VR_EnemyWeapons_Spared(s), VR_AG_Shunned(g, s),
+                vlen(s.origin - g.origin));
+            why = strcat(why, sprintf("sought %g, enemy %s, knockdown %g, the weapon it seeks %s", g.vr_ag_seek == s,
+                g.enemy.classname, g.vr_knockdown, g.vr_ag_seek.classname));
+            VR_AGT_Print(strcat(why, sprintf(" (it at %v, the weapon at %v)", g.origin, s.origin)));
+        }
         VR_AG_Decode(wid);
         string what = sprintf("pickup %s %s %s: %g pickups, model %s", kind ? "enforcer" : "grunt",
             WeaponNameOf(vr_ag_dec_wid, vr_ag_dec_flags),
             VR_AGBT_Source(vr_agbt_srcn), g.vr_ag_pickups - vr_agbt_val,
             pr ? pr.model : "none"); // (sprintf: 8 values at most)
-        VR_AGT_Check(sprintf("%s (index %g, spawned %g), effects %g, alpha %g, %.0f from it:", what, pr.modelindex,
-            spawned, pr.effects, pr.alpha, d), pr && pr.modelindex > 0 && pr.modelindex == spawned && pr.model == want &&
+        VR_AGT_Check(sprintf("%s (index %g, spawned %g), effects %g, alpha %g, %.0f from it, the source stuck %g:", what,
+            pr.modelindex, spawned, pr.effects, pr.alpha, d, vr_agbt_src ? vr_agbt_src.vr_stick_kind : 0), pr && pr.modelindex > 0 && pr.modelindex == spawned && pr.model == want &&
             (pr.effects & VR_AG_EF_HELD) && (pr.alpha == 0 || pr.alpha >= 0.5) && d < 64 &&
             (g.vr_ag_pickups > vr_agbt_val || kept));
         if(vr_agbt_keep > 0)
