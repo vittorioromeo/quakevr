@@ -248,6 +248,10 @@ struct Pending
     double brushesBegan = 0.0;          // when build() started on its worker (its wait in the queue: the load's report)
     double brushesEnded = 0.0;          // and ended, the holes included
     bool kept = false;                  // the brushes (and the trees found) the last load's of the same map
+    // vr_hull_defer (loadprof2): from beforeLoad to afterLoad, only the standing player's tree is made with the load;
+    // the crouched, lying and monsters' trees are compiled after it, on the pool ("Trees compiled in play"), and a
+    // monster moves with Quake's hull meanwhile.
+    bool deferring = false;
 };
 
 inline Pending pending;
