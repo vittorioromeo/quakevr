@@ -3773,7 +3773,7 @@ void reportTree(const Tree& t, int rebounded)
 
 constexpr char diskMagic[4] = {'Q', 'V', 'R', 'H'};
 constexpr za::U32 diskVersion = 1;
-constexpr double diskMinMs = 250.0;
+constexpr double diskMinMs = 25.0; // (was 250, the PC's: e1m1's small trees took 600 ms on a Quest 3 at every load; loadprof)
 
 // The trees' compile version: BUMP IT whenever a change to the compile (growing, the units, speculate, merging, the
 // rebounding, their constants) could change the tree compiled for the same brushes and box. The disk folder is this,
@@ -3969,13 +3969,13 @@ void diskWrite(const Tree& t, const DiskJob& d, int rebounded)
 // whole of a warm load's hull time once the trees come from their files: vrstart's 10.8 s on a Quest 3 (holes 7.0,
 // clips 3.5; the PC 0.63 s), ad_sepulcher's 3.1 s. The same folder and setting as the trees (vr_hull_cache: 2 builds
 // anyway and compares), the file named by the world's key (keyOf: its nodes, planes, entities, the holes' settings and
-// buildVersion: everything build() reads), one written when its build took brushesDiskMinMs. Its bytes are the
+// buildVersion: everything build() reads), written for every map (brushesDiskMinMs). Its bytes are the
 // Brushes' every field build() sets but the hull 0 pointers (the world's, put back) and the timings; a file amiss is
 // built again and written over.
 
 constexpr char brushesMagic[4] = {'Q', 'V', 'H', 'B'};
 constexpr za::U32 brushesVersion = 1; // the file's layout (what build() makes: buildVersion, in the key)
-constexpr double brushesDiskMinMs = 20.0;
+constexpr double brushesDiskMinMs = 0.0; // (every map's: a small map's file is small, and the Quest takes 10x the PC's time)
 
 struct BrushesHeader
 {
@@ -4170,50 +4170,69 @@ DiskJob brushesJob(qmodel_t* world, za::U64 key)
     char name[48];
     snprintf(name, sizeof(name), "/%016llx.hbr", static_cast<unsigned long long>(key));
     d.path = diskcache::prepare(diskcache::Product::Hulls, diskBuild.cStr()) + name;
+    d.shipped = diskcache::shippedFileOf(diskcache::Product::Hulls, diskBuild.cStr(), name);
     return d;
 }
 
-// The map's brushes into b from their file, else built (and written when that took long enough); mode 2: built anyway
-// and compared. On the pool (the load's brushes job).
+// The map's brushes read from `path` into b and checked: 1 read, 0 no file, 2 one amiss (b then built again).
+int brushesReadAt(Brushes& b, const za::String& path, const qmodel_t* world, za::U64 key, za::SizeT& bytes)
+{
+    za::Vector<char> file;
+    if(path.empty() || !qvr::files::readBytes(path.cStr(), file))
+    {
+        return 0;
+    }
+    BrushesHeader h{};
+    bool ok = file.size() >= sizeof(h);
+    if(ok)
+    {
+        ZA_MEMCPY(&h, file.data(), sizeof(h));
+        ok = ZA_MEMCMP(h.magic, brushesMagic, 4) == 0 && h.version == brushesVersion && h.world == key &&
+             h.payload == file.size() - sizeof(h) &&
+             diskSum(file.data() + sizeof(h), static_cast<za::SizeT>(h.payload), diskSeed) == h.sum;
+    }
+    Brushes got; // (b untouched by a file amiss)
+    ok = ok && brushesFrom(got, file.data() + sizeof(h), static_cast<za::SizeT>(h.payload), world, key);
+    if(!ok)
+    {
+        return 2;
+    }
+    b = ZA_MOVE(got);
+    bytes = file.size();
+    return 1;
+}
+
+// The map's brushes into b from their file (the player's cache, else the shipped one), else built (and written when
+// that took long enough); mode 2: built anyway and compared. On the pool (the load's brushes job).
 void brushesFromDiskOrBuild(Brushes& b, qmodel_t* world, za::U64 key, const DiskJob& d)
 {
     if(d.mode != 0)
     {
         const double t0 = Sys_DoubleTime();
-        za::Vector<char> file;
-        if(!qvr::files::readBytes(d.path.cStr(), file))
+        za::SizeT bytes = 0;
+        const int own = brushesReadAt(b, d.path, world, key, bytes);
+        const bool shipped = own != 1 && brushesReadAt(b, d.shipped, world, key, bytes) == 1;
+        if(own == 1 || shipped)
         {
-            diskcache::noteMiss(diskcache::Product::Hulls, "(the map's brushes)");
-        }
-        else
-        {
-            BrushesHeader h{};
-            bool ok = file.size() >= sizeof(h);
-            if(ok)
+            latchHoleSettings(); // (the holes' settings, as addHoles leaves them: the census reads them)
+            b.ms = (Sys_DoubleTime() - t0) * 1000.0;
+            diskcache::noteHit(diskcache::Product::Hulls, bytes, Sys_DoubleTime() - t0);
+            if(shipped)
             {
-                ZA_MEMCPY(&h, file.data(), sizeof(h));
-                ok = ZA_MEMCMP(h.magic, brushesMagic, 4) == 0 && h.version == brushesVersion && h.world == key &&
-                     h.payload == file.size() - sizeof(h) &&
-                     diskSum(file.data() + sizeof(h), static_cast<za::SizeT>(h.payload), diskSeed) == h.sum;
+                diskcache::noteShippedHit(diskcache::Product::Hulls);
             }
-            ok = ok && brushesFrom(b, file.data() + sizeof(h), static_cast<za::SizeT>(h.payload), world, key);
-            if(ok)
+            if(d.mode == 2)
             {
-                latchHoleSettings(); // (the holes' settings, as addHoles leaves them: the census reads them)
-                b.ms = (Sys_DoubleTime() - t0) * 1000.0;
-                diskcache::noteHit(diskcache::Product::Hulls, file.size(), Sys_DoubleTime() - t0);
-                if(d.mode == 2)
-                {
-                    Brushes fresh;
-                    build(fresh, world, key);
-                    const za::Vector<char> made = brushesBytes(fresh), read = brushesBytes(b);
-                    const bool same = made.size() == read.size() && ZA_MEMCMP(made.data(), read.data(), made.size()) == 0;
-                    diskcache::noteChecked(diskcache::Product::Hulls, same, "(the map's brushes)");
-                }
-                return;
+                Brushes fresh;
+                build(fresh, world, key);
+                const za::Vector<char> made = brushesBytes(fresh), read = brushesBytes(b);
+                const bool same = made.size() == read.size() && ZA_MEMCMP(made.data(), read.data(), made.size()) == 0;
+                diskcache::noteChecked(diskcache::Product::Hulls, same, "(the map's brushes)");
             }
-            diskcache::noteRejected(diskcache::Product::Hulls);
+            return;
         }
+        (own == 2 ? diskcache::noteRejected(diskcache::Product::Hulls)
+                  : diskcache::noteMiss(diskcache::Product::Hulls, "(the map's brushes)"));
     }
     build(b, world, key);
     if(d.mode != 0 && b.ms + b.holeMs >= brushesDiskMinMs)

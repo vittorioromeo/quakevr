@@ -261,3 +261,71 @@ His ask: cache the collision hulls and other load-time work, as the shaders are.
   update or a fresh install (~75-80 s) should come near the cached load (12-14 s) plus the cold model loads.
 - Open: the release run itself (ReleaseLTO exe, `-QuakeDir`) is untested end to end here (the generator ran on the dev
   build with `--git-root`); the Quest's own keys (that its grid key matches) want one headset check.
+
+## loadprof: start-up and map loads measured (Quest 3 and PC); the map's hull brushes kept on disk (branch agent/loadprof, 2026-11-25)
+
+**Measured** with `vr_startup_times` (each load's stages and its "work across the stages"), Quest 3 (dev APK, `-O3`,
+unworn, `-unattended`, woken every 3 s) and PC (Release no-LTO, run.sh, fast mode; other agents' runs beside it: PC
+numbers are +-20 %). One session: the start into vrtutorial, then `map vrstart`, `map e1m1`, `game ad; map ad_sepulcher`.
+Cold: an empty `vr_cache_dir` (set by an exec'd cfg: `+vr_cache_dir` on the command line is too late) and, on the Quest,
+the GL program pack moved aside (`cache/programs_aside_lp_*`); warm: the same folder again. Medians in ms (runs).
+Scripts: posebake `scratch/lp_q.sh`, `lp_pc.sh`, `lp_table.py`.
+
+| load | Quest cold (2) | Quest warm (3) | PC cold (3) | PC warm (3) |
+|---|---|---|---|---|
+| start-up to the first frame (no map) | 32,200 | 3,300 | 2,200 | 2,200 |
+| vrtutorial | 15,400 | 7,800 | 6,050 | 3,550 |
+| vrstart (after vrtutorial) | 89,000 | **11,800** | 13,200 | 1,280 |
+| e1m1 (after vrstart) | 2,260 | 3,630 | 660 | 490 |
+| ad_sepulcher | 26,700 | 5,760 | 4,870 | 1,590 |
+
+Where it goes (the stages over ~400 ms):
+- **Start-up cold**: the GL programs, 100 compiled in 29-35 s on the Quest (with the shader panel; the pack makes
+  every later start ~1.9 s); PC 0.44 s.
+- **vrtutorial**: entities spawned (531 alias models: skins and normal maps, draw lists, md5 replacements, limb models):
+  Quest 10.4 s cold / 3.7 s warm, alias models 6.7 / 2.9 s, draw lists 4.2 / 0.8 s, textures 1.0 s; PC cold the
+  skins' normal maps made on jobs (15 s of job time), 4.7 s of spawn.
+- **vrstart cold**: the hull trees, 85 s waited on the Quest (8 trees of 0.8-1.0 M nodes: standing, crouch 36/44/52,
+  prone, monsters 24/28/40; PC 6.3 s), the PC's model light grid 5.7 s (not the Quest's preset).
+- **vrstart warm** (every session's hub): **the hull's brushes, 10.5 s waited on the Quest** (`build()`: 10.8 s, of
+  which holes 7.0 and clip brushes 3.5; the PC's 0.63 s), its 8 trees read in ~1 s.
+- **ad_sepulcher**: cold the trees 20 s (PC 2.1 s); warm the brushes 3.1 s (holes 2.2), ledges 0.9 s.
+- **e1m1 after vrstart**: "disconnect, old server shut down" 2.6 s warm on the Quest (PC 27-160 ms), and its small
+  trees compiled at every load (under the disk's 250 ms bar: 600 ms on the Quest).
+
+**Changes**
+1. **The map's brushes on disk** (vr_hull.cpp `brushesFromDiskOrBuild`): what `build()` makes (the walk of hull 0,
+   the recovered clip brushes, the holes) is written beside the trees as `hulls/<build>/<world key>.hbr` and read at
+   the next load instead of built. Key: `keyOf` (the world's nodes, planes, entity string, the holes' settings,
+   `buildVersion`): everything build() reads. File: magic, `brushesVersion`, key, a sum, then every field build()
+   sets but the hull 0 pointers (put back) and timings; amiss: built again and written over. The shipped cache is read
+   after the player's (`vr_cache_shipped`). `vr_hull_cache` as for the trees (2: built anyway, compared byte for byte:
+   `vr_cache_info` "checked"). Every map's is written (vrstart's ~10 MB; vrbrushholes' a few KB).
+2. **Trees written from 25 ms of compile** (was 250, the PC's bar): e1m1's small trees took 600 ms on the Quest
+   at every load.
+3. **The hull's load timing split** (`vr_startup_times`): the brushes' job queued, rebuilt (of which clips, holes),
+   the trees read and compiled (sums), the wait's end after the brushes.
+
+**After** (warm, medians of 3; the trees as before, the brushes from their file):
+
+| load | Quest before | Quest after | PC before | PC after |
+|---|---|---|---|---|
+| vrstart (the hub) | 11,800 | **2,390** | 1,280-1,400 | 830 |
+| e1m1 after vrstart | 3,630 | 1,830 | 490 | 480 |
+| ad_sepulcher | 5,760 | 4,540 | 1,590 | 1,170 |
+
+Quest vrstart: the brushes 10.8 s -> read; the hull no longer in the stages over 400 ms. PC: brushes 631 -> 56 ms,
+the hull wait 451 -> 0. (Change 2 measured on the PC only: e1m1's trees then read.)
+
+**Checked**: `vr_hull_cache 2` on vrstart and ad_sepulcher (cold, then read and rebuilt): `checked 15 same 0 differed`
+(13 trees, 2 brushes); `vr_hull_keeptest` on vrstart with the brushes read: PASS, brushes hash 8805c822 = fresh;
+`vr_hull_holes_test` on vrbrushholes, built then read: 29 passed, 0 failed both.
+
+**Next, with estimates** (not done):
+- vrstart's first load (prebuiltcache ships its trees and could ship `.hbr` too: the brushes are the same bytes on PC
+  and Quest; ~10 s of the Quest's first hub load). Other maps' cold trees: deferring the crouch/prone/monster trees
+  until after the first frame (monsters already fall back to Quake's hull, `vr_hull_async`; the crouch has no
+  fallback yet), ~7/8 of the cold wait (vrstart 85 -> ~12 s, ad_sepulcher 20 -> ~4 s on the Quest), a day's work.
+- Leaving vrstart on the Quest: "disconnect, old server shut down" 0.9 s after (2.6 before): not looked into.
+- vrtutorial's 531 alias models (Quest warm 2.9 s; draw lists 0.8 s warm / 4.2 s cold): a draw-list cache.
+- The holes' search itself (7 s for vrstart on the Quest, 0.35 s PC): now once per map and build.
