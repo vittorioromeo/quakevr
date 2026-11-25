@@ -329,3 +329,27 @@ the hull wait 451 -> 0. Change 2 on the Quest (the final APK, warm): e1m1 1,625 
 - Leaving vrstart on the Quest: "disconnect, old server shut down" 0.9 s after (2.6 before): not looked into.
 - vrtutorial's 531 alias models (Quest warm 2.9 s; draw lists 0.8 s warm / 4.2 s cold): a draw-list cache.
 - The holes' search itself (7 s for vrstart on the Quest, 0.35 s PC): now once per map and build.
+
+## Lift shafts kept clear: no more lifts bouncing on a monster underneath (branch agent/liftshaft, 2026-11-25)
+
+His report: monsters chasing him or investigating a noise stood under a raised lift (e1m1's first lift, e2m4); the lift
+coming down hit them and went back up (Quake's `plat_crush`), over and over. Reproduced headless with `vr_shaft 0`:
+`vr_stealth_test 132` on e1m1, 3 bounces in 20 s for a grunt sent to a noise under the lift and 3 for a knight that
+chased him there. Details: NAVMESH.md section 24.
+
+- **What:** lift shafts found at the load by motion (`Quake/vr/vr_navshaft.cpp`): a mover with QC stops pos1/pos2 or a
+  train's path corners, all in one vertical line, travelling more than its own height plus a step (thin platforms:
+  e1m1 has 1, e2m4 2; column plats, doors and sideways trains are not shafts). A monster without a reason (its enemy
+  or goal entity in the shaft) can't step into a raised lift's shaft (`SV_movestep`), walks out of one
+  (`VR_Shaft_Leave`/`VR_Shaft_Stand`, builtin `navshaft`), the stealth AI's walk points are moved to its edge
+  (`navshaftclear`); the navmesh carves shaft floors as their own polygons, costed while the lift is up
+  (`navVersion` 7), and a walker heading in stands at the edge till the lift is down, then boards. Safety net: a
+  monster that blocks a plat, door or train walks out for 3 s (`VR_Shaft_Blocked`); Quake's bounce is unchanged.
+- **Settings** (Debug > Tunables): `vr_shaft` 1, `vr_shaft_margin` 16, `vr_shaft_cost` 20.
+- **Tests:** `vr_stealth_test 132` (QC/vr_stealth_test7.qc, `shafttest: 10 passed, 0 failed`): investigate, fight
+  (goes in after him, walks out 0.9 s after he leaves), ride (waits by the shaft, boards, rides up in 5.6 s), each
+  with 0 bounces. Regressions: lift_ride_test.sh 24 passed; nav_lift passes; arenapath (vr_arena_test 36) 16 passed;
+  nav_lift_down fails as before (also with `vr_shaft 0`: not this change, BACKLOG). Scene `nav_shaft`.
+- **Open:** FrikBot bots on waypoints and the soft wall (players' moves aren't `SV_movestep`): a bot can still stand
+  under a lift (its navmesh walks get the costs). Mods' own blocked functions (hipnotic, rogue, AD plats) don't call
+  the safety net; their movers are still shafts (pos1/pos2). An e2m4 scene was not made (its two shafts are found).

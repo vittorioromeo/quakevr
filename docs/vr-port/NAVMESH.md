@@ -737,3 +737,44 @@ better, chosen per goal:
 - **Open:** deathmatch balance (a bot that always finds its way is stronger: its skill could add a reaction delay or a
   detour); locked doors and doors opened by buttons (the follower walks through door polygons: a bot can press at a
   locked door till its goal is given up); teleporters and drops are the follower's links, untested with bots here.
+
+## 24. Lift shafts kept clear (2026-11-25, vr_shaft)
+
+His report: monsters pathing to him or investigating a noise end up under a raised lift; the lift coming down hits
+them and goes back up (Quake's `plat_crush`), again and again till they die of the 1-point hits (e1m1's first lift,
+e2m4). Reproduced headless (`vr_stealth_test 132`, `vr_shaft 0`): a grunt sent to a noise under e1m1's raised lift
+stands searching there, a knight that chased him under it searches where it saw him last: 3 bounces in 20 s each.
+
+- **Shafts** (`vr_navshaft.cpp`, at the load): a mover that sweeps a vertical volume a monster can stand in, by its
+  motion: QC stops `pos1`/`pos2` (func_plat, func_door, mods' movers built on them) or a func_train's path corners, all
+  in one vertical line, moving farther than its own height plus a step (room under it at its top). So thin platforms
+  only: a column plat (e1m1's big lift by the start, which fills its shaft from below), a door sinking into the floor
+  or rising into the ceiling, a sliding door and a train moving sideways are not shafts. e1m1 1 (the plat at 792 512,
+  400 units of travel), e2m4 2 (its two 120-unit plats). Live part: under the mover where it is now, down to its
+  lowest underside, widened across by `vr_shaft_margin` (16) round the monster's box: empty while the lift is down.
+- **Reasons** to be in one: the monster's enemy is in it (fighting him there), or its goal entity is (an item, a path
+  corner: a thing, not a bare point such as the stealth AI's marker).
+- **Soft wall:** `SV_movestep` refuses a monster's step into a live shaft, or deeper into one, without a reason (every
+  walk goes through it: Quake's chase, the navmesh steps, the stealth walks, wandering, the armed humanoids' strafes).
+- **Walking out:** QC `VR_Shaft_Leave` (first in `VR_AI_MoveToGoal`, and in `ai_walk`) steps a monster in a live shaft
+  without a reason out by the nearest open side (builtin `navshaft`); `ai_stand` puts a standing one to its walk for
+  that (`VR_Shaft_Stand`), back to its stand once out.
+- **Stealth points:** every marker the stealth AI walks to (a noise, his trail, its scouting spots) and its walk's goal
+  each frame go through builtin `navshaftclear`: a point in a live shaft moves out past its margin on the nearest open
+  side (traced from the shaft's middle).
+- **Navmesh:** each shaft's floor (its footprint widened by the margin and the class's radius, under the lift's top
+  stop) is carved into polygons of its own (`areaShaft`; `navVersion` 7, the shafts in the cache key); every
+  `vr_nav_movers` tick those under a raised lift become `areaShaftLive`, costed `vr_shaft_cost` (20) a unit, so paths
+  go round, or in only for a goal there or a lift link at its edge. A walker whose next step would take it into a live
+  shaft without a reason stands at the edge (`navlink` 2) till the lift comes down; then it walks to the link, boards,
+  rides. Debug view: shaft floors purple, pink while live.
+- **Safety net:** `plat_crush`, `door_blocked`, `train_blocked` call QC `VR_Shaft_Blocked(other)`: a monster that
+  blocked a mover walks out for 3 s (`vr_shaft_flee`), its reasons set aside, counting the whole of the mover's way (it
+  may be on the lift's edge). Quake's bounce itself is unchanged (mods rely on it).
+- **Bots:** the bots' navmesh walks (`vr_bot_navmesh`, `followPath`) get the same costs; their waypoint walking and
+  the soft wall (players' moves are not `SV_movestep`) don't: a bot can still stand under a lift.
+- **Test:** `vr_stealth_test 132` (e1m1, `shafttest: N passed, M failed`): investigate (the grunt's walk ends at the
+  shaft's edge; the lift comes down: 0 bounces), fight (a knight goes in after him: allowed; he is moved away out of
+  sight: it walks out in 0.9 s; 0 bounces), ride (a knight after him at the top waits by the shaft, never in it while
+  the lift is up, boards it once down, rides up in 5.6 s): 10 passed. With `vr_shaft 0`: 3 bounces in each of the
+  first two. Scene `nav_shaft`.
