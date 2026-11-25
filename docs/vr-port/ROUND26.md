@@ -455,3 +455,67 @@ bindings. Crouch/slide should be bound to both C and left ctrl by default."
   30 frames); flatkeys_test 36/0 (the ctrl cases rewritten: the bind left alone, not run in flat play, written as
   +attack); flatinput 19/0; flat_ammo_key 7/0, flatthrow 38/0, flattoolgun 11/0 (keys N, B, N); vr_msgtokens_test
   12/0; vr_menu_path_check 0 missing; menu_paths.txt (the two rows).
+
+## flatmisc1125: aim sway reduction, VR-only map buttons in flat play, melee arcs in flat play (branch agent/flatmisc1125, 2026-11-25)
+
+- **Aim sway** (his item 15): the flat view-model's sway (the step's spring, `Feel::sway`, stepped in vr_flatplay.cpp
+  `stepFeel`; size `vr_flat_sway` 1, "Move Sway") and the turn's lag (`Feel::lag`, `vr_flat_turnlag` 2 / `_speed` 1 / `_cap` 10)
+  are shown in `drawnOffset`. Already there: `vr_flat_ads_sway` 0.15 ("Ironsight Sway"), one share for every axis, on an
+  ironsight only; a zoom-only gun (fsight_mode 1, or `vr_flat_aim_zoom 1`) kept the full sway and lag. New Tunables
+  (Debug > Tunables > Flatscreen > Looks): `vr_flat_ads_sway_side` 0.3 ("Aim Sway Horizontal": the sideways and fore-aft sway,
+  the lag's yaw) and `vr_flat_ads_sway_up` 0.3 ("Aim Sway Vertical": the up-down sway, the lag's pitch), eased with the aim's
+  travel (`flatsight::adsShare`), for ironsights and zoom guns alike; on an ironsight on top of `vr_flat_ads_sway` (the lag
+  is none there already). Walk bob untouched (`vr_flat_ads_bob`). Probe `vr_flat_sway_probe` (peaks since the last call). Scene `flat_aim_sway`.
+- Test `flatads_test.sh` section g (strafe, jump and turn; hipfire, aimed with 1 1, aimed at the defaults): shotgun
+  (ironsight) side 1.366 hipfire -> 0.205 aimed unreduced -> 0.061 (0.298 / 0.303 / 0.300 of it); grenade launcher (zoom)
+  side 1.366 -> 1.366 -> 0.410, turn lag 3.205 -> 0.961 (0.300 each). 2/0.
+- **VR-only buttons** (his item 16): every setting button of vrstart, vrtutorial and vrtesthall runs `vr_setup_option <key>`
+  (vr_setup.cpp's table), so the gate is there: `Option::vrOnly` (turning, turnspeed, movedir, sticks, teleport, grip, gadget,
+  torch, position, scale, hud: nothing on the flat screen reads those cvars; the menus' VR-only flag covers only graphics
+  cvars, none of these). In flatscreen play such a press changes nothing (console: "<label>: VR only, no effect on the flat
+  screen") and its screen above the button reads "VR only" in grey (greyed, not hidden: the buttons are brushes, hiding them
+  needs QC and map changes). The value screens now show in flatscreen play too (they were headset-only). run, body,
+  crosshair, climb, swim, holsters, reload, twohand, tips and classic stay live (flat reads them or it was unclear: kept).
+  Not options, left alone: the VR CALIBRATION / START CALIBRATION buttons. `vr_setup_option list` marks `[VR only]` and
+  prints the greyed screens. Test `flatvronly_test.sh`: flat 3/0 (turning 45 kept, run 1 -> 0, 11 screens greyed), headset
+  2/0 (turning 45 -> 90, none greyed). Scene `flat_vronly_buttons`.
+- **Melee arcs / aim cones in flat** (his item 17): the view queued their lines in flatscreen play (test 216 counted them
+  drawn) but the flat view draws queued debug lines only from `VR_RagtoolOverlay` (vr_ragtool.cpp), gated on the ragdoll
+  tool, Show Disarm Volumes and Show Directional Parry. The gate now also takes `vr_enemy_melee_arc_show`,
+  `vr_enemy_aim_show` and `vr_debug_melee_blades` (VR unchanged: the headset draws them in its UI pass). Probe
+  `vr_flat_debug_lines_probe`. Test `flatdebuglines_test.sh` 4/0: scene agrunt_melee_arcs flat, 450 frames: lines drawn 447,
+  a swing drawn 179; vr_agrunt_test 216 2/0 and 212 6/0 in -flatscreenmode. Screenshot qvr-kit/scratch/flatmisc1125_arcs.png.
+
+## climbfix: vrtesthall's brush ladder climbable flat; rope/pole elbows wider; hands kept on the wrists in a slide (branch agent/climbfix, 2026-11-25)
+
+- **Brush ladder (his 10):** vrtesthall's rungs (8 deep, flush on the platform's face: no gap behind, unlike the
+  tutorial's bars) never took in flat play. The map was fine and a headset's grip took them (`vr_climb_try` on a rung top:
+  a hold). The flat ladder's probe column (`findRungs`, vr_flat_ladder_reach ahead of the box's front) lay 4 units inside
+  the platform once his box was against it, and every hold seen from there failed findHold's `check` (the hand's point at
+  the rung's back edge, on the wall's face: "unreached"). Fixed in the detection, flat only: a probe that finds nothing
+  and sits in solid is tried again moved back out of the solid towards him (at most its radius). Lowering onto the
+  ladder from the top (`flatLadderMount`) had the same shape of problem: the hang spot off the lip's line put the box in
+  the rungs; when that spot has no room it now also tries off the lower rung's front (and 4 and 8 further). Tutorial,
+  Quoth and AD ladders unchanged (their first tries still succeed).
+- **Elbows (his 13):** measured on vrropes climbing up (`vr_rope_flat_test`, rope and pole, from the 12th frame): on the rope
+  the elbows were bowed in off the arms' lines by up to 8.7 cm and 21.9 cm inside the shoulders' line, at the hand pulled
+  in to the rope by the chest. That arm's line points across the chest, so little of ropes10's elbow pose (out, a little
+  down and back) is square to it and the down/back took the elbow in front of the chest. New tunable
+  `vr_rope_elbow_wide` (4; 1 = ropes10's; Debug > Tunables "Rope Climb Elbows Wide") weighs the side against the down and
+  back (vr_avatar.cpp solveArm; all drawn arms on a rope: yours flat and VR, other players'). Rope: bow at least -8.7 ->
+  -1.5 cm, side mean -4.5 -> -0.6 (least -21.9 -> -15.3: a hand at the chest's middle keeps its elbow near the line; the
+  rest is the hand's place, not the pose). Pole: bow least 4.9 -> 6.4, side mean 7.4 -> 9.1 cm. Wider than 3 changes
+  little. New check in rope_flat_test (rope, pole): "the elbows while climbing" (none bowed in past 2.5 cm; on the pole
+  out of the shoulders' line by 5 cm on average). Shots: qvr-kit/scratch/climbfix_rope_elbows_wide1.png / _wide4.png
+  (`vr_rope_flat_test rope shots`, the first two: climbing, from the front and behind).
+- **Slide (his 14):** the slide lock (flatfb1124b) keeps each hand where it was on the body while the crouch lowers the
+  shoulders, so the arm ran out and the drawn hand showed off its wrist. Measured with the new `avatar::armWristGap`
+  (units from the drawn wrist to its arm's end): pole slide 8.02 units most, 51 of 60 frames; rope slide 4.73, 50 of 62.
+  Now the locked hands come down the rope by `vr_flat_rope_slide_hands_in` (10 units; Debug > Tunables "Rope Slide:
+  Hands In"; 0 = as before), eased in at most 0.6 units a frame, and further by any gap the arm had last frame (up to
+  24). After: 0.00 units, 0 frames, on both; the pole slide's elbow shake 1.09 -> 0.35. rope_flat_test slide/poleslide
+  now check the gap (no frame over 0.05).
+- Tests: flatladder_test.sh 4/0 (with the new vrtesthall cases: up and over, down from the top, down looking down, push
+  off, the face beside it, vr_flat_ladder 0), modladder_test.sh 10/0; rope_flat_test rope 10/0, pole 9/0, slide 9/0,
+  poleslide 10/0, polejump 8/0, strung 5/0, slideend 2/0; rope_climb_test rope_climb, pole_wood 13/0; rope_hands_test
+  6/0. Scene vrtesthall_ladder. Ladder shot qvr-kit/scratch/climbfix_ladder.png.

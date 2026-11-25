@@ -239,6 +239,19 @@ struct Feel
 
 Feel feel;
 
+// The drawn sway's and turn lag's peaks since the last vr_flat_sway_probe (view frame, units and degrees; the aim's travel
+// at the last frame drawn): flatads_test.sh section g, the aim's reduction (vr_flat_ads_sway_side / _up).
+struct SwayProbe
+{
+    float side{0.f};
+    float up{0.f};
+    float lagYaw{0.f};
+    float lagPitch{0.f};
+    float aim{0.f};
+};
+
+SwayProbe swayProbe;
+
 // The keys beyond E and V, and the crouch one of them holds. Its own struct, apart from FlatState's pose fields: the
 // mode's keys and its pose are worked on apart (FLATPLAY.md).
 struct FlatKeys
@@ -2835,6 +2848,14 @@ constexpr float probeOnBlade = 16.f; // units
     return glm::distance(pos, glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
 }
 
+// The drawn sway's and turn lag's peaks since the last call, then reset (flatads_test.sh section g).
+void swayProbe_f()
+{
+    Con_Printf("flatsway side %.3f up %.3f lagyaw %.3f lagpitch %.3f aim %.2f\n", swayProbe.side, swayProbe.up, swayProbe.lagYaw,
+        swayProbe.lagPitch, swayProbe.aim);
+    swayProbe = SwayProbe{};
+}
+
 void routeProbe_f()
 {
     if(Cmd_Argc() > 1 && q_strcasecmp(Cmd_Argv(1), "start") == 0)
@@ -3135,6 +3156,7 @@ void init()
     Cmd_AddCommand("vr_flat_melee_probe", meleeProbe_f); // each punch's, swing's and shove's numbers (flatmelee_test.sh)
     Cmd_AddCommand("vr_flat_flick_test", flickTest_f); // the tests' mouse, flicked hard (no gesture may come of it)
     Cmd_AddCommand("vr_flat_orbit", orbit_f);
+    Cmd_AddCommand("vr_flat_sway_probe", swayProbe_f); // the drawn sway's peaks since the last call (flatads_test.sh g)
     Cmd_AddCommand("vr_flat_route_probe", routeProbe_f); // the mouse's routing by what the hands hold (vr_flatitems_test 10)
     flycam::init(); // vr_flat_flycam_toggle, vr_flat_flycam_test (vr_flycam.cpp)
     flatsweep::init(); // vr_flat_sweep (vr_flatsweep.cpp)
@@ -4409,7 +4431,16 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     const float onSight = flatsight::drawnSight(h, sightHand, sightTurn);
     const float looks = 1.f - onSight;
 
-    const glm::vec2 lag{softCap(feel.lag.x * lagShown * lagAmount, lagCap) * looks, softCap(feel.lag.y * lagShown * lagAmount, lagCap) * looks};
+    // Aiming -- an ironsight or a zoom gun alike, eased with the aim's travel (adsShare) -- the step's sway and the turn's lag
+    // keep vr_flat_ads_sway_side of their sideways (and fore-aft) part and the lag's yaw, vr_flat_ads_sway_up of the up and
+    // down part and the lag's pitch (his words 2026-11-25). On an ironsight on top of vr_flat_ads_sway (adsLocal).
+    const float aimT = flatsight::adsShare();
+    const float keepSide = 1.f + (za::clamp(vr_flat_ads_sway_side.value, 0.f, 1.f) - 1.f) * aimT;
+    const float keepUp = 1.f + (za::clamp(vr_flat_ads_sway_up.value, 0.f, 1.f) - 1.f) * aimT;
+    const glm::vec3 swayKept{feel.sway.x * keepSide, feel.sway.y * keepSide, feel.sway.z * keepUp};
+
+    const glm::vec2 lag{softCap(feel.lag.x * lagShown * lagAmount, lagCap) * looks * keepUp,
+        softCap(feel.lag.y * lagShown * lagAmount, lagCap) * looks * keepSide};
 
     // (Leaning, the pose is already turned with the body and its guns rolled (poseHands' leanRig): the view's lean roll is the pose's
     // own, not a turn of the drawn hands round the eye on top of it.)
@@ -4423,11 +4454,20 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     const float rest = 1.f - za::clamp(feel.amp, 0.f, 1.f);
     const glm::vec3 walkBob{0.f, bob * bobSide * feel.amp * za::sin(feel.phase), bob * bobUp * feel.amp * (za::cos(2.f * feel.phase) - 1.f) * 0.5f};
     const glm::vec3 breath{0.f, bob * breathSide * rest * za::sin(feel.breath * 0.5f), bob * breathUp * rest * za::sin(feel.breath)};
-    const glm::vec3 local = (feel.sway + walkBob + breath) * looks;
+    const glm::vec3 local = (swayKept + walkBob + breath) * looks;
     // In the ironsight the sway and the walk's bob are kept at vr_flat_ads_sway / vr_flat_ads_bob of themselves (no breathing: at rest
     // the sights stay exact).
     const glm::vec3 adsLocal =
-        feel.sway * za::clamp(vr_flat_ads_sway.value, 0.f, 1.f) + walkBob * za::clamp(vr_flat_ads_bob.value, 0.f, 1.f);
+        swayKept * za::clamp(vr_flat_ads_sway.value, 0.f, 1.f) + walkBob * za::clamp(vr_flat_ads_bob.value, 0.f, 1.f);
+    if(!flatsight::handEmpty(h)) // (the holding hand's: a helping hand is pinned to the gun after this)
+    {
+        const glm::vec3 shown = swayKept * (looks + onSight * za::clamp(vr_flat_ads_sway.value, 0.f, 1.f));
+        swayProbe.side = za::max(swayProbe.side, za::fabs(shown.y));
+        swayProbe.up = za::max(swayProbe.up, za::fabs(shown.z));
+        swayProbe.lagYaw = za::max(swayProbe.lagYaw, za::fabs(lag.y));
+        swayProbe.lagPitch = za::max(swayProbe.lagPitch, za::fabs(lag.x));
+        swayProbe.aim = aimT;
+    }
 
     glm::vec3 drawn = to + turn * (s.pos[h] - from) + camAxes * local;
 

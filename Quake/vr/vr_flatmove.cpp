@@ -2097,6 +2097,18 @@ constexpr LadderCase adE1m1LadderCases[] = {
         -300.f, true},
 };
 
+// vrtesthall's (make_vrtesthall_map.py): rungs flush on the platform's south face (x 400..528, their front y 312, tops 36..176
+// every 20; the platform's top 192), no gap behind them (findRungs' probe out of the wall, his note 2026-11-25).
+constexpr LadderCase hallLadderCases[] = {
+    {"vrtesthall's brush ladder, up and over the top", LadderKind::Up, 464.f, 270.f, 24.f, 90.f, -1e9f, 0.f, 192.f, 312.f},
+    {"vrtesthall's brush ladder, down from its top", LadderKind::Down, 464.f, 340.f, 216.f, 90.f, -1e9f, 0.f, 192.f, 312.f},
+    {"vrtesthall's brush ladder, down looking down", LadderKind::LookDown, 464.f, 270.f, 24.f, 90.f, -1e9f, 0.f, 192.f, 312.f},
+    {"vrtesthall's brush ladder, jump pushes off", LadderKind::PushOff, 464.f, 270.f, 24.f, 90.f, -1e9f, 0.f, 192.f, 312.f},
+    {"vrtesthall's platform face beside the ladder (no rungs)", LadderKind::None, 600.f, 270.f, 24.f, 90.f, -1e9f},
+    // (Alone only, with vr_flat_ladder 0: walked into, no climb.)
+    {"vrtesthall's brush ladder, vr_flat_ladder 0: no climb", LadderKind::None, 464.f, 270.f, 24.f, 90.f, -1e9f},
+};
+
 struct LadderMap
 {
     const char* map;
@@ -2108,6 +2120,7 @@ constexpr LadderMap ladderMaps[] = {
     {"kellbase1", quothLadderCases, static_cast<int>(sizeof(quothLadderCases) / sizeof(quothLadderCases[0]))},
     {"ad_test3", adLadderCases, static_cast<int>(sizeof(adLadderCases) / sizeof(adLadderCases[0]))},
     {"ad_e1m1", adE1m1LadderCases, static_cast<int>(sizeof(adE1m1LadderCases) / sizeof(adE1m1LadderCases[0]))},
+    {"vrtesthall", hallLadderCases, static_cast<int>(sizeof(hallLadderCases) / sizeof(hallLadderCases[0]))},
 };
 
 [[nodiscard]] const LadderMap* ladderMapNow()
@@ -2348,7 +2361,7 @@ void ladderTest_f()
     if(!flatplay::active() || !sv.active || !ladderMapNow())
     {
         Con_Printf("vr_flatladder_test: flat-screen play (-flatscreenmode) in a game you host, on map vrtutorial (or Quoth's "
-                   "kellbase1, AD's ad_test3: their trigger_ladder brushes)\n");
+                   "kellbase1, AD's ad_test3: their trigger_ladder brushes; vrtesthall: its rungs on a wall)\n");
         return;
     }
     client.ladderTest = LadderTest{};

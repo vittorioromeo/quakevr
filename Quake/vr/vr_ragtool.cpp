@@ -13,6 +13,7 @@
 #include "vr_tunables_api.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
+#include "vr_meleeshow.hpp"
 #include "vr_menu.hpp"
 #include "vr_progs.hpp"
 #include "vr_ragdoll.hpp"
@@ -318,6 +319,21 @@ struct Tool
     char status[256]{};
 };
 Tool tool;
+
+// The frames VR_RagtoolOverlay drew the debug lines over the flat view, and of them those with an armed humanoid's swing
+// (Show Melee Arcs: meleeshow::foeDrawnFrames went on since the last): vr_flat_debug_lines_probe, flatdebuglines_test.sh.
+struct FlatLines
+{
+    int frames{0};
+    int swingFrames{0};
+    int foeSeen{0};
+};
+FlatLines flatLines;
+
+void flatLinesProbe_f()
+{
+    Con_Printf("flatdebuglines: frames %d swing %d\n", flatLines.frames, flatLines.swingFrames);
+}
 
 [[nodiscard]] bool inGame()
 {
@@ -962,6 +978,7 @@ void init()
 {
     tool.flag = COM_CheckParm("-ragtool") != 0;
     Cmd_AddCommand("vr_ragtool", start_f);
+    Cmd_AddCommand("vr_flat_debug_lines_probe", flatLinesProbe_f); // the debug lines' frames over the flat view (tests)
     Cmd_AddCommand("vr_ragtool_exit", exit_f);
     Cmd_AddCommand("vr_ragtool_models", models_f);
     Cmd_AddCommand("vr_ragtool_behaviours", behaviours_f);
@@ -1132,12 +1149,19 @@ extern "C" int VR_RagtoolView(float* origin, float* angles)
 // a headset's eye draws them in its UI pass (vr_stereo.cpp drawUi).
 extern "C" void VR_RagtoolOverlay(void)
 {
-    if((!tool.on && !disarmviz::on() && !dirparryviz::on()) || vrActive()) // (Show Disarm Volumes', Show
-                                                                           // Directional Parry's lines too)
+    // (Show Disarm Volumes', Show Directional Parry's lines too; and Show Melee Arcs', Show Aim Cones' and Show Melee Blades':
+    // queued by the view in flatscreen play as in a headset's, drawn by none, his report 2026-11-25.)
+    const bool debugLines = tool.on || disarmviz::on() || dirparryviz::on() || vr_enemy_melee_arc_show.value != 0.f ||
+                            vr_enemy_aim_show.value != 0.f || vr_debug_melee_blades.value != 0.f;
+    if(!debugLines || vrActive())
     {
         return;
     }
     lines::drawInEye(vec(r_refdef.vieworg));
+    flatLines.frames++;
+    const int foe = meleeshow::foeDrawnFrames();
+    flatLines.swingFrames += foe != flatLines.foeSeen ? 1 : 0;
+    flatLines.foeSeen = foe;
 }
 
 // Host_ServerFrame: nonzero while the tool holds the game still (paused, no step left to run).

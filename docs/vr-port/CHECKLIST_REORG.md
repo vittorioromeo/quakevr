@@ -257,3 +257,11 @@ quakevr/checklist.txt: 162 lines down to 132 (all tagged). His ticks file read f
 - **Merged/removed (19):** the three Quest foveation lines (kept by the Installer line), the Quest campaigns / GL-safe / hub-three-times duplicates, the two wheel lines (already in Weapons), the two hub-load-time lines (superseded by the shipped-cache line), Lance stuck + H release, axe embed pair, spear take/throw/stick trio, the two lift-ride lines, the two Melee Arcs lines.
 - **[New] sorted (all):** Installer, Flat screen (now 9 lines), Tutorial and VR interface (3), Weapons, Ropes, Armed humanoids, Dwell. The [New] section is gone.
 - **Scene removed:** wall_shove (nothing else used it). ssg_muzzle kept (Misc/quakevr/make_ssg_muzzle.py and docs use it). checklist_tests_check: 93 passed, 0 failed.
+
+## Checklist tidy, seventh pass (2026-11-25, cltidy7)
+
+quakevr/checklist.txt: 135 item lines down to 118 (all tagged). No 2026-11-25 voice notes exist (latest are the 11-24 flat-feedback files).
+- **Retired (17):** every line whose exact text is in his checklist_ticks.txt (the flat Lance pose/thrust/grip lines, flat axe stick, pole slide, flat zoom, tutorial in MP, wheel default, sights hue, wheel button with blades, spear, Dwell Lance pole/flip/HUD). The centre-message line stays: its text changed ("20% smaller") after his tick.
+- **New section "[2. Quest Standalone]" (16 lines):** the lines done on the headset itself (logcat, performance, Standalone preset looks, foveation, dynamic resolution, gib thinning, campaigns, dither and bullet time, app loading, data-version warning). The Installer and Setup's Quest step (pushing files from the PC) stay in section 1. Sections 2-12 are now 3-13; names unchanged.
+- **Scenes removed (7, nothing else uses them):** flat_lance, flat_thrust_blades, flat_holster_dagger, flat_embed_axe, flat_zoom_aim, sight_front_hue, dwell_lance_pole.
+- **Tunables promoted (tune_promote.py, 6):** vr_flat_pole_off_along 8, vr_flat_pole_off_out 1, vr_flat_pole_off_pitch -40, vr_flat_thrust_off_slide 2, vr_flat_thrust_arm_stretch 1.35, vr_flat_zoom_up 0; `--check` reports nothing. checklist_tests_check 84 passed, 0 failed.
