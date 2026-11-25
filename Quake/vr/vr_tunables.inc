@@ -2354,6 +2354,7 @@ QVR_TUNABLE(vr_flat_revgrip_pole_pitch, "165") // (its head forward and down; th
 QVR_TUNABLE(vr_flat_revgrip_pole_yaw, "0")
 QVR_TUNABLE(vr_flat_revgrip_pole_roll, "0")
 QVR_TUNABLE(vr_flat_revgrip_pole_down, "15")
+QVR_TUNABLE(vr_flat_revgrip_pole_off_along, "4") // (polepose) the other hand on a flipped pole this far ahead of the holding hand along it (units; vr_flat_pole_off_along upright)
 QVR_TUNABLE(vr_flat_embed_pull, "12") // flatscreen: a blade stuck in a body, its hand's fire button pulls the hand back this far along the blade (units; QC vr_embedhold.qc VR_Embed_FlatHand)
 QVR_TUNABLE(vr_flat_embed_pull_time, "0.2") // seconds of that pull back (and of the hand's way back onto the grip)
 QVR_TUNABLE(vr_flat_embed_pull_hold, "0.25") // seconds held pulled back, the blade following it out by the hold's rules

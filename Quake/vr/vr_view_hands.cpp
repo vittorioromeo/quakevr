@@ -3770,6 +3770,22 @@ void setupHand(const hands::State& s, int hand)
                 za::clamp(vr_flat_pole_hand_up.value, -10.f, 10.f)};
         }
         moveDrawnHand(hand, mirrored, handRot, move, turn, hand == HAND_OFF, pos, handRot);
+        // (polepose, flatmelee4's flipped grips: the pole held reversed is drawn turned half round about the fist
+        // (vr_flat_revgrip_pole_*), and the hand pinned on it, carried with that turn and turned by its own pose above, ended
+        // off the drawn shaft. By the flip's share its grip channel goes onto the pole as drawn, the least turn and move
+        // (alignChannel), so it closes round the shaft.)
+        glm::vec3 wf, wu;
+        float flip = 0.f;
+        if(view::WeaponMount m; onPole > 0.f && otherSlot >= 0 && twohand::poleWeapon(otherSlot) &&
+                                view::heldWeaponAxes(other, wf, wu, flip) && flip > 0.f && view::weaponMount(other, m) &&
+                                glm::distance(m.muzzle, m.pos) > 1.f)
+        {
+            glm::vec3 at = pos, onTurn = handRot;
+            alignChannel(hand, mirrored, m.pos, m.muzzle - m.pos, at, onTurn);
+            const float k = za::clamp(flip, 0.f, 1.f) * za::min(onPole, 1.f);
+            pos = glm::mix(pos, at, k);
+            handRot = basisAngles(glm::mat3_cast(glm::slerp(glm::quat_cast(anglesBasis(handRot)), glm::quat_cast(anglesBasis(onTurn)), k)));
+        }
     }
 
     // What the fingers wrap (vr_hand_fit): the gun in the hand, the other hand's gun it helps hold (its foregrip, a

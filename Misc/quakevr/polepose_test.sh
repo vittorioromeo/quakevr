@@ -11,7 +11,9 @@
 #   3. the right mouse button held: the parry guard, the pole laid across the view (vr_flatplay_status "spear:", left over
 #      80 degrees), the other hand on its shaft (off its line within 1 of where it stands held: the pole track's own bound),
 #      closed round it; for the Lance the same pose and no ironsight (vr_flat_pole_rmb_parry), and QC's parry probe
-#      (impulse 249, a blow from straight ahead) PARRIES in its guard.
+#      (impulse 249, a blow from straight ahead) PARRIES in its guard;
+#   4. N (no other ammo: the grip flips, flatmelee4's vr_flat_revgrip_pole_* pose): the other hand on the drawn reversed shaft
+#      (off its line within 1 of where it stands held), closed round it.
 # Each run ends on "pp: done" (-QuitOn); prints "polepose: N passed, M failed".
 AGENT=${1:?agent}
 source "$(dirname "$0")/qvrtest.sh"
@@ -24,6 +26,8 @@ one() { # <tag> <give>
   # (36 frames held; the thrust 0.64 s: 46 frames, 50; the guard 0.05 s in: 40 frames.)
   SC="$SC; vr_flat_pole_track 1; wait36; echo pp: still; $PR; vr_flat_punch main v; wait50; echo pp: thrust; $PR"
   SC="$SC; +offhandattack; wait40; echo pp: parry; $PR; vr_flatplay_status; vr_flatplay_debug 2; wait1; vr_flatplay_debug 1; impulse 249; wait3; -offhandattack; wait30"
+  # (4. flipped: N, next ammo, has none to switch to, so the grip flips; 60 frames for the flip's 0.18 s and the pose, 36 measured.)
+  SC="$SC; vr_mock_key n down; wait3; vr_mock_key n up; wait60; $PR; wait36; echo pp: flipped; $PR"
   SC="$SC; tune_reset vr_flat_thrust_wind_pitch; tune_reset vr_flat_thrust_pitch; echo pp: done; toggleconsole; quit"
   bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "$SC" -QuitOn "^pp: done" -Timeout 300 \
     -Filter "^pp:|^poletrack: |spear: main|parry guard:|^flatsight: ironsight|parry probe|^flatsight: t " > "$S/polepose_$1.log" 2>&1
@@ -50,6 +54,8 @@ for w in spear lance; do
   left=$(grep -ao "left -\?[0-9.]*" <<<"$st" | head -1 | grep -ao -- '-\?[0-9.]*$')
   check $(ok "\"$left\" != \"\" && $left > 80") "$w parry: the guard, the pole across the view (left ${left:-?})"
   check $(ok "\"$po\" != \"\" && \"$so\" != \"\" && $po <= $so + 1") "$w parry: the other hand on the shaft (off ${po:-?}, held ${so:-?})"
+  fo=$(rep flipped 3); fc=$(grp flipped 1)
+  check $(ok "\"$fo\" != \"\" && \"$so\" != \"\" && $fo <= $so + 1 && \"$fc\" != \"\" && $fc > 0.5") "$w flipped: the other hand on the reversed shaft, closed (off ${fo:-?}, held ${so:-?}; curl ${fc:-?})"
   check $(block parry | grep -aq "parry probe.*PARRIES" && echo 1 || echo 0) "$w parry: QC's probe parries in the guard ($(block parry | grep -a 'parry probe' | head -1 | cut -c1-80))"
 done
 sa=$(awk '$0=="pp: parry" || $0=="pp: parry "{on=1;next} /^pp:/{on=0} on' "$S/polepose_lance.log" | grep -a "^flatsight: t " | head -1 | grep -ao "ads [a-z ]* t [0-9.]*")

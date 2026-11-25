@@ -4754,6 +4754,7 @@ vr_flat_revgrip_pole_pitch|2|Tunables|Flipped Spear Pitch|Advanced VR Options > 
 vr_flat_revgrip_pole_yaw|2|Tunables|Flipped Spear Yaw|Advanced VR Options > Debug > Tunables > Flipped Spear Yaw
 vr_flat_revgrip_pole_roll|2|Tunables|Flipped Spear Roll|Advanced VR Options > Debug > Tunables > Flipped Spear Roll
 vr_flat_revgrip_pole_down|2|Tunables|Flipped Spear Stab Down|Advanced VR Options > Debug > Tunables > Flipped Spear Stab Down
+vr_flat_revgrip_pole_off_along|2|Tunables|Flipped Spear Other Hand Along|Advanced VR Options > Debug > Tunables > Flipped Spear Other Hand Along
 vr_flat_embed_pull|2|Tunables|Stuck Blade Pull|Advanced VR Options > Debug > Tunables > Stuck Blade Pull
 vr_flat_embed_pull_time|2|Tunables|Stuck Blade Pull Time|Advanced VR Options > Debug > Tunables > Stuck Blade Pull Time
 vr_flat_embed_pull_hold|2|Tunables|Stuck Blade Pull Hold|Advanced VR Options > Debug > Tunables > Stuck Blade Pull Hold
