@@ -61,6 +61,7 @@ const ProductInfo& infoOf(Product p)
 struct Counts
 {
     za::Atomic<long long> hits{0}, misses{0}, written{0}, rejected{0}, same{0}, differed{0}, missesInPlay{0};
+    za::Atomic<long long> shippedHits{0}; // (of hits: read from the shipped cache)
     za::Atomic<long long> bytesRead{0}, bytesWritten{0}, readUs{0};
 };
 Counts counts[static_cast<int>(Product::Count)];
@@ -203,6 +204,78 @@ qvr::jobs::Future<void> progWriting;
 za::Atomic<bool> progWriteFailed{false}; // (a worker's failure, said on the main thread: the console isn't a worker's)
 
 constexpr char normalMagic[5] = "QVRN";
+
+// The shipped cache (CACHES.md, "The shipped cache"): files made at release time for Quake VR's own maps
+// (Misc/release/make_shipped_cache.py), in `<quakevr's base dir>/quakevr/cache_shipped`, never written nor pruned. Its
+// index.txt names each file by the player's cache's own name, `<kind>/<build>/<key>.<ext>` (the same hash keys and
+// builds: a file is read only for exactly what it was made from), then the file's path in the folder (`hulls/
+// vrstart_8_8_28.hul`: one name a map and box, so an update replaces it in place; Setup's Quest copy never deletes, and
+// keyed names would pile up there). Read on the main thread at its first lookup (VR_GameDirectoryRoot's va()).
+constexpr const char* shippedFolder = "cache_shipped";
+struct Shipped
+{
+    za::AtomicMutex lock;
+    bool loaded{false};
+    za::String dir;              // the folder ("": no index)
+    za::Vector<za::String> names; // the cache names (`<kind>/<build>/<key>.<ext>`)
+    za::Vector<za::String> paths; // their files (the folder's)
+};
+Shipped shipped;
+
+void shippedLoad()
+{
+    shipped.loaded = true;
+    const char* base = VR_GameDirectoryRoot("quakevr", 0);
+    if(!base || !base[0])
+    {
+        return;
+    }
+    const za::String dir = za::String{base} + "/quakevr/" + shippedFolder;
+    FILE* in = Sys_fopen((dir + "/index.txt").cStr(), "rb");
+    if(!in)
+    {
+        return;
+    }
+    char text[512];
+    while(fgets(text, sizeof(text), in))
+    {
+        char name[256], path[256];
+        if(text[0] != '#' && sscanf(text, "%255s %255s", name, path) == 2 && !strstr(path, ".."))
+        {
+            shipped.names.pushBack(za::String{name});
+            shipped.paths.pushBack(dir + "/" + path);
+        }
+    }
+    fclose(in);
+    shipped.dir = dir;
+}
+
+// The shipped file for `<kind>/<build><name>` (name: `/<key>.<ext>`, as fileFor's), or "" (none, vr_cache_shipped 0).
+za::String shippedFile(Product p, const char* build, const za::String& name)
+{
+    if(qvr::vr_cache_shipped.value == 0.f)
+    {
+        return {};
+    }
+    za::LockGuard guard(shipped.lock);
+    if(!shipped.loaded)
+    {
+        shippedLoad();
+    }
+    if(shipped.names.empty())
+    {
+        return {};
+    }
+    const za::String full = za::String{infoOf(p).kind} + "/" + build + name;
+    for(za::SizeT i = 0; i < shipped.names.size(); i++)
+    {
+        if(shipped.names[i] == full)
+        {
+            return shipped.paths[i];
+        }
+    }
+    return {};
+}
 
 } // namespace
 
@@ -351,11 +424,32 @@ bool read(Product p, const char* build, unsigned long long key, const char* ext,
         {
             noteRejected(p);
         }
-        noteMiss(p, what);
-        return false;
+        // (the player's cache has none, or one amiss: the shipped cache's, when it has this very name)
+        const za::String ship = shippedFile(p, build, nameOf(key, ext));
+        bool shipThere = false;
+        if(ship.empty() || !readFile(ship, magic, a, b, data, shipThere))
+        {
+            if(shipThere)
+            {
+                noteRejected(p);
+            }
+            noteMiss(p, what);
+            return false;
+        }
+        noteShippedHit(p);
     }
     noteHit(p, data.size(), Sys_DoubleTime() - t0);
     return true;
+}
+
+za::String shippedFileOf(Product p, const char* build, const char* name)
+{
+    return shippedFile(p, build, za::String{name});
+}
+
+void noteShippedHit(Product p)
+{
+    counts[static_cast<int>(p)].shippedHits.fetchAddSeqCst(1);
 }
 
 int readRgbaAt(const za::String& folder, unsigned long long key, unsigned char* rgba, int width, int height, double& seconds)
@@ -470,14 +564,29 @@ void info_f()
         });
         allFiles += files;
         allBytes += bytes;
-        Con_Printf("  %-10s %-24s %s %g: %lld files, %.1f MB on disk; this session %lld read (%.1f MB, %.1f ms), %lld "
+        Con_Printf("  %-10s %-24s %s %g: %lld files, %.1f MB on disk; this session %lld read (%lld shipped, %.1f MB, %.1f ms), %lld "
                    "missed (%lld in play), %lld written (%.1f MB), %lld rejected, checked %lld same %lld differed\n",
             info.kind, info.what, info.mode ? info.mode->name : "(always)", info.mode ? info.mode->value : 1.f, files, static_cast<double>(bytes) / 1048576.0,
-            c.hits.loadSeqCst(), static_cast<double>(c.bytesRead.loadSeqCst()) / 1048576.0, static_cast<double>(c.readUs.loadSeqCst()) / 1000.0,
+            c.hits.loadSeqCst(), c.shippedHits.loadSeqCst(), static_cast<double>(c.bytesRead.loadSeqCst()) / 1048576.0, static_cast<double>(c.readUs.loadSeqCst()) / 1000.0,
             c.misses.loadSeqCst(), c.missesInPlay.loadSeqCst(), c.written.loadSeqCst(), static_cast<double>(c.bytesWritten.loadSeqCst()) / 1048576.0,
             c.rejected.loadSeqCst(), c.same.loadSeqCst(), c.differed.loadSeqCst());
     }
     Con_Printf("  all: %lld files, %.1f MB\n", allFiles, static_cast<double>(allBytes) / 1048576.0);
+    {
+        za::LockGuard guard(shipped.lock);
+        if(!shipped.loaded)
+        {
+            shippedLoad();
+        }
+        long long shippedBytes = 0;
+        for(const za::String& path : shipped.paths)
+        {
+            shippedBytes += static_cast<long long>(files::fileSize(path.cStr()));
+        }
+        Con_Printf("  shipped (read-only, vr_cache_shipped %g): %s, %d files, %.1f MB\n", vr_cache_shipped.value,
+            shipped.dir.empty() ? "none" : shipped.dir.cStr(), static_cast<int>(shipped.paths.size()),
+            static_cast<double>(shippedBytes) / 1048576.0);
+    }
     Con_Printf("  models loaded in play: %lld (%.1f ms, the worst %.1f ms)\n", modelLoadsInPlay.count,
         modelLoadsInPlay.ms, modelLoadsInPlay.worstMs);
     warmup::printProgress();

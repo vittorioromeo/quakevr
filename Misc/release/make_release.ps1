@@ -145,6 +145,9 @@ param(
     # sandbox folder under %TEMP% (test_local_release.ps1).
     [switch]$RunInstaller,
     [switch]$SkipSmoke,
+    # No shipped cache (Misc\release\make_shipped_cache.py: the hub's collision trees and light grids made by the packaged
+    # game into quakevr\cache_shipped; docs/vr-port/CACHES.md): a first hub load builds them (~45 s on a Quest 3).
+    [switch]$SkipShippedCache,
     [switch]$SkipInstallerTests,
     # Before building: the headless test suite (Misc\release\run_test_suite.py: the Misc\quakevr test scripts that give a
     # verdict, in parallel lanes; -TestProfile) on a kit worktree holding this commit's files; a failure stops the release (nothing built,
@@ -770,7 +773,7 @@ if ($hostedKeys.Count -and -not $DryRun -and -not $Local) {
 # and Epic detection: qvr-setup detect, the folder it names for its expansions). Only read: the paks are linked.
 $quakeFrom = if (-not $QuakeDir) { "" } elseif ($PSBoundParameters.ContainsKey("QuakeDir")) { "-QuakeDir" } else { "QVR_QUAKE_DIR" }
 $detectAfterBuild = $false
-if (-not $QuakeDir -and -not $SkipSmoke) {
+if (-not $QuakeDir -and (-not $SkipSmoke -or -not $SkipShippedCache)) {
     $qvrSetupExe = Find-QvrSetup
     if ($qvrSetupExe) { $QuakeDir = Find-QuakeDir $qvrSetupExe; if ($QuakeDir) { $quakeFrom = "detected by $qvrSetupExe detect" } }
     else { $detectAfterBuild = $true }   # (-DryRun: said so; the real run detects it after building qvr-setup)
@@ -812,6 +815,7 @@ if ($DryRun) {
     $seq.Add("build: out\release\$Version moved aside if there; qvr_checks (Tools/qvr_checks: statics, qc_precedence, release_qc), fgdgen.py --check; MSBuild ironwail.sln ReleaseLTO|x64 /p:QvrReleaseVersion=$Version; package-quakevr.ps1 (recompiles the QC without the tests: fteqcc -DQVR_NO_TESTS; the checkout gets its development progs.dat back); dotnet publish QuakeVR.Installer; dotnet build QuakeVR.Installer.sln; the installer self-tests")
     if ($apkBuild) { $seq.Add("Quest APK: bash Android/release_apk.sh build (QVR_ANDROID_RELEASE=1 build_native.sh: Release, QVR_RELEASE, ThinLTO, into build-android-release; package_apk.sh: not debuggable, the release key; check_apk.sh vr release); its unstripped libquakevr.so kept in symbols\") }
     elseif ($Apk -and -not $ApkDev) { $seq.Add("Quest APK: bash Android/release_apk.sh check $Apk (check_apk.sh vr release)") }
+    $seq.Add("shipped cache: $(if ($SkipShippedCache) { 'none (-SkipShippedCache)' } elseif ($quakeOk -or $detectAfterBuild) { 'python Misc\release\make_shipped_cache.py --exe <package>\ironwail.exe --game <package>\quakevr --out <package>\quakevr\cache_shipped (vrcalibration, vrtutorial, vrstart: hull trees, light grids), then write-package-manifest.ps1 again' } else { 'none (no Quake folder)' })")
     $seq.Add("assets: make_release.py (QuakeVR.zip, QuakeVR-Setup.exe, latest.json); checks: the zip = the allowlist, qvr-setup feed --file latest.json --assets, QuakeVR-Setup.exe's install harness + qvr-setup verify$(if ($quakeOk -and -not $SkipSmoke) { ", the smoke launch with $QuakeDir" } elseif ($detectAfterBuild) { ', the smoke launch with the Quake qvr-setup detect finds after the build' } else { ' (no smoke launch)' })")
     $seq.Add("notes: $(if ($notesSource) { $notesSource } else { "draft_release_notes.py -> $notesDraftPath" }) -> $outDir\release-body.md (+ the files' table, SHA256SUMS.txt)")
     if ($online) {
@@ -966,6 +970,22 @@ if ($detectAfterBuild) {
     else { Warn "no Quake folder: none given (-QuakeDir, QVR_QUAKE_DIR) and qvr-setup detect found none: the packaged game's smoke launch is skipped" }
 }
 
+# The shipped cache (docs/vr-port/CACHES.md, "The shipped cache"): Quake VR's own maps loaded one at a time by the
+# packaged game (a copy of its quakevr, under checks\), their hull trees and light grids put into the package's
+# quakevr\cache_shipped, and manifest.json written again with them. The Quest gets them with the game's other files
+# (Setup's QuestFiles.cs: the install's files); the zip's allowlist check below adds them.
+$shippedDir = Join-Path $packageDir "quakevr\cache_shipped"
+if ($SkipShippedCache) { Warn "-SkipShippedCache: no shipped cache (the hub's first load builds its collision: ~45 s on a Quest 3)" }
+elseif (-not $quakeOk) { Warn "no Quake folder (-QuakeDir, QVR_QUAKE_DIR, qvr-setup detect): no shipped cache (the hub's first load builds its collision: ~45 s on a Quest 3)" }
+else {
+    Step "Shipped cache (Misc\release\make_shipped_cache.py: vrcalibration, vrtutorial, vrstart)"
+    $scLog = Join-Path $logs "shipped_cache.log"
+    Invoke-Logged $python @("Misc\release\make_shipped_cache.py", "--exe", (Join-Path $packageDir "ironwail.exe"), "--quake", $QuakeDir,
+        "--game", (Join-Path $packageDir "quakevr"), "--work", (Join-Path $checks "shipped_cache"), "--out", $shippedDir) $scLog | Out-Null
+    Get-Content $scLog | Select-Object -Last 6 | ForEach-Object { Say "  $_" }
+    & (Join-Path $root "Windows\write-package-manifest.ps1") -Dir $packageDir -Version $versionText | ForEach-Object { Say "  $_" }
+}
+
 if ($SkipInstallerTests) { Warn "-SkipInstallerTests: the installer's self-tests were not run" }
 else {
     Step "Installer self-tests"
@@ -1011,6 +1031,10 @@ $zipPath = Join-Path $assetsDir "QuakeVR.zip"
 $z = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
 try { $entries = @($z.Entries | Where-Object { $_.Name } | ForEach-Object { $_.FullName.Replace('\', '/') }) } finally { $z.Dispose() }
 $allow = @(& (Join-Path $root "Windows\package-quakevr.ps1") -DryRun | ForEach-Object { "$_" })
+# (and the shipped cache made above: derived from Quake VR's own maps only)
+if (Test-Path $shippedDir) {
+    $allow += @(Get-ChildItem -LiteralPath $shippedDir -Recurse -File | ForEach-Object { "quakevr/cache_shipped/" + $_.FullName.Substring($shippedDir.Length + 1).Replace('\', '/') })
+}
 $extraInZip = @($entries | Where-Object { $allow -notcontains $_ })
 $missingFromZip = @($allow | Where-Object { $entries -notcontains $_ })
 if ($extraInZip.Count -or $missingFromZip.Count) {

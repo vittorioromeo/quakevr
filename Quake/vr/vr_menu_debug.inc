@@ -766,6 +766,7 @@ za::Vector<Item> pageDebugProfiling()
                   "session's quit (its stages)."),
         infoLine(warmup::statusLine, 0),
         row(opt::vr_cache_warmup),
+        row(opt::vr_cache_shipped),
         command("Cache Info", "vr_cache_info")
             .help("vr_cache_info: each cached product (normal maps, gun pieces, hulls, occlusion, dequantised poses, rigs): its "
                   "setting, files and size on disk, and this session's reads, misses (in play: the gaps the loads didn't "
