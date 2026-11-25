@@ -1123,6 +1123,7 @@ struct ArmEase
     double embedTime[2]{-1.0, -1.0};   // when it was last eased
     float embedGapCm[2]{0.f, 0.f};     // cm the wrist was past that stretch, last solved
     float stretched[2]{1.f, 1.f};      // the arm's stretch taken, last solved (1: none; up to armStretchNow)
+    float wristGap[2]{0.f, 0.f};       // (climbfix) units from the drawn wrist to the arm's end, your own body last solved
 };
 ArmEase armEase;
 
@@ -1586,6 +1587,10 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     h = Bone{};
     h.pos = elbow + foreDir * l;
     h.rot = handRot;
+    if(!posingOther())
+    {
+        armEase.wristGap[side] = glm::distance(wrist, h.pos);
+    }
 
     // Bare forearms: their ends, fitted round the hand at the default sizes, as big as the hand is drawn against the
     // body (the hand bone's axes are the hand's: x its x, y its y either way, z its -z); the wrist's ring across.
@@ -2550,6 +2555,11 @@ bool forearm(int hand, glm::vec3& wrist, glm::vec3& direction)
 float embedArmGapCm(int hand)
 {
     return hand == 0 || hand == 1 ? armEase.embedGapCm[hand] : 0.f;
+}
+
+float armWristGap(int hand)
+{
+    return hand == 0 || hand == 1 ? armEase.wristGap[hand] : 0.f;
 }
 
 float armStretched(int hand)

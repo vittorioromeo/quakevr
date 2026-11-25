@@ -2474,6 +2474,10 @@ struct FlatTest
     int jumpPrevOk{0}; // frames in a row with a pose (2: a last move known)
     float jumpMost[2]{0.f, 0.f}, jumpSum[2]{0.f, 0.f}, shakeMost[2]{0.f, 0.f};
     int jumpFrames{0};
+    // (climbfix, his flat note 2026-11-25: the hand off the wrist in a quick slide) the most a drawn hand's wrist was off its
+    // arm's end (avatar::armWristGap, units) while sliding, and the frames it was off at all
+    float gapMost{0.f};
+    int gapFrames{0};
 };
 FlatTest flatTest;
 constexpr const char* flatTestName = "vr_rope_flat_test";
@@ -2491,6 +2495,7 @@ constexpr float flatSlideElbowShake = 1.5f; // and an elbow's (polewall: 1.09 on
                                              // without: the arm snapping straight as the crouch lowers the shoulders; 14.7 unlocked)
 constexpr float flatSlideRopeElbowShake = 3.f; // on a rope (2.38-2.52: the swaying rope's wrist targets at its end, not the IK)
 constexpr int flatSlideSettle = 2;         // the slide's first frames not counted (the grip locking as it begins)
+constexpr float flatSlideGapMost = 0.05f;  // (climbfix) units: a drawn wrist off its arm's end by more is off it
 
 void flatSlideJumps(FlatTest& t, bool on)
 {
@@ -2519,6 +2524,9 @@ void flatSlideJumps(FlatTest& t, bool on)
         }
         if(++t.jumpFrames > flatSlideSettle)
         {
+            const float gap = za::max(avatar::armWristGap(0), avatar::armWristGap(1));
+            t.gapMost = za::max(t.gapMost, gap);
+            t.gapFrames += gap > flatSlideGapMost ? 1 : 0;
             for(int h = 0; h < 2; h++)
             {
                 for(int j = 0; j < 2; j++)
@@ -2532,9 +2540,10 @@ void flatSlideJumps(FlatTest& t, bool on)
         }
         if(vr_climb_debug.value != 0.f)
         {
-            Con_Printf("%s: slide frame %d t %.3f: palms %.2f %.2f elbows %.2f %.2f shake %.2f %.2f, %.2f %.2f\n",
+            Con_Printf("%s: slide frame %d t %.3f: palms %.2f %.2f elbows %.2f %.2f shake %.2f %.2f, %.2f %.2f; wrists off the arms %.2f %.2f\n",
                 flatTestName, t.jumpFrames, cl.time, glm::length(move[0][0]), glm::length(move[1][0]), glm::length(move[0][1]),
-                glm::length(move[1][1]), shake[0][0], shake[1][0], shake[0][1], shake[1][1]);
+                glm::length(move[1][1]), shake[0][0], shake[1][0], shake[0][1], shake[1][1], avatar::armWristGap(0),
+                avatar::armWristGap(1));
         }
         for(int h = 0; h < 2; h++)
         {
@@ -2889,6 +2898,8 @@ void flatTestFrame()
             t.jumpPrevOk = 0;
             t.jumpMost[0] = t.jumpMost[1] = t.jumpSum[0] = t.jumpSum[1] = t.shakeMost[0] = t.shakeMost[1] = 0.f;
             t.jumpFrames = 0;
+            t.gapMost = 0.f;
+            t.gapFrames = 0;
             Cbuf_AddText("+flatcrouch\n");
             flatTestNext(t, 60);
         }
@@ -3327,11 +3338,13 @@ void flatTestFrame()
             const float n = static_cast<float>(za::max(1, (t.jumpFrames - flatSlideSettle) * 2));
             const char* arms = va("the arms while sliding: the palms moved at most %.2f units a frame from the body (mean %.3f; a move's "
                                   "change from the last, the shake, at most %.2f), the elbows %.2f (mean %.3f; shake %.2f: the crouch "
-                                  "lowers the shoulders), over %d frames",
+                                  "lowers the shoulders), over %d frames; the hands' wrists off their arms' ends at most %.2f units, "
+                                  "%d frames off (none; vr_flat_rope_slide_hands_in %.2f)",
                 t.jumpMost[0], t.jumpSum[0] / n, t.shakeMost[0], t.jumpMost[1], t.jumpSum[1] / n, t.shakeMost[1],
-                t.jumpFrames - flatSlideSettle);
+                t.jumpFrames - flatSlideSettle, t.gapMost, t.gapFrames, vr_flat_rope_slide_hands_in.value);
             const bool smooth = t.jumpFrames >= 20 && t.jumpMost[0] <= flatSlideJumpMost && t.shakeMost[0] <= flatSlideShakeMost &&
-                                t.shakeMost[1] <= (t.pole ? flatSlideElbowShake : flatSlideRopeElbowShake);
+                                t.shakeMost[1] <= (t.pole ? flatSlideElbowShake : flatSlideRopeElbowShake) &&
+                                t.gapFrames == 0;
             t.tally.check(smooth, flatTestName, arms);
             if(smooth)
             {
