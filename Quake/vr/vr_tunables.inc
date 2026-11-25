@@ -2288,6 +2288,10 @@ QVR_TUNABLE(vr_flat_pole_hand_roll, "0") // and rolled this far about its own fo
 QVR_TUNABLE(vr_flat_pole_hand_fwd, "1") // the holding hand alone moved this far forward in its own frame, the spear unmoved (units; drawn only; lance4)
 QVR_TUNABLE(vr_flat_pole_hand_up, "0") // and up (units; negative down; drawn only)
 QVR_TUNABLE(vr_flat_pole_hand_out, "-0.25") // and out to its own side (units; negative in; mirrored for the off hand; drawn only)
+// (polepose, his flat notes 2026-11-25: every pole weapon's tip line on what the crosshair is on; the Lance's right button parries.)
+QVR_TUNABLE(vr_flat_pole_aim_point, "1") // a pole weapon's line from its tip goes through what the crosshair is on, held and thrust (0: along the crosshair's way, beside it)
+QVR_TUNABLE(vr_flat_pole_aim_near, "64") // but never nearer than this along the crosshair's ray (units)
+QVR_TUNABLE(vr_flat_pole_rmb_parry, "1") // the right mouse button with a pole gun (the Crystal Lance) raises the spear's parry guard (0: its ironsight)
 // The spear thrust (flatmelee2, his notes 2026-11-23): V with a pole weapon; vr_flatplay.cpp thrustPose.
 QVR_TUNABLE(vr_flat_thrust, "1") // flatscreen: V with a pole weapon (the Crystal Lance) thrusts it as a spear (0: the overhead swing)
 QVR_TUNABLE(vr_flat_thrust_wind_time, "0.16") // seconds of its windup, drawn back along the pole
@@ -2350,6 +2354,7 @@ QVR_TUNABLE(vr_flat_revgrip_pole_pitch, "165") // (its head forward and down; th
 QVR_TUNABLE(vr_flat_revgrip_pole_yaw, "0")
 QVR_TUNABLE(vr_flat_revgrip_pole_roll, "0")
 QVR_TUNABLE(vr_flat_revgrip_pole_down, "15")
+QVR_TUNABLE(vr_flat_revgrip_pole_off_along, "4") // (polepose) the other hand on a flipped pole this far ahead of the holding hand along it (units; vr_flat_pole_off_along upright)
 QVR_TUNABLE(vr_flat_embed_pull, "12") // flatscreen: a blade stuck in a body, its hand's fire button pulls the hand back this far along the blade (units; QC vr_embedhold.qc VR_Embed_FlatHand)
 QVR_TUNABLE(vr_flat_embed_pull_time, "0.2") // seconds of that pull back (and of the hand's way back onto the grip)
 QVR_TUNABLE(vr_flat_embed_pull_hold, "0.25") // seconds held pulled back, the blade following it out by the hold's rules

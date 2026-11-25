@@ -4696,6 +4696,9 @@ vr_flat_pole_hand_roll|2|Tunables|Spear Hand Roll|Advanced VR Options > Debug > 
 vr_flat_pole_hand_fwd|2|Tunables|Spear Hand Forward|Advanced VR Options > Debug > Tunables > Spear Hand Forward
 vr_flat_pole_hand_up|2|Tunables|Spear Hand Up|Advanced VR Options > Debug > Tunables > Spear Hand Up
 vr_flat_pole_hand_out|2|Tunables|Spear Hand Out|Advanced VR Options > Debug > Tunables > Spear Hand Out
+vr_flat_pole_aim_point|2|Tunables|Spear Aims At Crosshair|Advanced VR Options > Debug > Tunables > Spear Aims At Crosshair
+vr_flat_pole_aim_near|2|Tunables|Spear Aim Nearest|Advanced VR Options > Debug > Tunables > Spear Aim Nearest
+vr_flat_pole_rmb_parry|2|Tunables|Pole Gun Right Button Parries|Advanced VR Options > Debug > Tunables > Pole Gun Right Button Parries
 vr_flat_thrust|2|Tunables|Spear Thrust|Advanced VR Options > Debug > Tunables > Spear Thrust
 vr_flat_thrust_wind_time|2|Tunables|Thrust Windup Time|Advanced VR Options > Debug > Tunables > Thrust Windup Time
 vr_flat_thrust_wind_back|2|Tunables|Thrust Windup Back|Advanced VR Options > Debug > Tunables > Thrust Windup Back
@@ -4751,6 +4754,7 @@ vr_flat_revgrip_pole_pitch|2|Tunables|Flipped Spear Pitch|Advanced VR Options > 
 vr_flat_revgrip_pole_yaw|2|Tunables|Flipped Spear Yaw|Advanced VR Options > Debug > Tunables > Flipped Spear Yaw
 vr_flat_revgrip_pole_roll|2|Tunables|Flipped Spear Roll|Advanced VR Options > Debug > Tunables > Flipped Spear Roll
 vr_flat_revgrip_pole_down|2|Tunables|Flipped Spear Stab Down|Advanced VR Options > Debug > Tunables > Flipped Spear Stab Down
+vr_flat_revgrip_pole_off_along|2|Tunables|Flipped Spear Other Hand Along|Advanced VR Options > Debug > Tunables > Flipped Spear Other Hand Along
 vr_flat_embed_pull|2|Tunables|Stuck Blade Pull|Advanced VR Options > Debug > Tunables > Stuck Blade Pull
 vr_flat_embed_pull_time|2|Tunables|Stuck Blade Pull Time|Advanced VR Options > Debug > Tunables > Stuck Blade Pull Time
 vr_flat_embed_pull_hold|2|Tunables|Stuck Blade Pull Hold|Advanced VR Options > Debug > Tunables > Stuck Blade Pull Hold
