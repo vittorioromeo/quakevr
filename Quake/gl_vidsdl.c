@@ -65,6 +65,8 @@ vmode_t	modelist[MAX_MODE_LIST];
 int		nummodes;
 
 static qboolean	vid_initialized = false;
+static unsigned	vid_framesdrawn; // QVR: frames GL_EndRendering drew (VID_LoadingLastFrame: the loading panel's backdrop)
+static qboolean	vid_lastpresented; // QVR: the last of them presented (else left in the back buffer: VR_SkipSwap)
 
 static SDL_Window	*draw_context;
 static SDL_GLContext	gl_context;
@@ -1725,10 +1727,16 @@ void GL_EndRendering (void)
 		VR_FrameDrawn (); // QVR: vr_screenshot_frames
 
 	VR_GLFrame (); // QVR: the start-up's breadcrumbs (vr/vr_glsafe.cpp)
+	if (!scr_skipupdate) // QVR
+	{
+		vid_framesdrawn++;
+		vid_lastpresented = false;
+	}
 	if (!scr_skipupdate && !VR_SkipSwap ()) // QVR: unpaced test frames present only now and then
 	{
 		const double swapstart = Sys_DoubleTime (); // QVR: the swap's time (VR_MirrorPresented)
 		SDL_GL_SwapWindow(draw_context);
+		vid_lastpresented = true; // QVR
 		VR_MirrorPresented (swapstart); // QVR
 		VR_RenderDocPresented (); // QVR: the frame boundary RenderDoc sees
 	}
@@ -1751,6 +1759,25 @@ void VID_LoadingSwap (void)
 {
 	if (!VR_NoWindow () && !VR_SkipSwap ())
 		SDL_GL_SwapWindow (draw_context);
+}
+
+/*
+=================
+VID_LoadingLastFrame -- QVR
+
+The loading panel's backdrop (flatloadbar2): the number of the last frame GL_EndRendering drew (0: none yet) and the
+window's buffer that holds it: the front once presented, else the back (left unpresented: nothing drew there since, as
+a load draws nothing). ES can't read its front buffer (and its back is undefined after a present): none.
+=================
+*/
+unsigned VID_LoadingLastFrame (int *buffer)
+{
+	*buffer = vid_lastpresented ? GL_FRONT : GL_BACK;
+#ifdef __ANDROID__
+	if (vid_lastpresented)
+		return 0;
+#endif
+	return vid_framesdrawn;
 }
 
 void	VID_Shutdown (void)
