@@ -78,6 +78,11 @@ On the Quest, after running only part of an update (a new app with the old game 
 
 [3. Flat screen]
 Flat-screen: take the spear, thrust it into a grunt and walk away: the empty other hand closes on the shaft near it and holds while your arm reaches, dropping cleanly when the arm runs out or when you tap B (which releases both hands together). {test:spear}
+Flat-screen: stab a grunt with the sword or swing the axe into one while holding it one-handed; your free other hand should reach over and hold the stuck blade two-handed, and walking away or H should let both hands go cleanly. The dagger stays one-handed. {test:embed_stab}
+Flat-screen: hold the spear and the Crystal Lance normally, in the flipped grip and while guarding with the right mouse button, then stab one into a grunt and hold it: the other hand should always close round the shaft, never float beside it or twist (Spear Other Hand On Shaft, 0 to compare). {test:flat_spear}
+Flat-screen or VR: stab a grunt, kill it so it falls as a ragdoll and keep holding the blade while it flops about: the blade and your hands on it should move smoothly instead of jittering, and stay in the wound (Hold: Smoothing, 0 to compare). {test:embed_stab}
+Flat-screen: thrust the Crystal Lance into an ogre again and again (fire presses pull it out); when the ogre staggers back with it stuck, it should come back into your hand, never stay lost in the ogre (walking away from it still lets go). {test:flat_spear}
+Flat-screen: with the spear or Crystal Lance held, move Spear Other Hand Pitch: the other hand should turn round the shaft and stay on it. {test:flat_spear}
 
 [4. Tutorial and VR interface]
 Look away from the wrist gadget and get a centre message: the visor-style panel is about 20% smaller than before and still easy to read; Centre Message Size (HUD > Screens) tunes it. {test:vr_center_message}
