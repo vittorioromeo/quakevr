@@ -923,7 +923,7 @@ struct World
         float letGo{0.f};
         // Pushed as well as dragged (vr_flat_grab_push): the point's target kept as far ahead of the player's body as it
         // took hold (`arm`: units along his yaw's forward and left), not eased to the hand; `need` the force this hand's
-        // hold would need (N, its share of the mass), `strain` the s it stayed above vr_flat_grab_push_force, `angle` the
+        // hold would need (N, its share of the mass), `strain` the s it stayed above vr_flat_grab_push_force (times how far), `angle` the
         // held point round from the target (degrees, level, from the eyes), with their highest (`needMost`, `angleMost`).
         bool keep{false};
         glm::vec2 arm{0.f};

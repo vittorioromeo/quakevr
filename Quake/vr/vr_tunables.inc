@@ -2085,7 +2085,7 @@ QVR_TUNABLE(vr_flat_grab_drag_lift, "0.2") // times its weight: the most each ha
 QVR_TUNABLE(vr_flat_grab_drag_hertz, "4") // Hz: the spring pulling a dragged prop's held point to the hand (higher: stiffer)
 QVR_TUNABLE(vr_flat_grab_drag_letgo, "1.2") // m: a dragged prop's held point this far off the hand (caught on something, too heavy) is let go of
 QVR_TUNABLE(vr_flat_grab_push, "1") // 1: a dragged prop is kept as far ahead of the body as when it was taken, so walking into it pushes it through the hands and backing away drags it (your body doesn't shove it); 0: it is pulled in to the hands
-QVR_TUNABLE(vr_flat_grab_push_force, "2500") // N: the force each hand's hold on a pushed or dragged prop would need (its mass's share by how far and how fast it lags the hands) above which, for a moment, the hands let go: too heavy for that speed
+QVR_TUNABLE(vr_flat_grab_push_force, "5000") // N: the force each hand's hold on a pushed or dragged prop would need (its mass's share by how far and how fast it lags the hands) above which, for a moment, the hands let go: too heavy for that speed
 QVR_TUNABLE(vr_flat_grab_push_angle, "60") // degrees: a pushed or dragged prop's held point this far round from where the arm reaches (seen from the eyes, level) is let go of: too steep
 QVR_TUNABLE(vr_flat_grab_cone, "28") // degrees: angular cone around the crosshair when picking a target to grab (5..60)
 QVR_TUNABLE(vr_flat_grab_carry_dist, "30") // units ahead of the hands where a grabbed two-handed prop/crate sits (clamped clear of walls and body)

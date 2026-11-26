@@ -1696,7 +1696,7 @@ float holdPropDrag(int num, edict_t* player, int hand, const glm::vec3& target, 
     // Let go of: its point too far off where the hold asks it (caught on something, too heavy); pushed or dragged, its hold
     // needing more than vr_flat_grab_push_force for a moment (too heavy for that pace: syncPropBlades), or its point too far
     // round from the arm's reach (vr_flat_grab_push_angle: too steep).
-    constexpr float strainMost = 0.15f; // s above the push force
+    constexpr float strainMost = 0.15f; // s above the push force, times how far over (syncPropBlades)
     const char* why = nullptr;
     if(glm::distance(held, asked) > h.letGo + glm::length(h.gap) * gapLeft(h.gapAt, h.gapOver))
     {
@@ -1809,7 +1809,9 @@ void syncPropBlades(float dt)
             }
             const float share = b3Body_GetMass(body) / static_cast<float>(za::max(dragHands(h.player, h.num), 1));
             h.need = share * glm::length(lag * (omega * omega) + slip * (2.f * omega));
-            h.strain = h.need > za::max(vr_flat_grab_push_force.value, 0.f) ? h.strain + dt : za::max(h.strain - dt, 0.f);
+            // (Over it for long enough, by how far over: a short jolt is borne, a prop far too heavy goes at once.)
+            const float limit = za::max(vr_flat_grab_push_force.value, 1.f);
+            h.strain = h.need > limit ? h.strain + dt * (h.need / limit) : za::max(h.strain - dt, 0.f);
             const glm::vec3 eye = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]} +
                                   glm::vec3{player->v.view_ofs[0], player->v.view_ofs[1], player->v.view_ofs[2]};
             const glm::vec2 reach = glm::vec2{at.x - eye.x, at.y - eye.y}, point = glm::vec2{held.x - eye.x, held.y - eye.y};
