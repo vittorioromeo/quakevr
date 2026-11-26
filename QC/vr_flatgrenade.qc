@@ -42,6 +42,27 @@ float VR_FLATGREN_THROWN = 5;  // thrown: the follow-through (vr_flat_throw_foll
 
 .float vr_flatgren_bykey;  // the wind-up is the throw key's (J held: impulse 39), not the fire button's: J's release throws
 
+// The release (flatthrow3, his words 2026-11-26: "the arm/hand should travel forward for a split second with the
+// object/weapon still attached, and then release it"): let go of the key (or the grenade's fire button), the follow-through
+// begins with the thing still in the hand, carried on with it vr_flat_throw_release_time (0: at once), and it leaves there,
+// from the hand where it then is (VR_FlatThrow_From), as hard as it was wound up. The quick grenade's and the throw key's.
+.float vr_flatgren_launch;  // (VR_FLATGREN_THROWN) when its grenade leaves the hand; 0 thrown already
+.float vr_flatgren_held;    // how long it was wound up (its throw's strength)
+.float vr_flatthrow_launch; // (VR_FLATTHROW_THROWN) when what it holds leaves the hand; 0 thrown already
+.float vr_flatthrow_held;   // how long it was wound up
+
+// The release's delay (s): vr_flat_throw_release_time.
+float() VR_FlatThrow_ReleaseTime =
+{
+    return min(0.5, max(0, cvar_hget(cvarh_vr_flat_throw_release_time)));
+};
+
+// The follow-through's length (s): vr_flat_throw_follow_time, and never over before the thing has left the hand.
+float() VR_FlatThrow_FollowTime =
+{
+    return max(max(0.02, cvar_hget(cvarh_vr_flat_throw_follow_time)), VR_FlatThrow_ReleaseTime() + 0.02);
+};
+
 // The throw key's state (below, "The throw key"; in the same stat: VR_FlatThrow_Bits).
 .float vr_flatthrow_phase;    // VR_FLATTHROW_*
 .float vr_flatthrow_hand;     // the hand that throws
@@ -85,6 +106,10 @@ void(float xPhase) VR_FlatGrenade_Set =
     self.vr_flatgren_phase = xPhase;
     self.vr_flatgren_at = time;
     self.vr_flatgren_bykey = FALSE;
+    if(xPhase != VR_FLATGREN_THROWN)
+    {
+        self.vr_flatgren_launch = 0;
+    }
     self.vr_flatgren = (xPhase ? xPhase + (self.vr_flatgren_hand == cVR_MainHand ? 8 : 0) : 0) + VR_FlatThrow_Bits() +
                        VR_FlatGrab_Bits();
 };
@@ -169,7 +194,7 @@ void() VR_FlatGrenade_Key =
         VR_FlatGrenade_PutBack();
         return;
     }
-    if(ph == VR_FLATGREN_FETCH || ph == VR_FLATGREN_ARMED || ph == VR_FLATGREN_WIND)
+    if(ph == VR_FLATGREN_FETCH || ph == VR_FLATGREN_ARMED || ph == VR_FLATGREN_WIND || self.vr_flatgren_launch)
     {
         dprint(sprintf("flat grenade: G: the %s hand is busy with one (phase %g)\n", VR_FlatGrenade_HandName(self.vr_flatgren_hand), ph));
         return;
@@ -262,8 +287,28 @@ void(float xHand, entity g, float xHeld) VR_FlatGrenade_Throw =
     dprint(sprintf("flat grenade: thrown by the %s hand after %.2f s wound up: %.0f u/s (%.0f%% of the way to %.0f), %.2f s of fuse left\n",
         VR_FlatGrenade_HandName(xHand), xHeld, vlen(g.velocity), k * 100, hi, g.vr_gren_fuse - time));
     dprint(sprintf("flat grenade: launched %.1f deg above level, %.1f above the crosshair, %.1f u/s\n", launch, up, vlen(g.velocity)));
+    makevectors(self.v_angle);
+    vector gOff = start - VRGetHeadPos(self);
+    dprint(sprintf("flat grenade: left the hand %.3f s after the release, %.1f forward of the eye\n",
+        self.vr_flatgren_phase == VR_FLATGREN_THROWN ? time - self.vr_flatgren_at : 0, gOff * v_forward));
     self.vr_flatgren_ent = world;
     VR_FlatGrenade_Set(VR_FLATGREN_THROWN);
+};
+
+// Let go of (the fire button, or J's release), `xHeld` seconds wound up: the follow-through begins with the grenade still in
+// the hand, and it leaves vr_flat_throw_release_time later (VR_FlatGrenade_Frame), from the hand there (0: at once).
+void(float xHand, entity g, float xHeld) VR_FlatGrenade_LetGo =
+{
+    float rt = VR_FlatThrow_ReleaseTime();
+    if(rt <= 0)
+    {
+        VR_FlatGrenade_Throw(xHand, g, xHeld);
+        return;
+    }
+    VR_FlatGrenade_Set(VR_FLATGREN_THROWN);
+    self.vr_flatgren_launch = time + rt;
+    self.vr_flatgren_held = xHeld;
+    dprint(sprintf("flat grenade: let go of after %.2f s wound up: carried on %.2f s into the follow-through\n", xHeld, rt));
 };
 
 // A grenade that came into a hand some other way (his words 2026-11-11: "Grabbing a grenade (live or non-live) via
@@ -349,7 +394,28 @@ void() VR_FlatGrenade_Frame =
     }
     if(ph == VR_FLATGREN_THROWN)
     {
-        if(since >= max(0.02, cvar_hget(cvarh_vr_flat_throw_follow_time)) - 0.001)
+        if(self.vr_flatgren_launch && time >= self.vr_flatgren_launch - 0.001) // (the release: carried on, it leaves now)
+        {
+            self.vr_flatgren_launch = 0;
+            entity lg = self.vr_flatgren_ent;
+            if(lg != world && VR_Carry_Held(self, h) == lg)
+            {
+                float began = self.vr_flatgren_at;
+                VR_FlatGrenade_Throw(h, lg, self.vr_flatgren_held);
+                self.vr_flatgren_at = began; // (the follow-through goes on from the key's release)
+            }
+            else
+            {
+                dprint(sprintf("flat grenade: the %s hand no longer holds its grenade at the release: nothing thrown\n", VR_FlatGrenade_HandName(h)));
+                self.vr_flatgren_ent = world;
+            }
+            return;
+        }
+        if(self.vr_flatgren_launch)
+        {
+            return;
+        }
+        if(since >= VR_FlatThrow_FollowTime() - 0.001)
         {
             dprint(sprintf("flat grenade: done; the %s hand holds %s (kind %g)\n", VR_FlatGrenade_HandName(h),
                 VR_Carry_Held(self, h) == world ? "nothing" : VR_Carry_Held(self, h).classname, VR_Hand_Kind(self, h)));
@@ -391,7 +457,7 @@ void() VR_FlatGrenade_Frame =
     }
     if(ph == VR_FLATGREN_WIND && !btn && !self.vr_flatgren_bykey) // (the throw key's wind-up: its release throws)
     {
-        VR_FlatGrenade_Throw(h, g, since);
+        VR_FlatGrenade_LetGo(h, g, since);
     }
 };
 
@@ -437,6 +503,10 @@ void(float xPhase) VR_FlatThrow_Set =
 {
     self.vr_flatthrow_phase = xPhase;
     self.vr_flatthrow_at = time;
+    if(xPhase != VR_FLATTHROW_THROWN)
+    {
+        self.vr_flatthrow_launch = 0;
+    }
     self.vr_flatgren = (self.vr_flatgren_phase ? self.vr_flatgren_phase + (self.vr_flatgren_hand == cVR_MainHand ? 8 : 0) : 0) +
                        VR_FlatThrow_Bits() + VR_FlatGrab_Bits();
 };
@@ -451,7 +521,8 @@ float(entity xBox) VR_FlatThrow_WindsUp =
 // weapons.qc doesn't fire it meanwhile (the client neither fires nor sights it: vr_flatgrenade.cpp throwsWith).
 float(entity p, float xHand) VR_FlatThrow_WindsUpWeapon =
 {
-    return p.vr_flatthrow_phase == VR_FLATTHROW_WIND && p.vr_flatthrow_hand == xHand && p.vr_flatthrow_kind == 1;
+    return (p.vr_flatthrow_phase == VR_FLATTHROW_WIND || p.vr_flatthrow_launch) && p.vr_flatthrow_hand == xHand &&
+           p.vr_flatthrow_kind == 1;
 };
 
 // What `xHand` of self can drop or throw: 1 weapon, 2 carried prop/crate/gib, 3 grabbed ragdoll, 4 embedded blade,
@@ -555,7 +626,8 @@ void() VR_FlatThrow_BeginWind =
 void() VR_FlatThrow_Press =
 {
     if(!VR_FlatPlay(self) || self.health <= 0 || !self.ishuman ||
-       self.vr_flatthrow_phase == VR_FLATTHROW_WIND || self.vr_flatthrow_phase == VR_FLATTHROW_PENDING)
+       self.vr_flatthrow_phase == VR_FLATTHROW_WIND || self.vr_flatthrow_phase == VR_FLATTHROW_PENDING ||
+       self.vr_flatthrow_launch || self.vr_flatgren_launch) // (the release: still in the hand, about to leave it)
     {
         return;
     }
@@ -722,6 +794,7 @@ void(float xHeld) VR_FlatThrow_Throw =
 {
     float h = self.vr_flatthrow_hand;
     float kind = self.vr_flatthrow_kind;
+    float afterKey = self.vr_flatthrow_phase == VR_FLATTHROW_THROWN ? time - self.vr_flatthrow_at : 0; // (the release's delay)
     float full = min(5, max(0.05, cvar_hget(cvarh_vr_flat_throw_charge_time)));
     float k = min(1, max(0, xHeld / full));
     float lo = max(0, cvar_hget(cvarh_vr_flat_throw_speed_min));
@@ -825,6 +898,8 @@ void(float xHeld) VR_FlatThrow_Throw =
     makevectors(self.v_angle);
     vector off = thrown.origin - head;
     dprint(sprintf("flat throw:   left %.1f forward, %.1f right, %.1f up of the eye\n", off * v_forward, off * v_right, off * v_up));
+    vector handOff = thrown.origin - VRGetEntHandPos(self, h);
+    dprint(sprintf("flat throw:   left the hand %.3f s after the key's release, %.1f units from it\n", afterKey, vlen(handOff)));
     dprint(sprintf("flat throw:   ammo %g at the wind-up, %g now; fire refused %g frames\n", vr_flatthrow_ammo0, vr_flatthrow_ammo1,
         vr_flatthrow_refused));
 };
@@ -837,7 +912,7 @@ void() VR_FlatThrow_Release =
         entity g = self.vr_flatgren_ent;
         if(g != world && VR_Carry_Held(self, self.vr_flatgren_hand) == g)
         {
-            VR_FlatGrenade_Throw(self.vr_flatgren_hand, g, time - self.vr_flatgren_at);
+            VR_FlatGrenade_LetGo(self.vr_flatgren_hand, g, time - self.vr_flatgren_at);
         }
         return;
     }
@@ -848,7 +923,19 @@ void() VR_FlatThrow_Release =
     }
     if(self.vr_flatthrow_phase == VR_FLATTHROW_WIND)
     {
-        VR_FlatThrow_Throw(time - self.vr_flatthrow_at);
+        // The release (flatthrow3): carried on into the follow-through, thrown at its end (VR_FlatThrow_Frame).
+        float held = time - self.vr_flatthrow_at;
+        float rt = VR_FlatThrow_ReleaseTime();
+        if(rt <= 0)
+        {
+            VR_FlatThrow_Throw(held);
+            return;
+        }
+        VR_FlatThrow_Set(VR_FLATTHROW_THROWN);
+        self.vr_flatthrow_launch = time + rt;
+        self.vr_flatthrow_held = held;
+        dprint(sprintf("flat throw: the %s hand let go of the key after %.2f s wound up: carried on %.2f s into the follow-through\n",
+            VR_FlatGrenade_HandName(self.vr_flatthrow_hand), held, rt));
     }
 };
 
@@ -986,7 +1073,18 @@ void() VR_FlatThrow_Frame =
         }
         return;
     }
-    if(time - self.vr_flatthrow_at >= max(0.02, cvar_hget(cvarh_vr_flat_throw_follow_time)) - 0.001)
+    if(self.vr_flatthrow_launch) // (the release: carried on into the follow-through, it leaves the hand now)
+    {
+        if(time >= self.vr_flatthrow_launch - 0.001)
+        {
+            self.vr_flatthrow_launch = 0;
+            float began = self.vr_flatthrow_at;
+            VR_FlatThrow_Throw(self.vr_flatthrow_held);
+            self.vr_flatthrow_at = began; // (the follow-through goes on from the key's release)
+        }
+        return;
+    }
+    if(time - self.vr_flatthrow_at >= VR_FlatThrow_FollowTime() - 0.001)
     {
         VR_FlatThrow_Set(0);
     }

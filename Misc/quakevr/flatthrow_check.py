@@ -209,8 +209,32 @@ check(not find(g, r"flat (throw|drop): item_health (thrown|dropped)") and bool(f
 
 ls = lines("guide")
 v = find(ls, r"flatitems: (\d+) passed, (\d+) failed")
-check(bool(v) and int(v[0].group(2)) == 0 and int(v[0].group(1)) >= 6,
-      "guide: vr_flatitems_test 12: the guiding off hand catches nothing while B winds up, catches without (%s)" % (v[0].group(0) if v else "no verdict"))
+check(bool(v) and int(v[0].group(2)) == 0 and int(v[0].group(1)) >= 13,
+      "guide: vr_flatitems_test 12: the guiding off hand catches nothing while B winds up; no catch without H, caught with a timed H (%s)" %
+      (v[0].group(0) if v else "no verdict"))
+
+# (flatthrow3) release: carried on into the follow-through, then let go of at the hand.
+ls = lines("release")
+done(ls, "release")
+LEFT = r"flat throw:   left the hand ([\d.]+) s after the key's release, ([\d.]+) units from it"
+FWD = r"flat throw:   left (-?[\d.]+) forward"
+r0 = between(ls, "flatthrow_test: release 0", "flatthrow_test: release default")
+r1 = between(ls, "flatthrow_test: release default", "flatthrow_test: release gren")
+l0, l1, f0, f1 = find(r0, LEFT), find(r1, LEFT), find(r0, FWD), find(r1, FWD)
+check(bool(l0) and float(l0[0].group(1)) < 0.005 and bool(find(r0, THROWN)),
+      "release: Release Delay 0: the nail gun leaves the hand at B's release (%s)" % (l0[0].group(0) if l0 else "no throw"))
+check(bool(l1) and 0.055 <= float(l1[0].group(1)) <= 0.09 and bool(find(r1, r"carried on 0\.07 s into the follow-through")),
+      "release: the default 0.07 s: carried on into the follow-through, it leaves that long after B's release (%s)" %
+      (l1[0].group(0) if l1 else "no throw"))
+check(bool(f0) and bool(f1) and float(f1[0].group(1)) > float(f0[0].group(1)) + 2,
+      "release: it leaves from the hand further forward than at once (%s vs %s units ahead of the eye)" %
+      (f1[0].group(1) if f1 else "?", f0[0].group(1) if f0 else "?"))
+check(bool(l1) and float(l1[0].group(2)) <= 16,
+      "release: it starts at the hand (no pop-in: %s units from it)" % (l1[0].group(2) if l1 else "?"))
+rg = between(ls, "flatthrow_test: release gren")
+lg = find(rg, r"flat grenade: left the hand ([\d.]+) s after the release")
+check(bool(lg) and 0.055 <= float(lg[0].group(1)) <= 0.09,
+      "release: the quick grenade's fire-button throw: the same delay (%s)" % (lg[0].group(0) if lg else "no throw"))
 for l in ls:
     if "flatitems: FAIL" in l:
         print("  " + l)
