@@ -18,9 +18,17 @@ def check(ok, what):
 def lines(tag):
     try:
         with open("%s/%s.log" % (D, tag), encoding="utf-8", errors="replace") as f:
-            return f.read().splitlines()
+            raw = f.read().splitlines()
     except OSError:
         return []
+    # Rejoin 120-column console-wrapped continuation lines (e.g. a 2H melee weapon's "(one-handed: ...)" throw line).
+    out = []
+    for l in raw:
+        if out and l and not re.match(r"^(exit=|  |flat ?(throw|grenade|gren)|throw:|button:|force grab:|flatthrow_test|axestick|carry:|bladespinto|box3d:)", l):
+            out[-1] = out[-1] + l
+        else:
+            out.append(l)
+    return out
 
 
 def find(ls, pat):

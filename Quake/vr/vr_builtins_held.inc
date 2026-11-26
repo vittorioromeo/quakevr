@@ -371,7 +371,11 @@ void PF_weapondrawnpose()
         // (every player's: the reverse grip his view drew it with, from his slot; on the hand of the move the server runs: B11c)
         glm::vec3 shift{0.f};
         const heldpose::Hand* r = heldpose::slotHand(player, hand);
-        const glm::vec3 rot = r ? view::leavingTurn(r->leaveSlot, hand == 0, r->leaveFlip, handRot, shift) : handRot;
+        glm::vec3 rot = r ? view::leavingTurn(r->leaveSlot, hand == 0, r->leaveFlip, handRot, shift) : handRot;
+        if(what == 49 && r && r->placed && r->leaveAnglesKnown && r->leaveFlip > 0.f)
+        {
+            rot = r->leaveAngles;
+        }
         progs::returnVec(what == 49 ? rot : shift);
         return;
     }

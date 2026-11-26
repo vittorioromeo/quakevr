@@ -572,12 +572,15 @@ void(float xHeld) VR_FlatThrow_Throw =
     float mG = self.handthrowage;
     vector oV = self.offhandthrowvel, oF = self.offhandthrowflick, oA = self.offhandavel, oP = self.offhandthrowpos, oR = self.offhandrot;
     float oG = self.offhandthrowage;
-    VR_FlatThrow_SetHand(h, dir * speed, spin, from, rot);
+    entity e = self.vr_flatthrow_ent;
+    // A melee weapon held in inverted grip keeps its current held hand orientation rather than snapping to upright release_pitch.
+    float revHeld = (e == world && !VRIsHandWeaponless(self, h) && VRGetEntWeapon(self, h) == self.vr_flatthrow_wid &&
+                     (VRGetEntWeaponFlags(self, h) & QVR_WPNFLAG_REVGRIP) != 0);
+    VR_FlatThrow_SetHand(h, dir * speed, spin, from, revHeld ? (h == cVR_MainHand ? mR : oR) : rot);
     vr_flatthrow_ammo1 = VR_FlatThrow_Rounds(h);
 
     // One-handed, whatever held it before the wind-up (his call 2026-11-23): the headset's two-handed window is not
     // counted (a quick toss lets go within it), kept as it was after.
-    entity e = self.vr_flatthrow_ent;
     entity thrown = world;
     if(e != world)
     {

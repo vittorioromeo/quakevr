@@ -611,7 +611,7 @@ struct Sighted
 {
     return vr_flat_pole_aim_point.value != 0.f && flatplay::heldIn(h) >= 0 && s.muzzleValid[h] && st.muzzleKnown[h] &&
            twohand::poleWeapon(flatplay::heldIn(h)) && (!flatplay::punching(h) || flatplay::poleThrusts(h)) && !flatplay::shoving(h) &&
-           flatplay::parryShare(h) <= 0.f;
+           flatplay::parryShare(h) <= 0.f && !(flatplay::flippedGrip(h) && (flatplay::meleeIn(h) || flatplay::poleThrusts(h)));
 }
 
 // The muzzle the shot is handed (shotFrom).
@@ -2109,6 +2109,7 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // Up) and the hand let go for the strike (lanceoffhand, his flat note 2026-11-24).
     const bool poleGrip = st.holding >= 0 && twohand::poleWeapon(flatplay::heldIn(st.holding));
     const bool carryToGrip = st.holding >= 0 && st.helping >= 0 && s.grip2HValid[st.holding] &&
+                             !flatplay::oneHandOnly(st.holding) &&
                              (!s.grip2HCup[st.holding] || meleeCup) && !s.grip2HPalm[st.holding] &&
                              (st.gripFwd > vr_2h_angle_threshold.value * st.gripReach || meleeStance || poleGrip);
     // A punch of the free hand takes it off the grip, as fast as it came (gripEase: done before the throw), and it goes back
@@ -2132,6 +2133,7 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // force grab's palm turn (vr_flat_fg_detach_time), the shove's, the grenade's and the swap's poses start from the grip.
     // (vr_flat_melee_letgo 0: as before, the hand off the grip at once.)
     const bool heldOffPose = vr_flat_melee_letgo.value != 0.f && st.holding >= 0 && st.helping >= 0 && !carryToGrip && s.grip2HValid[st.holding] &&
+                             !flatplay::oneHandOnly(st.holding) &&
                              flatplay::meleeIn(st.holding) && twohand::helping(st.helping) && emptyHand(st.helping) &&
                              !twohand::bladeGrip(st.holding) && flatplay::bladeShare(st.holding) <= 0.f;
     if(freshFrame)
@@ -2152,7 +2154,7 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // The grip's press, and only its press: true on the frame the empty hand arrives on the hotspot, false the frame it
     // leaves it or the weapon changes. applyHotspots' goodDistance, goodDot, the stickiness and the weapon's own
     // Two-Handed setting decide the hold from here on, exactly as they do for a controller's grip button.
-    const bool inside = gripArrival(s, st.gripOff, st.gripDot, carryToGrip && meleeCup, carryToGrip && meleeStance);
+    const bool inside = gripArrival(s, st.gripOff, st.gripDot, carryToGrip && meleeCup, carryToGrip && (meleeStance || poleGrip));
     st.handGap = st.muzzleGap = 0.f;
     if(st.holding >= 0 && st.helping >= 0)
     {

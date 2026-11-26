@@ -1223,7 +1223,8 @@ void applyFixed(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     const float dotNeed = wasHeld ? heldDot(vr_2h_angle_threshold.value, stick) : vr_2h_angle_threshold.value;
     // (Flatscreen play's two-handed melee stance, flatplay::melee2HShare: as a cup, the stance's pose puts the free hand on
     // the grip, the axe's up its handle, whatever the line from the holding hand's forward; applySword says the same.)
-    const bool goodDot = cup || dotNeed <= -1.f || glm::dot(handDir, lineAxis) > dotNeed || flatplay::melee2HShare(holding) > 0.f;
+    const bool goodDot = cup || dotNeed <= -1.f || glm::dot(handDir, lineAxis) > dotNeed || flatplay::melee2HShare(holding) > 0.f ||
+                         (flatplay::active() && poleWeapon(weapons::heldSlot(holding)));
 
     // A grip takes hold only closed on the weapon (the author: a fist moving onto a two-handed hotspot must not attach;
     // round 23 dropped the old way, vr_2h_grip_edge 0): its rising edge with the hand there then arms it, until it opens. Held, it keeps hold as before.
