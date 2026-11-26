@@ -2027,3 +2027,26 @@ dragged prop shoved it off the hands).
   run into lets go "too heavy for that pace"); tunables_test 13/0 (stages), 20/0, 3/0.
 - Open: ragdolls not changed (their own hold, `RagdollGrab`, eases the limb to the hand: a follow-up if wanted); the big
   explosive box can't be pushed even slowly (Push Strength up to ~10000 lets it at a slow walk).
+
+## Flat view size report: "the world looks tiny" (branch agent/tinyworld, 2026-11-26)
+
+- A new flat player (Discord) said the monsters and the player look "tiiiiny". Audit of every setting that sizes the flat
+  view, at its default for a first start with no headset (fresh config, Setup's flat shortcut): `fov` 90 with `fov_adapt` 1
+  (106 x 74 degrees on 16:9, Quake's own Hor+), `r_scale` 1 (resolution only), `vr_flat_body_height` 1.55 m,
+  `vr_world_scale` 1.2 and `vr_gunmodelscale` 0.7 (these three size only his own body, hands and held weapons in flat: the
+  eye is the box's `view_ofs` 22, as in Quake), `vr_flat_speed_fov` (x1.2 only above 350 u/s, eased back),
+  `vr_flat_model_fov` 0 (off), `vr_pickup_scale` 1. `vr_height_calibration` is VR-only (flat uses `vr_flat_body_height`).
+  An inherited `id1/config.cfg` / `autoexec.cfg` (`fov 130` from another port) is already skipped (cmd.c
+  `Cmd_ForeignStartupConfig`, 1.0.1), and Setup writes none of these. No path found that gives a first-time flat player a
+  bad value (a fresh-config flat start checked: every one at its default).
+- His screenshot measured (vanishing points of the walls and the floor): about 105 degrees across, the default; the view
+  is pitched up about 20 degrees, which puts the flat hands below the screen (reproduced on e1m1), and the grunt is far
+  back in the room behind the door. Consistent with a default setup: Quake's fov 90 is wider than most modern games.
+- Added: the flat mode prints `flatscreen view: fov ..: W x H degrees in the WxH window, r_scale ..; your body .. m,
+  vr_world_scale .., vr_gunmodelscale ..` at the first map (after the configs), and a `changed from the defaults:` line
+  naming any of fov, fov_adapt, vr_flat_body_height, vr_world_scale, vr_gunmodelscale off default (with a note over fov
+  110). It is in every run's `quakevr/logs/<date>/console.log` and in `vr_flatplay_status` (Debug menu: Flatscreen Play
+  Status). `Quake/vr/vr_flatplay.cpp` `viewSizeReport`.
+- Tests: flatkeys_test.sh 36/0 (smoke); the line checked by hand at the defaults and at `fov 120` / `130`.
+- Open: what to ask the player for: his `quakevr/logs/<newest>/console.log` (the `flatscreen view:` line), his
+  `quakevr/ironwail.cfg`, his screen resolution, and whether he changed Options > Field of View.
