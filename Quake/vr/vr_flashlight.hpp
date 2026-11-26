@@ -2,8 +2,7 @@
 // right-angle one before) stored hanging from a clip on the belt's left (vr_flashlight_side) side, lens down (lighting only the feet:
 // it is meant to be taken, clipped on a gun or worn on the head). Only deliberate presses switch or unclip it: an open,
 // still hand. On the belt it is a holster slot like the others (round 26, "flashgrab"): an empty hand's grip in its
-// grab zone takes it at once, moving or not, and so does a grip closed on the way (vr_flashlight_closed_grab seconds
-// before the hand gets there); Holster Setup drags its place and turn and sizes its grab zone (vr_flashlight_grab_range).
+// grab zone takes it at once, moving or not (a hand arriving already closed does not: it must press there); Holster Setup drags its place and turn and sizes its grab zone (vr_flashlight_grab_range).
 // A hand at it with the trigger switches it on or off; an empty hand's grip takes it, held in the
 // fist like a real torch (the tube through the curled fingers, lighting along it: out of the thumb's
 // side in the low grip, out of the little finger's in the overhead one; the upper face button, B or
@@ -87,9 +86,8 @@ enum class Button
 [[nodiscard]] bool tookGrip(int hand);
 
 // Once a frame (vr_input.cpp, after the buttons): a grip pressed before the hand reached the lamp takes it with the grip
-// still held: on the belt as soon as the hand is in its grab zone (within vr_flashlight_closed_grab seconds of the
-// press; round 26), on the head as the hand comes to rest at it (the late grip, ROUND21.md "Flashlight: lit, gripped,
-// nothing"). Then tookGrip(hand) is true: the game saw that press and must see it let go.
+// still held, on the head only, as the hand comes to rest at it (the late grip, ROUND21.md "Flashlight: lit, gripped,
+// nothing"; on the belt a hand arriving closed takes nothing, round 26). Then tookGrip(hand) is true: the game saw that press and must see it let go.
 void lateGrips();
 
 // Once a frame, after the input (the hands as last placed): a sharp flick of the wrist up or down turns the torch held

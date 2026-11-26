@@ -1923,6 +1923,14 @@ resizing the model.
   mounted:0, returning, otherweapon 7/0, flash_trigger 6/0, tunables_test, holstersetup_test.
 - Known, not this branch: `holstersetup_test.sh` "gun at the right hip (drag) + 0 out: DROP (want IN)" fails with this
   branch's flashlight/setup files reverted to origin/next too.
+- **Follow-up, no closed-hand grab** (agent/noclosedgrab, his word 2026-11-26: "disable/remove that functionality altogether,
+  also for the flashlight"): `vr_flashlight_closed_grab` and its row are gone, and so is the belt branch of the late grip
+  (`startLate`/`lateGrips`; the late grip stays for the head only). The belt torch now takes a grip only pressed with the hand
+  in its grab zone (moving or not: the instant grab stays). The holsters were checked: `StartedHandGrabbing`'s 0.125 s is
+  a press-timing window (hand in the hotspot within 0.125 s of the press edge), a hand closed earlier does not draw, so
+  nothing to remove there (the mid-air catch window is for weapons flying through the air, not the holsters). Tests: slot
+  17/0 (`closed` and `stale` are controls now; `quick`/`quickfast` press at the middle); timing 87 reaches taken, 15 controls
+  (presses beyond ~9 cm out, the closed arrivals, are controls) 0 wrong; returning, otherweapon 7/0, tunables_test 13/0.
 ## revthrow: reverse grip throws settle point first more readily (branch agent/revthrow, 2026-11-26)
 
 His words (VR, 20:11): a spear thrown overhead from the reverse grip spun with "even the smallest amount of wrist snap"; he wants
