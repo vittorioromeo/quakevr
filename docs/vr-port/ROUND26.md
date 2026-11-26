@@ -2004,6 +2004,27 @@ before the stab or after it; not a Lance special case, a system for every weapon
 - **Who drives it:** the hand holding it by its handle role (`.vr_hold_handle`: the hand that stabbed, or the one left on
   it); its trigger (VR) or its fire button (flat). No hand on it: nothing fires.
 - **Which weapons:** weapons.txt `embed_fire` (Embedded page; 1: slot 55, the Lance held as a lance), under the rule
-  `vr_embed_fire` (default 1, Physics and Interaction > Thrown Axes). No Lance branch in the path. Others: only blades embed
-  today and none of them shoots; a bayonet gun or Mjolnir given `embed 1` would need `embed_fire 1` only (their shots read
-  the same hand fields), plus `VR_WeaponFired` in their fire code for the flash on the prop.
+  `vr_embed_fire` (default 1, Carrying and Throwing > Throwing and Physics > Stuck Weapons Fire). No Lance branch in the
+  path. Others: only blades embed today and none of them shoots; a bayonet gun or Mjolnir given `embed 1` would need
+  `embed_fire 1` only (their shots read the same hand fields), plus `VR_WeaponFired` in their fire code for the flash on
+  the prop. Not carried over for such a gun yet: the lightning gun's per-frame stream (`FrameDrawLightningTrail`) and the
+  Widowmaker's spin, which run before the trigger part in `W_WeaponFrameImpl`.
+- **The Lance's trace:** `dw_fire_lance` now traces from behind its tip like every hand gun (`VR_ShotBackPoint`, from the
+  hand's place on its line; the beam is still drawn from the tip): a body the tip is in is hit. In the hand the same unless
+  the tip is inside something; stuck, the hand's place is the prop's handle, so the bolt goes through the host first.
+- **Flat conflict, decided:** flat play's fire button pulls a stuck blade (flatembed); on a stuck weapon that fires there it
+  is the trigger instead (held: charge, let go full: shot), and a **tap** still pulls: let go within
+  `vr_flat_embed_fire_tap` s (tunable, 0.3) of its press with nothing fired. A button held from before the hold (the charge
+  brought in) is no tap. Swords, axes, the spear: unchanged (press pulls). A future instant-fire gun would fire on the press
+  and could never tap-pull: it would need a hold-to-fire rule.
+- **Client:** `vr_lancecharge.cpp` draws your charge on the stuck Lance (`stuckLance`: `axestick::heldEnt`'s entity), keeps
+  a charge whose Lance is found nowhere for 0.25 s (the frame between hand and prop), and draws a stuck Lance's bolt from
+  its tip (`boltStart` for a prop your hand holds). Other players' stuck Lance: no charge look (their hands' blades are not
+  sent to other clients); their bolt is drawn from the server's muzzle (4 units off the tip).
+- **Tests:** `embedfire_test.sh`: vr_embed_test 77 (VR) 29/0, 78 (flat) 22/0, script 5/0 (the charge never lost on the
+  client, the stuck bolt from its tip). Regressions: dwell_lance_test 51/0, vrspear 18/0 9/0, poleembed 16/0 13/0,
+  spear_test (embedspear 25/0 6/0, spear 4/0), flatthrust_test 8/0 (the Lance's press-pull, now a tap: 8/0; flatmelee5
+  24/0), embedhold_test (flatembedwalk 63/0 60/0) 2/0. Debug > Tests: "Crystal Lance Fired While Stuck Check". Scene
+  embed_fire. flatlance_test 29/1: "the thrust is the head's stab" (section 3's V at an
+  ogre 52 ahead lands nothing); the same with `vr_embed_fire 0` (the new path off), so not this change as far as that
+  shows; not checked against an origin/next build.
