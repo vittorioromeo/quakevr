@@ -3726,6 +3726,63 @@ struct BladeBlend
 };
 BladeBlend bladeBlend[2];
 
+// Flatscreen play: the free hand going from one grip of the other hand's weapon straight to another while it holds on (the
+// two-handed stance's grip below the hand onto the blade as the parry's guard takes it, vr_twohand.cpp, and back as it ends):
+// held throughout, the grip's own blend stays at 1, so the drawn hand jumped (163 degrees in a frame; promofails). Eased
+// from where it was last drawn, kept against the holding hand, over gripSwitchTime.
+struct GripSwitch
+{
+    int kind{0};       // 0 not drawn on a grip, 1 on a grip, 2 on the blade
+    double last{-1.0}; // when it was last drawn on one (cl.time)
+    double at{-1.0};   // the switch's start, -1 none
+    glm::vec3 pos{0.f}; // last drawn, in the holding hand's frame
+    glm::quat turn{1.f, 0.f, 0.f, 0.f};
+    glm::vec3 fromPos{0.f}; // where the switch began
+    glm::quat fromTurn{1.f, 0.f, 0.f, 0.f};
+};
+GripSwitch gripSwitch[2];
+static constexpr float gripSwitchTime = 0.25f;
+
+void easeGripSwitch(const hands::State& s, int hand, int other, float gripBlend, glm::vec3& pos, glm::vec3& handRot)
+{
+    GripSwitch& g = gripSwitch[hand];
+    const int kind = !flatplay::active() || gripBlend <= 0.f ? 0 : twohand::bladeGrip(other) ? 2 : 1;
+    const double now = cl.time;
+    if(kind == 0)
+    {
+        g = GripSwitch{};
+        return;
+    }
+    if(g.kind != 0 && kind != g.kind && g.last >= 0.0 && now - g.last < 0.1)
+    {
+        g.fromPos = g.pos;
+        g.fromTurn = g.turn;
+        g.at = now;
+    }
+    g.kind = kind;
+    const glm::mat3 fromOther = anglesBasis(s.rot[other]);
+    const glm::mat3 toOther = glm::transpose(fromOther);
+    if(g.at >= 0.0)
+    {
+        const float u = za::clamp(static_cast<float>((now - g.at) / gripSwitchTime), 0.f, 1.f);
+        if(u >= 1.f)
+        {
+            g.at = -1.0;
+        }
+        else
+        {
+            const float e = u * u * (3.f - 2.f * u);
+            pos = glm::mix(s.pos[other] + fromOther * g.fromPos, pos, e);
+            const glm::quat now2 = glm::quat_cast(toOther * anglesBasis(handRot));
+            const glm::quat from = glm::dot(g.fromTurn, now2) < 0.f ? -g.fromTurn : g.fromTurn;
+            handRot = basisAngles(fromOther * glm::mat3_cast(glm::slerp(from, now2, e)));
+        }
+    }
+    g.pos = toOther * (pos - s.pos[other]);
+    g.turn = glm::quat_cast(toOther * anglesBasis(handRot));
+    g.last = now;
+}
+
 // setupHand's phases. What the steadying hand's pose and what its fingers wrap read.
 struct HandPose
 {
@@ -4309,6 +4366,7 @@ void setupHand(const hands::State& s, int hand)
     if(own)
     {
         steadyOther(hp, pos, handRot, hide, motion);
+        easeGripSwitch(s, hand, other, gripBlend, pos, handRot);
     }
     if(lookSpot >= 0)
     {

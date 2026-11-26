@@ -1772,3 +1772,34 @@ gameplay preset "Unleashed", the uninstall key `QuakeVRUnleashed`, file names an
 Shortcut migration: Windows keeps the old letter case of an existing file/folder, so `ShellLink.Save` now renames an
 existing Start menu folder / deletes an existing .lnk that differs only in case before writing (self-test "shortcuts of
 the old letter case are renamed"; installer self-tests 63/63).
+## promofails: flat tests failing on next after his promoted tunables (branch agent/promofails, 2026-11-26)
+
+Checked first with the pre-900606064 tunables set in the run: only flatmelee5's "rev thrust sword" depended on them; the
+others failed the same with the old values (other merges: flatmelee5's 2H stance on equip, flatgrip3's one-handed axe).
+His values stay the defaults.
+- **flatxhair_test `flush` (3 fails)**: wall share 0. With today's defaults the shotgun 18 units from the wall is cleared
+  by the push back towards the shoulder alone (flatwallturn: room -0.66, tilt 0), so nothing tilts and the wall shot is
+  not exercised. Not a bug (the tilt is only what the push back can't clear). Fix, test: the case keeps the push back short
+  (`tune vr_flat_wall_arm_keep 20; tune vr_flat_wall_fold 20`, reset by its tune_reset) so the tilt engages (4.0 deg).
+- **flatthrust_test, flatmelee5 "rev thrust sword embeds" (and at times "rev thrust spear")**: the case read the stuck
+  blade on the frame of the hit; with his flipped pose (revgrip_thrust_up 4) the hit lands frames before the drawn blade
+  reaches it and sticks, so it read depth 0. Fix, test: cases 11/12 wait to be stuck (or the 0.9 s), as test 58 does.
+- **flatthrust_test, flatmelee5 "2h equip axe / superaxe"**: flatgrip3's `vr_flat_1h_axe 1`. Fix, test: that run sets
+  `vr_flat_1h_axe 0` (the cases are about the 2H hold).
+- **flatbash_test "sword: took the blade"**: since flatmelee5 the sword is two-handed on equip (vr_flat_melee_2h 1), so
+  the guard switches the held grip below the hand to the blade (vr_twohand.cpp) and the take's debug line never printed.
+  Fix: the switch prints its own `2h grip: off hand took the blade from the grip below the hand (N units off it)`.
+- **flatbash_test "turned 163.5 degrees a frame"**: a real snap. The free hand was drawn from the stance's grip onto the
+  blade in one frame (the grip held throughout, so its blend stayed 1). Fix: `easeGripSwitch` (vr_view_hands.cpp, flat
+  only): a switch between grips while held eases the drawn free hand from where it was, in the holding hand's frame,
+  over 0.25 s (smoothstep); now 16.0 degrees a frame at most (the main hand's own turn).
+- **flatbash_test "axe: a one-handed bash" (none, at times)**: the sword's bashed grunt, knocked back and staggered,
+  stood about where the axe's grunt spawns; some runs found neither in reach. Fix, test: each weapon at its own spot
+  (the axe 256 units to the side). The axe's 1H bash (flatgrip3) is what the test expects.
+- embedhold_test: 2/0 on this tree (arm 1 63/0, arm 0 60/0): the reported ogre `.vr_embed_armpast` fail did not recur.
+- Tests: flatxhair_test 31/0, flatthrust_test 8/0 (blades 12/0, Lance 8/0, flatmelee5 24/0), flatbash_test 20/0,
+  embedhold_test 2/0, flatmelee 12/0, flatinput 19/0, flatthrow 48/0, flatswing 4/0, flatshovesmooth 6/0, flatplay 31/0,
+  flatparry 43/0, flatmelee2h 16/0, flatfg2h 11/0; flatswap_test: weapons, things, melee 96/0, holster all pass; its AD
+  run (vr_flatswap_test 4, map start) 47/1 then 46/2: the last case (the knight's sword, stance 1, left to right) never
+  swaps (no "flat swap" line) and all hands are undrawn for 78 frames, about 4 minutes into the run; no blade grip in it,
+  so not the grip switch's ease. Open: look at it on AD's start map.
