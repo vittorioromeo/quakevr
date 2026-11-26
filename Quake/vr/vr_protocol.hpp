@@ -112,6 +112,10 @@ inline constexpr int moveFlatplayBit = 1 << 15;
 // server asks this and not its own keys, per client (vr_server.cpp). A client that never sets it (a headset's, an older
 // build's) reads as not crouching by this; QC's bit 14 is the server's own (QVR_VRBITS0_HANDSTRACKED).
 inline constexpr int moveFlatCrouchBit = 1 << 14;
+// Bit 13, client->server only (QC's bit 13 is computed server-side from bit 12's previous frame): this flatscreen
+// client's prone toggle is active (vr_flatplay.cpp proneHeld). Separate from moveFlatCrouchBit so lying down at speed
+// never initiates a slide (crouch-only), while vr_hull.cpp still knows the client wants to stay low.
+inline constexpr int moveFlatProneBit = 1 << 13;
 // The same bit from a headset client (no moveFlatplayBit): its slide gesture held (vr_slide: the turning stick pulled
 // straight down; vr_slide.cpp). Sent only with vr_slide on: an older build's, or vr_slide 0, never slides.
 inline constexpr int moveSlideBit = moveFlatCrouchBit;

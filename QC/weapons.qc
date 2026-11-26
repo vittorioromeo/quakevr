@@ -111,6 +111,7 @@ void() VR_FlatThrow_Press; // (vr_flatgrenade.qc: the throw key)
 void() VR_FlatThrow_Release;
 void(float xHand, float xWeapon, float xWeaponFlags) VR_FlatReload_CycleOut;
 void(float xHand) VR_FlatReload_CycleIn;
+void(float xHand) VR_FlatReload_AmmoSwitch;
 
 // A hand whose weapon takes no ammo (a melee weapon, a fist: AID_NONE) has none. A firing loop's think can outlive the
 // gun it began with: a bot's nailgun loop ran on into the sword its hand was given and asked for AID_NONE's count
@@ -4631,8 +4632,11 @@ void(float xHand) ToggleSecondaryAmmo =
     if(VR_Reload_MagIn(self, xHand))
     {
         // Immersive reloading: the magazine of the old ammo drops out (its rounds in it); one of the new goes in by hand.
-        makevectors(VRGetEntHandRot(self, xHand));
-        VR_Reload_Eject(self, xHand, VRGetEntHandVel(self, xHand) * VRMetersToUnits() - v_up * 40, -1, "the ammo changed");
+        VR_Reload_EjectOut(self, xHand, 40, "the ammo changed");
+    }
+    else if(VR_FlatPlay(self))
+    {
+        VR_FlatReload_AmmoSwitch(xHand);
     }
     else
     {
@@ -4916,8 +4920,8 @@ void() ImpulseCommands =
         return;
     }
 
-    // Flatscreen play: J throws what a hand holds (vr_flatgrenade.cpp reads the key, vr_flat_key_throw: 39 as it goes
-    // down, the wind-up; 40 as it comes up, the throw; vr_flatgrenade.qc "The throw key"). Nobody else's impulses.
+    // Flatscreen play: B drops (quick tap) or throws (held) what a hand holds (vr_flatgrenade.cpp: 39 down, 40 up;
+    // vr_flatgrenade.qc "The throw key"). Nobody else's impulses.
     if((self.impulse == 39 || self.impulse == 40) && VR_FlatPlay(self))
     {
         float throwUp = self.impulse == 40;
@@ -4929,6 +4933,27 @@ void() ImpulseCommands =
         else
         {
             VR_FlatThrow_Press();
+        }
+        return;
+    }
+
+    // Flatscreen play: H (vr_flat_key_pull) grabs/pulls physics props, crates, ragdolls and gibs with every available
+    // empty hand (vr_flatgrenade.cpp: 96 toggle, 97 hold down, 98 hold up; vr_flatgrab.qc). Nobody else's impulses.
+    if((self.impulse == 96 || self.impulse == 97 || self.impulse == 98) && VR_FlatPlay(self))
+    {
+        float grabImp = self.impulse;
+        self.impulse = 0;
+        if(grabImp == 96)
+        {
+            VR_FlatGrab_Toggle();
+        }
+        else if(grabImp == 97)
+        {
+            VR_FlatGrab_HoldStart();
+        }
+        else
+        {
+            VR_FlatGrab_HoldEnd();
         }
         return;
     }

@@ -40,4 +40,8 @@ void apply(hands::State& s);
 // by vr_flat_throw_guide_open (vr_view.cpp's finger curls).
 [[nodiscard]] float guideShare(int h);
 
+// How far hand `h` is reaching out for Grab / Pull (H; 0..1, eased) before taking hold: opens the empty hand's fingers
+// slightly while reaching, closing once the grabbed object is in hand (vr_flatplay.cpp fistShare).
+[[nodiscard]] float grabOpenShare(int h);
+
 } // namespace qvr::flatgrenade

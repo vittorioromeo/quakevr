@@ -156,6 +156,24 @@ void PF_ragdollgetup()
 void PF_ragdollgrab()
 {
     const int tug = qcvm->argc > 3 ? static_cast<int>(G_FLOAT(OFS_PARM3)) : 0;
+    if(tug == -1)
+    {
+        // Flatscreen Grab / Pull: reach-grab a ragdoll limb nearest `grip` within `strength` units (avoiding `force`).
+        const float* g = qcvm->argc > 4 ? G_VECTOR(OFS_PARM4) : nullptr;
+        const float reach = qcvm->argc > 5 ? G_FLOAT(OFS_PARM5) : 96.f;
+        const int avoid = qcvm->argc > 6 ? static_cast<int>(G_FLOAT(OFS_PARM6)) : -1;
+        G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::ragdollGrabReach(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1),
+            static_cast<int>(G_FLOAT(OFS_PARM2)), g ? geom::vec(g) : glm::vec3{0.f}, reach, avoid));
+        return;
+    }
+    if(tug == -2)
+    {
+        // Flatscreen Grab / Pull release / throw: release all hands of `player` on `corpse`, launch whole body at `grip`.
+        const float* v = qcvm->argc > 4 ? G_VECTOR(OFS_PARM4) : nullptr;
+        G_FLOAT(OFS_RETURN) =
+            box3d::ragdollThrowWhole(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), v ? geom::vec(v) : glm::vec3{0.f}) ? 1.f : 0.f;
+        return;
+    }
     if(tug > 0)
     {
         const float* g = qcvm->argc > 4 ? G_VECTOR(OFS_PARM4) : nullptr;

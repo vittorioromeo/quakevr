@@ -560,6 +560,21 @@ void beginGrab(World::RagdollGrab& g, const GrabStart& gs, edict_t* player, int 
     world->ragdollGrabs.pushBack(g);
 }
 
+// Shared between VR hand touch (grabRagdoll) and flatscreen Grab / Pull (grabRagdollReach): a living staggering
+// ragdoll taken by a hand loses its footing and goes down.
+void manhandleStagger(edict_t* corpse, RagdollBodies& r, int num, int hand)
+{
+    if(vr_foegrab_manhandle_stagger.value > 0.f && corpse->v.health > 0.f && r.active.on && r.active.stagger.on)
+    {
+        ragactive::lapse(r.active, activeParts(r), qcvm->time);
+        if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
+        {
+            Con_Printf("manhandle: %d %s taken by hand %d staggering: it goes down\n", num, PR_GetString(corpse->v.classname),
+                hand);
+        }
+    }
+}
+
 // ragdollgrab: hand `hand` of `player` takes the limb of `corpse`'s ragdoll it is on (within vr_ragdoll_grab_reach of
 // its surface).
 qvr::box3d::RagdollGrabResult grabRagdoll(edict_t* corpse, edict_t* player, int hand)
@@ -598,23 +613,76 @@ qvr::box3d::RagdollGrabResult grabRagdoll(edict_t* corpse, edict_t* player, int 
     }
     World::RagdollGrab g;
     beginGrab(g, gs, player, hand, part);
-    // Manhandled (vr_foegrab_manhandle_stagger): a living one staggering, taken by a hand, loses its footing and goes
-    // down (its stagger's fall: the QC's VR_Knockdown_Think sees it fallen, down its knockdown's time).
-    if(vr_foegrab_manhandle_stagger.value > 0.f && corpse->v.health > 0.f && r->active.on && r->active.stagger.on)
-    {
-        ragactive::lapse(r->active, activeParts(*r), qcvm->time);
-        if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
-        {
-            Con_Printf("manhandle: %d %s taken by hand %d staggering: it goes down\n", num, PR_GetString(corpse->v.classname),
-                hand);
-        }
-    }
+    manhandleStagger(corpse, *r, num, hand);
     if(vr_debug_ragdoll.value)
     {
         Con_Printf("ragdoll: %d part %d (%s) taken by hand %d, %.1f units from its surface\n", num, part, r->rig->bones[part].name,
             hand, distance);
     }
     return Result::Limb;
+}
+
+// Flatscreen Grab / Pull: hand `hand` of `player` takes the non-cut limb of `corpse`'s ragdoll nearest `target`
+// within `reach` units (preferring a distinct part from `avoidPart` when >= 0 so both hands grab separate limbs/parts).
+// Anchors on the actual closest surface point on that bone so the Box3D motor joint pulls it smoothly to the hand.
+// Returns part + 1 on success, 0 on failure.
+int grabRagdollReachImpl(edict_t* corpse, edict_t* player, int hand, const glm::vec3& target, float reach, int avoidPart)
+{
+    GrabStart gs;
+    if(vr_ragdoll_grab.value < 1.f || !grabStart(corpse, player, hand, gs))
+    {
+        return 0;
+    }
+    RagdollBodies* r = gs.r;
+    const int num = gs.num;
+    const float maxDist = za::max(reach, 0.f);
+    int bestPart = -1;
+    float bestScore = 1e30f;
+    float bestDist = 1e30f;
+    b3Vec3 bestClosest = b3Vec3_zero;
+    const b3Vec3 targetM = world->toM(target);
+    for(int b = 0; b < r->count; b++)
+    {
+        if(partCut(*r, b) || (r->rig && r->rig->bones[b].joint == ragdoll::Joint::Loose))
+        {
+            continue;
+        }
+        b3Vec3 closest;
+        const float d = b3Body_GetClosestPoint(r->body[static_cast<za::SizeT>(b)], &closest, targetM) * world->m2u;
+        if(d > maxDist)
+        {
+            continue;
+        }
+        // Strongly prefer a different part than the other hand's (`avoidPart`) so 2H holds stabilize the body.
+        const float score = d + (b == avoidPart ? 24.f : 0.f);
+        if(score < bestScore)
+        {
+            bestScore = score;
+            bestDist = d;
+            bestPart = b;
+            bestClosest = closest;
+        }
+    }
+    if(bestPart < 0)
+    {
+        return 0;
+    }
+    const glm::vec3 worldOnLimb = world->toU(bestClosest);
+    World::RagdollGrab g;
+    g.player = gs.pnum;
+    g.hand = hand;
+    g.num = num;
+    g.part = bestPart;
+    g.stuck = za::max(grabStuck, glm::distance(worldOnLimb, gs.at) + 32.f);
+    startHold(g, player, *r, b3Body_GetLocalPoint(r->body[static_cast<za::SizeT>(bestPart)], bestClosest), false, false);
+    world->ragdollGrabs.pushBack(g);
+    manhandleStagger(corpse, *r, num, hand);
+    if(vr_debug_ragdoll.value)
+    {
+        Con_Printf("ragdoll: %d part %d (%s) reach-grabbed by hand %d, %.1f u from aim (%.1f u from hand)\n", num, bestPart,
+            r->rig ? r->rig->bones[bestPart].name : "?", hand, bestDist, glm::distance(worldOnLimb, gs.at));
+    }
+    return bestPart + 1;
 }
 
 // ragdollHoldSoft: hand `hand` of `player` holds on to the limb of `ent`'s ragdoll nearest it (within `reach` units of
@@ -1756,6 +1824,76 @@ RagdollGrabResult ragdollGrab(edict_t* corpse, edict_t* player, int hand)
         qvr::goresound::send(qvr::goresound::Kind::Squelch, NUM_FOR_EDICT(corpse), corpse->v.origin, 0.8f); // (a dead body)
     }
     return took;
+}
+
+int ragdollGrabReach(edict_t* corpse, edict_t* player, int hand, const glm::vec3& target, float reach, int avoidPart)
+{
+    const int took = world && corpse && player ? grabRagdollReachImpl(corpse, player, hand, target, reach, avoidPart) : 0;
+    if(took > 0 && corpse && corpse->v.health <= 0.f)
+    {
+        qvr::goresound::send(qvr::goresound::Kind::Squelch, NUM_FOR_EDICT(corpse), corpse->v.origin, 0.8f);
+    }
+    return took;
+}
+
+bool ragdollThrowWhole(edict_t* corpse, edict_t* player, const glm::vec3& velocity)
+{
+    if(!world || !corpse || !player)
+    {
+        return false;
+    }
+    const int pnum = NUM_FOR_EDICT(player);
+    const int num = NUM_FOR_EDICT(corpse);
+    for(int i = static_cast<int>(world->ragdollGrabs.size()) - 1; i >= 0; i--)
+    {
+        const World::RagdollGrab& g = world->ragdollGrabs[static_cast<za::SizeT>(i)];
+        if(g.player == pnum && g.num == num)
+        {
+            endGrab(i);
+        }
+    }
+    RagdollBodies* r = ragdollOf(num);
+    if(!r)
+    {
+        return false;
+    }
+    r->thrownPeak = 0.f;
+    r->thrownAt = qcvm->time;
+    const glm::vec3 v = glmv(world->toM(velocity * za::max(vr_ragdoll_throw.value, 0.f)));
+    const float speed = glm::length(v);
+    for(int b = 0; b < r->count; b++)
+    {
+        if(partCut(*r, b))
+        {
+            continue;
+        }
+        const b3BodyId body = r->body[static_cast<za::SizeT>(b)];
+        if(B3_IS_NULL(body) || !b3Body_IsValid(body))
+        {
+            continue;
+        }
+        if(speed > 0.01f)
+        {
+            const glm::vec3 now = glmv(b3Body_GetLinearVelocity(body));
+            const glm::vec3 dir = v / speed;
+            const float along = glm::dot(now, dir);
+            if(along < speed)
+            {
+                b3Body_SetLinearVelocity(body, b3v(now + dir * (speed - along)));
+            }
+        }
+        b3Body_SetAwake(body, true);
+    }
+    if(speed > 0.01f)
+    {
+        (void)ragdollGrace(corpse, pnum, 0.35f);
+    }
+    if(vr_debug_ragdoll.value)
+    {
+        Con_Printf("ragdoll: %d whole-body %s by player %d at %.0f u/s\n", num, speed > 0.01f ? "thrown" : "dropped", pnum,
+            speed * world->m2u);
+    }
+    return true;
 }
 
 float ragdollTug(edict_t* ent, edict_t* player, int hand, int what, const glm::vec3& grip, float strength, float force)

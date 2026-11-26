@@ -633,6 +633,37 @@ void slideTestFrame()
                     progs::staminaLeft(pl), t.startsWas, s.starts, t.refusalsWas, s.tiredRefusals);
                 testCheck(t.tally, tag, s.starts == t.startsWas && s.tiredRefusals > t.refusalsWas && !s.on, line);
                 Cbuf_InsertText("-flatcrouch\nvr_stamina_set 1\n");
+                pl->v.origin[0] = -580.f;
+                pl->v.origin[1] = -440.f;
+                pl->v.origin[2] = 24.f;
+                pl->v.velocity[0] = pl->v.velocity[1] = pl->v.velocity[2] = 0.f;
+                SV_LinkEdict(pl, false);
+                cl.viewangles[YAW] = 0.f;
+                cl.viewangles[PITCH] = 0.f;
+                next(8);
+            }
+            break;
+        case 8: // full speed again (with stamina): pressing prone must NOT start a slide (slides are crouch-only)
+            cl.viewangles[YAW] = 0.f;
+            if(!s.on && ground && speed > 300.f && now > s.cooldownUntil && !hull::flatCrouchHeld(pl) && !hull::isProne(pl) &&
+                inPhase > 0.2)
+            {
+                t.startsWas = s.starts;
+                t.startSpeed = speed;
+                Cbuf_InsertText("vr_prone_toggle\n");
+                next(9);
+            }
+            break;
+        case 9: // prone pressed at running speed: entered prone, zero slide starts
+            cl.viewangles[YAW] = 0.f;
+            if(inPhase > 0.5)
+            {
+                char line[220];
+                q_snprintf(line, sizeof(line),
+                    "prone at running speed (%.0f u/s) does not slide (slides %d -> %d, sliding %d, lying %d, lie share %.2f)",
+                    t.startSpeed, t.startsWas, s.starts, s.on ? 1 : 0, hull::isProne(pl) ? 1 : 0, flatplay::proneRatio());
+                testCheck(t.tally, tag, s.starts == t.startsWas && !s.on && flatplay::proneRatio() > 0.5f, line);
+                Cbuf_InsertText("vr_prone_toggle\n");
                 next(99);
             }
             break;
@@ -2734,11 +2765,11 @@ namespace
 // flatplay::keySlots keys (his words 2026-11-25: "the same action to have two separate bindings"): their bind names, a
 // space between ("c CTRL"), read by flatplay::keyNum / keyIs / keyHeld, set by flatplay::setKey.
 cvar_t* const flatKeyList[] = {&vr_flat_key_lean_left, &vr_flat_key_lean_right, &vr_flat_key_crouch, &vr_flat_key_prone, &vr_flat_key_swap, &vr_flat_key_grab, &vr_flat_key_shove, &vr_flat_key_punch,
-    &vr_flat_key_reload, &vr_flat_key_ammo, &vr_flat_key_drop, &vr_flat_key_cycle_left, &vr_flat_key_cycle_right,
+    &vr_flat_key_reload, &vr_flat_key_ammo, &vr_flat_key_pull, &vr_flat_key_cycle_left, &vr_flat_key_cycle_right,
     &vr_flat_key_holster_left, &vr_flat_key_holster_right, &vr_flat_key_drop_left, &vr_flat_key_drop_right, &vr_flat_key_grenade, &vr_flat_key_throw, &vr_flat_key_bullettime, &vr_flat_key_flashlight, &vr_flat_key_gearlights, &vr_flat_key_voicechat, &vr_flat_key_holster_menu, &vr_flat_key_flycam,
     &vr_flat_key_toolgun, &vr_flat_key_toolgun_menu, &vr_flat_key_toolgun_adjust};
-const char* const flatKeyLabels[] = {"Lean left", "Lean right", "Crouch / slide", "Lie down", "Swap hands", "Force grab", "Shove", "Punch", "Reload", "Next ammo type", "Drop",
-    "Cycle left hand", "Cycle right hand", "Holster left hand", "Holster right hand", "Drop left hand", "Drop right hand", "Quick grenade", "Throw", "Bullet time", "Flashlight", "Gear lights", "Push-to-talk", "Holster menu", "Fly camera", "Toolgun", "Toolgun panel", "Toolgun adjust"};
+const char* const flatKeyLabels[] = {"Lean left", "Lean right", "Crouch / slide", "Lie down", "Swap hands", "Force grab", "Shove", "Punch", "Reload", "Next ammo type", "Grab / pull",
+    "Cycle left hand", "Cycle right hand", "Holster left hand", "Holster right hand", "Drop left hand", "Drop right hand", "Quick grenade", "Throw / drop", "Bullet time", "Flashlight", "Gear lights", "Push-to-talk", "Holster menu", "Fly camera", "Toolgun", "Toolgun panel", "Toolgun adjust"};
 static_assert(za::getArraySize(flatKeyList) == za::getArraySize(flatKeyLabels), "a label for every flat key");
 static_assert(flatplay::keySlots == VR_FLATKEY_SLOTS, "the menu's slots are the keys'");
 

@@ -32,6 +32,36 @@ void() VR_FlatKeysTest_Frame =
         return;
     }
 
+    if(mode == 3)
+    {
+        // Test aid: spawn a carryable gib on the floor 52 u ahead of the player (non-force-grabbable with vr_grab_gibs 1).
+        makevectors('0 1 0' * player.v_angle_y);
+        entity g = spawn();
+        g.classname = "vr_test_gib";
+        setmodel(g, "progs/gib2.mdl");
+        g.movetype = MOVETYPE_BOUNCE;
+        g.velocity = '0 0 -10';
+        setorigin(g, player.origin + v_forward * 52 + '0 0 8');
+        VR_MakeGibGrabbable(g);
+        bprint(sprintf("flatkeys: spawned gib at %.0f %.0f %.0f (vr_gib %g)\n", g.origin_x, g.origin_y, g.origin_z, g.vr_gib));
+        cvar_set("vr_flatkeys_test", "0");
+        return;
+    }
+
+    if(mode == 4)
+    {
+        entity hMain = VR_Carry_Held(player, cVR_MainHand);
+        entity hOff = VR_Carry_Held(player, cVR_OffHand);
+        bprint(sprintf("flatkeys: held main %s %.0f %.0f %.0f ", hMain == world ? "-" : hMain.classname,
+            hMain == world ? 0 : hMain.origin_x, hMain == world ? 0 : hMain.origin_y, hMain == world ? 0 : hMain.origin_z));
+        bprint(sprintf("off %s %.0f %.0f %.0f ", hOff == world ? "-" : hOff.classname,
+            hOff == world ? 0 : hOff.origin_x, hOff == world ? 0 : hOff.origin_y, hOff == world ? 0 : hOff.origin_z));
+        bprint(sprintf("grab %g wpn %g %g\n", player.vr_flatgrab_hands, VRGetEntWeapon(player, cVR_MainHand),
+            VRGetEntWeapon(player, cVR_OffHand)));
+        cvar_set("vr_flatkeys_test", "0");
+        return;
+    }
+
     if(mode == 2)
     {
         if(flatkeysTestStep <= 0)

@@ -101,7 +101,7 @@ void moveSize(const edict_t* ent, float& width, float& height);
 // crouch key is held now -- his eyes stand under the tallest crouched box's top whatever he does, so his key, not their
 // height, says whether he is crouched. True for a headset player, who crouches with his own head: nothing about him
 // changes.
-void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch);
+void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch, bool flatscreenProne = false);
 // Whether a client has his crouched box (the box moveBox, entBox, touchBox and hitBox give him).
 [[nodiscard]] bool isCrouched(const edict_t* ent);
 // Whether a client lies down (vr_prone: updateCrouch; his box then vr_prone_height tall, a crouched box to the rest).

@@ -1351,6 +1351,8 @@ constexpr const char* retiredCvars[] = {
     "vr_flat_rest_along",
     "vr_flat_rest_below",
     "vr_flat_rest_relief",
+    // 2026-11-26: flatscreen Drop (vr_flat_key_drop, H) merged into Throw / drop (vr_flat_key_throw, B); H is now Grab / pull (vr_flat_key_pull).
+    "vr_flat_key_drop",
     // 2026-11-03: the directional parry the only parry (ROUND23.md, "Directional parry: the only parry"): its switch, on since 2026-11-02.
     "vr_dirparry",
     // 2026-11-02: the armed death knight's share of casts with a gun, a cooldown now (vr_agdknight_cast_cooldown).

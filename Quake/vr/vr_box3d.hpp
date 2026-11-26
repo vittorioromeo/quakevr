@@ -435,6 +435,11 @@ enum class RagdollGrabResult : int
     Weapon = 2,
 };
 RagdollGrabResult ragdollGrab(edict_t* corpse, edict_t* player, int hand);
+// Flatscreen Grab / Pull (QC ragdollgrabreach / ragdollthrow): reach-grab a limb of `corpse` nearest `target` within
+// `reach` units (preferring a part other than `avoidPart` when >= 0; returns part + 1, 0 none); throw releases all hands
+// of `player` holding `corpse` and launches its non-cut parts with `velocity` (units/s, scaled by vr_ragdoll_throw).
+int ragdollGrabReach(edict_t* corpse, edict_t* player, int hand, const glm::vec3& target, float reach, int avoidPart = -1);
+bool ragdollThrowWhole(edict_t* corpse, edict_t* player, const glm::vec3& velocity);
 // The armed monsters' tug-of-war (QC ragdolltug; vr_box3d_ragparts.cpp tugRagdoll): what 0 begin (the hand holds the
 // limb nearest `grip` at the weapon's lever, `force` N at most, its arm pulling at `strength`), 1 the hold's pull (N; -1
 // none), 2 over (its stagger up again `strength` s on).

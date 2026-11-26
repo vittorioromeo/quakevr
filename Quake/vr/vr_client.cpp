@@ -133,6 +133,7 @@ enum VrBits0 : int
     // player's .vr_flatscreen: vr_server.cpp, protocol::moveFlatplayBit.)
     VRBITS0_FLATPLAY = protocol::moveFlatplayBit,
     VRBITS0_FLATCROUCH = protocol::moveFlatCrouchBit,
+    VRBITS0_FLATPRONE = protocol::moveFlatProneBit,
 };
 
 // ----------------------------------------------------------------------------
@@ -426,6 +427,7 @@ void setVrBits(VrMove& move, const hands::State& hs)
     set(teleport::update(hs, move.teleportTarget), VRBITS0_TELEPORTING);
     set(flatplay::active(), VRBITS0_FLATPLAY);
     set(flatplay::crouchHeld(), VRBITS0_FLATCROUCH); // (the key: let go, the server tries standing at once)
+    set(flatplay::proneHeld(), VRBITS0_FLATPRONE);   // (separate from crouch: never starts a slide)
     // (A headset: the same bit is its slide gesture, vr_slide: protocol::moveSlideBit; vr_input.cpp, vr_slide.cpp.)
     set(!flatplay::active() && vr_slide.value != 0.f && slide::gestureHeld(), VRBITS0_FLATCROUCH);
     move.vrBits0 = static_cast<za::U16>(bits);
@@ -514,10 +516,10 @@ void poseMove(VrMove& move)
             }
             move.shotRot[h] = unposed.shotRot[h];
         }
-        // (Flying, also the state he stands in: two-handed aim, the flatscreen bits, the crouch held.)
+        // (Flying, also the state he stands in: two-handed aim, the flatscreen bits, the crouch/prone held.)
         const int kept = VRBITS0_OFFHAND_GRABBING | VRBITS0_MAINHAND_GRABBING | VRBITS0_OFFHAND_RELOADING |
                          VRBITS0_MAINHAND_RELOADING |
-                         (flying ? VRBITS0_2H_AIMING | VRBITS0_FLATPLAY | VRBITS0_FLATCROUCH : 0);
+                         (flying ? VRBITS0_2H_AIMING | VRBITS0_FLATPLAY | VRBITS0_FLATCROUCH | VRBITS0_FLATPRONE : 0);
         move.vrBits0 = static_cast<za::U16>(unposed.vrBits0 & kept);
         move.buttons &= ~(QVR_BUTTON_OFFHANDATTACK | QVR_BUTTON_OFFHANDSECONDARY | QVR_BUTTON_MAINHANDSECONDARY |
                           QVR_BUTTON_OFFHANDPRIMARY | QVR_BUTTON_MAINHANDPRIMARY);

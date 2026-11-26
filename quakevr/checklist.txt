@@ -13,7 +13,7 @@ Flat-screen: hold the right mouse button with the shotgun, then with the grenade
 Flat-screen: at the test hall's setting buttons, Turning, Swap Sticks, Teleport, Weapon Grip, Gadget Arm, Flashlight Side, World Scale and HUD show "VR only" in grey and pressing one changes nothing, while Run, Climbing, Body and Crosshair still step and show their value. {test:flat_vronly_buttons}
 Flat-screen: with Show Melee Arcs and Show Aim Cones on, let the sword and axe grunts come at you: their floor arcs, their swinging blades' fading trails and the red marks where a blow lands are drawn on the screen. {test:agrunt_melee_arcs}
 Flat-screen: hold C, then hold Left Ctrl: each one crouches (and slides when you run), and Left Ctrl fires nothing. {test:hub_start}
-Flat-screen: N switches the held weapon's ammo type (the rocket launcher's multi-rockets, the dagger's grip), and holding B winds up a throw of what the hand holds. {test:hub_start}
+Flat-screen: N switches the held weapon's ammo type (the rocket launcher's multi-rockets, the dagger's grip), tapping B drops what the hand holds (or lets go of a stuck blade), and holding B winds up a throw. {test:hub_start}
 Flat-screen: in Options > Controls, on a "Quake VR (flat screen)" row press Right, Enter and a key: the row shows both keys and both work in play; Backspace on either clears only that one. {test:hub_start}
 Flat-screen: give an action a second key in Options > Controls, quit and start the game again: both keys are still there and both work. {test:hub_start}
 Flat-screen: under water, hold C or Left Ctrl: you swim down (Locomotion > Desktop Screen Play > Crouch Keys Swim Down turns it off). {test:flat_swim}
@@ -27,6 +27,15 @@ Flat-screen: give yourself the Crystal Lance and hold the right mouse button: th
 Flat-screen: with the spear or the Crystal Lance, press N to flip the grip: your other hand stays on the reversed shaft, closed round it (not floating off it), for both weapons. {test:flat_spear}
 In single player, let grunts shoot at you and lean, duck and hold your arms out: their bullets and missiles hit the body you see (head, torso, arms, legs, a little forgiving), not the 24-wide box; a shot passing just beside you misses. Debug > Tunables > Combat > Other > Body Hit Fattening tunes the leniency (default 5.5). {test:sphit_body}
 In single player, hide behind a wall from the grunts, then lean your head out past its edge: after a short moment they see you and shoot at what shows (head, shoulder, hand), but less accurately than when you stand in the open, so leaning takes clearly fewer hits; fully behind the wall they don't shoot. Debug > Tunables > Combat > Other has Monsters See Leaning, Lean Spread and Lean Reaction. {test:sphit_body}
+Flat-screen: hold a loaded nailgun, super nailgun, or thunderbolt with none of its alternate ammo and press N to switch ammo: the old magazine drops out as the regular type without transforming into a lava or plasma magazine first. {test:flat_ammo_key}
+Flat-screen or VR: climb a vertical pole and a vertical rope and check from first-person and third-person that both elbows flare outwards away from the torso and never fold inwards or occlude the camera. {test:ropes}
+Flat-screen or VR: dive to the bottom of the pool and walk along it: no dry-land footstep sounds play while underwater even when touching the bottom. {test:flat_swim}
+Flat-screen: while underwater, hold the crouch key (C / Left Ctrl) to swim down: you descend smoothly while keeping the regular swimming pose with no crouch eye drop or crouch body posture. {test:flat_swim}
+Flat-screen or VR: try going prone underwater (X in flat-screen or crouching low in VR) and also go prone on land then enter deep water: prone is blocked underwater and exits cleanly into the regular swimming pose. {test:flat_swim}
+Flat-screen: sprint forward at full speed and press the prone key (X): you transition directly into prone without starting a slide, while pressing crouch (C / Left Ctrl) at speed still slides. {test:flatprone}
+Flat-screen: tap B to gently drop your held weapon right in front of you or let go of a stuck blade (leaving it in the body), and hold B to wind up and throw a held weapon or grabbed object. {test:flat_grab_pull}
+Flat-screen: with empty hand(s), press H near a wooden crate to grab it with every available empty hand, walk to push or pull it around, press H again to release it, or hold B to throw it. {test:flat_grab_pull}
+Flat-screen: shove a grunt into an active ragdoll, press H to grab it with both hands, and hold B to throw it; also try grabbing a non-force-grabbable gib off the ground with H and toggling Locomotion > Grab / Pull Key between Toggle and Hold. {test:flat_grab_pull}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
@@ -72,7 +81,7 @@ On the Quest, after running only part of an update (a new app with the old game 
 Flat-screen: V a sword into a grunt and touch nothing: the blade stays in and your hand stays on its handle, nothing creeping out a tenth of a second after the stab. {test:flat_stuck_blade}
 Flat-screen: then walk backwards holding it: as the arm runs out the blade comes back out into the hand and the hand never jumps off the wrist; the ogre is too heavy, so there the hand lets go and the sword stays in. {test:flat_stuck_blade}
 Flat-screen: a grunt staggers off with your sword in it: the hand slips along the handle instead of letting go, and stays drawn on the arm. {test:flat_stuck_blade}
-Flat-screen: take the spear, thrust it into a grunt and walk away: the empty other hand closes on the shaft near it and holds while your arm reaches, dropping cleanly when the arm runs out or when you press H (which releases both hands together). {test:spear}
+Flat-screen: take the spear, thrust it into a grunt and walk away: the empty other hand closes on the shaft near it and holds while your arm reaches, dropping cleanly when the arm runs out or when you tap B (which releases both hands together). {test:spear}
 Flat-screen: an axe's V is a swing, not a thrust: stuck in a grunt it stays in by its edge, walking away never draws it into your hand, and once your arm runs out your hand lets go cleanly leaving the axe embedded. {test:flat_stuck_blade}
 
 [4. Tutorial and VR interface]

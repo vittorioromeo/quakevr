@@ -1841,7 +1841,8 @@ void applyVrMove(client_t* client, const VrMove& sent)
     ClientBits& bits = clientBits[clientNum];
     // Every move since the server's last frame counts: a press (and release) between two frames is seen this frame,
     // the bits ORed (the last move won: MP_PLAN.md, B2). VR_MoveMerges counted this move.
-    const int movedBits = move.vrBits0 & ~(protocol::moveFlatplayBit | protocol::moveFlatCrouchBit);
+    const int movedBits =
+        move.vrBits0 & ~(protocol::moveFlatplayBit | protocol::moveFlatCrouchBit | protocol::moveFlatProneBit);
     bits.received = bits.moves > 1 ? (bits.received | movedBits) : movedBits;
     // This player plays flatscreen (-flatscreenmode, his own client's: vr_flatplay.cpp): the QC's per-player gate
     // (VR_FlatPlay: no reloading, E's grab, 1 and 2 cycling; the hands' touch below).
@@ -1866,6 +1867,7 @@ void applyVrMove(client_t* client, const VrMove& sent)
     // asked as before, with his own head deciding (true).
     const bool flat = (move.vrBits0 & protocol::moveFlatplayBit) != 0;
     const bool flatCrouch = flat && (move.vrBits0 & protocol::moveFlatCrouchBit) != 0;
+    const bool flatProne = flat && (move.vrBits0 & protocol::moveFlatProneBit) != 0;
     // A headset client's bit 14 is its slide gesture (vr_slide: protocol::moveSlideBit; the shared slide, vr_slide.cpp).
     slide::setHeadsetInput(ent, !flat && (move.vrBits0 & protocol::moveSlideBit) != 0);
     // A remote client's head over his feet as his own client had it (from the origin he placed it from: his prediction,
@@ -1876,7 +1878,7 @@ void applyVrMove(client_t* client, const VrMove& sent)
     {
         head += glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} - move.origin;
     }
-    hull::updateCrouch(ent, head, !flat || flatCrouch);
+    hull::updateCrouch(ent, head, !flat || flatCrouch, flatProne);
     const int crouched = hull::isCrouched(ent) ? (1 << 23) : 0;
     // Lying down (vr_prone; his crouched box then the lowest, vr_prone_height): QC's .vr_prone (no jumping: PlayerJump).
     setFieldFloat(ent, f.vr_prone, hull::isProne(ent) ? 1.f : 0.f);
@@ -1892,7 +1894,7 @@ void applyVrMove(client_t* client, const VrMove& sent)
     // his head is under his view height, of his standing height: not a step's easing, nor vr_floor_offset. A headset
     // player takes the line below exactly as before (flatDrop is 0 for him).
     // (Held, or let go and his box kept crouched under a low ceiling, his view held down with it: hull::localEyeCap.)
-    const float flatDrop = (flatCrouch || (flat && hull::isCrouched(ent)))
+    const float flatDrop = (flatCrouch || flatProne || (flat && hull::isCrouched(ent)))
                                ? za::max(0.f, ent->v.view_ofs[2] - (move.headPos.z - ent->v.origin[2]))
                                : 0.f;
     const bool upright = (!flat && seated::active()) || (flat && flatDrop <= 0.f) || move.headPos == glm::vec3{0.f} ||

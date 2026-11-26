@@ -2058,13 +2058,30 @@ QVR_TUNABLE(vr_flat_throw_follow_out, "0.05") // out at its side
 QVR_TUNABLE(vr_flat_throw_follow_down, "0.25") // below the shoulder
 QVR_TUNABLE(vr_flat_throw_follow_pitch, "25") // its pitch against the look's
 QVR_TUNABLE(vr_flat_throw_back_time, "0.3") // seconds the hand takes from the follow-through back to its pose (an empty hand's rest, a weapon's grip)
-QVR_TUNABLE(vr_flat_throw_charge_time, "1") // seconds the throw key is held for the hardest throw (0.05..5)
-QVR_TUNABLE(vr_flat_throw_speed_min, "5") // the hand's speed (m/s) of a tap: a quick toss (the headset's throw rules make the rest: weight, gain, assist)
+QVR_TUNABLE(vr_flat_throw_tap_time, "0.18") // seconds: a press shorter than this is a quick tap (drops what the hand holds or lets go of an embedded blade); held at least this long winds up and throws (0..0.6)
+QVR_TUNABLE(vr_flat_throw_drop_speed, "1.2") // hand speed (m/s) of a quick tap-drop: a very short gentle drop/toss in front of the player (0 drops straight down)
+QVR_TUNABLE(vr_flat_throw_charge_time, "1") // seconds held past tap time for the hardest throw (0.05..5)
+QVR_TUNABLE(vr_flat_throw_speed_min, "5") // the hand's speed (m/s) at the start of a held throw (the headset's throw rules make the rest: weight, gain, assist)
 QVR_TUNABLE(vr_flat_throw_speed_max, "11") // the hand's speed (m/s) fully charged
 QVR_TUNABLE(vr_flat_throw_up, "4") // degrees above the crosshair the throw leaves at (-30..60)
 QVR_TUNABLE(vr_flat_throw_spin, "8") // the throw's spin end over end (rad/s, as a wrist's flick; limited by the thing's mass and vr_throw_spin_max)
 QVR_TUNABLE(vr_flat_throw_spin_time, "1") // 1: a thrown blade's spin timed so that its edge or point leads where its arc meets something (bladespinto)
 QVR_TUNABLE(vr_flat_throw_release_pitch, "-30") // the hand's pitch against the throw as it lets go (negative: tipped back; a thrown weapon's angles)
+
+// Flatscreen > Grab / Pull (vr_flatgrenade.cpp, QC vr_flatgrab.qc; vr_flat_key_pull, default H). Uses every available
+// empty hand to grab and manipulate physics props, crates, ragdolls and gibs in front of the player.
+QVR_TUNABLE(vr_flat_grab_reach, "100") // units ahead of the eyes Grab / Pull can reach grabbable props, crates, ragdolls and gibs (32..200)
+QVR_TUNABLE(vr_flat_grab_cone, "28") // degrees: angular cone around the crosshair when picking a target to grab (5..60)
+QVR_TUNABLE(vr_flat_grab_carry_dist, "30") // units ahead of the hands where a grabbed two-handed prop/crate sits (clamped clear of walls and body)
+QVR_TUNABLE(vr_flat_grab_reach_time, "0.14") // seconds the hand(s) take to reach forward when grabbing (0.02..0.6)
+QVR_TUNABLE(vr_flat_grab_back_time, "0.18") // seconds the hand(s) take to ease back when releasing or missing (0.02..0.6)
+QVR_TUNABLE(vr_flat_grab_reach_fwd, "0.85") // reach-out pose: forward along the look, a share of the arm's reach
+QVR_TUNABLE(vr_flat_grab_reach_out, "-0.08") // reach-out pose: out at its side (negative: slightly inward)
+QVR_TUNABLE(vr_flat_grab_reach_down, "0.12") // reach-out pose: below its shoulder
+QVR_TUNABLE(vr_flat_grab_hold_fwd, "0.65") // hold pose (2H crate or ragdoll): forward along the look, a share of the arm's reach
+QVR_TUNABLE(vr_flat_grab_hold_out, "0.08") // hold pose: out at its side
+QVR_TUNABLE(vr_flat_grab_hold_down, "0.18") // hold pose: below its shoulder
+QVR_TUNABLE(vr_flat_grab_ragdoll_throw, "0.85") // multiplier on flatscreen ragdoll throw speed (on top of vr_ragdoll_throw)
 
 // Flatscreen > Free Hands
 QVR_TUNABLE(vr_flat_empty_fwd, "7.5") // an empty hand: how far in front of its shoulder it hangs (-30..30; 5 off the old anchor)

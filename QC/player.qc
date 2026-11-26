@@ -147,39 +147,48 @@ void(float xHand) player_run =
 
     // QVR: the steps on any free channel (CHAN_AUTO), not the voice's: the first step after a hard landing cut its
     // "hnng" (player/land2.wav) off, and every step a pain or a gasp (ROUND22.md, "Sounds cut off: the audit").
+    // Never play dry-land footsteps while underwater (waterlevel >= 2), even when touching the bottom (FL_ONGROUND).
     if(footsteps == 1)
     {
-        self.spawnsilent = self.spawnsilent + vlen(self.origin - self.old_velocity);
-        self.old_velocity = self.origin;
-        if(self.flags & FL_ONGROUND)
+        if(self.waterlevel >= 2)
         {
-            if(self.spawnsilent > 95)
+            self.spawnsilent = 0;
+            self.old_velocity = self.origin;
+        }
+        else
+        {
+            self.spawnsilent = self.spawnsilent + vlen(self.origin - self.old_velocity);
+            self.old_velocity = self.origin;
+            if(self.flags & FL_ONGROUND)
             {
-                float r;
-                if(self.spawnsilent > 190)
-                   self.spawnsilent = 0;
-                else
-                   {
-                   self.spawnsilent = 0.5*(self.spawnsilent - 95);
-                   }
-                // QVR: heard from the drawn feet instead, as they touch down (vr_playersteps.cpp).
-                if(!playerstepsilent(self))
+                if(self.spawnsilent > 95)
                 {
-                    r = random();
-                    if(r < 0.14)
-                       VR_SoundVaried(self, CHAN_AUTO, "misc/foot1.wav", 0.5, ATTN_NORM);
-                    else if(r < 0.29)
-                       VR_SoundVaried(self, CHAN_AUTO, "misc/foot2.wav", 0.5, ATTN_NORM);
-                    else if(r < 0.43)
-                       VR_SoundVaried(self, CHAN_AUTO, "misc/foot3.wav", 0.5, ATTN_NORM);
-                    else if(r < 0.58)
-                       VR_SoundVaried(self, CHAN_AUTO, "misc/foot4.wav", 0.5, ATTN_NORM);
-                    else if(r < 0.72)
-                       VR_SoundVaried(self, CHAN_AUTO, "misc/foot5.wav", 0.5, ATTN_NORM);
-                    else if(r < 0.86)
-                       VR_SoundVaried(self, CHAN_AUTO, "misc/foot6.wav", 0.5, ATTN_NORM);
+                    float r;
+                    if(self.spawnsilent > 190)
+                       self.spawnsilent = 0;
                     else
-                       VR_SoundVaried(self, CHAN_AUTO, "misc/foot7.wav", 0.5, ATTN_NORM);
+                       {
+                       self.spawnsilent = 0.5*(self.spawnsilent - 95);
+                       }
+                    // QVR: heard from the drawn feet instead, as they touch down (vr_playersteps.cpp).
+                    if(!playerstepsilent(self))
+                    {
+                        r = random();
+                        if(r < 0.14)
+                           VR_SoundVaried(self, CHAN_AUTO, "misc/foot1.wav", 0.5, ATTN_NORM);
+                        else if(r < 0.29)
+                           VR_SoundVaried(self, CHAN_AUTO, "misc/foot2.wav", 0.5, ATTN_NORM);
+                        else if(r < 0.43)
+                           VR_SoundVaried(self, CHAN_AUTO, "misc/foot3.wav", 0.5, ATTN_NORM);
+                        else if(r < 0.58)
+                           VR_SoundVaried(self, CHAN_AUTO, "misc/foot4.wav", 0.5, ATTN_NORM);
+                        else if(r < 0.72)
+                           VR_SoundVaried(self, CHAN_AUTO, "misc/foot5.wav", 0.5, ATTN_NORM);
+                        else if(r < 0.86)
+                           VR_SoundVaried(self, CHAN_AUTO, "misc/foot6.wav", 0.5, ATTN_NORM);
+                        else
+                           VR_SoundVaried(self, CHAN_AUTO, "misc/foot7.wav", 0.5, ATTN_NORM);
+                    }
                 }
             }
         }

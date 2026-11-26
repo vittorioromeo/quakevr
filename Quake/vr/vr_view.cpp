@@ -2699,13 +2699,46 @@ void heldMagazines(const view::ViewEntity& gun, const VrGunLook& look, MagSlide&
     setMagazine(well, gun, on, true);
 }
 
+struct HeldMagDebug
+{
+    bool valid[2]{false, false};
+    const qmodel_t* gun[2]{nullptr, nullptr};
+    const qmodel_t* mag[2]{nullptr, nullptr};
+    bool magVis[2]{false, false};
+    bool noMag[2]{false, false};
+};
+HeldMagDebug heldMagDebug;
+
 void setupHeldMagazines()
 {
     for(int hand = 0; hand < 2; hand++)
     {
         const view::ViewEntity& gun = entities.weapon[hand];
+        const VrGunLook look = view::ownGunLook(hand);
         magSlideStep(hand, gun.ent.model);
-        heldMagazines(gun, view::ownGunLook(hand), magSlides[hand], entities.mag[hand], entities.magOut[hand], entities.well[hand]);
+        heldMagazines(gun, look, magSlides[hand], entities.mag[hand], entities.magOut[hand], entities.well[hand]);
+        if(vr_flat_reload_debug.value != 0.f && developer.value)
+        {
+            const qmodel_t* const gModel = gun.visible ? gun.ent.model : nullptr;
+            const qmodel_t* const mModel = entities.mag[hand].visible ? entities.mag[hand].ent.model : nullptr;
+            const bool mVis = entities.mag[hand].visible;
+            const bool noMag = (look.flags & weaponFlagNoMag) != 0;
+            if(!heldMagDebug.valid[hand] || heldMagDebug.gun[hand] != gModel || heldMagDebug.mag[hand] != mModel ||
+                heldMagDebug.magVis[hand] != mVis || heldMagDebug.noMag[hand] != noMag)
+            {
+                heldMagDebug.valid[hand] = true;
+                heldMagDebug.gun[hand] = gModel;
+                heldMagDebug.mag[hand] = mModel;
+                heldMagDebug.magVis[hand] = mVis;
+                heldMagDebug.noMag[hand] = noMag;
+                Con_Printf("flatmag: hand %d weapon %s mag %s (visible %d, nomag %d)\n", hand,
+                    gModel ? gModel->name : "none", mModel ? mModel->name : "none", mVis ? 1 : 0, noMag ? 1 : 0);
+            }
+        }
+        else
+        {
+            heldMagDebug.valid[hand] = false;
+        }
     }
 }
 

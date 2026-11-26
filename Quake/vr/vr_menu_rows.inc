@@ -6883,6 +6883,11 @@ QVR_SLIDER(vr_flat_visor_glass_desat, "Glass Colour Drained", 0.f, 1.f, 0.05f, "
 QVR_TOGGLE(vr_flat_grab_preview, "Force Grab Preview",
     "Playing on the desktop screen: what the grab key (mouse 4) would take now glows with the force grab's outline, as "
     "an open hand's aim shows it in the headset. Off: no glow until it flies (vr_flat_grab_preview).")
+QVR_CYCLE(vr_flat_grab_hold, "Grab / Pull Key",
+    "Playing on the desktop screen (-flatscreenmode): how the Grab / Pull key (H by default) grabs and carries physics "
+    "props, crates, ragdolls and gibs with your available empty hands. Toggle: press to grab, press again to release. "
+    "Hold: hold the key to grab and carry, let go to release (vr_flat_grab_hold).",
+    {0.f, "Toggle"}, {1.f, "Hold"})
 QVR_TOGGLE(vr_flat_shove, "Shove Key (Mouse 5)",
     "Playing on the desktop screen (-flatscreenmode): the shove key (mouse 5, vr_flat_key_shove) pushes an open hand out in "
     "front of you, the headset's one-hand shove: what it reaches is thrown back and staggered. Off: the key does nothing "
