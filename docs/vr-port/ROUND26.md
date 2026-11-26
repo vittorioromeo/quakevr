@@ -835,3 +835,13 @@ His items 3, 5, 12 (2026-11-25).
   ticked that no voice note names since they were added (`cl_retire_ticks.py`; scenes untouched, the ship's own lines
   skipped), each as its own commit ("tunables: promote his values", "checklist: retire N ticked lines"). A build that
   fails with them in ships again without them (warning). Flags: `--no-promote`, `--no-retire`, `--wait-game` (releases).
+
+## split16: splitscreen brought up to date with next again (branch agent/split, 2026-11-26)
+
+- agent/split merged origin/next (212 commits; 18 conflicting files, 69 hunks). Every hunk kept next's side, written
+  through the seats' accessors. Next's new per-player state lives in structs that are already each seat's, so no new
+  `seat::Part` was needed. 11 new globals are marked `seat-shared` (probes, the one map's data, server-side slots).
+- How to try it, and the details: SPLITSCREEN.md section 25 (launcher `qvr-kit/scratch/play_splitscreen.ps1`,
+  Multiplayer > Splitscreen).
+- Tests: split_join_test.sh, seat_play/seat_menu/seat_render_test.sh, plus flatplay/flatgrabthrow/weaponwheel/flatkeybind
+  (results in section 25). Not merged into next: agent/split is a feature branch.
