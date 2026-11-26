@@ -45,12 +45,14 @@ const string Usage = """
                        tips seen, checklist ticks, maps and mods added by hand; --clean: all three, a new install's start
                        but for the relit maps and caches) are moved into <install>\backups\<date> reinstall, checked,
                        then the full install runs; --dry-run lists them)
-    qvr-setup prepare [--target <dir> | --sandbox <dir>] [--quake <dir>] [--relight] [--no-relight]
+    qvr-setup prepare [--target <dir> | --sandbox <dir>] [--quake <dir>] [--relight] [--no-relight] [--no-hulls]
                       (the game started hidden (-prepare: no headset, no config written): Quake VR's first maps loaded once
                        for its disk caches (vrstart's first load 12 s to under 1 s), then, when the first-start relight is
                        pending (or --relight), Quake's and the official mission packs' maps relit as the game's first
                        start would (not the Map Library's nor Arcane Dimensions': the game's Graphics > Relighting does
-                       those); a finished relight removes the first-start marker. Progress in
+                       those); a finished relight removes the first-start marker; then (unless --no-hulls) the
+                       collision of Quake's and the mission packs' maps made once (their first visits faster; listed
+                       in <install>\quakevr\cache\setup_hulls.txt for the Quest copy). Progress in
                        <install>\quakevr\cache\setup_prepare.txt. Ctrl+C stops it)
     qvr-setup statement                              (prints the author's statement on AI usage; install needs --accept-statement)
     qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]
@@ -252,13 +254,13 @@ ShortcutOptions ShortcutsFor(string? shortcutsDir, InstallChoices? choices) => s
     };
 
 // The game's preparation run (GamePreparation): its progress on the console; 0 when it got to its end.
-int Prepare(string target, string quake, bool relight)
+int Prepare(string target, string quake, bool relight, bool hulls)
 {
     Console.WriteLine($"preparing the game{(relight ? " and relighting Quake's and the official mission packs' maps" : "")} (the game hidden; Ctrl+C stops it)");
     using var stop = new CancellationTokenSource();
     Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Cancel(); };
     var lastStatus = "";
-    var result = GamePreparation.Run(target, quake, relight, new SyncProgress<PreparationProgress>(p =>
+    var result = GamePreparation.Run(target, quake, relight, hulls, new SyncProgress<PreparationProgress>(p =>
     {
         if (p.Log is not null)
         {
@@ -272,6 +274,7 @@ int Prepare(string target, string quake, bool relight)
     }), stop.Token);
     Console.WriteLine($"prepare: {(result.Finished ? "done" : $"stopped: {result.Error}")} in {result.Elapsed.TotalSeconds:0.0} s; maps {result.MapsOk} ok, {result.MapsFailed} failed" +
                       (relight ? $"; relight {(result.RelightDone ? "done" : "not finished")} ({result.Relit} relit, {result.RelightSkipped} skipped, {result.RelightFailed} failed)" : "") +
+                      (hulls ? $"; collision of {result.HullMapsOk} maps ({result.HullMapsFailed} failed, {result.HullFiles} files, {result.HullMegabytes:0.0} MB)" : "") +
                       $"; first-start relight {(FirstStartRelight.Pending(target) ? "still pending" : "not pending")}");
     return result.Finished ? 0 : 1;
 }
@@ -384,7 +387,7 @@ async Task<int> InstallCommand(FoundInstall? reinstallOf, ReinstallOptions? rein
     var engine = new InstallEngine();
     var record = engine.Install(plan, log, CancellationToken.None);
     Console.WriteLine($"installed {record.Files.Count} files, {record.Shortcuts.Count} shortcuts{(engine.LastBackup is { } b ? $"; backup: {b.Dir} ({b.Files.Count} files)" : "")}");
-    var prepared = Flag("prepare") ? Prepare(target, quake, record.RelightPending) : 0;
+    var prepared = Flag("prepare") ? Prepare(target, quake, record.RelightPending, !Flag("no-hulls")) : 0;
     // The mod components last: a download failing or stopped never undoes the install (the exit code stays 0).
     foreach (var m in Mods.Where(WantMod))
     {
@@ -536,7 +539,7 @@ async Task<int> UpdateCommand()
     }, log, CancellationToken.None);
     Console.WriteLine($"{mode.ToString().ToLowerInvariant()}: {record.Version}, {engine.LastPlan?.ToCopy.Count() ?? 0} files copied, {record.Files.Count} recorded" +
                       $"{(engine.LastBackup is { } b ? $"; backup: {b.Dir} ({b.Files.Count} files)" : "")}");
-    var prepared = Flag("prepare") ? Prepare(install.Dir, quake, record.RelightPending) : 0;
+    var prepared = Flag("prepare") ? Prepare(install.Dir, quake, record.RelightPending, !Flag("no-hulls")) : 0;
     foreach (var m in modsToGet)
     {
         await ModStep(m, http, feed, install.Dir, quake, downloads);
@@ -557,7 +560,7 @@ int PrepareCommand()
     }
     var quake = Opt("quake") ?? install.Record.QuakeDir;
     var relight = !Flag("no-relight") && (Flag("relight") || FirstStartRelight.Pending(install.Dir) || install.Record.RelightPending);
-    return Prepare(install.Dir, quake, relight);
+    return Prepare(install.Dir, quake, relight, !Flag("no-hulls"));
 }
 
 try

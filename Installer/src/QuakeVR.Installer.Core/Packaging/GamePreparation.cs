@@ -34,6 +34,13 @@ public sealed class PreparationResult
     public int RelightFailed { get; set; }
     /// <summary>The game's own last word on the relight (Graphics > Relighting's status line).</summary>
     public string? RelightStatus { get; set; }
+    /// <summary>The common maps' collision asked for (<c>-preparehulls</c>): Quake's and the mission packs' maps loaded
+    /// once, their hull trees and brushes written to the game's disk cache (and listed for the Quest copy).</summary>
+    public bool HullsAsked { get; set; }
+    public int HullMapsOk { get; set; }
+    public int HullMapsFailed { get; set; }
+    public int HullFiles { get; set; }
+    public double HullMegabytes { get; set; }
     /// <summary>Why it stopped early (null: it did not).</summary>
     public string? Error { get; set; }
     public TimeSpan Elapsed { get; set; }
@@ -57,12 +64,21 @@ public static class GamePreparation
     /// <summary>The progress file, kept as the last run's log: <c>&lt;QVR&gt;\quakevr\cache\setup_prepare.txt</c>.</summary>
     public static string ProgressPath(string installDir) => Path.Combine(installDir, "quakevr", "cache", "setup_prepare.txt");
 
+    /// <summary>The hulls' step's list, written by the game beside the progress file (vr_prepare.cpp writeHullList): a
+    /// line per file, its path under the game's disk cache (<c>hulls/&lt;build&gt;/&lt;key&gt;...</c>), a tab, its whole
+    /// path. The Quest copy sends them (<see cref="Quest.QuestFiles"/>).</summary>
+    public static string HullListPath(string installDir) => Path.Combine(installDir, "quakevr", "cache", "setup_hulls.txt");
+
     /// <summary>A run that writes nothing for this long is stopped (a cold vrstart on a slow PC: about a minute; the
     /// relight writes a line every half second).</summary>
     public static readonly TimeSpan Stall = TimeSpan.FromMinutes(15);
 
-    /// <summary>The share of the bar the maps take (the relight the rest).</summary>
+    /// <summary>The share of the bar the maps take (the relight the rest, but the hulls' share).</summary>
     const double MapsPart = 0.15;
+
+    /// <summary>The share of the bar the common maps' collision takes, at its end (about a minute: 65 maps in 67 s on
+    /// the author's PC, ~0.9 s each).</summary>
+    const double HullsPart = 0.25;
 
     /// <summary>Within the maps' share: Quake VR's first maps up to this, then the hub's guns and models, then the
     /// installed campaigns from <see cref="CampaignsFrom"/> to the end.</summary>
@@ -72,9 +88,9 @@ public static class GamePreparation
 
     /// <summary>The game's command line: the shortcut's, then the preparation run's switches (as the motion review starts
     /// its copies: the mock headset, so no VR runtime is opened; no config written; no player's autoexec; no sound).</summary>
-    public static ProcessStartInfo StartInfo(string installDir, string quakeDir, bool relight)
+    public static ProcessStartInfo StartInfo(string installDir, string quakeDir, bool relight, bool hulls = true)
     {
-        var extra = $"-prepare {LaunchCommand.Quote(ProgressPath(installDir))}{(relight ? " -preparerelight" : "")} " +
+        var extra = $"-prepare {LaunchCommand.Quote(ProgressPath(installDir))}{(relight ? " -preparerelight" : "")}{(hulls ? " -preparehulls" : "")} " +
                     "-noconfigwrite -noautoexec -nosound -nomapindex -noaddons -window -width 640 -height 360 +vr_backend mock";
         var info = new ProcessStartInfo(Path.Combine(installDir, LaunchCommand.Exe), LaunchCommand.Arguments(quakeDir, installDir, LaunchVariant.Vr, extra))
         {
@@ -111,7 +127,8 @@ public static class GamePreparation
             case "start":
                 r.Started = true;
                 return new PreparationProgress(0, "Preparing the game", $"Preparing the game ({string.Join(' ', words.Skip(1))}): its first maps and every model loaded once" +
-                                                                   (r.RelightAsked ? ", then Quake's and the official mission packs' maps relit" : "") + ", so the first start doesn't wait for them.");
+                                                                   (r.RelightAsked ? ", then Quake's and the official mission packs' maps relit" : "") +
+                                                                   (r.HullsAsked ? ", then their collision made" : "") + ", so the first start doesn't wait for them.");
             case "step" when words.Length >= 5 && words[1] == "maps":
             {
                 var i = Int(words[2]);
@@ -176,7 +193,7 @@ public static class GamePreparation
             {
                 var percent = Math.Clamp(Int(words[1]), 0, 100);
                 var text = string.Join(' ', words.Skip(2));
-                return new PreparationProgress(MapsShare(r) + (1 - MapsShare(r)) * percent / 100.0, text.Length > 0 ? text : "Relighting the maps");
+                return new PreparationProgress(MapsShare(r) + (RelightEnd(r) - MapsShare(r)) * percent / 100.0, text.Length > 0 ? text : "Relighting the maps");
             }
             case "result" when words.Length >= 2 && words[1] == "relight":
             {
@@ -189,10 +206,36 @@ public static class GamePreparation
                 r.RelightSkipped = F("skipped");
                 r.RelightFailed = F("failed");
                 r.RelightDone = F("ended") == 1 && F("failed") == 0 && F("cancelled") == 0;
-                return new PreparationProgress(1, "Relighting the maps", r.RelightDone
+                return new PreparationProgress(RelightEnd(r), "Relighting the maps", r.RelightDone
                     ? $"Relit {r.Relit} map(s){(r.RelightSkipped > 0 ? $", {r.RelightSkipped} relit before and kept" : "")}: the game's first start relights nothing."
                     : $"The relight did not finish ({r.RelightStatus ?? "no result"}): the game relights at its first start instead.",
                     r.RelightDone ? LogLevel.Success : LogLevel.Warning);
+            }
+            case "step" when words.Length >= 5 && words[1] == "hulls":
+            {
+                var i = Int(words[2]);
+                var n = Math.Max(1, Int(words[3]));
+                return new PreparationProgress(RelightEnd(r) + HullsShare(r) * (i - 1) / n, $"Preparing collision for {words[4]} ({i} of {n})");
+            }
+            case "hulls" when words.Length >= 4:
+                if (words[2] == "ok")
+                {
+                    ++r.HullMapsOk;
+                    return null; // (a line a map: the status line says it)
+                }
+                ++r.HullMapsFailed;
+                return new PreparationProgress(null, null, $"{words[1]}'s collision could not be prepared: the game makes it at its first visit.", LogLevel.Warning);
+            case "result" when words.Length >= 2 && words[1] == "hulls":
+            {
+                var fields = words.Skip(2).Select(w => w.Split('=', 2)).Where(p => p.Length == 2)
+                    .ToDictionary(p => p[0], p => p[1]);
+                int F(string k) => fields.TryGetValue(k, out var v) ? Int(v) : 0;
+                r.HullFiles = F("files");
+                r.HullMegabytes = fields.TryGetValue("mb", out var mb) && double.TryParse(mb, NumberStyles.Float, CultureInfo.InvariantCulture, out var m) ? m : 0;
+                var seconds = words[^1].Contains('=') ? "?" : words[^1];
+                return new PreparationProgress(1, null, $"Prepared the collision of {F("ok")} of Quake's and the mission packs' maps ({r.HullFiles} files, " +
+                                                        $"{r.HullMegabytes.ToString("0", CultureInfo.InvariantCulture)} MB; {seconds} s): their first visits load faster" +
+                                                        (F("failed") > 0 ? $"; {F("failed")} not prepared (made at their first visit)." : "."));
             }
             case "done":
                 r.Finished = true;
@@ -201,17 +244,22 @@ public static class GamePreparation
                 return null;
         }
 
-        static double MapsShare(PreparationResult r) => r.RelightAsked ? MapsPart : 1.0;
+        // The bar: the maps, then the relight (when asked), then the hulls (when asked) at the end.
+        static double HullsShare(PreparationResult r) => r.HullsAsked ? HullsPart : 0.0;
+        static double RelightEnd(PreparationResult r) => 1.0 - HullsShare(r);
+        static double MapsShare(PreparationResult r) => r.RelightAsked ? MapsPart : RelightEnd(r);
     }
 
     /// <summary>Runs the game's preparation and waits for it (<paramref name="ct"/>: stops it, with its light
     /// processes). Then, with the relight finished, the first-start marker removed and install.json says so.</summary>
-    public static Task<PreparationResult> RunAsync(string installDir, string quakeDir, bool relight, IProgress<PreparationProgress>? progress,
-        CancellationToken ct) => Task.Run(() => Run(installDir, quakeDir, relight, progress, ct), CancellationToken.None);
+    public static Task<PreparationResult> RunAsync(string installDir, string quakeDir, bool relight, bool hulls, IProgress<PreparationProgress>? progress,
+        CancellationToken ct) => Task.Run(() => Run(installDir, quakeDir, relight, hulls, progress, ct), CancellationToken.None);
 
-    public static PreparationResult Run(string installDir, string quakeDir, bool relight, IProgress<PreparationProgress>? progress, CancellationToken ct)
+    /// <param name="hulls">The common maps' collision too (Options: "Prepare collision for Quake's maps", ticked by
+    /// default): Quake's and the mission packs' single-player maps loaded once after the relight.</param>
+    public static PreparationResult Run(string installDir, string quakeDir, bool relight, bool hulls, IProgress<PreparationProgress>? progress, CancellationToken ct)
     {
-        var result = new PreparationResult { RelightAsked = relight };
+        var result = new PreparationResult { RelightAsked = relight, HullsAsked = hulls };
         var watch = Stopwatch.StartNew();
         var path = ProgressPath(installDir);
         var exe = Path.Combine(installDir, LaunchCommand.Exe);
@@ -228,7 +276,7 @@ public static class GamePreparation
         Process process;
         try
         {
-            process = Process.Start(StartInfo(installDir, quakeDir, relight)) ?? throw new InvalidOperationException("no process");
+            process = Process.Start(StartInfo(installDir, quakeDir, relight, hulls)) ?? throw new InvalidOperationException("no process");
         }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)
         {

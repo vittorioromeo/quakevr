@@ -55,6 +55,8 @@ Debug > Profiling and Memory: turn "Read the Shipped Cache" off, then on; with i
 Flat-screen or VR: start once with -glsafe; the game starts, vr_glsafe_status lists "vertex-only depth programs (an empty fragment shader instead) off (safe mode)", and e1m1 looks the same as without it. {test:hub_start}
 Right after the hub (or any map seen for the first time) finishes loading, crouch and lie down at once and crawl under something low: you may get a short loading panel the first time, but you must never pass through a wall or floor, and monsters near walls must not get stuck. {test:hub_start}
 Flat-screen or VR: start the game twice and enter the hub both times: the second time the hub should load in a few seconds (on the Quest about 2-3 s instead of about 12 s once its files exist); walking, crouching and lying down against walls, grates and gaps work as before. {test:hub_start}
+Run Setup (install, update or repair): Options shows "Prepare collision for Quake's maps" (ticked by default), and after the relight the Install page's bar shows "Preparing collision for e1m1 (1 of 65)" and on through Quake's and the mission packs' maps, about a minute, then logs how many maps were prepared. {test:hub_start}
+After an install with that box ticked, the first visit to any Quake or mission-pack map (e1m1, hip1m1, r1m5) loads without the collision build, on the PC and, after Setup's Quest step, on the Quest too. {test:hub_start}
 
 [2. Quest Standalone]
 Quest: run "adb logcat -s QuakeVR" while starting the game: each start-up step shows as it begins and ends, and a long step prints "still in <step>" every 2 seconds; vr_android_export startup.log copies the file out. {test:hub_start}

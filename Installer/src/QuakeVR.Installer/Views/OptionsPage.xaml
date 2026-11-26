@@ -146,6 +146,16 @@
                             </StackPanel>
                         </CheckBox>
                     </DockPanel>
+                    <DockPanel Margin="0,0,0,14">
+                        <TextBlock DockPanel.Dock="Right" Text="about a minute" Style="{StaticResource Size}" />
+                        <CheckBox IsChecked="{Binding PrepareHulls}">
+                            <StackPanel>
+                                <TextBlock Text="Prepare collision for Quake's maps" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                                <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" TextWrapping="Wrap"
+                                           Text="Quake's and the mission packs' maps load faster at their first visit, on the PC and the Quest (about 150 MB; skipped: made at each map's first visit)." />
+                            </StackPanel>
+                        </CheckBox>
+                    </DockPanel>
                     <!-- The shortcuts: one row under the components (the page fits a 1366 x 768 screen). -->
                     <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Margin="-16,0" Padding="16,12,16,8">
                         <StackPanel Orientation="Horizontal">
