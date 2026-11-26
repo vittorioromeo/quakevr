@@ -16,17 +16,19 @@ mkdir -p "$S"
 L="$S/run.log"
 ST="vr_flatplay_status"
 SCRIPT="map vrtesthall;wait60;god;notarget;developer 1;vr_flatplay_debug 1;vr_debug_2h_grip 1;vr_agrunt_repl 0;vr_parry_stamina 0;vr_shove_stamina 0"
-for w in "sword 163" "axe 152"; do
+# (Each weapon at its own spot, x $3: the sword's bashed grunt is knocked back and staggers about where the axe's would
+# stand, and the axe's bash found neither in reach in some runs (promofails, 2026-11-26).)
+for w in "sword 163 0" "axe 152 256"; do
   set -- $w
   # (The guard: 0.05 s, the blade 0.12 s more and vr_twohand's take 0.2 s: 40 frames are plenty. The bash: 0.39 s, 28 frames.)
   # (impulse 244: a grunt 64 units ahead; then a step up to it, 44 units between them: a bash's reach from the guard.)
-  SCRIPT="$SCRIPT;setpos 0 300 25 0 90 0;impulse $2;wait40;impulse 244;wait5;setpos 0 320 25 0 90 0;wait15"
+  SCRIPT="$SCRIPT;setpos $3 300 25 0 90 0;impulse $2;wait40;impulse 244;wait5;setpos $3 320 25 0 90 0;wait15"
   # (vr_flat_melee_2h_report: the drawn hands' most move and turn a frame since the last report, through the take and let-go.)
   R="vr_flat_melee_2h_report"
   SCRIPT="$SCRIPT;echo fbt: $1 guard;$R;+offhandattack;wait40;$R;$ST"
   # (flatfb1124) The guard looking up and down 45 degrees (back level for the bash).
-  for p in -45 45; do SCRIPT="$SCRIPT;setpos 0 320 25 $p 90 0;wait30;echo fbt: $1 pitch $p;$ST"; done
-  SCRIPT="$SCRIPT;setpos 0 320 25 0 90 0;wait30;echo fbt: $1 bash;+attack;wait3;-attack;wait40;$ST"
+  for p in -45 45; do SCRIPT="$SCRIPT;setpos $3 320 25 $p 90 0;wait30;echo fbt: $1 pitch $p;$ST"; done
+  SCRIPT="$SCRIPT;setpos $3 320 25 0 90 0;wait30;echo fbt: $1 bash;+attack;wait3;-attack;wait40;$ST"
   SCRIPT="$SCRIPT;echo fbt: $1 let go;$R;-offhandattack;wait30;$R;$ST;wait70"
 done
 SCRIPT="$SCRIPT;echo flatbash done;toggleconsole;quit"

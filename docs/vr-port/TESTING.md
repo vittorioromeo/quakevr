@@ -114,6 +114,7 @@ spawn "Armed Grunt: Axe" 240 -80                     # toolgun entry (label or c
 spawnarmed monster_vr_grunt 2 2 200 40             # an armed humanoid by weapon codes (right, left; vr_toolgun_armed_list; 0 pool, -1 fists, left 0 none), then fwd [left] [up] [yaw] as spawn: duals and any weapon the toolgun has no entry for
 cvar vr_debug_melee_blades 1                        # set for the test, put back after (never saved)
 cmd impulse 9                                       # console commands, after everything is placed
+campaign quoth                                      # optional, before `map`: that campaign made the active one (without it: Quake's if it has the map, else the add-on that does)
 hint Swing at them: ...                             # optional; default the checklist line's text
 mp dm                                               # a local multiplayer game (coop|dm): see below
 bot passive 128 0 "Knight's Sword"                  # a bot (passive|active) at fwd, left facing you, a Weapons entry in its hand [main|off]

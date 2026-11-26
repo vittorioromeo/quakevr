@@ -1659,6 +1659,44 @@ overhead attack with both hands. Make this an option (on by default)."
   empty hands is now the two-fisted blow; their checks still hold). eval.sh not run: no shared melee code changed
   (VRMeleeDmg/T_Damage_VRMelee only scale when the flat bit is set). Scene `flat_melee_2fist`.
 
+## questcrash: Quest Foveation Off no longer crashes; presets on the Quest keep its budget (branch agent/questcrash, 2026-11-26)
+
+His Quest (next ab5d33a, standalone): the game crashed switching Quest Foveation from High to Off; Standalone -> "Quake
+(off)" -> Low mid-game left it under 1 fps with Standalone out of reach; then every start crashed after loading vrstart.
+- **The crash** (logcat 19:38:10, 19:47:04, 19:47:52; the crash reports themselves are 0660 to adb): every one SIGSEGV 0x30
+  in libGLESv2_adreno under libvrapiimpl, from `xrEndFrame` (OpenXrBackend::endFrame <- VR_RenderView): C4p's /
+  qfovcrash's / hubcrash's signature. **Cause**: since qfov3 the eye swapchains were always made foveation-capable
+  (XrSwapchainCreateInfoFoveationFB, scaled bins), and with Off (a level-0 profile) the eyes take the post-process path
+  (late acquire, the image's invalidate, the shared framebuffer attach) into those images: the runtime's driver work in
+  xrEndFrame crashes. Off saved in the config (Quake (off) put the Standalone rows back to the PC's values: foveation 0)
+  made it every start. **Fix** (vr_backend_openxr_quest.cpp): capable images only while `vr_xr_foveation` is over 0
+  (`QuestExtensions::eyesCapable`); a level crossing 0 takes new eye swapchains (as a level change already did, C4p), Off
+  makes plain ones (the images every Quest build used before qfov3) and applies no profile.
+- **The slow presets** (vr_gfxpresets.cpp): leaving Standalone put back every Standalone row as it was before it, i.e.
+  the PC defaults (full resolution, no dynamic resolution, OIT, the float depth, foveation off...); Low then added its
+  shadows. On the Quest (and under `-glescompat`) a graphics preset or My Settings now sets its look while the headset's
+  budget stays: the Standalone rows no graphics preset sets keep the nearest Standalone level's values, and the Quest's
+  must-haves (`vr_quest_check`'s: MSAA, bloom, the shadowed dynamic lights, the dynamic resolution's floor, and new: the
+  shadowed map lights) hold after every pick, each said. The PC is unchanged.
+- **Never stuck**: any pick (a graphics preset, Standalone, My Settings; the menu, the console, `vr_graphics_preset`)
+  whose frames then stay under `vr_preset_revert_fps` (5, archived; 0 off) is put back as before it: past a second's
+  grace (the programs it compiles), the median of 8 frames; said on the console and the menu's note line ("Too slow on
+  this headset: put back as before."). `vr_preset_revert_test <ms>` counts each frame as that long (Debug > Startup:
+  Preset Revert Test 500 ms / Off).
+- Tests: `Misc/quakevr/questcrash_preset_test.sh` (ES profile: Standalone -> Off -> Low -> Medium keep the budget rows,
+  the must-haves hold, a 20 ms pick kept, a 500 ms pick put back; PC: leaving Standalone as before) 20/0;
+  haze_preset_test 8/0.
+- **Headset** (Quest 3, 20:28-20:38, unworn, `-noconfigwrite -unattended`, his config). Exported read-only
+  (`vr_android_export`): his `ironwail.cfg` saves `r_oit 1`, `vr_tonemap 0` and no `vr_xr_foveation`/`vr_render_scale`
+  (so Off at full resolution); the crash reports agree: 19:47:04 "frame 10: xrEndFrame" after the first world
+  programs, 19:38:10 right after Off's new eye swapchains. The old build (ab5d33a) with his config ran 90 s unworn
+  **without** crashing (FPS 41/72): the crash needs the worn headset (focus, the compositor's real work), so no
+  before/after pair unworn. The fixed build (this branch, merged with next c13b78b0a) installed the questinst way (APK
+  `install -r`, 7 changed data files; his config kept): his config to vrstart, then Off -> 3 -> 0 -> 3 -> 0 -> 2 -> 0
+  (each a new pair of eye swapchains), Standalone, Quake (off), Low, Standalone again, quit by itself after 189 s: no
+  crash, 72/72 throughout but one second of program compiles after Quake (off). Rollback: `scratch/qc_installed_before.apk`,
+  `scratch/qc_backup/`. To confirm: worn, start with his config and switch Quest Foveation High <-> Off.
+
 ## The flashlight lights the dark rooms in the Standalone preset; Show Foveation shows the Quest's foveation (branch agent/questrender, 2026-11-26)
 
 His notes (Quest standalone): the flashlight lit only the first part of the tutorial's dark room, the rest pitch black
@@ -1796,3 +1834,101 @@ the old letter case are renamed"; installer self-tests 63/63).
   checks it off (humrepl 49/0); humcensus now leaves crossbow knights by default. BACKLOG section 6: make it a proper
   armed humanoid, then turn it back on.
 - **Front sight hue** (his note 19:57): `vr_sight_front_hue_shift` default 240 -> 90 (his value).
+## flashgrab: the belt flashlight is a holster slot; Holster Setup places, turns and sizes it (branch agent/flashgrab, 2026-11-26)
+
+His note (VR, 19:58): a quick grab of the belt torch often missed it, the hand had to stop half a second; a hand arriving
+already closed should take it too; he wants to drag it in Holster Setup, turn it, and set its grab leniency without
+resizing the model.
+
+- **Grab rules** (`vr_flashlight.cpp`, `onBelt()`): on the belt (or springing home) an empty hand's grip in the grab zone
+  takes the torch at once: no `deliberate()` (no stillness, no open-hand-before check) and no punch exclusion. A grip
+  closed before arriving arms the late grip from anywhere and takes it the frame the hand is in the zone, for
+  `vr_flashlight_closed_grab` real seconds (QVR_TUNABLE, default 1; Debug > Tunables > Closed Grab Window). The
+  arbitration with the game is kept (a holster nearer than the torch draws, the other hand's weapon wins: `gameGripWins`).
+  On the head and on a gun nothing changed (deliberate presses, the late grip with stillness); the trigger toggle at the
+  lamp still needs a deliberate press.
+- **The other holsters** draw on the grip's press edge (QC `VR_HandGrabUtil_StartedHandGrabbing`: the hand in the hotspot
+  within 0.125 s of the press). A hand closed earlier than that does not draw from them; the torch now allows 1 s, as
+  he asked. Making the holsters match is a QC change left for him to decide.
+- **Holster Setup** (`vr_holstersetup.cpp`): the torch is a slot after the zones (`ZoneTorch`), its box round its axis
+  sized by its reach. Gripped, it drags like a holster (vr_flashlight_forward/_out/_up, solved in metres: `Params` now
+  carries each kind's rounding, snap, limit and step); turning the holding hand turns it about its middle past 4 degrees
+  (new `vr_flashlight_yaw`, `vr_flashlight_roll` with `vr_flashlight_tilt`, set by `flashlight::setBeltTurn`); both
+  hands' spread or the stick sizes its grab zone (`vr_flashlight_grab_range` 0.25..4: the zone, not the model). Undo,
+  Cancel, Reset Holster and Reset All cover it. No seated layout of its own (the same cvars seated).
+- **Side**: `vr_flashlight_side` stays, as a mirror of the saved place and turn (out, yaw and roll mirrored to the right
+  hip); no migration. Tilt now honours -90..90 (it was clamped to -30..60 though its slider went to 90).
+- Menus: Flashlight > On the Belt gets Turn and Lean Sideways; Reset Body and Equipment resets tilt, yaw and roll too.
+  Mock: `vr_mock_hand_to <hand> torch [along left out]` (the slot's middle); `vr_flashlight_probe` prints the slot
+  (middle, reach, beam, length); `vr_holstersetup_report` prints the torch's settings.
+- Tests: `flash_grab_test.py <agent> slot` (new; 17 checks: quick grabs at 2.2 and 4.4 m/s, closed 0.3 s before taken,
+  1.5 s not, the drag moves it and the grab follows, the old place no longer takes, the turn keeps its middle, the stick
+  enlarges the zone only, the right side mirrored; verdict "flash_grab_test slot: N passed, M failed"). `timing`: the
+  former punch/away/closed controls now must take it; a stale-closed control added. Run: slot 17/0, timing 297/0,
+  mounted:0, returning, otherweapon 7/0, flash_trigger 6/0, tunables_test, holstersetup_test.
+- Known, not this branch: `holstersetup_test.sh` "gun at the right hip (drag) + 0 out: DROP (want IN)" fails with this
+  branch's flashlight/setup files reverted to origin/next too.
+## revthrow: reverse grip throws settle point first more readily (branch agent/revthrow, 2026-11-26)
+
+His words (VR, 20:11): a spear thrown overhead from the reverse grip spun with "even the smallest amount of wrist snap"; he wants
+it to "almost immediately stabilize with its point forward", a little of that for swords and daggers too, each tweakable.
+- A thrown weapon keeps QVR_WPNFLAG_REVGRIP (DropWeaponInHandScaled). The engine's Point-First Settling (vr_box3d_step.cpp
+  `pointAlign`) reads it at the release and takes a leniency L: `vr_throw_point_rev_pole` 0.8 for pole weapons (the spear,
+  the Crystal Lance: `axestick::pointPole`), `vr_throw_point_rev_blade` 0.3 for swords and daggers. With L the release's
+  tumble across the blade is cut by L (all at 1), the spring is (1 + 2L) times as stiff (still critically damped), tumbles
+  up to (1 + 3L) times Point-First Settling: Tumble are steadied, and full help applies from its slowest speed (3 m/s).
+  L 0, or an upright throw: the same maths as before. Rows: Debug > Tunables, "Reverse Grip Settling: Spears / Blades".
+- Flat-screen reversed throws carry the flag too, so they get the same leniency (shared path).
+- Test `vr_embed_test 73` (QC/vr_revthrow_test.qc, vrtesthall; ends `revthrow: N passed, M failed`): scripted reverse grip
+  releases (point 10 degrees up, the snap turning it down; spears at 8..20 rad/s and 10..16 m/s, sword and dagger at
+  14..22 rad/s) at a wall, three passes: at the settings every spear is point first within 150 ms and stays so and sticks by
+  its point (mean 6 degrees against 59 at L 0); sword and dagger steadier than at L 0; upright throws match the L 0 reversed
+  ones exactly. 6/6.
+## scenes
+
+His report (2026-11-26 20:21): checklist Test buttons "don't take me to the right places"; the Quoth lines went to AD's
+start map. Cause, one bug in the scene runner: the Quoth lines (ne_marb, kellbase1 buttons, lpqsp1, metmon) were tagged
+`{test:hub_start}` (`map start`), and `map start` runs in whichever campaign the scene before left active (after any AD
+scene: AD's own start map; VR_CheckSpawnCampaignMap). Fixes: (1) a scene without a `campaign` line now runs in Quake's
+campaign first (mapFoundOrCampaignSelected switches back from an add-on; Quake's maps and `start` are found there),
+else in the add-on that has the map; (2) new directive `campaign <folder>` (before `map`) for package maps found in any
+campaign but played by one's rules (Quoth's metmon); (3) four new scenes quoth_ne_marb, quoth_kellbase_buttons,
+quoth_lpqsp1, quoth_metmon (the four checklist lines need retagging: kit scratch/cl_lines_scenes.txt and
+scratch/scenes_cl.diff in the questi tree); (4) `vr_scenario runall` prints `SCNAT|id|map|at x y z|monsters within
+1200|spawn lines|start strayed` and fails a scene that landed on another map. Audit (196 scenes, headless, -game ad):
+before and after 2 FAIL (the kellbase scenes: Quoth's data is absent on this base) and 2 SKIP (Dwell, Crystal Lance data);
+the runner never saw the wrong-place cases (the map did load), the audit found them from the checklist tags: 4 Quoth lines
+on hub_start. Not fixed: humrepl_variants (the AD soldiers line) has no `start`, and vr_ad_test 219 is a PASS/FAIL
+self-test that makes the soldiers before you at ad_crucial's start. New scene pose_spear_humanoids: frozen spear enforcer,
+knight and death knight in vrtesthall's open middle (start 0 -40), the Pose Studio opened by the scene.
+## promofails: flat tests failing on next after his promoted tunables (branch agent/promofails, 2026-11-26)
+
+Checked first with the pre-900606064 tunables set in the run: only flatmelee5's "rev thrust sword" depended on them; the
+others failed the same with the old values (other merges: flatmelee5's 2H stance on equip, flatgrip3's one-handed axe).
+His values stay the defaults.
+- **flatxhair_test `flush` (3 fails)**: wall share 0. With today's defaults the shotgun 18 units from the wall is cleared
+  by the push back towards the shoulder alone (flatwallturn: room -0.66, tilt 0), so nothing tilts and the wall shot is
+  not exercised. Not a bug (the tilt is only what the push back can't clear). Fix, test: the case keeps the push back short
+  (`tune vr_flat_wall_arm_keep 20; tune vr_flat_wall_fold 20`, reset by its tune_reset) so the tilt engages (4.0 deg).
+- **flatthrust_test, flatmelee5 "rev thrust sword embeds" (and at times "rev thrust spear")**: the case read the stuck
+  blade on the frame of the hit; with his flipped pose (revgrip_thrust_up 4) the hit lands frames before the drawn blade
+  reaches it and sticks, so it read depth 0. Fix, test: cases 11/12 wait to be stuck (or the 0.9 s), as test 58 does.
+- **flatthrust_test, flatmelee5 "2h equip axe / superaxe"**: flatgrip3's `vr_flat_1h_axe 1`. Fix, test: that run sets
+  `vr_flat_1h_axe 0` (the cases are about the 2H hold).
+- **flatbash_test "sword: took the blade"**: since flatmelee5 the sword is two-handed on equip (vr_flat_melee_2h 1), so
+  the guard switches the held grip below the hand to the blade (vr_twohand.cpp) and the take's debug line never printed.
+  Fix: the switch prints its own `2h grip: off hand took the blade from the grip below the hand (N units off it)`.
+- **flatbash_test "turned 163.5 degrees a frame"**: a real snap. The free hand was drawn from the stance's grip onto the
+  blade in one frame (the grip held throughout, so its blend stayed 1). Fix: `easeGripSwitch` (vr_view_hands.cpp, flat
+  only): a switch between grips while held eases the drawn free hand from where it was, in the holding hand's frame,
+  over 0.25 s (smoothstep); now 16.0 degrees a frame at most (the main hand's own turn).
+- **flatbash_test "axe: a one-handed bash" (none, at times)**: the sword's bashed grunt, knocked back and staggered,
+  stood about where the axe's grunt spawns; some runs found neither in reach. Fix, test: each weapon at its own spot
+  (the axe 256 units to the side). The axe's 1H bash (flatgrip3) is what the test expects.
+- embedhold_test: 2/0 on this tree (arm 1 63/0, arm 0 60/0): the reported ogre `.vr_embed_armpast` fail did not recur.
+- Tests: flatxhair_test 31/0, flatthrust_test 8/0 (blades 12/0, Lance 8/0, flatmelee5 24/0), flatbash_test 20/0,
+  embedhold_test 2/0, flatmelee 12/0, flatinput 19/0, flatthrow 48/0, flatswing 4/0, flatshovesmooth 6/0, flatplay 31/0,
+  flatparry 43/0, flatmelee2h 16/0, flatfg2h 11/0; flatswap_test: weapons, things, melee 96/0, holster all pass; its AD
+  run (vr_flatswap_test 4, map start) 47/1 then 46/2: the last case (the knight's sword, stance 1, left to right) never
+  swaps (no "flat swap" line) and all hands are undrawn for 78 frames, about 4 minutes into the run; no blade grip in it,
+  so not the grip switch's ease. Open: look at it on AD's start map.

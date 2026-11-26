@@ -25,9 +25,12 @@ at the lamp as the game reads it, moving).
              super shotgun one-handed at the chest, the shotgun at the belt): taken at it, the weapon held at its grip
   returning  the lamp let go of and springing home: the main hand, still, at spots along its way, grips at several
              moments of the flight (a catch)
+  slot       round 26: the belt torch as a holster slot (a quick grab, a hand arriving closed) and Holster Setup's
+             torch (dragged, turned, its grab zone enlarged; the grab follows); verdict "flash_grab_test slot: N passed"
 
 Runs e1m1 (id1) in the kit's mock (vr_fixed_frames 1, vr_mock_fast 2: about 30 s a pass). Exit status 1 on a failure.
 """
+import math
 import os
 import re
 import subprocess
@@ -221,9 +224,10 @@ def trial(tag, start, frames, press, hold=50):
 def timing(agent, only=None):
     """"Highlighted implies grabbing works" at any timing and speed, also in slow motion: the off hand reaches the lamp
     from 33 cm out in front at several speeds, its grip pressed at several moments round its arrival (on its way, from
-    20 cm out, to after it stopped), and stays there with the grip held: it must hold the lamp. Controls that must not
-    take it: a punch out of the guard and back with the grip pressed on the way out; a grip pressed at the lamp, then the
-    hand taken 15 cm away; a grip pressed 33 cm out (a hand that reaches the lamp already closed)."""
+    20 cm out, to after it stopped), and stays there with the grip held: it must hold the lamp. Since round 26 (a holster
+    slot like the others) these take it too: a punch out and back with the grip pressed on the way out; a grip pressed at
+    the lamp, the hand going on 15 cm past it; a grip pressed 33 cm out (a hand that reaches the lamp already closed).
+    The control left (time scale 1): a grip closed 1.5 s before the hand gets there."""
     cen = centres(agent)
     ok = True
     for scale, extra in SCALES.items():
@@ -246,21 +250,27 @@ def timing(agent, only=None):
                     tag = f"t{scale}_{i}_{speed}_{k}"
                     samples.append((tag, True))
                     cmds += trial(tag, start, frames, press)
-            # Controls. A punch from the guard at the lamp, out 35 cm at 3 m/s and back, the grip pressed 2 frames in.
+            # Round 26 ("flashgrab": the belt torch is a holster slot like the others): what were controls until then take
+            # it too. A punch from the lamp out 35 cm at 3 m/s and back, the grip pressed 2 frames in.
             out = (cx + 0.02, cy + 0.08, cz - 0.35)
             punch = path(c, out, 3.0) + path(out, c, 3.0)
-            tag = f"c{scale}_{i}_punch"
-            samples.append((tag, False))
+            tag = f"t{scale}_{i}_punch"
+            samples.append((tag, True))
             cmds += trial(tag, c, punch, 2)
-            # Pressed at the lamp while moving through it, then 15 cm past it.
+            # Pressed at the lamp while moving through it, then 15 cm past it (a quick grab, no dwell).
             away = (cx - 0.15, cy, cz)
-            tag = f"c{scale}_{i}_away"
-            samples.append((tag, False))
+            tag = f"t{scale}_{i}_away"
+            samples.append((tag, True))
             cmds += trial(tag, start, frames_through(start, c, away), len(path(start, c, 1.5)) - 1)
-            # Pressed 33 cm out, before the reach (the hand comes to the lamp closed).
-            tag = f"c{scale}_{i}_closed"
-            samples.append((tag, False))
+            # Pressed 33 cm out, before the reach (the hand comes to the lamp closed, 0.8 s later).
+            tag = f"t{scale}_{i}_closed"
+            samples.append((tag, True))
             cmds += trial(tag, start, path(start, c, 0.4), 0)
+            # The control left: closed 1.5 s (past vr_flashlight_closed_grab) before it gets there.
+            if scale == "1":
+                tag = f"c{scale}_{i}_stale"
+                samples.append((tag, False))
+                cmds += trial(tag, start, [start] * 108 + path(start, c, 1.5), 0)
         lines = run(agent, "fg_timing", cmds)
         got = parse(lines)
         with open(f"{KIT}/bases/{agent}/" + ("qbase" + (".lane" + os.environ["QVR_LANE"] if os.environ.get("QVR_LANE") else "")) + "/qconsole.log", encoding="latin-1") as f:
@@ -843,6 +853,132 @@ def otherweapon(agent):
     return failed == 0 and passed > 0
 
 
+def torch_cmd(o):
+    """The off hand at the belt torch's slot (vr_mock_hand_to torch): `o` units along its beam, its left, its switch's
+    side (out from the body) from its middle."""
+    return f"vr_mock_hand_to off torch {o[0]:.2f} {o[1]:.2f} {o[2]:.2f}"
+
+
+def slot_trial(tag, offsets, press, hold=8):
+    """The off hand at `offsets` (torch_cmd's), one a frame, its grip pressed at frame `press` and held; probed `hold`
+    frames after the last."""
+    cmds = ["vr_mock_button off grip 0", torch_cmd(offsets[0])] + waits(30)
+    for i, o in enumerate(offsets):
+        if i == press:
+            cmds.append("vr_mock_button off grip 1")
+        cmds += [torch_cmd(o), "wait"]
+    return cmds + waits(hold) + [f"vr_flashlight_probe {tag}", "vr_mock_button off grip 0", "vr_flashlight_home",
+                                 "vr_flashlight 0"] + waits(2) + ["vr_flashlight 1"] + waits(2)
+
+
+def ramp(a, b, step):
+    """Out offsets (0, 0, z) from a to b by `step` units a frame (b the last)."""
+    n = max(1, round(abs(b - a) / step))
+    return [(0.0, 0.0, a + (b - a) * k / n) for k in range(n + 1)]
+
+
+def slot(agent):
+    """Round 26 ("flashgrab"): the belt torch as a holster slot. A quick grab (the hand passing through its grab zone at
+    2.2 and 4.4 m/s, no dwell) takes it; a hand closed 0.3 s before it arrives takes it; one closed 1.5 s before
+    doesn't. Holster Setup: the torch dragged 10 units up (its settings follow; the grab follows it, its old place no
+    longer takes it), turned with the hand (vr_mock_hand_turn), its grab zone enlarged with the stick (the model's length
+    the same): a hand 1.3 reaches out takes it then, not before; one beyond the new reach doesn't."""
+    cmds = setup() + ["vr_mock_hand_to_absolute 1", f"vr_mock_hand off {REF[0]} {REF[1]} {REF[2]} {HAND_ROT}"] + waits(30)
+    want = {}
+
+    def trial(tag, offsets, press, take):
+        nonlocal cmds
+        want[tag] = take
+        cmds += slot_trial(tag, offsets, press)
+
+    sweep = ramp(8, 0, 1) + ramp(0, 8, 1)[1:]
+    trial("quick", sweep, 6, True)  # pressed 2 units out, going in
+    fast = ramp(8, 0, 2) + ramp(0, 8, 2)[1:]
+    trial("quickfast", fast, 2, True)
+    trial("closed", [(0.0, 0.0, 15.0)] * 20 + ramp(15, 0, 1), 0, True)
+    trial("stale", [(0.0, 0.0, 15.0)] * 108 + ramp(15, 0, 1), 0, False)
+    trial("narrow", ramp(10, 3.8, 1) + [(0.0, 0.0, 3.8)] * 4, 9, False)  # 1.3 reaches out (grab range 1)
+    # Holster Setup: drag, turn, the grab zone.
+    cmds += ["vr_holstersetup"] + waits(5) + [torch_cmd((0, 0, 0))] + waits(5) + ["vr_flashlight_probe s0",
+             "vr_mock_button off grip 1"] + waits(3)
+    for _ in range(10):
+        cmds += ["vr_mock_hand_to off by 0 0 1"] + waits(2)
+    cmds += waits(6) + ["vr_mock_button off grip 0"] + waits(3) + ["vr_flashlight_probe s1", "vr_holstersetup_report"]
+    cmds += [torch_cmd((0, 0, 0))] + waits(4) + ["vr_mock_button off grip 1"] + waits(3) + [
+        "vr_mock_hand_turn off 0 30 0"] + waits(8) + ["vr_mock_button off grip 0"] + waits(3) + [
+        "vr_flashlight_probe s2", "vr_holstersetup_report"]
+    cmds += [torch_cmd((0, 0, 0))] + waits(4) + ["vr_mock_button off grip 1"] + waits(3) + ["vr_mock_stick off 0 1"] + \
+        waits(40) + ["vr_mock_stick off 0 0"] + waits(2) + ["vr_mock_button off grip 0"] + waits(3) + [
+        "vr_flashlight_probe s3", "vr_holstersetup_report", "vr_holstersetup_done"] + waits(10) + [
+        f"vr_mock_hand off {REF[0]} {REF[1]} {REF[2]} {HAND_ROT}"] + waits(20)
+    trial("follow", ramp(8, 0, 1), 8, True)
+    trial("oldplace", [(-10.0, 0.0, 6.0)] + [(-10.0, 0.0, 0.0)] * 4, 1, False)  # (the beam ~ down: 10 below its middle)
+    trial("lenient", ramp(10, 3.8, 1) + [(0.0, 0.0, 3.8)] * 4, 9, True)
+    trial("lenientout", ramp(12, 6.5, 1) + [(0.0, 0.0, 6.5)] * 4, 9, False)
+    # The right hip (vr_flashlight_side 1: the place and turn mirrored): turned there too, its middle kept.
+    cmds += ["vr_flashlight_side 1"] + waits(5) + ["vr_holstersetup"] + waits(5) + [torch_cmd((0, 0, 0))] + waits(5) + [
+        "vr_flashlight_probe r0", "vr_mock_button off grip 1"] + waits(3) + ["vr_mock_hand_turn off 0 30 0"] + waits(8) + [
+        "vr_mock_button off grip 0"] + waits(3) + ["vr_flashlight_probe r1", "vr_holstersetup_done"] + waits(5)
+    trial("rightside", ramp(8, 0, 1), 8, True)
+    cmds += ["vr_holstersetup_report"]
+    run(agent, "fg_slot", cmds)
+    base = f"{KIT}/bases/{agent}/" + ("qbase" + (".lane" + os.environ["QVR_LANE"] if os.environ.get("QVR_LANE") else ""))
+    with open(f"{base}/fg_slot.log", encoding="latin-1") as f:
+        log = [l.rstrip() for l in f]
+    probes = parse([l[l.index("torchprobe "):] for l in log if "torchprobe " in l])
+    slots = {}
+    for l in log:
+        m = re.search(r"torchprobe (\S+) slot (\S+) (\S+) (\S+) reach (\S+) beam (\S+) (\S+) (\S+) len (\S+)", l)
+        if m:
+            v = [float(x) for x in m.groups()[1:]]
+            slots[m.group(1)] = {"mid": v[0:3], "reach": v[3], "beam": v[4:7], "len": v[7]}
+    settings = [l for l in log if "setup torch settings" in l]
+    passed, failed = 0, []
+
+    def check(name, ok, detail=""):
+        nonlocal passed
+        if ok:
+            passed += 1
+        else:
+            failed.append(name)
+        print(f"  {'ok  ' if ok else 'FAIL'} {name} {detail}")
+
+    for tag, take in want.items():
+        g = probes.get(tag)
+        took = bool(g) and g["mode"] == "held" and g["holder"] == 0
+        check(tag, took == take, f"(taken {int(took)}, want {int(take)}{', no probe' if not g else ''})")
+    s0, s1, s2, s3 = (slots.get(k) for k in ("s0", "s1", "s2", "s3"))
+    if not (s0 and s1 and s2 and s3 and len(settings) >= 3):
+        check("setup probes", False, f"(slots {sorted(slots)}, settings lines {len(settings)})")
+    else:
+        dz = s1["mid"][2] - s0["mid"][2]
+        moved = sum((s1["mid"][k] - s0["mid"][k]) ** 2 for k in range(3)) ** 0.5
+        check("drag moves it", 8.0 < dz < 12.0 and moved < 12.5, f"(up {dz:.2f} units, moved {moved:.2f})")
+        up0 = float(settings[0].split()[5])
+        check("drag sets vr_flashlight_up", up0 > 0.25 + 0.2, f"({settings[0]})")
+        dot = sum(s1["beam"][k] * s2["beam"][k] for k in range(3))
+        ang = math.degrees(math.acos(max(-1.0, min(1.0, dot))))
+        turn = [float(x) for x in settings[1].split()[7:10]]
+        check("turn turns it", 10.0 < ang < 31.0 and any(abs(t - d) > 3 for t, d in zip(turn, (-5, 0, 0))),
+              f"(beam turned {ang:.1f} deg; {settings[1]})")
+        midTurn = sum((s2["mid"][k] - s1["mid"][k]) ** 2 for k in range(3)) ** 0.5
+        check("turn keeps its middle", midTurn < 1.5, f"({midTurn:.2f} units)")
+        grab = float(settings[2].split()[-1])
+        check("stick enlarges the grab zone", 1.4 < grab < 1.75 and s3["reach"] > s2["reach"] * 1.35,
+              f"(grab range {grab:.2f}, reach {s2['reach']:.2f} -> {s3['reach']:.2f})")
+        check("the model the same", abs(s3["len"] - s0["len"]) < 0.01, f"(length {s0['len']:.2f} -> {s3['len']:.2f})")
+    r0, r1 = slots.get("r0"), slots.get("r1")
+    if not (r0 and r1):
+        check("right side probes", False)
+    else:
+        dot = sum(r0["beam"][k] * r1["beam"][k] for k in range(3))
+        ang = math.degrees(math.acos(max(-1.0, min(1.0, dot))))
+        mid = sum((r1["mid"][k] - r0["mid"][k]) ** 2 for k in range(3)) ** 0.5
+        check("right side: turned, middle kept", 10.0 < ang < 31.0 and mid < 1.5, f"(beam {ang:.1f} deg, middle {mid:.2f} units)")
+    print(f"flash_grab_test slot: {passed} passed, {len(failed)} failed {failed}")
+    return not failed
+
+
 def main():
     agent = sys.argv[1]
     # Sections, comma-separated (run_baseline.py runs the long ones as parts in parallel lanes); mounted:A-B only the
@@ -884,6 +1020,9 @@ def main():
     if want("otherweapon"):
         print("== otherweapon (the torso's torch with a weapon in the other hand)")
         ok = otherweapon(agent) and ok
+    if want("slot"):
+        print("== slot (the belt torch as a holster slot: quick and closed grabs, Holster Setup)")
+        ok = slot(agent) and ok
     print("PASS" if ok else "FAIL")
     sys.exit(0 if ok else 1)
 

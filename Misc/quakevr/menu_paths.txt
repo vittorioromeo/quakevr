@@ -3203,6 +3203,8 @@ vr_throw_point_dagger_time|2|Tunables|Dagger Settling: Time|Advanced VR Options 
 vr_throw_point_dagger_angle|2|Tunables|Dagger Settling: Angle|Advanced VR Options > Debug > Tunables > Dagger Settling: Angle
 vr_throw_point_dagger_spin|2|Tunables|Dagger Settling: Tumble|Advanced VR Options > Debug > Tunables > Dagger Settling: Tumble
 vr_throw_point_dagger_damp|2|Tunables|Dagger Settling: Spin Damping|Advanced VR Options > Debug > Tunables > Dagger Settling: Spin Damping
+vr_throw_point_rev_pole|2|Tunables|Reverse Grip Settling: Spears|Advanced VR Options > Debug > Tunables > Reverse Grip Settling: Spears
+vr_throw_point_rev_blade|2|Tunables|Reverse Grip Settling: Blades|Advanced VR Options > Debug > Tunables > Reverse Grip Settling: Blades
 vr_shot_push_pellet|2|Tunables|Pellet Push|Advanced VR Options > Debug > Tunables > Pellet Push
 vr_shot_push_nail|2|Tunables|Nail Push|Advanced VR Options > Debug > Tunables > Nail Push
 vr_shot_push_supernail|2|Tunables|Super Nail Push|Advanced VR Options > Debug > Tunables > Super Nail Push

@@ -26,7 +26,9 @@ two=$(bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode -loopbackonly" -Timeou
     -QuitOn "^flatthrust: [0-9]+ passed" -Filter "$F")
 echo "$two"
 expect_verdict "$two" flatthrust "the Lance: V hurts, sticks by the point, fire pulls out; H with it stuck lets go, it stays in"
-three=$(bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode -loopbackonly" -Timeout 240 -Script "$START; vr_embed_test 60" \
+# (flatmelee5's 2H equip cases include the axe and the super axe: their two-handed hold, so vr_flat_1h_axe 0 here, as
+# flatgrip3 made the axes one-handed by default.)
+three=$(bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode -loopbackonly" -Timeout 240 -Script "$START; vr_flat_1h_axe 0; vr_embed_test 60" \
     -QuitOn "^flatmelee5: [0-9]+ passed" -Filter "(^flatmelee5|^flatplay: main punch|^flat throw:|ERROR|CRASH)")
 echo "$three"
 expect_verdict "$three" flatmelee5 "flatmelee5: 2H equip, inverted throw angle, flipped dagger/sword/spear attacks, close-range tip hits"

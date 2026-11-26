@@ -23,6 +23,7 @@
 #include "vr_crosshair.hpp"
 #include "vr_cvars.hpp"
 #include "vr_dynres.hpp"
+#include "vr_gfxpresets.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_hands.hpp"
 #include "vr_haze.hpp"
@@ -1601,6 +1602,7 @@ extern "C" int VR_RenderView()
     }
     const EyeSizes sizes = be->eyeSizes();
     dynres::beginFrame(); // (the scale this frame is drawn at, for its GPU time read back later)
+    gfxpresets::frame();  // (a graphics pick too slow to use: put back, questcrash)
     // The size the eyes are drawn at this frame, and the size their targets are allocated at.
     const int drawnWidth = scaledEyeSize(imageWidth, sizes.maxWidth);
     const int drawnHeight = scaledEyeSize(imageHeight, sizes.maxHeight);
