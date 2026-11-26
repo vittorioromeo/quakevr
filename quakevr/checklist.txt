@@ -87,7 +87,6 @@ Body and Display > Handedness: Left-handed turns on Swap Face Buttons (next to S
 
 [5. Weapons and holsters]
 Hook an explosive box, a zombie and a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun. {test:grapple_reel}
-Turn the Weapon Wheel on (VR Settings), open it and walk and turn with the stick: the wheel comes along smoothly and your hand stays on its slot; tap B/Y to eject a nailgun magazine or switch a dagger's grip: it feels responsive (Wheel Hold / Quick Tap Time sets how long a press opens the wheel instead). {test:weapon_wheel}
 Swing the spear (and the Crystal Lance) so its shaft, not the head, hits a grunt: a wooden knock and a dent, nothing stuck in it, less damage than the head; swing the shaft low and level across its shins and it is swept off its feet, while a sweep with the spear's head cuts instead; the head still stabs and sticks. {test:spear}
 
 [6. Ropes and chains]
