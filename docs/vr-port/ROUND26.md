@@ -1146,3 +1146,42 @@ r12 h56:
   player's feet through the mesh's links (e1m1 195 of 2,921: its start room is shut by doors; vrstart about 45 %:
   the rest are roofs, cliff ledges and the sea floor).
 - Checks: `arenapath_test.sh` (vr_arena_test 36) 16/0. Open: BACKLOG section 4, "Brushes beyond the world".
+
+## clipstray: recovered clip brushes stay inside their bounds (branch agent/clipstray, 2026-11-26)
+
+vsnav's 30,000-unit clip brush on the old vrstart, found at the source (`recoverClips`, vr_hull.cpp). Two faults, both
+in the clip brushes vr_hull rebuilds from hull 1's solid leaves (they feed the player's trees, `boxInTree`, the holes
+and the navmesh's `fillSolids`):
+
+- **A sliver that lost its faces** (old vrstart, hull 1 leaf 96761): the piece reaching that leaf was two triangles 0.2
+  units across on two nearly opposite planes; every other face had gone to `splitPoly`'s epsilon (a face is kept only on
+  the sides its points are on). Two planes bound nothing: the brush made of them was a slab reaching the bogus winding's
+  end (faces x -255,000..17,000 at Quake's box). The room test still called it a clip brush (its points a unit in from
+  its faces lie outside a 0.1-unit piece). Fix: a clip piece whose planes, at Quake's box, make faces reaching more than
+  half a unit past the box its points span gets that box as faces too (as hull 0's brushes get axial bevels) and is
+  looked at again: here a 0.1-unit brush, harmless.
+- **A thin wedge's moved faces** (both vrstarts, hip1m1, hip2m3, r2m3, AD): the faces lying against more of hull 1's
+  solid move with a shorter box (growsZ); two floor-like faces meeting at a shallow angle move by different amounts and
+  their corner runs along their edge: the shipped vrstart's brush 18658 reached 5,500 units through the map in the prone
+  box's tree (y 1,045..6,688 for bounds 1,001..1,206), ad_tears' worst 540. The sweeps meet a clip brush only within its
+  bounds (`leavesOfBox`), the trees met all of it. Fix: where its faces at the widest lowest box (32 wide,
+  `lowestBoxHeight` 12: every face at its farthest) reach past its bounds, the bounds' six planes are added; trees,
+  sweeps and the navmesh now agree.
+
+Survey (`vr_hull_strays`, new in vr_hull_diag.cpp: brushes reaching more than 128 past the world's box, and clip brushes
+past their own bounds with the worst overreach; Release, `vr_hull_cache 0`):
+
+| map | past the world (before) | clip past own bounds (before, worst) | after | brushes hash |
+|---|---|---|---|---|
+| old vrstart | 1 (2 planes, 259,000 units) | 14 (259,316) | 0, 0 | changed |
+| vrstart | 1 (6 planes, y to 6,688) | 7 (5,482) | 0, 0 | changed |
+| hip1m1, hip2m3, r2m3 | 0 | 2 (72), 3 (49), 1 (44) | 0, 0 | changed |
+| ad_sepulcher, ad_tears, ad_swampy | 0 | 26 (220), 156 (541), 20 (386) | 0, 0 | changed |
+| vrtutorial, vrcalibration, e1m1-e1m8, e4m7, hip3m4, r1m1 | 0 | 0 | 0, 0 | identical |
+
+- `buildVersion` 6 -> 7 (the brushes' bytes change on the maps above; the file layout, `brushesVersion`, does not).
+  Clip brushes' build time unchanged (vrstart 190 -> 203 ms, ad_tears 356 -> 346: noise).
+- Old vrstart's navmesh now cuts 0 brushes (vsnav's safety net stays).
+- Tests: `vr_hull_keeptest` vrstart PASS (8 trees); `vr_hull_holes_test` vrbrushholes 29/0; `vr_hull_cache 2` (keep 0)
+  vrstart + hip1m1 15 the same, 0 different; `vr_nav_cliptest` / `vr_nav_toptest` (NAVMESH.md 8 recipe) PASS on vrstart,
+  old vrstart, e1m1; lowceil_test 16/0; prone_test 26/6 (the 6 flat fails known, ROUND26 line ~398).
