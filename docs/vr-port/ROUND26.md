@@ -2115,3 +2115,27 @@ dragged prop shoved it off the hands).
   findings) and check_mdl_holes (ok). Renders for review: `scratch/bayonet_*.png` in the worktree.
 - Open: it is a prop (a club with a tip), not a sword kind: no edge cuts on its own (the dagger-style anchors are in
   ATTACHMENTS.md if it becomes one). The mounts are frame 0's: the fire frames move the guns' fronts.
+
+## attach1: weapon attachments; the bayonet on the shotgun and the super shotgun (branch agent/attach1, 2026-11-26)
+
+His words 2026-11-26: attachments (a bayonet first) attached under most guns, offsets per weapon in Weapon Offsets, kept in
+every state, synced in multiplayer. The design and the ideas list: `docs/vr-port/ATTACHMENTS.md`, "The system".
+- **State**: the weapon record's `.wi_attach` (QC vr_weaponinst.qc / vr_attach.qc): hands, holsters, props, embeds, saves;
+  a level change: parm77 (engine `lastExtSpawnParm` 77). Network version 48: `QVR_SVC_WEAPONATTACH` 58 by weapon id; an
+  attachment byte in each gun look and holstered gun of the avatar.
+- **Data / menu**: weapons.txt `att1_ok/x/y/z/pitch/yaw/roll/scale` (slots 1, 2 from bayonetmodel's mounts);
+  Weapon Offsets > Attachments (page "Weapon Offsets - Attachments", appended to the pages table), the bayonet drawn on the
+  held weapon while the page is open.
+- **Drawing**: `view::placeAttachment` for held (VR and flat), holstered, lying and other players' guns; follows the firing
+  frames by the muzzle anchor and your own SSG's barrels opening.
+- **Use**: VR snap-on (`vr_attach_snap_radius` 5, `vr_attach_snap_angle` 50), pull-off by the empty hand's grip
+  (`vr_attach_pull_radius` 6); flat Attach key `vr_flat_key_attach` J (impulse 70). With a bayonet the gun strikes as a
+  sword-kind blade to the bayonet's tip, sticks by its point (engine `attachBlade`), fires while stuck (embedfire path);
+  flat V thrusts with it.
+- **Tests**: a smoke run only (scene attach_bayonet: the bayonet in the off hand, impulse 70 on / off / on: attach, take-off,
+  attach logged). NOT done (budget): a numbered QC test for snap-on, persistence (holster, drop, throw, embed, map change,
+  save/load), stab damage + embed, fire/reload/break-open while embedded, the MP test, eval.sh, flat/VR screenshots with the
+  hands in view.
+- **Open**: the gun's Box3D body leaves the bayonet out; holstered/lying/other players' SSGs draw the bayonet with closed
+  barrels; the server's mount/tip points ignore the weapon's own Pitch/Yaw/Roll in the hand; the pull-off grip may also
+  start the 2H grip on guns whose hotspot is near the muzzle; g_shot pickups (map weapons) carry no record, so no bayonet.
