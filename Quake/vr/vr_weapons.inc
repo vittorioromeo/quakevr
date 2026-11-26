@@ -488,6 +488,10 @@ QVR_WEAPON_KEY(ReloadHoldCurlPinky, "reload_hold_curl_pinky")
 // scale_origin): each one's ends (A, B) and the way it faces (O: out of the edge, square to it, in the blade's plane), the
 // head's middle on the handle's axis and the handle's far end (Butt). New keys: no migration.
 QVR_WEAPON_KEY(Embed, "embed")
+// embedfire (ROUND26.md; QC vr_propfire.qc): 1 the weapon fires where it is stuck in a body while a hand holds it (its
+// trigger, its charge, your ammunition, from its muzzle along its line; under vr_embed_fire); 0 its trigger does nothing
+// there. The Crystal Lance held as a lance: 1.
+QVR_WEAPON_KEY(EmbedFire, "embed_fire")
 // Skewered gibs (QC/vr_skewer.qc): skewer_most, the most gibs on this blade (0: vr_embed_skewer_most's; the dagger 1);
 // skewer_depth, the share of vr_embed_skewer_depth this blade puts the first gib from its tip (1 by default).
 QVR_WEAPON_KEY(SkewerMost, "skewer_most")

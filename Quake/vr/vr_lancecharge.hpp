@@ -27,7 +27,8 @@ void frame(const view::ViewEntity (&own)[2]);
 // VR_UpdateBeam: the start of player `ent`'s bolt from `hand` (beam ids 0, 1) as drawn: his Crystal Lance's (yours, your
 // hand's drawn weapon; another player's copy's, mpavatar), spear or gun, its middle crystal's tip, the charge's origin
 // (his decision 2026-11-23), in flat and VR play; false: no Lance drawn there (the beam's start kept). `muzzle`: the start
-// it replaces (vr_debug_gunfx's print).
+// it replaces (vr_debug_gunfx's print). `ent` a prop (beyond the players): the Lance stuck in a body that your hand holds
+// and fires (embedfire, QC vr_propfire.qc), its tip as drawn. The charge (frame) is drawn on that stuck Lance too.
 [[nodiscard]] bool boltStart(int ent, int hand, const glm::vec3& muzzle, glm::vec3& out);
 
 // Your Lance in `hand` shaking (lance3; his note vrtesthall_2026-11-23_23-25-08): a little as it charges (by the charge,

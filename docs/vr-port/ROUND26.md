@@ -1987,3 +1987,23 @@ His values stay the defaults.
   run (vr_flatswap_test 4, map start) 47/1 then 46/2: the last case (the knight's sword, stance 1, left to right) never
   swaps (no "flat swap" line) and all hands are undrawn for 78 frames, about 4 minutes into the run; no blade grip in it,
   so not the grip switch's ease. Open: look at it on AD's start map.
+## embedfire: a weapon fires where it is, in the hand or stuck in a body; the Crystal Lance first (branch agent/embedfire, 2026-11-26)
+
+His VR notes 2026-11-26 20:24-20:27: the Lance's electric attack while it is stuck in an enemy and he still holds it, charged
+before the stab or after it; not a Lance special case, a system for every weapon (later: weapons fired as props, turrets).
+- **Design: one firing path, parameterised by where the weapon is.** weapons.qc `W_TriggerFrame(hand, pressed)` is the
+  trigger's part of the hand's weapon frame (the Lance's charge, `W_Attack`: ammo, refire, shot, effects, sounds, network).
+  `W_WeaponFrameImpl` calls it for the weapon in the hand; `VR_PropFire_Frame` (QC/vr_propfire.qc) calls it for a weapon
+  prop the hand holds. A prop keeps its weapon identity (`.weapon`, `.weaponflags`, `.weaponinst`: variant, clip); for its
+  trigger frame the hand takes it on (`VR_PropFire_Begin`, the armed grunts' `VR_AG_SetHand` way): the hand's weapon
+  fields are the prop's, its muzzle the prop's model's muzzle (`weapondrawnpose(w, 0, 6)`, the Weapon Offsets' anchor),
+  its aim the prop's line (handle to muzzle), its place the prop's handle; `VR_PropFire_End` puts the empty hand back.
+  The player pays (his pouch, `delAmmoOrClipAndUpdateCounter`), his hand's refire and charge (`.dw_lc*`) go on, so a
+  charge carries over hand -> stuck -> pulled out. Shots know the prop (`vr_fire_prop`, the armed grunts' `dw_beam_prop`
+  made general): the beam is keyed to the prop (drawn from it), `VR_WeaponFired` flashes it.
+- **Who drives it:** the hand holding it by its handle role (`.vr_hold_handle`: the hand that stabbed, or the one left on
+  it); its trigger (VR) or its fire button (flat). No hand on it: nothing fires.
+- **Which weapons:** weapons.txt `embed_fire` (Embedded page; 1: slot 55, the Lance held as a lance), under the rule
+  `vr_embed_fire` (default 1, Physics and Interaction > Thrown Axes). No Lance branch in the path. Others: only blades embed
+  today and none of them shoots; a bayonet gun or Mjolnir given `embed 1` would need `embed_fire 1` only (their shots read
+  the same hand fields), plus `VR_WeaponFired` in their fire code for the flash on the prop.

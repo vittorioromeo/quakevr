@@ -5183,6 +5183,8 @@ void(vector xOrigin, float xHand) PlayerLightningGunEffect =
 
 float(entity ent, float xHand) VRWeaponLeavingHand;
 
+float(float xHand) VR_PropFire_Frame; // (vr_propfire.qc)
+
 float vr_lg_trail_draws; // (the tests: the lightning gun's stream drawn, a hand's frame each; vr_ad_test 106)
 void(float xHand, float xButton) FrameDrawLightningTrail =
 {
@@ -5199,8 +5201,45 @@ void(float xHand, float xButton) FrameDrawLightningTrail =
     }
 }
 
+// The trigger's part of a hand's weapon frame (its refire over), `xPressed` its trigger: the weapon's charge (Dwell's
+// Crystal Lance), its attack (ammo, shot, refire, effects). The one firing path for the weapon in the hand
+// (W_WeaponFrameImpl) and for a weapon prop the hand holds (vr_propfire.qc VR_PropFire_Frame: the hand's weapon fields the
+// prop's for it: embedfire).
+void(float xHand, float xPressed) W_TriggerFrame =
+{
+    // Dwell's Crystal Lance: charged while the trigger is held, fired as it is let go fully charged (dw_items.qc).
+    if(DW_LanceCharged(xHand))
+    {
+        if(!DW_LanceChargeFrame(xHand, dw_lc_test ? dw_lc_test_press : xPressed))
+        {
+            return;
+        }
+        xPressed = TRUE;
+    }
+    if(xPressed)
+    {
+        // Quad's sound: not here (the trigger), but where damage is dealt: each gun's shot, a blow landing
+        // (VR_QuadSound, combat.qc).
+        if(xHand == cVR_OffHand)
+        {
+            W_OffHandAttack();
+        }
+        else
+        {
+            W_Attack();
+        }
+    }
+};
+
 void(float xHand) W_WeaponFrameImpl =
 {
+    // A weapon prop the hand holds (a blade stuck in a body, its weapon able to fire there): its trigger frame instead
+    // (vr_propfire.qc; the hand itself holds nothing).
+    if(VR_PropFire_Frame(xHand))
+    {
+        return;
+    }
+
     // A gun hanging from its foregrip (the hand-off) is carried, not held: it does not fire.
     if(VRIsHandCarryingByForegrip(self, xHand))
     {
@@ -5247,26 +5286,5 @@ void(float xHand) W_WeaponFrameImpl =
         pressed = FALSE;
         vr_flatthrow_refused++; // (printed with the throw: the tests)
     }
-    // Dwell's Crystal Lance: charged while the trigger is held, fired as it is let go fully charged (dw_items.qc).
-    if(DW_LanceCharged(xHand))
-    {
-        if(!DW_LanceChargeFrame(xHand, dw_lc_test ? dw_lc_test_press : pressed))
-        {
-            return;
-        }
-        pressed = TRUE;
-    }
-    if(pressed)
-    {
-        // Quad's sound: not here (the trigger), but where damage is dealt: each gun's shot, a blow landing
-        // (VR_QuadSound, combat.qc).
-        if(xHand == cVR_OffHand)
-        {
-            W_OffHandAttack();
-        }
-        else
-        {
-            W_Attack();
-        }
-    }
+    W_TriggerFrame(xHand, pressed);
 }

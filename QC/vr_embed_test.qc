@@ -4597,6 +4597,10 @@ void() VR_Embed_TestFrame =
         {
             VR_VS_Begin(ask); // (VR: the pole's other hand round the shaft, fixed on it, through a stab that sticks: vr_poleembed_test.qc)
         }
+        if(ask == 77 || ask == 78)
+        {
+            VR_EF_Begin(ask); // (the Crystal Lance fired while stuck in a body, VR and flat: vr_embedfire_test.qc)
+        }
         if(ask == 42)
         {
             vr_rg_scene = FALSE;
@@ -4881,6 +4885,10 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     else if(vr_et_on == 75)
     {
         VR_VS_Frame(); // (VR: the pole's other hand on the shaft: vr_poleembed_test.qc)
+    }
+    else if(vr_et_on == 77 || vr_et_on == 78)
+    {
+        VR_EF_Frame(); // (the Crystal Lance fired while stuck: vr_embedfire_test.qc)
     }
     else if(vr_et_on == 42)
     {
