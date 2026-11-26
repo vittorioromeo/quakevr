@@ -1679,12 +1679,45 @@ void legacyGripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& d
     radius = 0.7816211f;
 }
 
-bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius)
+bool gripChannelFor(const handrig::Pose& pose, float holdRadius, glm::vec3& point, glm::vec3& dir, float& radius)
 {
-    // Each finger half closed: the circle through its three segments' middles (their middle spheres), its centre
-    // and radius; the channel the line through the centres (least squares), less the spheres' radius.
+    // The channel narrows as the fingers close: halved towards the curl where it is as thick as the handle.
+    float lo = 2.5f, hi = maxCurl;
+    if(!gripChannel(pose, point, dir, radius, lo))
+    {
+        return false;
+    }
+    if(radius <= holdRadius)
+    {
+        return true;
+    }
+    for(int i = 0; i < 12; i++)
+    {
+        const float mid = 0.5f * (lo + hi);
+        glm::vec3 p, d;
+        float r = 0.f;
+        if(!gripChannel(pose, p, d, r, mid))
+        {
+            break;
+        }
+        (r > holdRadius ? lo : hi) = mid;
+    }
+    glm::vec3 p, d;
+    float r = 0.f;
+    if(gripChannel(pose, p, d, r, hi))
+    {
+        point = p;
+        dir = d;
+        radius = r;
+    }
+    return true;
+}
+
+bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius, float curl)
+{
+    // Each finger at `curl` (half closed by default): the circle through its three segments' middles (their middle spheres),
+    // its centre and radius; the channel the line through the centres (least squares), less the spheres' radius.
     const Kinematics& k = kinematics();
-    constexpr float curl = 2.5f;
     glm::vec3 centres[handrig::FingerCount];
     int count = 0;
     float radii = 0.f;

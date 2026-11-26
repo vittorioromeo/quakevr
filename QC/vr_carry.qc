@@ -2013,6 +2013,7 @@ void(entity box) VR_Carry_KeepAlive =
 // reach of its surface, as the first hand's (VR_Carry_Handtouch: a carried thing is not solid, so no
 // touch comes).
 float(entity xBox) VR_FlatThrow_WindsUp; // (vr_flatgrenade.qc)
+float(entity p, float xHand) VR_FlatThrow_Guides; // (vr_flatgrenade.qc: also vr_grenade.qc's catch)
 void(float xHand) VR_Carry_TrySecondHand =
 {
     float other = cVR_MainHand;
@@ -2392,7 +2393,9 @@ void() VR_Carry_Handtouch =
     }
     // A force grab's catch (VR_Forcegrab_Catch) has checked the grip already: its window
     // (vr_forcegrab_catch_early) is longer than a touch's.
-    if((forcegrabCatching || VR_Carry_GripPressed(other, hand) || VR_Carry_FloatGraceGrip(other, hand, self)) &&
+    // (Flat play's free hand guiding the other's throw takes nothing that flies into it: VR_FlatThrow_Guides.)
+    if((forcegrabCatching || ((VR_Carry_GripPressed(other, hand) || VR_Carry_FloatGraceGrip(other, hand, self)) &&
+                              !VR_FlatThrow_Guides(other, hand))) &&
        VR_Hand_Free(other, hand, 0))
     {
         VR_Carry_Start(other, hand, self);

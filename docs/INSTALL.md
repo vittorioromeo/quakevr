@@ -99,7 +99,7 @@ original data. What changes:
      maps with light from lamps, lava and glowing panels (about a minute on a fast PC; *Skip* leaves it to the game's
      first start, which then relights them in the background). VisPatch's data (about 2.5 MB, from
      SourceForge) comes with it, for see-through water. See [Relit maps](#relit-maps-and-see-through-water).
-   - **Shortcuts** on the desktop and in the Start menu, and "Quake VR Unleashed (Flat Screen)" beside them: the game
+   - **Shortcuts** on the desktop and in the Start menu, and "Quake VR UNLEASHED (Flat Screen)" beside them: the game
      on your monitor with a mouse and keyboard, no headset (`-flatscreenmode`).
    - **Package:** downloaded from the latest release by default. A `QuakeVR.zip` (or a `QuakeVR` folder) next to
      `QuakeVR-Setup.exe` is used instead, with no download at all; *Use a local package…* picks one.
@@ -147,14 +147,14 @@ copied only in WAV for now: the Quest app does not play Ogg soundtracks yet. Fil
 after an update copies only what changed; nothing on the headset is deleted and your saves and configs there are never
 touched. With the Quest alone, the PC steps fill a staging folder, `%LOCALAPPDATA%\QuakeVR-Installer\quest-files`
 (no shortcuts, no Apps & Features entry), that the headset is copied from; it is kept for the next update.
-Start the game in the headset from **Library > Unknown Sources**.
+Start the game in the headset from **Library > Unknown Sources** (it is listed as "Quake VR: UNLEASHED").
 
 ## Starting the game
 
 1. Start your OpenXR runtime (SteamVR, or Virtual Desktop connected to the PC) and put the headset on.
-2. Start **Quake VR Unleashed** from the desktop or the Start menu. The Start menu folder also has
-   *Quake VR Unleashed (flat screen)* (no headset), *Quake VR Unleashed (log for bug reports)* (writes `qconsole.log`)
-   and *Quake VR Unleashed files* (the `quakevr` folder: screenshots, notes, saves and settings).
+2. Start **Quake VR UNLEASHED** from the desktop or the Start menu. The Start menu folder also has
+   *Quake VR UNLEASHED (flat screen)* (no headset), *Quake VR UNLEASHED (log for bug reports)* (writes `qconsole.log`)
+   and *Quake VR UNLEASHED files* (the `quakevr` folder: screenshots, notes, saves and settings).
 
 The first time you start with the headset on, **VR Calibration** runs: it measures your height and body, and leads to
 the **VR hub**. If the installer's relight was ticked, the maps are relit in the background meanwhile. The desktop
@@ -180,7 +180,7 @@ window shows a mirror of the left eye. If no headset is found, the game plays on
   which can also reset your settings, remove your saves and installed maps, and remove your screenshots, voice notes
   and other files; *Start clean* on that screen ticks all three (a new install's start: the VR Calibration, the
   tutorial). Whatever it removes is moved into `backups\`, never deleted; relit maps and caches stay.
-- **Uninstalling:** Windows' *Settings > Apps > Installed apps*, **Quake VR: Unleashed** > Uninstall, or *Remove…*
+- **Uninstalling:** Windows' *Settings > Apps > Installed apps*, **Quake VR: UNLEASHED** > Uninstall, or *Remove…*
   on the installer's first page. It removes the files it installed and the shortcuts; it asks before removing the HD
   textures, and leaves your own files (settings, saves, screenshots, notes, relit maps, backups) in the folder.
 
@@ -470,7 +470,7 @@ only comes back after restarting SteamVR or Virtual Desktop too, it's them.
 
 ## Troubleshooting and bug reports
 
-**If the game crashes, or VR doesn't start, run the Start menu's Quake VR Unleashed (diagnostics) shortcut and send us
+**If the game crashes, or VR doesn't start, run the Start menu's Quake VR UNLEASHED (diagnostics) shortcut and send us
 the folder it names.** You can also add `-diagnostics` to the command line, or use `QuakeVR.bat -diagnostics` for a
 zip install. Play until the problem happens, then quit. The game puts everything a report needs in one folder,
 `quakevr\diagnostics\<date>_<time>`, and opens that folder when you quit:
@@ -483,7 +483,7 @@ zip install. Play until the problem happens, then quit. The game puts everything
 Zip the folder and attach it. This mode is slower, so use it only for a report. Debug > Crashes > Diagnostics Mode turns
 it on from the next start.
 
-Start the game with the Start menu's **Quake VR Unleashed (log for bug reports)** (or add `-condebug` to its command
+Start the game with the Start menu's **Quake VR UNLEASHED (log for bug reports)** (or add `-condebug` to its command
 line; `QuakeVR.bat -condebug` for a zip install). The console goes to `qconsole.log` in the folder the game started
 in (the QVR:U folder), which is the most useful thing to attach to a report. If the game crashes or stops on an
 error, it writes a crash report, `quakevr\crash\<date>_<time>.txt`, and a `.dmp` beside it, and its message names

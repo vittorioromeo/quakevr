@@ -1,0 +1,9 @@
+# flat_throw_cancel: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode) throw key (B: QC/vr_flatgrenade.qc "The throw key"): the cancel, the guiding hand's catch, the flipped grip's wind-up (flatthrow2).
+title Flat-screen throw: cancel with the attack button, an ogre's grenades while aiming, the flipped grip's wind-up
+hint Play with -flatscreenmode. Hold B with the sword and press its attack button: the throw is cancelled, the sword stays, no swing. Hold B with your off hand empty in front of the ogre: its grenades are not caught. Flip the sword's grip (the wheel or the holster menu) and hold B: tune the wind-up with the Flipped Grip rows (Flatscreen > Throw).
+map vrtesthall
+start 0 -288 25 90
+god
+give "Knight's Sword" main
+cmd give r 10
+spawn "Ogre" 0 200

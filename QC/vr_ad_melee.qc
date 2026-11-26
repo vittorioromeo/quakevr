@@ -1083,6 +1083,18 @@ void(float request, entity p) AD_MeleeTest =
         VR_ADMelee_Hold(p, cVR_MainHand);
         return;
     }
+    if(request >= 171 && request <= 174)
+    {
+        // flatparry2 (flatparry2_test.sh): one weapon alone in the main hand, the off hand emptied (the flat guard's free
+        // hand): 171 the death fury's sword, 172 the judicator's, 173 the hunter ogre's hammer, 174 its mace.
+        float lone = request == 171 ? VR_ADMELEE_FURY : (request == 172 ? VR_ADMELEE_JUDGE :
+            (request == 173 ? VR_ADMELEE_HAMMER : VR_ADMELEE_MACE));
+        VR_ADMelee_Ensure(lone);
+        VRSetHandEmpty(p, cVR_OffHand);
+        VR_ADMelee_Hand(p, cVR_MainHand, VR_ADMelee_Flags(lone));
+        VR_ADMelee_Hold(p, cVR_MainHand);
+        return;
+    }
     if(request == 128 || request == 129)
     {
         // The hammer (128) or the mace (129) in the main hand alone (heavy handling's mock swings: vr_heavy_test.cfg).

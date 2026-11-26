@@ -101,7 +101,7 @@ extern "C" const char *VR_GLSafeDescribe (void);                       // vr_gls
  *     exception filter (a stack overflow: a vectored handler, which still has the stack's reserve to run on);
  *   - the CRT's fatal errors, which end the process with a fast fail no filter sees: abort() (std::terminate, a failed
  *     assert), an invalid parameter to a CRT function, a pure virtual call;
- *   - an engine error (Sys_Error: its dialog, "Quake VR: Unleashed - Error"; a Host_Error that ends the game is one),
+ *   - an engine error (Sys_Error: its dialog, "Quake VR: UNLEASHED - Error"; a Host_Error that ends the game is one),
  *     and a failed Zancle assert (vr_zancle.cpp).
  * The report is quakevr/crash/<date>_<time>.txt (what happened, the build, the map, the thread, its stack with function
  * names, files and lines from ironwail.pdb beside the exe, and every module loaded with its address: the offsets let
@@ -587,7 +587,7 @@ void appendHeader (const CrashRequest &req)
 	const EXCEPTION_RECORD *er = req.ep->ExceptionRecord;
 	SYSTEMTIME t;
 	GetLocalTime (&t);
-	appendf ("Quake VR: Unleashed crash report\n");
+	appendf ("Quake VR: UNLEASHED crash report\n");
 	if (req.what)
 		appendf ("What: %s\n", req.what);
 	if (er->ExceptionCode != QVR_NO_EXCEPTION)
@@ -805,7 +805,7 @@ void showDialog (const CrashRequest &req)
 		what, reportPath, dumpPath);
 	if (!toWide (dialogText, wideText, 8192))
 		return;
-	MessageBoxW (NULL, wideText, req.dialogTitle ? req.dialogTitle : L"Quake VR: Unleashed - Crash",
+	MessageBoxW (NULL, wideText, req.dialogTitle ? req.dialogTitle : L"Quake VR: UNLEASHED - Crash",
 		MB_OK | MB_ICONSTOP | MB_SETFOREGROUND | MB_TOPMOST);
 }
 
@@ -1083,7 +1083,7 @@ extern "C" __declspec(noinline) void VR_FatalError (const char *message)
 {
 	char what[1100];
 	snprintf (what, sizeof (what), "Sys_Error (not on the main thread): %s", message);
-	reportHere (what, QVR_CALLER, true, L"Quake VR: Unleashed - Error");
+	reportHere (what, QVR_CALLER, true, L"Quake VR: UNLEASHED - Error");
 	TerminateProcess (GetCurrentProcess (), 1);
 }
 
@@ -1422,7 +1422,7 @@ void writeReport (const char *what, void *const *frames, int count, int skip)
 	localtime_r (&now, &local);
 	char stamp[32];
 	strftime (stamp, sizeof (stamp), "%Y-%m-%d_%H-%M-%S", &local);
-	appendf ("Quake VR: Unleashed crash report, %s\n", stamp);
+	appendf ("Quake VR: UNLEASHED crash report, %s\n", stamp);
 	appendf ("What: %s\n", what);
 	appendf ("Build: %s\n", VR_BuildInfo ());
 	appendf ("Map: %s; game folder %s\n", crashContext[0] ? crashContext : "no map spawned yet", com_gamedir[0] ? com_gamedir : "not set yet");

@@ -2043,6 +2043,14 @@ QVR_TUNABLE(vr_flat_throw_wind_up, "0.6") // above the shoulder
 QVR_TUNABLE(vr_flat_throw_wind_pitch, "-40") // the hand's pitch there against the look's (negative: tipped back)
 QVR_TUNABLE(vr_flat_throw_wind_yaw, "0") // its yaw against the look's (positive: the fingers turned out to its side)
 QVR_TUNABLE(vr_flat_throw_wind_roll, "0") // its roll (mirrored for the left hand)
+// The wind-up of a weapon held with its grip flipped (QVR_WPNFLAG_REVGRIP; flatthrow2, his words 2026-11-26: "the about to throw
+// pose for an Inverted grip needs tuning"): over the wind-up above, by the flip's drawn share; 0 all: the pose as it was.
+QVR_TUNABLE(vr_flat_throw_rev_fwd, "0") // the hand (and its weapon) this far further ahead along the look (units; negative back)
+QVR_TUNABLE(vr_flat_throw_rev_out, "0") // and out at its own side (units; negative in)
+QVR_TUNABLE(vr_flat_throw_rev_up, "0") // and up (units; negative down)
+QVR_TUNABLE(vr_flat_throw_rev_pitch, "0") // turned about the fist: the weapon's far end up (degrees; negative down)
+QVR_TUNABLE(vr_flat_throw_rev_yaw, "0") // and out to its own side (degrees; negative in; mirrored for the left hand)
+QVR_TUNABLE(vr_flat_throw_rev_roll, "0") // and rolled (degrees; mirrored for the left hand)
 QVR_TUNABLE(vr_flat_throw_guide, "1") // 1: the other hand, if free, guides the throw (forward, its palm away, fingers open) while the throwing hand winds up
 QVR_TUNABLE(vr_flat_throw_guide_fwd, "0.6") // the guiding hand's place: forward along the look, a share of the arm's reach
 QVR_TUNABLE(vr_flat_throw_guide_out, "0") // out at its side (negative: towards the middle)
@@ -2250,6 +2258,12 @@ QVR_TUNABLE(vr_flat_overhand_end_fwd, "0") // and this far further ahead (units;
 QVR_TUNABLE(vr_flat_overhand_end_out, "0") // and this far out at its own side (units; negative inwards)
 QVR_TUNABLE(vr_flat_overhand_end_yaw, "0") // the fist turned out at the strike's end (degrees; negative inwards)
 QVR_TUNABLE(vr_flat_overhand_end_roll, "0") // and rolled (degrees)
+// Both hands empty (vr_flat_overhand_both, flatmelee6, his words 2026-11-26): V's two-handed overhead blow, both fists by the
+// overhand's path, mirrored and in sync; one hit, the main fist's, for both (the off fist's motion strikes nothing).
+QVR_TUNABLE(vr_flat_overhand_2h_damage, "2") // the two-fisted blow's damage, times one fist's overhand blow at the same speed (2: the two fists' sum; QC VRMeleeDmg)
+QVR_TUNABLE(vr_flat_overhand_2h_push, "1") // and its push (vr_melee_push), times the push its damage gives (1: the two fists' sum, as its damage; QC T_Damage_VRMelee)
+QVR_TUNABLE(vr_flat_overhand_2h_raise_out, "-3") // the top: each fist this much further out at its own side than the one-fist blow's (units; negative: in, the fists together over the head)
+QVR_TUNABLE(vr_flat_overhand_2h_end_out, "1.5") // the strike's end: each fist this far out at its own side of the one-fist blow's end (units; the fists land side by side, not in one another)
 QVR_TUNABLE(vr_flat_parry, "1") // flatscreen: the right mouse button held with one melee weapon raises it into the parry's guard, almost level across the view (0: nothing, as before 2026-11-10)
 QVR_TUNABLE(vr_flat_parry_fwd, "14") // the guard: the hand this far ahead of the eye (units)
 QVR_TUNABLE(vr_flat_parry_up, "-2") // and this far above it (units; negative below)
@@ -2259,6 +2273,9 @@ QVR_TUNABLE(vr_flat_parry_yaw, "0") // and this far forward of straight across t
 QVR_TUNABLE(vr_flat_parry_roll, "-5") // and the weapon rolled this far about its own line (degrees; its edge from forward towards up)
 QVR_TUNABLE(vr_flat_parry_in_time, "0.05") // seconds into the guard from the hold (0: at once)
 QVR_TUNABLE(vr_flat_parry_out_time, "0.1") // seconds back to the hold when the button is let go (0: at once)
+QVR_TUNABLE(vr_flat_parry_unflip_time, "0.1") // flatparry2: a flipped (inverted) grip turns back to the normal grip over this long as the guard is raised, and flips again over as long once the guard is down (vr_view_weapon.cpp gripFlipStep; 0: at once; negative: the guard keeps the flipped grip)
+QVR_TUNABLE(vr_flat_parry_shaft_at, "0.8") // flatparry2: in the guard, a sword-mode melee weapon with no Blade hotspot of its own (the ogres' hammer and mace, the fury's sword; a Blade hotspot at share 0 counts as none) has the free hand on its shaft or blade this share of the way from the hand to the tip/head, as a Blade hotspot there would (then held within vr_flat_parry_shaft_reach); 0: none, the hand stays
+QVR_TUNABLE(vr_flat_parry_shaft_reach, "22") // flatparry2: vr_flat_parry_blade_reach for that shaft point: the free hand at most this far from the holding hand (units; longer than the blade's 14 so a hammer's or mace's hand sits near the head; 0 no limit)
 QVR_TUNABLE(vr_flat_parry_cone, "120") // flatscreen: in the guard, any melee blow from within this many degrees of where you look (all of the cone, centred on the view) is parried, whatever its way (QC VR_Parry_FlatGuard; the headset keeps the directional parry); 0: the headset's rules
 
 // Flatscreen > Guard Bash and Blade Grip (his notes 2026-11-23: the fire button in the guard bashes, as the headset's bash;
@@ -2282,12 +2299,12 @@ QVR_TUNABLE(vr_flat_parry_blade_reach, "14") // the free hand on the blade at mo
 // hands while the other hand is empty; vr_flatplay.cpp twoHandPose, vr_flatsight.cpp carries the free hand onto the grip)
 QVR_TUNABLE(vr_flat_melee_2h, "1") // flatscreen: a melee weapon swung by a handle (axe, swords, crowbar, Mjolnir, super axe; not the 1H dagger) is held in both hands, the free hand on its grip, while the other hand is empty (0: one hand)
 QVR_TUNABLE(vr_flat_melee_2h_time, "0.25") // seconds from the one-handed hold into the two-handed stance and back (0: at once)
-QVR_TUNABLE(vr_flat_melee_2h_fwd, "2") // the two-handed stance: the weapon's hand this far further ahead than in the one-handed hold (units)
-QVR_TUNABLE(vr_flat_melee_2h_up, "0") // and this far higher (units; negative lower)
-QVR_TUNABLE(vr_flat_melee_2h_out, "-3") // and this far further out at its own side (units; negative in towards the middle)
+QVR_TUNABLE(vr_flat_melee_2h_fwd, "-2") // the two-handed stance: the weapon's hand this far further ahead than in the one-handed hold (units)
+QVR_TUNABLE(vr_flat_melee_2h_up, "2") // and this far higher (units; negative lower)
+QVR_TUNABLE(vr_flat_melee_2h_out, "-2") // and this far further out at its own side (units; negative in towards the middle)
 QVR_TUNABLE(vr_flat_melee_2h_pitch, "-10") // and turned up this far over the hold (degrees; negative: the weapon's top leans forward)
-QVR_TUNABLE(vr_flat_melee_2h_yaw, "-10") // and this far out to its own side (degrees; negative inwards)
-QVR_TUNABLE(vr_flat_melee_2h_roll, "-15") // and rolled this far, its top out to its own side (degrees; negative: the top leans in across the body)
+QVR_TUNABLE(vr_flat_melee_2h_yaw, "0") // and this far out to its own side (degrees; negative inwards)
+QVR_TUNABLE(vr_flat_melee_2h_roll, "0") // and rolled this far, its top out to its own side (degrees; negative: the top leans in across the body)
 // The spear pose (lancespear: a pole weapon, its own Other Hand Anywhere 3, the Crystal Lance): the holding hand over the
 // gun's hold (its pole already along the crosshair's way: its Shot Pitch), the other hand on the pole ahead of it.
 QVR_TUNABLE(vr_flat_pole_fwd, "-10") // the spear pose: the holding hand this far further ahead than a gun's hold (units)
@@ -2301,8 +2318,8 @@ QVR_TUNABLE(vr_flat_pole_off_roll, "0") // and rolled this far about its own for
 QVR_TUNABLE(vr_flat_pole_pitch, "8") // the spear turned about the holding fist, its tip up (degrees; drawn only: the beam keeps to the crosshair)
 QVR_TUNABLE(vr_flat_pole_yaw, "5") // and its tip in towards the middle (degrees; negative out; drawn only)
 QVR_TUNABLE(vr_flat_pole_along, "-2.5") // the holding hand this far up the pole towards its tip (units; negative towards the butt: the pole slid through the fist)
-QVR_TUNABLE(vr_flat_pole_off_up, "5") // the other hand this far up off the pole (units; negative down)
-QVR_TUNABLE(vr_flat_pole_off_out, "1") // and this far out to its own side (units; negative in)
+QVR_TUNABLE(vr_flat_pole_off_up, "0") // the other hand this far up off the pole (units; negative down)
+QVR_TUNABLE(vr_flat_pole_off_out, "0") // and this far out to its own side (units; negative in)
 QVR_TUNABLE(vr_flat_pole_off_pitch, "-40") // the other hand on the pole pitched up this far in its own frame, about its palm (degrees; drawn only)
 QVR_TUNABLE(vr_flat_pole_off_yaw, "34") // and yawed left this far (degrees; mirrored for the off hand; drawn only)
 QVR_TUNABLE(vr_flat_pole_hand_pitch, "30") // the holding hand alone pitched up this far on the pole, the spear unturned (degrees; drawn only)
@@ -2370,12 +2387,12 @@ QVR_TUNABLE(vr_flat_revgrip_dagger_pitch, "85")
 QVR_TUNABLE(vr_flat_revgrip_dagger_yaw, "0")
 QVR_TUNABLE(vr_flat_revgrip_dagger_roll, "0")
 QVR_TUNABLE(vr_flat_revgrip_dagger_down, "5")
-QVR_TUNABLE(vr_flat_revgrip_pole_fwd, "-4") // a pole weapon held flipped (the spear, the Crystal Lance): raised overhead, pointing slightly down
-QVR_TUNABLE(vr_flat_revgrip_pole_up, "22")
+QVR_TUNABLE(vr_flat_revgrip_pole_fwd, "-8") // a pole weapon held flipped (the spear, the Crystal Lance): raised overhead, pointing slightly down
+QVR_TUNABLE(vr_flat_revgrip_pole_up, "19")
 QVR_TUNABLE(vr_flat_revgrip_pole_out, "0")
-QVR_TUNABLE(vr_flat_revgrip_pole_pitch, "165") // (its head forward and slightly down; drawn only so the Lance's beam keeps to the crosshair)
+QVR_TUNABLE(vr_flat_revgrip_pole_pitch, "220") // (its head forward and slightly down; drawn only so the Lance's beam keeps to the crosshair)
 QVR_TUNABLE(vr_flat_revgrip_pole_yaw, "0")
-QVR_TUNABLE(vr_flat_revgrip_pole_roll, "0")
+QVR_TUNABLE(vr_flat_revgrip_pole_roll, "-10")
 QVR_TUNABLE(vr_flat_revgrip_pole_down, "5")
 QVR_TUNABLE(vr_flat_revgrip_pole_off_along, "4") // (polepose) the other hand on a flipped pole this far ahead of the holding hand along it (units; vr_flat_pole_off_along upright)
 // Flipped-grip attacks (flatmelee5): overhead/icepick swing (LMB with flipped dagger or sword) and downward thrust (V, or LMB with flipped spear/Lance).
@@ -2390,7 +2407,7 @@ QVR_TUNABLE(vr_flat_revgrip_swing_raise_out, "6") // and out at its own side (un
 QVR_TUNABLE(vr_flat_revgrip_swing_raise_pitch, "20") // wrist turned up this far from the flipped pose at the top (degrees)
 QVR_TUNABLE(vr_flat_revgrip_swing_raise_yaw, "0") // and out to its own side (degrees; negative inwards)
 QVR_TUNABLE(vr_flat_revgrip_swing_raise_roll, "0") // and rolled, its top out (degrees; negative inwards)
-QVR_TUNABLE(vr_flat_revgrip_swing_end_pitch, "30") // wrist turned down this far from the flipped pose at the strike's end (degrees)
+QVR_TUNABLE(vr_flat_revgrip_swing_end_pitch, "45") // wrist turned down this far from the flipped pose at the strike's end (degrees)
 QVR_TUNABLE(vr_flat_revgrip_swing_end_down, "6") // strike ends with the hand this far under the crosshair target (units)
 QVR_TUNABLE(vr_flat_revgrip_swing_end_fwd, "12") // and this far further ahead towards/through the target (units; arm reach holds)
 QVR_TUNABLE(vr_flat_revgrip_swing_end_out, "0") // and out at its own side (units; negative inwards)
@@ -2400,7 +2417,7 @@ QVR_TUNABLE(vr_flat_revgrip_thrust_wind_back, "8") // flipped-grip thrust: windu
 QVR_TUNABLE(vr_flat_revgrip_thrust_wind_up, "4") // and lifts up (units; negative down)
 QVR_TUNABLE(vr_flat_revgrip_thrust_wind_pitch, "10") // tip turned up at windup (degrees; negative down)
 QVR_TUNABLE(vr_flat_revgrip_thrust_reach, "26") // flipped-grip thrust: drives forward along the line towards target this far (units; arm reach holds)
-QVR_TUNABLE(vr_flat_revgrip_thrust_up, "-4") // and up/down at thrust end (units; negative down)
+QVR_TUNABLE(vr_flat_revgrip_thrust_up, "4") // and up/down at thrust end (units; negative down)
 QVR_TUNABLE(vr_flat_revgrip_thrust_pitch, "-10") // tip turned up/down at thrust end (degrees; negative down)
 QVR_TUNABLE(vr_flat_embed_pull, "12") // flatscreen: a blade stuck in a body, its hand's fire button pulls the hand back this far along the blade (units; QC vr_embedhold.qc VR_Embed_FlatHand)
 QVR_TUNABLE(vr_flat_embed_pull_time, "0.2") // seconds of that pull back (and of the hand's way back onto the grip)
@@ -2410,7 +2427,7 @@ QVR_TUNABLE(vr_flat_embed_arm_slip, "10") // flatscreen: cm a hand on a stuck bl
 QVR_TUNABLE(vr_flat_embed_other_hand, "30") // flatscreen: a free, empty other hand takes a two-handed blade stuck by the hand too (or held by one hand later) when its grip or shaft is within the other arm's reach from the shoulder (60 cm) plus this many cm (QC VR_Embed_FlatOtherCanJoin; 0: never)
 QVR_TUNABLE(vr_flat_melee_2h_parry_fwd, "0") // the parry's guard held in two hands: the hand this far further ahead than the one-handed guard (units)
 QVR_TUNABLE(vr_flat_melee_2h_parry_up, "0") // and this far higher (units; negative lower)
-QVR_TUNABLE(vr_flat_melee_2h_parry_out, "0") // and this far further out at its own side (units; negative inwards)
+QVR_TUNABLE(vr_flat_melee_2h_parry_out, "2") // and this far further out at its own side (units; negative inwards)
 QVR_TUNABLE(vr_flat_melee_2h_parry_pitch, "0") // and turned up this far over the one-handed guard (degrees; negative down)
 QVR_TUNABLE(vr_flat_melee_2h_parry_yaw, "0") // and this far out to its own side (degrees; negative inwards)
 QVR_TUNABLE(vr_flat_melee_2h_parry_roll, "0") // and rolled this far, its top out to its own side (degrees; negative inwards)
@@ -2850,3 +2867,10 @@ QVR_TUNABLE(vr_hit_player_fatten, "5.5") // units added to the radius of every p
 QVR_TUNABLE(vr_monster_lean, "1") // 1: a monster sees and shoots at the parts of a player's drawn body showing (head, shoulders, hands, torso: leaning out from cover), not only his eyes' point (QC vr_leanaim.qc); 0: as before
 QVR_TUNABLE(vr_monster_lean_spread, "0.2") // a monster's extra spread (Quake's spread units, about radians) at a player whose eyes' point is hidden but whose body shows (leaning out): half of it with all his body's points showing, all of it with one (leaning from cover takes fewer hits than standing in the open)
 QVR_TUNABLE(vr_monster_lean_react, "0.4") // seconds before a monster sees (and shoots at) a player newly leaning out from cover
+
+// Flatscreen > Crosshair (flatxhair, his flat notes 2026-11-26 items 9 and 10)
+QVR_TUNABLE(vr_flat_xhair_thrust_path, "1") // 1: a flipped spear's visor crosshair is on where its thrust's tip goes (the strike's way), not on its reversed pole's shot line
+QVR_TUNABLE(vr_flat_xhair_melee_kick, "10") // a melee blow's feedback: the visor crosshair's lines pushed out this many pixels (at 1080 p) as its strike begins, for a weapon of vr_flat_xhair_melee_mass (under vr_flat_xhair_kick_max with the guns' recoil)
+QVR_TUNABLE(vr_flat_xhair_melee_mass, "3") // the weapon weight (kg) the kick is for: a heavier one more, by the square root of its weight's share (0.5 .. 2 times)
+QVR_TUNABLE(vr_flat_xhair_melee_fist, "0.5") // a bare fist's (or a prop's) blow: this share of the kick
+QVR_TUNABLE(vr_flat_xhair_melee_decay, "0.15") // and back in over this (seconds: its time constant; 63% of the way back)

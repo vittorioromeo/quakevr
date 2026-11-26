@@ -109,6 +109,7 @@ void() VR_FlatReload_Key;
 void() VR_FlatGrenade_Key; // (vr_flatgrenade.qc)
 void() VR_FlatThrow_Press; // (vr_flatgrenade.qc: the throw key)
 void() VR_FlatThrow_Release;
+void() VR_FlatThrow_Cancel;
 void(float xHand, float xWeapon, float xWeaponFlags) VR_FlatReload_CycleOut;
 void(float xHand) VR_FlatReload_CycleIn;
 void(float xHand) VR_FlatReload_AmmoSwitch;
@@ -252,8 +253,10 @@ float(float xHand, float xBase) VRMeleeDmg =
     // The damage caps bound this blow's strength (times its zone's multiplier) when it lands (T_Damage_VRMelee).
     vr_mdmg_core = VR_Blow(xHand).mh_core;
     vr_mdmg_hand = xHand;
+    // (Flat V's two-fisted overhead blow: both fists' in one hit, vr_flat_overhand_2h_damage; VR_HandTwoFisted.)
+    float twoFist = VR_HandTwoFisted(self, xHand) ? max(0, cvar_hget(cvarh_vr_flat_overhand_2h_damage)) : 1;
     return xBase * VR_Blow_Strength(xHand) * VR_Blow_Counter(xHand) * VR_Blow_Exhaust(xHand) *
-           VR_Weight_MeleeMult(self, xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
+           VR_Weight_MeleeMult(self, xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult() * twoFist;
 }
 
 // A hand's blow of `xHand` at `xSpeed` m/s on a corpse or ragdoll (VR_Corpse_Struck), struck with `xThing` (VR_MTHING_*):
@@ -4922,11 +4925,17 @@ void() ImpulseCommands =
 
     // Flatscreen play: B drops (quick tap) or throws (held) what a hand holds (vr_flatgrenade.cpp: 39 down, 40 up;
     // vr_flatgrenade.qc "The throw key"). Nobody else's impulses.
-    if((self.impulse == 39 || self.impulse == 40) && VR_FlatPlay(self))
+    // 41: the throwing hand's attack button with B held cancels the throw (flatthrow2: VR_FlatThrow_Cancel).
+    if((self.impulse == 39 || self.impulse == 40 || self.impulse == 41) && VR_FlatPlay(self))
     {
         float throwUp = self.impulse == 40;
+        float throwCancel = self.impulse == 41;
         self.impulse = 0;
-        if(throwUp)
+        if(throwCancel)
+        {
+            VR_FlatThrow_Cancel();
+        }
+        else if(throwUp)
         {
             VR_FlatThrow_Release();
         }

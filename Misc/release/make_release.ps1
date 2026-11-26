@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Makes a Quake VR: Unleashed release: builds the game and the installer (Release), checks them, packages them, writes
+Makes a Quake VR: UNLEASHED release: builds the game and the installer (Release), checks them, packages them, writes
 latest.json, and (with -Publish) tags the commit and creates the GitHub release. docs/vr-port/RELEASING.md has the steps.
 
 .DESCRIPTION
@@ -807,7 +807,7 @@ if ($DryRun) {
     Say "package        $(@($list).Count) files (Windows\package-quakevr.ps1 -DryRun lists them)"
     # Every command of the real run, in order (what -DryRun leaves out of this mode is marked).
     $feedPlan = if ($FeedUrl) { $FeedUrl } elseif ($prerelease) { $tagFeed } else { "https://github.com/$Repo/releases/latest/download/latest.json" }
-    $title = "Quake VR: Unleashed $Version"
+    $title = "Quake VR: UNLEASHED $Version"
     $commitPlan = if ($bumpPending) { "<the version commit>" } else { $short }
     $seq = New-Object System.Collections.Generic.List[string]
     if ($RunTests) { $seq.Add("tests: python Misc\release\run_test_suite.py $TestAgent --build --log-dir $outDir\tests $($testArgs -join ' ')   (kit build.sh $TestAgent, then $testCount ($TestProfile profile, parallel lanes); a failure stops here)") }
@@ -1150,7 +1150,7 @@ Say "notes $notesPath$(if ($notesText.Contains($draftMarker)) { ' (the draft: ed
 
 # ------------------------------------------------------------------------------------------------------------------
 $assetArgs = @($files | ForEach-Object { $_.FullName })
-$title = "Quake VR: Unleashed $Version"
+$title = "Quake VR: UNLEASHED $Version"
 $ghArgs = @("release", "create", $tag) + $assetArgs + @("--repo", $Repo, "--verify-tag", "--title", $title, "--notes-file", $bodyPath)
 if ($Draft) { $ghArgs += "--draft" }
 if ($prerelease) { $ghArgs += "--prerelease" } elseif (-not $Draft) { $ghArgs += "--latest" }
@@ -1214,7 +1214,7 @@ $script:stage = "done"
 # ------------------------------------------------------------------------------------------------------------------
 $quoted = ($ghArgs | ForEach-Object { if ($_ -match '[\s"]') { '"' + $_ + '"' } else { $_ } }) -join " "
 $lines = @(
-    "Quake VR: Unleashed $Version ($tag, commit $short): $(if ($Publish) { if ($Draft) { 'DRAFT release created' } else { 'release published' } } else { 'built, nothing published' })",
+    "Quake VR: UNLEASHED $Version ($tag, commit $short): $(if ($Publish) { if ($Draft) { 'DRAFT release created' } else { 'release published' } } else { 'built, nothing published' })",
     "",
     "Assets ($assetsDir):"
 ) + @($files | ForEach-Object { "  {0,-45} {1,10}  {2}" -f $_.Name, (Size $_.Length), (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }) + @(
@@ -1225,7 +1225,7 @@ $lines = @(
 )
 $n = 0
 if ($Local) {
-    $lines[0] = "Quake VR: Unleashed $Version LOCAL TEST release (commit $short): built, nothing published; its latest.json points at $($UrlBase -join ', ')"
+    $lines[0] = "Quake VR: UNLEASHED $Version LOCAL TEST release (commit $short): built, nothing published; its latest.json points at $($UrlBase -join ', ')"
     $lines += @(
         "  1. Test it: powershell -ExecutionPolicy Bypass -File Misc\release\test_local_release.ps1$(if ($Version -ne $fileVersion) { " -Version $Version" })",
         "       (starts the local server on 127.0.0.1:$LocalPort in its own window, then QuakeVR-Setup.exe --feed http://127.0.0.1:$LocalPort/latest.json",

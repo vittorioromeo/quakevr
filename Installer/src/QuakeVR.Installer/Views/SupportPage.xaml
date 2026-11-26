@@ -15,7 +15,7 @@
                 <TextBlock Style="{StaticResource PageSubtitle}" Text="A humble request..." />
 
                 <TextBlock Style="{StaticResource Body}" FontSize="15.5" LineHeight="23" Margin="0,22,0,0">
-                    Quake VR: Unleashed is a labour of love. It took a huge amount of time and care to make, and I funded every
+                    Quake VR: UNLEASHED is a labour of love. It took a huge amount of time and care to make, and I funded every
                     hour of it from my own savings, because I wanted Quake in VR to feel the way I always imagined it: immersive, visceral, and 
 					giving the player as much freedom as possible.
                 </TextBlock>
@@ -30,7 +30,7 @@
                     <StackPanel Orientation="Horizontal">
                         <Image Source="/QuakeVR-Setup;component/Assets/kofi_symbol.png" Height="24" Margin="0,0,12,0"
                                RenderOptions.BitmapScalingMode="HighQuality" VerticalAlignment="Center" />
-                        <TextBlock Text="Support Quake VR: Unleashed on Ko-fi" FontSize="16.5" VerticalAlignment="Center" />
+                        <TextBlock Text="Support Quake VR: UNLEASHED on Ko-fi" FontSize="16.5" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
                 <TextBlock Text="ko-fi.com/vittorioromeovee" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" Margin="2,8,0,0" />

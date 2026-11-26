@@ -31,6 +31,10 @@ namespace qvr::flatxhair
 // vr_client.cpp buildMove: each hand's muzzle, shot angles and hand place as sent (the shot's own line).
 void noteMove(const VrMove& move);
 
+// vr_decals.cpp meleeEvent: a melee blow struck the world at `at` (QC VR_Melee_WallMark's mark; vr_flat_xhair_probe compares
+// it with where the crosshair said the blow would land as it began).
+void noteMeleeMark(const glm::vec3& at);
+
 // vr_weaponfx.cpp parseTracer: one of his own pellets' line ended at `to` (vr_flat_xhair_probe compares them with the drawn
 // crosshair).
 void noteTracer(int hand, const glm::vec3& to);

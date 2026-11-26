@@ -2,7 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:skin="clr-namespace:QuakeVR.Installer.Skin"
                     xmlns:sfx="clr-namespace:QuakeVR.Installer.Audio">
-    <!-- Quake VR: Unleashed's skin: soot-black stone and riveted iron, ember orange and brass, bone-white text.
+    <!-- Quake VR: UNLEASHED's skin: soot-black stone and riveted iron, ember orange and brass, bone-white text.
          The textures (SkinBackdropBrush, SkinPanelBrush, SkinPlateBrush, SkinTrimBrush) are set in code: generated at
          start, then read from the player's own Quake once it is found (Skin/SkinAssets.cs). -->
     <Color x:Key="BgColor">#FF0C0A08</Color>

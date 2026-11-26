@@ -103,7 +103,7 @@ reads on a debuggable APK. With the headset connected (USB debugging on, as for 
     adb exec-out run-as com.vittorioromeo.quakevr tar -cf - files/export > quest-saves.tar
 
 (`.`: the game folder's own files, the saves and config among them, flattened into `export/` with `autosave/`'s.) Then
-uninstall in the headset (Library > Unknown Sources > Quake VR > Uninstall), install the new release with Setup, unpack
+uninstall in the headset (Library > Unknown Sources > Quake VR: UNLEASHED > Uninstall), install the new release with Setup, unpack
 `quest-saves.tar` on the PC and push the saves back, e.g. for each `.sav`:
 
     adb push <name>.sav /sdcard/Android/data/com.vittorioromeo.quakevr/files/quakevr/<name>.sav

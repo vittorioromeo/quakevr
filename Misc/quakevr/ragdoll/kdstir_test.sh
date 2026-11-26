@@ -10,11 +10,15 @@
 #   time  6 knockdowns of the shipped length band's middle (2.5 s, fixed: the same timer either way), vr_knockdown_stir 1
 #         and 0: each knockdown's get-up due at the same time and on its feet no later (0.3 s at most; the rise is the
 #         physics': a pose a little off) and on average no later (0.1 s); 3 or more moves in each knockdown stirring.
+#         The 0.3 s is over the knockdowns paired (3 or more): those it lay in the same place for, within 12 units (its
+#         get-up's spot). Each knockdown starts where the last one's get-up left it, and a fall is chaotic: from a few
+#         units off at its start, one lands on its other side, its get-up a roll over and 0.8 s longer either way. Box3D
+#         042be58's solver (#237) parted the two runs at the 4th knockdown (16 units apart; the 6th 270), 2026-11-26.
 # Reads vr_knockdown_test 9's stircheck: line and vr_knockdown_debug's knockdown: lines.
 AGENT=${1:-takeslight}
 source "$(dirname "$0")/../qvrtest.sh"
 S=$TREE/scratch; mkdir -p "$S"
-F="stircheck:|stirs:|stirred:|kdstir:|fell: down|get-up due after|its get-up after"
+F="stircheck:|stirs:|stirred:|kdstir:|fell: down|get-up due after|its get-up after|rises through frames"
 BASE="sv_random_seed 7;map vrfiringrange;wait30;god;notarget;vr_test_spawn 0;vr_test_spawn_dist 60;vr_knockdown_chance 100;vr_knockdown_time_min 8;vr_knockdown_time_max 8;vr_knockdown_debug 1"
 ON="$BASE;impulse 241;wait40;vr_knockdown_test 22;wait360;echo kdstir: down;vr_knockdown_test 9"
 ON="$ON;vr_knockdown_test 1;wait288;echo kdstir: up;vr_knockdown_test 9"
@@ -43,12 +47,13 @@ check $([ -n "$km" ] && [ "$kd" = 0 ] && [ "$ks" = 0 ] && [ "$lm" = "$km" ] && [
     "killed while down: its corpse never stirs (living ones down $kd; moves $km at the kill, $lm 3 s later; stirring $ks, $ls)"
 read om os od on or oa of <<<"$(after "$S/kdstir_off.log" down)"
 check $([ "$om" = 0 ] && echo 1 || echo 0) "vr_knockdown_stir 0: down 5 s, no move ($om)"
-# Per knockdown: "due afoot moves" (moves: stirs: lines after its fall).
-times() { awk '/fell: down/{n++; m[n]=0} / stirs: /{m[n]++} /get-up due after/{for(i=1;i<=NF;i++) if($i=="after") d[n]=$(i+1)} /its get-up after/{for(i=1;i<=NF;i++) if($i=="after") u[n]=$(i+1)} END{for(i=1;i<=n;i++) printf "%s %s %s\n", d[i], u[i], m[i]}' "$1"; }
+# Per knockdown: "due afoot moves x y" (moves: stirs: lines after its fall; x y: its first get-up's spot).
+times() { awk '/fell: down/{n++; m[n]=0} / stirs: /{m[n]++} /get-up due after/{for(i=1;i<=NF;i++) if($i=="after") d[n]=$(i+1)} /its get-up after/{for(i=1;i<=NF;i++) if($i=="after") u[n]=$(i+1)} /rises through frames/ && !(n in x){for(i=1;i<=NF;i++) if($i=="(at") {x[n]=$(i+1); y[n]=$(i+2)}} END{for(i=1;i<=n;i++) printf "%s %s %s %s %s\n", d[i], u[i], m[i], (i in x) ? x[i] : "NA", (i in y) ? y[i] : "NA"}' "$1"; }
 times "$S/kdstir_time1.log" > "$S/kdstir_time1.txt"
 times "$S/kdstir_time0.log" > "$S/kdstir_time0.txt"
-cmp=$(paste -d' ' "$S/kdstir_time1.txt" "$S/kdstir_time0.txt" | awk '{n++; if($1!=$4) due++; d=$2-$5; s+=d; if(d>w) w=d; if($3<3) few++; if($6>0) off++; m=m" "$3} END{printf "%d %d %.2f %.2f %d %d%s", n, due+0, n?s/n:0, w+0, few+0, off+0, m}')
-read n due mean worst few off moves <<<"$cmp"
-check $([ "$n" = 6 ] && [ "$due" = 0 ] && [ "$few" = 0 ] && [ "$off" = 0 ] && awk -v m="$mean" -v w="$worst" 'BEGIN{exit !(m <= 0.1 && w <= 0.3)}' && echo 1 || echo 0) \
-    "2.5 s knockdowns, stirring against not ($n): get-up due at the same time (differing $due), on its feet later by $mean s on average, $worst s at most; moves each:$moves (fewer than 3: $few; with it off: $off)"
+# (Fields: stirring's due afoot moves x y, then not stirring's.)
+cmp=$(paste -d' ' "$S/kdstir_time1.txt" "$S/kdstir_time0.txt" | awk '{n++; if($1!=$6) due++; d=$2-$7; s+=d; if($4!="NA" && $9!="NA" && ($4-$9)^2+($5-$10)^2 <= 144) {p++; if(d>w) w=d} if($3<3) few++; if($8>0) off++; m=m" "$3} END{printf "%d %d %.2f %.2f %d %d %d%s", n, due+0, n?s/n:0, w+0, p+0, few+0, off+0, m}')
+read n due mean worst paired few off moves <<<"$cmp"
+check $([ "$n" = 6 ] && [ "$due" = 0 ] && [ "$few" = 0 ] && [ "$off" = 0 ] && [ "$paired" -ge 3 ] && awk -v m="$mean" -v w="$worst" 'BEGIN{exit !(m <= 0.1 && w <= 0.3)}' && echo 1 || echo 0) \
+    "2.5 s knockdowns, stirring against not ($n): get-up due at the same time (differing $due), on its feet later by $mean s on average, $worst s at most in the $paired lying in the same place; moves each:$moves (fewer than 3: $few; with it off: $off)"
 verdict; exit $fail

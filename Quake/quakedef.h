@@ -59,8 +59,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // QVR: the window title and the console's corner banner name Quake VR (the version command and the
 // startup log still list QuakeSpasm and Ironwail with their versions)
-#define CONSOLE_TITLE_STRING	"Quake VR: Unleashed"
-#define WINDOW_TITLE_STRING		"Quake VR: Unleashed | by Vittorio Romeo"
+#define CONSOLE_TITLE_STRING	"Quake VR: UNLEASHED"
+#define WINDOW_TITLE_STRING		"Quake VR: UNLEASHED | by Vittorio Romeo"
 #define CONFIG_NAME				"ironwail.cfg"
 #define SCREENSHOT_PREFIX		"ironwail"
 #define ENGINE_PAK				"ironwail.pak"
