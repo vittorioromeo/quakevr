@@ -103,6 +103,6 @@ void PL_ErrorDialog (const char *errorMsg)
 			errorMsg, VR_LastCrashReport ());
 		errorMsg = error_text;
 	}
-	SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_ERROR, "Quake VR: Unleashed - Error", errorMsg, NULL);
+	SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_ERROR, "Quake VR: UNLEASHED - Error", errorMsg, NULL);
 }
 

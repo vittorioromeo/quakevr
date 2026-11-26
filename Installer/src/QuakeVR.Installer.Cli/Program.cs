@@ -10,7 +10,7 @@ using QuakeVR.Installer.Core.Shortcuts;
 // qvr-setup <command> [options]. Never writes the real desktop or Start menu: shortcuts go only into --shortcuts-dir.
 const string Usage = """
     qvr-setup detect [--qvr <dir>] [--epic-manifests <dir>] [--registry-file <json> | --sandbox <dir>]
-                      (also the Quake VR: Unleashed install: --qvr, the Apps & Features entry (read only), the default folder)
+                      (also the Quake VR: UNLEASHED install: --qvr, the Apps & Features entry (read only), the default folder)
     qvr-setup manifest <package folder> --version <text>
     qvr-setup install (--package <zip|folder> | --feed <latest.json url>) [--downloads <dir>]
                       (--target <dir> [--shortcuts-dir <dir>] | --sandbox <dir>) [--quake <dir>]
@@ -571,7 +571,7 @@ try
         {
             var report = DetectionReport.Run(new WindowsSystemProbe(), Opt("epic-manifests"));
             Console.Write(report.Format(Opt("qvr")));
-            // The existing Quake VR: Unleashed install (what the window's Update screen and qvr-setup update use).
+            // The existing Quake VR: UNLEASHED install (what the window's Update screen and qvr-setup update use).
             Console.Write(FindInstall(Opt("sandbox") is { } dsb ? new Sandbox(dsb) : null, Opt("qvr") ?? Opt("target")).Format());
             return 0;
         }

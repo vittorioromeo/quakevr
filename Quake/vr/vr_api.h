@@ -896,7 +896,7 @@ int VR_MenuDrawBanner (int x, int y);					// M_DrawPlaque: the banner where the 
 int VR_MenuBannerExtent (int x, float *left, float *right); // M_Main_Draw: where M_DrawPlaque (x, y) puts the banner (or the plaque) across (menu x); 0 if nothing
 void VR_MenuDrawBannerColumn (void);					// M_Draw, before the page: the VR menu style's banner, in the left column under the corner's buttons
 void VR_MenuBrandPreload (void);					// Host_Init, after Draw_Init: the menus' images (the banner, Ko-fi's logo) loaded, not at the first menu draw
-void VR_MenuDrawVersion (void);						// M_Draw, before the page: "Quake VR: Unleashed - v1.0" / "by Vittorio Romeo" / a "Support on Ko-fi" link, in a box in the bottom right corner (vr_menu_version)
+void VR_MenuDrawVersion (void);						// M_Draw, before the page: "Quake VR: UNLEASHED - v1.0" / "by Vittorio Romeo" / a "Support on Ko-fi" link, in a box in the bottom right corner (vr_menu_version)
 void VR_MenuRecolor (float *params);					// Draw_SetMenuRecolor: the gui shader's MenuRecolor (vr_menu_recolor; x 0: off)
 void VR_HumStudioDraw2D (void);					// SCR_UpdateScreen's 2D pass: the Texture Studio's skin view while it paints (vr_humstudio.cpp)
 int VR_HumStudioAttack (int pressed);					// IN_AttackDown/Up: the Texture Studio's stroke while it paints (vr_humstudio.cpp; 1: eaten)

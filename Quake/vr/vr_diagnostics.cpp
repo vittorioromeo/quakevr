@@ -1,6 +1,6 @@
 // vr_diagnostics.cpp -- diagnostics mode (1.0.1): everything a bug report needs, in one folder.
 //
-// "-diagnostics" on the command line (from the first console line; the installer's "Quake VR Unleashed (diagnostics)"
+// "-diagnostics" on the command line (from the first console line; the installer's "Quake VR UNLEASHED (diagnostics)"
 // shortcut), or "vr_diagnostics 1" (from the next start, once the config is read: VID_Init), turns on, for that run:
 //   - <game folder>/diagnostics/<date>_<time>/, printed at the start and at the end (opened in Explorer at a quit);
 //   - console.log, openxr_debug.log, system.txt: copies of the run's own (every run keeps them: vr_runlogs.cpp, in

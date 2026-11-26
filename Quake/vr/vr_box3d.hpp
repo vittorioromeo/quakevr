@@ -301,8 +301,23 @@ void propPull(int num, const glm::vec3& at, const glm::vec3& force);
 // solid prop.
 float propBladeHold(int num, edict_t* player, int hand, const glm::vec3& handle, const glm::vec3& wound, const glm::vec3& shift, float force,
     float lift);
-// That hold over (the hand let go, took hold afresh).
+// That hold over (the hand let go, took hold afresh). A dragged prop's (propDrag) too.
 void propBladeRelease(int player, int hand);
+// The solid prop `num` dragged by `hand` of `player` by the point of its shape nearest `target` (units; taken as the hold
+// begins: flat-screen Grab / Pull, QC propdrag; vr_box3d_ragparts.cpp, "A big prop dragged by its surface"): that point
+// pulled to the hand by a linear spring of `hertz`, `force` N at most level, `lift` N up. Called each frame it is held. The
+// pull now (N; 0 as it begins); -1 not a solid prop, or let go of (its point more than `letGo` units off the hand).
+float propDrag(int num, edict_t* player, int hand, const glm::vec3& target, float force, float lift, float hertz, float letGo);
+// A prop that hand drags (the listen server's: the client draws the hand on it): its edict, the point held (world units, as
+// it lies now) and the hand's turn there (held::axesFromAngles(handrot, true)'s, turned with it). False: none.
+struct PropDragHold
+{
+    int num{0};
+    glm::vec3 at{0.f};
+    glm::quat turn{1.f, 0.f, 0.f, 0.f};
+    float off{0.f}; // units: that point from where the hold has the hand (the tests: the hands on its surface)
+};
+[[nodiscard]] bool propDragHold(int player, int hand, PropDragHold& out);
 // Whether the line from `from` to `to` (units) meets a solid prop's shape (one climbShape takes), other than `skip`.
 [[nodiscard]] bool climbRay(const glm::vec3& from, const glm::vec3& to, int skip = 0);
 // As castProps, against the solid props only (the ones climbShape takes) and none skipped; or `inside`: `from` is in one

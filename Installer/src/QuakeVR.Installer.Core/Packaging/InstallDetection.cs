@@ -27,7 +27,7 @@ public sealed record FoundInstall(string Dir, InstallRecord Record, InstallOrigi
 }
 
 /// <summary>
-/// Finds an existing Quake VR: Unleashed install: a folder with an <c>install.json</c> (InstallRecord) that reads. Looked
+/// Finds an existing Quake VR: UNLEASHED install: a folder with an <c>install.json</c> (InstallRecord) that reads. Looked
 /// for in the folder the player gave, the install this Setup runs from, the Apps &amp; Features entry's InstallLocation and
 /// the default folder; the first that has one is picked (several: the others are listed, and the window's "Use another
 /// install" browses to any). An entry whose folder has no install any more (moved or deleted by hand) is said and passed
@@ -69,7 +69,7 @@ public sealed class InstallDetection
             }
             if (d.RegisteredDir is { Length: > 0 } reg && !d.Consider(reg, InstallOrigin.Registered))
             {
-                d.Notes.Add($"Windows' Installed apps lists Quake VR: Unleashed {d.RegisteredVersion} in {reg}, but no install is there " +
+                d.Notes.Add($"Windows' Installed apps lists Quake VR: UNLEASHED {d.RegisteredVersion} in {reg}, but no install is there " +
                             "any more (moved or deleted): browse to it if it moved.");
             }
         }
@@ -109,11 +109,11 @@ public sealed class InstallDetection
         var w = new StringWriter();
         if (Picked is null)
         {
-            w.WriteLine("Quake VR: Unleashed: not installed (a fresh install).");
+            w.WriteLine("Quake VR: UNLEASHED: not installed (a fresh install).");
         }
         foreach (var f in Found)
         {
-            w.WriteLine($"Quake VR: Unleashed {f.Record.Version} in {f.Dir} (found from {f.OriginText}){(f == Picked ? " <- picked" : "")}");
+            w.WriteLine($"Quake VR: UNLEASHED {f.Record.Version} in {f.Dir} (found from {f.OriginText}){(f == Picked ? " <- picked" : "")}");
             w.WriteLine($"  installed {f.Record.InstalledAt:yyyy-MM-dd}{(f.Record.UpdatedAt is { } u ? $", updated {u:yyyy-MM-dd}" : "")}; " +
                         $"{f.Record.Files.Count} program files; Quake: {f.Record.QuakeDir}; HD textures: {(f.Record.Files.Any(x => x.Component == Components.HdTextures) ? "yes" : "no")}; " +
                         $"relight at first start: {(f.Record.Choices.RelightOnFirstRun ? "yes" : "no")}");

@@ -643,7 +643,7 @@ void status_f()
     refreshNotice();
     if(hasNotice)
     {
-        Con_Printf("update check: notice \"Update available: Quake VR: Unleashed %s\" -> %s\n", current.version.cStr(),
+        Con_Printf("update check: notice \"Update available: Quake VR: UNLEASHED %s\" -> %s\n", current.version.cStr(),
             current.page.cStr());
     }
     else

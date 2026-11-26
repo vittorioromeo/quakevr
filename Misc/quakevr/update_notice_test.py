@@ -116,8 +116,8 @@ def main():
         print("--- newer:", out.strip()[:1500])
         check("test run: no start-up check", "the start-up check: not run (a test run" in out)
         check("newer: answered", f"update check: latest {V_NEWER} (2026-10-08 abcdef12) from " + base + "/newer.json (asked): newer" in out)
-        check("newer: notice with the feed's page", f'notice "Update available: Quake VR: Unleashed {V_NEWER}" -> {PAGE}' in out)
-        check("newer: notice drawn", re.search(r'update notice "Update available: Quake VR: Unleashed v?' + re.escape(V_NEWER) + '"', out))
+        check("newer: notice with the feed's page", f'notice "Update available: Quake VR: UNLEASHED {V_NEWER}" -> {PAGE}' in out)
+        check("newer: notice drawn", re.search(r'update notice "Update available: Quake VR: UNLEASHED v?' + re.escape(V_NEWER) + '"', out))
         check("newer: a press opens the page once", out.count("menu link: opening") == 1 and f"menu link: opening {PAGE} (1) (dry run" in out)
         check("newer: one request", hit("/newer.json") == 1)
 

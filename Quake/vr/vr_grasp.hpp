@@ -149,8 +149,13 @@ void curls(const FingerStop& stop, float curl, float engage, float out[handrig::
 
 // The hand's grip channel (rig space): where a handle held in the half-closed fingers lies, the line through the
 // middles of the circles the fingers curl round (`point` on it, `dir` from the little finger's side to the index's),
-// and how thick a handle it is (`radius`). False if it can't be found.
-bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius);
+// and how thick a handle it is (`radius`). False if it can't be found. `curl`: the fingers' curl it is taken at (half closed
+// by default; the tighter, the thinner the handle).
+bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius, float curl = 2.5f);
+// The same channel at the curl that wraps a handle `holdRadius` thick (rig units; flatgrip3: a pole's shaft, thinner than the
+// half-closed fingers' channel, closed round by them instead of passing through the fist's hole): the tightest fist if it is
+// thinner than that.
+bool gripChannelFor(const handrig::Pose& pose, float holdRadius, glm::vec3& point, glm::vec3& dir, float& radius);
 
 // The same for the hand before "Hands remodelled" (the six models' fit), for settings made with it: its channel with
 // the fingers at their default places, moved as they are.

@@ -6891,6 +6891,13 @@ QVR_CYCLE(vr_flat_grab_hold, "Grab / Pull Key",
     "props, crates, ragdolls and gibs with your available empty hands. Toggle: press to grab, press again to release. "
     "Hold: hold the key to grab and carry, let go to release (vr_flat_grab_hold).",
     {0.f, "Toggle"}, {1.f, "Hold"})
+QVR_TOGGLE(vr_flat_1h_dagger, "Daggers One-Handed",
+    "Playing on the desktop screen (-flatscreenmode): a dagger is always held in one hand. The free hand never takes it, "
+    "no two-handed stance, and it doesn't join a dagger stuck in a body. Off: held as the other blades (vr_flat_1h_dagger).")
+QVR_TOGGLE(vr_flat_1h_axe, "Axes One-Handed",
+    "Playing on the desktop screen (-flatscreenmode): an axe (the axe, the Shadow Axe, the super axe) is always held in one "
+    "hand, as a dagger. The free hand stays free: no two-handed stance, no grip up its handle, and it doesn't join an axe "
+    "stuck in a body. Off: two-handed as the swords (vr_flat_1h_axe).")
 QVR_TOGGLE(vr_flat_overhand_both, "Quick Melee: Both Fists",
     "Playing on the desktop screen (-flatscreenmode): with both hands empty, quick melee (V) is a two-handed overhead "
     "blow: both fists raised over your head and brought down together onto the crosshair, one hit harder than one fist's. "

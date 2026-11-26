@@ -126,7 +126,7 @@ static class ScreenshotHarness
             lines =
             [
                 (LogLevel.Info, @"Package: C:\Users\you\Downloads\QuakeVR.zip"),
-                (LogLevel.Info, "Quake VR: Unleashed 2026-10-06 c131f4bf: 2741 files, 196 MB"),
+                (LogLevel.Info, "Quake VR: UNLEASHED 2026-10-06 c131f4bf: 2741 files, 196 MB"),
                 (LogLevel.Info, "HD textures: 1054 files for id1, hipnotic, rogue"),
             ];
         }
@@ -226,7 +226,7 @@ static class ScreenshotHarness
             offline.GoTo(Page.Options);
             await Save(offlineView, Path.Combine(dir, "3b-options-no-release-online.png"));
             offline.SimulateInstallError("The online release couldn't be reached: none may be published yet, or this PC is offline. " +
-                                         "Pick a local Quake VR: Unleashed package (QuakeVR.zip) to install without the internet, or try again later.");
+                                         "Pick a local Quake VR: UNLEASHED package (QuakeVR.zip) to install without the internet, or try again later.");
             await Save(offlineView, Path.Combine(dir, "4b-install-no-release-online.png"));
         }
 

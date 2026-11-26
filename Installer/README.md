@@ -1,6 +1,6 @@
-# Quake VR: Unleashed installer
+# Quake VR: UNLEASHED installer
 
-A Windows installer for Quake VR: Unleashed, written in C# with WPF (.NET 9). It finds the player's Quake and its expansions,
+A Windows installer for Quake VR: UNLEASHED, written in C# with WPF (.NET 9). It finds the player's Quake and its expansions,
 checks their VR setup, installs Quake VR into its own folder without touching Quake's files, makes the shortcuts, and
 can update or remove what it installed. The design, the research behind it and the author's decisions are in
 [docs/vr-port/INSTALLER.md](../docs/vr-port/INSTALLER.md); section 13 there describes this code.
@@ -21,7 +21,7 @@ import library is dropped from the publish, `Directory.Build.props`). Everything
 
 ## The look, and what is shipped
 
-"Quake VR: Unleashed" in a grimy Quake skin (INSTALLER.md, section 13, "Skin", "Animation", "Sounds"). **None of id
+"Quake VR: UNLEASHED" in a grimy Quake skin (INSTALLER.md, section 13, "Skin", "Animation", "Sounds"). **None of id
 Software's data is in this folder or in the installer**: the Quake textures and sounds are read while the installer runs
 from the player's own Quake (found by a quiet detection when the window opens); before that, or without Quake, the skin
 uses textures and sounds made in code. What is embedded:
@@ -30,7 +30,7 @@ uses textures and sounds made in code. What is embedded:
 |---|---|---|
 | `Fonts/GrenzeGotisch-Bold.ttf` | Grenze Gotisch Bold (titles), from Google Fonts (a static instance of the variable font) | SIL OFL 1.1, `Fonts/OFL-GrenzeGotisch.txt` |
 | `Fonts/Barlow-*.ttf`, `Fonts/BarlowSemiCondensed-*.ttf` | Barlow Regular/Medium/SemiBold/Bold (text), Barlow Semi Condensed SemiBold/Bold (labels, buttons), from the google/fonts repository | SIL OFL 1.1, `Fonts/OFL-Barlow.txt` |
-| `Assets/logo_wide.png`, `logo_square.png`, `app.ico` | The official Quake VR: Unleashed logos (Vittorio's; the originals are `docs/images/*.webp`). `app.ico` (the exe's and the window's icon) is the icon logo, `docs/images/quakevr-unleashed-icon.webp` ("QVR:U" under the emblem), made by `Misc/quakevr/make_exe_icon.py` like the game's `Windows/QuakeVR.ico` | the project's |
+| `Assets/logo_wide.png`, `logo_square.png`, `app.ico` | The official Quake VR: UNLEASHED logos (Vittorio's; the originals are `docs/images/*.webp`). `app.ico` (the exe's and the window's icon) is the icon logo, `docs/images/quakevr-unleashed-icon.webp` ("QVR:U" under the emblem), made by `Misc/quakevr/make_exe_icon.py` like the game's `Windows/QuakeVR.ico` | the project's |
 | `Assets/kofi_symbol.png` | Ko-fi's cup logo, unaltered, from Ko-fi's brand assets (`kofi_brandasset.zip`) | Ko-fi's brand asset, used to link to the author's page |
 | `DiscordMark` in `Themes/Theme.xaml` | Discord's mark ("Clyde"), vector path data typed in from Simple Icons' `discord` path (not downloaded; swap in Discord's official asset if wanted), in Discord's blurple #5865F2 | Simple Icons' paths are CC0; the mark is Discord's, used to link to the Quake VR Discord server (`discord.me/quakevr`) |
 

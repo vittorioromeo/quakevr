@@ -55,7 +55,7 @@ public sealed class InstallRecord
     public const string FileName = "install.json";
 
     public int Schema { get; set; } = 1;
-    public string Product { get; set; } = "Quake VR: Unleashed";
+    public string Product { get; set; } = "Quake VR: UNLEASHED";
     public string Version { get; set; } = "";
     public DateTimeOffset InstalledAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }

@@ -932,6 +932,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"embedstick", PF_embedstick},
     {"embedproppull", PF_embedproppull},
     {"embedprophold", PF_embedprophold},
+    {"propdrag", PF_propdrag},
     {"arenawavesload", arenawaves::pfLoad},
     {"arenawavesfield", arenawaves::pfField},
     {"arenawavesreport", arenawaves::pfReport},
