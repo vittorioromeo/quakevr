@@ -10,19 +10,15 @@
 # itself); prints "quoth_scenes: N passed, M failed" and exits 1 on a failure.
 AGENT=${1:?worktree name}
 MODE=${2:-present}
-KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 TREE=C:/OHWorkspace/qvr-agents/$AGENT
+QT_NAME="quoth_scenes ($MODE)"
+source "$(dirname "$0")/qvrtest.sh"
 PKG="quoth_metmon quoth_lpqsp1 quoth_ne_marb"
 OWN="quoth_kellbase_field quoth_kellbase_buttons quoth_kellbase_ladder"
 OUT=$(bash $KIT/run.sh $AGENT -ExtraArgs "-loopbackonly" -Games "-game hipnotic -game rogue -game ad -game quakevr" \
     -Script "vr_scenario validate;vr_scenario runall quit $PKG $OWN" -QuitOn "^SCNRUNSUM" -Timeout 600 \
     -Filter "^SCN|not started|vr_scenario: |maps: |rror|CRASH|TIMEOUT|exit=" 2>&1 | grep -v "^$")
 echo "$OUT" > $TREE/scratch/quoth_scenes_$MODE.log
-pass=0
-fail=0
-check() { # check <ok> <what>
-    if [ "$1" = 1 ]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: $2"; fi
-}
 has() { echo "$OUT" | grep -q -- "$1" && echo 1 || echo 0; }
 hasnt() { echo "$OUT" | grep -q -- "$1" && echo 0 || echo 1; }
 for id in $OWN; do
@@ -43,5 +39,5 @@ done
 check $(has "^SCNRUNSUM") "runall finished (its SCNRUNSUM line)"
 check $(hasnt "CRASH\|TIMEOUT\|ENGINE") "no crash or timeout"
 echo "$OUT" | grep "^SCNRUNSUM\|not started" | cut -c1-240
-echo "quoth_scenes ($MODE): $pass passed, $fail failed"
-[ $fail = 0 ]
+verdict
+exit $fail
