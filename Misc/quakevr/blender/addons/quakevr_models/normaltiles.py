@@ -141,6 +141,9 @@ MODELS["v_crowbar.mdl"] = {"relief": "make_crowbar", "bevel": 1.8, "scale": 4}
 # The flashlight (make_flashlight.py, round 21): its relief the generator's (the paint chipped to the iron, rust pits,
 # scratches, blisters, the cap's knurling, the rubber's cracks, the boss's rivets), at its full-colour skin's size.
 MODELS["vrflashlight.mdl"] = {"relief": "make_flashlight", "bevel": 1.2, "scale": 4}
+# The bayonet (make_bayonet.py): its relief the generator's (the fullers, the forging's scale, the nicks, the leather's
+# turns, the iron's pits), at its full-colour skin's size.
+MODELS["bayonet.mdl"] = {"relief": "make_bayonet", "bevel": 1.0, "scale": 4}
 # The shotgun and nailgun (gunlooks.py, round 24): their relief the generator's (wood grain, rust pits, panel lines,
 # flutes), not guessed from the paint, whose dither is no shape.
 for _k in ("v_shot.mdl", "v_nail.mdl", "v_lava.mdl"):
