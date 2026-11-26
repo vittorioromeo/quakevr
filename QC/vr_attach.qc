@@ -17,6 +17,7 @@
 float vr_att_attached; // (the tests: attachments put on, taken off)
 float vr_att_detached;
 .float vr_att_grip;    // a player's hands' grips last frame (bit 1 the off hand, 2 the main), for a pull's press
+.float vr_att_fresh;   // an attachment just pulled off a gun: it doesn't snap on again until taken away from the mount
 
 // The attachment kind the prop `e` is (0: not one).
 float(entity e) VR_Attach_PropKind =
@@ -56,6 +57,12 @@ vector(entity p, float xHand, float xKind, float xWhat) VR_Attach_HandPoint =
     v_right = oldR;
     v_up = oldU;
     return w;
+};
+
+// The way attachment `xKind` points on the gun in `xHand` of `p` (its mount to its tip): a carried one held so snaps on.
+vector(entity p, float xHand, float xKind) VR_Attach_Way =
+{
+    return normalize(VR_Attach_HandPoint(p, xHand, xKind, 2) - VR_Attach_HandPoint(p, xHand, xKind, 1));
 };
 
 // The bayonet's tip on the gun in `xHand` of `p` (VR_Melee_Line's far end with one on).
@@ -103,6 +110,7 @@ void(entity p, float xHand) VR_Attach_TakeOff =
     e.angles = a;
     setorigin(e, at);
     inst.wi_attach = 0;
+    e.vr_att_fresh = TRUE; // (VR_Attach_Frame: not on again before it leaves the mount)
     VR_Carry_Start(p, xHand, e);
     sound(p, CHAN_AUTO, "vr/reload_mag_out.wav", 1, ATTN_NORM);
     vr_att_detached = vr_att_detached + 1;
@@ -121,19 +129,24 @@ void(entity p) VR_Attach_Frame =
         if(kind && !c.carry_2h && VR_Attach_CanTake(p, g, kind))
         {
             vector at = VR_Attach_HandPoint(p, g, kind, 1);
-            if(vlen(c.origin - at) <= cvar_hget(cvarh_vr_attach_snap_radius))
+            // (Just pulled off, it is at the mount still: it snaps on again only once taken away from it, twice the radius.)
+            if(c.vr_att_fresh && vlen(c.origin - at) > 2 * cvar_hget(cvarh_vr_attach_snap_radius))
             {
-                // Pointing along the gun (its model's +x: an alias model's pitch is drawn negated).
+                c.vr_att_fresh = FALSE;
+            }
+            if(!c.vr_att_fresh && vlen(c.origin - at) <= cvar_hget(cvarh_vr_attach_snap_radius))
+            {
+                // Pointing as it would sit on the gun (its mount to its tip, the gun's turn in the hand counted: the hand's
+                // own forward is off the barrel by the gun's Pitch; its model's +x: an alias model's pitch is drawn negated).
                 vector oldF = v_forward, oldR = v_right, oldU = v_up;
                 vector ca = c.angles;
                 ca_x = -ca_x;
                 makevectors(ca);
                 vector cf = v_forward;
-                makevectors(VRGetEntHandRot(p, g));
-                float along = cf * v_forward;
                 v_forward = oldF;
                 v_right = oldR;
                 v_up = oldU;
+                float along = cf * VR_Attach_Way(p, g, kind);
                 if(along >= cos(cvar_hget(cvarh_vr_attach_snap_angle) * 0.0174533))
                 {
                     VR_Attach_Put(p, g, c);

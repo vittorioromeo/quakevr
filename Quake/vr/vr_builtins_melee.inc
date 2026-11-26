@@ -1043,10 +1043,12 @@ void PF_attachinfo()
     }
     const weapons::ModelTransform t = weapons::modelTransform(model);
     const float k = t.active ? t.k : 1.f;
-    const glm::vec3 muzzleOwn = t.active ? muzzle / k - t.offset : muzzle;
+    // (the muzzle back in the model's own units, as the mount is: drawn lying, k * Scale * own, the hand's offset not in it)
+    const glm::vec3 drawnPerOwn = t.active ? t.scale * k : glm::vec3{1.f};
+    const glm::vec3 muzzleOwn = muzzle / drawnPerOwn;
     const glm::vec3 p = attach::onGun(m, what == 2 ? info->tip : glm::vec3{0.f});
     // (turned as the gun is in the hand: the stab's and the snap's points on the drawn bayonet)
-    const glm::vec3 d = view::weaponTurnInHand(slot) * ((p - muzzleOwn) * k);
+    const glm::vec3 d = (vr_attach_turn.value ? view::weaponTurnInHand(slot) : glm::mat3{1.f}) * ((p - muzzleOwn) * drawnPerOwn);
     out[0] = d.x;
     out[1] = d.y;
     out[2] = d.z;

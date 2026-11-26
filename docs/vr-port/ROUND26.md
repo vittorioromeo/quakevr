@@ -2132,10 +2132,20 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
   (`vr_attach_pull_radius` 6); flat Attach key `vr_flat_key_attach` J (impulse 70). With a bayonet the gun strikes as a
   sword-kind blade to the bayonet's tip, sticks by its point (engine `attachBlade`), fires while stuck (embedfire path);
   flat V thrusts with it.
-- **Tests**: a smoke run only (scene attach_bayonet: the bayonet in the off hand, impulse 70 on / off / on: attach, take-off,
-  attach logged). NOT done (budget): a numbered QC test for snap-on, persistence (holster, drop, throw, embed, map change,
-  save/load), stab damage + embed, fire/reload/break-open while embedded, the MP test, eval.sh, flat/VR screenshots with the
-  hands in view.
-- **Open**: the gun's Box3D body leaves the bayonet out; holstered/lying/other players' SSGs draw the bayonet with closed
-  barrels; the server's mount/tip points ignore the weapon's own Pitch/Yaw/Roll in the hand; the pull-off grip may also
-  start the 2H grip on guns whose hotspot is near the muzzle; g_shot pickups (map weapons) carry no record, so no bayonet.
+- **Tests (attach2)**: `Misc/quakevr/attach_test.sh` (QC/vr_attach_test.qc, `vr_embed_test 79-82`; `menu_vr attachtest`).
+  79 VR 14/3: snap-on by the mock off hand (aim nudged until the carried bayonet points its mounted way), pull-off (no 2H
+  grip line), no straight re-snap, on again, holster/draw, drop, both guns stabbed and stuck by the point and fired there,
+  fired in the hand. FAILS: the drawn tip is 3.55 units off the server's (`vr_attach_probe`), the mock hand's pick-up of the
+  dropped gun, a thrown bayonet gun bounces (not stuck). 80 flat 8/5: J on/off/on (called as `VR_Attach_Key`: a console
+  `impulse 70` never reaches flat play), V sticks, fired stuck, SSG breaks open stuck; R reloads stuck but its trip pulls the
+  gun out (and the stab's damage reads 0). 81/82: save/load 2/0; level change 0/2 (82 sees no weapon: unexplained). Menu
+  6/0. Not run: the MP test, eval.sh, screenshots.
+- **Fixed (attach2)**: attachinfo's muzzle back in model units (drawn = k*Scale*own; was 25 units off), turned by the gun's
+  Pitch/Yaw/Roll (`view::weaponTurnInHand`; `vr_attach_turn 0` compares: little difference); the snap's angle against the
+  bayonet's mounted way, not the hand's forward (69 degrees apart in the mock); a pulled-off bayonet doesn't snap back
+  until 2x the radius away (`.vr_att_fresh`); the 2H grip isn't armed by a grip at the drawn attachment mount
+  (`view::drawnAttachment`, vr_twohand.cpp); `VR_PropFire_End` keeps the frame's weapon flags on the prop (an SSG's spent
+  shells / open); flat R and its frames run on a stuck gun (the propfire bracket in vr_flatreload.qc).
+- **Open**: the remaining 3.55-unit tip gap (the muzzle point QC gets vs weaponLocalGeometry's); the gun's Box3D body leaves
+  the bayonet out; holstered/lying/other players' SSGs (closed barrels: not checked); flat R's trip on a stuck gun; VR
+  immersive reloading of a stuck gun (the shell hand's frame doesn't take the prop on); g_shot pickups carry no record.

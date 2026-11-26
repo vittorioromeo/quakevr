@@ -32,6 +32,8 @@ float vr_at_flat;
 float vr_at_wid;              // the gun the stab case is for
 entity vr_at_rec;             // the gun's record
 entity vr_at_w;               // the gun lying, thrown or stuck
+vector vr_at_aim;             // the off hand's aim as the snap nudges it
+float vr_at_mode;             // vr_holster_mode before the test
 
 void(float xS) VR_AT_To =
 {
@@ -74,6 +76,7 @@ void() VR_AT_Finish =
         localcmd("vr_mock_hand_to_absolute 0\n");
     }
     cvar_set("vr_attach_probe", "0");
+    cvar_set("vr_holster_mode", ftos(vr_at_mode));
     VR_PE_Finish();
 };
 
@@ -93,9 +96,19 @@ float() VR_AT_Snap =
     if(vr_at_n == 0 || floor((time - vr_at_t0) * 72 + 0.5) >= vr_at_n * VR_AT_SNAP_FRAMES)
     {
         vector at = VR_Attach_HandPoint(p, cVR_MainHand, VR_ATT_BAYONET, 1);
-        makevectors(VRGetEntHandRot(p, cVR_MainHand));
-        localcmd(sprintf("vr_mock_hand_aim off %v\nvr_mock_hand_to off by %v\n", VRGetEntHandPos(p, cVR_OffHand) + v_forward * 8000,
+        // (The hand's aim nudged until the carried bayonet points the way it sits on the gun: its hold turns it off the aim.)
+        vector want = VR_Attach_Way(p, cVR_MainHand, VR_ATT_BAYONET);
+        vector ca = c.angles;
+        ca_x = -ca_x;
+        makevectors(ca);
+        vr_at_aim = vr_at_n == 0 ? want : normalize(vr_at_aim + want - v_forward);
+        localcmd(sprintf("vr_mock_hand_aim off %v\nvr_mock_hand_to off by %v\n", VRGetEntHandPos(p, cVR_OffHand) + vr_at_aim * 8000,
             at - c.origin));
+        if(cvar_hget(cvarh_developer) && !(vr_at_n & 7))
+        {
+            dprint(sprintf("attach: snap nudge %g: bayonet %v, mount %v (%.1f off); ", vr_at_n, c.origin, at, vlen(at - c.origin)));
+            dprint(sprintf("bayonet angles %v, gun hand %v, off hand %v\n", c.angles, VRGetEntHandRot(p, cVR_MainHand), VRGetEntHandRot(p, cVR_OffHand)));
+        }
         vr_at_n = vr_at_n + 1;
     }
     return FALSE;
@@ -107,6 +120,12 @@ void(string xWhat) VR_AT_TipCheck =
     float on = cvar_hget(cvarh_vr_attach_probe_drawn);
     vector drawn = [cvar_hget(cvarh_vr_attach_probe_x), cvar_hget(cvarh_vr_attach_probe_y), cvar_hget(cvarh_vr_attach_probe_z)];
     vector server = VR_Attach_TipOf(self, cVR_MainHand);
+    if(cvar_hget(cvarh_developer))
+    {
+        dprint(sprintf("attach: tip drawn %v, server %v; mount %v; muzzle %v; hand %v %v\n", drawn, server,
+            VR_Attach_HandPoint(self, cVR_MainHand, VR_ATT_BAYONET, 1), self.muzzlepos, VRGetEntHandPos(self, cVR_MainHand),
+            VRGetEntHandRot(self, cVR_MainHand)));
+    }
     VR_Test_Check(on && vlen(drawn - server) <= VR_AT_TIP_OFF, sprintf("%s: the drawn bayonet's tip where the server's is (%.2f units off)",
         xWhat, on ? vlen(drawn - server) : -1));
 };
@@ -136,6 +155,8 @@ void(float xAsk) VR_AT_Begin =
     cvar_set("vr_melee_push", "0");
     cvar_set("vr_embed", "1");
     cvar_set("vr_embed_fire", "1");
+    vr_at_mode = cvar_hget(cvarh_vr_holster_mode);
+    cvar_set("vr_holster_mode", ftos(QVR_WEAPONMODE_IMMERSIVE)); // (holstered: the hand's record itself, not a quick slot's copy)
     if(!vr_at_flat)
     {
         localcmd("vr_mock_hand_to_absolute 1\n");
@@ -247,6 +268,12 @@ void() VR_AT_Frame =
     else if(vr_at_s == 7 && u > 0.3)
     {
         bprint("attach: the pull ends\n");
+        VR_Test_Check(vr_at_rec.wi_attach == 0, "held at the mount just after the pull, it doesn't snap straight back on");
+        localcmd("vr_mock_hand_to off by 0 0 -16\n"); // (taken away from the mount first: then it may go on again)
+        VR_AT_To(70);
+    }
+    else if(vr_at_s == 70 && u > 0.3)
+    {
         vr_at_count = vr_att_attached;
         vr_at_after = 8;
         VR_AT_To(2); // (on again)
@@ -255,6 +282,10 @@ void() VR_AT_Frame =
     else if(vr_at_s == 8 && u > 0.1)
     {
         float hs = QVR_HS_RIGHT_HIP_HOLSTER;
+        setHolsterWeapon(hs, WID_FIST); // (empty: the map's start may have put a gun there)
+        setHolsterWeaponModel(hs, WeaponIdToModel(WID_FIST, 0));
+        setHolsterWeaponFlags(hs, 0);
+        VRSetEntHolsterWeaponInst(p, hs, world);
         VRLetGoAtHolster(p, h, hs, WID_SHOTGUN, 0, TRUE);
         entity hr = VRGetEntHolsterWeaponInst(p, hs);
         VR_Test_Check(getHolsterWeapon(hs) == WID_SHOTGUN && hr == vr_at_rec && hr.wi_attach == VR_ATT_BAYONET,
@@ -425,21 +456,21 @@ void() VR_AT_FlatFrame =
         VR_AT_Give(WID_SHOTGUN, FALSE);
         VR_AT_Bayonet(cVR_OffHand);
         vr_at_count = vr_att_attached;
-        localcmd("impulse 70\n");
+        VR_Attach_Key(p); // (J's impulse 70, weapons.qc: a console "impulse 70" never reaches flat play's game)
         VR_AT_To(1);
     }
     else if(vr_at_s == 1 && u > 0.1)
     {
         VR_Test_Check(vr_at_rec.wi_attach == VR_ATT_BAYONET && VR_Carry_Held(p, cVR_OffHand) == world && vr_att_attached == vr_at_count + 1,
             "J: the bayonet in the off hand goes on the shotgun");
-        localcmd("impulse 70\n");
+        VR_Attach_Key(p);
         VR_AT_To(2);
     }
     else if(vr_at_s == 2 && u > 0.1)
     {
         entity c = VR_Carry_Held(p, cVR_OffHand);
         VR_Test_Check(vr_at_rec.wi_attach == 0 && c != world && c.classname == "vr_bayonet", "J again: taken off into the empty off hand");
-        localcmd("impulse 70\n");
+        VR_Attach_Key(p);
         VR_AT_To(3);
     }
     else if(vr_at_s == 3 && u > 0.1)

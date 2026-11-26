@@ -18,7 +18,7 @@ echo "$vr"
 flat=$(bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode -loopbackonly" -Timeout 300 -Script "$START; vr_embed_test 80" \
     -QuitOn "^attachflat: [0-9]+ passed" -Filter "$FILTER")
 echo "$flat"
-lvl=$(bash $KIT/run.sh $AGENT -Timeout 200 -Script "$START; vr_embed_test 81; wait2; changelevel e1m1; wait10; vr_embed_test 82" \
+lvl=$(bash $KIT/run.sh $AGENT -Timeout 200 -Script "$START; vr_embed_test 81; wait2; changelevel e1m2; wait30; vr_embed_test 82" \
     -QuitOn "^attachpersist: [0-9]+ passed" -Filter "^attachpersist|rror")
 echo "$lvl"
 sav=$(bash $KIT/run.sh $AGENT -Timeout 200 -Script "$START; vr_embed_test 81; wait2; save attach_test; wait2; map e1m1; wait5; load attach_test; wait10; vr_embed_test 82" \
