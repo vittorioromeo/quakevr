@@ -422,7 +422,8 @@ void updateBodyPitch(const hands::State& s, float dt)
     // head's headHeight is measured from.)
     const float eyeOverFloor = localFlat() || posingOther() ? s.head.z - (s.playerOrigin.z - 24.f)
                                                            : s.headHeight * units::metresToUnits();
-    const bool lying = (posingOther() || vr_prone.value != 0.f) &&
+    const bool inWater = p.waterlevel >= 2;
+    const bool lying = !inWater && (posingOther() || vr_prone.value != 0.f) &&
                        (served >= 0 ? served == 1 : eyeOverFloor < vr_prone_eye.value);
     // The drawn trunk's own lengths (solveTorso: the pelvis to the head's bind, vr_body_torso_back behind the neck's top,
     // that vr_body_eye_up under the eye) and the neck's top over the floor: lying down and sliding turn the trunk about it
