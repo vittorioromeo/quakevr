@@ -90,6 +90,7 @@
 #include "vr_blade.hpp"
 #include "vr_lagcomp.hpp"
 #include "vr_meleeshow.hpp"
+#include "vr_flatxhair.hpp"
 #include "vr_weapons.hpp"
 #include "vr_weight.hpp"
 #include "vr_walltorch.hpp"
@@ -954,6 +955,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"admeleehead", PF_admeleehead},
     {"meleeshow", PF_meleeshow},
     {"meleeshowfoe", PF_meleeshowfoe},
+    {"flatthrowaim", PF_flatthrowaim},
     {"embedsay", PF_embedsay},
     {"bladewound", PF_bladewound},
     {"bladewoundage", PF_bladewoundage},

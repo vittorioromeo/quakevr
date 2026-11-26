@@ -88,6 +88,8 @@ Flat-screen: hold the knight's sword in two hands, flip its grip (B) and hold th
 Flat-screen: flip the spear's grip (B) and raise the guard: the spear stays flipped across the view; tune the Flipped Spear Other Hand Up / Out / Pitch / Yaw / Roll rows (Tunables > Flatscreen) and see the other hand move on the flipped pole while held, guarding and thrusting. {test:flat_spear}
 Flat-screen: hold the Judicator's sword alone (Debug menu: Arcane Dimensions: Judicator's Sword Alone in Hand) without parrying: both hands are on the handle, the free hand just below the holding one, not on the blade. {test:flat_parry_ad}
 Flat-screen: grab a crate with H and back away from it (or let a held ragdoll fall behind): the drawn hands stay on the wrists at full stretch until the hold lets go, never floating off the arms. {test:flat_grab_pull}
+Flat-screen: hold a sword, a dagger, an axe or the crowbar, upright and flipped (B's flip grip), and look at a wall or a knight close by: the crosshair sits where the swing will land, and the blow lands on it. {test:flat_melee_grip}
+Flat-screen: hold the throw key with an axe, a sword, a carried box or the quick grenade: the crosshair moves to where the throw will land (it rises as the throw charges) and the thing lands there when you let go. {test:flat_throw_cancel}
 
 [4. Tutorial and VR interface]
 Flat-screen or VR: climb the tutorial's lesson 3 ladder: each hand closes round its round rung (the rung through the fist, the fingers over its top) instead of sitting on top of it; square rungs elsewhere (vrtesthall's) are still held like ledges. Hand Round Thin Rungs (Climbing settings, Hand on a Hold) switches it off. {test:tutorial_ladder}
