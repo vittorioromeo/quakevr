@@ -23,6 +23,9 @@ Climb a rope, a chain and a pole hand over hand: no grunt on any pull. {test:rop
 Flat-screen or VR: walk right up against a crate and punch it repeatedly with your fist: every punch lands and wears it, not just the first. {test:nav_props}
 In an Arcane Dimensions map with crossbow knights: they are AD's own crossbow knights, while the other AD soldier variants are still armed humanoids. {test:humrepl_variants}
 Hold the shotgun up to your eye: its front sight post now shows in the new default hue (90 degrees off the rear notches). {test:start_shotgun}
+Take the spear and grab its shaft with your other hand a little off the shaft (above or beside it): the drawn hand snaps so the shaft lies in the palm with the fingers wrapped round it, at the point along the shaft where you grabbed. {test:spear}
+With the spear or the Crystal Lance held in both hands, move your other hand up and down the shaft while gripping: the drawn hand stays where it grabbed (Other Hand Fixed on Poles, on by default); turn the option off in Physics and Interaction and it slides again. {test:spear}
+Thrust the spear held in both hands into the grunt so it sticks: your other hand stays on the shaft where it was, round it, and does not let go or jump to another spot; the same with the Crystal Lance. {test:spear}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
