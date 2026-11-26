@@ -45,8 +45,10 @@ void apply(hands::State& s);
 [[nodiscard]] bool bladeGrip(int hand);
 // Whether the weapon of `slot` may be held by its blade (Two-Handed: Sword, with a Blade hotspot: the knights' swords, the
 // crowbar...), and where that hotspot holds it (`at`: its share of the way from the hand to the tip). The half-sword
-// grip's (applySword) and the flat guard's (flatplay's blade pin).
-[[nodiscard]] bool swordBlade(int slot, float& at);
+// grip's (applySword) and the flat guard's (flatplay's blade pin). A Two-Handed: Sword weapon with no Blade hotspot (or one
+// at share 0: the judicator's) answers vr_flat_parry_shaft_at instead (flatparry2: the ogres' hammer and mace, the fury's
+// sword), `*shaft` then true; 0 turns that off. Flatscreen's alone (every caller is flatplay's or applySword's flat guard).
+[[nodiscard]] bool swordBlade(int slot, float& at, bool* shaft = nullptr);
 // Whether the other hand holds the weapon in `holding` away from its handle: anywhere on it (a free grip) or by its blade
 // (bladeGrip). The flip grip's gate (ROUND25.md "flipgate"; view::gripFlipBlocked): a sword or dagger held in two hands flips
 // only with both hands on its handle (the other on its two-handed grip hotspot).

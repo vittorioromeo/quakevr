@@ -477,6 +477,18 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     }
     const float length = s.muzzleValid[holding] ? glm::distance(holdingPos, s.muzzle[holding]) : 0.f;
     float bladeDist = 1e9f;
+    // (Flatscreen's guard on a weapon with no Blade hotspot of its own: the shaft's share, swordBlade's fallback,
+    // vr_flat_parry_shaft_at; the default hotspot's span about it.)
+    const bool flatGuard = flatplay::active() && flatplay::bladeAsked(holding);
+    if(float shaftAt = 0.f; flatGuard && bladeAt <= 0.f && swordBlade(slot, shaftAt))
+    {
+        weapons::Hotspot h;
+        h.type = weapons::HotspotType::Blade;
+        h.pos.x = shaftAt;
+        bladeAt = shaftAt;
+        bladeFrom = weapons::bladeFrom(h);
+        bladeTo = weapons::bladeTo(h);
+    }
     // (Flatscreen play: the blade only in the parry's guard, where the pose puts the free hand on it (flatplay::bladeAsked,
     // vr_flat_parry_blade; his notes 2026-11-23), and it lets go as the guard ends. Else never: a melee weapon's two-handed
     // hold is on its grip there (vr_flat_melee_grip; his notes 2026-11-10: it took the blade, the "sword" spot); the view
@@ -488,7 +500,7 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
         const glm::vec3 toTip = s.muzzle[holding] - holdingPos;
         // (Flatscreen's guard: the blade from as near the hand as the pose brings a long blade's hotspot in,
         // flatplay::bladeReach.)
-        const float flatReach = flat ? flatplay::bladeReach() : 0.f;
+        const float flatReach = flat ? flatplay::bladeReach(holding) : 0.f;
         const float takeFrom = flatReach > 0.f ? za::min(bladeFrom, flatReach / length - 0.05f) : bladeFrom;
         bladeDist = geom::segmentDistance(s.pos[helping], holdingPos + toTip * takeFrom, holdingPos + toTip * bladeTo, nullptr, 0.f) - bladeBias;
     }
@@ -1522,14 +1534,30 @@ bool bladeGrip(int hand)
     return aimTransition[hand] > 0.f && grip[hand] == GRIP_BLADE;
 }
 
-bool swordBlade(int slot, float& at)
+bool swordBlade(int slot, float& at, bool* shaft)
 {
-    weapons::Hotspot h;
-    if(!bladeHotspot(slot, h) || h.pos.x <= 0.f)
+    if(shaft)
+    {
+        *shaft = false;
+    }
+    if(weapons::Hotspot h; bladeHotspot(slot, h) && h.pos.x > 0.f)
+    {
+        at = h.pos.x;
+        return true;
+    }
+    // (flatparry2, his flat notes 2026-11-26: the ogres' hammer and mace, the fury's sword, the judicator's sword (its Blade
+    // hotspot at share 0) had both hands on the handle in the guard: the free hand on the shaft near the head instead, at
+    // vr_flat_parry_shaft_at, until a Blade hotspot of its own is set up.)
+    const float fallback = za::clamp(vr_flat_parry_shaft_at.value, 0.f, 1.f);
+    if(fallback <= 0.f || slot < 0 || static_cast<int>(weapons::value(slot, Key::TwoHMode)) != WPN_2H_SWORD)
     {
         return false;
     }
-    at = h.pos.x;
+    at = fallback;
+    if(shaft)
+    {
+        *shaft = true;
+    }
     return true;
 }
 

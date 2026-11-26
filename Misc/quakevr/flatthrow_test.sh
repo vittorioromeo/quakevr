@@ -11,8 +11,16 @@
 #   gren   G, then B held 0.7 s with the quick grenade: thrown as its fire button's release throws it (the shared motion)
 #   twoh   the nail gun held two-handed (the free hand on its hotspot), B: the free hand lets go (hanging) as it winds
 #          up and the gun is thrown one-handed (his call 2026-11-23; no two-handed throw)
-#   nofire the nail gun: the fire button held while B winds it up shoots nothing (his words 2026-11-23), held before B
-#          it shoots (the control); the axe and the charged rock leave from their hand's side of the eye (flatthrow3)
+#   nofire the nail gun: the fire button held from before B, through the wind-up and the throw, shoots nothing then (his
+#          words 2026-11-23; pressed during the wind-up it cancels: cancel), held before B it shoots (the control); the
+#          axe and the charged rock leave from their hand's side of the eye (flatthrow3)
+#   cancel (flatthrow2, his words 2026-11-26) the nail gun: B held, LMB pressed in the wind-up: cancelled, nothing thrown,
+#          the gun still held, no nail shot (LMB held on past B's release, then let go); B again throws it. Then the quick
+#          grenade (G): B held, LMB: cancelled, held again unarmed, never thrown
+#   cancoff (flatthrow2) vrtesthall: the axe in the main hand, a health box force-grabbed into the off hand: B held, RMB
+#          (the off hand's button): cancelled, the box still held, nothing thrown or dropped
+#   guide  (flatthrow2) vrtesthall: QC vr_flatitems_test 12: an ogre's grenade into the guiding off hand's palm while B
+#          winds up (the quick grenade, the axe) is not caught; without B it is (the control)
 #   wall   lesson 12's plain south wall: an axe charged from 280 units (flying past vr_throw_self_grace, once never stuck)
 #          and a sword from 150: both stick (the flat throw's timed spin, bladespinto)
 #   move   (flatfb1124, his note 2026-11-24: a health box thrown running forward took a weird path) vrtesthall: a health
@@ -39,7 +47,13 @@ run axe "$BASE; setpos 1990 -640 -120 -35 248 0; wait5; impulse 152; wait30; $J;
 run rock "$BASE; $GRAB; setpos 3200 0 -120 -10 0 0; wait5; $J; wait2; $JU; wait180; $GRAB2; setpos 2928 -200 -120 -5 270 0; wait5; $J; wait95; $JU; wait300"
 run gren "$BASE; give r 10; setpos 3200 0 -120 0 0 0; wait5; vr_mock_key g down; wait2; vr_mock_key g up; wait50; $J; wait65; $JU; wait60; vr_flatgrenade_report; wait2"
 run twoh "$BASE; setpos 3200 0 -120 0 0 0; wait5; vr_test_give_wid 6; impulse 149; give n 200; wait90; echo flatthrow_test: before; vr_flatplay_status; $J; wait55; echo flatthrow_test: winding; vr_flatplay_status; $JU; wait150"
-run nofire "$BASE; setpos 3200 0 -120 0 0 0; wait5; vr_test_give_wid 6; impulse 149; give n 200; wait60; $J; wait25; $JU; wait60; impulse 149; wait60; +attack; wait20; -attack; wait5; $J; wait25; +attack; wait40; -attack; wait2; $JU; wait60"
+run nofire "$BASE; setpos 3200 0 -120 0 0 0; wait5; vr_test_give_wid 6; impulse 149; give n 200; wait60; $J; wait25; $JU; wait60; impulse 149; wait60; +attack; wait20; -attack; wait5; +attack; wait3; $J; wait65; $JU; wait2; -attack; wait60"
+# (flatthrow2) cancel: the throwing hand's attack button pressed while B is held.
+run cancel "$BASE; setpos 3200 0 -120 0 0 0; wait5; vr_test_give_wid 6; impulse 149; give n 200; wait60; echo flatthrow_test: cancel gun; $J; wait30; +attack; wait20; $JU; wait20; -attack; wait10; echo flatthrow_test: cancel gun again; $J; wait30; $JU; wait60; give r 10; vr_mock_key g down; wait2; vr_mock_key g up; wait50; echo flatthrow_test: cancel gren; $J; wait30; +attack; wait10; -attack; wait5; $JU; wait30; vr_flatgrenade_report; wait2"
+MB0="map vrtesthall; god; notarget; developer 1; vr_flat_grenade_debug 1; wait60"
+run cancoff "$MB0; impulse 152; wait30; setpos 0 -300 25 26 90 0; wait5; vr_physics_spawn item_health 64; wait30; impulse 46; wait60; echo flatthrow_test: cancoff; $J; wait30; +offhandattack; wait10; $JU; wait10; -offhandattack; wait30; vr_flatgrenade_report; wait2"
+[ -z "$ONLY" ] || [[ " $ONLY " == *" guide "* ]] && bash $KIT/run.sh $AGENT -ExtraArgs -flatscreenmode -Script "$MB0; vr_flatitems_test 12" \
+    -QuitOn "^flatitems: [0-9]+ passed" -Timeout 150 -Filter "^(flatitems|FAIL|PASS|flat throw|grenade:)" > "$S/guide.log" 2>&1
 # (flatfb1124) move: a health box (vrtesthall's open floor) thrown standing, running forward, then strafing right.
 MB="map vrtesthall; god; notarget; developer 1; vr_flat_grenade_debug 2; vr_debug_box3d 1; wait60"
 HB="setpos 0 -300 25 26 90 0; wait5; vr_physics_spawn item_health 64; wait30; impulse 46; wait60"

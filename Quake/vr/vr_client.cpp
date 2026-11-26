@@ -935,6 +935,11 @@ bool offhandButton()
     return offhandAttack;
 }
 
+bool mainButton()
+{
+    return (in_attack.state & 1) != 0;
+}
+
 bool reloadHeld(int hand)
 {
     return hand >= 0 && hand < HAND_COUNT && handButtons(hand).reload;

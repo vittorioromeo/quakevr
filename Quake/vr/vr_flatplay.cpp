@@ -173,6 +173,7 @@ struct FlatState
     bool bladePointKnown[2]{false, false};
     float bladeFrom[2]{0.f, 0.f};     // the point's distance from the holding hand (units; held within vr_flat_parry_blade_reach)
     float bladeHotspot[2]{0.f, 0.f};  // and the Blade hotspot's own (before that)
+    float bladeTip[2]{0.f, 0.f};      // the weapon's tip's (its whole line from the hand: flatparry2's near-tip measure)
     int bladeTakes{0};           // the free hand reached a blade this session (vr_flatplay_status)
     // The two-handed melee stance (vr_flat_melee_2h_*): each hand's linear share of the way into it (0..1; melee2HShare
     // eases it), whether it is asked for, the times it was last asked for and last reached, how often it was taken (the
@@ -3176,12 +3177,15 @@ FireRoute routeFire(bool lmb, bool rmb)
     {
         return FireRoute{};
     }
-    FireRoute r = routeButtons(lmb, rmb);
+    // (A button that cancelled the throw key's throw does nothing till it is let go: vr_flatgrenade.cpp swallowedButtons.)
+    const int swallowed = flatgrenade::swallowedButtons();
+    FireRoute r = routeButtons(lmb && !(swallowed & 1), rmb && !(swallowed & 2));
     for(int h = 0; h < HAND_COUNT; h++)
     {
         // (Nor a gun on its way to the hip and back to reload: vr_flatreload.cpp; the game stops it too.)
-        // (Nor what the throw key winds up to throw: vr_flatgrenade.cpp throwsWith; the game refuses it too.)
-        if(r.fire[h] && (flatgrenade::throwsWith(h) || (!punchesWith(h) && (flatsight::wallBlocksFire(h) || flatreload::busy(h)))))
+        // (Nor what the throw key winds up to throw, or holds ready to while the key is down: vr_flatgrenade.cpp throwsWith,
+        // aimsWith; the game refuses it too.)
+        if(r.fire[h] && (flatgrenade::throwsWith(h) || flatgrenade::aimsWith(h) || (!punchesWith(h) && (flatsight::wallBlocksFire(h) || flatreload::busy(h)))))
         {
             r.fire[h] = false;
         }
@@ -3326,9 +3330,34 @@ bool flippedGrip(int h)
     return h >= 0 && h < HAND_COUNT && revGripShare(h) >= 0.5f;
 }
 
+float flipShare(int h)
+{
+    return h >= 0 && h < HAND_COUNT ? revGripShare(h) : 0.f;
+}
+
+glm::vec3 turnedHandAngles(const glm::vec3& rot, const glm::vec3& turn, float side)
+{
+    return turnedHand(rot, turn, side);
+}
+
+int attackButtons(int h)
+{
+    if(h < 0 || h >= HAND_COUNT || flatholster::open() || weaponwheel::isOpen())
+    {
+        return 0;
+    }
+    return (routeButtons(true, false).fire[h] ? 1 : 0) | (routeButtons(false, true).fire[h] ? 2 : 0);
+}
+
 float parryShare(int h)
 {
     return h >= 0 && h < HAND_COUNT ? geom::smooth01(fs.parry[h]) : 0.f;
+}
+
+bool parryUnflips(int h)
+{
+    return active() && h >= 0 && h < HAND_COUNT && vr_flat_parry_unflip_time.value >= 0.f &&
+           (fs.parryWant[h] || fs.parry[h] > 0.f);
 }
 
 bool bladeAsked(int holding)
@@ -3365,9 +3394,12 @@ float thrustOffSlide(int h)
     return along < 0.f ? along : thrustOutShare(h) * za::clamp(vr_flat_thrust_off_slide.value, 0.f, 30.f);
 }
 
-float bladeReach()
+float bladeReach(int holding)
 {
-    return za::clamp(vr_flat_parry_blade_reach.value, 0.f, 60.f);
+    float at = 0.f;
+    bool shaft = false;
+    const bool own = twohand::swordBlade(heldIn(holding), at, &shaft);
+    return za::clamp((own && shaft ? vr_flat_parry_shaft_reach : vr_flat_parry_blade_reach).value, 0.f, 60.f);
 }
 
 void bladePin(hands::State& s)
@@ -3390,7 +3422,7 @@ void bladePin(hands::State& s)
         // its wrist. Held within vr_flat_parry_blade_reach of the holding hand, about shoulder width: the crowbar's.)
         glm::vec3 toPoint = (f * tip.x + r * tip.y + u * tip.z) * at;
         const float spot = glm::length(toPoint);
-        const float reach = bladeReach();
+        const float reach = bladeReach(h);
         if(reach > 0.f && spot > reach)
         {
             toPoint *= reach / spot;
@@ -3398,6 +3430,7 @@ void bladePin(hands::State& s)
         const glm::vec3 point = s.pos[h] + toPoint;
         fs.bladeHotspot[h] = spot;
         fs.bladeFrom[h] = glm::length(toPoint);
+        fs.bladeTip[h] = glm::length(tip);
         const int other = 1 - h;
         s.pos[other] += (point - s.pos[other]) * share;
         fs.bladePoint[h] = point;
@@ -5295,8 +5328,15 @@ void status_f()
             Con_Printf("  guard bash: vr_flat_bash %g, %d bashes%s\n", vr_flat_bash.value, fs.bashes,
                 fs.shoveBash && shoving(h) ? ", one running" : "");
             float at = 0.f;
-            const bool sword = twohand::swordBlade(heldIn(h), at);
+            bool shaft = false;
+            const bool sword = twohand::swordBlade(heldIn(h), at, &shaft);
             const int other = 1 - h;
+            // (flatparry2: the drawn flip and whether the guard draws a flipped grip upright now.)
+            glm::vec3 flipF, flipU;
+            float drawnFlip = 0.f;
+            (void)view::heldWeaponAxes(h, flipF, flipU, drawnFlip);
+            Con_Printf("  parry flip: %s hand drawn flip %.2f, %s (vr_flat_parry_unflip_time %g)\n", h == HAND_MAIN ? "main" : "off",
+                drawnFlip, parryUnflips(h) ? "the guard draws it upright" : "the guard leaves it", vr_flat_parry_unflip_time.value);
             float posed = -1.f, drawn = -1.f, palmZ = 0.f, fingersOut = 0.f;
             glm::vec3 dPos, dRot;
             if(fs.bladePointKnown[h])
@@ -5317,7 +5357,8 @@ void status_f()
                 }
             }
             Con_Printf("  blade grip: %s hand, %s, %s, share %.2f, %s\n", h == HAND_MAIN ? "main" : "off",
-                sword ? "a blade hotspot" : "no blade hotspot", fs.bladeWant[h] ? "asked for" : "not asked for", bladeShare(h),
+                !sword ? "no blade hotspot" : shaft ? "a shaft share" : "a blade hotspot",
+                fs.bladeWant[h] ? "asked for" : "not asked for", bladeShare(h),
                 twohand::bladeGrip(h) ? "held by its blade" : "not held by its blade");
             Con_Printf("  blade grip: the %s hand %.1f u off the hotspot, drawn %.1f u, palm z %.2f, fingers out %.2f (-1 down, "
                        "1 away from him; vr_flat_parry_blade %g; taken %d)\n",
@@ -5330,6 +5371,7 @@ void status_f()
             }
             Con_Printf("  blade grip: point %.1f u from the hand (hotspot %.1f, reach %g), drawn hands %.1f u apart\n",
                 fs.bladeFrom[h], fs.bladeHotspot[h], vr_flat_parry_blade_reach.value, drawnApart);
+            Con_Printf("  blade grip: tip %.1f u from the hand, share %.2f\n", fs.bladeTip[h], at);
             // (flatfb1124, his note 2026-11-24: the free hand's turn on the blade, in the holding hand's drawn frame -- the
             // same whatever the view's pitch -- and the holding hand's own fingers and up.)
             if(glm::vec3 hPos, hRot; drawn >= 0.f && view::drawnHandPose(h, hPos, hRot))

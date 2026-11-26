@@ -672,6 +672,10 @@ float(float xHand, entity b) VR_Grenade_HandCatches =
     {
         return FALSE;
     }
+    if(VR_FlatThrow_Guides(self, xHand)) // (flat play: the free hand guiding the other's throw: flatthrow2)
+    {
+        return FALSE;
+    }
     if(b.mh_pushing || (time <= self.vr_bashdef_until && (self.vr_bashdef_hand == xHand || self.vr_bashdef_hand < 0)))
     {
         return FALSE;

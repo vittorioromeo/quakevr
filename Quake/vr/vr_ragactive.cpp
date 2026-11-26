@@ -1788,12 +1788,14 @@ void holdOn(State& s, const Parts& p, const Context& c, int arm, const glm::vec3
     h.cap = cap;
     h.touched = c.now;
     h.goal = at;
+    h.gap = glm::distance(limbEnd(s, p, arm), at);
     s.env.holds++;
     if(vr_debug_ragdoll.value)
     {
-        Con_Printf("ragenv: %d %s hand holds on (%s) at %.0f %.0f %.0f, at most %.0f N (%.2f body weights) for %.2f s\n",
+        Con_Printf("ragenv: %d %s hand holds on (%s) at %.0f %.0f %.0f, at most %.0f N (%.2f body weights) for %.2f s, the hand %.0f "
+                   "units off it\n",
             c.num, armName(arm), gripName(h.mode), at.x * p.m2u, at.y * p.m2u, at.z * p.m2u, cap,
-            cap / za::max(s.totalMass * c.gravity, 1.f), h.holdUntil - c.now);
+            cap / za::max(s.totalMass * c.gravity, 1.f), h.holdUntil - c.now, h.gap * p.m2u);
     }
 }
 
@@ -2170,10 +2172,15 @@ void keepHold(State& s, const Parts& p, const Context& c, int arm, float L)
     {
         letGo(s, arm, &c, "the floor");
     }
-    else if(glm::distance(hand, h.goal) > 0.6f * L)
+    else if(glm::distance(hand, h.goal) > 0.6f * L + (ledge ? h.gap : 0.f))
     {
         letGo(s, arm, &c, va("pulled away: the hand %.0f units off its hold", glm::distance(hand, h.goal) * p.m2u));
     }
+    // (A ledge's lip is grabbed up to an arm off at speed, its hold pulling the hand in (above): pulled away only that
+    // much farther than the hand has come in to it. From 0.6 of an arm alone, a knight falling at 3.6 m/s, its left hand
+    // grabbing 25 units off, let go 0.01 s after its grab; on its other hand alone it lost its hold, climb_test seeds 7, 9,
+    // 10, 2026-11-26.)
+    h.gap = za::min(h.gap, glm::distance(hand, h.goal));
 }
 
 // ---- Guarding the head (vr_ragdoll_active_guard; vr_ragactive.hpp, Guard) ----
