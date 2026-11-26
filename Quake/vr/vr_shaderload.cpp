@@ -3,16 +3,20 @@
 // polled), then "Compiling shaders: N / M" with a progress bar drawn on the CPU into a small image (the console font,
 // no shader needed) and shown as the runtime's panel (an OpenXR quad layer: the headset keeps getting frames, no
 // runtime dots) and in the window (a blit). Nothing else runs meanwhile (host.c _Host_Frame returns after it).
+// The same panel during a map load: the hull's wait for the world's collision (VR_MapLoadingFrame), and the whole load's
+// stages in player words once it has run a second (flatloadbar: qvr::loadbar, VR_LoadCount, VR_LoadPump), flat and VR.
 
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_main.hpp"
+#include "vr_startlog.hpp"
 
 #include "vr_api.h"
 
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 namespace
@@ -176,6 +180,14 @@ void toWindow()
     {
         return;
     }
+    // (mid-load, between a load's own GL work: the state this changes put back after it)
+    GLint viewport[4] = {}, drawFbo = 0, readFbo = 0;
+    GLfloat clearColour[4] = {};
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawFbo);
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &readFbo);
+    glGetFloatv(GL_COLOR_CLEAR_VALUE, clearColour);
+    const GLboolean scissor = glIsEnabled(GL_SCISSOR_TEST);
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
     glDisable(GL_SCISSOR_TEST);
     glViewport(0, 0, w, h);
@@ -189,6 +201,46 @@ void toWindow()
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
     VID_LoadingSwap();
     load.windowFrames++;
+    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(drawFbo));
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(readFbo));
+    glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+    glClearColor(clearColour[0], clearColour[1], clearColour[2], clearColour[3]);
+    if(scissor)
+    {
+        glEnable(GL_SCISSOR_TEST);
+    }
+}
+
+// One frame of a map load's panel (the hull's wait and the whole load's stages: shared): drawn, into the headset (VR
+// running, or started for it at a start) and the window. Returns the frames that reached the headset.
+int mapPanelFrame(const char* heading, const char* detail, double share, const char* footer, bool& earlyStarted)
+{
+    if(!qvr::backend() && qvr::startForLoading())
+    {
+        earlyStarted = true;
+    }
+    constexpr int barSteps = 1000;
+    drawPanel(heading, static_cast<int>(za::max(0.0, za::min(share, 1.0)) * barSteps), barSteps, detail, footer);
+    int shown = 0;
+    if(qvr::loadingFrameBegin())
+    {
+        const int before = load.panelFrames;
+        toHeadset();
+        shown = load.panelFrames - before;
+    }
+    toWindow();
+    return shown;
+}
+
+// The panel's image as drawn last saved as screenshots/<file> (vr_load_panel_shot, a test aid).
+void savePanel(const char* file, double share, const char* heading)
+{
+    char path[MAX_OSPATH];
+    q_snprintf(path, sizeof(path), "%s/screenshots/%s", com_gamedir, file);
+    COM_CreatePath(path);
+    const bool saved = Image_WritePNGPath(path, load.pixels, imageWidth, imageHeight, 32, false); // (bottom row first: flipped)
+    Con_SafePrintf("loading panel: %s screenshots/%s at %.0f%% (\"%s\")\n", saved ? "saved" : "couldn't save", file,
+        share * 100.0, heading);
 }
 
 } // namespace
@@ -276,34 +328,20 @@ extern "C" int VR_MapLoadingFrame(const char* heading, const char* detail, doubl
     {
         return 0;
     }
-    if(!qvr::backend() && qvr::startForLoading())
-    {
-        mapWait.earlyStarted = true;
-    }
     mapWait.frames++;
-    constexpr int barSteps = 1000;
     const double share = za::max(0.0, za::min(done, 1.0));
-    drawPanel(heading, static_cast<int>(share * barSteps), barSteps, detail,
-        va("%.0f s - the next loads take it from the cache", seconds));
-    if(qvr::vr_load_panel_shot.value > 0.f && share >= qvr::vr_load_panel_shot.value) // (a test aid: the image saved once)
+    const bool shot = qvr::vr_load_panel_shot.value > 0.f && share >= qvr::vr_load_panel_shot.value;
+    if(shot) // (a test aid: the image saved once, as drawn below)
     {
         Cvar_SetValueQuick(&qvr::vr_load_panel_shot, 0.f);
-        char path[MAX_OSPATH];
-        q_snprintf(path, sizeof(path), "%s/screenshots/load_panel.png", com_gamedir);
-        COM_CreatePath(path);
-        const bool saved = Image_WritePNGPath(path, load.pixels, imageWidth, imageHeight, 32, false); // (bottom row first: flipped)
-        Con_SafePrintf("loading panel: %s screenshots/load_panel.png at %.0f%% (\"%s\")\n", saved ? "saved" : "couldn't save",
-            share * 100.0, heading);
     }
-    int shown = 0;
-    if(qvr::loadingFrameBegin())
+    const int shown = mapPanelFrame(heading, detail, share, va("%.0f s - the next loads take it from the cache", seconds),
+        mapWait.earlyStarted);
+    mapWait.panelFrames += shown;
+    if(shot)
     {
-        const int before = load.panelFrames;
-        toHeadset();
-        shown = load.panelFrames - before;
-        mapWait.panelFrames += shown;
+        savePanel("load_panel.png", share, heading);
     }
-    toWindow();
     return shown; // (none shown, e.g. flat-screen, the headset asleep or a mock backend that doesn't pace: the caller sleeps)
 }
 
@@ -315,4 +353,297 @@ extern "C" void VR_MapLoadingDone(const char* map, double seconds)
             mapWait.frames, mapWait.panelFrames, mapWait.earlyStarted ? "; the VR session started early for it" : "");
     }
     mapWait = MapWait{};
+}
+
+// The whole load's panel (flatloadbar, ROUND26.md): his flat vrstart took 13 s with nothing shown (the entities' spawn
+// 6.2 s, the model light grid rebuilt 5.1 s). While a map load runs (from its command, vr_startup.cpp's timing, to its
+// first frame drawn), the stages it is in (the trace's steps, VR_StepBegin; ended by VR_StepEnd or VR_TimeMark) are
+// followed whether or not the trace runs; once the load has run a second, the innermost stage with words is shown
+// with a bar: its own count where it counts (VR_LoadCount: the entities, the light grid's layers, the models, the
+// sounds), else the share of the load's stages done (the last load's count of them the whole). Drawn from inside the
+// long stages (their counts, the model loads: VR_LoadPump) and at each stage's start and end, at most every 100 ms.
+namespace
+{
+
+constexpr double showAfter = 1.0;  // s a load runs before its panel shows (a fast load shows nothing)
+constexpr double drawEvery = 0.1;  // s between its frames, at most (each a few ms: the image, the swap, the headset's frame)
+constexpr int stageDepth = 8;      // stages nested (deeper ones: not followed)
+constexpr int stageName = 96;      // a stage's name kept (VR_StepBegin's)
+constexpr int defaultMarks = 60;   // the stages of a load, before one was counted (vrstart's: ~55)
+
+// A stage's words (its name's start, VR_StepBegin's or VR_TimeMark's): the panel's heading; what it counts (VR_LoadCount;
+// "%": shown as a share; nullptr: it doesn't) and the shot's name for it (vr_load_panel_shot); a note under the bar.
+struct StageWords
+{
+    const char* stage;
+    const char* heading;
+    const char* unit;
+    const char* shot;
+    const char* note;
+};
+constexpr StageWords stageWords[] = {
+    {"server: entities spawned", "Spawning the map's monsters and items", "entities", "load_panel_entities.png", nullptr},
+    {"server: monsters' limbs", "Preparing the monsters' limbs", nullptr, nullptr, nullptr},
+    {"VR_NewMap: model light grid", "Lighting the models", "%", "load_panel_lightgrid.png", "built once for each map version"},
+    {"client: models precached", "Loading models", "models", "load_panel_models.png", nullptr},
+    {"client: sounds precached", "Loading sounds", "sounds", "load_panel_sounds.png", nullptr},
+    {"VR_NewMap: view models", "Preparing your hands and weapons", nullptr, nullptr, nullptr},
+    {"VR_NewMap: liquids", "Preparing water, slime and lava", nullptr, nullptr, nullptr},
+    {"VR_NewMap: ", "Preparing effects", nullptr, nullptr, nullptr},
+    {"client: R_NewMap", "Preparing textures and lightmaps", nullptr, nullptr, nullptr},
+    {"server: world model", "Loading the map's geometry", nullptr, nullptr, nullptr},
+    {"server: progs", "Loading the game code", nullptr, nullptr, nullptr},
+    {"server: 2 frames", "Settling the physics", nullptr, nullptr, nullptr},
+};
+
+struct BarStage
+{
+    char name[stageName];
+    int done, total; // its count (VR_LoadCount; total 0: none)
+};
+
+struct LoadBar
+{
+    bool active = false;
+    double start = 0.0;                  // the load's (its command's) start (Sys_DoubleTime)
+    double lastDraw = 0.0, drawn = 0.0;  // the last frame's time; the time spent drawing them (s: the panel's cost)
+    double longestGap = 0.0;             // s: the longest time between two of its frames (a stage that doesn't pump)
+    char gapAt[stageName] = "";          // ... the stage it ended in
+    char lastAt[stageName] = "";         // the stage of the last frame
+    BarStage stages[stageDepth]{};
+    int depth = 0, lost = 0;             // stages open (followed; past stageDepth)
+    int marks = 0;                       // stages ended (VR_TimeMark)
+    int frames = 0, panelFrames = 0;     // frames drawn; those in the headset
+    unsigned shots = 0;                  // vr_load_panel_shot's images saved this load (a bit per stageWords entry)
+    bool earlyStarted = false;           // the VR session started for it
+};
+LoadBar bar;
+int expectedMarks = defaultMarks; // the last load's stages
+
+[[nodiscard]] const StageWords* wordsOf(const char* name)
+{
+    for(const StageWords& w : stageWords)
+    {
+        if(!ZA_STRNCMP(name, w.stage, ZA_STRLEN(w.stage)))
+        {
+            return &w;
+        }
+    }
+    return nullptr;
+}
+
+// The innermost stage with words (and it), or none.
+[[nodiscard]] const StageWords* shownStage(const BarStage*& stage)
+{
+    for(int i = za::min(bar.depth, stageDepth); i-- > 0;)
+    {
+        if(const StageWords* w = wordsOf(bar.stages[i].name))
+        {
+            stage = &bar.stages[i];
+            return w;
+        }
+    }
+    stage = nullptr;
+    return nullptr;
+}
+
+[[nodiscard]] BarStage* innermost()
+{
+    return bar.depth > 0 && bar.lost == 0 ? &bar.stages[bar.depth - 1] : nullptr;
+}
+
+// The panel's frame if one is due (vr_load_panel_shot: from the load's start, and at once when a counted stage reaches
+// its share, its image saved).
+void pump()
+{
+    if(!bar.active || !host_initialized || !VR_OnMainThread())
+    {
+        return;
+    }
+    const double now = Sys_DoubleTime();
+    const float shotAt = qvr::vr_load_panel_shot.value;
+    const StageWords* shotOf = nullptr;
+    if(shotAt > 0.f)
+    {
+        const BarStage* s = innermost();
+        const StageWords* w = s ? wordsOf(s->name) : nullptr;
+        if(w && w->shot && s->total > 0 && s->done >= shotAt * static_cast<float>(s->total) &&
+            !(bar.shots & (1u << static_cast<unsigned>(w - stageWords))))
+        {
+            shotOf = w;
+        }
+    }
+    if(!shotOf && (now - bar.lastDraw < drawEvery || (shotAt <= 0.f && now - bar.start < showAfter)))
+    {
+        return;
+    }
+    if(!VR_MapLoadingWanted())
+    {
+        return;
+    }
+    const BarStage* stage = nullptr;
+    const StageWords* words = shownStage(stage);
+    const char* map = sv.name[0] ? sv.name : cl.mapname[0] ? cl.mapname : "the map";
+    char heading[64], detail[96], footer[64];
+    double share;
+    if(words && words->unit && stage->total > 0)
+    {
+        share = static_cast<double>(stage->done) / stage->total;
+        if(words->unit[0] == '%')
+        {
+            q_snprintf(detail, sizeof(detail), "%s: %.0f%%", map, share * 100.0);
+        }
+        else
+        {
+            q_snprintf(detail, sizeof(detail), "%s: %d of %d %s", map, stage->done, stage->total, words->unit);
+        }
+    }
+    else
+    {
+        expectedMarks = za::max(expectedMarks, bar.marks + 1);
+        share = static_cast<double>(bar.marks) / expectedMarks;
+        q_snprintf(detail, sizeof(detail), "%s: step %d of about %d", map, bar.marks + 1, expectedMarks);
+    }
+    q_strlcpy(heading, words ? words->heading : va("Loading %s", map), sizeof(heading));
+    if(words && words->note)
+    {
+        q_snprintf(footer, sizeof(footer), "%.0f s - %s", now - bar.start, words->note);
+    }
+    else
+    {
+        q_snprintf(footer, sizeof(footer), "%.0f s", now - bar.start);
+    }
+    bar.panelFrames += mapPanelFrame(heading, detail, share, footer, bar.earlyStarted);
+    bar.frames++;
+    if(shotOf)
+    {
+        bar.shots |= 1u << static_cast<unsigned>(shotOf - stageWords);
+        savePanel(shotOf->shot, share, heading);
+    }
+    const char* at = bar.depth > 0 ? bar.stages[za::min(bar.depth, stageDepth) - 1].name : "the load";
+    if(bar.frames > 1)
+    {
+        const double gap = now - bar.lastDraw;
+        if(gap > bar.longestGap)
+        {
+            bar.longestGap = gap;
+            q_strlcpy(bar.gapAt, at, sizeof(bar.gapAt));
+        }
+        if(gap > 0.5) // (developer 1: where the panel stood still)
+        {
+            Con_DPrintf("loading panel: %.2f s without a frame, from \"%s\" to \"%s\"\n", gap, bar.lastAt, at);
+        }
+    }
+    q_strlcpy(bar.lastAt, at, sizeof(bar.lastAt));
+    bar.lastDraw = Sys_DoubleTime();
+    bar.drawn += bar.lastDraw - now;
+}
+
+} // namespace
+
+namespace qvr::loadbar
+{
+
+void begin(double start)
+{
+    if(bar.active)
+    {
+        return; // (a command's load: begun at the command; its spawn and its client's start continue it)
+    }
+    bar = LoadBar{};
+    bar.active = true;
+    bar.start = start;
+}
+
+void stepBegin(const char* step)
+{
+    if(!bar.active)
+    {
+        return;
+    }
+    if(bar.depth >= stageDepth)
+    {
+        bar.lost++;
+        return;
+    }
+    BarStage& s = bar.stages[bar.depth++];
+    q_strlcpy(s.name, step, sizeof(s.name));
+    s.done = s.total = 0;
+    pump();
+}
+
+void stepEnd()
+{
+    if(!bar.active)
+    {
+        return;
+    }
+    if(bar.lost > 0)
+    {
+        bar.lost--;
+    }
+    else if(bar.depth > 0)
+    {
+        bar.depth--;
+    }
+    pump();
+}
+
+void mark(const char* stage)
+{
+    if(!bar.active)
+    {
+        return;
+    }
+    bar.marks++;
+    if(const BarStage* s = innermost(); s && !ZA_STRNCMP(s->name, stage, sizeof(s->name) - 1))
+    {
+        bar.depth--;
+    }
+    pump();
+}
+
+void end()
+{
+    if(!bar.active)
+    {
+        return;
+    }
+    const double seconds = Sys_DoubleTime() - bar.start;
+    if(bar.frames)
+    {
+        Con_SafePrintf("loading panel: %s's load, %.1f s: %d frames (%d in the headset), %.1f ms drawing them, the longest "
+                       "gap %.2f s (ending in \"%s\")%s\n",
+            sv.name[0] ? sv.name : cl.mapname, seconds, bar.frames, bar.panelFrames, bar.drawn * 1000.0, bar.longestGap, bar.gapAt,
+            bar.earlyStarted ? "; the VR session started early for it" : "");
+    }
+    if(bar.marks >= 10)
+    {
+        expectedMarks = bar.marks; // (the next load's whole: a map's loads differ little)
+    }
+    bar = LoadBar{};
+}
+
+} // namespace qvr::loadbar
+
+extern "C" void VR_LoadCount(int done, int total)
+{
+    if(!VR_OnMainThread() || !bar.active)
+    {
+        return;
+    }
+    if(BarStage* s = innermost())
+    {
+        s->done = done;
+        s->total = total;
+    }
+    pump();
+}
+
+extern "C" void VR_LoadPump(void)
+{
+    if(VR_OnMainThread() && bar.active)
+    {
+        pump();
+    }
 }
