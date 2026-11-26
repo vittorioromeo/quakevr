@@ -1165,7 +1165,8 @@ void stepParry(int h, float dt)
 {
     const int other = 1 - h;
     float at = 0.f;
-    return vr_flat_parry_blade.value != 0.f && bot == nullptr && fs.parryWant[h] && meleeIn(h) && twohand::swordBlade(heldIn(h), at) &&
+    // (flatgrip3: not a one-handed-only weapon's, oneHandOnly: the free hand stays free.)
+    return vr_flat_parry_blade.value != 0.f && bot == nullptr && fs.parryWant[h] && meleeIn(h) && !oneHandOnly(h) && twohand::swordBlade(heldIn(h), at) &&
            heldIn(other) < 0 && !holdsThing(other) && !twohand::carrying(other) && !punching(other) && !shoving(other) &&
            !flatfgrab::busy(other) && !flatgrenade::busy(other) && !flatswap::busy();
 }
@@ -1281,8 +1282,8 @@ constexpr int swordKindDagger = 12;
 {
     const int other = 1 - h;
     // Pole weapons (spear, Crystal Lance) have their own spear pose and pole grip (vr_flatsight.cpp poleGrip);
-    // one-handed-only weapons (dagger) and overhead flipped-grip blades stay 1H.
-    return vr_flat_melee_2h.value != 0.f && swungMelee(h) && !isDagger(h) && !twohand::poleWeapon(heldIn(h)) &&
+    // one-handed-only weapons (oneHandOnly: the dagger, the axes) and overhead flipped-grip blades stay 1H.
+    return vr_flat_melee_2h.value != 0.f && swungMelee(h) && !oneHandOnly(h) && !twohand::poleWeapon(heldIn(h)) &&
            revGripShare(h) < 0.5f && loneWeaponHand() == h && s.grip2HValid[h] && !s.grip2HPalm[h] &&
            !twohand::forbidden(h) && !holdsThing(other) && !twohand::carrying(other) &&
            !flatswim::freesHand(); // (swimming, the free hand swims: vr_flatswim.cpp)
@@ -3311,7 +3312,13 @@ bool swungMelee(int h)
 
 bool oneHandOnly(int h)
 {
-    return h >= 0 && h < HAND_COUNT && isDagger(h);
+    // (flatgrip3, his flat item 7: the daggers and the axes, each by its option, on by default.)
+    if(h < 0 || h >= HAND_COUNT)
+    {
+        return false;
+    }
+    const int wid = heldWid(h);
+    return (vr_flat_1h_dagger.value != 0.f && isDagger(h)) || (vr_flat_1h_axe.value != 0.f && (wid == WID_AXE || wid == WID_SUPERAXE));
 }
 
 bool flippedGrip(int h)
