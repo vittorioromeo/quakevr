@@ -43,6 +43,11 @@ struct Mount
 [[nodiscard]] Mount mount(int slot, int kind);
 // A point of the attachment (its own model space) in the gun model's own space, by the mount.
 [[nodiscard]] glm::vec3 onGun(const Mount& m, const glm::vec3& p);
+// The one place an attachment's points are measured from a gun (the server's: QC attachinfo; the drawn one is placed by
+// the same view::ModelSpace, view::placeAttachment): point `what` (1 its mount, 2 its tip) of attachment `kind` on the gun
+// drawn with `model`, from the gun's drawn muzzle (view::weaponLocalGeometry), in the gun's axes as drawn (frame 0, unturned:
+// x forward, y left, z up; the whole model transform in it, its Offset too). False if it doesn't fit.
+[[nodiscard]] bool fromMuzzle(qmodel_t* model, int kind, int what, glm::vec3& out);
 
 // Client: the attachment the weapon with id `uid` has (QVR_SVC_WEAPONATTACH), None if not known.
 [[nodiscard]] int kindOfUid(int uid);

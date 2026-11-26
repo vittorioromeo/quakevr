@@ -1035,20 +1035,13 @@ void PF_attachinfo()
         return;
     }
     qmodel_t* const model = Mod_ForName(name, false);
-    glm::vec3 muzzle{0.f}, butt{0.f}, second{0.f};
-    int secondType = 0;
-    if(!model || !view::weaponLocalGeometry(model, muzzle, butt, second, secondType))
+    glm::vec3 own{0.f};
+    if(!model || !attach::fromMuzzle(model, kind, what, own)) // (the drawn bayonet's own measure: one source)
     {
         return;
     }
-    const weapons::ModelTransform t = weapons::modelTransform(model);
-    const float k = t.active ? t.k : 1.f;
-    // (the muzzle back in the model's own units, as the mount is: drawn lying, k * Scale * own, the hand's offset not in it)
-    const glm::vec3 drawnPerOwn = t.active ? t.scale * k : glm::vec3{1.f};
-    const glm::vec3 muzzleOwn = muzzle / drawnPerOwn;
-    const glm::vec3 p = attach::onGun(m, what == 2 ? info->tip : glm::vec3{0.f});
     // (turned as the gun is in the hand: the stab's and the snap's points on the drawn bayonet)
-    const glm::vec3 d = (vr_attach_turn.value ? view::weaponTurnInHand(slot) : glm::mat3{1.f}) * ((p - muzzleOwn) * drawnPerOwn);
+    const glm::vec3 d = (vr_attach_turn.value ? view::weaponTurnInHand(slot) : glm::mat3{1.f}) * own;
     out[0] = d.x;
     out[1] = d.y;
     out[2] = d.z;

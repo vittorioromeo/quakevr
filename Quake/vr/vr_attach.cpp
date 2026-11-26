@@ -113,6 +113,27 @@ glm::vec3 onGun(const Mount& m, const glm::vec3& p)
     return m.pos + view::mountBasis(m.angles) * (p * m.scale);
 }
 
+bool fromMuzzle(qmodel_t* model, int kind, int what, glm::vec3& out)
+{
+    out = glm::vec3{0.f};
+    const int slot = model ? weapons::slotForModel(model) : -1;
+    const Mount m = mount(slot, kind);
+    const KindInfo* const k = info(kind);
+    glm::vec3 muzzle{0.f}, butt{0.f}, second{0.f};
+    int secondType = 0;
+    if(!m.fits || !k || !view::weaponLocalGeometry(model, muzzle, butt, second, secondType))
+    {
+        return false;
+    }
+    // (drawn as weaponLocalGeometry draws it: at the origin unturned, frame 0, its default scale)
+    view::ViewEntity ve;
+    ve.ent.model = model;
+    ve.ent.scale = ENTSCALE_DEFAULT;
+    ve.zeroBlend = 1.f;
+    out = view::modelPoint(ve, onGun(m, what == 2 ? k->tip : glm::vec3{0.f})) - muzzle;
+    return true;
+}
+
 int kindOfUid(int uid)
 {
     if(uid <= 0)
