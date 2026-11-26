@@ -137,7 +137,7 @@ typedef struct b3World
 	b3ConstraintGraph constraintGraph;
 
 	// Manifold allocators have one allocator for each manifold count.
-	b3Array( b3BlockAllocator ) manifoldAllocators;
+	b3BlockAllocator manifoldAllocators[B3_MAX_MANIFOLDS];
 	b3Mutex* manifoldAllocatorMutex;
 
 	// QVR (local change, README.md): the manifold arrays longer than B3_POOLED_MANIFOLD_COUNT, from b3Alloc (each
@@ -368,11 +368,9 @@ static inline b3Manifold* b3AllocateManifolds( b3World* world, int count )
 
 	B3_ASSERT( count <= B3_MAX_MANIFOLDS );
 
-	int index = count - 1;
-
 	// QVR (local change, README.md): a long array (a mesh contact's many clusters) from the heap, not a pool of its
-	// own count (b3CreateBlockAllocator's 512 arrays of it, and one such pool for every count below it too, kept until
-	// the world went: a 16-player deathmatch's server grew by ~150 MB in steps, MP_PLAN B21)
+	// own count (b3CreateBlockAllocator's 512 arrays of it, kept until the world went: a 16-player deathmatch's server
+	// grew by ~150 MB in steps before #227 capped the count, MP_PLAN B21)
 	if ( count > B3_POOLED_MANIFOLD_COUNT )
 	{
 		size_t bytes = (size_t)count * sizeof( b3Manifold );
@@ -386,18 +384,10 @@ static inline b3Manifold* b3AllocateManifolds( b3World* world, int count )
 		return manifolds;
 	}
 
-	// Need lock because this is called from the parallel narrow phase
+	// Need lock because this is called from the parallel narrow phase.
 	b3LockMutex( world->manifoldAllocatorMutex );
 	world->manifoldLongestCount = count > world->manifoldLongestCount ? count : world->manifoldLongestCount; // QVR
-	int currentCount = world->manifoldAllocators.count;
-	for ( int i = currentCount; i < count; ++i )
-	{
-		b3BlockAllocator allocator = b3CreateBlockAllocator( ( i + 1 ) * sizeof( b3Manifold ), 2 * B3_BLOCK_SIZE );
-		b3Array_Push( world->manifoldAllocators, allocator );
-	}
-
-	b3BlockAllocator* allocator = b3Array_Get( world->manifoldAllocators, index );
-	b3Manifold* manifolds = (b3Manifold*)b3AllocateElement( allocator );
+	b3Manifold* manifolds = b3AllocateElement( world->manifoldAllocators + count - 1 );
 	b3UnlockMutex( world->manifoldAllocatorMutex );
 	memset( manifolds, 0, count * sizeof( b3Manifold ) );
 	return manifolds;
@@ -424,9 +414,7 @@ static inline void b3FreeManifolds( b3World* world, b3Manifold* manifolds, int c
 		return;
 	}
 
-	int index = count - 1;
 	b3LockMutex( world->manifoldAllocatorMutex );
-	b3BlockAllocator* allocator = b3Array_Get( world->manifoldAllocators, index );
-	b3FreeElement( allocator, manifolds );
+	b3FreeElement( world->manifoldAllocators + count - 1, manifolds );
 	b3UnlockMutex( world->manifoldAllocatorMutex );
 }

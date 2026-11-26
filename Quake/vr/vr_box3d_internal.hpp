@@ -601,6 +601,7 @@ struct World
     float friction{-1.f}, restitution{-1.f};
     b3MeshData* mesh{nullptr}; // (meshCache's)
     b3ShapeId worldShape{b3_nullShapeId};
+    b3BodyId anchor{b3_nullBodyId}; // a static body without shapes at the origin: body A of the motion lock joints
     za::Vector<za::Pair<int, int>> impacts; // the step's touches (kept: no allocation a frame)
     za::Vector<Shock> shocks; // props with a .vr_impact hitting something this frame (the hardest hit each)
     za::Vector<Shock> falls;  // knocked-down monsters' ragdolls hitting the level this frame (the hardest, vertically)

@@ -3687,7 +3687,6 @@ void driveJoints(DriveWork& w, State& s, const Parts& p, const Context& c)
         }
         any = true;
         // (the joint's frames: ragpose::jointFrameA, jointFrameB; the authored rig's differ)
-        const glm::quat qp = bodyRot(p, bone.parent);
         const GroupGains& gg = groupGains(channelOf(bone)); // (vr_ragdoll_active_*_<group>: 1 each by default)
         // (Struggling, its class's arm drive: its arms' springs stiffer, their cap too: struggleFrame's arms.)
         const float armDrive = s.struggle.on && channelOf(bone) == Channel::Arms ? s.struggle.arms : 1.f;
@@ -3702,7 +3701,9 @@ void driveJoints(DriveWork& w, State& s, const Parts& p, const Context& c)
             b3SphericalJoint_SetSpringDampingRatio(j, jointDamping);
             b3SphericalJoint_SetTargetRotation(j, toB3(q));
             b3SphericalJoint_EnableMotor(j, true);
-            b3SphericalJoint_SetMotorVelocity(j, b3v(qp * spin[i]));
+            // (Box3D takes the motor's velocity in joint frame A since upstream #237, no longer the world's: spin[i]
+            // is in the parent's (body A's) axes, so out of the frame's own turn; it was the parent's rotation times spin[i].)
+            b3SphericalJoint_SetMotorVelocity(j, b3v(glm::inverse(ragpose::jointFrameA(bone)) * spin[i]));
             b3SphericalJoint_SetMaxMotorTorque(j, most);
         }
         else
