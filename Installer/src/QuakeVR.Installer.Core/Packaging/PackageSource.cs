@@ -95,7 +95,7 @@ sealed class ZipPackage : PackageSource
 public static class LocalPackages
 {
     /// <summary>A package's manifest, or why the path is not a package (no manifest.json, unreadable).</summary>
-    public static (PackageManifest? Manifest, string? Error) Inspect(string path, string product = "Quake VR: Unleashed")
+    public static (PackageManifest? Manifest, string? Error) Inspect(string path, string product = "Quake VR: UNLEASHED")
     {
         var name = Path.GetFileName(path.TrimEnd('\\', '/'));
         try

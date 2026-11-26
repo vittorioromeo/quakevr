@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# make_menu_banner.py -- the menus' vertical "Quake VR: Unleashed" banner, drawn where Quake's plaque (gfx/qplaque.lmp)
+# make_menu_banner.py -- the menus' vertical "Quake VR: UNLEASHED" banner, drawn where Quake's plaque (gfx/qplaque.lmp)
 # was (Quake/vr/vr_menubrand.cpp):
 #   quakevr/gfx/vr/menu_banner.png   the vertical logo, its pixels and alpha exactly as drawn, on a transparent canvas
 #                                    of 768 x 2048 (centred): the engine's mipmaps halve a texture's rows and columns

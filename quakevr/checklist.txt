@@ -40,6 +40,7 @@ Installer with the Quest 3 plugged in, over an install already on it: run Setup 
 Flat-screen or VR: The game's exe, taskbar and Setup show the new icon, and Setup's square and wide logos are the new ones. {test:hub_start}
 Flat-screen or VR: The main menu shows the updated vertical Quake VR logo. {test:hub_start}
 Install the new Quest APK (Setup's Quest step or adb) and look in the headset's Library > Unknown Sources: the app is now listed as "Quake VR: Unleashed" (it still updates over the old install, saves kept). {test:hub_start}
+After updating over an older install, the Start menu folder and the shortcuts (Start menu and desktop) are named "Quake VR UNLEASHED" (all caps), with no second old-named copy; the setup window, Apps & Features entry and the game window title say "Quake VR: UNLEASHED". {test:hub_start}
 
 [2. Quest Standalone]
 Quest: run "adb logcat -s QuakeVR" while starting the game: each start-up step shows as it begins and ends, and a long step prints "still in <step>" every 2 seconds; vr_android_export startup.log copies the file out. {test:hub_start}

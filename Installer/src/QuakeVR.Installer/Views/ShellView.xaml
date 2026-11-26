@@ -52,7 +52,7 @@
                     <!-- Ko-fi and Discord (always in view), sound, credits, version. -->
                     <StackPanel DockPanel.Dock="Bottom" Margin="20,0,18,18">
                         <Button Style="{StaticResource KofiButton}" Command="{Binding OpenKofiCommand}" sfx:UiSounds.Kind="Support"
-                                ToolTip="ko-fi.com/vittorioromeovee: support Quake VR: Unleashed">
+                                ToolTip="ko-fi.com/vittorioromeovee: support Quake VR: UNLEASHED">
                             <DockPanel>
                                 <Image Source="/QuakeVR-Setup;component/Assets/kofi_symbol.png" Height="22" Margin="0,0,10,0"
                                        RenderOptions.BitmapScalingMode="HighQuality" VerticalAlignment="Center" />

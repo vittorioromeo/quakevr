@@ -139,7 +139,7 @@ public sealed class InstallEngine
         {
             Report(0, "Reading the package", $"{extras} file(s) in the package are not in its manifest: not installed.", LogLevel.Warning);
         }
-        Report(0, "Reading the package", $"Quake VR: Unleashed {manifest.Version}: {manifest.Files.Count} files, {PathUtil.FormatSize(manifest.TotalSize)}");
+        Report(0, "Reading the package", $"Quake VR: UNLEASHED {manifest.Version}: {manifest.Files.Count} files, {PathUtil.FormatSize(manifest.TotalSize)}");
 
         var old = InstallRecord.Load(target);
         var mode = old is null ? InstallMode.Install : plan.Mode;
@@ -149,9 +149,9 @@ public sealed class InstallEngine
         {
             Report(0, mode == InstallMode.Repair ? "Repairing" : "Updating", mode switch
             {
-                InstallMode.Update => $"Updating Quake VR: Unleashed {old.Version} in {target}; your settings, saves and maps are kept.",
-                InstallMode.Repair => $"Repairing Quake VR: Unleashed {old.Version} in {target}; your settings, saves and maps are kept.",
-                _ => $"Installing again over Quake VR: Unleashed {old.Version} in {target}; your files are kept unless you chose otherwise.",
+                InstallMode.Update => $"Updating Quake VR: UNLEASHED {old.Version} in {target}; your settings, saves and maps are kept.",
+                InstallMode.Repair => $"Repairing Quake VR: UNLEASHED {old.Version} in {target}; your settings, saves and maps are kept.",
+                _ => $"Installing again over Quake VR: UNLEASHED {old.Version} in {target}; your files are kept unless you chose otherwise.",
             });
             Report(0, "Checking the installed files");
             maintenance = MaintenancePlanner.Plan(target, old, manifest, mode);
@@ -276,7 +276,7 @@ public sealed class InstallEngine
                                 lastReported = fraction;
                                 Report(fraction, item.Component switch
                                 {
-                                    Components.Core => "Copying Quake VR: Unleashed",
+                                    Components.Core => "Copying Quake VR: UNLEASHED",
                                     Components.VisPatch => "Copying the VisPatch data",
                                     Components.Setup => "Copying Setup",
                                     _ => "Copying HD textures",
@@ -471,9 +471,9 @@ public sealed class InstallEngine
             }
             Report(1, "Done", mode switch
             {
-                InstallMode.Update => $"Quake VR: Unleashed updated to {record.Version} in {target}.",
-                InstallMode.Repair => $"Quake VR: Unleashed {record.Version} repaired in {target}.",
-                _ => $"Quake VR: Unleashed {record.Version} installed in {target}.",
+                InstallMode.Update => $"Quake VR: UNLEASHED updated to {record.Version} in {target}.",
+                InstallMode.Repair => $"Quake VR: UNLEASHED {record.Version} repaired in {target}.",
+                _ => $"Quake VR: UNLEASHED {record.Version} installed in {target}.",
             }, LogLevel.Success);
             return record;
         }

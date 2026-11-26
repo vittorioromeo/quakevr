@@ -155,7 +155,7 @@ public sealed class QuestInstaller(IAdb adb)
         {
             MakeReadable(serial, plan.Files, ct); // (nothing new, but an older copy's folders may still be unreadable)
         }
-        Report(1, "Done", "Quake VR: Unleashed is on the Quest: start it from Library > Unknown Sources (the app list's filter, top right).", LogLevel.Success);
+        Report(1, "Done", "Quake VR: UNLEASHED is on the Quest: start it from Library > Unknown Sources (the app list's filter, top right).", LogLevel.Success);
         return new QuestResult(status.Device.Model ?? serial, !apkSame, toPush.Count - refused.Count, skipped, bytes - refused.Sum(f => f.Size))
         {
             NotWritable = [.. refused.Select(f => f.DevicePath)],
@@ -169,7 +169,7 @@ public sealed class QuestInstaller(IAdb adb)
         {
             "INSTALL_FAILED_UPDATE_INCOMPATIBLE" =>
                 "The Quest has another build of Quake VR, signed differently, that cannot be updated in place. Uninstall it in the headset " +
-                "(Library > Unknown Sources > Quake VR: Unleashed > Uninstall: this deletes its saves, so copy them first), then try again.",
+                "(Library > Unknown Sources > Quake VR: UNLEASHED > Uninstall: this deletes its saves, so copy them first), then try again.",
             "INSTALL_FAILED_INSUFFICIENT_STORAGE" => "Not enough space on the Quest for the app. Free some space in the headset, then try again.",
             "INSTALL_FAILED_VERSION_DOWNGRADE" => "The Quest has a newer Quake VR app than this one: nothing was changed.",
             _ => $"The Quake VR app could not be installed on the Quest: {(output.Length > 0 ? output : "adb said nothing")}",

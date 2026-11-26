@@ -835,7 +835,7 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
             .help("Zips this run's and the last run's logs (the console, the OpenXR runtime's start and messages, the "
                   "crash report if any, the settings, the runtimes' own logs) into quakevr\\bugreports\\<date>.zip, "
                   "and opens the folder on the desktop: attach it to your bug report. After a crash, the Start menu's "
-                  "'Quake VR Unleashed (Create Bug Report)' makes it without starting the game."),
+                  "'Quake VR UNLEASHED (Create Bug Report)' makes it without starting the game."),
         row(opt::vr_xr_runtime_fallback).advanced(),
         row(opt::vr_xr_steamvr_wait).advanced(),
         row(opt::vr_xr_eye_scale).advanced(),
