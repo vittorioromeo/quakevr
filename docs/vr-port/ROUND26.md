@@ -1279,3 +1279,33 @@ Updated: menu_banner.png <- vertical_logo_very_pixelated_1 (make_menu_banner.py 
 
 ## logo1126c
 Remaining old-art copies replaced from art/: docs/images/quakevr-unleashed-square.webp <- square_logo_1, -wide.webp <- horizontal_banner_1 (webp q90), -vertical.png <- vertical_logo_pixelated_1 (all same size as before; matched pixelated_0/square_logo_0/horizontal_banner_0 at diff 0.0/0.4/0.3). README uses the wide one. Installer logo_square/logo_wide and flatpak icon-512 were already _1 (logo1126b). Unchanged: Misc/trenchbroom/QuakeVR/Icon.png (32px headset icon, not the art), no Android icons, no vertical_banner_0 copies in the repo. No game/installer code touched, so no build needed. Compare: scratch/logo1126c_compare.png.
+
+## logwarn1126: his flat session's console warnings (branch agent/logwarn1126, 2026-11-26)
+
+His log `quakevr/logs/2026-11-26_17-50-24/console.log` (VS2026, flat, `-basedir <Steam Quake> -game quakevr -flatscreenmode`).
+
+- **vr_flat_grab_hold "says QVR_PREF but is not sent"**: the server never reads it (the client picks the impulse it sends:
+  96 Toggle, 97/98 Hold, vr_flatgrenade.cpp), so it is `QVR_OWN`, not a preference to send. New qvr_check `client_prefs`
+  (Tools/qvr_checks/small_checks.cpp, in the build's `all`): every `QVR_PREF` row of vr_cvars.inc is in vr_clientprefs.cpp's
+  prefNames and every prefNames cvar says `QVR_PREF` (31 settings + 3 tunables today). The start-up warning stays as a
+  runtime backstop.
+- **"ragdoll: progs/mon_enforcer.mdl is not the model its seed table was made for"** (and mon_zombie, mon_hknight,
+  mon_knight): his game loaded **Dwell's** loose `dwellv2p2/progs/mon_*.mdl` (other meshes: 340/265/393/192 vertices;
+  Dwell's knight 97 poses against AD's 163) over **AD's** `ad/pak0.pak` ones. Both folders are mounted in every campaign
+  (`skipOutside`), Dwell's after AD's, so Dwell's won outside the AD campaign. Not only no ragdolls (the death pose stayed):
+  AD's defender/eliminator (armed replacements), knights, hell knights and mummies drew Dwell's meshes with AD's frame
+  numbers, and AD's Widowmaker VR model (made from AD's v_shot3.mdl) was not made. Fixed at the cause, as Quoth already
+  does: `dwell_data.py` now lists Dwell's `progs/` files AD also has (owner 3: skipped in Dwell's folder while
+  `vr_ad_status` is 1), except `progs/g_shot3.mdl` (Dwell's Rotary Shotgun pickup: KEEP). Dwell's skies, menus and
+  start.lit stay its own; its own v_shot3 is still read in place (owned path). vr_dwell_data.inc: 78 names (id1 61,
+  rogue 3, ad 14). Checked: `vr_ragdoll_info` on the four in e1m1 with Dwell installed: 222/177/250/268 vertices, 12 bones.
+- **The paks opened 3-4 times** at start-up: Ironwail's mod list (`Modlist_FindLocal`, host_cmd.c) mounts each base-dir
+  folder in turn to read its description (add, read, reset); its probe of `quakevr` runs our hook, which mounts hipnotic,
+  rogue, ad, dwell and quoth; then `-game quakevr` mounts them for real. The final search path (`path`) has each folder
+  once: left as is (the reopens are sub-millisecond).
+- **"made in the map package map package 8297cb7f"**: an unknown package's fallback title is "map package <id>"; the
+  sentences that already say "the map package" now use `packageName` (the id alone then). vr_continue.cpp.
+- **Also found**: "VR language source" said twice for the rerelease's pak0.pak (3359 strings: every entry twice):
+  `ownedRoots` listed the same folder by two spellings (Steam's install path and `-basedir`'s `<Quake>/rerelease`). Roots
+  are now unique by `files::resolved` (case aside on Windows), the highest place kept. vr_gamedir.cpp.
+- Tests: dwell_owned, dwell_vrmodels, loading_switch, flatgrabthrow; a flat start-up in the kit shows none of the lines.

@@ -328,4 +328,75 @@ int checkToolgunWeapons(const Ctx& ctx, const Args&, Out& out)
     return 0;
 }
 
+// client_prefs: the per-player preferences sent to the server (Quake/vr/vr_clientprefs.cpp's prefNames) against the
+// settings that say QVR_PREF in Quake/vr/vr_cvars.inc: each QVR_PREF setting is in the list, and each setting of the list
+// with a vr_cvars.inc row says QVR_PREF (a tuning constant in the list has no row). The engine warns about the same at
+// start-up (vr_clientprefs.cpp resolve); this makes it a build failure instead of a console line nobody reads.
+int checkClientPrefs(const Ctx& ctx, const Args&, Out& out)
+{
+    const za::String prefsText = readText(ctx.tree / "Quake/vr/vr_clientprefs.cpp");
+    const za::StringView prefs(prefsText);
+    const za::SizeT at = prefs.find("prefNames[] = {");
+    const za::SizeT close = at == npos ? npos : prefs.find('}', at);
+    if(close == npos)
+    {
+        out.line("check_client_prefs: no prefNames list in Quake/vr/vr_clientprefs.cpp");
+        return 1;
+    }
+    Set<za::String> sent;
+    const za::String body = stripCommentsLoose(prefs.substrByPosLen(at, close - at));
+    const za::StringView bodyView(body);
+    for(za::SizeT q = bodyView.find('"'); q != npos; q = bodyView.find('"', q))
+    {
+        const za::SizeT e = bodyView.find('"', q + 1);
+        if(e == npos)
+        {
+            break;
+        }
+        sent.insert(za::String{bodyView.substrByPosLen(q + 1, e - q - 1)});
+        q = e + 1;
+    }
+    const za::String cvars = readText(ctx.tree / "Quake/vr/vr_cvars.inc");
+    int rows = 0, bad = 0;
+    for(const za::StringView line : splitLines(cvars))
+    {
+        // QVR_CVAR(name, "default", flags) // comment
+        if(!startsWith(line, "QVR_CVAR("))
+        {
+            continue;
+        }
+        const za::SizeT comma = line.find(',');
+        const za::SizeT q1 = line.find('"');
+        const za::SizeT q2 = q1 == npos ? npos : line.find('"', q1 + 1);
+        const za::SizeT end = q2 == npos ? npos : line.find(')', q2);
+        if(comma == npos || end == npos)
+        {
+            continue;
+        }
+        const za::String name{trim(line.substrByPosLen(9, comma - 9))};
+        const bool pref = line.substrByPosLen(q2, end - q2).find("QVR_PREF") != npos;
+        rows += pref ? 1 : 0;
+        if(pref && !sent.contains(name))
+        {
+            out.line("check_client_prefs: {} says QVR_PREF in vr_cvars.inc but is not in vr_clientprefs.cpp's prefNames "
+                     "(add it there if the server reads it; else it is QVR_OWN)",
+                name);
+            ++bad;
+        }
+        else if(!pref && sent.contains(name))
+        {
+            out.line("check_client_prefs: {} is in vr_clientprefs.cpp's prefNames but its vr_cvars.inc row does not say "
+                     "QVR_PREF",
+                name);
+            ++bad;
+        }
+    }
+    if(bad)
+    {
+        return 1;
+    }
+    out.line("check_client_prefs: {} QVR_PREF settings, all sent ({} names in prefNames)", rows, sent.size());
+    return 0;
+}
+
 } // namespace qvrc
