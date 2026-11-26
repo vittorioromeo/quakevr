@@ -116,6 +116,15 @@ struct FireRoute
 
 // Whether hand `h` currently holds a weapon in flipped (reverse) grip (flip share >= 0.5).
 [[nodiscard]] bool flippedGrip(int h);
+// Hand `h`'s flip as drawn (0..1, turning over as the flip does; 0 for none or a bot's): the throw's wind-up of a flipped
+// grip goes by it (vr_flat_throw_rev_*, vr_flatgrenade.cpp).
+[[nodiscard]] float flipShare(int h);
+// Hand angles `rot` turned about the fist by `turn` (pitch up, yaw, roll; degrees), yaw and roll times `side` (-1 the left
+// hand): the poses' own turns (vr_flat_melee_2h_pitch .. _roll and the like).
+[[nodiscard]] glm::vec3 turnedHandAngles(const glm::vec3& rot, const glm::vec3& turn, float side);
+// The mouse buttons (1 the left, 2 the right) that are hand `h`'s attack as the hands hold things now (routeFire's routing;
+// none with the holster menu or the wheel open): the throw key's cancel (vr_flatgrenade.cpp).
+[[nodiscard]] int attackButtons(int h);
 
 // A flipped melee pole's (the spear's) thrust from hand `h` as it would go now (flatxhair, his flat notes 2026-11-26 item
 // 9): its tip at the strike's start (`from`) and end (`to`), and the blade's way at the end (`dir`). False for any other
@@ -130,6 +139,11 @@ struct FireRoute
 // The parry's guard (vr_flat_parry_*: the right mouse button held with one melee weapon, meleeIn): its share for hand
 // `h` (0 at rest .. 1 in the guard), eased in and out over vr_flat_parry_in_time / _out_time.
 [[nodiscard]] float parryShare(int h);
+// flatparry2 (his flat note 2026-11-26: a parry in the inverted grip looked awkward): whether the guard asks hand `h`'s
+// flipped grip to be drawn upright now (the button held, or the guard not yet eased out), vr_flat_parry_unflip_time >= 0.
+// The view's gripFlipStep turns the grip back over that time and flips it again once this is false; everything that
+// reads the drawn flip (revGripPose, flippedGrip, the blade's line the game reads) follows it. False outside flatscreen.
+[[nodiscard]] bool parryUnflips(int h);
 
 // The guard's blade grip (vr_flat_parry_blade; his notes 2026-11-23): whether the free hand is asked onto the blade of the
 // weapon hand `holding` holds as a sword (twohand::swordBlade), in the guard. vr_twohand.cpp takes the half-sword grip
@@ -138,8 +152,10 @@ struct FireRoute
 // Its share (0 .. 1, eased over vr_flat_parry_blade_in_time / _out_time): how far the free hand has gone to the blade.
 [[nodiscard]] float bladeShare(int holding);
 // The most the free hand on the blade is ever from the holding hand (units, vr_flat_parry_blade_reach: about shoulder
-// width, the crowbar's hotspot; a long sword's hotspot is brought in to it); 0 no limit.
-[[nodiscard]] float bladeReach();
+// width, the crowbar's hotspot; a long sword's hotspot is brought in to it); 0 no limit. For the weapon hand `holding`
+// holds: vr_flat_parry_shaft_reach where its point is the shaft's share (twohand::swordBlade's fallback, flatparry2: the
+// ogres' hammer and mace near the head).
+[[nodiscard]] float bladeReach(int holding);
 // How far hand `h`'s spear thrust (vr_flat_thrust) has moved it along its pole now (units; negative drawn back), 0 outside
 // one.
 [[nodiscard]] float thrustAlong(int h);

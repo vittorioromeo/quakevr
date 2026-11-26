@@ -1436,6 +1436,47 @@ step: base 0.251/0.772/0.293 and 0.229/0.618/0.308 ms, new 0.229/0.702/0.319 and
 200 explosive boxes (`PB_CRATES=0`) stops in both builds at a QC "Program error" after the collapse (VR_PhysicsFrameEnd
 -> a QC function: unrelated, not looked into); its collapse phase: base 0.335 / 0.288 ms, new 0.270 / 0.289 ms. With crates
 (random, new only): collapse 0.263 ms, toss 0.421 ms.
+
+## b3dtune: the ledge climb's going-in judged from the edge; a fast grab's hold; kdstir's pairing (branch agent/b3dtune, 2026-11-26)
+
+The three cases box3dup3 flipped (Box3D 042be58), each traced (`vr_ragdoll_active_trace`, the climb test's own batched
+runs: a run alone, drawn, plays out differently from the batched headless one, so traces were taken in the batch):
+- **climb pull grunt seed 10** ("slowly in", then down at z 24). Its holds took the lip 5 and 15 units out from the edge
+  (box3dup2: a ledge hold is where the hand was), so the Over phase's "in" (the pelvis from `Climb::lip`, the holds' mean)
+  read 7 units in with the pelvis 3 out over the drop; its legs reached for "the top" in the air and it lay on its thighs
+  across the corner. Its get-up then found no place (`vr_knockdown_debug 2`'s new line: its pelvis 9 under the top, every
+  place inward "a wall between", the floor under it none) and the QC's forced get-up stood it up on the top or, by a hair,
+  out over the drop. Fix (`vr_ragactive_hold.cpp` climbFrame): going in (the `in` point, the chest's and legs' goals, the
+  pelvis's "in" for `inside`, "in on the top" and "slowly in") is measured from `rim`, the lip moved onto the edge's line
+  (`Climb::edge`); the rise (`under`, `over`) and the let-go test unchanged. Now "slowly in" with its pelvis 7 in from the
+  edge, 4 over the top, and it stands on the top. endClimb's line says "in from the edge".
+- **climb pull knight seeds 7, 9, 10** ("lost its hold", the same cause; 9 and 10 failed before box3dup3 too). Falling at
+  3.6 m/s, its left hand grabbed the lip 25 units off (a ledge is grabbed up to an arm off at speed, its hold pulling the
+  hand in) and keepHold's "pulled away" (0.6 of an arm) let it go 0.01 s later; on the right hand alone it was pulled off.
+  Fix (`vr_ragactive.cpp` keepHold, holdOn; `EnvHand::gap`): a ledge hold is pulled away only 0.6 of an arm past the gap it
+  had at the grab, the gap shrinking as the hand comes in. holdOn's debug line prints the hand's gap.
+- **kdstir** (one of six get-ups 0.80 s late stirring): not the stirring. The six knockdowns run one after another, each
+  from where the last get-up left the grunt; the two runs (stirring, not) parted at the 4th (lying 16 units apart; the 6th
+  270), and a fall landing on its other side makes the get-up a roll over, 0.8 s longer, either way (the 6th was 0.8 s
+  sooner stirring). The test's worst-case 0.3 s assumed paired falls: now it is over the knockdowns lying in the same place
+  (their get-up spots within 12 units; 3 or more needed); the mean (0.1 s) still over all six.
+
+Left: hell knight seed 8 ("stuck at the lip": a weak pull, its chest stayed 13 under the top; it failed before box3dup3 as
+"slid back off the lip", not this cause).
+
+| check | box3dup3 (origin/next) | now |
+|---|---|---|
+| climb_test pull, seeds 7-10 (24) | 19/24 (grunt 10; knight 7, 9, 10; hknight 8) | 23/24 (hknight 8) |
+| climb_test drop, hit, off (18) | | 18/18 |
+| kdstir | 4/1 | 5/0 (worst 0.20 s over 4 paired; mean 0.03) |
+| ragdoll_stagger | 2 FAIL (monster 0 backpedal; grunt "its spot taken") | the same 2 |
+| active_test, env_test | no fails | no fails |
+| grab_test | | death 5/5, rag 4/5 ("grab rag enforcer: no grab", its known flake, ROUND23), off 5/5 (shove: INFO) |
+
+Debug aids: `vr_knockdown_debug 2` prints why a get-up found no place on dry ground (its pelvis, the floor under it, the
+places with a wall between, no floor near its own, no room), as it did in a liquid; `vr_debug_ragdoll`'s ledge "holds on"
+line gives the hand's gap. Not checked in the headset (a monster knocked off a ledge pulling itself up: the same look).
+
 ## flatloadbar2: the flat loading panel small and centred over the last screen dimmed (branch agent/flatloadbar2, 2026-11-26)
 
 His words: the flat progress bars "take most of the screen" on "a completely black background"; asked for them much
@@ -1474,6 +1515,79 @@ smaller, centred, over a 50% black so the previous screen (the console) shows un
 
 The menu shortcut bar (the column beside the menu in the headset and the flat VR-style panel, the row of icons in the classic flat menus) now has half a button of vertical gap before its "-" and "+" buttons (column layouts; the column fit counts it) and a third button, RESET, next to them: the shipped menu size (vr_menu_scale / vr_menu_flat_scale / scr_menuscale by the layout shown) and, for the flat panel, the window centre (vr_menu_flat_x/y back to their defaults, so a saved config drops them). The headset menu has no position setting, only its size. One code path for all three layouts (zoomMenu dir 0, the existing vr_menu_zoom reset); the mouse and the laser hit it like -/+ (new mock spots `vr_mock_mouse zoomreset`, `vr_mock_laser zoomreset`). Gamepad focus: the -/+ buttons were never in the gamepad focus order (pointer only), so RESET is too; vr_menu_zoom reset is the console equivalent. Tests: menu_flat_panel_test.py gained resetbtn steps (flat: moved to 0.4/0.45 at 0.6, RESET back to 0.954/0.5/0.499; VR: 0.4 back to 0.25): 28 passed, 3 failed; the same 3 fail with the unmodified test on this build (Quit menu number 20 vs 21, headset Quit dialog, classic scr_menuscale step: unrelated, not looked into). Screenshots scratch/menubar_{classic,flat,vr}.png.
 
+## flatthrow2: flat throw key: cancel with the attack button, no catch by the guiding hand, flipped-grip wind-up tunables (branch agent/flatthrow2, 2026-11-26)
+
+His flat feedback 2026-11-26, items 2, 3, 13.
+- **Cancel (item 3):** while B (vr_flat_key_throw) is held (the tap window, the wind-up, or the quick grenade wound up by
+  B), a fresh press of the throwing hand's own attack button (as the mouse is routed now: `flatplay::attackButtons`, LMB
+  for a lone weapon, LMB/RMB per hand otherwise, the grenade's button for the quick grenade) sends impulse 41 (resent
+  every 8 frames while the server still aims). QC `VR_FlatThrow_Cancel`: the throw phase back to 0, nothing thrown or
+  dropped; a B-wound quick grenade goes back to HELD/ARMED as it was (`vr_flatgren_btn` set so the press neither arms nor
+  winds up). The client swallows that button until it is let go (`flatgrenade::swallowedButtons`, applied in
+  `flatplay::routeFire`), so nothing fires, swings or punches; releasing B afterwards does nothing (the server has no
+  phase). While B is held the throwing hand's fire is now also blocked during the tap window (`flatgrenade::aimsWith`;
+  before, only during the wind-up), so the first frame of the press can't fire. A button already held when B went down
+  does not cancel (edge only). Debug: `vr_flat_grenade_debug 1` prints `flatthrow: the <hand> hand's attack button ...:
+  throw cancelled`, developer 1 `flat throw: cancelled: ...`; `vr_flatgrenade_report` counts cancels. Note: a 2H crate's
+  off hand let go as the wind-up began (`VR_Carry_EndTwoHands`) and stays off after a cancel.
+- **No catch while aiming (item 13):** QC `VR_FlatThrow_Guides(p, hand)`: in flat play, the hand that is not winding up
+  while a throw (B) or the quick grenade winds up. `VR_Grenade_HandCatches` refuses it (covers the palm's sweep
+  `VR_Grenade_CatchCheck` and the touch `VR_Grenade_HandTouch`), and `VR_Carry_Handtouch` doesn't start a carry with it
+  (it nudges). It applies whatever `vr_flat_throw_guide` is (the hand is part of the throw). Catching is unchanged
+  otherwise.
+- **Flipped-grip wind-up (item 2):** new tunables over the wind-up of a weapon with QVR_WPNFLAG_REVGRIP, by the flip's
+  drawn share (`flatplay::flipShare`), applied after the wind-up blend in `flatgrenade::apply`:
+  `vr_flat_throw_rev_fwd/_out/_up` (units along the look / own side / up, ±30) and `vr_flat_throw_rev_pitch/_yaw/_roll`
+  (degrees about the fist, ±180, yaw/roll mirrored for the left hand). All default 0 = the pose as before. Rows in
+  Flatscreen > Throw ("Throw: Flipped Grip ..."). The hand turns, so the thrown weapon's starting angles follow the tuned
+  pose (vr_embed_test 60's "rev throw spear ... matching held inverted angle" check assumes the defaults: 23/1 with
+  rev_up 12 / rev_pitch 60, 24/0 with defaults).
+- **Files:** Quake/vr/vr_flatgrenade.cpp/.hpp, vr_flatplay.cpp/.hpp, vr_client.cpp/.hpp (`client::mainButton`),
+  vr_tunables.inc, vr_tunables_rows.inc; QC/vr_flatgrenade.qc, weapons.qc (impulse 41), vr_grenade.qc, vr_carry.qc,
+  vr_flatitems_test.qc; Misc/quakevr/flatthrow_test.sh, flatthrow_check.py; scenario quakevr/scenarios/flat_throw_cancel.txt.
+- **Tests:** flatthrow_test.sh: new runs `cancel` (nail gun: LMB in the wind-up cancels, no nail, still held, B again
+  throws; quick grenade: cancelled, kept unarmed, phase 2), `cancoff` (a health box in the off hand, RMB cancels), `guide`
+  (`vr_flatitems_test 12`, new: an ogre's grenade set at the guiding off hand's palm, velocity into it, while B winds up
+  the quick grenade and the axe: not stopped or taken; control without B: caught, 6/0); `nofire` changed (the fire button
+  now held from before B through the throw, since a press in the wind-up cancels). flatthrow 48/0, tunables_test 13/0,
+  vr_embed_test 60 24/0.
+## flatparry2
+
+His flat notes 2026-11-26, items 1 and 4-6 (the parry guard's pose).
+
+- **Inverted grip in the guard** (item 1): while the flat guard is asked for or not yet eased out
+  (`flatplay::parryUnflips`), the view's `gripFlipStep` (vr_view_weapon.cpp) draws a flipped grip upright over
+  `vr_flat_parry_unflip_time` (0.1 s; negative keeps the flipped grip) and flips it back over the same time once the guard
+  is down (the button's let-go starts it). Only the drawn flip changes, not QVR_WPNFLAG_REVGRIP, so everything that reads
+  the drawn flip follows it: revGripPose, flippedGrip, the 2H stance gate, the blade line the game parries with. Every
+  weapon with a flipped grip (swords, the dagger, the spear) takes the same path. vr_flatplay_debug prints
+  "flatparry: ... grip upright, N s" and "... flipped again, N s"; vr_flatplay_status prints "parry flip:".
+- **Free hand near the tip** (items 4-6): the guard's blade grip (vr_flat_parry_blade) needs `twohand::swordBlade`, which
+  needed a Two-Handed: Sword weapon with a Blade hotspot (type 2) at a share > 0. Audit of weapons.txt:
+
+  | weapon (slot, wofs NN) | 2h_mode | hotspots | guard before | now |
+  |---|---|---|---|---|
+  | judicator's sword `w_judgesword` (49, 50) | sword | hs1 Grip at -5.71 0.20 -8.12 (the death knight's sword's hs1 copied: slots 41/43/47 the same); hs2 Blade at share **0** (his, wofs v57) | no blade grip: both hands on the handle | shaft fallback |
+  | hunter ogre's hammer `w_ogreham` (44, 45) | sword | hs1 Grip only | both on the handle | shaft fallback |
+  | hunter ogre's mace `w_ogremac` (45, 46) | sword | hs1 Grip only | both on the handle | shaft fallback |
+  | death fury's sword `w_dfurysword1` (40, 41) | sword | hs1 Grip only (hs2 off, his) | both on the handle | shaft fallback |
+  | flail `w_blueflail` (50, 51) | sword | hs1 Grip (the mace's copied) | both on the handle | shaft fallback (untested) |
+
+  Fallback: a Two-Handed: Sword weapon with no usable Blade hotspot answers `vr_flat_parry_shaft_at` (0.8 of the way from
+  the hand to the tip/head) and its point is held within `vr_flat_parry_shaft_reach` (22 u) of the holding hand (the
+  blade's own reach stays vr_flat_parry_blade_reach 14). A Blade hotspot he sets up (share > 0) replaces the fallback at
+  once (and its reach is the blade's 14). Hotspot-mode melee weapons (the axe, Mjolnir: 2h_mode 1) are unchanged (no
+  blade grip). A "grab"/Grip hotspot near the tip is not read (a Grip on a sword-mode weapon is the foregrip below the
+  hand; its line runs the other way), so for the curved fury sword the way is a Blade hotspot (flat pins one point at its
+  share; in a headset the half-sword grip runs along the straight hand-to-tip line).
+- Test aids: `vr_ad_test 171..174` (fury, judicator, hammer, mace alone in the main hand; Debug menu "... Alone in Hand"),
+  scene `flat_parry_ad`.
+- Tests: `Misc/quakevr/flatparry2_test.sh` (AD mounted): flip runs (knight's sword, judicator) flip 1.00 -> 0.00 in
+  0.097 s -> 1.00 in 0.097 s, the probe parried; per weapon the free hand posed 0 u and drawn 1.3-2.1 u off the point;
+  point / tip from the holding hand: sword 14/27.9, fury 22/33.5, judicator 22/48.3, hammer 22/31.7 (9.7 from the head),
+  mace 22/27.8 (5.8): 33 passed, 0 failed. Screenshots scratch/fp2_<weapon>.png. flatparry 43/0, flatmelee4 9/0;
+  flatbash 17/3 (sword "took the blade" line: the 2H stance's foregrip was already held so the switch to the blade prints
+  nothing; a 165-degree frame turn; the axe's bash missed the grunt; none touch the paths changed here).
 ## flatmelee6: V's two-fisted overhead blow with both hands empty (branch agent/flatmelee6, 2026-11-26)
 
 His item 11 (flat feedback 2026-11-26): "If both hands are empty, the quick melee button should perform a simultaneous
@@ -1537,3 +1651,10 @@ His flat notes 2026-11-26, items 9 and 10.
   less). flatmelee4 9/0, tunables_test 13/0. Pre-existing on origin/next (same with my engine files reverted, merge base
   3836fa187^2): `flatxhair_test.sh` 28/3 (its `flush` case: wall share 0.0 at the first probe) and `flatthrust_test.sh`
   6/2 (the Lance run 0/5, flatmelee5's "rev thrust sword embeds" 23/1), likely the promoted pole/revgrip tunables.
+## questname
+
+The Quest app is now "Quake VR: Unleashed" (the PC's casing: quakedef.h title, QuakeVR.rc, the installer). Changed:
+`Android/app/src/main/AndroidManifest.xml` (application and activity `android:label`), `Android/check_apk.sh` (new
+check: aapt2 badging label), the installer's Quest texts (`QuestInstaller.cs` done and uninstall hints), `docs/INSTALL.md`,
+`ANDROID_RELEASE.md`, `RELEASE_NOTES_1.2.md`. Package id unchanged. PC title, exe description and shortcuts already used
+the name. APK rebuilt with package_apk.sh: badging says label 'Quake VR: Unleashed'; check_apk 21/0.

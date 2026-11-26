@@ -841,6 +841,9 @@ struct GripFlip
     double changed{-1.0};           // when that weapon came into the hand
     double last{-1.0};
     float flip{0.f};                // 0 normal .. 1 reversed (eased as drawn: reverseTurn)
+    bool parried{false};            // flatparry2: turned upright by the flat guard (flatplay::parryUnflips), until flipped back
+    bool unflipWas{false};          // (the guard's ask last frame)
+    double parriedAt{-1.0};         // (vr_flatplay_debug: when that turn, or the turn back, began)
 };
 GripFlip gripFlips[2];
 
@@ -850,23 +853,49 @@ void gripFlipStep(int hand, const qmodel_t* model, int slot)
     const float dt = g.last >= 0.0 ? static_cast<float>(za::clamp(vr_gametime - g.last, 0.0, 0.1)) : 0.f;
     g.last = vr_gametime;
     const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
-    const float target = reverseGripAllowed(slot) && (flags & weaponFlagRevGrip) ? 1.f : 0.f;
+    const bool reversed = reverseGripAllowed(slot) && (flags & weaponFlagRevGrip);
+    // (flatparry2, his flat note 2026-11-26: the flat guard draws a flipped grip upright, quickly but smoothly, and flips it
+    // back once the guard is down: vr_flat_parry_unflip_time, flatplay::parryUnflips.)
+    const bool unflip = reversed && flatplay::parryUnflips(hand);
+    const float target = reversed && !unflip ? 1.f : 0.f;
     reverseLearn(model, slot);
     if(model != g.model)
     {
         g.model = model;
         g.changed = vr_gametime;
+        g.parried = false;
     }
+    if(unflip != g.unflipWas && (unflip || (reversed && g.parried)))
+    {
+        g.parriedAt = vr_gametime;
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatparry: %s hand's flipped grip %s (flip %.2f)\n", hand == HAND_MAIN ? "main" : "off",
+                unflip ? "turns upright for the guard" : "flips back after the guard", g.flip);
+        }
+    }
+    g.unflipWas = unflip;
+    g.parried = unflip || (g.parried && reversed && g.flip < target);
     // A weapon new in the hand (a catch, a draw from the holster): as the server says, at once (its flags may come a frame after
-    // its model); the same weapon's grip flipped (the eject button): turned over vr_revgrip_flip_time.
-    const float time = vr_revgrip_flip_time.value;
+    // its model); the same weapon's grip flipped (the eject button): turned over vr_revgrip_flip_time; the guard's turn and
+    // the turn back after it over vr_flat_parry_unflip_time.
+    const bool byGuard = g.parried;
+    const float time = byGuard ? za::clamp(vr_flat_parry_unflip_time.value, 0.f, 1.f) : vr_revgrip_flip_time.value;
+    const float was = g.flip;
     if(vr_gametime - g.changed < 0.15 || time <= 0.f)
     {
         g.flip = target;
-        return;
     }
-    const float step = dt / time;
-    g.flip = g.flip < target ? za::min(g.flip + step, target) : za::max(g.flip - step, target);
+    else
+    {
+        const float step = dt / time;
+        g.flip = g.flip < target ? za::min(g.flip + step, target) : za::max(g.flip - step, target);
+    }
+    if(vr_flatplay_debug.value && byGuard && was != target && g.flip == target)
+    {
+        Con_Printf("flatparry: %s hand's grip %s, %.3f s after the guard's turn began\n", hand == HAND_MAIN ? "main" : "off",
+            target > 0.5f ? "flipped again" : "upright", vr_gametime - g.parriedAt);
+    }
 }
 } // namespace
 

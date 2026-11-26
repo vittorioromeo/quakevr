@@ -223,6 +223,7 @@ struct EnvHand
     float cap{0.f};        // N: its most
     double overSince{-1.0}; // its load at the cap since (slipping)
     float slid{0.f};       // metres the hold slid down
+    float gap{0.f};        // metres: a Ledge's hand from its hold at the grab, the least since (its hold pulls it in)
     bool struck{false};    // hit since the last frame (struck())
     // A Grab's: its point on the other's body (that body's space, metres), its entity.
     glm::vec3 local{0.f};

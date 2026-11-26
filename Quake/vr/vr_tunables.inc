@@ -2043,6 +2043,14 @@ QVR_TUNABLE(vr_flat_throw_wind_up, "0.6") // above the shoulder
 QVR_TUNABLE(vr_flat_throw_wind_pitch, "-40") // the hand's pitch there against the look's (negative: tipped back)
 QVR_TUNABLE(vr_flat_throw_wind_yaw, "0") // its yaw against the look's (positive: the fingers turned out to its side)
 QVR_TUNABLE(vr_flat_throw_wind_roll, "0") // its roll (mirrored for the left hand)
+// The wind-up of a weapon held with its grip flipped (QVR_WPNFLAG_REVGRIP; flatthrow2, his words 2026-11-26: "the about to throw
+// pose for an Inverted grip needs tuning"): over the wind-up above, by the flip's drawn share; 0 all: the pose as it was.
+QVR_TUNABLE(vr_flat_throw_rev_fwd, "0") // the hand (and its weapon) this far further ahead along the look (units; negative back)
+QVR_TUNABLE(vr_flat_throw_rev_out, "0") // and out at its own side (units; negative in)
+QVR_TUNABLE(vr_flat_throw_rev_up, "0") // and up (units; negative down)
+QVR_TUNABLE(vr_flat_throw_rev_pitch, "0") // turned about the fist: the weapon's far end up (degrees; negative down)
+QVR_TUNABLE(vr_flat_throw_rev_yaw, "0") // and out to its own side (degrees; negative in; mirrored for the left hand)
+QVR_TUNABLE(vr_flat_throw_rev_roll, "0") // and rolled (degrees; mirrored for the left hand)
 QVR_TUNABLE(vr_flat_throw_guide, "1") // 1: the other hand, if free, guides the throw (forward, its palm away, fingers open) while the throwing hand winds up
 QVR_TUNABLE(vr_flat_throw_guide_fwd, "0.6") // the guiding hand's place: forward along the look, a share of the arm's reach
 QVR_TUNABLE(vr_flat_throw_guide_out, "0") // out at its side (negative: towards the middle)
@@ -2260,6 +2268,9 @@ QVR_TUNABLE(vr_flat_parry_yaw, "0") // and this far forward of straight across t
 QVR_TUNABLE(vr_flat_parry_roll, "-5") // and the weapon rolled this far about its own line (degrees; its edge from forward towards up)
 QVR_TUNABLE(vr_flat_parry_in_time, "0.05") // seconds into the guard from the hold (0: at once)
 QVR_TUNABLE(vr_flat_parry_out_time, "0.1") // seconds back to the hold when the button is let go (0: at once)
+QVR_TUNABLE(vr_flat_parry_unflip_time, "0.1") // flatparry2: a flipped (inverted) grip turns back to the normal grip over this long as the guard is raised, and flips again over as long once the guard is down (vr_view_weapon.cpp gripFlipStep; 0: at once; negative: the guard keeps the flipped grip)
+QVR_TUNABLE(vr_flat_parry_shaft_at, "0.8") // flatparry2: in the guard, a sword-mode melee weapon with no Blade hotspot of its own (the ogres' hammer and mace, the fury's sword; a Blade hotspot at share 0 counts as none) has the free hand on its shaft or blade this share of the way from the hand to the tip/head, as a Blade hotspot there would (then held within vr_flat_parry_shaft_reach); 0: none, the hand stays
+QVR_TUNABLE(vr_flat_parry_shaft_reach, "22") // flatparry2: vr_flat_parry_blade_reach for that shaft point: the free hand at most this far from the holding hand (units; longer than the blade's 14 so a hammer's or mace's hand sits near the head; 0 no limit)
 QVR_TUNABLE(vr_flat_parry_cone, "120") // flatscreen: in the guard, any melee blow from within this many degrees of where you look (all of the cone, centred on the view) is parried, whatever its way (QC VR_Parry_FlatGuard; the headset keeps the directional parry); 0: the headset's rules
 
 // Flatscreen > Guard Bash and Blade Grip (his notes 2026-11-23: the fire button in the guard bashes, as the headset's bash;
