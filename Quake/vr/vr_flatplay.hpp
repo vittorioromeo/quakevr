@@ -117,6 +117,16 @@ struct FireRoute
 // Whether hand `h` currently holds a weapon in flipped (reverse) grip (flip share >= 0.5).
 [[nodiscard]] bool flippedGrip(int h);
 
+// A flipped melee pole's (the spear's) thrust from hand `h` as it would go now (flatxhair, his flat notes 2026-11-26 item
+// 9): its tip at the strike's start (`from`) and end (`to`), and the blade's way at the end (`dir`). False for any other
+// hold (its shot's line is its thrust's: the upright pole aimed at the crosshair's point by flatsight).
+[[nodiscard]] bool thrustPath(int h, glm::vec3& from, glm::vec3& to, glm::vec3& dir);
+
+// Hand `h`'s last melee blow (the fist's punch, a weapon's overhead swing or a thrust): seconds since its strike began
+// (negative in its windup), the blows it has begun (a new one: a new count) and its weapon's weight (kg; 0 a fist or a
+// prop, -1 a weapon whose data gives none). False with none yet (flatxhair's melee bloom, his flat notes 2026-11-26 item 10).
+[[nodiscard]] bool lastStrike(int h, float& since, int& count, float& mass);
+
 // The parry's guard (vr_flat_parry_*: the right mouse button held with one melee weapon, meleeIn): its share for hand
 // `h` (0 at rest .. 1 in the guard), eased in and out over vr_flat_parry_in_time / _out_time.
 [[nodiscard]] float parryShare(int h);
