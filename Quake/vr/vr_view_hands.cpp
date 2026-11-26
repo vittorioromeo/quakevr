@@ -530,14 +530,15 @@ struct EmbedJitter
 };
 EmbedJitter embedJitter; // (vr_embed_probe "reset" starts it: embedProbeWrite)
 
-void poleShaftGrip(int hand, bool mirrored, const glm::vec3& on, const glm::vec3& axis, float k, glm::vec3& pos, glm::vec3& handRot)
+void poleShaftGrip(int hand, bool mirrored, const glm::vec3& on, const glm::vec3& axis, float k, glm::vec3& pos, glm::vec3& handRot,
+    float halfLength = -1.f)
 {
     if(k <= 0.f || glm::length(axis) < 1e-3f)
     {
         return;
     }
     glm::vec3 at = pos, onTurn = handRot;
-    alignChannel(hand, mirrored, on, axis, at, onTurn);
+    alignChannel(hand, mirrored, on, axis, at, onTurn, false, halfLength);
     k = za::min(k, 1.f);
     pos = glm::mix(pos, at, k);
     handRot = basisAngles(glm::mat3_cast(glm::slerp(glm::quat_cast(anglesBasis(handRot)), glm::quat_cast(anglesBasis(onTurn)), k)));
@@ -2985,8 +2986,8 @@ void embedSmoothStep()
     int ents[2]{0, 0};
     for(int h = 0; h < 2; h++)
     {
-        const int stat = axestick::heldStat(h);
-        const int ent = stat > 0 ? embedStatEnt(stat) : 0;
+        // (Only in a ragdoll: a standing body's blade moves as smoothly as he does, and the flat arm's reach reads the blade as drawn.)
+        const int ent = axestick::heldInRagdoll(h) ? axestick::heldEnt(h) : 0;
         ents[h] = ent > 0 && ent < cl.num_entities && cl_entities[ent].model && (h == 0 || ent != ents[0]) ? ent : 0;
     }
     for(int h = 0; h < 2; h++)
@@ -4140,13 +4141,38 @@ void setupHand(const hands::State& s, int hand)
     {
         const entity_t& e = cl_entities[pin.ent];
         const int poleSlot = weapons::slotForModel(e.model);
-        glm::vec3 axis, pivot;
-        if(poleSlot >= 0 && twohand::poleWeapon(poleSlot) && handleLine(poleSlot, axis, pivot))
+        glm::vec3 muzzle, butt, second;
+        int secondType = 0;
+        if(poleSlot >= 0 && twohand::poleWeapon(poleSlot) && view::weaponLocalGeometry(e.model, muzzle, butt, second, secondType))
         {
-            const glm::mat3 turn = entityTurn(e);
+            // (Its way the butt-to-tip line's, through the grip hotspot it holds: the hotspot is on the shaft as drawn. The model's
+            // butt-to-tip points themselves, so placed, were measured 13 to 21 units off the drawn hand on the spear's grip.)
+            const glm::mat4 frame = hotspotFrame(e, false);
+            const glm::vec3 dir = glm::mat3{frame} * (muzzle - butt);
+            const glm::vec3 on = pin.spot >= 0 ? glm::vec3{frame * glm::vec4{weapons::hotspot(poleSlot, pin.spot).pos, 1.f}} : pos;
             const float w = pin.weight * pin.weight * (3.f - 2.f * pin.weight);
             const float snap = flatplay::active() ? za::clamp(vr_flat_pole_off_snap.value, 0.f, 1.f) : 1.f;
-            poleShaftGrip(hand, mirrored, glm::vec3{e.origin[0], e.origin[1], e.origin[2]} + turn * pivot, turn * axis, snap * w, pos, handRot);
+            const glm::vec3 was = pos;
+            poleShaftGrip(hand, mirrored, on, dir, snap * w, pos, handRot, pin.spot >= 0 ? 0.f : -1.f);
+            // (Flat play: a grip past the arm's reach, the hand slid down the shaft towards the shoulder until it reaches, on the
+            // shaft all the way: keepOnArm between it and the same hand moved along the shaft to its point nearest the shoulder.
+            // Before, the hand was drawn back off the hotspot towards its own place, short of the spear, in the air.)
+            glm::vec3 shoulder{0.f};
+            float most = 0.f;
+            if(const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+                flatplay::active() && glm::length(dir) > 1e-3f && avatar::embedReachNow(hand, eye, shoulder, most))
+            {
+                const glm::vec3 n = glm::normalize(dir);
+                keepOnArm(hand, pos + n * glm::dot(shoulder - on, n), pos, controllerRot);
+                // (No point of the shaft in reach -- the pole far out on the other hand's side --: as near it as the arm reaches,
+                // from where embedDrawnHand kept it on its arm.)
+                keepOnArm(hand, was, pos, controllerRot);
+            }
+            if(vr_debug_axestick.value >= 3)
+            {
+                Con_Printf("embedpin: hand %d on the shaft of %d: moved %.1f units (spot %d %.1f units from the controller)\n", hand, pin.ent,
+                    glm::distance(was, pos), pin.spot, glm::distance(was, on));
+            }
         }
     }
 
