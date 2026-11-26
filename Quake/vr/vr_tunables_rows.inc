@@ -2826,3 +2826,10 @@ QVR_TUNABLE_SLIDER(vr_hit_player_fatten, "Body Hit Fattening", 0.0f, 12.0f, 0.5f
 QVR_TUNABLE_CYCLE(vr_monster_lean, "Monsters See Leaning", "Monsters see and shoot at the parts of your body that show when you lean out from cover (head, shoulders, hands), less accurately than at you in the open; off, they see only your eyes' point (vr_monster_lean).", {0.0f, "Off"}, {1.0f, "On"})
 QVR_TUNABLE_SLIDER(vr_monster_lean_spread, "Lean Spread", 0.0f, 0.5f, 0.01f, "%.2f", 0.0f, 1.0f, "Monsters' extra spread at you leaning out from cover (half of it with your whole body showing past the edge, all of it with little showing): more is fewer hits while leaning (vr_monster_lean_spread).")
 QVR_TUNABLE_SLIDER(vr_monster_lean_react, "Lean Reaction", 0.0f, 2.0f, 0.1f, "%.1f s", 0.0f, 5.0f, "Seconds before a monster sees and shoots at you when you lean out from cover (vr_monster_lean_react).")
+
+QVR_TUNABLE_GROUP("Flatscreen > Crosshair")
+QVR_TUNABLE_CYCLE(vr_flat_xhair_thrust_path, "Flipped Spear Crosshair", "Flatscreen: with a spear held in a flipped grip, the visor crosshair shows where its thrust's tip goes (vr_flat_xhair_thrust_path).", {0.0f, "Shot Line"}, {1.0f, "Thrust Path"})
+QVR_TUNABLE_SLIDER(vr_flat_xhair_melee_kick, "Melee Crosshair Kick", 0.0f, 32.0f, 0.5f, "%.1f px", 0.0f, 64.0f, "Flatscreen: a melee blow pushes the visor crosshair's lines out this far as it strikes, like a shot's recoil (pixels at 1080p; vr_flat_xhair_melee_kick).")
+QVR_TUNABLE_SLIDER(vr_flat_xhair_melee_mass, "Melee Kick Weight", 0.5f, 10.0f, 0.5f, "%.1f kg", 0.1f, 30.0f, "Flatscreen: the weapon weight that kick is for; heavier weapons kick more, lighter ones less (vr_flat_xhair_melee_mass).")
+QVR_TUNABLE_SLIDER(vr_flat_xhair_melee_fist, "Fist Kick Share", 0.0f, 2.0f, 0.05f, "%.2f", 0.0f, 4.0f, "Flatscreen: a bare fist's or a held prop's blow kicks the crosshair this share of it (vr_flat_xhair_melee_fist).")
+QVR_TUNABLE_SLIDER(vr_flat_xhair_melee_decay, "Melee Kick Decay", 0.02f, 1.0f, 0.01f, "%.2f s", 0.01f, 2.0f, "Flatscreen: the melee kick eases back over this (seconds; vr_flat_xhair_melee_decay).")

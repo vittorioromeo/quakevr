@@ -12,7 +12,7 @@ source "$(dirname "$0")/qvrtest.sh"
 run()
 {
     bash $KIT/run.sh $AGENT -Clean -ExtraArgs "-flatscreenmode -loopbackonly" -Timeout 300 \
-        -Script "map vrtesthall; god; notarget; wait5; setpos 0 300 25 0 90 0; wait5; vr_flat_embed_arm $1; vr_embed_test 64" \
+        -Script "map vrtesthall; god; notarget; wait5; setpos 0 300 25 0 90 0; wait5; vr_flat_1h_axe 0; vr_flat_embed_arm $1; vr_embed_test 64" \
         -QuitOn "^flatembedwalk: [0-9]+ passed" -Filter "^(flatembedwalk: [0-9]+ passed|flatembedwalk: FAIL|flatembedwalk: .*: walked|exit=)" 2>&1
 }
 

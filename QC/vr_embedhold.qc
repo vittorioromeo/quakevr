@@ -959,10 +959,15 @@ void(entity e, entity p) VR_Embed_FlatArmGaps =
 };
 
 // Whether the embedded blade `e` can be held two-handed in flatscreen (all 2H-capable blades: swords, axes, spears,
-// Crystal Lance, Superaxe, Mjolnir; not the 1H-only dagger or any 2H-forbidden weapon).
+// Crystal Lance, Superaxe, Mjolnir; not the 1H-only dagger or any 2H-forbidden weapon). flatgrip3 (his flat item 7): the dagger
+// by vr_flat_1h_dagger, the axes (the axe, AD's Shadow Axe, the super axe) by vr_flat_1h_axe, both on by default.
 float(entity e) VR_Embed_CanTwoHand =
 {
-    if(e.weapon == WID_SWORD && VR_ADMelee_Kind(e.weaponflags) == VR_SWORDKIND_DAGGER)
+    if(e.weapon == WID_SWORD && VR_ADMelee_Kind(e.weaponflags) == VR_SWORDKIND_DAGGER && cvar_hget(cvarh_vr_flat_1h_dagger) != 0)
+    {
+        return FALSE;
+    }
+    if((e.weapon == WID_AXE || e.weapon == WID_SUPERAXE) && cvar_hget(cvarh_vr_flat_1h_axe) != 0)
     {
         return FALSE;
     }
