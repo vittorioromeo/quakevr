@@ -4576,6 +4576,10 @@ void() VR_Embed_TestFrame =
         {
             VR_FW_Begin(); // (flat: walking away from a stuck blade: vr_flatembedwalk_test.qc)
         }
+        if(ask == 71 || ask == 72)
+        {
+            VR_PE_Begin(ask); // (flat: the pole's other hand in four states; a held blade's ragdoll smoothing: vr_poleembed_test.qc)
+        }
         if(ask == 42)
         {
             vr_rg_scene = FALSE;
@@ -4844,6 +4848,14 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     else if(vr_et_on == 64)
     {
         VR_FW_Frame(); // (flat: walking away from a stuck blade: vr_flatembedwalk_test.qc)
+    }
+    else if(vr_et_on == 71)
+    {
+        VR_PE_PoleFrame(); // (flat: the pole's other hand in four states: vr_poleembed_test.qc)
+    }
+    else if(vr_et_on == 72)
+    {
+        VR_PE_JitterFrame(); // (flat: a held blade's ragdoll smoothing: vr_poleembed_test.qc)
     }
     else if(vr_et_on == 42)
     {

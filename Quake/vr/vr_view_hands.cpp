@@ -542,9 +542,19 @@ void poleShaftGrip(int hand, bool mirrored, const glm::vec3& on, const glm::vec3
     k = za::min(k, 1.f);
     pos = glm::mix(pos, at, k);
     handRot = basisAngles(glm::mat3_cast(glm::slerp(glm::quat_cast(anglesBasis(handRot)), glm::quat_cast(anglesBasis(onTurn)), k)));
+}
+
+void embedProbeWrite(); // (below)
+
+// The probe of a hand drawn wholly on a pole's shaft (flatembed4: after everything that places it there -- poleShaftGrip, its
+// pitch about the shaft, an embedded grip's slide along it to the arm's reach): how far its grip channel is off the shaft's line
+// through `on` along `axis`, and how turned.
+void poleProbeNote(int hand, bool mirrored, const glm::vec3& on, const glm::vec3& axis, const glm::vec3& pos, const glm::vec3& handRot)
+{
     glm::vec3 cp, cd;
     float radius;
-    if(k < 0.999f || !handrig::usable(viewModel(handrig::modelName())) || !grasp::gripChannel(rigHands[hand].pose, cp, cd, radius))
+    if(!vr_embed_probe.string[0] || glm::length(axis) < 1e-3f || !handrig::usable(viewModel(handrig::modelName())) ||
+        !grasp::gripChannel(rigHands[hand].pose, cp, cd, radius))
     {
         return;
     }
@@ -556,6 +566,7 @@ void poleShaftGrip(int hand, bool mirrored, const glm::vec3& on, const glm::vec3
     poleProbe.dist = za::max(poleProbe.dist, glm::length(off) / units::metresToUnits() * 100.f);
     poleProbe.turn = za::max(poleProbe.turn, glm::degrees(za::acos(za::min(1.f, za::fabs(glm::dot(d, a))))));
     poleProbe.on++;
+    embedProbeWrite();
 }
 
 // A hand closed round a pole's shaft (poleShaftGrip) turned by `pitch` degrees of its own pitch about the shaft itself
@@ -3299,7 +3310,9 @@ void embedGripProbe(int hand, bool armed, int slot, const glm::vec3& pos, const 
         return;
     }
     const EmbedPin& pin = embedPins[hand];
-    if(!armed && (!pin.on || !pin.byHandle || pin.weight < 1.f))
+    // (flatembed4: nor a hand flat play holds back on its arm, short of the handle (pin.lead): that is the arm's reach, not the hand
+    // slipping on the blade as drawn.)
+    if(!armed && (!pin.on || !pin.byHandle || pin.weight < 1.f || glm::length(pin.lead) > 0.01f))
     {
         return;
     }
@@ -4161,6 +4174,10 @@ void setupHand(const hands::State& s, int hand)
         {
             poleShaftGrip(hand, mirrored, m.pos, m.muzzle - m.pos, shaftK, pos, handRot);
             turnAboutShaft(m.pos, m.muzzle - m.pos, shaftPitch, pos, handRot);
+            if(shaftK >= 0.999f)
+            {
+                poleProbeNote(hand, mirrored, m.pos, m.muzzle - m.pos, pos, handRot);
+            }
         }
     }
 
@@ -4195,8 +4212,17 @@ void setupHand(const hands::State& s, int hand)
                 const glm::vec3 n = glm::normalize(dir);
                 keepOnArm(hand, pos + n * glm::dot(shoulder - on, n), pos, controllerRot);
                 // (No point of the shaft in reach -- the pole far out on the other hand's side --: as near it as the arm reaches,
-                // from where embedDrawnHand kept it on its arm.)
-                keepOnArm(hand, was, pos, controllerRot);
+                // pulled from the shaft's nearest point straight towards the shoulder. flatembed4: before, it went back to where
+                // embedDrawnHand kept it on its arm, which out of reach itself was its own place, the spear's stuck shaft 38 cm away.)
+                const glm::vec3 wristOff = wristOffsetFor(hand, controllerRot);
+                if(const float d = glm::distance(pos + wristOff, shoulder); d > most && d > 1e-3f)
+                {
+                    pos = shoulder + (pos + wristOff - shoulder) * (most / d) - wristOff;
+                }
+            }
+            if(snap * w >= 0.999f)
+            {
+                poleProbeNote(hand, mirrored, on, dir, pos, handRot);
             }
             if(vr_debug_axestick.value >= 3)
             {
