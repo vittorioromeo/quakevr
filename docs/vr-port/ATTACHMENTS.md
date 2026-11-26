@@ -4,6 +4,55 @@ Models drawn on a weapon, in the weapon model's own space (+x forward, +y left, 
 a mount: a position, angles (pitch, yaw, roll in degrees, Quake's order) and a scale. The attachment system itself is
 agent/attach1's (posebake); this file holds the attachments' models and their measured mounts.
 
+## The system (agent/attach1, 2026-11-26)
+
+- **Kinds are data.** `Quake/vr/vr_attach.cpp` `kinds[]`: id, name, model, its tip and its blade's start in its own model
+  space (1 the bayonet). QC `vr_attach.qc`: the prop class of each kind (`VR_Attach_PropKind`: `vr_bayonet`) and what it
+  adds to a weapon. A new kind: a row in `kinds[]` and `mountKeys[]`, its `attN_*` keys in `vr_weapons.inc` and the
+  weapons.txt defaults, its prop, and its effect in QC.
+- **Which weapons take it, and where: per weapon in the Weapon Offsets data** (`att1_ok`, `att1_x/y/z`, `att1_pitch/yaw/roll`,
+  `att1_scale`: the mount table above, weapons.txt slots 1 and 2), edited in **Weapon Offsets > Attachments** (the
+  attachment drawn on the held weapon while the page is open, whether it has one or not: `menu::attachPreview`).
+- **Part of the weapon's state.** The weapon's record (`vr_weaponinst.qc`) holds it: `.wi_attach`. Hands, holsters, props
+  (dropped, thrown, stuck), the quick slot's copy refer to the record, so it goes everywhere the weapon goes with no code
+  per path; saves keep the field; a level change carries it in **parm77** (3 bits per carried weapon; the engine's
+  `lastExtSpawnParm` 77).
+- **Network (QVR_NET_VERSION 48).** `QVR_SVC_WEAPONATTACH` (58): [long weapon id][byte kind], reliable, sent when a record's
+  kind changes (`attach::serverFrame`) and all of them with the spawn state; the client keeps id -> kind
+  (`attach::kindOfUid`; `QVR_SVC_WEAPONGONE` forgets it). Your hands and holsters (their id stats) and every lying gun
+  (`U_QVR_WEAPONUID`) are drawn from it. Another player's guns: one byte more in each `VrGunLook` (held) and per holstered
+  gun of the avatar (snapshots and avatars share the writer).
+- **Drawing: one function** `view::placeAttachment(out, gun, kind, ssgHand)` for every state: your hands' guns (VR and flat
+  play: the same entities), your holsters', the lying guns' (`worldWeaponsNear`), another player's (`drawGunParts`: held
+  and holstered). Rigid in the gun's model space (its place, turn, Scale, mirroring), moved with the gun's firing frames
+  by its muzzle anchor (drawn now against frame 0), and under your own super shotgun's barrels as they drop open
+  (`ssgBarrelsCarry`).
+- **Physics and blows.** With a bayonet the gun strikes as a blade (`VR_Melee_Thing`: the sword's kind; `VR_Melee_Line`: the
+  line from the hand to the bayonet's tip, the blade from where its blade starts), sticks by its point
+  (`VR_Attach_Embed` wherever weapons.txt `embed` was read; the engine's `vr_axestick.cpp attachBlade`: the point's tip is
+  the bayonet's) and fires while stuck (`VR_Attach_EmbedFire`: embedfire's prop path). Flat play: V thrusts with it
+  (`thrustsWith`). The gun's own Box3D body does not include the bayonet yet.
+- **Putting it on / taking it off.** VR: hold the bayonet, bring its socket (its model origin) within
+  `vr_attach_snap_radius` (5) of the gun's mount, pointing within `vr_attach_snap_angle` (50 deg) of the gun's way: it
+  snaps on (`VR_Attach_Frame`). The empty hand's grip pressed within `vr_attach_pull_radius` (6) of the mount pulls it
+  off into that hand. Flat play: the Attach key (`vr_flat_key_attach`, J; impulse 52, any mode) puts the bayonet the
+  other hand holds on, or takes it off into the empty other hand. Server-side points: `attachinfo(model, kind, what)`
+  (the mount and the tip from the muzzle in the gun's axes) along the hand's axes from its muzzle.
+
+### Ideas (his and ours)
+
+His: scopes (a zoomed view through the lens: a second view or a render-to-texture on the lens), an under-barrel grenade
+launcher (the gun's alt trigger or the off hand's trigger on its grip fires the grenade launcher's grenade; its own
+ammunition), an under-barrel flamethrower (the AD flamethrower's stream from under the barrel), an igniter under the
+nailgun and super nailgun (every nail a lava nail: the Dawn of the Machine / Scourge lava nails), lenses for the lightning
+gun that split the beam (two or three weaker beams fanned out) or focus it (a longer, narrower, harder-hitting beam).
+Ours: a laser sight (a dot where the shots go; a flat-play aim aid), a flashlight mount (the existing flashlight clipped
+as an attachment kind, one path for both), a suppressor (quieter shots: the stealth AI hears less), a foregrip (a 2H hotspot
+the attachment adds: steadier aim), an extended magazine / shell holder on the stock (more rounds, slower to load), a
+choke for the shotguns (tighter spread), a bayonet for the nailguns and the Burst Rifle, a spike or a hatchet on the
+grenade launcher, a grappling hook under the barrel, attachments as loot (found in secret areas, dropped by armed grunts
+whose guns carry them, the Survival Arena's supplies), and armed grunts with bayonets (a grunt's bayonet charge).
+
 ## The bayonet
 
 `quakevr/progs/bayonet.mdl`, made by `Misc/quakevr/make_bayonet.py` (an original design, scripted: rerun it to rebuild

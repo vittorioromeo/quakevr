@@ -1,6 +1,7 @@
 // vr_wounds.cpp -- see vr_wounds.hpp.
 
 #include "vr_random.hpp"
+#include "vr_attach.hpp"
 #include "vr_drips.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_trace.hpp"
@@ -3416,6 +3417,7 @@ void parseWeaponGone()
 {
     Event ev;
     ev.num = MSG_ReadLong();
+    attach::forgetUid(ev.num); // (its attachment too: vr_attach.cpp)
     ev.kind = KindWeaponGone;
     if(vr_wounds_debug.value >= 2)
     {

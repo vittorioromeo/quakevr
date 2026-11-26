@@ -1744,7 +1744,7 @@ float vr_throw_bladein_count; // (how many blows so far counted blade first: the
 // too far); any other 1.
 float(entity inflictor) VR_KillPush_Mult =
 {
-    if(inflictor.classname == "thrown_weapon" && weaponvalue(inflictor.model, "embed") > 0)
+    if(inflictor.classname == "thrown_weapon" && VR_Attach_Embed(inflictor.model, inflictor.weaponinst) > 0)
     {
         return cvar_hget(cvarh_vr_throw_kill_push);
     }
@@ -1765,7 +1765,7 @@ void(entity targ, entity inflictor, entity attacker, float isVRMelee) VR_Gib_Ove
     {
         return;
     }
-    else if(inflictor.classname == "thrown_weapon" && (vr_throw_bladein || weaponvalue(inflictor.model, "embed") == 1))
+    else if(inflictor.classname == "thrown_weapon" && (vr_throw_bladein || VR_Attach_Embed(inflictor.model, inflictor.weaponinst) == 1))
     {
         // (A sword or the dagger, weapons.txt embed 1, whichever way it struck: his notes 2026-11-12, 11-15: a thrown blade
         // never gibs; blade first, an axe's edge too.)

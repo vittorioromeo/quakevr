@@ -1029,6 +1029,7 @@ void drawHolsteredParts(Drawn& d, const Avatar& a)
         l.bits = static_cast<za::U8>(VrGunLook::gunBit | (a.look[1].bits & modeBits));
         l.flags = a.holsterFlags[i];
         l.clip = a.holsterClip[i];
+        l.attach = a.holsterAttach[i];
         view::drawGunParts(d.holster[i], l, d.holsterGun[i], false, false);
     }
 }
@@ -2269,6 +2270,7 @@ void parse()
         {
             a.holsterFlags[i] = static_cast<za::U8>(MSG_ReadByte());
             a.holsterClip[i] = static_cast<za::U8>(MSG_ReadByte());
+            a.holsterAttach[i] = static_cast<za::U8>(MSG_ReadByte());
         }
     }
     a.lamp = readDrawnLamp(glm::vec3{0.f}); // (from his entity's origin)

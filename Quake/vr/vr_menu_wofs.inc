@@ -16,6 +16,7 @@ void weaponOffsetsOtherHand()
     showPage(qvr::menu::currentPage()); // (the same part of Weapon Offsets)
 }
 
+int wofsAttachKind = 1;          // Weapon Offsets > Attachments: the attachment kind edited (vr_attach.hpp: 1 the bayonet)
 int weaponOffsetsHeldSlot = -1; // the weapon in the hand (weaponOffsetsSlot: the one edited: what it inherits from)
 int weaponOffsetsInherit = -1;
 
@@ -1101,6 +1102,41 @@ za::Vector<Item> pageWofsFlashlight()
                                                                      "weapon's."),
         open("On a Gun or Head (Every Weapon)", pageIndex(pageFlashlightMounts))
             .help("Every weapon's place for the flashlight and the zone that clips it on, its size (Flashlight).")
+    );
+    return list;
+}
+
+// Weapon attachments (vr_attach.hpp; docs/vr-port/ATTACHMENTS.md): whether each kind fits this weapon and its mount in the
+// weapon model's own space, the attachment drawn on the weapon in your hand while this page is open (menu::attachPreview).
+za::Vector<Item> pageWofsAttachments()
+{
+    using weapons::Key;
+    za::Vector<Item> list;
+    const int slot = weaponOffsetsBegin(list, WofsAttachments);
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return weaponOffsetsNoWeapon(list, slot);
+    }
+    const auto s = weaponOffsetsSlider;
+    const char* moveHelp = "Moves the bayonet's mount on this weapon (the weapon model's own units, as its vertices are drawn): "
+                           "forward along the barrel, left, up. The bayonet's origin is its socket's top front, which sits "
+                           "under the barrel at the muzzle. It is drawn on the weapon in your hand while this page is open.";
+    const char* turnHelp = "Turns the bayonet on its mount (degrees): Pitch tips its point up, Yaw turns it left, Roll about "
+                           "its blade.";
+    list.pushBackMultiple(
+        header("Bayonet"),
+        cycle("Bayonet Fits", weapons::cvar(slot, Key::Att1Ok), {{0.f, "No"}, {1.f, "Yes"}})
+            .help("Whether a bayonet can be attached to this weapon (brought to its mount in VR, the Attach key in flat "
+                  "play). The shotgun and the super shotgun by default."),
+        s("Bayonet Forward", Key::Att1X, -10.f, 60.f, 0.1f, "%+.1f").extend(-200.f, 200.f).help(moveHelp),
+        s("Bayonet Left", Key::Att1Y, -10.f, 10.f, 0.05f, "%+.2f").extend(-200.f, 200.f).help(moveHelp),
+        s("Bayonet Up", Key::Att1Z, -10.f, 20.f, 0.05f, "%+.2f").extend(-200.f, 200.f).help(moveHelp),
+        s("Bayonet Pitch (up)", Key::Att1Pitch, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f).help(turnHelp),
+        s("Bayonet Yaw (left)", Key::Att1Yaw, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f).help(turnHelp),
+        s("Bayonet Roll", Key::Att1Roll, -180.f, 180.f, 0.5f, "%+.1f deg").help(turnHelp),
+        s("Bayonet Scale", Key::Att1Scale, 0.5f, 4.f, 0.01f, "%.3f").extend(0.05f, 20.f)
+            .help("How big the bayonet is drawn, times the weapon's own size: 1 / the weapon's Scale draws it at its real "
+                  "size (the shotgun's 2.27, the super shotgun's 2.08).")
     );
     return list;
 }

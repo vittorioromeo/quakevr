@@ -68,6 +68,7 @@
 #include "vr_toolgun.hpp"
 #include "vr_twohand.hpp"
 #include "vr_view.hpp"
+#include "vr_attach.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_slide.hpp"
 #include "vr_slidesound.hpp"
@@ -279,6 +280,7 @@ struct FlatKeys
     bool keyCtrl{false};    // a crouch key (vr_flat_key_crouch: C, Left Ctrl; Right Ctrl is Left's key code), last frame
     bool keyFlash{false};   // F, last frame
     bool keyGear{false};    // 9 (vr_flat_key_gearlights), last frame
+    bool keyAttach{false};  // J (vr_flat_key_attach), last frame
     bool keySwap{false};    // Q (vr_flat_key_swap), last frame
     bool keyTime{false};    // Z (vr_flat_key_bullettime), last frame
     bool keyHands[6]{};     // 1, 2, 4, 5, 6, 7 (handKeys: the holsters' number keys), last frame
@@ -1451,11 +1453,13 @@ void polePose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& rig
 // Whether V thrusts the weapon in slot `slot` (flatthrust, his decision 2026-11-24: "flatscreen V thrusts with any stabbing
 // blade"): a pole weapon (the Crystal Lance, the spear: its fire button too), or a blade stuck in by its point (weapons.txt
 // embed 1: the swords, the daggers), the same thrust with a one-handed variant of its pose (vr_flat_thrust_1h_*).
-[[nodiscard]] bool thrustsWith(int slot)
+// A gun with a bayonet on it (vr_attach.hpp; the hand `h`'s, -1 none asked) thrusts as such a blade.
+[[nodiscard]] bool thrustsWith(int slot, int h = -1)
 {
     return slot >= 0 && vr_flat_thrust.value != 0.f &&
            (twohand::poleWeapon(slot) ||
-               (vr_flat_thrust_blades.value != 0.f && static_cast<int>(weapons::value(slot, weapons::Key::Embed)) == 1));
+               (vr_flat_thrust_blades.value != 0.f && (static_cast<int>(weapons::value(slot, weapons::Key::Embed)) == 1 ||
+                                                          (h >= 0 && view::ownGunLook(h).attach == attach::Bayonet))));
 }
 
 // Where a spear thrust (vr_flat_thrust) is at its clock: drawn back along the pole (a one-handed blade: along the blade)
@@ -1731,7 +1735,7 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
 {
     const int slot = heldIn(h);
     const double t = vr_gametime - fs.punchAt[h];
-    if(bot != nullptr || !fs.punchThrust[h] || !punching(h) || !thrustsWith(slot) || t < 0.0)
+    if(bot != nullptr || !fs.punchThrust[h] || !punching(h) || !thrustsWith(slot, h) || t < 0.0)
     {
         return;
     }
@@ -2146,7 +2150,7 @@ void startPunch(int h, const char* from, bool vKey = false)
     }
     // (A pole weapon, the Crystal Lance or the spear: the spear's thrust instead, vr_flat_thrust; V with a blade stuck in by
     // its point, a sword or a dagger, the same thrust: flatthrust, his decision 2026-11-24. Its fire button keeps the swing.)
-    fs.punchThrust[h] = thrustsWith(heldIn(h)) && (vKey || twohand::poleWeapon(heldIn(h)));
+    fs.punchThrust[h] = thrustsWith(heldIn(h), h) && (vKey || twohand::poleWeapon(heldIn(h)));
     if(fs.punchThrust[h])
     {
         fs.punchOverhead[h] = false;
@@ -2899,6 +2903,18 @@ void pollKeysFlat()
         }
     }
     keyState.keyGear = gear;
+    // J (vr_flat_key_attach): weapon attachments (QC vr_attach.qc VR_Attach_Key, impulse 52): the bayonet the other hand
+    // holds put on the gun in one hand, or the gun's taken off into the empty other hand. Queued the F's way.
+    const bool attachKey = inGame && keyHeld(vr_flat_key_attach);
+    if(attachKey && !keyState.keyAttach)
+    {
+        Cbuf_InsertText("impulse 52\n");
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: %s: attach\n", vr_flat_key_attach.string);
+        }
+    }
+    keyState.keyAttach = attachKey;
     // 3 and Z, the keys their cvars name, read like F.
     const bool swap = inGame && keyHeld(vr_flat_key_swap);
     const bool slow = inGame && keyHeld(vr_flat_key_bullettime);

@@ -114,7 +114,7 @@ float(entity m, float xBone) VR_AxeStick_LooseIn =
 // tip, towards it (the engine's own test, stickByPoint). An edge's facing is the engine's alone (vr_throw_bladestuck).
 float(entity w, entity xHost) VR_Throw_PointFirst =
 {
-    if(w.classname != "thrown_weapon" || weaponvalue(w.model, "embed") != AXESTICK_POINT)
+    if(w.classname != "thrown_weapon" || VR_Attach_Embed(w.model, w.weaponinst) != AXESTICK_POINT)
     {
         return FALSE;
     }

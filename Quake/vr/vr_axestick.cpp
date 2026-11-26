@@ -28,6 +28,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_axestick.hpp"
+#include "vr_attach.hpp"
 #include "vr_blade.hpp"
 #include "vr_avatar.hpp"
 
@@ -216,6 +217,7 @@ struct Sample
 struct Shape
 {
     const qmodel_t* model{nullptr};
+    int attach{0}; // the weapon's attachment (vr_attach.hpp): a bayonet makes a gun a point
     Blade blade;
     za::SizeT firstSample{0}, sampleCount{0};
     bool sampled{false};
@@ -347,18 +349,42 @@ constexpr za::SizeT maxSamples = 256;
     return b;
 }
 
+// A weapon with an attachment that strikes (vr_attach.hpp: the bayonet): a point, its tip the attachment's, its blade's
+// start the attachment's own, the rest (the hand, the handle) the gun's as a point's (pointBlade); none if it doesn't fit.
+[[nodiscard]] Blade attachBlade(edict_t* ent, qmodel_t* model, int kind)
+{
+    const int slot = weapons::slotForModel(model);
+    const attach::Mount m = attach::mount(slot, kind);
+    const attach::KindInfo* const info = attach::info(kind);
+    if(!m.fits || !info || glm::length(info->tip) < 1e-3f)
+    {
+        return bladeFromKeys(ent, model);
+    }
+    Blade b = pointBlade(ent, model, slot);
+    if(b.how != howPoint)
+    {
+        return bladeFromKeys(ent, model);
+    }
+    b.tip = attach::onGun(m, info->tip);
+    b.from = attach::onGun(m, info->base);
+    b.pole = false;
+    return b;
+}
+
 [[nodiscard]] Shape& shapeOf(edict_t* ent, qmodel_t* model)
 {
+    const int kind = attach::kindOfRef(ent, progs::fields().weaponinst);
     for(Shape& s : cache.shapes)
     {
-        if(s.model == model)
+        if(s.model == model && s.attach == kind)
         {
             return s;
         }
     }
     Shape made;
     made.model = model;
-    made.blade = bladeFromKeys(ent, model);
+    made.attach = kind;
+    made.blade = kind != attach::None ? attachBlade(ent, model, kind) : bladeFromKeys(ent, model);
     cache.shapes.pushBack(made);
     return cache.shapes.back();
 }

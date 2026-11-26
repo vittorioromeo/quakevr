@@ -97,7 +97,7 @@ float(entity p, float xHand) VR_Skewer_HasBlade =
 {
     float flags = VRGetEntWeaponFlags(p, xHand);
     return !VRIsHandWeaponless(p, xHand) && !(flags & QVR_WPNFLAG_FOREGRIP_CARRIED) &&
-           weaponvalue(WeaponIdToModel(VRGetEntWeapon(p, xHand), flags), "embed") == AXESTICK_POINT;
+           VR_Attach_Embed(WeaponIdToModel(VRGetEntWeapon(p, xHand), flags), VRGetEntWeaponInst(p, xHand)) == AXESTICK_POINT;
 };
 
 // The most gibs the blade in `xHand` of `p` takes at once: its weapon's skewer_most (the dagger's 1), else vr_embed_skewer_most.
@@ -117,7 +117,7 @@ float(entity p, float xHand) VR_Skewer_CutBlade =
     {
         return FALSE;
     }
-    float kind = weaponvalue(WeaponIdToModel(VRGetEntWeapon(p, xHand), flags), "embed");
+    float kind = VR_Attach_Embed(WeaponIdToModel(VRGetEntWeapon(p, xHand), flags), VRGetEntWeaponInst(p, xHand));
     return kind == AXESTICK_EDGE || (kind == AXESTICK_POINT && on >= 2);
 };
 

@@ -16,6 +16,7 @@
 #include "vr_menuui.hpp"
 #include "vr_testkit.hpp"
 #include "vr_body.hpp" // (menu_vr pouchtest: the ammo pouch's reach point)
+#include "vr_attach.hpp" // (menu_vr attachtest: the mount the system reads)
 #include "vr_random.hpp"
 #include "vr_runsetup.hpp"
 #include "vr_files.hpp"
@@ -1177,6 +1178,8 @@ const WeaponOffsetsPartPage weaponOffsetsPartPages[] = {
     {pageWofsEffects, "Effects", "Recoil, a muzzle flash and tracers, for a model without its own; a test."},
     {pageWofsFlashlight, "Flashlight", "Where the flashlight sits clipped on this weapon and how it is turned, on top of "
         "every weapon's place (Flashlight > On a Gun or Head), with a preview."},
+    {pageWofsAttachments, "Attachments", "Which attachments fit this weapon (the bayonet) and where each sits on it: its "
+        "mount, shown on the weapon while you tune it."},
 };
 static_assert(sizeof(weaponOffsetsPartPages) / sizeof(weaponOffsetsPartPages[0]) == WofsParts - 1);
 
@@ -5422,6 +5425,64 @@ void pageResetTest()
     tally.verdict("pagereset_test");
 }
 
+// menu_vr attachtest (Misc/quakevr/attach_test.sh; attach2): Weapon Offsets > Attachments pinned to the shotgun's slot (no game
+// needed): its Bayonet Forward row there, a press right on it moves the mount forward by its step and the attachment system
+// reads the new mount (attach::mount), a press left puts it back. A bayonet fits the shotgun and the super shotgun, not the
+// nailgun (weapons.txt att1_ok). Every value put back after. Ends "attachmenu_test: N passed, M failed".
+void attachMenuTest()
+{
+    using weapons::Key;
+    testkit::Tally tally;
+    const auto check = [&tally](bool ok, const char* what) {
+        if(tally.check(ok, "attachmenu_test", what))
+        {
+            Con_Printf("attachmenu_test: PASS %s\n", what);
+        }
+    };
+    const int shot = weapons::slotForName("progs/v_shot.mdl"), ssg = weapons::slotForName("progs/v_shot2.mdl"),
+              nail = weapons::slotForName("progs/v_nail.mdl");
+    check(shot >= 0 && ssg >= 0 && nail >= 0, "the shotgun's, the super shotgun's and the nailgun's slots");
+    if(shot < 0 || ssg < 0 || nail < 0)
+    {
+        tally.verdict("attachmenu_test");
+        return;
+    }
+    check(attach::mount(shot, attach::Bayonet).fits && attach::mount(ssg, attach::Bayonet).fits &&
+              !attach::mount(nail, attach::Bayonet).fits,
+        "a bayonet fits the shotgun and the super shotgun, not the nailgun (att1_ok)");
+    cvar_t* const x = weapons::cvar(shot, Key::Att1X);
+    Cvar_SetQuick(x, x->default_string);
+    const float levelWas = vr_menu_level.value;
+    Cvar_SetValueQuick(&vr_menu_level, LevelDeveloper);
+    pinSlotPages(shot);
+    VR_Menu_Open();
+    const int page = pageIndex(pageWofsAttachments);
+    openInTree(page);
+    check(ui().page == page, "Weapon Offsets - Attachments shown");
+    const za::Vector<Item> list = items(page);
+    const Item* forward = nullptr;
+    for(const Item& item : list)
+    {
+        forward = item.cvar == x ? &item : forward;
+    }
+    check(forward != nullptr, "the page has Bayonet Forward (the shotgun's att1_x)");
+    if(forward)
+    {
+        const float was = x->value;
+        change(*forward, 1);
+        char line[160];
+        q_snprintf(line, sizeof(line), "a press right moves the mount forward (%.2f -> %.2f), the system reads it (%.2f)", was,
+            x->value, attach::mount(shot, attach::Bayonet).pos.x);
+        check(x->value > was + 0.05f && x->value < was + 0.15f && attach::mount(shot, attach::Bayonet).pos.x == x->value, line);
+        change(*forward, -1);
+        check(za::abs(x->value - was) < 0.001f, "a press left puts it back");
+    }
+    Cvar_SetQuick(x, x->default_string);
+    Cvar_SetValueQuick(&vr_menu_level, levelWas);
+    pinSlotPages(-1);
+    tally.verdict("attachmenu_test");
+}
+
 // The pages' numbers checked (menu_vr ids; at start, quiet unless something is wrong): each page is its number in
 // pages[] (vr_menu_table.inc; its builders are each there once and every home is a page: checked while compiling).
 // Here: each title once (vr_menu_positions and the boards' menu paths find a page by it), every page's homes reaching
@@ -5745,6 +5806,11 @@ void qvr::menu::command_f()
         pageResetTest();
         return;
     }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "attachtest"))
+    {
+        attachMenuTest();
+        return;
+    }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "wheeltest"))
     {
         wheelTest();
@@ -5958,6 +6024,16 @@ bool qvr::menu::holsterPreview(int& hand, int& kind)
     hand = weaponOffsetsHand;
     kind = weaponOffsetsHolster;
     return on;
+}
+
+int qvr::menu::attachPreview(int hand)
+{
+    if(m_state != m_vr || ui().page != pageIndex(pageWofsAttachments) || hand != weaponOffsetsHand ||
+        weaponOffsetsSlot < 0 || weaponOffsetsSlot == weapons::fistSlot() || weapons::heldSlot(weaponOffsetsHand) != weaponOffsetsHeldSlot)
+    {
+        return 0; // not on the page, the empty hand, another hand, or the hand holds another weapon now
+    }
+    return wofsAttachKind;
 }
 
 bool qvr::menu::flashlightMountPreview(int& hand)

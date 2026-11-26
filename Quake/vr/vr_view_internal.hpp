@@ -393,6 +393,9 @@ struct Entities
     view::ViewEntity muzzleFlash[2]; // the weapons' programmatic muzzle flashes (vr_weaponfx.cpp)
     view::ViewEntity enemyFlash[weaponfx::maxEnemyFlashes]; // and the grunts' guns'
     view::ViewEntity adBolt[2]; // AD support: the bolts in the hands' crossbows' grooves (vr_adcrossbow.cpp)
+    view::ViewEntity attach[2]; // the hands' guns' attachments (vr_attach.hpp: the bayonet; setupAttachments)
+    view::ViewEntity holsterAttach[HolsterCount]; // the holstered guns'
+    view::ViewEntity worldAttach[maxWorldWeapons]; // the lying guns' (dropped, thrown, stuck in a body)
 
     // Every member, in the order forEachEntity visits them: the order they are added to cl_visedicts (keep it: draws at
     // the same depth). A zip visits its arrays per index (cap and lames, frame and barrels, ...). Every member listed:
@@ -442,7 +445,7 @@ decltype(auto) Entities::members(F&& f)
         flashlight, pouch, ammoPouch, ammoPouchItem, mag, magOut, holsterMag, worldMag, well, holsterWell, worldWell, pumpBody, pump,
         zip(ssgFrame, ssgBarrels), zip(holsterSsgFrame, holsterSsgBarrels), zip(worldSsgFrame, worldSsgBarrels),
         zip(rvFrame, rvCrane, rvCyl, rvShell), sawHandle, button, frontButton, holsterButton, worldButton,
-        holsterFrontButton, worldFrontButton, ghost, ghostHand, muzzleFlash, enemyFlash, adBolt);
+        holsterFrontButton, worldFrontButton, ghost, ghostHand, muzzleFlash, enemyFlash, adBolt, attach, holsterAttach, worldAttach);
 }
 
 static_assert(decltype(za::declVal<Entities&>().members(CountEntityBytes{}))::value == sizeof(Entities),

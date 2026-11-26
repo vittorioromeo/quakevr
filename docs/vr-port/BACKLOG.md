@@ -348,3 +348,5 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
   first whether he needs one. Design note: Misc/rendezvous/README.md, "When the punch fails".
 - **Old QuakeC notes** (TECHDEBT_2026-10-09.md 10): Rogue's teamplay variants don't work in VR (item handling
   commented out). (`readytime`, one for every client, is each player's `.vr_readytime` since 2026-11-19.)
+
+- Weapon attachments (attach1, 2026-11-26): the system and the bayonet are in; the next kinds (scopes, under-barrel grenade launcher / flamethrower, nailgun igniter, LG lenses and more) and the open points: docs/vr-port/ATTACHMENTS.md, "The system" and "Ideas"; ROUND26.md "attach1".

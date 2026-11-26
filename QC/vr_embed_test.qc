@@ -4601,6 +4601,18 @@ void() VR_Embed_TestFrame =
         {
             VR_EF_Begin(ask); // (the Crystal Lance fired while stuck in a body, VR and flat: vr_embedfire_test.qc)
         }
+        if(ask == 79 || ask == 80)
+        {
+            VR_AT_Begin(ask); // (the bayonet on the shotguns, VR and flat: vr_attach_test.qc)
+        }
+        if(ask == 81)
+        {
+            VR_AT_PersistSet(); // (the bayonets carried for a level change or a save: vr_attach_test.qc)
+        }
+        if(ask == 82)
+        {
+            VR_AT_PersistCheck(); // (... still on after it)
+        }
         if(ask == 42)
         {
             vr_rg_scene = FALSE;
@@ -4889,6 +4901,14 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     else if(vr_et_on == 77 || vr_et_on == 78)
     {
         VR_EF_Frame(); // (the Crystal Lance fired while stuck: vr_embedfire_test.qc)
+    }
+    else if(vr_et_on == 79)
+    {
+        VR_AT_Frame(); // (the bayonet on the shotguns, VR: vr_attach_test.qc)
+    }
+    else if(vr_et_on == 80)
+    {
+        VR_AT_FlatFrame(); // (the bayonet on the shotguns, flat: vr_attach_test.qc)
     }
     else if(vr_et_on == 42)
     {

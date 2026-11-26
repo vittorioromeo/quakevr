@@ -357,6 +357,19 @@ QVR_WEAPON_KEY(TorchRoll, "torch_roll")
 // slot's default, weapons.txt) it can (its zone, B/Y, Clip on Gun When Let Go); 0 none of them. Off by default for the
 // melee weapons below (weapons.txt: the axe, Mjolnir, the swords, the chainsaw, the crowbar).
 QVR_WEAPON_KEY(TorchClip, "torch_clip")
+// Weapon attachments (docs/vr-port/ATTACHMENTS.md; vr_attach.cpp; Weapon Offsets > Attachments): for attachment kind 1
+// (the bayonet; attN_ for kind N), whether it fits this weapon (att1_ok: 1 it can be attached, 0 not: every slot's
+// default) and its mount in the weapon model's own space (+x forward, +y left, +z up, the .mdl's units as its vertices are
+// drawn, frame 0): the attachment model's origin at (x, y, z), turned pitch up, yaw left, roll (degrees, the hands'
+// order), drawn `scale` times the weapon's own size (1 / the weapon's Scale: the attachment at its real size).
+QVR_WEAPON_KEY(Att1Ok, "att1_ok")
+QVR_WEAPON_KEY(Att1X, "att1_x")
+QVR_WEAPON_KEY(Att1Y, "att1_y")
+QVR_WEAPON_KEY(Att1Z, "att1_z")
+QVR_WEAPON_KEY(Att1Pitch, "att1_pitch")
+QVR_WEAPON_KEY(Att1Yaw, "att1_yaw")
+QVR_WEAPON_KEY(Att1Roll, "att1_roll")
+QVR_WEAPON_KEY(Att1Scale, "att1_scale")
 // Heavy handling (ROUND22.md, "Heavy weapons: struggle, droop, recoil, two-handed swings"; vr_weight.cpp; Weapon Weights >
 // Heavy Handling): the weapon's weight class, its Heft: 0 light (no struggle) .. 1 the heaviest (the laser cannon); -1
 // (every slot's default, weapons.txt) from its mass (vr_heavy_auto_from .. _full kg). One-handed, a heavy weapon lags an

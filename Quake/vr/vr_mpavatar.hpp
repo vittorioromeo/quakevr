@@ -66,6 +66,7 @@ struct Avatar
     VrGunLook look[2];
     za::U8 holsterFlags[VrDrawnHolsters::count]{};
     za::U8 holsterClip[VrDrawnHolsters::count]{};
+    za::U8 holsterAttach[VrDrawnHolsters::count]{}; // their attachments (vr_attach.hpp Kind)
     VrDrawnLamp lamp;
     VrDrawnGear gear; // his worn gear as he drew it (syncfix), from his entity's origin; a bot's: placed here
 };
