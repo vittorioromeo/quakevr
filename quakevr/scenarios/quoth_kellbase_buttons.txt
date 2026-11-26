@@ -1,0 +1,6 @@
+# quoth_kellbase_buttons: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Quoth's kellbase1 from its start: the three buttons, the 16 monsters, the exit lock.
+title Quoth's kellbase1: the three buttons and the 16 enforcers, pyros and eliminators
+campaign quoth
+map kellbase1
+god
+hint Quoth's kellbase1 from its start: press the three buttons; enforcers, then pyros, then eliminators arrive; kill all 16 and the exit lock opens and the plasma gun is made.

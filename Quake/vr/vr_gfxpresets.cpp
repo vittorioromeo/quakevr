@@ -276,6 +276,8 @@ void applyStandaloneLevel(int level)
     standaloneKind.apply(level);
 }
 
+void pickStandalone(int level); // (below: timed, pickUndo)
+
 // vr_standalone_preset [0 Quest 3 72 Hz | 1 Quest 3 90 Hz | 2 Quest 2 72 Hz | mine] (vr_quest_preset, its old name):
 // the Low preset, then the Standalone rows.
 void standalonePresetCmd()
@@ -307,7 +309,7 @@ void standalonePresetCmd()
         Con_Printf("%s: 0 to %d\n", cmd, standaloneLevelCount - 1);
         return;
     }
-    applyStandaloneLevel(level);
+    pickStandalone(level);
     Con_Printf("%s: Standalone, %s (the Low preset and %d rows)\n", cmd, standaloneLevelNames[level],
         standaloneTable.rowCount);
 }
@@ -327,7 +329,169 @@ const QuestMust questMusts[] = {
     // 51 with the first set back, 63 with both)
     {&vr_shadow_dlights, "0", "the dynamic lights' shadow maps cost the Quest 3 ~4 ms a frame (44 -> 51 fps, his saved config)", true},
     {&vr_dynres_min, "0.65", "the dynamic resolution's floor above the Quest preset's keeps fights GPU-bound (his saved PC value: 51 -> 63 fps)", true},
+    // questcrash: the shadowed map lights cost as the dynamic lights' (Medium and up turn them on)
+    {&vr_shadow_maplights, "0", "the map lights' shadow maps cost the Quest 3 as the dynamic lights' do", true},
 };
+
+// questcrash: the must-haves set back (vr_quest_guard 0: only said); `who` names the caller in each line.
+void holdQuestMusts(const char* who)
+{
+    for(const QuestMust& m : questMusts)
+    {
+        if(m.atMost ? m.var->value <= Q_atof(m.value) : !q_strcasecmp(m.var->string, m.value))
+        {
+            continue;
+        }
+        if(vr_quest_guard.value == 0.f)
+        {
+            Con_Printf("%s: %s %s kept (vr_quest_guard 0): %s\n", who, m.var->name, m.var->string, m.why);
+            continue;
+        }
+        Con_Printf("%s: %s %s -> %s: %s (vr_quest_guard 0 keeps it)\n", who, m.var->name, m.var->string, m.value, m.why);
+        Cvar_SetQuick(m.var, m.value);
+    }
+}
+
+// questcrash (his Quest, 2026-11-26): "Quake (off)" and then Low picked mid-game left the Quest under 1 fps, Standalone
+// out of reach. Leaving Standalone had put back every Standalone row as it was before it: the PC's defaults (the eyes at
+// full resolution, no dynamic resolution, no foveation, OIT, the float depth...). On the Quest (and under -glescompat) a
+// graphics preset or My Settings now sets its look while the headset's budget stays: the Standalone rows no graphics
+// preset sets keep the nearest Standalone level's values, and the must-haves above hold.
+bool questBudget()
+{
+    return VR_GLESCompat() || VR_Android();
+}
+
+bool inPresetRows(const cvar_t* var)
+{
+    for(const presetcore::Row& row : presetRows)
+    {
+        if(row.var == var)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The Standalone level nearest the settings now (fewest rows differing; the first on a tie).
+int nearestStandalone()
+{
+    int best = 0;
+    int bestCount = 1 << 30;
+    for(int level = 0; level < standaloneLevelCount; level++)
+    {
+        if(const int n = standaloneKind.differing(level, false); n < bestCount)
+        {
+            best = level;
+            bestCount = n;
+        }
+    }
+    return best;
+}
+
+void keepQuestBudget(int level)
+{
+    int set = 0;
+    for(const presetcore::Row& row : standaloneRows)
+    {
+        const char* const value = standaloneKind.target(row, level);
+        if(!inPresetRows(row.var) && !presetcore::same(row.var->string, value))
+        {
+            Cvar_SetQuick(row.var, value);
+            set++;
+        }
+    }
+    if(set > 0)
+    {
+        Con_Printf("graphics preset: %d of the Quest's budget rows kept at Standalone (%s)\n", set, standaloneLevelNames[level]);
+    }
+}
+
+// questcrash: a pick that leaves the game too slow to reach the menu again is put back. After a preset, Standalone or My
+// Settings is picked, the frames are timed (in VR); past a second's grace (the programs it compiles), if the median of
+// the next revertFrames frames is under vr_preset_revert_fps, every row of both tables goes back to its value before
+// the pick, said on the console and the menu's note line. vr_preset_revert_test <ms>: each frame counted as that long.
+constexpr int revertFrames = 8;
+constexpr double revertGrace = 1.0;
+struct PickUndo
+{
+    za::Vector<za::String> values; // presetRows' then standaloneRows'
+    bool armed{false};
+    bool pending{false}; // a pick's snapshot taken, not yet armed (nested picks: the outer one's)
+    double elapsed{0.0};
+    double last{0.0};
+    float frames[revertFrames]{};
+    int count{0};
+    float testMs{0.f};
+};
+PickUndo pickUndo;
+
+void snapshotPick()
+{
+    if(pickUndo.pending)
+    {
+        return;
+    }
+    pickUndo.pending = true;
+    pickUndo.values.clear();
+    for(const presetcore::Row& row : presetRows)
+    {
+        pickUndo.values.pushBack(za::String{row.var->string});
+    }
+    for(const presetcore::Row& row : standaloneRows)
+    {
+        pickUndo.values.pushBack(za::String{row.var->string});
+    }
+}
+
+void armPick()
+{
+    pickUndo.pending = false;
+    pickUndo.armed = vr_preset_revert_fps.value > 0.f;
+    pickUndo.elapsed = 0.0;
+    pickUndo.last = Sys_DoubleTime();
+    pickUndo.count = 0;
+}
+
+// A pick: the values before it kept, then on the Quest its budget kept and the must-haves held, then timed.
+template <typename F>
+void pick(F&& set)
+{
+    const bool outer = !pickUndo.pending;
+    snapshotPick();
+    set();
+    if(outer)
+    {
+        if(questBudget())
+        {
+            holdQuestMusts("graphics preset (Quest)");
+        }
+        armPick();
+    }
+}
+
+void revertPick(float medianMs)
+{
+    int i = 0;
+    for(const presetcore::Row& row : presetRows)
+    {
+        Cvar_SetQuick(row.var, pickUndo.values[static_cast<za::SizeT>(i++)].cStr());
+    }
+    for(const presetcore::Row& row : standaloneRows)
+    {
+        Cvar_SetQuick(row.var, pickUndo.values[static_cast<za::SizeT>(i++)].cStr());
+    }
+    Con_Printf("graphics preset: put back as before the pick: frames took %.0f ms (under %g fps, vr_preset_revert_fps)\n",
+        static_cast<double>(medianMs), static_cast<double>(vr_preset_revert_fps.value));
+    presetKind.setNote("Too slow on this headset: put back as before.");
+}
+
+void revertTestCmd()
+{
+    pickUndo.testMs = Cmd_Argc() > 1 ? za::max(0.f, static_cast<float>(Q_atof(Cmd_Argv(1)))) : 0.f;
+    Con_Printf("vr_preset_revert_test: each frame counted as %g ms after a pick (0: timed)\n", static_cast<double>(pickUndo.testMs));
+}
 
 // vr_quest_check (Android starts, after the saved config; Debug > Startup): the Standalone rows that differ from the
 // nearest Standalone level printed (the log names what a slow start runs with), and the must-haves above set back, each
@@ -341,21 +505,57 @@ void questCheckCmd()
     }
     migrateQuestMine();
     standaloneKind.printStatus();
-    for(const QuestMust& m : questMusts)
+    holdQuestMusts("vr_quest_check");
+}
+
+// Another pick than Standalone: elsewhere the Standalone rows as they were before it (leaveStandalone); on the Quest
+// (questcrash) the budget rows at the nearest Standalone level, kept after the pick (leaveStandaloneAfter).
+int leaveStandaloneBefore()
+{
+    if(!questBudget())
     {
-        if(m.atMost ? m.var->value <= Q_atof(m.value) : !q_strcasecmp(m.var->string, m.value))
-        {
-            continue;
-        }
-        if(vr_quest_guard.value == 0.f)
-        {
-            Con_Printf("vr_quest_check: %s %s kept (vr_quest_guard 0): %s\n", m.var->name, m.var->string, m.why);
-            continue;
-        }
-        Con_Printf("vr_quest_check: %s %s -> %s: %s (vr_quest_guard 0 keeps it)\n", m.var->name, m.var->string, m.value,
-            m.why);
-        Cvar_SetQuick(m.var, m.value);
+        leaveStandalone();
+        return -1;
     }
+    migrateQuestMine();
+    return nearestStandalone();
+}
+
+void leaveStandaloneAfter(int keep)
+{
+    if(keep >= 0)
+    {
+        keepQuestBudget(keep);
+    }
+}
+
+// The console's and the cvar's picks (vr_standalone_preset, vr_graphics_preset), timed as the menu's
+void pickStandalone(int level)
+{
+    pick([level] { applyStandaloneLevel(level); });
+}
+
+bool pickMine()
+{
+    bool restored = false;
+    pick([&restored] {
+        if(presetKind.hasMine())
+        {
+            const int keep = leaveStandaloneBefore();
+            restored = presetKind.restoreMine();
+            leaveStandaloneAfter(keep);
+        }
+    });
+    return restored;
+}
+
+void pickLevel(int level)
+{
+    pick([level] {
+        const int keep = leaveStandaloneBefore();
+        presetKind.apply(level);
+        leaveStandaloneAfter(keep);
+    });
 }
 
 // vr_graphics_preset: 0..4 applies that preset, 5 My Settings; then back to -1 (a button: the state is
@@ -369,7 +569,7 @@ void onPresetCvar(cvar_t* var)
     }
     if(level == levelStandalone)
     {
-        applyStandaloneLevel(0);
+        pickStandalone(0);
     }
     else if(level == levelMine)
     {
@@ -417,29 +617,23 @@ const char* levelName(int level)
 
 void apply(int level)
 {
-    leaveStandalone();
-    presetKind.apply(level);
+    pickLevel(level);
 }
 
 bool restoreMine()
 {
-    if(!presetKind.hasMine())
-    {
-        return false;
-    }
-    leaveStandalone();
-    return presetKind.restoreMine();
+    return pickMine();
 }
 
 void applyStandalone(int level)
 {
-    applyStandaloneLevel(za::clamp(level, 0, standaloneLevelCount - 1));
+    pickStandalone(za::clamp(level, 0, standaloneLevelCount - 1));
 }
 
 void menuApplyStandalone()
 {
     const bool first = !presetKind.hasMine();
-    applyStandaloneLevel(0);
+    pickStandalone(0);
     presetKind.setNote(first ? "Standalone set. Your own settings were kept as My Settings." : "Standalone set.");
 }
 
@@ -495,17 +689,63 @@ const char* menuNoteLine()
 
 void menuApply(int level)
 {
-    leaveStandalone();
-    presetKind.menuApply(level);
+    pick([level] {
+        const int keep = leaveStandaloneBefore();
+        presetKind.menuApply(level);
+        leaveStandaloneAfter(keep);
+    });
 }
 
 void menuRestoreMine()
 {
-    if(presetKind.hasMine())
+    pick([] {
+        const int keep = presetKind.hasMine() ? leaveStandaloneBefore() : -1;
+        presetKind.menuRestoreMine();
+        leaveStandaloneAfter(keep);
+    });
+}
+
+// questcrash: once a frame in VR (vr_stereo.cpp): a pick's frames timed, put back when too slow (pickUndo).
+void frame()
+{
+    if(!pickUndo.armed)
     {
-        leaveStandalone();
+        return;
     }
-    presetKind.menuRestoreMine();
+    const double now = Sys_DoubleTime();
+    const double dt = pickUndo.testMs > 0.f ? static_cast<double>(pickUndo.testMs) * 0.001 : now - pickUndo.last;
+    pickUndo.last = now;
+    pickUndo.elapsed += dt;
+    if(pickUndo.elapsed <= revertGrace)
+    {
+        return;
+    }
+    pickUndo.frames[pickUndo.count++] = static_cast<float>(dt);
+    if(pickUndo.count < revertFrames)
+    {
+        return;
+    }
+    pickUndo.armed = false;
+    float sorted[revertFrames];
+    for(int i = 0; i < revertFrames; i++)
+    {
+        int j = i;
+        for(; j > 0 && sorted[j - 1] > pickUndo.frames[i]; j--)
+        {
+            sorted[j] = sorted[j - 1];
+        }
+        sorted[j] = pickUndo.frames[i];
+    }
+    const float median = 0.5f * (sorted[revertFrames / 2 - 1] + sorted[revertFrames / 2]);
+    if(vr_preset_revert_fps.value > 0.f && median * vr_preset_revert_fps.value > 1.f)
+    {
+        revertPick(median * 1000.f);
+    }
+    else
+    {
+        Con_DPrintf("graphics preset: the pick's frames %.1f ms (median of %d): kept\n", static_cast<double>(median * 1000.f),
+            revertFrames);
+    }
 }
 
 void menuSaveMine()
@@ -521,6 +761,7 @@ void init()
     Cmd_AddCommand("vr_standalone_preset", standalonePresetCmd);
     Cmd_AddCommand("vr_quest_preset", standalonePresetCmd); // its old name (scripts, the bench's configs)
     Cmd_AddCommand("vr_quest_check", questCheckCmd);
+    Cmd_AddCommand("vr_preset_revert_test", revertTestCmd);
 }
 
 } // namespace qvr::gfxpresets

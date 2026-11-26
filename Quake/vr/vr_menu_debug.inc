@@ -959,6 +959,11 @@ za::Vector<Item> pageDebugProfiling()
         command("Quest Settings Check", "vr_quest_check")
             .help("vr_quest_check (each Android start runs it after the saved config): the Standalone rows that differ "
                   "from the nearest Standalone level, and MSAA and bloom set back (vr_quest_guard 0: only said)."),
+        command("Preset Revert Test: 500 ms Frames", "vr_preset_revert_test 500")
+            .help("vr_preset_revert_test 500 (0: off): after the next graphics preset pick each frame counts as 500 ms, "
+                  "so the pick is put back as too slow (vr_preset_revert_fps, 5 by default)."),
+        command("Preset Revert Test: Off", "vr_preset_revert_test 0")
+            .help("vr_preset_revert_test 0: a pick's frames timed as they are."),
         command("GL Sync Report", "vr_gl_sync_report")
             .help("vr_gl_sync_report: the GL calls that made the CPU wait for the GPU since the last report, per frame "
                   "(vr_gl_sync_count N: every N seconds)."),

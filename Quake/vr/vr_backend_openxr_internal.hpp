@@ -122,6 +122,10 @@ struct QuestExtensions
     // C4p: vr_xr_foveation changed while the eye swapchains are in use: the runtime crashed in xrEndFrame after the
     // update (QUEST_PLAN.md 6v), so the backend makes new swapchains first and the level goes on them before their use.
     bool wantNewEyes{false};
+    // questcrash: the eye swapchains last made were made foveation-capable (vr_xr_foveation over 0 then). Off makes
+    // plain ones: the post-process path into capable (scaled-bin) images with no level crashed the runtime in xrEndFrame
+    // (SIGSEGV 0x30 in libGLESv2_adreno), at once after High -> Off and on every start with Off saved.
+    bool eyesCapable{false};
     // These eye swapchains carry a level over 0 (applied: the frame's own; vr_xr_foveation may have changed since).
     [[nodiscard]] bool foveates(XrSwapchain left, XrSwapchain right) const
     {
@@ -134,8 +138,9 @@ struct QuestExtensions
     void bind(XrInstance instance);
     // The cvars' values, when they or the eye swapchains changed (a running session; every frame, cheap).
     void apply(XrSession session, const XrSwapchain (&eyes)[2]);
-    // Chained into an eye swapchain's create info (XR_FB_foveation: its images foveation-capable); null: not.
-    [[nodiscard]] const void* swapchainNext(XrSwapchainCreateInfoFoveationFB& storage) const;
+    // Chained into an eye swapchain's create info (XR_FB_foveation: its images foveation-capable, only while
+    // vr_xr_foveation is over 0: eyesCapable); null: not.
+    [[nodiscard]] const void* swapchainNext(XrSwapchainCreateInfoFoveationFB& storage);
     // The refresh rates offered and the levels, for the log (start).
     void log(XrSession session) const;
 };

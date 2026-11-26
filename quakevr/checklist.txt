@@ -11,6 +11,8 @@ Open the menu in the headset, then on the flat screen with the VR-style menu and
 Flat-screen: open the console (or the menu) and load a map that takes a few seconds (map vrstart): the loading panel is small and centred, about a fifth to a third of the window wide with sharp text, over the console or menu you came from dimmed by half, and the console doesn't flash between its frames. {test:load_panel_stages}
 Quest standalone (Standalone preset): in the tutorial's dark course take the flashlight and point it down the corridor and at the far walls; the beam should light whatever it lands on, not just the first part of the room near the door. {test:quest_darkroom}
 Quest standalone: Debug > Show Foveation on, with Quest Foveation at High: the eyes' edges should show yellow (half resolution) and red (quarter) zones round a clear centre; at Low only the far corners. On the PC, Show Foveation "Quest Pattern" shows the same zones. {test:quest_foveation}
+On the Quest, switch Quest Foveation from High to Off and back a few times mid-game, then quit and start again with Off saved: no crash, the game reaches vrstart and plays. {test:hub_start}
+On the Quest, from Standalone pick "Quake (off)", then Low, then Medium on the Graphics Presets page mid-game: the frame rate stays playable, the menu stays usable, and Standalone can be picked again. {test:hub_start}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
@@ -83,6 +85,7 @@ Flat-screen: hold the spear upright, flip its grip (B) and raise the guard (righ
 Flat-screen: hold the Crystal Lance and raise the guard (right mouse button): the other hand wraps its shaft. {test:flat_lance_parry}
 Flat-screen: walk up to the crate (or an explosive box) and press H: both hands go onto its surface and it drags along as you back away, its far side on the floor, as a grunt's ragdoll does; tune the hands with Grab / Pull: Hold Forward / Out / Down (negative: up). {test:flat_grab_pull}
 Flat-screen: press H at the rock (or a health box, a gib): it goes into your hand as a force grab's catch, no held-out pose; and from further than an arm's reach (Grab / Pull: Reach, 1.25 m) H takes nothing. {test:flat_grab_pull}
+Flat-screen: hold the knight's sword two-handed and hold the right mouse button for the guard: the free hand slides from the handle onto the blade (and back when you let go) instead of snapping over in one frame. {test:flat_parry_ad}
 
 [4. Tutorial and VR interface]
 Body and Display > Handedness: Left-handed turns on Swap Face Buttons (next to Swap Stick Functions): walk forward on the right stick and press X: you jump, and A, B, Y and the two stick clicks do what the other controller's did; Right-handed turns it off, and changing it alone shows Handedness: Custom. {test:hub_start}
@@ -98,25 +101,20 @@ Flat-screen or VR: in a two-player game one goes along the level strung rope han
 
 [7. Armed humanoids, ragdolls and physics]
 Ragdoll climbs: an ogre knocked off a ledge and caught straddling its lip (a leg still on top) pulls itself up instead of falling. {test:ogre_hall}
-An armed grunt with the spear holds it low and level in both hands with the head pointed at you, and its attack is a forward thrust that hurts, not a sword swing. {test:agrunt_spear}
 Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
-Open the Pose Studio on a spear grunt (VR Settings > Armed Grunts > Grip Editor, Drag Mode): it is a class of its own now, Pole Weapon (Spear), with Port Arms, Ready, Run, Pickup, Thrust and Shove; grip the spear's box and move it and the off hand rides the shaft, the head still pointed at you, and grip the left hand's box to move it on the shaft. {test:pose_grunt_pole}
 Pose Studio Data on that spear grunt: pick Thrust and play its timeline (0.25x, Loop, scrub the bar): the spear is drawn back and driven out at you with both hands on the shaft, and its Ready / Port Arms keys move the whole hold, the sword grunt's hold not at all. {test:pose_grunt_pole}
+Pose Studio on the spear holders: a frozen armed enforcer, knight and death knight, each with the spear, stand spaced apart in the hall's open middle and the Pose Studio is already open; tune each one's spear poses (Port Arms, Ready, Run, Pickup, Thrust, Shove) as for the spear grunt. {test:pose_spear_humanoids}
 
 [8. Quoth]
-Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open. {test:hub_start}
+Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open. {test:quoth_ne_marb}
 Quoth (experimental): Setup with AD ticked installs Quoth; without AD the box is greyed with the reason. {test:hub_start}
-Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun. {test:hub_start}
+Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun. {test:quoth_kellbase_buttons}
 Quoth's kellbase1: the doorway's energy field is a sheet of pale blue sparks, and the enforcer behind it stops short instead of walking into it again and again. {test:quoth_kellbase_field}
-Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens. {test:hub_start}
-Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere. {test:hub_start}
+Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens. {test:quoth_lpqsp1}
+Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere. {test:quoth_metmon}
 
 [9. Arcane Dimensions]
 Arcane Dimensions' rocket, grenade and plasma soldiers, defenders, eliminators, pyros, fumigators and crossbow knights hold their own gun as armed humanoids: disarm them, tug and shoot the guns out. {test:humrepl_variants}
-AD maps (ad_azad, ad_tears): grates, bars and pillar rows stop you without blocking any path you could walk before. {test:ad_azad_grates}
-In ad_crucial, save and load where the armed enforcer with a nail pistol and an axe comes for you: every armed grunt's and enforcer's arms follow its weapons after the load, never stuck in one pose with the weapons moving or floating ahead of them (Debug > Armed Humanoids: Arm Pose Slots says 0 found none). {test:agrunt_saveload}
-Run the frozen enforcers' Weapon Holds test, open the Pose Studio there, then run ad_crucial's lift test: the enforcers by the lift move and hold their guns animated, none left frozen from the test before. {test:ad_crucial_lift}
-Hold the trigger on AD's Plasma Gun: it fires plasma bolts only, with no lightning bolt drawn from its muzzle; a plain lightning gun still draws its stream. {test:ad_plasmabolt}
 
 [10. Survival Arena (Select Campaign > Arena Mode)]
 Play the arena a while: it feels good and each new wave starts without a hitch; note anything to improve. {test:arena_run}
