@@ -759,3 +759,13 @@ His items 3, 5, 12 (2026-11-25).
 - **Verdicts** (Release no-LTO, 0 QC warnings): `embedhold_test.sh mp` 2/0 x3 (61/0 arm 1, 58/0 arm 0), `flatthrust_test.sh mp`
   7/0 (blades 12/0, Lance 7/0), `embeddual_test.sh mp` 16/0, `spear_test.sh mp` 4/0 (VR 25/0, flat 6/0), `vr_embed_test 24`
   (`embedfeel`) 22/0, `vr_embed_test 33` (`embedgrip`) 15/0, `vr_embed_test 29` (`embed1108b`) 10/0.
+## agspearfix: VR_AGK_POLE / Pose Studio sync and generalized flatads section f (branch agent/agspearfix, 2026-11-26)
+
+- **`VR_AGK_POLE` / `agpose::Pole` sync:**
+  - `Quake/vr/vr_builtins_agpose.inc` (`agkKeys`): `pose = cls == VR_AGK_POLE ? VR_AGK_THRUST : VR_AGK_OVERHEAD + agMin(3.f, k);` so engine key lookup matches `QC/vr_armedgrunt_pose.qc:1789`; `agTwoHanded` also handles `twohand::poleWeapon` (`AG(vr_agh_set) != 1.f`) to match `VR_AGP_TwoHanded`.
+  - `Quake/vr/vr_agpose.cpp` (`qcConstants`): added `{agpose::Pole, agpose::Carry, agpose::RPos, "VR_AGP_PORT", "VR_AGP_PORT_FW"}` alongside `Melee2, Carry` so `vr_agrunt_pose_dump` emits QC constant hints for `Pole, Carry` as well as `Pole, Aim`.
+- **Pose Studio Drag Mode (`vr_posestudio.cpp`, `pose_grunt_pole.txt`):**
+  - Kept the clean Pose Studio convention consistent across `Melee2`, two-handed guns, and `Pole`: gripping the weapon box (`PWeaponR` in `Weapon: Pose`) moves the pole and the off hand rides the shaft (`vr_agp_polel`), gripping `PHandR` edits `aggrip::Main`, and gripping `PHandL` edits `LPos` (`vr_agk_lp`) to slide/adjust the off hand along or off the shaft. Updated `partName(n, PHandL)` to display `"Left hand (on shaft)"` for `agpose::Pole` instead of `"Left hand (free)"`, and updated `quakevr/scenarios/pose_grunt_pole.txt` hint accordingly (suggested `quakevr/checklist.txt` wording reported to coordinator).
+- **`Misc/quakevr/flatads_test.sh` section `f`:**
+  - Fixed `u3[8] - z[8]` to `u3[8] - h[8]` (rise from hipfire `h[8]` rather than from zoomed `z[8]`) and changed `tune_reset` to `tune_reset vr_flat_zoom_up` (plus optional `FLATADS_ZOOM_UP` env hook for testing non-default starting values).
+- **Tests:** `agspear_test.sh` 3/0 (`vr_agrunt_test 230` 7/0), `flatads_test.sh` 13/0 at default `vr_flat_zoom_up` (0) and `SECTIONS=f` 4/0 with `FLATADS_ZOOM_UP=2` (measured `4.97 -5.01 -> 2.46 -3.00 -> 2.46 -2.00`), `vr_agrunt_test 83` 63/0, `vr_scenario validate pose_grunt_pole` OK (2 spawns, 0 problems).

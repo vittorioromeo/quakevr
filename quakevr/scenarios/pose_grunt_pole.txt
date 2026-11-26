@@ -9,4 +9,4 @@ cvar vr_agrunt_grip_scope 0
 spawn "Armed Grunt: Spear" 90 -20
 spawn "Armed Grunt: Sword" 90 25
 cmd vr_posestudio
-hint The Pose Studio opens on the nearest: the spear grunt. Its class is Pole Weapon (Spear): Port Arms, Ready, Run, Pickup, Thrust, Shove. Grip a hand's box and move it: the other hand rides the shaft, the head stays at you. The sword grunt beside it is a class of its own: its grips never move with the pole's keys.
+hint The Pose Studio opens on the nearest: the spear grunt. Its class is Pole Weapon (Spear): Port Arms, Ready, Run, Pickup, Thrust, Shove. Grip the spear's box and move it: the off hand rides the shaft, the head stays at you; grip the left hand's box to slide it along the shaft. The sword grunt beside it is a class of its own: its grips never move with the pole's keys.
