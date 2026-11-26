@@ -84,9 +84,12 @@ void QuestExtensions::bind(XrInstance instance)
                 lookUp(instance, "xrUpdateSwapchainFB", updateSwapchain);
 }
 
-const void* QuestExtensions::swapchainNext(XrSwapchainCreateInfoFoveationFB& storage) const
+const void* QuestExtensions::swapchainNext(XrSwapchainCreateInfoFoveationFB& storage)
 {
-    if(!foveation)
+    // questcrash: capable only with a level to apply (Off: plain images, as before qfov3; apply makes new swapchains
+    // when the level crosses 0)
+    eyesCapable = foveation && vr_xr_foveation.value > 0.f;
+    if(!eyesCapable)
     {
         return nullptr;
     }
@@ -199,17 +202,26 @@ void QuestExtensions::apply(XrSession session, const XrSwapchain (&eyes)[2])
     const bool dynamic = vr_xr_foveation_dynamic.value != 0.f && level > 0.f;
     const float wanted = level + (dynamic ? 10.f : 0.f);
     const bool newEyes = eyes[0] != foveated[0] || eyes[1] != foveated[1];
-    if(foveation && eyes[0] != XR_NULL_HANDLE && eyes[1] != XR_NULL_HANDLE &&
-        (wanted != foveationApplied || (newEyes && level > 0.f)))
+    if(foveation && eyes[0] != XR_NULL_HANDLE && eyes[1] != XR_NULL_HANDLE && (wanted != foveationApplied || newEyes))
     {
-        if(!newEyes && foveationApplied >= 0.f)
+        // questcrash: a level over 0 needs capable images, Off plain ones: across 0, new swapchains (made for the level)
+        if((level > 0.f) != eyesCapable || (!newEyes && foveationApplied >= 0.f))
         {
             wantNewEyes = true; // a change on swapchains in use: on new ones (C4p; the backend calls again with them)
             return;
         }
+        const bool changed = wanted != foveationApplied;
         foveationApplied = wanted;
         foveated[0] = eyes[0];
         foveated[1] = eyes[1];
+        if(!eyesCapable)
+        {
+            if(changed)
+            {
+                xrruntime::note("OpenXR: fixed foveation off (vr_xr_foveation 0): plain eye images\n");
+            }
+            return;
+        }
         XrFoveationLevelProfileCreateInfoFB levelInfo{XR_TYPE_FOVEATION_LEVEL_PROFILE_CREATE_INFO_FB};
         levelInfo.level = static_cast<XrFoveationLevelFB>(CLAMP(0, static_cast<int>(level), 3));
         levelInfo.verticalOffset = 0.f;
