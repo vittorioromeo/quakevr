@@ -2058,7 +2058,7 @@ QVR_TUNABLE(vr_flat_throw_wind_roll, "0") // its roll (mirrored for the left han
 QVR_TUNABLE(vr_flat_throw_rev_fwd, "0") // the hand (and its weapon) this far further ahead along the look (units; negative back)
 QVR_TUNABLE(vr_flat_throw_rev_out, "0") // and out at its own side (units; negative in)
 QVR_TUNABLE(vr_flat_throw_rev_up, "0") // and up (units; negative down)
-QVR_TUNABLE(vr_flat_throw_rev_pitch, "0") // turned about the fist: the weapon's far end up (degrees; negative down)
+QVR_TUNABLE(vr_flat_throw_rev_pitch, "40") // turned about the fist: the weapon's far end up (degrees; negative down)
 QVR_TUNABLE(vr_flat_throw_rev_yaw, "0") // and out to its own side (degrees; negative in; mirrored for the left hand)
 QVR_TUNABLE(vr_flat_throw_rev_roll, "0") // and rolled (degrees; mirrored for the left hand)
 QVR_TUNABLE(vr_flat_throw_guide, "1") // 1: the other hand, if free, guides the throw (forward, its palm away, fingers open) while the throwing hand winds up
@@ -2069,7 +2069,7 @@ QVR_TUNABLE(vr_flat_throw_guide_pitch, "55") // its fingers raised from the look
 QVR_TUNABLE(vr_flat_throw_guide_yaw, "15") // its fingers turned in towards the middle (degrees)
 QVR_TUNABLE(vr_flat_throw_guide_roll, "0") // the palm turned about the fingers (degrees; positive: out)
 QVR_TUNABLE(vr_flat_throw_guide_open, "1") // how open its fingers are (0 as they were, 1 wide open)
-QVR_TUNABLE(vr_flat_throw_charge_back, "0.1") // fully charged, the wind-up this much further back (a share of the reach; the charge: vr_flat_throw_charge_time, the grenade's vr_flat_grenade_wind_full)
+QVR_TUNABLE(vr_flat_throw_charge_back, "0.5") // fully charged, the wind-up this much further back (a share of the reach; the charge: vr_flat_throw_charge_time, the grenade's vr_flat_grenade_wind_full)
 QVR_TUNABLE(vr_flat_throw_follow_time, "0.12") // seconds of the throw's follow-through (the arm out along the look)
 QVR_TUNABLE(vr_flat_throw_follow_fwd, "0.9") // the follow-through's place: forward along the look
 QVR_TUNABLE(vr_flat_throw_follow_out, "0.05") // out at its side
@@ -2088,7 +2088,7 @@ QVR_TUNABLE(vr_flat_throw_release_pitch, "-30") // the hand's pitch against the 
 
 // Flatscreen > Grab / Pull (vr_flatgrenade.cpp, QC vr_flatgrab.qc; vr_flat_key_pull, default H). Uses every available
 // empty hand to grab and manipulate physics props, crates, ragdolls and gibs in front of the player.
-QVR_TUNABLE(vr_flat_grab_reach, "1.25") // m: how far Grab / Pull reaches props, crates, ragdolls and gibs, level from the eyes and up (an arm, 0.65 m, past the body box's 0.6 m half width; down to the floor at your feet). Was 100 units (3.8 m)
+QVR_TUNABLE(vr_flat_grab_reach, "0.65") // m: how far Grab / Pull reaches props, crates, ragdolls and gibs, level from the eyes and up (an arm, 0.65 m, past the body box's 0.6 m half width; down to the floor at your feet). Was 100 units (3.8 m)
 QVR_TUNABLE(vr_flat_grab_drag_mass, "15") // kg: props this heavy or heavier (crates, barrels, explosive boxes) are dragged by their surface, the hands on them as on a ragdoll; lighter ones (bricks, rocks, ammo and health boxes, gibs) go in the hand as a force grab's
 QVR_TUNABLE(vr_flat_grab_drag_force, "4000") // N: the most each hand dragging a big prop pulls it with, level (vr_ragdoll_grab_force's: it keeps up with a run; a 40 kg crate weighs some 1000 N in Quake's gravity)
 QVR_TUNABLE(vr_flat_grab_drag_lift, "0.2") // times its weight: the most each hand dragging a big prop lifts it (both: 0.4, under the half that tips a box up: it slides along, its near side lighter)
@@ -2106,7 +2106,7 @@ QVR_TUNABLE(vr_flat_grab_reach_out, "-0.08") // reach-out pose: out at its side 
 QVR_TUNABLE(vr_flat_grab_reach_down, "0.12") // reach-out pose: below its shoulder
 QVR_TUNABLE(vr_flat_grab_hold_fwd, "0.65") // hold pose (a ragdoll or a big prop dragged, a 2H crate): the hands forward along the look, a share of the arm's reach (what they hold comes there)
 QVR_TUNABLE(vr_flat_grab_hold_out, "0.08") // hold pose: out at its side
-QVR_TUNABLE(vr_flat_grab_hold_down, "0.18") // hold pose: below its shoulder (negative: above it)
+QVR_TUNABLE(vr_flat_grab_hold_down, "0") // hold pose: below its shoulder (negative: above it)
 QVR_TUNABLE(vr_flat_grab_ragdoll_throw, "0.85") // multiplier on flatscreen ragdoll throw speed (on top of vr_ragdoll_throw)
 
 // Flatscreen > Free Hands
@@ -2402,12 +2402,12 @@ QVR_TUNABLE(vr_flat_revgrip_dagger_roll, "0")
 QVR_TUNABLE(vr_flat_revgrip_dagger_down, "5")
 QVR_TUNABLE(vr_flat_revgrip_pole_fwd, "-8") // a pole weapon held flipped (the spear, the Crystal Lance): raised overhead, pointing slightly down
 QVR_TUNABLE(vr_flat_revgrip_pole_up, "19")
-QVR_TUNABLE(vr_flat_revgrip_pole_out, "0")
+QVR_TUNABLE(vr_flat_revgrip_pole_out, "-2")
 QVR_TUNABLE(vr_flat_revgrip_pole_pitch, "220") // (its head forward and slightly down; drawn only so the Lance's beam keeps to the crosshair)
 QVR_TUNABLE(vr_flat_revgrip_pole_yaw, "0")
-QVR_TUNABLE(vr_flat_revgrip_pole_roll, "-10")
+QVR_TUNABLE(vr_flat_revgrip_pole_roll, "0")
 QVR_TUNABLE(vr_flat_revgrip_pole_down, "0")
-QVR_TUNABLE(vr_flat_revgrip_pole_off_along, "4") // (polepose) the other hand on a flipped pole this far ahead of the holding hand along it (units; vr_flat_pole_off_along upright)
+QVR_TUNABLE(vr_flat_revgrip_pole_off_along, "9") // (polepose) the other hand on a flipped pole this far ahead of the holding hand along it (units; vr_flat_pole_off_along upright)
 // Flipped-grip attacks (flatmelee5): overhead/icepick swing (LMB with flipped dagger or sword) and downward thrust (V, or LMB with flipped spear/Lance).
 QVR_TUNABLE(vr_flat_revgrip_swing_wind, "0.16") // seconds of its windup from the raised flipped pose
 QVR_TUNABLE(vr_flat_revgrip_swing_top, "0.04") // seconds held at the top
