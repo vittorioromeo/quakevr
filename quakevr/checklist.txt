@@ -39,6 +39,7 @@ After an install with that box ticked, the first visit to any Quake or mission-p
 Installer with the Quest 3 plugged in, over an install already on it: run Setup and tick the Quest; it says how many files it copied (if adb cannot write straight into the app's folder, the log says it copies through /data/local/tmp instead) and the game starts with your saves and settings as before. {test:hub_start}
 Flat-screen or VR: The game's exe, taskbar and Setup show the new icon, and Setup's square and wide logos are the new ones. {test:hub_start}
 Flat-screen or VR: The main menu shows the updated vertical Quake VR logo. {test:hub_start}
+Install the new Quest APK (Setup's Quest step or adb) and look in the headset's Library > Unknown Sources: the app is now listed as "Quake VR: Unleashed" (it still updates over the old install, saves kept). {test:hub_start}
 
 [2. Quest Standalone]
 Quest: run "adb logcat -s QuakeVR" while starting the game: each start-up step shows as it begins and ends, and a long step prints "still in <step>" every 2 seconds; vr_android_export startup.log copies the file out. {test:hub_start}
