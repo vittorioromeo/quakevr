@@ -2507,12 +2507,28 @@ bool holdsBody(int hand)
     return sv.active && cls.state == ca_connected && box3d::ragdollHold(cl.viewentity, hand, h);
 }
 
-// The limb the local player's `hand` holds (a listen server's ragdoll: box3d::ragdollHold), as drawn now. False: none.
+// The limb the local player's `hand` holds (a listen server's ragdoll: box3d::ragdollHold), as drawn now; or the big prop it
+// drags by its surface (flat-screen Grab / Pull: box3d::propDragHold), drawn on it as on a limb. False: none.
 [[nodiscard]] bool limbHold(int hand, LimbHold& out)
 {
     out = LimbHold{};
+    if(!sv.active || cls.state != ca_connected)
+    {
+        return false;
+    }
+    if(box3d::PropDragHold d; box3d::propDragHold(cl.viewentity, hand, d) && d.num > 0 && d.num < cl.num_entities && cl_entities[d.num].model)
+    {
+        const entity_t& ent = cl_entities[d.num];
+        out.num = d.num;
+        out.pos = d.at;
+        out.turn = d.turn;
+        out.shape = grasp::shapeOf(ent, ent.frame);
+        out.toWorld = grasp::shapeToWorld(ent, false);
+        out.drag = true;
+        return true;
+    }
     box3d::RagdollHold h;
-    if(!sv.active || cls.state != ca_connected || !box3d::ragdollHold(cl.viewentity, hand, h))
+    if(!box3d::ragdollHold(cl.viewentity, hand, h))
     {
         return false;
     }
@@ -3349,6 +3365,7 @@ za::Vector<view::HandPart> ropeGripParts;
 
 constexpr float limbEaseTime = 0.1f; // s
 constexpr float tugDrawnMost = 1.f;   // m: the most a tug's hand is drawn off its controller (it lets go well before)
+constexpr float dragRestMost = 20.f;  // cm: the least a dragged prop's palm is slid to rest on its surface (limbDrawnHand)
 
 // `pos`, `angles` (the controller's pose of `hand`) moved onto the limb it holds, as if its controller were there.
 void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
@@ -3373,6 +3390,12 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
         h.shape = grasp::shapeOf(weaponEnt, weaponEnt.frame);
         h.toWorld = grasp::shapeToWorld(weaponEnt, false);
         stick = tugDrawnMost * units::metresToUnits();
+    }
+    // A big prop dragged (flat-screen Grab / Pull): the hand goes to it wherever it is, down to the floor (it lies too heavy to
+    // hoist to where the hold pose has the hand), as far as the hold keeps it (vr_flat_grab_drag_letgo).
+    if(on && h.drag)
+    {
+        stick = za::fmax(stick, za::fmax(vr_flat_grab_drag_letgo.value, 0.1f) * units::metresToUnits());
     }
     on = on && stick > 0.f;
     if(on)
@@ -3410,7 +3433,8 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
         // surface and the channel's radius into it, so the fingers close round it (his note 11-02 00:57: "a little bit
         // detached from the weapon").
         const float cm = 0.01f * units::metresToUnits();
-        const float restMost = za::fmax(vr_ragdoll_hand_rest.value, 0.f) * cm;
+        // (A dragged prop's hard surface: the palm laid on it from further, the hold's point being its hull's corner.)
+        const float restMost = za::fmax(vr_ragdoll_hand_rest.value, h.drag ? dragRestMost : 0.f) * cm;
         glm::vec3 restWant{0.f};
         e.gapBefore = e.gapAfter = 999.f;
         const float look = za::fmax(restMost * 4.f, 20.f * cm); // (how far the mesh is looked for)
@@ -3430,9 +3454,9 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
                 e.gapBefore = in ? -d : d;
                 const float by = in ? d - depth : d + depth;
                 // (Off the palm's side of the hand, behind its back: not slid through the hand. A tug's weapon: where the
-                // hand took hold of it, the fingers round it.)
+                // hand took hold of it, the fingers round it. A dragged prop: the hand is on it wherever it took hold.)
                 const glm::vec3 n = R * frame.palmNormal;
-                const bool facing = tug || in || glm::dot(at - point, n) > 0.f;
+                const bool facing = tug || h.drag || in || glm::dot(at - point, n) > 0.f;
                 restWant = restMost > 0.f && facing ? (at - point) / d * za::clamp(by, -restMost, restMost) : glm::vec3{0.f};
             }
         }

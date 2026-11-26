@@ -872,6 +872,10 @@ void gather(const glm::vec3& lo, const glm::vec3& hi, Stats& stats)
     {
         return "holding a ragdoll's limb (drawn on it: vr_view.cpp limbDrawnHand)";
     }
+    if(box3d::PropDragHold drag; sv.active && box3d::propDragHold(cl.viewentity, hand, drag))
+    {
+        return "dragging a big prop by its surface (drawn on it: vr_view_hands.cpp limbHold)";
+    }
     return nullptr;
 }
 
@@ -1025,10 +1029,14 @@ Result test(const hands::State& s, int hand, bool phase)
     }
     const int mode = static_cast<int>(vr_model_collide.value);
     const int heldA = held::heldEntity(0), heldB = held::heldEntity(1);
-    // (A ragdoll a hand holds by a limb: the hands and the weapons pass into it, as into a carried thing.)
+    // (A ragdoll a hand holds by a limb, or a big prop it drags by its surface: the hands and the weapons pass into it, as
+    // into a carried thing.)
     box3d::RagdollHold limbA, limbB;
-    const int ragA = hosting && box3d::ragdollHold(cl.viewentity, 0, limbA) ? limbA.num : -1;
-    const int ragB = hosting && box3d::ragdollHold(cl.viewentity, 1, limbB) ? limbB.num : -1;
+    box3d::PropDragHold dragA, dragB;
+    const int ragA = hosting && box3d::ragdollHold(cl.viewentity, 0, limbA) ? limbA.num
+                     : hosting && box3d::propDragHold(cl.viewentity, 0, dragA) ? dragA.num : -1;
+    const int ragB = hosting && box3d::ragdollHold(cl.viewentity, 1, limbB) ? limbB.num
+                     : hosting && box3d::propDragHold(cl.viewentity, 1, dragB) ? dragB.num : -1;
     const glm::vec3 reachLo = lo - glm::vec3{2.f * most + 1.f}, reachHi = hi + glm::vec3{2.f * most + 1.f};
     nearby.clear();
     monsters.clear();
