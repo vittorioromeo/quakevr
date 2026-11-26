@@ -208,6 +208,7 @@ struct FreeGrip
     float u = 0.f, uMin = -1e9f, uMax = 1e9f;
     float uFree = 0.f; // (vr_pole_grip_fixed: where the hand would be along it, sliding: the holding hand's slide goes by its change)
     glm::vec3 handPoint{0.f};
+    float handAlong = 0.f; // (the holding hand's own slide then: freeHand)
     // The holding hand's own slide (PoleSlide) when the grip began (uMin/uMax were measured on the weapon drawn so), and
     // the holding hand's limits along the pole from the handle (the butt, the head's start; units).
     float alongAtStart = 0.f;
@@ -921,6 +922,7 @@ FreeGrip& beginFree(const hands::State& s, const glm::vec3 (&originalRots)[2], i
             g.uMax = 1e9f;
         }
         g.handPoint = point;
+        g.handAlong = poleSlides[holding].along;
     }
     g.hold = carry2h::record(frameOf(s.pos[holding], originalRots[holding]), bothFrames(s, originalRots).f);
     g.lastOn = vr_gametime;
@@ -1963,12 +1965,16 @@ bool freeHand(int hand, const glm::vec3& trackedPos, const glm::vec3& trackedRot
     {
         g.hand = relativeTo(holderPos, holderRot, trackedPos, trackedRot);
         g.handPoint = g.point;
+        g.handAlong = poleSlides[1 - hand].along;
         g.handPending = false;
     }
     RelPose on = g.hand;
     if(g.mode == FREE_POLE)
     {
-        on.pos += g.point - g.handPoint; // (slid along the pole with the hand)
+        // (Slid along the pole with the hand. vrspear: less the holding hand's own slide since -- the weapon, and the holding
+        // hand's drawn place this is from (the view's drawnAs), are drawn moved back along the pole by it: poleShift --, so a
+        // hand that keeps its place on the pole while the holding hand slides is drawn there, not slid along the pole twice.)
+        on.pos += g.point - g.handPoint + g.axis * (poleSlides[1 - hand].along - g.handAlong);
         poleTurn(g, relativeTo(holderPos, holderRot, trackedPos, trackedRot), on);
     }
     fromRelative(holderPos, holderRot, on, pos, rot);

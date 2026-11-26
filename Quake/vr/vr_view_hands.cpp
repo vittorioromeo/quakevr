@@ -4191,6 +4191,12 @@ void ropeHeld(int hand, Held& held)
                 }
             }
         }
+        else if(const int poleSlot = weapons::slotForModel(cl_entities[pin.ent].model); poleSlot >= 0 && twohand::poleWeapon(poleSlot))
+        {
+            // (vrspear: a hand on a stuck pole's shaft wraps it as the pole held anywhere does, its Grip Overlap: the palm where
+            // it was on the shaft held, not pressed a few centimetres off it.)
+            held.overlap = CLAMP(0.f, weapons::value(poleSlot, Key::GripOverlap), 1.f) * weapons::maxOverlapCm;
+        }
     }
     else if(const int ent = held::heldEntity(hand))
     {
