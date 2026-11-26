@@ -302,6 +302,70 @@ void test_f()
             va("parallelFor nested 80 deep (past the 64 gates): %zu of 160 chunks run, %zu counted", deep.ran.loadSeqCst(),
                 counted));
     }
+
+    // Every gate taken when a call starts (gridstall: the light grid's probes ran 46 s on the main thread alone while
+    // the hull's nested calls held all 64): it starts alone, and its helpers join once a gate is free (it tries again
+    // after each of its chunks). Here a worker's calls nested 64 deep hold every gate until the caller's first chunk.
+    {
+        struct Hold
+        {
+            Pool& pool;
+            za::Atomic<int>& release;
+            void go(int depth)
+            {
+                pool.parallelFor(
+                    2, 1,
+                    [&](za::SizeT b, za::SizeT) {
+                        if(b != 0)
+                        {
+                            return;
+                        }
+                        if(depth > 0)
+                        {
+                            go(depth - 1);
+                            return;
+                        }
+                        while(release.loadSeqCst() == 0)
+                        {
+                            release.waitOnceSeqCst(0);
+                        }
+                    },
+                    true, &testSite);
+            }
+        };
+        za::Atomic<int> release{0};
+        za::Atomic<int> held{0};
+        Hold hold{pool, release};
+        postOnly(pool, [&] {
+            hold.go(63);
+            held.storeSeqCst(1);
+        });
+        bool full = false;
+        for(int i = 0; i < 2000 && !(full = pool.gatesInUse() == 64); i++)
+        {
+            sleepMs(1);
+        }
+        za::Atomic<int> mine{0}, total{0};
+        pool.parallelFor(100, 1, [&](za::SizeT b, za::SizeT e) {
+            sleepMs(2);
+            total.fetchAddSeqCst(static_cast<int>(e - b));
+            if(za::ThisThread::getId() == self)
+            {
+                mine.fetchAddSeqCst(static_cast<int>(e - b));
+                release.storeSeqCst(1); // (the gates free after this caller's first chunk)
+                release.notifyAll();
+            }
+        });
+        release.storeSeqCst(1);
+        release.notifyAll();
+        for(int i = 0; i < 2000 && held.loadSeqCst() == 0; i++)
+        {
+            sleepMs(1);
+        }
+        check(full && total.loadSeqCst() == 100 && mine.loadSeqCst() < 100 && held.loadSeqCst() == 1,
+            va("a call made with every gate taken (%s): %d of 100 chunks by helpers once one was free", full ? "64 of 64" : "timed out",
+                total.loadSeqCst() - mine.loadSeqCst()));
+    }
     {
         Pool two{2};
         const Stats before = stats();

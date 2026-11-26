@@ -266,6 +266,8 @@ public:
     [[nodiscard]] int workers() const noexcept;
     // parallelFor helpers posted and not yet run (a snapshot: describeNow).
     [[nodiscard]] za::SizeT helpersQueued() const noexcept;
+    // parallelFor calls under way with helpers (of the 64 gates: describeNow).
+    [[nodiscard]] za::SizeT gatesInUse() const noexcept;
 
     // body(begin, end) over [0, count) in chunks of `chunk` (0: about a quarter of an even share per thread), the
     // calling thread taking part; `parallel` false: every chunk on the calling thread (the same results).

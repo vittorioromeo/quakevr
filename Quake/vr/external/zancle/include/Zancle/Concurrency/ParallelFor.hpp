@@ -62,8 +62,9 @@ namespace za
 ///
 /// Holds up to `slotCount` "gates", one per `parallelFor` call in
 /// progress (nested calls and calls from other threads included). A call
-/// that finds no free gate still completes, entirely on the calling
-/// thread.
+/// that finds no free gate starts on the calling thread alone, and takes
+/// a gate and posts its helpers as soon as one is free (it tries again
+/// after each of its chunks).
 ///
 /// Usually one per pool, living as long as it. Any number of pools may
 /// share one. Destruction order does not matter: the destructor waits
@@ -77,8 +78,10 @@ namespace za
 /// queued behind busy workers stays queued after its call returned, until
 /// a worker gets to it (and finds nothing to do). Once a call's pool has
 /// `outstandingHelpersPerWorker` such helpers per worker, calls post no
-/// more helpers and run on their calling threads, so back-to-back calls
-/// while every worker is busy cannot grow the queue without bound.
+/// more helpers and run on their calling threads (each posting its own
+/// later, after one of its chunks, if the count has fallen by then), so
+/// back-to-back calls while every worker is busy cannot grow the queue
+/// without bound.
 ///
 ////////////////////////////////////////////////////////////
 class ZA_SYSTEM_API ParallelForSlots
@@ -124,6 +127,16 @@ public:
     [[nodiscard]] U64 getOutstandingHelpers() const noexcept
     {
         return m_outstanding.loadRelaxed() & ~destroyBit;
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Gates in use now (a snapshot, for diagnostics)
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] SizeT getSlotsInUse() const noexcept
+    {
+        return static_cast<SizeT>(__builtin_popcountll(m_usedMask.loadRelaxed()));
     }
 
 private:
@@ -282,12 +295,12 @@ private:
     ///
     ////////////////////////////////////////////////////////////
     template <typename Frame>
-    static void postHelpers(ParallelForSlots& slots,
-                            const SizeT       slot,
-                            const U32         generation,
-                            Frame* const      frame,
-                            const SizeT       first,
-                            const SizeT       count) noexcept
+    static SizeT postHelpers(ParallelForSlots& slots,
+                             const SizeT       slot,
+                             const U32         generation,
+                             Frame* const      frame,
+                             const SizeT       first,
+                             const SizeT       count) noexcept
     {
         const SizeT reserved = slots.reserveHelpers(count, frame->helperBudget);
 
@@ -297,6 +310,41 @@ private:
             { runHelper(slots, slot, generation, frame, index); }};
 
         frame->pool->postBulk(tasks, reserved);
+        return reserved;
+    }
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Caller side: post up to `count` more of its own helpers, from index `first`
+    ///
+    /// Tree wake: helpers `first` and `first + 1` at most (each wakes its
+    /// children). Flat: `count` helpers at once, with an index that has no
+    /// children. Returns how many it posted (fewer, or none, once the helper
+    /// budget is used up).
+    ///
+    ////////////////////////////////////////////////////////////
+    template <bool TreeWake, typename Frame>
+    static SizeT postCallerHelpers(ParallelForSlots& slots,
+                                   const SizeT       slot,
+                                   const U32         generation,
+                                   Frame* const      frame,
+                                   const SizeT       first,
+                                   const SizeT       count) noexcept
+    {
+        if constexpr (TreeWake)
+        {
+            return postHelpers(slots, slot, generation, frame, first, count);
+        }
+        else
+        {
+            const SizeT reserved = slots.reserveHelpers(count, frame->helperBudget);
+
+            if (reserved > 0u)
+                frame->pool->postCopies(ThreadPool::Task{[&slots, slot, generation, frame, index = frame->nHelpers]
+                { runHelper(slots, slot, generation, frame, index); }},
+                                        reserved);
+
+            return reserved;
+        }
     }
 
     ////////////////////////////////////////////////////////////
@@ -359,8 +407,8 @@ private:
 /// work done and return at once whenever they run. So a call takes as
 /// long as its own work, not as long as whatever else the pool is busy
 /// with. When every worker is busy, the caller simply does all the work
-/// (and, once too many helpers are queued, posts none: see
-/// `ParallelForSlots`).
+/// (and, once too many helpers are queued or every gate is in use, posts
+/// none until that changes: see `ParallelForSlots`).
 ///
 /// `slots` holds the call's bookkeeping (see `ParallelForSlots`). Calls
 /// may be nested (e.g. `f` itself calling `parallelFor`) and may be made
@@ -433,34 +481,53 @@ void parallelForImpl(ThreadPool& pool, ParallelForSlots& slots, const SizeT coun
                 .nHelpers     = nHelpers,
                 .helperBudget = ParallelForSlots::outstandingHelpersPerWorker * (nThreads - 1u)};
 
-    // No helpers needed, or every gate in use: do everything on the calling thread
-    const SizeT slot = nHelpers > 0u ? slots.acquireSlot() : ParallelForSlots::slotCount;
-
-    if (slot == ParallelForSlots::slotCount)
+    // No helpers needed: do everything on the calling thread
+    if (nHelpers == 0u)
     {
         frame.processChunks();
         return;
     }
 
+    // The caller's own helpers: helpers 0 and 1 (tree wake: they wake the rest), else every helper at once
+    const SizeT wanted = TreeWake ? (nHelpers < 2u ? nHelpers : 2u) : nHelpers;
+
+    SizeT slot       = ParallelForSlots::slotCount;
+    U32   generation = 0u;
+    SizeT posted     = 0u;
+
     // Helpers only touch the frame after entering the gate, which the caller closes and drains before returning
-    const U32 generation = slots.getGeneration(slot);
-
-    if constexpr (TreeWake)
+    const auto postMore = [&]() noexcept
     {
-        ParallelForSlots::postHelpers(slots, slot, generation, &frame, 0u, nHelpers < 2u ? nHelpers : 2u);
-    }
-    else
+        if (slot == ParallelForSlots::slotCount)
+        {
+            slot = slots.acquireSlot();
+
+            if (slot == ParallelForSlots::slotCount)
+                return; // every gate in use
+
+            generation = slots.getGeneration(slot);
+        }
+
+        posted += ParallelForSlots::postCallerHelpers<TreeWake>(slots, slot, generation, &frame, posted, wanted - posted);
+    };
+
+    postMore();
+
+    // The caller's chunks. While some of its helpers are missing (every gate was in use, or the helper budget was
+    // used up), it tries again after each chunk: a call made at such a moment (e.g. while nested calls on every
+    // worker held every gate) gets its helpers as soon as a gate or the budget frees up, instead of running all
+    // of its chunks alone however long they take. (The check is a load or two, and only while some are missing.)
+    for (SizeT chunk = frame.nextChunk.fetchAddRelaxed(1u); chunk < nChunks; chunk = frame.nextChunk.fetchAddRelaxed(1u))
     {
-        // Every helper at once (within the budget), with an index that has no children
-        const SizeT reserved = slots.reserveHelpers(nHelpers, frame.helperBudget);
+        const SizeT begin = chunk * chunkSize;
+        f(begin, count - begin > chunkSize ? begin + chunkSize : count);
 
-        if (reserved > 0u)
-            pool.postCopies(ThreadPool::Task{[&slots, slot, generation, framePtr = &frame, nHelpers]
-            { ParallelForSlots::runHelper(slots, slot, generation, framePtr, nHelpers); }},
-                            reserved);
+        if (posted < wanted && frame.hasChunksLeft())
+            postMore();
     }
 
-    frame.processChunks();
+    if (slot == ParallelForSlots::slotCount)
+        return;
 
     slots.closeAndWait(slot); // every chunk is claimed: only wait for the helpers still finishing one
     slots.releaseSlot(slot);

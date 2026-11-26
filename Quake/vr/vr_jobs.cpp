@@ -165,6 +165,11 @@ za::SizeT Pool::helpersQueued() const noexcept
     return static_cast<za::SizeT>(impl->loops.getOutstandingHelpers());
 }
 
+za::SizeT Pool::gatesInUse() const noexcept
+{
+    return impl->loops.getSlotsInUse();
+}
+
 void Pool::post(detail::JobPtr<detail::Job> job)
 {
     QVR_TRACY_SCOPE(scope, "Job enqueue");
@@ -274,7 +279,7 @@ Site* siteList = nullptr; // (constant-initialised: every Site's constructor, at
 constexpr za::I64 stallNanoseconds = 1'000'000'000; // a split call's caller alone this long: stallReport
 
 // The stall line (stallReport): the call's caller has run alone over a second (`during`), or the call has ended.
-void reportStall(const char* name, za::SizeT mine, za::SizeT chunks, za::I64 start, bool during) noexcept
+void reportStall(const char* name, za::SizeT mine, za::SizeT chunks, za::I64 start, za::SizeT gatesAtStart, bool during) noexcept
 {
     void (*const report)(const char*) = stallReport.loadAcquire();
     if(!report)
@@ -287,8 +292,10 @@ void reportStall(const char* name, za::SizeT mine, za::SizeT chunks, za::I64 sta
     if(during)
     {
         describeNow(now, sizeof(now));
-        snprintf(line, sizeof(line), "parallelFor \"%s\": %.1f s with no helper (%zu of %zu chunks run by its caller); %s",
-            name, s, mine, chunks, now);
+        snprintf(line, sizeof(line),
+            "parallelFor \"%s\": %.1f s with no helper (%zu of %zu chunks run by its caller; %zu of 64 gates in use at its "
+            "start); %s",
+            name, s, mine, chunks, gatesAtStart, now);
     }
     else
     {
@@ -354,6 +361,7 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
     za::SizeT mine = 0;
     za::Atomic<bool> helped{false}; // (a helper ran a chunk)
     bool stalled = false;           // (the caller said it ran alone over a second: stallReport)
+    const za::SizeT gatesAtStart = impl->loops.getSlotsInUse();
     za::parallelFor(
         *impl->threads, impl->loops, count,
         [&](za::SizeT begin, za::SizeT end) {
@@ -367,7 +375,7 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
                 if(!stalled && !helped.loadRelaxed() && za::Clock::nowNanoseconds() - start > stallNanoseconds)
                 {
                     stalled = true;
-                    reportStall(name, mine, chunks, start, true);
+                    reportStall(name, mine, chunks, start, gatesAtStart, true);
                 }
             }
             else
@@ -384,7 +392,7 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
     ZA_ASSERT(mine <= chunks);
     if(stalled)
     {
-        reportStall(name, mine, chunks, start, false);
+        reportStall(name, mine, chunks, start, gatesAtStart, false);
     }
     counters.chunksCaller.fetchAddRelaxed(mine);
     counters.chunksHelpers.fetchAddRelaxed(chunks - mine);
@@ -480,8 +488,8 @@ const char* describeNow(char* out, za::SizeT size) noexcept
         groups[g].count++;
         groups[g].longest = za::max(groups[g].longest, took);
     }
-    za::SizeT used = static_cast<za::SizeT>(snprintf(out, size, "pool: %zu tasks and %zu helpers queued, %d of %d workers busy",
-        queuedTasks.loadRelaxed(), p ? p->helpersQueued() : 0, nBusy, p ? p->workers() : 0));
+    za::SizeT used = static_cast<za::SizeT>(snprintf(out, size, "pool: %zu tasks and %zu helpers queued, %zu of 64 gates, %d of %d workers busy",
+        queuedTasks.loadRelaxed(), p ? p->helpersQueued() : 0, p ? p->gatesInUse() : 0, nBusy, p ? p->workers() : 0));
     for(int g = 0; g < nGroups && used < size; g++)
     {
         const char* what = groups[g].what;
