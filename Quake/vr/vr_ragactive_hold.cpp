@@ -224,9 +224,9 @@ void endClimb(State& s, const Parts& p, const Context& c, bool up, const char* w
     if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
     {
         Con_Printf("climb: %d %s (%s) after %.2f s: its chest %.0f units over the lip at most; its pelvis %.0f units in from the "
-                   "lip, %.0f over the top; its feet kicked %.0f units\n",
+                   "edge, %.0f over the top; its feet kicked %.0f units\n",
             c.num, up ? "pulled itself up" : "dropped", why, c.now - k.since0, k.rose * p.m2u,
-            -glm::dot(pelvis - k.lip, k.out) * p.m2u, (pelvis.z - k.top) * p.m2u, k.kick * p.m2u);
+            -glm::dot(pelvis - k.edge, k.out) * p.m2u, (pelvis.z - k.top) * p.m2u, k.kick * p.m2u);
     }
     if(up)
     {
@@ -359,6 +359,13 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
     const glm::vec3 chestAt = glmv(b3Body_GetWorldCenter(p.body[chest])), pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
     k.rose = za::max(k.rose, chestAt.z - k.top);
     const float pelvisIn = -glm::dot(pelvis - k.lip, k.out);
+    // Going in onto the top (Over) is measured from the ledge's edge: `rim`, the lip (its holds) moved in or out onto the
+    // edge's line. Its holds take the lip up to half an arm out from the edge (box3dup2): from `lip`, a grunt whose holds
+    // were 10 units out (one 5, one 15) was "slowly in" with its pelvis 3 units out over the drop, its legs reaching for
+    // the top in the air; lying there on its thighs it fell back off or stood up on the top by a hair (climb_test grunt
+    // seed 10, Box3D 042be58's friction centre, 2026-11-26).
+    const glm::vec3 rim = k.lip + k.out * glm::dot(k.edge - k.lip, k.out);
+    const float pelvisPast = -glm::dot(pelvis - rim, k.out);
     if(c.trace)
     {
         // (vr_ragdoll_active_trace: its phase; its chest's, pelvis's, knees' and feet's height over the top and how far in
@@ -401,7 +408,7 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
     // (In: as high as over until its pelvis is in past the lip (Over), carried in level over the corner, its legs trailing.
     // At 0.3 of an arm a grunt's pelvis came down onto the corner going in and stayed there, 2026-11-12.)
     const glm::vec3 over = k.lip + k.out * (0.35f * L) + up * (0.6f * L);
-    const glm::vec3 in = k.lip + wall * (1.f * L) + up * (0.6f * L);
+    const glm::vec3 in = rim + wall * (1.f * L) + up * (0.6f * L);
     const glm::vec3 axis = glm::normalize(glm::cross(up, wall));
     const float lag = k.pinned ? glm::distance(pelvis, k.pinAt) : 0.f; // (its pelvis behind its way)
     // Holding by one hand (pulling or not yet: hanging, pulling itself up, going over until it lets go), the other
@@ -562,11 +569,11 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
             // high and it isn't pitched on: pitched on over the corner with its way 0.3 of an arm up, a grunt's pelvis was
             // set under the top against the lip and stayed there, "slid back off the lip", 2026-11-12. Once in, lower and
             // pitched on, lying down on the top as before.)
-            const float inside = smooth01(pelvisIn / (0.5f * L));
+            const float inside = smooth01(pelvisPast / (0.5f * L));
             k.pinAt = !k.released ? glm::mix(k.from, over, u1) : glm::mix(over, in - up * (0.3f * L * inside), u2);
             // (Its chest led in over the top ahead of its pelvis, not left at the lip's corner as its pelvis rises past it:
             // folded there, it tipped back off.)
-            climbChest(s, p, c, chest, k.lip + up * (0.45f * L) + wall * ((!k.released ? 0.3f * u1 : 0.3f + 0.7f * u2) * L));
+            climbChest(s, p, c, chest, rim + up * (0.45f * L) + wall * ((!k.released ? 0.3f * u1 : 0.3f + 0.7f * u2) * L));
             k.tilt = glm::angleAxis(0.6f * u1 + 0.9f * u2 * inside, axis);
             // (Let go once its pelvis is over the top and its chest over the lip, not tipped back off it.)
             if(!k.released && k.prog >= 1.f && pelvis.z > k.top + 0.1f * L && -glm::dot(chestAt - k.lip, k.out) > -0.1f * L &&
@@ -606,11 +613,11 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
                 {
                     continue; // (not reaching up for the top yet: still scrabbling)
                 }
-                r.goal = k.lip + wall * ((0.15f + 0.5f * u2) * L) + up * (0.1f * L);
+                r.goal = rim + wall * ((0.15f + 0.5f * u2) * L) + up * (0.1f * L);
                 r.weight = limbWhole(s, p, leg) ? 0.8f * w : 0.f;
                 r.strength = 0.8f;
             }
-            if(k.released && k.prog2 >= 1.f && pelvisIn > 0.5f * L && pelvis.z > k.top - 0.1f * L)
+            if(k.released && k.prog2 >= 1.f && pelvisPast > 0.5f * L && pelvis.z > k.top - 0.1f * L)
             {
                 endClimb(s, p, c, true, "in on the top");
             }
@@ -620,7 +627,7 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
             }
             else if(k.released && c.now - k.since2 > overIn + climbSlack)
             {
-                endClimb(s, p, c, pelvisIn > 0.35f * L, pelvisIn > 0.35f * L ? "slowly in" : "slid back off the lip");
+                endClimb(s, p, c, pelvisPast > 0.35f * L, pelvisPast > 0.35f * L ? "slowly in" : "slid back off the lip");
             }
             break;
         }

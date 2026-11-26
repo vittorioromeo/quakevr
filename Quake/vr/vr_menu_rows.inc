@@ -6888,6 +6888,10 @@ QVR_CYCLE(vr_flat_grab_hold, "Grab / Pull Key",
     "props, crates, ragdolls and gibs with your available empty hands. Toggle: press to grab, press again to release. "
     "Hold: hold the key to grab and carry, let go to release (vr_flat_grab_hold).",
     {0.f, "Toggle"}, {1.f, "Hold"})
+QVR_TOGGLE(vr_flat_overhand_both, "Quick Melee: Both Fists",
+    "Playing on the desktop screen (-flatscreenmode): with both hands empty, quick melee (V) is a two-handed overhead "
+    "blow: both fists raised over your head and brought down together onto the crosshair, one hit harder than one fist's. "
+    "Off: V is the one-fist overhand blow (vr_flat_overhand_both).")
 QVR_TOGGLE(vr_flat_shove, "Shove Key (Mouse 5)",
     "Playing on the desktop screen (-flatscreenmode): the shove key (mouse 5, vr_flat_key_shove) pushes an open hand out in "
     "front of you, the headset's one-hand shove: what it reaches is thrown back and staggered. Off: the key does nothing "
