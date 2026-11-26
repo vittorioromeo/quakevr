@@ -51,9 +51,11 @@ def main():
         return 1
     src = Image.open(sys.argv[1]).convert("RGBA")
     game = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), "..", "..", "quakevr")
-    if src.width > WIDTH or src.height > HEIGHT:
-        print(f"{sys.argv[1]}: {src.width} x {src.height} is bigger than {WIDTH} x {HEIGHT}")
-        return 1
+    # Scaled (Lanczos) to the largest size that fits the canvas, as the shipped banner always was.
+    scale = min(WIDTH / src.width, HEIGHT / src.height)
+    if scale != 1:
+        src = src.resize((min(WIDTH, round(src.width * scale)), min(HEIGHT, round(src.height * scale))),
+                         Image.Resampling.LANCZOS)
     canvas = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
     left, top = (WIDTH - src.width) // 2, (HEIGHT - src.height) // 2
     canvas.paste(src, (left, top))
