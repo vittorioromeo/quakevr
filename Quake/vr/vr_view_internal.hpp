@@ -670,10 +670,11 @@ inline FlipHold flipHolds[2];
 // being `upright` (a weapon lying about's own, the pitch as a view's; a drawn weapon's handTurnOfWeapon): the reverse grip's handle
 // (its butt where the guard was). False for a weapon that may not be held reversed.
 [[nodiscard]] bool reversedHandPoint(const qmodel_t* model, int slot, bool mirrored, const glm::vec3& origin, const glm::vec3& upright, glm::vec3& point);
-// A blade in a body held by its handle (STAT_QVR_EMBED*: the edict * 4 + reversed * 2 + by its handle; vr_axestick.cpp calcStats).
+// A blade in a body held by its handle (STAT_QVR_EMBED*: the edict * 8 + in a ragdoll * 4 + reversed * 2 + by its handle; vr_axestick.cpp
+// calcStats).
 [[nodiscard]] inline int embedStatEnt(int stat)
 {
-    return stat / 4;
+    return stat / 8;
 }
 [[nodiscard]] inline bool embedStatHandle(int stat)
 {
@@ -968,6 +969,8 @@ struct EmbedEase
 };
 void embedPinsReset();
 void embedPinStep(const hands::State& s, int hand);
+// Each frame before embedPinStep: a held blade stuck in a body drawn smoothed (vr_embed_ragdoll_smooth_*), the hands on it with it.
+void embedSmoothStep();
 [[nodiscard]] bool embedEase(int hand, EmbedEase& out);
 // (view::embedPinLead's, view::embedPinSeen's, view::embedEasing's.)
 [[nodiscard]] glm::vec3 embedPinLeadOf(int hand);

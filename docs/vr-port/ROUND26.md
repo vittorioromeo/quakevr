@@ -836,6 +836,49 @@ His items 3, 5, 12 (2026-11-25).
   skipped), each as its own commit ("tunables: promote his values", "checklist: retire N ticked lines"). A build that
   fails with them in ships again without them (warning). Flags: `--no-promote`, `--no-retire`, `--wait-game` (releases).
 
+## Flat stuck blades: free off hand joins, pole shaft grip, ragdoll smoothing (branch agent/flatembed3, 2026-11-26)
+
+His items 3, 7 and 10 (flat notes 2026-11-25/26).
+- **Off hand joins (item 3):** flat play's free, empty other hand takes any two-handed stuck blade (not the dagger, not a
+  2h_mode 2 weapon: `VR_Embed_CanTwoHand`) when the blade's grip/shaft segment (handle to wound) is within its arm's reach
+  from the off shoulder: `VR_EMBED_FLATARM_REACH` 0.6 m plus `vr_flat_embed_other_hand` cm (default 30; 0 never). Checked at
+  the stab (`VR_Embed_Try`) and every hold think while one hand holds it (`VR_Embed_HoldThink`, not during a pull), so a
+  one-handed stab or a later regrab gets the second hand too. A hand `VR_Embed_FlatArm` dropped for reach waits 0.4 s and
+  then needs 85% of the reach (`vr_hold_flatdrop_*`). Both hands' flat anchors are the handle (`VR_Embed_SetG0`). H drops both.
+  Test: vr_embed_test 64 (`embedhold_test.sh`): the spear, the sword stabbed one-handed and the swung axe all assert the
+  other hand on it the whole hold with vr_flat_embed_arm 1, none with 0.
+- **Pole shaft grip (item 7):** one helper, `poleShaftGrip` (vr_view_hands.cpp, on `alignChannel`): the hand's grip channel
+  turned and moved the least onto the pole's line. Held (flat): every state now, by `vr_flat_pole_off_snap` (default 1;
+  0 = only the flipped grip, as before), on the drawn mount-to-muzzle line. Stuck in a body (VR and flat): a hand on a grip
+  hotspot (not the handle) of a spear/Lance goes onto the shaft line through that hotspot (butt-to-tip way,
+  `weaponLocalGeometry`; the model's butt/tip points themselves, placed by `hotspotFrame`, were 13-21 units off the drawn
+  grip); in flat play, out of the arm's reach, it slides down the shaft towards the shoulder (`keepOnArm` along the shaft),
+  and if no shaft point is in reach, as near as the arm gets. Probe: `vr_embed_probe_pdist` / `_pturn` / `_pon` (cm and
+  degrees the channel is off the shaft, frames). The embedded holder frame keeps `reversed=false` on purpose: it is a frame
+  rigid with the blade, not the holder's real hand.
+- **Ragdoll smoothing (item 10):** `view::embedSmoothStep` (before `embedPinStep`): a held blade stuck in a ragdoll is drawn
+  with its place eased and turn slerped (`vr_embed_ragdoll_smooth_time` 0.04 s, 0 off), trailing the body by at most
+  `_max_pos` 2 cm / `_max_deg` 6 degrees. Written into the client entity, so the blade and every hand drawn on it share it.
+  Only ragdolls: STAT_QVR_EMBED* is now edict * 8 + in a ragdoll 4 + reversed 2 + by handle 1 (`ragdoll::published` of the
+  blade's host; `axestick::heldEnt` / `heldInRagdoll`; vr_flatplay.cpp and vr_gadgetlock.cpp use `heldEnt`). Smoothing a
+  standing body's blade broke the flat arm's reach (vr_embed_test 64, ogre case), hence the gate. State reset on map change
+  (`embedPinsReset`) and on a new blade entity or model. Probe: `vr_embed_probe_jraw` / `_jdrawn` (mean frame-to-frame change
+  of velocity in units plus turn rate in degrees, in the body and as drawn), `_jlag` (cm), `_jon`.
+- **flatembed4 (finish):** (a) `vr_flat_pole_off_pitch` turned the drawn other hand 2 of 30 degrees: the shaft grip's least
+  turn undid it. Its shaft-grip share is now turned about the shaft after the grip (`turnAboutShaft`): the hand stays on the shaft
+  and the tunable turns it (flatlance 30 degrees). (b) flatlance's "many thrusts": the Lance left in the ogre. Not the join stealing
+  it: with both hands anchored at the handle (`VR_Embed_SetG0`, item 3) the hold's averaged `far` lost the few units of slack the
+  second hand's own anchor up the shaft had given, and an ogre staggering 19 units back after a fast thrust took it past Hold Reach,
+  where embedholdfix's flat rule let go of a point in a heavy body. Now that rule lets go only when he himself walks off the blade
+  (`VR_Embed_FlatGoingAway`, shared with `VR_Embed_FlatArm`); a point the body carries off comes free into its hand. (c) Out of the
+  arm's reach the stuck shaft's hand went back to its own place, the spear's shaft 38 cm away; now it is pulled from the shaft's
+  nearest point straight towards the shoulder (13 cm off at 42 units, on it when in reach). Probes: `_pdist` / `_pturn` are taken
+  after every placement (`poleProbeNote`), `_hoff` skips frames the flat arm holds the hand short of the handle (pin.lead).
+  Tests: `poleembed_test.sh`: vr_embed_test 71 (spear and Lance, upright, flipped, guarding, stuck: 0.00 cm, 0.0 degrees, 16/0;
+  the spear's grunt at 32, its shaft in reach) and 72 (a sword in a falling ragdoll: smoothed 0.41 of 0.60 jitter drawn, lag 2.00
+  cm = max_pos, hand 0.00 cm off the handle; smoothing 0: the same jitter, no lag; 13/0).
+- Open: the parry pose and the smoothing were not checked visually; at 42 units the stuck spear's hands are drawn short of it
+  (the flat arm's reach), the main hand too.
 ## hullinstall: the installer makes the collision of Quake's and the mission packs' maps, and sends it to the Quest (branch agent/hullinstall, 2026-11-26)
 
 His ask: generate the hull trees at install time for the most common maps, as the relight is.

@@ -52,8 +52,8 @@ const char* bothHold()
     {
         return "the same prop";
     }
-    const int bladeMain = axestick::heldStat(HAND_MAIN) / 4; // (the blade's entity * 4 + reversed * 2 + its handle flag: vr_axestick.cpp calcStats)
-    if(bladeMain > 0 && bladeMain == axestick::heldStat(HAND_OFF) / 4)
+    const int bladeMain = axestick::heldEnt(HAND_MAIN); // (the blade's entity: vr_axestick.cpp calcStats)
+    if(bladeMain > 0 && bladeMain == axestick::heldEnt(HAND_OFF))
     {
         return "the same embedded blade";
     }
