@@ -126,7 +126,15 @@ struct FlatState
     bool punchTwoFist[2]{false, false};  // per hand: that overhand blow is both fists' at once (vr_flat_overhand_both)
     bool punchRevGrip[2]{false, false};  // per hand: that swing or thrust began held in a flipped grip (vr_flat_revgrip_*)
     glm::vec3 thrustWay[2]{};            // per hand: its thrust's line this frame (thrustPose; the probe's tip angle)
-    int thrusts{0};                      // spear thrusts begun this session (vr_flatplay_status)
+    float punchStrikeIn[2]{0.f, 0.f};    // per hand: seconds from that punch's start to its strike's (lastStrike)
+    float punchMass[2]{0.f, 0.f};        // per hand: its weapon's weight then (kg; 0 a fist or a prop, -1 none in its data)
+    // Per hand: the way a flipped melee pole's thrust would take its tip now (noteThrustPath; flatxhair's crosshair).
+    struct ThrustPath
+    {
+        bool valid{false};
+        glm::vec3 from{0.f}, to{0.f}, dir{0.f}; // its tip at the strike's start and end, the blade's way at the end
+    } thrustPath[2];
+    int thrusts{0};                    // spear thrusts begun this session (vr_flatplay_status)
     int grabs{0};                // vr_flatplay_status's counts
     int punches[2]{0, 0};        // and the punch's, per hand
     // The shove (vr_flat_key_shove, vr_flat_shove_now): the hand pushing, when its push started, whether the game has been
@@ -1619,6 +1627,89 @@ void revGripPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& 
     return true;
 }
 
+// The way the blade-to-target thrust solver (thrustPose: a one-handed blade, a flipped melee pole) turns hand `h`'s blade
+// onto: from the hand at the crosshair's point (`aim`: the view's angles; never nearer than vr_flat_thrust_1h_near along
+// its ray), a flipped grip's tilted vr_flat_revgrip_<family>_down under it.
+[[nodiscard]] glm::vec3 thrustWant(const hands::State& s, int h, const glm::vec3& aim, bool rev)
+{
+    glm::vec3 org, dir;
+    crosshairRay(s, aim, org, dir);
+    const float closest = za::clamp(vr_flat_thrust_1h_near.value, 8.f, 256.f);
+    const float dist = za::clamp(glm::dot(flatsight::crosshairHit(s, aim) - org, dir), closest, 4096.f);
+    const glm::vec3 want = glm::normalize(org + dir * dist - s.pos[h]);
+    return rev ? poleTurn(want, -za::clamp(revGripSet(h).down.value, 0.f, 80.f), 0.f, h == HAND_OFF ? -1.f : 1.f) * want : want;
+}
+
+// The shortest turn taking `blade` onto `want`, by the share `k` (straight back: over the top, about `up`'s side); false
+// with none to make.
+[[nodiscard]] bool bladeOnto(const glm::vec3& blade, const glm::vec3& want, const glm::vec3& up, float k, glm::quat& turn)
+{
+    glm::vec3 axis = glm::cross(blade, want);
+    const float c = za::clamp(glm::dot(blade, want), -1.f, 1.f);
+    if(glm::length(axis) < 1e-4f)
+    {
+        axis = c > 0.f ? up : glm::cross(blade, up);
+    }
+    if(glm::length(axis) <= 1e-4f)
+    {
+        return false;
+    }
+    turn = glm::angleAxis(za::acos(c) * k, glm::normalize(axis));
+    return true;
+}
+
+// The thrust's place of hand `h` at its part `p` along `way` from `from` (thrustPose's), within what the arm reaches from
+// `root`.
+[[nodiscard]] glm::vec3 thrustHandAt(const glm::vec3& from, const glm::vec3& way, const ThrustPart& p, int h, const glm::vec3& root,
+    const glm::vec3& right, const glm::vec3& up)
+{
+    glm::vec3 at = from + way * p.along + up * p.up + right * ((h == HAND_OFF ? -1.f : 1.f) * p.out);
+    const float most = za::max(4.f, armSpan()) * 0.98f;
+    if(const glm::vec3 d = at - root; glm::length(d) > most && glm::length(from - root) < most)
+    {
+        at = root + d * (most / glm::length(d));
+    }
+    return at;
+}
+
+// Item 9 of his flat notes 2026-11-26 ("the dynamic crosshair for spear/pole/lance inverted grip doesn't seem to correctly
+// detect where the hit will end up"): a flipped melee pole (the spear) strikes with the solver's thrust (thrustPose), not
+// along its shot's line (the drawn, reversed pole's): its blade turned onto thrustWant, its fist driven out along it and
+// its tip turned by the flipped thrust's own parts (vr_flat_revgrip_thrust_*). Where its tip goes in the strike, from the
+// hand as posed now (before thrustPose moves it), for flatxhair: what it meets on the way is where the blow lands.
+void noteThrustPath(const hands::State& s, int h, const glm::vec3& root, const glm::vec3& right, const glm::vec3& up, const glm::vec3& aim)
+{
+    FlatState::ThrustPath& tp = fs.thrustPath[h];
+    tp.valid = false;
+    const int slot = heldIn(h);
+    if(bot != nullptr || !thrustsWith(slot) || !twohand::poleWeapon(slot) || !meleeIn(h) || revGripShare(h) < 0.5f ||
+       !s.muzzleValid[h])
+    {
+        return;
+    }
+    // (The tip as last drawn, off the hand, turned as thrustPose turns the fist: its blade onto `want` whole by the strike,
+    // then by the thrust's own tip turn.)
+    glm::vec3 local{1.f, 0.f, 0.f};
+    (void)bladeInHand(h, local);
+    const glm::vec3 blade = held::axesFromAngles(&s.rot[h][0], true) * local;
+    const glm::vec3 want = thrustWant(s, h, aim, true);
+    glm::quat onto{1.f, 0.f, 0.f, 0.f};
+    (void)bladeOnto(blade, want, up, 1.f, onto);
+    const glm::vec3 tip = onto * (s.muzzle[h] - s.placedFrom[h]);
+    const float side = h == HAND_OFF ? -1.f : 1.f;
+    const ThrustTimes w = thrustTimes(true);
+    const auto tipAt = [&](double t, glm::vec3& way) {
+        const ThrustPart p = thrustAt(t, true, true);
+        const glm::mat3 turn = poleTurn(want, p.pitch, p.yaw, side);
+        way = glm::normalize(turn * want);
+        return thrustHandAt(s.pos[h], want, p, h, root, right, up) + turn * tip;
+    };
+    glm::vec3 unused{0.f};
+    tp.from = tipAt(static_cast<double>(w.wind + w.hold), unused);
+    tp.to = tipAt(static_cast<double>(w.wind + w.hold + w.strike), tp.dir);
+    tp.valid = glm::distance(tp.from, tp.to) > 0.5f;
+}
+
 // The spear thrust (vr_flat_thrust; his notes 2026-11-23: "a spear-like thrust with a windup"): V with a pole weapon (the
 // Crystal Lance, the spear) in hand `h`, over the spear pose, along the pole (the crosshair's way); the other hand on the
 // pole goes with it (its grip is on the pole, vr_view_weapon.cpp). The hand's motion is the game's to judge, as the swing's:
@@ -1651,29 +1742,14 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
         glm::vec3 local{1.f, 0.f, 0.f};
         (void)bladeInHand(h, local); // (none drawn yet: the hand's forward)
         const glm::vec3 blade = held::axesFromAngles(&s.rot[h][0], true) * local;
-        glm::vec3 org, dir;
-        crosshairRay(s, aim, org, dir);
-        const float closest = za::clamp(vr_flat_thrust_1h_near.value, 8.f, 256.f);
-        const float dist = za::clamp(glm::dot(flatsight::crosshairHit(s, aim) - org, dir), closest, 4096.f);
-        glm::vec3 want = glm::normalize(org + dir * dist - s.pos[h]);
-        if(rev)
-        {
-            want = poleTurn(want, -za::clamp(revGripSet(h).down.value, 0.f, 80.f), 0.f, side) * want;
-        }
+        const glm::vec3 want = thrustWant(s, h, aim, rev);
         if(!pole)
         {
             s.pos[h] -= right * (side * za::clamp(vr_flat_thrust_1h_in.value, -20.f, 20.f) * k);
         }
-        // (The shortest turn taking the blade onto `want`, by the share.)
-        glm::vec3 axis = glm::cross(blade, want);
-        const float c = za::clamp(glm::dot(blade, want), -1.f, 1.f);
-        if(glm::length(axis) < 1e-4f)
+        glm::quat turn{1.f, 0.f, 0.f, 0.f};
+        if(bladeOnto(blade, want, up, k, turn))
         {
-            axis = c > 0.f ? up : glm::cross(blade, up); // (straight back: over the top)
-        }
-        if(glm::length(axis) > 1e-4f)
-        {
-            const glm::quat turn = glm::angleAxis(za::acos(c) * k, glm::normalize(axis));
             s.rot[h] = turnedBy(glm::mat3_cast(turn), s.rot[h]);
             way = glm::normalize(turn * blade);
         }
@@ -1702,13 +1778,7 @@ void thrustPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& 
         }
         way = wantWay;
     }
-    glm::vec3 at = s.pos[h] + way * p.along + up * p.up + right * (side * p.out);
-    const float most = za::max(4.f, armSpan()) * 0.98f;
-    if(const glm::vec3 d = at - root; glm::length(d) > most && glm::length(s.pos[h] - root) < most)
-    {
-        at = root + d * (most / glm::length(d));
-    }
-    s.pos[h] = at;
+    s.pos[h] = thrustHandAt(s.pos[h], way, p, h, root, right, up);
     const glm::mat3 turn = poleTurn(way, p.pitch, p.yaw, side);
     s.rot[h] = turnedBy(turn, s.rot[h]);
     fs.thrustWay[h] = glm::normalize(turn * way);
@@ -2076,6 +2146,23 @@ void startPunch(int h, const char* from, bool vKey = false)
         fs.punchOverhead[h] = false;
         fs.thrusts++;
     }
+    // (When its strike begins and how heavy it is: the crosshair's bloom, flatxhair via lastStrike.)
+    if(fs.punchThrust[h])
+    {
+        const ThrustTimes w = thrustTimesOf(h);
+        fs.punchStrikeIn[h] = w.wind + w.hold;
+    }
+    else if(fs.punchOverhead[h])
+    {
+        const SwingTimes w = swingTimes(swingSet(h));
+        fs.punchStrikeIn[h] = w.wind + w.top;
+    }
+    else
+    {
+        fs.punchStrikeIn[h] = punchWind;
+    }
+    // (-1: a weapon whose data gives no weight.)
+    fs.punchMass[h] = heldIn(h) < 0 ? 0.f : weapons::value(heldIn(h), weapons::Key::Mass) > 0.f ? weapons::value(heldIn(h), weapons::Key::Mass) : -1.f;
     fs.punches[h]++;
     if(vr_flatplay_debug.value)
     {
@@ -3328,6 +3415,30 @@ bool oneHandOnly(int h)
 bool flippedGrip(int h)
 {
     return h >= 0 && h < HAND_COUNT && revGripShare(h) >= 0.5f;
+}
+
+bool thrustPath(int h, glm::vec3& from, glm::vec3& to, glm::vec3& dir)
+{
+    if(h < 0 || h >= HAND_COUNT || !fs.thrustPath[h].valid || !active())
+    {
+        return false;
+    }
+    from = fs.thrustPath[h].from;
+    to = fs.thrustPath[h].to;
+    dir = fs.thrustPath[h].dir;
+    return true;
+}
+
+bool lastStrike(int h, float& since, int& count, float& mass)
+{
+    if(h < 0 || h >= HAND_COUNT || fs.punches[h] <= 0 || !active())
+    {
+        return false;
+    }
+    since = static_cast<float>(vr_gametime - (fs.punchAt[h] + static_cast<double>(fs.punchStrikeIn[h])));
+    count = fs.punches[h];
+    mass = fs.punchMass[h];
+    return true;
 }
 
 float flipShare(int h)
@@ -4707,6 +4818,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
             swingOverhead();
         }
         // A spear thrust (vr_flat_thrust): a pole weapon's along its pole from the spear pose, a stabbing blade's from its own.
+        noteThrustPath(s, h, shoulder(s, h) + nudge, right, up, aim);
         thrustPose(s, h, shoulder(s, h) + nudge, right, up, aim);
 
         // An empty hand at rest hangs from its shoulder whatever the look: level with the body, its fingers down, not out

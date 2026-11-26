@@ -1651,6 +1651,40 @@ His flat items 7 and 8 (2026-11-26).
   `flatgrip1h_test.sh` (new, 9/0: axe, super axe, dagger one-handed held and in the guard; the sword and `vr_flat_1h_axe 0` the
   controls); flatmelee2h_test 16/0. embedhold_test: its ogre case fails one check (`.vr_embed_armpast` -2.0 cm "while clamped";
   a sword, no code of this branch on its path; not investigated: possibly the 2H stance tunables promoted in 363f0b1ab).
+## flatxhair: the flipped spear's crosshair on where its thrust lands; melee blows widen the crosshair (branch agent/flatxhair, 2026-11-26)
+
+His flat notes 2026-11-26, items 9 and 10.
+- **Flipped pole crosshair (9).** The visor crosshair (vr_flatxhair.cpp) traces each hand's shot line as sent (muzzle +
+  `view::heldShotAngles`). The spear has no shot, so that line stood in for its stab: right upright (flatsight aims the
+  pole's tip line at the crosshair's point and the thrust goes along it), wrong flipped: its game hand is turned
+  (revGripPose, vr_flat_revgrip_pole_pitch 220 since the 363f0b1ab promotion) and the drawn pole reversed, so the shot line
+  pointed back over the shoulder (its hit 400-1200 units behind; the crosshair just sat on the centre) while the thrust is
+  thrustPose's blade-to-target solver: the blade turned onto the crosshair's point tilted vr_flat_revgrip_pole_down, the
+  fist driven out along it and the tip turned by vr_flat_revgrip_thrust_* (reach 26, up -4, pitch -10 by default): a stab
+  forward and steeply down. Now `flatplay::thrustPath` (noteThrustPath, computed each pose right before thrustPose, from
+  the same helpers: `thrustWant`, `bladeOnto`, `thrustHandAt`, `thrustAt`) gives the tip's way through the strike: the
+  drawn tip off the hand, turned whole onto the solver's line, at the strike's start and end. flatxhair traces that
+  segment: what it meets is where the blow lands; nothing in reach: the tip's end (the place a thing must be for the blow
+  to land on it; extending the tilted blade put the crosshair on the floor ahead). Only a flipped melee pole (the spear);
+  the flipped Lance's crosshair stays its bolt's (its fire button shoots), the upright pole its shot line. Tunable
+  `vr_flat_xhair_thrust_path` 1 (Debug > Tunables > Flatscreen > Crosshair, "Flipped Spear Crosshair"; 0 the old line).
+  Measured on e1m1's wall (the landing from the QC's melee mark, `flatxhair::noteMeleeMark` in vr_decals meleeEvent):
+  flipped 16 and 24 units off the wall 2.0 units apart (the mark's own 2-unit lift off the wall: exact), upright 2.3;
+  before, nowhere near. The real reach ends about 2 units short of the path's end (the strike slows at its end).
+- **Melee bloom (10).** `flatplay::lastStrike` (each punch's strike start: a thrust's wind + hold, a swing's wind + top,
+  the fist's windup; its weapon's w_mass) feeds `meleeKick`: vr_flat_xhair_melee_kick 10 px (at 1080) as the strike
+  begins, times sqrt(mass / vr_flat_xhair_melee_mass 3) (0.5..2; a fist or a prop vr_flat_xhair_melee_fist 0.5), decaying
+  over vr_flat_xhair_melee_decay 0.15 s. Added to the gun's recoil kick in the same spread (under vr_flat_xhair_kick_max,
+  smoothed by vr_flat_xhair_kick_smooth); every hand's spread is now kept whether its crosshair is shown or not, so a
+  sword or fist blow widens the centre crosshair, and an off-hand blade widens the main gun's. Rows in the same group.
+  There is no light/heavy attack in flat play: the weight and the fist share are the scale.
+- Probe: `vr_flat_xhair_probe` prints each hand's `melee kick ... blows ... path`, the path's ends, and after a blow on
+  the world `melee landed` / `melee said <known> ... apart <units> px <px>`.
+- Tests: new `Misc/quakevr/flatxhair_melee_test.sh` 9/0 (flipped 16/24 lands on the crosshair, old line far off, out of
+  reach on the tip's end, upright lands on it, the bloom rises and eases back for the spear, upright and fist, the fist's
+  less). flatmelee4 9/0, tunables_test 13/0. Pre-existing on origin/next (same with my engine files reverted, merge base
+  3836fa187^2): `flatxhair_test.sh` 28/3 (its `flush` case: wall share 0.0 at the first probe) and `flatthrust_test.sh`
+  6/2 (the Lance run 0/5, flatmelee5's "rev thrust sword embeds" 23/1), likely the promoted pole/revgrip tunables.
 ## questname
 
 The Quest app is now "Quake VR: Unleashed" (the PC's casing: quakedef.h title, QuakeVR.rc, the installer). Changed:
