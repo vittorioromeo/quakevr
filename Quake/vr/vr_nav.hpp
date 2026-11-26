@@ -21,6 +21,10 @@ void afterLoad();
 // VR_OnClearMemory, before the hunk goes (every map load, a failed one too): the builds and props' batches still on the
 // pool joined (they read the old world's model) and the navmeshes forgotten.
 void finishLoads();
+// The shipped cache's generation run (vr_prepare.cpp, -preparemaps), before it ends a map: the size classes' builds
+// still on the pool joined and their files written (a build is otherwise joined by a monster's first path, which may
+// not come while the map is in play). Main thread.
+void finishBuilds();
 
 // Builtin navsteer(monster, goal): the yaw (degrees, 0..360) toward the next corner of the monster's path to the goal's
 // feet, or -1 when the chase should stay Quake's (vr_nav 0, no navmesh for its size yet, off the mesh, no path, or the

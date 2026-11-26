@@ -3333,6 +3333,14 @@ void finishLoads()
     disarmTests();
 }
 
+void finishBuilds()
+{
+    for(NavClass& c : state.classes)
+    {
+        joinClass(c); // (its file written: the first use's join, now)
+    }
+}
+
 void afterLoad()
 {
     resetAll();

@@ -11,7 +11,10 @@ Each map is loaded alone by the game's preparation run (`-prepare <progress> -pr
 limited to that map; the mock headset, hidden, no config read from the player's nor written) with an empty
 vr_cache_dir and vr_cache_shipped 0, in a copy of the game folder (a package's quakevr, or with --git-root the files
 git tracks under it plus progs.dat: package-quakevr.ps1's allowlist), so every file it makes is that map's and made
-with the shipped defaults. The products copied (--products):
+with the shipped defaults. That run writes every product however quickly this PC made it (the trees' 25 ms bar, the light
+grid's 0.1 s) and finishes every one still on the pool (the monsters' deferred trees, the navmesh's size classes) before
+the map ends, so any exe on any PC gives the same files, byte for byte (shipcachefix, 2026-11-26: a ThinLTO exe had left
+out vrtutorial's light grid and a tree near the bar). The products copied (--products):
   hulls     the world's compiled hull trees (vr_hull.cpp, .hul): the hub's are 42-56 s of its first load on a Quest 3;
             and the map's brushes (.hbr: the walk of hull 0, the clip brushes, the holes; ~10 s of the hub's load on
             a Quest 3, loadprof), listed as "brushes" below

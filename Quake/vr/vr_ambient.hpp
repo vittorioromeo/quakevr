@@ -28,6 +28,9 @@ void onGameDirChanged();
 // model reads the eight round it instead of its own rays, and takes its brightness from them too, not from the floor
 // under it). vr_ambient.cpp, "The light grid".
 void prepareGrid();
+// The shipped cache's generation run (vr_prepare.cpp, -preparemaps): every grid built is written to the disk cache, not
+// only one that took GRID_CACHE_SECONDS on this PC (a Quest takes 5-15x the PC's time; a faster exe skipped the file).
+void setWriteEveryGrid(bool on);
 
 void entityCube(const entity_t* e, const float modelMatrix[16], const void* aliashdr, bool enabled, float out[6][4]);
 
