@@ -9,6 +9,8 @@
 [New: not yet sorted]
 Open the menu in the headset, then on the flat screen with the VR-style menu and with the classic menus: the shortcut bar has a gap above "-" and "+", and a RESET button next to them; zoom or drag the panel, press RESET and the menu returns to its default size and (flat panel) the middle of the window. {test:hub_start}
 Flat-screen: open the console (or the menu) and load a map that takes a few seconds (map vrstart): the loading panel is small and centred, about a fifth to a third of the window wide with sharp text, over the console or menu you came from dimmed by half, and the console doesn't flash between its frames. {test:load_panel_stages}
+Quest standalone (Standalone preset): in the tutorial's dark course take the flashlight and point it down the corridor and at the far walls; the beam should light whatever it lands on, not just the first part of the room near the door. {test:quest_darkroom}
+Quest standalone: Debug > Show Foveation on, with Quest Foveation at High: the eyes' edges should show yellow (half resolution) and red (quarter) zones round a clear centre; at Low only the far corners. On the PC, Show Foveation "Quest Pattern" shows the same zones. {test:quest_foveation}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
@@ -87,7 +89,6 @@ Body and Display > Handedness: Left-handed turns on Swap Face Buttons (next to S
 
 [5. Weapons and holsters]
 Hook an explosive box, a zombie and a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun. {test:grapple_reel}
-Turn the Weapon Wheel on (VR Settings), open it and walk and turn with the stick: the wheel comes along smoothly and your hand stays on its slot; tap B/Y to eject a nailgun magazine or switch a dagger's grip: it feels responsive (Wheel Hold / Quick Tap Time sets how long a press opens the wheel instead). {test:weapon_wheel}
 Swing the spear (and the Crystal Lance) so its shaft, not the head, hits a grunt: a wooden knock and a dent, nothing stuck in it, less damage than the head; swing the shaft low and level across its shins and it is swept off its feet, while a sweep with the spear's head cuts instead; the head still stabs and sticks. {test:spear}
 
 [6. Ropes and chains]
