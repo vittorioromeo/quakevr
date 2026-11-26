@@ -1353,6 +1353,37 @@ His log `quakevr/logs/2026-11-26_17-50-24/console.log` (VS2026, flat, `-basedir 
   `ownedRoots` listed the same folder by two spellings (Steam's install path and `-basedir`'s `<Quake>/rerelease`). Roots
   are now unique by `files::resolved` (case aside on Windows), the highest place kept. vr_gamedir.cpp.
 - Tests: dwell_owned, dwell_vrmodels, loading_switch, flatgrabthrow; a flat start-up in the kit shows none of the lines.
+## gridstall: a parallelFor started while every gate was taken never got a helper (branch agent/gridstall, 2026-11-26)
+
+flatloadbar's finding: in 8 of 26 cold vrstart loads the model light grid's probe pass ran entirely on the main thread
+(46-58 s instead of ~3 s), no helper ever joining, while the clear pass right after got helpers within 50 ms.
+
+- **Cause** (reproduced: 1 in 6 cold flat loads, then the cells pass 4 times in 14 with the gate count in the line):
+  Zancle's `parallelFor` takes one of 64 "gates" (`ParallelForSlots`) per call under way with helpers; a call that found
+  none ran every chunk on its caller and never looked again. During a cold vrstart load the hull's recursive two-way
+  `parallelFor`s ("hull speculate", vr_hull.cpp, a call per recursion level on every worker), with the trees' and
+  ao's, held all 64 at once for a moment: every stall line said "64 of 64 gates in use at its start", while a second later
+  only 5-14 of 31 workers were busy and 12-41 gates in use. The probe pass that started in that moment ran alone to its
+  end. Not lost wake-ups, not helpers queued behind long jobs (0 tasks queued, the 3-44 helpers queued were running).
+- **Fix** (`ParallelFor.hpp`, a local Zancle change listed in its README): a call whose helpers are missing (no free
+  gate, or the queued-helper budget used up) tries again after each of its own chunks, taking the gate and posting its
+  helpers as soon as one frees; the check is a load or two and only while some are missing. Every pool user gets it
+  (hull, ao, normal maps, Box3D's steps' calls, the Quest's fewer workers).
+- **Diagnostics kept**: each job keeps where it was posted (file and line, every build: before, profiling builds only);
+  `vr_jobs_info` ends with the pool now ("pool: N tasks and M helpers queued, G of 64 gates, B of W workers busy:
+  vr_hull.cpp:4843 x1 (13.5 s), hull speculate x11 (1.2 s), ..."). With developer 1, a split call whose caller has run
+  alone over a second says so with that line and the gates in use at its start, then how it ended (main thread's calls
+  only: the console is its).
+- **Proved**: 33 cold vrstart loads after (22 flat, 11 mock VR, fresh `vr_cache_dir`, `vr_cache_shipped 0`): 0 stalls, 0
+  stall lines; the main thread ran 153-2955 of the 27432 probe rows (before: all of them in a stall). The probes took 9-11 s because the
+  author's game ran meanwhile (low-impact runs: 8 CPUs, idle priority; 3 s before, on the whole machine, as flatloadbar's
+  3.1-3.4 s); the "< 6 s" check needs a full-machine run. Every load's `.mlg` the same bytes (md5 bdf21622, before,
+  stalled and after). `vr_jobs_test` 15/0 with a new check: a call made with all 64 gates held gets helpers once they
+  free (80 of 100 chunks by helpers; before the fix, 0). `vr_model_light_grid_test` e1m1 25/0, `vr_hull_keeptest`
+  vrstart PASS (8 trees), `vr_physics_portal_sleep_test` 12/0 (Box3D on the pool).
+- Left: the hull's speculate recursion still takes a gate per level (a call there that finds none runs alone until one
+  frees); a bound on its depth would leave gates for the rest. Not done (the hull's own tuning).
+
 
 ## box3dup3: Box3D updated to upstream 042be58 (branch agent/box3dup3, 2026-11-26)
 
@@ -1439,3 +1470,69 @@ Left: hell knight seed 8 ("stuck at the lip": a weak pull, its chest stayed 13 u
 | climb_test drop, hit, off (18) | | 18/18 |
 | kdstir | 4/1 | 5/0 (worst 0.20 s over 4 paired; mean 0.03) |
 B3DTUNE_TESTS
+## flatloadbar2: the flat loading panel small and centred over the last screen dimmed (branch agent/flatloadbar2, 2026-11-26)
+
+His words: the flat progress bars "take most of the screen" on "a completely black background"; asked for them much
+smaller, centred, over a 50% black so the previous screen (the console) shows underneath.
+
+- **Size:** the window's blit of the panel's image (768x192, the same image the headset's quad layer gets: one
+  `drawPanel`) is now at most a third of the window's width (and height x4), at a ratio that keeps the console font sharp
+  (`panelWidth`, GL_NEAREST): half the image (384x96: the image draws in 2x2 blocks, so each lands on one pixel) below
+  2304 px of width, the image's own size (768x192) up to 4608, then whole multiples. His 3440x1441 window: 768x192 (22%
+  wide); 1920x1080: 384x96 (20%); the tests' 960x540: 384x96 (40%: the half-size floor). Centred. Shared by the shaders'
+  panel at a cold start (no backdrop there: nothing drawn yet, black).
+- **Backdrop:** the window's last frame (console, menu, the map before), taken once when the panel first shows after it
+  (`takeBackdrop`): read back from the buffer that holds it (gl_vidsdl.c `VID_LoadingLastFrame`: GL_FRONT once presented,
+  GL_BACK when VR_SkipSwap left it unpresented; ES: none), every channel halved on the CPU (the 50% black), uploaded to a
+  texture, then blitted under every panel frame. So both of the window's buffers get the same backdrop and the panel never
+  dims its own frames. The texture is given back at the load's end (`dropBackdrop`).
+- **No console flashes:** a load from the console (not connected) redrew the console at every print (`Con_Printf`) and
+  every host frame before the signon, alternating with the panel's frames (also before this change: the black panel and
+  the console flickered). While the panel is up in flat (`VR_LoadPanelOwnsWindow`: the loadbar active with a frame drawn, no
+  VR session) neither draws; the first signed-on frame ends the loadbar as before. With VR running nothing changes.
+- **VR:** the headset's panel is unchanged (same image, same quad layer); the desktop window beside VR gets the new look
+  (small, over the mirror's last frame dimmed), the console redraws there unchanged.
+- **Cost:** one readback per load (960x540: 2.3-9.5 ms in low-impact runs; his 3440x1441 ~5x the pixels), then one
+  full-window blit a panel frame. The end line now says the swaps' share: "loading panel: vrstart's load, 22.1 s: 65 frames,
+  1097.7 ms drawing them (11.8 in the window's swaps)" (the drawing times swing 78-1600 ms between identical runs here: the
+  author's game was running, idle priority; the CPU image is unchanged). developer 1: "loading panel: the window's last frame
+  (960x540, the front buffer) taken as its backdrop in 2.3 ms".
+- **Test aid:** `vr_load_panel_shot` also saves the window's image of the same frame, before it is shown:
+  `screenshots/load_panel_<stage>_window.png` ("loading panel: saved ... (the window, 960x540: the panel 384x96, over the
+  last frame dimmed)"). Shots: flat over the console, flat over the menu, mock VR (the headset image unchanged, the
+  window over the mirror). perfload_test (0 models in play, vrfiringrange 368 ms), hub_start_test 7/0.
+- Not done: the window's own scale (scr_menuscale/conscale) isn't read: the size follows the window alone (his settings
+  give the same 768 px).
+
+## menubarreset
+
+The menu shortcut bar (the column beside the menu in the headset and the flat VR-style panel, the row of icons in the classic flat menus) now has half a button of vertical gap before its "-" and "+" buttons (column layouts; the column fit counts it) and a third button, RESET, next to them: the shipped menu size (vr_menu_scale / vr_menu_flat_scale / scr_menuscale by the layout shown) and, for the flat panel, the window centre (vr_menu_flat_x/y back to their defaults, so a saved config drops them). The headset menu has no position setting, only its size. One code path for all three layouts (zoomMenu dir 0, the existing vr_menu_zoom reset); the mouse and the laser hit it like -/+ (new mock spots `vr_mock_mouse zoomreset`, `vr_mock_laser zoomreset`). Gamepad focus: the -/+ buttons were never in the gamepad focus order (pointer only), so RESET is too; vr_menu_zoom reset is the console equivalent. Tests: menu_flat_panel_test.py gained resetbtn steps (flat: moved to 0.4/0.45 at 0.6, RESET back to 0.954/0.5/0.499; VR: 0.4 back to 0.25): 28 passed, 3 failed; the same 3 fail with the unmodified test on this build (Quit menu number 20 vs 21, headset Quit dialog, classic scr_menuscale step: unrelated, not looked into). Screenshots scratch/menubar_{classic,flat,vr}.png.
+
+## flatmelee6: V's two-fisted overhead blow with both hands empty (branch agent/flatmelee6, 2026-11-26)
+
+His item 11 (flat feedback 2026-11-26): "If both hands are empty, the quick melee button should perform a simultaneous
+overhead attack with both hands. Make this an option (on by default)."
+- **Option** `vr_flat_overhand_both` 1 (`CVAR_ARCHIVE | QVR_OWN`; row "Quick Melee: Both Fists", Advanced VR Options >
+  Movement > Locomotion, Desktop Screen Play, after Grab / Pull Key). 0: today's one-fist overhand (vr_flat_overhand).
+- **Motion** (vr_flatplay.cpp startPunch): V's overhand on one hand with the other hand also empty (no weapon, no prop,
+  not punching, shoving, in the quick grenade, the force grab or on a stuck blade) starts the other hand's overhand on the
+  same clock (`fs.punchTwoFist[h]` both): the one overhand path (`overheadSwing`, `fistSwing`), each hand its own side's
+  mirror. Each fist's top `vr_flat_overhand_2h_raise_out` -3 further out (in: the fists 6 from the middle, not 9) and its
+  end `vr_flat_overhand_2h_end_out` 1.5 out at its own side (side by side, not in one another). End_out 3 had the main
+  fist meet the grunt glancing, with its fist and not its knuckles, at 9.3 m/s instead of 12 (half the strength): 1.5
+  keeps the knuckles' 11.8 m/s.
+- **One hit**: the off fist is marked Synthesized all through ("two-fisted blow's other fist": no blow, no gesture); the
+  main fist is the Action as before, plus `handsource::twoFisted()`: the move's `.handsynth` 256 (QC `VR_HANDTWOFIST`,
+  `VR_HandTwoFisted`). `.handsynth` is now a short on the wire (it had all 8 bits used): `QVR_NET_VERSION` 47.
+- **Damage and push** (QC): `VRMeleeDmg` times `vr_flat_overhand_2h_damage` 2 (the two fists' sum; outside the
+  vr_melee_dmg_min/max cap, which bounds strength x zone only), `T_Damage_VRMelee`'s push times
+  `vr_flat_overhand_2h_push` 1 on top of what that damage gives (so by default the push is the sum too, up to VR_Push's
+  own 600 cap). Tunables group Flatscreen > Empty-Hand Overhand (V), the four "Both Fists" rows.
+- **Probe / prints**: `flatplay: main punch (...): melee, overhand blow, both fists`; the melee probe's kind
+  `overhand both` for each hand.
+- **Tests**: new `Misc/quakevr/flatmelee6_test.sh` 9/0 (both empty: the two-fisted blow, both hands' probe lines
+  overlapping, both over the eye 8.0, the off fist synthesized, one melee hit (60 on a grunt 16 ahead; one fist 26-32);
+  option off: one fist, one hit; a gun in the off hand: one fist). Optional 2nd argument: console commands said first
+  (e.g. `"tune vr_flat_overhand_2h_end_out 0"`). `flatmelee4_test.sh` 9/0 and `flatmelee_test.sh` 12/0 (their V with
+  empty hands is now the two-fisted blow; their checks still hold). eval.sh not run: no shared melee code changed
+  (VRMeleeDmg/T_Damage_VRMelee only scale when the flat bit is set). Scene `flat_melee_2fist`.
