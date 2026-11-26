@@ -3499,7 +3499,14 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
         prop = VR_Prop_BlowDamage(targ, damage, hit_hand);
     }
     float mult = 1;
-    float pushDamage = damage;
+    // (Flat V's two-fisted overhead blow: its push times vr_flat_overhand_2h_push on top of what its damage gives;
+    // VR_HandTwoFisted.)
+    float pushTwoFist = 1;
+    if(hit_kind == QVR_HITKIND_MELEE && attacker == self && (attacker.flags & FL_CLIENT) && VR_HandTwoFisted(attacker, hit_hand))
+    {
+        pushTwoFist = max(0, cvar_hget(cvarh_vr_flat_overhand_2h_push));
+    }
+    float pushDamage = damage * pushTwoFist;
     if(prop >= 0)
     {
         damage = prop;
@@ -3517,7 +3524,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     {
         mult = VR_Melee_Positional(targ, hit_pos, hit_dir);
         damage = VR_Melee_CapDamage(damage * mult, mult);
-        pushDamage = damage;
+        pushDamage = damage * pushTwoFist;
     }
     float decap = FALSE;
     if(!agp)

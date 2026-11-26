@@ -123,6 +123,7 @@ struct FlatState
     bool punchOverhead[2]{false, false}; // per hand: that punch is a weapon's overhead swing (vr_flat_swing), not the fist's throw
     bool punchThrust[2]{false, false};   // per hand: that punch is a pole weapon's spear thrust (vr_flat_thrust), not the swing
     bool punchOverhand[2]{false, false}; // per hand: that overhead swing is V's empty-handed overhand blow (vr_flat_overhand)
+    bool punchTwoFist[2]{false, false};  // per hand: that overhand blow is both fists' at once (vr_flat_overhand_both)
     bool punchRevGrip[2]{false, false};  // per hand: that swing or thrust began held in a flipped grip (vr_flat_revgrip_*)
     glm::vec3 thrustWay[2]{};            // per hand: its thrust's line this frame (thrustPose; the probe's tip angle)
     float punchStrikeIn[2]{0.f, 0.f};    // per hand: seconds from that punch's start to its strike's (lastStrike)
@@ -1020,9 +1021,13 @@ constexpr float dualProneTurnMost = 45.f;
     };
     const auto offset = [](const Tunable& t) { return za::clamp(t.value, -24.f, 24.f); };
     const auto angle = [](const Tunable& t, float most) { return za::clamp(t.value, -most, most); };
-    const glm::vec3 top = inReach(eye + up * offset(set.raiseUp) + fwd * offset(set.raiseFwd) + right * (side * offset(set.raiseOut)),
-        span * 0.98f);
-    const glm::vec3 toAim = at - up * offset(set.endDown) + fwd * offset(set.endFwd) + right * (side * offset(set.endOut)) - root;
+    // (Both fists at once, vr_flat_overhand_both: each its own side's mirror, moved by vr_flat_overhand_2h_raise_out and
+    // _end_out so they rise together and land side by side, not in one another.)
+    const bool twoFist = !botSwing && fs.punchTwoFist[h];
+    const float raiseOut = offset(set.raiseOut) + (twoFist ? za::clamp(vr_flat_overhand_2h_raise_out.value, -12.f, 12.f) : 0.f);
+    const float endOut = offset(set.endOut) + (twoFist ? za::clamp(vr_flat_overhand_2h_end_out.value, -12.f, 12.f) : 0.f);
+    const glm::vec3 top = inReach(eye + up * offset(set.raiseUp) + fwd * offset(set.raiseFwd) + right * (side * raiseOut), span * 0.98f);
+    const glm::vec3 toAim = at - up * offset(set.endDown) + fwd * offset(set.endFwd) + right * (side * endOut) - root;
     const float aimLen = glm::length(toAim);
     const glm::vec3 end = root + (aimLen > 0.001f ? toAim / aimLen : fwd) * za::min(span, aimLen);
     const glm::vec3 upTurn{za::clamp(set.raisePitch.value, 0.f, 150.f), angle(set.raiseYaw, 90.f), angle(set.raiseRoll, 90.f)};
@@ -2112,6 +2117,25 @@ void startPunch(int h, const char* from, bool vKey = false)
     fs.punchOverhand[h] = vKey && heldIn(h) < 0 && !propInFist(h) && vr_flat_overhand.value != 0.f;
     fs.punchOverhead[h] = fs.punchOverhead[h] || fs.punchOverhand[h];
     fs.punchRevGrip[h] = heldIn(h) >= 0 && revGripShare(h) >= 0.5f;
+    // (Both hands empty, vr_flat_overhand_both: both fists' two-handed overhead blow, the other hand's overhand started on
+    // the same clock; one hit, the main fist's for both: the off fist's motion strikes nothing, handsource twoFisted.
+    // flatmelee6, his words 2026-11-26.)
+    const int o = 1 - h;
+    const bool twoFist = fs.punchOverhand[h] && vr_flat_overhand_both.value != 0.f && heldIn(o) < 0 && !propInFist(o) &&
+                         !punching(o) && !shoving(o) && !flatgrenade::busy(o) && !flatfgrab::busy(o) && !axestick::handOnBlade(o);
+    fs.punchTwoFist[h] = twoFist;
+    if(twoFist)
+    {
+        fs.punchAt[o] = fs.punchAt[h];
+        fs.punchFrame[o] = host_framecount;
+        fs.punchOverhead[o] = fs.punchOverhand[o] = fs.punchTwoFist[o] = true;
+        fs.punchRevGrip[o] = fs.punchThrust[o] = false;
+        fs.punches[o]++;
+    }
+    else if(!punching(o))
+    {
+        fs.punchTwoFist[o] = false;
+    }
     // (A pole weapon, the Crystal Lance or the spear: the spear's thrust instead, vr_flat_thrust; V with a blade stuck in by
     // its point, a sword or a dagger, the same thrust: flatthrust, his decision 2026-11-24. Its fire button keeps the swing.)
     fs.punchThrust[h] = thrustsWith(heldIn(h)) && (vKey || twohand::poleWeapon(heldIn(h)));
@@ -2142,7 +2166,11 @@ void startPunch(int h, const char* from, bool vKey = false)
     {
         Con_Printf("flatplay: %s punch (%s): %s%s\n", h == HAND_MAIN ? "main" : "off", from,
             punchesWith(h) ? "melee" : "not a swinging weapon",
-            fs.punchThrust[h] ? ", spear thrust" : fs.punchOverhand[h] ? ", overhand blow" : fs.punchOverhead[h] ? ", overhead swing" : "");
+            fs.punchThrust[h]    ? ", spear thrust"
+            : fs.punchTwoFist[h] ? ", overhand blow, both fists"
+            : fs.punchOverhand[h] ? ", overhand blow"
+            : fs.punchOverhead[h] ? ", overhead swing"
+                                  : "");
     }
 }
 
@@ -4384,6 +4412,7 @@ void probeMelee(const hands::State& s, const glm::vec3& aim, const glm::vec3& ey
                 h == HAND_MAIN ? "main" : "off",
                 p.shove[h]            ? (fs.shoveBoth ? "shove both" : "shove")
                 : fs.punchThrust[h]   ? "thrust"
+                : fs.punchTwoFist[h]  ? "overhand both"
                 : fs.punchOverhand[h] ? "overhand"
                 : fs.punchOverhead[h] ? "swing"
                                       : "punch",
@@ -4622,7 +4651,13 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         // (A weapon's overhead swing: not its windup, unless vr_flat_swing_wind_strikes. The raise went up through a knight
         // 20 to 26 units ahead and landed a weak blow there, x0.5 to x0.8, which knocked it out of the strike's way: the
         // raised-behind-the-head swing then did 11 to 24 damage, not 70, 2026-11-11.)
-        if(punching(h) && fs.punchOverhead[h] && vr_flat_swing_wind_strikes.value == 0.f &&
+        // (V's two-fisted blow, vr_flat_overhand_both: one hit, the main fist's for both; the off fist's motion strikes
+        // nothing, and the move says the main hand's blow is both fists', QC VR_HandTwoFisted.)
+        if(punching(h) && fs.punchTwoFist[h] && h == HAND_OFF)
+        {
+            handsource::mark(h, handsource::Source::Synthesized, "two-fisted blow's other fist");
+        }
+        else if(punching(h) && fs.punchOverhead[h] && vr_flat_swing_wind_strikes.value == 0.f &&
            vr_gametime - fs.punchAt[h] < static_cast<double>(swingTimes(swingSet(h)).wind))
         {
             handsource::mark(h, handsource::Source::Synthesized, "swing windup");
@@ -4635,7 +4670,11 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         }
         else if(punching(h))
         {
-            handsource::mark(h, handsource::Source::Action, "punch");
+            handsource::mark(h, handsource::Source::Action, fs.punchTwoFist[h] ? "two-fisted blow" : "punch");
+            if(fs.punchTwoFist[h])
+            {
+                handsource::twoFisted();
+            }
         }
         if(shovePassesBodies(h))
         {

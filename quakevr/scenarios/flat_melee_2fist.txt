@@ -1,0 +1,9 @@
+# flat_melee_2fist: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode):
+# V with both hands empty is the two-handed overhead blow (vr_flat_overhand_both, vr_flat_overhand_2h_*); flatmelee6_test.sh.
+# Both hands empty, a grunt ahead.
+title Flat-screen: V's two-fisted overhead blow
+map vrtesthall
+god
+notarget
+cmd vr_physics_spawn monster_army 72 0
+hint Play with -flatscreenmode, both hands empty. V: both fists raised over your head and brought down together onto the crosshair, one hard hit. Holding something in one hand: V is the one-fist overhand as before. Option: Advanced VR Options > Movement > Locomotion (Desktop Screen Play) > Quick Melee: Both Fists. Tunables: Debug > Tunables > Flatscreen > Empty-Hand Overhand (V), the Both Fists rows.
