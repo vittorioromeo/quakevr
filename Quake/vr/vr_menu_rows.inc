@@ -342,6 +342,10 @@ QVR_SLIDER(vr_flashlight_clip_time, "Clip-On Transition", 0.f, 0.5f, 0.01f, "%.2
     "How long the torch takes to move and turn from where it was onto the gun or your head as it clips on. It is on at once (it follows the gun, lights where it aims); only how it is drawn eases in. 0: it jumps there.")
 QVR_SLIDER(vr_flashlight_tilt, "Lean Out", -90.f, 90.f, 1.f, "%.0f deg", ext(),
     "How far the stored torch, hanging on your belt lens down, leans its lens out from your body.")
+QVR_SLIDER(vr_flashlight_yaw, "Turn", -180.f, 180.f, 1.f, "%.0f deg", ext(),
+    "The stored torch turned about the upright, its switch round towards its side (Holster Setup turns it with your hand).")
+QVR_SLIDER(vr_flashlight_roll, "Lean Sideways", -90.f, 90.f, 1.f, "%.0f deg", ext(-180.f, 180.f),
+    "How far the stored torch leans its lens out sideways, away from your middle.")
 QVR_SLIDER(vr_flashlight_forward, "Forward", -0.3f, 0.3f, 0.005f, "%.3f m", ext(), nullptr)
 QVR_SLIDER(vr_flashlight_armor_forward, "Forward With Armour", -0.3f, 0.3f, 0.005f, "%.3f m", ext(),
     "Added to Forward while the armour's plates show on your body, so the torch stands clear of them. 0: no change.")
