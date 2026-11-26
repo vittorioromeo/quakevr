@@ -414,6 +414,16 @@ za::Vector<Item> pageDebugTests()
         adSpawnRow(309, command("Arcane Dimensions: Upgraded Weapons Ahead", "vr_ad_test 96")) // AD support
             .help("The Shadow Axe, the Widowmaker and the Plasma Gun pickups ahead of you, as the toolgun makes them: "
                   "drawn as their VR models (made from your AD's own view models)."),
+        // flatparry2: the guard's free hand on the blade or shaft (vr_flat_parry_shaft_at), one weapon alone in the main hand.
+        adSpawnRow(309, command("Arcane Dimensions: Fury's Sword Alone in Hand", "vr_ad_test 171"))
+            .help("The death fury's sword in your main hand, the off hand emptied: to look at its parry guard (flat screen: "
+                  "the right mouse button) and two-handed holds."),
+        adSpawnRow(309, command("Arcane Dimensions: Judicator's Sword Alone in Hand", "vr_ad_test 172"))
+            .help("The judicator's sword in your main hand, the off hand emptied: to look at its parry guard and two-handed holds."),
+        adSpawnRow(309, command("Arcane Dimensions: Ogre Hammer Alone in Hand", "vr_ad_test 173"))
+            .help("The hunter ogre's hammer in your main hand, the off hand emptied: to look at its parry guard and two-handed holds."),
+        adSpawnRow(309, command("Arcane Dimensions: Ogre Mace Alone in Hand", "vr_ad_test 174"))
+            .help("The hunter ogre's mace in your main hand, the off hand emptied: to look at its parry guard and two-handed holds."),
         adSpawnRow(309, command("Arcane Dimensions: Shadow Axe in Hand", "vr_ad_test 97")) // AD support
             .help("The Shadow Axe in your main hand, the Widowmaker and the Plasma Gun in the hip holsters."),
         adSpawnRow(310, command("Arcane Dimensions: Widowmaker in Hand", "vr_ad_test 98")) // AD support
