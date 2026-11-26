@@ -7,6 +7,7 @@
 #include "vr_cvars.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
+#include "vr_seat.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
@@ -41,7 +42,15 @@ struct Known
     int uid{0};
     int kind{0};
 };
-za::Vector<Known> known;
+struct KnownList
+{
+    za::Vector<Known> list;
+};
+// split17: each seat's client's (seat::Part::AttachKnown)
+[[nodiscard]] za::Vector<Known>& known()
+{
+    return seat::part<KnownList>(seat::current(), seat::Part::AttachKnown).list;
+}
 
 // The server's: per edict, what the clients were last told of the record there.
 struct Sent
@@ -49,7 +58,7 @@ struct Sent
     int uid{0};
     int kind{0};
 };
-za::Vector<Sent> sent;
+za::Vector<Sent> sent; // seat-shared: the server's (one server for every seat)
 
 void writeKind(sizebuf_t* msg, int uid, int kind)
 {
@@ -61,25 +70,25 @@ void writeKind(sizebuf_t* msg, int uid, int kind)
 
 void setKnown(int uid, int kind)
 {
-    for(za::SizeT i = 0; i < known.size(); i++)
+    for(za::SizeT i = 0; i < known().size(); i++)
     {
-        if(known[i].uid == uid)
+        if(known()[i].uid == uid)
         {
             if(kind == None)
             {
-                known[i] = known.back();
-                known.popBack();
+                known()[i] = known().back();
+                known().popBack();
             }
             else
             {
-                known[i].kind = kind;
+                known()[i].kind = kind;
             }
             return;
         }
     }
     if(kind != None)
     {
-        known.pushBack(Known{uid, kind});
+        known().pushBack(Known{uid, kind});
     }
 }
 } // namespace
@@ -140,7 +149,7 @@ int kindOfUid(int uid)
     {
         return None;
     }
-    for(const Known& k : known)
+    for(const Known& k : known())
     {
         if(k.uid == uid)
         {
@@ -156,7 +165,7 @@ void parseEvent()
     const int kind = MSG_ReadByte();
     if(uid < 0)
     {
-        known.clear();
+        known().clear();
         return;
     }
     setKnown(uid, kind < Count ? kind : None);
@@ -169,7 +178,7 @@ void forgetUid(int uid)
 
 void clientClear()
 {
-    known.clear();
+    known().clear();
 }
 
 int kindOfRecord(edict_t* rec)

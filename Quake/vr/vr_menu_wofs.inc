@@ -16,7 +16,7 @@ void weaponOffsetsOtherHand()
     showPage(qvr::menu::currentPage()); // (the same part of Weapon Offsets)
 }
 
-int wofsAttachKind = 1;          // Weapon Offsets > Attachments: the attachment kind edited (vr_attach.hpp: 1 the bayonet)
+int wofsAttachKind = 1;          // seat-shared: the Weapon Offsets editor's (one at a time); Weapon Offsets > Attachments: the attachment kind edited (vr_attach.hpp: 1 the bayonet)
 int weaponOffsetsHeldSlot = -1; // the weapon in the hand (weaponOffsetsSlot: the one edited: what it inherits from)
 int weaponOffsetsInherit = -1;
 

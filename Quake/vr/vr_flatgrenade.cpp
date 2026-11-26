@@ -547,7 +547,7 @@ void apply(hands::State& s)
         // The release's arc (flatthrow3): on the way from the wind-up into the follow-through (the thing still in the hand
         // for vr_flat_throw_release_time of it, QC VR_FlatThrow_Release), the hand raised vr_flat_throw_release_arc (a share
         // of the reach) at its middle, where the wind-up's share and the follow-through's cross.
-        const bool following = (gs.phase == phaseThrown && gs.hand0 == h) || (gs.throwPhase == throwThrown && gs.throwHand == h);
+        const bool following = (gs().phase == phaseThrown && gs().hand0 == h) || (gs().throwPhase == throwThrown && gs().throwHand == h);
         if(const float arc = za::clamp(vr_flat_throw_release_arc.value, -0.5f, 0.5f); following && arc != 0.f)
         {
             s.pos[h] += vu * (arc * span * 4.f * geom::smooth01(a.wind) * geom::smooth01(a.follow));
@@ -625,7 +625,7 @@ bool aimsWith(int h)
 
 int swallowedButtons()
 {
-    return gs.swallow;
+    return gs().swallow;
 }
 
 float guideShare(int h)

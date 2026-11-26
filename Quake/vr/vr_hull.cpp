@@ -2567,7 +2567,7 @@ struct LoadTrees
     za::Atomic<int> count{0}; // (stored with release once an entry is filled)
 };
 
-LoadTrees loadTrees;
+LoadTrees loadTrees; // seat-shared: the map's hull trees (one map)
 
 // t's entry, if the load waits for it (any thread).
 LoadTree* loadTreeOf(const Tree* t)
@@ -3989,7 +3989,7 @@ void reportTree(const Tree& t, int rebounded)
 constexpr char diskMagic[4] = {'Q', 'V', 'R', 'H'};
 constexpr za::U32 diskVersion = 1;
 constexpr double diskMinMs = 25.0; // (was 250, the PC's: e1m1's small trees took 600 ms on a Quest 3 at every load; loadprof)
-bool writeEveryTree = false;       // setWriteEveryTree: every tree written however quick (set before the jobs are posted)
+bool writeEveryTree = false;       // seat-shared: the shipped cache's writer (one game folder); setWriteEveryTree: every tree written however quick (set before the jobs are posted)
 
 // The trees' compile version: BUMP IT whenever a change to the compile (growing, the units, speculate, merging, the
 // rebounding, their constants) could change the tree compiled for the same brushes and box. The disk folder is this,

@@ -52,7 +52,7 @@ struct PanelScratch
     za::Vector<unsigned char> window;
     auto members() { return qvr::mem::list(window); }
 };
-qvr::mem::Scratch<PanelScratch> scratch{"loadpanel"};
+qvr::mem::Scratch<PanelScratch> scratch{"loadpanel"}; // seat-shared: a scratch buffer filled and read in one call
 
 void put(int x, int y, unsigned rgba)
 {
@@ -551,8 +551,8 @@ struct LoadBar
     unsigned shots = 0;                  // vr_load_panel_shot's images saved this load (a bit per stageWords entry)
     bool earlyStarted = false;           // the VR session started for it
 };
-LoadBar bar;
-int expectedMarks = defaultMarks; // the last load's stages
+LoadBar bar; // seat-shared: the loading panel's (one window)
+int expectedMarks = defaultMarks; // seat-shared: the loading panel's (one window); the last load's stages
 
 [[nodiscard]] const StageWords* wordsOf(const char* name)
 {

@@ -531,7 +531,7 @@ struct PoleProbe
     float alongLo{1e9f};
     float alongHi{-1e9f};
 };
-PoleProbe poleProbe; // (vr_embed_probe "reset" starts it with embedProbe's numbers: embedProbeWrite)
+PoleProbe poleProbe; // seat-shared: a test's probe (vr_embed_probe); (vr_embed_probe "reset" starts it with embedProbe's numbers: embedProbeWrite)
 
 // flatembed3 item 10's numbers (embedSmoothOne): a held stuck blade's jitter in the body and as drawn.
 struct EmbedJitter
@@ -541,7 +541,7 @@ struct EmbedJitter
     float lag{-1.f};   // cm the most the drawn blade trailed the body's
     int on{0};         // frames summed
 };
-EmbedJitter embedJitter; // (vr_embed_probe "reset" starts it: embedProbeWrite)
+EmbedJitter embedJitter; // seat-shared: a test's probe (vr_embed_probe); (vr_embed_probe "reset" starts it: embedProbeWrite)
 
 void poleShaftGrip(int hand, bool mirrored, const glm::vec3& on, const glm::vec3& axis, float k, glm::vec3& pos, glm::vec3& handRot,
     float halfLength = -1.f, float shaftRadius = -1.f)
@@ -573,8 +573,8 @@ struct ShaftMemo
     glm::vec3 axis{1.f, 0.f, 0.f};
     float radius{0.f}; // the shaft's (units, as drawn): its middle half's vertices' mean distance from the line
 };
-ShaftMemo shaftMemos[4];
-int shaftMemoNext{0};
+ShaftMemo shaftMemos[4]; // seat-shared: a cache of the models' shafts (model data)
+int shaftMemoNext{0}; // seat-shared: the shaft cache's next slot
 
 // The mean and principal axis (`seed`'s way) of `tris`' vertices taken through `l` (the drawn model's own scale: an alias
 // model's raw vertices are scaled by axis) whose place along `along` from `from` is within [lo, hi].
@@ -725,10 +725,9 @@ struct PoleProbeLine
     const entity_t* pole{nullptr}; // the pole weapon's entity (its drawn shaft line: poleShaftLine), mirrored or not
     bool mirrored{false};
 };
-PoleProbeLine poleProbeLine[2];
+PoleProbeLine poleProbeLine[2]; // seat-shared: set and read in one seat's hand pass (the probe's)
 // Whether each hand was put wholly on its other hand's pole's shaft as drawn this frame (heldBy: its fingers close on the
 // drawn shaft, not on the grip hotspot's settled place).
-bool shaftGripped[2]{false, false};
 
 // The probe of a hand drawn wholly on a pole's shaft, as drawn (flatgrip3: after the grasp's palm move too, drawnInRig; the
 // shaft line as the pole's own model is drawn, poleShaftLine, not the line the hand was put on): how far its drawn grip channel
@@ -747,7 +746,7 @@ void poleProbeNote(int hand, bool mirrored, const glm::vec3& pos, const glm::vec
     {
         return;
     }
-    const RigHand& rh = rigHands[hand];
+    const RigHand& rh = rigHands()[hand];
     const glm::mat4 m = rigPlacement(hand, pos, handRot, mirrored, nullptr);
     const float rigUnit = glm::length(glm::vec3{m[0]});
     if(rigUnit < 1e-6f || !grasp::gripChannelFor(rh.pose, shaft / rigUnit, cp, cd, radius))
@@ -783,7 +782,7 @@ struct PoleGripLast
     glm::vec3 local{0.f};
     glm::mat3 turn{1.f};
 };
-PoleGripLast poleGripLast[2];
+[[nodiscard]] PoleGripLast (&poleGrips())[2]; // the seat's (ViewHands::poleGripLast; split17)
 constexpr double poleGripFresh = 0.25; // s a pole grip's last pose is good for
 
 // The turn of a model's frame `l` without its scale (Gram-Schmidt on its columns); false if mirrored or degenerate.
@@ -805,16 +804,16 @@ void poleGripNote(int hand, const entity_t& pole, bool mirrored, const glm::vec3
     glm::mat3 r;
     if(!frameTurn(glm::mat3{m}, r))
     {
-        poleGripLast[hand] = PoleGripLast{}; // (a pole held mirrored, in the off hand: not kept)
+        poleGrips()[hand] = PoleGripLast{}; // (a pole held mirrored, in the off hand: not kept)
         return;
     }
-    poleGripLast[hand] = {vr_gametime, pole.model, glm::vec3{glm::inverse(m) * glm::vec4{pos, 1.f}}, glm::transpose(r) * anglesBasis(handRot)};
+    poleGrips()[hand] = {vr_gametime, pole.model, glm::vec3{glm::inverse(m) * glm::vec4{pos, 1.f}}, glm::transpose(r) * anglesBasis(handRot)};
 }
 
 // Where `hand`, on the pole weapon `e` (unmirrored: stuck in a body) a moment ago by its pole grip, was drawn on it.
 [[nodiscard]] bool poleGripWas(int hand, const entity_t& e, glm::vec3& pos, glm::mat3& turn)
 {
-    const PoleGripLast& g = poleGripLast[hand];
+    const PoleGripLast& g = poleGrips()[hand];
     glm::mat3 r;
     if(g.time < 0.0 || vr_gametime - g.time > poleGripFresh || vr_gametime < g.time || g.model != e.model)
     {
@@ -2958,6 +2957,32 @@ struct BladeBlend
     bool known{false};
 };
 
+struct EmbedSmooth
+{
+    int ent{0};
+    const qmodel_t* model{nullptr};
+    glm::vec3 pos{0.f};
+    glm::quat turn{1.f, 0.f, 0.f, 0.f};
+    // (The probe: the last two places and turns, as in the body and as drawn.)
+    glm::vec3 rawPos[2]{};
+    glm::quat rawTurn[2]{};
+    glm::vec3 drawnPos[2]{};
+    glm::quat drawnTurn[2]{};
+    int seen{0}; // frames since it began (the probe's differences need two before)
+    double last{-1.0};
+};
+
+struct GripSwitch
+{
+    int kind{0};       // 0 not drawn on a grip, 1 on a grip, 2 on the blade
+    double last{-1.0}; // when it was last drawn on one (cl.time)
+    double at{-1.0};   // the switch's start, -1 none
+    glm::vec3 pos{0.f}; // last drawn, in the holding hand's frame
+    glm::quat turn{1.f, 0.f, 0.f, 0.f};
+    glm::vec3 fromPos{0.f}; // where the switch began
+    glm::quat fromTurn{1.f, 0.f, 0.f, 0.f};
+};
+
 struct ViewHands
 {
     EmbedPin embedPins[2];
@@ -2965,12 +2990,22 @@ struct ViewHands
     LookLast lookLast[2];
     BladeBlend bladeBlend[2]; // split15
     entity_t ropeGraspEnt{};  // split15: (ropes8a) what a hand on a rope holds: the grasp's key (the world model)
+    // split17: next's (2026-11-27 merge)
+    bool shaftGripped[2]{false, false}; // each hand put wholly on its other hand's pole's shaft as drawn this frame
+    PoleGripLast poleGripLast[2];
+    EmbedSmooth embedSmooths[2];
+    GripSwitch gripSwitch[2];
 };
 
 // splitscreen (SPLITSCREEN.md, phase 4b): the current seat's (seat::Part::ViewHands)
 [[nodiscard]] ViewHands& vh()
 {
     return seat::part<ViewHands>(seat::current(), seat::Part::ViewHands);
+}
+
+PoleGripLast (&poleGrips())[2]
+{
+    return vh().poleGripLast;
 }
 
 // vr_embed_test 24's numbers (vr_embed_probe "reset" starts them; written there as "step S spot P ghost G gib B on N").
@@ -3254,21 +3289,6 @@ void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& p
 // every hand drawn on it (embedDrawnHand, entityTurn) share one place: no slip between them. One per hand (two blades at most).
 namespace
 {
-struct EmbedSmooth
-{
-    int ent{0};
-    const qmodel_t* model{nullptr};
-    glm::vec3 pos{0.f};
-    glm::quat turn{1.f, 0.f, 0.f, 0.f};
-    // (The probe: the last two places and turns, as in the body and as drawn.)
-    glm::vec3 rawPos[2]{};
-    glm::quat rawTurn[2]{};
-    glm::vec3 drawnPos[2]{};
-    glm::quat drawnTurn[2]{};
-    int seen{0}; // frames since it began (the probe's differences need two before)
-    double last{-1.0};
-};
-EmbedSmooth embedSmooths[2];
 
 [[nodiscard]] float turnDegrees(const glm::quat& a, const glm::quat& b)
 {
@@ -3371,7 +3391,7 @@ void embedSmoothStep()
     }
     for(int h = 0; h < 2; h++)
     {
-        EmbedSmooth& sm = embedSmooths[h];
+        EmbedSmooth& sm = vh().embedSmooths[h];
         if(ents[h] == 0)
         {
             sm = EmbedSmooth{};
@@ -3391,7 +3411,7 @@ void embedPinsReset()
     {
         pin = EmbedPin{};
     }
-    for(EmbedSmooth& sm : embedSmooths)
+    for(EmbedSmooth& sm : vh().embedSmooths)
     {
         sm = EmbedSmooth{};
     }
@@ -3829,7 +3849,7 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
 void noteHoldArm(int hand, float past)
 {
     HoldArmTrack& t = holdArmTrack;
-    if(!t.on || limbEase[hand].blend <= 0.f)
+    if(!t.on || limbEase()[hand].blend <= 0.f)
     {
         return;
     }
@@ -3888,22 +3908,11 @@ void noteHoldArm(int hand, float past)
 // two-handed stance's grip below the hand onto the blade as the parry's guard takes it, vr_twohand.cpp, and back as it ends):
 // held throughout, the grip's own blend stays at 1, so the drawn hand jumped (163 degrees in a frame; promofails). Eased
 // from where it was last drawn, kept against the holding hand, over gripSwitchTime.
-struct GripSwitch
-{
-    int kind{0};       // 0 not drawn on a grip, 1 on a grip, 2 on the blade
-    double last{-1.0}; // when it was last drawn on one (cl.time)
-    double at{-1.0};   // the switch's start, -1 none
-    glm::vec3 pos{0.f}; // last drawn, in the holding hand's frame
-    glm::quat turn{1.f, 0.f, 0.f, 0.f};
-    glm::vec3 fromPos{0.f}; // where the switch began
-    glm::quat fromTurn{1.f, 0.f, 0.f, 0.f};
-};
-GripSwitch gripSwitch[2];
 static constexpr float gripSwitchTime = 0.25f;
 
 void easeGripSwitch(const hands::State& s, int hand, int other, float gripBlend, glm::vec3& pos, glm::vec3& handRot)
 {
-    GripSwitch& g = gripSwitch[hand];
+    GripSwitch& g = vh().gripSwitch[hand];
     const int kind = !flatplay::active() || gripBlend <= 0.f ? 0 : twohand::bladeGrip(other) ? 2 : 1;
     const double now = cl.time;
     if(kind == 0)
@@ -4254,7 +4263,7 @@ void ropeHeld(int hand, Held& held)
             // Held fully by a grip or a cup (not while taking it, nor a blade, where the hand slides): its settled place.
             // (flatgrip3: not a hand put on a pole's shaft as drawn, poleShaftGrip -- the hotspot's settled place is beside the
             // drawn shaft, and the fingers closed round that, in the air: the shaft as drawn is what they close on.)
-            if(gripBlend >= 1.f && weapons::isGripType(heldSpot->type) && hp.helps && otherSlot >= 0 && !shaftGripped[hand] &&
+            if(gripBlend >= 1.f && weapons::isGripType(heldSpot->type) && hp.helps && otherSlot >= 0 && !vh().shaftGripped[hand] &&
                 handrig::usable(viewModel(handrig::modelName())))
             {
                 held.canonical = true;
@@ -4569,7 +4578,7 @@ void setupHand(const hands::State& s, int hand)
     // other's pole by vr_flat_pole_off_pitch / _yaw (as it takes it), the holding hand by vr_flat_pole_hand_pitch / _yaw /
     // _roll (the spear itself stays). In the hand's own frame, about its palm's middle; as for the main hand, mirrored for
     // the off hand. Drawn only.
-    shaftGripped[hand] = false;
+    vh().shaftGripped[hand] = false;
     if(own && flatplay::active())
     {
         glm::vec3 turn{0.f}, move{0.f};
@@ -4627,7 +4636,7 @@ void setupHand(const hands::State& s, int hand)
             // main hand's mount, is off it. That line only for a model without a shape.)
             glm::vec3 on = m.pos, axis = m.muzzle - m.pos;
             float shaftRadius = -1.f;
-            const entity_t& pole = entities.weapon[other].ent;
+            const entity_t& pole = entities().weapon[other].ent;
             if(!poleShaftLine(pole, m.mirrored, m.muzzle, on, axis, shaftRadius))
             {
                 on = m.pos;
@@ -4638,7 +4647,7 @@ void setupHand(const hands::State& s, int hand)
             turnAboutShaft(on, axis, shaftPitch, pos, handRot);
             if(shaftK >= 0.999f)
             {
-                shaftGripped[hand] = true;
+                vh().shaftGripped[hand] = true;
                 poleProbeLine[hand] = {true, on, glm::normalize(axis), &pole, m.mirrored};
             }
         }
@@ -4667,7 +4676,7 @@ void setupHand(const hands::State& s, int hand)
     if(const float poleK = own && !flatplay::active() && freeHelp ? twohand::poleHelpShare(hand) : 0.f; poleK > 0.f)
     {
         view::WeaponMount m;
-        const entity_t& pole = entities.weapon[other].ent;
+        const entity_t& pole = entities().weapon[other].ent;
         if(pole.model && view::weaponMount(other, m) && glm::distance(m.muzzle, m.pos) > 1.f)
         {
             glm::vec3 on, axis;
@@ -4681,7 +4690,7 @@ void setupHand(const hands::State& s, int hand)
             poleShaftGrip(hand, mirrored, on, axis, poleK, pos, handRot, -1.f, shaftRadius);
             if(poleK >= 0.999f)
             {
-                shaftGripped[hand] = true;
+                vh().shaftGripped[hand] = true;
                 poleProbeLine[hand] = {true, on, axis, &pole, m.mirrored};
             }
             poleGripNote(hand, pole, m.mirrored, pos, handRot);
@@ -4691,7 +4700,7 @@ void setupHand(const hands::State& s, int hand)
     // A hand on a pole weapon stuck in a body by its shaft (a grip hotspot, not its handle: embedDrawnHand), the same shaft grip
     // as held (flatembed3, his item 7: "if the blade is embedded ... the off-hand looks completely detached"): the shaft's line
     // as the blade is drawn (handleLine: the pole's own), by the pin's eased weight.
-    if(const EmbedPin& pin = embedPins[hand]; own && pin.on && !pin.byHandle && embedPinUsable(pin))
+    if(const EmbedPin& pin = vh().embedPins[hand]; own && pin.on && !pin.byHandle && embedPinUsable(pin))
     {
         const entity_t& e = cl_entities[pin.ent];
         const int poleSlot = weapons::slotForModel(e.model);

@@ -115,7 +115,7 @@ struct State
     {
         return nullptr;
     }
-    view::ViewEntity& w = st.stuck[hand];
+    view::ViewEntity& w = st().stuck[hand];
     w = view::ViewEntity{};
     w.ent = cl_entities[e];
     w.visible = true;
@@ -510,7 +510,7 @@ float beamLife(int ent)
         }
         else
         {
-            st.propBoltLog = true;
+            st().propBoltLog = true;
         }
     }
     return life;
@@ -535,9 +535,9 @@ bool boltStart(int ent, int hand, const glm::vec3& muzzle, glm::vec3& out)
                 return false;
             }
             out = m.at;
-            if(st.propBoltLog)
+            if(st().propBoltLog)
             {
-                st.propBoltLog = false;
+                st().propBoltLog = false;
                 Con_Printf("lancecharge: bolt from the stuck Lance (ent %d, your hand %d) at its tip %.2f %.2f %.2f, %.2f off "
                            "the server's muzzle\n", ent, h, out.x, out.y, out.z, glm::distance(out, muzzle));
             }

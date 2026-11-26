@@ -48,11 +48,11 @@ struct Busy
     za::Atomic<unsigned> line{0};
     za::Atomic<za::I64> since{0};
 };
-Busy busy[maxBusy];
-za::Atomic<int> busySlots{0};
-thread_local int busySlot = -1;
-za::Atomic<za::SizeT> queuedTasks{0}; // posted with Pool::post and not started
-za::Atomic<void (*)(const char*)> stallReport{nullptr};
+Busy busy[maxBusy]; // seat-shared: the job pool's (one process)
+za::Atomic<int> busySlots{0}; // seat-shared: the job pool's (one process)
+thread_local int busySlot = -1; // seat-shared: the job pool's (a worker thread's)
+za::Atomic<za::SizeT> queuedTasks{0}; // seat-shared: the job pool's (one process); posted with Pool::post and not started
+za::Atomic<void (*)(const char*)> stallReport{nullptr}; // seat-shared: the job pool's (one process)
 
 // Marks this worker busy with `what` while it lives (then puts back what it was busy with: a nested call's chunk).
 class BusyScope

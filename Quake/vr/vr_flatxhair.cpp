@@ -254,7 +254,7 @@ template <typename T>
 // Hand `h` winds up a throw now (noteThrowAim, fresh): its crosshair is on where it would land.
 [[nodiscard]] bool throwing(int h)
 {
-    return h == st.throwHand && st.throwWhen >= 0.0 && vr_gametime - st.throwWhen <= throwFresh && vr_gametime >= st.throwWhen &&
+    return h == st().throwHand && st().throwWhen >= 0.0 && vr_gametime - st().throwWhen <= throwFresh && vr_gametime >= st().throwWhen &&
            vr_flat_xhair_throw_aim.value != 0.f;
 }
 
@@ -344,7 +344,7 @@ void turnReport()
 // of it), back in over vr_flat_xhair_melee_decay. And a new blow's crosshair as it began (the probe's landed-against-said).
 [[nodiscard]] float meleeKick(int k)
 {
-    Aim& a = st.aim[k];
+    Aim& a = st().aim[k];
     float since = 0.f, mass = 0.f;
     int count = 0;
     if(!flatplay::lastStrike(k, since, count, mass))
@@ -746,14 +746,14 @@ void probe_f()
             a.snapped ? 1 : 0, a.blocked ? 1 : 0, a.drawn.x, a.drawn.y, glm::distance(a.drawn, st().centre));
         Con_Printf("flatxhair: %s dim %.2f reload %d wall %.2f\n", name, a.dim, a.reloading ? 1 : 0, flatsight::wallShot(k));
         Con_Printf("flatxhair: %s kick %.2f spread %.2f px\n", name, a.kick, a.spread);
-        Con_Printf("flatxhair: %s melee kick %.2f px blows %d path %d\n", name, a.melee, a.strikeCount, st.shot[k].path ? 1 : 0);
+        Con_Printf("flatxhair: %s melee kick %.2f px blows %d path %d\n", name, a.melee, a.strikeCount, st().shot[k].path ? 1 : 0);
         if(throwing(k))
         {
-            Con_Printf("flatxhair: %s throw aim %.1f %.1f %.1f\n", name, st.throwAt.x, st.throwAt.y, st.throwAt.z);
+            Con_Printf("flatxhair: %s throw aim %.1f %.1f %.1f\n", name, st().throwAt.x, st().throwAt.y, st().throwAt.z);
         }
-        if(st.shot[k].path)
+        if(st().shot[k].path)
         {
-            const ShotLine& s = st.shot[k];
+            const ShotLine& s = st().shot[k];
             const glm::vec3& p0 = s.pathPts[0];
             const glm::vec3& p1 = s.pathPts[za::max(s.pathCount - 1, 0)];
             Con_Printf("flatxhair: %s path %.1f %.1f %.1f to %.1f %.1f %.1f points %d\n", name, p0.x, p0.y, p0.z, p1.x, p1.y, p1.z,
@@ -811,17 +811,17 @@ void probe_f()
     }
     // The melee blow that struck the world since the last probe, against where the crosshair of the hand that struck last
     // said it would land as it began (units apart, and on the view now).
-    if(st.meleeMarks != st.meleeMarksSeen)
+    if(st().meleeMarks != st().meleeMarksSeen)
     {
-        st.meleeMarksSeen = st.meleeMarks;
-        const int k = st.aim[HAND_MAIN].strikeCount > 0 ? HAND_MAIN : HAND_OFF;
-        const Aim& a = st.aim[k];
+        st().meleeMarksSeen = st().meleeMarks;
+        const int k = st().aim[HAND_MAIN].strikeCount > 0 ? HAND_MAIN : HAND_OFF;
+        const Aim& a = st().aim[k];
         glm::vec2 landedAt{0.f}, saidAt{0.f};
-        const bool seen = project(st.meleeLanded, landedAt) && project(a.strikeHit, saidAt);
-        Con_Printf("flatxhair: %s melee landed %.1f %.1f %.1f\n", k == HAND_MAIN ? "main" : "off", st.meleeLanded.x,
-            st.meleeLanded.y, st.meleeLanded.z);
+        const bool seen = project(st().meleeLanded, landedAt) && project(a.strikeHit, saidAt);
+        Con_Printf("flatxhair: %s melee landed %.1f %.1f %.1f\n", k == HAND_MAIN ? "main" : "off", st().meleeLanded.x,
+            st().meleeLanded.y, st().meleeLanded.z);
         Con_Printf("flatxhair: %s melee said %d %.1f %.1f %.1f apart %.1f px %.1f\n", k == HAND_MAIN ? "main" : "off",
-            a.strikeKnown ? 1 : 0, a.strikeHit.x, a.strikeHit.y, a.strikeHit.z, glm::distance(a.strikeHit, st.meleeLanded),
+            a.strikeKnown ? 1 : 0, a.strikeHit.x, a.strikeHit.y, a.strikeHit.z, glm::distance(a.strikeHit, st().meleeLanded),
             seen ? glm::distance(landedAt, saidAt) / px : -1.f);
     }
 }
@@ -874,15 +874,15 @@ void noteMove(const VrMove& move)
 
 void noteThrowAim(int hand, const glm::vec3& at)
 {
-    st.throwHand = hand >= 0 && hand < HAND_COUNT ? hand : -1;
-    st.throwAt = at;
-    st.throwWhen = vr_gametime;
+    st().throwHand = hand >= 0 && hand < HAND_COUNT ? hand : -1;
+    st().throwAt = at;
+    st().throwWhen = vr_gametime;
 }
 
 void noteMeleeMark(const glm::vec3& at)
 {
-    st.meleeLanded = at;
-    st.meleeMarks++;
+    st().meleeLanded = at;
+    st().meleeMarks++;
 }
 
 void noteTracer(int hand, const glm::vec3& to)

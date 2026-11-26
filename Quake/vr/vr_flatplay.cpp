@@ -1086,7 +1086,7 @@ constexpr float dualProneTurnMost = 45.f;
     const auto angle = [](const Tunable& t, float most) { return za::clamp(t.value, -most, most); };
     // (Both fists at once, vr_flat_overhand_both: each its own side's mirror, moved by vr_flat_overhand_2h_raise_out and
     // _end_out so they rise together and land side by side, not in one another.)
-    const bool twoFist = !botSwing && fs.punchTwoFist[h];
+    const bool twoFist = !botSwing && fs().punchTwoFist[h];
     const float raiseOut = offset(set.raiseOut) + (twoFist ? za::clamp(vr_flat_overhand_2h_raise_out.value, -12.f, 12.f) : 0.f);
     const float endOut = offset(set.endOut) + (twoFist ? za::clamp(vr_flat_overhand_2h_end_out.value, -12.f, 12.f) : 0.f);
     const glm::vec3 top = inReach(eye + up * offset(set.raiseUp) + fwd * offset(set.raiseFwd) + right * (side * raiseOut), span * 0.98f);
@@ -1355,7 +1355,7 @@ void parryPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& e
     const glm::vec3& up, float yaw)
 {
     // (a bot's guard, poseBot: its AI's share, its main hand's)
-    const float share = geom::smooth01(bot != nullptr ? (h == HAND_MAIN ? bot->parry : 0.f) : fs.parry[h]);
+    const float share = geom::smooth01(bot != nullptr ? (h == HAND_MAIN ? bot->parry : 0.f) : fs().parry[h]);
     if(share <= 0.f)
     {
         return;
@@ -2190,7 +2190,7 @@ void swingPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& e
     const float side = h == HAND_OFF ? -1.f : 1.f;
     glm::vec3 turn{0.f};
     s.pos[h] = overheadSwing(h, root, s.pos[h], eye, at, fwd, right, up, turn);
-    s.rot[h] = fs.punchOverhand[h] ? mixedAngles(s.rot[h], turnedHand(aimRot, turn, side), overhandShare(h))
+    s.rot[h] = fs().punchOverhand[h] ? mixedAngles(s.rot[h], turnedHand(aimRot, turn, side), overhandShare(h))
                                    : turnedHand(s.rot[h], turn, side);
 }
 
@@ -2200,28 +2200,28 @@ class PunchRehearsal
 {
 public:
     PunchRehearsal(int h, const PunchKind& kind)
-        : h_{h}, at_{fs.punchAt[h]}, overhead_{fs.punchOverhead[h]}, overhand_{fs.punchOverhand[h]}, revGrip_{fs.punchRevGrip[h]},
-          thrust_{fs.punchThrust[h]}, twoFist_{fs.punchTwoFist[h]}, thrustWay_{fs.thrustWay[h]}
+        : h_{h}, at_{fs().punchAt[h]}, overhead_{fs().punchOverhead[h]}, overhand_{fs().punchOverhand[h]}, revGrip_{fs().punchRevGrip[h]},
+          thrust_{fs().punchThrust[h]}, twoFist_{fs().punchTwoFist[h]}, thrustWay_{fs().thrustWay[h]}
     {
-        fs.punchOverhead[h] = kind.overhead;
-        fs.punchOverhand[h] = kind.overhand;
-        fs.punchRevGrip[h] = kind.revGrip;
-        fs.punchThrust[h] = kind.thrust;
-        fs.punchTwoFist[h] = kind.overhand && twoFist_; // (a weapon's swing is never the two fists')
+        fs().punchOverhead[h] = kind.overhead;
+        fs().punchOverhand[h] = kind.overhand;
+        fs().punchRevGrip[h] = kind.revGrip;
+        fs().punchThrust[h] = kind.thrust;
+        fs().punchTwoFist[h] = kind.overhand && twoFist_; // (a weapon's swing is never the two fists')
     }
     ~PunchRehearsal()
     {
-        fs.punchAt[h_] = at_;
-        fs.punchOverhead[h_] = overhead_;
-        fs.punchOverhand[h_] = overhand_;
-        fs.punchRevGrip[h_] = revGrip_;
-        fs.punchThrust[h_] = thrust_;
-        fs.punchTwoFist[h_] = twoFist_;
-        fs.thrustWay[h_] = thrustWay_;
+        fs().punchAt[h_] = at_;
+        fs().punchOverhead[h_] = overhead_;
+        fs().punchOverhand[h_] = overhand_;
+        fs().punchRevGrip[h_] = revGrip_;
+        fs().punchThrust[h_] = thrust_;
+        fs().punchTwoFist[h_] = twoFist_;
+        fs().thrustWay[h_] = thrustWay_;
     }
     PunchRehearsal(const PunchRehearsal&) = delete;
     PunchRehearsal& operator=(const PunchRehearsal&) = delete;
-    void at(double t) const { fs.punchAt[h_] = vr_gametime - t; }
+    void at(double t) const { fs().punchAt[h_] = vr_gametime - t; }
 
 private:
     int h_;
@@ -2241,14 +2241,14 @@ private:
 void noteStrikePath(const hands::State& s, int h, const glm::vec3& root, const glm::vec3& eye, const glm::vec3& fwd,
     const glm::vec3& right, const glm::vec3& up, const glm::vec3& aim, const glm::vec3& aimRot)
 {
-    FlatState::StrikePath& sp = fs.strikePath[h];
+    FlatState::StrikePath& sp = fs().strikePath[h];
     sp.valid = false;
     glm::vec3 tip{0.f}; // (the muzzle, the server's blade line's far end, off the hand as last placed: flatsight)
     if(bot != nullptr || heldIn(h) < 0 || !flatsight::muzzleInHand(h, tip))
     {
         return;
     }
-    PunchKind kind{fs.punchOverhead[h], fs.punchOverhand[h], fs.punchRevGrip[h], fs.punchThrust[h]};
+    PunchKind kind{fs().punchOverhead[h], fs().punchOverhand[h], fs().punchRevGrip[h], fs().punchThrust[h]};
     if(!punching(h))
     {
         if(!swungMelee(h))
@@ -3635,27 +3635,27 @@ bool flippedGrip(int h)
 
 bool strikePath(int h, glm::vec3 (&pts)[strikePathMost], int& count)
 {
-    if(h < 0 || h >= HAND_COUNT || !fs.strikePath[h].valid || !active())
+    if(h < 0 || h >= HAND_COUNT || !fs().strikePath[h].valid || !active())
     {
         return false;
     }
-    count = fs.strikePath[h].count;
+    count = fs().strikePath[h].count;
     for(int i = 0; i < count; i++)
     {
-        pts[i] = fs.strikePath[h].pts[i];
+        pts[i] = fs().strikePath[h].pts[i];
     }
     return true;
 }
 
 bool lastStrike(int h, float& since, int& count, float& mass)
 {
-    if(h < 0 || h >= HAND_COUNT || fs.punches[h] <= 0 || !active())
+    if(h < 0 || h >= HAND_COUNT || fs().punches[h] <= 0 || !active())
     {
         return false;
     }
-    since = static_cast<float>(vr_gametime - (fs.punchAt[h] + static_cast<double>(fs.punchStrikeIn[h])));
-    count = fs.punches[h];
-    mass = fs.punchMass[h];
+    since = static_cast<float>(vr_gametime - (fs().punchAt[h] + static_cast<double>(fs().punchStrikeIn[h])));
+    count = fs().punches[h];
+    mass = fs().punchMass[h];
     return true;
 }
 
@@ -3687,7 +3687,7 @@ bool parryUnflips(int h)
 {
     // (flatparry3: not with the reverse-grip guard, vr_flat_parry_rev: the grip stays flipped.)
     return active() && h >= 0 && h < HAND_COUNT && vr_flat_parry_rev.value == 0.f && vr_flat_parry_unflip_time.value >= 0.f &&
-           (fs.parryWant[h] || fs.parry[h] > 0.f);
+           (fs().parryWant[h] || fs().parry[h] > 0.f);
 }
 
 bool bladeAsked(int holding)
@@ -4963,8 +4963,8 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         }
         else if(punching(h))
         {
-            handsource::mark(h, handsource::Source::Action, fs.punchTwoFist[h] ? "two-fisted blow" : "punch");
-            if(fs.punchTwoFist[h])
+            handsource::mark(h, handsource::Source::Action, fs().punchTwoFist[h] ? "two-fisted blow" : "punch");
+            if(fs().punchTwoFist[h])
             {
                 handsource::twoFisted();
             }
@@ -5800,7 +5800,7 @@ void status_f()
         // (flatparry3: the drawn free hand along the weapon's line from the drawn holding hand, + towards the tip, and off
         // it; the tip's own distance: a free hand well up the line is on the blade, not the handle. A pole's too, and the
         // free hand's drawn angles: vr_flat_revgrip_pole_off_*.)
-        if(swungMelee(h) || fs.twoH[h] > 0.f || twohand::poleWeapon(heldIn(h)))
+        if(swungMelee(h) || fs().twoH[h] > 0.f || twohand::poleWeapon(heldIn(h)))
         {
             const hands::State& cur = hands::current();
             if(glm::vec3 hPos, hRot, oPos, oRot; cur.muzzleValid[h] && view::drawnHandPose(h, hPos, hRot) &&

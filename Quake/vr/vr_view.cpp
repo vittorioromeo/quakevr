@@ -2751,7 +2751,15 @@ struct AttachDrawn
     glm::vec3 mount{0.f};
     glm::vec3 tip{0.f};
 };
-AttachDrawn attachDrawn[2];
+struct AttachDrawnPair
+{
+    AttachDrawn hand[2];
+};
+// split17: the seat's (seat::Part::AttachDrawn): its hands as it drew them
+[[nodiscard]] AttachDrawn (&attachDrawn())[2]
+{
+    return qvr::seat::part<AttachDrawnPair>(qvr::seat::current(), qvr::seat::Part::AttachDrawn).hand;
+}
 
 // Every attachment drawn last frame (vr_attach_report: the multiplayer test's, mp_test.py attach): where (yours in a hand
 // or holster, a lying gun's, another player's held or holstered), whose (his entity; a lying gun's own), which kind.
@@ -2769,7 +2777,7 @@ struct AttachSeenList
     int count{0};
     int frame{-1};
 };
-AttachSeenList attachSeen;
+AttachSeenList attachSeen; // seat-shared: a test's report (vr_attach_report, mp_test.py attach)
 
 void noteAttachSeen(const char* where, int ent, int kind, const qvr::view::ViewEntity& out, const qvr::view::ViewEntity& gun)
 {
@@ -2801,14 +2809,14 @@ void setupAttachments()
         const int preview = menu::attachPreview(hand);
         const int kind = preview != attach::None ? preview : view::ownGunLook(hand).attach;
         const attach::KindInfo* const info = attach::info(kind);
-        AttachDrawn& d = attachDrawn[hand];
-        d.valid = view::placeAttachment(entities.attach[hand], entities.weapon[hand], kind, hand) && info;
+        AttachDrawn& d = attachDrawn()[hand];
+        d.valid = view::placeAttachment(entities().attach[hand], entities().weapon[hand], kind, hand) && info;
         if(d.valid)
         {
-            d.mount = modelPoint(entities.attach[hand], glm::vec3{0.f});
-            d.tip = modelPoint(entities.attach[hand], info->tip);
-            noteAttachSeen(hand == HAND_MAIN ? "hand_main" : "hand_off", cl.viewentity, kind, entities.attach[hand],
-                entities.weapon[hand]);
+            d.mount = modelPoint(entities().attach[hand], glm::vec3{0.f});
+            d.tip = modelPoint(entities().attach[hand], info->tip);
+            noteAttachSeen(hand == HAND_MAIN ? "hand_main" : "hand_off", cl.viewentity, kind, entities().attach[hand],
+                entities().weapon[hand]);
         }
         if(hand == HAND_MAIN && vr_attach_probe.value)
         {
@@ -2822,16 +2830,16 @@ void setupAttachments()
     for(int h = 0; h < HolsterCount; h++)
     {
         const int kind = attach::kindOfUid(holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONUID0));
-        (void)view::placeAttachment(entities.holsterAttach[h], entities.holster[h], kind, -1);
-        noteAttachSeen("holster", cl.viewentity, kind, entities.holsterAttach[h], entities.holster[h]);
+        (void)view::placeAttachment(entities().holsterAttach[h], entities().holster[h], kind, -1);
+        noteAttachSeen("holster", cl.viewentity, kind, entities().holsterAttach[h], entities().holster[h]);
     }
     for(int i = 0; i < maxWorldWeapons; i++)
     {
-        const entity_t* e = worldWeaponsNear[i];
+        const entity_t* e = worldWeaponsNear()[i];
         const bool numbered = e && e >= cl_entities && e < cl_entities + cl_max_edicts;
         const client::EntityVr* net = numbered ? client::entityVr(static_cast<int>(e - cl_entities)) : nullptr;
         const int kind = net ? attach::kindOfUid(net->weaponUid) : attach::None;
-        entities.worldAttach[i].visible = false;
+        entities().worldAttach[i].visible = false;
         if(kind == attach::None)
         {
             continue;
@@ -2840,8 +2848,8 @@ void setupAttachments()
         gun.ent = *e;
         gun.visible = true;
         gun.netEntity = static_cast<int>(e - cl_entities);
-        (void)view::placeAttachment(entities.worldAttach[i], gun, kind, -1);
-        noteAttachSeen("lying", gun.netEntity, kind, entities.worldAttach[i], gun);
+        (void)view::placeAttachment(entities().worldAttach[i], gun, kind, -1);
+        noteAttachSeen("lying", gun.netEntity, kind, entities().worldAttach[i], gun);
     }
 }
 
@@ -3897,12 +3905,12 @@ glm::mat3 mountBasis(const glm::vec3& angles)
 
 bool drawnAttachment(int hand, glm::vec3& mount, glm::vec3& tip)
 {
-    if(hand < 0 || hand > 1 || !view_detail::attachDrawn[hand].valid)
+    if(hand < 0 || hand > 1 || !view_detail::attachDrawn()[hand].valid)
     {
         return false;
     }
-    mount = view_detail::attachDrawn[hand].mount;
-    tip = view_detail::attachDrawn[hand].tip;
+    mount = view_detail::attachDrawn()[hand].mount;
+    tip = view_detail::attachDrawn()[hand].tip;
     return true;
 }
 

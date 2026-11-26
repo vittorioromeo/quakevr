@@ -526,7 +526,7 @@ constexpr float GRID_POWER = 2.5f;
 
 constexpr unsigned GRID_CACHE_VERSION = 3u;         // a build's: bumped when gridProbe's values change
 constexpr double GRID_CACHE_SECONDS = 0.1;          // a grid that took this long is kept on disk (the smaller read no faster)
-bool writeEveryGrid = false;                        // setWriteEveryGrid: every grid kept, however quick (the shipped cache's)
+bool writeEveryGrid = false;                        // seat-shared: the shipped cache's writer (one game folder); setWriteEveryGrid: every grid kept, however quick (the shipped cache's)
 constexpr float GRID_AIR = 256.f;                  // a probe has a surface within this straight below it
 constexpr float GRID_FIXED = 128.f;                 // a GridEntry's values over Quake's lightmap units
 constexpr float GRID_MASK_MOVE = 4.f;               // the probes in sight looked at again when it moved this far

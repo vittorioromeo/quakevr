@@ -2446,9 +2446,9 @@ struct RungTest
     bool have[2]{false, false};
     RungMeasure grip[2]; // vr_climb_rung_grip 1's
 };
-RungTest rungTest;
-za::Vector<glm::vec4> rungVerts;
-za::Vector<view::HandPart> rungParts;
+RungTest rungTest; // seat-shared: a test's probe (vr_climb_rung_grip)
+za::Vector<glm::vec4> rungVerts; // seat-shared: the rung test's scratch, filled and read in one call
+za::Vector<view::HandPart> rungParts; // seat-shared: the rung test's scratch, filled and read in one call
 constexpr const char* rungTestName = "vr_rung_grip_test";
 constexpr float rungTestNear = 1.5f;  // units: the palm's middle off the rung's surface at most
 constexpr float rungTestSink = 1.5f;  // units: the hand's deepest vertex in the rung at most

@@ -607,7 +607,7 @@ void info_f()
 // added at a point on the world's faces, read from the texture's copy (vr_gl_world_dlmap_batch 1), and whether the face
 // has baked light of its own; with `min`, a check that it is at least that (in Quake's full light: 1); `end`: the verdict
 // line "dlmap_probe: N passed, M failed".
-testkit::Tally probeTally;
+testkit::Tally probeTally; // seat-shared: a test's tally
 
 void probe_f()
 {

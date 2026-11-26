@@ -65,8 +65,8 @@ vmode_t	modelist[MAX_MODE_LIST];
 int		nummodes;
 
 static qboolean	vid_initialized = false;
-static unsigned	vid_framesdrawn; // QVR: frames GL_EndRendering drew (VID_LoadingLastFrame: the loading panel's backdrop)
-static qboolean	vid_lastpresented; // QVR: the last of them presented (else left in the back buffer: VR_SkipSwap)
+static unsigned	vid_framesdrawn; // seat-shared: the window's; QVR: frames GL_EndRendering drew (VID_LoadingLastFrame: the loading panel's backdrop)
+static qboolean	vid_lastpresented; // seat-shared: the window's; QVR: the last of them presented (else left in the back buffer: VR_SkipSwap)
 
 static SDL_Window	*draw_context;
 static SDL_GLContext	gl_context;

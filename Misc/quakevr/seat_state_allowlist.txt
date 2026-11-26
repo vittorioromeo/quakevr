@@ -2435,7 +2435,6 @@ Quake/vr/vr_menu_tunables.inc|tunablesShown
 Quake/vr/vr_menu_tunables.inc|tunablesTree
 Quake/vr/vr_menu_voicechat.inc|voicePlayersBuilt
 Quake/vr/vr_menu_wofs.inc|weaponOffsetsHand
-Quake/vr/vr_menu_wofs.inc|weaponOffsetsHeldSlot
 Quake/vr/vr_menu_wofs.inc|weaponOffsetsHolster
 Quake/vr/vr_menu_wofs.inc|weaponOffsetsHotspot
 Quake/vr/vr_menu_wofs.inc|weaponOffsetsHotspotManual

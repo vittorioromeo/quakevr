@@ -970,7 +970,7 @@ bool offhandButton()
 
 bool mainButton()
 {
-    return (in_attack.state & 1) != 0;
+    return (CL_SeatInput()->attack.state & 1) != 0;
 }
 
 bool reloadHeld(int hand)

@@ -425,7 +425,7 @@ struct PickUndo
     int count{0};
     float testMs{0.f};
 };
-PickUndo pickUndo;
+PickUndo pickUndo; // seat-shared: the graphics preset's undo (the settings are the process's)
 
 void snapshotPick()
 {

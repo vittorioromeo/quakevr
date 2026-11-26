@@ -1935,8 +1935,8 @@ struct HoldPoseRef
     bool set{false};
     glm::vec3 p[4]{};
 };
-HoldPoseRef holdPoseRef;
-testkit::Tally holdPoseTally;
+HoldPoseRef holdPoseRef; // seat-shared: a test's probe
+testkit::Tally holdPoseTally; // seat-shared: a test's tally
 
 // The arm points of the armed humanoid in slot `s` (left hand, left elbow, right hand, right elbow) if it was seen
 // lately holding a weapon whose model's name ends in `model`.

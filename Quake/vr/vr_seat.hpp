@@ -104,6 +104,9 @@ enum class Part
     LanceCharge,   // vr_lancecharge.cpp: the Lance's charges as this seat's client read them, their sparks and hums
     WeaponWheel,   // vr_weaponwheel.cpp: the weapon wheel (open, its hand, cursor, choices, fade)
     ClimbRope,     // vr_climbrope.cpp: the client's rope hold's let-go pass
+    // split17: next's new per-player state (2026-11-27 merge).
+    AttachKnown,   // vr_attach.cpp: which weapon has which attachment, as this seat's client was told
+    AttachDrawn,   // vr_view.cpp: the hands' attachments as this seat drew them last (view::drawnAttachment)
     Count
 };
 

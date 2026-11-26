@@ -5970,11 +5970,11 @@ constexpr float rungProbe = 1.f / 6.f; // (tutorial) of its thickness: under its
 
 bool qvr::climb::rungHeld(int hand, glm::vec3& axis, glm::vec3& along, float& thickness, float& weight)
 {
-    if(hand < 0 || hand > 1 || pins[hand].weight <= 0.f || !pins[hand].toRung || pins[hand].thickness <= 0.f)
+    if(hand < 0 || hand > 1 || pins()[hand].weight <= 0.f || !pins()[hand].toRung || pins()[hand].thickness <= 0.f)
     {
         return false;
     }
-    const Pin& pin = pins[hand];
+    const Pin& pin = pins()[hand];
     axis = pin.hold() + pin.axis;
     along = glm::normalize(pin.toUp);
     thickness = pin.thickness;
