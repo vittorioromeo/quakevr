@@ -1535,6 +1535,21 @@ void chooseGrip(const WeaponFrame& wf)
             }
         }
         s.grip2H[hand] = worldHotspots[hand][chosen].pos;
+        // (flatparry3, his flat note 2026-11-26: "Judicator sword regular 2H grip puts one of the hands on the blade": its one
+        // Grip hotspot, the death knight's sword's copied, lies 10.7 u up the weapon from its holding hand, which sits lower
+        // on its longer handle. Flat play, a weapon held as a sword (twohand::swordHeld: the helping hand below the holding
+        // one) whose grip lies above the holding hand or less than vr_flat_melee_grip_below under it: taken that far below it,
+        // along the line from the hand to the tip; the blade is the guard's alone, flatplay::bladeAsked.)
+        if(const float below = za::clamp(vr_flat_melee_grip_below.value, 0.f, 20.f);
+            lowest >= 0 && below > 0.f && twohand::swordHeld(hand) && glm::distance(s.muzzle[hand], held.pos) > 1.f)
+        {
+            const glm::vec3 way = glm::normalize(s.muzzle[hand] - held.pos);
+            const float along = glm::dot(s.grip2H[hand] - held.pos, way);
+            if(along > -below)
+            {
+                s.grip2H[hand] -= way * (along + below);
+            }
+        }
         s.grip2HBias[hand] = worldHotspots[hand][chosen].bias;
         s.grip2HSticky[hand] = weapons::hotspot(slot, chosen).sticky;
         // Flatscreen play, a pole weapon held as a spear (lancespear; twohand::poleWeapon): the other hand on its pole,
@@ -1549,16 +1564,19 @@ void chooseGrip(const WeaponFrame& wf)
             // the pole, sliding back along it: flatplay::thrustOffSlide.)
             // (polepose: held reversed, by the flip's share, vr_flat_revgrip_pole_off_along: the flipped Crystal Lance's other hand
             // at the upright's 8 met its head's housing and stayed open, curl 0.32; at 4, 0.72.)
+            const float flipK = za::clamp(drawnFlip(hand), 0.f, 1.f);
             const float offAlong = glm::mix(za::clamp(vr_flat_pole_off_along.value, -40.f, 60.f),
-                za::clamp(vr_flat_revgrip_pole_off_along.value, -40.f, 60.f), za::clamp(drawnFlip(hand), 0.f, 1.f));
+                za::clamp(vr_flat_revgrip_pole_off_along.value, -40.f, 60.f), flipK);
             s.grip2H[hand] = fist + way * (offAlong - flatplay::thrustOffSlide(hand));
-            // (Moved off the pole by vr_flat_pole_off_up / _off_out: up, and out to that hand's own side, level across it.)
+            // (Moved off the pole by vr_flat_pole_off_up / _off_out: up, and out to that hand's own side, level across it;
+            // upright only: held reversed, by the flip's share, vr_flat_revgrip_pole_off_up / _off_out move the drawn hand
+            // after its shaft grip instead, vr_view_hands.cpp: flatparry3.)
             if(const glm::vec3 across = glm::cross(way, glm::vec3{0.f, 0.f, 1.f}); glm::length(across) > 1e-3f)
             {
                 const glm::vec3 right = glm::normalize(across); // (the pole's right, looking along it)
                 const glm::vec3 poleUp = glm::cross(right, way);
                 const float out = za::clamp(vr_flat_pole_off_out.value, -10.f, 10.f) * (hand == HAND_MAIN ? -1.f : 1.f);
-                s.grip2H[hand] += poleUp * za::clamp(vr_flat_pole_off_up.value, -10.f, 10.f) + right * out;
+                s.grip2H[hand] += (poleUp * za::clamp(vr_flat_pole_off_up.value, -10.f, 10.f) + right * out) * (1.f - flipK);
             }
         }
         if(chosen == magSpot[hand])

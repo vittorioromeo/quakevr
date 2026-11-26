@@ -4546,21 +4546,29 @@ void setupHand(const hands::State& s, int hand)
         // vr_flat_pole_off_snap: the pole as drawn this frame, whatever turned it, poleShaftGrip.)
         view::WeaponMount m;
         float shaftK = 0.f;
+        // (The pole's drawn flip: flatparry3's vr_flat_revgrip_pole_off_* turn the hand on it held reversed, by its share.)
+        float poleFlip = 0.f;
+        if(glm::vec3 wf, wu; holdsPole && view::heldWeaponAxes(other, wf, wu, poleFlip))
+        {
+            poleFlip = za::clamp(poleFlip, 0.f, 1.f);
+        }
+        else
+        {
+            poleFlip = 0.f;
+        }
         if(holdsPole && view::weaponMount(other, m) && glm::distance(m.muzzle, m.pos) > 1.f)
         {
-            glm::vec3 wf, wu;
-            float flip = 0.f;
-            if(!view::heldWeaponAxes(other, wf, wu, flip))
-            {
-                flip = 0.f;
-            }
-            shaftK = za::max(za::clamp(vr_flat_pole_off_snap.value, 0.f, 1.f), za::clamp(flip, 0.f, 1.f)) * za::min(onPole, 1.f);
+            shaftK = za::max(za::clamp(vr_flat_pole_off_snap.value, 0.f, 1.f), poleFlip) * za::min(onPole, 1.f);
         }
         float shaftPitch = 0.f;
         if(holdsPole)
         {
-            turn = glm::vec3{za::clamp(vr_flat_pole_off_pitch.value, -90.f, 90.f), za::clamp(vr_flat_pole_off_yaw.value, -90.f, 90.f),
-                       za::clamp(vr_flat_pole_off_roll.value, -180.f, 180.f)} * onPole;
+            const auto deg = [poleFlip](const Tunable& upright, const Tunable& flipped, float most) {
+                return glm::mix(za::clamp(upright.value, -most, most), za::clamp(flipped.value, -most, most), poleFlip);
+            };
+            turn = glm::vec3{deg(vr_flat_pole_off_pitch, vr_flat_revgrip_pole_off_pitch, 90.f),
+                       deg(vr_flat_pole_off_yaw, vr_flat_revgrip_pole_off_yaw, 90.f),
+                       deg(vr_flat_pole_off_roll, vr_flat_revgrip_pole_off_roll, 180.f)} * onPole;
             // (flatembed4: the shaft grip's share of the hand's pitch is turned about the shaft after it, turnAboutShaft, not
             // before: its least turn onto the shaft undid it, vr_flat_pole_off_pitch turning the hand 2 of 30 degrees.)
             shaftPitch = turn.x * shaftK;
@@ -4595,6 +4603,21 @@ void setupHand(const hands::State& s, int hand)
             {
                 shaftGripped[hand] = true;
                 poleProbeLine[hand] = {true, on, glm::normalize(axis), &pole, m.mirrored};
+            }
+        }
+        // (flatparry3, his flat note 2026-11-26: the other hand on a flipped pole moved off it by vr_flat_revgrip_pole_off_up /
+        // _off_out, by the flip's share: after its shaft grip, which closed it round the shaft again (the upright's
+        // vr_flat_pole_off_up / _off_out move its grip point, before it). Up off the pole and out to the hand's own side,
+        // level across it; drawn only.)
+        if(const float k = poleFlip * za::min(onPole, 1.f); k > 0.f && view::weaponMount(other, m) && glm::distance(m.muzzle, m.pos) > 1.f)
+        {
+            const glm::vec3 way = glm::normalize(m.muzzle - m.pos);
+            if(const glm::vec3 across = glm::cross(way, glm::vec3{0.f, 0.f, 1.f}); glm::length(across) > 1e-3f)
+            {
+                const glm::vec3 right = glm::normalize(across);
+                const glm::vec3 poleUp = glm::cross(right, way);
+                const float out = za::clamp(vr_flat_revgrip_pole_off_out.value, -10.f, 10.f) * (hand == HAND_OFF ? -1.f : 1.f);
+                pos += (poleUp * za::clamp(vr_flat_revgrip_pole_off_up.value, -10.f, 10.f) + right * out) * k;
             }
         }
     }
