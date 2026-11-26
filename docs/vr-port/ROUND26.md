@@ -1772,3 +1772,33 @@ gameplay preset "Unleashed", the uninstall key `QuakeVRUnleashed`, file names an
 Shortcut migration: Windows keeps the old letter case of an existing file/folder, so `ShellLink.Save` now renames an
 existing Start menu folder / deletes an existing .lnk that differs only in case before writing (self-test "shortcuts of
 the old letter case are renamed"; installer self-tests 63/63).
+
+## vrspear: VR's off hand round a pole's shaft, fixed on it, kept through an embed (branch agent/vrspear, 2026-11-26)
+
+His VR notes 2026-11-26 20:07-20:10 (vrtesthall).
+- **Round the shaft (20:07):** VR's pole grip (`vr_twohand.cpp` FREE_POLE: spear, Crystal Lance) drew the off hand where the
+  controller took hold, beside the shaft by however far off it grabbed. Now `setupHand` closes it round the shaft as drawn with
+  flat play's own helpers (`poleShaftLine`, `poleShaftGrip`; shared, not copied), by the grip's blend (`twohand::poleHelpShare`):
+  the least turn and move, so its place along the shaft is the grab's. Drawn only (the aim and the let-go go by the controller).
+- **Fixed on the pole (20:09):** `vr_pole_grip_fixed` (archived, default 1; "Other Hand Fixed on Poles" in Physics and
+  Interaction under Weapon Hand Slides on Poles): `updateFree` keeps its place on the pole (u + the holding hand's slide
+  constant); how far the hand is from that place lets go of it (the hotspots' 20-unit keep, times stickiness). 0: today's slide.
+  The holding hand's own slide (`poleShift`, a loose main grip) still works; its change is taken from where the hand would slide
+  (`FreeGrip::uFree`), so a loosened grip never jumps.
+- **A bug under the main hand's slide:** `freeHand` drew the off hand slid by its place from the holding hand, and the holding
+  hand's drawn pose (`drawnAs`) is already moved back by `poleShift`: with the main hand sliding, the drawn off hand slid along
+  the pole by the whole slide, both modes (10 cm in the test). Now less the slide since (`FreeGrip::handAlong`).
+- **Through an embed (20:10):** a stab that stuck put the second hand's pin on the blade's nearest grip hotspot from its
+  controller, eased in from the controller (the jump he saw). Now the off hand's last drawn pose on the pole is kept in the model's
+  frame (`poleGripNote`, `grasp::shapeToWorld` without scale) and a new pin on the same model within 0.25 s (`poleGripWas`) starts
+  there, at full weight, no hotspot; the stuck shaft grip keeps it round the shaft. A stuck pole's shaft hand now wraps with the
+  slot's Grip Overlap (`heldBy`): with the default the Lance's palm was drawn 2.6 cm off its shaft. Both settings of the option.
+  The server never let go in the mock (hands 3 the whole measure); his "detaches" was the drawn jump, as far as the mock shows.
+- **Probe:** `vr_embed_probe_palong` (cm along the shaft from its middle, last frame), `_pslide` (most minus least since reset).
+- **Tests:** `vrspear_test.sh`: vr_embed_test 73 (the Lance with the main grip loose, so the main hand slides; the spear with
+  `vr_pole_grip_fixed 0`) 18/0, 74 (the spear fixed, main grip closed) 9/0: the hand put 1-2 cm over the shaft takes it, 0.00 cm
+  off the shaft line, 0 degrees, 4 of 4 fingers; moved 15% of the pole along it, the drawn hand moved 0.00 cm (fixed) or
+  10.2 cm (0); the stab sticks, hands 3 for 0.6 s, round the stuck shaft, 0.1 cm from where it was held. (74 is its own run: a
+  third case in one run never took the pole, the fist 0.3 units off the shaft whatever the offset; not chased.) `VR_EH_Blow`
+  takes a give command (`vr_eh_givecmd`, the Lance's `vr_ad_test 207`). dwell_lance_test now sets `vr_pole_grip_fixed 0` in its
+  slide sections (51/0); spear_test 4/0 (VR 25/0); poleembed_test 16/0, 13/0.

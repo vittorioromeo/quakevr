@@ -125,7 +125,7 @@ void() VR_PE_PoleFrame =
         p.velocity = '0 0 0';
         VRSetHandEmpty(p, cVR_OffHand);
         vr_pe_name = vr_et_case == 0 ? "spear" : "Crystal Lance";
-        if(vr_et_case > 0)
+        if(vr_et_case == 0)
         {
             VR_EH_Give(WID_SWORD, VR_ADMelee_Flags(VR_SWORDKIND_SPEAR));
         }
@@ -269,7 +269,7 @@ void() VR_PE_JitterFrame =
             vr_test_tag, n, raw, drawn, lag, hoff));
         VR_Test_Check(n >= 20, sprintf("%s: the held blade measured in the ragdoll (%g frames, held %g)", vr_pe_name, n, w != world));
         VR_Test_Check(raw > 0, sprintf("%s: the ragdoll moves it (jitter %.3f in the body)", vr_pe_name, raw));
-        if(vr_et_case > 0)
+        if(vr_et_case == 0)
         {
             VR_Test_Check(vr_pe_saved_smooth > 0, sprintf("vr_embed_ragdoll_smooth_time on by default (%g)", vr_pe_saved_smooth));
             VR_Test_Check(drawn <= raw * VR_PE_CALM, sprintf("%s: drawn with less jitter than in the body (%.3f of %.3f: %.0f%%, at most %.0f%%)", vr_pe_name,
