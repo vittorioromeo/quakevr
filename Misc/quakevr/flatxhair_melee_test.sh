@@ -26,6 +26,13 @@ S="$S; $(give 13 11520); $(blow flip16 736); $(blow flip24 728); $(blow flipfar 
 S="$S; tune vr_flat_xhair_thrust_path 0; $(blow old16 736); tune_reset vr_flat_xhair_thrust_path"
 S="$S; $(give 13 3328); $(blow up16 736)"
 S="$S; $(give 0 0); $(blow fist 736)"
+# (flatxhair2: every melee weapon's swing in both grips, 12 units from the wall (the flipped dagger 6): wid, flags (its kind
+# * 256, +8192 flipped), where he stands.)
+WEAPONS="sword:13:0 swordrev:13:8192 dagger:13:3072 daggerrev:13:11264:746 axe:2:0 axerev:2:8192 hammer:13:1280 hammerrev:13:9472 mace:13:1536 macerev:13:9728 crowbar:17:0 crowbarrev:17:8192"
+for w in $WEAPONS; do
+    IFS=: read -r tag wid flags y <<< "$w"
+    S="$S; $(give $wid $flags); $(blow $tag ${y:-740})"
+done
 S="$S; echo flatxhair_melee_test: end"
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode -loopbackonly" -Script "$S; toggleconsole; quit" -QuitOn "flatxhair_melee_test: end" \
     -Timeout 200 -Filter "^flatxhair|^flatplay: main punch|^spear:" > "$log" 2>&1
@@ -43,6 +50,14 @@ done
 for c in flip16 flip24 up16; do
     a=$(field $c after "main melee said" apart)
     check $(ok "${a:-99} < 6") "$c: the blow lands where the crosshair said (${a:-no landing} units apart)"
+done
+for w in $WEAPONS; do
+    c=${w%%:*}
+    # (A quick swing lands before the strike's probe, 18 frames in: its landing is printed there.)
+    ph=after
+    [ -z "$(field $c after "main melee said" apart)" ] && ph=strike
+    a=$(field $c $ph "main melee said" apart); k=$(field $c $ph "main melee said" said)
+    check $(ok "${k:-0} == 1 && ${a:-99} < 6") "$c: its swing lands where the crosshair said (${a:-no landing} units apart)"
 done
 a=$(field old16 after "main melee said" apart)
 check $(ok "${a:-0} > 20") "old16: the old shot line said nowhere near (${a:-no landing} units apart)"

@@ -79,11 +79,11 @@ struct ShotLine
     glm::vec3 muzzle{0.f};
     glm::vec3 hand{0.f};
     glm::vec3 dir{0.f};
-    // A flipped spear's thrust (flatplay::thrustPath): its tip's way through the strike, what it meets or its end (muzzle
-    // and hand both at `pathTo`, `dir` the blade's way there).
+    // A melee weapon's blow (flatplay::strikePath: a swing or a thrust, either grip): its tip's way through the strike, what
+    // it meets or its end (muzzle and hand both at its end, `dir` its last step's way).
     bool path{false};
-    glm::vec3 pathFrom{0.f};
-    glm::vec3 pathTo{0.f};
+    int pathCount{0};
+    glm::vec3 pathPts[flatplay::strikePathMost]{};
 };
 
 // One hand's crosshair this frame, in the view's pixels from its top left.
@@ -204,10 +204,19 @@ template <typename T>
 {
     if(s.path)
     {
-        // (What the tip meets in the strike is what it strikes; nothing in its reach: where its tip ends, the place on the
-        // view a thing must be for the blow to land on it. Not on along the blade: tilted down, that is the floor ahead.)
-        const auto part = worldtrace::shotLine(s.pathFrom, s.pathTo, MOVE_NORMAL | MOVE_HITGIBS | MOVE_HITMODEL);
-        return part && part->gates == 0 ? *part : worldtrace::ShotStop{s.pathTo, s.pathTo, 0};
+        // (What the tip meets in the strike is what it strikes, step by step along its way; nothing in its reach: where its
+        // tip ends, the place on the view a thing must be for the blow to land on it. Not on along the blade: tilted down,
+        // that is the floor ahead.)
+        for(int i = 1; i < s.pathCount; i++)
+        {
+            const auto part = worldtrace::shotLine(s.pathPts[i - 1], s.pathPts[i], MOVE_NORMAL | MOVE_HITGIBS | MOVE_HITMODEL);
+            if(part && part->gates == 0 && glm::distance(part->at, s.pathPts[i]) > 0.01f)
+            {
+                return *part;
+            }
+        }
+        const glm::vec3 end = s.pathPts[za::max(s.pathCount - 1, 0)];
+        return worldtrace::ShotStop{end, end, 0};
     }
     const glm::vec3 src = backPoint(s);
     const glm::vec3 end = src + s.dir * (shotRange + glm::distance(s.muzzle, src));
@@ -386,7 +395,8 @@ void update(int w, int h)
         const float spreadTo =
             za::min(tune(vr_flat_xhair_kick, 0.f, 10.f) * a.kick + a.melee, tune(vr_flat_xhair_kick_max, 0.f, 64.f)) * px;
         a.spread = kickTau > 0.f ? a.spread + (spreadTo - a.spread) * (1.f - za::exp(-dt / kickTau)) : spreadTo;
-        a.shown = st.shot[k].valid && gunIn(k);
+        // (A melee weapon's too, whatever its own crosshair setting: on where its blow lands, flatplay::strikePath.)
+        a.shown = st.shot[k].valid && (gunIn(k) || st.shot[k].path);
         if(!a.shown)
         {
             a.had = false;
@@ -721,8 +731,10 @@ void probe_f()
         if(st.shot[k].path)
         {
             const ShotLine& s = st.shot[k];
-            Con_Printf("flatxhair: %s path %.1f %.1f %.1f to %.1f %.1f %.1f\n", name, s.pathFrom.x, s.pathFrom.y, s.pathFrom.z,
-                s.pathTo.x, s.pathTo.y, s.pathTo.z);
+            const glm::vec3& p0 = s.pathPts[0];
+            const glm::vec3& p1 = s.pathPts[za::max(s.pathCount - 1, 0)];
+            Con_Printf("flatxhair: %s path %.1f %.1f %.1f to %.1f %.1f %.1f points %d\n", name, p0.x, p0.y, p0.z, p1.x, p1.y, p1.z,
+                s.pathCount);
         }
         // The gun as drawn: where its barrel's line (the weapon's Shot Pitch and Yaw on its drawn angles) goes from its drawn
         // muzzle, against the shot's line as sent (degrees between the two ways; the barrel's hit on the view).
@@ -824,15 +836,15 @@ void noteMove(const VrMove& move)
         s.muzzle = move.muzzlePos[k];
         s.hand = move.hands[k].pos;
         s.dir = hands::forward(move.shotRot[k]);
-        // (A flipped spear strikes along its thrust's way, not its reversed pole's line: the crosshair goes on that.)
-        glm::vec3 from{0.f}, to{0.f}, way{0.f};
-        s.path = vr_flat_xhair_thrust_path.value != 0.f && flatplay::thrustPath(k, from, to, way);
+        // (A melee weapon strikes where its blow takes it, a swing or a thrust in either grip, not along its shot's line
+        // (a flipped spear's pointed back over the shoulder): the crosshair goes on that.)
+        s.path = vr_flat_xhair_thrust_path.value != 0.f && flatplay::strikePath(k, s.pathPts, s.pathCount) && s.pathCount >= 2;
         if(s.path)
         {
-            s.pathFrom = from;
-            s.pathTo = to;
-            s.muzzle = s.hand = to;
-            s.dir = way;
+            const glm::vec3& end = s.pathPts[s.pathCount - 1];
+            const glm::vec3 step = end - s.pathPts[s.pathCount - 2];
+            s.muzzle = s.hand = end;
+            s.dir = glm::length(step) > 1e-3f ? glm::normalize(step) : s.dir;
         }
     }
 }
