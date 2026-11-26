@@ -541,10 +541,10 @@ def g10_dark():
     for (x, y) in ((4140, 160), (4140, 290), (3880, 290), (3880, 100)):
         walk(x, y, 10, 200)
     pos("dark_block2")
-    # the 48 block: climbed (a hand on its lip, pulled)
+    # the 64 block (its lip striped): climbed (a hand on its lip, pulled)
     c("vr_mock_turn_to 270")
     w(100)
-    grab("main", 3880, 82, LOW + 46)
+    grab("main", 3880, 82, LOW + 62)
     pull("main", 50, 25)
     w(40)
     let_go("main")
@@ -1065,7 +1065,7 @@ CHECKS = [
     ("fight", "the rifle shot the three targets: the door opened", lambda p: 5152 < p[0] < 5280 and p[1] < 400),
     ("weapons", "shotgun loaded by hand, reloaded, the range cleared", lambda p: 4528 < p[0] < 4760 and p[1] > 150),
     ("dark_block1", "dark: over the first block", lambda p: p[1] < -100),
-    ("dark_climb", "dark: climbed the 48 block", lambda p: p[2] > LOW + 60),
+    ("dark_climb", "dark: climbed the 64 block", lambda p: p[2] > LOW + 76),
     ("dark_ledge", "dark: up the step and the ledge", lambda p: p[2] > LOW + 90),
     ("dark", "through the dark course to room 10", lambda p: p[0] < 3440),
     ("throw", "a thrown rock pressed the button: its door opened", lambda p: p[0] < 2540),

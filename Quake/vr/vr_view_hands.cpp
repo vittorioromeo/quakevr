@@ -3884,15 +3884,16 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
     }
 }
 
-// (ropes8a, his note 2026-11-23: the hands went through a pole) A hand on a climbable rope or pole, yours in VR or
+// (ropes8a, his note 2026-11-23: the hands went through a pole) A hand on a climbable rope or pole (tutorial: or a thin
+// round rung, climb::gripLine), yours in VR or
 // flat-screen play: its grip channel (the line the half-closed fingers curl round: grasp::gripChannel) laid along the
 // rope's axis as drawn, then out from it by what the rope's radius is over the channel's (a pole thicker than a handle:
-// the palm on its surface, not in it), eased in as the hand is drawn onto the hold (climb::ropeLine's weight).
+// the palm on its surface, not in it), eased in as the hand is drawn onto the hold (climb::gripLine's weight).
 void ropeGrip(int hand, bool mirrored, glm::vec3& pos, glm::vec3& handRot)
 {
     glm::vec3 at, up;
     float thick = 0.f, w = 0.f;
-    if(!climb::ropeLine(hand, at, up, thick, w) || !handrig::usable(viewModel(handrig::modelName())))
+    if(!climb::gripLine(hand, at, up, thick, w) || !handrig::usable(viewModel(handrig::modelName())))
     {
         return;
     }
@@ -3952,7 +3953,7 @@ void ropeHeld(int hand, Held& held)
 {
     glm::vec3 at, up;
     float thick = 0.f, w = 0.f;
-    if(!cl.worldmodel || !climb::ropeLine(hand, at, up, thick, w) || w < 0.5f)
+    if(!cl.worldmodel || !climb::gripLine(hand, at, up, thick, w) || w < 0.5f)
     {
         return;
     }

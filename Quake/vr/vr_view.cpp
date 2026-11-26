@@ -191,7 +191,7 @@ void updateFingerFrames()
         // thumb rest says (VR; flat play's thumb is always closed): it wraps it, stopped on its surface (ropeHeld).
         glm::vec3 ropeAt, ropeUp;
         float ropeThick = 0.f, ropeWeight = 0.f;
-        const bool onRope = climb::ropeLine(hand, ropeAt, ropeUp, ropeThick, ropeWeight) && ropeWeight >= 0.5f;
+        const bool onRope = climb::gripLine(hand, ropeAt, ropeUp, ropeThick, ropeWeight) && ropeWeight >= 0.5f;
         for(int finger = 0; finger < FingerCount; finger++)
         {
             const float curl = finger == FingerThumb && onRope ? 1.f : targetCurl(in, finger, holdsOther);

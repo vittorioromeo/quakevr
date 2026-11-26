@@ -1805,6 +1805,9 @@ QVR_TUNABLE(vr_climb_prop_pull, "40") // kg: the most weight a hand on a light p
 QVR_TUNABLE(vr_climb_prop_tilt, "10") // degrees: a held prop's top turned this far from how it lay when taken lets the hand go (it tipped over)
 QVR_TUNABLE(vr_climb_prop_slip, "6") // units: a light prop's hold moved this far from where it was taken lets the hand go (pulled off its stack, slid away)
 QVR_TUNABLE(vr_climb_prop_letgo_speed, "200") // units/s: a held prop's hold whose speed changes this much in a frame lets the hand go (knocked away: a blast, a hit)
+QVR_TUNABLE(vr_climb_rung_max, "5") // (tutorial) units: the thickest rung a hand is drawn gripping round (vr_climb_rung_grip; both ways across; the tutorial's 3.5; 0 none)
+QVR_TUNABLE(vr_climb_rung_round, "0.06") // (tutorial) a rung is round when its front, a sixth of its thickness under its top and over its bottom, is this share of its thickness further in than at its middle (a cylinder's 0.14, an octagon's 0.14; a square bar 0)
+QVR_TUNABLE(vr_climb_rung_tilt, "45") // (tutorial) degrees: a hand gripping a rung, its palm's middle turned from under the rung (0, a level pole's) towards the climber (90)
 QVR_TUNABLE(vr_hull_build_mb, "1024") // the memory the world's compiled hulls' builds at a load may hold at once (MB, estimated: 16 KB a brush of the world's a tree; vrstart: about 330 MB a tree, three at once): a build past it waits for one to end (one always runs); 0: no limit (vrstart's seven at once: about 1 GB more working set, 5-10% quicker)
 
 // Debug > Profiling and Memory

@@ -484,6 +484,7 @@
         row(opt::vr_climb_hand_pitch),
         row(opt::vr_climb_hand_yaw),
         row(opt::vr_climb_hand_roll),
+        row(opt::vr_climb_rung_grip),
     };
 }
 
