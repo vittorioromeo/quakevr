@@ -2217,6 +2217,93 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
   - Review screenshots: `scratch/attach5_shots.sh vr|flat` -> `scratch/attach5_vr_held_sg_ssg_lying.png`,
     `scratch/attach5_flat_held_stuck_holster.png` (not looked at by the worker; hand-over).
 
+## Map-made armed humanoids hold their guns right: Quoth's kellbase1 enforcers (branch agent/quothpose, 2026-11-26)
+
+His note: kellbase1's enforcer with the Centurion's plasma rifle had its left arm off and its elbow flung out; the same
+enforcer and gun spawned on vrragtriggers was right.
+- Cause: AD's and Quoth's soldiers (eliminator, defender, pyro... `VR_HUM_Replace`) become armed humanoids inside the
+  map's spawn functions, and QC measures the held gun's points then, once (`VR_AGP_Geo`: muzzle, butt, second grip, kept
+  on the weapon entity). During spawn `sv.active` is still false and the client has not connected, so
+  `weapons::modelTransform` (vr_weapons.cpp) saw no Quake VR protocol and gave no transform: every gun was measured at
+  its model's own size (the Centurion's gun's muzzle 33 units ahead instead of 12, the burst rifle variants all alike).
+  The pose code took the long gun's butt and grips from that, the gun sat 10 units across the chest and the left arm
+  reached round it. A toolgun spawn (after spawn) measured right. Not Quoth-only: any armed humanoid made at a map's
+  spawn with a gun (AD's maps too); the id maps' armed grunts get theirs rolled later.
+- Fix: `modelTransform` also takes the server's protocol while the server's QC runs during loading
+  (`sv.state == ss_loading && qcvm == &sv.qcvm`). The comment there already named the same hole for the first frames
+  (thrown weapons' hulls three times too big); hulls and boxes made during spawn are now the drawn size too.
+- Debug: with `vr_agrunt_ik_debug 1`, `vr_agholds_report` (Debug > Armed Humanoids: Weapon Holds Report) adds `agarm`
+  lines: each arm's hand and elbow off its shoulder (model space) and the body's model, frame, scale.
+  `vr_agholds_pose save|pin|check|done` (vr_hitreact.cpp) compares the arms of those holding one gun model to a reference.
+- Test: `Misc/quakevr/quothpose_test.sh` (needs Quoth 2.2): scene `agrunt_enf_centurion` (vrragtriggers, frozen, the
+  reference, pinned within 1 unit), then `quoth_kellbase_enforcer` (campaign quoth, frozen): both kellbase1 eliminators
+  within 1.5 units of it (before the fix about 10 units off). 2/0.
+- Kit: Quoth was missing from the kit's bases; `qvr-kit/links.ps1` now mirrors his Steam `quoth` as it does `ad`
+  (hard links for the paks and txt, no .cfg or .bat) into `qbase/quoth` and links it into each agent's bases.
+- Known, not mine: `reload/pouch_test.sh` fails "super shotgun (main hand, dual-wielded): fills too" with or without
+  this change.
+## flathold3: hands drawn on what they hold never leave the wrists (branch agent/flathold3, 2026-11-26)
+
+His words (flat feedback 2026-11-26 late, item 2): grabbing crates with H, "the hands detach from the wrists when the player is
+too far or the prop gets too far. This should not happen ever."
+- **Cause**: flatpush let a dragged prop's drawn hand reach `vr_flat_grab_drag_letgo` + `vr_flat_grab_reach` from its own
+  place (limbDrawnHand's `stick`), past what the body's arm reaches: the arm stopped at full stretch, the hand went on.
+  Measured backing away from a crate too heavy to follow: the wrist 116 cm past the arm.
+- **Fix** (vr_view_hands.cpp, end of `placeController`): whatever a hand is drawn on (a prop held in both hands, a ragdoll's
+  limb, a dragged prop, a tug's weapon, the other hand's weapon, a hold, an enemy, a blade, a gib), it goes only as far towards
+  it from its own place as its arm reaches: one helper, `keepOnArm` (the embedded blade's, embedhold2), now for all of them.
+  It also pulls the hand straight in towards the shoulder when its own place is out of reach too, and returns how far it was
+  past. Flat play only (keepOnArm needs the drawn body's arm; VR unchanged). Past the reach the hand stays at full stretch,
+  off the prop, until the hold lets go (the let-gos unchanged: too far, too heavy for the pace, too steep).
+- **Probe**: `vr_hold_arm_probe 1` / `report` (vr_view_diag.cpp; Debug > Reports: Held Hands on Arms: Start / Report): every
+  frame a hand is drawn on a held limb or a dragged prop, the most its wrist was past its arm (avatar::embedArmGapCm) and how
+  often the hand was pulled in.
+- Tests: flatgrabthrow_test.sh new run `far`: the crate (Drag Strength 100 N) backed away from until it lets go: 34 frames
+  held, wrist past by 0.00 cm (116 before), pulled in on 28; a ragdoll held while backing away then left behind: 150 frames,
+  0.00 cm. The test now pins `vr_flat_grab_reach 1.25` and `vr_flat_grab_hold_down 0.18` (flathold2's): his promoted 0.65 m
+  reach grabbed none of its props (27 of 46 failed on origin/next), and with Hold Down 0 the push run's crate, backed away
+  from, lagged 38.0 units off the hand, just past Let Go's 37.8, and was let go of.
+- Open: with his defaults (Hold Down 0) a dragged crate backed away from at a walk may be let go of at once (above): if
+  dragging backwards should keep it, Let Go (`vr_flat_grab_drag_letgo`, 1.2 m) up a little. Ragdolls were within reach
+  already (vr_ragdoll_hand_stick); now clamped too.
+## flatparry3: the reverse-grip guard; the flipped pole's other hand tunables; the judicator's two-handed grip on its handle (branch agent/flatparry3, 2026-11-26)
+
+His flat notes 2026-11-26, items 3, 4 and 8.
+- **Reverse-grip guard** (item 3, "the transition from 2H reverse grip to parry pose is too abrupt... we do need reverse
+  grip parry poses"): by default (`vr_flat_parry_rev` 1) a flipped grip's guard keeps the grip flipped and takes its own
+  pose: the fist at its own side, the blade out of the little finger's side laid across the view (a hammer-fist guard).
+  vr_flatplay.cpp `parryPose` now computes a guard from a `GuardSet` (`guardOf`): the upright set (vr_flat_parry_*, the hand
+  first rolled a quarter turn in) and the flipped set (`vr_flat_parry_rev_fwd` 13, `_up` 1, `_out` 6, `_pitch` 5, `_yaw` 0,
+  `_roll` 0; the hand first rolled a quarter turn out), blended by the drawn flip's share (`revGuardShare`), so a flip in
+  the guard goes from one to the other as it turns. Its own times `vr_flat_parry_rev_in_time` / `_out_time` 0.2 s (the
+  upright's 0.05 / 0.1). `revGripPose` (the raised flipped hold) gives way to it by the guard's share. Poles and blades alike
+  (sword, dagger, spear, Crystal Lance). `vr_flat_parry_rev` 0: flatparry2's unflip (`vr_flat_parry_unflip_time`), kept.
+  In the reverse guard a free hand already on the flipped weapon's handle keeps it (`bladeWanted`'s keepsHandle): taking
+  the blade, it let go of it as the guard ended and nothing took the flipped handle again. An empty free hand still takes
+  the blade as in the upright guard. Rows: Tunables > Flatscreen > Parry Guard, "Reverse-Grip Guard" and "Reverse Guard ...".
+  Status: `vr_flatplay_status` "parry flip: ... reverse-grip guard share".
+- **Flipped pole's other hand** (item 4): `vr_flat_revgrip_pole_off_up` / `_off_out` (units, default 0) and `_off_pitch`
+  -40 / `_off_yaw` 34 / `_off_roll` 0 (degrees; the upright's values, so nothing changes by default), by the flip's share in
+  every flipped state (held, guarding, thrust). The turns replace vr_flat_pole_off_pitch/_yaw/_roll by the flip's share
+  (vr_view_hands.cpp, the spear pose's turn); the moves are drawn after the shaft grip (vr_flat_pole_off_snap closed the
+  hand round the shaft again, so a move of the grip point, as the upright's vr_flat_pole_off_up does, moved the drawn
+  hand 0.9 of 4 u). Rows "Flipped Spear Other Hand Up / Out / Pitch / Yaw / Roll".
+- **The judicator's two-handed grip** (item 8): not the shaft fallback (that is the guard's alone, flatplay::bladeAsked):
+  its one Grip hotspot, the death knight's sword's copied, lies 10.7 u up the weapon from the holding hand (its hand sits
+  lower on a longer handle: 2h_hand_av z -14.8 against the knight's -7.5), so vr_flat_melee_grip's "lowest grip" was on the
+  blade. General fix (vr_view_weapon.cpp chooseGrip): flat play, a weapon held as a sword (twohand::swordHeld) whose grip
+  lies above the holding hand or less than `vr_flat_melee_grip_below` (4 u) under it is taken that far below it. Judicator
+  10.7 -> -4.0 u; knight's sword -4.5, hammer -6.1, mace -7.5 unchanged; fury -4.0. (A Grip hotspot he sets below the hand
+  wins.) The judicator in the flipped grip still lets go of its handle at the flip (its grip's angle limit): not changed.
+- Status: `vr_flatplay_status` "two-handed stance: the off hand N u along the weapon from the holding hand ... tip ...;
+  holds its grip" and its drawn offset and angles (melee and pole weapons).
+- Tests: `Misc/quakevr/flatparry2_test.sh` 54/0 (AD mounted): the flip runs under vr_flat_parry_rev 0 (the unflip's most
+  turn a frame into the guard 22.6 / 22.3 degrees); the reverse guard (knight's sword held in two hands then flipped,
+  judicator, spear): flip stays 1.00, guard share 1.00, parries the probe, most turn a frame into it 8.7 / 9.1 / 15.9 and
+  out 8.6 / 8.9 / 15.7 (20 at most); the knight's sword's free hand on the handle in it and after (-5.2 u); every weapon
+  not parrying: the free hand at or below the holding hand; the flipped spear's other hand moved 4.9 u / turned 43.9
+  degrees by _off_up 4 / _off_pitch 0. Open: the judicator's flipped one-handed guard lets go of the blade at its end with
+  the free hand turning 81 degrees in a frame (the upright guard's let-go, not this change's).
 ## floataxe: a thrown axe whose blow takes off the head it hit falls, never left floating (branch agent/floataxe, 2026-11-26)
 
 - **His report (flat):** an axe thrown at a zombie's head popped it, and the axe stayed floating in mid air after the zombie

@@ -1,0 +1,11 @@
+# agrunt_enf_centurion: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". An armed enforcer with
+# the Centurion's plasma rifle (weapon code 25), frozen: the reference pose quoth_kellbase_enforcer's are compared with
+# (quothpose_test.sh).
+title An armed enforcer with the Centurion's plasma rifle, frozen
+map vrragtriggers
+start 0 0 24 90
+god
+notarget
+cvar vr_agrunt_freeze 1
+spawnarmed monster_vr_enforcer 25 0 120 0 0 270
+hint The enforcer ahead holds the Centurion's plasma rifle: its left hand on the fore grip, the elbow in against the body.
