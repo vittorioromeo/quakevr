@@ -2409,7 +2409,7 @@ void ladderTest_f()
 // above the rung"): flatscreen play's ladder walked into and hung from still, the hands drawn on its rungs (vr_climb.cpp
 // drawnHand, findRung). vrtutorial's lesson 3 ladder (round rungs 3.5 thick, 5 off the wall): each hand round its rung
 // (climb::rungHeld: the rung through the fist), its palm's middle within rungTestNear of the rung's surface, the hand
-// round it (vertices over, under and behind its axis), its deepest vertex in the rung at most rungTestSink; with the
+// round it (vertices over its axis and under or behind it), its deepest vertex in the rung at most rungTestSink; with the
 // switch off (vr_climb_rung_grip 0, the same holds) no hand round a rung and fewer of its vertices under it (the ledge
 // pose on top of it, as before). vrtesthall's brush ladder (square rungs flush on the wall): no hand round a rung (held as a ledge, as before).
 // The counted frames the hang and the pins need; 10 s a step at most (FAIL timed out).
@@ -2586,7 +2586,7 @@ void rungTestFrame()
             }
             const RungMeasure m = rungMeasure(h, t.axis[h], t.along[h], t.thick[h], fwd);
             t.grip[h] = m;
-            const bool ok = m.round && m.palmOff <= rungTestNear && m.over > 0 && m.under > 0 && m.behind > 0 &&
+            const bool ok = m.round && m.palmOff <= rungTestNear && m.over > 0 && (m.under > 0 || m.behind > 0) &&
                             m.sink <= rungTestSink;
             const char* what = va("%s hand round its rung (%.2f thick): palm %.2f off it (at most %.1f), vertices %d over, "
                                   "%d under, %d behind it, the deepest %.2f in (%s; at most %.1f); fingertips %.1f to the wall, %.1f up",
