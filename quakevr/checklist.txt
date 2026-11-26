@@ -111,6 +111,7 @@ Ragdoll climbs: an ogre knocked off a ledge and caught straddling its lip (a leg
 Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
 Pose Studio Data on that spear grunt: pick Thrust and play its timeline (0.25x, Loop, scrub the bar): the spear is drawn back and driven out at you with both hands on the shaft, and its Ready / Port Arms keys move the whole hold, the sword grunt's hold not at all. {test:pose_grunt_pole}
 Pose Studio on the spear holders: a frozen armed enforcer, knight and death knight, each with the spear, stand spaced apart in the hall's open middle and the Pose Studio is already open; tune each one's spear poses (Port Arms, Ready, Run, Pickup, Thrust, Shove) as for the spear grunt. {test:pose_spear_humanoids}
+Quoth's kellbase1: the enforcers by the first doors (one with the Centurion's plasma rifle) hold their guns as an enforcer with the same gun spawned on another map does: left hand on the fore grip, elbow in, not flung out. {test:quoth_kellbase_enforcer}
 
 [8. Quoth]
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open. {test:quoth_ne_marb}
