@@ -1827,6 +1827,23 @@ it to "almost immediately stabilize with its point forward", a little of that fo
   14..22 rad/s) at a wall, three passes: at the settings every spear is point first within 150 ms and stays so and sticks by
   its point (mean 6 degrees against 59 at L 0); sword and dagger steadier than at L 0; upright throws match the L 0 reversed
   ones exactly. 6/6.
+## scenes
+
+His report (2026-11-26 20:21): checklist Test buttons "don't take me to the right places"; the Quoth lines went to AD's
+start map. Cause, one bug in the scene runner: the Quoth lines (ne_marb, kellbase1 buttons, lpqsp1, metmon) were tagged
+`{test:hub_start}` (`map start`), and `map start` runs in whichever campaign the scene before left active (after any AD
+scene: AD's own start map; VR_CheckSpawnCampaignMap). Fixes: (1) a scene without a `campaign` line now runs in Quake's
+campaign first (mapFoundOrCampaignSelected switches back from an add-on; Quake's maps and `start` are found there),
+else in the add-on that has the map; (2) new directive `campaign <folder>` (before `map`) for package maps found in any
+campaign but played by one's rules (Quoth's metmon); (3) four new scenes quoth_ne_marb, quoth_kellbase_buttons,
+quoth_lpqsp1, quoth_metmon (the four checklist lines need retagging: kit scratch/cl_lines_scenes.txt and
+scratch/scenes_cl.diff in the questi tree); (4) `vr_scenario runall` prints `SCNAT|id|map|at x y z|monsters within
+1200|spawn lines|start strayed` and fails a scene that landed on another map. Audit (196 scenes, headless, -game ad):
+before and after 2 FAIL (the kellbase scenes: Quoth's data is absent on this base) and 2 SKIP (Dwell, Crystal Lance data);
+the runner never saw the wrong-place cases (the map did load), the audit found them from the checklist tags: 4 Quoth lines
+on hub_start. Not fixed: humrepl_variants (the AD soldiers line) has no `start`, and vr_ad_test 219 is a PASS/FAIL
+self-test that makes the soldiers before you at ad_crucial's start. New scene pose_spear_humanoids: frozen spear enforcer,
+knight and death knight in vrtesthall's open middle (start 0 -40), the Pose Studio opened by the scene.
 ## promofails: flat tests failing on next after his promoted tunables (branch agent/promofails, 2026-11-26)
 
 Checked first with the pre-900606064 tunables set in the run: only flatmelee5's "rev thrust sword" depended on them; the
