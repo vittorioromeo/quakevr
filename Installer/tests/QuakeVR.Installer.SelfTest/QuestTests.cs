@@ -81,13 +81,37 @@ static class QuestTests
         return new Setup(quake, target, apk, QuestFiles.Plan(target, quake, []));
     }
 
+    /// <summary>Nothing of the headset's removed: no uninstall or clear, every rm only Setup's own staging folders or a
+    /// half-moved copy (".qvrpart"), and neither left behind.</summary>
     static void NothingRemoved(FakeAdb adb)
     {
+        static bool Own(string p) => p is QuestInstaller.Stage or QuestInstaller.TmpStage || p.EndsWith(QuestInstaller.PartSuffix, StringComparison.Ordinal) ||
+                                     p.StartsWith(QuestInstaller.Stage + "/", StringComparison.Ordinal) || p.StartsWith(QuestInstaller.TmpStage + "/", StringComparison.Ordinal);
         foreach (var c in adb.Commands)
         {
-            var words = c.Split(' ');
-            True(!words.Any(w => w is "rm" or "rmdir" or "uninstall" or "clear" or "-rf"), $"a command that removes something: {c}");
+            var words = FakeAdb.Words(c);
+            True(!words.Any(w => w is "rmdir" or "uninstall" or "clear"), $"a command that removes something: {c}");
+            for (var i = words.IndexOf("rm"); i >= 0; i = words.IndexOf("rm", i + 1))
+            {
+                foreach (var p in words.Skip(i + 1).TakeWhile(w => w is not (";" or "&&" or "||")).Where(w => !w.StartsWith('-') && w != "2>/dev/null"))
+                {
+                    True(Own(p), $"an rm of something not Setup's own ({p}): {c}");
+                }
+            }
         }
+        foreach (var p in adb.Removed)
+        {
+            True(Own(p), $"removed or moved away, not Setup's own: {p}");
+        }
+        True(!Directory.Exists(Path.Combine(adb.DeviceFiles, ".quakevr-setup")) && !Directory.Exists(Path.Combine(adb.TmpFiles, "quakevr-setup")), "the staging folders removed");
+        True(!Directory.EnumerateFiles(adb.DeviceFiles, "*" + QuestInstaller.PartSuffix, SearchOption.AllDirectories).Any(), "no half-moved copy left");
+    }
+
+    /// <summary>A new release's file at the same size (only the MD5 tells).</summary>
+    static void Bump(string path)
+    {
+        var text = File.ReadAllText(path);
+        File.WriteAllText(path, text[..^1] + (text[^1] == 'x' ? 'y' : 'x'));
     }
 
     public static IEnumerable<(string Name, Action Body)> All(Func<string, string> dir) =>
@@ -324,6 +348,69 @@ static class QuestTests
             True(third.ApkInstalled, "the new APK installed");
             Eq(File.ReadAllText(progs), File.ReadAllText(Path.Combine(adb.DeviceFiles, "quakevr", "progs.dat")), "the new progs.dat on the headset");
             NothingRemoved(adb);
+        }),
+
+        ("quest: adb refusing the app's folder (\"remote fchown failed\", which unlinks its target) loses nothing: copied through /data/local/tmp", () =>
+        {
+            // questb6 (2026-11-26, the real Quest 3): a push straight into the app's folder failed "remote fchown failed" and
+            // adbd had unlinked the target first: 24 files gone. Setup stages every push, then moves each file into place.
+            var s = MakeSetup(dir, "quest-fchown");
+            var adb = new FakeAdb(dir("quest-fchown-device"));
+            var installer = new QuestInstaller(adb);
+            installer.Install(new QuestPlan { ApkPath = s.Apk, Files = s.Files }, null, CancellationToken.None);
+            NothingRemoved(adb);
+            File.WriteAllText(Path.Combine(adb.DeviceFiles, "quakevr", "s0.sav"), "my save");
+            File.WriteAllText(Path.Combine(adb.DeviceFiles, "quakevr", "config.cfg"), "my config");
+            var progs = Path.Combine(s.Install, "quakevr", "progs.dat");
+            var deviceProgs = Path.Combine(adb.DeviceFiles, "quakevr", "progs.dat");
+            var oldProgs = File.ReadAllBytes(deviceProgs);
+
+            // The fake as that headset: a push onto the file unlinks it, then fails (Setup's direct push before: the file lost).
+            adb.FchownFails = true;
+            var direct = adb.Run(["-s", FakeAdb.Serial, "push", progs, $"{QuestFiles.DeviceRoot}/quakevr/progs.dat"], null, CancellationToken.None);
+            True(direct.ExitCode != 0 && direct.All.Contains("remote fchown failed") && !File.Exists(deviceProgs), "the fake loses a directly pushed file as the Quest 3 did");
+            File.WriteAllBytes(deviceProgs, oldProgs);
+            adb.Commands.Clear();
+            var failsBefore = adb.FchownFailures;
+
+            // A new release: progs.dat at the same size, another file of the game grown.
+            Bump(progs);
+            var other = s.Files.First(f => f.DevicePath.StartsWith("quakevr/", StringComparison.Ordinal) && f.DevicePath.Count(c => c == '/') >= 2 &&
+                                           f.Source.StartsWith(s.Install, StringComparison.OrdinalIgnoreCase)); // (another folder: another push)
+            File.AppendAllText(other.Source, "more");
+            var log = new List<string>();
+            var r = installer.Install(new QuestPlan { ApkPath = s.Apk, Files = QuestFiles.Plan(s.Install, s.Quake, []) },
+                new SyncProgress<InstallProgress>(p => { lock (log) { if (p.Log is not null) log.Add(p.Log); } }), CancellationToken.None);
+            Eq(2, r.Pushed, "the two changed files copied");
+            Eq(1, adb.FchownFailures - failsBefore, "one try into the app's folder, then /data/local/tmp for the rest");
+            Eq(2, adb.Commands.Count(c => c.Contains(" push ") && c.Contains(" " + QuestInstaller.TmpStage + "/", StringComparison.Ordinal)), "both pushes to /data/local/tmp");
+            True(log.Any(l => l.Contains("remote fchown failed") && l.Contains(QuestInstaller.TmpStage) && l.Contains("Nothing on the Quest was lost")), "the log says why and how");
+            foreach (var f in QuestFiles.Plan(s.Install, s.Quake, []))
+            {
+                var onDevice = Path.Combine(adb.DeviceFiles, f.DevicePath.Replace('/', '\\'));
+                True(File.Exists(onDevice) && File.ReadAllBytes(onDevice).SequenceEqual(File.ReadAllBytes(f.Source)), $"{f.DevicePath} on the headset as on the PC");
+            }
+            Eq("my save", File.ReadAllText(Path.Combine(adb.DeviceFiles, "quakevr", "s0.sav")), "the player's save kept");
+            Eq("my config", File.ReadAllText(Path.Combine(adb.DeviceFiles, "quakevr", "config.cfg")), "the player's config kept");
+            NothingRemoved(adb);
+
+            // The headset fills up while the copy moves from /data/local/tmp (another filesystem: a copy): the old file stays.
+            Bump(progs);
+            var before = File.ReadAllBytes(deviceProgs);
+            adb.WriteQuota = new FileInfo(progs).Length + new FileInfo(progs).Length / 2;
+            var e = Throws<InstallException>(() => installer.Install(new QuestPlan { ApkPath = s.Apk, Files = QuestFiles.Plan(s.Install, s.Quake, []) }, null, CancellationToken.None), "fills up");
+            True(e.Message.Contains("storage is full") && e.Message.Contains("as they were"), $"says the storage is full, the files kept: {e.Message}");
+            True(File.ReadAllBytes(deviceProgs).SequenceEqual(before), "progs.dat on the headset as it was (not lost, not half-written)");
+            NothingRemoved(adb);
+
+            // A folder the game made itself, through /data/local/tmp too: its files refused (reported), the others copied.
+            var s2 = MakeSetup(dir, "quest-fchown-gamefolder");
+            var adb2 = new FakeAdb(dir("quest-fchown-gamefolder-device")) { FchownFails = true };
+            adb2.GameFolders.Add("quakevr/maps");
+            var inMaps = s2.Files.Count(f => f.DevicePath.StartsWith("quakevr/maps/", StringComparison.Ordinal));
+            var r2 = new QuestInstaller(adb2).Install(new QuestPlan { ApkPath = s2.Apk, Files = s2.Files }, null, CancellationToken.None);
+            True(inMaps > 0 && r2.NotWritable.Count == inMaps && r2.Pushed == s2.Files.Count - inMaps, $"the game's folder's files refused, the rest copied ({r2.Pushed}, {r2.NotWritable.Count})");
+            NothingRemoved(adb2);
         }),
 
         ("quest: no device, unauthorized, several: a clear message and nothing sent to the headset", () =>

@@ -164,10 +164,16 @@ both at once works, and at least one is needed. Quest is another target of the s
 - **The install** (`QuestInstaller`): `install -r` (keeps the app's files folder; skipped when `pm path`'s APK has the
   same MD5; another signature, `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, is explained, never uninstalled: that would delete the
   saves), then sizes (`find -exec stat`) and MD5s (`md5sum`, only files of the same size) against the headset's, the
-  free space (`df`) against what is copied, one tar stream of the missing or changed files into `exec-in tar -x` (one
-  stream, as Android/README.md does it), `chmod` of those files and their folders (what adb's shell writes is the
-  shell's), and every copied file's size checked afterwards (a disk that fills up mid-copy is reported as such).
-  **Nothing it sends removes anything**; only shipped paths are written, so saves and configs on the headset stay.
+  free space (`df`) against what is copied, `adb push` of the missing or changed files (several of a folder a push)
+  into Setup's staging folder `files/.quakevr-setup`, then each moved beside its target (`.name.qvrpart`) and renamed
+  over it: never pushed onto the file itself, since adbd unlinks a push's target first and leaves it unlinked when the
+  push fails (the Quest 3's "remote fchown failed", 2026-11-26; a pulled cable). When adb cannot push into the app's
+  folder at all, the rest goes through `/data/local/tmp/quakevr-setup` (the move is then a copy, still into the
+  `.qvrpart` name). A folder the game made itself (not writable by adb's shell) has its files reported, the others go.
+  Then `chmod` of the files and their folders (what adb's shell writes is the shell's), and every copied file's size
+  checked afterwards (a disk that fills up mid-copy is reported as such; the headset's files are only replaced by
+  complete copies). **It removes only its own**: the two staging folders and a half-moved `.qvrpart`; only shipped
+  paths are written, so saves and configs on the headset stay.
   Then: "start it from Library > Unknown Sources".
 - **The APK** is a release asset, not bundled: `make_release.py --apk build-android/apk/QuakeVR.apk` adds it and
   latest.json's `quest` component; the window downloads it only when the Quest is ticked (every PC-only player would
@@ -180,7 +186,9 @@ find/stat, chmod, df): the device states, adb's discovery and fetch from a local
 procedure after a PC install (the PC install and Quake unchanged, the player's save and config on the headset kept),
 installing again (nothing copied, the APK not reinstalled; a changed file and APK copied), no device / unauthorized /
 several (only `adb devices` sent), a full headset (refused before copying) and one filling mid-copy, a failed APK
-install, and the Quest-only staging folder. Every test also checks that no command removes anything.
+install, the Quest-only staging folder, and adb refusing the app's folder (the fake fails "remote fchown failed" after
+unlinking the target, as the Quest 3: Setup copies through /data/local/tmp, loses nothing, a fill mid-move keeps the old
+file). Every test also checks that nothing but Setup's own staging and `.qvrpart` copies is removed.
 
 The real headset: `qvr-setup install --package <QuakeVR.zip> --sandbox <dir> --quake <Quake> --accept-statement`, then
 `qvr-setup quest --sandbox <dir> --apk <QuakeVR.apk>` (or the window with `--package`, `--apk`, Quest ticked).
