@@ -1115,10 +1115,10 @@ QVR_CVAR(vr_sbar_offset_roll, "-0.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_height_calibration, "1.646099", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_distance, "150", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_status, "1", CVAR_ARCHIVE)            // a status box in the menus' top right corner (vr_menuui.cpp): VR / mock / flat, the runtime, the resolution rendered, the target rate, fps, CPU/GPU ms, RAM/VRAM
-QVR_CVAR(vr_menu_version, "1", CVAR_ARCHIVE)           // the version box (with the Support on Ko-fi link) in the menus' bottom right corner (vr_menubrand.cpp): "Quake VR: Unleashed - v0.9", "by Vittorio Romeo"
+QVR_CVAR(vr_menu_version, "1", CVAR_ARCHIVE)           // the version box (with the Support on Ko-fi link) in the menus' bottom right corner (vr_menubrand.cpp): "Quake VR: UNLEASHED - v0.9", "by Vittorio Romeo"
 QVR_CVAR(vr_menu_link_dryrun, "0", CVAR_NONE)       // the menus' links (the version box's "Support on Ko-fi", the update notice: vr_menubrand.cpp) print the address instead of opening the browser (tests; the kit's hidden runs, QVR_TEST_HIDDEN, never open it either)
 // The update notice (vr_update.cpp): the release feed's latest.json read at start-up (at most once an hour: a cached
-// answer in <base>/cache/update_check.txt otherwise), and "Update available: Quake VR: Unleashed X.Y.Z" over the
+// answer in <base>/cache/update_check.txt otherwise), and "Update available: Quake VR: UNLEASHED X.Y.Z" over the
 // version box when it names a newer version than the game's. vr_update_status says what it found.
 QVR_CVAR(vr_update_check, "1", CVAR_ARCHIVE)           // the start-up check for a newer release (0: never asked for, and no notice). Never in the kit's test runs (QVR_TEST_BACKGROUND): vr_update_check_now asks
 QVR_CVAR(vr_update_url, "", CVAR_NONE)                 // test aid: the feed(s) read instead of GitHub's latest release's latest.json (one URL, or several separated by ';' or spaces, in order: qvr-setup serve's http://127.0.0.1:<port>/latest.json)
@@ -1498,6 +1498,8 @@ QVR_CVAR(vr_embed_probe_hturn, "-1", CVAR_NONE)        // and degrees the most i
 QVR_CVAR(vr_embed_probe_pdist, "-1", CVAR_NONE)        // cm the most a hand on a pole weapon's shaft (spear, Crystal Lance) had its grip channel off the drawn shaft line (flatembed3)
 QVR_CVAR(vr_embed_probe_pturn, "-1", CVAR_NONE)        // degrees the most its grip channel was turned off the shaft
 QVR_CVAR(vr_embed_probe_pon, "0", CVAR_NONE)           // frames a hand was drawn on a pole weapon's shaft
+QVR_CVAR(vr_embed_probe_pmet, "-1", CVAR_NONE)         // the fewest of its four fingers closed on the pole those frames (flatgrip3)
+QVR_CVAR(vr_embed_probe_shots, "0", CVAR_NONE)         // 1: vr_embed_test 71 takes a screenshot of each pole state it measures (flatgrip3)
 QVR_CVAR(vr_embed_probe_jraw, "0", CVAR_NONE)          // a held stuck blade's jitter in the body, the mean of its frame-to-frame change of velocity (units) and of turn rate (degrees) summed (flatembed3)
 QVR_CVAR(vr_embed_probe_jdrawn, "0", CVAR_NONE)        // ... and as drawn, smoothed (vr_embed_ragdoll_smooth_time)
 QVR_CVAR(vr_embed_probe_jlag, "-1", CVAR_NONE)         // cm the most the drawn blade trailed its place in the body
@@ -4622,6 +4624,8 @@ QVR_CVAR(vr_flat_grab_preview, "1", CVAR_ARCHIVE)      // flatscreen play: 1 wha
 QVR_CVAR(vr_flat_key_reload, "r", CVAR_ARCHIVE)         // the key that reloads (impulse 55: every hand whose gun's clip has room and whose ammo has rounds; vr_flatreload.cpp, QC vr_flatreload.qc), by its bind name; "" none
 QVR_CVAR(vr_flat_key_ammo, "n", CVAR_ARCHIVE)           // flat-screen (N; B until 2026-11-25, his words): the key that switches the main hand's weapon to its other ammo (impulse 43, as the headset's weapon button: QC ToggleSecondaryAmmo: the rocket and grenade launchers' multi-rockets and -grenades, the thunderbolt's plasma, the hell knight's sword...; nothing for one without); not with the toolgun in hand (N is its adjust key there), by its bind name; "" none
 QVR_CVAR(vr_flat_key_pull, "h", CVAR_ARCHIVE)           // flatscreen Grab / Pull key (H; replaces retired vr_flat_key_drop, which merged into B): uses every available empty hand to grab physics props, crates, ragdolls, gibs in front of the player (Toggle by default, or Hold via vr_flat_grab_hold); by its bind name; "" none
+QVR_CVAR(vr_flat_1h_dagger, "1", CVAR_ARCHIVE | QVR_OWN)  // flatgrip3 (his flat item 7, 2026-11-26): flatscreen, a dagger is always held in one hand: no two-handed stance, the free hand never takes its grip, nor joins it stuck in a body (0: as any blade; vr_flatplay.cpp oneHandOnly)
+QVR_CVAR(vr_flat_1h_axe, "1", CVAR_ARCHIVE | QVR_OWN)     // flatgrip3: the same for the axes (the axe, AD's Shadow Axe, MG3's super axe): "2H poses for axes are a bit awkward, I would prefer them to always be held 1H like daggers"
 QVR_CVAR(vr_flat_overhand_both, "1", CVAR_ARCHIVE | QVR_OWN)  // flatfeedback 2026-11-26 (flatmelee6): flatscreen quick melee (V) with both hands empty: 1 both fists' two-handed overhead blow, raised and brought down together, one hit (vr_flat_overhand_2h_*; the client's own: the move tells the server, .handsynth 256); 0 the one-fist overhand blow (vr_flat_overhand)
 QVR_CVAR(vr_flat_grab_hold, "0", CVAR_ARCHIVE | QVR_OWN)  // flatscreen Grab / Pull key (H, vr_flat_key_pull) mode (his own: the client picks the impulse it sends, the server never reads it): 0 Toggle (default: press to grab, press again to release); 1 Hold (hold to grab and carry, let go to release)
 // The holsters' number keys (his words 2026-11-22; vr_flat_holsters on only: off, 1 .. 7 pick weapons as before; vr_flatplay.cpp

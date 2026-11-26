@@ -467,7 +467,7 @@ Setup** first: a summary line ("Hard / Unleashed / Pistol start"), then Difficul
 
 ## Flat-screen play
 
-Start the game with `-flatscreenmode` (the installer's "Quake VR Unleashed (Flat Screen)" shortcut) to play Quake
+Start the game with `-flatscreenmode` (the installer's "Quake VR UNLEASHED (Flat Screen)" shortcut) to play Quake
 VR's physical game with a mouse and keyboard: the hands and guns are drawn and simulated as in VR, posed per weapon
 and aimed at the crosshair from the muzzle.
 

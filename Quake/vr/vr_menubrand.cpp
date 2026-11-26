@@ -1,13 +1,13 @@
 #include "vr_alloccount.h"
 // vr_menubrand.cpp -- the menus in Quake VR's colours:
 //
-// - The banner: Quake VR: Unleashed's vertical logo (quakevr/gfx/vr/menu_banner.png, made by
+// - The banner: Quake VR: UNLEASHED's vertical logo (quakevr/gfx/vr/menu_banner.png, made by
 //   Misc/quakevr/make_menu_banner.py) where Quake's vertical plaque (gfx/qplaque.lmp) was, as tall (144 menu pixels
 //   from its top), centred a little left of the plaque's column so that the main menu's cursor stays clear of it
 //   (menu.c, M_DrawPlaque). With the VR menu style the plaque is left out (the panel's rows reach its column), so the
 //   banner stands in the column under the corner's buttons instead, on every menu, the same size on all. The image is mipmapped and filtered smoothly, and only its
 //   opaque rectangle is drawn (the image found from its alpha). Without the image: Quake's plaque, as before.
-// - The version label (vr_menu_version): "Quake VR: Unleashed - v0.9" over "by Vittorio Romeo" over a "Support on
+// - The version label (vr_menu_version): "Quake VR: UNLEASHED - v0.9" over "by Vittorio Romeo" over a "Support on
 //   Ko-fi" link (Ko-fi's cup before it), small, right-aligned in a box like the status box's (as far from the corner,
 //   its lines as far inside it) in the canvas's bottom right corner of every menu (VR and flat), the version from the
 //   repository's VERSION file (VR_Version: MAJOR.MINOR while PATCH is 0, else the whole), a dev build's "-dev" fainter.
@@ -16,7 +16,7 @@
 //   desktop mouse; a press (trigger, click) opens https://ko-fi.com/vittorioromeovee in the desktop's browser
 //   (SDL_OpenURL) once, and the link says so for a few seconds (vr_menu_link_dryrun: only printed).
 // - The update notice (vr_update.cpp: the release feed names a newer version; vr_update_check): "Update available:
-//   Quake VR: Unleashed X.Y.Z" in a box of its own just above the version box (right-aligned with it), a link like
+//   Quake VR: UNLEASHED X.Y.Z" in a box of its own just above the version box (right-aligned with it), a link like
 //   Ko-fi's (lit under the laser or the mouse; a press opens the release's page once, the same feedback, repeat guard
 //   and dry run). Drawn with the version box only, and only where the menu leaves room for it there too.
 // - The colours (vr_menu_recolor): while the menus draw, the gui shader turns their browns, tans, oranges and
@@ -327,7 +327,7 @@ extern "C" void VR_MenuDrawBannerColumn()
 namespace
 {
 
-constexpr const char* versionTitle = "Quake VR: Unleashed - ";
+constexpr const char* versionTitle = "Quake VR: UNLEASHED - ";
 constexpr const char* versionAuthor = "by Vittorio Romeo";
 constexpr const char* versionDevMark = "-dev";
 constexpr const char* linkText = "Support on Ko-fi";
@@ -363,7 +363,7 @@ VersionLabel versionLabel;
 
 // The update notice as last placed (vr_update.cpp says whether there is one): a link of its own.
 constexpr const char* noticePrefix = "Update available: ";
-constexpr const char* noticeName = "Quake VR: Unleashed v";
+constexpr const char* noticeName = "Quake VR: UNLEASHED v";
 constexpr float noticeGap = 3.f; // its box above the version box (true pixels)
 struct UpdateNotice
 {
@@ -481,7 +481,7 @@ struct VersionBox
 
 // The update notice's box: versionPad inside it, noticeGap above the version box, right-aligned with it and as wide as
 // its text needs (as wide as its feedback's at least, so that a press does not change it), no narrower than the version
-// box. One row ("Update available: Quake VR: Unleashed X.Y.Z"), or where the menu reaches under that, two ("Update
+// box. One row ("Update available: Quake VR: UNLEASHED X.Y.Z"), or where the menu reaches under that, two ("Update
 // available:" over the release's name), as narrow as the version box.
 struct NoticeBox
 {

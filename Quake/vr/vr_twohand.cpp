@@ -418,7 +418,8 @@ void poleTurn(const FreeGrip& g, const RelPose& now, RelPose& on)
 [[nodiscard]] bool flatLetsGo(int holding, int helping)
 {
     return flatplay::punching(helping) || flatplay::shoving(helping) || flatreload::busy(holding) || flatgrenade::letsGo(holding, helping) ||
-           flatswap::gripBlocked() || flatfgrab::busy(helping) || flatswim::freesHand(); // (swimming: vr_flatswim.cpp)
+           flatswap::gripBlocked() || flatfgrab::busy(helping) || flatswim::freesHand() || // (swimming: vr_flatswim.cpp)
+           (flatplay::active() && flatplay::oneHandOnly(holding)); // (flatgrip3: a dagger, an axe, by their options: never two-handed)
 }
 
 // The Blade hotspot of the weapon of `slot` held as a sword (Two-Handed: Sword) into `out`; false for none.

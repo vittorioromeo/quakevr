@@ -12,7 +12,7 @@ namespace QuakeVR.Installer.Core.Packaging;
 public static class UninstallEntry
 {
     public const string Key = @"HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\QuakeVRUnleashed";
-    public const string DisplayName = "Quake VR: Unleashed";
+    public const string DisplayName = "Quake VR: UNLEASHED";
     public const string Publisher = "Vittorio Romeo";
     public const string AboutUrl = "https://github.com/vittorioromeo/quakevr";
 

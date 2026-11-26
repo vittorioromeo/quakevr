@@ -316,7 +316,7 @@ Talk about it on [Discord](https://discord.me/quakevr), and report bugs and idea
 
 ## Coverage and pages elsewhere
 
-- [Quake VR: Unleashed on UnflatVR](https://unflatvr.com/game/pcvr/quake-vr-unleashed-vittorioromeo/)
+- [Quake VR: UNLEASHED on UnflatVR](https://unflatvr.com/game/pcvr/quake-vr-unleashed-vittorioromeo/)
 
 ## Credits and licence
 

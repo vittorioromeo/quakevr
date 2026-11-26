@@ -1006,7 +1006,7 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_crash_test stack: endless recursion on the main thread: the report, from what is left of its stack. "
                   "The game quits!"),
         command("Crash: Fatal Error", "vr_crash_test error")
-            .help("vr_crash_test error: a Sys_Error (the \"Quake VR: Unleashed - Error\" dialog, which names the report). "
+            .help("vr_crash_test error: a Sys_Error (the \"Quake VR: UNLEASHED - Error\" dialog, which names the report). "
                   "threaderror: one on a worker thread. The game quits!"),
         command("Crash: Failed Assert", "vr_crash_test assert")
             .help("vr_crash_test assert: a failed assert's report (Zancle's handler; zassert: one in Zancle's library, "

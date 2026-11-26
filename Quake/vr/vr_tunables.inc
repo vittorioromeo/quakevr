@@ -2043,6 +2043,14 @@ QVR_TUNABLE(vr_flat_throw_wind_up, "0.6") // above the shoulder
 QVR_TUNABLE(vr_flat_throw_wind_pitch, "-40") // the hand's pitch there against the look's (negative: tipped back)
 QVR_TUNABLE(vr_flat_throw_wind_yaw, "0") // its yaw against the look's (positive: the fingers turned out to its side)
 QVR_TUNABLE(vr_flat_throw_wind_roll, "0") // its roll (mirrored for the left hand)
+// The wind-up of a weapon held with its grip flipped (QVR_WPNFLAG_REVGRIP; flatthrow2, his words 2026-11-26: "the about to throw
+// pose for an Inverted grip needs tuning"): over the wind-up above, by the flip's drawn share; 0 all: the pose as it was.
+QVR_TUNABLE(vr_flat_throw_rev_fwd, "0") // the hand (and its weapon) this far further ahead along the look (units; negative back)
+QVR_TUNABLE(vr_flat_throw_rev_out, "0") // and out at its own side (units; negative in)
+QVR_TUNABLE(vr_flat_throw_rev_up, "0") // and up (units; negative down)
+QVR_TUNABLE(vr_flat_throw_rev_pitch, "0") // turned about the fist: the weapon's far end up (degrees; negative down)
+QVR_TUNABLE(vr_flat_throw_rev_yaw, "0") // and out to its own side (degrees; negative in; mirrored for the left hand)
+QVR_TUNABLE(vr_flat_throw_rev_roll, "0") // and rolled (degrees; mirrored for the left hand)
 QVR_TUNABLE(vr_flat_throw_guide, "1") // 1: the other hand, if free, guides the throw (forward, its palm away, fingers open) while the throwing hand winds up
 QVR_TUNABLE(vr_flat_throw_guide_fwd, "0.6") // the guiding hand's place: forward along the look, a share of the arm's reach
 QVR_TUNABLE(vr_flat_throw_guide_out, "0") // out at its side (negative: towards the middle)
@@ -2854,3 +2862,10 @@ QVR_TUNABLE(vr_hit_player_fatten, "5.5") // units added to the radius of every p
 QVR_TUNABLE(vr_monster_lean, "1") // 1: a monster sees and shoots at the parts of a player's drawn body showing (head, shoulders, hands, torso: leaning out from cover), not only his eyes' point (QC vr_leanaim.qc); 0: as before
 QVR_TUNABLE(vr_monster_lean_spread, "0.2") // a monster's extra spread (Quake's spread units, about radians) at a player whose eyes' point is hidden but whose body shows (leaning out): half of it with all his body's points showing, all of it with one (leaning from cover takes fewer hits than standing in the open)
 QVR_TUNABLE(vr_monster_lean_react, "0.4") // seconds before a monster sees (and shoots at) a player newly leaning out from cover
+
+// Flatscreen > Crosshair (flatxhair, his flat notes 2026-11-26 items 9 and 10)
+QVR_TUNABLE(vr_flat_xhair_thrust_path, "1") // 1: a flipped spear's visor crosshair is on where its thrust's tip goes (the strike's way), not on its reversed pole's shot line
+QVR_TUNABLE(vr_flat_xhair_melee_kick, "10") // a melee blow's feedback: the visor crosshair's lines pushed out this many pixels (at 1080 p) as its strike begins, for a weapon of vr_flat_xhair_melee_mass (under vr_flat_xhair_kick_max with the guns' recoil)
+QVR_TUNABLE(vr_flat_xhair_melee_mass, "3") // the weapon weight (kg) the kick is for: a heavier one more, by the square root of its weight's share (0.5 .. 2 times)
+QVR_TUNABLE(vr_flat_xhair_melee_fist, "0.5") // a bare fist's (or a prop's) blow: this share of the kick
+QVR_TUNABLE(vr_flat_xhair_melee_decay, "0.15") // and back in over this (seconds: its time constant; 63% of the way back)
