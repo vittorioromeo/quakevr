@@ -23,7 +23,7 @@ source "$(dirname "$0")/qvrtest.sh"
 QT_NAME=flatfg2h_test
 S=$TREE/scratch; mkdir -p "$S"
 F="^flatitems|^flatfg2h|flatfgrab: drawn off hand|two hands:|Assertion|ENGINE CRASH|Host_Error"
-BASE="map vrtesthall; wait60; developer 1; god; notarget; setpos 0 300 25 0 90 0; wait5; vr_flat_melee_letgo $LETGO"
+BASE="map vrtesthall; wait60; developer 1; god; notarget; setpos 0 300 25 0 90 0; wait5; vr_flat_1h_axe 0; vr_flat_melee_letgo $LETGO"
 run() # run <tag> <script> <quit-on> [extra run.sh args...]
 {
     local tag=$1 script=$2 quit=$3; shift 3

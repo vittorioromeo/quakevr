@@ -1617,6 +1617,40 @@ overhead attack with both hands. Make this an option (on by default)."
   empty hands is now the two-fisted blow; their checks still hold). eval.sh not run: no shared melee code changed
   (VRMeleeDmg/T_Damage_VRMelee only scale when the flat bit is set). Scene `flat_melee_2fist`.
 
+## flatgrip3: daggers and axes one-handed in flat play; the pole's other hand round the drawn shaft (branch agent/flatgrip3, 2026-11-26)
+
+His flat items 7 and 8 (2026-11-26).
+- **One-handed daggers and axes (item 7):** `vr_flat_1h_dagger` and `vr_flat_1h_axe` (cvars, archived, the player's own; default 1;
+  rows "Daggers One-Handed" / "Axes One-Handed" in Locomotion > Desktop Screen Play). `flatplay::oneHandOnly` (was the dagger
+  alone) now reads both: the dagger (WID_SWORD kind 12), the axes (WID_AXE: the axe and AD's Shadow Axe; WID_SUPERAXE). It
+  gates the two-handed stance (`twoHandAsked`, was `!isDagger`), the parry guard's blade grip (`bladeWanted`), flatsight's
+  carry-to-grip and held-off pose, vr_twohand's grab (`flatLetsGo`: flat only) and the stuck blade's other-hand join
+  (QC `VR_Embed_CanTwoHand`). With an option at 0 the weapon is two-handed as the swords. Tests about the 2H mechanics that use
+  the axe now set `vr_flat_1h_axe 0`: flatmelee2h_test, flatfg2h_test, embedhold_test.
+- **The pole's other hand on the shaft (item 8):** three causes, all fixed in `vr_view_hands.cpp`:
+  1. The line: flatembed3 put the hand on the line from the drawn weapon's origin (the main hand's mount) to its muzzle; the
+     origin is off the shaft, so that line ran beside it (spear 15 cm, Lance 6 cm at the hand, and turned 24 degrees for the
+     Lance). Now `poleShaftLine`: the shaft from the model's own triangles (`grasp::shapeOf`, as drawn: `shapeToWorld`): the
+     principal axis and mean of the vertices in the middle half of its length (no head, no butt), taken at the model's drawn scale
+     (an alias model's raw vertices are scaled per axis), kept per shape (`shaftMemos`, file scope); also the shaft's radius. The
+     stuck pole too: the hotspot projected onto that line.
+  2. The fingers: the grasp of a helping hand on a grip hotspot was solved on the hotspot's canonical place in the hand
+     (`canonicalHotspotGrip`), not where the pole is drawn: once moved onto the shaft, the fingers closed on a pole that wasn't
+     there (a fist, 0 of 4 fingers on it). A hand put wholly on the drawn shaft (`shaftGripped`) is solved on the pole as drawn.
+  3. The thickness: the hand's grip channel is taken at the curl that wraps the shaft's radius (`grasp::gripChannelFor`,
+     bisected between half closed and the tightest fist; `gripChannel` takes a curl now, default 2.5 as before).
+- **Why the old test passed:** vr_embed_test 71 measured the grip channel against the same origin-to-muzzle line the code had
+  put it on (0.00 cm by construction), before the grasp, with the fingers' closure never looked at. Now `poleProbeNote` runs after
+  the hand is drawn: the drawn channel (with the grasp's palm move, `drawnInRig`, at the shaft's curl) against the shaft as the
+  model is drawn, and `vr_embed_probe_pmet`, the fewest of the four fingers closed on the pole (test: at least 3,
+  `VR_PE_FINGERS`). The stuck case skips frames the arm holds the hand short of the shaft (off its line by design). With the old
+  placement the new probe read 0 of 4 fingers in every held state (spear and Lance) and the Lance's hand 5.8-9.9 cm and 23.6
+  degrees off its shaft (the spear's numbers of that run came before the shaft fit's scale fix: not quoted); now 0.00-0.28 cm, 0 degrees, 4 of 4 fingers in every state. `vr_embed_probe_shots 1`: a screenshot
+  of each state the test measures.
+- Tests: `poleembed_test.sh` (vr_embed_test 71 16/0, 72 13/0, with his promoted pole tunables of origin/next 363f0b1ab);
+  `flatgrip1h_test.sh` (new, 9/0: axe, super axe, dagger one-handed held and in the guard; the sword and `vr_flat_1h_axe 0` the
+  controls); flatmelee2h_test 16/0. embedhold_test: its ogre case fails one check (`.vr_embed_armpast` -2.0 cm "while clamped";
+  a sword, no code of this branch on its path; not investigated: possibly the 2H stance tunables promoted in 363f0b1ab).
 ## flatxhair: the flipped spear's crosshair on where its thrust lands; melee blows widen the crosshair (branch agent/flatxhair, 2026-11-26)
 
 His flat notes 2026-11-26, items 9 and 10.

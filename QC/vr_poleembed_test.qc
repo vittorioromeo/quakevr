@@ -16,6 +16,7 @@
 
 float VR_PE_DIST = 1;     // cm the other hand's grip channel may be off the drawn shaft's line
 float VR_PE_TURN = 5;     // degrees it may be turned off the shaft's way
+float VR_PE_FINGERS = 3;  // the fewest of its four fingers closed on the pole (flatgrip3: a fist beside the shaft closes none)
 float VR_PE_FRAMES = 10;  // frames each state must have the hand drawn wholly on the shaft
 float VR_PE_CALM = 0.85;  // the most of the body's jitter the smoothed blade may still be drawn with
 float VR_PE_HANDLE = 0.5; // cm the hand on the handle may be off its place on the weapon
@@ -70,8 +71,14 @@ void(string xState) VR_PE_PoleCheck =
     float d = cvar_hget(cvarh_vr_embed_probe_pdist);
     float r = cvar_hget(cvarh_vr_embed_probe_pturn);
     float n = cvar_hget(cvarh_vr_embed_probe_pon);
-    VR_Test_Check(n >= VR_PE_FRAMES && d >= 0 && d <= VR_PE_DIST && r >= 0 && r <= VR_PE_TURN,
-        sprintf("%s, %s: the other hand round the drawn shaft (%.2f cm off its line, %.1f degrees off its way, %g frames)", vr_pe_name, xState, d, r, n));
+    float f = cvar_hget(cvarh_vr_embed_probe_pmet);
+    VR_Test_Check(n >= VR_PE_FRAMES && d >= 0 && d <= VR_PE_DIST && r >= 0 && r <= VR_PE_TURN && f >= VR_PE_FINGERS,
+        sprintf("%s, %s: the other hand round the drawn shaft (%.2f cm off its line, %.1f degrees off its way, %g of 4 fingers on it, %g frames)",
+            vr_pe_name, xState, d, r, f, n));
+    if(cvar_hget(cvarh_vr_embed_probe_shots))
+    {
+        localcmd("screenshot\n"); // (flatgrip3: vr_embed_probe_shots 1 for a picture of each state, the probe's last frame)
+    }
 };
 
 // (The grunt ahead held where it stands, as test 64's.)
