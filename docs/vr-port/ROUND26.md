@@ -1686,6 +1686,17 @@ His Quest (next ab5d33a, standalone): the game crashed switching Quest Foveation
 - Tests: `Misc/quakevr/questcrash_preset_test.sh` (ES profile: Standalone -> Off -> Low -> Medium keep the budget rows,
   the must-haves hold, a 20 ms pick kept, a 500 ms pick put back; PC: leaving Standalone as before) 20/0;
   haze_preset_test 8/0.
+- **Headset** (Quest 3, 20:28-20:38, unworn, `-noconfigwrite -unattended`, his config). Exported read-only
+  (`vr_android_export`): his `ironwail.cfg` saves `r_oit 1`, `vr_tonemap 0` and no `vr_xr_foveation`/`vr_render_scale`
+  (so Off at full resolution); the crash reports agree: 19:47:04 "frame 10: xrEndFrame" after the first world
+  programs, 19:38:10 right after Off's new eye swapchains. The old build (ab5d33a) with his config ran 90 s unworn
+  **without** crashing (FPS 41/72): the crash needs the worn headset (focus, the compositor's real work), so no
+  before/after pair unworn. The fixed build (this branch, merged with next c13b78b0a) installed the questinst way (APK
+  `install -r`, 7 changed data files; his config kept): his config to vrstart, then Off -> 3 -> 0 -> 3 -> 0 -> 2 -> 0
+  (each a new pair of eye swapchains), Standalone, Quake (off), Low, Standalone again, quit by itself after 189 s: no
+  crash, 72/72 throughout but one second of program compiles after Quake (off). Rollback: `scratch/qc_installed_before.apk`,
+  `scratch/qc_backup/`. To confirm: worn, start with his config and switch Quest Foveation High <-> Off.
+
 ## The flashlight lights the dark rooms in the Standalone preset; Show Foveation shows the Quest's foveation (branch agent/questrender, 2026-11-26)
 
 His notes (Quest standalone): the flashlight lit only the first part of the tutorial's dark room, the rest pitch black
