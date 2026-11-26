@@ -1149,6 +1149,8 @@ constexpr float dualProneTurnMost = 45.f;
            !flatreload::busy(h) && !flatswap::busy();
 }
 
+[[nodiscard]] float revGuardShare(int h);
+
 // One frame's step of the guard's share (fs.parry, linear): in over vr_flat_parry_in_time, out over _out_time (0: at once).
 void stepParry(int h, float dt)
 {
@@ -1159,7 +1161,12 @@ void stepParry(int h, float dt)
         fs.parries++;
     }
     fs.parryWant[h] = want;
-    const float time = za::clamp((want ? vr_flat_parry_in_time : vr_flat_parry_out_time).value, 0.f, 2.f);
+    // (flatparry3: the reverse-grip guard's own times, a bigger turn from the raised flipped hold: his note 2026-11-26, "too
+    // abrupt".)
+    const bool rev = revGuardShare(h) >= 0.5f;
+    const Tunable& in = rev ? vr_flat_parry_rev_in_time : vr_flat_parry_in_time;
+    const Tunable& out = rev ? vr_flat_parry_rev_out_time : vr_flat_parry_out_time;
+    const float time = za::clamp((want ? in : out).value, 0.f, 2.f);
     const float step = time > 0.f ? dt / time : 1.f;
     const float was = fs.parry[h];
     fs.parry[h] = za::clamp(fs.parry[h] + (want ? step : -step), 0.f, 1.f);
@@ -1183,7 +1190,11 @@ void stepParry(int h, float dt)
     const int other = 1 - h;
     float at = 0.f;
     // (flatgrip3: not a one-handed-only weapon's, oneHandOnly: the free hand stays free.)
-    return vr_flat_parry_blade.value != 0.f && bot == nullptr && fs.parryWant[h] && meleeIn(h) && !oneHandOnly(h) && twohand::swordBlade(heldIn(h), at) &&
+    // (flatparry3: in the reverse-grip guard, a free hand already on the flipped weapon's handle keeps it, both hands on the
+    // handle: letting go of the blade after it, nothing took the handle again in the flipped grip.)
+    const bool keepsHandle = revGuardShare(h) >= 0.5f && twohand::helping(other) && !twohand::bladeGrip(h);
+    return vr_flat_parry_blade.value != 0.f && bot == nullptr && fs.parryWant[h] && meleeIn(h) && !oneHandOnly(h) && !keepsHandle &&
+           twohand::swordBlade(heldIn(h), at) &&
            heldIn(other) < 0 && !holdsThing(other) && !twohand::carrying(other) && !punching(other) && !shoving(other) &&
            !flatfgrab::busy(other) && !flatgrenade::busy(other) && !flatswap::busy();
 }
@@ -1226,34 +1237,50 @@ void stepBlade(int h, float dt)
 // eased both ways. The parry itself is the game's, as a headset's guard held there (QC VR_Parry_Blocks, vr_dirparry.qc):
 // the pose is all it reads, so a blow it meets is parried, stamina and all. The pose's motion is the view's
 // (vr_handsource.hpp): it strikes nothing.
-void parryPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& eye, const glm::vec3& fwd, const glm::vec3& right,
-    const glm::vec3& up, float yaw)
+// The guard's numbers: the upright grip's (vr_flat_parry_*) and the flipped grip's (vr_flat_parry_rev_*, flatparry3), and the
+// hand's first roll from the hold: a quarter turn in for the upright grip (its blade, up the hand, laid across towards the
+// other side), out for the flipped one (its blade, out of the little finger's side, laid the same way: a hammer-fist guard).
+struct GuardSet
 {
-    // (a bot's guard, poseBot: its AI's share, its main hand's)
-    const float share = geom::smooth01(bot != nullptr ? (h == HAND_MAIN ? bot->parry : 0.f) : fs.parry[h]);
-    if(share <= 0.f)
-    {
-        return;
-    }
+    const Tunable &fwd, &up, &out, &pitch, &yaw, &roll;
+    float firstRoll;
+};
+const GuardSet guardUpright{vr_flat_parry_fwd, vr_flat_parry_up, vr_flat_parry_out, vr_flat_parry_pitch, vr_flat_parry_yaw,
+    vr_flat_parry_roll, -90.f};
+const GuardSet guardFlipped{vr_flat_parry_rev_fwd, vr_flat_parry_rev_up, vr_flat_parry_rev_out, vr_flat_parry_rev_pitch,
+    vr_flat_parry_rev_yaw, vr_flat_parry_rev_roll, 90.f};
+
+[[nodiscard]] float revGripShare(int h);
+
+// The flipped grip's share of the guard's pose (flatparry3): the drawn flip, with vr_flat_parry_rev on (off, the guard draws
+// the grip upright: parryUnflips).
+[[nodiscard]] float revGuardShare(int h)
+{
+    return vr_flat_parry_rev.value != 0.f ? revGripShare(h) : 0.f;
+}
+
+// One set's guard for hand `h`: the hand's place and its angles (from the hold `hold`).
+void guardOf(const GuardSet& g, int h, const glm::vec3& hold, const glm::vec3& root, const glm::vec3& eye, const glm::vec3& fwd,
+    const glm::vec3& right, const glm::vec3& up, float yaw, glm::vec3& at, glm::vec3& guard)
+{
     const float side = h == HAND_OFF ? -1.f : 1.f;
     const auto offset = [](const Tunable& t) { return za::clamp(t.value, -40.f, 40.f); };
-    glm::vec3 at = eye + fwd * offset(vr_flat_parry_fwd) + up * offset(vr_flat_parry_up) + right * (side * offset(vr_flat_parry_out));
+    at = eye + fwd * offset(g.fwd) + up * offset(g.up) + right * (side * offset(g.out));
     const glm::vec3 d = at - root;
     const float most = za::max(4.f, armSpan()) * 0.98f, len = glm::length(d);
     if(len > most)
     {
         at = root + d * (most / len);
     }
-    s.pos[h] += (at - s.pos[h]) * share;
 
     // The line asked for: across, level (the view's yaw alone: a look up or down keeps it level), towards the other side.
     glm::vec3 levelFwd, levelRight, levelUp;
     hands::angleVectors({0.f, yaw, 0.f}, levelFwd, levelRight, levelUp);
-    const float y = glm::radians(za::clamp(vr_flat_parry_yaw.value, -89.f, 89.f));
-    const float p = glm::radians(za::clamp(vr_flat_parry_pitch.value, -89.f, 89.f));
+    const float y = glm::radians(za::clamp(g.yaw.value, -89.f, 89.f));
+    const float p = glm::radians(za::clamp(g.pitch.value, -89.f, 89.f));
     const glm::vec3 flatWay = -side * levelRight * za::cos(y) + levelFwd * za::sin(y);
     const glm::vec3 way = flatWay * za::cos(p) + levelUp * za::sin(p);
-    glm::vec3 guard = turnedHand(s.rot[h], {0.f, 0.f, -90.f}, side);
+    guard = turnedHand(hold, {0.f, 0.f, g.firstRoll}, side);
     // (A bot's weapon is not drawn here: a melee weapon's head stands up the hand, as a sword's blade and an axe's haft do.)
     glm::vec3 tip{0.f, 0.f, 1.f};
     if(bot != nullptr || flatsight::muzzleInHand(h, tip))
@@ -1265,9 +1292,36 @@ void parryPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& e
         const glm::vec3 axis = glm::cross(now, way);
         const glm::quat lay = glm::length(axis) > 1e-5f ? glm::angleAxis(za::acos(c), glm::normalize(axis))
                                                         : glm::quat{1.f, 0.f, 0.f, 0.f};
-        const glm::quat roll = glm::angleAxis(glm::radians(za::clamp(vr_flat_parry_roll.value, -180.f, 180.f)) * side, way);
+        const glm::quat roll = glm::angleAxis(glm::radians(za::clamp(g.roll.value, -180.f, 180.f)) * side, way);
         guard = hands::anglesFromVectors(roll * (lay * f), roll * (lay * u));
     }
+}
+
+void parryPose(hands::State& s, int h, const glm::vec3& root, const glm::vec3& eye, const glm::vec3& fwd, const glm::vec3& right,
+    const glm::vec3& up, float yaw)
+{
+    // (a bot's guard, poseBot: its AI's share, its main hand's)
+    const float share = geom::smooth01(bot != nullptr ? (h == HAND_MAIN ? bot->parry : 0.f) : fs.parry[h]);
+    if(share <= 0.f)
+    {
+        return;
+    }
+    // (flatparry3: a flipped grip's guard by the drawn flip's share, the upright one's by the rest: a flip turning over in the
+    // guard goes from one to the other as it turns.)
+    const float rev = revGuardShare(h);
+    glm::vec3 at{0.f}, guard{0.f};
+    if(rev < 1.f)
+    {
+        guardOf(guardUpright, h, s.rot[h], root, eye, fwd, right, up, yaw, at, guard);
+    }
+    if(rev > 0.f)
+    {
+        glm::vec3 revAt, revGuard;
+        guardOf(guardFlipped, h, s.rot[h], root, eye, fwd, right, up, yaw, revAt, revGuard);
+        at = rev >= 1.f ? revAt : glm::mix(at, revAt, rev);
+        guard = rev >= 1.f ? revGuard : blendAngles(guard, revGuard, rev);
+    }
+    s.pos[h] += (at - s.pos[h]) * share;
     s.rot[h] = blendAngles(s.rot[h], guard, share);
 }
 
@@ -1599,7 +1653,8 @@ const RevGripSet revGripPole{vr_flat_revgrip_pole_fwd, vr_flat_revgrip_pole_up, 
 // start from the raised flipped pose.
 void revGripPose(hands::State& s, int h, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up)
 {
-    const float k = revGripShare(h);
+    // (flatparry3: the reverse-grip guard, posed before this, by the guard's share instead: parryPose's guardFlipped.)
+    const float k = revGripShare(h) * (1.f - (revGuardShare(h) > 0.f ? parryShare(h) : 0.f));
     if(k <= 0.f)
     {
         return;
@@ -3489,7 +3544,8 @@ float parryShare(int h)
 
 bool parryUnflips(int h)
 {
-    return active() && h >= 0 && h < HAND_COUNT && vr_flat_parry_unflip_time.value >= 0.f &&
+    // (flatparry3: not with the reverse-grip guard, vr_flat_parry_rev: the grip stays flipped.)
+    return active() && h >= 0 && h < HAND_COUNT && vr_flat_parry_rev.value == 0.f && vr_flat_parry_unflip_time.value >= 0.f &&
            (fs.parryWant[h] || fs.parry[h] > 0.f);
 }
 
@@ -5516,6 +5572,9 @@ void status_f()
             (void)view::heldWeaponAxes(h, flipF, flipU, drawnFlip);
             Con_Printf("  parry flip: %s hand drawn flip %.2f, %s (vr_flat_parry_unflip_time %g)\n", h == HAND_MAIN ? "main" : "off",
                 drawnFlip, parryUnflips(h) ? "the guard draws it upright" : "the guard leaves it", vr_flat_parry_unflip_time.value);
+            Con_Printf("  parry flip: %s hand's reverse-grip guard share %.2f (vr_flat_parry_rev %g, in %g s, out %g s)\n",
+                h == HAND_MAIN ? "main" : "off", revGuardShare(h), vr_flat_parry_rev.value, vr_flat_parry_rev_in_time.value,
+                vr_flat_parry_rev_out_time.value);
             float posed = -1.f, drawn = -1.f, palmZ = 0.f, fingersOut = 0.f;
             glm::vec3 dPos, dRot;
             if(fs.bladePointKnown[h])
@@ -5572,6 +5631,28 @@ void status_f()
                 h == HAND_MAIN ? "main" : "off", fs.twoHWant[h] ? "asked for" : "not asked for", melee2HShare(h),
                 vr_flat_melee_2h.value, vr_flat_melee_2h_time.value, fs.twoHTaken,
                 fs.twoHReachedAt[h] >= fs.twoHAskedAt[h] && fs.twoHAskedAt[h] > -1e8 ? "" : ", not reached yet");
+        }
+        // (flatparry3: the drawn free hand along the weapon's line from the drawn holding hand, + towards the tip, and off
+        // it; the tip's own distance: a free hand well up the line is on the blade, not the handle. A pole's too, and the
+        // free hand's drawn angles: vr_flat_revgrip_pole_off_*.)
+        if(swungMelee(h) || fs.twoH[h] > 0.f || twohand::poleWeapon(heldIn(h)))
+        {
+            const hands::State& cur = hands::current();
+            if(glm::vec3 hPos, hRot, oPos, oRot; cur.muzzleValid[h] && view::drawnHandPose(h, hPos, hRot) &&
+                                                  view::drawnHandPose(1 - h, oPos, oRot))
+            {
+                const glm::vec3 line = cur.muzzle[h] - cur.pos[h];
+                const float len = glm::length(line);
+                const glm::vec3 dir = len > 1e-3f ? line / len : glm::vec3{0.f};
+                const glm::vec3 d = oPos - hPos;
+                const float along = glm::dot(d, dir);
+                Con_Printf("  two-handed stance: the %s hand %.1f u along the weapon from the holding hand (+ towards the tip), "
+                           "%.1f u off its line; tip %.1f u; %s\n",
+                    h == HAND_MAIN ? "off" : "main", along, glm::length(d - dir * along), len,
+                    twohand::bladeGrip(h) ? "held by its blade" : twohand::helping(1 - h) ? "holds its grip" : "not holding it");
+                Con_Printf("  two-handed stance: the %s hand drawn %.2f %.2f %.2f off the holding hand (x y z), angles %.1f %.1f %.1f\n",
+                    h == HAND_MAIN ? "off" : "main", d.x, d.y, d.z, oRot.x, oRot.y, oRot.z);
+            }
         }
     }
     const int lone = routeButtons(false, false).rmbAims ? loneWeaponHand() : -1;

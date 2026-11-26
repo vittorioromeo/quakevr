@@ -1022,6 +1022,13 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Play Status", "vr_flatplay_status")
             .help("-flatscreenmode: the VR gameplay on the desktop screen. Whether the mode is on, its keys, and what it "
                   "stands in for (R reloading at the hips, the flashlight worn, 1 and 2 cycling the weapons collected)."),
+        command("Held Hands on Arms: Start", "vr_hold_arm_probe 1")
+            .help("vr_hold_arm_probe 1: from now, every frame a hand is drawn on a held limb or a prop dragged with Grab / Pull, "
+                  "how far its wrist is past its arm's reach (it should stay 0: the hand stays on the arm at full stretch until "
+                  "the hold lets go). Hold something, walk away from it, then Held Hands on Arms: Report."),
+        command("Held Hands on Arms: Report", "vr_hold_arm_probe report")
+            .help("vr_hold_arm_probe report: the frames held since the start or the last report, the most the wrist was past its "
+                  "arm (cm), and how often the drawn hand was pulled in to its arm."),
         command("Flatscreen Status Bar Report", "vr_flathud_report")
             .help("vr_flathud_report: each hand's ammo counter as the flatscreen status bar draws it (hudstyle 1, "
                   "vr_flat_hud), the ammo pools, the status bar's own ammo number, bullet time's bar and the canvas."),

@@ -10,6 +10,8 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_main.hpp"
+#include "vr_mapindex.hpp"
+#include "vr_mapinstall.hpp"
 #include "vr_mem.hpp"
 #include "vr_notectx.hpp"
 #include "vr_progs.hpp"
@@ -95,6 +97,10 @@ struct Scenario
     za::String id, title, map, hint;
     bool hasStart{false};
     bool campaignSet{false}; // a `campaign <folder>` line: that campaign made the active one while the file is read
+    // `package <sha256 prefix> <name>`: the map is in that Map Library package (Quoth's metmon in metmon1d); its full
+    // sha when installed, "" when not (packageMissing: the package line said so, the map line adds nothing).
+    za::String packageSha;
+    bool packageMissing{false};
     float start[3]{};
     float startYaw{0.f};
     bool hasStartYaw{false};
@@ -187,18 +193,20 @@ int slotsBefore = 0;        // an `mp` scene changed the client slots: how many 
 // map), else in the add-on campaign (Arcane Dimensions, Quoth, Dwell: rows 3 and up) that has the map, made the active
 // one first (no map started: the scene's own `map` follows). So a scene never depends on the campaign the scene before
 // it left running. `campaignExplicit`: the scene's `campaign` line chose it already (only the map's presence is checked).
+// A map in an installed Map Library package counts too: the scene's `map` mounts its folder as the Map Library's Play
+// does (Host_Map_f's VR_AddonForMapCommand), in whichever campaign is active then.
 bool mapFoundOrCampaignSelected(const char* map, bool campaignExplicit)
 {
     const za::String file = za::String{"maps/"} + map + ".bsp"; // (a copy: va()'s buffer is reused by the switch)
     if(campaignExplicit)
     {
-        return COM_FileExists(file.cStr(), nullptr);
+        return COM_FileExists(file.cStr(), nullptr) || !mapinstall::packageFor(map).empty();
     }
     if(VR_ActiveCampaign() >= 3)
     {
         VR_SelectCampaignNoMap(0); // (Quake's first: its maps, `start`, the VR maps)
     }
-    if(COM_FileExists(file.cStr(), nullptr))
+    if(COM_FileExists(file.cStr(), nullptr) || !mapinstall::packageFor(map).empty())
     {
         return true;
     }
@@ -292,6 +300,56 @@ void words(za::StringView l, za::Vector<za::String>& out)
     char* end = nullptr;
     out = strtof(w.cStr(), &end);
     return end && end != w.cStr() && *end == '\0';
+}
+
+// A `package` line's sha256 prefix: 8 to 64 hex digits (the Map Library's packages go by their zip's sha256).
+[[nodiscard]] bool packagePrefix(const za::String& w)
+{
+    if(w.size() < 8 || w.size() > 64)
+    {
+        return false;
+    }
+    for(za::SizeT i = 0; i < w.size(); i++)
+    {
+        if(!isxdigit(static_cast<unsigned char>(w[i])))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The installed Map Library package whose sha256 starts with `prefix` ("" : none installed).
+[[nodiscard]] za::String installedPackage(const za::String& prefix)
+{
+    for(const mapinstall::Installed& p : mapinstall::installedList())
+    {
+        if(!q_strncasecmp(p.sha.cStr(), prefix.cStr(), prefix.size()))
+        {
+            return p.sha;
+        }
+    }
+    return za::String{};
+}
+
+// What a scene says when its package is not installed: which one, and where to get it (the Map Library; the console's
+// maps_install when the index has it). Nothing is downloaded from a scene: that stays the player's choice.
+[[nodiscard]] za::String packageMissingText(const za::String& prefix, const za::String& name)
+{
+    const mapindex::Entry* e = mapindex::find(prefix);
+    const char* title = e ? mapindex::index().field(e->title) : "";
+    za::String text = za::String{"the Map Library package "} + (name.empty() ? prefix : name);
+    if(title[0] && q_strcasecmp(title, name.cStr()))
+    {
+        text += za::String{" (\""} + title + "\")";
+    }
+    text += za::String{" is not installed: install it from the Map Library"};
+    if(e)
+    {
+        text += za::String{" (or maps_install "} + za::String{za::StringView{prefix}.substrByPosLen(0, 8)} +
+                " at the console)";
+    }
+    return text + ", then start this test again";
 }
 
 void error(int line, const char* text)
@@ -406,6 +464,23 @@ bool read(const char* id, Scenario& out)
             }
             out.campaignSet = true;
         }
+        else if(!q_strcasecmp(d, "package"))
+        {
+            // package <sha256 prefix> <name> (before the `map` line): the map is in this Map Library package, not in a
+            // game folder (Quoth's metmon, lpqsp1, ne_marb). Installed: the `map` plays it from the package's folder, as
+            // the Map Library's Play does. Not installed: the scene says which package to install (it never downloads).
+            if(w.size() < 3 || !packagePrefix(w[1]))
+            {
+                error(lineNo, "package <sha256 prefix, 8+ hex digits> <name>");
+                return;
+            }
+            out.packageSha = installedPackage(w[1]);
+            out.packageMissing = out.packageSha.empty();
+            if(out.packageMissing)
+            {
+                error(lineNo, packageMissingText(w[1], rest(rest(l))).cStr());
+            }
+        }
         else if(!q_strcasecmp(d, "map"))
         {
             if(w.size() != 2)
@@ -414,7 +489,15 @@ bool read(const char* id, Scenario& out)
                 return;
             }
             out.map = w[1];
-            if(!mapFoundOrCampaignSelected(w[1].cStr(), out.campaignSet))
+            if(out.packageMissing)
+            {
+                return; // (the package line said what to install)
+            }
+            if(out.packageSha.size() && mapinstall::packageFor(w[1].cStr()) != out.packageSha)
+            {
+                error(lineNo, va("the package %.16s has no map maps/%s.bsp", out.packageSha.cStr(), w[1].cStr()));
+            }
+            else if(out.packageSha.empty() && !mapFoundOrCampaignSelected(w[1].cStr(), out.campaignSet))
             {
                 // (an AD map is found only while Arcane Dimensions is the running campaign: Play > Official Campaigns)
                 error(lineNo, va("no map maps/%s.bsp%s", w[1].cStr(),
