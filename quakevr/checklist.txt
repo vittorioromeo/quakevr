@@ -33,6 +33,9 @@ Flat-screen or VR: dive to the bottom of the pool and walk along it: no dry-land
 Flat-screen: while underwater, hold the crouch key (C / Left Ctrl) to swim down: you descend smoothly while keeping the regular swimming pose with no crouch eye drop or crouch body posture. {test:flat_swim}
 Flat-screen or VR: try going prone underwater (X in flat-screen or crouching low in VR) and also go prone on land then enter deep water: prone is blocked underwater and exits cleanly into the regular swimming pose. {test:flat_swim}
 Flat-screen: sprint forward at full speed and press the prone key (X): you transition directly into prone without starting a slide, while pressing crouch (C / Left Ctrl) at speed still slides. {test:flatprone}
+Flat-screen: tap B to gently drop your held weapon right in front of you or let go of a stuck blade (leaving it in the body), and hold B to wind up and throw a held weapon or grabbed object. {test:flat_grab_pull}
+Flat-screen: with empty hand(s), press H near a wooden crate to grab it with every available empty hand, walk to push or pull it around, press H again to release it, or hold B to throw it. {test:flat_grab_pull}
+Flat-screen: shove a grunt into an active ragdoll, press H to grab it with both hands, and hold B to throw it; also try grabbing a non-force-grabbable gib off the ground with H and toggling Locomotion > Grab / Pull Key between Toggle and Hold. {test:flat_grab_pull}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
