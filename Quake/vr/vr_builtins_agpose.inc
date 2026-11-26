@@ -421,6 +421,10 @@ void agBody(edict_t* g) // VR_AGP_Body
         return false;
     }
     const float h = agHands(owner, p);
+    if(twohand::poleWeapon(weapons::slotForName(PR_GetString(p->v.model))))
+    {
+        return AG(vr_agh_set) != 1.f;
+    }
     return h != 0.f ? (h == 2.f) : agHeavy(p);
 }
 
@@ -1526,7 +1530,7 @@ void agkKeys(edict_t* g, edict_t* p) // VR_AGK_Keys
         }
         else if(act == agSwing)
         {
-            pose = VR_AGK_OVERHEAD + agMin(3.f, k);
+            pose = cls == VR_AGK_POLE ? VR_AGK_THRUST : VR_AGK_OVERHEAD + agMin(3.f, k);
             if(agHas(AFE(g, vr_ag_prop2)) && AF(g, vr_ag_act_hand) == 2.f)
             {
                 pose = VR_AGK_DUAL;

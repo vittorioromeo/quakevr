@@ -1063,6 +1063,7 @@ struct QcConstant
 constexpr QcConstant qcConstants[] = {
     {agpose::Melee, agpose::Carry, agpose::RPos, "VR_AGP_CARRY_R", "VR_AGP_CARRY_R_FW"},
     {agpose::Melee2, agpose::Carry, agpose::RPos, "VR_AGP_PORT", "VR_AGP_PORT_FW"},
+    {agpose::Pole, agpose::Carry, agpose::RPos, "VR_AGP_PORT", "VR_AGP_PORT_FW"},
     {agpose::Melee, agpose::Aim, agpose::RPos, "VR_AGP_READY", "VR_AGP_READY_FW"},
     {agpose::Melee, agpose::Aim, agpose::LPos, "VR_AGP_FREE_L", ""},
     {agpose::Pole, agpose::Aim, agpose::RPos, "VR_AGP_POLE_READY", ""},
