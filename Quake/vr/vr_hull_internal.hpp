@@ -118,16 +118,11 @@ struct Brushes
     // The world's own (build): external models' brushes, planes and leaves follow (subOf), let go when kept.
     za::SizeT worldSubs = 0, worldPlanes = 0, worldBrushes = 0, worldLeafBrush = 0;
     int worldBevels = 0, worldDropped = 0;
-    // [world brush i, from subs[0].firstBrush]: the bounds of its open faces (lo > hi: none; findOpen, hullcull): the
-    // faces without another world brush's solid just past them. The trees grow a brush only where these are in reach
-    // (treeBrushes).
-    za::Vector<glm::vec3> openLo, openHi;
-    double openMs = 0.0;
     auto members()
     {
         return qvr::mem::list(clipnodes, planes, brushes, leafBrush, subs, modelSub, clips, leafClipStart, leafClipList, clipStamp, stamp, hull1Clip, ms,
             clipMs, bevels, dropped, hull1Leaves, holePairs, holeDropped, holeMs, numnodes, key, worldSubs, worldPlanes, worldBrushes, worldLeafBrush, worldBevels,
-            worldDropped, openLo, openHi, openMs);
+            worldDropped);
     }
 };
 
@@ -163,8 +158,6 @@ struct Tree
     double growMs = 0.0, unitsMs = 0.0, mergeMs = 0.0, slowestMs = 0.0;
     za::SizeT slowestPieces = 0, units = 0;
     int folded = 0;                            // (developer 1) its builds' nodes folded (both sides the same leaf: TreeBuilder::fold)
-    int brushesIn = 0, brushesCut = 0, brushesWhole = 0; // (developer 1) the world's build: brushes in, those cut where the
-                                               // open's reach ends, those not grown at all (treeBrushes)
     int solidLeaves = 0, emptyLeaves = 0;
     bool fromDisk = false;                     // the world's tree read from the disk cache (vr_hull_cache)
     int cutBack = 0;                           // the world's compile (or file): its pieces cut back (reported by settle)
@@ -172,7 +165,7 @@ struct Tree
     {
         return qvr::mem::list(nodes, planes, heads, index, indexed, keptNodes, keptPlanes, keptSolid, keptEmpty, keptHeads,
             forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone, fromDisk, cutBack, growMs, unitsMs, mergeMs, slowestMs,
-            slowestPieces, units, folded, brushesIn, brushesCut, brushesWhole);
+            slowestPieces, units, folded);
     }
 };
 
@@ -304,8 +297,7 @@ za::SizeT keepLimit();
 float hitWidthSetting();
 void collidingSubs(za::Vector<za::SizeT>& subs);
 float classWidth(int cls, float size, float quake);
-int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch = nullptr, bool report = true,
-    bool cull = true);
+int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch = nullptr, bool report = true);
 bool boxInSolid(const Brushes& b, const hull_t& hull, int head, const glm::dvec3& p, const glm::dvec3& ext,
     bool clips = true, za::SizeT base = 0);
 const Tree& treeFor(const Brushes& b, za::SizeT sub, const glm::vec3& ext, const char* target = nullptr);

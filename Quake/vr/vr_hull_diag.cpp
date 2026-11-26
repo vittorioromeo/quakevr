@@ -1,4 +1,4 @@
-// vr_hull_diag.cpp -- the hull tests, benches and probes: vr_hull_cachetest, _preloadtest, _stats, _keeptest, _culltest, _bench, _walktest,
+// vr_hull_diag.cpp -- the hull tests, benches and probes: vr_hull_cachetest, _preloadtest, _stats, _keeptest, _bench, _walktest,
 // _probe, _leafdebug, _approach, _hittest and vr_mhull_walktest.
 // Split from vr_hull.cpp (a pure move); what they share is in vr_hull_internal.hpp.
 
@@ -325,137 +325,6 @@ void keepTest_f()
     }
     Con_Printf("vr_hull_keeptest: %s (%d trees; this load's %s)\n", ok ? "PASS" : "FAIL", trees,
         pending.kept ? "kept from its last load" : "built");
-}
-
-// vr_hull_culltest [points]: each of the server's trees (built with the world's brushes grown only where the open is in
-// reach: hullcull) against one built again with every brush grown whole, at random points (half anywhere in the world's bounds, half in and around
-// a random world brush's bounds) and along random moves from them: their contents, startsolid/allsolid and fraction
-// (to 0.05 units) must agree. A point that disagrees within 0.1 units of the reference's own boundary (its contents
-// differ 0.1 units along an axis) is counted apart, as on a plane; any other is a failure.
-void cullTest_f()
-{
-    if(!sv.active || !sv.worldmodel || !worldBrushes(sv.worldmodel))
-    {
-        Con_Printf("vr_hull_culltest: no map\n");
-        return;
-    }
-    joinBackground();
-    const int count = Cmd_Argc() > 1 ? za::max(1000, Q_atoi(Cmd_Argv(1))) : 100000;
-    const Brushes& b = built;
-    const SubModel& sm = b.subs[0];
-    const glm::vec3 wlo{sv.worldmodel->mins[0], sv.worldmodel->mins[1], sv.worldmodel->mins[2]};
-    const glm::vec3 whi{sv.worldmodel->maxs[0], sv.worldmodel->maxs[1], sv.worldmodel->maxs[2]};
-    // (inside the world's margin, where its brushes stop: build's walk; past it the trees' solid is no one's)
-    const glm::vec3 mlo = wlo - 60.f, mhi = whi + 60.f;
-    int trees = 0, failures = 0;
-    auto hullOf = [](const Tree& t)
-    {
-        hull_t h{};
-        h.clipnodes = const_cast<mclipnode_t*>(t.nodes.data());
-        h.planes = const_cast<mplane_t*>(t.planes.data());
-        h.firstclipnode = t.heads[0];
-        h.lastclipnode = static_cast<int>(t.nodes.size()) - 1;
-        return h;
-    };
-    auto check = [&](const Tree& t)
-    {
-        if(t.forClipnodes != b.clipnodes || t.heads.empty() || t.heads[0] < 0 || sm.numBrushes == 0)
-        {
-            return;
-        }
-        Tree ref;
-        ref.ext = t.ext;
-        ref.forClipnodes = b.clipnodes;
-        ref.heads.resize(b.subs.size(), -1);
-        buildTree(ref, b, 0, nullptr, false, false);
-        hull_t ht = hullOf(t), hr = hullOf(ref);
-        auto contents = [](hull_t& h, const glm::vec3& p)
-        {
-            vec3_t v{p.x, p.y, p.z};
-            return SV_HullPointContents(&h, h.firstclipnode, v);
-        };
-        auto onBoundary = [&](const glm::vec3& p)
-        {
-            const int c = contents(hr, p);
-            for(int axis = 0; axis < 3; ++axis)
-            {
-                for(const float s : {-0.1f, 0.1f})
-                {
-                    glm::vec3 q = p;
-                    q[axis] += s;
-                    if(contents(hr, q) != c)
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        };
-        za::FastNonCryptoRng rng{4321u + static_cast<unsigned>(trees)}; // the same points every run
-        const auto u01 = [&rng] { return rng.getF(0.f, 1.f); };
-        int pointDiff = 0, pointPlane = 0, moveDiff = 0, movePlane = 0, solidPoints = 0;
-        const int moves = count / 10;
-        for(int i = 0; i < count; ++i)
-        {
-            glm::vec3 lo = wlo, hi = whi;
-            if(i & 1)
-            {
-                const Brush& br = b.brushes[sm.firstBrush + static_cast<za::U32>(u01() * static_cast<float>(sm.numBrushes)) % sm.numBrushes];
-                lo = glm::max(br.mins - t.ext - 8.f, mlo);
-                hi = glm::min(br.maxs + t.ext + 8.f, mhi);
-            }
-            const glm::vec3 p{lo.x + (hi.x - lo.x) * u01(), lo.y + (hi.y - lo.y) * u01(), lo.z + (hi.z - lo.z) * u01()};
-            const int ct = contents(ht, p), cr = contents(hr, p);
-            solidPoints += cr == CONTENTS_SOLID;
-            if(ct != cr)
-            {
-                if(onBoundary(p))
-                {
-                    ++pointPlane;
-                }
-                else if(++pointDiff <= 5)
-                {
-                    Con_Printf("vr_hull_culltest: %gx%g point (%.2f %.2f %.2f): %d, every brush %d\n", t.ext.x * 2.f,
-                        t.ext.z * 2.f, p.x, p.y, p.z, ct, cr);
-                }
-            }
-            if(i < moves)
-            {
-                const glm::vec3 dir = glm::normalize(glm::vec3{u01() - 0.5f, u01() - 0.5f, u01() - 0.5f} + 1e-4f);
-                const float len = 8.f + 248.f * u01();
-                const glm::vec3 e = glm::clamp(p + dir * len, mlo, mhi);
-                const trace_t a = treeTrace(t, t.heads[0], p, e), r = treeTrace(ref, ref.heads[0], p, e);
-                const bool same = a.startsolid == r.startsolid && (a.startsolid || (a.allsolid == r.allsolid &&
-                                  za::abs(a.fraction - r.fraction) * glm::distance(p, e) <= 0.05f));
-                if(!same)
-                {
-                    const glm::vec3 hit = p + (e - p) * r.fraction;
-                    if(onBoundary(p) || (a.startsolid == r.startsolid && onBoundary(hit)))
-                    {
-                        ++movePlane;
-                    }
-                    else if(++moveDiff <= 5)
-                    {
-                        Con_Printf("vr_hull_culltest: %gx%g move (%.2f %.2f %.2f) -> (%.2f %.2f %.2f): %g%s, every brush %g%s\n",
-                            t.ext.x * 2.f, t.ext.z * 2.f, p.x, p.y, p.z, e.x, e.y, e.z, a.fraction,
-                            a.startsolid ? " startsolid" : "", r.fraction, r.startsolid ? " startsolid" : "");
-                    }
-                }
-            }
-        }
-        ++trees;
-        failures += pointDiff + moveDiff;
-        Con_Printf("vr_hull_culltest: tree %gx%g: %d brushes cut, %d not grown; nodes %d vs %d; %d points (%d solid): %d differ "
-                   "(%d on a plane); %d moves: %d differ (%d on a plane)\n",
-            t.ext.x * 2.f, t.ext.z * 2.f, t.brushesCut, t.brushesWhole, static_cast<int>(t.nodes.size()),
-            static_cast<int>(ref.nodes.size()), count, solidPoints, pointDiff, pointPlane, moves, moveDiff, movePlane);
-    };
-    check(tree);
-    for(const Tree& t : monsterTrees.trees)
-    {
-        check(t);
-    }
-    Con_Printf("vr_hull_culltest: %s (%d trees, %d differences)\n", trees && !failures ? "PASS" : "FAIL", trees, failures);
 }
 
 // vr_hull_bench [traces] [width]: random moves from where Quake's player box fits (hull 1), each through hull 1,
@@ -1616,7 +1485,6 @@ void registerDiagCommands()
     Cmd_AddCommand("vr_hull_preloadtest", preloadTest_f);
     Cmd_AddCommand("vr_hull_stats", stats_f);
     Cmd_AddCommand("vr_hull_keeptest", keepTest_f);
-    Cmd_AddCommand("vr_hull_culltest", cullTest_f);
     Cmd_AddCommand("vr_hull_bench", bench_f);
     Cmd_AddCommand("vr_hull_walktest", walkTest_f);
     Cmd_AddCommand("vr_hull_probe", probe_f);

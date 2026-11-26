@@ -1062,7 +1062,6 @@ za::Vector<Item> pageHitbox()
             .help("Counts from now the frames you spend inside a solid prop's drawn shape (where none of your moves may go) "
                   "and prints when you pass into one; vr_physics_inside prints the count, vr_physics_inside 0 stops."),
         command("Hitbox Stats", "vr_hull_stats").help("Prints the map's rebuilt brushes and compiled hull: counts, memory, build times."),
-        command("Check Buried Brushes", "vr_hull_culltest").help("Builds each of the map's collision trees again with every brush (the game leaves out brushes buried in other solid) and prints whether random points and moves meet the same solid in both: PASS or FAIL. Takes a few seconds on a big map."),
         command("Hitbox Approach", "vr_hull_approach").help("Prints how close your box gets to what is round you, in 8 directions (from your centre to the surface it stops at; Quake's box: 16 units). vr_hull_approach <classname> [n] does it round an entity."),
         command("Random Walk (60 s)", "god; notarget; vr_hull_walktest 60")
             .help("Walks you around the map at random for 60 seconds (hopping somewhere new every few), then prints how "

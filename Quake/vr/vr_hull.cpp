@@ -605,221 +605,6 @@ void addSubModel(Brushes& b, const hull_t& hull0, int numnodes, za::U32 base, in
     b.subs.pushBack(SubModel{hull0.clipnodes, head, base, first, static_cast<za::U32>(b.brushes.size()) - first});
 }
 
-// hullcull: the trees grow only the parts of the world's brushes a box can reach open space from. A tree of box B holds
-// the world's solid S grown by B (every brush grown). A point of S + B outside S has its box reaching into S, so across
-// S's open surface, and the solid its box reaches lies within 2B of that surface: only the parts of the brushes within
-// 2B of the open surface need growing; the rest goes in as it is (not grown: S + B is the same, as S is in it). findOpen
-// gives each world brush's open faces' bounds (a face is open unless a slab openSlab deep over it, walked down hull 0,
-// lies in solid leaves only, each piece inside its leaf's brush, not the brush itself: so the world's margin is open);
-// treeBrushes cuts each brush at the height under which no open face within its reach (its bounds and 2B) comes, less 2B:
-// the part above grown, the part under it as it is. The grown copies then no longer overlap deep under the ground, where
-// the build split them only to fold the pieces back (TreeBuilder::fold).
-constexpr double openSlab = 1.0 / 16.0;  // units: how deep past a face other brushes' solid must be for it to be shut
-constexpr double openInside = 0.01;      // units: a slab's point this far past a brush's plane is outside it
-constexpr double openMinArea = 1e-4;     // square units: a face winding smaller (a bevel's edge or corner) is no face
-constexpr double openCutStep = 32.0;     // units: the cuts' heights rounded down to this (fewer planes)
-
-jobs::Site openSite{"hull open faces"}; // (findOpen's parallelFor: vr_jobs_sites)
-
-// The slab's pieces down hull 0 from num: all in solid leaves whose brushes (other than self, of the world: [lo, hi))
-// hold them.
-bool slabCovered(const Brushes& b, const hull_t& hull, int num, Poly&& poly, int self, int lo, int hi)
-{
-    if(num < hull.firstclipnode || num > hull.lastclipnode)
-    {
-        return false;
-    }
-    const mclipnode_t& node = hull.clipnodes[num];
-    const mplane_t& plane = hull.planes[node.planenum];
-    Poly parts[2];
-    splitPoly(ZA_MOVE(poly), glm::dvec3{plane.normal[0], plane.normal[1], plane.normal[2]}, plane.dist, parts[0],
-        parts[1]);
-    for(int side = 0; side < 2; ++side)
-    {
-        if(parts[side].empty())
-        {
-            continue;
-        }
-        const int child = node.children[side];
-        if(child >= 0)
-        {
-            if(!slabCovered(b, hull, child, ZA_MOVE(parts[side]), self, lo, hi))
-            {
-                return false;
-            }
-            continue;
-        }
-        if(!solidContents(child))
-        {
-            return false;
-        }
-        const int brush = b.leafBrush[static_cast<za::SizeT>(num) * 2 + static_cast<za::SizeT>(side)];
-        if(brush < lo || brush >= hi || brush == self)
-        {
-            return false;
-        }
-        const Brush& br = b.brushes[static_cast<za::SizeT>(brush)];
-        for(const Face& f : parts[side])
-        {
-            for(const glm::dvec3& v : f.w)
-            {
-                for(za::U32 i = 0; i < br.count; ++i)
-                {
-                    const Plane& q = b.planes[br.first + i];
-                    if(glm::dot(glm::dvec3{q.normal}, v) > q.dist + openInside)
-                    {
-                        return false;
-                    }
-                }
-            }
-        }
-    }
-    return true;
-}
-
-double windingArea(const Winding& w)
-{
-    glm::dvec3 sum{0.0};
-    for(za::SizeT i = 2; i < w.size(); ++i)
-    {
-        sum += glm::cross(w[i - 1] - w[0], w[i] - w[0]);
-    }
-    return glm::length(sum) * 0.5;
-}
-
-// Brush self's open faces' bounds into olo, ohi (olo > ohi: none open). Its faces: its planes' windings (a bevel's is
-// an edge or a corner: none).
-void openFaces(const Brushes& b, const hull_t& hull, int head, int self, int lo, int hi, const glm::dvec3& mlo,
-    const glm::dvec3& mhi, glm::vec3& olo, glm::vec3& ohi)
-{
-    const Brush& br = b.brushes[static_cast<za::SizeT>(self)];
-    glm::dvec3 rlo{1e300}, rhi{-1e300};
-    Winding w, clipped;
-    int faces = 0;
-    for(za::U32 i = 0; i < br.count; ++i)
-    {
-        const Plane& q = b.planes[br.first + i];
-        const glm::dvec3 n{q.normal};
-        const double d = q.dist;
-        w = baseWinding(n, d);
-        for(za::U32 j = 0; j < br.count && !w.empty(); ++j)
-        {
-            if(j != i)
-            {
-                const Plane& o = b.planes[br.first + j];
-                clipWinding(w, glm::dvec3{o.normal}, o.dist, false, clipped);
-                w = ZA_MOVE(clipped);
-                clipped = Winding{};
-            }
-        }
-        if(w.size() < 3 || windingArea(w) < openMinArea)
-        {
-            continue;
-        }
-        ++faces;
-        // The slab: past the face by openSlab, over the face's winding.
-        glm::dvec3 wlo{1e300}, whi{-1e300}, centre{0.0};
-        for(const glm::dvec3& v : w)
-        {
-            wlo = glm::min(wlo, v);
-            whi = glm::max(whi, v);
-            centre += v;
-        }
-        centre /= static_cast<double>(w.size());
-        Poly p = boxPoly(wlo - (openSlab + 1.0), whi + (openSlab + 1.0)), front, back;
-        auto cut = [&](const glm::dvec3& cn, double cd)
-        {
-            splitPoly(ZA_MOVE(p), cn, cd, front, back);
-            p = ZA_MOVE(back);
-            back = Poly{};
-            front = Poly{};
-        };
-        cut(n, d + openSlab);
-        cut(-n, -d);
-        for(za::SizeT k = 0; k < w.size() && !p.empty(); ++k)
-        {
-            const glm::dvec3 e = w[(k + 1) % w.size()] - w[k];
-            glm::dvec3 s = glm::cross(e, n);
-            const double len = glm::length(s);
-            if(len < 1e-6)
-            {
-                continue;
-            }
-            s /= len;
-            if(glm::dot(s, centre - w[k]) > 0.0)
-            {
-                s = -s;
-            }
-            cut(s, glm::dot(s, w[k]));
-        }
-        bool open = p.empty();
-        // The world's margin (addSubModel's: its brushes stop there, the tree's solid past it is no one's): past it is shut.
-        for(int axis = 0; axis < 3 && !open && !p.empty(); ++axis)
-        {
-            glm::dvec3 a{0.0};
-            a[axis] = 1.0;
-            cut(a, mhi[axis]);
-            if(!p.empty())
-            {
-                cut(-a, -mlo[axis]);
-            }
-        }
-        if(!open && !p.empty())
-        {
-            open = !slabCovered(b, hull, head, ZA_MOVE(p), self, lo, hi);
-        }
-        if(open)
-        {
-            rlo = glm::min(rlo, wlo);
-            rhi = glm::max(rhi, whi);
-        }
-    }
-    if(faces < 4) // (a brush has 4 faces at least: something went amiss; all of it open)
-    {
-        rlo = glm::dvec3{br.mins};
-        rhi = glm::dvec3{br.maxs};
-    }
-    olo = glm::vec3{rlo.x > rhi.x ? glm::dvec3{1e30} : glm::floor(rlo - 1.0)};
-    ohi = glm::vec3{rlo.x > rhi.x ? glm::dvec3{-1e30} : glm::ceil(rhi + 1.0)};
-}
-
-// b's world brushes' open faces' bounds (Brushes::openLo, openHi), on the pool; hull: the world's hull 0 (all its nodes);
-// mlo, mhi: the world's margin (build's walk: past it no brushes).
-void findOpen(Brushes& b, const hull_t& hull, const glm::dvec3& mlo, const glm::dvec3& mhi)
-{
-    const auto t0 = za::Clock::nowNanoseconds();
-    b.openLo.clear();
-    b.openHi.clear();
-    if(b.subs.empty())
-    {
-        return;
-    }
-    const SubModel& sm = b.subs[0];
-    const int lo = static_cast<int>(sm.firstBrush), hi = lo + static_cast<int>(sm.numBrushes);
-    b.openLo.resize(sm.numBrushes);
-    b.openHi.resize(sm.numBrushes);
-    jobs::parallelFor(openSite, sm.numBrushes, 64,
-        [&](za::SizeT begin, za::SizeT end)
-        {
-            for(za::SizeT i = begin; i < end; ++i)
-            {
-                openFaces(b, hull, sm.head, lo + static_cast<int>(i), lo, hi, mlo, mhi, b.openLo[i], b.openHi[i]);
-            }
-        });
-    b.openMs = za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0);
-}
-
-// The world's brushes with no open face.
-int shutCount(const Brushes& b)
-{
-    int n = 0;
-    for(za::SizeT i = 0; i < b.openLo.size(); ++i)
-    {
-        n += b.openLo[i].x > b.openHi[i].x;
-    }
-    return n;
-}
-
 // The map as brushes into b (the world's content: key).
 } // namespace
 namespace detail
@@ -897,13 +682,6 @@ void build(Brushes& b, qmodel_t* world, za::U64 key)
         }
         b.subs.pushBack(SubModel{hull0.clipnodes, world->submodels[i].headnode[0], 0, first,
             static_cast<za::U32>(b.brushes.size()) - first});
-    }
-    if(world->numsubmodels > 0)
-    {
-        const dmodel_t& w0 = world->submodels[0];
-        const glm::dvec3 margin{64.0}; // (the walk's, above)
-        findOpen(b, h, glm::dvec3{w0.mins[0], w0.mins[1], w0.mins[2]} - margin,
-            glm::dvec3{w0.maxs[0], w0.maxs[1], w0.maxs[2]} + margin); // (b.openMs)
     }
     const auto t1 = za::Clock::nowNanoseconds();
     recoverClips(b, world);
@@ -3222,172 +3000,13 @@ void growAllOnPool(TreeBuilder& tb, const Brushes& b, const za::Vector<const Bru
     }
 }
 
-// The world's brushes for a tree of box ext (buildTree's model 0) into list, then its hole blockers (as eachTreeBrush),
-// each cut at the height under which no open face within its reach comes (findOpen): the part above as it is (grown),
-// the part under it with its planes not grown, a brush wholly under it not grown at all. Their planes are in cut (b's,
-// then the parts' own), list points into b's brushes and cut's. cutCount, whole: the brushes cut, and not grown at all.
-void treeBrushes(const Brushes& b, const glm::dvec3& ext, Brushes& cut, za::Vector<const Brush*>& list, int& cutCount,
-    int& whole)
-{
-    const SubModel& sm = b.subs[0];
-    cutCount = whole = 0;
-    if(b.openLo.size() != sm.numBrushes)
-    {
-        eachTreeBrush(b, 0, [&list](const Brush& br) { list.pushBack(&br); });
-        return;
-    }
-    // The open faces' bounds on a grid of columns (x, y).
-    constexpr double cell = 256.0;
-    glm::dvec3 glo{1e300}, ghi{-1e300};
-    for(za::U32 i = 0; i < sm.numBrushes; ++i)
-    {
-        if(b.openLo[i].x <= b.openHi[i].x)
-        {
-            glo = glm::min(glo, glm::dvec3{b.openLo[i]});
-            ghi = glm::max(ghi, glm::dvec3{b.openHi[i]});
-        }
-    }
-    const bool any = glo.x <= ghi.x;
-    const int nx = any ? za::clamp(static_cast<int>((ghi.x - glo.x) / cell) + 1, 1, 1024) : 1;
-    const int ny = any ? za::clamp(static_cast<int>((ghi.y - glo.y) / cell) + 1, 1, 1024) : 1;
-    const double cx = any ? za::max((ghi.x - glo.x) / nx, 1.0) : 1.0, cy = any ? za::max((ghi.y - glo.y) / ny, 1.0) : 1.0;
-    auto cellX = [&](double x) { return za::clamp(static_cast<int>((x - glo.x) / cx), 0, nx - 1); };
-    auto cellY = [&](double y) { return za::clamp(static_cast<int>((y - glo.y) / cy), 0, ny - 1); };
-    za::Vector<za::U32> cellStart(static_cast<za::SizeT>(nx * ny) + 1, 0u), cellList;
-    for(int pass = 0; pass < 2 && any; ++pass)
-    {
-        za::Vector<za::U32> at;
-        if(pass == 1)
-        {
-            for(za::SizeT c = 1; c < cellStart.size(); ++c)
-            {
-                cellStart[c] += cellStart[c - 1];
-            }
-            at = cellStart;
-            cellList.resize(cellStart.back());
-        }
-        for(za::U32 i = 0; i < sm.numBrushes; ++i)
-        {
-            if(b.openLo[i].x > b.openHi[i].x)
-            {
-                continue;
-            }
-            for(int y = cellY(b.openLo[i].y); y <= cellY(b.openHi[i].y); ++y)
-            {
-                for(int x = cellX(b.openLo[i].x); x <= cellX(b.openHi[i].x); ++x)
-                {
-                    const za::SizeT c = static_cast<za::SizeT>(y * nx + x);
-                    if(pass == 0)
-                    {
-                        ++cellStart[c + 1];
-                    }
-                    else
-                    {
-                        cellList[at[c]++] = i;
-                    }
-                }
-            }
-        }
-    }
-    cut.planes = b.planes;
-    cut.brushes.clear();
-    cut.brushes.reserve(static_cast<za::SizeT>(sm.numBrushes) * 2);
-    za::Vector<int> part(sm.numBrushes, -1); // [brush]: its first part in cut.brushes (-1: the brush itself)
-    za::Vector<za::U8> parts(sm.numBrushes, za::U8{0}); // ... and how many
-    const glm::dvec3 reach = ext * 2.0 + 1.0;
-    for(za::U32 i = 0; i < sm.numBrushes; ++i)
-    {
-        const Brush& br = b.brushes[sm.firstBrush + i];
-        const glm::dvec3 qlo = glm::dvec3{br.mins} - reach, qhi = glm::dvec3{br.maxs} + reach;
-        double zmin = 1e300;
-        if(any && qhi.x >= glo.x && qlo.x <= ghi.x && qhi.y >= glo.y && qlo.y <= ghi.y)
-        {
-            for(int y = cellY(qlo.y); y <= cellY(qhi.y); ++y)
-            {
-                for(int x = cellX(qlo.x); x <= cellX(qhi.x); ++x)
-                {
-                    const za::SizeT c = static_cast<za::SizeT>(y * nx + x);
-                    for(za::U32 k = cellStart[c]; k < cellStart[c + 1]; ++k)
-                    {
-                        const za::U32 o = cellList[k];
-                        const glm::vec3& lo = b.openLo[o];
-                        const glm::vec3& hi = b.openHi[o];
-                        if(lo.z < zmin && hi.x >= qlo.x && lo.x <= qhi.x && hi.y >= qlo.y && lo.y <= qhi.y &&
-                           hi.z >= qlo.z && lo.z <= qhi.z)
-                        {
-                            zmin = lo.z;
-                        }
-                    }
-                }
-            }
-        }
-        const double zc = zmin >= 1e299 ? 1e300 : glm::floor((zmin - reach.z) / openCutStep) * openCutStep;
-        if(zc <= static_cast<double>(br.mins.z) + 1.0)
-        {
-            continue; // reached from the open all the way down: grown whole
-        }
-        auto addPart = [&](bool grown, double capZ)
-        {
-            Brush p = br;
-            p.first = static_cast<za::U32>(cut.planes.size());
-            for(za::U32 k = 0; k < br.count; ++k)
-            {
-                Plane q = b.planes[br.first + k];
-                if(!grown)
-                {
-                    q.grows = 0.f;
-                    q.growsZ = 0.f;
-                }
-                cut.planes.pushBack(q);
-            }
-            if(capZ < 1e299)
-            {
-                cut.planes.pushBack(grown ? Plane{glm::vec3{0.f, 0.f, -1.f}, static_cast<float>(-capZ), 1.f}
-                                          : Plane{glm::vec3{0.f, 0.f, 1.f}, static_cast<float>(capZ), 0.f});
-                (grown ? p.mins.z : p.maxs.z) = static_cast<float>(capZ);
-            }
-            p.count = static_cast<za::U32>(cut.planes.size()) - p.first;
-            cut.brushes.pushBack(p);
-        };
-        part[i] = static_cast<int>(cut.brushes.size());
-        if(zc >= static_cast<double>(br.maxs.z) - 1.0)
-        {
-            addPart(false, 1e300); // nothing open in reach: as it is, not grown
-            parts[i] = 1;
-            ++whole;
-            continue;
-        }
-        addPart(true, zc);
-        addPart(false, zc);
-        parts[i] = 2;
-        ++cutCount;
-    }
-    for(za::U32 i = 0; i < sm.numBrushes; ++i)
-    {
-        if(part[i] < 0)
-        {
-            list.pushBack(&b.brushes[sm.firstBrush + i]);
-            continue;
-        }
-        for(za::U8 k = 0; k < parts[i]; ++k)
-        {
-            list.pushBack(&cut.brushes[static_cast<za::SizeT>(part[i]) + k]);
-        }
-    }
-    for(za::U32 i = 0; i < sm.numHoles; ++i)
-    {
-        list.pushBack(&b.brushes[sm.firstHole + i]);
-    }
-}
-
 // The tree of one model (sub), built into t (its root: a node; a lone leaf gets a node of its own). Only t is written:
 // trees for different boxes are built at once on the pool (report false there: the pieces cut back are returned, for
-// the main thread to print). On the pool (vr_jobs_parallel) unless watching (vr_hull_leafdebug). cull: the world's
-// brushes grown only where the open is in reach (treeBrushes; false only for vr_hull_culltest's reference).
+// the main thread to print). On the pool (vr_jobs_parallel) unless watching (vr_hull_leafdebug).
 } // namespace
 namespace detail
 {
-int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch, bool report, bool cull)
+int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch, bool report)
 {
     const auto t0 = za::Clock::nowNanoseconds();
     TreeBuilder tb{t};
@@ -3395,26 +3014,14 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch,
     tb.debugBrushes = &b;
     const glm::dvec3 ext{t.ext};
     za::Vector<const Brush*> list;
-    Brushes cut; // (the world's: its brushes' parts and their planes, b's first)
-    const bool cutting = sub == 0 && cull;
-    if(cutting)
-    {
-        treeBrushes(b, ext, cut, list, t.brushesCut, t.brushesWhole);
-    }
-    else
-    {
-        eachTreeBrush(b, sub, [&list](const Brush& br) { list.pushBack(&br); });
-    }
+    eachTreeBrush(b, sub, [&list](const Brush& br) { list.pushBack(&br); });
     if(sub == 0)
     {
         for(const int c : b.clips)
         {
             list.pushBack(&b.brushes[static_cast<za::SizeT>(c)]);
         }
-        t.brushesIn = static_cast<int>(list.size());
     }
-    const Brushes& g = cutting && !cut.planes.empty() ? cut : b; // (what the brushes in list are grown from)
-    tb.debugBrushes = &g;
     LoadTree* progress = sub == 0 && !watch ? loadTreeOf(&t) : nullptr; // (the loading panel's: hullwait)
     if(progress)
     {
@@ -3427,7 +3034,7 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch,
         for(const Brush* br : list)
         {
             Frag f;
-            if(tb.grow(g, *br, ext, f))
+            if(tb.grow(b, *br, ext, f))
             {
                 frags.pushBack(ZA_MOVE(f));
             }
@@ -3438,7 +3045,7 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch,
     {
         Merge m;
         const auto g0 = za::Clock::nowNanoseconds();
-        growAllOnPool(tb, g, list, ext, frags, progress);
+        growAllOnPool(tb, b, list, ext, frags, progress);
         const auto g1 = za::Clock::nowNanoseconds();
         Unit top;
         speculate(top, tb, ZA_MOVE(frags), shareDepth, progress);
@@ -4252,9 +3859,8 @@ void reportTree(const Tree& t, int rebounded)
     }
     Con_DPrintf("hull: %s compiled for %gx%g: %d nodes, %d planes in %.1f ms (%d pieces done again)\n", sv.worldmodel ? sv.worldmodel->name : "?",
         t.ext.x * 2.f, t.ext.z * 2.f, static_cast<int>(t.nodes.size()), static_cast<int>(t.planes.size()), t.ms, t.redone);
-    Con_DPrintf("hull:   brushes grown %.0f ms, units built %.0f ms, merged %.0f ms; %d units, the slowest %.0f ms (%d pieces); %d nodes folded; %d brushes in, %d cut where the open's reach ends, %d not grown\n",
-        t.growMs, t.unitsMs, t.mergeMs, static_cast<int>(t.units), t.slowestMs, static_cast<int>(t.slowestPieces), t.folded,
-        t.brushesIn, t.brushesCut, t.brushesWhole);
+    Con_DPrintf("hull:   brushes grown %.0f ms, units built %.0f ms, merged %.0f ms; %d units, the slowest %.0f ms (%d pieces); %d nodes folded\n",
+        t.growMs, t.unitsMs, t.mergeMs, static_cast<int>(t.units), t.slowestMs, static_cast<int>(t.slowestPieces), t.folded);
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -4280,7 +3886,7 @@ bool writeEveryTree = false;       // setWriteEveryTree: every tree written howe
 // the file layout's version and the brushes' buildVersion (also in keyOf), no longer the build's compile time
 // (2026-10-16, VRTRACE_20261016 D): a new build reads the trees the last one wrote unless the compile changed.
 // vr_hull_cache 2 compiles anyway and compares (a forgotten bump shows as "differed" in vr_hull_stats).
-constexpr za::U32 treeVersion = 3; // (2: hullspeed, 2026-11-26: nodes with both sides the same leaf folded; 3: hullcull: the brushes grown only where the open is in reach)
+constexpr za::U32 treeVersion = 2; // (2: hullspeed, 2026-11-26: nodes with both sides the same leaf folded)
 
 za::String makeDiskBuild()
 {
@@ -4474,7 +4080,7 @@ void diskWrite(const Tree& t, const DiskJob& d, int rebounded)
 // built again and written over.
 
 constexpr char brushesMagic[4] = {'Q', 'V', 'H', 'B'};
-constexpr za::U32 brushesVersion = 2; // (2: hullcull, the open faces' bounds) the file's layout (what build() makes: buildVersion, in the key)
+constexpr za::U32 brushesVersion = 1; // the file's layout (what build() makes: buildVersion, in the key)
 constexpr double brushesDiskMinMs = 0.0; // (every map's: a small map's file is small, and the Quest takes 10x the PC's time)
 
 struct BrushesHeader
@@ -4591,8 +4197,6 @@ za::Vector<char> brushesBytes(const Brushes& b)
     w.u64(b.stamp);
     w.vec(b.hull1Clip);
     w.vec(b.holeDropped);
-    w.vec(b.openLo);
-    w.vec(b.openHi);
     const za::I32 ints[] = {b.bevels, b.dropped, b.hull1Leaves, b.holePairs, b.numnodes, b.worldBevels, b.worldDropped};
     w.raw(ints, sizeof(ints));
     const za::U64 sizes[] = {b.worldSubs, b.worldPlanes, b.worldBrushes, b.worldLeafBrush};
@@ -4618,8 +4222,6 @@ bool brushesFrom(Brushes& b, const char* data, za::SizeT size, const qmodel_t* w
     b.stamp = static_cast<za::SizeT>(r.u64());
     r.vec(b.hull1Clip);
     r.vec(b.holeDropped);
-    r.vec(b.openLo);
-    r.vec(b.openHi);
     za::I32 ints[7] = {};
     r.raw(ints, sizeof(ints));
     za::U64 sizes[4] = {};
@@ -5362,10 +4964,9 @@ void settle()
         VR_TimeAdd("  hull: the trees compiled (their sum)", compiled);
         VR_TimeAdd("  hull: the wait ended, after the brushes", t1 - pending.brushesEnded);
     }
-    Con_DPrintf("hull: %s %s as %d brushes in %.1f ms (on the pool; waited %.1f ms, %.1f ms after they began); %d shut (open faces found in %.1f ms)\n",
+    Con_DPrintf("hull: %s %s as %d brushes in %.1f ms (on the pool; waited %.1f ms, %.1f ms after they began)\n",
         sv.worldmodel ? sv.worldmodel->name : "?", pending.kept ? "kept from its last load" : "rebuilt",
-        static_cast<int>(built.brushes.size()), built.ms, (t1 - t0) * 1000.0, (t1 - pending.posted) * 1000.0,
-        shutCount(built), built.openMs);
+        static_cast<int>(built.brushes.size()), built.ms, (t1 - t0) * 1000.0, (t1 - pending.posted) * 1000.0);
     if(!trees.empty() && !built.subs.empty())
     {
         const za::U64 cost = (built.subs[0].numBrushes + built.clips.size()) * buildBytesPerBrush;
