@@ -48,6 +48,8 @@ flat = ";".join([
     "vr_menu_zoom", "vr_mock_mouse by 0 0", "vr_mock_mouse release", "wait2", "vr_menu_zoom",
     "echo STEP clamp", "vr_mock_mouse corner tl", "vr_mock_mouse press", "vr_mock_mouse by -5000 -5000", "vr_mock_mouse release",
     "wait2", "vr_menu_zoom",
+    "echo STEP resetbtn", "vr_menu_flat_scale 0.6", "vr_menu_flat_x 0.4", "vr_menu_flat_y 0.45", "wait3", "vr_menu_zoom", "screenshot",
+    "vr_mock_mouse zoomreset click", "wait3", "vr_menu_zoom", "screenshot",
     "echo STEP dialogs", "vr_menu_zoom reset flat", "menu_main", "wait3", "menu_quit", "wait3", "menu_vr pos",
     "vr_mock_key escape", "wait2", "menu_vr pos", "vr_test_confirm", "wait3", "menu_vr pos", "vr_mock_key escape", "wait2",
     "echo STEP keys", "vr_menu_zoom reset flat", "menu_main", "wait3", "menu_vr pos", "vr_mock_key downarrow", "wait2",
@@ -67,6 +69,8 @@ vr = ";".join([
     "echo STEP vrzoomout", "vr_mock_laser zoomout", "wait3", "vr_mock_button main trigger 1", "wait3",
     "vr_mock_button main trigger 0", "wait3", "vr_mock_laser off", "wait3", "vr_menu_zoom", "vr_menu_panel",
     "echo STEP vrreset", "vr_menu_zoom in", "vr_menu_zoom reset vr", "vr_menu_zoom",
+    "echo STEP vrresetbtn", "vr_menu_scale 0.4", "wait3", "vr_menu_zoom", "vr_mock_laser zoomreset", "wait3",
+    "vr_mock_button main trigger 1", "wait3", "vr_mock_button main trigger 0", "wait3", "vr_mock_laser off", "wait3", "vr_menu_zoom",
     "echo STEP vrshots", "vr_menu_scale 0.2", "wait3", "screenshot", "wait2", "vr_menu_scale 0.3", "wait3", "screenshot", "wait2",
     "vr_menu_zoom reset vr",
     "echo STEP vrdialogs", "menu_main", "wait3", "menu_quit", "wait3", "menu_vr pos", "screenshot", "wait2", "vr_mock_key escape", "wait2",
@@ -245,6 +249,12 @@ check(s_in[-1:] == [0.275], f"vr: the laser on + : vr_menu_scale {s_in[-1:]}")
 check(bool(h0 and h_in) and abs(h_in[-1] / h0[0] - 1.1) < 0.01, f"vr: the panel 1.1 times as tall: {h0[:1]} -> {h_in[-1:]}")
 check(s_out[-1:] == [0.25], f"vr: the laser on - : back to {s_out[-1:]}")
 check(vrscale(after(vl, "vrreset"))[-1:] == [0.25], "vr: vr_menu_zoom reset vr")
+rf = flatzoom(after(fl, "resetbtn"))
+check(len(rf) >= 2 and abs(rf[0][0] - 0.6) < 0.002 and abs(rf[0][1] - 0.4) < 0.002, f"flat: RESET test starts moved and small: {rf[:1]}")
+check(len(rf) >= 2 and abs(rf[-1][0] - 0.954) < 0.002 and abs(rf[-1][1] - 0.5) < 0.002 and abs(rf[-1][2] - 0.499) < 0.002,
+      f"flat: RESET back to the shipped size and the middle: {rf[-1:]}")
+rv = vrscale(after(vl, "vrresetbtn"))
+check(rv[:1] == [0.4] and rv[-1:] == [0.25], f"vr: RESET back to the shipped size: {rv}")
 for name, lines in (("flat", fl), ("vr", vl)):
     check(any(l.startswith("MENUFLAT done") for l in lines) and not any(l.startswith("TIMEOUT") for l in lines),
           f"{name} run ended on its verdict line")
