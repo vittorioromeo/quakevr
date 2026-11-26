@@ -847,6 +847,54 @@ void() VR_FlatThrow_Release =
     }
 };
 
+// The throwing hand's attack button pressed while B is held (impulse 41; flatthrow2, his words 2026-11-26: "cancel a throw
+// by pressing the throwing hand's corresponding attack button while the throw key is being pressed"): nothing thrown, the
+// hand back to its hold, whatever it held (a weapon, a prop, a body, the quick grenade: held again as before B, armed or
+// not). The client holds the button back till it is let go (vr_flatgrenade.cpp swallowedButtons): it fires nothing.
+float vr_flatthrow_cancels; // (the tests) throws cancelled
+void() VR_FlatThrow_Cancel =
+{
+    if(self.vr_flatgren_bykey && self.vr_flatgren_phase == VR_FLATGREN_WIND)
+    {
+        entity g = self.vr_flatgren_ent;
+        float armed = g != world && VR_HandGrenade_Armed(g);
+        VR_FlatGrenade_Set(armed ? VR_FLATGREN_ARMED : VR_FLATGREN_HELD);
+        self.vr_flatgren_btn = TRUE; // (the button that cancelled is no fresh press: it neither arms nor winds up)
+        vr_flatthrow_cancels = vr_flatthrow_cancels + 1;
+        dprint(sprintf("flat throw: cancelled: the %s hand keeps its grenade (%s)\n", VR_FlatGrenade_HandName(self.vr_flatgren_hand),
+            armed ? "armed" : "unarmed"));
+        return;
+    }
+    float ph = self.vr_flatthrow_phase;
+    if(ph != VR_FLATTHROW_WIND && ph != VR_FLATTHROW_PENDING)
+    {
+        return;
+    }
+    float h = self.vr_flatthrow_hand;
+    float kind = self.vr_flatthrow_kind;
+    vr_flatthrow_cancels = vr_flatthrow_cancels + 1;
+    dprint(sprintf("flat throw: cancelled: the %s hand keeps %s (ammo %g)\n", VR_FlatGrenade_HandName(h),
+        kind == 1 ? sprintf("weapon %g", self.vr_flatthrow_wid) : (kind == 5 ? "its grenade" : (self.vr_flatthrow_ent != world ?
+        self.vr_flatthrow_ent.classname : "what it holds")), VR_FlatThrow_Rounds(h)));
+    VR_FlatThrow_Set(0);
+};
+
+// Whether `xHand` of `p` is the free hand while the other winds up a throw, the throw key's or the quick grenade's (its
+// guiding pose: vr_flatgrenade.cpp, vr_flat_throw_guide; flatthrow2, his words 2026-11-26: it caught an ogre's grenade
+// thrown at him): it catches nothing meanwhile (VR_Grenade_HandCatches, VR_Carry_Handtouch).
+float(entity p, float xHand) VR_FlatThrow_Guides =
+{
+    if(!VR_FlatPlay(p))
+    {
+        return FALSE;
+    }
+    if(p.vr_flatthrow_phase == VR_FLATTHROW_WIND)
+    {
+        return xHand != p.vr_flatthrow_hand;
+    }
+    return p.vr_flatgren_phase == VR_FLATGREN_WIND && xHand != p.vr_flatgren_hand;
+};
+
 // Whether the thing being dropped/thrown is still held in the expected hand(s).
 float() VR_FlatThrow_StillHeld =
 {

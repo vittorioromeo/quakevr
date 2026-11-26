@@ -1473,3 +1473,40 @@ smaller, centred, over a 50% black so the previous screen (the console) shows un
 ## menubarreset
 
 The menu shortcut bar (the column beside the menu in the headset and the flat VR-style panel, the row of icons in the classic flat menus) now has half a button of vertical gap before its "-" and "+" buttons (column layouts; the column fit counts it) and a third button, RESET, next to them: the shipped menu size (vr_menu_scale / vr_menu_flat_scale / scr_menuscale by the layout shown) and, for the flat panel, the window centre (vr_menu_flat_x/y back to their defaults, so a saved config drops them). The headset menu has no position setting, only its size. One code path for all three layouts (zoomMenu dir 0, the existing vr_menu_zoom reset); the mouse and the laser hit it like -/+ (new mock spots `vr_mock_mouse zoomreset`, `vr_mock_laser zoomreset`). Gamepad focus: the -/+ buttons were never in the gamepad focus order (pointer only), so RESET is too; vr_menu_zoom reset is the console equivalent. Tests: menu_flat_panel_test.py gained resetbtn steps (flat: moved to 0.4/0.45 at 0.6, RESET back to 0.954/0.5/0.499; VR: 0.4 back to 0.25): 28 passed, 3 failed; the same 3 fail with the unmodified test on this build (Quit menu number 20 vs 21, headset Quit dialog, classic scr_menuscale step: unrelated, not looked into). Screenshots scratch/menubar_{classic,flat,vr}.png.
+
+## flatthrow2: flat throw key: cancel with the attack button, no catch by the guiding hand, flipped-grip wind-up tunables (branch agent/flatthrow2, 2026-11-26)
+
+His flat feedback 2026-11-26, items 2, 3, 13.
+- **Cancel (item 3):** while B (vr_flat_key_throw) is held (the tap window, the wind-up, or the quick grenade wound up by
+  B), a fresh press of the throwing hand's own attack button (as the mouse is routed now: `flatplay::attackButtons`, LMB
+  for a lone weapon, LMB/RMB per hand otherwise, the grenade's button for the quick grenade) sends impulse 41 (resent
+  every 8 frames while the server still aims). QC `VR_FlatThrow_Cancel`: the throw phase back to 0, nothing thrown or
+  dropped; a B-wound quick grenade goes back to HELD/ARMED as it was (`vr_flatgren_btn` set so the press neither arms nor
+  winds up). The client swallows that button until it is let go (`flatgrenade::swallowedButtons`, applied in
+  `flatplay::routeFire`), so nothing fires, swings or punches; releasing B afterwards does nothing (the server has no
+  phase). While B is held the throwing hand's fire is now also blocked during the tap window (`flatgrenade::aimsWith`;
+  before, only during the wind-up), so the first frame of the press can't fire. A button already held when B went down
+  does not cancel (edge only). Debug: `vr_flat_grenade_debug 1` prints `flatthrow: the <hand> hand's attack button ...:
+  throw cancelled`, developer 1 `flat throw: cancelled: ...`; `vr_flatgrenade_report` counts cancels. Note: a 2H crate's
+  off hand let go as the wind-up began (`VR_Carry_EndTwoHands`) and stays off after a cancel.
+- **No catch while aiming (item 13):** QC `VR_FlatThrow_Guides(p, hand)`: in flat play, the hand that is not winding up
+  while a throw (B) or the quick grenade winds up. `VR_Grenade_HandCatches` refuses it (covers the palm's sweep
+  `VR_Grenade_CatchCheck` and the touch `VR_Grenade_HandTouch`), and `VR_Carry_Handtouch` doesn't start a carry with it
+  (it nudges). It applies whatever `vr_flat_throw_guide` is (the hand is part of the throw). Catching is unchanged
+  otherwise.
+- **Flipped-grip wind-up (item 2):** new tunables over the wind-up of a weapon with QVR_WPNFLAG_REVGRIP, by the flip's
+  drawn share (`flatplay::flipShare`), applied after the wind-up blend in `flatgrenade::apply`:
+  `vr_flat_throw_rev_fwd/_out/_up` (units along the look / own side / up, ±30) and `vr_flat_throw_rev_pitch/_yaw/_roll`
+  (degrees about the fist, ±180, yaw/roll mirrored for the left hand). All default 0 = the pose as before. Rows in
+  Flatscreen > Throw ("Throw: Flipped Grip ..."). The hand turns, so the thrown weapon's starting angles follow the tuned
+  pose (vr_embed_test 60's "rev throw spear ... matching held inverted angle" check assumes the defaults: 23/1 with
+  rev_up 12 / rev_pitch 60, 24/0 with defaults).
+- **Files:** Quake/vr/vr_flatgrenade.cpp/.hpp, vr_flatplay.cpp/.hpp, vr_client.cpp/.hpp (`client::mainButton`),
+  vr_tunables.inc, vr_tunables_rows.inc; QC/vr_flatgrenade.qc, weapons.qc (impulse 41), vr_grenade.qc, vr_carry.qc,
+  vr_flatitems_test.qc; Misc/quakevr/flatthrow_test.sh, flatthrow_check.py; scenario quakevr/scenarios/flat_throw_cancel.txt.
+- **Tests:** flatthrow_test.sh: new runs `cancel` (nail gun: LMB in the wind-up cancels, no nail, still held, B again
+  throws; quick grenade: cancelled, kept unarmed, phase 2), `cancoff` (a health box in the off hand, RMB cancels), `guide`
+  (`vr_flatitems_test 12`, new: an ogre's grenade set at the guiding off hand's palm, velocity into it, while B winds up
+  the quick grenade and the axe: not stopped or taken; control without B: caught, 6/0); `nofire` changed (the fire button
+  now held from before B through the throw, since a press in the wind-up cancels). flatthrow 48/0, tunables_test 13/0,
+  vr_embed_test 60 24/0.

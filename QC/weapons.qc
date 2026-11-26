@@ -109,6 +109,7 @@ void() VR_FlatReload_Key;
 void() VR_FlatGrenade_Key; // (vr_flatgrenade.qc)
 void() VR_FlatThrow_Press; // (vr_flatgrenade.qc: the throw key)
 void() VR_FlatThrow_Release;
+void() VR_FlatThrow_Cancel;
 void(float xHand, float xWeapon, float xWeaponFlags) VR_FlatReload_CycleOut;
 void(float xHand) VR_FlatReload_CycleIn;
 void(float xHand) VR_FlatReload_AmmoSwitch;
@@ -4922,11 +4923,17 @@ void() ImpulseCommands =
 
     // Flatscreen play: B drops (quick tap) or throws (held) what a hand holds (vr_flatgrenade.cpp: 39 down, 40 up;
     // vr_flatgrenade.qc "The throw key"). Nobody else's impulses.
-    if((self.impulse == 39 || self.impulse == 40) && VR_FlatPlay(self))
+    // 41: the throwing hand's attack button with B held cancels the throw (flatthrow2: VR_FlatThrow_Cancel).
+    if((self.impulse == 39 || self.impulse == 40 || self.impulse == 41) && VR_FlatPlay(self))
     {
         float throwUp = self.impulse == 40;
+        float throwCancel = self.impulse == 41;
         self.impulse = 0;
-        if(throwUp)
+        if(throwCancel)
+        {
+            VR_FlatThrow_Cancel();
+        }
+        else if(throwUp)
         {
             VR_FlatThrow_Release();
         }

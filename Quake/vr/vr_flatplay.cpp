@@ -3147,12 +3147,15 @@ FireRoute routeFire(bool lmb, bool rmb)
     {
         return FireRoute{};
     }
-    FireRoute r = routeButtons(lmb, rmb);
+    // (A button that cancelled the throw key's throw does nothing till it is let go: vr_flatgrenade.cpp swallowedButtons.)
+    const int swallowed = flatgrenade::swallowedButtons();
+    FireRoute r = routeButtons(lmb && !(swallowed & 1), rmb && !(swallowed & 2));
     for(int h = 0; h < HAND_COUNT; h++)
     {
         // (Nor a gun on its way to the hip and back to reload: vr_flatreload.cpp; the game stops it too.)
-        // (Nor what the throw key winds up to throw: vr_flatgrenade.cpp throwsWith; the game refuses it too.)
-        if(r.fire[h] && (flatgrenade::throwsWith(h) || (!punchesWith(h) && (flatsight::wallBlocksFire(h) || flatreload::busy(h)))))
+        // (Nor what the throw key winds up to throw, or holds ready to while the key is down: vr_flatgrenade.cpp throwsWith,
+        // aimsWith; the game refuses it too.)
+        if(r.fire[h] && (flatgrenade::throwsWith(h) || flatgrenade::aimsWith(h) || (!punchesWith(h) && (flatsight::wallBlocksFire(h) || flatreload::busy(h)))))
         {
             r.fire[h] = false;
         }
@@ -3289,6 +3292,25 @@ bool oneHandOnly(int h)
 bool flippedGrip(int h)
 {
     return h >= 0 && h < HAND_COUNT && revGripShare(h) >= 0.5f;
+}
+
+float flipShare(int h)
+{
+    return h >= 0 && h < HAND_COUNT ? revGripShare(h) : 0.f;
+}
+
+glm::vec3 turnedHandAngles(const glm::vec3& rot, const glm::vec3& turn, float side)
+{
+    return turnedHand(rot, turn, side);
+}
+
+int attackButtons(int h)
+{
+    if(h < 0 || h >= HAND_COUNT || flatholster::open() || weaponwheel::isOpen())
+    {
+        return 0;
+    }
+    return (routeButtons(true, false).fire[h] ? 1 : 0) | (routeButtons(false, true).fire[h] ? 2 : 0);
 }
 
 float parryShare(int h)
