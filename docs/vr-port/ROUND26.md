@@ -1659,6 +1659,44 @@ overhead attack with both hands. Make this an option (on by default)."
   empty hands is now the two-fisted blow; their checks still hold). eval.sh not run: no shared melee code changed
   (VRMeleeDmg/T_Damage_VRMelee only scale when the flat bit is set). Scene `flat_melee_2fist`.
 
+## questcrash: Quest Foveation Off no longer crashes; presets on the Quest keep its budget (branch agent/questcrash, 2026-11-26)
+
+His Quest (next ab5d33a, standalone): the game crashed switching Quest Foveation from High to Off; Standalone -> "Quake
+(off)" -> Low mid-game left it under 1 fps with Standalone out of reach; then every start crashed after loading vrstart.
+- **The crash** (logcat 19:38:10, 19:47:04, 19:47:52; the crash reports themselves are 0660 to adb): every one SIGSEGV 0x30
+  in libGLESv2_adreno under libvrapiimpl, from `xrEndFrame` (OpenXrBackend::endFrame <- VR_RenderView): C4p's /
+  qfovcrash's / hubcrash's signature. **Cause**: since qfov3 the eye swapchains were always made foveation-capable
+  (XrSwapchainCreateInfoFoveationFB, scaled bins), and with Off (a level-0 profile) the eyes take the post-process path
+  (late acquire, the image's invalidate, the shared framebuffer attach) into those images: the runtime's driver work in
+  xrEndFrame crashes. Off saved in the config (Quake (off) put the Standalone rows back to the PC's values: foveation 0)
+  made it every start. **Fix** (vr_backend_openxr_quest.cpp): capable images only while `vr_xr_foveation` is over 0
+  (`QuestExtensions::eyesCapable`); a level crossing 0 takes new eye swapchains (as a level change already did, C4p), Off
+  makes plain ones (the images every Quest build used before qfov3) and applies no profile.
+- **The slow presets** (vr_gfxpresets.cpp): leaving Standalone put back every Standalone row as it was before it, i.e.
+  the PC defaults (full resolution, no dynamic resolution, OIT, the float depth, foveation off...); Low then added its
+  shadows. On the Quest (and under `-glescompat`) a graphics preset or My Settings now sets its look while the headset's
+  budget stays: the Standalone rows no graphics preset sets keep the nearest Standalone level's values, and the Quest's
+  must-haves (`vr_quest_check`'s: MSAA, bloom, the shadowed dynamic lights, the dynamic resolution's floor, and new: the
+  shadowed map lights) hold after every pick, each said. The PC is unchanged.
+- **Never stuck**: any pick (a graphics preset, Standalone, My Settings; the menu, the console, `vr_graphics_preset`)
+  whose frames then stay under `vr_preset_revert_fps` (5, archived; 0 off) is put back as before it: past a second's
+  grace (the programs it compiles), the median of 8 frames; said on the console and the menu's note line ("Too slow on
+  this headset: put back as before."). `vr_preset_revert_test <ms>` counts each frame as that long (Debug > Startup:
+  Preset Revert Test 500 ms / Off).
+- Tests: `Misc/quakevr/questcrash_preset_test.sh` (ES profile: Standalone -> Off -> Low -> Medium keep the budget rows,
+  the must-haves hold, a 20 ms pick kept, a 500 ms pick put back; PC: leaving Standalone as before) 20/0;
+  haze_preset_test 8/0.
+- **Headset** (Quest 3, 20:28-20:38, unworn, `-noconfigwrite -unattended`, his config). Exported read-only
+  (`vr_android_export`): his `ironwail.cfg` saves `r_oit 1`, `vr_tonemap 0` and no `vr_xr_foveation`/`vr_render_scale`
+  (so Off at full resolution); the crash reports agree: 19:47:04 "frame 10: xrEndFrame" after the first world
+  programs, 19:38:10 right after Off's new eye swapchains. The old build (ab5d33a) with his config ran 90 s unworn
+  **without** crashing (FPS 41/72): the crash needs the worn headset (focus, the compositor's real work), so no
+  before/after pair unworn. The fixed build (this branch, merged with next c13b78b0a) installed the questinst way (APK
+  `install -r`, 7 changed data files; his config kept): his config to vrstart, then Off -> 3 -> 0 -> 3 -> 0 -> 2 -> 0
+  (each a new pair of eye swapchains), Standalone, Quake (off), Low, Standalone again, quit by itself after 189 s: no
+  crash, 72/72 throughout but one second of program compiles after Quake (off). Rollback: `scratch/qc_installed_before.apk`,
+  `scratch/qc_backup/`. To confirm: worn, start with his config and switch Quest Foveation High <-> Off.
+
 ## The flashlight lights the dark rooms in the Standalone preset; Show Foveation shows the Quest's foveation (branch agent/questrender, 2026-11-26)
 
 His notes (Quest standalone): the flashlight lit only the first part of the tutorial's dark room, the rest pitch black
@@ -1789,3 +1827,34 @@ it to "almost immediately stabilize with its point forward", a little of that fo
   14..22 rad/s) at a wall, three passes: at the settings every spear is point first within 150 ms and stays so and sticks by
   its point (mean 6 degrees against 59 at L 0); sword and dagger steadier than at L 0; upright throws match the L 0 reversed
   ones exactly. 6/6.
+## promofails: flat tests failing on next after his promoted tunables (branch agent/promofails, 2026-11-26)
+
+Checked first with the pre-900606064 tunables set in the run: only flatmelee5's "rev thrust sword" depended on them; the
+others failed the same with the old values (other merges: flatmelee5's 2H stance on equip, flatgrip3's one-handed axe).
+His values stay the defaults.
+- **flatxhair_test `flush` (3 fails)**: wall share 0. With today's defaults the shotgun 18 units from the wall is cleared
+  by the push back towards the shoulder alone (flatwallturn: room -0.66, tilt 0), so nothing tilts and the wall shot is
+  not exercised. Not a bug (the tilt is only what the push back can't clear). Fix, test: the case keeps the push back short
+  (`tune vr_flat_wall_arm_keep 20; tune vr_flat_wall_fold 20`, reset by its tune_reset) so the tilt engages (4.0 deg).
+- **flatthrust_test, flatmelee5 "rev thrust sword embeds" (and at times "rev thrust spear")**: the case read the stuck
+  blade on the frame of the hit; with his flipped pose (revgrip_thrust_up 4) the hit lands frames before the drawn blade
+  reaches it and sticks, so it read depth 0. Fix, test: cases 11/12 wait to be stuck (or the 0.9 s), as test 58 does.
+- **flatthrust_test, flatmelee5 "2h equip axe / superaxe"**: flatgrip3's `vr_flat_1h_axe 1`. Fix, test: that run sets
+  `vr_flat_1h_axe 0` (the cases are about the 2H hold).
+- **flatbash_test "sword: took the blade"**: since flatmelee5 the sword is two-handed on equip (vr_flat_melee_2h 1), so
+  the guard switches the held grip below the hand to the blade (vr_twohand.cpp) and the take's debug line never printed.
+  Fix: the switch prints its own `2h grip: off hand took the blade from the grip below the hand (N units off it)`.
+- **flatbash_test "turned 163.5 degrees a frame"**: a real snap. The free hand was drawn from the stance's grip onto the
+  blade in one frame (the grip held throughout, so its blend stayed 1). Fix: `easeGripSwitch` (vr_view_hands.cpp, flat
+  only): a switch between grips while held eases the drawn free hand from where it was, in the holding hand's frame,
+  over 0.25 s (smoothstep); now 16.0 degrees a frame at most (the main hand's own turn).
+- **flatbash_test "axe: a one-handed bash" (none, at times)**: the sword's bashed grunt, knocked back and staggered,
+  stood about where the axe's grunt spawns; some runs found neither in reach. Fix, test: each weapon at its own spot
+  (the axe 256 units to the side). The axe's 1H bash (flatgrip3) is what the test expects.
+- embedhold_test: 2/0 on this tree (arm 1 63/0, arm 0 60/0): the reported ogre `.vr_embed_armpast` fail did not recur.
+- Tests: flatxhair_test 31/0, flatthrust_test 8/0 (blades 12/0, Lance 8/0, flatmelee5 24/0), flatbash_test 20/0,
+  embedhold_test 2/0, flatmelee 12/0, flatinput 19/0, flatthrow 48/0, flatswing 4/0, flatshovesmooth 6/0, flatplay 31/0,
+  flatparry 43/0, flatmelee2h 16/0, flatfg2h 11/0; flatswap_test: weapons, things, melee 96/0, holster all pass; its AD
+  run (vr_flatswap_test 4, map start) 47/1 then 46/2: the last case (the knight's sword, stance 1, left to right) never
+  swaps (no "flat swap" line) and all hands are undrawn for 78 frames, about 4 minutes into the run; no blade grip in it,
+  so not the grip switch's ease. Open: look at it on AD's start map.
