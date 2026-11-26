@@ -1644,8 +1644,8 @@ His flat items 7 and 8 (2026-11-26).
   the hand is drawn: the drawn channel (with the grasp's palm move, `drawnInRig`, at the shaft's curl) against the shaft as the
   model is drawn, and `vr_embed_probe_pmet`, the fewest of the four fingers closed on the pole (test: at least 3,
   `VR_PE_FINGERS`). The stuck case skips frames the arm holds the hand short of the shaft (off its line by design). With the old
-  placement the new probe reads spear 15.2 cm / 89 degrees (that run's line before the scale fix) and 0 fingers, Lance 5.8 cm /
-  23.6 degrees / 0 fingers; now 0.00-0.28 cm, 0 degrees, 4 of 4 fingers in every state. `vr_embed_probe_shots 1`: a screenshot
+  placement the new probe read 0 of 4 fingers in every held state (spear and Lance) and the Lance's hand 5.8-9.9 cm and 23.6
+  degrees off its shaft (the spear's numbers of that run came before the shaft fit's scale fix: not quoted); now 0.00-0.28 cm, 0 degrees, 4 of 4 fingers in every state. `vr_embed_probe_shots 1`: a screenshot
   of each state the test measures.
 - Tests: `poleembed_test.sh` (vr_embed_test 71 16/0, 72 13/0, with his promoted pole tunables of origin/next 363f0b1ab);
   `flatgrip1h_test.sh` (new, 9/0: axe, super axe, dagger one-handed held and in the guard; the sword and `vr_flat_1h_axe 0` the
