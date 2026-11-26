@@ -2406,7 +2406,7 @@ QVR_TUNABLE(vr_flat_revgrip_pole_out, "0")
 QVR_TUNABLE(vr_flat_revgrip_pole_pitch, "220") // (its head forward and slightly down; drawn only so the Lance's beam keeps to the crosshair)
 QVR_TUNABLE(vr_flat_revgrip_pole_yaw, "0")
 QVR_TUNABLE(vr_flat_revgrip_pole_roll, "-10")
-QVR_TUNABLE(vr_flat_revgrip_pole_down, "5")
+QVR_TUNABLE(vr_flat_revgrip_pole_down, "0")
 QVR_TUNABLE(vr_flat_revgrip_pole_off_along, "4") // (polepose) the other hand on a flipped pole this far ahead of the holding hand along it (units; vr_flat_pole_off_along upright)
 // Flipped-grip attacks (flatmelee5): overhead/icepick swing (LMB with flipped dagger or sword) and downward thrust (V, or LMB with flipped spear/Lance).
 QVR_TUNABLE(vr_flat_revgrip_swing_wind, "0.16") // seconds of its windup from the raised flipped pose
