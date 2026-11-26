@@ -2194,6 +2194,45 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
   - MP: not done (out of budget). Aid for it: client command `vr_attach_report` (vr_view.cpp: every attachment drawn
     last frame, `attach_drawn: where=hand_main|hand_off|holster|lying|other_held|other_holster ent= kind= gun= at=`,
     then `attach_report: N drawn`). Screenshots not done.
+## flatxhair2: every melee weapon's crosshair on where its blow lands, either grip; the wound-up throw's on where it lands (branch agent/flatxhair2, 2026-11-26)
+
+His flat notes 2026-11-26, items 1 and 6.
+- **Melee (6).** `flatplay::noteStrikePath` (poseHands, right before the swing and the thrust) rehearses hand h's blow on a
+  copy of the hand as posed now: the running blow's (a V thrust too, a bayonet's), else the one its attack button would
+  start (`punchKindOf`, split out of startPunch and used by it: a melee weapon's overhead swing, upright or flipped; a melee
+  pole's thrust). `PunchRehearsal` sets the hand's punch state and clock for it (and puts them back); the pose's own
+  `swingPose` (overheadSwing + its turn, now also poseHands') and `thrustPose` move the copy to 13 times through the strike;
+  the muzzle as last placed in the hand (`flatsight::muzzleInHand`, the server's blade line's far end) rides on each.
+  `flatplay::strikePath` hands flatxhair the 13 tip points; it traces them segment by segment: the first thing met is where
+  the blow lands, nothing in reach the tip's end. Replaces `noteThrustPath`/`thrustPath` (the flipped spear's sums). A melee
+  weapon's crosshair is now shown whatever its own crosshair mode (swords, daggers, axes had none: the centre).
+  Same tunable, renamed in the menu: `vr_flat_xhair_thrust_path` 1, "Melee Crosshair" (Shot Line / Blow Path).
+  Measured (e1m1's wall, 12 units off; the QC's melee mark against the crosshair as the press went in): sword 2.7, flipped
+  sword 2.5, dagger 2.0, axe 3.4, hammer 5.5, mace 3.0, crowbar 3.7 units apart (the axe, hammer, mace and crowbar have no
+  flipped hold: the same). The flipped sword lands high (the raised fist's blow): its crosshair goes there.
+- **Throw (1).** QC `VR_FlatThrow_Aim` (each server frame from VR_FlatThrow_Frame): while the throw key winds up (a weapon,
+  a carried thing, a body) or the quick grenade is wound up by the key, where letting go now would land it, sent to the view
+  by the new builtin `flatthrowaim(player, hand, at)` (the listen server's own player only; `flatxhair::noteThrowAim`).
+  The release's own pieces, split out and used by the release too: `VR_FlatThrow_Speed` / `_Up` / `_RagVel`,
+  `VR_FlatGrenade_Speed` / `_Up`, `VR_Throw_WeaponVel` (DropWeaponInHandScaled), `VR_Carry_ThrowVel` (VR_Carry_Release);
+  then the throw assist, his own motion and the throw's gravity; `VR_Throw_ArcEnd` steps the arc 0.02 s at a time (4 s at
+  most), a traceline each step (monsters too, past him and the thing in the hand). The spin turns the thing about its middle,
+  not its way: not modelled. The hand's crosshair is shown on it while fresh (0.1 s), whatever it holds, never dimmed by
+  the wall or a reload. Tunable `vr_flat_xhair_throw_aim` 1 ("Throw Crosshair", Debug > Tunables > Flatscreen > Crosshair).
+  `vr_flat_grenade_debug 2` prints `flat throw: aim`; developer 1 prints `flat throw: first hit at` / `hit from` (the frame
+  before) and the landed line now ends with where.
+  Measured (vrtutorial lesson 12's wall; the arc from the frame before the hit on to the wall): sword from 164 units 3.0
+  units apart, axe from 294 units 9.2: its launch and its fall are the prediction's exactly (velocity 25.4 -484.8 25.4,
+  gravity 312), but the thrown axe's origin flies about 10 units over the hand's arc from the start (where the thrown
+  body is placed off the hand: not chased). Open: start the arc from the thrown thing's own place (CreateThrownWeapon's /
+  the rigid body's), not the hand's.
+- Tests: `flatxhair_melee_test.sh` 21/1: new per weapon and grip (11) and the two throws; the one fail is the old `flip24`
+  case, 7.3 units apart (was 2.0 when flatxhair landed): the flipped pole's tunables were promoted since
+  (vr_flat_revgrip_pole_out -2, _roll 0, _down 0); the rehearsal gives the same said point as the old sums did. The flipped
+  dagger's swing at a wall leaves no melee mark (no landing to compare): left out. Not run: the full flat suite.
+- Code shared, not copied: the swing and the thrust are the pose's own functions; the throw's speed, launch velocities and
+  gravity are the release's own helpers.
+
 
 ## Map-made armed humanoids hold their guns right: Quoth's kellbase1 enforcers (branch agent/quothpose, 2026-11-26)
 

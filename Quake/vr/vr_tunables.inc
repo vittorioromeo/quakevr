@@ -2897,7 +2897,8 @@ QVR_TUNABLE(vr_monster_lean_spread, "0.2") // a monster's extra spread (Quake's 
 QVR_TUNABLE(vr_monster_lean_react, "0.4") // seconds before a monster sees (and shoots at) a player newly leaning out from cover
 
 // Flatscreen > Crosshair (flatxhair, his flat notes 2026-11-26 items 9 and 10)
-QVR_TUNABLE(vr_flat_xhair_thrust_path, "1") // 1: a flipped spear's visor crosshair is on where its thrust's tip goes (the strike's way), not on its reversed pole's shot line
+QVR_TUNABLE(vr_flat_xhair_throw_aim, "1") // (flatxhair2) 1: a hand winding up a throw (the throw key, the quick grenade's by the key) has its visor crosshair on where letting go would land it (the release's own launch and arc, QC VR_FlatThrow_Aim), not on its shot or its blow
+QVR_TUNABLE(vr_flat_xhair_thrust_path, "1") // 1: a melee weapon's visor crosshair is on where its blow's tip goes (its swing or thrust, either grip: the strike's way), not on its shot line
 QVR_TUNABLE(vr_flat_xhair_melee_kick, "10") // a melee blow's feedback: the visor crosshair's lines pushed out this many pixels (at 1080 p) as its strike begins, for a weapon of vr_flat_xhair_melee_mass (under vr_flat_xhair_kick_max with the guns' recoil)
 QVR_TUNABLE(vr_flat_xhair_melee_mass, "3") // the weapon weight (kg) the kick is for: a heavier one more, by the square root of its weight's share (0.5 .. 2 times)
 QVR_TUNABLE(vr_flat_xhair_melee_fist, "0.5") // a bare fist's (or a prop's) blow: this share of the kick

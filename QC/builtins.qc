@@ -831,6 +831,9 @@ float(entity b, float xFloor) meleearc = #0;
 // end (xA); 2 a swept line (xA to xB); 3 a head's box (admeleehead's corners); 4 the head's line; 5 its model +y (xA);
 // 6 a blow landed (xA where, xV its damage or -1).
 void(float xHand, float xWhat, vector xA, vector xB, float xV) meleeshow = #0;
+// The flat throw key's aim (flatxhair2; vr_flatgrenade.qc VR_FlatThrow_Aim, each frame): `xPlayer`'s hand `xHand` winds up
+// a throw that would land at `xAt` let go now (-1: none); the local player's only, for the visor crosshair (flatxhair).
+void(entity xPlayer, float xHand, vector xAt) flatthrowaim = #0;
 // Show Melee Arcs (vr_enemy_melee_arc_show): an armed humanoid's swinging weapon `xWeapon` this frame, drawn as a hand's
 // sweep is (meleeshow's `xWhat` 0, 1, 6; vr_meleerules.qc VR_MeleeArc_ShowSwings); world records nothing. Returns the
 // frames the view drew any armed humanoid's swing (the tests).

@@ -1029,6 +1029,18 @@ vector(vector xAVel) VRThrowSpinCapped =
     return xAVel;
 }
 
+// A weapon's throw (`xWeapon`, `xWeaponFlags`) from a hand moving at `xVel` (m/s; `xFlick` of it the wrist's) in `xHands`
+// hands: the velocity it leaves at (units/s), by the weight rules (throwvelocity), its throw multiplier (a little less
+// for heavy weapons) and vr_weapon_throw_velocity_mult. DropWeaponInHandScaled's, and the flat throw key's aim
+// (vr_flatgrenade.qc VR_FlatThrow_Aim: where letting go now would land it).
+vector(float xWeapon, float xWeaponFlags, vector xVel, vector xFlick, float xHands) VR_Throw_WeaponVel =
+{
+    float weight = 1 + (WeaponIdToThrowMult(xWeapon) - 1) * cvar_hget(cvarh_vr_throw_weight_influence);
+    float throwMass = weaponvalue(WeaponIdToModel(xWeapon, xWeaponFlags), "w_mass");
+    return throwvelocity(xVel, xFlick, throwMass, xHands) * VRMetersToUnits() * weight *
+           cvar_hget(cvarh_vr_weapon_throw_velocity_mult);
+};
+
 entity vr_wpn_dropped; // DropWeaponInHandScaled's: the weapon it threw or dropped (world: none; vr_playerdisarm.qc's push)
 
 // `xVelScale`: times the throw's velocity and spin (1: thrown; vr_weight_drop_velocity: wrenched out, the grip lost
@@ -1070,11 +1082,8 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
     // The hand's velocity (m/s) at true scale: the weapon leaves the hand as fast as the hand
     // moved, a little more for real throws (the gain), as fast as its mass lets one hand or two throw it (throws by
     // weight: throwvelocity), a little less for heavy weapons, and falls at vr_throw_gravity rather than Quake's 2.5g.
-    float m2u = VRMetersToUnits();
-    float weight = 1 + (WeaponIdToThrowMult(xWeapon) - 1) * cvar_hget(cvarh_vr_throw_weight_influence);
     float throwMass = weaponvalue(WeaponIdToModel(xWeapon, xWeaponFlags), "w_mass");
-    vector asThrown = throwvelocity(throwVel, throwFlick, throwMass, throwHands) * m2u * weight *
-                      cvar_hget(cvarh_vr_weapon_throw_velocity_mult);
+    vector asThrown = VR_Throw_WeaponVel(xWeapon, xWeaponFlags, throwVel, throwFlick, throwHands);
     vector throwVelUnits = asThrown * xVelScale;
 
     float throwGravity = VR_Throw_Gravity();
