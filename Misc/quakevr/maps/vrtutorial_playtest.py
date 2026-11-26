@@ -208,11 +208,24 @@ def take_spinning(hand, cls, holster, onto=7, rounds=3):
 
 
 LEDGE_CHECKS = False   # --ledge: also the high ledge's negatives (its own run: the extra time shifts the later gates')
-LEDGE_GATES = ("nojump", "noreach")
+LEDGE_GATES = ("nojump", "noreach", "lipbase", "underlip")
+LIP_RISE = 40      # a jump hugging the jump wall rises at least this (a full jump, 45: nothing over the head under the lip)
+LIP_BASE = [1e9]   # (check(): the height "lipbase" left, which "underlip" rose from)
 
 
 def ledge_checks():
-    """Room 3's high ledge (100 over the ladder block) is neither jumped onto nor reached without a jump."""
+    """Room 3's high ledge (100 over the ladder block) is neither jumped onto nor reached without a jump; and a jump
+    hugging its wall rises freely (the author, 2026-11-26: its hazard strip stood 2 out of the wall and caught the head
+    under it; now flush, vrtutorial_gen.py hazard_lip: blocked there, the rise was at most 36)."""
+    walk(3156, 704, 2, 80)
+    c("vr_mock_turn_to 0")
+    w(30)
+    pos("lipbase")
+    c("+jump")
+    w(23)   # (the jump's top: 270 up against 800 down, 0.34 s)
+    pos("underlip")
+    c("-jump")
+    w(60)
     # not without the hands: a jump at it lands back on the block
     jump_to(3200, 704, 2, 80)
     pos("nojump")
@@ -275,7 +288,8 @@ def g3_jump_climb():
         ledge_checks()
     c("vr_mock_hand main 0.15 1.9 -0.45 0 0 0", "wait", "+jump")
     w(20)
-    c("-jump", "vr_mock_hand_to main 3166 704 %d" % (UP + 2), "+grabmain", "vr_mock_button main grip 1")
+    # (over the lip: the wall's face at 3168, its striped lip flush with it since 2026-11-26)
+    c("-jump", "vr_mock_hand_to main 3170 704 %d" % (UP + 2), "+grabmain", "vr_mock_button main grip 1")
     w(8)
     pull("main", 60, 25)
     w(20)
@@ -1052,6 +1066,9 @@ CHECKS = [
     ("ladder", "climbed the ladder onto the block", lambda p: p[2] > 150),
     ("nojump", "the high ledge: a jump alone stays on the block", lambda p: p[2] < UP),
     ("noreach", "the high ledge: a reach to 2.2 m without a jump holds nothing", lambda p: p[2] < UP),
+    ("lipbase", "the jump wall hugged (on the block, at its face)", lambda p: p[0] > 3140),
+    ("underlip", "a jump hugging the jump wall rises %d or more (no lip over the head)" % LIP_RISE,
+     lambda p: p[2] - LIP_BASE[0] >= LIP_RISE),
     ("ledge", "caught the high ledge at a jump's top, pulled up", lambda p: p[2] > UP + 10),
     ("room4", "on to room 4", lambda p: p[0] > 3550 and p[2] > UP),
     ("swim_passage", "swam down and through the passage", lambda p: p[0] > 4060 and p[2] < UP),
@@ -1088,6 +1105,7 @@ def check(softlock=False):
     text = sys.stdin.read()
     lines = text.splitlines()
     rows = parse(lines)
+    LIP_BASE[0] = next((v[2] for g, k, v in reversed(rows) if g == "lipbase"), 1e9)
     stuck = [l for l in lines if "stuck" in l]
     fails = 0
     n = 0
