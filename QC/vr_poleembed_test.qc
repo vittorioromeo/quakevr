@@ -286,7 +286,7 @@ void() VR_PE_JitterFrame =
     }
 };
 
-// ---- vr_embed_test 73 (vrspear; his VR notes 2026-11-26 20:07-20:10), mock VR (no -flatscreenmode), map vrtesthall: the spear
+// ---- vr_embed_test 75-76 (vrspear; his VR notes 2026-11-26 20:07-20:10), mock VR (no -flatscreenmode), map vrtesthall: the spear
 // (cases 1 and 2) and Dwell's Crystal Lance (case 0) in the gripping main hand, aimed at a grunt as test 7's stabs are (VR_EH_Blow,
 // its states 0 to 2); then the off hand put on the pole VR_VS_SPOT of the way from the handle to the tip, VR_VS_CM cm over it (the
 // hand's point, not its palm: a grip with an offset), gripping: VR's pole grip (weaponanygrip) takes it, and the drawn hand has its
@@ -326,9 +326,9 @@ void(float xAsk) VR_VS_Begin =
     cvar_set("vr_melee_push", "0");
     localcmd("vr_mock_hand_to_absolute 1\n");
     vr_eh_home = VR_Player().origin;
-    vr_et_on = 73;
-    vr_et_case = xAsk == 74 ? 2 : 0; // (74: the fixed spear alone, a run of its own: a third case's off hand in one run never took the pole)
-    vr_vs_last = xAsk == 74 ? 2 : 1;
+    vr_et_on = 75;
+    vr_et_case = xAsk == 76 ? 2 : 0; // (76: the fixed spear alone, a run of its own: a third case's off hand in one run never took the pole)
+    vr_vs_last = xAsk == 76 ? 2 : 1;
     VR_VS_To(0);
     VR_ET_To(0);
 };

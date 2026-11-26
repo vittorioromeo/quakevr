@@ -1833,10 +1833,10 @@ His VR notes 2026-11-26 20:07-20:10 (vrtesthall).
   slot's Grip Overlap (`heldBy`): with the default the Lance's palm was drawn 2.6 cm off its shaft. Both settings of the option.
   The server never let go in the mock (hands 3 the whole measure); his "detaches" was the drawn jump, as far as the mock shows.
 - **Probe:** `vr_embed_probe_palong` (cm along the shaft from its middle, last frame), `_pslide` (most minus least since reset).
-- **Tests:** `vrspear_test.sh`: vr_embed_test 73 (the Lance with the main grip loose, so the main hand slides; the spear with
-  `vr_pole_grip_fixed 0`) 18/0, 74 (the spear fixed, main grip closed) 9/0: the hand put 1-2 cm over the shaft takes it, 0.00 cm
+- **Tests:** `vrspear_test.sh`: vr_embed_test 75 (the Lance with the main grip loose, so the main hand slides; the spear with
+  `vr_pole_grip_fixed 0`) 18/0, 76 (the spear fixed, main grip closed) 9/0: the hand put 1-2 cm over the shaft takes it, 0.00 cm
   off the shaft line, 0 degrees, 4 of 4 fingers; moved 15% of the pole along it, the drawn hand moved 0.00 cm (fixed) or
-  10.2 cm (0); the stab sticks, hands 3 for 0.6 s, round the stuck shaft, 0.1 cm from where it was held. (74 is its own run: a
+  10.2 cm (0); the stab sticks, hands 3 for 0.6 s, round the stuck shaft, 0.1 cm from where it was held. (76 is its own run: a
   third case in one run never took the pole, the fist 0.3 units off the shaft whatever the offset; not chased.) `VR_EH_Blow`
   takes a give command (`vr_eh_givecmd`, the Lance's `vr_ad_test 207`). dwell_lance_test now sets `vr_pole_grip_fixed 0` in its
   slide sections (51/0); spear_test 4/0 (VR 25/0); poleembed_test 16/0, 13/0.

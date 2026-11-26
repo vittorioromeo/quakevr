@@ -4593,7 +4593,7 @@ void() VR_Embed_TestFrame =
         {
             VR_PE_Begin(ask); // (flat: the pole's other hand in four states; a held blade's ragdoll smoothing: vr_poleembed_test.qc)
         }
-        if(ask == 73 || ask == 74)
+        if(ask == 75 || ask == 76)
         {
             VR_VS_Begin(ask); // (VR: the pole's other hand round the shaft, fixed on it, through a stab that sticks: vr_poleembed_test.qc)
         }
@@ -4878,7 +4878,7 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     {
         VR_PE_JitterFrame(); // (flat: a held blade's ragdoll smoothing: vr_poleembed_test.qc)
     }
-    else if(vr_et_on == 73)
+    else if(vr_et_on == 75)
     {
         VR_VS_Frame(); // (VR: the pole's other hand on the shaft: vr_poleembed_test.qc)
     }
