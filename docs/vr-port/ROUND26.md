@@ -2091,3 +2091,27 @@ dragged prop shoved it off the hands).
 - Tests: flatkeys_test.sh 36/0 (smoke); the line checked by hand at the defaults and at `fov 120` / `130`.
 - Open: what to ask the player for: his `quakevr/logs/<newest>/console.log` (the `flatscreen view:` line), his
   `quakevr/ironwail.cfg`, his screen resolution, and whether he changed Options > Field of View.
+
+## A bayonet model for the shotguns (branch agent/bayonetmodel, 2026-11-26)
+
+- What: `quakevr/progs/bayonet.mdl`, an original socket bayonet in Quake's style (234 triangles: an octagonal socket
+  with a top lug that clips under a barrel, steel bands and a leather strap, a cranked leather-wrapped shank, a small
+  guard, a 20 cm single-edged blade with fullers and a clipped point, edge down). Full-colour skin `bayonet.mdl_0.png`
+  (1024 x 512; 8-bit 256 x 128 in Quake's palette) and a baked normal map `bayonet.mdl_0_norm.png`.
+- Pipeline: `Misc/quakevr/make_bayonet.py` (the spear's way: lofts, painted full-colour skin, `relief()` for
+  `normaltiles.py`; genguard-guarded), `python Misc/quakevr/bake_normals.py bayonet.mdl` (registered in normaltiles.py
+  MODELS and normalmaps.py GENERATED). `--placed <folder>` writes the bayonet moved onto each gun for renders.
+- Axes: one unit a world unit, +x along the blade, origin the mounting point (the socket's top front, at the barrel's
+  underside at the muzzle).
+- Mounts (gun model space; position, angles, scale) in `docs/vr-port/ATTACHMENTS.md`, "The bayonet", for agent/attach1:
+  v_shot 32.9 0 2.84, 0 0 0, 2.2727; v_shot2 26.0 0 3.62, 0 0 0, 2.0833; g_shot0 18.2 0 33.79, 2.3048; g_shot 21.6 0
+  34.86, 2.9398. The shotgun's socket stays clear of the pump's front; the SSG's sits under the barrels' shroud.
+- On its own: `vr_bayonet` (QC `vr_bayonet.qc`, precached at world spawn; FGD regenerated), the toolgun's Props
+  "Bayonet" (appended: entry 303), props.txt slot 71 (0.45 kg, Along the Handle -0.9..1.06, one hand, tip 6.5 0 -0.82).
+  Debug menu test aid: Which Gib (vr_test_held_pick) 14 "Nearest Bayonet" (and 13 "Nearest Crate or Barrel", which
+  existed without a menu entry).
+- Tests: e1m1 `vr_toolgun_spawn_test 303 303` + `check`: spawned, alive, drawn, 0 precaches missing on the client;
+  `vr_test_held_pick 14; impulse 252`: taken into the main hand along its handle, let go, thrown. check_mdl_art (3 LOW
+  findings) and check_mdl_holes (ok). Renders for review: `scratch/bayonet_*.png` in the worktree.
+- Open: it is a prop (a club with a tip), not a sword kind: no edge cuts on its own (the dagger-style anchors are in
+  ATTACHMENTS.md if it becomes one). The mounts are frame 0's: the fire frames move the guns' fronts.
