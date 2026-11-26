@@ -67,6 +67,8 @@ Flat-screen: hold the spear and the Crystal Lance normally, in the flipped grip 
 Flat-screen: with the spear or Crystal Lance held, move Spear Other Hand Pitch: the other hand should turn round the shaft and stay on it. {test:flat_spear}
 Flat-screen: with both hands empty, press V near a grunt: both fists rise over your head together and come down onto the crosshair side by side, one hard hit (about twice one fist's damage and push). {test:flat_melee_2fist}
 Flat-screen: holding something in one hand, or with Locomotion > Quick Melee: Both Fists off, V is the one-fist overhand blow as before. {test:flat_melee_2fist}
+Flat-screen: flip a sword or the dagger to the inverted grip (B), then hold the right mouse button: the blade turns quickly back to the normal grip for the guard, and flips back to inverted when you let go. {test:flat_parry}
+Flat-screen: hold the right mouse button with the ogre hammer, the ogre mace, the death fury's sword or the judicator's sword: your left hand takes the shaft or blade near the head/tip, not the handle. {test:flat_parry_ad}
 
 [4. Tutorial and VR interface]
 Look away from the wrist gadget and get a centre message: the visor-style panel is about 20% smaller than before and still easy to read; Centre Message Size (HUD > Screens) tunes it. {test:vr_center_message}

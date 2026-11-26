@@ -2260,6 +2260,9 @@ QVR_TUNABLE(vr_flat_parry_yaw, "0") // and this far forward of straight across t
 QVR_TUNABLE(vr_flat_parry_roll, "-5") // and the weapon rolled this far about its own line (degrees; its edge from forward towards up)
 QVR_TUNABLE(vr_flat_parry_in_time, "0.05") // seconds into the guard from the hold (0: at once)
 QVR_TUNABLE(vr_flat_parry_out_time, "0.1") // seconds back to the hold when the button is let go (0: at once)
+QVR_TUNABLE(vr_flat_parry_unflip_time, "0.1") // flatparry2: a flipped (inverted) grip turns back to the normal grip over this long as the guard is raised, and flips again over as long once the guard is down (vr_view_weapon.cpp gripFlipStep; 0: at once; negative: the guard keeps the flipped grip)
+QVR_TUNABLE(vr_flat_parry_shaft_at, "0.8") // flatparry2: in the guard, a sword-mode melee weapon with no Blade hotspot of its own (the ogres' hammer and mace, the fury's sword; a Blade hotspot at share 0 counts as none) has the free hand on its shaft or blade this share of the way from the hand to the tip/head, as a Blade hotspot there would (then held within vr_flat_parry_shaft_reach); 0: none, the hand stays
+QVR_TUNABLE(vr_flat_parry_shaft_reach, "22") // flatparry2: vr_flat_parry_blade_reach for that shaft point: the free hand at most this far from the holding hand (units; longer than the blade's 14 so a hammer's or mace's hand sits near the head; 0 no limit)
 QVR_TUNABLE(vr_flat_parry_cone, "120") // flatscreen: in the guard, any melee blow from within this many degrees of where you look (all of the cone, centred on the view) is parried, whatever its way (QC VR_Parry_FlatGuard; the headset keeps the directional parry); 0: the headset's rules
 
 // Flatscreen > Guard Bash and Blade Grip (his notes 2026-11-23: the fire button in the guard bashes, as the headset's bash;

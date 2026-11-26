@@ -1515,6 +1515,43 @@ smaller, centred, over a 50% black so the previous screen (the console) shows un
 
 The menu shortcut bar (the column beside the menu in the headset and the flat VR-style panel, the row of icons in the classic flat menus) now has half a button of vertical gap before its "-" and "+" buttons (column layouts; the column fit counts it) and a third button, RESET, next to them: the shipped menu size (vr_menu_scale / vr_menu_flat_scale / scr_menuscale by the layout shown) and, for the flat panel, the window centre (vr_menu_flat_x/y back to their defaults, so a saved config drops them). The headset menu has no position setting, only its size. One code path for all three layouts (zoomMenu dir 0, the existing vr_menu_zoom reset); the mouse and the laser hit it like -/+ (new mock spots `vr_mock_mouse zoomreset`, `vr_mock_laser zoomreset`). Gamepad focus: the -/+ buttons were never in the gamepad focus order (pointer only), so RESET is too; vr_menu_zoom reset is the console equivalent. Tests: menu_flat_panel_test.py gained resetbtn steps (flat: moved to 0.4/0.45 at 0.6, RESET back to 0.954/0.5/0.499; VR: 0.4 back to 0.25): 28 passed, 3 failed; the same 3 fail with the unmodified test on this build (Quit menu number 20 vs 21, headset Quit dialog, classic scr_menuscale step: unrelated, not looked into). Screenshots scratch/menubar_{classic,flat,vr}.png.
 
+## flatparry2
+
+His flat notes 2026-11-26, items 1 and 4-6 (the parry guard's pose).
+
+- **Inverted grip in the guard** (item 1): while the flat guard is asked for or not yet eased out
+  (`flatplay::parryUnflips`), the view's `gripFlipStep` (vr_view_weapon.cpp) draws a flipped grip upright over
+  `vr_flat_parry_unflip_time` (0.1 s; negative keeps the flipped grip) and flips it back over the same time once the guard
+  is down (the button's let-go starts it). Only the drawn flip changes, not QVR_WPNFLAG_REVGRIP, so everything that reads
+  the drawn flip follows it: revGripPose, flippedGrip, the 2H stance gate, the blade line the game parries with. Every
+  weapon with a flipped grip (swords, the dagger, the spear) takes the same path. vr_flatplay_debug prints
+  "flatparry: ... grip upright, N s" and "... flipped again, N s"; vr_flatplay_status prints "parry flip:".
+- **Free hand near the tip** (items 4-6): the guard's blade grip (vr_flat_parry_blade) needs `twohand::swordBlade`, which
+  needed a Two-Handed: Sword weapon with a Blade hotspot (type 2) at a share > 0. Audit of weapons.txt:
+
+  | weapon (slot, wofs NN) | 2h_mode | hotspots | guard before | now |
+  |---|---|---|---|---|
+  | judicator's sword `w_judgesword` (49, 50) | sword | hs1 Grip at -5.71 0.20 -8.12 (the death knight's sword's hs1 copied: slots 41/43/47 the same); hs2 Blade at share **0** (his, wofs v57) | no blade grip: both hands on the handle | shaft fallback |
+  | hunter ogre's hammer `w_ogreham` (44, 45) | sword | hs1 Grip only | both on the handle | shaft fallback |
+  | hunter ogre's mace `w_ogremac` (45, 46) | sword | hs1 Grip only | both on the handle | shaft fallback |
+  | death fury's sword `w_dfurysword1` (40, 41) | sword | hs1 Grip only (hs2 off, his) | both on the handle | shaft fallback |
+  | flail `w_blueflail` (50, 51) | sword | hs1 Grip (the mace's copied) | both on the handle | shaft fallback (untested) |
+
+  Fallback: a Two-Handed: Sword weapon with no usable Blade hotspot answers `vr_flat_parry_shaft_at` (0.8 of the way from
+  the hand to the tip/head) and its point is held within `vr_flat_parry_shaft_reach` (22 u) of the holding hand (the
+  blade's own reach stays vr_flat_parry_blade_reach 14). A Blade hotspot he sets up (share > 0) replaces the fallback at
+  once (and its reach is the blade's 14). Hotspot-mode melee weapons (the axe, Mjolnir: 2h_mode 1) are unchanged (no
+  blade grip). A "grab"/Grip hotspot near the tip is not read (a Grip on a sword-mode weapon is the foregrip below the
+  hand; its line runs the other way), so for the curved fury sword the way is a Blade hotspot (flat pins one point at its
+  share; in a headset the half-sword grip runs along the straight hand-to-tip line).
+- Test aids: `vr_ad_test 171..174` (fury, judicator, hammer, mace alone in the main hand; Debug menu "... Alone in Hand"),
+  scene `flat_parry_ad`.
+- Tests: `Misc/quakevr/flatparry2_test.sh` (AD mounted): flip runs (knight's sword, judicator) flip 1.00 -> 0.00 in
+  0.097 s -> 1.00 in 0.097 s, the probe parried; per weapon the free hand posed 0 u and drawn 1.3-2.1 u off the point;
+  point / tip from the holding hand: sword 14/27.9, fury 22/33.5, judicator 22/48.3, hammer 22/31.7 (9.7 from the head),
+  mace 22/27.8 (5.8): 33 passed, 0 failed. Screenshots scratch/fp2_<weapon>.png. flatparry 43/0, flatmelee4 9/0;
+  flatbash 17/3 (sword "took the blade" line: the 2H stance's foregrip was already held so the switch to the blade prints
+  nothing; a 165-degree frame turn; the axe's bash missed the grunt; none touch the paths changed here).
 ## flatmelee6: V's two-fisted overhead blow with both hands empty (branch agent/flatmelee6, 2026-11-26)
 
 His item 11 (flat feedback 2026-11-26): "If both hands are empty, the quick melee button should perform a simultaneous
