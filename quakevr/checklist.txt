@@ -65,6 +65,8 @@ Flat-screen or VR: flip a melee weapon's grip (dagger, sword, or spear) and thro
 Flat-screen: with the spear and with the Crystal Lance, the shaft's line points at the crosshair (not off towards the holding hand), held and through a V thrust; both behave the same. {test:flat_spear}
 Flat-screen: hold the spear and the Crystal Lance normally, in the flipped grip and while guarding with the right mouse button, then stab one into a grunt and hold it: the other hand should always close round the shaft, never float beside it or twist (Spear Other Hand On Shaft, 0 to compare). {test:flat_spear}
 Flat-screen: with the spear or Crystal Lance held, move Spear Other Hand Pitch: the other hand should turn round the shaft and stay on it. {test:flat_spear}
+Flat-screen: with both hands empty, press V near a grunt: both fists rise over your head together and come down onto the crosshair side by side, one hard hit (about twice one fist's damage and push). {test:flat_melee_2fist}
+Flat-screen: holding something in one hand, or with Locomotion > Quick Melee: Both Fists off, V is the one-fist overhand blow as before. {test:flat_melee_2fist}
 
 [4. Tutorial and VR interface]
 Look away from the wrist gadget and get a centre message: the visor-style panel is about 20% smaller than before and still easy to read; Centre Message Size (HUD > Screens) tunes it. {test:vr_center_message}
