@@ -845,6 +845,18 @@ His items 3, 5, 12 (2026-11-25).
   Multiplayer > Splitscreen).
 - Tests: split_join_test.sh, seat_play/seat_menu/seat_render_test.sh, plus flatplay/flatgrabthrow/weaponwheel/flatkeybind
   (results in section 25). Not merged into next: agent/split is a feature branch.
+## split17: splitscreen brought up to date with next again (branch agent/split, 2026-11-27)
+
+- agent/split merged origin/next (310 commits; 10 conflicting files, 33 hunks). Every hunk kept next's side, written
+  through the seats' accessors. About 80 lines of next's code outside the hunks were moved onto the accessors too.
+- New `seat::Part`s: `AttachKnown` (which weapon has which attachment, as each seat's client was told) and `AttachDrawn`
+  (each seat's drawn bayonet, which the two-handed grip reads). next's two-fisted blow flag and four per-hand drawing
+  states in vr_view_hands.cpp moved into existing seat parts. 29 new globals are marked `seat-shared`.
+- How to try it, and the details: SPLITSCREEN.md section 26.
+- Tests: split_join 113/0, seat_play 63/0, seat_menu 62/0, seat_render 255/0, attach 6/6 runs, flatgrabthrow 53/0,
+  flatplay 31/0, flatreload 54/0, flatmelee6 9/0. Two failures are next's own: flatxhair_melee 21/1 (`flip24`) and
+  flatthrow 51/3, because flatthrow_check.py's "landed ... stuck" regex predates flatxhair2's ` at <origin>`. Not
+  merged into next.
 ## vrstartgeo: the hub's geometry measured for cheaper collision; no safe simplification gains anything (branch agent/vrstartgeo, 2026-11-26)
 
 His question: could vrstart be made cheaper (fewer brushes, smaller hull trees) by merging brushes or slightly

@@ -1054,3 +1054,53 @@ cause of most: client state that must be each seat's was shared, so each seat's 
   (slot 0) that flatmelee5's immediate two-handed melee grip (`twoHandAsked`, next's code) now lowers 14 degrees off the
   crosshair; a Nov 23 log from next had it at 0.0. It is most likely next's change and not the seats, but nobody has
   checked it on a next build.
+
+## 26. Split17 (2026-11-27): next merged again
+
+### How to try it (for him)
+
+1. **Start it**: run `C:\OHWorkspace\qvr-kit\scratch\play_splitscreen.ps1` in PowerShell (add `-Window` for a window). It
+   still starts `qvr-agents\menuvis\Windows\VisualStudio\Build-ironwail\bin\x64\Release\ironwail.exe` (rebuilt today, the
+   path the script uses) flat-screen with your Steam Quake folder and `quakevr`. The game code is your checkout's
+   `progs.dat`, as before: use one built from next today or later, because the bayonet needs next's attachment QC and
+   network version 48.
+2. **Controllers and joining**: as in section 25. Keyboard and mouse are seat 1, and each pad is its own seat. Go to
+   Multiplayer > Splitscreen. A pad joins with A, picks Coop or Deathmatch, and Start begins the game.
+3. **New on next since split16, two seats at once**:
+   - **The bayonet in each seat** (vrtesthall has the shotguns and the bayonet): seat 1 holds a bayonet in one hand and a
+     shotgun in the other and presses J. The bayonet goes on seat 1's gun only. Seat 2's tile draws it there too, on the
+     other player. V with it thrusts the blade, and J again takes it off. Then do the same from seat 2's pad, so that
+     each seat puts on and takes off its own.
+   - **H on a crate in each seat**: each seat grabs its own crate with H and walks into it, so it gets pushed at the
+     grab's arm length. Too heavy or too steep and the hands let go. One seat's hands must never pull the other seat's
+     drawn hands off their wrists.
+   - **The throw's crosshair per tile**: hold B with an axe in seat 1 (the crosshair goes to where the throw would land),
+     and press that hand's attack button while B is held to cancel. Seat 2's crosshair must stay its own (its gun's, or
+     where its blow lands with a melee weapon).
+   - **The reverse-grip guard**: a flipped sword or dagger (FLIP GRIP on the wheel) held up in the guard in seat 1, and
+     V with both hands empty (both fists' overhand blow) in seat 2. Each seat's pose stays in its own tile.
+   - **A spear in each seat**: hold a spear or the Crystal Lance two-handed in both seats and stab a monster. Each seat's
+     off hand closes round its own shaft and keeps hold through the embed.
+
+### What changed
+
+- **The merge**: 310 commits, 10 conflicting files, 33 hunks (vr_flatplay.cpp 16). Every hunk kept next's side, written
+  through the seats' accessors (`fs()`, `gs()`, `st()`, `rs()`, `th()`, `vh()`, `pins()`, `rigHands()`, `entities()`,
+  `worldHotspots()`, `keyState()`). Next's `fs.flag` / `fs.wasOn` / `fs.viewReported` are `session.` on this branch
+  (the process's FlatSession). Next's new code outside the hunks that still used the old global names (about 80 lines:
+  flat melee's PunchKind, the strike path, the throw cancel, rung grips, the attachment drawing) went through the same
+  accessors. `client::mainButton` reads the seat's `+attack` (`CL_SeatInput()->attack`), not Ironwail's `in_attack`.
+- **New `seat::Part`s**: `AttachKnown` (vr_attach.cpp `known()`: which weapon has which attachment, as this seat's
+  client was told by `QVR_SVC_WEAPONATTACH`) and `AttachDrawn` (vr_view.cpp `attachDrawn()`: the hands' attachments as
+  this seat drew them, `view::drawnAttachment`, which the two-handed grip reads). Moved into existing parts:
+  vr_handsource.cpp's `twoFist` (`HandSourceSeat`), and vr_view_hands.cpp's `shaftGripped`, `poleGripLast` (reached
+  through `poleGrips()` above the struct), `embedSmooths` and `gripSwitch` (`ViewHands`).
+- **Marked seat-shared** (29): test probes and tallies (holdArmTrack, poleProbe, embedJitter, poleProbeLine, rungTest and
+  its scratch, probeTally, holdPose*, attachSeen), the server's attachment record (`sent`), the job pool, the loading
+  panel, the window's present counters (gl_vidsdl.c), the shipped caches' writers, the map's hull trees, the shaft
+  cache (model data), the graphics preset's undo and the Weapon Offsets editor's attachment kind.
+- **Tests**: split_join_test.sh 113/0, seat_play_test.sh 63/0, seat_menu_test.sh 62/0, seat_render_test.sh 255/0;
+  attach_test.sh 6/6 runs passed (flat run 15/0, VR 20/0), flatgrabthrow 53/0, flatplay 31/0 (split16's 3 lock/sway
+  failures are gone), flatreload 54/0, flatmelee6 9/0. Two failures are next's own: flatxhair_melee_test 21/1 is its
+  known `flip24`. flatthrow_test 51/3: flatxhair2 added ` at <origin>` to QC's "flat throw: landed: ... stuck" line,
+  and flatthrow_check.py still wants the line to end at `stuck`.
