@@ -33,6 +33,7 @@
 #include "vr_tunables.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
+#include "vr_attach.hpp"
 #include "vr_ledges.hpp"
 #include "vr_lines.hpp"
 #include "vr_mem.hpp"
@@ -247,6 +248,7 @@ struct Slot // what one edict is in the world (by its number)
     bool brush{false};    // angles as a brush model's
     bool spins{false};    // a fixture drawn spinning (an EF_ROTATE model: the map's pickups): its shape turns with it
     const qmodel_t* mag{nullptr}; // props: a gun's seated magazine its body was made with (seatedMagazine; nullptr none)
+    int attach{0};                // props: the gun's attachment its body was made with (fittedAttachment; 0 none)
     physsound::Material sound{physsound::Material::None}; // what its knocks and scrapes sound like (vr_physsound.cpp)
     double born{0.0};     // the server's time its body was made (a prop: thrown, let go of, launched)
     int pushedStep{-100}; // props: the last step a hand's body pushed it (limitPushes: a hit, then a shove)
@@ -1220,6 +1222,8 @@ inline HullBuildStats hullBuilds;
 [[nodiscard]] bool chunkPair(b3ShapeId a, b3ShapeId b);
 void addChunkShape(edict_t* ent, int num, b3BodyId body);
 [[nodiscard]] const qmodel_t* seatedMagazine(edict_t* ent, const qmodel_t* model);
+[[nodiscard]] int fittedAttachment(edict_t* ent, const qmodel_t* model);
+[[nodiscard]] const b3HullData* attachmentHull(edict_t* ent, const qmodel_t* model);
 [[nodiscard]] bool isRigid(edict_t* ent);
 
 [[nodiscard]] bool isCorpse(edict_t* ent, int num); // (below)

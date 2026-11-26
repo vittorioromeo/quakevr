@@ -333,8 +333,9 @@ void() VR_AT_Frame =
         VR_Test_Check(VRGetEntWeaponInst(p, h) == vr_at_rec && vr_at_rec.wi_attach == VR_ATT_BAYONET,
             sprintf("picked up by the hand: the same record, the bayonet on it (weapon %g)", VRGetEntWeapon(p, h)));
         localcmd("vr_test_handcontact 1 0\n");
-        // Thrown at a grunt, point first: stuck by the bayonet's point.
-        setorigin(p, vr_eh_home);
+        // Thrown at a grunt, point first: stuck by the bayonet's point. (From 160 units back: at home the grunt stands on the
+        // hall's first mantle block, 32 high from y 352, and the gun's stock struck its face first: attach4.)
+        setorigin(p, vr_eh_home - '0 160 0');
         vr_et_m = VR_ET_Grunt(80);
         makevectors('0 1 0' * p.v_viewangle_y);
         vector go = normalize(VR_ET_Chest(vr_et_m) - (p.origin + '0 0 16'));
@@ -349,16 +350,7 @@ void() VR_AT_Frame =
             vr_at_w.weaponinst == vr_at_rec && vr_at_rec.wi_attach == VR_ATT_BAYONET;
         string thrownWhat = sprintf("thrown point first: stuck by the bayonet's point, the bayonet on it (stick %g, embed %g)",
             vr_at_w != world ? vr_at_w.vr_stick_kind : -1, vr_at_w != world ? vr_at_w.vr_stick_embed : -1);
-        if(thrownStuck)
-        {
-            VR_Test_Check(TRUE, thrownWhat);
-        }
-        else
-        {
-            // (Pending, not counted: the flying gun's Box3D body leaves the bayonet out, so it bounces off by its barrel; the
-            // next task, ROUND26 "attach1".)
-            bprint(sprintf("attach: PENDING %s: the gun's Box3D body has no bayonet yet\n", thrownWhat));
-        }
+        VR_Test_Check(thrownStuck, thrownWhat); // (its Box3D body has the bayonet's hull: vr_box3d_mesh.cpp attachmentHull)
         if(vr_at_w != world)
         {
             remove(vr_at_w);
