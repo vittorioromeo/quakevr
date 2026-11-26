@@ -20,6 +20,8 @@ namespace { za::Atomic<unsigned> tracyQueued{0}; }
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
+#include <stdio.h> // (snprintf: describeNow, the stall line)
+
 namespace qvr::jobs
 {
 namespace
@@ -35,6 +37,63 @@ za::Atomic<Pool*> game{nullptr};
 za::Atomic<bool> parallelOn{true};
 
 using MO = za::MemoryOrder;
+
+// What each worker runs now (describeNow): where its job was posted (line > 0) or its parallelFor's site (line 0),
+// and since when. A worker takes its slot with its first job (the pool's workers, and a thread that ran queued jobs
+// while the pool was destroyed); past maxBusy, none.
+constexpr int maxBusy = 64;
+struct Busy
+{
+    za::Atomic<const char*> what{nullptr};
+    za::Atomic<unsigned> line{0};
+    za::Atomic<za::I64> since{0};
+};
+Busy busy[maxBusy];
+za::Atomic<int> busySlots{0};
+thread_local int busySlot = -1;
+za::Atomic<za::SizeT> queuedTasks{0}; // posted with Pool::post and not started
+za::Atomic<void (*)(const char*)> stallReport{nullptr};
+
+// Marks this worker busy with `what` while it lives (then puts back what it was busy with: a nested call's chunk).
+class BusyScope
+{
+public:
+    BusyScope(const char* what, unsigned line) noexcept
+    {
+        if(busySlot < 0)
+        {
+            busySlot = busySlots.fetchAddRelaxed(1);
+        }
+        if(busySlot >= maxBusy)
+        {
+            return;
+        }
+        b = &busy[busySlot];
+        prevWhat = b->what.loadRelaxed();
+        prevLine = b->line.loadRelaxed();
+        prevSince = b->since.loadRelaxed();
+        b->since.storeRelaxed(za::Clock::nowNanoseconds());
+        b->line.storeRelaxed(line);
+        b->what.storeRelease(what ? what : "?");
+    }
+    ~BusyScope()
+    {
+        if(b)
+        {
+            b->since.storeRelaxed(prevSince);
+            b->line.storeRelaxed(prevLine);
+            b->what.storeRelease(prevWhat);
+        }
+    }
+    BusyScope(const BusyScope&) = delete;
+    BusyScope& operator=(const BusyScope&) = delete;
+
+private:
+    Busy* b{nullptr};
+    const char* prevWhat{nullptr};
+    unsigned prevLine{0};
+    za::I64 prevSince{0};
+};
 
 } // namespace
 
@@ -56,9 +115,9 @@ bool detail::Job::claimAndRun() noexcept
     }
     QVR_TRACY_SCOPE(scope, "Job execute");
 #ifdef QVR_TRACY
-    if(tracyFile)
+    if(file)
     {
-        VR_TracyJobText(tracyFrom, tracyFile, tracyLine); // where it was posted (the viewer groups by it: Find Zone)
+        VR_TracyJobText(tracyFrom, file, line); // where it was posted (the viewer groups by it: Find Zone)
     }
 #endif
     execute();
@@ -101,17 +160,25 @@ int Pool::workers() const noexcept
     return impl->workers;
 }
 
+za::SizeT Pool::helpersQueued() const noexcept
+{
+    return static_cast<za::SizeT>(impl->loops.getOutstandingHelpers());
+}
+
 void Pool::post(detail::JobPtr<detail::Job> job)
 {
     QVR_TRACY_SCOPE(scope, "Job enqueue");
 #ifdef QVR_TRACY
     VR_TracyPlot("Job queue entries", tracyQueued.fetchAddRelaxed(1) + 1);
 #endif
+    queuedTasks.fetchAddRelaxed(1u);
     impl->threads->post([job = ZA_MOVE(job)] {
         VR_TracyThreadName("Quake VR worker");
 #ifdef QVR_TRACY
         VR_TracyPlot("Job queue entries", tracyQueued.fetchSubRelaxed(1) - 1);
 #endif
+        queuedTasks.fetchSubRelaxed(1u);
+        const BusyScope busyNow{job->file, job->line};
         job->claimAndRun();
         VR_CrtHeapThreadTidy(); // (the worker's own heap, at most once a vr_heap_thread_tidy: vr_crtheap.h)
     });
@@ -143,18 +210,16 @@ Task::~Task()
     wait();
 }
 
-#ifdef QVR_TRACY
-void detail::Job::note(const char* file, unsigned line) noexcept
+void detail::Job::note(const char* fileName, unsigned lineNumber) noexcept
 {
+#ifdef QVR_TRACY
     tracyFrom = VR_TracyCurrentName();
-    tracyFile = file;
-    tracyLine = line;
+#endif
+    file = fileName;
+    line = lineNumber;
 }
 
 void Task::post(Pool& pool, void (*fn)(void*), void* context, const za::SourceLocation where)
-#else
-void Task::post(Pool& pool, void (*fn)(void*), void* context)
-#endif
 {
     ZA_ASSERT(job->phase.loadAcquire() == 2);
     QVR_JOBS_NOTE(job);
@@ -205,6 +270,33 @@ void record(Site* site, za::SizeT items, bool split, za::SizeT caller, za::SizeT
 }
 
 Site* siteList = nullptr; // (constant-initialised: every Site's constructor, at static initialisation, finds it)
+
+constexpr za::I64 stallNanoseconds = 1'000'000'000; // a split call's caller alone this long: stallReport
+
+// The stall line (stallReport): the call's caller has run alone over a second (`during`), or the call has ended.
+void reportStall(const char* name, za::SizeT mine, za::SizeT chunks, za::I64 start, bool during) noexcept
+{
+    void (*const report)(const char*) = stallReport.loadAcquire();
+    if(!report)
+    {
+        return;
+    }
+    char now[1024];
+    char line[1280];
+    const double s = static_cast<double>(za::Clock::nowNanoseconds() - start) * 1e-9;
+    if(during)
+    {
+        describeNow(now, sizeof(now));
+        snprintf(line, sizeof(line), "parallelFor \"%s\": %.1f s with no helper (%zu of %zu chunks run by its caller); %s",
+            name, s, mine, chunks, now);
+    }
+    else
+    {
+        snprintf(line, sizeof(line), "parallelFor \"%s\": ended after %.1f s, %zu of %zu chunks by helpers", name, s,
+            chunks - mine, chunks);
+    }
+    report(line);
+}
 
 } // namespace
 
@@ -257,25 +349,43 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
     // Only the caller writes `mine` (no atomic per chunk: most calls have chunk 1); a helper only reads the id.
     counters.loops.fetchAddRelaxed(1u);
     const za::ThreadId caller = za::ThisThread::getId();
+    const char* const name = site ? site->name : "parallelFor";
+    const za::I64 start = site ? since : za::Clock::nowNanoseconds();
     za::SizeT mine = 0;
+    za::Atomic<bool> helped{false}; // (a helper ran a chunk)
+    bool stalled = false;           // (the caller said it ran alone over a second: stallReport)
     za::parallelFor(
         *impl->threads, impl->loops, count,
         [&](za::SizeT begin, za::SizeT end) {
             VR_TracyThreadName("Quake VR worker");
             QVR_TRACY_SCOPE(scope, "Job parallel chunk");
-            VR_TracyText(site ? site->name : "parallelFor");
-            body(begin, end);
+            VR_TracyText(name);
             if(za::ThisThread::getId() == caller)
             {
+                body(begin, end);
                 mine++;
+                if(!stalled && !helped.loadRelaxed() && za::Clock::nowNanoseconds() - start > stallNanoseconds)
+                {
+                    stalled = true;
+                    reportStall(name, mine, chunks, start, true);
+                }
             }
             else
             {
+                {
+                    const BusyScope busyNow{name, 0};
+                    helped.storeRelaxed(true);
+                    body(begin, end);
+                }
                 VR_CrtHeapThreadTidy(); // (a helper's own heap, at most once a vr_heap_thread_tidy)
             }
         },
         chunk);
     ZA_ASSERT(mine <= chunks);
+    if(stalled)
+    {
+        reportStall(name, mine, chunks, start, false);
+    }
     counters.chunksCaller.fetchAddRelaxed(mine);
     counters.chunksHelpers.fetchAddRelaxed(chunks - mine);
     record(site, count, true, mine, chunks - mine, since);
@@ -331,6 +441,71 @@ int workers() noexcept
 void setParallel(bool on) noexcept
 {
     parallelOn.storeRelaxed(on);
+}
+
+const char* describeNow(char* out, za::SizeT size) noexcept
+{
+    const Pool* p = pool();
+    const za::I64 now = za::Clock::nowNanoseconds();
+    // The busy workers grouped by what they run (where a job was posted is its file's name and line).
+    struct Group
+    {
+        const char* what;
+        unsigned line;
+        int count;
+        za::I64 longest;
+    };
+    Group groups[maxBusy];
+    int nGroups = 0, nBusy = 0;
+    const int slots = za::min(busySlots.loadRelaxed(), maxBusy);
+    for(int i = 0; i < slots; i++)
+    {
+        const char* what = busy[i].what.loadAcquire();
+        if(!what)
+        {
+            continue;
+        }
+        const unsigned line = busy[i].line.loadRelaxed();
+        const za::I64 took = now - busy[i].since.loadRelaxed();
+        nBusy++;
+        int g = 0;
+        while(g < nGroups && !(groups[g].what == what && groups[g].line == line))
+        {
+            g++;
+        }
+        if(g == nGroups)
+        {
+            groups[nGroups++] = Group{what, line, 0, 0};
+        }
+        groups[g].count++;
+        groups[g].longest = za::max(groups[g].longest, took);
+    }
+    za::SizeT used = static_cast<za::SizeT>(snprintf(out, size, "pool: %zu tasks and %zu helpers queued, %d of %d workers busy",
+        queuedTasks.loadRelaxed(), p ? p->helpersQueued() : 0, nBusy, p ? p->workers() : 0));
+    for(int g = 0; g < nGroups && used < size; g++)
+    {
+        const char* what = groups[g].what;
+        for(const char* c = what; *c; c++)
+        {
+            if(*c == '/' || *c == '\\')
+            {
+                what = c + 1; // (a file's name without its folders)
+            }
+        }
+        char at[16] = "";
+        if(groups[g].line)
+        {
+            snprintf(at, sizeof(at), ":%u", groups[g].line);
+        }
+        used += static_cast<za::SizeT>(snprintf(out + used, size - used, "%s %s%s x%d (%.1f s)", g ? "," : ":", what, at,
+            groups[g].count, static_cast<double>(groups[g].longest) * 1e-9));
+    }
+    return out;
+}
+
+void setStallReport(void (*report)(const char* line)) noexcept
+{
+    stallReport.storeRelease(report);
 }
 
 bool parallel() noexcept

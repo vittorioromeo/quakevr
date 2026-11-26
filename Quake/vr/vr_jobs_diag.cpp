@@ -61,6 +61,8 @@ void info_f()
     Con_Printf("  async tasks %zu (%zu run by their waiter); parallelFor %zu split, %zu on the caller alone\n", s.tasks,
         s.claimedByWaiter, s.loops, s.serialLoops);
     Con_Printf("  chunks: %zu by callers, %zu by helpers\n", s.chunksCaller, s.chunksHelpers);
+    char now[1024];
+    Con_Printf("  %s\n", describeNow(now, sizeof(now)));
 }
 
 // vr_jobs_sites [reset]: each parallelFor site's counters (vr_jobs.hpp, Site), or every one zeroed.

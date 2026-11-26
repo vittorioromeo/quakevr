@@ -116,6 +116,16 @@ public:
     ParallelForSlots(const ParallelForSlots&)            = delete;
     ParallelForSlots& operator=(const ParallelForSlots&) = delete;
 
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Helper tasks posted through these slots that have not run yet (a snapshot, for diagnostics)
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] U64 getOutstandingHelpers() const noexcept
+    {
+        return m_outstanding.loadRelaxed() & ~destroyBit;
+    }
+
 private:
     ////////////////////////////////////////////////////////////
     template <bool TreeWake, typename F>
