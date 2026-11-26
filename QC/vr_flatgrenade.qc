@@ -1075,6 +1075,7 @@ void() VR_FlatThrow_WatchHit =
         vr_flatthrow_hitwho = t;
         vr_flatthrow_hitvel = t.velocity;
         vr_flatthrow_hitorg = t.origin;
+        dprint(sprintf("flat throw: flying from %v at %v (%s)\n", t.origin, t.velocity, t.classname));
         return;
     }
     if(vr_flatthrow_hitvel == '0 0 0')
