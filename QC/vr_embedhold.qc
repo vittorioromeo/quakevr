@@ -97,6 +97,7 @@ void(entity p) VR_Skewer_AllOff; // (vr_skewer.qc)
 .float  vr_hold_flatarmed;    // the last think's set them (0: the hold's first)
 .float  vr_hold_flatdrop_off; // time VR_Embed_FlatArm dropped the off hand for arm reach (0: never)
 .float  vr_hold_flatdrop_main; // ... and the main hand
+float VR_EMBED_FLATARM_REACH = 0.6; // m from the shoulder a posed flat arm reaches unstretched (VR_Embed_FlatOtherCanJoin)
 
 // Wooden crates and barrels (his notes 2026-11-08, items 13 and 14; vr_embed_props): a held stab or swing hard enough stays in one as in
 // a body (the engine's stickHeld: its Box3D body met, kind AXESTICK_PROP, riding its origin and angles). The hold is a body's but for its
@@ -971,7 +972,7 @@ float(entity e, entity p, float xOther) VR_Embed_FlatOtherCanJoin =
         return FALSE;
     }
     if((e.vr_hold_hands & VR_Embed_Bit(xOther)) ||
-       !VR_Hand_Free(p, xOther, VR_HANDFREE_GUNGRIP) || !VRIsHandWeaponless(p, xOther))
+       !VR_Hand_Free(p, xOther, VR_HANDFREE_GUNGRIP | VR_HANDFREE_LOCKED) || !VRIsHandWeaponless(p, xOther))
     {
         return FALSE;
     }
@@ -990,17 +991,15 @@ float(entity e, entity p, float xOther) VR_Embed_FlatOtherCanJoin =
     float t = ab2 > 0.01 ? max(0, min(1, ((shoulder - a) * ab) / ab2)) : 0;
     vector grip = a + ab * t;
     float dist = min(vlen(grip - shoulder), vlen(a - shoulder));
-    float reach = 0.72 * max(1, cvar_hget(cvarh_vr_embed_arm_stretch)) * VRMetersToUnits();
-    if(flatOther < 30)
-    {
-        reach = reach * (flatOther / 30);
-    }
+    // (Its arm's own length from the shoulder, and vr_flat_embed_other_hand cm more: the posed arm stretched onto it.)
+    float reach = (VR_EMBED_FLATARM_REACH + 0.01 * flatOther) * VRMetersToUnits();
     if(dropped > 0)
     {
         reach = reach * 0.85;
     }
     float ok = (dist <= reach);
-    if(cvar_hget(cvarh_vr_debug_axestick) >= 2)
+    // (Each think while one hand holds it: said when it takes it, or at 4 every think.)
+    if(cvar_hget(cvarh_vr_debug_axestick) >= (ok ? 1 : 4))
     {
         dprint(sprintf("embedhold: flat other hand %g on %s: %.1f u from shoulder (limit %.1f u): %s\n",
             xOther, e.netname, dist, reach, ok ? "takes it too" : "out of reach"));

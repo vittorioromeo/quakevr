@@ -269,22 +269,16 @@ void() VR_FW_Frame =
         if(t > 1)
         {
             float armOn3 = (cvar_hget(cvarh_vr_flat_embed_arm) != 0);
-            // (Only the spear's shaft is within Other Hand (vr_flat_embed_other_hand) cm of the posed off hand, and only when
-            // vr_flat_embed_arm is on so the off hand can drop cleanly when its arm runs out.)
-            if(vr_et_case == 4)
+            // (flatembed3 item 3: every two-handed blade whose grip or shaft is in the free off arm's reach takes the off hand too --
+            // the spear's shaft, the sword stabbed one-handed, the axe swung -- only when vr_flat_embed_arm is on, so the off hand
+            // can drop cleanly when its arm runs out.)
+            if(armOn3)
             {
-                if(armOn3)
-                {
-                    VR_Test_Check(vr_fw_bothmin >= vr_fw_hold - 1, sprintf("%s: the other hand holds the stuck blade too (%g of %g frames)", vr_fw_name, vr_fw_bothmin, vr_fw_hold));
-                }
-                else
-                {
-                    VR_Test_Check(vr_fw_bothmin == 0, sprintf("%s: with vr_flat_embed_arm 0 no undroppable off hand attaches (%g of %g frames)", vr_fw_name, vr_fw_bothmin, vr_fw_hold));
-                }
+                VR_Test_Check(vr_fw_bothmin >= vr_fw_hold - 1, sprintf("%s: the other hand holds the stuck blade too (%g of %g frames)", vr_fw_name, vr_fw_bothmin, vr_fw_hold));
             }
             else
             {
-                VR_Test_Print(sprintf("%s: the other hand on it for %g of %g frames (it stays off at this distance)\n", vr_test_tag, vr_fw_bothmin, vr_fw_hold));
+                VR_Test_Check(vr_fw_bothmin == 0, sprintf("%s: with vr_flat_embed_arm 0 no undroppable off hand attaches (%g of %g frames)", vr_fw_name, vr_fw_bothmin, vr_fw_hold));
             }
             VR_Test_Check(vr_fw_gapoff <= VR_FW_TOL, sprintf("%s: the other hand on its arm (at most %.1f cm off, %g allowed)", vr_fw_name, vr_fw_gapoff, VR_FW_TOL));
             VR_ET_To(6);

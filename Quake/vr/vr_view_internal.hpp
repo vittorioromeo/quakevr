@@ -968,6 +968,8 @@ struct EmbedEase
 };
 void embedPinsReset();
 void embedPinStep(const hands::State& s, int hand);
+// Each frame before embedPinStep: a held blade stuck in a body drawn smoothed (vr_embed_ragdoll_smooth_*), the hands on it with it.
+void embedSmoothStep();
 [[nodiscard]] bool embedEase(int hand, EmbedEase& out);
 // (view::embedPinLead's, view::embedPinSeen's, view::embedEasing's.)
 [[nodiscard]] glm::vec3 embedPinLeadOf(int hand);
