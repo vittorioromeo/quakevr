@@ -3585,10 +3585,12 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
         stick = tugDrawnMost * units::metresToUnits();
     }
     // A big prop dragged (flat-screen Grab / Pull): the hand goes to it wherever it is, down to the floor (it lies too heavy to
-    // hoist to where the hold pose has the hand), as far as the hold keeps it (vr_flat_grab_drag_letgo).
+    // hoist to where the hold pose has the hand), as far as the hold keeps it (vr_flat_grab_drag_letgo; pushed, kept as far
+    // ahead as it was taken, up to the reach further: vr_flat_grab_push).
     if(on && h.drag)
     {
-        stick = za::fmax(stick, za::fmax(vr_flat_grab_drag_letgo.value, 0.1f) * units::metresToUnits());
+        const float kept = vr_flat_grab_push.value != 0.f ? za::fmax(vr_flat_grab_reach.value, 0.f) : 0.f;
+        stick = za::fmax(stick, (za::fmax(vr_flat_grab_drag_letgo.value, 0.1f) + kept) * units::metresToUnits());
     }
     on = on && stick > 0.f;
     if(on)

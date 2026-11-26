@@ -393,6 +393,10 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, float separa
         {
             return false; // (what its player just threw: noteThrows)
         }
+        if(dragsProp(numOf(capsule), numOf(other)))
+        {
+            return false; // (what its player pushes and drags with his hands: the push comes through them, holdPropDrag)
+        }
         return !capsuleStandsOn(capsule, other, point, normal);
     }
     const bool aFist = (b3Shape_GetFilter(a).categoryBits & catHand) != 0;
