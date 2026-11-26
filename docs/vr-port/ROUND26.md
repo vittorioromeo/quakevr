@@ -1580,3 +1580,31 @@ overhead attack with both hands. Make this an option (on by default)."
   (e.g. `"tune vr_flat_overhand_2h_end_out 0"`). `flatmelee4_test.sh` 9/0 and `flatmelee_test.sh` 12/0 (their V with
   empty hands is now the two-fisted blow; their checks still hold). eval.sh not run: no shared melee code changed
   (VRMeleeDmg/T_Damage_VRMelee only scale when the flat bit is set). Scene `flat_melee_2fist`.
+
+## questcrash: Quest Foveation Off no longer crashes; presets on the Quest keep its budget (branch agent/questcrash, 2026-11-26)
+
+His Quest (next ab5d33a, standalone): the game crashed switching Quest Foveation from High to Off; Standalone -> "Quake
+(off)" -> Low mid-game left it under 1 fps with Standalone out of reach; then every start crashed after loading vrstart.
+- **The crash** (logcat 19:38:10, 19:47:04, 19:47:52; the crash reports themselves are 0660 to adb): every one SIGSEGV 0x30
+  in libGLESv2_adreno under libvrapiimpl, from `xrEndFrame` (OpenXrBackend::endFrame <- VR_RenderView): C4p's /
+  qfovcrash's / hubcrash's signature. **Cause**: since qfov3 the eye swapchains were always made foveation-capable
+  (XrSwapchainCreateInfoFoveationFB, scaled bins), and with Off (a level-0 profile) the eyes take the post-process path
+  (late acquire, the image's invalidate, the shared framebuffer attach) into those images: the runtime's driver work in
+  xrEndFrame crashes. Off saved in the config (Quake (off) put the Standalone rows back to the PC's values: foveation 0)
+  made it every start. **Fix** (vr_backend_openxr_quest.cpp): capable images only while `vr_xr_foveation` is over 0
+  (`QuestExtensions::eyesCapable`); a level crossing 0 takes new eye swapchains (as a level change already did, C4p), Off
+  makes plain ones (the images every Quest build used before qfov3) and applies no profile.
+- **The slow presets** (vr_gfxpresets.cpp): leaving Standalone put back every Standalone row as it was before it, i.e.
+  the PC defaults (full resolution, no dynamic resolution, OIT, the float depth, foveation off...); Low then added its
+  shadows. On the Quest (and under `-glescompat`) a graphics preset or My Settings now sets its look while the headset's
+  budget stays: the Standalone rows no graphics preset sets keep the nearest Standalone level's values, and the Quest's
+  must-haves (`vr_quest_check`'s: MSAA, bloom, the shadowed dynamic lights, the dynamic resolution's floor, and new: the
+  shadowed map lights) hold after every pick, each said. The PC is unchanged.
+- **Never stuck**: any pick (a graphics preset, Standalone, My Settings; the menu, the console, `vr_graphics_preset`)
+  whose frames then stay under `vr_preset_revert_fps` (5, archived; 0 off) is put back as before it: past a second's
+  grace (the programs it compiles), the median of 8 frames; said on the console and the menu's note line ("Too slow on
+  this headset: put back as before."). `vr_preset_revert_test <ms>` counts each frame as that long (Debug > Startup:
+  Preset Revert Test 500 ms / Off).
+- Tests: `Misc/quakevr/questcrash_preset_test.sh` (ES profile: Standalone -> Off -> Low -> Medium keep the budget rows,
+  the must-haves hold, a 20 ms pick kept, a 500 ms pick put back; PC: leaving Standalone as before) 20/0;
+  haze_preset_test 8/0.
