@@ -4589,9 +4589,9 @@ void() VR_Embed_TestFrame =
         {
             VR_PE_Begin(ask); // (flat: the pole's other hand in four states; a held blade's ragdoll smoothing: vr_poleembed_test.qc)
         }
-        if(ask == 73)
+        if(ask == 73 || ask == 74)
         {
-            VR_VS_Begin(); // (VR: the pole's other hand round the shaft, fixed on it, through a stab that sticks: vr_poleembed_test.qc)
+            VR_VS_Begin(ask); // (VR: the pole's other hand round the shaft, fixed on it, through a stab that sticks: vr_poleembed_test.qc)
         }
         if(ask == 42)
         {

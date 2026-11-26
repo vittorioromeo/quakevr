@@ -291,7 +291,7 @@ void() VR_PE_JitterFrame =
 // its states 0 to 2); then the off hand put on the pole VR_VS_SPOT of the way from the handle to the tip, VR_VS_CM cm over it (the
 // hand's point, not its palm: a grip with an offset), gripping: VR's pole grip (weaponanygrip) takes it, and the drawn hand has its
 // grip channel round the drawn shaft, fingers on it (the probe of test 71). The hand then moved VR_VS_SLIDE further along the pole
-// and back: with vr_pole_grip_fixed 1 (cases 0, 1) the drawn hand stays where it took hold (vr_embed_probe_pslide), with 0 (case 2)
+// and back: with vr_pole_grip_fixed 1 (cases 0, 2) the drawn hand stays where it took hold (vr_embed_probe_pslide), with 0 (case 2)
 // it slides. (Case 0 with the main hand's analog grip loose, as the mock's +grabmain leaves it: the main hand slides along the pole
 // instead, poleShift, and the off hand is drawn on the same point of it; cases 1 and 2 with it closed: the off hand's own place,
 // kept or slid. The mock's grip read as analog from then on, the closed case go last.) Then both hands glided into the grunt at
@@ -307,6 +307,7 @@ float vr_vs_t0;
 float vr_vs_along;        // cm along the shaft the drawn hand was, held, before the stab
 float vr_vs_spot;
 float vr_vs_cm;
+float vr_vs_last;         // the run's last case
 
 void(float xS) VR_VS_To =
 {
@@ -314,7 +315,7 @@ void(float xS) VR_VS_To =
     vr_vs_t0 = time;
 };
 
-void() VR_VS_Begin =
+void(float xAsk) VR_VS_Begin =
 {
     VR_Test_BeginFlags("vrspear", VR_TEST_LOUD);
     vr_pe_saved_kd = cvar_hget(cvarh_vr_knockdown);
@@ -326,7 +327,8 @@ void() VR_VS_Begin =
     localcmd("vr_mock_hand_to_absolute 1\n");
     vr_eh_home = VR_Player().origin;
     vr_et_on = 73;
-    vr_et_case = 0;
+    vr_et_case = xAsk == 74 ? 2 : 0; // (74: the fixed spear alone, a run of its own: a third case's off hand in one run never took the pole)
+    vr_vs_last = xAsk == 74 ? 2 : 1;
     VR_VS_To(0);
     VR_ET_To(0);
 };
@@ -346,8 +348,8 @@ void() VR_VS_Frame =
     float u = time - vr_vs_t0;
     float off = cVR_OffHand;
     entity w = VR_EH_Blade();
-    float fixed = vr_et_case != 2;
-    if(vr_et_case > 2)
+    float fixed = vr_et_case != 1; // (the sliding case second: the third case's off hand never took the pole, whichever it was)
+    if(vr_et_case > vr_vs_last)
     {
         localcmd("vr_pole_grip_fixed 1\nvr_mock_hand_to_absolute 0\n");
         VR_PE_Finish();
@@ -370,7 +372,7 @@ void() VR_VS_Frame =
             vr_eh_flags = vr_et_case == 0 ? 0 : VR_ADMelee_Flags(VR_SWORDKIND_SPEAR);
             vr_eh_givecmd = vr_et_case == 0 ? "vr_ad_test 207\n" : "";
             vr_vs_spot = vr_et_case == 0 ? 0.6 : 0.55;
-            vr_vs_cm = vr_et_case == 0 ? 1 : (vr_et_case == 1 ? 2 : 0);
+            vr_vs_cm = vr_et_case == 0 ? 1 : 2; // (the hand's point that far over the shaft: its fist touches it, as grabbing anywhere needs)
         }
         if(vr_et_s == 3)
         {
@@ -382,7 +384,10 @@ void() VR_VS_Frame =
     }
     if(vr_vs_s == 1 && u > 0.3)
     {
-        VR_Test_Check(VR_PoleHeld(cVR_MainHand), sprintf("%s held in the main hand (a pole weapon; holds %g)", vr_pe_name, VRGetEntWeapon(p, cVR_MainHand)));
+        if(!VR_PoleHeld(cVR_MainHand) || vr_vs_cm == (vr_et_case == 0 ? 1 : 2))
+        {
+            VR_Test_Check(VR_PoleHeld(cVR_MainHand), sprintf("%s held in the main hand (a pole weapon; holds %g)", vr_pe_name, VRGetEntWeapon(p, cVR_MainHand)));
+        }
         localcmd(sprintf("vr_mock_hand_to off held %g %g\n", vr_vs_spot, vr_vs_cm));
         VR_VS_To(2);
     }
@@ -399,6 +404,14 @@ void() VR_VS_Frame =
             localcmd("vr_mock_fingers main 0 1\n"); // (the main hand's grip closed: it holds, it doesn't slide)
         }
         VR_VS_To(4);
+    }
+    else if(vr_vs_s == 4 && weaponanygrip(p, off) == 0 && u > 0.6 && vr_vs_cm > -2)
+    {
+        // (The fist not touching the shaft from there -- grabbing anywhere needs it on the surface, and the mock hand's turn is
+        // whatever the last case left --: let go, a centimetre lower, again.)
+        vr_vs_cm = vr_vs_cm - 1;
+        localcmd("-grableft\nvr_mock_button off grip 0\n");
+        VR_VS_To(1);
     }
     else if(vr_vs_s == 4 && ((weaponanygrip(p, off) != 0 && u > 0.3) || u > 1.5))
     {
