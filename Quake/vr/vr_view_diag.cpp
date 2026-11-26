@@ -1718,6 +1718,7 @@ void handCheck_f()
 void qvr::view::registerDiagCommands()
 {
     Cmd_AddCommand("vr_aim_check", aimCheck_f);
+    Cmd_AddCommand("vr_attach_report", printDrawnAttachments); // the attachments drawn last frame (mp_test.py attach)
     Cmd_AddCommand("vr_hand_check", handCheck_f);
     Cmd_AddCommand("vr_dumpview", dumpView_f);
     Cmd_AddCommand("vr_grasp_dump", graspDump_f);

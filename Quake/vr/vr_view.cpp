@@ -2753,6 +2753,42 @@ struct AttachDrawn
 };
 AttachDrawn attachDrawn[2];
 
+// Every attachment drawn last frame (vr_attach_report: the multiplayer test's, mp_test.py attach): where (yours in a hand
+// or holster, a lying gun's, another player's held or holstered), whose (his entity; a lying gun's own), which kind.
+struct AttachSeen
+{
+    const char* where{""};
+    int ent{0};
+    int kind{0};
+    const qmodel_t* gun{nullptr};
+    glm::vec3 at{0.f};
+};
+struct AttachSeenList
+{
+    AttachSeen list[32];
+    int count{0};
+    int frame{-1};
+};
+AttachSeenList attachSeen;
+
+void noteAttachSeen(const char* where, int ent, int kind, const qvr::view::ViewEntity& out, const qvr::view::ViewEntity& gun)
+{
+    if(!out.visible)
+    {
+        return;
+    }
+    if(attachSeen.frame != host_framecount)
+    {
+        attachSeen.count = 0;
+        attachSeen.frame = host_framecount;
+    }
+    if(attachSeen.count < static_cast<int>(sizeof(attachSeen.list) / sizeof(attachSeen.list[0])))
+    {
+        attachSeen.list[attachSeen.count++] =
+            AttachSeen{where, ent, kind, gun.ent.model, glm::vec3{out.ent.origin[0], out.ent.origin[1], out.ent.origin[2]}};
+    }
+}
+
 // Every frame, after the guns are placed: their magazines (immersive reloading: the server's mode, the guns' flags; a
 // lying gun's U_QVR_NOMAG); with Show Load Points, a held magazine's reference point and radius (orange).
 // Every frame, after the guns are placed (before the open super shotgun hides its gun for its parts): the guns'
@@ -2771,6 +2807,8 @@ void setupAttachments()
         {
             d.mount = modelPoint(entities.attach[hand], glm::vec3{0.f});
             d.tip = modelPoint(entities.attach[hand], info->tip);
+            noteAttachSeen(hand == HAND_MAIN ? "hand_main" : "hand_off", cl.viewentity, kind, entities.attach[hand],
+                entities.weapon[hand]);
         }
         if(hand == HAND_MAIN && vr_attach_probe.value)
         {
@@ -2783,8 +2821,9 @@ void setupAttachments()
     }
     for(int h = 0; h < HolsterCount; h++)
     {
-        (void)view::placeAttachment(entities.holsterAttach[h], entities.holster[h],
-            attach::kindOfUid(holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONUID0)), -1);
+        const int kind = attach::kindOfUid(holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONUID0));
+        (void)view::placeAttachment(entities.holsterAttach[h], entities.holster[h], kind, -1);
+        noteAttachSeen("holster", cl.viewentity, kind, entities.holsterAttach[h], entities.holster[h]);
     }
     for(int i = 0; i < maxWorldWeapons; i++)
     {
@@ -2802,6 +2841,7 @@ void setupAttachments()
         gun.visible = true;
         gun.netEntity = static_cast<int>(e - cl_entities);
         (void)view::placeAttachment(entities.worldAttach[i], gun, kind, -1);
+        noteAttachSeen("lying", gun.netEntity, kind, entities.worldAttach[i], gun);
     }
 }
 
@@ -3922,6 +3962,10 @@ void drawGunParts(ViewEntity& gun, const VrGunLook& look, GunParts& g, bool held
         p[GunParts::PumpBody].visible = p[GunParts::Pump].visible = false;
     }
     (void)placeAttachment(p[GunParts::Attach], gun, look.attach, -1); // (before the gun is hidden for its parts)
+    if(player > 0)
+    {
+        noteAttachSeen(held ? "other_held" : "other_holster", player, look.attach, p[GunParts::Attach], gun);
+    }
     if(!held)
     {
         // As your own holsters' (setupSsgParts, setupMagazines): no revolver in parts, no magazine sliding.
@@ -6356,4 +6400,17 @@ extern "C" void VR_SetupViewEntities()
     wounds::frame();
     drips::frame(s.head); // water off the wet, blood off the wounded (vr_drips.cpp)
     playergore::frame();  // your own wounds' drips (vr_player_gore; vr_playergore.cpp)
+}
+
+// vr_attach_report (vr_view_diag.cpp): every attachment drawn last frame, a line each, then the count (mp_test.py attach).
+void qvr::view::printDrawnAttachments()
+{
+    const int n = attachSeen.frame >= host_framecount - 1 ? attachSeen.count : 0;
+    for(int i = 0; i < n; i++)
+    {
+        const AttachSeen& a = attachSeen.list[i];
+        Con_Printf("attach_drawn: where=%s ent=%d kind=%d gun=%s at=%.1f %.1f %.1f\n", a.where, a.ent, a.kind,
+            a.gun ? a.gun->name : "-", a.at.x, a.at.y, a.at.z);
+    }
+    Con_Printf("attach_report: %d drawn\n", n);
 }
