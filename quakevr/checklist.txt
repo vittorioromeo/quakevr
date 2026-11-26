@@ -37,6 +37,7 @@ Flat-screen or VR: Load a map whose collision is not cached yet: the loading pan
 Flat-screen or VR: Right after a map load that built its collision from scratch, crouch and lie down at once: no pause or freeze (monsters may use their old hitbox for a few seconds, unnoticeable). {test:load_collision_cold}
 Flat-screen or VR: the hub's open grass and the cliff faces round the lake are simplified for cheaper collision: walk and look round the island's open ground and along the cliffs; the grass and cliffs should look as before, with no new spots where you snag on flat or gently sloped ground. {test:vrstart}
 Flat-screen or VR: a cold first load of the hub (nothing cached) builds its collision about 10% faster: the loading panel's collision steps should finish a little sooner. {test:load_collision_cold}
+Flat-screen or VR: On the hub, lie down and crawl around the south-west near the shore (around x -550, y 1000-1200): no invisible wall where there's nothing to bump into. {test:hub_start}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
