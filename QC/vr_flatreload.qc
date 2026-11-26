@@ -528,6 +528,31 @@ void(float xHand) VR_FlatReload_CycleIn =
         VRGetEntWeapon(self, xHand), VRGetEntWeaponClip(self, xHand), VR_ClipSizeIn(self, xHand), VR_FlatReload_Storage(xHand)));
 };
 
+// Before `xHand` switches its weapon's ammo type (ToggleSecondaryAmmo): cancel any reload trip under way for the old
+// ammo, refund its clip and (for a magazine gun with one in) drop the old magazine now -- before the flags flip -- so
+// it leaves as the old ammo's rather than turning into the new one's first.
+void(float xHand) VR_FlatReload_AmmoSwitch =
+{
+    if(!VR_FlatPlay(self))
+    {
+        return;
+    }
+    if(VR_FlatReload_Busy(self, xHand))
+    {
+        VR_FlatReload_Stop(xHand, FALSE);
+    }
+    if(xHand == cVR_MainHand)
+    {
+        self.vr_flatrl_unl1 = 0;
+    }
+    else
+    {
+        self.vr_flatrl_unl0 = 0;
+    }
+    VRTryUnloadWeapon(self, xHand, VRGetEntWeapon(self, xHand), VRGetWeaponFlags(xHand));
+    VR_FlatReload_EjectNow(xHand, "the ammo changed");
+};
+
 // Each server frame, each hand (vr_wpnholster.qc's player frame): the trip's steps, its cancel, and the empty clip's start.
 void(float xHand) VR_FlatReload_HandFrame =
 {

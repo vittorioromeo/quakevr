@@ -24,4 +24,26 @@ check "$(grep -a 'revgrip: hand' <<<"$D" | sed -n 2p | grep -q 'flips its grip: 
 check "$(grep -aq '^ammo:' <<<"$D" && echo 0 || echo 1)" "the dagger: no ammo change"
 G=$(awk '/^flatammo: shotgun/{on=1;next} /^flatammo: done/{on=0} on' "$L")
 check "$(grep -aq 'flatreload: n: next ammo type' <<<"$G" && ! grep -aq 'revgrip: hand\|^ammo:' <<<"$G" && echo 1 || echo 0)" "the shotgun (no other ammo, no flip): N sent, nothing changed"
+
+# Magazine weapons loaded with normal ammo and 0 alternate ammo: pressing N must eject the OLD magazine without
+# transforming the attached magazine to the new ammo type first (nailgun, super nailgun, thunderbolt).
+GIVE_NG="vr_test_give_wid 6; impulse 149; wait10; give n 50; impulse 55; wait60; echo flatammo: mag_ng"
+GIVE_SNG="vr_test_give_wid 7; impulse 149; wait10; give n 50; impulse 55; wait60; echo flatammo: mag_sng"
+GIVE_LG="vr_test_give_wid 11; impulse 149; wait10; give c 50; impulse 55; wait60; echo flatammo: mag_lg"
+bash $KIT/run.sh $AGENT -ExtraArgs -flatscreenmode -Script "map vrtesthall; god; notarget; developer 1; vr_flat_reload_debug 1; vr_reload_debug 1; vr_flat_holsters 0; wait20; $GIVE_NG; $(KEY n); wait15; $GIVE_SNG; $(KEY n); wait15; $GIVE_LG; $(KEY n); wait15; echo flatammo: mag_done; toggleconsole; quit" \
+  -QuitOn "^flatammo: mag_done" -Timeout 180 -Filter "^ammo|flatmag:|flatreload: n|flatammo|reload: |SCNERR" > "$S/flatammo_mag.log" 2>&1
+M="$S/flatammo_mag.log"
+
+NG=$(awk '/^flatammo: mag_ng/{on=1;next} /^flatammo: mag_sng/{on=0} on' "$M")
+check "$(grep -aq 'flatmag: hand 1 weapon progs/v_lava.mdl mag none (visible 0, nomag 1)' <<<"$NG" && ! grep -aq 'v_lava.mdl mag .*visible 1' <<<"$NG" && echo 1 || echo 0)" "nailgun: N with 0 lava nails never shows attached lava mag"
+check "$(grep -aq '^ammo: hand 1, Nailgun: its other ammo' <<<"$NG" && grep -aq 'reload: a magazine of 0 out of the gun (hand 1, flat-screen play: the ammo changed)' <<<"$NG" && echo 1 || echo 0)" "nailgun: N ejects old normal magazine at switch"
+
+SNG=$(awk '/^flatammo: mag_sng/{on=1;next} /^flatammo: mag_lg/{on=0} on' "$M")
+check "$(grep -aq 'flatmag: hand 1 weapon progs/v_lava2.mdl mag none (visible 0, nomag 1)' <<<"$SNG" && ! grep -aq 'v_lava2.mdl mag .*visible 1' <<<"$SNG" && echo 1 || echo 0)" "super nailgun: N with 0 lava nails never shows attached lava mag"
+check "$(grep -aq '^ammo: hand 1, Super Nailgun: its other ammo' <<<"$SNG" && grep -aq 'reload: a magazine of 0 out of the gun (hand 1, flat-screen play: the ammo changed)' <<<"$SNG" && echo 1 || echo 0)" "super nailgun: N ejects old normal magazine at switch"
+
+LG=$(awk '/^flatammo: mag_lg/{on=1;next} /^flatammo: mag_done/{on=0} on' "$M")
+check "$(grep -aq 'flatmag: hand 1 weapon progs/v_light_plasma.mdl mag none (visible 0, nomag 1)' <<<"$LG" && ! grep -aq 'v_light_plasma.mdl mag .*visible 1' <<<"$LG" && echo 1 || echo 0)" "thunderbolt: N with 0 plasma never shows attached plasma cell"
+check "$(grep -aq '^ammo: hand 1, Thunderbolt: its other ammo' <<<"$LG" && grep -aq 'reload: a magazine of 0 out of the gun (hand 1, flat-screen play: the ammo changed)' <<<"$LG" && echo 1 || echo 0)" "thunderbolt: N ejects old cell at switch"
+
 verdict; exit $fail
