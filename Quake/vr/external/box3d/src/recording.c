@@ -282,16 +282,6 @@ void b3RecW_MASSDATA( b3RecBuffer* buf, b3MassData v )
 	b3RecW_MATRIX3( buf, v.inertia );
 }
 
-void b3RecW_LOCKS( b3RecBuffer* buf, b3MotionLocks v )
-{
-	b3RecW_BOOL( buf, v.linearX );
-	b3RecW_BOOL( buf, v.linearY );
-	b3RecW_BOOL( buf, v.linearZ );
-	b3RecW_BOOL( buf, v.angularX );
-	b3RecW_BOOL( buf, v.angularY );
-	b3RecW_BOOL( buf, v.angularZ );
-}
-
 static void b3RecW_STR( b3RecBuffer* buf, const char* s )
 {
 	if ( s == NULL )
@@ -326,6 +316,8 @@ _Static_assert( sizeof( void* ) != 8 || sizeof( b3ShapeDef ) == 120,
 				"b3ShapeDef changed: update b3RecW_SHAPEDEF and b3RecR_SHAPEDEF together" );
 _Static_assert( sizeof( void* ) != 8 || sizeof( b3ParallelJointDef ) == 128,
 				"b3ParallelJointDef changed: update b3RecW_PARALLELJOINTDEF and its reader together" );
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3MotionLockJointDef ) == 120,
+				"b3MotionLockJointDef changed: update b3RecW_MOTIONLOCKJOINTDEF and its reader together" );
 _Static_assert( sizeof( void* ) != 8 || sizeof( b3DistanceJointDef ) == 160,
 				"b3DistanceJointDef changed: update b3RecW_DISTANCEJOINTDEF and its reader together" );
 _Static_assert( sizeof( void* ) != 8 || sizeof( b3FilterJointDef ) == 112,
@@ -346,6 +338,8 @@ _Static_assert( sizeof( void* ) != 8 || sizeof( b3MoverJointDef ) == 128,
 				"b3MoverJointDef changed: update b3RecW_MOVERJOINTDEF and its reader together" );
 _Static_assert( sizeof( void* ) != 8 || sizeof( b3PogoJointDef ) == 152,
 				"b3PogoJointDef changed: update b3RecW_POGOJOINTDEF and its reader together" );
+_Static_assert( sizeof( void* ) != 8 || sizeof( b3TireJointDef ) == 200,
+				"b3TireJointDef changed: update b3RecW_TIREJOINTDEF and its reader together" );
 
 void b3RecW_EXPLOSIONDEF( b3RecBuffer* buf, b3ExplosionDef v )
 {
@@ -371,7 +365,7 @@ void b3RecW_BODYDEF( b3RecBuffer* buf, b3BodyDef v )
 	b3RecW_STR( buf, v.name );
 	// userData: not preserved
 	b3RecW_U64( buf, 0u );
-	b3RecW_LOCKS( buf, v.motionLocks );
+	b3RecW_BOOL( buf, v.fixedRotation );
 	b3RecW_BOOL( buf, v.enableSleep );
 	b3RecW_BOOL( buf, v.isAwake );
 	b3RecW_BOOL( buf, v.isBullet );
@@ -435,6 +429,15 @@ void b3RecW_PARALLELJOINTDEF( b3RecBuffer* buf, b3ParallelJointDef v )
 	b3RecW_F32( buf, v.hertz );
 	b3RecW_F32( buf, v.dampingRatio );
 	b3RecW_F32( buf, v.maxTorque );
+}
+
+void b3RecW_MOTIONLOCKJOINTDEF( b3RecBuffer* buf, b3MotionLockJointDef v )
+{
+	b3RecW_JointBase( buf, &v.base );
+	b3RecW_BOOL( buf, v.lockLinearX );
+	b3RecW_BOOL( buf, v.lockLinearY );
+	b3RecW_BOOL( buf, v.lockLinearZ );
+	b3RecW_BOOL( buf, v.lockAngularXY );
 }
 
 void b3RecW_DISTANCEJOINTDEF( b3RecBuffer* buf, b3DistanceJointDef v )
@@ -571,6 +574,31 @@ void b3RecW_POGOJOINTDEF( b3RecBuffer* buf, b3PogoJointDef v )
 	b3RecW_F32( buf, v.maxCompressionForce );
 	b3RecW_F32( buf, v.impulse );
 	b3RecW_F32( buf, v.velocity );
+}
+
+void b3RecW_TIREJOINTDEF( b3RecBuffer* buf, b3TireJointDef v )
+{
+	b3RecW_JointBase( buf, &v.base );
+	b3RecW_VEC3( buf, v.normal );
+	b3RecW_F32( buf, v.radius );
+	b3RecW_F32( buf, v.halfWidth );
+	b3RecW_F32( buf, v.maxSuspensionLength );
+	b3RecW_F32( buf, v.restLength );
+	b3RecW_F32( buf, v.suspensionHertz );
+	b3RecW_F32( buf, v.suspensionDampingRatio );
+	b3RecW_F32( buf, v.bumpDampingRatio );
+	b3RecW_F32( buf, v.maxSuspensionForce );
+	b3RecW_F32( buf, v.bumpStopHertz );
+	b3RecW_F32( buf, v.bumpStopDampingRatio );
+	b3RecW_F32( buf, v.lateralFriction );
+	b3RecW_F32( buf, v.rollingFriction );
+	b3RecW_F32( buf, v.rollingResistance );
+	b3RecW_F32( buf, v.brakeForce );
+	b3RecW_F32( buf, v.tireForceHeight );
+	b3RecW_F32( buf, v.suspensionImpulse );
+	b3RecW_F32( buf, v.stopImpulse );
+	b3RecW_F32( buf, v.lateralImpulse );
+	b3RecW_F32( buf, v.rollingImpulse );
 }
 
 // Query recording. A query collects a variable number of hits through a user callback, so the count

@@ -2311,6 +2311,8 @@ void SCR_UpdateScreen (void)
 		return;				// not initialized yet
 
 	VR_LoadJobsJoin (); // QVR: the load's work on the job threads committed before anything is drawn (vr/vr_normalmaps.cpp)
+	if (cls.signon != SIGNONS && VR_LoadPanelOwnsWindow ()) // QVR: flat, the map load's panel up: its frames alone until the signon (vr/vr_shaderload.cpp)
+		return;
 	if (GL_ShadersPending ()) // QVR: (a print's redraw while the shaders are queued: as below)
 	{
 		VR_ShadersLoadingFrame ();

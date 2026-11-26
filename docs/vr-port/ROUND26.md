@@ -1384,3 +1384,92 @@ flatloadbar's finding: in 8 of 26 cold vrstart loads the model light grid's prob
 - Left: the hull's speculate recursion still takes a gate per level (a call there that finds none runs alone until one
   frees); a bound on its depth would leave gates for the rest. Not done (the hull's own tuning).
 
+
+## box3dup3: Box3D updated to upstream 042be58 (branch agent/box3dup3, 2026-11-26)
+
+**Update** (`Quake/vr/external/box3d`, README.md and CREDITS.md name the commit). 1767150d (2026-11-17) to upstream main
+042be58 (2026-11-25): 4 commits, re-applied by 3-way merge as box3dup did (`git merge-file`; upstream in
+`F:\QVR-Parked\box3d-upstream`). What matters to us:
+
+- #236 "Motion locks are now joints": `b3BodyDef::motionLocks` and b3Body_SetMotionLocks are gone; `fixedRotation`
+  is back (locks every turn) and a new **motion lock joint** (`b3CreateMotionLockJoint`: linear x/y/z locks, an angular
+  lock leaving only frame A's z turn) does the rest. Our only use, the pushable corpse (`vr_corpse_collide` 2 or 4):
+  the box (2) is `fixedRotation`; the fitted one (4, turning about its yaw alone) is held upright by a motion lock
+  joint to a new shapeless static body, `World::anchor` (made with the world, `vr_box3d.cpp`; `vr_box3d_props.cpp`).
+  Also #236: the manifold allocators are a fixed array of `B3_MAX_MANIFOLDS`, empty until used; recording major 7.
+- #237 "Bug fixes": the contact solver's overflow path restructured (the friction centre now weighted by each point's
+  separation, a spinning-top drift fix), a **spherical joint's motor velocity is in joint frame A**, no longer the
+  world's (rotated with body A through the substeps). Our only non-zero use, the active ragdolls' drive
+  (`vr_ragactive.cpp`), now passes `inverse(jointFrameA) * spin` (spin is in the parent's, body A's, axes; was
+  `parentRotation * spin`). Shape and solver fixes besides.
+- #238: b3CreateHull fails (NULL) on degenerate input it used to accept: a hull thinner than the larger of
+  `B3_LINEAR_SLOP` (5 mm, ~0.2 units) and 0.1% of its extent, or a broken quickhull merge; every caller already handles
+  NULL (a box instead). Other hulls are the same bytes: `vr_gun_pieces_cache 2` read 11 pieces, 11 same, 0 differed,
+  so no cache bump (`cutVersion` stays 1; the rig cache does not use Box3D). The contact solver: 12 lines.
+- #241 "Vehicle tech": a new tire joint (`b3CreateTireJoint`, ray/shape-cast wheels; experimental). Unused.
+
+**Local changes**: all kept (none is upstream's now). The long manifold arrays: kept on the new fixed allocator array
+(`b3World_GetManifoldMemory`'s `pools` now counts the allocators holding blocks). The elliptical cones' recording
+version is now **8** (upstream took 7). b3CreateHullWith's allocator hooks re-applied to the new failure paths.
+
+**Tests** (Release, the merged tree; the same checks on the base origin/next 0f6fa56b3 built in this tree):
+
+| check | base | new |
+|---|---|---|
+| climb_test pull, seeds 7-10 (24) | 21/24 (knight 9, 10; hknight 8) | 19/24 (+ grunt 10 "slowly in", knight 7) |
+| kdstir | 5/0 | 4/1: six 2.5 s knockdowns, one get-up 0.80 s later with stirring than without (limit 0.3; mean 0.03) |
+| ragdoll_stagger | 2 FAIL (monster 0 backpedal; monster 2 "all 8 recovered") | 2 FAIL (monster 0 backpedal; grunt "its spot taken") |
+| active_test (45 cases) | no fails | no fails; the drive follows the death animation closer (grunt err 13/15/31/23 -> 12/8/19/10 deg) |
+| axe_stick_rates (8 kinds x 60) | 60 50 62 50 67 70 7 2 % | 53 62 57 68 78 72 3 0 % (within the noise of 60 throws) |
+
+The new build is deterministic run to run (the same lines in two runs). The two climb cases and the kdstir get-up are
+outcome flips in chaotic cases (contacts on the ground and the lip under #237's friction centre change; the knight's
+hold was already "chaotic: seeds swap run singly", ROUND25 box3dup2), not crashes or energy: **open**, not tuned. New only: throw_spin 15/0, held_over_props PASS, throw_grace clean, magthrow 3/0, gib_2h_throw 13 of 28
+bursts (was 9-11), embedhold 2/0 (flatembedwalk 60/0), ragdoll_test runs clean, selfcollide clean, selfchecks PASS
+(physics workers). vr_physics_mtbench: the same hash for every worker count, now 200/300 and 400/300
+`adf2a36dbfa46191` (was `b071f169ad1d96cb`: the solver changed). Pushable corpses (`scratch/box3dup3_corpse.sh`,
+vr_corpse_collide 4 and 2, a dead grunt flung 300 units): tilt 0.00 throughout (vr_corpse_list prints a corpse's tilt
+now).
+
+**Perf**: no measurable change (Release, not LTO; the same machine, sequential). The active test's cost scenes, Box3D
+step: base 0.251/0.772/0.293 and 0.229/0.618/0.308 ms, new 0.229/0.702/0.319 and 0.221/0.692/0.235 ms. physbench with
+200 explosive boxes (`PB_CRATES=0`) stops in both builds at a QC "Program error" after the collapse (VR_PhysicsFrameEnd
+-> a QC function: unrelated, not looked into); its collapse phase: base 0.335 / 0.288 ms, new 0.270 / 0.289 ms. With crates
+(random, new only): collapse 0.263 ms, toss 0.421 ms.
+## flatloadbar2: the flat loading panel small and centred over the last screen dimmed (branch agent/flatloadbar2, 2026-11-26)
+
+His words: the flat progress bars "take most of the screen" on "a completely black background"; asked for them much
+smaller, centred, over a 50% black so the previous screen (the console) shows underneath.
+
+- **Size:** the window's blit of the panel's image (768x192, the same image the headset's quad layer gets: one
+  `drawPanel`) is now at most a third of the window's width (and height x4), at a ratio that keeps the console font sharp
+  (`panelWidth`, GL_NEAREST): half the image (384x96: the image draws in 2x2 blocks, so each lands on one pixel) below
+  2304 px of width, the image's own size (768x192) up to 4608, then whole multiples. His 3440x1441 window: 768x192 (22%
+  wide); 1920x1080: 384x96 (20%); the tests' 960x540: 384x96 (40%: the half-size floor). Centred. Shared by the shaders'
+  panel at a cold start (no backdrop there: nothing drawn yet, black).
+- **Backdrop:** the window's last frame (console, menu, the map before), taken once when the panel first shows after it
+  (`takeBackdrop`): read back from the buffer that holds it (gl_vidsdl.c `VID_LoadingLastFrame`: GL_FRONT once presented,
+  GL_BACK when VR_SkipSwap left it unpresented; ES: none), every channel halved on the CPU (the 50% black), uploaded to a
+  texture, then blitted under every panel frame. So both of the window's buffers get the same backdrop and the panel never
+  dims its own frames. The texture is given back at the load's end (`dropBackdrop`).
+- **No console flashes:** a load from the console (not connected) redrew the console at every print (`Con_Printf`) and
+  every host frame before the signon, alternating with the panel's frames (also before this change: the black panel and
+  the console flickered). While the panel is up in flat (`VR_LoadPanelOwnsWindow`: the loadbar active with a frame drawn, no
+  VR session) neither draws; the first signed-on frame ends the loadbar as before. With VR running nothing changes.
+- **VR:** the headset's panel is unchanged (same image, same quad layer); the desktop window beside VR gets the new look
+  (small, over the mirror's last frame dimmed), the console redraws there unchanged.
+- **Cost:** one readback per load (960x540: 2.3-9.5 ms in low-impact runs; his 3440x1441 ~5x the pixels), then one
+  full-window blit a panel frame. The end line now says the swaps' share: "loading panel: vrstart's load, 22.1 s: 65 frames,
+  1097.7 ms drawing them (11.8 in the window's swaps)" (the drawing times swing 78-1600 ms between identical runs here: the
+  author's game was running, idle priority; the CPU image is unchanged). developer 1: "loading panel: the window's last frame
+  (960x540, the front buffer) taken as its backdrop in 2.3 ms".
+- **Test aid:** `vr_load_panel_shot` also saves the window's image of the same frame, before it is shown:
+  `screenshots/load_panel_<stage>_window.png` ("loading panel: saved ... (the window, 960x540: the panel 384x96, over the
+  last frame dimmed)"). Shots: flat over the console, flat over the menu, mock VR (the headset image unchanged, the
+  window over the mirror). perfload_test (0 models in play, vrfiringrange 368 ms), hub_start_test 7/0.
+- Not done: the window's own scale (scr_menuscale/conscale) isn't read: the size follows the window alone (his settings
+  give the same 768 px).
+
+## menubarreset
+
+The menu shortcut bar (the column beside the menu in the headset and the flat VR-style panel, the row of icons in the classic flat menus) now has half a button of vertical gap before its "-" and "+" buttons (column layouts; the column fit counts it) and a third button, RESET, next to them: the shipped menu size (vr_menu_scale / vr_menu_flat_scale / scr_menuscale by the layout shown) and, for the flat panel, the window centre (vr_menu_flat_x/y back to their defaults, so a saved config drops them). The headset menu has no position setting, only its size. One code path for all three layouts (zoomMenu dir 0, the existing vr_menu_zoom reset); the mouse and the laser hit it like -/+ (new mock spots `vr_mock_mouse zoomreset`, `vr_mock_laser zoomreset`). Gamepad focus: the -/+ buttons were never in the gamepad focus order (pointer only), so RESET is too; vr_menu_zoom reset is the console equivalent. Tests: menu_flat_panel_test.py gained resetbtn steps (flat: moved to 0.4/0.45 at 0.6, RESET back to 0.954/0.5/0.499; VR: 0.4 back to 0.25): 28 passed, 3 failed; the same 3 fail with the unmodified test on this build (Quit menu number 20 vs 21, headset Quit dialog, classic scr_menuscale step: unrelated, not looked into). Screenshots scratch/menubar_{classic,flat,vr}.png.

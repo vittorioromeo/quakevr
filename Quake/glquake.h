@@ -682,6 +682,7 @@ void GL_ShadersProgress (int *done, int *total, const char **last); // QVR
 int GL_ShadersCompiling (void); // QVR: the pending set's programs so far compiled from their sources (not from the program cache)
 void VID_LoadingSize (int *w, int *h); // QVR: the loading panel's frames in the window (gl_vidsdl.c)
 void VID_LoadingSwap (void); // QVR
+unsigned VID_LoadingLastFrame (int *buffer); // QVR: the last frame drawn (0: none yet) and the buffer that holds it (the panel's backdrop)
 void GL_WorldLiteCheck (void); // QVR: the shaders made again when the ES lite world no longer fits the settings
 void GL_DeleteShaders (void);
 GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR

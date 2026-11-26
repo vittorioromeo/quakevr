@@ -314,6 +314,7 @@ void VR_MapLoadingDone (const char *map, double seconds); // ... the wait over: 
 // player words over a bar, once the load has run a second; drawn from inside the long stages, at most every 100 ms.
 void VR_LoadCount (int done, int total); // the innermost stage's count (entities 312 of 1840, light grid layers, sounds): the bar's; then VR_LoadPump
 void VR_LoadPump (void); // a long loop's point: the panel drawn if it is due (main thread; cheap when not)
+int VR_LoadPanelOwnsWindow (void); // Con_Printf, SCR_UpdateScreen: flat-screen with the map load's panel up: no console frame drawn between its frames (flatloadbar2)
 int VR_ShadersLoadingFrame (void); // host.c, SCR_UpdateScreen: while the shaders are queued, the set pumped and (still pending: nonzero) the loading panel's frame (vr_shaderload.cpp)
 void VR_ProgCacheCounts (int *hits, int *misses); // the last batch's programs given back / compiled
 unsigned long long VR_GLShaderHash (unsigned long long h, int count, const char *const *strings); // vr_glsafe.cpp: the text VR_GLShaderSource gives the driver
