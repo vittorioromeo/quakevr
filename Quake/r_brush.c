@@ -344,6 +344,11 @@ static void GL_PackLitSurfaces (void)
 	short		blackofs[2];
 	int			blacklm;
 	msurface_t *surf;
+	// QVR (questrender): the faces the light tool left without a lightmap (no light reached them: a dark room's) get
+	// blocks of their own, black, not one shared block, in a lit map: the dynamic lights summed into the lightmap
+	// (vr_gl_world_dlmap, the Standalone preset) light each face at its own texels; sharing, those faces stayed black
+	// under the flashlight (vrtutorial's dark course: 83% of its faces)
+	qboolean	own_black = cl.worldmodel && cl.worldmodel->lightdata;
 
 	// generate surface list
 	for (j=1 ; j<MAX_MODELS ; j++)
@@ -361,7 +366,7 @@ static void GL_PackLitSurfaces (void)
 
 			w = (surf->extents[0]>>4)+1;
 			h = (surf->extents[1]>>4)+1;
-			if (!surf->samples)
+			if (!surf->samples && !own_black)
 			{
 				maxblack[0] = q_max (maxblack[0], w);
 				maxblack[1] = q_max (maxblack[1], h);
@@ -433,7 +438,7 @@ static void GL_PackLitSurfaces (void)
 		smax *= GL_NumLightmapTaps (surf);
 		num_lightmap_samples += smax * tmax;
 
-		if (surf->samples)
+		if (surf->samples || own_black)
 		{
 			surf->lightmaptexturenum = AllocBlock (smax, tmax, &surf->light_s, &surf->light_t);
 		}

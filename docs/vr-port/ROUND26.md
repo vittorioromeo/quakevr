@@ -1580,3 +1580,30 @@ overhead attack with both hands. Make this an option (on by default)."
   (e.g. `"tune vr_flat_overhand_2h_end_out 0"`). `flatmelee4_test.sh` 9/0 and `flatmelee_test.sh` 12/0 (their V with
   empty hands is now the two-fisted blow; their checks still hold). eval.sh not run: no shared melee code changed
   (VRMeleeDmg/T_Damage_VRMelee only scale when the flat bit is set). Scene `flat_melee_2fist`.
+
+## The flashlight lights the dark rooms in the Standalone preset; Show Foveation shows the Quest's foveation (branch agent/questrender, 2026-11-26)
+
+His notes (Quest standalone): the flashlight lit only the first part of the tutorial's dark room, the rest pitch black
+wherever he pointed it; "Show Foveation" showed nothing with Quest Foveation.
+- **The flashlight (vr_gl_world_dlmap, the Standalone preset's dynamic lights summed into the lightmap, C5g):** the light
+  tool leaves the faces no map light reaches without a lightmap (vrtutorial's dark course: 612 of its 740 faces), and
+  Ironwail's `GL_PackLitSurfaces` gave them all one shared black block; the dlmap's `lightSurface` skipped them
+  (`!s->samples`). Only the faces near the lit hall's door, which have baked light, took the beam. Now, in a lit map,
+  each such face gets a black block of its own (`r_brush.c`, `own_black`; a map without light data keeps the shared one)
+  and the dlmap lights it. The PC's per-pixel loop never depended on it. Cost: the lightmap atlas grows by those faces'
+  texels (black), no per-frame cost beyond the faces the beam now lights. Brightness: as the loop's without its
+  specular sheen (the far block: dlmap 33, loop 80, loop with `vr_specular 0` 35; the dlmap never had the sheen, C5g's
+  look call). Pictures: `scratch/qr_flashlight_before.png` / `_after.png` / `_loop.png` (not committed).
+- **`vr_gl_world_dlmap_probe x y z [min] | end`** (new, vr_dlightmap.cpp): the light the last build added at a point on
+  a world face (from the batched texture's CPU copy) and whether the face has baked light; `min` makes it a check.
+- **Show Foveation on the Quest (`vr_foveated_debug`, now Off / On / Quest Pattern):** it drew only NVIDIA's rates and
+  vr_upscale's ring, neither on the Quest. It now also draws the Quest's foveation zones, yellow at half the pixels (2x1),
+  red at a quarter (2x2): vr_gl_foveation's exactly (its gain and area, the focal point on the projection centre: the
+  QCOM density 1 / (gain^2 d^2 - area)), else vr_xr_foveation's modelled (`foveated::runtimeZones`: centred on the
+  drawn part, as qfov4 found; gains 1.3 / 1.6 / 2 for Low / Medium / High: Low only the corners, High from ~0.7 of the
+  way out; the runtime's true pattern is Meta's and falls on whole bins, so it is approximate). Quest Pattern (2) draws
+  the modelled zones at vr_xr_foveation's level (1 if off) on any headset. Files: vr_foveated.cpp/.hpp, vr_stereo.cpp
+  (`glFoveationZones`, sharing foveateEye's gains and areas), the row in vr_menu_rows.inc.
+- **Tests:** `Misc/quakevr/darkflash_test.sh` (vrtutorial's dark course, Standalone preset, the PC's unlit world form
+  through `vr_gl_pc_forms 15`, a head torch on): the block face ~310 ahead and the far wall ~680 ahead (a face without
+  baked light) take light; 2/0. Scenes `quest_darkroom`, `quest_foveation`. Not checked on the headset (he was using it).
