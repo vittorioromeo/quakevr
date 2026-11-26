@@ -4544,6 +4544,10 @@ void() VR_Embed_TestFrame =
         {
             VR_TP_Begin(); // (thrown swords and daggers settle point first: vr_throwpoint_test.qc)
         }
+        if(ask == 73)
+        {
+            VR_RT_Begin(); // (reverse grip throws settle point first: vr_revthrow_test.qc)
+        }
         if(ask == 48)
         {
             VR_AS_Begin(); // (a gib tossed up skewered in the air: vr_airskewer_test.qc)
@@ -4820,6 +4824,10 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     else if(vr_et_on == 47)
     {
         VR_TP_Frame(); // (thrown swords and daggers settle point first: vr_throwpoint_test.qc)
+    }
+    else if(vr_et_on == 73)
+    {
+        VR_RT_Frame(); // (reverse grip throws settle point first: vr_revthrow_test.qc)
     }
     else if(vr_et_on == 48)
     {

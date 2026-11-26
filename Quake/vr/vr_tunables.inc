@@ -263,6 +263,7 @@ QVR_TUNABLE(vr_flashlight_brightness, "1")
 QVR_TUNABLE(vr_flashlight_range, "1000") // units the beam reaches
 QVR_TUNABLE(vr_flashlight_beam, "0.5") // how strong its soft cone of light in the air is, 0..1 (0: none)
 QVR_TUNABLE(vr_flashlight_flick_max_move, "1.5") // m/s: the hand moving faster than this (a swing, a punch) never flicks
+QVR_TUNABLE(vr_flashlight_closed_grab, "1") // real seconds a grip closed before the hand reaches the belt torch still takes it there (round 26: a hand arriving closed)
 QVR_TUNABLE(vr_flashlight_flick_cooldown, "0.4") // real seconds after a flick before the next counts (the wrist coming back is not a second flick)
 QVR_TUNABLE(vr_flashlight_hand_forward, "-0.05") // metres the torch sits forward in the fist (negative: back),
 QVR_TUNABLE(vr_flashlight_hand_up, "-0.04") // and up (negative: down; round 21: on top of the fitted grip)
@@ -589,6 +590,13 @@ QVR_TUNABLE(vr_throw_point_dagger_time, "1")
 QVR_TUNABLE(vr_throw_point_dagger_angle, "1")
 QVR_TUNABLE(vr_throw_point_dagger_spin, "1")
 QVR_TUNABLE(vr_throw_point_dagger_damp, "1")
+// A throw from the reverse grip (QVR_WPNFLAG_REVGRIP: an overhead throw, the point out of the little finger's side; revthrow,
+// his words 2026-11-26: "even the smallest amount of wrist snap during the throw causes the spear to spin ... much more
+// lenient"): its leniency L (0: as an upright throw). The release's tumble across the blade cut by L (at most all of it), the
+// settling spring (1 + 2L) times as stiff, steadying tumbles up to (1 + 3L) times Point-First Settling: Tumble, full help
+// from Point-First Settling's slowest speed. Upright throws: unchanged.
+QVR_TUNABLE(vr_throw_point_rev_pole, "0.8") // a pole weapon's (the spear, the Crystal Lance): strong, it flies point first almost at once
+QVR_TUNABLE(vr_throw_point_rev_blade, "0.3") // a sword's or dagger's: a little
 QVR_TUNABLE(vr_shot_push_pellet, "6") // N s, each shotgun and double shotgun pellet's push (monsters' too)
 QVR_TUNABLE(vr_shot_push_nail, "12") // N s, a nail's (the nailgun's, scrags', knights', enforcers' lasers)
 QVR_TUNABLE(vr_shot_push_supernail, "24") // N s, a super nailgun nail's
