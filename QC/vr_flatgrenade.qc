@@ -228,17 +228,31 @@ vector(float xHand, float xUp) VR_FlatThrow_From =
     return from;
 };
 
-// Thrown: let go of towards what the crosshair points at, `xHeld` seconds wound up.
-void(float xHand, entity g, float xHeld) VR_FlatGrenade_Throw =
+// The quick grenade's throw `xHeld` seconds wound up: its speed (units/s) and how far above the crosshair it goes (degrees:
+// Throw Above Aim, and the arc's pitch on top of it, the two added). VR_FlatGrenade_Throw's and VR_FlatThrow_Aim's.
+float(float xHeld) VR_FlatGrenade_Speed =
 {
     float full = min(5, max(0.1, cvar_hget(cvarh_vr_flat_grenade_wind_full)));
     float k = min(1, max(0, xHeld / full));
     float lo = max(0, cvar_hget(cvarh_vr_flat_grenade_speed_min));
     float hi = max(lo, cvar_hget(cvarh_vr_flat_grenade_speed_max));
-    float speed = (lo + (hi - lo) * k) * min(3, max(0.1, cvar_hget(cvarh_vr_flat_grenade_speed_scale)));
-    // Above the crosshair: Throw Above Aim, and the arc's pitch on top of it (the two add).
+    return (lo + (hi - lo) * k) * min(3, max(0.1, cvar_hget(cvarh_vr_flat_grenade_speed_scale)));
+};
+
+float() VR_FlatGrenade_Up =
+{
     float up = min(60, max(-30, cvar_hget(cvarh_vr_flat_grenade_throw_up)));
-    up = min(80, up + min(60, max(-30, cvar_hget(cvarh_vr_flat_grenade_throw_pitch))));
+    return min(80, up + min(60, max(-30, cvar_hget(cvarh_vr_flat_grenade_throw_pitch))));
+};
+
+// Thrown: let go of towards what the crosshair points at, `xHeld` seconds wound up.
+void(float xHand, entity g, float xHeld) VR_FlatGrenade_Throw =
+{
+    float full = min(5, max(0.1, cvar_hget(cvarh_vr_flat_grenade_wind_full)));
+    float k = min(1, max(0, xHeld / full));
+    float hi = max(max(0, cvar_hget(cvarh_vr_flat_grenade_speed_min)), cvar_hget(cvarh_vr_flat_grenade_speed_max));
+    float speed = VR_FlatGrenade_Speed(xHeld);
+    float up = VR_FlatGrenade_Up();
     // It leaves from the wound-up hand, towards what the crosshair points at (VR_FlatThrow_From).
     vector start = VR_FlatThrow_From(xHand, up);
     vector dir = vr_flatthrow_dir;
@@ -717,6 +731,33 @@ void() VR_FlatThrow_Drop =
     }
 };
 
+// The throw key's throw `xHeld` seconds wound up: the hand's speed (m/s, as a headset's estimate; the weight rules make
+// the rest), and how far above the crosshair it goes (degrees, vr_flat_throw_up). VR_FlatThrow_Throw's and
+// VR_FlatThrow_Aim's.
+float(float xHeld) VR_FlatThrow_Speed =
+{
+    float full = min(5, max(0.05, cvar_hget(cvarh_vr_flat_throw_charge_time)));
+    float k = min(1, max(0, xHeld / full));
+    float lo = max(0, cvar_hget(cvarh_vr_flat_throw_speed_min));
+    float hi = max(lo, cvar_hget(cvarh_vr_flat_throw_speed_max));
+    return lo + (hi - lo) * k;
+};
+
+float() VR_FlatThrow_Up =
+{
+    return min(60, max(-30, cvar_hget(cvarh_vr_flat_throw_up)));
+};
+
+// A body (`e`) thrown at `xSpeed` m/s of the hand along `xDir`: its launch (units/s), two-handed strength held in both
+// hands (vr_flat_grab_ragdoll_throw), with his own motion. VR_FlatThrow_Throw's and VR_FlatThrow_Aim's.
+vector(entity e, vector xDir, float xSpeed) VR_FlatThrow_RagVel =
+{
+    float bothRag = VR_FlatGrab_Held(self, cVR_OffHand) == e && VR_FlatGrab_Held(self, cVR_MainHand) == e;
+    float ragScale = max(0, cvar_hget(cvarh_vr_flat_grab_ragdoll_throw));
+    float handMult = bothRag ? 1.0 : 0.65;
+    return xDir * (xSpeed * VRMetersToUnits() * ragScale * handMult) + self.velocity * VR_Throw_Inherit(self);
+};
+
 // Let go after wind-up (impulse 40, `xHeld` seconds wound up): thrown along the crosshair by the headset's own throw.
 void(float xHeld) VR_FlatThrow_Throw =
 {
@@ -724,11 +765,9 @@ void(float xHeld) VR_FlatThrow_Throw =
     float kind = self.vr_flatthrow_kind;
     float full = min(5, max(0.05, cvar_hget(cvarh_vr_flat_throw_charge_time)));
     float k = min(1, max(0, xHeld / full));
-    float lo = max(0, cvar_hget(cvarh_vr_flat_throw_speed_min));
-    float hi = max(lo, cvar_hget(cvarh_vr_flat_throw_speed_max));
-    float speed = lo + (hi - lo) * k; // (m/s: the hand's, as a headset's estimate; the weight rules make the rest)
+    float speed = VR_FlatThrow_Speed(xHeld);
     // It leaves from the wound-up hand, towards what the crosshair points at (VR_FlatThrow_From).
-    vector from = VR_FlatThrow_From(h, min(60, max(-30, cvar_hget(cvarh_vr_flat_throw_up))));
+    vector from = VR_FlatThrow_From(h, VR_FlatThrow_Up());
     vector ang = vr_flatthrow_ang;
     vector dir = vr_flatthrow_dir;
     vector spin = -v_right * max(0, cvar_hget(cvarh_vr_flat_throw_spin)); // end over end, the top going forward and down
@@ -757,10 +796,7 @@ void(float xHeld) VR_FlatThrow_Throw =
         float hasMain = (VR_FlatGrab_Held(self, cVR_MainHand) == e);
         if(hasOff || hasMain)
         {
-            float bothRag = (hasOff && hasMain);
-            float ragScale = max(0, cvar_hget(cvarh_vr_flat_grab_ragdoll_throw));
-            float handMult = bothRag ? 1.0 : 0.65;
-            ragLaunchVel = dir * (speed * VRMetersToUnits() * ragScale * handMult) + self.velocity * VR_Throw_Inherit(self);
+            ragLaunchVel = VR_FlatThrow_RagVel(e, dir, speed);
             VR_FlatGrab_ReleaseHeld(e, ragLaunchVel);
             thrown = e;
         }
@@ -926,10 +962,143 @@ float() VR_FlatThrow_StillHeld =
     return !VRIsHandWeaponless(self, h) && VRGetEntWeapon(self, h) == self.vr_flatthrow_wid;
 };
 
+// Where a throw from `xFrom` at `xVel` (units/s), falling at `xGravity` (units/s^2), first meets something: its arc
+// stepped VR_THROWARC_STEP seconds at a time (up to VR_THROWARC_MOST), a traceline each step (monsters too), past
+// `xSelf` (the thrower) and `xHeld` (the thing itself, still in the hand). Nothing within: where it is then.
+float VR_THROWARC_STEP = 0.02;
+float VR_THROWARC_MOST = 4;
+vector(vector xFrom, vector xVel, float xGravity, entity xSelf, entity xHeld) VR_Throw_ArcEnd =
+{
+    vector p = xFrom;
+    vector v = xVel;
+    float t = 0;
+    float dt = VR_THROWARC_STEP;
+    while(t < VR_THROWARC_MOST)
+    {
+        vector q = p + v * dt - '0 0 1' * (0.5 * xGravity * dt * dt);
+        traceline(p, q, FALSE, xSelf);
+        if(trace_ent != world && trace_ent == xHeld)
+        {
+            traceline(trace_endpos, q, FALSE, xHeld); // (the thing in the hand itself: on past it)
+        }
+        if(trace_fraction < 1)
+        {
+            return trace_endpos;
+        }
+        p = q;
+        v_z = v_z - xGravity * dt;
+        t = t + dt;
+    }
+    return p;
+};
+
+// Item 1 of his flat notes 2026-11-26 ("Dynamic crosshair while in the 'about to throw' pose should aim towards the
+// throwing location, not the weapon's muzzle target or melee's target"), flatxhair2: while a hand winds up a throw (the
+// throw key's: a weapon, a carried thing, a body; the quick grenade's by the key), where letting go now would land it,
+// sent to the view each frame (flatthrowaim: the visor crosshair, flatxhair). Not worked out apart: the release's own
+// pieces (VR_FlatThrow_Speed / _Up / _From, VR_Throw_WeaponVel, VR_Carry_ThrowVel, VR_FlatThrow_RagVel,
+// VR_FlatGrenade_Speed / _Up, the throw assist, his own motion, the throw's gravity), its arc traced (VR_Throw_ArcEnd).
+// The spin does not move where it goes (it turns the thing about its middle: a blade's sticking, not its way).
+void() VR_FlatThrow_Aim =
+{
+    float h = -1;
+    vector from = '0 0 0';
+    vector vel = '0 0 0';
+    float g = VR_Throw_Gravity();
+    entity e = world;
+    vector inherit = self.velocity * VR_Throw_Inherit(self);
+    if(VR_FlatPlay(self) && self.health > 0 && self.ishuman)
+    {
+        if(self.vr_flatgren_bykey && self.vr_flatgren_phase == VR_FLATGREN_WIND && self.vr_flatgren_ent != world)
+        {
+            h = self.vr_flatgren_hand;
+            e = self.vr_flatgren_ent;
+            from = VR_FlatThrow_From(h, VR_FlatGrenade_Up());
+            vel = vr_flatthrow_dir * VR_FlatGrenade_Speed(time - self.vr_flatgren_at) + inherit;
+        }
+        else if(self.vr_flatthrow_phase == VR_FLATTHROW_WIND && VR_FlatThrow_StillHeld())
+        {
+            h = self.vr_flatthrow_hand;
+            float kind = self.vr_flatthrow_kind;
+            float speed = VR_FlatThrow_Speed(time - self.vr_flatthrow_at);
+            from = VR_FlatThrow_From(h, VR_FlatThrow_Up());
+            vector dir = vr_flatthrow_dir;
+            e = self.vr_flatthrow_ent;
+            if(kind == 1)
+            {
+                vel = VR_Throw_WeaponVel(self.vr_flatthrow_wid, VRGetEntWeaponFlags(self, h), dir * speed, '0 0 0', 1);
+                vel = VRThrowAssist(self, from, vel, g) + inherit;
+            }
+            else if(kind == 2 && e != world)
+            {
+                vel = VRThrowAssist(self, from, VR_Carry_ThrowVel(e, dir * speed, '0 0 0', 1), g) + inherit;
+            }
+            else if(kind == 3 && e != world)
+            {
+                vel = VR_FlatThrow_RagVel(e, dir, speed);
+                g = cvar_hget(cvarh_sv_gravity); // (a body falls as the world's things do)
+            }
+            else
+            {
+                h = -1;
+            }
+        }
+    }
+    if(h < 0)
+    {
+        flatthrowaim(self, -1, '0 0 0');
+        return;
+    }
+    vector at = VR_Throw_ArcEnd(from, vel, g, self, e);
+    flatthrowaim(self, h, at);
+    if(cvar_hget(cvarh_vr_flat_grenade_debug) >= 2)
+    {
+        dprint(sprintf("flat throw: aim %v from %v at %v\n", at, from, vel));
+    }
+};
+
+// (developer 1) Where the last throw first met something: the first frame its velocity left its fall (stopped, bounced,
+// stuck), printed once ("flat throw: first hit at"), with where it was the frame before and its velocity then (its
+// middle's arc on to the wall from there: flatxhair_melee_test's throw against the crosshair's aim).
+entity vr_flatthrow_hitwho;
+vector vr_flatthrow_hitvel;
+vector vr_flatthrow_hitorg;
+void() VR_FlatThrow_WatchHit =
+{
+    entity t = vr_flatthrow_last;
+    if(!vr_flatthrow_watch || t == world || !cvar_hget(cvarh_developer))
+    {
+        return;
+    }
+    if(t != vr_flatthrow_hitwho)
+    {
+        vr_flatthrow_hitwho = t;
+        vr_flatthrow_hitvel = t.velocity;
+        vr_flatthrow_hitorg = t.origin;
+        return;
+    }
+    if(vr_flatthrow_hitvel == '0 0 0')
+    {
+        return; // (printed)
+    }
+    vector fall = vr_flatthrow_hitvel - '0 0 1' * (VR_Throw_Gravity() * frametime);
+    if(vlen(t.velocity - fall) > 100 || VR_AxeStick_IsStuck(t))
+    {
+        dprint(sprintf("flat throw: first hit at %v (%s)\n", t.origin, t.classname));
+        dprint(sprintf("flat throw: hit from %v at %v\n", vr_flatthrow_hitorg, vr_flatthrow_hitvel));
+        vr_flatthrow_hitvel = '0 0 0';
+        return;
+    }
+    vr_flatthrow_hitvel = t.velocity;
+    vr_flatthrow_hitorg = t.origin;
+};
+
 // Each server frame (after the quick grenade's): pending tap->wind transition, wind-up cancellation when what it holds
 // is gone, the follow-through's end, and (developer 1) where the last throw landed.
 void() VR_FlatThrow_Frame =
 {
+    VR_FlatThrow_Aim();
+    VR_FlatThrow_WatchHit();
     if(vr_flatthrow_watch && vr_flatthrow_last != world && cvar_hget(cvarh_developer))
     {
         entity t = vr_flatthrow_last;
@@ -943,8 +1112,8 @@ void() VR_FlatThrow_Frame =
             vector flew = t.origin - vr_flatthrow_from;
             float down = -flew_z;
             flew_z = 0;
-            dprint(sprintf("flat throw: landed: %s %.0f units level from where it left, %.0f down, %s\n", t.classname,
-                vlen(flew), down, stuck ? "stuck" : (t.velocity == '0 0 0' ? "at rest" : "still moving")));
+            dprint(sprintf("flat throw: landed: %s %.0f units level from where it left, %.0f down, %s at %v\n", t.classname,
+                vlen(flew), down, stuck ? "stuck" : (t.velocity == '0 0 0' ? "at rest" : "still moving"), t.origin));
             vr_flatthrow_watch = 0;
         }
     }

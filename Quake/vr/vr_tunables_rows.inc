@@ -2841,6 +2841,7 @@ QVR_TUNABLE_SLIDER(vr_monster_lean_spread, "Lean Spread", 0.0f, 0.5f, 0.01f, "%.
 QVR_TUNABLE_SLIDER(vr_monster_lean_react, "Lean Reaction", 0.0f, 2.0f, 0.1f, "%.1f s", 0.0f, 5.0f, "Seconds before a monster sees and shoots at you when you lean out from cover (vr_monster_lean_react).")
 
 QVR_TUNABLE_GROUP("Flatscreen > Crosshair")
+QVR_TUNABLE_CYCLE(vr_flat_xhair_throw_aim, "Throw Crosshair", "Flatscreen: while a throw is wound up, the visor crosshair shows where letting go now would land it (its arc traced; vr_flat_xhair_throw_aim).", {0.0f, "Shot Line"}, {1.0f, "Landing"})
 QVR_TUNABLE_CYCLE(vr_flat_xhair_thrust_path, "Melee Crosshair", "Flatscreen: with a melee weapon (a sword, a dagger, an axe, a spear; either grip), the visor crosshair shows where its blow's tip lands (its swing or thrust; vr_flat_xhair_thrust_path).", {0.0f, "Shot Line"}, {1.0f, "Blow Path"})
 QVR_TUNABLE_SLIDER(vr_flat_xhair_melee_kick, "Melee Crosshair Kick", 0.0f, 32.0f, 0.5f, "%.1f px", 0.0f, 64.0f, "Flatscreen: a melee blow pushes the visor crosshair's lines out this far as it strikes, like a shot's recoil (pixels at 1080p; vr_flat_xhair_melee_kick).")
 QVR_TUNABLE_SLIDER(vr_flat_xhair_melee_mass, "Melee Kick Weight", 0.5f, 10.0f, 0.5f, "%.1f kg", 0.1f, 30.0f, "Flatscreen: the weapon weight that kick is for; heavier weapons kick more, lighter ones less (vr_flat_xhair_melee_mass).")

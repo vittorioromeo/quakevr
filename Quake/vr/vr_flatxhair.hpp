@@ -35,6 +35,11 @@ void noteMove(const VrMove& move);
 // it with where the crosshair said the blow would land as it began).
 void noteMeleeMark(const glm::vec3& at);
 
+// The builtin flatthrowaim (QC VR_FlatThrow_Aim, each server frame; flatxhair2, his flat note 2026-11-26 item 1): hand
+// `hand`'s wound-up throw would land at `at` let go now (-1: no hand winds one up). While it is fresh, that hand's
+// crosshair is on it (a weapon's, a carried thing's, a body's, the quick grenade's), not on its shot or its blow.
+void noteThrowAim(int hand, const glm::vec3& at);
+
 // vr_weaponfx.cpp parseTracer: one of his own pellets' line ended at `to` (vr_flat_xhair_probe compares them with the drawn
 // crosshair).
 void noteTracer(int hand, const glm::vec3& to);
