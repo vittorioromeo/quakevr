@@ -879,3 +879,36 @@ His items 3, 7 and 10 (flat notes 2026-11-25/26).
   cm = max_pos, hand 0.00 cm off the handle; smoothing 0: the same jitter, no lag; 13/0).
 - Open: the parry pose and the smoothing were not checked visually; at 42 units the stuck spear's hands are drawn short of it
   (the flat arm's reach), the main hand too.
+## hullinstall: the installer makes the collision of Quake's and the mission packs' maps, and sends it to the Quest (branch agent/hullinstall, 2026-11-26)
+
+His ask: generate the hull trees at install time for the most common maps, as the relight is.
+- **Engine** (vr_prepare.cpp, new step "hulls", `-preparehulls [<map>,...]`): after the relight (or after the maps/campaigns
+  when there is none; also after `-preparemaps`' list), every single-player map of id1, hipnotic and rogue that is installed
+  (`relight::maps::collect(Set::Game)`; start, e1m1..e4m8, end; hip1m1..hipend; r1m1..r2m8; each campaign's own `start`,
+  campaign selected as the player plays it; not dm*, hipdm1, ctf1) is loaded once (skill 2: the most monsters, so their
+  boxes' trees), then `hull::finishLoads()` waits for every tree it asked for, the deferred ones too. The trees are
+  written even when quicker than 25 ms (`hull::setWriteEveryTree`, the one hook in vr_hull.cpp: a Quest takes several
+  times the PC's). Progress lines: `step hulls i n map`, `hulls <map> ok <s> files=N` / `hulls <map> failed <s>`
+  (mapTimeout 600 s, never fatal), `result hulls ok= failed= files= written= mb= <s>`. The files of each map (the world's
+  key prefix, `hull::detail::keyOf`) are listed in `setup_hulls.txt` beside the progress file (cache path, tab, whole path).
+- **Relight order**: relit and original e1m1 have the same entities, planes, nodes, clipnodes and models (only leafs'
+  vis offsets, vis, lighting and faces differ), so the trees' key is the same: a load with `vr_relight_use 0` read the
+  same 7 files. The step still runs after the relight (it loads what the game loads).
+- **Installer**: GamePreparation passes `-preparehulls` (default on; Options "Prepare collision for Quake's maps", ticked,
+  "about a minute", ~150 MB in the disk estimate; CLI `--no-hulls`); the bar: maps 15 %, relight to 75 %, hulls the last
+  25 % (no relight: maps to 75 %); status "Preparing collision for e1m3 (12 of 65)"; one log line at the end, a warning per
+  failed map. **Quest**: QuestFiles.AddHulls sends the listed files that still exist to `cache/hulls/<build>/<file>` under
+  the app's files folder, the headset's own disk cache (`<base>/cache`, the files folder its base), read as files it made
+  itself; list lines outside `hulls/<build>/` are refused. Not run on a headset (headless reasoning only): the keys and the
+  build folder are the map's data and the trees' version, the same on arm64 (prebuiltcache, and loadprof2's Quest read
+  vrstart's shipped trees: 9 shipped reads).
+- **Numbers** (this PC, kit run, fast mode, other agents' runs beside it, cold cache): 65 maps (id1 32, hipnotic 17, rogue
+  16) in 66.7 s, per-map median 0.9 s (slowest r1m5 2.5 s, r1m1 2.1 s, e1m1 2.0 s); 508 files (65 brushes + 443 trees),
+  148.3 MB on disk. Within the hulls' 1 GB cache budget.
+- **Tests**: `-prepare <f> -preparemaps vrcalibration -preparehulls e1m1,e1m2,start` (22 files, 4.3 MB, 2.8 s), then a
+  fresh game on that cache, `vr_hull_defer 0; map e1m1; vr_cache_info`: hulls 7 read, 0 missed, 0 written. Installer
+  self-tests 61/61 (new: the hulls' progress lines and bar shares, `-preparehulls` on the command line and the engine's
+  line formats; Quest: the list's files go to `cache/hulls/<build>/`, missing and outside paths refused).
+- Open: the Options page gained a row (the page was sized for 1366x768: it scrolls if it no longer fits; not looked at in
+  the screenshot harness). A Quest-only install (staging folder) runs no preparation, so it has no list. The trees of
+  dopa/mg1/mg3 and AD are not made (not asked).
