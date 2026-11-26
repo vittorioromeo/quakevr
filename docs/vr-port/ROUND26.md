@@ -1840,6 +1840,32 @@ His VR notes 2026-11-26 20:07-20:10 (vrtesthall).
   third case in one run never took the pole, the fist 0.3 units off the shaft whatever the offset; not chased.) `VR_EH_Blow`
   takes a give command (`vr_eh_givecmd`, the Lance's `vr_ad_test 207`). dwell_lance_test now sets `vr_pole_grip_fixed 0` in its
   slide sections (51/0); spear_test 4/0 (VR 25/0); poleembed_test 16/0, 13/0.
+## tutorial: round rungs gripped round, the tutorial's lips, dark block and rope pit (branch agent/tutorial, 2026-11-26)
+
+His VR notes 2026-11-26 19:55-20:02 (vrtutorial).
+- **Round rungs** (Quake/vr/vr_climb.cpp findRung, rungAt, rungUp; display only): a hand's hold on a thin round rung is
+  drawn gripping it, the rung through the fist as a level pole's (gripAxes: ropeTurn without the rope's pitch), its palm's
+  middle out from the rung's axis under it, turned `vr_climb_rung_tilt` (60) towards the climber. Found by shape, any map:
+  probes down/up/across at the hold (worldtrace, so a remote client too): a bar at most `vr_climb_rung_max` (5) thick and
+  deep, open under it, 2 units of room behind it, its front curving in near its top and bottom by `vr_climb_rung_round`
+  (0.06) of its thickness (the tutorial's octagon 0.14, a square bar 0). Searched once per hold. Square or chunky rungs and
+  ledges: as before. `climb::gripLine` (rope, pole or round rung) now feeds the hand's grip (vr_view_hands.cpp ropeGrip:
+  the palm on the surface; ropeHeld: the fingers stop on it; vr_view.cpp: the thumb closes); `ropeLine` stays the rope's
+  (the arms' rope elbows, the rope tests). Switch: `vr_climb_rung_grip` (VR Settings > Climbing > Hand on a Hold: Hand
+  Round Thin Rungs). Flat ladder and headset alike (one drawnHand).
+- Test `vr_rung_grip_test` (vr_flatmove.cpp, flat): vrtutorial's ladder walked into and hung from: each hand round its
+  rung (fingers 0.39 in at the deepest, palm 0.4 off, vertices over and under it; the ledge pose with the switch off: 3
+  under), 4/0; vrtesthall's square rungs: held as ledges, 2/0. Tilt 45 left the fingertips on top, 70+ nothing under it.
+- **The lips** (vrtutorial_gen.py hazard_lip): the ladder block's and the jump wall's hazard strips stood 2 out of the
+  wall (a head hugging the wall caught under the jump wall's); now an 8 high, 16 deep detail cap flush with the face.
+  Playtest `--ledge` gates lipbase/underlip: a jump hugging the wall rises 44 (blocked it was at most 36).
+- **Dark course** block 3: 48 -> 64 high (a climb, not a jump), its north lip a hazard cap (R9_BLOCKS' 4th field).
+- **Rope pit** (room 14): wall lamps half way down the pit's walls (5; none over the ladder) and two on the room's long
+  walls by the rope at LOW + 160; the rope is lit as the light where it hangs.
+- Map recompiled (final, holes 0): vrtutorial's shipped cache keys change (bsp, lit, lux).
+- Playtest: the "ledge" gate (catch the high ledge at a jump's top) fails on origin/next's map too (no mantle); on the new
+  map the mantle starts, then "moved away, letting go": not this task's, left. Its grab now at x 3170 (over the lip).
+- Screens: scratch/tut_before.png, tut_after.png (pit, dark block, jump wall), tut_rung_vrtutorial.png.
 ## VR fixes from his evening notes: rope grunts gone, preset rows toggle, punches on a hugged crate, AD crossbow knight, front sight hue (branch agent/vrmisc, 2026-11-26)
 
 - **No grunts on ropes, chains, poles** (his note 20:03): the pull grunt (`ropePullGrunt`, `vr_rope_grunt`,

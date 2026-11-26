@@ -869,6 +869,27 @@ def hazard_edge(out, lo, hi):
     dbox(out, lo, hi, TX["hazard"])
 
 
+def hazard_lip(out, lo, hi, side, h=8, d=16):
+    """A structural block lo..hi (SOLIDS) whose top edge on `side` ("-x", "+x", "-y", "+y": the face climbed) is a cap of
+    hazard stripes `h` high and `d` deep over the top, flush with that face: the lip to mantle onto marked, nothing
+    standing out of the face for a head to catch under (the author, 2026-11-26: room 3's jump wall's strip, 2 out of the
+    wall, was jumped into from below by a player hugging the wall)."""
+    ax = 0 if side[1] == "x" else 1
+    neg = side[0] == "-"
+    cap_lo, cap_hi = list(lo), list(hi)
+    cap_lo[2] = hi[2] - h
+    rest_lo, rest_hi = list(lo), list(hi)     # the block behind the cap, its full height
+    if neg:
+        cap_hi[ax] = rest_lo[ax] = lo[ax] + d
+    else:
+        cap_lo[ax] = rest_hi[ax] = hi[ax] - d
+    under_lo, under_hi = list(cap_lo), list(cap_hi)   # the block under the cap
+    under_lo[2], under_hi[2] = lo[2], hi[2] - h
+    SOLIDS.append((tuple(rest_lo), tuple(rest_hi)))
+    SOLIDS.append((tuple(under_lo), tuple(under_hi)))
+    dbox(out, tuple(cap_lo), tuple(cap_hi), TX["hazard"])
+
+
 def railing(out, p, q, z, h=40, every=64, post=3):
     """A steel railing from p to q (2D) on the floor at z: posts every `every` units, a top rail and a mid rail."""
     L = math.hypot(q[0] - p[0], q[1] - p[1])
@@ -1164,12 +1185,10 @@ def build_room3():
     # the barriers (detail: hazard stripes): 32 and 40 high, across the court
     dbox(out, (R3_B1, r["y0"], 0), (R3_B1 + 16, r["y1"], 32), TX["hazard"])
     dbox(out, (R3_B2, r["y0"], 0), (R3_B2 + 32, r["y1"], 40), TX["hazard"])
-    # the ladder block (structural: its faces in the court's bands) and the jump wall's block
-    SOLIDS.append(((R3_PLAT, r["y0"], 0), (R3_WALL, r["y1"], R3_PLAT_Z)))
-    SOLIDS.append(((R3_WALL, r["y0"], 0), (r["x1"], r["y1"], UP)))
-    # hazard strips on the lips
-    dbox(out, (R3_PLAT - 2, r["y0"], R3_PLAT_Z - 8), (R3_PLAT, r["y1"], R3_PLAT_Z), TX["hazard"])
-    dbox(out, (R3_WALL - 2, r["y0"], UP - 8), (R3_WALL, r["y1"], UP), TX["hazard"])
+    # the ladder block (structural: its faces in the court's bands) and the jump wall's block, hazard stripes on their
+    # lips (flush with the faces: hazard_lip)
+    hazard_lip(out, (R3_PLAT, r["y0"], 0), (R3_WALL, r["y1"], R3_PLAT_Z), "-x")
+    hazard_lip(out, (R3_WALL, r["y0"], 0), (r["x1"], r["y1"], UP), "-x")
     # the ladder: rungs every 20 units from 16 (vrclimb's), 6 off the wall, between two stiles
     ly0, ly1 = 680, 728
     for z in range(16, R3_PLAT_Z, 20):
@@ -1492,7 +1511,9 @@ R9 = dict(x0=3456, y0=-352, x1=4512, y1=352)
 DARK = Style(TX["dark2"], TX["dark2"], [(0, 16, TX["skirting"]), (16, 80, TX["dark"]), (80, 96, TX["rail"]),
                                          (96, None, TX["dark_upper"])])
 R9_WALLS = [(4256, -224, 352), (4000, -352, 224), (3744, -224, 352)]     # (x, y0, y1): 16 thick
-R9_BLOCKS = [((4272, -32), (4512, 16), 40), ((4016, -128), (4256, 96), 40), ((3760, 32), (4000, 80), 48),
+# (lo, hi, height[, the side of a hazard_lip]). The third, climbed: 64 high and its lip striped (the author, 2026-11-26:
+# at 48 it was "slightly taller than what you could jump onto", not plainly a mantle)
+R9_BLOCKS = [((4272, -32), (4512, 16), 40), ((4016, -128), (4256, 96), 40), ((3760, 32), (4000, 80), 64, "+y"),
              ((3456, -160), (3744, -112), 40), ((3456, -112), (3744, 64), 80)]
 
 
@@ -1518,8 +1539,11 @@ def build_room9():
     room("room9", r["x0"], r["y0"], r["x1"], r["y1"], LOW, LOW + 192, DARK)
     for (x, y0, y1) in R9_WALLS:
         SOLIDS.append(((x, y0, LOW), (x + 16, y1, LOW + 192)))
-    for (lo, hi, h) in R9_BLOCKS:
-        SOLIDS.append(((lo[0], lo[1], LOW), (hi[0], hi[1], LOW + h)))
+    for (lo, hi, h, *lip) in R9_BLOCKS:
+        if lip:
+            hazard_lip(out, (lo[0], lo[1], LOW), (hi[0], hi[1], LOW + h), lip[0])
+        else:
+            SOLIDS.append(((lo[0], lo[1], LOW), (hi[0], hi[1], LOW + h)))
     with late():
         trigger("r9_in", (4288, 176, LOW), (4480, 336, LOW + 96), target="r9_in")
     tip("t2_flip", "Press B or Y with the flashlight in hand" + N + "to flip it round in your fist.", 4400, 200,
@@ -1885,6 +1909,14 @@ def build_room14():
     air("r14_pit", (px0, r["y0"], LOW - 192), (px1, r["y1"], LOW), style=bands(TX["panel5"]))
     for x in (px0 - 8, px1):
         hazard_edge(out, (x, r["y0"], LOW), (x + 8, r["y1"], LOW + 1))
+    # (the author, 2026-11-26: the pit and its rope too dark; the ceiling's lamps light it 600 down and a rope is lit
+    # as the floor under it) lamps on the pit's walls, half way down, and on the room's long walls by the rope
+    for y in (r["y0"] + 96, (r["y0"] + r["y1"]) / 2, r["y1"] - 96):
+        wall_lamp(out, "-x", px0, y, LOW - 96, 200)
+        if not (y - 40 < -1304 < y + 40):   # (not over the ladder at y -1328..-1280)
+            wall_lamp(out, "+x", px1, y, LOW - 96, 200)
+    for side, y in (("-y", r["y0"]), ("+y", r["y1"])):
+        wall_lamp(out, side, (px0 + px1) / 2, y, LOW + 160, 220)
     ly0, ly1 = -1328, -1280   # (rungs every 20 from 16, 7 off the wall, between two stiles: room 3's)
     for z in range(16, 192, 20):
         out.append(cylinder((px1 - 7, ly0, LOW - 192 + z), (px1 - 7, ly1, LOW - 192 + z), 1.75, 8, TX["rung"]))

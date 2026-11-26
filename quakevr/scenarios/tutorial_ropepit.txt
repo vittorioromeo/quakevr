@@ -1,0 +1,9 @@
+# tutorial_ropepit: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". tutorial (ROUND26.md):
+# vrtutorial's lesson 14 (ropes), at the pit's east edge by the rope: the pit's own wall lamps and the room's two by the
+# rope (vrtutorial_gen.py build_room14).
+title Tutorial lesson 14: the rope pit's light
+map vrtutorial
+start 2160 -1150 -120 180
+god
+notarget
+hint Look down into the pit and at the rope and the chain: both lit now, the pit's walls and floor too.

@@ -2702,6 +2702,8 @@ QVR_SLIDER_BYNAME(vr_climb_hand_yaw, "Hand on Hold: Yaw", -60.f, 60.f, 5.f, "%.0
     "The hand facing a hold, its knuckles turned towards the other hand (negative: away). Looks only.")
 QVR_SLIDER_BYNAME(vr_climb_hand_roll, "Hand on Hold: Roll", -90.f, 90.f, 5.f, "%.0f deg", ext(),
     "The hand facing a hold, rolled about its knuckles, the thumb's side up (negative: down). Looks only.")
+QVR_TOGGLE_BYNAME(vr_climb_rung_grip, "Hand Round Thin Rungs",
+    "On: your hand on a thin round rung (a ladder's bar you could close your fist round, like the tutorial's) is drawn gripping it, the rung through your fist. Off: drawn on top of it as on a ledge. Square or chunky rungs are always held as ledges. Looks only.")
 
 // vr_menu_pages.inc: pageSwimSettings
 QVR_TOGGLE_BYNAME(vr_swim, "Swimming",

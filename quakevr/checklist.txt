@@ -99,6 +99,10 @@ Flat-screen: hold the knight's sword two-handed and hold the right mouse button 
 
 [4. Tutorial and VR interface]
 Body and Display > Handedness: Left-handed turns on Swap Face Buttons (next to Swap Stick Functions): walk forward on the right stick and press X: you jump, and A, B, Y and the two stick clicks do what the other controller's did; Right-handed turns it off, and changing it alone shows Handedness: Custom. {test:hub_start}
+Flat-screen or VR: climb the tutorial's lesson 3 ladder: each hand closes round its round rung (the rung through the fist, the fingers over its top) instead of sitting on top of it; square rungs elsewhere (vrtesthall's) are still held like ledges. Hand Round Thin Rungs (Climbing settings, Hand on a Hold) switches it off. {test:tutorial_ladder}
+On the tutorial's ladder block, hug the jump wall and jump: nothing catches your head under the striped lip (it is flush with the wall now); jump and grab the lip to mantle up. {test:tutorial_ladder}
+In the tutorial's dark course, the third block is now taller (clearly not jumpable) with a hazard-striped lip: grab the stripes and pull yourself up. {test:tutorial_darkblock}
+The tutorial's rope pit and its rope and chain are lit now (lamps on the pit's walls and by the rope): check they no longer look too dark. {test:tutorial_ropepit}
 
 [5. Weapons and holsters]
 Hook an explosive box, a zombie and a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun. {test:grapple_reel}
