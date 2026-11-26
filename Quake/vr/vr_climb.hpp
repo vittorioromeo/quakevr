@@ -64,8 +64,6 @@ bool serverHold(edict_t* ent, int hand, glm::vec3& at, glm::vec3& out);
 
 // Server: how many of `ent`'s hands hold a climbable rope (vr_climb.cpp, "Holds on ropes"), hanging.
 [[nodiscard]] int ropeHands(edict_t* ent);
-// Server: the exertion grunts `ent`'s pulls up ropes have made so far (vr_rope_grunt; ropes6, the tests').
-[[nodiscard]] int ropePullGrunts(edict_t* ent);
 // Server: (ropes14, NOTES.md vrtutorial_2026-11-23_23-12-23) whether `ent` let go of rope or pole `rope` (its edict
 // number; any hand, VR or flat: a drop, a jump) under vr_rope_letgo_pass seconds ago: its boxes let him through and his
 // body doesn't push it (vr_climbrope.cpp passSolids, disturb), so he jumps where he looks without meeting it.
