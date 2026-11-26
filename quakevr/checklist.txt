@@ -70,6 +70,9 @@ Flat-screen: with both hands empty, press V near a grunt: both fists rise over y
 Flat-screen: holding something in one hand, or with Locomotion > Quick Melee: Both Fists off, V is the one-fist overhand blow as before. {test:flat_melee_2fist}
 Flat-screen: flip a sword or the dagger to the inverted grip (B), then hold the right mouse button: the blade turns quickly back to the normal grip for the guard, and flips back to inverted when you let go. {test:flat_parry}
 Flat-screen: hold the right mouse button with the ogre hammer, the ogre mace, the death fury's sword or the judicator's sword: your left hand takes the shaft or blade near the head/tip, not the handle. {test:flat_parry_ad}
+Flat-screen: hold B with the sword, a gun, a prop or the quick grenade and press that hand's attack button: the throw is cancelled, the thing stays in the hand, and the press neither swings, fires nor arms; letting go of B afterwards does nothing. {test:flat_throw_cancel}
+Flat-screen: hold B with your off hand empty while the ogre lobs grenades at you: the guiding off hand never catches one (without B it still can). {test:flat_throw_cancel}
+Flat-screen: flip the sword's grip and hold B: the inverted wind-up pose is unchanged until you tune it with Flatscreen > Throw > "Throw: Flipped Grip Forward/Out/Up/Pitch/Yaw/Roll". {test:flat_throw_cancel}
 
 [4. Tutorial and VR interface]
 Look away from the wrist gadget and get a centre message: the visor-style panel is about 20% smaller than before and still easy to read; Centre Message Size (HUD > Screens) tunes it. {test:vr_center_message}
