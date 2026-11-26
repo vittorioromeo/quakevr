@@ -922,6 +922,15 @@ float vr_embed_fgmain; // (the main hand's)
 float vr_embed_fgper;  // (the handle's hand's more, cm, a unit further in)
 float VR_FLATARM_STEP = 0.5; // units this think's holder's own step, off the blade, that is him walking away (not the blade's origin jittering, not his eye easing in)
 
+// Flat play, a hold think after VR_Embed_FlatArmGaps: whether `p` himself is going off the blade `e` this think (his own eye stepped
+// VR_FLATARM_STEP units or more away from it), not the body carrying it off.
+float(entity e, entity p) VR_Embed_FlatGoingAway =
+{
+    vector stepAway = p.origin + p.view_ofs - vr_embed_fgroot;
+    vector toBlade = e.origin - (p.origin + p.view_ofs);
+    return vr_embed_fgarmed && vlen(toBlade) > 0.01 && (stepAway * normalize(toBlade)) < -VR_FLATARM_STEP;
+};
+
 // Whether a stuck blade `e` in host `h` yields to the holder's arm pulling away in flat play
 // (a light standing monster, a skewerable ragdoll, or a crate/barrel whose pull isn't maxed out).
 float(entity e, entity h) VR_Embed_HostYields =
@@ -1031,9 +1040,7 @@ float(entity e, entity p, entity h, vector xHostWas) VR_Embed_FlatArm =
     // still nothing here ends the hold and nothing draws the blade out (his item 4: "the blade comes out about 0.1 s after the stab"), and
     // a body staggering or settling under the stab, which mostly comes back and moves the blade's drawn place about by tens of units, is no
     // pull: the hand slips on its handle while the engine keeps it drawn on its arm, view::keepOnArm.)
-    vector stepAway = p.origin + p.view_ofs - vr_embed_fgroot;
-    vector toBlade = e.origin - (p.origin + p.view_ofs);
-    float away = (vr_embed_fgarmed && vlen(toBlade) > 0.01 && (stepAway * normalize(toBlade)) < -VR_FLATARM_STEP);
+    float away = VR_Embed_FlatGoingAway(e, p);
     if(away && handleGap > limit)
     {
         float point = (e.vr_stick_embed == AXESTICK_POINT);
@@ -1377,7 +1384,12 @@ float() VR_Embed_HoldThink =
     e.vr_hold_farmost = max(0, cvar_hget(cvarh_vr_embed_hold_reach)) * reachBy;
     if(far > max(0, cvar_hget(cvarh_vr_embed_hold_reach)) * cm * reachBy)
     {
-        if(flat && (e.vr_stick_embed != AXESTICK_POINT || !VR_Embed_HostYields(e, h)))
+        // (Flat play: a heavy body's or an edge's blade is let go of when he walks off it, so it stays in. A point the body itself
+        // carried off -- a stagger, its pain frames stepping back, a fall -- comes free into the hand it came from (flatembed4, his
+        // flatembed decision 2026-11-24: never a stuck Lance lost that way). Before flatembed3 the second hand's own anchor up the
+        // shaft gave the averaged `far` a few units' slack that hid this; with both hands on the handle a staggering ogre after a
+        // fast thrust let go of it.)
+        if(flat && (e.vr_stick_embed != AXESTICK_POINT || (!VR_Embed_HostYields(e, h) && VR_Embed_FlatGoingAway(e, p))))
         {
             VR_Embed_DropHands(e, VR_Embed_Why("too far from the hand: lets go", far / cm, cvar_hget(cvarh_vr_embed_hold_reach) * reachBy, "cm"));
             return FALSE;

@@ -558,6 +558,25 @@ void poleShaftGrip(int hand, bool mirrored, const glm::vec3& on, const glm::vec3
     poleProbe.on++;
 }
 
+// A hand closed round a pole's shaft (poleShaftGrip) turned by `pitch` degrees of its own pitch about the shaft itself
+// (flatembed4: the shaft grip otherwise undid vr_flat_pole_off_pitch): the same turn as moveDrawnHand's pitch, its way about
+// the shaft taken from its own pitch axis's side, about the shaft's line through `on`, so the grip channel stays on it.
+void turnAboutShaft(const glm::vec3& on, const glm::vec3& axis, float pitch, glm::vec3& pos, glm::vec3& handRot)
+{
+    if(pitch == 0.f || glm::length(axis) < 1e-3f)
+    {
+        return;
+    }
+    const glm::mat3 frame = anglesBasis(handRot);
+    const glm::quat q = glm::quat_cast(frame * anglesBasis({-pitch, 0.f, 0.f}) * glm::transpose(frame));
+    const glm::vec3 a = glm::normalize(axis);
+    const float way = glm::dot(glm::axis(q), a) >= 0.f ? 1.f : -1.f;
+    const glm::mat3 r = glm::mat3_cast(glm::angleAxis(glm::angle(q), a * way));
+    handRot = basisAngles(r * frame);
+    const glm::vec3 p0 = on + a * glm::dot(pos - on, a);
+    pos = p0 + r * (pos - p0);
+}
+
 // Whether a finger at `curls` is clear of the world: the lines from its knuckle through its joints to its tip.
 [[nodiscard]] bool fingerClear(const RigHand& rh, int finger, const glm::mat4& rigToWorld, const float curls[handrig::jointsPerFinger])
 {
@@ -4099,10 +4118,34 @@ void setupHand(const hands::State& s, int hand)
     {
         glm::vec3 turn{0.f}, move{0.f};
         const float onPole = za::max(gripBlend, flatsight::pinShare(hand));
-        if(onPole > 0.f && otherSlot >= 0 && twohand::poleWeapon(otherSlot))
+        const bool holdsPole = onPole > 0.f && otherSlot >= 0 && twohand::poleWeapon(otherSlot);
+        // (polepose, flatmelee4's flipped grips: the pole held reversed is drawn turned half round about the fist
+        // (vr_flat_revgrip_pole_*), and the hand pinned on it, carried with that turn and turned by its own pose below, ended
+        // off the drawn shaft. By the flip's share its grip channel goes onto the pole as drawn, the least turn and move
+        // (alignChannel), so it closes round the shaft.)
+        // (flatembed3, his item 7: and in every other state too -- held upright, swung, thrust, guarding -- by
+        // vr_flat_pole_off_snap: the pole as drawn this frame, whatever turned it, poleShaftGrip.)
+        view::WeaponMount m;
+        float shaftK = 0.f;
+        if(holdsPole && view::weaponMount(other, m) && glm::distance(m.muzzle, m.pos) > 1.f)
+        {
+            glm::vec3 wf, wu;
+            float flip = 0.f;
+            if(!view::heldWeaponAxes(other, wf, wu, flip))
+            {
+                flip = 0.f;
+            }
+            shaftK = za::max(za::clamp(vr_flat_pole_off_snap.value, 0.f, 1.f), za::clamp(flip, 0.f, 1.f)) * za::min(onPole, 1.f);
+        }
+        float shaftPitch = 0.f;
+        if(holdsPole)
         {
             turn = glm::vec3{za::clamp(vr_flat_pole_off_pitch.value, -90.f, 90.f), za::clamp(vr_flat_pole_off_yaw.value, -90.f, 90.f),
                        za::clamp(vr_flat_pole_off_roll.value, -180.f, 180.f)} * onPole;
+            // (flatembed4: the shaft grip's share of the hand's pitch is turned about the shaft after it, turnAboutShaft, not
+            // before: its least turn onto the shaft undid it, vr_flat_pole_off_pitch turning the hand 2 of 30 degrees.)
+            shaftPitch = turn.x * shaftK;
+            turn.x -= shaftPitch;
         }
         else if(slot >= 0 && slot != fist && twohand::poleWeapon(slot))
         {
@@ -4114,23 +4157,10 @@ void setupHand(const hands::State& s, int hand)
                 za::clamp(vr_flat_pole_hand_up.value, -10.f, 10.f)};
         }
         moveDrawnHand(hand, mirrored, handRot, move, turn, hand == HAND_OFF, pos, handRot);
-        // (polepose, flatmelee4's flipped grips: the pole held reversed is drawn turned half round about the fist
-        // (vr_flat_revgrip_pole_*), and the hand pinned on it, carried with that turn and turned by its own pose above, ended
-        // off the drawn shaft. By the flip's share its grip channel goes onto the pole as drawn, the least turn and move
-        // (alignChannel), so it closes round the shaft.)
-        // (flatembed3, his item 7: and in every other state too -- held upright, swung, thrust, guarding -- by
-        // vr_flat_pole_off_snap: the pole as drawn this frame, whatever turned it, poleShaftGrip.)
-        glm::vec3 wf, wu;
-        float flip = 0.f;
-        if(view::WeaponMount m; onPole > 0.f && otherSlot >= 0 && twohand::poleWeapon(otherSlot) && view::weaponMount(other, m) &&
-                                glm::distance(m.muzzle, m.pos) > 1.f)
+        if(shaftK > 0.f)
         {
-            if(!view::heldWeaponAxes(other, wf, wu, flip))
-            {
-                flip = 0.f;
-            }
-            const float snap = za::max(za::clamp(vr_flat_pole_off_snap.value, 0.f, 1.f), za::clamp(flip, 0.f, 1.f));
-            poleShaftGrip(hand, mirrored, m.pos, m.muzzle - m.pos, snap * za::min(onPole, 1.f), pos, handRot);
+            poleShaftGrip(hand, mirrored, m.pos, m.muzzle - m.pos, shaftK, pos, handRot);
+            turnAboutShaft(m.pos, m.muzzle - m.pos, shaftPitch, pos, handRot);
         }
     }
 
