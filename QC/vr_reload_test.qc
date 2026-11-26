@@ -1258,6 +1258,7 @@ void(float xStep) VR_Reload_TestStartGun =
 };
 
 void() VR_HolsterAmmo_Test; // (vr_holsterammo_test.qc: after vr_flatholster.qc)
+void() VR_AmmoSwitch_Test;  // (vr_holsterammo_test.qc)
 
 void() VR_Reload_Test =
 {
@@ -1270,6 +1271,10 @@ void() VR_Reload_Test =
     else if(step == 49)
     {
         VR_HolsterAmmo_Test(); // (a holstered gun keeps its rounds: vr_holsterammo_test.qc)
+    }
+    else if(step == 50)
+    {
+        VR_AmmoSwitch_Test(); // (ammo type switch ejects old magazine first: vr_holsterammo_test.qc)
     }
     else if(step == 44)
     {

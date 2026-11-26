@@ -89,6 +89,11 @@ dispatcher (another cvar, or a sub-dispatcher a range is handed to) gets a `disp
 numbered tests. Every `vr_agrunt_test` ends
 on `agtest: test N over: P passed, F failed` (`-QuitOn "test N over"`).
 
+`.gitattributes` merges the append-only lists (`QC/test_numbers.txt`, `Quake/vr/vr_tunables.inc`,
+`Quake/vr/vr_tunables_rows.inc`, `Misc/quakevr/std_uses_allowlist.txt`) and the `ROUND*.md` notes as `union`: two
+branches that each add lines merge without a conflict, keeping both. The build still fails on a number or a tunable both
+sides claimed. Not union: `quakevr/checklist.txt` (numbered sections), `menu_paths.txt` (generated), sources.
+
 ## Checklist scenarios: how to write one
 
 A scene needing an add-on's map (`map ad_crucial`: Arcane Dimensions, Quoth, Dwell) needs no declaration: the loader switches to the campaign that has the map, so the scene runs alone or after any other.
