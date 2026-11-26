@@ -312,18 +312,9 @@ void splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back)
     (void)splitPoly(ZA_MOVE(p), n, d, front, back, tlo, thi);
 }
 
-Poly boxPoly(const glm::dvec3& mins, const glm::dvec3& maxs)
+// Each face's winding from the planes alone: its plane's clipped by every other face's.
+void closeFaces(Poly& p)
 {
-    Poly p;
-    for(int axis = 0; axis < 3; ++axis)
-    {
-        for(int s = 0; s < 2; ++s)
-        {
-            glm::dvec3 n{0.0};
-            n[axis] = s ? 1.0 : -1.0;
-            p.pushBack(Face{n, s ? maxs[axis] : -mins[axis], {}});
-        }
-    }
     Winding tmp;
     for(Face& f : p)
     {
@@ -337,6 +328,43 @@ Poly boxPoly(const glm::dvec3& mins, const glm::dvec3& maxs)
             }
         }
     }
+}
+
+// The bounds of the faces' points; false if there are none.
+bool polyBounds(const Poly& p, glm::dvec3& lo, glm::dvec3& hi)
+{
+    lo = glm::dvec3{1e300};
+    hi = glm::dvec3{-1e300};
+    for(const Face& f : p)
+    {
+        for(const glm::dvec3& v : f.w)
+        {
+            lo = glm::min(lo, v);
+            hi = glm::max(hi, v);
+        }
+    }
+    return lo.x <= hi.x;
+}
+
+// Whether points spanning rlo..rhi (any: there are some) reach more than half a unit past lo..hi.
+bool reachesPast(bool any, const glm::dvec3& rlo, const glm::dvec3& rhi, const glm::dvec3& lo, const glm::dvec3& hi)
+{
+    return any && (glm::any(glm::lessThan(rlo, lo - 0.5)) || glm::any(glm::greaterThan(rhi, hi + 0.5)));
+}
+
+Poly boxPoly(const glm::dvec3& mins, const glm::dvec3& maxs)
+{
+    Poly p;
+    for(int axis = 0; axis < 3; ++axis)
+    {
+        for(int s = 0; s < 2; ++s)
+        {
+            glm::dvec3 n{0.0};
+            n[axis] = s ? 1.0 : -1.0;
+            p.pushBack(Face{n, s ? maxs[axis] : -mins[axis], {}});
+        }
+    }
+    closeFaces(p);
     return p;
 }
 
@@ -708,11 +736,9 @@ namespace
 // (vr_hull_holes.cpp, 2026-11-21; their setting and the map's entities: holesKey). 4: the diagonal, from-above, wide
 // and brush-model-pair blockers (2026-11-22, their settings in holesKey). 5: own gaps of exactly the limit, a dropped
 // merged blocker split back into its pieces (2026-11-22, backlog1122: Quoth start's drain). 6: the corners between
-// cross blockers (backlog1122d: vrbrushholes' lift corner).
-constexpr za::U64 buildVersion = 6;
-// The lowest box the player ever has (the lying-down box's least, vr_prone_height): the recovered clip brushes' faces
-// that move with a box's height (recoverClips) have their bounds grown for it. Quake's box is 56 tall (half 28).
-constexpr float lowestBoxHeight = 12.f;
+// cross blockers (backlog1122d: vrbrushholes' lift corner). 7: a clip brush whose faces reach past its bounds is cut to
+// them, a sliver piece that lost its faces boxed (2026-11-26, ROUND26 clipstray).
+constexpr za::U64 buildVersion = 7;
 } // namespace
 namespace detail
 {
@@ -850,6 +876,18 @@ double support(const Plane& p, const glm::dvec3& ext)
 {
     return p.grows * (za::abs(p.normal.x * ext.x) + za::abs(p.normal.y * ext.y) + za::abs(p.normal.z * ext.z)) +
            p.growsZ * za::abs(p.normal.z * ext.z);
+}
+
+bool brushReach(const Plane* planes, za::U32 count, const glm::dvec3& ext, glm::dvec3& lo, glm::dvec3& hi)
+{
+    Poly p;
+    p.reserve(count);
+    for(za::U32 i = 0; i < count; ++i)
+    {
+        p.pushBack(Face{glm::dvec3{planes[i].normal}, planes[i].dist + support(planes[i], ext), {}});
+    }
+    closeFaces(p);
+    return polyBounds(p, lo, hi);
 }
 } // namespace detail
 namespace
@@ -1255,9 +1293,10 @@ void recoverClips(Brushes& b, qmodel_t* world)
         za::SizeT tests = 0; // boxInSolid's (b.stamp's count)
     };
     // (b is only read here: its hull 0 brushes, complete)
-    auto onSolid = [&b, &h1, &h0, &sub, head, lift, e32](int num1, int side1, const Poly& piece, Out& out)
+    // A solid leaf's piece: -1 no points, 0 not a clip brush; 1 one, its brush and planes added to out; 2 the same, but its faces as
+    // its planes make them reach past the box its points span (see onSolid).
+    auto emit = [&b, &h1, &h0, &sub, head, lift, e32](const Poly& piece, Out& out, bool checkClosed) -> int
     {
-        ++out.hull1Leaves;
         za::Vector<bool>& open = out.open;
         // Its faces that face the open (hull 1 empty just past their middle), its centre and bounds.
         open.clear();
@@ -1285,7 +1324,7 @@ void recoverClips(Brushes& b, qmodel_t* world)
         }
         if(!count)
         {
-            return;
+            return -1;
         }
         c /= count;
         // Is there room for Quake's box anywhere in it (inside the world: past it, hull 0's brushes stop)? Where hull
@@ -1346,10 +1385,9 @@ void recoverClips(Brushes& b, qmodel_t* world)
             }
             clip = inside && roomAt(p);
         }
-        out.leaves.emplaceBack(static_cast<za::SizeT>(num1) * 2 + side1, clip);
         if(!clip)
         {
-            return;
+            return 0;
         }
         // Kept in the box centre's space; the open faces shrink back with a narrower box. The others lie against more
         // of hull 1's solid (a floor's, a ceiling's, a wall's, grown by Quake's box): a shorter box (crouched) meets that
@@ -1408,8 +1446,80 @@ void recoverClips(Brushes& b, qmodel_t* world)
         // its corners along the faces beside it, twice as far for a 26-degree ramp.)
         constexpr double moveZ = 28.0 - static_cast<double>(lowestBoxHeight) * 0.5;
         const glm::dvec3 grow = heightMoves ? glm::dvec3{moveZ * 2.0, moveZ * 2.0, moveZ} : glm::dvec3{0.0};
-        out.brushes.pushBack(Brush{static_cast<za::U32>(first), static_cast<za::U32>(out.planes.size() - first),
-            glm::vec3{lo + lift - grow}, glm::vec3{hi + lift + grow}, true});
+        const glm::vec3 mins{lo + lift - grow}, maxs{hi + lift + grow};
+        // Its faces as its planes make them, at Quake's box: the piece's own, unless it lost some (onSolid).
+        glm::dvec3 rlo, rhi;
+        if(checkClosed &&
+            reachesPast(detail::brushReach(&out.planes[first], static_cast<za::U32>(out.planes.size() - first), e32, rlo,
+                            rhi),
+                rlo, rhi, lo + lift, hi + lift))
+        {
+            return 2;
+        }
+        // ... and at the widest lowest box, where every face is at its farthest: the moved faces of a thin wedge (two
+        // floor-like faces meeting at a shallow angle) move by different amounts, and its corner shot along their edge
+        // past the bounds: vrstart's 5,500 units through the map in the prone box's tree, ad_tears' 540 (ROUND26
+        // clipstray). The sweeps meet a clip brush only within its bounds (the leaves they reach, leavesOfBox), so it is
+        // cut to them, the trees and the navmesh then meeting it there too.
+        if(heightMoves &&
+            reachesPast(detail::brushReach(&out.planes[first], static_cast<za::U32>(out.planes.size() - first),
+                            glm::dvec3{e32.x, e32.y, lowestBoxHeight * 0.5}, rlo, rhi),
+                rlo, rhi, glm::dvec3{mins}, glm::dvec3{maxs}))
+        {
+            for(int axis = 0; axis < 3; ++axis)
+            {
+                for(int s = 0; s < 2; ++s)
+                {
+                    glm::vec3 n{0.f};
+                    n[axis] = s ? 1.f : -1.f;
+                    out.planes.pushBack(Plane{n, s ? maxs[axis] : -mins[axis], 0.f});
+                }
+            }
+        }
+        out.brushes.pushBack(
+            Brush{static_cast<za::U32>(first), static_cast<za::U32>(out.planes.size() - first), mins, maxs, true});
+        return 1;
+    };
+    // A piece cut down to a sliver can lose all but a couple of its faces to the split's epsilon (splitPoly keeps a face
+    // only on the sides its points are on): its planes then no longer close it, and the clip brush made of them reached
+    // 30,000 units out of old vrstart (two faces 0.2 units across; ROUND26 clipstray). Such a piece gets the box its
+    // points span as faces too (as hull 0's brushes get axial bevels, emitBrush) and is looked at again.
+    auto onSolid = [&emit](int num1, int side1, const Poly& piece, Out& out)
+    {
+        ++out.hull1Leaves;
+        const za::SizeT first = out.planes.size();
+        int clip = emit(piece, out, true);
+        if(clip == 2)
+        {
+            out.planes.resize(first);
+            Poly boxed = piece;
+            glm::dvec3 lo, hi;
+            (void)polyBounds(piece, lo, hi);
+            for(int axis = 0; axis < 3; ++axis)
+            {
+                for(int s = 0; s < 2; ++s)
+                {
+                    glm::dvec3 n{0.0};
+                    n[axis] = s ? 1.0 : -1.0;
+                    const double d = s ? hi[axis] : -lo[axis];
+                    bool has = false;
+                    for(const Face& f : piece)
+                    {
+                        has = has || (glm::dot(f.normal, n) > 1.0 - 1e-9 && za::abs(f.dist - d) < 0.01);
+                    }
+                    if(!has)
+                    {
+                        boxed.pushBack(Face{n, d, {}});
+                    }
+                }
+            }
+            closeFaces(boxed);
+            clip = emit(boxed, out, false);
+        }
+        if(clip >= 0)
+        {
+            out.leaves.emplaceBack(static_cast<za::SizeT>(num1) * 2 + side1, clip > 0);
+        }
     };
     const glm::dvec3 margin{96.0};
     za::Vector<WalkItem> items;
@@ -5280,7 +5390,7 @@ void init()
     Cvar_RegisterVariable(&vr_hull_audit);
     Cmd_AddCommand("vr_hull_warmcache", warmCache_f);
     registerHoleCommands(); // vr_hull_holes_census, _test, _near (vr_hull_holes.cpp)
-    registerDiagCommands(); // vr_hull_cachetest, _preloadtest, _stats, _keeptest, _bench, _walktest, _probe, _leafdebug, _approach, _hittest, vr_mhull_walktest (vr_hull_diag.cpp)
+    registerDiagCommands(); // vr_hull_cachetest, _preloadtest, _stats, _strays, _keeptest, _bench, _walktest, _probe, _leafdebug, _approach, _hittest, vr_mhull_walktest (vr_hull_diag.cpp)
     Cmd_AddCommand("vr_mhull_reset", reset_f);
     Cvar_SetCallback(&vr_hull_width, onWidthChanged);
     Cvar_SetCallback(&vr_hull_brushmodels, onWidthChanged);

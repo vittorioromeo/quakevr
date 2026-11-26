@@ -1,5 +1,5 @@
-// vr_hull_diag.cpp -- the hull tests, benches and probes: vr_hull_cachetest, _preloadtest, _stats, _keeptest, _bench, _walktest,
-// _probe, _leafdebug, _approach, _hittest and vr_mhull_walktest.
+// vr_hull_diag.cpp -- the hull tests, benches and probes: vr_hull_cachetest, _preloadtest, _stats, _strays, _keeptest, _bench,
+// _walktest, _probe, _leafdebug, _approach, _hittest and vr_mhull_walktest.
 // Split from vr_hull.cpp (a pure move); what they share is in vr_hull_internal.hpp.
 
 #include "vr_random.hpp"
@@ -209,6 +209,92 @@ za::U32 hashOf(const Tree& t)
         stack.pushBack(n.children[0]);
     }
     return h.h;
+}
+
+// vr_hull_strays [n]: the world's brushes whose faces reach more than 128 units past the world model's bounds (hull 0's
+// as they are; a recovered clip brush's at Quake's box and at the widest lowest box), the first n (default 4) with their
+// planes; and the clip brushes whose faces reach past their own bounds. A clean map says 0 and 0 (ROUND26 clipstray: old
+// vrstart had a clip brush 30,000 units out).
+void strays_f()
+{
+    if(!sv.active || !sv.worldmodel)
+    {
+        Con_Printf("vr_hull_strays: no map\n");
+        return;
+    }
+    const Brushes* b = worldBrushes(sv.worldmodel);
+    if(!b)
+    {
+        return;
+    }
+    const int show = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 4;
+    const glm::dvec3 lo = glm::dvec3{geom::vec(sv.worldmodel->mins)} - 128.0;
+    const glm::dvec3 hi = glm::dvec3{geom::vec(sv.worldmodel->maxs)} + 128.0;
+    const za::SizeT own = b->subs.empty() ? 0 : b->subs[0].numBrushes;
+    int strays = 0, clipStrays = 0, pastOwn = 0, pastFar = 0, shown = 0;
+    double worst = 0.0;
+    // A clip brush at Quake's box and at the widest lowest box (its faces' reach at their farthest); hull 0's as it is.
+    const glm::dvec3 exts[2] = {{16.0, 16.0, 28.0}, {16.0, 16.0, lowestBoxHeight * 0.5}};
+    const auto check = [&](za::SizeT index)
+    {
+        const Brush& w = b->brushes[index];
+        glm::dvec3 plo{1e300}, phi{-1e300};
+        for(int e = 0; e < (w.clip ? 2 : 1); ++e)
+        {
+            glm::dvec3 rlo, rhi;
+            if(brushReach(&b->planes[w.first], w.count, w.clip ? exts[e] : glm::dvec3{0.0}, rlo, rhi))
+            {
+                plo = glm::min(plo, rlo);
+                phi = glm::max(phi, rhi);
+            }
+        }
+        // (its bounds hold its box centres: the sweeps meet it only in the leaves they reach, leavesOfBox)
+        const glm::dvec3 out = glm::max(glm::dvec3{w.mins} - plo, phi - glm::dvec3{w.maxs});
+        const double over = plo.x <= phi.x ? za::max(out.x, za::max(out.y, out.z)) : 0.0;
+        if(w.clip && over > 0.5)
+        {
+            ++pastOwn;
+            worst = za::max(worst, over);
+            pastFar += over > 8.0;
+        }
+        if(!glm::any(glm::lessThan(plo, lo)) && !glm::any(glm::greaterThan(phi, hi)))
+        {
+            return;
+        }
+        ++strays;
+        clipStrays += w.clip;
+        if(shown++ >= show)
+        {
+            return;
+        }
+        int leaf = -1;
+        for(za::SizeT k = 0; k < b->hull1Clip.size() && w.clip; ++k)
+        {
+            leaf = b->hull1Clip[k] == static_cast<int>(index) ? static_cast<int>(k) : leaf;
+        }
+        Con_Printf("stray: brush %d%s (hull 1 leaf %d), faces %.0f %.0f %.0f to %.0f %.0f %.0f, bounds %.0f %.0f %.0f to "
+                   "%.0f %.0f %.0f, %u planes:\n",
+            static_cast<int>(index), w.clip ? " clip" : "", leaf, plo.x, plo.y, plo.z, phi.x, phi.y, phi.z, w.mins.x,
+            w.mins.y, w.mins.z, w.maxs.x, w.maxs.y, w.maxs.z, w.count);
+        for(za::U32 i = 0; i < w.count; ++i)
+        {
+            const Plane& p = b->planes[w.first + i];
+            Con_Printf("  %.6f %.6f %.6f  %.3f  grows %g %g\n", p.normal.x, p.normal.y, p.normal.z, p.dist, p.grows,
+                p.growsZ);
+        }
+    };
+    for(za::SizeT i = 0; i < own; ++i)
+    {
+        check(b->subs[0].firstBrush + i);
+    }
+    for(const int c : b->clips)
+    {
+        check(static_cast<za::SizeT>(c));
+    }
+    Con_Printf("vr_hull_strays: %s: %d of %d brushes reach past the world's box (+128), %d of %d clip brushes; %d clip "
+               "brushes past their own bounds (%d by over 8, the most %.1f)\n",
+        sv.worldmodel->name, strays, static_cast<int>(own + b->clips.size()), clipStrays,
+        static_cast<int>(b->clips.size()), pastOwn, pastFar, worst);
 }
 
 void stats_f()
@@ -1484,6 +1570,7 @@ void registerDiagCommands()
     Cmd_AddCommand("vr_hull_cachetest", cacheTest_f);
     Cmd_AddCommand("vr_hull_preloadtest", preloadTest_f);
     Cmd_AddCommand("vr_hull_stats", stats_f);
+    Cmd_AddCommand("vr_hull_strays", strays_f);
     Cmd_AddCommand("vr_hull_keeptest", keepTest_f);
     Cmd_AddCommand("vr_hull_bench", bench_f);
     Cmd_AddCommand("vr_hull_walktest", walkTest_f);

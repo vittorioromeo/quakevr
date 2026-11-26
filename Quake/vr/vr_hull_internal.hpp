@@ -52,6 +52,9 @@ namespace qvr::hull::detail
 // A table's planes by planeKey(dist), each key's in the order they were added.
 using PlaneIndex = ankerl::unordered_dense::map<long long, za::Vector<int>>;
 inline constexpr float minWidth = 8.f, maxWidth = 32.f;
+// The lowest box the player ever has (the lying-down box's least, vr_prone_height): the recovered clip brushes' faces
+// that move with a box's height (recoverClips) have their bounds grown for it. Quake's box is 56 tall (half 28).
+inline constexpr float lowestBoxHeight = 12.f;
 
 // A brush's face, outward: inside is dot(normal, p) < dist + grows * the box's reach along normal. A face of hull 0's
 // brushes grows with the box (grows 1); a recovered clip brush's face (see recoverClips) is already grown by Quake's
@@ -340,6 +343,9 @@ Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3
 Tree* findSlot(const mclipnode_t* clipnodes, const glm::vec3& ext);
 bool boxInBrush(const Brushes& b, const Brush& br, const glm::dvec3& p, const glm::dvec3& ext);
 double support(const Plane& p, const glm::dvec3& ext);
+// The faces a brush's planes make in the centre space of a box of half size ext (each moved by support): their points'
+// bounds; false if they make none. (vr_hull_strays; recoverClips bounds a clip brush whose faces reach past its box.)
+bool brushReach(const Plane* planes, za::U32 count, const glm::dvec3& ext, glm::dvec3& lo, glm::dvec3& hi);
 int clientNum(const edict_t* ent);
 float entWidthSetting();
 // The trees compiled in play on the pool (vr_hull_async) finished first: before anything changes `built`'s layout or the
