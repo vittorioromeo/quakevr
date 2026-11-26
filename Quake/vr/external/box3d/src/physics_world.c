@@ -3127,7 +3127,7 @@ void b3World_GetManifoldMemory( b3WorldId worldId, b3ManifoldMemory* out )
 		return;
 	}
 
-	// Since #227 every count up to B3_MAX_MANIFOLDS has its allocator from the start, empty: a pool is one holding blocks.
+	// Since #236 every count up to B3_MAX_MANIFOLDS has its allocator from the start, empty: a pool is one holding blocks.
 	for ( int i = 0; i < B3_MAX_MANIFOLDS; ++i )
 	{
 		b3BlockAllocator* allocator = world->manifoldAllocators + i;
