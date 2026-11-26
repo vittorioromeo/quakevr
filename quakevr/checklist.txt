@@ -95,6 +95,7 @@ Swing the spear (and the Crystal Lance) so its shaft, not the head, hits a grunt
 Flat-screen or VR: put the bayonet on the shotgun and throw it point first at a grunt: it flies and hits by the bayonet and sticks by its point, and dropped on the floor it lies on the bayonet instead of passing it through the floor. {test:attach_bayonet}
 Stab a grunt with the bayonet shotgun so it sticks, keep your hand on it, and bring a shell from the pouch to its port with the other hand: the shell goes in and the gun stays stuck. {test:attach_bayonet}
 Stab with the bayonet super shotgun so it sticks, press B (or hit its barrels from above with the other hand): it breaks open where it is stuck, the other hand's pair loads it, and it stays stuck. {test:attach_bayonet}
+Flat-screen or VR: throw the axe at a zombie's head (and a grunt's) until the head comes off: the axe drops to the floor, never left floating where the head was. {test:float_axe}
 
 [6. Ropes and chains]
 Flat-screen or VR: in a two-player game in the ropes hall both climb the same upright pole (from opposite sides, and one after the other; also on vrropes): both get on, neither is pushed off or stuck, and each sees the other's hands on the pole and legs round it. {test:ropes}
@@ -111,9 +112,9 @@ Pose Studio on the spear holders: a frozen armed enforcer, knight and death knig
 Quoth map from the Map Library (ne_marb): the waves spawn and the ring doors open. {test:quoth_ne_marb}
 Quoth (experimental): Setup with AD ticked installs Quoth; without AD the box is greyed with the reason. {test:hub_start}
 Quoth's kellbase1: press the three buttons; enforcers, then pyros, then eliminators arrive, and killing all 16 opens the exit lock and makes the plasma gun. {test:quoth_kellbase_buttons}
-Quoth's kellbase1: the doorway's energy field is a sheet of pale blue sparks, and the enforcer behind it stops short instead of walking into it again and again. {test:quoth_kellbase_field}
 Quoth's lpqsp1: shoot the button by the vore trap; about 5 s later its secret door opens. {test:quoth_lpqsp1}
 Quoth's metmon: each stage's switches unlock the next, and the fourth shuts down the portal sphere. {test:quoth_metmon}
+Flat-screen or VR: the Quoth metmon Test button without the metmon1d map package installed says to install metmon1d from the Map Library (no "no map" error); install it there and press Test again: metmon starts in Quoth. {test:quoth_metmon}
 
 [9. Arcane Dimensions]
 Arcane Dimensions' rocket, grenade and plasma soldiers, defenders, eliminators, pyros, fumigators and crossbow knights hold their own gun as armed humanoids: disarm them, tug and shoot the guns out. {test:humrepl_variants}

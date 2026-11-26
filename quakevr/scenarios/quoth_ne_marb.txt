@@ -1,6 +1,7 @@
 # quoth_ne_marb: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A Quoth package map (Map Library) run by Quoth's campaign rules, from its start.
 title Quoth's ne_marb (Map Library): the waves and the ring doors
 campaign quoth
+package 764ad7c7ef0d947f ne_marb
 map ne_marb
 god
 hint Quoth's ne_marb from its start: the waves spawn and the ring doors open.

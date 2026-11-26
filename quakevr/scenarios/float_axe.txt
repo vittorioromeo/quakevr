@@ -1,0 +1,10 @@
+# float_axe: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A thrown axe that takes off the head it hits falls.
+title Thrown axe at a head: zombies and a grunt to behead with a throw
+map vrtesthall
+god
+notarget
+give "Axe" main
+spawn "Zombie" 200 -40
+spawn "Zombie" 200 40
+spawn "Grunt" 260 0
+hint Throw the axe edge first at a zombie's head: the head comes off and the axe drops to the floor, never left hanging in the air. Reset to try again.

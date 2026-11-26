@@ -1964,6 +1964,22 @@ the runner never saw the wrong-place cases (the map did load), the audit found t
 on hub_start. Not fixed: humrepl_variants (the AD soldiers line) has no `start`, and vr_ad_test 219 is a PASS/FAIL
 self-test that makes the soldiers before you at ad_crucial's start. New scene pose_spear_humanoids: frozen spear enforcer,
 knight and death knight in vrtesthall's open middle (start 0 -40), the Pose Studio opened by the scene.
+- **Map Library package scenes (quothscenes, 2026-11-26)**. His report: quoth_metmon and quoth_lpqsp1 "not started: no map
+  maps/metmon.bsp". metmon (metmon1d), lpqsp1 and ne_marb are Map Library packages (qvr_addons/<sha16>/), not in
+  quoth/; a package folder is on the search path only while it is the active one, so the scene's COM_FileExists missed
+  them. kellbase1 is in Quoth's own pak1/pak2 (its three scenes were fine). His Steam install has none of the three
+  packages installed. Fixes (vr_scenario.cpp): (1) a scene's map is also found in an installed package
+  (mapinstall::packageFor, the `map` command's own lookup); its `map` then mounts the package as the Map Library's Play
+  does (Host_Map_f's VR_AddonForMapCommand), in the scene's campaign; (2) new directive `package <sha256 prefix> <name>`
+  (before `map`): the package the map is in; not installed, the scene says "the Map Library package metmon1d is not
+  installed: install it from the Map Library (or maps_install 59971ea4 at the console, when the index is loaded), then
+  start this test again" instead of "no map". A scene never downloads (installing stays the player's choice in the Map
+  Library). quoth_metmon/lpqsp1/ne_marb carry their package lines (59971ea485de52bf, 50105e2a0c4ffa3d,
+  764ad7c7ef0d947f: Quaddicted's zip sha256s, as quoth_setup.py installs them). checklist_tests_check knows `package`.
+  Test: `Misc/quakevr/quoth_scenes.sh <agent> [present|absent]`: present 20/0 (each package mounted, the 6 quoth_
+  scenes run), absent 17/0 (the three say which package to install; the kellbase ones run). The test base needs Quoth
+  (kit links.ps1) and, for present, the packages (kit bases with quoth_setup.py's install, e.g. round25's qvr_addons).
+  scenario_check.sh on a base without the packages still reports those three as SCNERR (by design: they can't run).
 ## promofails: flat tests failing on next after his promoted tunables (branch agent/promofails, 2026-11-26)
 
 Checked first with the pre-900606064 tunables set in the run: only flatmelee5's "rev thrust sword" depended on them; the
@@ -2203,3 +2219,25 @@ too far or the prop gets too far. This should not happen ever."
 - Open: with his defaults (Hold Down 0) a dragged crate backed away from at a walk may be let go of at once (above): if
   dragging backwards should keep it, Let Go (`vr_flat_grab_drag_letgo`, 1.2 m) up a little. Ragdolls were within reach
   already (vr_ragdoll_hand_stick); now clamped too.
+## floataxe: a thrown axe whose blow takes off the head it hit falls, never left floating (branch agent/floataxe, 2026-11-26)
+
+- **His report (flat):** an axe thrown at a zombie's head popped it, and the axe stayed floating in mid air after the zombie
+  died.
+- **Cause:** `VR_AxeStick_Stuck` (QC/vr_axestick.qc) deals the throw's blow (`forcegrabbable_touch`, `VR_Decap_After`) after
+  the engine has stuck the blade in the body. When that blow beheads or pops the head the blade is in (`VR_Decap_Cut` ->
+  `VR_AxeStick_CutPrepare`/`_CutDone`), the blade falls out at once (`VR_AxeStick_Fall`: `AXESTICK_OUT`, `MOVETYPE_TOSS`).
+  Then the rest of `VR_AxeStick_Stuck` ran its stuck set-up anyway (`MOVETYPE_NONE`, velocity 0), so the blade was held
+  still, stuck in nothing. Its think never let it go, because nothing it is in is left to check. This hit any monster whose
+  head comes off from a thrown axe's own blow (a zombie always; a grunt or knight at a killing blow), in VR and flat alike.
+- **Fix:** the stuck set-up is skipped when the blow already let go of the blade, so it falls from where the head was with
+  the body's motion (`vr_debug_axestick 1`: "struck, and fell out of"). The other host-removal cases already worked and are
+  now tested: a body gibbed whole, a body removed, a zombie gibbed (its head gib is the same entity with another model);
+  the think finds the model changed or gone within 0.02 s. A blade held in a hand gets its hand back
+  (`VR_Embed_Free`, tests 25/26). A broken crate frees it (test 30).
+- **Choice:** the blade falls rather than riding the flying head gib. The brief allowed either. Falling is the existing rule
+  for every other host change.
+- **Test:** `vr_embed_test 83` (QC/vr_floataxe_test.qc; map vrtesthall, god, notarget; ends `floataxe: N passed, M failed`):
+  an axe thrown edge first at 14 m/s at a zombie's head and at a grunt's head (health 1: the head comes off), and into a
+  grunt's chest (then gibbed whole, or removed) and a zombie's chest (then gibbed). 1 s later, in every case, it never
+  floated (held still in nothing or in a gone body for no more than 3 frames) and it fell at least 8 units. 15/0. Without
+  the fix: 11/4 (both head cases floating, 0 units fallen).
