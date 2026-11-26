@@ -2195,11 +2195,11 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
     last frame, `attach_drawn: where=hand_main|hand_off|holster|lying|other_held|other_holster ent= kind= gun= at=`,
     then `attach_report: N drawn`). Screenshots not done.
 - **attach5 (2026-11-26): the MP test.** `mp_test.py attach` (suite `mp_attach`): a listen host A (VR), B and C (flat) in coop
-  e1m1. Server aids (vr_attach_test.qc, `vr_dm_test` 25/26, one-shot): 25 a bayonet into the empty off hand of player
+  e1m1. Server aids (vr_attach_test.qc, `vr_dm_test` 25-27, one-shot): 25 a bayonet into the empty off hand of player
   `vr_dm_test_who` (an entity number: coop's test impulses are off for clients, deathmatch has none); 26 the server's
   report, `attachmp: player ent= main=wid,kind off= holsters=...`, `attachmp: lying wid= attach= stuck= speed= at=`, the
   monsters within 160 units. The clients' side is attach4's `vr_attach_report`; a lying gun is matched by place (within
-  48 units of the server's gun), not entity number. Last run 19/6:
+  48 units of the server's gun), not entity number.
   - PASS: J on B's shotgun (record and own hand); A and C draw it on B's gun held, holstered (flat holster menu impulse 74,
     the left upper holster: the shoulders' are not drawn on the copy and his hips hold his start's axe and shotgun), drawn
     again, dropped (impulse 79: A, B and C draw it lying); a thrown gun's record keeps it and A and B draw it; B armed again,
@@ -2208,14 +2208,14 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
     shotgun (impulse 71) and J puts a bayonet on it.
   - Fixed: other players' holstered guns were drawn with their bayonet but never listed by `vr_attach_report`
     (vr_mpavatar.cpp drawHolsteredParts / wearHolsters now pass the player's entity to drawGunParts).
-  - FAILS (the test's own steps, not sync): C's pickup of the dropped gun (flat H, impulse 96: "nothing grabbable in reach
-    (0.65 m)" -- the gun on the floor is out of a standing flat hand's reach; the VR mock's retake also missed it in an
-    earlier run), so C's hold and throw of it are not checked (the "thrown" draw check passed on the gun still lying);
-    deathmatch: B and A spawn far apart (A and C get no copy of B: nothing drawn) and `put_at` of the listen host A did not
-    move him (setpos on the host?), so the dm stab on A is not run. Found no sync bug: every state the test reached drew
-    the bayonet on every client.
-  - Review screenshots: `scratch/attach5_shots.sh vr|flat` -> `scratch/attach5_vr_held_sg_ssg_lying.png`,
-    `scratch/attach5_flat_held_stuck_holster.png` (not looked at by the worker; hand-over).
+  - Green after the follow-up: 26/0. C (flat) takes the dropped gun with H standing beside it looking down (the grab
+    reaches 0.65 m, 20 units, level from his eyes; placing him nudges the gun, so its place is read again before each of up
+    to six tries, from each side in turn); A and B draw the bayonet on his gun; he throws it with the throw key held down
+    (`vr_mock_key b`: his client sends 40 while the key is up, so console impulses 39/40 only dropped it), and A and B draw
+    it where the thrown gun comes to rest (64+ units ahead). Deathmatch has no setpos: `vr_dm_test 27` puts player
+    `vr_dm_test_who` at `vr_dm_test_x/y/z` facing the nearest other living player; B's V thrust then hurts A. The stab's
+    stuck gun is told from the thrown one (which can stick in the level) by place. Found no sync bug. Screenshots dropped
+    (he looks in game).
 
 ## Map-made armed humanoids hold their guns right: Quoth's kellbase1 enforcers (branch agent/quothpose, 2026-11-26)
 
