@@ -79,6 +79,8 @@ Flat-screen: swing or thrust any melee weapon, and punch with an empty hand: the
 Flat-screen: hold the axe with your other hand empty, then raise the guard with the right mouse button: it stays one-handed, the free hand never goes to its handle; Daggers One-Handed and Axes One-Handed (Locomotion > Desktop Screen Play) off gives the two-handed stance back. {test:flat_melee_grip}
 Flat-screen: hold the spear upright, flip its grip (B) and raise the guard (right mouse button), then stab a grunt with V: in every pose the other hand's fingers close round the shaft, not beside or below it. {test:flat_spear}
 Flat-screen: hold the Crystal Lance and raise the guard (right mouse button): the other hand wraps its shaft. {test:flat_lance_parry}
+Flat-screen: walk up to the crate (or an explosive box) and press H: both hands go onto its surface and it drags along as you back away, its far side on the floor, as a grunt's ragdoll does; tune the hands with Grab / Pull: Hold Forward / Out / Down (negative: up). {test:flat_grab_pull}
+Flat-screen: press H at the rock (or a health box, a gib): it goes into your hand as a force grab's catch, no held-out pose; and from further than an arm's reach (Grab / Pull: Reach, 1.25 m) H takes nothing. {test:flat_grab_pull}
 
 [4. Tutorial and VR interface]
 Body and Display > Handedness: Left-handed turns on Swap Face Buttons (next to Swap Stick Functions): walk forward on the right stick and press X: you jump, and A, B, Y and the two stick clicks do what the other controller's did; Right-handed turns it off, and changing it alone shows Handedness: Custom. {test:hub_start}
