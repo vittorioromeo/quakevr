@@ -145,8 +145,10 @@ vr_flatreload.qc
 vr_flatholster.qc
 // A holstered gun keeps its rounds, every path (vr_reload_test 49): after vr_flatholster.qc's keys and wheel pick.
 vr_holsterammo_test.qc
-// Flat-screen play's quick grenade (G): after vr_grenade.qc's pouch grenade and vr_flatreload.qc.
+// Flat-screen play's quick grenade (G) and unified throw/drop (B): after vr_grenade.qc's pouch grenade and vr_flatreload.qc.
 vr_flatgrenade.qc
+// Flat-screen play's Grab / Pull (H): uses every available empty hand to grab props, crates, ragdolls and gibs.
+vr_flatgrab.qc
 // The single-player test and debug impulses (ImpulseCommands calls VR_TestImpulse first).
 vr_impulse_test.qc
 weapons_test.qc

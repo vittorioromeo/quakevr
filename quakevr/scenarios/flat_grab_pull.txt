@@ -1,0 +1,11 @@
+# flat_grab_pull: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): unified Throw / drop on B (quick tap drops / releases stuck blade; hold charges and throws) and Grab / pull on H (uses every available empty hand to grab crates, active/shoved ragdolls and gibs; Toggle default, vr_flat_grab_hold 1 for Hold).
+title Flat-screen: unified Throw/drop (B) and Grab/pull (H) for crates, ragdolls and gibs
+map vrtesthall
+god
+notarget
+give "Spear" main
+spawn "Wooden Crate" 110 -50
+spawn "Grunt" 100 0
+spawn "Grunt" 130 60
+spawn "Rock" 90 -90
+hint Play with -flatscreenmode. Tap B to gently drop the spear right in front of you (or thrust V into a grunt and tap B to let go while leaving it stuck); hold B to wind up and throw it. With both hands empty, press H near the crate to grab it with both hands, walk to push/pull it around, press H again to release (or hold B to throw it). Shove a grunt (Mouse 5) into an active ragdoll, press H to grab it with both hands, and hold B to throw it. Gib a grunt (or grab a loose rock/gib) and pick up a gib off the ground with H. Try Locomotion > Grab / Pull Key = Hold to hold H while carrying and release H to let go.

@@ -518,8 +518,8 @@ def K(what):
     return "{key:%s}" % what
 
 
-GRAB, DROP, PUNCH, FIRE = K("vr_flat_key_grab"), K("vr_flat_key_drop"), K("vr_flat_key_punch"), K("+attack")
-THROW = K("vr_flat_key_throw")  # (held winds up, let go throws: FLATPLAY.md, "The throw key")
+GRAB, DROP, PUNCH, FIRE = K("vr_flat_key_grab"), K("vr_flat_key_throw"), K("vr_flat_key_punch"), K("+attack")
+THROW = K("vr_flat_key_throw")  # (tap drops, held winds up and throws: FLATPLAY.md, "The throw key")
 JUMP, AIMKEY = K("+jump"), K("+offhandattack")
 
 FLAT_TIPS = {

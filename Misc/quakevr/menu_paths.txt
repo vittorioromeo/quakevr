@@ -1496,6 +1496,7 @@ vr_flat_grenade|1|Locomotion|Quick Grenade (G)|Advanced VR Options > Movement > 
 vr_flat_grenade_arm_mode|1|Locomotion|Quick Grenade Fire Button|Advanced VR Options > Movement > Locomotion > Quick Grenade Fire Button
 vr_flat_swap_anim|1|Locomotion|Hand Swap Animation|Advanced VR Options > Movement > Locomotion > Hand Swap Animation
 vr_flat_grab_preview|1|Locomotion|Force Grab Preview|Advanced VR Options > Movement > Locomotion > Force Grab Preview
+vr_flat_grab_hold|1|Locomotion|Grab / Pull Key|Advanced VR Options > Movement > Locomotion > Grab / Pull Key
 vr_flat_shove|1|Locomotion|Shove Key (Mouse 5)|Advanced VR Options > Movement > Locomotion > Shove Key (Mouse 5)
 vr_flat_shove_cooldown|1|Locomotion|Shove Cooldown|Advanced VR Options > Movement > Locomotion > Shove Cooldown
 vr_flat_shove_push|1|Locomotion|Shove Strength|Advanced VR Options > Movement > Locomotion > Shove Strength
@@ -4480,13 +4481,27 @@ vr_flat_throw_follow_out|2|Tunables|Throw: Follow Out|Advanced VR Options > Debu
 vr_flat_throw_follow_down|2|Tunables|Throw: Follow Down|Advanced VR Options > Debug > Tunables > Throw: Follow Down
 vr_flat_throw_follow_pitch|2|Tunables|Throw: Follow Pitch|Advanced VR Options > Debug > Tunables > Throw: Follow Pitch
 vr_flat_throw_back_time|2|Tunables|Throw: Back Time|Advanced VR Options > Debug > Tunables > Throw: Back Time
+vr_flat_throw_tap_time|2|Tunables|Throw: Tap Drop Time|Advanced VR Options > Debug > Tunables > Throw: Tap Drop Time
+vr_flat_throw_drop_speed|2|Tunables|Throw: Tap Drop Speed|Advanced VR Options > Debug > Tunables > Throw: Tap Drop Speed
 vr_flat_throw_charge_time|2|Tunables|Throw: Full Charge|Advanced VR Options > Debug > Tunables > Throw: Full Charge
-vr_flat_throw_speed_min|2|Tunables|Throw: Hand Speed Tap|Advanced VR Options > Debug > Tunables > Throw: Hand Speed Tap
+vr_flat_throw_speed_min|2|Tunables|Throw: Hand Speed Min|Advanced VR Options > Debug > Tunables > Throw: Hand Speed Min
 vr_flat_throw_speed_max|2|Tunables|Throw: Hand Speed Charged|Advanced VR Options > Debug > Tunables > Throw: Hand Speed Charged
 vr_flat_throw_up|2|Tunables|Throw: Above Aim|Advanced VR Options > Debug > Tunables > Throw: Above Aim
 vr_flat_throw_spin|2|Tunables|Throw: Spin|Advanced VR Options > Debug > Tunables > Throw: Spin
 vr_flat_throw_spin_time|2|Tunables|Throw: Blade Arrives First|Advanced VR Options > Debug > Tunables > Throw: Blade Arrives First
 vr_flat_throw_release_pitch|2|Tunables|Throw: Release Pitch|Advanced VR Options > Debug > Tunables > Throw: Release Pitch
+vr_flat_grab_reach|2|Tunables|Grab / Pull: Reach|Advanced VR Options > Debug > Tunables > Grab / Pull: Reach
+vr_flat_grab_cone|2|Tunables|Grab / Pull: Cone|Advanced VR Options > Debug > Tunables > Grab / Pull: Cone
+vr_flat_grab_carry_dist|2|Tunables|Grab / Pull: Carry Distance|Advanced VR Options > Debug > Tunables > Grab / Pull: Carry Distance
+vr_flat_grab_reach_time|2|Tunables|Grab / Pull: Reach Time|Advanced VR Options > Debug > Tunables > Grab / Pull: Reach Time
+vr_flat_grab_back_time|2|Tunables|Grab / Pull: Back Time|Advanced VR Options > Debug > Tunables > Grab / Pull: Back Time
+vr_flat_grab_reach_fwd|2|Tunables|Grab / Pull: Reach Forward|Advanced VR Options > Debug > Tunables > Grab / Pull: Reach Forward
+vr_flat_grab_reach_out|2|Tunables|Grab / Pull: Reach Out|Advanced VR Options > Debug > Tunables > Grab / Pull: Reach Out
+vr_flat_grab_reach_down|2|Tunables|Grab / Pull: Reach Down|Advanced VR Options > Debug > Tunables > Grab / Pull: Reach Down
+vr_flat_grab_hold_fwd|2|Tunables|Grab / Pull: Hold Forward|Advanced VR Options > Debug > Tunables > Grab / Pull: Hold Forward
+vr_flat_grab_hold_out|2|Tunables|Grab / Pull: Hold Out|Advanced VR Options > Debug > Tunables > Grab / Pull: Hold Out
+vr_flat_grab_hold_down|2|Tunables|Grab / Pull: Hold Down|Advanced VR Options > Debug > Tunables > Grab / Pull: Hold Down
+vr_flat_grab_ragdoll_throw|2|Tunables|Grab / Pull: Ragdoll Throw Scale|Advanced VR Options > Debug > Tunables > Grab / Pull: Ragdoll Throw Scale
 vr_flat_empty_fwd|2|Tunables|Empty Hand Forward|Advanced VR Options > Debug > Tunables > Empty Hand Forward
 vr_flat_empty_down|2|Tunables|Empty Hand Down|Advanced VR Options > Debug > Tunables > Empty Hand Down
 vr_flat_empty_out|2|Tunables|Empty Hand Out|Advanced VR Options > Debug > Tunables > Empty Hand Out
@@ -4758,6 +4773,9 @@ vr_flat_revgrip_pole_off_along|2|Tunables|Flipped Spear Other Hand Along|Advance
 vr_flat_embed_pull|2|Tunables|Stuck Blade Pull|Advanced VR Options > Debug > Tunables > Stuck Blade Pull
 vr_flat_embed_pull_time|2|Tunables|Stuck Blade Pull Time|Advanced VR Options > Debug > Tunables > Stuck Blade Pull Time
 vr_flat_embed_pull_hold|2|Tunables|Stuck Blade Pull Hold|Advanced VR Options > Debug > Tunables > Stuck Blade Pull Hold
+vr_flat_embed_arm|2|Tunables|Stuck Blade: Hand On Arm|Advanced VR Options > Debug > Tunables > Stuck Blade: Hand On Arm
+vr_flat_embed_arm_slip|2|Tunables|Stuck Blade: Hand Slip|Advanced VR Options > Debug > Tunables > Stuck Blade: Hand Slip
+vr_flat_embed_other_hand|2|Tunables|Stuck Blade: Other Hand|Advanced VR Options > Debug > Tunables > Stuck Blade: Other Hand
 vr_flat_melee_2h_parry_fwd|2|Tunables|Two-Handed Guard Ahead|Advanced VR Options > Debug > Tunables > Two-Handed Guard Ahead
 vr_flat_melee_2h_parry_up|2|Tunables|Two-Handed Guard Up|Advanced VR Options > Debug > Tunables > Two-Handed Guard Up
 vr_flat_melee_2h_parry_out|2|Tunables|Two-Handed Guard Out|Advanced VR Options > Debug > Tunables > Two-Handed Guard Out
@@ -5165,6 +5183,10 @@ vr_rope_thumb_lift|2|Tunables|Rope Thumb Lift|Advanced VR Options > Debug > Tuna
 vr_rope_thumb_shift_x|2|Tunables|Rope Thumb Shift X|Advanced VR Options > Debug > Tunables > Rope Thumb Shift X
 vr_rope_thumb_shift_y|2|Tunables|Rope Thumb Shift Y|Advanced VR Options > Debug > Tunables > Rope Thumb Shift Y
 vr_rope_thumb_shift_z|2|Tunables|Rope Thumb Shift Z|Advanced VR Options > Debug > Tunables > Rope Thumb Shift Z
+vr_hit_player_fatten|2|Tunables|Body Hit Fattening|Advanced VR Options > Debug > Tunables > Body Hit Fattening
+vr_monster_lean|2|Tunables|Monsters See Leaning|Advanced VR Options > Debug > Tunables > Monsters See Leaning
+vr_monster_lean_spread|2|Tunables|Lean Spread|Advanced VR Options > Debug > Tunables > Lean Spread
+vr_monster_lean_react|2|Tunables|Lean Reaction|Advanced VR Options > Debug > Tunables > Lean Reaction
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode

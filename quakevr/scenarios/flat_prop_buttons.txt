@@ -6,4 +6,4 @@ give "Super Shotgun" main
 spawn "Rock" 120 30
 spawn "Brick" 120 -30
 spawn "Grunt" 260 0
-hint Play with -flatscreenmode. With only the shotgun, RMB aims down its sights. Pull a rock into your left hand (grab key): now RMB swings the rock and LMB fires the shotgun, as with two guns, and RMB no longer aims. Drop it (H) and RMB aims again. Press 3 to swap hands (gun left, nothing right), pull the brick into your right hand: LMB swings the brick, RMB fires the gun.
+hint Play with -flatscreenmode. With only the shotgun, RMB aims down its sights. Pull a rock into your left hand (grab key): now RMB swings the rock and LMB fires the shotgun, as with two guns, and RMB no longer aims. Drop it (tap B) and RMB aims again. Press 3 to swap hands (gun left, nothing right), pull the brick into your right hand: LMB swings the brick, RMB fires the gun.

@@ -5,7 +5,7 @@
 # fast mode; each run ends on its own last line (-QuitOn), and flathands_check.py prints the checks and
 # "flathands: N passed, M failed".
 #   drop      the rocket launcher held in both hands (the free hand on its hotspot): G with no rockets drops nothing ("No
-#             rockets"), H drops the gun and the off hand stays empty (never handed off to the grip hand)
+#             rockets"), tap B drops the gun and the off hand stays empty (never handed off to the grip hand)
 #   gren2h    the rocket launcher in both hands, 10 rockets: G sends the off hand off the grip to the pouch, it comes back with an
 #             unarmed grenade (9 rockets), RMB arms it, RMB held 0.7 s winds it up overhead, let go throws it (the speed
 #             from the wind-up), the hand goes back onto the grip; the drawn hand at the pouch, held, overhead
@@ -37,11 +37,11 @@ BASE="map vrtesthall; god; notarget; developer 1; vr_debug_carry 2; vr_flat_gren
 REP="vr_flathud_report; wait2"
 NAIL2H="vr_test_give_wid 10; impulse 149; wait90; vr_flatplay_status; wait2" # (the rocket launcher: its grip ahead, taken by the free hand: FLATPLAY.md, "The ironsight")
 key() { echo "vr_mock_key $1 down; wait2; vr_mock_key $1 up"; }
-G=$(key g); H=$(key h); SW=$(key 3)
+G=$(key g); B=$(key b); SW=$(key 3)
 # (The pouch trip is vr_flat_grenade_fetch_time 0.3 s = 22 frames, back up 0.3 s; the wind-up 0.25 s; the follow-through
 # 0.15 s and the way back 0.3 s. The swap: 0.15 s to meet, its answer a frame or two, 0.2 s back: 30 frames covers it.)
 
-run drop "$BASE; give r 0; $NAIL2H; $REP; $G; wait30; $REP; $H; wait30; $REP; vr_flatplay_status; wait2"
+run drop "$BASE; give r 0; $NAIL2H; $REP; $G; wait30; $REP; $B; wait30; $REP; vr_flatplay_status; wait2"
 run gren2h "$BASE; give r 10; $NAIL2H; $REP; $G; wait50; vr_flatgrenade_report; wait2; +offhandattack; wait3; -offhandattack; wait10; vr_flatgrenade_report; +offhandattack; wait50; vr_flatgrenade_report; -offhandattack; wait40; vr_flatgrenade_report; wait90; vr_flatplay_status; $REP; wait200"
 run grenempty "$BASE; give r 10; vr_flat_grenade_arm_mode 0; $G; wait50; $G; wait30; vr_flatgrenade_report; $G; wait50; +attack; wait30; -attack; wait40; vr_flatgrenade_report; wait200"
 run grendual "$BASE; give r 10; impulse 154; wait5; impulse 176; wait20; $REP; $G; wait30; vr_flatgrenade_report; $REP"

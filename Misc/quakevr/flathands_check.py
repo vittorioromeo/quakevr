@@ -61,8 +61,8 @@ check(len(stance) >= 1 and ("going on it" in stance[0] or "holding its grip" in 
       (stance[0].split(",")[2].strip() if stance and len(stance[0].split(",")) > 2 else "?"))
 check(has(ls, r"No rockets for a grenade"), "drop: G with no rockets: no grenade, and says so")
 check(len(h) >= 3 and h[0][1] == h[1][1] != 0, "drop: G is no longer the drop: the gun still in the main hand after it (%s)" % (h[:2],))
-check(has(ls, r"flat drop: weapon \d+ out of hand 1") and not has(ls, r"handed off"),
-      "drop: H drops the gun out of the main hand, never handed off to the grip hand")
+check(has(ls, r"flat drop: (?:weapon \d+ out of hand 1|thrown_weapon dropped by the main hand)") and not has(ls, r"handed off"),
+      "drop: tap B drops the gun out of the main hand, never handed off to the grip hand")
 check(len(h) >= 3 and h[2] == (0, 0), "drop: both hands empty after H (%s)" % ((h[2] if len(h) >= 3 else "?"),))
 
 # gren2h

@@ -2104,7 +2104,7 @@ void() VR_Carry_TwoHandFrame =
     // (Not asked just after a teleport: the hands catch up with the player a frame or two apart,
     // VR_Carry_FollowTeleported; asking would forget the grips.)
     float pulledOff = 0;
-    if(time >= self.carry_teleported)
+    if(time >= self.carry_teleported && !VR_FlatPlay(self))
     {
         pulledOff = carry2hoff(box, self);
     }

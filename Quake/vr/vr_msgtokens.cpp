@@ -88,6 +88,10 @@ void appendUnbound(za::String& out, const char* what)
 // {key:<what>}: a key cvar's key (a flat key's first), else the first key bound to the command.
 void appendKeyFor(za::String& out, const char* what)
 {
+    if(!q_strcasecmp(what, "vr_flat_key_drop"))
+    {
+        what = "vr_flat_key_throw"; // merged into Throw / drop (B); existing baked maps keep working
+    }
     if(const cvar_t* var = Cvar_FindVar(what))
     {
         const int key = flatplay::keyNum(*var, 0);
