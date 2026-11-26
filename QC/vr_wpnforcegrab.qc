@@ -442,9 +442,16 @@ float(float xHand) VR_Forcegrab_FlatDropHand =
     }
 
     // A blade stuck in a body that the hand holds (flatembed): let go of, it stays in (taken again by a grab, a force grab).
+    // If the other hand also holds the same stuck blade (two-handed spear/Lance hold), drop both hands together as a 2H prop drop does.
     if(VR_Hand_Kind(self, xHand) == VR_HOLD_EMBED)
     {
-        VR_Embed_DropHand(VR_Hand_BusyEnt(self, xHand), xHand, "flat drop");
+        entity blade = VR_Hand_BusyEnt(self, xHand);
+        float otherEmbed = VRGetOtherHand(xHand);
+        if(VR_Hand_Kind(self, otherEmbed) == VR_HOLD_EMBED && VR_Hand_BusyEnt(self, otherEmbed) == blade)
+        {
+            VR_Embed_DropHand(blade, otherEmbed, "flat drop");
+        }
+        VR_Embed_DropHand(blade, xHand, "flat drop");
         dprint(sprintf("flat drop: hand %g let go of its stuck blade\n", xHand));
         return TRUE;
     }
