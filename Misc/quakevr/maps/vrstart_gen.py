@@ -369,9 +369,20 @@ def height(x, y):
 # ---------------------------------------------------------------------------------------------------------------------
 # The terrain: points (a jittered lattice, denser where it matters, and the features' outlines), a Delaunay
 # triangulation, a prism under each triangle.
+# Cheaper collision (ROUND26.md "vrstartsimp", from "vrstartgeo"'s measurements): the island's open ground more than
+# ISLAND_COARSE_INLAND units in from the coast on a 128-unit lattice (0: every island point on the 64-unit one, as
+# before 2026-11-26), and CLIFF_RING_POINTS points in each of the cliff face's rings (260 before). The features'
+# outlines (zones, paths, the ravine) keep their own points either way. Together about -20 % of the terrain's prisms
+# and -23 % of hull 0's solid leaves.
+ISLAND_COARSE_INLAND = 200
+CLIFF_RING_POINTS = 180
+
+
 def spacing_class(x, y):
     """1, 2, 4 or 8: the lattice step (64 units) there."""
     d = coast_distance(x, y)
+    if ISLAND_COARSE_INLAND and d > ISLAND_COARSE_INLAND:
+        return 2
     if d > -200:
         return 1
     r = math.hypot(x, y)
@@ -399,7 +410,7 @@ def terrain_points():
     # the cliffs' foot, face and top: rings of points so the face is crisp
     jr = random.Random(77)
     for ring, e in enumerate((-40, -15, 10, 35, 60, 180)):
-        n = 260
+        n = CLIFF_RING_POINTS
         for i in range(n):
             th = 2 * math.pi * (i + 0.5 * (ring % 2) + jr.uniform(-0.2, 0.2)) / n
             r = cliff_radius(th) + e + (jr.uniform(-7, 7) if -40 < e < 60 else 0)

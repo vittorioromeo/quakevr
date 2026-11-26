@@ -35,6 +35,8 @@ Flat-screen: flip a dagger, sword, or spear into its raised overhead grip and at
 Flat-screen or VR: step right up against an enemy and swing or thrust with a sword, spear, or Crystal Lance; close-range blows register with the tip or blade rather than as a hilt or shaft strike (while intentional VR pommel strikes and sideways shaft swings still work). {test:flat_spear}
 Flat-screen or VR: Load a map whose collision is not cached yet: the loading panel says what it is building (e.g. "Building collision for crouching (3 of 6)") and its bar keeps moving until the map starts. {test:load_collision_cold}
 Flat-screen or VR: Right after a map load that built its collision from scratch, crouch and lie down at once: no pause or freeze (monsters may use their old hitbox for a few seconds, unnoticeable). {test:load_collision_cold}
+Flat-screen or VR: the hub's open grass and the cliff faces round the lake are simplified for cheaper collision: walk and look round the island's open ground and along the cliffs; the grass and cliffs should look as before, with no new spots where you snag on flat or gently sloped ground. {test:vrstart}
+Flat-screen or VR: a cold first load of the hub (nothing cached) builds its collision about 10% faster: the loading panel's collision steps should finish a little sooner. {test:load_collision_cold}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
