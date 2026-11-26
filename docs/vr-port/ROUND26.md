@@ -728,6 +728,37 @@ His items 3, 5, 12 (2026-11-25).
   throws"), where the same commit in the mp tree gives 7/0 and 25/0. Something in this tree's game folder differs (the AD/Dwell
   side): don't trust this tree's numbers for those two sections until someone looks.
 
+## embedholdfix: systemic fixes to embedhold2 release ease, arm reach, flat arm & edge-embed rules (branch agent/embedholdfix, 2026-11-26)
+
+- **Unified hand + weapon release ease** (`Quake/vr/vr_view_hands.cpp`, `vr_view_weapon.cpp`, `vr_view_internal.hpp`, `vr_view.cpp`):
+  replaced divergent `embedEase`/`embedEaseBody` with one `EmbedEase` (`pivot`, `offset`, `turn`) computed once per frame in
+  `embedPinStep`. In flatscreen (`bodyEase`), both `setupWeapon` and `setupHand` apply the exact same body-carried, arm-clamped
+  displacement and turn around `s.pos[hand]` (0.00 cm divergence measured by `vr_embed_probe_grip` over `vr_embed_free_ease`);
+  VR stays unchanged. Empty hands in flatscreen ease directly from their body-carried release point clamped to the arm. Added
+  `embedPinsReset()` called from `view::resetClientState()` and cleared `pin.seen`/`pin.lead`/`pin.bodyEase` when `!pin.on` or
+  switching blades.
+- **Exact wrist clamping, `.vr_embed_armpast`, yaw-local shoulder** (`Quake/vr/vr_view_hands.cpp`, `vr_avatar.cpp`, `vr_avatar.hpp`,
+  `vr_view.hpp`, `vr_view_diag.cpp`): computed `pin.lead = onPos - pos` *after* `keepOnArm` so `solveArm`'s `wrist + embedPinLead`
+  reports the true unclamped blade target past reach instead of collapsing to `<= 0 cm`. Stored `armEase.reachShoulder[side]` in
+  player-yaw-local axes (`playerYawAxes()`). Replaced stale frame-old `reachLead` with exact current-frame wrist clamping
+  (`wristOffsetFor(hand, ctlRot)` against `armEase.reachMost[hand]`), and added `view::embedEasing(hand)` so `armEase.flatHeld`
+  doesn't shrink out from under `keepOnArm` during `vr_embed_free_ease`.
+- **General `VR_Embed_FlatArm`, edge embeds, off-hand & 2H flat drop** (`QC/vr_embedhold.qc`, `QC/vr_wpnforcegrab.qc`):
+  normalized `VR_Embed_FlatArm`'s away-step dot product (`stepAway * normalize(e.origin - (p.origin + p.view_ofs))`). Added
+  `VR_Embed_HostYields(e, h)` and ordered checks so `limit = letgo + slip` and host yield decide cleanly: heavy/anchored hosts
+  (ogre) and edge embeds (swung axe) never slide/tug out via walking and cleanly drop hands at `limit` (or `far > hold_reach`)
+  so the blade stays embedded; yielding point embeds draw out smoothly along the axis into the hand; partial drag (`walk * 0.4`)
+  when `vr_flat_embed_arm 1` prevents dragging a grunt 600 u indefinitely. Gated `vr_flat_embed_other_hand` on `vr_flat_embed_arm != 0 && most > 0`,
+  and fixed `VR_Forcegrab_FlatDropHand` (`H`) so dropping a 2H-held stuck blade (spear/Lance) releases both hands together like 2H props.
+- **Tests** (`QC/vr_flatembedwalk_test.qc`, `Misc/quakevr/embedhold_test.sh`, `QC/test_numbers.txt`): `vr_embed_test 64` now
+  strictly asserts `ogre` -> let go (`vr_fw_end == 2`), `ragdoll`/`grunt`/`spear`/`sword+off` -> pulled out (`1`), `axe` -> let go
+  cleanly (`2`, walked < 150 u, never drawn into hand), weapon+hand release-ease lock (`vr_embed_probe_grip <= 0.5 cm`, measured 0.00 cm),
+  standing-still `armgap` & no creep, non-vacuous `.vr_embed_armpast > 0`, `vr_flat_embed_arm 0` off-hand gating, and restores
+  `vr_knockdown`/`vr_hit_stagger`/`vr_melee_push`. `embedhold_test.sh` now sources `qvrtest.sh`, passes `-Clean`, and exits non-zero
+  on any failure/missing verdict.
+- **Verdicts** (Release no-LTO, 0 QC warnings): `embedhold_test.sh mp` 2/0 x3 (61/0 arm 1, 58/0 arm 0), `flatthrust_test.sh mp`
+  7/0 (blades 12/0, Lance 7/0), `embeddual_test.sh mp` 16/0, `spear_test.sh mp` 4/0 (VR 25/0, flat 6/0), `vr_embed_test 24`
+  (`embedfeel`) 22/0, `vr_embed_test 33` (`embedgrip`) 15/0, `vr_embed_test 29` (`embed1108b`) 10/0.
 ## agspearfix: VR_AGK_POLE / Pose Studio sync and generalized flatads section f (branch agent/agspearfix, 2026-11-26)
 
 - **`VR_AGK_POLE` / `agpose::Pole` sync:**

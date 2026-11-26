@@ -1044,6 +1044,11 @@ glm::vec3 embedPinLead(int hand)
     return embedPinLeadOf(hand);
 }
 
+bool embedEasing(int hand)
+{
+    return embedPinEasingOf(hand);
+}
+
 bool drawnHandPose(int hand, glm::vec3& pos, glm::vec3& rot)
 {
     const GhostDrawn& d = ghostDrawn[hand];

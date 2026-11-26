@@ -72,8 +72,8 @@ On the Quest, after running only part of an update (a new app with the old game 
 Flat-screen: V a sword into a grunt and touch nothing: the blade stays in and your hand stays on its handle, nothing creeping out a tenth of a second after the stab. {test:flat_stuck_blade}
 Flat-screen: then walk backwards holding it: as the arm runs out the blade comes back out into the hand and the hand never jumps off the wrist; the ogre is too heavy, so there the hand lets go and the sword stays in. {test:flat_stuck_blade}
 Flat-screen: a grunt staggers off with your sword in it: the hand slips along the handle instead of letting go, and stays drawn on the arm. {test:flat_stuck_blade}
-Flat-screen: take the spear, thrust it into a grunt and walk away: the empty other hand closes on the shaft near it and holds while your arm reaches, letting go with H or another weapon. {test:spear}
-Flat-screen: an axe's V is a swing, not a thrust: stuck in a grunt it stays in by its edge, walking away never draws it into your hand and the arm running out never ends that hold. {test:flat_stuck_blade}
+Flat-screen: take the spear, thrust it into a grunt and walk away: the empty other hand closes on the shaft near it and holds while your arm reaches, dropping cleanly when the arm runs out or when you press H (which releases both hands together). {test:spear}
+Flat-screen: an axe's V is a swing, not a thrust: stuck in a grunt it stays in by its edge, walking away never draws it into your hand, and once your arm runs out your hand lets go cleanly leaving the axe embedded. {test:flat_stuck_blade}
 
 [4. Tutorial and VR interface]
 Look away from the wrist gadget and get a centre message: the visor-style panel is about 20% smaller than before and still easy to read; Centre Message Size (HUD > Screens) tunes it. {test:vr_center_message}

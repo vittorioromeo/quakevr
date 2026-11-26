@@ -1111,6 +1111,15 @@ struct ArmLengths
     return strength * folded * ahead * below;
 }
 
+// Player yaw axes (forward, left, up): used to store/restore the shoulder offset in player-yaw-local space
+// so turning quickly while holding a stuck blade keeps keepOnArm's shoulder sphere aligned with the body.
+[[nodiscard]] glm::mat3 playerYawAxes()
+{
+    glm::vec3 f, r, u;
+    hands::angleVectors({0.f, cl.viewangles[YAW], 0.f}, f, r, u);
+    return glm::mat3{f, -r, u};
+}
+
 // The arms' easing from one frame to the next, per side (solveArm: the main thread's frame).
 struct ArmEase
 {
@@ -1126,9 +1135,8 @@ struct ArmEase
     float flatHeld[2]{1.f, 1.f};       // flat play: the stretch kept while the hand is on a blade (armStretchNow)
     glm::vec3 pastSeen[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the blade each hand was on as drawn as embedPastCm was measured
     glm::vec3 pastEye{0.f};                                 // and the eye then
-    glm::vec3 reachShoulder[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // (embedReachNow) the shoulder from the eye, last solved
-    float reachMost[2]{0.f, 0.f};                               // the most the arm reaches then (units)
-    float reachLead[2]{0.f, 0.f};                               // the wrist further from the shoulder than the drawn hand's place
+    glm::vec3 reachShoulder[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // (embedReachNow) the shoulder from the eye, in player-yaw-local axes
+    float reachMost[2]{0.f, 0.f};                               // the most the arm's wrist reaches then (units)
     bool reachValid[2]{false, false};
     float stretched[2]{1.f, 1.f};      // the arm's stretch taken, last solved (1: none; up to armStretchNow)
     float wristGap[2]{0.f, 0.f};       // (climbfix) units from the drawn wrist to the arm's end, your own body last solved
@@ -1157,10 +1165,11 @@ ArmEase armEase;
     }
     const float out = za::max(flatplay::thrustOutShare(HAND_MAIN), flatplay::thrustOutShare(HAND_OFF));
     const float now = out > 0.f ? glm::mix(stretch, za::max(stretch, za::clamp(vr_flat_thrust_arm_stretch.value, 1.f, 2.f)), out) : stretch;
-    // (A thrust that stuck: the most the arm had as it went in it keeps while the hand is on the blade, not the thrust's easing out
-    // under it, which took the hand off the wrist; eased back once off it. embedhold2.)
+    // (A thrust that stuck: the most the arm had as it went in it keeps while the hand is on the blade or easing off it,
+    // not shrinking out from under keepOnArm while smoothstep is still near 1; eased back once off it. embedhold2/embedholdfix.)
     float& held = armEase.flatHeld[side];
-    held = onBlade ? za::max(held, now) : za::max(now, held - dt / ease * 0.5f);
+    const bool keepStretch = onBlade || view::embedEasing(side);
+    held = keepStretch ? za::max(held, now) : za::max(now, held - dt / ease * 0.5f);
     return za::max(now, held);
 }
 
@@ -1296,11 +1305,9 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     {
         armEase.pastSeen[side] = view::embedPinSeen(side); // (what that was measured against: embedArmPastFrom)
         armEase.pastEye = qvr::geom::vec(r_refdef.vieworg);
-        // (embedReachNow: the shoulder from the eye, the most the arm reaches, the drawn hand's place from its wrist's.)
-        glm::vec3 drawnPos, drawnRot;
-        armEase.reachShoulder[side] = u.pos - armEase.pastEye;
+        // (embedReachNow: the shoulder from the eye in player-yaw-local axes, and the most the arm's wrist reaches.)
+        armEase.reachShoulder[side] = glm::transpose(playerYawAxes()) * (u.pos - armEase.pastEye);
         armEase.reachMost[side] = (a + l) * maxStretch + za::max(0.f, vr_body_shoulder_reach.value) * b.m2w;
-        armEase.reachLead[side] = view::drawnHandPose(side, drawnPos, drawnRot) ? d - glm::distance(drawnPos, u.pos) : 0.f;
         armEase.reachValid[side] = true;
     }
     if(vr_debug_axestick.value >= 4 && !posingOther() && axestick::handOnBlade(side))
@@ -2604,8 +2611,8 @@ bool embedReachNow(int hand, const glm::vec3& eye, glm::vec3& shoulder, float& m
     {
         return false;
     }
-    shoulder = eye + armEase.reachShoulder[hand];
-    most = armEase.reachMost[hand] - armEase.reachLead[hand];
+    shoulder = eye + playerYawAxes() * armEase.reachShoulder[hand];
+    most = armEase.reachMost[hand];
     return most > 0.f;
 }
 

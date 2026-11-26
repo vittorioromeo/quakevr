@@ -1664,21 +1664,17 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     }
 
     // Just out of a body into the hand (vr_view_hands.cpp embedEase): eased from where the blade was, as the hand holding it is, by
-    // the same turn about the controller and the same move (his note 2026-11-06: the hand lagged behind the axe).
-    if(glm::vec3 easeOff{0.f}; !floating && own && !carried && model && slot >= 0)
+    // the same turn about the same pivot and the same arm-clamped move (his note 2026-11-06: the hand lagged behind the axe).
+    if(EmbedEase ease; !floating && own && !carried && model && slot >= 0 && embedEase(hand, ease))
     {
-        glm::quat easeTurn{1.f, 0.f, 0.f, 0.f};
-        if(embedEase(hand, easeOff, easeTurn))
-        {
-            const glm::vec3 prePos = held.pos;
-            const glm::mat3 preTurn = anglesBasis(wt);
-            const glm::mat3 turn = glm::mat3_cast(easeTurn);
-            wt = basisAngles(turn * preTurn);
-            held.pos += easeOff;
-            held.rot = basisAngles(turn * anglesBasis(held.rot));
-            drawnAs[hand] = held;
-            embedEaseWeapon(hand, prePos, preTurn, held.pos, anglesBasis(wt));
-        }
+        const glm::vec3 prePos = held.pos;
+        const glm::mat3 preTurn = anglesBasis(wt);
+        const glm::mat3 turn = glm::mat3_cast(ease.turn);
+        wt = basisAngles(turn * preTurn);
+        held.pos = ease.pivot + ease.offset + turn * (held.pos - ease.pivot);
+        held.rot = basisAngles(turn * anglesBasis(held.rot));
+        drawnAs[hand] = held;
+        embedEaseWeapon(hand, prePos, preTurn, held.pos, anglesBasis(wt));
     }
 
     // Held reversed: what follows the weapon as drawn (the hand-off's carry by the other hand, a hand holding it anywhere) has the

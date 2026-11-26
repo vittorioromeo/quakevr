@@ -571,6 +571,9 @@ enum class HandPart : unsigned char
 [[nodiscard]] glm::vec3 embedPinLead(int hand);
 // The blade it is on as that frame drew it (its origin; the client draws entities a frame or more behind the server).
 [[nodiscard]] glm::vec3 embedPinSeen(int hand);
+// Whether `hand` is currently easing off a stuck blade (vr_embed_free_ease): keeps arm stretch from shrinking out
+// from under keepOnArm before the hand finishes easing back to rest.
+[[nodiscard]] bool embedEasing(int hand);
 
 // The weapon in `hand` as drawn last (the local player's): its model, whether mirrored (the off hand's), and its
 // entity's place and turn relative to the hand's pose (hands::State pos and rot: held::axesFromAngles' forward, left,

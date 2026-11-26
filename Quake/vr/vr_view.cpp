@@ -5171,6 +5171,7 @@ HandImpact handImpacts[2];
 void view::resetClientState()
 {
     drawblend::reset();
+    embedPinsReset();
     for(HandImpact& h : handImpacts)
     {
         h = HandImpact{};
