@@ -147,7 +147,7 @@ copied only in WAV for now: the Quest app does not play Ogg soundtracks yet. Fil
 after an update copies only what changed; nothing on the headset is deleted and your saves and configs there are never
 touched. With the Quest alone, the PC steps fill a staging folder, `%LOCALAPPDATA%\QuakeVR-Installer\quest-files`
 (no shortcuts, no Apps & Features entry), that the headset is copied from; it is kept for the next update.
-Start the game in the headset from **Library > Unknown Sources**.
+Start the game in the headset from **Library > Unknown Sources** (it is listed as "Quake VR: Unleashed").
 
 ## Starting the game
 
