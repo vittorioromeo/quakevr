@@ -118,6 +118,7 @@ void(entity w, float xHand) VR_PropFire_End =
 {
     entity p = self;
     vr_fire_prop = world;
+    w.weaponflags = VRGetEntWeaponFlags(p, xHand); // (what the frame did to it stays with it: a super shotgun's spent shells, opened)
     *VRGetEntWeaponPtr(p, xHand) = vr_pfire_wid;
     *VRGetEntWeaponFlagsPtr(p, xHand) = vr_pfire_flags;
     VRSetEntWeaponInst(p, xHand, vr_pfire_inst);

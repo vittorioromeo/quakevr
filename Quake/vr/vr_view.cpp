@@ -2744,6 +2744,15 @@ void setupHeldMagazines()
     }
 }
 
+// The hands' attachments as drawn last frame (view::drawnAttachment).
+struct AttachDrawn
+{
+    bool valid{false};
+    glm::vec3 mount{0.f};
+    glm::vec3 tip{0.f};
+};
+AttachDrawn attachDrawn[2];
+
 // Every frame, after the guns are placed: their magazines (immersive reloading: the server's mode, the guns' flags; a
 // lying gun's U_QVR_NOMAG); with Show Load Points, a held magazine's reference point and radius (orange).
 // Every frame, after the guns are placed (before the open super shotgun hides its gun for its parts): the guns'
@@ -2755,7 +2764,22 @@ void setupAttachments()
     {
         const int preview = menu::attachPreview(hand);
         const int kind = preview != attach::None ? preview : view::ownGunLook(hand).attach;
-        (void)view::placeAttachment(entities.attach[hand], entities.weapon[hand], kind, hand);
+        const attach::KindInfo* const info = attach::info(kind);
+        AttachDrawn& d = attachDrawn[hand];
+        d.valid = view::placeAttachment(entities.attach[hand], entities.weapon[hand], kind, hand) && info;
+        if(d.valid)
+        {
+            d.mount = modelPoint(entities.attach[hand], glm::vec3{0.f});
+            d.tip = modelPoint(entities.attach[hand], info->tip);
+        }
+        if(hand == HAND_MAIN && vr_attach_probe.value)
+        {
+            // (the tests: the drawn bayonet's tip beside the server's, QC vr_attach_test.qc)
+            Cvar_SetValueQuick(&vr_attach_probe_drawn, d.valid ? 1.f : 0.f);
+            Cvar_SetValueQuick(&vr_attach_probe_x, d.tip.x);
+            Cvar_SetValueQuick(&vr_attach_probe_y, d.tip.y);
+            Cvar_SetValueQuick(&vr_attach_probe_z, d.tip.z);
+        }
     }
     for(int h = 0; h < HolsterCount; h++)
     {
@@ -3773,6 +3797,23 @@ VrGunLook ownGunLook(int hand)
 glm::mat3 mountBasis(const glm::vec3& angles)
 {
     return anglesBasis(angles);
+}
+
+bool drawnAttachment(int hand, glm::vec3& mount, glm::vec3& tip)
+{
+    if(hand < 0 || hand > 1 || !view_detail::attachDrawn[hand].valid)
+    {
+        return false;
+    }
+    mount = view_detail::attachDrawn[hand].mount;
+    tip = view_detail::attachDrawn[hand].tip;
+    return true;
+}
+
+glm::mat3 weaponTurnInHand(int slot)
+{
+    const glm::vec3 o = view_detail::weaponAngleOffsets(slot, false);
+    return anglesBasis(glm::vec3{-o.x, o.y, o.z}); // (as weaponTurn composes it with the hand)
 }
 
 bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand)

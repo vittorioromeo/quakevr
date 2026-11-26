@@ -59,6 +59,11 @@ void(float xHand, entity r, string xHow, vector xPush) VR_Revolver_Eject;
 float(entity r) VR_Revolver_IsOut;
 void(entity r) VR_Revolver_Home;
 float(entity r, float xState) VR_Revolver_Count;
+// A gun stuck by its bayonet with the hand on it (attach2): reloaded where it is, the hand taking it on for its frames as for
+// its shots (vr_propfire.qc).
+entity(entity p, float xHand) VR_PropFire_Held;
+void(entity w, float xHand) VR_PropFire_Begin;
+void(entity w, float xHand) VR_PropFire_End;
 .float vr_flatrl_at0;    // the off hand's: when its trip started,
 .float vr_flatrl_at1;    // the main hand's
 .float vr_flatrl_done0;  // whether its rounds went in
@@ -424,10 +429,19 @@ void() VR_FlatReload_Key =
     for(float h = 0; h < 2; ++h)
     {
         float hand = h == 0 ? cVR_MainHand : cVR_OffHand;
+        entity prop = VR_PropFire_Held(self, hand); // (a gun stuck by its bayonet, the hand on it: reloaded where it is)
+        if(prop != world)
+        {
+            VR_PropFire_Begin(prop, hand);
+        }
         if(!VR_FlatReload_Busy(self, hand) && VR_FlatReload_Can(hand))
         {
             VR_FlatReload_Start(hand, "R");
             ++n;
+        }
+        if(prop != world)
+        {
+            VR_PropFire_End(prop, hand);
         }
     }
     if(!n)
@@ -554,7 +568,23 @@ void(float xHand) VR_FlatReload_AmmoSwitch =
 };
 
 // Each server frame, each hand (vr_wpnholster.qc's player frame): the trip's steps, its cancel, and the empty clip's start.
+// A hand on a gun stuck by its bayonet takes it on for them (its break-open, its reload: where it is).
+void(float xHand) VR_FlatReload_HandFrameOn;
 void(float xHand) VR_FlatReload_HandFrame =
+{
+    entity prop = VR_PropFire_Held(self, xHand);
+    if(prop != world)
+    {
+        VR_PropFire_Begin(prop, xHand);
+    }
+    VR_FlatReload_HandFrameOn(xHand);
+    if(prop != world)
+    {
+        VR_PropFire_End(prop, xHand);
+    }
+};
+
+void(float xHand) VR_FlatReload_HandFrameOn =
 {
     // UNLOAD greyed with its ammo full up (his words 2026-11-11: "if the player is at full ammo capacity, the unload button
     // should be greyed out"): rounds to take out and none would fit (some fit: it stays lit and moves those).

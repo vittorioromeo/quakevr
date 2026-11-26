@@ -1013,7 +1013,8 @@ void PF_weaponvalue()
 // `model`: what 0 '1 0 0' if attachment `kind` fits it (its att1_ok), '0 0 0' if not; what 1 the attachment's mount and
 // what 2 its tip (its striking point), each from the weapon's muzzle in the weapon's own axes as drawn in a hand (x forward,
 // y left, z up; units as drawn: its Scale): a hand's muzzle (QC .muzzlepos) plus these along the hand's axes is where they
-// are (QC vr_attach.qc; the weapon's Pitch, Yaw and Roll in the hand left out). '0 0 0' if it doesn't fit.
+// are (QC vr_attach.qc; turned by the weapon's Pitch, Yaw and Roll in the hand: view::weaponTurnInHand, so in the hand's
+// axes). '0 0 0' if it doesn't fit.
 void PF_attachinfo()
 {
     const char* const name = G_STRING(OFS_PARM0);
@@ -1044,7 +1045,8 @@ void PF_attachinfo()
     const float k = t.active ? t.k : 1.f;
     const glm::vec3 muzzleOwn = t.active ? muzzle / k - t.offset : muzzle;
     const glm::vec3 p = attach::onGun(m, what == 2 ? info->tip : glm::vec3{0.f});
-    const glm::vec3 d = (p - muzzleOwn) * k;
+    // (turned as the gun is in the hand: the stab's and the snap's points on the drawn bayonet)
+    const glm::vec3 d = view::weaponTurnInHand(slot) * ((p - muzzleOwn) * k);
     out[0] = d.x;
     out[1] = d.y;
     out[2] = d.z;

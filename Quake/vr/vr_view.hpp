@@ -305,6 +305,12 @@ void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4]);
 // another player's), at its Weapon Offsets mount, following the gun's frame (its muzzle's anchor) and, `ssgHand` >= 0, that
 // hand's super shotgun's barrels as they drop open; false (hidden) if none, or it doesn't fit that gun.
 bool placeAttachment(ViewEntity& out, const ViewEntity& gun, int kind, int ssgHand);
+// The attachment drawn on the gun in your `hand` last frame: its mount (its model's origin) and its tip (its striking point)
+// in the world; false if none is drawn there (the two-handed grip leaves a hand pulling one off alone: vr_twohand.cpp).
+[[nodiscard]] bool drawnAttachment(int hand, glm::vec3& mount, glm::vec3& tip);
+// The turn of a weapon's model from the hand holding it (its Weapon Offsets Pitch, Yaw, Roll; unmirrored) as axes
+// (forward, left, up): a point in the gun's axes as the hand's (the server's attachment points: QC attachinfo).
+[[nodiscard]] glm::mat3 weaponTurnInHand(int slot);
 // A mount's turn (pitch up, yaw left, roll: the hands' order) as the model's axes (forward, left, up).
 [[nodiscard]] glm::mat3 mountBasis(const glm::vec3& angles);
 

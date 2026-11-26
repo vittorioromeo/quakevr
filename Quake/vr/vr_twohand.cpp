@@ -1271,7 +1271,11 @@ void applyFixed(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     }
     else if(grabStart[helping] == vr_gametime)
     {
-        gripArmed[helping] = goodDistance && goodDot;
+        // (A grip closed on the gun's attachment pulls it off (QC vr_attach.qc VR_Attach_Frame): never the gun's grip too.)
+        glm::vec3 mount, tip;
+        const bool onAttachment = view::drawnAttachment(holding, mount, tip) &&
+                                  glm::distance(s.pos[helping], mount) <= vr_attach_pull_radius.value;
+        gripArmed[helping] = goodDistance && goodDot && !onAttachment;
     }
     const bool edgeOk = wasHeld || gripArmed[helping];
     if(vr_debug_2h_grip.value && !wasHeld && canGrab && goodDistance && goodDot && !edgeOk && !gripRefusedSaid[helping])
