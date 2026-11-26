@@ -2021,10 +2021,25 @@ public:
         nodes_->pushBack(mclipnode_t{split, {0, 0}});
         const int front = build(sides[0], watched ? &regions[0] : nullptr);
         const int back = build(sides[1], watched ? &regions[1] : nullptr);
+        if(front < 0 && front == back)
+        {
+            return fold(node, front);
+        }
         (*nodes_)[static_cast<za::SizeT>(node)].children[0] = front;
         (*nodes_)[static_cast<za::SizeT>(node)].children[1] = back;
         return node;
     }
+
+    // A node (the last made: its sides are leaves) whose sides are the same leaf taken back out, that leaf in its place
+    // (counted once). Its parent may fold in turn. (qbsp's PruneNodes; 2026-11-26, hullspeed)
+    int fold(int node, int contents)
+    {
+        nodes_->resize(static_cast<za::SizeT>(node));
+        --*(contents == CONTENTS_SOLID ? solid_ : empty_);
+        ++folded;
+        return contents;
+    }
+    int folded = 0; // nodes folded (fold)
 
     // Its leaf counts added (a merged piece of the build's).
     void addLeaves(int solid, int empty)
@@ -2559,7 +2574,7 @@ struct Unit
     za::Vector<mplane_t> planes;    // those it added (numbered from baseCount)
     za::Vector<PlaneAsk> log;
     za::Vector<int> map;            // its planes' numbers in the tree's table (the merge)
-    int solid = 0, empty = 0, rebounded = 0;
+    int solid = 0, empty = 0, rebounded = 0, folded = 0;
     // A node's: a leaf (kind 0: root its contents), a split (kind 1: split, kids), a subtree (kind 2: root and nodes,
     // numbered from 0); input: its pieces (done again from them if the merge's check fails), packed, kept only by the
     // top, the top's last level and the subtrees of the top's levels (kept).
@@ -2755,6 +2770,7 @@ void speculate(Unit& u, const TreeBuilder& base, Frags&& frags, int depth, LoadT
             });
     }
     u.rebounded = tb.rebounded;
+    u.folded = tb.folded;
 }
 
 // u's nodes into the tree (in the order the build on one thread makes them); its root. False: u's check (or one below
@@ -2766,7 +2782,7 @@ bool emit(TreeBuilder& tb, Unit& u, Merge& m, int& root)
     const za::SizeT savedNodes = nodes.size();
     int savedSolid = 0, savedEmpty = 0;
     tb.leafCounts(savedSolid, savedEmpty);
-    const int savedRebounded = tb.rebounded;
+    const int savedRebounded = tb.rebounded, savedFolded = tb.folded;
     // u done again from its input (the build on one thread), or false if it has none
     const auto redo = [&]
     {
@@ -2774,6 +2790,7 @@ bool emit(TreeBuilder& tb, Unit& u, Merge& m, int& root)
         nodes.resize(savedNodes);
         tb.setLeafCounts(savedSolid, savedEmpty);
         tb.rebounded = savedRebounded;
+        tb.folded = savedFolded;
         if(!u.kept)
         {
             return false;
@@ -2790,6 +2807,7 @@ bool emit(TreeBuilder& tb, Unit& u, Merge& m, int& root)
     }
     tb.addLeaves(u.solid, u.empty);
     tb.rebounded += u.rebounded;
+    tb.folded += u.folded;
     if(u.kind == 0)
     {
         root = u.root;
@@ -2816,6 +2834,11 @@ bool emit(TreeBuilder& tb, Unit& u, Merge& m, int& root)
     if(!emit(tb, *u.kids[0], m, front) || !emit(tb, *u.kids[1], m, back))
     {
         return redo();
+    }
+    if(front < 0 && front == back) // (the build on one thread's fold: TreeBuilder::fold)
+    {
+        root = tb.fold(node, front);
+        return true;
     }
     nodes[static_cast<za::SizeT>(node)].children[0] = front;
     nodes[static_cast<za::SizeT>(node)].children[1] = back;
@@ -3081,6 +3104,7 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch,
             t.ext.z * 2.f, static_cast<int>(sub));
     }
     t.ms += za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0);
+    t.folded += tb.folded;
     if(progress)
     {
         progress->state.storeRelease(2);
@@ -3189,6 +3213,7 @@ void buildModelsAtOnce(const za::Vector<Tree*>& sizes, const Brushes& b, const z
                 u.kind = 2;
                 u.root = ub.build(frags);
                 u.rebounded = ub.rebounded;
+                u.folded = ub.folded;
                 u.ms = za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0);
             }
         });
@@ -3834,8 +3859,8 @@ void reportTree(const Tree& t, int rebounded)
     }
     Con_DPrintf("hull: %s compiled for %gx%g: %d nodes, %d planes in %.1f ms (%d pieces done again)\n", sv.worldmodel ? sv.worldmodel->name : "?",
         t.ext.x * 2.f, t.ext.z * 2.f, static_cast<int>(t.nodes.size()), static_cast<int>(t.planes.size()), t.ms, t.redone);
-    Con_DPrintf("hull:   brushes grown %.0f ms, units built %.0f ms, merged %.0f ms; %d units, the slowest %.0f ms (%d pieces)\n",
-        t.growMs, t.unitsMs, t.mergeMs, static_cast<int>(t.units), t.slowestMs, static_cast<int>(t.slowestPieces));
+    Con_DPrintf("hull:   brushes grown %.0f ms, units built %.0f ms, merged %.0f ms; %d units, the slowest %.0f ms (%d pieces); %d nodes folded\n",
+        t.growMs, t.unitsMs, t.mergeMs, static_cast<int>(t.units), t.slowestMs, static_cast<int>(t.slowestPieces), t.folded);
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -3861,7 +3886,7 @@ bool writeEveryTree = false;       // setWriteEveryTree: every tree written howe
 // the file layout's version and the brushes' buildVersion (also in keyOf), no longer the build's compile time
 // (2026-10-16, VRTRACE_20261016 D): a new build reads the trees the last one wrote unless the compile changed.
 // vr_hull_cache 2 compiles anyway and compares (a forgotten bump shows as "differed" in vr_hull_stats).
-constexpr za::U32 treeVersion = 1;
+constexpr za::U32 treeVersion = 2; // (2: hullspeed, 2026-11-26: nodes with both sides the same leaf folded)
 
 za::String makeDiskBuild()
 {

@@ -998,3 +998,41 @@ His ask: generate the hull trees at install time for the most common maps, as th
 - Open: the Options page gained a row (the page was sized for 1366x768: it scrolls if it no longer fits; not looked at in
   the screenshot harness). A Quest-only install (staging folder) runs no preparation, so it has no list. The trees of
   dopa/mg1/mg3 and AD are not made (not asked).
+
+## hullspeed: the hull tree builder folds same-leaf nodes; the exact axial choice tried and left out (branch agent/hullspeed, 2026-11-26)
+
+His ask: make the hull tree compile faster in general. What changed, in `vr_hull.cpp`'s tree builder only:
+
+- **Fold (shipped)**: `TreeBuilder::fold` takes back out a node whose two sides came out as the same leaf (qbsp's
+  PruneNodes); its parent can fold in turn. The build on the pool does the same in `emit` (kind-1 units) and the
+  models-at-once path, so the pool, one thread and the disk cache still give the same bytes. Leaf counts count the
+  folded leaf once. `treeVersion` 1 -> 2: **the shipped cache (`cache_shipped`) needs a rerun at release**
+  (make_shipped_cache.py). `developer 1` adds "N nodes folded" to the tree's report line (`Tree::folded`).
+- **B, the exact axial choice (tried, not shipped)**: every axial plane weighed at big nodes, with front/back counts by
+  binary search in the pieces' bounds sorted per axis (the same counts as one by one). vrstart: same build time
+  (17.2-30 s noisy vs 17.5-17.8), **+1.5 % nodes** (7.29M -> 7.40M). The brief's premise had gone: the slowest unit is
+  now about 500 pieces and 0.6-1.1 s (the 20,423-piece unit was before the units' later split), so a better pick at the
+  top does not pay. The diff is kept: `scratch/hs_B_exactaxial.diff` (not committed).
+- **F, arenas**: not tried (time neutral overall, no profile showing allocation over 5 %).
+- **DAG sharing of identical subtrees**: not done (every walker would need checking; the fold alone took the bulk).
+
+Numbers (PC, ThinLTO, `--exclusive`, cold trees `vr_hull_cache 0`, interleaved A/B; A = 3b638f311):
+
+| | A nodes | B nodes | A trees' sum ms (runs) | B (runs) | disk files |
+|---|---|---|---|---|---|
+| vrstart, 8 trees | 7,293,885 | 4,521,324 (-38 %) | 17,482 / 17,841 / 19,079 | 16,222 / 17,551 | ~131 -> 98.9 MiB |
+| ad_sepulcher, 6 trees | 2,863,601 | 2,116,302 (-26 %) | 4,240 / 6,014 / 6,274 | 6,182 / 5,836 / 6,099 | (same ratio) |
+
+Build time is within the noise (the deferred trees share the pool with the load and each other: the same tree's
+"units built" swings 2x between runs; the first, synchronous tree is equal to the ms). ~355k of vrstart's ~918k nodes
+a tree were splits with solid on both sides: the work that made them is still done; only the nodes go. So: trees a
+third smaller in memory and on disk (the 1 GB disk cache holds more maps), warm reads 0.2-0.3 s either way.
+
+A pointer for a real time cut (not done, budget): those folded nodes measure the work spent splitting inside solid.
+The coordinator's vrstartgeo study suggests leaving out recovered brushes buried in other solid (terrain interior) before
+the build; the fold count per tree (`developer 1`) is the measure to check such a cull against.
+
+Tests: `vr_hull_keeptest` vrstart PASS 8/8 on the pool and with `vr_jobs_parallel 0` (one thread: same hashes);
+`vr_hull_cache 2` vrstart 8 the same, 0 different; `vr_hull_holes_test` vrbrushholes 29/0; `vr_mhull_walktest 30` e1m2 in
+solid 0, stuck 10-16 (base 10: the deferred trees' timing varies it); lowceil 16/0, crouch speed 4/0, prone 26/6 and crawl
+17/1 (the same fails on the base exe: flat prone's crawl/jump cases and crawl's "stick standing", pre-existing).

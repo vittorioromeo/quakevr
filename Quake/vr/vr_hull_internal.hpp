@@ -157,6 +157,7 @@ struct Tree
     // slowest's build and pieces (the critical path: buildTree)
     double growMs = 0.0, unitsMs = 0.0, mergeMs = 0.0, slowestMs = 0.0;
     za::SizeT slowestPieces = 0, units = 0;
+    int folded = 0;                            // (developer 1) its builds' nodes folded (both sides the same leaf: TreeBuilder::fold)
     int solidLeaves = 0, emptyLeaves = 0;
     bool fromDisk = false;                     // the world's tree read from the disk cache (vr_hull_cache)
     int cutBack = 0;                           // the world's compile (or file): its pieces cut back (reported by settle)
@@ -164,7 +165,7 @@ struct Tree
     {
         return qvr::mem::list(nodes, planes, heads, index, indexed, keptNodes, keptPlanes, keptSolid, keptEmpty, keptHeads,
             forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone, fromDisk, cutBack, growMs, unitsMs, mergeMs, slowestMs,
-            slowestPieces, units);
+            slowestPieces, units, folded);
     }
 };
 
