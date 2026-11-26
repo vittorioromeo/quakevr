@@ -2078,7 +2078,12 @@ QVR_TUNABLE(vr_flat_throw_release_pitch, "-30") // the hand's pitch against the 
 
 // Flatscreen > Grab / Pull (vr_flatgrenade.cpp, QC vr_flatgrab.qc; vr_flat_key_pull, default H). Uses every available
 // empty hand to grab and manipulate physics props, crates, ragdolls and gibs in front of the player.
-QVR_TUNABLE(vr_flat_grab_reach, "100") // units ahead of the eyes Grab / Pull can reach grabbable props, crates, ragdolls and gibs (32..200)
+QVR_TUNABLE(vr_flat_grab_reach, "1.25") // m: how far Grab / Pull reaches props, crates, ragdolls and gibs, level from the eyes and up (an arm, 0.65 m, past the body box's 0.6 m half width; down to the floor at your feet). Was 100 units (3.8 m)
+QVR_TUNABLE(vr_flat_grab_drag_mass, "15") // kg: props this heavy or heavier (crates, barrels, explosive boxes) are dragged by their surface, the hands on them as on a ragdoll; lighter ones (bricks, rocks, ammo and health boxes, gibs) go in the hand as a force grab's
+QVR_TUNABLE(vr_flat_grab_drag_force, "4000") // N: the most each hand dragging a big prop pulls it with, level (vr_ragdoll_grab_force's: it keeps up with a run; a 40 kg crate weighs some 1000 N in Quake's gravity)
+QVR_TUNABLE(vr_flat_grab_drag_lift, "0.2") // times its weight: the most each hand dragging a big prop lifts it (both: 0.4, under the half that tips a box up: it slides along, its near side lighter)
+QVR_TUNABLE(vr_flat_grab_drag_hertz, "4") // Hz: the spring pulling a dragged prop's held point to the hand (higher: stiffer)
+QVR_TUNABLE(vr_flat_grab_drag_letgo, "1.2") // m: a dragged prop's held point this far off the hand (caught on something, too heavy) is let go of
 QVR_TUNABLE(vr_flat_grab_cone, "28") // degrees: angular cone around the crosshair when picking a target to grab (5..60)
 QVR_TUNABLE(vr_flat_grab_carry_dist, "30") // units ahead of the hands where a grabbed two-handed prop/crate sits (clamped clear of walls and body)
 QVR_TUNABLE(vr_flat_grab_reach_time, "0.14") // seconds the hand(s) take to reach forward when grabbing (0.02..0.6)
@@ -2086,9 +2091,9 @@ QVR_TUNABLE(vr_flat_grab_back_time, "0.18") // seconds the hand(s) take to ease 
 QVR_TUNABLE(vr_flat_grab_reach_fwd, "0.85") // reach-out pose: forward along the look, a share of the arm's reach
 QVR_TUNABLE(vr_flat_grab_reach_out, "-0.08") // reach-out pose: out at its side (negative: slightly inward)
 QVR_TUNABLE(vr_flat_grab_reach_down, "0.12") // reach-out pose: below its shoulder
-QVR_TUNABLE(vr_flat_grab_hold_fwd, "0.65") // hold pose (2H crate or ragdoll): forward along the look, a share of the arm's reach
+QVR_TUNABLE(vr_flat_grab_hold_fwd, "0.65") // hold pose (a ragdoll or a big prop dragged, a 2H crate): the hands forward along the look, a share of the arm's reach (what they hold comes there)
 QVR_TUNABLE(vr_flat_grab_hold_out, "0.08") // hold pose: out at its side
-QVR_TUNABLE(vr_flat_grab_hold_down, "0.18") // hold pose: below its shoulder
+QVR_TUNABLE(vr_flat_grab_hold_down, "0.18") // hold pose: below its shoulder (negative: above it)
 QVR_TUNABLE(vr_flat_grab_ragdoll_throw, "0.85") // multiplier on flatscreen ragdoll throw speed (on top of vr_ragdoll_throw)
 
 // Flatscreen > Free Hands
