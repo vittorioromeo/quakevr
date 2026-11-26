@@ -314,15 +314,18 @@ namespace
     const float steepest = glm::radians(za::clamp(vr_knockdown_getup_slope.value, 0.f, 60.f));
     const float flattest = za::cos(steepest + glm::radians(1.f)); // (a degree over: a map's 30 is 30.03)
     const float corner = glm::length(glm::vec2{za::max(-mins.x, maxs.x), za::max(-mins.y, maxs.y)});
+    int walls = 0, noFloor = 0, noRoom = 0; // (vr_knockdown_debug 2: why each place wasn't)
     const auto tryAt = [&](const glm::vec3& c) {
         const glm::vec3 level{c.x, c.y, height};
         if(point(eye, level, ent).fraction < 1.f)
         {
+            ++walls;
             return false; // (a wall between)
         }
         const trace_t tr = point(level, level - glm::vec3{0.f, 0.f, height - floorZ + 32.f}, ent);
         if(tr.fraction >= 1.f || tr.plane.normal[2] < flattest || za::abs(tr.endpos[2] - floorZ) > 24.f)
         {
+            ++noFloor;
             return false; // (no floor near the body's: a ledge, a drop, a step too high, too steep)
         }
         // (On a slope its box over the point meets the slope uphill: lifted clear by as much as its corner rises, about;
@@ -342,6 +345,7 @@ namespace
             }
             if(lift >= most)
             {
+                ++noRoom;
                 return false;
             }
         }
@@ -362,6 +366,13 @@ namespace
                 return true;
             }
         }
+    }
+    if(vr_knockdown_debug.value >= 2.f)
+    {
+        Con_Printf("knockdown: %d no place to stand: its pelvis at %.0f %.0f %.0f, the floor under it %.0f%s, the fit at %.0f %.0f; "
+                   "places with a wall between %d, no floor near its own %d, no room %d\n",
+            NUM_FOR_EDICT(ent), from.x, from.y, from.z, floorZ, down.fraction < 1.f ? "" : " (none: 24 under it)", at.x, at.y,
+            walls, noFloor, noRoom);
     }
     return false;
 }

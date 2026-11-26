@@ -1436,6 +1436,47 @@ step: base 0.251/0.772/0.293 and 0.229/0.618/0.308 ms, new 0.229/0.702/0.319 and
 200 explosive boxes (`PB_CRATES=0`) stops in both builds at a QC "Program error" after the collapse (VR_PhysicsFrameEnd
 -> a QC function: unrelated, not looked into); its collapse phase: base 0.335 / 0.288 ms, new 0.270 / 0.289 ms. With crates
 (random, new only): collapse 0.263 ms, toss 0.421 ms.
+
+## b3dtune: the ledge climb's going-in judged from the edge; a fast grab's hold; kdstir's pairing (branch agent/b3dtune, 2026-11-26)
+
+The three cases box3dup3 flipped (Box3D 042be58), each traced (`vr_ragdoll_active_trace`, the climb test's own batched
+runs: a run alone, drawn, plays out differently from the batched headless one, so traces were taken in the batch):
+- **climb pull grunt seed 10** ("slowly in", then down at z 24). Its holds took the lip 5 and 15 units out from the edge
+  (box3dup2: a ledge hold is where the hand was), so the Over phase's "in" (the pelvis from `Climb::lip`, the holds' mean)
+  read 7 units in with the pelvis 3 out over the drop; its legs reached for "the top" in the air and it lay on its thighs
+  across the corner. Its get-up then found no place (`vr_knockdown_debug 2`'s new line: its pelvis 9 under the top, every
+  place inward "a wall between", the floor under it none) and the QC's forced get-up stood it up on the top or, by a hair,
+  out over the drop. Fix (`vr_ragactive_hold.cpp` climbFrame): going in (the `in` point, the chest's and legs' goals, the
+  pelvis's "in" for `inside`, "in on the top" and "slowly in") is measured from `rim`, the lip moved onto the edge's line
+  (`Climb::edge`); the rise (`under`, `over`) and the let-go test unchanged. Now "slowly in" with its pelvis 7 in from the
+  edge, 4 over the top, and it stands on the top. endClimb's line says "in from the edge".
+- **climb pull knight seeds 7, 9, 10** ("lost its hold", the same cause; 9 and 10 failed before box3dup3 too). Falling at
+  3.6 m/s, its left hand grabbed the lip 25 units off (a ledge is grabbed up to an arm off at speed, its hold pulling the
+  hand in) and keepHold's "pulled away" (0.6 of an arm) let it go 0.01 s later; on the right hand alone it was pulled off.
+  Fix (`vr_ragactive.cpp` keepHold, holdOn; `EnvHand::gap`): a ledge hold is pulled away only 0.6 of an arm past the gap it
+  had at the grab, the gap shrinking as the hand comes in. holdOn's debug line prints the hand's gap.
+- **kdstir** (one of six get-ups 0.80 s late stirring): not the stirring. The six knockdowns run one after another, each
+  from where the last get-up left the grunt; the two runs (stirring, not) parted at the 4th (lying 16 units apart; the 6th
+  270), and a fall landing on its other side makes the get-up a roll over, 0.8 s longer, either way (the 6th was 0.8 s
+  sooner stirring). The test's worst-case 0.3 s assumed paired falls: now it is over the knockdowns lying in the same place
+  (their get-up spots within 12 units; 3 or more needed); the mean (0.1 s) still over all six.
+
+Left: hell knight seed 8 ("stuck at the lip": a weak pull, its chest stayed 13 under the top; it failed before box3dup3 as
+"slid back off the lip", not this cause).
+
+| check | box3dup3 (origin/next) | now |
+|---|---|---|
+| climb_test pull, seeds 7-10 (24) | 19/24 (grunt 10; knight 7, 9, 10; hknight 8) | 23/24 (hknight 8) |
+| climb_test drop, hit, off (18) | | 18/18 |
+| kdstir | 4/1 | 5/0 (worst 0.20 s over 4 paired; mean 0.03) |
+| ragdoll_stagger | 2 FAIL (monster 0 backpedal; grunt "its spot taken") | the same 2 |
+| active_test, env_test | no fails | no fails |
+| grab_test | | death 5/5, rag 4/5 ("grab rag enforcer: no grab", its known flake, ROUND23), off 5/5 (shove: INFO) |
+
+Debug aids: `vr_knockdown_debug 2` prints why a get-up found no place on dry ground (its pelvis, the floor under it, the
+places with a wall between, no floor near its own, no room), as it did in a liquid; `vr_debug_ragdoll`'s ledge "holds on"
+line gives the hand's gap. Not checked in the headset (a monster knocked off a ledge pulling itself up: the same look).
+
 ## flatloadbar2: the flat loading panel small and centred over the last screen dimmed (branch agent/flatloadbar2, 2026-11-26)
 
 His words: the flat progress bars "take most of the screen" on "a completely black background"; asked for them much
