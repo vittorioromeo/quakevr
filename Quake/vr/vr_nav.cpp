@@ -127,6 +127,7 @@ struct Geometry
     qmodel_t* world = nullptr;
     za::U64 hash = 0;
     int brushes = 0, clipBrushes = 0, entityBrushes = 0;
+    int cutBrushes = 0; // (reaching beyond the world's box: cut to it, triangulate)
     double ms = 0.0;
 };
 
@@ -513,16 +514,31 @@ void gatherGates(Geometry& g)
     });
 }
 
-// Each brush's faces as triangles (on the pool: brushes::forEachPolygon per brush, chunks merged in order).
-void triangulate(const BrushSet& set, Geometry& g)
+// The world's box, a little beyond its bounds: no solid of the mesh reaches past it (worldBox).
+constexpr float worldBoxMargin = 128.f;
+
+// Each brush's faces as triangles (on the pool: brushes::forEachPolygon per brush, chunks merged in order). A brush that
+// reaches beyond the world's box (one vr_hull recovered from an open leaf outside the map: old vrstart had faces 30,000
+// units out, which stretched the mesh's bounds past Recast's 16,382 units of height and lost the whole island) is cut to
+// that box: its planes get the box's six, in the set too (fillSolids reads them), their faces never walkable.
+void triangulate(BrushSet& set, Geometry& g)
 {
     const float walkZ = za::cos(glm::radians(vr_nav_slope.value));
+    glm::vec3 boxLo{-1e30f}, boxHi{1e30f};
+    if(g.world)
+    {
+        boxLo = geom::vec(g.world->mins) - glm::vec3{worldBoxMargin};
+        boxHi = geom::vec(g.world->maxs) + glm::vec3{worldBoxMargin};
+    }
+    const glm::vec4 boxPlanes[6] = {{1.f, 0.f, 0.f, boxHi.x}, {-1.f, 0.f, 0.f, -boxLo.x}, {0.f, 1.f, 0.f, boxHi.y},
+        {0.f, -1.f, 0.f, -boxLo.y}, {0.f, 0.f, 1.f, boxHi.z}, {0.f, 0.f, -1.f, -boxLo.z}};
     struct Out
     {
         za::Vector<float> verts;
         za::Vector<int> tris;
         za::Vector<unsigned char> walkable;
         za::Vector<glm::vec4> boxes;
+        za::Vector<za::SizeT> cut; // (the brushes cut to the world's box)
     };
     constexpr za::SizeT chunk = 256;
     const za::SizeT n = set.brushes.size();
@@ -536,37 +552,56 @@ void triangulate(const BrushSet& set, Geometry& g)
             for(za::SizeT i = c * chunk; i < za::min(n, (c + 1) * chunk); ++i)
             {
                 const hull::NavBrush& b = set.brushes[i];
-                br.faces.clear();
-                for(int k = 0; k < b.count; ++k)
+                const za::SizeT verts0 = o.verts.size(), tris0 = o.tris.size(), walkable0 = o.walkable.size();
+                glm::vec4 box;
+                for(int pass = 0; pass < 2; ++pass) // (the second: cut to the world's box)
                 {
-                    const glm::vec4& p = set.planes[static_cast<za::SizeT>(b.first + k)];
-                    brushes::Face f;
-                    f.normal = glm::dvec3{p.x, p.y, p.z};
-                    f.dist = p.w;
-                    br.faces.pushBack(f);
+                    br.faces.clear();
+                    const int faces = b.count + (pass ? 6 : 0);
+                    for(int k = 0; k < faces; ++k)
+                    {
+                        const glm::vec4& p = k < b.count ? set.planes[static_cast<za::SizeT>(b.first + k)] : boxPlanes[k - b.count];
+                        brushes::Face f;
+                        f.normal = glm::dvec3{p.x, p.y, p.z};
+                        f.dist = p.w;
+                        br.faces.pushBack(f);
+                    }
+                    box = glm::vec4{1e30f, 1e30f, -1e30f, -1e30f};
+                    bool outside = false;
+                    brushes::forEachPolygon(br, [&](int face, const glm::dvec3* pts, int count) {
+                        const int base = static_cast<int>(o.verts.size() / 3);
+                        for(int v = 0; v < count; ++v)
+                        {
+                            const glm::vec3 q{pts[v]};
+                            outside = outside || glm::any(glm::lessThan(q, boxLo)) || glm::any(glm::greaterThan(q, boxHi));
+                            box = glm::vec4{za::min(box.x, q.x), za::min(box.y, q.y), za::max(box.z, q.x), za::max(box.w, q.y)};
+                            const glm::vec3 r = toRc(q);
+                            o.verts.pushBack(r.x);
+                            o.verts.pushBack(r.y);
+                            o.verts.pushBack(r.z);
+                        }
+                        const bool walk = face < b.count && set.planes[static_cast<za::SizeT>(b.first + face)].z >= walkZ;
+                        const unsigned char area = walk ? RC_WALKABLE_AREA : RC_NULL_AREA;
+                        for(int v = 1; v + 1 < count; ++v)
+                        {
+                            o.tris.pushBack(base); // (Recast rasterises either winding: the areas are set here)
+                            o.tris.pushBack(base + v);
+                            o.tris.pushBack(base + v + 1);
+                            o.walkable.pushBack(area);
+                        }
+                    });
+                    if(pass == 1)
+                    {
+                        o.cut.pushBack(i);
+                    }
+                    if(!outside || pass == 1)
+                    {
+                        break;
+                    }
+                    o.verts.resize(verts0); // (beyond the world's box: again, cut to it)
+                    o.tris.resize(tris0);
+                    o.walkable.resize(walkable0);
                 }
-                glm::vec4 box{1e30f, 1e30f, -1e30f, -1e30f};
-                brushes::forEachPolygon(br, [&](int face, const glm::dvec3* pts, int count) {
-                    const glm::vec4& p = set.planes[static_cast<za::SizeT>(b.first + face)];
-                    const int base = static_cast<int>(o.verts.size() / 3);
-                    for(int v = 0; v < count; ++v)
-                    {
-                        box = glm::vec4{za::min(box.x, static_cast<float>(pts[v].x)), za::min(box.y, static_cast<float>(pts[v].y)),
-                            za::max(box.z, static_cast<float>(pts[v].x)), za::max(box.w, static_cast<float>(pts[v].y))};
-                        const glm::vec3 r = toRc(glm::vec3{pts[v]});
-                        o.verts.pushBack(r.x);
-                        o.verts.pushBack(r.y);
-                        o.verts.pushBack(r.z);
-                    }
-                    const unsigned char area = p.z >= walkZ ? RC_WALKABLE_AREA : RC_NULL_AREA;
-                    for(int v = 1; v + 1 < count; ++v)
-                    {
-                        o.tris.pushBack(base); // (Recast rasterises either winding: the areas are set here)
-                        o.tris.pushBack(base + v);
-                        o.tris.pushBack(base + v + 1);
-                        o.walkable.pushBack(area);
-                    }
-                });
                 o.boxes.pushBack(box);
             }
         }
@@ -584,6 +619,23 @@ void triangulate(const BrushSet& set, Geometry& g)
         }
         g.walkable.emplaceBackRange(o.walkable.data(), o.walkable.size());
         g.boxes.emplaceBackRange(o.boxes.data(), o.boxes.size());
+        for(const za::SizeT i : o.cut) // (its planes and the box's at the set's end: fillSolids cuts its columns the same)
+        {
+            hull::NavBrush& b = set.brushes[i];
+            const int first = static_cast<int>(set.planes.size());
+            for(int k = 0; k < b.count; ++k)
+            {
+                const glm::vec4 p = set.planes[static_cast<za::SizeT>(b.first + k)]; // (a copy: the push may move them)
+                set.planes.pushBack(p);
+            }
+            for(const glm::vec4& p : boxPlanes)
+            {
+                set.planes.pushBack(p);
+            }
+            b.first = first;
+            b.count += 6;
+            ++g.cutBrushes;
+        }
     }
     g.bmin = glm::vec3{1e30f};
     g.bmax = glm::vec3{-1e30f};
@@ -2723,6 +2775,13 @@ void info_f()
     const Geometry& g = state.geo;
     Con_Printf("nav: %d brushes (%d clip, %d of still brush entities), %d triangles, gathered in %.1f ms; %d movers\n", g.brushes,
         g.clipBrushes, g.entityBrushes, static_cast<int>(g.walkable.size()), g.ms, static_cast<int>(state.movers.size()));
+    {
+        const glm::vec3 lo = fromRc(&g.bmin.x), hi = fromRc(&g.bmax.x); // (y swaps ends: Recast's z is Quake's -y)
+        const Grid grid = gridFor(g, settingsNow());
+        Con_Printf("nav: bounds %.0f %.0f %.0f to %.0f %.0f %.0f; grid %d x %d tiles of %d voxels; %d brushes cut to the world's box\n",
+            za::min(lo.x, hi.x), za::min(lo.y, hi.y), za::min(lo.z, hi.z), za::max(lo.x, hi.x), za::max(lo.y, hi.y),
+            za::max(lo.z, hi.z), grid.tilesX, grid.tilesY, grid.tile, g.cutBrushes);
+    }
     for(za::SizeT i = 0; i < state.classes.size(); ++i)
     {
         const NavClass& c = state.classes[i];
@@ -2744,6 +2803,56 @@ void info_f()
             static_cast<int>(i), c.radius, c.height, c.pending ? "building" : c.failed ? "FAILED" : "ready", c.tiles, c.polys, narrow,
             c.drops, c.lifts, c.teles, static_cast<double>(c.bytes) / 1024.0, c.fromDisk ? "read" : "built", c.ms, c.joinMs,
             static_cast<int>(c.blocked.size()));
+        // The polygons reachable from the first player's feet by the mesh's links (walks, drops, rides): a mesh that
+        // misses an area shows it here (old vrstart: none of the island).
+        const edict_t* pl = progs::localPlayer();
+        if(pl && c.query && !c.pending)
+        {
+            const glm::vec3 feet = toRc(glm::vec3{pl->v.origin[0], pl->v.origin[1], pl->v.origin[2] + pl->v.mins[2]});
+            const float ext[3]{32.f, 64.f, 32.f};
+            dtQueryFilter all;
+            dtPolyRef start = 0;
+            float near[3];
+            int reached = 0;
+            if(dtStatusSucceed(c.query->findNearestPoly(&feet.x, ext, &all, &start, near)) && start)
+            {
+                const dtNavMesh& m = *c.mesh;
+                za::Vector<int> firstOf; // (each tile's first polygon in `seen`)
+                firstOf.resize(static_cast<za::SizeT>(m.getMaxTiles()) + 1, 0);
+                for(int t = 0; t < m.getMaxTiles(); ++t)
+                {
+                    const dtMeshTile* tile = m.getTile(t);
+                    firstOf[static_cast<za::SizeT>(t) + 1] = firstOf[static_cast<za::SizeT>(t)] + (tile && tile->header ? tile->header->polyCount : 0);
+                }
+                za::Vector<unsigned char> seen;
+                seen.resize(static_cast<za::SizeT>(firstOf[firstOf.size() - 1]), 0);
+                const auto slot = [&](dtPolyRef ref) -> unsigned char& {
+                    return seen[static_cast<za::SizeT>(firstOf[m.decodePolyIdTile(ref)]) + m.decodePolyIdPoly(ref)];
+                };
+                za::Vector<dtPolyRef> open;
+                open.pushBack(start);
+                slot(start) = 1;
+                while(!open.empty())
+                {
+                    const dtPolyRef ref = open.back();
+                    open.popBack();
+                    ++reached;
+                    const dtMeshTile* tile = nullptr;
+                    const dtPoly* poly = nullptr;
+                    m.getTileAndPolyByRefUnsafe(ref, &tile, &poly);
+                    for(unsigned l = poly->firstLink; l != DT_NULL_LINK; l = tile->links[l].next)
+                    {
+                        const dtPolyRef to = tile->links[l].ref;
+                        if(to && !slot(to))
+                        {
+                            slot(to) = 1;
+                            open.pushBack(to);
+                        }
+                    }
+                }
+            }
+            Con_Printf("nav: class %d: %d of %d polygons reachable from you\n", static_cast<int>(i), reached, c.polys);
+        }
     }
     // The walkers now on the map by class (a class's first one named), and any without a class (none expected).
     za::Vector<int> counts;
@@ -2882,6 +2991,11 @@ void cliptest_f()
         clips += b.clip ? 1 : 0;
     }
     Con_Printf("nav cliptest: %d clip brushes, %d polygons checked, %d inside one\n", clips, polysChecked, inside);
+    if(polysChecked == 0)
+    {
+        Con_Printf("nav cliptest: no class ready (%d classes): a walker on the map, its build landed (vr_nav_async 0: at once)\n",
+            static_cast<int>(state.classes.size()));
+    }
     const bool pass = inside == 0 && polysChecked > 0;
     testkit::verdict("nav cliptest", pass ? 1 : 0, pass ? 0 : 1);
 }
@@ -3010,6 +3124,11 @@ void toptest_f()
     off += clipOff; // (none expected since the clip tops' fix)
     Con_Printf("nav toptest: %d polygons checked, %d on clip or entity tops, %d off by more than the climb (worst %.1f)\n",
         polysChecked, tops, off, static_cast<double>(worst));
+    if(polysChecked == 0)
+    {
+        Con_Printf("nav toptest: no class ready (%d classes): a walker on the map, its build landed (vr_nav_async 0: at once)\n",
+            static_cast<int>(state.classes.size()));
+    }
     const bool pass = off == 0 && polysChecked > 0;
     testkit::verdict("nav toptest", pass ? 1 : 0, pass ? 0 : 1);
 }
@@ -3234,6 +3353,12 @@ void afterLoad()
     g.shafts = navshaft::shafts();
     g.shaftMargin = settingsNow().shaftMargin;
     triangulate(set, g);
+    const float spanReach = static_cast<float>(RC_SPAN_MAX_HEIGHT) * settingsNow().ch;
+    if(g.bmax.y - g.bmin.y > spanReach) // (Recast's spans hold 13 bits: anything higher is cut off the mesh)
+    {
+        Con_Printf("nav: %s is %.0f units tall: the mesh reaches only %.0f over its bottom\n", sv.name,
+            static_cast<double>(g.bmax.y - g.bmin.y), static_cast<double>(spanReach));
+    }
     g.planes = static_cast<za::Vector<glm::vec4>&&>(set.planes);
     g.solids = static_cast<za::Vector<hull::NavBrush>&&>(set.brushes);
     g.ms = msSince(t0);

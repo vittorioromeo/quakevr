@@ -1115,3 +1115,34 @@ at (-2, 371) on a 1:4 slope (16 units either side walks through); the old map ha
 `vrstart_walktest.py` now sets `cl_alwaysrun 1` (its frames assume running; walking, 16 of 18 legs fell short).
 
 After the ship: the relit copy and the shipped cache need regenerating (and his `quakevr/relit`).
+
+## vsnav: vrstart's navmesh counts explained; the old map's mesh had lost the island (branch agent/vsnav, 2026-11-26)
+
+vrstartsimp reported 1,024 tiles and 16,534 polygons on the new hub against 256 and 1,279 on the old. The new count is
+right; the old mesh was broken. Same exe (Release no-LTO), `vr_nav_async 0; vr_nav_cache 0`, a grunt spawned, class
+r12 h56:
+
+| map | brushes (clip) | bounds (Quake units) | grid | tiles, polygons | build | reachable from the spawn |
+|---|---|---|---|---|---|---|
+| old, before | 20,839 (141) | x -30,728..4,096, z -32,893..31,820 | 69 x 52 of 128 voxels | 256, 1,279 | 610 ms | none (all at z -16,510) |
+| old, fixed | 20,839 (141), 1 cut | -4,096..4,096, z -1,184..2,464 | 32 x 33 of 64 | 1,024, 16,575 | 577 ms | 7,539 |
+| new (unchanged by the fix) | 18,707 (113), 0 cut | -4,096..4,096, z -1,120..2,400 | 32 x 32 of 64 | 1,024, 16,534 | 606-668 ms | 7,466 |
+
+- **Why:** one clip brush vr_hull recovered on the old map reached about 30,000 units out (an open leaf beyond the sealed
+  box). The mesh's bounds took it in: the grid doubled its tiles (12 bits of tiles), and Recast's spans hold 13 bits of
+  height (16,382 units at 2 a voxel), so everything more than 16,382 units above the bounds' bottom, the whole island,
+  was cut off; the 1,279 polygons lay on that brush's bottom at z -16,510 (9 of them inside it: the cliptest failed).
+  The new map happens to have no such brush.
+- **Fix** (vr_nav.cpp `triangulate`): a brush whose faces reach more than 128 units past the world model's bounds is
+  cut to that box (its planes get the box's six, in the set too so `fillSolids` agrees; those faces never walkable).
+  On maps with none (vrstart, e1m1, e4m7: 0 cut) the input, its hash and the mesh are the same as before, so their
+  disk caches stay valid. A map taller than Recast's reach now warns at load.
+- **The 0-polygon tests:** `vr_nav_cliptest` and `vr_nav_toptest` check only classes that are ready. vrstart spawns no
+  walker, and a spawned one's class lands on a later frame (async, NAVMESH.md 20): run straight after the spawn they
+  saw no class. Not a bug in the tests or the mesh; they now say "no class ready" when they check nothing, and
+  NAVMESH.md 8 gives the recipe. With a class ready: new vrstart cliptest PASS (16,717 polygons, 0 inside 113 clip
+  brushes), toptest PASS (worst 16.0); old vrstart fixed PASS / PASS; e1m1 PASS / PASS.
+- `vr_nav_info` also prints the mesh's bounds, its grid, the brushes cut, and each class's polygons reachable from the
+  player's feet through the mesh's links (e1m1 195 of 2,921: its start room is shut by doors; vrstart about 45 %:
+  the rest are roofs, cliff ledges and the sea floor).
+- Checks: `arenapath_test.sh` (vr_arena_test 36) 16/0. Open: BACKLOG section 4, "Brushes beyond the world".
