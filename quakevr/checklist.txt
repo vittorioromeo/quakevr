@@ -9,24 +9,17 @@
 [New: not yet sorted]
 Coop with a bot teammate by e1m1's first lift: ride the lift up and leave the bot below; it never stands under the raised lift, it waits at the edge and boards when the lift comes down. {test:mp_coop_shaft}
 On e2m4's lifts, a grunt never stands under a raised lift and the lift never bounces back up on it as you ride it up and down. {test:nav_shaft_e2m4}
-Flat-screen: hold the right mouse button with the shotgun, then with the grenade launcher, and strafe, jump and turn: the gun sways and trails the turn far less than at the hip, the zooming launcher too; tune it in Debug > Tunables > Flatscreen > Looks, Aim Sway Horizontal and Aim Sway Vertical (0.3 each; 1 as at the hip). {test:flat_aim_sway}
-Flat-screen: at the test hall's setting buttons, Turning, Swap Sticks, Teleport, Weapon Grip, Gadget Arm, Flashlight Side, World Scale and HUD show "VR only" in grey and pressing one changes nothing, while Run, Climbing, Body and Crosshair still step and show their value. {test:flat_vronly_buttons}
-Flat-screen: with Show Melee Arcs and Show Aim Cones on, let the sword and axe grunts come at you: their floor arcs, their swinging blades' fading trails and the red marks where a blow lands are drawn on the screen. {test:agrunt_melee_arcs}
-Flat-screen: hold C, then hold Left Ctrl: each one crouches (and slides when you run), and Left Ctrl fires nothing. {test:hub_start}
 Flat-screen: N switches the held weapon's ammo type (the rocket launcher's multi-rockets, the dagger's grip), tapping B drops what the hand holds (or lets go of a stuck blade), and holding B winds up a throw. {test:hub_start}
 Flat-screen: in Options > Controls, on a "Quake VR (flat screen)" row press Right, Enter and a key: the row shows both keys and both work in play; Backspace on either clears only that one. {test:hub_start}
 Flat-screen: give an action a second key in Options > Controls, quit and start the game again: both keys are still there and both work. {test:hub_start}
 Flat-screen: under water, hold C or Left Ctrl: you swim down (Locomotion > Desktop Screen Play > Crouch Keys Swim Down turns it off). {test:flat_swim}
 Flat-screen: with a dagger or sword in hand, press V: the thrust first draws the fist well back along the blade (about twice as far as before), then stabs; its windup, turn and timings are in Debug > Tunables > Flatscreen > Thrust (V): Spear and Blade. {test:flat_melee_v}
-Flat-screen: with both hands empty, press V: the fist rises over the shoulder and comes down onto the crosshair (an overhand blow) and hurts the grunt; the left mouse button still throws the straight punch. {test:flat_melee_v}
 Flat-screen: flip the dagger's grip with N (the ammo key): it is held a bit overhead, point down, and V stabs down into the grunt; the sword and the spear do the same, each with its own numbers in Debug > Tunables > Flatscreen > Flipped Grip. {test:flat_melee_v}
 Flat-screen: hold the spear or the Crystal Lance and look at your other hand on the shaft: it is closed round it (not an open hand), held still, in a V thrust and in the right-button guard. {test:flat_spear}
 Flat-screen: with the spear and with the Crystal Lance, the shaft's line points at the crosshair (not off towards the holding hand), held and through a V thrust; both behave the same. {test:flat_spear}
 Flat-screen: hold the right mouse button with the spear: the parry guard lays the shaft across the view with both hands closed round it. {test:flat_spear}
 Flat-screen: give yourself the Crystal Lance and hold the right mouse button: the same parry guard as the spear (no ironsight zoom); blows from the front are parried; left click still charges and fires. {test:flat_lance_parry}
 Flat-screen: with the spear or the Crystal Lance, press N to flip the grip: your other hand stays on the reversed shaft, closed round it (not floating off it), for both weapons. {test:flat_spear}
-In single player, let grunts shoot at you and lean, duck and hold your arms out: their bullets and missiles hit the body you see (head, torso, arms, legs, a little forgiving), not the 24-wide box; a shot passing just beside you misses. Debug > Tunables > Combat > Other > Body Hit Fattening tunes the leniency (default 5.5). {test:sphit_body}
-In single player, hide behind a wall from the grunts, then lean your head out past its edge: after a short moment they see you and shoot at what shows (head, shoulder, hand), but less accurately than when you stand in the open, so leaning takes clearly fewer hits; fully behind the wall they don't shoot. Debug > Tunables > Combat > Other has Monsters See Leaning, Lean Spread and Lean Reaction. {test:sphit_body}
 Flat-screen: hold a loaded nailgun, super nailgun, or thunderbolt with none of its alternate ammo and press N to switch ammo: the old magazine drops out as the regular type without transforming into a lava or plasma magazine first. {test:flat_ammo_key}
 Flat-screen or VR: climb a vertical pole and a vertical rope and check from first-person and third-person that both elbows flare outwards away from the torso and never fold inwards or occlude the camera. {test:ropes}
 Flat-screen or VR: dive to the bottom of the pool and walk along it: no dry-land footstep sounds play while underwater even when touching the bottom. {test:flat_swim}
@@ -82,11 +75,7 @@ On the Quest, close the game from the system menu (also after taking the headset
 On the Quest, after running only part of an update (a new app with the old game data), the start says "The game data on the Quest is from Quake VR X; this app is Y" in the middle of the view; running Setup's Quest step again makes it go away. {test:hub_start}
 
 [3. Flat screen]
-Flat-screen: V a sword into a grunt and touch nothing: the blade stays in and your hand stays on its handle, nothing creeping out a tenth of a second after the stab. {test:flat_stuck_blade}
-Flat-screen: then walk backwards holding it: as the arm runs out the blade comes back out into the hand and the hand never jumps off the wrist; the ogre is too heavy, so there the hand lets go and the sword stays in. {test:flat_stuck_blade}
-Flat-screen: a grunt staggers off with your sword in it: the hand slips along the handle instead of letting go, and stays drawn on the arm. {test:flat_stuck_blade}
 Flat-screen: take the spear, thrust it into a grunt and walk away: the empty other hand closes on the shaft near it and holds while your arm reaches, dropping cleanly when the arm runs out or when you tap B (which releases both hands together). {test:spear}
-Flat-screen: an axe's V is a swing, not a thrust: stuck in a grunt it stays in by its edge, walking away never draws it into your hand, and once your arm runs out your hand lets go cleanly leaving the axe embedded. {test:flat_stuck_blade}
 
 [4. Tutorial and VR interface]
 Look away from the wrist gadget and get a centre message: the visor-style panel is about 20% smaller than before and still easy to read; Centre Message Size (HUD > Screens) tunes it. {test:vr_center_message}
@@ -102,9 +91,7 @@ Flat-screen or VR: in a two-player game in the ropes hall both climb the same up
 Flat-screen or VR: in multiplayer watch another player climb a rope, hang on it and swing it hard: his hands grip it and move up hand over hand, his body hangs close under his hands, his feet stay wrapped round it. {test:ropes}
 Flat-screen or VR: in a two-player game one goes along the level strung rope hand over hand while the other watches: the hands stay on the rope, the legs hang. {test:ropes}
 Flat-screen or VR: reach with an arm fully straight (hanging from a pole, or in VR your own arm at full stretch): the drawn elbow eases straight in the last bit instead of snapping, and the arm looks no longer than before (Tunables > Body: Arm Soft Reach, 0 = the old arms). {test:ropes}
-Flat-screen: in vrtesthall walk into the platform's rung ladder holding forward: the hands take the rungs, you climb hand over hand and mantle onto the top; backing off the top's edge lowers you onto it and you climb down. {test:vrtesthall_ladder}
 Flat-screen or VR: climb a rope and a pole hand over hand and watch the body from outside (flat: vr_flat_orbit; VR: a mirror or another player): the elbows stay out at the sides, never folded in front of the chest; Debug > Tunables "Rope Climb Elbows Wide" sets how far. {test:ropes}
-Flat-screen: up a rope or a pole, hold crouch to slide down quickly: the hands stay on the wrists the whole slide, a little lower on it than before; Debug > Tunables "Rope Slide: Hands In" sets how much. {test:ropes}
 
 [7. Armed humanoids, ragdolls and physics]
 Ragdoll climbs: an ogre knocked off a ledge and caught straddling its lip (a leg still on top) pulls itself up instead of falling. {test:ogre_hall}

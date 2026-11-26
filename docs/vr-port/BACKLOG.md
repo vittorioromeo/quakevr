@@ -11,7 +11,7 @@ mock toss keeps the hand's speed; a slow toss may hit the open palm after the 0.
 ## 1. Open bugs and failing tests
 
 Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md sections until then):
-- **Lance pull-out flake**: the test's chance checks moved to flatthrust 59 (ROUND26 "lancepull"); one real loss seen once (the hand empty after a shaft hit on a touching ogre, cause unknown). Was: `flatlance_test` section 5 fails ~1 run in 6 ("Lance gone after a pull-out"; the H case found
+- **Lance pull-out flake**: the test's chance checks moved to flatthrust 59 (ROUND26 "lancepull"); one real loss in 10 flat runs (2026-11-26: the hand empty after a shaft hit on a touching ogre, cause unknown). Lean aim is not wired for Copper, rogue eel/lavaman or AD's own checkattack. Was: `flatlance_test` section 5 fails ~1 run in 6 ("Lance gone after a pull-out"; the H case found
   no Lance stuck). ROUND25.md "lance4", "flatembed".
 - **VR embed test 24 and test 33 case 46 still fail** (ROUND25.md "embedregress"): 24's mock axe swing is aimed by the old
   pitch 0 (the axe ships 15.5); 33 case 46: a dead grunt held by the handle doesn't come to the hand (the ragdoll
@@ -23,8 +23,10 @@ Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md s
 - **Dog wedged against a wall**: it can stay standing wedged with the wiggle off. ROUND25.md "wallglue".
 - **Flat: no low or sideways swing, so no flat leg sweeps** (his call 2026-11-24: not now).
 - **Splitscreen**: agent/split (a4e1262d5) pushed, not merged; waits for his try; check `vr_dm_test 3`'s failure against next.
-- **Quest**: LRZ still dead in the opaque entity pass (some alias batch; next: bisect by batch); CPU-bound big fights
+- **Quest**: cold start compiles 100 GL programs, 29-35 s (2026-11-26); an alias draw-list cache is open; LRZ still dead in the opaque entity pass (some alias batch; next: bisect by batch); CPU-bound big fights
   (alias setup ~4 ms); Quest 3S untested by us; the Intel HD 630 link fix unconfirmed on hardware (ROUND25.md "intelhd", beta4).
+- **Baseline failures, 2026-11-26 list**: `rigstudio_posekeys` case 5 (right elbow) fails in every baseline since 11-14; agrunt 203 case 12 (knight swords "undrawn"; full run only); agrunt 74 (78 vs 80%); the recoil test has 4 slots off the old defaults; `ragdoll_grab` 18/1 once.
+- **Spear/Lance numbers differ between trees** (quest vs mp, same commit): find what differs in quest's game folder before trusting quest's spear/flatthrust results. The relit junction was fixed 2026-11-26 (every tree's `quakevr/relit` now points to `qvr-kit/relit`); the numbers need one recheck.
 - **menu_paths.txt**: a full regeneration loses the Held Weapon pages (workers add rows by hand).
 - **scenario_check** fails in trees without Quoth kellbase / Dwell data (test bases, not code).
 - **Melee arcs**: armed humanoids' swing trail is drawn on the host view only, not on remote MP clients (ROUND25.md "Show Melee Arcs").
