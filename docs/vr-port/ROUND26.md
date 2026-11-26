@@ -1209,3 +1209,34 @@ past their own bounds with the worst overreach; Release, `vr_hull_cache 0`):
   CACHES.md ("The shipped cache"; its "What ships" figures are beta5's, superseded by the line added above it).
 - Open: which monster boxes a map asks for still depends on its spawns at the run's skill (vrtutorial skill 0, vrstart
   the default); a player reaching the hub at another skill may compile an unshipped box on the Quest.
+
+## questb6: the Quest 3's first hub load with beta6's files (branch agent/questb6, 2026-11-26)
+
+Measure only (his OK "Measure on Quest"). Method as loadprof2: this tree's dev APK (origin/next 40f4c0bdd, beta6's code
+8d7714c6 but its version bump; debug key), the beta6 package's game data synced as Setup does (24 files differed:
+progs.dat, vrstart bsp/lit/lux, maps, scenarios, and the 30-file `cache_shipped`, which replaced loadprof2's 15), unworn,
+`-unattended -nostartmap -noconfigwrite`, a fresh empty `vr_cache_dir` per launch (every player-cache product cold), the
+GL programs warm (program cache read, 100). `developer 1`, then `map <map>`; command to first frame (vr_startup_times):
+
+| load (cold player cache) | loadprof2: no shipped cache, trees waited | loadprof2: shipped + defer | beta6's files |
+|---|---|---|---|
+| vrstart (the hub) | 92.1, 90.6 s | 19.2, 20.5 s | **16.9 s** median (16.94, 15.58, 17.63) |
+| vrtutorial | - | - | **13.8 s** (one launch) |
+
+- **Collision: no wait.** hulls 9 read, all shipped (vrstart 102.6 MB; the trees 0.28-0.34 s), 0 compiled, 0 written;
+  "the map's brushes and compiled hulls, waited for" 0.0 ms: the 5 player trees hullwait waits for are shipped reads.
+  No crouched trace waited after the first frame (an unworn headset is "crouched" at once: 28 s in loadprof2 without
+  the shipped cache). The hull job runs beside the spawn, off the critical path.
+- **Navmesh shipped:** 2 read (1 shipped: vrstart's, 12 ms), 0 built; "VR after load: navmesh" 0.25-0.31 s (vrtutorial
+  15 ms); the props' 17 tiles are still rebuilt on the pool after the load (0.2 s).
+- **What is left is the cold models:** "server: entities spawned" 10.3-10.8 s of vrstart's 16-17 s (vrtutorial 10.4 of
+  13.8): per launch 556 dequantised poses, 62 ragdoll rigs and 13 gun pieces built, ~250 occlusion bakes (on their task,
+  after the load), all keyed by id models, so never shipped. Then R_NewMap 1.1-1.7 s, sounds 0.4-0.9 s, the renderer
+  prewarm ~1.2 s. The light grid is not used on the Quest (0 read, 0 built, 0.5 ms).
+- **Headset quirk:** a direct `adb push` into the app's folder now fails ("remote fchown failed: Operation not
+  permitted") and adbd then unlinks the target, so the old file is gone. Push to /data/local/tmp, then `adb shell mv`
+  into place (scratch qb6_sync.py `put`); a folder adbd made is left drwxrwx--- (chmod 777 it). The game-made
+  `quakevr/doom` folder is not writable by the shell (its 6 Freedoom files were not synced; not in this measurement).
+- **Restored:** the APK the headset had (1.2.0-beta5, pulled from it, `install -r -d`) and the 9 data files the sync
+  replaced (progs.dat 8242a8d4, vrstart's maps...): the headset held beta5, not beta2, and beta2's re-signed APK is gone
+  (its parked folder no longer exists). Beta6's `cache_shipped` stays (beta5's vrstart keys miss it: harmless).
