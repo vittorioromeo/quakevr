@@ -13,7 +13,7 @@ Flat-screen: hold the right mouse button with the shotgun, then with the grenade
 Flat-screen: at the test hall's setting buttons, Turning, Swap Sticks, Teleport, Weapon Grip, Gadget Arm, Flashlight Side, World Scale and HUD show "VR only" in grey and pressing one changes nothing, while Run, Climbing, Body and Crosshair still step and show their value. {test:flat_vronly_buttons}
 Flat-screen: with Show Melee Arcs and Show Aim Cones on, let the sword and axe grunts come at you: their floor arcs, their swinging blades' fading trails and the red marks where a blow lands are drawn on the screen. {test:agrunt_melee_arcs}
 Flat-screen: hold C, then hold Left Ctrl: each one crouches (and slides when you run), and Left Ctrl fires nothing. {test:hub_start}
-Flat-screen: N switches the held weapon's ammo type (the rocket launcher's multi-rockets, the dagger's grip), and holding B winds up a throw of what the hand holds. {test:hub_start}
+Flat-screen: N switches the held weapon's ammo type (the rocket launcher's multi-rockets, the dagger's grip), tapping B drops what the hand holds (or lets go of a stuck blade), and holding B winds up a throw. {test:hub_start}
 Flat-screen: in Options > Controls, on a "Quake VR (flat screen)" row press Right, Enter and a key: the row shows both keys and both work in play; Backspace on either clears only that one. {test:hub_start}
 Flat-screen: give an action a second key in Options > Controls, quit and start the game again: both keys are still there and both work. {test:hub_start}
 Flat-screen: under water, hold C or Left Ctrl: you swim down (Locomotion > Desktop Screen Play > Crouch Keys Swim Down turns it off). {test:flat_swim}
@@ -72,7 +72,7 @@ On the Quest, after running only part of an update (a new app with the old game 
 Flat-screen: V a sword into a grunt and touch nothing: the blade stays in and your hand stays on its handle, nothing creeping out a tenth of a second after the stab. {test:flat_stuck_blade}
 Flat-screen: then walk backwards holding it: as the arm runs out the blade comes back out into the hand and the hand never jumps off the wrist; the ogre is too heavy, so there the hand lets go and the sword stays in. {test:flat_stuck_blade}
 Flat-screen: a grunt staggers off with your sword in it: the hand slips along the handle instead of letting go, and stays drawn on the arm. {test:flat_stuck_blade}
-Flat-screen: take the spear, thrust it into a grunt and walk away: the empty other hand closes on the shaft near it and holds while your arm reaches, dropping cleanly when the arm runs out or when you press H (which releases both hands together). {test:spear}
+Flat-screen: take the spear, thrust it into a grunt and walk away: the empty other hand closes on the shaft near it and holds while your arm reaches, dropping cleanly when the arm runs out or when you tap B (which releases both hands together). {test:spear}
 Flat-screen: an axe's V is a swing, not a thrust: stuck in a grunt it stays in by its edge, walking away never draws it into your hand, and once your arm runs out your hand lets go cleanly leaving the axe embedded. {test:flat_stuck_blade}
 
 [4. Tutorial and VR interface]
