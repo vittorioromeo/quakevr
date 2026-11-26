@@ -2232,6 +2232,28 @@ His flat feedback 2026-11-26 (late), items 5 and 9.
   units further on, bounced into what stands at y 350). tunables_test 13/0.
 - **Open:** flatgrabthrow_test.sh fails (27, "nothing grabbable in reach": TryGrab's reach check, untouched here; its
   crates sit past the promoted `vr_flat_grab_reach` 0.65 m, b5629706a): its distances need updating (not done here).
+- **attach5 (2026-11-26): the MP test.** `mp_test.py attach` (suite `mp_attach`): a listen host A (VR), B and C (flat) in coop
+  e1m1. Server aids (vr_attach_test.qc, `vr_dm_test` 25-27, one-shot): 25 a bayonet into the empty off hand of player
+  `vr_dm_test_who` (an entity number: coop's test impulses are off for clients, deathmatch has none); 26 the server's
+  report, `attachmp: player ent= main=wid,kind off= holsters=...`, `attachmp: lying wid= attach= stuck= speed= at=`, the
+  monsters within 160 units. The clients' side is attach4's `vr_attach_report`; a lying gun is matched by place (within
+  48 units of the server's gun), not entity number.
+  - PASS: J on B's shotgun (record and own hand); A and C draw it on B's gun held, holstered (flat holster menu impulse 74,
+    the left upper holster: the shoulders' are not drawn on the copy and his hips hold his start's axe and shotgun), drawn
+    again, dropped (impulse 79: A, B and C draw it lying); a thrown gun's record keeps it and A and B draw it; B armed again,
+    V sticks the shotgun in a grunt by the bayonet (30 -> 1 health, `stuck=1`, the record's bayonet on it), A and C draw it
+    on the stuck gun; in deathmatch (changelevel: a listen host's `map` drops the remote clients) B draws his holstered
+    shotgun (impulse 71) and J puts a bayonet on it.
+  - Fixed: other players' holstered guns were drawn with their bayonet but never listed by `vr_attach_report`
+    (vr_mpavatar.cpp drawHolsteredParts / wearHolsters now pass the player's entity to drawGunParts).
+  - Green after the follow-up: 26/0. C (flat) takes the dropped gun with H standing beside it looking down (the grab
+    reaches 0.65 m, 20 units, level from his eyes; placing him nudges the gun, so its place is read again before each of up
+    to six tries, from each side in turn); A and B draw the bayonet on his gun; he throws it with the throw key held down
+    (`vr_mock_key b`: his client sends 40 while the key is up, so console impulses 39/40 only dropped it), and A and B draw
+    it where the thrown gun comes to rest (64+ units ahead). Deathmatch has no setpos: `vr_dm_test 27` puts player
+    `vr_dm_test_who` at `vr_dm_test_x/y/z` facing the nearest other living player; B's V thrust then hurts A. The stab's
+    stuck gun is told from the thrown one (which can stick in the level) by place. Found no sync bug. Screenshots dropped
+    (he looks in game).
 ## flatxhair2: every melee weapon's crosshair on where its blow lands, either grip; the wound-up throw's on where it lands (branch agent/flatxhair2, 2026-11-26)
 
 His flat notes 2026-11-26, items 1 and 6.

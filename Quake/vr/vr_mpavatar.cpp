@@ -1019,8 +1019,9 @@ bool solveBotGear(const Drawn& d, float yaw, bool bot, VrDrawnHolsters& hs, view
     return true;
 }
 
-// His holstered guns' parts (wpnsync: his reload mode's bits, either hand's look carries them), where they are drawn.
-void drawHolsteredParts(Drawn& d, const Avatar& a)
+// His holstered guns' parts (wpnsync: his reload mode's bits, either hand's look carries them), where they are drawn;
+// `player` his entity (0 a doll's: not in vr_attach_report).
+void drawHolsteredParts(Drawn& d, const Avatar& a, int player)
 {
     constexpr za::U8 modeBits = VrGunLook::magsShownBit | VrGunLook::clipFullBit | VrGunLook::ssgBreaksBit;
     for(int i = 0; i < VrDrawnHolsters::count; i++)
@@ -1030,14 +1031,14 @@ void drawHolsteredParts(Drawn& d, const Avatar& a)
         l.flags = a.holsterFlags[i];
         l.clip = a.holsterClip[i];
         l.attach = a.holsterAttach[i];
-        view::drawGunParts(d.holster[i], l, d.holsterGun[i], false, false);
+        view::drawGunParts(d.holster[i], l, d.holsterGun[i], false, false, player);
     }
 }
 
 // (fbmisc1123) After his body is posed this frame (setupBody): a bot's holstered guns and sheaths, and a player's (the
 // sheaths he shows), on it (solveBotGear; setupHands drew none of them), drawn as drawHands draws his others. With no
 // body posed, none this frame.
-void wearHolsters(int slot, const Avatar& a)
+void wearHolsters(int slot, const Avatar& a, int player)
 {
     Drawn& d = drawn.of[slot];
     if(!d.gearOnBody)
@@ -1066,7 +1067,7 @@ void wearHolsters(int slot, const Avatar& a)
         view::drawGear(sheaths[i], d.gear[i]);
         d.gear[i].scale = glm::vec3{1.f};
     }
-    drawHolsteredParts(d, a);
+    drawHolsteredParts(d, a, player);
 }
 
 // setup's hands, weapons, gear and torch (his body after, once his held hands are pinned: ropePinHands).
@@ -1161,7 +1162,7 @@ void setupHands(int slot, int e, const Avatar& a, const glm::vec3& origin, const
         const bool near = glm::distance(glm::vec3{w.ent.origin[0], w.ent.origin[1], w.ent.origin[2]}, eye) <= reach;
         view::drawGunParts(w, a.look[side], d.gun[side], true, near, doll ? 0 : e, side);
     }
-    drawHolsteredParts(d, a);
+    drawHolsteredParts(d, a, doll ? 0 : e);
     if(doll)
     {
         d.lamp.visible = false; // (a dead body's torch: none; its lights are keyed by player, his living copy's)
@@ -1285,7 +1286,7 @@ void setup(int slot, int e, const Avatar& a, const glm::vec3& origin, const avat
         setupHands(slot, e, a, origin, doll);
         ropePinHands(d, a, origin, shift, dt);
         setupBody(slot, e, a, origin, doll);
-        wearHolsters(slot, a);
+        wearHolsters(slot, a, doll ? 0 : e);
     }
     else
     {
@@ -1298,7 +1299,7 @@ void setup(int slot, int e, const Avatar& a, const glm::vec3& origin, const avat
         setupHands(slot, e, moved, origin + shift, doll);
         ropePinHands(d, a, origin, shift, dt);
         setupBody(slot, e, moved, origin + shift, doll);
-        wearHolsters(slot, moved);
+        wearHolsters(slot, moved, doll ? 0 : e);
     }
     drawPowerups(slot, doll ? 0 : a.powerups);
 }
