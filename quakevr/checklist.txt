@@ -13,6 +13,7 @@ Quest standalone (Standalone preset): in the tutorial's dark course take the fla
 Quest standalone: Debug > Show Foveation on, with Quest Foveation at High: the eyes' edges should show yellow (half resolution) and red (quarter) zones round a clear centre; at Low only the far corners. On the PC, Show Foveation "Quest Pattern" shows the same zones. {test:quest_foveation}
 On the Quest, switch Quest Foveation from High to Off and back a few times mid-game, then quit and start again with Off saved: no crash, the game reaches vrstart and plays. {test:hub_start}
 On the Quest, from Standalone pick "Quake (off)", then Low, then Medium on the Graphics Presets page mid-game: the frame rate stays playable, the menu stays usable, and Standalone can be picked again. {test:hub_start}
+Flip the spear to the reverse grip (B / Y) and throw it overhead with a bit of wrist snap: it should come round and fly point first almost at once; tune Debug > Tunables "Reverse Grip Settling: Spears" (0.8) and "Reverse Grip Settling: Blades" (0.3, swords and daggers) to taste. {test:spear}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
