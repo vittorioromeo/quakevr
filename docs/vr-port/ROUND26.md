@@ -1811,6 +1811,40 @@ Shortcut migration: Windows keeps the old letter case of an existing file/folder
 existing Start menu folder / deletes an existing .lnk that differs only in case before writing (self-test "shortcuts of
 the old letter case are renamed"; installer self-tests 63/63).
 
+## flashgrab: the belt flashlight is a holster slot; Holster Setup places, turns and sizes it (branch agent/flashgrab, 2026-11-26)
+
+His note (VR, 19:58): a quick grab of the belt torch often missed it, the hand had to stop half a second; a hand arriving
+already closed should take it too; he wants to drag it in Holster Setup, turn it, and set its grab leniency without
+resizing the model.
+
+- **Grab rules** (`vr_flashlight.cpp`, `onBelt()`): on the belt (or springing home) an empty hand's grip in the grab zone
+  takes the torch at once: no `deliberate()` (no stillness, no open-hand-before check) and no punch exclusion. A grip
+  closed before arriving arms the late grip from anywhere and takes it the frame the hand is in the zone, for
+  `vr_flashlight_closed_grab` real seconds (QVR_TUNABLE, default 1; Debug > Tunables > Closed Grab Window). The
+  arbitration with the game is kept (a holster nearer than the torch draws, the other hand's weapon wins: `gameGripWins`).
+  On the head and on a gun nothing changed (deliberate presses, the late grip with stillness); the trigger toggle at the
+  lamp still needs a deliberate press.
+- **The other holsters** draw on the grip's press edge (QC `VR_HandGrabUtil_StartedHandGrabbing`: the hand in the hotspot
+  within 0.125 s of the press). A hand closed earlier than that does not draw from them; the torch now allows 1 s, as
+  he asked. Making the holsters match is a QC change left for him to decide.
+- **Holster Setup** (`vr_holstersetup.cpp`): the torch is a slot after the zones (`ZoneTorch`), its box round its axis
+  sized by its reach. Gripped, it drags like a holster (vr_flashlight_forward/_out/_up, solved in metres: `Params` now
+  carries each kind's rounding, snap, limit and step); turning the holding hand turns it about its middle past 4 degrees
+  (new `vr_flashlight_yaw`, `vr_flashlight_roll` with `vr_flashlight_tilt`, set by `flashlight::setBeltTurn`); both
+  hands' spread or the stick sizes its grab zone (`vr_flashlight_grab_range` 0.25..4: the zone, not the model). Undo,
+  Cancel, Reset Holster and Reset All cover it. No seated layout of its own (the same cvars seated).
+- **Side**: `vr_flashlight_side` stays, as a mirror of the saved place and turn (out, yaw and roll mirrored to the right
+  hip); no migration. Tilt now honours -90..90 (it was clamped to -30..60 though its slider went to 90).
+- Menus: Flashlight > On the Belt gets Turn and Lean Sideways; Reset Body and Equipment resets tilt, yaw and roll too.
+  Mock: `vr_mock_hand_to <hand> torch [along left out]` (the slot's middle); `vr_flashlight_probe` prints the slot
+  (middle, reach, beam, length); `vr_holstersetup_report` prints the torch's settings.
+- Tests: `flash_grab_test.py <agent> slot` (new; 17 checks: quick grabs at 2.2 and 4.4 m/s, closed 0.3 s before taken,
+  1.5 s not, the drag moves it and the grab follows, the old place no longer takes, the turn keeps its middle, the stick
+  enlarges the zone only, the right side mirrored; verdict "flash_grab_test slot: N passed, M failed"). `timing`: the
+  former punch/away/closed controls now must take it; a stale-closed control added. Run: slot 17/0, timing 297/0,
+  mounted:0, returning, otherweapon 7/0, flash_trigger 6/0, tunables_test, holstersetup_test.
+- Known, not this branch: `holstersetup_test.sh` "gun at the right hip (drag) + 0 out: DROP (want IN)" fails with this
+  branch's flashlight/setup files reverted to origin/next too.
 ## revthrow: reverse grip throws settle point first more readily (branch agent/revthrow, 2026-11-26)
 
 His words (VR, 20:11): a spear thrown overhead from the reverse grip spun with "even the smallest amount of wrist snap"; he wants
