@@ -573,10 +573,10 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     {
         // Lying as it lies (asleep until something meets it), upright: it slides and turns about its yaw (a box: not
         // even that, square to Quake's box), slowed as a heavy thing dragged.
+        // (The yaw-only turn is a motion lock joint to the world's anchor, below: Box3D's motion locks became a joint
+        // upstream, #236; a box's no turn at all is the body's fixed rotation.)
         def.isAwake = false;
-        def.motionLocks.angularX = true;
-        def.motionLocks.angularY = true;
-        def.motionLocks.angularZ = !s.corpseFitted;
+        def.fixedRotation = !s.corpseFitted;
         def.linearDamping = 0.5f;
         def.angularDamping = 2.f;
     }
@@ -595,6 +595,18 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     }
     s.body = b3CreateBody(world->id, &def);
     s.madeAt = static_cast<float>(qcvm->time);
+    if(kind == Kind::Corpse && s.corpseDynamic && s.corpseFitted && B3_IS_NON_NULL(world->anchor))
+    {
+        // Upright: its z axis kept on the world's (the body is made turned about z alone: rotationOf). The joint goes
+        // with the body (b3DestroyBody destroys its joints).
+        b3MotionLockJointDef lock = b3DefaultMotionLockJointDef();
+        lock.base.bodyIdA = world->anchor;
+        lock.base.bodyIdB = s.body;
+        lock.base.localFrameA = b3Transform{def.position, b3Quat_identity};
+        lock.base.localFrameB = b3Transform{b3Vec3_zero, b3Conjugate(def.rotation)};
+        lock.lockAngularXY = true;
+        b3CreateMotionLockJoint(world->id, &lock);
+    }
 
     switch(kind)
     {

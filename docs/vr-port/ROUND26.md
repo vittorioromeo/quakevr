@@ -1353,3 +1353,55 @@ His log `quakevr/logs/2026-11-26_17-50-24/console.log` (VS2026, flat, `-basedir 
   `ownedRoots` listed the same folder by two spellings (Steam's install path and `-basedir`'s `<Quake>/rerelease`). Roots
   are now unique by `files::resolved` (case aside on Windows), the highest place kept. vr_gamedir.cpp.
 - Tests: dwell_owned, dwell_vrmodels, loading_switch, flatgrabthrow; a flat start-up in the kit shows none of the lines.
+
+## box3dup3: Box3D updated to upstream 042be58 (branch agent/box3dup3, 2026-11-26)
+
+**Update** (`Quake/vr/external/box3d`, README.md and CREDITS.md name the commit). 1767150d (2026-11-17) to upstream main
+042be58 (2026-11-25): 4 commits, re-applied by 3-way merge as box3dup did (`git merge-file`; upstream in
+`F:\QVR-Parked\box3d-upstream`). What matters to us:
+
+- #236 "Motion locks are now joints": `b3BodyDef::motionLocks` and b3Body_SetMotionLocks are gone; `fixedRotation`
+  is back (locks every turn) and a new **motion lock joint** (`b3CreateMotionLockJoint`: linear x/y/z locks, an angular
+  lock leaving only frame A's z turn) does the rest. Our only use, the pushable corpse (`vr_corpse_collide` 2 or 4):
+  the box (2) is `fixedRotation`; the fitted one (4, turning about its yaw alone) is held upright by a motion lock
+  joint to a new shapeless static body, `World::anchor` (made with the world, `vr_box3d.cpp`; `vr_box3d_props.cpp`).
+  Also #236: the manifold allocators are a fixed array of `B3_MAX_MANIFOLDS`, empty until used; recording major 7.
+- #237 "Bug fixes": the contact solver's overflow path restructured (the friction centre now weighted by each point's
+  separation, a spinning-top drift fix), a **spherical joint's motor velocity is in joint frame A**, no longer the
+  world's (rotated with body A through the substeps). Our only non-zero use, the active ragdolls' drive
+  (`vr_ragactive.cpp`), now passes `inverse(jointFrameA) * spin` (spin is in the parent's, body A's, axes; was
+  `parentRotation * spin`). Shape and solver fixes besides.
+- #238: b3CreateHull fails (NULL) on degenerate input it used to accept: a hull thinner than the larger of
+  `B3_LINEAR_SLOP` (5 mm, ~0.2 units) and 0.1% of its extent, or a broken quickhull merge; every caller already handles
+  NULL (a box instead). Other hulls are the same bytes: `vr_gun_pieces_cache 2` read 11 pieces, 11 same, 0 differed,
+  so no cache bump (`cutVersion` stays 1; the rig cache does not use Box3D). The contact solver: 12 lines.
+- #241 "Vehicle tech": a new tire joint (`b3CreateTireJoint`, ray/shape-cast wheels; experimental). Unused.
+
+**Local changes**: all kept (none is upstream's now). The long manifold arrays: kept on the new fixed allocator array
+(`b3World_GetManifoldMemory`'s `pools` now counts the allocators holding blocks). The elliptical cones' recording
+version is now **8** (upstream took 7). b3CreateHullWith's allocator hooks re-applied to the new failure paths.
+
+**Tests** (Release, the merged tree; the same checks on the base origin/next 0f6fa56b3 built in this tree):
+
+| check | base | new |
+|---|---|---|
+| climb_test pull, seeds 7-10 (24) | 21/24 (knight 9, 10; hknight 8) | 19/24 (+ grunt 10 "slowly in", knight 7) |
+| kdstir | 5/0 | 4/1: six 2.5 s knockdowns, one get-up 0.80 s later with stirring than without (limit 0.3; mean 0.03) |
+| ragdoll_stagger | 2 FAIL (monster 0 backpedal; monster 2 "all 8 recovered") | 2 FAIL (monster 0 backpedal; grunt "its spot taken") |
+| active_test (45 cases) | no fails | no fails; the drive follows the death animation closer (grunt err 13/15/31/23 -> 12/8/19/10 deg) |
+| axe_stick_rates (8 kinds x 60) | 60 50 62 50 67 70 7 2 % | 53 62 57 68 78 72 3 0 % (within the noise of 60 throws) |
+
+The new build is deterministic run to run (the same lines in two runs). The two climb cases and the kdstir get-up are
+outcome flips in chaotic cases (contacts on the ground and the lip under #237's friction centre change; the knight's
+hold was already "chaotic: seeds swap run singly", ROUND25 box3dup2), not crashes or energy: **open**, not tuned. New only: throw_spin 15/0, held_over_props PASS, throw_grace clean, magthrow 3/0, gib_2h_throw 13 of 28
+bursts (was 9-11), embedhold 2/0 (flatembedwalk 60/0), ragdoll_test runs clean, selfcollide clean, selfchecks PASS
+(physics workers). vr_physics_mtbench: the same hash for every worker count, now 200/300 and 400/300
+`adf2a36dbfa46191` (was `b071f169ad1d96cb`: the solver changed). Pushable corpses (`scratch/box3dup3_corpse.sh`,
+vr_corpse_collide 4 and 2, a dead grunt flung 300 units): tilt 0.00 throughout (vr_corpse_list prints a corpse's tilt
+now).
+
+**Perf**: no measurable change (Release, not LTO; the same machine, sequential). The active test's cost scenes, Box3D
+step: base 0.251/0.772/0.293 and 0.229/0.618/0.308 ms, new 0.229/0.702/0.319 and 0.221/0.692/0.235 ms. physbench with
+200 explosive boxes (`PB_CRATES=0`) stops in both builds at a QC "Program error" after the collapse (VR_PhysicsFrameEnd
+-> a QC function: unrelated, not looked into); its collapse phase: base 0.335 / 0.288 ms, new 0.270 / 0.289 ms. With crates
+(random, new only): collapse 0.263 ms, toss 0.421 ms.

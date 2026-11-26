@@ -785,11 +785,11 @@ B3_API void b3Body_Disable( b3BodyId bodyId );
 /// Enable a body by adding it to the simulation. This is expensive.
 B3_API void b3Body_Enable( b3BodyId bodyId );
 
-/// Set the motion locks on this body.
-B3_API void b3Body_SetMotionLocks( b3BodyId bodyId, b3MotionLocks locks );
+/// Fix the rotation of this body. Sets the angular velocity to zero.
+B3_API void b3Body_SetFixedRotation( b3BodyId bodyId, bool flag );
 
-/// Get the motion locks for this body.
-B3_API b3MotionLocks b3Body_GetMotionLocks( b3BodyId bodyId );
+/// Does this body have fixed rotation?
+B3_API bool b3Body_IsFixedRotation( b3BodyId bodyId );
 
 /// Set this body to be a bullet. A bullet does continuous collision detection
 /// against dynamic bodies (but not other bullets).
@@ -1272,6 +1272,30 @@ B3_API float b3ParallelJoint_GetMaxTorque( b3JointId jointId );
 /** @} */ // parallel_joint
 
 /**
+ * @defgroup motion_lock_joint Motion Lock Joint
+ * @brief Functions for the motion lock joint.
+ * @{
+ */
+
+/// Create a motion lock joint.
+/// @see b3MotionLockJointDef for details
+B3_API b3JointId b3CreateMotionLockJoint( b3WorldId worldId, const b3MotionLockJointDef* def );
+
+/// Enable/disable a linear lock.
+B3_API void b3MotionLockJoint_EnableLinearLock( b3JointId jointId, int axis, bool flag );
+
+/// Is a linear lock enabled?
+B3_API bool b3MotionLockJoint_IsLinearLockEnabled( b3JointId jointId, int axis );
+
+/// Enable/disable the angular lock.
+B3_API void b3MotionLockJoint_EnableAngularLock( b3JointId jointId, bool flag );
+
+/// Is the angular lock enabled?
+B3_API bool b3MotionLockJoint_IsAngularLockEnabled( b3JointId jointId );
+
+/** @} */ // motion_lock_joint
+
+/**
  * @defgroup distance_joint Distance Joint
  * @brief Functions for the distance joint.
  * @{
@@ -1505,10 +1529,10 @@ B3_API void b3PogoJoint_SetMaxCompressionForce( b3JointId jointId, float force )
 /// Get the max compression force, usually in Newtons.
 B3_API float b3PogoJoint_GetMaxCompressionForce( b3JointId jointId );
 
-// Set the unit ground normal.
+/// Set the unit ground normal.
 B3_API void b3PogoJoint_SetNormal( b3JointId jointId, b3Vec3 normal );
 
-// Get the unit ground normal.
+/// Get the unit ground normal.
 B3_API b3Vec3 b3PogoJoint_GetNormal( b3JointId jointId );
 
 /// Get the current length of the pogo.
@@ -1775,9 +1799,7 @@ B3_API void b3SphericalJoint_EnableMotor( b3JointId jointId, bool enableMotor );
 /// Is the spherical joint motor enabled?
 B3_API bool b3SphericalJoint_IsMotorEnabled( b3JointId jointId );
 
-/// Set the spherical joint motor velocity in radians per second. This is the relative angular
-/// velocity between the two bodies in world space.
-/// motorVelocity = angularVelocityB - angularVelocityA
+/// Set the spherical joint motor velocity in radians per second.
 B3_API void b3SphericalJoint_SetMotorVelocity( b3JointId jointId, b3Vec3 motorVelocity );
 
 /// Get the spherical joint motor velocity in radians per second
@@ -1793,6 +1815,58 @@ B3_API void b3SphericalJoint_SetMaxMotorTorque( b3JointId jointId, float torque 
 B3_API float b3SphericalJoint_GetMaxMotorTorque( b3JointId jointId );
 
 /**@}*/ // spherical_joint
+
+/**
+ * @defgroup tire_joint Tire Joint
+ * @brief Functions for the tire joint. Used for vehicle simulation.
+ *
+ * @warning Experimental. The tire joint may change in future versions.
+ * @{
+ */
+
+/// Create a tire joint.
+B3_API b3JointId b3CreateTireJoint( b3WorldId worldId, const b3TireJointDef* def );
+
+/// Update the tire contact point. Usually from a ray or shape cast.
+B3_API void b3TireJoint_SetContact( b3JointId jointId, b3Vec3 localPointA, b3Vec3 normal );
+
+/// Get the tire contact normal.
+B3_API b3Vec3 b3TireJoint_GetNormal( b3JointId jointId );
+
+/// Set the current brake force. Used to apply brakes.
+B3_API void b3TireJoint_SetBrakeForce( b3JointId jointId, float force );
+
+/// Get the current brake force.
+B3_API float b3TireJoint_GetBrakeForce( b3JointId jointId );
+
+/// Get the current suspension length.
+B3_API float b3TireJoint_GetSuspensionLength( b3JointId jointId );
+
+/// Get the suspension normal force.
+B3_API float b3TireJoint_GetNormalForce( b3JointId jointId );
+
+/// Get the friction lateral (side-ways) force.
+B3_API float b3TireJoint_GetLateralForce( b3JointId jointId );
+
+/// Get the rolling (grip) force.
+B3_API float b3TireJoint_GetRollingForce( b3JointId jointId );
+
+/// Is the tire friction at the limit?
+B3_API bool b3TireJoint_IsSaturated( b3JointId jointId );
+
+/// Get the suspension impulse.
+B3_API float b3TireJoint_GetSuspensionImpulse( b3JointId jointId );
+
+/// Get the stop impulse (bottom out).
+B3_API float b3TireJoint_GetStopImpulse( b3JointId jointId );
+
+/// Get the lateral friction impulse.
+B3_API float b3TireJoint_GetLateralImpulse( b3JointId jointId );
+
+/// Get the forward friction impulse.
+B3_API float b3TireJoint_GetRollingImpulse( b3JointId jointId );
+
+/**@}*/ // tire_joint
 
 /**
  * @defgroup weld_joint Weld Joint
