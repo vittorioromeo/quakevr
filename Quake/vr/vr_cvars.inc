@@ -672,6 +672,9 @@ QVR_CVAR(vr_xr_refresh_rate, "0", CVAR_ARCHIVE)
 // vr_quest_check (each Android start, after the saved config; vr_gfxpresets.cpp): 1 the settings that break the Quest's
 // frames (MSAA, bloom) set back, each said in the log; 0 only said.
 QVR_CVAR(vr_quest_guard, "1", CVAR_ARCHIVE)
+// questcrash (vr_gfxpresets.cpp): a graphics preset, Standalone or My Settings picked in VR whose frames then stay under
+// this rate (the median of 8, after a second's grace) is put back as before the pick; 0: never.
+QVR_CVAR(vr_preset_revert_fps, "5", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_cpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_foveation, "0", CVAR_ARCHIVE)
@@ -1078,7 +1081,7 @@ QVR_CVAR(vr_player_hue, "100", CVAR_ARCHIVE)          // the player's colour (vr
 QVR_CVAR(vr_player_saturation, "1", CVAR_ARCHIVE)     // and how saturated they are (1 as made, 0 white, up to 2)
 QVR_CVAR(vr_sight_hue, "-1", CVAR_ARCHIVE)            // the glowing iron sights of the shotgun and double shotgun (vr_sights.cpp): hue (degrees; 30 their own orange, 0 red, 120 green, 240 blue; -1 vr_player_hue),
 QVR_CVAR(vr_sight_saturation, "0.65", CVAR_ARCHIVE)      // and saturation (1 their own, 0 white, up to 2)
-QVR_CVAR(vr_sight_front_hue_shift, "240", CVAR_ARCHIVE) // the front post's hue turned this far (degrees) from the rear notches' (shotgun, double shotgun, lightning gun, nail pistol), to tell them apart; 0 the same colour
+QVR_CVAR(vr_sight_front_hue_shift, "90", CVAR_ARCHIVE) // the front post's hue turned this far (degrees) from the rear notches' (shotgun, double shotgun, lightning gun, nail pistol), to tell them apart; 0 the same colour
 QVR_CVAR(vr_notify_wrist, "1", CVAR_ARCHIVE)          // the console's messages (notify lines) with the gadget: 0 in front of the head, 1 in a log floating over the gadget, 2 both
 QVR_CVAR(vr_notify_wrist_time, "8", CVAR_ARCHIVE)     // seconds a message stays in that log (0: con_notifytime's)
 QVR_CVAR(vr_notify_wrist_height, "5", CVAR_ARCHIVE)   // cm the log's bottom floats over the gadget as seen (and always over the hologram)
@@ -1954,17 +1957,19 @@ QVR_CVAR(vr_body_pauldron_follow, "0.35", CVAR_ARCHIVE) // how much the cap turn
 QVR_CVAR(vr_body_pauldron_forward, "0", CVAR_ARCHIVE) // metres they sit further forward,
 QVR_CVAR(vr_body_pauldron_up, "0", CVAR_ARCHIVE)      // up,
 QVR_CVAR(vr_body_pauldron_out, "0.005", CVAR_ARCHIVE)     // and out
-// The flashlight (vr_flashlight.cpp): stored hanging on the belt, on the left or right hip (vr_flashlight_side) (round 21; on the chest before); only deliberate presses (an open, still hand) take or switch it; trigger at it switches it, an empty hand's grip takes it; held near the other hand's gun, B/Y clips it on; held at the head, B/Y clips it on there.
+// The flashlight (vr_flashlight.cpp): stored hanging on the belt, on the left or right hip (vr_flashlight_side) (round 21; on the chest before); trigger at it switches it (a deliberate press: an open, still hand), an empty hand's grip takes it as any holster's would (round 26, "flashgrab": at once, moving or not, or a closed hand arriving; its place, turn and grab zone set in Holster Setup); held near the other hand's gun, B/Y clips it on; held at the head, B/Y clips it on there.
 QVR_CVAR(vr_flashlight, "1", CVAR_ARCHIVE)            // 0: no flashlight; 1 Immersive (on the belt: taken, clipped on a gun or the head); 2 Always on Head (patch 1.0.1: worn at the temple on vr_flashlight_side's side, never on the belt; the trigger at it switches it; on when chosen and at a fresh start)
 QVR_CVAR(vr_flashlight_shadows, "1", CVAR_ARCHIVE)    // its spot light casts shadows (takes one of vr_shadow_dlights: one tile, not six faces)
 QVR_CVAR(vr_flashlight_cord, "1", CVAR_ARCHIVE)      // the retracting cord from the belt clip to the torch while it is off the belt: 0 none, 1 a rusty low-poly iron chain (chunky faceted links, Quake's look; vr_coil.cpp), 2 coiled like an old telephone's
 QVR_CVAR(vr_flashlight_beam_quality, "1", CVAR_ARCHIVE) // how closely the visible beam finds the walls that cut it: 0 low, 1 medium, 2 high (traces a frame, vr_flashlight.cpp)
-QVR_CVAR(vr_flashlight_tilt, "-5", CVAR_ARCHIVE)       // degrees the stored lamp (hanging on the chest, lens down) leans its lens out from the body
+QVR_CVAR(vr_flashlight_tilt, "-5", CVAR_ARCHIVE)       // degrees the stored lamp (hanging on the belt, lens down) leans its lens out from the body (-90..90),
+QVR_CVAR(vr_flashlight_yaw, "0", CVAR_ARCHIVE)         // turns about the upright (the switch round towards its side; mirrored with vr_flashlight_side),
+QVR_CVAR(vr_flashlight_roll, "0", CVAR_ARCHIVE)        // and leans its lens out sideways, away from your middle (mirrored likewise; Holster Setup turns all three)
 QVR_CVAR(vr_flashlight_forward, "0.025", CVAR_ARCHIVE)    // metres the belt clip sits further forward,
 QVR_CVAR(vr_flashlight_up, "0.25", CVAR_ARCHIVE)         // up,
 QVR_CVAR(vr_flashlight_out, "-0.05", CVAR_ARCHIVE)        // and out (towards its side)
 QVR_CVAR(vr_flashlight_armor_forward, "0.03", CVAR_ARCHIVE) // (his, 2026-11-16) metres more forward on the belt while the armour's plates show on your body (they can pass through the torch); 0 off
-QVR_CVAR(vr_flashlight_side, "0", CVAR_ARCHIVE)       // the hip it hangs on: 0 the left, 1 the right
+QVR_CVAR(vr_flashlight_side, "0", CVAR_ARCHIVE)       // the hip it hangs on: 0 the left, 1 the right (the place and turn above mirrored)
 QVR_CVAR(vr_flashlight_grab_range, "1", CVAR_ARCHIVE) // times how far from the torch a hand reaches it (lit, taken; 9 cm from its axis at 1), 0.25..4
 QVR_CVAR(vr_flashlight_head_range, "1.5", CVAR_ARCHIVE) // times the head's zone's radius (vr_flashlight_head_zone_radius: clipping it on, taking it off), 0.25..4
 QVR_CVAR(vr_flashlight_gun_range, "1", CVAR_ARCHIVE)  // times the gun's zone's radius (vr_flashlight_gun_zone_radius: clipping it on with B/Y or on letting go), 0.25..4
@@ -2923,6 +2928,7 @@ QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in Quake
 QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
 QVR_CVAR(vr_agrunt_repl_ad, "1", CVAR_ARCHIVE | QVR_RULE)         // 1: in Arcane Dimensions' maps too: its plain grunts, enforcers, knights and death knights replaced (AD's own variants by vr_agrunt_repl_variants; its point knights and ghosts never: QC VR_AGR_ADVariant); 0 until 2026-11-01
 QVR_CVAR(vr_agrunt_repl_variants, "1", CVAR_ARCHIVE | QVR_RULE) // 1: Arcane Dimensions' and Quoth's own humanoid variants (rocket, grenade and plasma soldiers, defenders, eliminators, pyros, fumigators, crossbow knights) are armed humanoids holding their gun (QC vr_humrepl.qc VR_HUM_Replace; with vr_agrunt_repl and vr_agrunt_repl_ad; crossbow knights with vr_agknight)
+QVR_CVAR(vr_agrunt_repl_crossbow, "0", CVAR_ARCHIVE | QVR_RULE) // (vrmisc, his note 2026-11-26: off until AD's crossbow knight is a proper armed humanoid, BACKLOG.md section 6) 1: with vr_agrunt_repl_variants, AD's crossbow knights are armed knights holding the crossbow too; 0: they stay AD's (QC vr_humrepl.qc VR_HUM_On)
 QVR_CVAR(vr_agrunt_repl_seed, "0", CVAR_ARCHIVE | QVR_RULE)       // shuffles every map's loadouts (the same seed: the same loadouts)
 QVR_CVAR(vr_fresh_map_seeds, "1", CVAR_ARCHIVE | QVR_RULE)        // 1: crates and barrels, rocks, armed replacements and their armour rolled from the run's seed (vr_run_seed: a new run, a new layout; a level change, a restart, a loaded save keep the run's), or anew at each map start outside a run; 0: the same every time (the map's name). Off in a test session (vr_backend mock). vr_map_seed_info
 QVR_CVAR(vr_map_seed, "0", CVAR_NONE)                  // tests, repro: > 0 every map load's content seed (vr_map_seed_info prints the one in play); -1 a fresh one even in a test session; 0 vr_fresh_map_seeds'
@@ -3867,8 +3873,6 @@ QVR_CVAR(vr_rope_swing_cap, "350", CVAR_ARCHIVE | QVR_RULE)      // units/s at t
 QVR_CVAR(vr_rope_jump, "200", CVAR_ARCHIVE | QVR_RULE)          // units/s up a jump off a rope adds to the rope's swing at the hands (jump while holding one); 0: a jump lets go only
 QVR_CVAR(vr_pole_jump, "270", CVAR_ARCHIVE | QVR_RULE)          // units/s up a jump off a climbable pole gives (ropes10: a normal jump's; ropes keep vr_rope_jump)
 QVR_CVAR(vr_pole_jump_push, "200", CVAR_ARCHIVE | QVR_RULE)     // units/s level a jump off a pole pushes him away from it (under a level pole: the view's way across it)
-QVR_CVAR(vr_rope_grunt, "0.4", CVAR_ARCHIVE | QVR_RULE)         // volume (0..1) of the player's short exertion grunt as a headset's pull lifts him up a climbable rope (once a grip, when the body has risen 15 cm over its hold; at most every 0.6 s; vr_climb.cpp ropePullGrunt; ropes6); 0 off
-QVR_CVAR(vr_rope_grunt_sound, "2", CVAR_ARCHIVE | QVR_OWN)      // the rope pull's grunt (the mantle's list, vr_climb.cpp mantleGrunts): 0 the jump's, 1 a hard landing's, 2 the jump's deeper (the default: told apart from a jump off the rope), 3 a hard landing's deeper, 4 a short pain grunt
 QVR_CVAR(vr_rope_hand_grip, "2", CVAR_ARCHIVE | QVR_OWN)        // a hand on a climbable rope drawn gripping it (the rope through the fist, the knuckles outwards: the right hand's to the right, the left's to the left; vr_climb.cpp ropeTurn): 1 in flat-screen play only, 2 in VR too (ropes6); 0 as on a ledge (vr_climb_hand_pitch/yaw/roll), display only
 QVR_CVAR(vr_rope_spawn_length, "256", CVAR_ARCHIVE | QVR_OWN)    // the toolgun's ropes (Spawn > Props > Ropes > Rope Settings): length (units)
 QVR_CVAR(vr_rope_spawn_thickness, "1.5", CVAR_ARCHIVE | QVR_OWN) // ... thickness (units across)

@@ -959,6 +959,11 @@ za::Vector<Item> pageDebugProfiling()
         command("Quest Settings Check", "vr_quest_check")
             .help("vr_quest_check (each Android start runs it after the saved config): the Standalone rows that differ "
                   "from the nearest Standalone level, and MSAA and bloom set back (vr_quest_guard 0: only said)."),
+        command("Preset Revert Test: 500 ms Frames", "vr_preset_revert_test 500")
+            .help("vr_preset_revert_test 500 (0: off): after the next graphics preset pick each frame counts as 500 ms, "
+                  "so the pick is put back as too slow (vr_preset_revert_fps, 5 by default)."),
+        command("Preset Revert Test: Off", "vr_preset_revert_test 0")
+            .help("vr_preset_revert_test 0: a pick's frames timed as they are."),
         command("GL Sync Report", "vr_gl_sync_report")
             .help("vr_gl_sync_report: the GL calls that made the CPU wait for the GPU since the last report, per frame "
                   "(vr_gl_sync_count N: every N seconds)."),
@@ -1863,6 +1868,8 @@ za::Vector<Item> pageDebugTools()
             .help("maps_page_pick <row> [source]: the Map Library open with that row picked (its detail; a Slipseer map's page read). Source: 0 both, 1 Quaddicted, 2 Slipseer."),
         command("Search Flash Test", "vr_menu_flash_test")
             .help("vr_menu_flash_test: a Search result opened (Campaign Gap on Menu Look) lands on its row, which flashes and sits in the list's middle; the flash over after its time; none with Search Result Flash 0. Prints a verdict."),
+        command("Preset Row Cycle Test", "vr_menu_preset_cycle_test")
+            .help("vr_menu_preset_cycle_test: Comfort, Handedness and Gore Preset stepped both ways through their choices: each step shows another choice, never Custom (Left-handed clicked on is Right-handed again); the settings put back. Prints a verdict."),
         command("Search Filter Test", "vr_menu_search_filter_test")
             .help("vr_menu_search_filter_test: Search's filter row (Show: Both, Cvars, Tunables): each choice's results, then chosen by the mouse, the laser and the sticks; a release build: no row. Prints a verdict."),
         command("Menu Stops Walking Test", "vr_menu_stop_test")

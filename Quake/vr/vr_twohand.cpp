@@ -534,6 +534,12 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
             grip[holding] = GRIP_BLADE;
             gripLength[holding] = length;
             held = true;
+            if(vr_debug_2h_grip.value)
+            {
+                // (Held throughout, so not the take's line below: the guard's switch, vr_view_hands.cpp's easeGripSwitch.)
+                Con_Printf("2h grip: %s hand took the blade from the grip below the hand (%.1f units off it)\n",
+                    holding == HAND_MAIN ? "off" : "main", bladeDist);
+            }
         }
         else
         {

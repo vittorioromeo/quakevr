@@ -695,6 +695,10 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_prop_impact_test 7 (god and notarget on; 200 units of open floor ahead): a grunt at full health and "
                   "wounded, a blow of each weapon at each strength, under Quad too, then a barrel and the crates thrown, "
                   "falling, slammed, and thrown onto a body. The console (gibtable: a line a row, then N passed, M failed)."),
+        command("Punch a Hugged Crate", "god 1; notarget 1; vr_prop_impact_test 8")
+            .help("vr_prop_impact_test 8 (god and notarget on; open floor ahead; the main hand empty): the main fist punches "
+                  "a large crate four times as you hug it, four times from a little inside it, then four times with it 6 "
+                  "units off: every punch should land. The console (hugpunch: a line a punch, then N passed, M failed)."),
         command("Flail Head Hits", "god 0; notarget 1; vr_prop_impact_test 5")
             .help("vr_prop_impact_test 5 (Arcane Dimensions; notarget on, god off; 200 units of open floor ahead): a "
                   "flail's loose head flung at 13, 16 and 19 m/s into a grunt (once, about as a small crate as heavy), "

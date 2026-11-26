@@ -1300,6 +1300,15 @@ void onPresetChosen(cvar_t* var)
     }
 }
 
+// (vrmisc, his VR note 2026-11-26 20:06) A preset row's Custom (Comfort, Handedness, Gore Preset: value 0) is only shown,
+// when the settings match no choice: never a choice to make. Stepped to, it set nothing, and the next frame's sync showed
+// the choice the settings still matched (Left-handed clicked on stayed Left-handed): a step passes over it, and the
+// drop-down list's pick of it changes nothing.
+[[nodiscard]] bool shownOnlyChoice(const cvar_t* var, float value)
+{
+    return value == 0.f && (var == &vr_comfort_preset || var == &vr_handedness || var == &vr_gore_preset);
+}
+
 // ----------------------------------------------------------------------------
 // One VR menu's own state (MULTI_MENU.md, stage 2): the page it shows, its Back stack, each page's selected row and
 // scroll, what is under way (a slider or the scrollbar dragged, a slider held at its end, a drop-down list open, the help
@@ -3701,7 +3710,16 @@ void change(const Item& item, int dir, bool repeat = false)
         case Item::Cycle:
         {
             const int n = static_cast<int>(item.choices.size());
-            Cvar_SetValueQuick(item.cvar, item.choices[(currentChoice(item) + dir + n) % n].value);
+            int next = currentChoice(item);
+            for(int tries = 0; tries < n; tries++)
+            {
+                next = (next + dir + n) % n;
+                if(!shownOnlyChoice(item.cvar, item.choices[next].value))
+                {
+                    break; // (a preset's Custom passed over: shownOnlyChoice)
+                }
+            }
+            Cvar_SetValueQuick(item.cvar, item.choices[next].value);
             break;
         }
         case Item::Key:
@@ -4142,6 +4160,10 @@ void pickDropDown(const Item& item)
     const float v = item.choices[CLAMP(0, ui().dropDown.hover, ui().dropDown.count - 1)].value;
     cvar_t* const cvar = item.cvar;
     closeDropDown();
+    if(shownOnlyChoice(cvar, v))
+    {
+        return; // (a preset's Custom: nothing to set)
+    }
     Cvar_SetValueQuick(cvar, v); // (`item` may be gone after this: a page rebuilt by the setting's change)
     qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
 }
@@ -5962,7 +5984,7 @@ namespace
         "vr_shoulder_offset_", "vr_virtual_stock", "vr_body_pauldron", "vr_holster_zone"};
     constexpr const char* names[] = {"vr_show_hip_holsters", "vr_show_shoulder_holsters", "vr_show_upper_holsters",
         "vr_show_grenade_pouch", "vr_show_flashlight_zones", "vr_show_virtual_stock", "vr_flashlight_forward",
-        "vr_flashlight_armor_forward", "vr_flashlight_up", "vr_flashlight_out", "vr_flashlight_tilt", "vr_gadget_scale", "vr_gadget_x", "vr_gadget_y",
+        "vr_flashlight_armor_forward", "vr_flashlight_up", "vr_flashlight_out", "vr_flashlight_tilt", "vr_flashlight_yaw", "vr_flashlight_roll", "vr_gadget_scale", "vr_gadget_x", "vr_gadget_y",
         "vr_gadget_z", "vr_gadget_pitch", "vr_gadget_yaw", "vr_gadget_roll"};
     for(const char* p : prefixes)
     {

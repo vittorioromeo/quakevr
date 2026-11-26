@@ -78,4 +78,8 @@ void applyStandalone(int level);
 void menuApplyStandalone();
 [[nodiscard]] int standaloneLevel(); // the Standalone level the settings match now, or -1
 
+// Once a frame in VR (questcrash): a pick (any of the above) whose frames stay under vr_preset_revert_fps is put back.
+// On the Quest (and under -glescompat) a pick also keeps the headset's budget rows at Standalone's.
+void frame();
+
 } // namespace qvr::gfxpresets

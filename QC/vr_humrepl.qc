@@ -79,10 +79,15 @@ string(float v) VR_HUM_ClassName =
     return "monster_dcrossbow";
 };
 
-// The variants are replaced here now (vr_agrunt_repl_variants, vr_agrunt_repl, AD's scope; a knight's with vr_agknight).
+// The variants are replaced here now (vr_agrunt_repl_variants, vr_agrunt_repl, AD's scope; a knight's with vr_agknight;
+// the crossbow knight's only with vr_agrunt_repl_crossbow: his note 2026-11-26, off until it is a proper armed humanoid).
 float(float v) VR_HUM_On =
 {
     if(!cvar_hget(cvarh_vr_agrunt_repl_variants) || !cvar_hget(cvarh_vr_agrunt_repl) || !VR_AGR_InScope())
+    {
+        return FALSE;
+    }
+    if(v == VR_HUM_V_CROSSBOW && !cvar_hget(cvarh_vr_agrunt_repl_crossbow))
     {
         return FALSE;
     }
