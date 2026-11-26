@@ -1089,6 +1089,7 @@ const ViewEntity* find(const entity_t* e);
 bool modelLoadPort(const qmodel_t* model, float ssgOpen, glm::vec3& at, glm::vec3& axis, glm::vec3& face);
 glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point);
 bool weaponFrame(const hands::State& s, int hand, WeaponFrame& out);
+void printDrawnAttachments(); // vr_attach_report
 } // namespace qvr::view
 
 // The engine hooks one part defines and another calls.

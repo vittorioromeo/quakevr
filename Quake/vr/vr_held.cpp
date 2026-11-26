@@ -32,6 +32,7 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
+#include "vr_attach.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Limits.hpp"
@@ -716,6 +717,46 @@ bool drawnMagazineVertices(edict_t* gun, const qmodel_t* mag, za::Vector<glm::ve
     const FieldOffsets& f = fields();
     const DrawnTransform xf{model, fieldVec(gun, f.model_scale), fieldVec(gun, f.model_scale_origin), fieldVec(gun, f.model_offset)};
     return magazinePoints(xf, mag, false, out);
+}
+
+bool drawnAttachmentVertices(edict_t* gun, int kind, za::Vector<glm::vec3>& out)
+{
+    out.clear();
+    const int index = static_cast<int>(gun->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const attach::KindInfo* const info = attach::info(kind);
+    if(!model || model->type != mod_alias || !info)
+    {
+        return false;
+    }
+    const attach::Mount m = attach::mount(weapons::slotForModel(model), kind);
+    qmodel_t* const att = m.fits ? Mod_ForName(info->model, false) : nullptr;
+    if(!att || att->type != mod_alias)
+    {
+        return false;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(att));
+    if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || hdr->numframes <= 0 || hdr->numverts <= 0)
+    {
+        return false;
+    }
+    using namespace progs;
+    const FieldOffsets& f = fields();
+    const DrawnTransform xf{model, fieldVec(gun, f.model_scale), fieldVec(gun, f.model_scale_origin), fieldVec(gun, f.model_offset)};
+    const int pose = hdr->frames[0].firstpose;
+    const glm::vec3 so{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+    const glm::vec3 hs{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+    mdldequant::prepare(att);
+    out.reserve(static_cast<za::SizeT>(hdr->numverts) + 1);
+    for(int i = 0; i < hdr->numverts; i++)
+    {
+        out.pushBack(xf.modelPoint(attach::onGun(m, so + hs * mdldequant::poseVertex(hdr, pose, i))));
+    }
+    if(glm::length(info->tip) > 1e-3f)
+    {
+        out.pushBack(xf.modelPoint(attach::onGun(m, info->tip))); // (its point exactly: the stick test's tip)
+    }
+    return true;
 }
 
 glm::vec3 drawnModelPoint(edict_t* ent, const glm::vec3& p)

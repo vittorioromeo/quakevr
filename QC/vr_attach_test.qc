@@ -333,8 +333,9 @@ void() VR_AT_Frame =
         VR_Test_Check(VRGetEntWeaponInst(p, h) == vr_at_rec && vr_at_rec.wi_attach == VR_ATT_BAYONET,
             sprintf("picked up by the hand: the same record, the bayonet on it (weapon %g)", VRGetEntWeapon(p, h)));
         localcmd("vr_test_handcontact 1 0\n");
-        // Thrown at a grunt, point first: stuck by the bayonet's point.
-        setorigin(p, vr_eh_home);
+        // Thrown at a grunt, point first: stuck by the bayonet's point. (From 160 units back: at home the grunt stands on the
+        // hall's first mantle block, 32 high from y 352, and the gun's stock struck its face first: attach4.)
+        setorigin(p, vr_eh_home - '0 160 0');
         vr_et_m = VR_ET_Grunt(80);
         makevectors('0 1 0' * p.v_viewangle_y);
         vector go = normalize(VR_ET_Chest(vr_et_m) - (p.origin + '0 0 16'));
@@ -349,16 +350,7 @@ void() VR_AT_Frame =
             vr_at_w.weaponinst == vr_at_rec && vr_at_rec.wi_attach == VR_ATT_BAYONET;
         string thrownWhat = sprintf("thrown point first: stuck by the bayonet's point, the bayonet on it (stick %g, embed %g)",
             vr_at_w != world ? vr_at_w.vr_stick_kind : -1, vr_at_w != world ? vr_at_w.vr_stick_embed : -1);
-        if(thrownStuck)
-        {
-            VR_Test_Check(TRUE, thrownWhat);
-        }
-        else
-        {
-            // (Pending, not counted: the flying gun's Box3D body leaves the bayonet out, so it bounces off by its barrel; the
-            // next task, ROUND26 "attach1".)
-            bprint(sprintf("attach: PENDING %s: the gun's Box3D body has no bayonet yet\n", thrownWhat));
-        }
+        VR_Test_Check(thrownStuck, thrownWhat); // (its Box3D body has the bayonet's hull: vr_box3d_mesh.cpp attachmentHull)
         if(vr_at_w != world)
         {
             remove(vr_at_w);
@@ -417,6 +409,64 @@ void() VR_AT_Frame =
     else if(vr_at_s == 23 && u > 0.1)
     {
         VR_AT_ShotCheck(vr_at_wid == WID_SHOTGUN ? "the shotgun" : "the super shotgun");
+        VR_AT_To((vr_at_w != world && VR_Reload_Immersive()) ? 24 : 29);
+    }
+    // Reloaded where it is stuck (attach4), its hand still on it: the super shotgun broken open by its B (the hand's frame
+    // on the stuck gun: vr_reload.qc VR_Reload_SsgFrameWhere), then the off hand takes a round from the pouch and brings
+    // it to the stuck gun's load point (the lying guns' path): it goes in, and the gun stays stuck.
+    else if(vr_at_s == 24 && u > 0.1)
+    {
+        if(vr_at_wid == WID_SUPER_SHOTGUN && !(vr_at_w.weaponflags & QVR_WPNFLAG_SSG_OPEN))
+        {
+            localcmd("vr_mock_button main secondary 1\n");
+            VR_AT_To(25);
+        }
+        else
+        {
+            VR_AT_To(26);
+        }
+    }
+    else if(vr_at_s == 25 && ((vr_at_w.weaponflags & QVR_WPNFLAG_SSG_OPEN) || u > 0.5))
+    {
+        localcmd("vr_mock_button main secondary 0\n");
+        VR_Test_Check(vr_at_w.weaponflags & QVR_WPNFLAG_SSG_OPEN, sprintf("the super shotgun stuck: broken open where it is by "
+            "its B (flags %g, still stuck %g)", vr_at_w.weaponflags, VR_AxeStick_IsStuck(vr_at_w)));
+        VR_AT_To(26);
+    }
+    else if(vr_at_s == 26 && u > 0.4)
+    {
+        vr_at_count = vr_at_w.weaponinst.wi_clip;
+        if(VR_Carry_Held(p, cVR_OffHand) == world)
+        {
+            VR_Reload_Take(cVR_OffHand);
+        }
+        vr_at_n = 0;
+        VR_AT_To(27);
+    }
+    else if(vr_at_s == 27 && vr_at_w.weaponinst.wi_clip == vr_at_count && u < 1.5)
+    {
+        // The off hand brought (every third frame, the mock's move from the hand's place) so its round's load end is at the
+        // stuck gun's load point as it lies.
+        vr_at_n = vr_at_n + 1;
+        entity rd = VR_Carry_Held(p, cVR_OffHand);
+        float ssgOpen = vr_at_wid == WID_SUPER_SHOTGUN && (vr_at_w.weaponflags & QVR_WPNFLAG_SSG_OPEN);
+        if(vr_at_n % 3 == 1 && rd != world && loadportof(vr_at_w, ssgOpen ? cvar_hget(cvarh_vr_reload_ssg_open_angle) : 0))
+        {
+            vector to = vr_at_w.loadportpos + (VRGetEntHandPos(p, cVR_OffHand) - VR_Reload_RoundRef(rd));
+            localcmd(sprintf("vr_mock_hand_to off %g %g %g\n", to_x, to_y, to_z));
+        }
+    }
+    else if(vr_at_s == 27)
+    {
+        string what = vr_at_wid == WID_SHOTGUN ? "the shotgun" : "the super shotgun";
+        VR_Test_Check(vr_at_w.weaponinst.wi_clip > vr_at_count && VR_AxeStick_IsStuck(vr_at_w) && VR_PropFire_Held(p, h) == vr_at_w,
+            sprintf("%s stuck: the off hand's round goes in where it is (clip %g -> %g), still stuck %g, its hand on it %g", what,
+                vr_at_count, vr_at_w.weaponinst.wi_clip, VR_AxeStick_IsStuck(vr_at_w), VR_PropFire_Held(p, h) == vr_at_w));
+        if(VR_Carry_Held(p, cVR_OffHand) != world && VR_Reload_IsRound(VR_Carry_Held(p, cVR_OffHand)))
+        {
+            VR_Reload_Refund(p, VR_Carry_Held(p, cVR_OffHand), cVR_OffHand); // (a pair's other shell)
+        }
+        localcmd("vr_mock_hand off -0.15 1.2 -0.45 70 0 0\n");
         VR_AT_To(29);
     }
     else if(vr_at_s == 29)

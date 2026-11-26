@@ -192,6 +192,11 @@ void forgetDrawnCentres();
 // Server side: the same on the gun `gun` lying about (its networked scale and offset, as drawnVertices).
 [[nodiscard]] bool drawnMagazineVertices(edict_t* gun, const qmodel_t* mag, za::Vector<glm::vec3>& out);
 
+// Server side: the vertices of attachment `kind` (vr_attach.hpp: the bayonet's model, frame 0, and its tip) on the gun `gun`
+// lying about or flying, placed by its weapon's mount and the gun's drawn transform, in the gun entity's axes (as
+// drawnMagazineVertices). False if it doesn't fit. Its Box3D body's attachment piece (vr_box3d_mesh.cpp fittedAttachment).
+[[nodiscard]] bool drawnAttachmentVertices(edict_t* gun, int kind, za::Vector<glm::vec3>& out);
+
 // Grab reach from the fist (ROUND21.md, "Grab reach from the fist; two-handed detach; brushing fingers"): a hand takes
 // hold of a box, backpack, gib, head or armour only if its fist touches the thing's drawn surface: the empty hand
 // closed into a fist (the jointed hand's palm and curled fingers, as the grasp's spheres). Before, the hand's point (the

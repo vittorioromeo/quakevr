@@ -2168,6 +2168,60 @@ float(float xHand) VR_Reload_GrabCandidate =
            !(self.vr_reload_tried & bit);
 };
 
+// A hand on a gun stuck by its bayonet (vr_propfire.qc VR_PropFire_Held: the hand is empty, on the prop): the super
+// shotgun's frame runs on that gun where it is (attach4; flat R's bracket, vr_flatreload.qc): the hand takes it on
+// (VR_PropFire_Begin: its weapon, place, muzzle), its load point the prop's as it lies (loadportof), so the other hand's
+// hit from above breaks it open, B/Y opens and shuts it, and what that does stays on the prop (VR_PropFire_End). (The
+// flick and the pry are the engine's, from the hand's own gun: not on a stuck one.) The rounds go in by the lying guns'
+// path (VR_Reload_PropsFrame), the gun staying stuck.
+entity(entity p, float xHand) VR_PropFire_Held;
+void(entity w, float xHand) VR_PropFire_Begin;
+void(entity w, float xHand) VR_PropFire_End;
+void(float xHand) VR_Reload_SsgFrameWhere =
+{
+    entity prop = VR_PropFire_Held(self, xHand);
+    if(prop == world)
+    {
+        VR_Reload_SsgFrame(xHand);
+        return;
+    }
+    float off = xHand == cVR_OffHand;
+    vector pos = off ? self.offloadportpos : self.loadportpos;
+    vector axis = off ? self.offloadportaxis : self.loadportaxis;
+    vector face = off ? self.offloadportface : self.loadportface;
+    float open = prop.weapon == WID_SUPER_SHOTGUN && (prop.weaponflags & QVR_WPNFLAG_SSG_OPEN);
+    VR_PropFire_Begin(prop, xHand);
+    if(loadportof(prop, open ? cvar_hget(cvarh_vr_reload_ssg_open_angle) : 0))
+    {
+        if(off)
+        {
+            self.offloadportpos = prop.loadportpos;
+            self.offloadportaxis = prop.loadportaxis;
+            self.offloadportface = prop.loadportface;
+        }
+        else
+        {
+            self.loadportpos = prop.loadportpos;
+            self.loadportaxis = prop.loadportaxis;
+            self.loadportface = prop.loadportface;
+        }
+    }
+    VR_Reload_SsgFrame(xHand);
+    if(off)
+    {
+        self.offloadportpos = pos;
+        self.offloadportaxis = axis;
+        self.offloadportface = face;
+    }
+    else
+    {
+        self.loadportpos = pos;
+        self.loadportaxis = axis;
+        self.loadportface = face;
+    }
+    VR_PropFire_End(prop, xHand);
+};
+
 void(float xHand) VR_Reload_HandFrame =
 {
     float bit = xHand == cVR_MainHand ? 2 : 1;
@@ -2183,7 +2237,7 @@ void(float xHand) VR_Reload_HandFrame =
         self.vr_reload_tried = self.vr_reload_tried - (self.vr_reload_tried & bit);
     }
     VR_Reload_MagFrame(xHand);
-    VR_Reload_SsgFrame(xHand);
+    VR_Reload_SsgFrameWhere(xHand); // (a stuck gun the hand is on: where it is)
     VR_Reload_LooseFrame(xHand);
     VR_Reload_PouchFrame(xHand);
     if(xHand == cVR_MainHand)

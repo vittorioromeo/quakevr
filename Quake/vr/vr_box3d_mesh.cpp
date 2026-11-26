@@ -1146,4 +1146,31 @@ void addChunkShape(edict_t* ent, int num, b3BodyId body)
     }
     return view::magazineModelOf(model);
 }
+
+// The attachment on the gun `ent` lying about or flying (its weapon record's, vr_attach.hpp: a bayonet), when its weapon
+// takes it: its kind, attach::None if none.
+[[nodiscard]] int fittedAttachment(edict_t* ent, const qmodel_t* model)
+{
+    if(!model || model->type != mod_alias || !isGun(ent))
+    {
+        return qvr::attach::None;
+    }
+    const int kind = qvr::attach::kindOfRef(ent, fields().weaponinst);
+    return kind != qvr::attach::None && qvr::attach::mount(weapons::slotForModel(model), kind).fits ? kind : qvr::attach::None;
+}
+
+// That attachment as one hull of its drawn vertices (held::drawnAttachmentVertices), solid with the gun (addPropShapes):
+// it collides by it, and a bayonet leads a gun thrown point first into what its point sticks in. nullptr: none.
+[[nodiscard]] const b3HullData* attachmentHull(edict_t* ent, const qmodel_t* model)
+{
+    const int kind = fittedAttachment(ent, model);
+    const qvr::attach::KindInfo* const info = qvr::attach::info(kind);
+    qmodel_t* const att = info ? Mod_ForName(info->model, false) : nullptr;
+    za::Vector<glm::vec3>& vertices = scratch.magVerts;
+    if(!att || !held::drawnAttachmentVertices(ent, kind, vertices))
+    {
+        return nullptr;
+    }
+    return magazineHull(att, -7, vertices); // (kept by its model and its box: the gun's mount and drawn transform)
+}
 } // namespace box3d::detail
