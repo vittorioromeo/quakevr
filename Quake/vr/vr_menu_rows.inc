@@ -7399,7 +7399,9 @@ QVR_CYCLE(vr_hull_defer, "Monster Hitbox Builds",
     {0.f, "With the Load"}, {1.f, "After the Load"})
 QVR_CYCLE(vr_load_panel_shot, "Save the Loading Panel",
     "At Half Way: the next map load that shows the loading panel (a cold collision build) saves its "
-    "image as screenshots/load_panel.png when it is half done, then goes back to Off "
+    "image as screenshots/load_panel.png when it is half done, then goes back to Off. Meanwhile every "
+    "map load shows its panel from its start (not after a second), and saves it half way through its "
+    "entities, models, sounds and model lighting (screenshots/load_panel_<stage>.png) "
     "(vr_load_panel_shot; a test aid).",
     {0.f, "Off"}, {0.5f, "At Half Way"})
 QVR_TOGGLE_BYNAME(vr_portals_debug_split, "Print Gate Cuts",

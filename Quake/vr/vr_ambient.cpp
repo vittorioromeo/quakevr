@@ -1078,8 +1078,9 @@ void gridBuild()
     const int probeRows = layers * rowsY;
     za::Vector<za::Vector<GridEntry>> rowEntries(static_cast<za::SizeT>(probeRows));
     za::Atomic<int> rowsDone{0}; // (the loading panel's count: drawn by the main thread as it ends one)
+    int mainRows = 0;            // (those the main thread made: developer 1)
     const int totalRows = probeRows + za::max(layers - 1, 0) * za::max(rowsY - 1, 0); // (both passes)
-    jobs::parallelFor(gridProbesSite, static_cast<za::SizeT>(probeRows), 1, [&rowEntries, &rowsDone, totalRows, rowsY](za::SizeT r0, za::SizeT r1) {
+    jobs::parallelFor(gridProbesSite, static_cast<za::SizeT>(probeRows), 1, [&rowEntries, &rowsDone, &mainRows, totalRows, rowsY](za::SizeT r0, za::SizeT r1) {
         for(int r = static_cast<int>(r0); r < static_cast<int>(r1); r++)
         {
             za::Vector<GridEntry>& out = rowEntries[r];
@@ -1107,11 +1108,13 @@ void gridBuild()
                 const int rows = rowsDone.fetchAddRelaxed(1) + 1;
                 if(VR_OnMainThread())
                 {
+                    mainRows++;
                     VR_LoadCount(rows, totalRows);
                 }
             }
         }
     });
+    const double probesDone = Sys_DoubleTime();
     za::SizeT totalEntries = 0;
     for(const za::Vector<GridEntry>& row : rowEntries)
     {
@@ -1168,6 +1171,8 @@ void gridBuild()
             }
         }
     });
+    Con_DPrintf("model light grid: probes %.0f ms (%d of %d rows on the main thread), clear cells %.0f ms\n",
+        (probesDone - start) * 1000.0, mainRows, probeRows, (Sys_DoubleTime() - probesDone) * 1000.0);
     for(za::SizeT i = 0; i < clear.size(); i++)
     {
         if(clear[i])
