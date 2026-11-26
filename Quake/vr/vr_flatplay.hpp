@@ -116,6 +116,15 @@ struct FireRoute
 
 // Whether hand `h` currently holds a weapon in flipped (reverse) grip (flip share >= 0.5).
 [[nodiscard]] bool flippedGrip(int h);
+// Hand `h`'s flip as drawn (0..1, turning over as the flip does; 0 for none or a bot's): the throw's wind-up of a flipped
+// grip goes by it (vr_flat_throw_rev_*, vr_flatgrenade.cpp).
+[[nodiscard]] float flipShare(int h);
+// Hand angles `rot` turned about the fist by `turn` (pitch up, yaw, roll; degrees), yaw and roll times `side` (-1 the left
+// hand): the poses' own turns (vr_flat_melee_2h_pitch .. _roll and the like).
+[[nodiscard]] glm::vec3 turnedHandAngles(const glm::vec3& rot, const glm::vec3& turn, float side);
+// The mouse buttons (1 the left, 2 the right) that are hand `h`'s attack as the hands hold things now (routeFire's routing;
+// none with the holster menu or the wheel open): the throw key's cancel (vr_flatgrenade.cpp).
+[[nodiscard]] int attackButtons(int h);
 
 // The parry's guard (vr_flat_parry_*: the right mouse button held with one melee weapon, meleeIn): its share for hand
 // `h` (0 at rest .. 1 in the guard), eased in and out over vr_flat_parry_in_time / _out_time.

@@ -36,6 +36,15 @@ void apply(hands::State& s);
 // (his words 2026-11-23; the game refuses the fire too: QC VR_FlatThrow_WindsUpWeapon).
 [[nodiscard]] bool throwsWith(int h);
 
+// Whether hand `h` is the throw key's hand while the key is held (its tap window, its wind-up, a quick grenade wound up
+// by the key): its attack button cancels the throw (impulse 41: QC VR_FlatThrow_Cancel; flatthrow2, his words 2026-11-26)
+// instead of firing or striking.
+[[nodiscard]] bool aimsWith(int h);
+
+// The mouse buttons (1 the left, 2 the right) that cancelled a throw and are still held: they do nothing till let go
+// (flatplay::routeFire).
+[[nodiscard]] int swallowedButtons();
+
 // How far hand `h` guides the other hand's throw (0..1, eased): free, it goes forward, its palm away, its fingers open
 // by vr_flat_throw_guide_open (vr_view.cpp's finger curls).
 [[nodiscard]] float guideShare(int h);
