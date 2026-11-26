@@ -835,3 +835,33 @@ His items 3, 5, 12 (2026-11-25).
   ticked that no voice note names since they were added (`cl_retire_ticks.py`; scenes untouched, the ship's own lines
   skipped), each as its own commit ("tunables: promote his values", "checklist: retire N ticked lines"). A build that
   fails with them in ships again without them (warning). Flags: `--no-promote`, `--no-retire`, `--wait-game` (releases).
+
+## hullwait: no pause in play for a crouch after a cold load; the loading panel says what it builds (branch agent/hullwait, 2026-11-26)
+
+His words: a pause in play is worse than a longer load; loads need clarity (a progress bar like the shaders' one).
+- **The player's boxes with the load again** (`vr_hull_defer` 1, same value, new meaning: no migration; its Debug > Tests
+  row renamed "Monster Hitbox Builds"): beforeLoad posts the standing, crouched (52/44/36) and lying boxes' trees together
+  (`playerBoxExts`), each a job on the pool within `vr_hull_build_mb` as the standing one was, so they build beside the
+  entity spawn and the load (settle) waits for all; afterLoad's job holds the monsters' sizes only (Quake's hull
+  meanwhile, seamless). A player's box is never in a job (a setting's change builds it at once: prepare), so
+  `joinBackgroundTree` can only wait for a diagnostic's box; its `hull: a ... trace waited` line stays as the guard.
+  prepare(true) now settles first. 0: the monsters' trees waited for too, as before.
+- **The loading panel** (`vr_load_panel`, vr_shaderload.cpp, the shaders' `drawPanel` shared): after a second of waiting,
+  "Building the map's brushes (1 of 6)", then "Building collision for standing/crouching/lying down/monsters (k of n)"
+  (the first tree being built), a bar of the real progress, "vrstart: 50% - built once for this version" and the
+  seconds. Progress: the brushes one step, each tree 0-1: its brushes grown (`growAllOnPool`, per run of 256: a quarter)
+  then its top's units built (`speculate`: each leaf unit adds its share of the split, half its parent's, so they sum to
+  1: the rest); a tree read from the disk is done at once (`LoadTrees`: atomics written by the pool, the entries fixed
+  while the load's jobs run). Shown in the headset and now the window too (flat-screen, the desktop beside VR; not the
+  Quest's immersive app: `VR_NoWindow`). `VR_MapLoadingFrame(heading, detail, done, seconds)`.
+- **Test aid** `vr_load_panel_shot` (Debug > Tests "Save the Loading Panel", At Half Way = 0.5): the panel's image saved
+  as `screenshots/load_panel.png` when a load's progress reaches it, then back to 0. Scene `load_collision_cold` (vrstart
+  with `vr_hull_keep 0`, `vr_hull_cache 0`, `vr_hull_build_mb 300`: a cold build every time, nothing written).
+- **PC runs** (Release no-LTO, a loaded machine): cold vrstart (fresh `vr_cache_dir`, `vr_cache_shipped 0`): 5 trees with
+  the load (standing, 3 crouched, lying), built during the 7-20 s entity spawn: waited 0-0.6 s; the 3 monsters' ready
+  6.9-8.9 s after; crouching (box 36) and lying (box 16) a second after the load: no `trace waited` line;
+  `vr_hull_keeptest` PASS (8 trees) cold and read. vrstart again with nothing kept or read: the panel 15.9 s (VR mock,
+  build_mb 300: 951 frames), 8.3 s and 5.8 s (flat), saved at 50% "Building collision for standing (4 of 6)"; flat
+  `+flatcrouch` right after it: box 36, no wait. crouch_speed_test 4/0.
+- Quest: not measured (the optional step 4 skipped). Expected: ad_sepulcher's cold load between loadprof2's 16.1 s and
+  35.8 s (the crouched and lying trees now built beside the spawn), with the panel, instead of an 8.6 s pause in play.

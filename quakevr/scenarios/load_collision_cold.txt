@@ -1,0 +1,12 @@
+# load_collision_cold: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The hub loaded with its
+# collision built from scratch (nothing kept from the last load, nothing read from the disk cache, one tree at a time):
+# the loading panel's progress (hullwait, ROUND26.md), then crouching and lying down at once with no pause.
+title Cold collision build: the loading panel, then crouch at once
+map vrstart
+god
+notarget
+cvar vr_hull_keep 0
+cvar vr_hull_cache 0
+cvar vr_hull_build_mb 300
+cvar vr_load_panel 1
+hint While it loads, the panel says what it builds ("Building collision for crouching (3 of 6)") over a moving bar. Once in, crouch and lie down right away: no pause.
