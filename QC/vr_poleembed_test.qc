@@ -285,4 +285,185 @@ void() VR_PE_JitterFrame =
         VR_PE_Next();
     }
 };
+
+// ---- vr_embed_test 73 (vrspear; his VR notes 2026-11-26 20:07-20:10), mock VR (no -flatscreenmode), map vrtesthall: the spear
+// (cases 0 and 2) and Dwell's Crystal Lance (case 1) in the gripping main hand, aimed at a grunt as test 7's stabs are (VR_EH_Blow,
+// its states 0 to 2); then the off hand put on the pole VR_VS_SPOT of the way from the handle to the tip, VR_VS_CM cm over it (the
+// hand's point, not its palm: a grip with an offset), gripping: VR's pole grip (weaponanygrip) takes it, and the drawn hand has its
+// grip channel round the drawn shaft, fingers on it (the probe of test 71). The hand then moved VR_VS_SLIDE further along the pole
+// and back: with vr_pole_grip_fixed 1 (cases 0, 1) the drawn hand stays where it took hold (vr_embed_probe_pslide), with 0 (case 2)
+// it slides. Then both hands glided into the grunt at 6 m/s (the stab): it sticks, both hands on it, and over VR_PE_MEASURE the off
+// hand stays on it (no let-go), round the stuck shaft, where it was along the shaft as held (vr_embed_probe_palong).
+// Ends `vrspear: N passed, M failed`.
+float VR_VS_SLIDE = 0.15; // of the handle-to-tip length the off hand moves along the pole, gripping
+float VR_VS_STILL = 1;    // cm the drawn hand may move along the shaft, fixed
+float VR_VS_SLID = 3;     // cm it must move along it, sliding
+float VR_VS_KEEP = 2;     // cm the hand on the stuck shaft may be off where it was along it as held
+float vr_vs_s;            // the off hand's steps (0: VR_EH_Blow's)
+float vr_vs_t0;
+float vr_vs_along;        // cm along the shaft the drawn hand was, held, before the stab
+float vr_vs_spot;
+float vr_vs_cm;
+
+void(float xS) VR_VS_To =
+{
+    vr_vs_s = xS;
+    vr_vs_t0 = time;
+};
+
+void() VR_VS_Begin =
+{
+    VR_Test_BeginFlags("vrspear", VR_TEST_LOUD);
+    vr_pe_saved_kd = cvar_hget(cvarh_vr_knockdown);
+    vr_pe_saved_stag = cvar_hget(cvarh_vr_hit_stagger);
+    vr_pe_saved_push = cvar_hget(cvarh_vr_melee_push);
+    cvar_set("vr_knockdown", "0");
+    cvar_set("vr_hit_stagger", "0");
+    cvar_set("vr_melee_push", "0");
+    localcmd("vr_mock_hand_to_absolute 1\n");
+    vr_eh_home = VR_Player().origin;
+    vr_et_on = 73;
+    vr_et_case = 0;
+    VR_VS_To(0);
+    VR_ET_To(0);
+};
+
+void() VR_VS_Next =
+{
+    localcmd("-grableft\nvr_mock_button off grip 0\nvr_mock_hand_glide 0\n");
+    VRSetHandEmpty(self, cVR_OffHand);
+    VR_VS_To(0);
+    VR_EH_NextCase();
+};
+
+void() VR_VS_Frame =
+{
+    entity p = self;
+    float t = time - vr_et_t0;
+    float u = time - vr_vs_t0;
+    float off = cVR_OffHand;
+    entity w = VR_EH_Blade();
+    float fixed = vr_et_case != 2;
+    if(vr_et_case > 2)
+    {
+        localcmd("vr_pole_grip_fixed 1\nvr_mock_hand_to_absolute 0\n");
+        VR_PE_Finish();
+        return;
+    }
+    if((vr_vs_s == 0 && t > VR_ET_GIVEUP) || (vr_vs_s > 0 && u > VR_ET_GIVEUP))
+    {
+        VR_Test_Check(FALSE, sprintf("timed out: case %g state %g/%g", vr_et_case, vr_et_s, vr_vs_s));
+        VR_VS_Next();
+        return;
+    }
+    VR_PE_HoldStill();
+    if(vr_vs_s == 0)
+    {
+        if(vr_et_s == 0)
+        {
+            vr_pe_name = vr_et_case == 1 ? "Crystal Lance" : (fixed ? "spear" : "spear, sliding");
+            localcmd(sprintf("vr_pole_grip_fixed %g\nvr_embed_probe reset\n", fixed));
+            VRSetHandEmpty(p, off);
+            vr_eh_flags = vr_et_case == 1 ? 0 : VR_ADMelee_Flags(VR_SWORDKIND_SPEAR);
+            vr_eh_givecmd = vr_et_case == 1 ? "vr_ad_test 207\n" : "";
+            vr_vs_spot = vr_et_case == 1 ? 0.6 : 0.55;
+            vr_vs_cm = vr_et_case == 0 ? 2 : (vr_et_case == 1 ? 1 : -1);
+        }
+        if(vr_et_s == 3)
+        {
+            VR_VS_To(1); // (aimed, the hand back at the stab's start: the off hand's turn)
+            return;
+        }
+        VR_EH_Blow(vr_et_case == 1 ? WID_LIGHTNING : WID_SWORD, 6, 0, FALSE, t);
+        return;
+    }
+    if(vr_vs_s == 1 && u > 0.3)
+    {
+        VR_Test_Check(VR_PoleHeld(cVR_MainHand), sprintf("%s held in the main hand (a pole weapon; holds %g)", vr_pe_name, VRGetEntWeapon(p, cVR_MainHand)));
+        localcmd(sprintf("vr_mock_hand_to off held %g %g\n", vr_vs_spot, vr_vs_cm));
+        VR_VS_To(2);
+    }
+    else if(vr_vs_s == 2 && u > 0.1)
+    {
+        localcmd(sprintf("vr_mock_hand_to off held %g %g\n", vr_vs_spot, vr_vs_cm)); // (again: from where it got to)
+        VR_VS_To(3);
+    }
+    else if(vr_vs_s == 3 && u > 0.1)
+    {
+        localcmd("+grableft\nvr_mock_button off grip 1\n");
+        VR_VS_To(4);
+    }
+    else if(vr_vs_s == 4 && ((weaponanygrip(p, off) != 0 && u > 0.3) || u > 1.5))
+    {
+        VR_Test_Check(weaponanygrip(p, off) != 0, sprintf("%s: the off hand %g of the way up, %g cm over the shaft, takes the pole", vr_pe_name, vr_vs_spot, vr_vs_cm));
+        if(weaponanygrip(p, off) == 0)
+        {
+            VR_VS_Next();
+            return;
+        }
+        localcmd("vr_embed_probe reset\n");
+        VR_VS_To(5);
+    }
+    else if(vr_vs_s == 5 && u > VR_PE_MEASURE)
+    {
+        VR_PE_PoleCheck(sprintf("held (the hand put %g cm over the shaft)", vr_vs_cm));
+        localcmd(sprintf("vr_embed_probe reset\nvr_mock_hand_to off held %g %g\n", vr_vs_spot + VR_VS_SLIDE, vr_vs_cm));
+        VR_VS_To(6);
+    }
+    else if(vr_vs_s == 6 && u > 0.4)
+    {
+        float slid = cvar_hget(cvarh_vr_embed_probe_pslide);
+        if(fixed)
+        {
+            VR_Test_Check(slid >= 0 && slid <= VR_VS_STILL && weaponanygrip(p, off) != 0,
+                sprintf("%s: the hand moved along the pole, the drawn hand stays where it took hold (%.2f cm along it; holds %g)", vr_pe_name, slid, weaponanygrip(p, off)));
+        }
+        else
+        {
+            VR_Test_Check(slid >= VR_VS_SLID && weaponanygrip(p, off) != 0,
+                sprintf("vr_pole_grip_fixed 0: the drawn hand slides along the pole with it (%.2f cm; holds %g)", slid, weaponanygrip(p, off)));
+        }
+        localcmd(sprintf("vr_mock_hand_to off held %g %g\n", vr_vs_spot, vr_vs_cm)); // (back where it took hold)
+        VR_VS_To(7);
+    }
+    else if(vr_vs_s == 7 && u > 0.4)
+    {
+        localcmd("vr_embed_probe reset\n");
+        VR_VS_To(8);
+    }
+    else if(vr_vs_s == 8 && u > 0.2)
+    {
+        vr_vs_along = cvar_hget(cvarh_vr_embed_probe_palong);
+        VR_EH_Blow(vr_et_case == 1 ? WID_LIGHTNING : WID_SWORD, 6, 0, FALSE, t); // (its state 3: the main hand's stab glide)
+        localcmd(sprintf("vr_mock_hand_to off by %v\n", vr_eh_end - vr_eh_start)); // (the off hand with it, as glided)
+        VR_VS_To(9);
+    }
+    else if(vr_vs_s == 9 && (w != world || u > vr_eh_for + 0.4))
+    {
+        VR_Test_Check(w != world, sprintf("%s: the stab with both hands sticks it in the grunt", vr_pe_name));
+        if(w == world)
+        {
+            VR_VS_Next();
+            return;
+        }
+        localcmd("vr_embed_probe reset\n");
+        VR_VS_To(10);
+    }
+    else if(vr_vs_s == 10 && u > 0.1)
+    {
+        VR_Test_Check(w.vr_hold_hands == 3, sprintf("%s: stuck, both hands on it (hands %g)", vr_pe_name, w.vr_hold_hands));
+        localcmd("vr_embed_probe reset\n");
+        VR_VS_To(11);
+    }
+    else if(vr_vs_s == 11 && u > VR_PE_MEASURE)
+    {
+        float at = cvar_hget(cvarh_vr_embed_probe_palong);
+        VR_Test_Check(w != world && w.vr_hold_hands == 3, sprintf("%s: the off hand still on it %.1f s on (hands %g)", vr_pe_name, VR_PE_MEASURE + 0.1, w != world ? w.vr_hold_hands : 0));
+        VR_PE_PoleCheck("stuck in the grunt");
+        VR_Test_Check(fabs(at - vr_vs_along) <= VR_VS_KEEP && cvar_hget(cvarh_vr_embed_probe_pslide) <= VR_VS_STILL,
+            sprintf("%s: the off hand stays where it held the shaft (%.2f cm along it, held %.2f; it moved %.2f cm along it)", vr_pe_name, at, vr_vs_along,
+                cvar_hget(cvarh_vr_embed_probe_pslide)));
+        VR_VS_Next();
+    }
+};
 #endif

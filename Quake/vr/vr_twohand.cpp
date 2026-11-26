@@ -206,6 +206,7 @@ struct FreeGrip
     glm::vec3 base{0.f};
     glm::vec3 axis{1.f, 0.f, 0.f};
     float u = 0.f, uMin = -1e9f, uMax = 1e9f;
+    float uFree = 0.f; // (vr_pole_grip_fixed: where the hand would be along it, sliding: the holding hand's slide goes by its change)
     glm::vec3 handPoint{0.f};
     // The holding hand's own slide (PoleSlide) when the grip began (uMin/uMax were measured on the weapon drawn so), and
     // the holding hand's limits along the pole from the handle (the butt, the head's start; units).
@@ -791,14 +792,29 @@ bool updateFree(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
         // handle, along, changes by as much as this hand's place from the holding hand would have).
         const glm::vec3 h = relativeTo(holdingPos, rot0, s.pos[helping], rot0).pos;
         PoleSlide& ps = poleSlides[holding];
+        const bool fixed = vr_pole_grip_fixed.value != 0.f;
+        if(fixed)
+        {
+            g.u = g.uFree; // (vr_pole_grip_fixed: the hand's own place, as it would slide, for the holding hand's slide)
+        }
         const float uWas = g.u;
         g.u = poleSlide(g, h, off, ps.along - g.alongAtStart);
+        g.uFree = g.u;
         ps.sliding = false;
         if(holderSlides(holding, helping))
         {
             const float along = za::clamp(ps.along - (g.u - uWas), g.alongMin, g.alongMax);
             ps.sliding = za::abs(along - ps.along) > 1e-4f;
             ps.along = along;
+        }
+        if(fixed)
+        {
+            // vrspear (his VR note 2026-11-26 20:09: "prevents the offhand from sliding up and down the shaft"): its place on
+            // the pole stays where it took hold. The pole moves under it only as the holding hand slides (its place from the
+            // holding hand, u, plus the holding hand's from the handle, along, kept); how far the hand is from that place (as
+            // far from the holding hand) is what lets go of it.
+            g.u = za::clamp(g.alongAtStart - ps.along, g.uMin - (ps.along - g.alongAtStart), g.uMax - (ps.along - g.alongAtStart));
+            off = za::abs(glm::length(h) - glm::length(g.base + g.axis * g.u));
         }
         g.point = g.base + g.axis * g.u;
         if(vr_debug_2h_grip.value >= 2 && vr_gametime >= debugPrintAt)
@@ -1927,6 +1943,12 @@ bool freeHelping(int hand)
 int freeMode(int holding)
 {
     return freeGrips[holding].on ? freeGrips[holding].mode : -1;
+}
+
+float poleHelpShare(int hand)
+{
+    const FreeGrip& g = freeGrips[1 - hand];
+    return freeHelping(hand) && g.mode == FREE_POLE ? za::clamp(g.t, 0.f, 1.f) : 0.f;
 }
 
 bool freeHand(int hand, const glm::vec3& trackedPos, const glm::vec3& trackedRot, const glm::vec3& holderPos,

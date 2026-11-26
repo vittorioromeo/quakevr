@@ -1496,7 +1496,9 @@ QVR_CVAR(vr_embed_probe_pdist, "-1", CVAR_NONE)        // cm the most a hand on 
 QVR_CVAR(vr_embed_probe_pturn, "-1", CVAR_NONE)        // degrees the most its grip channel was turned off the shaft
 QVR_CVAR(vr_embed_probe_pon, "0", CVAR_NONE)           // frames a hand was drawn on a pole weapon's shaft
 QVR_CVAR(vr_embed_probe_pmet, "-1", CVAR_NONE)         // the fewest of its four fingers closed on the pole those frames (flatgrip3)
-QVR_CVAR(vr_embed_probe_shots, "0", CVAR_NONE)         // 1: vr_embed_test 71 takes a screenshot of each pole state it measures (flatgrip3)
+QVR_CVAR(vr_embed_probe_palong, "0", CVAR_NONE)       // vrspear: cm along the shaft (from its middle, towards the tip) the hand on a pole weapon's shaft had its grip channel, the last frame
+QVR_CVAR(vr_embed_probe_pslide, "-1", CVAR_NONE)      // vrspear: cm the most minus the least of that since the reset (how far it slid along the pole)
+QVR_CVAR(vr_embed_probe_shots, "0", CVAR_NONE)        // 1: vr_embed_test 71 takes a screenshot of each pole state it measures (flatgrip3)
 QVR_CVAR(vr_embed_probe_jraw, "0", CVAR_NONE)          // a held stuck blade's jitter in the body, the mean of its frame-to-frame change of velocity (units) and of turn rate (degrees) summed (flatembed3)
 QVR_CVAR(vr_embed_probe_jdrawn, "0", CVAR_NONE)        // ... and as drawn, smoothed (vr_embed_ragdoll_smooth_time)
 QVR_CVAR(vr_embed_probe_jlag, "-1", CVAR_NONE)         // cm the most the drawn blade trailed its place in the body
@@ -3283,6 +3285,7 @@ QVR_CVAR(vr_weapon_grab_anywhere, "1", CVAR_ARCHIVE | QVR_RULE)  // 1: a weapon 
 QVR_CVAR(vr_weapon_grab_anywhere_min, "12", CVAR_ARCHIVE | QVR_RULE) // cm: with it, how far from the weapon's handle and its grip and blade hotspots a hand must grip it to hold it there (nearer: the handle or the hotspot, which take priority)
 QVR_CVAR(vr_weapon_anygrip_mode, "0", CVAR_ARCHIVE | QVR_OWN)  // the other hand gripping a weapon held by its handle away from its hotspots: 0 steers the aim as a foregrip (two-handed aiming from where it holds it), 1 supports its weight only (the aim stays the holding hand's), 2 a rigid two-handed hold (the weapon follows both hands, as a prop held in both); each weapon may override it (vr_wofs_anygrip_mode_NN: -1 this)
 QVR_CVAR(vr_pole_slide, "1", CVAR_ARCHIVE | QVR_OWN)          // a pole weapon held in both hands (the Crystal Lance; POLEWEAPONS.md): the weapon hand slides along the pole too, while its grip is loose and the other hand's closed (vr_twohand.cpp poleShift); 0 only the other hand slides
+QVR_CVAR(vr_pole_grip_fixed, "1", CVAR_ARCHIVE | QVR_OWN)    // vrspear (his VR note 2026-11-26 20:09): a pole weapon's other hand (spear, Lance; VR's FREE_POLE grip) stays at the point of the shaft where it took hold, held and stuck in a body (vr_twohand.cpp updateFree); 0 it slides along the shaft with the hand
 QVR_CVAR(vr_pole_slide_grip, "0.6", CVAR_ARCHIVE | QVR_OWN)   // ... the analog grip under which a hand's grip is loose (slides), at or over closed (holds); controllers whose grip is only a button never slide the weapon hand
 QVR_CVAR(vr_debug_buttons, "0", CVAR_NONE)            // prints each controller button press and release (the hand, the button, its key and binding, and what took it: the posing mode, a voice note, the flashlight...), and the interaction profile the runtime picked for each hand when it changes
 QVR_CVAR(vr_debug_hands, "0", CVAR_NONE)              // prints each hand's state when it changes (2: every frame): the grip, what it holds (weapon, carried object, force grab, flashlight), its climbing hold and why a grip takes none, the hotspot (vr_climb.cpp debugHands)

@@ -522,6 +522,11 @@ struct PoleProbe
     float turn{-1.f}; // degrees the most that channel was turned off the shaft
     int on{0};        // frames a hand was drawn wholly on a pole weapon's shaft
     int met{-1};      // the fewest of its four fingers closed on the pole (flatgrip3)
+    // vrspear: its grip channel's place along the shaft (cm from the shaft's middle as its model has it, towards the tip): the
+    // last frame's, and the least and most since the reset (how far it slid along the pole).
+    float along{0.f};
+    float alongLo{1e9f};
+    float alongHi{-1e9f};
 };
 PoleProbe poleProbe; // (vr_embed_probe "reset" starts it with embedProbe's numbers: embedProbeWrite)
 
@@ -757,8 +762,69 @@ void poleProbeNote(int hand, bool mirrored, const glm::vec3& pos, const glm::vec
         met += rh.grasp.valid && rh.grasp.solution.finger[f].met ? 1 : 0;
     }
     poleProbe.met = poleProbe.met < 0 ? met : za::min(poleProbe.met, met);
+    poleProbe.along = glm::dot(c - on, a) / units::metresToUnits() * 100.f;
+    poleProbe.alongLo = za::min(poleProbe.alongLo, poleProbe.along);
+    poleProbe.alongHi = za::max(poleProbe.alongHi, poleProbe.along);
     poleProbe.on++;
     embedProbeWrite();
+}
+
+// vrspear (his VR note 2026-11-26 20:10: "When a spear is embedded in an enemy, the offhand almost immediately detaches or gets into
+// the wrong position"): each hand's last drawn pose on the shaft of the pole weapon it held by VR's pole grip, in that model's own
+// frame (grasp::shapeToWorld, its turn without its scale), so that a hand put on the same model stuck in a body a moment later
+// (embedPinStep) goes on where it was on it, not onto its nearest grip hotspot from its controller.
+struct PoleGripLast
+{
+    double time{-1.0};
+    const qmodel_t* model{nullptr};
+    glm::vec3 local{0.f};
+    glm::mat3 turn{1.f};
+};
+PoleGripLast poleGripLast[2];
+constexpr double poleGripFresh = 0.25; // s a pole grip's last pose is good for
+
+// The turn of a model's frame `l` without its scale (Gram-Schmidt on its columns); false if mirrored or degenerate.
+[[nodiscard]] bool frameTurn(const glm::mat3& l, glm::mat3& r)
+{
+    if(glm::determinant(l) <= 1e-9f)
+    {
+        return false;
+    }
+    const glm::vec3 x = glm::normalize(l[0]);
+    const glm::vec3 y = glm::normalize(l[1] - x * glm::dot(l[1], x));
+    r = glm::mat3{x, y, glm::cross(x, y)};
+    return true;
+}
+
+void poleGripNote(int hand, const entity_t& pole, bool mirrored, const glm::vec3& pos, const glm::vec3& handRot)
+{
+    const glm::mat4 m = grasp::shapeToWorld(pole, mirrored);
+    glm::mat3 r;
+    if(!frameTurn(glm::mat3{m}, r))
+    {
+        poleGripLast[hand] = PoleGripLast{}; // (a pole held mirrored, in the off hand: not kept)
+        return;
+    }
+    poleGripLast[hand] = {vr_gametime, pole.model, glm::vec3{glm::inverse(m) * glm::vec4{pos, 1.f}}, glm::transpose(r) * anglesBasis(handRot)};
+}
+
+// Where `hand`, on the pole weapon `e` (unmirrored: stuck in a body) a moment ago by its pole grip, was drawn on it.
+[[nodiscard]] bool poleGripWas(int hand, const entity_t& e, glm::vec3& pos, glm::mat3& turn)
+{
+    const PoleGripLast& g = poleGripLast[hand];
+    glm::mat3 r;
+    if(g.time < 0.0 || vr_gametime - g.time > poleGripFresh || vr_gametime < g.time || g.model != e.model)
+    {
+        return false;
+    }
+    const glm::mat4 m = grasp::shapeToWorld(e, false);
+    if(!frameTurn(glm::mat3{m}, r))
+    {
+        return false;
+    }
+    pos = glm::vec3{m * glm::vec4{g.local, 1.f}};
+    turn = r * g.turn;
+    return true;
 }
 
 // A hand closed round a pole's shaft (poleShaftGrip) turned by `pitch` degrees of its own pitch about the shaft itself
@@ -2903,6 +2969,8 @@ void embedProbeWrite()
     Cvar_SetValueQuick(&vr_embed_probe_pturn, poleProbe.turn);
     Cvar_SetValueQuick(&vr_embed_probe_pon, static_cast<float>(poleProbe.on));
     Cvar_SetValueQuick(&vr_embed_probe_pmet, static_cast<float>(poleProbe.met));
+    Cvar_SetValueQuick(&vr_embed_probe_palong, poleProbe.along);
+    Cvar_SetValueQuick(&vr_embed_probe_pslide, poleProbe.alongHi >= poleProbe.alongLo ? poleProbe.alongHi - poleProbe.alongLo : -1.f);
 }
 
 [[nodiscard]] bool embedPinUsable(const EmbedPin& pin)
@@ -3284,6 +3352,25 @@ void embedPinStep(const hands::State& s, int hand)
             pin.local = turn * (s.pos[hand] - glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
             pin.localTurn = turn * anglesBasis(s.rot[hand]);
             pin.spot = pin.byHandle ? -1 : embedNearestSpot(e, s.pos[hand]);
+            // vrspear (his VR note 2026-11-26 20:10: "it should stay, or at least it should try to stay in the same position where
+            // it was before the spear got embedded"): a hand that held this pole weapon by its shaft a moment ago (VR's pole grip:
+            // poleGripNote) goes on where it was drawn on it, wholly on it at once (no ease from its controller), not onto its
+            // nearest grip hotspot; the shaft grip below (setupHand) keeps it round the shaft there, as held.
+            glm::vec3 wasPos;
+            glm::mat3 wasTurn;
+            if(const int poleSlot = weapons::slotForModel(e.model);
+                !pin.byHandle && poleSlot >= 0 && twohand::poleWeapon(poleSlot) && poleGripWas(hand, e, wasPos, wasTurn))
+            {
+                pin.local = turn * (wasPos - glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
+                pin.localTurn = turn * wasTurn;
+                pin.spot = -1;
+                pin.weight = 1.f;
+                if(vr_debug_axestick.value >= 1)
+                {
+                    Con_Printf("embedpin: hand %d stays where it held the pole's shaft (%.1f units from its controller)\n", hand,
+                        glm::distance(wasPos, s.pos[hand]));
+                }
+            }
         }
     }
     pin.on = stat > 0 && embedPinUsable(pin);
@@ -4410,6 +4497,35 @@ void setupHand(const hands::State& s, int hand)
                 shaftGripped[hand] = true;
                 poleProbeLine[hand] = {true, on, glm::normalize(axis), &pole, m.mirrored};
             }
+        }
+    }
+
+    // vrspear (his VR note 2026-11-26 20:07: "it should always sort of like snap to have the shaft held inside the hand"): VR's other
+    // hand holding a pole weapon anywhere (vr_twohand.cpp's FREE_POLE grip; drawn where it took hold, slid or kept on the pole:
+    // freeHand) closed round the shaft as drawn, flat play's own shaft grip (poleShaftLine, poleShaftGrip) by the grip's blend: the
+    // least turn and move, so its place along the shaft stays the grip's. Drawn only: the aim and the grip go by the controller, the
+    // drawn hand off it by a few centimetres as on any grip. Its pose on the pole kept for a stab that sticks (poleGripNote).
+    if(const float poleK = own && !flatplay::active() && freeHelp ? twohand::poleHelpShare(hand) : 0.f; poleK > 0.f)
+    {
+        view::WeaponMount m;
+        const entity_t& pole = entities.weapon[other].ent;
+        if(pole.model && view::weaponMount(other, m) && glm::distance(m.muzzle, m.pos) > 1.f)
+        {
+            glm::vec3 on, axis;
+            float shaftRadius = -1.f;
+            if(!poleShaftLine(pole, m.mirrored, m.muzzle, on, axis, shaftRadius))
+            {
+                on = m.pos;
+                axis = glm::normalize(m.muzzle - m.pos);
+                shaftRadius = -1.f;
+            }
+            poleShaftGrip(hand, mirrored, on, axis, poleK, pos, handRot, -1.f, shaftRadius);
+            if(poleK >= 0.999f)
+            {
+                shaftGripped[hand] = true;
+                poleProbeLine[hand] = {true, on, axis, &pole, m.mirrored};
+            }
+            poleGripNote(hand, pole, m.mirrored, pos, handRot);
         }
     }
 
