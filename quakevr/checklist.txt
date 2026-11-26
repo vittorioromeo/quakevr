@@ -14,6 +14,10 @@ Quest standalone: Debug > Show Foveation on, with Quest Foveation at High: the e
 On the Quest, switch Quest Foveation from High to Off and back a few times mid-game, then quit and start again with Off saved: no crash, the game reaches vrstart and plays. {test:hub_start}
 On the Quest, from Standalone pick "Quake (off)", then Low, then Medium on the Graphics Presets page mid-game: the frame rate stays playable, the menu stays usable, and Standalone can be picked again. {test:hub_start}
 Flip the spear to the reverse grip (B / Y) and throw it overhead with a bit of wrist snap: it should come round and fly point first almost at once; tune Debug > Tunables "Reverse Grip Settling: Spears" (0.8) and "Reverse Grip Settling: Blades" (0.3, swords and daggers) to taste. {test:spear}
+Reach for the belt flashlight quickly and grip as your hand passes it, without stopping: it comes into your hand at once, like a holstered gun. {test:start_shotgun}
+Close your hand on the way to the belt flashlight and arrive with it already closed: it takes the torch as soon as your hand is in its glow (within a second of closing); a fist held closed longer does not. {test:start_shotgun}
+Holster Setup: the belt flashlight shows as a box; grip it and drag it somewhere else, turn your hand to turn it, push the stick to grow its grab zone (the torch itself stays the same size); after Done, grabbing it works at the new place and the new size. {test:start_shotgun}
+Set Flashlight Side to Right after placing the torch in Holster Setup: it hangs at the mirrored place and turn on the right hip. {test:start_shotgun}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
