@@ -6011,9 +6011,12 @@ QVR_TOGGLE(vr_model_light_grid_show, "Show Light Probes",
     "The model light grid's probes near you as crosses, each the colour white paint has under its light (full light is "
     "white): compare them with the floor beside them. The model you look at, or else the nearest: lines to the eight "
     "probes it reads, as thick as each one's say (thin and red: out of its sight), and a dot in the colour it reads.")
-QVR_TOGGLE(vr_foveated_debug, "Show Foveation",
+QVR_CYCLE(vr_foveated_debug, "Show Foveation",
     "The shading rates of Foveated Rendering in the eyes and the mirror (yellow 2x2, red 4x4) and the upscaler's "
-    "sharp circle (cyan).")
+    "sharp circle (cyan). On the Quest: Quest Foveation's zones (yellow: half the pixels, red: a quarter), modelled on "
+    "Meta's level (the headset reduces whole tiles, so its edges fall on tile edges); Scene Foveation's exactly. "
+    "Quest Pattern: Quest Foveation's zones at its level on any headset, to compare.",
+    {0.f, "Off"}, {1.f, "On"}, {2.f, "Quest Pattern"})
 QVR_TOGGLE(vr_skin_edge_fill, "Fill Skin Edges",
     "Models' skins: a texel a triangle touches only at its edge takes the colour of its neighbour inside (no thin "
     "black slivers of the skin's background along triangle edges with a nearest texture mode). Off: the skins as "

@@ -1,0 +1,6 @@
+# quest_foveation: # see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". questrender (ROUND26.md): e1m1's start with Show Foveation on (vr_foveated_debug 1): on the Quest, Quest Foveation's zones over the eyes.
+title Show Foveation on, at e1m1's start
+map e1m1
+god
+notarget
+cmd vr_foveated_debug 1

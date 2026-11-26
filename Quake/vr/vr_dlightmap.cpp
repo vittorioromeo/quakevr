@@ -16,6 +16,7 @@
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
+#include "vr_testkit.hpp"
 #include "vr_zancle.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
@@ -23,6 +24,7 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -306,7 +308,9 @@ void collectWorld(const mnode_t* node, const glm::vec3& c, float r, int light, z
 void lightSurface(const msurface_t* s, const Light* lights, const glm::ivec2* first, const glm::ivec2* last, bool darkplaces,
     float angle)
 {
-    if(!s->samples || s->styles[0] == 255 || (s->flags & (SURF_DRAWSKY | SURF_DRAWTURB)) || s->lightmaptexturenum < 0)
+    // (questrender: a face without baked light, a dark room's, is lit too: it has black texels of its own in a lit map,
+    // GL_PackLitSurfaces; it was skipped, and the flashlight lit only the faces some map light reached)
+    if((s->flags & (SURF_DRAWSKY | SURF_DRAWTURB | SURF_DRAWTILED)) || s->lightmaptexturenum < 0 || !cl.worldmodel->lightdata)
     {
         return;
     }
@@ -598,11 +602,87 @@ void info_f()
     Con_Printf("vr_gl_world_dlmap: %d uploads, %d texels (vr_gl_world_dlmap_batch %g)\n", uploadsLast, uploadedTexels,
         vr_gl_world_dlmap_batch.value);
 }
+
+// vr_gl_world_dlmap_probe x y z [min] | end (questrender; Misc/quakevr/darkflash_test.sh): the light the last build
+// added at a point on the world's faces, read from the texture's copy (vr_gl_world_dlmap_batch 1), and whether the face
+// has baked light of its own; with `min`, a check that it is at least that (in Quake's full light: 1); `end`: the verdict
+// line "dlmap_probe: N passed, M failed".
+testkit::Tally probeTally;
+
+void probe_f()
+{
+    constexpr const char* name = "dlmap_probe";
+    if(Cmd_Argc() >= 2 && !ZA_STRCMP(Cmd_Argv(1), "end"))
+    {
+        probeTally.verdict(name);
+        probeTally.reset();
+        return;
+    }
+    if(Cmd_Argc() < 4 || !cl.worldmodel)
+    {
+        Con_Printf("vr_gl_world_dlmap_probe x y z [min] | end\n");
+        return;
+    }
+    const glm::vec3 p{Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3))};
+    const bool checking = Cmd_Argc() >= 5;
+    const float least = checking ? Q_atof(Cmd_Argv(4)) : 0.f;
+    const qmodel_t* m = cl.worldmodel;
+    const msurface_t* found = nullptr;
+    int si = 0, ti = 0;
+    for(int i = 0; i < m->nummodelsurfaces && !found; i++)
+    {
+        const msurface_t* s = m->surfaces + m->firstmodelsurface + i;
+        if((s->flags & (SURF_DRAWSKY | SURF_DRAWTURB | SURF_DRAWTILED)) || s->lightmaptexturenum < 0)
+        {
+            continue;
+        }
+        const mplane_t* pl = s->plane;
+        if(za::fabs(p.x * pl->normal[0] + p.y * pl->normal[1] + p.z * pl->normal[2] - pl->dist) > 1.f ||
+            p.x < s->mins[0] - 1.f || p.x > s->maxs[0] + 1.f || p.y < s->mins[1] - 1.f || p.y > s->maxs[1] + 1.f ||
+            p.z < s->mins[2] - 1.f || p.z > s->maxs[2] + 1.f)
+        {
+            continue;
+        }
+        const float* va = s->texinfo->vecs[0];
+        const float* vb = s->texinfo->vecs[1];
+        const float ts = p.x * va[0] + p.y * va[1] + p.z * va[2] + va[3] - static_cast<float>(s->texturemins[0]);
+        const float tt = p.x * vb[0] + p.y * vb[1] + p.z * vb[2] + vb[3] - static_cast<float>(s->texturemins[1]);
+        if(ts < -1.f || tt < -1.f || ts > s->extents[0] + 1.f || tt > s->extents[1] + 1.f)
+        {
+            continue;
+        }
+        found = s;
+        si = za::clamp(static_cast<int>(ts / 16.f + 0.5f), 0, s->extents[0] >> 4);
+        ti = za::clamp(static_cast<int>(tt / 16.f + 0.5f), 0, s->extents[1] >> 4);
+    }
+    if(!found)
+    {
+        Con_Printf("%s: %.0f %.0f %.0f: no world face there\n", name, p.x, p.y, p.z);
+        probeTally.check(!checking, name, "no world face at the point");
+        return;
+    }
+    const lightmap_t& lm = lightmaps[found->lightmaptexturenum];
+    const int x = lm.xofs + found->light_s + si, y = lm.yofs + found->light_t + ti;
+    const za::SizeT at = static_cast<za::SizeT>(y) * static_cast<za::SizeT>(lightmap_width) + static_cast<za::SizeT>(x);
+    const bool copy = atlasValid && at < written.atlas.size();
+    const unsigned v = copy ? written.atlas[at] : 0u;
+    const glm::vec3 light = glm::vec3{static_cast<float>(v & 1023u), static_cast<float>((v >> 10) & 1023u),
+                                static_cast<float>((v >> 20) & 1023u)} * (lightScale / 1023.f);
+    Con_Printf("%s: %.0f %.0f %.0f: face %d (baked light %s, texel %d %d), added light %.3f %.3f %.3f%s\n", name, p.x, p.y,
+        p.z, static_cast<int>(found - m->surfaces), found->samples ? "yes" : "none", x, y, light.x, light.y, light.z,
+        copy ? "" : " (no copy of the texture: vr_gl_world_dlmap_batch 0, or not active)");
+    if(checking)
+    {
+        probeTally.check(copy && za::max(light.x, za::max(light.y, light.z)) >= least, name,
+            va("the light at %.0f %.0f %.0f under %g", p.x, p.y, p.z, static_cast<double>(least)));
+    }
+}
 } // namespace
 
 void registerCommands()
 {
     Cmd_AddCommand("vr_gl_world_dlmap_info", info_f);
+    Cmd_AddCommand("vr_gl_world_dlmap_probe", probe_f);
 }
 
 } // namespace qvr::dlightmap

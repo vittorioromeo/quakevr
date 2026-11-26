@@ -1515,6 +1515,48 @@ smaller, centred, over a 50% black so the previous screen (the console) shows un
 
 The menu shortcut bar (the column beside the menu in the headset and the flat VR-style panel, the row of icons in the classic flat menus) now has half a button of vertical gap before its "-" and "+" buttons (column layouts; the column fit counts it) and a third button, RESET, next to them: the shipped menu size (vr_menu_scale / vr_menu_flat_scale / scr_menuscale by the layout shown) and, for the flat panel, the window centre (vr_menu_flat_x/y back to their defaults, so a saved config drops them). The headset menu has no position setting, only its size. One code path for all three layouts (zoomMenu dir 0, the existing vr_menu_zoom reset); the mouse and the laser hit it like -/+ (new mock spots `vr_mock_mouse zoomreset`, `vr_mock_laser zoomreset`). Gamepad focus: the -/+ buttons were never in the gamepad focus order (pointer only), so RESET is too; vr_menu_zoom reset is the console equivalent. Tests: menu_flat_panel_test.py gained resetbtn steps (flat: moved to 0.4/0.45 at 0.6, RESET back to 0.954/0.5/0.499; VR: 0.4 back to 0.25): 28 passed, 3 failed; the same 3 fail with the unmodified test on this build (Quit menu number 20 vs 21, headset Quit dialog, classic scr_menuscale step: unrelated, not looked into). Screenshots scratch/menubar_{classic,flat,vr}.png.
 
+## flathold2: H holds big props by their surface like ragdolls, small ones in the hand, an arm's reach (branch agent/flathold2, 2026-11-26)
+
+His note (flat feedback 2026-11-26, item 12): H held ragdolls well (the hands on their visible models, dragged naturally) but
+not props; big props should be held the same way, small ones as a force grab takes them; tunables for the hands' offsets in
+that hold; H reached too far.
+
+- **One rule, by mass** (`VR_FlatGrab_Drags`, QC/vr_flatgrab.qc): a carryable prop whose mass (Held Object Weights: Mass,
+  or its estimate) is at least `vr_flat_grab_drag_mass` (15 kg) is **dragged by its surface**; lighter things go **into the
+  hand as a force grab's catch** (`VR_FlatGrab_TakeHandTouch`: placed at the hand by its grab point, then its own handtouch
+  with `forcegrabCatching`, exactly the force grab's handover; the old carry placement is only a fallback). Measured: crate
+  40 kg, barrel 30, explosive boxes 80 and 40 (dragged); rock 2, health box 2 (in the hand). Gibs: in the hand.
+- **Dragged by the surface** (engine: `propdrag` builtin, `box3d::propDrag`, vr_box3d_ragparts.cpp "A big prop dragged by
+  its surface"): the embedded blade's prop hold reused (`World::PropBlade`, kinematic body at the hand, motor joint) with a
+  `drag` flag: the joint at the point of the prop's Box3D shape nearest where the crosshair enters its box (two hands side
+  by side, as far apart as the hands), its spring linear only (no torque: it hangs and swings from the hands), `force`
+  level (`vr_flat_grab_drag_force` 4000 N, the ragdoll grab's), up at most `vr_flat_grab_drag_lift` x its weight per hand
+  (0.2: both 0.4, under the half that tips a box: it slides on its far side), the target never higher above the held point
+  than that lift stretches the spring (so the level pull stays full while the hand is above it), stiffness
+  `vr_flat_grab_drag_hertz` (4 Hz), the point eased to the hand over `vr_flat_grab_reach_time`; let go of when the point
+  stays more than `vr_flat_grab_drag_letgo` (1.2 m) off the hand. The prop stays in the physics (not carried); the hand is a
+  new busy kind `VR_HOLD_DRAG` (vr_fields.qc; `VR_Hand_HeldOff` true: its fist body pushes nothing). B drops / throws it as
+  a ragdoll held (kind 3; `VR_FlatGrab_ReleaseHeld`, a heavy prop leaves slower: `VR_Thrown_Lenient`); `VR_FlatGrab_Held`
+  is "what this hand holds" for H's code, B's and the flatkeys test.
+- **The hands drawn on it** (vr_view_hands.cpp `limbHold`): a dragged prop is a limb to the hand drawing
+  (`box3d::propDragHold`, the listen server's): the hand drawn on the held point (as far as the let-go distance: a prop too
+  heavy to hoist lies below the hold pose), turned with it, its palm rested on the prop's drawn mesh (at least 20 cm of
+  slide, whichever way the palm faces), the fingers closing on its shape; vr_modelcollide skips it as a held limb.
+  `vr_ragdoll_hand_probe` reports it ("part -1").
+- **The hold's offsets**: `vr_flat_grab_hold_fwd` / `_out` / `_down` (Flatscreen > Grab / Pull rows) already set the
+  hands of the hold pose for ragdolls and big props (and now say so; Hold Down's slider goes to -0.8, negative = above the
+  shoulder): what is held comes to them. Defaults unchanged.
+- **Reach** (`vr_flat_grab_reach`, now metres, 1.25; was 100 units = 3.8 m, why it felt long): measured from the eyes to
+  where the crosshair meets the thing's box, level and up as they are, down not at all (down to the floor at your feet,
+  nothing below them): an arm (0.65 m) past the body box's 0.6 m half width. Too short in play: he raises it.
+- New tunables (Flatscreen > Grab / Pull): `vr_flat_grab_drag_mass` 15, `_drag_force` 4000, `_drag_lift` 0.2,
+  `_drag_hertz` 4, `_drag_letgo` 1.2.
+- Tests: `flatgrabthrow_test.sh` 34/0 (new: crate and explosive box dragged by their surface with both hands, palms within
+  5 cm of their meshes, dragged along backing away, let go of with H; health box and rock in the hand, no hold pose; a
+  crate 64 units ahead out of reach; the crate walk now backs away: walking into a dragged crate pushes it off the hands,
+  which let go); `tunables_test.sh` 13/0. Screenshots scratch/fh2_crate.png, fh2_ragdoll.png.
+- Open: walking forward into a dragged prop shoves it away and the hold lets go (pulling is what dragging does); ammo boxes
+  were not found by H in the hall's probe (picked up by walking onto them there), not looked into.
 ## flatthrow2: flat throw key: cancel with the attack button, no catch by the guiding hand, flipped-grip wind-up tunables (branch agent/flatthrow2, 2026-11-26)
 
 His flat feedback 2026-11-26, items 2, 3, 13.
@@ -1644,6 +1686,32 @@ His Quest (next ab5d33a, standalone): the game crashed switching Quest Foveation
 - Tests: `Misc/quakevr/questcrash_preset_test.sh` (ES profile: Standalone -> Off -> Low -> Medium keep the budget rows,
   the must-haves hold, a 20 ms pick kept, a 500 ms pick put back; PC: leaving Standalone as before) 20/0;
   haze_preset_test 8/0.
+## The flashlight lights the dark rooms in the Standalone preset; Show Foveation shows the Quest's foveation (branch agent/questrender, 2026-11-26)
+
+His notes (Quest standalone): the flashlight lit only the first part of the tutorial's dark room, the rest pitch black
+wherever he pointed it; "Show Foveation" showed nothing with Quest Foveation.
+- **The flashlight (vr_gl_world_dlmap, the Standalone preset's dynamic lights summed into the lightmap, C5g):** the light
+  tool leaves the faces no map light reaches without a lightmap (vrtutorial's dark course: 612 of its 740 faces), and
+  Ironwail's `GL_PackLitSurfaces` gave them all one shared black block; the dlmap's `lightSurface` skipped them
+  (`!s->samples`). Only the faces near the lit hall's door, which have baked light, took the beam. Now, in a lit map,
+  each such face gets a black block of its own (`r_brush.c`, `own_black`; a map without light data keeps the shared one)
+  and the dlmap lights it. The PC's per-pixel loop never depended on it. Cost: the lightmap atlas grows by those faces'
+  texels (black), no per-frame cost beyond the faces the beam now lights. Brightness: as the loop's without its
+  specular sheen (the far block: dlmap 33, loop 80, loop with `vr_specular 0` 35; the dlmap never had the sheen, C5g's
+  look call). Pictures: `scratch/qr_flashlight_before.png` / `_after.png` / `_loop.png` (not committed).
+- **`vr_gl_world_dlmap_probe x y z [min] | end`** (new, vr_dlightmap.cpp): the light the last build added at a point on
+  a world face (from the batched texture's CPU copy) and whether the face has baked light; `min` makes it a check.
+- **Show Foveation on the Quest (`vr_foveated_debug`, now Off / On / Quest Pattern):** it drew only NVIDIA's rates and
+  vr_upscale's ring, neither on the Quest. It now also draws the Quest's foveation zones, yellow at half the pixels (2x1),
+  red at a quarter (2x2): vr_gl_foveation's exactly (its gain and area, the focal point on the projection centre: the
+  QCOM density 1 / (gain^2 d^2 - area)), else vr_xr_foveation's modelled (`foveated::runtimeZones`: centred on the
+  drawn part, as qfov4 found; gains 1.3 / 1.6 / 2 for Low / Medium / High: Low only the corners, High from ~0.7 of the
+  way out; the runtime's true pattern is Meta's and falls on whole bins, so it is approximate). Quest Pattern (2) draws
+  the modelled zones at vr_xr_foveation's level (1 if off) on any headset. Files: vr_foveated.cpp/.hpp, vr_stereo.cpp
+  (`glFoveationZones`, sharing foveateEye's gains and areas), the row in vr_menu_rows.inc.
+- **Tests:** `Misc/quakevr/darkflash_test.sh` (vrtutorial's dark course, Standalone preset, the PC's unlit world form
+  through `vr_gl_pc_forms 15`, a head torch on): the block face ~310 ahead and the far wall ~680 ahead (a face without
+  baked light) take light; 2/0. Scenes `quest_darkroom`, `quest_foveation`. Not checked on the headset (he was using it).
 ## flatgrip3: daggers and axes one-handed in flat play; the pole's other hand round the drawn shaft (branch agent/flatgrip3, 2026-11-26)
 
 His flat items 7 and 8 (2026-11-26).

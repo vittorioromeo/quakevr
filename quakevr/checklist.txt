@@ -9,6 +9,8 @@
 [New: not yet sorted]
 Open the menu in the headset, then on the flat screen with the VR-style menu and with the classic menus: the shortcut bar has a gap above "-" and "+", and a RESET button next to them; zoom or drag the panel, press RESET and the menu returns to its default size and (flat panel) the middle of the window. {test:hub_start}
 Flat-screen: open the console (or the menu) and load a map that takes a few seconds (map vrstart): the loading panel is small and centred, about a fifth to a third of the window wide with sharp text, over the console or menu you came from dimmed by half, and the console doesn't flash between its frames. {test:load_panel_stages}
+Quest standalone (Standalone preset): in the tutorial's dark course take the flashlight and point it down the corridor and at the far walls; the beam should light whatever it lands on, not just the first part of the room near the door. {test:quest_darkroom}
+Quest standalone: Debug > Show Foveation on, with Quest Foveation at High: the eyes' edges should show yellow (half resolution) and red (quarter) zones round a clear centre; at Low only the far corners. On the PC, Show Foveation "Quest Pattern" shows the same zones. {test:quest_foveation}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
@@ -79,14 +81,14 @@ Flat-screen: swing or thrust any melee weapon, and punch with an empty hand: the
 Flat-screen: hold the axe with your other hand empty, then raise the guard with the right mouse button: it stays one-handed, the free hand never goes to its handle; Daggers One-Handed and Axes One-Handed (Locomotion > Desktop Screen Play) off gives the two-handed stance back. {test:flat_melee_grip}
 Flat-screen: hold the spear upright, flip its grip (B) and raise the guard (right mouse button), then stab a grunt with V: in every pose the other hand's fingers close round the shaft, not beside or below it. {test:flat_spear}
 Flat-screen: hold the Crystal Lance and raise the guard (right mouse button): the other hand wraps its shaft. {test:flat_lance_parry}
+Flat-screen: walk up to the crate (or an explosive box) and press H: both hands go onto its surface and it drags along as you back away, its far side on the floor, as a grunt's ragdoll does; tune the hands with Grab / Pull: Hold Forward / Out / Down (negative: up). {test:flat_grab_pull}
+Flat-screen: press H at the rock (or a health box, a gib): it goes into your hand as a force grab's catch, no held-out pose; and from further than an arm's reach (Grab / Pull: Reach, 1.25 m) H takes nothing. {test:flat_grab_pull}
 
 [4. Tutorial and VR interface]
-Look away from the wrist gadget and get a centre message: the visor-style panel is about 20% smaller than before and still easy to read; Centre Message Size (HUD > Screens) tunes it. {test:vr_center_message}
 Body and Display > Handedness: Left-handed turns on Swap Face Buttons (next to Swap Stick Functions): walk forward on the right stick and press X: you jump, and A, B, Y and the two stick clicks do what the other controller's did; Right-handed turns it off, and changing it alone shows Handedness: Custom. {test:hub_start}
 
 [5. Weapons and holsters]
 Hook an explosive box, a zombie and a far wall with the grappling hook and hold B/Y each time: the load (or you) comes in fast, slows as it arrives and stops short of the gun. {test:grapple_reel}
-Turn the Weapon Wheel on (VR Settings), open it and walk and turn with the stick: the wheel comes along smoothly and your hand stays on its slot; tap B/Y to eject a nailgun magazine or switch a dagger's grip: it feels responsive (Wheel Hold / Quick Tap Time sets how long a press opens the wheel instead). {test:weapon_wheel}
 Swing the spear (and the Crystal Lance) so its shaft, not the head, hits a grunt: a wooden knock and a dent, nothing stuck in it, less damage than the head; swing the shaft low and level across its shins and it is swept off its feet, while a sweep with the spear's head cuts instead; the head still stabs and sticks. {test:spear}
 
 [6. Ropes and chains]

@@ -57,7 +57,8 @@ float VR_FLATTHROW_PENDING = 3; // held < tap time: waiting for quick-tap drop o
 
 float() VR_FlatGrab_Bits;                        // (vr_flatgrab.qc)
 void(entity e) VR_FlatGrab_NoteThrown;           // (vr_flatgrab.qc)
-void(entity xRag, vector xVel) VR_FlatGrab_ReleaseRagdoll; // (vr_flatgrab.qc)
+void(entity xRag, vector xVel) VR_FlatGrab_ReleaseHeld;    // (vr_flatgrab.qc)
+entity(entity p, float xHand) VR_FlatGrab_Held;            // (vr_flatgrab.qc)
 
 // STAT_QVR_FLATGREN's throw part: the phase * 16, + 64 the main hand's, + 128 both hands (vr_flatgrenade.cpp).
 float() VR_FlatThrow_Bits =
@@ -469,6 +470,10 @@ float(float xHand) VR_FlatThrow_What =
     {
         return 4;
     }
+    if(VR_Hand_Kind(self, xHand) == VR_HOLD_DRAG)
+    {
+        return 3; // (a big prop dragged by its surface: dropped and thrown as a ragdoll held, vr_flatgrab.qc)
+    }
     entity e = VR_Carry_Held(self, xHand);
     if(e != world && !e.vr_grenade)
     {
@@ -526,7 +531,7 @@ void() VR_FlatThrow_BeginWind =
     }
     else if(kind == 3)
     {
-        both = (e != world && VR_Carry_Held(self, other) == e);
+        both = (e != world && VR_FlatGrab_Held(self, other) == e);
         if(both)
         {
             h = cVR_MainHand;
@@ -582,7 +587,7 @@ void() VR_FlatThrow_Press =
         return;
     }
     float kind = VR_FlatThrow_What(h);
-    entity e = (kind == 2 || kind == 3) ? VR_Carry_Held(self, h) : world;
+    entity e = (kind == 2 || kind == 3) ? VR_FlatGrab_Held(self, h) : world;
     self.vr_flatthrow_hand = h;
     self.vr_flatthrow_ent = e;
     self.vr_flatthrow_wid = kind == 1 ? VRGetEntWeapon(self, h) : 0;
@@ -632,11 +637,11 @@ void() VR_FlatThrow_Drop =
     if(kind == 3)
     {
         entity rag = self.vr_flatthrow_ent;
-        if(rag != world && (VR_Carry_Held(self, cVR_OffHand) == rag || VR_Carry_Held(self, cVR_MainHand) == rag))
+        if(rag != world && (VR_FlatGrab_Held(self, cVR_OffHand) == rag || VR_FlatGrab_Held(self, cVR_MainHand) == rag))
         {
             makevectors(self.v_angle);
             vector dvel = v_forward * (dropSpeed * 0.5 * VRMetersToUnits());
-            VR_FlatGrab_ReleaseRagdoll(rag, dvel);
+            VR_FlatGrab_ReleaseHeld(rag, dvel);
             VR_FlatGrab_NoteThrown(rag);
             dprint(sprintf("flat drop: ragdoll %s dropped by the %s hand after %.2f s\n", rag.classname, VR_FlatGrenade_HandName(h), held));
         }
@@ -748,15 +753,15 @@ void(float xHeld) VR_FlatThrow_Throw =
     vector ragLaunchVel = '0 0 0';
     if(kind == 3 && e != world)
     {
-        float hasOff = (VR_Carry_Held(self, cVR_OffHand) == e);
-        float hasMain = (VR_Carry_Held(self, cVR_MainHand) == e);
+        float hasOff = (VR_FlatGrab_Held(self, cVR_OffHand) == e);
+        float hasMain = (VR_FlatGrab_Held(self, cVR_MainHand) == e);
         if(hasOff || hasMain)
         {
             float bothRag = (hasOff && hasMain);
             float ragScale = max(0, cvar_hget(cvarh_vr_flat_grab_ragdoll_throw));
             float handMult = bothRag ? 1.0 : 0.65;
             ragLaunchVel = dir * (speed * VRMetersToUnits() * ragScale * handMult) + self.velocity * VR_Throw_Inherit(self);
-            VR_FlatGrab_ReleaseRagdoll(e, ragLaunchVel);
+            VR_FlatGrab_ReleaseHeld(e, ragLaunchVel);
             thrown = e;
         }
     }
@@ -912,7 +917,7 @@ float() VR_FlatThrow_StillHeld =
     if(kind == 3)
     {
         return self.vr_flatthrow_ent != world &&
-               (VR_Carry_Held(self, cVR_OffHand) == self.vr_flatthrow_ent || VR_Carry_Held(self, cVR_MainHand) == self.vr_flatthrow_ent);
+               (VR_FlatGrab_Held(self, cVR_OffHand) == self.vr_flatthrow_ent || VR_FlatGrab_Held(self, cVR_MainHand) == self.vr_flatthrow_ent);
     }
     if(kind == 2)
     {

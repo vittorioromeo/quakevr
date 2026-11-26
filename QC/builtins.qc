@@ -247,6 +247,12 @@ float(entity prop, vector at, vector target, vector targetVel, float force, floa
 // origin; `wound`: where it went in), holding the handle at the hand plus `shift`, `force` N at most level, `lift` times its weight up.
 // Each frame it is held. The pull, N (0 as it begins); -1 not a solid Box3D prop. `force` under 0: the hand's hold is over.
 float(entity prop, entity player, float hand, vector handle, vector wound, vector shift, float force, float lift) embedprophold = #0;
+// float propdrag(entity prop, entity player, float hand, vector target, float force, float lift, float hertz, float letgo): a big
+// prop dragged by its surface (flat-screen Grab / Pull, vr_flatgrab.qc): a joint from the hand to the point of its shape nearest
+// `target` (taken as the hold begins), a linear spring of `hertz` pulling that point to the hand, `force` N at most level, `lift`
+// times its weight up. Each frame it is held. The pull, N (0 as it begins); -1 not a solid Box3D prop, or let go of (its point
+// stayed more than `letgo` units off the hand). `force` under 0: the hand's hold is over. The hand is drawn on that point.
+float(entity prop, entity player, float hand, vector target, float force, float lift, float hertz, float letgo) propdrag = #0;
 // The armed humanoids' lookups in one call each (PERF_1102.md, "Follow-up"), their results in these globals as
 // traceline's in trace_*. agposekey: pose key `code` (VR_AGK_Add; weapondrawnpose(world, code, 11..18, 25, 26) at once):
 // '1 0 0' and its parts in vr_agk_k_* (the right target's place and turn, the left's, the elbows' poles, the torso's turn,
