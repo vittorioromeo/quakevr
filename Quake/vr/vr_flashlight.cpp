@@ -1671,11 +1671,9 @@ void gripTake(const hands::State& s, int hand)
     take(hand);
 }
 
-// A grip press the lamp didn't take (button): a late grip (lateGrips) if it may yet. On the belt (round 26), any empty
-// hand's: it takes the torch as soon as it is in the grab zone with the grip still held, within
-// vr_flashlight_closed_grab seconds (a hand arriving closed). On the head, the empty hand pressed from open, not just
-// punching, within lateReach of the lamp (plus a slowed hand's lag behind its controller: where the player's hand
-// already is).
+// A grip press the lamp didn't take (button): a late grip (lateGrips) if it may yet. On the head only: the empty hand
+// pressed from open, not just punching, within lateReach of the lamp (plus a slowed hand's lag behind its controller:
+// where the player's hand already is). On the belt a hand arriving closed takes nothing (round 26, his call).
 void startLate(const hands::State& s, int hand)
 {
     st.lateUntil[hand] = -1.0;
@@ -1688,9 +1686,6 @@ void startLate(const hands::State& s, int hand)
     const float d = lampDistance(s, hand);
     if(onBelt())
     {
-        st.lateUntil[hand] = realtime + za::max(vr_flashlight_closed_grab.value, 0.f);
-        st.latePressed[hand] = realtime;
-        st.lateNearest[hand] = d;
         return;
     }
     if(realtime < st.punchUntil[hand] || !pressedOpen(hand, 0))
@@ -3138,22 +3133,25 @@ void lateGrips()
             end("the game's (a weapon, a hold, a force grab) or the torch taken");
             continue;
         }
-        // On the belt (round 26): what lights the lamp (reachesLamp, on the same hands) takes it, as a holster's draw.
-        const bool belt = onBelt();
-        if(!belt && realtime < st.punchUntil[hand])
+        if(onBelt())
+        {
+            end("the torch is on the belt: no closed-hand grab");
+            continue;
+        }
+        if(realtime < st.punchUntil[hand])
         {
             end("a punch");
             continue;
         }
         const float d = lampDistance(s, hand);
         st.lateNearest[hand] = za::min(st.lateNearest[hand], d);
-        if(!belt && d > st.lateNearest[hand] + lateBack * m2u)
+        if(d > st.lateNearest[hand] + lateBack * m2u)
         {
             end("moved away");
             continue;
         }
-        // What lights the lamp (reachesLamp, on the same hands), on the head the hand come to rest at it.
-        if(!reachesLamp(s, hand) || (!belt && !still(s, hand)))
+        // What lights the lamp (reachesLamp, on the same hands), the hand come to rest at it.
+        if(!reachesLamp(s, hand) || !still(s, hand))
         {
             continue;
         }

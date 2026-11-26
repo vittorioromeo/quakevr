@@ -248,25 +248,27 @@ def timing(agent, only=None):
                         continue  # pressed more than 20 cm out (a control below)
                     press = len(frames) - 1 + k
                     tag = f"t{scale}_{i}_{speed}_{k}"
-                    samples.append((tag, True))
+                    # Pressed further out than ~9 cm (outside the grab zone) is a hand arriving closed: no grab.
+                    samples.append((tag, -k * step <= 0.09))
                     cmds += trial(tag, start, frames, press)
             # Round 26 ("flashgrab": the belt torch is a holster slot like the others): what were controls until then take
-            # it too. A punch from the lamp out 35 cm at 3 m/s and back, the grip pressed 2 frames in.
+            # it too. A punch from the lamp out 35 cm at 3 m/s and back, the grip pressed at the lamp as it leaves.
             out = (cx + 0.02, cy + 0.08, cz - 0.35)
             punch = path(c, out, 3.0) + path(out, c, 3.0)
             tag = f"t{scale}_{i}_punch"
             samples.append((tag, True))
-            cmds += trial(tag, c, punch, 2)
+            cmds += trial(tag, c, punch, 0)
             # Pressed at the lamp while moving through it, then 15 cm past it (a quick grab, no dwell).
             away = (cx - 0.15, cy, cz)
             tag = f"t{scale}_{i}_away"
             samples.append((tag, True))
             cmds += trial(tag, start, frames_through(start, c, away), len(path(start, c, 1.5)) - 1)
-            # Pressed 33 cm out, before the reach (the hand comes to the lamp closed, 0.8 s later).
-            tag = f"t{scale}_{i}_closed"
-            samples.append((tag, True))
+            # Controls (his call 2026-11-26: no closed-hand grab): pressed 33 cm out, the hand comes to the lamp closed,
+            # 0.8 s later: takes nothing.
+            tag = f"c{scale}_{i}_closed"
+            samples.append((tag, False))
             cmds += trial(tag, start, path(start, c, 0.4), 0)
-            # The control left: closed 1.5 s (past vr_flashlight_closed_grab) before it gets there.
+            # And closed 1.5 s before it gets there.
             if scale == "1":
                 tag = f"c{scale}_{i}_stale"
                 samples.append((tag, False))
@@ -879,8 +881,8 @@ def ramp(a, b, step):
 
 def slot(agent):
     """Round 26 ("flashgrab"): the belt torch as a holster slot. A quick grab (the hand passing through its grab zone at
-    2.2 and 4.4 m/s, no dwell) takes it; a hand closed 0.3 s before it arrives takes it; one closed 1.5 s before
-    doesn't. Holster Setup: the torch dragged 10 units up (its settings follow; the grab follows it, its old place no
+    2.2 and 4.4 m/s, no dwell) takes it; a hand closed before it arrives (0.3 s or 1.5 s) takes nothing.
+    Holster Setup: the torch dragged 10 units up (its settings follow; the grab follows it, its old place no
     longer takes it), turned with the hand (vr_mock_hand_turn), its grab zone enlarged with the stick (the model's length
     the same): a hand 1.3 reaches out takes it then, not before; one beyond the new reach doesn't."""
     cmds = setup() + ["vr_mock_hand_to_absolute 1", f"vr_mock_hand off {REF[0]} {REF[1]} {REF[2]} {HAND_ROT}"] + waits(30)
@@ -892,10 +894,10 @@ def slot(agent):
         cmds += slot_trial(tag, offsets, press)
 
     sweep = ramp(8, 0, 1) + ramp(0, 8, 1)[1:]
-    trial("quick", sweep, 6, True)  # pressed 2 units out, going in
+    trial("quick", sweep, 8, True)  # pressed at its middle, moving through
     fast = ramp(8, 0, 2) + ramp(0, 8, 2)[1:]
-    trial("quickfast", fast, 2, True)
-    trial("closed", [(0.0, 0.0, 15.0)] * 20 + ramp(15, 0, 1), 0, True)
+    trial("quickfast", fast, 4, True)
+    trial("closed", [(0.0, 0.0, 15.0)] * 20 + ramp(15, 0, 1), 0, False)  # arrives closed: no grab (his call)
     trial("stale", [(0.0, 0.0, 15.0)] * 108 + ramp(15, 0, 1), 0, False)
     trial("narrow", ramp(10, 3.8, 1) + [(0.0, 0.0, 3.8)] * 4, 9, False)  # 1.3 reaches out (grab range 1)
     # Holster Setup: drag, turn, the grab zone.

@@ -263,7 +263,6 @@ QVR_TUNABLE(vr_flashlight_brightness, "1")
 QVR_TUNABLE(vr_flashlight_range, "1000") // units the beam reaches
 QVR_TUNABLE(vr_flashlight_beam, "0.5") // how strong its soft cone of light in the air is, 0..1 (0: none)
 QVR_TUNABLE(vr_flashlight_flick_max_move, "1.5") // m/s: the hand moving faster than this (a swing, a punch) never flicks
-QVR_TUNABLE(vr_flashlight_closed_grab, "1") // real seconds a grip closed before the hand reaches the belt torch still takes it there (round 26: a hand arriving closed)
 QVR_TUNABLE(vr_flashlight_flick_cooldown, "0.4") // real seconds after a flick before the next counts (the wrist coming back is not a second flick)
 QVR_TUNABLE(vr_flashlight_hand_forward, "-0.05") // metres the torch sits forward in the fist (negative: back),
 QVR_TUNABLE(vr_flashlight_hand_up, "-0.04") // and up (negative: down; round 21: on top of the fitted grip)

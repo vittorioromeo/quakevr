@@ -266,7 +266,6 @@ QVR_TUNABLE_SLIDER(vr_flashlight_brightness, "Brightness", 0.25f, 2.5f, 0.05f, "
 QVR_TUNABLE_SLIDER(vr_flashlight_range, "Range", 300.0f, 2000.0f, 50.0f, "%.0f", 100.0f, 6000.0f, "units the beam reaches")
 QVR_TUNABLE_SLIDER(vr_flashlight_beam, "Visible Beam", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "A soft cone of light in the air from the lamp (0: none).")
 QVR_TUNABLE_SLIDER(vr_flashlight_flick_max_move, "Flick: Hand Still Below", 0.5f, 4.0f, 0.1f, "%.1f m/s", 0.1f, 10.0f, "Your hand moving faster than this (a swing, a punch) never flicks: the wrist alone.")
-QVR_TUNABLE_SLIDER(vr_flashlight_closed_grab, "Closed Grab Window", 0.f, 3.f, 0.05f, "%.2f s", 0.f, 10.f, "How long after you close your hand it still takes the belt torch on reaching it (a grab begun on the way).")
 QVR_TUNABLE_SLIDER(vr_flashlight_flick_cooldown, "Flick Cooldown", 0.1f, 1.5f, 0.05f, "%.2f s", 0.1f, 1.5f, "After a flick, how long before the next one counts (your wrist coming back is not a second flick).")
 QVR_TUNABLE_SLIDER(vr_flashlight_hand_forward, "In Hand Forward", -0.3f, 0.3f, 0.005f, "%.3f m", -2.6999999999999997f, 2.6999999999999997f, "Where the held lamp sits in your fist.")
 QVR_TUNABLE_SLIDER(vr_flashlight_hand_up, "In Hand Up", -0.3f, 0.3f, 0.005f, "%.3f m", -2.6999999999999997f, 2.6999999999999997f, "and up (negative: down; round 21: on top of the fitted grip)")
