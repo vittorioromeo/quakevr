@@ -2050,8 +2050,11 @@ ModelTransform modelTransform(const qmodel_t* model)
     // Quake VR's protocol: the client's, or the local server's. The server's physics shapes (vr_box3d.cpp's hulls,
     // vr_rigid.cpp's boxes, vr_held.cpp's drawn surfaces) are made from these too, and a map's first frames run before
     // the client has connected (cl.protocolflags then still the last map's, or none): its thrown weapons' hulls were
-    // made at the models' own size, three times the drawn guns', and kept.
-    const bool quakevr = (cl.protocolflags & PRFL_QUAKEVR) || (sv.active && (sv.protocolflags & PRFL_QUAKEVR));
+    // made at the models' own size, three times the drawn guns', and kept. The map's spawn functions run earlier still,
+    // before sv.active, with the server's QC running (qcvm its): an AD or Quoth soldier made an armed humanoid there
+    // measured its gun at that size and kept it, its arms on a gun three times too long (quothpose, ROUND26.md).
+    const bool serverQc = sv.active || (sv.state == ss_loading && qcvm == &sv.qcvm);
+    const bool quakevr = (cl.protocolflags & PRFL_QUAKEVR) || (serverQc && (sv.protocolflags & PRFL_QUAKEVR));
     if(!model || model->type != mod_alias || !quakevr)
     {
         return ModelTransform{};

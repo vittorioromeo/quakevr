@@ -2195,6 +2195,31 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
     last frame, `attach_drawn: where=hand_main|hand_off|holster|lying|other_held|other_holster ent= kind= gun= at=`,
     then `attach_report: N drawn`). Screenshots not done.
 
+## Map-made armed humanoids hold their guns right: Quoth's kellbase1 enforcers (branch agent/quothpose, 2026-11-26)
+
+His note: kellbase1's enforcer with the Centurion's plasma rifle had its left arm off and its elbow flung out; the same
+enforcer and gun spawned on vrragtriggers was right.
+- Cause: AD's and Quoth's soldiers (eliminator, defender, pyro... `VR_HUM_Replace`) become armed humanoids inside the
+  map's spawn functions, and QC measures the held gun's points then, once (`VR_AGP_Geo`: muzzle, butt, second grip, kept
+  on the weapon entity). During spawn `sv.active` is still false and the client has not connected, so
+  `weapons::modelTransform` (vr_weapons.cpp) saw no Quake VR protocol and gave no transform: every gun was measured at
+  its model's own size (the Centurion's gun's muzzle 33 units ahead instead of 12, the burst rifle variants all alike).
+  The pose code took the long gun's butt and grips from that, the gun sat 10 units across the chest and the left arm
+  reached round it. A toolgun spawn (after spawn) measured right. Not Quoth-only: any armed humanoid made at a map's
+  spawn with a gun (AD's maps too); the id maps' armed grunts get theirs rolled later.
+- Fix: `modelTransform` also takes the server's protocol while the server's QC runs during loading
+  (`sv.state == ss_loading && qcvm == &sv.qcvm`). The comment there already named the same hole for the first frames
+  (thrown weapons' hulls three times too big); hulls and boxes made during spawn are now the drawn size too.
+- Debug: with `vr_agrunt_ik_debug 1`, `vr_agholds_report` (Debug > Armed Humanoids: Weapon Holds Report) adds `agarm`
+  lines: each arm's hand and elbow off its shoulder (model space) and the body's model, frame, scale.
+  `vr_agholds_pose save|pin|check|done` (vr_hitreact.cpp) compares the arms of those holding one gun model to a reference.
+- Test: `Misc/quakevr/quothpose_test.sh` (needs Quoth 2.2): scene `agrunt_enf_centurion` (vrragtriggers, frozen, the
+  reference, pinned within 1 unit), then `quoth_kellbase_enforcer` (campaign quoth, frozen): both kellbase1 eliminators
+  within 1.5 units of it (before the fix about 10 units off). 2/0.
+- Kit: Quoth was missing from the kit's bases; `qvr-kit/links.ps1` now mirrors his Steam `quoth` as it does `ad`
+  (hard links for the paks and txt, no .cfg or .bat) into `qbase/quoth` and links it into each agent's bases.
+- Known, not mine: `reload/pouch_test.sh` fails "super shotgun (main hand, dual-wielded): fills too" with or without
+  this change.
 ## flathold3: hands drawn on what they hold never leave the wrists (branch agent/flathold3, 2026-11-26)
 
 His words (flat feedback 2026-11-26 late, item 2): grabbing crates with H, "the hands detach from the wrists when the player is
