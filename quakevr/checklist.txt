@@ -18,6 +18,11 @@ Reach for the belt flashlight quickly and grip as your hand passes it, without s
 Close your hand on the way to the belt flashlight and arrive with it already closed: it takes the torch as soon as your hand is in its glow (within a second of closing); a fist held closed longer does not. {test:start_shotgun}
 Holster Setup: the belt flashlight shows as a box; grip it and drag it somewhere else, turn your hand to turn it, push the stick to grow its grab zone (the torch itself stays the same size); after Done, grabbing it works at the new place and the new size. {test:start_shotgun}
 Set Flashlight Side to Right after placing the torch in Holster Setup: it hangs at the mirrored place and turn on the right hip. {test:start_shotgun}
+Body and Display: click Handedness to Left-handed, then click it again: it goes back to Right-handed (Comfort and Gore Preset cycle the same way, never sticking on Custom). {test:hub_start}
+Climb a rope, a chain and a pole hand over hand: no grunt on any pull. {test:ropes}
+Flat-screen or VR: walk right up against a crate and punch it repeatedly with your fist: every punch lands and wears it, not just the first. {test:nav_props}
+In an Arcane Dimensions map with crossbow knights: they are AD's own crossbow knights, while the other AD soldier variants are still armed humanoids. {test:humrepl_variants}
+Hold the shotgun up to your eye: its front sight post now shows in the new default hue (90 degrees off the rear notches). {test:start_shotgun}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
