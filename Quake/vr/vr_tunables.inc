@@ -263,6 +263,7 @@ QVR_TUNABLE(vr_flashlight_brightness, "1")
 QVR_TUNABLE(vr_flashlight_range, "1000") // units the beam reaches
 QVR_TUNABLE(vr_flashlight_beam, "0.5") // how strong its soft cone of light in the air is, 0..1 (0: none)
 QVR_TUNABLE(vr_flashlight_flick_max_move, "1.5") // m/s: the hand moving faster than this (a swing, a punch) never flicks
+QVR_TUNABLE(vr_flashlight_closed_grab, "1") // real seconds a grip closed before the hand reaches the belt torch still takes it there (round 26: a hand arriving closed)
 QVR_TUNABLE(vr_flashlight_flick_cooldown, "0.4") // real seconds after a flick before the next counts (the wrist coming back is not a second flick)
 QVR_TUNABLE(vr_flashlight_hand_forward, "-0.05") // metres the torch sits forward in the fist (negative: back),
 QVR_TUNABLE(vr_flashlight_hand_up, "-0.04") // and up (negative: down; round 21: on top of the fitted grip)
@@ -589,6 +590,13 @@ QVR_TUNABLE(vr_throw_point_dagger_time, "1")
 QVR_TUNABLE(vr_throw_point_dagger_angle, "1")
 QVR_TUNABLE(vr_throw_point_dagger_spin, "1")
 QVR_TUNABLE(vr_throw_point_dagger_damp, "1")
+// A throw from the reverse grip (QVR_WPNFLAG_REVGRIP: an overhead throw, the point out of the little finger's side; revthrow,
+// his words 2026-11-26: "even the smallest amount of wrist snap during the throw causes the spear to spin ... much more
+// lenient"): its leniency L (0: as an upright throw). The release's tumble across the blade cut by L (at most all of it), the
+// settling spring (1 + 2L) times as stiff, steadying tumbles up to (1 + 3L) times Point-First Settling: Tumble, full help
+// from Point-First Settling's slowest speed. Upright throws: unchanged.
+QVR_TUNABLE(vr_throw_point_rev_pole, "0.8") // a pole weapon's (the spear, the Crystal Lance): strong, it flies point first almost at once
+QVR_TUNABLE(vr_throw_point_rev_blade, "0.3") // a sword's or dagger's: a little
 QVR_TUNABLE(vr_shot_push_pellet, "6") // N s, each shotgun and double shotgun pellet's push (monsters' too)
 QVR_TUNABLE(vr_shot_push_nail, "12") // N s, a nail's (the nailgun's, scrags', knights', enforcers' lasers)
 QVR_TUNABLE(vr_shot_push_supernail, "24") // N s, a super nailgun nail's
@@ -1805,6 +1813,9 @@ QVR_TUNABLE(vr_climb_prop_pull, "40") // kg: the most weight a hand on a light p
 QVR_TUNABLE(vr_climb_prop_tilt, "10") // degrees: a held prop's top turned this far from how it lay when taken lets the hand go (it tipped over)
 QVR_TUNABLE(vr_climb_prop_slip, "6") // units: a light prop's hold moved this far from where it was taken lets the hand go (pulled off its stack, slid away)
 QVR_TUNABLE(vr_climb_prop_letgo_speed, "200") // units/s: a held prop's hold whose speed changes this much in a frame lets the hand go (knocked away: a blast, a hit)
+QVR_TUNABLE(vr_climb_rung_max, "5") // (tutorial) units: the thickest rung a hand is drawn gripping round (vr_climb_rung_grip; both ways across; the tutorial's 3.5; 0 none)
+QVR_TUNABLE(vr_climb_rung_round, "0.06") // (tutorial) a rung is round when its front, a sixth of its thickness under its top and over its bottom, is this share of its thickness further in than at its middle (a cylinder's 0.14, an octagon's 0.14; a square bar 0)
+QVR_TUNABLE(vr_climb_rung_tilt, "60") // (tutorial) degrees: a hand gripping a rung, its palm's middle turned from under the rung (0, a level pole's) towards the climber (90); 60: the palm in front and under it, the fingers over its top to its back edge (vr_rung_grip_test: 45 left them on top, 70 and over left nothing under it)
 QVR_TUNABLE(vr_hull_build_mb, "1024") // the memory the world's compiled hulls' builds at a load may hold at once (MB, estimated: 16 KB a brush of the world's a tree; vrstart: about 330 MB a tree, three at once): a build past it waits for one to end (one always runs); 0: no limit (vrstart's seven at once: about 1 GB more working set, 5-10% quicker)
 
 // Debug > Profiling and Memory
@@ -2847,7 +2858,6 @@ QVR_TUNABLE(vr_rope_thumb_wrap, "2.5") // ropes13 (his flat note 2026-11-23: the
 QVR_TUNABLE(vr_rope_hand_pitch, "10") // ropes10 (his flat note 2026-11-23): a hand gripping a climbable rope or pole is drawn with its knuckles pitched up this far off square to the rope (degrees, 0..45; the turn towards the world's up, so a monkey traverse's overhand knuckles, already up, are unchanged): VR, flat and other players' copies (vr_climb.cpp ropeTurn)
 QVR_TUNABLE(vr_rope_elbow_wide, "4") // climbfix (his flat note 2026-11-25: elbows came in climbing a rope or pole): how far out to the sides the rope's elbow pose points against its little down and back (0..10; 1 ropes10's): wider keeps the elbows out at the sides even with a hand pulled in to the rope by the chest (vr_avatar.cpp solveArm)
 QVR_TUNABLE(vr_rope_elbow_out, "1") // ropes10 (his flat note 2026-11-23): on a climbable rope or pole the arms' elbows are posed out to the sides and a little down and back (this share, 0..1, of the elbow's pole; the wrist's swing in eased off as much), not swung in across the face: yours (flat and VR) and other players' copies (vr_avatar.cpp solveArm, ropeHang)
-QVR_TUNABLE(vr_pole_grunt, "0") // ropes14 (his VR note 2026-11-23: "too much ... just disable it"): volume (0..1) of the exertion grunt a headset's pull up a climbable pole makes (ropes keep vr_rope_grunt); 0 none (vr_climb.cpp ropePullGrunt)
 QVR_TUNABLE(vr_rope_letgo_pass, "0.4") // ropes14 (his VR note 2026-11-23): seconds after letting go of a climbable rope or pole (a drop or a jump; VR and flat) it doesn't meet him: a pole's boxes let him through, his body doesn't push a rope aside (0..3; climb::ropeLetGoPass, the clients' prediction alike)
 QVR_TUNABLE(vr_rope_leg_smooth, "0.25") // ropes14 (his VR note 2026-11-23: the legs' IK changed too abruptly): seconds (about; an exponential approach, a third of it the time constant) the feet round a climbed rope or pole take to follow it to their new place (0: at once; vr_avatar_climb.cpp)
 QVR_TUNABLE(vr_rope_grip_keep, "1") // ropes14 (his VR notes 2026-11-23): VR only: 1 a hand on a level rope or pole keeps the grip it took (overhand or underhand, as the controller was turned as it gripped) until it lets go; 0 chosen from the view's way each frame (as flatscreen play does; vr_climb.cpp drawnHand)

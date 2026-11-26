@@ -94,6 +94,7 @@ struct Scenario
 {
     za::String id, title, map, hint;
     bool hasStart{false};
+    bool campaignSet{false}; // a `campaign <folder>` line: that campaign made the active one while the file is read
     float start[3]{};
     float startYaw{0.f};
     bool hasStartYaw{false};
@@ -181,12 +182,22 @@ int slotsBefore = 0;        // an `mp` scene changed the client slots: how many 
     return za::String{com_gamedir} + "/scenarios";
 }
 
-// A scene's map: found in the running campaign, or else in the add-on campaign (Arcane Dimensions, Quoth, Dwell: rows
-// 3 and up) that has it, which is made the active one first (no map started: the scene's own `map` follows). So a scene
-// needing an add-on's map never depends on the campaign the scene before it left running.
-bool mapFoundOrCampaignSelected(const char* map)
+// A scene's map. A scene without a `campaign` line runs in Quake's campaign when the map is there (a scene after an
+// Arcane Dimensions one used to load AD's own "start" for `map start`: the checklist's Test buttons landed on AD's start
+// map), else in the add-on campaign (Arcane Dimensions, Quoth, Dwell: rows 3 and up) that has the map, made the active
+// one first (no map started: the scene's own `map` follows). So a scene never depends on the campaign the scene before
+// it left running. `campaignExplicit`: the scene's `campaign` line chose it already (only the map's presence is checked).
+bool mapFoundOrCampaignSelected(const char* map, bool campaignExplicit)
 {
     const za::String file = za::String{"maps/"} + map + ".bsp"; // (a copy: va()'s buffer is reused by the switch)
+    if(campaignExplicit)
+    {
+        return COM_FileExists(file.cStr(), nullptr);
+    }
+    if(VR_ActiveCampaign() >= 3)
+    {
+        VR_SelectCampaignNoMap(0); // (Quake's first: its maps, `start`, the VR maps)
+    }
     if(COM_FileExists(file.cStr(), nullptr))
     {
         return true;
@@ -378,6 +389,23 @@ bool read(const char* id, Scenario& out)
         {
             out.hint = rest(l);
         }
+        else if(!q_strcasecmp(d, "campaign"))
+        {
+            // campaign <folder>: ad, quoth, dwell, ... made the active one (before the `map` line): a package map (Quoth's
+            // metmon) found in any campaign still runs by its own campaign's rules.
+            const int idx = w.size() == 2 ? VR_CampaignIndexOf(w[1].cStr()) : -1;
+            if(idx < 0)
+            {
+                error(lineNo, "campaign <folder> (id1, hipnotic, rogue, ad, dwell, quoth...)");
+                return;
+            }
+            if(VR_ActiveCampaign() != idx && !VR_SelectCampaignNoMapNative(idx))
+            {
+                error(lineNo, va("campaign %s is not installed or cannot be played here", w[1].cStr()));
+                return;
+            }
+            out.campaignSet = true;
+        }
         else if(!q_strcasecmp(d, "map"))
         {
             if(w.size() != 2)
@@ -386,7 +414,7 @@ bool read(const char* id, Scenario& out)
                 return;
             }
             out.map = w[1];
-            if(!mapFoundOrCampaignSelected(w[1].cStr()))
+            if(!mapFoundOrCampaignSelected(w[1].cStr(), out.campaignSet))
             {
                 // (an AD map is found only while Arcane Dimensions is the running campaign: Play > Official Campaigns)
                 error(lineNo, va("no map maps/%s.bsp%s", w[1].cStr(),
@@ -1438,6 +1466,28 @@ void frame()
             held = held && (givenWeapon[1] == now[1] || givenWeapon[1] < 0.f);
             Con_Printf("SCNHANDS|%s|%s|after %.1f s|main given %.0f now %.0f|off given %.0f now %.0f\n", state.run.id.cStr(),
                 held ? "HELD" : "LOST", sv.qcvm.time - placedAt, givenWeapon[1], now[1], givenWeapon[0], now[0]);
+            // Where the scene landed: the map, the player's spot (against its `start`), and the live monsters within
+            // 1200 units (the audit of "the Test took me to the wrong place": a scene whose commands or spawns made
+            // nothing near you, or a player that strayed from its start).
+            if(p)
+            {
+                int near = 0;
+                for(int n = 1; n < qcvm->num_edicts; n++)
+                {
+                    const edict_t* o = EDICT_NUM(n);
+                    near += (!o->free && o != p && o->v.health > 0.f && !ZA_STRNCMP(PR_GetString(o->v.classname), "monster_", 8) &&
+                                glm::distance(geom::vec(o->v.origin), geom::vec(p->v.origin)) < 1200.f) ? 1 : 0;
+                }
+                const float strayed = state.run.hasStart ?
+                    glm::distance(geom::vec(p->v.origin), glm::vec3{state.run.start[0], state.run.start[1], state.run.start[2]}) : -1.f;
+                Con_Printf("SCNAT|%s|map %s|at %.0f %.0f %.0f|%d monsters within 1200|%d spawn lines|start strayed %.0f\n",
+                    state.run.id.cStr(), sv.name, p->v.origin[0], p->v.origin[1], p->v.origin[2], near,
+                    static_cast<int>(state.run.spawns.size()), strayed);
+                if(q_strcasecmp(sv.name, state.run.map.cStr()) != 0)
+                {
+                    note(va("landed on %s, not %s", sv.name, state.run.map.cStr()));
+                }
+            }
             // What the spawn lines placed is still there: the same entity, or (freed: it made another) something else
             // standing within 64 units of its spot.
             int there = 0;

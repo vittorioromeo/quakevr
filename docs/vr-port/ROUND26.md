@@ -1810,6 +1810,152 @@ gameplay preset "Unleashed", the uninstall key `QuakeVRUnleashed`, file names an
 Shortcut migration: Windows keeps the old letter case of an existing file/folder, so `ShellLink.Save` now renames an
 existing Start menu folder / deletes an existing .lnk that differs only in case before writing (self-test "shortcuts of
 the old letter case are renamed"; installer self-tests 63/63).
+
+## vrspear: VR's off hand round a pole's shaft, fixed on it, kept through an embed (branch agent/vrspear, 2026-11-26)
+
+His VR notes 2026-11-26 20:07-20:10 (vrtesthall).
+- **Round the shaft (20:07):** VR's pole grip (`vr_twohand.cpp` FREE_POLE: spear, Crystal Lance) drew the off hand where the
+  controller took hold, beside the shaft by however far off it grabbed. Now `setupHand` closes it round the shaft as drawn with
+  flat play's own helpers (`poleShaftLine`, `poleShaftGrip`; shared, not copied), by the grip's blend (`twohand::poleHelpShare`):
+  the least turn and move, so its place along the shaft is the grab's. Drawn only (the aim and the let-go go by the controller).
+- **Fixed on the pole (20:09):** `vr_pole_grip_fixed` (archived, default 1; "Other Hand Fixed on Poles" in Physics and
+  Interaction under Weapon Hand Slides on Poles): `updateFree` keeps its place on the pole (u + the holding hand's slide
+  constant); how far the hand is from that place lets go of it (the hotspots' 20-unit keep, times stickiness). 0: today's slide.
+  The holding hand's own slide (`poleShift`, a loose main grip) still works; its change is taken from where the hand would slide
+  (`FreeGrip::uFree`), so a loosened grip never jumps.
+- **A bug under the main hand's slide:** `freeHand` drew the off hand slid by its place from the holding hand, and the holding
+  hand's drawn pose (`drawnAs`) is already moved back by `poleShift`: with the main hand sliding, the drawn off hand slid along
+  the pole by the whole slide, both modes (10 cm in the test). Now less the slide since (`FreeGrip::handAlong`).
+- **Through an embed (20:10):** a stab that stuck put the second hand's pin on the blade's nearest grip hotspot from its
+  controller, eased in from the controller (the jump he saw). Now the off hand's last drawn pose on the pole is kept in the model's
+  frame (`poleGripNote`, `grasp::shapeToWorld` without scale) and a new pin on the same model within 0.25 s (`poleGripWas`) starts
+  there, at full weight, no hotspot; the stuck shaft grip keeps it round the shaft. A stuck pole's shaft hand now wraps with the
+  slot's Grip Overlap (`heldBy`): with the default the Lance's palm was drawn 2.6 cm off its shaft. Both settings of the option.
+  The server never let go in the mock (hands 3 the whole measure); his "detaches" was the drawn jump, as far as the mock shows.
+- **Probe:** `vr_embed_probe_palong` (cm along the shaft from its middle, last frame), `_pslide` (most minus least since reset).
+- **Tests:** `vrspear_test.sh`: vr_embed_test 75 (the Lance with the main grip loose, so the main hand slides; the spear with
+  `vr_pole_grip_fixed 0`) 18/0, 76 (the spear fixed, main grip closed) 9/0: the hand put 1-2 cm over the shaft takes it, 0.00 cm
+  off the shaft line, 0 degrees, 4 of 4 fingers; moved 15% of the pole along it, the drawn hand moved 0.00 cm (fixed) or
+  10.2 cm (0); the stab sticks, hands 3 for 0.6 s, round the stuck shaft, 0.1 cm from where it was held. (76 is its own run: a
+  third case in one run never took the pole, the fist 0.3 units off the shaft whatever the offset; not chased.) `VR_EH_Blow`
+  takes a give command (`vr_eh_givecmd`, the Lance's `vr_ad_test 207`). dwell_lance_test now sets `vr_pole_grip_fixed 0` in its
+  slide sections (51/0); spear_test 4/0 (VR 25/0); poleembed_test 16/0, 13/0.
+## tutorial: round rungs gripped round, the tutorial's lips, dark block and rope pit (branch agent/tutorial, 2026-11-26)
+
+His VR notes 2026-11-26 19:55-20:02 (vrtutorial).
+- **Round rungs** (Quake/vr/vr_climb.cpp findRung, rungAt, rungUp; display only): a hand's hold on a thin round rung is
+  drawn gripping it, the rung through the fist as a level pole's (gripAxes: ropeTurn without the rope's pitch), its palm's
+  middle out from the rung's axis under it, turned `vr_climb_rung_tilt` (60) towards the climber. Found by shape, any map:
+  probes down/up/across at the hold (worldtrace, so a remote client too): a bar at most `vr_climb_rung_max` (5) thick and
+  deep, open under it, 2 units of room behind it, its front curving in near its top and bottom by `vr_climb_rung_round`
+  (0.06) of its thickness (the tutorial's octagon 0.14, a square bar 0). Searched once per hold. Square or chunky rungs and
+  ledges: as before. `climb::gripLine` (rope, pole or round rung) now feeds the hand's grip (vr_view_hands.cpp ropeGrip:
+  the palm on the surface; ropeHeld: the fingers stop on it; vr_view.cpp: the thumb closes); `ropeLine` stays the rope's
+  (the arms' rope elbows, the rope tests). Switch: `vr_climb_rung_grip` (VR Settings > Climbing > Hand on a Hold: Hand
+  Round Thin Rungs). Flat ladder and headset alike (one drawnHand).
+- Test `vr_rung_grip_test` (vr_flatmove.cpp, flat): vrtutorial's ladder walked into and hung from: each hand round its
+  rung (fingers 0.39 in at the deepest, palm 0.4 off, vertices over and under it; the ledge pose with the switch off: 3
+  under), 4/0; vrtesthall's square rungs: held as ledges, 2/0. Tilt 45 left the fingertips on top, 70+ nothing under it.
+- **The lips** (vrtutorial_gen.py hazard_lip): the ladder block's and the jump wall's hazard strips stood 2 out of the
+  wall (a head hugging the wall caught under the jump wall's); now an 8 high, 16 deep detail cap flush with the face.
+  Playtest `--ledge` gates lipbase/underlip: a jump hugging the wall rises 44 (blocked it was at most 36).
+- **Dark course** block 3: 48 -> 64 high (a climb, not a jump), its north lip a hazard cap (R9_BLOCKS' 4th field).
+- **Rope pit** (room 14): wall lamps half way down the pit's walls (5; none over the ladder) and two on the room's long
+  walls by the rope at LOW + 160; the rope is lit as the light where it hangs.
+- Map recompiled (final, holes 0): vrtutorial's shipped cache keys change (bsp, lit, lux).
+- Playtest: the "ledge" gate (catch the high ledge at a jump's top) fails on origin/next's map too (no mantle); on the new
+  map the mantle starts, then "moved away, letting go": not this task's, left. Its grab now at x 3170 (over the lip).
+- Screens: scratch/tut_before.png, tut_after.png (pit, dark block, jump wall), tut_rung_vrtutorial.png.
+## VR fixes from his evening notes: rope grunts gone, preset rows toggle, punches on a hugged crate, AD crossbow knight, front sight hue (branch agent/vrmisc, 2026-11-26)
+
+- **No grunts on ropes, chains, poles** (his note 20:03): the pull grunt (`ropePullGrunt`, `vr_rope_grunt`,
+  `vr_rope_grunt_sound`, tunable `vr_pole_grunt`, their Climbing rows) removed. Flat ropes never grunted. The mantle's
+  grunt (ledges) stays. `rope_plays.py` lost its `grunts` checks (`vr_rope_climb_check grunts` gone).
+- **Preset rows toggle both ways** (his note 20:06): Handedness, Comfort and Gore Preset show Custom when the settings match
+  no choice; stepped to, Custom set nothing and the next frame's sync showed the old choice again (Left-handed clicked
+  stayed Left-handed). `vr_menu.cpp shownOnlyChoice`: a step passes over Custom, the drop-down's pick of it changes
+  nothing. Test `vr_menu_preset_cycle_test` (Debug > Tools: each row stepped both ways, never stuck, never on Custom;
+  the settings put back): 9/0.
+- **Punches on a hugged crate land** (his note 19:56, VR and flat): a blow strikes what the hand struck last
+  (`mh_struck`) again only entering it (his note 2026-10-12: a retraction or a blade turned in a body struck again).
+  A fist resting in a crate's box as you hug it (a flat fist's rest past your box) started every punch in it, so
+  only the first landed (swish, no hit). `vr_melee.qc VR_Melee_PunchedIn`: a fist's point starting in it that comes
+  at least half its sweep nearer its middle strikes again; drawn back or turned, still not; blades unchanged (they
+  embed). Test `vr_prop_impact_test 8` (hugpunch, Debug > Automation "Punch a Hugged Crate"; vrfiringrange): four
+  punches hugging (knuckles a unit off), four from 3 units in, four 6 units off: before 2/1 (from in it 1 of 4), now 3/0.
+  eval.sh: no new failures; secret_hits 4/4. Not run: a flat-screen punch scene (the fix is in the shared sweep).
+- **AD crossbow knights stay AD's** (his note 20:21): `vr_agrunt_repl_crossbow` 0 (new, Armed Humanoid Replacements row
+  "AD Crossbow Knights"; QC `VR_HUM_On`); every other variant still replaced. `vr_ad_test 219` sets it on for its rows and
+  checks it off (humrepl 49/0); humcensus now leaves crossbow knights by default. BACKLOG section 6: make it a proper
+  armed humanoid, then turn it back on.
+- **Front sight hue** (his note 19:57): `vr_sight_front_hue_shift` default 240 -> 90 (his value).
+## flashgrab: the belt flashlight is a holster slot; Holster Setup places, turns and sizes it (branch agent/flashgrab, 2026-11-26)
+
+His note (VR, 19:58): a quick grab of the belt torch often missed it, the hand had to stop half a second; a hand arriving
+already closed should take it too; he wants to drag it in Holster Setup, turn it, and set its grab leniency without
+resizing the model.
+
+- **Grab rules** (`vr_flashlight.cpp`, `onBelt()`): on the belt (or springing home) an empty hand's grip in the grab zone
+  takes the torch at once: no `deliberate()` (no stillness, no open-hand-before check) and no punch exclusion. A grip
+  closed before arriving arms the late grip from anywhere and takes it the frame the hand is in the zone, for
+  `vr_flashlight_closed_grab` real seconds (QVR_TUNABLE, default 1; Debug > Tunables > Closed Grab Window). The
+  arbitration with the game is kept (a holster nearer than the torch draws, the other hand's weapon wins: `gameGripWins`).
+  On the head and on a gun nothing changed (deliberate presses, the late grip with stillness); the trigger toggle at the
+  lamp still needs a deliberate press.
+- **The other holsters** draw on the grip's press edge (QC `VR_HandGrabUtil_StartedHandGrabbing`: the hand in the hotspot
+  within 0.125 s of the press). A hand closed earlier than that does not draw from them; the torch now allows 1 s, as
+  he asked. Making the holsters match is a QC change left for him to decide.
+- **Holster Setup** (`vr_holstersetup.cpp`): the torch is a slot after the zones (`ZoneTorch`), its box round its axis
+  sized by its reach. Gripped, it drags like a holster (vr_flashlight_forward/_out/_up, solved in metres: `Params` now
+  carries each kind's rounding, snap, limit and step); turning the holding hand turns it about its middle past 4 degrees
+  (new `vr_flashlight_yaw`, `vr_flashlight_roll` with `vr_flashlight_tilt`, set by `flashlight::setBeltTurn`); both
+  hands' spread or the stick sizes its grab zone (`vr_flashlight_grab_range` 0.25..4: the zone, not the model). Undo,
+  Cancel, Reset Holster and Reset All cover it. No seated layout of its own (the same cvars seated).
+- **Side**: `vr_flashlight_side` stays, as a mirror of the saved place and turn (out, yaw and roll mirrored to the right
+  hip); no migration. Tilt now honours -90..90 (it was clamped to -30..60 though its slider went to 90).
+- Menus: Flashlight > On the Belt gets Turn and Lean Sideways; Reset Body and Equipment resets tilt, yaw and roll too.
+  Mock: `vr_mock_hand_to <hand> torch [along left out]` (the slot's middle); `vr_flashlight_probe` prints the slot
+  (middle, reach, beam, length); `vr_holstersetup_report` prints the torch's settings.
+- Tests: `flash_grab_test.py <agent> slot` (new; 17 checks: quick grabs at 2.2 and 4.4 m/s, closed 0.3 s before taken,
+  1.5 s not, the drag moves it and the grab follows, the old place no longer takes, the turn keeps its middle, the stick
+  enlarges the zone only, the right side mirrored; verdict "flash_grab_test slot: N passed, M failed"). `timing`: the
+  former punch/away/closed controls now must take it; a stale-closed control added. Run: slot 17/0, timing 297/0,
+  mounted:0, returning, otherweapon 7/0, flash_trigger 6/0, tunables_test, holstersetup_test.
+- Known, not this branch: `holstersetup_test.sh` "gun at the right hip (drag) + 0 out: DROP (want IN)" fails with this
+  branch's flashlight/setup files reverted to origin/next too.
+## revthrow: reverse grip throws settle point first more readily (branch agent/revthrow, 2026-11-26)
+
+His words (VR, 20:11): a spear thrown overhead from the reverse grip spun with "even the smallest amount of wrist snap"; he wants
+it to "almost immediately stabilize with its point forward", a little of that for swords and daggers too, each tweakable.
+- A thrown weapon keeps QVR_WPNFLAG_REVGRIP (DropWeaponInHandScaled). The engine's Point-First Settling (vr_box3d_step.cpp
+  `pointAlign`) reads it at the release and takes a leniency L: `vr_throw_point_rev_pole` 0.8 for pole weapons (the spear,
+  the Crystal Lance: `axestick::pointPole`), `vr_throw_point_rev_blade` 0.3 for swords and daggers. With L the release's
+  tumble across the blade is cut by L (all at 1), the spring is (1 + 2L) times as stiff (still critically damped), tumbles
+  up to (1 + 3L) times Point-First Settling: Tumble are steadied, and full help applies from its slowest speed (3 m/s).
+  L 0, or an upright throw: the same maths as before. Rows: Debug > Tunables, "Reverse Grip Settling: Spears / Blades".
+- Flat-screen reversed throws carry the flag too, so they get the same leniency (shared path).
+- Test `vr_embed_test 73` (QC/vr_revthrow_test.qc, vrtesthall; ends `revthrow: N passed, M failed`): scripted reverse grip
+  releases (point 10 degrees up, the snap turning it down; spears at 8..20 rad/s and 10..16 m/s, sword and dagger at
+  14..22 rad/s) at a wall, three passes: at the settings every spear is point first within 150 ms and stays so and sticks by
+  its point (mean 6 degrees against 59 at L 0); sword and dagger steadier than at L 0; upright throws match the L 0 reversed
+  ones exactly. 6/6.
+## scenes
+
+His report (2026-11-26 20:21): checklist Test buttons "don't take me to the right places"; the Quoth lines went to AD's
+start map. Cause, one bug in the scene runner: the Quoth lines (ne_marb, kellbase1 buttons, lpqsp1, metmon) were tagged
+`{test:hub_start}` (`map start`), and `map start` runs in whichever campaign the scene before left active (after any AD
+scene: AD's own start map; VR_CheckSpawnCampaignMap). Fixes: (1) a scene without a `campaign` line now runs in Quake's
+campaign first (mapFoundOrCampaignSelected switches back from an add-on; Quake's maps and `start` are found there),
+else in the add-on that has the map; (2) new directive `campaign <folder>` (before `map`) for package maps found in any
+campaign but played by one's rules (Quoth's metmon); (3) four new scenes quoth_ne_marb, quoth_kellbase_buttons,
+quoth_lpqsp1, quoth_metmon (the four checklist lines need retagging: kit scratch/cl_lines_scenes.txt and
+scratch/scenes_cl.diff in the questi tree); (4) `vr_scenario runall` prints `SCNAT|id|map|at x y z|monsters within
+1200|spawn lines|start strayed` and fails a scene that landed on another map. Audit (196 scenes, headless, -game ad):
+before and after 2 FAIL (the kellbase scenes: Quoth's data is absent on this base) and 2 SKIP (Dwell, Crystal Lance data);
+the runner never saw the wrong-place cases (the map did load), the audit found them from the checklist tags: 4 Quoth lines
+on hub_start. Not fixed: humrepl_variants (the AD soldiers line) has no `start`, and vr_ad_test 219 is a PASS/FAIL
+self-test that makes the soldiers before you at ad_crucial's start. New scene pose_spear_humanoids: frozen spear enforcer,
+knight and death knight in vrtesthall's open middle (start 0 -40), the Pose Studio opened by the scene.
 ## promofails: flat tests failing on next after his promoted tunables (branch agent/promofails, 2026-11-26)
 
 Checked first with the pre-900606064 tunables set in the run: only flatmelee5's "rev thrust sword" depended on them; the

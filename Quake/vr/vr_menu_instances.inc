@@ -1481,6 +1481,98 @@ void qvr::menu::sliderStep_f()
     Con_Printf("vr_menu_slider_step: no slider of %s\n", name);
 }
 
+// vr_menu_preset_cycle_test (Debug > Tools; ROUND26.md, "vrmisc"): each preset row (Comfort, Handedness, Gore Preset)
+// stepped forward through twice its choices and back again, the menu's syncs after each step (as the next frame's draw
+// does): every step shows another choice, never Custom (shownOnlyChoice): Left-handed stepped on is Right-handed again.
+// The settings are put back after (Gore's through its My Settings test file). Ends with its verdict line.
+void qvr::menu::presetCycleTest_f()
+{
+    constexpr const char* name = "vr_menu_preset_cycle_test";
+    testkit::Tally tally;
+    // Comfort's and Handedness's settings as they are (every one their choices set: the first choice's list).
+    struct Kept
+    {
+        const char* cvar;
+        float value;
+    };
+    Kept kept[16]{};
+    int keptCount = 0;
+    for(const Preset& p : presets)
+    {
+        for(const PresetSetting& s : p.choices[0].settings)
+        {
+            if(s.cvar && keptCount < 16)
+            {
+                kept[keptCount++] = Kept{s.cvar, Cvar_VariableValue(s.cvar)};
+            }
+        }
+    }
+    gorepresets::kind().useTestFile(true);
+    gorepresets::kind().keepMine();
+    const auto syncAll = [] {
+        syncPresets();
+        gorepresets::sync();
+    };
+    cvar_t* const rows[] = {&vr_comfort_preset, &vr_handedness, &vr_gore_preset};
+    const int was = levelOverride;
+    levelOverride = LevelDeveloper;
+    for(cvar_t* const var : rows)
+    {
+        const Item* found = nullptr;
+        for(int p = 0; p < pageCount && !found; p++)
+        {
+            if(p == pageIndex(pageSearch) || p == pageIndex(pageChanged))
+            {
+                continue;
+            }
+            for(const Item& i : items(p))
+            {
+                if(i.kind == Item::Cycle && i.cvar == var)
+                {
+                    found = &i;
+                    break;
+                }
+            }
+        }
+        if(!tally.check(found != nullptr, name, va("%s: its row found", var->name)))
+        {
+            continue;
+        }
+        const Item item = *found; // (change may build the page again)
+        const int n = static_cast<int>(item.choices.size());
+        Cvar_SetValue(var->name, item.choices[n - 1].value); // (the last choice: Left-handed, Full Freedom, Off)
+        syncAll();
+        bool moved = true, neverCustom = true;
+        float stuckAt = -1.f;
+        for(int dir = 1; dir >= -1; dir -= 2)
+        {
+            for(int step = 0; step < 2 * n; step++)
+            {
+                const float before = var->value;
+                change(item, dir);
+                syncAll();
+                if(var->value == before && moved)
+                {
+                    moved = false;
+                    stuckAt = before;
+                }
+                neverCustom = neverCustom && !shownOnlyChoice(var, var->value);
+            }
+        }
+        tally.check(moved, name, va("%s: every step shows another choice (stuck at %g)", var->name, stuckAt));
+        tally.check(neverCustom, name, va("%s: a step never lands on Custom", var->name));
+    }
+    levelOverride = was;
+    for(int i = 0; i < keptCount; i++)
+    {
+        Cvar_SetValue(kept[i].cvar, kept[i].value);
+    }
+    (void)gorepresets::restoreMine();
+    gorepresets::kind().useTestFile(false);
+    syncAll();
+    tally.verdict(name);
+}
+
 // vr_menu_flash_test (Debug > Tools; ROUND25.md, "campvis"): a Search result opened ("Arm Drip Rate", on Gore) lands on
 // its row, which flashes (vr_menu_flash_time) and is scrolled to the list's middle (as far as the page lets it); the
 // flash is over once its time has passed; with vr_menu_flash_time 0 nothing flashes. Phases (it queues each next one

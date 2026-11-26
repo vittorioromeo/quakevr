@@ -196,6 +196,11 @@ Open on 2026-11-24 (notes in ROUND26.md once it has them; the named ROUND25.md s
   on by default in PvE. Multiplayer: two settings, PvE and PvP; PvP on by default (the MP branch does it), PvE off
   until this is done. 2026-11-22 (disarmfix, ROUND25): PvE now by jolts (no dice, a warning before the drop, fists and
   heavy blows count); left: his try in VR, then his OK to turn `vr_player_disarm` on.
+- **AD's crossbow knight as a proper armed humanoid, then re-enable its replacement** (his VR note 2026-11-26 20:21):
+  its automatic replacement by an armed knight holding the crossbow is off (`vr_agrunt_repl_crossbow` 0, ROUND26
+  vrmisc; every other AD/Quoth variant still replaced). Make the crossbow knight itself a valid armed humanoid (its own
+  model and rig, the crossbow held and aimed as AD's knight does, its look), then turn `vr_agrunt_repl_crossbow` back
+  on (or retire it). QC/vr_humrepl.qc VR_HUM_On; `vr_ad_test 219` checks both ways.
 
 ## 7. Combat and feel
 

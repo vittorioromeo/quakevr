@@ -1,0 +1,9 @@
+# tutorial_darkblock: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". tutorial (ROUND26.md):
+# vrtutorial's dark course (lesson 9), before its third block (64 high now, its lip hazard-striped: vrtutorial_gen.py
+# R9_BLOCKS, hazard_lip), a climb, not a jump.
+title Tutorial lesson 9: the dark course's block to climb
+map vrtutorial
+start 3880 250 -120 270
+god
+notarget
+hint Light the block ahead with your flashlight: its edge is striped and it is too tall to jump onto. Grab the striped edge and pull yourself up.

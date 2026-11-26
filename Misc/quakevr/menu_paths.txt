@@ -1136,6 +1136,7 @@ vr_agrunt_repl_id|1|Armed Humanoid Replacements|Quake's Campaigns|Advanced VR Op
 vr_agrunt_repl_mp|1|Armed Humanoid Replacements|Mission Packs|Advanced VR Options > Combat > Armed Humanoid Replacements > Mission Packs
 vr_agrunt_repl_ad|1|Armed Humanoid Replacements|Arcane Dimensions|Advanced VR Options > Combat > Armed Humanoid Replacements > Arcane Dimensions
 vr_agrunt_repl_variants|1|Armed Humanoid Replacements|AD and Quoth Variants|Advanced VR Options > Combat > Armed Humanoid Replacements > AD and Quoth Variants
+vr_agrunt_repl_crossbow|1|Armed Humanoid Replacements|AD Crossbow Knights|Advanced VR Options > Combat > Armed Humanoid Replacements > AD Crossbow Knights
 vr_humlook|1|Armed Humanoid Replacements|Recolour by Weapon|Advanced VR Options > Combat > Armed Humanoid Replacements > Recolour by Weapon
 |1|Armed Humanoid Replacements|Reset This Page|Advanced VR Options > Combat > Armed Humanoid Replacements > Reset This Page
 @page|1|Armed Grunts - AI Behaviour||Advanced VR Options > Combat > Armed Humanoids' AI Behaviour
@@ -1581,8 +1582,6 @@ vr_climb_over_top|1|Climbing|Reach Over the Top|Advanced VR Options > Movement >
 vr_climb_slide|1|Climbing|Hands Slide Along Ledges|Advanced VR Options > Movement > Climbing > Hands Slide Along Ledges
 vr_physsound_grab|1|Climbing|Grab Sound|Advanced VR Options > Movement > Climbing > Grab Sound
 vr_physsound_chain|1|Climbing|Chain Sounds|Advanced VR Options > Movement > Climbing > Chain Sounds
-vr_rope_grunt|1|Climbing|Rope Pull Grunt|Advanced VR Options > Movement > Climbing > Rope Pull Grunt
-vr_rope_grunt_sound|1|Climbing|Rope Pull Grunt Sound|Advanced VR Options > Movement > Climbing > Rope Pull Grunt Sound
 vr_climb_mantle_height|1|Climbing|Mantle Height|Advanced VR Options > Movement > Climbing > Mantle Height
 vr_climb_mantle_trigger|1|Climbing|Mantle When|Advanced VR Options > Movement > Climbing > Mantle When
 vr_climb_mantle_slope|1|Climbing|Steepest Slope|Advanced VR Options > Movement > Climbing > Steepest Slope
@@ -3204,6 +3203,8 @@ vr_throw_point_dagger_time|2|Tunables|Dagger Settling: Time|Advanced VR Options 
 vr_throw_point_dagger_angle|2|Tunables|Dagger Settling: Angle|Advanced VR Options > Debug > Tunables > Dagger Settling: Angle
 vr_throw_point_dagger_spin|2|Tunables|Dagger Settling: Tumble|Advanced VR Options > Debug > Tunables > Dagger Settling: Tumble
 vr_throw_point_dagger_damp|2|Tunables|Dagger Settling: Spin Damping|Advanced VR Options > Debug > Tunables > Dagger Settling: Spin Damping
+vr_throw_point_rev_pole|2|Tunables|Reverse Grip Settling: Spears|Advanced VR Options > Debug > Tunables > Reverse Grip Settling: Spears
+vr_throw_point_rev_blade|2|Tunables|Reverse Grip Settling: Blades|Advanced VR Options > Debug > Tunables > Reverse Grip Settling: Blades
 vr_shot_push_pellet|2|Tunables|Pellet Push|Advanced VR Options > Debug > Tunables > Pellet Push
 vr_shot_push_nail|2|Tunables|Nail Push|Advanced VR Options > Debug > Tunables > Nail Push
 vr_shot_push_supernail|2|Tunables|Super Nail Push|Advanced VR Options > Debug > Tunables > Super Nail Push
@@ -5166,7 +5167,6 @@ vr_rope_thumb_wrap|2|Tunables|Rope Thumb Wrap Thickness|Advanced VR Options > De
 vr_rope_hand_pitch|2|Tunables|Rope Grip Knuckles Up|Advanced VR Options > Debug > Tunables > Rope Grip Knuckles Up
 vr_rope_elbow_wide|2|Tunables|Rope Climb Elbows Wide|Advanced VR Options > Debug > Tunables > Rope Climb Elbows Wide
 vr_rope_elbow_out|2|Tunables|Rope Climb Elbows Out|Advanced VR Options > Debug > Tunables > Rope Climb Elbows Out
-vr_pole_grunt|2|Tunables|Pole Pull Grunt|Advanced VR Options > Debug > Tunables > Pole Pull Grunt
 vr_rope_letgo_pass|2|Tunables|Rope Let-Go Pass Time|Advanced VR Options > Debug > Tunables > Rope Let-Go Pass Time
 vr_rope_leg_smooth|2|Tunables|Rope Legs Smoothing|Advanced VR Options > Debug > Tunables > Rope Legs Smoothing
 vr_rope_grip_keep|2|Tunables|Level Rope Grip Kept|Advanced VR Options > Debug > Tunables > Level Rope Grip Kept

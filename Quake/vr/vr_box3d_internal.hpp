@@ -259,6 +259,7 @@ struct Slot // what one edict is in the world (by its number)
     float flightAge{0.f}; // ... seconds of that flight so far (pointAlign)
     float flightOff{0.f};    // ... a pointed blade's angle to its flight as it left the hand (radians; pointAlign's gate)
     float flightTumble{0.f}; // ... and its tumble across the blade then (rad/s)
+    float flightRev{0.f};    // ... thrown from the reverse grip: its leniency then (vr_throw_point_rev_*; 0 upright)
     const b3HullData* hull{nullptr}; // actors: the hull at rest (actorHull), nullptr for Quake's box
     // Corpses (vr_corpse_collide): the setting and the mask (corpseMask) its body was made with, and whether it is
     // dynamic (Pushable) and fitted to its pose (its hulls: corpseHulls) or a box.

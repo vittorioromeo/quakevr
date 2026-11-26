@@ -64,8 +64,6 @@ bool serverHold(edict_t* ent, int hand, glm::vec3& at, glm::vec3& out);
 
 // Server: how many of `ent`'s hands hold a climbable rope (vr_climb.cpp, "Holds on ropes"), hanging.
 [[nodiscard]] int ropeHands(edict_t* ent);
-// Server: the exertion grunts `ent`'s pulls up ropes have made so far (vr_rope_grunt; ropes6, the tests').
-[[nodiscard]] int ropePullGrunts(edict_t* ent);
 // Server: (ropes14, NOTES.md vrtutorial_2026-11-23_23-12-23) whether `ent` let go of rope or pole `rope` (its edict
 // number; any hand, VR or flat: a drop, a jump) under vr_rope_letgo_pass seconds ago: its boxes let him through and his
 // body doesn't push it (vr_climbrope.cpp passSolids, disturb), so he jumps where he looks without meeting it.
@@ -171,6 +169,12 @@ float drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm:
 // Client (ropes8a): the drawn `hand` on a rope or a pole: its axis as drawn at the hand (`at`, its way up `up`), its
 // thickness, how far the hand is drawn on it (`weight`, 0..1). False: not on one. (vr_view_hands.cpp: the grip round it.)
 [[nodiscard]] bool ropeLine(int hand, glm::vec3& at, glm::vec3& up, float& thickness, float& weight);
+// Client (tutorial): the drawn `hand` gripping a thin round rung (vr_climb_rung_grip; vr_climb.cpp findRung): its axis at
+// the hand (`axis`, its way `along`), its thickness, how far the hand is drawn on it (`weight`). False: not on one.
+[[nodiscard]] bool rungHeld(int hand, glm::vec3& axis, glm::vec3& along, float& thickness, float& weight);
+// Client (tutorial): either (a rope, a pole or a round rung through the drawn fist), as ropeLine has it: the hand's
+// grip round it (vr_view_hands.cpp ropeGrip, ropeHeld; vr_view.cpp's thumb).
+[[nodiscard]] bool gripLine(int hand, glm::vec3& at, glm::vec3& up, float& thickness, float& weight);
 
 // Client: how far the drawn `hand` is on its hold, as drawnHand last made it (0..1): a flat mantle's free hand leaves the
 // other hand's gun for it (vr_view_hands.cpp).

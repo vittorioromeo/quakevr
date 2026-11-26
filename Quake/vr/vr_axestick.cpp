@@ -1266,6 +1266,17 @@ float pointLeniency(edict_t* ent)
     return k > 0.f ? k : 1.f;
 }
 
+bool pointPole(edict_t* ent)
+{
+    qmodel_t* model = modelOf(ent);
+    if(!model || model->type != mod_alias)
+    {
+        return false;
+    }
+    const Blade& blade = shapeOf(ent, model).blade;
+    return blade.how == howPoint && blade.pole;
+}
+
 bool timeSpin(edict_t* ent, float least, float most, glm::vec3& spin, float& flight, glm::vec3& at)
 {
     qmodel_t* model = modelOf(ent);

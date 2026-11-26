@@ -342,6 +342,10 @@ QVR_SLIDER(vr_flashlight_clip_time, "Clip-On Transition", 0.f, 0.5f, 0.01f, "%.2
     "How long the torch takes to move and turn from where it was onto the gun or your head as it clips on. It is on at once (it follows the gun, lights where it aims); only how it is drawn eases in. 0: it jumps there.")
 QVR_SLIDER(vr_flashlight_tilt, "Lean Out", -90.f, 90.f, 1.f, "%.0f deg", ext(),
     "How far the stored torch, hanging on your belt lens down, leans its lens out from your body.")
+QVR_SLIDER(vr_flashlight_yaw, "Turn", -180.f, 180.f, 1.f, "%.0f deg", ext(),
+    "The stored torch turned about the upright, its switch round towards its side (Holster Setup turns it with your hand).")
+QVR_SLIDER(vr_flashlight_roll, "Lean Sideways", -90.f, 90.f, 1.f, "%.0f deg", ext(-180.f, 180.f),
+    "How far the stored torch leans its lens out sideways, away from your middle.")
 QVR_SLIDER(vr_flashlight_forward, "Forward", -0.3f, 0.3f, 0.005f, "%.3f m", ext(), nullptr)
 QVR_SLIDER(vr_flashlight_armor_forward, "Forward With Armour", -0.3f, 0.3f, 0.005f, "%.3f m", ext(),
     "Added to Forward while the armour's plates show on your body, so the torch stands clear of them. 0: no change.")
@@ -943,6 +947,9 @@ QVR_TOGGLE(vr_agrunt_repl_variants, "AD and Quoth Variants",
     "Arcane Dimensions' and Quoth's own soldiers are armed humanoids holding their own gun: rocket, grenade and plasma "
     "soldiers as grunts, defenders, eliminators, pyros and fumigators as enforcers, crossbow knights as knights, with "
     "their health (where replacements play in AD's maps; vr_agrunt_repl_variants).")
+QVR_TOGGLE(vr_agrunt_repl_crossbow, "AD Crossbow Knights",
+    "With AD and Quoth Variants on, Arcane Dimensions' crossbow knights are armed knights holding the crossbow too. Off "
+    "(the default for now): they stay as AD made them (vr_agrunt_repl_crossbow).")
 QVR_TOGGLE(vr_humlook, "Recolour by Weapon",
     "Armed humanoids wear the colour of the weapon they came with: rockets and grenades red, lightning and plasma blue, "
     "flamethrowers orange, poison green; their backpacks too (quakevr/humlook.txt; vr_humlook).")
@@ -2660,8 +2667,6 @@ QVR_SLIDER_BYNAME(vr_physsound_grab, "Grab Sound", 0.f, 1.f, 0.1f, "%.1f", noExt
     "A small slap as your hand takes a hold, of what the hold is made of: wood, muted metal or stone (0 off; also Carrying: Physics Sounds).")
 QVR_SLIDER_BYNAME(vr_physsound_chain, "Chain Sounds", 0.f, 1.f, 0.1f, "%.1f", noExt,
     "A climbable chain's own sounds: a metal grip as your hand takes it, and its links clinking when it swings or you climb it (0 off; a rope's grip makes a soft thud at the Grab Sound's volume).")
-QVR_SLIDER_BYNAME(vr_rope_grunt, "Rope Pull Grunt", 0.f, 1.f, 0.1f, "%.1f", noExt,
-    "A short grunt as you pull yourself up a climbable rope with your hands (once a grip, when the pull lifts you; not when you only grab it). 0 off.")
 QVR_SLIDER_BYNAME(vr_climb_mantle_height, "Mantle Height", 0.f, 40.f, 1.f, "%.0f units", noExt,
     "Holding a ledge, how far your head must rise above its top before you pull up onto it. Higher: you "
     "can lean up and down over a ledge without mantling (the old point was about 15 at a chest-high ledge; "
@@ -2697,6 +2702,8 @@ QVR_SLIDER_BYNAME(vr_climb_hand_yaw, "Hand on Hold: Yaw", -60.f, 60.f, 5.f, "%.0
     "The hand facing a hold, its knuckles turned towards the other hand (negative: away). Looks only.")
 QVR_SLIDER_BYNAME(vr_climb_hand_roll, "Hand on Hold: Roll", -90.f, 90.f, 5.f, "%.0f deg", ext(),
     "The hand facing a hold, rolled about its knuckles, the thumb's side up (negative: down). Looks only.")
+QVR_TOGGLE_BYNAME(vr_climb_rung_grip, "Hand Round Thin Rungs",
+    "On: your hand on a thin round rung (a ladder's bar you could close your fist round, like the tutorial's) is drawn gripping it, the rung through your fist. Off: drawn on top of it as on a ledge. Square or chunky rungs are always held as ledges. Looks only.")
 
 // vr_menu_pages.inc: pageSwimSettings
 QVR_TOGGLE_BYNAME(vr_swim, "Swimming",
@@ -4197,6 +4204,10 @@ QVR_TOGGLE(vr_pole_slide, "Weapon Hand Slides on Poles",
     "A pole weapon held in both hands (the Crystal Lance): loosen your weapon hand's grip while the other hand "
     "holds the pole closed, and the weapon hand slides along the pole as you move it (choke up towards the head, "
     "or back to the butt). Off: only the other hand slides.")
+QVR_TOGGLE(vr_pole_grip_fixed, "Other Hand Fixed on Poles",
+    "A spear, a pole or the Crystal Lance held in both hands: your other hand stays at the point of the shaft where "
+    "it took hold, while held and while the weapon is stuck in an enemy. Off: it slides up and down the shaft with "
+    "your hand.")
 QVR_SLIDER(vr_pole_slide_grip, "Pole Slide Grip", 0.2f, 0.95f, 0.05f, "%.2f", noExt,
     "How far your grip may close and still slide on a pole: under this the hand slides, at or over it the hand "
     "holds. Keep it over the point where your controller lets go of the weapon.")

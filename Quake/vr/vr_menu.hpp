@@ -159,6 +159,7 @@ void runLaunchTest_f();      // vr_runlaunch_test: every way a run starts, the m
 void runLaunchTestFrame();   // ... its steps, a frame at a time (VR_HostFrameEnd)
 void continueRowsTest_f();   // vr_continue_rows_test: Continue on Select Campaign's and the Map Library's rows
 void flashTest_f();          // vr_menu_flash_test: a Search result's row flashed and centred
+void presetCycleTest_f();    // vr_menu_preset_cycle_test: the preset rows (Comfort, Handedness, Gore) step both ways, never stuck on Custom
 void searchFilterTest_f();   // vr_menu_search_filter_test: Search's filter row (Both, Cvars, Tunables)
 void stopTest_f();           // vr_menu_stop_test: a menu opened while walking stops the player
 void mapsPagePick_f(); // maps_page_pick <row> [source]: a row of the Map Library picked (test aid) // maps_page_stats: what the page's list costs, and its layout (Debug > Tools)

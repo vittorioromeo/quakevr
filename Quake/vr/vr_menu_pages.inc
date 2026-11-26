@@ -461,8 +461,6 @@
         row(opt::vr_climb_slide).extend().help("When your body can't follow your hands along a ledge (past your arm's reach, against a wall), the hand slides along it and stays on your controller. Off: it stays where it took hold, and drifts away from your controller."),
         row(opt::vr_physsound_grab),
         row(opt::vr_physsound_chain),
-        row(opt::vr_rope_grunt),
-        cycle("Rope Pull Grunt Sound", "vr_rope_grunt_sound", gruntChoices()).help("Which grunt a pull up a rope makes. The jump's, deeper (the default), so it is told apart from a jump off the rope."),
         row(opt::vr_climb_mantle_height),
         row(opt::vr_climb_mantle_trigger),
         row(opt::vr_climb_mantle_slope),
@@ -484,6 +482,7 @@
         row(opt::vr_climb_hand_pitch),
         row(opt::vr_climb_hand_yaw),
         row(opt::vr_climb_hand_roll),
+        row(opt::vr_climb_rung_grip),
     };
 }
 

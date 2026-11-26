@@ -1,0 +1,9 @@
+# tutorial_ladder: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". tutorial (ROUND26.md): vrtutorial's
+# lesson 3 ladder (round rungs: the hands drawn round them, Quake/vr/vr_climb.cpp findRung; vr_rung_grip_test) and the jump
+# wall over its block (its hazard-striped lip flush with the wall, vrtutorial_gen.py hazard_lip).
+title Tutorial lesson 3: the ladder's round rungs and the jump wall's lip
+map vrtutorial
+start 2900 704 24 0
+god
+notarget
+hint Grip the ladder's rungs and climb: your hand closes round each rung, not on top of it. On the block, hug the wall ahead and jump: nothing catches your head under the striped lip; jump and grab the lip to climb up.

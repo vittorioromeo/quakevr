@@ -1234,6 +1234,23 @@ float(entity e, vector xP0, vector xP1, float xR) VR_Melee_StartsIn =
     return VR_SegmentBox(xP0, xP1, e.origin + e.mins - pad, e.origin + e.maxs + pad) == 0;
 };
 
+// (vrmisc, his note 2026-11-26 19:56: "punches that are thrown when the player is hugging a crate ... most of the times
+// they don't register") Whether a fist's point swept from `xP0` to `xP1` in what the hand struck last (b.mh_struck),
+// starting in it, is a new punch driven into it: it comes at least half its sweep nearer the thing's middle. A fist
+// resting in a crate's box as you hug it (a flat fist's rest past your box) punched again only ever started in it, so
+// only the first punch landed; drawn back or turned about in it (his note 2026-10-12) it isn't. Fists only: a blade in
+// a thing (stuck, turned, pushed) never strikes it again from in it.
+float(entity e, float xKind, vector xP0, vector xP1) VR_Melee_PunchedIn =
+{
+    if(xKind != VR_MPT_FIST)
+    {
+        return FALSE;
+    }
+    vector mid = (e.absmin + e.absmax) * 0.5;
+    float nearer = vlen(xP0 - mid) - vlen(xP1 - mid);
+    return nearer > 0.5 && nearer >= 0.5 * vlen(xP1 - xP0);
+};
+
 // The lines a hand's sweep strikes with (VR_Melee_Sweep, from VR_Melee_Ribs): each swept from the pose before to this one
 // (vr_rib_p0 to vr_rib_p1), vr_rib_r thick, striking as the layout's point vr_rib_i (VR_Melee_Decide's); the box round
 // them all, their thickness in (vr_rib_lo, _hi); a wall's crossing by each (VR_Melee_Sweep: how far past its surface,
@@ -1749,7 +1766,8 @@ float(float xHand, entity b) VR_Melee_SweepNow =
                 // blade still in the thing after a blow, drawn back or turned about in it: his note 2026-10-12, a
                 // retraction striking again) strikes nothing; its sweep from outside, even through it in one frame,
                 // does. (Not a first blow's: his punches and thrusts start their last frame within a point's reach.)
-                if(t <= 0 && e == b.mh_struck)
+                // A fist punched on into it from in it does (VR_Melee_PunchedIn: hugging a crate).
+                if(t <= 0 && e == b.mh_struck && !VR_Melee_PunchedIn(e, vr_mpt_kind[i], p0, p1))
                 {
                     if(e == b.mh_hit_ent)
                     {
