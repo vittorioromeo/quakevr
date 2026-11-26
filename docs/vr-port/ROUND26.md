@@ -836,6 +836,63 @@ His items 3, 5, 12 (2026-11-25).
   skipped), each as its own commit ("tunables: promote his values", "checklist: retire N ticked lines"). A build that
   fails with them in ships again without them (warning). Flags: `--no-promote`, `--no-retire`, `--wait-game` (releases).
 
+## vrstartgeo: the hub's geometry measured for cheaper collision; no safe simplification gains anything (branch agent/vrstartgeo, 2026-11-26)
+
+His question: could vrstart be made cheaper (fewer brushes, smaller hull trees) by merging brushes or slightly
+simplifying geometry, without changing its looks or function. **Answer: not without visible changes.** The terrain is
+all of the collision cost, and the parts of it nobody sees closely are already sparse. Nothing was changed: the
+generator, the .map, the .bsp, the relit copy and the shipped cache stay as they are, so nothing needs regenerating.
+
+**What the map is made of** (`vrstart_gen.py` output, 10,450 brushes and 63,767 planes): the terrain's prisms are 9,069
+(87 %: island 3,744, cliffs and mountains 4,042, lake floor 1,283). The rest: lights 252, pines 202 (about 21 planes
+each), boulders 175 (about 24), the structures about 610 (pavilion 123, bridge 104, tower 91, range 82, pier 63, terrace
+54, stairs 75, arrival 22), func_detail_illusionary 76, buttons 34, barrels/boat/islets 19. The terrain's 10,366
+triangles (merged into 9,069 prisms where exactly coplanar), by area: island inland 2,939, cliff faces 1,908, open lake
+floor 1,483, cliff tops behind the edge 1,349, the island's shore underwater 1,133, cliff feet underwater 746, beach 464,
+mountains 344.
+
+**The compiled .bsp** (qbsp 0.18.1, the same counts when rebuilt from the committed .map): 72,755 world faces, 53,407
+nodes; hull 0: 20,694 solid leaves, 23,002 empty, 9,707 water, 5 sky; hull 1: 82,974 clipnodes, hull 2: 69,109;
+97,987 marksurfaces; 17.9 MB. **The terrain alone** (`--only-terrain`): 20,741 solid leaves, 76,041 / 70,730 clipnodes.
+So the structures and decor add practically no solid leaves (they add 25,000 drawn faces).
+
+**In the game** (PC, Release no-LTO, `vr_cache_shipped 0; vr_hull_cache 0; vr_hull_defer 0`, cold, other jobs beside
+it, so times are rough): 24,773 brushes (141 clip), 516,832 planes (354,146 bevels); 8 trees of 0.81-1.01 M nodes,
+21.6 MB each; the trees' compile times summed to 23.8 s. On the terrain-only .bsp: 21,012 brushes, 466,608 planes, and the
+standing tree has 1.03 M nodes, *more* than the full map's 0.92 M. The trees are the terrain's.
+
+**Tried** (terrain only, qbsp; solid leaves and hull 1 clipnodes against 20,741 / 76,041):
+
+| change | prisms | hull 0 solid leaves | hull 1 clipnodes |
+|---|---|---|---|
+| underwater and hidden parts simplified (the shore deeper than 16 units within 3 units, the lake floor 6, cliff feet below -24 within 4, cliff tops past the edge within 6) | -3.7 % | +4.9 % | +5.6 % |
+| island points lying exactly on the coarser surface left out (no change in shape) | -3.7 % | +4.8 % | +5.6 % |
+| both | -7.5 % | -0.3 % | +0.1 % |
+| the prisms' floor raised (FLOOR_Z -1024 to -640, -448, -384) | 0 | 0 | 0 |
+| qbsp -maxnodesize 512 / 256 (full map) | 0 | +6 % / +13 % | -4 % / -9 % |
+| qbsp -forcegoodtree | | hull 0 came out broken (1,376 nodes) | |
+| *visible*: the island's open ground on a 128 lattice instead of 64 (the coast more than 200 units back; outlines of paths, zones and the ravine kept) | -13 % | -14 % | -13 % |
+| *visible*: that, plus the cliff faces' rings 180 points instead of 260 | -20 % | -23 % | -20 % |
+
+What dominates is the number of distinct terrain faces. qbsp splits only on face planes (hidden faces between prisms
+don't count), so how the solid is cut into brushes, or how deep it goes, changes nothing. An edit that removes under
+about 5 % of the faces is lost in qbsp's noise: any edit moves the leaf count by +-5 %.
+
+**Ranked, for him to decide** (none done):
+1. The island's open ground at 128 units instead of 64 (visible: facets twice as wide on the grass, grass patch outlines
+   coarser, walkable heights move by a few units, so vrstart_walktest.py would need rechecking for snags): about -14 % of
+   leaves and clipnodes, and the trees probably about the same.
+2. Fewer points in the cliff-face rings (260 to 180: facets about 80 to 115 units wide along the shore): with 1, -23 %.
+3. Engine side (agent/hullspeed's area, untested idea): most recovered terrain brushes are slanted slices with ~14 bevels;
+   brushes that touch only other solid (deep under the ground), or that no box can reach (behind the cliffs), could be
+   left out of the trees.
+4. Not worth doing (measured above): simplifying underwater or hidden parts, dropping exactly-redundant points, raising
+   the floor, qbsp's split flags.
+
+Scripts (worktree round25, `scratch/`, not committed): `vsg_count.py` (brushes and planes per group in a .map),
+`vsg_bsp.py` (BSP2: hull 0 leaves by contents, clipnodes per hull), `vsg_qbsp.sh` (qbsp only, then the stats),
+`vsg_bands.py` (terrain triangles by area), `vsg_exp2.py` (terrain variants: tolerances, `VSG_FLOOR`, `VSG_INLAND`,
+`VSG_GEN`).
 ## hullwait: no pause in play for a crouch after a cold load; the loading panel says what it builds (branch agent/hullwait, 2026-11-26)
 
 His words: a pause in play is worse than a longer load; loads need clarity (a progress bar like the shaders' one).
