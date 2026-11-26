@@ -54,8 +54,13 @@ void mark(int h, Source s, const char* why);
 // The move's bits for the server (.handsynth): 1 the off hand's motion is not for gestures, 2 the main hand's; 4 the off
 // hand's motion is a button's action (QC VR_HandMotionAction: its blow is deliberate), 8 the main hand's; 16 the off
 // hand's physics body lets bodies through (passBodies), 32 the main hand's; 64 the off hand holds its melee weapon up in
-// the flat-screen parry's guard (guarding: QC VR_FlatGuardHand), 128 the main hand.
-[[nodiscard]] za::U8 moveBits();
+// the flat-screen parry's guard (guarding: QC VR_FlatGuardHand), 128 the main hand; 256 the main hand's action is the
+// flat-screen two-fisted overhead blow, one hit for both fists (twoFisted: QC VR_HandTwoFisted).
+[[nodiscard]] za::U16 moveBits();
+
+// This frame the main hand's action is V's two-fisted overhead blow (vr_flatplay.cpp, vr_flat_overhand_both): its blow
+// is both fists' (QC VR_HandTwoFisted: vr_flat_overhand_2h_damage, _push); the off fist is marked Synthesized.
+void twoFisted();
 
 // This frame hand `h`'s physics body (its reach body: vr_box3d_hands.cpp reachSkips) lets ragdolls and corpses through:
 // the flatscreen shove's hand on its way back, so it does not drag what it shoved back with it.

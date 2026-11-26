@@ -2245,6 +2245,12 @@ QVR_TUNABLE(vr_flat_overhand_end_fwd, "0") // and this far further ahead (units;
 QVR_TUNABLE(vr_flat_overhand_end_out, "0") // and this far out at its own side (units; negative inwards)
 QVR_TUNABLE(vr_flat_overhand_end_yaw, "0") // the fist turned out at the strike's end (degrees; negative inwards)
 QVR_TUNABLE(vr_flat_overhand_end_roll, "0") // and rolled (degrees)
+// Both hands empty (vr_flat_overhand_both, flatmelee6, his words 2026-11-26): V's two-handed overhead blow, both fists by the
+// overhand's path, mirrored and in sync; one hit, the main fist's, for both (the off fist's motion strikes nothing).
+QVR_TUNABLE(vr_flat_overhand_2h_damage, "2") // the two-fisted blow's damage, times one fist's overhand blow at the same speed (2: the two fists' sum; QC VRMeleeDmg)
+QVR_TUNABLE(vr_flat_overhand_2h_push, "1") // and its push (vr_melee_push), times the push its damage gives (1: the two fists' sum, as its damage; QC T_Damage_VRMelee)
+QVR_TUNABLE(vr_flat_overhand_2h_raise_out, "-3") // the top: each fist this much further out at its own side than the one-fist blow's (units; negative: in, the fists together over the head)
+QVR_TUNABLE(vr_flat_overhand_2h_end_out, "1.5") // the strike's end: each fist this far out at its own side of the one-fist blow's end (units; the fists land side by side, not in one another)
 QVR_TUNABLE(vr_flat_parry, "1") // flatscreen: the right mouse button held with one melee weapon raises it into the parry's guard, almost level across the view (0: nothing, as before 2026-11-10)
 QVR_TUNABLE(vr_flat_parry_fwd, "14") // the guard: the hand this far ahead of the eye (units)
 QVR_TUNABLE(vr_flat_parry_up, "-2") // and this far above it (units; negative below)
