@@ -633,6 +633,37 @@ void slideTestFrame()
                     progs::staminaLeft(pl), t.startsWas, s.starts, t.refusalsWas, s.tiredRefusals);
                 testCheck(t.tally, tag, s.starts == t.startsWas && s.tiredRefusals > t.refusalsWas && !s.on, line);
                 Cbuf_InsertText("-flatcrouch\nvr_stamina_set 1\n");
+                pl->v.origin[0] = -580.f;
+                pl->v.origin[1] = -440.f;
+                pl->v.origin[2] = 24.f;
+                pl->v.velocity[0] = pl->v.velocity[1] = pl->v.velocity[2] = 0.f;
+                SV_LinkEdict(pl, false);
+                cl.viewangles[YAW] = 0.f;
+                cl.viewangles[PITCH] = 0.f;
+                next(8);
+            }
+            break;
+        case 8: // full speed again (with stamina): pressing prone must NOT start a slide (slides are crouch-only)
+            cl.viewangles[YAW] = 0.f;
+            if(!s.on && ground && speed > 300.f && now > s.cooldownUntil && !hull::flatCrouchHeld(pl) && !hull::isProne(pl) &&
+                inPhase > 0.2)
+            {
+                t.startsWas = s.starts;
+                t.startSpeed = speed;
+                Cbuf_InsertText("vr_prone_toggle\n");
+                next(9);
+            }
+            break;
+        case 9: // prone pressed at running speed: entered prone, zero slide starts
+            cl.viewangles[YAW] = 0.f;
+            if(inPhase > 0.5)
+            {
+                char line[220];
+                q_snprintf(line, sizeof(line),
+                    "prone at running speed (%.0f u/s) does not slide (slides %d -> %d, sliding %d, lying %d, lie share %.2f)",
+                    t.startSpeed, t.startsWas, s.starts, s.on ? 1 : 0, hull::isProne(pl) ? 1 : 0, flatplay::proneRatio());
+                testCheck(t.tally, tag, s.starts == t.startsWas && !s.on && flatplay::proneRatio() > 0.5f, line);
+                Cbuf_InsertText("vr_prone_toggle\n");
                 next(99);
             }
             break;

@@ -3233,6 +3233,7 @@ float crouchSlowShare[crouchSlots]{};
 // low ceiling after he lets go.
 bool crouchFlat[crouchSlots]{};
 bool crouchFlatHeld[crouchSlots]{};
+bool crouchFlatProne[crouchSlots]{};
 // Lying down (vr_prone; ROUND24.md, "Lying down and crawling"): per client, whether he lies -- the lying box's own
 // slot: his box is then proneHeight tall (crouchTopNum, so every box above follows), and crouchBox keeps the crouched
 // box he gets up into -- and the crawl's slowing share (eased like the crouch's); cleared at each map's load.
@@ -5088,6 +5089,7 @@ void beforeLoad()
         crouchSlowShare[i] = 0.f;
         crouchFlat[i] = false;
         crouchFlatHeld[i] = false;
+        crouchFlatProne[i] = false;
         proneNow[i] = false;
         proneSlowShare[i] = 0.f;
         holdKind[i] = 0;
@@ -5664,8 +5666,8 @@ bool clientPlayerTrace(qmodel_t* world, qmodel_t* model, float width, float heig
 namespace
 {
 
-// updateCrouch's box: the client's crouched or lying box from his head (or his flat-screen crouch key).
-void updateCrouchBox(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
+// updateCrouch's box: the client's crouched or lying box from his head (or his flat-screen crouch/prone input).
+void updateCrouchBox(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch, bool flatscreenProne)
 {
     const int num = clientNum(ent);
     if(num < 1 || num >= crouchSlots)
@@ -5676,6 +5678,8 @@ void updateCrouchBox(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
     const bool flatscreen = !ent->free && progs::fieldFloatOr(ent, progs::fields().vr_flatscreen, 0.f) != 0.f;
     crouchFlat[num] = flatscreen;
     crouchFlatHeld[num] = flatscreen && flatscreenCrouch;
+    crouchFlatProne[num] = flatscreen && flatscreenProne;
+    const bool flatLow = flatscreenCrouch || flatscreenProne;
     float& c = crouchBox[num];
     bool& prone = proneNow[num];
     if(!sv.active || !sv.worldmodel || ent->free || head == glm::vec3{0.f})
@@ -5689,18 +5693,18 @@ void updateCrouchBox(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
     const float headEye = head.z - (ent->v.origin[2] + ent->v.mins[2]);
     const float eye = !flatscreen && slide::headsetOnServer(ent) ? za::min(headEye, slide::slideEye()) : headEye;
     // Lying down (vr_prone): his eyes under vr_prone_eye over his feet -- a headset player lying down for real, a
-    // flat-screen one whose prone key (vr_flatplay.cpp) puts his eyes down there, his crouch held meanwhile -- give the
-    // proneHeight box at once (its own slot, prone; a lower box fits wherever his has). Up again: his eyes 2 units over
-    // the box's top or the lying limit (proneRiseEye; a flat-screen player: his key and crouch let go), and only where
-    // the lowest crouched box fits -- under a ceiling lower than that he stays down (as the crouch keeps its box); then
-    // the crouch below takes it from there (standing if it fits and his eyes ask for it). Off (vr_prone 0) while lying:
-    // up as a crouch rises, as soon as it fits (meanwhile the lying box).
+    // flat-screen one whose prone key (vr_flatplay.cpp) puts his eyes down there -- give the
+    // proneHeight box at once (its own slot, prone; a lower box fits wherever his has). Up again: entering deep water
+    // (waterlevel >= 2), his eyes 2 units over the box's top or the lying limit (proneRiseEye; a flat-screen player: his
+    // prone toggle off), and only where the lowest crouched box fits -- under a ceiling lower than that he stays down
+    // (as the crouch keeps its box); then the crouch below takes it from there (standing if it fits and his eyes ask for
+    // it). Off (vr_prone 0) while lying: up as a crouch rises, as soon as it fits (meanwhile the lying box).
     if(prone)
     {
         float levels[maxCrouchLevels];
         crouchLevels(sv.worldmodel, levels);
-        const bool rise =
-            (flatscreen && !flatscreenCrouch) || eye >= proneRiseEye(sv.worldmodel) || !proneOn();
+        const bool rise = ent->v.waterlevel >= 2 || (flatscreen && !flatscreenProne) ||
+                          eye >= proneRiseEye(sv.worldmodel) || !proneOn();
         if(!rise || !boxFitsAt(ent, num, levels[0]))
         {
             return; // still lying (the lying box: crouchTopNum)
@@ -5712,7 +5716,7 @@ void updateCrouchBox(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
     // limit for a frame -- it lay him down and ended the slide on the first step. Nor off a ledge mid-slide: no lying
     // down until the slide is over, his bug of 2026-11-10. Nor a headset's eyes coming back up from the slide's view drop,
     // vr_slide_camera: at the slide's eyes, vr_prone_eye's own height, a nod would lay him down: slide::headsetRising.)
-    else if(proneOn() && eye < proneEyeLimit(sv.worldmodel) && (!flatscreen || flatscreenCrouch) && ent->v.waterlevel < 2 &&
+    else if(proneOn() && eye < proneEyeLimit(sv.worldmodel) && (!flatscreen || flatscreenProne) && ent->v.waterlevel < 2 &&
             !slide::onServer(ent) && !slide::headsetRising(ent))
     {
         prone = true;
@@ -5724,10 +5728,10 @@ void updateCrouchBox(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
     // Flatscreen play (-flatscreenmode, the player's own client: vr_flatplay.cpp): his crouch is a key held (Left
     // Ctrl) and his head is let back down by vr_flat_crouch_drop, so his eyes stand at Quake's viewheight -- under
     // the tallest crouched box's top -- and he never asks to stand outright, whatever the box he is in. His key says
-    // it instead (flatscreenCrouch: vr_flatplay.cpp crouchHeld, the key held now), and let go he is asked the way a
+    // it instead (flatLow: crouch key or prone toggle), and let go he is asked the way a
     // headset player is: standing first, and the tallest crouched box that fits where he is when standing does not, else
     // the box he has. His client's view rises only as far as that box (localEyeCap), as a headset's eyes stay under it.
-    if(flatscreen && !flatscreenCrouch)
+    if(flatscreen && !flatLow)
     {
         if(boxFitsAt(ent, num, 0.f))
         {
@@ -5836,9 +5840,9 @@ void updateHold(edict_t* ent, const glm::vec3& head)
 
 } // namespace
 
-void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
+void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch, bool flatscreenProne)
 {
-    updateCrouchBox(ent, head, flatscreenCrouch);
+    updateCrouchBox(ent, head, flatscreenCrouch, flatscreenProne);
     updateHold(ent, head);
 }
 
@@ -5938,7 +5942,7 @@ float localEyeCap()
     // (Nothing while his crouch key holds him down: that box is the lowest one over his own lowered eyes, chosen by them,
     // so it is no ceiling to them -- capped by it, the view was dragged down a box at a time, 7 units a frame. Only a box
     // the world keeps him in after he lets go caps the view's rise.)
-    if(!sv.active || !sv.worldmodel || crouchFlatHeld[1])
+    if(!sv.active || !sv.worldmodel || crouchFlatHeld[1] || crouchFlatProne[1])
     {
         return -1.f;
     }
@@ -5965,7 +5969,7 @@ float crouchSpeedMax(edict_t* ent, float maxspeed)
     float want = 0.f;
     if(vr_crouch_speed.value != 0.f && crouchFlat[num])
     {
-        want = (crouchFlatHeld[num] || crouchBox[num] > 0.f) ? 1.f : 0.f;
+        want = (crouchFlatHeld[num] || crouchFlatProne[num] || crouchBox[num] > 0.f) ? 1.f : 0.f;
     }
     else if(vr_crouch_speed.value != 0.f && crouchEye[num] > 0.f)
     {

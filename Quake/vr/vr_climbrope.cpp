@@ -2839,14 +2839,14 @@ void flatTestFrame()
             }
             if(t.elbows)
             {
-                // (climbfix, his flat note 2026-11-25: the elbows came in climbing vertically) Climbing up (from the 12th
-                // frame: the climbing pose eased in), neither elbow bowed in off its arm's line (vr_rope_elbow_wide at least
-                // 3, vr_rope_elbow_out a half), and on the pole on average out of the shoulders' line.
+                // (climbfix, flatwaterclimb: elbows must flare outwards when climbing vertical poles/ropes, never folding
+                // inwards) Climbing up (from the 12th frame), both elbows stay strictly bowed outwards off their arms'
+                // lines (climbBow > 0) and on the pole outside the shoulders' line (climbSide > 0, average >= 5 cm).
                 const float n = static_cast<float>(za::max(1, t.climbArmFrames));
                 const bool posed = vr_rope_elbow_wide.value >= 3.f && vr_rope_elbow_out.value >= 0.5f;
                 const bool out = t.climbArmFrames >= 10 &&
-                                 (!posed || (t.climbBow >= -2.5f && (!t.pole || t.climbSideSum / n >= 5.f)));
-                const char* what = va("the elbows while climbing: bowed out off the arms' lines %.1f cm at the least (none in past 2.5), "
+                                 (!posed || (t.climbBow > 0.f && (!t.pole || (t.climbSide > 0.f && t.climbSideSum / n >= 5.f))));
+                const char* what = va("the elbows while climbing: bowed out off the arms' lines %.1f cm at the least (> 0), "
                                       "out of the shoulders' line %.1f cm on average (%.1f at the least), over %d frames "
                                       "(vr_rope_elbow_wide %.1f)",
                     t.climbBow, t.climbSideSum / n, t.climbSide, t.climbArmFrames, vr_rope_elbow_wide.value);
