@@ -674,6 +674,65 @@ void() VR_FlatGrab_ReleaseAll =
     VR_FlatGrab_SyncStat();
 };
 
+// H's catch (flatthrow3, his words 2026-11-26: "Grenades thrown by ogres should never automatically be picked up by the
+// player, only if the player presses the grab button (H) at the right timing"): flat play catches no grenade by itself
+// (VR_Grenade_HandCatches); an H press opens a window of vr_flat_grab_catch_window seconds (VR_FlatGrab_CatchOpen) in which
+// a live grenade in flight whose path this frame passes within vr_flat_grab_catch_reach of his body (the line from its
+// middle to the eyes) is taken by a free hand, the main one first (VR_Grenade_Take: then the quick grenade's to throw back,
+// VR_FlatGrenade_Adopt); the palm's own reach and touch (VR_Grenade_CatchCheck, VR_Grenade_HandTouch) catch in it too.
+float vr_flatcatch_count; // (the tests) grenades H's window caught
+
+float() VR_FlatGrab_CatchTry =
+{
+    if(time > self.vr_flatcatch_until || time >= vr_gren_fuse_last || !VR_Grenade_On(FALSE))
+    {
+        return FALSE;
+    }
+    float reach = clamp(cvar_hget(cvarh_vr_flat_grab_catch_reach), 0.3, 3) * VRMetersToUnits();
+    vector head = VRGetHeadPos(self);
+    float dt = max(frametime, 0.011);
+    for(entity g = findradius(head, reach + 200); g; g = g.chain)
+    {
+        if(!VR_Grenade_Catchable(g))
+        {
+            continue;
+        }
+        vector at = g.origin + (g.mins + g.maxs) * 0.5;
+        float d = VR_SegmentDistance(at - g.velocity * dt, at + g.velocity * (dt * 0.5), self.origin, head);
+        if(d > reach + g.maxs_x)
+        {
+            continue;
+        }
+        float h = -1;
+        if(VR_Grenade_HandCatches(cVR_MainHand, VR_Blow(cVR_MainHand)))
+        {
+            h = cVR_MainHand;
+        }
+        else if(VR_Grenade_HandCatches(cVR_OffHand, VR_Blow(cVR_OffHand)))
+        {
+            h = cVR_OffHand;
+        }
+        if(h < 0)
+        {
+            return FALSE; // (no free hand: it flies on)
+        }
+        float window = clamp(cvar_hget(cvarh_vr_flat_grab_catch_window), 0.05, 1);
+        VR_Grenade_Take(self, h, g, sprintf("H's catch, %.2f s after the press, its path %.1f units off the body", window -
+            (self.vr_flatcatch_until - time), d));
+        self.vr_flatcatch_until = 0;
+        vr_flatcatch_count++;
+        return TRUE;
+    }
+    return FALSE;
+};
+
+// An H press: H's catch window opens (and a grenade there already is caught at once: TRUE).
+float() VR_FlatGrab_CatchOpen =
+{
+    self.vr_flatcatch_until = time + clamp(cvar_hget(cvarh_vr_flat_grab_catch_window), 0.05, 1);
+    return VR_FlatGrab_CatchTry();
+};
+
 // Impulse 52: Toggle mode press (default vr_flat_grab_hold 0).
 void() VR_FlatGrab_Toggle =
 {
@@ -683,6 +742,10 @@ void() VR_FlatGrab_Toggle =
     }
     self.vr_flatgrab_holdmode = FALSE;
     self.vr_flatgrab_hold_done = FALSE;
+    if(VR_FlatGrab_CatchOpen()) // (a grenade coming at him caught: that is all this press does)
+    {
+        return;
+    }
     if(self.vr_flatgrab_hands)
     {
         VR_FlatGrab_ReleaseAll();
@@ -698,7 +761,12 @@ void() VR_FlatGrab_HoldStart =
     {
         return;
     }
+    float fresh = !self.vr_flatgrab_holdmode; // (the press itself, not the client's retries while H is held)
     self.vr_flatgrab_holdmode = TRUE;
+    if(fresh && VR_FlatGrab_CatchOpen())
+    {
+        return;
+    }
     if(self.vr_flatgrab_hands || self.vr_flatgrab_hold_done)
     {
         return;
@@ -720,6 +788,17 @@ void() VR_FlatGrab_HoldEnd =
 // Each server player frame: clear stale grab bits when a hand empties (thrown, auto-collected, lost, died) and sync stat.
 void() VR_FlatGrab_Frame =
 {
+    if(self.vr_flatcatch_until) // (H's catch window: VR_FlatGrab_CatchTry)
+    {
+        if(time > self.vr_flatcatch_until || !VR_FlatPlay(self))
+        {
+            self.vr_flatcatch_until = 0;
+        }
+        else
+        {
+            VR_FlatGrab_CatchTry();
+        }
+    }
     if(!self.vr_flatgrab_hands)
     {
         return;

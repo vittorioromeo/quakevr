@@ -90,6 +90,8 @@ Flat-screen: hold the Judicator's sword alone (Debug menu: Arcane Dimensions: Ju
 Flat-screen: grab a crate with H and back away from it (or let a held ragdoll fall behind): the drawn hands stay on the wrists at full stretch until the hold lets go, never floating off the arms. {test:flat_grab_pull}
 Flat-screen: hold a sword, a dagger, an axe or the crowbar, upright and flipped (B's flip grip), and look at a wall or a knight close by: the crosshair sits where the swing will land, and the blow lands on it. {test:flat_melee_grip}
 Flat-screen: hold the throw key with an axe, a sword, a carried box or the quick grenade: the crosshair moves to where the throw will land (it rises as the throw charges) and the thing lands there when you let go. {test:flat_throw_cancel}
+Flat-screen: hold B with the axe (or a rock, the quick grenade) and let go: the arm carries it forward a moment before it leaves the hand, from the hand, with no pop-in; tune Throw: Release Delay (0 = at once) and Release Arc in Flatscreen > Throw. {test:flat_ogre_catch}
+Flat-screen: let the ogre's grenades come at you with your off hand empty and press nothing: none is caught; press H just before one reaches you: the free hand catches it (Grab / Pull: Catch Window and Catch Reach), then B throws it back. {test:flat_ogre_catch}
 
 [4. Tutorial and VR interface]
 Flat-screen or VR: climb the tutorial's lesson 3 ladder: each hand closes round its round rung (the rung through the fist, the fingers over its top) instead of sitting on top of it; square rungs elsewhere (vrtesthall's) are still held like ledges. Hand Round Thin Rungs (Climbing settings, Hand on a Hold) switches it off. {test:tutorial_ladder}

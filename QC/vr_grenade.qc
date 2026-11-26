@@ -662,9 +662,19 @@ vector(entity p, float xHand) VR_Grenade_PalmDir =
 // Whether `xHand` of self (a player) may catch: an empty hand (not the flashlight's, not steadying the other's weapon,
 // not climbing, carrying or force-grabbing) that isn't striking: not in a push (a shove, a bash) or its batting, and
 // slower than a punch (VR_Deflect_Need: faster, it bats: VR_Deflect).
+// Flat play (flatthrow3, his words 2026-11-26: "Grenades thrown by ogres should never automatically be picked up by the
+// player, only if the player presses the grab button (H) at the right timing"): a flat hand's grip always reads held
+// (vr_client.cpp gripping), so an empty hand took every grenade that came near it; now none, but in the window an H press
+// opens (vr_flat_grab_catch_window: VR_FlatGrab_CatchTry, vr_flatgrab.qc). A headset's catch is the grip's, as before.
+.float vr_flatcatch_until; // flat play: till then H's catch window is open (0: shut)
+
 float(float xHand, entity b) VR_Grenade_HandCatches =
 {
     if(!self.ishuman || self.health <= 0 || !VRHandsTracked(self))
+    {
+        return FALSE;
+    }
+    if(VR_FlatPlay(self) && time > self.vr_flatcatch_until)
     {
         return FALSE;
     }

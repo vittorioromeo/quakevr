@@ -2194,6 +2194,44 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
   - MP: not done (out of budget). Aid for it: client command `vr_attach_report` (vr_view.cpp: every attachment drawn
     last frame, `attach_drawn: where=hand_main|hand_off|holster|lying|other_held|other_holster ent= kind= gun= at=`,
     then `attach_report: N drawn`). Screenshots not done.
+
+## flatthrow3: flat throw's release carries the thing on before it leaves; an ogre's grenade caught only with a timed H (branch agent/flatthrow3, 2026-11-26)
+
+His flat feedback 2026-11-26 (late), items 5 and 9.
+- **Release follow-through (item 5):** let go of B (or the quick grenade's fire button), the follow-through starts at once
+  with the thing still in the hand; it leaves `vr_flat_throw_release_time` (0.07 s, 0..0.5; 0 = at once, as before) later,
+  from where the hand then is (VR_FlatThrow_From reads the drawn hand: no pop-in) and as hard as it was wound up (the speed
+  by charge, aimed at the crosshair as before). QC: `VR_FlatThrow_Release` / `VR_FlatGrenade_LetGo` set the THROWN phase
+  and `.vr_flatthrow_launch` / `.vr_flatgren_launch`; the frames (`VR_FlatThrow_Frame`, `VR_FlatGrenade_Frame`) throw at
+  that time (`VR_FlatThrow_Throw`, `VR_FlatGrenade_Throw`, unchanged), the follow-through timed from the key's release
+  (`VR_FlatThrow_FollowTime`: never over before the thing has left). Meanwhile the weapon fires nothing
+  (`VR_FlatThrow_WindsUpWeapon`), B and G start nothing. No new stat bits: the client draws the THROWN phase as before,
+  plus `vr_flat_throw_release_arc` (0.1 of the reach, ±0.5: the hand raised halfway from the wind-up into the
+  follow-through, `flatgrenade::apply`). Every throwable: weapons, carried props, ragdolls, the quick grenade (B or fire
+  button). Rows: Flatscreen > Throw "Throw: Release Delay", "Throw: Release Arc". developer 1: "carried on N s into the
+  follow-through", "left the hand N s after the key's release, N units from it".
+- **No auto-catch (item 9):** a flat hand's grip always reads held (vr_client.cpp `gripping`), so an empty hand took any
+  live grenade passing its palm (VR_Grenade_CatchCheck / HandTouch -> Meet -> Take). Now `VR_Grenade_HandCatches` refuses
+  in flat play unless H's catch window is open (`.vr_flatcatch_until`). An H press (toggle 96, or hold mode's first 97,
+  not its retries) opens it for `vr_flat_grab_catch_window` (0.3 s); in it a catchable grenade whose path this frame passes
+  within `vr_flat_grab_catch_reach` (1 m) of his body (origin to eyes) is taken by a free hand, main first
+  (`VR_FlatGrab_CatchTry`, vr_flatgrab.qc; then the quick grenade's state, VR_FlatGrenade_Adopt); a press that catches does
+  nothing else (no grab, no release). The palm's own reach/touch catch in the window too. Rows: Flatscreen > Grab / Pull
+  "Catch Window", "Catch Reach". Other auto-catches in flat: none found (VR_Carry_Handtouch needs a fresh grip press,
+  which flat never makes; force grab is E, deliberate).
+- **VR (asked):** unchanged. A headset's hand catches only with the grip held or closing as the grenade meets the palm (an
+  open palm stops it and waits vr_grenade_catch_window for the grip): already a deliberate grab.
+- **Files:** QC/vr_flatgrenade.qc, vr_flatgrab.qc, vr_grenade.qc, vr_flatitems_test.qc, vr_cvars_gen.qc; Quake/vr/
+  vr_flatgrenade.cpp, vr_tunables.inc, vr_tunables_rows.inc; Misc/quakevr/flatthrow_test.sh, flatthrow_check.py;
+  scenario quakevr/scenarios/flat_ogre_catch.txt.
+- **Tests:** flatthrow_test.sh 54/0: new run `release` (the nail gun with Release Delay 0 leaves at B's release, 3.4 units
+  ahead of the eye; with 0.07 it leaves 0.069 s later, 16.5 ahead, 0.0 units from the hand; the quick grenade's fire-button
+  throw 0.069 s); `guide` = `vr_flatitems_test 12` extended to 13/0 (new cases: a grenade at the free palm flies on without
+  H, caught after an H press; H pressed and its window let go by: flies on; thrown at his face from 90 units: caught with H
+  before it meets him, meets him without); `move` starts standing/running at y -380 (the running throw, now leaving ~35
+  units further on, bounced into what stands at y 350). tunables_test 13/0.
+- **Open:** flatgrabthrow_test.sh fails (27, "nothing grabbable in reach": TryGrab's reach check, untouched here; its
+  crates sit past the promoted `vr_flat_grab_reach` 0.65 m, b5629706a): its distances need updating (not done here).
 - **attach5 (2026-11-26): the MP test.** `mp_test.py attach` (suite `mp_attach`): a listen host A (VR), B and C (flat) in coop
   e1m1. Server aids (vr_attach_test.qc, `vr_dm_test` 25-27, one-shot): 25 a bayonet into the empty off hand of player
   `vr_dm_test_who` (an entity number: coop's test impulses are off for clients, deathmatch has none); 26 the server's

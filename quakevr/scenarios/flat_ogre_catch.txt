@@ -1,0 +1,9 @@
+# flat_ogre_catch: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Flat-screen (-flatscreenmode): an ogre's grenades are caught only with a timed H press (flatthrow3: QC vr_flatgrab.qc VR_FlatGrab_CatchTry, vr_grenade.qc VR_Grenade_HandCatches), and the throw key's release carries the thing on before it leaves (vr_flat_throw_release_time).
+title Flat-screen: catch an ogre's grenade with H, the throw's release
+hint Play with -flatscreenmode. The axe in your main hand, the off hand empty: let the ogre's grenades come at you without pressing anything (none is caught); press H just before one reaches you: the off hand catches it (Grab / Pull: Catch Window, Catch Reach). Throw it back with B: the arm carries it forward a moment before it leaves (Throw: Release Delay, Release Arc).
+map vrtesthall
+start 0 -288 25 90
+god
+give "Axe" main
+cmd give r 10
+spawn "Ogre" 0 200
