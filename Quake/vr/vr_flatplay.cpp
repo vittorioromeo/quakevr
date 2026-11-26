@@ -62,6 +62,7 @@
 #include "vr_handsource.hpp"
 #include "vr_hull.hpp"
 #include "vr_main.hpp"
+#include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_stereo.hpp"
 #include "vr_toolgun.hpp"
@@ -2320,6 +2321,23 @@ void pollKeys()
     return za::clamp(cl.viewheight + 24.f - eye, 0.f, 44.f);
 }
 
+// Underwater (waterlevel >= 2: swimming depth or submerged): crouch keys swim down without crouching when
+// vr_flat_crouch_swim is on, and lying down is exited / ignored so the regular swimming pose is kept.
+[[nodiscard]] bool inWater()
+{
+    if(cl.inwater)
+    {
+        return true;
+    }
+    const edict_t* local = progs::localPlayer();
+    return local && local->v.waterlevel >= 2.f;
+}
+
+[[nodiscard]] bool crouchSwimOnly()
+{
+    return inWater() && vr_flat_crouch_swim.value != 0.f;
+}
+
 // Getting up from lying down (the prone key, the crouch pressed): only where the lowest crouched box fits (the server's
 // own test for the rise, hull::localRiseFits). Under a lower ceiling (a 20-high vent) he stays lying, view, body and
 // box, and gets up by himself once he has crawled out to where it fits (pollKeysFlat). Until 2026-11-09 the client let
@@ -2376,6 +2394,15 @@ void toggleProne(const char* why)
         if(vr_flatplay_debug.value)
         {
             Con_Printf("flatplay: %s: no lying down mid-slide\n", why);
+        }
+        return;
+    }
+    // Not under water (flatwaterclimb): keep the regular swimming pose.
+    if(inWater())
+    {
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: %s: no lying down under water\n", why);
         }
         return;
     }
@@ -2723,7 +2750,10 @@ void pollKeysFlat()
     keyState.lastTime = vr_gametime;
     dt = za::clamp(dt, 0.0, 0.1);
     keyState.lastDt = static_cast<float>(dt);
-    const float want = (ctrl || keyState.cmdHeld) ? 1.f : 0.f;
+    // Underwater with vr_flat_crouch_swim on: crouch keys swim down only, keeping the regular swimming pose (no crouch
+    // drop/posture).
+    const bool water = inWater();
+    const float want = (ctrl || keyState.cmdHeld) && !crouchSwimOnly() ? 1.f : 0.f;
     if(dt > 0.0)
     {
         const float step = static_cast<float>(dt) / za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f);
@@ -2732,11 +2762,20 @@ void pollKeysFlat()
     keyState.ratio = crouchShape(keyState.lin);
     // Lying down (vr_flat_key_prone): down while asked, up when not, each way in vr_prone_body_time; off
     // (vr_prone 0) it never goes down.
-    // (Dead, or between maps: up again, so a respawn or the next map starts standing, as the server starts him.)
+    // (Dead, between maps, or under water: exit prone cleanly into the regular standing/swimming pose.)
     if(vr_prone.value == 0.f || cls.signon != SIGNONS || cl.stats[STAT_HEALTH] <= 0)
     {
         keyState.prone = false;
         keyState.riseWanted = false;
+    }
+    else if(water && keyState.prone)
+    {
+        getUp("under water");
+        if(qvr::hull::localProne() == 0)
+        {
+            keyState.prone = false;
+            keyState.riseWanted = false;
+        }
     }
     if(dt > 0.0)
     {
@@ -3354,14 +3393,20 @@ float crouchRatio()
 
 bool crouchHeld()
 {
-    // (Lying down asked for holds it too: the server's box follows his eyes down, and he lies once they are low.)
-    return active() && (keyState.keyCtrl || keyState.cmdHeld || keyState.prone);
+    // Strictly the crouch key (not prone, so lying down at speed never starts a slide; not while crouch only swims down
+    // under water).
+    return active() && (keyState.keyCtrl || keyState.cmdHeld) && !crouchSwimOnly();
+}
+
+bool proneHeld()
+{
+    return active() && keyState.prone && !inWater();
 }
 
 float crouchSwim()
 {
     // (in water, as C's +movedown did before C crouched; not lying down: the prone key is no crouch key)
-    return active() && vr_flat_crouch_swim.value != 0.f && cl.inwater && (keyState.keyCtrl || keyState.cmdHeld) ? 1.f : 0.f;
+    return active() && crouchSwimOnly() && (keyState.keyCtrl || keyState.cmdHeld) ? 1.f : 0.f;
 }
 
 // The flatscreen look's window, in the plain game's pitch -- Quake's pitch is positive looking down, so looking up is

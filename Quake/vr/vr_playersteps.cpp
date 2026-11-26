@@ -27,6 +27,7 @@
 #include "vr_tunables.hpp"
 #include "vr_engine.hpp"
 #include "vr_physsound.hpp"
+#include "vr_progs.hpp"
 #include "vr_random.hpp"
 #include "vr_testkit.hpp"
 
@@ -99,9 +100,21 @@ struct State
 
 State state;
 
+// Player underwater (waterlevel >= 2: waist-deep swimming or fully submerged): never play dry-land footsteps, even when
+// touching the bottom (FL_ONGROUND).
+[[nodiscard]] bool inDeepWater()
+{
+    if(cl.inwater)
+    {
+        return true;
+    }
+    const edict_t* local = progs::localPlayer();
+    return local && local->v.waterlevel >= 2.f;
+}
+
 [[nodiscard]] bool fromLegs()
 {
-    if(vr_body_walk.value == 0.f || cl.maxclients > 1)
+    if(vr_body_walk.value == 0.f || cl.maxclients > 1 || inDeepWater())
     {
         return false;
     }
@@ -225,6 +238,7 @@ void report_f()
         const bool ok = !ZA_STRCMP(expect, "legs")     ? heard
                         : !ZA_STRCMP(expect, "louder") ? heard && volume > 2.0 * state.lastVolume
                         : !ZA_STRCMP(expect, "quiet")  ? r.standing >= 1 && r.sounds == 0 && r.oldPlayed == 0
+                        : !ZA_STRCMP(expect, "silent") ? r.sounds == 0 && r.oldPlayed == 0
                         : !ZA_STRCMP(expect, "spaced") ? r.sounds >= 1 && r.sounds * vr_footstep_player_adjust_gap.value <= r.time + vr_footstep_player_adjust_gap.value && r.oldPlayed == 0
                                                     : r.sounds == 0 && r.oldPlayed > 0;
         state.tally.check(ok, "playersteps_test", label);
@@ -292,12 +306,21 @@ void frame(const avatar::Skeleton& k)
 
 bool oldStepSilent(int ent)
 {
+    // Never play dry-land footsteps while underwater (waterlevel >= 2), even if touching the bottom (local, remote, or bot).
+    if(qcvm && ent > 0 && ent < qcvm->num_edicts && EDICT_NUM(ent)->v.waterlevel >= 2.f)
+    {
+        if(ent == cl.viewentity && cls.state == ca_connected)
+        {
+            state.report.oldSilent++;
+        }
+        return true;
+    }
     if(ent != cl.viewentity || cls.state != ca_connected)
     {
         return false; // (another player's, a bot's)
     }
     const double now = vr_gametime;
-    if(fromLegs() || (state.lastFoot >= 0.0 && now - state.lastFoot < mergeGap))
+    if(inDeepWater() || fromLegs() || (state.lastFoot >= 0.0 && now - state.lastFoot < mergeGap))
     {
         state.report.oldSilent++;
         return true;

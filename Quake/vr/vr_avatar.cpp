@@ -548,8 +548,9 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     // The crouched pose's share, from the crouch under the standing neck (the neck's own crouched offset then lowers it
     // a little more, which the pose below follows).
     // (ropepose: hanging on a rope, no crouch -- no floor under him: another's copy, his head lower than his standing
-    // height, took a fifth of it, the trunk further back off the rope)
-    b.crouchPose = crouchPose ? crouchPoseWeight(depthUnder(standingTop)) * (1.f - lying) * (1.f - onRope) : 0.f;
+    // height, took a fifth of it, the trunk further back off the rope; swimming too: keep the regular swimming pose)
+    b.crouchPose =
+        crouchPose ? crouchPoseWeight(depthUnder(standingTop)) * (1.f - lying) * (1.f - onRope) * (1.f - detail::water.swim) : 0.f;
     const float w = b.crouchPose;
     glm::vec3 top = standingTop - (nf * vr_body_crouch_eye_forward.value + nu * vr_body_crouch_eye_up.value) * (w * b.m2w);
     // Flatscreen play: the crouch takes his shoulders further down off the eye than his head goes (world units, as the mode's own).
@@ -1446,20 +1447,40 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         pole = glm::mix(pole, way * glm::length(pole), b.seenAds);
         flatElbow = za::max(flatElbow, b.seenAds);
     }
-    // (ropes10, his flat note 2026-11-23: on a rope the elbow swung in, in front of the view) On a climbable rope or pole
-    // (ropeHang, last frame's; yours and another player's copy alike): the elbow out at its side, a little down and back,
-    // by vr_rope_elbow_out, and the wrist's ease below swings it back in by as little of that share.
-    if(const float share = za::clamp(vr_rope_elbow_out.value, 0.f, 1.f) * ropeHang(); share > 0.f)
+    // (ropes10, climbfix, flatwaterclimb) On a climbable rope or pole (local per-hand ropeLine for 0-lag VR/flatscreen
+    // detection even without legs/climb_feet, combined with ropeHang for the reaching hand and other players' copies):
+    // build the elbow pole directly in the swivel plane perpendicular to the shoulder-to-wrist line so the elbow always
+    // flares outwards away from the torso centerline and stays comfortably below/level with the shoulder (never rising
+    // into eye level or folding inward across the chest/camera).
+    float handRopeW = 0.f;
+    if(!posingOther())
     {
-        // (climbfix, his flat note 2026-11-25: the elbows came in climbing vertically) Out by vr_rope_elbow_wide against the
-        // down and back: a hand pulled in to the rope by the chest points the arm's line in across it, where little of the
-        // side is left square to it and the down and back took the elbow in front of the chest.
-        const float wide = za::clamp(vr_rope_elbow_wide.value, 0.f, 10.f);
-        const glm::vec3 way = safeNormalize(lateral * wide - cUp * 0.35f - cFwd * 0.2f, lateral);
-        pole = glm::mix(pole, way * glm::length(pole), share);
-        flatElbow = za::max(flatElbow, share);
+        glm::vec3 ropeAt{0.f}, ropeUp{0.f};
+        float ropeThick = 0.f, w = 0.f;
+        if(climb::ropeLine(side == 0 ? HAND_OFF : HAND_MAIN, ropeAt, ropeUp, ropeThick, w))
+        {
+            handRopeW = w;
+        }
     }
-    glm::vec3 elbow = twoBone(u.pos, ikWrist, a, l, pole, lateral, bend);
+    const glm::vec3 worldOut = side == 0 ? b.left : -b.left;
+    const float ropeShare = za::clamp(vr_rope_elbow_out.value, 0.f, 1.f) * za::max(ropeHang(), handRopeW);
+    if(ropeShare > 0.f)
+    {
+        const glm::vec3 armDir = safeNormalize(ikWrist - u.pos, -UP);
+        const glm::vec3 uOut = safeNormalize(worldOut - armDir * glm::dot(worldOut, armDir), worldOut);
+        // Down and back in the player's upright frame (not the tilted chest's cUp, which leans back on a swinging rope
+        // so -cUp pointed forward into the camera). Kept unnormalized after orthogonalization against armDir and uOut so
+        // it vanishes smoothly (never sign-flipping during a pole slide) and still has dot(uDown, worldOut) == 0.
+        const glm::vec3 downRef = glm::normalize(-UP - b.fwd * 0.5f);
+        const glm::vec3 uDown = downRef - armDir * glm::dot(downRef, armDir) - uOut * glm::dot(downRef, uOut);
+        const float wide = za::clamp(vr_rope_elbow_wide.value, 0.f, 10.f);
+        const float downEffect = za::max(0.f, -glm::dot(uDown, UP));
+        const float downW = 0.8f + za::max(0.f, glm::dot(uOut, UP)) * downEffect * wide * 0.9f;
+        const glm::vec3 way = safeNormalize(uOut * wide + uDown * downW, uOut);
+        pole = glm::mix(pole, way * glm::length(pole), ropeShare);
+        flatElbow = za::max(flatElbow, ropeShare);
+    }
+    glm::vec3 elbow = twoBone(u.pos, ikWrist, a, l, pole, ropeShare > 0.f ? worldOut : lateral, bend);
 
     // The hand bone's axes: the drawn hand's (or, without one, the wrist's roll only).
     const glm::mat3 handRot = glm::length(handPose.forward) > 0.5f

@@ -165,10 +165,13 @@ void frame();
 // vr_hands.cpp's flat branch lowers his head and his height with it, view.c's VR_FlatViewDrop the drawn view. 0 standing,
 // and 0 outside the mode (a headset player crouches with his own tracked head).
 [[nodiscard]] float crouchRatio();
-// Whether the crouch key (Left Ctrl, +flatcrouch) is held now: the move's word for the server (protocol::moveFlatCrouchBit),
-// which keeps his box crouched under a low ceiling after it is let go (vr_hull.cpp updateCrouch). False outside the mode.
+// Whether the crouch key (Left Ctrl, +flatcrouch) is held now (not prone, and not while crouch only swims down under
+// water): the move's word for the server (protocol::moveFlatCrouchBit), which also gates sliding. False outside the mode.
 [[nodiscard]] bool crouchHeld();
-// The crouch keys held in water, flat play and vr_flat_crouch_swim on: 1 (they swim down too, CL_BaseMove); else 0.
+// Whether the prone toggle (vr_flat_key_prone, vr_prone_toggle) is active now (protocol::moveFlatProneBit). Separate from
+// crouchHeld so lying down at speed never starts a slide. False outside the mode or under water.
+[[nodiscard]] bool proneHeld();
+// The crouch keys held in water, flat play and vr_flat_crouch_swim on: 1 (they swim down only, CL_BaseMove); else 0.
 [[nodiscard]] float crouchSwim();
 // vr_flat_crouch_trace's sample, once a frame from VR_FlatViewDrop with the drawn eye's height (world z).
 void traceCrouch(float eyeZ);
