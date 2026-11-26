@@ -45,6 +45,12 @@ Checked https://github.com/recastnavigation/recastnavigation (README, releases):
   or inside a clip brush stayed walkable (e1m1: 6,634 polygons, 3 of them inside clip brushes). Each brush is also
   filled column by column (`fillSolids`: the column through the brush at each cell's middle as one solid span, merged
   with its faces' spans so a walkable top keeps its area): e1m1 1,656 polygons, none inside a clip brush.
+- **Cut to the world's box** (2026-11-26): a brush whose faces reach more than 128 units past the world model's bounds
+  (a solid vr_hull recovered from an open leaf outside the map) is cut to that box: its planes get the box's six (in
+  the brush set too, so `fillSolids` cuts its columns alike), their faces never walkable (`triangulate`). The old
+  vrstart had one clip brush reaching 30,000 units out: the mesh's bounds became 35,000 x 65,000 units tall, Recast's
+  spans hold 13 bits of height (16,382 units at 2 a voxel), so everything over 16,382 units above the bottom (the
+  whole island) was cut off, leaving 1,279 polygons on that brush's bottom. A map taller than that warns at load.
 - **Clip brushes** are real solids in that input, so they block paths (`vr_nav_cliptest`, below). Known approximation:
   a recovered clip brush's floor and top faces sit at its box centres' height for Quake's 32 box (`hull::navSolids`),
   so a mesh on top of a clip brush is a little off its true height; clip brushes are nearly always walls: left.
@@ -136,7 +142,12 @@ Backpedalling, sidestepping, strafing, melee, retreat and the armed humanoids' o
   each monster's path (yellow, 6 units up) and its next corner (a white post). `vr_nav_debug_class`: which class (-1
   the nearest walker's).
 - `vr_nav_info`: the input (brushes, clip brushes, triangles, movers), each class's mesh (tiles, polygons, KB, built or
-  read, ms), the steering counts. `vr_nav_cliptest`: no polygon inside a clip brush (verdict line). `vr_nav_rebuild`.
+  read, ms), the steering counts; the mesh's bounds and tile grid, the brushes cut to the world's box (3), and per
+  class the polygons reachable from the player's feet by the mesh's links. `vr_nav_cliptest`: no polygon inside a
+  clip brush (verdict line). Both tests check only the classes ready: on a map spawning no walker, or right after one
+  is spawned (its build lands on a later frame, 20), they see 0 polygons and fail: spawn one first, with
+  `vr_nav_async 0` (built at once), e.g. `developer 1;vr_nav_async 0;vr_nav_cache 0;map vrstart;wait10;
+  vr_toolgun_spawn_test 0 0;wait30;vr_nav_info;vr_nav_cliptest;vr_nav_toptest`. `vr_nav_rebuild`.
 - Checklist scenario `nav_arena`: walkers on the arena floor, you on the dais, paths drawn.
 
 ## 9. Measurements (2026-11-10, no-LTO build, low-impact runs: indicative)
