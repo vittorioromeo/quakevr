@@ -2194,3 +2194,26 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
   - MP: not done (out of budget). Aid for it: client command `vr_attach_report` (vr_view.cpp: every attachment drawn
     last frame, `attach_drawn: where=hand_main|hand_off|holster|lying|other_held|other_holster ent= kind= gun= at=`,
     then `attach_report: N drawn`). Screenshots not done.
+
+## floataxe: a thrown axe whose blow takes off the head it hit falls, never left floating (branch agent/floataxe, 2026-11-26)
+
+- **His report (flat):** an axe thrown at a zombie's head popped it, and the axe stayed floating in mid air after the zombie
+  died.
+- **Cause:** `VR_AxeStick_Stuck` (QC/vr_axestick.qc) deals the throw's blow (`forcegrabbable_touch`, `VR_Decap_After`) after
+  the engine has stuck the blade in the body. When that blow beheads or pops the head the blade is in (`VR_Decap_Cut` ->
+  `VR_AxeStick_CutPrepare`/`_CutDone`), the blade falls out at once (`VR_AxeStick_Fall`: `AXESTICK_OUT`, `MOVETYPE_TOSS`).
+  Then the rest of `VR_AxeStick_Stuck` ran its stuck set-up anyway (`MOVETYPE_NONE`, velocity 0), so the blade was held
+  still, stuck in nothing. Its think never let it go, because nothing it is in is left to check. This hit any monster whose
+  head comes off from a thrown axe's own blow (a zombie always; a grunt or knight at a killing blow), in VR and flat alike.
+- **Fix:** the stuck set-up is skipped when the blow already let go of the blade, so it falls from where the head was with
+  the body's motion (`vr_debug_axestick 1`: "struck, and fell out of"). The other host-removal cases already worked and are
+  now tested: a body gibbed whole, a body removed, a zombie gibbed (its head gib is the same entity with another model);
+  the think finds the model changed or gone within 0.02 s. A blade held in a hand gets its hand back
+  (`VR_Embed_Free`, tests 25/26). A broken crate frees it (test 30).
+- **Choice:** the blade falls rather than riding the flying head gib. The brief allowed either. Falling is the existing rule
+  for every other host change.
+- **Test:** `vr_embed_test 83` (QC/vr_floataxe_test.qc; map vrtesthall, god, notarget; ends `floataxe: N passed, M failed`):
+  an axe thrown edge first at 14 m/s at a zombie's head and at a grunt's head (health 1: the head comes off), and into a
+  grunt's chest (then gibbed whole, or removed) and a zombie's chest (then gibbed). 1 s later, in every case, it never
+  floated (held still in nothing or in a gone body for no more than 3 frames) and it fell at least 8 units. 15/0. Without
+  the fix: 11/4 (both head cases floating, 0 units fallen).
