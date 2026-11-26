@@ -2178,3 +2178,28 @@ every state, synced in multiplayer. The design and the ideas list: `docs/vr-port
   - MP: not done (out of budget). Aid for it: client command `vr_attach_report` (vr_view.cpp: every attachment drawn
     last frame, `attach_drawn: where=hand_main|hand_off|holster|lying|other_held|other_holster ent= kind= gun= at=`,
     then `attach_report: N drawn`). Screenshots not done.
+
+## flathold3: hands drawn on what they hold never leave the wrists (branch agent/flathold3, 2026-11-26)
+
+His words (flat feedback 2026-11-26 late, item 2): grabbing crates with H, "the hands detach from the wrists when the player is
+too far or the prop gets too far. This should not happen ever."
+- **Cause**: flatpush let a dragged prop's drawn hand reach `vr_flat_grab_drag_letgo` + `vr_flat_grab_reach` from its own
+  place (limbDrawnHand's `stick`), past what the body's arm reaches: the arm stopped at full stretch, the hand went on.
+  Measured backing away from a crate too heavy to follow: the wrist 116 cm past the arm.
+- **Fix** (vr_view_hands.cpp, end of `placeController`): whatever a hand is drawn on (a prop held in both hands, a ragdoll's
+  limb, a dragged prop, a tug's weapon, the other hand's weapon, a hold, an enemy, a blade, a gib), it goes only as far towards
+  it from its own place as its arm reaches: one helper, `keepOnArm` (the embedded blade's, embedhold2), now for all of them.
+  It also pulls the hand straight in towards the shoulder when its own place is out of reach too, and returns how far it was
+  past. Flat play only (keepOnArm needs the drawn body's arm; VR unchanged). Past the reach the hand stays at full stretch,
+  off the prop, until the hold lets go (the let-gos unchanged: too far, too heavy for the pace, too steep).
+- **Probe**: `vr_hold_arm_probe 1` / `report` (vr_view_diag.cpp; Debug > Reports: Held Hands on Arms: Start / Report): every
+  frame a hand is drawn on a held limb or a dragged prop, the most its wrist was past its arm (avatar::embedArmGapCm) and how
+  often the hand was pulled in.
+- Tests: flatgrabthrow_test.sh new run `far`: the crate (Drag Strength 100 N) backed away from until it lets go: 34 frames
+  held, wrist past by 0.00 cm (116 before), pulled in on 28; a ragdoll held while backing away then left behind: 150 frames,
+  0.00 cm. The test now pins `vr_flat_grab_reach 1.25` and `vr_flat_grab_hold_down 0.18` (flathold2's): his promoted 0.65 m
+  reach grabbed none of its props (27 of 46 failed on origin/next), and with Hold Down 0 the push run's crate, backed away
+  from, lagged 38.0 units off the hand, just past Let Go's 37.8, and was let go of.
+- Open: with his defaults (Hold Down 0) a dragged crate backed away from at a walk may be let go of at once (above): if
+  dragging backwards should keep it, Let Go (`vr_flat_grab_drag_letgo`, 1.2 m) up a little. Ragdolls were within reach
+  already (vr_ragdoll_hand_stick); now clamped too.

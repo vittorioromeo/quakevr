@@ -20,8 +20,9 @@ run() {
         -QuitOn "^flatgrabthrow: $tag done" -Filter "$FILTER" > "$S/$tag.log" 2>&1
 }
 
-# (vr_flat_grab_reach pinned at flathold2's 1.25 m: his promoted 0.65 m default reaches none of the props placed 28 units ahead.)
-BASE="map vrtesthall; god; notarget; developer 1; vr_flat_grenade_debug 1; vr_debug_ragdoll 1; vr_flat_grab_reach 1.25; wait15"
+# (vr_flat_grab_reach and vr_flat_grab_hold_down pinned at flathold2's 1.25 m and 0.18: his promoted 0.65 m reaches none of the
+# props placed 28 units ahead, and with Hold Down 0 a crate backed away from lags just past Let Go (38 > 37.8 units).)
+BASE="map vrtesthall; god; notarget; developer 1; vr_flat_grenade_debug 1; vr_debug_ragdoll 1; vr_flat_grab_reach 1.25; vr_flat_grab_hold_down 0.18; wait15"
 BD="vr_mock_key b down"; BU="vr_mock_key b up"
 HD="vr_mock_key h down"; HU="vr_mock_key h up"
 
