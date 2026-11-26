@@ -824,3 +824,14 @@ His items 3, 5, 12 (2026-11-25).
   - `vr_reload_test 50` (`QC/vr_holsterammo_test.qc` `VR_AmmoSwitch_Test`, `QC/vr_reload_test.qc`, `QC/test_numbers.txt`): **54 passed, 0 failed** (both VR and flatscreen runs; Nailgun, Super Nailgun, Thunderbolt own<->alt with 0 target ammo, dry-fire check, switch-back check, pending empty-eject flush, mid-reload cancel, Rocket/Grenade Launchers).
   - `Misc/quakevr/flat_ammo_key_test.sh`: **13 passed, 0 failed** (verifies `N` on Nailgun, Super Nailgun, Thunderbolt with 0 alternate ammo never shows the new attached magazine on the client and ejects the old magazine at switch).
   - `Misc/quakevr/flatreload_test.sh`: **54 passed, 0 failed**; `Misc/quakevr/holsterammo_test.sh` (VR & flat): **28 passed, 0 failed** each; `vr_flatswap_test 5`: **46 passed, 0 failed**; `Misc/quakevr/emptyreload_test.sh`: **4 passed, 0 failed**.
+
+## shiprelax: ships no longer wait for his game; his tunables and ticked checklist lines go in with every ship (kit, 2026-11-26)
+
+- Kit only (qvr-kit `scratch/ship_task.sh`): a ship merges, builds, smoke-tests (low-impact while his game runs) and
+  pushes without waiting for his game; only the fast-forward of his checkout waits (`coord_ffhis.sh`: "fast-forward
+  pending (game open)", retried by the next ship and by `kit_health.sh`).
+- Before the merge a ship promotes his `quakevr/tunables.cfg` values into `Quake/vr/vr_tunables.inc` (`tune_ship.py`;
+  personal ones skipped: names with toolgun, calib/handcal, comfort, body or record) and retires the checklist lines he
+  ticked that no voice note names since they were added (`cl_retire_ticks.py`; scenes untouched, the ship's own lines
+  skipped), each as its own commit ("tunables: promote his values", "checklist: retire N ticked lines"). A build that
+  fails with them in ships again without them (warning). Flags: `--no-promote`, `--no-retire`, `--wait-game` (releases).
