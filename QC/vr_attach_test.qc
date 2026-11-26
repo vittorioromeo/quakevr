@@ -596,7 +596,9 @@ void() VR_AT_FlatFrame =
 // ---- vr_embed_test 81 / 82 (persistence)
 void() VR_AT_PersistSet =
 {
-    entity p = self;
+    entity p = VR_Player(); // (StartFrame runs the tests: self is whatever ran last, after a level change not the player)
+    entity oldself = self;
+    self = p;
     VRGiveEntWeapon(p, cVR_MainHand, WID_SHOTGUN, 0, 0);
     if(VRGetEntWeaponInst(p, cVR_MainHand) == world)
     {
@@ -614,11 +616,14 @@ void() VR_AT_PersistSet =
     VRSetEntHolsterWeaponInst(p, hs, r);
     W_SetCurrentAmmoFor(cVR_MainHand);
     bprint("attachpersist: set\n");
+    self = oldself;
 };
 
 void() VR_AT_PersistCheck =
 {
-    entity p = self;
+    entity p = VR_Player();
+    entity oldself = self;
+    self = p; // (getHolsterWeapon reads self)
     VR_Test_BeginFlags("attachpersist", VR_TEST_LOUD);
     entity m = VRGetEntWeaponInst(p, cVR_MainHand);
     VR_Test_Check(VRGetEntWeapon(p, cVR_MainHand) == WID_SHOTGUN && m != world && m.wi_attach == VR_ATT_BAYONET,
@@ -628,5 +633,6 @@ void() VR_AT_PersistCheck =
     VR_Test_Check(getHolsterWeapon(hs) == WID_SUPER_SHOTGUN && r != world && r.wi_attach == VR_ATT_BAYONET,
         sprintf("the super shotgun in the left hip holster still has its bayonet (weapon %g, attach %g)", getHolsterWeapon(hs), r != world ? r.wi_attach : -1));
     VR_Test_Verdict();
+    self = oldself;
 };
 #endif
