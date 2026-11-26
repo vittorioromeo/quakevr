@@ -889,7 +889,7 @@ void animGo(const Step s)
     return true;
 }
 
-constexpr float flashAlikeMin = 0.5f; // a flashed tile's picture still its view's (pictureCorrelation: 0.7-0.9 here, a broken one < 0.2)
+constexpr float flashAlikeMin = 0.4f; // a flashed tile's picture still its view's (pictureCorrelation: 0.7-0.9 here, 0.49 for seat 1 of 3 since split16: its wide tile faces a dark wall and the pain vignette covers the lit edges; a broken one < 0.2)
 constexpr float backDiffMax = 6.f;      // a tile back to its picture once the flashes are off
 
 void testFrame()
