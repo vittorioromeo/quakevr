@@ -1074,3 +1074,44 @@ in solid compares startsolid only, because Quake's allsolid/fraction for such mo
 the shape. A difference within 0.1 units of the reference's boundary counts as "on a plane". vrstart: PASS, 8 trees,
 0 differences (moves 0-2 on a plane per tree). ad_sepulcher could not be run: neither kit base has it now ("Couldn't spawn
 server maps/ad_sepulcher.bsp" on qbase and qrp). hullspeed's numbers stand for it.
+
+## vrstartsimp: the hub's open ground and cliff faces simplified; cold collision about 8-11 % cheaper (branch agent/vrstartsimp, 2026-11-26)
+
+His OK ("Try it") for vrstartgeo's two visible options. `vrstart_gen.py`: `ISLAND_COARSE_INLAND` 200 (the island's open
+ground more than 200 units in from the coast on the 128-unit lattice; 0 = the 64 lattice everywhere, as before) and
+`CLIFF_RING_POINTS` 180 (the cliff face's six rings; 260 before). The zones', paths' and ravine's outlines keep their own
+points either way. Regenerated and compiled with the final preset (695 s; light 666 s). bsp_holes: 2 unlisted underwater
+faces (the old build had 3), no rays run.
+
+| | before | after | change |
+|---|---|---|---|
+| .map brushes (terrain prisms) | 10,450 (9,069) | 8,612 (7,231) | -18 % (-20 %) |
+| hull 0 solid leaves | 20,694 | 18,592 | -10 % |
+| hull 1 / 2 clipnodes | 82,974 / 69,109 | 76,887 / 63,866 | -7 % / -8 % |
+| hull 0 nodes, world faces | 53,407, 72,755 | 49,146, 67,679 | -8 %, -7 % |
+| .bsp size | 17.9 MB | 12.8 MB | -29 % |
+| in game: recovered brushes | 24,772 | 22,545 | -9 % |
+| in game: tree nodes (8 trees) | 526k-611k | 468k-546k | -11 % |
+| cold trees' compile time, summed (median of 3, A/B alternated) | 18.4 s | 17.0 s | -8 % |
+| cold load's wait for the trees (median of 3) | 4.8 s | 4.3 s | -11 % |
+| hull cache written (`cache/hulls`) | 114 MB | 103 MB | -10 % |
+
+The terrain alone (`--only-terrain`, qbsp only) reproduces vrstartgeo's measurement exactly (15,959 solid leaves and
+60,572 clipnodes: -23 % / -20 %), but in the full map the structures cut the terrain differently and the gain is about
+half. Times: PC, Release no-LTO, `vr_cache_shipped 0; vr_hull_cache 0; vr_hull_keep 0; vr_hull_defer 0`, the old .bsp
+loaded as `vss_old` beside the new in alternated runs (not exclusive: rough).
+
+**Looks:** flat screenshots from 8 fixed spots (open ground from a hill, across the grass, from above; arrival; terrace;
+north shore; cliffs from the water and from the top), same lighting: hard to tell apart (mean pixel difference 0.5-5.9
+of 255; the arrival's hillside shading moved most). Pairs and montage in the worktree's `scratch/vss_*`. His call.
+
+**Function:** hub_start_test 7/0, startgun 16/0, waterzap (vrstart, flat and mock) 8/0, flatvronly 5/0, mp_coop with
+the hub as start map (`QVR_MP_STARTMAP=1`) 12/0, `vr_hull_keeptest` PASS (8 trees). Navmesh (a grunt spawned): class 0
+builds, 1,024 tiles, 16,534 polygons (the old map 256 tiles, 1,279: not looked into); `vr_nav_cliptest` and
+`vr_nav_toptest` check 0 polygons on vrstart before and after (they report FAIL on both maps). Walks: the hub's path
+(`vrstart_walktest.py`) 18/18 before and after; 113 legs of 256 units over the open ground (a 256 grid more than 250
+units inland): reached 36 before, 41 after, stopped short (obstacles, slopes) 62 before, 52 after. One point snag after
+at (-2, 371) on a 1:4 slope (16 units either side walks through); the old map had one at (31, 267) instead.
+`vrstart_walktest.py` now sets `cl_alwaysrun 1` (its frames assume running; walking, 16 of 18 legs fell short).
+
+After the ship: the relit copy and the shipped cache need regenerating (and his `quakevr/relit`).
