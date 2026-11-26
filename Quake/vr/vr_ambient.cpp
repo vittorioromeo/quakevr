@@ -524,6 +524,7 @@ constexpr float GRID_POWER = 2.5f;
 
 constexpr unsigned GRID_CACHE_VERSION = 3u;         // a build's: bumped when gridProbe's values change
 constexpr double GRID_CACHE_SECONDS = 0.1;          // a grid that took this long is kept on disk (the smaller read no faster)
+bool writeEveryGrid = false;                        // setWriteEveryGrid: every grid kept, however quick (the shipped cache's)
 constexpr float GRID_AIR = 256.f;                  // a probe has a surface within this straight below it
 constexpr float GRID_FIXED = 128.f;                 // a GridEntry's values over Quake's lightmap units
 constexpr float GRID_MASK_MOVE = 4.f;               // the probes in sight looked at again when it moved this far
@@ -1158,7 +1159,7 @@ void gridBuild()
 
     const za::SizeT cellBytes = grid.cells.size() * sizeof(unsigned);
     const za::SizeT entryBytes = grid.entries.size() * sizeof(GridEntry);
-    if(Sys_DoubleTime() - start >= GRID_CACHE_SECONDS)
+    if(Sys_DoubleTime() - start >= GRID_CACHE_SECONDS || writeEveryGrid)
     {
         za::Vector<char> bytes;
         bytes.resize(cellBytes + entryBytes);
@@ -2431,6 +2432,11 @@ void gridTest_f()
 #endif
 
 } // namespace
+
+void ambient::setWriteEveryGrid(bool on)
+{
+    writeEveryGrid = on;
+}
 
 // VR_NewMap (prewarm): the grid is built with the map's load, not at its first frame.
 void ambient::prepareGrid()

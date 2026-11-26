@@ -2,6 +2,7 @@
 
 #include "vr_prepare.hpp"
 
+#include "vr_ambient.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -9,6 +10,7 @@
 #include "vr_files.hpp"
 #include "vr_hull_internal.hpp"
 #include "vr_limbmodel.hpp"
+#include "vr_nav.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_maps.hpp"
@@ -493,6 +495,11 @@ void start()
             list += end ? n + 1 : n;
         }
         run.relight = false;
+        // The shipped cache's run: every product written however quick it was here (the trees' 25 ms bar and the light
+        // grid's 0.1 s are this PC's: a faster exe left out files the Quest, 5-15x slower, needs), so the file list is
+        // the same from any exe on any PC.
+        hull::setWriteEveryTree(true);
+        ambient::setWriteEveryGrid(true);
     }
     const int hulls = COM_CheckParm("-preparehulls");
     run.hulls = hulls != 0;
@@ -563,6 +570,11 @@ void frame()
                 }
                 if(now - run.signedOn >= settleSeconds)
                 {
+                    // Every product still on the pool finished and written before the next map (or the end): the
+                    // load's trees and the monsters' deferred ones (hull), the navmesh's size classes (joined otherwise
+                    // by a monster's first path, which a quick map may never ask for).
+                    hull::finishLoads();
+                    nav::finishBuilds();
                     line(va("map %s ok %.1f", map, run.signedOn - run.since));
                     run.map++;
                     run.step = Step::Map;

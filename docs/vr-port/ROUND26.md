@@ -1185,3 +1185,27 @@ past their own bounds with the worst overreach; Release, `vr_hull_cache 0`):
 - Tests: `vr_hull_keeptest` vrstart PASS (8 trees); `vr_hull_holes_test` vrbrushholes 29/0; `vr_hull_cache 2` (keep 0)
   vrstart + hip1m1 15 the same, 0 different; `vr_nav_cliptest` / `vr_nav_toptest` (NAVMESH.md 8 recipe) PASS on vrstart,
   old vrstart, e1m1; lowceil_test 16/0; prone_test 26/6 (the 6 flat fails known, ROUND26 line ~398).
+
+## shipcachefix: the shipped cache is the same files from any exe on any PC (branch agent/shipcachefix, 2026-11-26)
+
+- **Cause (beta6 dry run: the dev Release exe gave 16 files 156.4 MB, the packaged ThinLTO exe 15 files 151.7 MB):**
+  every product's write was gated on how long it took on THIS PC, and the generator's maps' step (`-preparemaps`) never
+  set the "write everything" switch the installer's hulls step uses. vrtutorial's light grid took 122 ms with the
+  no-LTO exe (bar `GRID_CACHE_SECONDS` 0.1 s, vr_ambient.cpp): written; under 100 ms with ThinLTO: left out. vrtutorial
+  asks for the same 8 boxes in every run (5 player boxes, the monsters' 24x56, 28x56, 40x88 deferred after the load),
+  all 11-42 ms to compile against the trees' 25 ms bar (`diskMinMs`), so which ones were written was chance
+  (8_8_18 vs 14_14_28 in the two lists; a third probe run wrote 12_12_28, 8_8_26, 8_8_28). vrstart's trees all take
+  seconds: always written, hence its 9 identical files. The navmesh (`navmesh` in the products) was built on the pool
+  but written only at a monster's first path: none came in the 3 s settle, so no map ever shipped one.
+- **Fix:** `-preparemaps` sets `hull::setWriteEveryTree(true)` and the new `ambient::setWriteEveryGrid(true)`; before a
+  map's "ok" line the preparation run calls `hull::finishLoads()` (the load's and the deferred monster trees joined
+  and written) and the new `nav::finishBuilds()` (each size class's build joined, its file written). The installer's
+  full preparation run gets the joins too (a no-op in effect: the next map's load joined them anyway).
+- **Proof:** make_shipped_cache.py run three times on this tree (Release twice, ReleaseLTO once, the LTO run alongside
+  the second Release run): 30 files, 169.0 MB (161.2 MiB, the script's figure), all three byte-identical, index.txt
+  included. New files over beta6's dev list: vrcalibration's 5 player trees and light grid, vrtutorial's 20_20_44,
+  8_8_18/22/26/28 trees, both navmeshes (vrstart 3.3 MB, vrtutorial 0.8 MB).
+- Files: vr_prepare.cpp, vr_ambient.cpp/.hpp, vr_nav.cpp/.hpp, vr_hull.hpp (comment), make_shipped_cache.py (doc),
+  CACHES.md ("The shipped cache"; its "What ships" figures are beta5's, superseded by the line added above it).
+- Open: which monster boxes a map asks for still depends on its spawns at the run's skill (vrtutorial skill 0, vrstart
+  the default); a player reaching the hub at another skill may compile an unshipped box on the Quest.
