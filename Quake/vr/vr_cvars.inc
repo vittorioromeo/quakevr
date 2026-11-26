@@ -672,6 +672,9 @@ QVR_CVAR(vr_xr_refresh_rate, "0", CVAR_ARCHIVE)
 // vr_quest_check (each Android start, after the saved config; vr_gfxpresets.cpp): 1 the settings that break the Quest's
 // frames (MSAA, bloom) set back, each said in the log; 0 only said.
 QVR_CVAR(vr_quest_guard, "1", CVAR_ARCHIVE)
+// questcrash (vr_gfxpresets.cpp): a graphics preset, Standalone or My Settings picked in VR whose frames then stay under
+// this rate (the median of 8, after a second's grace) is put back as before the pick; 0: never.
+QVR_CVAR(vr_preset_revert_fps, "5", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_cpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_gpu_level, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_foveation, "0", CVAR_ARCHIVE)

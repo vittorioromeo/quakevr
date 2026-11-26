@@ -11,6 +11,8 @@ Open the menu in the headset, then on the flat screen with the VR-style menu and
 Flat-screen: open the console (or the menu) and load a map that takes a few seconds (map vrstart): the loading panel is small and centred, about a fifth to a third of the window wide with sharp text, over the console or menu you came from dimmed by half, and the console doesn't flash between its frames. {test:load_panel_stages}
 Quest standalone (Standalone preset): in the tutorial's dark course take the flashlight and point it down the corridor and at the far walls; the beam should light whatever it lands on, not just the first part of the room near the door. {test:quest_darkroom}
 Quest standalone: Debug > Show Foveation on, with Quest Foveation at High: the eyes' edges should show yellow (half resolution) and red (quarter) zones round a clear centre; at Low only the far corners. On the PC, Show Foveation "Quest Pattern" shows the same zones. {test:quest_foveation}
+On the Quest, switch Quest Foveation from High to Off and back a few times mid-game, then quit and start again with Off saved: no crash, the game reaches vrstart and plays. {test:hub_start}
+On the Quest, from Standalone pick "Quake (off)", then Low, then Medium on the Graphics Presets page mid-game: the frame rate stays playable, the menu stays usable, and Standalone can be picked again. {test:hub_start}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
