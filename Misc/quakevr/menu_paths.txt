@@ -6493,7 +6493,8 @@ vr_hull_keep|2|Debug - Tests|Keep Hitboxes for Reloads|Advanced VR Options > Deb
 vr_hull_cache|2|Debug - Tests|Hitboxes on Disk|Advanced VR Options > Debug > Tests > Hitboxes on Disk
 vr_nav_cache|2|Debug - Tests|Navmeshes on Disk|Advanced VR Options > Debug > Tests > Navmeshes on Disk
 vr_hull_async|2|Debug - Tests|New Monster Sizes in Play|Advanced VR Options > Debug > Tests > New Monster Sizes in Play
-vr_hull_defer|2|Debug - Tests|Crouch and Monster Hitboxes|Advanced VR Options > Debug > Tests > Crouch and Monster Hitboxes
+vr_hull_defer|2|Debug - Tests|Monster Hitbox Builds|Advanced VR Options > Debug > Tests > Monster Hitbox Builds
+vr_load_panel_shot|2|Debug - Tests|Save the Loading Panel|Advanced VR Options > Debug > Tests > Save the Loading Panel
 |2|Debug - Tests|The Gates In This Map|Advanced VR Options > Debug > Tests > The Gates In This Map
 |2|Debug - Tests|Teleporter Test Map|Advanced VR Options > Debug > Tests > Teleporter Test Map
 |2|Debug - Tests|To the Flush Gates|Advanced VR Options > Debug > Tests > To the Flush Gates

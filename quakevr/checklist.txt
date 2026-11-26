@@ -33,6 +33,8 @@ Flat-screen or VR: flip a melee weapon's grip (dagger, sword, or spear) and thro
 Flat-screen: equip a two-handed melee weapon (sword, axe, spear, or Crystal Lance) while the off hand is empty; the off hand attaches to the grip right away without needing swings first, while the dagger stays one-handed. {test:flat_melee_grip}
 Flat-screen: flip a dagger, sword, or spear into its raised overhead grip and attack with fire and with V; each strike drives forward and downward onto the crosshair target, connects reliably, and can be tuned under Debug > Tunables > Flatscreen > Flipped Grip. {test:flat_melee_v}
 Flat-screen or VR: step right up against an enemy and swing or thrust with a sword, spear, or Crystal Lance; close-range blows register with the tip or blade rather than as a hilt or shaft strike (while intentional VR pommel strikes and sideways shaft swings still work). {test:flat_spear}
+Flat-screen or VR: Load a map whose collision is not cached yet: the loading panel says what it is building (e.g. "Building collision for crouching (3 of 6)") and its bar keeps moving until the map starts. {test:load_collision_cold}
+Flat-screen or VR: Right after a map load that built its collision from scratch, crouch and lie down at once: no pause or freeze (monsters may use their old hitbox for a few seconds, unnoticeable). {test:load_collision_cold}
 
 [1. Installer, start-up and platforms]
 Run QuakeVR-Setup.exe from the latest pre-release with Meta Quest (standalone) ticked and no APK beside it: it downloads QuakeVR.apk and installs it and the files; the game starts from Library > Unknown Sources and its console names that version; the update notice still treats 1.1.0 as the latest stable. {test:hub_start}
