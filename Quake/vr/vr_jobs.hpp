@@ -34,16 +34,11 @@
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
-// Profiling builds name each job's "Job execute" zone by where it was posted (the posting zone, the file and line);
-// other builds take no argument and store nothing.
-#ifdef QVR_TRACY
+// Each job keeps where it was posted (the file and line): what a worker is busy with (vr_jobs_info, the stall line);
+// profiling builds also name its "Job execute" zone by it (and by the posting zone).
 #include "Zancle/Base/SourceLocation.hpp"
 #define QVR_JOBS_WHERE , const za::SourceLocation where = za::SourceLocation::current()
 #define QVR_JOBS_NOTE(job) (job)->note(where.fileName(), where.line())
-#else
-#define QVR_JOBS_WHERE
-#define QVR_JOBS_NOTE(job) ((void)0)
-#endif
 
 namespace qvr::jobs
 {
@@ -69,12 +64,12 @@ struct Job
     // Returns once it is done (run here if nobody has claimed it yet).
     void wait() noexcept;
 
+    const char* file{}; // where it was posted
+    unsigned line{};
 #ifdef QVR_TRACY
     const char* tracyFrom{}; // the posting thread's innermost zone (VR_TracyCurrentName)
-    const char* tracyFile{};
-    unsigned tracyLine{};
-    void note(const char* file, unsigned line) noexcept;
 #endif
+    void note(const char* file, unsigned line) noexcept;
 };
 
 // A counted reference to a job (the queued task's and the Future's: std::shared_ptr's role, the count in the job): the
@@ -269,6 +264,10 @@ public:
     Pool& operator=(const Pool&) = delete;
 
     [[nodiscard]] int workers() const noexcept;
+    // parallelFor helpers posted and not yet run (a snapshot: describeNow).
+    [[nodiscard]] za::SizeT helpersQueued() const noexcept;
+    // parallelFor calls under way with helpers (of the 64 gates: describeNow).
+    [[nodiscard]] za::SizeT gatesInUse() const noexcept;
 
     // body(begin, end) over [0, count) in chunks of `chunk` (0: about a quarter of an even share per thread), the
     // calling thread taking part; `parallel` false: every chunk on the calling thread (the same results).
@@ -330,6 +329,12 @@ void setHeapTidy(int milliseconds);
 void setParallel(bool on) noexcept;
 [[nodiscard]] bool parallel() noexcept;
 [[nodiscard]] Stats stats() noexcept;
+// The pool now, in one line (vr_jobs_info, the stall line): tasks queued, parallelFor helpers posted and not yet run,
+// and what each busy worker runs (where its job was posted, or its parallelFor's site) and for how long. Returns `out`.
+const char* describeNow(char* out, za::SizeT size) noexcept;
+// Called with a line when a split parallelFor's caller has run alone for over a second (no helper joined yet), and
+// again when that call ends; from the calling thread (any). Null: none (the engine's prints it: vr_jobs_engine.cpp).
+void setStallReport(void (*report)(const char* line)) noexcept;
 
 // On the game's pool; without one, on the calling thread (async: at once). Counted at `site`; `split` false: the same
 // chunks in order on the caller alone (a call its site knows is small: the same results).

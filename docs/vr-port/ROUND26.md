@@ -1353,6 +1353,37 @@ His log `quakevr/logs/2026-11-26_17-50-24/console.log` (VS2026, flat, `-basedir 
   `ownedRoots` listed the same folder by two spellings (Steam's install path and `-basedir`'s `<Quake>/rerelease`). Roots
   are now unique by `files::resolved` (case aside on Windows), the highest place kept. vr_gamedir.cpp.
 - Tests: dwell_owned, dwell_vrmodels, loading_switch, flatgrabthrow; a flat start-up in the kit shows none of the lines.
+## gridstall: a parallelFor started while every gate was taken never got a helper (branch agent/gridstall, 2026-11-26)
+
+flatloadbar's finding: in 8 of 26 cold vrstart loads the model light grid's probe pass ran entirely on the main thread
+(46-58 s instead of ~3 s), no helper ever joining, while the clear pass right after got helpers within 50 ms.
+
+- **Cause** (reproduced: 1 in 6 cold flat loads, then the cells pass 4 times in 14 with the gate count in the line):
+  Zancle's `parallelFor` takes one of 64 "gates" (`ParallelForSlots`) per call under way with helpers; a call that found
+  none ran every chunk on its caller and never looked again. During a cold vrstart load the hull's recursive two-way
+  `parallelFor`s ("hull speculate", vr_hull.cpp, a call per recursion level on every worker), with the trees' and
+  ao's, held all 64 at once for a moment: every stall line said "64 of 64 gates in use at its start", while a second later
+  only 5-14 of 31 workers were busy and 12-41 gates in use. The probe pass that started in that moment ran alone to its
+  end. Not lost wake-ups, not helpers queued behind long jobs (0 tasks queued, the 3-44 helpers queued were running).
+- **Fix** (`ParallelFor.hpp`, a local Zancle change listed in its README): a call whose helpers are missing (no free
+  gate, or the queued-helper budget used up) tries again after each of its own chunks, taking the gate and posting its
+  helpers as soon as one frees; the check is a load or two and only while some are missing. Every pool user gets it
+  (hull, ao, normal maps, Box3D's steps' calls, the Quest's fewer workers).
+- **Diagnostics kept**: each job keeps where it was posted (file and line, every build: before, profiling builds only);
+  `vr_jobs_info` ends with the pool now ("pool: N tasks and M helpers queued, G of 64 gates, B of W workers busy:
+  vr_hull.cpp:4843 x1 (13.5 s), hull speculate x11 (1.2 s), ..."). With developer 1, a split call whose caller has run
+  alone over a second says so with that line and the gates in use at its start, then how it ended (main thread's calls
+  only: the console is its).
+- **Proved**: 33 cold vrstart loads after (22 flat, 11 mock VR, fresh `vr_cache_dir`, `vr_cache_shipped 0`): 0 stalls, 0
+  stall lines; the main thread ran 153-2955 of the 27432 probe rows (before: all of them in a stall). The probes took 9-11 s because the
+  author's game ran meanwhile (low-impact runs: 8 CPUs, idle priority; 3 s before, on the whole machine, as flatloadbar's
+  3.1-3.4 s); the "< 6 s" check needs a full-machine run. Every load's `.mlg` the same bytes (md5 bdf21622, before,
+  stalled and after). `vr_jobs_test` 15/0 with a new check: a call made with all 64 gates held gets helpers once they
+  free (80 of 100 chunks by helpers; before the fix, 0). `vr_model_light_grid_test` e1m1 25/0, `vr_hull_keeptest`
+  vrstart PASS (8 trees), `vr_physics_portal_sleep_test` 12/0 (Box3D on the pool).
+- Left: the hull's speculate recursion still takes a gate per level (a call there that finds none runs alone until one
+  frees); a bound on its depth would leave gates for the rest. Not done (the hull's own tuning).
+
 
 ## box3dup3: Box3D updated to upstream 042be58 (branch agent/box3dup3, 2026-11-26)
 

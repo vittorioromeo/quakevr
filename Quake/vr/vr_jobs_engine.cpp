@@ -43,11 +43,22 @@ void onParallel(cvar_t* var)
 namespace
 {
 za::ThreadId mainThread; // (start's: VR_Init runs on the main thread)
+
+// A parallelFor's caller alone over a second (setStallReport): developer 1 prints it, from the main thread only (the
+// console is the main thread's; a worker's nested call says nothing).
+void printStall(const char* line)
+{
+    if(VR_OnMainThread())
+    {
+        Con_DPrintf("%s\n", line);
+    }
+}
 } // namespace
 
 void start()
 {
     mainThread = za::ThisThread::getId();
+    setStallReport(printStall);
     const int i = COM_CheckParm("+vr_jobs_threads");
     init(i && i + 1 < com_argc ? za::clamp(Q_atoi(com_argv[i + 1]), 0, 64) : 0);
 }
