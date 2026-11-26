@@ -175,7 +175,7 @@ void() VR_TestsFrame =
     VR_BotNavTest_Frame(); // VR: bots on the navmesh beside their waypoints (vr_dm_test 19-20, vr_botnav_test.qc)
     VR_DeathDropTest_Frame(); // VR: a dying player's and bot's weapons dropped as they were (vr_dm_test 21, vr_deathdrop_test.qc)
     VR_SpawnLoopTest_Frame(); // VR: spawns on a map with no deathmatch start, Dwell's (vr_dm_test 22, vr_spawnloop_test.qc)
-    VR_AttachMPTest_Frame(); // VR: the bayonet in multiplayer: one given, every record's attachment reported (vr_dm_test 25-26, vr_attach_test.qc)
+    VR_AttachMPTest_Frame(); // VR: the bayonet in multiplayer: one given, every record's attachment reported (vr_dm_test 25-27, vr_attach_test.qc)
     VR_ProjInheritTest_Frame(); // VR: what projectiles keep of your motion (vr_projinherit_test, vr_projinherit_test.qc)
     VR_GrenFuseTest_Frame(); // VR: one fuse for every grenade, the launched ones' countdown (vr_grenfuse_test, vr_grenfuse_test.qc)
     VR_FlatKeysTest_Frame(); // VR: the flatscreen keys seen by the game code (vr_flatkeys_test, vr_flatkeys_test.qc)

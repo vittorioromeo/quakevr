@@ -4907,8 +4907,13 @@ ATTACH_STAB_DIST = 42.0  # units: the grunt spawned ahead of B for V's thrust (v
 ATTACH_TRIES = 30        # reports before a drawn bayonet counts as missing (a definite end)
 ATTACH_HOLSTER_IMPULSE = 74  # flat holster menu: holster 4 (left upper) <-> the right hand
 ATTACH_DRAW_IMPULSE = 71     # flat holster menu: holster 3 (right hip: his start's shotgun) <-> the right hand
-ATTACH_THROW_HOLD = 0.6      # game seconds C holds the flat throw key (impulse 39 down, 40 up): a throw, not a drop
-ATTACH_GRAB_GAP = 14.0       # units north of the dropped gun C stands, facing it, for his grab (H)
+ATTACH_THROW_HOLD = 0.6      # game seconds C holds the flat throw key down: a throw, not a drop
+ATTACH_THROW_KEY = "b"       # vr_flat_key_throw as shipped
+ATTACH_GRAB_GAP = 10.0       # units north of the dropped gun C stands, over it (H reaches vr_flat_grab_reach, 0.65 m: 20 units, level from his eyes)
+ATTACH_GRAB_SIDES = ((0, 1), (1, 0), (-1, 0), (0, -1), (0, 1), (1, 0))  # C over the gun from the north, east, west, south in turn
+ATTACH_GRAB_PITCH = 60.0     # degrees C looks down at it (the grab's cone is round his aim)
+ATTACH_THROWN_MIN = 64.0     # units from C a thrown gun comes to rest at least (a drop falls by his feet)
+ATTACH_DM_C_SPOT = (OPEN_SPOT[0] + 64, OPEN_SPOT[1] + 21, OPEN_SPOT[2])  # C beside them, in sight
 ATTACH_NEAR = 48.0       # units: a lying gun's drawn bayonet within this of the server's gun (its mount is on the gun)
 
 
@@ -5004,12 +5009,13 @@ def attach_arm(s, srv, b, eb, label, draw="impulse 154"):
 
 
 def attach(s):
-    """(attach5) The bayonet in multiplayer: a listen host A (VR), B (flat) and C (VR) in coop e1m1. B puts a bayonet on his
+    """(attach5) The bayonet in multiplayer: a listen host A (VR), B and C (flat) in coop e1m1. B puts a bayonet on his
     shotgun (vr_dm_test 25 gives it, J: impulse 52); A and C draw it (vr_attach_report) on his gun held, holstered (impulse
-    62: holster 0 <-> his right hand) and drawn again, and lying when he drops it (impulse 79); C's closed hand takes it (A
-    and B draw it on C's gun, the server's record still has it); C throws it (A and B draw it on the flying gun). B armed
-    again: his V thrust sticks the gun in a grunt by the bayonet's point (hurt; A and C draw it on the stuck gun). Then
-    deathmatch: B's thrust hurts A."""
+    74: the left upper holster <-> his right hand) and drawn again, and lying when he drops it (impulse 79); C takes it
+    with H, looking down at it (A and B draw it on C's gun, the server's record still has it); C throws it (the throw key
+    held: A and B draw it where it comes to rest). B armed again: his V thrust sticks the gun in a grunt by the bayonet's
+    point (hurt; A and C draw it on the stuck gun). Then deathmatch (changelevel): B draws his holstered shotgun, a bayonet
+    on it; the server puts A in front of him (vr_dm_test 27): his thrust hurts A."""
     srv, a, b, ea, eb = join(s, listen=True, flat="B")
     c = s.client("C", flat=True).start()
     c.cmd("name C; " + s.connect_cmd(c))
@@ -5053,29 +5059,42 @@ def attach(s):
 
     # C (flat) takes it with H (the grab key) into his free hand; A and B draw it on his gun.
     put_at(srv, b, eb, (OPEN_SPOT[0], OPEN_SPOT[1] + 120, OPEN_SPOT[2]))  # (out of the way: the way north is open)
-    put_at(srv, c, ec, (spot[0], spot[1] + ATTACH_GRAB_GAP, OPEN_SPOT[2]), 270)
-    c.cmd("impulse 96")  # (flat H, the grab toggle: a loose weapon in front taken into a free hand, vr_flatgrab.qc)
-    took = weapon_until(s, srv, ec, 4, ATTACH_TRIES)
+    # (H reaches from his eyes along his aim, VR_FlatGrab_FindTarget: level within vr_flat_grab_reach, down to the floor at
+    # his feet, inside its cone: so he stands over it looking down at it)
+    took = []
+    for dx, dy in ATTACH_GRAB_SIDES:  # (a definite end: one press of the grab toggle from each side of it)
+        # (where it lies now: placing him beside it can nudge it)
+        _, ly, _ = attach_server(srv)
+        gun_at = next((x["at"] for x in ly if x["attach"] == 1), spot)
+        at = (gun_at[0] + dx * ATTACH_GRAB_GAP, gun_at[1] + dy * ATTACH_GRAB_GAP, OPEN_SPOT[2])
+        yaw = math.degrees(math.atan2(-dy, -dx))
+        put_at(srv, c, ec, at, yaw)
+        c.cmd("setpos %.1f %.1f %.1f %g %.1f 0; noclip" % (at[0], at[1], at[2], ATTACH_GRAB_PITCH, yaw))
+        server_time_past(srv, server_time(srv) + 0.1)  # (the setpos and noclip toggles done first: none in noclip)
+        c.cmd("impulse 96")  # (flat H: a loose weapon in reach taken into a free hand, vr_flatgrab.qc)
+        took += weapon_until(s, srv, ec, 4, 10)
+        if took[-1] == 4:
+            break
     pl, _, _ = attach_server_until(srv, lambda p, l, m: p.get(ec, {}).get("main") == (4, 1))
     s.check("C picks up the dropped shotgun and it still carries the bayonet (the server's record)",
             took[-1] == 4 and pl.get(ec, {}).get("main") == (4, 1), "C's main weapon %s; C on the server %s" % (took, pl.get(ec)))
     attach_seen_until(s, [a, b], has_drawn("other_held", ec), "A and B draw the bayonet on the shotgun in C's hand")
     attach_seen_until(s, [c], has_drawn("hand_main"), "C draws the bayonet on the shotgun in his own hand")
 
-    # C throws it (the flat throw key held, then let go).
+    # C throws it (the flat throw key, B, held down, then let go: the key itself, as his client sends 40 while it is up).
     put_at(srv, c, ec, OPEN_SPOT, 90)
-    c.cmd("impulse 39")
+    c.cmd("vr_mock_key %s down" % ATTACH_THROW_KEY)
     server_time_past(srv, server_time(srv) + ATTACH_THROW_HOLD)
-    c.cmd("impulse 40")
-    pl, ly, _ = attach_server_until(srv, lambda p, l, m: p.get(ec, {}).get("main", (4,))[0] == 0 and
-                                    any(x["attach"] == 1 and x["speed"] > 0 for x in l))
-    flying = [x for x in ly if x["attach"] == 1 and x["speed"] > 0]
-    s.check("thrown: C's shotgun flies from his hand, the record on the thrown gun keeps the bayonet",
-            pl.get(ec, {}).get("main", (4,))[0] == 0 and bool(flying), "C on the server %s; thrown weapons %s" % (pl.get(ec), ly))
-    attach_seen_until(s, [a, b], has_drawn("lying", near=flying[0]["at"] if flying else None),
-                      "thrown: A and B draw the bayonet on C's thrown shotgun")
-    _, ly, _ = attach_server_until(srv, lambda p, l, m: all(x["speed"] == 0 for x in l if x["attach"] == 1))
-    s.note("the thrown shotgun came to rest: %s" % [x for x in ly if x["attach"] == 1])
+    c.cmd("vr_mock_key %s up" % ATTACH_THROW_KEY)
+    # (the gun gone from his hand, then at rest: thrown, it lies well ahead of where he stands, not at his feet)
+    pl, _, _ = attach_server_until(srv, lambda p, l, m: p.get(ec, {}).get("main", (4,))[0] == 0)
+    _, ly, _ = attach_server_until(srv, lambda p, l, m: any(x["attach"] == 1 for x in l) and
+                                   all(x["speed"] == 0 for x in l if x["attach"] == 1))
+    thrown = [x for x in ly if x["attach"] == 1 and math.hypot(x["at"][0] - OPEN_SPOT[0], x["at"][1] - OPEN_SPOT[1]) >= ATTACH_THROWN_MIN]
+    s.check("thrown: C's shotgun leaves his hand and comes to rest well ahead, the record on the thrown gun keeps the bayonet",
+            pl.get(ec, {}).get("main", (4,))[0] == 0 and bool(thrown), "C on the server %s; thrown weapons %s" % (pl.get(ec), ly))
+    if thrown:
+        attach_seen_until(s, [a, b], has_drawn("lying", near=thrown[0]["at"]), "thrown: A and B draw the bayonet on C's thrown shotgun")
 
     # Stuck: B armed again; a grunt spawned ahead of him (impulse 241, coop's one test impulse); V's thrust.
     put_at(srv, c, ec, (OPEN_SPOT[0], OPEN_SPOT[1] + 72, OPEN_SPOT[2]))  # (off the spot first)
@@ -5087,8 +5106,9 @@ def attach(s):
     before = min((x["health"] for x in mon), default=None)
     since = srv.mark()
     b.cmd("vr_flat_punch v")
-    pl, ly, mon = attach_server_until(srv, lambda p, l, m: any(x["stuck"] and x["attach"] == 1 for x in l))
-    stuck = [x for x in ly if x["stuck"] and x["attach"] == 1]
+    by_b = lambda x: x["stuck"] and x["attach"] == 1 and math.hypot(x["at"][0] - OPEN_SPOT[0], x["at"][1] - OPEN_SPOT[1]) <= 96
+    pl, ly, mon = attach_server_until(srv, lambda p, l, m: any(by_b(x) for x in l))  # (not the thrown gun, stuck elsewhere)
+    stuck = [x for x in ly if by_b(x)]
     after = min((x["health"] for x in mon), default=None)
     s.check("V: B's bayonet stab hurts the grunt and the shotgun sticks in it by the bayonet, the bayonet on its record",
             bool(stuck) and before is not None and (after is None or after < before),
@@ -5109,15 +5129,25 @@ def attach_dm(s, srv, a, b, c):
     srv.cmd("coop 0; deathmatch 1; noexit 1; fraglimit 0; timelimit %d; changelevel e1m1" % DM_TIMELIMIT)
     _, ja = a.wait(r"mp_event: .*joined map=e1m1", 120, since_a, "A in the deathmatch game")
     _, jb = b.wait(r"mp_event: .*joined map=e1m1", 120, since_b, "B in the deathmatch game")
-    c.wait(r"mp_event: .*joined map=e1m1", 120, since_c, "C in the deathmatch game")
+    _, jc = c.wait(r"mp_event: .*joined map=e1m1", 120, since_c, "C in the deathmatch game")
     ea, eb = int(fields(ja)["self"]), int(fields(jb)["self"])
+    ec = int(fields(jc)["self"])
     srv.cmd("developer 1")
     attach_arm(s, srv, b, eb, "deathmatch (his holstered shotgun drawn: no test gives)", "impulse %d" % ATTACH_DRAW_IMPULSE)
+    # (no setpos in deathmatch: the server's aid puts them, vr_dm_test 27; each facing the nearest other player; A put again
+    # once B is there, to face him)
+    spots = ((a, ea, (MELEE_SPOT[0], MELEE_SPOT[1] + ATTACH_STAB_DIST, MELEE_SPOT[2])), (b, eb, MELEE_SPOT),
+             (a, ea, (MELEE_SPOT[0], MELEE_SPOT[1] + ATTACH_STAB_DIST, MELEE_SPOT[2])), (c, ec, ATTACH_DM_C_SPOT))
+    for inst, ent, at in spots:
+        since = srv.mark()
+        srv.cmd("vr_dm_test_who %d; vr_dm_test_x %g; vr_dm_test_y %g; vr_dm_test_z %g; vr_dm_test 27" % (ent, at[0], at[1], at[2]))
+        srv.wait(r"attachmp: (player %d put|no player)" % ent, 10, since, "%s put by the server" % inst.name)
+    at_b = org_of(status(srv), "mp_client", "slot", eb - 1)
+    at_a = org_of(status(srv), "mp_client", "slot", ea - 1)
+    s.check("deathmatch: the server puts B and A face to face (vr_dm_test 27)", bool(at_a and at_b) and
+            abs(math.dist(at_a[:2], at_b[:2]) - ATTACH_STAB_DIST) <= 4, "A at %s, B at %s" % (at_a, at_b))
     attach_seen_until(s, [a, c], has_drawn("other_held", eb), "deathmatch: A and C draw the bayonet on B's shotgun")
-    put_at(srv, a, ea, side_spot(srv, eb))
-    put_at(srv, b, eb, MELEE_SPOT, 90)
-    put_at(srv, a, ea, (MELEE_SPOT[0], MELEE_SPOT[1] + ATTACH_STAB_DIST, MELEE_SPOT[2]), 270)
-    a.cmd("give h 100; %s" % EMPTY_HAND)
+    a.cmd(EMPTY_HAND)
     before = health_of(srv, ea)
     since = srv.mark()
     b.cmd("vr_flat_punch v")

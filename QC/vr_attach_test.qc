@@ -722,6 +722,8 @@ void() VR_AT_PersistCheck =
 // attach5 (mp_test.py attach): the server's side of the multiplayer test, one-shot asks (the cvar set back to 0 after):
 //   vr_dm_test 25: a bayonet spawned into the empty off hand of the player whose entity number is vr_dm_test_who
 //     (coop's test impulses are off for clients, deathmatch has none); `attachmp: bayonet in player N's off hand`.
+//   vr_dm_test 27: player vr_dm_test_who put at vr_dm_test_x/y/z, facing the nearest other living player (deathmatch has
+//     no setpos); `attachmp: player N put at ...`.
 //   vr_dm_test 26: every player's carried records' attachments and every thrown weapon's (dropped, thrown, stuck):
 //     `attachmp: player ent=N main=<wid>,<attach> off=<wid>,<attach> holsters=a,b,c,d,e,f`, `attachmp: lying wid=<wid>
 //     attach=<kind> stuck=<0|1> speed=<u/s> at=<x y z>`, the live monsters within 160 units of a player (`attachmp:
@@ -757,6 +759,39 @@ void() VR_AttachMPTest_Frame =
             }
         }
         bprint(sprintf("attachmp: no player %g with an empty off hand\n", who));
+    }
+    if(ask == 27)
+    {
+        cvar_set("vr_dm_test", "0");
+        float mover = cvar_hget(cvarh_vr_dm_test_who);
+        vector to = [cvar_hget(cvarh_vr_dm_test_x), cvar_hget(cvarh_vr_dm_test_y), cvar_hget(cvarh_vr_dm_test_z)];
+        for(entity pm = VR_Player(); pm; pm = VR_NextPlayer(pm))
+        {
+            if(VR_AT_EntNum(pm) == mover && pm.health > 0)
+            {
+                entity near = world;
+                for(entity po = VR_Player(); po; po = VR_NextPlayer(po))
+                {
+                    if(po != pm && po.health > 0 && (near == world || vlen(po.origin - to) < vlen(near.origin - to)))
+                    {
+                        near = po;
+                    }
+                }
+                setorigin(pm, to);
+                pm.velocity = '0 0 0';
+                pm.flags = pm.flags - (pm.flags & FL_ONGROUND);
+                if(near != world)
+                {
+                    vector look = near.origin - to;
+                    look_z = 0;
+                    pm.v_angle = pm.angles = vectoangles(look);
+                    pm.fixangle = TRUE;
+                }
+                bprint(sprintf("attachmp: player %g put at %v\n", mover, to));
+                return;
+            }
+        }
+        bprint(sprintf("attachmp: no player %g to put\n", mover));
     }
     if(ask == 26)
     {
