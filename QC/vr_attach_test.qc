@@ -70,7 +70,7 @@ void(float xWid, float xOn) VR_AT_Give =
 
 void() VR_AT_Finish =
 {
-    localcmd("-grabmain\n-graboff\n-attack\nvr_mock_button main trigger 0\nvr_mock_hand_aim off off\nvr_mock_hand_aim main off\n");
+    localcmd("-grabmain\n-graboff\n-attack\nvr_test_handcontact 1 0\nvr_mock_button main trigger 0\nvr_mock_hand_aim off off\nvr_mock_hand_aim main off\n");
     if(!vr_at_flat)
     {
         localcmd("vr_mock_hand_to_absolute 0\n");
@@ -304,18 +304,35 @@ void() VR_AT_Frame =
     }
     else if(vr_at_s == 9 && u > 1)
     {
-        localcmd("vr_mock_hand_to main weapon 0.5\n");
+        vr_at_n = 0;
         VR_AT_To(10);
     }
-    else if(vr_at_s == 10 && u > 0.15)
+    else if(vr_at_s == 10)
     {
-        localcmd("vr_mock_hand_to main weapon 0.5\n+grabmain\n");
-        VR_AT_To(11);
+        // The open hand onto it first, following it a few frames (it lands short of a point by the floor at first: the
+        // mock's note), then the grip pressed there: a press, not a closed hand brought to it.
+        vr_at_n = vr_at_n + 1;
+        if(vr_at_n % 3 == 1)
+        {
+            localcmd("vr_mock_hand_to main weaponpalm 0.5\n");
+        }
+        if(vr_at_n >= 12)
+        {
+            // (the gun against the hand stood in for: the mock's fist stays a few units over a gun lying on the floor, out
+            // of its grip's reach without a bayonet too; vr_pickup_test 17's aid, physics.cpp weaponAgainstHand)
+            localcmd("vr_test_handcontact 1 1\n+grabmain\n");
+            VR_AT_To(11);
+        }
     }
-    else if(vr_at_s == 11 && (VRGetEntWeaponInst(p, h) == vr_at_rec || u > 1))
+    else if(vr_at_s == 11 && VRGetEntWeaponInst(p, h) != vr_at_rec && u <= 1)
+    {
+        vr_at_n = vr_at_n + 1; // (waiting for the press's take)
+    }
+    else if(vr_at_s == 11)
     {
         VR_Test_Check(VRGetEntWeaponInst(p, h) == vr_at_rec && vr_at_rec.wi_attach == VR_ATT_BAYONET,
             sprintf("picked up by the hand: the same record, the bayonet on it (weapon %g)", VRGetEntWeapon(p, h)));
+        localcmd("vr_test_handcontact 1 0\n");
         // Thrown at a grunt, point first: stuck by the bayonet's point.
         setorigin(p, vr_eh_home);
         vr_et_m = VR_ET_Grunt(80);
