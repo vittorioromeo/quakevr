@@ -1964,6 +1964,22 @@ the runner never saw the wrong-place cases (the map did load), the audit found t
 on hub_start. Not fixed: humrepl_variants (the AD soldiers line) has no `start`, and vr_ad_test 219 is a PASS/FAIL
 self-test that makes the soldiers before you at ad_crucial's start. New scene pose_spear_humanoids: frozen spear enforcer,
 knight and death knight in vrtesthall's open middle (start 0 -40), the Pose Studio opened by the scene.
+- **Map Library package scenes (quothscenes, 2026-11-26)**. His report: quoth_metmon and quoth_lpqsp1 "not started: no map
+  maps/metmon.bsp". metmon (metmon1d), lpqsp1 and ne_marb are Map Library packages (qvr_addons/<sha16>/), not in
+  quoth/; a package folder is on the search path only while it is the active one, so the scene's COM_FileExists missed
+  them. kellbase1 is in Quoth's own pak1/pak2 (its three scenes were fine). His Steam install has none of the three
+  packages installed. Fixes (vr_scenario.cpp): (1) a scene's map is also found in an installed package
+  (mapinstall::packageFor, the `map` command's own lookup); its `map` then mounts the package as the Map Library's Play
+  does (Host_Map_f's VR_AddonForMapCommand), in the scene's campaign; (2) new directive `package <sha256 prefix> <name>`
+  (before `map`): the package the map is in; not installed, the scene says "the Map Library package metmon1d is not
+  installed: install it from the Map Library (or maps_install 59971ea4 at the console, when the index is loaded), then
+  start this test again" instead of "no map". A scene never downloads (installing stays the player's choice in the Map
+  Library). quoth_metmon/lpqsp1/ne_marb carry their package lines (59971ea485de52bf, 50105e2a0c4ffa3d,
+  764ad7c7ef0d947f: Quaddicted's zip sha256s, as quoth_setup.py installs them). checklist_tests_check knows `package`.
+  Test: `Misc/quakevr/quoth_scenes.sh <agent> [present|absent]`: present 20/0 (each package mounted, the 6 quoth_
+  scenes run), absent 17/0 (the three say which package to install; the kellbase ones run). The test base needs Quoth
+  (kit links.ps1) and, for present, the packages (kit bases with quoth_setup.py's install, e.g. round25's qvr_addons).
+  scenario_check.sh on a base without the packages still reports those three as SCNERR (by design: they can't run).
 ## promofails: flat tests failing on next after his promoted tunables (branch agent/promofails, 2026-11-26)
 
 Checked first with the pre-900606064 tunables set in the run: only flatmelee5's "rev thrust sword" depended on them; the
