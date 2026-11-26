@@ -1469,7 +1469,14 @@ Left: hell knight seed 8 ("stuck at the lip": a weak pull, its chest stayed 13 u
 | climb_test pull, seeds 7-10 (24) | 19/24 (grunt 10; knight 7, 9, 10; hknight 8) | 23/24 (hknight 8) |
 | climb_test drop, hit, off (18) | | 18/18 |
 | kdstir | 4/1 | 5/0 (worst 0.20 s over 4 paired; mean 0.03) |
-B3DTUNE_TESTS
+| ragdoll_stagger | 2 FAIL (monster 0 backpedal; grunt "its spot taken") | the same 2 |
+| active_test, env_test | no fails | no fails |
+| grab_test | | death 5/5, rag 4/5 ("grab rag enforcer: no grab", its known flake, ROUND23), off 5/5 (shove: INFO) |
+
+Debug aids: `vr_knockdown_debug 2` prints why a get-up found no place on dry ground (its pelvis, the floor under it, the
+places with a wall between, no floor near its own, no room), as it did in a liquid; `vr_debug_ragdoll`'s ledge "holds on"
+line gives the hand's gap. Not checked in the headset (a monster knocked off a ledge pulling itself up: the same look).
+
 ## flatloadbar2: the flat loading panel small and centred over the last screen dimmed (branch agent/flatloadbar2, 2026-11-26)
 
 His words: the flat progress bars "take most of the screen" on "a completely black background"; asked for them much
