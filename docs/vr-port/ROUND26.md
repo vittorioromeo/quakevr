@@ -1811,6 +1811,29 @@ Shortcut migration: Windows keeps the old letter case of an existing file/folder
 existing Start menu folder / deletes an existing .lnk that differs only in case before writing (self-test "shortcuts of
 the old letter case are renamed"; installer self-tests 63/63).
 
+## VR fixes from his evening notes: rope grunts gone, preset rows toggle, punches on a hugged crate, AD crossbow knight, front sight hue (branch agent/vrmisc, 2026-11-26)
+
+- **No grunts on ropes, chains, poles** (his note 20:03): the pull grunt (`ropePullGrunt`, `vr_rope_grunt`,
+  `vr_rope_grunt_sound`, tunable `vr_pole_grunt`, their Climbing rows) removed. Flat ropes never grunted. The mantle's
+  grunt (ledges) stays. `rope_plays.py` lost its `grunts` checks (`vr_rope_climb_check grunts` gone).
+- **Preset rows toggle both ways** (his note 20:06): Handedness, Comfort and Gore Preset show Custom when the settings match
+  no choice; stepped to, Custom set nothing and the next frame's sync showed the old choice again (Left-handed clicked
+  stayed Left-handed). `vr_menu.cpp shownOnlyChoice`: a step passes over Custom, the drop-down's pick of it changes
+  nothing. Test `vr_menu_preset_cycle_test` (Debug > Tools: each row stepped both ways, never stuck, never on Custom;
+  the settings put back): 9/0.
+- **Punches on a hugged crate land** (his note 19:56, VR and flat): a blow strikes what the hand struck last
+  (`mh_struck`) again only entering it (his note 2026-10-12: a retraction or a blade turned in a body struck again).
+  A fist resting in a crate's box as you hug it (a flat fist's rest past your box) started every punch in it, so
+  only the first landed (swish, no hit). `vr_melee.qc VR_Melee_PunchedIn`: a fist's point starting in it that comes
+  at least half its sweep nearer its middle strikes again; drawn back or turned, still not; blades unchanged (they
+  embed). Test `vr_prop_impact_test 8` (hugpunch, Debug > Automation "Punch a Hugged Crate"; vrfiringrange): four
+  punches hugging (knuckles a unit off), four from 3 units in, four 6 units off: before 2/1 (from in it 1 of 4), now 3/0.
+  eval.sh: no new failures; secret_hits 4/4. Not run: a flat-screen punch scene (the fix is in the shared sweep).
+- **AD crossbow knights stay AD's** (his note 20:21): `vr_agrunt_repl_crossbow` 0 (new, Armed Humanoid Replacements row
+  "AD Crossbow Knights"; QC `VR_HUM_On`); every other variant still replaced. `vr_ad_test 219` sets it on for its rows and
+  checks it off (humrepl 49/0); humcensus now leaves crossbow knights by default. BACKLOG section 6: make it a proper
+  armed humanoid, then turn it back on.
+- **Front sight hue** (his note 19:57): `vr_sight_front_hue_shift` default 240 -> 90 (his value).
 ## flashgrab: the belt flashlight is a holster slot; Holster Setup places, turns and sizes it (branch agent/flashgrab, 2026-11-26)
 
 His note (VR, 19:58): a quick grab of the belt torch often missed it, the hand had to stop half a second; a hand arriving

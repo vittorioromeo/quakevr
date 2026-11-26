@@ -1412,15 +1412,6 @@ struct Climber
     double flatSlideGrain{0.0};      // (ropes13) the server's time its next scrape grain starts
     int flatSlides{0};               // (ropes13) slides begun (the tests)
     bool flatCrouchWas{false};       // (ropes13) crouch held last frame on a monkey traverse (a press drops him)
-    // (ropes6) A headset's pulls up a rope (ropePullGrunt): each hand's rope grip last seen (its serial), the newest
-    // grip's hand and the body's height over its hold as it took it, whether its pull has grunted, when the next grunt
-    // may come, and the grunts so far (the tests').
-    int pullSeen[2]{-1, -1};
-    int pullHand{-1};
-    float pullFrom{0.f};
-    bool pullGrunted{true};
-    double pullGruntNext{0.0};
-    int pullGrunts{0};
     // Hanging or slipping: holding on with one hand or both.
     bool hanging() const
     {
@@ -4908,56 +4899,6 @@ int flatRopeFrame(edict_t* ent, Climber& c, const VrMove& move, double time)
 
 namespace
 {
-constexpr float pullGruntRise = 0.15f; // m: the body risen this far over a new rope grip's hold since taking it: a pull
-constexpr double pullGruntGap = 0.6;   // seconds between two pull grunts at least
-
-// (ropes6, NOTES.md vrropes_2026-11-22_15-43-56) A short exertion grunt as a headset's pull lifts him up a rope: once a
-// grip, when the body has risen pullGruntRise over that grip's hold since the hand took it (pulled down on it; a mere
-// grab, or the rope's swing, which carries hold and body alike, lifts nothing), at vr_rope_grunt's volume (one of the
-// mantle's grunts: vr_rope_grunt_sound), at most every pullGruntGap. Flat-screen play's keys climb steadily, with no
-// pulls: none there.
-void ropePullGrunt(edict_t* ent, Climber& c)
-{
-    for(int h = 0; h < 2; h++)
-    {
-        const Grip& g = c.grips[h];
-        const int serial = g.active && g.rope ? g.serial : -1;
-        if(serial >= 0 && serial != c.pullSeen[h])
-        {
-            c.pullHand = h; // (a new grip: its pull to come)
-            c.pullFrom = ent->v.origin[2] - g.hold.z;
-            c.pullGrunted = c.flatRope;
-        }
-        c.pullSeen[h] = serial;
-    }
-    if(c.pullHand < 0 || c.pullGrunted || c.pullSeen[c.pullHand] < 0)
-    {
-        return;
-    }
-    const float rise = ent->v.origin[2] - c.grips[c.pullHand].hold.z - c.pullFrom;
-    if(rise < pullGruntRise * units::metresToUnits())
-    {
-        return;
-    }
-    c.pullGrunted = true;
-    // (ropes14, NOTES.md vrropes_2026-11-23_22-51-05: "too much" on poles) A pole's pulls at vr_pole_grunt's volume (0: none).
-    const float volume = climbrope::pole(c.grips[c.pullHand].entNum) ? vr_pole_grunt.value : vr_rope_grunt.value;
-    if(volume <= 0.f)
-    {
-        return;
-    }
-    if(qcvm->time >= c.pullGruntNext && climb::grunt(ent, vr_rope_grunt_sound.value, volume))
-    {
-        c.pullGruntNext = qcvm->time + pullGruntGap;
-        c.pullGrunts++;
-        if(debug())
-        {
-            Con_Printf("climb: rope pull grunt (%s hand, up %.1f) %s %.2f\n", handName(c.pullHand), rise,
-                climb::gruntSample(vr_rope_grunt_sound.value), za::clamp(volume, 0.f, 1.f));
-        }
-    }
-}
-
 // A hanging (or slipping) frame: the body moved by the holding hands, the mantle's test (the steps'); out of reach, the
 // fall; the stamina. The hang's once-a-frame part after its steps (single player's one, a remote client's moves': MP
 // B8i), unless they began the mantle: kept within reach, the owed settled, the reach checked, the no-room buzz, the
@@ -4972,7 +4913,6 @@ void hangFramePart(Hang& hang)
     // A rope's rider whose body couldn't go where the swing (and the pull) took it, level (a wall): his swing stopped
     // that way, the rope pushed back (see "Holds on ropes").
     climbrope::riderBlocked(NUM_FOR_EDICT(ent) - 1, glm::vec3{hang.meant.x - hang.done.x, hang.meant.y - hang.done.y, 0.f});
-    ropePullGrunt(ent, c);
     if(!c.hanging())
     {
         // Let go of everything (out of reach): fall.
@@ -5581,12 +5521,6 @@ int qvr::climb::ropeHands(edict_t* ent)
         return 0;
     }
     return (c->grips[0].active && c->grips[0].rope ? 1 : 0) + (c->grips[1].active && c->grips[1].rope ? 1 : 0);
-}
-
-int qvr::climb::ropePullGrunts(edict_t* ent)
-{
-    const Climber* c = climberOf(ent);
-    return c ? c->pullGrunts : 0;
 }
 
 bool qvr::climb::ropeLetGoPass(edict_t* ent, int rope)

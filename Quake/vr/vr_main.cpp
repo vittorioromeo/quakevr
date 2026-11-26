@@ -2386,6 +2386,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_runlaunch_test", menu::runLaunchTest_f);
     Cmd_AddCommand("vr_continue_rows_test", menu::continueRowsTest_f);
     Cmd_AddCommand("vr_menu_flash_test", menu::flashTest_f);
+    Cmd_AddCommand("vr_menu_preset_cycle_test", menu::presetCycleTest_f);
     Cmd_AddCommand("vr_menu_search_filter_test", menu::searchFilterTest_f);
     Cmd_AddCommand("vr_menu_stop_test", menu::stopTest_f);
     Cmd_AddCommand("vr_tips_reset", tips::reset_f);

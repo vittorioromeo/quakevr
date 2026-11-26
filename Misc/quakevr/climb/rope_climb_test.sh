@@ -6,7 +6,7 @@
 #   rope_jump   up, the nudge, a jump: up by vr_rope_jump over the rope's own, its level speed kept
 #   rope_pump   up, the forward key held 6 s: the swing pumped to at least 250 units/s at the hands, no more than the cap
 #   rope_calm   (ropes6) four pulls up hand over hand, the body close to it: up at least 50, the swing at the hands at
-#               most 25 units/s and its free end at most 30 (each regrab barely moves it), each pull grunts (3 or 4)
+#               most 25 units/s and its free end at most 30 (each regrab barely moves it)
 #   rope_short  (ropes6) a short rope (425 long: its end near his legs) taken overhead with both hands and pulled up off
 #               the floor: the feet hang at least 10 units under the pelvis, not reaching up for its end
 #   pole_wood, pole_metal  (ropes7) a pole standing ahead: up hand over hand (30), the feet round it, its material's grip
