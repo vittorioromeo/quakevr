@@ -835,3 +835,34 @@ His items 3, 5, 12 (2026-11-25).
   ticked that no voice note names since they were added (`cl_retire_ticks.py`; scenes untouched, the ship's own lines
   skipped), each as its own commit ("tunables: promote his values", "checklist: retire N ticked lines"). A build that
   fails with them in ships again without them (warning). Flags: `--no-promote`, `--no-retire`, `--wait-game` (releases).
+
+## Flat stuck blades: free off hand joins, pole shaft grip, ragdoll smoothing (branch agent/flatembed3, 2026-11-26)
+
+His items 3, 7 and 10 (flat notes 2026-11-25/26).
+- **Off hand joins (item 3):** flat play's free, empty other hand takes any two-handed stuck blade (not the dagger, not a
+  2h_mode 2 weapon: `VR_Embed_CanTwoHand`) when the blade's grip/shaft segment (handle to wound) is within its arm's reach
+  from the off shoulder: `VR_EMBED_FLATARM_REACH` 0.6 m plus `vr_flat_embed_other_hand` cm (default 30; 0 never). Checked at
+  the stab (`VR_Embed_Try`) and every hold think while one hand holds it (`VR_Embed_HoldThink`, not during a pull), so a
+  one-handed stab or a later regrab gets the second hand too. A hand `VR_Embed_FlatArm` dropped for reach waits 0.4 s and
+  then needs 85% of the reach (`vr_hold_flatdrop_*`). Both hands' flat anchors are the handle (`VR_Embed_SetG0`). H drops both.
+  Test: vr_embed_test 64 (`embedhold_test.sh`): the spear, the sword stabbed one-handed and the swung axe all assert the
+  other hand on it the whole hold with vr_flat_embed_arm 1, none with 0.
+- **Pole shaft grip (item 7):** one helper, `poleShaftGrip` (vr_view_hands.cpp, on `alignChannel`): the hand's grip channel
+  turned and moved the least onto the pole's line. Held (flat): every state now, by `vr_flat_pole_off_snap` (default 1;
+  0 = only the flipped grip, as before), on the drawn mount-to-muzzle line. Stuck in a body (VR and flat): a hand on a grip
+  hotspot (not the handle) of a spear/Lance goes onto the shaft line through that hotspot (butt-to-tip way,
+  `weaponLocalGeometry`; the model's butt/tip points themselves, placed by `hotspotFrame`, were 13-21 units off the drawn
+  grip); in flat play, out of the arm's reach, it slides down the shaft towards the shoulder (`keepOnArm` along the shaft),
+  and if no shaft point is in reach, as near as the arm gets. Probe: `vr_embed_probe_pdist` / `_pturn` / `_pon` (cm and
+  degrees the channel is off the shaft, frames). The embedded holder frame keeps `reversed=false` on purpose: it is a frame
+  rigid with the blade, not the holder's real hand.
+- **Ragdoll smoothing (item 10):** `view::embedSmoothStep` (before `embedPinStep`): a held blade stuck in a ragdoll is drawn
+  with its place eased and turn slerped (`vr_embed_ragdoll_smooth_time` 0.04 s, 0 off), trailing the body by at most
+  `_max_pos` 2 cm / `_max_deg` 6 degrees. Written into the client entity, so the blade and every hand drawn on it share it.
+  Only ragdolls: STAT_QVR_EMBED* is now edict * 8 + in a ragdoll 4 + reversed 2 + by handle 1 (`ragdoll::published` of the
+  blade's host; `axestick::heldEnt` / `heldInRagdoll`; vr_flatplay.cpp and vr_gadgetlock.cpp use `heldEnt`). Smoothing a
+  standing body's blade broke the flat arm's reach (vr_embed_test 64, ogre case), hence the gate. State reset on map change
+  (`embedPinsReset`) and on a new blade entity or model. Probe: `vr_embed_probe_jraw` / `_jdrawn` (mean frame-to-frame change
+  of velocity in units plus turn rate in degrees, in the body and as drawn), `_jlag` (cm), `_jon`.
+- Open: no automated assertions yet for item 7 across the four states or for item 10 on/off (the probes above are there for
+  them); the parry pose and the smoothing were not checked visually.
