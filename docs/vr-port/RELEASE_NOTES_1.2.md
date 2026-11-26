@@ -64,7 +64,7 @@
   1. Connect the Quest to your PC with its USB cable and put the headset on: if it asks to allow access to its files, allow it.
   2. On the PC, open the Quest in File Explorer (This PC > your Quest > Internal shared storage) and go to `Android\data\com.vittorioromeo.quakevr\files`.
   3. Copy your saves (`*.sav`) and settings (`ironwail.cfg`) from the `quakevr` folder to your PC, and the saves in the folder of any mod you played there.
-  4. In the headset: Library > Unknown Sources > Quake VR > Uninstall.
+  4. In the headset: Library > Unknown Sources > Quake VR: Unleashed > Uninstall.
   5. Run Setup again with Meta Quest ticked: it installs beta 3 and copies the game to the headset again.
   6. Copy your files back into the same folders.
 - From beta 3 on, updates install over the old app again, keeping your saves.

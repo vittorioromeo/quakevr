@@ -41,7 +41,7 @@
         </intent>
     </queries>
 
-    <application android:label="Quake VR"
+    <application android:label="Quake VR: Unleashed"
         android:allowBackup="false"
         android:hasCode="true"
         android:extractNativeLibs="true"
@@ -55,7 +55,7 @@
         <meta-data android:name="com.oculus.supportedDevices" android:value="quest2|quest3|quest3s" />
 
         <activity android:name="com.vittorioromeo.quakevr.QuakeVRActivity"
-            android:label="Quake VR"
+            android:label="Quake VR: Unleashed"
             android:alwaysRetainTaskState="true"
             android:launchMode="singleTask"
             android:screenOrientation="landscape"

@@ -1616,3 +1616,11 @@ overhead attack with both hands. Make this an option (on by default)."
   (e.g. `"tune vr_flat_overhand_2h_end_out 0"`). `flatmelee4_test.sh` 9/0 and `flatmelee_test.sh` 12/0 (their V with
   empty hands is now the two-fisted blow; their checks still hold). eval.sh not run: no shared melee code changed
   (VRMeleeDmg/T_Damage_VRMelee only scale when the flat bit is set). Scene `flat_melee_2fist`.
+
+## questname
+
+The Quest app is now "Quake VR: Unleashed" (the PC's casing: quakedef.h title, QuakeVR.rc, the installer). Changed:
+`Android/app/src/main/AndroidManifest.xml` (application and activity `android:label`), `Android/check_apk.sh` (new
+check: aapt2 badging label), the installer's Quest texts (`QuestInstaller.cs` done and uninstall hints), `docs/INSTALL.md`,
+`ANDROID_RELEASE.md`, `RELEASE_NOTES_1.2.md`. Package id unchanged. PC title, exe description and shortcuts already used
+the name. APK rebuilt with package_apk.sh: badging says label 'Quake VR: Unleashed'; check_apk 21/0.
