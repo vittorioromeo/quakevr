@@ -152,6 +152,7 @@ public static class QuestFiles
         }
 
         AddRelit(installDir, files);
+        AddHulls(installDir, files);
         if (DataStamp(record.Version) is { } stamp)
         {
             files[DataVersionPath] = new QuestFile(DataVersionPath, stamp, new FileInfo(stamp).Length, "version stamp");
@@ -231,6 +232,47 @@ public static class QuestFiles
                         files[devicePath] = new QuestFile(devicePath, source, new FileInfo(source).Length, "relit");
                     }
                 }
+            }
+        }
+    }
+
+    /// <summary>The headset's disk cache, under its files folder: the engine's <c>&lt;base&gt;/cache</c> (vr_files.cpp
+    /// baseCacheDir; the Quest's base is the files folder, its vr_cache_dir empty).</summary>
+    public const string DeviceCacheFolder = "cache";
+
+    /// <summary>
+    /// The collision the preparation run made for Quake's and the mission packs' maps (its hulls' step, listed in
+    /// <see cref="GamePreparation.HullListPath"/>): the hull trees and brushes, the same bytes on the PC and the Quest
+    /// (keyed by the map's world and the trees' version, never the exe: prebuiltcache), into the headset's own disk cache
+    /// (<c>cache/hulls/&lt;build&gt;/</c>), where its game reads them as files it made itself (a build of other trees
+    /// prunes that folder; a file amiss is made again). Only the listed files that are still there.
+    /// </summary>
+    static void AddHulls(string installDir, Dictionary<string, QuestFile> files)
+    {
+        var list = GamePreparation.HullListPath(installDir);
+        if (!File.Exists(list))
+        {
+            return;
+        }
+        foreach (var line in File.ReadLines(list))
+        {
+            var parts = line.Split('\t', 2);
+            if (parts.Length != 2)
+            {
+                continue;
+            }
+            var rel = parts[0].Trim().Replace('\\', '/');
+            var source = parts[1].Trim();
+            // (a cache path the list could only have from the game: hulls/<build>/<file>, nothing above it)
+            var segments = rel.Split('/');
+            if (segments.Length != 3 || segments[0] != "hulls" || segments.Any(s => s.Length == 0 || s is "." or ".." || s.IndexOfAny([':', '\\']) >= 0))
+            {
+                continue;
+            }
+            var devicePath = $"{DeviceCacheFolder}/{rel}";
+            if (!files.ContainsKey(devicePath) && File.Exists(source))
+            {
+                files[devicePath] = new QuestFile(devicePath, source, new FileInfo(source).Length, "collision");
             }
         }
     }
